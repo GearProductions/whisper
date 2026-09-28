@@ -1,0 +1,42 @@
+/* La fenêtre EST l'icône : fond transparent, un disque qui la remplit. */
+html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+
+#icon {
+  position: fixed;
+  inset: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #1f2430;
+  border: 2px solid #3a4150;
+  color: #e6e8ee;
+  cursor: grab;
+  user-select: none;
+  transition: background 0.15s ease;
+}
+#icon:active { cursor: grabbing; }
+#icon svg { width: 55%; height: 55%; pointer-events: none; }
+#icon svg rect { fill: currentColor; }
+#icon svg path { stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+
+#icon[data-phase="recording"] {
+  background: #d9383a;
+  border-color: #d9383a;
+  color: #fff;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+#icon[data-phase="starting"],
+#icon[data-phase="transcribing"] {
+  background: #3b6fe0;
+  border-color: #3b6fe0;
+  color: #fff;
+  animation: blink 0.8s ease-in-out infinite alternate;
+}
+#icon[data-phase="error"] { border-color: #d9383a; color: #ff6b6b; }
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(217, 56, 58, 0.7); }
+  50% { box-shadow: 0 0 0 4px rgba(217, 56, 58, 0); }
+}
+@keyframes blink { from { opacity: 1; } to { opacity: 0.55; } }

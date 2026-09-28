@@ -1,0 +1,16 @@
+{
+  "name": "whisper-dictation",
+  "version": "0.1.0",
+  "description": "Icône flottante : maintenir le clic pour dicter (whisper.cpp local), le texte est collé là où est le curseur",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-packager . whisper --platform=win32 --arch=x64 --out=dist --overwrite --ignore=\"^/dist\" --asar.unpack=\"**/*.ps1\"",
+    "build:linux": "electron-packager . whisper --platform=linux --arch=x64 --out=dist --overwrite --ignore=\"^/dist\""
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@electron/packager": "^20.0.3",
+    "electron": "^33.0.0"
+  }
+}
