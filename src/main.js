@@ -4,7 +4,10 @@
    Une seule fenêtre : une icône ronde, flottante, toujours au premier plan, qui
    ne prend JAMAIS le focus — le texte dicté doit arriver dans l'application où
    est le curseur, pas ici. Maintenir le clic dicte, glisser déplace, clic droit
-   ouvre le menu (langue, micro, son, dossier whisper, quitter).
+   ouvre le menu (langue, micro, son, bulle, dossier whisper, quitter).
+
+   À la fin d'une dictée, une BULLE montre le texte à côté de l'icône (réglage
+   `showText`) ; un clic dessus le copie.
 
    Ce qui est collé est TOUJOURS ce que whisper vient de rendre, jamais un texte
    fourni par le renderer.
@@ -23,7 +26,7 @@ if (!app.requestSingleInstanceLock()) app.quit();
 
 /* ---- Configuration (userData/config.json) -------------------------------- */
 
-const DEFAULTS = { lang: 'fr', vocabulary: '', sound: true, deviceId: '', deviceLabel: '', size: 64, pos: null };
+const DEFAULTS = { lang: 'fr', vocabulary: '', sound: true, showText: true, deviceId: '', deviceLabel: '', size: 64, pos: null };
 const LANGS = { fr: 'Français', en: 'English', auto: 'Détection auto', es: 'Español', de: 'Deutsch', it: 'Italiano', pt: 'Português', nl: 'Nederlands' };
 const configFile = () => path.join(app.getPath('userData'), 'config.json');
 
@@ -94,6 +97,80 @@ function setupPermissions(ses) {
     permission === 'media' && isOwn(origin) && details && details.mediaType === 'audio'));
 }
 
+/* ---- Bulle du texte transcrit ------------------------------------------- */
+
+const BUBBLE_W = 340;
+const BUBBLE_MAX_H = 240;
+const BUBBLE_GAP = 6;
+const BUBBLE_MS = 10000;         // affichage avant masquage automatique
+const BUBBLE_COPIED_MS = 1200;   // le temps de lire « Copié »
+
+let bubble = null;
+let bubbleText = '';
+let bubbleTimer = null;
+
+// Créée une fois, cachée : la montrer ensuite est instantané.
+function createBubble() {
+  bubble = new BrowserWindow({
+    width: BUBBLE_W, height: 80, show: false,
+    frame: false, transparent: true, resizable: false, maximizable: false, fullscreenable: false,
+    skipTaskbar: true, hasShadow: false, alwaysOnTop: true,
+    // Comme l'icône : la cliquer ne vole pas le focus à l'application cible.
+    focusable: false,
+    webPreferences: { preload: path.join(__dirname, 'bubble-preload.js'), contextIsolation: true, sandbox: true },
+  });
+  bubble.setAlwaysOnTop(true, 'floating');
+  bubble.setVisibleOnAllWorkspaces(true);
+  bubble.loadFile(path.join(__dirname, 'bubble.html'));
+}
+
+function hideBubble() {
+  clearTimeout(bubbleTimer);
+  if (bubble && bubble.isVisible()) bubble.hide();
+}
+
+function scheduleHide(ms) {
+  clearTimeout(bubbleTimer);
+  bubbleTimer = setTimeout(hideBubble, ms);
+}
+
+// Le texte part au renderer de la bulle, qui mesure sa hauteur et répond
+// `bubble:ready` : c'est là qu'on la place et qu'on la montre.
+function showBubble(text) {
+  if (!bubble || !win) return;
+  bubbleText = text;
+  bubble.webContents.send('bubble:show', text);
+}
+
+// Au-dessus de l'icône, centrée sur elle ; en dessous si le haut de l'écran
+// manque de place ; toujours dans la zone de travail de l'écran de l'icône.
+ipcMain.on('bubble:ready', (_e, height) => {
+  if (!bubble || !win) return;
+  const h = Math.max(40, Math.min(BUBBLE_MAX_H, Math.round(Number(height)) || 80));
+  const icon = win.getBounds();
+  const a = screen.getDisplayMatching(icon).workArea;
+  let x = icon.x + Math.round(icon.width / 2 - BUBBLE_W / 2);
+  x = Math.max(a.x, Math.min(a.x + a.width - BUBBLE_W, x));
+  let y = icon.y - h - BUBBLE_GAP;
+  if (y < a.y) y = Math.min(icon.y + icon.height + BUBBLE_GAP, a.y + a.height - h);
+  bubble.setBounds({ x, y, width: BUBBLE_W, height: h });
+  bubble.showInactive();
+  scheduleHide(BUBBLE_MS);
+});
+
+// Survolée : on la laisse lire ; quittée : le délai repart.
+ipcMain.on('bubble:hover', (_e, inside) => {
+  if (!bubble || !bubble.isVisible()) return;
+  if (inside) clearTimeout(bubbleTimer); else scheduleHide(BUBBLE_MS);
+});
+
+ipcMain.handle('bubble:copy', () => {
+  if (!bubbleText) return false;
+  clipboard.writeText(bubbleText);
+  scheduleHide(BUBBLE_COPIED_MS);
+  return true;
+});
+
 /* ---- IPC : fenêtre ------------------------------------------------------- */
 
 ipcMain.handle('win:getBounds', () => (win ? win.getBounds() : null));
@@ -111,7 +188,9 @@ ipcMain.on('config:setDevice', (_e, deviceId, deviceLabel) => {
   saveConfig({ deviceId: String(deviceId || ''), deviceLabel: String(deviceLabel || '') });
 });
 
-ipcMain.handle('dictation:warmUp', () => { paste.warmUp(); return true; });
+// Appelé quand l'enregistrement démarre : on prépare le collage, et la bulle
+// de la dictée précédente s'efface.
+ipcMain.handle('dictation:warmUp', () => { paste.warmUp(); hideBubble(); return true; });
 
 // Photographie de ce que l'utilisateur avait copié, pour le lui rendre après
 // le collage.
@@ -171,6 +250,7 @@ ipcMain.handle('dictation:transcribe', async (_e, pcm) => {
     return { ok: false, code, error: MESSAGES[code] };
   }
   if (!text) return { ok: true, text: '', pasted: false };
+  if (cfg.showText !== false) showBubble(text);
   return { ok: true, text, pasted: await pasteText(text) };
 });
 
@@ -203,6 +283,8 @@ ipcMain.on('menu:open', (_e, devices) => {
       ],
     },
     { label: 'Bip de début / fin', type: 'checkbox', checked: cfg.sound !== false, click: (i) => saveConfig({ sound: i.checked }) },
+    { label: 'Afficher le texte transcrit', type: 'checkbox', checked: cfg.showText !== false,
+      click: (i) => { saveConfig({ showText: i.checked }); if (!i.checked) hideBubble(); } },
     { type: 'separator' },
     { label: 'Ouvrir le dossier whisper', click: () => { fs.mkdirSync(ownWhisperDir(), { recursive: true }); shell.openPath(ownWhisperDir()); } },
     { label: 'Modifier la configuration (vocabulaire…)', click: () => { saveConfig({}); shell.openPath(configFile()); } },
@@ -217,6 +299,7 @@ ipcMain.on('menu:open', (_e, devices) => {
 app.whenReady().then(() => {
   setupPermissions(require('electron').session.defaultSession);
   createWindow();
+  createBubble();
 });
 app.on('window-all-closed', () => app.quit());
 app.on('will-quit', () => paste.stop());

@@ -1,0 +1,22 @@
+/* La fenêtre EST la bulle : fond transparent, la bulle la remplit. */
+html, body { margin: 0; background: transparent; overflow: hidden; }
+
+#bubble {
+  margin: 4px;
+  padding: 10px 12px 8px;
+  max-height: 232px;
+  overflow-y: auto;
+  border-radius: 10px;
+  background: #1f2430;
+  border: 1px solid #3a4150;
+  color: #e6e8ee;
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Ubuntu, sans-serif;
+  cursor: pointer;
+  user-select: none;
+  box-sizing: border-box;
+}
+#bubble:hover { border-color: #3b6fe0; }
+#text { white-space: pre-wrap; overflow-wrap: anywhere; }
+#hint { margin-top: 6px; font-size: 11px; color: #8a91a0; }
+#bubble.copied { border-color: #2fa36b; }
+#bubble.copied #hint { color: #2fa36b; }

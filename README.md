@@ -7,7 +7,11 @@ C'est la dictée de l'icône compacte de Cockpit, seule.
 
 - **Maintenir** : dicter (bip aigu = parlez, bip grave = fin).
 - **Glisser** : déplacer l'icône (la position est retenue).
-- **Clic droit** : langue, micro, bip, dossier whisper, configuration, quitter.
+- **Clic droit** : langue, micro, bip, affichage du texte, dossier whisper, configuration, quitter.
+
+À la fin d'une dictée, une bulle montre le texte transcrit à côté de l'icône :
+**un clic dessus le copie** dans le presse-papiers. Elle disparaît seule après
+10 s (le survol suspend ce délai). Désactivable : clic droit → *Afficher le texte transcrit*.
 
 L'icône ne prend jamais le focus : le texte arrive dans l'application active.
 Le presse-papiers est restauré après le collage (sauf si le collage a échoué :
@@ -57,6 +61,7 @@ terminaux Linux collent avec Ctrl+Maj+V, pas Ctrl+V.
 | `lang`       | `fr`, `en`, `auto`…                                               |
 | `vocabulary` | Mots propres à votre domaine, pour guider whisper (300 car. max) |
 | `sound`      | Bips de début / fin                                               |
+| `showText`   | Bulle du texte transcrit à la fin d'une dictée                    |
 | `size`       | Taille de l'icône en px (32–200, appliquée au redémarrage)        |
 
 Relu à chaque dictée : pas besoin de relancer (sauf pour `size`).
