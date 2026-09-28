@@ -18,7 +18,10 @@ window.bubble.onShow((value) => {
   box.classList.remove('copied');
   box.scrollTop = 0;
   // Hauteur réelle une fois le texte posé : le principal taille la fenêtre dessus.
-  requestAnimationFrame(() => window.bubble.ready(Math.ceil(box.getBoundingClientRect().height) + 8));
+  // Mesure immédiate (getBoundingClientRect force la mise en page), PAS dans un
+  // requestAnimationFrame : la bulle est alors cachée, et une page cachée n'en
+  // exécute aucun — elle ne s'afficherait qu'à la première dictée.
+  window.bubble.ready(Math.ceil(box.getBoundingClientRect().height) + 8);
 });
 
 box.addEventListener('click', async () => {
