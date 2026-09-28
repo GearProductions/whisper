@@ -3,7 +3,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('bubble', {
-  onShow: (fn) => ipcRenderer.on('bubble:show', (_e, text) => fn(text)),
+  onShow: (fn) => ipcRenderer.on('bubble:show', (_e, text, kind) => fn(text, kind)),
   ready: (height) => ipcRenderer.send('bubble:ready', height),
   copy: () => ipcRenderer.invoke('bubble:copy'),
   hover: (inside) => ipcRenderer.send('bubble:hover', inside),

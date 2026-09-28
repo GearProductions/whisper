@@ -87,18 +87,23 @@ async function startDictation() {
   const session = { stopRequested: false, rec: null, cfg };
   state.session = session;
   setPhase('starting');
+  // Avant d'ouvrir le micro : le principal coupe Discord si c'est autorisé.
+  // Chaque sortie ci-dessous (et releaseRecorder) signale la fin.
+  window.api.setRecording(true);
 
   let stream;
   try {
     stream = await openStream(cfg);
   } catch {
     state.session = null;
+    window.api.setRecording(false);
     setPhase('error', 'Micro inaccessible.');
     return;
   }
   if (session.stopRequested) {
     stream.getTracks().forEach((t) => t.stop());
     state.session = null;
+    window.api.setRecording(false);
     setPhase('idle');
     return;
   }
@@ -131,6 +136,7 @@ function releaseRecorder(rec) {
   try { rec.proc.disconnect(); rec.source.disconnect(); } catch { /* déjà débranché */ }
   rec.stream.getTracks().forEach((t) => t.stop());
   rec.ctx.close().catch(() => {});
+  window.api.setRecording(false);
 }
 
 // Float32 [-1, 1] → PCM 16 bits little-endian.

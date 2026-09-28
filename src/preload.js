@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('api', {
   getConfig: () => ipcRenderer.invoke('config:get'),
   setDevice: (id, label) => ipcRenderer.send('config:setDevice', id, label),
   warmUp: () => ipcRenderer.invoke('dictation:warmUp'),
+  setRecording: (on) => ipcRenderer.send('dictation:recording', !!on),
   transcribe: (pcm) => ipcRenderer.invoke('dictation:transcribe', pcm),
   openMenu: (devices) => ipcRenderer.send('menu:open', devices),
 });
