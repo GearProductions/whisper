@@ -50,6 +50,7 @@ const whisperDirs = () => [ownWhisperDir(), path.join(app.getPath('appData'), 'c
 /* ---- Fenêtre ------------------------------------------------------------- */
 
 let win = null;
+let winSize = 0; // taille voulue de l'icône, en px logiques
 
 // Une position mémorisée peut pointer hors écran (moniteur débranché) : on ne
 // la retient que si l'icône reste visible.
@@ -63,6 +64,7 @@ function isVisible(pos, size) {
 function createWindow() {
   const cfg = loadConfig();
   const size = Math.max(32, Math.min(200, Math.round(cfg.size) || DEFAULTS.size));
+  winSize = size;
   const wa = screen.getPrimaryDisplay().workArea;
   const pos = isVisible(cfg.pos, size) ? cfg.pos : { x: wa.x + wa.width - size - 24, y: wa.y + wa.height - size - 24 };
 
@@ -174,7 +176,12 @@ ipcMain.handle('bubble:copy', () => {
 /* ---- IPC : fenêtre ------------------------------------------------------- */
 
 ipcMain.handle('win:getBounds', () => (win ? win.getBounds() : null));
-ipcMain.on('win:setPosition', (_e, x, y) => { if (win) win.setPosition(Math.round(x), Math.round(y)); });
+// setBounds et non setPosition : avec une échelle d'affichage fractionnaire
+// (1,1 sous KDE…), chaque setPosition arrondit la taille vers le haut et
+// l'icône grossit à chaque pas du glisser. On réimpose donc la taille.
+ipcMain.on('win:setPosition', (_e, x, y) => {
+  if (win) win.setBounds({ x: Math.round(x), y: Math.round(y), width: winSize, height: winSize });
+});
 ipcMain.on('win:savePosition', (_e, x, y) => saveConfig({ pos: { x: Math.round(x), y: Math.round(y) } }));
 
 /* ---- IPC : dictée -------------------------------------------------------- */
