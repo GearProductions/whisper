@@ -25,6 +25,12 @@ suspend ce délai). **Un clic dessus le recopie** : pratique si on a copié autr
 chose entre-temps. Désactivable : clic droit → *Afficher le texte transcrit*
 (clé `showText` de `.data/config.json`).
 
+En appel Discord : clic droit → *Autoriser la coupure du micro Discord* pour que
+le salon n'entende pas la dictée (micro coupé le temps de l'enregistrement,
+puis rétabli ; un micro déjà coupé le reste). Coupure invisible côté Discord
+(ni icône ni son) : la bulle *Micro Discord coupé* la signale. Passe par
+`wpctl`, déjà présent dans la box (paquet `wireplumber`) : rien à installer.
+
 Arrêter : clic droit → *Quitter*.
 
 ## Mettre à jour

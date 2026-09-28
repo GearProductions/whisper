@@ -5,6 +5,9 @@
    transcrit »). Un clic copie le texte dans le presse-papiers. Le principal la
    place, la montre sans lui donner le focus et la masque au bout de quelques
    secondes — le survol suspend ce délai.
+
+   Elle sert aussi de « notice » (ex. « Micro Discord coupé ») : simple
+   message, rien à copier.
    ========================================================================= */
 
 const box = document.getElementById('bubble');
@@ -12,9 +15,13 @@ const text = document.getElementById('text');
 const hint = document.getElementById('hint');
 const HINT = 'Cliquer pour copier';
 
-window.bubble.onShow((value) => {
+window.bubble.onShow((value, kind) => {
+  const notice = kind === 'notice';
   text.textContent = value;
   hint.textContent = HINT;
+  hint.hidden = notice;
+  box.title = notice ? '' : HINT;
+  box.classList.toggle('notice', notice);
   box.classList.remove('copied');
   box.scrollTop = 0;
   // Hauteur réelle une fois le texte posé : le principal taille la fenêtre dessus.

@@ -4,10 +4,14 @@
    Une seule fenêtre : une icône ronde, flottante, toujours au premier plan, qui
    ne prend JAMAIS le focus — le texte dicté doit arriver dans l'application où
    est le curseur, pas ici. Maintenir le clic dicte, glisser déplace, clic droit
-   ouvre le menu (langue, micro, son, bulle, dossier whisper, quitter).
+   ouvre le menu (langue, micro, son, bulle, micro Discord, dossier whisper,
+   quitter).
 
    À la fin d'une dictée, une BULLE montre le texte à côté de l'icône (réglage
    `showText`) ; un clic dessus le copie.
+
+   Linux : pendant l'enregistrement, le micro Discord peut être coupé puis
+   rétabli (réglage `discordMute`, cf. discord.js).
 
    Ce qui est collé est TOUJOURS ce que whisper vient de rendre, jamais un texte
    fourni par le renderer.
@@ -18,6 +22,7 @@ const fs = require('fs');
 const { app, BrowserWindow, ipcMain, clipboard, shell, screen, Menu } = require('electron');
 const whisper = require('./whisper');
 const paste = require('./paste');
+const discord = require('./discord');
 
 // Fenêtre transparente sous Linux (X11) : sans ce drapeau, fond noir.
 if (process.platform === 'linux') app.commandLine.appendSwitch('enable-transparent-visuals');
@@ -26,7 +31,7 @@ if (!app.requestSingleInstanceLock()) app.quit();
 
 /* ---- Configuration (userData/config.json) -------------------------------- */
 
-const DEFAULTS = { lang: 'fr', vocabulary: '', sound: true, showText: true, deviceId: '', deviceLabel: '', size: 64, pos: null };
+const DEFAULTS = { lang: 'fr', vocabulary: '', sound: true, showText: true, discordMute: false, deviceId: '', deviceLabel: '', size: 64, pos: null };
 const LANGS = { fr: 'Français', en: 'English', auto: 'Détection auto', es: 'Español', de: 'Deutsch', it: 'Italiano', pt: 'Português', nl: 'Nederlands' };
 const configFile = () => path.join(app.getPath('userData'), 'config.json');
 
@@ -109,7 +114,9 @@ const BUBBLE_COPIED_MS = 1200;   // le temps de lire « Copié »
 
 let bubble = null;
 let bubbleText = '';
+let bubbleKind = 'text';         // 'text' : transcription, cliquable ; 'notice' : simple message
 let bubbleTimer = null;
+let recording = false;
 
 // Créée une fois, cachée : la montrer ensuite est instantané.
 function createBubble() {
@@ -137,17 +144,21 @@ function scheduleHide(ms) {
 }
 
 // Le texte part au renderer de la bulle, qui mesure sa hauteur et répond
-// `bubble:ready` : c'est là qu'on la place et qu'on la montre.
-function showBubble(text) {
+// `bubble:ready` : c'est là qu'on la place et qu'on la montre. Une « notice »
+// n'a rien à copier.
+function showBubble(text, kind = 'text') {
   if (!bubble || !win) return;
-  bubbleText = text;
-  bubble.webContents.send('bubble:show', text);
+  bubbleKind = kind;
+  bubbleText = kind === 'text' ? text : '';
+  bubble.webContents.send('bubble:show', text, kind);
 }
 
 // Au-dessus de l'icône, centrée sur elle ; en dessous si le haut de l'écran
 // manque de place ; toujours dans la zone de travail de l'écran de l'icône.
 ipcMain.on('bubble:ready', (_e, height) => {
   if (!bubble || !win) return;
+  // Notice arrivée après la fin de l'enregistrement : elle n'a plus lieu d'être.
+  if (bubbleKind === 'notice' && !recording) return;
   const h = Math.max(40, Math.min(BUBBLE_MAX_H, Math.round(Number(height)) || 80));
   const icon = win.getBounds();
   const a = screen.getDisplayMatching(icon).workArea;
@@ -195,9 +206,25 @@ ipcMain.on('config:setDevice', (_e, deviceId, deviceLabel) => {
   saveConfig({ deviceId: String(deviceId || ''), deviceLabel: String(deviceLabel || '') });
 });
 
-// Appelé quand l'enregistrement démarre : on prépare le collage, et la bulle
-// de la dictée précédente s'efface.
-ipcMain.handle('dictation:warmUp', () => { paste.warmUp(); hideBubble(); return true; });
+// Appelé quand le micro est ouvert : on prépare le collage.
+ipcMain.handle('dictation:warmUp', () => { paste.warmUp(); return true; });
+
+// Début (dès le seuil de maintien, avant l'ouverture du micro) et fin de
+// l'enregistrement. Au début, la bulle de la dictée précédente s'efface, et
+// « Micro Discord coupé » s'affiche si la coupure est confirmée. La fin
+// rétablit toujours : réglage décoché en cours de route ou non, rien ne doit
+// rester coupé.
+ipcMain.on('dictation:recording', (_e, on) => {
+  recording = !!on;
+  if (on) {
+    hideBubble();
+    if (loadConfig().discordMute !== true) return;
+    discord.mute().then((n) => { if (n > 0 && recording) showBubble('Micro Discord coupé', 'notice'); });
+  } else {
+    if (bubbleKind === 'notice') hideBubble();
+    discord.restore();
+  }
+});
 
 // Photographie de ce que l'utilisateur avait copié, pour le lui rendre après
 // le collage.
@@ -292,6 +319,10 @@ ipcMain.on('menu:open', (_e, devices) => {
     { label: 'Bip de début / fin', type: 'checkbox', checked: cfg.sound !== false, click: (i) => saveConfig({ sound: i.checked }) },
     { label: 'Afficher le texte transcrit', type: 'checkbox', checked: cfg.showText !== false,
       click: (i) => { saveConfig({ showText: i.checked }); if (!i.checked) hideBubble(); } },
+    ...(process.platform === 'linux' ? [
+      { label: 'Autoriser la coupure du micro Discord', type: 'checkbox', checked: cfg.discordMute === true,
+        click: (i) => saveConfig({ discordMute: i.checked }) },
+    ] : []),
     { type: 'separator' },
     { label: 'Ouvrir le dossier whisper', click: () => { fs.mkdirSync(ownWhisperDir(), { recursive: true }); shell.openPath(ownWhisperDir()); } },
     { label: 'Modifier la configuration (vocabulaire…)', click: () => { saveConfig({}); shell.openPath(configFile()); } },

@@ -19,4 +19,6 @@ html, body { margin: 0; background: transparent; overflow: hidden; }
 #text { white-space: pre-wrap; overflow-wrap: anywhere; }
 #hint { margin-top: 6px; font-size: 11px; color: #8a91a0; }
 #bubble.copied { border-color: #2fa36b; }
+/* Notice (« Micro Discord coupé ») : pas cliquable, bordure aux couleurs de Discord. */
+#bubble.notice, #bubble.notice:hover { cursor: default; border-color: #5865f2; }
 #bubble.copied #hint { color: #2fa36b; }

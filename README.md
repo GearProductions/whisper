@@ -7,7 +7,7 @@ C'est la dictée de l'icône compacte de Cockpit, seule.
 
 - **Maintenir** : dicter (bip aigu = parlez, bip grave = fin).
 - **Glisser** : déplacer l'icône (la position est retenue).
-- **Clic droit** : langue, micro, bip, affichage du texte, dossier whisper, configuration, quitter.
+- **Clic droit** : langue, micro, bip, affichage du texte, micro Discord (Linux), dossier whisper, configuration, quitter.
 
 À la fin d'une dictée, une bulle montre le texte transcrit à côté de l'icône :
 **un clic dessus le copie** dans le presse-papiers. Elle disparaît seule après
@@ -52,6 +52,19 @@ Il faut un outil pour simuler Ctrl+V :
 Sans outil, le texte reste dans le presse-papiers. Note : la plupart des
 terminaux Linux collent avec Ctrl+Maj+V, pas Ctrl+V.
 
+### Micro Discord (Linux)
+
+Clic droit → *Autoriser la coupure du micro Discord* (désactivé par défaut) :
+en appel Discord, le micro est coupé le temps de l'enregistrement, puis
+rétabli. Un micro déjà coupé le reste.
+
+C'est le flux de capture de Discord qui est coupé, dans PipeWire, pas le bouton
+« muet » de Discord : son icône ne change pas. À la place, une bulle
+*Micro Discord coupé* s'affiche le temps de l'enregistrement, une fois la
+coupure confirmée par PipeWire.
+
+Il faut `wpctl`, livré avec WirePlumber (installé d'office avec PipeWire).
+
 ## Configuration
 
 `config.json`, à côté du dossier whisper (clic droit → *Modifier la configuration*) :
@@ -62,6 +75,7 @@ terminaux Linux collent avec Ctrl+Maj+V, pas Ctrl+V.
 | `vocabulary` | Mots propres à votre domaine, pour guider whisper (300 car. max) |
 | `sound`      | Bips de début / fin                                               |
 | `showText`   | Bulle du texte transcrit à la fin d'une dictée                    |
+| `discordMute`| Linux : couper le micro Discord pendant l'enregistrement          |
 | `size`       | Taille de l'icône en px (32–200, appliquée au redémarrage)        |
 
 Relu à chaque dictée : pas besoin de relancer (sauf pour `size`).
