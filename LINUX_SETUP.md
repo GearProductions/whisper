@@ -7,20 +7,36 @@ l'appli tournant dans une distrobox `dev`, whisper.cpp compilé pour le GPU
 
 Tout se fait **dans la box `dev`**.
 
-Alternative sans rien compiler ni installer : l'AppImage des
-[Releases](https://github.com/SoutadeJulien/whisper-dictation/releases) (cf.
-README), qui télécharge elle-même ses modèles. Ce qui suit est l'installation
-de développement, depuis les sources.
+Deux versions coexistent sur ce poste :
+
+| Commande | Version | Où elle tourne | Données |
+|---|---|---|---|
+| `whisper-dev` | celle du projet (sources, cette branche) | box `dev` | `whisper-dictation/.data/` |
+| `whisper` | la version publiée (AppImage des [Releases](https://github.com/SoutadeJulien/whisper-dictation/releases)) | **hôte** | `~/.config/whisper-dictation/` |
+
+L'AppImage est un paquet autonome : elle tourne sur l'hôte Bazzite telle
+quelle (FUSE 2, `wl-paste` et `wpctl` y sont d'origine), sans rien de la box,
+et télécharge elle-même ses modèles au premier usage. Ce qui suit est
+l'installation de développement, depuis les sources.
 
 ## Lancer
 
 ```bash
-whisper
+whisper-dev     # version du projet
+whisper         # version publiée
 ```
 
-Alias de `~/.bashrc` vers `~/dev/Gear/tools/whisper.sh`, utilisable depuis
-l'hôte comme depuis la box (il entre dans `dev` si besoin). L'appli part en
-arrière-plan ; relancé, il dit « whisper tourne déjà ».
+Alias de `~/.bashrc`, utilisables depuis l'hôte comme depuis la box :
+
+- `whisper-dev` → `~/dev/Gear/tools/whisper.sh`, qui entre dans `dev` si besoin ;
+- `whisper` → `~/dev/Gear/tools/whisper-appimage.sh`, qui ressort sur l'hôte si
+  besoin et lance `whisper-dictation.AppImage` (lien vers la dernière version
+  téléchargée à côté : `ln -sfn whisper-dictation-X.Y.Z-linux.AppImage
+  whisper-dictation.AppImage` pour en changer).
+
+L'appli part en arrière-plan ; relancé, le lanceur dit « whisper tourne déjà ».
+Les deux versions peuvent tourner ensemble (deux icônes) : mieux vaut n'en
+garder qu'une.
 
 Maintenir le clic sur l'icône, parler, relâcher : le texte arrive dans le
 presse-papiers, **Ctrl+V** pour le coller (Ctrl+Maj+V dans un terminal).
@@ -72,7 +88,7 @@ lanceur ne fait rien. `.data/`, exclu de git, ne gêne pas le `pull`.
 | Service Chatterbox (GPU) | quadlet `~/.config/containers/systemd/dev-chatterbox.container`, image `localhost/dev-chatterbox`, poids dans le volume `dev-chatterbox-cache`, port `127.0.0.1:8004` |
 | Config (langue, vocabulaire, micro) | `.data/config.json` |
 | whisper.cpp | `~/dev/Gear/tools/whisper.cpp` — `build-vulkan/` (GPU, utilisé), `build/` (CPU, secours) |
-| Lanceur | `~/dev/Gear/tools/whisper.sh` |
+| Lanceurs | `~/dev/Gear/tools/whisper.sh` (projet), `~/dev/Gear/tools/whisper-appimage.sh` (AppImage) |
 | Journal | `~/.cache/whisper-dictation.log` |
 
 ## Paquets dnf de la box
@@ -192,5 +208,5 @@ echo "whisper lancé (journal : ~/.cache/whisper-dictation.log)."
 Et l'alias dans `~/.bashrc` :
 
 ```bash
-alias whisper="$HOME/dev/Gear/tools/whisper.sh"
+alias whisper-dev="$HOME/dev/Gear/tools/whisper.sh"
 ```
