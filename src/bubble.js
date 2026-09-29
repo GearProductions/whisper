@@ -21,7 +21,7 @@ const rangeValue = document.getElementById('volume-value');
 const HINT = 'Cliquer pour copier';
 
 window.bubble.onShow((value, kind) => {
-  const notice = kind === 'notice';
+  const notice = kind === 'notice' || kind === 'status'; // simples messages, rien à copier
   const isVolume = kind === 'volume';
   text.textContent = isVolume ? 'Volume de lecture' : value;
   volume.hidden = !isVolume;
@@ -32,7 +32,8 @@ window.bubble.onShow((value, kind) => {
   hint.textContent = HINT;
   hint.hidden = notice || isVolume;
   box.title = notice || isVolume ? '' : HINT;
-  box.classList.toggle('notice', notice);
+  box.classList.toggle('notice', kind === 'notice');   // aux couleurs de Discord
+  box.classList.toggle('status', kind === 'status');
   box.classList.toggle('volume', isVolume);
   box.classList.remove('copied');
   box.scrollTop = 0;

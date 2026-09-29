@@ -5,12 +5,42 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "build:win": "electron-packager . whisper --platform=win32 --arch=x64 --out=dist --overwrite --ignore=\"^/dist\" --asar.unpack=\"**/*.{ps1,py}\"",
-    "build:linux": "electron-packager . whisper --platform=linux --arch=x64 --out=dist --overwrite --ignore=\"^/dist\""
+    "build:whisper": "bash scripts/build-whisper.sh",
+    "fetch:uv": "bash scripts/fetch-uv.sh",
+    "dist:win": "electron-builder --win portable --publish never",
+    "dist:linux": "electron-builder --linux AppImage --publish never"
   },
   "license": "MIT",
   "devDependencies": {
-    "@electron/packager": "^20.0.3",
-    "electron": "^33.0.0"
+    "electron": "^33.0.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.gear-productions.whisper-dictation",
+    "artifactName": "whisper-dictation-${version}-${os}.${ext}",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "src/*.ps1",
+      "src/*.py"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/bin",
+        "to": "bin"
+      }
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "portable"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Utility"
+    }
   }
 }

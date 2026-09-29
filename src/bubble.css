@@ -39,6 +39,8 @@ html, body { margin: 0; background: transparent; overflow: hidden; }
 #bubble.copied { border-color: #2fa36b; }
 /* Notice (« Micro Discord coupé ») : pas cliquable, bordure aux couleurs de Discord. */
 #bubble.notice, #bubble.notice:hover { cursor: default; border-color: #5865f2; }
+/* Message de l'appli (téléchargement…) : pas cliquable non plus. */
+#bubble.status, #bubble.status:hover { cursor: default; }
 #bubble.copied #hint { color: #2fa36b; }
 /* Volume de lecture : un curseur, rien à copier. */
 #bubble.volume, #bubble.volume:hover { cursor: default; }
