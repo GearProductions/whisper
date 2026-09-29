@@ -10,8 +10,8 @@
    À la fin d'une dictée, une BULLE montre le texte à côté de l'icône (réglage
    `showText`) ; un clic dessus le copie.
 
-   Linux : pendant l'enregistrement, le micro Discord peut être coupé puis
-   rétabli (réglage `discordMute`, cf. discord.js).
+   Linux et Windows : pendant l'enregistrement, le micro Discord peut être
+   coupé puis rétabli (réglage `discordMute`, cf. discord.js).
 
    Un petit bouton accolé à l'icône lit à voix haute le texte sélectionné (ou
    le presse-papiers), en local : Pocket TTS sur le processeur, ou Chatterbox
@@ -30,6 +30,7 @@ const discord = require('./discord');
 const tts = require('./tts');
 const chatterbox = require('./chatterbox');
 const selection = require('./selection');
+const windows = require('./windows');
 
 // Fenêtre transparente sous Linux (X11) : sans ce drapeau, fond noir.
 if (process.platform === 'linux') app.commandLine.appendSwitch('enable-transparent-visuals');
@@ -66,11 +67,12 @@ function saveConfig(patch) {
 const ownWhisperDir = () => path.join(app.getPath('userData'), 'whisper');
 const whisperDirs = () => [ownWhisperDir(), path.join(app.getPath('appData'), 'cockpit', 'whisper')];
 
-// Ce que lit le bouton : 'selection', 'clipboard' ou 'off'. La sélection
-// (« primaire ») n'existe que sous Linux : ailleurs, le presse-papiers.
+// Ce que lit le bouton : 'selection', 'clipboard' ou 'off'. La sélection se
+// lit sous Linux et Windows (cf. selection.js) ; ailleurs, le presse-papiers.
+const canReadSelection = process.platform === 'linux' || process.platform === 'win32';
 function speakMode(cfg) {
   if (cfg.speak === 'off') return 'off';
-  return cfg.speak === 'clipboard' || process.platform !== 'linux' ? 'clipboard' : 'selection';
+  return cfg.speak === 'clipboard' || !canReadSelection ? 'clipboard' : 'selection';
 }
 
 // 0 à 1 : au-delà, la voix saturerait.
@@ -288,33 +290,10 @@ ipcMain.on('dictation:recording', (_e, on) => {
   }
 });
 
-// Photographie de ce que l'utilisateur avait copié, pour le lui rendre après
-// le collage.
-function snapshotClipboard() {
-  const snap = {};
-  try {
-    const formats = clipboard.availableFormats();
-    if (formats.some((f) => f.startsWith('text/plain'))) snap.text = clipboard.readText();
-    if (formats.includes('text/html')) snap.html = clipboard.readHTML();
-    if (formats.includes('text/rtf')) snap.rtf = clipboard.readRTF();
-    if (formats.some((f) => f.startsWith('image/'))) {
-      const img = clipboard.readImage();
-      if (!img.isEmpty()) snap.image = img;
-    }
-  } catch { /* presse-papiers occupé : on ne restaurera rien */ }
-  return snap;
-}
-
-function restoreClipboard(snap) {
-  try {
-    if (Object.keys(snap).length) clipboard.write(snap); else clipboard.clear();
-  } catch { /* tant pis : le texte dicté reste dans le presse-papiers */ }
-}
-
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function pasteText(text) {
-  const snap = snapshotClipboard();
+  const snap = selection.snapshotClipboard();
   clipboard.writeText(text);
   const ok = await paste.sendPaste();
   // Collage raté (outil absent sous Linux…) : le texte RESTE dans le
@@ -323,7 +302,7 @@ async function pasteText(text) {
   // L'application cible lit le presse-papiers APRÈS avoir reçu Ctrl+V, et à
   // son rythme : restaurer tout de suite lui ferait coller l'ancien contenu.
   await delay(400);
-  restoreClipboard(snap);
+  selection.restoreClipboard(snap);
   return true;
 }
 
@@ -415,7 +394,7 @@ ipcMain.on('tts:cancel', (_e, id) => tts.cancel(id));
 ipcMain.on('tts:warmUp', async () => {
   const cfg = loadConfig();
   const mode = speakMode(cfg);
-  if (mode !== 'off') tts.warmUp(await selection.readText(mode), speakOptions(cfg));
+  if (mode !== 'off') tts.warmUp(await selection.peekText(mode), speakOptions(cfg));
 });
 
 /* ---- Menu du clic droit -------------------------------------------------- */
@@ -459,7 +438,7 @@ ipcMain.on('menu:open', async (_e, devices) => {
     { label: 'Bip de début / fin', type: 'checkbox', checked: cfg.sound !== false, click: (i) => saveConfig({ sound: i.checked }) },
     { label: 'Afficher le texte transcrit', type: 'checkbox', checked: cfg.showText !== false,
       click: (i) => { saveConfig({ showText: i.checked }); if (!i.checked) hideBubble(); } },
-    ...(process.platform === 'linux' ? [
+    ...(process.platform === 'linux' || process.platform === 'win32' ? [
       { label: 'Autoriser la coupure du micro Discord', type: 'checkbox', checked: cfg.discordMute === true,
         click: (i) => saveConfig({ discordMute: i.checked }) },
     ] : []),
@@ -470,7 +449,7 @@ ipcMain.on('menu:open', async (_e, devices) => {
           { label: 'Pocket TTS non installé', enabled: false },
           { type: 'separator' },
         ] : []),
-        ...(process.platform === 'linux' ? [
+        ...(canReadSelection ? [
           { label: 'Texte sélectionné', type: 'radio', checked: speak === 'selection', click: () => setSpeak('selection') },
         ] : []),
         { label: 'Presse-papiers', type: 'radio', checked: speak === 'clipboard', click: () => setSpeak('clipboard') },
@@ -520,6 +499,9 @@ app.whenReady().then(() => {
   createWindow();
   createBubble();
   setInterval(pollSpeak, SPEAK_POLL_MS);
+  // Windows : l'assistant PowerShell sert au premier collage comme à la
+  // coupure du micro Discord en début de dictée ; il met ~1 s à démarrer.
+  paste.warmUp();
 });
 app.on('window-all-closed', () => app.quit());
-app.on('will-quit', () => { paste.stop(); tts.stop(); });
+app.on('will-quit', () => { windows.stop(); tts.stop(); });

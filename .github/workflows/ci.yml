@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  # Syntaxe du code de l'appli, sur les deux systèmes visés.
+  syntaxe:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: node --check
+        shell: bash
+        run: for f in src/*.js; do node --check "$f"; done
+
+  # L'assistant PowerShell (collage, Ctrl+C, micro Discord) ne peut être essayé
+  # que sous Windows : on le compile et on vérifie la réponse à chaque commande,
+  # avec le même powershell.exe (5.1) que l'appli. Sans Discord ni micro sur le
+  # runner, la coupure trouve 0 flux.
+  assistant-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: windows-helper.ps1
+        shell: pwsh
+        run: |
+          $commands = "discord-mute`ndiscord-restore`ncopy`npaste`ninconnue`n"
+          $out = $commands | powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File src/windows-helper.ps1
+          $lines = @($out | Where-Object { $_ -ne '' })
+          $expected = @('0', 'ok', 'ok', 'ok', 'err')
+          Write-Host "Réponses : $($lines -join ', ')"
+          if (($lines -join ',') -ne ($expected -join ',')) {
+            Write-Error "Attendu : $($expected -join ', ')"
+            exit 1
+          }

@@ -8,7 +8,7 @@ C'est la dictée de l'icône compacte de Cockpit, seule.
 - **Maintenir** : dicter (bip aigu = parlez, bip grave = fin).
 - **Glisser** : déplacer l'icône (la position est retenue).
 - **Bouton ▶ accolé** : lire à voix haute le texte sélectionné (ou le presse-papiers), en local avec [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) (Kyutai).
-- **Clic droit** : langue, micro, bip, affichage du texte, micro Discord (Linux), lecture à voix haute, dossier whisper, configuration, quitter.
+- **Clic droit** : langue, micro, bip, affichage du texte, micro Discord, lecture à voix haute, dossier whisper, configuration, quitter.
 
 À la fin d'une dictée, une bulle montre le texte transcrit à côté de l'icône :
 **un clic dessus le copie** dans le presse-papiers. Elle suit l'icône quand on
@@ -57,9 +57,14 @@ terminaux Linux collent avec Ctrl+Maj+V, pas Ctrl+V.
 ### Lecture à voix haute (Pocket TTS)
 
 Le petit bouton ▶ à droite de l'icône lit le texte **sélectionné** dans
-n'importe quelle application (Linux), ou le **presse-papiers** (Windows, ou au
-choix). Il est grisé quand il n'y a rien à lire ; pendant la lecture il devient
-■ : un clic arrête. Clic droit → *Lecture à voix haute* : source du texte, ou
+n'importe quelle application, ou le **presse-papiers** (au choix). Il est grisé
+quand il n'y a rien à lire ; pendant la lecture il devient ■ : un clic arrête.
+
+Sous **Windows**, qui n'a pas de sélection « primaire », le clic envoie Ctrl+C
+à l'application active, lit le presse-papiers puis le rend tel qu'il était.
+Le bouton ne peut donc pas savoir d'avance s'il y a une sélection : il reste
+actif (« Rien à lire » sinon). L'historique du presse-papiers de Windows
+(Win+V) garde une trace du texte lu. Clic droit → *Lecture à voix haute* : source du texte, ou
 *Désactivée* pour masquer le bouton ; *Volume…* ouvre un curseur à côté de
 l'icône, appliqué aussitôt, y compris à une lecture en cours.
 
@@ -94,18 +99,20 @@ Sous **Wayland**, il faut aussi `wl-paste` (paquet `wl-clipboard`) : le
 compositeur ne donne la sélection qu'à la fenêtre qui a le focus, et l'icône
 ne le prend jamais. Dans une distrobox, celui de l'hôte est utilisé.
 
-### Micro Discord (Linux)
+### Micro Discord
 
 Clic droit → *Autoriser la coupure du micro Discord* (désactivé par défaut) :
 en appel Discord, le micro est coupé le temps de l'enregistrement, puis
 rétabli. Un micro déjà coupé le reste.
 
-C'est le flux de capture de Discord qui est coupé, dans PipeWire, pas le bouton
-« muet » de Discord : son icône ne change pas. À la place, une bulle
-*Micro Discord coupé* s'affiche le temps de l'enregistrement, une fois la
-coupure confirmée par PipeWire.
+C'est le flux de capture de Discord qui est coupé, pas le bouton « muet » de
+Discord : son icône ne change pas. À la place, une bulle *Micro Discord coupé*
+s'affiche le temps de l'enregistrement, une fois la coupure confirmée.
 
-Il faut `wpctl`, livré avec WirePlumber (installé d'office avec PipeWire).
+- **Linux** : dans PipeWire, par `wpctl` (livré avec WirePlumber, installé
+  d'office avec PipeWire).
+- **Windows** : la session de capture de Discord, par l'API audio de Windows
+  (Core Audio). Rien à installer.
 
 ## Configuration
 
@@ -117,8 +124,8 @@ Il faut `wpctl`, livré avec WirePlumber (installé d'office avec PipeWire).
 | `vocabulary` | Mots propres à votre domaine, pour guider whisper (300 car. max) |
 | `sound`      | Bips de début / fin                                               |
 | `showText`   | Bulle du texte transcrit à la fin d'une dictée                    |
-| `discordMute`| Linux : couper le micro Discord pendant l'enregistrement          |
-| `speak`      | Bouton de lecture : `selection` (Linux), `clipboard` ou `off`     |
+| `discordMute`| Couper le micro Discord pendant l'enregistrement                 |
+| `speak`      | Bouton de lecture : `selection`, `clipboard` ou `off`             |
 | `speakVolume`| Volume de lecture, de `0` à `1`                                   |
 | `speakEngine`| `pocket` (processeur) ou `chatterbox` (GPU, service local)        |
 | `speakLang`  | `auto` (français ou anglais, détecté), `fr` ou `en`               |

@@ -1,9 +1,12 @@
 /* =========================================================================
-   Whisper — couper le micro Discord pendant la dictée (Linux)
+   Whisper — couper le micro Discord pendant la dictée
 
    En appel Discord, dicter enverrait sa voix à tout le salon. Le temps de
-   l'enregistrement, on coupe le FLUX de capture de Discord au niveau de
-   PipeWire (via `wpctl`, livré avec WirePlumber), puis on le rétablit.
+   l'enregistrement, on coupe le FLUX de capture de Discord, puis on le
+   rétablit :
+   - Linux : au niveau de PipeWire (via `wpctl`, livré avec WirePlumber) ;
+   - Windows : sa session de capture, par l'API audio (Core Audio) de
+     l'assistant PowerShell (cf. windows.js, windows-helper.ps1).
 
    Pas le micro du système : whisper enregistre sur le même, il n'entendrait
    plus rien. Pas non plus le bouton « muet » de Discord : un micro déjà coupé
@@ -12,6 +15,7 @@
    ========================================================================= */
 
 const { execFile } = require('child_process');
+const windows = require('./windows');
 
 const DISCORD_RE = /discord/i;
 
@@ -83,7 +87,25 @@ async function doRestore() {
 
 const run = (fn) => (queue = queue.then(fn, fn));
 
-function mute() { return process.platform === 'linux' ? run(doMute) : Promise.resolve(0); }
-function restore() { return run(doRestore); }
+/* ---- Windows ------------------------------------------------------------ */
+
+// L'assistant tient lui-même la liste des sessions qu'il a coupées.
+async function doMuteWindows() {
+  const n = Number(await windows.request('discord-mute'));
+  return Number.isFinite(n) ? n : 0;
+}
+const doRestoreWindows = () => windows.request('discord-restore');
+
+/* ---- API ---------------------------------------------------------------- */
+
+const platform = {
+  linux: { mute: doMute, restore: doRestore },
+  win32: { mute: doMuteWindows, restore: doRestoreWindows },
+}[process.platform];
+
+// Résout le nombre de flux dont la coupure est confirmée (0 : rien à couper,
+// ou système non pris en charge).
+function mute() { return platform ? run(platform.mute) : Promise.resolve(0); }
+function restore() { return platform ? run(platform.restore) : Promise.resolve(); }
 
 module.exports = { mute, restore };
