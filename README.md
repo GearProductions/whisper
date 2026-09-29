@@ -21,15 +21,42 @@ le texte y reste, pour un Ctrl+V manuel).
 
 ## Installation
 
+### Paquet autonome (recommandé)
+
+Dans les [Releases](https://github.com/SoutadeJulien/whisper-dictation/releases) :
+
+- **Windows** : `whisper-dictation-<version>-win.exe`, exécutable portable, sans
+  installation (il se décompresse à chaque lancement : quelques secondes).
+- **Linux** : `whisper-dictation-<version>-linux.AppImage`, à rendre exécutable
+  (`chmod +x`) puis lancer.
+
+Le paquet contient l'appli, whisper-cli (accéléré sur toute carte graphique
+par Vulkan, sinon sur le processeur) et `uv`. Les modèles, trop lourds pour le
+paquet, se téléchargent **au premier usage**, une seule fois, dans les données
+de l'appli (tableau ci-dessous) :
+
+- **au premier lancement**, le modèle de dictée (548 Mo) ; la bulle et le
+  menu en montrent l'avancement ;
+- **à la première lecture à voix haute**, Pocket TTS et son Python (~400 Mo à
+  télécharger, 1,2 Go sur le disque), puis ses modèles.
+
+Paquets non signés : Windows affiche un avertissement SmartScreen (*Informations
+complémentaires* → *Exécuter quand même*).
+
+### Depuis les sources
+
 ```bash
 npm install
 npm start
 ```
 
-### whisper.cpp
+### whisper.cpp (depuis les sources)
 
-Placez `whisper-cli` (`whisper-cli.exe` sous Windows) et un modèle `ggml-*.bin`
-dans le dossier whisper (clic droit → *Ouvrir le dossier whisper*) :
+`npm run build:whisper` compile whisper-cli dans `resources/bin/` (git, cmake,
+un compilateur C++ et le SDK Vulkan), comme le paquet ; il ne reste que le
+modèle, téléchargé au premier lancement. Sinon, placez `whisper-cli`
+(`whisper-cli.exe` sous Windows) et un modèle `ggml-*.bin` dans le dossier
+whisper (clic droit → *Ouvrir le dossier whisper*) :
 
 | OS      | Dossier                                    |
 |---------|--------------------------------------------|
@@ -38,11 +65,9 @@ dans le dossier whisper (clic droit → *Ouvrir le dossier whisper*) :
 
 Le modèle se pose à la racine du dossier ; l'exécutable peut être jusqu'à deux
 niveaux plus bas (`bin/Release/` d'une release Windows, `build/bin/` d'un build
-Linux). Si ce dossier est incomplet, l'installation de **Cockpit**
-(`…/cockpit/whisper/`) est utilisée.
-
-Linux : compilez whisper.cpp (`cmake -B build && cmake --build build -j`) puis
-copiez ou liez `build/bin/whisper-cli` et le modèle.
+Linux). L'exécutable et le modèle sont cherchés séparément : dans ce dossier,
+puis dans `resources/bin/` (paquet), puis dans l'installation de **Cockpit**
+(`…/cockpit/whisper/`).
 
 ### Collage sous Linux
 
@@ -64,19 +89,26 @@ Sous **Windows**, qui n'a pas de sélection « primaire », le clic envoie Ctrl+
 à l'application active, lit le presse-papiers puis le rend tel qu'il était.
 Le bouton ne peut donc pas savoir d'avance s'il y a une sélection : il reste
 actif (« Rien à lire » sinon). L'historique du presse-papiers de Windows
-(Win+V) garde une trace du texte lu. Clic droit → *Lecture à voix haute* : source du texte, ou
-*Désactivée* pour masquer le bouton ; *Volume…* ouvre un curseur à côté de
-l'icône, appliqué aussitôt, y compris à une lecture en cours.
+(Win+V) garde une trace du texte lu.
+
+Clic droit → *Lecture à voix haute* : source du texte, ou *Désactivée* pour
+masquer le bouton ; *Volume…* ouvre un curseur à côté de l'icône, appliqué
+aussitôt, y compris à une lecture en cours.
 
 La voix est produite en local, sur le processeur, par
-[Pocket TTS](https://github.com/kyutai-labs/pocket-tts) de Kyutai :
+[Pocket TTS](https://github.com/kyutai-labs/pocket-tts) de Kyutai. S'il manque,
+l'appli l'installe elle-même au premier clic sur ▶ (ou clic droit → *Installer
+Pocket TTS*), avec `uv`, dans ses données : Python, Pocket TTS et PyTorch en
+version processeur (~400 Mo à télécharger, 1,2 Go sur le disque). Rien n'est
+installé dans le système. `uv` est livré avec le paquet ; depuis les sources,
+`npm run fetch:uv` le télécharge dans `resources/bin/` (ou celui du système
+sert). Une installation faite à la main sert aussi :
 
 ```bash
-uv tool install pocket-tts --index https://download.pytorch.org/whl/cpu
+uv tool install pocket-tts==3.3.0 --index https://download.pytorch.org/whl/cpu
 ```
 
-(`--index` : la version de PyTorch sans CUDA, ~200 Mo au lieu de ~3 Go.) Les
-modèles se téléchargent à la première lecture (cache Hugging Face).
+Les modèles se téléchargent à la première lecture (cache Hugging Face).
 
 L'audio arrive au fil de la génération : la lecture commence ~0,1 s après le
 clic. Le modèle se charge au survol du bouton (~3 s, ~1,5 Go de mémoire par
@@ -134,12 +166,22 @@ s'affiche le temps de l'enregistrement, une fois la coupure confirmée.
 
 Relu à chaque dictée : pas besoin de relancer (sauf pour `size`).
 
-## Paquet
+## Paquets
+
+Construits par la CI (`.github/workflows/ci.yml`) à chaque PR et à chaque push
+sur `master` (artefacts de l'onglet *Actions*). Pour publier une version :
 
 ```bash
-npm run build:win
+git tag v0.2.0 && git push origin v0.2.0
 ```
 
+La CI construit alors l'exe et l'AppImage (version prise sur le tag) et les
+publie dans une Release GitHub.
+
+En local, sur le système visé (`dist/`) :
+
 ```bash
-npm run build:linux
+npm run build:whisper && npm run fetch:uv   # binaires embarqués (resources/bin/)
+npm run dist:linux                          # AppImage
+npm run dist:win                            # exe portable (sous Windows)
 ```
