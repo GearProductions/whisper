@@ -22,20 +22,22 @@ jobs:
         run: for f in src/*.js; do node --check "$f"; done
 
   # L'assistant PowerShell (collage, Ctrl+C, micro Discord) ne peut être essayé
-  # que sous Windows : on le compile et on vérifie la réponse à chaque commande,
-  # avec le même powershell.exe (5.1) que l'appli. Sans Discord ni micro sur le
-  # runner, la coupure trouve 0 flux.
+  # que sous Windows : on le compile et on vérifie ses réponses, avec le même
+  # powershell.exe (5.1) que l'appli. Sans Discord ni micro sur le runner, la
+  # coupure trouve 0 flux. Pas de `copy` ni de `paste` : ils frappent au
+  # clavier, et un Ctrl+C dans la console du runner l'interrompt.
   assistant-windows:
     runs-on: windows-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - name: windows-helper.ps1
         shell: pwsh
         run: |
-          $commands = "discord-mute`ndiscord-restore`ncopy`npaste`ninconnue`n"
+          $commands = "discord-mute`ndiscord-restore`ninconnue`n"
           $out = $commands | powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File src/windows-helper.ps1
           $lines = @($out | Where-Object { $_ -ne '' })
-          $expected = @('0', 'ok', 'ok', 'ok', 'err')
+          $expected = @('0', 'ok', 'err')
           Write-Host "Réponses : $($lines -join ', ')"
           if (($lines -join ',') -ne ($expected -join ',')) {
             Write-Error "Attendu : $($expected -join ', ')"
