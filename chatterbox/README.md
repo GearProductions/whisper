@@ -7,8 +7,8 @@ l'appli s'en sert quand clic droit → *Lecture à voix haute* → *Moteur* →
 *Chatterbox (GPU)* est coché, et revient à Pocket TTS si le service ne répond
 pas.
 
-- **Voix** : les mêmes que Pocket TTS (Estelle, Mary, Marius, Alba, Jane,
-  George), clonées à partir des enregistrements Kyutai, copiés dans l'image.
+- **Voix** : les mêmes que Pocket TTS (Estelle, Mary, Marius, Jane, Anna,
+  Alba), clonées à partir des enregistrements Kyutai, copiés dans l'image.
 - **GPU** : ~4,6 Go de VRAM pendant la lecture. Le modèle n'est chargé qu'à la
   demande (survol du bouton ▶, ~5 s) et libéré après 10 min sans lecture
   (`CHATTERBOX_IDLE_S`) ; au repos, le service garde ~330 Mo (contexte CUDA).

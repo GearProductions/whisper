@@ -29,9 +29,10 @@ const chatterbox = require('./chatterbox');
 const MAX_CHARS = 20000;          // ~20 min de lecture
 const IDLE_MS = 10 * 60 * 1000;
 
-// Modèles « 24l » : les plus soignés ; ~2 fois plus rapides que la lecture.
-// Voix sous licence libre (CC0, CC-BY) ; `cosette` et `jean`, réservées à un
-// usage non commercial, sont écartées.
+// Modèles « 24l » : les plus soignés ; quantifiés (cf. pocket-helper.py), ~5
+// fois plus rapides que la lecture. Voix sous licence libre (CC0, CC-BY) ;
+// `cosette` et `jean`, réservées à un usage non commercial, sont écartées.
+// Sexe vérifié à la hauteur de la voix, pas au prénom (Alba est un homme).
 const LANGS = {
   fr: {
     model: 'french_24l',
@@ -44,9 +45,9 @@ const LANGS = {
   en: {
     model: 'english_2026-09_24l',
     voices: [
-      { id: 'alba', label: 'Alba', gender: 'f' },
       { id: 'jane', label: 'Jane', gender: 'f' },
-      { id: 'george', label: 'George', gender: 'm' },
+      { id: 'anna', label: 'Anna', gender: 'f' },
+      { id: 'alba', label: 'Alba', gender: 'm' },
     ],
   },
 };

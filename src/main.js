@@ -4,8 +4,8 @@
    Une seule fenêtre : une icône ronde, flottante, toujours au premier plan, qui
    ne prend JAMAIS le focus — le texte dicté doit arriver dans l'application où
    est le curseur, pas ici. Maintenir le clic dicte, glisser déplace, clic droit
-   ouvre le menu (langue, micro, son, bulle, micro Discord, dossier whisper,
-   quitter).
+   ouvre le menu (langue, micro, son, bulle, micro Discord, lecture à voix
+   haute, dossier whisper, quitter).
 
    À la fin d'une dictée, une BULLE montre le texte à côté de l'icône (réglage
    `showText`) ; un clic dessus le copie.
@@ -14,7 +14,8 @@
    rétabli (réglage `discordMute`, cf. discord.js).
 
    Un petit bouton accolé à l'icône lit à voix haute le texte sélectionné (ou
-   le presse-papiers) avec Pocket TTS, en local (réglage `speak`, cf. tts.js).
+   le presse-papiers), en local : Pocket TTS sur le processeur, ou Chatterbox
+   sur GPU par son service (réglages `speak`, `speakEngine`, cf. tts.js).
 
    Ce qui est collé est TOUJOURS ce que whisper vient de rendre, jamais un texte
    fourni par le renderer.
@@ -42,7 +43,7 @@ const DEFAULTS = {
   speak: 'selection', speakVolume: 1,
   speakEngine: 'pocket',             // 'pocket' (processeur) ou 'chatterbox' (GPU, service local)
   speakLang: 'auto',                 // 'auto' : français ou anglais, détecté sur le texte entier
-  speakVoices: { fr: 'estelle', en: 'alba' },   // cf. tts.LANGS
+  speakVoices: { fr: 'estelle', en: 'jane' },   // cf. tts.LANGS
   deviceId: '', deviceLabel: '', size: 64, pos: null,
 };
 const LANGS = { fr: 'Français', en: 'English', auto: 'Détection auto', es: 'Español', de: 'Deutsch', it: 'Italiano', pt: 'Português', nl: 'Nederlands' };
@@ -83,10 +84,11 @@ const speakVolume = (cfg) => {
 let win = null;
 let winSize = 0; // taille voulue de l'icône, en px logiques
 
+let speakShown = false; // bouton de lecture montré (réglage `speak` ≠ 'off')
+
 // Le bouton de lecture, moitié moins grand, s'accole à droite de l'icône : la
 // fenêtre s'élargit d'autant (cf. style.css).
-const winWidth = (cfg = loadConfig()) => (
-  speakMode(cfg) === 'off' ? winSize : winSize + Math.round(winSize / 2) + 4);
+const winWidth = () => (speakShown ? winSize + Math.round(winSize / 2) + 4 : winSize);
 
 // Une position mémorisée peut pointer hors écran (moniteur débranché) : on ne
 // la retient que si l'icône reste visible.
@@ -101,11 +103,12 @@ function createWindow() {
   const cfg = loadConfig();
   const size = Math.max(32, Math.min(200, Math.round(cfg.size) || DEFAULTS.size));
   winSize = size;
+  speakShown = speakMode(cfg) !== 'off';
   const wa = screen.getPrimaryDisplay().workArea;
   const pos = isVisible(cfg.pos, size) ? cfg.pos : { x: wa.x + wa.width - size - 24, y: wa.y + wa.height - size - 24 };
 
   win = new BrowserWindow({
-    x: Math.round(pos.x), y: Math.round(pos.y), width: winWidth(cfg), height: size,
+    x: Math.round(pos.x), y: Math.round(pos.y), width: winWidth(), height: size,
     frame: false,
     transparent: true,
     resizable: false,
@@ -354,7 +357,6 @@ ipcMain.handle('dictation:transcribe', async (_e, pcm) => {
 // (bouton actif, grisé, masqué).
 const SPEAK_POLL_MS = 500;
 let speakKey = '';
-let speakShown = null; // bouton dont la largeur de fenêtre tient compte
 let speakPolling = false;
 
 async function pollSpeak() {
@@ -375,7 +377,7 @@ async function updateSpeakState() {
   if (mode !== 'off') {
     // Chatterbox : prêt d'office ; service arrêté, la lecture passe par Pocket TTS.
     const ready = cfg.speakEngine === 'chatterbox' || tts.isInstalled();
-    state = { mode, volume: speakVolume(cfg), ready, hasText: !!(await selection.readText(mode)).trim() };
+    state = { mode, volume: speakVolume(cfg), ready, hasText: await selection.hasText(mode) };
   }
   const key = JSON.stringify(state);
   if (key === speakKey || !win) return;

@@ -81,7 +81,7 @@ langue) et se décharge après 10 min sans lecture.
 langue détectée sur l'ensemble du texte (clic droit → *Langue du texte* pour
 l'imposer). La voix française dit très bien les termes techniques anglais.
 Trois voix par langue, fournies par Kyutai (clic droit → *Voix française* /
-*Voix anglaise*) : Estelle, Mary, Marius (homme) ; Alba, Jane, George (homme).
+*Voix anglaise*) : Estelle, Mary, Marius (homme) ; Jane, Anna, Alba (homme).
 Toutes sous licence libre (CC0 ou CC-BY 4.0) ; le clonage d'une autre voix
 demande des poids à accès restreint, non utilisés ici.
 
@@ -122,7 +122,7 @@ Il faut `wpctl`, livré avec WirePlumber (installé d'office avec PipeWire).
 | `speakVolume`| Volume de lecture, de `0` à `1`                                   |
 | `speakEngine`| `pocket` (processeur) ou `chatterbox` (GPU, service local)        |
 | `speakLang`  | `auto` (français ou anglais, détecté), `fr` ou `en`               |
-| `speakVoices`| Voix par langue : `{ "fr": "estelle", "en": "alba" }`             |
+| `speakVoices`| Voix par langue : `{ "fr": "estelle", "en": "jane" }`             |
 | `size`       | Taille de l'icône en px (32–200, appliquée au redémarrage)        |
 
 Relu à chaque dictée : pas besoin de relancer (sauf pour `size`).

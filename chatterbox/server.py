@@ -1,7 +1,7 @@
 """Chatterbox (Resemble AI) en service HTTP local, pour whisper-dictation.
 
 Moteur « GPU » de la lecture à voix haute : plus naturel que Pocket TTS, au
-prix de ~3,7 Go de mémoire vidéo. Le modèle n'est chargé qu'à la demande et
+prix de ~4,6 Go de mémoire vidéo pendant la lecture (~330 Mo au repos). Le modèle n'est chargé qu'à la demande et
 libéré après IDLE_S sans lecture : le GPU reste à ComfyUI ou gear-ai-worker le
 reste du temps.
 
@@ -48,18 +48,16 @@ VOICES = {
     "estelle": ("estelle.wav", "fr"),
     "mary": ("mary.wav", "en"),
     "marius": ("marius.wav", "en"),
-    "alba": ("alba.wav", "en"),
     "jane": ("jane.wav", "en"),
-    "george": ("george.wav", "en"),
+    "anna": ("anna.wav", "en"),
+    "alba": ("alba.wav", "en"),
 }
 VOICES_DIR = "/voices"
 
-# Style par langue. Le français sortait monotone : plus d'expressivité, et un
+# Style par langue ; les autres (l'anglais) gardent les valeurs par défaut de
+# Chatterbox. Le français sortait monotone : plus d'expressivité, et un
 # guidage plus bas pour un débit plus posé (choisis à l'écoute).
-STYLES = {
-    "fr": {"exaggeration": 0.9, "cfg_weight": 0.3},
-    "en": {"exaggeration": 0.5, "cfg_weight": 0.5},
-}
+STYLES = {"fr": {"exaggeration": 0.9, "cfg_weight": 0.3}}
 DEFAULT_STYLE = {"exaggeration": 0.5, "cfg_weight": 0.5}
 
 app = FastAPI()

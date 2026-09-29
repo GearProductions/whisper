@@ -21,9 +21,9 @@ for name, path in {
     "estelle": "unmute-prod-website/developpeuse-3.wav",
     "mary": "vctk/p333_023_enhanced.wav",
     "marius": "voice-donations/Selfie.wav",
-    "alba": "alba-mackenna/casual.wav",
     "jane": "vctk/p339_023_enhanced.wav",
-    "george": "vctk/p315_023_enhanced.wav",
+    "anna": "vctk/p228_023_enhanced.wav",
+    "alba": "alba-mackenna/casual.wav",
 }.items():
     urllib.request.urlretrieve(base + path, f"{name}.wav")
 PY

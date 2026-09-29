@@ -38,20 +38,51 @@ function findWlPaste() {
   return wlPaste;
 }
 
-// `mode` : 'selection' (primaire, Linux) ou 'clipboard'. Résout '' si rien
-// (vide, image seule, sélection trop grosse…).
-function readText(mode) {
-  const cli = findWlPaste();
-  if (!cli) {
-    try { return Promise.resolve(clipboard.readText(mode)); } catch { return Promise.resolve(''); }
-  }
-  const run = (args) => new Promise((resolve) => {
-    execFile(cli, args, { timeout: 1500, maxBuffer: MAX_BYTES }, (err, stdout) => resolve(err ? '' : stdout));
+const TEXT_TYPE = /^(text\/plain|UTF8_STRING|STRING|TEXT)\b/;
+const HAS_TEXT_MAX = 4096;
+
+const textArgs = (mode) => ['--no-newline', '--type', 'text', ...(mode === 'selection' ? ['--primary'] : [])];
+
+// stdout ; '' si wl-paste échoue ; `null` si le texte dépasse `max` octets.
+function wlPasteRun(cli, args, max = MAX_BYTES) {
+  return new Promise((resolve) => {
+    execFile(cli, args, { timeout: 1500, maxBuffer: max }, (err, stdout) => {
+      if (err && err.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') resolve(null);
+      else resolve(err ? '' : stdout);
+    });
   });
-  const text = ['--no-newline', '--type', 'text'];
-  if (mode !== 'selection') return run(text);
-  return run(['--list-types', '--primary']).then((types) => (
-    !types || types.split('\n').includes(KLIPPER_REFILL) ? '' : run([...text, '--primary'])));
 }
 
-module.exports = { readText };
+// Types proposés, sans les contenus : KLIPPER_REFILL et pas de texte → rien.
+async function textOffered(cli, mode) {
+  const primary = mode === 'selection';
+  const types = (await wlPasteRun(cli, ['--list-types', ...(primary ? ['--primary'] : [])])).split('\n');
+  if (primary && types.includes(KLIPPER_REFILL)) return false;
+  return types.some((t) => TEXT_TYPE.test(t));
+}
+
+// `mode` : 'selection' (primaire, Linux) ou 'clipboard'. Résout '' si rien
+// (vide, image seule, sélection trop grosse…).
+async function readText(mode) {
+  const cli = findWlPaste();
+  if (!cli) {
+    try { return clipboard.readText(mode); } catch { return ''; }
+  }
+  if (!(await textOffered(cli, mode))) return '';
+  return (await wlPasteRun(cli, textArgs(mode))) || '';
+}
+
+// Y a-t-il du texte à lire ? Relevé toutes les 500 ms pour le bouton : on
+// n'en lit que HAS_TEXT_MAX octets (une sélection peut peser 1 Mo). Les types
+// ne suffisent pas : un éditeur (Zed…) peut annoncer du texte vide.
+async function hasText(mode) {
+  const cli = findWlPaste();
+  if (!cli) {
+    try { return !!clipboard.readText(mode).trim(); } catch { return false; }
+  }
+  if (!(await textOffered(cli, mode))) return false;
+  const head = await wlPasteRun(cli, textArgs(mode), HAS_TEXT_MAX);
+  return head === null || !!head.trim(); // null : plus long que HAS_TEXT_MAX
+}
+
+module.exports = { readText, hasText };
