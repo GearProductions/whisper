@@ -7,6 +7,11 @@ l'appli tournant dans une distrobox `dev`, whisper.cpp compilé pour le GPU
 
 Tout se fait **dans la box `dev`**.
 
+Alternative sans rien compiler ni installer : l'AppImage des
+[Releases](https://github.com/SoutadeJulien/whisper-dictation/releases) (cf.
+README), qui télécharge elle-même ses modèles. Ce qui suit est l'installation
+de développement, depuis les sources.
+
 ## Lancer
 
 ```bash
