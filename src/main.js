@@ -63,9 +63,16 @@ function saveConfig(patch) {
   return cfg;
 }
 
-// Le nôtre d'abord ; puis celui de Cockpit, pour réutiliser son installation.
+// Binaires livrés avec le paquet (whisper-cli, uv : cf. scripts/, CI) ; en
+// développement, ceux que scripts/ a compilés ou téléchargés.
+const bundledBinDir = () => (app.isPackaged
+  ? path.join(process.resourcesPath, 'bin')
+  : path.join(__dirname, '..', 'resources', 'bin'));
+
+// Le nôtre d'abord ; puis le binaire du paquet ; puis l'installation de
+// Cockpit, pour réutiliser son modèle.
 const ownWhisperDir = () => path.join(app.getPath('userData'), 'whisper');
-const whisperDirs = () => [ownWhisperDir(), path.join(app.getPath('appData'), 'cockpit', 'whisper')];
+const whisperDirs = () => [ownWhisperDir(), bundledBinDir(), path.join(app.getPath('appData'), 'cockpit', 'whisper')];
 
 // Ce que lit le bouton : 'selection', 'clipboard' ou 'off'. La sélection se
 // lit sous Linux et Windows (cf. selection.js) ; ailleurs, le presse-papiers.
@@ -184,7 +191,8 @@ function scheduleHide(ms) {
 
 // Le texte part au renderer de la bulle, qui mesure sa hauteur et répond
 // `bubble:ready` : c'est là qu'on la place et qu'on la montre. Une « notice »
-// n'a rien à copier ; `volume` montre le curseur du volume de lecture (`text`
+// (le temps d'un enregistrement) ou un « status » (téléchargement…) n'ont rien
+// à copier ; `volume` montre le curseur du volume de lecture (`text`
 // est alors le volume, 0 à 1).
 function showBubble(text, kind = 'text') {
   if (!bubble || !win) return;
@@ -210,6 +218,7 @@ ipcMain.on('bubble:ready', (_e, height) => {
   if (!bubble || !win) return;
   // Notice arrivée après la fin de l'enregistrement : elle n'a plus lieu d'être.
   if (bubbleKind === 'notice' && !recording) return;
+  // 'status' : message de l'appli (téléchargement…), sans lien avec la dictée.
   bubbleH = Math.max(40, Math.min(BUBBLE_MAX_H, Math.round(Number(height)) || 80));
   placeBubble();
   bubble.showInactive();
@@ -306,6 +315,44 @@ async function pasteText(text) {
   return true;
 }
 
+/* ---- Modèle whisper : téléchargé au premier lancement --------------------- */
+
+// Le paquet livre whisper-cli, pas le modèle (548 Mo) : on le télécharge dans
+// nos données s'il n'est trouvé nulle part. Bon en français ; ~0,3 s par
+// dictée sur GPU, quelques secondes sur processeur.
+const MODEL_URL = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin';
+let modelDownload = null; // { percent } pendant le téléchargement
+
+async function ensureModel() {
+  if (modelDownload || whisper.locateWhisper(whisperDirs()).model) return;
+  const dest = path.join(ownWhisperDir(), path.basename(MODEL_URL));
+  const part = `${dest}.part`;
+  modelDownload = { percent: 0 };
+  showBubble('Téléchargement du modèle de dictée (548 Mo)… Une seule fois.', 'status');
+  try {
+    const res = await fetch(MODEL_URL);
+    if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+    const total = Number(res.headers.get('content-length')) || 0;
+    fs.mkdirSync(ownWhisperDir(), { recursive: true });
+    const out = fs.createWriteStream(part);
+    let received = 0;
+    for await (const chunk of res.body) {
+      if (!out.write(chunk)) await new Promise((r) => out.once('drain', r));
+      received += chunk.length;
+      if (total) modelDownload.percent = Math.floor((received / total) * 100);
+    }
+    await new Promise((resolve, reject) => out.end((err) => (err ? reject(err) : resolve())));
+    fs.renameSync(part, dest);
+    showBubble('Modèle de dictée prêt : maintenir l\'icône pour dicter.', 'status');
+  } catch (err) {
+    console.error(`Téléchargement du modèle whisper : ${err.message}`);
+    fs.rmSync(part, { force: true });
+    showBubble('Téléchargement du modèle de dictée impossible : il sera retenté au prochain lancement.', 'status');
+  } finally {
+    modelDownload = null;
+  }
+}
+
 const MESSAGES = {
   notInstalled: 'whisper.cpp introuvable : placez whisper-cli et un modèle ggml-*.bin dans le dossier whisper (clic droit → Ouvrir le dossier whisper).',
   badAudio: 'Enregistrement trop court ou trop long.',
@@ -322,6 +369,9 @@ ipcMain.handle('dictation:transcribe', async (_e, pcm) => {
     text = await whisper.transcribe(whisperDirs(), buf, { lang: cfg.lang, prompt: cfg.vocabulary });
   } catch (err) {
     const code = MESSAGES[err && err.message] ? err.message : 'failed';
+    if (code === 'notInstalled' && modelDownload) {
+      return { ok: false, code, error: `Modèle de dictée en cours de téléchargement (${modelDownload.percent} %).` };
+    }
     return { ok: false, code, error: MESSAGES[code] };
   }
   if (!text) return { ok: true, text: '', pasted: false };
@@ -354,8 +404,9 @@ async function updateSpeakState() {
   }
   let state = { mode };
   if (mode !== 'off') {
-    // Chatterbox : prêt d'office ; service arrêté, la lecture passe par Pocket TTS.
-    const ready = cfg.speakEngine === 'chatterbox' || tts.isInstalled();
+    // Chatterbox : prêt d'office ; service arrêté, la lecture passe par Pocket
+    // TTS. Pocket TTS absent : prêt s'il peut s'installer au premier clic.
+    const ready = cfg.speakEngine === 'chatterbox' || tts.isInstalled() || tts.canInstall();
     state = { mode, volume: speakVolume(cfg), ready, hasText: await selection.hasText(mode) };
   }
   const key = JSON.stringify(state);
@@ -366,8 +417,18 @@ async function updateSpeakState() {
 
 const speakOptions = (cfg) => ({ lang: cfg.speakLang, voices: cfg.speakVoices, engine: cfg.speakEngine });
 
+// Installe Pocket TTS (premier usage) en le signalant dans la bulle.
+async function installPocket() {
+  showBubble('Installation de la lecture à voix haute (~400 Mo à télécharger, une seule fois)… La lecture suivra.', 'status');
+  const ok = await tts.install();
+  showBubble(ok ? 'Lecture à voix haute installée.'
+    : 'Installation de la lecture à voix haute impossible (réseau ?) : elle sera retentée au prochain clic.', 'status');
+  pollSpeak();
+  return ok;
+}
+
 const SPEAK_MESSAGES = {
-  notInstalled: 'Pocket TTS introuvable : uv tool install pocket-tts --index https://download.pytorch.org/whl/cpu',
+  notInstalled: 'Pocket TTS introuvable et impossible à installer (uv absent) : voir le README.',
   empty: 'Rien à lire.',
   failed: 'La synthèse vocale a échoué.',
 };
@@ -380,6 +441,9 @@ ipcMain.handle('tts:speak', async () => {
   const mode = speakMode(cfg);
   if (mode === 'off') return { ok: false, error: SPEAK_MESSAGES.empty };
   const send = (...args) => { if (win) win.webContents.send(...args); };
+  if (cfg.speakEngine !== 'chatterbox' && !tts.isInstalled() && tts.canInstall() && !(await installPocket())) {
+    return { ok: false, error: SPEAK_MESSAGES.failed };
+  }
   try {
     const id = tts.speak(await selection.readText(mode), speakOptions(cfg),
       (pcm, rate) => send('tts:chunk', id, pcm, rate),
@@ -394,7 +458,9 @@ ipcMain.on('tts:cancel', (_e, id) => tts.cancel(id));
 ipcMain.on('tts:warmUp', async () => {
   const cfg = loadConfig();
   const mode = speakMode(cfg);
-  if (mode !== 'off') tts.warmUp(await selection.peekText(mode), speakOptions(cfg));
+  if (mode !== 'off' && (cfg.speakEngine === 'chatterbox' || tts.isInstalled())) {
+    tts.warmUp(await selection.peekText(mode), speakOptions(cfg));
+  }
 });
 
 /* ---- Menu du clic droit -------------------------------------------------- */
@@ -416,7 +482,8 @@ ipcMain.on('menu:open', async (_e, devices) => {
   const speak = speakMode(cfg);
   const setSpeak = (value) => { saveConfig({ speak: value }); pollSpeak(); };
   const template = [
-    { label: cli && model ? `Modèle : ${path.basename(model)}` : 'whisper.cpp non installé', enabled: false },
+    { label: modelDownload ? `Modèle : téléchargement ${modelDownload.percent} %`
+      : cli && model ? `Modèle : ${path.basename(model)}` : 'whisper.cpp non installé', enabled: false },
     { type: 'separator' },
     {
       label: 'Langue',
@@ -446,7 +513,9 @@ ipcMain.on('menu:open', async (_e, devices) => {
       label: 'Lecture à voix haute',
       submenu: [
         ...(!tts.isInstalled() ? [
-          { label: 'Pocket TTS non installé', enabled: false },
+          tts.canInstall()
+            ? { label: 'Installer Pocket TTS (~400 Mo)', click: () => { installPocket(); } }
+            : { label: 'Pocket TTS non installé', enabled: false },
           { type: 'separator' },
         ] : []),
         ...(canReadSelection ? [
@@ -502,6 +571,9 @@ app.whenReady().then(() => {
   // Windows : l'assistant PowerShell sert au premier collage comme à la
   // coupure du micro Discord en début de dictée ; il met ~1 s à démarrer.
   paste.warmUp();
+  tts.setDirs({ data: app.getPath('userData'), bin: bundledBinDir() });
+  // Après le chargement de la bulle, qui affiche la progression.
+  bubble.webContents.once('did-finish-load', ensureModel);
 });
 app.on('window-all-closed', () => app.quit());
 app.on('will-quit', () => { windows.stop(); tts.stop(); });
