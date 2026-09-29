@@ -82,6 +82,16 @@ jobs:
       - name: whisper-cli
         shell: bash
         run: scripts/build-whisper.sh
+      # Le binaire embarqué démarre-t-il (bibliothèques trouvées) et transcrit-il ?
+      # Pas de GPU sur le runner : c'est aussi l'essai du repli sur le processeur.
+      - name: Essai de whisper-cli (plus petit modèle)
+        shell: bash
+        run: |
+          curl -fsSL -o ggml-tiny.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin
+          out="$(resources/bin/whisper-cli -m ggml-tiny.en.bin -l en -nt -np -f build/whisper.cpp/samples/jfk.wav)"
+          echo "$out"
+          grep -qi "ask not what your country" <<< "$out"
+          rm ggml-tiny.en.bin
       - name: uv
         shell: bash
         run: scripts/fetch-uv.sh ${{ matrix.cible }}
