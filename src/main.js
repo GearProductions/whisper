@@ -27,6 +27,7 @@ const whisper = require('./whisper');
 const paste = require('./paste');
 const discord = require('./discord');
 const tts = require('./tts');
+const chatterbox = require('./chatterbox');
 const selection = require('./selection');
 
 // Fenêtre transparente sous Linux (X11) : sans ce drapeau, fond noir.
@@ -39,6 +40,7 @@ if (!app.requestSingleInstanceLock()) app.quit();
 const DEFAULTS = {
   lang: 'fr', vocabulary: '', sound: true, showText: true, discordMute: false,
   speak: 'selection', speakVolume: 1,
+  speakEngine: 'pocket',             // 'pocket' (processeur) ou 'chatterbox' (GPU, service local)
   speakLang: 'auto',                 // 'auto' : français ou anglais, détecté sur le texte entier
   speakVoices: { fr: 'estelle', en: 'alba' },   // cf. tts.LANGS
   deviceId: '', deviceLabel: '', size: 64, pos: null,
@@ -371,13 +373,17 @@ async function updateSpeakState() {
   }
   let state = { mode };
   if (mode !== 'off') {
-    state = { mode, volume: speakVolume(cfg), ready: tts.isInstalled(), hasText: !!(await selection.readText(mode)).trim() };
+    // Chatterbox : prêt d'office ; service arrêté, la lecture passe par Pocket TTS.
+    const ready = cfg.speakEngine === 'chatterbox' || tts.isInstalled();
+    state = { mode, volume: speakVolume(cfg), ready, hasText: !!(await selection.readText(mode)).trim() };
   }
   const key = JSON.stringify(state);
   if (key === speakKey || !win) return;
   speakKey = key;
   win.webContents.send('tts:state', state);
 }
+
+const speakOptions = (cfg) => ({ lang: cfg.speakLang, voices: cfg.speakVoices, engine: cfg.speakEngine });
 
 const SPEAK_MESSAGES = {
   notInstalled: 'Pocket TTS introuvable : uv tool install pocket-tts --index https://download.pytorch.org/whl/cpu',
@@ -394,7 +400,7 @@ ipcMain.handle('tts:speak', async () => {
   if (mode === 'off') return { ok: false, error: SPEAK_MESSAGES.empty };
   const send = (...args) => { if (win) win.webContents.send(...args); };
   try {
-    const id = tts.speak(await selection.readText(mode), { lang: cfg.speakLang, voices: cfg.speakVoices },
+    const id = tts.speak(await selection.readText(mode), speakOptions(cfg),
       (pcm, rate) => send('tts:chunk', id, pcm, rate),
       (code) => send('tts:end', id, code ? SPEAK_MESSAGES[code] || SPEAK_MESSAGES.failed : null));
     return { ok: true, id };
@@ -407,7 +413,7 @@ ipcMain.on('tts:cancel', (_e, id) => tts.cancel(id));
 ipcMain.on('tts:warmUp', async () => {
   const cfg = loadConfig();
   const mode = speakMode(cfg);
-  if (mode !== 'off') tts.warmUp(await selection.readText(mode), { lang: cfg.speakLang, voices: cfg.speakVoices });
+  if (mode !== 'off') tts.warmUp(await selection.readText(mode), speakOptions(cfg));
 });
 
 /* ---- Menu du clic droit -------------------------------------------------- */
@@ -420,9 +426,10 @@ const SPEAK_LANGS = {
 const GENDER = { f: 'femme', m: 'homme' };
 
 // `devices` = micros énumérés par le renderer (seul à y avoir accès).
-ipcMain.on('menu:open', (_e, devices) => {
+ipcMain.on('menu:open', async (_e, devices) => {
   if (!win) return;
   const cfg = loadConfig();
+  const chatterboxUp = await chatterbox.isUp();
   const mics = Array.isArray(devices) ? devices.filter((d) => d && typeof d.deviceId === 'string') : [];
   const { cli, model } = whisper.locateWhisper(whisperDirs());
   const speak = speakMode(cfg);
@@ -467,6 +474,15 @@ ipcMain.on('menu:open', (_e, devices) => {
         { label: 'Presse-papiers', type: 'radio', checked: speak === 'clipboard', click: () => setSpeak('clipboard') },
         { label: 'Désactivée', type: 'radio', checked: speak === 'off', click: () => setSpeak('off') },
         { type: 'separator' },
+        {
+          label: 'Moteur',
+          submenu: [
+            { label: tts.isInstalled() ? 'Pocket TTS (processeur)' : 'Pocket TTS (non installé)', type: 'radio',
+              checked: cfg.speakEngine !== 'chatterbox', click: () => { saveConfig({ speakEngine: 'pocket' }); pollSpeak(); } },
+            { label: chatterboxUp ? 'Chatterbox (GPU)' : 'Chatterbox (GPU, service arrêté)', type: 'radio',
+              checked: cfg.speakEngine === 'chatterbox', click: () => { saveConfig({ speakEngine: 'chatterbox' }); pollSpeak(); } },
+          ],
+        },
         {
           label: 'Langue du texte',
           submenu: ['auto', ...Object.keys(SPEAK_LANGS)].map((l) => ({

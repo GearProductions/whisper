@@ -1,0 +1,34 @@
+# Chatterbox Multilingual (Resemble AI) en service HTTP, sur GPU NVIDIA.
+#
+# Base : PyTorch 2.8 / CUDA 12.8, celle de gear-ai-worker (couches partagées).
+# Chatterbox fige torch 2.6, qui ne connaît pas les RTX 50xx (sm_120) : on le
+# force à la version de l'image.
+FROM docker.io/pytorch/pytorch:2.8.0-cuda12.8-cudnn9-devel
+
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+ && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir uv \
+ && printf 'torch==2.8.0\ntorchaudio==2.8.0\n' > /tmp/overrides.txt \
+ && uv pip install --system --no-cache --override /tmp/overrides.txt chatterbox-tts==0.1.7
+
+# Voix de référence : les enregistrements Kyutai des voix de Pocket TTS
+# (https://huggingface.co/kyutai/tts-voices : CC0 pour estelle et marius,
+# CC-BY 4.0 pour alba et les voix VCTK).
+RUN mkdir /voices && cd /voices && python - <<'PY'
+import urllib.request
+base = "https://huggingface.co/kyutai/tts-voices/resolve/main/"
+for name, path in {
+    "estelle": "unmute-prod-website/developpeuse-3.wav",
+    "mary": "vctk/p333_023_enhanced.wav",
+    "marius": "voice-donations/Selfie.wav",
+    "alba": "alba-mackenna/casual.wav",
+    "jane": "vctk/p339_023_enhanced.wav",
+    "george": "vctk/p315_023_enhanced.wav",
+}.items():
+    urllib.request.urlretrieve(base + path, f"{name}.wav")
+PY
+
+COPY server.py /app/server.py
+WORKDIR /app
+EXPOSE 8004
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8004"]

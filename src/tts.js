@@ -9,6 +9,9 @@
    Il démarre au survol du bouton (warmUp : chargement ~3 s, ~1,5 Go par
    langue) et s'arrête après IDLE_MS sans lecture, pour rendre la mémoire.
 
+   Autre moteur, au choix (réglage `speakEngine`) : Chatterbox, sur GPU, par
+   son service local (cf. chatterbox.js) ; mêmes voix, même interface.
+
    Un modèle par langue, la voix au choix parmi quelques-unes : celles que
    Kyutai fournit toutes prêtes (le clonage à partir d'un enregistrement
    demande des poids à accès restreint). Le texte entier est lu dans une seule
@@ -21,6 +24,7 @@ const fs = require('fs');
 const os = require('os');
 const { spawn } = require('child_process');
 const { detectLanguage } = require('./lang');
+const chatterbox = require('./chatterbox');
 
 const MAX_CHARS = 20000;          // ~20 min de lecture
 const IDLE_MS = 10 * 60 * 1000;
@@ -164,19 +168,10 @@ function cleanText(text) {
   return String(text || '').replace(/\r/g, '').replace(/[ \t]+/g, ' ').trim().slice(0, MAX_CHARS);
 }
 
-// Lance une lecture et rend son identifiant. `lang` : 'auto' ou une langue de
-// LANGS. `onChunk(pcm, rate)` reçoit du PCM 16 bits mono au fil de la
-// génération ; `onEnd(code)` une fois, avec null ou 'failed'. Lance 'empty'
-// ou 'notInstalled'.
-function speak(text, { lang = 'auto', voices } = {}, onChunk, onEnd) {
-  const input = cleanText(text);
-  if (!input) throw new Error('empty');
-  const python = findPython();
-  if (!python) throw new Error('notInstalled');
-  const l = LANGS[lang] ? lang : detectLanguage(input, Object.keys(LANGS));
+// Lecture par Pocket TTS, sous l'identifiant `id`.
+function speakPocket(id, python, input, lang, voice, onChunk, onEnd) {
   clearTimeout(idleTimer);
   if (!helper) helper = startHelper(python);
-  const id = nextId++;
   const h = helper;
   h.jobs.set(id, {
     onChunk,
@@ -185,22 +180,57 @@ function speak(text, { lang = 'auto', voices } = {}, onChunk, onEnd) {
       onEnd(code);
     },
   });
-  send({ id, text: input, model: LANGS[l].model, voice: pickVoice(l, voices).id });
+  send({ id, text: input, model: LANGS[lang].model, voice });
+}
+
+// Lance une lecture et rend son identifiant. `lang` : 'auto' ou une langue de
+// LANGS ; `engine` : 'pocket' ou 'chatterbox' (GPU, cf. chatterbox.js). Service
+// Chatterbox arrêté : la lecture passe par Pocket TTS. `onChunk(pcm, rate)`
+// reçoit du PCM 16 bits mono au fil de la génération ; `onEnd(code)` une fois,
+// avec null ou 'failed'. Lance 'empty' ou 'notInstalled'.
+function speak(text, { lang = 'auto', voices, engine = 'pocket' } = {}, onChunk, onEnd) {
+  const input = cleanText(text);
+  if (!input) throw new Error('empty');
+  const python = findPython();
+  if (!python && engine !== 'chatterbox') throw new Error('notInstalled');
+  const l = LANGS[lang] ? lang : detectLanguage(input, Object.keys(LANGS));
+  const voice = pickVoice(l, voices).id;
+  const id = nextId++;
+  if (engine !== 'chatterbox') {
+    speakPocket(id, python, input, l, voice, onChunk, onEnd);
+    return id;
+  }
+  chatterbox.speak(id, input, l, voice, onChunk, (code) => {
+    if (code !== 'unreachable') { onEnd(code); return; }
+    console.error('chatterbox : service injoignable, lecture par Pocket TTS');
+    const py = findPython();
+    if (py) speakPocket(id, py, input, l, voice, onChunk, onEnd);
+    else onEnd('failed');
+  });
   return id;
 }
 
-function cancel(id) { send({ cancel: id }); }
+function cancel(id) {
+  chatterbox.cancel(id);
+  send({ cancel: id });
+}
 
 // Charge d'avance le modèle et la voix qui liront `text`, pour que le clic qui
 // suit n'attende pas.
-function warmUp(text, { lang = 'auto', voices } = {}) {
-  const python = findPython();
-  if (!python) return;
+function warmUp(text, { lang = 'auto', voices, engine = 'pocket' } = {}) {
   const l = LANGS[lang] ? lang : detectLanguage(cleanText(text), Object.keys(LANGS));
-  clearTimeout(idleTimer);
-  if (!helper) helper = startHelper(python);
-  if (!helper.jobs.size) idleTimer = setTimeout(stop, IDLE_MS);
-  send({ warm: LANGS[l].model, voice: pickVoice(l, voices).id });
+  const voice = pickVoice(l, voices).id;
+  const warmPocket = () => {
+    const python = findPython();
+    if (!python) return;
+    clearTimeout(idleTimer);
+    if (!helper) helper = startHelper(python);
+    if (!helper.jobs.size) idleTimer = setTimeout(stop, IDLE_MS);
+    send({ warm: LANGS[l].model, voice });
+  };
+  // Service Chatterbox arrêté : c'est Pocket TTS qui lira.
+  if (engine === 'chatterbox') chatterbox.warmUp(l, voice).then((up) => { if (!up) warmPocket(); });
+  else warmPocket();
 }
 
 module.exports = { LANGS, isInstalled, pickVoice, speak, cancel, warmUp, stop };
