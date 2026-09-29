@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('bubble', {
   ready: (height) => ipcRenderer.send('bubble:ready', height),
   copy: () => ipcRenderer.invoke('bubble:copy'),
   hover: (inside) => ipcRenderer.send('bubble:hover', inside),
+  close: () => ipcRenderer.send('bubble:close'),
 });

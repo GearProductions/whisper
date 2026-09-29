@@ -16,7 +16,25 @@ html, body { margin: 0; background: transparent; overflow: hidden; }
   box-sizing: border-box;
 }
 #bubble:hover { border-color: #3b6fe0; }
-#text { white-space: pre-wrap; overflow-wrap: anywhere; }
+#text { white-space: pre-wrap; overflow-wrap: anywhere; padding-right: 14px; } /* place de la croix */
+/* Hors de #bubble, qui défile : posée sur son coin, elle reste en place (et
+   visible : en position fixe DANS la zone qui défile, elle n'était pas
+   toujours redessinée quand la bulle réapparaissait). */
+#close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #8a91a0;
+  font: 14px/18px system-ui, sans-serif;
+  cursor: pointer;
+}
+#close:hover { background: #3a4150; color: #e6e8ee; }
 #hint { margin-top: 6px; font-size: 11px; color: #8a91a0; }
 #bubble.copied { border-color: #2fa36b; }
 /* Notice (« Micro Discord coupé ») : pas cliquable, bordure aux couleurs de Discord. */

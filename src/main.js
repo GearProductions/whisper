@@ -115,6 +115,7 @@ const BUBBLE_COPIED_MS = 1200;   // le temps de lire « Copié »
 let bubble = null;
 let bubbleText = '';
 let bubbleKind = 'text';         // 'text' : transcription, cliquable ; 'notice' : simple message
+let bubbleH = 80;                // hauteur mesurée par le renderer de la bulle
 let bubbleTimer = null;
 let recording = false;
 
@@ -155,18 +156,23 @@ function showBubble(text, kind = 'text') {
 
 // Au-dessus de l'icône, centrée sur elle ; en dessous si le haut de l'écran
 // manque de place ; toujours dans la zone de travail de l'écran de l'icône.
-ipcMain.on('bubble:ready', (_e, height) => {
-  if (!bubble || !win) return;
-  // Notice arrivée après la fin de l'enregistrement : elle n'a plus lieu d'être.
-  if (bubbleKind === 'notice' && !recording) return;
-  const h = Math.max(40, Math.min(BUBBLE_MAX_H, Math.round(Number(height)) || 80));
+// Rappelée à chaque pas du glisser : la bulle suit l'icône.
+function placeBubble() {
   const icon = win.getBounds();
   const a = screen.getDisplayMatching(icon).workArea;
   let x = icon.x + Math.round(icon.width / 2 - BUBBLE_W / 2);
   x = Math.max(a.x, Math.min(a.x + a.width - BUBBLE_W, x));
-  let y = icon.y - h - BUBBLE_GAP;
-  if (y < a.y) y = Math.min(icon.y + icon.height + BUBBLE_GAP, a.y + a.height - h);
-  bubble.setBounds({ x, y, width: BUBBLE_W, height: h });
+  let y = icon.y - bubbleH - BUBBLE_GAP;
+  if (y < a.y) y = Math.min(icon.y + icon.height + BUBBLE_GAP, a.y + a.height - bubbleH);
+  bubble.setBounds({ x, y, width: BUBBLE_W, height: bubbleH });
+}
+
+ipcMain.on('bubble:ready', (_e, height) => {
+  if (!bubble || !win) return;
+  // Notice arrivée après la fin de l'enregistrement : elle n'a plus lieu d'être.
+  if (bubbleKind === 'notice' && !recording) return;
+  bubbleH = Math.max(40, Math.min(BUBBLE_MAX_H, Math.round(Number(height)) || 80));
+  placeBubble();
   bubble.showInactive();
   scheduleHide(BUBBLE_MS);
 });
@@ -176,6 +182,8 @@ ipcMain.on('bubble:hover', (_e, inside) => {
   if (!bubble || !bubble.isVisible()) return;
   if (inside) clearTimeout(bubbleTimer); else scheduleHide(BUBBLE_MS);
 });
+
+ipcMain.on('bubble:close', hideBubble);
 
 ipcMain.handle('bubble:copy', () => {
   if (!bubbleText) return false;
@@ -191,7 +199,9 @@ ipcMain.handle('win:getBounds', () => (win ? win.getBounds() : null));
 // (1,1 sous KDE…), chaque setPosition arrondit la taille vers le haut et
 // l'icône grossit à chaque pas du glisser. On réimpose donc la taille.
 ipcMain.on('win:setPosition', (_e, x, y) => {
-  if (win) win.setBounds({ x: Math.round(x), y: Math.round(y), width: winSize, height: winSize });
+  if (!win) return;
+  win.setBounds({ x: Math.round(x), y: Math.round(y), width: winSize, height: winSize });
+  if (bubble && bubble.isVisible()) placeBubble();
 });
 ipcMain.on('win:savePosition', (_e, x, y) => saveConfig({ pos: { x: Math.round(x), y: Math.round(y) } }));
 
