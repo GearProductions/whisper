@@ -1,8 +1,10 @@
 name: CI
 
-# Vérifications et paquets autonomes (exe portable Windows, AppImage Linux) :
-# construits à chaque PR et à chaque push sur master (artefacts de l'onglet
-# Actions), publiés dans une Release GitHub sur un tag vX.Y.Z.
+# Vérifications à chaque PR et push sur master. Paquets autonomes (exe
+# portable Windows, AppImage Linux) seulement pour une nouvelle version : un
+# tag vX.Y.Z construit les paquets et crée sa Release GitHub avec eux. Lancé à
+# la main (workflow_dispatch), il construit les paquets sans rien publier
+# (artefacts de l'onglet Actions).
 on:
   pull_request:
   push:
@@ -53,6 +55,7 @@ jobs:
   # Les modèles (whisper, Pocket TTS) sont téléchargés par l'appli au premier
   # usage : trop lourds pour le paquet.
   paquet:
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     needs: [syntaxe]
     strategy:
       fail-fast: false
