@@ -7,7 +7,7 @@ C'est la dictée de l'icône compacte de Cockpit, seule.
 
 - **Maintenir** : dicter (bip aigu = parlez, bip grave = fin).
 - **Glisser** : déplacer l'icône (la position est retenue).
-- **Bouton ▶ accolé** : lire à voix haute le texte sélectionné (ou le presse-papiers), en local avec [Piper](https://github.com/OHF-Voice/piper1-gpl).
+- **Bouton ▶ accolé** : lire à voix haute le texte sélectionné (ou le presse-papiers), en local avec [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) (Kyutai).
 - **Clic droit** : langue, micro, bip, affichage du texte, micro Discord (Linux), lecture à voix haute, dossier whisper, configuration, quitter.
 
 À la fin d'une dictée, une bulle montre le texte transcrit à côté de l'icône :
@@ -54,7 +54,7 @@ Il faut un outil pour simuler Ctrl+V :
 Sans outil, le texte reste dans le presse-papiers. Note : la plupart des
 terminaux Linux collent avec Ctrl+Maj+V, pas Ctrl+V.
 
-### Lecture à voix haute (Piper)
+### Lecture à voix haute (Pocket TTS)
 
 Le petit bouton ▶ à droite de l'icône lit le texte **sélectionné** dans
 n'importe quelle application (Linux), ou le **presse-papiers** (Windows, ou au
@@ -63,55 +63,27 @@ choix). Il est grisé quand il n'y a rien à lire ; pendant la lecture il devien
 *Désactivée* pour masquer le bouton ; *Volume…* ouvre un curseur à côté de
 l'icône, appliqué aussitôt, y compris à une lecture en cours.
 
-Il faut Piper et une voix :
+La voix est produite en local, sur le processeur, par
+[Pocket TTS](https://github.com/kyutai-labs/pocket-tts) de Kyutai :
 
 ```bash
-uv tool install piper-tts        # ou pipx install piper-tts : l'exécutable `piper` sur le PATH
+uv tool install pocket-tts --index https://download.pytorch.org/whl/cpu
 ```
 
-Puis des voix (`.onnx` **et** son `.onnx.json`) dans le dossier des voix
-(clic droit → *Lecture à voix haute* → *Ouvrir le dossier des voix*), prises
-sur [piper-voices](https://huggingface.co/rhasspy/piper-voices/tree/main) —
-par exemple `fr_FR-upmc-medium` (deux voix : jessica, pierre) et
-`fr_FR-siwis-medium` en français, `en_US-lessac-high` et `en_US-ryan-high` en
-anglais. La qualité (`low`, `medium`, `high`) est dans le nom : `high` sonne
-mieux mais demande ~0,4 s de plus par lecture (aucune voix française n'existe
-en `high`). Sans choix de l'utilisateur, c'est la meilleure qualité qui est
-prise, voix féminine d'abord :
+(`--index` : la version de PyTorch sans CUDA, ~200 Mo au lieu de ~3 Go.) Les
+modèles se téléchargent à la première lecture (cache Hugging Face).
 
-| OS      | Dossier                                    |
-|---------|--------------------------------------------|
-| Windows | `%APPDATA%\whisper-dictation\piper\`       |
-| Linux   | `~/.config/whisper-dictation/piper/`       |
+L'audio arrive au fil de la génération : la lecture commence ~0,1 s après le
+clic. Le modèle se charge au survol du bouton (~3 s, ~1,5 Go de mémoire par
+langue) et se décharge après 10 min sans lecture.
 
-Un exécutable `piper` posé dans ce dossier (jusqu'à deux niveaux plus bas)
-passe avant celui du PATH. Tout tourne sur le processeur : moins d'une
-seconde de préparation, surtout le chargement de la voix.
-
-**Plusieurs langues.** Avec des voix françaises et anglaises, la langue est
-détectée phrase par phrase et chaque passage est lu par la voix de sa
-langue : un paragraphe anglais cité dans un texte français est lu en anglais.
-Une phrase française parsemée de mots anglais reste, elle, en français. Clic
-droit → *Lecture à voix haute* : *Langue du texte* (détection automatique ou
-langue imposée) et une voix par langue, avec son sexe et sa qualité.
-
-**Mots anglais dans une phrase française.** Une voix française n'a appris que
-les sons du français : « feature » ou « pull request » sortent déformés. Le
-réglage `pronunciations` les réécrit « à la française » dans les passages lus
-en français (mots entiers, casse
-ignorée) ; une liste de termes de développement est fournie, à compléter
-(clic droit → *Lecture à voix haute* → *Prononciation des mots anglais…*) :
-
-```json
-"pronunciations": {
-  "feature": "fitcheur",
-  "pull request": "pouleu riquouest",
-  "Kubernetes": "[[ kubɛʁnˈɛtɛs ]]"
-}
-```
-
-Une valeur entre `[[ ]]` est prise comme phonèmes espeak-ng bruts. Préférez
-les sons du français (pas de `ɹ`, `θ`, `ɜː`…) : la voix ne sait pas les dire.
+**Langues et voix.** Le texte est lu en français ou en anglais, selon la
+langue détectée sur l'ensemble du texte (clic droit → *Langue du texte* pour
+l'imposer). La voix française dit très bien les termes techniques anglais.
+Trois voix par langue, fournies par Kyutai (clic droit → *Voix française* /
+*Voix anglaise*) : Estelle, Mary, Marius (homme) ; Alba, Jane, George (homme).
+Toutes sous licence libre (CC0 ou CC-BY 4.0) ; le clonage d'une autre voix
+demande des poids à accès restreint, non utilisés ici.
 
 Sous **Wayland**, il faut aussi `wl-paste` (paquet `wl-clipboard`) : le
 compositeur ne donne la sélection qu'à la fenêtre qui a le focus, et l'icône
@@ -143,9 +115,8 @@ Il faut `wpctl`, livré avec WirePlumber (installé d'office avec PipeWire).
 | `discordMute`| Linux : couper le micro Discord pendant l'enregistrement          |
 | `speak`      | Bouton de lecture : `selection` (Linux), `clipboard` ou `off`     |
 | `speakVolume`| Volume de lecture, de `0` à `1`                                   |
-| `speakLang`  | `auto` (français / anglais détecté par phrase), `fr`, `en`…       |
-| `speakVoices`| Voix par langue : `{ "fr": "fr_FR-upmc-medium:jessica" }` (`:locuteur` pour un modèle à plusieurs voix) |
-| `pronunciations` | Mots réécrits avant la lecture : `{ "feature": "fitcheur" }`  |
+| `speakLang`  | `auto` (français ou anglais, détecté), `fr` ou `en`               |
+| `speakVoices`| Voix par langue : `{ "fr": "estelle", "en": "alba" }`             |
 | `size`       | Taille de l'icône en px (32–200, appliquée au redémarrage)        |
 
 Relu à chaque dictée : pas besoin de relancer (sauf pour `size`).

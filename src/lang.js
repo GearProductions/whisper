@@ -1,15 +1,13 @@
 /* =========================================================================
    Whisper — français ou anglais ? (lecture à voix haute)
 
-   Découpe un texte en phrases et attribue à chacune une langue, pour la lire
-   avec la bonne voix. Sans dépendance ni modèle : on compte les petits mots
-   propres à chaque langue (articles, pronoms, auxiliaires…), les élisions
-   (l', qu'…) et les accents pour le français, les contractions (n't, 're…)
-   pour l'anglais. Une phrase indécise (« OK. », un nom propre) garde la
-   langue de la précédente.
+   Choisit le modèle et la voix qui liront le texte. Sans dépendance ni
+   modèle : on compte les petits mots propres à chaque langue (articles,
+   pronoms, auxiliaires…), les élisions (l', qu'…) et les accents pour le
+   français, les contractions (n't, 're…) pour l'anglais.
 
-   Un mot anglais isolé dans une phrase française ne la fait pas basculer :
-   elle reste lue en français (cf. le dictionnaire de prononciation).
+   Des termes techniques anglais dans un texte français ne le font pas
+   basculer : il reste lu en français, ce que la voix française fait bien.
    ========================================================================= */
 
 // Les mots communs aux deux langues (« a », « on », « me », « as »…) sont écartés.
@@ -41,28 +39,13 @@ function score(sentence) {
 
 const winner = (s) => (s.fr > s.en ? 'fr' : s.en > s.fr ? 'en' : null);
 
-// Phrases, chacune avec sa ponctuation et le blanc qui la suit : recollées,
-// elles redonnent le texte tel quel (retours à la ligne compris).
-const sentences = (text) => text.match(/[^.!?…\n]+(?:[.!?…]+["»”')\]]*)?\s*|\n+/g) || [];
-
-// [{ lang, text }], phrases consécutives de même langue regroupées. `langs` :
-// langues disponibles (celles qui ont une voix). Seuls le français et
-// l'anglais sont reconnus ; à défaut, la première langue disponible.
-function splitByLanguage(text, langs) {
-  if (!langs.length) return [];
-  if (langs.length === 1) return [{ lang: langs[0], text }];
-  const fallback = (lang) => (lang && langs.includes(lang) ? lang : null);
-  const overall = fallback(winner(score(text))) || fallback('fr') || langs[0];
-  const segments = [];
-  let prev = overall;
-  for (const part of sentences(text)) {
-    const lang = fallback(winner(score(part))) || prev;
-    prev = lang;
-    const last = segments[segments.length - 1];
-    if (last && (last.lang === lang || !part.trim())) last.text += part;
-    else segments.push({ lang, text: part });
-  }
-  return segments.filter((s) => s.text.trim());
+// Langue du texte parmi `langs` (celles qui ont une voix). Seuls le français
+// et l'anglais sont reconnus ; indécis : le français s'il est là, sinon la
+// première langue.
+function detectLanguage(text, langs) {
+  const lang = winner(score(text));
+  if (lang && langs.includes(lang)) return lang;
+  return langs.includes('fr') ? 'fr' : langs[0];
 }
 
-module.exports = { splitByLanguage };
+module.exports = { detectLanguage };

@@ -33,12 +33,11 @@ puis rétabli ; un micro déjà coupé le reste). Coupure invisible côté Disco
 
 Lecture à voix haute : sélectionner du texte n'importe où, puis clic sur le
 petit bouton ▶ à droite de l'icône (grisé s'il n'y a rien de sélectionné ;
-■ pendant la lecture, un clic arrête). Voix française Piper, sur le processeur,
-moins d'1 s de préparation. Français et anglais détectés phrase par phrase,
-chacun lu par sa voix. Clic droit → *Lecture à voix haute* pour lire le
+■ pendant la lecture, un clic arrête). Pocket TTS (Kyutai), sur le processeur :
+la voix démarre ~0,1 s après le clic. Texte lu en français ou en anglais
+selon sa langue. Clic droit → *Lecture à voix haute* pour lire le
 presse-papiers à la place, masquer le bouton, imposer une langue, changer de
-voix, régler le volume (curseur) ou compléter la prononciation des mots
-anglais (clé `pronunciations` de `.data/config.json`).
+voix ou régler le volume (curseur).
 
 Arrêter : clic droit → *Quitter*.
 
@@ -61,8 +60,8 @@ lanceur ne fait rien. `.data/`, exclu de git, ne gêne pas le `pull`.
 | Appli (Electron) | `~/dev/Gear/tools/whisper-dictation` |
 | Données de l'appli | `.data/` (au lieu de `~/.config/whisper-dictation`) |
 | Modèle + enveloppe `whisper-cli` | `.data/whisper/` |
-| Piper (synthèse vocale) | `~/.local/bin/piper` (outil `uv`) |
-| Voix Piper | `.data/piper/` : `fr_FR-upmc-medium` (jessica, pierre), `fr_FR-siwis-medium`, `en_US-lessac-high`, `en_US-ryan-high` (`.onnx` + `.onnx.json`) |
+| Pocket TTS (synthèse vocale) | `~/.local/bin/pocket-tts` (outil `uv`) |
+| Modèles et voix Pocket TTS | `~/.cache/huggingface/` (téléchargés à la première lecture) |
 | Config (langue, vocabulaire, micro) | `.data/config.json` |
 | whisper.cpp | `~/dev/Gear/tools/whisper.cpp` — `build-vulkan/` (GPU, utilisé), `build/` (CPU, secours) |
 | Lanceur | `~/dev/Gear/tools/whisper.sh` |
@@ -96,19 +95,18 @@ compilé, lui, n'a besoin que de ce que `dev.ini` fournit déjà (`vulkan-loader
   Bazzite, `/dev/uinput` est déjà accessible sans root → service utilisateur
   sur l'hôte avec `--socket-path=%t/.ydotool_socket`, paquet `ydotool` dans la
   box, et `YDOTOOL_SOCKET` exporté par le lanceur.
-- **Piper par `uv tool`**, pas par `dnf` : il vit dans le home et survit à la
-  recréation de la box. Désinstaller : `uv tool uninstall piper-tts`.
-- **Voix** : deux par langue, choisies à l'écoute. Français : `upmc` (jessica
-  par défaut, pierre pour une voix d'homme) et `siwis`, en qualité moyenne —
-  il n'en existe pas de haute en français. Anglais : `lessac` et `ryan` en
-  qualité haute (~115 Mo chacune, ~1,1 s par lecture au lieu de ~0,7 s).
-  D'autres sur le même dépôt Hugging Face (`ljspeech-high`, `en_GB-cori-high`…).
-  Les voix anglaises lisant du français (et l'inverse) ont été essayées :
-  inutilisable, d'où le basculement de voix phrase par phrase.
-- **Processeur, pas GPU** : Piper lit 15 s de texte en 0,2 s sur le
-  processeur ; le délai ressenti (~0,5 s) est le chargement de la voix à
-  chaque clic, que le GPU ne réduirait pas. Le passer au GPU demanderait
-  `onnxruntime-gpu` et les bibliothèques CUDA dans la box, pour rien.
+- **Pocket TTS par `uv tool`**, pas par `dnf` : il vit dans le home et
+  survit à la recréation de la box. Désinstaller : `uv tool uninstall
+  pocket-tts`. Installé avec `--index https://download.pytorch.org/whl/cpu`
+  pour la version de PyTorch sans CUDA.
+- **Processeur, pas GPU** : quantifié en int8, le modèle français génère ~5 fois
+  plus vite que la lecture, l'anglais davantage ; l'audio part au fil de la
+  génération. Coût : ~1,5 Go de mémoire vive par langue chargée, rendus après
+  10 min sans lecture.
+- **Choix du moteur** : essayés à l'écoute, Piper (voix plus mécaniques ; les
+  mots anglais passaient mal, même avec une voix par langue ou un dictionnaire
+  de prononciation) et Chatterbox (GPU, ~3,7 Go de VRAM, conteneur). Pocket
+  TTS l'emporte sur Piper, sans GPU.
 - **Sélection** : l'appli lit la sélection « primaire » de Linux (ce qui est
   surligné, sans Ctrl+C). Certaines applications la gardent après qu'on a
   cliqué ailleurs : le bouton reste alors actif sur l'ancienne sélection.
@@ -151,14 +149,8 @@ printf '#!/bin/sh\nexec %s/dev/Gear/tools/whisper.cpp/build-vulkan/bin/whisper-c
 chmod +x whisper-cli
 cd ../../..
 
-# 4. Lecture à voix haute : Piper + une voix française
-uv tool install piper-tts
-mkdir -p whisper-dictation/.data/piper && cd whisper-dictation/.data/piper
-V=https://huggingface.co/rhasspy/piper-voices/resolve/main
-for v in fr/fr_FR/upmc/medium/fr_FR-upmc-medium fr/fr_FR/siwis/medium/fr_FR-siwis-medium \
-         en/en_US/lessac/high/en_US-lessac-high en/en_US/ryan/high/en_US-ryan-high; do
-  curl -fLO "$V/$v.onnx" && curl -fLO "$V/$v.onnx.json"
-done
+# 4. Lecture à voix haute : Pocket TTS (modèles téléchargés à la première lecture)
+uv tool install pocket-tts --index https://download.pytorch.org/whl/cpu
 ```
 
 Puis le lanceur `~/dev/Gear/tools/whisper.sh` (à rendre exécutable :

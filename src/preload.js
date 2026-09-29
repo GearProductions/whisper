@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld('api', {
   transcribe: (pcm) => ipcRenderer.invoke('dictation:transcribe', pcm),
   openMenu: (devices) => ipcRenderer.send('menu:open', devices),
   speak: () => ipcRenderer.invoke('tts:speak'),
-  cancelSpeak: () => ipcRenderer.send('tts:cancel'),
+  cancelSpeak: (id) => ipcRenderer.send('tts:cancel', id),
+  warmUpSpeak: () => ipcRenderer.send('tts:warmUp'),
   onSpeakState: (cb) => ipcRenderer.on('tts:state', (_e, state) => cb(state)),
+  onSpeakChunk: (cb) => ipcRenderer.on('tts:chunk', (_e, id, pcm, rate) => cb(id, pcm, rate)),
+  onSpeakEnd: (cb) => ipcRenderer.on('tts:end', (_e, id, error) => cb(id, error)),
 });

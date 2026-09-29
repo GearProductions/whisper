@@ -99,4 +99,4 @@ async function transcribe(dirs, pcm, { lang = 'fr', prompt = '' } = {}) {
   }
 }
 
-module.exports = { findFile, locateWhisper, transcribe, SAMPLE_RATE };
+module.exports = { locateWhisper, transcribe, SAMPLE_RATE };

@@ -14,7 +14,7 @@
    rétabli (réglage `discordMute`, cf. discord.js).
 
    Un petit bouton accolé à l'icône lit à voix haute le texte sélectionné (ou
-   le presse-papiers) avec Piper, en local (réglage `speak`, cf. tts.js).
+   le presse-papiers) avec Pocket TTS, en local (réglage `speak`, cf. tts.js).
 
    Ce qui est collé est TOUJOURS ce que whisper vient de rendre, jamais un texte
    fourni par le renderer.
@@ -39,16 +39,8 @@ if (!app.requestSingleInstanceLock()) app.quit();
 const DEFAULTS = {
   lang: 'fr', vocabulary: '', sound: true, showText: true, discordMute: false,
   speak: 'selection', speakVolume: 1,
-  speakLang: 'auto',                 // 'auto' : français / anglais détecté phrase par phrase
-  // Voix par langue ; absente ou non installée : la meilleure qualité, féminine d'abord.
-  speakVoices: { fr: 'fr_FR-upmc-medium:jessica', en: 'en_US-lessac-high' },
-  // Mots anglais courants, réécrits pour n'employer que des sons français (cf. tts.js).
-  pronunciations: {
-    feature: 'fitcheur', commit: 'coummite', merge: 'meurdj', build: 'bilde',
-    'pull request': 'pouleu riquouest', workflow: 'oueurkflo', worker: 'oueurkeur',
-    update: 'eupdéte', branch: 'brènntch', release: 'rilisse', deploy: 'dipeloï',
-    frontend: 'frontènnde', backend: 'baquènnde',
-  },
+  speakLang: 'auto',                 // 'auto' : français ou anglais, détecté sur le texte entier
+  speakVoices: { fr: 'estelle', en: 'alba' },   // cf. tts.LANGS
   deviceId: '', deviceLabel: '', size: 64, pos: null,
 };
 const LANGS = { fr: 'Français', en: 'English', auto: 'Détection auto', es: 'Español', de: 'Deutsch', it: 'Italiano', pt: 'Português', nl: 'Nederlands' };
@@ -70,7 +62,6 @@ function saveConfig(patch) {
 // Le nôtre d'abord ; puis celui de Cockpit, pour réutiliser son installation.
 const ownWhisperDir = () => path.join(app.getPath('userData'), 'whisper');
 const whisperDirs = () => [ownWhisperDir(), path.join(app.getPath('appData'), 'cockpit', 'whisper')];
-const piperDir = () => path.join(app.getPath('userData'), 'piper');
 
 // Ce que lit le bouton : 'selection', 'clipboard' ou 'off'. La sélection
 // (« primaire ») n'existe que sous Linux : ailleurs, le presse-papiers.
@@ -79,7 +70,7 @@ function speakMode(cfg) {
   return cfg.speak === 'clipboard' || process.platform !== 'linux' ? 'clipboard' : 'selection';
 }
 
-// 0 à 1 : la voix de Piper est normalisée, au-delà elle saturerait.
+// 0 à 1 : au-delà, la voix saturerait.
 const speakVolume = (cfg) => {
   const v = Number(cfg.speakVolume);
   return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1;
@@ -380,8 +371,7 @@ async function updateSpeakState() {
   }
   let state = { mode };
   if (mode !== 'off') {
-    const { cli, voices } = tts.locatePiper(piperDir());
-    state = { mode, volume: speakVolume(cfg), ready: !!(cli && voices.length), hasText: !!(await selection.readText(mode)).trim() };
+    state = { mode, volume: speakVolume(cfg), ready: tts.isInstalled(), hasText: !!(await selection.readText(mode)).trim() };
   }
   const key = JSON.stringify(state);
   if (key === speakKey || !win) return;
@@ -390,39 +380,44 @@ async function updateSpeakState() {
 }
 
 const SPEAK_MESSAGES = {
-  notInstalled: 'Piper introuvable : installez-le (uv tool install piper-tts) et placez une voix .onnx + .onnx.json dans le dossier des voix (clic droit → Lecture à voix haute).',
+  notInstalled: 'Pocket TTS introuvable : uv tool install pocket-tts --index https://download.pytorch.org/whl/cpu',
   empty: 'Rien à lire.',
-  timeout: 'La synthèse vocale a pris trop de temps.',
   failed: 'La synthèse vocale a échoué.',
 };
 
 // Comme pour le collage, le texte ne vient jamais du renderer : on relit ici
-// la sélection (ou le presse-papiers) au moment du clic.
+// la sélection (ou le presse-papiers) au moment du clic. L'audio suit par
+// morceaux (`tts:chunk`), puis `tts:end` ; le renderer les joue bout à bout.
 ipcMain.handle('tts:speak', async () => {
   const cfg = loadConfig();
   const mode = speakMode(cfg);
-  if (mode === 'off') return { ok: false, code: 'empty', error: SPEAK_MESSAGES.empty };
+  if (mode === 'off') return { ok: false, error: SPEAK_MESSAGES.empty };
+  const send = (...args) => { if (win) win.webContents.send(...args); };
   try {
-    const text = await selection.readText(mode);
-    const wavs = await tts.synthesize(piperDir(), text,
-      { pronunciations: cfg.pronunciations, voices: cfg.speakVoices, lang: cfg.speakLang });
-    return { ok: true, wavs };
+    const id = tts.speak(await selection.readText(mode), { lang: cfg.speakLang, voices: cfg.speakVoices },
+      (pcm, rate) => send('tts:chunk', id, pcm, rate),
+      (code) => send('tts:end', id, code ? SPEAK_MESSAGES[code] || SPEAK_MESSAGES.failed : null));
+    return { ok: true, id };
   } catch (err) {
-    const code = err && err.message;
-    if (code === 'cancelled') return { ok: false, code };
-    const known = SPEAK_MESSAGES[code] ? code : 'failed';
-    return { ok: false, code: known, error: SPEAK_MESSAGES[known] };
+    return { ok: false, error: SPEAK_MESSAGES[err && err.message] || SPEAK_MESSAGES.failed };
   }
 });
-ipcMain.on('tts:cancel', () => tts.cancel());
+ipcMain.on('tts:cancel', (_e, id) => tts.cancel(id));
+// Survol du bouton : le clic va suivre, on charge le modèle d'avance.
+ipcMain.on('tts:warmUp', async () => {
+  const cfg = loadConfig();
+  const mode = speakMode(cfg);
+  if (mode !== 'off') tts.warmUp(await selection.readText(mode), { lang: cfg.speakLang, voices: cfg.speakVoices });
+});
 
 /* ---- Menu du clic droit -------------------------------------------------- */
 
-// Langues de lecture connues du menu (les autres s'affichent par leur code).
+// Langues de lecture (cf. tts.LANGS), dans l'ordre du menu.
 const SPEAK_LANGS = {
   fr: { lang: 'Français', voice: 'Voix française' },
   en: { lang: 'Anglais', voice: 'Voix anglaise' },
 };
+const GENDER = { f: 'femme', m: 'homme' };
 
 // `devices` = micros énumérés par le renderer (seul à y avoir accès).
 ipcMain.on('menu:open', (_e, devices) => {
@@ -430,14 +425,6 @@ ipcMain.on('menu:open', (_e, devices) => {
   const cfg = loadConfig();
   const mics = Array.isArray(devices) ? devices.filter((d) => d && typeof d.deviceId === 'string') : [];
   const { cli, model } = whisper.locateWhisper(whisperDirs());
-  const piper = tts.locatePiper(piperDir());
-  const chosen = tts.pickVoices(piper.voices, cfg.speakVoices);
-  const rank = (l) => (l in SPEAK_LANGS ? Object.keys(SPEAK_LANGS).indexOf(l) : 99);
-  const langs = Object.keys(chosen).sort((a, b) => rank(a) - rank(b)); // français d'abord
-  const QUALITY = { x_low: 'très basse', low: 'basse', medium: 'moyenne', high: 'haute' };
-  const GENDER = { f: 'femme', m: 'homme' };
-  // « upmc (jessica) · femme · qualité moyenne »
-  const voiceLabel = (v) => [v.label, GENDER[v.gender], v.quality && `qualité ${QUALITY[v.quality]}`].filter(Boolean).join(' · ');
   const speak = speakMode(cfg);
   const setSpeak = (value) => { saveConfig({ speak: value }); pollSpeak(); };
   const template = [
@@ -470,8 +457,8 @@ ipcMain.on('menu:open', (_e, devices) => {
     {
       label: 'Lecture à voix haute',
       submenu: [
-        ...(!piper.cli || !piper.voices.length ? [
-          { label: !piper.cli ? 'Piper non installé' : 'Aucune voix Piper', enabled: false },
+        ...(!tts.isInstalled() ? [
+          { label: 'Pocket TTS non installé', enabled: false },
           { type: 'separator' },
         ] : []),
         ...(process.platform === 'linux' ? [
@@ -480,24 +467,23 @@ ipcMain.on('menu:open', (_e, devices) => {
         { label: 'Presse-papiers', type: 'radio', checked: speak === 'clipboard', click: () => setSpeak('clipboard') },
         { label: 'Désactivée', type: 'radio', checked: speak === 'off', click: () => setSpeak('off') },
         { type: 'separator' },
-        ...(langs.length > 1 ? [{
+        {
           label: 'Langue du texte',
-          submenu: ['auto', ...langs].map((l) => ({
-            label: l === 'auto' ? 'Détection automatique' : (SPEAK_LANGS[l] || l).lang, type: 'radio',
-            checked: (chosen[cfg.speakLang] ? cfg.speakLang : 'auto') === l, click: () => saveConfig({ speakLang: l }),
+          submenu: ['auto', ...Object.keys(SPEAK_LANGS)].map((l) => ({
+            label: l === 'auto' ? 'Détection automatique' : SPEAK_LANGS[l].lang, type: 'radio',
+            checked: (SPEAK_LANGS[cfg.speakLang] ? cfg.speakLang : 'auto') === l, click: () => saveConfig({ speakLang: l }),
           })),
-        }] : []),
-        ...langs.map((l) => ({
-          label: (SPEAK_LANGS[l] || { voice: `Voix (${l})` }).voice,
-          submenu: piper.voices.filter((v) => v.lang === l).map((v) => ({
-            label: voiceLabel(v), type: 'radio', checked: chosen[l] === v,
+        },
+        // « Estelle · femme »
+        ...Object.keys(SPEAK_LANGS).map((l) => ({
+          label: SPEAK_LANGS[l].voice,
+          submenu: tts.LANGS[l].voices.map((v) => ({
+            label: `${v.label} · ${GENDER[v.gender]}`, type: 'radio', checked: tts.pickVoice(l, cfg.speakVoices) === v,
             click: () => saveConfig({ speakVoices: { ...loadConfig().speakVoices, [l]: v.id } }),
           })),
         })),
-        ...(langs.length ? [{ type: 'separator' }] : []),
+        { type: 'separator' },
         { label: `Volume : ${Math.round(speakVolume(cfg) * 100)} %…`, click: () => showBubble(speakVolume(cfg), 'volume') },
-        { label: 'Prononciation des mots anglais…', click: () => { saveConfig({}); shell.openPath(configFile()); } },
-        { label: 'Ouvrir le dossier des voix', click: () => { fs.mkdirSync(piperDir(), { recursive: true }); shell.openPath(piperDir()); } },
       ],
     },
     { type: 'separator' },
@@ -518,4 +504,4 @@ app.whenReady().then(() => {
   setInterval(pollSpeak, SPEAK_POLL_MS);
 });
 app.on('window-all-closed', () => app.quit());
-app.on('will-quit', () => { paste.stop(); tts.cancel(); });
+app.on('will-quit', () => { paste.stop(); tts.stop(); });

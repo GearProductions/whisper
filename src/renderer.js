@@ -11,7 +11,7 @@
    machine.
 
    À côté, le bouton de lecture : le principal le dit actif, grisé ou masqué
-   (texte sélectionné ou non, Piper installé ou non) ; un clic lit, un second
+   (texte sélectionné ou non, Pocket TTS installé ou non) ; un clic lit, un second
    arrête.
    ========================================================================= */
 
@@ -260,10 +260,16 @@ document.addEventListener('contextmenu', async (e) => {
 
 const play = document.getElementById('play');
 
-// phase : idle | loading (synthèse) | playing | error. `token` invalide une
-// synthèse en cours quand on l'annule.
-const speech = { state: { mode: 'off' }, phase: 'idle', token: 0, ctx: null, source: null, gain: null, error: '', errorTimer: null };
+// phase : idle | loading (en attente du premier son) | playing | error.
+// L'audio arrive par morceaux au fil de la génération (`tts:chunk`), joués bout
+// à bout ; `tts:end` dit que la génération est finie. `id` : la lecture en
+// cours, les morceaux d'une lecture abandonnée sont ignorés.
+const speech = {
+  state: { mode: 'off' }, phase: 'idle', id: null, token: 0, done: false,
+  ctx: null, gain: null, sources: new Set(), nextTime: 0, early: [], error: '', errorTimer: null,
+};
 const speechVolume = () => (Number.isFinite(speech.state.volume) ? speech.state.volume : 1);
+const LEAD_S = 0.05; // marge avant le premier morceau
 
 function canSpeak() {
   const s = speech.state;
@@ -281,7 +287,7 @@ function renderPlay() {
   const what = s.mode === 'selection' ? 'la sélection' : 'le presse-papiers';
   if (busy) play.title = speech.phase === 'loading' ? 'Préparation de la lecture… (clic : annuler)' : 'Arrêter la lecture';
   else if (speech.phase === 'error') play.title = speech.error;
-  else if (!s.ready) play.title = 'Piper ou sa voix introuvable : clic droit → Lecture à voix haute';
+  else if (!s.ready) play.title = 'Pocket TTS introuvable : voir le README (Lecture à voix haute)';
   else if (!s.hasText) play.title = s.mode === 'selection' ? 'Sélectionnez du texte à lire' : 'Presse-papiers vide';
   else play.title = `Lire ${what} à voix haute`;
 }
@@ -298,64 +304,81 @@ function setSpeechPhase(phase, error = '') {
 
 function stopSpeaking() {
   speech.token++;
-  if (speech.phase === 'loading') window.api.cancelSpeak();
-  if (speech.source) { try { speech.source.stop(); } catch { /* déjà arrêtée */ } }
+  if (speech.id !== null && !speech.done) window.api.cancelSpeak(speech.id);
+  for (const src of speech.sources) { try { src.stop(); } catch { /* déjà arrêtée */ } }
   if (speech.ctx) speech.ctx.close().catch(() => {});
-  speech.source = null;
+  speech.sources.clear();
   speech.ctx = null;
   speech.gain = null;
+  speech.id = null;
+  speech.early = [];
   if (speech.phase === 'loading' || speech.phase === 'playing') setSpeechPhase('idle');
 }
 
-// Un WAV par passage de même langue (français, anglais), mis bout à bout. Les
-// voix n'ont pas toutes la même fréquence : decodeAudioData ramène chacune à
-// celle du contexte.
-async function joinWavs(ctx, wavs) {
-  const parts = [];
-  for (const wav of wavs) {
-    // Uint8Array : on n'en passe que la vue à decodeAudioData.
-    parts.push(await ctx.decodeAudioData(wav.buffer.slice(wav.byteOffset, wav.byteOffset + wav.byteLength)));
-  }
-  if (parts.length === 1) return parts[0];
-  const out = ctx.createBuffer(1, parts.reduce((n, p) => n + p.length, 0), ctx.sampleRate);
-  let offset = 0;
-  for (const p of parts) { out.copyToChannel(p.getChannelData(0), 0, offset); offset += p.length; }
-  return out;
+// Fin : génération terminée et dernier morceau joué.
+function finishIfDone() {
+  if (speech.done && !speech.sources.size && speech.phase === 'playing') stopSpeaking();
+}
+
+function playChunk(pcm, rate) {
+  const { ctx } = speech;
+  // PCM 16 bits mono (Uint8Array) → flottants ; copié, l'alignement n'étant pas garanti.
+  const ints = new Int16Array(pcm.slice().buffer);
+  const buf = ctx.createBuffer(1, ints.length, rate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < ints.length; i++) data[i] = ints[i] / 32768;
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.connect(speech.gain);
+  const at = Math.max(speech.nextTime, ctx.currentTime + LEAD_S);
+  src.start(at);
+  speech.nextTime = at + buf.duration;
+  speech.sources.add(src);
+  src.onended = () => { speech.sources.delete(src); finishIfDone(); };
+  if (speech.phase === 'loading') setSpeechPhase('playing');
 }
 
 async function speak() {
   const token = ++speech.token;
+  // Créés au clic : le volume passe par un gain, le curseur agit en cours de lecture.
+  speech.ctx = new AudioContext();
+  speech.gain = speech.ctx.createGain();
+  speech.gain.gain.value = speechVolume();
+  speech.gain.connect(speech.ctx.destination);
+  speech.nextTime = 0;
+  speech.done = false;
+  speech.early = [];
   setSpeechPhase('loading');
   let res;
   try { res = await window.api.speak(); } catch { res = null; }
-  if (token !== speech.token) return; // annulée entre-temps
-  if (!res || !res.ok) { setSpeechPhase('error', (res && res.error) || 'La synthèse vocale a échoué.'); return; }
-  try {
-    const ctx = new AudioContext();
-    const audio = await joinWavs(ctx, res.wavs);
-    if (token !== speech.token) { ctx.close().catch(() => {}); return; }
-    const source = ctx.createBufferSource();
-    source.buffer = audio;
-    // Le volume passe par un gain : le curseur agit aussi en cours de lecture.
-    const gain = ctx.createGain();
-    gain.gain.value = speechVolume();
-    source.connect(gain).connect(ctx.destination);
-    source.onended = () => { if (speech.source === source) stopSpeaking(); };
-    speech.ctx = ctx;
-    speech.source = source;
-    speech.gain = gain;
-    source.start();
-    setSpeechPhase('playing');
-  } catch {
-    setSpeechPhase('error', 'Lecture audio impossible.');
-  }
+  if (token !== speech.token) { if (res && res.ok) window.api.cancelSpeak(res.id); return; } // annulée entre-temps
+  if (!res || !res.ok) { stopSpeaking(); setSpeechPhase('error', (res && res.error) || 'La synthèse vocale a échoué.'); return; }
+  speech.id = res.id;
+  // Morceaux arrivés avant la réponse : rejoués dans l'ordre.
+  const early = speech.early;
+  speech.early = [];
+  for (const [id, ...args] of early) onEvent(id, ...args);
+}
+
+function onEvent(id, kind, a, b) {
+  if (speech.id === null && speech.phase === 'loading') { speech.early.push([id, kind, a, b]); return; }
+  if (id !== speech.id) return;
+  if (kind === 'chunk') { try { playChunk(a, b); } catch { stopSpeaking(); setSpeechPhase('error', 'Lecture audio impossible.'); } return; }
+  speech.done = true;
+  if (a) { stopSpeaking(); setSpeechPhase('error', a); return; }
+  if (speech.phase === 'loading') stopSpeaking(); // rien n'a été généré
+  else finishIfDone();
 }
 
 play.addEventListener('click', () => {
   if (speech.phase === 'loading' || speech.phase === 'playing') stopSpeaking();
   else if (canSpeak()) speak();
 });
+// Survol : le clic va suivre, le principal charge le modèle d'avance.
+play.addEventListener('mouseenter', () => { if (canSpeak()) window.api.warmUpSpeak(); });
 
+window.api.onSpeakChunk((id, pcm, rate) => onEvent(id, 'chunk', pcm, rate));
+window.api.onSpeakEnd((id, error) => onEvent(id, 'end', error));
 window.api.onSpeakState((state) => {
   speech.state = state || { mode: 'off' };
   if (speech.state.mode === 'off') stopSpeaking();
