@@ -9,6 +9,10 @@
    Chaîne : micro 16 kHz mono → relâché → PCM 16 bits → principal (whisper.cpp
    local, puis Ctrl+V dans l'application au premier plan). Rien ne quitte la
    machine.
+
+   À côté, le bouton de lecture : le principal le dit actif, grisé ou masqué
+   (texte sélectionné ou non, Piper installé ou non) ; un clic lit, un second
+   arrête.
    ========================================================================= */
 
 const RATE = 16000;
@@ -86,6 +90,7 @@ async function startDictation() {
   // doit l'annuler, pas laisser un enregistrement orphelin.
   const session = { stopRequested: false, rec: null, cfg };
   state.session = session;
+  stopSpeaking(); // sinon le micro capterait la lecture
   setPhase('starting');
   // Avant d'ouvrir le micro : le principal coupe Discord si c'est autorisé.
   // Chaque sortie ci-dessous (et releaseRecorder) signale la fin.
@@ -245,7 +250,116 @@ function endPress(e) {
 icon.addEventListener('pointerup', endPress);
 icon.addEventListener('pointercancel', endPress);
 
-icon.addEventListener('contextmenu', async (e) => {
+// Sur l'icône comme sur le bouton de lecture.
+document.addEventListener('contextmenu', async (e) => {
   e.preventDefault();
   window.api.openMenu(await listInputs());
 });
+
+/* ---- Lecture à voix haute ------------------------------------------------ */
+
+const play = document.getElementById('play');
+
+// phase : idle | loading (synthèse) | playing | error. `token` invalide une
+// synthèse en cours quand on l'annule.
+const speech = { state: { mode: 'off' }, phase: 'idle', token: 0, ctx: null, source: null, gain: null, error: '', errorTimer: null };
+const speechVolume = () => (Number.isFinite(speech.state.volume) ? speech.state.volume : 1);
+
+function canSpeak() {
+  const s = speech.state;
+  return s.mode !== 'off' && s.ready && s.hasText;
+}
+
+function renderPlay() {
+  const s = speech.state;
+  document.body.dataset.tts = s.mode === 'off' ? 'off' : 'on';
+  play.dataset.phase = speech.phase;
+  const busy = speech.phase === 'loading' || speech.phase === 'playing';
+  // aria-disabled et non `disabled` : un bouton désactivé ne reçoit plus le
+  // clic droit, et le menu doit rester accessible.
+  play.setAttribute('aria-disabled', String(!busy && !canSpeak()));
+  const what = s.mode === 'selection' ? 'la sélection' : 'le presse-papiers';
+  if (busy) play.title = speech.phase === 'loading' ? 'Préparation de la lecture… (clic : annuler)' : 'Arrêter la lecture';
+  else if (speech.phase === 'error') play.title = speech.error;
+  else if (!s.ready) play.title = 'Piper ou sa voix introuvable : clic droit → Lecture à voix haute';
+  else if (!s.hasText) play.title = s.mode === 'selection' ? 'Sélectionnez du texte à lire' : 'Presse-papiers vide';
+  else play.title = `Lire ${what} à voix haute`;
+}
+
+function setSpeechPhase(phase, error = '') {
+  speech.phase = phase;
+  speech.error = error;
+  clearTimeout(speech.errorTimer);
+  if (phase === 'error') {
+    speech.errorTimer = setTimeout(() => { if (speech.phase === 'error') setSpeechPhase('idle'); }, ERROR_MS);
+  }
+  renderPlay();
+}
+
+function stopSpeaking() {
+  speech.token++;
+  if (speech.phase === 'loading') window.api.cancelSpeak();
+  if (speech.source) { try { speech.source.stop(); } catch { /* déjà arrêtée */ } }
+  if (speech.ctx) speech.ctx.close().catch(() => {});
+  speech.source = null;
+  speech.ctx = null;
+  speech.gain = null;
+  if (speech.phase === 'loading' || speech.phase === 'playing') setSpeechPhase('idle');
+}
+
+// Un WAV par passage de même langue (français, anglais), mis bout à bout. Les
+// voix n'ont pas toutes la même fréquence : decodeAudioData ramène chacune à
+// celle du contexte.
+async function joinWavs(ctx, wavs) {
+  const parts = [];
+  for (const wav of wavs) {
+    // Uint8Array : on n'en passe que la vue à decodeAudioData.
+    parts.push(await ctx.decodeAudioData(wav.buffer.slice(wav.byteOffset, wav.byteOffset + wav.byteLength)));
+  }
+  if (parts.length === 1) return parts[0];
+  const out = ctx.createBuffer(1, parts.reduce((n, p) => n + p.length, 0), ctx.sampleRate);
+  let offset = 0;
+  for (const p of parts) { out.copyToChannel(p.getChannelData(0), 0, offset); offset += p.length; }
+  return out;
+}
+
+async function speak() {
+  const token = ++speech.token;
+  setSpeechPhase('loading');
+  let res;
+  try { res = await window.api.speak(); } catch { res = null; }
+  if (token !== speech.token) return; // annulée entre-temps
+  if (!res || !res.ok) { setSpeechPhase('error', (res && res.error) || 'La synthèse vocale a échoué.'); return; }
+  try {
+    const ctx = new AudioContext();
+    const audio = await joinWavs(ctx, res.wavs);
+    if (token !== speech.token) { ctx.close().catch(() => {}); return; }
+    const source = ctx.createBufferSource();
+    source.buffer = audio;
+    // Le volume passe par un gain : le curseur agit aussi en cours de lecture.
+    const gain = ctx.createGain();
+    gain.gain.value = speechVolume();
+    source.connect(gain).connect(ctx.destination);
+    source.onended = () => { if (speech.source === source) stopSpeaking(); };
+    speech.ctx = ctx;
+    speech.source = source;
+    speech.gain = gain;
+    source.start();
+    setSpeechPhase('playing');
+  } catch {
+    setSpeechPhase('error', 'Lecture audio impossible.');
+  }
+}
+
+play.addEventListener('click', () => {
+  if (speech.phase === 'loading' || speech.phase === 'playing') stopSpeaking();
+  else if (canSpeak()) speak();
+});
+
+window.api.onSpeakState((state) => {
+  speech.state = state || { mode: 'off' };
+  if (speech.state.mode === 'off') stopSpeaking();
+  if (speech.gain) speech.gain.gain.value = speechVolume();
+  renderPlay();
+});
+renderPlay();
