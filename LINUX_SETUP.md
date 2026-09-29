@@ -37,7 +37,9 @@ petit bouton ▶ à droite de l'icône (grisé s'il n'y a rien de sélectionné 
 la voix démarre ~0,1 s après le clic. Texte lu en français ou en anglais
 selon sa langue. Clic droit → *Lecture à voix haute* pour lire le
 presse-papiers à la place, masquer le bouton, imposer une langue, changer de
-voix ou régler le volume (curseur).
+voix ou régler le volume (curseur). *Moteur → Chatterbox (GPU)* : voix plus
+naturelles, par le service `dev-chatterbox` (quadlet podman sur l'hôte, cf.
+`chatterbox/README.md`).
 
 Arrêter : clic droit → *Quitter*.
 
@@ -62,6 +64,7 @@ lanceur ne fait rien. `.data/`, exclu de git, ne gêne pas le `pull`.
 | Modèle + enveloppe `whisper-cli` | `.data/whisper/` |
 | Pocket TTS (synthèse vocale) | `~/.local/bin/pocket-tts` (outil `uv`) |
 | Modèles et voix Pocket TTS | `~/.cache/huggingface/` (téléchargés à la première lecture) |
+| Service Chatterbox (GPU) | quadlet `~/.config/containers/systemd/dev-chatterbox.container`, image `localhost/dev-chatterbox`, poids dans le volume `dev-chatterbox-cache`, port `127.0.0.1:8004` |
 | Config (langue, vocabulaire, micro) | `.data/config.json` |
 | whisper.cpp | `~/dev/Gear/tools/whisper.cpp` — `build-vulkan/` (GPU, utilisé), `build/` (CPU, secours) |
 | Lanceur | `~/dev/Gear/tools/whisper.sh` |
@@ -105,8 +108,10 @@ compilé, lui, n'a besoin que de ce que `dev.ini` fournit déjà (`vulkan-loader
   10 min sans lecture.
 - **Choix du moteur** : essayés à l'écoute, Piper (voix plus mécaniques ; les
   mots anglais passaient mal, même avec une voix par langue ou un dictionnaire
-  de prononciation) et Chatterbox (GPU, ~3,7 Go de VRAM, conteneur). Pocket
-  TTS l'emporte sur Piper, sans GPU.
+  de prononciation) et Chatterbox (GPU, conteneur). Pocket TTS l'emporte sur
+  Piper, sans GPU ; Chatterbox, plus naturel encore, reste au choix dans le
+  menu (service `dev-chatterbox`, ~4,6 Go de VRAM pendant la lecture, ~330 Mo
+  au repos).
 - **Sélection** : l'appli lit la sélection « primaire » de Linux (ce qui est
   surligné, sans Ctrl+C). Certaines applications la gardent après qu'on a
   cliqué ailleurs : le bouton reste alors actif sur l'ancienne sélection.

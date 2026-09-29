@@ -11,8 +11,8 @@
    machine.
 
    À côté, le bouton de lecture : le principal le dit actif, grisé ou masqué
-   (texte sélectionné ou non, Pocket TTS installé ou non) ; un clic lit, un second
-   arrête.
+   (texte sélectionné ou non, moteur disponible ou non) ; un clic lit, un
+   second arrête.
    ========================================================================= */
 
 const RATE = 16000;
