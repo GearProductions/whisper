@@ -12,13 +12,20 @@
    bouton ne serait jamais grisé. Pas pour le presse-papiers : ce qu'on a
    copié doit rester lisible une fois l'application source fermée.
 
-   Ailleurs (X11, Windows, pas de wl-paste) : le presse-papiers d'Electron.
+   Windows n'a pas de sélection « primaire » : au clic, on envoie Ctrl+C à
+   l'application au premier plan (qui garde le focus, l'icône ne le prenant
+   jamais), on lit le presse-papiers, puis on le rend tel qu'il était. On ne
+   peut donc pas savoir d'avance s'il y a une sélection : hasText dit oui.
+
+   Ailleurs (X11, pas de wl-paste) : le presse-papiers d'Electron, dont la
+   sélection primaire sous X11.
    ========================================================================= */
 
 const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
 const { clipboard } = require('electron');
+const windows = require('./windows');
 
 const MAX_BYTES = 1024 * 1024;
 const KLIPPER_REFILL = 'application/x-kde-onlyReplaceEmpty';
@@ -40,6 +47,55 @@ function findWlPaste() {
 
 const TEXT_TYPE = /^(text\/plain|UTF8_STRING|STRING|TEXT)\b/;
 const HAS_TEXT_MAX = 4096;
+
+const isWin = process.platform === 'win32';
+const COPY_WAIT_MS = 600; // le temps que l'application réponde au Ctrl+C
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/* ---- Presse-papiers : photographier, rendre ------------------------------ */
+
+// Ce que l'utilisateur avait copié, pour le lui rendre après un collage ou un
+// Ctrl+C simulé.
+function snapshotClipboard() {
+  const snap = {};
+  try {
+    const formats = clipboard.availableFormats();
+    if (formats.some((f) => f.startsWith('text/plain'))) snap.text = clipboard.readText();
+    if (formats.includes('text/html')) snap.html = clipboard.readHTML();
+    if (formats.includes('text/rtf')) snap.rtf = clipboard.readRTF();
+    if (formats.some((f) => f.startsWith('image/'))) {
+      const img = clipboard.readImage();
+      if (!img.isEmpty()) snap.image = img;
+    }
+  } catch { /* presse-papiers occupé : on ne restaurera rien */ }
+  return snap;
+}
+
+function restoreClipboard(snap) {
+  try {
+    if (Object.keys(snap).length) clipboard.write(snap); else clipboard.clear();
+  } catch { /* tant pis */ }
+}
+
+/* ---- Windows : Ctrl+C simulé -------------------------------------------- */
+
+// Vidé avant : s'il reste vide, rien n'était sélectionné (ou l'application
+// n'a pas répondu à temps).
+async function copySelection() {
+  const snap = snapshotClipboard();
+  try { clipboard.clear(); } catch { /* occupé */ }
+  let text = '';
+  if (await windows.request('copy') === 'ok') {
+    for (let waited = 0; !text && waited < COPY_WAIT_MS; waited += 25) {
+      await delay(25);
+      try { text = clipboard.readText(); } catch { /* occupé */ }
+    }
+  }
+  restoreClipboard(snap);
+  return text;
+}
+
+/* ---- wl-paste (Wayland) -------------------------------------------------- */
 
 const textArgs = (mode) => ['--no-newline', '--type', 'text', ...(mode === 'selection' ? ['--primary'] : [])];
 
@@ -64,6 +120,7 @@ async function textOffered(cli, mode) {
 // `mode` : 'selection' (primaire, Linux) ou 'clipboard'. Résout '' si rien
 // (vide, image seule, sélection trop grosse…).
 async function readText(mode) {
+  if (isWin && mode === 'selection') return copySelection();
   const cli = findWlPaste();
   if (!cli) {
     try { return clipboard.readText(mode); } catch { return ''; }
@@ -76,6 +133,7 @@ async function readText(mode) {
 // n'en lit que HAS_TEXT_MAX octets (une sélection peut peser 1 Mo). Les types
 // ne suffisent pas : un éditeur (Zed…) peut annoncer du texte vide.
 async function hasText(mode) {
+  if (isWin && mode === 'selection') return true; // inconnaissable sans Ctrl+C
   const cli = findWlPaste();
   if (!cli) {
     try { return !!clipboard.readText(mode).trim(); } catch { return false; }
@@ -85,4 +143,9 @@ async function hasText(mode) {
   return head === null || !!head.trim(); // null : plus long que HAS_TEXT_MAX
 }
 
-module.exports = { readText, hasText };
+// Pour un simple aperçu (préchargement au survol) : jamais de Ctrl+C simulé.
+function peekText(mode) {
+  return isWin && mode === 'selection' ? Promise.resolve('') : readText(mode);
+}
+
+module.exports = { readText, hasText, peekText, snapshotClipboard, restoreClipboard };
