@@ -8,21 +8,32 @@
    suspend ce délai.
 
    Elle sert aussi de « notice » (ex. « Micro Discord coupé ») : simple
-   message, rien à copier.
+   message, rien à copier ; et de réglage du volume de lecture (un curseur,
+   appliqué aussitôt).
    ========================================================================= */
 
 const box = document.getElementById('bubble');
 const text = document.getElementById('text');
 const hint = document.getElementById('hint');
+const volume = document.getElementById('volume');
+const range = document.getElementById('volume-range');
+const rangeValue = document.getElementById('volume-value');
 const HINT = 'Cliquer pour copier';
 
 window.bubble.onShow((value, kind) => {
   const notice = kind === 'notice';
-  text.textContent = value;
+  const isVolume = kind === 'volume';
+  text.textContent = isVolume ? 'Volume de lecture' : value;
+  volume.hidden = !isVolume;
+  if (isVolume) {
+    range.value = String(Math.round(Number(value) * 100));
+    rangeValue.textContent = `${range.value} %`;
+  }
   hint.textContent = HINT;
-  hint.hidden = notice;
-  box.title = notice ? '' : HINT;
+  hint.hidden = notice || isVolume;
+  box.title = notice || isVolume ? '' : HINT;
   box.classList.toggle('notice', notice);
+  box.classList.toggle('volume', isVolume);
   box.classList.remove('copied');
   box.scrollTop = 0;
   // Hauteur réelle une fois le texte posé : le principal taille la fenêtre dessus.
@@ -35,7 +46,13 @@ window.bubble.onShow((value, kind) => {
 // La croix ferme SANS copier (elle est hors de la bulle : son clic n'y remonte pas).
 document.getElementById('close').addEventListener('click', () => window.bubble.close());
 
+range.addEventListener('input', () => {
+  rangeValue.textContent = `${range.value} %`;
+  window.bubble.setVolume(Number(range.value) / 100);
+});
+
 box.addEventListener('click', async () => {
+  if (box.classList.contains('volume')) return;
   if (await window.bubble.copy()) {
     box.classList.add('copied');
     hint.textContent = 'Copié ✓';

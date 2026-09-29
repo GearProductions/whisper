@@ -5,7 +5,7 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "build:win": "electron-packager . whisper --platform=win32 --arch=x64 --out=dist --overwrite --ignore=\"^/dist\" --asar.unpack=\"**/*.ps1\"",
+    "build:win": "electron-packager . whisper --platform=win32 --arch=x64 --out=dist --overwrite --ignore=\"^/dist\" --asar.unpack=\"**/*.{ps1,py}\"",
     "build:linux": "electron-packager . whisper --platform=linux --arch=x64 --out=dist --overwrite --ignore=\"^/dist\""
   },
   "license": "MIT",

@@ -40,3 +40,9 @@ html, body { margin: 0; background: transparent; overflow: hidden; }
 /* Notice (« Micro Discord coupé ») : pas cliquable, bordure aux couleurs de Discord. */
 #bubble.notice, #bubble.notice:hover { cursor: default; border-color: #5865f2; }
 #bubble.copied #hint { color: #2fa36b; }
+/* Volume de lecture : un curseur, rien à copier. */
+#bubble.volume, #bubble.volume:hover { cursor: default; }
+#volume { display: flex; align-items: center; gap: 10px; margin-top: 8px; padding-right: 14px; }
+#volume[hidden] { display: none; }
+#volume-range { flex: 1; accent-color: #3b6fe0; cursor: pointer; }
+#volume-value { min-width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; color: #8a91a0; }

@@ -31,6 +31,14 @@ puis rétabli ; un micro déjà coupé le reste). Coupure invisible côté Disco
 (ni icône ni son) : la bulle *Micro Discord coupé* la signale. Passe par
 `wpctl`, déjà présent dans la box (paquet `wireplumber`) : rien à installer.
 
+Lecture à voix haute : sélectionner du texte n'importe où, puis clic sur le
+petit bouton ▶ à droite de l'icône (grisé s'il n'y a rien de sélectionné ;
+■ pendant la lecture, un clic arrête). Pocket TTS (Kyutai), sur le processeur :
+la voix démarre ~0,1 s après le clic. Texte lu en français ou en anglais
+selon sa langue. Clic droit → *Lecture à voix haute* pour lire le
+presse-papiers à la place, masquer le bouton, imposer une langue, changer de
+voix ou régler le volume (curseur).
+
 Arrêter : clic droit → *Quitter*.
 
 ## Mettre à jour
@@ -52,6 +60,8 @@ lanceur ne fait rien. `.data/`, exclu de git, ne gêne pas le `pull`.
 | Appli (Electron) | `~/dev/Gear/tools/whisper-dictation` |
 | Données de l'appli | `.data/` (au lieu de `~/.config/whisper-dictation`) |
 | Modèle + enveloppe `whisper-cli` | `.data/whisper/` |
+| Pocket TTS (synthèse vocale) | `~/.local/bin/pocket-tts` (outil `uv`) |
+| Modèles et voix Pocket TTS | `~/.cache/huggingface/` (téléchargés à la première lecture) |
 | Config (langue, vocabulaire, micro) | `.data/config.json` |
 | whisper.cpp | `~/dev/Gear/tools/whisper.cpp` — `build-vulkan/` (GPU, utilisé), `build/` (CPU, secours) |
 | Lanceur | `~/dev/Gear/tools/whisper.sh` |
@@ -85,6 +95,27 @@ compilé, lui, n'a besoin que de ce que `dev.ini` fournit déjà (`vulkan-loader
   Bazzite, `/dev/uinput` est déjà accessible sans root → service utilisateur
   sur l'hôte avec `--socket-path=%t/.ydotool_socket`, paquet `ydotool` dans la
   box, et `YDOTOOL_SOCKET` exporté par le lanceur.
+- **Pocket TTS par `uv tool`**, pas par `dnf` : il vit dans le home et
+  survit à la recréation de la box. Désinstaller : `uv tool uninstall
+  pocket-tts`. Installé avec `--index https://download.pytorch.org/whl/cpu`
+  pour la version de PyTorch sans CUDA.
+- **Processeur, pas GPU** : quantifié en int8, le modèle français génère ~5 fois
+  plus vite que la lecture, l'anglais davantage ; l'audio part au fil de la
+  génération. Coût : ~1,5 Go de mémoire vive par langue chargée, rendus après
+  10 min sans lecture.
+- **Choix du moteur** : essayés à l'écoute, Piper (voix plus mécaniques ; les
+  mots anglais passaient mal, même avec une voix par langue ou un dictionnaire
+  de prononciation) et Chatterbox (GPU, ~3,7 Go de VRAM, conteneur). Pocket
+  TTS l'emporte sur Piper, sans GPU.
+- **Sélection** : l'appli lit la sélection « primaire » de Linux (ce qui est
+  surligné, sans Ctrl+C). Certaines applications la gardent après qu'on a
+  cliqué ailleurs : le bouton reste alors actif sur l'ancienne sélection.
+- **`wl-paste` de l'hôte** : Electron tourne en X11 (XWayland), et KWin ne
+  passe la sélection à une fenêtre X11 que si elle a le focus — l'icône ne le
+  prend jamais. L'appli lit donc la sélection par `wl-paste`, pris sur l'hôte
+  (`/run/host/usr/bin/wl-paste`, fourni par Bazzite) : rien à installer dans
+  la box. Quand Klipper remplit une sélection vidée, il la marque
+  `application/x-kde-onlyReplaceEmpty` : l'appli la tient pour vide.
 - **Modèle** `ggml-large-v3-turbo-q5_0.bin` (548 Mo) : bon en français.
   ~0,3 s par dictée sur la RTX 5070 Ti (~4,5 s en CPU) ; le tout premier appel
   prend ~4 s (compilation des shaders, ensuite en cache). ~600 Mo de VRAM,
@@ -116,6 +147,10 @@ mkdir -p whisper-dictation/.data/whisper && cd whisper-dictation/.data/whisper
 curl -fLO https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin
 printf '#!/bin/sh\nexec %s/dev/Gear/tools/whisper.cpp/build-vulkan/bin/whisper-cli -t 8 "$@"\n' "$HOME" > whisper-cli
 chmod +x whisper-cli
+cd ../../..
+
+# 4. Lecture à voix haute : Pocket TTS (modèles téléchargés à la première lecture)
+uv tool install pocket-tts --index https://download.pytorch.org/whl/cpu
 ```
 
 Puis le lanceur `~/dev/Gear/tools/whisper.sh` (à rendre exécutable :

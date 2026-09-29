@@ -7,7 +7,8 @@ C'est la dictée de l'icône compacte de Cockpit, seule.
 
 - **Maintenir** : dicter (bip aigu = parlez, bip grave = fin).
 - **Glisser** : déplacer l'icône (la position est retenue).
-- **Clic droit** : langue, micro, bip, affichage du texte, micro Discord (Linux), dossier whisper, configuration, quitter.
+- **Bouton ▶ accolé** : lire à voix haute le texte sélectionné (ou le presse-papiers), en local avec [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) (Kyutai).
+- **Clic droit** : langue, micro, bip, affichage du texte, micro Discord (Linux), lecture à voix haute, dossier whisper, configuration, quitter.
 
 À la fin d'une dictée, une bulle montre le texte transcrit à côté de l'icône :
 **un clic dessus le copie** dans le presse-papiers. Elle suit l'icône quand on
@@ -53,6 +54,41 @@ Il faut un outil pour simuler Ctrl+V :
 Sans outil, le texte reste dans le presse-papiers. Note : la plupart des
 terminaux Linux collent avec Ctrl+Maj+V, pas Ctrl+V.
 
+### Lecture à voix haute (Pocket TTS)
+
+Le petit bouton ▶ à droite de l'icône lit le texte **sélectionné** dans
+n'importe quelle application (Linux), ou le **presse-papiers** (Windows, ou au
+choix). Il est grisé quand il n'y a rien à lire ; pendant la lecture il devient
+■ : un clic arrête. Clic droit → *Lecture à voix haute* : source du texte, ou
+*Désactivée* pour masquer le bouton ; *Volume…* ouvre un curseur à côté de
+l'icône, appliqué aussitôt, y compris à une lecture en cours.
+
+La voix est produite en local, sur le processeur, par
+[Pocket TTS](https://github.com/kyutai-labs/pocket-tts) de Kyutai :
+
+```bash
+uv tool install pocket-tts --index https://download.pytorch.org/whl/cpu
+```
+
+(`--index` : la version de PyTorch sans CUDA, ~200 Mo au lieu de ~3 Go.) Les
+modèles se téléchargent à la première lecture (cache Hugging Face).
+
+L'audio arrive au fil de la génération : la lecture commence ~0,1 s après le
+clic. Le modèle se charge au survol du bouton (~3 s, ~1,5 Go de mémoire par
+langue) et se décharge après 10 min sans lecture.
+
+**Langues et voix.** Le texte est lu en français ou en anglais, selon la
+langue détectée sur l'ensemble du texte (clic droit → *Langue du texte* pour
+l'imposer). La voix française dit très bien les termes techniques anglais.
+Trois voix par langue, fournies par Kyutai (clic droit → *Voix française* /
+*Voix anglaise*) : Estelle, Mary, Marius (homme) ; Alba, Jane, George (homme).
+Toutes sous licence libre (CC0 ou CC-BY 4.0) ; le clonage d'une autre voix
+demande des poids à accès restreint, non utilisés ici.
+
+Sous **Wayland**, il faut aussi `wl-paste` (paquet `wl-clipboard`) : le
+compositeur ne donne la sélection qu'à la fenêtre qui a le focus, et l'icône
+ne le prend jamais. Dans une distrobox, celui de l'hôte est utilisé.
+
 ### Micro Discord (Linux)
 
 Clic droit → *Autoriser la coupure du micro Discord* (désactivé par défaut) :
@@ -77,6 +113,10 @@ Il faut `wpctl`, livré avec WirePlumber (installé d'office avec PipeWire).
 | `sound`      | Bips de début / fin                                               |
 | `showText`   | Bulle du texte transcrit à la fin d'une dictée                    |
 | `discordMute`| Linux : couper le micro Discord pendant l'enregistrement          |
+| `speak`      | Bouton de lecture : `selection` (Linux), `clipboard` ou `off`     |
+| `speakVolume`| Volume de lecture, de `0` à `1`                                   |
+| `speakLang`  | `auto` (français ou anglais, détecté), `fr` ou `en`               |
+| `speakVoices`| Voix par langue : `{ "fr": "estelle", "en": "alba" }`             |
 | `size`       | Taille de l'icône en px (32–200, appliquée au redémarrage)        |
 
 Relu à chaque dictée : pas besoin de relancer (sauf pour `size`).
