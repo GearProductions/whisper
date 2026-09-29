@@ -168,15 +168,17 @@ Relu à chaque dictée : pas besoin de relancer (sauf pour `size`).
 
 ## Paquets
 
-Construits par la CI (`.github/workflows/ci.yml`) à chaque PR et à chaque push
-sur `master` (artefacts de l'onglet *Actions*). Pour publier une version :
+Construits par la CI (`.github/workflows/ci.yml`) pour chaque nouvelle version.
+Pousser un tag crée la Release :
 
 ```bash
 git tag v0.2.0 && git push origin v0.2.0
 ```
 
 La CI construit alors l'exe et l'AppImage (version prise sur le tag) et les
-publie dans une Release GitHub.
+publie dans la Release GitHub de ce tag. Les PR ne font que les vérifications
+rapides ; *Actions* → *CI* → *Run workflow* construit les paquets sans rien
+publier (artefacts).
 
 En local, sur le système visé (`dist/`) :
 
