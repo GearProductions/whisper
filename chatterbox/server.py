@@ -57,7 +57,7 @@ VOICES_DIR = "/voices"
 # Style par langue. Le français sortait monotone : plus d'expressivité, et un
 # guidage plus bas pour un débit plus posé (choisis à l'écoute).
 STYLES = {
-    "fr": {"exaggeration": 1.2, "cfg_weight": 0.3},
+    "fr": {"exaggeration": 0.9, "cfg_weight": 0.3},
     "en": {"exaggeration": 0.5, "cfg_weight": 0.5},
 }
 DEFAULT_STYLE = {"exaggeration": 0.5, "cfg_weight": 0.5}

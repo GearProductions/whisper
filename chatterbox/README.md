@@ -63,10 +63,9 @@ podman volume rm dev-chatterbox-cache
   mono]`, une par morceau de texte (le premier court, ~80 caractères, pour
   démarrer vite). Interrompre la requête arrête la génération.
 - **Style par langue** (`STYLES` dans `server.py`, choisi à l'écoute) : le
-  français sortait monotone, il est lu plus expressif (`exaggeration` 1,2,
+  français sortait monotone, il est lu plus expressif (`exaggeration` 0,9,
   `cfg_weight` 0,3) ; l'anglais garde les valeurs par défaut (0,5 / 0,5). À 1,2,
-  l'articulation commence à s'en ressentir (un mot technique parfois approché) :
-  c'est le prix de l'expressivité ; 0,9 est un compromis plus sûr.
+  la voix devient emphatique et l'articulation s'en ressent.
 - **Référence dans une autre langue que le texte** (Mary lisant du français…) :
   `cfg_weight=0`, comme le recommande Resemble, pour limiter l'accent.
 - **Voix essayées et écartées** : les voix françaises du corpus CML-TTS, des
