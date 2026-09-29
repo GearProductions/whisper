@@ -10,8 +10,9 @@ C'est la dictée de l'icône compacte de Cockpit, seule.
 - **Clic droit** : langue, micro, bip, affichage du texte, micro Discord (Linux), dossier whisper, configuration, quitter.
 
 À la fin d'une dictée, une bulle montre le texte transcrit à côté de l'icône :
-**un clic dessus le copie** dans le presse-papiers. Elle disparaît seule après
-10 s (le survol suspend ce délai). Désactivable : clic droit → *Afficher le texte transcrit*.
+**un clic dessus le copie** dans le presse-papiers. Elle suit l'icône quand on
+la déplace, se ferme avec sa croix et disparaît seule après 10 s (le survol
+suspend ce délai). Désactivable : clic droit → *Afficher le texte transcrit*.
 
 L'icône ne prend jamais le focus : le texte arrive dans l'application active.
 Le presse-papiers est restauré après le collage (sauf si le collage a échoué :

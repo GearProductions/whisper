@@ -2,9 +2,10 @@
    Whisper — la bulle du texte transcrit
 
    Montrée à côté de l'icône à la fin d'une dictée (réglage « Afficher le texte
-   transcrit »). Un clic copie le texte dans le presse-papiers. Le principal la
-   place, la montre sans lui donner le focus et la masque au bout de quelques
-   secondes — le survol suspend ce délai.
+   transcrit »). Un clic copie le texte dans le presse-papiers ; la croix la
+   ferme. Le principal la place (et la déplace avec l'icône), la montre sans
+   lui donner le focus et la masque au bout de quelques secondes — le survol
+   suspend ce délai.
 
    Elle sert aussi de « notice » (ex. « Micro Discord coupé ») : simple
    message, rien à copier.
@@ -30,6 +31,9 @@ window.bubble.onShow((value, kind) => {
   // exécute aucun — elle ne s'afficherait qu'à la première dictée.
   window.bubble.ready(Math.ceil(box.getBoundingClientRect().height) + 8);
 });
+
+// La croix ferme SANS copier (elle est hors de la bulle : son clic n'y remonte pas).
+document.getElementById('close').addEventListener('click', () => window.bubble.close());
 
 box.addEventListener('click', async () => {
   if (await window.bubble.copy()) {
