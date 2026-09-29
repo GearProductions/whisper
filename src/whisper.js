@@ -2,9 +2,9 @@
    Whisper — transcription locale par whisper.cpp
 
    `whisper-cli` (ou `whisper-cli.exe`) + un modèle `ggml-*.bin` : rien ne sort
-   de la machine. On les cherche dans une liste de dossiers (le nôtre, puis
-   celui de Cockpit pour ne pas retélécharger un modèle de plusieurs centaines
-   de Mo).
+   de la machine. Chacun est cherché dans une liste de dossiers (le nôtre, le
+   binaire livré avec le paquet, puis l'installation de Cockpit pour ne pas
+   retélécharger un modèle de plusieurs centaines de Mo).
    ========================================================================= */
 
 const path = require('path');
@@ -34,14 +34,17 @@ function findFile(dir, test, depth = 2) {
   return null;
 }
 
-// { cli, model } du premier dossier complet ; l'un ou l'autre à null s'il manque.
+// { cli, model } : le premier trouvé de chacun, dans l'ordre de `dirs` (le
+// paquet livre whisper-cli, le modèle est téléchargé dans nos données) ; l'un
+// ou l'autre à null s'il manque.
 function locateWhisper(dirs) {
+  let cli = null;
+  let model = null;
   for (const dir of dirs) {
-    const cli = findFile(dir, (n) => CLI_RE.test(n));
-    const model = findFile(dir, (n) => /^ggml-.+\.bin$/i.test(n), 0);
-    if (cli && model) return { cli, model };
+    cli = cli || findFile(dir, (n) => CLI_RE.test(n));
+    model = model || findFile(dir, (n) => /^ggml-.+\.bin$/i.test(n), 0);
   }
-  return { cli: null, model: null };
+  return { cli, model };
 }
 
 // En-tête WAV PCM 16 bits mono : whisper-cli ne lit que des fichiers.
@@ -74,7 +77,9 @@ async function transcribe(dirs, pcm, { lang = 'fr', prompt = '' } = {}) {
   const { cli, model } = locateWhisper(dirs);
   if (!cli || !model) throw new Error('notInstalled');
 
-  const args = ['-m', model, '-l', LANG_RE.test(lang) ? lang : 'fr', '-nt', '-np', '-sns'];
+  // 4 threads par défaut : trop peu sur un processeur récent, sans GPU.
+  const threads = Math.max(1, Math.min(8, os.cpus().length));
+  const args = ['-m', model, '-l', LANG_RE.test(lang) ? lang : 'fr', '-t', String(threads), '-nt', '-np', '-sns'];
   const vocab = String(prompt || '').replace(/[\x00-\x1f]+/g, ' ').trim().slice(0, PROMPT_MAX);
   if (vocab) args.push('--prompt', vocab);
 

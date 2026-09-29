@@ -1,8 +1,11 @@
 /* =========================================================================
    Whisper — lecture à voix haute par Pocket TTS (Kyutai), en local
 
-   `pocket-tts` (paquet Python, sur le processeur) :
-     uv tool install pocket-tts --index https://download.pytorch.org/whl/cpu
+   `pocket-tts` (paquet Python, sur le processeur). S'il manque, l'appli
+   l'installe elle-même dans ses données (install : ~400 Mo à télécharger,
+   ~1,2 Go sur le disque dont 740 Mo pour PyTorch, Python compris)
+   avec `uv`, livré dans le paquet ; en développement, celui du système. Une
+   installation faite à la main (uv tool install pocket-tts) sert aussi.
    Un processus Python permanent (pocket-helper.py, lancé avec le Python de
    cette installation) garde modèles et voix en mémoire et renvoie l'audio par
    morceaux au fil de la génération : la lecture commence ~0,1 s après le clic.
@@ -22,11 +25,15 @@
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 const { detectLanguage } = require('./lang');
 const chatterbox = require('./chatterbox');
 
 const MAX_CHARS = 20000;          // ~20 min de lecture
+// Version figée : pocket-helper.py dépend de son API (generate_audio_stream…).
+const POCKET_TTS = 'pocket-tts==3.3.0';
+const TORCH_CPU_INDEX = 'https://download.pytorch.org/whl/cpu'; // ~200 Mo au lieu de ~3 Go (CUDA)
+const isWin = process.platform === 'win32';
 const IDLE_MS = 10 * 60 * 1000;
 
 // Modèles « 24l » : les plus soignés ; quantifiés (cf. pocket-helper.py), ~5
@@ -64,11 +71,26 @@ function which(name) {
   return null;
 }
 
-// Le Python de l'installation de pocket-tts. uv et pipx posent un lien vers le
-// script de l'environnement, dont la première ligne (#!) nomme ce Python ;
-// sous Windows, uv range l'environnement dans %APPDATA%\uv\tools.
+let dirs = { data: null, bin: null }; // données de l'appli, binaires du paquet
+function setDirs(d) { dirs = d; }
+
+// Notre installation (cf. install) : dans les données de l'appli.
+const ownBase = () => (dirs.data ? path.join(dirs.data, 'pocket-tts') : null);
+function ownPython() {
+  const base = ownBase();
+  if (!base) return null;
+  const py = path.join(base, 'tools', 'pocket-tts', ...(isWin ? ['Scripts', 'python.exe'] : ['bin', 'python']));
+  return fs.existsSync(py) ? py : null;
+}
+
+// Le Python de l'installation de pocket-tts : la nôtre, sinon celle de
+// l'utilisateur. uv et pipx posent un lien vers le script de l'environnement,
+// dont la première ligne (#!) nomme ce Python ; sous Windows, uv range
+// l'environnement dans %APPDATA%\uv\tools.
 function findPython() {
-  if (process.platform === 'win32') {
+  const own = ownPython();
+  if (own) return own;
+  if (isWin) {
     const py = path.join(process.env.APPDATA || '', 'uv', 'tools', 'pocket-tts', 'Scripts', 'python.exe');
     return fs.existsSync(py) ? py : null;
   }
@@ -90,6 +112,48 @@ function helperScript() {
 }
 
 const isInstalled = () => !!findPython();
+
+/* ---- Installation automatique -------------------------------------------- */
+
+function findUv() {
+  const name = isWin ? 'uv.exe' : 'uv';
+  const bundled = dirs.bin && path.join(dirs.bin, name);
+  return bundled && fs.existsSync(bundled) ? bundled : which(name);
+}
+
+const canInstall = () => !!(findUv() && ownBase());
+
+// Python géré par uv, Pocket TTS et PyTorch (version processeur), le tout
+// dans les données de l'appli : rien dans le système. Une seule à la fois ;
+// résout true si Pocket TTS est ensuite utilisable.
+let installing = null;
+function install() {
+  if (installing) return installing;
+  const uv = findUv();
+  const base = ownBase();
+  if (!uv || !base) return Promise.resolve(false);
+  const cache = path.join(base, 'cache');
+  const env = {
+    ...process.env,
+    UV_TOOL_DIR: path.join(base, 'tools'),
+    UV_TOOL_BIN_DIR: path.join(base, 'bin'),
+    UV_PYTHON_INSTALL_DIR: path.join(base, 'python'),
+    UV_PYTHON_PREFERENCE: 'only-managed',   // pas le Python du système
+    UV_CACHE_DIR: cache,
+    UV_NO_PROGRESS: '1',
+  };
+  installing = new Promise((resolve) => {
+    execFile(uv, ['tool', 'install', '--force', '--python', '3.12', POCKET_TTS, '--index', TORCH_CPU_INDEX],
+      { env, timeout: 30 * 60 * 1000, maxBuffer: 16 * 1024 * 1024, windowsHide: true },
+      (err, _stdout, stderr) => {
+        if (err) console.error(`Installation de Pocket TTS : ${stderr || err.message}`);
+        fs.rm(cache, { recursive: true, force: true }, () => {}); // ~1 Go de téléchargements
+        installing = null;
+        resolve(!err && !!ownPython());
+      });
+  });
+  return installing;
+}
 
 /* ---- Processus Python ---------------------------------------------------- */
 
@@ -234,4 +298,4 @@ function warmUp(text, { lang = 'auto', voices, engine = 'pocket' } = {}) {
   else warmPocket();
 }
 
-module.exports = { LANGS, isInstalled, pickVoice, speak, cancel, warmUp, stop };
+module.exports = { LANGS, setDirs, isInstalled, canInstall, install, pickVoice, speak, cancel, warmUp, stop };
