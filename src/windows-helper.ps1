@@ -163,6 +163,7 @@ function Reply($text) {
 while ($true) {
   $line = [Console]::In.ReadLine()
   if ($null -eq $line) { break }
+  if ($line.Trim() -eq '') { continue }
   try {
     switch ($line.Trim()) {
       'paste'           { [WhisperKeys]::Paste(); Reply 'ok' }
