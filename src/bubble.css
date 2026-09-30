@@ -51,7 +51,23 @@ html, body { margin: 0; background: transparent; overflow: hidden; }
   font: 14px/18px system-ui, sans-serif;
   cursor: pointer;
 }
-#close:hover { background: #3a4150; color: #e6e8ee; }
+#close:hover, #expand:hover { background: #3a4150; color: #e6e8ee; }
+/* Agrandir (réponse d'un agent) : à gauche de la croix, même allure. */
+#expand {
+  position: absolute;
+  top: 8px;
+  right: 32px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #8a91a0;
+  font: 13px/18px system-ui, sans-serif;
+  cursor: pointer;
+}
+#expand[hidden] { display: none; }
 #hint { margin-top: 6px; font-size: 11px; color: #8a91a0; }
 #bubble.copied { border-color: #2fa36b; }
 /* Notice (« Micro Discord coupé ») : pas cliquable, bordure aux couleurs de Discord. */
@@ -66,7 +82,7 @@ html, body { margin: 0; background: transparent; overflow: hidden; }
 #volume-range { flex: 1; accent-color: #3b6fe0; cursor: pointer; }
 #volume-value { min-width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; color: #8a91a0; }
 /* Agents Claude Code : nom de l'agent, boutons d'action. */
-#title { margin-bottom: 4px; padding-right: 14px; font-size: 11px; font-weight: 600; color: var(--accent); }
+#title { margin-bottom: 4px; padding-right: 40px; font-size: 11px; font-weight: 600; color: var(--accent); }
 #title[hidden], #actions[hidden], #actions button[hidden] { display: none; }
 #actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 #actions button {

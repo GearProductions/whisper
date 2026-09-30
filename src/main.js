@@ -48,9 +48,10 @@ if (!app.requestSingleInstanceLock()) app.quit();
 
 const DEFAULTS = {
   lang: 'fr', vocabulary: '', sound: true, showText: true, discordMute: false,
-  // Agents Claude Code : un par dossier ({ id, dir, name, color, model, effort,
-  // mode, sessionId }). `agentFolders` : les dossiers déjà choisis, proposés
-  // par le bouton « + ». `agentCommand` : la commande qui lance Claude Code
+  // Agents Claude Code : un par dossier ({ id, dir, name, model, effort, mode,
+  // sessionId }). `agentFolders` : les dossiers déjà choisis ({ dir, color }),
+  // proposés par le bouton « + » ; la couleur appartient au DOSSIER, l'agent
+  // qu'on y crée la porte. `agentCommand` : la commande qui lance Claude Code
   // ('' : `claude` ; ex. « distrobox enter dev -- mise exec -- claude »).
   agentsEnabled: false, agentCommand: '', agents: [], agentFolders: [], agentSelected: null,
   muteOthers: false,                 // couper le son des autres applications pendant la dictée
@@ -479,7 +480,8 @@ const SPEAK_MESSAGES = {
 // Comme pour le collage, le texte ne vient jamais du renderer : on relit ici
 // la sélection (ou le presse-papiers) au moment du clic. L'audio suit par
 // morceaux (`tts:chunk`), puis `tts:end` ; le renderer les joue bout à bout.
-// `source` : rien, ou { agent: id } pour le résumé audio de sa dernière réponse.
+// `source` : rien, ou { agent: id } pour le résumé audio de sa dernière réponse
+// ({ agent: id, index } : celui d'une réponse du fil ouvert, par son rang).
 ipcMain.handle('tts:speak', async (_e, source) => {
   const cfg = loadConfig();
   const mode = speakMode(cfg);
@@ -490,7 +492,8 @@ ipcMain.handle('tts:speak', async (_e, source) => {
     return { ok: false, error: SPEAK_MESSAGES.failed };
   }
   try {
-    const reply = agentId && agents.lastReply(agentId);
+    const fromThread = agentId && Number.isInteger(source.index) && agentId === convAgent && convThread[source.index];
+    const reply = agentId && (fromThread || agents.lastReply(agentId));
     const text = agentId ? (reply && reply.audio) || '' : await selection.readText(mode);
     const id = tts.speak(text, speakOptions(cfg),
       (pcm, rate) => send('tts:chunk', id, pcm, rate),
@@ -512,15 +515,19 @@ ipcMain.on('tts:warmUp', async () => {
 
 /* ---- Agents Claude Code --------------------------------------------------- */
 
-// Couleur d'un agent : tirée au sort à sa création, modifiable au clic droit.
+// Couleur d'un DOSSIER : tirée au sort quand on le choisit pour la première
+// fois, modifiable au clic droit sur son agent. Elle aide à s'y retrouver :
+// un dossier garde sa couleur, même si son agent est retiré puis recréé.
+// [valeur, nom, pastille pour les menus].
 const AGENT_COLORS = [
-  ['#8b5cf6', 'Violet'], ['#3b82f6', 'Bleu'], ['#06b6d4', 'Cyan'], ['#22c55e', 'Vert'],
-  ['#eab308', 'Jaune'], ['#f97316', 'Orange'], ['#ef4444', 'Rouge'], ['#ec4899', 'Rose'],
+  ['#8b5cf6', 'Violet', '🟣'], ['#3b82f6', 'Bleu', '🔵'], ['#06b6d4', 'Cyan', '🩵'], ['#22c55e', 'Vert', '🟢'],
+  ['#eab308', 'Jaune', '🟡'], ['#f97316', 'Orange', '🟠'], ['#ef4444', 'Rouge', '🔴'], ['#ec4899', 'Rose', '🩷'],
 ];
-const agentColor = (a) => (AGENT_COLORS.some(([c]) => c === a.color) ? a.color : AGENT_COLORS[0][0]);
-// De préférence une couleur qu'aucun agent ne porte.
-function randomColor(list) {
-  const used = new Set(list.map(agentColor));
+const isColor = (c) => AGENT_COLORS.some(([v]) => v === c);
+const colorDot = (c) => (AGENT_COLORS.find(([v]) => v === c) || AGENT_COLORS[0])[2];
+// De préférence une couleur qu'aucun dossier ne porte.
+function randomColor(folders) {
+  const used = new Set(folders.map((f) => f.color));
   const free = AGENT_COLORS.map(([c]) => c).filter((c) => !used.has(c));
   const pool = free.length ? free : AGENT_COLORS.map(([c]) => c);
   return pool[Math.floor(Math.random() * pool.length)];
@@ -529,11 +536,33 @@ function randomColor(list) {
 const agentList = (cfg) => (Array.isArray(cfg.agents) ? cfg.agents.filter((a) => a && a.id && a.dir) : []);
 // Un petit bouton par agent, plus le « + ».
 const agentSlotCount = (cfg) => (cfg.agentsEnabled === true ? agentList(cfg).length + 1 : 0);
-// Dossiers favoris : ceux déjà choisis, qu'ils aient encore un agent ou non.
+
+// Dossiers favoris [{ dir, color }] : ceux déjà choisis, qu'ils aient encore un
+// agent ou non. Tolère les anciens formats (chemins seuls, couleur sur l'agent).
 function favoriteFolders(cfg) {
-  const saved = Array.isArray(cfg.agentFolders) ? cfg.agentFolders.filter((d) => typeof d === 'string' && d) : [];
-  return [...new Set([...saved, ...agentList(cfg).map((a) => a.dir)])];
+  const out = [];
+  const add = (dir, color) => {
+    if (typeof dir !== 'string' || !dir || out.some((f) => f.dir === dir)) return;
+    out.push({ dir, color: isColor(color) ? color : null });
+  };
+  for (const f of Array.isArray(cfg.agentFolders) ? cfg.agentFolders : []) {
+    if (typeof f === 'string') add(f); else if (f) add(f.dir, f.color);
+  }
+  for (const a of agentList(cfg)) add(a.dir, a.color);
+  return out;
 }
+// Donne une couleur aux dossiers qui n'en ont pas, et l'enregistre : elle ne
+// doit pas changer d'un lancement à l'autre.
+function ensureFolderColors() {
+  const cfg = loadConfig();
+  const folders = favoriteFolders(cfg);
+  if (folders.every((f) => f.color) && folders.length === (cfg.agentFolders || []).length) return folders;
+  for (const f of folders) if (!f.color) f.color = randomColor(folders.filter((o) => o.color));
+  saveConfig({ agentFolders: folders });
+  return folders;
+}
+const folderColor = (cfg, dir) => (favoriteFolders(cfg).find((f) => f.dir === dir) || {}).color || AGENT_COLORS[0][0];
+const agentColor = (agent, cfg = loadConfig()) => folderColor(cfg, agent.dir);
 function selectedAgent(cfg) {
   if (cfg.agentsEnabled !== true || !cfg.agentSelected) return null;
   return agentList(cfg).find((a) => a.id === cfg.agentSelected) || null;
@@ -552,9 +581,10 @@ function pushAgents() {
   win.webContents.send('agents:state', {
     enabled,
     agents: enabled ? agentList(cfg).map((a) => ({
-      id: a.id, name: a.name, color: agentColor(a), selected: a.id === cfg.agentSelected, ...agents.state(a.id),
+      id: a.id, name: a.name, color: agentColor(a, cfg), selected: a.id === cfg.agentSelected, ...agents.state(a.id),
     })) : [],
   });
+  refreshConversation(); // la fenêtre de conversation suit (réponse arrivée, agent au travail…)
 }
 
 // « Écrire le fichier : src/note.txt » — l'outil en clair, les chemins relatifs
@@ -632,6 +662,7 @@ ipcMain.on('bubble:action', (_e, action) => {
   const id = bubbleAgent;
   if (!id) return;
   if (action === 'speak' && bubbleKind === 'agent') { if (win) win.webContents.send('tts:speakAgent', id); return; }
+  if (action === 'expand' && bubbleKind === 'agent') { hideBubble(); openConversation(id); return; }
   if (bubbleKind === 'permission' && ['allow', 'always', 'deny'].includes(action)) {
     agents.answer(id, action);
     hideBubble();
@@ -644,13 +675,11 @@ function newAgent(dir) {
   const list = agentList(cfg);
   let agent = list.find((a) => a.dir === dir); // un seul agent par dossier
   if (!agent) {
-    agent = {
-      id: `a${Date.now().toString(36)}`, dir, name: path.basename(dir) || dir, color: randomColor(list),
-      model: '', effort: '', mode: 'default', sessionId: null,
-    };
+    agent = { id: `a${Date.now().toString(36)}`, dir, name: path.basename(dir) || dir, model: '', effort: '', mode: 'default', sessionId: null };
     saveConfig({ agents: [...list, agent] });
   }
-  saveConfig({ agentSelected: agent.id, agentFolders: [...new Set([...favoriteFolders(loadConfig()), dir])] });
+  saveConfig({ agentSelected: agent.id });
+  ensureFolderColors(); // nouveau dossier : il reçoit sa couleur et devient favori
   pushAgents();
 }
 
@@ -661,12 +690,14 @@ ipcMain.on('agent:add', () => {
   const cfg = loadConfig();
   const available = agents.isAvailable(cfg.agentCommand);
   const inUse = new Set(agentList(cfg).map((a) => a.dir));
-  const free = favoriteFolders(cfg).filter((d) => !inUse.has(d));
+  const free = ensureFolderColors().filter((f) => !inUse.has(f.dir));
   const home = app.getPath('home');
   const short = (d) => (d.startsWith(`${home}${path.sep}`) ? `~${d.slice(home.length)}` : d);
   Menu.buildFromTemplate([
     { label: free.length ? 'Nouvel agent dans un dossier favori' : 'Aucun dossier favori disponible', enabled: false },
-    ...free.map((d) => ({ label: `${path.basename(d)}  —  ${short(d)}`, enabled: available, click: () => newAgent(d) })),
+    ...free.map((f) => ({
+      label: `${colorDot(f.color)} ${path.basename(f.dir)}  —  ${short(f.dir)}`, enabled: available, click: () => newAgent(f.dir),
+    })),
     { type: 'separator' },
     { label: 'Choisir un autre dossier…', enabled: available,
       click: async () => {
@@ -675,12 +706,62 @@ ipcMain.on('agent:add', () => {
       } },
     ...(free.length ? [{
       label: 'Oublier un dossier favori',
-      submenu: free.map((d) => ({
-        label: short(d), click: () => saveConfig({ agentFolders: favoriteFolders(loadConfig()).filter((f) => f !== d) }),
+      submenu: free.map((f) => ({
+        label: `${colorDot(f.color)} ${short(f.dir)}`,
+        click: () => saveConfig({ agentFolders: favoriteFolders(loadConfig()).filter((o) => o.dir !== f.dir) }),
       })),
     }] : []),
     ...(available ? [] : [{ type: 'separator' }, { label: AGENT_MESSAGES.notInstalled(), enabled: false }]),
   ]).popup({ window: win });
+});
+
+/* ---- Fenêtre de conversation ---------------------------------------------- */
+
+// Une fenêtre classique (barre de titre, redimensionnable, elle prend le
+// focus) : tout le fil d'un agent. Une seule à la fois, réutilisée d'un agent
+// à l'autre ; sa taille est retenue.
+let conv = null;
+let convAgent = null;
+let convThread = []; // fil affiché, pour retrouver le résumé audio d'une réponse par son rang
+
+function openConversation(id) {
+  convAgent = id;
+  if (conv) { refreshConversation(); conv.show(); conv.focus(); return; }
+  const saved = loadConfig().convBounds;
+  conv = new BrowserWindow({
+    width: 720, height: 780, minWidth: 380, minHeight: 300,
+    ...(saved && Number.isFinite(saved.width) ? saved : {}),
+    backgroundColor: '#171b24', autoHideMenuBar: true, title: 'Whisper — conversation',
+    webPreferences: { preload: path.join(__dirname, 'conversation-preload.js'), contextIsolation: true, sandbox: true },
+  });
+  conv.removeMenu();
+  conv.loadFile(path.join(__dirname, 'conversation.html'));
+  conv.on('close', () => saveConfig({ convBounds: conv.getBounds() }));
+  conv.on('closed', () => { conv = null; convAgent = null; convThread = []; });
+}
+
+// Relit la session et l'envoie à la fenêtre (à son ouverture, puis à chaque
+// changement d'état de l'agent).
+async function refreshConversation() {
+  if (!conv || !convAgent) return;
+  const cfg = loadConfig();
+  const agent = agentList(cfg).find((a) => a.id === convAgent);
+  if (!agent) return;
+  const id = agent.id;
+  const thread = await agents.thread(agent);
+  if (!conv || convAgent !== id) return; // fermée, ou passée à un autre agent entre-temps
+  convThread = thread;
+  conv.webContents.send('conv:thread', {
+    name: agent.name, dir: agent.dir, color: agentColor(agent, cfg), status: agents.state(id).status,
+    messages: thread.map((m) => ({
+      role: m.role, text: m.text, audio: !!m.audio, tools: (m.tools || []).map((t) => toolSummary(agent, t.tool, t.input)),
+    })),
+  });
+}
+ipcMain.on('conv:ready', refreshConversation);
+// ▶ d'une réponse : son résumé audio, par le lecteur de l'icône.
+ipcMain.on('conv:speak', (_e, index) => {
+  if (win && convAgent && convThread[index] && convThread[index].audio) win.webContents.send('tts:speakAgent', convAgent, index);
 });
 
 // Clic droit sur un robot : ses réglages, comme dans les autres intégrations.
@@ -698,21 +779,25 @@ ipcMain.on('agent:menu', (_e, id) => {
     { label: agent.name, enabled: false },
     { label: agent.dir, enabled: false },
     { type: 'separator' },
-    { label: 'Couleur', submenu: AGENT_COLORS.map(([value, label]) => ({
-      label, type: 'radio', checked: agentColor(agent) === value,
-      click: () => { updateAgent(id, { color: value }); pushAgents(); },
+    { label: 'Couleur du dossier', submenu: AGENT_COLORS.map(([value, label, dot]) => ({
+      label: `${dot} ${label}`, type: 'radio', checked: agentColor(agent) === value,
+      click: () => {
+        saveConfig({ agentFolders: ensureFolderColors().map((f) => (f.dir === agent.dir ? { ...f, color: value } : f)) });
+        pushAgents();
+      },
     })) },
     { label: 'Modèle', submenu: radio('model', agents.MODELS) },
     { label: 'Effort', submenu: radio('effort', agents.EFFORTS) },
     { label: 'Mode', submenu: radio('mode', agents.MODES) },
     { type: 'separator' },
     { label: 'Voir la dernière réponse', enabled: st.hasReply, click: () => showAgentReply(agent) },
+    { label: 'Voir la conversation', enabled: !!agent.sessionId, click: () => openConversation(id) },
     { label: 'Interrompre', enabled: busy, click: () => { agents.interrupt(id); pushAgents(); } },
     { label: 'Nouvelle session (effacer le contexte)', click: () => {
       agents.forget(id);
       updateAgent(id, { sessionId: null });
       if (bubbleAgent === id) hideBubble();
-      pushAgents();
+      pushAgents(); // la fenêtre de conversation, si elle est ouverte, se vide
     } },
     { label: 'Ouvrir le dossier', click: () => shell.openPath(agent.dir) },
     { type: 'separator' },
@@ -722,9 +807,10 @@ ipcMain.on('agent:menu', (_e, id) => {
       saveConfig({
         agents: agentList(cfg).filter((a) => a.id !== id),
         agentSelected: cfg.agentSelected === id ? null : cfg.agentSelected,
-        agentFolders: favoriteFolders(cfg), // son dossier reste proposé par « + »
+        agentFolders: ensureFolderColors(), // son dossier reste proposé par « + », avec sa couleur
       });
       if (bubbleAgent === id) hideBubble();
+      if (convAgent === id && conv) conv.close();
       pushAgents();
     } },
   ]).popup({ window: win });
@@ -853,6 +939,7 @@ app.whenReady().then(() => {
   setupPermissions(require('electron').session.defaultSession);
   createWindow();
   createBubble();
+  ensureFolderColors();
   setInterval(pollSpeak, SPEAK_POLL_MS);
   // Windows : l'assistant PowerShell sert au premier collage comme à la
   // coupure du micro Discord en début de dictée ; il met ~1 s à démarrer.

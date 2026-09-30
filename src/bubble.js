@@ -22,6 +22,7 @@ const range = document.getElementById('volume-range');
 const rangeValue = document.getElementById('volume-value');
 const title = document.getElementById('title');
 const actions = document.getElementById('actions');
+const expand = document.getElementById('expand');
 const HINT = 'Cliquer pour copier';
 // Boutons montrés par genre de bulle.
 const ACTIONS = { agent: ['speak'], permission: ['allow', 'always', 'deny'] };
@@ -54,6 +55,7 @@ window.bubble.onShow((value, kind, size) => {
   box.classList.toggle('status', kind === 'status');
   box.classList.toggle('volume', isVolume);
   box.classList.toggle('permission', kind === 'permission');
+  expand.hidden = kind !== 'agent';
   box.classList.remove('copied');
   text.scrollTop = 0;
   // Hauteur réelle une fois le texte posé : le principal taille la fenêtre dessus.
@@ -65,6 +67,8 @@ window.bubble.onShow((value, kind, size) => {
 
 // La croix ferme SANS copier (elle est hors de la bulle : son clic n'y remonte pas).
 document.getElementById('close').addEventListener('click', () => window.bubble.close());
+// Agrandir : le principal ouvre la fenêtre de conversation de cet agent.
+expand.addEventListener('click', () => window.bubble.action('expand'));
 
 range.addEventListener('input', () => {
   rangeValue.textContent = `${range.value} %`;

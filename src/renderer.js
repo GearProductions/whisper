@@ -394,10 +394,11 @@ play.addEventListener('click', () => {
 // Survol : le clic va suivre, le principal charge le modèle d'avance.
 play.addEventListener('mouseenter', () => { if (canSpeak()) window.api.warmUpSpeak(); });
 
-// Bouton ▶ de la bulle d'un agent : son résumé audio, par le même lecteur.
-window.api.onSpeakAgent((id) => {
+// Bouton ▶ de la bulle d'un agent ou de sa fenêtre de conversation : le résumé
+// audio d'une réponse, par le même lecteur.
+window.api.onSpeakAgent((id, index) => {
   if (speech.phase === 'loading' || speech.phase === 'playing') stopSpeaking();
-  speak({ agent: id });
+  speak({ agent: id, index });
 });
 window.api.onSpeakChunk((id, pcm, rate) => onEvent(id, 'chunk', pcm, rate));
 window.api.onSpeakEnd((id, error) => onEvent(id, 'end', error));

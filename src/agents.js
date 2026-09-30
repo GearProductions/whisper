@@ -227,7 +227,39 @@ function interrupt(id) {
 
 function stop() { for (const id of runtime.keys()) interrupt(id); }
 
+/* ---- Fil de la conversation ---------------------------------------------- */
+
+// Toute la session de l'agent, relue dans sa transcription :
+//   [{ role: 'user', text } | { role: 'assistant', text, audio, tools: [{ tool, input }] }]
+// Les messages successifs d'un même tour de l'agent (texte, outil, texte…)
+// sont regroupés ; les échanges internes (résultats d'outils, sous-agents)
+// sont écartés. [] sans session.
+async function thread(agent) {
+  if (!agent.sessionId) return [];
+  if (!sdk) sdk = await import('@anthropic-ai/claude-agent-sdk');
+  let messages = [];
+  try { messages = await sdk.getSessionMessages(agent.sessionId, { dir: agent.dir }); } catch { /* transcription absente */ }
+  const out = [];
+  for (const m of messages) {
+    if (m.parent_tool_use_id) continue;
+    const content = m.message && m.message.content;
+    const blocks = typeof content === 'string' ? [{ type: 'text', text: content }] : Array.isArray(content) ? content : [];
+    if (m.type === 'user') {
+      const text = blocks.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+      if (text) out.push({ role: 'user', text });
+    } else if (m.type === 'assistant') {
+      let last = out[out.length - 1];
+      if (!last || last.role !== 'assistant') { last = { role: 'assistant', text: '', tools: [] }; out.push(last); }
+      for (const b of blocks) {
+        if (b.type === 'text' && b.text.trim()) last.text += `${last.text ? '\n\n' : ''}${b.text.trim()}`;
+        if (b.type === 'tool_use') last.tools.push({ tool: b.name, input: b.input });
+      }
+    }
+  }
+  return out.map((e) => (e.role === 'assistant' ? { ...e, ...splitReply(e.text) } : e));
+}
+
 module.exports = {
   MODELS, EFFORTS, MODES, isAvailable, splitCommand, splitReply,
-  state, lastReply, markRead, forget, send, answer, pendingPermission, interrupt, stop,
+  state, lastReply, markRead, forget, send, answer, pendingPermission, interrupt, stop, thread,
 };
