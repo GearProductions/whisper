@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'">
+  <title>Whisper — conversation</title>
+  <link rel="stylesheet" href="scroll.css">
+  <link rel="stylesheet" href="conversation.css">
+</head>
+<body>
+  <header>
+    <span id="dot"></span>
+    <div>
+      <div id="name"></div>
+      <div id="dir"></div>
+    </div>
+  </header>
+  <main id="thread" class="scroll"></main>
+  <footer id="status" hidden></footer>
+  <template id="message-template">
+    <article class="message">
+      <div class="who"></div>
+      <div class="tools"></div>
+      <div class="body"></div>
+      <button class="listen" type="button">▶ Écouter</button>
+    </article>
+  </template>
+  <script src="conversation.js"></script>
+</body>
+</html>

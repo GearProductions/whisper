@@ -9,19 +9,10 @@
    discord-mute, discord-restore, others-mute, others-restore (cf. le script).
    ========================================================================= */
 
-const path = require('path');
-const fs = require('fs');
 const { spawn } = require('child_process');
+const { unpacked } = require('./paths');
 
 const TIMEOUT_MS = 5000;
-
-// Dans un paquet (asar), PowerShell ne lit pas l'archive : le script en est
-// sorti (asarUnpack, cf. package.json).
-function scriptPath() {
-  const inside = path.join(__dirname, 'windows-helper.ps1');
-  const unpacked = inside.replace(/app\.asar([\\/])/, 'app.asar.unpacked$1');
-  return unpacked !== inside && fs.existsSync(unpacked) ? unpacked : inside;
-}
 
 let helper = null;
 let pending = [];
@@ -29,7 +20,7 @@ let pending = [];
 function start() {
   if (helper) return helper;
   const child = spawn('powershell.exe',
-    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath()],
+    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', unpacked('windows-helper.ps1')],
     { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
   let buf = '';
   child.stdout.on('data', (d) => {

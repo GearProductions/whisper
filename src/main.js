@@ -18,6 +18,10 @@
    le presse-papiers), en local : Pocket TTS sur le processeur, ou Chatterbox
    sur GPU par son service (réglages `speak`, `speakEngine`, cf. tts.js).
 
+   Des agents Claude Code (un par dossier de projet, réglage `agentsEnabled`,
+   cf. agents.js) : un robot sélectionné reçoit la dictée au lieu du curseur ;
+   sa réponse se lit dans la bulle et s'écoute par le lecteur.
+
    Ce qui est collé est TOUJOURS ce que whisper vient de rendre, jamais un texte
    fourni par le renderer. Le collage automatique peut être désactivé (réglage
    `autoPaste`) : le texte reste alors dans le presse-papiers.
@@ -25,13 +29,14 @@
 
 const path = require('path');
 const fs = require('fs');
-const { app, BrowserWindow, ipcMain, clipboard, shell, screen, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, clipboard, shell, screen, Menu, dialog } = require('electron');
 const whisper = require('./whisper');
 const paste = require('./paste');
 const mute = require('./mute');
 const tts = require('./tts');
 const chatterbox = require('./chatterbox');
 const selection = require('./selection');
+const agents = require('./agents');
 const windows = require('./windows');
 
 // Fenêtre transparente sous Linux (X11) : sans ce drapeau, fond noir.
@@ -43,6 +48,12 @@ if (!app.requestSingleInstanceLock()) app.quit();
 
 const DEFAULTS = {
   lang: 'fr', vocabulary: '', sound: true, showText: true, discordMute: false,
+  // Agents Claude Code : un par dossier ({ id, dir, name, model, effort, mode,
+  // sessionId }). `agentFolders` : les dossiers déjà choisis ({ dir, color }),
+  // proposés par le bouton « + » ; la couleur appartient au DOSSIER, l'agent
+  // qu'on y crée la porte. `agentCommand` : la commande qui lance Claude Code
+  // ('' : `claude` ; ex. « distrobox enter dev -- mise exec -- claude »).
+  agentsEnabled: false, agentCommand: '', agents: [], agentFolders: [], agentSelected: null,
   muteOthers: false,                 // couper le son des autres applications pendant la dictée
   autoPaste: true,                   // coller là où est le curseur ; sinon le texte reste dans le presse-papiers
   speak: 'selection', speakVolume: 1,
@@ -98,10 +109,11 @@ let win = null;
 let winSize = 0; // taille voulue de l'icône, en px logiques
 
 let speakShown = false; // bouton de lecture montré (réglage `speak` ≠ 'off')
+let agentSlots = 0;     // robots montrés + le bouton « + » (0 : agents désactivés)
 
-// Le bouton de lecture, moitié moins grand, s'accole à droite de l'icône : la
-// fenêtre s'élargit d'autant (cf. style.css).
-const winWidth = () => (speakShown ? winSize + Math.round(winSize / 2) + 4 : winSize);
+// Les petits boutons (lecture, agents, ajout), moitié moins grands, s'alignent
+// à droite de l'icône : la fenêtre s'élargit d'autant (cf. style.css).
+const winWidth = () => winSize + ((speakShown ? 1 : 0) + agentSlots) * (Math.round(winSize / 2) + 4);
 
 // Une position mémorisée peut pointer hors écran (moniteur débranché) : on ne
 // la retient que si l'icône reste visible.
@@ -117,6 +129,7 @@ function createWindow() {
   const size = Math.max(32, Math.min(200, Math.round(cfg.size) || DEFAULTS.size));
   winSize = size;
   speakShown = speakMode(cfg) !== 'off';
+  agentSlots = agentSlotCount(cfg);
   const wa = screen.getPrimaryDisplay().workArea;
   const pos = isVisible(cfg.pos, size) ? cfg.pos : { x: wa.x + wa.width - size - 24, y: wa.y + wa.height - size - 24 };
 
@@ -136,9 +149,9 @@ function createWindow() {
   });
   win.setAlwaysOnTop(true, 'floating');
   win.setVisibleOnAllWorkspaces(true);
-  win.loadFile(path.join(__dirname, 'index.html'));
+  win.loadFile(path.join(__dirname, 'index.html'), { query: { size: String(size) } });
   // Page (re)chargée : elle n'a pas encore l'état du bouton de lecture.
-  win.webContents.on('did-finish-load', () => { speakKey = ''; pollSpeak(); });
+  win.webContents.on('did-finish-load', () => { speakKey = ''; pollSpeak(); pushAgents(); });
 }
 
 // Seule permission accordée : le micro, pour notre propre page.
@@ -155,15 +168,19 @@ function setupPermissions(ses) {
 
 /* ---- Bulle du texte transcrit ------------------------------------------- */
 
-const BUBBLE_W = 340;
-const BUBBLE_MAX_H = 240;
+// Largeur et hauteur maximale selon le genre : la réponse d'un agent, souvent
+// longue, et sa demande d'autorisation, à lire en entier, ont droit à une
+// grande bulle.
+const BUBBLE_SIZES = { large: { width: 560, maxHeight: 520 }, default: { width: 340, maxHeight: 240 } };
+const bubbleSize = () => (BUBBLE_STAYS.has(bubbleKind) ? BUBBLE_SIZES.large : BUBBLE_SIZES.default);
 const BUBBLE_GAP = 6;
 const BUBBLE_MS = 10000;         // affichage avant masquage automatique
 const BUBBLE_COPIED_MS = 1200;   // le temps de lire « Copié »
 
 let bubble = null;
 let bubbleText = '';
-let bubbleKind = 'text';         // 'text' : transcription, cliquable ; 'notice' : simple message
+let bubbleKind = 'text';         // 'text' : transcription, cliquable ; 'notice' : simple message…
+let bubbleAgent = null;          // agent dont la bulle montre la réponse ou la demande
 let bubbleH = 80;                // hauteur mesurée par le renderer de la bulle
 let bubbleTimer = null;
 let recording = false;
@@ -171,7 +188,7 @@ let recording = false;
 // Créée une fois, cachée : la montrer ensuite est instantané.
 function createBubble() {
   bubble = new BrowserWindow({
-    width: BUBBLE_W, height: 80, show: false,
+    width: BUBBLE_SIZES.default.width, height: 80, show: false,
     frame: false, transparent: true, resizable: false, maximizable: false, fullscreenable: false,
     skipTaskbar: true, hasShadow: false, alwaysOnTop: true,
     // Comme l'icône : la cliquer ne vole pas le focus à l'application cible.
@@ -197,12 +214,16 @@ function scheduleHide(ms) {
 // `bubble:ready` : c'est là qu'on la place et qu'on la montre. Une « notice »
 // (le temps d'un enregistrement) ou un « status » (téléchargement…) n'ont rien
 // à copier ; `volume` montre le curseur du volume de lecture (`text`
-// est alors le volume, 0 à 1).
-function showBubble(text, kind = 'text') {
+// est alors le volume, 0 à 1). `agent` (réponse d'un agent, à copier ou à
+// écouter) et `permission` (sa demande d'autorisation) reçoivent { title,
+// text } et restent affichées jusqu'à leur croix.
+const BUBBLE_STAYS = new Set(['agent', 'permission']);
+function showBubble(text, kind = 'text', agentId = null) {
   if (!bubble || !win) return;
   bubbleKind = kind;
-  bubbleText = kind === 'text' ? text : '';
-  bubble.webContents.send('bubble:show', text, kind);
+  bubbleAgent = agentId;
+  bubbleText = kind === 'text' ? text : kind === 'agent' ? text.text : '';
+  bubble.webContents.send('bubble:show', text, kind, bubbleSize());
 }
 
 // Au-dessus de l'icône, centrée sur elle ; en dessous si le haut de l'écran
@@ -211,11 +232,12 @@ function showBubble(text, kind = 'text') {
 function placeBubble() {
   const icon = win.getBounds();
   const a = screen.getDisplayMatching(icon).workArea;
-  let x = icon.x + Math.round(winSize / 2 - BUBBLE_W / 2); // centrée sur le micro, pas sur le bouton de lecture
-  x = Math.max(a.x, Math.min(a.x + a.width - BUBBLE_W, x));
+  const { width } = bubbleSize();
+  let x = icon.x + Math.round(winSize / 2 - width / 2); // centrée sur le micro, pas sur les petits boutons
+  x = Math.max(a.x, Math.min(a.x + a.width - width, x));
   let y = icon.y - bubbleH - BUBBLE_GAP;
   if (y < a.y) y = Math.min(icon.y + icon.height + BUBBLE_GAP, a.y + a.height - bubbleH);
-  bubble.setBounds({ x, y, width: BUBBLE_W, height: bubbleH });
+  bubble.setBounds({ x, y, width, height: bubbleH });
 }
 
 ipcMain.on('bubble:ready', (_e, height) => {
@@ -223,16 +245,16 @@ ipcMain.on('bubble:ready', (_e, height) => {
   // Notice arrivée après la fin de l'enregistrement : elle n'a plus lieu d'être.
   if (bubbleKind === 'notice' && !recording) return;
   // 'status' : message de l'appli (téléchargement…), sans lien avec la dictée.
-  bubbleH = Math.max(40, Math.min(BUBBLE_MAX_H, Math.round(Number(height)) || 80));
+  bubbleH = Math.max(40, Math.min(bubbleSize().maxHeight, Math.round(Number(height)) || 80));
   placeBubble();
   bubble.showInactive();
-  scheduleHide(BUBBLE_MS);
+  if (BUBBLE_STAYS.has(bubbleKind)) clearTimeout(bubbleTimer); else scheduleHide(BUBBLE_MS);
 });
 
 // Survolée : on la laisse lire ; quittée : le délai repart.
 ipcMain.on('bubble:hover', (_e, inside) => {
   if (!bubble || !bubble.isVisible()) return;
-  if (inside) clearTimeout(bubbleTimer); else scheduleHide(BUBBLE_MS);
+  if (inside || BUBBLE_STAYS.has(bubbleKind)) clearTimeout(bubbleTimer); else scheduleHide(BUBBLE_MS);
 });
 
 ipcMain.on('bubble:close', hideBubble);
@@ -248,7 +270,7 @@ ipcMain.on('bubble:volume', (_e, value) => {
 ipcMain.handle('bubble:copy', () => {
   if (!bubbleText) return false;
   clipboard.writeText(bubbleText);
-  scheduleHide(BUBBLE_COPIED_MS);
+  if (!BUBBLE_STAYS.has(bubbleKind)) scheduleHide(BUBBLE_COPIED_MS);
   return true;
 });
 
@@ -394,6 +416,9 @@ ipcMain.handle('dictation:transcribe', async (_e, pcm) => {
     return { ok: false, code, error: MESSAGES[code] };
   }
   if (!text) return { ok: true, text: '', pasted: false };
+  // Un agent est sélectionné : la dictée lui est envoyée, rien n'est collé.
+  const agent = selectedAgent(cfg);
+  if (agent) return sendToAgent(agent, text, cfg);
   if (cfg.showText !== false) showBubble(text);
   const autoPaste = cfg.autoPaste !== false;
   return { ok: true, text, pasted: await pasteText(text, autoPaste), autoPaste };
@@ -456,16 +481,22 @@ const SPEAK_MESSAGES = {
 // Comme pour le collage, le texte ne vient jamais du renderer : on relit ici
 // la sélection (ou le presse-papiers) au moment du clic. L'audio suit par
 // morceaux (`tts:chunk`), puis `tts:end` ; le renderer les joue bout à bout.
-ipcMain.handle('tts:speak', async () => {
+// `source` : rien, ou { agent: id } pour le résumé audio de sa dernière réponse
+// ({ agent: id, index } : celui d'une réponse du fil ouvert, par son rang).
+ipcMain.handle('tts:speak', async (_e, source) => {
   const cfg = loadConfig();
   const mode = speakMode(cfg);
-  if (mode === 'off') return { ok: false, error: SPEAK_MESSAGES.empty };
+  const agentId = source && typeof source.agent === 'string' ? source.agent : null;
+  if (!agentId && mode === 'off') return { ok: false, error: SPEAK_MESSAGES.empty };
   const send = (...args) => { if (win) win.webContents.send(...args); };
   if (cfg.speakEngine !== 'chatterbox' && !tts.isInstalled() && tts.canInstall() && !(await installPocket())) {
     return { ok: false, error: SPEAK_MESSAGES.failed };
   }
   try {
-    const id = tts.speak(await selection.readText(mode), speakOptions(cfg),
+    const fromThread = agentId && Number.isInteger(source.index) && agentId === convAgent && convThread[source.index];
+    const reply = agentId && (fromThread || agents.lastReply(agentId));
+    const text = agentId ? (reply && reply.audio) || '' : await selection.readText(mode);
+    const id = tts.speak(text, speakOptions(cfg),
       (pcm, rate) => send('tts:chunk', id, pcm, rate),
       (code) => send('tts:end', id, code ? SPEAK_MESSAGES[code] || SPEAK_MESSAGES.failed : null));
     return { ok: true, id };
@@ -481,6 +512,346 @@ ipcMain.on('tts:warmUp', async () => {
   if (mode !== 'off' && (cfg.speakEngine === 'chatterbox' || tts.isInstalled())) {
     tts.warmUp(await selection.peekText(mode), speakOptions(cfg));
   }
+});
+
+/* ---- Agents Claude Code --------------------------------------------------- */
+
+// Couleur d'un DOSSIER : tirée au sort quand on le choisit pour la première
+// fois, modifiable au clic droit sur son agent. Elle aide à s'y retrouver :
+// un dossier garde sa couleur, même si son agent est retiré puis recréé.
+// [valeur, nom, pastille pour les menus].
+const AGENT_COLORS = [
+  ['#8b5cf6', 'Violet', '🟣'], ['#3b82f6', 'Bleu', '🔵'], ['#06b6d4', 'Cyan', '🩵'], ['#22c55e', 'Vert', '🟢'],
+  ['#eab308', 'Jaune', '🟡'], ['#f97316', 'Orange', '🟠'], ['#ef4444', 'Rouge', '🔴'], ['#ec4899', 'Rose', '🩷'],
+];
+const isColor = (c) => AGENT_COLORS.some(([v]) => v === c);
+const colorDot = (c) => (AGENT_COLORS.find(([v]) => v === c) || AGENT_COLORS[0])[2];
+// De préférence une couleur qu'aucun dossier ne porte.
+function randomColor(folders) {
+  const used = new Set(folders.map((f) => f.color));
+  const free = AGENT_COLORS.map(([c]) => c).filter((c) => !used.has(c));
+  const pool = free.length ? free : AGENT_COLORS.map(([c]) => c);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+const agentList = (cfg) => (Array.isArray(cfg.agents) ? cfg.agents.filter((a) => a && a.id && a.dir) : []);
+// Un petit bouton par agent, plus le « + ».
+const agentSlotCount = (cfg) => (cfg.agentsEnabled === true ? agentList(cfg).length + 1 : 0);
+
+// Dossiers favoris [{ dir, color }] : ceux déjà choisis, qu'ils aient encore un
+// agent ou non. Tolère les anciens formats (chemins seuls, couleur sur l'agent).
+function favoriteFolders(cfg) {
+  const out = [];
+  const add = (dir, color) => {
+    if (typeof dir !== 'string' || !dir || out.some((f) => f.dir === dir)) return;
+    out.push({ dir, color: isColor(color) ? color : null });
+  };
+  for (const f of Array.isArray(cfg.agentFolders) ? cfg.agentFolders : []) {
+    if (typeof f === 'string') add(f); else if (f) add(f.dir, f.color);
+  }
+  for (const a of agentList(cfg)) add(a.dir, a.color);
+  return out;
+}
+// Donne une couleur aux dossiers qui n'en ont pas, et l'enregistre : elle ne
+// doit pas changer d'un lancement à l'autre.
+function ensureFolderColors() {
+  const cfg = loadConfig();
+  const folders = favoriteFolders(cfg);
+  if (folders.every((f) => f.color) && folders.length === (cfg.agentFolders || []).length) return folders;
+  for (const f of folders) if (!f.color) f.color = randomColor(folders.filter((o) => o.color));
+  saveConfig({ agentFolders: folders });
+  return folders;
+}
+// Un agent porte la couleur de son dossier.
+const agentColor = (agent, cfg = loadConfig()) => (
+  (favoriteFolders(cfg).find((f) => f.dir === agent.dir) || {}).color || AGENT_COLORS[0][0]);
+function selectedAgent(cfg) {
+  if (cfg.agentsEnabled !== true || !cfg.agentSelected) return null;
+  return agentList(cfg).find((a) => a.id === cfg.agentSelected) || null;
+}
+function updateAgent(id, patch) {
+  saveConfig({ agents: agentList(loadConfig()).map((a) => (a.id === id ? { ...a, ...patch } : a)) });
+}
+
+// État des robots pour le renderer, et largeur de la fenêtre.
+function pushAgents() {
+  if (!win) return;
+  const cfg = loadConfig();
+  const slots = agentSlotCount(cfg);
+  if (slots !== agentSlots) { agentSlots = slots; applyWidth(); }
+  const enabled = cfg.agentsEnabled === true;
+  win.webContents.send('agents:state', {
+    enabled,
+    agents: enabled ? agentList(cfg).map((a) => ({
+      id: a.id, name: a.name, color: agentColor(a, cfg), selected: a.id === cfg.agentSelected, ...agents.state(a.id),
+    })) : [],
+  });
+  refreshConversation(); // la fenêtre de conversation suit (réponse arrivée, agent au travail…)
+}
+
+const TOOL_LABELS = {
+  Write: 'Écrire le fichier', Edit: 'Modifier le fichier', MultiEdit: 'Modifier le fichier', NotebookEdit: 'Modifier le notebook',
+  Read: 'Lire le fichier', Bash: 'Exécuter la commande', WebFetch: 'Consulter la page', WebSearch: 'Chercher sur le web',
+};
+// Ce sur quoi porte un outil : sa commande, son fichier, son adresse…
+const toolTarget = (input) => {
+  const i = input || {};
+  return i.command ?? i.file_path ?? i.notebook_path ?? i.path ?? i.url ?? i.query ?? i.pattern;
+};
+
+// Pour le fil de conversation, après coup : « Écrire le fichier : src/note.txt »
+// (une ligne, chemin relatif au dossier de l'agent).
+function toolSummary(agent, tool, input) {
+  const target = toolTarget(input);
+  const detail = target === undefined ? '' : String(target).replace(`${agent.dir}${path.sep}`, '').split('\n')[0].slice(0, 300);
+  return `${TOOL_LABELS[tool] || tool}${detail ? ` : ${detail}` : ''}`;
+}
+
+// Pour une demande d'autorisation : ce qui va s'exécuter, EN ENTIER et TEL QUEL
+// (ni chemin raccourci ni coupure silencieuse : c'est sur ce texte qu'on
+// autorise). Outil inconnu : ses paramètres bruts.
+const PERMISSION_MAX = 20000;
+function permissionText(tool, input) {
+  const target = toolTarget(input);
+  const detail = target === undefined ? JSON.stringify(input || {}, null, 2) : String(target);
+  const cut = detail.length > PERMISSION_MAX
+    ? `\n\n… ${detail.length - PERMISSION_MAX} caractères de plus ne sont pas affichés : dans le doute, refusez.` : '';
+  return `${TOOL_LABELS[tool] || tool} :\n${detail.slice(0, PERMISSION_MAX)}${cut}`;
+}
+
+function showAgentReply(agent) {
+  const reply = agents.lastReply(agent.id);
+  if (!reply) return;
+  agents.markRead(agent.id);
+  showBubble({ title: agent.name, text: reply.text, color: agentColor(agent) }, 'agent', agent.id);
+  pushAgents();
+  // Le bouton ▶ de la bulle va sans doute servir : on charge le lecteur d'avance.
+  const cfg = loadConfig();
+  if (cfg.speakEngine === 'chatterbox' || tts.isInstalled()) tts.warmUp(reply.audio, speakOptions(cfg));
+}
+
+function showAgentPermission(agent) {
+  const p = agents.pendingPermission(agent.id);
+  if (!p) return;
+  showBubble({
+    title: `${agent.name} demande l'autorisation`, text: permissionText(p.tool, p.input), color: agentColor(agent),
+    always: p.always, // ce que « Toujours autoriser » accorderait, pour cette session
+  }, 'permission', agent.id);
+}
+
+const CLAUDE_MISSING = 'Claude Code introuvable : installez-le, ou réglez la commande de lancement (clic droit → Agents Claude Code).';
+
+// La dictée part à l'agent ; la réponse arrivera par sa pastille.
+function sendToAgent(agent, text, cfg) {
+  const st = agents.state(agent.id).status;
+  if (st === 'working' || st === 'asking') {
+    clipboard.writeText(text);
+    return { ok: false, error: `${agent.name} travaille encore : message non envoyé (il est dans le presse-papiers).` };
+  }
+  if (!agents.isAvailable(cfg.agentCommand)) return { ok: false, error: CLAUDE_MISSING };
+  agents.send(agent, text, {
+    command: cfg.agentCommand,
+    onChange: pushAgents,
+    onSession: (sessionId) => updateAgent(agent.id, { sessionId }),
+    onPermission: () => showAgentPermission(agent),
+  }).catch((err) => console.error(`agent ${agent.name} : ${err && err.message}`));
+  return { ok: true, text, agent: agent.name };
+}
+
+// Un message IPC n'est écouté que s'il vient de la fenêtre qui a le droit de
+// l'envoyer : autoriser une action d'un agent est réservé à la bulle.
+const sentBy = (e, w) => !!w && !w.isDestroyed() && e.sender === w.webContents;
+
+// Clic sur un robot : lire ce qui attend (demande d'autorisation, réponse non
+// lue) et le sélectionner ; sinon basculer la sélection.
+ipcMain.on('agent:click', (e, id) => {
+  if (!sentBy(e, win)) return;
+  const cfg = loadConfig();
+  const agent = agentList(cfg).find((a) => a.id === id);
+  if (!agent) return;
+  const st = agents.state(id);
+  if (st.status === 'asking' || st.unread) {
+    saveConfig({ agentSelected: id });
+    if (st.status === 'asking') showAgentPermission(agent); else showAgentReply(agent);
+  } else {
+    saveConfig({ agentSelected: cfg.agentSelected === id ? null : id });
+    if (bubbleAgent) hideBubble();
+  }
+  pushAgents();
+});
+
+// Boutons de la bulle d'un agent.
+ipcMain.on('bubble:action', (e, action) => {
+  const id = bubbleAgent;
+  if (!id || !sentBy(e, bubble)) return;
+  if (action === 'speak' && bubbleKind === 'agent') { if (win) win.webContents.send('tts:speakAgent', id); return; }
+  if (action === 'expand' && bubbleKind === 'agent') { hideBubble(); openConversation(id); return; }
+  if (bubbleKind === 'permission' && ['allow', 'always', 'deny'].includes(action)) {
+    agents.answer(id, action);
+    hideBubble();
+    pushAgents();
+  }
+});
+
+// Lancé par l'appli, Claude Code ne pose pas sa question « Faire confiance à ce
+// dossier ? » : on la pose ici, une fois, quand un dossier devient favori. Les
+// réglages d'un projet (.claude/) peuvent lancer des commandes (hooks, MCP).
+async function trustFolder(dir) {
+  if (favoriteFolders(loadConfig()).some((f) => f.dir === dir)) return true;
+  const { response } = await dialog.showMessageBox({
+    type: 'warning', buttons: ['Annuler', 'Faire confiance et ajouter'], defaultId: 0, cancelId: 0,
+    title: 'Nouveau dossier pour un agent',
+    message: 'Faire confiance à ce dossier ?',
+    detail: `${dir}\n\nClaude Code y sera lancé avec les réglages du projet (dossier .claude : hooks, serveurs MCP, `
+      + 'autorisations), qui peuvent exécuter des commandes sur cette machine. N\'ajoutez que des dossiers dont vous connaissez le contenu.',
+  });
+  return response === 1;
+}
+
+function newAgent(dir) {
+  const cfg = loadConfig();
+  const list = agentList(cfg);
+  let agent = list.find((a) => a.dir === dir); // un seul agent par dossier
+  if (!agent) {
+    agent = { id: `a${Date.now().toString(36)}`, dir, name: path.basename(dir) || dir, model: '', effort: '', mode: 'default', sessionId: null };
+    saveConfig({ agents: [...list, agent] });
+  }
+  saveConfig({ agentSelected: agent.id });
+  ensureFolderColors(); // nouveau dossier : il reçoit sa couleur et devient favori
+  pushAgents();
+}
+
+// Bouton « + » : un nouvel agent, dans un dossier favori (déjà choisi, sans
+// agent pour l'instant) ou dans un dossier à choisir, qui devient favori.
+ipcMain.on('agent:add', (e) => {
+  if (!sentBy(e, win)) return;
+  const cfg = loadConfig();
+  const available = agents.isAvailable(cfg.agentCommand);
+  const inUse = new Set(agentList(cfg).map((a) => a.dir));
+  const free = ensureFolderColors().filter((f) => !inUse.has(f.dir));
+  const home = app.getPath('home');
+  const short = (d) => (d.startsWith(`${home}${path.sep}`) ? `~${d.slice(home.length)}` : d);
+  Menu.buildFromTemplate([
+    { label: free.length ? 'Nouvel agent dans un dossier favori' : 'Aucun dossier favori disponible', enabled: false },
+    ...free.map((f) => ({
+      label: `${colorDot(f.color)} ${path.basename(f.dir)}  —  ${short(f.dir)}`, enabled: available, click: () => newAgent(f.dir),
+    })),
+    { type: 'separator' },
+    { label: 'Choisir un autre dossier…', enabled: available,
+      click: async () => {
+        const res = await dialog.showOpenDialog({ title: 'Dossier de travail de l\'agent', properties: ['openDirectory'] });
+        if (!res.canceled && res.filePaths[0] && await trustFolder(res.filePaths[0])) newAgent(res.filePaths[0]);
+      } },
+    ...(free.length ? [{
+      label: 'Oublier un dossier favori',
+      submenu: free.map((f) => ({
+        label: `${colorDot(f.color)} ${short(f.dir)}`,
+        click: () => saveConfig({ agentFolders: favoriteFolders(loadConfig()).filter((o) => o.dir !== f.dir) }),
+      })),
+    }] : []),
+    ...(available ? [] : [{ type: 'separator' }, { label: CLAUDE_MISSING, enabled: false }]),
+  ]).popup({ window: win });
+});
+
+/* ---- Fenêtre de conversation ---------------------------------------------- */
+
+// Une fenêtre classique (barre de titre, redimensionnable, elle prend le
+// focus) : tout le fil d'un agent. Une seule à la fois, réutilisée d'un agent
+// à l'autre ; sa taille est retenue.
+let conv = null;
+let convAgent = null;
+let convThread = []; // fil affiché, pour retrouver le résumé audio d'une réponse par son rang
+
+function openConversation(id) {
+  convAgent = id;
+  if (conv) { refreshConversation(); conv.show(); conv.focus(); return; }
+  const saved = loadConfig().convBounds;
+  conv = new BrowserWindow({
+    width: 720, height: 780, minWidth: 380, minHeight: 300,
+    ...(saved && Number.isFinite(saved.width) ? saved : {}),
+    backgroundColor: '#171b24', autoHideMenuBar: true, title: 'Whisper — conversation',
+    webPreferences: { preload: path.join(__dirname, 'conversation-preload.js'), contextIsolation: true, sandbox: true },
+  });
+  conv.removeMenu();
+  conv.loadFile(path.join(__dirname, 'conversation.html'));
+  conv.on('close', () => saveConfig({ convBounds: conv.getBounds() }));
+  conv.on('closed', () => { conv = null; convAgent = null; convThread = []; });
+}
+
+// Relit la session et l'envoie à la fenêtre (à son ouverture, puis à chaque
+// changement d'état de l'agent).
+async function refreshConversation() {
+  if (!conv || !convAgent) return;
+  const cfg = loadConfig();
+  const agent = agentList(cfg).find((a) => a.id === convAgent);
+  if (!agent) return;
+  const id = agent.id;
+  const thread = await agents.thread(agent);
+  if (!conv || convAgent !== id) return; // fermée, ou passée à un autre agent entre-temps
+  convThread = thread;
+  conv.webContents.send('conv:thread', {
+    name: agent.name, dir: agent.dir, color: agentColor(agent, cfg), status: agents.state(id).status,
+    messages: thread.map((m) => ({
+      role: m.role, text: m.text, audio: !!m.audio, tools: (m.tools || []).map((t) => toolSummary(agent, t.tool, t.input)),
+    })),
+  });
+}
+ipcMain.on('conv:ready', (e) => { if (sentBy(e, conv)) refreshConversation(); });
+// ▶ d'une réponse : son résumé audio, par le lecteur de l'icône.
+ipcMain.on('conv:speak', (e, index) => {
+  if (!sentBy(e, conv) || !win || !convAgent) return;
+  if (convThread[index] && convThread[index].audio) win.webContents.send('tts:speakAgent', convAgent, index);
+});
+
+// Clic droit sur un robot : ses réglages, comme dans les autres intégrations.
+ipcMain.on('agent:menu', (e, id) => {
+  if (!sentBy(e, win)) return;
+  const agent = agentList(loadConfig()).find((a) => a.id === id);
+  if (!agent) return;
+  const st = agents.state(id);
+  const busy = st.status === 'working' || st.status === 'asking';
+  const radio = (key, options) => options.map(([value, label]) => ({
+    label, type: 'radio', checked: (agent[key] || options[0][0]) === value,
+    click: () => updateAgent(id, { [key]: value }),
+  }));
+  Menu.buildFromTemplate([
+    { label: agent.name, enabled: false },
+    { label: agent.dir, enabled: false },
+    { type: 'separator' },
+    { label: 'Couleur du dossier', submenu: AGENT_COLORS.map(([value, label, dot]) => ({
+      label: `${dot} ${label}`, type: 'radio', checked: agentColor(agent) === value,
+      click: () => {
+        saveConfig({ agentFolders: ensureFolderColors().map((f) => (f.dir === agent.dir ? { ...f, color: value } : f)) });
+        pushAgents();
+      },
+    })) },
+    { label: 'Modèle', submenu: radio('model', agents.MODELS) },
+    { label: 'Effort', submenu: radio('effort', agents.EFFORTS) },
+    { label: 'Mode', submenu: radio('mode', agents.MODES) },
+    { type: 'separator' },
+    { label: 'Voir la dernière réponse', enabled: st.hasReply, click: () => showAgentReply(agent) },
+    { label: 'Voir la conversation', enabled: !!agent.sessionId, click: () => openConversation(id) },
+    { label: 'Interrompre', enabled: busy, click: () => { agents.interrupt(id); pushAgents(); } },
+    { label: 'Nouvelle session (effacer le contexte)', click: () => {
+      agents.forget(id);
+      updateAgent(id, { sessionId: null });
+      if (bubbleAgent === id) hideBubble();
+      pushAgents(); // la fenêtre de conversation, si elle est ouverte, se vide
+    } },
+    { type: 'separator' },
+    { label: 'Retirer cet agent', click: () => {
+      agents.forget(id);
+      const cfg = loadConfig();
+      saveConfig({
+        agents: agentList(cfg).filter((a) => a.id !== id),
+        agentSelected: cfg.agentSelected === id ? null : cfg.agentSelected,
+        agentFolders: ensureFolderColors(), // son dossier reste proposé par « + », avec sa couleur
+      });
+      if (bubbleAgent === id) hideBubble();
+      if (convAgent === id && conv) conv.close();
+      pushAgents();
+    } },
+  ]).popup({ window: win });
 });
 
 /* ---- Menu du clic droit -------------------------------------------------- */
@@ -580,6 +951,15 @@ ipcMain.on('menu:open', async (_e, devices) => {
         { label: `Volume : ${Math.round(speakVolume(cfg) * 100)} %…`, click: () => showBubble(speakVolume(cfg), 'volume') },
       ],
     },
+    {
+      label: 'Agents Claude Code',
+      submenu: [
+        { label: 'Afficher les agents', type: 'checkbox', checked: cfg.agentsEnabled === true,
+          click: (i) => { saveConfig({ agentsEnabled: i.checked }); pushAgents(); } },
+        { label: agents.isAvailable(cfg.agentCommand) ? `Commande : ${cfg.agentCommand || 'claude'}` : 'Claude Code introuvable', enabled: false },
+        { label: 'Changer la commande de lancement… (agentCommand)', click: () => { saveConfig({}); shell.openPath(configFile()); } },
+      ],
+    },
     { type: 'separator' },
     { label: 'Ouvrir le dossier whisper', click: () => { fs.mkdirSync(ownWhisperDir(), { recursive: true }); shell.openPath(ownWhisperDir()); } },
     { label: 'Modifier la configuration (vocabulaire…)', click: () => { saveConfig({}); shell.openPath(configFile()); } },
@@ -597,6 +977,10 @@ app.whenReady().then(() => {
   setupPermissions(require('electron').session.defaultSession);
   createWindow();
   createBubble();
+  ensureFolderColors();
+  // Au lancement, la dictée va au curseur : un agent sélectionné la veille ne
+  // doit pas recevoir (et envoyer à Claude) ce qu'on croit dicter pour soi.
+  if (loadConfig().agentSelected) saveConfig({ agentSelected: null });
   setInterval(pollSpeak, SPEAK_POLL_MS);
   // Windows : l'assistant PowerShell sert au premier collage comme à la
   // coupure du micro Discord en début de dictée ; il met ~1 s à démarrer.
@@ -614,4 +998,4 @@ app.on('before-quit', (e) => {
   quitting = true;
   Promise.all([mute.restore('others'), mute.restore('discord')]).finally(() => app.quit());
 });
-app.on('will-quit', () => { windows.stop(); tts.stop(); });
+app.on('will-quit', () => { windows.stop(); tts.stop(); agents.stop(); });

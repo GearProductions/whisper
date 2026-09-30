@@ -10,6 +10,7 @@ C'est la dictée de l'icône compacte de Cockpit, seule.
 - **Maintenir** : dicter (bip aigu = parlez, bip grave = fin).
 - **Glisser** : déplacer l'icône (la position est retenue).
 - **Bouton ▶ accolé** : lire à voix haute le texte sélectionné (ou le presse-papiers), en local avec [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) (Kyutai).
+- **Robots accolés** (optionnels) : des agents [Claude Code](https://claude.com/claude-code), un par dossier de projet, à qui parler par la dictée.
 - **Clic droit** : langue, micro, bip, son des autres applications, collage automatique, affichage du texte, micro Discord, lecture à voix haute, dossier whisper, configuration, version (*À propos*), quitter.
 
 À la fin d'une dictée, une bulle montre le texte transcrit à côté de l'icône :
@@ -142,6 +143,69 @@ Sous **Wayland**, il faut aussi `wl-paste` (paquet `wl-clipboard`) : le
 compositeur ne donne la sélection qu'à la fenêtre qui a le focus, et l'icône
 ne le prend jamais. Dans une distrobox, celui de l'hôte est utilisé.
 
+### Agents Claude Code
+
+Clic droit → *Agents Claude Code* → *Afficher les agents* (désactivé par
+défaut). Il faut [Claude Code](https://claude.com/claude-code) installé et
+connecté sur la machine : l'appli lance **le vôtre** (rien d'embarqué, pas de
+clé API).
+
+Un agent est une conversation Claude Code attachée à un **dossier de projet**
+(un seul par dossier), représenté par un petit robot à droite de l'icône :
+
+- **« + »** : un nouvel agent, dans un **dossier favori** (déjà choisi une
+  fois, sans agent pour l'instant) ou dans un dossier à choisir, qui devient
+  favori. Chaque **dossier** reçoit une couleur au hasard, qu'il garde : son
+  robot, le liseré du micro et ses bulles la portent.
+- **Clic sur un robot** : il est sélectionné (violet). La dictée du gros bouton
+  lui est alors **envoyée** au lieu d'être collée. Un second clic le
+  désélectionne.
+- **Pendant qu'il travaille**, le robot clignote. **« ? »** : il demande une
+  autorisation (mode manuel) — la bulle propose *Autoriser*, *Toujours
+  autoriser*, *Refuser*. **Pastille verte** : il a répondu ; un clic ouvre la
+  bulle avec sa réponse (un clic dessus la copie) et un bouton **▶ Écouter**.
+  **⤢** l'agrandit : toute la conversation dans une fenêtre classique,
+  redimensionnable, avec les actions de l'agent et un ▶ par réponse.
+- **Clic droit sur un robot** : couleur du dossier, modèle, effort, mode
+  (manuel, accepter les modifications de fichiers, auto, plan), dernière
+  réponse, **conversation** entière, interrompre, *Nouvelle session* (repartir
+  de zéro), retirer (son dossier reste favori).
+
+**Ce qui quitte la machine, ce à quoi l'on fait confiance.**
+
+- La transcription reste locale, mais ce qui est dicté à un agent part chez
+  Claude, comme tout message tapé dans Claude Code. Le robot sélectionné (et le
+  liseré du micro à sa couleur) dit où ira la dictée ; au lancement de l'appli,
+  aucun agent n'est sélectionné.
+- Choisir un **nouveau dossier** demande confirmation : Claude Code y est lancé
+  avec les réglages du projet (`.claude/` : hooks, serveurs MCP, autorisations),
+  qui peuvent exécuter des commandes. N'ajoutez que des dossiers connus.
+- La bulle d'autorisation montre la commande ou le fichier **en entier, tel
+  quel** : c'est ce texte qui est autorisé. *Toujours autoriser* n'apparaît que
+  si Claude Code propose une règle, l'affiche, et ne vaut que **pour la session
+  en cours** — rien n'est écrit dans les réglages du projet ou de l'utilisateur.
+- Les modes *accepter les modifications* et *auto* ne demandent plus rien (ou
+  presque) : à réserver aux dossiers sous git.
+
+**Réponse écrite et réponse orale.** Chaque réponse de l'agent se termine par
+un bloc `<audio>…</audio>` : un résumé court, sans formatage, fait pour
+l'oreille. La bulle montre la réponse sans ce bloc ; ▶ ne lit que lui, avec le
+moteur de lecture à voix haute. La consigne n'est ajoutée qu'aux sessions
+créées par l'appli : vos sessions Claude Code habituelles ne changent pas.
+
+**Commande de lancement** (réglage `agentCommand`, clic droit → *Agents Claude
+Code* → *Changer la commande de lancement…*) : vide, c'est `claude`. À régler
+quand les outils du projet vivent ailleurs — l'appli ajoute ses arguments
+derrière :
+
+```json
+"agentCommand": "distrobox enter dev -- mise exec -- claude"
+```
+
+La commande doit transmettre l'entrée et la sortie standard telles quelles,
+c'est par là que l'appli dialogue avec Claude Code : pas de shell de connexion
+(`bash -lc …`), dont les scripts de profil consomment l'entrée.
+
 ### Son des autres applications
 
 Sur haut-parleurs, une vidéo ou un appel seraient captés par le micro et
@@ -175,6 +239,10 @@ s'affiche le temps de l'enregistrement, une fois la coupure confirmée.
 | `lang`       | `fr`, `en`, `auto`…                                               |
 | `vocabulary` | Mots propres à votre domaine, pour guider whisper (300 car. max) |
 | `sound`      | Bips de début / fin                                               |
+| `agentsEnabled` | Afficher les agents Claude Code                               |
+| `agentCommand` | Commande qui lance Claude Code (vide : `claude`)               |
+| `agents`     | Les agents : dossier, nom, modèle, effort, mode, session (gérés par l'appli ; `name` se modifie ici) |
+| `agentFolders` | Dossiers favoris proposés par « + », chacun avec sa couleur    |
 | `muteOthers` | Couper le son des autres applications pendant l'enregistrement   |
 | `autoPaste`  | Coller le texte là où est le curseur ; `false` : il reste dans le presse-papiers |
 | `showText`   | Bulle du texte transcrit à la fin d'une dictée                    |

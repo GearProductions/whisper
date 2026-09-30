@@ -21,11 +21,10 @@
    sélection primaire sous X11.
    ========================================================================= */
 
-const fs = require('fs');
-const path = require('path');
 const { execFile } = require('child_process');
 const { clipboard } = require('electron');
 const windows = require('./windows');
+const { which } = require('./paths');
 
 const MAX_BYTES = 1024 * 1024;
 const KLIPPER_REFILL = 'application/x-kde-onlyReplaceEmpty';
@@ -34,14 +33,8 @@ let wlPaste; // chemin, null si absent ; cherché une fois
 
 function findWlPaste() {
   if (wlPaste !== undefined) return wlPaste;
-  wlPaste = null;
-  if (process.platform !== 'linux' || !process.env.WAYLAND_DISPLAY) return wlPaste;
-  const dirs = [...String(process.env.PATH || '').split(path.delimiter), '/run/host/usr/bin'];
-  for (const dir of dirs) {
-    if (!dir) continue;
-    const file = path.join(dir, 'wl-paste');
-    try { if (fs.statSync(file).isFile()) { wlPaste = file; break; } } catch { /* pas là */ }
-  }
+  // /run/host : dans une distrobox, le wl-paste de l'hôte.
+  wlPaste = process.platform === 'linux' && process.env.WAYLAND_DISPLAY ? which('wl-paste', ['/run/host/usr/bin']) : null;
   return wlPaste;
 }
 
