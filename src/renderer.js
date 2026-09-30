@@ -13,6 +13,10 @@
    À côté, le bouton de lecture : le principal le dit actif, grisé ou masqué
    (texte sélectionné ou non, moteur disponible ou non) ; un clic lit, un
    second arrête.
+
+   Puis les agents Claude Code (un robot par dossier de projet) : un clic en
+   sélectionne un, la dictée lui est alors envoyée au lieu d'être collée ; une
+   pastille signale sa réponse, à lire dans la bulle ou à écouter.
    ========================================================================= */
 
 const RATE = 16000;
@@ -30,15 +34,19 @@ const icon = document.getElementById('icon');
 // phase : idle | starting | recording | transcribing | error
 const state = { phase: 'idle', session: null, errorTimer: null };
 
+// Infobulle au repos : à qui va la dictée (un agent sélectionné, sinon le curseur).
+let targetName = '';
+const hint = () => (targetName ? `Maintenir pour parler à ${targetName} · glisser pour déplacer · clic droit : réglages` : HINT);
+
 function setPhase(phase, message = '') {
   state.phase = phase;
   icon.dataset.phase = phase;
-  icon.title = message || HINT;
+  icon.title = message || hint();
   clearTimeout(state.errorTimer);
   if (phase === 'error' || message) {
     state.errorTimer = setTimeout(() => {
       if (state.phase === 'error') { state.phase = 'idle'; icon.dataset.phase = 'idle'; }
-      icon.title = HINT;
+      icon.title = hint();
     }, ERROR_MS);
   }
 }
@@ -175,6 +183,7 @@ async function stopDictation() {
     const res = await window.api.transcribe(toPcm(rec.chunks, rec.length).buffer);
     if (!res || !res.ok) { setPhase('error', (res && res.error) || 'La transcription a échoué.'); return; }
     if (!res.text) { setPhase('idle', 'Aucune parole détectée.'); return; }
+    if (res.agent) { setPhase('idle', `Envoyé à ${res.agent}.`); return; }
     // Pas collé : soit le collage automatique est désactivé, soit il a échoué.
     const notPasted = res.autoPaste === false ? 'Texte dans le presse-papiers : Ctrl+V pour le coller.'
       : 'Collage impossible : le texte est dans le presse-papiers.';
@@ -253,10 +262,12 @@ function endPress(e) {
 icon.addEventListener('pointerup', endPress);
 icon.addEventListener('pointercancel', endPress);
 
-// Sur l'icône comme sur le bouton de lecture.
+// Sur l'icône comme sur le bouton de lecture ; un robot a son propre menu.
 document.addEventListener('contextmenu', async (e) => {
   e.preventDefault();
-  window.api.openMenu(await listInputs());
+  const agent = e.target.closest('.agent');
+  if (agent) window.api.agentMenu(agent.dataset.id);
+  else window.api.openMenu(await listInputs());
 });
 
 /* ---- Lecture à voix haute ------------------------------------------------ */
@@ -341,7 +352,8 @@ function playChunk(pcm, rate) {
   if (speech.phase === 'loading') setSpeechPhase('playing');
 }
 
-async function speak() {
+// `source` : rien (la sélection ou le presse-papiers) ou { agent: id }.
+async function speak(source) {
   const token = ++speech.token;
   // Créés au clic : le volume passe par un gain, le curseur agit en cours de lecture.
   speech.ctx = new AudioContext();
@@ -353,7 +365,7 @@ async function speak() {
   speech.early = [];
   setSpeechPhase('loading');
   let res;
-  try { res = await window.api.speak(); } catch { res = null; }
+  try { res = await window.api.speak(source); } catch { res = null; }
   if (token !== speech.token) { if (res && res.ok) window.api.cancelSpeak(res.id); return; } // annulée entre-temps
   if (!res || !res.ok) { stopSpeaking(); setSpeechPhase('error', (res && res.error) || 'La synthèse vocale a échoué.'); return; }
   speech.id = res.id;
@@ -380,6 +392,11 @@ play.addEventListener('click', () => {
 // Survol : le clic va suivre, le principal charge le modèle d'avance.
 play.addEventListener('mouseenter', () => { if (canSpeak()) window.api.warmUpSpeak(); });
 
+// Bouton ▶ de la bulle d'un agent : son résumé audio, par le même lecteur.
+window.api.onSpeakAgent((id) => {
+  if (speech.phase === 'loading' || speech.phase === 'playing') stopSpeaking();
+  speak({ agent: id });
+});
 window.api.onSpeakChunk((id, pcm, rate) => onEvent(id, 'chunk', pcm, rate));
 window.api.onSpeakEnd((id, error) => onEvent(id, 'end', error));
 window.api.onSpeakState((state) => {
@@ -389,3 +406,43 @@ window.api.onSpeakState((state) => {
   renderPlay();
 });
 renderPlay();
+
+/* ---- Agents Claude Code --------------------------------------------------- */
+
+const agentsBox = document.getElementById('agents');
+const agentTemplate = document.getElementById('agent-template');
+const STATUS_TEXT = { working: 'au travail…', asking: 'attend une autorisation', error: 'erreur' };
+let unreadBefore = new Set();
+
+// `s` : { enabled, agents: [{ id, name, status, unread, selected }] }.
+function renderAgents(s) {
+  const list = (s && s.enabled && s.agents) || [];
+  document.body.dataset.agents = s && s.enabled ? 'on' : 'off';
+  const selected = list.find((a) => a.selected);
+  document.body.dataset.target = selected ? 'agent' : '';
+  targetName = selected ? selected.name : '';
+  if (state.phase === 'idle') icon.title = hint();
+  agentsBox.replaceChildren(...list.map((a) => {
+    const b = agentTemplate.content.firstElementChild.cloneNode(true);
+    b.dataset.id = a.id;
+    b.dataset.status = a.status;
+    b.dataset.selected = String(!!a.selected);
+    b.dataset.unread = String(!!a.unread);
+    const detail = STATUS_TEXT[a.status] || (a.unread ? 'a répondu : cliquer pour lire' : a.selected ? 'sélectionné' : 'cliquer pour lui parler');
+    b.title = `${a.name} — ${detail}`;
+    return b;
+  }));
+  // Une réponse vient d'arriver : le bip de fin, comme pour une dictée.
+  const unread = new Set(list.filter((a) => a.unread).map((a) => a.id));
+  if ([...unread].some((id) => !unreadBefore.has(id))) window.api.getConfig().then((cfg) => beep(cfg, 660));
+  unreadBefore = unread;
+}
+
+agentsBox.addEventListener('click', (e) => {
+  const b = e.target.closest('.agent');
+  if (b) window.api.agentClick(b.dataset.id);
+});
+document.getElementById('add').addEventListener('click', () => window.api.agentAdd());
+window.api.onAgents(renderAgents);
+renderAgents({ enabled: false });
+

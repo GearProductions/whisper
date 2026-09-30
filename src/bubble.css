@@ -48,3 +48,20 @@ html, body { margin: 0; background: transparent; overflow: hidden; }
 #volume[hidden] { display: none; }
 #volume-range { flex: 1; accent-color: #3b6fe0; cursor: pointer; }
 #volume-value { min-width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; color: #8a91a0; }
+/* Agents Claude Code : nom de l'agent, boutons d'action. */
+#title { margin-bottom: 4px; padding-right: 14px; font-size: 11px; font-weight: 600; color: #a78bfa; }
+#title[hidden], #actions[hidden], #actions button[hidden] { display: none; }
+#actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+#actions button {
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid #3a4150;
+  background: #2a3142;
+  color: #e6e8ee;
+  font: 12px/1.4 system-ui, sans-serif;
+  cursor: pointer;
+}
+#actions button:hover { border-color: #8b5cf6; }
+#act-allow, #act-always { border-color: #2fa36b; }
+#act-deny { border-color: #d9383a; }
+#bubble.permission, #bubble.permission:hover { cursor: default; border-color: #e0a23b; }

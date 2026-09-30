@@ -66,6 +66,21 @@ voix ou régler le volume (curseur). *Moteur → Chatterbox (GPU)* : voix plus
 naturelles, par le service `dev-chatterbox` (quadlet podman sur l'hôte, cf.
 `chatterbox/README.md`).
 
+Agents Claude Code (clic droit → *Agents Claude Code* → *Afficher les agents*) :
+un robot par dossier de projet, à qui la dictée est envoyée une fois
+sélectionné. Version du projet : l'appli tourne dans la box, `claude` y est
+directement. **AppImage sur l'hôte** : les outils (node, yarn…) sont dans la
+box, il faut donc y lancer Claude Code, avec dans
+`~/.config/whisper-dictation/config.json` :
+
+```json
+"agentCommand": "distrobox enter dev -- mise exec -- claude"
+```
+
+`mise exec` active node et les autres outils sans passer par un shell de
+connexion (`bash -lc` avale l'entrée standard, par laquelle l'appli dialogue
+avec Claude Code).
+
 Arrêter : clic droit → *Quitter*.
 
 ## Mettre à jour
