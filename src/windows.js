@@ -6,7 +6,7 @@
    micro Discord). Démarré avec l'appli, relancé s'il meurt.
 
    Une commande par ligne, une ligne de réponse, dans l'ordre : paste, copy,
-   discord-mute, discord-restore (cf. le script).
+   discord-mute, discord-restore, others-mute, others-restore (cf. le script).
    ========================================================================= */
 
 const path = require('path');

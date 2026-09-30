@@ -1,4 +1,4 @@
-# Whisper — assistant Windows : clavier simulé et micro Discord.
+# Whisper — assistant Windows : clavier simulé, coupures audio pendant la dictée.
 # Processus PERMANENT piloté par windows.js : démarrer PowerShell et compiler
 # les types ci-dessous coûte ~1 s, qu'on ne veut pas payer à chaque action.
 # Une commande par ligne sur stdin, une ligne de réponse sur stdout :
@@ -6,6 +6,9 @@
 #   copy             Ctrl+C (lire la sélection)                  -> ok
 #   discord-mute     coupe les flux de capture de Discord        -> nombre coupé et confirmé
 #   discord-restore  rétablit ceux qu'on a coupés                -> ok
+#   others-mute P    coupe la lecture des autres applications    -> nombre coupé et confirmé
+#                    (P : processus de l'appli, « 12,34 », épargnés)
+#   others-restore   rétablit celles qu'on a coupées             -> ok
 # Toute erreur répond « err » : l'appli n'attend jamais en vain.
 
 $ErrorActionPreference = 'Stop'
@@ -93,22 +96,24 @@ interface ISimpleAudioVolume {
   [PreserveSig] int GetMute(out int mute);
 }
 
-// Comme sous Linux : on ne coupe que les flux de capture de Discord qui ne
-// l'étaient pas, et on ne rétablit que ceux-là.
-public static class WhisperDiscord {
-  const int CAPTURE = 1, ACTIVE = 1, CLSCTX_ALL = 23;
-  static readonly List<object> muted = new List<object>();
+// Deux cibles, comme sous Linux (cf. mute.js) : les sessions de CAPTURE de
+// Discord, et les sessions de LECTURE des autres applications. On ne coupe que
+// celles qui ne l'étaient pas, et on ne rétablit que celles-là.
+public static class WhisperAudio {
+  const int RENDER = 0, CAPTURE = 1, ACTIVE = 1, CLSCTX_ALL = 23;
+  static readonly Dictionary<string, List<ISimpleAudioVolume>> muted = new Dictionary<string, List<ISimpleAudioVolume>>();
 
   static bool IsDiscord(uint pid) {
     try { return Process.GetProcessById((int)pid).ProcessName.IndexOf("discord", StringComparison.OrdinalIgnoreCase) >= 0; }
     catch { return false; }  // processus terminé entre-temps
   }
 
-  static IEnumerable<ISimpleAudioVolume> DiscordCaptureSessions() {
+  // Sessions des endpoints actifs de `flow` dont le processus passe `keep`.
+  static List<ISimpleAudioVolume> Sessions(int flow, Func<uint, bool> keep) {
     var result = new List<ISimpleAudioVolume>();
     var enumerator = (IMMDeviceEnumerator)new MMDeviceEnumeratorCom();
     IMMDeviceCollection devices;
-    if (enumerator.EnumAudioEndpoints(CAPTURE, ACTIVE, out devices) != 0) return result;
+    if (enumerator.EnumAudioEndpoints(flow, ACTIVE, out devices) != 0) return result;
     uint count;
     devices.GetCount(out count);
     var iid = typeof(IAudioSessionManager2).GUID;
@@ -125,32 +130,49 @@ public static class WhisperDiscord {
         object session;
         uint pid;
         if (sessions.GetSession(j, out session) != 0) continue;
-        if (((IAudioSessionControl2)session).GetProcessId(out pid) != 0 || !IsDiscord(pid)) continue;
+        if (((IAudioSessionControl2)session).GetProcessId(out pid) != 0 || !keep(pid)) continue;
         result.Add((ISimpleAudioVolume)session);
       }
     }
     return result;
   }
 
-  // Nombre de flux dont la coupure est confirmée (relue après coup).
-  public static int Mute() {
+  // Nombre de sessions dont la coupure est confirmée (relue après coup).
+  static int Mute(string target, int flow, Func<uint, bool> keep) {
+    if (!muted.ContainsKey(target)) muted[target] = new List<ISimpleAudioVolume>();
     int confirmed = 0;
-    foreach (var volume in DiscordCaptureSessions()) {
+    foreach (var volume in Sessions(flow, keep)) {
       int already;
-      if (volume.GetMute(out already) != 0 || already != 0) continue;  // déjà muet : on n'y touche pas
+      if (volume.GetMute(out already) != 0 || already != 0) continue;  // déjà muette : on n'y touche pas
       if (volume.SetMute(1, IntPtr.Zero) != 0) continue;
-      muted.Add(volume);
+      muted[target].Add(volume);
       int now;
       if (volume.GetMute(out now) == 0 && now != 0) confirmed++;
     }
     return confirmed;
   }
 
-  public static void Restore() {
-    foreach (ISimpleAudioVolume volume in muted) {
-      try { volume.SetMute(0, IntPtr.Zero); } catch { }  // appel quitté entre-temps : sans importance
+  public static int MuteDiscord() {
+    return Mute("discord", CAPTURE, delegate(uint pid) { return IsDiscord(pid); });
+  }
+
+  // `ownPids` : les processus de l'appli (« 12,34,56 »), dont les bips doivent
+  // rester audibles.
+  public static int MuteOthers(string ownPids) {
+    var own = new HashSet<uint>();
+    foreach (var part in (ownPids ?? "").Split(',')) {
+      uint pid;
+      if (uint.TryParse(part.Trim(), out pid)) own.Add(pid);
     }
-    muted.Clear();
+    return Mute("others", RENDER, delegate(uint pid) { return !own.Contains(pid); });
+  }
+
+  public static void Restore(string target) {
+    if (!muted.ContainsKey(target)) return;
+    foreach (var volume in muted[target]) {
+      try { volume.SetMute(0, IntPtr.Zero); } catch { }  // application fermée entre-temps : sans importance
+    }
+    muted[target].Clear();
   }
 }
 '@
@@ -165,11 +187,16 @@ while ($true) {
   if ($null -eq $line) { break }
   if ($line.Trim() -eq '') { continue }
   try {
-    switch ($line.Trim()) {
+    # « commande argument » : seul others-mute en prend un.
+    $parts = $line.Trim() -split '\s+', 2
+    $arg = if ($parts.Count -gt 1) { $parts[1] } else { '' }
+    switch ($parts[0]) {
       'paste'           { [WhisperKeys]::Paste(); Reply 'ok' }
       'copy'            { [WhisperKeys]::Copy(); Reply 'ok' }
-      'discord-mute'    { Reply ([WhisperDiscord]::Mute()) }
-      'discord-restore' { [WhisperDiscord]::Restore(); Reply 'ok' }
+      'discord-mute'    { Reply ([WhisperAudio]::MuteDiscord()) }
+      'discord-restore' { [WhisperAudio]::Restore('discord'); Reply 'ok' }
+      'others-mute'     { Reply ([WhisperAudio]::MuteOthers($arg)) }
+      'others-restore'  { [WhisperAudio]::Restore('others'); Reply 'ok' }
       default           { Reply 'err' }
     }
   } catch {

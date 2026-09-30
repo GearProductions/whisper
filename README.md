@@ -10,7 +10,7 @@ C'est la dictée de l'icône compacte de Cockpit, seule.
 - **Maintenir** : dicter (bip aigu = parlez, bip grave = fin).
 - **Glisser** : déplacer l'icône (la position est retenue).
 - **Bouton ▶ accolé** : lire à voix haute le texte sélectionné (ou le presse-papiers), en local avec [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) (Kyutai).
-- **Clic droit** : langue, micro, bip, collage automatique, affichage du texte, micro Discord, lecture à voix haute, dossier whisper, configuration, quitter.
+- **Clic droit** : langue, micro, bip, son des autres applications, collage automatique, affichage du texte, micro Discord, lecture à voix haute, dossier whisper, configuration, version (*À propos*), quitter.
 
 À la fin d'une dictée, une bulle montre le texte transcrit à côté de l'icône :
 **un clic dessus le copie** dans le presse-papiers. Elle suit l'icône quand on
@@ -142,6 +142,15 @@ Sous **Wayland**, il faut aussi `wl-paste` (paquet `wl-clipboard`) : le
 compositeur ne donne la sélection qu'à la fenêtre qui a le focus, et l'icône
 ne le prend jamais. Dans une distrobox, celui de l'hôte est utilisé.
 
+### Son des autres applications
+
+Sur haut-parleurs, une vidéo ou un appel seraient captés par le micro et
+transcrits avec la dictée. Clic droit → *Couper le son des autres applications
+pendant la dictée* (désactivé par défaut) : leur son est coupé le temps de
+l'enregistrement, puis rétabli. Les bips de l'appli restent audibles ; une
+application déjà muette le reste. Même mécanisme que pour le micro Discord
+ci-dessous (PipeWire sous Linux, Core Audio sous Windows).
+
 ### Micro Discord
 
 Clic droit → *Autoriser la coupure du micro Discord* (désactivé par défaut) :
@@ -166,6 +175,7 @@ s'affiche le temps de l'enregistrement, une fois la coupure confirmée.
 | `lang`       | `fr`, `en`, `auto`…                                               |
 | `vocabulary` | Mots propres à votre domaine, pour guider whisper (300 car. max) |
 | `sound`      | Bips de début / fin                                               |
+| `muteOthers` | Couper le son des autres applications pendant l'enregistrement   |
 | `autoPaste`  | Coller le texte là où est le curseur ; `false` : il reste dans le presse-papiers |
 | `showText`   | Bulle du texte transcrit à la fin d'une dictée                    |
 | `discordMute`| Couper le micro Discord pendant l'enregistrement                 |

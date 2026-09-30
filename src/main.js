@@ -10,8 +10,9 @@
    À la fin d'une dictée, une BULLE montre le texte à côté de l'icône (réglage
    `showText`) ; un clic dessus le copie.
 
-   Linux et Windows : pendant l'enregistrement, le micro Discord peut être
-   coupé puis rétabli (réglage `discordMute`, cf. discord.js).
+   Linux et Windows : pendant l'enregistrement, le micro Discord et le son des
+   autres applications peuvent être coupés puis rétablis (réglages
+   `discordMute`, `muteOthers`, cf. mute.js).
 
    Un petit bouton accolé à l'icône lit à voix haute le texte sélectionné (ou
    le presse-papiers), en local : Pocket TTS sur le processeur, ou Chatterbox
@@ -27,7 +28,7 @@ const fs = require('fs');
 const { app, BrowserWindow, ipcMain, clipboard, shell, screen, Menu } = require('electron');
 const whisper = require('./whisper');
 const paste = require('./paste');
-const discord = require('./discord');
+const mute = require('./mute');
 const tts = require('./tts');
 const chatterbox = require('./chatterbox');
 const selection = require('./selection');
@@ -42,6 +43,7 @@ if (!app.requestSingleInstanceLock()) app.quit();
 
 const DEFAULTS = {
   lang: 'fr', vocabulary: '', sound: true, showText: true, discordMute: false,
+  muteOthers: false,                 // couper le son des autres applications pendant la dictée
   autoPaste: true,                   // coller là où est le curseur ; sinon le texte reste dans le presse-papiers
   speak: 'selection', speakVolume: 1,
   speakEngine: 'pocket',             // 'pocket' (processeur) ou 'chatterbox' (GPU, service local)
@@ -284,20 +286,28 @@ ipcMain.on('config:setDevice', (_e, deviceId, deviceLabel) => {
 // Appelé quand le micro est ouvert : on prépare le collage.
 ipcMain.handle('dictation:warmUp', () => { paste.warmUp(); return true; });
 
+// Les processus de l'appli : leurs flux audio (les bips) ne sont jamais coupés.
+const ownPids = () => [process.pid, ...app.getAppMetrics().map((m) => m.pid)];
+
 // Début (dès le seuil de maintien, avant l'ouverture du micro) et fin de
-// l'enregistrement. Au début, la bulle de la dictée précédente s'efface, et
-// « Micro Discord coupé » s'affiche si la coupure est confirmée. La fin
-// rétablit toujours : réglage décoché en cours de route ou non, rien ne doit
-// rester coupé.
+// l'enregistrement. Au début, la bulle de la dictée précédente s'efface ; le
+// son des autres applications et le micro Discord sont coupés si c'est
+// autorisé, et « Micro Discord coupé » s'affiche une fois la coupure confirmée
+// (celle du son s'entend, elle). La fin rétablit toujours : réglage décoché en
+// cours de route ou non, rien ne doit rester coupé.
 ipcMain.on('dictation:recording', (_e, on) => {
   recording = !!on;
   if (on) {
     hideBubble();
-    if (loadConfig().discordMute !== true) return;
-    discord.mute().then((n) => { if (n > 0 && recording) showBubble('Micro Discord coupé', 'notice'); });
+    const cfg = loadConfig();
+    if (cfg.muteOthers === true) mute.mute('others', ownPids());
+    if (cfg.discordMute === true) {
+      mute.mute('discord').then((n) => { if (n > 0 && recording) showBubble('Micro Discord coupé', 'notice'); });
+    }
   } else {
     if (bubbleKind === 'notice') hideBubble();
-    discord.restore();
+    mute.restore('others');
+    mute.restore('discord');
   }
 });
 
@@ -482,6 +492,8 @@ const SPEAK_LANGS = {
 };
 const GENDER = { f: 'femme', m: 'homme' };
 
+const RELEASES_URL = 'https://github.com/GearProductions/whisper/releases';
+
 // `devices` = micros énumérés par le renderer (seul à y avoir accès).
 ipcMain.on('menu:open', async (_e, devices) => {
   if (!win) return;
@@ -513,6 +525,10 @@ ipcMain.on('menu:open', async (_e, devices) => {
       ],
     },
     { label: 'Bip de début / fin', type: 'checkbox', checked: cfg.sound !== false, click: (i) => saveConfig({ sound: i.checked }) },
+    ...(process.platform === 'linux' || process.platform === 'win32' ? [
+      { label: 'Couper le son des autres applications pendant la dictée', type: 'checkbox', checked: cfg.muteOthers === true,
+        click: (i) => saveConfig({ muteOthers: i.checked }) },
+    ] : []),
     { label: 'Coller automatiquement là où est le curseur', type: 'checkbox', checked: cfg.autoPaste !== false,
       click: (i) => saveConfig({ autoPaste: i.checked }) },
     { label: 'Afficher le texte transcrit', type: 'checkbox', checked: cfg.showText !== false,
@@ -568,6 +584,8 @@ ipcMain.on('menu:open', async (_e, devices) => {
     { label: 'Ouvrir le dossier whisper', click: () => { fs.mkdirSync(ownWhisperDir(), { recursive: true }); shell.openPath(ownWhisperDir()); } },
     { label: 'Modifier la configuration (vocabulaire…)', click: () => { saveConfig({}); shell.openPath(configFile()); } },
     { type: 'separator' },
+    { label: `À propos : version ${app.getVersion()}${app.isPackaged ? '' : ' (développement)'}`,
+      click: () => shell.openExternal(`${RELEASES_URL}/tag/v${app.getVersion()}`) },
     { label: 'Quitter', click: () => app.quit() },
   ];
   Menu.buildFromTemplate(template).popup({ window: win });
@@ -588,4 +606,12 @@ app.whenReady().then(() => {
   bubble.webContents.once('did-finish-load', ensureModel);
 });
 app.on('window-all-closed', () => app.quit());
+// Quittée en pleine dictée : on rend d'abord le son et le micro Discord.
+let quitting = false;
+app.on('before-quit', (e) => {
+  if (quitting || !recording) return;
+  e.preventDefault();
+  quitting = true;
+  Promise.all([mute.restore('others'), mute.restore('discord')]).finally(() => app.quit());
+});
 app.on('will-quit', () => { windows.stop(); tts.stop(); });

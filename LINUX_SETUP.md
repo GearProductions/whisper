@@ -46,6 +46,10 @@ suspend ce délai ; la croix la ferme). **Un clic dessus le recopie** : pratique
 si on a copié autre chose entre-temps. Désactivable : clic droit → *Afficher le texte transcrit*
 (clé `showText` de `.data/config.json`).
 
+Sur haut-parleurs : clic droit → *Couper le son des autres applications pendant
+la dictée*, pour que le micro ne capte pas une vidéo ou un appel (son coupé le
+temps de l'enregistrement, puis rétabli ; les bips restent).
+
 En appel Discord : clic droit → *Autoriser la coupure du micro Discord* pour que
 le salon n'entende pas la dictée (micro coupé le temps de l'enregistrement,
 puis rétabli ; un micro déjà coupé le reste). Coupure invisible côté Discord
