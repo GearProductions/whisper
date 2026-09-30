@@ -10,7 +10,7 @@ C'est la dictée de l'icône compacte de Cockpit, seule.
 - **Maintenir** : dicter (bip aigu = parlez, bip grave = fin).
 - **Glisser** : déplacer l'icône (la position est retenue).
 - **Bouton ▶ accolé** : lire à voix haute le texte sélectionné (ou le presse-papiers), en local avec [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) (Kyutai).
-- **Clic droit** : langue, micro, bip, affichage du texte, micro Discord, lecture à voix haute, dossier whisper, configuration, quitter.
+- **Clic droit** : langue, micro, bip, collage automatique, affichage du texte, micro Discord, lecture à voix haute, dossier whisper, configuration, quitter.
 
 À la fin d'une dictée, une bulle montre le texte transcrit à côté de l'icône :
 **un clic dessus le copie** dans le presse-papiers. Elle suit l'icône quand on
@@ -20,8 +20,9 @@ suspend ce délai). Désactivable : clic droit → *Afficher le texte transcrit*
 ![La bulle du texte transcrit, au-dessus de l'icône](docs/bulle.png)
 
 L'icône ne prend jamais le focus : le texte arrive dans l'application active.
-Le presse-papiers est restauré après le collage (sauf si le collage a échoué :
-le texte y reste, pour un Ctrl+V manuel).
+Le presse-papiers est restauré après le collage (sauf si le collage a échoué,
+ou si le collage automatique est désactivé : le texte y reste, pour un Ctrl+V
+manuel).
 
 ## Installation
 
@@ -82,6 +83,12 @@ Il faut un outil pour simuler Ctrl+V :
 
 Sans outil, le texte reste dans le presse-papiers. Note : la plupart des
 terminaux Linux collent avec Ctrl+Maj+V, pas Ctrl+V.
+
+Sous **KDE Plasma (Wayland)**, simuler une touche demande une autorisation
+(« contrôle de la saisie ») à chaque collage, sauf à l'accorder une fois pour
+toutes. Pour ne rien simuler du tout : clic droit → décocher *Coller
+automatiquement là où est le curseur* (réglage `autoPaste`). Le texte dicté
+reste alors dans le presse-papiers, à coller soi-même.
 
 ### Lecture à voix haute (Pocket TTS)
 
@@ -159,6 +166,7 @@ s'affiche le temps de l'enregistrement, une fois la coupure confirmée.
 | `lang`       | `fr`, `en`, `auto`…                                               |
 | `vocabulary` | Mots propres à votre domaine, pour guider whisper (300 car. max) |
 | `sound`      | Bips de début / fin                                               |
+| `autoPaste`  | Coller le texte là où est le curseur ; `false` : il reste dans le presse-papiers |
 | `showText`   | Bulle du texte transcrit à la fin d'une dictée                    |
 | `discordMute`| Couper le micro Discord pendant l'enregistrement                 |
 | `speak`      | Bouton de lecture : `selection`, `clipboard` ou `off`             |

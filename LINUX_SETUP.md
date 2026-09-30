@@ -109,13 +109,17 @@ compilé, lui, n'a besoin que de ce que `dev.ini` fournit déjà (`vulkan-loader
 - **`.data/`** : le lanceur passe `--user-data-dir=.data` à Electron, pour garder
   modèle, config et caches dans le projet plutôt que dans
   `~/.config/whisper-dictation`. Ignoré par git via `.git/info/exclude`.
-- **`whisper-cli` est un script, pas un lien** : l'appli ne reconnaît qu'un
-  fichier ordinaire. Le script appelle le binaire de `build-vulkan/` avec
-  `-t 8` (4 threads par défaut). Retour au CPU : remplacer `build-vulkan` par
-  `build` dedans.
+- **`whisper-cli` est un script** qui appelle le binaire de `build-vulkan/`
+  (un lien symbolique marcherait aussi : l'appli les suit, pour l'exécutable
+  comme pour le modèle). Retour au CPU : remplacer `build-vulkan` par `build`
+  dedans.
 - **Collage manuel** : l'appli sait envoyer Ctrl+V seule (`xdotool`, `wtype`,
-  `ydotool`), mais sous KDE Wayland seul `ydotool` marche, et il faut son démon
-  sur l'hôte. Écarté pour l'instant. Pour y revenir : `ydotoold` est fourni par
+  `ydotool`). Dans la box, aucun n'est installé : le texte reste dans le
+  presse-papiers. Sur l'hôte (AppImage), `xdotool` est là et colle, mais KDE
+  Wayland demande l'autorisation de contrôler la saisie à chaque fois (ou une
+  fois pour toutes) ; pour ne rien simuler, clic droit → décocher *Coller
+  automatiquement là où est le curseur*. `ydotool` éviterait la demande, mais
+  il faut son démon sur l'hôte. Écarté pour l'instant. Pour y revenir : `ydotoold` est fourni par
   Bazzite, `/dev/uinput` est déjà accessible sans root → service utilisateur
   sur l'hôte avec `--socket-path=%t/.ydotool_socket`, paquet `ydotool` dans la
   box, et `YDOTOOL_SOCKET` exporté par le lanceur.
