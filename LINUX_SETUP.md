@@ -12,7 +12,7 @@ Deux versions coexistent sur ce poste :
 | Commande | Version | Où elle tourne | Données |
 |---|---|---|---|
 | `whisper-dev` | celle du projet (sources, cette branche) | box `dev` | `whisper-dictation/.data/` |
-| `whisper` | la version publiée (AppImage des [Releases](https://github.com/SoutadeJulien/whisper-dictation/releases)) | **hôte** | `~/.config/whisper-dictation/` |
+| `whisper` | la version publiée (AppImage des [Releases](https://github.com/GearProductions/whisper/releases)) | **hôte** | `~/.config/whisper-dictation/` |
 
 L'AppImage est un paquet autonome : elle tourne sur l'hôte Bazzite telle
 quelle (FUSE 2, `wl-paste` et `wpctl` y sont d'origine), sans rien de la box,
@@ -153,7 +153,7 @@ compilé, lui, n'a besoin que de ce que `dev.ini` fournit déjà (`vulkan-loader
 cd ~/dev/Gear/tools
 
 # 1. L'appli
-git clone https://github.com/SoutadeJulien/whisper-dictation.git
+git clone https://github.com/GearProductions/whisper.git whisper-dictation
 cd whisper-dictation
 npm install
 node node_modules/electron/install.js   # npm bloque le postinstall d'Electron

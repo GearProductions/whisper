@@ -5,6 +5,8 @@ relâchez : la voix est transcrite **en local** par [whisper.cpp](https://github
 et le texte est collé là où se trouve le curseur, dans n'importe quelle application.
 C'est la dictée de l'icône compacte de Cockpit, seule.
 
+![L'icône de dictée et son bouton de lecture](docs/icone.png)
+
 - **Maintenir** : dicter (bip aigu = parlez, bip grave = fin).
 - **Glisser** : déplacer l'icône (la position est retenue).
 - **Bouton ▶ accolé** : lire à voix haute le texte sélectionné (ou le presse-papiers), en local avec [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) (Kyutai).
@@ -15,6 +17,8 @@ C'est la dictée de l'icône compacte de Cockpit, seule.
 la déplace, se ferme avec sa croix et disparaît seule après 10 s (le survol
 suspend ce délai). Désactivable : clic droit → *Afficher le texte transcrit*.
 
+![La bulle du texte transcrit, au-dessus de l'icône](docs/bulle.png)
+
 L'icône ne prend jamais le focus : le texte arrive dans l'application active.
 Le presse-papiers est restauré après le collage (sauf si le collage a échoué :
 le texte y reste, pour un Ctrl+V manuel).
@@ -23,7 +27,7 @@ le texte y reste, pour un Ctrl+V manuel).
 
 ### Paquet autonome (recommandé)
 
-Dans les [Releases](https://github.com/SoutadeJulien/whisper-dictation/releases) :
+Dans les [Releases](https://github.com/GearProductions/whisper/releases) :
 
 - **Windows** : `whisper-dictation-<version>-win.exe`, exécutable portable, sans
   installation (il se décompresse à chaque lancement : quelques secondes).
