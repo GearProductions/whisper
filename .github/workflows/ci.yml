@@ -41,12 +41,16 @@ jobs:
       - name: windows-helper.ps1
         shell: pwsh
         run: |
-          $commands = "discord-mute`ndiscord-restore`ninconnue`n"
+          $commands = "discord-mute`ndiscord-restore`nothers-mute 1,2`nothers-restore`ninconnue`n"
           $out = $commands | powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File src/windows-helper.ps1
           $lines = @($out | Where-Object { $_ -ne '' })
-          $expected = @('0', 'ok', 'err')
+          # Les coupures répondent un nombre (0 sans Discord ; le runner peut
+          # avoir une session de sons système côté lecture).
+          $expected = @('^0$', '^ok$', '^\d+$', '^ok$', '^err$')
           Write-Host "Réponses : $($lines -join ', ')"
-          if (($lines -join ',') -ne ($expected -join ',')) {
+          $ok = $lines.Count -eq $expected.Count
+          for ($i = 0; $ok -and $i -lt $expected.Count; $i++) { $ok = $lines[$i] -match $expected[$i] }
+          if (-not $ok) {
             Write-Error "Attendu : $($expected -join ', ')"
             exit 1
           }
