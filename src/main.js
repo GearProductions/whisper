@@ -18,7 +18,8 @@
    sur GPU par son service (réglages `speak`, `speakEngine`, cf. tts.js).
 
    Ce qui est collé est TOUJOURS ce que whisper vient de rendre, jamais un texte
-   fourni par le renderer.
+   fourni par le renderer. Le collage automatique peut être désactivé (réglage
+   `autoPaste`) : le texte reste alors dans le presse-papiers.
    ========================================================================= */
 
 const path = require('path');
@@ -41,6 +42,7 @@ if (!app.requestSingleInstanceLock()) app.quit();
 
 const DEFAULTS = {
   lang: 'fr', vocabulary: '', sound: true, showText: true, discordMute: false,
+  autoPaste: true,                   // coller là où est le curseur ; sinon le texte reste dans le presse-papiers
   speak: 'selection', speakVolume: 1,
   speakEngine: 'pocket',             // 'pocket' (processeur) ou 'chatterbox' (GPU, service local)
   speakLang: 'auto',                 // 'auto' : français ou anglais, détecté sur le texte entier
@@ -301,7 +303,14 @@ ipcMain.on('dictation:recording', (_e, on) => {
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function pasteText(text) {
+// Résout true si le texte a été collé. Collage automatique désactivé (réglage
+// `autoPaste`) : aucune touche n'est simulée — sous KDE Wayland, chaque
+// injection demande une autorisation —, le texte reste dans le presse-papiers.
+async function pasteText(text, autoPaste) {
+  if (!autoPaste) {
+    clipboard.writeText(text);
+    return false;
+  }
   const snap = selection.snapshotClipboard();
   clipboard.writeText(text);
   const ok = await paste.sendPaste();
@@ -376,7 +385,8 @@ ipcMain.handle('dictation:transcribe', async (_e, pcm) => {
   }
   if (!text) return { ok: true, text: '', pasted: false };
   if (cfg.showText !== false) showBubble(text);
-  return { ok: true, text, pasted: await pasteText(text) };
+  const autoPaste = cfg.autoPaste !== false;
+  return { ok: true, text, pasted: await pasteText(text, autoPaste), autoPaste };
 });
 
 /* ---- IPC : lecture à voix haute ------------------------------------------ */
@@ -503,6 +513,8 @@ ipcMain.on('menu:open', async (_e, devices) => {
       ],
     },
     { label: 'Bip de début / fin', type: 'checkbox', checked: cfg.sound !== false, click: (i) => saveConfig({ sound: i.checked }) },
+    { label: 'Coller automatiquement là où est le curseur', type: 'checkbox', checked: cfg.autoPaste !== false,
+      click: (i) => saveConfig({ autoPaste: i.checked }) },
     { label: 'Afficher le texte transcrit', type: 'checkbox', checked: cfg.showText !== false,
       click: (i) => { saveConfig({ showText: i.checked }); if (!i.checked) hideBubble(); } },
     ...(process.platform === 'linux' || process.platform === 'win32' ? [

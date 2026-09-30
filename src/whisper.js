@@ -24,7 +24,12 @@ const CLI_RE = /^whisper-cli(\.exe)?$/i;
 function findFile(dir, test, depth = 2) {
   let entries;
   try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return null; }
-  for (const e of entries) if (e.isFile() && test(e.name)) return path.join(dir, e.name);
+  // Un lien symbolique vers un fichier compte (modèle ou exécutable liés).
+  const isFile = (e) => {
+    if (!e.isSymbolicLink()) return e.isFile();
+    try { return fs.statSync(path.join(dir, e.name)).isFile(); } catch { return false; }
+  };
+  for (const e of entries) if (test(e.name) && isFile(e)) return path.join(dir, e.name);
   if (depth <= 0) return null;
   for (const e of entries) {
     if (!e.isDirectory()) continue;
