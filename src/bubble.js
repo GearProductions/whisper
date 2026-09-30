@@ -26,7 +26,13 @@ const HINT = 'Cliquer pour copier';
 // Boutons montrés par genre de bulle.
 const ACTIONS = { agent: ['speak'], permission: ['allow', 'always', 'deny'] };
 
-window.bubble.onShow((value, kind) => {
+// `size` : { width, maxHeight } de la fenêtre pour ce genre de bulle. La largeur
+// est posée ici, avant la mesure : la fenêtre, cachée, n'est pas encore à la
+// bonne taille.
+window.bubble.onShow((value, kind, size) => {
+  document.body.style.width = `${size.width}px`;
+  box.style.maxHeight = `${size.maxHeight - 8}px`;
+  box.style.setProperty('--accent', (value && value.color) || '#a78bfa'); // la couleur de l'agent
   const notice = kind === 'notice' || kind === 'status' || kind === 'permission'; // rien à copier
   const isVolume = kind === 'volume';
   const rich = kind === 'agent' || kind === 'permission'; // { title, text }
@@ -49,7 +55,7 @@ window.bubble.onShow((value, kind) => {
   box.classList.toggle('volume', isVolume);
   box.classList.toggle('permission', kind === 'permission');
   box.classList.remove('copied');
-  box.scrollTop = 0;
+  text.scrollTop = 0;
   // Hauteur réelle une fois le texte posé : le principal taille la fenêtre dessus.
   // Mesure immédiate (getBoundingClientRect force la mise en page), PAS dans un
   // requestAnimationFrame : la bulle est alors cachée, et une page cachée n'en

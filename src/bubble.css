@@ -1,11 +1,17 @@
 /* La fenêtre EST la bulle : fond transparent, la bulle la remplit. */
 html, body { margin: 0; background: transparent; overflow: hidden; }
 
+/* En colonne : le titre et le pied (boutons, « Cliquer pour copier ») restent
+   en place, seul le texte défile. Largeur et hauteur maximale viennent du
+   principal, selon le genre de bulle (cf. bubble.js). */
 #bubble {
+  --accent: #a78bfa;
+  display: flex;
+  flex-direction: column;
   margin: 4px;
   padding: 10px 12px 8px;
   max-height: 232px;
-  overflow-y: auto;
+  overflow: hidden;
   border-radius: 10px;
   background: #1f2430;
   border: 1px solid #3a4150;
@@ -16,10 +22,21 @@ html, body { margin: 0; background: transparent; overflow: hidden; }
   box-sizing: border-box;
 }
 #bubble:hover { border-color: #3b6fe0; }
-#text { white-space: pre-wrap; overflow-wrap: anywhere; padding-right: 14px; } /* place de la croix */
-/* Hors de #bubble, qui défile : posée sur son coin, elle reste en place (et
-   visible : en position fixe DANS la zone qui défile, elle n'était pas
-   toujours redessinée quand la bulle réapparaissait). */
+#text {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding-right: 14px; /* place de la croix */
+}
+/* Barre de défilement aux couleurs de l'appli, sur fond transparent. */
+#text::-webkit-scrollbar { width: 8px; }
+#text::-webkit-scrollbar-track { background: transparent; }
+#text::-webkit-scrollbar-thumb { background: #3a4150; border-radius: 4px; }
+#text::-webkit-scrollbar-thumb:hover { background: #4d566a; }
+#title, #volume, #actions, #hint { flex: none; }
+/* La croix : posée sur le coin de la bulle, hors de la zone qui défile. */
 #close {
   position: absolute;
   top: 8px;
@@ -49,7 +66,7 @@ html, body { margin: 0; background: transparent; overflow: hidden; }
 #volume-range { flex: 1; accent-color: #3b6fe0; cursor: pointer; }
 #volume-value { min-width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; color: #8a91a0; }
 /* Agents Claude Code : nom de l'agent, boutons d'action. */
-#title { margin-bottom: 4px; padding-right: 14px; font-size: 11px; font-weight: 600; color: #a78bfa; }
+#title { margin-bottom: 4px; padding-right: 14px; font-size: 11px; font-weight: 600; color: var(--accent); }
 #title[hidden], #actions[hidden], #actions button[hidden] { display: none; }
 #actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 #actions button {
@@ -61,7 +78,7 @@ html, body { margin: 0; background: transparent; overflow: hidden; }
   font: 12px/1.4 system-ui, sans-serif;
   cursor: pointer;
 }
-#actions button:hover { border-color: #8b5cf6; }
+#actions button:hover { border-color: var(--accent); }
 #act-allow, #act-always { border-color: #2fa36b; }
 #act-deny { border-color: #d9383a; }
 #bubble.permission, #bubble.permission:hover { cursor: default; border-color: #e0a23b; }

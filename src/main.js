@@ -48,10 +48,11 @@ if (!app.requestSingleInstanceLock()) app.quit();
 
 const DEFAULTS = {
   lang: 'fr', vocabulary: '', sound: true, showText: true, discordMute: false,
-  // Agents Claude Code : un par dossier ({ id, dir, name, model, effort, mode,
-  // sessionId }), les plus récemment utilisés d'abord. `agentCommand` : la
-  // commande qui lance Claude Code ('' : `claude` ; ex. « distrobox enter dev -- claude »).
-  agentsEnabled: false, agentCommand: '', agents: [], agentSelected: null,
+  // Agents Claude Code : un par dossier ({ id, dir, name, color, model, effort,
+  // mode, sessionId }). `agentFolders` : les dossiers déjà choisis, proposés
+  // par le bouton « + ». `agentCommand` : la commande qui lance Claude Code
+  // ('' : `claude` ; ex. « distrobox enter dev -- mise exec -- claude »).
+  agentsEnabled: false, agentCommand: '', agents: [], agentFolders: [], agentSelected: null,
   muteOthers: false,                 // couper le son des autres applications pendant la dictée
   autoPaste: true,                   // coller là où est le curseur ; sinon le texte reste dans le presse-papiers
   speak: 'selection', speakVolume: 1,
@@ -147,7 +148,7 @@ function createWindow() {
   });
   win.setAlwaysOnTop(true, 'floating');
   win.setVisibleOnAllWorkspaces(true);
-  win.loadFile(path.join(__dirname, 'index.html'));
+  win.loadFile(path.join(__dirname, 'index.html'), { query: { size: String(size) } });
   // Page (re)chargée : elle n'a pas encore l'état du bouton de lecture.
   win.webContents.on('did-finish-load', () => { speakKey = ''; pollSpeak(); pushAgents(); });
 }
@@ -166,8 +167,10 @@ function setupPermissions(ses) {
 
 /* ---- Bulle du texte transcrit ------------------------------------------- */
 
-const BUBBLE_W = 340;
-const BUBBLE_MAX_H = 240;
+// Largeur et hauteur maximale selon le genre : la réponse d'un agent, souvent
+// longue, a droit à une grande bulle.
+const BUBBLE_SIZES = { agent: { width: 560, maxHeight: 520 }, default: { width: 340, maxHeight: 240 } };
+const bubbleSize = () => BUBBLE_SIZES[bubbleKind] || BUBBLE_SIZES.default;
 const BUBBLE_GAP = 6;
 const BUBBLE_MS = 10000;         // affichage avant masquage automatique
 const BUBBLE_COPIED_MS = 1200;   // le temps de lire « Copié »
@@ -183,7 +186,7 @@ let recording = false;
 // Créée une fois, cachée : la montrer ensuite est instantané.
 function createBubble() {
   bubble = new BrowserWindow({
-    width: BUBBLE_W, height: 80, show: false,
+    width: BUBBLE_SIZES.default.width, height: 80, show: false,
     frame: false, transparent: true, resizable: false, maximizable: false, fullscreenable: false,
     skipTaskbar: true, hasShadow: false, alwaysOnTop: true,
     // Comme l'icône : la cliquer ne vole pas le focus à l'application cible.
@@ -218,7 +221,7 @@ function showBubble(text, kind = 'text', agentId = null) {
   bubbleKind = kind;
   bubbleAgent = agentId;
   bubbleText = kind === 'text' ? text : kind === 'agent' ? text.text : '';
-  bubble.webContents.send('bubble:show', text, kind);
+  bubble.webContents.send('bubble:show', text, kind, bubbleSize());
 }
 
 // Au-dessus de l'icône, centrée sur elle ; en dessous si le haut de l'écran
@@ -227,11 +230,12 @@ function showBubble(text, kind = 'text', agentId = null) {
 function placeBubble() {
   const icon = win.getBounds();
   const a = screen.getDisplayMatching(icon).workArea;
-  let x = icon.x + Math.round(winSize / 2 - BUBBLE_W / 2); // centrée sur le micro, pas sur le bouton de lecture
-  x = Math.max(a.x, Math.min(a.x + a.width - BUBBLE_W, x));
+  const { width } = bubbleSize();
+  let x = icon.x + Math.round(winSize / 2 - width / 2); // centrée sur le micro, pas sur les petits boutons
+  x = Math.max(a.x, Math.min(a.x + a.width - width, x));
   let y = icon.y - bubbleH - BUBBLE_GAP;
   if (y < a.y) y = Math.min(icon.y + icon.height + BUBBLE_GAP, a.y + a.height - bubbleH);
-  bubble.setBounds({ x, y, width: BUBBLE_W, height: bubbleH });
+  bubble.setBounds({ x, y, width, height: bubbleH });
 }
 
 ipcMain.on('bubble:ready', (_e, height) => {
@@ -239,7 +243,7 @@ ipcMain.on('bubble:ready', (_e, height) => {
   // Notice arrivée après la fin de l'enregistrement : elle n'a plus lieu d'être.
   if (bubbleKind === 'notice' && !recording) return;
   // 'status' : message de l'appli (téléchargement…), sans lien avec la dictée.
-  bubbleH = Math.max(40, Math.min(BUBBLE_MAX_H, Math.round(Number(height)) || 80));
+  bubbleH = Math.max(40, Math.min(bubbleSize().maxHeight, Math.round(Number(height)) || 80));
   placeBubble();
   bubble.showInactive();
   if (BUBBLE_STAYS.has(bubbleKind)) clearTimeout(bubbleTimer); else scheduleHide(BUBBLE_MS);
@@ -508,22 +512,34 @@ ipcMain.on('tts:warmUp', async () => {
 
 /* ---- Agents Claude Code --------------------------------------------------- */
 
-const AGENTS_VISIBLE = 4; // robots montrés ; les autres passent par le bouton « + »
+// Couleur d'un agent : tirée au sort à sa création, modifiable au clic droit.
+const AGENT_COLORS = [
+  ['#8b5cf6', 'Violet'], ['#3b82f6', 'Bleu'], ['#06b6d4', 'Cyan'], ['#22c55e', 'Vert'],
+  ['#eab308', 'Jaune'], ['#f97316', 'Orange'], ['#ef4444', 'Rouge'], ['#ec4899', 'Rose'],
+];
+const agentColor = (a) => (AGENT_COLORS.some(([c]) => c === a.color) ? a.color : AGENT_COLORS[0][0]);
+// De préférence une couleur qu'aucun agent ne porte.
+function randomColor(list) {
+  const used = new Set(list.map(agentColor));
+  const free = AGENT_COLORS.map(([c]) => c).filter((c) => !used.has(c));
+  const pool = free.length ? free : AGENT_COLORS.map(([c]) => c);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
 const agentList = (cfg) => (Array.isArray(cfg.agents) ? cfg.agents.filter((a) => a && a.id && a.dir) : []);
-const agentSlotCount = (cfg) => (cfg.agentsEnabled === true ? Math.min(agentList(cfg).length, AGENTS_VISIBLE) + 1 : 0);
+// Un petit bouton par agent, plus le « + ».
+const agentSlotCount = (cfg) => (cfg.agentsEnabled === true ? agentList(cfg).length + 1 : 0);
+// Dossiers favoris : ceux déjà choisis, qu'ils aient encore un agent ou non.
+function favoriteFolders(cfg) {
+  const saved = Array.isArray(cfg.agentFolders) ? cfg.agentFolders.filter((d) => typeof d === 'string' && d) : [];
+  return [...new Set([...saved, ...agentList(cfg).map((a) => a.dir)])];
+}
 function selectedAgent(cfg) {
   if (cfg.agentsEnabled !== true || !cfg.agentSelected) return null;
   return agentList(cfg).find((a) => a.id === cfg.agentSelected) || null;
 }
 function updateAgent(id, patch) {
   saveConfig({ agents: agentList(loadConfig()).map((a) => (a.id === id ? { ...a, ...patch } : a)) });
-}
-// En tête de liste : l'agent devient visible (les 4 plus récemment utilisés).
-function bringToFront(id) {
-  const list = agentList(loadConfig());
-  const agent = list.find((a) => a.id === id);
-  if (agent) saveConfig({ agents: [agent, ...list.filter((a) => a !== agent)] });
 }
 
 // État des robots pour le renderer, et largeur de la fenêtre.
@@ -535,8 +551,8 @@ function pushAgents() {
   const enabled = cfg.agentsEnabled === true;
   win.webContents.send('agents:state', {
     enabled,
-    agents: enabled ? agentList(cfg).slice(0, AGENTS_VISIBLE).map((a) => ({
-      id: a.id, name: a.name, selected: a.id === cfg.agentSelected, ...agents.state(a.id),
+    agents: enabled ? agentList(cfg).map((a) => ({
+      id: a.id, name: a.name, color: agentColor(a), selected: a.id === cfg.agentSelected, ...agents.state(a.id),
     })) : [],
   });
 }
@@ -557,7 +573,7 @@ function showAgentReply(agent) {
   const reply = agents.lastReply(agent.id);
   if (!reply) return;
   agents.markRead(agent.id);
-  showBubble({ title: agent.name, text: reply.text }, 'agent', agent.id);
+  showBubble({ title: agent.name, text: reply.text, color: agentColor(agent) }, 'agent', agent.id);
   pushAgents();
   // Le bouton ▶ de la bulle va sans doute servir : on charge le lecteur d'avance.
   const cfg = loadConfig();
@@ -566,7 +582,10 @@ function showAgentReply(agent) {
 
 function showAgentPermission(agent) {
   const p = agents.pendingPermission(agent.id);
-  if (p) showBubble({ title: `${agent.name} demande l'autorisation`, text: toolSummary(agent, p.tool, p.input) }, 'permission', agent.id);
+  if (p) {
+    showBubble({ title: `${agent.name} demande l'autorisation`, text: toolSummary(agent, p.tool, p.input), color: agentColor(agent) },
+      'permission', agent.id);
+  }
 }
 
 const AGENT_MESSAGES = {
@@ -582,7 +601,6 @@ function sendToAgent(agent, text, cfg) {
     return { ok: false, error: AGENT_MESSAGES.busy(agent.name) };
   }
   if (!agents.isAvailable(cfg.agentCommand)) return { ok: false, error: AGENT_MESSAGES.notInstalled() };
-  bringToFront(agent.id);
   agents.send(agent, text, {
     command: cfg.agentCommand,
     onChange: pushAgents,
@@ -626,31 +644,42 @@ function newAgent(dir) {
   const list = agentList(cfg);
   let agent = list.find((a) => a.dir === dir); // un seul agent par dossier
   if (!agent) {
-    agent = { id: `a${Date.now().toString(36)}`, dir, name: path.basename(dir) || dir, model: '', effort: '', mode: 'default', sessionId: null };
-    saveConfig({ agents: [agent, ...list] });
+    agent = {
+      id: `a${Date.now().toString(36)}`, dir, name: path.basename(dir) || dir, color: randomColor(list),
+      model: '', effort: '', mode: 'default', sessionId: null,
+    };
+    saveConfig({ agents: [...list, agent] });
   }
-  bringToFront(agent.id);
-  saveConfig({ agentSelected: agent.id });
+  saveConfig({ agentSelected: agent.id, agentFolders: [...new Set([...favoriteFolders(loadConfig()), dir])] });
   pushAgents();
 }
 
-// Bouton « + » : les agents au-delà des 4 visibles, et l'ajout d'un dossier.
+// Bouton « + » : un nouvel agent, dans un dossier favori (déjà choisi, sans
+// agent pour l'instant) ou dans un dossier à choisir, qui devient favori.
 ipcMain.on('agent:add', () => {
   if (!win) return;
   const cfg = loadConfig();
-  const hidden = agentList(cfg).slice(AGENTS_VISIBLE);
+  const available = agents.isAvailable(cfg.agentCommand);
+  const inUse = new Set(agentList(cfg).map((a) => a.dir));
+  const free = favoriteFolders(cfg).filter((d) => !inUse.has(d));
+  const home = app.getPath('home');
+  const short = (d) => (d.startsWith(`${home}${path.sep}`) ? `~${d.slice(home.length)}` : d);
   Menu.buildFromTemplate([
-    ...hidden.map((a) => ({
-      label: a.name, sublabel: a.dir,
-      click: () => { bringToFront(a.id); saveConfig({ agentSelected: a.id }); pushAgents(); },
-    })),
-    ...(hidden.length ? [{ type: 'separator' }] : []),
-    { label: 'Nouvel agent : choisir un dossier…', enabled: agents.isAvailable(cfg.agentCommand),
+    { label: free.length ? 'Nouvel agent dans un dossier favori' : 'Aucun dossier favori disponible', enabled: false },
+    ...free.map((d) => ({ label: `${path.basename(d)}  —  ${short(d)}`, enabled: available, click: () => newAgent(d) })),
+    { type: 'separator' },
+    { label: 'Choisir un autre dossier…', enabled: available,
       click: async () => {
         const res = await dialog.showOpenDialog({ title: 'Dossier de travail de l\'agent', properties: ['openDirectory'] });
         if (!res.canceled && res.filePaths[0]) newAgent(res.filePaths[0]);
       } },
-    ...(agents.isAvailable(cfg.agentCommand) ? [] : [{ label: AGENT_MESSAGES.notInstalled(), enabled: false }]),
+    ...(free.length ? [{
+      label: 'Oublier un dossier favori',
+      submenu: free.map((d) => ({
+        label: short(d), click: () => saveConfig({ agentFolders: favoriteFolders(loadConfig()).filter((f) => f !== d) }),
+      })),
+    }] : []),
+    ...(available ? [] : [{ type: 'separator' }, { label: AGENT_MESSAGES.notInstalled(), enabled: false }]),
   ]).popup({ window: win });
 });
 
@@ -669,6 +698,10 @@ ipcMain.on('agent:menu', (_e, id) => {
     { label: agent.name, enabled: false },
     { label: agent.dir, enabled: false },
     { type: 'separator' },
+    { label: 'Couleur', submenu: AGENT_COLORS.map(([value, label]) => ({
+      label, type: 'radio', checked: agentColor(agent) === value,
+      click: () => { updateAgent(id, { color: value }); pushAgents(); },
+    })) },
     { label: 'Modèle', submenu: radio('model', agents.MODELS) },
     { label: 'Effort', submenu: radio('effort', agents.EFFORTS) },
     { label: 'Mode', submenu: radio('mode', agents.MODES) },
@@ -686,7 +719,11 @@ ipcMain.on('agent:menu', (_e, id) => {
     { label: 'Retirer cet agent', click: () => {
       agents.forget(id);
       const cfg = loadConfig();
-      saveConfig({ agents: agentList(cfg).filter((a) => a.id !== id), agentSelected: cfg.agentSelected === id ? null : cfg.agentSelected });
+      saveConfig({
+        agents: agentList(cfg).filter((a) => a.id !== id),
+        agentSelected: cfg.agentSelected === id ? null : cfg.agentSelected,
+        agentFolders: favoriteFolders(cfg), // son dossier reste proposé par « + »
+      });
       if (bubbleAgent === id) hideBubble();
       pushAgents();
     } },

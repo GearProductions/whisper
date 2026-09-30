@@ -30,6 +30,8 @@ const HOLD_MS = 300;
 const HINT = 'Maintenir pour dicter · glisser pour déplacer · clic droit : réglages';
 
 const icon = document.getElementById('icon');
+// Taille configurée de l'icône : toute la mise en page s'y rapporte (cf. style.css).
+document.documentElement.style.setProperty('--s', `${Number(new URLSearchParams(location.search).get('size')) || 64}px`);
 
 // phase : idle | starting | recording | transcribing | error
 const state = { phase: 'idle', session: null, errorTimer: null };
@@ -414,17 +416,19 @@ const agentTemplate = document.getElementById('agent-template');
 const STATUS_TEXT = { working: 'au travail…', asking: 'attend une autorisation', error: 'erreur' };
 let unreadBefore = new Set();
 
-// `s` : { enabled, agents: [{ id, name, status, unread, selected }] }.
+// `s` : { enabled, agents: [{ id, name, color, status, unread, selected }] }.
 function renderAgents(s) {
   const list = (s && s.enabled && s.agents) || [];
   document.body.dataset.agents = s && s.enabled ? 'on' : 'off';
   const selected = list.find((a) => a.selected);
   document.body.dataset.target = selected ? 'agent' : '';
   targetName = selected ? selected.name : '';
+  document.body.style.setProperty('--agent', selected ? selected.color : '');
   if (state.phase === 'idle') icon.title = hint();
   agentsBox.replaceChildren(...list.map((a) => {
     const b = agentTemplate.content.firstElementChild.cloneNode(true);
     b.dataset.id = a.id;
+    b.style.setProperty('--agent', a.color);
     b.dataset.status = a.status;
     b.dataset.selected = String(!!a.selected);
     b.dataset.unread = String(!!a.unread);

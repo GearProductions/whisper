@@ -1,14 +1,20 @@
-/* La fenêtre EST l'icône : fond transparent, un disque aussi haut qu'elle. Les
-   petits boutons (lecture, agents, ajout), moitié moins grands, s'alignent à
-   sa droite : la fenêtre est élargie d'autant par le principal (winWidth). */
+/* La fenêtre EST l'icône : fond transparent, un disque. Les petits boutons
+   (lecture, agents, ajout), moitié moins grands, s'alignent à sa droite : la
+   fenêtre est élargie d'autant par le principal (winWidth).
+
+   Tout se mesure sur --s, la taille configurée de l'icône (posée par le
+   renderer), et non sur la fenêtre : avec une mise à l'échelle fractionnaire,
+   celle-ci est arrondie de quelques pixels, et l'écart se cumulerait à chaque
+   bouton. */
+:root { --s: 64px; }
 html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
 
 #icon {
   position: fixed;
   top: 4px;
   left: 4px;
-  width: calc(100vh - 8px);
-  height: calc(100vh - 8px);
+  width: calc(var(--s) - 8px);
+  height: calc(var(--s) - 8px);
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -41,14 +47,14 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
 }
 #icon[data-phase="error"] { border-color: #d9383a; color: #ff6b6b; }
 /* Un agent est sélectionné : la dictée lui est destinée. */
-body[data-target="agent"] #icon[data-phase="idle"] { border-color: #8b5cf6; }
+body[data-target="agent"] #icon[data-phase="idle"] { border-color: var(--agent, #8b5cf6); }
 
 /* ---- Petits boutons, à droite de l'icône ---- */
 #side {
   position: fixed;
-  left: 100vh;
+  left: var(--s);
   top: 0;
-  height: 100vh;
+  height: var(--s);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -57,8 +63,8 @@ body[data-target="agent"] #icon[data-phase="idle"] { border-color: #8b5cf6; }
 .small {
   position: relative;
   flex: none;
-  width: 50vh;
-  height: 50vh;
+  width: calc(var(--s) / 2);
+  height: calc(var(--s) / 2);
   box-sizing: border-box;
   padding: 0;
   display: flex;
@@ -91,7 +97,9 @@ body[data-agents="off"] #agents, body[data-agents="off"] #add { display: none; }
 #add svg path { stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
 .agent svg path, .agent svg rect { stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .agent svg circle { fill: currentColor; }
-.agent[data-selected="true"] { border-color: #8b5cf6; background: #8b5cf6; color: #fff; }
+/* Chaque agent a sa couleur (--agent, posée par le renderer). */
+.agent { border-color: var(--agent, #8b5cf6); color: var(--agent, #8b5cf6); }
+.agent[data-selected="true"] { background: var(--agent, #8b5cf6); color: #fff; }
 .agent[data-status="working"] { animation: blink 0.8s ease-in-out infinite alternate; }
 .agent[data-status="error"] { border-color: #d9383a; }
 /* Pastille : réponse non lue (point), autorisation demandée (« ? »). */

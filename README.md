@@ -153,9 +153,9 @@ clé API).
 Un agent est une conversation Claude Code attachée à un **dossier de projet**
 (un seul par dossier), représenté par un petit robot à droite de l'icône :
 
-- **« + »** : *Nouvel agent : choisir un dossier…* Le dossier devient un favori
-  et son agent apparaît. Quatre robots sont visibles (les plus récemment
-  utilisés) ; les autres se retrouvent dans ce même menu.
+- **« + »** : un nouvel agent, dans un **dossier favori** (déjà choisi une
+  fois, sans agent pour l'instant) ou dans un dossier à choisir, qui devient
+  favori. Chaque agent reçoit une couleur au hasard.
 - **Clic sur un robot** : il est sélectionné (violet). La dictée du gros bouton
   lui est alors **envoyée** au lieu d'être collée. Un second clic le
   désélectionne.
@@ -163,9 +163,9 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   autorisation (mode manuel) — la bulle propose *Autoriser*, *Toujours
   autoriser*, *Refuser*. **Pastille verte** : il a répondu ; un clic ouvre la
   bulle avec sa réponse (un clic dessus la copie) et un bouton **▶ Écouter**.
-- **Clic droit sur un robot** : modèle, effort, mode (manuel, accepter les
-  modifications de fichiers, auto, plan), dernière réponse, interrompre,
-  *Nouvelle session* (repartir de zéro), retirer.
+- **Clic droit sur un robot** : couleur, modèle, effort, mode (manuel, accepter
+  les modifications de fichiers, auto, plan), dernière réponse, interrompre,
+  *Nouvelle session* (repartir de zéro), retirer (son dossier reste favori).
 
 **Réponse écrite et réponse orale.** Chaque réponse de l'agent se termine par
 un bloc `<audio>…</audio>` : un résumé court, sans formatage, fait pour
@@ -221,7 +221,8 @@ s'affiche le temps de l'enregistrement, une fois la coupure confirmée.
 | `sound`      | Bips de début / fin                                               |
 | `agentsEnabled` | Afficher les agents Claude Code                               |
 | `agentCommand` | Commande qui lance Claude Code (vide : `claude`)               |
-| `agents`     | Les agents : dossier, nom, modèle, effort, mode, session (gérés par l'appli ; `name` se modifie ici) |
+| `agents`     | Les agents : dossier, nom, couleur, modèle, effort, mode, session (gérés par l'appli ; `name` se modifie ici) |
+| `agentFolders` | Dossiers favoris proposés par « + »                            |
 | `muteOthers` | Couper le son des autres applications pendant l'enregistrement   |
 | `autoPaste`  | Coller le texte là où est le curseur ; `false` : il reste dans le presse-papiers |
 | `showText`   | Bulle du texte transcrit à la fin d'une dictée                    |
