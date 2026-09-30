@@ -22,10 +22,9 @@
    la demande remonte à l'appli, qui répond par answer().
    ========================================================================= */
 
-const path = require('path');
 const fs = require('fs');
-const os = require('os');
 const { spawn } = require('child_process');
+const { which } = require('./paths');
 
 const AUDIO_RULES = [
   'Tu réponds à travers Whisper, une application vocale : l\'utilisateur DICTE ses messages (tolère les fautes de',
@@ -48,19 +47,6 @@ const MODES = [
 ];
 
 /* ---- Lancement de Claude Code -------------------------------------------- */
-
-function which(name) {
-  const names = process.platform === 'win32' ? [`${name}.exe`, `${name}.cmd`, name] : [name];
-  const dirs = [...String(process.env.PATH || '').split(path.delimiter), path.join(os.homedir(), '.local', 'bin')];
-  for (const dir of dirs) {
-    for (const n of names) {
-      if (!dir) continue;
-      const file = path.join(dir, n);
-      try { if (fs.statSync(file).isFile()) return file; } catch { /* pas là */ }
-    }
-  }
-  return null;
-}
 
 // « distrobox enter dev -- claude » → ['distrobox', 'enter', 'dev', '--', 'claude'] ;
 // guillemets simples ou doubles pour un argument avec espaces.
@@ -145,7 +131,7 @@ async function send(agent, message, { command, onChange, onSession, onPermission
 
   const ask = (tool, input, { suggestions } = {}) => new Promise((resolve) => {
     r.status = 'asking';
-    r.pending = { tool, input, suggestions, resolve };
+    r.pending = { tool, input, rules: sessionRules(suggestions), resolve };
     onChange();
     onPermission({ tool, input });
   });
@@ -180,7 +166,7 @@ async function send(agent, message, { command, onChange, onSession, onPermission
   } catch (err) {
     failure = r.abort.signal.aborted ? 'interrupted' : (err && err.message) || 'erreur';
   }
-  if (r.pending) { r.pending = null; }
+  r.pending = null;
   r.abort = null;
   if (reply !== null) {
     r.last = splitReply(reply);
@@ -199,8 +185,19 @@ async function send(agent, message, { command, onChange, onSession, onPermission
   onChange();
 }
 
+// Ce que « Toujours autoriser » accordera : parmi les suggestions de Claude
+// Code, SEULEMENT des règles d'autorisation, et pour la session en cours. Une
+// suggestion peut viser les réglages du projet ou de l'utilisateur (écrite sur
+// le disque, elle survivrait à la session), changer de mode ou ouvrir d'autres
+// dossiers : rien de cela ne doit passer par un bouton de la bulle.
+function sessionRules(suggestions) {
+  return (Array.isArray(suggestions) ? suggestions : [])
+    .filter((s) => s && s.type === 'addRules' && s.behavior === 'allow' && Array.isArray(s.rules) && s.rules.length)
+    .map((s) => ({ type: 'addRules', behavior: 'allow', rules: s.rules, destination: 'session' }));
+}
+
 // Réponse à la demande d'autorisation en cours : 'allow', 'always' (ne plus
-// demander pour cet outil dans cette session) ou 'deny'.
+// demander, dans cette session, ce que décrivent les règles) ou 'deny'.
 function answer(id, decision) {
   const r = rt(id);
   const p = r.pending;
@@ -209,13 +206,17 @@ function answer(id, decision) {
   r.status = 'working';
   if (r.onChange) r.onChange();
   if (decision === 'deny') p.resolve({ behavior: 'deny', message: 'Refusé par l\'utilisateur.' });
-  else p.resolve({ behavior: 'allow', updatedInput: p.input, ...(decision === 'always' && p.suggestions ? { updatedPermissions: p.suggestions } : {}) });
+  else p.resolve({ behavior: 'allow', updatedInput: p.input, ...(decision === 'always' && p.rules.length ? { updatedPermissions: p.rules } : {}) });
   return true;
 }
 
+// { tool, input, always } : `always` liste ce que « Toujours autoriser »
+// accorderait (« Bash(git status:*) »), vide si rien à proposer.
 const pendingPermission = (id) => {
   const p = rt(id).pending;
-  return p ? { tool: p.tool, input: p.input } : null;
+  if (!p) return null;
+  const always = p.rules.flatMap((u) => u.rules.map((x) => (x.ruleContent ? `${x.toolName}(${x.ruleContent})` : x.toolName)));
+  return { tool: p.tool, input: p.input, always };
 };
 
 function interrupt(id) {
@@ -260,6 +261,6 @@ async function thread(agent) {
 }
 
 module.exports = {
-  MODELS, EFFORTS, MODES, isAvailable, splitCommand, splitReply,
+  MODELS, EFFORTS, MODES, isAvailable,
   state, lastReply, markRead, forget, send, answer, pendingPermission, interrupt, stop, thread,
 };

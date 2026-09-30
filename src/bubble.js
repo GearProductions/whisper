@@ -23,6 +23,7 @@ const rangeValue = document.getElementById('volume-value');
 const title = document.getElementById('title');
 const actions = document.getElementById('actions');
 const expand = document.getElementById('expand');
+const always = document.getElementById('always');
 const HINT = 'Cliquer pour copier';
 // Boutons montrés par genre de bulle.
 const ACTIONS = { agent: ['speak'], permission: ['allow', 'always', 'deny'] };
@@ -40,9 +41,15 @@ window.bubble.onShow((value, kind, size) => {
   title.hidden = !rich;
   title.textContent = rich ? value.title : '';
   text.textContent = isVolume ? 'Volume de lecture' : rich ? value.text : value;
-  const shown = ACTIONS[kind] || [];
+  // « Toujours autoriser » : seulement s'il y a quelque chose à accorder, et en
+  // disant quoi.
+  const rules = (kind === 'permission' && value.always) || [];
+  const shown = (ACTIONS[kind] || []).filter((a) => a !== 'always' || rules.length);
   actions.hidden = !shown.length;
   for (const b of actions.children) b.hidden = !shown.includes(b.dataset.act);
+  always.hidden = !rules.length;
+  always.textContent = rules.length ? `« Toujours autoriser », jusqu'à la fin de cette session : ${rules.join(', ')}` : '';
+  shownAt = Date.now();
   volume.hidden = !isVolume;
   if (isVolume) {
     range.value = String(Math.round(Number(value) * 100));
@@ -75,11 +82,15 @@ range.addEventListener('input', () => {
   window.bubble.setVolume(Number(range.value) / 100);
 });
 
-// Un bouton d'action n'est pas un clic « copier ».
+// Un bouton d'action n'est pas un clic « copier ». Un clic parti juste avant
+// que la bulle change de contenu (une autre demande vient d'arriver) est
+// ignoré : il répondrait à ce qu'on n'a pas eu le temps de lire.
+const CLICK_GUARD_MS = 600;
+let shownAt = 0;
 actions.addEventListener('click', (e) => {
   e.stopPropagation();
   const b = e.target.closest('button');
-  if (b) window.bubble.action(b.dataset.act);
+  if (b && Date.now() - shownAt > CLICK_GUARD_MS) window.bubble.action(b.dataset.act);
 });
 
 box.addEventListener('click', async () => {

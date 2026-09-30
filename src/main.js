@@ -169,9 +169,10 @@ function setupPermissions(ses) {
 /* ---- Bulle du texte transcrit ------------------------------------------- */
 
 // Largeur et hauteur maximale selon le genre : la réponse d'un agent, souvent
-// longue, a droit à une grande bulle.
-const BUBBLE_SIZES = { agent: { width: 560, maxHeight: 520 }, default: { width: 340, maxHeight: 240 } };
-const bubbleSize = () => BUBBLE_SIZES[bubbleKind] || BUBBLE_SIZES.default;
+// longue, et sa demande d'autorisation, à lire en entier, ont droit à une
+// grande bulle.
+const BUBBLE_SIZES = { large: { width: 560, maxHeight: 520 }, default: { width: 340, maxHeight: 240 } };
+const bubbleSize = () => (BUBBLE_STAYS.has(bubbleKind) ? BUBBLE_SIZES.large : BUBBLE_SIZES.default);
 const BUBBLE_GAP = 6;
 const BUBBLE_MS = 10000;         // affichage avant masquage automatique
 const BUBBLE_COPIED_MS = 1200;   // le temps de lire « Copié »
@@ -561,8 +562,9 @@ function ensureFolderColors() {
   saveConfig({ agentFolders: folders });
   return folders;
 }
-const folderColor = (cfg, dir) => (favoriteFolders(cfg).find((f) => f.dir === dir) || {}).color || AGENT_COLORS[0][0];
-const agentColor = (agent, cfg = loadConfig()) => folderColor(cfg, agent.dir);
+// Un agent porte la couleur de son dossier.
+const agentColor = (agent, cfg = loadConfig()) => (
+  (favoriteFolders(cfg).find((f) => f.dir === agent.dir) || {}).color || AGENT_COLORS[0][0]);
 function selectedAgent(cfg) {
   if (cfg.agentsEnabled !== true || !cfg.agentSelected) return null;
   return agentList(cfg).find((a) => a.id === cfg.agentSelected) || null;
@@ -587,16 +589,34 @@ function pushAgents() {
   refreshConversation(); // la fenêtre de conversation suit (réponse arrivée, agent au travail…)
 }
 
-// « Écrire le fichier : src/note.txt » — l'outil en clair, les chemins relatifs
-// au dossier de l'agent.
 const TOOL_LABELS = {
   Write: 'Écrire le fichier', Edit: 'Modifier le fichier', MultiEdit: 'Modifier le fichier', NotebookEdit: 'Modifier le notebook',
   Read: 'Lire le fichier', Bash: 'Exécuter la commande', WebFetch: 'Consulter la page', WebSearch: 'Chercher sur le web',
 };
+// Ce sur quoi porte un outil : sa commande, son fichier, son adresse…
+const toolTarget = (input) => {
+  const i = input || {};
+  return i.command ?? i.file_path ?? i.notebook_path ?? i.path ?? i.url ?? i.query ?? i.pattern;
+};
+
+// Pour le fil de conversation, après coup : « Écrire le fichier : src/note.txt »
+// (une ligne, chemin relatif au dossier de l'agent).
 function toolSummary(agent, tool, input) {
-  const v = input && (input.command || input.file_path || input.notebook_path || input.path || input.url || input.query || input.pattern || input.description);
-  const detail = v ? String(v).split(`${agent.dir}${path.sep}`).join('').slice(0, 300) : '';
+  const target = toolTarget(input);
+  const detail = target === undefined ? '' : String(target).replace(`${agent.dir}${path.sep}`, '').split('\n')[0].slice(0, 300);
   return `${TOOL_LABELS[tool] || tool}${detail ? ` : ${detail}` : ''}`;
+}
+
+// Pour une demande d'autorisation : ce qui va s'exécuter, EN ENTIER et TEL QUEL
+// (ni chemin raccourci ni coupure silencieuse : c'est sur ce texte qu'on
+// autorise). Outil inconnu : ses paramètres bruts.
+const PERMISSION_MAX = 20000;
+function permissionText(tool, input) {
+  const target = toolTarget(input);
+  const detail = target === undefined ? JSON.stringify(input || {}, null, 2) : String(target);
+  const cut = detail.length > PERMISSION_MAX
+    ? `\n\n… ${detail.length - PERMISSION_MAX} caractères de plus ne sont pas affichés : dans le doute, refusez.` : '';
+  return `${TOOL_LABELS[tool] || tool} :\n${detail.slice(0, PERMISSION_MAX)}${cut}`;
 }
 
 function showAgentReply(agent) {
@@ -612,25 +632,23 @@ function showAgentReply(agent) {
 
 function showAgentPermission(agent) {
   const p = agents.pendingPermission(agent.id);
-  if (p) {
-    showBubble({ title: `${agent.name} demande l'autorisation`, text: toolSummary(agent, p.tool, p.input), color: agentColor(agent) },
-      'permission', agent.id);
-  }
+  if (!p) return;
+  showBubble({
+    title: `${agent.name} demande l'autorisation`, text: permissionText(p.tool, p.input), color: agentColor(agent),
+    always: p.always, // ce que « Toujours autoriser » accorderait, pour cette session
+  }, 'permission', agent.id);
 }
 
-const AGENT_MESSAGES = {
-  busy: (name) => `${name} travaille encore : message non envoyé (il est dans le presse-papiers).`,
-  notInstalled: () => 'Claude Code introuvable : installez-le, ou réglez la commande de lancement (clic droit → Agents Claude Code).',
-};
+const CLAUDE_MISSING = 'Claude Code introuvable : installez-le, ou réglez la commande de lancement (clic droit → Agents Claude Code).';
 
 // La dictée part à l'agent ; la réponse arrivera par sa pastille.
 function sendToAgent(agent, text, cfg) {
   const st = agents.state(agent.id).status;
   if (st === 'working' || st === 'asking') {
     clipboard.writeText(text);
-    return { ok: false, error: AGENT_MESSAGES.busy(agent.name) };
+    return { ok: false, error: `${agent.name} travaille encore : message non envoyé (il est dans le presse-papiers).` };
   }
-  if (!agents.isAvailable(cfg.agentCommand)) return { ok: false, error: AGENT_MESSAGES.notInstalled() };
+  if (!agents.isAvailable(cfg.agentCommand)) return { ok: false, error: CLAUDE_MISSING };
   agents.send(agent, text, {
     command: cfg.agentCommand,
     onChange: pushAgents,
@@ -640,9 +658,14 @@ function sendToAgent(agent, text, cfg) {
   return { ok: true, text, agent: agent.name };
 }
 
+// Un message IPC n'est écouté que s'il vient de la fenêtre qui a le droit de
+// l'envoyer : autoriser une action d'un agent est réservé à la bulle.
+const sentBy = (e, w) => !!w && !w.isDestroyed() && e.sender === w.webContents;
+
 // Clic sur un robot : lire ce qui attend (demande d'autorisation, réponse non
 // lue) et le sélectionner ; sinon basculer la sélection.
-ipcMain.on('agent:click', (_e, id) => {
+ipcMain.on('agent:click', (e, id) => {
+  if (!sentBy(e, win)) return;
   const cfg = loadConfig();
   const agent = agentList(cfg).find((a) => a.id === id);
   if (!agent) return;
@@ -658,9 +681,9 @@ ipcMain.on('agent:click', (_e, id) => {
 });
 
 // Boutons de la bulle d'un agent.
-ipcMain.on('bubble:action', (_e, action) => {
+ipcMain.on('bubble:action', (e, action) => {
   const id = bubbleAgent;
-  if (!id) return;
+  if (!id || !sentBy(e, bubble)) return;
   if (action === 'speak' && bubbleKind === 'agent') { if (win) win.webContents.send('tts:speakAgent', id); return; }
   if (action === 'expand' && bubbleKind === 'agent') { hideBubble(); openConversation(id); return; }
   if (bubbleKind === 'permission' && ['allow', 'always', 'deny'].includes(action)) {
@@ -669,6 +692,21 @@ ipcMain.on('bubble:action', (_e, action) => {
     pushAgents();
   }
 });
+
+// Lancé par l'appli, Claude Code ne pose pas sa question « Faire confiance à ce
+// dossier ? » : on la pose ici, une fois, quand un dossier devient favori. Les
+// réglages d'un projet (.claude/) peuvent lancer des commandes (hooks, MCP).
+async function trustFolder(dir) {
+  if (favoriteFolders(loadConfig()).some((f) => f.dir === dir)) return true;
+  const { response } = await dialog.showMessageBox({
+    type: 'warning', buttons: ['Annuler', 'Faire confiance et ajouter'], defaultId: 0, cancelId: 0,
+    title: 'Nouveau dossier pour un agent',
+    message: 'Faire confiance à ce dossier ?',
+    detail: `${dir}\n\nClaude Code y sera lancé avec les réglages du projet (dossier .claude : hooks, serveurs MCP, `
+      + 'autorisations), qui peuvent exécuter des commandes sur cette machine. N\'ajoutez que des dossiers dont vous connaissez le contenu.',
+  });
+  return response === 1;
+}
 
 function newAgent(dir) {
   const cfg = loadConfig();
@@ -685,8 +723,8 @@ function newAgent(dir) {
 
 // Bouton « + » : un nouvel agent, dans un dossier favori (déjà choisi, sans
 // agent pour l'instant) ou dans un dossier à choisir, qui devient favori.
-ipcMain.on('agent:add', () => {
-  if (!win) return;
+ipcMain.on('agent:add', (e) => {
+  if (!sentBy(e, win)) return;
   const cfg = loadConfig();
   const available = agents.isAvailable(cfg.agentCommand);
   const inUse = new Set(agentList(cfg).map((a) => a.dir));
@@ -702,7 +740,7 @@ ipcMain.on('agent:add', () => {
     { label: 'Choisir un autre dossier…', enabled: available,
       click: async () => {
         const res = await dialog.showOpenDialog({ title: 'Dossier de travail de l\'agent', properties: ['openDirectory'] });
-        if (!res.canceled && res.filePaths[0]) newAgent(res.filePaths[0]);
+        if (!res.canceled && res.filePaths[0] && await trustFolder(res.filePaths[0])) newAgent(res.filePaths[0]);
       } },
     ...(free.length ? [{
       label: 'Oublier un dossier favori',
@@ -711,7 +749,7 @@ ipcMain.on('agent:add', () => {
         click: () => saveConfig({ agentFolders: favoriteFolders(loadConfig()).filter((o) => o.dir !== f.dir) }),
       })),
     }] : []),
-    ...(available ? [] : [{ type: 'separator' }, { label: AGENT_MESSAGES.notInstalled(), enabled: false }]),
+    ...(available ? [] : [{ type: 'separator' }, { label: CLAUDE_MISSING, enabled: false }]),
   ]).popup({ window: win });
 });
 
@@ -758,15 +796,16 @@ async function refreshConversation() {
     })),
   });
 }
-ipcMain.on('conv:ready', refreshConversation);
+ipcMain.on('conv:ready', (e) => { if (sentBy(e, conv)) refreshConversation(); });
 // ▶ d'une réponse : son résumé audio, par le lecteur de l'icône.
-ipcMain.on('conv:speak', (_e, index) => {
-  if (win && convAgent && convThread[index] && convThread[index].audio) win.webContents.send('tts:speakAgent', convAgent, index);
+ipcMain.on('conv:speak', (e, index) => {
+  if (!sentBy(e, conv) || !win || !convAgent) return;
+  if (convThread[index] && convThread[index].audio) win.webContents.send('tts:speakAgent', convAgent, index);
 });
 
 // Clic droit sur un robot : ses réglages, comme dans les autres intégrations.
-ipcMain.on('agent:menu', (_e, id) => {
-  if (!win) return;
+ipcMain.on('agent:menu', (e, id) => {
+  if (!sentBy(e, win)) return;
   const agent = agentList(loadConfig()).find((a) => a.id === id);
   if (!agent) return;
   const st = agents.state(id);
@@ -799,7 +838,6 @@ ipcMain.on('agent:menu', (_e, id) => {
       if (bubbleAgent === id) hideBubble();
       pushAgents(); // la fenêtre de conversation, si elle est ouverte, se vide
     } },
-    { label: 'Ouvrir le dossier', click: () => shell.openPath(agent.dir) },
     { type: 'separator' },
     { label: 'Retirer cet agent', click: () => {
       agents.forget(id);
@@ -940,6 +978,9 @@ app.whenReady().then(() => {
   createWindow();
   createBubble();
   ensureFolderColors();
+  // Au lancement, la dictée va au curseur : un agent sélectionné la veille ne
+  // doit pas recevoir (et envoyer à Claude) ce qu'on croit dicter pour soi.
+  if (loadConfig().agentSelected) saveConfig({ agentSelected: null });
   setInterval(pollSpeak, SPEAK_POLL_MS);
   // Windows : l'assistant PowerShell sert au premier collage comme à la
   // coupure du micro Discord en début de dictée ; il met ~1 s à démarrer.

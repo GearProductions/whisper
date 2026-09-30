@@ -24,9 +24,9 @@
 
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
 const { spawn, execFile } = require('child_process');
 const { detectLanguage } = require('./lang');
+const { which, unpacked } = require('./paths');
 const chatterbox = require('./chatterbox');
 
 const MAX_CHARS = 20000;          // ~20 min de lecture
@@ -61,16 +61,6 @@ const LANGS = {
 
 /* ---- Installation -------------------------------------------------------- */
 
-function which(name) {
-  const dirs = [...String(process.env.PATH || '').split(path.delimiter), path.join(os.homedir(), '.local', 'bin')];
-  for (const dir of dirs) {
-    if (!dir) continue;
-    const file = path.join(dir, name);
-    try { if (fs.statSync(file).isFile()) return file; } catch { /* pas là */ }
-  }
-  return null;
-}
-
 let dirs = { data: null, bin: null }; // données de l'appli, binaires du paquet
 function setDirs(d) { dirs = d; }
 
@@ -101,14 +91,6 @@ function findPython() {
     const py = first.startsWith('#!') ? first.slice(2).trim().split(/\s+/)[0] : '';
     return py && fs.existsSync(py) ? py : null;
   } catch { return null; }
-}
-
-// Dans un paquet (asar), Python ne lit pas l'archive : le script en est sorti
-// (--asar.unpack, cf. package.json).
-function helperScript() {
-  const inside = path.join(__dirname, 'pocket-helper.py');
-  const unpacked = inside.replace(/app\.asar([\\/])/, 'app.asar.unpacked$1');
-  return unpacked !== inside && fs.existsSync(unpacked) ? unpacked : inside;
 }
 
 const isInstalled = () => !!findPython();
@@ -170,7 +152,7 @@ function stop() {
 }
 
 function startHelper(python) {
-  const child = spawn(python, [helperScript()], {
+  const child = spawn(python, [unpacked('pocket-helper.py')], {
     stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true,
     env: { ...process.env, PYTHONUTF8: '1', PYTHONUNBUFFERED: '1' },
   });

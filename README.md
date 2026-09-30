@@ -171,6 +171,22 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   réponse, **conversation** entière, interrompre, *Nouvelle session* (repartir
   de zéro), retirer (son dossier reste favori).
 
+**Ce qui quitte la machine, ce à quoi l'on fait confiance.**
+
+- La transcription reste locale, mais ce qui est dicté à un agent part chez
+  Claude, comme tout message tapé dans Claude Code. Le robot sélectionné (et le
+  liseré du micro à sa couleur) dit où ira la dictée ; au lancement de l'appli,
+  aucun agent n'est sélectionné.
+- Choisir un **nouveau dossier** demande confirmation : Claude Code y est lancé
+  avec les réglages du projet (`.claude/` : hooks, serveurs MCP, autorisations),
+  qui peuvent exécuter des commandes. N'ajoutez que des dossiers connus.
+- La bulle d'autorisation montre la commande ou le fichier **en entier, tel
+  quel** : c'est ce texte qui est autorisé. *Toujours autoriser* n'apparaît que
+  si Claude Code propose une règle, l'affiche, et ne vaut que **pour la session
+  en cours** — rien n'est écrit dans les réglages du projet ou de l'utilisateur.
+- Les modes *accepter les modifications* et *auto* ne demandent plus rien (ou
+  presque) : à réserver aux dossiers sous git.
+
 **Réponse écrite et réponse orale.** Chaque réponse de l'agent se termine par
 un bloc `<audio>…</audio>` : un résumé court, sans formatage, fait pour
 l'oreille. La bulle montre la réponse sans ce bloc ; ▶ ne lit que lui, avec le

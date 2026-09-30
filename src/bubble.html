@@ -4,12 +4,13 @@
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'">
   <title>Whisper — texte</title>
+  <link rel="stylesheet" href="scroll.css">
   <link rel="stylesheet" href="bubble.css">
 </head>
 <body>
   <div id="bubble" title="Cliquer pour copier">
     <div id="title" hidden></div>
-    <div id="text"></div>
+    <div id="text" class="scroll"></div>
     <div id="volume" hidden>
       <input id="volume-range" type="range" min="0" max="100" step="5" aria-label="Volume de lecture">
       <span id="volume-value"></span>
@@ -20,6 +21,7 @@
       <button id="act-always" type="button" data-act="always">Toujours autoriser</button>
       <button id="act-deny" type="button" data-act="deny">Refuser</button>
     </div>
+    <div id="always" hidden></div>
     <div id="hint">Cliquer pour copier</div>
   </div>
   <button id="expand" type="button" title="Agrandir : toute la conversation, dans une fenêtre" aria-label="Agrandir" hidden>⤢</button>

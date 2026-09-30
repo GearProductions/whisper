@@ -30,12 +30,8 @@ html, body { margin: 0; background: transparent; overflow: hidden; }
   overflow-wrap: anywhere;
   padding-right: 14px; /* place de la croix */
 }
-/* Barre de défilement aux couleurs de l'appli, sur fond transparent. */
-#text::-webkit-scrollbar { width: 8px; }
-#text::-webkit-scrollbar-track { background: transparent; }
-#text::-webkit-scrollbar-thumb { background: #3a4150; border-radius: 4px; }
-#text::-webkit-scrollbar-thumb:hover { background: #4d566a; }
-#title, #volume, #actions, #hint { flex: none; }
+#title, #volume, #actions, #always, #hint { flex: none; }
+#always { margin-top: 6px; font-size: 11px; opacity: 0.7; overflow-wrap: anywhere; }
 /* La croix : posée sur le coin de la bulle, hors de la zone qui défile. */
 #close {
   position: absolute;
