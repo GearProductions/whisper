@@ -330,11 +330,16 @@ const ownPids = () => [process.pid, ...app.getAppMetrics().map((m) => m.pid)];
 ipcMain.on('dictation:recording', (_e, on) => {
   recording = !!on;
   if (on) {
-    hideBubble();
     const cfg = loadConfig();
+    // La réponse (ou la demande) de l'agent à qui l'on répond reste affichée :
+    // on la relit en dictant. Toute autre bulle s'efface.
+    const answering = BUBBLE_STAYS.has(bubbleKind) && bubbleAgent && bubbleAgent === cfg.agentSelected
+      && bubble && bubble.isVisible();
+    if (!answering) hideBubble();
     if (cfg.muteOthers === true) mute.mute('others', ownPids());
     if (cfg.discordMute === true) {
-      mute.mute('discord').then((n) => { if (n > 0 && recording) showBubble('Micro Discord coupé', 'notice'); });
+      // La notice prendrait la place de la réponse qu'on relit : pas dans ce cas.
+      mute.mute('discord').then((n) => { if (n > 0 && recording && !answering) showBubble('Micro Discord coupé', 'notice'); });
     }
   } else {
     if (bubbleKind === 'notice') hideBubble();
@@ -1160,11 +1165,22 @@ function refreshCompose() {
 }
 
 // Au-dessus de l'icône, centrée sur le micro ; en dessous si la place manque.
+// Bulle affichée (la réponse qu'on relit en répondant) : à côté d'elle, à
+// gauche, sinon à droite, sinon au-dessus — jamais par-dessus.
 function composeBounds() {
   const icon = win.getBounds();
   const a = screen.getDisplayMatching(icon).workArea;
   const { width, height } = COMPOSE_SIZE;
-  const x = Math.max(a.x, Math.min(a.x + a.width - width, icon.x + Math.round(winSize / 2 - width / 2)));
+  const fitX = (x) => Math.max(a.x, Math.min(a.x + a.width - width, x));
+  const fitY = (y) => Math.max(a.y, Math.min(a.y + a.height - height, y));
+  if (bubble && bubble.isVisible()) {
+    const b = bubble.getBounds();
+    const y = fitY(b.y + b.height - height); // bas aligné sur celui de la bulle
+    if (b.x - BUBBLE_GAP - width >= a.x) return { x: b.x - BUBBLE_GAP - width, y, width, height };
+    if (b.x + b.width + BUBBLE_GAP + width <= a.x + a.width) return { x: b.x + b.width + BUBBLE_GAP, y, width, height };
+    if (b.y - BUBBLE_GAP - height >= a.y) return { x: fitX(b.x), y: b.y - BUBBLE_GAP - height, width, height };
+  }
+  const x = fitX(icon.x + Math.round(winSize / 2 - width / 2));
   let y = icon.y - height - BUBBLE_GAP;
   if (y < a.y) y = Math.min(icon.y + icon.height + BUBBLE_GAP, a.y + a.height - height);
   return { x, y: Math.max(a.y, y), width, height };
