@@ -249,7 +249,7 @@ function speak(text, { lang = 'auto', voices, engine = 'pocket' } = {}, onChunk,
   }
   chatterbox.speak(id, input, l, voice, onChunk, (code) => {
     if (code !== 'unreachable') { onEnd(code); return; }
-    console.error('chatterbox : service injoignable, lecture par Pocket TTS');
+    console.error('chatterbox : service injoignable ou en erreur, lecture par Pocket TTS');
     const py = findPython();
     if (py) speakPocket(id, py, input, l, voice, onChunk, onEnd);
     else onEnd('failed');

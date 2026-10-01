@@ -13,4 +13,6 @@ contextBridge.exposeInMainWorld('bubble', {
   // conversation dans une fenêtre), 'allow' / 'always' / 'deny' (répondre à sa
   // demande d'autorisation). Le principal sait de quel agent il s'agit.
   action: (name) => ipcRenderer.send('bubble:action', name),
+  // Lien de la réponse d'un agent : ouvert dans le navigateur par le principal.
+  openLink: (url) => ipcRenderer.send('bubble:openLink', url),
 });

@@ -29,8 +29,8 @@ function warmUp(lang, voice) {
 }
 
 // `onEnd(code)` une fois : null (fini ou annulé), 'unreachable' (service
-// arrêté : rien n'a été lu, l'appelant peut passer à un autre moteur) ou
-// 'failed'.
+// arrêté, ou en erreur avant toute lecture — modèle impossible à charger… :
+// rien n'a été lu, l'appelant peut passer à un autre moteur) ou 'failed'.
 async function speak(id, text, lang, voice, onChunk, onEnd) {
   const ctrl = new AbortController();
   running.set(id, ctrl);
@@ -48,7 +48,7 @@ async function speak(id, text, lang, voice, onChunk, onEnd) {
   if (!res.ok) {
     running.delete(id);
     console.error(`chatterbox : HTTP ${res.status} ${await res.text().catch(() => '')}`);
-    onEnd('failed');
+    onEnd('unreachable');
     return;
   }
   const rate = Number(res.headers.get('x-sample-rate')) || 24000;

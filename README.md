@@ -158,25 +158,85 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   favori. Chaque **dossier** reçoit une couleur au hasard, qu'il garde : son
   robot, le liseré du micro et ses bulles la portent.
 - **Clic sur un robot** : il est sélectionné (violet). La dictée du gros bouton
-  lui est alors **envoyée** au lieu d'être collée. Un second clic le
+  lui est alors **destinée** au lieu d'être collée. Un second clic le
   désélectionne.
+- **Relecture avant l'envoi** : au relâché, une fenêtre *Message pour…*
+  s'ouvre au-dessus de l'icône avec le texte dicté, à corriger. Dicter à
+  nouveau l'ajoute au brouillon ; cliquer un autre robot change le
+  destinataire. On peut y joindre du **contexte** :
+  - des **images** (glissées-déposées ou collées par Ctrl+V : capture d'écran,
+    photo…), envoyées à Claude — réduites si elles dépassent 1568 px ;
+  - d'autres **fichiers**, glissés depuis le gestionnaire de fichiers : l'agent
+    reçoit leur chemin et les lit lui-même ;
+  - le **texte sélectionné** au moment de la dictée (Linux) : montré en aperçu,
+    joint **seulement si l'on coche** la case ; *↻ Relire la sélection* reprend
+    ce qui est sélectionné maintenant, dans n'importe quelle application.
+    Sous Windows, lire la sélection demanderait un Ctrl+C simulé (qui, dans un
+    terminal, interromprait le programme) : collez-la plutôt dans le texte.
+
+  **Ctrl+Entrée** envoie, **Échap** abandonne. Sans parler (micro
+  indisponible, lieu calme) : clic droit sur le robot → *✎ Écrire un message…*
+  ouvre la même fenêtre, vide, à remplir au clavier. Clic droit → *Agents Claude
+  Code* → *Relire avant d'envoyer* (décoché) : la dictée part aussitôt, sans
+  fenêtre.
 - **Pendant qu'il travaille**, le robot clignote. **« ? »** : il demande une
   autorisation (mode manuel) — la bulle propose *Autoriser*, *Toujours
-  autoriser*, *Refuser*. **Pastille verte** : il a répondu ; un clic ouvre la
-  bulle avec sa réponse (un clic dessus la copie) et un bouton **▶ Écouter**.
-  **⤢** l'agrandit : toute la conversation dans une fenêtre classique,
-  redimensionnable, avec les actions de l'agent et un ▶ par réponse.
+  autoriser*, *Refuser*. Elle s'ouvre d'elle-même si aucune bulle n'est
+  affichée ; si vous lisez déjà quelque chose (la réponse d'un autre agent…),
+  elle ne la remplace pas : cliquez le robot quand vous êtes prêt.
+  **Pastille verte** : il a répondu ; un clic ouvre la bulle avec sa réponse
+  (un clic dessus la copie) et un bouton **▶ Écouter**. En tête, en gris, le
+  message qu'on lui avait envoyé (replié sur 3 lignes, un clic le déplie) : avec
+  plusieurs agents, on sait à quoi il répond. Dicter la suite à ce même agent
+  laisse la bulle affichée, pour la relire en répondant ; la fenêtre de
+  relecture s'ouvre alors à côté d'elle. **⤢** l'agrandit :
+  toute la conversation dans la fenêtre des conversations.
+- **Fenêtre des conversations** : une seule fenêtre, **un onglet par
+  conversation** (Ctrl+W ou clic du milieu pour en fermer un). Chaque
+  conversation porte son **intitulé**, celui que lui donne Claude Code ; chaque
+  message, son **heure**. Pendant que l'agent travaille, le fil le suit et
+  l'anime (avec le temps écoulé). Les **liens** s'ouvrent dans le navigateur
+  (aussi depuis la bulle). Les **pièces jointes** de vos messages se voient :
+  aperçu des images (clic : en grand), fichiers (clic : montrés dans le
+  gestionnaire de fichiers), texte sélectionné (à déplier).
+  **🕘 Historique** : toutes les conversations passées du dossier (de l'appli
+  comme celles lancées dans un terminal), par intitulé et date. Une ancienne
+  conversation s'ouvre dans un onglet, en lecture seule ; *Reprendre cette
+  conversation* en refait la session en cours de l'agent — celle qu'elle
+  remplace reste dans l'historique, comme après *Nouvelle session*.
+- **Champ de saisie** au bas de la fenêtre : écrire à l'agent de l'onglet
+  affiché, sans micro (**Entrée** envoie, **Maj+Entrée** va à la ligne ; un
+  brouillon par onglet). **📎** passe le texte dans la fenêtre de relecture,
+  pour y joindre images, fichiers ou sélection. Pendant que l'agent travaille,
+  on écrit mais on n'envoie pas.
+- **Robot et onglet vont ensemble** : changer d'onglet sélectionne son agent
+  (la dictée lui ira) ; fenêtre montrée, cliquer un robot affiche son onglet
+  (ouvert au besoin) ; ouvrir une conversation depuis une bulle sélectionne
+  l'agent. Un second clic sur le robot sélectionné rend la dictée au curseur.
+- **Mode conversation** : tant que l'onglet d'un agent est ouvert (fenêtre
+  montrée, pas réduite), ses notifications passent par la fenêtre, pas par le
+  robot ni la bulle. Réponse de l'onglet affiché : lue d'office, ni pastille ni
+  bip. Réponse d'un autre onglet : l'onglet est marqué (pastille verte), le bip
+  sonne, le robot reste sans pastille ; ouvrir l'onglet la marque lue. Demande
+  d'autorisation : dans le fil de son onglet, avec les mêmes boutons que la
+  bulle (l'onglet affiche « ? » s'il n'est pas affiché). Un clic sur le robot
+  ouvre son onglet. Fenêtre au second plan : elle se signale dans la barre des
+  tâches. Fenêtre fermée ou réduite, onglet fermé : retour à la pastille et à
+  la bulle, et une demande en attente s'y affiche.
 - **Clic droit sur un robot** : couleur du dossier, modèle, effort, mode
   (manuel, accepter les modifications de fichiers, auto, plan), dernière
-  réponse, **conversation** entière, interrompre, *Nouvelle session* (repartir
-  de zéro), retirer (son dossier reste favori).
+  réponse, **conversations** (en cours et historique), interrompre, *Nouvelle
+  session* (repartir de zéro), retirer (son dossier reste favori). Le **mode** et le **modèle**
+  changés pendant qu'il travaille s'appliquent aussitôt ; passer en *accepter
+  les modifications* accorde la demande de modification de fichier en attente.
 
 **Ce qui quitte la machine, ce à quoi l'on fait confiance.**
 
 - La transcription reste locale, mais ce qui est dicté à un agent part chez
   Claude, comme tout message tapé dans Claude Code. Le robot sélectionné (et le
   liseré du micro à sa couleur) dit où ira la dictée ; au lancement de l'appli,
-  aucun agent n'est sélectionné.
+  aucun agent n'est sélectionné. Les images jointes et la sélection cochée
+  partent avec le message.
 - Choisir un **nouveau dossier** demande confirmation : Claude Code y est lancé
   avec les réglages du projet (`.claude/` : hooks, serveurs MCP, autorisations),
   qui peuvent exécuter des commandes. N'ajoutez que des dossiers connus.
@@ -193,6 +253,11 @@ l'oreille. La bulle montre la réponse sans ce bloc ; ▶ ne lit que lui, avec l
 moteur de lecture à voix haute. La consigne n'est ajoutée qu'aux sessions
 créées par l'appli : vos sessions Claude Code habituelles ne changent pas.
 
+Cette consigne est un fichier, `consigne-agents.md`, à côté de `config.json` :
+clic droit → *Agents Claude Code* → *Modifier la consigne des agents* l'ouvre
+dans votre éditeur. Relue à chaque message ; supprimée, elle revient par
+défaut ; vidée, plus de consigne (▶ lit alors la réponse entière).
+
 **Commande de lancement** (réglage `agentCommand`, clic droit → *Agents Claude
 Code* → *Changer la commande de lancement…*) : vide, c'est `claude`. À régler
 quand les outils du projet vivent ailleurs — l'appli ajoute ses arguments
@@ -205,6 +270,24 @@ derrière :
 La commande doit transmettre l'entrée et la sortie standard telles quelles,
 c'est par là que l'appli dialogue avec Claude Code : pas de shell de connexion
 (`bash -lc …`), dont les scripts de profil consomment l'entrée.
+
+**Autorisations en série, interruption, journal.**
+
+- Plusieurs demandes d'autorisation peuvent arriver à la fois (l'agent lance
+  des outils en parallèle) : elles attendent en file, la bulle les montre
+  l'une après l'autre (« 1 autre en attente ») et chaque clic ne répond qu'à
+  celle affichée. Une demande sans réponse bloquerait l'agent indéfiniment.
+- *Interrompre* demande à Claude Code d'arrêter son tour, ce qui arrête aussi
+  la commande en cours. Tuer le processus ne suffirait pas : avec une commande
+  de lancement comme `distrobox enter …`, seule l'enveloppe mourrait, et Claude
+  Code continuerait seul dans le conteneur. Il n'est tué qu'en dernier recours,
+  s'il n'a pas obéi en 5 s. Quitter l'appli attend de même que les agents
+  aient arrêté.
+- Clic droit → *Agents Claude Code* → *Ouvrir le journal des agents*
+  (`agents.log`, à côté de `config.json`) : début et fin de chaque tour, chaque
+  demande d'autorisation, sa réponse et son délai, les interruptions. Une
+  demande qui n'a pas pu aboutir y est notée **ÉCHEC**, et la réponse de
+  l'agent le signale par un ⚠.
 
 ### Son des autres applications
 
@@ -243,6 +326,7 @@ s'affiche le temps de l'enregistrement, une fois la coupure confirmée.
 | `agentCommand` | Commande qui lance Claude Code (vide : `claude`)               |
 | `agents`     | Les agents : dossier, nom, modèle, effort, mode, session (gérés par l'appli ; `name` se modifie ici) |
 | `agentFolders` | Dossiers favoris proposés par « + », chacun avec sa couleur    |
+| `agentReview` | Relire (et joindre du contexte) avant d'envoyer à un agent ; `false` : envoi direct |
 | `muteOthers` | Couper le son des autres applications pendant l'enregistrement   |
 | `autoPaste`  | Coller le texte là où est le curseur ; `false` : il reste dans le presse-papiers |
 | `showText`   | Bulle du texte transcrit à la fin d'une dictée                    |
@@ -266,8 +350,14 @@ git tag v0.2.0 && git push origin v0.2.0
 ```
 
 La CI construit alors l'exe et l'AppImage (version prise sur le tag) et les
-publie dans la Release GitHub de ce tag. Les PR ne font que les vérifications
-rapides ; *Actions* → *CI* → *Run workflow* construit les paquets sans rien
+publie dans la Release GitHub de ce tag.
+
+Pour essayer une version avant de la publier : un tag de **pré-version**
+(`v0.3.0-rc.1`, depuis la branche de la PR). Même construction, mais la
+Release est marquée pré-version : la version officielle (« Latest ») ne change
+pas. Une fois validée et la PR fusionnée, le tag `v0.3.0` sur `master`.
+
+Les PR ne font que les vérifications rapides ; *Actions* → *CI* → *Run workflow* construit les paquets sans rien
 publier (artefacts).
 
 En local, sur le système visé (`dist/`) :

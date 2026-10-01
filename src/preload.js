@@ -1,6 +1,8 @@
 // Pont minimal : aucun canal « colle ce texte », « lis ce texte » ni « envoie
 // ce texte à l'agent » — seul ce que whisper vient de rendre est collé ou
 // envoyé, seules la sélection et la réponse d'un agent sont lues (cf. main.js).
+// Le texte relu avant l'envoi à un agent passe par sa propre fenêtre
+// (compose-preload.js), pas par l'icône.
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
