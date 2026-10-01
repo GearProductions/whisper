@@ -605,6 +605,7 @@ function updateAgent(id, patch) {
 const inConversation = (id) => !!conv && !conv.isDestroyed() && conv.isVisible() && !conv.isMinimized()
   && convTabs.some((t) => t.key === id);
 const onScreen = (id) => inConversation(id) && convActive === id;
+const conversationShown = () => !!conv && !conv.isDestroyed() && conv.isVisible() && !conv.isMinimized();
 
 function pushAgents() {
   if (!win) return;
@@ -767,22 +768,29 @@ ipcMain.on('agent:click', (e, id) => {
   const agent = agentList(cfg).find((a) => a.id === id);
   if (!agent) return;
   const st = agents.state(id);
-  if (inConversation(id) && (st.status === 'asking' || st.unread)) {
-    // Ce qui l'attend est dans son onglet : on y va.
-    saveConfig({ agentSelected: id });
-    openConversation(id);
-  } else if (st.status === 'asking' || st.unread) {
-    saveConfig({ agentSelected: id });
+  if (conversationShown()) {
+    // Fenêtre des conversations montrée : le robot et l'onglet vont ensemble —
+    // sélectionner un robot affiche son onglet (ouvert au besoin). Second clic
+    // sur le robot sélectionné : la dictée retourne au curseur, l'onglet reste.
+    if (cfg.agentSelected === id && convActive === id) { selectAgent(null); pushAgents(); } else openConversation(id);
+    return;
+  }
+  if (st.status === 'asking' || st.unread) {
+    selectAgent(id);
     if (st.status === 'asking') showAgentPermission(agent); else showAgentReply(agent);
   } else {
-    saveConfig({ agentSelected: cfg.agentSelected === id ? null : id });
+    selectAgent(cfg.agentSelected === id ? null : id);
     if (bubbleAgent) hideBubble();
   }
-  // Brouillon ouvert : il part au robot qu'on vient de sélectionner.
-  const selected = loadConfig().agentSelected;
-  if (compose && selected) composeAgent = selected;
   pushAgents();
 });
+
+// L'agent sélectionné : celui qui reçoit la dictée, celui de l'onglet affiché
+// dans la fenêtre des conversations. Un brouillon ouvert part à lui.
+function selectAgent(id) {
+  saveConfig({ agentSelected: id });
+  if (compose && id) composeAgent = id;
+}
 
 // Boutons de la bulle d'un agent.
 ipcMain.on('bubble:action', (e, action) => {
@@ -882,6 +890,7 @@ const activeTab = () => convTabs.find((t) => t.key === convActive);
 function openConversation(agentId, sessionId = null) {
   const agent = agentList(loadConfig()).find((a) => a.id === agentId);
   if (!agent) return;
+  selectAgent(agentId); // l'onglet affiché et le robot sélectionné vont ensemble
   const old = sessionId && sessionId !== agent.sessionId ? sessionId : null;
   const key = old ? `${agentId}:${old}` : agentId;
   if (!convTabs.some((t) => t.key === key)) convTabs.push({ key, agentId, sessionId: old });
@@ -1017,9 +1026,31 @@ ipcMain.on('conv:showFile', (e, file) => {
 });
 ipcMain.on('bubble:openLink', (e, url) => { if (sentBy(e, bubble)) openLink(url); });
 ipcMain.on('conv:select', (e, key) => {
-  if (!sentBy(e, conv) || !convTabs.some((t) => t.key === key)) return;
+  const tab = sentBy(e, conv) && convTabs.find((t) => t.key === key);
+  if (!tab) return;
   convActive = key;
+  selectAgent(tab.agentId); // le robot suit l'onglet
   pushAgents(); // l'onglet affiché est lu
+});
+
+// Champ de saisie de la fenêtre : un message à l'agent de l'onglet affiché
+// (sa session en cours). { ok } ou { ok: false, error }.
+ipcMain.handle('conv:send', (e, text) => {
+  const tab = sentBy(e, conv) && activeTab();
+  const cfg = loadConfig();
+  const agent = tab && !tab.sessionId && tabAgent(tab, cfg);
+  const message = typeof text === 'string' ? text.trim() : '';
+  if (!agent) return { ok: false, error: 'Ancienne conversation : reprenez-la pour lui écrire.' };
+  if (!message) return { ok: false, error: 'Message vide.' };
+  return sendToAgent(agent, { text: message }, cfg);
+});
+
+// 📎 : le texte tapé passe dans la fenêtre de relecture, pour y joindre images,
+// fichiers ou sélection.
+ipcMain.on('conv:compose', (e, text) => {
+  const tab = sentBy(e, conv) && activeTab();
+  const agent = tab && !tab.sessionId && tabAgent(tab);
+  if (agent) openCompose(agent, typeof text === 'string' ? text.trim() : '');
 });
 ipcMain.on('conv:closeTab', (e, key) => {
   if (!sentBy(e, conv)) return;

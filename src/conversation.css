@@ -273,3 +273,38 @@ header {
 .permission-actions .allow { border-color: #2fa36b; }
 .permission-actions .deny { border-color: #d9383a; }
 .permission-actions button:disabled { opacity: 0.5; cursor: default; }
+
+/* Champ de saisie : écrire à l'agent de l'onglet affiché. */
+#composer { flex: none; padding: 10px 16px; border-top: 1px solid #2a3142; background: #1f2430; }
+#composer[hidden] { display: none; }
+#composer-row { display: flex; align-items: flex-end; gap: 8px; }
+#message {
+  flex: 1;
+  min-height: 36px;
+  max-height: 160px;
+  resize: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #3a4150;
+  background: #171b24;
+  color: #e6e8ee;
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Ubuntu, sans-serif;
+  box-sizing: border-box;
+}
+#message:focus { outline: none; border-color: var(--accent); }
+#composer button {
+  flex: none;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid #3a4150;
+  background: #2a3142;
+  color: #e6e8ee;
+  font: 13px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+#composer button:hover:not(:disabled) { border-color: var(--accent); }
+#composer button:disabled { opacity: 0.5; cursor: default; }
+#send { border-color: var(--accent) !important; background: color-mix(in srgb, var(--accent) 30%, #2a3142) !important; }
+#composer-status { font-size: 12px; color: #f08a8b; }
+#composer-status:not(:empty) { margin-top: 6px; }

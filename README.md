@@ -202,6 +202,15 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   conversation s'ouvre dans un onglet, en lecture seule ; *Reprendre cette
   conversation* en refait la session en cours de l'agent — celle qu'elle
   remplace reste dans l'historique, comme après *Nouvelle session*.
+- **Champ de saisie** au bas de la fenêtre : écrire à l'agent de l'onglet
+  affiché, sans micro (**Entrée** envoie, **Maj+Entrée** va à la ligne ; un
+  brouillon par onglet). **📎** passe le texte dans la fenêtre de relecture,
+  pour y joindre images, fichiers ou sélection. Pendant que l'agent travaille,
+  on écrit mais on n'envoie pas.
+- **Robot et onglet vont ensemble** : changer d'onglet sélectionne son agent
+  (la dictée lui ira) ; fenêtre montrée, cliquer un robot affiche son onglet
+  (ouvert au besoin) ; ouvrir une conversation depuis une bulle sélectionne
+  l'agent. Un second clic sur le robot sélectionné rend la dictée au curseur.
 - **Mode conversation** : tant que l'onglet d'un agent est ouvert (fenêtre
   montrée, pas réduite), ses notifications passent par la fenêtre, pas par le
   robot ni la bulle. Réponse de l'onglet affiché : lue d'office, ni pastille ni

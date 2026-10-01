@@ -18,6 +18,10 @@ const thread = document.getElementById('thread');
 const template = document.getElementById('message-template');
 const tabTemplate = document.getElementById('tab-template');
 const lightbox = document.getElementById('lightbox');
+const composer = document.getElementById('composer');
+const message = document.getElementById('message');
+const sendButton = document.getElementById('send');
+const composerStatus = document.getElementById('composer-status');
 const archived = document.getElementById('archived');
 const resume = document.getElementById('resume');
 const history = document.getElementById('history');
@@ -154,7 +158,9 @@ window.conv.onThread((data) => {
     : `${tab.name} reprend cette conversation ; celle en cours reste dans l'historique.`;
 
   const switched = data.active !== shownKey;
+  if (switched) swapDraft(shownKey, data.active);
   shownKey = data.active;
+  renderComposer(tab);
   if (switched) { history.hidden = true; openDetails.clear(); }
   const atEnd = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 40;
   const grew = data.messages.length !== thread.querySelectorAll('.message').length;
@@ -199,6 +205,70 @@ window.conv.onThread((data) => {
   // Nouvel onglet : en bas. Sinon, reste en bas quand un message arrive, sans
   // arracher la lecture d'un message plus ancien.
   if (switched || data.permission || (atEnd && (grew || text))) thread.scrollTop = thread.scrollHeight;
+});
+
+/* ---- Champ de saisie -------------------------------------------------------- */
+
+// Écrire à l'agent de l'onglet affiché, sans micro. Un brouillon par onglet ;
+// pendant que l'agent travaille, on peut écrire, pas envoyer.
+const drafts = new Map();
+let composerTab = null;
+let sending = false;
+
+function swapDraft(from, to) {
+  if (from) drafts.set(from, message.value);
+  message.value = drafts.get(to) || '';
+  composerStatus.textContent = '';
+  autoSize();
+}
+
+function renderComposer(tab) {
+  composerTab = tab;
+  composer.hidden = !tab.live; // une ancienne conversation se lit, ou se reprend
+  const busy = BUSY.includes(tab.status);
+  sendButton.disabled = sending || busy;
+  message.placeholder = busy ? `${tab.name} travaille : vous pourrez envoyer quand il aura fini.`
+    : `Écrire à ${tab.name}… (Entrée : envoyer, Maj+Entrée : à la ligne)`;
+}
+
+// Le champ grandit avec le texte, jusqu'à quelques lignes.
+function autoSize() {
+  message.style.height = 'auto';
+  message.style.height = `${Math.min(message.scrollHeight, 160)}px`;
+  message.style.overflowY = message.scrollHeight > 160 ? 'auto' : 'hidden'; // pas de barre pour rien
+}
+
+async function sendMessage() {
+  const text = message.value.trim();
+  if (!text || sending || !composerTab || BUSY.includes(composerTab.status)) return;
+  sending = true;
+  renderComposer(composerTab);
+  let res;
+  try { res = await window.conv.send(text); } catch { res = null; }
+  sending = false;
+  if (res && res.ok) {
+    message.value = '';
+    drafts.delete(shownKey);
+    composerStatus.textContent = '';
+    autoSize();
+    thread.scrollTop = thread.scrollHeight;
+  } else {
+    composerStatus.textContent = (res && res.error) || 'L\'envoi a échoué.';
+  }
+  renderComposer(composerTab);
+}
+
+message.addEventListener('input', () => { autoSize(); composerStatus.textContent = ''; });
+message.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendMessage(); }
+});
+sendButton.addEventListener('click', sendMessage);
+autoSize();
+document.getElementById('attach').addEventListener('click', () => {
+  window.conv.compose(message.value);
+  message.value = '';
+  drafts.delete(shownKey);
+  autoSize();
 });
 
 /* ---- Historique du dossier ----------------------------------------------- */

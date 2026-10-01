@@ -25,6 +25,14 @@
     <main id="thread" class="scroll"></main>
     <aside id="history" class="scroll" hidden></aside>
   </div>
+  <footer id="composer" hidden>
+    <div id="composer-row">
+      <button id="attach" type="button" title="Joindre images, fichiers ou sélection : ouvre la fenêtre de relecture avec ce texte">📎</button>
+      <textarea id="message" class="scroll" rows="1" placeholder="Écrire un message… (Entrée : envoyer, Maj+Entrée : à la ligne)"></textarea>
+      <button id="send" type="button" title="Envoyer (Entrée)">Envoyer</button>
+    </div>
+    <div id="composer-status"></div>
+  </footer>
   <div id="lightbox" hidden><img alt=""></div>
   <template id="tab-template">
     <div class="tab" role="tab">

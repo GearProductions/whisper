@@ -13,6 +13,10 @@ contextBridge.exposeInMainWorld('conv', {
   history: () => ipcRenderer.invoke('conv:history'),
   open: (sessionId) => ipcRenderer.send('conv:open', sessionId),
   resume: () => ipcRenderer.send('conv:resume'),
+  // Champ de saisie : un message à l'agent de l'onglet affiché → { ok, error } ;
+  // 📎 : le texte passe dans la fenêtre de relecture (pièces jointes, sélection).
+  send: (text) => ipcRenderer.invoke('conv:send', text),
+  compose: (text) => ipcRenderer.send('conv:compose', text),
   // Demande d'autorisation affichée dans le fil : 'allow', 'always' ou 'deny',
   // pour la demande `key` (celle que l'utilisateur a sous les yeux).
   answer: (decision, key) => ipcRenderer.send('conv:answer', decision, key),
