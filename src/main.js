@@ -1452,7 +1452,7 @@ ipcMain.on('agent:menu', (e, id) => {
       agents.forget(id);
       updateAgent(id, { sessionId: null });
       if (bubbleAgent === id) hideBubble();
-      pushAgents(); // le panneau des conversations, s.il est ouvert, se vide
+      pushAgents(); // le panneau des conversations, s'il est ouvert, se vide
     } },
     { type: 'separator' },
     { label: 'Retirer cet agent', click: () => {
