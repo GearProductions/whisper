@@ -596,17 +596,32 @@ function updateAgent(id, patch) {
 }
 
 // État des robots pour le renderer, et largeur de la fenêtre.
+// Mode « conversation » : un agent dont l'onglet (sa session en cours) est
+// ouvert dans la fenêtre des conversations, montrée (pas réduite). Ses
+// notifications passent alors par la fenêtre : la réponse de l'onglet affiché
+// est lue d'office, celle d'un autre onglet marque cet onglet ; ses demandes
+// d'autorisation s'affichent dans le fil, pas dans la bulle. Fenêtre fermée ou
+// réduite : retour à la pastille du robot et à la bulle.
+const inConversation = (id) => !!conv && !conv.isDestroyed() && conv.isVisible() && !conv.isMinimized()
+  && convTabs.some((t) => t.key === id);
+const onScreen = (id) => inConversation(id) && convActive === id;
+
 function pushAgents() {
   if (!win) return;
   const cfg = loadConfig();
   const slots = agentSlotCount(cfg);
   if (slots !== agentSlots) { agentSlots = slots; applyWidth(); }
   const enabled = cfg.agentsEnabled === true;
+  for (const a of agentList(cfg)) if (agents.state(a.id).unread && onScreen(a.id)) agents.markRead(a.id); // déjà sous les yeux
   win.webContents.send('agents:state', {
     enabled,
-    agents: enabled ? agentList(cfg).map((a) => ({
-      id: a.id, name: a.name, color: agentColor(a, cfg), selected: a.id === cfg.agentSelected, ...agents.state(a.id),
-    })) : [],
+    agents: enabled ? agentList(cfg).map((a) => {
+      const st = agents.state(a.id);
+      // `unread` : la pastille du robot ; `chime` : le bip d'une réponse arrivée
+      // (aussi pour un onglet ouvert mais pas affiché).
+      return { id: a.id, name: a.name, color: agentColor(a, cfg), selected: a.id === cfg.agentSelected, ...st,
+        unread: st.unread && !inConversation(a.id), chime: st.unread };
+    }) : [],
   });
   refreshConversation(); // la fenêtre de conversation suit (réponse arrivée, agent au travail…)
   refreshCompose();      // la relecture aussi (destinataire, agent occupé)
@@ -678,6 +693,7 @@ function showAgentPermission(agent) {
 // le dit.
 function syncPermissionBubble() {
   if (!bubble || !bubble.isVisible() || bubbleKind !== 'permission' || !bubbleAgent) return;
+  if (inConversation(bubbleAgent)) { hideBubble(); return; } // elle est maintenant dans le fil
   const head = agents.pendingPermission(bubbleAgent);
   const agent = agentList(loadConfig()).find((a) => a.id === bubbleAgent);
   if (!head || !agent) hideBubble();
@@ -719,10 +735,12 @@ function sendToAgent(agent, message, cfg) {
     // Une bulle est déjà ouverte (la réponse d'un autre agent qu'on lit…) : on
     // ne la remplace pas, le « ? » du robot attend qu'on clique dessus.
     onPermission: () => {
+      if (inConversation(agent.id)) { conversationAlert(); refreshConversation(); return; } // dans le fil
       const free = !bubble || !bubble.isVisible() || (bubbleKind === 'permission' && bubbleAgent === agent.id);
       if (free) showAgentPermission(agent);
     },
-  }).catch((err) => console.error(`agent ${agent.name} : ${err && err.message}`));
+  }).then(() => { if (inConversation(agent.id)) conversationAlert(); })
+    .catch((err) => console.error(`agent ${agent.name} : ${err && err.message}`));
   return { ok: true };
 }
 
@@ -738,7 +756,11 @@ ipcMain.on('agent:click', (e, id) => {
   const agent = agentList(cfg).find((a) => a.id === id);
   if (!agent) return;
   const st = agents.state(id);
-  if (st.status === 'asking' || st.unread) {
+  if (inConversation(id) && (st.status === 'asking' || st.unread)) {
+    // Ce qui l'attend est dans son onglet : on y va.
+    saveConfig({ agentSelected: id });
+    openConversation(id);
+  } else if (st.status === 'asking' || st.unread) {
     saveConfig({ agentSelected: id });
     if (st.status === 'asking') showAgentPermission(agent); else showAgentReply(agent);
   } else {
@@ -853,7 +875,7 @@ function openConversation(agentId, sessionId = null) {
   const key = old ? `${agentId}:${old}` : agentId;
   if (!convTabs.some((t) => t.key === key)) convTabs.push({ key, agentId, sessionId: old });
   convActive = key;
-  if (conv) { refreshConversation(); conv.show(); conv.focus(); return; }
+  if (conv) { conv.show(); conv.focus(); pushAgents(); return; } // pushAgents : lu d'office, onglets à jour
   const saved = loadConfig().convBounds;
   conv = new BrowserWindow({
     width: 720, height: 780, minWidth: 380, minHeight: 300,
@@ -867,7 +889,27 @@ function openConversation(agentId, sessionId = null) {
   conv.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   conv.loadFile(path.join(__dirname, 'conversation.html'));
   conv.on('close', () => saveConfig({ convBounds: conv.getBounds() }));
-  conv.on('closed', () => { conv = null; convTabs = []; convActive = null; convThread = []; });
+  conv.on('closed', () => { conv = null; convTabs = []; convActive = null; convThread = []; leaveConversation(); });
+  // Réduite : retour aux notifications du robot et de la bulle ; rouverte : l'inverse.
+  conv.on('minimize', leaveConversation);
+  conv.on('restore', pushAgents);
+  conv.on('focus', () => { conv.flashFrame(false); pushAgents(); });
+}
+
+// Un agent quitte le mode conversation (fenêtre fermée ou réduite, onglet
+// fermé) : sa demande d'autorisation en attente repasse par la bulle, sa
+// réponse non lue par la pastille du robot.
+function leaveConversation() {
+  const free = !bubble || !bubble.isVisible();
+  const asking = free && agentList(loadConfig()).find((a) => agents.state(a.id).status === 'asking' && !inConversation(a.id));
+  if (asking) showAgentPermission(asking);
+  pushAgents();
+}
+
+// Réponse arrivée ou autorisation demandée pour un onglet, fenêtre au second
+// plan : elle le signale (barre des tâches), sans bulle par-dessus.
+function conversationAlert() {
+  if (conv && !conv.isDestroyed() && !conv.isFocused()) conv.flashFrame(true);
 }
 
 // Relit les onglets (intitulés, état des agents) et le fil de l'onglet
@@ -887,6 +929,7 @@ async function refreshConversation() {
     return {
       key: t.key, live: !t.sessionId, name: agent.name, color: agentColor(agent, cfg),
       status: st.status, since: st.since, title: sid ? await agents.sessionTitle(agent, sid) : '',
+      unread: !t.sessionId && st.unread, // « nouveau message » sur l'onglet
     };
   }));
   const tab = activeTab();
@@ -896,6 +939,8 @@ async function refreshConversation() {
   convThread = thread;
   conv.webContents.send('conv:thread', {
     tabs, active: tab.key, dir: agent.dir,
+    // La demande d'autorisation de l'onglet affiché, à valider dans le fil.
+    permission: !tab.sessionId && inConversation(agent.id) ? conversationPermission(agent) : null,
     messages: thread.map((m) => {
       const { text, selection: context, files } = m.role === 'user' ? splitComposed(m.text) : { text: m.text, selection: '', files: [] };
       return {
@@ -963,12 +1008,31 @@ ipcMain.on('bubble:openLink', (e, url) => { if (sentBy(e, bubble)) openLink(url)
 ipcMain.on('conv:select', (e, key) => {
   if (!sentBy(e, conv) || !convTabs.some((t) => t.key === key)) return;
   convActive = key;
-  refreshConversation();
+  pushAgents(); // l'onglet affiché est lu
 });
 ipcMain.on('conv:closeTab', (e, key) => {
   if (!sentBy(e, conv)) return;
   convTabs = convTabs.filter((t) => t.key !== key);
-  refreshConversation(); // dernier onglet fermé : la fenêtre aussi
+  if (convTabs.length) leaveConversation(); else conv.close(); // dernier onglet fermé : la fenêtre aussi
+});
+
+// La demande en tête de file, comme dans la bulle : { key, title, text, always }.
+function conversationPermission(agent) {
+  const p = agents.pendingPermission(agent.id);
+  if (!p) return null;
+  return {
+    key: p.key, text: permissionText(p.tool, p.input), always: p.always,
+    title: `${agent.name} demande l'autorisation${p.waiting ? ` (${p.waiting} autre${p.waiting > 1 ? 's' : ''} en attente)` : ''}`,
+  };
+}
+
+// Réponse à une demande affichée dans le fil : seulement pour l'onglet affiché,
+// et seulement à la demande que l'utilisateur a sous les yeux (`key`).
+ipcMain.on('conv:answer', (e, decision, key) => {
+  const tab = sentBy(e, conv) && activeTab();
+  if (!tab || tab.sessionId || !['allow', 'always', 'deny'].includes(decision) || !Number.isInteger(key)) return;
+  agents.answer(tab.agentId, decision, key);
+  pushAgents();
 });
 
 // ▶ d'une réponse : son résumé audio, par le lecteur de l'icône.

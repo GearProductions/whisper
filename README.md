@@ -198,6 +198,16 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   conversation s'ouvre dans un onglet, en lecture seule ; *Reprendre cette
   conversation* en refait la session en cours de l'agent — celle qu'elle
   remplace reste dans l'historique, comme après *Nouvelle session*.
+- **Mode conversation** : tant que l'onglet d'un agent est ouvert (fenêtre
+  montrée, pas réduite), ses notifications passent par la fenêtre, pas par le
+  robot ni la bulle. Réponse de l'onglet affiché : lue d'office, ni pastille ni
+  bip. Réponse d'un autre onglet : l'onglet est marqué (pastille verte), le bip
+  sonne, le robot reste sans pastille ; ouvrir l'onglet la marque lue. Demande
+  d'autorisation : dans le fil de son onglet, avec les mêmes boutons que la
+  bulle (l'onglet affiche « ? » s'il n'est pas affiché). Un clic sur le robot
+  ouvre son onglet. Fenêtre au second plan : elle se signale dans la barre des
+  tâches. Fenêtre fermée ou réduite, onglet fermé : retour à la pastille et à
+  la bulle, et une demande en attente s'y affiche.
 - **Clic droit sur un robot** : couleur du dossier, modèle, effort, mode
   (manuel, accepter les modifications de fichiers, auto, plan), dernière
   réponse, **conversations** (en cours et historique), interrompre, *Nouvelle

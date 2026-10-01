@@ -417,7 +417,9 @@ const agentTemplate = document.getElementById('agent-template');
 const STATUS_TEXT = { working: 'au travail…', asking: 'attend une autorisation', error: 'erreur' };
 let unreadBefore = new Set();
 
-// `s` : { enabled, agents: [{ id, name, color, status, unread, selected }] }.
+// `s` : { enabled, agents: [{ id, name, color, status, unread, chime, selected }] }.
+// `unread` : la pastille ; `chime` : une réponse non lue, même quand elle est
+// signalée sur son onglet de la fenêtre des conversations plutôt que sur le robot.
 function renderAgents(s) {
   const list = (s && s.enabled && s.agents) || [];
   document.body.dataset.agents = s && s.enabled ? 'on' : 'off';
@@ -437,8 +439,9 @@ function renderAgents(s) {
     b.title = `${a.name} — ${detail}`;
     return b;
   }));
-  // Une réponse vient d'arriver : le bip de fin, comme pour une dictée.
-  const unread = new Set(list.filter((a) => a.unread).map((a) => a.id));
+  // Une réponse vient d'arriver : le bip de fin, comme pour une dictée (pas
+  // pour celle de l'onglet affiché : déjà lue, elle n'est jamais « non lue »).
+  const unread = new Set(list.filter((a) => a.chime).map((a) => a.id));
   if ([...unread].some((id) => !unreadBefore.has(id))) window.api.getConfig().then((cfg) => beep(cfg, 660));
   unreadBefore = unread;
 }

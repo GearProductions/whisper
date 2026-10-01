@@ -88,6 +88,30 @@ setInterval(() => {
   if (workingSince) working.querySelector('.elapsed').textContent = elapsed(Date.now() - workingSince);
 }, 1000);
 
+// Demande d'autorisation dans le fil, comme dans la bulle : ce qui va
+// s'exécuter en entier, trois boutons. Un clic parti juste après l'arrivée
+// d'une NOUVELLE demande est ignoré : il répondrait à ce qu'on n'a pas lu.
+const CLICK_GUARD_MS = 600;
+const seen = { key: null, at: 0 };
+function renderPermission(p) {
+  if (p.key !== seen.key) { seen.key = p.key; seen.at = Date.now(); }
+  const el = document.getElementById('permission-template').content.firstElementChild.cloneNode(true);
+  el.querySelector('.permission-title').textContent = p.title;
+  el.querySelector('.permission-text').textContent = p.text;
+  const always = el.querySelector('.permission-always');
+  always.hidden = !p.always.length;
+  always.textContent = p.always.length ? `« Toujours autoriser », jusqu'à la fin de cette session : ${p.always.join(', ')}` : '';
+  for (const b of el.querySelectorAll('button')) {
+    b.hidden = b.dataset.act === 'always' && !p.always.length;
+    b.addEventListener('click', () => {
+      if (Date.now() - seen.at < CLICK_GUARD_MS) return;
+      el.querySelectorAll('button').forEach((x) => { x.disabled = true; });
+      window.conv.answer(b.dataset.act, p.key);
+    });
+  }
+  return el;
+}
+
 const openDetails = new Set(); // contextes dépliés, par rang : gardés d'un rendu à l'autre
 
 function renderTabs(tabs, active) {
@@ -97,7 +121,11 @@ function renderTabs(tabs, active) {
     el.classList.toggle('active', t.key === active);
     el.classList.toggle('busy', t.live && BUSY.includes(t.status));
     el.classList.toggle('old', !t.live);
-    el.title = `${t.name} — ${titleOf(t)}${t.live ? '' : ' (ancienne conversation)'}`;
+    // Notifications de l'onglet : nouveau message, autorisation demandée.
+    el.classList.toggle('unread', !!t.unread && t.key !== active);
+    el.classList.toggle('asking', t.live && t.status === 'asking');
+    const note = t.live && t.status === 'asking' ? ' — attend votre autorisation' : t.unread && t.key !== active ? ' — nouveau message' : '';
+    el.title = `${t.name} — ${titleOf(t)}${t.live ? '' : ' (ancienne conversation)'}${note}`;
     el.querySelector('.tab-title').textContent = titleOf(t);
     el.addEventListener('click', () => { if (t.key !== active) window.conv.select(t.key); });
     // Clic du milieu : fermer, comme dans un navigateur.
@@ -109,7 +137,8 @@ function renderTabs(tabs, active) {
   if (el) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
-// `data` : { tabs: [{ key, live, name, color, status, since, title }], active, dir,
+// `data` : { tabs: [{ key, live, name, color, status, since, title, unread }], active, dir,
+//            permission: { key, title, text, always } | null,
 //            messages: [{ role, text, context, files, images, time, tools, audio }] }.
 window.conv.onThread((data) => {
   const tab = data.tabs.find((t) => t.key === data.active);
@@ -156,8 +185,10 @@ window.conv.onThread((data) => {
     listen.addEventListener('click', () => window.conv.speak(index));
     return el;
   }));
-  const texts = { working: `${tab.name} travaille`, asking: `${tab.name} attend votre autorisation (voir la bulle près de l'icône)` };
-  const text = tab.live && texts[tab.status];
+  // L'agent demande une autorisation : elle se valide ici, au bas du fil.
+  if (data.permission) thread.append(renderPermission(data.permission));
+  const texts = { working: `${tab.name} travaille`, asking: `${tab.name} attend votre autorisation` };
+  const text = tab.live && !data.permission && texts[tab.status];
   workingSince = text ? tab.since : null;
   if (text) {
     working.dataset.status = tab.status;
@@ -167,7 +198,7 @@ window.conv.onThread((data) => {
   }
   // Nouvel onglet : en bas. Sinon, reste en bas quand un message arrive, sans
   // arracher la lecture d'un message plus ancien.
-  if (switched || (atEnd && (grew || text))) thread.scrollTop = thread.scrollHeight;
+  if (switched || data.permission || (atEnd && (grew || text))) thread.scrollTop = thread.scrollHeight;
 });
 
 /* ---- Historique du dossier ----------------------------------------------- */

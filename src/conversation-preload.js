@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld('conv', {
   history: () => ipcRenderer.invoke('conv:history'),
   open: (sessionId) => ipcRenderer.send('conv:open', sessionId),
   resume: () => ipcRenderer.send('conv:resume'),
+  // Demande d'autorisation affichée dans le fil : 'allow', 'always' ou 'deny',
+  // pour la demande `key` (celle que l'utilisateur a sous les yeux).
+  answer: (decision, key) => ipcRenderer.send('conv:answer', decision, key),
   openLink: (url) => ipcRenderer.send('conv:openLink', url),    // dans le navigateur
   showFile: (file) => ipcRenderer.send('conv:showFile', file),  // dans le gestionnaire de fichiers
 });
