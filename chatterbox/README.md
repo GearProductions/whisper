@@ -5,7 +5,7 @@ Moteur optionnel de la lecture à voix haute : [Chatterbox Multilingual](https:/
 tourne dans un conteneur podman, en service local sur `127.0.0.1:8004` ;
 l'appli s'en sert quand clic droit → *Lecture à voix haute* → *Moteur* →
 *Chatterbox (GPU)* est coché, et revient à Pocket TTS si le service ne répond
-pas.
+pas ou répond par une erreur.
 
 - **Voix** : les mêmes que Pocket TTS (Estelle, Mary, Marius, Jane, Anna,
   Alba), clonées à partir des enregistrements Kyutai, copiés dans l'image.
@@ -73,3 +73,7 @@ podman volume rm dev-chatterbox-cache
   alternative à Estelle). Les voix de personnes réelles ou de personnages
   (acteurs de doublage…) ne sont pas clonées.
 - **Poids** dans un volume nommé : régénérables, pas besoin de les voir.
+- **Pas de réseau après l'installation** : le segmenteur du chinois que charge
+  le tokenizer (spacy-pkuseg) est téléchargé dans l'image. Sinon il l'était à
+  chaque démarrage du conteneur, et au boot, le réseau du conteneur n'étant pas
+  encore prêt, le modèle ne se chargeait plus (HTTP 500).

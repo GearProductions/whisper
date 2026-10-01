@@ -28,6 +28,13 @@ for name, path in {
     urllib.request.urlretrieve(base + path, f"{name}.wav")
 PY
 
+# Le tokenizer multilingue crée un segmenteur du chinois (spacy-pkuseg), qui
+# télécharge son modèle à la première utilisation — donc à chaque démarrage du
+# conteneur, et en échec quand le réseau du conteneur n'est pas prêt (au boot,
+# le service démarre avant le Wi-Fi). Dans l'image, le service n'a plus besoin
+# du réseau une fois les poids dans le volume.
+RUN python -c "import spacy_pkuseg; spacy_pkuseg.pkuseg()"
+
 COPY server.py /app/server.py
 WORKDIR /app
 EXPOSE 8004
