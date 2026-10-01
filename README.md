@@ -193,48 +193,46 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   message qu'on lui avait envoyé (replié sur 3 lignes, un clic le déplie) : avec
   plusieurs agents, on sait à quoi il répond. Dicter la suite à ce même agent
   laisse la bulle affichée, pour la relire en répondant ; la fenêtre de
-  relecture s'ouvre alors à côté d'elle. **⤢** l'agrandit :
-  toute la conversation dans le panneau des conversations.
-- **Panneau des conversations** : un grand panneau **attaché à l'icône**, à la
-  place de la bulle. Comme elle, il reste au-dessus des autres fenêtres (voir
-  *Toujours au premier plan*), sur tous les bureaux virtuels, et **suit
-  l'icône** quand on la déplace : on ne le perd pas. Redimensionnable par ses
-  bords (la taille est retenue) ; sa croix le masque sans fermer les onglets.
-  **Un onglet par conversation** (Ctrl+W ou clic du milieu pour en fermer un). Chaque
-  conversation porte son **intitulé**, celui que lui donne Claude Code ; chaque
-  message, son **heure**. Pendant que l'agent travaille, le fil le suit et
-  l'anime (avec le temps écoulé). Les **liens** s'ouvrent dans le navigateur
-  (aussi depuis la bulle). Les **pièces jointes** de vos messages se voient :
-  aperçu des images (clic : en grand), fichiers (clic : montrés dans le
+  relecture s'ouvre alors à côté d'elle. **⤢** l'agrandit (ci-dessous).
+- **Conversation complète** (⤢ d'une bulle, ou clic droit sur le robot) : la
+  bulle agrandie en un grand panneau **attaché à l'icône**, à sa place. Comme
+  elle, il reste au-dessus des autres fenêtres (voir *Toujours au premier
+  plan*), sur tous les bureaux virtuels, et **suit l'icône** quand on la
+  déplace : on ne le perd pas. Redimensionnable par ses bords (la taille est
+  retenue). **⤡ Réduire** le ramène à la bulle (la dernière réponse) ; **×** le
+  ferme. Chaque conversation porte son **intitulé**, celui que lui donne Claude
+  Code ; chaque message, son **heure**. Pendant que l'agent travaille, le fil le
+  suit et l'anime (avec le temps écoulé). Les **liens** s'ouvrent dans le
+  navigateur (aussi depuis la bulle). Les **pièces jointes** de vos messages se
+  voient : aperçu des images (clic : en grand), fichiers (clic : montrés dans le
   gestionnaire de fichiers), texte sélectionné (à déplier).
-  **🕘 Historique** : toutes les conversations passées du dossier (de l'appli
-  comme celles lancées dans un terminal), par intitulé et date. Une ancienne
-  conversation s'ouvre dans un onglet, en lecture seule ; *Reprendre cette
-  conversation* en refait la session en cours de l'agent — celle qu'elle
-  remplace reste dans l'historique, comme après *Nouvelle session*.
-- **Champ de saisie** au bas du panneau : écrire à l'agent de l'onglet affiché
-  (**Entrée** envoie, **Maj+Entrée** va à la ligne ; un brouillon par onglet,
-  pièces jointes comprises). Panneau ouvert, **la dictée y arrive** au lieu
-  d'ouvrir la fenêtre de relecture : on la relit, la complète, l'envoie.
-  **Pièces jointes** directement dans le champ : glisser-déposer ou **Ctrl+V**
-  (images envoyées à Claude, autres fichiers par leur chemin) ; **📎** : choisir
-  des images ou fichiers, ou joindre le texte sélectionné (aperçu dans le menu).
-  Pendant que l'agent travaille, on écrit mais on n'envoie pas.
-- **Robot et onglet vont ensemble** : changer d'onglet sélectionne son agent
-  (la dictée lui ira) ; panneau montré, cliquer un robot affiche son onglet
-  (ouvert au besoin) ; ouvrir une conversation depuis une bulle sélectionne
-  l'agent. Un second clic sur le robot sélectionné rend la dictée au curseur.
-- **Mode conversation** : panneau ouvert, il tient lieu de bulle (aucune bulle
-  ne s'affiche par-dessus). Réponse de l'onglet affiché : lue d'office, ni
-  pastille ni bip. Réponse d'un autre agent : pastille sur son **robot** (et sur
-  son onglet s'il en a un), bip ; ouvrir l'onglet la marque lue. Demande
-  d'autorisation : dans le fil de son onglet, avec les mêmes boutons que la
-  bulle (« ? » sur l'onglet s'il n'est pas affiché, et sur le robot). Un clic
-  sur le robot ouvre son onglet. Panneau masqué, onglet fermé : retour à la
+  **🕘 Historique** (panneau seulement) : toutes les conversations passées du
+  dossier (de l'appli comme celles lancées dans un terminal), par intitulé et
+  date. Une ancienne conversation s'y lit, en lecture seule ; *← Conversation en
+  cours* y revient ; *Reprendre cette conversation* en refait la session en
+  cours de l'agent — celle qu'elle remplace reste dans l'historique, comme
+  après *Nouvelle session*.
+- **Les robots servent d'onglets** : une conversation à la fois dans le
+  panneau, celle du robot sélectionné ; panneau ouvert, cliquer un robot y
+  affiche la sienne (et le sélectionne : la dictée lui ira). Un second clic sur
+  le robot affiché rend la dictée au curseur.
+- **Champ de saisie** au bas du panneau : écrire à l'agent affiché (**Entrée**
+  envoie, **Maj+Entrée** va à la ligne ; un brouillon par agent, pièces jointes
+  comprises). Panneau ouvert, **la dictée y arrive** au lieu d'ouvrir la fenêtre
+  de relecture : on la relit, la complète, l'envoie. **Pièces jointes**
+  directement dans le champ : glisser-déposer ou **Ctrl+V** (images envoyées à
+  Claude, autres fichiers par leur chemin) ; **📎** : choisir des images ou
+  fichiers, ou joindre le texte sélectionné (aperçu dans le menu). Pendant que
+  l'agent travaille, on écrit mais on n'envoie pas.
+- **Panneau ouvert**, il tient lieu de bulle (aucune bulle ne s'affiche
+  par-dessus). Réponse de l'agent affiché : lue d'office, ni pastille ni bip ;
+  sa demande d'autorisation : dans le fil, avec les mêmes boutons que la bulle.
+  Les autres agents signalent les leurs sur leur **robot** (pastille, « ? ») :
+  un clic affiche leur conversation. Panneau réduit ou fermé : retour à la
   bulle, et une demande en attente s'y affiche.
 - **Clic droit sur un robot** : couleur du dossier, modèle, effort, mode
   (manuel, accepter les modifications de fichiers, auto, plan), dernière
-  réponse, **conversations** (en cours et historique), interrompre, *Nouvelle
+  réponse, **conversation complète** (et historique), interrompre, *Nouvelle
   session* (repartir de zéro), retirer (son dossier reste favori). Le **mode** et le **modèle**
   changés pendant qu'il travaille s'appliquent aussitôt ; passer en *accepter
   les modifications* accorde la demande de modification de fichier en attente.

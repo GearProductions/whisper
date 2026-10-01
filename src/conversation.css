@@ -1,6 +1,5 @@
-/* Fenêtre des conversations : une fenêtre classique (barre de titre,
-   redimensionnable), à onglets, aux couleurs de l'appli. --accent : la couleur
-   du dossier de l'onglet affiché ; --tab : celle de chaque onglet. */
+/* Panneau d'une conversation (la bulle d'un agent, agrandie), aux couleurs de
+   l'appli. --accent : la couleur du dossier de l'agent affiché. */
 :root { --accent: #8b5cf6; }
 html, body { height: 100%; margin: 0; }
 body {
@@ -10,53 +9,6 @@ body {
   color: #e6e8ee;
   font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Ubuntu, sans-serif;
 }
-/* Onglets : un par conversation ouverte. */
-#tabs {
-  flex: none;
-  display: flex;
-  gap: 2px;
-  padding: 6px 8px 0;
-  overflow-x: auto;
-  background: #11141b;
-}
-#tabs::-webkit-scrollbar { height: 4px; }
-.tab {
-  flex: 0 1 220px;
-  min-width: 110px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 6px 6px 10px;
-  border-radius: 8px 8px 0 0;
-  background: #1a1e28;
-  color: #8a91a0;
-  font-size: 12px;
-  cursor: pointer;
-  user-select: none;
-}
-.tab:hover { color: #e6e8ee; }
-.tab.active { background: #1f2430; color: #e6e8ee; box-shadow: inset 0 2px 0 var(--tab); }
-.tab-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--tab); }
-.tab.old .tab-dot { background: transparent; border: 1.5px solid var(--tab); width: 5px; height: 5px; }
-.tab.busy .tab-dot { animation: pulse 1s ease-in-out infinite alternate; }
-@keyframes pulse { to { opacity: 0.25; } }
-.tab-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tab.old .tab-title { font-style: italic; }
-.tab-close {
-  flex: none;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: inherit;
-  font: 14px/18px system-ui, sans-serif;
-  cursor: pointer;
-  opacity: 0.6;
-}
-.tab-close:hover { opacity: 1; background: #3a4150; }
-
 header {
   flex: none;
   display: flex;
@@ -97,6 +49,8 @@ header {
   color: #b8bdc8;
 }
 #archived span { flex: 1; }
+#current { flex: none; padding: 4px 10px; border-radius: 6px; border: 1px solid #3a4150; background: #2a3142; color: #e6e8ee; font: 12px/1.4 system-ui, sans-serif; cursor: pointer; }
+#current:hover { border-color: var(--accent); }
 #archived[hidden], #history[hidden] { display: none; }
 
 #body { position: relative; flex: 1 1 auto; min-height: 0; display: flex; }
@@ -237,13 +191,6 @@ header {
 /* En attente d'autorisation : plus d'agitation, une pulsation orange. */
 .working[data-status="asking"] .dots i { background: #e0a23b; animation: pulse 1.4s ease-in-out infinite alternate; }
 
-/* Notifications d'un onglet : nouveau message (pastille verte), autorisation
-   demandée (« ? » orange). */
-.tab.unread .tab-title, .tab.asking .tab-title { color: #e6e8ee; font-weight: 600; }
-.tab.unread .tab-dot { box-shadow: 0 0 0 2px #1a1e28, 0 0 0 4px #2fa36b; }
-.tab.asking .tab-dot { background: #e0a23b; animation: pulse 1s ease-in-out infinite alternate; }
-.tab.asking .tab-title::after { content: " ?"; color: #e0a23b; }
-
 /* Demande d'autorisation dans le fil. */
 .permission { margin: 4px 0 14px; padding: 10px 12px; border-radius: 10px; background: #1f2430; border: 1px solid #e0a23b; }
 .permission-title { margin-bottom: 6px; font-size: 12px; font-weight: 600; color: #e0a23b; }
@@ -311,7 +258,7 @@ header {
 
 /* Panneau sans cadre : une bordure, et sa croix dans l'en-tête. */
 body { box-sizing: border-box; border: 1px solid #3a4150; }
-#hide {
+#hide, #collapse {
   flex: none;
   width: 28px;
   height: 28px;
@@ -323,7 +270,7 @@ body { box-sizing: border-box; border: 1px solid #3a4150; }
   font: 18px/28px system-ui, sans-serif;
   cursor: pointer;
 }
-#hide:hover { background: #3a4150; color: #e6e8ee; }
+#hide:hover, #collapse:hover { background: #3a4150; color: #e6e8ee; }
 
 /* Pièces jointes du champ de saisie ; le panneau s'allume au glisser. */
 #pieces { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -357,3 +304,4 @@ body { box-sizing: border-box; border: 1px solid #3a4150; }
 }
 .piece .remove:hover { background: #3a4150 !important; color: #e6e8ee; }
 body.dragging #composer { background: #252c3b; box-shadow: inset 0 0 0 2px var(--accent); }
+@keyframes pulse { to { opacity: 0.25; } }

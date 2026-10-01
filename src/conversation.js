@@ -1,11 +1,12 @@
 /* =========================================================================
-   Whisper — les conversations des agents, en onglets
+   Whisper — la conversation d'un agent, en grand
 
-   Un panneau attaché à l'icône (il la suit ; sa croix le masque), un onglet
-   par conversation ouverte : la session en cours d'un agent, ou une ancienne
-   session de son dossier, ouverte depuis l'historique (lecture seule, à
-   reprendre au besoin). Chaque conversation porte son intitulé, celui que
-   Claude Code lui donne. Le principal envoie onglets et fil (`conv:thread`) à
+   La bulle d'un agent agrandie : un panneau attaché à l'icône (il la suit ;
+   ⤡ le ramène à la bulle, × le ferme), une conversation à la fois — celle du
+   robot sélectionné, les robots servant d'onglets. Sa session en cours, ou une
+   ancienne session de son dossier, ouverte depuis l'historique (lecture seule,
+   à reprendre au besoin). Chaque conversation porte son intitulé, celui que
+   Claude Code lui donne. Le principal envoie la conversation (`conv:thread`) à
    l'ouverture, à chaque changement, et au fil d'un tour (l'agent qui travaille
    s'anime au bas du fil) ; ▶ Écouter lit le résumé audio d'une réponse par le
    lecteur de l'icône. Chaque message dit son heure ; les liens s'ouvrent dans
@@ -13,10 +14,8 @@
    sélectionné) s'y voient.
    ========================================================================= */
 
-const tabsBar = document.getElementById('tabs');
 const thread = document.getElementById('thread');
 const template = document.getElementById('message-template');
-const tabTemplate = document.getElementById('tab-template');
 const lightbox = document.getElementById('lightbox');
 const composer = document.getElementById('composer');
 const message = document.getElementById('message');
@@ -29,7 +28,7 @@ const history = document.getElementById('history');
 const historyButton = document.getElementById('history-button');
 
 const BUSY = ['working', 'asking'];
-let shownKey = null; // onglet affiché au dernier rendu
+let shownKey = null; // conversation affichée au dernier rendu
 
 const titleOf = (t) => t.title || (t.live ? 'Nouvelle conversation' : 'Conversation sans titre');
 
@@ -119,36 +118,12 @@ function renderPermission(p) {
 
 const openDetails = new Set(); // contextes dépliés, par rang : gardés d'un rendu à l'autre
 
-function renderTabs(tabs, active) {
-  tabsBar.replaceChildren(...tabs.map((t) => {
-    const el = tabTemplate.content.firstElementChild.cloneNode(true);
-    el.style.setProperty('--tab', t.color);
-    el.classList.toggle('active', t.key === active);
-    el.classList.toggle('busy', t.live && BUSY.includes(t.status));
-    el.classList.toggle('old', !t.live);
-    // Notifications de l'onglet : nouveau message, autorisation demandée.
-    el.classList.toggle('unread', !!t.unread && t.key !== active);
-    el.classList.toggle('asking', t.live && t.status === 'asking');
-    const note = t.live && t.status === 'asking' ? ' — attend votre autorisation' : t.unread && t.key !== active ? ' — nouveau message' : '';
-    el.title = `${t.name} — ${titleOf(t)}${t.live ? '' : ' (ancienne conversation)'}${note}`;
-    el.querySelector('.tab-title').textContent = titleOf(t);
-    el.addEventListener('click', () => { if (t.key !== active) window.conv.select(t.key); });
-    // Clic du milieu : fermer, comme dans un navigateur.
-    el.addEventListener('auxclick', (e) => { if (e.button === 1) window.conv.closeTab(t.key); });
-    el.querySelector('.tab-close').addEventListener('click', (e) => { e.stopPropagation(); window.conv.closeTab(t.key); });
-    return el;
-  }));
-  const el = tabsBar.querySelector('.active');
-  if (el) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-}
-
-// `data` : { tabs: [{ key, live, name, color, status, since, title, unread }], active, dir,
+// `data` : { key, live, name, color, dir, title, status, since,
 //            permission: { key, title, text, always } | null,
 //            messages: [{ role, text, context, files, images, time, tools, audio }] }.
+// (`tab` : la conversation affichée.)
 window.conv.onThread((data) => {
-  const tab = data.tabs.find((t) => t.key === data.active);
-  if (!tab) return;
-  renderTabs(data.tabs, data.active);
+  const tab = data;
   document.documentElement.style.setProperty('--accent', tab.color);
   document.title = `${titleOf(tab)} — ${tab.name}`;
   document.getElementById('title').textContent = titleOf(tab);
@@ -158,9 +133,9 @@ window.conv.onThread((data) => {
   resume.title = resume.disabled ? `${tab.name} travaille : attendez qu'il ait fini.`
     : `${tab.name} reprend cette conversation ; celle en cours reste dans l'historique.`;
 
-  const switched = data.active !== shownKey;
-  if (switched) swapDraft(shownKey, data.active);
-  shownKey = data.active;
+  const switched = data.key !== shownKey;
+  if (switched) swapDraft(shownKey, data.key);
+  shownKey = data.key;
   renderComposer(tab);
   if (switched) { history.hidden = true; openDetails.clear(); }
   const atEnd = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 40;
@@ -396,11 +371,12 @@ async function showHistory() {
 
 historyButton.addEventListener('click', () => { if (history.hidden) showHistory(); else history.hidden = true; });
 resume.addEventListener('click', () => window.conv.resume());
+document.getElementById('current').addEventListener('click', () => window.conv.current());
+document.getElementById('collapse').addEventListener('click', () => window.conv.collapse());
 lightbox.addEventListener('click', () => { lightbox.hidden = true; });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !lightbox.hidden) lightbox.hidden = true;
   else if (e.key === 'Escape' && !history.hidden) history.hidden = true;
-  if (e.key.toLowerCase() === 'w' && e.ctrlKey && shownKey) { e.preventDefault(); window.conv.closeTab(shownKey); }
 });
 
 window.conv.ready();

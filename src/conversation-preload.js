@@ -1,18 +1,18 @@
-// Pont de la fenêtre de conversation : elle reçoit les onglets et le fil,
-// choisit un onglet, demande l'historique, la lecture d'une réponse par son
-// rang. Aucun texte ne remonte au principal (un identifiant de session tout au
-// plus, vérifié là-bas).
+// Pont du panneau des conversations : il reçoit la conversation affichée,
+// demande l'historique, la lecture d'une réponse par son rang, et envoie à
+// l'agent affiché ce qu'on écrit dans son champ (le principal vérifie à qui).
+// Répondre à une demande d'autorisation ne vaut que pour celle affichée.
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('conv', {
   onThread: (fn) => ipcRenderer.on('conv:thread', (_e, data) => fn(data)),
   ready: () => ipcRenderer.send('conv:ready'),
-  select: (key) => ipcRenderer.send('conv:select', key),
-  closeTab: (key) => ipcRenderer.send('conv:closeTab', key),
   speak: (index) => ipcRenderer.send('conv:speak', index),
   history: () => ipcRenderer.invoke('conv:history'),
   open: (sessionId) => ipcRenderer.send('conv:open', sessionId),
   resume: () => ipcRenderer.send('conv:resume'),
+  current: () => ipcRenderer.send('conv:current'),            // ancienne conversation → celle en cours
+  collapse: () => ipcRenderer.send('conv:collapse'),          // ⤡ : revenir à la bulle
   // Champ de saisie : un message à l'agent de l'onglet affiché, avec ses pièces
   // jointes → { ok, error }. 📎 : menu (fichiers, sélection), le choix revient
   // par onAttached. La dictée, panneau ouvert, arrive par onDictation.

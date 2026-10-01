@@ -450,7 +450,7 @@ ipcMain.handle('dictation:transcribe', async (_e, pcm) => {
   const agent = selectedAgent(cfg);
   // Panneau ouvert sur l'onglet de cet agent : la dictée va dans son champ de
   // saisie, à relire et compléter là (pas de fenêtre de relecture par-dessus).
-  if (agent && !compose && inConversation(agent.id) && convActive === agent.id) {
+  if (agent && !compose && inConversation(agent.id)) {
     conv.webContents.send('conv:dictation', text);
     conv.focus();
     return { ok: true, text, agent: agent.name, panel: true };
@@ -620,14 +620,13 @@ function updateAgent(id, patch) {
   saveConfig({ agents: agentList(loadConfig()).map((a) => (a.id === id ? { ...a, ...patch } : a)) });
 }
 
-// Mode « conversation » : le panneau des conversations est montré. Un agent
-// dont l'onglet (sa session en cours) y est ouvert reçoit là ses demandes
-// d'autorisation, dans le fil ; la réponse de l'onglet affiché est lue d'office,
-// celle d'un autre onglet marque l'onglet ET le robot. Panneau masqué : retour
-// à la bulle.
+// Mode « conversation » : le panneau des conversations est montré. L'agent
+// affiché (sur sa session en cours) y reçoit ses demandes d'autorisation, dans
+// le fil, et sa réponse y est lue d'office ; celle d'un autre agent met la
+// pastille sur son robot. Panneau masqué ou réduit : retour à la bulle.
 const conversationShown = () => !!conv && !conv.isDestroyed() && conv.isVisible();
-const inConversation = (id) => conversationShown() && convTabs.some((t) => t.key === id);
-const onScreen = (id) => inConversation(id) && convActive === id;
+const inConversation = (id) => conversationShown() && !!convView && convView.agentId === id && !convView.sessionId;
+const onScreen = inConversation;
 
 // État des robots pour le renderer, et largeur de la fenêtre.
 
@@ -791,10 +790,10 @@ ipcMain.on('agent:click', (e, id) => {
   if (!agent) return;
   const st = agents.state(id);
   if (conversationShown()) {
-    // Panneau des conversations montré : le robot et l'onglet vont ensemble —
-    // sélectionner un robot affiche son onglet (ouvert au besoin). Second clic
-    // sur le robot sélectionné : la dictée retourne au curseur, l'onglet reste.
-    if (cfg.agentSelected === id && convActive === id) { selectAgent(null); pushAgents(); } else openConversation(id);
+    // Panneau des conversations montré : les robots en sont les onglets —
+    // cliquer un robot y affiche sa conversation. Second clic sur le robot
+    // affiché et sélectionné : la dictée retourne au curseur, le panneau reste.
+    if (cfg.agentSelected === id && convView && convView.agentId === id) { selectAgent(null); pushAgents(); } else openConversation(id);
     return;
   }
   if (st.status === 'asking' || st.unread) {
@@ -891,48 +890,42 @@ ipcMain.on('agent:add', (e) => {
 
 /* ---- Panneau des conversations -------------------------------------------- */
 
-// Un grand panneau ATTACHÉ À L'ICÔNE, comme la bulle : sans cadre, au-dessus
-// des autres fenêtres (réglage `onTop`), sur tous les bureaux virtuels, il suit
-// l'icône quand on la déplace — on ne le perd pas derrière une autre fenêtre.
-// Il prend le focus (on y écrit). Redimensionnable par ses bords, sa taille est
-// retenue (`convSize`) ; sa croix le masque sans oublier les onglets.
+// La bulle d'un agent, AGRANDIE (⤢) : toute sa conversation, dans un grand
+// panneau ATTACHÉ À L'ICÔNE — sans cadre, au-dessus des autres fenêtres
+// (réglage `onTop`), sur tous les bureaux virtuels, il suit l'icône quand on la
+// déplace. Il prend le focus (on y écrit). Redimensionnable par ses bords, sa
+// taille est retenue (`convSize`). « Réduire » le ramène à la bulle (la
+// dernière réponse) ; sa croix le masque.
 //
-// À ONGLETS : une conversation par onglet. L'onglet « vivant » d'un agent suit
-// sa session en cours ; l'historique de son dossier (les sessions Claude Code
-// passées, retrouvées par leur intitulé) s'ouvre en onglets de lecture, que
-// l'on peut reprendre. Ouvert, il remplace la bulle : notifications, demandes
-// d'autorisation et dictée passent par lui.
+// Une conversation à la fois : celle du robot sélectionné — les robots servent
+// d'onglets, en cliquer un y montre la sienne. Depuis l'historique de son
+// dossier (les sessions Claude Code passées, par intitulé), une ancienne
+// conversation s'y lit, et peut se reprendre. Ouvert, il remplace la bulle :
+// notifications, demandes d'autorisation et dictée de cet agent passent par lui.
 const CONV_SIZE = { width: 720, height: 700 };
 const CONV_MIN = { width: 380, height: 300 };
 let conv = null;
 let convPlaced = null;  // dernières dimensions posées par placeConversation
 let convResizeTimer = null;
-let convTabs = [];     // [{ key, agentId, sessionId }] ; sessionId null : la session en cours de l'agent
-let convActive = null; // clé de l'onglet affiché
-let convThread = [];   // fil affiché
-let convSpeech = '';   // résumé audio de la réponse choisie par ▶ (cf. tts:speak)
-let convSeq = 0;       // rafraîchissements qui se chevauchent : seul le dernier s'affiche
+let convView = null;    // { agentId, sessionId } ; sessionId null : la session en cours de l'agent
+let convThread = [];    // fil affiché
+let convSpeech = '';    // résumé audio de la réponse choisie par ▶ (cf. tts:speak)
+let convSeq = 0;        // rafraîchissements qui se chevauchent : seul le dernier s'affiche
 
-const tabAgent = (tab, cfg = loadConfig()) => tab && agentList(cfg).find((a) => a.id === tab.agentId);
-const tabSession = (tab, agent) => tab.sessionId || agent.sessionId;
-const activeTab = () => convTabs.find((t) => t.key === convActive);
+const viewAgent = (cfg = loadConfig()) => convView && agentList(cfg).find((a) => a.id === convView.agentId);
 
-// Ouvre (ou montre) l'onglet de la session en cours de l'agent, ou celui d'une
-// de ses anciennes sessions.
+// Agrandit la conversation de l'agent (sa session en cours, ou une ancienne).
 function openConversation(agentId, sessionId = null) {
   const agent = agentList(loadConfig()).find((a) => a.id === agentId);
   if (!agent) return;
-  selectAgent(agentId); // l'onglet affiché et le robot sélectionné vont ensemble
-  const old = sessionId && sessionId !== agent.sessionId ? sessionId : null;
-  const key = old ? `${agentId}:${old}` : agentId;
-  if (!convTabs.some((t) => t.key === key)) convTabs.push({ key, agentId, sessionId: old });
-  convActive = key;
+  selectAgent(agentId); // le robot affiché et le robot sélectionné vont ensemble
+  convView = { agentId, sessionId: sessionId && sessionId !== agent.sessionId ? sessionId : null };
   hideBubble(); // le panneau prend sa place
-  if (conv) { placeConversation(); conv.show(); conv.focus(); pushAgents(); return; } // pushAgents : lu d'office, onglets à jour
+  if (conv) { placeConversation(); conv.show(); conv.focus(); pushAgents(); return; } // pushAgents : lu d'office
   conv = new BrowserWindow({
     ...CONV_SIZE, minWidth: CONV_MIN.width, minHeight: CONV_MIN.height, show: false,
     frame: false, resizable: true, maximizable: false, fullscreenable: false, skipTaskbar: true,
-    alwaysOnTop: onTop(), backgroundColor: '#171b24', title: 'Whisper — conversations',
+    alwaysOnTop: onTop(), backgroundColor: '#171b24', title: 'Whisper — conversation',
     webPreferences: { preload: path.join(__dirname, 'conversation-preload.js'), contextIsolation: true, sandbox: true },
   });
   conv.setAlwaysOnTop(onTop(), 'floating');
@@ -942,8 +935,8 @@ function openConversation(agentId, sessionId = null) {
   conv.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   conv.loadFile(path.join(__dirname, 'conversation.html'));
   conv.once('ready-to-show', () => { if (!conv) return; placeConversation(); conv.show(); conv.focus(); });
-  conv.on('closed', () => { conv = null; convTabs = []; convActive = null; convThread = []; });
-  conv.on('focus', pushAgents); // l'onglet affiché est lu
+  conv.on('closed', () => { conv = null; convView = null; convThread = []; });
+  conv.on('focus', pushAgents); // la conversation affichée est lue
   // Redimensionné à la main (pas par placeConversation) : la taille est retenue,
   // puis le panneau se recale contre l'icône.
   conv.on('resize', () => {
@@ -977,8 +970,7 @@ function placeConversation() {
   conv.setBounds(convPlaced);
 }
 
-// La croix du panneau : masqué, onglets gardés ; ses notifications repassent
-// par la bulle et les robots.
+// La croix du panneau : masqué ; les notifications repassent par la bulle.
 function hideConversation() {
   if (!conv || !conv.isVisible()) return;
   conv.hide();
@@ -986,9 +978,24 @@ function hideConversation() {
 }
 ipcMain.on('conv:hide', (e) => { if (sentBy(e, conv)) hideConversation(); });
 
-// Un agent quitte le mode conversation (fenêtre fermée ou réduite, onglet
-// fermé) : sa demande d'autorisation en attente repasse par la bulle, sa
-// réponse non lue par la pastille du robot.
+// « Réduire » : le panneau redevient la bulle de l'agent, avec sa dernière
+// réponse (celle du fil, si l'appli n'en a pas encore reçu depuis son lancement).
+ipcMain.on('conv:collapse', (e) => {
+  const agent = sentBy(e, conv) && viewAgent();
+  if (!agent) return;
+  const last = [...convThread].reverse().find((m) => m.role === 'assistant' && m.text);
+  if (last && !convView.sessionId) {
+    const before = convThread[convThread.lastIndexOf(last) - 1];
+    agents.recall(agent.id, { text: last.text, audio: last.audio, asked: before && before.role === 'user' ? { text: before.text, images: (before.images || []).length } : null });
+  }
+  conv.hide();
+  leaveConversation();
+  if (agents.lastReply(agent.id)) showAgentReply(agent);
+});
+
+// L'agent affiché quitte le mode conversation (panneau masqué ou réduit) : une
+// demande d'autorisation en attente repasse par la bulle, une réponse non lue
+// par la pastille du robot.
 function leaveConversation() {
   const free = !bubble || !bubble.isVisible();
   const asking = free && agentList(loadConfig()).find((a) => agents.state(a.id).status === 'asking' && !inConversation(a.id));
@@ -996,35 +1003,25 @@ function leaveConversation() {
   pushAgents();
 }
 
-// Relit les onglets (intitulés, état des agents) et le fil de l'onglet
-// affiché, et les envoie à la fenêtre (à son ouverture, puis à chaque
-// changement d'état d'un agent).
+// Relit la conversation affichée et l'envoie au panneau (à son ouverture, puis
+// à chaque changement d'état d'un agent).
 async function refreshConversation() {
   if (!conv) return;
   const seq = ++convSeq;
   const cfg = loadConfig();
-  convTabs = convTabs.filter((t) => tabAgent(t, cfg)); // agent retiré : ses onglets partent
-  if (!convTabs.length) { conv.close(); return; }
-  if (!activeTab()) convActive = convTabs[convTabs.length - 1].key;
-  const tabs = await Promise.all(convTabs.map(async (t) => {
-    const agent = tabAgent(t, cfg);
-    const sid = tabSession(t, agent);
-    const st = agents.state(agent.id);
-    return {
-      key: t.key, live: !t.sessionId, name: agent.name, color: agentColor(agent, cfg),
-      status: st.status, since: st.since, title: sid ? await agents.sessionTitle(agent, sid) : '',
-      unread: !t.sessionId && st.unread, // « nouveau message » sur l'onglet
-    };
-  }));
-  const tab = activeTab();
-  const agent = tabAgent(tab, cfg);
-  const thread = await agents.thread(agent, tabSession(tab, agent));
+  const agent = viewAgent(cfg);
+  if (!agent) { hideConversation(); return; } // agent retiré
+  const view = { ...convView };
+  const sid = view.sessionId || agent.sessionId;
+  const st = agents.state(agent.id);
+  const [title, thread] = await Promise.all([sid ? agents.sessionTitle(agent, sid) : '', agents.thread(agent, sid)]);
   if (!conv || seq !== convSeq) return;
   convThread = thread;
   conv.webContents.send('conv:thread', {
-    tabs, active: tab.key, dir: agent.dir,
-    // La demande d'autorisation de l'onglet affiché, à valider dans le fil.
-    permission: !tab.sessionId && inConversation(agent.id) ? conversationPermission(agent) : null,
+    key: view.sessionId ? `${agent.id}:${view.sessionId}` : agent.id, live: !view.sessionId,
+    name: agent.name, color: agentColor(agent, cfg), dir: agent.dir, title, status: st.status, since: st.since,
+    // La demande d'autorisation de l'agent, à valider dans le fil.
+    permission: !view.sessionId && inConversation(agent.id) ? conversationPermission(agent) : null,
     messages: thread.map((m) => {
       const { text, selection: context, files } = m.role === 'user' ? splitComposed(m.text) : { text: m.text, selection: '', files: [] };
       return {
@@ -1089,22 +1086,17 @@ ipcMain.on('conv:showFile', (e, file) => {
   if (sentBy(e, conv) && typeof file === 'string' && path.isAbsolute(file) && fs.existsSync(file)) shell.showItemInFolder(file);
 });
 ipcMain.on('bubble:openLink', (e, url) => { if (sentBy(e, bubble)) openLink(url); });
-ipcMain.on('conv:select', (e, key) => {
-  const tab = sentBy(e, conv) && convTabs.find((t) => t.key === key);
-  if (!tab) return;
-  convActive = key;
-  selectAgent(tab.agentId); // le robot suit l'onglet
-  pushAgents(); // l'onglet affiché est lu
-});
 
-// Champ de saisie de la fenêtre : un message à l'agent de l'onglet affiché
-// (sa session en cours). { ok } ou { ok: false, error }.
+// La session en cours de l'agent affiché : l'agent, s'il est dans le panneau sur
+// elle (pas sur une ancienne conversation), sinon null.
+const liveViewAgent = (cfg) => (convView && !convView.sessionId ? viewAgent(cfg) : null);
+
+// Champ de saisie : un message à l'agent affiché (sa session en cours).
 // `draft` : { text, images: [{ name, type, data }], files: [chemin], selection }
 // — les pièces jointes du champ (glissées, collées, ou choisies par 📎).
 ipcMain.handle('conv:send', (e, draft) => {
-  const tab = sentBy(e, conv) && activeTab();
   const cfg = loadConfig();
-  const agent = tab && !tab.sessionId && tabAgent(tab, cfg);
+  const agent = sentBy(e, conv) && liveViewAgent(cfg);
   if (!agent) return { ok: false, error: 'Ancienne conversation : reprenez-la pour lui écrire.' };
   const d = draft && typeof draft === 'object' ? draft : {};
   const ready = prepareDraft({ ...d, selection: typeof d.selection === 'string' ? d.selection.slice(0, SELECTION_MAX) : '' });
@@ -1130,12 +1122,6 @@ ipcMain.on('conv:attach', async (e) => {
   ]).popup({ window: conv });
 });
 
-ipcMain.on('conv:closeTab', (e, key) => {
-  if (!sentBy(e, conv)) return;
-  convTabs = convTabs.filter((t) => t.key !== key);
-  if (convTabs.length) leaveConversation(); else hideConversation(); // dernier onglet fermé : le panneau aussi
-});
-
 // La demande en tête de file, comme dans la bulle : { key, title, text, always }.
 function conversationPermission(agent) {
   const p = agents.pendingPermission(agent.id);
@@ -1146,49 +1132,53 @@ function conversationPermission(agent) {
   };
 }
 
-// Réponse à une demande affichée dans le fil : seulement pour l'onglet affiché,
+// Réponse à une demande affichée dans le fil : seulement pour l'agent affiché,
 // et seulement à la demande que l'utilisateur a sous les yeux (`key`).
 ipcMain.on('conv:answer', (e, decision, key) => {
-  const tab = sentBy(e, conv) && activeTab();
-  if (!tab || tab.sessionId || !['allow', 'always', 'deny'].includes(decision) || !Number.isInteger(key)) return;
-  agents.answer(tab.agentId, decision, key);
+  const agent = sentBy(e, conv) && liveViewAgent();
+  if (!agent || !['allow', 'always', 'deny'].includes(decision) || !Number.isInteger(key)) return;
+  agents.answer(agent.id, decision, key);
   pushAgents();
 });
 
 // ▶ d'une réponse : son résumé audio, par le lecteur de l'icône.
 ipcMain.on('conv:speak', (e, index) => {
-  const tab = sentBy(e, conv) && activeTab();
-  if (!tab || !win || !convThread[index] || !convThread[index].audio) return;
+  const agent = sentBy(e, conv) && viewAgent();
+  if (!agent || !win || !convThread[index] || !convThread[index].audio) return;
   convSpeech = convThread[index].audio;
-  win.webContents.send('tts:speakAgent', tab.agentId, index);
+  win.webContents.send('tts:speakAgent', agent.id, index);
 });
 
-// Historique du dossier de l'onglet affiché : [{ sessionId, title,
+// Historique du dossier de l'agent affiché : [{ sessionId, title,
 // lastModified, current (la session en cours de l'agent) }].
 ipcMain.handle('conv:history', async (e) => {
-  const agent = sentBy(e, conv) && tabAgent(activeTab());
+  const agent = sentBy(e, conv) && viewAgent();
   if (!agent) return [];
   return (await agents.sessions(agent)).map((s) => ({ ...s, current: s.sessionId === agent.sessionId }));
 });
 
 // Ouvrir une session de l'historique : seulement une session de CE dossier.
 ipcMain.on('conv:open', async (e, sessionId) => {
-  const agent = sentBy(e, conv) && tabAgent(activeTab());
+  const agent = sentBy(e, conv) && viewAgent();
   if (!agent || !(await agents.sessions(agent)).some((s) => s.sessionId === sessionId)) return;
   openConversation(agent.id, sessionId);
 });
 
-// Reprendre l'ancienne session de l'onglet affiché : elle redevient la session
-// en cours de l'agent (la précédente reste dans l'historique).
+// Ancienne conversation affichée : revenir à la conversation en cours…
+ipcMain.on('conv:current', (e) => {
+  const agent = sentBy(e, conv) && viewAgent();
+  if (agent) openConversation(agent.id);
+});
+
+// … ou la reprendre : elle redevient la session en cours de l'agent (la
+// précédente reste dans l'historique).
 ipcMain.on('conv:resume', (e) => {
-  const tab = sentBy(e, conv) && activeTab();
-  const agent = tab && tab.sessionId && tabAgent(tab);
-  if (!agent || isBusy(agent.id)) return;
-  updateAgent(agent.id, { sessionId: tab.sessionId });
-  convTabs = convTabs.filter((t) => t.key !== tab.key && t.key !== agent.id);
-  if (bubbleAgent === agent.id) hideBubble(); // sa « dernière réponse » était celle de l'autre session
+  const agent = sentBy(e, conv) && viewAgent();
+  if (!agent || !convView.sessionId || isBusy(agent.id)) return;
+  updateAgent(agent.id, { sessionId: convView.sessionId });
+  agents.forgetReply(agent.id); // sa « dernière réponse » était celle de l'autre session
+  if (bubbleAgent === agent.id) hideBubble();
   openConversation(agent.id);
-  pushAgents();
 });
 
 /* ---- Fenêtre de relecture (avant l'envoi à un agent) ---------------------- */
@@ -1446,7 +1436,7 @@ ipcMain.on('agent:menu', (e, id) => {
     { label: 'Mode', submenu: radio('mode', agents.MODES) },
     { type: 'separator' },
     { label: 'Voir la dernière réponse', enabled: st.hasReply, click: () => showAgentReply(agent) },
-    { label: 'Conversations (en cours et historique)', click: () => openConversation(id) },
+    { label: '⤢ Conversation complète (et historique)', click: () => openConversation(id) },
     { label: 'Interrompre', enabled: busy, click: () => { agents.interrupt(id); pushAgents(); } },
     { label: 'Nouvelle session (effacer le contexte)', click: () => {
       agents.forget(id);
