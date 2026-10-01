@@ -174,7 +174,9 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
     Sous Windows, lire la sélection demanderait un Ctrl+C simulé (qui, dans un
     terminal, interromprait le programme) : collez-la plutôt dans le texte.
 
-  **Ctrl+Entrée** envoie, **Échap** abandonne. Clic droit → *Agents Claude
+  **Ctrl+Entrée** envoie, **Échap** abandonne. Sans parler (micro
+  indisponible, lieu calme) : clic droit sur le robot → *✎ Écrire un message…*
+  ouvre la même fenêtre, vide, à remplir au clavier. Clic droit → *Agents Claude
   Code* → *Relire avant d'envoyer* (décoché) : la dictée part aussitôt, sans
   fenêtre.
 - **Pendant qu'il travaille**, le robot clignote. **« ? »** : il demande une

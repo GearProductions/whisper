@@ -1139,10 +1139,12 @@ function composeBounds() {
   return { x, y: Math.max(a.y, y), width, height };
 }
 
-function openCompose(agent, text) {
+// `text` : la dictée, ou '' pour écrire au clavier (clic droit sur le robot →
+// Écrire un message : sans micro, en toute discrétion).
+function openCompose(agent, text = '') {
   composeAgent = agent.id;
   if (compose) {
-    if (composeReady) compose.webContents.send('compose:append', text);
+    if (!text) { /* rien à ajouter : on remontre le brouillon */ } else if (composeReady) compose.webContents.send('compose:append', text);
     else composeQueue += `${composeQueue ? ' ' : ''}${text}`;
     refreshCompose();
     compose.show();
@@ -1285,6 +1287,9 @@ ipcMain.on('agent:menu', (e, id) => {
   Menu.buildFromTemplate([
     { label: agent.name, enabled: false },
     { label: agent.dir, enabled: false },
+    { type: 'separator' },
+    // Sans parler (micro indisponible, lieu calme) : la fenêtre de relecture, vide.
+    { label: '✎ Écrire un message…', click: () => openCompose(agent) },
     { type: 'separator' },
     { label: 'Couleur du dossier', submenu: AGENT_COLORS.map(([value, label, dot]) => ({
       label: `${dot} ${label}`, type: 'radio', checked: agentColor(agent) === value,
