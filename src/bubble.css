@@ -97,3 +97,22 @@ html, body { margin: 0; background: transparent; overflow: hidden; }
 /* Liens de la réponse d'un agent : ouverts dans le navigateur. */
 #text a { color: #7fb0ff; text-decoration: underline; cursor: pointer; overflow-wrap: anywhere; }
 #text a:hover { color: #a9c8ff; }
+/* Réponse d'un agent : le message qu'on lui avait envoyé, replié sur 3 lignes. */
+#asked {
+  flex: none;
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  border-left: 2px solid #3a4150;
+  border-radius: 2px;
+  color: #8a91a0;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  cursor: pointer;
+}
+#asked.open { -webkit-line-clamp: unset; max-height: 160px; overflow-y: auto; }
+#asked[hidden] { display: none; }

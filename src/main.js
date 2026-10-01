@@ -658,11 +658,22 @@ function permissionText(tool, input) {
   return `${TOOL_LABELS[tool] || tool} :\n${detail.slice(0, PERMISSION_MAX)}${cut}`;
 }
 
+// Ce qu'on avait envoyé, rappelé en tête de la bulle de réponse : le texte
+// dicté, sans le contexte joint, qui est seulement signalé. '' si rien.
+function askedSummary(asked) {
+  if (!asked) return '';
+  const { text, selection: selected, files } = splitComposed(asked.text);
+  const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
+  const joined = [asked.images && plural(asked.images, 'image'), files.length && plural(files.length, 'fichier'),
+    selected && 'la sélection'].filter(Boolean);
+  return [text, joined.length && `(avec ${joined.join(', ')})`].filter(Boolean).join(' ');
+}
+
 function showAgentReply(agent) {
   const reply = agents.lastReply(agent.id);
   if (!reply) return;
   agents.markRead(agent.id);
-  showBubble({ title: agent.name, text: reply.text, color: agentColor(agent) }, 'agent', agent.id);
+  showBubble({ title: agent.name, text: reply.text, color: agentColor(agent), asked: askedSummary(reply.asked) }, 'agent', agent.id);
   pushAgents();
   // Le bouton ▶ de la bulle va sans doute servir : on charge le lecteur d'avance.
   const cfg = loadConfig();

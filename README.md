@@ -183,7 +183,9 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   affichée ; si vous lisez déjà quelque chose (la réponse d'un autre agent…),
   elle ne la remplace pas : cliquez le robot quand vous êtes prêt.
   **Pastille verte** : il a répondu ; un clic ouvre la bulle avec sa réponse
-  (un clic dessus la copie) et un bouton **▶ Écouter**. **⤢** l'agrandit :
+  (un clic dessus la copie) et un bouton **▶ Écouter**. En tête, en gris, le
+  message qu'on lui avait envoyé (replié sur 3 lignes, un clic le déplie) : avec
+  plusieurs agents, on sait à quoi il répond. **⤢** l'agrandit :
   toute la conversation dans la fenêtre des conversations.
 - **Fenêtre des conversations** : une seule fenêtre, **un onglet par
   conversation** (Ctrl+W ou clic du milieu pour en fermer un). Chaque

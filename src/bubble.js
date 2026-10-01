@@ -24,6 +24,7 @@ const title = document.getElementById('title');
 const actions = document.getElementById('actions');
 const expand = document.getElementById('expand');
 const always = document.getElementById('always');
+const asked = document.getElementById('asked');
 const HINT = 'Cliquer pour copier';
 // Boutons montrés par genre de bulle.
 const ACTIONS = { agent: ['speak'], permission: ['allow', 'always', 'deny'] };
@@ -39,6 +40,10 @@ window.bubble.onShow((value, kind, size) => {
   const isVolume = kind === 'volume';
   const rich = kind === 'agent' || kind === 'permission'; // { title, text }
   title.hidden = !rich;
+  // Réponse d'un agent : le message qu'on lui avait envoyé, replié.
+  asked.hidden = !(kind === 'agent' && value.asked);
+  asked.textContent = asked.hidden ? '' : `Vous : ${value.asked}`;
+  asked.classList.remove('open');
   title.textContent = rich ? value.title : '';
   // Réponse d'un agent : ses liens sont cliquables (cf. links.js).
   if (kind === 'agent') text.replaceChildren(linkify(value.text, window.bubble.openLink));
@@ -71,6 +76,14 @@ window.bubble.onShow((value, kind, size) => {
   // Mesure immédiate (getBoundingClientRect force la mise en page), PAS dans un
   // requestAnimationFrame : la bulle est alors cachée, et une page cachée n'en
   // exécute aucun — elle ne s'afficherait qu'à la première dictée.
+  window.bubble.ready(Math.ceil(box.getBoundingClientRect().height) + 8);
+});
+
+// Le message envoyé, replié sur quelques lignes : un clic le déplie (ou le
+// replie), sans copier ; la bulle change de hauteur.
+asked.addEventListener('click', (e) => {
+  e.stopPropagation();
+  asked.classList.toggle('open');
   window.bubble.ready(Math.ceil(box.getBoundingClientRect().height) + 8);
 });
 

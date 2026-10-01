@@ -94,7 +94,7 @@ const isAvailable = (command) => !!launcher(command);
 // id → { status, abort, query, pending, last, unread, onChange }
 //   pending : la file des demandes d'autorisation, la plus ancienne en tête
 //   status : 'idle' | 'working' | 'asking' (attend une autorisation) | 'error'
-//   last   : { text, audio, error } de la dernière réponse
+//   last   : { text, audio, error, asked: { text, images } } de la dernière réponse
 //   query  : la requête du SDK pendant un tour (pour changer de mode, de modèle)
 const runtime = new Map();
 const rt = (id) => {
@@ -176,6 +176,9 @@ async function send(agent, message, { command, instructions = AUDIO_RULES, onCha
 
   r.status = 'working';
   r.name = agent.name;
+  // Le message envoyé, gardé avec la réponse : la bulle le rappelle (plusieurs
+  // agents à la fois, on ne sait plus ce qu'on a demandé à celui-ci).
+  const asked = { text: message.text || '', images: (message.images || []).length };
   r.since = Date.now();
   r.abort = new AbortController();
   r.onChange = onChange;
@@ -259,7 +262,7 @@ async function send(agent, message, { command, instructions = AUDIO_RULES, onCha
   r.since = null;
   r.interrupted = false;
   if (reply !== null) {
-    r.last = splitReply(reply);
+    r.last = { ...splitReply(reply), asked };
     // Dit dans la réponse elle-même qu'une action n'a pas pu être autorisée.
     if (permissionFailures) {
       r.last.text += `\n\n⚠ ${permissionFailures} demande(s) d'autorisation n'ont pas pu aboutir : l'agent n'a pas pu faire ces actions (détails dans le journal des agents).`;
@@ -272,7 +275,7 @@ async function send(agent, message, { command, instructions = AUDIO_RULES, onCha
       error_during_execution: 'L\'agent a rencontré une erreur pendant l\'exécution.',
     };
     const text = messages[failure] || `L'agent n'a pas pu répondre : ${failure || 'erreur inconnue'}.`;
-    r.last = { text, audio: text, error: true };
+    r.last = { text, audio: text, error: true, asked };
     r.status = failure === 'interrupted' ? 'idle' : 'error';
   }
   r.unread = true;
