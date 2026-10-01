@@ -2,7 +2,8 @@ name: CI
 
 # Vérifications à chaque PR et push sur master. Paquets autonomes (exe
 # portable Windows, AppImage Linux) seulement pour une nouvelle version : un
-# tag vX.Y.Z construit les paquets et crée sa Release GitHub avec eux. Lancé à
+# tag vX.Y.Z construit les paquets et crée sa Release GitHub avec eux (un tag
+# vX.Y.Z-rc.N : une pré-version, pour essayer avant la version officielle). Lancé à
 # la main (workflow_dispatch), il construit les paquets sans rien publier
 # (artefacts de l'onglet Actions).
 on:
@@ -133,3 +134,5 @@ jobs:
         with:
           files: paquets/*
           generate_release_notes: true
+          # Version de test (v0.3.0-rc.1…) : pré-version, la « Latest » ne bouge pas.
+          prerelease: ${{ contains(github.ref_name, '-') }}
