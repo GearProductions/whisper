@@ -44,6 +44,7 @@ const chatterbox = require('./chatterbox');
 const selection = require('./selection');
 const agents = require('./agents');
 const windows = require('./windows');
+const kwin = require('./kwin');
 
 // Fenêtre transparente sous Linux (X11) : sans ce drapeau, fond noir.
 if (process.platform === 'linux') app.commandLine.appendSwitch('enable-transparent-visuals');
@@ -1602,6 +1603,9 @@ app.whenReady().then(() => {
   paste.warmUp();
   tts.setDirs({ data: app.getPath('userData'), bin: bundledBinDir() });
   agents.setJournal(journalFile());
+  // KDE : le panneau et la relecture (qui prennent le focus) sur tous les
+  // bureaux, comme l'icône et la bulle (cf. kwin.js).
+  kwin.stickToAllDesktops(app.getPath('userData'));
   // Après le chargement de la bulle, qui affiche la progression.
   bubble.webContents.once('did-finish-load', ensureModel);
 });
@@ -1618,4 +1622,4 @@ app.on('before-quit', (e) => {
   quitting = true;
   Promise.all([mute.restore('others'), mute.restore('discord'), agents.stop()]).finally(() => app.quit());
 });
-app.on('will-quit', () => { windows.stop(); tts.stop(); agents.stop(); });
+app.on('will-quit', () => { windows.stop(); tts.stop(); agents.stop(); kwin.release(); });

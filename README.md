@@ -198,7 +198,10 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   bulle agrandie en un grand panneau **attaché à l'icône**, à sa place. Comme
   elle, il reste au-dessus des autres fenêtres (voir *Toujours au premier
   plan*), sur tous les bureaux virtuels, et **suit l'icône** quand on la
-  déplace : on ne le perd pas. Redimensionnable par ses bords (la taille est
+  déplace : on ne le perd pas. (Sous KDE, l'appli confie à KWin un petit script
+  temporaire qui met le panneau et la relecture sur tous les bureaux : KWin
+  ignore la demande quand elle vient d'une appli X11. Rien n'est écrit dans la
+  configuration ; le script est retiré à la fermeture.) Redimensionnable par ses bords (la taille est
   retenue). **⤡ Réduire** le ramène à la bulle (la dernière réponse) ; **×** le
   ferme. Chaque conversation porte son **intitulé**, celui que lui donne Claude
   Code ; chaque message, son **heure**. Pendant que l'agent travaille, le fil le
