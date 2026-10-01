@@ -11,12 +11,16 @@ C'est la dictée de l'icône compacte de Cockpit, seule.
 - **Glisser** : déplacer l'icône (la position est retenue).
 - **Bouton ▶ accolé** : lire à voix haute le texte sélectionné (ou le presse-papiers), en local avec [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) (Kyutai).
 - **Robots accolés** (optionnels) : des agents [Claude Code](https://claude.com/claude-code), un par dossier de projet, à qui parler par la dictée.
-- **Clic droit** : langue, micro, bip, son des autres applications, collage automatique, affichage du texte, micro Discord, lecture à voix haute, dossier whisper, configuration, version (*À propos*), quitter.
+- **Clic droit** : langue, micro, bip, son des autres applications, collage automatique, premier plan, affichage du texte, micro Discord, lecture à voix haute, dossier whisper, configuration, version (*À propos*), quitter.
 
 À la fin d'une dictée, une bulle montre le texte transcrit à côté de l'icône :
 **un clic dessus le copie** dans le presse-papiers. Elle suit l'icône quand on
 la déplace, se ferme avec sa croix et disparaît seule après 10 s (le survol
 suspend ce délai). Désactivable : clic droit → *Afficher le texte transcrit*.
+
+L'icône, ses bulles et le panneau des conversations restent **au-dessus des
+autres fenêtres**. Pour une vidéo en plein écran : clic droit → décocher
+*Toujours au premier plan* ; ils redeviennent des fenêtres comme les autres.
 
 ![La bulle du texte transcrit, au-dessus de l'icône](docs/bulle.png)
 
@@ -190,9 +194,13 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   plusieurs agents, on sait à quoi il répond. Dicter la suite à ce même agent
   laisse la bulle affichée, pour la relire en répondant ; la fenêtre de
   relecture s'ouvre alors à côté d'elle. **⤢** l'agrandit :
-  toute la conversation dans la fenêtre des conversations.
-- **Fenêtre des conversations** : une seule fenêtre, **un onglet par
-  conversation** (Ctrl+W ou clic du milieu pour en fermer un). Chaque
+  toute la conversation dans le panneau des conversations.
+- **Panneau des conversations** : un grand panneau **attaché à l'icône**, à la
+  place de la bulle. Comme elle, il reste au-dessus des autres fenêtres (voir
+  *Toujours au premier plan*), sur tous les bureaux virtuels, et **suit
+  l'icône** quand on la déplace : on ne le perd pas. Redimensionnable par ses
+  bords (la taille est retenue) ; sa croix le masque sans fermer les onglets.
+  **Un onglet par conversation** (Ctrl+W ou clic du milieu pour en fermer un). Chaque
   conversation porte son **intitulé**, celui que lui donne Claude Code ; chaque
   message, son **heure**. Pendant que l'agent travaille, le fil le suit et
   l'anime (avec le temps écoulé). Les **liens** s'ouvrent dans le navigateur
@@ -204,25 +212,26 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   conversation s'ouvre dans un onglet, en lecture seule ; *Reprendre cette
   conversation* en refait la session en cours de l'agent — celle qu'elle
   remplace reste dans l'historique, comme après *Nouvelle session*.
-- **Champ de saisie** au bas de la fenêtre : écrire à l'agent de l'onglet
-  affiché, sans micro (**Entrée** envoie, **Maj+Entrée** va à la ligne ; un
-  brouillon par onglet). **📎** passe le texte dans la fenêtre de relecture,
-  pour y joindre images, fichiers ou sélection. Pendant que l'agent travaille,
-  on écrit mais on n'envoie pas.
+- **Champ de saisie** au bas du panneau : écrire à l'agent de l'onglet affiché
+  (**Entrée** envoie, **Maj+Entrée** va à la ligne ; un brouillon par onglet,
+  pièces jointes comprises). Panneau ouvert, **la dictée y arrive** au lieu
+  d'ouvrir la fenêtre de relecture : on la relit, la complète, l'envoie.
+  **Pièces jointes** directement dans le champ : glisser-déposer ou **Ctrl+V**
+  (images envoyées à Claude, autres fichiers par leur chemin) ; **📎** : choisir
+  des images ou fichiers, ou joindre le texte sélectionné (aperçu dans le menu).
+  Pendant que l'agent travaille, on écrit mais on n'envoie pas.
 - **Robot et onglet vont ensemble** : changer d'onglet sélectionne son agent
-  (la dictée lui ira) ; fenêtre montrée, cliquer un robot affiche son onglet
+  (la dictée lui ira) ; panneau montré, cliquer un robot affiche son onglet
   (ouvert au besoin) ; ouvrir une conversation depuis une bulle sélectionne
   l'agent. Un second clic sur le robot sélectionné rend la dictée au curseur.
-- **Mode conversation** : tant que l'onglet d'un agent est ouvert (fenêtre
-  montrée, pas réduite), ses notifications passent par la fenêtre, pas par le
-  robot ni la bulle. Réponse de l'onglet affiché : lue d'office, ni pastille ni
-  bip. Réponse d'un autre onglet : l'onglet est marqué (pastille verte), le bip
-  sonne, le robot reste sans pastille ; ouvrir l'onglet la marque lue. Demande
+- **Mode conversation** : panneau ouvert, il tient lieu de bulle (aucune bulle
+  ne s'affiche par-dessus). Réponse de l'onglet affiché : lue d'office, ni
+  pastille ni bip. Réponse d'un autre agent : pastille sur son **robot** (et sur
+  son onglet s'il en a un), bip ; ouvrir l'onglet la marque lue. Demande
   d'autorisation : dans le fil de son onglet, avec les mêmes boutons que la
-  bulle (l'onglet affiche « ? » s'il n'est pas affiché). Un clic sur le robot
-  ouvre son onglet. Fenêtre au second plan : elle se signale dans la barre des
-  tâches. Fenêtre fermée ou réduite, onglet fermé : retour à la pastille et à
-  la bulle, et une demande en attente s'y affiche.
+  bulle (« ? » sur l'onglet s'il n'est pas affiché, et sur le robot). Un clic
+  sur le robot ouvre son onglet. Panneau masqué, onglet fermé : retour à la
+  bulle, et une demande en attente s'y affiche.
 - **Clic droit sur un robot** : couleur du dossier, modèle, effort, mode
   (manuel, accepter les modifications de fichiers, auto, plan), dernière
   réponse, **conversations** (en cours et historique), interrompre, *Nouvelle
@@ -327,6 +336,8 @@ s'affiche le temps de l'enregistrement, une fois la coupure confirmée.
 | `agents`     | Les agents : dossier, nom, modèle, effort, mode, session (gérés par l'appli ; `name` se modifie ici) |
 | `agentFolders` | Dossiers favoris proposés par « + », chacun avec sa couleur    |
 | `agentReview` | Relire (et joindre du contexte) avant d'envoyer à un agent ; `false` : envoi direct |
+| `onTop`      | Icône, bulles et panneau au-dessus des autres fenêtres            |
+| `convSize`   | Taille du panneau des conversations (retenue au redimensionnement) |
 | `muteOthers` | Couper le son des autres applications pendant l'enregistrement   |
 | `autoPaste`  | Coller le texte là où est le curseur ; `false` : il reste dans le presse-papiers |
 | `showText`   | Bulle du texte transcrit à la fin d'une dictée                    |

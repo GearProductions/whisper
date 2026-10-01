@@ -1,8 +1,8 @@
 /* =========================================================================
    Whisper — les conversations des agents, en onglets
 
-   Une fenêtre classique (redimensionnable, déplaçable), un onglet par
-   conversation ouverte : la session en cours d'un agent, ou une ancienne
+   Un panneau attaché à l'icône (il la suit ; sa croix le masque), un onglet
+   par conversation ouverte : la session en cours d'un agent, ou une ancienne
    session de son dossier, ouverte depuis l'historique (lecture seule, à
    reprendre au besoin). Chaque conversation porte son intitulé, celui que
    Claude Code lui donne. Le principal envoie onglets et fil (`conv:thread`) à
@@ -22,6 +22,7 @@ const composer = document.getElementById('composer');
 const message = document.getElementById('message');
 const sendButton = document.getElementById('send');
 const composerStatus = document.getElementById('composer-status');
+const piecesBox = document.getElementById('pieces');
 const archived = document.getElementById('archived');
 const resume = document.getElementById('resume');
 const history = document.getElementById('history');
@@ -209,18 +210,108 @@ window.conv.onThread((data) => {
 
 /* ---- Champ de saisie -------------------------------------------------------- */
 
-// Écrire à l'agent de l'onglet affiché, sans micro. Un brouillon par onglet ;
-// pendant que l'agent travaille, on peut écrire, pas envoyer.
+// Écrire à l'agent de l'onglet affiché — au clavier, ou par la dictée, qui
+// arrive ici quand le panneau est ouvert sur cet agent. Un brouillon par onglet
+// (texte et pièces jointes) ; pendant que l'agent travaille, on peut écrire,
+// pas envoyer.
+//
+// Pièces jointes : glisser-déposer ou Ctrl+V (images envoyées à Claude, autres
+// fichiers par leur chemin), ou 📎 (fichiers à choisir, texte sélectionné).
+//   { kind: 'image', name, type, data, url } | { kind: 'file', name, path }
+//   | { kind: 'selection', text, cut }
+const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 const drafts = new Map();
+let pieces = [];
 let composerTab = null;
 let sending = false;
 
 function swapDraft(from, to) {
-  if (from) drafts.set(from, message.value);
-  message.value = drafts.get(to) || '';
+  if (from) drafts.set(from, { text: message.value, pieces });
+  const d = drafts.get(to) || { text: '', pieces: [] };
+  message.value = d.text;
+  pieces = d.pieces;
+  renderPieces();
   composerStatus.textContent = '';
   autoSize();
 }
+
+function renderPieces() {
+  piecesBox.replaceChildren(...pieces.map((p) => {
+    const el = document.createElement('div');
+    el.className = 'piece';
+    if (p.kind === 'image') el.append(Object.assign(document.createElement('img'), { src: p.url, alt: '' }));
+    const label = p.kind === 'selection' ? `❝ Sélection (${p.text.length.toLocaleString('fr-FR')} car.${p.cut ? ', coupée' : ''})`
+      : p.kind === 'file' ? `${kindOf(p.path)} ${p.name}` : p.name;
+    el.append(Object.assign(document.createElement('span'), { textContent: label }));
+    el.title = p.kind === 'selection' ? p.text.slice(0, 600) : p.path || p.name;
+    const remove = Object.assign(document.createElement('button'), { type: 'button', className: 'remove', textContent: '×', title: 'Retirer' });
+    remove.addEventListener('click', () => {
+      pieces = pieces.filter((x) => x !== p);
+      if (p.url) URL.revokeObjectURL(p.url);
+      renderPieces();
+    });
+    el.append(remove);
+    return el;
+  }));
+}
+
+// Fichiers collés ou déposés. Une image collée n'a pas de chemin : elle part
+// en image ; un autre fichier sans chemin ne peut pas être joint.
+async function addFiles(files) {
+  if (composer.hidden) return; // ancienne conversation : rien à envoyer
+  composerStatus.textContent = '';
+  for (const file of files) {
+    if (IMAGE_TYPES.includes(file.type)) {
+      pieces.push({ kind: 'image', name: file.name || 'image collée', type: file.type, data: await file.arrayBuffer(), url: URL.createObjectURL(file) });
+      continue;
+    }
+    const filePath = window.conv.pathFor(file);
+    if (!filePath) composerStatus.textContent = `${file.name || 'Fichier'} : impossible à joindre ici, déposez-le depuis le gestionnaire de fichiers.`;
+    else if (!pieces.some((p) => p.path === filePath)) pieces.push({ kind: 'file', name: file.name, path: filePath });
+  }
+  renderPieces();
+}
+
+window.conv.onAttached((what) => {
+  if (what.selection) pieces = [...pieces.filter((p) => p.kind !== 'selection'), { kind: 'selection', ...what.selection }];
+  for (const f of what.files || []) {
+    if (!pieces.some((p) => p.path === f)) pieces.push({ kind: 'file', name: f.split('/').pop() || f, path: f });
+  }
+  renderPieces();
+  message.focus();
+});
+
+// Du texte collé va dans le champ ; des images ou fichiers, en pièces jointes.
+message.addEventListener('paste', (e) => {
+  const files = [...((e.clipboardData && e.clipboardData.files) || [])];
+  if (!files.length) return;
+  e.preventDefault();
+  addFiles(files);
+});
+
+// Tout le panneau accepte le dépôt (le champ s'allume). Sans preventDefault, un
+// fichier lâché remplacerait la page ; du texte lâché dans le champ s'y insère.
+let dragDepth = 0;
+const dragging = (on) => document.body.classList.toggle('dragging', on && !composer.hidden);
+document.addEventListener('dragenter', () => { dragDepth += 1; dragging(true); });
+document.addEventListener('dragleave', () => { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) dragging(false); });
+document.addEventListener('dragover', (e) => e.preventDefault());
+document.addEventListener('drop', (e) => {
+  dragDepth = 0;
+  dragging(false);
+  const files = [...e.dataTransfer.files];
+  if (files.length || e.target !== message) e.preventDefault();
+  if (files.length) addFiles(files);
+});
+
+// La dictée, panneau ouvert sur cet agent : ajoutée au champ, à relire.
+window.conv.onDictation((text) => {
+  message.value += `${message.value && !/\s$/.test(message.value) ? ' ' : ''}${text}`;
+  autoSize();
+  message.focus();
+  message.setSelectionRange(message.value.length, message.value.length);
+});
+window.conv.onFocusInput(() => message.focus());
 
 function renderComposer(tab) {
   composerTab = tab;
@@ -240,14 +331,23 @@ function autoSize() {
 
 async function sendMessage() {
   const text = message.value.trim();
-  if (!text || sending || !composerTab || BUSY.includes(composerTab.status)) return;
+  if ((!text && !pieces.length) || sending || !composerTab || BUSY.includes(composerTab.status)) return;
   sending = true;
   renderComposer(composerTab);
+  const draft = {
+    text,
+    images: pieces.filter((p) => p.kind === 'image').map(({ name, type, data }) => ({ name, type, data })),
+    files: pieces.filter((p) => p.kind === 'file').map((p) => p.path),
+    selection: (pieces.find((p) => p.kind === 'selection') || {}).text || '',
+  };
   let res;
-  try { res = await window.conv.send(text); } catch { res = null; }
+  try { res = await window.conv.send(draft); } catch { res = null; }
   sending = false;
   if (res && res.ok) {
     message.value = '';
+    for (const p of pieces) if (p.url) URL.revokeObjectURL(p.url);
+    pieces = [];
+    renderPieces();
     drafts.delete(shownKey);
     composerStatus.textContent = '';
     autoSize();
@@ -264,12 +364,8 @@ message.addEventListener('keydown', (e) => {
 });
 sendButton.addEventListener('click', sendMessage);
 autoSize();
-document.getElementById('attach').addEventListener('click', () => {
-  window.conv.compose(message.value);
-  message.value = '';
-  drafts.delete(shownKey);
-  autoSize();
-});
+document.getElementById('attach').addEventListener('click', () => window.conv.attach());
+document.getElementById('hide').addEventListener('click', () => window.conv.hide());
 
 /* ---- Historique du dossier ----------------------------------------------- */
 

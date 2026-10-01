@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data:">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data: blob:">
   <title>Whisper — conversations</title>
   <link rel="stylesheet" href="scroll.css">
   <link rel="stylesheet" href="conversation.css">
@@ -16,6 +16,7 @@
       <div id="sub"></div>
     </div>
     <button id="history-button" type="button" title="Les conversations passées de ce dossier">🕘 Historique</button>
+    <button id="hide" type="button" title="Masquer le panneau (les onglets sont gardés)" aria-label="Masquer">×</button>
   </header>
   <div id="archived" hidden>
     <span>Ancienne conversation : en lecture seule.</span>
@@ -26,8 +27,9 @@
     <aside id="history" class="scroll" hidden></aside>
   </div>
   <footer id="composer" hidden>
+    <div id="pieces"></div>
     <div id="composer-row">
-      <button id="attach" type="button" title="Joindre images, fichiers ou sélection : ouvre la fenêtre de relecture avec ce texte">📎</button>
+      <button id="attach" type="button" title="Joindre des images, des fichiers ou le texte sélectionné (aussi : glisser-déposer, Ctrl+V)">📎</button>
       <textarea id="message" class="scroll" rows="1" placeholder="Écrire un message… (Entrée : envoyer, Maj+Entrée : à la ligne)"></textarea>
       <button id="send" type="button" title="Envoyer (Entrée)">Envoyer</button>
     </div>
