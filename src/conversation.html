@@ -2,29 +2,48 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'">
-  <title>Whisper — conversation</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data:">
+  <title>Whisper — conversations</title>
   <link rel="stylesheet" href="scroll.css">
   <link rel="stylesheet" href="conversation.css">
 </head>
 <body>
+  <nav id="tabs" class="scroll"></nav>
   <header>
     <span id="dot"></span>
-    <div>
-      <div id="name"></div>
-      <div id="dir"></div>
+    <div id="heading">
+      <div id="title"></div>
+      <div id="sub"></div>
     </div>
+    <button id="history-button" type="button" title="Les conversations passées de ce dossier">🕘 Historique</button>
   </header>
-  <main id="thread" class="scroll"></main>
-  <footer id="status" hidden></footer>
+  <div id="archived" hidden>
+    <span>Ancienne conversation : en lecture seule.</span>
+    <button id="resume" type="button">Reprendre cette conversation</button>
+  </div>
+  <div id="body">
+    <main id="thread" class="scroll"></main>
+    <aside id="history" class="scroll" hidden></aside>
+  </div>
+  <div id="lightbox" hidden><img alt=""></div>
+  <template id="tab-template">
+    <div class="tab" role="tab">
+      <span class="tab-dot"></span>
+      <span class="tab-title"></span>
+      <button class="tab-close" type="button" title="Fermer l'onglet" aria-label="Fermer l'onglet">×</button>
+    </div>
+  </template>
   <template id="message-template">
     <article class="message">
       <div class="who"></div>
       <div class="tools"></div>
       <div class="body"></div>
+      <details class="context" hidden><summary></summary><pre></pre></details>
+      <div class="attachments"></div>
       <button class="listen" type="button">▶ Écouter</button>
     </article>
   </template>
+  <script src="links.js"></script>
   <script src="conversation.js"></script>
 </body>
 </html>

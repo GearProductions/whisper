@@ -94,3 +94,6 @@ html, body { margin: 0; background: transparent; overflow: hidden; }
 #act-allow, #act-always { border-color: #2fa36b; }
 #act-deny { border-color: #d9383a; }
 #bubble.permission, #bubble.permission:hover { cursor: default; border-color: #e0a23b; }
+/* Liens de la réponse d'un agent : ouverts dans le navigateur. */
+#text a { color: #7fb0ff; text-decoration: underline; cursor: pointer; overflow-wrap: anywhere; }
+#text a:hover { color: #a9c8ff; }

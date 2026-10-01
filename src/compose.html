@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src blob:">
+  <title>Whisper — message</title>
+  <link rel="stylesheet" href="scroll.css">
+  <link rel="stylesheet" href="compose.css">
+</head>
+<body>
+  <header>
+    <span id="dot"></span>
+    <div>
+      <div id="name"></div>
+      <div id="dir"></div>
+    </div>
+  </header>
+  <main>
+    <textarea id="text" class="scroll" spellcheck="true" aria-label="Message"></textarea>
+    <section id="selection" hidden>
+      <div class="row">
+        <label><input id="with-selection" type="checkbox"> <span id="selection-label"></span></label>
+        <button id="reread" type="button" title="Relire ce qui est sélectionné maintenant, dans n'importe quelle application">↻ Relire la sélection</button>
+      </div>
+      <pre id="selection-text" class="scroll" hidden></pre>
+    </section>
+    <section id="attachments">
+      <div id="drop-hint">Images ou fichiers : glissez-les ici, ou collez-les (Ctrl+V).</div>
+      <div id="list"></div>
+    </section>
+  </main>
+  <footer>
+    <span id="status"></span>
+    <button id="cancel" type="button" title="Abandonner ce message (Échap)">Annuler</button>
+    <button id="send" type="button" title="Envoyer à l'agent (Ctrl+Entrée)">Envoyer</button>
+  </footer>
+  <script src="compose.js"></script>
+</body>
+</html>

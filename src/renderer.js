@@ -185,7 +185,7 @@ async function stopDictation() {
     const res = await window.api.transcribe(toPcm(rec.chunks, rec.length).buffer);
     if (!res || !res.ok) { setPhase('error', (res && res.error) || 'La transcription a échoué.'); return; }
     if (!res.text) { setPhase('idle', 'Aucune parole détectée.'); return; }
-    if (res.agent) { setPhase('idle', `Envoyé à ${res.agent}.`); return; }
+    if (res.agent) { setPhase('idle', res.review ? `À relire avant l'envoi à ${res.agent}.` : `Envoyé à ${res.agent}.`); return; }
     // Pas collé : soit le collage automatique est désactivé, soit il a échoué.
     const notPasted = res.autoPaste === false ? 'Texte dans le presse-papiers : Ctrl+V pour le coller.'
       : 'Collage impossible : le texte est dans le presse-papiers.';

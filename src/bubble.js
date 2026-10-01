@@ -40,7 +40,9 @@ window.bubble.onShow((value, kind, size) => {
   const rich = kind === 'agent' || kind === 'permission'; // { title, text }
   title.hidden = !rich;
   title.textContent = rich ? value.title : '';
-  text.textContent = isVolume ? 'Volume de lecture' : rich ? value.text : value;
+  // Réponse d'un agent : ses liens sont cliquables (cf. links.js).
+  if (kind === 'agent') text.replaceChildren(linkify(value.text, window.bubble.openLink));
+  else text.textContent = isVolume ? 'Volume de lecture' : rich ? value.text : value;
   // « Toujours autoriser » : seulement s'il y a quelque chose à accorder, et en
   // disant quoi.
   const rules = (kind === 'permission' && value.always) || [];
