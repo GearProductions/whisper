@@ -1,9 +1,8 @@
 /* La fenêtre EST la bulle : fond transparent, la bulle la remplit. */
 html, body { margin: 0; background: transparent; overflow: hidden; }
 
-/* En colonne : le titre et le pied (boutons, « Cliquer pour copier ») restent
-   en place, seul le texte défile. Largeur et hauteur maximale viennent du
-   principal, selon le genre de bulle (cf. bubble.js). */
+/* En colonne : le pied (« Cliquer pour copier », volume) reste en place, seul
+   le texte défile. Largeur et hauteur maximale viennent du principal. */
 #bubble {
   --accent: #a78bfa;
   display: flex;
@@ -30,8 +29,7 @@ html, body { margin: 0; background: transparent; overflow: hidden; }
   overflow-wrap: anywhere;
   padding-right: 14px; /* place de la croix */
 }
-#title, #volume, #actions, #always, #hint { flex: none; }
-#always { margin-top: 6px; font-size: 11px; opacity: 0.7; overflow-wrap: anywhere; }
+#volume, #hint { flex: none; }
 /* La croix : posée sur le coin de la bulle, hors de la zone qui défile. */
 #close {
   position: absolute;
@@ -47,23 +45,7 @@ html, body { margin: 0; background: transparent; overflow: hidden; }
   font: 14px/18px system-ui, sans-serif;
   cursor: pointer;
 }
-#close:hover, #expand:hover { background: #3a4150; color: #e6e8ee; }
-/* Agrandir (réponse d'un agent) : à gauche de la croix, même allure. */
-#expand {
-  position: absolute;
-  top: 8px;
-  right: 32px;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: #8a91a0;
-  font: 13px/18px system-ui, sans-serif;
-  cursor: pointer;
-}
-#expand[hidden] { display: none; }
+#close:hover { background: #3a4150; color: #e6e8ee; }
 #hint { margin-top: 6px; font-size: 11px; color: #8a91a0; }
 #bubble.copied { border-color: #2fa36b; }
 /* Notice (« Micro Discord coupé ») : pas cliquable, bordure aux couleurs de Discord. */
@@ -77,42 +59,3 @@ html, body { margin: 0; background: transparent; overflow: hidden; }
 #volume[hidden] { display: none; }
 #volume-range { flex: 1; accent-color: #3b6fe0; cursor: pointer; }
 #volume-value { min-width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; color: #8a91a0; }
-/* Agents Claude Code : nom de l'agent, boutons d'action. */
-#title { margin-bottom: 4px; padding-right: 40px; font-size: 11px; font-weight: 600; color: var(--accent); }
-#title[hidden], #actions[hidden], #actions button[hidden] { display: none; }
-#actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-#actions button {
-  padding: 3px 10px;
-  border-radius: 6px;
-  border: 1px solid #3a4150;
-  background: #2a3142;
-  color: #e6e8ee;
-  font: 12px/1.4 system-ui, sans-serif;
-  cursor: pointer;
-}
-#actions button:hover { border-color: var(--accent); }
-#act-allow, #act-always { border-color: #2fa36b; }
-#act-deny { border-color: #d9383a; }
-#bubble.permission, #bubble.permission:hover { cursor: default; border-color: #e0a23b; }
-/* Liens de la réponse d'un agent : ouverts dans le navigateur. */
-#text a { color: #7fb0ff; text-decoration: underline; cursor: pointer; overflow-wrap: anywhere; }
-#text a:hover { color: #a9c8ff; }
-/* Réponse d'un agent : le message qu'on lui avait envoyé, replié sur 3 lignes. */
-#asked {
-  flex: none;
-  margin-bottom: 8px;
-  padding: 4px 8px;
-  border-left: 2px solid #3a4150;
-  border-radius: 2px;
-  color: #8a91a0;
-  font-size: 12px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  overflow: hidden;
-  cursor: pointer;
-}
-#asked.open { -webkit-line-clamp: unset; max-height: 160px; overflow-y: auto; }
-#asked[hidden] { display: none; }

@@ -2,45 +2,52 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data:">
-  <title>Whisper — conversations</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data: blob:">
+  <title>Whisper — conversation</title>
   <link rel="stylesheet" href="scroll.css">
   <link rel="stylesheet" href="conversation.css">
 </head>
 <body>
-  <nav id="tabs" class="scroll"></nav>
   <header>
     <span id="dot"></span>
     <div id="heading">
       <div id="title"></div>
       <div id="sub"></div>
     </div>
+    <button id="context-button" type="button" title="Contexte utilisé : cliquer pour le détail">
+      <svg viewBox="0 0 36 36" aria-hidden="true"><circle class="ring-bg" cx="18" cy="18" r="15"/><circle class="ring" cx="18" cy="18" r="15"/></svg>
+      <span id="context-label">Contexte</span>
+    </button>
     <button id="history-button" type="button" title="Les conversations passées de ce dossier">🕘 Historique</button>
+    <button id="mode" type="button"></button>
+    <button id="hide" type="button" title="Fermer" aria-label="Fermer">×</button>
   </header>
+  <div id="notice" hidden>
+    <span id="notice-text"></span>
+    <button id="notice-copy" type="button" title="Copier ce texte">Copier</button>
+    <button id="notice-close" type="button" title="Fermer" aria-label="Fermer">×</button>
+  </div>
   <div id="archived" hidden>
     <span>Ancienne conversation : en lecture seule.</span>
+    <button id="current" type="button">← Conversation en cours</button>
     <button id="resume" type="button">Reprendre cette conversation</button>
   </div>
   <div id="body">
     <main id="thread" class="scroll"></main>
     <aside id="history" class="scroll" hidden></aside>
+    <aside id="context-panel" class="scroll" hidden></aside>
   </div>
   <footer id="composer" hidden>
+    <div id="slash" class="scroll" hidden></div>
+    <div id="pieces"></div>
     <div id="composer-row">
-      <button id="attach" type="button" title="Joindre images, fichiers ou sélection : ouvre la fenêtre de relecture avec ce texte">📎</button>
+      <button id="attach" type="button" title="Joindre des images, des fichiers ou le texte sélectionné (aussi : glisser-déposer, Ctrl+V)">📎</button>
       <textarea id="message" class="scroll" rows="1" placeholder="Écrire un message… (Entrée : envoyer, Maj+Entrée : à la ligne)"></textarea>
       <button id="send" type="button" title="Envoyer (Entrée)">Envoyer</button>
     </div>
     <div id="composer-status"></div>
   </footer>
   <div id="lightbox" hidden><img alt=""></div>
-  <template id="tab-template">
-    <div class="tab" role="tab">
-      <span class="tab-dot"></span>
-      <span class="tab-title"></span>
-      <button class="tab-close" type="button" title="Fermer l'onglet" aria-label="Fermer l'onglet">×</button>
-    </div>
-  </template>
   <template id="permission-template">
     <article class="permission">
       <div class="permission-title"></div>
