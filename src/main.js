@@ -237,9 +237,11 @@ function scheduleHide(ms) {
 const BUBBLE_STAYS = new Set(['agent', 'permission']);
 function showBubble(text, kind = 'text', agentId = null) {
   if (!bubble || !win) return;
-  // Panneau des conversations ouvert : il tient lieu de bulle (même place, en
-  // plus grand) ; ses robots et ses onglets signalent ce qui arrive.
-  if (conversationShown() && kind !== 'volume') return;
+  // Panneau des conversations ouvert : il tient lieu de bulle pour les agents
+  // (réponses, autorisations : le panneau et les robots les signalent). Le
+  // reste — le texte dicté pour ailleurs, à copier ; les messages de l'appli —
+  // s'affiche à côté du panneau (cf. placeBubble).
+  if (conversationShown() && BUBBLE_STAYS.has(kind)) return;
   bubbleKind = kind;
   bubbleAgent = agentId;
   bubbleText = kind === 'text' ? text : kind === 'agent' ? text.text : '';
@@ -257,6 +259,21 @@ function placeBubble() {
   x = Math.max(a.x, Math.min(a.x + a.width - width, x));
   let y = icon.y - bubbleH - BUBBLE_GAP;
   if (y < a.y) y = Math.min(icon.y + icon.height + BUBBLE_GAP, a.y + a.height - bubbleH);
+  // Panneau des conversations ouvert (il occupe cette place) : de l'autre côté
+  // de l'icône s'il y a la place, sinon à gauche ou à droite du panneau.
+  if (conversationShown()) {
+    const p = conv.getBounds();
+    const overlaps = (bx, by) => bx < p.x + p.width && p.x < bx + width && by < p.y + p.height && p.y < by + bubbleH;
+    if (overlaps(x, y)) {
+      const below = icon.y + icon.height + BUBBLE_GAP;
+      const above = icon.y - bubbleH - BUBBLE_GAP;
+      const side = Math.max(a.y, Math.min(a.y + a.height - bubbleH, p.y + p.height - bubbleH)); // bas aligné sur le panneau
+      if (below + bubbleH <= a.y + a.height && !overlaps(x, below)) y = below;
+      else if (above >= a.y && !overlaps(x, above)) y = above;
+      else if (p.x - BUBBLE_GAP - width >= a.x) { x = p.x - BUBBLE_GAP - width; y = side; }
+      else if (p.x + p.width + BUBBLE_GAP + width <= a.x + a.width) { x = p.x + p.width + BUBBLE_GAP; y = side; }
+    }
+  }
   bubble.setBounds({ x, y, width, height: bubbleH });
 }
 
@@ -303,8 +320,8 @@ ipcMain.handle('win:getBounds', () => (win ? win.getBounds() : null));
 ipcMain.on('win:setPosition', (_e, x, y) => {
   if (!win) return;
   win.setBounds({ x: Math.round(x), y: Math.round(y), width: winWidth(), height: winSize });
+  if (conversationShown()) placeConversation(); // d'abord le panneau : la bulle se place d'après lui
   if (bubble && bubble.isVisible()) placeBubble();
-  if (conversationShown()) placeConversation();
 });
 ipcMain.on('win:savePosition', (_e, x, y) => saveConfig({ pos: { x: Math.round(x), y: Math.round(y) } }));
 

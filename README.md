@@ -219,8 +219,9 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   Claude, autres fichiers par leur chemin) ; **📎** : choisir des images ou
   fichiers, ou joindre le texte sélectionné (aperçu dans le menu). Pendant que
   l'agent travaille, on écrit mais on n'envoie pas.
-- **Panneau ouvert**, il tient lieu de bulle (aucune bulle ne s'affiche
-  par-dessus). Réponse de l'agent affiché : lue d'office, ni pastille ni bip ;
+- **Panneau ouvert**, il tient lieu de bulle pour les agents. Le texte dicté
+  pour ailleurs (robot désélectionné) garde sa bulle, à copier, placée à côté
+  du panneau. Réponse de l'agent affiché : lue d'office, ni pastille ni bip ;
   sa demande d'autorisation : dans le fil, avec les mêmes boutons que la bulle.
   Les autres agents signalent les leurs sur leur **robot** (pastille, « ? ») :
   un clic affiche leur conversation. Panneau réduit ou fermé : retour à la
