@@ -4,7 +4,9 @@
    Un panneau attaché à l'icône (il la suit ; × le ferme), une conversation à
    la fois — celle du robot sélectionné, les robots servant d'onglets. Deux
    tailles : réduit (⤡), le dernier échange, à la hauteur de son contenu ;
-   agrandi (⤢), tout le fil et l'historique. Dans les deux, le champ de saisie. Sa session en cours, ou une
+   agrandi (⤢), tout le fil et l'historique. Dans les deux, le champ de saisie,
+   où « / » propose les commandes de Claude Code (/compact, skills…), et la
+   jauge du contexte (un clic : son détail). Sa session en cours, ou une
    ancienne session de son dossier, ouverte depuis l'historique (lecture seule,
    à reprendre au besoin). Chaque conversation porte son intitulé, celui que
    Claude Code lui donne. Le principal envoie la conversation (`conv:thread`) à
@@ -32,7 +34,11 @@ const header = document.querySelector('header');
 const notice = document.getElementById('notice');
 const noticeText = document.getElementById('notice-text');
 const noticeCopy = document.getElementById('notice-copy');
+const contextButton = document.getElementById('context-button');
+const contextPanel = document.getElementById('context-panel');
+const slashBox = document.getElementById('slash');
 let mode = 'compact';
+let current = null; // la conversation affichée (données du dernier rendu)
 let shownCount = 0; // messages de la conversation au dernier rendu
 
 const BUSY = ['working', 'asking'];
@@ -124,6 +130,21 @@ function renderPermission(p) {
   return el;
 }
 
+// Ce que l'agent a fait pendant le tour. Au-delà de TOOLS_SHOWN actions, les
+// dernières seulement ; les autres, à déplier.
+const TOOLS_SHOWN = 6;
+const openTools = new Set();
+function renderTools(el, tools, index) {
+  const line = (t) => Object.assign(document.createElement('div'), { textContent: t });
+  if (tools.length <= TOOLS_SHOWN) { el.replaceChildren(...tools.map(line)); return; }
+  const more = document.createElement('details');
+  more.append(Object.assign(document.createElement('summary'), { textContent: `${tools.length - TOOLS_SHOWN} actions de plus` }),
+    ...tools.slice(0, -TOOLS_SHOWN).map(line));
+  more.open = openTools.has(index);
+  more.addEventListener('toggle', () => { if (more.open) openTools.add(index); else openTools.delete(index); });
+  el.replaceChildren(more, ...tools.slice(-TOOLS_SHOWN).map(line));
+}
+
 const openDetails = new Set(); // contextes dépliés, par rang : gardés d'un rendu à l'autre
 
 // Réduit : la hauteur de son contenu, que le principal donne au panneau. Le fil
@@ -133,9 +154,10 @@ function reportHeight() {
   if (mode !== 'compact') return;
   setTimeout(() => {
     const fixed = [header, notice, archived, composer].reduce((h, el) => h + (el.hidden ? 0 : el.offsetHeight), 0);
+    const panel = contextPanel.hidden ? 0 : Math.min(contextPanel.scrollHeight, 360); // le détail du contexte, s'il est ouvert
     const top = thread.getBoundingClientRect().top - thread.scrollTop;
     const bottom = Math.max(top, ...[...thread.children].map((c) => c.getBoundingClientRect().bottom + parseFloat(getComputedStyle(c).marginBottom)));
-    window.conv.height(fixed + (bottom - top) + 16 + 2); // marge basse du fil, bordure
+    window.conv.height(fixed + Math.max(bottom - top + 16, panel) + 2); // marge basse du fil, bordure
   }, 0);
 }
 
@@ -153,6 +175,8 @@ window.conv.onThread((data) => {
   resume.disabled = BUSY.includes(tab.status);
   resume.title = resume.disabled ? `${tab.name} travaille : attendez qu'il ait fini.`
     : `${tab.name} reprend cette conversation ; celle en cours reste dans l'historique.`;
+  current = data;
+  renderGauge(data.context);
   mode = data.mode;
   const compact = mode === 'compact';
   document.body.dataset.mode = mode;
@@ -165,7 +189,7 @@ window.conv.onThread((data) => {
   if (switched) swapDraft(shownKey, data.key);
   shownKey = data.key;
   renderComposer(tab);
-  if (switched) { history.hidden = true; openDetails.clear(); }
+  if (switched) { history.hidden = true; contextPanel.hidden = true; openDetails.clear(); openTools.clear(); }
   const atEnd = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 40;
   const grew = data.messages.length !== shownCount;
   shownCount = data.messages.length;
@@ -176,7 +200,8 @@ window.conv.onThread((data) => {
     const el = template.content.firstElementChild.cloneNode(true);
     el.classList.add(m.role);
     const who = el.querySelector('.who');
-    who.textContent = m.role === 'user' ? 'Vous' : tab.name;
+    who.textContent = m.role === 'user' ? 'Vous' : m.role === 'system'
+      ? (m.kind === 'compact' ? 'Contexte compacté' : 'Sortie de la commande') : tab.name;
     if (m.time) {
       who.append(Object.assign(document.createElement('time'), {
         textContent: clock(m.time), title: new Date(m.time).toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'medium' }),
@@ -184,6 +209,13 @@ window.conv.onThread((data) => {
     }
     renderBody(el.querySelector('.body'), m.text);
     el.querySelector('.body').hidden = !m.text;
+    // Le résumé laissé par une compaction : long, à déplier.
+    if (m.kind === 'compact') {
+      const more = document.createElement('details');
+      more.append(Object.assign(document.createElement('summary'), { textContent: 'Résumé de la conversation précédente' }));
+      more.append(el.querySelector('.body'));
+      el.querySelector('.who').after(more);
+    }
     const context = el.querySelector('.context');
     context.hidden = !m.context;
     if (m.context) {
@@ -193,7 +225,7 @@ window.conv.onThread((data) => {
       context.addEventListener('toggle', () => { if (context.open) openDetails.add(index); else openDetails.delete(index); });
     }
     renderAttachments(el.querySelector('.attachments'), m);
-    el.querySelector('.tools').replaceChildren(...(m.tools || []).map((t) => Object.assign(document.createElement('div'), { textContent: t })));
+    renderTools(el.querySelector('.tools'), m.tools || [], index);
     const listen = el.querySelector('.listen');
     listen.hidden = m.role !== 'assistant' || !m.audio;
     listen.addEventListener('click', () => window.conv.speak(index));
@@ -218,6 +250,162 @@ window.conv.onThread((data) => {
 
 // ⤢ / ⤡
 modeButton.addEventListener('click', () => window.conv.setMode(mode === 'compact' ? 'full' : 'compact'));
+
+/* ---- Contexte ---------------------------------------------------------------- */
+
+// « 45 k »
+const kTokens = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 100000 ? 0 : 1).replace('.0', '')} k` : String(n));
+
+// L'anneau de l'en-tête : la part de la fenêtre de contexte occupée (orange à
+// 80 %, rouge à 90 % : l'agent compactera bientôt de lui-même).
+function renderGauge(c) {
+  const known = c && Number.isFinite(c.used) && c.max;
+  const pct = known ? Math.min(100, Math.round((c.used / c.max) * 100)) : 0;
+  contextButton.style.setProperty('--pct', pct);
+  contextButton.dataset.level = !known ? 'unknown' : pct >= 90 ? 'high' : pct >= 80 ? 'warn' : 'ok';
+  document.getElementById('context-label').textContent = known ? `Contexte ${pct} %` : 'Contexte';
+  contextButton.title = known ? `Contexte utilisé : ${kTokens(c.used)} sur ${kTokens(c.max)} jetons — cliquer pour le détail`
+    : 'Contexte : cliquer pour le mesurer';
+}
+
+// Le détail : par catégorie (instructions, outils, mémoire, messages…), et de
+// quoi le réduire.
+async function showContext() {
+  history.hidden = true;
+  contextPanel.hidden = false;
+  contextPanel.replaceChildren(Object.assign(document.createElement('div'), { className: 'hint', textContent: 'Mesure du contexte…' }));
+  const res = await window.conv.probe();
+  if (contextPanel.hidden) return;
+  if (res.commands) commandsFor.set(agentKey(), res.commands);
+  if (!res.context) {
+    contextPanel.replaceChildren(Object.assign(document.createElement('div'), { className: 'hint', textContent: res.error || 'Mesure impossible.' }));
+    return;
+  }
+  const c = res.context;
+  const el = (tag, cls, text) => Object.assign(document.createElement(tag), { className: cls || '', textContent: text || '' });
+  const rows = c.categories.filter((x) => x.tokens > 0).map((x) => {
+    const row = el('div', `ctx-row ${x.kind}`);
+    const bar = el('span', 'ctx-bar');
+    bar.style.setProperty('--w', `${Math.max(1, Math.round((x.tokens / c.max) * 100))}%`);
+    row.append(el('span', 'ctx-name', x.name), bar, el('span', 'ctx-tokens', kTokens(x.tokens)));
+    row.title = x.kind === 'deferred' ? 'Hors de la fenêtre : chargés à la demande' : '';
+    return row;
+  });
+  const busy = !current || !current.live || BUSY.includes(current.status);
+  const compactButton = el('button', 'ctx-compact', 'Compacter (/compact)');
+  compactButton.type = 'button';
+  compactButton.disabled = busy;
+  compactButton.title = busy ? 'Possible quand l\'agent a fini, sur la conversation en cours'
+    : 'Résumer la conversation pour libérer le contexte (l\'historique complet reste dans la transcription)';
+  compactButton.addEventListener('click', async () => {
+    compactButton.disabled = true;
+    const sent = await window.conv.send({ text: '/compact', images: [], files: [], selection: '' });
+    if (sent && sent.ok) contextPanel.hidden = true;
+    else compactButton.textContent = (sent && sent.error) || 'Échec';
+  });
+  contextPanel.replaceChildren(
+    el('div', 'ctx-total', `${kTokens(c.total)} / ${kTokens(c.max)} jetons (${Math.round(c.percentage)} %)`),
+    el('div', 'ctx-model', c.model),
+    ...rows,
+    ...(c.memoryFiles.length ? [el('div', 'ctx-section', 'Fichiers de mémoire'),
+      ...c.memoryFiles.map((f) => el('div', 'ctx-file', `${f.path} — ${kTokens(f.tokens)}`))] : []),
+    compactButton,
+  );
+}
+contextButton.addEventListener('click', () => { if (contextPanel.hidden) showContext(); else contextPanel.hidden = true; });
+
+/* ---- Commandes (« / ») ------------------------------------------------------ */
+
+// Le champ commence par « / » : les commandes de l'agent (celles de Claude
+// Code, ses skills, celles du projet), filtrées par ce qui est tapé. Flèches,
+// Entrée ou Tab pour choisir, Échap pour fermer. La liste vient de la sonde,
+// une fois par agent.
+const commandsFor = new Map();
+const agentKey = () => (current ? current.name : '');
+let slashItems = [];
+let slashIndex = 0;
+let slashLoading = false;
+
+function slashQuery() {
+  const m = /^\/(\S*)$/.exec(message.value.slice(0, message.selectionStart));
+  return m && !/\s/.test(message.value.slice(0, message.selectionStart)) ? m[1].toLowerCase() : null;
+}
+
+async function updateSlash() {
+  const q = slashQuery();
+  if (q === null || composer.hidden) { closeSlash(); return; }
+  const list = commandsFor.get(agentKey());
+  if (!list) {
+    showSlashHint('Chargement des commandes…');
+    if (slashLoading) return;
+    slashLoading = true;
+    const res = await window.conv.probe();
+    slashLoading = false;
+    commandsFor.set(agentKey(), res.commands || []);
+    if (!res.commands) { showSlashHint(res.error || 'Commandes indisponibles.'); return; }
+    updateSlash();
+    return;
+  }
+  slashItems = list.filter((c) => c.name.toLowerCase().startsWith(q))
+    .concat(list.filter((c) => !c.name.toLowerCase().startsWith(q) && c.name.toLowerCase().includes(q))).slice(0, 50);
+  slashIndex = Math.min(slashIndex, Math.max(0, slashItems.length - 1));
+  if (!slashItems.length) { showSlashHint('Aucune commande ne correspond.'); return; }
+  slashBox.replaceChildren(...slashItems.map((c, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = `slash-item${i === slashIndex ? ' active' : ''}`;
+    b.append(Object.assign(document.createElement('span'), { className: 'slash-name', textContent: `/${c.name}${c.argumentHint ? ` ${c.argumentHint}` : ''}` }),
+      Object.assign(document.createElement('span'), { className: 'slash-desc', textContent: c.description }));
+    b.addEventListener('mousedown', (e) => { e.preventDefault(); pickSlash(i); });
+    return b;
+  }));
+  slashBox.hidden = false;
+  const active = slashBox.querySelector('.active');
+  if (active) active.scrollIntoView({ block: 'nearest' });
+  reportHeight();
+}
+function showSlashHint(text) {
+  slashItems = [];
+  slashBox.replaceChildren(Object.assign(document.createElement('div'), { className: 'hint', textContent: text }));
+  slashBox.hidden = false;
+  reportHeight();
+}
+function closeSlash() {
+  if (slashBox.hidden) return;
+  slashBox.hidden = true;
+  slashItems = [];
+  slashIndex = 0;
+  reportHeight();
+}
+function pickSlash(i) {
+  const c = slashItems[i];
+  if (!c) return;
+  message.value = `/${c.name} ${message.value.slice(message.selectionStart).trimStart()}`;
+  const at = c.name.length + 2;
+  message.setSelectionRange(at, at);
+  message.focus();
+  closeSlash();
+  autoSize();
+}
+// Avant l'envoi par Entrée (cf. plus bas) : la liste ouverte prend les touches.
+message.addEventListener('keydown', (e) => {
+  if (slashBox.hidden || !slashItems.length) { if (e.key === 'Escape' && !slashBox.hidden) { e.preventDefault(); closeSlash(); } return; }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    slashIndex = (slashIndex + (e.key === 'ArrowDown' ? 1 : -1) + slashItems.length) % slashItems.length;
+    updateSlash();
+  } else if (e.key === 'Enter' || e.key === 'Tab') {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    pickSlash(slashIndex);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    closeSlash();
+  }
+});
+message.addEventListener('input', () => { slashIndex = 0; updateSlash(); });
+message.addEventListener('blur', () => setTimeout(closeSlash, 150));
 
 // À la place de la bulle, panneau ouvert : le texte dicté pour ailleurs (à
 // copier) ou un message de l'appli, en tête du panneau. null : effacé.
@@ -393,6 +581,7 @@ async function sendMessage() {
 
 message.addEventListener('input', () => { autoSize(); composerStatus.textContent = ''; });
 message.addEventListener('keydown', (e) => {
+  if (!slashBox.hidden && slashItems.length) return; // la liste des commandes prend Entrée (cf. plus bas)
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendMessage(); }
 });
 sendButton.addEventListener('click', sendMessage);
@@ -405,6 +594,7 @@ document.getElementById('hide').addEventListener('click', () => window.conv.hide
 const when = (ms) => new Date(ms).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
 
 async function showHistory() {
+  contextPanel.hidden = true;
   history.hidden = false;
   history.replaceChildren(Object.assign(document.createElement('div'), { className: 'hint', textContent: 'Chargement…' }));
   const list = await window.conv.history();
@@ -434,6 +624,7 @@ lightbox.addEventListener('click', () => { lightbox.hidden = true; });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !lightbox.hidden) lightbox.hidden = true;
   else if (e.key === 'Escape' && !history.hidden) history.hidden = true;
+  else if (e.key === 'Escape' && !contextPanel.hidden) contextPanel.hidden = true;
 });
 
 window.conv.ready();

@@ -14,6 +14,10 @@
       <div id="title"></div>
       <div id="sub"></div>
     </div>
+    <button id="context-button" type="button" title="Contexte utilisé : cliquer pour le détail">
+      <svg viewBox="0 0 36 36" aria-hidden="true"><circle class="ring-bg" cx="18" cy="18" r="15"/><circle class="ring" cx="18" cy="18" r="15"/></svg>
+      <span id="context-label">Contexte</span>
+    </button>
     <button id="history-button" type="button" title="Les conversations passées de ce dossier">🕘 Historique</button>
     <button id="mode" type="button"></button>
     <button id="hide" type="button" title="Fermer" aria-label="Fermer">×</button>
@@ -31,8 +35,10 @@
   <div id="body">
     <main id="thread" class="scroll"></main>
     <aside id="history" class="scroll" hidden></aside>
+    <aside id="context-panel" class="scroll" hidden></aside>
   </div>
   <footer id="composer" hidden>
+    <div id="slash" class="scroll" hidden></div>
     <div id="pieces"></div>
     <div id="composer-row">
       <button id="attach" type="button" title="Joindre des images, des fichiers ou le texte sélectionné (aussi : glisser-déposer, Ctrl+V)">📎</button>

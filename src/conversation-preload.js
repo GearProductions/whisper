@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('conv', {
   ready: () => ipcRenderer.send('conv:ready'),
   speak: (index) => ipcRenderer.send('conv:speak', index),
   history: () => ipcRenderer.invoke('conv:history'),
+  // Détail du contexte et commandes de l'agent : { context, commands } ou { error }.
+  probe: () => ipcRenderer.invoke('conv:probe'),
   open: (sessionId) => ipcRenderer.send('conv:open', sessionId),
   resume: () => ipcRenderer.send('conv:resume'),
   current: () => ipcRenderer.send('conv:current'),            // ancienne conversation → celle en cours

@@ -641,8 +641,17 @@ const toolTarget = (input) => {
 // (une ligne, chemin relatif au dossier de l'agent).
 function toolSummary(agent, tool, input) {
   const target = toolTarget(input);
-  const detail = target === undefined ? '' : String(target).replace(`${agent.dir}${path.sep}`, '').split('\n')[0].slice(0, 300);
+  const detail = target === undefined ? '' : relativeTo(agent, String(target)).split('\n')[0].slice(0, 300);
   return `${TOOL_LABELS[tool] || tool}${detail ? ` : ${detail}` : ''}`;
+}
+
+// Les chemins du dossier de l'agent, raccourcis. Le même dossier s'écrit
+// /home/… ou /var/home/… (Fedora Atomic) : les deux, la plus longue d'abord —
+// sinon « /var/home/x/f » deviendrait « /varf ».
+function relativeTo(agent, text) {
+  const d = agent.dir.replace(/\/+$/, '');
+  const spellings = [d.startsWith('/var/home/') ? d.slice(4) : `/var${d}`, d].sort((x, y) => y.length - x.length);
+  return spellings.reduce((t, dir) => t.split(`${dir}${path.sep}`).join(''), text);
 }
 
 // Pour une demande d'autorisation : ce qui va s'exécuter, EN ENTIER et TEL QUEL
@@ -967,8 +976,21 @@ async function refreshConversation() {
   const st = agents.state(agent.id);
   const [title, thread] = await Promise.all([sid ? agents.sessionTitle(agent, sid) : '', agents.thread(agent, sid)]);
   if (!conv || seq !== convSeq) return;
+  // La sortie d'une commande locale (« /context »…) n'est pas dans la
+  // transcription : on la reprend de la dernière réponse, après la commande.
+  const reply = agents.lastReply(agent.id);
+  const lastMsg = thread[thread.length - 1];
+  if (!view.sessionId && reply && lastMsg && lastMsg.role === 'user' && lastMsg.text.startsWith('/')
+    && reply.asked && reply.asked.text.trim() === lastMsg.text) {
+    thread.push({ role: 'system', kind: 'output', text: reply.text, time: lastMsg.time });
+  }
   convThread = thread;
+  // Le contexte : occupé (dernière réponse, sinon dernière sonde) sur la taille
+  // de la fenêtre (connue après un tour ou une sonde, retenue par agent).
+  if (st.contextWindow && st.contextWindow !== agent.contextWindow) updateAgent(agent.id, { contextWindow: st.contextWindow });
+  const contextUsed = Number.isFinite(thread.contextTokens) ? thread.contextTokens : st.contextUsed;
   conv.webContents.send('conv:thread', {
+    context: { used: Number.isFinite(contextUsed) ? contextUsed : null, max: st.contextWindow || agent.contextWindow || 200000 },
     mode: convMode, key: view.sessionId ? `${agent.id}:${view.sessionId}` : agent.id, live: !view.sessionId,
     name: agent.name, color: agentColor(agent, cfg), dir: agent.dir, title, status: st.status, since: st.since,
     // La demande d'autorisation de l'agent, à valider dans le fil.
@@ -976,7 +998,7 @@ async function refreshConversation() {
     messages: thread.map((m) => {
       const { text, selection: context, files } = m.role === 'user' ? splitComposed(m.text) : { text: m.text, selection: '', files: [] };
       return {
-        role: m.role, text, context, files, time: m.time || null, audio: !!m.audio,
+        role: m.role, kind: m.kind || null, text, context, files, time: m.time || null, audio: !!m.audio,
         images: (m.images || []).map(thumbnail).filter(Boolean),
         tools: (m.tools || []).map((t) => toolSummary(agent, t.tool, t.input)),
       };
@@ -1106,6 +1128,31 @@ ipcMain.on('conv:speak', (e, index) => {
   if (!agent || !win || !convThread[index] || !convThread[index].audio) return;
   convSpeech = convThread[index].audio;
   win.webContents.send('tts:speakAgent', agent.id, index);
+});
+
+// La jauge du contexte, cliquée (ou « / » tapé dans le champ) : le détail du
+// contexte et les commandes de l'agent, par la sonde (cf. agents.probe).
+//   { context: { total, max, percentage, model, categories, memoryFiles },
+//     commands: [{ name, description, argumentHint }] } ou { error }.
+ipcMain.handle('conv:probe', async (e) => {
+  const agent = sentBy(e, conv) && viewAgent();
+  if (!agent) return { error: 'Aucun agent.' };
+  const cfg = loadConfig();
+  try {
+    const { context: c, commands } = await agents.probe(agent, { command: cfg.agentCommand, instructions: agentInstructions() });
+    if (c && c.maxTokens) updateAgent(agent.id, { contextWindow: c.maxTokens });
+    refreshConversation(); // la jauge suit la mesure
+    return {
+      context: c && {
+        total: c.totalTokens, max: c.maxTokens, percentage: c.percentage, model: c.model,
+        categories: (c.categories || []).map(({ name, tokens, kind, color }) => ({ name, tokens, kind, color })),
+        memoryFiles: (c.memoryFiles || []).map(({ path: file, tokens }) => ({ path: relativeTo(agent, file), tokens })),
+      },
+      commands: (commands || []).map(({ name, description, argumentHint }) => ({ name, description, argumentHint })),
+    };
+  } catch (err) {
+    return { error: err && err.message === 'notInstalled' ? CLAUDE_MISSING : 'Claude Code n\'a pas répondu.' };
+  }
 });
 
 // Historique du dossier de l'agent affiché : [{ sessionId, title,

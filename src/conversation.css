@@ -54,7 +54,7 @@ header {
 #archived[hidden], #history[hidden] { display: none; }
 
 #body { position: relative; flex: 1 1 auto; min-height: 0; display: flex; }
-#thread { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 16px; }
+#thread { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 16px; }
 
 /* Historique du dossier : un panneau posé sur le fil, à droite. */
 #history {
@@ -89,7 +89,7 @@ header {
 .session-date { font-size: 11px; color: #8a91a0; }
 #thread:empty::before { content: "Aucun échange pour l'instant : sélectionnez l'agent puis dictez."; color: #8a91a0; }
 
-.message { max-width: 85%; margin: 0 0 14px; padding: 10px 12px; border-radius: 10px; background: #1f2430; border: 1px solid #2a3142; }
+.message { max-width: 85%; min-width: 0; overflow-wrap: anywhere; margin: 0 0 14px; padding: 10px 12px; border-radius: 10px; background: #1f2430; border: 1px solid #2a3142; }
 .message.user { margin-left: auto; background: #252c3b; }
 .message.assistant { border-left: 3px solid var(--accent); }
 .who { margin-bottom: 4px; font-size: 11px; font-weight: 600; color: #8a91a0; }
@@ -107,7 +107,10 @@ header {
 /* Ce que l'agent a fait pendant le tour (fichiers, commandes). */
 .tools { margin-bottom: 6px; font-size: 12px; color: #8a91a0; }
 .tools:empty, .message.user .tools, .message.user .listen { display: none; }
+.tools div { white-space: pre-wrap; overflow-wrap: anywhere; }
 .tools div::before { content: "→ "; }
+/* Beaucoup d'actions : les dernières, le reste à déplier. */
+.tools details summary { cursor: pointer; color: #6b7282; }
 .listen {
   margin-top: 8px;
   padding: 3px 10px;
@@ -363,3 +366,106 @@ body[data-mode="compact"] #thread { padding: 12px; }
   cursor: pointer;
 }
 #notice-close:hover { background: #3a4150; color: #e6e8ee; }
+
+/* Jauge du contexte : un anneau et son pourcentage. */
+#context-button {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 6px;
+  border-radius: 14px;
+  border: 1px solid #3a4150;
+  background: #2a3142;
+  color: #b8bdc8;
+  font: 12px/1.4 system-ui, sans-serif;
+  cursor: pointer;
+  --pct: 0;
+  --ring: var(--accent);
+}
+#context-button:hover { border-color: var(--accent); color: #e6e8ee; }
+#context-button[data-level="warn"] { --ring: #e0a23b; }
+#context-button[data-level="high"] { --ring: #d9383a; }
+#context-button svg { width: 20px; height: 20px; transform: rotate(-90deg); }
+#context-button circle { fill: none; stroke-width: 5; }
+#context-button .ring-bg { stroke: #3a4150; }
+#context-button .ring { stroke: var(--ring); stroke-dasharray: 94.25; stroke-dashoffset: calc(94.25 * (1 - var(--pct) / 100)); stroke-linecap: round; }
+#context-button[data-level="unknown"] .ring { stroke-dashoffset: 94.25; }
+body[data-mode="compact"] #context-label { display: none; }
+
+/* Détail du contexte : un panneau posé sur le fil, comme l'historique. */
+#context-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(380px, 94%);
+  overflow-y: auto;
+  padding: 12px;
+  border-left: 1px solid #2a3142;
+  background: #1a1e28;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.35);
+  font-size: 12px;
+  z-index: 2;
+}
+#context-panel[hidden] { display: none; }
+#context-panel .hint { color: #8a91a0; }
+.ctx-total { font-size: 14px; font-weight: 600; }
+.ctx-model { margin-bottom: 10px; color: #8a91a0; }
+.ctx-row { display: grid; grid-template-columns: 1fr 90px 52px; align-items: center; gap: 8px; margin: 4px 0; }
+.ctx-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctx-bar { height: 6px; border-radius: 3px; background: #2a3142; position: relative; overflow: hidden; }
+.ctx-bar::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--w); background: var(--accent); }
+.ctx-row.free .ctx-bar::after { background: #3a4150; }
+.ctx-row.buffer .ctx-bar::after { background: #6b7282; }
+.ctx-row.deferred { color: #6b7282; }
+.ctx-row.deferred .ctx-bar::after { background: #3a4150; }
+.ctx-tokens { text-align: right; font-variant-numeric: tabular-nums; color: #b8bdc8; }
+.ctx-section { margin: 10px 0 4px; font-weight: 600; color: #b8bdc8; }
+.ctx-file { color: #8a91a0; overflow-wrap: anywhere; }
+.ctx-compact {
+  margin-top: 12px;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 25%, #2a3142);
+  color: #e6e8ee;
+  font: 12px/1.4 system-ui, sans-serif;
+  cursor: pointer;
+}
+.ctx-compact:disabled { opacity: 0.5; cursor: default; }
+
+/* Commandes proposées quand le champ commence par « / ». */
+#slash {
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+  border: 1px solid #3a4150;
+  border-radius: 8px;
+  background: #171b24;
+}
+#slash[hidden] { display: none; }
+#slash .hint { padding: 8px 10px; color: #8a91a0; font-size: 12px; }
+.slash-item {
+  display: flex !important;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  height: auto !important;
+  padding: 6px 10px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  text-align: left;
+  cursor: pointer;
+}
+.slash-item.active, .slash-item:hover { background: #252c3b !important; }
+.slash-name { font: 600 12.5px/1.4 ui-monospace, "JetBrains Mono", Menlo, monospace; color: #e6e8ee; }
+.slash-desc { font-size: 11.5px; color: #8a91a0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+/* Messages « système » : sortie d'une commande, résumé d'une compaction. */
+.message.system { max-width: 100%; background: #1a1e28; border-style: dashed; }
+.message.system .who { color: #8a91a0; }
+.message.system .body { font: 12px/1.45 ui-monospace, "JetBrains Mono", Menlo, monospace; color: #b8bdc8; }
+.message.system details summary { cursor: pointer; font-size: 12px; color: #8a91a0; }

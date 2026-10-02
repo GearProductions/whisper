@@ -190,6 +190,16 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   menu ; sous Windows, collez-le dans le champ). Pendant que l'agent travaille,
   on écrit mais on n'envoie pas. *Agents Claude Code* → *Relire avant
   d'envoyer* décoché : la dictée part aussitôt.
+- **Commandes de Claude Code** : un champ qui commence par **« / »** propose les
+  commandes de l'agent — celles de Claude Code (`/compact`, `/context`…), ses
+  skills, celles du projet —, avec leur description ; flèches, Entrée ou Tab
+  pour choisir. Le message part comme si on l'avait tapé dans Claude Code.
+- **Jauge du contexte** (en-tête du panneau) : la part de la fenêtre de
+  contexte occupée (orange à 80 %, rouge à 90 %). Un clic : le détail, par
+  catégorie (instructions, outils, skills, fichiers de mémoire, messages…), et
+  **Compacter (/compact)** pour résumer la conversation et libérer de la place.
+  La mesure vient de la dernière réponse ; le détail, de Claude Code, lancé le
+  temps de répondre (la conversation n'en est pas touchée).
 - **Pendant qu'il travaille**, le robot clignote. **« ? »** : il demande une
   autorisation (mode manuel) — dans son panneau, *Autoriser*, *Toujours
   autoriser*, *Refuser*. Rien d'affiché : son panneau s'ouvre en réduit, sans
