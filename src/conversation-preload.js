@@ -12,7 +12,12 @@ contextBridge.exposeInMainWorld('conv', {
   open: (sessionId) => ipcRenderer.send('conv:open', sessionId),
   resume: () => ipcRenderer.send('conv:resume'),
   current: () => ipcRenderer.send('conv:current'),            // ancienne conversation → celle en cours
-  collapse: () => ipcRenderer.send('conv:collapse'),          // ⤡ : revenir à la bulle
+  setMode: (mode) => ipcRenderer.send('conv:mode', mode),     // 'compact' (⤡) ou 'full' (⤢)
+  height: (h) => ipcRenderer.send('conv:height', h),          // réduit : la hauteur de son contenu
+  // Message à la place de la bulle (texte dicté pour ailleurs, message de
+  // l'appli) ; `copyNotice` copie le texte dicté, connu du principal.
+  onNotice: (fn) => ipcRenderer.on('conv:notice', (_e, notice) => fn(notice)),
+  copyNotice: () => ipcRenderer.invoke('conv:copyNotice'),
   // Champ de saisie : un message à l'agent de l'onglet affiché, avec ses pièces
   // jointes → { ok, error }. 📎 : menu (fichiers, sélection), le choix revient
   // par onAttached. La dictée, panneau ouvert, arrive par onDictation.

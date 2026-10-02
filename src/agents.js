@@ -109,9 +109,6 @@ const state = (id) => {
 };
 const lastReply = (id) => rt(id).last;
 function markRead(id) { rt(id).unread = false; }
-// La dernière réponse, retrouvée ailleurs (le fil de la session, après un
-// relancement de l'appli) : gardée si l'appli n'en a pas reçu depuis, lue.
-function recall(id, reply) { const r = rt(id); if (!r.last) r.last = reply; }
 // Session changée : la dernière réponse connue était celle de l'autre.
 function forgetReply(id) { const r = rt(id); r.last = null; r.unread = false; }
 function forget(id) { interrupt(id); runtime.delete(id); }
@@ -486,5 +483,5 @@ async function thread(agent, sessionId = agent.sessionId) {
 
 module.exports = {
   MODELS, EFFORTS, MODES, AUDIO_RULES, isAvailable, setMode, setModel, setJournal,
-  state, lastReply, markRead, recall, forgetReply, forget, send, answer, pendingPermission, interrupt, stop, thread, sessionTitle, sessions,
+  state, lastReply, markRead, forgetReply, forget, send, answer, pendingPermission, interrupt, stop, thread, sessionTitle, sessions,
 };

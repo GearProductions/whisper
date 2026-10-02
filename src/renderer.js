@@ -186,8 +186,7 @@ async function stopDictation() {
     if (!res || !res.ok) { setPhase('error', (res && res.error) || 'La transcription a échoué.'); return; }
     if (!res.text) { setPhase('idle', 'Aucune parole détectée.'); return; }
     if (res.agent) {
-      setPhase('idle', res.panel ? `Ajouté au message pour ${res.agent}.`
-        : res.review ? `À relire avant l'envoi à ${res.agent}.` : `Envoyé à ${res.agent}.`);
+      setPhase('idle', res.panel ? `Ajouté au message pour ${res.agent}.` : `Envoyé à ${res.agent}.`);
       return;
     }
     // Pas collé : soit le collage automatique est désactivé, soit il a échoué.

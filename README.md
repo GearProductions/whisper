@@ -155,80 +155,58 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
 - **« + »** : un nouvel agent, dans un **dossier favori** (déjà choisi une
   fois, sans agent pour l'instant) ou dans un dossier à choisir, qui devient
   favori. Chaque **dossier** reçoit une couleur au hasard, qu'il garde : son
-  robot, le liseré du micro et ses bulles la portent.
+  robot, le liseré du micro et son panneau la portent.
 - **Clic sur un robot** : il est sélectionné (violet). La dictée du gros bouton
   lui est alors **destinée** au lieu d'être collée. Un second clic le
   désélectionne.
-- **Relecture avant l'envoi** : au relâché, une fenêtre *Message pour…*
-  s'ouvre au-dessus de l'icône avec le texte dicté, à corriger. Dicter à
-  nouveau l'ajoute au brouillon ; cliquer un autre robot change le
-  destinataire. On peut y joindre du **contexte** :
-  - des **images** (glissées-déposées ou collées par Ctrl+V : capture d'écran,
-    photo…), envoyées à Claude — réduites si elles dépassent 1568 px ;
-  - d'autres **fichiers**, glissés depuis le gestionnaire de fichiers : l'agent
-    reçoit leur chemin et les lit lui-même ;
-  - le **texte sélectionné** au moment de la dictée (Linux) : montré en aperçu,
-    joint **seulement si l'on coche** la case ; *↻ Relire la sélection* reprend
-    ce qui est sélectionné maintenant, dans n'importe quelle application.
-    Sous Windows, lire la sélection demanderait un Ctrl+C simulé (qui, dans un
-    terminal, interromprait le programme) : collez-la plutôt dans le texte.
+- **Le panneau de conversation** : la conversation de l'agent, dans un panneau
+  **attaché à l'icône** (à la place de la bulle ; il la suit quand on la
+  déplace, et reste au-dessus des autres fenêtres, voir *Toujours au premier
+  plan*). Deux tailles :
+  - **réduit** : le dernier échange — votre dernier message, sa réponse (avec
+    **▶ Écouter**) ; à la hauteur de son contenu ;
+  - **agrandi** (**⤢**, et **⤡** pour revenir) : tout le fil, et l'**🕘
+    Historique** des conversations passées du dossier (de l'appli comme celles
+    lancées dans un terminal), par intitulé et date. Une ancienne conversation
+    s'y lit, en lecture seule ; *← Conversation en cours* y revient ;
+    *Reprendre cette conversation* en refait la session en cours — celle
+    qu'elle remplace reste dans l'historique, comme après *Nouvelle session*.
+    Redimensionnable par ses bords (la taille est retenue).
 
-  **Ctrl+Entrée** envoie, **Échap** abandonne. Sans parler (micro
-  indisponible, lieu calme) : clic droit sur le robot → *✎ Écrire un message…*
-  ouvre la même fenêtre, vide, à remplir au clavier. Clic droit → *Agents Claude
-  Code* → *Relire avant d'envoyer* (décoché) : la dictée part aussitôt, sans
-  fenêtre.
+  **×** le ferme. Chaque conversation porte son **intitulé** (celui que lui
+  donne Claude Code) ; chaque message, son **heure**. Pendant que l'agent
+  travaille, le fil le suit et l'anime (avec le temps écoulé). Les **liens**
+  s'ouvrent dans le navigateur. Les **pièces jointes** de vos messages se
+  voient : aperçu des images (clic : en grand), fichiers (clic : montrés dans
+  le gestionnaire de fichiers), texte sélectionné (à déplier).
+- **Le champ de saisie**, en bas du panneau, réduit ou agrandi : **la dictée
+  vers l'agent y arrive** (le panneau s'ouvre en réduit au besoin), à relire,
+  compléter, envoyer (**Entrée** ; **Maj+Entrée** va à la ligne ; un brouillon
+  par agent). Sans parler (micro indisponible, lieu calme) : clic droit sur le
+  robot → *✎ Écrire un message…*. **Pièces jointes** : glisser-déposer ou
+  **Ctrl+V** (images envoyées à Claude — réduites au-delà de 1568 px —, autres
+  fichiers par leur chemin, que l'agent lit lui-même) ; **📎** : choisir des
+  images ou fichiers, ou joindre le **texte sélectionné** (Linux, aperçu dans le
+  menu ; sous Windows, collez-le dans le champ). Pendant que l'agent travaille,
+  on écrit mais on n'envoie pas. *Agents Claude Code* → *Relire avant
+  d'envoyer* décoché : la dictée part aussitôt.
 - **Pendant qu'il travaille**, le robot clignote. **« ? »** : il demande une
-  autorisation (mode manuel) — la bulle propose *Autoriser*, *Toujours
-  autoriser*, *Refuser*. Elle s'ouvre d'elle-même si aucune bulle n'est
-  affichée ; si vous lisez déjà quelque chose (la réponse d'un autre agent…),
-  elle ne la remplace pas : cliquez le robot quand vous êtes prêt.
-  **Pastille verte** : il a répondu ; un clic ouvre la bulle avec sa réponse
-  (un clic dessus la copie) et un bouton **▶ Écouter**. En tête, en gris, le
-  message qu'on lui avait envoyé (replié sur 3 lignes, un clic le déplie) : avec
-  plusieurs agents, on sait à quoi il répond. Dicter la suite à ce même agent
-  laisse la bulle affichée, pour la relire en répondant ; la fenêtre de
-  relecture s'ouvre alors à côté d'elle. **⤢** l'agrandit (ci-dessous).
-- **Conversation complète** (⤢ d'une bulle, ou clic droit sur le robot) : la
-  bulle agrandie en un grand panneau **attaché à l'icône**, à sa place. Comme
-  elle, il reste au-dessus des autres fenêtres (voir *Toujours au premier
-  plan*), sur tous les bureaux virtuels, et **suit l'icône** quand on la
-  déplace : on ne le perd pas. Redimensionnable par ses bords (la taille est
-  retenue). **⤡ Réduire** le ramène à la bulle (la dernière réponse) ; **×** le
-  ferme. Chaque conversation porte son **intitulé**, celui que lui donne Claude
-  Code ; chaque message, son **heure**. Pendant que l'agent travaille, le fil le
-  suit et l'anime (avec le temps écoulé). Les **liens** s'ouvrent dans le
-  navigateur (aussi depuis la bulle). Les **pièces jointes** de vos messages se
-  voient : aperçu des images (clic : en grand), fichiers (clic : montrés dans le
-  gestionnaire de fichiers), texte sélectionné (à déplier).
-  **🕘 Historique** (panneau seulement) : toutes les conversations passées du
-  dossier (de l'appli comme celles lancées dans un terminal), par intitulé et
-  date. Une ancienne conversation s'y lit, en lecture seule ; *← Conversation en
-  cours* y revient ; *Reprendre cette conversation* en refait la session en
-  cours de l'agent — celle qu'elle remplace reste dans l'historique, comme
-  après *Nouvelle session*.
-- **Les robots servent d'onglets** : une conversation à la fois dans le
-  panneau, celle du robot sélectionné ; panneau ouvert, cliquer un robot y
-  affiche la sienne (et le sélectionne : la dictée lui ira). Un second clic sur
-  le robot affiché rend la dictée au curseur.
-- **Champ de saisie** au bas du panneau : écrire à l'agent affiché (**Entrée**
-  envoie, **Maj+Entrée** va à la ligne ; un brouillon par agent, pièces jointes
-  comprises). Panneau ouvert, **la dictée y arrive** au lieu d'ouvrir la fenêtre
-  de relecture : on la relit, la complète, l'envoie. **Pièces jointes**
-  directement dans le champ : glisser-déposer ou **Ctrl+V** (images envoyées à
-  Claude, autres fichiers par leur chemin) ; **📎** : choisir des images ou
-  fichiers, ou joindre le texte sélectionné (aperçu dans le menu). Pendant que
-  l'agent travaille, on écrit mais on n'envoie pas.
-- **Panneau ouvert**, il tient lieu de bulle pour les agents. Le texte dicté
-  pour ailleurs (robot désélectionné) garde sa bulle, à copier, placée à côté
-  du panneau. Réponse de l'agent affiché : lue d'office, ni pastille ni bip ;
-  sa demande d'autorisation : dans le fil, avec les mêmes boutons que la bulle.
-  Les autres agents signalent les leurs sur leur **robot** (pastille, « ? ») :
-  un clic affiche leur conversation. Panneau réduit ou fermé : retour à la
-  bulle, et une demande en attente s'y affiche.
+  autorisation (mode manuel) — dans son panneau, *Autoriser*, *Toujours
+  autoriser*, *Refuser*. Rien d'affiché : son panneau s'ouvre en réduit, sans
+  prendre le clavier ; on lit autre chose : le « ? » du robot attend qu'on
+  clique. **Pastille verte** : il a répondu ; un clic ouvre son panneau.
+- **Les robots servent d'onglets** : une conversation à la fois, celle du
+  robot sélectionné ; panneau ouvert, cliquer un robot y affiche la sienne (et
+  le sélectionne). Un second clic sur le robot affiché rend la dictée au
+  curseur ; le texte dicté pour ailleurs s'affiche alors en tête du panneau,
+  avec **Copier** (panneau fermé : dans la petite bulle habituelle).
+- **Bureaux virtuels** : le panneau prend le clavier (on y écrit), donc le
+  gestionnaire de fenêtres le range sur un bureau. Sous KDE : Alt+F3 → *Sur
+  tous les bureaux*, une fois par lancement de l'appli — fermé (×), il est
+  réduit au sens du système, et garde ce réglage.
 - **Clic droit sur un robot** : couleur du dossier, modèle, effort, mode
-  (manuel, accepter les modifications de fichiers, auto, plan), dernière
-  réponse, **conversation complète** (et historique), interrompre, *Nouvelle
+  (manuel, accepter les modifications de fichiers, auto, plan), *✎ Écrire un
+  message…*, *Dernier échange*, **conversation complète** (et historique), interrompre, *Nouvelle
   session* (repartir de zéro), retirer (son dossier reste favori). Le **mode** et le **modèle**
   changés pendant qu'il travaille s'appliquent aussitôt ; passer en *accepter
   les modifications* accorde la demande de modification de fichier en attente.
@@ -243,7 +221,7 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
 - Choisir un **nouveau dossier** demande confirmation : Claude Code y est lancé
   avec les réglages du projet (`.claude/` : hooks, serveurs MCP, autorisations),
   qui peuvent exécuter des commandes. N'ajoutez que des dossiers connus.
-- La bulle d'autorisation montre la commande ou le fichier **en entier, tel
+- La demande d'autorisation (dans le panneau) montre la commande ou le fichier **en entier, tel
   quel** : c'est ce texte qui est autorisé. *Toujours autoriser* n'apparaît que
   si Claude Code propose une règle, l'affiche, et ne vaut que **pour la session
   en cours** — rien n'est écrit dans les réglages du projet ou de l'utilisateur.
@@ -252,7 +230,7 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
 
 **Réponse écrite et réponse orale.** Chaque réponse de l'agent se termine par
 un bloc `<audio>…</audio>` : un résumé court, sans formatage, fait pour
-l'oreille. La bulle montre la réponse sans ce bloc ; ▶ ne lit que lui, avec le
+l'oreille. Le panneau montre la réponse sans ce bloc ; ▶ ne lit que lui, avec le
 moteur de lecture à voix haute. La consigne n'est ajoutée qu'aux sessions
 créées par l'appli : vos sessions Claude Code habituelles ne changent pas.
 
@@ -329,9 +307,9 @@ s'affiche le temps de l'enregistrement, une fois la coupure confirmée.
 | `agentCommand` | Commande qui lance Claude Code (vide : `claude`)               |
 | `agents`     | Les agents : dossier, nom, modèle, effort, mode, session (gérés par l'appli ; `name` se modifie ici) |
 | `agentFolders` | Dossiers favoris proposés par « + », chacun avec sa couleur    |
-| `agentReview` | Relire (et joindre du contexte) avant d'envoyer à un agent ; `false` : envoi direct |
+| `agentReview` | Dictée vers un agent : dans le champ de son panneau, à relire ; `false` : envoyée aussitôt |
 | `onTop`      | Icône, bulles et panneau au-dessus des autres fenêtres            |
-| `convSize`   | Taille du panneau des conversations (retenue au redimensionnement) |
+| `convSize`   | Taille du panneau agrandi (retenue au redimensionnement) |
 | `muteOthers` | Couper le son des autres applications pendant l'enregistrement   |
 | `autoPaste`  | Coller le texte là où est le curseur ; `false` : il reste dans le presse-papiers |
 | `showText`   | Bulle du texte transcrit à la fin d'une dictée                    |

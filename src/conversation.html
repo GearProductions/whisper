@@ -15,9 +15,14 @@
       <div id="sub"></div>
     </div>
     <button id="history-button" type="button" title="Les conversations passées de ce dossier">🕘 Historique</button>
-    <button id="collapse" type="button" title="Réduire : revenir à la bulle (la dernière réponse)" aria-label="Réduire">⤡</button>
+    <button id="mode" type="button"></button>
     <button id="hide" type="button" title="Fermer" aria-label="Fermer">×</button>
   </header>
+  <div id="notice" hidden>
+    <span id="notice-text"></span>
+    <button id="notice-copy" type="button" title="Copier ce texte">Copier</button>
+    <button id="notice-close" type="button" title="Fermer" aria-label="Fermer">×</button>
+  </div>
   <div id="archived" hidden>
     <span>Ancienne conversation : en lecture seule.</span>
     <button id="current" type="button">← Conversation en cours</button>

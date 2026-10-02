@@ -1,9 +1,10 @@
 /* =========================================================================
-   Whisper — la conversation d'un agent, en grand
+   Whisper — la conversation d'un agent
 
-   La bulle d'un agent agrandie : un panneau attaché à l'icône (il la suit ;
-   ⤡ le ramène à la bulle, × le ferme), une conversation à la fois — celle du
-   robot sélectionné, les robots servant d'onglets. Sa session en cours, ou une
+   Un panneau attaché à l'icône (il la suit ; × le ferme), une conversation à
+   la fois — celle du robot sélectionné, les robots servant d'onglets. Deux
+   tailles : réduit (⤡), le dernier échange, à la hauteur de son contenu ;
+   agrandi (⤢), tout le fil et l'historique. Dans les deux, le champ de saisie. Sa session en cours, ou une
    ancienne session de son dossier, ouverte depuis l'historique (lecture seule,
    à reprendre au besoin). Chaque conversation porte son intitulé, celui que
    Claude Code lui donne. Le principal envoie la conversation (`conv:thread`) à
@@ -26,6 +27,13 @@ const archived = document.getElementById('archived');
 const resume = document.getElementById('resume');
 const history = document.getElementById('history');
 const historyButton = document.getElementById('history-button');
+const modeButton = document.getElementById('mode');
+const header = document.querySelector('header');
+const notice = document.getElementById('notice');
+const noticeText = document.getElementById('notice-text');
+const noticeCopy = document.getElementById('notice-copy');
+let mode = 'compact';
+let shownCount = 0; // messages de la conversation au dernier rendu
 
 const BUSY = ['working', 'asking'];
 let shownKey = null; // conversation affichée au dernier rendu
@@ -118,7 +126,20 @@ function renderPermission(p) {
 
 const openDetails = new Set(); // contextes dépliés, par rang : gardés d'un rendu à l'autre
 
-// `data` : { key, live, name, color, dir, title, status, since,
+// Réduit : la hauteur de son contenu, que le principal donne au panneau. Le fil
+// remplit la fenêtre (son scrollHeight ne descend pas sous sa hauteur) : on
+// mesure donc ses éléments.
+function reportHeight() {
+  if (mode !== 'compact') return;
+  setTimeout(() => {
+    const fixed = [header, notice, archived, composer].reduce((h, el) => h + (el.hidden ? 0 : el.offsetHeight), 0);
+    const top = thread.getBoundingClientRect().top - thread.scrollTop;
+    const bottom = Math.max(top, ...[...thread.children].map((c) => c.getBoundingClientRect().bottom + parseFloat(getComputedStyle(c).marginBottom)));
+    window.conv.height(fixed + (bottom - top) + 16 + 2); // marge basse du fil, bordure
+  }, 0);
+}
+
+// `data` : { mode, key, live, name, color, dir, title, status, since,
 //            permission: { key, title, text, always } | null,
 //            messages: [{ role, text, context, files, images, time, tools, audio }] }.
 // (`tab` : la conversation affichée.)
@@ -132,6 +153,13 @@ window.conv.onThread((data) => {
   resume.disabled = BUSY.includes(tab.status);
   resume.title = resume.disabled ? `${tab.name} travaille : attendez qu'il ait fini.`
     : `${tab.name} reprend cette conversation ; celle en cours reste dans l'historique.`;
+  mode = data.mode;
+  const compact = mode === 'compact';
+  document.body.dataset.mode = mode;
+  historyButton.hidden = compact; // l'historique : en agrandi seulement
+  if (compact) history.hidden = true;
+  modeButton.textContent = compact ? '⤢' : '⤡';
+  modeButton.title = compact ? 'Agrandir : toute la conversation et l\'historique' : 'Réduire : le dernier échange';
 
   const switched = data.key !== shownKey;
   if (switched) swapDraft(shownKey, data.key);
@@ -139,8 +167,12 @@ window.conv.onThread((data) => {
   renderComposer(tab);
   if (switched) { history.hidden = true; openDetails.clear(); }
   const atEnd = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 40;
-  const grew = data.messages.length !== thread.querySelectorAll('.message').length;
-  thread.replaceChildren(...data.messages.map((m, index) => {
+  const grew = data.messages.length !== shownCount;
+  shownCount = data.messages.length;
+  // Réduit : le dernier échange — votre dernier message et ce qui l'a suivi.
+  const lastUser = data.messages.map((m) => m.role).lastIndexOf('user');
+  const from = compact ? Math.max(0, lastUser >= 0 ? lastUser : data.messages.length - 1) : 0;
+  thread.replaceChildren(...data.messages.map((m, index) => ({ m, index })).filter(({ index }) => index >= from).map(({ m, index }) => {
     const el = template.content.firstElementChild.cloneNode(true);
     el.classList.add(m.role);
     const who = el.querySelector('.who');
@@ -180,8 +212,32 @@ window.conv.onThread((data) => {
   }
   // Nouvel onglet : en bas. Sinon, reste en bas quand un message arrive, sans
   // arracher la lecture d'un message plus ancien.
-  if (switched || data.permission || (atEnd && (grew || text))) thread.scrollTop = thread.scrollHeight;
+  if (compact || switched || data.permission || (atEnd && (grew || text))) thread.scrollTop = thread.scrollHeight;
+  reportHeight();
 });
+
+// ⤢ / ⤡
+modeButton.addEventListener('click', () => window.conv.setMode(mode === 'compact' ? 'full' : 'compact'));
+
+// À la place de la bulle, panneau ouvert : le texte dicté pour ailleurs (à
+// copier) ou un message de l'appli, en tête du panneau. null : effacé.
+let noticeTimer = null;
+window.conv.onNotice((n) => {
+  clearTimeout(noticeTimer);
+  notice.hidden = !n;
+  if (n) {
+    notice.dataset.kind = n.kind;
+    noticeText.textContent = n.text;
+    noticeCopy.hidden = n.kind !== 'text';
+    noticeCopy.textContent = 'Copier';
+    if (n.kind === 'status') noticeTimer = setTimeout(() => { notice.hidden = true; reportHeight(); }, 10000);
+  }
+  reportHeight();
+});
+noticeCopy.addEventListener('click', async () => {
+  if (await window.conv.copyNotice()) noticeCopy.textContent = 'Copié ✓';
+});
+document.getElementById('notice-close').addEventListener('click', () => { notice.hidden = true; reportHeight(); });
 
 /* ---- Champ de saisie -------------------------------------------------------- */
 
@@ -211,6 +267,7 @@ function swapDraft(from, to) {
 }
 
 function renderPieces() {
+  setTimeout(reportHeight, 0);
   piecesBox.replaceChildren(...pieces.map((p) => {
     const el = document.createElement('div');
     el.className = 'piece';
@@ -302,6 +359,7 @@ function autoSize() {
   message.style.height = 'auto';
   message.style.height = `${Math.min(message.scrollHeight, 160)}px`;
   message.style.overflowY = message.scrollHeight > 160 ? 'auto' : 'hidden'; // pas de barre pour rien
+  reportHeight();
 }
 
 async function sendMessage() {
@@ -372,7 +430,6 @@ async function showHistory() {
 historyButton.addEventListener('click', () => { if (history.hidden) showHistory(); else history.hidden = true; });
 resume.addEventListener('click', () => window.conv.resume());
 document.getElementById('current').addEventListener('click', () => window.conv.current());
-document.getElementById('collapse').addEventListener('click', () => window.conv.collapse());
 lightbox.addEventListener('click', () => { lightbox.hidden = true; });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !lightbox.hidden) lightbox.hidden = true;

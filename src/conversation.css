@@ -305,3 +305,61 @@ body { box-sizing: border-box; border: 1px solid #3a4150; }
 .piece .remove:hover { background: #3a4150 !important; color: #e6e8ee; }
 body.dragging #composer { background: #252c3b; box-shadow: inset 0 0 0 2px var(--accent); }
 @keyframes pulse { to { opacity: 0.25; } }
+
+/* Réduit : le dernier échange, sans l'historique. */
+#history-button[hidden] { display: none; }
+#mode {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #8a91a0;
+  font: 16px/28px system-ui, sans-serif;
+  cursor: pointer;
+}
+#mode:hover { background: #3a4150; color: #e6e8ee; }
+body[data-mode="compact"] header { padding: 8px 12px; }
+body[data-mode="compact"] #thread { padding: 12px; }
+
+/* À la place de la bulle : le texte dicté pour ailleurs (à copier), un message. */
+#notice {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #2a3142;
+  background: #22283a;
+  font-size: 13px;
+}
+#notice[hidden], #notice-copy[hidden] { display: none; }
+#notice-text { flex: 1; min-width: 0; max-height: 80px; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+#notice[data-kind="text"] #notice-text::before { content: "Dicté : "; color: #8a91a0; }
+#notice[data-kind="notice"] { border-left: 3px solid #5865f2; }
+#notice-copy {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid #3a4150;
+  background: #2a3142;
+  color: #e6e8ee;
+  font: 12px/1.4 system-ui, sans-serif;
+  cursor: pointer;
+}
+#notice-copy:hover { border-color: var(--accent); }
+#notice-close {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #8a91a0;
+  font: 15px/22px system-ui, sans-serif;
+  cursor: pointer;
+}
+#notice-close:hover { background: #3a4150; color: #e6e8ee; }
