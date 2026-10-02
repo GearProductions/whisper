@@ -138,11 +138,6 @@ Trois voix par langue, fournies par Kyutai (clic droit → *Voix française* /
 Toutes sous licence libre (CC0 ou CC-BY 4.0) ; le clonage d'une autre voix
 demande des poids à accès restreint, non utilisés ici.
 
-**Chatterbox sur GPU (optionnel).** Clic droit → *Moteur* → *Chatterbox (GPU)* :
-voix plus naturelles, avec une carte NVIDIA, par un service local à installer
-à part (conteneur podman, cf. [`chatterbox/README.md`](chatterbox/README.md)).
-Mêmes voix ; service arrêté, la lecture passe par Pocket TTS.
-
 Sous **Wayland**, il faut aussi `wl-paste` (paquet `wl-clipboard`) : le
 compositeur ne donne la sélection qu'à la fenêtre qui a le focus, et l'icône
 ne le prend jamais. Dans une distrobox, celui de l'hôte est utilisé.
@@ -342,7 +337,6 @@ s'affiche le temps de l'enregistrement, une fois la coupure confirmée.
 | `discordMute`| Couper le micro Discord pendant l'enregistrement                 |
 | `speak`      | Bouton de lecture : `selection`, `clipboard` ou `off`             |
 | `speakVolume`| Volume de lecture, de `0` à `1`                                   |
-| `speakEngine`| `pocket` (processeur) ou `chatterbox` (GPU, service local)        |
 | `speakLang`  | `auto` (français ou anglais, détecté), `fr` ou `en`               |
 | `speakVoices`| Voix par langue : `{ "fr": "estelle", "en": "jane" }`             |
 | `size`       | Taille de l'icône en px (32–200, appliquée au redémarrage)        |

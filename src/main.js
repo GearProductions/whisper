@@ -15,8 +15,8 @@
    `discordMute`, `muteOthers`, cf. mute.js).
 
    Un petit bouton accolé à l'icône lit à voix haute le texte sélectionné (ou
-   le presse-papiers), en local : Pocket TTS sur le processeur, ou Chatterbox
-   sur GPU par son service (réglages `speak`, `speakEngine`, cf. tts.js).
+   le presse-papiers), en local : Pocket TTS, sur le processeur (réglage
+   `speak`, cf. tts.js).
 
    Des agents Claude Code (un par dossier de projet, réglage `agentsEnabled`,
    cf. agents.js) : un robot sélectionné reçoit la dictée au lieu du curseur ;
@@ -40,7 +40,6 @@ const whisper = require('./whisper');
 const paste = require('./paste');
 const mute = require('./mute');
 const tts = require('./tts');
-const chatterbox = require('./chatterbox');
 const selection = require('./selection');
 const agents = require('./agents');
 const windows = require('./windows');
@@ -65,7 +64,6 @@ const DEFAULTS = {
   muteOthers: false,                 // couper le son des autres applications pendant la dictée
   autoPaste: true,                   // coller là où est le curseur ; sinon le texte reste dans le presse-papiers
   speak: 'selection', speakVolume: 1,
-  speakEngine: 'pocket',             // 'pocket' (processeur) ou 'chatterbox' (GPU, service local)
   speakLang: 'auto',                 // 'auto' : français ou anglais, détecté sur le texte entier
   speakVoices: { fr: 'estelle', en: 'jane' },   // cf. tts.LANGS
   deviceId: '', deviceLabel: '', size: 64, pos: null,
@@ -495,9 +493,8 @@ async function updateSpeakState() {
   }
   let state = { mode };
   if (mode !== 'off') {
-    // Chatterbox : prêt d'office ; service arrêté, la lecture passe par Pocket
-    // TTS. Pocket TTS absent : prêt s'il peut s'installer au premier clic.
-    const ready = cfg.speakEngine === 'chatterbox' || tts.isInstalled() || tts.canInstall();
+    // Pocket TTS absent : prêt s'il peut s'installer au premier clic.
+    const ready = tts.isInstalled() || tts.canInstall();
     state = { mode, volume: speakVolume(cfg), ready, hasText: await selection.hasText(mode) };
   }
   const key = JSON.stringify(state);
@@ -506,7 +503,7 @@ async function updateSpeakState() {
   win.webContents.send('tts:state', state);
 }
 
-const speakOptions = (cfg) => ({ lang: cfg.speakLang, voices: cfg.speakVoices, engine: cfg.speakEngine });
+const speakOptions = (cfg) => ({ lang: cfg.speakLang, voices: cfg.speakVoices });
 
 // Installe Pocket TTS (premier usage) en le signalant dans la bulle.
 async function installPocket() {
@@ -536,7 +533,7 @@ ipcMain.handle('tts:speak', async (_e, source) => {
   const agentId = source && typeof source.agent === 'string' ? source.agent : null;
   if (!agentId && mode === 'off') return { ok: false, error: SPEAK_MESSAGES.empty };
   const send = (...args) => { if (win) win.webContents.send(...args); };
-  if (cfg.speakEngine !== 'chatterbox' && !tts.isInstalled() && tts.canInstall() && !(await installPocket())) {
+  if (!tts.isInstalled() && tts.canInstall() && !(await installPocket())) {
     return { ok: false, error: SPEAK_MESSAGES.failed };
   }
   try {
@@ -556,7 +553,7 @@ ipcMain.on('tts:cancel', (_e, id) => tts.cancel(id));
 ipcMain.on('tts:warmUp', async () => {
   const cfg = loadConfig();
   const mode = speakMode(cfg);
-  if (mode !== 'off' && (cfg.speakEngine === 'chatterbox' || tts.isInstalled())) {
+  if (mode !== 'off' && tts.isInstalled()) {
     tts.warmUp(await selection.peekText(mode), speakOptions(cfg));
   }
 });
@@ -699,8 +696,7 @@ function showAgentReply(agent) {
   showBubble({ title: agent.name, text: reply.text, color: agentColor(agent), asked: askedSummary(reply.asked) }, 'agent', agent.id);
   pushAgents();
   // Le bouton ▶ de la bulle va sans doute servir : on charge le lecteur d'avance.
-  const cfg = loadConfig();
-  if (cfg.speakEngine === 'chatterbox' || tts.isInstalled()) tts.warmUp(reply.audio, speakOptions(cfg));
+  if (tts.isInstalled()) tts.warmUp(reply.audio, speakOptions(loadConfig()));
 }
 
 // La demande en tête de file de l'agent. Les autres attendent derrière (outils
@@ -1475,7 +1471,6 @@ const RELEASES_URL = 'https://github.com/GearProductions/whisper/releases';
 ipcMain.on('menu:open', async (_e, devices) => {
   if (!win) return;
   const cfg = loadConfig();
-  const chatterboxUp = await chatterbox.isUp();
   const mics = Array.isArray(devices) ? devices.filter((d) => d && typeof d.deviceId === 'string') : [];
   const { cli, model } = whisper.locateWhisper(whisperDirs());
   const speak = speakMode(cfg);
@@ -1531,15 +1526,6 @@ ipcMain.on('menu:open', async (_e, devices) => {
         { label: 'Presse-papiers', type: 'radio', checked: speak === 'clipboard', click: () => setSpeak('clipboard') },
         { label: 'Désactivée', type: 'radio', checked: speak === 'off', click: () => setSpeak('off') },
         { type: 'separator' },
-        {
-          label: 'Moteur',
-          submenu: [
-            { label: tts.isInstalled() ? 'Pocket TTS (processeur)' : 'Pocket TTS (non installé)', type: 'radio',
-              checked: cfg.speakEngine !== 'chatterbox', click: () => { saveConfig({ speakEngine: 'pocket' }); pollSpeak(); } },
-            { label: chatterboxUp ? 'Chatterbox (GPU)' : 'Chatterbox (GPU, service arrêté)', type: 'radio',
-              checked: cfg.speakEngine === 'chatterbox', click: () => { saveConfig({ speakEngine: 'chatterbox' }); pollSpeak(); } },
-          ],
-        },
         {
           label: 'Langue du texte',
           submenu: ['auto', ...Object.keys(SPEAK_LANGS)].map((l) => ({
