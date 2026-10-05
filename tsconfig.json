@@ -12,7 +12,7 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node", "vite/client"]
   },
-  "include": ["src/renderer", "tests", "vite.config.ts"]
+  "include": ["src/renderer", "tests", "vite.config.mts"]
 }

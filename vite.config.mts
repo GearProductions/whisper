@@ -4,14 +4,14 @@ import { resolve } from 'node:path';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
-const root = resolve(__dirname, 'src/renderer');
+const root = resolve(import.meta.dirname, 'src/renderer');
 
 export default defineConfig({
   root,
   base: './',
   plugins: [react()],
   build: {
-    outDir: resolve(__dirname, 'out/renderer'),
+    outDir: resolve(import.meta.dirname, 'out/renderer'),
     emptyOutDir: true,
     modulePreload: { polyfill: false },
     rollupOptions: {
@@ -23,7 +23,7 @@ export default defineConfig({
     },
   },
   test: {
-    root: __dirname,
+    root: import.meta.dirname,
     include: ['src/renderer/**/tests/**/*.test.ts', 'tests/**/*.test.ts'],
     environment: 'node',
   },
