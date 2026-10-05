@@ -1,31 +1,25 @@
 /* =========================================================================
-   Whisper — la bulle du texte transcrit
+   Whisper — la bulle des messages de l'appli
 
-   Montrée à côté de l'icône à la fin d'une dictée (réglage « Afficher le texte
-   transcrit »). Un clic copie le texte dans le presse-papiers ; la croix la
-   ferme. Le principal la place (et la déplace avec l'icône), la montre sans
-   lui donner le focus et la masque au bout de quelques secondes — le survol
-   suspend ce délai.
-
-   Elle sert aussi de « notice » (ex. « Micro Discord coupé ») et de message de
-   l'appli : rien à copier ; et de réglage du volume de lecture (un curseur,
-   appliqué aussitôt). Les agents Claude Code ont leur panneau (conversation.js).
+   Une « notice » (« Micro Discord coupé »), un message de l'appli
+   (téléchargement, installation…) ou le réglage du volume de lecture (un
+   curseur, appliqué aussitôt). La croix la ferme. Le principal la place (et
+   la déplace avec l'icône), la montre sans lui donner le focus et la masque au
+   bout de quelques secondes — le survol suspend ce délai. Le texte dicté et
+   les agents ont leur panneau (conversation.js).
    ========================================================================= */
 
 const box = document.getElementById('bubble');
 const text = document.getElementById('text');
-const hint = document.getElementById('hint');
 const volume = document.getElementById('volume');
 const range = document.getElementById('volume-range');
 const rangeValue = document.getElementById('volume-value');
-const HINT = 'Cliquer pour copier';
 
 // `size` : { width, maxHeight } de la fenêtre. La largeur est posée ici, avant
 // la mesure : la fenêtre, cachée, n'est pas encore à la bonne taille.
 window.bubble.onShow((value, kind, size) => {
   document.body.style.width = `${size.width}px`;
   box.style.maxHeight = `${size.maxHeight - 8}px`;
-  const notice = kind === 'notice' || kind === 'status'; // rien à copier
   const isVolume = kind === 'volume';
   text.textContent = isVolume ? 'Volume de lecture' : value;
   volume.hidden = !isVolume;
@@ -33,13 +27,7 @@ window.bubble.onShow((value, kind, size) => {
     range.value = String(Math.round(Number(value) * 100));
     rangeValue.textContent = `${range.value} %`;
   }
-  hint.textContent = HINT;
-  hint.hidden = notice || isVolume;
-  box.title = notice || isVolume ? '' : HINT;
   box.classList.toggle('notice', kind === 'notice');   // aux couleurs de Discord
-  box.classList.toggle('status', kind === 'status');
-  box.classList.toggle('volume', isVolume);
-  box.classList.remove('copied');
   text.scrollTop = 0;
   // Hauteur réelle une fois le texte posé : le principal taille la fenêtre dessus.
   // Mesure immédiate (getBoundingClientRect force la mise en page), PAS dans un
@@ -48,20 +36,11 @@ window.bubble.onShow((value, kind, size) => {
   window.bubble.ready(Math.ceil(box.getBoundingClientRect().height) + 8);
 });
 
-// La croix ferme SANS copier (elle est hors de la bulle : son clic n'y remonte pas).
 document.getElementById('close').addEventListener('click', () => window.bubble.close());
 
 range.addEventListener('input', () => {
   rangeValue.textContent = `${range.value} %`;
   window.bubble.setVolume(Number(range.value) / 100);
-});
-
-box.addEventListener('click', async () => {
-  if (box.classList.contains('volume')) return;
-  if (await window.bubble.copy()) {
-    box.classList.add('copied');
-    hint.textContent = 'Copié ✓';
-  }
 });
 
 box.addEventListener('mouseenter', () => window.bubble.hover(true));

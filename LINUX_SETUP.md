@@ -41,9 +41,10 @@ garder qu'une.
 Maintenir le clic sur l'icône, parler, relâcher : le texte arrive dans le
 presse-papiers, **Ctrl+V** pour le coller (Ctrl+Maj+V dans un terminal).
 
-Une bulle montre aussi le texte à côté de l'icône pendant 10 s (le survol
-suspend ce délai ; la croix la ferme). **Un clic dessus le recopie** : pratique
-si on a copié autre chose entre-temps. Désactivable : clic droit → *Afficher le texte transcrit*
+Le panneau montre aussi le texte à côté de l'icône (contexte *Dictée*, la
+croix le ferme). **Copier** le recopie : pratique si on a copié autre chose
+entre-temps, ou pour le coller dans le champ d'un agent. Désactivable : clic
+droit → *Afficher le texte transcrit*
 (clé `showText` de `.data/config.json`).
 
 Sur haut-parleurs : clic droit → *Couper le son des autres applications pendant

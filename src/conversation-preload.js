@@ -1,4 +1,5 @@
-// Pont du panneau des conversations : il reçoit la conversation affichée,
+// Pont du panneau des conversations : il reçoit la conversation affichée (ou
+// le contexte « Dictée »),
 // demande l'historique, la lecture d'une réponse par son rang, et envoie à
 // l'agent affiché ce qu'on écrit dans son champ (le principal vérifie à qui).
 // Répondre à une demande d'autorisation ne vaut que pour celle affichée.
@@ -16,11 +17,11 @@ contextBridge.exposeInMainWorld('conv', {
   current: () => ipcRenderer.send('conv:current'),            // ancienne conversation → celle en cours
   setMode: (mode) => ipcRenderer.send('conv:mode', mode),     // 'compact' (⤡) ou 'full' (⤢)
   height: (h) => ipcRenderer.send('conv:height', h),          // réduit : la hauteur de son contenu
-  // Message à la place de la bulle (texte dicté pour ailleurs, message de
-  // l'appli) ; `copyNotice` copie le texte dicté, connu du principal.
+  // Message de l'appli, à la place de la bulle.
   onNotice: (fn) => ipcRenderer.on('conv:notice', (_e, notice) => fn(notice)),
-  copyNotice: () => ipcRenderer.invoke('conv:copyNotice'),
-  // Champ de saisie : un message à l'agent de l'onglet affiché, avec ses pièces
+  // Contexte « Dictée » : copie le dernier texte dicté, connu du principal.
+  copy: () => ipcRenderer.invoke('conv:copy'),
+  // Champ de saisie : un message à l'agent affiché, avec ses pièces
   // jointes → { ok, error }. 📎 : menu (fichiers, sélection), le choix revient
   // par onAttached. La dictée, panneau ouvert, arrive par onDictation.
   send: (draft) => ipcRenderer.invoke('conv:send', draft),

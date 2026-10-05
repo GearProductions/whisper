@@ -2,8 +2,8 @@
    Whisper — agents Claude Code
 
    Un agent = une conversation Claude Code attachée à un dossier de projet (un
-   seul par dossier). On lui parle par la dictée ; sa réponse se lit dans la
-   bulle et s'écoute par le lecteur (cf. tts.js).
+   seul par dossier). On lui parle par la dictée ; sa réponse se lit dans son
+   panneau et s'écoute par le lecteur (cf. tts.js).
 
    Pilotés par le SDK officiel (@anthropic-ai/claude-agent-sdk), qui lance le
    Claude Code DE L'UTILISATEUR (déjà installé et connecté : pas de clé API,
@@ -13,11 +13,11 @@
 
    Un tour = un appel query() : le premier crée la session, les suivants la
    reprennent (`resume`). « Nouvelle session » oublie simplement l'identifiant.
-   Un message peut porter des images (jointes dans la fenêtre de relecture).
+   Un message peut porter des images (jointes dans le champ du panneau).
 
    Chaque réponse se termine par un bloc <audio>…</audio> (consigne ajoutée au
    prompt système de NOS sessions seulement) : un résumé fait pour l'oreille.
-   La bulle montre la réponse sans ce bloc ; le lecteur ne lit que lui. La
+   Le panneau montre la réponse sans ce bloc ; le lecteur ne lit que lui. La
    consigne vient d'un fichier que l'utilisateur peut retoucher (cf. main.js) ;
    AUDIO_RULES est son contenu par défaut.
 
@@ -94,7 +94,7 @@ const isAvailable = (command) => !!launcher(command);
 // id → { status, abort, query, pending, last, unread, onChange }
 //   pending : la file des demandes d'autorisation, la plus ancienne en tête
 //   status : 'idle' | 'working' | 'asking' (attend une autorisation) | 'error'
-//   last   : { text, audio, error, asked: { text, images } } de la dernière réponse
+//   last   : { text, audio, error, asked } de la dernière réponse (asked : le texte envoyé)
 //   query  : la requête du SDK pendant un tour (pour changer de mode, de modèle)
 const runtime = new Map();
 const rt = (id) => {
@@ -141,11 +141,13 @@ function journal(agent, event, detail = '') {
     fs.appendFileSync(journalFile, line);
   } catch { /* journal impossible : on n'arrête pas l'agent pour ça */ }
 }
-// Ce sur quoi porte un outil, en une ligne courte, pour le journal.
-const target = (input) => {
+// Ce sur quoi porte un outil : sa commande, son fichier, son adresse…
+const toolTarget = (input) => {
   const i = input || {};
-  return String(i.command ?? i.file_path ?? i.notebook_path ?? i.path ?? i.url ?? i.pattern ?? '').split('\n')[0].slice(0, 160);
+  return i.command ?? i.file_path ?? i.notebook_path ?? i.path ?? i.url ?? i.query ?? i.pattern;
 };
+// La même chose en une ligne courte, pour le journal.
+const target = (input) => String(toolTarget(input) ?? '').split('\n')[0].slice(0, 160);
 
 /* ---- Un tour de conversation --------------------------------------------- */
 
@@ -199,9 +201,9 @@ async function send(agent, message, { command, instructions = AUDIO_RULES, onCha
 
   r.status = 'working';
   r.name = agent.name;
-  // Le message envoyé, gardé avec la réponse : la bulle le rappelle (plusieurs
-  // agents à la fois, on ne sait plus ce qu'on a demandé à celui-ci).
-  const asked = { text: message.text || '', images: (message.images || []).length };
+  // Le message envoyé, gardé avec la réponse : une commande (« /context ») s'y
+  // reconnaît (cf. main.js, refreshConversation).
+  const asked = message.text || '';
   r.since = Date.now();
   r.abort = new AbortController();
   r.onChange = onChange;
@@ -224,7 +226,7 @@ async function send(agent, message, { command, instructions = AUDIO_RULES, onCha
       }, { once: true });
     }
     onChange();
-    // La bulle montre la tête de file : on ne la prévient que pour la première.
+    // Le panneau montre la tête de file : on ne prévient que pour la première.
     if (r.pending[0] === p) onPermission({ tool, input });
   });
 
@@ -274,9 +276,9 @@ async function send(agent, message, { command, instructions = AUDIO_RULES, onCha
   r.since = null;
   r.interrupted = false;
   // Après /compact, la dernière mesure du contexte ne vaut plus.
-  if (/^\/compact\b/.test(asked.text)) r.contextUsed = null;
+  if (/^\/compact\b/.test(asked)) r.contextUsed = null;
   // Une commande sans réponse écrite (/compact…) : on dit qu'elle est faite.
-  if (reply === '' && /^\//.test(asked.text)) reply = `${asked.text.split(/\s/)[0]} : fait.`;
+  if (reply === '' && /^\//.test(asked)) reply = `${asked.split(/\s/)[0]} : fait.`;
   if (reply !== null) {
     r.last = { ...splitReply(reply), asked };
     // Dit dans la réponse elle-même qu'une action n'a pas pu être autorisée.
@@ -302,7 +304,7 @@ async function send(agent, message, { command, instructions = AUDIO_RULES, onCha
 // Code, SEULEMENT des règles d'autorisation, et pour la session en cours. Une
 // suggestion peut viser les réglages du projet ou de l'utilisateur (écrite sur
 // le disque, elle survivrait à la session), changer de mode ou ouvrir d'autres
-// dossiers : rien de cela ne doit passer par un bouton de la bulle.
+// dossiers : rien de cela ne doit passer par un bouton du panneau.
 function sessionRules(suggestions) {
   return (Array.isArray(suggestions) ? suggestions : [])
     .filter((s) => s && s.type === 'addRules' && s.behavior === 'allow' && Array.isArray(s.rules) && s.rules.length)
@@ -551,6 +553,6 @@ async function thread(agent, sessionId = agent.sessionId) {
 }
 
 module.exports = {
-  MODELS, EFFORTS, MODES, AUDIO_RULES, isAvailable, setMode, setModel, setJournal,
+  MODELS, EFFORTS, MODES, AUDIO_RULES, toolTarget, isAvailable, setMode, setModel, setJournal,
   state, lastReply, markRead, forgetReply, forget, send, answer, pendingPermission, interrupt, stop, thread, sessionTitle, sessions, probe,
 };

@@ -13,21 +13,29 @@ C'est la dictée de l'icône compacte de Cockpit, seule.
 - **Robots accolés** (optionnels) : des agents [Claude Code](https://claude.com/claude-code), un par dossier de projet, à qui parler par la dictée.
 - **Clic droit** : langue, micro, bip, son des autres applications, collage automatique, premier plan, affichage du texte, micro Discord, lecture à voix haute, dossier whisper, configuration, version (*À propos*), quitter.
 
-À la fin d'une dictée, une bulle montre le texte transcrit à côté de l'icône :
-**un clic dessus le copie** dans le presse-papiers. Elle suit l'icône quand on
-la déplace, se ferme avec sa croix et disparaît seule après 10 s (le survol
-suspend ce délai). Désactivable : clic droit → *Afficher le texte transcrit*.
+À la fin d'une dictée, le **panneau** s'ouvre contre l'icône, sans prendre le
+clavier, et montre le texte transcrit (contexte *Dictée*) : **Copier** le
+remet dans le presse-papiers — par exemple pour le coller dans le champ d'un
+agent qu'on avait oublié de sélectionner. Il suit l'icône quand on la déplace
+et se ferme avec sa croix. C'est le même panneau que celui des agents : il
+montre la conversation du robot sélectionné, ou la dictée si aucun ne l'est.
+Désactivable : clic droit → *Afficher le texte transcrit*. Une petite bulle
+reste pour les messages de l'appli (téléchargement, *Micro Discord coupé*) et
+le volume.
 
 L'icône, ses bulles et le panneau des conversations restent **au-dessus des
 autres fenêtres**. Pour une vidéo en plein écran : clic droit → décocher
 *Toujours au premier plan* ; ils redeviennent des fenêtres comme les autres.
 
-![La bulle du texte transcrit, au-dessus de l'icône](docs/bulle.png)
+![Le panneau, contexte Dictée : le texte transcrit et Copier](docs/dictee.png)
 
 L'icône ne prend jamais le focus : le texte arrive dans l'application active.
 Le presse-papiers est restauré après le collage (sauf si le collage a échoué,
 ou si le collage automatique est désactivé : le texte y reste, pour un Ctrl+V
 manuel).
+
+Pour qui modifie le code : [SPEC.md](SPEC.md) décrit le comportement attendu,
+les invariants à ne jamais casser et les scénarios de non-régression.
 
 ## Installation
 
@@ -45,7 +53,7 @@ par Vulkan, sinon sur le processeur) et `uv`. Les modèles, trop lourds pour le
 paquet, se téléchargent **au premier usage**, une seule fois, dans les données
 de l'appli (tableau ci-dessous) :
 
-- **au premier lancement**, le modèle de dictée (548 Mo) ; la bulle et le
+- **au premier lancement**, le modèle de dictée (548 Mo) ; une bulle et le
   menu en montrent l'avancement ;
 - **à la première lecture à voix haute**, Pocket TTS et son Python (~400 Mo à
   télécharger, 1,2 Go sur le disque), puis ses modèles.
@@ -156,11 +164,11 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   fois, sans agent pour l'instant) ou dans un dossier à choisir, qui devient
   favori. Chaque **dossier** reçoit une couleur au hasard, qu'il garde : son
   robot, le liseré du micro et son panneau la portent.
-- **Clic sur un robot** : il est sélectionné (violet). La dictée du gros bouton
+- **Clic sur un robot** : il est sélectionné (à la couleur de son dossier). La dictée du gros bouton
   lui est alors **destinée** au lieu d'être collée. Un second clic le
   désélectionne.
 - **Le panneau de conversation** : la conversation de l'agent, dans un panneau
-  **attaché à l'icône** (à la place de la bulle ; il la suit quand on la
+  **attaché à l'icône** (le même que celui de la dictée ; il la suit quand on la
   déplace, et reste au-dessus des autres fenêtres, voir *Toujours au premier
   plan*). Deux tailles :
   - **réduit** : le dernier échange — votre dernier message, sa réponse (avec
@@ -208,12 +216,12 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
 - **Les robots servent d'onglets** : une conversation à la fois, celle du
   robot sélectionné ; panneau ouvert, cliquer un robot y affiche la sienne (et
   le sélectionne). Un second clic sur le robot affiché rend la dictée au
-  curseur ; le texte dicté pour ailleurs s'affiche alors en tête du panneau,
-  avec **Copier** (panneau fermé : dans la petite bulle habituelle).
+  curseur, et le panneau passe au contexte *Dictée*.
 - **Bureaux virtuels** : le panneau prend le clavier (on y écrit), donc le
   gestionnaire de fenêtres le range sur un bureau. Sous KDE : Alt+F3 → *Sur
-  tous les bureaux*, une fois par lancement de l'appli — fermé (×), il est
-  réduit au sens du système, et garde ce réglage.
+  tous les bureaux* — fermé (×) puis rouvert par un clic, il garde ce
+  réglage ; rouvert de lui-même (dictée, demande d'autorisation), il revient
+  sur le bureau courant sans prendre le clavier, et l'oublie.
 - **Clic droit sur un robot** : couleur du dossier, modèle, effort, mode
   (manuel, accepter les modifications de fichiers, auto, plan), *✎ Écrire un
   message…*, *Dernier échange*, **conversation complète** (et historique), interrompre, *Nouvelle
@@ -226,8 +234,8 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
 - La transcription reste locale, mais ce qui est dicté à un agent part chez
   Claude, comme tout message tapé dans Claude Code. Le robot sélectionné (et le
   liseré du micro à sa couleur) dit où ira la dictée ; au lancement de l'appli,
-  aucun agent n'est sélectionné. Les images jointes et la sélection cochée
-  partent avec le message.
+  aucun agent n'est sélectionné. Les pièces jointes (images, texte
+  sélectionné) partent avec le message.
 - Choisir un **nouveau dossier** demande confirmation : Claude Code y est lancé
   avec les réglages du projet (`.claude/` : hooks, serveurs MCP, autorisations),
   qui peuvent exécuter des commandes. N'ajoutez que des dossiers connus.
@@ -265,7 +273,7 @@ c'est par là que l'appli dialogue avec Claude Code : pas de shell de connexion
 **Autorisations en série, interruption, journal.**
 
 - Plusieurs demandes d'autorisation peuvent arriver à la fois (l'agent lance
-  des outils en parallèle) : elles attendent en file, la bulle les montre
+  des outils en parallèle) : elles attendent en file, le panneau les montre
   l'une après l'autre (« 1 autre en attente ») et chaque clic ne répond qu'à
   celle affichée. Une demande sans réponse bloquerait l'agent indéfiniment.
 - *Interrompre* demande à Claude Code d'arrêter son tour, ce qui arrête aussi
@@ -322,7 +330,7 @@ s'affiche le temps de l'enregistrement, une fois la coupure confirmée.
 | `convSize`   | Taille du panneau agrandi (retenue au redimensionnement) |
 | `muteOthers` | Couper le son des autres applications pendant l'enregistrement   |
 | `autoPaste`  | Coller le texte là où est le curseur ; `false` : il reste dans le presse-papiers |
-| `showText`   | Bulle du texte transcrit à la fin d'une dictée                    |
+| `showText`   | Panneau du texte transcrit (contexte *Dictée*) à la fin d'une dictée |
 | `discordMute`| Couper le micro Discord pendant l'enregistrement                 |
 | `speak`      | Bouton de lecture : `selection`, `clipboard` ou `off`             |
 | `speakVolume`| Volume de lecture, de `0` à `1`                                   |

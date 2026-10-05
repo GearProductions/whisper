@@ -2,7 +2,9 @@
    Whisper — la conversation d'un agent
 
    Un panneau attaché à l'icône (il la suit ; × le ferme), une conversation à
-   la fois — celle du robot sélectionné, les robots servant d'onglets. Deux
+   la fois — celle du robot sélectionné, les robots servant d'onglets ; aucun
+   robot sélectionné : le contexte « Dictée », le dernier texte dicté et
+   Copier, rien d'autre. Deux
    tailles : réduit (⤡), le dernier échange, à la hauteur de son contenu ;
    agrandi (⤢), tout le fil et l'historique. Dans les deux, le champ de saisie,
    où « / » propose les commandes de Claude Code (/compact, skills…), et la
@@ -33,7 +35,6 @@ const modeButton = document.getElementById('mode');
 const header = document.querySelector('header');
 const notice = document.getElementById('notice');
 const noticeText = document.getElementById('notice-text');
-const noticeCopy = document.getElementById('notice-copy');
 const contextButton = document.getElementById('context-button');
 const contextPanel = document.getElementById('context-panel');
 const slashBox = document.getElementById('slash');
@@ -106,7 +107,7 @@ setInterval(() => {
   if (workingSince) working.querySelector('.elapsed').textContent = elapsed(Date.now() - workingSince);
 }, 1000);
 
-// Demande d'autorisation dans le fil, comme dans la bulle : ce qui va
+// Demande d'autorisation dans le fil : ce qui va
 // s'exécuter en entier, trois boutons. Un clic parti juste après l'arrivée
 // d'une NOUVELLE demande est ignoré : il répondrait à ce qu'on n'a pas lu.
 const CLICK_GUARD_MS = 600;
@@ -161,21 +162,21 @@ function reportHeight() {
   }, 0);
 }
 
-// `data` : { mode, key, live, name, color, dir, title, status, since,
+// `data` : { dictation, mode, key, live, name, color, dir, title, status, since,
 //            permission: { key, title, text, always } | null,
 //            messages: [{ role, text, context, files, images, time, tools, audio }] }.
-// (`tab` : la conversation affichée.)
 window.conv.onThread((data) => {
-  const tab = data;
-  document.documentElement.style.setProperty('--accent', tab.color);
-  document.title = `${titleOf(tab)} — ${tab.name}`;
-  document.getElementById('title').textContent = titleOf(tab);
-  document.getElementById('sub').textContent = `${tab.name} · ${data.dir}`;
-  archived.hidden = tab.live;
-  resume.disabled = BUSY.includes(tab.status);
-  resume.title = resume.disabled ? `${tab.name} travaille : attendez qu'il ait fini.`
-    : `${tab.name} reprend cette conversation ; celle en cours reste dans l'historique.`;
   current = data;
+  document.documentElement.style.setProperty('--accent', data.color);
+  document.title = `${titleOf(data)} — ${data.name}`;
+  document.getElementById('title').textContent = titleOf(data);
+  document.getElementById('sub').textContent = data.dictation
+    ? 'Aucun agent sélectionné : le texte va au curseur' : `${data.name} · ${data.dir}`;
+  document.body.dataset.view = data.dictation ? 'dictation' : 'agent';
+  archived.hidden = data.live || data.dictation;
+  resume.disabled = BUSY.includes(data.status);
+  resume.title = resume.disabled ? `${data.name} travaille : attendez qu'il ait fini.`
+    : `${data.name} reprend cette conversation ; celle en cours reste dans l'historique.`;
   renderGauge(data.context);
   mode = data.mode;
   const compact = mode === 'compact';
@@ -188,7 +189,7 @@ window.conv.onThread((data) => {
   const switched = data.key !== shownKey;
   if (switched) swapDraft(shownKey, data.key);
   shownKey = data.key;
-  renderComposer(tab);
+  renderComposer();
   if (switched) { history.hidden = true; contextPanel.hidden = true; openDetails.clear(); openTools.clear(); }
   const atEnd = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 40;
   const grew = data.messages.length !== shownCount;
@@ -200,8 +201,8 @@ window.conv.onThread((data) => {
     const el = template.content.firstElementChild.cloneNode(true);
     el.classList.add(m.role);
     const who = el.querySelector('.who');
-    who.textContent = m.role === 'user' ? 'Vous' : m.role === 'system'
-      ? (m.kind === 'compact' ? 'Contexte compacté' : 'Sortie de la commande') : tab.name;
+    who.textContent = data.dictation ? 'Texte dicté' : m.role === 'user' ? 'Vous' : m.role === 'system'
+      ? (m.kind === 'compact' ? 'Contexte compacté' : 'Sortie de la commande') : data.name;
     if (m.time) {
       who.append(Object.assign(document.createElement('time'), {
         textContent: clock(m.time), title: new Date(m.time).toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'medium' }),
@@ -229,20 +230,25 @@ window.conv.onThread((data) => {
     const listen = el.querySelector('.listen');
     listen.hidden = m.role !== 'assistant' || !m.audio;
     listen.addEventListener('click', () => window.conv.speak(index));
+    const copy = el.querySelector('.copy');
+    copy.addEventListener('click', async () => { if (await window.conv.copy()) copy.textContent = 'Copié ✓'; });
     return el;
   }));
+  if (data.dictation && !data.messages.length) {
+    thread.append(Object.assign(document.createElement('div'), { className: 'hint', textContent: 'Maintenez l\'icône pour dicter : le texte s\'affichera ici.' }));
+  }
   // L'agent demande une autorisation : elle se valide ici, au bas du fil.
   if (data.permission) thread.append(renderPermission(data.permission));
-  const texts = { working: `${tab.name} travaille`, asking: `${tab.name} attend votre autorisation` };
-  const text = tab.live && !data.permission && texts[tab.status];
-  workingSince = text ? tab.since : null;
+  const texts = { working: `${data.name} travaille`, asking: `${data.name} attend votre autorisation` };
+  const text = data.live && !data.permission && texts[data.status];
+  workingSince = text ? data.since : null;
   if (text) {
-    working.dataset.status = tab.status;
+    working.dataset.status = data.status;
     working.querySelector('.what').textContent = text;
-    working.querySelector('.elapsed').textContent = tab.since ? elapsed(Date.now() - tab.since) : '';
+    working.querySelector('.elapsed').textContent = data.since ? elapsed(Date.now() - data.since) : '';
     thread.append(working);
   }
-  // Nouvel onglet : en bas. Sinon, reste en bas quand un message arrive, sans
+  // Autre conversation : en bas. Sinon, reste en bas quand un message arrive, sans
   // arracher la lecture d'un message plus ancien.
   if (compact || switched || data.permission || (atEnd && (grew || text))) thread.scrollTop = thread.scrollHeight;
   reportHeight();
@@ -319,16 +325,16 @@ contextButton.addEventListener('click', () => { if (contextPanel.hidden) showCon
 // Le champ commence par « / » : les commandes de l'agent (celles de Claude
 // Code, ses skills, celles du projet), filtrées par ce qui est tapé. Flèches,
 // Entrée ou Tab pour choisir, Échap pour fermer. La liste vient de la sonde,
-// une fois par agent.
+// une fois par dossier (deux agents peuvent porter le même nom).
 const commandsFor = new Map();
-const agentKey = () => (current ? current.name : '');
+const agentKey = () => (current ? current.dir : '');
 let slashItems = [];
 let slashIndex = 0;
 let slashLoading = false;
 
 function slashQuery() {
   const m = /^\/(\S*)$/.exec(message.value.slice(0, message.selectionStart));
-  return m && !/\s/.test(message.value.slice(0, message.selectionStart)) ? m[1].toLowerCase() : null;
+  return m ? m[1].toLowerCase() : null;
 }
 
 async function updateSlash() {
@@ -387,28 +393,25 @@ function pickSlash(i) {
   closeSlash();
   autoSize();
 }
-// Avant l'envoi par Entrée (cf. plus bas) : la liste ouverte prend les touches.
-message.addEventListener('keydown', (e) => {
-  if (slashBox.hidden || !slashItems.length) { if (e.key === 'Escape' && !slashBox.hidden) { e.preventDefault(); closeSlash(); } return; }
-  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-    e.preventDefault();
+// La liste ouverte prend les touches (cf. le keydown du champ, plus bas) : true
+// si elle a pris celle-ci.
+function slashKey(e) {
+  if (slashBox.hidden) return false;
+  if (e.key === 'Escape') closeSlash();
+  else if (!slashItems.length) return false;
+  else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     slashIndex = (slashIndex + (e.key === 'ArrowDown' ? 1 : -1) + slashItems.length) % slashItems.length;
     updateSlash();
-  } else if (e.key === 'Enter' || e.key === 'Tab') {
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    pickSlash(slashIndex);
-  } else if (e.key === 'Escape') {
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    closeSlash();
-  }
-});
-message.addEventListener('input', () => { slashIndex = 0; updateSlash(); });
+  } else if (e.key === 'Enter' || e.key === 'Tab') pickSlash(slashIndex);
+  else return false;
+  e.preventDefault();
+  e.stopPropagation(); // Échap : ne ferme pas aussi l'historique ou le contexte
+  return true;
+}
 message.addEventListener('blur', () => setTimeout(closeSlash, 150));
 
-// À la place de la bulle, panneau ouvert : le texte dicté pour ailleurs (à
-// copier) ou un message de l'appli, en tête du panneau. null : effacé.
+// À la place de la bulle, panneau ouvert : un message de l'appli, en tête du
+// panneau. null : effacé.
 let noticeTimer = null;
 window.conv.onNotice((n) => {
   clearTimeout(noticeTimer);
@@ -416,21 +419,16 @@ window.conv.onNotice((n) => {
   if (n) {
     notice.dataset.kind = n.kind;
     noticeText.textContent = n.text;
-    noticeCopy.hidden = n.kind !== 'text';
-    noticeCopy.textContent = 'Copier';
     if (n.kind === 'status') noticeTimer = setTimeout(() => { notice.hidden = true; reportHeight(); }, 10000);
   }
   reportHeight();
-});
-noticeCopy.addEventListener('click', async () => {
-  if (await window.conv.copyNotice()) noticeCopy.textContent = 'Copié ✓';
 });
 document.getElementById('notice-close').addEventListener('click', () => { notice.hidden = true; reportHeight(); });
 
 /* ---- Champ de saisie -------------------------------------------------------- */
 
-// Écrire à l'agent de l'onglet affiché — au clavier, ou par la dictée, qui
-// arrive ici quand le panneau est ouvert sur cet agent. Un brouillon par onglet
+// Écrire à l'agent affiché — au clavier, ou par la dictée, qui arrive ici
+// quand le panneau est ouvert sur cet agent. Un brouillon par conversation
 // (texte et pièces jointes) ; pendant que l'agent travaille, on peut écrire,
 // pas envoyer.
 //
@@ -441,7 +439,6 @@ document.getElementById('notice-close').addEventListener('click', () => { notice
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 const drafts = new Map();
 let pieces = [];
-let composerTab = null;
 let sending = false;
 
 function swapDraft(from, to) {
@@ -533,13 +530,12 @@ window.conv.onDictation((text) => {
 });
 window.conv.onFocusInput(() => message.focus());
 
-function renderComposer(tab) {
-  composerTab = tab;
-  composer.hidden = !tab.live; // une ancienne conversation se lit, ou se reprend
-  const busy = BUSY.includes(tab.status);
+function renderComposer() {
+  composer.hidden = !current.live; // une ancienne conversation se lit, ou se reprend
+  const busy = BUSY.includes(current.status);
   sendButton.disabled = sending || busy;
-  message.placeholder = busy ? `${tab.name} travaille : vous pourrez envoyer quand il aura fini.`
-    : `Écrire à ${tab.name}… (Entrée : envoyer, Maj+Entrée : à la ligne)`;
+  message.placeholder = busy ? `${current.name} travaille : vous pourrez envoyer quand il aura fini.`
+    : `Écrire à ${current.name}… (Entrée : envoyer, Maj+Entrée : à la ligne)`;
 }
 
 // Le champ grandit avec le texte, jusqu'à quelques lignes.
@@ -552,9 +548,9 @@ function autoSize() {
 
 async function sendMessage() {
   const text = message.value.trim();
-  if ((!text && !pieces.length) || sending || !composerTab || BUSY.includes(composerTab.status)) return;
+  if ((!text && !pieces.length) || sending || !current || BUSY.includes(current.status)) return;
   sending = true;
-  renderComposer(composerTab);
+  renderComposer();
   const draft = {
     text,
     images: pieces.filter((p) => p.kind === 'image').map(({ name, type, data }) => ({ name, type, data })),
@@ -576,12 +572,12 @@ async function sendMessage() {
   } else {
     composerStatus.textContent = (res && res.error) || 'L\'envoi a échoué.';
   }
-  renderComposer(composerTab);
+  renderComposer();
 }
 
-message.addEventListener('input', () => { autoSize(); composerStatus.textContent = ''; });
+message.addEventListener('input', () => { autoSize(); composerStatus.textContent = ''; slashIndex = 0; updateSlash(); });
 message.addEventListener('keydown', (e) => {
-  if (!slashBox.hidden && slashItems.length) return; // la liste des commandes prend Entrée (cf. plus bas)
+  if (slashKey(e)) return;
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendMessage(); }
 });
 sendButton.addEventListener('click', sendMessage);

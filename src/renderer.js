@@ -16,7 +16,7 @@
 
    Puis les agents Claude Code (un robot par dossier de projet) : un clic en
    sélectionne un, la dictée lui est alors envoyée au lieu d'être collée ; une
-   pastille signale sa réponse, à lire dans la bulle ou à écouter.
+   pastille signale sa réponse, à lire dans son panneau ou à écouter.
    ========================================================================= */
 
 const RATE = 16000;
@@ -357,7 +357,7 @@ function playChunk(pcm, rate) {
   if (speech.phase === 'loading') setSpeechPhase('playing');
 }
 
-// `source` : rien (la sélection ou le presse-papiers) ou { agent: id }.
+// `source` : rien (la sélection ou le presse-papiers) ou 'reply'.
 async function speak(source) {
   const token = ++speech.token;
   // Créés au clic : le volume passe par un gain, le curseur agit en cours de lecture.
@@ -397,11 +397,11 @@ play.addEventListener('click', () => {
 // Survol : le clic va suivre, le principal charge le modèle d'avance.
 play.addEventListener('mouseenter', () => { if (canSpeak()) window.api.warmUpSpeak(); });
 
-// Bouton ▶ de la bulle d'un agent ou de sa fenêtre de conversation : le résumé
-// audio d'une réponse, par le même lecteur.
-window.api.onSpeakAgent((id, index) => {
+// ▶ d'une réponse dans le panneau des conversations : son résumé audio, par le
+// même lecteur.
+window.api.onSpeakReply(() => {
   if (speech.phase === 'loading' || speech.phase === 'playing') stopSpeaking();
-  speak({ agent: id, index });
+  speak('reply');
 });
 window.api.onSpeakChunk((id, pcm, rate) => onEvent(id, 'chunk', pcm, rate));
 window.api.onSpeakEnd((id, error) => onEvent(id, 'end', error));
@@ -441,7 +441,7 @@ function renderAgents(s) {
     return b;
   }));
   // Une réponse vient d'arriver : le bip de fin, comme pour une dictée (pas
-  // pour celle de l'onglet affiché : déjà lue, elle n'est jamais « non lue »).
+  // pour celle de l'agent affiché : déjà lue, elle n'est jamais « non lue »).
   const unread = new Set(list.filter((a) => a.unread).map((a) => a.id));
   if ([...unread].some((id) => !unreadBefore.has(id))) window.api.getConfig().then((cfg) => beep(cfg, 660));
   unreadBefore = unread;
