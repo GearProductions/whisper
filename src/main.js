@@ -84,6 +84,9 @@ function saveConfig(patch) {
   return cfg;
 }
 
+// Les pages (icône, bulle, panneau) : construites par Vite depuis src/renderer.
+const page = (name) => path.join(__dirname, '..', 'out', 'renderer', name);
+
 // Binaires livrés avec le paquet (whisper-cli, uv : cf. scripts/, CI) ; en
 // développement, ceux que scripts/ a compilés ou téléchargés.
 const bundledBinDir = () => (app.isPackaged
@@ -163,7 +166,7 @@ function createWindow() {
   });
   win.setAlwaysOnTop(onTop(), 'floating');
   win.setVisibleOnAllWorkspaces(true);
-  win.loadFile(path.join(__dirname, 'index.html'), { query: { size: String(size) } });
+  win.loadFile(page('icon/index.html'), { query: { size: String(size) } });
   // Page (re)chargée : elle n'a pas encore l'état du bouton de lecture.
   win.webContents.on('did-finish-load', () => { speakKey = ''; pollSpeak(); pushAgents(); });
 }
@@ -210,7 +213,7 @@ function createBubble() {
   bubble.setVisibleOnAllWorkspaces(true);
   bubble.webContents.on('will-navigate', (e) => e.preventDefault());
   bubble.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  bubble.loadFile(path.join(__dirname, 'bubble.html'));
+  bubble.loadFile(page('bubble/bubble.html'));
 }
 
 function hideBubble() {
@@ -878,7 +881,7 @@ function createConversation(focus) {
   // Les liens passent par conv:openLink : la fenêtre ne navigue jamais ailleurs.
   conv.webContents.on('will-navigate', (e) => e.preventDefault());
   conv.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  conv.loadFile(path.join(__dirname, 'conversation.html'));
+  conv.loadFile(page('panel/conversation.html'));
   conv.once('ready-to-show', () => {
     if (!conv) return;
     placeConversation();
