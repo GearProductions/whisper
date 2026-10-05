@@ -166,7 +166,7 @@ function createWindow() {
   });
   win.setAlwaysOnTop(onTop(), 'floating');
   win.setVisibleOnAllWorkspaces(true);
-  win.loadFile(page('icon/index.html'), { query: { size: String(size) } });
+  win.loadFile(page('app/icon/index.html'), { query: { size: String(size) } });
   // Page (re)chargée : elle n'a pas encore l'état du bouton de lecture.
   win.webContents.on('did-finish-load', () => { speakKey = ''; pollSpeak(); pushAgents(); });
 }
@@ -213,7 +213,7 @@ function createBubble() {
   bubble.setVisibleOnAllWorkspaces(true);
   bubble.webContents.on('will-navigate', (e) => e.preventDefault());
   bubble.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  bubble.loadFile(page('bubble/bubble.html'));
+  bubble.loadFile(page('app/bubble/bubble.html'));
 }
 
 function hideBubble() {
@@ -881,7 +881,7 @@ function createConversation(focus) {
   // Les liens passent par conv:openLink : la fenêtre ne navigue jamais ailleurs.
   conv.webContents.on('will-navigate', (e) => e.preventDefault());
   conv.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  conv.loadFile(page('panel/conversation.html'));
+  conv.loadFile(page('app/panel/conversation.html'));
   conv.once('ready-to-show', () => {
     if (!conv) return;
     placeConversation();

@@ -22,14 +22,15 @@ les deux.
 
 | Fenêtre | Page (`src/renderer/`) | Pont | Focus | Rôle |
 |---|---|---|---|---|
-| **Icône** | `icon/` (`IconApp.tsx`) | `preload.js` | **jamais** (`focusable: false`) | geste, micro, lecteur audio, robots |
-| **Bulle** | `bubble/` (`BubbleApp.tsx`) | `bubble-preload.js` | **jamais** | messages de l'appli, curseur du volume |
-| **Panneau** | `panel/` (`PanelApp.tsx`) | `conversation-preload.js` | oui (on y écrit) ; jamais pris quand il s'ouvre de lui-même | conversation de l'agent sélectionné (champ de saisie) ou contexte « Dictée » |
+| **Icône** | `app/icon/` (`icon-app.tsx`) | `preload.js` | **jamais** (`focusable: false`) | geste, micro, lecteur audio, robots |
+| **Bulle** | `app/bubble/` (`bubble-app.tsx`) | `bubble-preload.js` | **jamais** | messages de l'appli, curseur du volume |
+| **Panneau** | `app/panel/` (`panel-app.tsx`) | `conversation-preload.js` | oui (on y écrit) ; jamais pris quand il s'ouvre de lui-même | conversation de l'agent sélectionné (champ de saisie) ou contexte « Dictée » |
 
 Les pages sont en React + TypeScript, construites par Vite dans
-`out/renderer/` et chargées en `file://`. Le contrat des ponts est typé dans
-`src/renderer/bridge.d.ts` ; dans chaque page, seul le fichier `*App.tsx`
-connaît son pont. Découpage et règles : `AGENTS.md`,
+`out/renderer/` et chargées en `file://`, rangées en `app/` (fenêtres),
+`core/` (métier), `helpers/`, `technicals/` (ponts, micro, DOM). Le contrat
+des ponts est typé dans `technicals/bridge` ; dans chaque page, seul le
+fichier `*-app.tsx` connaît son pont. Découpage et règles : `AGENTS.md`,
 `docs/tickets/refactor/0.5.0-front-react.md`.
 
 Toutes : sans cadre, hors de la barre des tâches, `contextIsolation`,

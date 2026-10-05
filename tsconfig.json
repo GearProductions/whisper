@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
@@ -12,7 +16,31 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["node", "vite/client"]
+    "types": [
+      "node",
+      "vite/client"
+    ],
+    "paths": {
+      "app/*": [
+        "./src/renderer/app/*"
+      ],
+      "core/*": [
+        "./src/renderer/core/*"
+      ],
+      "helpers/*": [
+        "./src/renderer/helpers/*"
+      ],
+      "technicals/*": [
+        "./src/renderer/technicals/*"
+      ],
+      "helpers": [
+        "./src/renderer/helpers"
+      ]
+    }
   },
-  "include": ["src/renderer", "tests", "vite.config.mts"]
+  "include": [
+    "src/renderer",
+    "tests",
+    "vite.config.mts"
+  ]
 }

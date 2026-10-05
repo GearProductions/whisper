@@ -12,10 +12,23 @@
 
 - Comportement attendu : `SPEC.md`. Un changement de comportement met à jour
   `SPEC.md` et le README.
-- Les pages (`src/renderer/`) ne parlent au principal que par leur pont
-  (`src/*preload.js`, typé dans `src/renderer/bridge.d.ts`). Dans chaque page,
-  un seul fichier connaît le pont : `IconApp.tsx`, `BubbleApp.tsx`,
-  `PanelApp.tsx`. Les composants reçoivent des props et des rappels.
+- Pages (`src/renderer/`), rangées comme les plugins Gear :
+  - `app/` : les trois fenêtres (`icon`, `bubble`, `panel`), leurs composants
+    et leurs hooks ;
+  - `core/` : les modules métier (`dictation`, `speech`, `conversation`,
+    `links`, `ui`) ;
+  - `helpers/` : fonctions pures sans lien avec le métier ;
+  - `technicals/` : ce que fournit la plateforme (`bridge` : types des ponts ;
+    `audio` : micro, bips, PCM ; `dom`).
+  Un module = un dossier avec son `index.ts` (barrel) ; on importe le module,
+  jamais un de ses fichiers (`import … from 'core/conversation'`). Imports
+  absolus depuis `src/renderer/`. Fichiers en kebab-case.
+- `core/` et `helpers/` ne dépendent pas de `app/` ; `technicals/` ne dépend
+  que de lui-même.
+- Les pages ne parlent au principal que par leur pont (`src/*preload.js`,
+  typé dans `technicals/bridge`). Dans chaque page, un seul fichier connaît le
+  pont : `icon-app.tsx`, `bubble-app.tsx`, `panel-app.tsx`. Les composants
+  reçoivent des props et des rappels.
 - Aucun canal ne colle, ne copie ou ne lit un texte fourni par une page
   (SPEC I-2, I-3) ; le principal vérifie l'expéditeur de chaque message
   (`sentBy`, I-20).

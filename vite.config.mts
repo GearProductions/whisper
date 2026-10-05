@@ -10,15 +10,17 @@ export default defineConfig({
   root,
   base: './',
   plugins: [react()],
+  // Imports absolus, comme dans les plugins Gear : 'core/conversation', 'technicals/bridge'…
+  resolve: { alias: [{ find: /^(app|core|helpers|technicals)(?=\/|$)/, replacement: `${root}/$1` }] },
   build: {
     outDir: resolve(import.meta.dirname, 'out/renderer'),
     emptyOutDir: true,
     modulePreload: { polyfill: false },
     rollupOptions: {
       input: {
-        icon: resolve(root, 'icon/index.html'),
-        bubble: resolve(root, 'bubble/bubble.html'),
-        panel: resolve(root, 'panel/conversation.html'),
+        icon: resolve(root, 'app/icon/index.html'),
+        bubble: resolve(root, 'app/bubble/bubble.html'),
+        panel: resolve(root, 'app/panel/conversation.html'),
       },
     },
   },
