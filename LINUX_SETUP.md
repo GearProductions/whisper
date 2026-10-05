@@ -41,9 +41,10 @@ garder qu'une.
 Maintenir le clic sur l'icône, parler, relâcher : le texte arrive dans le
 presse-papiers, **Ctrl+V** pour le coller (Ctrl+Maj+V dans un terminal).
 
-Une bulle montre aussi le texte à côté de l'icône pendant 10 s (le survol
-suspend ce délai ; la croix la ferme). **Un clic dessus le recopie** : pratique
-si on a copié autre chose entre-temps. Désactivable : clic droit → *Afficher le texte transcrit*
+Le panneau montre aussi le texte à côté de l'icône (contexte *Dictée*, la
+croix le ferme). **Copier** le recopie : pratique si on a copié autre chose
+entre-temps, ou pour le coller dans le champ d'un agent. Désactivable : clic
+droit → *Afficher le texte transcrit*
 (clé `showText` de `.data/config.json`).
 
 Sur haut-parleurs : clic droit → *Couper le son des autres applications pendant
@@ -62,9 +63,7 @@ petit bouton ▶ à droite de l'icône (grisé s'il n'y a rien de sélectionné 
 la voix démarre ~0,1 s après le clic. Texte lu en français ou en anglais
 selon sa langue. Clic droit → *Lecture à voix haute* pour lire le
 presse-papiers à la place, masquer le bouton, imposer une langue, changer de
-voix ou régler le volume (curseur). *Moteur → Chatterbox (GPU)* : voix plus
-naturelles, par le service `dev-chatterbox` (quadlet podman sur l'hôte, cf.
-`chatterbox/README.md`).
+voix ou régler le volume (curseur).
 
 Agents Claude Code (clic droit → *Agents Claude Code* → *Afficher les agents*) :
 un robot par dossier de projet, à qui la dictée est envoyée une fois
@@ -104,7 +103,6 @@ lanceur ne fait rien. `.data/`, exclu de git, ne gêne pas le `pull`.
 | Modèle + enveloppe `whisper-cli` | `.data/whisper/` |
 | Pocket TTS (synthèse vocale) | `~/.local/bin/pocket-tts` (outil `uv`) |
 | Modèles et voix Pocket TTS | `~/.cache/huggingface/` (téléchargés à la première lecture) |
-| Service Chatterbox (GPU) | quadlet `~/.config/containers/systemd/dev-chatterbox.container`, image `localhost/dev-chatterbox`, poids dans le volume `dev-chatterbox-cache`, port `127.0.0.1:8004` |
 | Config (langue, vocabulaire, micro) | `.data/config.json` |
 | whisper.cpp | `~/dev/Gear/tools/whisper.cpp` — `build-vulkan/` (GPU, utilisé), `build/` (CPU, secours) |
 | Lanceurs | `~/dev/Gear/tools/whisper.sh` (projet), `~/dev/Gear/tools/whisper-appimage.sh` (AppImage) |
@@ -152,10 +150,9 @@ compilé, lui, n'a besoin que de ce que `dev.ini` fournit déjà (`vulkan-loader
   10 min sans lecture.
 - **Choix du moteur** : essayés à l'écoute, Piper (voix plus mécaniques ; les
   mots anglais passaient mal, même avec une voix par langue ou un dictionnaire
-  de prononciation) et Chatterbox (GPU, conteneur). Pocket TTS l'emporte sur
-  Piper, sans GPU ; Chatterbox, plus naturel encore, reste au choix dans le
-  menu (service `dev-chatterbox`, ~4,6 Go de VRAM pendant la lecture, ~330 Mo
-  au repos).
+  de prononciation) et Chatterbox (GPU, conteneur à part : un peu plus naturel,
+  mais l'écart ne valait ni le service à installer ni ~4,6 Go de VRAM ; retiré
+  en 0.4.0). Pocket TTS l'emporte, sans GPU et sans rien à installer à côté.
 - **Sélection** : l'appli lit la sélection « primaire » de Linux (ce qui est
   surligné, sans Ctrl+C). Certaines applications la gardent après qu'on a
   cliqué ailleurs : le bouton reste alors actif sur l'ancienne sélection.

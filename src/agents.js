@@ -2,8 +2,8 @@
    Whisper — agents Claude Code
 
    Un agent = une conversation Claude Code attachée à un dossier de projet (un
-   seul par dossier). On lui parle par la dictée ; sa réponse se lit dans la
-   bulle et s'écoute par le lecteur (cf. tts.js).
+   seul par dossier). On lui parle par la dictée ; sa réponse se lit dans son
+   panneau et s'écoute par le lecteur (cf. tts.js).
 
    Pilotés par le SDK officiel (@anthropic-ai/claude-agent-sdk), qui lance le
    Claude Code DE L'UTILISATEUR (déjà installé et connecté : pas de clé API,
@@ -13,11 +13,11 @@
 
    Un tour = un appel query() : le premier crée la session, les suivants la
    reprennent (`resume`). « Nouvelle session » oublie simplement l'identifiant.
-   Un message peut porter des images (jointes dans la fenêtre de relecture).
+   Un message peut porter des images (jointes dans le champ du panneau).
 
    Chaque réponse se termine par un bloc <audio>…</audio> (consigne ajoutée au
    prompt système de NOS sessions seulement) : un résumé fait pour l'oreille.
-   La bulle montre la réponse sans ce bloc ; le lecteur ne lit que lui. La
+   Le panneau montre la réponse sans ce bloc ; le lecteur ne lit que lui. La
    consigne vient d'un fichier que l'utilisateur peut retoucher (cf. main.js) ;
    AUDIO_RULES est son contenu par défaut.
 
@@ -94,7 +94,7 @@ const isAvailable = (command) => !!launcher(command);
 // id → { status, abort, query, pending, last, unread, onChange }
 //   pending : la file des demandes d'autorisation, la plus ancienne en tête
 //   status : 'idle' | 'working' | 'asking' (attend une autorisation) | 'error'
-//   last   : { text, audio, error, asked: { text, images } } de la dernière réponse
+//   last   : { text, audio, error, asked } de la dernière réponse (asked : le texte envoyé)
 //   query  : la requête du SDK pendant un tour (pour changer de mode, de modèle)
 const runtime = new Map();
 const rt = (id) => {
@@ -104,11 +104,16 @@ const rt = (id) => {
 
 const state = (id) => {
   const r = rt(id);
-  // `since` : début du tour en cours (ms), pour le temps écoulé.
-  return { status: r.status, unread: r.unread, hasReply: !!r.last, since: r.since || null };
+  // `since` : début du tour en cours (ms), pour le temps écoulé ; `contextWindow` :
+  // la taille de la fenêtre de contexte, connue après un tour (ou une sonde).
+  // `contextUsed` : le contexte occupé selon la dernière sonde (cf. probe).
+  return { status: r.status, unread: r.unread, hasReply: !!r.last, since: r.since || null,
+    contextWindow: r.contextWindow || null, contextUsed: Number.isFinite(r.contextUsed) ? r.contextUsed : null };
 };
 const lastReply = (id) => rt(id).last;
 function markRead(id) { rt(id).unread = false; }
+// Session changée : la dernière réponse connue était celle de l'autre.
+function forgetReply(id) { const r = rt(id); r.last = null; r.unread = false; }
 function forget(id) { interrupt(id); runtime.delete(id); }
 
 // Réponse → { text (sans le bloc audio), audio (pour le lecteur) }. Sans bloc :
@@ -136,11 +141,13 @@ function journal(agent, event, detail = '') {
     fs.appendFileSync(journalFile, line);
   } catch { /* journal impossible : on n'arrête pas l'agent pour ça */ }
 }
-// Ce sur quoi porte un outil, en une ligne courte, pour le journal.
-const target = (input) => {
+// Ce sur quoi porte un outil : sa commande, son fichier, son adresse…
+const toolTarget = (input) => {
   const i = input || {};
-  return String(i.command ?? i.file_path ?? i.notebook_path ?? i.path ?? i.url ?? i.pattern ?? '').split('\n')[0].slice(0, 160);
+  return i.command ?? i.file_path ?? i.notebook_path ?? i.path ?? i.url ?? i.query ?? i.pattern;
 };
+// La même chose en une ligne courte, pour le journal.
+const target = (input) => String(toolTarget(input) ?? '').split('\n')[0].slice(0, 160);
 
 /* ---- Un tour de conversation --------------------------------------------- */
 
@@ -149,14 +156,32 @@ let sdk = null; // chargé au premier usage (module ES)
 // Le prompt du SDK : toujours un message structuré (le mode « streaming » est
 // le seul qui permette de changer de mode ou de modèle en cours de tour, cf.
 // setMode), avec les images ([{ mediaType, data (base64) }]) avant le texte.
+// Sans image, le texte seul : c'est sous cette forme que Claude Code reconnaît
+// une commande (« /compact », « /context », un skill…).
 function prompt({ text, images = [] }) {
-  const content = [
+  const content = !images.length ? text || '' : [
     ...images.map((i) => ({ type: 'image', source: { type: 'base64', media_type: i.mediaType, data: i.data } })),
     ...(text ? [{ type: 'text', text }] : []),
   ];
   return (async function* one() {
     yield { type: 'user', message: { role: 'user', content }, parent_tool_use_id: null };
   }());
+}
+
+// Les options d'une requête : comme un Claude Code lancé dans le dossier de
+// l'agent (ses réglages, CLAUDE.md, skills), avec la consigne de l'appli.
+function queryOptions(agent, launch, instructions) {
+  return {
+    cwd: agent.dir,
+    permissionMode: MODES.some(([v]) => v === agent.mode) ? agent.mode : 'default',
+    ...(agent.model ? { model: agent.model } : {}),
+    ...(agent.effort ? { effort: agent.effort } : {}),
+    ...(agent.sessionId ? { resume: agent.sessionId } : {}),
+    settingSources: ['user', 'project', 'local'],
+    systemPrompt: { type: 'preset', preset: 'claude_code', ...(instructions ? { append: instructions } : {}) },
+    pathToClaudeCodeExecutable: launch.executable,
+    ...(launch.spawn ? { spawnClaudeCodeProcess: launch.spawn } : {}),
+  };
 }
 
 // Envoie `message` ({ text, images }) à l'agent. `hooks` :
@@ -176,9 +201,9 @@ async function send(agent, message, { command, instructions = AUDIO_RULES, onCha
 
   r.status = 'working';
   r.name = agent.name;
-  // Le message envoyé, gardé avec la réponse : la bulle le rappelle (plusieurs
-  // agents à la fois, on ne sait plus ce qu'on a demandé à celui-ci).
-  const asked = { text: message.text || '', images: (message.images || []).length };
+  // Le message envoyé, gardé avec la réponse : une commande (« /context ») s'y
+  // reconnaît (cf. main.js, refreshConversation).
+  const asked = message.text || '';
   r.since = Date.now();
   r.abort = new AbortController();
   r.onChange = onChange;
@@ -201,7 +226,7 @@ async function send(agent, message, { command, instructions = AUDIO_RULES, onCha
       }, { once: true });
     }
     onChange();
-    // La bulle montre la tête de file : on ne la prévient que pour la première.
+    // Le panneau montre la tête de file : on ne prévient que pour la première.
     if (r.pending[0] === p) onPermission({ tool, input });
   });
 
@@ -211,20 +236,7 @@ async function send(agent, message, { command, instructions = AUDIO_RULES, onCha
   try {
     const q = sdk.query({
       prompt: prompt(message),
-      options: {
-        cwd: agent.dir,
-        abortController: r.abort,
-        permissionMode: MODES.some(([v]) => v === agent.mode) ? agent.mode : 'default',
-        ...(agent.model ? { model: agent.model } : {}),
-        ...(agent.effort ? { effort: agent.effort } : {}),
-        ...(agent.sessionId ? { resume: agent.sessionId } : {}),
-        // Comme un Claude Code lancé dans ce dossier : ses réglages, CLAUDE.md, skills.
-        settingSources: ['user', 'project', 'local'],
-        systemPrompt: { type: 'preset', preset: 'claude_code', ...(instructions ? { append: instructions } : {}) },
-        pathToClaudeCodeExecutable: launch.executable,
-        ...(launch.spawn ? { spawnClaudeCodeProcess: launch.spawn } : {}),
-        canUseTool: ask,
-      },
+      options: { ...queryOptions(agent, launch, instructions), abortController: r.abort, canUseTool: ask },
     });
     r.query = q;
     journal(agent, 'tour commencé', `mode ${agent.mode || 'default'}${agent.sessionId ? `, reprise ${agent.sessionId.slice(0, 8)}` : ', nouvelle session'}`);
@@ -243,6 +255,8 @@ async function send(agent, message, { command, instructions = AUDIO_RULES, onCha
       }
       if (m.type === 'system' && m.subtype === 'init' && m.session_id) onSession(m.session_id);
       if (m.type === 'result') {
+        const windows = Object.values(m.modelUsage || {}).map((u) => u.contextWindow).filter(Number.isFinite);
+        if (windows.length) r.contextWindow = Math.max(...windows);
         if (m.subtype === 'success' && !m.is_error) reply = m.result;
         else failure = m.subtype === 'success' ? String(m.result || 'erreur') : m.subtype;
       }
@@ -261,6 +275,10 @@ async function send(agent, message, { command, instructions = AUDIO_RULES, onCha
   r.query = null;
   r.since = null;
   r.interrupted = false;
+  // Après /compact, la dernière mesure du contexte ne vaut plus.
+  if (/^\/compact\b/.test(asked)) r.contextUsed = null;
+  // Une commande sans réponse écrite (/compact…) : on dit qu'elle est faite.
+  if (reply === '' && /^\//.test(asked)) reply = `${asked.split(/\s/)[0]} : fait.`;
   if (reply !== null) {
     r.last = { ...splitReply(reply), asked };
     // Dit dans la réponse elle-même qu'une action n'a pas pu être autorisée.
@@ -286,7 +304,7 @@ async function send(agent, message, { command, instructions = AUDIO_RULES, onCha
 // Code, SEULEMENT des règles d'autorisation, et pour la session en cours. Une
 // suggestion peut viser les réglages du projet ou de l'utilisateur (écrite sur
 // le disque, elle survivrait à la session), changer de mode ou ouvrir d'autres
-// dossiers : rien de cela ne doit passer par un bouton de la bulle.
+// dossiers : rien de cela ne doit passer par un bouton du panneau.
 function sessionRules(suggestions) {
   return (Array.isArray(suggestions) ? suggestions : [])
     .filter((s) => s && s.type === 'addRules' && s.behavior === 'allow' && Array.isArray(s.rules) && s.rules.length)
@@ -390,6 +408,41 @@ function stop() {
   });
 }
 
+/* ---- Sonde : commandes et contexte ---------------------------------------- */
+
+// Les commandes de l'agent (« /compact », ses skills…) et le détail de son
+// contexte. Agent au travail : demandé à son tour en cours. Sinon, Claude Code
+// est lancé le temps des deux questions, sans message : la conversation n'en
+// est pas touchée (vérifié : la transcription ne reçoit qu'une ligne de coût).
+//   { commands: [{ name, description, argumentHint }], context: { … } } ; lance
+//   'notInstalled' ou une erreur.
+const PROBE_MS = 30000;
+async function probe(agent, { command, instructions = AUDIO_RULES } = {}) {
+  const r = rt(agent.id);
+  if (r.query) return askProbe(r, r.query);
+  const launch = launcher(command);
+  if (!launch) throw new Error('notInstalled');
+  await loadSdk();
+  let release;
+  const held = (async function* wait() { await new Promise((ok) => { release = ok; }); }());
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), PROBE_MS);
+  const q = sdk.query({ prompt: held, options: { ...queryOptions(agent, launch, instructions), abortController: abort } });
+  try {
+    return await askProbe(r, q);
+  } finally {
+    clearTimeout(timer);
+    release();
+    (async () => { try { for await (const m of q) { /* Claude Code se ferme */ } } catch { /* déjà fermé */ } })();
+  }
+}
+async function askProbe(r, q) {
+  const [commands, context] = await Promise.all([q.supportedCommands(), q.getContextUsage({ detail: 'full' })]);
+  if (context && context.maxTokens) r.contextWindow = context.maxTokens;
+  if (context && Number.isFinite(context.totalTokens)) r.contextUsed = context.totalTokens;
+  return { commands, context };
+}
+
 /* ---- Conversations : fil, intitulé, historique ----------------------------- */
 
 const loadSdk = async () => { if (!sdk) sdk = await import('@anthropic-ai/claude-agent-sdk'); return sdk; };
@@ -448,8 +501,13 @@ const timeOf = (m) => { const t = Date.parse(m.timestamp); return Number.isFinit
 
 // Toute une session de l'agent (la sienne en cours par défaut), relue dans sa transcription :
 //   [{ role: 'user', text, images: [{ media_type, data }], time }
-//    | { role: 'assistant', text, audio, tools: [{ tool, input }], time }]
+//    | { role: 'assistant', text, audio, tools: [{ tool, input }], time }
+//    | { role: 'system', kind: 'compact' | 'output', text, time }]
 // `time` (ms) : l'envoi du message ; pour l'agent, son dernier message du tour.
+// Une commande tapée (« /compact ») s'affiche telle quelle ; sa sortie et le
+// résumé laissé par une compaction, comme des messages « système ». Le tableau
+// porte aussi `contextTokens` : le contexte occupé lors de la dernière réponse
+// (ce qu'elle a lu et écrit), null s'il n'y en a pas.
 // Les messages successifs d'un même tour de l'agent (texte, outil, texte…)
 // sont regroupés ; les échanges internes (résultats d'outils, sous-agents)
 // sont écartés. [] sans session.
@@ -458,15 +516,28 @@ async function thread(agent, sessionId = agent.sessionId) {
   await loadSdk();
   const messages = await firstFound(agent, (dir) => sdk.getSessionMessages(sessionId, { dir }), []);
   const out = [];
+  let contextTokens = null;
   for (const m of messages) {
-    if (m.parent_tool_use_id) continue;
+    // Les messages « méta » (consignes internes) sont écartés — sauf le résumé
+    // laissé par une compaction, qui en est un.
+    if (m.parent_tool_use_id || ((m.is_meta || m.isMeta) && !m.isCompactSummary)) continue;
     const content = m.message && m.message.content;
     const blocks = typeof content === 'string' ? [{ type: 'text', text: content }] : Array.isArray(content) ? content : [];
     if (m.type === 'user') {
       const images = blocks.filter((b) => b.type === 'image' && b.source && b.source.type === 'base64').map((b) => b.source);
       const text = blocks.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
-      if (text || images.length) out.push({ role: 'user', text, images, time: timeOf(m) });
+      const tag = (name) => { const x = new RegExp(`<${name}>([\\s\\S]*?)</${name}>`).exec(text); return x ? x[1].trim() : null; };
+      // Une compaction rend caduque la mesure de la dernière réponse.
+      if (m.isCompactSummary || tag('command-name') === '/compact') contextTokens = null;
+      if (m.isCompactSummary) out.push({ role: 'system', kind: 'compact', text, time: timeOf(m) });
+      else if (tag('command-name') !== null) out.push({ role: 'user', text: `${tag('command-name')} ${tag('command-args') || ''}`.trim(), images: [], time: timeOf(m) });
+      else if (tag('local-command-stdout') !== null || tag('local-command-stderr') !== null) {
+        const output = [tag('local-command-stdout'), tag('local-command-stderr')].filter(Boolean).join('\n');
+        if (output) out.push({ role: 'system', kind: 'output', text: output, time: timeOf(m) });
+      } else if (text || images.length) out.push({ role: 'user', text, images, time: timeOf(m) });
     } else if (m.type === 'assistant') {
+      const u = m.message && m.message.usage;
+      if (u) contextTokens = (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.output_tokens || 0);
       let last = out[out.length - 1];
       if (!last || last.role !== 'assistant') { last = { role: 'assistant', text: '', tools: [] }; out.push(last); }
       last.time = timeOf(m) || last.time;
@@ -476,10 +547,12 @@ async function thread(agent, sessionId = agent.sessionId) {
       }
     }
   }
-  return out.map((e) => (e.role === 'assistant' ? { ...e, ...splitReply(e.text) } : e));
+  const result = out.map((e) => (e.role === 'assistant' ? { ...e, ...splitReply(e.text) } : e));
+  result.contextTokens = contextTokens;
+  return result;
 }
 
 module.exports = {
-  MODELS, EFFORTS, MODES, AUDIO_RULES, isAvailable, setMode, setModel, setJournal,
-  state, lastReply, markRead, forget, send, answer, pendingPermission, interrupt, stop, thread, sessionTitle, sessions,
+  MODELS, EFFORTS, MODES, AUDIO_RULES, toolTarget, isAvailable, setMode, setModel, setJournal,
+  state, lastReply, markRead, forgetReply, forget, send, answer, pendingPermission, interrupt, stop, thread, sessionTitle, sessions, probe,
 };

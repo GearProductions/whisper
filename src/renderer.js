@@ -16,7 +16,7 @@
 
    Puis les agents Claude Code (un robot par dossier de projet) : un clic en
    sélectionne un, la dictée lui est alors envoyée au lieu d'être collée ; une
-   pastille signale sa réponse, à lire dans la bulle ou à écouter.
+   pastille signale sa réponse, à lire dans son panneau ou à écouter.
    ========================================================================= */
 
 const RATE = 16000;
@@ -185,7 +185,10 @@ async function stopDictation() {
     const res = await window.api.transcribe(toPcm(rec.chunks, rec.length).buffer);
     if (!res || !res.ok) { setPhase('error', (res && res.error) || 'La transcription a échoué.'); return; }
     if (!res.text) { setPhase('idle', 'Aucune parole détectée.'); return; }
-    if (res.agent) { setPhase('idle', res.review ? `À relire avant l'envoi à ${res.agent}.` : `Envoyé à ${res.agent}.`); return; }
+    if (res.agent) {
+      setPhase('idle', res.panel ? `Ajouté au message pour ${res.agent}.` : `Envoyé à ${res.agent}.`);
+      return;
+    }
     // Pas collé : soit le collage automatique est désactivé, soit il a échoué.
     const notPasted = res.autoPaste === false ? 'Texte dans le presse-papiers : Ctrl+V pour le coller.'
       : 'Collage impossible : le texte est dans le presse-papiers.';
@@ -354,7 +357,7 @@ function playChunk(pcm, rate) {
   if (speech.phase === 'loading') setSpeechPhase('playing');
 }
 
-// `source` : rien (la sélection ou le presse-papiers) ou { agent: id }.
+// `source` : rien (la sélection ou le presse-papiers) ou 'reply'.
 async function speak(source) {
   const token = ++speech.token;
   // Créés au clic : le volume passe par un gain, le curseur agit en cours de lecture.
@@ -394,11 +397,11 @@ play.addEventListener('click', () => {
 // Survol : le clic va suivre, le principal charge le modèle d'avance.
 play.addEventListener('mouseenter', () => { if (canSpeak()) window.api.warmUpSpeak(); });
 
-// Bouton ▶ de la bulle d'un agent ou de sa fenêtre de conversation : le résumé
-// audio d'une réponse, par le même lecteur.
-window.api.onSpeakAgent((id, index) => {
+// ▶ d'une réponse dans le panneau des conversations : son résumé audio, par le
+// même lecteur.
+window.api.onSpeakReply(() => {
   if (speech.phase === 'loading' || speech.phase === 'playing') stopSpeaking();
-  speak({ agent: id, index });
+  speak('reply');
 });
 window.api.onSpeakChunk((id, pcm, rate) => onEvent(id, 'chunk', pcm, rate));
 window.api.onSpeakEnd((id, error) => onEvent(id, 'end', error));
@@ -417,9 +420,7 @@ const agentTemplate = document.getElementById('agent-template');
 const STATUS_TEXT = { working: 'au travail…', asking: 'attend une autorisation', error: 'erreur' };
 let unreadBefore = new Set();
 
-// `s` : { enabled, agents: [{ id, name, color, status, unread, chime, selected }] }.
-// `unread` : la pastille ; `chime` : une réponse non lue, même quand elle est
-// signalée sur son onglet de la fenêtre des conversations plutôt que sur le robot.
+// `s` : { enabled, agents: [{ id, name, color, status, unread, selected }] }.
 function renderAgents(s) {
   const list = (s && s.enabled && s.agents) || [];
   document.body.dataset.agents = s && s.enabled ? 'on' : 'off';
@@ -440,8 +441,8 @@ function renderAgents(s) {
     return b;
   }));
   // Une réponse vient d'arriver : le bip de fin, comme pour une dictée (pas
-  // pour celle de l'onglet affiché : déjà lue, elle n'est jamais « non lue »).
-  const unread = new Set(list.filter((a) => a.chime).map((a) => a.id));
+  // pour celle de l'agent affiché : déjà lue, elle n'est jamais « non lue »).
+  const unread = new Set(list.filter((a) => a.unread).map((a) => a.id));
   if ([...unread].some((id) => !unreadBefore.has(id))) window.api.getConfig().then((cfg) => beep(cfg, 660));
   unreadBefore = unread;
 }
