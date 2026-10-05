@@ -91,7 +91,8 @@ npm install                              # seulement si package.json a changé
 node node_modules/electron/install.js    # idem, si la version d'Electron a changé
 ```
 
-Puis clic droit → *Quitter* et relancer `whisper` : tant que l'appli tourne, le
+Puis clic droit → *Quitter* et relancer `whisper` (le lanceur reconstruit les
+pages, `out/renderer/`) : tant que l'appli tourne, le
 lanceur ne fait rien. `.data/`, exclu de git, ne gêne pas le `pull`.
 
 ## Où est quoi
@@ -221,7 +222,13 @@ if pgrep -f "$APP/node_modules/electron/dist/electron" >/dev/null; then
 fi
 
 cd "$APP"
-setsid nohup "$APP/node_modules/.bin/electron" . --user-data-dir="$APP/.data" >~/.cache/whisper-dictation.log 2>&1 < /dev/null &
+# Les pages (src/renderer, React) se construisent dans out/ : à chaque lancement,
+# pour suivre les sources. Node vient de mise (absent du PATH hors terminal).
+if ! "$HOME/.local/bin/mise" exec -- npm run build --silent >~/.cache/whisper-dictation.log 2>&1; then
+  echo "Construction des pages impossible (journal : ~/.cache/whisper-dictation.log)." >&2
+  exit 1
+fi
+setsid nohup "$APP/node_modules/.bin/electron" . --user-data-dir="$APP/.data" >>~/.cache/whisper-dictation.log 2>&1 < /dev/null &
 echo "whisper lancé (journal : ~/.cache/whisper-dictation.log)."
 ```
 

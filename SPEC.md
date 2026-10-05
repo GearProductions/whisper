@@ -1,9 +1,9 @@
 # Whisper — spécification de comportement
 
-État des lieux de l'appli **0.4.0** (branche `feat/panneau-conversations`) : ce
-qu'elle fait, ce qu'elle ne doit jamais faire, et comment le vérifier. C'est la
-référence de la refonte (TypeScript, architecture) : une migration est réussie
-quand chaque règle ci-dessous tient encore.
+Comportement de l'appli (état de la **0.4.0**, inchangé en **0.5.0** où les
+pages passent en React + TypeScript) : ce qu'elle fait, ce qu'elle ne doit
+jamais faire, et comment le vérifier. C'est la référence de la refonte : une
+migration est réussie quand chaque règle ci-dessous tient encore.
 
 - **F-…** : une fonctionnalité, telle qu'elle se comporte aujourd'hui.
 - **I-…** : un invariant — ce que l'appli ne doit **jamais** faire. Une
@@ -20,11 +20,17 @@ les deux.
 
 ### Processus et fenêtres
 
-| Fenêtre | Fichiers | Focus | Rôle |
-|---|---|---|---|
-| **Icône** | `index.html`, `renderer.js`, `style.css`, `preload.js` | **jamais** (`focusable: false`) | geste, micro, lecteur audio, robots |
-| **Bulle** | `bubble.html`, `bubble.js`, `bubble.css`, `bubble-preload.js` | **jamais** | messages de l'appli, curseur du volume |
-| **Panneau** | `conversation.html`, `conversation.js`, `conversation.css`, `conversation-preload.js`, `links.js` | oui (on y écrit) ; jamais pris quand il s'ouvre de lui-même | conversation de l'agent sélectionné (champ de saisie) ou contexte « Dictée » |
+| Fenêtre | Page (`src/renderer/`) | Pont | Focus | Rôle |
+|---|---|---|---|---|
+| **Icône** | `icon/` (`IconApp.tsx`) | `preload.js` | **jamais** (`focusable: false`) | geste, micro, lecteur audio, robots |
+| **Bulle** | `bubble/` (`BubbleApp.tsx`) | `bubble-preload.js` | **jamais** | messages de l'appli, curseur du volume |
+| **Panneau** | `panel/` (`PanelApp.tsx`) | `conversation-preload.js` | oui (on y écrit) ; jamais pris quand il s'ouvre de lui-même | conversation de l'agent sélectionné (champ de saisie) ou contexte « Dictée » |
+
+Les pages sont en React + TypeScript, construites par Vite dans
+`out/renderer/` et chargées en `file://`. Le contrat des ponts est typé dans
+`src/renderer/bridge.d.ts` ; dans chaque page, seul le fichier `*App.tsx`
+connaît son pont. Découpage et règles : `AGENTS.md`,
+`docs/tickets/refactor/0.5.0-front-react.md`.
 
 Toutes : sans cadre, hors de la barre des tâches, `contextIsolation`,
 `sandbox`, préchargement minimal (`contextBridge`). Le principal (`main.js`)
@@ -435,7 +441,8 @@ agents arrêtés.
 
 ## 11. Paquets et CI
 
-- PR et `master` : `node --check` de `src/*.js` (Linux, Windows) ; essai de
+- PR et `master` : `node --check` de `src/*.js` (Linux, Windows) ; typage,
+  tests (invariants et variants) et construction des pages ; essai de
   l'assistant PowerShell (réponses attendues `0, ok, \d+, ok, err`).
 - Tag `vX.Y.Z` : paquets (AppImage sur Ubuntu 22.04, exe portable), avec
   `whisper-cli` v1.9.4 (Vulkan + repli processeur, essayé sur `jfk.wav`) et
@@ -447,6 +454,13 @@ agents arrêtés.
 ---
 
 ## 12. Invariants — ce que l'appli ne doit jamais faire
+
+Testés automatiquement (`npm run test:invariants`, dossiers
+`tests/invariants/` protégés) : I-3 et I-20 (canaux des ponts, contrôle de
+l'expéditeur dans le principal), I-11 côté page (tout enregistrement commencé
+se termine), I-15 et I-16 côté page (demande affichée, délai anti-clic), I-21
+(seules les adresses http(s) deviennent des liens). Les autres : scénarios du
+§ 13, jusqu'au passage du principal en TypeScript.
 
 ### Focus et collage
 
@@ -547,7 +561,9 @@ agents arrêtés.
 À rejouer avant chaque fusion (et après chaque étape de la migration).
 « Banc » : appli lancée avec `--user-data-dir` sur un dossier temporaire,
 transcription simulée en remplaçant `whisper.transcribe` (cf. les essais de la
-revue de la 0.4.0).
+revue de la 0.4.0). Les pages seules se comparent automatiquement à une
+version publiée : `npm run test:front-diff -- v0.4.0` (`tests/front-diff/`,
+mêmes scénarios, mêmes messages vers le principal, mêmes captures).
 
 **Dictée**
 - **S-1** Maintenir, parler, relâcher dans un éditeur : bips, texte collé, le

@@ -65,7 +65,15 @@ complémentaires* → *Exécuter quand même*).
 
 ```bash
 npm install
-npm start
+npm start          # construit les pages (src/renderer → out/renderer) puis lance l'appli
+```
+
+Pour qui modifie le code (règles : [AGENTS.md](AGENTS.md)) :
+
+```bash
+npm run typecheck                    # TypeScript des pages
+npm test                             # tests (npm run test:invariants : les invariants seuls)
+npm run test:front-diff -- v0.4.0    # pages comparées à une version : mêmes écrans, mêmes messages
 ```
 
 ### whisper.cpp (depuis les sources)
