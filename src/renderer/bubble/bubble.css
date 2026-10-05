@@ -1,0 +1,50 @@
+/* La fenêtre EST la bulle : fond transparent, la bulle la remplit. */
+html, body { margin: 0; background: transparent; overflow: hidden; }
+
+/* En colonne : le curseur du volume reste en place, seul le texte défile. Largeur et hauteur maximale viennent du principal. */
+#bubble {
+  display: flex;
+  flex-direction: column;
+  margin: 4px;
+  padding: 10px 12px 8px;
+  max-height: 232px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #1f2430;
+  border: 1px solid #3a4150;
+  color: #e6e8ee;
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Ubuntu, sans-serif;
+  user-select: none;
+  box-sizing: border-box;
+}
+#text {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding-right: 14px; /* place de la croix */
+}
+#volume { flex: none; }
+/* La croix : posée sur le coin de la bulle, hors de la zone qui défile. */
+#close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #8a91a0;
+  font: 14px/18px system-ui, sans-serif;
+  cursor: pointer;
+}
+#close:hover { background: #3a4150; color: #e6e8ee; }
+/* Notice (« Micro Discord coupé ») : bordure aux couleurs de Discord. */
+#bubble.notice { border-color: #5865f2; }
+#volume { display: flex; align-items: center; gap: 10px; margin-top: 8px; padding-right: 14px; }
+#volume[hidden] { display: none; }
+#volume-range { flex: 1; accent-color: #3b6fe0; cursor: pointer; }
+#volume-value { min-width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; color: #8a91a0; }
