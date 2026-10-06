@@ -306,6 +306,12 @@ l'enregistrement, puis rétabli. Les bips de l'appli restent audibles ; une
 application déjà muette le reste. Même mécanisme que pour le micro Discord
 ci-dessous (PipeWire sous Linux, Core Audio sous Windows).
 
+Un son ou le micro Discord resté coupé (par exemple après un arrêt brutal de
+l'appli) : clic droit → *Rétablir le son et le micro Discord (dépannage)*.
+Sous Linux, une application dont le son s'est arrêté pendant la dictée
+retrouve d'elle-même le son quand elle rejoue (WirePlumber retient la
+coupure de chaque application ; l'appli la lève).
+
 ### Micro Discord
 
 Clic droit → *Autoriser la coupure du micro Discord* (désactivé par défaut) :

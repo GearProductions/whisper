@@ -198,6 +198,19 @@ ceux des processus de l'appli (les bips restent audibles).
 **F-32** Opérations en file (un relâché rapide attend la coupure). Linux :
 PipeWire par `wpctl` ; Windows : sessions Core Audio par l'assistant.
 
+**F-33 Flux disparu** (Linux) : WirePlumber retient la coupure d'une
+application. Un flux coupé qui disparaît avant la fin de la dictée (vidéo
+finie, onglet fermé) laisserait donc ses flux suivants muets : son
+application reste « à rétablir » (`userData/sons-a-retablir.json`, gardé
+d'un lancement à l'autre) et son prochain flux est rétabli dans les 5 s,
+jamais pendant une dictée.
+
+**F-34 Dépannage** (clic droit → *Rétablir le son et le micro Discord*,
+Linux et Windows, grisé pendant une dictée) : rétablit ce que l'appli a
+coupé, les applications « à rétablir », et tout flux encore coupé parmi la
+lecture des autres applications et la capture de Discord. La bulle dit combien
+de flux ont été remis en marche. Sous Windows : ce que l'assistant a coupé.
+
 ## 6. Lecture à voix haute
 
 **F-40 Bouton ▶** accolé à l'icône (`speak` : `selection` — Linux, Windows —,
@@ -402,7 +415,8 @@ liens vers le navigateur seulement, jamais de navigation.
 Couper le son des autres applications (Linux, Windows) ; Coller
 automatiquement ; Toujours au premier plan (icône, bulles, panneau ;
 appliqué aussitôt) ; Afficher le texte transcrit ; Autoriser la coupure du
-micro Discord (Linux, Windows) ; Lecture à voix haute (installer, source,
+micro Discord (Linux, Windows) ; Rétablir le son et le micro Discord
+(dépannage, F-34) ; Lecture à voix haute (installer, source,
 désactivée, langue, voix, volume) ; Agents Claude Code (afficher, relire
 avant d'envoyer, commande, changer la commande, consigne, journal) ; Ouvrir le
 dossier whisper ; Modifier la configuration ; À propos (page de la version) ;
@@ -501,10 +515,12 @@ fenêtres, I-1, I-18, I-22, I-28) : scénarios du § 13 et bancs de comparaison.
 ### Son
 
 - **I-11** La fin de l'enregistrement **rétablit toujours** ce qui a été
-  coupé, même si le réglage a été décoché entre-temps, et à la fermeture.
+  coupé, même si le réglage a été décoché entre-temps, et à la fermeture ;
+  un flux disparu entre-temps, à la réapparition de son application (F-33).
 - **I-12** On ne rétablit que ce que **nous** avons coupé : un flux déjà muet
   le reste. Jamais le micro du système, jamais le bouton muet de Discord,
-  jamais les flux de l'appli (bips).
+  jamais les flux de l'appli (bips). Seule exception : le dépannage (F-34),
+  demandé par l'utilisateur.
 
 ### Agents : autorisations
 
@@ -594,7 +610,9 @@ Copier, erreurs ; mêmes relevés).
 - **S-7** Discord en appel, coupure autorisée : « Micro Discord coupé »,
   rétabli au relâché ; micro déjà coupé avant → toujours coupé après.
 - **S-8** Son des autres applications : une vidéo se tait pendant la dictée,
-  les bips restent.
+  les bips restent. Vidéo arrêtée pendant la dictée, puis relancée : le son
+  revient dans les 5 s. Clic droit → *Rétablir le son et le micro Discord* :
+  un flux resté coupé reprend.
 
 **Lecture**
 - **S-10** Sélection → ▶ lit ; second clic arrête ; rien de sélectionné →
