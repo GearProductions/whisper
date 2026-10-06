@@ -5,14 +5,18 @@
 - Lancer : `npm start` (construit les pages puis lance Electron)
 - Typage : `npm run typecheck` · Tests : `npm test` · invariants seuls :
   `npm run test:invariants`
-- Comparer les pages à une version : `npm run test:front-diff -- v0.4.0`
+- Comparer à une version : pages `npm run test:front-diff -- v0.4.0`,
+  principal (appli réelle) `npm run test:main-diff -- <tag ou branche>`
 - Paquets : `npm run dist:linux`, `npm run dist:win`
 
 ## Règles d'architecture
 
 - Comportement attendu : `SPEC.md`. Un changement de comportement met à jour
   `SPEC.md` et le README.
-- Pages (`src/renderer/`), rangées comme les plugins Gear :
+- `src/renderer/` (les pages) et `src/main/` (le principal), rangés comme les
+  plugins Gear ; `src/preload/` (les ponts) ; `src/shared/bridge` (le contrat
+  des ponts : types et canaux de chaque fenêtre, partagé par les trois).
+- Pages (`src/renderer/`) :
   - `app/` : les trois fenêtres (`icon`, `bubble`, `panel`), leurs composants
     et leurs hooks ;
   - `core/` : les modules métier (`dictation`, `speech`, `conversation`,
@@ -20,13 +24,24 @@
   - `helpers/` : fonctions pures sans lien avec le métier ;
   - `technicals/` : ce que fournit la plateforme (`bridge` : types des ponts ;
     `audio` : micro, bips, PCM ; `dom`).
-  Un module = un dossier avec son `index.ts` (barrel) ; on importe le module,
+- Principal (`src/main/`) :
+  - `app/` : ce qui connaît Electron et les fenêtres (`state`, `settings`,
+    `windows`, `controllers`, `menus`, `ipc`, `lifecycle`) ;
+  - `core/` : le métier, sans Electron (`config`, `dictation`, `sound`,
+    `agents`, `conversation`, `guards`) ; outils, SDK et disque injectés ;
+  - `helpers/` : fonctions pures ;
+  - `technicals/` : ce que fournit le système (`ipc`, `whisper-cli`, `paste`,
+    `pipewire`, `clipboard`, `selection`, `pocket-tts`, `claude`…).
+- Un module = un dossier avec son `index.ts` (barrel) ; on importe le module,
   jamais un de ses fichiers (`import … from 'core/conversation'`). Imports
-  absolus depuis `src/renderer/`. Fichiers en kebab-case.
+  absolus depuis la racine de son processus (`src/renderer/` ou `src/main/`),
+  plus `shared/`. Fichiers en kebab-case.
 - `core/` et `helpers/` ne dépendent pas de `app/` ; `technicals/` ne dépend
-  que de lui-même.
-- Les pages ne parlent au principal que par leur pont (`src/*preload.js`,
-  typé dans `technicals/bridge`). Dans chaque page, un seul fichier connaît le
+  que de lui-même, de `helpers/` et de `shared/`.
+- Le principal n'écoute les pages que par `technicals/ipc` (`listenFrom`) :
+  une table de gestionnaires par fenêtre, typée par ses canaux.
+- Les pages ne parlent au principal que par leur pont (`src/preload/`,
+  typé par `shared/bridge`). Dans chaque page, un seul fichier connaît le
   pont : `icon-app.tsx`, `bubble-app.tsx`, `panel-app.tsx`. Les composants
   reçoivent des props et des rappels.
 - Aucun canal ne colle, ne copie ou ne lit un texte fourni par une page
@@ -43,7 +58,8 @@
 
 - `**/tests/invariants/**` : protégés. Si un invariant échoue, corriger le
   code, pas le test.
-- `src/*preload.js` : les ponts, frontière de sécurité.
+- `src/preload/` et `src/shared/bridge/channels.ts` : les ponts et leurs
+  canaux, frontière de sécurité.
 
 ## PR
 

@@ -39,12 +39,11 @@ function oldPages() {
   };
 }
 const newPages = () => {
-  const out = path.join(ROOT, 'out', 'renderer');
-  const src = path.join(ROOT, 'src');
+  const out = path.join(ROOT, 'out');
   return {
-    icon: { file: path.join(out, 'app', 'icon', 'index.html'), preload: path.join(src, 'preload.js') },
-    bubble: { file: path.join(out, 'app', 'bubble', 'bubble.html'), preload: path.join(src, 'bubble-preload.js') },
-    panel: { file: path.join(out, 'app', 'panel', 'conversation.html'), preload: path.join(src, 'conversation-preload.js') },
+    icon: { file: path.join(out, 'renderer', 'app', 'icon', 'index.html'), preload: path.join(out, 'main', 'preload-icon.js') },
+    bubble: { file: path.join(out, 'renderer', 'app', 'bubble', 'bubble.html'), preload: path.join(out, 'main', 'preload-bubble.js') },
+    panel: { file: path.join(out, 'renderer', 'app', 'panel', 'conversation.html'), preload: path.join(out, 'main', 'preload-panel.js') },
   };
 };
 

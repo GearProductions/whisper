@@ -2,18 +2,19 @@
   "name": "whisper-dictation",
   "version": "0.5.0",
   "description": "Icône flottante : maintenir le clic pour dicter (whisper.cpp local), le texte est collé là où est le curseur",
-  "main": "src/main.js",
+  "main": "out/main/index.js",
   "scripts": {
-    "start": "vite build && electron .",
-    "build": "vite build",
-    "typecheck": "tsc --noEmit",
+    "start": "npm run build && electron .",
+    "build": "vite build && vite build -c vite.main.config.mts",
+    "typecheck": "tsc -p tsconfig.renderer.json && tsc -p tsconfig.main.json",
     "test": "vitest run",
     "test:invariants": "vitest run /invariants/",
-    "test:front-diff": "vite build && electron tests/front-diff/main.cjs",
+    "test:front-diff": "npm run build && electron tests/front-diff/main.cjs",
     "build:whisper": "bash scripts/build-whisper.sh",
     "fetch:uv": "bash scripts/fetch-uv.sh",
-    "dist:win": "vite build && electron-builder --win portable --publish never",
-    "dist:linux": "vite build && electron-builder --linux AppImage --publish never"
+    "dist:win": "npm run build && electron-builder --win portable --publish never",
+    "dist:linux": "npm run build && electron-builder --linux AppImage --publish never",
+    "test:main-diff": "node tests/main-diff/run.mjs"
   },
   "license": "MIT",
   "devDependencies": {
@@ -32,21 +33,18 @@
     "appId": "com.gear-productions.whisper-dictation",
     "artifactName": "whisper-dictation-${version}-${os}.${ext}",
     "files": [
-      "src/*.js",
-      "src/*.ps1",
-      "src/*.py",
-      "out/renderer/**/*",
+      "out/**/*",
       "package.json",
       "!node_modules/@anthropic-ai/claude-agent-sdk-*/**"
-    ],
-    "asarUnpack": [
-      "src/*.ps1",
-      "src/*.py"
     ],
     "extraResources": [
       {
         "from": "resources/bin",
         "to": "bin"
+      },
+      {
+        "from": "resources/scripts",
+        "to": "scripts"
       }
     ],
     "directories": {

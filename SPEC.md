@@ -1,7 +1,7 @@
 # Whisper — spécification de comportement
 
-Comportement de l'appli (état de la **0.4.0**, inchangé en **0.5.0** où les
-pages passent en React + TypeScript) : ce qu'elle fait, ce qu'elle ne doit
+Comportement de l'appli (état de la **0.4.0**, inchangé en **0.5.0**, où les
+pages et le principal passent en TypeScript, les pages en React) : ce qu'elle fait, ce qu'elle ne doit
 jamais faire, et comment le vérifier. C'est la référence de la refonte : une
 migration est réussie quand chaque règle ci-dessous tient encore.
 
@@ -22,35 +22,43 @@ les deux.
 
 | Fenêtre | Page (`src/renderer/`) | Pont | Focus | Rôle |
 |---|---|---|---|---|
-| **Icône** | `app/icon/` (`icon-app.tsx`) | `preload.js` | **jamais** (`focusable: false`) | geste, micro, lecteur audio, robots |
-| **Bulle** | `app/bubble/` (`bubble-app.tsx`) | `bubble-preload.js` | **jamais** | messages de l'appli, curseur du volume |
-| **Panneau** | `app/panel/` (`panel-app.tsx`) | `conversation-preload.js` | oui (on y écrit) ; jamais pris quand il s'ouvre de lui-même | conversation de l'agent sélectionné (champ de saisie) ou contexte « Dictée » |
+| **Icône** | `app/icon/` (`icon-app.tsx`) | `src/preload/icon.ts` | **jamais** (`focusable: false`) | geste, micro, lecteur audio, robots |
+| **Bulle** | `app/bubble/` (`bubble-app.tsx`) | `src/preload/bubble.ts` | **jamais** | messages de l'appli, curseur du volume |
+| **Panneau** | `app/panel/` (`panel-app.tsx`) | `src/preload/panel.ts` | oui (on y écrit) ; jamais pris quand il s'ouvre de lui-même | conversation de l'agent sélectionné (champ de saisie) ou contexte « Dictée » |
 
 Les pages sont en React + TypeScript, construites par Vite dans
 `out/renderer/` et chargées en `file://`, rangées en `app/` (fenêtres),
 `core/` (métier), `helpers/`, `technicals/` (ponts, micro, DOM). Le contrat
-des ponts est typé dans `technicals/bridge` ; dans chaque page, seul le
-fichier `*-app.tsx` connaît son pont. Découpage et règles : `AGENTS.md`,
-`docs/tickets/refactor/0.5.0-front-react.md`.
+des ponts (types et canaux de chaque fenêtre) est dans `src/shared/bridge` ;
+dans chaque page, seul le fichier `*-app.tsx` connaît son pont. Découpage et
+règles : `AGENTS.md`, `docs/tickets/refactor/0.5.0-front-react.md` et
+`0.5.0-main-typescript.md`.
 
 Toutes : sans cadre, hors de la barre des tâches, `contextIsolation`,
-`sandbox`, préchargement minimal (`contextBridge`). Le principal (`main.js`)
-est le seul à lire la config, toucher au presse-papiers, lancer des processus.
+`sandbox`, préchargement minimal (`contextBridge`). Le principal
+(`src/main/`) est le seul à lire la config, toucher au presse-papiers, lancer
+des processus.
 
-### Modules du principal
+### Modules du principal (`src/main/`, construit dans `out/main/`)
 
 | Module | Rôle |
 |---|---|
-| `main.js` | config, fenêtres, IPC, menus, agents côté appli, panneau, pièces jointes |
-| `whisper.js` | localiser `whisper-cli` + modèle, transcrire (fichier WAV temporaire) |
-| `paste.js` | Ctrl+V simulé (xdotool / wtype / ydotool ; assistant PowerShell) |
-| `selection.js` | lire sélection / presse-papiers (wl-paste, Ctrl+C simulé sous Windows), photographier et rendre le presse-papiers |
-| `mute.js` | couper / rétablir Discord et les autres applications (wpctl ; Core Audio) |
-| `tts.js` + `pocket-helper.py` | Pocket TTS : installation par uv, processus Python permanent, audio par morceaux |
-| `lang.js` | français ou anglais (lecture) |
-| `agents.js` | agents Claude Code par le SDK : tours, autorisations, interruption, sonde, transcriptions |
-| `windows.js` + `windows-helper.ps1` | assistant PowerShell permanent (paste, copy, discord-*, others-*) |
-| `paths.js` | `which`, scripts sortis de l'asar |
+| `app/lifecycle` | démarrage (une instance, aucun agent sélectionné, permissions), sortie |
+| `app/windows` | les trois fenêtres : créer, placer, montrer (icône, bulle, panneau) |
+| `app/controllers` | dictée (coupures, transcription, destination, modèle), lecture, agents, contenu du panneau |
+| `app/menus` | menus de l'icône, des robots, du « + », du trombone |
+| `app/ipc` | une table de gestionnaires par fenêtre, écoutée par `technicals/ipc` |
+| `core/config` | réglages, démarrage, dossiers favoris et couleurs, confiance |
+| `core/dictation` | transcription d'une ligne, destination, collage et presse-papiers |
+| `core/sound` | couper et rétablir ce qu'on a coupé |
+| `core/agents` | tours, file d'autorisations, interruption, sonde, transcriptions, sessions |
+| `core/conversation` | actions et demandes d'autorisation écrites, pièces jointes |
+| `core/guards` | permissions des pages, liens, fichiers montrés |
+| `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `paste`, `windows-helper`, `pipewire`, `clipboard`, `selection`, `pocket-tts`, `claude`, `journal`, `images`, `paths`, `config-file` |
+| `helpers` | découper une commande, français ou anglais, une ligne |
+
+Scripts lancés par l'appli : `resources/scripts/` (`windows-helper.ps1`,
+`pocket-helper.py`), livrés hors de l'archive comme les binaires.
 
 ### Canaux IPC
 
@@ -70,8 +78,8 @@ Vers les pages : `tts:state`, `tts:chunk`, `tts:end`, `tts:speakReply`,
 `agents:state` (icône) ; `bubble:show` (bulle) ; `conv:thread`, `conv:notice`,
 `conv:dictation`, `conv:focusInput`, `conv:attached` (panneau).
 
-Les canaux `agent:*` ne sont acceptés que de l'icône, les `conv:*` que du
-panneau (`sentBy`, cf. I-20).
+Chaque fenêtre n'est écoutée que sur ses propres canaux, et un message d'une
+autre fenêtre est ignoré (`technicals/ipc`, cf. I-20).
 
 ### Fichiers de données (`userData`)
 
@@ -189,6 +197,19 @@ ceux des processus de l'appli (les bips restent audibles).
 
 **F-32** Opérations en file (un relâché rapide attend la coupure). Linux :
 PipeWire par `wpctl` ; Windows : sessions Core Audio par l'assistant.
+
+**F-33 Flux disparu** (Linux) : WirePlumber retient la coupure d'une
+application. Un flux coupé qui disparaît avant la fin de la dictée (vidéo
+finie, onglet fermé) laisserait donc ses flux suivants muets : son
+application reste « à rétablir » (`userData/sons-a-retablir.json`, gardé
+d'un lancement à l'autre) et son prochain flux est rétabli dans les 5 s,
+jamais pendant une dictée.
+
+**F-34 Dépannage** (clic droit → *Rétablir le son et le micro Discord*,
+Linux et Windows, grisé pendant une dictée) : rétablit ce que l'appli a
+coupé, les applications « à rétablir », et tout flux encore coupé parmi la
+lecture des autres applications et la capture de Discord. La bulle dit combien
+de flux ont été remis en marche. Sous Windows : ce que l'assistant a coupé.
 
 ## 6. Lecture à voix haute
 
@@ -394,7 +415,8 @@ liens vers le navigateur seulement, jamais de navigation.
 Couper le son des autres applications (Linux, Windows) ; Coller
 automatiquement ; Toujours au premier plan (icône, bulles, panneau ;
 appliqué aussitôt) ; Afficher le texte transcrit ; Autoriser la coupure du
-micro Discord (Linux, Windows) ; Lecture à voix haute (installer, source,
+micro Discord (Linux, Windows) ; Rétablir le son et le micro Discord
+(dépannage, F-34) ; Lecture à voix haute (installer, source,
 désactivée, langue, voix, volume) ; Agents Claude Code (afficher, relire
 avant d'envoyer, commande, changer la commande, consigne, journal) ; Ouvrir le
 dossier whisper ; Modifier la configuration ; À propos (page de la version) ;
@@ -442,26 +464,25 @@ agents arrêtés.
 
 ## 11. Paquets et CI
 
-- PR et `master` : `node --check` de `src/*.js` (Linux, Windows) ; typage,
-  tests (invariants et variants) et construction des pages ; essai de
-  l'assistant PowerShell (réponses attendues `0, ok, \d+, ok, err`).
+- PR et `master` (Linux, Windows) : typage, tests (invariants et variants) et
+  construction des pages et du principal ; essai de l'assistant PowerShell
+  (réponses attendues `0, ok, \d+, ok, err`).
 - Tag `vX.Y.Z` : paquets (AppImage sur Ubuntu 22.04, exe portable), avec
   `whisper-cli` v1.9.4 (Vulkan + repli processeur, essayé sur `jfk.wav`) et
   `uv` 0.12.20 ; Release GitHub. `vX.Y.Z-rc.N` : pré-version. Déclenchement
   manuel : artefacts sans publication.
 - L'exécutable embarqué du SDK Claude (230 Mo par plateforme) est **exclu** du
-  paquet ; `*.ps1` et `*.py` sortis de l'asar.
+  paquet ; `resources/scripts/` (`*.ps1`, `*.py`) livré hors de l'asar.
 
 ---
 
 ## 12. Invariants — ce que l'appli ne doit jamais faire
 
 Testés automatiquement (`npm run test:invariants`, dossiers
-`tests/invariants/` protégés) : I-3 et I-20 (canaux des ponts, contrôle de
-l'expéditeur dans le principal), I-11 côté page (tout enregistrement commencé
-se termine), I-15 et I-16 côté page (demande affichée, délai anti-clic), I-21
-(seules les adresses http(s) deviennent des liens). Les autres : scénarios du
-§ 13, jusqu'au passage du principal en TypeScript.
+`tests/invariants/` protégés) : I-2 à I-6 (texte collé, une ligne,
+presse-papiers, collage désactivé), I-8, I-9, I-11 (page et principal), I-12,
+I-13 à I-17, I-19, I-20, I-21, I-23, I-24, I-27, I-29. Les autres (focus,
+fenêtres, I-1, I-18, I-22, I-28) : scénarios du § 13 et bancs de comparaison.
 
 ### Focus et collage
 
@@ -494,10 +515,12 @@ se termine), I-15 et I-16 côté page (demande affichée, délai anti-clic), I-2
 ### Son
 
 - **I-11** La fin de l'enregistrement **rétablit toujours** ce qui a été
-  coupé, même si le réglage a été décoché entre-temps, et à la fermeture.
+  coupé, même si le réglage a été décoché entre-temps, et à la fermeture ;
+  un flux disparu entre-temps, à la réapparition de son application (F-33).
 - **I-12** On ne rétablit que ce que **nous** avons coupé : un flux déjà muet
   le reste. Jamais le micro du système, jamais le bouton muet de Discord,
-  jamais les flux de l'appli (bips).
+  jamais les flux de l'appli (bips). Seule exception : le dépannage (F-34),
+  demandé par l'utilisateur.
 
 ### Agents : autorisations
 
@@ -528,7 +551,8 @@ se termine), I-15 et I-16 côté page (demande affichée, délai anti-clic), I-2
   processus seulement en dernier recours, après 5 s (lancé par une commande
   enveloppe, seule l'enveloppe mourrait). Quitter attend de même.
 - **I-20** Un message IPC n'est accepté que de la fenêtre qui a le droit de
-  l'envoyer : `agent:*` de l'icône, `conv:*` du panneau.
+  l'envoyer : chaque fenêtre sur ses propres canaux (`agent:*` de l'icône,
+  `conv:*` du panneau, `bubble:*` de la bulle…).
 - **I-21** Le panneau ne navigue jamais ; un lien ne s'ouvre que s'il est en
   `http(s)`, dans le navigateur ; un fichier joint est **montré** dans le
   gestionnaire de fichiers, jamais **ouvert** (un script se lancerait), et
@@ -564,7 +588,10 @@ se termine), I-15 et I-16 côté page (demande affichée, délai anti-clic), I-2
 transcription simulée en remplaçant `whisper.transcribe` (cf. les essais de la
 revue de la 0.4.0). Les pages seules se comparent automatiquement à une
 version publiée : `npm run test:front-diff -- v0.4.0` (`tests/front-diff/`,
-mêmes scénarios, mêmes messages vers le principal, mêmes captures).
+mêmes scénarios, mêmes messages vers le principal, mêmes captures). Le
+principal, sur l'appli réelle : `npm run test:main-diff -- <version>`
+(`tests/main-diff/` : démarrage, dictée vers un agent et vers le curseur,
+Copier, erreurs ; mêmes relevés).
 
 **Dictée**
 - **S-1** Maintenir, parler, relâcher dans un éditeur : bips, texte collé, le
@@ -583,7 +610,9 @@ mêmes scénarios, mêmes messages vers le principal, mêmes captures).
 - **S-7** Discord en appel, coupure autorisée : « Micro Discord coupé »,
   rétabli au relâché ; micro déjà coupé avant → toujours coupé après.
 - **S-8** Son des autres applications : une vidéo se tait pendant la dictée,
-  les bips restent.
+  les bips restent. Vidéo arrêtée pendant la dictée, puis relancée : le son
+  revient dans les 5 s. Clic droit → *Rétablir le son et le micro Discord* :
+  un flux resté coupé reprend.
 
 **Lecture**
 - **S-10** Sélection → ▶ lit ; second clic arrête ; rien de sélectionné →

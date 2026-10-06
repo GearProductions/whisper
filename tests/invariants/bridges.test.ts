@@ -1,90 +1,85 @@
 // Invariants des ponts (SPEC I-3, I-20) : chaque page n'a que ses canaux, et le
-// principal n'écoute un canal sensible que de la fenêtre qui y a droit.
+// principal n'écoute une fenêtre que sur les siens, en contrôlant l'expéditeur.
 // Protégé : si ce test échoue, corriger le code. Un canal ajouté se décide
 // (SPEC.md, note du ticket) avant d'entrer dans ces listes.
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+//
+// Le reste du contrat est vérifié par le typage : la table de gestionnaires de
+// chaque fenêtre (HandlerTable) couvre exactement ses canaux.
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { BUBBLE_CHANNELS, ICON_CHANNELS, PANEL_CHANNELS } from '../../src/shared/bridge/channels';
 
-const src = (name: string) => readFileSync(resolve(__dirname, '../../src', name), 'utf8');
+// Un faux `electron` pour les ponts : relève le nom exposé et les canaux empruntés.
+const fake = vi.hoisted(() => ({
+  exposed: {} as Record<string, Record<string, (...a: unknown[]) => unknown>>,
+  used: [] as [string, string, unknown[]][],
+}));
+vi.mock('electron', () => ({
+  contextBridge: { exposeInMainWorld: (name: string, api: Record<string, (...a: unknown[]) => unknown>) => { fake.exposed[name] = api; } },
+  ipcRenderer: {
+    send: (ch: string, ...a: unknown[]) => { fake.used.push(['send', ch, a]); },
+    invoke: (ch: string, ...a: unknown[]) => { fake.used.push(['invoke', ch, a]); return Promise.resolve(); },
+    on: (ch: string) => { fake.used.push(['events', ch, []]); },
+  },
+  webUtils: { getPathForFile: () => '' },
+}));
 
-// Exécute un pont avec un faux `electron` et relève, pour chaque méthode
-// exposée, le canal qu'elle emprunte.
-function channelsOf(file: string) {
-  const exposed: Record<string, Record<string, (...a: unknown[]) => unknown>> = {};
-  const used: string[] = [];
-  const ipcRenderer = {
-    send: (ch: string) => { used.push(ch); },
-    invoke: (ch: string) => { used.push(ch); return Promise.resolve(); },
-    on: (ch: string) => { used.push(ch); },
-  };
-  const electron = {
-    contextBridge: { exposeInMainWorld: (name: string, api: Record<string, (...a: unknown[]) => unknown>) => { exposed[name] = api; } },
-    ipcRenderer,
-    webUtils: { getPathForFile: () => '' },
-  };
-  new Function('require', src(file))((m: string) => (m === 'electron' ? electron : undefined));
-  const names = Object.keys(exposed);
+beforeEach(() => { fake.exposed = {}; fake.used = []; });
+
+async function bridge(file: string) {
+  vi.resetModules();
+  await import(`../../src/preload/${file}`);
+  const names = Object.keys(fake.exposed);
   expect(names).toHaveLength(1);
-  const api = exposed[names[0]];
-  for (const fn of Object.values(api)) fn(() => {}, 0);
-  return { name: names[0], methods: Object.keys(api).sort(), channels: [...new Set(used)].sort() };
+  for (const fn of Object.values(fake.exposed[names[0]])) fn(() => {}, 0);
+  const by = (kind: string) => [...new Set(fake.used.filter(([k]) => k === kind).map(([, ch]) => ch))].sort();
+  return { name: names[0], send: by('send'), invoke: by('invoke'), events: by('events') };
 }
-
-const ICON = ['agent:add', 'agent:click', 'agent:menu', 'agents:state', 'config:get', 'config:setDevice',
-  'dictation:recording', 'dictation:transcribe', 'dictation:warmUp', 'menu:open', 'tts:cancel', 'tts:chunk',
-  'tts:end', 'tts:speak', 'tts:speakReply', 'tts:state', 'tts:warmUp', 'win:getBounds', 'win:savePosition',
-  'win:setPosition'];
-const BUBBLE = ['bubble:close', 'bubble:hover', 'bubble:ready', 'bubble:show', 'bubble:volume'];
-const PANEL = ['conv:answer', 'conv:attach', 'conv:attached', 'conv:copy', 'conv:current', 'conv:dictation',
-  'conv:focusInput', 'conv:height', 'conv:hide', 'conv:history', 'conv:mode', 'conv:notice', 'conv:open',
-  'conv:openLink', 'conv:probe', 'conv:ready', 'conv:resume', 'conv:send', 'conv:showFile', 'conv:speak',
-  'conv:thread'];
+const sorted = (l: readonly string[]) => [...l].sort();
 
 describe('ponts des pages', () => {
-  it('l’icône : ses canaux, aucun du panneau', () => {
-    const { name, channels } = channelsOf('preload.js');
-    expect(name).toBe('api');
-    expect(channels).toEqual(ICON);
+  it.each([
+    ['icon', 'api', ICON_CHANNELS, /^(win|config|dictation|menu|tts|agent|agents):/],
+    ['bubble', 'bubble', BUBBLE_CHANNELS, /^bubble:/],
+    ['panel', 'conv', PANEL_CHANNELS, /^conv:/],
+  ] as const)('%s : ses canaux, et seulement eux', async (file, name, channels, prefix) => {
+    const b = await bridge(file);
+    expect(b.name).toBe(name);
+    expect(b.send).toEqual(sorted(channels.send));
+    expect(b.invoke).toEqual(sorted(channels.invoke));
+    expect(b.events).toEqual(sorted(channels.events));
+    for (const ch of [...b.send, ...b.invoke, ...b.events]) expect(ch).toMatch(prefix);
   });
 
-  it('la bulle : ses canaux seulement', () => {
-    const { name, channels } = channelsOf('bubble-preload.js');
-    expect(name).toBe('bubble');
-    expect(channels).toEqual(BUBBLE);
-  });
-
-  it('le panneau : ses canaux seulement', () => {
-    const { name, channels } = channelsOf('conversation-preload.js');
-    expect(name).toBe('conv');
-    expect(channels).toEqual(PANEL);
-  });
-
-  it('Copier ne transporte aucun texte : le principal copie le sien (I-3)', () => {
-    let sent: unknown[] = [];
-    const electron = {
-      contextBridge: { exposeInMainWorld: (_n: string, api: { copy: (...a: unknown[]) => unknown }) => { api.copy('texte de la page'); } },
-      ipcRenderer: { send() {}, on() {}, invoke: (...a: unknown[]) => { sent = a; return Promise.resolve(); } },
-      webUtils: { getPathForFile: () => '' },
-    };
-    new Function('require', src('conversation-preload.js'))(() => electron);
-    expect(sent).toEqual(['conv:copy']);
+  it('Copier ne transporte aucun texte : le principal copie le sien (I-3)', async () => {
+    vi.resetModules();
+    await import('../../src/preload/panel');
+    fake.used = [];
+    fake.exposed.conv.copy('texte de la page');
+    expect(fake.used).toEqual([['invoke', 'conv:copy', []]]);
   });
 });
 
-// Chaque gestionnaire d'un canal agent:* ou conv:* commence par vérifier
-// l'expéditeur (I-20) : l'icône pour agent:*, le panneau pour conv:*.
-describe('principal : contrôle de l’expéditeur', () => {
-  const main = src('main.js');
-  const handlers = [...main.matchAll(/ipcMain\.(?:on|handle)\('((?:agent|conv):[A-Za-z]+)'([\s\S]*?)(?=\nipcMain\.|\n\/\* ----|$)/g)];
+// Tout le code du principal, sauf le module qui contrôle l'expéditeur.
+function sources(dir: string): [string, string][] {
+  return readdirSync(dir).flatMap((n) => {
+    const p = join(dir, n);
+    if (statSync(p).isDirectory()) return n === 'tests' ? [] : sources(p);
+    return /\.ts$/.test(n) ? [[p, readFileSync(p, 'utf8')] as [string, string]] : [];
+  });
+}
+const MAIN = resolve(__dirname, '../../src/main');
 
-  it('trouve les gestionnaires', () => {
-    const names = handlers.map((h) => h[1]);
-    expect(names).toEqual(expect.arrayContaining(['agent:click', 'agent:add', 'agent:menu', 'conv:send', 'conv:answer', 'conv:copy']));
+describe('principal : contrôle de l’expéditeur', () => {
+  it('seul technicals/ipc écoute les pages', () => {
+    const outside = sources(MAIN).filter(([p, s]) => !p.includes(join('technicals', 'ipc')) && /ipcMain\s*\.\s*(on|handle|once)\b/.test(s));
+    expect(outside.map(([p]) => p)).toEqual([]);
   });
 
-  it.each(handlers.map((h) => [h[1], h[2]] as const))('%s vérifie sentBy', (name, body) => {
-    const window = name.startsWith('agent:') ? 'win' : 'conv';
-    expect(body).toContain(`sentBy(e, ${window})`);
+  it('chaque fenêtre est écoutée sur ses propres canaux', () => {
+    const listen = sources(MAIN).map(([, s]) => s).join('\n');
+    const calls = [...listen.matchAll(/listenFrom\(\s*\w+,\s*\(\)\s*=>\s*state\.(\w+),\s*(\w+_CHANNELS)/g)].map((m) => `${m[1]}:${m[2]}`).sort();
+    expect(calls).toEqual(['bubble:BUBBLE_CHANNELS', 'icon:ICON_CHANNELS', 'panel:PANEL_CHANNELS']);
   });
 });

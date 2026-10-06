@@ -1,8 +1,10 @@
 // Construit les trois pages (src/renderer) dans out/renderer, chargées par le
-// principal en file:// : chemins relatifs (base './'), sans serveur.
+// principal en file:// : chemins relatifs (base './'), sans serveur. Le
+// principal et les ponts : vite.main.config.mts. Les tests : vitest.config.mts.
 import { resolve } from 'node:path';
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from 'vite';
+import { aliases } from './vitest.config.mts';
 
 const root = resolve(import.meta.dirname, 'src/renderer');
 
@@ -10,8 +12,8 @@ export default defineConfig({
   root,
   base: './',
   plugins: [react()],
-  // Imports absolus, comme dans les plugins Gear : 'core/conversation', 'technicals/bridge'…
-  resolve: { alias: [{ find: /^(app|core|helpers|technicals)(?=\/|$)/, replacement: `${root}/$1` }] },
+  // Imports absolus, comme dans les plugins Gear : 'core/conversation', 'shared/bridge'…
+  resolve: { alias: aliases('renderer') },
   build: {
     outDir: resolve(import.meta.dirname, 'out/renderer'),
     emptyOutDir: true,
@@ -23,10 +25,5 @@ export default defineConfig({
         panel: resolve(root, 'app/panel/conversation.html'),
       },
     },
-  },
-  test: {
-    root: import.meta.dirname,
-    include: ['src/renderer/**/tests/**/*.test.ts', 'tests/**/*.test.ts'],
-    environment: 'node',
   },
 });

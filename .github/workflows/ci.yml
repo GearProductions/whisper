@@ -14,8 +14,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Syntaxe du principal, typage et tests des pages, construction des pages,
-  # sur les deux systèmes visés.
+  # Typage, tests (invariants et variants) et construction des pages et du
+  # principal, sur les deux systèmes visés.
   syntaxe:
     strategy:
       matrix:
@@ -27,9 +27,6 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: node --check
-        shell: bash
-        run: for f in src/*.js; do node --check "$f"; done
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
@@ -49,7 +46,7 @@ jobs:
         shell: pwsh
         run: |
           $commands = "discord-mute`ndiscord-restore`nothers-mute 1,2`nothers-restore`ninconnue`n"
-          $out = $commands | powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File src/windows-helper.ps1
+          $out = $commands | powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File resources/scripts/windows-helper.ps1
           $lines = @($out | Where-Object { $_ -ne '' })
           # Les coupures répondent un nombre (0 sans Discord ; le runner peut
           # avoir une session de sons système côté lecture).

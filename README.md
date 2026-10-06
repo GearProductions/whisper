@@ -65,15 +65,16 @@ complémentaires* → *Exécuter quand même*).
 
 ```bash
 npm install
-npm start          # construit les pages (src/renderer → out/renderer) puis lance l'appli
+npm start          # construit les pages et le principal (out/) puis lance l'appli
 ```
 
 Pour qui modifie le code (règles : [AGENTS.md](AGENTS.md)) :
 
 ```bash
-npm run typecheck                    # TypeScript des pages
+npm run typecheck                    # TypeScript des pages et du principal
 npm test                             # tests (npm run test:invariants : les invariants seuls)
 npm run test:front-diff -- v0.4.0    # pages comparées à une version : mêmes écrans, mêmes messages
+npm run test:main-diff -- v0.5.0-rc.1  # appli réelle comparée à une version : mêmes résultats
 ```
 
 ### whisper.cpp (depuis les sources)
@@ -304,6 +305,12 @@ pendant la dictée* (désactivé par défaut) : leur son est coupé le temps de
 l'enregistrement, puis rétabli. Les bips de l'appli restent audibles ; une
 application déjà muette le reste. Même mécanisme que pour le micro Discord
 ci-dessous (PipeWire sous Linux, Core Audio sous Windows).
+
+Un son ou le micro Discord resté coupé (par exemple après un arrêt brutal de
+l'appli) : clic droit → *Rétablir le son et le micro Discord (dépannage)*.
+Sous Linux, une application dont le son s'est arrêté pendant la dictée
+retrouve d'elle-même le son quand elle rejoue (WirePlumber retient la
+coupure de chaque application ; l'appli la lève).
 
 ### Micro Discord
 
