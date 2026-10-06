@@ -1,9 +1,10 @@
 /** bridge — le contrat entre les pages et le principal : ce que chaque pont
  *  (src/preload.js, bubble-preload.js, conversation-preload.js) expose, et la
  *  forme des données échangées. Aucun code.
- *  Ne connaît pas : React. Utilisé par : les trois pages (app/) et les modules
- *  qu'elles alimentent. Un canal ajouté ici l'est aussi dans le pont et
- *  dans tests/invariants/bridges.test.ts. */
+ *  Ne connaît pas : React, Electron. Utilisé par : les pages (src/renderer), les
+ *  ponts (src/preload), le principal (src/main). Un canal ajouté ici l'est
+ *  aussi dans le pont, dans la table de gestionnaires de sa fenêtre et dans
+ *  tests/invariants/bridges.test.ts. */
 
 /* ---- Icône (window.api) ---------------------------------------------------- */
 
@@ -168,12 +169,4 @@ export interface ConvApi {
   answer(decision: Decision, key: number): void;
   openLink(url: string): void;
   showFile(file: string): void;
-}
-
-declare global {
-  interface Window {
-    api: IconApi;
-    bubble: BubbleApi;
-    conv: ConvApi;
-  }
 }
