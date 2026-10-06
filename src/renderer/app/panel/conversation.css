@@ -1,6 +1,9 @@
 /* Panneau de conversation d'un agent (réduit ou agrandi), aux couleurs de
-   l'appli. --accent : la couleur du dossier de l'agent affiché. */
+   l'appli. --accent : la couleur du dossier de l'agent affiché (posée sur
+   #app). #root et #app ne comptent pas dans la mise en page : body reste la
+   colonne. */
 :root { --accent: #8b5cf6; }
+#root, #app { display: contents; }
 html, body { height: 100%; margin: 0; }
 body {
   display: flex;
@@ -124,8 +127,8 @@ header {
 .listen:hover, .copy:hover { border-color: var(--accent); }
 /* Contexte « Dictée » : le texte dicté et Copier ; ni jauge, ni historique, ni taille. */
 .copy { display: none; }
-body[data-view="dictation"] .copy { display: inline-block; }
-body[data-view="dictation"] :is(#context-button, #history-button, #mode) { display: none; }
+#app[data-view="dictation"] .copy { display: inline-block; }
+#app[data-view="dictation"] :is(#context-button, #history-button, #mode) { display: none; }
 #thread .hint { color: #8a91a0; font-size: 13px; }
 
 /* Heure du message, à côté de l'auteur. */
@@ -311,7 +314,7 @@ body { box-sizing: border-box; border: 1px solid #3a4150; }
   font: 14px/18px system-ui, sans-serif !important;
 }
 .piece .remove:hover { background: #3a4150 !important; color: #e6e8ee; }
-body.dragging #composer { background: #252c3b; box-shadow: inset 0 0 0 2px var(--accent); }
+#app.dragging #composer { background: #252c3b; box-shadow: inset 0 0 0 2px var(--accent); }
 @keyframes pulse { to { opacity: 0.25; } }
 
 /* Réduit : le dernier échange, sans l'historique. */
@@ -329,8 +332,8 @@ body.dragging #composer { background: #252c3b; box-shadow: inset 0 0 0 2px var(-
   cursor: pointer;
 }
 #mode:hover { background: #3a4150; color: #e6e8ee; }
-body[data-mode="compact"] header { padding: 8px 12px; }
-body[data-mode="compact"] #thread { padding: 12px; }
+#app[data-mode="compact"] header { padding: 8px 12px; }
+#app[data-mode="compact"] #thread { padding: 12px; }
 
 /* À la place de la bulle : un message de l'appli. */
 #notice {
@@ -384,7 +387,7 @@ body[data-mode="compact"] #thread { padding: 12px; }
 #context-button .ring-bg { stroke: #3a4150; }
 #context-button .ring { stroke: var(--ring); stroke-dasharray: 94.25; stroke-dashoffset: calc(94.25 * (1 - var(--pct) / 100)); stroke-linecap: round; }
 #context-button[data-level="unknown"] .ring { stroke-dashoffset: 94.25; }
-body[data-mode="compact"] #context-label { display: none; }
+#app[data-mode="compact"] #context-label { display: none; }
 
 /* Détail du contexte : un panneau posé sur le fil, comme l'historique. */
 #context-panel {

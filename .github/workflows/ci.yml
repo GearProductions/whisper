@@ -14,7 +14,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Syntaxe du code de l'appli, sur les deux systèmes visés.
+  # Syntaxe du principal, typage et tests des pages, construction des pages,
+  # sur les deux systèmes visés.
   syntaxe:
     strategy:
       matrix:
@@ -24,10 +25,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+          cache: npm
       - name: node --check
         shell: bash
         run: for f in src/*.js; do node --check "$f"; done
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
 
   # L'assistant PowerShell (collage, Ctrl+C, micro Discord) ne peut être essayé
   # que sous Windows : on le compile et on vérifie ses réponses, avec le même
@@ -80,7 +86,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - name: SDK Vulkan (glslc, en-têtes)
         uses: jakoch/install-vulkan-sdk-action@v1.6.0

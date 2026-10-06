@@ -2,8 +2,8 @@
    (lecture, agents, ajout), moitié moins grands, s'alignent à sa droite : la
    fenêtre est élargie d'autant par le principal (winWidth).
 
-   Tout se mesure sur --s, la taille configurée de l'icône (posée par le
-   renderer), et non sur la fenêtre : avec une mise à l'échelle fractionnaire,
+   Tout se mesure sur --s, la taille configurée de l'icône (posée par
+   main.tsx), et non sur la fenêtre : avec une mise à l'échelle fractionnaire,
    celle-ci est arrondie de quelques pixels, et l'écart se cumulerait à chaque
    bouton. */
 :root { --s: 64px; }
@@ -47,7 +47,7 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
 }
 #icon[data-phase="error"] { border-color: #d9383a; color: #ff6b6b; }
 /* Un agent est sélectionné : la dictée lui est destinée. */
-body[data-target="agent"] #icon[data-phase="idle"] { border-color: var(--agent, #8b5cf6); }
+#app[data-target="agent"] #icon[data-phase="idle"] { border-color: var(--agent, #8b5cf6); }
 
 /* ---- Petits boutons, à droite de l'icône ---- */
 #side {
@@ -81,7 +81,7 @@ body[data-target="agent"] #icon[data-phase="idle"] { border-color: var(--agent, 
 
 /* ---- Bouton de lecture ---- */
 #play { border-color: #3b6fe0; }
-body[data-tts="off"] #play { display: none; }
+#app[data-tts="off"] #play { display: none; }
 #play svg { fill: currentColor; }
 #play .i-stop { display: none; }
 #play[data-phase="playing"] .i-play { display: none; }
@@ -93,11 +93,11 @@ body[data-tts="off"] #play { display: none; }
 #play[data-phase="error"] { border-color: #d9383a; color: #ff6b6b; }
 
 /* ---- Agents Claude Code ---- */
-body[data-agents="off"] #agents, body[data-agents="off"] #add { display: none; }
+#app[data-agents="off"] #agents, #app[data-agents="off"] #add { display: none; }
 #add svg path { stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
 .agent svg path, .agent svg rect { stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .agent svg circle { fill: currentColor; }
-/* Chaque agent a sa couleur (--agent, posée par le renderer). */
+/* Chaque agent a sa couleur (--agent, posée par AgentButtons). */
 .agent { border-color: var(--agent, #8b5cf6); color: var(--agent, #8b5cf6); }
 .agent[data-selected="true"] { background: var(--agent, #8b5cf6); color: #fff; }
 .agent[data-status="working"] { animation: blink 0.8s ease-in-out infinite alternate; }
