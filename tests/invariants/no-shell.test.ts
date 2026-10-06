@@ -19,7 +19,8 @@ describe('pas de shell', () => {
   it('trouve le code', () => expect(all.length).toBeGreaterThan(10));
 
   it.each([
-    ['exec / execSync', /\bexec(Sync)?\s*\(/],
+    // child_process.exec, pas RegExp.prototype.exec
+    ['exec / execSync', /(?<![.\w$])exec(Sync)?\s*\(|import\s*{[^}]*\bexec(Sync)?\b[^}]*}\s*from\s*['"](node:)?child_process['"]/],
     ['shell: true', /shell\s*:\s*true/],
     ['sh -c / cmd /c', /['"](sh|bash|cmd(\.exe)?)['"]\s*,\s*\[\s*['"](-c|\/c)['"]/],
   ])('%s : absent', (_name, re) => {
