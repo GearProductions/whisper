@@ -1,7 +1,7 @@
 # Whisper — spécification de comportement
 
-Comportement de l'appli (état de la **0.4.0**, inchangé en **0.5.0**, pages en
-React + TypeScript, et en **0.6.0**, principal en TypeScript) : ce qu'elle fait, ce qu'elle ne doit
+Comportement de l'appli (état de la **0.4.0**, inchangé en **0.5.0**, où les
+pages et le principal passent en TypeScript, les pages en React) : ce qu'elle fait, ce qu'elle ne doit
 jamais faire, et comment le vérifier. C'est la référence de la refonte : une
 migration est réussie quand chaque règle ci-dessous tient encore.
 
@@ -32,7 +32,7 @@ Les pages sont en React + TypeScript, construites par Vite dans
 des ponts (types et canaux de chaque fenêtre) est dans `src/shared/bridge` ;
 dans chaque page, seul le fichier `*-app.tsx` connaît son pont. Découpage et
 règles : `AGENTS.md`, `docs/tickets/refactor/0.5.0-front-react.md` et
-`0.6.0-main-typescript.md`.
+`0.5.0-main-typescript.md`.
 
 Toutes : sans cadre, hors de la barre des tâches, `contextIsolation`,
 `sandbox`, préchargement minimal (`contextBridge`). Le principal
