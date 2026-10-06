@@ -13,7 +13,7 @@ import * as paste from 'technicals/paste';
 import * as tts from 'technicals/pocket-tts';
 import * as windows from 'technicals/windows-helper';
 import {
-  agents, ensureFolderColors, ensureModel, isBusy, muter, pollSpeak, pushAgents, resetSpeakState, SPEAK_POLL_MS,
+  agents, ensureFolderColors, ensureModel, isBusy, muter, pollSpeak, pushAgents, resetSpeakState, SPEAK_POLL_MS, startHealing,
 } from 'app/controllers';
 import { registerIpc } from 'app/ipc';
 import { loadConfig, saveConfig } from 'app/settings';
@@ -46,6 +46,8 @@ export function start() {
     const patch = startupPatch(loadConfig());
     if (patch) saveConfig(patch);
     setInterval(pollSpeak, SPEAK_POLL_MS);
+    // Une application restée muette après une dictée passée : rétablie dès qu'elle rejoue.
+    startHealing();
     // Windows : l'assistant PowerShell sert au premier collage comme à la
     // coupure du micro Discord en début de dictée ; il met ~1 s à démarrer.
     paste.warmUp();

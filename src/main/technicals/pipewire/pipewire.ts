@@ -27,7 +27,7 @@ export function streamIds(status: string | null) {
 }
 
 // Propriétés d'un objet PipeWire, ou null.
-async function inspect(id: string) {
+export async function inspect(id: string) {
   const out = await wpctl(['inspect', id]);
   if (!out) return null;
   const props: Record<string, string> = {};

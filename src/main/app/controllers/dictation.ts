@@ -10,8 +10,9 @@ import path from 'node:path';
 import { app } from 'electron';
 import { selectedAgent } from 'core/config';
 import { checkAudio, cleanTranscript, destination, pasteText, TRANSCRIBE_MESSAGES } from 'core/dictation';
-import { createMuter, createStreamMuter, isWanted, type MutePlatform } from 'core/sound';
+import { createMuter, createStreamMuter, isWanted, streamKey, type MutePlatform } from 'core/sound';
 import * as clipboard from 'technicals/clipboard';
+import { readJson, writeJson } from 'technicals/config-file';
 import * as paste from 'technicals/paste';
 import * as pipewire from 'technicals/pipewire';
 import * as windows from 'technicals/windows-helper';
@@ -33,14 +34,39 @@ const windowsMuter: MutePlatform = {
   restore: (target) => windows.request(`${target}-restore`),
 };
 
-// Linux : PipeWire, flux par flux.
+// Linux : PipeWire, flux par flux. Les applications restées muettes dans la
+// mémoire de WirePlumber (flux disparu avant d'être rétabli) sont retenues
+// dans les données de l'appli, jusqu'à ce qu'elles soient rétablies.
+const pendingFile = () => path.join(app.getPath('userData'), 'sons-a-retablir.json');
 const pipewireMuter = createStreamMuter({
   list: async (target, own) => (await pipewire.streams()).filter((s) => isWanted(target, s.props, own)).map((s) => s.id),
   isMuted: pipewire.isMuted,
   setMute: pipewire.setMute,
+  keyOf: async (id) => { const p = await pipewire.inspect(id); return p ? streamKey(p) : null; },
+  findByKey: async (key) => (await pipewire.streams()).filter((s) => streamKey(s.props) === key).map((s) => s.id),
+}, {
+  load: () => { const keys = readJson(pendingFile()).keys; return Array.isArray(keys) ? keys.filter((k) => typeof k === 'string') : []; },
+  save: (keys) => { try { writeJson(pendingFile(), { keys }); } catch { /* sans importance : retenu jusqu'à la sortie */ } },
 });
 
 export const muter = createMuter(process.platform === 'linux' ? pipewireMuter : process.platform === 'win32' ? windowsMuter : null);
+
+// Une application restée muette est rétablie dès qu'elle rejoue : un coup
+// d'œil toutes les HEAL_MS, seulement s'il y en a, et jamais pendant une dictée.
+// ponytail: regard périodique (5 s de silence au pire) ; suivre pw-mon si le délai gêne.
+const HEAL_MS = 5000;
+export function startHealing() {
+  muter.heal();
+  setInterval(() => { if (muter.pending() && !state.recording) muter.heal(); }, HEAL_MS);
+}
+
+// Dépannage (menu) : rétablir le son des autres applications et le micro de
+// Discord, même ce que l'appli n'aurait pas su rétablir.
+export async function forceRestoreSound() {
+  const own = ownPids();
+  const n = (await muter.force('others', own)) + (await muter.force('discord', own));
+  showBubble(n ? `Son rétabli : ${n} flux remis en marche.` : 'Rien n\'était coupé : le son et le micro Discord sont déjà rétablis.', 'status');
+}
 
 // Les processus de l'appli : leurs flux audio (les bips) ne sont jamais coupés.
 const ownPids = () => [process.pid, ...app.getAppMetrics().map((m) => m.pid)];

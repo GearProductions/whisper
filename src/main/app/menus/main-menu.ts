@@ -11,7 +11,7 @@ import * as tts from 'technicals/pocket-tts';
 import { locateWhisper } from 'technicals/whisper-cli';
 import { agentInstructions, configFile, instructionsFile, journalFile, loadConfig, ownWhisperDir, saveConfig, whisperDirs } from 'app/settings';
 import { state } from 'app/state';
-import { agents, currentSpeakMode, installPocket, pollSpeak, pushAgents } from 'app/controllers';
+import { agents, currentSpeakMode, forceRestoreSound, installPocket, pollSpeak, pushAgents } from 'app/controllers';
 import { applyOnTop, canReadSelection, showBubble } from 'app/windows';
 
 // Langues de lecture (cf. technicals/pocket-tts), dans l'ordre du menu.
@@ -67,6 +67,8 @@ export function openMainMenu(devices: unknown) {
     ...(soundCuts ? [
       { label: 'Autoriser la coupure du micro Discord', type: 'checkbox' as const, checked: cfg.discordMute === true,
         click: (i: Electron.MenuItem) => saveConfig({ discordMute: i.checked }) },
+      // Dépannage : un son ou le micro Discord resté coupé après une dictée.
+      { label: 'Rétablir le son et le micro Discord (dépannage)', enabled: !state.recording, click: () => { forceRestoreSound(); } },
     ] : []),
     {
       label: 'Lecture à voix haute',
