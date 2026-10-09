@@ -198,8 +198,8 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   le gestionnaire de fichiers), texte sélectionné (à déplier).
 - **Le champ de saisie**, en bas du panneau, réduit ou agrandi : **la dictée
   vers l'agent y arrive** (le panneau s'ouvre en réduit au besoin), à relire,
-  compléter, envoyer (**Entrée** ; **Maj+Entrée** va à la ligne ; un brouillon
-  par agent). Sans parler (micro indisponible, lieu calme) : clic droit sur le
+  compléter, envoyer (**Entrée** : le message s'affiche aussitôt dans le fil ;
+  **Maj+Entrée** va à la ligne ; un brouillon par agent). Sans parler (micro indisponible, lieu calme) : clic droit sur le
   robot → *✎ Écrire un message…*. **Pièces jointes** : glisser-déposer ou
   **Ctrl+V** (images envoyées à Claude — réduites au-delà de 1568 px —, autres
   fichiers par leur chemin, que l'agent lit lui-même) ; **📎** : choisir des
