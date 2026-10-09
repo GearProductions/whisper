@@ -91,11 +91,12 @@ export function conversationProgress() {
 /* ---- Ce que demande le panneau ------------------------------------------- */
 
 // La page est prête : sa conversation, puis ce qui l'attendait (dictée, focus
-// du champ, message).
+// du champ), puis le message. Ce qui attend n'est remis qu'avec une
+// conversation envoyée (refreshConversation) : devancé par un rafraîchissement
+// plus récent, celui-ci n'envoie rien, et la dictée arriverait avant le fil.
 export async function panelReady() {
-  await refreshConversation();
   state.convReady = true;
-  deliverPending();
+  await refreshConversation();
   if (state.convNotice) state.panel!.webContents.send('conv:notice', state.convNotice);
 }
 
