@@ -348,7 +348,8 @@ dans le gestionnaire de fichiers ; sélection jointe, à déplier) ; actions de
 l'agent sur une ligne, chemins raccourcis (`/home/…` et `/var/home/…`) ;
 au-delà de 6 actions, les dernières, le reste à déplier ; longues lignes
 repliées. Commandes affichées telles quelles ; leur sortie et le résumé d'une
-compaction en messages « système ». Au travail : trois points animés et temps
+compaction en messages « système » ; les messages que Claude Code s'envoie
+(notifications de tâches de fond) ne sont pas affichés. Au travail : trois points animés et temps
 écoulé au bas du fil. Le fil reste en bas quand un message arrive, sauf si
 l'on lit plus haut. Mis à jour au plus toutes les 800 ms pendant un tour.
 
