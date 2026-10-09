@@ -29,6 +29,7 @@ type Runtime = {
   query: SdkQuery | null;
   pending: Pending[];
   last: Reply | null;
+  sent?: OutgoingMessage | null;
   unread: boolean;
   onChange: (() => void) | null;
   name?: string;
@@ -93,6 +94,7 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     // Le message envoyé, gardé avec la réponse : une commande (« /context ») s'y
     // reconnaît (cf. app/controllers/conversation).
     const asked = message.text || '';
+    r.sent = message; // affiché tant que la transcription ne l'a pas (cf. core/conversation)
     r.since = Date.now();
     const abort = new AbortController();
     r.abort = abort;
@@ -164,6 +166,7 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     r.abort = null;
     r.query = null;
     r.since = null;
+    r.sent = null;
     r.interrupted = false;
     // Après /compact, la dernière mesure du contexte ne vaut plus.
     if (/^\/compact\b/.test(asked)) r.contextUsed = null;
@@ -307,6 +310,8 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     isAvailable: (command: unknown) => !!launcher(command),
     state,
     lastReply: (id: string) => rt(id).last,
+    // Le message du tour en cours, null hors tour (à part de state : pas d'images vers l'icône).
+    sent: (id: string) => rt(id).sent || null,
     markRead: (id: string) => { rt(id).unread = false; },
     // Session changée : la dernière réponse connue était celle de l'autre.
     forgetReply: (id: string) => { const r = rt(id); r.last = null; r.unread = false; },
