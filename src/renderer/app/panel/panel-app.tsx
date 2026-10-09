@@ -9,7 +9,7 @@
  *  Ne connaît pas : l'icône, la bulle. Utilisé par : main.tsx. */
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import {
-  appendDictation, createDrafts, createPermissionGuard, EMPTY, IMAGE_TYPES, isBusy, revoke, titleOf, toDraft,
+  appendDictation, createDrafts, createPermissionGuard, EMPTY, followsEnd, IMAGE_TYPES, isBusy, revoke, titleOf, toDraft,
   withAttached, withFile, type Draft, type Piece,
 } from 'core/conversation';
 import type { Command, ConvApi, Notice, ProbeResult, Session, Thread } from 'technicals/bridge';
@@ -93,7 +93,6 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
       const before = current.current;
       const atEnd = thread.scrollHeight - thread.scrollTop - thread.clientHeight < AT_END_PX;
       const switched = d.key !== (before && before.key);
-      const grew = d.messages.length !== (before ? before.messages.length : 0);
       if (switched) {
         const from = before && before.key;
         setDraft((cur) => drafts.switchTo(from, cur, d.key));
@@ -101,9 +100,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
         setOverlay('none');
       } else if (d.mode === 'compact' && overlayRef.current === 'history') setOverlay('none');
       guard.show(d.permission ? d.permission.key : null);
-      // Autre conversation : en bas. Sinon, reste en bas quand un message arrive,
-      // sans arracher la lecture d'un message plus ancien.
-      toEnd.current = d.mode === 'compact' || switched || !!d.permission || (atEnd && (grew || showsWorking(d)));
+      toEnd.current = followsEnd(before, d, { atEnd, working: showsWorking(d) });
       current.current = d;
       setData(d);
     });
