@@ -182,7 +182,8 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   plan*). Deux tailles :
   - **réduit** : le dernier échange — votre dernier message, sa réponse (avec
     **▶ Écouter**) ; à la hauteur de son contenu ;
-  - **agrandi** (**⤢**, et **⤡** pour revenir) : tout le fil, et l'**🕘
+  - **agrandi** (**⤢**, et **⤡** pour revenir) : tout le fil, ouvert en bas
+    sur le dernier échange, et l'**🕘
     Historique** des conversations passées du dossier (de l'appli comme celles
     lancées dans un terminal), par intitulé et date. Une ancienne conversation
     s'y lit, en lecture seule ; *← Conversation en cours* y revient ;
