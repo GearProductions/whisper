@@ -171,7 +171,8 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
 
 - **« + »** : un nouvel agent, dans un **dossier favori** (déjà choisi une
   fois, sans agent pour l'instant) ou dans un dossier à choisir, qui devient
-  favori. Chaque **dossier** reçoit une couleur au hasard, qu'il garde : son
+  favori. Le nouvel agent est sélectionné ; panneau ouvert, il y affiche sa
+  conversation. Chaque **dossier** reçoit une couleur au hasard, qu'il garde : son
   robot, le liseré du micro et son panneau la portent.
 - **Clic sur un robot** : il est sélectionné (à la couleur de son dossier). La dictée du gros bouton
   lui est alors **destinée** au lieu d'être collée. Un second clic le
