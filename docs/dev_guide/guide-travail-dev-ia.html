@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guide de travail — Développer avec l'IA</title>
+<style>
+@page {
+  size: A4;
+  margin: 22mm 20mm 22mm 20mm;
+  @bottom-left { content: "Guide de travail — Développer avec l'IA"; font-family: "DejaVu Sans"; font-size: 8pt; color: #888; }
+  @bottom-right { content: counter(page); font-family: "DejaVu Sans"; font-size: 8pt; color: #888; }
+}
+@page cover { margin: 0; @bottom-left { content: none; } @bottom-right { content: none; } }
+* { box-sizing: border-box; }
+body { font-family: "DejaVu Sans", sans-serif; font-size: 10pt; line-height: 1.5; color: #1d1d1f; }
+.cover { page: cover; height: 297mm; padding: 40mm 28mm; background: #12233a; color: #fff; position: relative; }
+.cover .kicker { font-size: 10pt; letter-spacing: 0.15em; text-transform: uppercase; color: #c9d6e6; margin-bottom: 18mm; }
+.cover h1 { font-size: 30pt; line-height: 1.15; margin: 0 0 8mm 0; color: #fff; border: none; padding: 0; }
+.cover .sub { font-size: 13pt; color: #e3eaf3; max-width: 130mm; line-height: 1.5; }
+.cover .meta { position: absolute; bottom: 30mm; left: 28mm; font-size: 9pt; color: #c9d6e6; line-height: 1.7; }
+h1 { font-size: 20pt; color: #12233a; margin: 0 0 6mm 0; padding-bottom: 2mm; border-bottom: 2px solid #12233a; page-break-after: avoid; }
+h2 { font-size: 13.5pt; color: #12233a; margin: 7mm 0 3mm 0; page-break-after: avoid; }
+h3 { font-size: 11pt; color: #1d1d1f; margin: 5mm 0 2mm 0; page-break-after: avoid; }
+p { margin: 0 0 3mm 0; }
+ul, ol { margin: 0 0 3mm 0; padding-left: 5mm; }
+li { margin-bottom: 1.2mm; }
+strong { color: #12233a; }
+.section { page-break-before: always; }
+.flow > h1 { margin-top: 12mm; }
+.box { border: 1px solid #d5dbe3; border-left: 4px solid #12233a; background: #f5f7fa; padding: 3mm 4mm; margin: 3mm 0 4mm 0; page-break-inside: avoid; }
+.box.warn { border-left-color: #b4432f; background: #fbf3f1; }
+.box.rule { border-left-color: #2f6b4a; background: #f1f7f3; }
+.box .t { font-weight: bold; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.06em; color: #12233a; margin-bottom: 1.5mm; }
+.box.warn .t { color: #b4432f; }
+.box.rule .t { color: #2f6b4a; }
+.box p:last-child, .box ul:last-child { margin-bottom: 0; }
+.stats { display: flex; flex-wrap: wrap; gap: 3mm; margin: 3mm 0 5mm 0; }
+.stat { flex: 1 1 42%; border: 1px solid #d5dbe3; padding: 3mm 4mm; page-break-inside: avoid; }
+.stat .n { font-size: 18pt; font-weight: bold; color: #12233a; line-height: 1.1; }
+.stat .l { font-size: 8.5pt; color: #444; margin-top: 1mm; }
+.stat .s { font-size: 7.5pt; color: #888; margin-top: 1mm; }
+table { width: 100%; border-collapse: collapse; margin: 3mm 0 5mm 0; font-size: 9pt; }
+th, td { border: 1px solid #d5dbe3; padding: 2mm 2.5mm; vertical-align: top; text-align: left; }
+th { background: #12233a; color: #fff; font-weight: bold; }
+tr { page-break-inside: avoid; }
+td.k { font-weight: bold; color: #12233a; }
+pre { font-family: "DejaVu Sans Mono", monospace; font-size: 8.2pt; line-height: 1.4; background: #f3f4f6; border: 1px solid #dfe3e8; border-radius: 2px; padding: 3mm; margin: 2mm 0 4mm 0; white-space: pre-wrap; word-wrap: break-word; orphans: 4; widows: 4; }
+code { font-family: "DejaVu Sans Mono", monospace; font-size: 8.5pt; background: #eef0f3; padding: 0 1mm; border-radius: 2px; }
+pre code { background: none; padding: 0; }
+.prompt { background: #fffbea; border-color: #e8dca0; }
+.toc ol { list-style: none; padding-left: 0; }
+.toc li { margin-bottom: 1.5mm; }
+.toc .n { display: inline-block; width: 8mm; color: #888; }
+.small { font-size: 8.5pt; color: #555; }
+.src { font-size: 8.5pt; }
+hr { border: none; border-top: 1px solid #d5dbe3; margin: 5mm 0; }
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="kicker">Guide de travail — bonnes pratiques, à adapter</div>
+  <h1>Développer<br>avec l'IA</h1>
+  <div class="sub">Comment une petite équipe full-stack passe d'un ticket de deux lignes à une PR mergée, quand la majorité du code est générée.</div>
+  <div class="meta">
+    Version 2.0 — Octobre 2026<br>
+    Stack de référence : Node.js, Express, MongoDB, Redis, React<br>
+    Le constat qui motive ce guide est dans le rapport compagnon<br>« Le métier de développeur à l'ère de l'IA »
+  </div>
+</div>
+
+<div class="section">
+<h1>Sommaire</h1>
+<div class="toc"><ol>
+<li><span class="n">1</span> Principes</li>
+<li><span class="n">2</span> La note de ticket</li>
+<li><span class="n">3</span> Les tests : invariants et variants</li>
+<li><span class="n">4</span> Du ticket au code</li>
+<li><span class="n">5</span> Commits, PR et review</li>
+<li><span class="n">6</span> Exemple back-end : login utilisateur</li>
+<li><span class="n">7</span> Exemple front-end : carrousel de filage</li>
+<li><span class="n">8</span> Entretenir son jugement</li>
+<li><span class="n">A</span> Annexes : templates et checklists</li>
+</ol></div>
+
+<h2>Comment lire ce guide</h2>
+<p>Ce sont des bonnes pratiques, pas des règles. Elles décrivent ce qui a marché pour une équipe de trois développeurs full-stack qui maintient un produit dans la durée, avec des cycles courts. Chaque ticket est différent : on prend ce qui sert, on allège ce qui ne sert pas, et on en discute quand ça coince.</p>
+<p>Le guide se lit dans l'ordre la première fois. Ensuite, les sections 4 et 5 et les annexes servent de référence. Les sections 6 et 7 déroulent deux tickets réels.</p>
+<div class="box rule">
+<div class="t">L'idée centrale</div>
+L'effort humain n'est plus proportionnel à la quantité de code à écrire. Il est proportionnel à ce qu'un changement peut casser sans que personne ne le voie.
+</div>
+</div>
+
+<div class="section">
+<h1>1. Principes</h1>
+
+<h2>Le temps humain va à la vérification</h2>
+<p>Générer 400 lignes prend deux minutes ; s'assurer qu'elles ne sortent pas de données du mauvais tenant en prend vingt. La question utile n'est pas « est-ce de l'architecture ou du code ? » mais « est-ce que je verrais le problème rapidement s'il y en avait un ? ». Ce qui se voit vite se délègue ; ce qui ne se découvre qu'en production mérite l'attention d'un humain.</p>
+
+<h2>Décider la forme avant de générer</h2>
+<p>L'IA remplit très bien une forme qu'on lui donne, et invente mal une forme cohérente avec une codebase qu'elle voit à moitié. Nommer les modules, leurs signatures et ce qu'ils ne doivent pas connaître prend quelques minutes ; ranger du code après coup prend des heures.</p>
+
+<h2>Séparer ce qui est jetable de ce qui dure</h2>
+<p>Le code des features bouge vite et peut être régénéré. Les quelques propriétés critiques du produit (isolation des données, secrets, coûts) ne bougent pas : leurs tests sont protégés de la régénération. Une démo vit à part et n'entre pas telle quelle dans le produit.</p>
+
+<h2>Des lots petits</h2>
+<p>Un module par génération, quelques centaines de lignes au plus, relu avant de passer au suivant. Quatre diffs de 300 lignes se relisent ; un diff de 1 200 lignes non.</p>
+
+<h2>Garder un morceau à la main</h2>
+<p>Sur une feature qui compte, on écrit soi-même le morceau où l'on est le plus ignorant. C'est ce qui entretient le jugement (section 8).</p>
+
+<h2>Savoir quand alléger</h2>
+<table>
+<tr><th style="width:42%">Situation</th><th>Approche</th></tr>
+<tr><td>Script one-shot, outil interne à deux utilisateurs, prototype de démo</td><td>« Fais-moi ça », on teste, on passe à autre chose.</td></tr>
+<tr><td>Territoire technique inconnu</td><td>Un spike jeté (quelques heures, non commité) qui répond à une question précise et rend un chiffre.</td></tr>
+<tr><td>Code qui touche les données clients, l'argent, ou vivra longtemps</td><td>Le flow complet (section 4).</td></tr>
+<tr><td>Prototype validé qu'on décide de garder</td><td>On repasse par la note et la forme avant de l'intégrer.</td></tr>
+</table>
+</div>
+
+<div class="flow">
+<h1>2. La note de ticket</h1>
+<p>Le développement technique d'un ticket tient dans un fichier Markdown, <code>docs/tickets/&lt;type&gt;/&lt;TICKET&gt;-&lt;slug&gt;.md</code>, où <code>&lt;type&gt;</code> reprend le type Conventional Commits (<code>feat</code>, <code>fix</code>, <code>refactor</code>, <code>chore</code>). On l'écrit avant de générer, on la corrige pendant le développement, on la commite avec le code. Un mini bug n'en a pas besoin.</p>
+
+<h2>Les rubriques</h2>
+<p>On ne remplit que celles qui servent le ticket.</p>
+<table>
+<tr><th style="width:30%">Rubrique</th><th>Contenu</th></tr>
+<tr><td class="k">Ce que ça fait</td><td>Le comportement vu de l'utilisateur, en quelques lignes.</td></tr>
+<tr><td class="k">Ce que ça ne doit pas faire</td><td>Les contraintes. Seules les plus critiques deviendront des tests d'invariants ; les autres se vérifient à l'écran, en review ou par un lint (section 3).</td></tr>
+<tr><td class="k">Où ça casse</td><td>Le volume ou la charge attendus. Si on ne sait pas répondre, on mesure avant de coder.</td></tr>
+<tr><td class="k">Ce que ça touche</td><td>Les modules, collections, endpoints existants concernés.</td></tr>
+<tr><td class="k">Forme</td><td>Les modules créés ou dont la frontière change (voir plus bas).</td></tr>
+<tr><td class="k">Pistes pour plus tard</td><td>Ce qui a été envisagé et reporté : trop coûteux pour une v1, ou utilité pas encore sûre. Point de départ du ticket suivant.</td></tr>
+</table>
+
+<h2>Une note vivante</h2>
+<p>La note ne montre que son état final : pas de journal des modifications, le cheminement pendant le dev appartient au développeur. Quand le pourquoi d'un choix mérite de rester, une parenthèse suffit (« pas de verrouillage de compte : un attaquant pourrait bloquer un utilisateur »).</p>
+<p>Les questions ouvertes ne sont pas une rubrique. On les règle dans un appel entre développeurs, et seule la réponse atterrit dans la note, à sa place. On ne conçoit pas seul.</p>
+
+<h2>La forme : dans la note et en tête des fichiers</h2>
+<p>Pour chaque module créé ou modifié dans sa frontière, trois lignes suffisent : ce qu'il expose, ce qu'il ne connaît pas, qui l'utilise. On les écrit à deux endroits qui se complètent :</p>
+<ul>
+<li><strong>Dans la note</strong>, rubrique « Forme » : tous les modules du ticket sur une page. C'est la trace de la décision.</li>
+<li><strong>En tête de chaque fichier</strong>, un court commentaire : l'état actuel, lisible en trois secondes par un développeur ou par l'agent, sans fouiller les notes passées. On le met à jour quand la frontière change ; un en-tête faux induit tout le monde en erreur.</li>
+</ul>
+<p>Variante qui marche aussi bien : poser directement le squelette de code (signatures typées, commentaire dans chaque fonction sur ce qu'elle fait et ne fait pas), puis générer. Pratique sur un ou deux modules. L'en-tête de fichier reste utile pour les frontières entre modules.</p>
+<p>Dans les deux cas, c'est le développeur qui fixe les noms et les signatures. L'IA implémente un contrat ; elle ne l'invente pas. Si l'implémentation révèle qu'une signature est mauvaise, le développeur la change. Une frontière qui devient une règle durable peut migrer dans AGENTS.md, voire dans un lint (<code>no-restricted-imports</code>).</p>
+
+<h2>AGENTS.md</h2>
+<p>Le fichier à la racine du repo que lisent la plupart des agents (Claude Code via un import depuis <code>CLAUDE.md</code>). Ce sont des instructions pour la machine, pas de la documentation : commandes de build et de test, règles d'architecture qu'aucun lint n'applique, frontières de sécurité, fichiers à ne pas toucher. Court (moins de 150 lignes), écrit à la main, mis à jour dans la PR qui change la convention. Quand l'agent répète la même erreur, c'est souvent une ligne qui manque ici. Squelette en annexe A.4.</p>
+</div>
+
+<div class="flow">
+<h1>3. Les tests : invariants et variants</h1>
+
+<h2>3.1 Un invariant, c'est le critique invisible</h2>
+<p>Un invariant est une propriété qu'on ne voudra jamais abandonner, que seul notre code peut casser, et qu'on ne verrait pas en testant à la main. On le réserve à ce qui compte vraiment :</p>
+<ul>
+<li><strong>Sécurité</strong> : un mot de passe n'apparaît jamais en base ni dans les logs ; deux réponses de login ne trahissent pas qu'un email existe.</li>
+<li><strong>Intégrité et isolation des données</strong> : aucune requête ne renvoie de données d'un autre tenant ; une image supprimée n'apparaît plus dans aucun export.</li>
+<li><strong>Argent et ressources</strong> : un tenant ne dépasse jamais son plafond de crédits GPU.</li>
+<li><strong>Performance et robustesse critiques</strong> : un appel externe ne reste jamais suspendu au-delà du délai ; un upload est coupé avant de lire au-delà de la limite.</li>
+</ul>
+<p>Tout le reste n'a pas besoin d'un test d'invariant, même si la note le formule en « ne doit pas ». C'est le point le plus souvent mal appliqué : la rubrique « Ce que ça ne doit pas faire » n'est pas une liste de tests à écrire.</p>
+
+<table>
+<tr><th style="width:38%">Ce que dit la ligne</th><th style="width:30%">Exemple</th><th>Comment on le vérifie</th></tr>
+<tr><td class="k">Critique et invisible à l'écran</td><td>Mot de passe absent des logs</td><td>Test d'invariant</td></tr>
+<tr><td class="k">Comportement visible par l'utilisateur</td><td>Le carrousel ne saute pas d'image</td><td>Test manuel en review</td></tr>
+<tr><td class="k">Structure du code</td><td>Un composant générique n'importe rien du store</td><td>Review, en-tête de fichier, lint</td></tr>
+<tr><td class="k">Comportement d'un service qu'on ne contrôle pas</td><td>Le LLM « refuse » de donner un secret</td><td>Pas un invariant : on teste ce que notre code envoie (3.3)</td></tr>
+</table>
+
+<h2>3.2 Trois questions pour trancher</h2>
+<ol>
+<li><strong>Si on réécrivait le module de zéro, voudrait-on que ça tienne encore ?</strong> « Redirige vers /dashboard » : on pourrait changer d'avis. « Le mot de passe n'est pas dans les logs » : toujours.</li>
+<li><strong>Seul notre code peut-il le casser ?</strong> Si un changement de modèle ou de prestataire suffit, l'invariant est un cran plus bas, sur ce que notre code fait.</li>
+<li><strong>Le verrait-on en testant à la main ?</strong> Si oui, un test manuel en review suffit en général.</li>
+</ol>
+<p>Les invariants business (projet archivé, rôle lecteur, crédits) sont souvent les plus précieux : ils ne se déduisent pas du code et disparaissent à la première refonte si personne ne les écrit. Comme ils engagent le produit, on les décide à plusieurs.</p>
+
+<h2>3.3 Deux pièges</h2>
+<p><strong>Le chiffre n'est pas l'invariant.</strong> « Jamais plus de 500 Mo » : l'invariant est « jamais au-delà de la limite configurée, refusé côté serveur ». Le 500 va dans la config ; le test tourne avec une limite à 1 Mo.</p>
+<p><strong>Une intention n'est pas encore un invariant.</strong> « Ne jamais envoyer d'information sensible au LLM » devient testable quand on nomme la liste (mots de passe, hashs, tokens, clés, données d'un autre tenant) et qu'on vérifie la requête réellement envoyée au modèle. On complète par la structure : le contexte est construit à partir d'objets déjà filtrés, de sorte que ce qui n'est pas dans le type ne peut pas partir.</p>
+
+<h2>3.4 Variants et parcours</h2>
+<p>Les <strong>variants</strong> sont les tests ordinaires, générés à partir du code : « 400 si email manquant », « 200 si valide ». Ils détectent les régressions et se régénèrent avec leur module.</p>
+<p>Les <strong>parcours</strong> end-to-end sont un bonus. Ils cassent à chaque changement d'écran ; on en garde éventuellement deux ou trois pour tout le produit, sur les chemins où une panne coûte cher (se connecter, lancer un workflow).</p>
+
+<h2>3.5 Écrire un invariant</h2>
+<ul>
+<li><strong>Avant le code</strong>, depuis la note, pour qu'il ne soit pas façonné par l'implémentation. Il peut être généré ; un humain relit chaque assertion et se demande si elle observe vraiment la propriété.</li>
+<li><strong>Une relation, une absence ou une borne</strong>, plutôt qu'une valeur : <code>expect(a.body).toEqual(b.body)</code>, <code>not.toContain(password)</code>, <code>toBeLessThan(timeout)</code>. Le code HTTP exact relève d'un variant.</li>
+<li><strong>Sur du réel</strong> pour ce qui fait partie du système (vraie base, vrai Redis, vrais cookies) ; un serveur factice pour ce qui est externe (Ollama, ComfyUI). Un mock de la base teste le mock. Une fonction pure se teste simplement en isolation.</li>
+<li><strong>Protégé de la régénération</strong> : si un invariant échoue, on corrige le code, pas le test. On ne le modifie qu'en changeant la note, en le disant à l'équipe.</li>
+</ul>
+
+<h2>3.6 Où ils vivent</h2>
+<pre><code>services/auth/
+  login.ts
+  password.ts
+  tests/
+    invariants/   ← protégés, jamais régénérés
+    variants/     ← générés
+tests/invariants/ ← invariants produit qui traversent plusieurs modules (tenant, secrets)
+</code></pre>
+<p>Un script <code>test:invariants</code> (<code>vitest run **/tests/invariants/**</code>) permet de les lancer seuls. AGENTS.md interdit à l'agent de modifier ces dossiers sans demander.</p>
+<div class="box">
+<div class="t">Démarrer sans CI</div>
+<p>On peut commencer modestement : le dossier, le script, la règle AGENTS.md, et un profil <code>test</code> dans le compose (Mongo, Redis, l'app). On lance <code>test:invariants</code> à la main avant une PR sensible et avant chaque release. Quand le profil est stable, le job CI n'est qu'une copie. Les rares invariants qui dépendent d'un vrai service externe (tag <code>@external</code>) tournent hors du cycle PR, en nightly ou avant release.</p>
+</div>
+</div>
+
+<div class="flow">
+<h1>4. Du ticket au code</h1>
+
+<h2>4.1 Le flow complet</h2>
+<p>Pour une feature qui touche aux données, à l'argent, ou qui vivra longtemps. Les durées sont des ordres de grandeur.</p>
+<ol>
+<li><strong>Décider</strong> (≈ 30 min) : la note. Les questions ouvertes en appel avec l'équipe.</li>
+<li><strong>Poser la forme</strong> (≈ 30 min) : modules, signatures, frontières, dans la note et en tête des fichiers.</li>
+<li><strong>Écrire les invariants</strong>, s'il y en a, rouges.</li>
+<li><strong>Générer un module à la fois</strong>, de l'intérieur vers l'extérieur : fonctions pures, puis orchestration, puis routes, puis UI.</li>
+<li><strong>Relire chaque diff</strong> (5.1) avant le module suivant.</li>
+<li><strong>Écrire un morceau soi-même</strong> : celui qu'on connaît le moins, ou celui qui porte la logique métier.</li>
+<li><strong>Ajuster la note</strong> au fil de l'eau ; reporter dans « Pistes » ce qu'on découvre et qu'on ne fait pas maintenant.</li>
+</ol>
+
+<h2>4.2 Par type de ticket</h2>
+<table>
+<tr><th style="width:15%">Ticket</th><th style="width:11%">Dossier</th><th style="width:37%">Le geste qui compte</th><th>Ce qui se délègue</th></tr>
+<tr><td class="k">Bug</td><td><code>fix/</code></td><td>Reproduire et écrire un test qui échoue avant le fix</td><td>Le fix. On vérifie qu'il corrige la cause, pas le symptôme (un <code>if</code> autour du crash est un masque).</td></tr>
+<tr><td class="k">Amélioration</td><td><code>feat/</code></td><td>Lire le code existant avant de demander quoi que ce soit</td><td>L'écriture. Le risque principal est la duplication d'une logique existante.</td></tr>
+<tr><td class="k">Feature</td><td><code>feat/</code></td><td>Note, forme, invariants critiques, un morceau à la main</td><td>Le remplissage et les variants.</td></tr>
+<tr><td class="k">Migration</td><td><code>chore/</code></td><td>S'assurer que les tests couvrent ce que la lib fait pour nous ; lire le changelog à la main</td><td>La migration. Ce qui mord, ce sont les changements de valeurs par défaut, pas d'API.</td></tr>
+<tr><td class="k">Refonte</td><td><code>refactor/</code></td><td>Décider le comportement cible et ce qu'on accepte de casser</td><td>Le portage de chaque appelant sur le module commun.</td></tr>
+</table>
+<p>Pour une refonte, l'IA laissée seule préserve les deux comportements existants et produit un module plein de flags. Écrire noir sur blanc lequel des deux est le bon, et ce qu'on a la permission de casser, change tout.</p>
+
+<h2>4.3 Démo et produit</h2>
+<p>Valider un concept en direct avec du code généré sans contrainte est une bonne méthode : après une démo, on sait ce que la feature doit faire. Mais la démo vit sur une branche ou un repo à part, pour éviter la tentation du « ça marche déjà, on garde ». On récupère l'UI, les fonctions pures et surtout ce qu'on a appris ; on refait ce qui touche aux données, aux droits et aux sessions, avec la démo ouverte à côté comme référence. Pour le management : « la démo, deux jours ; la version vendable, quelques jours de plus ».</p>
+</div>
+
+<div class="flow">
+<h1>5. Commits, PR et review</h1>
+
+<h2>5.1 Relire un diff</h2>
+<p>Après chaque génération, une lecture de conformité plutôt qu'une chasse aux bugs, avec quatre questions :</p>
+<ol>
+<li>Est-ce que ça sort du périmètre prévu ?</li>
+<li>Une dépendance a-t-elle été ajoutée ?</li>
+<li>De l'I/O dans une boucle, un N+1, une opération synchrone bloquante ?</li>
+<li>Quelque chose est-il lu ou écrit sans scoping tenant ?</li>
+</ol>
+<p>Si un diff dépasse largement 400 lignes, le module était probablement trop gros.</p>
+
+<h2>5.2 Les commits racontent le design</h2>
+<p>Le reviewer lit la PR commit par commit. On vise donc :</p>
+<ul>
+<li>un premier commit avec la note, la forme et les invariants (rouges) : il montre que la conception a précédé le code ;</li>
+<li>puis un commit par module, avec ses variants, et son contrat en quelques lignes dans le message ;</li>
+<li>pas de commits « wip » ou « retry » dans la PR ouverte.</li>
+</ul>
+<p>Si le ticket a des subtasks, une par module tombe naturellement une fois la forme posée ; c'est aussi ce qui permet à deux développeurs de travailler en parallèle sans se marcher dessus.</p>
+<p>Avec Conventional Commits, les commits de module sont des <code>chore(TICKET)</code> et le merge se fait en squash, en un seul <code>feat(TICKET)</code> sur la branche principale, dont le corps liste les modules :</p>
+<pre><code>feat(G2-0431): carrousel de filage avec historique
+
+- lib/history — pur, sémantique navigateur, 50 entrées max
+- components/carousel — générique, virtualisé, ne connaît pas le store
+- features/viewport/ImageFilmstrip — colle, seul fichier qui connaît Gear
+Note : docs/tickets/feat/G2-0431-filmstrip.md</code></pre>
+
+<h2>5.3 Corriger un commit précédent</h2>
+<p>Cas fréquent : en branchant le front, on découvre qu'il manque un endpoint dans le commit back-end. Avant d'ouvrir la PR, on replie la correction dans le bon commit :</p>
+<pre><code>git commit --fixup &lt;sha-du-commit-backend&gt;
+# ... on continue ...
+git rebase -i --autosquash &lt;base&gt;     # base = main, master ou develop</code></pre>
+<p>Le rebase est ce qui replie les fixups ; sans lui, ils restent visibles dans la PR. Un alias aide à ne pas l'oublier : <code>git config --global alias.fixups '!GIT_SEQUENCE_EDITOR=true git rebase -i --autosquash'</code>, puis <code>git fixups &lt;base&gt;</code>. Une fois la PR ouverte, on ne réécrit plus l'historique : on ajoute un commit normal, et le squash final nettoie tout.</p>
+
+<h2>5.4 La review</h2>
+<p>Idéalement, celui qui relit n'a pas conçu la feature : c'est la seule vérification indépendante d'une petite équipe. Un ordre qui fonctionne :</p>
+<ol>
+<li><strong>La note</strong> : est-on d'accord avec les décisions ? Si non, inutile de lire le code.</li>
+<li><strong>Les invariants</strong> : les points critiques de la note sont-ils couverts ?</li>
+<li><strong>Le diff</strong>, commit par commit, avant tout résumé IA : les quatre questions, la duplication avec l'existant, les en-têtes encore justes. Le code de colle et ce qui touche aux droits se lit en entier ; un module générique se juge souvent à ses imports.</li>
+<li><strong>À l'écran</strong> : tester le parcours à la main. L'œil voit en deux secondes ce qu'aucun test ne capture.</li>
+<li><strong>Le tenant</strong> : est-ce que ça peut sortir des données hors du tenant ?</li>
+</ol>
+</div>
+
+<div class="section">
+<h1>6. Exemple back-end : login utilisateur</h1>
+<p>Node.js, Express, MongoDB, sessions serveur, hashage avec <code>node:crypto</code>. Ici presque toutes les contraintes sont critiques et invisibles à l'écran : c'est le cas où les invariants pèsent le plus.</p>
+<div class="box"><div class="t">Ticket G2-0412</div>Ajouter un login par email + mot de passe. Après connexion, l'utilisateur a une session et accède à son espace.</div>
+
+<h2>6.1 La note</h2>
+<pre><code># G2-0412 — Login utilisateur
+
+## Ce que ça fait
+Email + mot de passe sur /login. Si valide : session (7 jours glissants)
+et redirection vers l'espace. Sinon, un message d'erreur unique.
+Après 10 échecs en 10 min par (IP, email) : 429.
+
+## Ce que ça ne doit pas faire
+- Stocker ou logger un mot de passe en clair.                 → invariant
+- Distinguer « email inconnu » de « mot de passe faux ».      → invariant
+- Créer une session dont le tenantId ne vient pas de la base. → invariant
+- Ouvrir une session avec un mot de passe vide.               → invariant
+- Émettre un cookie sans httpOnly / secure / sameSite.        → variant suffit
+- Afficher un message d'erreur technique à l'écran.           → vu en review
+
+## Où ça casse
+scrypt coûte ~100 ms. Le rate limit protège aussi le pool de threads.
+
+## Forme
+services/auth/password.ts  hash / verify. Ne connaît ni Express ni Mongo.
+services/auth/login.ts     login(email, plain) → user | null. Ne crée pas
+                           la session. Même coût de temps si email inconnu.
+routes/auth.ts             POST /login, POST /logout. Régénère la session.
+
+## Pistes pour plus tard
+- Reset par email.
+- Verrouillage de compte : écarté (un attaquant pourrait bloquer un compte).</code></pre>
+
+<h2>6.2 Les invariants</h2>
+<p>Sur une vraie base et un vrai Redis de test, écrits avant le code. Les deux premiers suffisent à illustrer la forme :</p>
+<pre><code>// services/auth/tests/invariants/login.test.ts
+it("email inconnu et mauvais mot de passe : réponse identique", async () =&gt; {
+  const bad = await post("/login", { email, password: "faux" });
+  const unknown = await post("/login", { email: "x@nope.test", password: "faux" });
+  expect(bad.status).toBe(unknown.status);        // égalité, pas « 401 »
+  expect(bad.body).toEqual(unknown.body);
+});
+
+it("le mot de passe n'apparaît ni en base ni dans les logs", async () =&gt; {
+  const logs = captureLogs();
+  await post("/login", { email, password });
+  expect(JSON.stringify(await findUserRaw(email))).not.toContain(password);
+  expect(logs.join("\n")).not.toContain(password);
+});</code></pre>
+<p>Les variants (400 si email manquant, 429 exact, attributs du cookie) seront générés avec les modules.</p>
+
+<h2>6.3 Génération et relecture</h2>
+<pre class="prompt"><code>Lis AGENTS.md et docs/tickets/feat/G2-0412-login.md.
+Implémente uniquement services/auth/login.ts selon la note.
+password.ts existe déjà, ne le modifie pas.
+- login() ne crée pas de session et n'importe rien d'Express.
+- Email inconnu : vérifie quand même contre un hash factice (même temps de réponse).
+- Aucune trace du mot de passe dans les logs.
+Fais passer les invariants de services/auth/tests/invariants/.</code></pre>
+<p>En relisant, quelques points que l'IA rate souvent : le chemin « email inconnu » répond-il en 2 ms ? La clé de rate limit inclut-elle l'email (sinon le NAT d'un studio bloque tout le monde) ? <code>session.regenerate()</code> est-il appelé avant d'écrire l'utilisateur ? Le <code>tenantId</code> vient-il de la base et pas du corps de la requête ? Un <code>console.log(req.body)</code> traîne-t-il ?</p>
+
+<h2>6.4 Le morceau écrit à la main : password.ts</h2>
+<pre><code>/** password — hash et vérification, scrypt natif.
+ *  Ne connaît pas : Express, Mongo, les sessions. Utilisé par : login.ts. */
+import { randomBytes, scrypt as _scrypt, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
+const scrypt = promisify(_scrypt);
+const P = { N: 2 ** 15, r: 8, p: 1 };
+
+// Paramètres stockés dans la chaîne : on pourra les augmenter sans casser l'existant.
+export async function hash(plain: string) {
+  const salt = randomBytes(16);
+  const key = (await scrypt(plain, salt, 64, P)) as Buffer;
+  return `scrypt$${P.N}$${P.r}$${P.p}$${salt.toString("base64")}$${key.toString("base64")}`;
+}
+
+export async function verify(stored: string, plain: string) {
+  if (!plain) return false;
+  const [algo, N, r, p, s, k] = stored.split("$");
+  if (algo !== "scrypt") return false;
+  const expected = Buffer.from(k, "base64");
+  const actual = (await scrypt(plain, Buffer.from(s, "base64"), expected.length,
+    { N: +N, r: +r, p: +p })) as Buffer;
+  return timingSafeEqual(actual, expected);       // jamais === sur un secret
+}</code></pre>
+<p>Ce qu'on apprend en l'écrivant plutôt qu'en le lisant : pourquoi les paramètres sont dans la chaîne, pourquoi <code>timingSafeEqual</code>, pourquoi un hash factice pour les emails inconnus.</p>
+</div>
+
+<div class="flow">
+<h1>7. Exemple front-end : carrousel de filage</h1>
+<p>React + TypeScript, un store d'images existant, un <code>Viewport</code> qui affiche l'image courante. Ici, l'inverse du login : presque tout se voit à l'écran, donc presque rien ne mérite un invariant. L'effort va dans la forme, parce qu'on veut un carrousel réutilisable.</p>
+<div class="box"><div class="t">Ticket G2-0431</div>Un carrousel de vignettes sous le viewport (clic et clavier), avec un historique des images consultées. Réutilisable dans la vue batch.</div>
+
+<h2>7.1 La note</h2>
+<pre><code># G2-0431 — Carrousel de filage + historique
+
+## Ce que ça fait
+Bande de vignettes (96 px, lazy) sous le viewport. Clic ou ← → pour changer
+d'image. Boutons « précédente / suivante consultée », comme un navigateur.
+Historique en mémoire, 50 entrées, perdu au rechargement.
+
+## Ce que ça ne doit pas faire
+- Monter toutes les vignettes dans le DOM (projets de 5 000+ images).
+                                         → vérifié en review sur un gros projet
+- Appliquer des règles de droits : la liste arrive filtrée du store.
+                                         → structure, review
+- Mettre de la logique Gear dans le carrousel générique.
+                                         → structure, lint sur les imports
+
+## Forme
+lib/history/history.ts        pur : push / back / forward / current
+components/carousel/          générique : items { id }, selectedId, onSelect,
+                              renderItem. Ne connaît ni le store ni Gear.
+features/viewport/ImageFilmstrip.tsx
+                              la colle, seul fichier qui connaît Gear
+
+## Pistes pour plus tard
+- Persister l'historique si les utilisateurs le demandent.</code></pre>
+<p>Aucune ligne n'est un invariant : rien n'est critique pour la sécurité ou les données, et tout se voit en cliquant. La sémantique de l'historique, logée dans une fonction pure, se couvre par quelques tests ordinaires, écrits en cinq minutes.</p>
+
+<h2>7.2 La forme, l'étape clé</h2>
+<div class="box rule"><div class="t">Le test d'un module générique</div>Pourrait-on monter <code>Carousel</code> dans la vue batch sans le modifier ? Si on l'avait laissé émerger d'un « fais-moi un carrousel pour le viewport », il connaîtrait le store, et on le découvrirait au moment de le réutiliser.</div>
+<pre class="prompt"><code>Implémente uniquement components/carousel/ selon la note.
+- Aucun import depuis features/ ou store/ ; il ne connaît que { id }.
+- Virtualisation horizontale : seuls les items visibles sont dans le DOM.
+- scrollIntoView uniquement quand selectedId change.
+- Accessible : listbox / option, navigation clavier.</code></pre>
+
+<h2>7.3 Relire et tester à l'écran</h2>
+<ul>
+<li>Les imports de <code>Carousel</code> d'abord : un seul import du store et il n'est plus générique.</li>
+<li>La liste est-elle vraiment virtualisée ? Ouvrir un projet de 3 000 images, compter les <code>&lt;img&gt;</code> dans l'inspecteur.</li>
+<li>Un <code>useEffect</code> dépend-il d'un objet recréé à chaque render ? Le scroll sauterait en boucle. Pas besoin de savoir l'écrire de tête ; il faut savoir le repérer dans un diff.</li>
+<li>Cliquer, flèches, précédente, suivante. Deux minutes.</li>
+</ul>
+
+<h2>7.4 Le morceau écrit à la main : l'historique</h2>
+<pre><code>export type History = { entries: string[]; index: number; max: number };
+export const empty = (max = 50): History =&gt; ({ entries: [], index: -1, max });
+
+export function push(h: History, id: string): History {
+  if (h.entries[h.index] === id) return h;                 // pas de doublon consécutif
+  const entries = [...h.entries.slice(0, h.index + 1), id].slice(-h.max);
+  return { ...h, entries, index: entries.length - 1 };     // écrase le « suivant »
+}
+export const back = (h: History) =&gt; h.index &gt; 0 ? { ...h, index: h.index - 1 } : h;
+export const forward = (h: History) =&gt;
+  h.index &lt; h.entries.length - 1 ? { ...h, index: h.index + 1 } : h;</code></pre>
+<p>Ce qu'on apprend en l'écrivant : un historique n'est pas une pile, et renvoyer la même référence sur un no-op évite un re-render.</p>
+</div>
+
+<div class="flow">
+<h1>8. Entretenir son jugement</h1>
+<p>Ce qui s'atrophie avec l'IA, ce n'est pas la capacité à corriger, c'est la capacité à remarquer qu'il y a quelque chose à corriger (le rapport compagnon détaille ce que dit la recherche). Quelques habitudes qui aident :</p>
+<ul>
+<li><strong>Un morceau à la main par feature</strong>, là où l'on est le plus ignorant.</li>
+<li><strong>Un quart d'heure sans IA quand quelque chose casse</strong>, avant d'ouvrir l'assistant.</li>
+<li><strong>Lire le diff avant le résumé.</strong></li>
+<li><strong>Mesurer plutôt que se souvenir</strong> : un banc de test donne en une après-midi ce que la production apprenait en six mois.</li>
+<li><strong>Demander des options, pas une solution</strong> : « trois approches et à quel volume chacune casse » construit un modèle mental ; « corrige les perfs » n'en construit aucun.</li>
+</ul>
+<p>Et quelques fausses bonnes idées : apprendre un langage « pour s'entraîner » sans besoin réel, dicter le code ligne à ligne à l'IA (lent, et ça n'apprend rien), ou se réfugier dans l'architecture pour ne plus toucher au système.</p>
+</div>
+
+<div class="flow">
+<h1>A. Annexes</h1>
+
+<h2>A.1 Template de note</h2>
+<pre><code># &lt;TICKET&gt; — &lt;titre&gt;
+
+## Ce que ça fait
+## Ce que ça ne doit pas faire
+- (marquer → invariant les seules lignes critiques et invisibles à l'écran)
+## Où ça casse
+## Ce que ça touche
+## Forme
+&lt;chemin&gt;   expose … · ne connaît pas … · utilisé par …
+## Pistes pour plus tard</code></pre>
+
+<h2>A.2 En-tête de fichier</h2>
+<pre><code>/** &lt;nom&gt; — &lt;ce que fait le fichier, une ligne&gt;.
+ *  Ne connaît pas : …   Utilisé par : … */</code></pre>
+
+<h2>A.3 Avant d'ouvrir une PR</h2>
+<ul>
+<li>La note est à jour et reflète ce qui a été livré.</li>
+<li>Les invariants (s'il y en a) passent, sur du réel.</li>
+<li>Chaque diff a été relu avec les quatre questions.</li>
+<li>Un commit par module, fixups repliés.</li>
+<li>AGENTS.md mis à jour si une convention a changé.</li>
+</ul>
+
+<h2>A.4 Squelette d'AGENTS.md</h2>
+<pre><code># AGENTS.md
+## Commandes
+- Tests : npm test · invariants : npm run test:invariants · Lint : npm run lint
+
+## Règles d'architecture
+- Toute requête Mongo passe par un repository scopé tenant (src/repositories/).
+- Toute vérification de secret passe par services/auth/password.ts.
+- components/ n'importe jamais depuis features/ ni store/.
+- Le front n'est jamais seul à empêcher une action.
+
+## Ne pas modifier sans demander
+- **/tests/invariants/**   (protégés : si un invariant échoue, corriger le code)
+- src/middleware/session.ts, infra/**
+
+## PR
+- Un commit par module : fonctions pures → orchestration → routes → front.
+- Lien vers la note dans docs/tickets/&lt;type&gt;/.</code></pre>
+</div>
+
+</body>
+</html>
