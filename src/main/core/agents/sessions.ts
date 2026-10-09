@@ -34,7 +34,8 @@ const timeOf = (m: SdkMessage) => { const t = Date.parse(m.timestamp); return Nu
 
 // Toute une session, relue dans sa transcription. Une commande tapée
 // (« /compact ») s'affiche telle quelle ; sa sortie et le résumé laissé par une
-// compaction, comme des messages « système ». `contextTokens` : le contexte
+// compaction, comme des messages « système » ; les messages que Claude Code
+// s'envoie (notifications de tâches) n'y sont pas. `contextTokens` : le contexte
 // occupé lors de la dernière réponse, null s'il n'y en a pas. Les messages
 // successifs d'un même tour de l'agent (texte, outil, texte…) sont regroupés ;
 // les échanges internes (résultats d'outils, sous-agents) sont écartés.
@@ -43,8 +44,10 @@ export function parseThread(messages: SdkMessage[]): Thread {
   let contextTokens: number | null = null;
   for (const m of messages) {
     // Les messages « méta » (consignes internes) sont écartés — sauf le résumé
-    // laissé par une compaction, qui en est un.
+    // laissé par une compaction, qui en est un — comme ceux que Claude Code
+    // s'envoie (origine non humaine : notification de tâche…).
     if (m.parent_tool_use_id || ((m.is_meta || m.isMeta) && !m.isCompactSummary)) continue;
+    if (m.origin && m.origin.kind !== 'human') continue;
     const content = m.message && m.message.content;
     const blocks: SdkMessage[] = typeof content === 'string' ? [{ type: 'text', text: content }] : Array.isArray(content) ? content : [];
     if (m.type === 'user') {
