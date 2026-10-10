@@ -10,7 +10,7 @@
 import fs from 'node:fs';
 import { shell } from 'electron';
 import type { ConvMode } from 'shared/bridge';
-import { permissionView, prepareDraft, relativeTo, splitComposed, toolSummary } from 'core/conversation';
+import { permissionView, prepareDraft, relativeTo, splitComposed, toolSummary, withSent } from 'core/conversation';
 import { agentColor } from 'core/config';
 import { showableFile, webUrl } from 'core/guards';
 import { prepareImage, thumbnail } from 'technicals/images';
@@ -57,11 +57,14 @@ export async function refreshConversation() {
     && reply.asked.trim() === lastMsg.text) {
     thread.push({ role: 'system', kind: 'output', text: reply.text, time: lastMsg.time });
   }
-  state.convThread = thread;
+  // Votre message, aussitôt envoyé : la transcription ne l'écrit qu'une fois
+  // Claude Code lancé.
+  const shown = view.sessionId ? thread : withSent(thread, agents.sent(agent.id), agents.state(agent.id).since);
+  state.convThread = shown;
   // Le contexte : occupé (dernière réponse, sinon dernière sonde) sur la taille
   // de la fenêtre (connue après un tour ou une sonde, retenue par agent).
   if (st.contextWindow && st.contextWindow !== agent.contextWindow) updateAgent(agent.id, { contextWindow: st.contextWindow });
-  const contextUsed = Number.isFinite(thread.contextTokens) ? thread.contextTokens : st.contextUsed;
+  const contextUsed = Number.isFinite(shown.contextTokens) ? shown.contextTokens : st.contextUsed;
   const pending = view.sessionId ? null : agents.pendingPermission(agent.id);
   state.panel.webContents.send('conv:thread', {
     context: { used: Number.isFinite(contextUsed) ? contextUsed : null, max: st.contextWindow || agent.contextWindow || 200000 },
@@ -69,7 +72,7 @@ export async function refreshConversation() {
     name: agent.name, color: agentColor(agent, cfg), dir: agent.dir, title, status: st.status, since: st.since,
     // La demande d'autorisation de l'agent, à valider dans le fil.
     permission: pending ? permissionView(agent.name, pending) : null,
-    messages: thread.map((m) => {
+    messages: shown.map((m) => {
       const { text, selection: context, files } = m.role === 'user' ? splitComposed(m.text) : { text: m.text, selection: '', files: [] };
       return {
         role: m.role, kind: 'kind' in m ? m.kind : null, text, context, files, time: m.time || null, audio: 'audio' in m && !!m.audio,

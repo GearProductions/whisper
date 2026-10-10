@@ -361,7 +361,9 @@ s'ouvre **en lecture seule** (pas de champ) ; *← Conversation en cours* ;
 de l'agent. Sessions retrouvées sous `/home/…` comme sous `/var/home/…`.
 
 **F-68 Champ de saisie** (réduit et agrandi, conversation en cours seulement) :
-Entrée envoie, Maj+Entrée va à la ligne ; il grandit jusqu'à 160 px.
+Entrée envoie (le message s'affiche aussitôt dans le fil, avant que
+Claude Code ne l'écrive dans sa transcription), Maj+Entrée va à la ligne ;
+il grandit jusqu'à 160 px.
 **Brouillon par conversation**, pièces jointes comprises, gardé quand on
 change d'agent. Agent au travail : on écrit, on n'envoie pas (bouton grisé).
 La dictée vers l'agent s'y ajoute (espace de séparation) et y met le focus.

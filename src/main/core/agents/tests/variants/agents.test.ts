@@ -71,6 +71,21 @@ describe('tours', () => {
     expect(rt.state('a1').unread).toBe(false);
   });
 
+  it('le message du tour en cours est retenu, jusqu’à la fin du tour', async () => {
+    const seen: unknown[] = [];
+    let { rt, hooks } = runtime(async function* t() {
+      seen.push(rt.sent('a1'));
+      yield { type: 'result', subtype: 'success', is_error: false, result: 'Ok' };
+    });
+    expect(rt.sent('a1')).toBeNull();
+    await rt.send(agent, { text: 'salut' }, hooks);
+    expect(seen).toEqual([{ text: 'salut' }]);
+    expect(rt.sent('a1')).toBeNull();
+    ({ rt, hooks } = runtime(async function* t() { yield { type: 'result', subtype: 'error_during_execution' }; }));
+    await rt.send(agent, { text: 'x' }, hooks);
+    expect(rt.sent('a1')).toBeNull();
+  });
+
   it('commande sans réponse écrite : « fait » ; échecs traduits', async () => {
     let { rt, hooks } = runtime(async function* t() { yield { type: 'result', subtype: 'success', is_error: false, result: '' }; });
     await rt.send(agent, { text: '/compact garder les tests' }, hooks);
