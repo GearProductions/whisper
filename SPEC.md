@@ -325,7 +325,8 @@ glisser. Un contenu à la fois : la conversation de l'agent sélectionné, ou,
 aucun ne l'étant, le contexte « Dictée » (F-76) — jamais deux panneaux.
 - **Réduit** (par défaut) : 560 px de large, à la hauteur de son contenu
   (160–560 px) — le dernier échange : votre dernier message et ce qui suit.
-- **Agrandi** (⤢ ; ⤡ pour revenir) : tout le fil, l'🕘 Historique ;
+- **Agrandi** (⤢ ; ⤡ pour revenir) : tout le fil, ouvert en bas (sur le
+  dernier échange), l'🕘 Historique ;
   redimensionnable par ses bords, taille retenue (`convSize`, défaut 720×700,
   au moins 380 px de large et 160 px de haut).
 
@@ -659,6 +660,8 @@ Copier, erreurs ; mêmes relevés).
   passent sous une vidéo en plein écran.
 - **S-41** Panneau agrandi redimensionné : taille retenue au lancement
   suivant ; panneau qui suit l'icône au glisser.
+- **S-42** Longue conversation en réduit, ⤢ : le fil s'ouvre sur le dernier
+  échange, pas en haut ; on remonte, un message arrive : la lecture reste.
 
 ---
 
