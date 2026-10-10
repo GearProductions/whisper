@@ -483,7 +483,7 @@ agents arrêtés.
 Testés automatiquement (`npm run test:invariants`, dossiers
 `tests/invariants/` protégés) : I-2 à I-6 (texte collé, une ligne,
 presse-papiers, collage désactivé), I-8, I-9, I-11 (page et principal), I-12,
-I-13 à I-17, I-19, I-20, I-21, I-23, I-24, I-27, I-29. Les autres (focus,
+I-13 à I-17, I-19, I-20, I-21, I-23, I-24, I-27, I-29, I-30. Les autres (focus,
 fenêtres, I-1, I-18, I-22, I-28) : scénarios du § 13 et bancs de comparaison.
 
 ### Focus et collage
@@ -503,6 +503,9 @@ fenêtres, I-1, I-18, I-22, I-28) : scénarios du § 13 et bancs de comparaison.
   réussi ; il n'est **pas** rendu si le collage a échoué ou est désactivé (le
   texte doit y rester).
 - **I-6** Collage automatique désactivé : **aucune** touche simulée.
+- **I-30** Une dictée destinée à un agent n'est **jamais perdue** : elle est
+  remise au panneau **après** le fil de cet agent (sinon le premier fil reçu
+  bascule le brouillon et l'efface), y compris quand le panneau est à créer.
 
 ### Vie privée
 
@@ -623,7 +626,8 @@ Copier, erreurs ; mêmes relevés).
 
 **Agents**
 - **S-20** Robot sélectionné, dicter : panneau réduit, texte dans le champ,
-  Entrée → la réponse arrive dans le panneau, ▶ lit le résumé.
+  Entrée → la réponse arrive dans le panneau, ▶ lit le résumé. Aussi à la
+  première dictée après le lancement (panneau jamais ouvert, longue session).
 - **S-21** *Relire avant d'envoyer* décoché : envoi direct ; agent occupé →
   texte au presse-papiers avec l'erreur.
 - **S-22** **Dictée vers un autre agent** : panneau sur alpha, ×, clic sur le
