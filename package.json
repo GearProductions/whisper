@@ -1,6 +1,6 @@
 {
   "name": "whisper-dictation",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Icône flottante : maintenir le clic pour dicter (whisper.cpp local), le texte est collé là où est le curseur",
   "main": "out/main/index.js",
   "scripts": {
