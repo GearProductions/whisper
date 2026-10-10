@@ -121,7 +121,10 @@ export function newAgent(dir: string) {
     agent = { id: `a${Date.now().toString(36)}`, dir, name: path.basename(dir) || dir, model: '', effort: '', mode: 'default', sessionId: null };
     saveConfig({ agents: [...list, agent] });
   }
-  saveConfig({ agentSelected: agent.id });
   ensureFolderColors(); // nouveau dossier : il reçoit sa couleur et devient favori
+  // Sélectionné ; panneau montré, il y affiche sa conversation (le robot
+  // sélectionné et le robot affiché vont ensemble).
+  if (conversationShown()) { openConversation(agent.id); return; }
+  selectAgent(agent.id);
   pushAgents();
 }

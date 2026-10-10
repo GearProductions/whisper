@@ -261,7 +261,7 @@ modifiable dans `config.json`.
 sans agent), *Choisir un autre dossier…*, *Oublier un dossier favori* ;
 entrées grisées si Claude Code est introuvable. Un dossier **jamais choisi**
 passe par la confirmation de confiance (I-31). Le nouvel agent est
-sélectionné.
+sélectionné ; panneau ouvert, il y affiche sa conversation.
 
 **F-53 Couleur par dossier** : tirée au hasard parmi 8 (de préférence une
 couleur libre), enregistrée, gardée si l'agent est retiré puis recréé ;
@@ -654,6 +654,9 @@ Copier, erreurs ; mêmes relevés).
   d'ajouté.
 - **S-33** Quitter pendant un tour : l'appli attend l'arrêt de l'agent.
 - **S-34** Relancer l'appli : aucun robot sélectionné.
+- **S-35** Panneau ouvert sur alpha, « + » → nouvel agent beta (dossier
+  favori, puis dossier choisi) : le panneau montre beta, beta est sélectionné,
+  dicter → le champ de beta. Panneau fermé : beta sélectionné, rien ne s'ouvre.
 
 **Fenêtres**
 - **S-40** *Toujours au premier plan* décoché : icône, bulle et panneau
