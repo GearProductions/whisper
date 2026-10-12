@@ -17,9 +17,11 @@ export type Config = {
   // choisis ({ dir, color }), proposés par le bouton « + » ; la couleur
   // appartient au DOSSIER, l'agent qu'on y crée la porte. `agentCommand` : la
   // commande qui lance Claude Code ('' : `claude` ; ex. « distrobox enter dev
-  // -- mise exec -- claude »).
+  // -- mise exec -- claude ») ; `editorCommand` : celle qui ouvre un dossier
+  // dans l'éditeur de code ('' : le premier trouvé parmi zed, code, cursor, codium).
   agentsEnabled: boolean;
   agentCommand: string;
+  editorCommand: string;
   agents: AgentConfig[];
   agentFolders: (Folder | string)[];
   agentSelected: string | null;
@@ -41,7 +43,7 @@ export type Config = {
 
 export const DEFAULTS: Config = {
   lang: 'fr', vocabulary: '', sound: true, showText: true, discordMute: false,
-  agentsEnabled: false, agentCommand: '', agents: [], agentFolders: [], agentSelected: null,
+  agentsEnabled: false, agentCommand: '', editorCommand: '', agents: [], agentFolders: [], agentSelected: null,
   agentReview: true,
   onTop: true,
   muteOthers: false,
