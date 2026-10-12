@@ -240,7 +240,9 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   changés pendant qu'il travaille s'appliquent aussitôt ; passer en *accepter
   les modifications* accorde la demande de modification de fichier en attente.
   En tête du menu, *Ouvrir sur GitHub — propriétaire/dépôt* ouvre la page du
-  dépôt (grisé si le dossier n'a pas d'origine GitHub).
+  dépôt (grisé si le dossier n'a pas d'origine GitHub). *Ouvrir dans
+  l'éditeur (zed)* ouvre le dossier dans l'éditeur de code (grisé si aucun
+  n'est trouvé).
 
 **Ce qui quitte la machine, ce à quoi l'on fait confiance.**
 
@@ -282,6 +284,14 @@ derrière :
 La commande doit transmettre l'entrée et la sortie standard telles quelles,
 c'est par là que l'appli dialogue avec Claude Code : pas de shell de connexion
 (`bash -lc …`), dont les scripts de profil consomment l'entrée.
+
+**Éditeur** (réglage `editorCommand`, clic droit → *Agents Claude Code* →
+*Changer d'éditeur…*) : vide, c'est le premier trouvé parmi `zed`, `code`,
+`cursor`, `codium`. Le dossier est ajouté en dernier argument :
+
+```json
+"editorCommand": "flatpak run com.visualstudio.code"
+```
 
 **Autorisations en série, interruption, journal.**
 
@@ -342,6 +352,7 @@ s'affiche le temps de l'enregistrement, une fois la coupure confirmée.
 | `sound`      | Bips de début / fin                                               |
 | `agentsEnabled` | Afficher les agents Claude Code                               |
 | `agentCommand` | Commande qui lance Claude Code (vide : `claude`)               |
+| `editorCommand` | Éditeur de code des agents (vide : `zed`, `code`, `cursor` ou `codium`, le premier trouvé) |
 | `agents`     | Les agents : dossier, nom, modèle, effort, mode, session (gérés par l'appli ; `name` se modifie ici) |
 | `agentFolders` | Dossiers favoris proposés par « + », chacun avec sa couleur    |
 | `agentReview` | Dictée vers un agent : dans le champ de son panneau, à relire ; `false` : envoyée aussitôt |

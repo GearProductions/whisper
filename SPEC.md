@@ -56,7 +56,7 @@ des processus.
 | `core/conversation` | actions et demandes d'autorisation écrites, pièces jointes |
 | `core/guards` | permissions des pages, liens, fichiers montrés |
 | `core/repo` | page GitHub d'un dossier, d'après son remote `origin` |
-| `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `paste`, `windows-helper`, `pipewire`, `clipboard`, `selection`, `pocket-tts`, `claude`, `journal`, `images`, `paths`, `config-file` |
+| `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `paste`, `windows-helper`, `pipewire`, `clipboard`, `selection`, `pocket-tts`, `claude`, `editor`, `journal`, `images`, `paths`, `config-file` |
 | `helpers` | découper une commande, français ou anglais, une ligne |
 
 Scripts lancés par l'appli : `resources/scripts/` (`windows-helper.ps1`,
@@ -282,7 +282,9 @@ de l'agent affiché dans le panneau est **lue d'office** (jamais de pastille).
 
 **F-56 Clic droit sur un robot** : nom, dossier ; *Ouvrir sur GitHub —
 propriétaire/dépôt* (remote `origin` du `.git` du dossier, lu à chaque clic
-droit ; grisé sans origine GitHub) ; *✎ Écrire un message…*
+droit ; grisé sans origine GitHub) ; *Ouvrir dans l'éditeur (zed)*
+(`editorCommand`, sinon le premier trouvé parmi zed, code, cursor, codium ;
+grisé sans éditeur) ; *✎ Écrire un message…*
 (panneau + focus du champ) ; couleur du dossier ; modèle (défaut, fable, opus,
 sonnet, haiku) ; effort (défaut, low → max) ; mode (manuel, accepter les
 modifications, auto, plan) ; *Dernier échange* ; *⤢ Conversation complète* ;
@@ -426,9 +428,9 @@ appliqué aussitôt) ; Afficher le texte transcrit ; Autoriser la coupure du
 micro Discord (Linux, Windows) ; Rétablir le son et le micro Discord
 (dépannage, F-34) ; Lecture à voix haute (installer, source,
 désactivée, langue, voix, volume) ; Agents Claude Code (afficher, relire
-avant d'envoyer, commande, changer la commande, consigne, journal) ; Ouvrir le
-dossier whisper ; Modifier la configuration ; À propos (page de la version) ;
-Quitter.
+avant d'envoyer, commande, changer la commande, éditeur, changer d'éditeur,
+consigne, journal) ; Ouvrir le dossier whisper ; Modifier la configuration ;
+À propos (page de la version) ; Quitter.
 
 ## 9. Réglages (`config.json`)
 
@@ -449,6 +451,7 @@ Quitter.
 | `size`, `pos` | `64`, `null` | icône |
 | `agentsEnabled` | `false` | |
 | `agentCommand` | `''` | → `claude` |
+| `editorCommand` | `''` | → le premier éditeur trouvé |
 | `agents`, `agentFolders` | `[]` | |
 | `agentSelected` | `null` | remis à `null` au lancement |
 | `agentReview` | `true` | dictée dans le champ |
@@ -592,8 +595,8 @@ fenêtres, I-1, I-18, I-22, I-28) : scénarios du § 13 et bancs de comparaison.
 - **I-28** **Pas de code propre à un bureau** (KDE, KWin…) dans le produit :
   une limite d'un gestionnaire de fenêtres se contourne à la main et se
   documente (ex. Alt+F3 → *Sur tous les bureaux*).
-- **I-29** Un échec d'un service annexe (journal, wpctl, wl-paste, Pocket TTS)
-  ne bloque jamais la dictée ni un agent.
+- **I-29** Un échec d'un service annexe (journal, wpctl, wl-paste, Pocket TTS,
+  éditeur) ne bloque jamais la dictée ni un agent.
 
 ---
 
@@ -677,6 +680,10 @@ Copier, erreurs ; mêmes relevés).
   GitHub — o/d*, la page s'ouvre dans le navigateur. Dossier sans `.git`, ou
   origine hors GitHub : entrée grisée. `git remote set-url origin …` puis clic
   droit : le nouveau nom s'affiche.
+- **S-37** Clic droit → *Ouvrir dans l'éditeur (zed)* : le dossier s'ouvre
+  dans Zed. `editorCommand` réglé sur un programme absent : entrée grisée,
+  *Aucun éditeur trouvé* dans le menu de l'icône. Quitter l'appli : l'éditeur
+  reste ouvert.
 
 **Fenêtres**
 - **S-40** *Toujours au premier plan* décoché : icône, bulle et panneau
@@ -693,6 +700,8 @@ Copier, erreurs ; mêmes relevés).
 - Windows : agents non essayés ; pas de sélection jointe (le Ctrl+C simulé
   interromprait un terminal) ; l'historique du presse-papiers (Win+V) garde le
   texte lu à voix haute.
+- Windows : `code` est un `code.cmd`, qu'on ne lance pas sans shell ; régler
+  `editorCommand` sur le chemin de `Code.exe`.
 - Le panneau prend le focus : sous KDE, il ne va sur tous les bureaux qu'à la
   main (Alt+F3), réglage perdu quand il se rouvre de lui-même (F-64).
 - Réponses en texte brut (Markdown non rendu, sauf blocs de code et liens).
