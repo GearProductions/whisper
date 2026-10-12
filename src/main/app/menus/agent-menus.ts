@@ -1,14 +1,16 @@
 /** agent-menus — les menus des agents : le clic droit sur un robot (écrire,
- *  couleur, modèle, effort, mode, conversations, interrompre, nouvelle session,
- *  retirer), le « + » (nouvel agent dans un dossier favori ou un autre
- *  dossier, avec la question de confiance, I-23), et le trombone du panneau
- *  (fichiers, texte sélectionné).
+ *  ouvrir sur GitHub, couleur, modèle, effort, mode, conversations,
+ *  interrompre, nouvelle session, retirer), le « + » (nouvel agent dans un
+ *  dossier favori ou un autre dossier, avec la question de confiance, I-23), et
+ *  le trombone du panneau (fichiers, texte sélectionné).
  *  Ne connaît pas : les pages. Utilisé par : app/ipc. */
+import fs from 'node:fs';
 import path from 'node:path';
-import { app, dialog, Menu, type MenuItemConstructorOptions } from 'electron';
+import { app, dialog, Menu, shell, type MenuItemConstructorOptions } from 'electron';
 import { EFFORTS, MODELS, MODES, type AgentConfig } from 'core/agents';
 import { AGENT_COLORS, agentColor, agentList, colorDot, favoriteFolders } from 'core/config';
 import { SELECTION_MAX } from 'core/conversation';
+import { githubPage } from 'core/repo';
 import { readText } from 'technicals/selection';
 import { loadConfig, saveConfig, updateAgent } from 'app/settings';
 import { state } from 'app/state';
@@ -17,12 +19,16 @@ import {
 } from 'app/controllers';
 import { conversationFocusInput, openConversation } from 'app/windows';
 
+// Un fichier en texte, ou null s'il est absent ou illisible (dossier…).
+const read = (file: string) => { try { return fs.readFileSync(file, 'utf8'); } catch { return null; } };
+
 // Clic droit sur un robot : ses réglages, comme dans les autres intégrations.
 export function openAgentMenu(id: unknown) {
   const agent = agentList(loadConfig()).find((a) => a.id === id);
   if (!agent || !state.icon) return;
   const st = agents.state(agent.id);
   const busy = isBusy(agent.id);
+  const page = githubPage(agent.dir, read); // relu à chaque clic droit
   const radio = (key: 'model' | 'effort' | 'mode', options: [string, string][]) => options.map(([value, label]) => ({
     label, type: 'radio' as const, checked: ((agent as AgentConfig)[key] || options[0][0]) === value,
     click: () => {
@@ -35,6 +41,9 @@ export function openAgentMenu(id: unknown) {
   Menu.buildFromTemplate([
     { label: agent.name, enabled: false },
     { label: agent.dir, enabled: false },
+    // Le dépôt affiché est celui qui sera ouvert (I-32) ; grisé sans origine GitHub.
+    { label: page ? `Ouvrir sur GitHub — ${page.slice('https://github.com/'.length)}` : 'Ouvrir sur GitHub',
+      enabled: !!page, click: () => { if (page) shell.openExternal(page); } },
     { type: 'separator' },
     // Sans parler (micro indisponible, lieu calme) : le champ de son panneau.
     { label: '✎ Écrire un message…', click: () => { openConversation(agent.id); conversationFocusInput(); } },

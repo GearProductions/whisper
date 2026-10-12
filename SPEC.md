@@ -2,7 +2,7 @@
 
 Comportement de l'appli (état de la **0.4.0**, inchangé en **0.5.0**, où les
 pages et le principal passent en TypeScript, les pages en React ; corrections
-de la **0.5.1**) : ce qu'elle fait, ce qu'elle ne doit
+de la **0.5.1** ; nouveautés de la **0.6.0**) : ce qu'elle fait, ce qu'elle ne doit
 jamais faire, et comment le vérifier. C'est la référence de la refonte : une
 migration est réussie quand chaque règle ci-dessous tient encore.
 
@@ -55,6 +55,7 @@ des processus.
 | `core/agents` | tours, file d'autorisations, interruption, sonde, transcriptions, sessions |
 | `core/conversation` | actions et demandes d'autorisation écrites, pièces jointes |
 | `core/guards` | permissions des pages, liens, fichiers montrés |
+| `core/repo` | page GitHub d'un dossier, d'après son remote `origin` |
 | `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `paste`, `windows-helper`, `pipewire`, `clipboard`, `selection`, `pocket-tts`, `claude`, `journal`, `images`, `paths`, `config-file` |
 | `helpers` | découper une commande, français ou anglais, une ligne |
 
@@ -279,7 +280,9 @@ le robot affiché et sélectionné → désélection, le panneau passe au contex
 pastille verte = réponse non lue (bip 660 Hz à l'arrivée) ; erreur. La réponse
 de l'agent affiché dans le panneau est **lue d'office** (jamais de pastille).
 
-**F-56 Clic droit sur un robot** : nom, dossier ; *✎ Écrire un message…*
+**F-56 Clic droit sur un robot** : nom, dossier ; *Ouvrir sur GitHub —
+propriétaire/dépôt* (remote `origin` du `.git` du dossier, lu à chaque clic
+droit ; grisé sans origine GitHub) ; *✎ Écrire un message…*
 (panneau + focus du champ) ; couleur du dossier ; modèle (défaut, fable, opus,
 sonnet, haiku) ; effort (défaut, low → max) ; mode (manuel, accepter les
 modifications, auto, plan) ; *Dernier échange* ; *⤢ Conversation complète* ;
@@ -486,7 +489,7 @@ agents arrêtés.
 Testés automatiquement (`npm run test:invariants`, dossiers
 `tests/invariants/` protégés) : I-2 à I-6 (texte collé, une ligne,
 presse-papiers, collage désactivé), I-8, I-9, I-11 (page et principal), I-12,
-I-13 à I-17, I-19, I-20, I-21, I-23, I-24, I-27, I-29, I-30. Les autres (focus,
+I-13 à I-17, I-19, I-20, I-21, I-23, I-24, I-27, I-29, I-30, I-32. Les autres (focus,
 fenêtres, I-1, I-18, I-22, I-28) : scénarios du § 13 et bancs de comparaison.
 
 ### Focus et collage
@@ -574,6 +577,11 @@ fenêtres, I-1, I-18, I-22, I-28) : scénarios du § 13 et bancs de comparaison.
   l'appli, jamais aux sessions Claude Code habituelles.
 - **I-25** Un message n'est jamais envoyé à un agent au travail (le texte est
   gardé : brouillon, ou presse-papiers).
+- **I-32** *Ouvrir sur GitHub* n'ouvre que `https://github.com/<propriétaire>/<dépôt>`,
+  reconstruit d'après le remote `origin` du `.git` **du dossier de l'agent** :
+  jamais un autre hôte, schéma ou remote, un chemin en plus, ni les
+  identifiants de l'origine (un jeton finirait dans l'historique du
+  navigateur). Sans origine reconnue, l'entrée est grisée.
 
 ### Système et code
 
@@ -665,6 +673,10 @@ Copier, erreurs ; mêmes relevés).
 - **S-35** Panneau ouvert sur alpha, « + » → nouvel agent beta (dossier
   favori, puis dossier choisi) : le panneau montre beta, beta est sélectionné,
   dicter → le champ de beta. Panneau fermé : beta sélectionné, rien ne s'ouvre.
+- **S-36** Agent dans un dossier cloné de GitHub : clic droit → *Ouvrir sur
+  GitHub — o/d*, la page s'ouvre dans le navigateur. Dossier sans `.git`, ou
+  origine hors GitHub : entrée grisée. `git remote set-url origin …` puis clic
+  droit : le nouveau nom s'affiche.
 
 **Fenêtres**
 - **S-40** *Toujours au premier plan* décoché : icône, bulle et panneau
