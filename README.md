@@ -239,6 +239,8 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   session* (repartir de zéro), retirer (son dossier reste favori). Le **mode** et le **modèle**
   changés pendant qu'il travaille s'appliquent aussitôt ; passer en *accepter
   les modifications* accorde la demande de modification de fichier en attente.
+  En tête du menu, *Ouvrir sur GitHub — propriétaire/dépôt* ouvre la page du
+  dépôt (grisé si le dossier n'a pas d'origine GitHub).
 
 **Ce qui quitte la machine, ce à quoi l'on fait confiance.**
 
