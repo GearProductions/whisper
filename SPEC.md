@@ -283,8 +283,8 @@ de l'agent affiché dans le panneau est **lue d'office** (jamais de pastille).
 **F-56 Clic droit sur un robot** : nom, dossier ; *Ouvrir sur GitHub —
 propriétaire/dépôt* (remote `origin` du `.git` du dossier, lu à chaque clic
 droit ; grisé sans origine GitHub) ; *Ouvrir dans l'éditeur (zed)*
-(`editorCommand`, sinon le premier trouvé parmi zed, code, cursor, codium ;
-grisé sans éditeur) ; *✎ Écrire un message…*
+(`editorCommand`, sinon le premier trouvé parmi zed, code, cursor, codium,
+dans une nouvelle fenêtre ; grisé sans éditeur) ; *✎ Écrire un message…*
 (panneau + focus du champ) ; couleur du dossier ; modèle (défaut, fable, opus,
 sonnet, haiku) ; effort (défaut, low → max) ; mode (manuel, accepter les
 modifications, auto, plan) ; *Dernier échange* ; *⤢ Conversation complète* ;
@@ -681,7 +681,8 @@ Copier, erreurs ; mêmes relevés).
   origine hors GitHub : entrée grisée. `git remote set-url origin …` puis clic
   droit : le nouveau nom s'affiche.
 - **S-37** Clic droit → *Ouvrir dans l'éditeur (zed)* : le dossier s'ouvre
-  dans Zed. `editorCommand` réglé sur un programme absent : entrée grisée,
+  dans une **nouvelle** fenêtre de Zed (celle déjà ouverte garde son projet).
+  `editorCommand` réglé sur un programme absent : entrée grisée,
   *Aucun éditeur trouvé* dans le menu de l'icône. Quitter l'appli : l'éditeur
   reste ouvert.
 

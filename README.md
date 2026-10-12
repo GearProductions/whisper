@@ -241,8 +241,8 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   les modifications* accorde la demande de modification de fichier en attente.
   En tête du menu, *Ouvrir sur GitHub — propriétaire/dépôt* ouvre la page du
   dépôt (grisé si le dossier n'a pas d'origine GitHub). *Ouvrir dans
-  l'éditeur (zed)* ouvre le dossier dans l'éditeur de code (grisé si aucun
-  n'est trouvé).
+  l'éditeur (zed)* ouvre le dossier dans une nouvelle fenêtre de l'éditeur de
+  code (grisé si aucun n'est trouvé).
 
 **Ce qui quitte la machine, ce à quoi l'on fait confiance.**
 
@@ -287,10 +287,12 @@ c'est par là que l'appli dialogue avec Claude Code : pas de shell de connexion
 
 **Éditeur** (réglage `editorCommand`, clic droit → *Agents Claude Code* →
 *Changer d'éditeur…*) : vide, c'est le premier trouvé parmi `zed`, `code`,
-`cursor`, `codium`. Le dossier est ajouté en dernier argument :
+`cursor`, `codium`, ouvert dans une nouvelle fenêtre (`-n`). Réglé, la
+commande est lancée telle quelle, le dossier en dernier argument (ajouter
+`-n` pour une nouvelle fenêtre) :
 
 ```json
-"editorCommand": "flatpak run com.visualstudio.code"
+"editorCommand": "flatpak run com.visualstudio.code -n"
 ```
 
 **Autorisations en série, interruption, journal.**
