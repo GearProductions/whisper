@@ -8,6 +8,7 @@ import path from 'node:path';
 import { app, Menu, shell, type MenuItemConstructorOptions } from 'electron';
 import { DICTATION_LANGS, speakVolume } from 'core/config';
 import * as tts from 'technicals/pocket-tts';
+import { findEditor } from 'technicals/editor';
 import { locateWhisper } from 'technicals/whisper-cli';
 import { agentInstructions, configFile, instructionsFile, journalFile, loadConfig, ownWhisperDir, saveConfig, whisperDirs } from 'app/settings';
 import { state } from 'app/state';
@@ -32,6 +33,7 @@ export function openMainMenu(devices: unknown) {
   const speak = currentSpeakMode(cfg);
   const setSpeak = (value: string) => { saveConfig({ speak: value }); pollSpeak(); };
   const speakLangs = Object.keys(SPEAK_LANGS) as (keyof typeof SPEAK_LANGS)[];
+  const editor = findEditor(cfg.editorCommand);
   const template: MenuItemConstructorOptions[] = [
     { label: state.modelDownload ? `Modèle : téléchargement ${state.modelDownload.percent} %`
       : cli && model ? `Modèle : ${path.basename(model)}` : 'whisper.cpp non installé', enabled: false },
@@ -113,6 +115,8 @@ export function openMainMenu(devices: unknown) {
           click: (i) => saveConfig({ agentReview: i.checked }) },
         { label: agents.isAvailable(cfg.agentCommand) ? `Commande : ${cfg.agentCommand || 'claude'}` : 'Claude Code introuvable', enabled: false },
         { label: 'Changer la commande de lancement… (agentCommand)', click: () => { saveConfig({}); shell.openPath(configFile()); } },
+        { label: editor ? `Éditeur : ${editor.name}` : 'Aucun éditeur trouvé', enabled: false },
+        { label: 'Changer d\'éditeur… (editorCommand)', click: () => { saveConfig({}); shell.openPath(configFile()); } },
         { label: 'Modifier la consigne des agents (résumé audio)…', click: () => { agentInstructions(); shell.openPath(instructionsFile()); } },
         { label: 'Ouvrir le journal des agents (tours, autorisations)', click: () => {
           if (!fs.existsSync(journalFile())) fs.writeFileSync(journalFile(), '');
