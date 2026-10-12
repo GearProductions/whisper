@@ -1,8 +1,8 @@
 /** agent-menus — les menus des agents : le clic droit sur un robot (écrire,
- *  ouvrir sur GitHub, couleur, modèle, effort, mode, conversations,
- *  interrompre, nouvelle session, retirer), le « + » (nouvel agent dans un
- *  dossier favori ou un autre dossier, avec la question de confiance, I-23), et
- *  le trombone du panneau (fichiers, texte sélectionné).
+ *  ouvrir sur GitHub, dans l'éditeur, couleur, modèle, effort, mode,
+ *  conversations, interrompre, nouvelle session, retirer), le « + » (nouvel
+ *  agent dans un dossier favori ou un autre dossier, avec la question de
+ *  confiance, I-23), et le trombone du panneau (fichiers, texte sélectionné).
  *  Ne connaît pas : les pages. Utilisé par : app/ipc. */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -11,6 +11,7 @@ import { EFFORTS, MODELS, MODES, type AgentConfig } from 'core/agents';
 import { AGENT_COLORS, agentColor, agentList, colorDot, favoriteFolders } from 'core/config';
 import { SELECTION_MAX } from 'core/conversation';
 import { githubPage } from 'core/repo';
+import { findEditor } from 'technicals/editor';
 import { readText } from 'technicals/selection';
 import { loadConfig, saveConfig, updateAgent } from 'app/settings';
 import { state } from 'app/state';
@@ -29,6 +30,7 @@ export function openAgentMenu(id: unknown) {
   const st = agents.state(agent.id);
   const busy = isBusy(agent.id);
   const page = githubPage(agent.dir, read); // relu à chaque clic droit
+  const editor = findEditor(loadConfig().editorCommand);
   const radio = (key: 'model' | 'effort' | 'mode', options: [string, string][]) => options.map(([value, label]) => ({
     label, type: 'radio' as const, checked: ((agent as AgentConfig)[key] || options[0][0]) === value,
     click: () => {
@@ -44,6 +46,8 @@ export function openAgentMenu(id: unknown) {
     // Le dépôt affiché est celui qui sera ouvert (I-32) ; grisé sans origine GitHub.
     { label: page ? `Ouvrir sur GitHub — ${page.slice('https://github.com/'.length)}` : 'Ouvrir sur GitHub',
       enabled: !!page, click: () => { if (page) shell.openExternal(page); } },
+    { label: editor ? `Ouvrir dans l'éditeur (${editor.name})` : 'Ouvrir dans l\'éditeur',
+      enabled: !!editor, click: () => editor?.open(agent.dir) },
     { type: 'separator' },
     // Sans parler (micro indisponible, lieu calme) : le champ de son panneau.
     { label: '✎ Écrire un message…', click: () => { openConversation(agent.id); conversationFocusInput(); } },
