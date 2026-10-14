@@ -206,5 +206,6 @@ export function resumeSession() {
   if (!agent || !state.convView!.sessionId || isBusy(agent.id)) return;
   updateAgent(agent.id, { sessionId: state.convView!.sessionId });
   agents.forgetReply(agent.id); // sa « dernière réponse » était celle de l'autre session
+  agents.close(agent.id); // son processus portait l'autre session : le prochain message en relance un
   openConversation(agent.id, { mode: 'full' });
 }
