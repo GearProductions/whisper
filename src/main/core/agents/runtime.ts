@@ -316,6 +316,11 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     // Session changée : la dernière réponse connue était celle de l'autre.
     forgetReply: (id: string) => { const r = rt(id); r.last = null; r.unread = false; },
     forget: (id: string) => { interrupt(id); runtime.delete(id); },
+    // Forme de la refonte « un processus par agent » (note refactor/0.7.0) :
+    // close(id) ferme le processus de l'agent (fin de son entrée, puis abort
+    // après le délai) en gardant son état ; active() compte les processus vivants.
+    close: async (_id: string): Promise<void> => {},
+    active: (): number => 0,
     send,
     answer,
     pendingPermission,
