@@ -250,6 +250,15 @@ quand c'est fini (pastille verte, comme une réponse). *Nouvelle session* ou
 *Retirer* l'arrêtent, comme la sortie de l'appli. Chaque agent utilisé garde
 ainsi un Claude Code en mémoire (quelques centaines de Mo).
 
+**Tâches de fond** : tant qu'une commande en arrière-plan, une surveillance
+ou un sous-agent tourne pour l'agent, son robot pulse lentement. Dans
+l'en-tête du panneau, *⚙ Tâches (n)* ouvre un volet à droite du fil :
+chaque tâche telle que l'agent la décrit, son état, son temps écoulé, sa
+commande et, pour une commande, les dernières lignes de sa sortie
+(*Montrer le fichier* la montre dans le gestionnaire de fichiers). Les
+tâches finies restent jusqu'à la sortie de l'appli. Le volet ne fait rien :
+pour arrêter une tâche, demandez-le à l'agent.
+
 **Ce qui quitte la machine, ce à quoi l'on fait confiance.**
 
 - La transcription reste locale, mais ce qui est dicté à un agent part chez

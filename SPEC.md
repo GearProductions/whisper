@@ -53,8 +53,8 @@ des processus.
 | `core/config` | réglages, démarrage, dossiers favoris et couleurs, confiance |
 | `core/dictation` | transcription d'une ligne, destination, collage et presse-papiers |
 | `core/sound` | couper et rétablir ce qu'on a coupé |
-| `core/agents` | processus (un par agent), tours, file d'autorisations, interruption, sonde, transcriptions, sessions |
-| `core/conversation` | actions et demandes d'autorisation écrites, pièces jointes |
+| `core/agents` | processus (un par agent), tours, tâches de fond, file d'autorisations, interruption, sonde, transcriptions, sessions |
+| `core/conversation` | actions et demandes d'autorisation écrites, pièces jointes, tâches de fond vues par le volet |
 | `core/guards` | permissions des pages, liens, fichiers montrés |
 | `core/repo` | page GitHub d'un dossier, d'après son remote `origin` |
 | `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `paste`, `windows-helper`, `pipewire`, `clipboard`, `selection`, `pocket-tts`, `claude`, `editor`, `journal`, `images`, `paths`, `config-file` |
@@ -277,7 +277,9 @@ conversation dans le panneau (les robots servent d'onglets) ; second clic sur
 le robot affiché et sélectionné → désélection, le panneau passe au contexte
 « Dictée ».
 
-**F-55 État d'un robot** : clignote au travail ; « ? » demande d'autorisation ;
+**F-55 État d'un robot** : clignote au travail ; pulse lentement au repos
+tant qu'une tâche de fond tourne (titre « surveille N tâche(s) de fond »,
+F-77) ; « ? » demande d'autorisation ;
 pastille verte = réponse non lue (bip 660 Hz à l'arrivée) ; erreur. La réponse
 de l'agent affiché dans le panneau est **lue d'office** (jamais de pastille).
 
@@ -355,7 +357,8 @@ ouvert : les notifications repassent par les robots et la bulle.
 
 **F-65 En-tête** : pastille de couleur, intitulé de la conversation (celui de
 Claude Code ; « Nouvelle conversation » sinon), nom et dossier, jauge du
-contexte, Historique (agrandi), ⤢/⤡, ×.
+contexte, *⚙ Tâches (n)* (n en cours ; caché si la conversation n'a jamais
+eu de tâche, F-77), Historique (agrandi), ⤢/⤡, ×.
 
 **F-66 Fil** : messages avec leur heure (date complète au survol) ; texte tel
 quel, liens cliquables, blocs ``` en blocs de code ; pièces jointes de vos
@@ -365,7 +368,7 @@ l'agent sur une ligne, chemins raccourcis (`/home/…` et `/var/home/…`) ;
 au-delà de 6 actions, les dernières, le reste à déplier ; longues lignes
 repliées. Commandes affichées telles quelles ; leur sortie et le résumé d'une
 compaction en messages « système » ; les messages que Claude Code s'envoie
-(notifications de tâches de fond) ne sont pas affichés. Au travail : trois points animés et temps
+(notifications de tâches de fond) ne sont pas affichés (F-77). Au travail : trois points animés et temps
 écoulé au bas du fil. Le fil reste en bas quand un message arrive, sauf si
 l'on lit plus haut. Mis à jour au plus toutes les 800 ms pendant un tour.
 
@@ -424,6 +427,20 @@ saisie, ni jauge, ni historique, ni ⤢. Pas de redirection vers un agent :
 pour un robot oublié, on copie, on sélectionne le robot, on colle dans son
 champ. Sans dictée encore : une indication. Il reste ouvert jusqu'à la croix
 (la bulle disparaissait seule après 10 s).
+
+**F-77 Volet des tâches** (*⚙ Tâches*, à droite du fil, conversation en
+cours) : les tâches de fond de l'agent comme Claude Code les montre
+(`/tasks`) — commande en arrière-plan, surveillance, sous-agent, flux
+d'agents —, les plus récentes en tête. Chacune : type, état (en cours,
+terminée, en échec, arrêtée), temps écoulé ; la description de l'agent,
+liens cliquables (I-21), la commande repliée dessous (chemins raccourcis) ;
+ligne d'avancement, résumé de fin. Une commande : les dernières lignes de
+sa sortie, lues dans le fichier où Claude Code l'écrit, rafraîchies au
+rythme du fil (F-66) tant qu'elle tourne (panneau visible) ; *Montrer le fichier* le
+montre dans le gestionnaire de fichiers (I-34). Source : le flux du
+processus de l'agent, pas la transcription. Finies, les tâches restent
+jusqu'à la sortie de l'appli ; *Nouvelle session* et *Retirer* vident le
+volet. Il n'agit sur rien (ni arrêt, ni relance : on le demande à l'agent).
 
 **F-75 Fenêtre** : au-dessus des autres (`onTop`), hors barre des tâches,
 liens vers le navigateur seulement, jamais de navigation.
@@ -501,8 +518,9 @@ agents arrêtés.
 Testés automatiquement (`npm run test:invariants`, dossiers
 `tests/invariants/` protégés) : I-2 à I-6 (texte collé, une ligne,
 presse-papiers, collage désactivé), I-8, I-9, I-11 (page et principal), I-12,
-I-13 à I-17, I-19, I-20, I-21, I-23, I-24, I-27, I-29, I-30, I-32, I-33. Les autres (focus,
-fenêtres, I-1, I-18, I-22, I-28) : scénarios du § 13 et bancs de comparaison.
+I-13 à I-17, I-19, I-20, I-21, I-23, I-24, I-27, I-29, I-30, I-32 à I-34.
+Les autres (focus, fenêtres, I-1, I-18, I-22, I-28) : scénarios du § 13 et
+bancs de comparaison.
 
 ### Focus et collage
 
@@ -596,6 +614,11 @@ fenêtres, I-1, I-18, I-22, I-28) : scénarios du § 13 et bancs de comparaison.
   *Retirer*, *Reprendre*, à la sortie ou pour être relancé (F-59), par la fin
   de son entrée d'abord (I-19). Un message part toujours au processus **de
   son agent**.
+- **I-34** Le principal ne lit que les fichiers de sortie que Claude Code a
+  nommés dans le flux de la session (notification de tâche, résultat d'une
+  commande en arrière-plan) : jamais un chemin venu d'une page, jamais un
+  autre fichier. Une sortie est affichée, jamais collée ni envoyée (I-2,
+  I-3) ; son fichier est montré, jamais ouvert (I-21).
 - **I-32** *Ouvrir sur GitHub* n'ouvre que `https://github.com/<propriétaire>/<dépôt>`,
   reconstruit d'après le remote `origin` du `.git` **du dossier de l'agent** :
   jamais un autre hôte, schéma ou remote, un chemin en plus, ni les
@@ -706,6 +729,12 @@ Copier, erreurs ; mêmes relevés).
   le tour finit ; ~30 s plus tard, l'agent répond de lui-même (pastille verte,
   bip), ou au plus tard avec le message suivant. *Nouvelle session* puis
   quitter : plus aucun processus `claude` (`pgrep claude`).
+- **S-39** « Lance `for i in 1 2 3 4 5 6; do echo étape $i; sleep 2; done`
+  en arrière-plan » : le tour fini, le robot pulse lentement ; *⚙ Tâches (1)*
+  dans l'en-tête ; le volet montre la commande, sa sortie grandit au fil
+  de l'eau, puis ✓ et le résumé. Un lien dans la description (« surveille
+  https://github.com/… ») s'ouvre dans le navigateur. *Nouvelle session* :
+  volet vide.
 
 **Fenêtres**
 - **S-40** *Toujours au premier plan* décoché : icône, bulle et panneau
@@ -729,6 +758,8 @@ Copier, erreurs ; mêmes relevés).
 - Un processus Claude Code par agent utilisé depuis le lancement (quelques
   centaines de Mo chacun), jusqu'à *Nouvelle session*, *Retirer* ou la sortie.
 - Réponses en texte brut (Markdown non rendu, sauf blocs de code et liens).
+- Les tâches de fond d'un lancement précédent de l'appli ne sont pas
+  montrées (le volet lit le flux du processus, pas la transcription).
 - Le renommage d'un agent et la commande de lancement passent par
   `config.json`.
 
