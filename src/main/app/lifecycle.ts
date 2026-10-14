@@ -6,14 +6,14 @@
  *  Ne connaît pas : le détail des fenêtres et des contrôleurs.
  *  Utilisé par : src/main/index.ts. */
 import { app, session } from 'electron';
-import { agentList, startupPatch } from 'core/config';
+import { startupPatch } from 'core/config';
 import { allowPermission, allowPermissionCheck } from 'core/guards';
 import { binDir } from 'technicals/paths';
 import * as paste from 'technicals/paste';
 import * as tts from 'technicals/pocket-tts';
 import * as windows from 'technicals/windows-helper';
 import {
-  agents, ensureFolderColors, ensureModel, isBusy, muter, pollSpeak, pushAgents, resetSpeakState, SPEAK_POLL_MS, startHealing,
+  agents, ensureFolderColors, ensureModel, muter, pollSpeak, pushAgents, resetSpeakState, SPEAK_POLL_MS, startHealing,
 } from 'app/controllers';
 import { registerIpc } from 'app/ipc';
 import { loadConfig, saveConfig } from 'app/settings';
@@ -58,13 +58,13 @@ export function start() {
   app.on('window-all-closed', () => app.quit());
 
   // Quittée en pleine dictée : on rend d'abord le son et le micro Discord. Un
-  // agent au travail : on lui demande d'arrêter son tour et on attend qu'il l'ait
-  // fait (quelques secondes au plus) — tué net, il pourrait survivre dans son
-  // conteneur et continuer seul.
+  // processus d'agent vivant : on ferme son entrée (au travail, on lui demande
+  // d'abord d'arrêter son tour) et on attend qu'il soit sorti (quelques
+  // secondes au plus) — tué net, il pourrait survivre dans son conteneur et
+  // continuer seul.
   let quitting = false;
   app.on('before-quit', (e) => {
-    const agentsBusy = agentList(loadConfig()).some((a) => isBusy(a.id));
-    if (quitting || (!state.recording && !agentsBusy)) return;
+    if (quitting || (!state.recording && !agents.active())) return;
     e.preventDefault();
     quitting = true;
     Promise.all([muter.restore('others'), muter.restore('discord'), agents.stop()]).finally(() => app.quit());

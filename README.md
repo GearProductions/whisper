@@ -244,6 +244,12 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   l'éditeur (zed)* ouvre le dossier dans une nouvelle fenêtre de l'éditeur de
   code (grisé si aucun n'est trouvé).
 
+**Entre deux messages**, l'agent garde son Claude Code lancé : ce qu'il a lancé
+en arrière-plan (une commande, une surveillance) continue, et il vous prévient
+quand c'est fini (pastille verte, comme une réponse). *Nouvelle session* ou
+*Retirer* l'arrêtent, comme la sortie de l'appli. Chaque agent utilisé garde
+ainsi un Claude Code en mémoire (quelques centaines de Mo).
+
 **Ce qui quitte la machine, ce à quoi l'on fait confiance.**
 
 - La transcription reste locale, mais ce qui est dicté à un agent part chez

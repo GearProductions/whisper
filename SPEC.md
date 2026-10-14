@@ -2,7 +2,8 @@
 
 Comportement de l'appli (état de la **0.4.0**, inchangé en **0.5.0**, où les
 pages et le principal passent en TypeScript, les pages en React ; corrections
-de la **0.5.1** ; nouveautés de la **0.6.0**) : ce qu'elle fait, ce qu'elle ne doit
+de la **0.5.1** ; nouveautés de la **0.6.0** ; processus des agents refait en
+**0.7.0**) : ce qu'elle fait, ce qu'elle ne doit
 jamais faire, et comment le vérifier. C'est la référence de la refonte : une
 migration est réussie quand chaque règle ci-dessous tient encore.
 
@@ -52,12 +53,12 @@ des processus.
 | `core/config` | réglages, démarrage, dossiers favoris et couleurs, confiance |
 | `core/dictation` | transcription d'une ligne, destination, collage et presse-papiers |
 | `core/sound` | couper et rétablir ce qu'on a coupé |
-| `core/agents` | tours, file d'autorisations, interruption, sonde, transcriptions, sessions |
+| `core/agents` | processus (un par agent), tours, file d'autorisations, interruption, sonde, transcriptions, sessions |
 | `core/conversation` | actions et demandes d'autorisation écrites, pièces jointes |
 | `core/guards` | permissions des pages, liens, fichiers montrés |
 | `core/repo` | page GitHub d'un dossier, d'après son remote `origin` |
 | `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `paste`, `windows-helper`, `pipewire`, `clipboard`, `selection`, `pocket-tts`, `claude`, `editor`, `journal`, `images`, `paths`, `config-file` |
-| `helpers` | découper une commande, français ou anglais, une ligne |
+| `helpers` | découper une commande, français ou anglais, une ligne, `async-queue` (l'entrée d'un processus d'agent) |
 
 Scripts lancés par l'appli : `resources/scripts/` (`windows-helper.ps1`,
 `pocket-helper.py`), livrés hors de l'archive comme les binaires.
@@ -291,7 +292,8 @@ modifications, auto, plan) ; *Dernier échange* ; *⤢ Conversation complète* ;
 *Interrompre* (au travail) ; *Nouvelle session* (oublie la session) ; *Retirer*
 (le dossier reste favori).
 
-**F-57 Mode et modèle changés en cours de tour** s'appliquent aussitôt ;
+**F-57 Mode et modèle changés en cours de tour ou entre deux tours**
+s'appliquent aussitôt, sans relancer le processus (F-59) ;
 passer en *Accepter les modifications* accorde les demandes de modification de
 fichier en attente.
 
@@ -304,8 +306,15 @@ gérés), les arguments du SDK passent derrière, stdin/stdout tels quels.
 Options : `cwd` = dossier, réglages `user`, `project`, `local`, préréglage
 `claude_code` + la consigne de `consigne-agents.md`.
 
-**F-59 Un tour = un `query()`** ; le premier crée la session (retenue dans
-`sessionId`), les suivants la reprennent. Images avant le texte ; sans image,
+**F-59 Un processus Claude Code par agent** (un `query()`), lancé au premier
+message et **gardé entre les tours** : les messages suivants passent par son
+entrée. Le premier tour crée la session (retenue dans `sessionId`). Relancé,
+session reprise, s'il est mort ou si le dossier, l'effort, la consigne ou
+`agentCommand` ont changé. Fermé à *Nouvelle session*, *Retirer*, *Reprendre*
+une autre session et à la sortie (I-19, I-33). Une tâche lancée en
+arrière-plan (commande, surveillance) survit au tour ; à sa fin, Claude Code
+prévient l'agent, qui peut ouvrir un tour de lui-même : sa réponse arrive
+comme une autre (pastille verte, bip). Images avant le texte ; sans image,
 le texte seul (forme sous laquelle Claude Code reconnaît une commande
 « / »). Une commande sans réponse écrite → « /x : fait. ».
 
@@ -321,7 +330,7 @@ d'exécution…) ; demandes d'autorisation en échec comptées et signalées par
 
 **F-62 Journal** (`agents.log`) : début et fin de chaque tour (durée), chaque
 demande d'autorisation, sa réponse et son délai, annulations, interruptions
-(forcées ou non).
+(forcées ou non), « processus lancé », « processus terminé ».
 
 ### Panneau de conversation
 
@@ -492,7 +501,7 @@ agents arrêtés.
 Testés automatiquement (`npm run test:invariants`, dossiers
 `tests/invariants/` protégés) : I-2 à I-6 (texte collé, une ligne,
 presse-papiers, collage désactivé), I-8, I-9, I-11 (page et principal), I-12,
-I-13 à I-17, I-19, I-20, I-21, I-23, I-24, I-27, I-29, I-30, I-32. Les autres (focus,
+I-13 à I-17, I-19, I-20, I-21, I-23, I-24, I-27, I-29, I-30, I-32, I-33. Les autres (focus,
 fenêtres, I-1, I-18, I-22, I-28) : scénarios du § 13 et bancs de comparaison.
 
 ### Focus et collage
@@ -563,7 +572,9 @@ fenêtres, I-1, I-18, I-22, I-28) : scénarios du § 13 et bancs de comparaison.
 
 - **I-19** Interrompre = demander à Claude Code d'arrêter son tour ; tuer le
   processus seulement en dernier recours, après 5 s (lancé par une commande
-  enveloppe, seule l'enveloppe mourrait). Quitter attend de même.
+  enveloppe, seule l'enveloppe mourrait). Quitter attend de même. Fermer un
+  processus = fermer son entrée (Claude Code sort de lui-même), le tuer
+  seulement après le même délai.
 - **I-20** Un message IPC n'est accepté que de la fenêtre qui a le droit de
   l'envoyer : chaque fenêtre sur ses propres canaux (`agent:*` de l'icône,
   `conv:*` du panneau, `bubble:*` de la bulle…).
@@ -580,6 +591,11 @@ fenêtres, I-1, I-18, I-22, I-28) : scénarios du § 13 et bancs de comparaison.
   l'appli, jamais aux sessions Claude Code habituelles.
 - **I-25** Un message n'est jamais envoyé à un agent au travail (le texte est
   gardé : brouillon, ou presse-papiers).
+- **I-33** Le processus d'un agent survit à la fin d'un tour, et ce qu'il a
+  lancé en arrière-plan aussi ; il n'est fermé qu'à *Nouvelle session*,
+  *Retirer*, *Reprendre*, à la sortie ou pour être relancé (F-59), par la fin
+  de son entrée d'abord (I-19). Un message part toujours au processus **de
+  son agent**.
 - **I-32** *Ouvrir sur GitHub* n'ouvre que `https://github.com/<propriétaire>/<dépôt>`,
   reconstruit d'après le remote `origin` du `.git` **du dossier de l'agent** :
   jamais un autre hôte, schéma ou remote, un chemin en plus, ni les
@@ -671,7 +687,8 @@ Copier, erreurs ; mêmes relevés).
   fermé).
 - **S-32** Nouveau dossier : question de confiance ; *Annuler* → rien
   d'ajouté.
-- **S-33** Quitter pendant un tour : l'appli attend l'arrêt de l'agent.
+- **S-33** Quitter pendant un tour : l'appli attend l'arrêt de l'agent. Agent
+  au repos : elle quitte aussitôt (son processus sort de lui-même).
 - **S-34** Relancer l'appli : aucun robot sélectionné.
 - **S-35** Panneau ouvert sur alpha, « + » → nouvel agent beta (dossier
   favori, puis dossier choisi) : le panneau montre beta, beta est sélectionné,
@@ -685,6 +702,10 @@ Copier, erreurs ; mêmes relevés).
   `editorCommand` réglé sur un programme absent : entrée grisée,
   *Aucun éditeur trouvé* dans le menu de l'icône. Quitter l'appli : l'éditeur
   reste ouvert.
+- **S-38** « Lance `sleep 30 && echo fini` en arrière-plan et préviens-moi » :
+  le tour finit ; ~30 s plus tard, l'agent répond de lui-même (pastille verte,
+  bip), ou au plus tard avec le message suivant. *Nouvelle session* puis
+  quitter : plus aucun processus `claude` (`pgrep claude`).
 
 **Fenêtres**
 - **S-40** *Toujours au premier plan* décoché : icône, bulle et panneau
@@ -705,6 +726,8 @@ Copier, erreurs ; mêmes relevés).
   `editorCommand` sur le chemin de `Code.exe`.
 - Le panneau prend le focus : sous KDE, il ne va sur tous les bureaux qu'à la
   main (Alt+F3), réglage perdu quand il se rouvre de lui-même (F-64).
+- Un processus Claude Code par agent utilisé depuis le lancement (quelques
+  centaines de Mo chacun), jusqu'à *Nouvelle session*, *Retirer* ou la sortie.
 - Réponses en texte brut (Markdown non rendu, sauf blocs de code et liens).
 - Le renommage d'un agent et la commande de lancement passent par
   `config.json`.

@@ -50,13 +50,32 @@ describe('sessions d’un dossier', () => {
 });
 
 describe('tours', () => {
+  // Un SDK factice dont chaque query() joue un processus : `script` pour chaque
+  // message lu dans son entrée. `log` : les messages reçus et les réglages
+  // changés, dans l'ordre ; `queries` : les options de chaque processus.
   function runtime(script: (o: Record<string, never>) => AsyncGenerator<Record<string, unknown>>) {
-    const q = { setPermissionMode: vi.fn(async () => {}), setModel: vi.fn(async () => {}), interrupt: vi.fn(async () => {}) };
-    const sdk = { query: ({ options }: { options: Record<string, never> }) => Object.assign(script(options), q) };
+    const log: string[] = [];
+    const queries: Record<string, unknown>[] = [];
+    const q = {
+      setPermissionMode: vi.fn(async (m: string) => { log.push(`mode:${m}`); }),
+      setModel: vi.fn(async (m?: string) => { log.push(`model:${m}`); }),
+      interrupt: vi.fn(async () => {}),
+      supportedCommands: vi.fn(async () => [{ name: 'compact' }]),
+      getContextUsage: vi.fn(async () => ({ maxTokens: 200000, totalTokens: 1234 })),
+    };
+    const sdk = {
+      query: ({ prompt, options }: { prompt: AsyncIterable<{ message: { content: string } }>; options: Record<string, never> }) => {
+        queries.push(options);
+        return Object.assign((async function* proc() {
+          for await (const m of prompt) { log.push(m.message.content); yield* script(options); }
+        }()), q);
+      },
+    };
     const rt = createAgentRuntime({ loadSdk: async () => sdk as never, launcher: (c) => (c === 'absent' ? null : { executable: 'claude' }), journal: () => {} });
     const hooks = { onChange: vi.fn(), onSession: vi.fn(), onPermission: vi.fn() };
-    return { rt, hooks, q };
+    return { rt, hooks, q, log, queries };
   }
+  const ok = { type: 'result', subtype: 'success', is_error: false, result: 'ok' };
 
   it('session retenue, réponse lue, non lue jusqu’à markRead', async () => {
     const { rt, hooks } = runtime(async function* t() {
@@ -119,5 +138,49 @@ describe('tours', () => {
     rt.answer('a1', 'deny');
     await turn;
     expect(answers.map((a) => a.behavior)).toEqual(['allow', 'deny']);
+  });
+
+  it('tour commencé par l’agent lui-même : réponse non lue, sans message envoyé', async () => {
+    let notify = () => {};
+    const notified = new Promise<void>((go) => { notify = go; });
+    const { rt, hooks } = runtime(async function* t() {
+      yield ok;
+      await notified;
+      yield { type: 'assistant', message: { content: [] } }; // notification d'une tâche de fond
+      yield { type: 'result', subtype: 'success', is_error: false, result: 'Tâche finie <audio>Finie.</audio>' };
+    });
+    await rt.send(agent, { text: 'surveille' }, hooks);
+    rt.markRead('a1');
+    notify();
+    await vi.waitFor(() => expect(rt.lastReply('a1')).toEqual({ text: 'Tâche finie', audio: 'Finie.', asked: '' }));
+    expect(rt.state('a1')).toMatchObject({ status: 'idle', unread: true });
+  });
+
+  it('effort changé entre deux tours : nouveau processus, qui reprend la session', async () => {
+    const { rt, hooks, queries } = runtime(async function* t() { yield { type: 'system', subtype: 'init', session_id: 's1' }; yield ok; });
+    const a = { ...agent };
+    hooks.onSession.mockImplementation((s: string) => { a.sessionId = s; });
+    await rt.send(a, { text: 'un' }, hooks);
+    await rt.send({ ...a, effort: 'high' }, { text: 'deux' }, hooks);
+    expect(queries).toHaveLength(2);
+    expect(queries[1]).toMatchObject({ resume: 's1', effort: 'high' });
+    expect(rt.active()).toBe(1);
+  });
+
+  it('mode et modèle changés entre deux tours : appliqués au processus avant le message', async () => {
+    const { rt, hooks, log, queries } = runtime(async function* t() { yield ok; });
+    await rt.send(agent, { text: 'un' }, hooks);
+    await rt.send({ ...agent, mode: 'acceptEdits', model: 'opus' }, { text: 'deux' }, hooks);
+    expect(queries).toHaveLength(1);
+    expect(log).toEqual(['un', 'mode:acceptEdits', 'model:opus', 'deux']);
+  });
+
+  it('la sonde passe par le processus vivant', async () => {
+    const { rt, hooks, q, queries } = runtime(async function* t() { yield ok; });
+    await rt.send(agent, { text: 'un' }, hooks);
+    expect(await rt.probe(agent)).toMatchObject({ commands: [{ name: 'compact' }] });
+    expect(queries).toHaveLength(1);
+    expect(q.getContextUsage).toHaveBeenCalled();
+    expect(rt.state('a1').contextUsed).toBe(1234);
   });
 });
