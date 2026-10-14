@@ -17,6 +17,7 @@
  *  cours ou non (setMode, setModel). Interrompre = demander à Claude Code
  *  d'arrêter son tour ; fermer = fermer son entrée ; on ne tue qu'en dernier
  *  recours (I-19).
+ *  Ses tâches de fond sont tenues à jour d'après chaque message du flux (tasks).
  *  Ne connaît pas : Electron, les fenêtres ; SDK, lancement et journal injectés.
  *  Utilisé par : app/controllers (agents, conversation), app/lifecycle. */
 import { createQueue, type AsyncQueue } from 'helpers/async-queue';
@@ -24,6 +25,7 @@ import { AUDIO_RULES, EDIT_TOOLS, MODES } from './constants';
 import { launchKey, queryOptions, userMessage } from './options';
 import { describeRules, sessionRules, type SessionRule } from './permissions';
 import { shortTarget, splitReply } from './reply';
+import { applyTaskEvent, EMPTY_LOG, runningTasks, type TaskLog } from './tasks';
 import type { AgentConfig, JournalFn, Launch, OutgoingMessage, Sdk, SdkMessage, SdkQuery, TurnHooks } from './types';
 
 export type AgentStatus = 'idle' | 'working' | 'asking' | 'error';
@@ -46,6 +48,7 @@ type Runtime = {
   name?: string;
   contextWindow?: number | null;
   contextUsed?: number | null;
+  tasks: TaskLog; // ses tâches de fond, d'après le flux du processus
 };
 
 export type RuntimeDeps = {
@@ -64,7 +67,7 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
   let nextKey = 1; // numéro des demandes d'autorisation (cf. answer)
 
   const rt = (id: string) => {
-    if (!runtime.has(id)) runtime.set(id, { status: 'idle', process: null, turn: null, hooks: null, pending: [], last: null, unread: false });
+    if (!runtime.has(id)) runtime.set(id, { status: 'idle', process: null, turn: null, hooks: null, pending: [], last: null, unread: false, tasks: EMPTY_LOG });
     return runtime.get(id)!;
   };
   const changed = (r: Runtime) => { if (r.hooks) r.hooks.onChange(); };
@@ -77,6 +80,7 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     return {
       status: r.status, unread: r.unread, hasReply: !!r.last, since: r.turn ? r.turn.since : null,
       contextWindow: r.contextWindow || null, contextUsed: Number.isFinite(r.contextUsed) ? r.contextUsed! : null,
+      tasks: runningTasks(r.tasks),
     };
   };
 
@@ -165,6 +169,9 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     let failure = 'erreur';
     try {
       for await (const m of proc.query) {
+        const before = runningTasks(r.tasks);
+        r.tasks = applyTaskEvent(r.tasks, m, Date.now());
+        if (runningTasks(r.tasks) !== before) changed(r); // l'icône suit
         if (m.type === 'system' && m.subtype === 'init' && m.session_id) r.hooks!.onSession(m.session_id);
         // L'agent repart sans message de notre part (une tâche de fond l'a notifié).
         if (m.type === 'assistant' && !r.turn) begin(r, id, '', () => {});
@@ -364,11 +371,13 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     isAvailable: (command: unknown) => !!launcher(command),
     state,
     lastReply: (id: string) => rt(id).last,
+    // Les tâches de fond de l'agent, finies comprises.
+    tasks: (id: string) => rt(id).tasks,
     // Le message du tour en cours, null hors tour (à part de state : pas d'images vers l'icône).
     sent: (id: string) => rt(id).sent || null,
     markRead: (id: string) => { rt(id).unread = false; },
-    // Session changée : la dernière réponse connue était celle de l'autre.
-    forgetReply: (id: string) => { const r = rt(id); r.last = null; r.unread = false; },
+    // Session changée : la dernière réponse connue, et les tâches, étaient celles de l'autre.
+    forgetReply: (id: string) => { const r = rt(id); r.last = null; r.unread = false; r.tasks = EMPTY_LOG; },
     forget: (id: string) => { void close(id); runtime.delete(id); },
     close,
     // Le nombre de processus vivants, ceux qui sortent compris.

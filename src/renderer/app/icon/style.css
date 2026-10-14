@@ -101,6 +101,8 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
 .agent { border-color: var(--agent, #8b5cf6); color: var(--agent, #8b5cf6); }
 .agent[data-selected="true"] { background: var(--agent, #8b5cf6); color: #fff; }
 .agent[data-status="working"] { animation: blink 0.8s ease-in-out infinite alternate; }
+/* Au repos, des tâches de fond tournent pour lui : une pulsation lente. */
+.agent[data-status="idle"]:not([data-tasks="0"]) { animation: blink 2s ease-in-out infinite alternate; }
 .agent[data-status="error"] { border-color: #d9383a; }
 /* Pastille : réponse non lue (point), autorisation demandée (« ? »). */
 .agent .badge {

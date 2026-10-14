@@ -5,4 +5,5 @@ export * from './permissions';
 export * from './reply';
 export * from './runtime';
 export * from './sessions';
+export * from './tasks';
 export * from './types';

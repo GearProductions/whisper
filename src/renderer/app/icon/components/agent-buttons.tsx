@@ -1,5 +1,6 @@
 /** agent-buttons — un robot par agent : sa couleur, son état (au travail,
- *  autorisation demandée, réponse non lue, erreur), sélectionné ou non.
+ *  autorisation demandée, réponse non lue, erreur, tâches de fond au repos),
+ *  sélectionné ou non.
  *  Ne connaît pas : le pont (onClick est passé). Utilisé par : icon-app. */
 import type { CSSProperties } from 'react';
 import type { AgentView } from 'technicals/bridge';
@@ -9,6 +10,7 @@ const STATUS_TEXT: Partial<Record<AgentView['status'], string>> = {
 };
 
 export const agentTitle = (a: AgentView) => `${a.name} — ${STATUS_TEXT[a.status]
+  || (a.status === 'idle' && a.tasks ? `surveille ${a.tasks} tâche${a.tasks > 1 ? 's' : ''} de fond` : '')
   || (a.unread ? 'a répondu : cliquer pour lire' : a.selected ? 'sélectionné' : 'cliquer pour lui parler')}`;
 
 export function AgentButtons({ agents, onClick }: { agents: AgentView[]; onClick: (id: string) => void }) {
@@ -17,7 +19,7 @@ export function AgentButtons({ agents, onClick }: { agents: AgentView[]; onClick
       {agents.map((a) => (
         <button key={a.id} className="small agent" type="button" data-id={a.id}
           style={{ '--agent': a.color } as CSSProperties}
-          data-status={a.status} data-selected={String(!!a.selected)} data-unread={String(!!a.unread)}
+          data-status={a.status} data-selected={String(!!a.selected)} data-unread={String(!!a.unread)} data-tasks={a.tasks || 0}
           title={agentTitle(a)} onClick={() => onClick(a.id)}>
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 3v3" fill="none" />

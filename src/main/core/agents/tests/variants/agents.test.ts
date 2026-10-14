@@ -156,6 +156,25 @@ describe('tours', () => {
     expect(rt.state('a1')).toMatchObject({ status: 'idle', unread: true });
   });
 
+  it('tâches de fond suivies d’après le flux : en cours, puis finies', async () => {
+    let notify = () => {};
+    const notified = new Promise<void>((go) => { notify = go; });
+    const { rt, hooks } = runtime(async function* t() {
+      yield { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'tu1', name: 'Bash', input: { command: 'gh run watch', description: 'Attend la CI', run_in_background: true } }] } };
+      yield { type: 'system', subtype: 'task_started', task_id: 't1', tool_use_id: 'tu1', description: 'gh run watch', task_type: 'local_bash' };
+      yield ok;
+      await notified;
+      yield { type: 'system', subtype: 'task_notification', task_id: 't1', status: 'completed', output_file: '/tmp/t1.output', summary: 'fini' };
+    });
+    await rt.send(agent, { text: 'surveille' }, hooks);
+    expect(rt.state('a1').tasks).toBe(1);
+    expect(rt.tasks('a1').tasks[0].description).toBe('Attend la CI');
+    hooks.onChange.mockClear();
+    notify();
+    await vi.waitFor(() => expect(rt.state('a1').tasks).toBe(0));
+    expect(hooks.onChange).toHaveBeenCalled();
+  });
+
   it('effort changé entre deux tours : nouveau processus, qui reprend la session', async () => {
     const { rt, hooks, queries } = runtime(async function* t() { yield { type: 'system', subtype: 'init', session_id: 's1' }; yield ok; });
     const a = { ...agent };
