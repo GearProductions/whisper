@@ -1,11 +1,12 @@
 /** panel-app — le panneau des conversations, attaché à l'icône : une
  *  conversation à la fois, celle du robot sélectionné (les robots servent
  *  d'onglets) ; aucun robot sélectionné : le contexte « Dictée », le dernier
- *  texte dicté et Copier. Réduit : le dernier échange, à la hauteur de son
- *  contenu ; agrandi : tout le fil et l'historique. Le principal envoie la
- *  conversation (`conv:thread`) à l'ouverture, à chaque changement et au fil
- *  d'un tour. La colle : seul fichier du panneau qui connaît le pont
- *  (window.conv) ; il tient le brouillon de chaque conversation.
+ *  texte dicté et Copier. Le volet des tâches de fond, à droite du fil.
+ *  Réduit : le dernier échange, à la hauteur de son contenu ; agrandi : tout
+ *  le fil et l'historique. Le principal envoie la conversation (`conv:thread`)
+ *  à l'ouverture, à chaque changement et au fil d'un tour. La colle : seul
+ *  fichier du panneau qui connaît le pont (window.conv) ; il tient le
+ *  brouillon de chaque conversation.
  *  Ne connaît pas : l'icône, la bulle. Utilisé par : main.tsx. */
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import {
@@ -15,7 +16,7 @@ import {
 import type { Command, ConvApi, Notice, ProbeResult, Session, Thread } from 'technicals/bridge';
 import { compactHeight } from 'technicals/dom';
 import {
-  ArchivedBar, Composer, ContextDetail, Header, HistoryList, Lightbox, NoticeBar, showsWorking, ThreadContent,
+  ArchivedBar, Composer, ContextDetail, Header, HistoryList, Lightbox, NoticeBar, showsWorking, TasksPane, ThreadContent,
   type ThreadActions,
 } from './components';
 
@@ -35,6 +36,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   const [status, setStatus] = useState('');
   const [sending, setSending] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [tasksOpen, setTasksOpen] = useState(false);
 
   const [drafts] = useState(createDrafts);
   const [guard] = useState(() => createPermissionGuard());
@@ -208,6 +210,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
       <Header data={data}
         onGauge={() => { if (overlay === 'context') setOverlay('none'); else showContext(); }}
         onHistory={() => { if (overlay === 'history') setOverlay('none'); else showHistory(); }}
+        tasksOpen={tasksOpen} onTasks={() => setTasksOpen((o) => !o)}
         onMode={() => conv.setMode(data?.mode === 'compact' ? 'full' : 'compact')}
         onHide={() => conv.hide()} ref={el.header} />
       <NoticeBar notice={notice} onClose={() => setNotice(null)} ref={el.notice} />
@@ -216,6 +219,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
         <main id="thread" className="scroll" ref={el.thread}>
           {data ? <ThreadContent key={data.key} data={data} act={act} /> : null}
         </main>
+        {tasksOpen && data?.tasks ? <TasksPane tasks={data.tasks} onOpenLink={conv.openLink} onShowFile={conv.showFile} /> : null}
         <HistoryList open={overlay === 'history'} sessions={sessions} onOpen={(id) => { setOverlay('none'); conv.open(id); }} />
         <ContextDetail open={overlay === 'context'} probe={probe} ref={el.context}
           canCompact={live && !isBusy(data!.status)}

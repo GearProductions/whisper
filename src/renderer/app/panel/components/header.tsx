@@ -1,5 +1,5 @@
 /** header — l'en-tête du panneau : pastille, intitulé, agent et dossier, jauge
- *  du contexte, Historique (agrandi), agrandir / réduire, fermer.
+ *  du contexte, Tâches (s'il y en a), Historique (agrandi), agrandir / réduire, fermer.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : panel-app. */
 import type { CSSProperties, RefObject } from 'react';
 import { gauge, titleOf } from 'core/conversation';
@@ -9,14 +9,17 @@ type Props = {
   data: Thread | null;
   onGauge(): void;
   onHistory(): void;
+  tasksOpen: boolean;
+  onTasks(): void;
   onMode(): void;
   onHide(): void;
   ref: RefObject<HTMLElement | null>;
 };
 
-export function Header({ data, onGauge, onHistory, onMode, onHide, ref }: Props) {
+export function Header({ data, onGauge, onHistory, tasksOpen, onTasks, onMode, onHide, ref }: Props) {
   const g = gauge(data?.context);
   const compact = data?.mode === 'compact';
+  const running = data?.tasks?.filter((t) => t.status === 'running').length || 0;
   return (
     <header ref={ref}>
       <span id="dot" />
@@ -29,6 +32,8 @@ export function Header({ data, onGauge, onHistory, onMode, onHide, ref }: Props)
         <svg viewBox="0 0 36 36" aria-hidden="true"><circle className="ring-bg" cx="18" cy="18" r="15" /><circle className="ring" cx="18" cy="18" r="15" /></svg>
         <span id="context-label">{g.label}</span>
       </button>
+      <button id="tasks-button" type="button" title="Les tâches de fond de l'agent" hidden={!data?.tasks?.length}
+        aria-pressed={tasksOpen} onClick={onTasks}>⚙ Tâches{running ? ` (${running})` : ''}</button>
       {/* L'historique : en agrandi seulement. */}
       <button id="history-button" type="button" title="Les conversations passées de ce dossier" hidden={compact} onClick={onHistory}>🕘 Historique</button>
       <button id="mode" type="button" onClick={onMode}

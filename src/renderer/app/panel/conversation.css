@@ -26,7 +26,7 @@ header {
 #title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #sub { font-size: 11px; color: #8a91a0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-#history-button, #resume {
+#history-button, #tasks-button, #resume {
   flex: none;
   padding: 4px 10px;
   border-radius: 6px;
@@ -36,7 +36,7 @@ header {
   font: 12px/1.4 system-ui, sans-serif;
   cursor: pointer;
 }
-#history-button:hover, #resume:hover:not(:disabled) { border-color: var(--accent); }
+#history-button:hover, #tasks-button:hover, #tasks-button[aria-pressed="true"], #resume:hover:not(:disabled) { border-color: var(--accent); }
 #resume:disabled { opacity: 0.5; cursor: default; }
 
 /* Ancienne conversation : un bandeau, et de quoi la reprendre. */
@@ -58,6 +58,25 @@ header {
 
 #body { position: relative; flex: 1 1 auto; min-height: 0; display: flex; }
 #thread { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 16px; }
+
+/* Tâches de fond : un volet à droite du fil, qui défile seul (la hauteur
+   réduite ne se mesure que sur le fil). */
+#tasks { flex: 0 0 42%; min-width: 220px; max-width: 360px; overflow-y: auto; border-left: 1px solid #2a3142; padding: 10px 12px; font-size: 12px; }
+#tasks .hint { color: #8a91a0; }
+.task { margin: 0 0 12px; padding: 0 0 10px; border-bottom: 1px solid #2a3142; overflow-wrap: anywhere; }
+.task-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-weight: 600; }
+.task .mark { color: #8a91a0; }
+.task[data-status="running"] .mark { color: var(--accent); animation: pulse 0.8s ease-in-out infinite alternate; }
+.task[data-status="completed"] .mark { color: #3fb950; }
+.task[data-status="failed"] .mark { color: #d9383a; }
+.task .elapsed { margin-left: auto; font-weight: 400; color: #6b7282; font-variant-numeric: tabular-nums; }
+.task code { display: block; margin: 4px 0; color: #b8bdc8; font: 11.5px/1.4 ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace; }
+.task-line { margin: 4px 0; color: #b8bdc8; }
+.task a { color: #7fb0ff; text-decoration: underline; cursor: pointer; }
+.task summary { margin-top: 4px; color: #8a91a0; cursor: pointer; }
+.task pre { max-height: 160px; overflow: auto; margin: 4px 0; font-size: 11.5px; }
+.task button { margin-top: 4px; padding: 2px 8px; border-radius: 6px; border: 1px solid #3a4150; background: #2a3142; color: #e6e8ee; font: 11px/1.4 system-ui, sans-serif; cursor: pointer; }
+.task button:hover { border-color: var(--accent); }
 
 /* Historique du dossier : un panneau posé sur le fil, à droite. */
 #history {
@@ -98,7 +117,7 @@ header {
 .who { margin-bottom: 4px; font-size: 11px; font-weight: 600; color: #8a91a0; }
 .message.assistant .who { color: var(--accent); }
 .body { white-space: pre-wrap; overflow-wrap: anywhere; }
-.body pre {
+.body pre, .task pre {
   margin: 8px 0;
   padding: 8px 10px;
   border-radius: 6px;
@@ -318,7 +337,7 @@ body { box-sizing: border-box; border: 1px solid #3a4150; }
 @keyframes pulse { to { opacity: 0.25; } }
 
 /* Réduit : le dernier échange, sans l'historique. */
-#history-button[hidden] { display: none; }
+#history-button[hidden], #tasks-button[hidden] { display: none; }
 #mode {
   flex: none;
   width: 28px;
