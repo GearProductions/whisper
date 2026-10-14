@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectLanguage, oneLine, splitCommand } from 'helpers';
+import { detectLanguage, oneLine, splitCommand, tail } from 'helpers';
 
 describe('splitCommand', () => {
   it('arguments et guillemets', () => {
@@ -25,3 +25,9 @@ describe('detectLanguage', () => {
 });
 
 it('oneLine', () => expect(oneLine('  a\n\tb  c ')).toBe('a b c'));
+
+it('tail', () => {
+  expect(tail('a\nb\nc\n\n', 2, 100)).toBe('b\nc');
+  expect(tail('a\nbcdef', 5, 3)).toBe('def');
+  expect(tail('', 3, 10)).toBe('');
+});
