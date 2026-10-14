@@ -5,24 +5,42 @@
  *  fichier). Ce qui est copié est le dernier texte dicté, jamais un texte de la
  *  page (I-3) ; une ancienne conversation se lit, ne reçoit rien, et seules
  *  celles du dossier s'ouvrent (I-22).
+ *  Les tâches de fond de la conversation en cours, avec la fin de leur sortie,
+ *  suivies au rythme du fil tant qu'une tourne et que le panneau est visible.
  *  Ne connaît pas : la fenêtre elle-même (windows/panel-window).
  *  Utilisé par : app/ipc, controllers/agents. */
 import fs from 'node:fs';
 import { shell } from 'electron';
 import type { ConvMode } from 'shared/bridge';
-import { permissionView, prepareDraft, relativeTo, splitComposed, toolSummary, withSent } from 'core/conversation';
+import { permissionView, prepareDraft, relativeTo, splitComposed, taskViews, toolSummary, withSent } from 'core/conversation';
 import { agentColor } from 'core/config';
 import { showableFile, webUrl } from 'core/guards';
+import { tail } from 'helpers';
 import { prepareImage, thumbnail } from 'technicals/images';
 import * as clipboard from 'technicals/clipboard';
 import { agentInstructions, loadConfig, updateAgent } from 'app/settings';
 import { state } from 'app/state';
-import { deliverPending, hideConversation, openConversation, sendToIcon } from 'app/windows';
+import { conversationShown, deliverPending, hideConversation, openConversation, sendToIcon } from 'app/windows';
 import { agents, CLAUDE_MISSING, isBusy, liveViewAgent, pushAgents, sendToAgent, sessions, viewAgent } from './agents';
 
 const DICTATION_COLOR = '#3b6fe0';
 const CONV_PROGRESS_MS = 800;
 let progressTimer: ReturnType<typeof setTimeout> | null = null;
+const TAIL_BYTES = 16384;
+
+// La fin d'un fichier de sortie (ses 16 derniers Ko) ; null s'il manque ou ne
+// se lit pas : le fil n'attend pas (I-29).
+function readTail(file: string) {
+  try {
+    const fd = fs.openSync(file, 'r');
+    try {
+      const size = fs.fstatSync(fd).size;
+      const buf = Buffer.alloc(Math.min(size, TAIL_BYTES));
+      fs.readSync(fd, buf, 0, buf.length, size - buf.length);
+      return tail(buf.toString('utf8'), 40, 4000);
+    } finally { fs.closeSync(fd); }
+  } catch { return null; }
+}
 
 // Le contexte « Dictée » : le dernier texte dicté, sans champ ni historique.
 function showDictation() {
@@ -66,12 +84,15 @@ export async function refreshConversation() {
   if (st.contextWindow && st.contextWindow !== agent.contextWindow) updateAgent(agent.id, { contextWindow: st.contextWindow });
   const contextUsed = Number.isFinite(shown.contextTokens) ? shown.contextTokens : st.contextUsed;
   const pending = view.sessionId ? null : agents.pendingPermission(agent.id);
+  // Les tâches de fond : celles de la conversation en cours seulement.
+  const tasks = view.sessionId ? undefined : taskViews(agents.tasks(agent.id), agent.dir, readTail);
   state.panel.webContents.send('conv:thread', {
     context: { used: Number.isFinite(contextUsed) ? contextUsed : null, max: st.contextWindow || agent.contextWindow || 200000 },
     mode: state.convMode, key: view.sessionId ? `${agent.id}:${view.sessionId}` : agent.id, live: !view.sessionId,
     name: agent.name, color: agentColor(agent, cfg), dir: agent.dir, title, status: st.status, since: st.since,
     // La demande d'autorisation de l'agent, à valider dans le fil.
     permission: pending ? permissionView(agent.name, pending) : null,
+    tasks,
     messages: shown.map((m) => {
       const { text, selection: context, files } = m.role === 'user' ? splitComposed(m.text) : { text: m.text, selection: '', files: [] };
       return {
@@ -81,6 +102,8 @@ export async function refreshConversation() {
       };
     }),
   });
+  // Une tâche tourne, panneau visible : sa sortie et son temps suivent, au rythme du fil.
+  if (tasks?.some((t) => t.status === 'running') && conversationShown()) conversationProgress();
   deliverPending();
 }
 
