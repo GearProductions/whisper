@@ -2,8 +2,8 @@
 
 Comportement de l'appli (état de la **0.4.0**, inchangé en **0.5.0**, où les
 pages et le principal passent en TypeScript, les pages en React ; corrections
-de la **0.5.1** ; nouveautés de la **0.6.0** ; processus des agents refait en
-**0.7.0**) : ce qu'elle fait, ce qu'elle ne doit
+de la **0.5.1** ; nouveautés de la **0.6.0** ; processus des agents refait et
+volet des tâches de fond en **0.7.0**) : ce qu'elle fait, ce qu'elle ne doit
 jamais faire, et comment le vérifier. C'est la référence de la refonte : une
 migration est réussie quand chaque règle ci-dessous tient encore.
 
