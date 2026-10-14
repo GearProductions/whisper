@@ -43,6 +43,7 @@ export type AgentView = {
   selected: boolean;
   status: AgentStatus;
   unread: boolean;
+  tasks: number;        // tâches de fond en cours (commande, surveillance, sous-agent…)
 };
 export type AgentsState = { enabled: boolean; agents?: AgentView[] };
 
@@ -104,6 +105,22 @@ export type Message = {
 
 export type ContextUse = { used: number | null; max: number };
 
+// Une tâche de fond de l'agent, telle que le volet « Tâches » la montre.
+export type TaskStatus = 'running' | 'completed' | 'failed' | 'stopped';
+export type TaskView = {
+  id: string;
+  kind: string;                 // « Commande », « Surveillance », « Sous-agent »…
+  description: string;          // ce que l'agent en dit, en langage humain
+  command: string | null;       // la commande, chemins raccourcis (null : pas une commande)
+  status: TaskStatus;
+  started: number;
+  ended: number | null;
+  progress: string | null;      // une ligne d'avancement (sous-agent, surveillance)
+  summary: string | null;       // le résumé de fin, tel que Claude Code le notifie
+  outputFile: string | null;    // le fichier où Claude Code écrit sa sortie (montré, jamais ouvert)
+  output: string | null;        // ses dernières lignes
+};
+
 export type Thread = {
   dictation?: boolean;  // contexte « Dictée »
   mode: ConvMode;
@@ -117,6 +134,7 @@ export type Thread = {
   since?: number | null;
   context?: ContextUse;
   permission?: Permission | null;
+  tasks?: TaskView[];   // conversation en cours : ses tâches de fond, les plus récentes en tête
   messages: Message[];
 };
 
