@@ -1,6 +1,11 @@
-/** runtime — les agents au travail. Un tour = un appel query() du SDK : le
- *  premier crée la session, les suivants la reprennent (`resume`). « Nouvelle
- *  session » oublie simplement l'identifiant.
+/** runtime — les agents au travail. Un processus Claude Code par agent, lancé
+ *  au premier message et gardé entre les tours : les messages suivants passent
+ *  par son entrée (une file ouverte tant qu'il vit). Une tâche de fond survit
+ *  ainsi au tour qui l'a lancée ; sa notification fait parfois repartir
+ *  l'agent de lui-même : c'est un tour comme un autre, dont la réponse arrive
+ *  non lue. Le premier processus crée la session, les suivants la reprennent
+ *  (`resume`). Ce qu'un processus vivant ne peut pas changer (dossier, effort,
+ *  consigne, commande : launchKey) le fait relancer au message suivant.
  *
  *  Mode « manuel » : l'agent demande l'autorisation avant d'agir (canUseTool) ;
  *  la demande remonte à l'appli, qui répond par answer(). Plusieurs demandes
@@ -8,13 +13,15 @@
  *  FILE et se montrent l'une après l'autre. Une demande sans réponse bloque
  *  Claude Code indéfiniment : aucune ne doit se perdre (I-17).
  *
- *  Le mode et le modèle changés en cours de tour s'appliquent aussitôt
- *  (setMode, setModel). Interrompre = demander à Claude Code d'arrêter ; on ne
- *  tue qu'en dernier recours (I-19).
+ *  Le mode et le modèle changés s'appliquent aussitôt au processus, tour en
+ *  cours ou non (setMode, setModel). Interrompre = demander à Claude Code
+ *  d'arrêter son tour ; fermer = fermer son entrée ; on ne tue qu'en dernier
+ *  recours (I-19).
  *  Ne connaît pas : Electron, les fenêtres ; SDK, lancement et journal injectés.
- *  Utilisé par : app/controllers/agents. */
+ *  Utilisé par : app/controllers (agents, conversation), app/lifecycle. */
+import { createQueue, type AsyncQueue } from 'helpers/async-queue';
 import { AUDIO_RULES, EDIT_TOOLS, MODES } from './constants';
-import { prompt, queryOptions } from './options';
+import { launchKey, queryOptions, userMessage } from './options';
 import { describeRules, sessionRules, type SessionRule } from './permissions';
 import { shortTarget, splitReply } from './reply';
 import type { AgentConfig, JournalFn, Launch, OutgoingMessage, Sdk, SdkMessage, SdkQuery, TurnHooks } from './types';
@@ -23,18 +30,20 @@ export type AgentStatus = 'idle' | 'working' | 'asking' | 'error';
 export type Reply = { text: string; audio: string; error?: boolean; asked: string };
 type Response = Record<string, unknown>;
 type Pending = { key: number; tool: string; input: unknown; rules: SessionRule[]; resolve: (r: Response) => void; at: number };
+// Le processus de l'agent : `input` son entrée, `key` sa launchKey, `ended` sa fin.
+type Proc = { id: string; query: SdkQuery; input: AsyncQueue<SdkMessage>; abort: AbortController; key: string; ended: Promise<void> };
+// Le tour en cours : `asked` le message envoyé ('' : tour commencé par l'agent).
+type Turn = { asked: string; since: number; resolve: () => void; permissionFailures: number; interrupted: boolean };
 type Runtime = {
   status: AgentStatus;
-  abort: AbortController | null;
-  query: SdkQuery | null;
+  process: Proc | null;
+  turn: Turn | null;
+  hooks: TurnHooks | null; // ceux du dernier send : le processus les sert entre les tours
   pending: Pending[];
   last: Reply | null;
   sent?: OutgoingMessage | null;
   unread: boolean;
-  onChange: (() => void) | null;
   name?: string;
-  since?: number | null;
-  interrupted?: boolean;
   contextWindow?: number | null;
   contextUsed?: number | null;
 };
@@ -51,12 +60,14 @@ const PROBE_MS = 30000;
 export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) {
   // id → état ; `pending` : la file des demandes d'autorisation, la plus ancienne en tête.
   const runtime = new Map<string, Runtime>();
+  const closing = new Set<Promise<void>>(); // processus en train de sortir (cf. close) : la fermeture de l'appli les attend
   let nextKey = 1; // numéro des demandes d'autorisation (cf. answer)
 
   const rt = (id: string) => {
-    if (!runtime.has(id)) runtime.set(id, { status: 'idle', abort: null, query: null, pending: [], last: null, unread: false, onChange: null });
+    if (!runtime.has(id)) runtime.set(id, { status: 'idle', process: null, turn: null, hooks: null, pending: [], last: null, unread: false });
     return runtime.get(id)!;
   };
+  const changed = (r: Runtime) => { if (r.hooks) r.hooks.onChange(); };
 
   // `since` : début du tour en cours (ms), pour le temps écoulé ; `contextWindow` :
   // la taille de la fenêtre de contexte, connue après un tour (ou une sonde).
@@ -64,7 +75,7 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
   const state = (id: string) => {
     const r = rt(id);
     return {
-      status: r.status, unread: r.unread, hasReply: !!r.last, since: r.since || null,
+      status: r.status, unread: r.unread, hasReply: !!r.last, since: r.turn ? r.turn.since : null,
       contextWindow: r.contextWindow || null, contextUsed: Number.isFinite(r.contextUsed) ? r.contextUsed! : null,
     };
   };
@@ -79,95 +90,49 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     return true;
   }
 
-  // Envoie `message` à l'agent. Résout quand le tour est fini ; rejette 'busy'
-  // ou 'notInstalled'. `instructions` : la consigne ajoutée au prompt système
-  // (AUDIO_RULES par défaut ; '' : aucune).
-  async function send(agent: AgentConfig, message: OutgoingMessage, { command, instructions = AUDIO_RULES, onChange, onSession, onPermission, onProgress = () => {} }: TurnHooks) {
-    const r = rt(agent.id);
-    if (r.status === 'working' || r.status === 'asking') throw new Error('busy');
-    const launch = launcher(command);
-    if (!launch) throw new Error('notInstalled');
-    const sdk = await loadSdk();
-
-    r.status = 'working';
-    r.name = agent.name;
-    // Le message envoyé, gardé avec la réponse : une commande (« /context ») s'y
-    // reconnaît (cf. app/controllers/conversation).
-    const asked = message.text || '';
-    r.sent = message; // affiché tant que la transcription ne l'a pas (cf. core/conversation)
-    r.since = Date.now();
-    const abort = new AbortController();
-    r.abort = abort;
-    r.onChange = onChange;
-    onChange();
-
-    // Une demande d'autorisation : en file. Claude Code peut l'annuler lui-même
-    // (`signal` : outil abandonné, tour interrompu) — elle quitte alors la file.
-    const ask = (tool: string, input: unknown, { suggestions, signal }: { suggestions?: unknown; signal?: AbortSignal } = {}) => new Promise<Response>((resolve) => {
-      const p: Pending = { key: nextKey++, tool, input, rules: sessionRules(suggestions), resolve, at: Date.now() };
-      r.pending.push(p);
-      r.status = 'asking';
-      journal(agent, 'autorisation demandée', `${tool} ${shortTarget(input)} (${r.pending.length} en attente)`);
-      if (signal) {
-        signal.addEventListener('abort', () => {
-          const head = r.pending[0] === p;
-          if (!settle(r, p, { behavior: 'deny', message: 'Annulé.' })) return;
-          journal(agent, 'autorisation annulée par Claude Code', `${tool} ${shortTarget(input)}`);
-          onChange();
-          if (head && r.pending[0]) onPermission(r.pending[0]); // la suivante prend sa place
-        }, { once: true });
-      }
-      onChange();
-      // Le panneau montre la tête de file : on ne prévient que pour la première.
-      if (r.pending[0] === p) onPermission({ tool, input });
-    });
-
-    let reply: string | null = null;
-    let failure: string | null = null;
-    let permissionFailures = 0;
-    try {
-      const q = sdk.query({
-        prompt: prompt(message),
-        options: { ...queryOptions(agent, launch, instructions), abortController: abort, canUseTool: ask },
-      });
-      r.query = q;
-      journal(agent, 'tour commencé', `mode ${agent.mode || 'default'}${agent.sessionId ? `, reprise ${agent.sessionId.slice(0, 8)}` : ', nouvelle session'}`);
-      for await (const m of q) {
-        if (m.type === 'assistant' || m.type === 'user') onProgress();
-        // Un outil refusé faute d'avoir pu demander l'autorisation (Claude Code ne
-        // reçoit plus les réponses) : à signaler, c'est le symptôme d'un blocage.
-        if (m.type === 'user' && Array.isArray(m.message && m.message.content)) {
-          for (const b of m.message.content) {
-            const text = b && b.type === 'tool_result' ? JSON.stringify(b.content || '') : '';
-            if (text.includes('Tool permission request failed') && !r.interrupted && !abort.signal.aborted) {
-              permissionFailures++;
-              journal(agent, 'ÉCHEC d\'une demande d\'autorisation', text.slice(0, 200));
-            }
-          }
-        }
-        if (m.type === 'system' && m.subtype === 'init' && m.session_id) onSession(m.session_id);
-        if (m.type === 'result') {
-          const windows = Object.values((m.modelUsage || {}) as Record<string, SdkMessage>).map((u) => u.contextWindow).filter(Number.isFinite);
-          if (windows.length) r.contextWindow = Math.max(...windows);
-          if (m.subtype === 'success' && !m.is_error) reply = m.result;
-          else failure = m.subtype === 'success' ? String(m.result || 'erreur') : m.subtype;
-        }
-      }
-    } catch (err) {
-      failure = abort.signal.aborted ? 'interrupted' : (err instanceof Error && err.message) || 'erreur';
+  // Une demande d'autorisation : en file. Claude Code peut l'annuler lui-même
+  // (`signal` : outil abandonné, tour interrompu) — elle quitte alors la file.
+  // Une par processus ; prévient par les hooks du dernier send.
+  const asker = (r: Runtime, id: string) => (tool: string, input: unknown, { suggestions, signal }: { suggestions?: unknown; signal?: AbortSignal } = {}) => new Promise<Response>((resolve) => {
+    const p: Pending = { key: nextKey++, tool, input, rules: sessionRules(suggestions), resolve, at: Date.now() };
+    const who = { id, name: r.name };
+    r.pending.push(p);
+    r.status = 'asking';
+    journal(who, 'autorisation demandée', `${tool} ${shortTarget(input)} (${r.pending.length} en attente)`);
+    if (signal) {
+      signal.addEventListener('abort', () => {
+        const head = r.pending[0] === p;
+        if (!settle(r, p, { behavior: 'deny', message: 'Annulé.' })) return;
+        journal(who, 'autorisation annulée par Claude Code', `${tool} ${shortTarget(input)}`);
+        changed(r);
+        if (head && r.pending[0]) r.hooks!.onPermission(r.pending[0]); // la suivante prend sa place
+      }, { once: true });
     }
+    changed(r);
+    // Le panneau montre la tête de file : on ne prévient que pour la première.
+    if (r.pending[0] === p) r.hooks!.onPermission({ tool, input });
+  });
+
+  function begin(r: Runtime, id: string, asked: string, resolve: () => void) {
+    r.turn = { asked, since: Date.now(), resolve, permissionFailures: 0, interrupted: false };
+    r.status = 'working';
+    journal({ id, name: r.name }, 'tour commencé', asked ? '' : 'par l\'agent lui-même (tâche de fond)');
+    changed(r);
+  }
+
+  // Fin du tour en cours : `reply` la réponse, ou `failure` la raison de l'échec.
+  function end(r: Runtime, id: string, reply: string | null, failure: string | null) {
+    const t = r.turn!;
+    r.turn = null;
     // Interrompu à notre demande : Claude Code finit son tour par une erreur ou
     // une réponse partielle, c'est une interruption.
-    if (r.interrupted) { failure = 'interrupted'; reply = null; }
+    if (t.interrupted) { failure = 'interrupted'; reply = null; }
     // Fin du tour : une demande restée sans réponse n'a plus d'objet.
     for (const p of [...r.pending]) settle(r, p, { behavior: 'deny', message: 'Tour terminé.' });
-    journal(agent, 'tour fini', `${reply !== null ? 'réponse' : failure} en ${Math.round((Date.now() - r.since!) / 1000)} s`
-      + `${permissionFailures ? `, ${permissionFailures} demande(s) d'autorisation en échec` : ''}`);
-    r.abort = null;
-    r.query = null;
-    r.since = null;
+    journal({ id, name: r.name }, 'tour fini', `${reply !== null ? 'réponse' : failure} en ${Math.round((Date.now() - t.since) / 1000)} s`
+      + `${t.permissionFailures ? `, ${t.permissionFailures} demande(s) d'autorisation en échec` : ''}`);
     r.sent = null;
-    r.interrupted = false;
+    const { asked } = t;
     // Après /compact, la dernière mesure du contexte ne vaut plus.
     if (/^\/compact\b/.test(asked)) r.contextUsed = null;
     // Une commande sans réponse écrite (/compact…) : on dit qu'elle est faite.
@@ -175,8 +140,8 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     if (reply !== null) {
       r.last = { ...splitReply(reply), asked };
       // Dit dans la réponse elle-même qu'une action n'a pas pu être autorisée.
-      if (permissionFailures) {
-        r.last.text += `\n\n⚠ ${permissionFailures} demande(s) d'autorisation n'ont pas pu aboutir : l'agent n'a pas pu faire ces actions (détails dans le journal des agents).`;
+      if (t.permissionFailures) {
+        r.last.text += `\n\n⚠ ${t.permissionFailures} demande(s) d'autorisation n'ont pas pu aboutir : l'agent n'a pas pu faire ces actions (détails dans le journal des agents).`;
       }
       r.status = 'idle';
     } else {
@@ -190,7 +155,81 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
       r.status = failure === 'interrupted' ? 'idle' : 'error';
     }
     r.unread = true;
-    onChange();
+    changed(r);
+    t.resolve();
+  }
+
+  // Lit le processus jusqu'à sa fin. Mort (de lui-même, fermé ou tué), il est
+  // oublié : le message suivant en relance un.
+  async function loop(r: Runtime, id: string, proc: Proc) {
+    let failure = 'erreur';
+    try {
+      for await (const m of proc.query) {
+        if (m.type === 'system' && m.subtype === 'init' && m.session_id) r.hooks!.onSession(m.session_id);
+        // L'agent repart sans message de notre part (une tâche de fond l'a notifié).
+        if (m.type === 'assistant' && !r.turn) begin(r, id, '', () => {});
+        if (m.type === 'assistant' || m.type === 'user') r.hooks!.onProgress?.();
+        // Un outil refusé faute d'avoir pu demander l'autorisation (Claude Code ne
+        // reçoit plus les réponses) : à signaler, c'est le symptôme d'un blocage.
+        if (m.type === 'user' && r.turn && Array.isArray(m.message && m.message.content)) {
+          for (const b of m.message.content) {
+            const text = b && b.type === 'tool_result' ? JSON.stringify(b.content || '') : '';
+            if (text.includes('Tool permission request failed') && !r.turn.interrupted && !proc.abort.signal.aborted) {
+              r.turn.permissionFailures++;
+              journal({ id, name: r.name }, 'ÉCHEC d\'une demande d\'autorisation', text.slice(0, 200));
+            }
+          }
+        }
+        if (m.type === 'result') {
+          const windows = Object.values((m.modelUsage || {}) as Record<string, SdkMessage>).map((u) => u.contextWindow).filter(Number.isFinite);
+          if (windows.length) r.contextWindow = Math.max(...windows);
+          if (!r.turn) continue;
+          if (m.subtype === 'success' && !m.is_error) end(r, id, m.result, null);
+          else end(r, id, null, m.subtype === 'success' ? String(m.result || 'erreur') : m.subtype);
+        }
+      }
+    } catch (err) {
+      failure = (err instanceof Error && err.message) || failure;
+    }
+    if (r.process === proc) r.process = null;
+    journal({ id, name: r.name }, 'processus terminé', proc.abort.signal.aborted ? 'tué' : '');
+    if (r.turn) end(r, id, null, proc.abort.signal.aborted ? 'interrupted' : failure);
+  }
+
+  // Envoie `message` à l'agent. Résout quand le tour est fini ; rejette 'busy'
+  // ou 'notInstalled'. `instructions` : la consigne ajoutée au prompt système
+  // (AUDIO_RULES par défaut ; '' : aucune).
+  async function send(agent: AgentConfig, message: OutgoingMessage, hooks: TurnHooks) {
+    const { command, instructions = AUDIO_RULES } = hooks;
+    const r = rt(agent.id);
+    if (r.turn) throw new Error('busy');
+    const launch = launcher(command);
+    if (!launch) throw new Error('notInstalled');
+    const sdk = await loadSdk();
+    r.hooks = hooks;
+    r.name = agent.name;
+    const key = launchKey(agent, command, instructions);
+    if (r.process && r.process.key !== key) await close(agent.id);
+    if (r.process) {
+      await r.process.query.setPermissionMode(agent.mode || 'default').catch(() => {});
+      await r.process.query.setModel(agent.model || undefined).catch(() => {});
+    }
+    if (r.turn) throw new Error('busy'); // un autre send est passé pendant l'attente
+
+    if (!r.process) {
+      const input = createQueue<SdkMessage>();
+      const abort = new AbortController();
+      const query = sdk.query({ prompt: input, options: { ...queryOptions(agent, launch, instructions), abortController: abort, canUseTool: asker(r, agent.id) } });
+      r.process = { id: agent.id, query, input, abort, key, ended: Promise.resolve() };
+      r.process.ended = loop(r, agent.id, r.process); // ne lit rien avant le tour ouvert ci-dessous (pas d'await entre)
+      journal(agent, 'processus lancé', `mode ${agent.mode || 'default'}${agent.sessionId ? `, reprise ${agent.sessionId.slice(0, 8)}` : ', nouvelle session'}`);
+    }
+    // Le message envoyé, gardé avec la réponse : une commande (« /context ») s'y
+    // reconnaît (cf. app/controllers/conversation).
+    r.sent = message; // affiché tant que la transcription ne l'a pas (cf. core/conversation)
+    const done = new Promise<void>((resolve) => begin(r, agent.id, message.text || '', resolve));
+    r.process.input.push(userMessage(message));
+    return done;
   }
 
   // Réponse à la demande en tête de file : 'allow', 'always' (ne plus demander,
@@ -205,7 +244,7 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
       : { behavior: 'allow', updatedInput: p.input, ...(decision === 'always' && p.rules.length ? { updatedPermissions: p.rules } : {}) });
     journal({ id, name: r.name }, 'autorisation répondue', `${decision} ${p.tool} ${shortTarget(p.input)} après ${Math.round((Date.now() - p.at) / 1000)} s`
       + `${r.pending.length ? ` (${r.pending.length} encore en attente)` : ''}`);
-    if (r.onChange) r.onChange();
+    changed(r);
     return true;
   }
 
@@ -218,61 +257,77 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     return { key: p.key, tool: p.tool, input: p.input, always: describeRules(p.rules), waiting: r.pending.length - 1 };
   }
 
-  // Mode changé : le tour en cours le suit aussitôt. Une demande en attente que
-  // le nouveau mode n'aurait pas posée (modifier un fichier, passé en
-  // « accepter les modifications ») est accordée.
+  // Mode changé : le processus le suit aussitôt, tour en cours ou non. Une
+  // demande en attente que le nouveau mode n'aurait pas posée (modifier un
+  // fichier, passé en « accepter les modifications ») est accordée.
   function setMode(id: string, mode: string) {
     const r = runtime.get(id);
-    if (!r || !r.query || !MODES.some(([v]) => v === mode)) return;
-    r.query.setPermissionMode(mode).catch(() => { /* tour fini entre-temps */ });
+    if (!r || !r.process || !MODES.some(([v]) => v === mode)) return;
+    r.process.query.setPermissionMode(mode).catch(() => { /* processus fini entre-temps */ });
     if (mode !== 'acceptEdits') return;
     for (const p of r.pending.filter((x) => EDIT_TOOLS.has(x.tool))) settle(r, p, { behavior: 'allow', updatedInput: p.input });
-    if (r.onChange) r.onChange();
+    changed(r);
   }
 
-  // Modèle changé : pris en compte dès le prochain appel du tour en cours.
+  // Modèle changé : pris en compte dès le prochain appel du processus.
   function setModel(id: string, model: string) {
     const r = runtime.get(id);
-    if (r && r.query) r.query.setModel(model || undefined).catch(() => {});
+    if (r && r.process) r.process.query.setModel(model || undefined).catch(() => {});
   }
 
   // Interrompre : c'est Claude Code qui arrête son tour (query.interrupt), et
-  // avec lui les commandes qu'il a lancées ; il se ferme ensuite de lui-même.
+  // avec lui les commandes qu'il a lancées ; le processus, lui, reste.
   // Tuer le processus ne suffit pas : lancé par une commande enveloppe
   // (« distrobox enter dev -- claude »), seule l'enveloppe meurt — Claude Code et
   // sa commande continuent dans le conteneur, sans plus personne pour répondre à
   // ses demandes d'autorisation (« Stream closed »). On ne tue qu'en dernier
-  // recours, s'il n'a pas obéi au bout de INTERRUPT_GRACE_MS.
+  // recours, s'il n'a pas obéi au bout de INTERRUPT_GRACE_MS (le message suivant
+  // relance alors un processus).
   function interrupt(id: string) {
     const r = runtime.get(id);
     if (!r) return;
     for (const p of [...r.pending]) settle(r, p, { behavior: 'deny', message: 'Interrompu par l\'utilisateur.' });
-    const { abort, query } = r;
-    if (!abort || r.interrupted) return;
-    r.interrupted = true;
+    const { turn, process: proc } = r;
+    if (!turn || !proc || turn.interrupted) return;
+    turn.interrupted = true;
     journal({ id, name: r.name }, 'interruption demandée');
-    if (query) query.interrupt().catch(() => {});
-    const timer = setTimeout(() => {
-      if (r.abort !== abort) return; // tour fini entre-temps : Claude Code a obéi
-      journal({ id, name: r.name }, 'interruption FORCÉE', `Claude Code n'a pas arrêté son tour en ${INTERRUPT_GRACE_MS / 1000} s : processus tué (une commande enveloppe peut lui survivre)`);
-      abort.abort();
-    }, query ? INTERRUPT_GRACE_MS : 0);
-    if (timer.unref) timer.unref();
+    proc.query.interrupt().catch(() => {});
+    killLater(r, proc, () => r.turn === turn, 'interruption FORCÉE', `Claude Code n'a pas arrêté son tour en ${INTERRUPT_GRACE_MS / 1000} s : processus tué (une commande enveloppe peut lui survivre)`);
   }
 
-  // À la fermeture de l'appli : interrompt tous les agents, et résout quand leurs
-  // tours sont finis (ou au bout du délai de grâce, où ils ont été tués).
+  // Tue le processus après le délai de grâce, si `still()` dit qu'on l'attend encore.
+  function killLater(r: Runtime, proc: Proc, still: () => boolean, event: string, detail: string) {
+    const timer = setTimeout(() => {
+      if (!still()) return; // Claude Code a obéi entre-temps
+      journal({ id: proc.id, name: r.name }, event, detail);
+      proc.abort.abort();
+    }, INTERRUPT_GRACE_MS);
+    timer.unref?.();
+    return timer;
+  }
+
+  // Ferme le processus de l'agent : fin de son entrée, d'où Claude Code sort de
+  // lui-même (comme la sonde) ; tué s'il est encore là après INTERRUPT_GRACE_MS.
+  // Résout quand il est sorti. L'état de l'agent (dernière réponse…) est gardé.
+  function close(id: string): Promise<void> {
+    const r = runtime.get(id);
+    const proc = r && r.process;
+    if (!r || !proc) return Promise.resolve();
+    if (r.turn) interrupt(id);
+    proc.input.close();
+    const timer = killLater(r, proc, () => r.process === proc, 'fermeture FORCÉE', `Claude Code n'est pas sorti en ${INTERRUPT_GRACE_MS / 1000} s : processus tué`);
+    const ended = proc.ended.finally(() => { clearTimeout(timer); closing.delete(ended); });
+    closing.add(ended);
+    return ended;
+  }
+
+  // À la fermeture de l'appli : ferme tous les processus, et résout quand ils
+  // sont sortis (ou peu après le délai de grâce, où ils ont été tués).
   function stop() {
-    const busy = [...runtime.keys()].filter((id) => runtime.get(id)!.abort);
-    busy.forEach(interrupt);
-    return new Promise<void>((resolve) => {
-      const started = Date.now();
-      const check = () => {
-        if (busy.every((id) => !runtime.has(id) || !runtime.get(id)!.abort) || Date.now() - started > INTERRUPT_GRACE_MS + 1000) resolve();
-        else setTimeout(check, 100);
-      };
-      check();
-    });
+    return Promise.race([
+      Promise.all([...[...runtime.keys()].map(close), ...closing]).then(() => {}),
+      new Promise<void>((ok) => { const t = setTimeout(ok, INTERRUPT_GRACE_MS + 1000); if (t.unref) t.unref(); }),
+    ]);
   }
 
   async function askProbe(r: Runtime, q: SdkQuery) {
@@ -283,17 +338,16 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
   }
 
   // Les commandes de l'agent (« /compact », ses skills…) et le détail de son
-  // contexte. Agent au travail : demandé à son tour en cours. Sinon, Claude Code
+  // contexte. Processus vivant : c'est à lui qu'on demande. Sinon, Claude Code
   // est lancé le temps des deux questions, sans message : la conversation n'en
   // est pas touchée. Lance 'notInstalled' ou une erreur.
   async function probe(agent: AgentConfig, { command, instructions = AUDIO_RULES }: { command?: unknown; instructions?: string } = {}) {
     const r = rt(agent.id);
-    if (r.query) return askProbe(r, r.query);
+    if (r.process) return askProbe(r, r.process.query);
     const launch = launcher(command);
     if (!launch) throw new Error('notInstalled');
     const sdk = await loadSdk();
-    let release: () => void = () => {};
-    const held = (async function* wait() { await new Promise<void>((ok) => { release = ok; }); }()) as AsyncIterable<SdkMessage>;
+    const held = createQueue<SdkMessage>(); // entrée vide, fermée à la fin : Claude Code sort
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), PROBE_MS);
     const q = sdk.query({ prompt: held, options: { ...queryOptions(agent, launch, instructions), abortController: abort } });
@@ -301,7 +355,7 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
       return await askProbe(r, q);
     } finally {
       clearTimeout(timer);
-      release();
+      held.close();
       (async () => { try { for await (const _m of q) { /* Claude Code se ferme */ } } catch { /* déjà fermé */ } })();
     }
   }
@@ -315,12 +369,10 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     markRead: (id: string) => { rt(id).unread = false; },
     // Session changée : la dernière réponse connue était celle de l'autre.
     forgetReply: (id: string) => { const r = rt(id); r.last = null; r.unread = false; },
-    forget: (id: string) => { interrupt(id); runtime.delete(id); },
-    // Forme de la refonte « un processus par agent » (note refactor/0.7.0) :
-    // close(id) ferme le processus de l'agent (fin de son entrée, puis abort
-    // après le délai) en gardant son état ; active() compte les processus vivants.
-    close: async (_id: string): Promise<void> => {},
-    active: (): number => 0,
+    forget: (id: string) => { void close(id); runtime.delete(id); },
+    close,
+    // Le nombre de processus vivants, ceux qui sortent compris.
+    active: () => [...runtime.values()].filter((r) => r.process).length + closing.size,
     send,
     answer,
     pendingPermission,

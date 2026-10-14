@@ -1,4 +1,4 @@
-/** options — ce qu'on donne au SDK pour un tour : le message, et les options
+/** options — ce qu'on donne au SDK : un message, et les options
  *  d'un Claude Code lancé dans le dossier de l'agent (ses réglages, CLAUDE.md,
  *  skills), avec la consigne de l'appli dans le prompt système de NOS sessions
  *  seulement (I-24).
@@ -23,11 +23,6 @@ export function userMessage({ text, images = [] }: OutgoingMessage): SdkMessage 
 // setModel) ; la session, par close() quand on en reprend une autre.
 export const launchKey = (agent: AgentConfig, command: unknown, instructions: string) => (
   JSON.stringify([agent.dir, agent.effort || '', instructions, String(command || '')]));
-
-// Compatibilité le temps de la refonte du runtime : un prompt d'un seul message.
-export function prompt(message: OutgoingMessage): AsyncIterable<SdkMessage> {
-  return (async function* one() { yield userMessage(message); }());
-}
 
 export function queryOptions(agent: AgentConfig, launch: Launch, instructions: string) {
   return {
