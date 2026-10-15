@@ -235,7 +235,7 @@ describe('en ligne', () => {
 });
 
 describe('une note réelle : 0.7.0-taches-en-arriere-plan.md', () => {
-  const md = fs.readFileSync(path.resolve(__dirname, '../../../../../../docs/tickets/feat/0.7.0-taches-en-arriere-plan.md'), 'utf8');
+  const md = fs.readFileSync(path.resolve(__dirname, '../../../../../../docs/tickets/feat/0.7.0-taches-en-arriere-plan.md'), 'utf8').replace(/\r\n/g, '\n'); // Windows : la copie de travail est en CRLF
   // Le texte rendu, bloc après bloc ; le langage d'un bloc de code compris.
   const rendered = (blocks: Block[]): string[] => blocks.flatMap((b): string[] => {
     switch (b.kind) {
