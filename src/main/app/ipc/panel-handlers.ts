@@ -23,11 +23,19 @@ export const panelHandlers: HandlerTable<typeof PANEL_CHANNELS> = {
     'conv:answer': answerPermission,
     'conv:openLink': openLink,
     'conv:showFile': showFile,
+    // à brancher : app/controllers/vibecoder
+    'conv:vibeSet': () => {},
+    'conv:vibeMark': () => {},
+    'conv:vibeDraft': () => {},
+    'conv:vibeOpen': () => {},
+    'conv:vibeRefresh': () => {},
   },
   handle: {
     'conv:history': history,
     'conv:probe': probeAgent,
     'conv:copy': copyDictation,
     'conv:send': sendDraft,
+    // à brancher : app/controllers/vibecoder
+    'conv:vibeRun': () => ({ ok: false }),
   },
 };

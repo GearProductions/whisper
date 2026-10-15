@@ -3,7 +3,9 @@
  *  lecture d'une réponse par son rang, et envoie à l'agent affiché ce qu'on
  *  écrit dans son champ (le principal vérifie à qui). Répondre à une demande
  *  d'autorisation ne vaut que pour celle affichée. Copier ne transporte aucun
- *  texte : le principal copie le sien.
+ *  texte : le principal copie le sien. VibeCoder : le relevé de l'agent
+ *  affiché, ses actions désignées par leur id, ses fichiers par leur id dans
+ *  le relevé — aucun pont ne transporte un chemin.
  *  Ne connaît pas : le principal (seulement ses canaux). Chargé par le panneau. */
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { ConvApi } from 'shared/bridge';
@@ -39,6 +41,17 @@ const conv: ConvApi = {
   answer: (decision, key) => ipcRenderer.send('conv:answer', decision, key),
   openLink: (url) => ipcRenderer.send('conv:openLink', url),    // dans le navigateur
   showFile: (file) => ipcRenderer.send('conv:showFile', file),  // dans le gestionnaire de fichiers
+  // VibeCoder : le relevé de l'agent affiché (null : il est en conversation).
+  onVibe: (fn) => { ipcRenderer.on('conv:vibe', (_e, view) => fn(view)); },
+  // Une action par son id dans le relevé, avec ses arguments (le texte du
+  // champ, un rang, un hash…) : le principal vérifie chacun, construit le
+  // message et l'envoie à l'agent affiché → { ok, error }.
+  vibeRun: (action, args) => ipcRenderer.invoke('conv:vibeRun', action, args),
+  vibeSet: (patch) => ipcRenderer.send('conv:vibeSet', patch),               // Créer / Relire, Guide / Vibe, langue, modèle…
+  vibeMark: (target, verdict) => ipcRenderer.send('conv:vibeMark', target, verdict),  // ✓, ✗, ou oublier
+  vibeDraft: (op) => ipcRenderer.send('conv:vibeDraft', op),                 // brouillon de revue : ajouter, retirer
+  vibeOpen: (id) => ipcRenderer.send('conv:vibeOpen', id),                   // un fichier du relevé, par son id : jamais un chemin
+  vibeRefresh: () => ipcRenderer.send('conv:vibeRefresh'),                   // relever maintenant
 };
 
 contextBridge.exposeInMainWorld('conv', conv);

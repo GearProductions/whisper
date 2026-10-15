@@ -20,9 +20,10 @@ export const BUBBLE_CHANNELS = {
 
 export const PANEL_CHANNELS = {
   send: ['conv:ready', 'conv:speak', 'conv:open', 'conv:resume', 'conv:current', 'conv:mode', 'conv:height', 'conv:hide',
-    'conv:attach', 'conv:answer', 'conv:openLink', 'conv:showFile'],
-  invoke: ['conv:history', 'conv:probe', 'conv:copy', 'conv:send'],
-  events: ['conv:thread', 'conv:notice', 'conv:attached', 'conv:dictation', 'conv:focusInput'],
+    'conv:attach', 'conv:answer', 'conv:openLink', 'conv:showFile',
+    'conv:vibeSet', 'conv:vibeMark', 'conv:vibeDraft', 'conv:vibeOpen', 'conv:vibeRefresh'],
+  invoke: ['conv:history', 'conv:probe', 'conv:copy', 'conv:send', 'conv:vibeRun'],
+  events: ['conv:thread', 'conv:notice', 'conv:attached', 'conv:dictation', 'conv:focusInput', 'conv:vibe'],
 } as const;
 
 export type Channels = { send: readonly string[]; invoke: readonly string[]; events: readonly string[] };
