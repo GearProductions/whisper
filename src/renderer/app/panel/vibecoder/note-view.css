@@ -81,3 +81,4 @@
 .vc-dl[data-kind="removed"] .vc-dl-text { text-decoration: line-through; text-decoration-color: color-mix(in srgb, #f08a8b 70%, transparent); }
 .vc-dl[data-kind="removed"] .vc-dl-sign { color: #f08a8b; }
 .vc-dl-skip { margin: 3px 0; padding: 2px 0 2px 26px; background: rgba(255, 255, 255, 0.03); color: var(--vc-faint); font-family: system-ui, sans-serif; font-size: 11.5px; }
+.vc-note-refuse { padding: 4px 16px 0; }

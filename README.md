@@ -381,7 +381,15 @@ texte — la demande de feature, du pseudo-code, une question — prend celui du
 **champ** : dictez, puis cliquez ; le champ se vide une fois le message
 parti. 💬 sur un passage (de la note, d'une relecture) le cite dans le champ,
 à compléter puis envoyer. Pendant que l'agent travaille, les boutons
-attendent ; un bouton grisé dit pourquoi.
+attendent ; *⏹ Arrêter* l'interrompt (comme *Interrompre* de son menu) ; un
+bouton grisé dit pourquoi.
+
+**Ouvrir dans l'éditeur.** *Ouvrir* sur la note, un module, un test (à la
+ligne du cas : zed, VS Code, Cursor, VSCodium), un fichier d'un commit. En
+*Relire*, la PR n'est pas sur votre disque : l'appli écrit le fichier tel
+qu'il est dans la PR, en lecture seule, sous `vibecoder-out/<agent>/files/`,
+et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
+*GitHub ↗* (sa page, dans le navigateur).
 
 **Créer** — les étapes du guide :
 
@@ -419,10 +427,12 @@ relire* (celles où l'on vous demande) et un clic sur l'une d'elles. Elle est
 récupérée à part (`refs/vibecoder/pr/<n>`) : votre copie de travail ne bouge
 pas. Puis la note (*Relire la note* : les décisions à discuter), les
 invariants (les mêmes cartes en pseudo-code), les commits (*Relire les
-commits*, une carte par commit), le plan de test (*Plan de test à l'écran* :
-des cases à cocher pendant l'essai). ✗ et 💬 ajoutent une remarque au
-**brouillon de revue** (un par PR) : le texte du champ, sinon ce qu'on cite ;
-× la retire. Enfin le verdict (*Commenter* par défaut, *Approuver*, *Demander
+commits* — ou, sans IA, la liste des commits, leurs fichiers, leur diff —,
+une carte par commit), le plan de test (*Plan de test à l'écran* : des cases
+à cocher pendant l'essai). ✗ et 💬 ajoutent une remarque au **brouillon de
+revue** (un par PR) : le texte du champ, sinon ce qu'on cite ; elle se
+modifie sur place, × la retire. Une PR déjà fusionnée ou fermée se charge,
+mais il n'y a rien à relire : l'écran le dit. Enfin le verdict (*Commenter* par défaut, *Approuver*, *Demander
 des changements*) et *Publier la revue*, qui l'envoie sur GitHub telle
 quelle.
 
@@ -447,7 +457,10 @@ génère un module, relit un diff, une note ou des commits, vérifie
 l'alignement, fait la ponytail review. Restent dans la conversation, sur le
 modèle de l'agent : la note, la forme, les réponses aux questions,
 *Appliquer la revue*, *Générer les modules restants*, *Tout dérouler*, les
-releases — ces trois derniers, longs et coûteux. VibeCoder ne passe jamais un
+releases — ces trois derniers, longs et coûteux. Pour une étape qui tourne à
+part, vous pouvez choisir un modèle plus léger (ou plus fort) que le conseillé,
+le temps d'un clic : VibeCoder génère pour cela une variante de chaque skill
+(`<nom>--haiku`, `--sonnet`, `--opus`). VibeCoder ne passe jamais un
 agent sur Fable de lui-même : vous seul le faites (menu du robot, barre
 d'état, ou la pastille *✦ Fable · élevé* des étapes Note et Forme, pour les
 rédiger avec le plus de soin — plus cher).
@@ -476,8 +489,11 @@ lancement (ou en rouvrant le dossier par le menu). Un fichier d'actions
 illisible : les boutons d'origine ; vide (`[]`) : aucun bouton.
 
 **FR / EN** (en haut de l'écran ; réglage `vibeLang`) : la langue de l'écran,
-des boutons et des messages envoyés — l'agent répond et écrit ses relectures
-dans cette langue. Pour tous les agents. La conversation elle-même (fil,
+des boutons et des messages envoyés — l'agent écrit dans cette langue la
+note, ses questions, le plan de test, la relecture de la note. Ce qui touche au
+code reste en anglais : le pseudo-code des invariants, les relectures de diff
+et de commits, la ponytail review, la CI, les vérifications (les messages de
+commit et de PR suivent la convention du projet). Pour tous les agents. La conversation elle-même (fil,
 champ) reste en français.
 
 **Limites.** La note n'est trouvée que si le nom de la branche porte le

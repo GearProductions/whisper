@@ -11,7 +11,7 @@ allowed-tools: "Read, Bash(git status *), Bash(git log *), Bash(git rev-parse *)
 
 # Fold the fixups (guide §5.3)
 
-`$ARGUMENTS` = `<lang> <out>`. `lang`: language of your answer. `out`: the agent's output folder: nothing to write there.
+`$ARGUMENTS` = `<lang> <out>`. `lang`: the user's language, not used here — code-related work: your answer in English. `out`: the agent's output folder: nothing to write there.
 
 The user clicked « fold the fixups »: that click is the confirmation — don't ask again.
 
@@ -25,4 +25,4 @@ The user clicked « fold the fixups »: that click is the confirmation — don't
 
 Never push. Never `git push --force`.
 
-Answer in `lang`, 1 to 3 lines: how many commits were folded, the new log, the undo command.
+Answer in English, 1 to 3 lines: how many commits were folded, the new log, the undo command.

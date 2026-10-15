@@ -17,6 +17,7 @@ l'appli.
 | `actions.fr.json`, `actions.en.json` | les boutons, dans l'ordre d'affichage, pour chaque langue de l'écran (*FR* / *EN*) |
 | `plugin/.claude-plugin/plugin.json` | le plugin `vibecoder` que l'appli donne à Claude Code |
 | `plugin/skills/<nom>/SKILL.md` | un skill : son modèle, son effort, ses instructions |
+| `plugin/skills/<nom>--<modèle>/SKILL.md` | une variante générée d'un skill, sur un autre modèle (voir plus bas) : réécrite à chaque démarrage |
 | `README.md` | ce fichier |
 
 ## Les boutons : `actions.<langue>.json`
@@ -132,6 +133,28 @@ Modifiez les lignes `model:` et `effort:` de son en-tête. Le bouton affiche qui
 travaille d'après elles (« haiku », « opus · élevé »… ou « agent » sans
 `model`). Un skill qui tourne dans la conversation (sans `context: fork`) reste
 sans `model` : changer de modèle en cours de conversation en perd le cache.
+
+### Un modèle plus léger (ou plus fort) pour une étape
+
+Un bouton dont le skill tourne en sous-contexte (`context: fork`, sur `haiku`,
+`sonnet` ou `opus`) propose de choisir son modèle, le conseillé (celui de
+l'en-tête) d'abord. Pour cela, VibeCoder écrit à chaque démarrage, à côté de
+chaque tel skill `<nom>`, une variante par autre modèle :
+`plugin/skills/<nom>--<modèle>/SKILL.md` — même en-tête, ce modèle, son effort
+par défaut (haiku `low`, sonnet `medium`, opus `high`), et un corps qui suit
+`<nom>/SKILL.md`. Ces variantes sont **générées** : réécrites à chaque
+démarrage, ne les modifiez pas (modifiez le skill lui-même) ; les noms finissant
+par `--haiku`, `--sonnet` ou `--opus` leur sont réservés. Jamais Fable.
+
+### Langue
+
+Tout ce qui touche au code est en anglais, quel que soit *FR* / *EN* : le
+pseudo-code des invariants (et ses `Edge cases:`, `Guarantees:`, `Warning:`),
+les relectures de diff et de commits, la ponytail review, la CI,
+l'alignement, les vérifications, les réponses techniques ; les messages de
+commit et de PR suivent la convention du projet. Dans la langue choisie : la
+note, les questions ouvertes, le plan de test à l'écran, la relecture de la
+note, les releases.
 
 Si vous modifiez ce qu'un skill écrit dans `{{out}}`, gardez le nom et le
 format du fichier : VibeCoder ne lit ses sorties que sous ces noms.

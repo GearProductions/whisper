@@ -65,9 +65,9 @@ des processus.
 | `core/conversation` | actions et demandes d'autorisation écrites, pièces jointes, tâches de fond vues par le volet |
 | `core/guards` | permissions des pages, liens, fichiers montrés |
 | `core/repo` | page GitHub d'un dossier, d'après son remote `origin` |
-| `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier désigné par son id (`safePath`, `itemPath`), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`), le parcours (`vibeView`), les sorties des skills, les fichiers par défaut (`syncDefaults`), les validations et brouillons de revue |
-| `technicals/git` | git en lecture seule (`gitRun`, `gitReader`, `GIT_READ`) : les faits d'une branche ou d'une PR chargée, un fichier à un ref (I-39) |
-| `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `paste`, `windows-helper`, `pipewire`, `clipboard`, `selection`, `pocket-tts`, `claude`, `editor` (un dossier, ou un fichier de VibeCoder), `journal`, `images`, `paths`, `config-file` |
+| `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier ou un commit désigné par son id (`safePath`, `itemPath`, `itemCommit`), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`, `forkedModel`), le parcours (`vibeView`), les sorties des skills, les fichiers par défaut (`syncDefaults`) et les variantes des skills (`skillVariants`), les validations et brouillons de revue |
+| `technicals/git` | git en lecture seule (`gitRun`, `gitReader`, `GIT_READ`) : les faits d'une branche ou d'une PR chargée, un fichier à un ref, un commit et son diff (I-39) |
+| `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `paste`, `windows-helper`, `pipewire`, `clipboard`, `selection`, `pocket-tts`, `claude`, `editor` (un dossier, ou un fichier de VibeCoder, à une ligne), `journal`, `images`, `paths`, `config-file` |
 | `helpers` | découper une commande, français ou anglais, une ligne, `async-queue` (l'entrée d'un processus d'agent) |
 
 Scripts lancés par l'appli : `resources/scripts/` (`windows-helper.ps1`,
@@ -91,9 +91,10 @@ Vers le principal :
   `conv:probe`, `conv:history`, `conv:open`, `conv:current`, `conv:resume`,
   `conv:copy`, `conv:openLink`, `conv:showFile` ; VibeCoder : `conv:vibeSet`
   (Créer / Relire, Guide / Vibe, PR suivie, langue, *Vu*, retour à la
-  conversation, modèle, effort, mode), `conv:vibeMark` (✓, ✗ ou oublier une
-  cible), `conv:vibeDraft` (brouillon de revue : ajouter, retirer),
-  `conv:vibeOpen` (un fichier du relevé, par son id), `conv:vibeRefresh`,
+  conversation, modèle, effort, mode, arrêter l'agent), `conv:vibeMark` (✓, ✗
+  ou oublier une cible), `conv:vibeDraft` (brouillon de revue : ajouter,
+  modifier, retirer), `conv:vibeOpen` (un fichier ou un commit du relevé, par
+  son id, et une ligne), `conv:vibeRefresh`,
   `conv:vibeRun` (une action par son id et ses arguments, avec réponse
   `{ ok, error }`).
 
@@ -116,8 +117,8 @@ fichier se désignent par leur id dans le dernier relevé (I-37, I-38).
 | `pocket-tts/` | Python, Pocket TTS, PyTorch installés par uv |
 | `consigne-agents.md` | consigne ajoutée au prompt système des agents |
 | `agents.log` (`.old`) | journal des agents, 1 Mo puis rotation |
-| `vibecoder/` | ce que VibeCoder fait dire, à retoucher (F-107) : `actions.fr.json`, `actions.en.json`, `plugin/` (le plugin `vibecoder` : skills, agents), `README.md` ; `.defaults.json`, le manifeste de ce que l'appli y a écrit |
-| `vibecoder-out/<agent>/` | les sorties des skills pour l'écran (F-95) ; `branches/<branche>/`, celles de *Créer* d'une branche quittée, et `.branche`, la dernière branche vue ; dossier de travail en plus de Claude Code (F-58) |
+| `vibecoder/` | ce que VibeCoder fait dire, à retoucher (F-107) : `actions.fr.json`, `actions.en.json`, `plugin/` (le plugin `vibecoder` : skills, agents ; `skills/<nom>--<modèle>/`, les variantes générées, F-106), `README.md` ; `.defaults.json`, le manifeste de ce que l'appli y a écrit |
+| `vibecoder-out/<agent>/` | les sorties des skills pour l'écran (F-95) ; `branches/<branche>/`, celles de *Créer* d'une branche quittée, et `.branche`, la dernière branche vue ; `files/`, ce que l'appli écrit pour l'ouvrir dans l'éditeur, en lecture seule (`pr-<n>/<chemin>`, `<hash>.diff`, F-101) ; dossier de travail en plus de Claude Code (F-58) |
 | `vibecoder-state.json` | validations (par agent) et brouillons de revue (par agent et par PR) |
 
 En développement : `--user-data-dir=.data` (cf. LINUX_SETUP.md).
@@ -543,7 +544,9 @@ de l'écran et le brouillon tiennent (I-29).
   travaille (F-99), son aide ou pourquoi il est grisé ; un lien vers l'étape
   de ce bouton quand on en regarde une autre ; puis les autres actions de
   l'étape affichée. Agent au travail : « L'agent travaille… » (« … attend
-  votre autorisation… ») à la place du libellé ; rien ne bouge. L'étape en
+  votre autorisation… ») à la place du libellé ; rien ne bouge ; *⏹ Arrêter*
+  (ici et dans la barre d'état) arrête son tour : la même chose
+  qu'*Interrompre* de son menu (F-56). L'étape en
   cours n'attend qu'une validation (*Guide*, ou *Relire*) : la carte la
   propose à la place du bouton principal, qui travaille : *vous* (*✓ Valider
   la note*, *✓ Valider la forme*, *Voir les N cas à valider*). Sinon rien à
@@ -637,7 +640,7 @@ agent au travail, I-25 ; jamais à un autre agent, I-33, ni à une ancienne
 conversation, I-22). Aucun appel au modèle à part : revenu en conversation,
 chaque action est dans le fil. La page ne donne qu'un id d'action de son
 dernier relevé et ses arguments (texte, rang de module, hash de commit,
-numéro de PR, réponses, verdict), chacun vérifié (type, taille, valeur) par
+numéro de PR, réponses, verdict, modèle), chacun vérifié (type, taille, valeur) par
 la variable qui le prend ; une action inconnue, grisée ou `prefill` est
 refusée.
 
@@ -659,7 +662,11 @@ encore de note pour cette branche », « Ce commit n'est pas dans la
 branche »…) ; une variable inconnue aussi, ou une valeur autre que
 `{{text}}`, `{{answers}}` et `{{draft}}` qui contient un caractère de
 contrôle (« Action mal écrite (variable inconnue), ou valeur refusée
-(caractère de contrôle) : voir le dossier de VibeCoder. »).
+(caractère de contrôle) : voir le dossier de VibeCoder. »). Un **modèle**
+choisi (F-99), autre que le conseillé : le `/vibecoder:<nom>` de tête devient
+`/vibecoder:<nom>--<modèle>`, sa variante (F-106) ; un modèle que l'action ne
+propose pas refuse l'action (« Ce modèle ne peut pas être choisi pour cette
+action. »).
 
 **F-98 Le champ** : une action dont le gabarit prend `{{text}}` emporte le
 texte du champ s'il y en a (*Poser la forme*, *Écrire les invariants*, *Où
@@ -686,7 +693,12 @@ l'agent travaille ; pas de dépôt git ; pas encore de note (aussi la Forme et
 les invariants en *Créer*) ; aucun test d'invariant à lire ; *Relire* :
 aucune PR choisie, ou charger d'abord la PR ; brouillon de revue vide ;
 *✓ Commiter* sans commit préparé ; *Envoyer les réponses* sans question
-ouverte ; *Replier les fixups* sans commit `fixup!`.
+ouverte ; *Replier les fixups* sans commit `fixup!` ; *Relire* une PR
+fusionnée ou fermée (F-101).
+Une action dont le skill tourne en sous-contexte (`context: fork`) sur
+*haiku*, *sonnet* ou *opus* propose aussi les deux autres (`models`, le
+conseillé : `model`) : on peut prendre plus léger (ou plus fort) pour cette
+fois ; le conseillé reste le choix par défaut. Jamais Fable (I-36).
 
 ### Créer, Relire
 
@@ -766,18 +778,24 @@ suivie (`agents[].vibe.pr`) se choisit par son numéro ou son lien
 charger. *Charger la PR* la récupère **sans toucher à la copie de travail** :
 une référence locale `refs/vibecoder/pr/<n>` (le `git fetch` du skill, dans
 la conversation) et sa fiche `pr-<n>.json` (titre, auteur, base, branche,
-description). Le parcours se calcule alors sur la PR ; ce qui la lit attend
-qu'elle soit chargée. Les étapes, faites quand :
+description, état). Le parcours se calcule alors sur la PR ; ce qui la lit attend
+qu'elle soit chargée. Une PR **fusionnée ou fermée** (`state` de sa fiche ;
+une fiche d'avant la 0.8.0-rc.2 n'en a pas : ouverte) se charge mais ne se
+relit pas : un bandeau le dit, et les actions des autres étapes sont grisées
+avec cette raison (« PR déjà fusionnée : rien à relire », « PR fermée : rien
+à relire »). Les étapes, faites quand :
 1. **PR** — chargée. Montre la PR (titre, auteur, base ← tête, description
    rendue, *Ouvrir ↗*), ou celle qu'on suit, à charger ; la liste à relire.
 2. **Note** — absente de la PR, ou jugée : ✓, ou ✗ (« La note est à revoir. »
-   au brouillon). Montre la note de la PR (comme en *Créer*, sans *Ouvrir*)
+   au brouillon). Montre la note de la PR (comme en *Créer*)
    et sa relecture par l'agent (`pr-<n>-note.md`). *Relire la note*
    (décisions à discuter, manques, invariants mal classés).
 3. **Invariants** — chaque fichier lu et chaque cas jugé (✓ ou ✗). Les mêmes
-   cartes qu'en *Créer*, sans *Ouvrir* ; *Lire en pseudo-code*, *Vérifier
+   cartes qu'en *Créer* ; *Lire en pseudo-code*, *Vérifier
    l'alignement*.
-4. **Commits** — relus (`pr-<n>-commits.md`) : une carte par commit (hash,
+4. **Commits** — relus (`pr-<n>-commits.md`). Sans IA, les commits de la PR
+   (hash, sujet, fichiers touchés), chacun avec *Voir le diff*, *GitHub ↗*
+   et ses fichiers à ouvrir (ci-dessous) ; relus, une carte par commit (hash,
    sujet, remarques). *Relire les commits* (un par un : les quatre questions,
    la duplication, les en-têtes, l'histoire des commits).
 5. **À l'écran** — chaque case du plan de test cochée (dans le fichier, ou
@@ -793,9 +811,27 @@ Le brouillon, gardé par PR : une remarque = sa cible (une ligne, 300
 caractères au plus) et son texte (5 000 au plus) — le texte du champ s'il y
 en a (le champ se vide ; trop long, il reste et l'écran le dit), sinon ce
 qu'on cite. ✗ sur la note ou un cas, 💬 sur la note, sa relecture,
-l'alignement, un cas ou un commit y ajoutent une remarque ; × la retire.
-Ouvrir un fichier dans l'éditeur : *Créer* seulement (la PR n'est pas sur le
-disque).
+l'alignement, un cas ou un commit y ajoutent une remarque ; elle se modifie
+sur place (même cible, mêmes limites) ou se retire (×).
+
+**Ouvrir**, en *Créer* comme en *Relire*, ce que désigne un id du dernier
+relevé (I-37), dans l'éditeur (`editorCommand`, sinon le premier trouvé,
+F-56) :
+- un fichier (la note, un test, un variant, un module ; `c<rang>/<i>`, le
+  i-ème fichier d'un commit), à une ligne si l'écran la donne (un cas de
+  test : zed `fichier:ligne`, code, cursor, codium `-g fichier:ligne`, un
+  autre éditeur : le fichier seul). *Créer* : la copie de travail ;
+  *Relire* : sa version à la tête de la PR (`git show`), écrite dans
+  `<sorties>/files/pr-<n>/<chemin>`, en lecture seule (un dossier ne
+  s'ouvre pas) ;
+- `c<rang>` : le diff d'un commit (`git show`, sans programme externe, I-39),
+  écrit dans `<sorties>/files/<hash>.diff`, en lecture seule ;
+- `gh:c<rang>` : la page du commit sur GitHub, dans le navigateur, d'après
+  l'origine du dépôt comme *Ouvrir sur GitHub* (I-32) ; sans origine
+  GitHub, rien.
+
+Un fichier écrit pour être ouvert remplace le précédent ; son dossier reste
+dans le dossier de sorties (un lien qui en sort : rien n'est écrit).
 
 **F-102 Validations** : ✓, ✗ ou oublier, sur la note, sa Forme, un cas de
 test, une case du plan de test (*Relire*). La note et la forme : *✓ Valider*
@@ -865,6 +901,17 @@ en perdrait le cache) : `note`, `forme`, `modules`, `vibe`, `rc`, `release`,
 et les messages sans skill (*Envoyer les réponses*, *Appliquer la revue*,
 *Demander sans modifier*, *Où j'en suis ?*).
 
+**Un autre modèle pour une étape** (F-99) : au démarrage (et à chaque
+ouverture du dossier, F-107), pour chaque skill `<nom>` du plugin de
+l'utilisateur qui tourne en sous-contexte sur *haiku*, *sonnet* ou *opus*,
+l'appli écrit une variante par autre modèle, `skills/<nom>--<modèle>/SKILL.md` :
+le même en-tête (`description`, `argument-hint`, `disable-model-invocation`,
+`allowed-tools`, `context: fork`), ce modèle et son effort par défaut (haiku
+`low`, sonnet `medium`, opus `high`), un corps qui suit `<nom>/SKILL.md` avec
+les mêmes arguments. Ce sont des fichiers générés, pas des défauts : hors du
+manifeste, réécrits à chaque fois (les noms en `--haiku`, `--sonnet`,
+`--opus` leur sont réservés). Jamais Fable (I-36).
+
 **F-107 Le dossier de VibeCoder** (`userData/vibecoder/` ; menu de l'icône,
 *Agents Claude Code → Dossier de VibeCoder*, § 8) : `actions.fr.json`,
 `actions.en.json` (les boutons : en modifier, en retirer, en ajouter),
@@ -877,18 +924,27 @@ supprimé revient donc par défaut — ; un fichier jamais modifié suit les mis
 pas écrit, n'est jamais remplacé (I-35). Le manifeste `.defaults.json` retient
 l'empreinte de ce que l'appli a écrit ; illisible, plus rien n'est remplacé.
 Un échec ne bloque rien (I-29). Les actions et l'en-tête des skills (qui
-travaille) sont relus à chaque relevé.
+travaille) sont relus à chaque relevé. S'y ajoutent les variantes générées des
+skills (F-106), réécrites à chaque fois.
 
 **F-108 FR / EN** (`vibeLang`, pour tout VibeCoder) : la langue de l'écran
 (libellés, faits du parcours, raisons et erreurs), des actions
-(`actions.<langue>.json` : libellés, aides, messages envoyés) et des skills
-(`{{lang}}` : leurs réponses et leurs sorties). Les composants de la
-conversation (fil, champ, volet des tâches, détail du contexte) restent en
-français.
+(`actions.<langue>.json` : libellés, aides, messages envoyés) et de ce que
+les skills écrivent pour l'utilisateur (`{{lang}}`) : la note, les questions
+ouvertes, le plan de test à l'écran, la relecture de la note, les releases.
+**Tout ce qui touche au code reste en anglais**, quelle que soit la langue :
+le pseudo-code des invariants (identifiants, `it("…")`, `// given / when /
+then`) et ses rubriques `Edge cases:`, `Guarantees:`, `Warning:` (le relevé
+lit encore `Cas limites :`, `Garantit :`, `Attention :` des lectures
+d'avant), les relectures de diff et de commits, la ponytail review, la CI,
+l'alignement, les vérifications, les réponses des skills techniques ; les
+messages de commit et de PR suivent la convention du projet. Les composants
+de la conversation (fil, champ, volet des tâches, détail du contexte)
+restent en français.
 
 **F-109 Fable** : VibeCoder ne fait jamais travailler Fable de lui-même
 (I-36) : aucune action ni aucun skill livré ne le nomme ni ne change de
-modèle ; seul un clic de l'utilisateur y passe l'agent (menu du robot, barre
+modèle, et le choix du modèle d'une étape (F-99) ne le propose pas ; seul un clic de l'utilisateur y passe l'agent (menu du robot, barre
 d'état : « Fable (plus cher) », pastille *✦ Fable · élevé* des étapes Note et
 Forme en *Créer* : modèle Fable, effort élevé).
 
@@ -1093,11 +1149,15 @@ bancs de comparaison.
   que l'appli n'a pas écrit, n'est **jamais remplacé**, à aucune version :
   seul un fichier absent, ou encore tel que l'appli l'a écrit (empreinte du
   manifeste `.defaults.json`), prend le défaut. Manifeste illisible : rien
-  n'est remplacé.
+  n'est remplacé. Les variantes des skills (`skills/<nom>--<modèle>/`, F-106)
+  ne sont pas des fichiers de l'utilisateur : générées, hors manifeste,
+  réécrites à chaque démarrage.
 - **I-36** VibeCoder ne fait **jamais travailler Fable** de lui-même : un
   skill livré fixe haiku, sonnet ou opus, ou garde le modèle de l'agent ;
   rien dans le plugin livré (skills, agents) ne nomme Fable ; aucune action
-  livrée ne le nomme ni ne change de modèle (`/model`). Seul un clic de
+  livrée ne le nomme ni ne change de modèle (`/model`) ; une variante
+  générée (F-106) fixe haiku, sonnet ou opus, et une action n'accepte que
+  ces modèles. Seul un clic de
   l'utilisateur y passe l'agent (coût).
 - **I-37** Le principal ne lit pour VibeCoder que la note et les tests que git
   lui donne, **dans le dossier de l'agent** (`..` et liens résolus ; ni
@@ -1105,7 +1165,10 @@ bancs de comparaison.
   connus** (F-95 ; ni `..`, ni autre dossier qu'`invariants/`, ni un lien). Une
   page désigne un fichier par son **id dans le dernier relevé**, jamais par un
   chemin : un id en forme de chemin, ou égal au chemin d'un fichier du relevé,
-  ne désigne rien (I-34).
+  ne désigne rien (I-34) ; un commit, par son rang (`c<rang>`, `gh:c<rang>`,
+  `c<rang>/<i>`, F-101), jamais par une URL. Ce que le principal écrit pour
+  ouvrir (une version de la PR, un diff) va sous `files/` du dossier de
+  sorties de l'agent, en lecture seule, et n'est jamais relu.
 - **I-38** Dans le message d'une action, seuls `{{text}}`, les réponses aux
   questions et les remarques du brouillon, écrits par l'utilisateur (le champ,
   I-2), sont libres : insérés une fois, tels quels, jamais relus comme un
@@ -1303,6 +1366,20 @@ Copier, erreurs ; mêmes relevés).
   d'autorisation, le panneau se rouvre agrandi sur VibeCoder, **sans prendre
   le clavier** (I-18), la demande dans la colonne de la conversation, le
   bouton principal disant « L'agent attend votre autorisation… ».
+- **S-59** *Relire* une PR déjà fusionnée : *Charger la PR* → sa fiche, son
+  état ; le bandeau « rien à relire », *Relire la note*, *Lire en
+  pseudo-code*, *Relire les commits*, *Plan de test*, *Publier* grisés avec
+  cette raison. Une PR ouverte : rien de grisé pour cette raison.
+- **S-60** *Relire* : étape Commits → *Voir le diff* d'un commit : son diff
+  s'ouvre dans l'éditeur (`files/<hash>.diff`, en lecture seule) ; *GitHub ↗* :
+  la page du commit dans le navigateur ; un fichier du commit : sa version de
+  la PR, en lecture seule ; *Ouvrir* sur un cas d'invariant : le fichier, à la
+  ligne du cas (zed, code).
+- **S-61** *Lire en pseudo-code* (*Relire les commits*) sur un skill
+  `sonnet · moyen` (`opus · élevé`) : choisir *haiku* → le message part en
+  `/vibecoder:lire-invariants--haiku …` (le fil le montre). Les lectures sont en anglais, en *FR* comme en *EN*.
+- **S-62** L'agent travaille sur un skill : *⏹ Arrêter* → le tour s'arrête
+  comme par *Interrompre* (« Interrompu. »), les boutons se rallument.
 
 ---
 
@@ -1339,6 +1416,12 @@ Copier, erreurs ; mêmes relevés).
   longueur de la conversation, bien davantage sur Opus à effort élevé ;
   *Générer les modules restants*, *Tout dérouler*, les releases : longs et
   coûteux. Une lecture d'invariants n'est refaite que si le fichier change.
+  Choisir un modèle plus léger pour une étape coûte moins, au prix de la
+  qualité (`lire-invariants` sur Haiku a été écarté par le banc, F-106).
+- VibeCoder : les fichiers écrits pour être ouverts
+  (`vibecoder-out/<agent>/files/`) restent jusqu'au suivant du même nom ; un
+  fichier d'un commit s'ouvre, en *Relire*, dans sa version à la tête de la
+  PR (supprimé depuis : rien ne s'ouvre).
 - VibeCoder : le relevé lance quelques git en lecture toutes les 4 s
   (panneau visible) et jusqu'à une fois par seconde pendant un tour
   (`git status` : 63 ms sur GT-2020, 1 761 fichiers suivis).

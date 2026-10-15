@@ -148,6 +148,21 @@ describe('show', () => {
   });
 });
 
+describe('commit', () => {
+  const dir = repo();
+  const reader = gitReader(gitRun(dir));
+
+  it('le commit, ses fichiers et son diff', async () => {
+    const text = await reader.commit(git(dir, 'rev-parse', 'HEAD~1'));
+    expect(text).toContain('second : b');
+    expect(text).toContain('+deux');
+  });
+
+  it('un ref qui commence par « - » : null', async () => {
+    expect(await reader.commit('--output=/tmp/x')).toBeNull();
+  });
+});
+
 describe('gitRun : seulement GIT_READ', () => {
   it('une sous-commande qui écrit n\'est pas lancée', async () => {
     const dir = repo();

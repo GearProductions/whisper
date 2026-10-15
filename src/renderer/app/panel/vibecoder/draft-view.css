@@ -12,10 +12,10 @@
 .vc-review-state[data-state="CHANGES_REQUESTED"]::before { background: #d9383a; box-shadow: 0 0 0 3px color-mix(in srgb, #d9383a 25%, transparent); }
 
 /* ---- Le brouillon -------------------------------------------------------------- */
-.vc-draft-list { list-style: none; margin: -12px -14px; padding: 0; }
-.vc-draft-list li { position: relative; padding: 10px 46px 10px 14px; transition: background-color 0.12s; }
-.vc-draft-list li + li { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05); }
-.vc-draft-list li:hover { background: rgba(255, 255, 255, 0.025); }
+.vc-draft-list { list-style: none; margin: -6px -16px -14px; padding: 0; }
+.vc-draft-list > li { position: relative; padding: 10px 72px 10px 16px; transition: background-color 0.12s; }
+.vc-draft-list > li + li { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05); }
+.vc-draft-list > li:hover { background: rgba(255, 255, 255, 0.025); }
 .vc-draft-target {
   display: inline-block;
   max-width: 100%;
@@ -34,8 +34,9 @@
 }
 .vc-draft-list .vc-md { font-size: 13px; }
 .vc-draft-list .vc-md ul { list-style: disc; }
-.vc-draft-remove { position: absolute; top: 9px; right: 10px; font-size: 16px; opacity: 0.5; }
-.vc-draft-list li:hover .vc-draft-remove, .vc-draft-remove:focus-visible { opacity: 1; }
+.vc-draft-tools { position: absolute; top: 9px; right: 10px; display: flex; gap: 2px; opacity: 0.5; }
+.vc-draft-remove { font-size: 16px; }
+.vc-draft-list > li:hover .vc-draft-tools, .vc-draft-tools:focus-within { opacity: 1; }
 .vc-draft-remove:hover { border-color: color-mix(in srgb, #d9383a 50%, transparent); background: color-mix(in srgb, #d9383a 14%, transparent); color: #f08a8b; }
 .vc-draft-empty { color: var(--vc-muted); font-size: 12.5px; line-height: 1.6; }
 
@@ -50,7 +51,8 @@
   border-radius: 8px;
   background: var(--vc-side);
 }
-.vc-publish > .vc-run { height: 32px; margin-left: auto; }
+.vc-publish > :is(.vc-run, .vc-run-group) { margin-left: auto; }
+.vc-publish .vc-run { height: 32px; }
 .vc-verdicts button { padding: 0 10px; }
 .vc-verdicts button[data-verdict="approve"][aria-pressed="true"] {
   background: color-mix(in srgb, var(--vc-ok) 24%, var(--vc-control));

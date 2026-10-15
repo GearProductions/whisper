@@ -49,8 +49,8 @@ const conv: ConvApi = {
   vibeRun: (action, args) => ipcRenderer.invoke('conv:vibeRun', action, args),
   vibeSet: (patch) => ipcRenderer.send('conv:vibeSet', patch),               // Créer / Relire, Guide / Vibe, langue, modèle…
   vibeMark: (target, verdict) => ipcRenderer.send('conv:vibeMark', target, verdict),  // ✓, ✗, ou oublier
-  vibeDraft: (op) => ipcRenderer.send('conv:vibeDraft', op),                 // brouillon de revue : ajouter, retirer
-  vibeOpen: (id) => ipcRenderer.send('conv:vibeOpen', id),                   // un fichier du relevé, par son id : jamais un chemin
+  vibeDraft: (op) => ipcRenderer.send('conv:vibeDraft', op),                 // brouillon de revue : ajouter, modifier, retirer
+  vibeOpen: (id, line) => ipcRenderer.send('conv:vibeOpen', id, line),       // un fichier ou un commit du relevé, par son id (et une ligne) : jamais un chemin
   vibeRefresh: () => ipcRenderer.send('conv:vibeRefresh'),                   // relever maintenant
 };
 

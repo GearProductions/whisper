@@ -24,8 +24,9 @@ export type VibeActs = {
   prefill(id: string, quote: string): void;    // une action 'prefill' : {{quote}}, ce qu'on cite
   set(patch: VibePatch): void;
   mark(target: string, verdict: 'ok' | 'ko' | null): void;
-  draft(op: { add?: { target: string; text: string }; remove?: number }): void; // add : le texte du champ s'il y en a, sinon add.text
-  open(id: string): void;                      // un fichier du relevé, par son id
+  draft(op: { add?: { target: string; text: string }; edit?: { id: number; text: string }; remove?: number }): void; // Relire : le brouillon de revue
+  open(id: string, line?: number): void;       // par son id : un fichier du relevé (à la ligne), un commit (c<rang>, son diff ;
+                                               // c<rang>/<i>, son i-e fichier ; gh:c<rang>, sa page sur GitHub)
   openLink(url: string): void;
   refresh(): void;
 };

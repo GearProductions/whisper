@@ -13,7 +13,7 @@ allowed-tools: "Read, Glob, Grep, Write, Bash(git status *), Bash(git diff *), B
 
 The user reads the message on screen, then clicks « Commit »: you prepare, you never commit.
 
-`$ARGUMENTS` = `<lang> <out>`. `lang`: language of your answer (the message follows the project's convention, not `lang`). `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
+`$ARGUMENTS` = `<lang> <out>`. `lang`: the user's language, not used here — code-related work: your answer in English. The message follows the project's convention. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
 
 ## 1. State
 
@@ -34,4 +34,4 @@ The project's convention: its `gear-commit-message` skill if present (`.claude/s
 
 The file holds the exact message only — subject, blank line, body — no code fence, no comment.
 
-Answer in `lang`, 1 to 3 lines: the subject, the staged files (count), what was left out.
+Answer in English, 1 to 3 lines: the subject, the staged files (count), what was left out.

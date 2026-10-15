@@ -59,6 +59,12 @@ export function pushAgents() {
   refreshConversation(); // le panneau suit (réponse arrivée, agent au travail…)
 }
 
+// Interrompre le tour de l'agent (menu du robot, ⏹ Arrêter de VibeCoder).
+export function interruptAgent(id: string) {
+  agents.interrupt(id);
+  pushAgents();
+}
+
 // Ce que reçoit Claude Code pour cet agent, à chaque tour comme à la sonde : la
 // commande, la consigne, le plugin de VibeCoder (seulement s'il est là :
 // ensureVibeFiles a pu échouer) et le dossier de sorties de l'agent.

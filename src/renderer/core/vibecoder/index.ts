@@ -4,7 +4,8 @@
  *  que Relire prend de l'utilisateur ; la note (ses changements, ses marques),
  *  les réponses aux questions, la Forme par dossier, les cas d'invariants et
  *  leur pseudo-code, la validation qu'attend l'étape en cours ; ce qui s'écrit
- *  dans le champ (une action « préparer », une pastille de skill). */
+ *  dans le champ (une action « préparer ») ; le modèle choisi d'une action, la
+ *  largeur de la colonne de la conversation. */
 export * from './diff';
 export * from './field';
 export * from './forme';
@@ -17,4 +18,5 @@ export * from './note';
 export * from './outputs';
 export * from './questions';
 export * from './review-flow';
+export * from './screen';
 export * from './validation';

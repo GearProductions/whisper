@@ -1,10 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { casesOf, progress, pseudoLines } from 'core/vibecoder';
+import { caseLine, casesOf, progress, pseudoLines } from 'core/vibecoder';
 import type { ReadingCase, VibeTestFile } from 'technicals/bridge';
 
 const reading = (title: string, warning: string | null = null): ReadingCase => ({ title, pseudo: 'it("x")', edges: [], guarantees: 'g', warning });
 const file = (over: Partial<VibeTestFile> = {}): VibeTestFile => ({
-  id: 't0', path: 'tests/invariants/a.test.ts', blob: 'b', cases: ['refuse', 'accepte'], reading: null, marks: {}, ...over,
+  id: 't0', path: 'tests/invariants/a.test.ts', blob: 'b', cases: ['refuse', 'accepte'], lines: [4, 12], reading: null, marks: {}, ...over,
+});
+
+describe('caseLine', () => {
+  it('la ligne du cas, d\'après son rang dans cases', () => {
+    expect(caseLine(file(), 'accepte')).toBe(12);
+  });
+
+  it('cas inconnu, lignes manquantes ou pas des lignes : undefined', () => {
+    expect(caseLine(file(), 'autre')).toBeUndefined();
+    expect(caseLine(file({ lines: [4] }), 'accepte')).toBeUndefined();
+    expect(caseLine(file({ lines: [0, 2.5] }), 'refuse')).toBeUndefined();
+    expect(caseLine(file({ lines: [0, 2.5] }), 'accepte')).toBeUndefined();
+  });
 });
 
 describe('casesOf', () => {

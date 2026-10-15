@@ -1,10 +1,13 @@
 /** outputs — ce que les skills écrivent pour l'écran, lu sans se fier au
  *  format : les vérifications (checks.json), la revue publiée
  *  (pr-<n>-review.json), un Markdown coupé en rubriques `##` (une par commit
- *  dans pr-<n>-commits.md) et le titre d'une rubrique de commit ; une adresse
+ *  dans pr-<n>-commits.md), le titre d'une rubrique de commit et les
+ *  rubriques rangées par commit du relevé ; une adresse
  *  n'est gardée qu'en http(s) (I-21). Illisible : null, l'écran le dit.
  *  Ne connaît pas : le DOM, React, les noms des fichiers.
  *  Utilisé par : app/panel/vibecoder (review-view, pr-picker, commits-view, draft-view, step-parts). */
+
+import type { VibeCommit } from 'technicals/bridge';
 
 export type Check = { name: string; ok: boolean; detail: string };
 
@@ -75,4 +78,20 @@ export function sections(md: string): Section[] {
 export function commitTitle(title: string): { hash: string; subject: string } | null {
   const m = /^`?([0-9a-f]{7,40})`?:?(?:[ \t]+(?:[-—:·][ \t]+)?(.*))?$/i.exec(title.trim());
   return m ? { hash: m[1].toLowerCase(), subject: (m[2] ?? '').trim() } : null;
+}
+
+// pr-<n>-commits.md rangé par commit du relevé : la relecture de chacun (par
+// son hash complet ; un hash court du titre en est le début) ; les autres
+// rubriques (l'ensemble, un commit que le relevé ne connaît pas) à part, dans
+// leur ordre.
+export function commitReviews(md: string, commits: VibeCommit[]): { byHash: Map<string, string>; others: Section[] } {
+  const byHash = new Map<string, string>();
+  const others: Section[] = [];
+  for (const sec of sections(md)) {
+    const h = commitTitle(sec.title)?.hash;
+    const c = h ? commits.find((x) => x.hash.toLowerCase().startsWith(h)) : undefined;
+    if (c && !byHash.has(c.hash)) byHash.set(c.hash, sec.body);
+    else others.push(sec);
+  }
+  return { byHash, others };
 }

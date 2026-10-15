@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { VibeView } from 'shared/bridge';
-import { buildMessage, parseActions, whoOf, type ActionDef, type MessageContext } from 'core/vibecoder';
+import { buildMessage, forkedModel, parseActions, SKILL_MODELS, whoOf, type ActionDef, type MessageContext } from 'core/vibecoder';
 
 const C1 = '9fceb02d0ae598e95dc970b74767f19372d61af8';
 const BLOB = '3b18e512dba79e4c8300dd08aeb37f8e728b8dad';
@@ -18,15 +18,15 @@ const view: VibeView = {
     { path: 'src/core/b.ts', contract: 'b() · ne connaît pas : a', file: null, touched: false, commits: [] },
   ],
   invariants: [
-    { id: 't0', path: 'src/core/tests/invariants/a.test.ts', blob: BLOB, cases: ['x'], reading: null, marks: {} },
-    { id: 't1', path: 'src/core/tests/invariants/b.test.ts', blob: 'b'.repeat(40), cases: ['y'], reading: [], marks: {} },
+    { id: 't0', path: 'src/core/tests/invariants/a.test.ts', blob: BLOB, cases: ['x'], lines: [1], reading: null, marks: {} },
+    { id: 't1', path: 'src/core/tests/invariants/b.test.ts', blob: 'b'.repeat(40), cases: ['y'], lines: [1], reading: [], marks: {} },
   ],
-  variants: [], commits: [{ hash: C1, subject: 'Note, forme, invariants', fixup: false }],
+  variants: [], commits: [{ hash: C1, subject: 'Note, forme, invariants', fixup: false, files: [] }],
   outputs: {}, checklist: [], actions: [], skills: [], pr: null, prs: null,
   draft: [{ id: 1, target: 'note', text: 'Trop vague' }, { id: 2, target: 'commit 9fceb02', text: 'Hors périmètre' }], time: 0,
 };
 const ctx: MessageContext = { view, out: '/u/vibecoder-out/a1', lang: 'fr' };
-const review: MessageContext = { ...ctx, view: { ...view, flow: 'review', pr: { number: 12, title: 't', url: '', author: '', base: 'main', head: 'x', body: '' } } };
+const review: MessageContext = { ...ctx, view: { ...view, flow: 'review', pr: { number: 12, title: 't', url: '', author: '', base: 'main', head: 'x', body: '', state: 'OPEN' } } };
 const action = (text: string, needs: ActionDef['needs'] = 'none'): ActionDef => (
   { id: 'essai', flow: 'both', step: null, kind: 'send', needs, label: 'Essai', hint: '', text });
 const build = (text: string, args = {}, c = ctx, needs: ActionDef['needs'] = 'none') => buildMessage(action(text, needs), args, c);
@@ -277,5 +277,49 @@ describe('whoOf : qui travaille, d\'après l\'en-tête du skill', () => {
 
   it('un model: hors de l\'en-tête ne compte pas', () => {
     expect(whoOf('# x\n\nmodel: opus\n', 'fr')).toBe('agent');
+  });
+});
+
+describe('forkedModel : un skill en sous-contexte, dont on peut changer le modèle', () => {
+  it('sous-contexte sur opus : opus', () => {
+    expect(forkedModel(skill('context: fork\nmodel: opus\neffort: high'))).toBe('opus');
+  });
+
+  it('dans la conversation (sans context: fork) : null', () => {
+    expect(forkedModel(skill('model: opus'))).toBeNull();
+  });
+
+  it('sous-contexte sans modèle, ou sur un autre (fable, inherit) : null', () => {
+    expect([skill('context: fork'), skill('context: fork\nmodel: fable'), skill('context: fork\nmodel: inherit')].map(forkedModel))
+      .toEqual([null, null, null]);
+  });
+});
+
+describe('buildMessage : un autre modèle que le conseillé', () => {
+  const shown = (models: string[], model: string | null) => ({
+    id: 'essai', step: null, label: 'Essai', hint: '', who: 'opus', models, model, kind: 'send' as const, needs: 'none' as const,
+    usesText: false, primary: false, disabled: null,
+  });
+  const withAction = (models = SKILL_MODELS, model: string | null = 'opus') => ({ ...ctx, view: { ...view, actions: [shown(models, model)] } });
+  const RELIRE = '/vibecoder:relire {{lang}} {{out}} {{commit}}';
+
+  it('un autre modèle proposé : la variante du skill', () => {
+    expect(build(RELIRE, { model: 'haiku' }, withAction())).toEqual({ text: '/vibecoder:relire--haiku fr /u/vibecoder-out/a1 WORKTREE' });
+  });
+
+  it('le modèle conseillé : le skill tel quel', () => {
+    expect(build(RELIRE, { model: 'opus' }, withAction())).toEqual({ text: '/vibecoder:relire fr /u/vibecoder-out/a1 WORKTREE' });
+  });
+
+  it('un modèle hors de ceux proposés (fable) : model', () => {
+    expect(build(RELIRE, { model: 'fable' }, withAction())).toEqual({ error: 'model' });
+  });
+
+  it('une action sans choix de modèle (dans la conversation) : model', () => {
+    expect(build(RELIRE, { model: 'haiku' }, withAction([], null))).toEqual({ error: 'model' });
+  });
+
+  it('un modèle qui n\'est pas un texte : model', () => {
+    expect(build(RELIRE, { model: ['haiku'] as never }, withAction())).toEqual({ error: 'model' });
   });
 });

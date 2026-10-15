@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 # Note — the ticket note (guide §2)
 
-`$ARGUMENTS` = `<lang> <out> <request…>`. `lang` (`fr` or `en`): language of your answer and of `questions.md`. `out`: absolute path of the agent's output folder (it ends with `vibecoder-out/<agent id>` and may contain spaces). The request: everything after, often dictated — raw material, not a text to copy.
+`$ARGUMENTS` = `<lang> <out> <request…>`. `lang` (`fr` or `en`): the user's language — of the note's text, of `questions.md` and of your answer; identifiers, paths, signatures and pseudo-code stay in English. `out`: absolute path of the agent's output folder (it ends with `vibecoder-out/<agent id>` and may contain spaces). The request: everything after, often dictated — raw material, not a text to copy.
 
 ## The note
 

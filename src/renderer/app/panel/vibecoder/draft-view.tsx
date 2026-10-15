@@ -1,11 +1,14 @@
 /** draft-view — l'étape Revue (Relire) : le brouillon de revue de la PR (une
- *  ligne par remarque : sa cible, son texte, × la retire), le verdict
+ *  ligne par remarque : sa cible, son texte ; ✎ le modifie sur place, × la
+ *  retire), le verdict
  *  (Approuver / Commenter / Demander des changements, Commenter d'abord comme
  *  sur GitHub) et Publier la revue ; publiée (pr-<n>-review.json) : son état
  *  et son lien.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
+import { useState } from 'react';
 import { parseReview } from 'core/vibecoder';
 import type { VibeArgs, VibeLang } from 'technicals/bridge';
+import { CommentBox } from './comment-box';
 import { MarkdownView } from './markdown-view';
 import { OutputCard, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
@@ -17,8 +20,9 @@ const VERDICTS: Verdict[] = ['approve', 'comment', 'request-changes'];
 const fr = {
   draft: 'Brouillon de revue',
   count: (n: number) => (n > 1 ? `${n} remarques` : n ? '1 remarque' : 'vide'),
-  empty: 'Pas encore de remarque. ✗ sur un cas d\'invariant, 💬 sur la note, un cas ou un commit l\'y ajoutent : le texte du champ, sinon ce qu\'on cite.',
+  empty: 'Pas encore de remarque. 💬 ou ✗ sur la note, un cas d\'invariant ou un commit ouvrent une zone de commentaire : la remarque vient ici.',
   remove: 'Retirer du brouillon',
+  edit: 'Modifier cette remarque',
   verdict: 'Verdict',
   verdicts: { approve: 'Approuver', comment: 'Commenter', 'request-changes': 'Demander des changements' } as Record<Verdict, string>,
   published: 'Revue publiée',
@@ -33,8 +37,9 @@ const S: Record<VibeLang, typeof fr> = {
   en: {
     draft: 'Review draft',
     count: (n) => (n > 1 ? `${n} remarks` : n ? '1 remark' : 'empty'),
-    empty: 'No remark yet. ✗ on an invariant case, 💬 on the note, a case or a commit add one: the text of the field, else what is quoted.',
+    empty: 'No remark yet. 💬 or ✗ on the note, an invariant case or a commit open a comment box: the remark comes here.',
     remove: 'Remove from the draft',
+    edit: 'Edit this remark',
     verdict: 'Verdict',
     verdicts: { approve: 'Approve', comment: 'Comment', 'request-changes': 'Request changes' },
     published: 'Review published',
@@ -48,6 +53,7 @@ const S: Record<VibeLang, typeof fr> = {
 
 export function DraftView({ view, step, t, act, busy, verdict, onVerdict: setVerdict }: StepProps) {
   const s = S[view.lang];
+  const [editing, setEditing] = useState<number | null>(null);
   const file = view.pr ? `pr-${view.pr.number}-review.json` : '';
   const out = view.outputs[file];
   const review = out ? parseReview(out.text) : null;
@@ -68,9 +74,19 @@ export function DraftView({ view, step, t, act, busy, verdict, onVerdict: setVer
             {view.draft.map((c) => (
               <li key={c.id}>
                 <div className="vc-draft-target" title={c.target}>{c.target}</div>
-                <MarkdownView md={c.text} t={t} onOpenLink={act.openLink} />
-                <button type="button" className="vc-tool vc-draft-remove" title={s.remove} aria-label={s.remove}
-                  onClick={() => act.draft({ remove: c.id })}>×</button>
+                {editing === c.id ? (
+                  <CommentBox t={t} initial={c.text} save={t.commentSave} onCancel={() => setEditing(null)}
+                    onSave={(text) => { act.draft({ edit: { id: c.id, text } }); setEditing(null); }} />
+                ) : (
+                  <>
+                    <MarkdownView md={c.text} t={t} onOpenLink={act.openLink} />
+                    <span className="vc-draft-tools">
+                      <button type="button" className="vc-tool" title={s.edit} aria-label={s.edit} onClick={() => setEditing(c.id)}>✎</button>
+                      <button type="button" className="vc-tool vc-draft-remove" title={s.remove} aria-label={s.remove}
+                        onClick={() => act.draft({ remove: c.id })}>×</button>
+                    </span>
+                  </>
+                )}
               </li>
             ))}
           </ul>

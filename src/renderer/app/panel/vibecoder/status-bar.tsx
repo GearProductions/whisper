@@ -1,7 +1,8 @@
 /** status-bar — la barre d'état de VibeCoder : modèle, effort et mode de
  *  l'agent (une liste chacun, comme son menu), jauge du contexte (clic : le
- *  détail), ⚙ Tâches (le volet, dans la colonne de la conversation),
- *  fichiers modifiés, heure du dernier relevé.
+ *  détail), ⚙ Tâches (le volet, dans la colonne de la conversation), ⏹
+ *  Arrêter quand l'agent travaille, fichiers modifiés, heure du dernier
+ *  relevé.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
 import type { CSSProperties } from 'react';
 import { gauge } from 'core/conversation';
@@ -12,6 +13,7 @@ type Props = {
   view: VibeView;
   thread: Thread;
   t: Strings;
+  busy: boolean;
   tasksOpen: boolean;
   contextOpen: boolean;
   onSet(patch: VibePatch): void;
@@ -19,7 +21,7 @@ type Props = {
   onTasks(): void;
 };
 
-export function StatusBar({ view, thread, t, tasksOpen, contextOpen, onSet, onGauge, onTasks }: Props) {
+export function StatusBar({ view, thread, t, busy, tasksOpen, contextOpen, onSet, onGauge, onTasks }: Props) {
   const g = gauge(thread.context);
   const running = thread.tasks?.filter((x) => x.status === 'running').length || 0;
   return (
@@ -36,6 +38,7 @@ export function StatusBar({ view, thread, t, tasksOpen, contextOpen, onSet, onGa
       <button type="button" className="vc-sitem" title={t.tasksTitle} aria-pressed={tasksOpen} onClick={onTasks}>
         {`⚙ ${t.tasks}${running ? ` (${running})` : ''}`}
       </button>
+      {busy ? <button type="button" className="vc-sitem vc-sstop" title={t.stopTitle} onClick={() => onSet({ interrupt: true })}>{t.stop}</button> : null}
       <span className="vc-spacer" />
       {view.repo ? <span className="vc-sinfo">{t.changed(view.repo.changed)}</span> : null}
       <span className="vc-sinfo" title={new Date(view.time).toLocaleString(t.locale)}>

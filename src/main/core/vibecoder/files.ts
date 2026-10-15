@@ -4,7 +4,7 @@
  *  n'est retenu que s'il reste, `..` et liens résolus, dans le dossier de
  *  l'agent (safePath).
  *  Ne connaît pas : Electron, le disque (realpath passé).
- *  Utilisé par : app/controllers/vibecoder (lire la note et les tests, ouvrir un fichier du relevé). */
+ *  Utilisé par : app/controllers/vibecoder (lire la note et les tests, ouvrir un fichier ou un commit du relevé). */
 import path from 'node:path';
 import type { VibeView } from 'shared/bridge';
 
@@ -24,9 +24,19 @@ export function safePath(dir: string, rel: string, realpath: (p: string) => stri
 }
 
 // Le chemin relatif du fichier du relevé qui porte cet id (la note, un test
-// d'invariant, un variant, le fichier d'un module) ; null pour un id inconnu.
+// d'invariant, un variant, le fichier d'un module ; `c<rang>/<i>` : le i-ème
+// fichier du commit de ce rang) ; null pour un id inconnu.
 export function itemPath(view: VibeView | null, id: string): string | null {
   if (!view) return null;
-  const files = [view.note, ...view.invariants, ...view.variants, ...view.modules.map((m) => m.file)];
+  const files = [view.note, ...view.invariants, ...view.variants, ...view.modules.map((m) => m.file),
+    ...view.commits.flatMap((c, r) => c.files.map((p, i) => ({ id: `c${r}/${i}`, path: p })))];
   return files.find((f) => f?.id === id)?.path ?? null;
+}
+
+// Le commit du relevé que désigne `c<rang>` (son diff) ou `gh:c<rang>` (sa page
+// GitHub, web) ; null pour un autre id.
+export function itemCommit(view: VibeView | null, id: string): { hash: string; web: boolean } | null {
+  const m = /^(gh:)?c(\d+)$/.exec(id);
+  const c = m && view?.commits[Number(m[2])];
+  return m && c ? { hash: c.hash, web: !!m[1] } : null;
 }

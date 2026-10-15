@@ -1,23 +1,29 @@
 /** vibe-coder — l'écran VibeCoder d'un agent, à la place de l'en-tête et du
- *  corps du panneau : en-tête (agent, branche, Créer / Relire, Guide / Vibe,
- *  langue, relevé, retour à la conversation, fermer) ; le parcours à gauche ;
- *  au centre, les onglets des étapes, l'étape choisie (step-views ; en Vibe,
- *  un bandeau le rappelle en haut) et la prochaine étape ; à droite, la
- *  conversation (reçue en children) ; la barre d'état en bas. Ctrl+1…6
- *  ouvrent les étapes. Une vue d'étape qui échoue ne fait tomber ni l'écran
- *  ni le brouillon (I-29). Il tient les réponses en cours aux questions
- *  ouvertes (celles que la prochaine étape envoie aussi) ; rien à lancer et
- *  une validation attendue : la prochaine étape la propose.
+ *  corps du panneau : en-tête (agent — sa couleur, seule touche de couleur
+ *  avec Envoyer —, branche, Créer / Relire, Guide / Vibe, langue, relevé,
+ *  conversation affichée ou masquée, retour à la conversation, fermer) ; le
+ *  parcours à gauche ; au centre, les onglets des étapes, l'étape choisie
+ *  (step-views ; en Vibe, un bandeau le rappelle en haut ; Relire, une PR
+ *  fusionnée ou fermée aussi) et la prochaine étape ; à droite, la
+ *  conversation (reçue en children), masquable, sa largeur à la poignée
+ *  (300 px → 60 %) ; la barre d'état en bas. Ctrl+1…6 ouvrent les étapes.
+ *  Une vue d'étape qui échoue ne fait tomber ni l'écran ni le brouillon
+ *  (I-29). Il tient les réponses en cours aux questions ouvertes (celles que
+ *  la prochaine étape envoie aussi), le modèle choisi par action (envoyé
+ *  s'il n'est pas le conseillé) ; rien à lancer et une validation attendue :
+ *  la prochaine étape la propose. Préparer un message dans le champ, ou une
+ *  action qui exige son texte, réaffiche la conversation masquée.
  *  Ne connaît pas : le pont (rappels passés), le contenu de la conversation.
  *  Utilisé par : panel-app. */
-import { Component, useEffect, useState, type ReactNode } from 'react';
+import { Component, useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { isBusy, titleOf } from 'core/conversation';
-import { answersOf, awaiting, t as strings, type Answers, type Strings } from 'core/vibecoder';
+import { answersOf, awaiting, convWidth, modelArg, t as strings, type Answers, type ModelPicks, type Strings } from 'core/vibecoder';
 import type { Thread, VibeLang, VibeStepId, VibeView } from 'technicals/bridge';
 import { Journey } from './journey';
+import { Picks } from './model-pick';
 import { NextStep } from './next-step';
 import { StatusBar } from './status-bar';
-import { VibeBanner } from './step-parts';
+import { ClosedBanner, VibeBanner } from './step-parts';
 import { STEP_VIEWS, type StepProps, type VibeActs } from './step-views';
 import { AwaitValidation } from './validation';
 import './vibecoder.css';
@@ -31,10 +37,14 @@ type Props = {
   onGauge(): void;             // le détail du contexte, sur la conversation
   onTasks(): void;             // le volet des tâches, dans la conversation
   onHide(): void;
+  side: Side;                  // la colonne de la conversation : affichée, sa largeur (panel-app la retient)
+  onSide(side: Side): void;
   children: ReactNode;         // la colonne de la conversation
 };
 
-export function VibeCoder({ view, thread, act, tasksOpen, contextOpen, onGauge, onTasks, onHide, children }: Props) {
+export type Side = { open: boolean; width: number };
+
+export function VibeCoder({ view, thread, act: given, tasksOpen, contextOpen, onGauge, onTasks, onHide, side, onSide, children }: Props) {
   const t = strings(view.lang);
   const [picked, setPicked] = useState<VibeStepId | null>(null);
   const { steps } = view;
@@ -43,6 +53,20 @@ export function VibeCoder({ view, thread, act, tasksOpen, contextOpen, onGauge, 
   const busy = isBusy(thread.status);
   const [answers, setAnswers] = useState<Answers>({});
   const onAnswer: StepProps['onAnswer'] = (q, a) => setAnswers((all) => ({ ...all, [q]: a }));
+  const [picks, setPicks] = useState<ModelPicks>({});
+  const root = useRef<HTMLDivElement>(null);
+  const show = () => { if (!side.open) onSide({ ...side, open: true }); };
+  // Les rappels, avec le modèle choisi (s'il n'est pas le conseillé) ; ce qui passe par le champ le réaffiche.
+  const act: VibeActs = {
+    ...given,
+    run: (id, args = {}) => {
+      const a = view.actions.find((x) => x.id === id);
+      const model = a && modelArg(a, picks);
+      if (a && (a.kind === 'prefill' || a.needs === 'text')) show();
+      given.run(id, model ? { ...args, model } : args);
+    },
+    prefill: (id, quote) => { show(); given.prefill(id, quote); },
+  };
   // « Envoyer les réponses » de la prochaine étape : les réponses en cours, comme le bouton des questions.
   // Le verdict de la revue (Relire), tenu ici comme les réponses : le bouton de la
   // prochaine étape publie celui que l'utilisateur a choisi dans l'étape.
@@ -66,41 +90,72 @@ export function VibeCoder({ view, thread, act, tasksOpen, contextOpen, onGauge, 
 
   const View = step && STEP_VIEWS[step.id];
   return (
-    <div className="vc">
-      <Top view={view} thread={thread} busy={busy} t={t} act={act} onHide={onHide} />
-      <Journey view={view} t={t} selected={step && step.id} onPick={setPicked} />
-      <section className="vc-center">
-        <div className="vc-tabs vc-band" role="tablist">
-          {steps.map((s, i) => (
-            <button key={s.id} type="button" role="tab" className="vc-tab" aria-selected={s === step} data-status={s.status}
-              title={i < 6 ? t.shortcut(i + 1) : undefined} onClick={() => setPicked(s.id)}>
-              <span className="vc-tdot" />{t.steps[s.id]}
-            </button>
-          ))}
-        </div>
-        {view.error ? <div className="vc-error" role="status"><b>{view.error}</b> {t.errorHint}</div> : null}
-        <div className="vc-step scroll" key={step ? step.id : ''} role="tabpanel">
-          {view.autonomy === 'vibe' ? <VibeBanner lang={view.lang} /> : null}
-          {step && View ? <Guard t={t}><View view={view} step={step} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} verdict={verdict} onVerdict={setVerdict} /></Guard> : null}
-        </div>
-        <NextStep actions={view.actions} step={step && step.id} t={t} busy={busy} asking={thread.status === 'asking'}
-          onRun={run} onPick={setPicked}
-          idle={wait ? <AwaitValidation wait={wait} review={view.flow === 'review'} lang={view.lang} shown={step && step.id}
-            onMark={(target) => act.mark(target, 'ok')} onPick={setPicked} /> : null} />
-      </section>
-      <section className="vc-conv" aria-label={t.conversation}>
-        <div className="vc-side-title vc-band"><span>{t.conversation}</span><span className="vc-conv-name">{titleOf(thread)}</span></div>
-        {children}
-      </section>
-      <StatusBar view={view} thread={thread} t={t} tasksOpen={tasksOpen} contextOpen={contextOpen}
-        onSet={act.set} onGauge={onGauge} onTasks={onTasks} />
-    </div>
+    <Picks.Provider value={{ picks, lang: view.lang, pick: (id, m) => setPicks((p) => ({ ...p, [id]: m })) }}>
+      <div className="vc" ref={root} data-conv={side.open ? undefined : 'hidden'} style={{ '--vc-conv': `${side.width}px` } as CSSProperties}>
+        <Top view={view} thread={thread} busy={busy} t={t} act={act} side={side} onSide={onSide} onHide={onHide} />
+        <Journey view={view} t={t} selected={step && step.id} onPick={setPicked} onOpen={act.open} />
+        <section className="vc-center">
+          <div className="vc-tabs vc-band" role="tablist">
+            {steps.map((s, i) => (
+              <button key={s.id} type="button" role="tab" className="vc-tab" aria-selected={s === step} data-status={s.status}
+                title={i < 6 ? t.shortcut(i + 1) : undefined} onClick={() => setPicked(s.id)}>
+                <span className="vc-tdot" />{t.steps[s.id]}
+              </button>
+            ))}
+          </div>
+          {view.error ? <div className="vc-error" role="status"><b>{view.error}</b> {t.errorHint}</div> : null}
+          <div className="vc-step scroll" key={step ? step.id : ''} role="tabpanel">
+            {view.autonomy === 'vibe' ? <VibeBanner lang={view.lang} /> : null}
+            {view.flow === 'review' ? <ClosedBanner pr={view.pr} t={t} /> : null}
+            {step && View ? <Guard t={t}><View view={view} step={step} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} verdict={verdict} onVerdict={setVerdict} /></Guard> : null}
+          </div>
+          <NextStep actions={view.actions} step={step && step.id} t={t} busy={busy} asking={thread.status === 'asking'}
+            onRun={run} onPick={setPicked} onStop={() => act.set({ interrupt: true })}
+            idle={wait ? <AwaitValidation wait={wait} review={view.flow === 'review'} lang={view.lang} shown={step && step.id}
+              onMark={(target) => act.mark(target, 'ok')} onPick={setPicked} /> : null} />
+        </section>
+        <section className="vc-conv" aria-label={t.conversation}>
+          <Resizer t={t} side={side} root={root} onSide={onSide} />
+          <div className="vc-side-title vc-band"><span>{t.conversation}</span><span className="vc-conv-name">{titleOf(thread)}</span></div>
+          {children}
+        </section>
+        <StatusBar view={view} thread={thread} t={t} busy={busy} tasksOpen={tasksOpen} contextOpen={contextOpen}
+          onSet={act.set} onGauge={onGauge} onTasks={onTasks} />
+      </div>
+    </Picks.Provider>
+  );
+}
+
+// La poignée au bord gauche de la conversation : glisser (ou ← / →) change sa largeur, bornée par convWidth.
+function Resizer({ t, side, root, onSide }: { t: Strings; side: Side; root: RefObject<HTMLDivElement | null>; onSide(side: Side): void }) {
+  const total = () => root.current?.getBoundingClientRect().width ?? 0;
+  return (
+    <div className="vc-resize" role="separator" aria-orientation="vertical" aria-label={t.convResize} title={t.convResize} tabIndex={0}
+      aria-valuenow={side.width}
+      onPointerDown={(e) => {
+        e.preventDefault();
+        const move = (m: PointerEvent) => {
+          const r = root.current?.getBoundingClientRect();
+          if (r) onSide({ ...side, width: convWidth(r.right - m.clientX, r.width) });
+        };
+        const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', up);
+      }}
+      onKeyDown={(e) => {
+        const step = e.key === 'ArrowLeft' ? 24 : e.key === 'ArrowRight' ? -24 : 0;
+        if (!step) return;
+        e.preventDefault();
+        onSide({ ...side, width: convWidth(side.width + step, total()) });
+      }} />
   );
 }
 
 const LANGS: Record<VibeLang, string> = { fr: 'FR', en: 'EN' };
 
-function Top({ view, thread, busy, t, act, onHide }: { view: VibeView; thread: Thread; busy: boolean; t: Strings; act: VibeActs; onHide(): void }) {
+type TopProps = { view: VibeView; thread: Thread; busy: boolean; t: Strings; act: VibeActs; side: Side; onSide(side: Side): void; onHide(): void };
+
+function Top({ view, thread, busy, t, act, side, onSide, onHide }: TopProps) {
   const [spins, setSpins] = useState(0); // ⟳ tourne une fois par clic
   return (
     <div className="vc-top">
@@ -118,6 +173,10 @@ function Top({ view, thread, busy, t, act, onHide }: { view: VibeView; thread: T
         <button type="button" className="vc-icon vc-refresh" title={t.refresh} aria-label={t.refresh}
           onClick={() => { setSpins((n) => n + 1); act.refresh(); }}>
           <span key={spins} className={spins ? 'vc-spin' : undefined}>↻</span>
+        </button>
+        <button type="button" className="vc-icon vc-side-toggle" title={side.open ? t.convHide : t.convShow} aria-label={side.open ? t.convHide : t.convShow}
+          aria-pressed={side.open} onClick={() => onSide({ ...side, open: !side.open })}>
+          <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" /><path d="M10 2.5v11" /></svg>
         </button>
         <button type="button" className="vc-icon" title={t.back} aria-label={t.back} onClick={() => act.set({ view: 'conversation' })}>💬</button>
         <button type="button" className="vc-icon vc-close" title={t.close} aria-label={t.close} onClick={onHide}>×</button>

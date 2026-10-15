@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 # Forme — modules and boundaries (guide §2, A.2)
 
-`$ARGUMENTS` = `<lang> <out> [details…]`. `lang`: language of your answer. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`): nothing to write there. Details: optional instructions from the user (names, signatures, a split) — they win over your choices.
+`$ARGUMENTS` = `<lang> <out> [details…]`. `lang`: the user's language — of your answer and of the contracts' prose; module names, paths and signatures in English (or the project's convention). `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`): nothing to write there. Details: optional instructions from the user (names, signatures, a split) — they win over your choices.
 
 The note: under `docs/tickets/`, the file named like the branch (`<type>/<name>` → `docs/tickets/<type>/<name>.md`), else the one the branch adds or changes. None → say so and stop.
 

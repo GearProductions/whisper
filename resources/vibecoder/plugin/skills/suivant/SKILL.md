@@ -10,7 +10,7 @@ effort: high
 
 # Next — commit the reviewed module, then generate the next one
 
-`$ARGUMENTS` = `<lang> <out> <module>`. `lang`: language of your answer (the commit message follows the project's convention). `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `module`: `<path> — <contract>`, the entry of the note's « Forme » to implement next.
+`$ARGUMENTS` = `<lang> <out> <module>`. `lang`: the user's language, not used here — code-related work: your answer in English. The commit message and the code follow the project's convention. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `module`: `<path> — <contract>`, the entry of the note's « Forme » to implement next.
 
 ## 1. Commit the module in progress
 
@@ -30,4 +30,4 @@ Never push.
 
 ## Answer
 
-In `lang`, 1 to 3 lines: the commit (`<short hash> <subject>`), the module generated, the test results.
+In English, 1 to 3 lines: the commit (`<short hash> <subject>`), the module generated, the test results.

@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
-import { blobSha, caseTitles, isInvariantTest, isTest } from 'core/vibecoder';
+import { blobSha, caseLines, caseTitles, isInvariantTest, isTest } from 'core/vibecoder';
 
 describe('isTest : un fichier de test, quel que soit son langage', () => {
   it('Vitest : *.test.ts', () => {
@@ -123,6 +123,22 @@ describe('caseTitles : Python', () => {
 describe('caseTitles : l\'ordre du fichier', () => {
   it('dans l\'ordre où ils sont écrits', () => {
     expect(caseTitles('it(\'premier\', f);\ntest.each(T)(\'deuxième\', f);\nit(\'troisième\', f);')).toEqual(['premier', 'deuxième', 'troisième']);
+  });
+});
+
+describe('caseLines : la ligne de chaque cas, d\'après le texte du test', () => {
+  it('TypeScript : la ligne de son it / test, dans l\'ordre de caseTitles', () => {
+    const src = 'import x;\n\ndescribe(\'g\', () => {\n  it(\'a\', f);\n\n  test.each(T)(\'b\', f);\n});\n';
+    expect([caseTitles(src), caseLines(src)]).toEqual([['a', 'b'], [4, 6]]);
+  });
+
+  it('Rust : la ligne de son #[test] ; Python : celle de son def', () => {
+    expect(caseLines('use x;\n\n#[test]\nfn a() {}\n#[tokio::test]\nasync fn b() {}\n')).toEqual([3, 5]);
+    expect(caseLines('import x\n\ndef test_a():\n    pass\n')).toEqual([3]);
+  });
+
+  it('CRLF : les lignes comptées pareil', () => {
+    expect(caseLines('// x\r\n\r\nit(\'a\', f);\r\n')).toEqual([3]);
   });
 });
 

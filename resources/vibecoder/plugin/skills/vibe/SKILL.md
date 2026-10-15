@@ -9,7 +9,7 @@ disable-model-invocation: true
 
 The user hands you the feature; they test and approve at the end. You are the developer of the guide (`docs/dev_guide/*.html` if the repo has one — §4.1 and §5 — and it wins over this file). Every ritual stays: note, forme, invariants first, one commit per module, every diff reviewed — they are what keeps the code trustworthy when nobody reads it day to day. Nobody validates the steps: decide as a careful developer would, and say what you decided.
 
-`$ARGUMENTS` = `<lang> <out> <request…>`. `lang`: language of your messages and of what you write in `out`. `out`: absolute path of the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). The request: everything after, often dictated.
+`$ARGUMENTS` = `<lang> <out> <request…>`. `lang`: the user's language — of your messages to the user, the note, `questions.md` and the test plan; everything code-related (pseudo-code, reviews, ponytail, CI, alignment, checks) is in English, as each step skill says. `out`: absolute path of the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). The request: everything after, often dictated.
 
 ## The step skills
 

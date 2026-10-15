@@ -11,7 +11,7 @@ allowed-tools: "Read, Glob, Grep, Write, Bash(git status *), Bash(git log *), Ba
 
 # Open the PR (guide §5.2, A.3)
 
-`$ARGUMENTS` = `<lang> <out>`. `lang`: language of your answer (the title and description follow the project's convention). `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
+`$ARGUMENTS` = `<lang> <out>`. `lang`: the user's language, not used here — code-related work: your answer in English. The title and description follow the project's convention. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
 
 ## 1. Before
 
@@ -34,4 +34,4 @@ Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), 
 
 `{"number":<n>,"url":"…","title":"…"}` — valid JSON, nothing else.
 
-Answer in `lang`, 1 to 3 lines: the PR's link, created or picked up.
+Answer in English, 1 to 3 lines: the PR's link, created or picked up.

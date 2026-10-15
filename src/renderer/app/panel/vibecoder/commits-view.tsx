@@ -1,33 +1,36 @@
-/** commits-view — l'étape Commits (Relire) : la relecture des commits de la PR
- *  (pr-<n>-commits.md), une carte par commit (hash, sujet, ses remarques
- *  rendues). 💬 sur une carte : une remarque au brouillon de revue, pour ce
- *  commit — le texte du champ, sinon la relecture de ce commit ; la carte
- *  compte celles qui y sont déjà. Pas de relecture : Relire les commits.
+/** commits-view — l'étape Commits (Relire) : les commits de la PR, sans IA,
+ *  une carte chacun (hash, sujet ; Voir le diff dans l'éditeur, c<rang> ;
+ *  GitHub ↗, gh:c<rang> ; ses fichiers, chacun ouvrable, c<rang>/<i>) ; s'il y a une relecture
+ *  (pr-<n>-commits.md), ses remarques sous le commit qu'elles visent, et ses
+ *  autres rubriques (l'ensemble…) en tête. 💬 sur une carte : une zone de
+ *  commentaire sous elle, la remarque va au brouillon de revue pour ce
+ *  commit ; la carte compte celles qui y sont déjà. Relire les commits (IA)
+ *  reste un bouton de l'en-tête.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
-import { commitTitle, remark, sections } from 'core/vibecoder';
-import type { VibeLang } from 'technicals/bridge';
+import { useState, type ReactNode } from 'react';
+import { commitReviews, remark, type Strings } from 'core/vibecoder';
+import type { VibeComment, VibeLang } from 'technicals/bridge';
+import { CommentBox } from './comment-box';
 import { MarkdownView } from './markdown-view';
-import { Invite, OutputCard, Run, StepHead } from './step-parts';
-import type { StepProps } from './step-views';
+import { OutputCard, Run, StepHead } from './step-parts';
+import type { StepProps, VibeActs } from './step-views';
 import './commits-view.css';
 
 const fr = {
   general: 'Ensemble des commits',
-  toDraft: 'Ajouter au brouillon de revue : le texte du champ, sinon cette relecture',
+  toDraft: 'Une remarque sur ce commit, au brouillon de revue',
   inDraft: (n: number) => (n > 1 ? `${n} remarques au brouillon` : '1 remarque au brouillon'),
   again: 'Relire de nouveau',
-  none: 'Commits pas encore relus',
-  noneHint: 'Un par un : les quatre questions, la duplication avec l\'existant, les en-têtes, l\'histoire que racontent les commits.',
+  none: 'Aucun commit dans cette PR.',
 };
 const S: Record<VibeLang, typeof fr> = {
   fr,
   en: {
     general: 'All commits',
-    toDraft: 'Add to the review draft: the text of the field, else this review',
+    toDraft: 'A remark on this commit, to the review draft',
     inDraft: (n) => (n > 1 ? `${n} remarks in the draft` : '1 remark in the draft'),
     again: 'Review again',
-    none: 'Commits not reviewed yet',
-    noneHint: 'One by one: the four questions, duplication with existing code, file headers, the story the commits tell.',
+    none: 'No commit in this PR.',
   },
 };
 
@@ -36,6 +39,7 @@ export function CommitsView({ view, step, t, act, busy }: StepProps) {
   const action = view.actions.find((a) => a.id === 'review-commits');
   const file = view.pr ? `pr-${view.pr.number}-commits.md` : '';
   const out = view.outputs[file];
+  const { byHash, others } = commitReviews(out?.text ?? '', view.commits);
   return (
     <>
       <StepHead step={step} t={t}>
@@ -43,29 +47,73 @@ export function CommitsView({ view, step, t, act, busy }: StepProps) {
           <span className="vc-out-meta">
             <span className="vc-mono">{file}</span>
             <span title={new Date(out.time).toLocaleString(t.locale)}>{t.ago(Date.now() - out.time)}</span>
-            <Run a={action} busy={busy} tone="ghost" label={s.again} onRun={() => act.run('review-commits')} />
           </span>
         ) : null}
+        <Run a={action} busy={busy} tone={out ? 'ghost' : 'plain'} label={out ? s.again : undefined} onRun={() => act.run('review-commits')} />
       </StepHead>
-      {out ? sections(out.text).map((sec, i) => {
-        const commit = commitTitle(sec.title);
-        const item = remark(sec.title || s.general, sec.body);
-        const drafted = view.draft.filter((d) => d.target === item.target).length;
+      {others.map((sec, i) => (
+        <Commented key={`o${i}`} target={sec.title || s.general} title={sec.title || s.general} s={s} t={t} act={act} draft={view.draft}>
+          {sec.body ? <MarkdownView md={sec.body} t={t} onOpenLink={act.openLink} /> : null}
+        </Commented>
+      ))}
+      {view.commits.map((c, i) => {
+        const review = byHash.get(c.hash);
         return (
-          <OutputCard key={i} className="vc-commit-review" t={t}
-            title={commit ? <><code className="vc-chip">{commit.hash.slice(0, 7)}</code><span className="vc-commit-subject">{commit.subject}</span></> : sec.title || s.general}
-            tools={(
+          <Commented key={c.hash} target={`${c.hash.slice(0, 7)} ${c.subject}`} s={s} t={t} act={act} draft={view.draft}
+            title={<><code className="vc-chip" data-fixup={c.fixup || undefined}>{c.hash.slice(0, 7)}</code><span className="vc-commit-subject">{c.subject}</span></>}
+            links={(
               <>
-                {drafted ? <span className="vc-count">{s.inDraft(drafted)}</span> : null}
-                <button type="button" className="vc-tool" title={s.toDraft} aria-label={s.toDraft} onClick={() => act.draft({ add: item })}>💬</button>
+                <button type="button" className="vc-mini" title={t.diffTitle} onClick={() => act.open(`c${i}`)}>{t.diff}</button>
+                <button type="button" className="vc-mini" title={t.githubTitle} onClick={() => act.open(`gh:c${i}`)}>{t.github}</button>
               </>
             )}>
-            {sec.body ? <MarkdownView md={sec.body} t={t} onOpenLink={act.openLink} /> : null}
-          </OutputCard>
+            {c.files.length ? (
+              <details className="vc-commit-files" open={c.files.length <= 6}>
+                <summary>{t.files(c.files.length)}</summary>
+                <ul>
+                  {c.files.map((f, j) => (
+                    <li key={f}><button type="button" className="vc-mono" title={`${t.openTitle} : ${f}`} onClick={() => act.open(`c${i}/${j}`)}>{f}</button></li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
+            {review ? <div className="vc-commit-ai"><MarkdownView md={review} t={t} onOpenLink={act.openLink} /></div> : null}
+          </Commented>
         );
-      }) : (
-        <Invite title={s.none} text={s.noneHint}><Run a={action} busy={busy} onRun={() => act.run('review-commits')} /></Invite>
-      )}
+      })}
+      {view.commits.length ? null : <div className="vc-empty">{s.none}</div>}
     </>
+  );
+}
+
+type CommentedProps = {
+  target: string; title: ReactNode; links?: ReactNode; s: typeof fr; t: Strings; act: VibeActs; draft: VibeComment[];
+  children?: ReactNode;
+};
+
+// Une carte de commit (ou de rubrique) : 💬 ouvre sous elle la zone de commentaire, pour cette cible.
+function Commented({ target, title, links, s, t, act, draft, children }: CommentedProps) {
+  const [writing, setWriting] = useState(false);
+  const item = remark(target, '');
+  const drafted = draft.filter((d) => d.target === item.target).length;
+  return (
+    <OutputCard className="vc-commit-review" t={t} title={title}
+      tools={(
+        <>
+          {drafted ? <span className="vc-count">{s.inDraft(drafted)}</span> : null}
+          {links}
+          <button type="button" className="vc-tool" title={s.toDraft} aria-label={s.toDraft} aria-pressed={writing} onClick={() => setWriting(!writing)}>💬</button>
+        </>
+      )}>
+      {children || writing ? (
+        <>
+          {children}
+          {writing ? (
+            <CommentBox t={t} onCancel={() => setWriting(false)}
+              onSave={(text) => { act.draft({ add: remark(target, text) }); setWriting(false); }} />
+          ) : null}
+        </>
+      ) : null}
+    </OutputCard>
   );
 }

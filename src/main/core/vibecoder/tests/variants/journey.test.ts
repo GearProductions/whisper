@@ -62,7 +62,7 @@ const out = (text = '') => ({ text, time: 1 });
 const input = (over: Partial<JourneyInput> = {}): JourneyInput => ({
   agentId: 'a1', lang: 'fr', flow: 'create', pr: null, autonomy: 'guide', agent: { model: 'opus', effort: 'high', mode: 'default' },
   busy: false, repo: repo(), error: null, note: null, tests: [], readings: {}, outputs: {}, marks: {}, draft: [], actions: ACTIONS,
-  who: {}, skills: [], exists: () => false, now: 1700000000000, ...over,
+  who: {}, model: {}, skills: [], exists: () => false, now: 1700000000000, ...over,
 });
 // Un état de Créer : note et forme validées, invariants écrits, lus, validés et commités.
 const ready = (over: Partial<JourneyInput> = {}) => input({
@@ -414,5 +414,47 @@ describe('le relevé : modules, tests, faits', () => {
   it('sans dépôt : le relevé dit pourquoi', () => {
     const v = vibeView(input({ repo: null, error: 'pas un dépôt' }));
     expect([v.repo, v.error]).toEqual([null, 'pas un dépôt']);
+  });
+});
+
+describe('rc.2 : modèle au choix, PR fermée, fichiers des commits', () => {
+  const PR = (state: string) => JSON.stringify({ number: 12, title: 't', url: 'u', author: 'kb', base: 'main', head: 'feat/G2-1', body: '', state });
+  const merged = (state = 'MERGED') => vibeView(input({
+    flow: 'review', pr: 12, note, tests: [test], repo: repo([], [FIRST]), outputs: { 'pr-12.json': out(PR(state)) },
+  }));
+
+  it('une action dont le skill tourne en sous-contexte : les trois modèles, le conseillé', () => {
+    const v = vibeView(input({ model: { checks: 'haiku' } }));
+    expect([action(v, 'checks')?.models, action(v, 'checks')?.model]).toEqual([['haiku', 'sonnet', 'opus'], 'haiku']);
+  });
+
+  it('une action dans la conversation : aucun choix', () => {
+    const v = vibeView(input({ model: { checks: 'haiku' } }));
+    expect([action(v, 'note')?.models, action(v, 'note')?.model]).toEqual([[], null]);
+  });
+
+  it('l\'état de la PR, d\'après sa fiche ; inconnu : null', () => {
+    expect([merged('OPEN').pr?.state, merged('MERGED').pr?.state, merged('draft').pr?.state]).toEqual(['OPEN', 'MERGED', null]);
+  });
+
+  it('une PR fusionnée : les actions de relecture grisées, avec cette raison', () => {
+    expect([action(merged(), 'review-note')?.disabled, action(merged(), 'publish')?.disabled])
+      .toEqual(['PR déjà fusionnée : rien à relire', 'PR déjà fusionnée : rien à relire']);
+  });
+
+  it('une PR fermée : la raison le dit', () => {
+    expect(action(merged('CLOSED'), 'read-invariants')?.disabled).toBe('PR fermée : rien à relire');
+  });
+
+  it('une PR fusionnée se charge encore (l\'étape PR)', () => {
+    expect([action(merged(), 'load-pr')?.disabled, action(merged(), 'prs')?.disabled]).toEqual([null, null]);
+  });
+
+  it('un test d\'invariant : la ligne de chaque cas, d\'après son texte', () => {
+    expect(vibeView(ready()).invariants[0]).toMatchObject({ cases: ['dit bonjour', 'ne lit rien d\'autre'], lines: [1, 2] });
+  });
+
+  it('chaque commit, avec ses fichiers', () => {
+    expect(vibeView(ready()).commits).toEqual([{ hash: FIRST.hash, subject: FIRST.subject, fixup: false, files: [NOTE_PATH, TEST_PATH] }]);
   });
 });

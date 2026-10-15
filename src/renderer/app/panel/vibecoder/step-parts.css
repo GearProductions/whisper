@@ -31,6 +31,8 @@
   color: var(--vc-soft);
   font: 11px/1.65 var(--vc-mono);
 }
+button.vc-chip { cursor: pointer; }
+button.vc-chip:hover { border-color: var(--accent); color: var(--vc-text); }
 .vc-chip[data-fixup] { border-color: color-mix(in srgb, var(--vc-warn) 40%, transparent); color: var(--vc-warn); }
 
 /* Un bouton d'outil sans bord (💬, ×) : visible au survol. */
@@ -69,21 +71,18 @@
 .vc-run:not(:has(.vc-run-who)) { padding-right: 12px; }
 .vc-run:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--vc-control)); }
 .vc-run:active:not(:disabled) { transform: translateY(1px); }
+/* Plein discret : l'accent neutre, jamais un aplat vif. */
 .vc-run[data-tone="accent"] {
-  border-color: transparent;
-  background: var(--accent);
-  color: #0e1117;
-  font-weight: 600;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 4px 14px -6px color-mix(in srgb, var(--accent) 70%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--vc-control));
 }
-.vc-run[data-tone="accent"]:hover:not(:disabled) { background: var(--accent); filter: brightness(1.1); }
+.vc-run[data-tone="accent"]:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 28%, var(--vc-control)); }
 .vc-run[data-tone="ghost"] { height: 24px; padding-left: 9px; border-color: transparent; background: transparent; color: var(--vc-soft); font-size: 12px; }
 .vc-run[data-tone="ghost"]:hover:not(:disabled) { border-color: var(--vc-edge); background: var(--vc-control); color: var(--vc-text); }
 .vc-run:disabled { border: 1px dashed var(--vc-edge); background: transparent; color: var(--vc-faint); box-shadow: none; cursor: default; }
 .vc-run[data-tone="ghost"]:disabled { border-color: transparent; }
 .vc-run-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .vc-run-who { padding: 2px 7px; border-radius: 9px; background: rgba(255, 255, 255, 0.07); color: var(--vc-muted); font: 500 10.5px/1.4 var(--vc-mono); }
-.vc-run[data-tone="accent"]:not(:disabled) .vc-run-who { background: rgba(14, 17, 23, 0.18); color: #0e1117; }
 .vc-run-why { margin-right: 7px; color: var(--vc-faint); font-size: 11.5px; font-weight: 400; }
 .vc-run-why::before { content: "· "; }
 
@@ -92,10 +91,10 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  margin: 0 0 14px;
-  padding: 14px 16px;
-  border: 1px dashed var(--vc-edge);
-  border-radius: 8px;
+  margin: 0 0 20px;
+  padding: 16px 18px;
+  border: 1px dashed rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
   color: var(--vc-muted);
   font-size: 12.5px;
   line-height: 1.5;
@@ -128,3 +127,18 @@
   line-height: 1.4;
 }
 .vc-vibe-banner > span { color: var(--accent); }
+
+/* ---- Relire : PR fusionnée ou fermée ----------------------------------------- */
+.vc-closed {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -4px 0 18px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--vc-warn) 45%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vc-warn) 10%, var(--vc-editor));
+  color: var(--vc-text);
+  font-size: 13px;
+}
+.vc-closed b { color: var(--vc-warn); font: 600 12.5px/1 var(--vc-mono); }

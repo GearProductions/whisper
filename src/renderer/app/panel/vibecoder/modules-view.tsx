@@ -3,7 +3,8 @@
  *  relecture du dernier diff (review.md, 💬 par bloc). Puis une ligne par
  *  module de la Forme : point plein s'il est touché (vert : commité ; accent :
  *  modifié, pas encore commité), anneau sinon ; nom en gras, dossier atténué,
- *  contrat ; les commits qui le touchent en puces ; au survol (ou au clavier) :
+ *  contrat ; les commits qui le touchent en puces (un clic : son diff dans
+ *  l'éditeur) ; au survol (ou au clavier) :
  *  Générer, Relire le diff (du dernier commit qui le touche, sinon les
  *  changements non commités), Ouvrir.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
@@ -103,9 +104,10 @@ export function ModulesView({ view, step, t, act, busy }: StepProps) {
                       <span className="vc-mod-dir vc-mono">{dir}</span>
                       {!m.file && state === 'todo' ? <span className="vc-mod-new">{s.toCreate}</span> : null}
                       {commits.map((c) => (
-                        <code key={c.hash} className="vc-chip" data-fixup={c.fixup || undefined} title={`${c.hash.slice(0, 7)} ${c.subject}`}>
+                        <button key={c.hash} type="button" className="vc-chip" data-fixup={c.fixup || undefined}
+                          title={`${c.hash.slice(0, 7)} ${c.subject}\n${t.diffTitle}`} onClick={() => act.open(`c${view.commits.indexOf(c)}`)}>
                           {c.hash.slice(0, 7)}
-                        </code>
+                        </button>
                       ))}
                     </div>
                     {m.contract ? <div className="vc-mod-contract" title={m.contract}>{m.contract}</div> : null}

@@ -11,7 +11,7 @@ allowed-tools: "Write, Bash(gh pr list *)"
 
 # My PRs to review
 
-`$ARGUMENTS` = `<lang> <out>`. `lang`: language of your answer. `out`: absolute path of the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces: quote it).
+`$ARGUMENTS` = `<lang> <out>`. `lang`: the user's language, not used here — code-related work: your answer in English. `out`: absolute path of the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces: quote it).
 
 Run exactly this, from the repository:
 
@@ -21,4 +21,4 @@ gh pr list --search "review-requested:@me" --json number,title,author,url --jq '
 
 The file is a JSON array, `[]` when there is none. `gh` fails (not logged in, no GitHub remote) → write `[]` to `<out>/prs.json` and report the error.
 
-Change nothing else. Answer in `lang`, one line: how many PRs, or the error.
+Change nothing else. Answer in English, one line: how many PRs, or the error.

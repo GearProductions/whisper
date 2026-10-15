@@ -17,7 +17,7 @@ import { readText } from 'technicals/selection';
 import { loadConfig, saveConfig, updateAgent } from 'app/settings';
 import { state } from 'app/state';
 import {
-  agents, CLAUDE_MISSING, ensureFolderColors, isBusy, newAgent, pushAgents, setAgentSetting, setAgentView, trustFolder,
+  agents, CLAUDE_MISSING, ensureFolderColors, interruptAgent, isBusy, newAgent, pushAgents, setAgentSetting, setAgentView, trustFolder,
 } from 'app/controllers';
 import { conversationFocusInput, openConversation } from 'app/windows';
 
@@ -66,7 +66,7 @@ export function openAgentMenu(id: unknown) {
     { type: 'separator' },
     { label: 'Dernier échange', enabled: st.hasReply || !!agent.sessionId, click: () => openConversation(agent.id, { mode: 'compact' }) },
     { label: '⤢ Conversation complète (et historique)', click: () => openConversation(agent.id, { mode: 'full' }) },
-    { label: 'Interrompre', enabled: busy, click: () => { agents.interrupt(agent.id); pushAgents(); } },
+    { label: 'Interrompre', enabled: busy, click: () => interruptAgent(agent.id) },
     { label: 'Nouvelle session (effacer le contexte)', click: () => {
       agents.forget(agent.id);
       updateAgent(agent.id, { sessionId: null });

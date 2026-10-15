@@ -1,14 +1,15 @@
 /** actions — les boutons de VibeCoder, des données (actions.<langue>.json) :
  *  leurs entrées valides, le message qu'une action envoie à l'agent — son
  *  gabarit, chaque variable remplacée par une valeur vérifiée, rien d'autre —
- *  et qui travaille quand elle part (le modèle du skill qu'elle appelle).
+ *  et qui travaille quand elle part (le modèle du skill qu'elle appelle, ou
+ *  un autre choisi parmi SKILL_MODELS pour un skill en sous-contexte).
  *  Seuls {{text}}, {{answers}} et {{draft}} (écrits par l'utilisateur : le
  *  champ, I-2, ses réponses, ses remarques) sont libres ; un commit, un
  *  module, une PR ne sont pris que dans le dernier relevé, et aucune autre
  *  valeur n'a de caractère de contrôle ; une variable inconnue fait refuser
  *  l'action (l'agent lance des commandes avec ces valeurs, I-38).
  *  Ne connaît pas : Electron, le disque, l'agent (le message est rendu, pas envoyé).
- *  Utilisé par : core/vibecoder (journey), app/controllers/vibecoder, app/settings. */
+ *  Utilisé par : core/vibecoder (journey, defaults), app/controllers/vibecoder, app/settings. */
 import type { VibeAction, VibeArgs, VibeLang, VibeStepId, VibeView } from 'shared/bridge';
 
 export type ActionDef = {
@@ -24,7 +25,7 @@ export type ActionDef = {
 
 export type MessageContext = { view: VibeView; out: string; lang: VibeLang };
 // La variable qui manque ou ne va pas ; 'variable' : une variable inconnue.
-export type MessageError = 'text' | 'module' | 'commit' | 'pr' | 'answers' | 'verdict' | 'draft' | 'files' | 'note' | 'repo' | 'variable';
+export type MessageError = 'text' | 'module' | 'commit' | 'pr' | 'answers' | 'verdict' | 'draft' | 'files' | 'note' | 'repo' | 'variable' | 'model';
 
 const STEPS = ['note', 'forme', 'invariants', 'modules', 'revue', 'pr', 'commits', 'ecran'];
 const VERDICTS = ['approve', 'comment', 'request-changes'];
@@ -80,6 +81,9 @@ const NO_ANSWER: Record<VibeLang, string> = { fr: '(pas de réponse)', en: '(no 
 //   {{verdict}}        approve, comment ou request-changes → sinon 'verdict'
 //   {{draft}}          view.draft, une ligne « - [cible] texte » par remarque → 'draft' s'il est vide
 //   {{quote}}          ('prefill') ce que la page cite, rempli par elle : jamais ici
+// args.model : un autre modèle que le conseillé, parmi ceux que le relevé
+// propose pour cette action (VibeAction.models) → /vibecoder:<nom>--<modèle>,
+// sa variante (skillVariants) ; sinon 'model'.
 // Les arguments viennent d'une page : le type de chacun est vérifié ici.
 // Le gabarit est lu une fois : une valeur insérée n'est jamais relue comme un gabarit.
 // Hors {{text}}, {{answers}} et {{draft}}, une valeur qui contient un caractère de
@@ -129,8 +133,18 @@ export function buildMessage(def: ActionDef, args: VibeArgs, ctx: MessageContext
     verdict: () => (VERDICTS.includes(args.verdict as string) ? args.verdict as string : fail('verdict')),
     draft: () => (view.draft.length ? view.draft.map((c) => `- [${c.target}] ${c.text}`).join('\n') : fail('draft')),
   };
+  let template = def.text;
+  if (args.model !== undefined) {
+    const shown = view.actions.find((a) => a.id === def.id);
+    if (!shown || !shown.models.includes(args.model as string)) return fail('model');
+    if (args.model !== shown.model) {
+      const skill = /^\/vibecoder:([\w-]+)/.exec(template);
+      if (!skill) return fail('model');
+      template = `/vibecoder:${skill[1]}--${args.model}${template.slice(skill[0].length)}`;
+    }
+  }
   let error: MessageError | null = null;
-  const text = def.text.replace(VAR, (_, name: string) => {
+  const text = template.replace(VAR, (_, name: string) => {
     const key = name.trim();
     const value = Object.hasOwn(values, key) ? values[key]() : fail('variable');
     if (typeof value === 'string' && (FREE.includes(key) || !/[\0-\x1f\x7f]/.test(value))) return value;
@@ -146,14 +160,28 @@ const EFFORT: Record<VibeLang, Record<string, string>> = {
   en: { medium: 'medium', high: 'high', xhigh: 'extra high', max: 'max' },
 };
 
+// Les modèles qu'on peut choisir pour un skill en sous-contexte (jamais Fable, I-36).
+export const SKILL_MODELS = ['haiku', 'sonnet', 'opus'];
+
+// Un champ de l'en-tête (frontmatter) d'un skill, sans ses guillemets ; '' s'il manque.
+export function headField(skillMd: string | null, key: string): string {
+  const head = (skillMd && /^---\r?\n([\s\S]*?)\r?\n---/.exec(skillMd)?.[1]) || '';
+  return new RegExp(`^${key}:[ \\t]*(.*?)[ \\t]*$`, 'm').exec(head)?.[1].replace(/^(['"])(.*)\1$/, '$2') || '';
+}
+
+// Le modèle d'un skill en sous-contexte (context: fork) s'il est l'un de
+// SKILL_MODELS : on peut lui en choisir un autre ; sinon null.
+export function forkedModel(skillMd: string | null): string | null {
+  const model = headField(skillMd, 'model');
+  return headField(skillMd, 'context') === 'fork' && SKILL_MODELS.includes(model) ? model : null;
+}
+
 // Qui travaille pour un skill, d'après son en-tête (frontmatter) : son modèle,
 // et son effort s'il dépasse « low » (« opus · élevé », « haiku ») ; sans
 // modèle (ou sans skill) : « agent », le modèle de l'agent.
 export function whoOf(skillMd: string | null, lang: VibeLang): string {
-  const head = (skillMd && /^---\r?\n([\s\S]*?)\r?\n---/.exec(skillMd)?.[1]) || '';
-  const field = (key: string) => new RegExp(`^${key}:[ \\t]*(.*?)[ \\t]*$`, 'm').exec(head)?.[1].replace(/^(['"])(.*)\1$/, '$2') || '';
-  const model = field('model');
+  const model = headField(skillMd, 'model');
   if (!model || model === 'inherit') return 'agent';
-  const effort = EFFORT[lang][field('effort')];
+  const effort = EFFORT[lang][headField(skillMd, 'effort')];
   return effort ? `${model} · ${effort}` : model;
 }

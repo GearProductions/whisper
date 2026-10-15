@@ -30,14 +30,17 @@ const fake = vi.hoisted(() => {
     show() { this.visible = true; } showInactive() { this.visible = true; } hide() { this.visible = false; }
     focus() { this.emit('focus'); } restore() {} minimize() { this.visible = false; }
   }
-  return { Win, userData: '', windows: [] as InstanceType<typeof Win>[], facts: null as unknown, messages: [] as unknown[] };
+  return {
+    Win, userData: '', windows: [] as InstanceType<typeof Win>[], facts: null as unknown, messages: [] as unknown[],
+    shown: null as string | null, diff: null as string | null, edited: [] as unknown[][], opened: [] as string[],
+  };
 });
 
 vi.mock('electron', () => ({
   app: { getPath: () => fake.userData },
   BrowserWindow: class extends fake.Win { constructor() { super(); fake.windows.push(this); } },
   screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) },
-  shell: {}, dialog: {}, clipboard: {}, nativeImage: {},
+  shell: { openExternal: (url: string) => { fake.opened.push(url); } }, dialog: {}, clipboard: {}, nativeImage: {},
 }));
 
 // Claude Code : chaque message reçu est relevé, et le tour finit aussitôt.
@@ -57,8 +60,13 @@ vi.mock('technicals/claude', () => ({
 
 vi.mock('technicals/git', () => ({
   gitRun: () => async () => null,
-  gitReader: () => ({ facts: async () => fake.facts, show: async () => null }),
+  gitReader: () => ({ facts: async () => fake.facts, show: async () => fake.shown, commit: async () => fake.diff }),
   okRef: (ref: string) => /^(?!-)(?!.*\.\.)[A-Za-z0-9._/-]+$/.test(ref),
+}));
+
+// L'éditeur : relève ce qu'on lui fait ouvrir.
+vi.mock('technicals/editor', () => ({
+  findEditor: () => ({ name: 'éditeur', open: () => {}, openFile: (file: string, line?: number) => { fake.edited.push([file, line]); } }),
 }));
 
 // Les fichiers livrés : ceux du dépôt (resources/).
@@ -70,7 +78,10 @@ vi.mock('technicals/paths', async (original) => ({
 vi.mock('core/vibecoder', async (original) => ({
   ...await original<typeof import('core/vibecoder')>(),
   vibeView: (input: JourneyInput) => ({
-    ...input, actions: input.actions.map((a) => ({ ...a, who: input.who[a.id], primary: false, disabled: null })),
+    ...input, pr: input.pr && { number: input.pr }, commits: input.repo?.commits ?? [], invariants: [], variants: [], modules: [],
+    actions: input.actions.map((a) => ({
+      ...a, who: input.who[a.id], model: input.model[a.id], models: input.model[a.id] ? ['haiku', 'sonnet', 'opus'] : [], primary: false, disabled: null,
+    })),
   }),
 }));
 
@@ -86,6 +97,10 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] }); // le relevé des 4 s ne tourne pas
   fake.windows = [];
   fake.messages = [];
+  fake.edited = [];
+  fake.shown = null;
+  fake.diff = null;
+  fake.opened = [];
   fake.userData = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-vibecoder-'));
   dir = path.join(fake.userData, 'projet');
   out = path.join(fake.userData, 'vibecoder-out', 'a1');   // les sorties de l'agent
@@ -232,5 +247,89 @@ describe('followBranch : les sorties de Créer suivent la branche', () => {
     followBranch(out, 'feat/a', 'origin/main');
     expect([fs.readFileSync(at('review.md'), 'utf8'), has('questions.md'), has('branches', 'feat-a')]).toEqual(['relu sur a\n', true, false]);
     expect(fs.readFileSync(at('branches', 'feat-b', 'review.md'), 'utf8')).toBe('relu sur b\n');
+  });
+});
+
+// L'agent en Relire, sur la PR 12.
+function review() {
+  write(path.join(fake.userData, 'config.json'), JSON.stringify({
+    agentsEnabled: true,
+    agents: [{ id: 'a1', dir, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null, view: 'vibecoder',
+      vibe: { flow: 'review', autonomy: 'guide', pr: 12 } }],
+  }));
+}
+const HASH = 'a'.repeat(40);
+
+describe('rc.2', () => {
+  it('une action sur un autre modèle : la variante de son skill ; un modèle hors des choix : refusé', async () => {
+    write(path.join(fake.userData, 'vibecoder', 'plugin', 'skills', 'verifier', 'SKILL.md'), '---\ncontext: fork\nmodel: haiku\n---\n');
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+    expect(runVibeAction('checks', { model: 'fable' })).toMatchObject({ ok: false });
+    expect(runVibeAction('checks', { model: 'sonnet' })).toEqual({ ok: true });
+    await settle();
+    expect(fake.messages).toEqual([`/vibecoder:verifier--sonnet fr ${out}`]);
+  });
+
+  it('les variantes des skills : générées à côté, hors manifeste, réécrites à chaque démarrage', async () => {
+    const { ensureVibeFiles } = await import('app/settings');
+    const variant = path.join(fake.userData, 'vibecoder', 'plugin', 'skills', 'aligner--haiku', 'SKILL.md');
+    ensureVibeFiles();
+    expect(fs.readFileSync(variant, 'utf8')).toContain('\nmodel: haiku\neffort: low\n');
+    expect(Object.keys(JSON.parse(fs.readFileSync(path.join(fake.userData, 'vibecoder', '.defaults.json'), 'utf8')))
+      .filter((k) => k.includes('--'))).toEqual([]);
+    fs.writeFileSync(variant, 'retouché');
+    ensureVibeFiles();
+    expect(fs.readFileSync(variant, 'utf8')).toContain('\nmodel: haiku\n');
+  });
+
+  it('le brouillon de revue : une remarque modifiée sur place ; un texte vide ne la change pas', async () => {
+    review();
+    await open();
+    const { draftVibe } = await import('app/controllers');
+    const { vibeStore } = await import('app/settings');
+    draftVibe({ add: { target: 'note', text: 'trop vague' } });
+    draftVibe({ edit: { id: 1, text: 'la forme est trop vague' } });
+    draftVibe({ edit: { id: 1, text: '  ' } });
+    expect(vibeStore().drafts.a1[12]).toEqual([{ id: 1, target: 'note', text: 'la forme est trop vague' }]);
+  });
+
+  it('Relire : un fichier d\'un commit, à la tête de la PR, écrit en lecture seule sous files/ et ouvert à la ligne', async () => {
+    review();
+    fake.facts = { ...fake.facts as object, commits: [{ hash: HASH, subject: 'core/x', files: ['src/x.ts'] }] };
+    fake.shown = 'export const x = 1;\n';
+    await open();
+    const { openVibeItem } = await import('app/controllers');
+    await openVibeItem('c0/0', 7);
+    const file = path.join(out, 'files', 'pr-12', 'src', 'x.ts');
+    expect(fake.edited).toEqual([[fs.realpathSync(file), 7]]);
+    expect(fs.readFileSync(file, 'utf8')).toBe(fake.shown);
+    if (process.platform !== 'win32') expect(fs.statSync(file).mode & 0o777).toBe(0o444);
+    await openVibeItem('c0/0', 7);   // déjà là, en lecture seule : remplacé
+    expect(fake.edited).toHaveLength(2);
+  });
+
+  it('un commit : son diff écrit sous files/ et ouvert ; gh: sa page GitHub, d\'après l\'origine du dépôt', async () => {
+    write(path.join(dir, '.git', 'config'), '[remote "origin"]\n\turl = git@github.com:o/d.git\n');
+    fake.facts = { ...fake.facts as object, commits: [{ hash: HASH, subject: 'core/x', files: [] }] };
+    fake.diff = 'commit aaaa\n+x\n';
+    await open();
+    const { openVibeItem } = await import('app/controllers');
+    await openVibeItem('c0');
+    await openVibeItem('gh:c0');
+    expect(fake.edited).toEqual([[fs.realpathSync(path.join(out, 'files', `${HASH}.diff`)), undefined]]);
+    expect(fake.opened).toEqual([`https://github.com/o/d/commit/${HASH}`]);
+  });
+
+  it('Créer : un fichier d\'un commit, la copie de travail ; un chemin à la place d\'un id : rien', async () => {
+    write(path.join(dir, 'src', 'x.ts'), 'x');
+    fake.facts = { ...fake.facts as object, commits: [{ hash: HASH, subject: 'core/x', files: ['src/x.ts'] }] };
+    await open();
+    const { openVibeItem } = await import('app/controllers');
+    await openVibeItem('/etc/passwd', 1);
+    await openVibeItem('gh:https://exemple.fr');
+    await openVibeItem('c0/0', 3);
+    expect(fake.edited).toEqual([[fs.realpathSync(path.join(dir, 'src', 'x.ts')), 3]]);
+    expect(fake.opened).toEqual([]);
   });
 });

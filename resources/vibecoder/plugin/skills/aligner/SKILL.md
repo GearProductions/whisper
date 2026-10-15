@@ -11,7 +11,7 @@ allowed-tools: "Read, Glob, Grep, Write, Bash(git show *), Bash(git diff *), Bas
 
 # Align — note ↔ forme ↔ invariants (↔ code)
 
-`$ARGUMENTS` = `<lang> <out> <ref>`. `lang`: language of `align.md` and of your answer. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `ref`:
+`$ARGUMENTS` = `<lang> <out> <ref>`. `lang`: the user's language, not used here — code-related work: `align.md` and your answer in English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `ref`:
 - `WORKTREE`: the current branch, uncommitted and untracked files included. Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists; range `<base>...HEAD`.
 - `refs/vibecoder/pr/<n>`: a pull request, never checked out — read with `git show <ref>:<path>`, search with `git grep <pattern> <ref>`; base = `base` in `<out>/pr-<n>.json`, range `origin/<base>...<ref>`.
 
@@ -27,6 +27,6 @@ Read: the note (under `docs/tickets/`, named like the branch, or the one the ran
 
 ## `<out>/align.md`
 
-One `##` per gap, its title naming the item (the note line, the test, the module); under it, 1 to 3 lines: what is off, where (`file:line`), what to change. Most serious first. Nothing off → a single line without a title, « Aligné. » / « Aligned. », followed by what you checked (counts). Write nothing else, anywhere.
+One `##` per gap, its title naming the item (the note line, the test, the module); under it, 1 to 3 lines: what is off, where (`file:line`), what to change. Most serious first. Nothing off → a single line without a title, « Aligned. », followed by what you checked (counts). Write nothing else, anywhere.
 
-Answer in `lang`, 1 to 3 lines: the number of gaps and the most serious one.
+Answer in English, 1 to 3 lines: the number of gaps and the most serious one.

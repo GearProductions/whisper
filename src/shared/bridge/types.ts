@@ -195,9 +195,9 @@ export interface ConvApi {
   /** Valider ('ok'), refuser ('ko') ou oublier (null) : 'note', 'forme', 'case:<chemin du fichier>:<titre du cas>', 'check:<pr>:<rang>'. */
   vibeMark(target: string, verdict: 'ok' | 'ko' | null): void;
   /** Relire : ajouter au brouillon de revue de la PR (le texte du champ), ou en retirer une remarque. */
-  vibeDraft(op: { add?: { target: string; text: string }; remove?: number }): void;
+  vibeDraft(op: { add?: { target: string; text: string }; edit?: { id: number; text: string }; remove?: number }): void;
   /** Un fichier du relevé (son id), dans l'éditeur : jamais un chemin. */
-  vibeOpen(id: string): void;
+  vibeOpen(id: string, line?: number): void;
   vibeRefresh(): void;
 }
 
@@ -246,13 +246,14 @@ export type ReadingCase = {
 export type VibeTestFile = VibeFile & {
   blob: string;                          // son empreinte git (nomme sa lecture : <sorties>/invariants/<blob>.md)
   cases: string[];                       // titres des cas trouvés dans le fichier
+  lines: number[];                       // la ligne (1…) de chaque cas, dans l'ordre de cases : Ouvrir à la ligne
   reading: ReadingCase[] | null;         // null : pas encore lu, ou changé depuis
   marks: Record<string, VibeMarkState>;  // par titre de cas
 };
 
 export type VibeQuestion = { n: number; text: string; options: string[] };
 export type VibeCheck = { text: string; done: boolean | null };   // null : à vérifier à la main
-export type VibeCommit = { hash: string; subject: string; fixup: boolean };
+export type VibeCommit = { hash: string; subject: string; fixup: boolean; files: string[] };
 // Ce qu'un skill a écrit pour l'écran (Markdown), et quand.
 export type VibeOutput = { text: string; time: number };
 
@@ -262,6 +263,8 @@ export type VibeAction = {
   label: string;
   hint: string;
   who: string;                 // qui travaille : 'haiku', 'sonnet', 'opus · élevé', 'agent'
+  models: string[];            // sous-contexte : les modèles qu'on peut lui choisir ('haiku', 'sonnet', 'opus') ; [] : modèle de l'agent
+  model: string | null;        // le modèle conseillé (celui du skill) ; null : modèle de l'agent
   kind: 'send' | 'prefill';    // envoyé aussitôt, ou préparé dans le champ
   needs: 'none' | 'text';      // 'text' : il exige le texte du champ
   usesText: boolean;           // son gabarit prend le texte du champ ({{text}}), s'il y en a
@@ -270,7 +273,10 @@ export type VibeAction = {
   disabled: string | null;     // pourquoi c'est grisé
 };
 
-export type VibePr = { number: number; title: string; url: string; author: string; base: string; head: string; body: string };
+export type VibePr = {
+  number: number; title: string; url: string; author: string; base: string; head: string; body: string;
+  state: 'OPEN' | 'CLOSED' | 'MERGED' | null;   // null : inconnu (fiche d'avant la 0.8.0-rc.2)
+};
 export type VibePrItem = { number: number; title: string; author: string; url: string };
 export type VibeComment = { id: number; target: string; text: string };
 
@@ -306,6 +312,7 @@ export type VibeArgs = {
   pr?: number;
   answers?: string[];          // réponses aux questions, dans leur ordre
   verdict?: 'approve' | 'comment' | 'request-changes';
+  model?: string;              // sous-contexte : un autre modèle que le conseillé, parmi VibeAction.models
 };
 
 export type VibePatch = {
@@ -318,4 +325,5 @@ export type VibePatch = {
   model?: string;              // le modèle de l'agent, comme son menu
   effort?: string;
   mode?: string;
+  interrupt?: boolean;         // arrêter le tour en cours de l'agent (comme Interrompre de son menu)
 };

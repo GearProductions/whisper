@@ -1,6 +1,6 @@
 /** invariants — les tests d'invariants tels que la vue les montre : chaque cas
  *  avec sa lecture en pseudo-code (par son titre, sinon à son rang) et sa
- *  validation ; ce qui est validé, refusé, à lire, avec un point d'attention,
+ *  validation, sa ligne dans le fichier ; ce qui est validé, refusé, à lire, avec un point d'attention,
  *  et si « Tout valider » est permis ; le pseudo-code ligne à ligne, coloré,
  *  ses assertions et ses « étant donné / quand / alors » repérés.
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder (invariants-view). */
@@ -20,6 +20,12 @@ export function casesOf(file: VibeTestFile): CaseView[] {
       ?? (r.length === file.cases.length && !file.cases.includes(r[i].title) ? r[i] : null),
     mark: Object.hasOwn(file.marks, title) ? file.marks[title] : null,
   }));
+}
+
+// La ligne (1…) d'un cas dans son fichier, pour Ouvrir à la ligne ; inconnue : undefined (Ouvrir au début).
+export function caseLine(file: VibeTestFile, title: string): number | undefined {
+  const line = file.lines[file.cases.indexOf(title)];
+  return Number.isInteger(line) && line > 0 ? line : undefined;
 }
 
 export type Progress = {

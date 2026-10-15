@@ -11,7 +11,7 @@ allowed-tools: "Read, Glob, Grep, Write"
 
 # Checks — the project's own commands
 
-`$ARGUMENTS` = `<lang> <out>`. `lang`: language of the `detail` texts and of your answer. `out`: absolute path of the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
+`$ARGUMENTS` = `<lang> <out>`. `lang`: the user's language, not used here — code-related work: the `detail` texts and your answer in English. `out`: absolute path of the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
 
 ## Which commands
 
@@ -30,8 +30,8 @@ A project in several parts (e.g. front and back) → one item per part and kind,
 ```
 
 - One item per command run, in the order above; `ok` = exit code 0.
-- `detail`: one short line in `lang` — passed: the counts (« 212 tests passés ») ; failed: the first failing test or error, with `file:line` and its message.
+- `detail`: one short line in English — passed: the counts (« 212 tests passed »); failed: the first failing test or error, with `file:line` and its message.
 - `time`: when the checks finished, in milliseconds since the epoch (`date +%s%3N`).
 - No command found → `{"items":[],"time":…}`, and say so.
 
-Valid JSON only. Change nothing else. Answer in `lang`, one line: all green, or the failures.
+Valid JSON only. Change nothing else. Answer in English, one line: all green, or the failures.

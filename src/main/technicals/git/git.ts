@@ -6,7 +6,8 @@
  *  (--no-optional-locks : status ne réécrit pas l'index). Les faits d'une
  *  branche : son nom, sa base (origin/HEAD, sinon main ou master), HEAD, les
  *  fichiers changés, ses commits et leurs fichiers — sans un chemin que git
- *  cite ou qui contient un caractère de contrôle. Un fichier à un ref (show).
+ *  cite ou qui contient un caractère de contrôle. Un fichier à un ref (show) ;
+ *  un commit et son diff (commit).
  *  Ne connaît pas : VibeCoder, Electron.
  *  Utilisé par : app/controllers/vibecoder (gitRun, gitReader, okRef). */
 import { execFile } from 'node:child_process';
@@ -54,10 +55,12 @@ const plainPath = (path: string) => path !== '' && !path.startsWith('"') && !/[\
 // le permet. facts(ref, base) : la branche (HEAD et la copie de travail par
 // défaut) ou une PR chargée, comparée à `base` (par défaut origin/HEAD, sinon
 // main ou master), ses chemins cités ou à caractère de contrôle écartés ;
-// show : le contenu d'un fichier à ce ref.
+// show : le contenu d'un fichier à ce ref ; commit : un commit, ses fichiers
+// (--stat) et son diff.
 export function gitReader(run: Run): {
   facts(ref?: string, base?: string): Promise<GitFacts | null>;
   show(ref: string, path: string): Promise<string | null>;
+  commit(ref: string): Promise<string | null>;
 } {
   const exists = async (ref: string) => (await run(['rev-parse', '--verify', '--quiet', '--end-of-options', ref])) !== null;
   const defaultBase = async () => (await run(['rev-parse', '--abbrev-ref', 'origin/HEAD']))?.trim()
@@ -94,5 +97,6 @@ export function gitReader(run: Run): {
       return { branch, base: from, head, changed: [...changed], commits };
     },
     show: async (ref, path) => (okRef(ref) && okPath(path) ? run(['show', ...NO_PROGRAM, '--end-of-options', `${ref}:${path}`]) : null),
+    commit: async (ref) => (okRef(ref) ? run(['show', ...NO_PROGRAM, '--stat', '--patch', '-M', '--end-of-options', ref]) : null),
   };
 }

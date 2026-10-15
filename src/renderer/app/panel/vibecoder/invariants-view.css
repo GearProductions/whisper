@@ -138,6 +138,10 @@
   font-size: 12.8px;
   line-height: 1.5;
 }
+/* En tête de l'étape : ce que veut dire « Attention », discret. */
+.vc-ihelp { display: flex; gap: 8px; margin: -6px 0 18px; color: var(--vc-muted); font-size: 12.5px; line-height: 1.5; }
+.vc-ihelp > span { flex: none; color: var(--vc-warn); }
+.vc-attention { cursor: help; }
 .vc-attention-icon { flex: none; color: var(--vc-warn); font-size: 14px; line-height: 1.35; }
 .vc-attention p { margin: 0; }
 .vc-attention b { margin-right: 6px; color: var(--vc-warn); font-weight: 600; }

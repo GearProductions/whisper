@@ -1,7 +1,8 @@
 /** marks — les validations de l'utilisateur (la note, la forme, un cas de
  *  test, une case du plan de test), chacune pour l'empreinte du contenu
  *  validé : « modifié depuis » si le contenu a changé. Et le brouillon de revue
- *  de chaque PR (Relire). Rend un nouvel état, ne touche pas à l'ancien.
+ *  de chaque PR (Relire) : ajouter, modifier, retirer une remarque. Rend un
+ *  nouvel état, ne touche pas à l'ancien.
  *  Ne connaît pas : Electron, le disque (l'état est rangé par app/settings).
  *  Utilisé par : core/vibecoder (journey), app/controllers/vibecoder, app/settings. */
 import type { VibeComment, VibeMarkState } from 'shared/bridge';
@@ -30,4 +31,9 @@ export function addComment(drafts: Drafts, pr: number, target: string, text: str
 
 export function removeComment(drafts: Drafts, pr: number, id: number): Drafts {
   return { ...drafts, [pr]: (drafts[pr] ?? []).filter((c) => c.id !== id) };
+}
+
+// Le texte d'une remarque, changé sur place (même id, même cible).
+export function editComment(drafts: Drafts, pr: number, id: number, text: string): Drafts {
+  return { ...drafts, [pr]: (drafts[pr] ?? []).map((c) => (c.id === id ? { ...c, text } : c)) };
 }

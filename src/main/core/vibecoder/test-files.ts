@@ -1,6 +1,6 @@
 /** test-files — les fichiers de test d'une branche : lequel est un test, lequel un
  *  test d'invariant (rangé sous tests/invariants/), les titres de ses cas (it,
- *  test, #[test], def test_…), et son empreinte git, qui nomme sa lecture
+ *  test, #[test], def test_…) et leur ligne, et son empreinte git, qui nomme sa lecture
  *  (<sorties>/invariants/<blob>.md).
  *  Ne connaît pas : le disque, git (textes et chemins passés).
  *  Utilisé par : core/vibecoder (journey), app/controllers/vibecoder (les tests
@@ -27,6 +27,17 @@ const CASE = new RegExp([
 // Les titres des cas, dans l'ordre du fichier, tels qu'écrits (échappements ôtés).
 export function caseTitles(src: string): string[] {
   return [...src.matchAll(CASE)].map((m) => m[2]?.replace(/\\(.)/g, '$1') ?? m[3] ?? m[4]);
+}
+
+// La ligne (à partir de 1) de chaque cas, dans l'ordre de caseTitles : là où
+// commence son it / test, son #[test], son def.
+export function caseLines(src: string): number[] {
+  let line = 1;
+  let at = 0;
+  return [...src.matchAll(CASE)].map((m) => {
+    for (; at < m.index; at++) if (src[at] === '\n') line++;
+    return line;
+  });
 }
 
 // L'empreinte git (blob) d'un contenu : sha1 de « blob <octets>\0<contenu> », en UTF-8.

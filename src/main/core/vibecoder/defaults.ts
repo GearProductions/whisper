@@ -5,10 +5,14 @@
  *  écrit ; inchangé depuis notre écriture, il suit le nouveau défaut ; modifié
  *  par l'utilisateur, jamais écrit par nous, ou illisible, il est gardé tel
  *  quel. Manifeste illisible : rien n'est plus à nous (seul l'absent est écrit).
+ *  Et les variantes des skills en sous-contexte, un autre modèle chacune
+ *  (skillVariants) : générées, pas des défauts — hors manifeste, réécrites à
+ *  chaque démarrage.
  *  Ne connaît pas : Electron, node:fs (le disque est passé).
  *  Utilisé par : app/settings (ensureVibeFiles). */
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+import { forkedModel, SKILL_MODELS } from './actions';
 
 // read : null si le fichier manque, une erreur s'il est illisible (EACCES…) ; write crée ses dossiers.
 export type Disk = { read(path: string): string | null; write(path: string, content: string): void };
@@ -39,4 +43,25 @@ export function syncDefaults(dir: string, defaults: DefaultFile[], disk: Disk): 
   }
   disk.write(manifestPath, JSON.stringify(manifest, null, 2));
   return { written, kept };
+}
+
+const DEFAULT_EFFORT: Record<string, string> = { haiku: 'low', sonnet: 'medium', opus: 'high' };
+const COPIED = ['description', 'argument-hint', 'disable-model-invocation', 'allowed-tools'];
+
+// Les variantes du skill `name` s'il tourne en sous-contexte sur un modèle de
+// SKILL_MODELS (forkedModel), une par autre modèle m : plugin/skills/<name>--<m>/SKILL.md,
+// le même en-tête (description, argument-hint, disable-model-invocation,
+// allowed-tools ; context: fork), model: m et son effort par défaut (haiku
+// low, sonnet medium, opus high), un corps qui renvoie au skill. Aucune pour
+// un autre skill, ni pour une variante.
+export function skillVariants(name: string, skillMd: string): DefaultFile[] {
+  const model = forkedModel(skillMd);
+  if (!model || new RegExp(`--(${SKILL_MODELS.join('|')})$`).test(name)) return [];
+  const head = /^---\r?\n([\s\S]*?)\r?\n---/.exec(skillMd)![1].split(/\r?\n/);
+  const copied = head.filter((line) => COPIED.some((key) => line.startsWith(`${key}:`)));
+  return SKILL_MODELS.filter((m) => m !== model).map((m) => ({
+    path: `plugin/skills/${name}--${m}/SKILL.md`,
+    content: ['---', `name: ${name}--${m}`, ...copied, 'context: fork', `model: ${m}`, `effort: ${DEFAULT_EFFORT[m]}`, '---', '',
+      `Follow exactly the instructions of \`\${CLAUDE_SKILL_DIR}/../${name}/SKILL.md\` with these arguments: $ARGUMENTS`, ''].join('\n'),
+  }));
 }

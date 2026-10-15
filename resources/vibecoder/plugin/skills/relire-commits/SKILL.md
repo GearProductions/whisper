@@ -13,7 +13,7 @@ allowed-tools: "Read, Glob, Grep, Write, Bash(git show *), Bash(git diff *), Bas
 
 The diff, commit by commit, before any summary.
 
-`$ARGUMENTS` = `<lang> <out> <n>`. `lang`: language of the review and of your answer. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `n`: the PR number.
+`$ARGUMENTS` = `<lang> <out> <n>`. `lang`: the user's language, not used here — code-related work: the review and your answer in English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `n`: the PR number.
 
 The PR is the ref `refs/vibecoder/pr/<n>`, never checked out; its base is the `base` of `<out>/pr-<n>.json`. The commits: `git log --reverse --format='%h %s' origin/<base>..refs/vibecoder/pr/<n>`, then `git show <hash>` for each. The note (under `docs/tickets/`, added or changed by the PR) and its « Forme »: the contract of each module. Also `AGENTS.md` and the guide (`docs/dev_guide/*.html`) §5, if present.
 
@@ -25,8 +25,8 @@ The PR is the ref `refs/vibecoder/pr/<n>`, never checked out; its base is the `b
 - Glue code and whatever touches rights or data: read in full. A generic module: judge it by its imports.
 - The story (§5.2): the first commit holds the note, the forme and the red invariants; then one commit per module, with its variants and its contract in the message; no `wip`, `fix`, `retry` or `fixup!` commit; over ~400 lines, the module was too big; an invariant test changed after the first commit (they are protected) — say it.
 
-## `<out>/pr-<n>-commits.md`, in `lang`
+## `<out>/pr-<n>-commits.md`, in English
 
 One section per commit, in order, titled exactly `## <short hash> <subject>`; under it, list lines with the findings (`file:line` — what — why), or a single line saying it holds. A problem with the history itself (order, mixed modules, no first commit) goes under the commit concerned.
 
-Change nothing. Answer in `lang`, 1 to 3 lines: the commits read and the most serious finding.
+Change nothing. Answer in English, 1 to 3 lines: the commits read and the most serious finding.

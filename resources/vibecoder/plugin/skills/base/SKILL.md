@@ -11,7 +11,7 @@ allowed-tools: "Bash(gh pr view *), Bash(git status *), Bash(git branch *), Bash
 
 # Back to the base, once the PR is merged
 
-`$ARGUMENTS` = `<lang> <out>`. `lang`: language of your answer. `out`: nothing to write there.
+`$ARGUMENTS` = `<lang> <out>`. `lang`: the user's language, not used here — code-related work: your answer in English. `out`: nothing to write there.
 
 1. The branch: `git branch --show-current`. Its PR: `gh pr view --json state,baseRefName,headRefOid`.
 2. `state` is not `MERGED` (open, closed, no PR) → say so, do nothing else.
@@ -21,4 +21,4 @@ allowed-tools: "Bash(gh pr view *), Bash(git status *), Bash(git branch *), Bash
 
 Never delete a remote branch; nothing else.
 
-Answer in `lang`, one line: the base and its last commit, the branch deleted or kept.
+Answer in English, one line: the base and its last commit, the branch deleted or kept.

@@ -7,9 +7,9 @@
  *  à l'ouverture, à chaque changement et au fil d'un tour. Un agent en
  *  VibeCoder (son relevé, `conv:vibe`, sur sa conversation en cours) :
  *  l'écran VibeCoder à la place de l'en-tête et du corps, la même
- *  conversation dans sa colonne de droite ; une action y prend le texte du
- *  champ s'il lui en faut un (vidé une fois parti), ou y prépare un message ;
- *  une remarque au brouillon de revue prend aussi le texte du champ.
+ *  conversation dans sa colonne de droite (affichée ou masquée, sa largeur :
+ *  retenues ici, pour tous les agents) ; une action y prend le texte du champ
+ *  s'il lui en faut un (vidé une fois parti), ou y prépare un message.
  *  La colle : seul fichier du panneau qui connaît le pont (window.conv) ; il
  *  tient le brouillon de chaque conversation.
  *  Ne connaît pas : l'icône, la bulle. Utilisé par : main.tsx. */
@@ -18,14 +18,14 @@ import {
   appendDictation, createDrafts, createPermissionGuard, EMPTY, followsEnd, IMAGE_TYPES, isBusy, revoke, titleOf, toDraft,
   withAttached, withFile, type Draft, type Piece,
 } from 'core/conversation';
-import { DRAFT_MAX, t as vibeStrings, withPrefill, withSkill } from 'core/vibecoder';
+import { t as vibeStrings, withPrefill } from 'core/vibecoder';
 import type { Command, ConvApi, Notice, ProbeResult, SendResult, Session, Thread, VibeArgs, VibeView } from 'technicals/bridge';
 import { compactHeight } from 'technicals/dom';
 import {
   ArchivedBar, Composer, ContextDetail, Header, HistoryList, Lightbox, NoticeBar, showsWorking, TasksPane, ThreadContent,
   type ThreadActions,
 } from './components';
-import { SkillsBar, VibeCoder, type VibeActs } from './vibecoder';
+import { SkillsBar, VibeCoder, type Side, type VibeActs } from './vibecoder';
 
 const STATUS_MS = 10000; // un message de l'appli (téléchargement…) s'efface seul
 const AT_END_PX = 40;
@@ -45,6 +45,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   const [dragging, setDragging] = useState(false);
   const [tasksOpen, setTasksOpen] = useState(false);
   const [vibe, setVibe] = useState<VibeView | null>(null);
+  const [vibeSide, setVibeSide] = useState<Side>({ open: true, width: 400 });
 
   const [drafts] = useState(createDrafts);
   const [guard] = useState(() => createPermissionGuard());
@@ -243,25 +244,8 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     setDraft((d) => ({ ...d, text: withPrefill(d.text, a.text || '', quote) }));
   }
 
-  // Une pastille de skill : `/<skill> ` au début du champ (withSkill).
-  function vibeSkill(name: string) {
-    const skills = vibe ? vibe.skills : [];
-    focusEnd.current = true;
-    setDraft((d) => ({ ...d, text: withSkill(d.text, name, skills) }));
-  }
-
-  // Relire : une remarque au brouillon de revue, sur la cible que donne la vue ;
-  // son texte : celui du champ s'il y en a un (le champ se vide ; trop long
-  // pour le principal : il reste, et on le dit), sinon ce que la vue propose.
-  function vibeDraft(op: Parameters<VibeActs['draft']>[0]) {
-    const typed = op.add ? draft.text.trim() : '';
-    if (typed.length > DRAFT_MAX) { setStatus(vibeStrings(vibe?.lang ?? 'fr').draftTooLong); return; }
-    conv.vibeDraft(op.add && typed ? { add: { target: op.add.target, text: typed } } : op);
-    if (typed) { setStatus(''); setDraft((d) => ({ ...d, text: '' })); }
-  }
-
   const vibeAct: VibeActs = {
-    run: vibeRun, prefill: vibePrefill, set: conv.vibeSet, mark: conv.vibeMark, draft: vibeDraft, open: conv.vibeOpen,
+    run: vibeRun, prefill: vibePrefill, set: conv.vibeSet, mark: conv.vibeMark, draft: conv.vibeDraft, open: conv.vibeOpen,
     openLink: conv.openLink, refresh: conv.vibeRefresh,
   };
 
@@ -310,10 +294,11 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
       className={dragging ? 'dragging' : undefined} style={data ? { '--accent': data.color } as CSSProperties : undefined}>
       {vibeShown && data ? (
         <VibeCoder key={vibeShown.agentId} view={vibeShown} thread={data} act={vibeAct} tasksOpen={tasksOpen}
-          contextOpen={overlay === 'context'} onGauge={toggleContext} onTasks={toggleTasks} onHide={() => conv.hide()}>
+          contextOpen={overlay === 'context'} onGauge={toggleContext} onTasks={toggleTasks} onHide={() => conv.hide()}
+          side={vibeSide} onSide={setVibeSide}>
           {noticeBar}
           {body}
-          <SkillsBar view={vibeShown} busy={isBusy(data.status)} onSkill={vibeSkill} onRun={vibeRun} />
+          <SkillsBar view={vibeShown} busy={isBusy(data.status)} onRun={vibeRun} />
           {composer}
         </VibeCoder>
       ) : (

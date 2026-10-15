@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 # Modules — the rest of the Forme, in parallel, reviewed, one commit each
 
-`$ARGUMENTS` = `<lang> <out>`. `lang`: language of your answer. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). The user hands you the remaining modules: generate, review and commit them without asking, as the developer of the guide would (`docs/dev_guide/*.html` §4.1, §5.1, §5.2, if present).
+`$ARGUMENTS` = `<lang> <out>`. `lang`: the user's language, not used here — code-related work: your answer in English. Commit messages and code follow the project's convention. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). The user hands you the remaining modules: generate, review and commit them without asking, as the developer of the guide would (`docs/dev_guide/*.html` §4.1, §5.1, §5.2, if present).
 
 ## 1. What remains
 
@@ -35,4 +35,4 @@ Never: push; edit a protected test to make it pass; close, kill or restart the u
 
 ## Answer
 
-In `lang`: one line per commit (`<short hash> <subject>`), then what is left or what you had to decide.
+In English: one line per commit (`<short hash> <subject>`), then what is left or what you had to decide.

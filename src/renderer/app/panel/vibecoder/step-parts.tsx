@@ -2,14 +2,15 @@
  *  Commits, À l'écran, Revue (Relire) : l'en-tête d'étape (nom, état, faits,
  *  outils à droite), la carte d'une sortie de skill (titre, fichier, depuis
  *  quand), le bouton d'une action du relevé (son libellé ou un plus court, qui
- *  travaille, pourquoi c'est grisé ; absent si l'action n'existe pas), la
- *  invitation (rien encore, et ce qui le produit), la carte d'une PR, le
- *  bandeau du mode Vibe.
+ *  travaille ou le choix du modèle, pourquoi c'est grisé ; absent si l'action
+ *  n'existe pas), l'invitation (rien encore, et ce qui le produit), la carte
+ *  d'une PR, le bandeau du mode Vibe, celui d'une PR fusionnée ou fermée.
  *  Ne connaît pas : le pont (rappels passés).
- *  Utilisé par : modules-view, review-view, pr-view, pr-picker, commits-view, ecran-view, draft-view ; vibe-coder (bandeau). */
+ *  Utilisé par : modules-view, review-view, pr-view, pr-picker, commits-view, ecran-view, draft-view ; vibe-coder (bandeaux). */
 import type { ReactNode } from 'react';
 import { webUrl, type Strings } from 'core/vibecoder';
 import type { VibeAction, VibeLang, VibePr, VibeStep } from 'technicals/bridge';
+import { ModelPick } from './model-pick';
 import './step-parts.css';
 
 const fr = {
@@ -60,18 +61,20 @@ export function OutputCard({ title, file, time, t, tools, className, children }:
 
 type RunProps = { a: VibeAction | undefined; busy: boolean; label?: ReactNode; tone?: 'accent' | 'plain' | 'ghost'; onRun(): void };
 
-// Une action du relevé : envoyée (grisée si l'agent travaille) ou préparée dans le champ.
+// Une action du relevé : envoyée (grisée si l'agent travaille) ou préparée dans le champ ;
+// en sous-contexte, le choix du modèle à côté (sinon, qui travaille).
 export function Run({ a, busy, label, tone = 'plain', onRun }: RunProps) {
   if (!a) return null;
   const send = a.kind === 'send';
-  return (
+  const button = (
     <button type="button" className="vc-run" data-tone={tone} disabled={!!a.disabled || (busy && send)}
       title={a.disabled ? `${a.hint}\n— ${a.disabled}` : a.hint} onClick={onRun}>
       <span className="vc-run-label">{label ?? a.label}</span>
-      {send ? <span className="vc-run-who">{a.who}</span> : null}
+      {send && !a.models.length && tone !== 'ghost' ? <span className="vc-run-who">{a.who}</span> : null}
       {a.disabled && !busy && tone !== 'ghost' ? <span className="vc-run-why">{a.disabled}</span> : null}
     </button>
   );
+  return send && a.models.length ? <span className="vc-run-group">{button}<ModelPick a={a} /></span> : button;
 }
 
 // Rien encore : ce qui manque, et le bouton qui le produit.
@@ -103,6 +106,12 @@ export function PrCard({ pr, lang, onOpenLink, children }: { pr: VibePr; lang: V
       {children ? <div className="vc-card-body vc-pr-body">{children}</div> : null}
     </section>
   );
+}
+
+// Relire : la PR suivie est fusionnée ou fermée (son état connu et pas OPEN).
+export function ClosedBanner({ pr, t }: { pr: VibePr | null; t: Strings }) {
+  if (!pr?.state || pr.state === 'OPEN') return null;
+  return <div className="vc-closed" role="status"><b>{`#${pr.number}`}</b>{t.prClosed[pr.state]}</div>;
 }
 
 export function VibeBanner({ lang }: { lang: VibeLang }) {

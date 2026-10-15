@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { commitTitle, parseChecks, parseReview, sections, webUrl } from 'core/vibecoder';
+import { commitReviews, commitTitle, parseChecks, parseReview, sections, webUrl } from 'core/vibecoder';
+import type { VibeCommit } from 'technicals/bridge';
 
 describe('parseChecks', () => {
   it('les items, dans leur ordre', () => {
@@ -114,5 +115,29 @@ describe('commitTitle', () => {
 
   it('pas un hash en tête : null', () => {
     for (const t of ['Remarques générales', 'abc12 trop court', 'zzzzzzz pas hexa', '', ' 1234567x collé']) expect(commitTitle(t)).toBeNull();
+  });
+});
+
+describe('commitReviews', () => {
+  const commit = (hash: string, subject = 's'): VibeCommit => ({ hash, subject, fixup: false, files: [] });
+  const commits = [commit('5d6e7f8aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'), commit('9a0b1c2bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')];
+
+  it('une rubrique par commit, rangée par son hash complet', () => {
+    const md = '## 5d6e7f8 vad\n- a\n\n## `9A0B1C2`: dictée\n- b';
+    const { byHash, others } = commitReviews(md, commits);
+    expect(byHash.get(commits[0].hash)).toBe('- a');
+    expect(byHash.get(commits[1].hash)).toBe('- b');
+    expect(others).toEqual([]);
+  });
+
+  it('l\'ensemble, un commit inconnu du relevé, un second titre du même commit : à part, dans l\'ordre', () => {
+    const md = 'Intro\n## Ensemble\n- e\n## 1234567 inconnu\n- i\n## 5d6e7f8 vad\n- a\n## 5d6e7f8 encore\n- x';
+    const { byHash, others } = commitReviews(md, commits);
+    expect([...byHash.keys()]).toEqual([commits[0].hash]);
+    expect(others.map((s) => s.title)).toEqual(['', 'Ensemble', '1234567 inconnu', '5d6e7f8 encore']);
+  });
+
+  it('pas de commit au relevé : tout à part', () => {
+    expect(commitReviews('## 5d6e7f8 vad\n- a', []).others).toHaveLength(1);
   });
 });

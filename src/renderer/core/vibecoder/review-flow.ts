@@ -3,7 +3,7 @@
  *  bornes que le principal accepte (draftVibe : cible d'une ligne, 300
  *  caractères ; texte de 5 000).
  *  Ne connaît pas : le DOM, React, le pont.
- *  Utilisé par : app/panel/vibecoder (pr-picker, commits-view, note-view, invariants-view), app/panel/panel-app (DRAFT_MAX). */
+ *  Utilisé par : app/panel/vibecoder (pr-picker, commits-view, note-view, invariants-view, comment-box : DRAFT_MAX). */
 import { excerpt } from './note';
 
 // « 27 », « #27 » ou l'adresse d'une PR (…/pull/27) → 27 ; sinon null.

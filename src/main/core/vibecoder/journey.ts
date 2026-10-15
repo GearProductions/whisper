@@ -10,11 +10,11 @@ import type {
   VibeAction, VibeAutonomy, VibeCheck, VibeComment, VibeFlow, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePr,
   VibePrItem, VibeStepId, VibeTestFile, VibeView,
 } from 'shared/bridge';
-import { prNumber, templateVars, type ActionDef } from './actions';
+import { prNumber, SKILL_MODELS, templateVars, type ActionDef } from './actions';
 import { markState, type Marks } from './marks';
 import { parseNote } from './note';
 import { json, parseChecklist, parseQuestions, parseReading } from './outputs';
-import { blobSha, caseTitles, isInvariantTest } from './test-files';
+import { blobSha, caseLines, caseTitles, isInvariantTest } from './test-files';
 
 export type JourneyInput = {
   agentId: string;
@@ -34,6 +34,7 @@ export type JourneyInput = {
   draft: VibeComment[];
   actions: ActionDef[];
   who: Record<string, string>;                      // par id d'action : qui travaille
+  model: Record<string, string | null>;             // par id d'action : le modèle de son skill en sous-contexte (forkedModel)
   skills: string[];
   exists: (rel: string) => boolean;
   now: number;                                      // l'heure du relevé
@@ -56,7 +57,7 @@ const TEXT = {
     busy: 'L\'agent travaille', noRepo: 'Pas de dépôt git', noNoteYet: 'Pas encore de note', nothingToRead: 'Aucun test d\'invariant à lire',
     noModule: 'Aucun module à générer', noPrChosen: 'Aucune PR choisie', loadFirst: 'Charger d\'abord la PR',
     emptyDraft: 'Le brouillon de revue est vide', noCommitMd: 'Préparer d\'abord le commit', noQuestion: 'Aucune question ouverte',
-    noFixup: 'Aucun commit fixup!',
+    noFixup: 'Aucun commit fixup!', merged: 'PR déjà fusionnée : rien à relire', closed: 'PR fermée : rien à relire',
     checklist: ['La note est à jour', 'Les invariants passent', 'Chaque diff a été relu', 'Un commit par module, fixups repliés',
       'AGENTS.md à jour si une convention a changé'],
   },
@@ -71,7 +72,7 @@ const TEXT = {
     busy: 'The agent is working', noRepo: 'No git repository', noNoteYet: 'No note yet', nothingToRead: 'No invariant test to read',
     noModule: 'No module to generate', noPrChosen: 'No PR chosen', loadFirst: 'Load the PR first',
     emptyDraft: 'The review draft is empty', noCommitMd: 'Prepare the commit first', noQuestion: 'No open question',
-    noFixup: 'No fixup! commit',
+    noFixup: 'No fixup! commit', merged: 'PR already merged: nothing to review', closed: 'PR closed: nothing to review',
     checklist: ['The note is up to date', 'The invariants pass', 'Every diff has been reviewed', 'One commit per module, fixups folded',
       'AGENTS.md updated if a convention changed'],
   },
@@ -126,9 +127,9 @@ export function vibeView(input: JourneyInput): VibeView {
   const untouched = modules.some((m) => !m.touched);
 
   // Les tests de la branche (ceux qui ont des cas) : invariants et variants.
-  const tests = input.tests.map((t) => ({ ...t, cases: caseTitles(t.text) })).filter((t) => t.cases.length);
+  const tests = input.tests.map((t) => ({ ...t, cases: caseTitles(t.text), lines: caseLines(t.text) })).filter((t) => t.cases.length);
   const invariants: VibeTestFile[] = tests.filter((t) => isInvariantTest(t.path)).map((t, i) => ({
-    id: `t${i}`, path: t.path, blob: t.blob, cases: t.cases,
+    id: `t${i}`, path: t.path, blob: t.blob, cases: t.cases, lines: t.lines,
     reading: Object.hasOwn(input.readings, t.blob) ? parseReading(input.readings[t.blob]) : null,
     marks: Object.fromEntries(t.cases.map((c) => [c, markState(marks, `case:${t.path}:${c}`, t.blob)])),
   }));
@@ -139,7 +140,7 @@ export function vibeView(input: JourneyInput): VibeView {
 
   // Les sorties des skills.
   const questions = parseQuestions(out('questions.md') ?? '');
-  const viewCommits = commits.map((c) => ({ hash: c.hash, subject: c.subject, fixup: FIXUP.test(c.subject) }));
+  const viewCommits = commits.map((c) => ({ hash: c.hash, subject: c.subject, fixup: FIXUP.test(c.subject), files: c.files }));
   const fixups = viewCommits.filter((c) => c.fixup).length;
   const checkItems = json(out('checks.json'))?.items;
   const checks = Array.isArray(checkItems) ? checkItems as { name?: unknown; ok?: unknown }[] : null;
@@ -151,7 +152,7 @@ export function vibeView(input: JourneyInput): VibeView {
   const number = flow === 'review' ? n : prNumber(card?.number);
   const pr: VibePr | null = number ? {
     number, title: str(card?.title), url: str(card?.url), author: str(card?.author), base: str(card?.base), head: str(card?.head),
-    body: str(card?.body),
+    body: str(card?.body), state: ['OPEN', 'CLOSED', 'MERGED'].includes(card?.state as string) ? card!.state as VibePr['state'] : null,
   } : null;
   const loaded = flow === 'review' && !!card && repo !== null;
   const list = flow === 'review' ? json(out('prs.json')) : null;
@@ -251,6 +252,10 @@ export function vibeView(input: JourneyInput): VibeView {
   const why = (d: ActionDef): string | null => {
     if (d.kind === 'prefill') return null;
     if (input.busy) return T.busy;
+    // Relire une PR fusionnée ou fermée : elle se charge, mais ne se relit pas.
+    if (flow === 'review' && d.step !== null && d.step !== 'pr' && (pr?.state === 'MERGED' || pr?.state === 'CLOSED')) {
+      return pr.state === 'MERGED' ? T.merged : T.closed;
+    }
     const v = new Set(templateVars(d.text));
     if ((v.has('branch') || v.has('base')) && !repo) return T.noRepo;
     // La Forme et les invariants s'écrivent d'après la note.
@@ -267,7 +272,8 @@ export function vibeView(input: JourneyInput): VibeView {
   const actions: VibeAction[] = input.actions
     .filter((d) => (d.flow === 'both' || d.flow === flow) && (d.id !== 'guide' || input.skills.includes('gear-guide')))
     .map((d) => ({
-      id: d.id, step: d.step, label: d.label, hint: d.hint, who: input.who[d.id] ?? 'agent', kind: d.kind, needs: d.needs,
+      id: d.id, step: d.step, label: d.label, hint: d.hint, who: input.who[d.id] ?? 'agent',
+      model: input.model[d.id] ?? null, models: input.model[d.id] ? SKILL_MODELS : [], kind: d.kind, needs: d.needs,
       usesText: templateVars(d.text).includes('text'),
       ...(d.kind === 'prefill' ? { text: d.text } : {}),
       primary: d.id === primary, disabled: why(d),

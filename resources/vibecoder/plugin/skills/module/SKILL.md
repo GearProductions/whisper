@@ -10,7 +10,7 @@ effort: high
 
 # Module — one module, by its contract (guide §4.1)
 
-`$ARGUMENTS` = `<lang> <out> <module>`. `lang`: language of your answer. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces): nothing to write there. `module`: `<path> — <contract>`, an entry of the note's « Forme ».
+`$ARGUMENTS` = `<lang> <out> <module>`. `lang`: the user's language, not used here — code-related work: your answer in English. The code itself follows the project's convention (`AGENTS.md`), else English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces): nothing to write there. `module`: `<path> — <contract>`, an entry of the note's « Forme ».
 
 ## Read first
 
@@ -32,4 +32,4 @@ effort: high
 
 ## Answer
 
-In `lang`, 1 to 3 lines: the files written, the results (typecheck, invariants, variants), what you skipped or question.
+In English, 1 to 3 lines: the files written, the results (typecheck, invariants, variants), what you skipped or question.

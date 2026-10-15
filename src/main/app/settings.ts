@@ -10,7 +10,7 @@ import { app } from 'electron';
 import type { VibeLang } from 'shared/bridge';
 import { agentList, withDefaults, type Config } from 'core/config';
 import { AUDIO_RULES, type AgentConfig } from 'core/agents';
-import { parseActions, syncDefaults, type ActionDef, type Drafts, type Marks } from 'core/vibecoder';
+import { parseActions, skillVariants, syncDefaults, type ActionDef, type Drafts, type Marks } from 'core/vibecoder';
 import { readJson, writeJson } from 'technicals/config-file';
 import { binDir, resourcePath } from 'technicals/paths';
 
@@ -70,7 +70,8 @@ const read = (file: string) => {
 };
 
 // Les fichiers livrés (resources/vibecoder) écrits dans vibeDir sans jamais
-// écraser une retouche (core/vibecoder : syncDefaults). Au démarrage et avant
+// écraser une retouche (core/vibecoder : syncDefaults), puis les variantes des
+// skills (skillVariants). Au démarrage et avant
 // d'ouvrir le dossier ; un échec ne bloque rien (I-29).
 export function ensureVibeFiles() {
   try {
@@ -78,10 +79,17 @@ export function ensureVibeFiles() {
     const files = (fs.readdirSync(root, { recursive: true }) as string[])
       .filter((rel) => fs.statSync(path.join(root, rel)).isFile())
       .map((rel) => ({ path: rel.split(path.sep).join('/'), content: fs.readFileSync(path.join(root, rel), 'utf8') }));
-    syncDefaults(vibeDir(), files, {
-      read,
-      write: (file, content) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); },
-    });
+    const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
+    syncDefaults(vibeDir(), files, { read, write });
+    // Les variantes des skills en sous-contexte (un autre modèle, choisi à
+    // l'écran) : générées d'après les skills de l'utilisateur, hors manifeste,
+    // réécrites à chaque fois.
+    const skills = path.join(vibePluginDir(), 'skills');
+    for (const name of fs.readdirSync(skills)) {
+      let md: string | null = null;
+      try { md = fs.readFileSync(path.join(skills, name, 'SKILL.md'), 'utf8'); } catch { /* pas un skill */ }
+      for (const v of md ? skillVariants(name, md) : []) write(path.join(vibeDir(), v.path), v.content);
+    }
   } catch (err) {
     console.error(`VibeCoder : fichiers par défaut non écrits (${err instanceof Error ? err.message : err})`);
   }

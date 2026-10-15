@@ -2,15 +2,19 @@
  *  branche (ou de la PR), lu en pseudo-code, une carte par cas : son titre,
  *  le pseudo-code coloré (assertions et « étant donné / quand / alors »
  *  repérés), ses cas limites, ce qu'il garantit, son point d'attention ; ✓ /
- *  ✗ (l'état : validé, refusé, modifié depuis), 💬, Ouvrir. ✗ et 💬 citent le
- *  cas dans le champ (Relire : au brouillon de revue, le texte du champ ou le
- *  titre). Par fichier : sa progression, « Tout valider » quand chaque cas
- *  est lu sans point d'attention ; pas lu : ses cas et « Lire en
- *  pseudo-code ». En tête : le résumé de l'étape, l'alignement (align.md).
+ *  ✗ (l'état : validé, refusé, modifié depuis), 💬, Ouvrir (à la ligne du
+ *  cas). ✗ et 💬 citent le
+ *  cas dans le champ (Relire : ils ouvrent sous la carte une zone de
+ *  commentaire, pour le brouillon de revue, le cas en cible). Par fichier : sa
+ *  progression, « Tout valider » quand chaque cas est lu sans point
+ *  d'attention ; pas lu : ses cas et « Lire en pseudo-code ». En tête : le
+ *  résumé de l'étape, ce que veut dire « Attention » (s'il y en a),
+ *  l'alignement (align.md).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
-import { useMemo } from 'react';
-import { casesOf, excerpt, fileParts, progress, pseudoLines, remark, type CaseView, type Progress, type Strings } from 'core/vibecoder';
+import { useMemo, useState } from 'react';
+import { caseLine, casesOf, excerpt, fileParts, progress, pseudoLines, remark, type CaseView, type Progress, type Strings } from 'core/vibecoder';
 import type { VibeLang, VibeTestFile } from 'technicals/bridge';
+import { CommentBox } from './comment-box';
 import { InlineMd, MarkdownView } from './markdown-view';
 import { Invite, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
@@ -34,8 +38,9 @@ const fr = {
   edges: 'Cas limites',
   guarantees: 'Garantit',
   warning: 'Attention',
+  warningHelp: 'Attention : le relecteur pense que ce test ne vérifie pas vraiment ce qu\'il annonce (mock, boucle, assertion faible…). Ce n\'est pas un échec : une piste pour votre relecture.',
   quote: 'Citer ce cas dans le champ',
-  quoteReview: 'Ajouter au brouillon de revue : le texte du champ, sinon le titre du cas',
+  quoteReview: 'Une remarque sur ce cas, au brouillon de revue',
   unreadText: (n: number) => `${n} cas, pas encore lu${n > 1 ? 's' : ''} en pseudo-code (ou le fichier a changé depuis la lecture).`,
   noReading: 'Pas de lecture pour ce cas (son titre a pu changer) : relancez « Lire en pseudo-code ».',
   noTests: 'Aucun test d\'invariant sur la branche',
@@ -62,8 +67,9 @@ const S: Record<VibeLang, typeof fr> = {
     edges: 'Edge cases',
     guarantees: 'Guarantees',
     warning: 'Warning',
+    warningHelp: 'Warning: the reviewer thinks this test does not really check what it claims (mock, loop, weak assertion…). It is not a failure: a lead for your review.',
     quote: 'Quote this case in the field',
-    quoteReview: 'Add to the review draft: the text of the field, else the case title',
+    quoteReview: 'A remark on this case, to the review draft',
     unreadText: (n) => `${n} case${n === 1 ? '' : 's'}, not read as pseudo-code yet (or the file changed since the reading).`,
     noReading: 'No reading for this case (its title may have changed): run « Read as pseudo-code » again.',
     noTests: 'No invariant test on the branch',
@@ -81,21 +87,18 @@ export function InvariantsView({ view, step, t, act, busy }: StepProps) {
   const total = progress(view.invariants);
   const align = view.outputs['align.md'];
   const target = (f: VibeTestFile, title: string) => `case:${f.path}:${title}`;
-  // ✗ et 💬 : Créer, le cas cité dans le champ ; Relire, au brouillon de revue (le texte du champ, sinon le titre).
+  // ✗ et 💬 : Créer, le cas cité dans le champ ; Relire, la zone de commentaire de la carte (CaseCard), au brouillon de revue.
   const verdict = (f: VibeTestFile, title: string, v: Verdict) => {
     act.mark(target(f, title), v);
-    if (v === 'ko') {
-      if (review) act.draft({ add: remark(target(f, title), title) });
-      else act.prefill('case-ko', title);
-    }
+    if (v === 'ko' && !review) act.prefill('case-ko', title);
   };
-  const quote = (f: VibeTestFile, title: string) => (review ? act.draft({ add: remark(target(f, title), title) }) : act.prefill('comment', title));
-  const quoteAlign = review ? (q: string) => act.draft({ add: remark(`align: ${excerpt(q, 80)}`, q) })
-    : view.actions.some((a) => a.id === 'comment') ? (q: string) => act.prefill('comment', q) : undefined;
+  const quoteAlign = !review && view.actions.some((a) => a.id === 'comment') ? (q: string) => act.prefill('comment', q) : undefined;
+  const commentAlign = review ? (q: string, text: string) => act.draft({ add: remark(`align: ${excerpt(q, 80)}`, text) }) : undefined;
   return (
     <>
       <StepHead step={step} t={t} />
       {view.invariants.length ? <Summary p={total} s={s} /> : null}
+      {total.warnings ? <p className="vc-ihelp"><span aria-hidden="true">⚠</span>{s.warningHelp}</p> : null}
       {align ? (
         <details className="vc-card vc-ialign" open>
           <summary className="vc-card-head">
@@ -103,7 +106,7 @@ export function InvariantsView({ view, step, t, act, busy }: StepProps) {
             <span className="vc-card-file vc-mono">align.md</span>
             <span className="vc-card-time" title={new Date(align.time).toLocaleString(t.locale)}>{t.ago(Date.now() - align.time)}</span>
           </summary>
-          <div className="vc-card-body"><MarkdownView md={align.text} t={t} onOpenLink={act.openLink} onQuote={quoteAlign} /></div>
+          <div className="vc-card-body"><MarkdownView md={align.text} t={t} onOpenLink={act.openLink} onQuote={quoteAlign} onComment={commentAlign} /></div>
         </details>
       ) : null}
       {view.invariants.map((f) => {
@@ -125,12 +128,13 @@ export function InvariantsView({ view, step, t, act, busy }: StepProps) {
                     {s.all}
                   </button>
                 ) : null}
-                {review ? null : <button type="button" className="vc-mini" title={t.openTitle} onClick={() => act.open(f.id)}>{t.open}</button>}
+                <button type="button" className="vc-mini" title={t.openTitle} onClick={() => act.open(f.id)}>{t.open}</button>
               </span>
             </div>
             {f.reading ? casesOf(f).map((c, i) => (
               <CaseCard key={c.title} c={c} n={i + 1} s={s} t={t} lang={view.lang} review={review} onOpenLink={act.openLink}
-                onVerdict={(v) => verdict(f, c.title, v)} onQuote={() => quote(f, c.title)} onOpen={review ? undefined : () => act.open(f.id)} />
+                onVerdict={(v) => verdict(f, c.title, v)} onQuote={() => act.prefill('comment', c.title)} onOpen={() => act.open(f.id, caseLine(f, c.title))}
+                onComment={(text) => act.draft({ add: remark(target(f, c.title), text) })} />
             )) : (
               <div className="vc-iunread">
                 <p>{s.unreadText(f.cases.length)}</p>
@@ -181,12 +185,16 @@ function Summary({ p, s }: { p: Progress; s: Labels }) {
 
 type CardProps = {
   c: CaseView; n: number; s: Labels; t: Strings; lang: VibeLang; review: boolean;
-  onOpenLink(url: string): void; onVerdict(v: Verdict): void; onQuote(): void; onOpen?(): void;
+  onOpenLink(url: string): void; onVerdict(v: Verdict): void; onQuote(): void; onOpen(): void;
+  onComment(text: string): void;   // Relire : la remarque de la zone de commentaire, sur ce cas
 };
 
-function CaseCard({ c, n, s, t, lang, review, onOpenLink, onVerdict, onQuote, onOpen }: CardProps) {
+function CaseCard({ c, n, s, t, lang, review, onOpenLink, onVerdict, onQuote, onOpen, onComment }: CardProps) {
   const r = c.reading;
   const quote = review ? s.quoteReview : s.quote;
+  const [writing, setWriting] = useState(false);
+  // Relire : ✗ et 💬 ouvrent la zone de commentaire ; Créer : 💬 cite le cas dans le champ.
+  const verdict = (v: Verdict) => { onVerdict(v); if (review && v === 'ko') setWriting(true); };
   return (
     <article className="vc-case" data-mark={c.mark || undefined} data-warn={r?.warning ? true : undefined}>
       <div className="vc-case-head">
@@ -210,7 +218,7 @@ function CaseCard({ c, n, s, t, lang, review, onOpenLink, onVerdict, onQuote, on
             </div>
           ) : null}
           {r.warning ? (
-            <div className="vc-attention" role="note">
+            <div className="vc-attention" role="note" title={s.warningHelp}>
               <span className="vc-attention-icon" aria-hidden="true">⚠</span>
               <p><b>{s.warning}</b><InlineMd text={r.warning} t={t} onOpenLink={onOpenLink} /></p>
             </div>
@@ -218,12 +226,14 @@ function CaseCard({ c, n, s, t, lang, review, onOpenLink, onVerdict, onQuote, on
         </>
       ) : <p className="vc-case-none">{s.noReading}</p>}
       <div className="vc-case-foot">
-        {r ? <CaseVerdict state={c.mark} lang={lang} onMark={onVerdict} /> : null}
+        {r ? <CaseVerdict state={c.mark} lang={lang} onMark={verdict} /> : null}
         <span className="vc-case-tools">
-          <button type="button" className="vc-tool" title={quote} aria-label={quote} onClick={onQuote}>💬</button>
-          {onOpen ? <button type="button" className="vc-mini" title={t.openTitle} onClick={onOpen}>{t.open}</button> : null}
+          <button type="button" className="vc-tool" title={quote} aria-label={quote} aria-pressed={review ? writing : undefined}
+            onClick={() => (review ? setWriting(!writing) : onQuote())}>💬</button>
+          <button type="button" className="vc-mini" title={t.openTitle} onClick={onOpen}>{t.open}</button>
         </span>
       </div>
+      {writing ? <CommentBox t={t} onCancel={() => setWriting(false)} onSave={(text) => { onComment(text); setWriting(false); }} /> : null}
     </article>
   );
 }

@@ -6,13 +6,17 @@
  *  réglage — au plus un par seconde ; null, une fois, quand l'agent affiché
  *  n'est plus en VibeCoder. Et ce que l'écran demande : une action (un message
  *  à l'agent affiché, comme s'il était tapé, par sendToAgent : refusé s'il
- *  travaille, I-25), un réglage, une validation, le brouillon de revue, ouvrir
- *  un fichier du relevé.
+ *  travaille, I-25), un réglage (dont arrêter l'agent, comme Interrompre de son
+ *  menu), une validation, le brouillon de revue, ouvrir un fichier ou un commit
+ *  du relevé (dans l'éditeur, à une ligne ; la page d'un commit dans le
+ *  navigateur, d'après l'origine GitHub du dépôt, I-32).
  *  Ne lit que la note et les tests que git donne dans le dossier de l'agent
  *  (safePath), et les sorties de cet agent sous leurs noms connus : une page
  *  désigne un fichier par son id dans le dernier relevé, jamais par un chemin
- *  (I-37). Le message d'une action : son gabarit, rempli par buildMessage
- *  (I-38). git en lecture seule (technicals/git, I-39). Créer : les sorties
+ *  (I-37). Ce qu'il écrit pour l'ouvrir (un fichier de la PR, le diff d'un
+ *  commit) va sous <sorties>/files/, en lecture seule. Le message d'une
+ *  action : son gabarit, rempli par buildMessage (I-38). git en lecture seule
+ *  (technicals/git, I-39). Créer : les sorties
  *  suivent la branche (followBranch). git manquant, dossier sans dépôt,
  *  fichier illisible : rien ne bloque le fil ni l'agent (I-29).
  *  Ne connaît pas : la page (seulement ses canaux), la fenêtre.
@@ -21,12 +25,14 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { shell } from 'electron';
 import type { SendResult, VibeArgs, VibeLang, VibeView } from 'shared/bridge';
 import { EFFORTS, MODELS, MODES, type AgentConfig } from 'core/agents';
 import { agentVibe, vibeLang, type Config } from 'core/config';
+import { githubPage } from 'core/repo';
 import {
-  addComment, blobSha, buildMessage, findNote, isInvariantTest, isOutputName, isTest, itemPath, json, noteKey, parseNote,
-  prNumber, removeComment, safePath, setMark, vibeView, whoOf, type MessageError,
+  addComment, blobSha, buildMessage, editComment, findNote, forkedModel, isInvariantTest, isOutputName, isTest, itemCommit, itemPath,
+  json, noteKey, parseNote, prNumber, removeComment, safePath, setMark, vibeView, whoOf, type MessageError,
 } from 'core/vibecoder';
 import { findEditor } from 'technicals/editor';
 import { gitReader, gitRun, okRef } from 'technicals/git';
@@ -34,7 +40,7 @@ import { which } from 'technicals/paths';
 import { loadConfig, saveConfig, saveVibeStore, updateAgent, vibeActions, vibeOutDir, vibePluginDir, vibeStore } from 'app/settings';
 import { state } from 'app/state';
 import { conversationShown, openConversation } from 'app/windows';
-import { isBusy, liveViewAgent, sendToAgent, setAgentSetting } from './agents';
+import { interruptAgent, isBusy, liveViewAgent, sendToAgent, setAgentSetting } from './agents';
 
 const VIBE_MS = 4000;          // le relevé régulier, panneau visible
 const THROTTLE_MS = 1000;      // au plus un relevé par seconde
@@ -58,6 +64,7 @@ const ERRORS: Record<VibeLang, Record<MessageError | 'agent' | 'action' | 'args'
     note: 'Pas encore de note pour cette branche.',
     repo: 'Pas de dépôt git dans ce dossier.',
     variable: 'Action mal écrite (variable inconnue), ou valeur refusée (caractère de contrôle) : voir le dossier de VibeCoder.',
+    model: 'Ce modèle ne peut pas être choisi pour cette action.',
     noGit: 'git est introuvable : le parcours ne peut pas être lu. La conversation reste utilisable.',
     notRepo: 'Ce dossier n\'est pas un dépôt git : le parcours ne peut pas être lu. La conversation reste utilisable.',
   },
@@ -76,6 +83,7 @@ const ERRORS: Record<VibeLang, Record<MessageError | 'agent' | 'action' | 'args'
     note: 'No note for this branch yet.',
     repo: 'No git repository in this folder.',
     variable: 'Badly written action (unknown variable), or refused value (control character): see the VibeCoder folder.',
+    model: 'This model cannot be chosen for this action.',
     noGit: 'git not found: the journey cannot be read. The conversation still works.',
     notRepo: 'This folder is not a git repository: the journey cannot be read. The conversation still works.',
   },
@@ -113,7 +121,8 @@ export async function refreshVibe({ now = false }: { now?: boolean } = {}) {
   // Toutes les 4 s, seulement panneau visible ; arrêté quand l'agent n'est plus en VibeCoder.
   timer ??= setInterval(() => { if (conversationShown() || !vibeAgent()) refreshVibe(); }, VIBE_MS);
   // Panneau caché (réduit) : aucun relevé ; il reprend à sa réapparition.
-  if (!now && !conversationShown()) return;
+  // (sauf le premier relevé d'un agent qu'on vient d'afficher : le panneau peut ne pas être encore montré)
+  if (!now && !conversationShown() && agent.id === shown) return;
   if (running) { again = true; return; }
   const wait = now || agent.id !== shown ? 0 : lastAt + THROTTLE_MS - Date.now();
   if (wait > 0) { trailing ??= setTimeout(() => { trailing = null; refreshVibe(); }, wait); return; }
@@ -266,6 +275,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const before = turnNote.get(agent.id)?.text ?? null;
   const store = vibeStore();
   const actions = vibeActions(lang);
+  const skills = Object.fromEntries(actions.map((a) => [a.id, skillMd(a.text)]));
   return vibeView({
     agentId: agent.id, lang, flow, pr, autonomy,
     agent: { model: agent.model || '', effort: agent.effort || '', mode: agent.mode || 'default' },
@@ -279,7 +289,8 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     marks: store.marks[agent.id] || {},
     draft: flow === 'review' && pr ? store.drafts[agent.id]?.[pr] || [] : [],
     actions,
-    who: Object.fromEntries(actions.map((a) => [a.id, whoOf(skillMd(a.text), lang)])),
+    who: Object.fromEntries(actions.map((a) => [a.id, whoOf(skills[a.id], lang)])),
+    model: Object.fromEntries(actions.map((a) => [a.id, forkedModel(skills[a.id])])),
     skills: skillNames(agent.dir),
     exists: (rel) => { const file = safePath(agent.dir, rel, realpath); return !!file && fs.existsSync(file); },
     now: Date.now(),
@@ -321,7 +332,8 @@ export function setAgentView(id: string, view: 'vibecoder' | null) {
 // Un réglage de l'écran : Créer ou Relire, Guide ou Vibe, la PR suivie (pour
 // l'agent) ; la langue (tout VibeCoder) ; « Vu » (la note de référence devient
 // l'actuelle) ; revenir à la conversation ; modèle, effort et mode comme son
-// menu (une valeur hors de ses choix est ignorée).
+// menu (une valeur hors de ses choix est ignorée) ; arrêter son tour, comme
+// Interrompre de son menu.
 export function setVibe(patch: unknown) {
   const agent = vibeAgent();
   if (!agent || !patch || typeof patch !== 'object') return;
@@ -339,6 +351,7 @@ export function setVibe(patch: unknown) {
   for (const [key, choices] of [['model', MODELS], ['effort', EFFORTS], ['mode', MODES]] as const) {
     if (choices.some(([value]) => value === p[key])) setAgentSetting(agent.id, key, p[key] as string);
   }
+  if (p.interrupt === true && isBusy(agent.id)) interruptAgent(agent.id);
   if (p.view === 'conversation') setAgentView(agent.id, null);
   else refreshVibe({ now: true });
 }
@@ -371,18 +384,23 @@ export function markVibe(target: unknown, verdict: unknown) {
 }
 
 // Relire : le brouillon de revue de la PR suivie — ajouter une remarque (sa
-// cible, sur une ligne de 300 caractères au plus ; le texte du champ, 5 000) ou
-// en retirer une.
+// cible, sur une ligne de 300 caractères au plus ; le texte du champ, 5 000),
+// en changer le texte (mêmes limites) ou en retirer une.
 export function draftVibe(op: unknown) {
   const agent = vibeAgent();
   const { flow, pr } = agent ? agentVibe(agent) : { flow: null, pr: null };
   if (!agent || flow !== 'review' || !pr || !op || typeof op !== 'object') return;
-  const { add, remove } = op as { add?: { target?: unknown; text?: unknown } | null; remove?: unknown };
+  const { add, edit, remove } = op as {
+    add?: { target?: unknown; text?: unknown } | null; edit?: { id?: unknown; text?: unknown } | null; remove?: unknown;
+  };
+  const okText = (t: unknown): t is string => typeof t === 'string' && !!t.trim() && t.length <= REMARK_MAX;
   const store = vibeStore();
   const drafts = store.drafts[agent.id] || {};
   if (add && typeof add.target === 'string' && typeof add.text === 'string'
-    && add.target.length <= TARGET_MAX && !/[\r\n]/.test(add.target) && add.text.trim() && add.text.length <= REMARK_MAX) {
+    && add.target.length <= TARGET_MAX && !/[\r\n]/.test(add.target) && okText(add.text)) {
     store.drafts[agent.id] = addComment(drafts, pr, add.target, add.text);
+  } else if (edit && Number.isInteger(edit.id) && okText(edit.text)) {
+    store.drafts[agent.id] = editComment(drafts, pr, edit.id as number, edit.text);
   } else if (Number.isInteger(remove)) {
     store.drafts[agent.id] = removeComment(drafts, pr, remove as number);
   } else return;
@@ -390,14 +408,56 @@ export function draftVibe(op: unknown) {
   refreshVibe({ now: true });
 }
 
-// Un fichier du relevé, par son id (jamais un chemin, I-37), dans l'éditeur ;
-// Créer seulement (Relire : la PR n'est pas sur le disque).
-export function openVibeItem(id: unknown) {
+// Un fichier écrit pour être ouvert (un fichier de la PR, le diff d'un
+// commit) : <sorties>/<rel>, en lecture seule, remplacé s'il existe ; son
+// dossier doit rester dans le dossier de sorties (`..`, ou un lien qui en
+// sort : rien). Son chemin, ou null.
+function writeForEditor(out: string, rel: string, text: string) {
+  const target = path.resolve(out, rel);
+  if (!target.startsWith(path.resolve(out) + path.sep)) return null;
+  try {
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    const dir = safePath(out, path.relative(out, path.dirname(target)), fs.realpathSync.native);
+    if (!dir) return null;
+    const file = path.join(dir, path.basename(target));
+    fs.rmSync(file, { force: true });
+    fs.writeFileSync(file, text, { mode: 0o444, flag: 'wx' });
+    return file;
+  } catch { return null; }
+}
+
+// Un fichier ou un commit du relevé, par son id (jamais un chemin, I-37) :
+// - un fichier (n, t…, v…, m…, `c<rang>/<i>`) dans l'éditeur, à `line` si
+//   elle est donnée ; Créer : la copie de travail ; Relire : sa version à la
+//   tête de la PR (git show), écrite dans <sorties>/files/pr-<n>/<chemin> ;
+// - `c<rang>` : le diff du commit (git show), écrit dans <sorties>/files/<hash>.diff ;
+// - `gh:c<rang>` : la page du commit sur GitHub, dans le navigateur, d'après
+//   l'origine du dépôt (githubPage, I-32) ; sans origine GitHub, rien.
+export async function openVibeItem(id: unknown, line?: unknown) {
   const cfg = loadConfig();
   const agent = vibeAgent(cfg);
   const view = agent && last.get(agent.id);
-  if (!agent || !view || view.flow !== 'create' || typeof id !== 'string') return;
-  const rel = itemPath(view, id);
-  const file = rel && safePath(agent.dir, rel, fs.realpathSync.native);
-  if (file) findEditor(cfg.editorCommand)?.openFile(file);
+  if (!agent || !view || typeof id !== 'string') return;
+  const at = Number.isInteger(line) && (line as number) > 0 ? line as number : undefined;
+  const open = (file: string | null) => { if (file) findEditor(cfg.editorCommand)?.openFile(file, at); };
+  const out = vibeOutDir(agent.id);
+  const git = gitReader(gitRun(agent.dir));
+  const commit = itemCommit(view, id);
+  if (commit?.web) {
+    const page = githubPage(agent.dir, (f) => readFile(f)?.text ?? null);
+    if (page && /^[0-9a-f]{7,64}$/.test(commit.hash)) shell.openExternal(`${page}/commit/${commit.hash}`);
+  } else if (commit) {
+    const text = await git.commit(commit.hash);
+    open(text === null ? null : writeForEditor(out, path.join('files', `${commit.hash}.diff`), text));
+  } else {
+    const rel = itemPath(view, id);
+    const n = prNumber(view.pr?.number);
+    if (!rel) return;
+    if (view.flow === 'create') return open(safePath(agent.dir, rel, fs.realpathSync.native));
+    if (!n) return;
+    const ref = `refs/vibecoder/pr/${n}`;
+    const text = await git.show(ref, rel);
+    // ponytail: un dossier (le fichier d'un module) rend sa liste (« tree <ref>:<chemin> ») : pas ouvert.
+    open(text === null || text.startsWith(`tree ${ref}:`) ? null : writeForEditor(out, path.join('files', `pr-${n}`, rel), text));
+  }
 }

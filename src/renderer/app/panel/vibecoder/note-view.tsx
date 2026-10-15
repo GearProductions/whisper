@@ -3,15 +3,17 @@
  *  un liseré vert ; « Voir les modifications » montre le diff brut, retraits
  *  compris, replié autour des changements ; « Vu » repart de la note
  *  actuelle. Les lignes de « Ce que ça ne doit pas faire » portent leur
- *  marque en pastille. 💬 sur un bloc le cite dans le champ (Relire : au
- *  brouillon de revue). En tête : son chemin, Ouvrir (Créer), sa validation,
- *  la pastille Fable (Créer). Au-dessus, Créer : les questions ouvertes
+ *  marque en pastille. 💬 sur un bloc le cite dans le champ (Relire : il
+ *  ouvre sous le bloc une zone de commentaire, pour le brouillon de revue ;
+ *  ✗ sur la note aussi, sous son en-tête). En tête : son chemin, Ouvrir, sa
+ *  validation, la pastille Fable (Créer). Au-dessus, Créer : les questions ouvertes
  *  (questions-view) ; Relire : la relecture de la note par l'agent. Pas de
  *  note : ce qu'il faut faire pour en avoir une.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useMemo, useState } from 'react';
 import { changedLines, excerpt, fileParts, foldDiff, lineDiff, mustNotTags, remark, type DiffLine } from 'core/vibecoder';
 import type { MustNotMark, VibeLang } from 'technicals/bridge';
+import { CommentBox } from './comment-box';
 import { MarkdownView } from './markdown-view';
 import { QuestionsView } from './questions-view';
 import { Invite, OutputCard, Run, StepHead } from './step-parts';
@@ -39,7 +41,6 @@ const fr = {
   noNoteText: ' Dictez ou écrivez la demande dans le champ, à droite, puis « Rédiger la note » : l\'agent la rédige sous docs/tickets/ et pose à part ses questions ouvertes.',
   noNoteReview: 'Pas de note de ticket dans cette PR',
   noNoteReviewText: ' Une note se cherche sous docs/tickets/, d\'après la branche de la PR ; chargez d\'abord la PR à l\'étape PR.',
-  noteKo: 'La note est à revoir.',
 };
 const S: Record<VibeLang, typeof fr> = {
   fr,
@@ -63,7 +64,6 @@ const S: Record<VibeLang, typeof fr> = {
     noNoteText: ' Dictate or type the request in the field, on the right, then « Write the note »: the agent writes it under docs/tickets/ and asks its open questions apart.',
     noNoteReview: 'No ticket note in this PR',
     noNoteReviewText: ' A note is looked for under docs/tickets/, after the PR\'s branch; load the PR first, at the PR step.',
-    noteKo: 'The note needs rework.',
   },
 };
 
@@ -78,12 +78,14 @@ export function NoteView({ view, step, t, act, busy, answers, onAnswer }: StepPr
   const tags = mustNotTags(text, note?.mustNot ?? []);
   const output = review && view.pr ? view.outputs[`pr-${view.pr.number}-note.md`] : undefined;
 
-  // 💬 : Créer, cité dans le champ ; Relire, au brouillon de revue (le texte du champ, sinon le bloc).
-  const quote = review ? (q: string) => act.draft({ add: remark(`note: ${excerpt(q, 80)}`, q) })
-    : view.actions.some((a) => a.id === 'comment') ? (q: string) => act.prefill('comment', q) : undefined;
+  // 💬 : Créer, cité dans le champ ; Relire, une zone de commentaire sous le bloc, pour le brouillon de revue.
+  const quote = !review && view.actions.some((a) => a.id === 'comment') ? (q: string) => act.prefill('comment', q) : undefined;
+  const comment = review ? (q: string, text: string) => act.draft({ add: remark(`note: ${excerpt(q, 80)}`, text) }) : undefined;
+  // Relire, ✗ : la zone de commentaire sous l'en-tête de la note.
+  const [refusing, setRefusing] = useState(false);
   const mark = (v: 'ok' | 'ko' | null) => {
     act.mark('note', v);
-    if (review && v === 'ko') act.draft({ add: remark('note', s.noteKo) });
+    setRefusing(review && v === 'ko');
   };
   const tag = (line: number) => {
     if (!tags.has(line)) return null;
@@ -101,7 +103,7 @@ export function NoteView({ view, step, t, act, busy, answers, onAnswer }: StepPr
       {!review && view.questions.length ? <QuestionsView view={view} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} /> : null}
       {output ? (
         <OutputCard title={t.outputs['pr-#-note.md']} file={`pr-${view.pr!.number}-note.md`} time={output.time} t={t}>
-          <MarkdownView md={output.text} t={t} onOpenLink={act.openLink} onQuote={quote} />
+          <MarkdownView md={output.text} t={t} onOpenLink={act.openLink} onQuote={quote} onComment={comment} />
         </OutputCard>
       ) : null}
       {note ? (
@@ -109,9 +111,15 @@ export function NoteView({ view, step, t, act, busy, answers, onAnswer }: StepPr
           <div className="vc-card-head">
             <span className="vc-note-file">📄</span>
             <span className="vc-note-path vc-mono" title={note.path}><span>{fileParts(note.path).dir}</span><b>{fileParts(note.path).name}</b></span>
-            {review ? null : <button type="button" className="vc-mini vc-note-open" title={t.openTitle} onClick={() => act.open(note.id)}>{t.open}</button>}
+            <button type="button" className="vc-mini vc-note-open" title={t.openTitle} onClick={() => act.open(note.id)}>{t.open}</button>
             <span className="vc-note-mark"><MarkControl what="note" state={note.mark} review={review} lang={view.lang} onMark={mark} /></span>
           </div>
+          {refusing ? (
+            <div className="vc-note-refuse">
+              <CommentBox t={t} onCancel={() => setRefusing(false)}
+                onSave={(text) => { act.draft({ add: remark('note', text) }); setRefusing(false); }} />
+            </div>
+          ) : null}
           {diff && (added || removed) ? (
             <div className="vc-note-changes" role="status">
               <span className="vc-note-pulse" aria-hidden="true" />
@@ -126,7 +134,7 @@ export function NoteView({ view, step, t, act, busy, answers, onAnswer }: StepPr
           ) : null}
           <div className="vc-card-body">
             {raw && diff ? <RawDiff diff={diff} lang={view.lang} />
-              : <MarkdownView md={note.text} t={t} onOpenLink={act.openLink} onQuote={quote} changed={changed} tag={tag} />}
+              : <MarkdownView md={note.text} t={t} onOpenLink={act.openLink} onQuote={quote} onComment={comment} changed={changed} tag={tag} />}
           </div>
         </section>
       ) : (
