@@ -1,9 +1,12 @@
 /** next-step — la carte « Prochaine étape », au bas de l'étape : le bouton
  *  principal (ce que le guide fait faire ensuite, et qui travaille), puis les
  *  actions de l'étape affichée. Une action grisée dit pourquoi ; agent au
- *  travail : « L'agent travaille… », à la même place (rien ne bouge).
+ *  travail : « L'agent travaille… », à la même place (rien ne bouge). Rien à
+ *  lancer : `idle` s'il est donné (la validation qu'attend l'étape), sinon
+ *  « Rien à lancer ».
  *  ActionButton et cites servent aussi à la barre des skills.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder, skills-bar. */
+import type { ReactNode } from 'react';
 import type { Strings } from 'core/vibecoder';
 import type { VibeAction, VibeStepId } from 'technicals/bridge';
 
@@ -33,9 +36,10 @@ type Props = {
   asking: boolean;             // l'agent attend une autorisation
   onRun(id: string): void;
   onPick(id: VibeStepId): void;
+  idle?: ReactNode;            // à la place de « Rien à lancer » : ce qu'attend l'étape en cours
 };
 
-export function NextStep({ actions, step, t, busy, asking, onRun, onPick }: Props) {
+export function NextStep({ actions, step, t, busy, asking, onRun, onPick, idle }: Props) {
   const primary = actions.find((a) => a.primary) || null;
   const others = actions.filter((a) => a.step === step && a !== primary && !cites(a));
   const elsewhere = primary && primary.step && primary.step !== step ? primary.step : null;
@@ -56,7 +60,7 @@ export function NextStep({ actions, step, t, busy, asking, onRun, onPick }: Prop
           </button>
           <div className={why ? 'vc-next-why warn' : 'vc-next-why'}>{why || primary.hint}</div>
         </>
-      ) : <div className="vc-next-none">{t.noNext}</div>}
+      ) : idle || <div className="vc-next-none">{t.noNext}</div>}
       {others.length ? (
         <div className="vc-secondary">{others.map((a) => <ActionButton key={a.id} a={a} busy={busy} onRun={onRun} />)}</div>
       ) : null}

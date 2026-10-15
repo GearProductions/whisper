@@ -1,0 +1,8 @@
+/* L'étape Commits de Relire (commits-view) : la sortie et son âge dans
+   l'en-tête, une carte par commit relu. Sous .vc, couleurs de vibecoder.css. */
+
+.vc-out-meta { display: flex; align-items: center; gap: 10px; color: var(--vc-faint); font-size: 11.5px; white-space: nowrap; }
+.vc-commit-review > .vc-card-head .vc-card-title { display: flex; align-items: center; gap: 9px; }
+.vc-commit-review > .vc-card-head .vc-chip { font-weight: 500; }
+.vc-commit-subject { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.vc-commit-review .vc-count { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--vc-text); }

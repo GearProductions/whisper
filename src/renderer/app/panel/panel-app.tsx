@@ -8,7 +8,8 @@
  *  VibeCoder (son relevé, `conv:vibe`, sur sa conversation en cours) :
  *  l'écran VibeCoder à la place de l'en-tête et du corps, la même
  *  conversation dans sa colonne de droite ; une action y prend le texte du
- *  champ s'il lui en faut un (vidé une fois parti), ou y prépare un message.
+ *  champ s'il lui en faut un (vidé une fois parti), ou y prépare un message ;
+ *  une remarque au brouillon de revue prend aussi le texte du champ.
  *  La colle : seul fichier du panneau qui connaît le pont (window.conv) ; il
  *  tient le brouillon de chaque conversation.
  *  Ne connaît pas : l'icône, la bulle. Utilisé par : main.tsx. */
@@ -17,7 +18,7 @@ import {
   appendDictation, createDrafts, createPermissionGuard, EMPTY, followsEnd, IMAGE_TYPES, isBusy, revoke, titleOf, toDraft,
   withAttached, withFile, type Draft, type Piece,
 } from 'core/conversation';
-import { t as vibeStrings } from 'core/vibecoder';
+import { DRAFT_MAX, t as vibeStrings, withPrefill, withSkill } from 'core/vibecoder';
 import type { Command, ConvApi, Notice, ProbeResult, SendResult, Session, Thread, VibeArgs, VibeView } from 'technicals/bridge';
 import { compactHeight } from 'technicals/dom';
 import {
@@ -232,31 +233,35 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     }
   }
 
-  // Une action 'prefill' : son texte, {{quote}} remplacé par ce qu'on cite (une
-  // ligne, 300 caractères au plus), ajouté au champ, à compléter puis envoyer.
+  // Une action 'prefill' : son texte, ce qu'on cite à la place de {{quote}},
+  // ajouté au champ (withPrefill), à compléter puis envoyer.
   function vibePrefill(id: string, quote: string) {
     const a = vibe?.actions.find((x) => x.id === id && x.kind === 'prefill');
     if (!a) return;
-    const line = quote.replace(/\s+/g, ' ').trim();
-    const text = (a.text || '').replaceAll('{{quote}}', () => (line.length > 300 ? `${line.slice(0, 299)}…` : line));
     focusEnd.current = true;
     setStatus('');
-    setDraft((d) => ({ ...d, text: d.text.trim() ? `${d.text.trimEnd()}\n${text}` : text }));
+    setDraft((d) => ({ ...d, text: withPrefill(d.text, a.text || '', quote) }));
   }
 
-  // Une pastille de skill : `/<skill> ` au début du champ, à la place d'une
-  // pastille déjà là (un texte qui commence par un chemin reste entier).
+  // Une pastille de skill : `/<skill> ` au début du champ (withSkill).
   function vibeSkill(name: string) {
     const skills = vibe ? vibe.skills : [];
     focusEnd.current = true;
-    setDraft((d) => {
-      const lead = /^\/(\S+)\s*/.exec(d.text);
-      return { ...d, text: `/${name} ${lead && skills.includes(lead[1]) ? d.text.slice(lead[0].length) : d.text}` };
-    });
+    setDraft((d) => ({ ...d, text: withSkill(d.text, name, skills) }));
+  }
+
+  // Relire : une remarque au brouillon de revue, sur la cible que donne la vue ;
+  // son texte : celui du champ s'il y en a un (le champ se vide ; trop long
+  // pour le principal : il reste, et on le dit), sinon ce que la vue propose.
+  function vibeDraft(op: Parameters<VibeActs['draft']>[0]) {
+    const typed = op.add ? draft.text.trim() : '';
+    if (typed.length > DRAFT_MAX) { setStatus(vibeStrings(vibe?.lang ?? 'fr').draftTooLong); return; }
+    conv.vibeDraft(op.add && typed ? { add: { target: op.add.target, text: typed } } : op);
+    if (typed) { setStatus(''); setDraft((d) => ({ ...d, text: '' })); }
   }
 
   const vibeAct: VibeActs = {
-    run: vibeRun, prefill: vibePrefill, set: conv.vibeSet, mark: conv.vibeMark, draft: conv.vibeDraft, open: conv.vibeOpen,
+    run: vibeRun, prefill: vibePrefill, set: conv.vibeSet, mark: conv.vibeMark, draft: vibeDraft, open: conv.vibeOpen,
     openLink: conv.openLink, refresh: conv.vibeRefresh,
   };
 

@@ -1,20 +1,25 @@
 /** vibe-coder — l'écran VibeCoder d'un agent, à la place de l'en-tête et du
  *  corps du panneau : en-tête (agent, branche, Créer / Relire, Guide / Vibe,
  *  langue, relevé, retour à la conversation, fermer) ; le parcours à gauche ;
- *  au centre, les onglets des étapes, l'étape choisie (step-views) et la
- *  prochaine étape ; à droite, la conversation (reçue en children) ; la
- *  barre d'état en bas. Ctrl+1…6 ouvrent les étapes. Une vue d'étape qui
- *  échoue ne fait tomber ni l'écran ni le brouillon (I-29).
+ *  au centre, les onglets des étapes, l'étape choisie (step-views ; en Vibe,
+ *  un bandeau le rappelle en haut) et la prochaine étape ; à droite, la
+ *  conversation (reçue en children) ; la barre d'état en bas. Ctrl+1…6
+ *  ouvrent les étapes. Une vue d'étape qui échoue ne fait tomber ni l'écran
+ *  ni le brouillon (I-29). Il tient les réponses en cours aux questions
+ *  ouvertes (celles que la prochaine étape envoie aussi) ; rien à lancer et
+ *  une validation attendue : la prochaine étape la propose.
  *  Ne connaît pas : le pont (rappels passés), le contenu de la conversation.
  *  Utilisé par : panel-app. */
 import { Component, useEffect, useState, type ReactNode } from 'react';
 import { isBusy, titleOf } from 'core/conversation';
-import { t as strings, type Strings } from 'core/vibecoder';
+import { answersOf, awaiting, t as strings, type Answers, type Strings } from 'core/vibecoder';
 import type { Thread, VibeLang, VibeStepId, VibeView } from 'technicals/bridge';
 import { Journey } from './journey';
 import { NextStep } from './next-step';
 import { StatusBar } from './status-bar';
-import { STEP_VIEWS, type VibeActs } from './step-views';
+import { VibeBanner } from './step-parts';
+import { STEP_VIEWS, type StepProps, type VibeActs } from './step-views';
+import { AwaitValidation } from './validation';
 import './vibecoder.css';
 
 type Props = {
@@ -36,6 +41,15 @@ export function VibeCoder({ view, thread, act, tasksOpen, contextOpen, onGauge, 
   // L'étape choisie, sinon celle en cours (elle suit le parcours tant qu'on n'a rien choisi).
   const step = steps.find((s) => s.id === picked) || steps.find((s) => s.status === 'current') || steps[0] || null;
   const busy = isBusy(thread.status);
+  const [answers, setAnswers] = useState<Answers>({});
+  const onAnswer: StepProps['onAnswer'] = (q, a) => setAnswers((all) => ({ ...all, [q]: a }));
+  // « Envoyer les réponses » de la prochaine étape : les réponses en cours, comme le bouton des questions.
+  // Le verdict de la revue (Relire), tenu ici comme les réponses : le bouton de la
+  // prochaine étape publie celui que l'utilisateur a choisi dans l'étape.
+  const [verdict, setVerdict] = useState<StepProps['verdict']>('comment');
+  const run = (id: string) => (id === 'answers' ? act.run(id, { answers: answersOf(view.questions, answers, view.lang) })
+    : id === 'publish' ? act.run(id, { verdict }) : act.run(id));
+  const wait = awaiting(view);
 
   // Ctrl+1…6 : par la touche (sur un clavier AZERTY, le chiffre est sous Maj).
   useEffect(() => {
@@ -66,10 +80,13 @@ export function VibeCoder({ view, thread, act, tasksOpen, contextOpen, onGauge, 
         </div>
         {view.error ? <div className="vc-error" role="status"><b>{view.error}</b> {t.errorHint}</div> : null}
         <div className="vc-step scroll" key={step ? step.id : ''} role="tabpanel">
-          {step && View ? <Guard t={t}><View view={view} step={step} t={t} act={act} busy={busy} /></Guard> : null}
+          {view.autonomy === 'vibe' ? <VibeBanner lang={view.lang} /> : null}
+          {step && View ? <Guard t={t}><View view={view} step={step} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} verdict={verdict} onVerdict={setVerdict} /></Guard> : null}
         </div>
         <NextStep actions={view.actions} step={step && step.id} t={t} busy={busy} asking={thread.status === 'asking'}
-          onRun={act.run} onPick={setPicked} />
+          onRun={run} onPick={setPicked}
+          idle={wait ? <AwaitValidation wait={wait} review={view.flow === 'review'} lang={view.lang} shown={step && step.id}
+            onMark={(target) => act.mark(target, 'ok')} onPick={setPicked} /> : null} />
       </section>
       <section className="vc-conv" aria-label={t.conversation}>
         <div className="vc-side-title vc-band"><span>{t.conversation}</span><span className="vc-conv-name">{titleOf(thread)}</span></div>

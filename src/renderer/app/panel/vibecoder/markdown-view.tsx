@@ -4,25 +4,49 @@
  *  italique, liens. Rien n'est rendu en HTML (aucun dangerouslySetInnerHTML)
  *  et un lien ne navigue pas : onOpenLink (le principal l'ouvre dans le
  *  navigateur, I-21). Avec onQuote, un 💬 au survol de chaque bloc et de
- *  chaque élément de liste le cite.
- *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-view (et les vues d'étape). */
-import { useMemo } from 'react';
-import { parseMarkdown, type Block, type Inline, type Strings } from 'core/vibecoder';
+ *  chaque élément de liste le cite. Avec changed (des numéros de ligne du
+ *  texte), un liseré sur les blocs et éléments qui en contiennent une ; tag
+ *  met une pastille devant le texte d'un élément de liste (par sa ligne).
+ *  InlineMd : un texte d'une ligne (réponse proposée, cas limite…) en ligne.
+ *  Ne connaît pas : le pont (rappels passés).
+ *  Utilisé par : les vues d'étape (note-view, questions-view, forme-view, invariants-view, modules-view,
+ *  review-view, pr-view, pr-picker, commits-view, ecran-view, draft-view). */
+import { useMemo, type ReactNode } from 'react';
+import { parseInline, parseMarkdown, type Block, type Inline, type Strings } from 'core/vibecoder';
 
-type Ctx = { t: Strings; onOpenLink(url: string): void; onQuote?(text: string): void };
+type Ctx = {
+  t: Strings;
+  onOpenLink(url: string): void;
+  onQuote?(text: string): void;
+  changed?: Set<number>;           // lignes ajoutées ou changées (depuis 0)
+  tag?(line: number): ReactNode;   // devant le texte de l'élément de liste qui commence à cette ligne
+};
 
 export function MarkdownView({ md, ...ctx }: Ctx & { md: string }) {
   const blocks = useMemo(() => parseMarkdown(md), [md]);
   return (
     <div className="vc-md">
-      {blocks.map((b, i) => (b.kind === 'list' || b.kind === 'rule' ? <BlockView key={i} b={b} ctx={ctx} /> : (
-        <div key={i} className="vc-block"><BlockView b={b} ctx={ctx} /><Quote text={said(b)} ctx={ctx} /></div>
-      )))}
+      {blocks.map((b, i) => {
+        const end = blocks[i + 1]?.line ?? Infinity;
+        return b.kind === 'list' || b.kind === 'rule' ? <BlockView key={i} b={b} end={end} ctx={ctx} /> : (
+          <div key={i} className="vc-block" data-changed={touched(ctx, b.line, end) || undefined}>
+            <BlockView b={b} end={end} ctx={ctx} /><Quote text={said(b)} ctx={ctx} />
+          </div>
+        );
+      })}
     </div>
   );
 }
 
+// Un texte d'une ligne : code, gras, italique, liens (jamais de HTML).
+export function InlineMd({ text, ...ctx }: Ctx & { text: string }) {
+  const inline = useMemo(() => parseInline(text), [text]);
+  return <Inlines inline={inline} ctx={ctx} />;
+}
+
 const plain = (inline: Inline[]) => inline.map((x) => x.text).join('');
+// Une ligne de [from, to) est ajoutée ou changée.
+const touched = ({ changed }: Ctx, from: number, to: number) => !!changed && [...changed].some((l) => l >= from && l < to);
 
 // Le texte d'un bloc, tel qu'un 💬 le cite (une liste se cite élément par élément).
 function said(b: Block): string {
@@ -59,7 +83,8 @@ function Inlines({ inline, ctx }: { inline: Inline[]; ctx: Ctx }) {
 
 const HEADINGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const;
 
-function BlockView({ b, ctx }: { b: Block; ctx: Ctx }) {
+// end : la ligne où commence ce qui suit le bloc (la fin de son dernier élément de liste).
+function BlockView({ b, end, ctx }: { b: Block; end: number; ctx: Ctx }) {
   switch (b.kind) {
     case 'heading': {
       const H = HEADINGS[Math.min(6, Math.max(1, b.level)) - 1];
@@ -70,18 +95,23 @@ function BlockView({ b, ctx }: { b: Block; ctx: Ctx }) {
       const List = b.ordered ? 'ol' : 'ul';
       return (
         <List>
-          {b.items.map((item, i) => (
-            <li key={i} className={item.checked === null ? undefined : 'vc-task'}>
-              {item.checked === null ? null : <span className="vc-box" data-checked={item.checked || undefined} aria-hidden="true" />}
-              <Inlines inline={item.inline} ctx={ctx} />
-              <Quote text={plain(item.inline)} ctx={ctx} />
-              {item.children.map((c, j) => <BlockView key={j} b={c} ctx={ctx} />)}
-            </li>
-          ))}
+          {b.items.map((item, i) => {
+            const next = b.items[i + 1]?.line ?? end;
+            const sub = item.children.find((c) => c.kind === 'list')?.line ?? next; // une sous-liste a ses propres liserés
+            return (
+              <li key={i} className={item.checked === null ? undefined : 'vc-task'} data-changed={touched(ctx, item.line, sub) || undefined}>
+                {item.checked === null ? null : <span className="vc-box" data-checked={item.checked || undefined} aria-hidden="true" />}
+                {ctx.tag?.(item.line)}
+                <Inlines inline={item.inline} ctx={ctx} />
+                <Quote text={plain(item.inline)} ctx={ctx} />
+                {item.children.map((c, j) => <BlockView key={j} b={c} end={item.children[j + 1]?.line ?? next} ctx={ctx} />)}
+              </li>
+            );
+          })}
         </List>
       );
     }
-    case 'quote': return <blockquote>{b.blocks.map((c, i) => <BlockView key={i} b={c} ctx={ctx} />)}</blockquote>;
+    case 'quote': return <blockquote>{b.blocks.map((c, i) => <BlockView key={i} b={c} end={b.blocks[i + 1]?.line ?? end} ctx={ctx} />)}</blockquote>;
     case 'code': return <pre className="vc-code"><code>{b.text}</code></pre>;
     case 'table':
       return (

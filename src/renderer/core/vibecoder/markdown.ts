@@ -1,8 +1,8 @@
 /** markdown — un texte Markdown (note, sortie d'un skill, réponse) en blocs :
  *  titres, paragraphes, listes (cases à cocher), citations, code, tableaux,
- *  filets ; en ligne : texte, code, gras, italique, liens http(s). Jamais de
- *  HTML : une balise reste du texte, un lien qui n'est pas en http(s) aussi
- *  (I-21).
+ *  filets ; en ligne (parseInline, aussi seul) : texte, code, gras,
+ *  italique, liens http(s). Jamais de HTML : une balise reste du texte, un
+ *  lien qui n'est pas en http(s) aussi (I-21).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder (markdown-view). */
 
 export type Inline = { kind: 'text' | 'code' | 'strong' | 'em'; text: string } | { kind: 'link'; text: string; href: string };
@@ -130,6 +130,8 @@ function list(lines: string[], i: number, offset: number, out: Block[]): number 
 
 // En ligne, de gauche à droite ; à une même position, la première forme qui
 // convient. Une adresse n'est un lien qu'en http(s) ; le reste est du texte.
+// Exporté seul (parseInline) pour un texte d'une ligne : une réponse proposée,
+// un cas limite, un contrat.
 const INLINE = new RegExp([
   /(?<!`)(?<tick>`+)(?!`)(?<code>[\s\S]*?[^`])\k<tick>(?!`)/u,
   /\\(?<escaped>[!-/:-@[-`{-~])/u,
@@ -142,6 +144,8 @@ const INLINE = new RegExp([
   /(?<![\p{L}\p{N}])_(?<em_>(?![\s_])[\s\S]*?[^\s_])_(?![\p{L}\p{N}_])/u,
 ].map((r) => r.source).join('|'), 'giu');
 const HTTP = /^https?:\/\//i;
+
+export { inline as parseInline };
 
 function inline(src: string): Inline[] {
   const out: Inline[] = [];
