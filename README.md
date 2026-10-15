@@ -10,7 +10,7 @@ C'est la dictée de l'icône compacte de Cockpit, seule.
 - **Maintenir** : dicter (bip aigu = parlez, bip grave = fin).
 - **Glisser** : déplacer l'icône (la position est retenue).
 - **Bouton ▶ accolé** : lire à voix haute le texte sélectionné (ou le presse-papiers), en local avec [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) (Kyutai).
-- **Robots accolés** (optionnels) : des agents [Claude Code](https://claude.com/claude-code), un par dossier de projet, à qui parler par la dictée.
+- **Robots accolés** (optionnels) : des agents [Claude Code](https://claude.com/claude-code), un par dossier de projet, à qui parler par la dictée ; **VibeCoder** fait d'un agent un écran de développement qui suit le guide du dépôt, étape par étape.
 - **Clic droit** : langue, micro, bip, son des autres applications, collage automatique, premier plan, affichage du texte, micro Discord, lecture à voix haute, dossier whisper, configuration, version (*À propos*), quitter.
 
 À la fin d'une dictée, le **panneau** s'ouvre contre l'icône, sans prendre le
@@ -242,7 +242,8 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   En tête du menu, *Ouvrir sur GitHub — propriétaire/dépôt* ouvre la page du
   dépôt (grisé si le dossier n'a pas d'origine GitHub). *Ouvrir dans
   l'éditeur (zed)* ouvre le dossier dans une nouvelle fenêtre de l'éditeur de
-  code (grisé si aucun n'est trouvé).
+  code (grisé si aucun n'est trouvé). *Ouvrir VibeCoder* : voir
+  [VibeCoder](#vibecoder), plus bas.
 
 **Entre deux messages**, l'agent garde son Claude Code lancé : ce qu'il a lancé
 en arrière-plan (une commande, une surveillance) continue, et il vous prévient
@@ -328,6 +329,161 @@ commande est lancée telle quelle, le dossier en dernier argument (ajouter
   demande qui n'a pas pu aboutir y est notée **ÉCHEC**, et la réponse de
   l'agent le signale par un ⚠.
 
+### VibeCoder
+
+Pour développer avec un agent en suivant le guide
+[*Développer avec l'IA*](docs/dev_guide/guide-travail-dev-ia.html) sans tout
+lui redire à chaque étape (« fais la note », « c'est bon, commit et passe au
+suivant », « replie les fixups et sors la PR ») : VibeCoder remplace la
+conversation d'un agent par un écran de développement, qui montre où en est
+le travail et propose, à chaque étape, les boutons qui envoient à l'agent le
+bon message, avec le bon skill et le bon modèle. Deux usages : **Créer** une
+feature sur la branche du dossier de l'agent, ou **Relire** une PR du dépôt.
+
+**Ouvrir.** Clic droit sur un robot → *Ouvrir VibeCoder* ; pour revenir,
+*Revenir à la conversation* (même menu, ou 💬 en haut de l'écran). Le choix
+est retenu pour chaque agent : l'un peut rester en VibeCoder, l'autre en
+conversation ; cliquer un robot montre sa vue. Le panneau s'agrandit
+(1280 × 820 la première fois, redimensionnable, taille retenue à part de celle
+de la conversation). Il faut un dossier sous git, à la racine du dépôt, et ses
+notes de ticket sous `docs/tickets/` ; sans dépôt, l'écran le dit et la
+conversation reste utilisable.
+
+**L'écran.**
+
+- en haut : l'agent et sa branche ; *Créer* / *Relire* ; *Guide* / *Vibe* ;
+  *FR* / *EN* ; ↻ (relire le dépôt tout de suite) ; 💬 ; × ;
+- à gauche, le **parcours** : les étapes (point plein : faite ; anneau : en
+  cours ; gris : à venir), chacune avec ses faits en une ligne, puis les
+  commits de la branche ;
+- au centre, l'étape choisie (onglets, ou Ctrl+1…6) — la note du ticket, ce
+  que les skills ont produit — et, en bas, la **prochaine étape** : le bouton
+  principal, puis les autres actions de l'étape ;
+- à droite, la **conversation** de l'agent, comme d'habitude (fil,
+  autorisations, champ, dictée, commandes « / ») ; au-dessus du champ,
+  *Demander sans modifier* (il répond sans rien toucher), *Tout dérouler*, et
+  vos skills (du projet et les vôtres) en pastilles : un clic écrit
+  `/<skill> ` dans le champ ;
+- en bas : modèle, effort et mode de l'agent (comme dans son menu), jauge du
+  contexte, *⚙ Tâches*, fichiers modifiés, heure du dernier relevé.
+
+L'écran se lit sur le dépôt, sans modèle : la branche, ses commits et ses
+fichiers changés, la note du ticket (trouvée parmi ces fichiers d'après le
+ticket — `G2-6675` — ou la version — `0.8.0` — que porte le nom de la
+branche), ses tests
+d'invariants, ce que les skills ont écrit. Il suit tout seul (toutes les 4 s,
+et pendant que l'agent travaille).
+
+**Tout passe par la conversation.** Un bouton envoie à l'agent un message,
+comme si vous l'aviez tapé (`/vibecoder:note fr … votre demande`) : revenu en
+conversation, chaque action est dans le fil. Un bouton qui a besoin d'un
+texte — la demande de feature, du pseudo-code, une question — prend celui du
+**champ** : dictez, puis cliquez ; le champ se vide une fois le message
+parti. 💬 sur un passage (de la note, d'une relecture) le cite dans le champ,
+à compléter puis envoyer. Pendant que l'agent travaille, les boutons
+attendent ; un bouton grisé dit pourquoi.
+
+**Créer** — les étapes du guide :
+
+1. **Note** : *Rédiger la note* d'après la demande du champ (sur la branche
+   principale, l'agent crée d'abord la branche du ticket) ; ses questions
+   ouvertes s'affichent à part, avec des réponses proposées : *Envoyer les
+   réponses* ; puis ✓ pour valider la note.
+2. **Forme** : *Poser la forme* (les modules et leurs contrats, dans la note,
+   sans code) ; ✓.
+3. **Invariants** : *Écrire les invariants (rouges)*, d'après la note ou
+   d'après le pseudo-code écrit dans le champ ; puis *Lire en pseudo-code* :
+   chaque cas de test traduit en un pseudo-code proche de Vitest, quel que
+   soit le langage du test, avec ses cas limites, ce qu'il garantit, et un
+   point d'attention s'il n'observe pas vraiment la propriété ; ✓ ou ✗ par cas
+   (✗ le cite dans le champ, pour dire quoi changer) ; *Vérifier
+   l'alignement* ; *Préparer le commit* puis *✓ Commiter*.
+4. **Modules** : *Générer ce module* (avec `ponytail`, tests lancés, sans
+   commit), *Relire le diff*, *✓ Valider → commit → suivant* ; ou *Générer
+   les modules restants* (en parallèle, chacun relu et commité à part).
+5. **Revue** : *Lancer les vérifications*, *Ponytail review*, *Appliquer la
+   revue* (en fixups), *Replier les fixups* ; la liste du guide avant une PR,
+   cochée quand le dépôt le dit.
+6. **PR** : *Valider la feature (ouvrir la PR)*, *Diagnostiquer la CI*,
+   *Release candidate*, *PR mergée → revenir sur la base*, *Release
+   officielle*.
+
+Une validation vaut pour le contenu validé : une note modifiée ensuite
+repasse « modifiée depuis », à revalider. Quand l'étape n'attend plus que
+votre ✓, le bouton principal vous le propose. Les lignes de la note que
+l'agent vient de changer sont surlignées (*Voir les modifications* : le
+diff ; *Vu* : ne plus surligner).
+
+**Relire** — une PR : son numéro ou son lien, puis *Charger* ; ou *Mes PR à
+relire* (celles où l'on vous demande) et un clic sur l'une d'elles. Elle est
+récupérée à part (`refs/vibecoder/pr/<n>`) : votre copie de travail ne bouge
+pas. Puis la note (*Relire la note* : les décisions à discuter), les
+invariants (les mêmes cartes en pseudo-code), les commits (*Relire les
+commits*, une carte par commit), le plan de test (*Plan de test à l'écran* :
+des cases à cocher pendant l'essai). ✗ et 💬 ajoutent une remarque au
+**brouillon de revue** (un par PR) : le texte du champ, sinon ce qu'on cite ;
+× la retire. Enfin le verdict (*Commenter* par défaut, *Approuver*, *Demander
+des changements*) et *Publier la revue*, qui l'envoie sur GitHub telle
+quelle.
+
+**Guide ou Vibe.** *Guide* (par défaut) : vous validez la note, la forme et
+chaque invariant ; la prochaine étape attend vos ✓. *Vibe* : vous donnez la
+main à l'agent, vous testez et approuvez à la fin. Plus rien n'attend vos ✓,
+et *Tout dérouler* envoie la demande du champ : l'agent tient le rôle du
+développeur du guide jusqu'à la PR et la release candidate (modules confiés à
+des agents Opus en parallèle), ne s'arrête que sur une question qui bloque,
+et le parcours se remplit sous vos yeux. Il ne fusionne pas la PR et ne
+publie pas de version officielle.
+
+**Qui travaille, ce que ça coûte.** Chaque bouton dit qui travaille :
+*haiku*, *sonnet · moyen*, *opus · élevé*… ou *agent* (le modèle de l'agent).
+Ce qui se suffit à soi-même tourne à part, sans relire la conversation : son
+prix ne dépend pas de la longueur de celle-ci (≈ 0,02 $ sur Haiku : lister ou
+charger une PR, lancer les vérifications, commiter, publier une revue).
+Sonnet prépare un commit, ouvre la PR, replie les fixups, diagnostique la CI,
+écrit le plan de test, lit les invariants en pseudo-code (une lecture n'est
+refaite que si le test change). Opus, effort élevé, écrit les invariants,
+génère un module, relit un diff, une note ou des commits, vérifie
+l'alignement, fait la ponytail review. Restent dans la conversation, sur le
+modèle de l'agent : la note, la forme, les réponses aux questions,
+*Appliquer la revue*, *Générer les modules restants*, *Tout dérouler*, les
+releases — ces trois derniers, longs et coûteux. VibeCoder ne passe jamais un
+agent sur Fable de lui-même : vous seul le faites (menu du robot, barre
+d'état, ou la pastille *✦ Fable · élevé* des étapes Note et Forme, pour les
+rédiger avec le plus de soin — plus cher).
+
+**Les skills.** Les boutons s'appuient sur un plugin, `vibecoder`, que l'appli
+donne à Claude Code : ses skills (`/vibecoder:note`, `/vibecoder:relire`…)
+servent à tous les agents sans rien écrire dans vos projets, et ne coûtent
+rien tant qu'on ne les appelle pas. Ils suivent les skills de votre projet ou
+les vôtres quand ils existent (`gear-prompt-specs-to-feature-note`,
+`gear-commit-message`, `gear-fix-up`, `ponytail`, `ponytail-review` ; avec
+`gear-guide`, un bouton *Où j'en suis ?*), sinon le guide du dépôt. Ce qu'ils
+produisent pour l'écran va dans `vibecoder-out/`, à côté de `config.json` :
+un dossier par agent ; quand l'agent change de branche, ce qui a été produit
+pour l'ancienne est mis de côté (`branches/`) et revient avec elle.
+
+**Personnaliser.** Clic droit sur l'icône → *Agents Claude Code* → *Dossier
+de VibeCoder* (`vibecoder/`, à côté de `config.json`) : `actions.fr.json` et
+`actions.en.json` (les boutons : libellé, aide, message envoyé ; à modifier,
+retirer, ajouter — mais pas l'`id` d'un bouton livré, sur lequel l'écran
+s'appuie), `plugin/skills/<nom>/SKILL.md` (un skill : ses
+instructions, son modèle, son effort) et un `README.md` qui détaille tout. Un
+fichier que vous avez modifié n'est jamais remplacé, même par une nouvelle
+version de l'appli ; un fichier jamais modifié suit les mises à jour. **Pour
+revenir à l'origine, supprimez le fichier** : il revient au prochain
+lancement (ou en rouvrant le dossier par le menu). Un fichier d'actions
+illisible : les boutons d'origine ; vide (`[]`) : aucun bouton.
+
+**FR / EN** (en haut de l'écran ; réglage `vibeLang`) : la langue de l'écran,
+des boutons et des messages envoyés — l'agent répond et écrit ses relectures
+dans cette langue. Pour tous les agents. La conversation elle-même (fil,
+champ) reste en français.
+
+**Limites.** La note n'est trouvée que si le nom de la branche porte le
+ticket ou la version, et que la branche la change (ou la crée). Non essayé
+sous Windows.
+
 ### Son des autres applications
 
 Sur haut-parleurs, une vidéo ou un appel seraient captés par le micro et
@@ -370,11 +526,13 @@ s'affiche le temps de l'enregistrement, une fois la coupure confirmée.
 | `agentsEnabled` | Afficher les agents Claude Code                               |
 | `agentCommand` | Commande qui lance Claude Code (vide : `claude`)               |
 | `editorCommand` | Éditeur de code des agents (vide : `zed`, `code`, `cursor` ou `codium`, le premier trouvé) |
-| `agents`     | Les agents : dossier, nom, modèle, effort, mode, session (gérés par l'appli ; `name` se modifie ici) |
+| `agents`     | Les agents : dossier, nom, modèle, effort, mode, session, vue et réglages VibeCoder (`view`, `vibe`) (gérés par l'appli ; `name` se modifie ici) |
 | `agentFolders` | Dossiers favoris proposés par « + », chacun avec sa couleur    |
 | `agentReview` | Dictée vers un agent : dans le champ de son panneau, à relire ; `false` : envoyée aussitôt |
 | `onTop`      | Icône, bulles et panneau au-dessus des autres fenêtres            |
 | `convSize`   | Taille du panneau agrandi (retenue au redimensionnement) |
+| `vibeLang`   | VibeCoder : langue de l'écran et des messages envoyés, `fr` ou `en` |
+| `vibeSize`   | Taille du panneau en VibeCoder (retenue au redimensionnement) |
 | `muteOthers` | Couper le son des autres applications pendant l'enregistrement   |
 | `autoPaste`  | Coller le texte là où est le curseur ; `false` : il reste dans le presse-papiers |
 | `showText`   | Panneau du texte transcrit (contexte *Dictée*) à la fin d'une dictée |
