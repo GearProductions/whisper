@@ -1,41 +1,98 @@
 /** git — lire un dépôt, sans jamais le modifier : `git` lancé sans shell
  *  (execFile, I-27), 5 s au plus, null s'il manque ou échoue (I-29) ; une
  *  liste fermée de sous-commandes en lecture (GIT_READ) ; aucun ref ni chemin
- *  venu d'ailleurs ne peut devenir une option. Les faits d'une branche : son
- *  nom, sa base (origin/HEAD, sinon main ou master), HEAD, les fichiers
- *  changés, ses commits et leurs fichiers.
+ *  venu d'ailleurs ne peut devenir une option ; diff, show et log sans
+ *  programme externe (--no-ext-diff, --no-textconv), sans verrou
+ *  (--no-optional-locks : status ne réécrit pas l'index). Les faits d'une
+ *  branche : son nom, sa base (origin/HEAD, sinon main ou master), HEAD, les
+ *  fichiers changés, ses commits et leurs fichiers — sans un chemin que git
+ *  cite ou qui contient un caractère de contrôle. Un fichier à un ref (show).
  *  Ne connaît pas : VibeCoder, Electron.
- *  Utilisé par : app/controllers/vibecoder. */
+ *  Utilisé par : app/controllers/vibecoder (gitRun, gitReader, okRef). */
+import { execFile } from 'node:child_process';
 
 // Les seules sous-commandes lancées : toutes en lecture.
-export const GIT_READ = ['rev-parse', 'status', 'diff', 'log', 'show', 'ls-tree', 'merge-base', 'for-each-ref', 'cat-file'] as const;
+export const GIT_READ = ['rev-parse', 'status', 'diff', 'log', 'show'] as const;
 
 // Lance git (args[0] : la sous-commande) → sa sortie, ou null.
 export type Run = (args: string[]) => Promise<string | null>;
 
 export type GitFacts = {
   branch: string;
-  base: string;
+  base: string;                // '' : ni origin/HEAD, ni main, ni master
   head: string;
   changed: string[];
-  commits: { hash: string; subject: string; files: string[] }[];
+  commits: { hash: string; subject: string; files: string[] }[];   // de la base au ref, le plus ancien d'abord
 };
 
-// Squelette : chaque fonction s'écrit dans le commit de son module.
-const todo = (..._args: unknown[]): never => { throw new Error('à implémenter'); };
+// git -C <dir> --no-optional-locks <args> : sans shell, 5 s, null en cas
+// d'échec ; une sous-commande hors de GIT_READ n'est pas lancée.
+export function gitRun(dir: string): Run {
+  return (args) => new Promise((resolve) => {
+    if (!(GIT_READ as readonly string[]).includes(args[0])) return resolve(null);
+    try {
+      execFile('git', ['-C', dir, '--no-optional-locks', ...args], { timeout: 5000, maxBuffer: 64 * 1024 * 1024, windowsHide: true },
+        (err, stdout) => resolve(err ? null : stdout));
+    } catch {
+      resolve(null);   // un argument que execFile refuse d'emblée
+    }
+  });
+}
 
-// git -C <dir> --no-optional-locks <args> : sans shell, 5 s, null en cas d'échec.
-export function gitRun(dir: string): Run { return todo(dir); }
+// Un ref : [A-Za-z0-9._/-], ni « - » en tête, ni « .. » (aussi pour un nom de
+// branche lu ailleurs : app/controllers/vibecoder) ; un chemin : ni « - » en tête, ni NUL.
+export const okRef = (ref: string) => /^(?!-)(?!.*\.\.)[A-Za-z0-9._/-]+$/.test(ref);
+const okPath = (path: string) => path !== '' && !path.startsWith('-') && !path.includes('\0');
+const NO_PROGRAM = ['--no-ext-diff', '--no-textconv'];
+// Un chemin que git rend cité (« "… ») ou qui contient un caractère de contrôle
+// (saut de ligne…) : écarté, il finirait dans un message à l'agent.
+const plainPath = (path: string) => path !== '' && !path.startsWith('"') && !/[\0-\x1f\x7f]/.test(path);
 
 // Tout passe par `run`, args[0] dans GIT_READ. Un ref ou un chemin qui commence
 // par '-' ou contient un NUL, un ref qui contient '..' ou sort de
 // [A-Za-z0-9._/-] : refusé (null) sans lancer git ; --end-of-options là où git
-// le permet. facts(ref) : la branche (HEAD par défaut) ou une PR chargée ;
-// show : le contenu d'un fichier à ce ref ; blob : son empreinte.
+// le permet. facts(ref, base) : la branche (HEAD et la copie de travail par
+// défaut) ou une PR chargée, comparée à `base` (par défaut origin/HEAD, sinon
+// main ou master), ses chemins cités ou à caractère de contrôle écartés ;
+// show : le contenu d'un fichier à ce ref.
 export function gitReader(run: Run): {
-  facts(ref?: string): Promise<GitFacts | null>;
+  facts(ref?: string, base?: string): Promise<GitFacts | null>;
   show(ref: string, path: string): Promise<string | null>;
-  blob(ref: string, path: string): Promise<string | null>;
 } {
-  return todo(run);
+  const exists = async (ref: string) => (await run(['rev-parse', '--verify', '--quiet', '--end-of-options', ref])) !== null;
+  const defaultBase = async () => (await run(['rev-parse', '--abbrev-ref', 'origin/HEAD']))?.trim()
+    || ((await exists('main')) ? 'main' : (await exists('master')) ? 'master' : '');
+  return {
+    async facts(ref, base) {
+      if ((ref !== undefined && !okRef(ref)) || (base !== undefined && !okRef(base))) return null;
+      const tip = ref ?? 'HEAD';
+      const head = (await run(['rev-parse', '--verify', '--end-of-options', tip]))?.trim();
+      if (!head) return null;
+      const branch = ref ?? ((await run(['rev-parse', '--abbrev-ref', 'HEAD']))?.trim() || 'HEAD');
+      const from = base ?? await defaultBase();
+      const [diff, log, status] = await Promise.all([
+        from ? run(['diff', '--name-only', '-z', '-M', ...NO_PROGRAM, '--end-of-options', `${from}...${tip}`, '--']) : null,
+        from ? run(['log', '--reverse', '--name-only', '-z', '-M', ...NO_PROGRAM, '--format=%x01%H%x09%s', '--end-of-options', `${from}..${tip}`, '--']) : null,
+        ref ? null : run(['status', '--porcelain', '-z', '--untracked-files=all']),
+      ]);
+      const changed = new Set((diff ?? '').split('\0').filter(plainPath));
+      // status -z : « XY chemin », suivi du chemin d'origine pour un renommage ou une copie (sauté).
+      const entries = (status ?? '').split('\0');
+      for (let i = 0; i < entries.length; i++) {
+        if (entries[i].length < 4) continue;
+        if (plainPath(entries[i].slice(3))) changed.add(entries[i].slice(3));
+        if (/[RC]/.test(entries[i].slice(0, 2))) i++;
+      }
+      // log -z : « \x01<hash>\t<sujet> » par commit, puis ses fichiers (le premier précédé d'un saut de ligne).
+      const commits: GitFacts['commits'] = [];
+      for (const token of (log ?? '').split('\0')) {
+        const t = token.replace(/^\n/, '');
+        const tab = t.indexOf('\t');
+        if (t.startsWith('\x01')) commits.push({ hash: t.slice(1, tab), subject: t.slice(tab + 1), files: [] });
+        else if (plainPath(t)) commits[commits.length - 1]?.files.push(t);
+      }
+      return { branch, base: from, head, changed: [...changed], commits };
+    },
+    show: async (ref, path) => (okRef(ref) && okPath(path) ? run(['show', ...NO_PROGRAM, '--end-of-options', `${ref}:${path}`]) : null),
+  };
 }

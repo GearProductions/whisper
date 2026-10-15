@@ -1,10 +1,136 @@
 /** i18n — les libellés de l'écran VibeCoder, en français et en anglais
- *  (vibeLang). Ceux des boutons viennent des actions (actions.<langue>.json).
- *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder. */
-import type { VibeLang } from 'technicals/bridge';
+ *  (vibeLang) : en-tête, parcours, étapes, prochaine étape, barre des skills,
+ *  barre d'état, titres des sorties. Ceux des boutons viennent des actions
+ *  (actions.<langue>.json).
+ *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
+import type { VibeAutonomy, VibeFlow, VibeLang, VibeStepId } from 'technicals/bridge';
 
-export type Strings = Record<string, string>;
+type Choices = [string, string][]; // [valeur, libellé]
 
-const STRINGS: Record<VibeLang, Strings> = { fr: {}, en: {} };
+const fr = {
+  locale: 'fr-FR',
+  steps: {
+    note: 'Note', forme: 'Forme', invariants: 'Invariants', modules: 'Modules', revue: 'Revue', pr: 'PR', commits: 'Commits',
+    ecran: 'À l\'écran',
+  } as Record<VibeStepId, string>,
+  stepStatus: { done: 'faite', current: 'en cours', todo: 'à venir' },
+  flow: { create: 'Créer', review: 'Relire' } as Record<VibeFlow, string>,
+  flowTitle: 'Créer une feature sur la branche, ou relire une PR',
+  autonomy: { guide: 'Guide', vibe: 'Vibe' } as Record<VibeAutonomy, string>,
+  autonomyTitle: 'Guide : vous validez chaque étape. Vibe : l\'agent déroule le guide, vous testez et approuvez à la fin',
+  langTitle: 'Langue de l\'écran et des messages envoyés à l\'agent',
+  refresh: 'Relever maintenant (dépôt, note, sorties)',
+  back: 'Revenir à la conversation',
+  close: 'Fermer',
+  branch: (branch: string, base: string) => `Branche ${branch}, comparée à ${base}`,
+  journey: 'Parcours',
+  commits: 'Commits',
+  noCommits: 'Aucun commit sur la branche.',
+  conversation: 'Conversation',
+  shortcut: (n: number) => `Ctrl+${n}`,
+  next: 'Prochaine étape',
+  noNext: 'Rien à lancer pour l\'instant.',
+  working: 'L\'agent travaille…',
+  asking: 'L\'agent attend votre autorisation…',
+  who: 'Qui travaille',
+  emptyStep: 'Rien à afficher pour cette étape pour l\'instant. La prochaine étape est en bas ; un bouton qui a besoin d\'un texte prend celui du champ, à droite.',
+  errorHint: 'La conversation reste utilisable, à droite.',
+  broken: 'Cette étape ne peut pas s\'afficher.',
+  retry: 'Réessayer',
+  open: 'Ouvrir',
+  openTitle: 'Ouvrir dans l\'éditeur',
+  quote: 'Citer dans le champ',
+  ago: (ms: number) => (ms < 60000 ? 'à l\'instant' : ms < 3600000 ? `il y a ${Math.floor(ms / 60000)} min`
+    : ms < 86400000 ? `il y a ${Math.floor(ms / 3600000)} h` : `il y a ${Math.floor(ms / 86400000)} j`),
+  outputs: {
+    'questions.md': 'Questions ouvertes', 'align.md': 'Alignement note · forme · invariants', 'review.md': 'Relecture du diff',
+    'commit.md': 'Commit proposé', 'checks.json': 'Vérifications', 'ponytail.md': 'Ponytail review', 'pr.json': 'PR ouverte',
+    'ci.md': 'CI', 'prs.json': 'PR à relire', 'pr-#.json': 'PR chargée', 'pr-#-note.md': 'Relecture de la note',
+    'pr-#-commits.md': 'Relecture des commits', 'pr-#-ecran.md': 'Plan de test', 'pr-#-review.json': 'Revue publiée',
+  } as Record<string, string>,
+  skillTitle: (name: string) => `Écrire /${name} au début du champ`,
+  needText: 'Dictez ou écrivez d\'abord votre demande dans le champ, puis cliquez.',
+  sendFailed: 'L\'action n\'est pas partie.',
+  model: 'Modèle',
+  effort: 'Effort',
+  mode: 'Mode',
+  modelTitle: 'Le modèle de l\'agent, comme dans son menu',
+  effortTitle: 'L\'effort de l\'agent, comme dans son menu',
+  modeTitle: 'Le mode de l\'agent, comme dans son menu',
+  models: [['', 'défaut'], ['fable', 'Fable (plus cher)'], ['opus', 'Opus'], ['sonnet', 'Sonnet'], ['haiku', 'Haiku']] as Choices,
+  efforts: [['', 'défaut'], ['low', 'faible'], ['medium', 'moyen'], ['high', 'élevé'], ['xhigh', 'très élevé'], ['max', 'maximal']] as Choices,
+  modes: [['default', 'manuel'], ['acceptEdits', 'accepter les modifications'], ['auto', 'auto'], ['plan', 'plan']] as Choices,
+  context: 'Contexte',
+  contextTitle: 'Contexte de la conversation : cliquer pour le détail',
+  tasks: 'Tâches',
+  tasksTitle: 'Les tâches de fond de l\'agent',
+  changed: (n: number) => (n > 1 ? `${n} fichiers modifiés` : `${n} fichier modifié`),
+  at: (time: string) => `relevé à ${time}`,
+};
 
-export function t(lang: VibeLang): Strings { return STRINGS[lang]; }
+export type Strings = typeof fr;
+
+const en: Strings = {
+  locale: 'en-GB',
+  steps: {
+    note: 'Note', forme: 'Shape', invariants: 'Invariants', modules: 'Modules', revue: 'Review', pr: 'PR', commits: 'Commits',
+    ecran: 'On screen',
+  },
+  stepStatus: { done: 'done', current: 'in progress', todo: 'to do' },
+  flow: { create: 'Create', review: 'Review' },
+  flowTitle: 'Create a feature on the branch, or review a PR',
+  autonomy: { guide: 'Guide', vibe: 'Vibe' },
+  autonomyTitle: 'Guide: you approve each step. Vibe: the agent runs the guide, you test and approve at the end',
+  langTitle: 'Language of the screen and of the messages sent to the agent',
+  refresh: 'Refresh now (repository, note, outputs)',
+  back: 'Back to the conversation',
+  close: 'Close',
+  branch: (branch, base) => `Branch ${branch}, compared with ${base}`,
+  journey: 'Journey',
+  commits: 'Commits',
+  noCommits: 'No commit on the branch.',
+  conversation: 'Conversation',
+  shortcut: (n) => `Ctrl+${n}`,
+  next: 'Next step',
+  noNext: 'Nothing to run for now.',
+  working: 'The agent is working…',
+  asking: 'The agent is waiting for your permission…',
+  who: 'Who works',
+  emptyStep: 'Nothing to show for this step yet. The next step is at the bottom; a button that needs a text takes the one in the field, on the right.',
+  errorHint: 'The conversation is still usable, on the right.',
+  broken: 'This step cannot be displayed.',
+  retry: 'Retry',
+  open: 'Open',
+  openTitle: 'Open in the editor',
+  quote: 'Quote in the field',
+  ago: (ms) => (ms < 60000 ? 'just now' : ms < 3600000 ? `${Math.floor(ms / 60000)} min ago`
+    : ms < 86400000 ? `${Math.floor(ms / 3600000)} h ago` : `${Math.floor(ms / 86400000)} d ago`),
+  outputs: {
+    'questions.md': 'Open questions', 'align.md': 'Alignment note · shape · invariants', 'review.md': 'Diff review',
+    'commit.md': 'Proposed commit', 'checks.json': 'Checks', 'ponytail.md': 'Ponytail review', 'pr.json': 'Opened PR',
+    'ci.md': 'CI', 'prs.json': 'PRs to review', 'pr-#.json': 'Loaded PR', 'pr-#-note.md': 'Note review',
+    'pr-#-commits.md': 'Commits review', 'pr-#-ecran.md': 'Test plan', 'pr-#-review.json': 'Published review',
+  },
+  skillTitle: (name) => `Write /${name} at the start of the field`,
+  needText: 'First dictate or write your request in the field, then click.',
+  sendFailed: 'The action was not sent.',
+  model: 'Model',
+  effort: 'Effort',
+  mode: 'Mode',
+  modelTitle: 'The agent\'s model, as in its menu',
+  effortTitle: 'The agent\'s effort, as in its menu',
+  modeTitle: 'The agent\'s mode, as in its menu',
+  models: [['', 'default'], ['fable', 'Fable (pricier)'], ['opus', 'Opus'], ['sonnet', 'Sonnet'], ['haiku', 'Haiku']],
+  efforts: [['', 'default'], ['low', 'low'], ['medium', 'medium'], ['high', 'high'], ['xhigh', 'extra high'], ['max', 'max']],
+  modes: [['default', 'manual'], ['acceptEdits', 'accept edits'], ['auto', 'auto'], ['plan', 'plan']],
+  context: 'Context',
+  contextTitle: 'Conversation context: click for the detail',
+  tasks: 'Tasks',
+  tasksTitle: 'The agent\'s background tasks',
+  changed: (n) => `${n} file${n === 1 ? '' : 's'} changed`,
+  at: (time) => `read at ${time}`,
+};
+
+const STRINGS: Record<VibeLang, Strings> = { fr, en };
+
+export function t(lang: VibeLang): Strings { return STRINGS[lang] || fr; }

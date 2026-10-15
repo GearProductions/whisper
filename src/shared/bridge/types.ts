@@ -192,7 +192,7 @@ export interface ConvApi {
   /** Une action (son id dans VibeView.actions) → un message à l'agent affiché. */
   vibeRun(action: string, args: VibeArgs): Promise<SendResult>;
   vibeSet(patch: VibePatch): void;
-  /** Valider ('ok'), refuser ('ko') ou oublier (null) : 'note', 'forme', 'case:<id du fichier>:<titre du cas>'. */
+  /** Valider ('ok'), refuser ('ko') ou oublier (null) : 'note', 'forme', 'case:<chemin du fichier>:<titre du cas>', 'check:<pr>:<rang>'. */
   vibeMark(target: string, verdict: 'ok' | 'ko' | null): void;
   /** Relire : ajouter au brouillon de revue de la PR (le texte du champ), ou en retirer une remarque. */
   vibeDraft(op: { add?: { target: string; text: string }; remove?: number }): void;
@@ -231,7 +231,7 @@ export type VibeModule = {
   contract: string;            // expose · ne connaît pas · utilisé par
   file: VibeFile | null;       // son fichier ou dossier, s'il existe
   touched: boolean;            // la branche le touche
-  commits: string[];           // hash courts des commits qui le touchent
+  commits: string[];           // hash des commits qui le touchent
 };
 
 // Un cas d'un test d'invariant, lu en pseudo-code.
@@ -251,7 +251,7 @@ export type VibeTestFile = VibeFile & {
 };
 
 export type VibeQuestion = { n: number; text: string; options: string[] };
-export type VibeCheck = { text: string; done: boolean };
+export type VibeCheck = { text: string; done: boolean | null };   // null : à vérifier à la main
 export type VibeCommit = { hash: string; subject: string; fixup: boolean };
 // Ce qu'un skill a écrit pour l'écran (Markdown), et quand.
 export type VibeOutput = { text: string; time: number };
@@ -263,7 +263,8 @@ export type VibeAction = {
   hint: string;
   who: string;                 // qui travaille : 'haiku', 'sonnet', 'opus · élevé', 'agent'
   kind: 'send' | 'prefill';    // envoyé aussitôt, ou préparé dans le champ
-  needs: 'none' | 'text' | 'module' | 'commit' | 'answers' | 'verdict';
+  needs: 'none' | 'text';      // 'text' : il exige le texte du champ
+  usesText: boolean;           // son gabarit prend le texte du champ ({{text}}), s'il y en a
   text?: string;               // 'prefill' : le texte à mettre dans le champ ({{quote}} : ce qu'on cite)
   primary: boolean;            // la prochaine étape
   disabled: string | null;     // pourquoi c'est grisé

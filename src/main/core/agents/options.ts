@@ -1,10 +1,14 @@
 /** options — ce qu'on donne au SDK : un message, et les options
  *  d'un Claude Code lancé dans le dossier de l'agent (ses réglages, CLAUDE.md,
  *  skills), avec la consigne de l'appli dans le prompt système de NOS sessions
- *  seulement (I-24).
+ *  seulement (I-24) ; et ce que l'appli y ajoute (plugins locaux, dossiers de
+ *  travail : le plugin de VibeCoder, les sorties de l'agent).
  *  Pur. Utilisé par : core/agents. */
 import { MODES } from './constants';
-import type { AgentConfig, Launch, OutgoingMessage, SdkMessage } from './types';
+import type { AgentConfig, Launch, OutgoingMessage, SdkMessage, TurnHooks } from './types';
+
+// Ce que l'appli ajoute à Claude Code : des plugins locaux, des dossiers de travail.
+type Extras = Pick<TurnHooks, 'plugins' | 'dirs'>;
 
 // Un message pour le SDK : les images ([{ mediaType, data (base64) }]) avant le
 // texte. Sans image, le texte seul : c'est sous cette forme que Claude Code
@@ -21,11 +25,13 @@ export function userMessage({ text, images = [] }: OutgoingMessage): SdkMessage 
 // Ce qu'un processus vivant ne peut pas changer : il est relancé si ça change
 // entre deux tours. Mode et modèle, eux, se changent à chaud (setPermissionMode,
 // setModel) ; la session, par close() quand on en reprend une autre.
-export const launchKey = (agent: AgentConfig, command: unknown, instructions: string) => (
-  JSON.stringify([agent.dir, agent.effort || '', instructions, String(command || '')]));
+export const launchKey = (agent: AgentConfig, command: unknown, instructions: string, { plugins = [], dirs = [] }: Extras = {}) => (
+  JSON.stringify([agent.dir, agent.effort || '', instructions, String(command || ''), plugins, dirs]));
 
-export function queryOptions(agent: AgentConfig, launch: Launch, instructions: string) {
+export function queryOptions(agent: AgentConfig, launch: Launch, instructions: string, { plugins = [], dirs = [] }: Extras = {}) {
   return {
+    ...(plugins.length ? { plugins: plugins.map((p) => ({ type: 'local' as const, path: p })) } : {}),
+    ...(dirs.length ? { additionalDirectories: dirs } : {}),
     cwd: agent.dir,
     permissionMode: MODES.some(([v]) => v === agent.mode) ? agent.mode : 'default',
     ...(agent.model ? { model: agent.model } : {}),

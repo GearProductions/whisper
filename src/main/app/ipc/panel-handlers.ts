@@ -3,8 +3,8 @@
  *  Ne connaît pas : l'écoute elle-même (technicals/ipc). Utilisé par : app/ipc. */
 import { PANEL_CHANNELS, type HandlerTable } from 'shared/bridge';
 import {
-  answerPermission, copyDictation, currentSession, history, openLink, openSession, panelReady, probeAgent, resumeSession,
-  sendDraft, setPanelMode, showFile, speakReply,
+  answerPermission, copyDictation, currentSession, draftVibe, history, markVibe, openLink, openSession, openVibeItem, panelReady,
+  probeAgent, refreshVibe, resumeSession, runVibeAction, sendDraft, setPanelMode, setVibe, showFile, speakReply,
 } from 'app/controllers';
 import { openAttachMenu } from 'app/menus';
 import { hideConversation, setCompactHeight } from 'app/windows';
@@ -23,19 +23,17 @@ export const panelHandlers: HandlerTable<typeof PANEL_CHANNELS> = {
     'conv:answer': answerPermission,
     'conv:openLink': openLink,
     'conv:showFile': showFile,
-    // à brancher : app/controllers/vibecoder
-    'conv:vibeSet': () => {},
-    'conv:vibeMark': () => {},
-    'conv:vibeDraft': () => {},
-    'conv:vibeOpen': () => {},
-    'conv:vibeRefresh': () => {},
+    'conv:vibeSet': setVibe,
+    'conv:vibeMark': markVibe,
+    'conv:vibeDraft': draftVibe,
+    'conv:vibeOpen': openVibeItem,
+    'conv:vibeRefresh': () => { refreshVibe({ now: true }); },
   },
   handle: {
     'conv:history': history,
     'conv:probe': probeAgent,
     'conv:copy': copyDictation,
     'conv:send': sendDraft,
-    // à brancher : app/controllers/vibecoder
-    'conv:vibeRun': () => ({ ok: false }),
+    'conv:vibeRun': runVibeAction,
   },
 };

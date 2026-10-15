@@ -33,6 +33,13 @@ describe('findEditor', () => {
     expect(argsOf('zed')).toEqual(['/projet']);
     expect(argsOf('zed --add')).toEqual(['--add', '/projet']);
   });
+  it('un fichier : là où l\'éditeur le range, sans -n ; commande réglée : ses arguments tels quels', () => {
+    only('zed');
+    findEditor('')!.openFile('/projet/a.ts');
+    expect(spawned.at(-1)?.[1]).toEqual(['/projet/a.ts']);
+    findEditor('zed --add')!.openFile('/projet/a.ts');
+    expect(spawned.at(-1)?.[1]).toEqual(['--add', '/projet/a.ts']);
+  });
   it('commande réglée introuvable : null', () => {
     only('zed');
     expect(findEditor('/nulle/part/zed')).toBeNull();

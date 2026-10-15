@@ -7,6 +7,7 @@
  *  celles du dossier s'ouvrent (I-22).
  *  Les tâches de fond de la conversation en cours, avec la fin de leur sortie,
  *  suivies au rythme du fil tant qu'une tourne et que le panneau est visible.
+ *  Chaque conversation envoyée relance le relevé de VibeCoder (controllers/vibecoder).
  *  Ne connaît pas : la fenêtre elle-même (windows/panel-window).
  *  Utilisé par : app/ipc, controllers/agents. */
 import fs from 'node:fs';
@@ -18,10 +19,11 @@ import { showableFile, webUrl } from 'core/guards';
 import { tail } from 'helpers';
 import { prepareImage, thumbnail } from 'technicals/images';
 import * as clipboard from 'technicals/clipboard';
-import { agentInstructions, loadConfig, updateAgent } from 'app/settings';
+import { loadConfig, updateAgent } from 'app/settings';
 import { state } from 'app/state';
 import { conversationShown, deliverPending, hideConversation, openConversation, sendToIcon } from 'app/windows';
-import { agents, CLAUDE_MISSING, isBusy, liveViewAgent, pushAgents, sendToAgent, sessions, viewAgent } from './agents';
+import { agents, CLAUDE_MISSING, isBusy, launchOptions, liveViewAgent, pushAgents, sendToAgent, sessions, viewAgent } from './agents';
+import { refreshVibe } from './vibecoder';
 
 const DICTATION_COLOR = '#3b6fe0';
 const CONV_PROGRESS_MS = 800;
@@ -105,6 +107,7 @@ export async function refreshConversation() {
   // Une tâche tourne, panneau visible : sa sortie et son temps suivent, au rythme du fil.
   if (tasks?.some((t) => t.status === 'running') && conversationShown()) conversationProgress();
   deliverPending();
+  refreshVibe(); // l'agent en VibeCoder : son relevé suit (null sinon)
 }
 
 // Pendant un tour, le fil suit l'agent (texte, outils) : au plus un
@@ -186,7 +189,7 @@ export async function probeAgent() {
   if (!agent) return { error: 'Aucun agent.' };
   const cfg = loadConfig();
   try {
-    const { context: c, commands } = await agents.probe(agent, { command: cfg.agentCommand, instructions: agentInstructions() });
+    const { context: c, commands } = await agents.probe(agent, launchOptions(agent, cfg));
     if (c && c.maxTokens) updateAgent(agent.id, { contextWindow: c.maxTokens });
     refreshConversation(); // la jauge suit la mesure
     return {

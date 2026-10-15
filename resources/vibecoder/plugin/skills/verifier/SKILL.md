@@ -1,0 +1,37 @@
+---
+name: verifier
+description: "Run the project's own verification commands — typecheck, tests, invariants, lint — and write the results to <out>/checks.json."
+argument-hint: "<lang> <out>"
+disable-model-invocation: true
+context: fork
+model: haiku
+effort: low
+allowed-tools: "Read, Glob, Grep, Write"
+---
+
+# Checks — the project's own commands
+
+`$ARGUMENTS` = `<lang> <out>`. `lang`: language of the `detail` texts and of your answer. `out`: absolute path of the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
+
+## Which commands
+
+From `AGENTS.md` (its commands section) first, else the project's manifests: `package.json` scripts, `Cargo.toml` (`cargo check`, `cargo test`, `cargo clippy` if the project uses it), `pyproject.toml` (pytest, ruff, mypy if configured), a `Makefile`. Only these kinds, each one if the project has it:
+- `typecheck` — the type check (`npm run typecheck`, `tsc`, `cargo check`, `mypy`…);
+- `tests` — the whole test suite;
+- `invariants` — the invariant tests alone, when the project has a command for them;
+- `lint` — the linter.
+
+A project in several parts (e.g. front and back) → one item per part and kind, named like `tests (backend)`. Run each from where `AGENTS.md` says. Never: install dependencies, build packages, start the app or a server, run end-to-end tests or comparison benches; never close, kill or restart the user's running app. At most 10 minutes per command.
+
+## `<out>/checks.json`
+
+```json
+{"items":[{"name":"typecheck","ok":true,"detail":"…"}],"time":1760000000000}
+```
+
+- One item per command run, in the order above; `ok` = exit code 0.
+- `detail`: one short line in `lang` — passed: the counts (« 212 tests passés ») ; failed: the first failing test or error, with `file:line` and its message.
+- `time`: when the checks finished, in milliseconds since the epoch (`date +%s%3N`).
+- No command found → `{"items":[],"time":…}`, and say so.
+
+Valid JSON only. Change nothing else. Answer in `lang`, one line: all green, or the failures.

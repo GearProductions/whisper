@@ -1,9 +1,10 @@
 /** config — les réglages (config.json) : défauts, lecture tolérante (une
  *  retouche à la main, d'anciens formats), état au lancement (aucun agent
  *  sélectionné, I-8), dossiers favoris et leur couleur, confiance (I-23),
- *  lecture à voix haute.
+ *  lecture à voix haute, VibeCoder (langue, réglages d'un agent).
  *  Ne connaît pas : le fichier (technicals/config-file), Electron.
  *  Utilisé par : app. */
+import type { VibeAutonomy, VibeFlow, VibeLang } from 'shared/bridge';
 import type { AgentConfig } from 'core/agents';
 
 export type Folder = { dir: string; color: string | null };
@@ -38,6 +39,8 @@ export type Config = {
   size: number;
   pos: { x: number; y: number } | null;
   convSize?: { width: number; height: number };
+  vibeLang: VibeLang;     // VibeCoder : la langue de l'écran et des messages envoyés
+  vibeSize?: { width: number; height: number };  // le panneau en VibeCoder (à part de convSize)
   [key: string]: unknown;
 };
 
@@ -52,6 +55,7 @@ export const DEFAULTS: Config = {
   speakLang: 'auto',
   speakVoices: { fr: 'estelle', en: 'jane' },
   deviceId: '', deviceLabel: '', size: 64, pos: null,
+  vibeLang: 'fr',
 };
 
 // Langues de la dictée, dans l'ordre du menu.
@@ -129,6 +133,22 @@ export function selectedAgent(cfg: Config) {
 // dossier ? » : elle est posée par l'appli, une fois, pour un dossier jamais
 // choisi. Les réglages d'un projet (.claude/) peuvent lancer des commandes.
 export const needsTrust = (cfg: Config, dir: string) => !favoriteFolders(cfg).some((f) => f.dir === dir);
+
+/* ---- VibeCoder ------------------------------------------------------------ */
+
+// config.json se retouche à la main : une valeur inconnue prend le défaut.
+export const vibeLang = (cfg: Config): VibeLang => (cfg.vibeLang === 'en' ? 'en' : 'fr');
+
+// Les réglages VibeCoder d'un agent : Créer (défaut) ou Relire, Guide (défaut)
+// ou Vibe, la PR suivie (un entier positif, sinon aucune).
+export function agentVibe(agent: AgentConfig): { flow: VibeFlow; autonomy: VibeAutonomy; pr: number | null } {
+  const v: Partial<Record<string, unknown>> = agent.vibe && typeof agent.vibe === 'object' ? agent.vibe : {};
+  return {
+    flow: v.flow === 'review' ? 'review' : 'create',
+    autonomy: v.autonomy === 'vibe' ? 'vibe' : 'guide',
+    pr: Number.isInteger(v.pr) && (v.pr as number) > 0 ? v.pr as number : null,
+  };
+}
 
 /* ---- Lecture à voix haute ------------------------------------------------- */
 

@@ -1,12 +1,14 @@
 /** actions — les boutons de VibeCoder, des données (actions.<langue>.json) :
- *  leurs entrées valides, et le message qu'une action envoie à l'agent — son
- *  gabarit, chaque variable remplacée par une valeur vérifiée, rien d'autre.
- *  Seul {{text}} (le champ, écrit ou relu par l'utilisateur, I-2) est libre ;
- *  un commit, un module, une PR ne sont pris que dans le dernier relevé ; une
- *  variable inconnue fait refuser l'action (l'agent lance des commandes avec
- *  ces valeurs).
+ *  leurs entrées valides, le message qu'une action envoie à l'agent — son
+ *  gabarit, chaque variable remplacée par une valeur vérifiée, rien d'autre —
+ *  et qui travaille quand elle part (le modèle du skill qu'elle appelle).
+ *  Seuls {{text}}, {{answers}} et {{draft}} (écrits par l'utilisateur : le
+ *  champ, I-2, ses réponses, ses remarques) sont libres ; un commit, un
+ *  module, une PR ne sont pris que dans le dernier relevé, et aucune autre
+ *  valeur n'a de caractère de contrôle ; une variable inconnue fait refuser
+ *  l'action (l'agent lance des commandes avec ces valeurs, I-38).
  *  Ne connaît pas : Electron, le disque, l'agent (le message est rendu, pas envoyé).
- *  Utilisé par : core/vibecoder (journey), app/controllers/vibecoder. */
+ *  Utilisé par : core/vibecoder (journey), app/controllers/vibecoder, app/settings. */
 import type { VibeAction, VibeArgs, VibeLang, VibeStepId, VibeView } from 'shared/bridge';
 
 export type ActionDef = {
@@ -24,26 +26,134 @@ export type MessageContext = { view: VibeView; out: string; lang: VibeLang };
 // La variable qui manque ou ne va pas ; 'variable' : une variable inconnue.
 export type MessageError = 'text' | 'module' | 'commit' | 'pr' | 'answers' | 'verdict' | 'draft' | 'files' | 'note' | 'repo' | 'variable';
 
-// Squelette : chaque fonction s'écrit dans le commit de son module.
-const todo = (..._args: unknown[]): never => { throw new Error('à implémenter'); };
+const STEPS = ['note', 'forme', 'invariants', 'modules', 'revue', 'pr', 'commits', 'ecran'];
+const VERDICTS = ['approve', 'comment', 'request-changes'];
+const VAR = /\{\{([^{}]*)\}\}/g;
+const FREE = ['text', 'answers', 'draft'];   // écrits par l'utilisateur : libres
+const TEXT_MAX = 20000;
+const ANSWERS_MAX = 50;
+const ANSWER_MAX = 2000;
 
-// Les entrées valides, dans leur ordre ; les autres sont ignorées.
-export function parseActions(json: unknown): ActionDef[] { return todo(json); }
+// Un numéro de PR : un entier positif, sinon null.
+export const prNumber = (v: unknown) => (Number.isInteger(v) && (v as number) > 0 ? v as number : null);
+
+// Les variables d'un gabarit ({{ x }} : x).
+export const templateVars = (text: string) => [...text.matchAll(VAR)].map((m) => m[1].trim());
+
+// Les entrées valides, dans leur ordre ; les autres sont ignorées : un champ
+// manquant ou d'un autre type, une étape inconnue, un id déjà vu, un gabarit
+// 'prefill' qui a une autre variable que {{quote}}. hint, needs et step
+// peuvent manquer ('', 'none', null).
+export function parseActions(json: unknown): ActionDef[] {
+  if (!Array.isArray(json)) return [];
+  const ids = new Set<string>();
+  return json.flatMap((raw): ActionDef[] => {
+    if (!raw || typeof raw !== 'object') return [];
+    const { id, flow, step = null, kind, needs = 'none', label, hint = '', text } = raw as Record<string, unknown>;
+    const valid = typeof id === 'string' && id !== '' && !ids.has(id)
+      && (flow === 'create' || flow === 'review' || flow === 'both')
+      && (step === null || STEPS.includes(step as string))
+      && (kind === 'send' || kind === 'prefill')
+      && (needs === 'none' || needs === 'text')
+      && typeof label === 'string' && label !== '' && typeof hint === 'string' && typeof text === 'string' && text !== ''
+      && (kind === 'send' || templateVars(text).every((v) => v === 'quote'));
+    if (!valid) return [];
+    ids.add(id);
+    return [{ id, flow, step: step as VibeStepId | null, kind, needs: needs as ActionDef['needs'], label, hint, text }];
+  });
+}
+
+const NO_ANSWER: Record<VibeLang, string> = { fr: '(pas de réponse)', en: '(no answer)' };
 
 // Les variables, liste fermée (une autre → 'variable') :
 //   {{text}}           args.text trimé ; requis si needs = 'text' ; ≤ 20 000 caractères → sinon 'text'
 //   {{out}} {{lang}}   le dossier de sorties de l'agent ; fr ou en
 //   {{branch}} {{base}}  du relevé → 'repo' sans dépôt
 //   {{note}}           le chemin de la note → 'note' sans note
-//   {{ref}}            WORKTREE (Créer) ou refs/vibecoder/pr/<n> (Relire)
+//   {{ref}}            WORKTREE (Créer) ou refs/vibecoder/pr/<n> (Relire) → 'pr' sans PR
 //   {{files}}          les tests d'invariants pas encore lus, « chemin@blob » séparés par des espaces → 'files' si aucun
 //   {{module}}         args.module (rang dans view.modules), sinon le premier non touché : « chemin — contrat » → 'module'
 //   {{commit}}         args.commit, un hash de view.commits ; absent : WORKTREE → sinon 'commit'
 //   {{pr}}             args.pr (entier > 0), sinon view.pr.number → sinon 'pr'
-//   {{answers}}        args.answers en « 1. …\n2. … » → 'answers' s'il manque
+//   {{answers}}        args.answers en « 1. …\n2. … » (une vide : « (pas de réponse) ») ; 50 de 2 000 caractères
+//                      au plus → 'answers' sinon, ou s'il manque
 //   {{verdict}}        approve, comment ou request-changes → sinon 'verdict'
 //   {{draft}}          view.draft, une ligne « - [cible] texte » par remarque → 'draft' s'il est vide
-//   {{quote}}          ('prefill') ce que la page cite, rempli par elle
+//   {{quote}}          ('prefill') ce que la page cite, rempli par elle : jamais ici
+// Les arguments viennent d'une page : le type de chacun est vérifié ici.
+// Le gabarit est lu une fois : une valeur insérée n'est jamais relue comme un gabarit.
+// Hors {{text}}, {{answers}} et {{draft}}, une valeur qui contient un caractère de
+// contrôle (saut de ligne…) fait refuser l'action → 'variable'.
 export function buildMessage(def: ActionDef, args: VibeArgs, ctx: MessageContext): { text: string } | { error: MessageError } {
-  return todo(def, args, ctx);
+  const { view } = ctx;
+  const fail = (error: MessageError) => ({ error });
+  const values: Record<string, () => string | { error: MessageError }> = {
+    text: () => {
+      if (args.text !== undefined && typeof args.text !== 'string') return fail('text');
+      const text = (args.text ?? '').trim();
+      return text.length > TEXT_MAX || (def.needs === 'text' && !text) ? fail('text') : text;
+    },
+    out: () => ctx.out,
+    lang: () => ctx.lang,
+    branch: () => view.repo?.branch ?? fail('repo'),
+    base: () => view.repo?.base ?? fail('repo'),
+    note: () => view.note?.path ?? fail('note'),
+    ref: () => {
+      if (view.flow !== 'review') return 'WORKTREE';
+      const n = prNumber(view.pr?.number);
+      return n ? `refs/vibecoder/pr/${n}` : fail('pr');
+    },
+    files: () => {
+      const unread = view.invariants.filter((f) => f.reading === null).map((f) => `${f.path}@${f.blob}`);
+      return unread.length ? unread.join(' ') : fail('files');
+    },
+    module: () => {
+      const m = args.module === undefined ? view.modules.find((x) => !x.touched)
+        : Number.isInteger(args.module) ? view.modules[args.module] : undefined;
+      return !m ? fail('module') : m.contract ? `${m.path} — ${m.contract}` : m.path;
+    },
+    commit: () => {
+      if (args.commit === undefined) return 'WORKTREE';
+      return view.commits.find((c) => c.hash === args.commit)?.hash ?? fail('commit');
+    },
+    pr: () => {
+      const n = args.pr === undefined ? prNumber(view.pr?.number) : prNumber(args.pr);
+      return n ? String(n) : fail('pr');
+    },
+    answers: () => {
+      const a = args.answers;
+      if (!Array.isArray(a) || !a.length || a.length > ANSWERS_MAX
+        || a.some((x) => typeof x !== 'string' || x.length > ANSWER_MAX)) return fail('answers');
+      return a.map((x, i) => `${i + 1}. ${x.trim() || NO_ANSWER[ctx.lang]}`).join('\n');
+    },
+    verdict: () => (VERDICTS.includes(args.verdict as string) ? args.verdict as string : fail('verdict')),
+    draft: () => (view.draft.length ? view.draft.map((c) => `- [${c.target}] ${c.text}`).join('\n') : fail('draft')),
+  };
+  let error: MessageError | null = null;
+  const text = def.text.replace(VAR, (_, name: string) => {
+    const key = name.trim();
+    const value = Object.hasOwn(values, key) ? values[key]() : fail('variable');
+    if (typeof value === 'string' && (FREE.includes(key) || !/[\0-\x1f\x7f]/.test(value))) return value;
+    if (typeof value === 'string') { error ??= 'variable'; return ''; }
+    error ??= value.error;
+    return '';
+  });
+  return error ? { error } : { text };
+}
+
+const EFFORT: Record<VibeLang, Record<string, string>> = {
+  fr: { medium: 'moyen', high: 'élevé', xhigh: 'très élevé', max: 'max' },
+  en: { medium: 'medium', high: 'high', xhigh: 'extra high', max: 'max' },
+};
+
+// Qui travaille pour un skill, d'après son en-tête (frontmatter) : son modèle,
+// et son effort s'il dépasse « low » (« opus · élevé », « haiku ») ; sans
+// modèle (ou sans skill) : « agent », le modèle de l'agent.
+export function whoOf(skillMd: string | null, lang: VibeLang): string {
+  const head = (skillMd && /^---\r?\n([\s\S]*?)\r?\n---/.exec(skillMd)?.[1]) || '';
+  const field = (key: string) => new RegExp(`^${key}:[ \\t]*(.*?)[ \\t]*$`, 'm').exec(head)?.[1].replace(/^(['"])(.*)\1$/, '$2') || '';
+  const model = field('model');
+  if (!model || model === 'inherit') return 'agent';
+  const effort = EFFORT[lang][field('effort')];
+  return effort ? `${model} · ${effort}` : model;
 }

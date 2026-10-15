@@ -4,21 +4,27 @@
  *  texte dicté et Copier. Le volet des tâches de fond, à droite du fil.
  *  Réduit : le dernier échange, à la hauteur de son contenu ; agrandi : tout
  *  le fil et l'historique. Le principal envoie la conversation (`conv:thread`)
- *  à l'ouverture, à chaque changement et au fil d'un tour. La colle : seul
- *  fichier du panneau qui connaît le pont (window.conv) ; il tient le
- *  brouillon de chaque conversation.
+ *  à l'ouverture, à chaque changement et au fil d'un tour. Un agent en
+ *  VibeCoder (son relevé, `conv:vibe`, sur sa conversation en cours) :
+ *  l'écran VibeCoder à la place de l'en-tête et du corps, la même
+ *  conversation dans sa colonne de droite ; une action y prend le texte du
+ *  champ s'il lui en faut un (vidé une fois parti), ou y prépare un message.
+ *  La colle : seul fichier du panneau qui connaît le pont (window.conv) ; il
+ *  tient le brouillon de chaque conversation.
  *  Ne connaît pas : l'icône, la bulle. Utilisé par : main.tsx. */
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import {
   appendDictation, createDrafts, createPermissionGuard, EMPTY, followsEnd, IMAGE_TYPES, isBusy, revoke, titleOf, toDraft,
   withAttached, withFile, type Draft, type Piece,
 } from 'core/conversation';
-import type { Command, ConvApi, Notice, ProbeResult, Session, Thread } from 'technicals/bridge';
+import { t as vibeStrings } from 'core/vibecoder';
+import type { Command, ConvApi, Notice, ProbeResult, SendResult, Session, Thread, VibeArgs, VibeView } from 'technicals/bridge';
 import { compactHeight } from 'technicals/dom';
 import {
   ArchivedBar, Composer, ContextDetail, Header, HistoryList, Lightbox, NoticeBar, showsWorking, TasksPane, ThreadContent,
   type ThreadActions,
 } from './components';
+import { SkillsBar, VibeCoder, type VibeActs } from './vibecoder';
 
 const STATUS_MS = 10000; // un message de l'appli (téléchargement…) s'efface seul
 const AT_END_PX = 40;
@@ -37,6 +43,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   const [sending, setSending] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [tasksOpen, setTasksOpen] = useState(false);
+  const [vibe, setVibe] = useState<VibeView | null>(null);
 
   const [drafts] = useState(createDrafts);
   const [guard] = useState(() => createPermissionGuard());
@@ -56,11 +63,13 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   const setOverlay = (o: Overlay) => { overlayRef.current = o; setOverlayState(o); };
   const setZoom = (src: string | null) => { zoomRef.current = src; setZoomState(src); };
   const live = !!data && data.live;
+  // VibeCoder : le relevé de l'agent affiché, sur sa conversation en cours (sinon, la vue habituelle).
+  const vibeShown = vibe && data && data.live && data.key === vibe.agentId ? vibe : null;
 
   // Réduit (comme avant la première conversation) : la hauteur de son contenu,
   // que le principal donne au panneau.
   const reportHeight = () => {
-    if ((current.current?.mode || 'compact') !== 'compact') return;
+    if (vibeShown || (current.current?.mode || 'compact') !== 'compact') return;
     setTimeout(() => {
       conv.height(compactHeight({
         fixed: [el.header.current, el.notice.current, el.archived.current, el.composer.current],
@@ -117,6 +126,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
       setDraft((d) => ({ ...d, text: appendDictation(d.text, text) }));
     });
     conv.onFocusInput(() => el.input.current!.focus());
+    conv.onVibe(setVibe);
     conv.onAttached((what) => {
       setDraft((d) => ({ ...d, pieces: withAttached(d.pieces, what) }));
       el.input.current!.focus();
@@ -160,6 +170,10 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
 
   useLayoutEffect(reportHeight);
 
+  // VibeCoder ouvert ou refermé : le fil, monté de nouveau, repart du bas.
+  const vibeOn = !!vibeShown;
+  useLayoutEffect(() => { el.thread.current!.scrollTop = el.thread.current!.scrollHeight; }, [vibeOn]);
+
   async function showHistory() {
     setOverlay('history');
     setSessions(null);
@@ -195,6 +209,57 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     }
   }
 
+  // VibeCoder : une action du relevé. 'prefill' : préparée dans le champ ;
+  // 'send' : envoyée à l'agent, avec le texte du champ si son gabarit le prend
+  // (exigé et vide : on le demande ; envoyé : le champ se vide, ses pièces
+  // jointes restent).
+  async function vibeRun(id: string, args: VibeArgs = {}) {
+    const a = vibe?.actions.find((x) => x.id === id);
+    if (!vibe || !a || sending) return;
+    if (a.kind === 'prefill') { vibePrefill(id, ''); return; }
+    const text = a.needs === 'text' || a.usesText ? draft.text.trim() : '';
+    if (a.needs === 'text' && !text) { setStatus(vibeStrings(vibe.lang).needText); el.input.current!.focus(); return; }
+    setStatus('');
+    setSending(true);
+    let res: SendResult | null = null;
+    try { res = await conv.vibeRun(id, text ? { ...args, text } : args); } catch { res = null; }
+    setSending(false);
+    if (res && res.ok) {
+      if (text) setDraft((d) => ({ ...d, text: '' }));
+      el.thread.current!.scrollTop = el.thread.current!.scrollHeight;
+    } else {
+      setStatus((res && res.error) || vibeStrings(vibe.lang).sendFailed);
+    }
+  }
+
+  // Une action 'prefill' : son texte, {{quote}} remplacé par ce qu'on cite (une
+  // ligne, 300 caractères au plus), ajouté au champ, à compléter puis envoyer.
+  function vibePrefill(id: string, quote: string) {
+    const a = vibe?.actions.find((x) => x.id === id && x.kind === 'prefill');
+    if (!a) return;
+    const line = quote.replace(/\s+/g, ' ').trim();
+    const text = (a.text || '').replaceAll('{{quote}}', () => (line.length > 300 ? `${line.slice(0, 299)}…` : line));
+    focusEnd.current = true;
+    setStatus('');
+    setDraft((d) => ({ ...d, text: d.text.trim() ? `${d.text.trimEnd()}\n${text}` : text }));
+  }
+
+  // Une pastille de skill : `/<skill> ` au début du champ, à la place d'une
+  // pastille déjà là (un texte qui commence par un chemin reste entier).
+  function vibeSkill(name: string) {
+    const skills = vibe ? vibe.skills : [];
+    focusEnd.current = true;
+    setDraft((d) => {
+      const lead = /^\/(\S+)\s*/.exec(d.text);
+      return { ...d, text: `/${name} ${lead && skills.includes(lead[1]) ? d.text.slice(lead[0].length) : d.text}` };
+    });
+  }
+
+  const vibeAct: VibeActs = {
+    run: vibeRun, prefill: vibePrefill, set: conv.vibeSet, mark: conv.vibeMark, draft: conv.vibeDraft, open: conv.vibeOpen,
+    openLink: conv.openLink, refresh: conv.vibeRefresh,
+  };
+
   const act: ThreadActions = {
     openLink: conv.openLink,
     showFile: conv.showFile,
@@ -204,37 +269,62 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     answer: (decision, key) => guard.answer(key, decision, conv.answer),
   };
 
+  const toggleContext = () => { if (overlay === 'context') setOverlay('none'); else showContext(); };
+  const toggleTasks = () => setTasksOpen((o) => !o);
+
+  // Le message de l'appli, le fil (et ses volets), le champ : à leur place dans
+  // la vue habituelle, ou dans la colonne de la conversation de VibeCoder.
+  const noticeBar = <NoticeBar notice={notice} onClose={() => setNotice(null)} ref={el.notice} />;
+  const body = (
+    <div id="body">
+      <main id="thread" className="scroll" ref={el.thread}>
+        {data ? <ThreadContent key={data.key} data={data} act={act} /> : null}
+      </main>
+      {tasksOpen && data?.tasks ? <TasksPane tasks={data.tasks} onOpenLink={conv.openLink} onShowFile={conv.showFile} /> : null}
+      <HistoryList open={overlay === 'history'} sessions={sessions} onOpen={(id) => { setOverlay('none'); conv.open(id); }} />
+      <ContextDetail open={overlay === 'context'} probe={probe} ref={el.context}
+        canCompact={live && !isBusy(data!.status)}
+        onCompact={async () => {
+          const sent = await conv.send({ text: '/compact', images: [], files: [], selection: '' });
+          if (sent && sent.ok) setOverlay('none');
+          return sent;
+        }} />
+    </div>
+  );
+  const composer = (
+    <Composer draft={draft} live={live} name={data?.name || ''} busy={!!data && isBusy(data.status)} sending={sending}
+      setText={(text) => setDraft((d) => ({ ...d, text }))}
+      removePiece={(p) => { revoke([p]); setDraft((d) => ({ ...d, pieces: d.pieces.filter((x) => x !== p) })); }}
+      status={status} setStatus={setStatus} dir={data?.dir || ''} commands={commands} probe={conv.probe}
+      onSend={send} onAttach={() => conv.attach()} onFiles={addFiles} onLayout={reportHeight}
+      ref={el.composer} input={el.input} />
+  );
+
   return (
     <div id="app" data-view={data ? (data.dictation ? 'dictation' : 'agent') : undefined} data-mode={data?.mode}
       className={dragging ? 'dragging' : undefined} style={data ? { '--accent': data.color } as CSSProperties : undefined}>
-      <Header data={data}
-        onGauge={() => { if (overlay === 'context') setOverlay('none'); else showContext(); }}
-        onHistory={() => { if (overlay === 'history') setOverlay('none'); else showHistory(); }}
-        tasksOpen={tasksOpen} onTasks={() => setTasksOpen((o) => !o)}
-        onMode={() => conv.setMode(data?.mode === 'compact' ? 'full' : 'compact')}
-        onHide={() => conv.hide()} ref={el.header} />
-      <NoticeBar notice={notice} onClose={() => setNotice(null)} ref={el.notice} />
-      <ArchivedBar data={data} onCurrent={() => conv.current()} onResume={() => conv.resume()} ref={el.archived} />
-      <div id="body">
-        <main id="thread" className="scroll" ref={el.thread}>
-          {data ? <ThreadContent key={data.key} data={data} act={act} /> : null}
-        </main>
-        {tasksOpen && data?.tasks ? <TasksPane tasks={data.tasks} onOpenLink={conv.openLink} onShowFile={conv.showFile} /> : null}
-        <HistoryList open={overlay === 'history'} sessions={sessions} onOpen={(id) => { setOverlay('none'); conv.open(id); }} />
-        <ContextDetail open={overlay === 'context'} probe={probe} ref={el.context}
-          canCompact={live && !isBusy(data!.status)}
-          onCompact={async () => {
-            const sent = await conv.send({ text: '/compact', images: [], files: [], selection: '' });
-            if (sent && sent.ok) setOverlay('none');
-            return sent;
-          }} />
-      </div>
-      <Composer draft={draft} live={live} name={data?.name || ''} busy={!!data && isBusy(data.status)} sending={sending}
-        setText={(text) => setDraft((d) => ({ ...d, text }))}
-        removePiece={(p) => { revoke([p]); setDraft((d) => ({ ...d, pieces: d.pieces.filter((x) => x !== p) })); }}
-        status={status} setStatus={setStatus} dir={data?.dir || ''} commands={commands} probe={conv.probe}
-        onSend={send} onAttach={() => conv.attach()} onFiles={addFiles} onLayout={reportHeight}
-        ref={el.composer} input={el.input} />
+      {vibeShown && data ? (
+        <VibeCoder key={vibeShown.agentId} view={vibeShown} thread={data} act={vibeAct} tasksOpen={tasksOpen}
+          contextOpen={overlay === 'context'} onGauge={toggleContext} onTasks={toggleTasks} onHide={() => conv.hide()}>
+          {noticeBar}
+          {body}
+          <SkillsBar view={vibeShown} busy={isBusy(data.status)} onSkill={vibeSkill} onRun={vibeRun} />
+          {composer}
+        </VibeCoder>
+      ) : (
+        <>
+          <Header data={data}
+            onGauge={toggleContext}
+            onHistory={() => { if (overlay === 'history') setOverlay('none'); else showHistory(); }}
+            tasksOpen={tasksOpen} onTasks={toggleTasks}
+            onMode={() => conv.setMode(data?.mode === 'compact' ? 'full' : 'compact')}
+            onHide={() => conv.hide()} ref={el.header} />
+          {noticeBar}
+          <ArchivedBar data={data} onCurrent={() => conv.current()} onResume={() => conv.resume()} ref={el.archived} />
+          {body}
+          {composer}
+        </>
+      )}
       <Lightbox src={zoom} onClose={() => setZoom(null)} />
     </div>
   );

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createAgentRuntime, createSessions, parseThread, sessionDirs, splitReply, type AgentConfig } from 'core/agents';
+import { createAgentRuntime, createSessions, parseThread, queryOptions, sessionDirs, splitReply, type AgentConfig } from 'core/agents';
 
 const agent: AgentConfig = { id: 'a1', name: 'alpha', dir: '/home/u/p', mode: 'default', model: '', effort: '', sessionId: null };
 
@@ -184,6 +184,31 @@ describe('tours', () => {
     expect(queries).toHaveLength(2);
     expect(queries[1]).toMatchObject({ resume: 's1', effort: 'high' });
     expect(rt.active()).toBe(1);
+  });
+
+  it('plugin et dossier de sorties donnés à Claude Code ; changés entre deux tours : nouveau processus', async () => {
+    const { rt, hooks, queries } = runtime(async function* t() { yield ok; });
+    const vibe = { ...hooks, plugins: ['/u/vibecoder/plugin'], dirs: ['/u/vibecoder-out/a1'] };
+    await rt.send(agent, { text: 'un' }, vibe);
+    expect(queries[0]).toMatchObject({ plugins: [{ type: 'local', path: '/u/vibecoder/plugin' }], additionalDirectories: ['/u/vibecoder-out/a1'] });
+    await rt.send(agent, { text: 'deux' }, { ...vibe });
+    expect(queries).toHaveLength(1);
+    await rt.send(agent, { text: 'trois' }, { ...vibe, plugins: [] }); // plugin disparu : relancé sans
+    expect(queries).toHaveLength(2);
+    expect(queries[1]).not.toHaveProperty('plugins');
+    expect(queries[1]).toMatchObject({ additionalDirectories: ['/u/vibecoder-out/a1'] });
+  });
+
+  it('sans plugin ni dossier : les options n’en parlent pas', () => {
+    const o = queryOptions(agent, { executable: 'claude' }, '', { plugins: [], dirs: [] });
+    expect(o).not.toHaveProperty('plugins');
+    expect(o).not.toHaveProperty('additionalDirectories');
+  });
+
+  it('la sonde sans processus : lancée avec le plugin et le dossier de sorties', async () => {
+    const { rt, queries } = runtime(async function* t() { yield ok; });
+    await rt.probe(agent, { plugins: ['/u/vibecoder/plugin'], dirs: ['/u/vibecoder-out/a1'] });
+    expect(queries[0]).toMatchObject({ plugins: [{ type: 'local', path: '/u/vibecoder/plugin' }], additionalDirectories: ['/u/vibecoder-out/a1'] });
   });
 
   it('mode et modèle changés entre deux tours : appliqués au processus avant le message', async () => {

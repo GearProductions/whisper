@@ -1,7 +1,8 @@
 /** agents — les agents Claude Code côté appli : un robot par dossier (réglage
  *  `agentsEnabled`). Un robot sélectionné reçoit la dictée au lieu du curseur ;
  *  sa conversation s'affiche dans le panneau. Le robot sélectionné et le robot
- *  affiché vont ensemble.
+ *  affiché vont ensemble. Chaque lancement de Claude Code (tour, sonde) reçoit
+ *  le plugin de VibeCoder et le dossier de sorties de l'agent.
  *  Ne connaît pas : le contenu du panneau (controllers/conversation).
  *  Utilisé par : app (fenêtres, menus, gestionnaires). */
 import fs from 'node:fs';
@@ -11,7 +12,7 @@ import { createAgentRuntime, createSessions, type AgentConfig, type OutgoingMess
 import { agentColor, agentList, agentSlotCount, folderColors, needsTrust, type Config } from 'core/config';
 import { launcher, loadSdk } from 'technicals/claude';
 import { createJournal } from 'technicals/journal';
-import { agentInstructions, journalFile, loadConfig, saveConfig, updateAgent } from 'app/settings';
+import { agentInstructions, journalFile, loadConfig, saveConfig, updateAgent, vibeOutDir, vibePluginDir } from 'app/settings';
 import { state } from 'app/state';
 import { applyWidth, bubbleShown, conversationShown, inConversation, openConversation, sendToIcon } from 'app/windows';
 import { conversationProgress, refreshConversation } from './conversation';
@@ -58,13 +59,32 @@ export function pushAgents() {
   refreshConversation(); // le panneau suit (réponse arrivée, agent au travail…)
 }
 
+// Ce que reçoit Claude Code pour cet agent, à chaque tour comme à la sonde : la
+// commande, la consigne, le plugin de VibeCoder (seulement s'il est là :
+// ensureVibeFiles a pu échouer) et le dossier de sorties de l'agent.
+export function launchOptions(agent: AgentConfig, cfg: Config) {
+  const plugin = vibePluginDir();
+  return {
+    command: cfg.agentCommand, instructions: agentInstructions(),
+    plugins: fs.existsSync(plugin) ? [plugin] : [], dirs: [vibeOutDir(agent.id)],
+  };
+}
+
+// Modèle, effort ou mode d'un agent (son menu, la barre d'état de VibeCoder) :
+// enregistré ; le processus vivant suit aussitôt le mode et le modèle (F-57),
+// l'effort à son prochain lancement.
+export function setAgentSetting(id: string, key: 'model' | 'effort' | 'mode', value: string) {
+  updateAgent(id, { [key]: value });
+  if (key === 'mode') agents.setMode(id, value);
+  if (key === 'model') agents.setModel(id, value);
+}
+
 // `message` part à l'agent ; la réponse arrivera par sa pastille.
 export function sendToAgent(agent: AgentConfig, message: OutgoingMessage, cfg: Config): { ok: true } | { ok: false; error: string } {
   if (isBusy(agent.id)) return { ok: false, error: `${agent.name} travaille encore : message non envoyé.` };
   if (!agents.isAvailable(cfg.agentCommand)) return { ok: false, error: CLAUDE_MISSING };
   agents.send(agent, message, {
-    command: cfg.agentCommand,
-    instructions: agentInstructions(),
+    ...launchOptions(agent, cfg),
     onChange: pushAgents,
     onSession: (sessionId) => updateAgent(agent.id, { sessionId }),
     onProgress: conversationProgress,

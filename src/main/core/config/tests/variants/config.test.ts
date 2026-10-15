@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  agentColor, agentList, agentSlotCount, favoriteFolders, folderColors, randomColor, selectedAgent, speakMode, speakVolume, withDefaults,
+  agentColor, agentList, agentSlotCount, agentVibe, favoriteFolders, folderColors, randomColor, selectedAgent, speakMode, speakVolume,
+  vibeLang, withDefaults,
 } from 'core/config';
 
 const agent = (id: string, dir: string) => ({ id, dir, name: id, model: '', effort: '', mode: 'default', sessionId: null });
@@ -57,5 +58,21 @@ describe('lecture à voix haute', () => {
     expect(speakVolume(withDefaults({ speakVolume: -1 }))).toBe(0);
     expect(speakVolume(withDefaults({ speakVolume: 'x' }))).toBe(1);
     expect(speakVolume(withDefaults({ speakVolume: '0.4' }))).toBe(0.4);
+  });
+});
+
+describe('VibeCoder', () => {
+  it('langue : fr par défaut, en si demandé, rien d’autre', () => {
+    expect(vibeLang(withDefaults({}))).toBe('fr');
+    expect(vibeLang(withDefaults({ vibeLang: 'en' }))).toBe('en');
+    expect(vibeLang(withDefaults({ vibeLang: 'de' }))).toBe('fr');
+  });
+  it('réglages d’un agent : défauts (Créer, Guide, aucune PR), retouches à la main tolérées', () => {
+    const none = { flow: 'create', autonomy: 'guide', pr: null };
+    expect(agentVibe(agent('a', '/p'))).toEqual(none);
+    expect(agentVibe({ ...agent('a', '/p'), vibe: { flow: 'review', autonomy: 'vibe', pr: 12 } })).toEqual({ flow: 'review', autonomy: 'vibe', pr: 12 });
+    expect(agentVibe({ ...agent('a', '/p'), vibe: { flow: 'x', autonomy: 1, pr: 1.5 } as never })).toEqual(none);
+    expect(agentVibe({ ...agent('a', '/p'), vibe: { flow: 'review', autonomy: 'guide', pr: -3 } })).toEqual({ ...none, flow: 'review' });
+    expect(agentVibe({ ...agent('a', '/p'), vibe: 'cassé' as never })).toEqual(none);
   });
 });

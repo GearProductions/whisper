@@ -16,7 +16,7 @@ import {
   agents, ensureFolderColors, ensureModel, muter, pollSpeak, pushAgents, resetSpeakState, SPEAK_POLL_MS, startHealing,
 } from 'app/controllers';
 import { registerIpc } from 'app/ipc';
-import { loadConfig, saveConfig } from 'app/settings';
+import { ensureVibeFiles, loadConfig, saveConfig } from 'app/settings';
 import { state } from 'app/state';
 import { createBubble, createIconWindow } from 'app/windows';
 
@@ -45,6 +45,8 @@ export function start() {
     // doit pas recevoir (et envoyer à Claude) ce qu'on croit dicter pour soi.
     const patch = startupPatch(loadConfig());
     if (patch) saveConfig(patch);
+    // VibeCoder : ses fichiers par défaut, sans écraser une retouche ; un échec ne bloque rien (I-29).
+    ensureVibeFiles();
     setInterval(pollSpeak, SPEAK_POLL_MS);
     // Une application restée muette après une dictée passée : rétablie dès qu'elle rejoue.
     startHealing();

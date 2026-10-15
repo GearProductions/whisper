@@ -1,4 +1,4 @@
-/** paths — où trouver un programme, un script ou un binaire livré avec l'appli.
+/** paths — où trouver un programme, un script, un binaire ou un dossier livré avec l'appli.
  *  Ne connaît pas : Electron, le métier.
  *  Utilisé par : technicals (claude, selection, pocket-tts, windows-helper), app. */
 import fs from 'node:fs';
@@ -30,3 +30,6 @@ export const binDir = () => path.join(resources(), 'bin');
 // Un script lancé par un autre programme (PowerShell, Python) : hors de
 // l'archive, que ces programmes ne savent pas lire.
 export const scriptPath = (name: string) => path.join(resources(), 'scripts', name);
+
+// Un dossier livré tel quel (les fichiers par défaut de VibeCoder…).
+export const resourcePath = (name: string) => path.join(resources(), name);

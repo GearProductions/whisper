@@ -56,22 +56,6 @@ describe('un argument venu d’ailleurs ne devient jamais une option', () => {
     expect(calls).toEqual([]);
   });
 
-  it('blob : un ref qui commence par « - » est refusé sans lancer git', async () => {
-    const { calls, run } = recorder();
-    // refusé
-    expect(await gitReader(run).blob('--output=/tmp/x', 'a.txt')).toBeNull();
-    // sans que git soit lancé
-    expect(calls).toEqual([]);
-  });
-
-  it('blob : un chemin qui commence par « - » est refusé sans lancer git', async () => {
-    const { calls, run } = recorder();
-    // refusé
-    expect(await gitReader(run).blob('HEAD', '--output=/tmp/x')).toBeNull();
-    // sans que git soit lancé
-    expect(calls).toEqual([]);
-  });
-
   it('un ref qui contient « .. » est refusé sans lancer git', async () => {
     const { calls, run } = recorder();
     // refusé
@@ -153,6 +137,20 @@ describe('sur un vrai dépôt', () => {
     expect(outside(calls)).toEqual([]);
   });
 
+  it('diff, show et log ne lancent jamais un programme externe (--no-ext-diff, --no-textconv)', async () => {
+    const { calls, run } = recordedGit();
+    await gitReader(run).facts();
+    await gitReader(run).facts('main');
+    await gitReader(run).show('main', 'a.txt');
+    const diffs = calls.filter((a) => ['diff', 'show', 'log'].includes(a[0]));
+    // ces sous-commandes ont bien servi
+    expect(diffs.length).toBeGreaterThan(0);
+    // aucune sans --no-ext-diff (un diff.external du dépôt ne se lance pas)
+    expect(diffs.filter((a) => !a.includes('--no-ext-diff'))).toEqual([]);
+    // aucune sans --no-textconv (un pilote textconv du dépôt ne se lance pas)
+    expect(diffs.filter((a) => !a.includes('--no-textconv'))).toEqual([]);
+  });
+
   it('facts(ref) : chaque appel est une sous-commande de GIT_READ', async () => {
     const { calls, run } = recordedGit();
     await gitReader(run).facts('main');
@@ -171,15 +169,6 @@ describe('sur un vrai dépôt', () => {
     expect(outside(calls)).toEqual([]);
   });
 
-  it('blob() : chaque appel est une sous-commande de GIT_READ', async () => {
-    const { calls, run } = recordedGit();
-    await gitReader(run).blob('HEAD', 'b.txt');
-    // git a bien été interrogé
-    expect(calls.length).toBeGreaterThan(0);
-    // et seulement en lecture
-    expect(outside(calls)).toEqual([]);
-  });
-
   it('un relevé laisse l’état, les références et l’index du dépôt tels quels', async () => {
     const dir = repo();
     // ce que git en montre (sans prendre de verrou), ses références, son index
@@ -192,7 +181,6 @@ describe('sur un vrai dépôt', () => {
     const reader = gitReader(gitRun(dir));
     await reader.facts();
     await reader.show('HEAD', 'b.txt');
-    await reader.blob('HEAD', 'b.txt');
     // rien n'a bougé
     expect(snapshot()).toEqual(before);
   });
