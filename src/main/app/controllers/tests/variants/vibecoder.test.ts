@@ -302,7 +302,7 @@ describe('rc.2', () => {
     const { openVibeItem } = await import('app/controllers');
     await openVibeItem('c0/0', 7);
     const file = path.join(out, 'files', 'pr-12', 'src', 'x.ts');
-    expect(fake.edited).toEqual([[fs.realpathSync(file), 7]]);
+    expect(fake.edited).toEqual([[fs.realpathSync.native(file), 7]]);
     expect(fs.readFileSync(file, 'utf8')).toBe(fake.shown);
     if (process.platform !== 'win32') expect(fs.statSync(file).mode & 0o777).toBe(0o444);
     await openVibeItem('c0/0', 7);   // déjà là, en lecture seule : remplacé
@@ -317,7 +317,7 @@ describe('rc.2', () => {
     const { openVibeItem } = await import('app/controllers');
     await openVibeItem('c0');
     await openVibeItem('gh:c0');
-    expect(fake.edited).toEqual([[fs.realpathSync(path.join(out, 'files', `${HASH}.diff`)), undefined]]);
+    expect(fake.edited).toEqual([[fs.realpathSync.native(path.join(out, 'files', `${HASH}.diff`)), undefined]]);
     expect(fake.opened).toEqual([`https://github.com/o/d/commit/${HASH}`]);
   });
 
@@ -329,7 +329,7 @@ describe('rc.2', () => {
     await openVibeItem('/etc/passwd', 1);
     await openVibeItem('gh:https://exemple.fr');
     await openVibeItem('c0/0', 3);
-    expect(fake.edited).toEqual([[fs.realpathSync(path.join(dir, 'src', 'x.ts')), 3]]);
+    expect(fake.edited).toEqual([[fs.realpathSync.native(path.join(dir, 'src', 'x.ts')), 3]]);
     expect(fake.opened).toEqual([]);
   });
 });
