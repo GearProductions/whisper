@@ -9,7 +9,7 @@
 
 import type { VibeCommit } from 'technicals/bridge';
 
-export type Check = { name: string; ok: boolean; detail: string };
+export type Check = { name: string; ok: boolean; level: 'ok' | 'warning' | 'error'; detail: string };
 
 const json = (text: string): unknown => {
   try { return JSON.parse(text); } catch { return undefined; }
@@ -18,16 +18,19 @@ const json = (text: string): unknown => {
 // Une adresse web, sinon null : le seul lien qu'on montre.
 export const webUrl = (v: unknown): string | null => (typeof v === 'string' && /^https?:\/\/\S+$/i.test(v.trim()) ? v.trim() : null);
 
-// checks.json : {"items":[{"name","ok","detail"}],"time"} → les vérifications ;
-// pas d'items : null. Un item sans nom est écarté ; ok seulement si true
+// checks.json : {"items":[{"name","ok","level","detail"}],"time"} → les
+// vérifications ; pas d'items : null. Un item sans nom est écarté. level
+// (ok, warning, error) l'emporte ; absent ou inconnu (ancien format) : ok si
+// ok est true, sinon error. ok : tout sauf error — des avertissements passent
 // (comme le parcours).
 export function parseChecks(text: string): Check[] | null {
   const items = (json(text) as { items?: unknown } | null | undefined)?.items;
   if (!Array.isArray(items)) return null;
   return items.flatMap((x) => {
-    const { name, ok, detail } = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>;
+    const { name, ok, level, detail } = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>;
+    const lvl = level === 'ok' || level === 'warning' || level === 'error' ? level : ok === true ? 'ok' : 'error';
     return typeof name === 'string' && name.trim()
-      ? [{ name: name.trim(), ok: ok === true, detail: typeof detail === 'string' ? detail.trim() : '' }] : [];
+      ? [{ name: name.trim(), ok: lvl !== 'error', level: lvl, detail: typeof detail === 'string' ? detail.trim() : '' }] : [];
   });
 }
 

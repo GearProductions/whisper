@@ -6,8 +6,8 @@ describe('parseChecks', () => {
   it('les items, dans leur ordre', () => {
     const text = '{"items":[{"name":"typecheck","ok":true,"detail":"0 erreur"},{"name":"tests","ok":false,"detail":"a.test.ts:3 attendu 2"}],"time":1}';
     expect(parseChecks(text)).toEqual([
-      { name: 'typecheck', ok: true, detail: '0 erreur' },
-      { name: 'tests', ok: false, detail: 'a.test.ts:3 attendu 2' },
+      { name: 'typecheck', ok: true, level: 'ok', detail: '0 erreur' },
+      { name: 'tests', ok: false, level: 'error', detail: 'a.test.ts:3 attendu 2' },
     ]);
   });
 
@@ -18,7 +18,17 @@ describe('parseChecks', () => {
 
   it('item sans nom, ou pas un objet : écarté ; détail manquant : vide', () => {
     const text = '{"items":[null,3,"lint",{"ok":true},{"name":"  ","ok":true},{"name":" lint ","ok":true,"detail":42}]}';
-    expect(parseChecks(text)).toEqual([{ name: 'lint', ok: true, detail: '' }]);
+    expect(parseChecks(text)).toEqual([{ name: 'lint', ok: true, level: 'ok', detail: '' }]);
+  });
+
+  it('level : warning passe (ok true) même si ok est false ; error échoue même si ok est true', () => {
+    const text = '{"items":[{"name":"lint","ok":false,"level":"warning"},{"name":"tests","ok":true,"level":"error"},{"name":"t","ok":true,"level":"ok"}]}';
+    expect(parseChecks(text)?.map((c) => [c.level, c.ok])).toEqual([['warning', true], ['error', false], ['ok', true]]);
+  });
+
+  it('level absent ou inconnu (ancien format) : d\'après ok', () => {
+    const text = '{"items":[{"name":"a","ok":true},{"name":"b","ok":false},{"name":"c","ok":true,"level":"WARN"}]}';
+    expect(parseChecks(text)?.map((c) => c.level)).toEqual(['ok', 'error', 'ok']);
   });
 
   it('aucune vérification : liste vide', () => {
