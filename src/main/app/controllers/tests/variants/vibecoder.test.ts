@@ -79,6 +79,7 @@ vi.mock('core/vibecoder', async (original) => ({
   ...await original<typeof import('core/vibecoder')>(),
   vibeView: (input: JourneyInput) => ({
     ...input, pr: input.pr && { number: input.pr }, commits: input.repo?.commits ?? [], invariants: [], variants: [], modules: [],
+    checklist: [{ text: 'Chaque diff a été relu', done: null, manual: true }, { text: 'La note est à jour', done: false }],
     actions: input.actions.map((a) => ({
       ...a, who: input.who[a.id], model: input.model[a.id], models: input.model[a.id] ? ['haiku', 'sonnet', 'opus'] : [], primary: false, disabled: null,
     })),
@@ -331,5 +332,22 @@ describe('rc.2', () => {
     await openVibeItem('c0/0', 3);
     expect(fake.edited).toEqual([[fs.realpathSync.native(path.join(dir, 'src', 'x.ts')), 3]]);
     expect(fake.opened).toEqual([]);
+  });
+});
+
+describe('rc.7', () => {
+  it('une case du § A.3 cochée à la main : validée pour le commit de tête ; une case calculée, ou sans commit : rien', async () => {
+    await open();
+    const { markVibe } = await import('app/controllers');
+    const { vibeStore } = await import('app/settings');
+    markVibe('a3:0', 'ok');
+    expect(vibeStore().marks.a1 ?? {}).toEqual({});   // pas encore de commit sur la branche
+    fake.facts = { ...fake.facts as object, commits: [{ hash: 'b'.repeat(40), subject: 'note', files: [] }, { hash: HASH, subject: 'core/x', files: [] }] };
+    const { refreshVibe } = await import('app/controllers');
+    await refreshVibe({ now: true });
+    markVibe('a3:1', 'ok');   // calculée d'après le dépôt
+    markVibe('a3:9', 'ok');   // hors de la liste
+    markVibe('a3:0', 'ok');
+    expect(vibeStore().marks.a1).toEqual({ 'a3:0': { hash: HASH, verdict: 'ok' } });
   });
 });

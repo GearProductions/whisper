@@ -374,9 +374,12 @@ export function setVibe(patch: unknown) {
 
 // L'empreinte du contenu d'une cible dans le relevé : la note (son texte), la
 // forme (sa rubrique), un cas de test (le fichier), une case du plan de test
-// (le plan) ; null si la cible n'y est pas.
+// (le plan), une case du § A.3 à cocher à la main (le commit de tête de la
+// branche) ; null si la cible n'y est pas.
 function targetHash(view: VibeView, target: string) {
   const { note } = view;
+  const a3 = /^a3:(\d+)$/.exec(target);
+  if (a3) return view.flow === 'create' && view.checklist[Number(a3[1])]?.manual ? view.commits.at(-1)?.hash ?? null : null;
   if (target === 'note' || target === 'forme') return note && blobSha(target === 'note' ? note.text : parseNote(note.text).forme);
   const file = view.invariants.find((f) => target.startsWith(`case:${f.path}:`) && f.cases.includes(target.slice(`case:${f.path}:`.length)));
   if (file) return file.blob;
