@@ -85,6 +85,19 @@ button.vc-chip:hover { border-color: var(--accent); color: var(--vc-text); }
 .vc-run-who { padding: 2px 7px; border-radius: 9px; background: rgba(255, 255, 255, 0.07); color: var(--vc-muted); font: 500 10.5px/1.4 var(--vc-mono); }
 .vc-run-why { margin-right: 7px; color: var(--vc-faint); font-size: 11.5px; font-weight: 400; }
 .vc-run-why::before { content: "· "; }
+/* Une action que l'appli fait elle-même (F-114) : « via » l'agent en lien discret, le dernier résultat dessous. */
+.vc-direct { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px; max-width: 100%; }
+.vc-via { flex: none; margin-left: 6px; padding: 0 2px; border: 0; background: none; color: var(--vc-muted); font: 12px system-ui, sans-serif; text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+.vc-via:hover:not(:disabled) { color: var(--vc-text); }
+.vc-via:disabled { color: var(--vc-faint); cursor: default; text-decoration: none; }
+/* Replié, le résultat ne fixe pas la largeur (celle des boutons) : coupé d'une ellipse ; déplié, la place qu'il trouve. */
+.vc-direct-res { width: 0; min-width: 100%; color: var(--vc-muted); font-size: 12px; }
+.vc-direct-res[open] { width: auto; }
+.vc-direct-res[open] summary { white-space: normal; }
+.vc-direct-res[data-state="ok"] .vc-direct-mark { color: #3fb950; }
+.vc-direct-res[data-state="ko"] .vc-direct-mark { color: #f85149; }
+.vc-direct-res summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.vc-direct-res pre { max-height: 220px; margin: 6px 0 0; padding: 8px 10px; overflow: auto; border-radius: 6px; background: rgba(0, 0, 0, 0.25); font-size: 11.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* ---- Invitation : rien encore, et ce qui le produit -------------------------- */
 .vc-invite {

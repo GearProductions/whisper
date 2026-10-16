@@ -5,14 +5,15 @@
  *  elle-même), la carte d'une sortie de skill (titre, fichier, depuis quand),
  *  le bouton d'une action du relevé (son libellé ou un plus court, qui
  *  travaille ou le choix du modèle, pourquoi c'est grisé ; absent si l'action
- *  n'existe pas), l'invitation (rien encore, et ce qui le produit), la carte
+ *  n'existe pas ; une action que l'appli fait elle-même : « direct », à côté
+ *  « via » l'agent, et dessous son dernier résultat, F-114), l'invitation (rien encore, et ce qui le produit), la carte
  *  d'une PR, le bandeau du mode Vibe, celui d'une PR fusionnée ou fermée, le
  *  badge du robot d'une PR ouverte dans un worktree (et Décharger).
  *  Ne connaît pas : le pont (rappels passés).
  *  Utilisé par : les vues d'étape ; vibe-coder (bandeaux, badge du worktree). */
 import type { ReactNode } from 'react';
 import { webUrl, type Strings } from 'core/vibecoder';
-import type { VibeAction, VibeLang, VibePr, VibeView } from 'technicals/bridge';
+import type { VibeAction, VibeArgs, VibeLang, VibePr, VibeView } from 'technicals/bridge';
 import { ModelPick } from './model-pick';
 import type { StepProps } from './step-views';
 import './step-parts.css';
@@ -53,7 +54,7 @@ export function StepHead({ p, own = [], children }: { p: StepProps; own?: string
       {children ? <div className="vc-step-tools">{children}</div> : null}
       {acts.length ? (
         <div className="vc-step-acts">
-          {acts.map((a) => <Run key={a.id} a={a} busy={busy} tone={a.primary && current ? 'accent' : 'plain'} onRun={() => act.run(a.id)} />)}
+          {acts.map((a) => <Run key={a.id} a={a} busy={busy} tone={a.primary && current ? 'accent' : 'plain'} onRun={(x) => act.run(a.id, x)} />)}
         </div>
       ) : null}
     </div>
@@ -79,21 +80,48 @@ export function OutputCard({ title, file, time, t, tools, className, children }:
   );
 }
 
-type RunProps = { a: VibeAction | undefined; busy: boolean; label?: ReactNode; tone?: 'accent' | 'plain' | 'ghost'; onRun(): void };
+// onRun : sans argument, par l'agent ; { direct: true } : par l'appli elle-même (VibeAction.direct).
+type RunProps = { a: VibeAction | undefined; busy: boolean; label?: ReactNode; tone?: 'accent' | 'plain' | 'ghost'; onRun(extra?: VibeArgs): void };
 
 // Une action du relevé : envoyée (grisée si l'agent travaille) ou préparée dans le champ ;
-// en sous-contexte, le choix du modèle à côté (sinon, qui travaille).
+// en sous-contexte, le choix du modèle à côté (sinon, qui travaille). Une action
+// que l'appli fait elle-même (F-114) : le bouton « direct », puis le petit « via »
+// l'agent (son modèle ou qui travaille), et dessous « … » en cours, sinon son dernier
+// résultat (✓ ou ✗, une ligne, le détail déplié).
 export function Run({ a, busy, label, tone = 'plain', onRun }: RunProps) {
   if (!a) return null;
   const send = a.kind === 'send';
+  const off = !!a.disabled || (busy && send);
+  const direct = send ? a.direct : undefined;
   const button = (
-    <button type="button" className="vc-run" data-tone={tone} disabled={!!a.disabled || (busy && send)}
-      title={a.disabled ? `${a.hint}\n— ${a.disabled}` : a.hint} onClick={onRun}>
+    <button type="button" className="vc-run" data-tone={tone} disabled={off}
+      title={a.disabled ? `${a.hint}\n— ${a.disabled}` : a.hint} onClick={() => (direct ? onRun({ direct: true }) : onRun())}>
       <span className="vc-run-label">{label ?? a.label}</span>
-      {send && !a.models.length && tone !== 'ghost' ? <span className="vc-run-who">{a.who}</span> : null}
-      {a.disabled && !busy && tone !== 'ghost' ? <span className="vc-run-why">{a.disabled}</span> : null}
+      {direct ? <span className="vc-run-who">direct</span>
+        : send && !a.models.length && tone !== 'ghost' ? <span className="vc-run-who">{a.who}</span> : null}
+      {a.disabled && !busy && tone !== 'ghost' && !direct?.running ? <span className="vc-run-why">{a.disabled}</span> : null}
     </button>
   );
+  if (direct) {
+    const last = direct.last;
+    return (
+      <span className="vc-direct">
+        <span className="vc-run-group">
+          {button}
+          <button type="button" className="vc-via" disabled={off} title={a.hint} onClick={() => onRun()}>
+            via{a.models.length ? null : <span className="vc-run-who">{a.who}</span>}
+          </button>
+          {a.models.length ? <ModelPick a={a} /> : null}
+        </span>
+        {direct.running ? <span className="vc-direct-res" data-state="running">…</span> : last ? (
+          <details className="vc-direct-res" data-state={last.ok ? 'ok' : 'ko'}>
+            <summary title={new Date(last.time).toLocaleString()}><span className="vc-direct-mark">{last.ok ? '✓' : '✗'}</span> {last.line}</summary>
+            {last.detail ? <pre className="vc-mono">{last.detail}</pre> : null}
+          </details>
+        ) : null}
+      </span>
+    );
+  }
   return send && a.models.length ? <span className="vc-run-group">{button}<ModelPick a={a} /></span> : button;
 }
 
