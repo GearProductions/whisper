@@ -181,7 +181,7 @@ format du fichier : VibeCoder ne lit ses sorties que sous ces noms.
 | `base` | sous-contexte | haiku · low | — |
 | `rc` | conversation | agent | — |
 | `release` | conversation | agent | — |
-| `prs` | sous-contexte | haiku · low | `prs.json` |
+| `prs` | sous-contexte | haiku · low | `prs.json` (gardé ; l'écran demande la liste à `gh` lui-même) |
 | `charger-pr` | sous-contexte | haiku · low | `pr-<n>.json` |
 | `worktree-pr` | sous-contexte | sonnet · medium | `pr-<n>.json`, `pr-<n>-worktree.json` |
 | `retirer-worktree` | sous-contexte | haiku · low | (supprime `pr-<n>-worktree.json`) |

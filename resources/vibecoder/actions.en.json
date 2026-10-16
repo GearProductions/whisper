@@ -210,16 +210,6 @@
     "text": "/vibecoder:release {{lang}} {{out}}"
   },
   {
-    "id": "prs",
-    "flow": "review",
-    "step": "pr",
-    "kind": "send",
-    "needs": "none",
-    "label": "My PRs to review",
-    "hint": "Lists the repository's PRs whose review is requested from you.",
-    "text": "/vibecoder:prs {{lang}} {{out}}"
-  },
-  {
     "id": "load-pr",
     "flow": "review",
     "step": "pr",

@@ -210,16 +210,6 @@
     "text": "/vibecoder:release {{lang}} {{out}}"
   },
   {
-    "id": "prs",
-    "flow": "review",
-    "step": "pr",
-    "kind": "send",
-    "needs": "none",
-    "label": "Mes PR à relire",
-    "hint": "Liste les PR du dépôt dont on vous demande la relecture.",
-    "text": "/vibecoder:prs {{lang}} {{out}}"
-  },
-  {
     "id": "load-pr",
     "flow": "review",
     "step": "pr",
