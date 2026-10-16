@@ -1,19 +1,20 @@
 /** runner — les commandes qui lancent le projet d'un agent (onglet Processus
  *  de VibeCoder), lues dans son fichier du projet (`{ commands: [{ name, run,
- *  cwd? }], shell? }`, écrit par l'utilisateur ou adopté d'une proposition).
- *  Une commande se désigne par son rang dans ce fichier, jamais par un texte :
- *  son argv est le shell du fichier (`bash -ic` par défaut : alias et
- *  fonctions de l'utilisateur ; seule exception à I-27, limitée à ces
- *  commandes), dans la box de l'agent si sa commande passe par
- *  `distrobox enter <box> --`. Les demandes de l'agent (<nom>.stop,
+ *  cwd? }], shell?, prefix? }`, écrit par l'utilisateur ou adopté d'une
+ *  proposition). Une commande se désigne par son rang dans ce fichier, jamais
+ *  par un texte : son argv est le préfixe (commandPrefix : celui du fichier,
+ *  sinon le réglage vibeCommandPrefix, sinon la box de l'agent si sa commande
+ *  passe par `distrobox enter <box> --` ; le même pour gh), puis le shell du
+ *  fichier (`bash -ic` par défaut : alias et fonctions de l'utilisateur ;
+ *  seule exception à I-27, limitée à ces commandes). Les demandes de l'agent (<nom>.stop,
  *  <nom>.restart) ne valent que pour les noms du fichier. La fin d'un journal,
  *  sans couleurs.
  *  Ne connaît pas : le disque, les processus, Electron.
- *  Utilisé par : app/controllers/processes. */
+ *  Utilisé par : app/controllers/processes (et vibecoder : le préfixe de gh). */
 import { splitCommand } from 'helpers';
 
 export type ProjectCommand = { name: string; run: string; cwd?: string };
-export type Project = { commands: ProjectCommand[]; shell: string[] };
+export type Project = { commands: ProjectCommand[]; shell: string[]; prefix?: string };
 export type Request = { name: string; op: 'stop' | 'restart'; file: string };
 
 export const DEFAULT_SHELL = ['bash', '-ic'];
@@ -28,7 +29,7 @@ export function parseProject(text: string | null | undefined): Project | null {
   let raw: unknown;
   try { raw = JSON.parse(text ?? ''); } catch { return null; }
   if (!raw || typeof raw !== 'object' || !Array.isArray((raw as { commands?: unknown }).commands)) return null;
-  const { commands, shell } = raw as { commands: unknown[]; shell?: unknown };
+  const { commands, shell, prefix } = raw as { commands: unknown[]; shell?: unknown; prefix?: unknown };
   const names = new Set<string>();
   const list = commands.flatMap((c): ProjectCommand[] => {
     const { name, run, cwd } = (c && typeof c === 'object' ? c : {}) as Record<string, unknown>;
@@ -38,11 +39,13 @@ export function parseProject(text: string | null | undefined): Project | null {
     return [cwd === undefined ? { name, run } : { name, run, cwd }];
   });
   const okShell = Array.isArray(shell) && shell.length > 0 && shell.length <= 5 && shell.every((s) => okText(s, 200));
-  return { commands: list, shell: okShell ? shell as string[] : DEFAULT_SHELL };
+  const own = typeof prefix === 'string' && prefix.length <= 1000 && !prefix.includes('\0') ? { prefix } : {};
+  return { commands: list, shell: okShell ? shell as string[] : DEFAULT_SHELL, ...own };
 }
 
 // Une proposition (<out>/lancement.json) → le texte du fichier du projet, ou
-// null si elle n'a aucune commande valide.
+// null si elle n'a aucune commande valide. Jamais son `prefix` : il précède
+// aussi les appels à gh, faits sans clic ; seul l'utilisateur l'écrit.
 export function projectText(text: string | null | undefined): string | null {
   const p = parseProject(text);
   if (!p?.commands.length) return null;
@@ -57,11 +60,20 @@ export function boxPrefix(agentCommand: unknown): string[] {
   return /(^|[\\/])distrobox$/.test(argv[0] ?? '') && argv[1] === 'enter' && end > 1 ? argv.slice(0, end + 1) : [];
 }
 
+// Ce qui précède une commande lancée pour le projet (ses commandes, gh) : le
+// `prefix` du fichier du projet s'il en a un ('' : aucun) ; sinon le réglage
+// vibeCommandPrefix s'il n'est pas vide ; sinon la box de l'agent (boxPrefix).
+export function commandPrefix(project: Project | null, setting: unknown, agentCommand: unknown): string[] {
+  if (project?.prefix !== undefined) return splitCommand(project.prefix);
+  const own = splitCommand(setting);
+  return own.length ? own : boxPrefix(agentCommand);
+}
+
 // La commande au rang `index` du fichier (un entier, rien d'autre) : son nom,
-// son argv (box, shell, la commande), son dossier tel qu'écrit ; sinon null.
-export function commandAt(project: Project | null, index: unknown, agentCommand: unknown) {
+// son argv (préfixe, shell, la commande), son dossier tel qu'écrit ; sinon null.
+export function commandAt(project: Project | null, index: unknown, agentCommand: unknown, setting: unknown = '') {
   const c = project && Number.isInteger(index) ? project.commands[index as number] : undefined;
-  return c ? { name: c.name, argv: [...boxPrefix(agentCommand), ...project!.shell, c.run], cwd: c.cwd } : null;
+  return c ? { name: c.name, argv: [...commandPrefix(project, setting, agentCommand), ...project!.shell, c.run], cwd: c.cwd } : null;
 }
 
 // Les demandes de l'agent parmi les fichiers de <out>/run/ : <nom>.stop,

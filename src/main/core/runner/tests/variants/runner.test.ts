@@ -1,7 +1,7 @@
 // Variants des commandes du projet (note 0.8.0, « Lancer le projet ») : le
 // fichier lu, la proposition adoptée, la box de l'agent, la fin d'un journal.
 import { describe, expect, it } from 'vitest';
-import { boxPrefix, commandAt, DEFAULT_SHELL, logTail, parseProject, projectSlug, projectText } from 'core/runner';
+import { boxPrefix, commandAt, commandPrefix, DEFAULT_SHELL, logTail, parseProject, projectSlug, projectText } from 'core/runner';
 
 describe('le fichier du projet', () => {
   it('ses commandes valides, dans l’ordre ; le shell par défaut : bash -ic', () => {
@@ -49,6 +49,28 @@ describe('la box de l’agent', () => {
     expect(boxPrefix('claude')).toEqual([]);
     expect(boxPrefix('toolbox enter dev -- claude')).toEqual([]);
     expect(boxPrefix('distrobox enter dev')).toEqual([]);
+  });
+});
+
+describe('le préfixe des commandes (processus, gh)', () => {
+  const box = 'distrobox enter dev -- mise exec -- claude';
+  it('par défaut : la box de la commande de l’agent', () => {
+    expect(commandPrefix(null, '', box)).toEqual(['distrobox', 'enter', 'dev', '--']);
+  });
+
+  it('le réglage vibeCommandPrefix l’emporte', () => {
+    expect(commandPrefix(null, 'toolbox run -c dev', box)).toEqual(['toolbox', 'run', '-c', 'dev']);
+  });
+
+  it('le fichier du projet l’emporte sur tout ; « "" » : aucun préfixe', () => {
+    expect(commandPrefix(parseProject('{"commands":[],"prefix":"podman exec dev"}'), 'toolbox run', box)).toEqual(['podman', 'exec', 'dev']);
+    expect(commandPrefix(parseProject('{"commands":[],"prefix":""}'), 'toolbox run', box)).toEqual([]);
+    const p = parseProject('{"commands":[{"name":"g","run":"gear"}],"prefix":"podman exec dev"}');
+    expect(commandAt(p, 0, box)?.argv).toEqual(['podman', 'exec', 'dev', 'bash', '-ic', 'gear']);
+  });
+
+  it('une proposition ne pose pas de préfixe', () => {
+    expect(projectText('{"commands":[{"name":"g","run":"gear"}],"prefix":"sh -c x"}')).not.toContain('prefix');
   });
 });
 
