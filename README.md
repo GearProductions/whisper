@@ -432,9 +432,9 @@ message affiché ; `gh pr view` puis `git fetch` de la PR ; `gh pr review`
 du brouillon ; et, seulement si la PR est fusionnée, `git switch`, `git pull
 --ff-only`, `git branch -d`. Le résultat s'affiche sous le bouton (✓ ou ✗,
 le détail à déplier), chaque commande dans `direct.log` des sorties de
-l'agent. En cas de souci, le petit *via* à côté passe par l'agent, comme
-avant (par exemple un hook de commit qui a besoin de Node dans la box, alors
-que l'appli tourne sur l'hôte).
+l'agent ; git et `gh` passent par le préfixe des commandes (la box : les
+hooks de commit y trouvent Node). En cas de souci, le petit *via* à côté
+passe par l'agent, comme avant.
 
 Une validation vaut pour le contenu validé : une note modifiée ensuite
 repasse « modifiée depuis », à revalider. Quand l'étape n'attend plus que

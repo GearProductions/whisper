@@ -3,7 +3,7 @@
 //   principal ne modifie le dépôt ou GitHub que par quatre actions, au clic de
 //   leur bouton, et seulement par une liste fermée de commandes (git commit,
 //   fetch, switch, pull, branch ; gh pr review, et gh pr view pour lire), sans
-//   shell (I-27), gh derrière le préfixe ; aucun texte d'une page n'en devient
+//   shell (I-27), git et gh derrière le préfixe ; aucun texte d'une page n'en devient
 //   un argument (une PR : un entier positif ; un verdict : l'un des trois ;
 //   une branche : un ref sûr ; un fichier : écrit par l'appli dans les
 //   sorties). Les modules en lecture (technicals/git, technicals/github)
@@ -44,11 +44,11 @@ describe('seulement la liste fermée', () => {
     expect(DIRECT_GH.map((c) => c.join(' '))).toEqual(['pr review', 'pr view']);
   });
 
-  it('commit : git commit -F <sorties>/commit.md, rien d’autre (ni add, ni -a, ni --amend, ni --no-verify)', async () => {
+  it('commit : <préfixe> git commit -F <sorties>/commit.md, rien d’autre (ni add, ni -a, ni --amend, ni --no-verify)', async () => {
     commitMd('feat: x\n');
     const { calls, runner } = recorder();
     await runner.commit();
-    expect(calls).toEqual([['git', '-C', DIR, 'commit', '-F', path.join(OUT, 'commit.md')]]);
+    expect(calls).toEqual([[...PREFIX, 'git', '-C', DIR, 'commit', '-F', path.join(OUT, 'commit.md')]]);
   });
 
   it('publish : gh pr review <n> --<verdict> --body-file <fichier écrit par l’appli>, derrière le préfixe', async () => {
@@ -57,12 +57,12 @@ describe('seulement la liste fermée', () => {
     expect(calls).toEqual([[...PREFIX, 'gh', 'pr', 'review', '7', '--request-changes', '--body-file', path.join(OUT, 'pr-7-review-body.md')]]);
   });
 
-  it('loadPr : gh pr view (lecture), puis git fetch origin +pull/<n>/head:refs/vibecoder/pr/<n> <base>', async () => {
+  it('loadPr : gh pr view (lecture), puis git fetch (tous deux derrière le préfixe) origin +pull/<n>/head:refs/vibecoder/pr/<n> <base>', async () => {
     const { calls, runner } = recorder(CARD);
     await runner.loadPr(7);
     expect(calls).toEqual([
       [...PREFIX, 'gh', 'pr', 'view', '--json', 'number,title,url,author,baseRefName,headRefName,body,state', '--', '7'],
-      ['git', '-C', DIR, 'fetch', 'origin', '+pull/7/head:refs/vibecoder/pr/7', 'main'],
+      [...PREFIX, 'git', '-C', DIR, 'fetch', 'origin', '+pull/7/head:refs/vibecoder/pr/7', 'main'],
     ]);
   });
 
@@ -71,9 +71,9 @@ describe('seulement la liste fermée', () => {
     await runner.toBase('feat/x', 'main');
     expect(calls).toEqual([
       [...PREFIX, 'gh', 'pr', 'view', '--json', 'state', '--', 'feat/x'],
-      ['git', '-C', DIR, 'switch', 'main'],
-      ['git', '-C', DIR, 'pull', '--ff-only'],
-      ['git', '-C', DIR, 'branch', '-d', 'feat/x'],
+      [...PREFIX, 'git', '-C', DIR, 'switch', 'main'],
+      [...PREFIX, 'git', '-C', DIR, 'pull', '--ff-only'],
+      [...PREFIX, 'git', '-C', DIR, 'branch', '-d', 'feat/x'],
     ]);
   });
 

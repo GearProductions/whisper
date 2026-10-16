@@ -4,9 +4,9 @@
  *  fermée de commandes (DIRECT_GIT, DIRECT_GH), aux arguments fixes ou
  *  vérifiés : une PR est un entier positif, un verdict l'un des trois, une
  *  branche un ref sûr (okRef) ; un fichier est écrit par l'appli dans le
- *  dossier de sorties, jamais donné. git au dossier du dépôt, gh derrière le
- *  préfixe (core/runner, commandPrefix), sans shell (execFile, I-27), 60 s au
- *  plus chacun ; chaque commande, une ligne de <out>/direct.log ; un échec
+ *  dossier de sorties, jamais donné. git (au dossier du dépôt) et gh derrière
+ *  le préfixe (core/runner, commandPrefix : la box, où les hooks de git
+ *  trouvent Node), sans shell (execFile, I-27), 60 s au plus chacun ; chaque commande, une ligne de <out>/direct.log ; un échec
  *  s'arrête là et se rend (ok faux, la sortie), sans rien bloquer (I-29).
  *  Les réponses sont en anglais, comme celles des skills techniques (F-108).
  *  Ne connaît pas : VibeCoder (sa vue, ses actions), Electron, la configuration.
@@ -52,7 +52,7 @@ export function directRunner({ dir, out, prefix, launch = launchFile }: { dir: s
     const allowed = tool === 'git' ? (DIRECT_GIT as readonly string[]).includes(args[0])
       : DIRECT_GH.some(([a, b]) => args[0] === a && args[1] === b);
     if (!allowed) return { exit: null, stdout: '', stderr: 'refused: not in the closed list' };
-    const argv = tool === 'git' ? ['git', '-C', dir, ...args] : [...prefix, 'gh', ...args];
+    const argv = tool === 'git' ? [...prefix, 'git', '-C', dir, ...args] : [...prefix, 'gh', ...args];
     const r = await launch(argv, dir);
     const output = `${r.stdout}${r.stderr}`.trim();
     const shown = `${tool} ${args.join(' ')}`;

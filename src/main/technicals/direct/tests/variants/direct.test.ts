@@ -18,11 +18,16 @@ const ENV = process.env;
 // git pour préparer et observer (le test, pas le code testé).
 const git = (dir: string, ...args: string[]) => execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', env: ENV }).trim();
 
-// Le faux gh : relève ses arguments dans calls.jsonl, répond answer.json (sortie 0), ou rien et 1 s'il manque.
-const FAKE = path.join(tmp, 'faux-gh.cjs');
+// Le faux préfixe : git passe au vrai git ; gh est simulé — ses arguments relevés dans calls.jsonl, il
+// répond answer.json (sortie 0), ou rien et 1 s'il manque.
+const FAKE = path.join(tmp, 'faux-prefixe.cjs');
 const CALLS = path.join(tmp, 'calls.jsonl');
 const ANSWER = path.join(tmp, 'answer.json');
 fs.writeFileSync(FAKE, `const fs = require('fs');
+if (process.argv[2] !== 'gh') {
+  const r = require('child_process').spawnSync(process.argv[2], process.argv.slice(3), { stdio: 'inherit' });
+  process.exit(r.status ?? 1);
+}
 fs.appendFileSync(${JSON.stringify(CALLS)}, JSON.stringify(process.argv.slice(2)) + '\\n');
 if (!fs.existsSync(${JSON.stringify(ANSWER)})) { process.stderr.write('no pull requests found'); process.exit(1); }
 process.stdout.write(fs.readFileSync(${JSON.stringify(ANSWER)}, 'utf8'));\n`);
@@ -70,7 +75,7 @@ describe('commit', () => {
     expect(git(work, 'show', '--name-only', '--format=', 'HEAD')).toBe('c.txt');
     expect(git(work, 'status', '--porcelain')).toBe('M a.txt');
     expect(fs.existsSync(path.join(out, 'commit.md'))).toBe(false);
-    expect(fs.readFileSync(path.join(out, 'direct.log'), 'utf8')).toMatch(/\tgit -C .* commit -F .*commit\.md\t0\t/);
+    expect(fs.readFileSync(path.join(out, 'direct.log'), 'utf8')).toMatch(/\t\S+ \S+ git -C .* commit -F .*commit\.md\t0\t/);
   });
 
   it('rien d’indexé : échec rendu, commit.md gardé, aucun commit', async () => {

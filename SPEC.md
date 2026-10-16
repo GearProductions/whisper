@@ -1034,8 +1034,8 @@ gabarit est le *via* ; une entrée retirée retire les deux boutons.
   rien (« The PR of … is OPEN, not merged: nothing done. »). Une branche
   fusionnée par squash n'est pas supprimée (`-d` refuse) : *via* l'agent.
 
-git au dossier de l'agent (là où tourne l'appli), gh derrière le préfixe
-(F-111), sans shell (I-27), 60 s au plus par commande ; une commande en
+git (au dossier de l'agent) et gh derrière le préfixe (F-111 : la box, où
+les hooks de git — Husky — trouvent Node), sans shell (I-27), 60 s au plus par commande ; une commande en
 échec arrête l'action. Chacune s'inscrit dans `<sorties>/direct.log` (heure,
 commande, code de sortie, sortie courte). En fond, une à la fois par agent :
 pendant ce temps « … » sous le bouton et les quatre grisées (« Une commande
@@ -1372,7 +1372,7 @@ bancs de comparaison.
   `fetch origin +pull/<n>/head:refs/vibecoder/pr/<n> <base>`, `switch <base>`,
   `pull --ff-only`, `branch -d <branche>` ; `DIRECT_GH` : `pr review <n>
   --<verdict> --body-file <fichier>`, et `pr view` pour lire), sans shell,
-  gh derrière le préfixe, 60 s au plus ; leurs valeurs : une PR **entier
+  git et gh derrière le préfixe, 60 s au plus ; leurs valeurs : une PR **entier
   positif**, un verdict des trois, une branche et une base refs sûrs
   (ci-dessous) pris du relevé (la base d'une PR à charger : celle que gh
   donne), un fichier écrit par l'appli dans ses sorties — aucun texte d'une
@@ -1721,9 +1721,9 @@ Copier, erreurs ; mêmes relevés).
   n'est arrêtée que par le SIGKILL, après 5 s. Ailleurs que sous Linux, pas
   de jeton (pas de `/proc`) : seul le groupe est arrêté ; Windows :
   `taskkill /T /F`, sans box, non essayé.
-- VibeCoder, actions directes (F-114) : git tourne là où tourne l'appli
-  (l'AppImage : sur l'hôte) ; un hook de commit qui a besoin d'un outil de la
-  box (Husky et Node) y échoue — *via* l'agent, qui commite dans la box. Le
+- VibeCoder, actions directes (F-114) : git et gh y passent tous deux par le
+  préfixe (la box) ; sans préfixe (ni réglage, ni box dans `agentCommand`),
+  ils tournent là où tourne l'appli. Le
   dernier résultat ne survit pas à la sortie de l'appli (`direct.log`, si) ;
   `pr-<n>-review.json` porte le lien de la PR, pas celui de la revue.
 - VibeCoder, GitHub sans IA (F-112), coloration (F-113) : un échec de gh (pas connecté, pas
