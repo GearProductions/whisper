@@ -187,4 +187,172 @@ export interface ConvApi {
   answer(decision: Decision, key: number): void;
   openLink(url: string): void;
   showFile(file: string): void;
+  /** VibeCoder : le relevé de l'agent affiché, ou null s'il est en conversation. */
+  onVibe(fn: (view: VibeView | null) => void): void;
+  /** Une action (son id dans VibeView.actions) → un message à l'agent affiché. */
+  vibeRun(action: string, args: VibeArgs): Promise<SendResult>;
+  vibeSet(patch: VibePatch): void;
+  /** Valider ('ok'), refuser ('ko') ou oublier (null) : 'note', 'forme', 'case:<chemin du fichier>:<titre du cas>', 'check:<pr>:<rang>'. */
+  vibeMark(target: string, verdict: 'ok' | 'ko' | null): void;
+  /** Relire : ajouter au brouillon de revue de la PR (le texte du champ), ou en retirer une remarque. */
+  vibeDraft(op: { add?: { target: string; text: string }; edit?: { id: number; text: string }; remove?: number }): void;
+  /** Un fichier du relevé (son id), dans l'éditeur : jamais un chemin. */
+  vibeOpen(id: string, line?: number): void;
+  vibeRefresh(): void;
+  /** Processus : une commande du fichier du projet par son rang dans VibeView.processes (lancer,
+   *  arrêter, relancer, ouvrir son journal) ; ou ouvrir le fichier du projet ('edit') — jamais un texte ni un chemin. */
+  vibeProcess(op: VibeProcessOp, index?: number): void;
 }
+
+/* ---- VibeCoder (dans le panneau) ------------------------------------------------ */
+
+export type VibeLang = 'fr' | 'en';
+export type VibeFlow = 'create' | 'review';      // Créer une feature, Relire une PR
+export type VibeAutonomy = 'guide' | 'vibe';
+// Créer : note → forme → invariants → modules → revue → pr ; Relire : pr → note → invariants → commits → ecran → revue.
+export type VibeStepId = 'note' | 'forme' | 'invariants' | 'modules' | 'revue' | 'pr' | 'commits' | 'ecran';
+export type VibeStep = { id: VibeStepId; status: 'done' | 'current' | 'todo'; facts: string };
+
+// Une validation : validé, refusé, validé mais changé depuis, rien.
+export type VibeMarkState = 'ok' | 'ko' | 'changed' | null;
+export type MustNotMark = 'invariant' | 'variant' | 'review' | 'structure' | null;
+
+// Un fichier du relevé, désigné par son id ; le chemin (relatif au dossier) ne sert qu'à l'affichage.
+export type VibeFile = { id: string; path: string };
+
+export type VibeNote = VibeFile & {
+  text: string;
+  before: string | null;       // la note au début du dernier tour, si elle a changé depuis (surlignage)
+  filled: boolean;             // « Ce que ça fait » est rédigée
+  mustNot: { text: string; mark: MustNotMark }[];
+  mark: VibeMarkState;         // la note
+  formeMark: VibeMarkState;    // sa rubrique « Forme »
+};
+
+export type VibeModule = {
+  path: string;                // tel que dans la Forme
+  contract: string;            // expose · ne connaît pas · utilisé par
+  file: VibeFile | null;       // son fichier ou dossier, s'il existe
+  touched: boolean;            // la branche le touche
+  commits: string[];           // hash des commits qui le touchent
+};
+
+// Un cas d'un test d'invariant, lu en pseudo-code.
+export type ReadingCase = {
+  title: string;               // tel que dans le test
+  pseudo: string;              // proche de Vitest : it, expect, étant donné / quand / alors
+  edges: string[];             // ses cas limites
+  guarantees: string;          // ce qu'il garantit (ligne de la note, I-…)
+  warning: string | null;      // il n'observe pas vraiment la propriété (mock, boucle, valeur…)
+};
+
+export type VibeTestFile = VibeFile & {
+  blob: string;                          // son empreinte git (nomme sa lecture : <sorties>/invariants/<blob>.md)
+  cases: string[];                       // titres des cas trouvés dans le fichier
+  lines: number[];                       // la ligne (1…) de chaque cas, dans l'ordre de cases : Ouvrir à la ligne
+  source: string;                        // le texte du fichier, pour le montrer à côté de sa lecture ; '' au-delà de 200 Ko
+  reading: ReadingCase[] | null;         // null : pas encore lu, ou changé depuis
+  marks: Record<string, VibeMarkState>;  // par titre de cas
+};
+
+export type VibeQuestion = { n: number; text: string; options: string[] };
+// done null : à vérifier à la main ; manual : une case du § A.3 que l'on coche à la main (`a3:<rang>`, F-102).
+export type VibeCheck = { text: string; done: boolean | null; manual?: boolean };
+export type VibeCommit = { hash: string; subject: string; fixup: boolean; files: string[] };
+// Ce qu'un skill a écrit pour l'écran (Markdown), et quand.
+export type VibeOutput = { text: string; time: number };
+
+export type VibeAction = {
+  id: string;
+  step: VibeStepId | null;     // null : partout (barre de la conversation)
+  label: string;
+  hint: string;
+  who: string;                 // qui travaille : 'haiku', 'sonnet', 'opus · élevé', 'agent'
+  models: string[];            // sous-contexte : les modèles qu'on peut lui choisir ('haiku', 'sonnet', 'opus') ; [] : modèle de l'agent
+  model: string | null;        // le modèle conseillé (celui du skill) ; null : modèle de l'agent
+  kind: 'send' | 'prefill';    // envoyé aussitôt, ou préparé dans le champ
+  needs: 'none' | 'text';      // 'text' : il exige le texte du champ
+  usesText: boolean;           // son gabarit prend le texte du champ ({{text}}), s'il y en a
+  text?: string;               // 'prefill' : le texte à mettre dans le champ ({{quote}} : ce qu'on cite)
+  primary: boolean;            // ce que le guide fait faire ensuite (mis en avant dans l'en-tête de l'étape en cours)
+  disabled: string | null;     // pourquoi c'est grisé
+  // Faite aussi par l'appli, sans agent (F-114 : commit, publish, load-pr, base) : en cours, et son dernier
+  // résultat (✓/✗, une ligne, le détail) ; absent : seulement par l'agent.
+  direct?: { running: boolean; last: { ok: boolean; line: string; detail: string; time: number } | null };
+};
+
+export type VibePr = {
+  number: number; title: string; url: string; author: string; base: string; head: string; body: string;
+  state: 'OPEN' | 'CLOSED' | 'MERGED' | null;   // null : inconnu (fiche d'avant la 0.8.0-rc.2)
+};
+export type VibePrItem = { number: number; title: string; author: string; url: string };
+export type VibeComment = { id: number; target: string; text: string };
+// Une commande du projet (onglet Processus) : telle que dans le fichier du projet, son état, la fin de son journal.
+export type VibeProcess = {
+  name: string;
+  run: string;
+  status: 'running' | 'stopped' | 'failed';
+  since: number | null;        // lancée à (en cours), finie à ; null : jamais lancée
+  exit: number | null;         // le code de sa dernière fin (null : tuée par un signal, ou pas finie)
+  log: string;                 // la fin de son journal, sans couleurs
+};
+export type VibeProcessOp = 'start' | 'stop' | 'restart' | 'log' | 'edit';
+export type VibeWorktree = { state: 'creating' | 'open' | 'robot'; temp: boolean; dir: string };
+
+export type VibeView = {
+  agentId: string;
+  lang: VibeLang;
+  flow: VibeFlow;
+  autonomy: VibeAutonomy;
+  agent: { model: string; effort: string; mode: string };
+  repo: { branch: string; base: string; changed: number } | null;
+  error: string | null;                  // pourquoi le parcours manque (pas un dépôt, git introuvable…)
+  steps: VibeStep[];
+  note: VibeNote | null;
+  questions: VibeQuestion[];             // les questions ouvertes de l'agent
+  modules: VibeModule[];
+  invariants: VibeTestFile[];
+  variants: (VibeFile & { cases: number })[];
+  commits: VibeCommit[];
+  outputs: Record<string, VibeOutput>;   // par nom connu (main/core/vibecoder : OUTPUTS)
+  checklist: VibeCheck[];                // Créer : la liste du § A.3 ; Relire : le plan de test
+  actions: VibeAction[];
+  skills: string[];                      // skills du projet et de l'utilisateur
+  pr: VibePr | null;                     // Créer : la PR ouverte ; Relire : la PR chargée
+  prs: VibePrItem[] | null;              // Relire : les PR à relire
+  draft: VibeComment[];                  // Relire : le brouillon de revue de la PR
+  // Relire : la PR suivie dans un worktree (F-110) — sur l'agent du dépôt, en
+  // création, ouvert sans robot, ou son robot temporaire là ; temp : ce robot-ci.
+  worktree?: VibeWorktree | null;
+  // Processus : les commandes du fichier du projet (toujours remplis par le relevé) ; projectFile : il existe.
+  processes?: VibeProcess[];
+  projectFile?: boolean;
+  time: number;                          // heure du relevé
+};
+
+export type VibeArgs = {
+  text?: string;               // le texte du champ (ou celui que la vue donne : la remarque d'Appliquer)
+  module?: number;             // rang dans VibeView.modules
+  commit?: string;             // hash d'un commit de VibeView.commits
+  file?: string;               // {{files}} : l'id d'un test de VibeView.invariants (relu même s'il est lu), ou '*' : tous
+  pr?: number;
+  answers?: string[];          // réponses aux questions, dans leur ordre
+  verdict?: 'approve' | 'comment' | 'request-changes';
+  model?: string;              // sous-contexte : un autre modèle que le conseillé, parmi VibeAction.models
+  direct?: boolean;            // VibeAction.direct : l'appli la fait elle-même, sans agent (F-114)
+};
+
+export type VibePatch = {
+  flow?: VibeFlow;
+  autonomy?: VibeAutonomy;
+  lang?: VibeLang;
+  pr?: number | null;          // Relire : la PR suivie
+  seen?: boolean;              // « Vu » : la note de référence devient l'actuelle
+  view?: 'conversation';       // revenir à la conversation
+  model?: string;              // le modèle de l'agent, comme son menu
+  effort?: string;
+  mode?: string;
+  interrupt?: boolean;         // arrêter le tour en cours de l'agent (comme Interrompre de son menu)
+  worktree?: true;             // le robot de la PR suivie dans son worktree : l'afficher, ou le proposer (question de confiance)
+  prs?: true;                  // Relire : Mes PR à relire (gh, sans agent)
+};

@@ -45,6 +45,10 @@
       {
         "from": "resources/scripts",
         "to": "scripts"
+      },
+      {
+        "from": "resources/vibecoder",
+        "to": "vibecoder"
       }
     ],
     "directories": {

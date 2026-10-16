@@ -10,7 +10,9 @@ import { DICTATION_LANGS, speakVolume } from 'core/config';
 import * as tts from 'technicals/pocket-tts';
 import { findEditor } from 'technicals/editor';
 import { locateWhisper } from 'technicals/whisper-cli';
-import { agentInstructions, configFile, instructionsFile, journalFile, loadConfig, ownWhisperDir, saveConfig, whisperDirs } from 'app/settings';
+import {
+  agentInstructions, configFile, ensureVibeFiles, instructionsFile, journalFile, loadConfig, ownWhisperDir, saveConfig, vibeDir, whisperDirs,
+} from 'app/settings';
 import { state } from 'app/state';
 import { agents, currentSpeakMode, forceRestoreSound, installPocket, pollSpeak, pushAgents } from 'app/controllers';
 import { applyOnTop, canReadSelection, showBubble } from 'app/windows';
@@ -121,6 +123,12 @@ export function openMainMenu(devices: unknown) {
         { label: 'Ouvrir le journal des agents (tours, autorisations)', click: () => {
           if (!fs.existsSync(journalFile())) fs.writeFileSync(journalFile(), '');
           shell.openPath(journalFile());
+        } },
+        // Ce que VibeCoder fait dire (actions, skills), à retoucher : les fichiers par défaut d'abord.
+        { label: 'Dossier de VibeCoder', click: () => {
+          ensureVibeFiles();
+          fs.mkdirSync(vibeDir(), { recursive: true });
+          shell.openPath(vibeDir());
         } },
       ],
     },

@@ -1,0 +1,89 @@
+/* Les validations (validation.tsx) : état et boutons de la note et de la
+   forme, verdict d'un cas, pastille Fable, validation proposée par la
+   prochaine étape. Sous .vc ; vert : --vc-ok, ambre : --vc-warn, rouge : celui
+   des autres vues (#d9383a, texte #f08a8b). */
+
+.vc-vmark { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+.vc-vstate {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 10px;
+  border-radius: 11px;
+  font: 600 12px/1.5 system-ui, sans-serif;
+  white-space: nowrap;
+}
+.vc-vstate[data-state="ok"] { background: color-mix(in srgb, var(--vc-ok) 16%, transparent); color: #6fdd85; }
+.vc-vstate[data-state="ko"] { background: color-mix(in srgb, #d9383a 18%, transparent); color: #f08a8b; }
+.vc-vstate[data-state="changed"] { background: color-mix(in srgb, var(--vc-warn) 15%, transparent); color: var(--vc-warn); font-weight: 500; }
+.vc-vundo {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vc-muted);
+  font: 12px/1.5 system-ui, sans-serif;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.vc-vundo:hover { color: var(--vc-text); }
+
+/* ✓ Valider (vert), ✗ À revoir (rouge) : contour, plein au survol. */
+.vc-vbtn {
+  flex: none;
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--vc-ok) 60%, transparent);
+  background: color-mix(in srgb, var(--vc-ok) 12%, transparent);
+  color: #7ee08f;
+  font: 600 12.5px/1 system-ui, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.12s, border-color 0.12s, color 0.12s;
+}
+.vc-vbtn:hover { border-color: var(--vc-ok); background: var(--vc-ok); color: #0e1117; }
+.vc-vbtn[data-v="ko"] { border-color: color-mix(in srgb, #d9383a 55%, transparent); background: transparent; color: #f08a8b; }
+.vc-vbtn[data-v="ko"]:hover { border-color: #d9383a; background: #d9383a; color: #fff; }
+
+/* Verdict d'un cas : deux boutons accolés, celui donné plein. */
+.vc-verdict { display: inline-flex; flex: none; }
+.vc-verdict button {
+  height: 26px;
+  padding: 0 11px;
+  border: 1px solid var(--vc-edge);
+  background: var(--vc-control);
+  color: var(--vc-soft);
+  font: 500 12.5px/1 system-ui, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.12s, border-color 0.12s, color 0.12s;
+}
+.vc-verdict button:first-child { border-radius: 6px 0 0 6px; }
+.vc-verdict button:last-child { margin-left: -1px; border-radius: 0 6px 6px 0; }
+.vc-verdict button[data-v="ok"] { color: #8fdc9c; }
+.vc-verdict button[data-v="ko"] { color: #e9a0a1; }
+.vc-verdict button[data-v="ok"]:hover { position: relative; border-color: var(--vc-ok); color: #7ee08f; }
+.vc-verdict button[data-v="ko"]:hover { position: relative; border-color: #d9383a; color: #f08a8b; }
+.vc-verdict button[data-v="ok"][aria-pressed="true"] { position: relative; border-color: var(--vc-ok); background: var(--vc-ok); color: #0e1117; font-weight: 600; }
+.vc-verdict button[data-v="ko"][aria-pressed="true"] { position: relative; border-color: #d9383a; background: #d9383a; color: #fff; font-weight: 600; }
+
+/* Pastille Fable : discrète, le coût dit. */
+.vc-fable {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 4px 0 10px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, #c4a7ff 38%, transparent);
+  background: color-mix(in srgb, #c4a7ff 8%, transparent);
+  color: #d5c4ff;
+  font: 500 12px/1 system-ui, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.12s, border-color 0.12s;
+}
+.vc-fable > span:first-child { font-size: 11px; }
+.vc-fable:hover { border-color: #c4a7ff; background: color-mix(in srgb, #c4a7ff 18%, transparent); }
+.vc-fable-cost { padding: 2px 7px; border-radius: 9px; background: rgba(255, 255, 255, 0.07); color: var(--vc-muted); font-size: 10.5px; }

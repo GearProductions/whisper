@@ -1,0 +1,187 @@
+/* Les invariants (invariants-view) : résumé, alignement, un bloc par fichier
+   (en-tête, progression), une carte par cas (pseudo-code coloré, cas
+   limites, garantie, attention, verdict). Sous .vc. */
+
+/* ---- Résumé de l'étape ----------------------------------------------------- */
+.vc-isum { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 18px; margin: -4px 0 16px; color: var(--vc-muted); font-size: 12.5px; }
+.vc-isum-stat { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+.vc-isum-stat b { color: var(--vc-text); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.vc-isum-stat[data-tone="ok"] b { color: #6fdd85; }
+.vc-isum-stat[data-tone="ko"] b { color: #f08a8b; }
+.vc-isum-stat[data-tone="warn"] b { color: var(--vc-warn); }
+.vc-isum > .vc-ibar { flex: 1 0 100%; width: auto; height: 4px; }
+
+/* La barre : validés, refusés, le reste. */
+.vc-ibar { display: inline-flex; flex: none; width: 64px; height: 5px; border-radius: 3px; background: var(--vc-control); overflow: hidden; }
+.vc-ibar i { flex-basis: 0; }
+.vc-ibar i[data-k="ok"] { background: var(--vc-ok); }
+.vc-ibar i[data-k="ko"] { background: #d9383a; }
+
+/* ---- Alignement ------------------------------------------------------------- */
+.vc-ialign > summary { cursor: pointer; list-style: none; }
+.vc-ialign > summary::-webkit-details-marker { display: none; }
+.vc-ialign > summary::before { content: "▸"; flex: none; color: var(--vc-muted); font-size: 11px; transition: transform 0.12s; }
+.vc-ialign[open] > summary::before { transform: rotate(90deg); }
+.vc-ialign:not([open]) > summary { border-bottom: 0; }
+.vc-ialign > .vc-card-body { max-height: 320px; overflow-y: auto; }
+
+/* ---- Un fichier --------------------------------------------------------------- */
+.vc-ifile { margin: 0 0 22px; }
+.vc-ifile-head {
+  position: sticky;
+  top: -18px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  margin: 0 -4px 10px;
+  padding: 0 4px;
+  border-bottom: 1px solid var(--vc-line);
+  background: var(--vc-editor);
+}
+/* Trop long : le dossier se coupe, jamais le nom du fichier. */
+.vc-ifile-path { display: flex; min-width: 0; white-space: nowrap; font-size: 12.5px; }
+.vc-ifile-dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--vc-muted); }
+.vc-ifile-path b { flex: none; color: var(--vc-text); font-weight: 600; }
+.vc-ifile-read { flex: none; padding: 0 8px; border-radius: 9px; background: color-mix(in srgb, var(--vc-warn) 14%, transparent); color: var(--vc-warn); font: 500 11px/18px system-ui, sans-serif; }
+.vc-ifile-read[data-read] { background: rgba(255, 255, 255, 0.06); color: var(--vc-soft); }
+.vc-ifile-progress { flex: none; display: inline-flex; align-items: center; gap: 8px; color: var(--vc-muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vc-ifile-tools { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.vc-ifile-tools .vc-mini { margin-left: 0; }
+
+/* Pas encore lu : ses cas, et Lire en pseudo-code. */
+.vc-iunread { padding: 12px 16px 14px; border: 1px dashed var(--vc-edge); border-radius: 8px; color: var(--vc-muted); font-size: 12.5px; }
+.vc-iunread p { margin: 0 0 8px; }
+.vc-iunread ol { margin: 0 0 12px; padding-left: 22px; color: var(--vc-soft); line-height: 1.7; }
+.vc-iunread li span:first-child { margin-right: 8px; }
+.vc-iunread summary { cursor: pointer; }
+.vc-iunread details .vc-src { margin: 6px 0 10px; }
+
+/* Voir le fichier : tout son code, replié. */
+.vc-ifile-src { margin: -4px 0 12px; }
+.vc-ifile-src > summary { width: max-content; color: var(--vc-muted); font-size: 12px; cursor: pointer; }
+.vc-ifile-src > summary:hover { color: var(--vc-text); }
+.vc-ifile-src > .vc-src { max-height: 420px; margin-top: 8px; }
+
+/* Le code d'origine : monospace, numéroté (les numéros ne se sélectionnent pas). */
+.vc-src {
+  margin: 0 0 12px;
+  padding: 8px 0;
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid #1c2130;
+  border-radius: 7px;
+  background: var(--vc-code);
+  color: #c9d1e3;
+  font: 12px/1.6 var(--vc-mono);
+}
+.vc-src code { display: block; min-width: max-content; font: inherit; }
+.vc-src::-webkit-scrollbar-corner { background: transparent; }
+.vc-sl { display: block; min-height: 1.6em; padding-right: 14px; white-space: pre; }
+.vc-sl::before { content: attr(data-n); display: inline-block; width: 4ch; margin-right: 12px; padding-right: 8px; border-right: 1px solid #262c3b; color: var(--vc-faint); text-align: right; }
+/* Sa coloration : la palette sombre de GitHub. */
+.vc-cx-keyword { color: #ff7b72; }
+.vc-cx-string { color: #a5d6ff; }
+.vc-cx-comment { color: #8b949e; font-style: italic; }
+.vc-cx-constant { color: #79c0ff; }
+.vc-cx-function { color: #d2a8ff; }
+.vc-cx-type { color: #ffa657; }
+.vc-cx-attr { color: #7ee787; }
+
+/* ---- Un cas -------------------------------------------------------------------- */
+.vc-case {
+  position: relative;
+  margin: 0 0 12px;
+  padding: 12px 14px 10px 16px;
+  border: 1px solid var(--vc-line);
+  border-radius: 9px;
+  background: var(--vc-card);
+  box-shadow: inset 3px 0 0 var(--vc-edge);
+  scroll-margin-top: 48px;  /* sous l'en-tête collant du fichier */
+}
+.vc-case[data-mark="ok"] { border-color: color-mix(in srgb, var(--vc-ok) 35%, var(--vc-line)); box-shadow: inset 3px 0 0 var(--vc-ok); }
+.vc-case[data-mark="ko"] { border-color: color-mix(in srgb, #d9383a 40%, var(--vc-line)); box-shadow: inset 3px 0 0 #d9383a; }
+.vc-case[data-mark="changed"] { box-shadow: inset 3px 0 0 var(--vc-warn); }
+.vc-case-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+.vc-case-n {
+  flex: none;
+  min-width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: var(--vc-control);
+  color: var(--vc-soft);
+  font: 600 11px/20px system-ui, sans-serif;
+  text-align: center;
+}
+.vc-case[data-mark="ok"] .vc-case-n { background: var(--vc-ok); color: #0e1117; }
+.vc-case[data-mark="ko"] .vc-case-n { background: #d9383a; color: #fff; }
+.vc-case-title { flex: 1; min-width: 0; margin: 0; color: var(--vc-text); font-size: 14px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+.vc-case-view { flex: none; margin-top: -1px; }
+.vc-case-view button { padding: 0 9px; font-size: 11.5px; line-height: 20px; }
+.vc-case-state { flex: none; padding: 1px 9px; border-radius: 10px; font: 600 11.5px/1.5 system-ui, sans-serif; white-space: nowrap; }
+.vc-case-state[data-state="ok"] { background: color-mix(in srgb, var(--vc-ok) 16%, transparent); color: #6fdd85; }
+.vc-case-state[data-state="ko"] { background: color-mix(in srgb, #d9383a 18%, transparent); color: #f08a8b; }
+.vc-case-state[data-state="changed"] { background: color-mix(in srgb, var(--vc-warn) 15%, transparent); color: var(--vc-warn); font-weight: 500; }
+.vc-case-none { margin: 0 0 8px; color: var(--vc-muted); font-size: 12.5px; }
+
+/* Le pseudo-code : lignes, assertions repérées, couleurs sobres. */
+.vc-pseudo {
+  margin: 0 0 12px;
+  padding: 10px 0;
+  border: 1px solid #1c2130;
+  border-radius: 7px;
+  background: var(--vc-code);
+  color: #c9d1e3;
+  font: 12.5px/1.6 var(--vc-mono);
+  overflow-x: auto;
+}
+.vc-pseudo code { display: block; font: inherit; }
+/* Une ligne trop longue passe à la ligne, en retrait sous son début. */
+.vc-pl { display: block; min-height: 1.6em; padding: 0 14px 0 calc(14px + 2ch); text-indent: -2ch; white-space: pre-wrap; overflow-wrap: anywhere; }
+.vc-pl[data-assert] { background: color-mix(in srgb, #7aa2f7 9%, transparent); box-shadow: inset 2px 0 0 #7aa2f7; }
+.vc-tk-keyword { color: #c4a7ff; }
+.vc-tk-string { color: #9ece6a; }
+.vc-tk-number { color: #ff9e64; }
+.vc-tk-comment { color: #8792ad; }
+.vc-tk-step { color: #7dcfff; font-weight: 600; }
+
+/* Cas limites, garantie. */
+.vc-case-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px; margin: 0 0 8px; font-size: 12.8px; line-height: 1.5; }
+.vc-case-label { padding-top: 2px; color: var(--vc-faint); font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+.vc-case-edges { margin: 0; padding-left: 16px; color: var(--vc-soft); }
+.vc-case-edges li + li { margin-top: 2px; }
+.vc-case-row p { margin: 0; color: var(--vc-soft); }
+.vc-case-guarantee .vc-case-label { color: #5fc977; }
+.vc-case-guarantee .vc-case-label::before { content: "✓ "; }
+.vc-case-guarantee p { color: #d5d9e1; }
+.vc-case :is(.vc-case-row, .vc-attention) code { padding: 0 4px; border-radius: 4px; background: var(--vc-code); color: var(--vc-text); font: 11.8px/1.5 var(--vc-mono); }
+
+/* Attention : l'encart ambre. */
+.vc-attention {
+  display: flex;
+  gap: 10px;
+  margin: 10px 0 8px;
+  padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--vc-warn) 50%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--vc-warn) 10%, var(--vc-card));
+  color: #f1dcb4;
+  font-size: 12.8px;
+  line-height: 1.5;
+}
+/* En tête de l'étape : ce que veut dire « Attention », discret. */
+.vc-ihelp { display: flex; gap: 8px; margin: -6px 0 18px; color: var(--vc-muted); font-size: 12.5px; line-height: 1.5; }
+.vc-ihelp > span { flex: none; color: var(--vc-warn); }
+.vc-attention { cursor: help; }
+.vc-attention-icon { flex: none; color: var(--vc-warn); font-size: 14px; line-height: 1.35; }
+.vc-attention p { margin: 0; }
+.vc-attention b { margin-right: 6px; color: var(--vc-warn); font-weight: 600; }
+
+/* Le pied : verdict, 💬, Ouvrir. */
+.vc-case-foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+.vc-case-tools { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.vc-case-tools .vc-mini { margin-left: 0; }

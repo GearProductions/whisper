@@ -2,7 +2,8 @@
  *  lancement, aucun agent sélectionné (I-8) ; le micro, seule permission
  *  accordée, et à nos pages seulement (I-9). Quittée en pleine dictée ou
  *  pendant un tour d'agent : on rend d'abord le son et le micro Discord, on
- *  interrompt les agents et on attend la fin de leurs tours (I-11, I-19).
+ *  interrompt les agents et on attend la fin de leurs tours (I-11, I-19) ;
+ *  les processus lancés par l'onglet Processus de VibeCoder sont arrêtés.
  *  Ne connaît pas : le détail des fenêtres et des contrôleurs.
  *  Utilisé par : src/main/index.ts. */
 import { app, session } from 'electron';
@@ -13,10 +14,11 @@ import * as paste from 'technicals/paste';
 import * as tts from 'technicals/pocket-tts';
 import * as windows from 'technicals/windows-helper';
 import {
-  agents, ensureFolderColors, ensureModel, muter, pollSpeak, pushAgents, resetSpeakState, SPEAK_POLL_MS, startHealing,
+  agents, ensureFolderColors, ensureModel, muter, pollSpeak, processesRunning, pushAgents, resetSpeakState, SPEAK_POLL_MS, startHealing,
+  stopProcesses,
 } from 'app/controllers';
 import { registerIpc } from 'app/ipc';
-import { loadConfig, saveConfig } from 'app/settings';
+import { ensureVibeFiles, loadConfig, saveConfig } from 'app/settings';
 import { state } from 'app/state';
 import { createBubble, createIconWindow } from 'app/windows';
 
@@ -45,6 +47,8 @@ export function start() {
     // doit pas recevoir (et envoyer à Claude) ce qu'on croit dicter pour soi.
     const patch = startupPatch(loadConfig());
     if (patch) saveConfig(patch);
+    // VibeCoder : ses fichiers par défaut, sans écraser une retouche ; un échec ne bloque rien (I-29).
+    ensureVibeFiles();
     setInterval(pollSpeak, SPEAK_POLL_MS);
     // Une application restée muette après une dictée passée : rétablie dès qu'elle rejoue.
     startHealing();
@@ -61,13 +65,14 @@ export function start() {
   // processus d'agent vivant : on ferme son entrée (au travail, on lui demande
   // d'abord d'arrêter son tour) et on attend qu'il soit sorti (quelques
   // secondes au plus) — tué net, il pourrait survivre dans son conteneur et
-  // continuer seul.
+  // continuer seul. Ce que l'onglet Processus a lancé : arrêté (SIGKILL après
+  // 5 s), rien ne survit à l'appli.
   let quitting = false;
   app.on('before-quit', (e) => {
-    if (quitting || (!state.recording && !agents.active())) return;
+    if (quitting || (!state.recording && !agents.active() && !processesRunning())) return;
     e.preventDefault();
     quitting = true;
-    Promise.all([muter.restore('others'), muter.restore('discord'), agents.stop()]).finally(() => app.quit());
+    Promise.all([muter.restore('others'), muter.restore('discord'), agents.stop(), stopProcesses()]).finally(() => app.quit());
   });
-  app.on('will-quit', () => { windows.stop(); tts.stop(); agents.stop(); });
+  app.on('will-quit', () => { windows.stop(); tts.stop(); agents.stop(); stopProcesses(); });
 }

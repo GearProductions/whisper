@@ -1,8 +1,13 @@
 /** types — un agent tel qu'enregistré, ce que le runtime attend du SDK et du
  *  lancement de Claude Code (injectés : le métier ne les connaît pas).
  *  Utilisé par : core/agents, core/config, core/conversation, app. */
+import type { VibeAutonomy, VibeFlow } from 'shared/bridge';
 
 // Un agent = un dossier : { id, dir, name, model, effort, mode, sessionId, contextWindow }.
+// `view` : VibeCoder à la place de sa conversation (absent : la conversation) ;
+// `vibe` : ses réglages VibeCoder (lus par core/config : agentVibe) ;
+// `temp` : un robot temporaire, la PR `pr` de l'agent `parent` ouverte dans un
+// worktree (lu par core/config : agentTemp).
 export type AgentConfig = {
   id: string;
   dir: string;
@@ -12,6 +17,9 @@ export type AgentConfig = {
   mode: string;
   sessionId: string | null;
   contextWindow?: number | null;
+  view?: 'vibecoder';
+  vibe?: { flow: VibeFlow; autonomy: VibeAutonomy; pr: number | null };
+  temp?: { parent: string; pr: number };
 };
 
 // Ce que le SDK renvoie et reçoit : des objets non typés ici (le SDK évolue).
@@ -43,6 +51,8 @@ export type OutgoingMessage = { text?: string; images?: Image[] };
 export type TurnHooks = {
   command?: unknown;
   instructions?: string;
+  plugins?: string[];   // dossiers de plugins locaux (celui de VibeCoder)
+  dirs?: string[];      // dossiers de travail en plus du sien (ses sorties VibeCoder)
   onChange(): void;
   onSession(sessionId: string): void;
   onPermission(p: { tool: string; input: unknown }): void;

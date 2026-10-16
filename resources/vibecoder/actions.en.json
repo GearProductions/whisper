@@ -1,0 +1,352 @@
+[
+  {
+    "id": "note",
+    "flow": "create",
+    "step": "note",
+    "kind": "send",
+    "needs": "text",
+    "label": "Write the note",
+    "hint": "The agent writes or updates the ticket note from the request in the field, and asks its open questions separately.",
+    "text": "/vibecoder:note {{lang}} {{out}} {{text}}"
+  },
+  {
+    "id": "answers",
+    "flow": "create",
+    "step": "note",
+    "kind": "send",
+    "needs": "none",
+    "label": "Send the answers",
+    "hint": "Sends your answers to the open questions at once; the agent updates the note.",
+    "text": "Answers to the open questions:\n{{answers}}\n\nUpdate the note, then rewrite {{out}}/questions.md with the questions that remain (empty if none are left)."
+  },
+  {
+    "id": "forme",
+    "flow": "create",
+    "step": "forme",
+    "kind": "send",
+    "needs": "none",
+    "label": "Set the shape",
+    "hint": "The agent lays down the note's “Forme” section (modules, signatures, contracts) without writing code; the field can refine it.",
+    "text": "/vibecoder:forme {{lang}} {{out}} {{text}}"
+  },
+  {
+    "id": "invariants",
+    "flow": "create",
+    "step": "invariants",
+    "kind": "send",
+    "needs": "none",
+    "label": "Write the invariants (red)",
+    "hint": "Writes the invariant tests, red, from the note or from the pseudo-code in the field, without committing.",
+    "text": "/vibecoder:invariants {{lang}} {{out}} {{text}}"
+  },
+  {
+    "id": "read-invariants",
+    "flow": "both",
+    "step": "invariants",
+    "kind": "send",
+    "needs": "none",
+    "label": "Read as pseudo-code",
+    "hint": "Turns each invariant test not yet read into pseudo-code, case by case, with its edge cases and warnings; a file that changed is read again by itself; « Read again » (one file) and « Read all again » redo a reading.",
+    "text": "/vibecoder:lire-invariants {{lang}} {{out}} {{ref}} {{files}}"
+  },
+  {
+    "id": "align",
+    "flow": "both",
+    "step": "invariants",
+    "kind": "send",
+    "needs": "none",
+    "label": "Check the alignment",
+    "hint": "Checks that each “→ invariant” line has a test that truly observes it, that each test has its line, and that the shape matches the files.",
+    "text": "/vibecoder:aligner {{lang}} {{out}} {{ref}}"
+  },
+  {
+    "id": "commit-prepare",
+    "flow": "create",
+    "step": "modules",
+    "kind": "send",
+    "needs": "none",
+    "label": "Prepare the commit",
+    "hint": "Picks and stages the files of the next commit and proposes its message, shown here before committing.",
+    "text": "/vibecoder:commit-preparer {{lang}} {{out}}"
+  },
+  {
+    "id": "commit",
+    "flow": "create",
+    "step": "modules",
+    "kind": "send",
+    "needs": "none",
+    "label": "✓ Commit",
+    "hint": "Commits with the proposed message, as shown.",
+    "text": "/vibecoder:commit {{lang}} {{out}}"
+  },
+  {
+    "id": "module",
+    "flow": "create",
+    "step": "modules",
+    "kind": "send",
+    "needs": "none",
+    "label": "Generate this module",
+    "hint": "Implements the chosen module from the note and its shape, with ponytail, and runs the tests; does not commit.",
+    "text": "/vibecoder:module {{lang}} {{out}} {{module}}"
+  },
+  {
+    "id": "next",
+    "flow": "create",
+    "step": "modules",
+    "kind": "send",
+    "needs": "none",
+    "label": "✓ Approve → commit → next",
+    "hint": "Commits the reviewed module, then generates the next one.",
+    "text": "/vibecoder:suivant {{lang}} {{out}} {{module}}"
+  },
+  {
+    "id": "modules",
+    "flow": "create",
+    "step": "modules",
+    "kind": "send",
+    "needs": "none",
+    "label": "Generate the remaining modules",
+    "hint": "The agent hands the remaining modules to Opus agents in parallel, reviews each diff and commits module by module; long and costly.",
+    "text": "/vibecoder:modules {{lang}} {{out}}"
+  },
+  {
+    "id": "review-diff",
+    "flow": "create",
+    "step": "modules",
+    "kind": "send",
+    "needs": "none",
+    "label": "Review the diff",
+    "hint": "Reviews the chosen diff, or the current changes, with the guide's four questions (§5.1), duplication and file headers.",
+    "text": "/vibecoder:relire {{lang}} {{out}} {{commit}}"
+  },
+  {
+    "id": "checks",
+    "flow": "create",
+    "step": "revue",
+    "kind": "send",
+    "needs": "none",
+    "label": "Run the checks",
+    "hint": "Runs the project's checks (typecheck, tests, invariants, lint) and shows the result.",
+    "text": "/vibecoder:verifier {{lang}} {{out}}"
+  },
+  {
+    "id": "ponytail",
+    "flow": "create",
+    "step": "revue",
+    "kind": "send",
+    "needs": "none",
+    "label": "Ponytail review",
+    "hint": "Reviews the whole branch: over-engineering, duplication, note aligned with the code, edge cases, security, dead code; changes nothing.",
+    "text": "/vibecoder:ponytail {{lang}} {{out}}"
+  },
+  {
+    "id": "apply",
+    "flow": "create",
+    "step": "revue",
+    "kind": "send",
+    "needs": "none",
+    "label": "Apply the review",
+    "hint": "The agent applies the review remarks it judges right (all of them, or the one of Apply), each as a fixup of the commit concerned, and says which ones it discards.",
+    "text": "Apply the remarks of {{out}}/ponytail.md that you judge right, each as a fixup of the commit that owns the code (/gear-fix-up if it exists), adding nothing else; say which ones you discard and why. Only this one (empty: all of them): {{text}}"
+  },
+  {
+    "id": "fixups",
+    "flow": "create",
+    "step": "revue",
+    "kind": "send",
+    "needs": "none",
+    "label": "Fold the fixups",
+    "hint": "Folds the “fixup!” commits into their targets before opening the PR; does not push.",
+    "text": "/vibecoder:fixups {{lang}} {{out}}"
+  },
+  {
+    "id": "pr",
+    "flow": "create",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "Approve the feature (open the PR)",
+    "hint": "Pushes the branch and opens the PR, title and description following the project's convention.",
+    "text": "/vibecoder:pr {{lang}} {{out}}"
+  },
+  {
+    "id": "ci",
+    "flow": "create",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "Diagnose the CI",
+    "hint": "Reads the CI state of the branch and, on failure, gives the probable cause and the fix; fixes nothing.",
+    "text": "/vibecoder:ci {{lang}} {{out}}"
+  },
+  {
+    "id": "rc",
+    "flow": "create",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "Release candidate",
+    "hint": "Publishes a release candidate following the project's procedure and installs it for you, keeping the previous one; long, as it waits for the CI.",
+    "text": "/vibecoder:rc {{lang}} {{out}}"
+  },
+  {
+    "id": "base",
+    "flow": "create",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "PR merged → back to the base",
+    "hint": "If the PR is merged: goes back to the base, updates it and deletes the local branch; otherwise, does nothing.",
+    "text": "/vibecoder:base {{lang}} {{out}}"
+  },
+  {
+    "id": "release",
+    "flow": "create",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "Official release",
+    "hint": "Publishes the official release following the project's procedure; pre-releases are deleted only with your agreement.",
+    "text": "/vibecoder:release {{lang}} {{out}}"
+  },
+  {
+    "id": "load-pr",
+    "flow": "review",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "Load the PR",
+    "hint": "Fetches the PR without touching your working copy, to review it.",
+    "text": "/vibecoder:charger-pr {{lang}} {{out}} {{pr}}"
+  },
+  {
+    "id": "open-worktree",
+    "flow": "review",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "Open in a worktree",
+    "hint": "Creates a worktree of the PR following the project's convention and sets it up (dependencies…); a \"PR #n\" robot is added there, after the trust question.",
+    "text": "/vibecoder:worktree-pr {{lang}} {{out}} {{pr}}"
+  },
+  {
+    "id": "unload-worktree",
+    "flow": "review",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "Unload",
+    "hint": "The repository's agent removes the PR's worktree (refused if changes remain); this robot leaves with it.",
+    "text": "/vibecoder:retirer-worktree {{lang}} {{out}} {{pr}}"
+  },
+  {
+    "id": "review-note",
+    "flow": "review",
+    "step": "note",
+    "kind": "send",
+    "needs": "none",
+    "label": "Review the note",
+    "hint": "Reviews the PR's note: decisions to discuss, gaps, misclassified invariants.",
+    "text": "/vibecoder:relire-note {{lang}} {{out}} {{pr}}"
+  },
+  {
+    "id": "review-commits",
+    "flow": "review",
+    "step": "commits",
+    "kind": "send",
+    "needs": "none",
+    "label": "Review the commits",
+    "hint": "Reviews the PR commit by commit: the four questions, duplication, file headers, the story the commits tell.",
+    "text": "/vibecoder:relire-commits {{lang}} {{out}} {{pr}}"
+  },
+  {
+    "id": "screen",
+    "flow": "review",
+    "step": "ecran",
+    "kind": "send",
+    "needs": "none",
+    "label": "On-screen test plan",
+    "hint": "Prepares the list of what to try by hand, and how to run the PR.",
+    "text": "/vibecoder:ecran {{lang}} {{out}} {{pr}}"
+  },
+  {
+    "id": "publish",
+    "flow": "review",
+    "step": "revue",
+    "kind": "send",
+    "needs": "none",
+    "label": "Publish the review",
+    "hint": "Publishes the review draft on GitHub, as is, with the chosen verdict.",
+    "text": "/vibecoder:publier-revue {{lang}} {{out}} {{pr}} {{verdict}}\n\n{{draft}}"
+  },
+  {
+    "id": "vibe",
+    "flow": "create",
+    "step": null,
+    "kind": "send",
+    "needs": "text",
+    "label": "Run it all",
+    "hint": "The agent runs the whole guide for the request in the field, up to the PR and the release candidate, and stops only on a blocking question; long and costly.",
+    "text": "/vibecoder:vibe {{lang}} {{out}} {{text}}"
+  },
+  {
+    "id": "guide",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Where am I?",
+    "hint": "Asks the gear-guide skill for the next step, from the state of the repository and the question in the field.",
+    "text": "/gear-guide {{text}}"
+  },
+  {
+    "id": "ask",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "text",
+    "label": "Ask without changing",
+    "hint": "Sends the question in the field, telling the agent not to change anything.",
+    "text": "{{text}}\n\n(Answer only: do not modify any file and do not run anything that modifies anything.)"
+  },
+  {
+    "id": "comment",
+    "flow": "both",
+    "step": null,
+    "kind": "prefill",
+    "needs": "none",
+    "label": "💬 Comment",
+    "hint": "Quotes the item in the field, to comment on it before sending.",
+    "text": "About “{{quote}}”: "
+  },
+  {
+    "id": "case-ko",
+    "flow": "both",
+    "step": "invariants",
+    "kind": "prefill",
+    "needs": "none",
+    "label": "✗ Needs rework",
+    "hint": "Quotes the case in the field, to say what to change.",
+    "text": "Invariant “{{quote}}”: needs rework — "
+  },
+  {
+    "id": "fix",
+    "flow": "create",
+    "step": null,
+    "kind": "prefill",
+    "needs": "none",
+    "label": "Feedback → fixup",
+    "hint": "Prepares in the field a feedback to fix as a fixup of the module concerned.",
+    "text": "Feedback to fix, as a fixup of the module concerned: "
+  },
+  {
+    "id": "propose-run",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Propose the commands",
+    "hint": "The agent looks for how to start the project (README, package.json, process-compose, Makefile, AGENTS.md, .bashrc aliases…) and proposes its commands; the app adopts them when there is no project file yet. The field can guide it.",
+    "text": "/vibecoder:lancement {{lang}} {{out}} {{text}}"
+  }
+]

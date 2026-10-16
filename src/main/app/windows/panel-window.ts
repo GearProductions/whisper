@@ -3,7 +3,8 @@
  *  il suit l'icône quand on la déplace. Deux tailles :
  *    - réduit : le dernier échange, à la taille de son contenu ;
  *    - agrandi : tout le fil, l'historique ; redimensionnable par ses bords,
- *      taille retenue (`convSize`).
+ *      taille retenue (`convSize`) ;
+ *    - un agent en VibeCoder : toujours agrandi, à sa taille à lui (`vibeSize`).
  *  Il prend le focus (on y écrit) : le gestionnaire de fenêtres le gère, et le
  *  range sur un bureau virtuel (sous KDE, Alt+F3 → Sur tous les bureaux). Sa
  *  croix le RÉDUIT (au sens du système) au lieu de le masquer : une fenêtre
@@ -17,7 +18,7 @@
 import { BrowserWindow, screen } from 'electron';
 import type { BubbleKind, ConvMode } from 'shared/bridge';
 import { agentList } from 'core/config';
-import { pushAgents, selectAgent } from 'app/controllers';
+import { pushAgents, selectAgent, vibeAgent } from 'app/controllers';
 import { loadConfig, page, preload, saveConfig } from 'app/settings';
 import { state } from 'app/state';
 import { BUBBLE_GAP, hideBubble } from './bubble-window';
@@ -26,6 +27,8 @@ import { onTop } from './icon-window';
 const CONV_SIZE = { width: 720, height: 700 };    // agrandi, par défaut
 const CONV_MIN_WIDTH = 380;
 const COMPACT = { width: 560, minHeight: 160, maxHeight: 560 };
+const VIBE_SIZE = { width: 1280, height: 820 };   // VibeCoder, par défaut
+const VIBE_MIN = { width: 960, height: 600 };
 
 // Mode « conversation » : le panneau est montré. L'agent affiché (sur sa
 // session en cours) y reçoit ses demandes d'autorisation, dans le fil, et sa
@@ -37,17 +40,18 @@ export const inConversation = (id: string) => conversationShown() && !!state.con
 // Ouvre la conversation de l'agent : sa session en cours (ou une ancienne, en
 // agrandi) ; `agentId` null : le contexte « Dictée », toujours réduit. `mode` :
 // la taille ; par défaut, celle du panneau s'il est déjà ouvert, sinon le
-// réduit. `focus` : false pour une ouverture que l'utilisateur n'a pas
-// demandée (dictée, demande d'autorisation) — elle ne lui vole pas le
-// clavier : restore() le prendrait, une fenêtre masquée puis montrée
-// « inactive » non (mais elle oublie « sur tous les bureaux »).
+// réduit ; un agent en VibeCoder, toujours agrandi. `focus` : false pour une
+// ouverture que l'utilisateur n'a pas demandée (dictée, demande
+// d'autorisation) — elle ne lui vole pas le clavier : restore() le prendrait,
+// une fenêtre masquée puis montrée « inactive » non (mais elle oublie « sur
+// tous les bureaux »).
 export function openConversation(agentId: string | null, { sessionId = null, mode = null, focus = true }: { sessionId?: string | null; mode?: ConvMode | null; focus?: boolean } = {}) {
   const agent = agentId ? agentList(loadConfig()).find((a) => a.id === agentId) : null;
   if (agentId && !agent) return;
   selectAgent(agent ? agentId : null); // le robot affiché et le robot sélectionné vont ensemble
   const old = agent && sessionId && sessionId !== agent.sessionId ? sessionId : null;
   state.convView = { agentId: agent ? agentId : null, sessionId: old };
-  state.convMode = old ? 'full' : !agent ? 'compact' : mode || (conversationShown() ? state.convMode : 'compact');
+  state.convMode = old || agent?.view === 'vibecoder' ? 'full' : !agent ? 'compact' : mode || (conversationShown() ? state.convMode : 'compact');
   hideBubble(); // le panneau prend sa place
   const conv = state.panel;
   if (!conv) { createConversation(focus); return; }
@@ -101,7 +105,7 @@ function createConversation(focus: boolean) {
       if (!state.panel || !state.panel.isVisible() || !state.convPlaced || state.convMode !== 'full') return;
       const { width, height } = state.panel.getBounds();
       if (Math.abs(width - state.convPlaced.width) < 3 && Math.abs(height - state.convPlaced.height) < 3) return;
-      saveConfig({ convSize: { width, height } });
+      saveConfig(vibeAgent() ? { vibeSize: { width, height } } : { convSize: { width, height } });
       placeConversation();
     }, 400);
   });
@@ -114,8 +118,12 @@ export function placeConversation() {
   if (!state.panel || !state.icon) return;
   const icon = state.icon.getBounds();
   const a = screen.getDisplayMatching(icon).workArea;
-  const saved = loadConfig().convSize;
-  const full = saved && Number.isFinite(saved.width) && Number.isFinite(saved.height) ? saved : CONV_SIZE;
+  const cfg = loadConfig();
+  const vibe = !!vibeAgent(cfg);
+  const saved = vibe ? cfg.vibeSize : cfg.convSize;
+  const wanted = saved && Number.isFinite(saved.width) && Number.isFinite(saved.height) ? saved : vibe ? VIBE_SIZE : CONV_SIZE;
+  // VibeCoder : au moins VIBE_MIN (dans la place de l'écran, plus bas).
+  const full = vibe ? { width: Math.max(VIBE_MIN.width, wanted.width), height: Math.max(VIBE_MIN.height, wanted.height) } : wanted;
   const size = state.convMode === 'full' ? full : { width: COMPACT.width, height: state.convCompactH };
   const above = icon.y - BUBBLE_GAP - a.y;
   const below = a.y + a.height - (icon.y + icon.height + BUBBLE_GAP);

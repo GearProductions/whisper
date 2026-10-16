@@ -1,0 +1,558 @@
+/* VibeCoder — l'écran d'un agent dans le panneau agrandi, à la place de
+   l'en-tête et du corps : en-tête ; parcours | étape | conversation ; barre
+   d'état. Couleurs de Whisper (conversation.css). La couleur de l'agent
+   (--accent du panneau, gardée en --vc-agent) ne teinte que sa pastille de
+   l'en-tête et Envoyer ; partout ailleurs --accent devient un accent neutre
+   (--vc-accent) : un agent rouge ne fait pas croire à des erreurs. Tout est
+   sous .vc : la vue conversation n'en voit rien (animations préfixées vc-
+   pour ne pas remplacer celles de conversation.css). */
+
+.vc {
+  --vc-side: #1a1e28;
+  --vc-editor: #1f2430;
+  --vc-card: #232938;
+  --vc-line: #2a3142;
+  --vc-control: #2a3142;
+  --vc-edge: #3a4150;
+  --vc-text: #e6e8ee;
+  --vc-soft: #b8bdc8;
+  --vc-muted: #8a91a0;
+  --vc-faint: #6b7282;
+  --vc-code: #11141b;
+  --vc-link: #7fb0ff;
+  --vc-ok: #3fb950;
+  --vc-warn: #e0a23b;
+  --vc-mono: ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace;
+  --vc-accent: #8f99d6;
+  --vc-agent: var(--accent);
+  --vc-ring: color-mix(in srgb, var(--vc-accent) 70%, #fff);
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  /* La conversation : sa largeur (vibe-coder, à la poignée), jamais plus de 60 % ; masquée : rien. */
+  grid-template-columns: 248px minmax(0, 1fr) min(var(--vc-conv, 400px), 60%);
+  grid-template-rows: 40px minmax(0, 1fr) 24px;
+  grid-template-areas: "top top top" "side main conv" "status status status";
+  background: #171b24;
+  color: var(--vc-text);
+}
+.vc > * { --accent: var(--vc-accent); }
+.vc :is(.vc-dot, #send) { --accent: var(--vc-agent); }
+.vc[data-conv="hidden"] { grid-template-columns: 248px minmax(0, 1fr) 0; }
+.vc[data-conv="hidden"] > .vc-conv { display: none; }
+.vc :is(button, a):focus-visible { outline: 2px solid var(--vc-ring); outline-offset: 1px; }
+.vc :is(.vc-seg button, .vc-icon, .vc-jstep, .vc-tab, .vc-skill, .vc-sitem, .vc-mini) {
+  transition: background-color 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
+}
+.vc-mono { font-family: var(--vc-mono); }
+
+/* Bandeau de 35 px en haut de chaque colonne : une même ligne d'un bord à l'autre. */
+.vc-band { flex: none; height: 35px; box-sizing: border-box; box-shadow: inset 0 -1px 0 var(--vc-line); }
+.vc-side-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--vc-muted);
+}
+.vc-side-title > span:last-child { min-width: 0; font-weight: 500; letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
+
+/* ---- En-tête ------------------------------------------------------------- */
+.vc-top {
+  grid-area: top;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 0 8px 0 14px;
+  background: var(--vc-side);
+  border-bottom: 1px solid var(--vc-line);
+}
+.vc-ident { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.vc-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.vc-dot[data-busy] { animation: vc-glow 1.4s ease-in-out infinite; }
+.vc-name { flex: none; max-width: 45%; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vc-branch {
+  min-width: 0;
+  padding: 1px 9px;
+  border-radius: 10px;
+  border: 1px solid var(--vc-line);
+  background: var(--vc-card);
+  color: var(--vc-soft);
+  font: 11.5px/1.6 var(--vc-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vc-modes { display: flex; gap: 10px; }
+.vc-tools { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
+.vc-tools .vc-seg { margin-right: 8px; }
+.vc-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 7px; border: 1px solid var(--vc-line); background: var(--vc-code); }
+.vc-seg button {
+  padding: 0 12px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--vc-muted);
+  font: 500 12px/22px system-ui, sans-serif;
+  cursor: pointer;
+}
+.vc-seg button:hover { background: #1d2230; color: var(--vc-text); }
+.vc-seg button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent) 26%, var(--vc-control));
+  color: #fff;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.vc-icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--vc-muted);
+  font: 15px/28px system-ui, sans-serif;
+  cursor: pointer;
+}
+.vc-icon:hover { background: var(--vc-control); color: var(--vc-text); }
+.vc-icon > span { display: inline-block; }
+.vc-refresh { font-size: 17px; }
+.vc-side-toggle svg { width: 16px; height: 16px; vertical-align: -3px; fill: none; stroke: currentColor; stroke-width: 1.3; }
+.vc-side-toggle[aria-pressed="true"] { color: var(--vc-soft); }
+.vc-close { border-radius: 50%; font-size: 18px; }
+.vc-spin { animation: vc-spin 0.6s ease-out; }
+
+/* ---- Parcours ------------------------------------------------------------ */
+.vc-journey {
+  grid-area: side;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 16px;
+  background: var(--vc-side);
+  border-right: 1px solid var(--vc-line);
+}
+.vc-journey > .vc-band { position: sticky; top: 0; z-index: 2; margin-bottom: 8px; background: var(--vc-side); }
+.vc-steps { list-style: none; margin: 0 0 14px; padding: 0 8px; }
+.vc-steps li { position: relative; }
+/* Le trait jusqu'au point suivant ; coloré quand l'étape est faite. */
+.vc-steps li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 24px;
+  bottom: -6px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--vc-line);
+}
+.vc-steps li[data-status="done"]:not(:last-child)::after { background: color-mix(in srgb, var(--vc-ok) 65%, transparent); }
+.vc-jstep {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  column-gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--vc-soft);
+  text-align: left;
+  font: 13px/1.4 system-ui, sans-serif;
+  cursor: pointer;
+}
+.vc-jstep:hover { background: #222838; color: var(--vc-text); }
+.vc-jstep[aria-current] { background: #262d3d; color: var(--vc-text); box-shadow: inset 2px 0 0 var(--accent); }
+.vc-jdot {
+  position: relative;
+  z-index: 1;
+  grid-row: span 2;
+  justify-self: center;
+  width: 12px;
+  height: 12px;
+  margin-top: 3px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 2px solid #4a5163;
+  background: var(--vc-side);
+}
+li[data-status="done"] .vc-jdot { border-color: var(--vc-ok); background: var(--vc-ok); }
+li[data-status="done"] .vc-jdot::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0;
+  width: 2px;
+  height: 5px;
+  border: solid #0e1117;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+li[data-status="current"] .vc-jdot { border-color: var(--accent); animation: vc-ring 2.4s ease-in-out infinite; }
+.vc-jlabel { font-weight: 500; }
+li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
+.vc-jfacts { grid-column: 2; min-height: 16px; font-size: 11px; line-height: 16px; color: var(--vc-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vc-commits { list-style: none; margin: 0; padding: 0 8px; font-size: 12px; }
+.vc-jcommit {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--vc-soft);
+  font: 12px/1.5 system-ui, sans-serif;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.vc-jcommit:hover, .vc-jcommit[aria-expanded="true"] { background: #222838; color: var(--vc-text); }
+.vc-jcommit code { flex: none; color: var(--vc-faint); font: 11.5px/1.5 var(--vc-mono); }
+.vc-jcommit span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.vc-commits .fixup .vc-jcommit span { color: var(--vc-warn); }
+.vc-commits .vc-none { padding: 3px 8px; color: var(--vc-faint); white-space: normal; }
+.vc-jcommit-detail { padding: 6px 8px 10px 22px; }
+.vc-jcommit-links { display: flex; gap: 6px; margin-bottom: 6px; }
+.vc-jcommit-links .vc-mini { margin-left: 0; padding: 1px 8px; font-size: 11.5px; }
+.vc-jfiles { list-style: none; margin: 0; padding: 0; color: var(--vc-muted); font-size: 11px; line-height: 1.6; }
+.vc-jfiles button, .vc-commit-files button {
+  display: block;
+  width: 100%;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.vc-jfiles button:hover, .vc-commit-files button:hover { background: var(--vc-control); color: var(--vc-text); }
+
+/* ---- Centre : onglets, étape ---------------------------------------------- */
+.vc-center { grid-area: main; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--vc-editor); }
+.vc-tabs { display: flex; overflow-x: auto; overflow-y: hidden; background: var(--vc-side); scrollbar-width: none; }
+.vc-tab {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 0;
+  border-right: 1px solid var(--vc-line);
+  background: transparent;
+  color: var(--vc-muted);
+  font: 13px/1 system-ui, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.vc-tab:hover { background: #1d2230; color: var(--vc-text); }
+/* L'onglet actif : le fond de l'éditeur (il couvre la ligne du bandeau), un liseré d'accent en haut. */
+.vc-tab[aria-selected="true"] { background: var(--vc-editor); color: var(--vc-text); }
+.vc-tab[aria-selected="true"]::before { content: ""; position: absolute; inset: 0 0 auto; height: 2px; background: var(--accent); }
+.vc-tdot { width: 7px; height: 7px; box-sizing: border-box; border-radius: 50%; border: 1.5px solid #4a5163; }
+.vc-tab[data-status="done"] .vc-tdot { border-color: var(--vc-ok); background: var(--vc-ok); }
+.vc-tab[data-status="current"] .vc-tdot { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 35%, transparent); }
+.vc-error {
+  flex: none;
+  margin: 12px 24px 0;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--vc-warn) 55%, transparent);
+  background: color-mix(in srgb, var(--vc-warn) 9%, var(--vc-editor));
+  color: var(--vc-soft);
+  font-size: 13px;
+}
+.vc-error b { color: var(--vc-warn); font-weight: 600; }
+.vc-step { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 24px 36px 36px; }
+.vc-step-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; margin-bottom: 20px; }
+.vc-step-head h2 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+.vc-badge { padding: 0 8px; border-radius: 9px; border: 1px solid var(--vc-edge); color: var(--vc-muted); font-size: 11px; line-height: 18px; }
+.vc-badge[data-status="done"] { color: var(--vc-ok); border-color: color-mix(in srgb, var(--vc-ok) 50%, transparent); }
+.vc-badge[data-status="current"] { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+.vc-facts { color: var(--vc-muted); font-size: 12.5px; }
+.vc-card { margin: 0 0 20px; border: 1px solid rgba(255, 255, 255, 0.045); border-radius: 10px; background: #212634; overflow: hidden; }
+.vc-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 2px 10px 0 16px;
+  font-size: 12px;
+}
+.vc-card-title { min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vc-card-file { min-width: 0; color: var(--vc-faint); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vc-card-time { flex: none; margin-left: auto; padding-right: 4px; color: var(--vc-faint); }
+.vc-card-body { padding: 6px 16px 14px; }
+.vc-mini {
+  flex: none;
+  margin-left: auto;
+  padding: 2px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--vc-edge);
+  background: var(--vc-control);
+  color: var(--vc-text);
+  font: 12px/1.4 system-ui, sans-serif;
+  cursor: pointer;
+}
+.vc-mini:hover { border-color: var(--accent); }
+.vc-mini[aria-pressed="true"] { border-color: var(--accent); }
+.vc-empty { padding: 28px 24px; border: 1px dashed var(--vc-edge); border-radius: 8px; color: var(--vc-muted); font-size: 13px; line-height: 1.6; text-align: center; }
+
+/* ---- Markdown (note, sorties) -------------------------------------------- */
+.vc-md { color: #d5d9e1; font-size: 13.5px; line-height: 1.6; overflow-wrap: anywhere; }
+.vc-md > :first-child, .vc-md > :first-child > :first-child { margin-top: 0; }
+.vc-md > :last-child, .vc-md > :last-child > :first-child { margin-bottom: 0; }
+.vc-md :is(h1, h2, h3, h4, h5, h6) { margin: 18px 0 8px; color: var(--vc-text); font-weight: 600; line-height: 1.3; }
+.vc-md h1 { font-size: 18px; }
+.vc-md h2 { padding-bottom: 4px; border-bottom: 1px solid var(--vc-line); font-size: 15.5px; }
+.vc-md h3 { font-size: 14.5px; }
+.vc-md :is(h4, h5, h6) { color: var(--vc-soft); font-size: 13.5px; }
+.vc-md p { margin: 0 0 10px; }
+.vc-md :is(ul, ol) { margin: 0 0 10px; padding-left: 22px; }
+.vc-md li { position: relative; margin: 3px 0; padding-right: 28px; }
+.vc-md li > :is(ul, ol) { margin: 4px 0 0; }
+.vc-md li.vc-task { list-style: none; }
+.vc-md code { padding: 1px 5px; border-radius: 4px; background: var(--vc-code); color: var(--vc-text); font: 12.5px/1.5 var(--vc-mono); }
+.vc-code {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--vc-code);
+  color: var(--vc-text);
+  font: 12.5px/1.5 var(--vc-mono);
+  white-space: pre;
+  overflow-x: auto;
+}
+.vc-md .vc-code code { padding: 0; background: none; }
+.vc-md blockquote { margin: 0 0 10px; padding: 2px 12px; border-left: 3px solid var(--vc-edge); color: var(--vc-soft); }
+.vc-table { margin: 0 0 10px; overflow-x: auto; }
+.vc-md table { border-collapse: collapse; font-size: 12.5px; }
+.vc-md :is(th, td) { padding: 5px 10px; border: 1px solid var(--vc-line); text-align: left; vertical-align: top; }
+.vc-md th { background: #1d2230; color: var(--vc-text); font-weight: 600; }
+.vc-md hr { margin: 14px 0; border: 0; border-top: 1px solid var(--vc-line); }
+.vc-md a { color: var(--vc-link); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.vc-md a:hover { color: #a9c8ff; }
+.vc-box {
+  position: relative;
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  margin: 0 7px 0 -20px;
+  box-sizing: border-box;
+  vertical-align: -2px;
+  border: 1.5px solid #4a5163;
+  border-radius: 3px;
+}
+.vc-box[data-checked] { border-color: var(--vc-ok); background: var(--vc-ok); }
+.vc-box[data-checked]::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 0;
+  width: 3px;
+  height: 7px;
+  border: solid #0e1117;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+/* 💬 : au survol d'un bloc ou d'un élément de liste (le plus profond), sans décaler le texte. */
+.vc-block { position: relative; padding-right: 28px; }
+.vc-quote {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  font-size: 12px;
+  line-height: 20px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s, background-color 0.12s, border-color 0.12s;
+}
+.vc-block:hover > .vc-quote, .vc-md li:hover:not(:has(li:hover)) > .vc-quote, .vc-quote:focus-visible { opacity: 1; }
+.vc-block:has(> .vc-quote):hover, .vc-md li:has(> .vc-quote):hover:not(:has(li:hover)) { border-radius: 4px; background: rgba(255, 255, 255, 0.03); }
+.vc-quote:hover { border-color: var(--vc-edge); background: var(--vc-control); }
+.vc-quote[aria-pressed="true"] { opacity: 1; border-color: var(--vc-edge); background: var(--vc-control); }
+
+/* ---- Zone de commentaire (Relire) ------------------------------------------ */
+.vc-cbox { margin: 8px 0 4px; }
+.vc-cbox textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 64px;
+  padding: 8px 10px;
+  border: 1px solid var(--vc-edge);
+  border-radius: 7px;
+  outline: none;
+  background: var(--vc-code);
+  color: var(--vc-text);
+  font: 13px/1.5 system-ui, sans-serif;
+  resize: vertical;
+}
+.vc-cbox textarea:focus { border-color: color-mix(in srgb, var(--accent) 70%, transparent); }
+.vc-cbox-foot { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.vc-cbox-hint { margin-left: auto; color: var(--vc-faint); font-size: 11.5px; }
+
+/* Le choix du modèle d'une action en sous-contexte : une petite liste à côté de son bouton. */
+.vc-run-group { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.vc-model {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--vc-muted);
+  font: 500 11.5px/1 var(--vc-mono);
+  cursor: pointer;
+}
+.vc-model > span::after { content: ""; display: inline-block; margin-left: 5px; vertical-align: 1px; border: 3.5px solid transparent; border-top-color: currentColor; border-bottom: 0; }
+.vc-model[data-other] { color: var(--vc-text); }
+.vc-model:hover, .vc-model:has(select:focus-visible) { border-color: var(--vc-edge); background: var(--vc-control); color: var(--vc-text); }
+.vc-model:has(select:focus-visible) { outline: 2px solid var(--vc-ring); outline-offset: 1px; }
+.vc-model select { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; color-scheme: dark; font: 12px system-ui, sans-serif; }
+.vc-run-group:has(> button:disabled) .vc-model { opacity: 0.55; }
+.vc-model option { background: var(--vc-editor); color: var(--vc-text); }
+
+/* ---- Conversation (colonne de droite) : celle du mode conversation -------- */
+.vc-conv { position: relative; grid-area: conv; min-width: 0; min-height: 0; display: flex; flex-direction: column; border-left: 1px solid var(--vc-line); background: #171b24; }
+/* La poignée, sur le bord gauche : glisser change la largeur. */
+.vc-resize { position: absolute; z-index: 5; top: 0; bottom: 0; left: -4px; width: 8px; cursor: col-resize; touch-action: none; }
+.vc-resize:hover, .vc-resize:active, .vc-resize:focus-visible { outline: none; background: linear-gradient(90deg, transparent 3px, color-mix(in srgb, var(--accent) 60%, transparent) 3px 5px, transparent 5px); }
+.vc-conv > .vc-band { background: var(--vc-side); }
+/* Ses onglets, Conversation (et son titre) | Tâches : ceux des étapes. */
+.vc-side-tabs { display: flex; min-width: 0; }
+.vc-side-tabs .vc-tab:first-child { flex: 0 1 auto; min-width: 0; }
+.vc-side-tabs .vc-tab[aria-selected="true"] { background: #171b24; }
+.vc-conv-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--vc-muted); font-size: 12px; }
+.vc-conv #body { flex-direction: column; }
+.vc-conv #thread { padding: 14px; }
+.vc-conv .message { max-width: 92%; }
+/* L'onglet Tâches : par-dessus la conversation (qui garde sa place et son défilement). */
+.vc-tasks-tab { position: absolute; z-index: 4; inset: 35px 0 0; display: flex; flex-direction: column; background: var(--vc-side); }
+.vc-conv #tasks { flex: 1 1 auto; min-width: 0; max-width: none; border-left: 0; padding: 12px 16px; }
+.vc-conv #composer { padding: 8px 12px 10px; }
+
+/* ---- Au-dessus du champ : deux petits liens --------------------------------- */
+.vc-skills { flex: none; display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 6px 14px 0; }
+.vc-barlink { padding: 0; border: 0; background: none; color: var(--vc-muted); font: 12px/1.6 system-ui, sans-serif; cursor: pointer; }
+.vc-barlink:hover:not(:disabled) { color: var(--vc-text); text-decoration: underline; text-underline-offset: 2px; }
+.vc-barlink:disabled { color: var(--vc-faint); cursor: default; }
+
+/* ---- Barre d'état -------------------------------------------------------- */
+.vc-status {
+  grid-area: status;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  padding: 0 4px;
+  border-top: 1px solid var(--vc-line);
+  background: var(--vc-side);
+  color: var(--vc-soft);
+  font-size: 12px;
+  overflow: hidden;
+}
+.vc-sitem {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: 12px/1 system-ui, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.vc-sitem:hover, .vc-sitem[aria-pressed="true"] { background: rgba(255, 255, 255, 0.07); color: var(--vc-text); }
+.vc .vc-sitem:focus-visible, .vc-choice:has(select:focus-visible) { outline: 2px solid var(--vc-ring); outline-offset: -2px; }
+.vc-slabel { color: var(--vc-faint); }
+.vc-choice select {
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--vc-text);
+  font: 12px/1 system-ui, sans-serif;
+  cursor: pointer;
+  appearance: none;
+  field-sizing: content;
+  color-scheme: dark;
+}
+.vc-choice option { background: var(--vc-editor); color: var(--vc-text); }
+/* La jauge reprend l'anneau de l'en-tête de la conversation (#context-button), en petit. */
+.vc-status #context-button { height: auto; gap: 6px; padding: 0 9px; border: 0; border-radius: 0; background: transparent; color: inherit; font: 12px/1 system-ui, sans-serif; }
+.vc-status #context-button:hover, .vc-status #context-button[aria-pressed="true"] { background: rgba(255, 255, 255, 0.07); color: var(--vc-text); }
+.vc-status #context-button svg { width: 14px; height: 14px; }
+.vc-sstop { color: var(--vc-text); }
+.vc-sstop:hover { color: #f08a8b; }
+.vc-spacer { flex: 1; }
+.vc-sinfo { flex: none; display: flex; align-items: center; padding: 0 9px; color: var(--vc-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+@keyframes vc-ring {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
+  50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+@keyframes vc-glow { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 10%, transparent); } }
+@keyframes vc-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .vc *, .vc *::before, .vc *::after { animation: none !important; transition: none !important; }
+}
+
+/* ---- Onglet Processus : les commandes du projet ---------------------------- */
+.vc-procs { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 12px 14px; }
+.vc-proc { margin-bottom: 12px; }
+.vc-proc .vc-card-head { gap: 8px; padding-right: 6px; }
+/* Le nom en entier (coupé s'il est vraiment long) ; la commande en petit dessous. */
+.vc-proc-name { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; padding: 4px 0; }
+.vc-proc-run { color: var(--vc-faint); font: 11px/1.4 var(--vc-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vc-proc .vc-card-time { margin-left: 0; }
+.vc-proc .vc-icon { width: 24px; height: 24px; font-size: 13px; line-height: 24px; }
+.vc-proc .vc-icon:disabled { color: var(--vc-faint); opacity: 0.45; cursor: default; background: none; }
+.vc-proc-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--vc-faint); }
+.vc-proc[data-status="running"] .vc-proc-dot { background: var(--vc-ok); }
+.vc-proc[data-status="failed"] .vc-proc-dot { background: #c87070; }
+.vc-proc-log {
+  margin: 0 10px;
+  max-height: 9.6em;
+  overflow: auto;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--vc-code);
+  color: var(--vc-soft);
+  font: 11.5px/1.6 var(--vc-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.vc-proc-log[data-open] { max-height: 420px; }
+.vc-proc-foot { display: flex; gap: 14px; padding: 4px 12px 8px; }
+.vc-procs-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.vc-procs-foot .vc-mini { margin-left: 0; }
+.vc-procs .vc-empty { margin-bottom: 12px; }

@@ -1,6 +1,7 @@
 /** agent-menus — les menus des agents : le clic droit sur un robot (écrire,
- *  ouvrir sur GitHub, dans l'éditeur, couleur, modèle, effort, mode,
- *  conversations, interrompre, nouvelle session, retirer), le « + » (nouvel
+ *  ouvrir sur GitHub, dans l'éditeur, VibeCoder ou la conversation, couleur,
+ *  modèle, effort, mode, conversations, interrompre, nouvelle session,
+ *  retirer), le « + » (nouvel
  *  agent dans un dossier favori ou un autre dossier, avec la question de
  *  confiance, I-23), et le trombone du panneau (fichiers, texte sélectionné).
  *  Ne connaît pas : les pages. Utilisé par : app/ipc. */
@@ -16,7 +17,7 @@ import { readText } from 'technicals/selection';
 import { loadConfig, saveConfig, updateAgent } from 'app/settings';
 import { state } from 'app/state';
 import {
-  agents, CLAUDE_MISSING, ensureFolderColors, isBusy, newAgent, pushAgents, trustFolder,
+  agents, CLAUDE_MISSING, ensureFolderColors, interruptAgent, isBusy, newAgent, pushAgents, setAgentSetting, setAgentView, trustFolder,
 } from 'app/controllers';
 import { conversationFocusInput, openConversation } from 'app/windows';
 
@@ -31,14 +32,10 @@ export function openAgentMenu(id: unknown) {
   const busy = isBusy(agent.id);
   const page = githubPage(agent.dir, read); // relu à chaque clic droit
   const editor = findEditor(loadConfig().editorCommand);
+  // Agent au travail : le tour en cours suit le nouveau mode, le nouveau modèle.
   const radio = (key: 'model' | 'effort' | 'mode', options: [string, string][]) => options.map(([value, label]) => ({
     label, type: 'radio' as const, checked: ((agent as AgentConfig)[key] || options[0][0]) === value,
-    click: () => {
-      updateAgent(agent.id, { [key]: value });
-      // Agent au travail : le tour en cours suit le nouveau réglage.
-      if (key === 'mode') agents.setMode(agent.id, value);
-      if (key === 'model') agents.setModel(agent.id, value);
-    },
+    click: () => setAgentSetting(agent.id, key, value),
   }));
   Menu.buildFromTemplate([
     { label: agent.name, enabled: false },
@@ -48,6 +45,10 @@ export function openAgentMenu(id: unknown) {
       enabled: !!page, click: () => { if (page) shell.openExternal(page); } },
     { label: editor ? `Ouvrir dans l'éditeur (${editor.name})` : 'Ouvrir dans l\'éditeur',
       enabled: !!editor, click: () => editor?.open(agent.dir) },
+    // La vue de cet agent, retenue : le panneau s'ouvre dessus.
+    agent.view === 'vibecoder'
+      ? { label: '💬 Revenir à la conversation', click: () => setAgentView(agent.id, null) }
+      : { label: '◧ Ouvrir VibeCoder', click: () => setAgentView(agent.id, 'vibecoder') },
     { type: 'separator' },
     // Sans parler (micro indisponible, lieu calme) : le champ de son panneau.
     { label: '✎ Écrire un message…', click: () => { openConversation(agent.id); conversationFocusInput(); } },
@@ -65,7 +66,7 @@ export function openAgentMenu(id: unknown) {
     { type: 'separator' },
     { label: 'Dernier échange', enabled: st.hasReply || !!agent.sessionId, click: () => openConversation(agent.id, { mode: 'compact' }) },
     { label: '⤢ Conversation complète (et historique)', click: () => openConversation(agent.id, { mode: 'full' }) },
-    { label: 'Interrompre', enabled: busy, click: () => { agents.interrupt(agent.id); pushAgents(); } },
+    { label: 'Interrompre', enabled: busy, click: () => interruptAgent(agent.id) },
     { label: 'Nouvelle session (effacer le contexte)', click: () => {
       agents.forget(agent.id);
       updateAgent(agent.id, { sessionId: null });
@@ -78,7 +79,8 @@ export function openAgentMenu(id: unknown) {
       saveConfig({
         agents: agentList(cfg).filter((a) => a.id !== agent.id),
         agentSelected: cfg.agentSelected === agent.id ? null : cfg.agentSelected,
-        agentFolders: ensureFolderColors(), // son dossier reste proposé par « + », avec sa couleur
+        // son dossier reste proposé par « + », avec sa couleur ; pas celui du worktree d'une PR (F-110)
+        agentFolders: ensureFolderColors().filter((f) => !(agent.temp && f.dir === agent.dir)),
       });
       pushAgents(); // son panneau, s'il est ouvert, se ferme (cf. refreshConversation)
     } },
