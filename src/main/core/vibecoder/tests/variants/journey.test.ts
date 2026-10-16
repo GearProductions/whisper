@@ -538,3 +538,32 @@ describe('Relire dans un worktree (F-110)', () => {
     expect(vibeView(loaded()).worktree).toBeNull();
   });
 });
+
+describe('rc.10 : GitHub lu par gh, sans agent', () => {
+  const checks = { 'checks.json': out('{"items":[{"name":"tests","ok":true}]}'), 'ponytail.md': out('- rien') };
+  const GH = { number: 31, title: 'G2-1', url: 'https://github.com/o/d/pull/31', state: 'OPEN', base: 'main', head: 'feat/G2-1' };
+
+  it('Créer : une PR pour la branche (gh), sans pr.json : l\'étape PR est faite', () => {
+    const v = vibeView(input({ note, repo: repo([], [FIRST]), outputs: checks, github: { pr: GH } }));
+    expect([status(v).pr, v.pr?.number, v.pr?.base, v.pr?.state]).toEqual(['done', 31, 'main', 'OPEN']);
+  });
+
+  it('Créer : gh sans réponse, pr.json encore lu', () => {
+    const v = vibeView(input({ note, repo: repo([], [FIRST]), outputs: { 'pr.json': out('{"number":9}') }, github: { pr: null } }));
+    expect(v.pr?.number).toBe(9);
+  });
+
+  it('Relire : l\'état de la PR chargée d\'après gh l\'emporte sur sa fiche', () => {
+    const card = JSON.stringify({ number: 12, title: 't', url: 'u', base: 'main', head: 'feat/G2-1', state: 'OPEN' });
+    const v = vibeView(input({ flow: 'review', pr: 12, repo: repo([], [FIRST]), outputs: { 'pr-12.json': out(card) }, github: { state: 'MERGED' } }));
+    expect([v.pr?.state, v.pr?.title]).toEqual(['MERGED', 't']);
+  });
+
+  it('Relire : les PR à relire d\'après gh, avant prs.json', () => {
+    const v = vibeView(input({
+      flow: 'review', repo: null, outputs: { 'prs.json': out('[{"number":1}]') },
+      github: { prs: [{ number: 3, title: 't', author: { login: 'kb' }, url: 'u' }] },
+    }));
+    expect(v.prs).toEqual([{ number: 3, title: 't', author: 'kb', url: 'u' }]);
+  });
+});

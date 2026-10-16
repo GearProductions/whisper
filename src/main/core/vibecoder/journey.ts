@@ -34,6 +34,9 @@ export type JourneyInput = {
   marks: Marks;
   draft: VibeComment[];
   worktree?: VibeWorktree | null;                   // Relire : la PR suivie dans un worktree (F-110)
+  // Lu par gh, sans agent (technicals/github) : Créer, la PR de la branche ; Relire,
+  // les PR à relire et l'état de la PR suivie. Absent ou null : les sorties des skills.
+  github?: { pr?: Record<string, unknown> | null; prs?: unknown[] | null; state?: string | null };
   actions: ActionDef[];
   who: Record<string, string>;                      // par id d'action : qui travaille
   model: Record<string, string | null>;             // par id d'action : le modèle de son skill en sous-contexte (forkedModel)
@@ -158,17 +161,23 @@ export function vibeView(input: JourneyInput): VibeView {
   const warnings = checks?.filter((c) => c?.level === 'warning').length ?? 0;
   const ponytail = out('ponytail.md') !== null;
   const commitMd = out('commit.md') !== null;
-  // Créer : la PR ouverte (pr.json) ; Relire : la PR suivie, avec sa fiche si elle est chargée.
-  const card = json(flow === 'review' ? (n ? out(`pr-${n}.json`) : null) : out('pr.json'));
+  // Créer : la PR de la branche (gh, sinon pr.json) ; Relire : la PR suivie, avec sa fiche si elle est
+  // chargée, et son état d'après gh s'il a répondu.
+  const gh = input.github ?? {};
+  const read = json(flow === 'review' ? (n ? out(`pr-${n}.json`) : null) : out('pr.json'));
+  const card = flow === 'create' ? gh.pr ?? read : read && gh.state ? { ...read, state: gh.state } : read;
   const number = flow === 'review' ? n : prNumber(card?.number);
   const pr: VibePr | null = number ? {
     number, title: str(card?.title), url: str(card?.url), author: str(card?.author), base: str(card?.base), head: str(card?.head),
     body: str(card?.body), state: ['OPEN', 'CLOSED', 'MERGED'].includes(card?.state as string) ? card!.state as VibePr['state'] : null,
   } : null;
   const loaded = flow === 'review' && !!card && repo !== null;
-  const list = flow === 'review' ? json(out('prs.json')) : null;
+  const list = flow === 'review' ? gh.prs ?? json(out('prs.json')) : null;
   const prs: VibePrItem[] | null = Array.isArray(list)
-    ? list.flatMap((p) => (prNumber(p?.number) ? [{ number: p.number, title: str(p.title), author: str(p.author), url: str(p.url) }] : []))
+    ? (list as (Record<string, unknown> | null)[]).flatMap((p) => {
+      const number = prNumber(p?.number);
+      return number ? [{ number, title: str(p!.title), author: str(p!.author), url: str(p!.url) }] : [];
+    })
     : null;
   // Relire : le plan de test, chaque case validée (pour ce plan-là), ou cochée dans le fichier et pas refusée ;
   // Créer : la liste du § A.3, cochée d'après le dépôt quand c'est possible ; sinon à la main (manual) :
@@ -246,6 +255,7 @@ export function vibeView(input: JourneyInput): VibeView {
       revue: !!n && out(`pr-${n}-review.json`) !== null,
     };
     next = {
+      // prs : l'action d'un actions.json retouché d'avant la 0.8.0-rc.10 ; sinon, le bouton de l'écran (gh).
       pr: !n && !prs ? 'prs' : 'load-pr',
       note: note && n && out(`pr-${n}-note.md`) === null ? 'review-note' : null,
       invariants: allRead ? null : 'read-invariants',
