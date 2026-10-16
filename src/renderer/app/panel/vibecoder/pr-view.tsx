@@ -1,4 +1,5 @@
-/** pr-view — l'étape PR (Créer) : la PR ouverte (pr.json : numéro, titre,
+/** pr-view — l'étape PR (Créer) : la PR de la branche (lue par gh, sinon
+ *  pr.json : numéro, titre,
  *  branche et base du dépôt, lien ouvert dans le navigateur) ou l'invitation
  *  à Valider la feature ;
  *  l'état de la CI (ci.md, 💬 par bloc, Relancer) ou Diagnostiquer la CI.
@@ -30,7 +31,7 @@ export function PrView(p: StepProps) {
   const action = (id: string) => view.actions.find((a) => a.id === id);
   const quote = action('comment') ? (text: string) => act.prefill('comment', text) : undefined;
   const ci = view.outputs['ci.md'];
-  // pr.json ne dit pas les branches : celles du dépôt (la base sans « origin/ »).
+  // pr.json ne dit pas les branches (gh, si) : celles du dépôt (la base sans « origin/ »).
   const pr = view.pr && {
     ...view.pr, head: view.pr.head || view.repo?.branch || '', base: view.pr.base || view.repo?.base.replace(/^origin\//, '') || '',
   };

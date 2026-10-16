@@ -1,7 +1,8 @@
 /** pr-picker — l'étape PR (Relire) : un numéro (ou le lien d'une PR) et
  *  Charger ; la PR chargée (titre, auteur, base ← tête, description rendue,
  *  lien), ou celle qu'on suit en attendant d'être chargée ; Mes PR à relire et
- *  leur liste en cartes. Choisir une PR : la suivre (set), puis la charger
+ *  leur liste en cartes (demandée à gh par le principal, sans agent :
+ *  set({ prs })). Choisir une PR : la suivre (set), puis la charger
  *  (load-pr), sans toucher à la copie de travail ; Décharger la PR : ne plus
  *  la suivre (le choix revient). La PR chargée s'ouvre dans un worktree (son
  *  état : en création, ouverte → aller à son robot, ou le proposer à nouveau).
@@ -23,6 +24,8 @@ const fr = {
   notLoadedHint: 'Charger récupère la PR dans une référence locale, sans toucher à la copie de travail.',
   loading: (n: number) => `Chargement de la PR #${n}…`,
   toReview: 'À relire',
+  list: 'Mes PR à relire',
+  listTitle: 'Liste les PR du dépôt dont on vous demande la relecture (gh, sans agent).',
   listHint: 'Mes PR à relire liste celles où votre relecture est demandée.',
   none: 'Aucune PR n\'attend votre relecture.',
   pick: (n: number) => `Suivre et charger la PR #${n}`,
@@ -46,6 +49,8 @@ const S: Record<VibeLang, typeof fr> = {
     notLoadedHint: 'Load fetches the PR into a local ref, without touching the working copy.',
     loading: (n) => `Loading PR #${n}…`,
     toReview: 'To review',
+    list: 'My PRs to review',
+    listTitle: 'Lists the repository\'s PRs where your review is requested (gh, no agent).',
     listHint: 'My PRs to review lists those where your review is requested.',
     none: 'No PR is waiting for your review.',
     pick: (n) => `Follow and load PR #${n}`,
@@ -106,7 +111,8 @@ export function PrPicker(props: StepProps) {
       <div className="vc-pr-list-head">
         <span>{s.toReview}</span>
         {view.prs?.length ? <span className="vc-count">{view.prs.length}</span> : null}
-        <Run a={action('prs')} busy={busy} tone={view.prs ? 'ghost' : 'plain'} onRun={() => act.run('prs')} />
+        <button type="button" className="vc-run" data-tone={view.prs ? 'ghost' : pr ? 'plain' : 'accent'} title={s.listTitle}
+          onClick={() => act.set({ prs: true })}><span className="vc-run-label">{s.list}</span></button>
       </div>
       {!view.prs ? <div className="vc-pr-hint">{s.listHint}</div>
         : !view.prs.length ? <div className="vc-pr-hint">{s.none}</div> : (
