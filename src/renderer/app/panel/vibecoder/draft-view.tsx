@@ -51,7 +51,8 @@ const S: Record<VibeLang, typeof fr> = {
   },
 };
 
-export function DraftView({ view, step, t, act, busy, verdict, onVerdict: setVerdict }: StepProps) {
+export function DraftView(p: StepProps) {
+  const { view, t, act, busy, verdict, onVerdict: setVerdict } = p;
   const s = S[view.lang];
   const [editing, setEditing] = useState<number | null>(null);
   const file = view.pr ? `pr-${view.pr.number}-review.json` : '';
@@ -59,7 +60,7 @@ export function DraftView({ view, step, t, act, busy, verdict, onVerdict: setVer
   const review = out ? parseReview(out.text) : null;
   return (
     <>
-      <StepHead step={step} t={t} />
+      <StepHead p={p} own={['publish']} />
       {out ? (
         <OutputCard className="vc-published" title={s.published} file={file} time={out.time} t={t}
           tools={review?.url ? <button type="button" className="vc-mini" title={`${s.openTitle}\n${review.url}`} onClick={() => act.openLink(review.url!)}>{s.open}</button> : null}>

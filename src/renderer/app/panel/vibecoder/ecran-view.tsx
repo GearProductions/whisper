@@ -2,8 +2,8 @@
  *  (pr-<n>-ecran.md, la liste du relevé), une case par chose à essayer à la
  *  main ; cocher la valide (check:<pr>:<rang>, 'ok'), décocher la refuse
  *  ('ko' : décoche aussi une case cochée dans le fichier). La case suit le
- *  clic aussitôt, le relevé suivant fait foi. Pas de plan : Plan de test à
- *  l'écran.
+ *  clic aussitôt, le relevé suivant fait foi ; Relancer. Pas de plan : Plan
+ *  de test à l'écran.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useState, type CSSProperties } from 'react';
 import type { VibeLang } from 'technicals/bridge';
@@ -13,7 +13,6 @@ import type { StepProps } from './step-views';
 import './ecran-view.css';
 
 const fr = {
-  again: 'Refaire le plan',
   none: 'Pas encore de plan de test',
   noneHint: 'Comment lancer la PR, puis ce qu\'il faut essayer à la main et ce qu\'on doit voir.',
   empty: 'Le plan ne contient aucune case.',
@@ -22,7 +21,6 @@ const fr = {
 const S: Record<VibeLang, typeof fr> = {
   fr,
   en: {
-    again: 'Redo the plan',
     none: 'No test plan yet',
     noneHint: 'How to run the PR, then what to try by hand and what must be seen.',
     empty: 'The plan has no checkbox.',
@@ -30,7 +28,8 @@ const S: Record<VibeLang, typeof fr> = {
   },
 };
 
-export function EcranView({ view, step, t, act, busy }: StepProps) {
+export function EcranView(p: StepProps) {
+  const { view, t, act, busy } = p;
   const s = S[view.lang];
   const action = view.actions.find((a) => a.id === 'screen');
   const n = view.pr?.number;
@@ -47,10 +46,10 @@ export function EcranView({ view, step, t, act, busy }: StepProps) {
   };
   return (
     <>
-      <StepHead step={step} t={t} />
+      <StepHead p={p} own={['screen']} />
       {plan && n ? (
         <OutputCard className="vc-plan" title={t.outputs['pr-#-ecran.md']} file={file} time={plan.time} t={t}
-          tools={<>{boxes.length ? <span className="vc-count">{s.done(ticked, boxes.length)}</span> : null}<Run a={action} busy={busy} tone="ghost" label={s.again} onRun={() => act.run('screen')} /></>}>
+          tools={<>{boxes.length ? <span className="vc-count">{s.done(ticked, boxes.length)}</span> : null}<Run a={action} busy={busy} tone="ghost" label={t.rerun} onRun={() => act.run('screen')} /></>}>
           {boxes.length ? (
             <>
               <div className="vc-plan-bar" style={{ '--done': `${(100 * ticked) / boxes.length}%` } as CSSProperties} />

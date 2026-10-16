@@ -2,7 +2,7 @@
  *  relevé : ✓, ✗, ou « à vérifier » à la main ; pas cliquable) ; les
  *  vérifications de checks.json, une ligne chacune (✓ / ✗, son détail
  *  repliable, déplié en cas d'échec) ; la ponytail review rendue, 💬 par
- *  remarque. Sans sortie : l'action qui la produit.
+ *  remarque. Chaque sortie : Relancer ; sans sortie, l'action qui la produit.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { parseChecks } from 'core/vibecoder';
 import type { VibeLang } from 'technicals/bridge';
@@ -22,7 +22,6 @@ const fr = {
   checksCount: (ok: number, n: number) => (ok === n ? `${n} / ${n} ok` : `${n - ok} en échec`),
   noCommand: 'Aucune commande de vérification trouvée dans le projet.',
   unreadable: 'checks.json illisible : le voici tel quel.',
-  again: 'Relancer',
   noChecks: 'Pas encore de vérification',
   noChecksHint: 'Typage, tests, invariants, lint : les commandes du projet.',
   noPonytail: 'Pas encore de ponytail review',
@@ -41,7 +40,6 @@ const S: Record<VibeLang, typeof fr> = {
     checksCount: (ok, n) => (ok === n ? `${n} / ${n} pass` : `${n - ok} failing`),
     noCommand: 'No check command found in the project.',
     unreadable: 'checks.json is unreadable: here it is as is.',
-    again: 'Run again',
     noChecks: 'No check yet',
     noChecksHint: 'Typecheck, tests, invariants, lint: the project\'s own commands.',
     noPonytail: 'No ponytail review yet',
@@ -51,7 +49,8 @@ const S: Record<VibeLang, typeof fr> = {
 
 const STATE = { true: 'ok', false: 'ko', null: 'manual' } as const;
 
-export function ReviewView({ view, step, t, act, busy }: StepProps) {
+export function ReviewView(p: StepProps) {
+  const { view, t, act, busy } = p;
   const s = S[view.lang];
   const action = (id: string) => view.actions.find((a) => a.id === id);
   const quote = action('comment') ? (text: string) => act.prefill('comment', text) : undefined;
@@ -59,10 +58,10 @@ export function ReviewView({ view, step, t, act, busy }: StepProps) {
   const checks = checksOut ? parseChecks(checksOut.text) : null;
   const passed = checks ? checks.filter((c) => c.ok).length : 0;
   const ponytail = view.outputs['ponytail.md'];
-  const again = (id: string) => <Run a={action(id)} busy={busy} tone="ghost" label={s.again} onRun={() => act.run(id)} />;
+  const again = (id: string) => <Run a={action(id)} busy={busy} tone="ghost" label={t.rerun} onRun={() => act.run(id)} />;
   return (
     <>
-      <StepHead step={step} t={t} />
+      <StepHead p={p} own={['checks', 'ponytail']} />
       {view.checklist.length ? (
         <OutputCard className="vc-a3" title={s.a3} file={s.a3File} t={t}
           tools={<span className="vc-count">{s.a3Count(view.checklist.filter((c) => c.done === true).length, view.checklist.length)}</span>}>

@@ -8,7 +8,8 @@
  *  VibeCoder (son relevé, `conv:vibe`, sur sa conversation en cours) :
  *  l'écran VibeCoder à la place de l'en-tête et du corps, la même
  *  conversation dans sa colonne de droite (affichée ou masquée, sa largeur :
- *  retenues ici, pour tous les agents) ; une action y prend le texte du champ
+ *  retenues ici, pour tous les agents), le volet des tâches dans son onglet
+ *  Tâches ; une action y prend le texte du champ
  *  s'il lui en faut un (vidé une fois parti), ou y prépare un message.
  *  La colle : seul fichier du panneau qui connaît le pont (window.conv) ; il
  *  tient le brouillon de chaque conversation.
@@ -269,7 +270,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
       <main id="thread" className="scroll" ref={el.thread}>
         {data ? <ThreadContent key={data.key} data={data} act={act} /> : null}
       </main>
-      {tasksOpen && data?.tasks ? <TasksPane tasks={data.tasks} onOpenLink={conv.openLink} onShowFile={conv.showFile} /> : null}
+      {tasksOpen && data?.tasks && !vibeShown ? <TasksPane tasks={data.tasks} onOpenLink={conv.openLink} onShowFile={conv.showFile} /> : null}
       <HistoryList open={overlay === 'history'} sessions={sessions} onOpen={(id) => { setOverlay('none'); conv.open(id); }} />
       <ContextDetail open={overlay === 'context'} probe={probe} ref={el.context}
         canCompact={live && !isBusy(data!.status)}
@@ -294,6 +295,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
       className={dragging ? 'dragging' : undefined} style={data ? { '--accent': data.color } as CSSProperties : undefined}>
       {vibeShown && data ? (
         <VibeCoder key={vibeShown.agentId} view={vibeShown} thread={data} act={vibeAct} tasksOpen={tasksOpen}
+          tasks={<TasksPane tasks={data.tasks ?? []} onOpenLink={conv.openLink} onShowFile={conv.showFile} />}
           contextOpen={overlay === 'context'} onGauge={toggleContext} onTasks={toggleTasks} onHide={() => conv.hide()}
           side={vibeSide} onSide={setVibeSide}>
           {noticeBar}

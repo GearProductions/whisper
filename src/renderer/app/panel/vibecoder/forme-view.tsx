@@ -54,14 +54,15 @@ const S: Record<VibeLang, typeof fr> = {
   },
 };
 
-export function FormeView({ view, step, t, act, busy }: StepProps) {
+export function FormeView(p: StepProps) {
+  const { view, t, act, busy } = p;
   const s = S[view.lang];
   const { note, modules } = view;
   const groups = groupModules(modules);
   const quote = view.actions.some((a) => a.id === 'comment') ? (text: string) => act.prefill('comment', text) : undefined;
   return (
     <>
-      <StepHead step={step} t={t}>
+      <StepHead p={p} own={note && !modules.length ? ['forme'] : []}>
         {view.agent.model !== 'fable' ? <FablePill lang={view.lang} onPick={() => act.set({ model: 'fable', effort: 'high' })} /> : null}
       </StepHead>
       {!note || !modules.length ? (

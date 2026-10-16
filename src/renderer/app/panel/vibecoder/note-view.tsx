@@ -7,7 +7,7 @@
  *  ouvre sous le bloc une zone de commentaire, pour le brouillon de revue ;
  *  ✗ sur la note aussi, sous son en-tête). En tête : son chemin, Ouvrir, sa
  *  validation, la pastille Fable (Créer). Au-dessus, Créer : les questions ouvertes
- *  (questions-view) ; Relire : la relecture de la note par l'agent. Pas de
+ *  (questions-view) ; Relire : la relecture de la note par l'agent (Relancer). Pas de
  *  note : ce qu'il faut faire pour en avoir une.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useMemo, useState } from 'react';
@@ -67,7 +67,8 @@ const S: Record<VibeLang, typeof fr> = {
   },
 };
 
-export function NoteView({ view, step, t, act, busy, answers, onAnswer }: StepProps) {
+export function NoteView(p: StepProps) {
+  const { view, t, act, busy, answers, onAnswer } = p;
   const s = S[view.lang];
   const { note } = view;
   const review = view.flow === 'review';
@@ -97,12 +98,13 @@ export function NoteView({ view, step, t, act, busy, answers, onAnswer }: StepPr
 
   return (
     <>
-      <StepHead step={step} t={t}>
+      <StepHead p={p} own={['answers', ...(note ? [] : ['note']), ...(output ? ['review-note'] : [])]}>
         {!review && view.agent.model !== 'fable' ? <FablePill lang={view.lang} onPick={() => act.set({ model: 'fable', effort: 'high' })} /> : null}
       </StepHead>
       {!review && view.questions.length ? <QuestionsView view={view} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} /> : null}
       {output ? (
-        <OutputCard title={t.outputs['pr-#-note.md']} file={`pr-${view.pr!.number}-note.md`} time={output.time} t={t}>
+        <OutputCard title={t.outputs['pr-#-note.md']} file={`pr-${view.pr!.number}-note.md`} time={output.time} t={t}
+          tools={<Run a={view.actions.find((a) => a.id === 'review-note')} busy={busy} tone="ghost" label={t.rerun} onRun={() => act.run('review-note')} />}>
           <MarkdownView md={output.text} t={t} onOpenLink={act.openLink} onQuote={quote} onComment={comment} />
         </OutputCard>
       ) : null}

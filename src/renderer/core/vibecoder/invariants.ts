@@ -2,7 +2,8 @@
  *  avec sa lecture en pseudo-code (par son titre, sinon à son rang) et sa
  *  validation, sa ligne dans le fichier ; ce qui est validé, refusé, à lire, avec un point d'attention,
  *  et si « Tout valider » est permis ; le pseudo-code ligne à ligne, coloré,
- *  ses assertions et ses « étant donné / quand / alors » repérés.
+ *  ses assertions et ses « given / when / then » repérés — en tête de ligne
+ *  (`test "…":`, la forme des lectures) ou en commentaire (`it(…)`, l'ancienne).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder (invariants-view). */
 import type { ReadingCase, VibeMarkState, VibeTestFile } from 'technicals/bridge';
 import { tokens, type Token } from './highlight';
@@ -46,10 +47,12 @@ export function progress(files: VibeTestFile[]): Progress {
 }
 
 export type PseudoPart = { kind: Token['kind'] | 'step'; text: string };   // step : « étant donné », « quand », « alors »
-export type PseudoLine = { parts: PseudoPart[]; assert: boolean };          // assert : la ligne commence par expect
+export type PseudoLine = { parts: PseudoPart[]; assert: boolean };          // assert : expect…, ou une ligne then (et ses and / but)
 
 const STEP = /^(\/\/\s*)((?:étant donnée?s?|quand|alors|given|when|then)(?=[\s:]|$)(?:\s*:)?)/iu;
 const ASSERT = /^\s*(?:await\s+)?expect\b/;
+const LEAD = /^(\s*)(test|given|when|then|and|but)\b/i;   // le mot qui ouvre une ligne de la forme `test "…":`
+const PROSE = /^\s*test\s+"[^\n]*:\s*$/m;                 // un cas `test "…":` (sinon l'ancienne forme, it(…) { … })
 
 // Le pseudo-code en lignes de morceaux colorés (tokens), bout à bout le code tel quel.
 export function pseudoLines(code: string): PseudoLine[] {
@@ -63,8 +66,19 @@ export function pseudoLines(code: string): PseudoLine[] {
       else line.push({ kind: tok.kind, text });
     });
   }
+  // La forme `test "…":` est de la prose : ses mots ne sont pas des mots-clés (of, in, it…), sauf celui qui ouvre la ligne.
+  const prose = PROSE.test(code);
+  let phase = '';
   return lines.map((parts) => {
-    const kept = parts.filter((p) => p.text);
-    return { parts: kept, assert: ASSERT.test(kept.map((p) => p.text).join('')) };
+    let kept = parts.filter((p) => p.text).map((p) => (prose && p.kind === 'keyword' ? { kind: 'text' as const, text: p.text } : p));
+    const first = kept[0];
+    const m = first?.kind === 'text' ? LEAD.exec(first.text) : null;
+    if (m) {
+      const word = m[2].toLowerCase();
+      if (word !== 'and' && word !== 'but') phase = word;
+      kept = [{ kind: 'text' as const, text: m[1] }, { kind: word === 'test' ? 'keyword' as const : 'step' as const, text: m[2] },
+        { kind: 'text' as const, text: first.text.slice(m[0].length) }, ...kept.slice(1)].filter((p) => p.text);
+    }
+    return { parts: kept, assert: ASSERT.test(kept.map((p) => p.text).join('')) || (!!m && phase === 'then') };
   });
 }

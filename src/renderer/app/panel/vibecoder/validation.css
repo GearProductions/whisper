@@ -87,8 +87,3 @@
 .vc-fable > span:first-child { font-size: 11px; }
 .vc-fable:hover { border-color: #c4a7ff; background: color-mix(in srgb, #c4a7ff 18%, transparent); }
 .vc-fable-cost { padding: 2px 7px; border-radius: 9px; background: rgba(255, 255, 255, 0.07); color: var(--vc-muted); font-size: 10.5px; }
-
-/* Prochaine étape : la validation au format du bouton principal, en vert discret. */
-.vc-primary.vc-await:not([data-kind="cases"]) { border-color: color-mix(in srgb, var(--vc-ok) 55%, transparent); background: color-mix(in srgb, var(--vc-ok) 14%, var(--vc-control)); color: #8fdc9c; }
-.vc-primary.vc-await:not([data-kind="cases"]):hover { border-color: var(--vc-ok); background: color-mix(in srgb, var(--vc-ok) 24%, var(--vc-control)); }
-.vc-await-here { color: var(--vc-soft); }

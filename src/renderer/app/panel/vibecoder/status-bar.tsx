@@ -1,6 +1,6 @@
 /** status-bar — la barre d'état de VibeCoder : modèle, effort et mode de
  *  l'agent (une liste chacun, comme son menu), jauge du contexte (clic : le
- *  détail), ⚙ Tâches (le volet, dans la colonne de la conversation), ⏹
+ *  détail), ⚙ Tâches (l'onglet Tâches de la colonne de droite), ⏹
  *  Arrêter quand l'agent travaille, fichiers modifiés, heure du dernier
  *  relevé.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
@@ -36,7 +36,7 @@ export function StatusBar({ view, thread, t, busy, tasksOpen, contextOpen, onSet
         {g.level === 'unknown' ? t.context : `${t.context} ${g.pct} %`}
       </button>
       <button type="button" className="vc-sitem" title={t.tasksTitle} aria-pressed={tasksOpen} onClick={onTasks}>
-        {`⚙ ${t.tasks}${running ? ` (${running})` : ''}`}
+        {`⚙ ${t.tasksOf(running)}`}
       </button>
       {busy ? <button type="button" className="vc-sitem vc-sstop" title={t.stopTitle} onClick={() => onSet({ interrupt: true })}>{t.stop}</button> : null}
       <span className="vc-spacer" />

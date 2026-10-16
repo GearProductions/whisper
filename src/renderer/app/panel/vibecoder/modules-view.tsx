@@ -1,6 +1,6 @@
 /** modules-view — l'étape Modules (Créer). En tête, le commit proposé
- *  (commit.md : le message tel qu'il sera commité ; ✓ Commiter, 💬) et la
- *  relecture du dernier diff (review.md, 💬 par bloc). Puis une ligne par
+ *  (commit.md : le message tel qu'il sera commité ; ✓ Commiter, 💬, Relancer)
+ *  et la relecture du dernier diff (review.md, 💬 par bloc, Relancer). Puis une ligne par
  *  module de la Forme : point plein s'il est touché (vert : commité ; accent :
  *  modifié, pas encore commité), anneau sinon ; nom en gras, dossier atténué,
  *  contrat ; les commits qui le touchent en puces (un clic : son diff dans
@@ -53,7 +53,8 @@ const S: Record<VibeLang, typeof fr> = {
 
 const stateOf = (m: VibeModule): State => (m.commits.length ? 'done' : m.touched ? 'wip' : 'todo');
 
-export function ModulesView({ view, step, t, act, busy }: StepProps) {
+export function ModulesView(p: StepProps) {
+  const { view, t, act, busy } = p;
   const s = S[view.lang];
   const action = (id: string) => view.actions.find((a) => a.id === id);
   const quote = action('comment') ? (text: string) => act.prefill('comment', text) : undefined;
@@ -64,11 +65,16 @@ export function ModulesView({ view, step, t, act, busy }: StepProps) {
   const reviewDiff = action('review-diff');
   return (
     <>
-      <StepHead step={step} t={t} />
+      <StepHead p={p} own={[...(commit ? ['commit', 'commit-prepare'] : []), ...(review ? ['review-diff'] : [])]} />
       {commit ? (
         <OutputCard className="vc-proposed" title={t.outputs['commit.md']} file="commit.md" time={commit.time} t={t}
-          tools={quote ? <button type="button" className="vc-tool" title={s.quoteCommit} aria-label={s.quoteCommit}
-            onClick={() => quote(commit.text.trim().split('\n')[0])}>💬</button> : null}>
+          tools={(
+            <>
+              {quote ? <button type="button" className="vc-tool" title={s.quoteCommit} aria-label={s.quoteCommit}
+                onClick={() => quote(commit.text.trim().split('\n')[0])}>💬</button> : null}
+              <Run a={action('commit-prepare')} busy={busy} tone="ghost" label={t.rerun} onRun={() => act.run('commit-prepare')} />
+            </>
+          )}>
           <pre className="vc-commit-msg">{commit.text.trim()}</pre>
           <div className="vc-commit-foot">
             <Run a={action('commit')} busy={busy} tone="accent" onRun={() => act.run('commit')} />
@@ -77,7 +83,8 @@ export function ModulesView({ view, step, t, act, busy }: StepProps) {
         </OutputCard>
       ) : null}
       {review ? (
-        <OutputCard className="vc-diff-review" title={t.outputs['review.md']} file="review.md" time={review.time} t={t}>
+        <OutputCard className="vc-diff-review" title={t.outputs['review.md']} file="review.md" time={review.time} t={t}
+          tools={<Run a={reviewDiff} busy={busy} tone="ghost" label={t.rerun} onRun={() => act.run('review-diff')} />}>
           <MarkdownView md={review.text} t={t} onOpenLink={act.openLink} onQuote={quote} />
         </OutputCard>
       ) : null}

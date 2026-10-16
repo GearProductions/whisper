@@ -1,8 +1,9 @@
 /** validation — ce que l'étape en cours attend de l'utilisateur quand il n'y a
- *  rien à lancer : valider la note, la forme, ou les cas d'invariants lus.
+ *  rien à lancer : valider la note, la forme, ou les cas d'invariants lus
+ *  (l'écran n'en montre plus que les cas : la note et la forme ont leur ✓).
  *  Créer en Guide : la validation (✓) ; en Vibe, rien. Relire : un verdict
  *  (✓ ou ✗) sur la note et sur chaque cas lu.
- *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder (vibe-coder, validation). */
+ *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder (invariants-view : les cas à valider). */
 import type { VibeMarkState, VibeView } from 'technicals/bridge';
 
 export type Awaiting = { kind: 'note' } | { kind: 'forme' } | { kind: 'cases'; count: number };

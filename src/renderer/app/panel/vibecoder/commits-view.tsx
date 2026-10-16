@@ -4,8 +4,8 @@
  *  (pr-<n>-commits.md), ses remarques sous le commit qu'elles visent, et ses
  *  autres rubriques (l'ensemble…) en tête. 💬 sur une carte : une zone de
  *  commentaire sous elle, la remarque va au brouillon de revue pour ce
- *  commit ; la carte compte celles qui y sont déjà. Relire les commits (IA)
- *  reste un bouton de l'en-tête.
+ *  commit ; la carte compte celles qui y sont déjà. Relire les commits (IA,
+ *  puis Relancer) reste un bouton de l'en-tête.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useState, type ReactNode } from 'react';
 import { commitReviews, remark, type Strings } from 'core/vibecoder';
@@ -20,7 +20,6 @@ const fr = {
   general: 'Ensemble des commits',
   toDraft: 'Une remarque sur ce commit, au brouillon de revue',
   inDraft: (n: number) => (n > 1 ? `${n} remarques au brouillon` : '1 remarque au brouillon'),
-  again: 'Relire de nouveau',
   none: 'Aucun commit dans cette PR.',
 };
 const S: Record<VibeLang, typeof fr> = {
@@ -29,12 +28,12 @@ const S: Record<VibeLang, typeof fr> = {
     general: 'All commits',
     toDraft: 'A remark on this commit, to the review draft',
     inDraft: (n) => (n > 1 ? `${n} remarks in the draft` : '1 remark in the draft'),
-    again: 'Review again',
     none: 'No commit in this PR.',
   },
 };
 
-export function CommitsView({ view, step, t, act, busy }: StepProps) {
+export function CommitsView(p: StepProps) {
+  const { view, t, act, busy } = p;
   const s = S[view.lang];
   const action = view.actions.find((a) => a.id === 'review-commits');
   const file = view.pr ? `pr-${view.pr.number}-commits.md` : '';
@@ -42,14 +41,14 @@ export function CommitsView({ view, step, t, act, busy }: StepProps) {
   const { byHash, others } = commitReviews(out?.text ?? '', view.commits);
   return (
     <>
-      <StepHead step={step} t={t}>
+      <StepHead p={p} own={['review-commits']}>
         {out ? (
           <span className="vc-out-meta">
             <span className="vc-mono">{file}</span>
             <span title={new Date(out.time).toLocaleString(t.locale)}>{t.ago(Date.now() - out.time)}</span>
           </span>
         ) : null}
-        <Run a={action} busy={busy} tone={out ? 'ghost' : 'plain'} label={out ? s.again : undefined} onRun={() => act.run('review-commits')} />
+        <Run a={action} busy={busy} tone={out ? 'ghost' : 'plain'} label={out ? t.rerun : undefined} onRun={() => act.run('review-commits')} />
       </StepHead>
       {others.map((sec, i) => (
         <Commented key={`o${i}`} target={sec.title || s.general} title={sec.title || s.general} s={s} t={t} act={act} draft={view.draft}>

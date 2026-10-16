@@ -1,16 +1,19 @@
-/** step-parts — les pièces des vues d'étape Modules, Revue, PR (Créer) et PR,
- *  Commits, À l'écran, Revue (Relire) : l'en-tête d'étape (nom, état, faits,
- *  outils à droite), la carte d'une sortie de skill (titre, fichier, depuis
- *  quand), le bouton d'une action du relevé (son libellé ou un plus court, qui
+/** step-parts — les pièces des vues d'étape : l'en-tête d'étape (nom, état,
+ *  faits, outils à droite, et dessous la rangée des actions de l'étape — celle
+ *  que le guide fait faire ensuite mise en avant, et elle seule d'une autre
+ *  étape quand celle-ci est en cours —, sauf celles que la vue montre
+ *  elle-même), la carte d'une sortie de skill (titre, fichier, depuis quand),
+ *  le bouton d'une action du relevé (son libellé ou un plus court, qui
  *  travaille ou le choix du modèle, pourquoi c'est grisé ; absent si l'action
  *  n'existe pas), l'invitation (rien encore, et ce qui le produit), la carte
  *  d'une PR, le bandeau du mode Vibe, celui d'une PR fusionnée ou fermée.
  *  Ne connaît pas : le pont (rappels passés).
- *  Utilisé par : modules-view, review-view, pr-view, pr-picker, commits-view, ecran-view, draft-view ; vibe-coder (bandeaux). */
+ *  Utilisé par : les vues d'étape ; vibe-coder (bandeaux). */
 import type { ReactNode } from 'react';
 import { webUrl, type Strings } from 'core/vibecoder';
-import type { VibeAction, VibeLang, VibePr, VibeStep } from 'technicals/bridge';
+import type { VibeAction, VibeLang, VibePr } from 'technicals/bridge';
 import { ModelPick } from './model-pick';
+import type { StepProps } from './step-views';
 import './step-parts.css';
 
 const fr = {
@@ -29,13 +32,27 @@ const S: Record<VibeLang, typeof fr> = {
   },
 };
 
-export function StepHead({ step, t, children }: { step: VibeStep; t: Strings; children?: ReactNode }) {
+// Une action qui cite ({{quote}}) part d'un bloc ou d'un cas, pas d'un bouton à elle.
+const cites = (a: VibeAction) => a.kind === 'prefill' && !!a.text?.includes('{{quote}}');
+
+// L'en-tête d'une étape ; `own` : les actions que la vue montre elle-même (pas répétées ici).
+export function StepHead({ p, own = [], children }: { p: StepProps; own?: string[]; children?: ReactNode }) {
+  const { view, step, t, act, busy } = p;
+  const current = step.status === 'current';
+  const acts = view.actions
+    .filter((a) => (a.step === step.id || (a.primary && current)) && !cites(a) && !own.includes(a.id))
+    .sort((a, b) => Number(b.primary && current) - Number(a.primary && current));
   return (
     <div className="vc-step-head">
       <h2>{t.steps[step.id]}</h2>
       <span className="vc-badge" data-status={step.status}>{t.stepStatus[step.status]}</span>
       {step.facts ? <span className="vc-facts">{step.facts}</span> : null}
       {children ? <div className="vc-step-tools">{children}</div> : null}
+      {acts.length ? (
+        <div className="vc-step-acts">
+          {acts.map((a) => <Run key={a.id} a={a} busy={busy} tone={a.primary && current ? 'accent' : 'plain'} onRun={() => act.run(a.id)} />)}
+        </div>
+      ) : null}
     </div>
   );
 }

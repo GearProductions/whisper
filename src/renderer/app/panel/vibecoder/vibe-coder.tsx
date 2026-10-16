@@ -2,40 +2,40 @@
  *  corps du panneau : en-tête (agent — sa couleur, seule touche de couleur
  *  avec Envoyer —, branche, Créer / Relire, Guide / Vibe, langue, relevé,
  *  conversation affichée ou masquée, retour à la conversation, fermer) ; le
- *  parcours à gauche ; au centre, les onglets des étapes, l'étape choisie
- *  (step-views ; en Vibe, un bandeau le rappelle en haut ; Relire, une PR
- *  fusionnée ou fermée aussi) et la prochaine étape ; à droite, la
- *  conversation (reçue en children), masquable, sa largeur à la poignée
- *  (300 px → 60 %) ; la barre d'état en bas. Ctrl+1…6 ouvrent les étapes.
- *  Une vue d'étape qui échoue ne fait tomber ni l'écran ni le brouillon
- *  (I-29). Il tient les réponses en cours aux questions ouvertes (celles que
- *  la prochaine étape envoie aussi), le modèle choisi par action (envoyé
- *  s'il n'est pas le conseillé) ; rien à lancer et une validation attendue :
- *  la prochaine étape la propose. Préparer un message dans le champ, ou une
- *  action qui exige son texte, réaffiche la conversation masquée.
+ *  parcours à gauche (il dit où l'on en est) ; au centre, les onglets des
+ *  étapes, l'étape choisie (step-views : son en-tête porte ses actions ; en
+ *  Vibe, un bandeau le rappelle en haut ; Relire, une PR fusionnée ou fermée
+ *  aussi) ; à droite, en onglets, la conversation (reçue en children) ou les
+ *  tâches de fond (`tasks`, le nombre en cours dans l'onglet), masquable, sa
+ *  largeur à la poignée (300 px → 60 %) ; la barre d'état en bas (son ⚙
+ *  Tâches ouvre l'onglet). Ctrl+1…6 ouvrent les étapes. Une vue d'étape qui
+ *  échoue ne fait tomber ni l'écran ni le brouillon (I-29). Il tient les
+ *  réponses en cours aux questions ouvertes, le verdict de la revue (Relire),
+ *  le modèle choisi par action (envoyé s'il n'est pas le conseillé).
+ *  Préparer un message dans le champ, ou une action qui exige son texte,
+ *  réaffiche la conversation (colonne masquée, ou onglet Tâches).
  *  Ne connaît pas : le pont (rappels passés), le contenu de la conversation.
  *  Utilisé par : panel-app. */
 import { Component, useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { isBusy, titleOf } from 'core/conversation';
-import { answersOf, awaiting, convWidth, modelArg, t as strings, type Answers, type ModelPicks, type Strings } from 'core/vibecoder';
+import { convWidth, modelArg, t as strings, type Answers, type ModelPicks, type Strings } from 'core/vibecoder';
 import type { Thread, VibeLang, VibeStepId, VibeView } from 'technicals/bridge';
 import { Journey } from './journey';
 import { Picks } from './model-pick';
-import { NextStep } from './next-step';
 import { StatusBar } from './status-bar';
 import { ClosedBanner, VibeBanner } from './step-parts';
 import { STEP_VIEWS, type StepProps, type VibeActs } from './step-views';
-import { AwaitValidation } from './validation';
 import './vibecoder.css';
 
 type Props = {
   view: VibeView;
   thread: Thread;              // la conversation en cours de l'agent : nom, état, contexte, tâches
   act: VibeActs;
-  tasksOpen: boolean;
+  tasks: ReactNode;            // le volet des tâches de fond (onglet Tâches de la colonne de droite)
+  tasksOpen: boolean;          // l'onglet Tâches est choisi
   contextOpen: boolean;
   onGauge(): void;             // le détail du contexte, sur la conversation
-  onTasks(): void;             // le volet des tâches, dans la conversation
+  onTasks(): void;             // Conversation ↔ Tâches
   onHide(): void;
   side: Side;                  // la colonne de la conversation : affichée, sa largeur (panel-app la retient)
   onSide(side: Side): void;
@@ -44,7 +44,7 @@ type Props = {
 
 export type Side = { open: boolean; width: number };
 
-export function VibeCoder({ view, thread, act: given, tasksOpen, contextOpen, onGauge, onTasks, onHide, side, onSide, children }: Props) {
+export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextOpen, onGauge, onTasks, onHide, side, onSide, children }: Props) {
   const t = strings(view.lang);
   const [picked, setPicked] = useState<VibeStepId | null>(null);
   const { steps } = view;
@@ -55,7 +55,13 @@ export function VibeCoder({ view, thread, act: given, tasksOpen, contextOpen, on
   const onAnswer: StepProps['onAnswer'] = (q, a) => setAnswers((all) => ({ ...all, [q]: a }));
   const [picks, setPicks] = useState<ModelPicks>({});
   const root = useRef<HTMLDivElement>(null);
-  const show = () => { if (!side.open) onSide({ ...side, open: true }); };
+  const show = () => { if (!side.open) onSide({ ...side, open: true }); if (tasksOpen) onTasks(); };
+  // ⚙ Tâches (barre d'état) : la colonne masquée s'affiche sur l'onglet Tâches ; sinon, l'onglet bascule.
+  const toggleTasks = () => {
+    if (side.open) onTasks();
+    else { onSide({ ...side, open: true }); if (!tasksOpen) onTasks(); }
+  };
+  const running = thread.tasks?.filter((x) => x.status === 'running').length || 0;
   // Les rappels, avec le modèle choisi (s'il n'est pas le conseillé) ; ce qui passe par le champ le réaffiche.
   const act: VibeActs = {
     ...given,
@@ -67,13 +73,8 @@ export function VibeCoder({ view, thread, act: given, tasksOpen, contextOpen, on
     },
     prefill: (id, quote) => { show(); given.prefill(id, quote); },
   };
-  // « Envoyer les réponses » de la prochaine étape : les réponses en cours, comme le bouton des questions.
-  // Le verdict de la revue (Relire), tenu ici comme les réponses : le bouton de la
-  // prochaine étape publie celui que l'utilisateur a choisi dans l'étape.
+  // Le verdict de la revue (Relire), tenu ici comme les réponses : il survit à un changement d'onglet.
   const [verdict, setVerdict] = useState<StepProps['verdict']>('comment');
-  const run = (id: string) => (id === 'answers' ? act.run(id, { answers: answersOf(view.questions, answers, view.lang) })
-    : id === 'publish' ? act.run(id, { verdict }) : act.run(id));
-  const wait = awaiting(view);
 
   // Ctrl+1…6 : par la touche (sur un clavier AZERTY, le chiffre est sous Maj).
   useEffect(() => {
@@ -109,18 +110,22 @@ export function VibeCoder({ view, thread, act: given, tasksOpen, contextOpen, on
             {view.flow === 'review' ? <ClosedBanner pr={view.pr} t={t} /> : null}
             {step && View ? <Guard t={t}><View view={view} step={step} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} verdict={verdict} onVerdict={setVerdict} /></Guard> : null}
           </div>
-          <NextStep actions={view.actions} step={step && step.id} t={t} busy={busy} asking={thread.status === 'asking'}
-            onRun={run} onPick={setPicked} onStop={() => act.set({ interrupt: true })}
-            idle={wait ? <AwaitValidation wait={wait} review={view.flow === 'review'} lang={view.lang} shown={step && step.id}
-              onMark={(target) => act.mark(target, 'ok')} onPick={setPicked} /> : null} />
         </section>
         <section className="vc-conv" aria-label={t.conversation}>
           <Resizer t={t} side={side} root={root} onSide={onSide} />
-          <div className="vc-side-title vc-band"><span>{t.conversation}</span><span className="vc-conv-name">{titleOf(thread)}</span></div>
+          <div className="vc-side-tabs vc-band" role="tablist">
+            <button type="button" role="tab" className="vc-tab" aria-selected={!tasksOpen} title={titleOf(thread)} onClick={() => { if (tasksOpen) onTasks(); }}>
+              {t.conversation}<span className="vc-conv-name">{titleOf(thread)}</span>
+            </button>
+            <button type="button" role="tab" className="vc-tab" aria-selected={tasksOpen} title={t.tasksTitle} onClick={() => { if (!tasksOpen) onTasks(); }}>
+              {t.tasksOf(running)}
+            </button>
+          </div>
           {children}
+          {tasksOpen ? <div className="vc-tasks-tab" role="tabpanel">{tasks}</div> : null}
         </section>
         <StatusBar view={view} thread={thread} t={t} busy={busy} tasksOpen={tasksOpen} contextOpen={contextOpen}
-          onSet={act.set} onGauge={onGauge} onTasks={onTasks} />
+          onSet={act.set} onGauge={onGauge} onTasks={toggleTasks} />
       </div>
     </Picks.Provider>
   );

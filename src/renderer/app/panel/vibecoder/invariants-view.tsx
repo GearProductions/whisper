@@ -7,12 +7,13 @@
  *  cas dans le champ (Relire : ils ouvrent sous la carte une zone de
  *  commentaire, pour le brouillon de revue, le cas en cible). Par fichier : sa
  *  progression, « Tout valider » quand chaque cas est lu sans point
- *  d'attention ; pas lu : ses cas et « Lire en pseudo-code ». En tête : le
- *  résumé de l'étape, ce que veut dire « Attention » (s'il y en a),
- *  l'alignement (align.md).
+ *  d'attention, « Relire » (refaire sa lecture) ; pas lu : ses cas et « Lire
+ *  en pseudo-code ». En tête : « Tout relire », le résumé de l'étape, les cas
+ *  à valider, ce que veut dire « Attention » (s'il y en a), l'alignement
+ *  (align.md, Relancer).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useMemo, useState } from 'react';
-import { caseLine, casesOf, excerpt, fileParts, progress, pseudoLines, remark, type CaseView, type Progress, type Strings } from 'core/vibecoder';
+import { awaiting, caseLine, casesOf, excerpt, fileParts, progress, pseudoLines, remark, type CaseView, type Progress, type Strings } from 'core/vibecoder';
 import type { VibeLang, VibeTestFile } from 'technicals/bridge';
 import { CommentBox } from './comment-box';
 import { InlineMd, MarkdownView } from './markdown-view';
@@ -42,7 +43,10 @@ const fr = {
   quote: 'Citer ce cas dans le champ',
   quoteReview: 'Une remarque sur ce cas, au brouillon de revue',
   unreadText: (n: number) => `${n} cas, pas encore lu${n > 1 ? 's' : ''} en pseudo-code (ou le fichier a changé depuis la lecture).`,
-  noReading: 'Pas de lecture pour ce cas (son titre a pu changer) : relancez « Lire en pseudo-code ».',
+  noReading: 'Pas de lecture pour ce cas (son titre a pu changer) : « Relire » le fichier.',
+  reread: 'Relire',
+  rereadAll: 'Tout relire',
+  casesHere: (n: number) => `${n} cas à valider : ✓ ou ✗ sur chaque carte, ou « Tout valider » sur un fichier sans point d'attention.`,
   noTests: 'Aucun test d\'invariant sur la branche',
   noTestsText: ' « Écrire les invariants (rouges) » les écrit d\'après les lignes « → invariant » de la note ; ou dictez du pseudo-code dans le champ, il est traduit dans le langage du projet.',
   noTestsReview: 'Aucun test d\'invariant dans cette PR',
@@ -71,7 +75,10 @@ const S: Record<VibeLang, typeof fr> = {
     quote: 'Quote this case in the field',
     quoteReview: 'A remark on this case, to the review draft',
     unreadText: (n) => `${n} case${n === 1 ? '' : 's'}, not read as pseudo-code yet (or the file changed since the reading).`,
-    noReading: 'No reading for this case (its title may have changed): run « Read as pseudo-code » again.',
+    noReading: 'No reading for this case (its title may have changed): « Read again » the file.',
+    reread: 'Read again',
+    rereadAll: 'Read all again',
+    casesHere: (n) => `${n} case${n > 1 ? 's' : ''} to approve: ✓ or ✗ on each card, or « Approve all » on a file with no warning.`,
     noTests: 'No invariant test on the branch',
     noTestsText: ' « Write the invariants (red) » writes them from the note\'s « → invariant » lines; or dictate pseudo-code in the field, it is translated into the project\'s language.',
     noTestsReview: 'No invariant test in this PR',
@@ -81,8 +88,12 @@ const S: Record<VibeLang, typeof fr> = {
 type Labels = typeof fr;
 type Verdict = 'ok' | 'ko' | null;
 
-export function InvariantsView({ view, step, t, act, busy }: StepProps) {
+export function InvariantsView(props: StepProps) {
+  const { view, t, act, busy } = props;
   const s = S[view.lang];
+  const read = view.actions.find((a) => a.id === 'read-invariants');
+  const alignAction = view.actions.find((a) => a.id === 'align');
+  const wait = awaiting(view);
   const review = view.flow === 'review';
   const total = progress(view.invariants);
   const align = view.outputs['align.md'];
@@ -96,7 +107,12 @@ export function InvariantsView({ view, step, t, act, busy }: StepProps) {
   const commentAlign = review ? (q: string, text: string) => act.draft({ add: remark(`align: ${excerpt(q, 80)}`, text) }) : undefined;
   return (
     <>
-      <StepHead step={step} t={t} />
+      <StepHead p={props} own={['read-invariants', ...(view.invariants.length ? [] : ['invariants']), ...(align ? ['align'] : [])]}>
+        {view.invariants.some((f) => f.reading) ? (
+          <Run a={read} busy={busy} label={s.rereadAll} onRun={() => act.run('read-invariants', { file: '*' })} />
+        ) : null}
+      </StepHead>
+      {wait?.kind === 'cases' ? <p className="vc-ihelp">{s.casesHere(wait.count)}</p> : null}
       {view.invariants.length ? <Summary p={total} s={s} /> : null}
       {total.warnings ? <p className="vc-ihelp"><span aria-hidden="true">⚠</span>{s.warningHelp}</p> : null}
       {align ? (
@@ -104,7 +120,13 @@ export function InvariantsView({ view, step, t, act, busy }: StepProps) {
           <summary className="vc-card-head">
             <span className="vc-card-title">{t.outputs['align.md']}</span>
             <span className="vc-card-file vc-mono">align.md</span>
-            <span className="vc-card-time" title={new Date(align.time).toLocaleString(t.locale)}>{t.ago(Date.now() - align.time)}</span>
+            <span className="vc-card-end">
+              <span className="vc-card-time" title={new Date(align.time).toLocaleString(t.locale)}>{t.ago(Date.now() - align.time)}</span>
+              {/* Dans le résumé : le clic sur Relancer ne replie pas la carte. */}
+              <span onClick={(e) => e.preventDefault()}>
+                <Run a={alignAction} busy={busy} tone="ghost" label={t.rerun} onRun={() => act.run('align')} />
+              </span>
+            </span>
           </summary>
           <div className="vc-card-body"><MarkdownView md={align.text} t={t} onOpenLink={act.openLink} onQuote={quoteAlign} onComment={commentAlign} /></div>
         </details>
@@ -128,6 +150,7 @@ export function InvariantsView({ view, step, t, act, busy }: StepProps) {
                     {s.all}
                   </button>
                 ) : null}
+                {f.reading ? <Run a={read} busy={busy} tone="ghost" label={s.reread} onRun={() => act.run('read-invariants', { file: f.id })} /> : null}
                 <button type="button" className="vc-mini" title={t.openTitle} onClick={() => act.open(f.id)}>{t.open}</button>
               </span>
             </div>
@@ -146,7 +169,7 @@ export function InvariantsView({ view, step, t, act, busy }: StepProps) {
                     </li>
                   ))}
                 </ol>
-                <Run a={view.actions.find((a) => a.id === 'read-invariants')} busy={busy} tone="accent" onRun={() => act.run('read-invariants')} />
+                <Run a={read} busy={busy} tone="accent" onRun={() => act.run('read-invariants')} />
               </div>
             )}
           </section>

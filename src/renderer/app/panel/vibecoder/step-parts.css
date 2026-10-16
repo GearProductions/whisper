@@ -142,3 +142,6 @@ button.vc-chip:hover { border-color: var(--accent); color: var(--vc-text); }
   font-size: 13px;
 }
 .vc-closed b { color: var(--vc-warn); font: 600 12.5px/1 var(--vc-mono); }
+
+/* ---- La rangée des actions de l'étape, sous son titre ----------------------- */
+.vc-step-acts { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; }

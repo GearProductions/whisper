@@ -44,6 +44,15 @@ describe('tokens', () => {
     expect(of('number', 'f(1, 2.5, x1)')).toEqual(['1', '2.5']);
   });
 
+  it('# : un commentaire jusqu\'à la fin de la ligne', () => {
+    expect(of('comment', 'then refused   # result is null\nx')).toEqual(['# result is null']);
+  });
+
+  it('une apostrophe dans un mot n\'ouvre pas de chaîne', () => {
+    expect(of('string', 'given the user\'s file and the users\' cap')).toEqual([]);
+    expect(of('string', 'a \'cap\' b')).toEqual(['\'cap\'']);
+  });
+
   it('le reste : un seul morceau de texte', () => {
     expect(tokens('a + b')).toEqual([{ kind: 'text', text: 'a + b' }]);
   });

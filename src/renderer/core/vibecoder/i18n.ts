@@ -1,6 +1,6 @@
 /** i18n — les libellés de l'écran VibeCoder, en français et en anglais
- *  (vibeLang) : en-tête, parcours et ses commits, étapes, prochaine étape (et
- *  Arrêter), choix du modèle, zone de commentaire, barre d'état, titres des
+ *  (vibeLang) : en-tête, parcours et ses commits, étapes, Relancer, Arrêter,
+ *  onglets Conversation / Tâches, choix du modèle, zone de commentaire, barre d'état, titres des
  *  sorties. Ceux des boutons viennent des actions
  *  (actions.<langue>.json).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
@@ -29,12 +29,7 @@ const fr = {
   noCommits: 'Aucun commit sur la branche.',
   conversation: 'Conversation',
   shortcut: (n: number) => `Ctrl+${n}`,
-  next: 'Prochaine étape',
-  noNext: 'Rien à lancer pour l\'instant.',
-  working: 'L\'agent travaille…',
-  asking: 'L\'agent attend votre autorisation…',
-  who: 'Qui travaille',
-  emptyStep: 'Rien à afficher pour cette étape pour l\'instant. La prochaine étape est en bas ; un bouton qui a besoin d\'un texte prend celui du champ, à droite.',
+  rerun: 'Relancer',
   errorHint: 'La conversation reste utilisable, à droite.',
   broken: 'Cette étape ne peut pas s\'afficher.',
   retry: 'Réessayer',
@@ -80,7 +75,7 @@ const fr = {
   modes: [['default', 'manuel'], ['acceptEdits', 'accepter les modifications'], ['auto', 'auto'], ['plan', 'plan']] as Choices,
   context: 'Contexte',
   contextTitle: 'Contexte de la conversation : cliquer pour le détail',
-  tasks: 'Tâches',
+  tasksOf: (running: number) => (running ? `Tâches (${running})` : 'Tâches'),
   tasksTitle: 'Les tâches de fond de l\'agent',
   changed: (n: number) => (n > 1 ? `${n} fichiers modifiés` : `${n} fichier modifié`),
   at: (time: string) => `relevé à ${time}`,
@@ -109,12 +104,7 @@ const en: Strings = {
   noCommits: 'No commit on the branch.',
   conversation: 'Conversation',
   shortcut: (n) => `Ctrl+${n}`,
-  next: 'Next step',
-  noNext: 'Nothing to run for now.',
-  working: 'The agent is working…',
-  asking: 'The agent is waiting for your permission…',
-  who: 'Who works',
-  emptyStep: 'Nothing to show for this step yet. The next step is at the bottom; a button that needs a text takes the one in the field, on the right.',
+  rerun: 'Run again',
   errorHint: 'The conversation is still usable, on the right.',
   broken: 'This step cannot be displayed.',
   retry: 'Retry',
@@ -160,7 +150,7 @@ const en: Strings = {
   modes: [['default', 'manual'], ['acceptEdits', 'accept edits'], ['auto', 'auto'], ['plan', 'plan']],
   context: 'Context',
   contextTitle: 'Conversation context: click for the detail',
-  tasks: 'Tasks',
+  tasksOf: (running) => (running ? `Tasks (${running})` : 'Tasks'),
   tasksTitle: 'The agent\'s background tasks',
   changed: (n) => `${n} file${n === 1 ? '' : 's'} changed`,
   at: (time) => `read at ${time}`,

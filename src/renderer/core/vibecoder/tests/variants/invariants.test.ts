@@ -93,6 +93,35 @@ describe('pseudoLines', () => {
       .toEqual(['given:', 'then']);
   });
 
+  describe('la forme test "…": (prose)', () => {
+    const prose = [
+      'test "a spend over the cap is refused":',
+      '    given 90 already spent and a cap of 100',
+      '    when we spend 20 more',
+      '    then the spend is refused   # result is null',
+      '    and nothing is stored',
+    ].join('\n');
+    const kinds = (kind: string) => pseudoLines(prose).flatMap((l) => l.parts.filter((p) => p.kind === kind).map((p) => p.text));
+
+    it('bout à bout, les lignes redonnent le code tel quel', () => {
+      expect(pseudoLines(prose).map((l) => l.parts.map((p) => p.text).join('')).join('\n')).toBe(prose);
+    });
+
+    it('test en mot-clé ; given, when, then, and en tête de ligne repérés ; les autres mots en texte', () => {
+      expect(kinds('keyword')).toEqual(['test']);
+      expect(kinds('step')).toEqual(['given', 'when', 'then', 'and']);
+    });
+
+    it('les assertions : la ligne then, et les and qui la suivent', () => {
+      expect(pseudoLines(prose).map((l) => l.assert)).toEqual([false, false, false, true, true]);
+      expect(pseudoLines('test "x":\n  given a\n  and b\n  then c').map((l) => l.assert)).toEqual([false, false, false, true]);
+    });
+
+    it('le commentaire après # : sa valeur attendue', () => {
+      expect(kinds('comment')).toEqual(['# result is null']);
+    });
+  });
+
   it('le reste coloré comme tokens : mots-clés, chaînes, nombres', () => {
     const kinds = pseudoLines('const n = "a" // 1').flatMap((l) => l.parts.map((p) => p.kind));
     expect(kinds).toEqual(['keyword', 'text', 'string', 'text', 'comment']);

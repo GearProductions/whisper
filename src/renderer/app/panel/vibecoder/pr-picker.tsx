@@ -2,7 +2,8 @@
  *  Charger ; la PR chargée (titre, auteur, base ← tête, description rendue,
  *  lien), ou celle qu'on suit en attendant d'être chargée ; Mes PR à relire et
  *  leur liste en cartes. Choisir une PR : la suivre (set), puis la charger
- *  (load-pr), sans toucher à la copie de travail.
+ *  (load-pr), sans toucher à la copie de travail ; Décharger la PR : ne plus
+ *  la suivre (le choix revient).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useState } from 'react';
 import { prNumber, webUrl } from 'core/vibecoder';
@@ -25,6 +26,8 @@ const fr = {
   none: 'Aucune PR n\'attend votre relecture.',
   pick: (n: number) => `Suivre et charger la PR #${n}`,
   open: 'Ouvrir dans le navigateur',
+  unload: 'Décharger la PR',
+  unloadTitle: 'Ne plus suivre cette PR : revenir au choix d\'une PR (sa référence locale reste)',
 };
 const S: Record<VibeLang, typeof fr> = {
   fr,
@@ -41,10 +44,13 @@ const S: Record<VibeLang, typeof fr> = {
     none: 'No PR is waiting for your review.',
     pick: (n) => `Follow and load PR #${n}`,
     open: 'Open in the browser',
+    unload: 'Unload the PR',
+    unloadTitle: 'Stop following this PR: back to choosing one (its local ref stays)',
   },
 };
 
-export function PrPicker({ view, step, t, act, busy }: StepProps) {
+export function PrPicker(props: StepProps) {
+  const { view, t, act, busy } = props;
   const s = S[view.lang];
   const [typed, setTyped] = useState('');
   const action = (id: string) => view.actions.find((a) => a.id === id);
@@ -56,12 +62,13 @@ export function PrPicker({ view, step, t, act, busy }: StepProps) {
   const loaded = !!pr && !!view.outputs[`pr-${pr.number}.json`];
   return (
     <>
-      <StepHead step={step} t={t}>
+      <StepHead p={props} own={['prs', 'load-pr']}>
         <form className="vc-pr-form" onSubmit={(e) => { e.preventDefault(); if (asked && canLoad) { load(asked); setTyped(''); } }}>
           <input className="vc-mono" value={typed} placeholder={s.placeholder} aria-label={s.field} title={s.field} spellCheck={false}
             onChange={(e) => setTyped(e.target.value)} />
           <button type="submit" disabled={!asked || !canLoad} title={loadAction ? loadAction.hint : undefined}>{s.load}</button>
         </form>
+        {pr ? <button type="button" className="vc-mini" title={s.unloadTitle} onClick={() => act.set({ pr: null })}>{s.unload}</button> : null}
       </StepHead>
       {pr && loaded ? (
         <PrCard pr={pr} lang={view.lang} onOpenLink={act.openLink}>

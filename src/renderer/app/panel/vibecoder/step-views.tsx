@@ -1,6 +1,6 @@
 /** step-views — l'aiguillage des étapes : la vue de chaque étape du parcours,
  *  et ce qu'elle reçoit (StepProps : le relevé, l'étape, les libellés, les
- *  rappels de l'écran). Chaque étape a sa vue ; PR et Revue ont chacune une
+ *  rappels de l'écran ; StepHead y prend les actions de l'étape). Chaque étape a sa vue ; PR et Revue ont chacune une
  *  vue pour Créer et une pour Relire ; Note et Invariants servent aux deux
  *  (en lecture seule pour Relire).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder, panel-app (VibeActs). */
