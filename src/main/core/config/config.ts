@@ -1,7 +1,8 @@
 /** config — les réglages (config.json) : défauts, lecture tolérante (une
  *  retouche à la main, d'anciens formats), état au lancement (aucun agent
  *  sélectionné, I-8), dossiers favoris et leur couleur, confiance (I-23),
- *  lecture à voix haute, VibeCoder (langue, réglages d'un agent).
+ *  lecture à voix haute, VibeCoder (langue, réglages d'un agent, robot
+ *  temporaire d'une PR ouverte dans un worktree).
  *  Ne connaît pas : le fichier (technicals/config-file), Electron.
  *  Utilisé par : app. */
 import type { VibeAutonomy, VibeFlow, VibeLang } from 'shared/bridge';
@@ -149,6 +150,21 @@ export function agentVibe(agent: AgentConfig): { flow: VibeFlow; autonomy: VibeA
     pr: Number.isInteger(v.pr) && (v.pr as number) > 0 ? v.pr as number : null,
   };
 }
+
+// Un robot temporaire (Relire dans un worktree, F-110) : l'agent du dépôt et
+// la PR ; null pour un autre agent (ou un `temp` mal formé).
+export function agentTemp(agent: AgentConfig): { parent: string; pr: number } | null {
+  const t: Partial<Record<string, unknown>> = agent.temp && typeof agent.temp === 'object' ? agent.temp : {};
+  return typeof t.parent === 'string' && Number.isInteger(t.pr) && (t.pr as number) > 0 ? { parent: t.parent, pr: t.pr as number } : null;
+}
+
+// Le robot temporaire de la PR `pr` ouverte dans le worktree `dir` : « PR #n »,
+// le modèle, l'effort, le mode et l'autonomie de l'agent du dépôt, en
+// VibeCoder, Relire, la PR suivie.
+export const tempAgent = (parent: AgentConfig, pr: number, dir: string, id: string): AgentConfig => ({
+  id, dir, name: `PR #${pr}`, model: parent.model, effort: parent.effort, mode: parent.mode, sessionId: null,
+  view: 'vibecoder', vibe: { flow: 'review', autonomy: agentVibe(parent).autonomy, pr }, temp: { parent: parent.id, pr },
+});
 
 /* ---- Lecture à voix haute ------------------------------------------------- */
 
