@@ -42,7 +42,7 @@ VibeCoder dans le panneau (`docs/tickets/feat/0.8.0-vibecoder.md`) :
 | Module (`src/renderer/`) | Rôle |
 |---|---|
 | `core/vibecoder` | pur : Markdown en blocs (jamais de HTML, liens `http(s)` seuls, I-40), lignes changées (`lineDiff`), coloration du pseudo-code, libellés FR et EN |
-| `app/panel/vibecoder/` | l'écran (en-tête, parcours, onglets et vues des étapes, prochaine étape, barre des skills, barre d'état) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
+| `app/panel/vibecoder/` | l'écran (en-tête, parcours, onglets et vues des étapes et leurs actions, conversation et tâches en onglets, barre des skills, barre d'état) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
 
 Toutes : sans cadre, hors de la barre des tâches, `contextIsolation`,
 `sandbox`, préchargement minimal (`contextBridge`). Le principal
@@ -468,7 +468,7 @@ champ. Sans dictée encore : une indication. Il reste ouvert jusqu'à la croix
 (la bulle disparaissait seule après 10 s).
 
 **F-77 Volet des tâches** (*⚙ Tâches*, à droite du fil, conversation en
-cours) : les tâches de fond de l'agent comme Claude Code les montre
+cours ; en VibeCoder, l'onglet Tâches de la colonne de droite, F-92) : les tâches de fond de l'agent comme Claude Code les montre
 (`/tasks`) — commande en arrière-plan, surveillance, sous-agent, flux
 d'agents —, les plus récentes en tête. Chacune : type, état (en cours,
 terminée, en échec, arrêtée), temps écoulé ; la description de l'agent,
@@ -520,15 +520,20 @@ conversation des agents qui ne sont pas en VibeCoder ne change pas.
   `fixup!`, `squash!`, `amend!` en couleur d'attention). Un clic ouvre
   l'étape ;
 - au centre, les **onglets** des étapes (Ctrl+1…6), l'étape choisie — sinon
-  celle en cours, que l'écran suit —, et en bas la **prochaine étape**
-  (F-93) ;
-- à droite, la **conversation** de l'agent : son intitulé, le message en tête
-  (F-74), le fil et ses demandes d'autorisation, le volet des tâches, le
-  détail du contexte, la barre des skills (F-93), le champ (F-68 à F-70 :
-  dictée, brouillon, pièces jointes, commandes « / ») : on lui parle toujours ;
+  celle en cours, que l'écran suit —, ses actions dans son en-tête (F-93) ;
+  pas de carte « prochaine étape » : le parcours dit où l'on en est ;
+- à droite, deux onglets : **Conversation** (son intitulé ; le message en tête,
+  F-74, le fil et ses demandes d'autorisation, le détail du contexte, la
+  barre des skills, F-93, le champ, F-68 à F-70 : dictée, brouillon, pièces
+  jointes, commandes « / ») : on lui parle toujours ; **Tâches (n)** (n en
+  cours) : le volet des tâches (F-77), par-dessus la conversation, qui garde
+  sa place. Préparer un message dans le champ, ou une action qui l'exige,
+  revient à l'onglet Conversation ;
 - en bas, la **barre d'état** : modèle, effort, mode de l'agent (des listes,
   comme son menu, F-56, F-57), jauge du contexte (clic : le détail, F-71),
-  *⚙ Tâches (n)* (le volet, F-77), fichiers modifiés, heure du dernier relevé.
+  *⚙ Tâches (n)* (l'onglet Tâches, et retour ; la colonne masquée
+  s'affiche), *⏹ Arrêter* quand l'agent travaille, fichiers modifiés, heure
+  du dernier relevé.
 
 En *Vibe*, un bandeau le rappelle en haut de l'étape (« l'agent déroule le
 guide ; vous testez et approuvez à la fin »). git introuvable, dossier sans
@@ -538,24 +543,26 @@ produit. Une vue d'étape qui échoue sur un texte
 inattendu : « Cette étape ne peut pas s'afficher. » et *Réessayer* ; le reste
 de l'écran et le brouillon tiennent (I-29).
 
-**F-93 Prochaine étape, barre des skills.**
-- La carte **Prochaine étape**, au bas de l'étape : le bouton principal —
-  l'action qui fait avancer l'étape en cours (F-100, F-101, F-103) —, qui
-  travaille (F-99), son aide ou pourquoi il est grisé ; un lien vers l'étape
-  de ce bouton quand on en regarde une autre ; puis les autres actions de
-  l'étape affichée. Agent au travail : « L'agent travaille… » (« … attend
-  votre autorisation… ») à la place du libellé ; rien ne bouge ; *⏹ Arrêter*
-  (ici et dans la barre d'état) arrête son tour : la même chose
-  qu'*Interrompre* de son menu (F-56). L'étape en
-  cours n'attend qu'une validation (*Guide*, ou *Relire*) : la carte la
-  propose à la place du bouton principal, qui travaille : *vous* (*✓ Valider
-  la note*, *✓ Valider la forme*, *Voir les N cas à valider*). Sinon rien à
-  lancer : « Rien à lancer pour l'instant. »
-- La **barre des skills**, au-dessus du champ : les actions sans étape
-  (*Tout dérouler* et *Retour → fixup* en *Créer*, *Où j'en suis ?*,
-  *Demander sans modifier*), puis les skills du projet (`.claude/skills/`)
-  et de l'utilisateur (`~/.claude/skills/`) en pastilles : un clic écrit
-  `/<skill> ` au début du champ, à la place d'une pastille déjà là.
+**F-93 Les actions d'une étape, Relancer, barre des skills.**
+- Sous le titre de l'étape, une **rangée d'actions** compacte : celles de
+  l'étape, chacune avec qui travaille ou le choix du modèle (F-99) et
+  pourquoi elle est grisée ; sans celles que la vue montre déjà ailleurs
+  (une invitation, une carte, une ligne : jamais deux fois). À l'étape en
+  cours, l'action qui la fait avancer (F-100, F-101, F-103) est en tête,
+  discrètement mise en avant, même si elle appartient à une autre étape
+  (*Préparer le commit* à l'étape Invariants). Ce qu'attend une validation
+  reste dans la vue : *✓ Valider la note*, *✓ Valider la forme*, « N cas à
+  valider » en tête des invariants. Agent au travail : les actions envoyées
+  sont grisées ; *⏹ Arrêter* (barre d'état) arrête son tour, comme
+  *Interrompre* de son menu (F-56).
+- **Relancer** : chaque carte d'une sortie de skill (alignement, relecture
+  du diff, commit proposé, vérifications, ponytail review, CI, relecture de
+  la note et des commits, plan de test) refait son action, mêmes arguments
+  par défaut ; *Lire en pseudo-code* se refait par fichier (*Relire*, même
+  lu) ou pour tous (*Tout relire*, F-100).
+- La **barre des skills**, au-dessus du champ : deux liens, *Demander sans
+  modifier* et *Retour → fixup* (*Créer*) ; les skills se trouvent par « / »
+  dans le champ.
 
 ### Le relevé, les actions
 
@@ -624,7 +631,7 @@ bouton `id`, `flow` (`create`, `review`, `both`), `step` (son étape ; `null` :
 la barre des skills), `kind` (`send` : envoyé ; `prefill` : préparé dans le
 champ), `needs` (`text` : il exige le champ ; sinon `none`), `label`,
 `hint`, `text` (le gabarit). Les `id` livrés sont un contrat : le parcours
-(la prochaine étape) et les vues (les boutons propres à une étape) s'y
+(l'action mise en avant) et les vues (les boutons propres à une étape) s'y
 réfèrent ; on personnalise `label`, `hint` et `text`, retirer une entrée
 retire son bouton. Une entrée invalide est ignorée (champ manquant ou d'un
 autre type, étape inconnue, id déjà vu, `prefill` avec une autre variable que
@@ -640,7 +647,7 @@ agent au travail, I-25 ; jamais à un autre agent, I-33, ni à une ancienne
 conversation, I-22). Aucun appel au modèle à part : revenu en conversation,
 chaque action est dans le fil. La page ne donne qu'un id d'action de son
 dernier relevé et ses arguments (texte, rang de module, hash de commit,
-numéro de PR, réponses, verdict, modèle), chacun vérifié (type, taille, valeur) par
+id de test, numéro de PR, réponses, verdict, modèle), chacun vérifié (type, taille, valeur) par
 la variable qui le prend ; une action inconnue, grisée ou `prefill` est
 refusée.
 
@@ -649,7 +656,9 @@ sans ses blancs autour, 20 000 caractères au plus) ; `{{out}}` (F-95) ;
 `{{lang}}` (`fr`, `en`) ; `{{branch}}`, `{{base}}` ; `{{note}}` (le chemin de
 la note) ; `{{ref}}` (`WORKTREE` en *Créer*, `refs/vibecoder/pr/<n>` en
 *Relire*) ; `{{files}}` (les tests d'invariants pas encore lus,
-`chemin@empreinte`) ; `{{module}}` (le module choisi par son rang, sinon le
+`chemin@empreinte` ; un test désigné par son id dans le relevé, `t<rang>`,
+lu ou non : *Relire* ; `*` : tous, *Tout relire* ; un id absent refuse
+l'action) ; `{{module}}` (le module choisi par son rang, sinon le
 premier qu'aucun commit ne touche : `chemin — contrat`) ; `{{commit}}` (un
 commit de la branche, sinon `WORKTREE` : les changements en cours) ; `{{pr}}`
 (le numéro donné, sinon la PR du relevé) ; `{{answers}}` (« 1. … » par ligne,
@@ -690,7 +699,7 @@ moyen*, *opus · élevé* ; sans modèle, ou sans skill (un message en clair,
 `/gear-guide`) : *agent*, le modèle de l'agent. Une action grisée dit
 pourquoi (sous le bouton, au survol ; le principal la refuse de même) :
 l'agent travaille ; pas de dépôt git ; pas encore de note (aussi la Forme et
-les invariants en *Créer*) ; aucun test d'invariant à lire ; *Relire* :
+les invariants en *Créer*) ; aucun test d'invariant ; *Relire* :
 aucune PR choisie, ou charger d'abord la PR ; brouillon de revue vide ;
 *✓ Commiter* sans commit préparé ; *Envoyer les réponses* sans question
 ouverte ; *Replier les fixups* sans commit `fixup!` ; *Relire* une PR
@@ -728,16 +737,19 @@ fois ; le conseillé reste le choix par défaut. Jamais Fable (I-36).
    d'invariants dont chaque fichier est lu et chaque cas validé. Montre le
    résumé (cas, validés, refusés, modifiés depuis, avec un point d'attention,
    à lire), l'alignement (`align.md`), puis chaque fichier : sa progression,
-   *Ouvrir* ; lu, une carte par cas — titre, pseudo-code proche de Vitest
-   quel que soit le langage du test (coloré, assertions et « étant donné /
-   quand / alors » repérés), cas limites, ce qu'il garantit, un point
+   *Ouvrir*, *Relire* (lu : refaire sa lecture) ; lu, une carte par cas —
+   titre, pseudo-code en étapes `test "…":` / `given` / `when` / `then` /
+   `and`, quel que soit le langage du test (coloré ; chaque `then` est une
+   assertion, sa valeur attendue après `#` ; les lectures d'avant, proches
+   de Vitest, se lisent encore), cas limites, ce qu'il garantit, un point
    d'attention quand le test n'observe pas vraiment la propriété — avec ✓,
    ✗ (cite le cas dans le champ), 💬, *Ouvrir* ; *✓ Tout valider* quand
    chaque cas est lu sans point d'attention ; pas lu (ou changé depuis) : ses
-   cas et *Lire en pseudo-code*. Prochaine action : *Écrire les invariants
+   cas et *Lire en pseudo-code*. En tête : *Tout relire* (dès qu'un fichier
+   est lu). Prochaine action : *Écrire les invariants
    (rouges)* (d'après la note, ou le pseudo-code du champ), *Lire en
    pseudo-code* (les fichiers pas encore lus : une lecture est nommée par
-   l'empreinte du fichier), *✓ Commiter* (un commit préparé), *Préparer le
+   l'empreinte du fichier ; relire la remplace), *✓ Commiter* (un commit préparé), *Préparer le
    commit* (des fichiers à commiter) ; aussi *Vérifier l'alignement*.
 4. **Modules** — faite : chaque module de la Forme touché par un commit de la
    branche. Montre en tête le commit proposé (`commit.md` : le message tel
@@ -786,6 +798,8 @@ avec cette raison (« PR déjà fusionnée : rien à relire », « PR fermée : 
 à relire »). Les étapes, faites quand :
 1. **PR** — chargée. Montre la PR (titre, auteur, base ← tête, description
    rendue, *Ouvrir ↗*), ou celle qu'on suit, à charger ; la liste à relire.
+   *Décharger la PR* : ne plus la suivre (le choix d'une PR revient ; sa
+   référence locale reste).
 2. **Note** — absente de la PR, ou jugée : ✓, ou ✗ (« La note est à revoir. »
    au brouillon). Montre la note de la PR (comme en *Créer*)
    et sa relecture par l'agent (`pr-<n>-note.md`). *Relire la note*
@@ -844,11 +858,11 @@ Gardées par agent (`vibecoder-state.json`) ; aucune n'envoie de message.
 
 **F-103 Guide et Vibe** (par agent, `agents[].vibe.autonomy`). *Guide* (par
 défaut) : le développeur valide la note, la forme et chaque cas des
-invariants ; la prochaine étape attend ses validations. *Vibe* : on donne la
+invariants ; l'étape en cours attend ses validations. *Vibe* : on donne la
 main à l'agent, le développeur teste et approuve à la fin ; les validations
 ne sont plus attendues (note, forme, et invariants dès qu'il y a des tests,
-faits sans ✓ ni lecture). *Tout dérouler* (*Créer*, barre des skills ; le
-bouton principal en *Vibe* tant que la branche n'a pas de note) : la demande
+faits sans ✓ ni lecture). *Tout dérouler* (*Créer* ; l'action mise en avant
+de l'étape en cours, F-93, en *Vibe* tant que la branche n'a pas de note) : la demande
 du champ part au skill `vibe` ; l'agent tient le rôle du développeur du
 guide — note, forme, invariants rouges, premier commit, modules confiés à des
 agents Opus avec `ponytail`, vérifications, `ponytail-review`, fixups, PR,
@@ -933,8 +947,7 @@ skills (F-106), réécrites à chaque fois.
 les skills écrivent pour l'utilisateur (`{{lang}}`) : la note, les questions
 ouvertes, le plan de test à l'écran, la relecture de la note, les releases.
 **Tout ce qui touche au code reste en anglais**, quelle que soit la langue :
-le pseudo-code des invariants (identifiants, `it("…")`, `// given / when /
-then`) et ses rubriques `Edge cases:`, `Guarantees:`, `Warning:` (le relevé
+le pseudo-code des invariants (`test "…":`, `given / when / then`) et ses rubriques `Edge cases:`, `Guarantees:`, `Warning:` (le relevé
 lit encore `Cas limites :`, `Garantit :`, `Attention :` des lectures
 d'avant), les relectures de diff et de commits, la ponytail review, la CI,
 l'alignement, les vérifications, les réponses des skills techniques ; les
@@ -1340,7 +1353,8 @@ Copier, erreurs ; mêmes relevés).
   *Lire en pseudo-code* (sonnet · moyen) → une carte par cas (pseudo-code,
   cas limites, garantie, attention) ; ✓ sur un cas, ✗ sur un autre (cité
   dans le champ). Modifier l'un des tests : ses cas passent « modifié
-  depuis », *Lire en pseudo-code* ne relit que lui.
+  depuis », *Lire en pseudo-code* ne relit que lui. *Relire* sur un fichier
+  lu : sa lecture est refaite (et remplacée) ; *Tout relire* : tous.
 - **S-54** *Relire* : *Mes PR à relire* → la liste ; la PR d'essai, *Charger
   la PR* : branche courante, copie de travail et `git status` inchangés,
   `refs/vibecoder/pr/<n>` créée ; le parcours se calcule sur la PR (note,
@@ -1380,6 +1394,12 @@ Copier, erreurs ; mêmes relevés).
   `/vibecoder:lire-invariants--haiku …` (le fil le montre). Les lectures sont en anglais, en *FR* comme en *EN*.
 - **S-62** L'agent travaille sur un skill : *⏹ Arrêter* → le tour s'arrête
   comme par *Interrompre* (« Interrompu. »), les boutons se rallument.
+- **S-63** Pas de carte « Prochaine étape » : les actions de l'étape sont
+  sous son titre, celle qui fait avancer en tête. Une carte de sortie
+  (alignement, ponytail review…) : *Relancer* la refait. *Relire* : étape PR,
+  *Décharger la PR* → le choix d'une PR revient. Une commande en
+  arrière-plan : *⚙ Tâches* → l'onglet *Tâches (1)* à droite ;
+  *Conversation* → le fil, à sa place.
 
 ---
 

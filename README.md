@@ -357,15 +357,16 @@ conversation reste utilisable.
   cours ; gris : à venir), chacune avec ses faits en une ligne, puis les
   commits de la branche ;
 - au centre, l'étape choisie (onglets, ou Ctrl+1…6) — la note du ticket, ce
-  que les skills ont produit — et, en bas, la **prochaine étape** : le bouton
-  principal, puis les autres actions de l'étape ;
-- à droite, la **conversation** de l'agent, comme d'habitude (fil,
-  autorisations, champ, dictée, commandes « / ») ; au-dessus du champ,
-  *Demander sans modifier* (il répond sans rien toucher), *Tout dérouler*, et
-  vos skills (du projet et les vôtres) en pastilles : un clic écrit
-  `/<skill> ` dans le champ ;
+  que les skills ont produit —, ses actions sous son titre (celle qui fait
+  avancer l'étape en cours en tête, discrètement mise en avant) ; chaque
+  carte produite par un skill a son *Relancer* ;
+- à droite, deux onglets : la **conversation** de l'agent, comme d'habitude
+  (fil, autorisations, champ, dictée, commandes « / » ; au-dessus du champ,
+  *Demander sans modifier* : il répond sans rien toucher), et ses **Tâches**
+  de fond (le nombre en cours dans l'onglet) ;
 - en bas : modèle, effort et mode de l'agent (comme dans son menu), jauge du
-  contexte, *⚙ Tâches*, fichiers modifiés, heure du dernier relevé.
+  contexte, *⚙ Tâches* (l'onglet), *⏹ Arrêter* quand il travaille, fichiers
+  modifiés, heure du dernier relevé.
 
 L'écran se lit sur le dépôt, sans modèle : la branche, ses commits et ses
 fichiers changés, la note du ticket (trouvée parmi ces fichiers d'après le
@@ -401,11 +402,12 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    sans code) ; ✓.
 3. **Invariants** : *Écrire les invariants (rouges)*, d'après la note ou
    d'après le pseudo-code écrit dans le champ ; puis *Lire en pseudo-code* :
-   chaque cas de test traduit en un pseudo-code proche de Vitest, quel que
-   soit le langage du test, avec ses cas limites, ce qu'il garantit, et un
+   chaque cas de test traduit en étapes simples (`test "…":`, `given`,
+   `when`, `then` — une ligne `then` par assertion), quel que soit le
+   langage du test, avec ses cas limites, ce qu'il garantit, et un
    point d'attention s'il n'observe pas vraiment la propriété ; ✓ ou ✗ par cas
-   (✗ le cite dans le champ, pour dire quoi changer) ; *Vérifier
-   l'alignement* ; *Préparer le commit* puis *✓ Commiter*.
+   (✗ le cite dans le champ, pour dire quoi changer) ; *Relire* un fichier
+   (ou *Tout relire*) refait sa lecture ; *Vérifier l'alignement* ; *Préparer le commit* puis *✓ Commiter*.
 4. **Modules** : *Générer ce module* (avec `ponytail`, tests lancés, sans
    commit), *Relire le diff*, *✓ Valider → commit → suivant* ; ou *Générer
    les modules restants* (en parallèle, chacun relu et commité à part).
@@ -418,12 +420,13 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
 
 Une validation vaut pour le contenu validé : une note modifiée ensuite
 repasse « modifiée depuis », à revalider. Quand l'étape n'attend plus que
-votre ✓, le bouton principal vous le propose. Les lignes de la note que
+votre ✓, l'étape vous le dit (*✓ Valider la note*, « N cas à valider »). Les lignes de la note que
 l'agent vient de changer sont surlignées (*Voir les modifications* : le
 diff ; *Vu* : ne plus surligner).
 
 **Relire** — une PR : son numéro ou son lien, puis *Charger* ; ou *Mes PR à
-relire* (celles où l'on vous demande) et un clic sur l'une d'elles. Elle est
+relire* (celles où l'on vous demande) et un clic sur l'une d'elles ;
+*Décharger la PR* pour en choisir une autre. Elle est
 récupérée à part (`refs/vibecoder/pr/<n>`) : votre copie de travail ne bouge
 pas. Puis la note (*Relire la note* : les décisions à discuter), les
 invariants (les mêmes cartes en pseudo-code), les commits (*Relire les
@@ -437,7 +440,7 @@ des changements*) et *Publier la revue*, qui l'envoie sur GitHub telle
 quelle.
 
 **Guide ou Vibe.** *Guide* (par défaut) : vous validez la note, la forme et
-chaque invariant ; la prochaine étape attend vos ✓. *Vibe* : vous donnez la
+chaque invariant ; l'étape en cours attend vos ✓. *Vibe* : vous donnez la
 main à l'agent, vous testez et approuvez à la fin. Plus rien n'attend vos ✓,
 et *Tout dérouler* envoie la demande du champ : l'agent tient le rôle du
 développeur du guide jusqu'à la PR et la release candidate (modules confiés à

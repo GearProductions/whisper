@@ -41,7 +41,7 @@ le retrouve dans le fil.
 
 **Ce qui se personnalise : `label`, `hint` et `text`** (le libellé, l'aide, le
 message). Les `id` livrés sont un contrat : l'écran et le parcours s'appuient
-sur eux (la prochaine étape, les boutons propres à une vue : *✓ Commiter*,
+sur eux (l'action mise en avant de l'étape en cours, les boutons propres à une vue : *✓ Commiter*,
 *Relire le diff* d'un module, *Publier la revue*…) ; un `id` changé est un
 bouton retiré suivi d'un bouton ajouté. Les skills de VibeCoder reçoivent toujours d'abord
 `{{lang}} {{out}}`. Le bouton `guide` n'apparaît que si le skill `gear-guide`
@@ -92,7 +92,7 @@ l'action.
 ```
 
 Pour retirer un bouton : supprimez son entrée ; il disparaît de l'écran (et
-n'est plus proposé comme prochaine étape). Un fichier vide (`[]`) : aucun
+n'est plus mis en avant). Un fichier vide (`[]`) : aucun
 bouton ; un fichier illisible : les boutons d'origine.
 
 ## Les skills : `plugin/skills/<nom>/SKILL.md`

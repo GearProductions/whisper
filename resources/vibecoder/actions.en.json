@@ -46,7 +46,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Read as pseudo-code",
-    "hint": "Turns each invariant test not yet read into pseudo-code, case by case, with its edge cases and warnings; a reading is redone only if the file changes.",
+    "hint": "Turns each invariant test not yet read into pseudo-code, case by case, with its edge cases and warnings; a file that changed is read again by itself; « Read again » (one file) and « Read all again » redo a reading.",
     "text": "/vibecoder:lire-invariants {{lang}} {{out}} {{ref}} {{files}}"
   },
   {

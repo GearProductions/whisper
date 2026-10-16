@@ -46,7 +46,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Lire en pseudo-code",
-    "hint": "Traduit chaque test d'invariant pas encore lu en pseudo-code, cas par cas, avec ses cas limites et ses points d'attention ; une lecture n'est refaite que si le fichier change.",
+    "hint": "Traduit chaque test d'invariant pas encore lu en pseudo-code, cas par cas, avec ses cas limites et ses points d'attention ; un fichier qui a changé est relu de lui-même ; « Relire » (un fichier) et « Tout relire » refont une lecture.",
     "text": "/vibecoder:lire-invariants {{lang}} {{out}} {{ref}} {{files}}"
   },
   {
