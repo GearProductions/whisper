@@ -238,6 +238,14 @@ describe('parseActions sur les actions livrées', () => {
   it('actions.en.json : toutes valides', () => {
     expect(parseActions(shipped('en'))).toHaveLength(shipped('en').length);
   });
+
+  it('Appliquer la revue : une remarque citée (Appliquer) ou aucune (Tout appliquer)', () => {
+    const apply = parseActions(shipped('fr')).find((a) => a.id === 'apply')!;
+    const one = buildMessage(apply, { text: 'src/a.ts:L3 — dead: x() — personne ne l\'appelle' }, ctx);
+    expect('text' in one && one.text.endsWith(' : src/a.ts:L3 — dead: x() — personne ne l\'appelle')).toBe(true);
+    const all = buildMessage(apply, {}, ctx);
+    expect('text' in all && all.text.endsWith('(vide : toutes) : ')).toBe(true);
+  });
 });
 
 const skill = (head: string) => `---\nname: x\ndescription: "y"\n${head}\n---\n\n# x\n`;

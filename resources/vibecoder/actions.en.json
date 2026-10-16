@@ -146,8 +146,8 @@
     "kind": "send",
     "needs": "none",
     "label": "Apply the review",
-    "hint": "The agent applies the review remarks it judges right, each as a fixup of the commit concerned, and says which ones it discards.",
-    "text": "Apply the remarks of {{out}}/ponytail.md that you judge right, each as a fixup of the commit that owns the code (/gear-fix-up if it exists), adding nothing else; say which ones you discard and why."
+    "hint": "The agent applies the review remarks it judges right (all of them, or the one of Apply), each as a fixup of the commit concerned, and says which ones it discards.",
+    "text": "Apply the remarks of {{out}}/ponytail.md that you judge right, each as a fixup of the commit that owns the code (/gear-fix-up if it exists), adding nothing else; say which ones you discard and why. Only this one (empty: all of them): {{text}}"
   },
   {
     "id": "fixups",

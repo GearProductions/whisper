@@ -26,12 +26,14 @@ A project in several parts (e.g. front and back) → one item per part and kind,
 ## `<out>/checks.json`
 
 ```json
-{"items":[{"name":"typecheck","ok":true,"detail":"…"}],"time":1760000000000}
+{"items":[{"name":"typecheck","ok":true,"level":"ok","detail":"…"},{"name":"lint","ok":true,"level":"warning","detail":"…"}],"time":1760000000000}
 ```
 
-- One item per command run, in the order above; `ok` = exit code 0.
-- `detail`: one short line in English — passed: the counts (« 212 tests passed »); failed: the first failing test or error, with `file:line` and its message.
+- One item per command run, in the order above.
+- `level`: `error` — at least one error (a failing test, a type error, a lint *error*), or the command could not run; `warning` — no error, but warnings in its output (lint warnings, deprecations…), even if the command exited non-zero because of them (e.g. `--max-warnings 0`); `ok` — neither.
+- `ok`: `false` for `error`, `true` for `ok` and `warning` (kept for older readers).
+- `detail`: one short line in English — ok: the counts (« 212 tests passed »); warning: how many and the first one, with `file:line` (« 3 warnings — src/a.ts:12 no-unused-vars »); error: the first failing test or error, with `file:line` and its message.
 - `time`: when the checks finished, in milliseconds since the epoch (`date +%s%3N`).
 - No command found → `{"items":[],"time":…}`, and say so.
 
-Valid JSON only. Change nothing else. Answer in English, one line: all green, or the failures.
+Valid JSON only. Change nothing else. Answer in English, one line: all green, the warnings, or the failures.

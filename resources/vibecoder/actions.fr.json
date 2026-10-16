@@ -146,8 +146,8 @@
     "kind": "send",
     "needs": "none",
     "label": "Appliquer la revue",
-    "hint": "L'agent applique les remarques de la revue qu'il juge justes, chacune en fixup du commit concerné, et dit lesquelles il écarte.",
-    "text": "Applique les remarques de {{out}}/ponytail.md que tu juges justes, chacune en fixup du commit qui possède le code (/gear-fix-up s'il existe), sans rien ajouter d'autre ; dis lesquelles tu écartes et pourquoi."
+    "hint": "L'agent applique les remarques de la revue qu'il juge justes (toutes, ou celle d'Appliquer), chacune en fixup du commit concerné, et dit lesquelles il écarte.",
+    "text": "Applique les remarques de {{out}}/ponytail.md que tu juges justes, chacune en fixup du commit qui possède le code (/gear-fix-up s'il existe), sans rien ajouter d'autre ; dis lesquelles tu écartes et pourquoi. Seulement celle-ci (vide : toutes) : {{text}}"
   },
   {
     "id": "fixups",

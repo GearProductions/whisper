@@ -193,6 +193,11 @@ format du fichier : VibeCoder ne lit ses sorties que sous ces noms.
 | `lancement` | sous-contexte | haiku · low | `lancement.json` |
 | `processus` | conversation (l'agent l'appelle de lui-même) | agent | `run/<nom>.stop`, `run/<nom>.restart` |
 
+`checks.json` : `{"items":[{"name","ok","level","detail"}],"time"}`, un
+élément par commande ; `level` vaut `ok`, `warning` (des avertissements
+seulement : la vérification passe, en orange à l'écran) ou `error` (`ok` :
+`false` pour `error` seulement). Un fichier sans `level` se lit d'après `ok`.
+
 ## Les commandes du projet : `projets/<dossier>.json`
 
 L'onglet *Processus* lance, arrête et relance les commandes qui font tourner
