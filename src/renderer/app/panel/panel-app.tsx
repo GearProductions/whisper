@@ -220,7 +220,8 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     const a = vibe?.actions.find((x) => x.id === id);
     if (!vibe || !a || sending) return;
     if (a.kind === 'prefill') { vibePrefill(id, ''); return; }
-    const text = a.needs === 'text' || a.usesText ? draft.text.trim() : '';
+    // Le champ, sauf si la vue donne elle-même le texte (Appliquer une remarque : args.text).
+    const text = args.text === undefined && (a.needs === 'text' || a.usesText) ? draft.text.trim() : '';
     if (a.needs === 'text' && !text) { setStatus(vibeStrings(vibe.lang).needText); el.input.current!.focus(); return; }
     setStatus('');
     setSending(true);

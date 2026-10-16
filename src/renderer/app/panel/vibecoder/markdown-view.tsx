@@ -8,7 +8,8 @@
  *  sous lui une zone de commentaire, et la remarque part avec ce qu'il cite.
  *  Avec changed (des numéros de ligne du
  *  texte), un liseré sur les blocs et éléments qui en contiennent une ; tag
- *  met une pastille devant le texte d'un élément de liste (par sa ligne).
+ *  met une pastille devant le texte d'un élément de liste (par sa ligne),
+ *  itemEnd un bouton après lui (par son texte : Appliquer une remarque).
  *  InlineMd : un texte d'une ligne (réponse proposée, cas limite…) en ligne.
  *  Ne connaît pas : le pont (rappels passés).
  *  Utilisé par : les vues d'étape (note-view, questions-view, forme-view, invariants-view, modules-view,
@@ -24,6 +25,7 @@ type Ctx = {
   onComment?(quote: string, text: string): void;   // Relire : 💬 ouvre une zone de commentaire sous ce qu'il cite
   changed?: Set<number>;           // lignes ajoutées ou changées (depuis 0)
   tag?(line: number): ReactNode;   // devant le texte de l'élément de liste qui commence à cette ligne
+  itemEnd?(text: string): ReactNode;   // après le texte d'un élément de liste (son texte brut)
 };
 
 // La zone de commentaire ouverte : la ligne de ce qu'elle cite.
@@ -125,6 +127,7 @@ function BlockView({ b, end, ctx }: { b: Block; end: number; ctx: Full }) {
                 {item.checked === null ? null : <span className="vc-box" data-checked={item.checked || undefined} aria-hidden="true" />}
                 {ctx.tag?.(item.line)}
                 <Inlines inline={item.inline} ctx={ctx} />
+                {ctx.itemEnd?.(plain(item.inline))}
                 <Quote text={plain(item.inline)} line={item.line} ctx={ctx} />
                 {item.children.map((c, j) => <BlockView key={j} b={c} end={item.children[j + 1]?.line ?? next} ctx={ctx} />)}
               </li>
