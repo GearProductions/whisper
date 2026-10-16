@@ -79,7 +79,8 @@ export function openAgentMenu(id: unknown) {
       saveConfig({
         agents: agentList(cfg).filter((a) => a.id !== agent.id),
         agentSelected: cfg.agentSelected === agent.id ? null : cfg.agentSelected,
-        agentFolders: ensureFolderColors(), // son dossier reste proposé par « + », avec sa couleur
+        // son dossier reste proposé par « + », avec sa couleur ; pas celui du worktree d'une PR (F-110)
+        agentFolders: ensureFolderColors().filter((f) => !(agent.temp && f.dir === agent.dir)),
       });
       pushAgents(); // son panneau, s'il est ouvert, se ferme (cf. refreshConversation)
     } },
