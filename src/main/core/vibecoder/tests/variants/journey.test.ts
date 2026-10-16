@@ -359,6 +359,16 @@ describe('Créer : la liste du § A.3', () => {
     expect(done(vibeView(input()))).toEqual([false, false, null, false, null]);
   });
 
+  it('des invariants par partie (« invariants (backend) », « invariants (frontend) ») tous passés : cochés', () => {
+    const checks = out('{"items":[{"name":"invariants (frontend)","ok":true},{"name":"invariants (backend)","ok":true},{"name":"lint (backend)","ok":true,"level":"warning"}]}');
+    expect(done(vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), outputs: { 'checks.json': checks } })))[1]).toBe(true);
+  });
+
+  it('un des invariants par partie en échec : pas coché', () => {
+    const checks = out('{"items":[{"name":"invariants (frontend)","ok":true},{"name":"invariants (backend)","ok":false}]}');
+    expect(done(vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), outputs: { 'checks.json': checks } })))[1]).toBe(false);
+  });
+
   it('la note commitée, les invariants passés, un commit par module : cochés ; relecture et AGENTS.md restent à vérifier', () => {
     const checks = out('{"items":[{"name":"invariants","ok":true},{"name":"tests","ok":true}]}');
     expect(done(vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), outputs: { 'checks.json': checks } })))).toEqual([true, true, null, true, null]);

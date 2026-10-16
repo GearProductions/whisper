@@ -174,9 +174,11 @@ export function vibeView(input: JourneyInput): VibeView {
   const head = commits.at(-1)?.hash;
   const a3 = [
     !!note && commits.some((c) => c.files.includes(note.path)),
-    !!checks?.some((c) => c?.name === 'invariants' && passes(c)),
+    // Tous les invariants passent, quel que soit le nom que leur donne le projet (« invariants (backend) »…).
+    !!checks?.some((c) => /invariant/i.test(String(c?.name))) && checks!.filter((c) => /invariant/i.test(String(c?.name))).every(passes),
     null,
-    !fixups && commits.length >= modules.length + 1,
+    // Aucun fixup! à replier, et chaque module de la Forme a son commit (un commit peut en porter plusieurs).
+    !fixups && modules.length > 0 && modules.every((m) => m.commits.length > 0),
     null,
   ];
   const checklist: VibeCheck[] = flow === 'review'

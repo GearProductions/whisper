@@ -778,8 +778,9 @@ fois ; le conseillé reste le choix par défaut. Jamais Fable (I-36).
    avertissements seulement passent), ponytail review faite (`ponytail.md`),
    aucun commit `fixup!`. Montre la
    liste du § A.3, cochée d'après le dépôt quand c'est possible (la note dans
-   un commit de la branche ; le contrôle `invariants` passé ; aucun `fixup!`
-   et au moins un commit de plus que de modules) ; « chaque diff relu » (avec
+   un commit de la branche ; tous les contrôles dont le nom contient
+   « invariant » passés, quelle que soit la partie : `invariants (backend)`… ;
+   aucun `fixup!` et chaque module de la Forme dans au moins un commit) ; « chaque diff relu » (avec
    l'aide « Cochez une fois chaque module relu (Modules → Relire le diff) »)
    et « AGENTS.md à jour » se cochent à la main (« à vérifier » tant qu'elles
    ne le sont pas ; F-102, cible `a3:<rang>`, pour le commit de tête de la
