@@ -1,7 +1,8 @@
 /** vibe-coder — l'écran VibeCoder d'un agent, à la place de l'en-tête et du
  *  corps du panneau : en-tête (agent — sa couleur, seule touche de couleur
  *  avec Envoyer —, branche, Créer / Relire, Guide / Vibe, langue, relevé,
- *  conversation affichée ou masquée, retour à la conversation, fermer) ; le
+ *  conversation affichée ou masquée, retour à la conversation, fermer ; le
+ *  robot d'une PR dans un worktree : son badge et Décharger) ; le
  *  parcours à gauche (il dit où l'on en est) ; au centre, les onglets des
  *  étapes, l'étape choisie (step-views : son en-tête porte ses actions ; en
  *  Vibe, un bandeau le rappelle en haut ; Relire, une PR fusionnée ou fermée
@@ -23,7 +24,7 @@ import type { Thread, VibeLang, VibeStepId, VibeView } from 'technicals/bridge';
 import { Journey } from './journey';
 import { Picks } from './model-pick';
 import { StatusBar } from './status-bar';
-import { ClosedBanner, VibeBanner } from './step-parts';
+import { ClosedBanner, VibeBanner, WorktreeBadge } from './step-parts';
 import { STEP_VIEWS, type StepProps, type VibeActs } from './step-views';
 import './vibecoder.css';
 
@@ -168,6 +169,7 @@ function Top({ view, thread, busy, t, act, side, onSide, onHide }: TopProps) {
         <span className="vc-dot" data-busy={busy || undefined} />
         <span className="vc-name" title={thread.dir}>{thread.name}</span>
         {view.repo ? <span className="vc-branch" title={t.branch(view.repo.branch, view.repo.base)}>{`⎇ ${view.repo.branch}`}</span> : null}
+        <WorktreeBadge view={view} busy={busy} onRun={() => act.run('unload-worktree')} />
       </div>
       <div className="vc-modes">
         <Segmented value={view.flow} labels={t.flow} title={t.flowTitle} onPick={(flow) => act.set({ flow })} />

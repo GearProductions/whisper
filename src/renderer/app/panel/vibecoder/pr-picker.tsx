@@ -3,7 +3,8 @@
  *  lien), ou celle qu'on suit en attendant d'être chargée ; Mes PR à relire et
  *  leur liste en cartes. Choisir une PR : la suivre (set), puis la charger
  *  (load-pr), sans toucher à la copie de travail ; Décharger la PR : ne plus
- *  la suivre (le choix revient).
+ *  la suivre (le choix revient). La PR chargée s'ouvre dans un worktree (son
+ *  état : en création, ouverte → aller à son robot, ou le proposer à nouveau).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useState } from 'react';
 import { prNumber, webUrl } from 'core/vibecoder';
@@ -28,6 +29,11 @@ const fr = {
   open: 'Ouvrir dans le navigateur',
   unload: 'Décharger la PR',
   unloadTitle: 'Ne plus suivre cette PR : revenir au choix d\'une PR (sa référence locale reste)',
+  wtCreating: 'Création du worktree en cours…',
+  wtOpen: 'Ouverte dans un worktree',
+  goRobot: (n: number) => `Aller au robot PR #${n}`,
+  addRobot: (n: number) => `Ajouter le robot PR #${n}`,
+  addRobotTitle: 'Le worktree est là sans son robot : le proposer à nouveau (question de confiance)',
 };
 const S: Record<VibeLang, typeof fr> = {
   fr,
@@ -46,6 +52,11 @@ const S: Record<VibeLang, typeof fr> = {
     open: 'Open in the browser',
     unload: 'Unload the PR',
     unloadTitle: 'Stop following this PR: back to choosing one (its local ref stays)',
+    wtCreating: 'Creating the worktree…',
+    wtOpen: 'Open in a worktree',
+    goRobot: (n) => `Go to the PR #${n} robot`,
+    addRobot: (n) => `Add the PR #${n} robot`,
+    addRobotTitle: 'The worktree is there without its robot: offer it again (trust question)',
   },
 };
 
@@ -60,9 +71,10 @@ export function PrPicker(props: StepProps) {
   const asked = prNumber(typed);
   const pr = view.pr;
   const loaded = !!pr && !!view.outputs[`pr-${pr.number}.json`];
+  const wt = view.worktree;
   return (
     <>
-      <StepHead p={props} own={['prs', 'load-pr']}>
+      <StepHead p={props} own={['prs', 'load-pr', 'open-worktree', 'unload-worktree']}>
         <form className="vc-pr-form" onSubmit={(e) => { e.preventDefault(); if (asked && canLoad) { load(asked); setTyped(''); } }}>
           <input className="vc-mono" value={typed} placeholder={s.placeholder} aria-label={s.field} title={s.field} spellCheck={false}
             onChange={(e) => setTyped(e.target.value)} />
@@ -78,6 +90,18 @@ export function PrPicker(props: StepProps) {
         <Invite title={busy ? s.loading(pr.number) : s.notLoaded(pr.number)} text={s.notLoadedHint}>
           <Run a={loadAction} busy={busy} onRun={() => load(pr.number)} />
         </Invite>
+      ) : null}
+      {pr && loaded && !wt?.temp ? (
+        <div className="vc-pr-worktree">
+          {!wt ? <Run a={action('open-worktree')} busy={busy} onRun={() => act.run('open-worktree')} />
+            : wt.state === 'creating' ? <span className="vc-pr-hint">{s.wtCreating}</span> : (
+              <>
+                <span className="vc-pr-hint" title={wt.dir}>{s.wtOpen}</span>
+                <button type="button" className="vc-mini" title={wt.state === 'robot' ? wt.dir : s.addRobotTitle}
+                  onClick={() => act.set({ worktree: true })}>{wt.state === 'robot' ? s.goRobot(pr.number) : s.addRobot(pr.number)}</button>
+              </>
+            )}
+        </div>
       ) : null}
       <div className="vc-pr-list-head">
         <span>{s.toReview}</span>

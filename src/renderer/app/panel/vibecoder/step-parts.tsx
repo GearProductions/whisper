@@ -6,12 +6,13 @@
  *  le bouton d'une action du relevé (son libellé ou un plus court, qui
  *  travaille ou le choix du modèle, pourquoi c'est grisé ; absent si l'action
  *  n'existe pas), l'invitation (rien encore, et ce qui le produit), la carte
- *  d'une PR, le bandeau du mode Vibe, celui d'une PR fusionnée ou fermée.
+ *  d'une PR, le bandeau du mode Vibe, celui d'une PR fusionnée ou fermée, le
+ *  badge du robot d'une PR ouverte dans un worktree (et Décharger).
  *  Ne connaît pas : le pont (rappels passés).
- *  Utilisé par : les vues d'étape ; vibe-coder (bandeaux). */
+ *  Utilisé par : les vues d'étape ; vibe-coder (bandeaux, badge du worktree). */
 import type { ReactNode } from 'react';
 import { webUrl, type Strings } from 'core/vibecoder';
-import type { VibeAction, VibeLang, VibePr } from 'technicals/bridge';
+import type { VibeAction, VibeLang, VibePr, VibeView } from 'technicals/bridge';
 import { ModelPick } from './model-pick';
 import type { StepProps } from './step-views';
 import './step-parts.css';
@@ -21,6 +22,7 @@ const fr = {
   openPr: 'Ouvrir ↗',
   openPrTitle: 'Ouvrir la PR dans le navigateur',
   by: (author: string) => `par ${author}`,
+  worktree: (n: number) => `PR #${n} · worktree`,
 };
 const S: Record<VibeLang, typeof fr> = {
   fr,
@@ -29,6 +31,7 @@ const S: Record<VibeLang, typeof fr> = {
     openPr: 'Open ↗',
     openPrTitle: 'Open the PR in the browser',
     by: (author) => `by ${author}`,
+    worktree: (n) => `PR #${n} · worktree`,
   },
 };
 
@@ -133,4 +136,16 @@ export function ClosedBanner({ pr, t }: { pr: VibePr | null; t: Strings }) {
 
 export function VibeBanner({ lang }: { lang: VibeLang }) {
   return <div className="vc-vibe-banner" role="note"><span aria-hidden="true">⚡</span>{S[lang].vibe}</div>;
+}
+
+// Le robot temporaire d'une PR ouverte dans un worktree (F-110) : « PR #n · worktree » et Décharger
+// (l'agent du dépôt retire le worktree, le robot part avec lui).
+export function WorktreeBadge({ view, busy, onRun }: { view: VibeView; busy: boolean; onRun(): void }) {
+  if (!view.worktree?.temp || !view.pr) return null;
+  return (
+    <span className="vc-wt" title={view.worktree.dir}>
+      <span className="vc-wt-badge">{S[view.lang].worktree(view.pr.number)}</span>
+      <Run a={view.actions.find((a) => a.id === 'unload-worktree')} busy={busy} tone="ghost" onRun={onRun} />
+    </span>
+  );
 }

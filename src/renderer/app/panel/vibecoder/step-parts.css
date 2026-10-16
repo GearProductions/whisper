@@ -145,3 +145,15 @@ button.vc-chip:hover { border-color: var(--accent); color: var(--vc-text); }
 
 /* ---- La rangée des actions de l'étape, sous son titre ----------------------- */
 .vc-step-acts { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; }
+
+/* ---- Le robot d'une PR dans un worktree : son badge dans l'en-tête ---------- */
+.vc-wt { display: flex; flex: none; align-items: center; gap: 6px; }
+.vc-wt-badge {
+  padding: 1px 9px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--vc-card));
+  color: var(--vc-text);
+  font: 11.5px/1.6 var(--vc-mono);
+  white-space: nowrap;
+}
