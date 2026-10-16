@@ -406,7 +406,9 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    `when`, `then` — une ligne `then` par assertion), quel que soit le
    langage du test, avec ses cas limites, ce qu'il garantit, et un
    point d'attention s'il n'observe pas vraiment la propriété ; ✓ ou ✗ par cas
-   (✗ le cite dans le champ, pour dire quoi changer) ; *Relire* un fichier
+   (✗ le cite dans le champ, pour dire quoi changer) ; *Code* montre le code
+   d'origine du cas à la place du pseudo-code, *Voir le fichier* le fichier
+   entier ; *Relire* un fichier
    (ou *Tout relire*) refait sa lecture ; *Vérifier l'alignement* ; *Préparer le commit* puis *✓ Commiter*.
 4. **Modules** : *Générer ce module* (avec `ponytail`, tests lancés, sans
    commit), *Relire le diff*, *✓ Valider → commit → suivant* ; ou *Générer
@@ -454,7 +456,7 @@ brouillon de revue revient à l'agent du dépôt.
 
 **Lancer le projet.** L'onglet *Processus* lance, arrête et relance les
 commandes qui font tourner le projet de l'agent (serveur, front, services) :
-▶, ⏹, ↻, l'état de chacune, depuis quand, et la fin de son journal (à
+le nom de chacune, sa commande en petit dessous, ▶, ⏹, ↻, son état, depuis quand, et la fin de son journal (à
 déplier ; *Journal complet* dans l'éditeur). Les commandes sont à vous, propres
 à la machine (`vibecoder/projets/<dossier>.json`) : *Proposer les commandes*
 (Haiku lit le README, `package.json`, `process-compose`, vos alias et

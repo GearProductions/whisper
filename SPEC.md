@@ -753,9 +753,14 @@ fois ; le conseillé reste le choix par défaut. Jamais Fable (I-36).
    assertion, sa valeur attendue après `#` ; les lectures d'avant, proches
    de Vitest, se lisent encore), cas limites, ce qu'il garantit, un point
    d'attention quand le test n'observe pas vraiment la propriété — avec ✓,
-   ✗ (cite le cas dans le champ), 💬, *Ouvrir* ; *✓ Tout valider* quand
-   chaque cas est lu sans point d'attention ; pas lu (ou changé depuis) : ses
-   cas et *Lire en pseudo-code*. En tête : *Tout relire* (dès qu'un fichier
+   ✗ (cite le cas dans le champ), 💬, *Ouvrir*, et *Pseudo-code / Code* : le
+   code d'origine du cas à la place du pseudo-code (de sa ligne à celle du cas
+   suivant, monospace, numéroté, sans coloration) ; *✓ Tout valider* quand
+   chaque cas est lu sans point d'attention ; *Voir le fichier* (replié : tout
+   son code, numéroté) ; pas lu (ou changé depuis) : ses cas, chacun se
+   dépliant sur son code, et *Lire en pseudo-code*. Le relevé porte le texte
+   du test, vide au-delà de 200 000 caractères (rien de tout cela n'est
+   alors montré). En tête : *Tout relire* (dès qu'un fichier
    est lu). Prochaine action : *Écrire les invariants
    (rouges)* (d'après la note, ou le pseudo-code du champ), *Lire en
    pseudo-code* (les fichiers pas encore lus : une lecture est nommée par
@@ -940,7 +945,8 @@ gt-plugins, une fonction du `.bashrc` :
 `{ "commands": [{ "name", "run", "cwd"? }], "shell"? }`. Un `name` sûr et
 unique (lettres, chiffres, `.`, `_`, `-` : il nomme le journal), `run` tel
 que tapé dans un terminal, `cwd` relatif au dossier de l'agent ; une entrée
-mal formée est ignorée. Chaque commande a ▶ *Lancer*, ⏹ *Arrêter*,
+mal formée est ignorée. Chaque commande a son nom (entier, coupé s'il est vraiment long ; la
+bulle donne nom et commande), sa commande en petit dessous, ▶ *Lancer*, ⏹ *Arrêter*,
 ↻ *Relancer*, son état (en cours, arrêtée, en échec et son code), depuis
 quand, et la fin de son journal (200 lignes au plus, sans couleurs, qui suit
 la fin ; dépliable ; *Journal complet* l'ouvre dans l'éditeur).
