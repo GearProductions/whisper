@@ -255,7 +255,8 @@ export type VibeTestFile = VibeFile & {
 };
 
 export type VibeQuestion = { n: number; text: string; options: string[] };
-export type VibeCheck = { text: string; done: boolean | null };   // null : à vérifier à la main
+// done null : à vérifier à la main ; manual : une case du § A.3 que l'on coche à la main (`a3:<rang>`, F-102).
+export type VibeCheck = { text: string; done: boolean | null; manual?: boolean };
 export type VibeCommit = { hash: string; subject: string; fixup: boolean; files: string[] };
 // Ce qu'un skill a écrit pour l'écran (Markdown), et quand.
 export type VibeOutput = { text: string; time: number };
@@ -326,7 +327,7 @@ export type VibeView = {
 };
 
 export type VibeArgs = {
-  text?: string;               // le texte du champ
+  text?: string;               // le texte du champ (ou celui que la vue donne : la remarque d'Appliquer)
   module?: number;             // rang dans VibeView.modules
   commit?: string;             // hash d'un commit de VibeView.commits
   file?: string;               // {{files}} : l'id d'un test de VibeView.invariants (relu même s'il est lu), ou '*' : tous

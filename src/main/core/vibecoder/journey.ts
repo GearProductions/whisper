@@ -53,7 +53,7 @@ const TEXT = {
     mark: { ok: 'validée', ko: 'refusée', changed: 'modifiée depuis' },
     noNote: 'pas de note', filled: 'rédigée', unfilled: 'à rédiger', question: ['question', 'questions'],
     module: ['module', 'modules'], file: ['fichier', 'fichiers'], kase: ['cas', 'cas'], read: ['lu', 'lus'],
-    checksOk: 'vérifications ok', checksKo: 'vérifications en échec', unchecked: 'pas vérifiée', ponytail: 'ponytail faite',
+    checksOk: 'vérifications ok', checksKo: 'vérifications en échec', warning: ['avertissement', 'avertissements'], unchecked: 'pas vérifiée', ponytail: 'ponytail faite',
     fixup: ['fixup', 'fixups'], noPr: 'pas de PR', toLoad: 'à charger', commit: ['commit', 'commits'], reviewed: 'relus',
     box: ['case', 'cases'], noPlan: 'pas de plan', remark: ['remarque', 'remarques'], published: 'publiée',
     busy: 'L\'agent travaille', noRepo: 'Pas de dépôt git', noNoteYet: 'Pas encore de note', nothingToRead: 'Aucun test d\'invariant à lire',
@@ -69,7 +69,7 @@ const TEXT = {
     mark: { ok: 'approved', ko: 'rejected', changed: 'changed since' },
     noNote: 'no note', filled: 'written', unfilled: 'to write', question: ['question', 'questions'],
     module: ['module', 'modules'], file: ['file', 'files'], kase: ['case', 'cases'], read: ['read', 'read'],
-    checksOk: 'checks pass', checksKo: 'checks fail', unchecked: 'not checked', ponytail: 'ponytail done',
+    checksOk: 'checks pass', checksKo: 'checks fail', warning: ['warning', 'warnings'], unchecked: 'not checked', ponytail: 'ponytail done',
     fixup: ['fixup', 'fixups'], noPr: 'no PR', toLoad: 'to load', commit: ['commit', 'commits'], reviewed: 'reviewed',
     box: ['box', 'boxes'], noPlan: 'no plan', remark: ['remark', 'remarks'], published: 'published',
     busy: 'The agent is working', noRepo: 'No git repository', noNoteYet: 'No note yet', nothingToRead: 'No invariant test to read',
@@ -147,8 +147,12 @@ export function vibeView(input: JourneyInput): VibeView {
   const viewCommits = commits.map((c) => ({ hash: c.hash, subject: c.subject, fixup: FIXUP.test(c.subject), files: c.files }));
   const fixups = viewCommits.filter((c) => c.fixup).length;
   const checkItems = json(out('checks.json'))?.items;
-  const checks = Array.isArray(checkItems) ? checkItems as { name?: unknown; ok?: unknown }[] : null;
-  const checksOk = !!checks?.length && checks.every((c) => c?.ok === true);
+  const checks = Array.isArray(checkItems) ? checkItems as { name?: unknown; ok?: unknown; level?: unknown }[] : null;
+  // Un contrôle passe s'il est « ok » ou n'a que des avertissements (level) ; sans level (ancien format) : ok === true.
+  const passes = (c: { ok?: unknown; level?: unknown } | null) =>
+    c?.level === 'ok' || c?.level === 'warning' ? true : c?.level === 'error' ? false : c?.ok === true;
+  const checksOk = !!checks?.length && checks.every(passes);
+  const warnings = checks?.filter((c) => c?.level === 'warning').length ?? 0;
   const ponytail = out('ponytail.md') !== null;
   const commitMd = out('commit.md') !== null;
   // Créer : la PR ouverte (pr.json) ; Relire : la PR suivie, avec sa fiche si elle est chargée.
@@ -164,11 +168,13 @@ export function vibeView(input: JourneyInput): VibeView {
     ? list.flatMap((p) => (prNumber(p?.number) ? [{ number: p.number, title: str(p.title), author: str(p.author), url: str(p.url) }] : []))
     : null;
   // Relire : le plan de test, chaque case validée (pour ce plan-là), ou cochée dans le fichier et pas refusée ;
-  // Créer : la liste du § A.3, cochée d'après le dépôt quand c'est possible (sinon null : à vérifier).
+  // Créer : la liste du § A.3, cochée d'après le dépôt quand c'est possible ; sinon à la main (manual) :
+  // cochée si la case `a3:<rang>` est validée pour le commit de tête de la branche (un commit de plus la décoche).
   const plan = n ? out(`pr-${n}-ecran.md`) : null;
+  const head = commits.at(-1)?.hash;
   const a3 = [
     !!note && commits.some((c) => c.files.includes(note.path)),
-    !!checks?.some((c) => c?.name === 'invariants' && c.ok === true),
+    !!checks?.some((c) => c?.name === 'invariants' && passes(c)),
     null,
     !fixups && commits.length >= modules.length + 1,
     null,
@@ -178,7 +184,8 @@ export function vibeView(input: JourneyInput): VibeView {
       const m = markState(marks, `check:${n}:${i}`, blobSha(plan!));
       return { text: c.text, done: m === 'ok' || (!!c.done && m !== 'ko') };
     })
-    : T.checklist.map((text, i) => ({ text, done: a3[i] }));
+    : T.checklist.map((text, i) => (a3[i] !== null ? { text, done: a3[i] }
+      : { text, done: (!!head && markState(marks, `a3:${i}`, head) === 'ok') || null, manual: true }));
 
   // Les étapes : faite, et l'action qui la fait avancer quand elle est en cours.
   const validated = (s: VibeMarkState) => vibe || s === 'ok';
@@ -219,7 +226,8 @@ export function vibeView(input: JourneyInput): VibeView {
       forme: note ? line(count(modules.length, T.module), note.formeMark && T.mark[note.formeMark]) : T.noNote,
       invariants: invFacts,
       modules: `${modules.filter((m) => m.commits.length).length} / ${count(modules.length, T.module)}`,
-      revue: line(!checks ? T.unchecked : checksOk ? T.checksOk : T.checksKo, ponytail && T.ponytail, fixups > 0 && count(fixups, T.fixup)),
+      revue: line(!checks ? T.unchecked : checksOk ? T.checksOk : T.checksKo, warnings > 0 && count(warnings, T.warning),
+        ponytail && T.ponytail, fixups > 0 && count(fixups, T.fixup)),
       pr: pr ? `PR #${pr.number}` : T.noPr,
     };
   } else {

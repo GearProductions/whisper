@@ -372,6 +372,43 @@ describe('Créer : la liste du § A.3', () => {
   it('moins de commits que de modules + 1 : pas coché', () => {
     expect(done(vibeView(ready({ repo: repo([], [FIRST, HELLO]) })))[3]).toBe(false);
   });
+
+  it('relecture et AGENTS.md : à cocher à la main ; cochés pour le commit de tête, décochés par un commit de plus', () => {
+    const marks = { ...NOTE_OK, ...CASES_OK, 'a3:2': { hash: BUTTON.hash, verdict: 'ok' as const } };
+    const v = vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), marks }));
+    expect(v.checklist.map((c) => [c.done, !!c.manual])).toEqual([[true, false], [false, false], [true, true], [true, false], [null, true]]);
+    const fix = commit('d', 'core/hello encore', ['src/core/hello.ts']);
+    expect(done(vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON, fix]), marks })))[2]).toBeNull();
+  });
+
+  it('refusée (✗) ou sans commit : pas cochée', () => {
+    expect(done(vibeView(ready({ marks: { ...NOTE_OK, 'a3:4': { hash: FIRST.hash, verdict: 'ko' } } })))[4]).toBeNull();
+    expect(done(vibeView(input({ marks: { 'a3:2': { hash: '', verdict: 'ok' } } })))[2]).toBeNull();
+  });
+});
+
+describe('Créer : les vérifications et leurs avertissements (level)', () => {
+  const v = (items: unknown[]) => vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), outputs: { 'checks.json': out(JSON.stringify({ items })) } }));
+  const revue = (x: VibeView) => x.steps.find((s) => s.id === 'revue')!.facts;
+
+  it('des avertissements seulement : passées, « n avertissements » dans les faits', () => {
+    const x = v([{ name: 'tests', ok: true, level: 'ok' }, { name: 'lint', ok: true, level: 'warning' }]);
+    expect([primary(x), revue(x)]).toEqual(['ponytail', 'vérifications ok · 1 avertissement']);
+  });
+
+  it('level l\'emporte sur ok : warning passe même si ok est faux, error échoue même si ok est vrai', () => {
+    expect(primary(v([{ name: 'lint', ok: false, level: 'warning' }]))).toBe('ponytail');
+    expect(revue(v([{ name: 'lint', ok: true, level: 'error' }]))).toBe('vérifications en échec');
+  });
+
+  it('ancien format, sans level : d\'après ok ; level inconnu : d\'après ok', () => {
+    expect(revue(v([{ name: 'lint', ok: false }]))).toBe('vérifications en échec');
+    expect(revue(v([{ name: 'lint', ok: true, level: 'bizarre' }]))).toBe('vérifications ok');
+  });
+
+  it('les invariants avec des avertissements : cochés au § A.3', () => {
+    expect(v([{ name: 'invariants', ok: true, level: 'warning' }]).checklist[1].done).toBe(true);
+  });
 });
 
 describe('le relevé : modules, tests, faits', () => {
