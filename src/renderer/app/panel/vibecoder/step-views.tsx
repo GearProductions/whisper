@@ -6,7 +6,7 @@
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder, panel-app (VibeActs). */
 import type { ComponentType } from 'react';
 import type { Answer, Answers, Strings } from 'core/vibecoder';
-import type { VibeArgs, VibePatch, VibeStep, VibeStepId, VibeView } from 'technicals/bridge';
+import type { VibeArgs, VibePatch, VibeProcessOp, VibeStep, VibeStepId, VibeView } from 'technicals/bridge';
 import { CommitsView } from './commits-view';
 import { DraftView } from './draft-view';
 import { EcranView } from './ecran-view';
@@ -29,6 +29,7 @@ export type VibeActs = {
                                                // c<rang>/<i>, son i-e fichier ; gh:c<rang>, sa page sur GitHub)
   openLink(url: string): void;
   refresh(): void;
+  process(op: VibeProcessOp, index?: number): void;  // Processus : une commande par son rang, ou 'edit' (le fichier du projet)
 };
 
 export type StepProps = {

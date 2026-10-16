@@ -77,6 +77,8 @@ const fr = {
   contextTitle: 'Contexte de la conversation : cliquer pour le détail',
   tasksOf: (running: number) => (running ? `Tâches (${running})` : 'Tâches'),
   tasksTitle: 'Les tâches de fond de l\'agent',
+  procsOf: (running: number) => (running ? `Processus (${running})` : 'Processus'),
+  procsTitle: 'Les commandes qui lancent le projet (serveur, front, services) : lancées par l\'appli, arrêtées à sa sortie',
   changed: (n: number) => (n > 1 ? `${n} fichiers modifiés` : `${n} fichier modifié`),
   at: (time: string) => `relevé à ${time}`,
 };
@@ -152,6 +154,8 @@ const en: Strings = {
   contextTitle: 'Conversation context: click for the detail',
   tasksOf: (running) => (running ? `Tasks (${running})` : 'Tasks'),
   tasksTitle: 'The agent\'s background tasks',
+  procsOf: (running) => (running ? `Processes (${running})` : 'Processes'),
+  procsTitle: 'The commands that start the project (server, front, services): started by the app, stopped when it quits',
   changed: (n) => `${n} file${n === 1 ? '' : 's'} changed`,
   at: (time) => `read at ${time}`,
 };

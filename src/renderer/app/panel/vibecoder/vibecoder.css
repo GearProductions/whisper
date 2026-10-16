@@ -525,3 +525,32 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 @media (prefers-reduced-motion: reduce) {
   .vc *, .vc *::before, .vc *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---- Onglet Processus : les commandes du projet ---------------------------- */
+.vc-procs { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 12px 14px; }
+.vc-proc { margin-bottom: 12px; }
+.vc-proc .vc-card-head { gap: 8px; padding-right: 6px; }
+.vc-proc .vc-card-file { flex: 1 1 auto; font-family: var(--vc-mono); }
+.vc-proc .vc-card-time { margin-left: 0; }
+.vc-proc .vc-icon { width: 24px; height: 24px; font-size: 13px; line-height: 24px; }
+.vc-proc .vc-icon:disabled { color: var(--vc-faint); opacity: 0.45; cursor: default; background: none; }
+.vc-proc-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--vc-faint); }
+.vc-proc[data-status="running"] .vc-proc-dot { background: var(--vc-ok); }
+.vc-proc[data-status="failed"] .vc-proc-dot { background: #c87070; }
+.vc-proc-log {
+  margin: 0 10px;
+  max-height: 9.6em;
+  overflow: auto;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--vc-code);
+  color: var(--vc-soft);
+  font: 11.5px/1.6 var(--vc-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.vc-proc-log[data-open] { max-height: 420px; }
+.vc-proc-foot { display: flex; gap: 14px; padding: 4px 12px 8px; }
+.vc-procs-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.vc-procs-foot .vc-mini { margin-left: 0; }
+.vc-procs .vc-empty { margin-bottom: 12px; }

@@ -6,15 +6,16 @@
  *  parcours à gauche (il dit où l'on en est) ; au centre, les onglets des
  *  étapes, l'étape choisie (step-views : son en-tête porte ses actions ; en
  *  Vibe, un bandeau le rappelle en haut ; Relire, une PR fusionnée ou fermée
- *  aussi) ; à droite, en onglets, la conversation (reçue en children) ou les
- *  tâches de fond (`tasks`, le nombre en cours dans l'onglet), masquable, sa
+ *  aussi) ; à droite, en onglets, la conversation (reçue en children), les
+ *  tâches de fond (`tasks`, le nombre en cours dans l'onglet) ou les
+ *  processus du projet (processes-view, le nombre en cours), masquable, sa
  *  largeur à la poignée (300 px → 60 %) ; la barre d'état en bas (son ⚙
  *  Tâches ouvre l'onglet). Ctrl+1…6 ouvrent les étapes. Une vue d'étape qui
  *  échoue ne fait tomber ni l'écran ni le brouillon (I-29). Il tient les
  *  réponses en cours aux questions ouvertes, le verdict de la revue (Relire),
  *  le modèle choisi par action (envoyé s'il n'est pas le conseillé).
  *  Préparer un message dans le champ, ou une action qui exige son texte,
- *  réaffiche la conversation (colonne masquée, ou onglet Tâches).
+ *  réaffiche la conversation (colonne masquée, ou onglet Tâches, Processus).
  *  Ne connaît pas : le pont (rappels passés), le contenu de la conversation.
  *  Utilisé par : panel-app. */
 import { Component, useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
@@ -22,6 +23,7 @@ import { isBusy, titleOf } from 'core/conversation';
 import { convWidth, modelArg, t as strings, type Answers, type ModelPicks, type Strings } from 'core/vibecoder';
 import type { Thread, VibeLang, VibeStepId, VibeView } from 'technicals/bridge';
 import { Journey } from './journey';
+import { ProcessesView } from './processes-view';
 import { Picks } from './model-pick';
 import { StatusBar } from './status-bar';
 import { ClosedBanner, VibeBanner, WorktreeBadge } from './step-parts';
@@ -56,13 +58,15 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   const onAnswer: StepProps['onAnswer'] = (q, a) => setAnswers((all) => ({ ...all, [q]: a }));
   const [picks, setPicks] = useState<ModelPicks>({});
   const root = useRef<HTMLDivElement>(null);
-  const show = () => { if (!side.open) onSide({ ...side, open: true }); if (tasksOpen) onTasks(); };
-  // ⚙ Tâches (barre d'état) : la colonne masquée s'affiche sur l'onglet Tâches ; sinon, l'onglet bascule.
+  const [procs, setProcs] = useState(false);   // l'onglet Processus est choisi (par-dessus Conversation | Tâches)
+  const show = () => { if (!side.open) onSide({ ...side, open: true }); setProcs(false); if (tasksOpen) onTasks(); };
+  // ⚙ Tâches (barre d'état) : la colonne masquée, ou l'onglet Processus, s'affiche sur l'onglet Tâches ; sinon, l'onglet bascule.
   const toggleTasks = () => {
-    if (side.open) onTasks();
-    else { onSide({ ...side, open: true }); if (!tasksOpen) onTasks(); }
+    if (!side.open) onSide({ ...side, open: true });
+    if (procs) { setProcs(false); if (!tasksOpen) onTasks(); } else if (side.open || !tasksOpen) onTasks();
   };
   const running = thread.tasks?.filter((x) => x.status === 'running').length || 0;
+  const up = view.processes?.filter((p) => p.status === 'running').length || 0;
   // Les rappels, avec le modèle choisi (s'il n'est pas le conseillé) ; ce qui passe par le champ le réaffiche.
   const act: VibeActs = {
     ...given,
@@ -115,17 +119,23 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
         <section className="vc-conv" aria-label={t.conversation}>
           <Resizer t={t} side={side} root={root} onSide={onSide} />
           <div className="vc-side-tabs vc-band" role="tablist">
-            <button type="button" role="tab" className="vc-tab" aria-selected={!tasksOpen} title={titleOf(thread)} onClick={() => { if (tasksOpen) onTasks(); }}>
+            <button type="button" role="tab" className="vc-tab" aria-selected={!tasksOpen && !procs} title={titleOf(thread)}
+              onClick={() => { setProcs(false); if (tasksOpen) onTasks(); }}>
               {t.conversation}<span className="vc-conv-name">{titleOf(thread)}</span>
             </button>
-            <button type="button" role="tab" className="vc-tab" aria-selected={tasksOpen} title={t.tasksTitle} onClick={() => { if (!tasksOpen) onTasks(); }}>
+            <button type="button" role="tab" className="vc-tab" aria-selected={tasksOpen && !procs} title={t.tasksTitle}
+              onClick={() => { setProcs(false); if (!tasksOpen) onTasks(); }}>
               {t.tasksOf(running)}
+            </button>
+            <button type="button" role="tab" className="vc-tab" aria-selected={procs} title={t.procsTitle} onClick={() => setProcs(true)}>
+              {t.procsOf(up)}
             </button>
           </div>
           {children}
-          {tasksOpen ? <div className="vc-tasks-tab" role="tabpanel">{tasks}</div> : null}
+          {tasksOpen && !procs ? <div className="vc-tasks-tab" role="tabpanel">{tasks}</div> : null}
+          {procs ? <div className="vc-tasks-tab" role="tabpanel"><Guard t={t}><ProcessesView view={view} t={t} act={act} busy={busy} /></Guard></div> : null}
         </section>
-        <StatusBar view={view} thread={thread} t={t} busy={busy} tasksOpen={tasksOpen} contextOpen={contextOpen}
+        <StatusBar view={view} thread={thread} t={t} busy={busy} tasksOpen={tasksOpen && !procs} contextOpen={contextOpen}
           onSet={act.set} onGauge={onGauge} onTasks={toggleTasks} />
       </div>
     </Picks.Provider>

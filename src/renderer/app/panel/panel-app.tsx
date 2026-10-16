@@ -247,7 +247,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
 
   const vibeAct: VibeActs = {
     run: vibeRun, prefill: vibePrefill, set: conv.vibeSet, mark: conv.vibeMark, draft: conv.vibeDraft, open: conv.vibeOpen,
-    openLink: conv.openLink, refresh: conv.vibeRefresh,
+    openLink: conv.openLink, refresh: conv.vibeRefresh, process: conv.vibeProcess,
   };
 
   const act: ThreadActions = {
