@@ -350,4 +350,5 @@ export type VibePatch = {
   mode?: string;
   interrupt?: boolean;         // arrêter le tour en cours de l'agent (comme Interrompre de son menu)
   worktree?: true;             // le robot de la PR suivie dans son worktree : l'afficher, ou le proposer (question de confiance)
+  prs?: true;                  // Relire : Mes PR à relire (gh, sans agent)
 };

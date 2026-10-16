@@ -27,7 +27,7 @@ export const panelHandlers: HandlerTable<typeof PANEL_CHANNELS> = {
     'conv:vibeMark': markVibe,
     'conv:vibeDraft': draftVibe,
     'conv:vibeOpen': openVibeItem,
-    'conv:vibeRefresh': () => { refreshVibe({ now: true }); },
+    'conv:vibeRefresh': () => { refreshVibe({ now: true, fresh: true }); },
     'conv:vibeProcess': (op, index) => { vibeProcess(op, index); },
   },
   handle: {

@@ -16,7 +16,11 @@
  *  (I-37). Ce qu'il écrit pour l'ouvrir (un fichier de la PR, le diff d'un
  *  commit) va sous <sorties>/files/, en lecture seule. Le message d'une
  *  action : son gabarit, rempli par buildMessage (I-38). git en lecture seule
- *  (technicals/git, I-39). Créer : les sorties
+ *  (technicals/git, I-39) ; gh aussi, sans agent (technicals/github, derrière
+ *  le préfixe de l'agent : processes.agentPrefix) : Créer, la PR de la
+ *  branche ; Relire, l'état de la PR chargée (60 s en cache, demandés en
+ *  fond : le relevé ne les attend pas ; ↻ les redemande) et Mes PR à relire
+ *  (setVibe({ prs })). Créer : les sorties
  *  suivent la branche (followBranch). Relire dans un worktree : le robot
  *  temporaire (controllers/worktrees), Décharger part à l'agent du dépôt.
  *  git manquant, dossier sans dépôt,
@@ -40,12 +44,13 @@ import {
 } from 'core/vibecoder';
 import { findEditor } from 'technicals/editor';
 import { gitReader, gitRun, okRef } from 'technicals/git';
+import { ghRun, githubReader } from 'technicals/github';
 import { which } from 'technicals/paths';
 import { loadConfig, saveConfig, saveVibeStore, updateAgent, vibeActions, vibeOutDir, vibePluginDir, vibeStore } from 'app/settings';
 import { state } from 'app/state';
 import { conversationShown, openConversation } from 'app/windows';
 import { interruptAgent, isBusy, liveViewAgent, sendToAgent, setAgentSetting } from './agents';
-import { processAction, processView } from './processes';
+import { agentPrefix, processAction, processView } from './processes';
 import { showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
 
 const VIBE_MS = 4000;          // le relevé régulier, panneau visible
@@ -53,6 +58,7 @@ const THROTTLE_MS = 1000;      // au plus un relevé par seconde
 const READ_MAX = 1024 * 1024;  // un fichier plus gros n'est pas lu
 const TARGET_MAX = 300;        // une remarque du brouillon de revue : sa cible…
 const REMARK_MAX = 5000;       // … et son texte
+const GH_MS = 60_000;          // une réponse de gh vaut 60 s
 
 const ERRORS: Record<VibeLang, Record<MessageError | 'agent' | 'action' | 'args' | 'noGit' | 'notRepo', string>> = {
   fr: {
@@ -98,6 +104,8 @@ const ERRORS: Record<VibeLang, Record<MessageError | 'agent' | 'action' | 'args'
 const last = new Map<string, VibeView>();  // le dernier relevé envoyé, par agent : ce que la page désigne
 const turnNote = new Map<string, { text: string; busy: boolean }>();  // la note au début du tour (surlignage)
 const showCache = new Map<string, Promise<string | null>>();  // Relire : un fichier à un commit donné ne change pas
+const ghCache = new Map<string, { at: number; value: unknown; pending: boolean }>();  // par question à gh
+const prsFound = new Map<string, unknown[]>();   // Relire : Mes PR à relire, par agent (la dernière réponse de gh)
 let shown: string | null = null;           // l'agent dont le panneau a le relevé (null : aucun, ou null envoyé)
 let lastAt = 0;
 let running = false;
@@ -111,10 +119,30 @@ export function vibeAgent(cfg: Config = loadConfig()) {
   return agent && agent.view === 'vibecoder' ? agent : null;
 }
 
+// gh : la dernière réponse à cette question (null : pas encore, ou échec) ;
+// plus vieille que 60 s, ou jamais posée : redemandée en fond, et un relevé
+// de plus si la réponse change. Le relevé n'attend jamais gh (I-29).
+function fromGh<T>(key: string, ask: () => Promise<T | null>): T | null {
+  const hit = ghCache.get(key);
+  if (!hit || (!hit.pending && Date.now() - hit.at > GH_MS)) {
+    if (ghCache.size > 200) ghCache.clear();
+    const entry = { at: Date.now(), value: hit?.value ?? null, pending: true };
+    ghCache.set(key, entry);
+    ask().then((value) => {
+      const changed = JSON.stringify(value) !== JSON.stringify(entry.value);
+      Object.assign(entry, { value, pending: false, at: Date.now() });
+      if (changed) refreshVibe({ now: true });
+    });
+  }
+  return (hit?.value ?? null) as T | null;
+}
+
 // Relève l'agent affiché en VibeCoder et envoie son parcours au panneau ;
 // sinon null, une fois. Un relevé à la fois, au plus un par seconde (sauf
-// `now`, ou un autre agent) : le suivant attend.
-export async function refreshVibe({ now = false }: { now?: boolean } = {}) {
+// `now`, ou un autre agent) : le suivant attend. `fresh` (↻) : les réponses
+// de gh sont redemandées.
+export async function refreshVibe({ now = false, fresh = false }: { now?: boolean; fresh?: boolean } = {}) {
+  if (fresh) for (const entry of ghCache.values()) entry.at = 0;
   syncWorktrees(); // Relire dans un worktree : le robot temporaire arrive ou part (F-110)
   const cfg = loadConfig();
   const agent = vibeAgent(cfg);
@@ -246,6 +274,15 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const card = ref ? json(outputs[`pr-${pr}.json`]?.text) : null;
   const base = branchName(card?.base);
   const facts = flow === 'create' ? created : ref ? await git.facts(ref, base ? `origin/${base}` : undefined) : null;
+  // gh, sans agent : Créer, la PR de la branche (pas sur la base) ; Relire, l'état de la PR chargée.
+  const gh = githubReader(ghRun(agent.dir, agentPrefix(agent, cfg)));
+  const feature = created && created.branch !== 'HEAD' && created.base !== created.branch && !created.base.endsWith(`/${created.branch}`)
+    ? created.branch : null;
+  const github = {
+    pr: feature ? fromGh(`pr ${agent.dir} ${feature}`, () => gh.prForBranch(feature)) : null,
+    state: card && pr ? fromGh(`state ${agent.dir} ${pr}`, () => gh.prState(pr)) : null,
+    prs: flow === 'review' ? prsFound.get(agent.id) ?? null : null,
+  };
   // Relire : lu une fois par commit de tête de la PR (git show coûte un processus).
   const read = (rel: string) => {
     if (!ref || !facts) return Promise.resolve(onDisk(agent.dir, rel));
@@ -296,6 +333,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     marks: store.marks[agent.id] || {},
     draft: flow === 'review' && pr ? store.drafts[agent.id]?.[pr] || [] : [],
     worktree: worktreeState(agent, flow === 'review' ? pr : null, busy),
+    github,
     actions,
     who: Object.fromEntries(actions.map((a) => [a.id, whoOf(skills[a.id], lang)])),
     model: Object.fromEntries(actions.map((a) => [a.id, forkedModel(skills[a.id])])),
@@ -348,7 +386,8 @@ export function setAgentView(id: string, view: 'vibecoder' | null) {
 // l'actuelle) ; revenir à la conversation ; modèle, effort et mode comme son
 // menu (une valeur hors de ses choix est ignorée) ; arrêter son tour, comme
 // Interrompre de son menu ; le robot de la PR dans son worktree (l'afficher,
-// ou le proposer à nouveau : jamais un chemin, F-110).
+// ou le proposer à nouveau : jamais un chemin, F-110) ; Mes PR à relire (gh,
+// sans agent ; un échec laisse la liste d'avant).
 export function setVibe(patch: unknown) {
   const agent = vibeAgent();
   if (!agent || !patch || typeof patch !== 'object') return;
@@ -368,6 +407,12 @@ export function setVibe(patch: unknown) {
   }
   if (p.interrupt === true && isBusy(agent.id)) interruptAgent(agent.id);
   if (p.worktree === true) showWorktree(agent);
+  if (p.prs === true && vibe.flow === 'review') {
+    githubReader(ghRun(agent.dir, agentPrefix(agent, loadConfig()))).prsToReview().then((list) => {
+      if (list) prsFound.set(agent.id, list);
+      refreshVibe({ now: true });
+    });
+  }
   if (p.view === 'conversation') setAgentView(agent.id, null);
   else refreshVibe({ now: true });
 }
