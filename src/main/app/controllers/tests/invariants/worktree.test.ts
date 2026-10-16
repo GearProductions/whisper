@@ -82,7 +82,7 @@ beforeEach(() => {
   fake.windows = [];
   fake.asked = [];
   fake.answer = 1;
-  fake.userData = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-worktree-')));
+  fake.userData = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-worktree-')));
   root = fake.userData;
   repo = path.join(root, 'projet');
   newRepo(repo);

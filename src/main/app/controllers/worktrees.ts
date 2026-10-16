@@ -41,7 +41,7 @@ function readCard(agentId: string, pr: number) {
 // Le dépôt de `dir` : son dossier git commun et la racine de sa copie, résolus ; null si ce n'en est pas un.
 async function repoOf(dir: string) {
   const [common, top] = ((await gitRun(dir)(['rev-parse', '--path-format=absolute', '--git-common-dir', '--show-toplevel'])) ?? '').split('\n');
-  try { return common && top ? { common: fs.realpathSync(common), top: fs.realpathSync(top) } : null; } catch { return null; }
+  try { return common && top ? { common: fs.realpathSync.native(common), top: fs.realpathSync.native(top) } : null; } catch { return null; }
 }
 
 // L'agent du dépôt d'un robot temporaire ; null pour un autre agent.
@@ -83,7 +83,7 @@ export function showWorktree(agent: AgentConfig) {
 async function adopt(parent: AgentConfig, pr: number) {
   const card = readCard(parent.id, pr);
   let dir: string;
-  try { dir = card ? fs.realpathSync(card.dir) : ''; } catch { return; }
+  try { dir = card ? fs.realpathSync.native(card.dir) : ''; } catch { return; }
   if (!dir || !fs.statSync(dir).isDirectory()) return;
   const [own, wt] = await Promise.all([repoOf(parent.dir), repoOf(dir)]);
   if (!own || !wt || wt.common !== own.common || wt.top !== dir || wt.top === own.top) return;
