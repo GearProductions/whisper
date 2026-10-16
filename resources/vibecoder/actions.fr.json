@@ -230,6 +230,26 @@
     "text": "/vibecoder:charger-pr {{lang}} {{out}} {{pr}}"
   },
   {
+    "id": "open-worktree",
+    "flow": "review",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "Ouvrir dans un worktree",
+    "hint": "Crée un worktree de la PR selon la convention du projet et le prépare (dépendances…) ; un robot « PR #n » s'y ajoute, après la question de confiance.",
+    "text": "/vibecoder:worktree-pr {{lang}} {{out}} {{pr}}"
+  },
+  {
+    "id": "unload-worktree",
+    "flow": "review",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "Décharger",
+    "hint": "L'agent du dépôt retire le worktree de la PR (refusé s'il reste des modifications) ; ce robot part avec lui.",
+    "text": "/vibecoder:retirer-worktree {{lang}} {{out}} {{pr}}"
+  },
+  {
     "id": "review-note",
     "flow": "review",
     "step": "note",

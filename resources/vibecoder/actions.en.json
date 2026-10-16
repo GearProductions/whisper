@@ -230,6 +230,26 @@
     "text": "/vibecoder:charger-pr {{lang}} {{out}} {{pr}}"
   },
   {
+    "id": "open-worktree",
+    "flow": "review",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "Open in a worktree",
+    "hint": "Creates a worktree of the PR following the project's convention and sets it up (dependencies…); a \"PR #n\" robot is added there, after the trust question.",
+    "text": "/vibecoder:worktree-pr {{lang}} {{out}} {{pr}}"
+  },
+  {
+    "id": "unload-worktree",
+    "flow": "review",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "Unload",
+    "hint": "The repository's agent removes the PR's worktree (refused if changes remain); this robot leaves with it.",
+    "text": "/vibecoder:retirer-worktree {{lang}} {{out}} {{pr}}"
+  },
+  {
     "id": "review-note",
     "flow": "review",
     "step": "note",
