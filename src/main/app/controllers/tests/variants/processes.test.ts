@@ -67,7 +67,7 @@ describe.skipIf(process.platform === 'win32')('lancer, lire, arrêter', () => {
     view();
     expect(fs.existsSync(path.join(out(), 'run', 'srv.stop'))).toBe(false);
     expect(await until(() => view().processes[0].status === 'stopped')).toBe(true);
-  });
+  }, 15000); // arrêt réel (SIGTERM, puis SIGKILL après 5 s) : lent sur une machine chargée
 });
 
 describe('le fichier du projet', () => {
