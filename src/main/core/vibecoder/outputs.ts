@@ -1,13 +1,14 @@
 /** outputs — ce que les skills écrivent pour l'écran dans le dossier de
  *  sorties de l'agent : les seuls noms que le principal y lit, et leur
  *  lecture (cas d'un test lus en pseudo-code, questions ouvertes, cases à
- *  cocher, un JSON).
+ *  cocher, un JSON, le worktree d'une PR).
  *  Ne connaît pas : le disque (textes passés), les skills.
  *  Utilisé par : core/vibecoder (journey), app/controllers/vibecoder. */
+import path from 'node:path';
 import type { ReadingCase, VibeCheck, VibeQuestion } from 'shared/bridge';
 
 // Les noms fixes. S'y ajoutent, par PR : pr-<n>.json, pr-<n>-note.md,
-// pr-<n>-commits.md, pr-<n>-ecran.md, pr-<n>-review.json ; et les lectures
+// pr-<n>-commits.md, pr-<n>-ecran.md, pr-<n>-review.json, pr-<n>-worktree.json ; et les lectures
 // invariants/<blob>.md.
 export const OUTPUTS: readonly string[] = [
   'questions.md', 'align.md', 'review.md', 'commit.md', 'checks.json', 'ponytail.md', 'pr.json', 'ci.md', 'prs.json',
@@ -15,7 +16,7 @@ export const OUTPUTS: readonly string[] = [
 
 // Un nom de sortie connu, rien d'autre : ni `..`, ni autre dossier qu'invariants/.
 export function isOutputName(name: string): boolean {
-  return OUTPUTS.includes(name) || /^pr-[1-9]\d*(-note\.md|-commits\.md|-ecran\.md|-review\.json|\.json)$/.test(name)
+  return OUTPUTS.includes(name) || /^pr-[1-9]\d*(-note\.md|-commits\.md|-ecran\.md|-review\.json|-worktree\.json|\.json)$/.test(name)
     || /^invariants\/[0-9a-f]{40}\.md$/.test(name);
 }
 
@@ -27,6 +28,15 @@ export function json(text: string | null | undefined): Record<string, unknown> |
   } catch {
     return null;
   }
+}
+
+// pr-<n>-worktree.json (skill worktree-pr) : le dossier du worktree, un chemin
+// absolu sans caractère de contrôle, et sa branche ; sinon null.
+export function worktreeCard(text: string | null | undefined): { dir: string; branch: string } | null {
+  const card = json(text);
+  const dir = card?.dir;
+  if (typeof dir !== 'string' || !path.isAbsolute(dir) || /[\0-\x1f\x7f]/.test(dir)) return null;
+  return { dir, branch: typeof card!.branch === 'string' ? card!.branch : '' };
 }
 
 const BULLET = /^\s*(?:[-*+]|\d+[.)])\s+/;

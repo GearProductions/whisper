@@ -22,6 +22,8 @@ const ACTIONS: ActionDef[] = [
   A('pr', 'create', 'pr', '/vibecoder:pr {{lang}} {{out}}'),
   A('prs', 'review', 'pr', '/vibecoder:prs {{lang}} {{out}}'),
   A('load-pr', 'review', 'pr', '/vibecoder:charger-pr {{lang}} {{out}} {{pr}}'),
+  A('open-worktree', 'review', 'pr', '/vibecoder:worktree-pr {{lang}} {{out}} {{pr}}'),
+  A('unload-worktree', 'review', 'pr', '/vibecoder:retirer-worktree {{lang}} {{out}} {{pr}}'),
   A('review-note', 'review', 'note', '/vibecoder:relire-note {{lang}} {{out}} {{pr}}'),
   A('review-commits', 'review', 'commits', '/vibecoder:relire-commits {{lang}} {{out}} {{pr}}'),
   A('screen', 'review', 'ecran', '/vibecoder:ecran {{lang}} {{out}} {{pr}}'),
@@ -460,5 +462,27 @@ describe('rc.2 : modèle au choix, PR fermée, fichiers des commits', () => {
 
   it('chaque commit, avec ses fichiers', () => {
     expect(vibeView(ready()).commits).toEqual([{ hash: FIRST.hash, subject: FIRST.subject, fixup: false, files: [NOTE_PATH, TEST_PATH] }]);
+  });
+});
+
+describe('Relire dans un worktree (F-110)', () => {
+  const loaded = (over: Partial<JourneyInput> = {}) => input({ flow: 'review', pr: 12, outputs: { 'pr-12.json': out('{"number":12}') }, ...over });
+  const why = (v: VibeView, id: string) => v.actions.find((a) => a.id === id)?.disabled;
+
+  it('Ouvrir dans un worktree : une PR chargée, pas encore dans un worktree', () => {
+    expect(why(vibeView(loaded()), 'open-worktree')).toBeNull();
+    expect(why(vibeView(input({ flow: 'review', pr: 12 })), 'open-worktree')).toBe('Charger d\'abord la PR');
+    expect(why(vibeView(input({ flow: 'review' })), 'open-worktree')).toBe('Aucune PR choisie');
+    for (const state of ['creating', 'open', 'robot'] as const) {
+      expect(why(vibeView(loaded({ worktree: { state, temp: false, dir: '/w' } })), 'open-worktree')).toBe('Déjà ouverte dans un worktree');
+    }
+  });
+
+  it('Décharger : seulement sur le robot du worktree ; l’état du worktree passe au relevé', () => {
+    expect(why(vibeView(loaded()), 'unload-worktree')).toBe('Seulement sur le robot d\'un worktree');
+    const robot = vibeView(loaded({ worktree: { state: 'robot', temp: true, dir: '/w' } }));
+    expect(why(robot, 'unload-worktree')).toBeNull();
+    expect(robot.worktree).toEqual({ state: 'robot', temp: true, dir: '/w' });
+    expect(vibeView(loaded()).worktree).toBeNull();
   });
 });

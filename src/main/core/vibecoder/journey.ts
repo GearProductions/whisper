@@ -2,13 +2,14 @@
  *  relevé (dépôt, note, tests, sorties des skills, validations) : les étapes
  *  (faite, en cours, à venir) et leurs faits en une ligne, la prochaine
  *  action, les actions possibles et pourquoi une autre est grisée — Créer ou
- *  Relire, Guide ou Vibe (les règles : la note du ticket 0.8.0).
+ *  Relire, Guide ou Vibe, la PR dans un worktree (les règles : la note du
+ *  ticket 0.8.0).
  *  Ne connaît pas : Electron, le disque, git (tout est passé ; `exists` dit si
  *  un chemin du dossier de l'agent existe).
  *  Utilisé par : app/controllers/vibecoder (refreshVibe). */
 import type {
   VibeAction, VibeAutonomy, VibeCheck, VibeComment, VibeFlow, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePr,
-  VibePrItem, VibeStepId, VibeTestFile, VibeView,
+  VibePrItem, VibeStepId, VibeTestFile, VibeView, VibeWorktree,
 } from 'shared/bridge';
 import { prNumber, SKILL_MODELS, templateVars, type ActionDef } from './actions';
 import { markState, type Marks } from './marks';
@@ -32,6 +33,7 @@ export type JourneyInput = {
   outputs: Record<string, { text: string; time: number }>; // par nom connu (OUTPUTS)
   marks: Marks;
   draft: VibeComment[];
+  worktree?: VibeWorktree | null;                   // Relire : la PR suivie dans un worktree (F-110)
   actions: ActionDef[];
   who: Record<string, string>;                      // par id d'action : qui travaille
   model: Record<string, string | null>;             // par id d'action : le modèle de son skill en sous-contexte (forkedModel)
@@ -57,7 +59,8 @@ const TEXT = {
     busy: 'L\'agent travaille', noRepo: 'Pas de dépôt git', noNoteYet: 'Pas encore de note', nothingToRead: 'Aucun test d\'invariant à lire',
     noModule: 'Aucun module à générer', noPrChosen: 'Aucune PR choisie', loadFirst: 'Charger d\'abord la PR',
     emptyDraft: 'Le brouillon de revue est vide', noCommitMd: 'Préparer d\'abord le commit', noQuestion: 'Aucune question ouverte',
-    noFixup: 'Aucun commit fixup!', merged: 'PR déjà fusionnée : rien à relire', closed: 'PR fermée : rien à relire',
+    noFixup: 'Aucun commit fixup!', worktreeOpen: 'Déjà ouverte dans un worktree', notWorktree: 'Seulement sur le robot d\'un worktree',
+    merged: 'PR déjà fusionnée : rien à relire', closed: 'PR fermée : rien à relire',
     checklist: ['La note est à jour', 'Les invariants passent', 'Chaque diff a été relu', 'Un commit par module, fixups repliés',
       'AGENTS.md à jour si une convention a changé'],
   },
@@ -72,7 +75,8 @@ const TEXT = {
     busy: 'The agent is working', noRepo: 'No git repository', noNoteYet: 'No note yet', nothingToRead: 'No invariant test to read',
     noModule: 'No module to generate', noPrChosen: 'No PR chosen', loadFirst: 'Load the PR first',
     emptyDraft: 'The review draft is empty', noCommitMd: 'Prepare the commit first', noQuestion: 'No open question',
-    noFixup: 'No fixup! commit', merged: 'PR already merged: nothing to review', closed: 'PR closed: nothing to review',
+    noFixup: 'No fixup! commit', worktreeOpen: 'Already open in a worktree', notWorktree: 'Only on a worktree\'s robot',
+    merged: 'PR already merged: nothing to review', closed: 'PR closed: nothing to review',
     checklist: ['The note is up to date', 'The invariants pass', 'Every diff has been reviewed', 'One commit per module, fixups folded',
       'AGENTS.md updated if a convention changed'],
   },
@@ -267,6 +271,9 @@ export function vibeView(input: JourneyInput): VibeView {
     if (d.id === 'commit' && !commitMd) return T.noCommitMd;
     if (d.id === 'answers' && !questions.length) return T.noQuestion;
     if (d.id === 'fixups' && !fixups) return T.noFixup;
+    // Relire dans un worktree : ouvrir une PR chargée, une fois ; décharger, sur son robot.
+    if (d.id === 'open-worktree') return input.worktree ? T.worktreeOpen : loaded ? null : pr ? T.loadFirst : T.noPrChosen;
+    if (d.id === 'unload-worktree' && !input.worktree?.temp) return T.notWorktree;
     return null;
   };
   const actions: VibeAction[] = input.actions
@@ -285,6 +292,6 @@ export function vibeView(input: JourneyInput): VibeView {
     error: input.error,
     steps: ORDER[flow].map((id) => ({ id, status: done[id] ? 'done' : id === current ? 'current' : 'todo', facts: stepFacts[id] ?? '' })),
     note, questions, modules, invariants, variants, commits: viewCommits, outputs, checklist, actions,
-    skills: input.skills, pr, prs, draft: input.draft, time: input.now,
+    skills: input.skills, pr, prs, draft: input.draft, worktree: input.worktree ?? null, time: input.now,
   };
 }

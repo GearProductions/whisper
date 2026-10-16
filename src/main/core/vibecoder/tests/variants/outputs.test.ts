@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isOutputName, parseChecklist, parseQuestions, parseReading } from 'core/vibecoder';
+import { isOutputName, parseChecklist, parseQuestions, parseReading, worktreeCard } from 'core/vibecoder';
 
 const READING_FR = `# src/main/core/x/tests/invariants/x.test.ts
 
@@ -110,5 +110,22 @@ describe('isOutputName : les sorties d\'une PR', () => {
 
   it('pr-12-autre.md : refusé', () => {
     expect(isOutputName('pr-12-autre.md')).toBe(false);
+  });
+});
+
+describe('worktreeCard : la fiche du worktree d’une PR (F-110)', () => {
+  it('pr-12-worktree.json : un nom de sortie connu', () => {
+    expect(isOutputName('pr-12-worktree.json')).toBe(true);
+  });
+
+  it('le dossier, chemin absolu, et la branche', () => {
+    expect(worktreeCard(JSON.stringify({ dir: '/p-worktrees/pr-12', branch: 'pr-12' }))).toEqual({ dir: '/p-worktrees/pr-12', branch: 'pr-12' });
+    expect(worktreeCard(JSON.stringify({ dir: '/p' }))).toEqual({ dir: '/p', branch: '' });
+  });
+
+  it('refusée : chemin relatif, caractère de contrôle, pas un texte, illisible', () => {
+    for (const dir of ['p-worktrees/pr-12', '/p\n-x', 12, '']) expect(worktreeCard(JSON.stringify({ dir }))).toBeNull();
+    expect(worktreeCard('{ pas du json')).toBeNull();
+    expect(worktreeCard(null)).toBeNull();
   });
 });

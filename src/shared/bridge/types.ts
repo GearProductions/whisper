@@ -279,6 +279,7 @@ export type VibePr = {
 };
 export type VibePrItem = { number: number; title: string; author: string; url: string };
 export type VibeComment = { id: number; target: string; text: string };
+export type VibeWorktree = { state: 'creating' | 'open' | 'robot'; temp: boolean; dir: string };
 
 export type VibeView = {
   agentId: string;
@@ -302,6 +303,9 @@ export type VibeView = {
   pr: VibePr | null;                     // Créer : la PR ouverte ; Relire : la PR chargée
   prs: VibePrItem[] | null;              // Relire : les PR à relire
   draft: VibeComment[];                  // Relire : le brouillon de revue de la PR
+  // Relire : la PR suivie dans un worktree (F-110) — sur l'agent du dépôt, en
+  // création, ouvert sans robot, ou son robot temporaire là ; temp : ce robot-ci.
+  worktree?: VibeWorktree | null;
   time: number;                          // heure du relevé
 };
 
@@ -327,4 +331,5 @@ export type VibePatch = {
   effort?: string;
   mode?: string;
   interrupt?: boolean;         // arrêter le tour en cours de l'agent (comme Interrompre de son menu)
+  worktree?: true;             // le robot de la PR suivie dans son worktree : l'afficher, ou le proposer (question de confiance)
 };
