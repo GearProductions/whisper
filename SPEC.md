@@ -624,7 +624,9 @@ sauf si c'est la base — une feature lancée depuis la base (*Rédiger la note*
 celles de la branche retrouvée, si elle en a de côté, reviennent. Une erreur
 ne bloque pas le relevé (I-29). Seuls ces noms sont lus (I-37) : `questions.md` (questions ouvertes), `align.md`
 (alignement), `review.md` (relecture d'un diff), `commit.md` (message
-proposé), `checks.json` (vérifications), `ponytail.md`, `pr.json` (la PR
+proposé), `checks.json` (vérifications : par élément `name`, `ok`,
+`level` — `ok`, `warning` (des avertissements seulement : `ok` vrai, la
+vérification passe) ou `error` ; sans `level`, d'après `ok` —, `detail`), `ponytail.md`, `pr.json` (la PR
 ouverte), `ci.md`, `prs.json` (PR à relire) ; par PR `pr-<n>.json` (sa
 fiche), `pr-<n>-note.md`, `pr-<n>-commits.md`, `pr-<n>-ecran.md` (plan de
 test), `pr-<n>-review.json` (revue publiée), `pr-<n>-worktree.json` (son
@@ -688,7 +690,9 @@ texte du champ s'il y en a (*Poser la forme*, *Écrire les invariants*, *Où
 j'en suis ?*), ou l'exige (`needs: text` : *Rédiger la note*, *Tout
 dérouler*, *Demander sans modifier* ; vide → « Dictez ou écrivez d'abord
 votre demande dans le champ, puis cliquez. », le champ prend le clavier) :
-on dicte, puis on clique. Partie, le champ se vide (ses pièces jointes
+on dicte, puis on clique. Sauf quand la vue donne elle-même le texte
+(*Appliquer* une remarque de la ponytail review : la remarque ; *Tout
+appliquer* : rien) : le champ ne part pas et reste tel quel. Partie, le champ se vide (ses pièces jointes
 restent : une action n'envoie pas d'image) et le fil descend ; refusée, sa
 raison s'affiche sous le champ. Une action à la fois. Une action `prefill`
 ajoute son texte au champ (à la ligne s'il n'est pas vide), `{{quote}}`
@@ -770,16 +774,27 @@ fois ; le conseillé reste le choix par défaut. Jamais Fable (I-36).
    `ponytail`, tests lancés, sans commit) ; aussi *Relire le diff* (les
    quatre questions du § 5.1), *Générer les modules restants* (confiés à des
    agents Opus en parallèle, chaque diff relu, un commit par module).
-5. **Revue** — faite : vérifications toutes passées (`checks.json`),
-   ponytail review faite (`ponytail.md`), aucun commit `fixup!`. Montre la
+5. **Revue** — faite : vérifications toutes passées (`checks.json` ; des
+   avertissements seulement passent), ponytail review faite (`ponytail.md`),
+   aucun commit `fixup!`. Montre la
    liste du § A.3, cochée d'après le dépôt quand c'est possible (la note dans
    un commit de la branche ; le contrôle `invariants` passé ; aucun `fixup!`
-   et au moins un commit de plus que de modules), « chaque diff relu » et
-   « AGENTS.md à jour » restant « à vérifier » ; les vérifications, une ligne
-   chacune (le détail déplié en cas d'échec ; *Relancer*) ; la ponytail
-   review rendue, 💬 par remarque. Prochaine action : *Lancer les
-   vérifications*, *Ponytail review*, *Replier les fixups* ; aussi
-   *Appliquer la revue* (en fixups).
+   et au moins un commit de plus que de modules) ; « chaque diff relu » (avec
+   l'aide « Cochez une fois chaque module relu (Modules → Relire le diff) »)
+   et « AGENTS.md à jour » se cochent à la main (« à vérifier » tant qu'elles
+   ne le sont pas ; F-102, cible `a3:<rang>`, pour le commit de tête de la
+   branche : un commit de plus les décoche ; grisées sans commit), cochées
+   elles comptent comme faites ; les vérifications, une ligne
+   chacune (✓, ✗, ou ! et la pastille orange « avertissements » ; le détail
+   déplié en cas d'échec ; *Relancer*), le compte de la carte « n en échec »
+   en rouge, sinon « n avertissements » en orange, sinon « n / n ok » ; les
+   faits de l'étape ajoutent « n avertissements » ; la ponytail
+   review rendue, 💬 et *Appliquer* par remarque, *Tout appliquer* sur la
+   carte (l'action `apply`, qui travaille : l'agent ; *Appliquer* lui donne
+   la remarque, `{{text}}`, *Tout appliquer* rien : toutes ; ni l'un ni
+   l'autre ne prend le champ ; absents sans remarque en liste). Prochaine
+   action : *Lancer les vérifications*, *Ponytail review*, *Replier les
+   fixups*.
 6. **PR** — faite : une PR ouverte (`pr.json`). Montre la PR (numéro, titre,
    *Ouvrir ↗* dans le navigateur) et l'état de la CI (`ci.md`). *Valider la
    feature (ouvrir la PR)* ; aussi *Diagnostiquer la CI*, *Release
@@ -880,10 +895,12 @@ quitte les favoris, le panneau passe à l'agent du dépôt. *Retirer* le robot
 (`refs/vibecoder/pr/<n>`) reste la même.
 
 **F-102 Validations** : ✓, ✗ ou oublier, sur la note, sa Forme, un cas de
-test, une case du plan de test (*Relire*). La note et la forme : *✓ Valider*
+test, une case du plan de test (*Relire*), une case du § A.3 que le dépôt ne
+peut pas cocher (*Créer*, `a3:<rang>` : cocher la valide, décocher l'oublie). La note et la forme : *✓ Valider*
 (*Relire* : ✓ ou ✗), puis « validée » et *Annuler* ; un cas : ✓ ou ✗, un
 second clic l'annule. Chacune vaut pour l'empreinte du contenu validé (le
-texte de la note, la rubrique « Forme », le fichier du test, le plan) : le
+texte de la note, la rubrique « Forme », le fichier du test, le plan, le
+commit de tête de la branche pour une case du § A.3) : le
 contenu change → « modifiée depuis » (*✓ Revalider*), et l'étape attend une
 nouvelle validation. Une cible absente du dernier relevé est ignorée.
 Gardées par agent (`vibecoder-state.json`) ; aucune n'envoie de message.

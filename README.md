@@ -411,9 +411,11 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
 4. **Modules** : *Générer ce module* (avec `ponytail`, tests lancés, sans
    commit), *Relire le diff*, *✓ Valider → commit → suivant* ; ou *Générer
    les modules restants* (en parallèle, chacun relu et commité à part).
-5. **Revue** : *Lancer les vérifications*, *Ponytail review*, *Appliquer la
-   revue* (en fixups), *Replier les fixups* ; la liste du guide avant une PR,
-   cochée quand le dépôt le dit.
+5. **Revue** : *Lancer les vérifications* (des avertissements seulement : en
+   orange, la vérification passe), *Ponytail review*, *Tout appliquer* ou
+   *Appliquer* une remarque (en fixups), *Replier les fixups* ; la liste du
+   guide avant une PR, cochée quand le dépôt le dit — « chaque diff relu » et
+   « AGENTS.md à jour » se cochent à la main, jusqu'au prochain commit.
 6. **PR** : *Valider la feature (ouvrir la PR)*, *Diagnostiquer la CI*,
    *Release candidate*, *PR mergée → revenir sur la base*, *Release
    officielle*.
