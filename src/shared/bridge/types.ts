@@ -276,6 +276,9 @@ export type VibeAction = {
   text?: string;               // 'prefill' : le texte à mettre dans le champ ({{quote}} : ce qu'on cite)
   primary: boolean;            // ce que le guide fait faire ensuite (mis en avant dans l'en-tête de l'étape en cours)
   disabled: string | null;     // pourquoi c'est grisé
+  // Faite aussi par l'appli, sans agent (F-114 : commit, publish, load-pr, base) : en cours, et son dernier
+  // résultat (✓/✗, une ligne, le détail) ; absent : seulement par l'agent.
+  direct?: { running: boolean; last: { ok: boolean; line: string; detail: string; time: number } | null };
 };
 
 export type VibePr = {
@@ -336,6 +339,7 @@ export type VibeArgs = {
   answers?: string[];          // réponses aux questions, dans leur ordre
   verdict?: 'approve' | 'comment' | 'request-changes';
   model?: string;              // sous-contexte : un autre modèle que le conseillé, parmi VibeAction.models
+  direct?: boolean;            // VibeAction.direct : l'appli la fait elle-même, sans agent (F-114)
 };
 
 export type VibePatch = {

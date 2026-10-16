@@ -2,7 +2,8 @@
  *  relevé (dépôt, note, tests, sorties des skills, validations) : les étapes
  *  (faite, en cours, à venir) et leurs faits en une ligne, la prochaine
  *  action, les actions possibles et pourquoi une autre est grisée — Créer ou
- *  Relire, Guide ou Vibe, la PR dans un worktree (les règles : la note du
+ *  Relire, Guide ou Vibe, la PR dans un worktree, ce que l'appli fait aussi
+ *  elle-même (F-114 : en cours, dernier résultat ; les règles : la note du
  *  ticket 0.8.0).
  *  Ne connaît pas : Electron, le disque, git (tout est passé ; `exists` dit si
  *  un chemin du dossier de l'agent existe).
@@ -11,7 +12,7 @@ import type {
   VibeAction, VibeAutonomy, VibeCheck, VibeComment, VibeFlow, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePr,
   VibePrItem, VibeStepId, VibeTestFile, VibeView, VibeWorktree,
 } from 'shared/bridge';
-import { prNumber, SKILL_MODELS, templateVars, type ActionDef } from './actions';
+import { DIRECT_ACTIONS, prNumber, SKILL_MODELS, templateVars, type ActionDef } from './actions';
 import { markState, type Marks } from './marks';
 import { parseNote } from './note';
 import { json, parseChecklist, parseQuestions, parseReading } from './outputs';
@@ -38,6 +39,7 @@ export type JourneyInput = {
   // les PR à relire et l'état de la PR suivie. Absent ou null : les sorties des skills.
   github?: { pr?: Record<string, unknown> | null; prs?: unknown[] | null; state?: string | null };
   actions: ActionDef[];
+  direct?: Record<string, NonNullable<VibeAction['direct']>>;   // par id de DIRECT_ACTIONS : en cours, dernier résultat (F-114)
   who: Record<string, string>;                      // par id d'action : qui travaille
   model: Record<string, string | null>;             // par id d'action : le modèle de son skill en sous-contexte (forkedModel)
   skills: string[];
@@ -62,7 +64,7 @@ const TEXT = {
     checksOk: 'vérifications ok', checksKo: 'vérifications en échec', warning: ['avertissement', 'avertissements'], unchecked: 'pas vérifiée', ponytail: 'ponytail faite',
     fixup: ['fixup', 'fixups'], noPr: 'pas de PR', toLoad: 'à charger', commit: ['commit', 'commits'], reviewed: 'relus',
     box: ['case', 'cases'], noPlan: 'pas de plan', remark: ['remarque', 'remarques'], published: 'publiée',
-    busy: 'L\'agent travaille', noRepo: 'Pas de dépôt git', noNoteYet: 'Pas encore de note', nothingToRead: 'Aucun test d\'invariant à lire',
+    busy: 'L\'agent travaille', directRunning: 'Une commande directe est en cours', noRepo: 'Pas de dépôt git', noNoteYet: 'Pas encore de note', nothingToRead: 'Aucun test d\'invariant à lire',
     noModule: 'Aucun module à générer', noPrChosen: 'Aucune PR choisie', loadFirst: 'Charger d\'abord la PR',
     emptyDraft: 'Le brouillon de revue est vide', noCommitMd: 'Préparer d\'abord le commit', noQuestion: 'Aucune question ouverte',
     noFixup: 'Aucun commit fixup!', worktreeOpen: 'Déjà ouverte dans un worktree', notWorktree: 'Seulement sur le robot d\'un worktree',
@@ -78,7 +80,7 @@ const TEXT = {
     checksOk: 'checks pass', checksKo: 'checks fail', warning: ['warning', 'warnings'], unchecked: 'not checked', ponytail: 'ponytail done',
     fixup: ['fixup', 'fixups'], noPr: 'no PR', toLoad: 'to load', commit: ['commit', 'commits'], reviewed: 'reviewed',
     box: ['box', 'boxes'], noPlan: 'no plan', remark: ['remark', 'remarks'], published: 'published',
-    busy: 'The agent is working', noRepo: 'No git repository', noNoteYet: 'No note yet', nothingToRead: 'No invariant test to read',
+    busy: 'The agent is working', directRunning: 'A direct command is running', noRepo: 'No git repository', noNoteYet: 'No note yet', nothingToRead: 'No invariant test to read',
     noModule: 'No module to generate', noPrChosen: 'No PR chosen', loadFirst: 'Load the PR first',
     emptyDraft: 'The review draft is empty', noCommitMd: 'Prepare the commit first', noQuestion: 'No open question',
     noFixup: 'No fixup! commit', worktreeOpen: 'Already open in a worktree', notWorktree: 'Only on a worktree\'s robot',
@@ -275,10 +277,14 @@ export function vibeView(input: JourneyInput): VibeView {
   const current = ORDER[flow].find((s) => !done[s]) ?? null;
   const primary = flow === 'create' && vibe && !note ? 'vibe' : current && next[current];
 
-  // Pourquoi une action est grisée : l'agent travaille, une variable de son gabarit manque, elle ne sert pas ici.
+  // Une action directe en cours (F-114) : les autres attendent, comme quand l'agent travaille.
+  const running = Object.values(input.direct ?? {}).some((x) => x.running);
+  // Pourquoi une action est grisée : l'agent travaille, une commande directe est en cours, une variable
+  // de son gabarit manque, elle ne sert pas ici.
   const why = (d: ActionDef): string | null => {
     if (d.kind === 'prefill') return null;
     if (input.busy) return T.busy;
+    if (DIRECT_ACTIONS.includes(d.id) && running) return T.directRunning;
     // Relire une PR fusionnée ou fermée : elle se charge, mais ne se relit pas.
     if (flow === 'review' && d.step !== null && d.step !== 'pr' && (pr?.state === 'MERGED' || pr?.state === 'CLOSED')) {
       return pr.state === 'MERGED' ? T.merged : T.closed;
@@ -307,6 +313,7 @@ export function vibeView(input: JourneyInput): VibeView {
       usesText: templateVars(d.text).includes('text'),
       ...(d.kind === 'prefill' ? { text: d.text } : {}),
       primary: d.id === primary, disabled: why(d),
+      ...(DIRECT_ACTIONS.includes(d.id) ? { direct: input.direct?.[d.id] ?? { running: false, last: null } } : {}),
     }));
 
   return {

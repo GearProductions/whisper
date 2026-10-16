@@ -7,7 +7,8 @@
  *  champ, I-2, ses réponses, ses remarques) sont libres ; un commit, un
  *  module, une PR ne sont pris que dans le dernier relevé, et aucune autre
  *  valeur n'a de caractère de contrôle ; une variable inconnue fait refuser
- *  l'action (l'agent lance des commandes avec ces valeurs, I-38).
+ *  l'action (l'agent lance des commandes avec ces valeurs, I-38). Et les
+ *  actions que l'appli fait aussi elle-même (DIRECT_ACTIONS, F-114).
  *  Ne connaît pas : Electron, le disque, l'agent (le message est rendu, pas envoyé).
  *  Utilisé par : core/vibecoder (journey, defaults), app/controllers/vibecoder, app/settings. */
 import type { VibeAction, VibeArgs, VibeLang, VibeStepId, VibeView } from 'shared/bridge';
@@ -34,6 +35,13 @@ const FREE = ['text', 'answers', 'draft'];   // écrits par l'utilisateur : libr
 const TEXT_MAX = 20000;
 const ANSWERS_MAX = 50;
 const ANSWER_MAX = 2000;
+
+// Les actions que l'appli fait aussi elle-même, sans agent, au clic de leur bouton « direct » (F-114) ;
+// leur gabarit reste la voie « via » l'agent.
+export const DIRECT_ACTIONS = ['commit', 'publish', 'load-pr', 'base'];
+
+// Le brouillon de revue en texte : une ligne « - [cible] texte » par remarque.
+export const draftText = (draft: VibeView['draft']) => draft.map((c) => `- [${c.target}] ${c.text}`).join('\n');
 
 // Un numéro de PR : un entier positif, sinon null.
 export const prNumber = (v: unknown) => (Number.isInteger(v) && (v as number) > 0 ? v as number : null);
@@ -133,7 +141,7 @@ export function buildMessage(def: ActionDef, args: VibeArgs, ctx: MessageContext
       return a.map((x, i) => `${i + 1}. ${x.trim() || NO_ANSWER[ctx.lang]}`).join('\n');
     },
     verdict: () => (VERDICTS.includes(args.verdict as string) ? args.verdict as string : fail('verdict')),
-    draft: () => (view.draft.length ? view.draft.map((c) => `- [${c.target}] ${c.text}`).join('\n') : fail('draft')),
+    draft: () => (view.draft.length ? draftText(view.draft) : fail('draft')),
   };
   let template = def.text;
   if (args.model !== undefined) {

@@ -567,3 +567,23 @@ describe('rc.10 : GitHub lu par gh, sans agent', () => {
     expect(v.prs).toEqual([{ number: 3, title: 't', author: 'kb', url: 'u' }]);
   });
 });
+
+describe('les actions que l\'appli fait elle-même (F-114)', () => {
+  it('commit, publish, load-pr : direct, jamais lancées, sans résultat ; les autres sans direct', () => {
+    const v = vibeView(input());
+    const r = vibeView(input({ flow: 'review' }));
+    expect([action(v, 'commit')?.direct, action(r, 'publish')?.direct, action(r, 'load-pr')?.direct])
+      .toEqual([{ running: false, last: null }, { running: false, last: null }, { running: false, last: null }]);
+    expect(action(v, 'note')?.direct).toBeUndefined();
+  });
+
+  it('leur dernier résultat suit dans le relevé', () => {
+    const last = { ok: false, line: 'nothing to commit', detail: '$ git commit -F …', time: 1 };
+    expect(action(vibeView(input({ direct: { commit: { running: false, last } } })), 'commit')?.direct?.last).toEqual(last);
+  });
+
+  it('une en cours : les actions directes sont grisées, pas les autres', () => {
+    const v = vibeView(ready({ outputs: { 'commit.md': out('x') }, direct: { commit: { running: true, last: null } } }));
+    expect([action(v, 'commit')?.disabled, action(v, 'module')?.disabled]).toEqual(['Une commande directe est en cours', null]);
+  });
+});
