@@ -2,7 +2,8 @@
  *  projet de l'agent, lues dans son fichier du projet
  *  (userData/vibecoder/projets/<slug du dossier>.json, propre à la machine),
  *  lancées par l'appli (core/runner : par leur rang, dans le shell du fichier,
- *  dans la box de l'agent ; technicals/process : détachées, marquées, leur
+ *  après le préfixe — celui du fichier, du réglage, ou la box de l'agent —,
+ *  le même pour gh : agentPrefix ; technicals/process : détachées, marquées, leur
  *  journal dans <sorties>/run/<nom>.log). Au relevé : la proposition du skill
  *  lancement (<sorties>/lancement.json) devient le fichier du projet s'il
  *  n'existe pas — jamais par-dessus —, les demandes de l'agent
@@ -20,7 +21,7 @@ import path from 'node:path';
 import type { VibeProcess } from 'shared/bridge';
 import type { AgentConfig } from 'core/agents';
 import type { Config } from 'core/config';
-import { commandAt, logTail, parseProject, projectSlug, projectText, requestsOf, type Project } from 'core/runner';
+import { commandAt, commandPrefix, logTail, parseProject, projectSlug, projectText, requestsOf, type Project } from 'core/runner';
 import { findEditor } from 'technicals/editor';
 import { createProcesses, readTail, writeNew } from 'technicals/process';
 import { vibeDir, vibeOutDir } from 'app/settings';
@@ -47,9 +48,13 @@ function readText(file: string) {
 
 // Lance la commande au rang `index` du fichier (déjà lancée : rien).
 function launch(agent: AgentConfig, cfg: Config, p: Project | null, index: number) {
-  const c = commandAt(p, index, cfg.agentCommand);
+  const c = commandAt(p, index, cfg.agentCommand, cfg.vibeCommandPrefix);
   if (c) procs.start(key(agent.id, c.name), { argv: c.argv, cwd: path.resolve(agent.dir, c.cwd ?? '.'), log: logOf(agent.id, c.name) });
 }
+
+// Ce qui précède gh pour cet agent : comme ses commandes (core/runner, commandPrefix).
+export const agentPrefix = (agent: AgentConfig, cfg: Config) =>
+  commandPrefix(parseProject(readText(projectFile(agent.dir))), cfg.vibeCommandPrefix, cfg.agentCommand);
 
 // Au relevé : la proposition adoptée, les demandes de l'agent, l'état de chaque commande.
 export function processView(agent: AgentConfig, cfg: Config): { processes: VibeProcess[]; projectFile: boolean } {
@@ -101,7 +106,7 @@ export async function processAction(agent: AgentConfig, cfg: Config, op: unknown
     return open(file);
   }
   const p = parseProject(readText(file));
-  const c = commandAt(p, index, cfg.agentCommand);
+  const c = commandAt(p, index, cfg.agentCommand, cfg.vibeCommandPrefix);
   if (!c || shown[index as number]?.name !== c.name) return;
   const k = key(agent.id, c.name);
   if (op === 'log') return open(logOf(agent.id, c.name));
