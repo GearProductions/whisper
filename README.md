@@ -425,6 +425,17 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    l'appli la demande elle-même à `gh` (sans IA, en lecture seule ; toutes
    les 60 s au plus, ↻ pour tout de suite).
 
+**Sans IA** : *✓ Commiter*, *Charger* (une PR), *Publier la revue* et *PR
+mergée → revenir sur la base* ne sont que des commandes connues : l'appli
+les lance elle-même (bouton « direct », aucun jeton) — `git commit -F` du
+message affiché ; `gh pr view` puis `git fetch` de la PR ; `gh pr review`
+du brouillon ; et, seulement si la PR est fusionnée, `git switch`, `git pull
+--ff-only`, `git branch -d`. Le résultat s'affiche sous le bouton (✓ ou ✗,
+le détail à déplier), chaque commande dans `direct.log` des sorties de
+l'agent. En cas de souci, le petit *via* à côté passe par l'agent, comme
+avant (par exemple un hook de commit qui a besoin de Node dans la box, alors
+que l'appli tourne sur l'hôte).
+
 Une validation vaut pour le contenu validé : une note modifiée ensuite
 repasse « modifiée depuis », à revalider. Quand l'étape n'attend plus que
 votre ✓, l'étape vous le dit (*✓ Valider la note*, « N cas à valider »). Les lignes de la note que

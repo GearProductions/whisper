@@ -48,6 +48,14 @@ bouton retiré suivi d'un bouton ajouté. Les skills de VibeCoder reçoivent tou
 `{{lang}} {{out}}`. Le bouton `guide` n'apparaît que si le skill `gear-guide`
 existe (dans le projet ou chez l'utilisateur).
 
+Quatre boutons ont aussi une voie **directe**, sans agent : `commit`,
+`publish`, `load-pr` et `base`. Le bouton « direct » lance lui-même des
+commandes fixes (`git commit -F`, `gh pr review`, `gh pr view` et `git
+fetch`, `git switch` / `pull --ff-only` / `branch -d` si la PR est
+fusionnée), écrites dans l'appli et inscrites dans `direct.log` des sorties ;
+leur `text` reste le message du petit *via* à côté (le skill, dans la
+conversation). Personnaliser leur `text` ne change donc que le *via*.
+
 ### Les variables
 
 Liste fermée : une variable inconnue fait refuser l'action. Seuls `{{text}}`,

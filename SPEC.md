@@ -70,6 +70,7 @@ des processus.
 | `technicals/process` | les processus lancés pour l'utilisateur : détachés, marqués dans leur environnement, arrêtés avec ce qu'ils ont lancé (SIGTERM, SIGKILL après 5 s), leur journal ; `writeNew` (I-43) |
 | `technicals/git` | git en lecture seule (`gitRun`, `gitReader`, `GIT_READ`) : les faits d'une branche ou d'une PR chargée, un fichier à un ref, un commit et son diff (I-39) |
 | `technicals/github` | gh en lecture seule, derrière le préfixe (`ghRun`, `githubReader`, `GH_READ`) : la PR d'une branche, les PR à relire, l'état d'une PR (F-112, I-39) |
+| `technicals/direct` | les actions directes (F-114, I-39) : `directRunner` → `commit`, `publish`, `loadPr`, `toBase`, une liste fermée de commandes (`DIRECT_GIT`, `DIRECT_GH`), 60 s, `direct.log` |
 | `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `paste`, `windows-helper`, `pipewire`, `clipboard`, `selection`, `pocket-tts`, `claude`, `editor` (un dossier, ou un fichier de VibeCoder, à une ligne), `journal`, `images`, `paths`, `config-file` |
 | `helpers` | découper une commande, français ou anglais, une ligne, `async-queue` (l'entrée d'un processus d'agent) |
 
@@ -101,8 +102,8 @@ Vers le principal :
   son id, et une ligne), `conv:vibeRefresh`, `conv:vibeProcess` (une
   commande du projet par son rang : lancer, arrêter, relancer, son journal ;
   ou le fichier du projet dans l'éditeur, F-111),
-  `conv:vibeRun` (une action par son id et ses arguments, avec réponse
-  `{ ok, error }`).
+  `conv:vibeRun` (une action par son id et ses arguments — `direct` : par
+  l'appli elle-même, F-114 —, avec réponse `{ ok, error }`).
 
 Vers les pages : `tts:state`, `tts:chunk`, `tts:end`, `tts:speakReply`,
 `agents:state` (icône) ; `bubble:show` (bulle) ; `conv:thread`, `conv:notice`,
@@ -124,7 +125,7 @@ fichier se désignent par leur id dans le dernier relevé (I-37, I-38).
 | `consigne-agents.md` | consigne ajoutée au prompt système des agents |
 | `agents.log` (`.old`) | journal des agents, 1 Mo puis rotation |
 | `vibecoder/` | ce que VibeCoder fait dire, à retoucher (F-107) : `actions.fr.json`, `actions.en.json`, `plugin/` (le plugin `vibecoder` : skills, agents ; `skills/<nom>--<modèle>/`, les variantes générées, F-106), `README.md` ; `.defaults.json`, le manifeste de ce que l'appli y a écrit ; `projets/<dossier>.json`, les commandes du projet d'un dossier (F-111), à l'utilisateur |
-| `vibecoder-out/<agent>/` | les sorties des skills pour l'écran (F-95) ; `branches/<branche>/`, celles de *Créer* d'une branche quittée, et `.branche`, la dernière branche vue ; `files/`, ce que l'appli écrit pour l'ouvrir dans l'éditeur, en lecture seule (`pr-<n>/<chemin>`, `<hash>.diff`, F-101) ; `run/<nom>.log` (`.old`), les journaux des commandes du projet, et `run/<nom>.stop`, `.restart`, les demandes de l'agent (F-111) ; dossier de travail en plus de Claude Code (F-58) |
+| `vibecoder-out/<agent>/` | les sorties des skills pour l'écran (F-95) ; `branches/<branche>/`, celles de *Créer* d'une branche quittée, et `.branche`, la dernière branche vue ; `files/`, ce que l'appli écrit pour l'ouvrir dans l'éditeur, en lecture seule (`pr-<n>/<chemin>`, `<hash>.diff`, F-101) ; `run/<nom>.log` (`.old`), les journaux des commandes du projet, et `run/<nom>.stop`, `.restart`, les demandes de l'agent (F-111) ; `direct.log`, une ligne par commande d'une action directe, et `pr-<n>-review-body.md`, le brouillon publié (F-114) ; dossier de travail en plus de Claude Code (F-58) |
 | `vibecoder-state.json` | validations (par agent) et brouillons de revue (par agent et par PR) |
 
 En développement : `--user-data-dir=.data` (cf. LINUX_SETUP.md).
@@ -655,7 +656,8 @@ tapé — son gabarit, ses variables remplies (un skill `/vibecoder:<nom>` et se
 arguments, ou du texte) — par le chemin du champ (`sendToAgent` : refusé à un
 agent au travail, I-25 ; jamais à un autre agent, I-33, ni à une ancienne
 conversation, I-22). Aucun appel au modèle à part : revenu en conversation,
-chaque action est dans le fil. La page ne donne qu'un id d'action de son
+chaque action est dans le fil. Seules exceptions : les quatre actions
+directes, que l'appli fait elle-même sans agent ni modèle (F-114). La page ne donne qu'un id d'action de son
 dernier relevé et ses arguments (texte, rang de module, hash de commit,
 id de test, numéro de PR, réponses, verdict, modèle), chacun vérifié (type, taille, valeur) par
 la variable qui le prend ; une action inconnue, grisée ou `prefill` est
@@ -710,7 +712,7 @@ l'utilisateur (`model`, et `effort` au-delà de `low`) : *haiku*, *sonnet ·
 moyen*, *opus · élevé* ; sans modèle, ou sans skill (un message en clair,
 `/gear-guide`) : *agent*, le modèle de l'agent. Une action grisée dit
 pourquoi (sous le bouton, au survol ; le principal la refuse de même) :
-l'agent travaille ; pas de dépôt git ; pas encore de note (aussi la Forme et
+l'agent travaille ; une action directe en cours (les quatre, F-114) ; pas de dépôt git ; pas encore de note (aussi la Forme et
 les invariants en *Créer*) ; aucun test d'invariant ; *Relire* :
 aucune PR choisie, ou charger d'abord la PR ; brouillon de revue vide ;
 *✓ Commiter* sans commit préparé ; *Envoyer les réponses* sans question
@@ -770,7 +772,7 @@ fois ; le conseillé reste le choix par défaut. Jamais Fable (I-36).
    commit* (des fichiers à commiter) ; aussi *Vérifier l'alignement*.
 4. **Modules** — faite : chaque module de la Forme touché par un commit de la
    branche. Montre en tête le commit proposé (`commit.md` : le message tel
-   qu'il sera commité, *✓ Commiter*, 💬) et la relecture du dernier diff
+   qu'il sera commité, *✓ Commiter*, direct ou *via* l'agent, F-114 ; 💬) et la relecture du dernier diff
    (`review.md`) ; puis une ligne par module (commité, en cours : modifié pas
    commité, à faire ; nom, dossier, contrat, « à créer », ses commits) avec
    *Générer* (ce module), *Relire le diff* (du dernier commit qui le touche,
@@ -807,7 +809,7 @@ fois ; le conseillé reste le choix par défaut. Jamais Fable (I-36).
    `pr.json`). Montre la PR (numéro, titre, base ← branche,
    *Ouvrir ↗* dans le navigateur) et l'état de la CI (`ci.md`). *Valider la
    feature (ouvrir la PR)* ; aussi *Diagnostiquer la CI*, *Release
-   candidate*, *PR mergée → revenir sur la base*, *Release officielle*.
+   candidate*, *PR mergée → revenir sur la base* (F-114), *Release officielle*.
 
 À l'étape Note et à l'étape Forme, l'agent n'étant pas sur Fable, une
 pastille *✦ Fable · élevé* (« plus cher ») l'y passe d'un clic, comme son
@@ -818,8 +820,8 @@ suivie (`agents[].vibe.pr`) se choisit par son numéro ou son lien
 (`…/pull/<n>`) et *Charger*, ou d'un clic dans la liste de *Mes PR à relire*
 (celles où l'on est demandé en relecture, demandées à gh, F-112) : la suivre, puis la
 charger. *Charger la PR* la récupère **sans toucher à la copie de travail** :
-une référence locale `refs/vibecoder/pr/<n>` (le `git fetch` du skill, dans
-la conversation) et sa fiche `pr-<n>.json` (titre, auteur, base, branche,
+une référence locale `refs/vibecoder/pr/<n>` (`git fetch`, par l'appli,
+F-114 ; *via* : le skill, dans la conversation) et sa fiche `pr-<n>.json` (titre, auteur, base, branche,
 description, état). Le parcours se calcule alors sur la PR ; ce qui la lit attend
 qu'elle soit chargée. Une PR **fusionnée ou fermée** (`state` de sa fiche ;
 une fiche d'avant la 0.8.0-rc.2 n'en a pas : ouverte) se charge mais ne se
@@ -849,7 +851,7 @@ avec cette raison (« PR déjà fusionnée : rien à relire », « PR fermée : 
 6. **Revue** — publiée (`pr-<n>-review.json` : son état, son lien). Montre
    le **brouillon de revue**, le verdict (*Approuver*, *Commenter* par
    défaut, *Demander des changements*) et *Publier la revue*, qui l'envoie
-   sur GitHub, tel quel, avec ce verdict.
+   sur GitHub, tel quel, avec ce verdict (F-114).
 
 Le brouillon, gardé par PR : une remarque = sa cible (une ligne, 300
 caractères au plus) et son texte (5 000 au plus) — le texte du champ s'il y
@@ -1008,6 +1010,40 @@ constantes, fonctions, types, attributs. Écrite à la main, sans dépendance ;
 des morceaux de texte, jamais du HTML (I-40), qui redonnent le code tel
 quel.
 
+**F-114 Actions directes** (sans IA, au clic) : quatre actions ne sont que
+des commandes connues d'avance ; l'appli les lance elle-même, sans agent, ni
+modèle, ni jeton, au clic de leur bouton (« direct » à la place du modèle).
+À côté, un petit *via* (et le choix du modèle, F-99) garde le chemin
+d'avant, le skill dans la conversation, en cas de souci. Les `id` (`commit`,
+`publish`, `load-pr`, `base`) restent ceux d'`actions.<langue>.json` : leur
+gabarit est le *via* ; une entrée retirée retire les deux boutons.
+- *✓ Commiter* : `git commit -F <sorties>/commit.md` (rien d'ajouté à
+  l'index : ce que *Préparer le commit* y a mis), puis `commit.md`
+  supprimé ; en échec (un hook, rien d'indexé), il reste.
+- *Publier la revue* : le brouillon (« - [cible] texte » par remarque) écrit
+  par l'appli dans `<sorties>/pr-<n>-review-body.md`, puis `gh pr review <n>
+  --approve|--comment|--request-changes --body-file <ce fichier>` ; publiée,
+  `pr-<n>-review.json` (`state` d'après le verdict, `url` : la PR).
+- *Charger la PR* (le numéro saisi, un clic dans *Mes PR à relire*) : `gh pr
+  view <n> --json number,title,url,author,baseRefName,headRefName,body,state`
+  → `pr-<n>.json`, puis `git fetch origin +pull/<n>/head:refs/vibecoder/pr/<n>
+  <base>`.
+- *PR mergée → revenir sur la base* : seulement si `gh pr view <branche>
+  --json state` dit `MERGED` : `git switch <base>`, `git pull --ff-only`, `git
+  branch -d <branche>` (la branche et la base de sa PR, du relevé) ; sinon
+  rien (« The PR of … is OPEN, not merged: nothing done. »). Une branche
+  fusionnée par squash n'est pas supprimée (`-d` refuse) : *via* l'agent.
+
+git au dossier de l'agent (là où tourne l'appli), gh derrière le préfixe
+(F-111), sans shell (I-27), 60 s au plus par commande ; une commande en
+échec arrête l'action. Chacune s'inscrit dans `<sorties>/direct.log` (heure,
+commande, code de sortie, sortie courte). En fond, une à la fois par agent :
+pendant ce temps « … » sous le bouton et les quatre grisées (« Une commande
+directe est en cours ») ; puis le dernier résultat, ✓ ou ✗ et une ligne (en
+anglais, comme les skills techniques, F-108), le détail (chaque commande et
+sa sortie) à déplier. Gardé en mémoire, par agent, jusqu'à la sortie de
+l'appli (I-39, I-29).
+
 ### Skills, configuration
 
 **F-105 Le plugin `vibecoder`** (`userData/vibecoder/plugin/`), donné par le
@@ -1031,7 +1067,8 @@ en-tête). Ce qui se suffit à soi-même tourne dans un sous-contexte
 (`context: fork`), sans relire la conversation : son coût ne dépend pas de la
 longueur de celle-ci.
 - *haiku* (effort faible) : `prs` (gardé, plus appelé par l'écran : F-112), `charger-pr`, `verifier`, `commit` (le
-  message préparé, tel quel), `base`, `publier-revue`, `retirer-worktree`, `lancement` ;
+  message préparé, tel quel), `base`, `publier-revue` (`charger-pr`, `commit`, `base`, `publier-revue` : le
+  *via* des actions directes, F-114), `retirer-worktree`, `lancement` ;
 - *sonnet* : `commit-preparer` (faible) ; `pr`, `fixups`, `ci`, `ecran`,
   `lire-invariants`, `worktree-pr` (moyen) ;
 - *opus · élevé* : `invariants`, `module`, `suivant`, `relire`, `aligner`,
@@ -1181,7 +1218,7 @@ I-13 à I-17, I-19, I-20, I-21, I-23, I-24, I-27, I-29, I-30, I-32 à I-34 ;
 VibeCoder, I-35 à I-40 : `src/main/core/vibecoder/tests/invariants/`
 (`defaults.test.ts` I-35, `fable.test.ts` I-36, `files.test.ts` I-37,
 `actions.test.ts` I-38), `src/main/technicals/git/tests/invariants/read-only.test.ts`,
-`src/main/technicals/github/tests/invariants/read-only.test.ts` (I-39), `src/renderer/core/vibecoder/tests/invariants/markdown.test.ts` (I-40) ;
+`src/main/technicals/github/tests/invariants/read-only.test.ts`, `src/main/technicals/direct/tests/invariants/direct.test.ts` (I-39), `src/renderer/core/vibecoder/tests/invariants/markdown.test.ts` (I-40) ;
 I-42, I-43 : `src/main/core/runner/tests/invariants/runner.test.ts`,
 `src/main/technicals/process/tests/invariants/process.test.ts`.
 Les autres (focus, fenêtres, I-1, I-18, I-22, I-28) : scénarios du § 13 et
@@ -1328,7 +1365,18 @@ bancs de comparaison.
   test à saut de ligne) ; une variable inconnue **fait refuser l'action**
   (l'agent lance des commandes avec ces valeurs). Le message est le gabarit,
   ses variables remplies, rien d'autre.
-- **I-39** Le principal ne **modifie jamais le dépôt**, ni rien sur GitHub :
+- **I-39** Le principal ne **modifie jamais le dépôt**, ni rien sur GitHub,
+  **hors des quatre actions directes** (F-114), et celles-ci seulement au
+  **clic de leur bouton** (jamais au relevé, ni d'elles-mêmes), par une
+  **liste fermée** de commandes (`DIRECT_GIT` : `commit -F <sorties>/commit.md`,
+  `fetch origin +pull/<n>/head:refs/vibecoder/pr/<n> <base>`, `switch <base>`,
+  `pull --ff-only`, `branch -d <branche>` ; `DIRECT_GH` : `pr review <n>
+  --<verdict> --body-file <fichier>`, et `pr view` pour lire), sans shell,
+  gh derrière le préfixe, 60 s au plus ; leurs valeurs : une PR **entier
+  positif**, un verdict des trois, une branche et une base refs sûrs
+  (ci-dessous) pris du relevé (la base d'une PR à charger : celle que gh
+  donne), un fichier écrit par l'appli dans ses sorties — aucun texte d'une
+  page n'en devient un argument. Hors de là, en lecture seule :
   gh lancé sans shell (I-27), derrière le préfixe (F-111), seulement pour
   `pr view` et `pr list` (`GH_READ`), aux autres arguments fixes ; une
   branche (lue par git) passe après `--` et doit être un ref sûr (ci-dessous),
@@ -1341,8 +1389,8 @@ bancs de comparaison.
   d'ailleurs ne devient **jamais une option** : refusé sans lancer git s'il
   commence par « - » ou contient un NUL, et pour un ref, « .. » ou un
   caractère hors de `[A-Za-z0-9._/-]` ; `--end-of-options` là où git le
-  permet. Commit, push, rebase, checkout, ouvrir ou publier sur une PR
-  passent par l'agent, dans la conversation, avec ses autorisations.
+  permet. Push, rebase, checkout, ouvrir une PR, et le *via* des actions
+  directes passent par l'agent, dans la conversation, avec ses autorisations.
 - **I-40** Aucun HTML rendu depuis un texte (note, sortie d'un skill) : le
   Markdown de VibeCoder ne produit que du texte, du code et des liens
   `http(s)` — une balise reste du texte, un lien `javascript:`, `data:`,
@@ -1597,6 +1645,16 @@ Copier, erreurs ; mêmes relevés).
   minute. `vibeCommandPrefix` faux (`nexiste-pas`) → rien ne s'affiche de
   GitHub, rien ne bloque. *Code* sur un test Rust et un test TypeScript →
   colorés (attributs, macros, chaînes brutes ; mots-clés, chaînes…).
+- **S-67** Actions directes (F-114), appli sur l'hôte, gh dans la box :
+  *Préparer le commit*, puis *✓ Commiter* « direct » → « … », puis ✓ et
+  « [branche abc1234] sujet » sous le bouton, le commit dans `git log`,
+  `commit.md` parti, aucun message à l'agent ; rien d'indexé → ✗ et la raison,
+  `commit.md` reste ; *via* → le skill dans le fil. *Relire* : un numéro,
+  *Charger* → `pr-<n>.json` et `refs/vibecoder/pr/<n>`, copie de travail
+  inchangée ; *Publier la revue* → la revue sur la PR d'essai. *PR mergée →
+  revenir sur la base* sur une PR ouverte → ✗ « … OPEN, not merged: nothing
+  done. », rien ne bouge ; fusionnée → sur la base, à jour, branche locale
+  supprimée. `direct.log` : une ligne par commande.
 
 ---
 
@@ -1663,6 +1721,11 @@ Copier, erreurs ; mêmes relevés).
   n'est arrêtée que par le SIGKILL, après 5 s. Ailleurs que sous Linux, pas
   de jeton (pas de `/proc`) : seul le groupe est arrêté ; Windows :
   `taskkill /T /F`, sans box, non essayé.
+- VibeCoder, actions directes (F-114) : git tourne là où tourne l'appli
+  (l'AppImage : sur l'hôte) ; un hook de commit qui a besoin d'un outil de la
+  box (Husky et Node) y échoue — *via* l'agent, qui commite dans la box. Le
+  dernier résultat ne survit pas à la sortie de l'appli (`direct.log`, si) ;
+  `pr-<n>-review.json` porte le lien de la PR, pas celui de la revue.
 - VibeCoder, GitHub sans IA (F-112), coloration (F-113) : un échec de gh (pas connecté, pas
   d'origine GitHub, box absente) ne se dit pas ; *Mes PR à relire* ne change
   rien. La coloration du code ne connaît pas les expressions régulières de
