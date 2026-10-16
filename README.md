@@ -439,6 +439,17 @@ mais il n'y a rien à relire : l'écran le dit. Enfin le verdict (*Commenter* pa
 des changements*) et *Publier la revue*, qui l'envoie sur GitHub telle
 quelle.
 
+Pour lancer la PR, ou la relire à côté de votre travail : *Ouvrir dans un
+worktree*. L'agent crée un worktree de la PR comme le projet le fait
+d'habitude (son skill, son script ou sa doc de worktrees ; sinon à côté du
+dépôt, `<dépôt>-worktrees/pr-<n>`) et le prépare (dépendances…). L'appli
+vous demande alors si vous faites confiance à ce dossier — les réglages
+`.claude` de la PR, écrits par son auteur, se chargeront —, puis ajoute un
+robot « PR #n » sur ce dossier, déjà en *Relire* : *Aller au robot PR #n*.
+Sur ce robot, *Décharger* demande à l'agent du dépôt de retirer le worktree
+(refusé s'il reste des modifications) ; le robot part avec lui, et votre
+brouillon de revue revient à l'agent du dépôt.
+
 **Guide ou Vibe.** *Guide* (par défaut) : vous validez la note, la forme et
 chaque invariant ; l'étape en cours attend vos ✓. *Vibe* : vous donnez la
 main à l'agent, vous testez et approuvez à la fin. Plus rien n'attend vos ✓,

@@ -91,7 +91,8 @@ Vers le principal :
   `conv:probe`, `conv:history`, `conv:open`, `conv:current`, `conv:resume`,
   `conv:copy`, `conv:openLink`, `conv:showFile` ; VibeCoder : `conv:vibeSet`
   (Créer / Relire, Guide / Vibe, PR suivie, langue, *Vu*, retour à la
-  conversation, modèle, effort, mode, arrêter l'agent), `conv:vibeMark` (✓, ✗
+  conversation, modèle, effort, mode, arrêter l'agent, le robot d'une PR dans
+  son worktree), `conv:vibeMark` (✓, ✗
   ou oublier une cible), `conv:vibeDraft` (brouillon de revue : ajouter,
   modifier, retirer), `conv:vibeOpen` (un fichier ou un commit du relevé, par
   son id, et une ligne), `conv:vibeRefresh`,
@@ -285,7 +286,7 @@ défaut). Un robot par agent à droite de l'icône, puis « + ».
 
 **F-51 Un agent = un dossier** (un seul agent par dossier) : `{ id, dir, name,
 model, effort, mode, sessionId, contextWindow }`, et pour VibeCoder `view`,
-`vibe` (§ 9). Nom = nom du dossier, modifiable dans `config.json`.
+`vibe`, `temp` (§ 9). Nom = nom du dossier, modifiable dans `config.json`.
 
 **F-52 « + »** : *Nouvel agent dans un dossier favori* (dossiers déjà choisis
 sans agent), *Choisir un autre dossier…*, *Oublier un dossier favori* ;
@@ -622,7 +623,8 @@ ne bloque pas le relevé (I-29). Seuls ces noms sont lus (I-37) : `questions.md`
 proposé), `checks.json` (vérifications), `ponytail.md`, `pr.json` (la PR
 ouverte), `ci.md`, `prs.json` (PR à relire) ; par PR `pr-<n>.json` (sa
 fiche), `pr-<n>-note.md`, `pr-<n>-commits.md`, `pr-<n>-ecran.md` (plan de
-test), `pr-<n>-review.json` (revue publiée) ; les lectures
+test), `pr-<n>-review.json` (revue publiée), `pr-<n>-worktree.json` (son
+worktree, F-110) ; les lectures
 `invariants/<empreinte>.md`. Chaque étape montre les siennes (titre, fichier,
 depuis quand ; un JSON mis en forme, un Markdown rendu, F-104).
 
@@ -847,6 +849,32 @@ F-56) :
 Un fichier écrit pour être ouvert remplace le précédent ; son dossier reste
 dans le dossier de sorties (un lien qui en sort : rien n'est écrit).
 
+**F-110 Relire dans un worktree.** À l'étape **PR**, la PR chargée :
+*Ouvrir dans un worktree* (skill `worktree-pr`, sous-contexte, sonnet ·
+moyen) — l'agent du dépôt récupère la PR, crée un worktree selon la
+convention du projet (son skill, son script ou sa doc de worktrees, ex.
+`gt-plugins-worktrees/<branche>` ; sinon `../<dépôt>-worktrees/pr-<n>`), sur
+la branche de la PR (ou `pr-<n>`), le prépare comme le projet le dit
+(dépendances, fichiers copiés), et l'inscrit en dernier dans
+`pr-<n>-worktree.json` (`{ dir, branch }`). Pendant ce temps : « Création du
+worktree en cours… ». La fiche arrivée, l'appli ajoute un **robot
+temporaire** « PR #n » sur ce dossier (`agents[].temp`, § 9 : le modèle,
+l'effort, le mode et l'autonomie de l'agent du dépôt, en VibeCoder, *Relire*,
+la PR suivie, sa fiche et son brouillon de revue repris) — seulement après la
+question de confiance, toujours posée pour un worktree de PR (ses réglages
+`.claude` sont ceux de la PR et se chargeront ; I-23, I-41). *Annuler* : pas
+de robot ; *Ajouter le robot PR #n* la repose. Le robot là : *Aller au robot
+PR #n*. C'est un agent comme un autre (conversation, éditeur, VibeCoder), son
+dossier favori le temps de la relecture ; son en-tête porte « PR #n ·
+worktree » et *Décharger* : le message part à **l'agent du dépôt** (le
+worktree est à lui ; skill `retirer-worktree`, haiku · faible), qui fait
+`git worktree remove` — refusé s'il reste des modifications, et il le dit —
+puis supprime la fiche ; la fiche partie, l'appli retire le robot (pas au
+travail) : son brouillon de revue revient à l'agent du dépôt, son dossier
+quitte les favoris, le panneau passe à l'agent du dépôt. *Retirer* le robot
+(clic droit) oublie aussi son dossier. La relecture sans worktree
+(`refs/vibecoder/pr/<n>`) reste la même.
+
 **F-102 Validations** : ✓, ✗ ou oublier, sur la note, sa Forme, un cas de
 test, une case du plan de test (*Relire*). La note et la forme : *✓ Valider*
 (*Relire* : ✓ ou ✗), puis « validée » et *Annuler* ; un cas : ✓ ou ✗, un
@@ -901,9 +929,9 @@ en-tête). Ce qui se suffit à soi-même tourne dans un sous-contexte
 (`context: fork`), sans relire la conversation : son coût ne dépend pas de la
 longueur de celle-ci.
 - *haiku* (effort faible) : `prs`, `charger-pr`, `verifier`, `commit` (le
-  message préparé, tel quel), `base`, `publier-revue` ;
+  message préparé, tel quel), `base`, `publier-revue`, `retirer-worktree` ;
 - *sonnet* : `commit-preparer` (faible) ; `pr`, `fixups`, `ci`, `ecran`,
-  `lire-invariants` (moyen) ;
+  `lire-invariants`, `worktree-pr` (moyen) ;
 - *opus · élevé* : `invariants`, `module`, `suivant`, `relire`, `aligner`,
   `ponytail`, `relire-note`, `relire-commits`.
 
@@ -1005,7 +1033,9 @@ puis le dossier ouvert, F-107) ; Ouvrir le dossier whisper ; Modifier la configu
 Dans `agents`, pour VibeCoder : `view` (`vibecoder` ; absent : la
 conversation) et `vibe` `{ flow, autonomy, pr }` — `flow` `create` (défaut)
 ou `review`, `autonomy` `guide` (défaut) ou `vibe`, `pr` la PR suivie (un
-entier positif, sinon `null`) ; une valeur inconnue prend le défaut.
+entier positif, sinon `null`) ; une valeur inconnue prend le défaut. Le
+robot d'une PR ouverte dans un worktree porte `temp` `{ parent, pr }`
+(l'agent du dépôt et la PR, F-110) ; mal formé, c'est un agent ordinaire.
 
 Relue à chaque usage (une retouche à la main prend effet sans relancer, sauf
 `size`). Clés inconnues ignorées (ex. l'ancien `speakEngine`). Anciens formats
@@ -1135,7 +1165,8 @@ bancs de comparaison.
   seules les sessions **de ce dossier** s'ouvrent ou se reprennent.
 - **I-23** Un nouveau dossier passe par la question « Faire confiance à ce
   dossier ? » (Claude Code lancé par le SDK ne la pose pas, alors que hooks et
-  serveurs MCP du projet se chargent).
+  serveurs MCP du projet se chargent) ; le worktree d'une PR, à chaque fois
+  (I-41).
 - **I-24** La consigne `<audio>` ne s'applique qu'aux sessions créées par
   l'appli, jamais aux sessions Claude Code habituelles.
 - **I-25** Un message n'est jamais envoyé à un agent au travail (le texte est
@@ -1206,6 +1237,15 @@ bancs de comparaison.
   `http(s)` — une balise reste du texte, un lien `javascript:`, `data:`,
   `file:`, `vbscript:` ou `//hôte` n'est pas un lien —, ouverts dans le
   navigateur (I-21).
+- **I-41** Le robot temporaire d'une PR (F-110) ne naît que de la fiche
+  `pr-<n>-worktree.json` que le skill a écrite **dans les sorties de l'agent
+  du dépôt** (un fichier, pas un lien), après une demande de l'écran pour
+  cette PR, si son `dir` est un chemin absolu, un dossier existant, la
+  **racine d'un worktree du même dépôt** (même `git rev-parse
+  --git-common-dir`, résolu) autre que le dossier de l'agent du dépôt, sans
+  agent ; et seulement après la question de confiance **acceptée**, posée à
+  chaque fois (I-23). Aucune page ne donne de dossier : l'écran ne peut que
+  demander d'afficher ou de proposer le robot de la PR suivie.
 
 ### Système et code
 
@@ -1400,6 +1440,16 @@ Copier, erreurs ; mêmes relevés).
   *Décharger la PR* → le choix d'une PR revient. Une commande en
   arrière-plan : *⚙ Tâches* → l'onglet *Tâches (1)* à droite ;
   *Conversation* → le fil, à sa place.
+- **S-64** *Relire* sur gt-plugins, une PR chargée : *Ouvrir dans un
+  worktree* → « Création du worktree en cours… », le worktree dans
+  `gt-plugins-worktrees/<branche>`, `yarn install` fait ; la question de
+  confiance (« PR #n dans un worktree », ses réglages `.claude`) ; *Annuler*
+  → pas de robot, *Ajouter le robot PR #n* ; accepter → le robot « PR #n »,
+  *Aller au robot PR #n* → son VibeCoder en *Relire*, la PR chargée, le
+  badge « PR #n · worktree ». Un fichier modifié dans le worktree :
+  *Décharger* → refusé, l'agent du dépôt le dit, le robot reste ; sans
+  modification → le worktree retiré, le robot parti, le panneau sur l'agent du
+  dépôt, le brouillon de revue là.
 
 ---
 
@@ -1454,6 +1504,11 @@ Copier, erreurs ; mêmes relevés).
   reste, en lien s'il est en `http(s)`) ; pas d'🕘 Historique (revenir à la
   conversation) ; une revue de PR est un commentaire d'ensemble, pas de
   commentaire sur une ligne du diff.
+- VibeCoder, *Relire dans un worktree* (F-110) : le robot temporaire arrive
+  et part au relevé, donc seulement quand un agent est en VibeCoder dans le
+  panneau ; la demande d'*Ouvrir dans un worktree* est gardée en mémoire —
+  après un redémarrage, *Ajouter le robot PR #n*. Les validations faites sur
+  le robot partent avec lui (son brouillon de revue, lui, revient).
 
 ## 15. Décisions en attente
 

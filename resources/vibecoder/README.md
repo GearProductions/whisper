@@ -183,6 +183,8 @@ format du fichier : VibeCoder ne lit ses sorties que sous ces noms.
 | `release` | conversation | agent | — |
 | `prs` | sous-contexte | haiku · low | `prs.json` |
 | `charger-pr` | sous-contexte | haiku · low | `pr-<n>.json` |
+| `worktree-pr` | sous-contexte | sonnet · medium | `pr-<n>.json`, `pr-<n>-worktree.json` |
+| `retirer-worktree` | sous-contexte | haiku · low | (supprime `pr-<n>-worktree.json`) |
 | `relire-note` | sous-contexte | opus · high | `pr-<n>-note.md` |
 | `relire-commits` | sous-contexte | opus · high | `pr-<n>-commits.md` |
 | `ecran` | sous-contexte | sonnet · medium | `pr-<n>-ecran.md` |
