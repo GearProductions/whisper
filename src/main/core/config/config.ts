@@ -41,6 +41,9 @@ export type Config = {
   pos: { x: number; y: number } | null;
   convSize?: { width: number; height: number };
   vibeLang: VibeLang;     // VibeCoder : la langue de l'écran et des messages envoyés
+  // VibeCoder : ce qui précède les commandes du projet et gh ('' : la box de
+  // agentCommand, `distrobox enter <box> --`, sinon rien ; core/runner).
+  vibeCommandPrefix: string;
   vibeSize?: { width: number; height: number };  // le panneau en VibeCoder (à part de convSize)
   [key: string]: unknown;
 };
@@ -56,7 +59,7 @@ export const DEFAULTS: Config = {
   speakLang: 'auto',
   speakVoices: { fr: 'estelle', en: 'jane' },
   deviceId: '', deviceLabel: '', size: 64, pos: null,
-  vibeLang: 'fr',
+  vibeLang: 'fr', vibeCommandPrefix: '',
 };
 
 // Langues de la dictée, dans l'ordre du menu.
