@@ -348,5 +348,15 @@
     "label": "Feedback → fixup",
     "hint": "Prepares in the field a feedback to fix as a fixup of the module concerned.",
     "text": "Feedback to fix, as a fixup of the module concerned: "
+  },
+  {
+    "id": "propose-run",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Propose the commands",
+    "hint": "The agent looks for how to start the project (README, package.json, process-compose, Makefile, AGENTS.md, .bashrc aliases…) and proposes its commands; the app adopts them when there is no project file yet. The field can guide it.",
+    "text": "/vibecoder:lancement {{lang}} {{out}} {{text}}"
   }
 ]

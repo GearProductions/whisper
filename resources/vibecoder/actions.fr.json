@@ -348,5 +348,15 @@
     "label": "Retour → fixup",
     "hint": "Prépare dans le champ un retour à corriger en fixup du module concerné.",
     "text": "Retour à corriger, en fixup du module concerné : "
+  },
+  {
+    "id": "propose-run",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Proposer les commandes",
+    "hint": "L'agent cherche comment lancer le projet (README, package.json, process-compose, Makefile, AGENTS.md, alias du .bashrc…) et propose ses commandes ; l'appli les adopte s'il n'y a pas encore de fichier du projet. Le champ peut le guider.",
+    "text": "/vibecoder:lancement {{lang}} {{out}} {{text}}"
   }
 ]

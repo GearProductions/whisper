@@ -18,6 +18,7 @@ l'appli.
 | `plugin/.claude-plugin/plugin.json` | le plugin `vibecoder` que l'appli donne à Claude Code |
 | `plugin/skills/<nom>/SKILL.md` | un skill : son modèle, son effort, ses instructions |
 | `plugin/skills/<nom>--<modèle>/SKILL.md` | une variante générée d'un skill, sur un autre modèle (voir plus bas) : réécrite à chaque démarrage |
+| `projets/<dossier>.json` | les commandes qui lancent le projet d'un dossier (onglet *Processus*, voir plus bas) : les vôtres, propres à la machine |
 | `README.md` | ce fichier |
 
 ## Les boutons : `actions.<langue>.json`
@@ -187,3 +188,35 @@ format du fichier : VibeCoder ne lit ses sorties que sous ces noms.
 | `ecran` | sous-contexte | sonnet · medium | `pr-<n>-ecran.md` |
 | `publier-revue` | sous-contexte | haiku · low | `pr-<n>-review.json` |
 | `vibe` | conversation | agent, sous-agents opus | ceux des étapes qu'il déroule |
+| `lancement` | sous-contexte | haiku · low | `lancement.json` |
+| `processus` | conversation (l'agent l'appelle de lui-même) | agent | `run/<nom>.stop`, `run/<nom>.restart` |
+
+## Les commandes du projet : `projets/<dossier>.json`
+
+L'onglet *Processus* lance, arrête et relance les commandes qui font tourner
+le projet d'un agent (serveur, front, services). Elles sont dans
+`projets/<dossier>.json` (`<dossier>` : le chemin du dossier de l'agent, ses
+`/` en `-`), propre à cette machine et jamais remplacé par l'appli :
+
+```json
+{
+  "commands": [
+    { "name": "gear", "run": "gear" },
+    { "name": "front", "run": "npm run dev", "cwd": "frontend" }
+  ]
+}
+```
+
+| Champ | Contenu |
+|---|---|
+| `name` | court, unique : lettres, chiffres, `.`, `_`, `-` (il nomme le journal) |
+| `run` | la commande, telle que tapée dans un terminal au dossier de l'agent |
+| `cwd` | facultatif : le dossier où la lancer, relatif à celui de l'agent |
+| `shell` | facultatif, pour tout le fichier : `["bash", "-ic"]` par défaut — vos alias et fonctions du `.bashrc` marchent |
+
+Chaque commande passe par ce shell, dans la box de l'agent si sa commande de
+lancement (`agentCommand`) commence par `distrobox enter <box> --`. Son
+journal : `userData/vibecoder-out/<agent>/run/<nom>.log` (le précédent en
+`.log.old`). *Proposer les commandes* (skill `lancement`) écrit le fichier s'il
+n'existe pas encore ; *Modifier les commandes* l'ouvre dans l'éditeur (créé
+d'un exemple s'il manque). Quitter l'appli arrête tout ce qu'elle a lancé.
