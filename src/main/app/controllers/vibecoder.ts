@@ -6,7 +6,8 @@
  *  réglage — au plus un par seconde ; null, une fois, quand l'agent affiché
  *  n'est plus en VibeCoder. Et ce que l'écran demande : une action (un message
  *  à l'agent affiché, comme s'il était tapé, par sendToAgent : refusé s'il
- *  travaille, I-25), un réglage (dont arrêter l'agent, comme Interrompre de son
+ *  travaille, I-25 ; ou, pour commit, publish, load-pr et base, au clic de
+ *  « direct » : leurs commandes, lancées par l'appli, F-114), un réglage (dont arrêter l'agent, comme Interrompre de son
  *  menu), une validation, le brouillon de revue, ouvrir un fichier ou un commit
  *  du relevé (dans l'éditeur, à une ligne ; la page d'un commit dans le
  *  navigateur, d'après l'origine GitHub du dépôt, I-32).
@@ -16,7 +17,7 @@
  *  (I-37). Ce qu'il écrit pour l'ouvrir (un fichier de la PR, le diff d'un
  *  commit) va sous <sorties>/files/, en lecture seule. Le message d'une
  *  action : son gabarit, rempli par buildMessage (I-38). git en lecture seule
- *  (technicals/git, I-39) ; gh aussi, sans agent (technicals/github, derrière
+ *  (technicals/git, I-39), sauf les actions directes (technicals/direct) ; gh aussi, sans agent (technicals/github, derrière
  *  le préfixe de l'agent : processes.agentPrefix) : Créer, la PR de la
  *  branche ; Relire, l'état de la PR chargée (60 s en cache, demandés en
  *  fond : le relevé ne les attend pas ; ↻ les redemande) et Mes PR à relire
@@ -34,15 +35,16 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { shell } from 'electron';
-import type { SendResult, VibeArgs, VibeLang, VibeView } from 'shared/bridge';
+import type { SendResult, VibeAction, VibeArgs, VibeLang, VibeView } from 'shared/bridge';
 import { EFFORTS, MODELS, MODES, type AgentConfig } from 'core/agents';
 import { agentVibe, vibeLang, type Config } from 'core/config';
 import { githubPage } from 'core/repo';
 import {
-  addComment, blobSha, buildMessage, editComment, findNote, forkedModel, isInvariantTest, isOutputName, isTest, itemCommit, itemPath,
+  addComment, blobSha, buildMessage, DIRECT_ACTIONS, draftText, editComment, findNote, forkedModel, isInvariantTest, isOutputName, isTest, itemCommit, itemPath,
   json, noteKey, parseNote, prNumber, removeComment, safePath, setMark, vibeView, whoOf, type MessageError,
 } from 'core/vibecoder';
 import { findEditor } from 'technicals/editor';
+import { directRunner, VERDICTS, type DirectResult } from 'technicals/direct';
 import { gitReader, gitRun, okRef } from 'technicals/git';
 import { ghRun, githubReader } from 'technicals/github';
 import { which } from 'technicals/paths';
@@ -105,6 +107,7 @@ const last = new Map<string, VibeView>();  // le dernier relevé envoyé, par ag
 const turnNote = new Map<string, { text: string; busy: boolean }>();  // la note au début du tour (surlignage)
 const showCache = new Map<string, Promise<string | null>>();  // Relire : un fichier à un commit donné ne change pas
 const ghCache = new Map<string, { at: number; value: unknown; pending: boolean }>();  // par question à gh
+const directs = new Map<string, Record<string, NonNullable<VibeAction['direct']>>>();  // par agent : ses actions directes (F-114)
 const prsFound = new Map<string, unknown[]>();   // Relire : Mes PR à relire, par agent (la dernière réponse de gh)
 let shown: string | null = null;           // l'agent dont le panneau a le relevé (null : aucun, ou null envoyé)
 let lastAt = 0;
@@ -335,6 +338,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     worktree: worktreeState(agent, flow === 'review' ? pr : null, busy),
     github,
     actions,
+    direct: directs.get(agent.id),
     who: Object.fromEntries(actions.map((a) => [a.id, whoOf(skills[a.id], lang)])),
     model: Object.fromEntries(actions.map((a) => [a.id, forkedModel(skills[a.id])])),
     skills: skillNames(agent.dir),
@@ -363,6 +367,7 @@ export function runVibeAction(id: unknown, args: unknown): SendResult {
   if (!shownAction || !def || def.kind !== 'send') return fail(lang, 'action');
   if (shownAction.disabled) return { ok: false, error: shownAction.disabled };
   if (!args || typeof args !== 'object' || Array.isArray(args)) return fail(lang, 'args');
+  if ((args as VibeArgs).direct === true && DIRECT_ACTIONS.includes(def.id)) return runDirect(agent, def.id, args as VibeArgs, view, cfg);
   // Décharger, sur le robot d'un worktree : le message part à l'agent du dépôt (le worktree est à lui), avec ses sorties (F-110).
   const target = def.id === 'unload-worktree' ? worktreeParent(agent) : agent;
   if (!target) return fail(lang, 'agent');
@@ -372,6 +377,44 @@ export function runVibeAction(id: unknown, args: unknown): SendResult {
   if (sent.ok && def.id === 'open-worktree' && view.pr) wantWorktree(agent.id, view.pr.number);
   if (sent.ok) refreshVibe({ now: true });
   return sent;
+}
+
+// Une action directe (F-114) : l'appli lance elle-même sa liste fermée de
+// commandes (technicals/direct), sans agent, avec des valeurs du dernier relevé
+// (la branche, la base de sa PR, la PR suivie, le brouillon) ou vérifiées (un
+// numéro de PR entier, un verdict des trois). En fond, une à la fois par agent :
+// « en cours » puis son résultat partent au relevé.
+function runDirect(agent: AgentConfig, id: string, args: VibeArgs, view: VibeView, cfg: Config): SendResult {
+  const lang = vibeLang(cfg);
+  const mine = directs.get(agent.id) ?? {};
+  if (Object.values(mine).some((x) => x.running)) return fail(lang, 'action');
+  const run = directRunner({ dir: agent.dir, out: vibeOutDir(agent.id), prefix: agentPrefix(agent, cfg) });
+  const n = prNumber(view.pr?.number);
+  let job: Promise<DirectResult>;
+  if (id === 'commit') job = run.commit();
+  else if (id === 'load-pr') {
+    const asked = args.pr === undefined ? n : prNumber(args.pr);
+    if (!asked) return fail(lang, 'pr');
+    job = run.loadPr(asked);
+  } else if (id === 'publish') {
+    if (!n) return fail(lang, 'pr');
+    if (!(VERDICTS as readonly unknown[]).includes(args.verdict)) return fail(lang, 'verdict');
+    if (!view.draft.length) return fail(lang, 'draft');
+    job = run.publish(n, args.verdict, draftText(view.draft), view.pr?.url ?? '');
+  } else {
+    const branch = view.repo?.branch;
+    const base = view.pr?.base || view.repo?.base.replace(/^origin\//, '');
+    if (!branch || !base) return fail(lang, 'repo');
+    job = run.toBase(branch, base);
+  }
+  mine[id] = { running: true, last: mine[id]?.last ?? null };
+  directs.set(agent.id, mine);
+  job.catch((err): DirectResult => ({ ok: false, line: err instanceof Error ? err.message : String(err), detail: '' })).then((r) => {
+    mine[id] = { running: false, last: { ...r, time: Date.now() } };
+    refreshVibe({ now: true });
+  });
+  refreshVibe({ now: true });
+  return { ok: true };
 }
 
 // La vue d'un agent, retenue (VibeCoder, ou null : sa conversation), et le
