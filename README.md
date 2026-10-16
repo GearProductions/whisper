@@ -360,10 +360,10 @@ conversation reste utilisable.
   que les skills ont produit —, ses actions sous son titre (celle qui fait
   avancer l'étape en cours en tête, discrètement mise en avant) ; chaque
   carte produite par un skill a son *Relancer* ;
-- à droite, deux onglets : la **conversation** de l'agent, comme d'habitude
+- à droite, trois onglets : la **conversation** de l'agent, comme d'habitude
   (fil, autorisations, champ, dictée, commandes « / » ; au-dessus du champ,
-  *Demander sans modifier* : il répond sans rien toucher), et ses **Tâches**
-  de fond (le nombre en cours dans l'onglet) ;
+  *Demander sans modifier* : il répond sans rien toucher), ses **Tâches**
+  de fond et les **Processus** du projet (le nombre en cours dans l'onglet) ;
 - en bas : modèle, effort et mode de l'agent (comme dans son menu), jauge du
   contexte, *⚙ Tâches* (l'onglet), *⏹ Arrêter* quand il travaille, fichiers
   modifiés, heure du dernier relevé.
@@ -449,6 +449,20 @@ robot « PR #n » sur ce dossier, déjà en *Relire* : *Aller au robot PR #n*.
 Sur ce robot, *Décharger* demande à l'agent du dépôt de retirer le worktree
 (refusé s'il reste des modifications) ; le robot part avec lui, et votre
 brouillon de revue revient à l'agent du dépôt.
+
+**Lancer le projet.** L'onglet *Processus* lance, arrête et relance les
+commandes qui font tourner le projet de l'agent (serveur, front, services) :
+▶, ⏹, ↻, l'état de chacune, depuis quand, et la fin de son journal (à
+déplier ; *Journal complet* dans l'éditeur). Les commandes sont à vous, propres
+à la machine (`vibecoder/projets/<dossier>.json`) : *Proposer les commandes*
+(Haiku lit le README, `package.json`, `process-compose`, vos alias et
+fonctions du `.bashrc`…) les écrit s'il n'y en a pas encore ; *Modifier les
+commandes* ouvre le fichier. Chacune passe par `bash -ic` (vos alias et
+fonctions marchent : `gear` pour gt-plugins), dans la box de l'agent si sa
+commande passe par `distrobox enter <box> --`. C'est l'appli qui lance :
+quitter l'appli arrête tout ce qu'elle a lancé, et rien d'autre. L'agent lit
+les mêmes journaux et peut demander l'arrêt ou la relance d'une commande (il
+écrit un petit fichier que l'appli exécute, VibeCoder affiché).
 
 **Guide ou Vibe.** *Guide* (par défaut) : vous validez la note, la forme et
 chaque invariant ; l'étape en cours attend vos ✓. *Vibe* : vous donnez la

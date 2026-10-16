@@ -53,9 +53,9 @@ des processus.
 
 | Module | Rôle |
 |---|---|
-| `app/lifecycle` | démarrage (une instance, aucun agent sélectionné, permissions), sortie |
+| `app/lifecycle` | démarrage (une instance, aucun agent sélectionné, permissions), sortie (dont les processus du projet, F-111) |
 | `app/windows` | les trois fenêtres : créer, placer, montrer (icône, bulle, panneau) |
-| `app/controllers` | dictée (coupures, transcription, destination, modèle), lecture, agents, contenu du panneau, VibeCoder (`vibecoder.ts` : relevé, actions, réglages, validations, brouillon de revue, fichier à ouvrir) |
+| `app/controllers` | dictée (coupures, transcription, destination, modèle), lecture, agents, contenu du panneau, VibeCoder (`vibecoder.ts` : relevé, actions, réglages, validations, brouillon de revue, fichier à ouvrir ; `processes.ts` : les commandes du projet, F-111) |
 | `app/menus` | menus de l'icône, des robots, du « + », du trombone |
 | `app/ipc` | une table de gestionnaires par fenêtre, écoutée par `technicals/ipc` |
 | `core/config` | réglages, démarrage, dossiers favoris et couleurs, confiance |
@@ -66,6 +66,8 @@ des processus.
 | `core/guards` | permissions des pages, liens, fichiers montrés |
 | `core/repo` | page GitHub d'un dossier, d'après son remote `origin` |
 | `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier ou un commit désigné par son id (`safePath`, `itemPath`, `itemCommit`), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`, `forkedModel`), le parcours (`vibeView`), les sorties des skills, les fichiers par défaut (`syncDefaults`) et les variantes des skills (`skillVariants`), les validations et brouillons de revue |
+| `core/runner` | les commandes du projet (F-111) : le fichier du projet lu (`parseProject`), une commande par son rang (`commandAt` : shell du fichier, box de l'agent), les demandes de l'agent (`requestsOf`), la fin d'un journal (I-42) |
+| `technicals/process` | les processus lancés pour l'utilisateur : détachés, marqués dans leur environnement, arrêtés avec ce qu'ils ont lancé (SIGTERM, SIGKILL après 5 s), leur journal ; `writeNew` (I-43) |
 | `technicals/git` | git en lecture seule (`gitRun`, `gitReader`, `GIT_READ`) : les faits d'une branche ou d'une PR chargée, un fichier à un ref, un commit et son diff (I-39) |
 | `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `paste`, `windows-helper`, `pipewire`, `clipboard`, `selection`, `pocket-tts`, `claude`, `editor` (un dossier, ou un fichier de VibeCoder, à une ligne), `journal`, `images`, `paths`, `config-file` |
 | `helpers` | découper une commande, français ou anglais, une ligne, `async-queue` (l'entrée d'un processus d'agent) |
@@ -95,7 +97,9 @@ Vers le principal :
   son worktree), `conv:vibeMark` (✓, ✗
   ou oublier une cible), `conv:vibeDraft` (brouillon de revue : ajouter,
   modifier, retirer), `conv:vibeOpen` (un fichier ou un commit du relevé, par
-  son id, et une ligne), `conv:vibeRefresh`,
+  son id, et une ligne), `conv:vibeRefresh`, `conv:vibeProcess` (une
+  commande du projet par son rang : lancer, arrêter, relancer, son journal ;
+  ou le fichier du projet dans l'éditeur, F-111),
   `conv:vibeRun` (une action par son id et ses arguments, avec réponse
   `{ ok, error }`).
 
@@ -118,8 +122,8 @@ fichier se désignent par leur id dans le dernier relevé (I-37, I-38).
 | `pocket-tts/` | Python, Pocket TTS, PyTorch installés par uv |
 | `consigne-agents.md` | consigne ajoutée au prompt système des agents |
 | `agents.log` (`.old`) | journal des agents, 1 Mo puis rotation |
-| `vibecoder/` | ce que VibeCoder fait dire, à retoucher (F-107) : `actions.fr.json`, `actions.en.json`, `plugin/` (le plugin `vibecoder` : skills, agents ; `skills/<nom>--<modèle>/`, les variantes générées, F-106), `README.md` ; `.defaults.json`, le manifeste de ce que l'appli y a écrit |
-| `vibecoder-out/<agent>/` | les sorties des skills pour l'écran (F-95) ; `branches/<branche>/`, celles de *Créer* d'une branche quittée, et `.branche`, la dernière branche vue ; `files/`, ce que l'appli écrit pour l'ouvrir dans l'éditeur, en lecture seule (`pr-<n>/<chemin>`, `<hash>.diff`, F-101) ; dossier de travail en plus de Claude Code (F-58) |
+| `vibecoder/` | ce que VibeCoder fait dire, à retoucher (F-107) : `actions.fr.json`, `actions.en.json`, `plugin/` (le plugin `vibecoder` : skills, agents ; `skills/<nom>--<modèle>/`, les variantes générées, F-106), `README.md` ; `.defaults.json`, le manifeste de ce que l'appli y a écrit ; `projets/<dossier>.json`, les commandes du projet d'un dossier (F-111), à l'utilisateur |
+| `vibecoder-out/<agent>/` | les sorties des skills pour l'écran (F-95) ; `branches/<branche>/`, celles de *Créer* d'une branche quittée, et `.branche`, la dernière branche vue ; `files/`, ce que l'appli écrit pour l'ouvrir dans l'éditeur, en lecture seule (`pr-<n>/<chemin>`, `<hash>.diff`, F-101) ; `run/<nom>.log` (`.old`), les journaux des commandes du projet, et `run/<nom>.stop`, `.restart`, les demandes de l'agent (F-111) ; dossier de travail en plus de Claude Code (F-58) |
 | `vibecoder-state.json` | validations (par agent) et brouillons de revue (par agent et par PR) |
 
 En développement : `--user-data-dir=.data` (cf. LINUX_SETUP.md).
@@ -907,12 +911,57 @@ survol de chaque bloc et de chaque élément de liste le cite (F-98 ; *Relire* :
 au brouillon, F-101). Un JSON écrit par un skill est lu sans s'y fier :
 illisible, l'écran le dit ou le montre tel quel.
 
+### Lancer le projet
+
+**F-111 Processus** : un onglet *Processus (n)* à côté de *Conversation* et
+*Tâches* (n : les commandes en cours). Les commandes qui lancent le projet de
+l'agent (serveur, front, services) sont dans
+`userData/vibecoder/projets/<dossier>.json` (le chemin du dossier de l'agent,
+ses séparateurs en `-`), propre à la machine — par exemple `gear` pour
+gt-plugins, une fonction du `.bashrc` :
+`{ "commands": [{ "name", "run", "cwd"? }], "shell"? }`. Un `name` sûr et
+unique (lettres, chiffres, `.`, `_`, `-` : il nomme le journal), `run` tel
+que tapé dans un terminal, `cwd` relatif au dossier de l'agent ; une entrée
+mal formée est ignorée. Chaque commande a ▶ *Lancer*, ⏹ *Arrêter*,
+↻ *Relancer*, son état (en cours, arrêtée, en échec et son code), depuis
+quand, et la fin de son journal (200 lignes au plus, sans couleurs, qui suit
+la fin ; dépliable ; *Journal complet* l'ouvre dans l'éditeur).
+- **Pas de fichier** : *Proposer les commandes* (action `propose-run`, skill
+  `lancement`, sous-contexte, haiku · faible ; le champ peut le guider) :
+  l'agent cherche comment lancer le projet (AGENTS.md, CLAUDE.md, README,
+  `package.json`, `process-compose`, Makefile, compose, alias et fonctions du
+  `.bashrc`) et écrit `lancement.json` dans ses sorties ; au relevé, l'appli
+  en fait le fichier du projet **s'il n'existe pas** (jamais par-dessus,
+  I-42), puis retire la proposition. *Modifier les commandes* ouvre le
+  fichier dans l'éditeur (créé d'un exemple s'il manque).
+- **C'est l'appli qui lance** : par le shell du fichier (`bash -ic` par
+  défaut : les alias et fonctions de l'utilisateur ; exception à I-27,
+  limitée à ces commandes), dans la box de l'agent si sa commande de
+  lancement (`agentCommand`) commence par `distrobox enter <box> --`, au
+  dossier de l'agent (ou `cwd`). Le processus est détaché (son groupe) et
+  marqué dans son environnement (`VIBECODER_RUN=<jeton>`, hérité par ses
+  descendants, même passés dans la box ou sortis du groupe) ; stdout et
+  stderr vont dans `<sorties>/run/<nom>.log`, le précédent en `.log.old` (au
+  lancement suivant, et au-delà de 5 Mo). Une commande qui tourne n'est pas
+  lancée deux fois.
+- **Arrêter** : SIGTERM au groupe et à chaque processus de ce jeton, SIGKILL
+  après 5 s (I-43). Une commande finie d'elle-même : ce qu'elle laisse est
+  arrêté aussi. Une commande retirée du fichier est arrêtée au relevé. Un rang
+  qui ne désigne plus la même commande que le dernier relevé (fichier changé
+  entre-temps) : rien.
+- **L'agent** lit les mêmes journaux (skill `processus`, dans la conversation,
+  qu'il appelle de lui-même) et demande l'arrêt ou la relance par un fichier
+  vide, `<sorties>/run/<nom>.stop` ou `.restart`, que l'appli exécute puis
+  retire au relevé — pour un nom du fichier seulement (I-42).
+- **Quitter l'appli** arrête tout ce qu'elle a lancé (F-81, I-43).
+
 ### Skills, configuration
 
 **F-105 Le plugin `vibecoder`** (`userData/vibecoder/plugin/`), donné par le
 SDK au Claude Code de chaque agent (F-58) : ses skills s'appellent
 `/vibecoder:<nom>` ; `disable-model-invocation` : seul un bouton, ou
-l'utilisateur qui tape la commande, les lance — ils ne coûtent rien tant
+l'utilisateur qui tape la commande, les lance (sauf `processus`, F-111, que
+l'agent appelle quand il a besoin d'un journal ou d'une relance) — ils ne coûtent rien tant
 qu'on ne les appelle pas —, et rien n'est écrit dans les projets pour eux.
 Ils s'appuient sur les skills du projet et de l'utilisateur quand ils
 existent (`gear-prompt-specs-to-feature-note`, `gear-commit-message`,
@@ -929,7 +978,7 @@ en-tête). Ce qui se suffit à soi-même tourne dans un sous-contexte
 (`context: fork`), sans relire la conversation : son coût ne dépend pas de la
 longueur de celle-ci.
 - *haiku* (effort faible) : `prs`, `charger-pr`, `verifier`, `commit` (le
-  message préparé, tel quel), `base`, `publier-revue`, `retirer-worktree` ;
+  message préparé, tel quel), `base`, `publier-revue`, `retirer-worktree`, `lancement` ;
 - *sonnet* : `commit-preparer` (faible) ; `pr`, `fixups`, `ci`, `ecran`,
   `lire-invariants`, `worktree-pr` (moyen) ;
 - *opus · élevé* : `invariants`, `module`, `suivant`, `relire`, `aligner`,
@@ -939,7 +988,7 @@ longueur de celle-ci.
 workflows-tester, tests TypeScript de whisper) : 79/90, contre 84/90 pour
 Opus à effort moyen, 1,8 fois plus cher ; Haiku écarté. Restent dans la
 conversation, sur le modèle de l'agent (en changer en cours de conversation
-en perdrait le cache) : `note`, `forme`, `modules`, `vibe`, `rc`, `release`,
+en perdrait le cache) : `note`, `forme`, `modules`, `vibe`, `rc`, `release`, `processus`,
 et les messages sans skill (*Envoyer les réponses*, *Appliquer la revue*,
 *Demander sans modifier*, *Où j'en suis ?*).
 
@@ -1051,7 +1100,8 @@ bulle.
 **F-81 Quitter** pendant une dictée ou un tour d'agent : on rend d'abord le son
 et le micro Discord, on interrompt les agents et on attend la fin de leurs
 tours (≤ 6 s), puis on quitte. À la sortie : assistant Windows, Pocket TTS et
-agents arrêtés.
+agents arrêtés. Les processus lancés par l'onglet *Processus* (F-111) : arrêtés
+(SIGTERM, SIGKILL après 5 s), la sortie les attend.
 
 ## 11. Paquets et CI
 
@@ -1077,7 +1127,9 @@ I-13 à I-17, I-19, I-20, I-21, I-23, I-24, I-27, I-29, I-30, I-32 à I-34 ;
 VibeCoder, I-35 à I-40 : `src/main/core/vibecoder/tests/invariants/`
 (`defaults.test.ts` I-35, `fable.test.ts` I-36, `files.test.ts` I-37,
 `actions.test.ts` I-38), `src/main/technicals/git/tests/invariants/read-only.test.ts`
-(I-39), `src/renderer/core/vibecoder/tests/invariants/markdown.test.ts` (I-40).
+(I-39), `src/renderer/core/vibecoder/tests/invariants/markdown.test.ts` (I-40) ;
+I-42, I-43 : `src/main/core/runner/tests/invariants/runner.test.ts`,
+`src/main/technicals/process/tests/invariants/process.test.ts`.
 Les autres (focus, fenêtres, I-1, I-18, I-22, I-28) : scénarios du § 13 et
 bancs de comparaison.
 
@@ -1246,13 +1298,29 @@ bancs de comparaison.
   agent ; et seulement après la question de confiance **acceptée**, posée à
   chaque fois (I-23). Aucune page ne donne de dossier : l'écran ne peut que
   demander d'afficher ou de proposer le robot de la PR suivie.
+- **I-42** VibeCoder ne lance **que les commandes du fichier du projet**
+  (F-111) : une page désigne une commande par son **rang** (un entier du
+  fichier), jamais par un texte ; un rang hors du fichier, en texte, négatif
+  ou non entier ne lance rien. L'appli n'écrit ce fichier que **s'il n'existe
+  pas** (la proposition du skill, l'exemple de *Modifier*), jamais
+  par-dessus. Les demandes de l'agent (`run/<nom>.stop`, `.restart`) ne
+  valent que pour un nom du fichier. Exception à I-27, limitée à ces
+  commandes, écrites par l'utilisateur : le shell du fichier (`bash -ic`).
+- **I-43** Rien de ce que l'appli a lancé ne **survit à sa sortie**, et elle
+  n'arrête **que ce qu'elle a lancé** : arrêter vise le groupe du processus
+  et les processus marqués de **son** jeton (dans leur environnement), rien
+  d'autre ; une clé inconnue n'arrête rien ; quitter arrête tout, même un
+  descendant sorti du groupe. SIGTERM, puis SIGKILL après 5 s (comme I-19).
 
 ### Système et code
 
 - **I-26** Rien n'est installé dans le système : Pocket TTS et son Python vont
   dans les données de l'appli ; aucun paquet système requis par l'appli.
 - **I-27** Jamais de shell pour lancer un programme (`execFile` / `spawn` avec
-  arguments) : chemins et texte ne sont jamais interprétés.
+  arguments) : chemins et texte ne sont jamais interprétés. Seule exception :
+  les commandes du fichier du projet (F-111, I-42), écrites par
+  l'utilisateur, passent par le shell de ce fichier (`bash -ic`) pour trouver
+  ses alias et fonctions.
 - **I-28** **Pas de code propre à un bureau** (KDE, KWin…) dans le produit :
   une limite d'un gestionnaire de fenêtres se contourne à la main et se
   documente (ex. Alt+F3 → *Sur tous les bureaux*).
@@ -1450,6 +1518,17 @@ Copier, erreurs ; mêmes relevés).
   *Décharger* → refusé, l'agent du dépôt le dit, le robot reste ; sans
   modification → le worktree retiré, le robot parti, le panneau sur l'agent du
   dépôt, le brouillon de revue là.
+- **S-65** gt-plugins en VibeCoder, appli sur l'hôte, `agentCommand`
+  `distrobox enter dev -- …` : onglet *Processus* → « Aucune commande »,
+  *Proposer les commandes* (haiku) → la commande `gear` (la fonction du
+  `.bashrc`) dans `projets/<dossier>.json`. ▶ → point vert, « depuis 5 s »,
+  le journal de process-compose défile ; *Processus (1)* dans l'onglet.
+  L'agent, prié de relancer le serveur, écrit `run/gear.restart` → le journal
+  repart. ⏹ → arrêtée, plus aucun processus de process-compose dans la box
+  (`pgrep -f process-compose`). ▶ puis quitter l'appli → rien ne reste, ni
+  sur l'hôte ni dans la box. Un `sleep 1000` lancé à la main dans la box
+  survit à ⏹ et à la sortie. *Modifier les commandes* → le fichier dans
+  l'éditeur ; une commande renommée → l'ancienne, si elle tournait, arrêtée.
 
 ---
 
@@ -1509,6 +1588,13 @@ Copier, erreurs ; mêmes relevés).
   panneau ; la demande d'*Ouvrir dans un worktree* est gardée en mémoire —
   après un redémarrage, *Ajouter le robot PR #n*. Les validations faites sur
   le robot partent avec lui (son brouillon de revue, lui, revient).
+- VibeCoder, *Processus* (F-111) : les demandes de l'agent (`.stop`,
+  `.restart`) et l'adoption d'une proposition se font au relevé, donc VibeCoder
+  affiché ; l'appli tuée net (crash, `kill -9`) laisse tourner ce qu'elle a
+  lancé ; `bash -i` ignore SIGTERM : une boucle (`while :; do …; done`)
+  n'est arrêtée que par le SIGKILL, après 5 s. Ailleurs que sous Linux, pas
+  de jeton (pas de `/proc`) : seul le groupe est arrêté ; Windows :
+  `taskkill /T /F`, sans box, non essayé.
 
 ## 15. Décisions en attente
 
