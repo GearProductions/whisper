@@ -275,8 +275,12 @@ describe('les actions grisées, et pourquoi', () => {
     expect(action(vibeView(input()), 'forme')?.disabled).toBe('Pas encore de note');
   });
 
-  it('rien à lire : Lire en pseudo-code est grisé', () => {
-    expect(action(vibeView(ready()), 'read-invariants')?.disabled).toBe('Aucun test d\'invariant à lire');
+  it('aucun test d\'invariant : Lire en pseudo-code est grisé', () => {
+    expect(action(vibeView(ready({ tests: [] })), 'read-invariants')?.disabled).toBe('Aucun test d\'invariant à lire');
+  });
+
+  it('tout est lu : Lire en pseudo-code reste possible (relire)', () => {
+    expect(action(vibeView(ready()), 'read-invariants')?.disabled).toBeNull();
   });
 
   it('pas de commit.md : Commiter est grisé', () => {

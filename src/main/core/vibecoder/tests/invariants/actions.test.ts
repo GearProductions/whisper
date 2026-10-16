@@ -8,6 +8,8 @@
 //   contrôle ; une variable inconnue fait refuser l'action (l'agent lance des
 //   commandes avec ces valeurs). Et : faire travailler l'agent sans que le fil
 //   le montre — le message est le gabarit, ses variables remplies, rien d'autre.
+//   0.8.0-rc.4 : un test à relire est désigné par son id dans le relevé (ou
+//   « * », tous), jamais par un chemin (I-37, I-38).
 import { describe, expect, it } from 'vitest';
 import type { VibeView } from 'shared/bridge';
 import { buildMessage, type ActionDef, type MessageContext } from 'core/vibecoder';
@@ -94,6 +96,48 @@ describe('un numéro de PR est un entier positif', () => {
   it('un texte qu’une page ferait passer pour un numéro : refusé', () => {
     // les arguments viennent d'une page : leur type n'est pas garanti
     expect(buildMessage(CHARGER, { pr: '12; rm -rf ~' as unknown as number }, ctx)).toEqual({ error: 'pr' });
+  });
+});
+
+describe('un test à relire est pris dans le dernier relevé, par son id', () => {
+  // Deux tests d'invariants : le premier déjà lu, le second pas encore.
+  const B1 = '3b18e512dba79e4c8300dd08aeb37f8e728b8dad';
+  const B2 = 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3';
+  const lus = { ...ctx, view: { ...view, invariants: [
+    { id: 't0', path: 'src/x/tests/invariants/a.test.ts', blob: B1, cases: ['cas a'], lines: [1], reading: [], marks: {} },
+    { id: 't1', path: 'src/x/tests/invariants/b.test.ts', blob: B2, cases: ['cas b'], lines: [1], reading: null, marks: {} },
+  ] } };
+
+  it('un id absent du relevé : refusé', () => {
+    // pas un test du relevé : l'action est refusée
+    expect(buildMessage(LIRE, { file: 't9' }, lus)).toEqual({ error: 'files' });
+  });
+
+  it('un chemin à la place d’un id : refusé', () => {
+    // une page désigne un test par son id, jamais par un chemin (I-37)
+    expect(buildMessage(LIRE, { file: 'src/x/tests/invariants/a.test.ts' }, lus)).toEqual({ error: 'files' });
+  });
+
+  it('un id qu’une page ferait passer pour autre chose qu’un texte : refusé', () => {
+    // les arguments viennent d'une page : leur type n'est pas garanti
+    expect(buildMessage(LIRE, { file: ['t0'] as unknown as string }, lus)).toEqual({ error: 'files' });
+  });
+
+  it('un test déjà lu, par son id : lui seul, relu', () => {
+    // relire : le test choisi, même lu, et aucun autre
+    expect(buildMessage(LIRE, { file: 't0' }, lus)).toEqual({ text: `/vibecoder:lire-invariants fr ${ctx.out} WORKTREE src/x/tests/invariants/a.test.ts@${B1}` });
+  });
+
+  it('« * » : tous les tests du relevé, lus ou non', () => {
+    // tout relire : chaque test du relevé, dans son ordre
+    expect(buildMessage(LIRE, { file: '*' }, lus)).toEqual({
+      text: `/vibecoder:lire-invariants fr ${ctx.out} WORKTREE src/x/tests/invariants/a.test.ts@${B1} src/x/tests/invariants/b.test.ts@${B2}`,
+    });
+  });
+
+  it('« * » sans test d’invariant au relevé : refusé', () => {
+    // rien à relire
+    expect(buildMessage(LIRE, { file: '*' }, ctx)).toEqual({ error: 'files' });
   });
 });
 

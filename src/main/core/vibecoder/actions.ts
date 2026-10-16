@@ -72,7 +72,8 @@ const NO_ANSWER: Record<VibeLang, string> = { fr: '(pas de réponse)', en: '(no 
 //   {{branch}} {{base}}  du relevé → 'repo' sans dépôt
 //   {{note}}           le chemin de la note → 'note' sans note
 //   {{ref}}            WORKTREE (Créer) ou refs/vibecoder/pr/<n> (Relire) → 'pr' sans PR
-//   {{files}}          les tests d'invariants pas encore lus, « chemin@blob » séparés par des espaces → 'files' si aucun
+//   {{files}}          les tests d'invariants pas encore lus, « chemin@blob » séparés par des espaces ; args.file :
+//                      celui de cet id dans view.invariants, lu ou non (relire), '*' : tous → 'files' si aucun
 //   {{module}}         args.module (rang dans view.modules), sinon le premier non touché : « chemin — contrat » → 'module'
 //   {{commit}}         args.commit, un hash de view.commits ; absent : WORKTREE → sinon 'commit'
 //   {{pr}}             args.pr (entier > 0), sinon view.pr.number → sinon 'pr'
@@ -108,8 +109,9 @@ export function buildMessage(def: ActionDef, args: VibeArgs, ctx: MessageContext
       return n ? `refs/vibecoder/pr/${n}` : fail('pr');
     },
     files: () => {
-      const unread = view.invariants.filter((f) => f.reading === null).map((f) => `${f.path}@${f.blob}`);
-      return unread.length ? unread.join(' ') : fail('files');
+      const files = args.file === undefined ? view.invariants.filter((f) => f.reading === null)
+        : args.file === '*' ? view.invariants : view.invariants.filter((f) => f.id === args.file);
+      return files.length ? files.map((f) => `${f.path}@${f.blob}`).join(' ') : fail('files');
     },
     module: () => {
       const m = args.module === undefined ? view.modules.find((x) => !x.touched)

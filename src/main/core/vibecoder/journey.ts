@@ -260,7 +260,7 @@ export function vibeView(input: JourneyInput): VibeView {
     if ((v.has('branch') || v.has('base')) && !repo) return T.noRepo;
     // La Forme et les invariants s'écrivent d'après la note.
     if (!note && (v.has('note') || (flow === 'create' && (d.step === 'forme' || d.step === 'invariants')))) return T.noNoteYet;
-    if (v.has('files') && allRead) return T.nothingToRead;
+    if (v.has('files') && !invariants.length) return T.nothingToRead;   // tout lu : on peut relire (args.file)
     // Relire : ce qui lit la PR attend qu'elle soit chargée (l'étape PR, elle, prend son numéro de la page).
     if (flow === 'review' && !loaded && d.step !== 'pr' && (v.has('pr') || v.has('ref'))) return pr ? T.loadFirst : T.noPrChosen;
     if (v.has('draft') && !input.draft.length) return T.emptyDraft;

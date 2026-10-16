@@ -269,7 +269,7 @@ export type VibeAction = {
   needs: 'none' | 'text';      // 'text' : il exige le texte du champ
   usesText: boolean;           // son gabarit prend le texte du champ ({{text}}), s'il y en a
   text?: string;               // 'prefill' : le texte à mettre dans le champ ({{quote}} : ce qu'on cite)
-  primary: boolean;            // la prochaine étape
+  primary: boolean;            // ce que le guide fait faire ensuite (mis en avant dans l'en-tête de l'étape en cours)
   disabled: string | null;     // pourquoi c'est grisé
 };
 
@@ -309,6 +309,7 @@ export type VibeArgs = {
   text?: string;               // le texte du champ
   module?: number;             // rang dans VibeView.modules
   commit?: string;             // hash d'un commit de VibeView.commits
+  file?: string;               // {{files}} : l'id d'un test de VibeView.invariants (relu même s'il est lu), ou '*' : tous
   pr?: number;
   answers?: string[];          // réponses aux questions, dans leur ordre
   verdict?: 'approve' | 'comment' | 'request-changes';
