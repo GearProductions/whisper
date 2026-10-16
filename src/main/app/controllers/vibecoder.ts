@@ -17,7 +17,9 @@
  *  commit) va sous <sorties>/files/, en lecture seule. Le message d'une
  *  action : son gabarit, rempli par buildMessage (I-38). git en lecture seule
  *  (technicals/git, I-39). Créer : les sorties
- *  suivent la branche (followBranch). git manquant, dossier sans dépôt,
+ *  suivent la branche (followBranch). Relire dans un worktree : le robot
+ *  temporaire (controllers/worktrees), Décharger part à l'agent du dépôt.
+ *  git manquant, dossier sans dépôt,
  *  fichier illisible : rien ne bloque le fil ni l'agent (I-29).
  *  Ne connaît pas : la page (seulement ses canaux), la fenêtre.
  *  Utilisé par : app/ipc, app/menus, app/windows (vibeAgent : la taille du
@@ -41,6 +43,7 @@ import { loadConfig, saveConfig, saveVibeStore, updateAgent, vibeActions, vibeOu
 import { state } from 'app/state';
 import { conversationShown, openConversation } from 'app/windows';
 import { interruptAgent, isBusy, liveViewAgent, sendToAgent, setAgentSetting } from './agents';
+import { showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
 
 const VIBE_MS = 4000;          // le relevé régulier, panneau visible
 const THROTTLE_MS = 1000;      // au plus un relevé par seconde
@@ -109,6 +112,7 @@ export function vibeAgent(cfg: Config = loadConfig()) {
 // sinon null, une fois. Un relevé à la fois, au plus un par seconde (sauf
 // `now`, ou un autre agent) : le suivant attend.
 export async function refreshVibe({ now = false }: { now?: boolean } = {}) {
+  syncWorktrees(); // Relire dans un worktree : le robot temporaire arrive ou part (F-110)
   const cfg = loadConfig();
   const agent = vibeAgent(cfg);
   const panel = state.panel && !state.panel.isDestroyed() ? state.panel : null;
@@ -288,6 +292,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     outputs,
     marks: store.marks[agent.id] || {},
     draft: flow === 'review' && pr ? store.drafts[agent.id]?.[pr] || [] : [],
+    worktree: worktreeState(agent, flow === 'review' ? pr : null, busy),
     actions,
     who: Object.fromEntries(actions.map((a) => [a.id, whoOf(skills[a.id], lang)])),
     model: Object.fromEntries(actions.map((a) => [a.id, forkedModel(skills[a.id])])),
@@ -315,9 +320,13 @@ export function runVibeAction(id: unknown, args: unknown): SendResult {
   if (!shownAction || !def || def.kind !== 'send') return fail(lang, 'action');
   if (shownAction.disabled) return { ok: false, error: shownAction.disabled };
   if (!args || typeof args !== 'object' || Array.isArray(args)) return fail(lang, 'args');
-  const message = buildMessage(def, args as VibeArgs, { view, out: vibeOutDir(agent.id), lang });
+  // Décharger, sur le robot d'un worktree : le message part à l'agent du dépôt (le worktree est à lui), avec ses sorties (F-110).
+  const target = def.id === 'unload-worktree' ? worktreeParent(agent) : agent;
+  if (!target) return fail(lang, 'agent');
+  const message = buildMessage(def, args as VibeArgs, { view, out: vibeOutDir(target.id), lang });
   if ('error' in message) return fail(lang, message.error);
-  const sent = sendToAgent(agent, { text: message.text, images: [] }, cfg);
+  const sent = sendToAgent(target, { text: message.text, images: [] }, cfg);
+  if (sent.ok && def.id === 'open-worktree' && view.pr) wantWorktree(agent.id, view.pr.number);
   if (sent.ok) refreshVibe({ now: true });
   return sent;
 }
@@ -333,7 +342,8 @@ export function setAgentView(id: string, view: 'vibecoder' | null) {
 // l'agent) ; la langue (tout VibeCoder) ; « Vu » (la note de référence devient
 // l'actuelle) ; revenir à la conversation ; modèle, effort et mode comme son
 // menu (une valeur hors de ses choix est ignorée) ; arrêter son tour, comme
-// Interrompre de son menu.
+// Interrompre de son menu ; le robot de la PR dans son worktree (l'afficher,
+// ou le proposer à nouveau : jamais un chemin, F-110).
 export function setVibe(patch: unknown) {
   const agent = vibeAgent();
   if (!agent || !patch || typeof patch !== 'object') return;
@@ -352,6 +362,7 @@ export function setVibe(patch: unknown) {
     if (choices.some(([value]) => value === p[key])) setAgentSetting(agent.id, key, p[key] as string);
   }
   if (p.interrupt === true && isBusy(agent.id)) interruptAgent(agent.id);
+  if (p.worktree === true) showWorktree(agent);
   if (p.view === 'conversation') setAgentView(agent.id, null);
   else refreshVibe({ now: true });
 }

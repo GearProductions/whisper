@@ -4,3 +4,4 @@ export * from './conversation';
 export * from './dictation';
 export * from './speech';
 export * from './vibecoder';
+export * from './worktrees';

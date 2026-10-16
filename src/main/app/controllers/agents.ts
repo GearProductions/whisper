@@ -127,14 +127,18 @@ export function clickAgent(id: unknown) {
 // Lancé par l'appli, Claude Code ne pose pas sa question « Faire confiance à ce
 // dossier ? » : on la pose ici, une fois, quand un dossier devient favori. Les
 // réglages d'un projet (.claude/) peuvent lancer des commandes (hooks, MCP).
-export async function trustFolder(dir: string) {
-  if (!needsTrust(loadConfig(), dir)) return true;
+// `pr` : le worktree d'une PR (F-110) — la question est toujours posée : ses
+// réglages sont ceux de la PR, écrits par son auteur, et changent à chaque push.
+export async function trustFolder(dir: string, pr?: number) {
+  if (!pr && !needsTrust(loadConfig(), dir)) return true;
   const { response } = await dialog.showMessageBox({
     type: 'warning', buttons: ['Annuler', 'Faire confiance et ajouter'], defaultId: 0, cancelId: 0,
-    title: 'Nouveau dossier pour un agent',
+    title: pr ? `PR #${pr} dans un worktree` : 'Nouveau dossier pour un agent',
     message: 'Faire confiance à ce dossier ?',
     detail: `${dir}\n\nClaude Code y sera lancé avec les réglages du projet (dossier .claude : hooks, serveurs MCP, `
-      + 'autorisations), qui peuvent exécuter des commandes sur cette machine. N\'ajoutez que des dossiers dont vous connaissez le contenu.',
+      + 'autorisations), qui peuvent exécuter des commandes sur cette machine. '
+      + (pr ? `Ce sont ceux de la PR #${pr}, tels que son auteur les a écrits : ils se chargeront. Relisez son dossier .claude avant d'accepter.`
+        : 'N\'ajoutez que des dossiers dont vous connaissez le contenu.'),
   });
   return response === 1;
 }
