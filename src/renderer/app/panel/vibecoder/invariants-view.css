@@ -80,6 +80,14 @@
 .vc-src::-webkit-scrollbar-corner { background: transparent; }
 .vc-sl { display: block; min-height: 1.6em; padding-right: 14px; white-space: pre; }
 .vc-sl::before { content: attr(data-n); display: inline-block; width: 4ch; margin-right: 12px; padding-right: 8px; border-right: 1px solid #262c3b; color: var(--vc-faint); text-align: right; }
+/* Sa coloration : la palette sombre de GitHub. */
+.vc-cx-keyword { color: #ff7b72; }
+.vc-cx-string { color: #a5d6ff; }
+.vc-cx-comment { color: #8b949e; font-style: italic; }
+.vc-cx-constant { color: #79c0ff; }
+.vc-cx-function { color: #d2a8ff; }
+.vc-cx-type { color: #ffa657; }
+.vc-cx-attr { color: #7ee787; }
 
 /* ---- Un cas -------------------------------------------------------------------- */
 .vc-case {

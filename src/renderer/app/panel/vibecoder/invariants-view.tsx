@@ -3,7 +3,8 @@
  *  le pseudo-code coloré (assertions et « étant donné / quand / alors »
  *  repérés), ses cas limites, ce qu'il garantit, son point d'attention ; ✓ /
  *  ✗ (l'état : validé, refusé, modifié depuis), 💬, Ouvrir (à la ligne du
- *  cas) ; « Pseudo-code / Code » montre à la place son code d'origine. ✗ et 💬 citent le
+ *  cas) ; « Pseudo-code / Code » montre à la place son code d'origine
+ *  (coloré d'après l'extension du fichier, comme « Voir le fichier »). ✗ et 💬 citent le
  *  cas dans le champ (Relire : ils ouvrent sous la carte une zone de
  *  commentaire, pour le brouillon de revue, le cas en cible). Par fichier : sa
  *  progression, « Tout valider » quand chaque cas est lu sans point
@@ -14,7 +15,9 @@
  *  (align.md, Relancer).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useMemo, useState } from 'react';
-import { awaiting, caseLine, caseSource, casesOf, excerpt, fileParts, progress, pseudoLines, remark, type CaseView, type Progress, type Strings } from 'core/vibecoder';
+import {
+  awaiting, caseLine, caseSource, casesOf, codeLines, excerpt, fileParts, progress, pseudoLines, remark, type CaseView, type Progress, type Strings,
+} from 'core/vibecoder';
 import type { VibeLang, VibeTestFile } from 'technicals/bridge';
 import { CommentBox } from './comment-box';
 import { InlineMd, MarkdownView } from './markdown-view';
@@ -166,11 +169,11 @@ export function InvariantsView(props: StepProps) {
             {f.source ? (
               <details className="vc-ifile-src">
                 <summary>{s.wholeFile}</summary>
-                <Source code={f.source} />
+                <Source code={f.source} path={f.path} />
               </details>
             ) : null}
             {f.reading ? casesOf(f).map((c, i) => (
-              <CaseCard key={c.title} c={c} n={i + 1} code={caseSource(f, i)} from={f.lines[i]} s={s} t={t} lang={view.lang} review={review} onOpenLink={act.openLink}
+              <CaseCard key={c.title} c={c} n={i + 1} code={caseSource(f, i)} from={f.lines[i]} path={f.path} s={s} t={t} lang={view.lang} review={review} onOpenLink={act.openLink}
                 onVerdict={(v) => verdict(f, c.title, v)} onQuote={() => act.prefill('comment', c.title)} onOpen={() => act.open(f.id, caseLine(f, c.title))}
                 onComment={(text) => act.draft({ add: remark(target(f, c.title), text) })} />
             )) : (
@@ -187,7 +190,7 @@ export function InvariantsView(props: StepProps) {
                     );
                     return (
                       <li key={c.title}>
-                        {code ? <details><summary>{head}</summary><Source code={code} from={f.lines[i]} /></details> : head}
+                        {code ? <details><summary>{head}</summary><Source code={code} from={f.lines[i]} path={f.path} /></details> : head}
                       </li>
                     );
                   })}
@@ -231,12 +234,12 @@ function Summary({ p, s }: { p: Progress; s: Labels }) {
 
 type CardProps = {
   c: CaseView; n: number; s: Labels; t: Strings; lang: VibeLang; review: boolean;
-  code: string; from: number;   // son code d'origine ('' : inconnu) et sa première ligne
+  code: string; from: number; path: string;   // son code d'origine ('' : inconnu), sa première ligne, son fichier
   onOpenLink(url: string): void; onVerdict(v: Verdict): void; onQuote(): void; onOpen(): void;
   onComment(text: string): void;   // Relire : la remarque de la zone de commentaire, sur ce cas
 };
 
-function CaseCard({ c, n, code, from, s, t, lang, review, onOpenLink, onVerdict, onQuote, onOpen, onComment }: CardProps) {
+function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVerdict, onQuote, onOpen, onComment }: CardProps) {
   const r = c.reading;
   const quote = review ? s.quoteReview : s.quote;
   const [writing, setWriting] = useState(false);
@@ -256,7 +259,7 @@ function CaseCard({ c, n, code, from, s, t, lang, review, onOpenLink, onVerdict,
           </span>
         ) : null}
       </div>
-      {showCode ? <Source code={code} from={from} /> : null}
+      {showCode ? <Source code={code} from={from} path={path} /> : null}
       {r ? (
         <>
           {showCode ? null : <Pseudo code={r.pseudo} />}
@@ -309,13 +312,20 @@ function Pseudo({ code }: { code: string }) {
   );
 }
 
-// Le code d'origine, tel quel (sans coloration : celle du pseudo-code prendrait
-// #[test] pour un commentaire, 'a d'une durée de vie Rust pour une chaîne) ; les
-// numéros de ligne en CSS, hors de la sélection.
-function Source({ code, from = 1 }: { code: string; from?: number }) {
+// Le code d'origine, coloré d'après l'extension de son fichier (codeLines : des
+// morceaux, jamais du HTML ; langage inconnu : en texte) ; les numéros de ligne
+// en CSS, hors de la sélection.
+function Source({ code, path, from = 1 }: { code: string; path: string; from?: number }) {
+  const lines = useMemo(() => codeLines(code, path), [code, path]);
   return (
     <pre className="vc-src scroll">
-      <code>{code.split('\n').map((l, i) => <span key={i} className="vc-sl" data-n={from + i}>{l}</span>)}</code>
+      <code>
+        {lines.map((l, i) => (
+          <span key={i} className="vc-sl" data-n={from + i}>
+            {l.map((t, j) => (t.kind === 'text' ? t.text : <span key={j} className={`vc-cx-${t.kind}`}>{t.text}</span>))}
+          </span>
+        ))}
+      </code>
     </pre>
   );
 }
