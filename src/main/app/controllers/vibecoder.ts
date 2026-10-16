@@ -20,7 +20,9 @@
  *  suivent la branche (followBranch). Relire dans un worktree : le robot
  *  temporaire (controllers/worktrees), Décharger part à l'agent du dépôt.
  *  git manquant, dossier sans dépôt,
- *  fichier illisible : rien ne bloque le fil ni l'agent (I-29).
+ *  fichier illisible : rien ne bloque le fil ni l'agent (I-29). L'onglet
+ *  Processus (les commandes du projet, au relevé ; vibeProcess) :
+ *  controllers/processes.
  *  Ne connaît pas : la page (seulement ses canaux), la fenêtre.
  *  Utilisé par : app/ipc, app/menus, app/windows (vibeAgent : la taille du
  *  panneau), controllers/conversation. */
@@ -43,6 +45,7 @@ import { loadConfig, saveConfig, saveVibeStore, updateAgent, vibeActions, vibeOu
 import { state } from 'app/state';
 import { conversationShown, openConversation } from 'app/windows';
 import { interruptAgent, isBusy, liveViewAgent, sendToAgent, setAgentSetting } from './agents';
+import { processAction, processView } from './processes';
 import { showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
 
 const VIBE_MS = 4000;          // le relevé régulier, panneau visible
@@ -280,7 +283,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const store = vibeStore();
   const actions = vibeActions(lang);
   const skills = Object.fromEntries(actions.map((a) => [a.id, skillMd(a.text)]));
-  return vibeView({
+  const journey = vibeView({
     agentId: agent.id, lang, flow, pr, autonomy,
     agent: { model: agent.model || '', effort: agent.effort || '', mode: agent.mode || 'default' },
     busy,
@@ -300,6 +303,8 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     exists: (rel) => { const file = safePath(agent.dir, rel, realpath); return !!file && fs.existsSync(file); },
     now: Date.now(),
   });
+  // Processus : les commandes du projet, leur état (controllers/processes).
+  return { ...journey, ...processView(agent, cfg) };
 }
 
 /* ---- Ce que demande l'écran ------------------------------------------------ */
@@ -435,6 +440,18 @@ function writeForEditor(out: string, rel: string, text: string) {
     fs.writeFileSync(file, text, { mode: 0o444, flag: 'wx' });
     return file;
   } catch { return null; }
+}
+
+// Processus : une commande du fichier du projet par son rang dans le dernier
+// relevé (lancer, arrêter, relancer, son journal), ou le fichier du projet
+// dans l'éditeur ; jamais un texte ni un chemin (controllers/processes).
+export async function vibeProcess(op: unknown, index?: unknown) {
+  const cfg = loadConfig();
+  const agent = vibeAgent(cfg);
+  const view = agent && last.get(agent.id);
+  if (!agent || !view) return;
+  await processAction(agent, cfg, op, index, view.processes ?? []);
+  refreshVibe({ now: true });
 }
 
 // Un fichier ou un commit du relevé, par son id (jamais un chemin, I-37) :

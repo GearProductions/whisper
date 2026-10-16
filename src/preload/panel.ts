@@ -52,6 +52,7 @@ const conv: ConvApi = {
   vibeDraft: (op) => ipcRenderer.send('conv:vibeDraft', op),                 // brouillon de revue : ajouter, modifier, retirer
   vibeOpen: (id, line) => ipcRenderer.send('conv:vibeOpen', id, line),       // un fichier ou un commit du relevé, par son id (et une ligne) : jamais un chemin
   vibeRefresh: () => ipcRenderer.send('conv:vibeRefresh'),                   // relever maintenant
+  vibeProcess: (op, index) => ipcRenderer.send('conv:vibeProcess', op, index), // une commande du projet par son rang : jamais un texte
 };
 
 contextBridge.exposeInMainWorld('conv', conv);

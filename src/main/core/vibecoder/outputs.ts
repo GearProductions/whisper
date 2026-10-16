@@ -12,6 +12,7 @@ import type { ReadingCase, VibeCheck, VibeQuestion } from 'shared/bridge';
 // invariants/<blob>.md.
 export const OUTPUTS: readonly string[] = [
   'questions.md', 'align.md', 'review.md', 'commit.md', 'checks.json', 'ponytail.md', 'pr.json', 'ci.md', 'prs.json',
+  'lancement.json',   // la proposition des commandes du projet (skill lancement), adoptée par controllers/processes
 ];
 
 // Un nom de sortie connu, rien d'autre : ni `..`, ni autre dossier qu'invariants/.

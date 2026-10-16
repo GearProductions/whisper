@@ -199,6 +199,9 @@ export interface ConvApi {
   /** Un fichier du relevé (son id), dans l'éditeur : jamais un chemin. */
   vibeOpen(id: string, line?: number): void;
   vibeRefresh(): void;
+  /** Processus : une commande du fichier du projet par son rang dans VibeView.processes (lancer,
+   *  arrêter, relancer, ouvrir son journal) ; ou ouvrir le fichier du projet ('edit') — jamais un texte ni un chemin. */
+  vibeProcess(op: VibeProcessOp, index?: number): void;
 }
 
 /* ---- VibeCoder (dans le panneau) ------------------------------------------------ */
@@ -279,6 +282,16 @@ export type VibePr = {
 };
 export type VibePrItem = { number: number; title: string; author: string; url: string };
 export type VibeComment = { id: number; target: string; text: string };
+// Une commande du projet (onglet Processus) : telle que dans le fichier du projet, son état, la fin de son journal.
+export type VibeProcess = {
+  name: string;
+  run: string;
+  status: 'running' | 'stopped' | 'failed';
+  since: number | null;        // lancée à (en cours), finie à ; null : jamais lancée
+  exit: number | null;         // le code de sa dernière fin (null : tuée par un signal, ou pas finie)
+  log: string;                 // la fin de son journal, sans couleurs
+};
+export type VibeProcessOp = 'start' | 'stop' | 'restart' | 'log' | 'edit';
 export type VibeWorktree = { state: 'creating' | 'open' | 'robot'; temp: boolean; dir: string };
 
 export type VibeView = {
@@ -306,6 +319,9 @@ export type VibeView = {
   // Relire : la PR suivie dans un worktree (F-110) — sur l'agent du dépôt, en
   // création, ouvert sans robot, ou son robot temporaire là ; temp : ce robot-ci.
   worktree?: VibeWorktree | null;
+  // Processus : les commandes du fichier du projet (toujours remplis par le relevé) ; projectFile : il existe.
+  processes?: VibeProcess[];
+  projectFile?: boolean;
   time: number;                          // heure du relevé
 };
 
