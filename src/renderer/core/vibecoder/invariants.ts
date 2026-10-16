@@ -1,6 +1,6 @@
 /** invariants — les tests d'invariants tels que la vue les montre : chaque cas
  *  avec sa lecture en pseudo-code (par son titre, sinon à son rang) et sa
- *  validation, sa ligne dans le fichier ; ce qui est validé, refusé, à lire, avec un point d'attention,
+ *  validation, sa ligne dans le fichier et son code d'origine ; ce qui est validé, refusé, à lire, avec un point d'attention,
  *  et si « Tout valider » est permis ; le pseudo-code ligne à ligne, coloré,
  *  ses assertions et ses « given / when / then » repérés — en tête de ligne
  *  (`test "…":`, la forme des lectures) ou en commentaire (`it(…)`, l'ancienne).
@@ -27,6 +27,15 @@ export function casesOf(file: VibeTestFile): CaseView[] {
 export function caseLine(file: VibeTestFile, title: string): number | undefined {
   const line = file.lines[file.cases.indexOf(title)];
   return Number.isInteger(line) && line > 0 ? line : undefined;
+}
+
+// Le code d'origine du cas de rang i : de sa ligne à celle du cas suivant (ou à
+// la fin du fichier), sans les lignes vides de la fin ; texte ou ligne inconnus : ''.
+export function caseSource(file: VibeTestFile, i: number): string {
+  const from = file.lines[i];
+  if (!file.source || !Number.isInteger(from) || from < 1) return '';
+  const next = file.lines[i + 1];
+  return file.source.split('\n').slice(from - 1, Number.isInteger(next) && next > from ? next - 1 : undefined).join('\n').trimEnd();
 }
 
 export type Progress = {

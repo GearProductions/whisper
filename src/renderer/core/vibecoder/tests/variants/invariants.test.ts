@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { caseLine, casesOf, progress, pseudoLines } from 'core/vibecoder';
+import { caseLine, caseSource, casesOf, progress, pseudoLines } from 'core/vibecoder';
 import type { ReadingCase, VibeTestFile } from 'technicals/bridge';
 
 const reading = (title: string, warning: string | null = null): ReadingCase => ({ title, pseudo: 'it("x")', edges: [], guarantees: 'g', warning });
 const file = (over: Partial<VibeTestFile> = {}): VibeTestFile => ({
-  id: 't0', path: 'tests/invariants/a.test.ts', blob: 'b', cases: ['refuse', 'accepte'], lines: [4, 12], reading: null, marks: {}, ...over,
+  id: 't0', path: 'tests/invariants/a.test.ts', blob: 'b', cases: ['refuse', 'accepte'], lines: [4, 12], source: '', reading: null, marks: {}, ...over,
 });
 
 describe('caseLine', () => {
@@ -17,6 +17,29 @@ describe('caseLine', () => {
     expect(caseLine(file({ lines: [4] }), 'accepte')).toBeUndefined();
     expect(caseLine(file({ lines: [0, 2.5] }), 'refuse')).toBeUndefined();
     expect(caseLine(file({ lines: [0, 2.5] }), 'accepte')).toBeUndefined();
+  });
+});
+
+describe('caseSource', () => {
+  const source = ['import x;', '', 'it("refuse", () => {', '  expect(1).toBe(1);', '});', '', '', 'it("accepte", () => {});', ''].join('\n');
+  const f = file({ lines: [3, 8], source });
+
+  it('de la ligne du cas à celle du suivant, sans les lignes vides de la fin', () => {
+    expect(caseSource(f, 0)).toBe('it("refuse", () => {\n  expect(1).toBe(1);\n});');
+  });
+
+  it('le dernier cas : jusqu\'à la fin du fichier', () => {
+    expect(caseSource(f, 1)).toBe('it("accepte", () => {});');
+  });
+
+  it('pas de texte (fichier trop long), ligne inconnue ou pas une ligne : rien', () => {
+    expect(caseSource(file({ lines: [3, 8] }), 0)).toBe('');
+    expect(caseSource(f, 2)).toBe('');
+    expect(caseSource(file({ lines: [0, 8], source }), 0)).toBe('');
+  });
+
+  it('ligne suivante incohérente : jusqu\'à la fin', () => {
+    expect(caseSource(file({ lines: [8, 3], source }), 0)).toBe('it("accepte", () => {});');
   });
 });
 
