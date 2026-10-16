@@ -1,6 +1,6 @@
 /** processes-view — l'onglet Processus de VibeCoder : les commandes qui
  *  lancent le projet de l'agent (son fichier du projet), chacune avec
- *  ▶ Lancer, ⏹ Arrêter, ↻ Relancer, son état (un point), depuis quand, la fin
+ *  son nom, sa commande en petit dessous, ▶ Lancer, ⏹ Arrêter, ↻ Relancer, son état (un point), depuis quand, la fin
  *  de son journal (monospace, qui suit la fin tant qu'on n'est pas remonté,
  *  dépliable ; *Journal complet* dans l'éditeur). Sans fichier : *Proposer les
  *  commandes* (l'action propose-run, qui dit qui travaille) ; *Modifier les
@@ -78,8 +78,10 @@ function Proc({ p, s, t, onOp }: { p: VibeProcess; s: Labels; t: Strings; onOp(o
     <section className="vc-card vc-proc" data-status={p.status}>
       <div className="vc-card-head">
         <span className="vc-proc-dot" title={s.status[p.status]} aria-label={s.status[p.status]} />
-        <span className="vc-card-title">{p.name}</span>
-        <code className="vc-card-file" title={p.run}>{p.run}</code>
+        <span className="vc-proc-name">
+          <span className="vc-card-title" title={`${p.name}\n${p.run}`}>{p.name}</span>
+          <code className="vc-proc-run" title={p.run}>{p.run}</code>
+        </span>
         <span className="vc-card-time" title={p.since === null ? undefined : new Date(p.since).toLocaleString(t.locale)}>{when}</span>
         {icon('start', '▶', s.start, !running)}
         {icon('stop', '⏹', s.stop, running)}
