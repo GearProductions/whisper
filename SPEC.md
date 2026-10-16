@@ -41,7 +41,7 @@ VibeCoder dans le panneau (`docs/tickets/feat/0.8.0-vibecoder.md`) :
 
 | Module (`src/renderer/`) | Rôle |
 |---|---|
-| `core/vibecoder` | pur : Markdown en blocs (jamais de HTML, liens `http(s)` seuls, I-40), lignes changées (`lineDiff`), coloration du pseudo-code, libellés FR et EN |
+| `core/vibecoder` | pur : Markdown en blocs (jamais de HTML, liens `http(s)` seuls, I-40), lignes changées (`lineDiff`), coloration du pseudo-code et du code d'un test (`codeLines`, F-113), libellés FR et EN |
 | `app/panel/vibecoder/` | l'écran (en-tête, parcours, onglets et vues des étapes et leurs actions, conversation et tâches en onglets, barre des skills, barre d'état) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
 
 Toutes : sans cadre, hors de la barre des tâches, `contextIsolation`,
@@ -66,9 +66,10 @@ des processus.
 | `core/guards` | permissions des pages, liens, fichiers montrés |
 | `core/repo` | page GitHub d'un dossier, d'après son remote `origin` |
 | `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier ou un commit désigné par son id (`safePath`, `itemPath`, `itemCommit`), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`, `forkedModel`), le parcours (`vibeView`), les sorties des skills, les fichiers par défaut (`syncDefaults`) et les variantes des skills (`skillVariants`), les validations et brouillons de revue |
-| `core/runner` | les commandes du projet (F-111) : le fichier du projet lu (`parseProject`), une commande par son rang (`commandAt` : shell du fichier, box de l'agent), les demandes de l'agent (`requestsOf`), la fin d'un journal (I-42) |
+| `core/runner` | les commandes du projet (F-111) : le fichier du projet lu (`parseProject`), une commande par son rang (`commandAt` : shell du fichier, préfixe `commandPrefix` — celui du fichier, du réglage, ou la box de l'agent, le même pour `gh`), les demandes de l'agent (`requestsOf`), la fin d'un journal (I-42) |
 | `technicals/process` | les processus lancés pour l'utilisateur : détachés, marqués dans leur environnement, arrêtés avec ce qu'ils ont lancé (SIGTERM, SIGKILL après 5 s), leur journal ; `writeNew` (I-43) |
 | `technicals/git` | git en lecture seule (`gitRun`, `gitReader`, `GIT_READ`) : les faits d'une branche ou d'une PR chargée, un fichier à un ref, un commit et son diff (I-39) |
+| `technicals/github` | gh en lecture seule, derrière le préfixe (`ghRun`, `githubReader`, `GH_READ`) : la PR d'une branche, les PR à relire, l'état d'une PR (F-112, I-39) |
 | `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `paste`, `windows-helper`, `pipewire`, `clipboard`, `selection`, `pocket-tts`, `claude`, `editor` (un dossier, ou un fichier de VibeCoder, à une ligne), `journal`, `images`, `paths`, `config-file` |
 | `helpers` | découper une commande, français ou anglais, une ligne, `async-queue` (l'entrée d'un processus d'agent) |
 
@@ -627,7 +628,8 @@ ne bloque pas le relevé (I-29). Seuls ces noms sont lus (I-37) : `questions.md`
 proposé), `checks.json` (vérifications : par élément `name`, `ok`,
 `level` — `ok`, `warning` (des avertissements seulement : `ok` vrai, la
 vérification passe) ou `error` ; sans `level`, d'après `ok` —, `detail`), `ponytail.md`, `pr.json` (la PR
-ouverte), `ci.md`, `prs.json` (PR à relire) ; par PR `pr-<n>.json` (sa
+ouverte, si gh ne l'a pas dite, F-112), `ci.md`, `prs.json` (PR à relire, d'un skill d'avant la
+0.8.0-rc.10 ; ce que gh a répondu l'emporte) ; par PR `pr-<n>.json` (sa
 fiche), `pr-<n>-note.md`, `pr-<n>-commits.md`, `pr-<n>-ecran.md` (plan de
 test), `pr-<n>-review.json` (revue publiée), `pr-<n>-worktree.json` (son
 worktree, F-110) ; les lectures
@@ -755,7 +757,7 @@ fois ; le conseillé reste le choix par défaut. Jamais Fable (I-36).
    d'attention quand le test n'observe pas vraiment la propriété — avec ✓,
    ✗ (cite le cas dans le champ), 💬, *Ouvrir*, et *Pseudo-code / Code* : le
    code d'origine du cas à la place du pseudo-code (de sa ligne à celle du cas
-   suivant, monospace, numéroté, sans coloration) ; *✓ Tout valider* quand
+   suivant, monospace, numéroté, coloré : F-113) ; *✓ Tout valider* quand
    chaque cas est lu sans point d'attention ; *Voir le fichier* (replié : tout
    son code, numéroté) ; pas lu (ou changé depuis) : ses cas, chacun se
    dépliant sur son code, et *Lire en pseudo-code*. Le relevé porte le texte
@@ -801,7 +803,8 @@ fois ; le conseillé reste le choix par défaut. Jamais Fable (I-36).
    l'autre ne prend le champ ; absents sans remarque en liste). Prochaine
    action : *Lancer les vérifications*, *Ponytail review*, *Replier les
    fixups*.
-6. **PR** — faite : une PR ouverte (`pr.json`). Montre la PR (numéro, titre,
+6. **PR** — faite : une PR pour la branche, lue par gh (F-112 ; sinon
+   `pr.json`). Montre la PR (numéro, titre, base ← branche,
    *Ouvrir ↗* dans le navigateur) et l'état de la CI (`ci.md`). *Valider la
    feature (ouvrir la PR)* ; aussi *Diagnostiquer la CI*, *Release
    candidate*, *PR mergée → revenir sur la base*, *Release officielle*.
@@ -813,14 +816,14 @@ menu (F-109).
 **F-101 Relire** (une PR du dépôt ; la review du guide, § 5.4). La PR
 suivie (`agents[].vibe.pr`) se choisit par son numéro ou son lien
 (`…/pull/<n>`) et *Charger*, ou d'un clic dans la liste de *Mes PR à relire*
-(celles où l'on est demandé en relecture, `prs.json`) : la suivre, puis la
+(celles où l'on est demandé en relecture, demandées à gh, F-112) : la suivre, puis la
 charger. *Charger la PR* la récupère **sans toucher à la copie de travail** :
 une référence locale `refs/vibecoder/pr/<n>` (le `git fetch` du skill, dans
 la conversation) et sa fiche `pr-<n>.json` (titre, auteur, base, branche,
 description, état). Le parcours se calcule alors sur la PR ; ce qui la lit attend
 qu'elle soit chargée. Une PR **fusionnée ou fermée** (`state` de sa fiche ;
 une fiche d'avant la 0.8.0-rc.2 n'en a pas : ouverte) se charge mais ne se
-relit pas : un bandeau le dit, et les actions des autres étapes sont grisées
+relit pas (l'état que gh donne l'emporte sur la fiche, F-112) : un bandeau le dit, et les actions des autres étapes sont grisées
 avec cette raison (« PR déjà fusionnée : rien à relire », « PR fermée : rien
 à relire »). Les étapes, faites quand :
 1. **PR** — chargée. Montre la PR (titre, auteur, base ← tête, description
@@ -960,9 +963,11 @@ la fin ; dépliable ; *Journal complet* l'ouvre dans l'éditeur).
   fichier dans l'éditeur (créé d'un exemple s'il manque).
 - **C'est l'appli qui lance** : par le shell du fichier (`bash -ic` par
   défaut : les alias et fonctions de l'utilisateur ; exception à I-27,
-  limitée à ces commandes), dans la box de l'agent si sa commande de
-  lancement (`agentCommand`) commence par `distrobox enter <box> --`, au
-  dossier de l'agent (ou `cwd`). Le processus est détaché (son groupe) et
+  limitée à ces commandes), après le **préfixe** : `"prefix"` du fichier
+  (`""` : aucun ; jamais pris d'une proposition), sinon le réglage
+  `vibeCommandPrefix` s'il n'est pas vide, sinon `distrobox enter <box> --`
+  si la commande de lancement (`agentCommand`) commence ainsi ; au dossier
+  de l'agent (ou `cwd`). Le même préfixe précède gh (F-112). Le processus est détaché (son groupe) et
   marqué dans son environnement (`VIBECODER_RUN=<jeton>`, hérité par ses
   descendants, même passés dans la box ou sortis du groupe) ; stdout et
   stderr vont dans `<sorties>/run/<nom>.log`, le précédent en `.log.old` (au
@@ -978,6 +983,30 @@ la fin ; dépliable ; *Journal complet* l'ouvre dans l'éditeur).
   vide, `<sorties>/run/<nom>.stop` ou `.restart`, que l'appli exécute puis
   retire au relevé — pour un nom du fichier seulement (I-42).
 - **Quitter l'appli** arrête tout ce qu'elle a lancé (F-81, I-43).
+
+**F-112 GitHub sans IA** : l'appli lit elle-même trois faits de GitHub par
+`gh`, sans agent ni modèle, en lecture seule (I-39) : `gh` lancé sans shell
+derrière le préfixe de F-111 (l'appli tourne sur l'hôte, gh souvent dans la
+box), au dossier de l'agent, 15 s au plus ; un échec n'est qu'une réponse
+absente (I-29).
+- *Créer*, étape **PR** : la PR de la branche (`gh pr view <branche>`, sauf
+  sur la base) — numéro, titre, lien, état, base, branche ; une PR existe :
+  l'étape est faite. Sans réponse, `pr.json` (le skill `pr`) est encore lu.
+- *Relire* : *Mes PR à relire* (`gh pr list --search review-requested:@me`,
+  au clic ; un échec garde la liste d'avant) ; l'état de la PR chargée
+  (`gh pr view <n> --json state`), qui l'emporte sur sa fiche.
+- Une réponse vaut 60 s (par branche, par PR) ; elle est demandée en fond,
+  le relevé ne l'attend pas et repart quand elle change ; ↻ les redemande.
+
+**F-113 Coloration du code d'un test** (F-100, étape Invariants : *Code*, *Voir le
+fichier*) : d'après l'extension — `ts`, `tsx`, `js`, `jsx`, `mjs`, `cjs`,
+`mts`, `cts` ; `rs` (attributs `#[…]`, macros `nom!`, durées de vie `'a`,
+chaînes brutes `r#"…"#`, caractères) ; `py` (triples guillemets, préfixes,
+décorateurs) ; `go` (chaînes brutes `` `…` ``) ; un autre : en texte. La
+palette sombre de GitHub : mots-clés, chaînes, commentaires, nombres et
+constantes, fonctions, types, attributs. Écrite à la main, sans dépendance ;
+des morceaux de texte, jamais du HTML (I-40), qui redonnent le code tel
+quel.
 
 ### Skills, configuration
 
@@ -1001,7 +1030,7 @@ candidate ne se suppriment qu'avec l'accord de l'utilisateur.
 en-tête). Ce qui se suffit à soi-même tourne dans un sous-contexte
 (`context: fork`), sans relire la conversation : son coût ne dépend pas de la
 longueur de celle-ci.
-- *haiku* (effort faible) : `prs`, `charger-pr`, `verifier`, `commit` (le
+- *haiku* (effort faible) : `prs` (gardé, plus appelé par l'écran : F-112), `charger-pr`, `verifier`, `commit` (le
   message préparé, tel quel), `base`, `publier-revue`, `retirer-worktree`, `lancement` ;
 - *sonnet* : `commit-preparer` (faible) ; `pr`, `fixups`, `ci`, `ecran`,
   `lire-invariants`, `worktree-pr` (moyen) ;
@@ -1102,6 +1131,7 @@ puis le dossier ouvert, F-107) ; Ouvrir le dossier whisper ; Modifier la configu
 | `convSize` | — | taille du panneau agrandi |
 | `vibeLang` | `fr` | VibeCoder : fr, en (F-108) ; autre valeur → fr |
 | `vibeSize` | — | taille du panneau en VibeCoder (défaut 1280×820) |
+| `vibeCommandPrefix` | `''` | VibeCoder : ce qui précède les commandes du projet et gh (F-111, F-112) ; `''` → `distrobox enter <box> --` d'après `agentCommand`, sinon rien |
 
 Dans `agents`, pour VibeCoder : `view` (`vibecoder` ; absent : la
 conversation) et `vibe` `{ flow, autonomy, pr }` — `flow` `create` (défaut)
@@ -1150,8 +1180,8 @@ presse-papiers, collage désactivé), I-8, I-9, I-11 (page et principal), I-12,
 I-13 à I-17, I-19, I-20, I-21, I-23, I-24, I-27, I-29, I-30, I-32 à I-34 ;
 VibeCoder, I-35 à I-40 : `src/main/core/vibecoder/tests/invariants/`
 (`defaults.test.ts` I-35, `fable.test.ts` I-36, `files.test.ts` I-37,
-`actions.test.ts` I-38), `src/main/technicals/git/tests/invariants/read-only.test.ts`
-(I-39), `src/renderer/core/vibecoder/tests/invariants/markdown.test.ts` (I-40) ;
+`actions.test.ts` I-38), `src/main/technicals/git/tests/invariants/read-only.test.ts`,
+`src/main/technicals/github/tests/invariants/read-only.test.ts` (I-39), `src/renderer/core/vibecoder/tests/invariants/markdown.test.ts` (I-40) ;
 I-42, I-43 : `src/main/core/runner/tests/invariants/runner.test.ts`,
 `src/main/technicals/process/tests/invariants/process.test.ts`.
 Les autres (focus, fenêtres, I-1, I-18, I-22, I-28) : scénarios du § 13 et
@@ -1298,7 +1328,12 @@ bancs de comparaison.
   test à saut de ligne) ; une variable inconnue **fait refuser l'action**
   (l'agent lance des commandes avec ces valeurs). Le message est le gabarit,
   ses variables remplies, rien d'autre.
-- **I-39** Le principal ne **modifie jamais le dépôt** : git lancé sans shell
+- **I-39** Le principal ne **modifie jamais le dépôt**, ni rien sur GitHub :
+  gh lancé sans shell (I-27), derrière le préfixe (F-111), seulement pour
+  `pr view` et `pr list` (`GH_READ`), aux autres arguments fixes ; une
+  branche (lue par git) passe après `--` et doit être un ref sûr (ci-dessous),
+  une PR est un **entier positif** ; aucun texte d'une page n'en devient un
+  argument. Et git lancé sans shell
   (I-27), seulement pour une liste fermée de sous-commandes en lecture
   (`GIT_READ` : `rev-parse`, `status`, `diff`, `log`, `show`), sans verrou
   (`--no-optional-locks` : `status` ne réécrit pas l'index), sans programme
@@ -1306,8 +1341,8 @@ bancs de comparaison.
   d'ailleurs ne devient **jamais une option** : refusé sans lancer git s'il
   commence par « - » ou contient un NUL, et pour un ref, « .. » ou un
   caractère hors de `[A-Za-z0-9._/-]` ; `--end-of-options` là où git le
-  permet. Commit, push, rebase, checkout passent par l'agent, dans la
-  conversation, avec ses autorisations.
+  permet. Commit, push, rebase, checkout, ouvrir ou publier sur une PR
+  passent par l'agent, dans la conversation, avec ses autorisations.
 - **I-40** Aucun HTML rendu depuis un texte (note, sortie d'un skill) : le
   Markdown de VibeCoder ne produit que du texte, du code et des liens
   `http(s)` — une balise reste du texte, un lien `javascript:`, `data:`,
@@ -1553,6 +1588,15 @@ Copier, erreurs ; mêmes relevés).
   sur l'hôte ni dans la box. Un `sleep 1000` lancé à la main dans la box
   survit à ⏹ et à la sortie. *Modifier les commandes* → le fichier dans
   l'éditeur ; une commande renommée → l'ancienne, si elle tournait, arrêtée.
+- **S-66** Même appli sur l'hôte (sans gh), gh dans la box : *Créer* sur une
+  branche qui a sa PR, sans `pr.json` → l'étape **PR** faite en quelques
+  secondes, la carte de la PR (numéro, titre, base ← branche) ; une PR
+  ouverte entre-temps sur GitHub → visible dans la minute, ou aussitôt par ↻.
+  *Relire* : *Mes PR à relire* → la liste, sans message à l'agent ; la PR
+  chargée fusionnée sur GitHub → le bandeau « PR déjà fusionnée » dans la
+  minute. `vibeCommandPrefix` faux (`nexiste-pas`) → rien ne s'affiche de
+  GitHub, rien ne bloque. *Code* sur un test Rust et un test TypeScript →
+  colorés (attributs, macros, chaînes brutes ; mots-clés, chaînes…).
 
 ---
 
@@ -1619,6 +1663,12 @@ Copier, erreurs ; mêmes relevés).
   n'est arrêtée que par le SIGKILL, après 5 s. Ailleurs que sous Linux, pas
   de jeton (pas de `/proc`) : seul le groupe est arrêté ; Windows :
   `taskkill /T /F`, sans box, non essayé.
+- VibeCoder, GitHub sans IA (F-112), coloration (F-113) : un échec de gh (pas connecté, pas
+  d'origine GitHub, box absente) ne se dit pas ; *Mes PR à relire* ne change
+  rien. La coloration du code ne connaît pas les expressions régulières de
+  JavaScript (un guillemet dedans colore la fin de la ligne en chaîne) ni
+  les commentaires imbriqués de Rust ; un extrait (*Code*) commencé dans un
+  commentaire ou une chaîne se colore mal — le texte, lui, reste exact.
 
 ## 15. Décisions en attente
 

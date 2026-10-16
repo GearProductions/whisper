@@ -408,7 +408,8 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    point d'attention s'il n'observe pas vraiment la propriété ; ✓ ou ✗ par cas
    (✗ le cite dans le champ, pour dire quoi changer) ; *Code* montre le code
    d'origine du cas à la place du pseudo-code, *Voir le fichier* le fichier
-   entier ; *Relire* un fichier
+   entier, colorés comme sur GitHub (TypeScript / JavaScript, Rust, Python,
+   Go ; un autre langage : sans couleurs) ; *Relire* un fichier
    (ou *Tout relire*) refait sa lecture ; *Vérifier l'alignement* ; *Préparer le commit* puis *✓ Commiter*.
 4. **Modules** : *Générer ce module* (avec `ponytail`, tests lancés, sans
    commit), *Relire le diff*, *✓ Valider → commit → suivant* ; ou *Générer
@@ -420,7 +421,9 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    « AGENTS.md à jour » se cochent à la main, jusqu'au prochain commit.
 6. **PR** : *Valider la feature (ouvrir la PR)*, *Diagnostiquer la CI*,
    *Release candidate*, *PR mergée → revenir sur la base*, *Release
-   officielle*.
+   officielle*. L'étape est faite dès qu'une PR existe pour la branche :
+   l'appli la demande elle-même à `gh` (sans IA, en lecture seule ; toutes
+   les 60 s au plus, ↻ pour tout de suite).
 
 Une validation vaut pour le contenu validé : une note modifiée ensuite
 repasse « modifiée depuis », à revalider. Quand l'étape n'attend plus que
@@ -429,7 +432,8 @@ l'agent vient de changer sont surlignées (*Voir les modifications* : le
 diff ; *Vu* : ne plus surligner).
 
 **Relire** — une PR : son numéro ou son lien, puis *Charger* ; ou *Mes PR à
-relire* (celles où l'on vous demande) et un clic sur l'une d'elles ;
+relire* (celles où l'on vous demande, que l'appli demande à `gh`, sans IA)
+et un clic sur l'une d'elles ;
 *Décharger la PR* pour en choisir une autre. Elle est
 récupérée à part (`refs/vibecoder/pr/<n>`) : votre copie de travail ne bouge
 pas. Puis la note (*Relire la note* : les décisions à discuter), les
@@ -439,7 +443,8 @@ une carte par commit), le plan de test (*Plan de test à l'écran* : des cases
 à cocher pendant l'essai). ✗ et 💬 ajoutent une remarque au **brouillon de
 revue** (un par PR) : le texte du champ, sinon ce qu'on cite ; elle se
 modifie sur place, × la retire. Une PR déjà fusionnée ou fermée se charge,
-mais il n'y a rien à relire : l'écran le dit. Enfin le verdict (*Commenter* par défaut, *Approuver*, *Demander
+mais il n'y a rien à relire : l'écran le dit (son état est redemandé à `gh`
+toutes les 60 s au plus). Enfin le verdict (*Commenter* par défaut, *Approuver*, *Demander
 des changements*) et *Publier la revue*, qui l'envoie sur GitHub telle
 quelle.
 
@@ -463,7 +468,11 @@ déplier ; *Journal complet* dans l'éditeur). Les commandes sont à vous, propr
 fonctions du `.bashrc`…) les écrit s'il n'y en a pas encore ; *Modifier les
 commandes* ouvre le fichier. Chacune passe par `bash -ic` (vos alias et
 fonctions marchent : `gear` pour gt-plugins), dans la box de l'agent si sa
-commande passe par `distrobox enter <box> --`. C'est l'appli qui lance :
+commande passe par `distrobox enter <box> --`. Autre chose devant (une
+autre box, `toolbox run`, rien) : le réglage `vibeCommandPrefix`, ou
+`"prefix"` dans le fichier du projet (`""` : rien), qui l'emporte ; le même
+préfixe sert aux appels de l'appli à `gh` (l'AppImage tourne sur l'hôte,
+`gh` est souvent dans la box). C'est l'appli qui lance :
 quitter l'appli arrête tout ce qu'elle a lancé, et rien d'autre. L'agent lit
 les mêmes journaux et peut demander l'arrêt ou la relance d'une commande (il
 écrit un petit fichier que l'appli exécute, VibeCoder affiché).
@@ -581,6 +590,7 @@ s'affiche le temps de l'enregistrement, une fois la coupure confirmée.
 | `convSize`   | Taille du panneau agrandi (retenue au redimensionnement) |
 | `vibeLang`   | VibeCoder : langue de l'écran et des messages envoyés, `fr` ou `en` |
 | `vibeSize`   | Taille du panneau en VibeCoder (retenue au redimensionnement) |
+| `vibeCommandPrefix` | VibeCoder : ce qui précède les commandes du projet et `gh` (vide : `distrobox enter <box> --` tiré de `agentCommand`, sinon rien) ; ex. `toolbox run -c dev` |
 | `muteOthers` | Couper le son des autres applications pendant l'enregistrement   |
 | `autoPaste`  | Coller le texte là où est le curseur ; `false` : il reste dans le presse-papiers |
 | `showText`   | Panneau du texte transcrit (contexte *Dictée*) à la fin d'une dictée |
