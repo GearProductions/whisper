@@ -1,5 +1,6 @@
 /** modules-view — l'étape Modules (Créer). En tête, le commit proposé
- *  (commit.md : le message tel qu'il sera commité ; ✓ Commiter, 💬, Relancer)
+ *  (commit.md : le message tel qu'il sera commité ; ✓ Commiter, direct ou
+ *  via l'agent, F-114 ; 💬, Relancer)
  *  et la relecture du dernier diff (review.md, 💬 par bloc, Relancer). Puis une ligne par
  *  module de la Forme : point plein s'il est touché (vert : commité ; accent :
  *  modifié, pas encore commité), anneau sinon ; nom en gras, dossier atténué,
@@ -77,7 +78,7 @@ export function ModulesView(p: StepProps) {
           )}>
           <pre className="vc-commit-msg">{commit.text.trim()}</pre>
           <div className="vc-commit-foot">
-            <Run a={action('commit')} busy={busy} tone="accent" onRun={() => act.run('commit')} />
+            <Run a={action('commit')} busy={busy} tone="accent" onRun={(x) => act.run('commit', x)} />
             <span>{s.commitHint}</span>
           </div>
         </OutputCard>

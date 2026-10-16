@@ -3,13 +3,14 @@
  *  lien), ou celle qu'on suit en attendant d'être chargée ; Mes PR à relire et
  *  leur liste en cartes (demandée à gh par le principal, sans agent :
  *  set({ prs })). Choisir une PR : la suivre (set), puis la charger
- *  (load-pr), sans toucher à la copie de travail ; Décharger la PR : ne plus
+ *  (load-pr, par l'appli elle-même, F-114 ; « via » l'agent sous la PR suivie
+ *  pas encore chargée), sans toucher à la copie de travail ; Décharger la PR : ne plus
  *  la suivre (le choix revient). La PR chargée s'ouvre dans un worktree (son
  *  état : en création, ouverte → aller à son robot, ou le proposer à nouveau).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useState } from 'react';
 import { prNumber, webUrl } from 'core/vibecoder';
-import type { VibeLang } from 'technicals/bridge';
+import type { VibeArgs, VibeLang } from 'technicals/bridge';
 import { MarkdownView } from './markdown-view';
 import { Invite, PrCard, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
@@ -72,7 +73,8 @@ export function PrPicker(props: StepProps) {
   const action = (id: string) => view.actions.find((a) => a.id === id);
   const loadAction = action('load-pr');
   const canLoad = !!loadAction && !loadAction.disabled && !busy;
-  const load = (n: number) => { act.set({ pr: n }); act.run('load-pr', { pr: n }); };
+  // Charger : par l'appli elle-même ({ direct: true }, F-114), ou via l'agent ({}).
+  const load = (n: number, extra: VibeArgs) => { act.set({ pr: n }); act.run('load-pr', { pr: n, ...extra }); };
   const asked = prNumber(typed);
   const pr = view.pr;
   const loaded = !!pr && !!view.outputs[`pr-${pr.number}.json`];
@@ -80,7 +82,7 @@ export function PrPicker(props: StepProps) {
   return (
     <>
       <StepHead p={props} own={['prs', 'load-pr', 'open-worktree', 'unload-worktree']}>
-        <form className="vc-pr-form" onSubmit={(e) => { e.preventDefault(); if (asked && canLoad) { load(asked); setTyped(''); } }}>
+        <form className="vc-pr-form" onSubmit={(e) => { e.preventDefault(); if (asked && canLoad) { load(asked, { direct: true }); setTyped(''); } }}>
           <input className="vc-mono" value={typed} placeholder={s.placeholder} aria-label={s.field} title={s.field} spellCheck={false}
             onChange={(e) => setTyped(e.target.value)} />
           <button type="submit" disabled={!asked || !canLoad} title={loadAction ? loadAction.hint : undefined}>{s.load}</button>
@@ -93,7 +95,7 @@ export function PrPicker(props: StepProps) {
         </PrCard>
       ) : pr ? (
         <Invite title={busy ? s.loading(pr.number) : s.notLoaded(pr.number)} text={s.notLoadedHint}>
-          <Run a={loadAction} busy={busy} onRun={() => load(pr.number)} />
+          <Run a={loadAction} busy={busy} onRun={(x) => load(pr.number, x ?? {})} />
         </Invite>
       ) : null}
       {pr && loaded && !wt?.temp ? (
@@ -121,7 +123,7 @@ export function PrPicker(props: StepProps) {
               const url = webUrl(p.url);
               return (
                 <li key={p.number} aria-current={p.number === pr?.number || undefined}>
-                  <button type="button" className="vc-pr-item" disabled={!canLoad} title={s.pick(p.number)} onClick={() => load(p.number)}>
+                  <button type="button" className="vc-pr-item" disabled={!canLoad} title={s.pick(p.number)} onClick={() => load(p.number, { direct: true })}>
                     <span className="vc-pr-item-number vc-mono">{`#${p.number}`}</span>
                     <span className="vc-pr-item-title">{p.title}</span>
                     {p.author ? <span className="vc-pr-item-author">{p.author}</span> : null}

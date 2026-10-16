@@ -2,7 +2,7 @@
  *  ligne par remarque : sa cible, son texte ; ✎ le modifie sur place, × la
  *  retire), le verdict
  *  (Approuver / Commenter / Demander des changements, Commenter d'abord comme
- *  sur GitHub) et Publier la revue ; publiée (pr-<n>-review.json) : son état
+ *  sur GitHub) et Publier la revue (direct ou via l'agent, F-114) ; publiée (pr-<n>-review.json) : son état
  *  et son lien.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useState } from 'react';
@@ -99,7 +99,7 @@ export function DraftView(p: StepProps) {
             <button key={v} type="button" aria-pressed={v === verdict} data-verdict={v} onClick={() => setVerdict(v)}>{s.verdicts[v]}</button>
           ))}
         </div>
-        <Run a={view.actions.find((a) => a.id === 'publish')} busy={busy} tone="accent" onRun={() => act.run('publish', { verdict })} />
+        <Run a={view.actions.find((a) => a.id === 'publish')} busy={busy} tone="accent" onRun={(x) => act.run('publish', { verdict, ...x })} />
       </div>
     </>
   );
