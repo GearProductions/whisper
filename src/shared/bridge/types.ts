@@ -250,6 +250,7 @@ export type VibeTestFile = VibeFile & {
   blob: string;                          // son empreinte git (nomme sa lecture : <sorties>/invariants/<blob>.md)
   cases: string[];                       // titres des cas trouvés dans le fichier
   lines: number[];                       // la ligne (1…) de chaque cas, dans l'ordre de cases : Ouvrir à la ligne
+  source: string;                        // le texte du fichier, pour le montrer à côté de sa lecture ; '' au-delà de 200 Ko
   reading: ReadingCase[] | null;         // null : pas encore lu, ou changé depuis
   marks: Record<string, VibeMarkState>;  // par titre de cas
 };

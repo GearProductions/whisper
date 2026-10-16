@@ -42,6 +42,9 @@ export type JourneyInput = {
   now: number;                                      // l'heure du relevé
 };
 
+// Le texte d'un test d'invariant, montré à l'écran à côté de sa lecture ; au-delà : '' (la vue ne le montre pas).
+const SOURCE_MAX = 200_000;
+
 const ORDER: Record<VibeFlow, VibeStepId[]> = {
   create: ['note', 'forme', 'invariants', 'modules', 'revue', 'pr'],
   review: ['pr', 'note', 'invariants', 'commits', 'ecran', 'revue'],
@@ -133,7 +136,7 @@ export function vibeView(input: JourneyInput): VibeView {
   // Les tests de la branche (ceux qui ont des cas) : invariants et variants.
   const tests = input.tests.map((t) => ({ ...t, cases: caseTitles(t.text), lines: caseLines(t.text) })).filter((t) => t.cases.length);
   const invariants: VibeTestFile[] = tests.filter((t) => isInvariantTest(t.path)).map((t, i) => ({
-    id: `t${i}`, path: t.path, blob: t.blob, cases: t.cases, lines: t.lines,
+    id: `t${i}`, path: t.path, blob: t.blob, cases: t.cases, lines: t.lines, source: t.text.length > SOURCE_MAX ? '' : t.text,
     reading: Object.hasOwn(input.readings, t.blob) ? parseReading(input.readings[t.blob]) : null,
     marks: Object.fromEntries(t.cases.map((c) => [c, markState(marks, `case:${t.path}:${c}`, t.blob)])),
   }));

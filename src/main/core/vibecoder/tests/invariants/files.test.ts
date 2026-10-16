@@ -70,7 +70,7 @@ const view: VibeView = {
   note: { ...file('n1', 'docs/tickets/feat/x.md'), text: '# x', before: null, filled: true, mustNot: [], mark: null, formeMark: null },
   questions: [],
   modules: [{ path: 'src/main/core/x', contract: 'expose x', file: file('m1', 'src/main/core/x'), touched: false, commits: [] }],
-  invariants: [{ ...file('t1', 'src/main/core/x/tests/invariants/x.test.ts'), blob: '3b18e512dba79e4c8300dd08aeb37f8e728b8dad', cases: ['cas'], lines: [1], reading: null, marks: {} }],
+  invariants: [{ ...file('t1', 'src/main/core/x/tests/invariants/x.test.ts'), blob: '3b18e512dba79e4c8300dd08aeb37f8e728b8dad', cases: ['cas'], lines: [1], source: '', reading: null, marks: {} }],
   variants: [{ ...file('v1', 'src/main/core/x/tests/variants/x.test.ts'), cases: 2 }],
   commits: [], outputs: {}, checklist: [], actions: [], skills: [], pr: null, prs: null, draft: [], time: 0,
 };

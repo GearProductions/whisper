@@ -6,7 +6,7 @@ const note = (over: Partial<VibeNote> = {}): VibeNote => ({
   id: 'n', path: 'docs/tickets/feat/x.md', text: '# x', before: null, filled: true, mustNot: [], mark: null, formeMark: null, ...over,
 });
 const tests = (marks: VibeTestFile['marks'], read = true): VibeTestFile[] => [{
-  id: 't0', path: 'tests/invariants/a.test.ts', blob: 'b', cases: ['a', 'b'], lines: [3, 8], marks,
+  id: 't0', path: 'tests/invariants/a.test.ts', blob: 'b', cases: ['a', 'b'], lines: [3, 8], source: '', marks,
   reading: read ? [{ title: 'a', pseudo: '', edges: [], guarantees: '', warning: null }] : null,
 }];
 const view = (current: VibeStepId, over: Partial<VibeView> = {}): VibeView => ({

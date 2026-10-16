@@ -504,7 +504,12 @@ describe('rc.2 : modèle au choix, PR fermée, fichiers des commits', () => {
   });
 
   it('un test d\'invariant : la ligne de chaque cas, d\'après son texte', () => {
-    expect(vibeView(ready()).invariants[0]).toMatchObject({ cases: ['dit bonjour', 'ne lit rien d\'autre'], lines: [1, 2] });
+    expect(vibeView(ready()).invariants[0]).toMatchObject({ cases: ['dit bonjour', 'ne lit rien d\'autre'], lines: [1, 2], source: TEST });
+  });
+
+  it('un test d\'invariant trop long (plus de 200 000 caractères) : son texte n\'est pas montré', () => {
+    const big = { ...test, text: `${TEST}//${'x'.repeat(200_000)}` };
+    expect(vibeView(input({ tests: [big] })).invariants[0]).toMatchObject({ cases: ['dit bonjour', 'ne lit rien d\'autre'], source: '' });
   });
 
   it('chaque commit, avec ses fichiers', () => {

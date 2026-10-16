@@ -18,8 +18,8 @@ const view: VibeView = {
     { path: 'src/core/b.ts', contract: 'b() · ne connaît pas : a', file: null, touched: false, commits: [] },
   ],
   invariants: [
-    { id: 't0', path: 'src/core/tests/invariants/a.test.ts', blob: BLOB, cases: ['x'], lines: [1], reading: null, marks: {} },
-    { id: 't1', path: 'src/core/tests/invariants/b.test.ts', blob: 'b'.repeat(40), cases: ['y'], lines: [1], reading: [], marks: {} },
+    { id: 't0', path: 'src/core/tests/invariants/a.test.ts', blob: BLOB, cases: ['x'], lines: [1], source: '', reading: null, marks: {} },
+    { id: 't1', path: 'src/core/tests/invariants/b.test.ts', blob: 'b'.repeat(40), cases: ['y'], lines: [1], source: '', reading: [], marks: {} },
   ],
   variants: [], commits: [{ hash: C1, subject: 'Note, forme, invariants', fixup: false, files: [] }],
   outputs: {}, checklist: [], actions: [], skills: [], pr: null, prs: null,
