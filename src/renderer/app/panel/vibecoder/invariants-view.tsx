@@ -3,17 +3,18 @@
  *  le pseudo-code coloré (assertions et « étant donné / quand / alors »
  *  repérés), ses cas limites, ce qu'il garantit, son point d'attention ; ✓ /
  *  ✗ (l'état : validé, refusé, modifié depuis), 💬, Ouvrir (à la ligne du
- *  cas). ✗ et 💬 citent le
+ *  cas) ; « Pseudo-code / Code » montre à la place son code d'origine. ✗ et 💬 citent le
  *  cas dans le champ (Relire : ils ouvrent sous la carte une zone de
  *  commentaire, pour le brouillon de revue, le cas en cible). Par fichier : sa
  *  progression, « Tout valider » quand chaque cas est lu sans point
- *  d'attention, « Relire » (refaire sa lecture) ; pas lu : ses cas et « Lire
+ *  d'attention, « Relire » (refaire sa lecture), « Voir le fichier » (tout son
+ *  code, numéroté) ; pas lu : ses cas (chacun se déplie sur son code) et « Lire
  *  en pseudo-code ». En tête : « Tout relire », le résumé de l'étape, les cas
  *  à valider, ce que veut dire « Attention » (s'il y en a), l'alignement
  *  (align.md, Relancer).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useMemo, useState } from 'react';
-import { awaiting, caseLine, casesOf, excerpt, fileParts, progress, pseudoLines, remark, type CaseView, type Progress, type Strings } from 'core/vibecoder';
+import { awaiting, caseLine, caseSource, casesOf, excerpt, fileParts, progress, pseudoLines, remark, type CaseView, type Progress, type Strings } from 'core/vibecoder';
 import type { VibeLang, VibeTestFile } from 'technicals/bridge';
 import { CommentBox } from './comment-box';
 import { InlineMd, MarkdownView } from './markdown-view';
@@ -51,6 +52,10 @@ const fr = {
   noTestsText: ' « Écrire les invariants (rouges) » les écrit d\'après les lignes « → invariant » de la note ; ou dictez du pseudo-code dans le champ, il est traduit dans le langage du projet.',
   noTestsReview: 'Aucun test d\'invariant dans cette PR',
   noTestsReviewText: ' Les tests d\'invariants sont rangés sous tests/invariants/.',
+  pseudo: 'Pseudo-code',
+  code: 'Code',
+  show: 'Montrer',
+  wholeFile: 'Voir le fichier',
 };
 const S: Record<VibeLang, typeof fr> = {
   fr,
@@ -83,6 +88,10 @@ const S: Record<VibeLang, typeof fr> = {
     noTestsText: ' « Write the invariants (red) » writes them from the note\'s « → invariant » lines; or dictate pseudo-code in the field, it is translated into the project\'s language.',
     noTestsReview: 'No invariant test in this PR',
     noTestsReviewText: ' Invariant tests live under tests/invariants/.',
+    pseudo: 'Pseudo-code',
+    code: 'Code',
+    show: 'Show',
+    wholeFile: 'View the file',
   },
 };
 type Labels = typeof fr;
@@ -154,20 +163,34 @@ export function InvariantsView(props: StepProps) {
                 <button type="button" className="vc-mini" title={t.openTitle} onClick={() => act.open(f.id)}>{t.open}</button>
               </span>
             </div>
+            {f.source ? (
+              <details className="vc-ifile-src">
+                <summary>{s.wholeFile}</summary>
+                <Source code={f.source} />
+              </details>
+            ) : null}
             {f.reading ? casesOf(f).map((c, i) => (
-              <CaseCard key={c.title} c={c} n={i + 1} s={s} t={t} lang={view.lang} review={review} onOpenLink={act.openLink}
+              <CaseCard key={c.title} c={c} n={i + 1} code={caseSource(f, i)} from={f.lines[i]} s={s} t={t} lang={view.lang} review={review} onOpenLink={act.openLink}
                 onVerdict={(v) => verdict(f, c.title, v)} onQuote={() => act.prefill('comment', c.title)} onOpen={() => act.open(f.id, caseLine(f, c.title))}
                 onComment={(text) => act.draft({ add: remark(target(f, c.title), text) })} />
             )) : (
               <div className="vc-iunread">
                 <p>{s.unreadText(f.cases.length)}</p>
                 <ol>
-                  {casesOf(f).map((c) => (
-                    <li key={c.title}>
-                      <span>{c.title}</span>
-                      {c.mark ? <span className="vc-case-state" data-state={c.mark}>{s.state[c.mark]}</span> : null}
-                    </li>
-                  ))}
+                  {casesOf(f).map((c, i) => {
+                    const code = caseSource(f, i);
+                    const head = (
+                      <>
+                        <span>{c.title}</span>
+                        {c.mark ? <span className="vc-case-state" data-state={c.mark}>{s.state[c.mark]}</span> : null}
+                      </>
+                    );
+                    return (
+                      <li key={c.title}>
+                        {code ? <details><summary>{head}</summary><Source code={code} from={f.lines[i]} /></details> : head}
+                      </li>
+                    );
+                  })}
                 </ol>
                 <Run a={read} busy={busy} tone="accent" onRun={() => act.run('read-invariants')} />
               </div>
@@ -208,14 +231,16 @@ function Summary({ p, s }: { p: Progress; s: Labels }) {
 
 type CardProps = {
   c: CaseView; n: number; s: Labels; t: Strings; lang: VibeLang; review: boolean;
+  code: string; from: number;   // son code d'origine ('' : inconnu) et sa première ligne
   onOpenLink(url: string): void; onVerdict(v: Verdict): void; onQuote(): void; onOpen(): void;
   onComment(text: string): void;   // Relire : la remarque de la zone de commentaire, sur ce cas
 };
 
-function CaseCard({ c, n, s, t, lang, review, onOpenLink, onVerdict, onQuote, onOpen, onComment }: CardProps) {
+function CaseCard({ c, n, code, from, s, t, lang, review, onOpenLink, onVerdict, onQuote, onOpen, onComment }: CardProps) {
   const r = c.reading;
   const quote = review ? s.quoteReview : s.quote;
   const [writing, setWriting] = useState(false);
+  const [showCode, setShowCode] = useState(false);
   // Relire : ✗ et 💬 ouvrent la zone de commentaire ; Créer : 💬 cite le cas dans le champ.
   const verdict = (v: Verdict) => { onVerdict(v); if (review && v === 'ko') setWriting(true); };
   return (
@@ -224,10 +249,17 @@ function CaseCard({ c, n, s, t, lang, review, onOpenLink, onVerdict, onQuote, on
         <span className="vc-case-n">{n}</span>
         <h3 className="vc-case-title">{c.title}</h3>
         {c.mark ? <span className="vc-case-state" data-state={c.mark} title={c.mark === 'changed' ? s.changedTitle : undefined}>{s.state[c.mark]}</span> : null}
+        {code ? (
+          <span className="vc-seg vc-case-view" role="group" aria-label={s.show}>
+            <button type="button" aria-pressed={!showCode} onClick={() => setShowCode(false)}>{s.pseudo}</button>
+            <button type="button" aria-pressed={showCode} onClick={() => setShowCode(true)}>{s.code}</button>
+          </span>
+        ) : null}
       </div>
+      {showCode ? <Source code={code} from={from} /> : null}
       {r ? (
         <>
-          <Pseudo code={r.pseudo} />
+          {showCode ? null : <Pseudo code={r.pseudo} />}
           {r.edges.length ? (
             <div className="vc-case-row">
               <span className="vc-case-label">{s.edges}</span>
@@ -273,6 +305,17 @@ function Pseudo({ code }: { code: string }) {
           </span>
         ))}
       </code>
+    </pre>
+  );
+}
+
+// Le code d'origine, tel quel (sans coloration : celle du pseudo-code prendrait
+// #[test] pour un commentaire, 'a d'une durée de vie Rust pour une chaîne) ; les
+// numéros de ligne en CSS, hors de la sélection.
+function Source({ code, from = 1 }: { code: string; from?: number }) {
+  return (
+    <pre className="vc-src scroll">
+      <code>{code.split('\n').map((l, i) => <span key={i} className="vc-sl" data-n={from + i}>{l}</span>)}</code>
     </pre>
   );
 }

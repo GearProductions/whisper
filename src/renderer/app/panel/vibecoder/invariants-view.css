@@ -55,6 +55,31 @@
 .vc-iunread p { margin: 0 0 8px; }
 .vc-iunread ol { margin: 0 0 12px; padding-left: 22px; color: var(--vc-soft); line-height: 1.7; }
 .vc-iunread li span:first-child { margin-right: 8px; }
+.vc-iunread summary { cursor: pointer; }
+.vc-iunread details .vc-src { margin: 6px 0 10px; }
+
+/* Voir le fichier : tout son code, replié. */
+.vc-ifile-src { margin: -4px 0 12px; }
+.vc-ifile-src > summary { width: max-content; color: var(--vc-muted); font-size: 12px; cursor: pointer; }
+.vc-ifile-src > summary:hover { color: var(--vc-text); }
+.vc-ifile-src > .vc-src { max-height: 420px; margin-top: 8px; }
+
+/* Le code d'origine : monospace, numéroté (les numéros ne se sélectionnent pas). */
+.vc-src {
+  margin: 0 0 12px;
+  padding: 8px 0;
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid #1c2130;
+  border-radius: 7px;
+  background: var(--vc-code);
+  color: #c9d1e3;
+  font: 12px/1.6 var(--vc-mono);
+}
+.vc-src code { display: block; min-width: max-content; font: inherit; }
+.vc-src::-webkit-scrollbar-corner { background: transparent; }
+.vc-sl { display: block; min-height: 1.6em; padding-right: 14px; white-space: pre; }
+.vc-sl::before { content: attr(data-n); display: inline-block; width: 4ch; margin-right: 12px; padding-right: 8px; border-right: 1px solid #262c3b; color: var(--vc-faint); text-align: right; }
 
 /* ---- Un cas -------------------------------------------------------------------- */
 .vc-case {
@@ -87,6 +112,8 @@
 .vc-case[data-mark="ok"] .vc-case-n { background: var(--vc-ok); color: #0e1117; }
 .vc-case[data-mark="ko"] .vc-case-n { background: #d9383a; color: #fff; }
 .vc-case-title { flex: 1; min-width: 0; margin: 0; color: var(--vc-text); font-size: 14px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+.vc-case-view { flex: none; margin-top: -1px; }
+.vc-case-view button { padding: 0 9px; font-size: 11.5px; line-height: 20px; }
 .vc-case-state { flex: none; padding: 1px 9px; border-radius: 10px; font: 600 11.5px/1.5 system-ui, sans-serif; white-space: nowrap; }
 .vc-case-state[data-state="ok"] { background: color-mix(in srgb, var(--vc-ok) 16%, transparent); color: #6fdd85; }
 .vc-case-state[data-state="ko"] { background: color-mix(in srgb, #d9383a 18%, transparent); color: #f08a8b; }
