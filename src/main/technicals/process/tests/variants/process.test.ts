@@ -74,7 +74,9 @@ describe.skipIf(process.platform === 'win32')('une commande lancée', () => {
     const log = readTail(path.join(dir, 'run', 'x.log'), 10000);
     expect(log.length).toBeLessThanOrEqual(1000);
     expect(log).toMatch(/ligne 300\n$/);
-    expect(fs.statSync(path.join(dir, 'run', 'x.log.old')).size).toBeGreaterThan(1000);
+    // l'ancien journal, plein mais pas au-delà de la taille maximale
+    expect(fs.statSync(path.join(dir, 'run', 'x.log.old')).size).toBeGreaterThan(0);
+    expect(fs.statSync(path.join(dir, 'run', 'x.log.old')).size).toBeLessThanOrEqual(1000);
   });
 });
 
