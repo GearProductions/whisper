@@ -45,6 +45,7 @@
     "step": "invariants",
     "kind": "send",
     "needs": "none",
+    "reads": true,
     "label": "Lire en pseudo-code",
     "hint": "Traduit chaque test d'invariant pas encore lu en pseudo-code, cas par cas, avec ses cas limites et ses points d'attention ; un fichier qui a changé est relu de lui-même ; « Relire » (un fichier) et « Tout relire » refont une lecture.",
     "text": "/vibecoder:lire-invariants {{lang}} {{out}} {{ref}} {{files}}"
@@ -55,6 +56,7 @@
     "step": "invariants",
     "kind": "send",
     "needs": "none",
+    "reads": true,
     "label": "Vérifier l'alignement",
     "hint": "Vérifie que chaque ligne « → invariant » a un test qui l'observe vraiment, que chaque test a sa ligne et que la forme correspond aux fichiers.",
     "text": "/vibecoder:aligner {{lang}} {{out}} {{ref}}"
@@ -65,6 +67,7 @@
     "step": "modules",
     "kind": "send",
     "needs": "none",
+    "reads": true,
     "label": "Préparer le commit",
     "hint": "Choisit et indexe les fichiers du prochain commit et propose son message, affiché ici avant de commiter.",
     "text": "/vibecoder:commit-preparer {{lang}} {{out}}"
@@ -115,6 +118,7 @@
     "step": "modules",
     "kind": "send",
     "needs": "none",
+    "reads": true,
     "label": "Relire le diff",
     "hint": "Relit le diff choisi, ou les changements en cours, avec les quatre questions du guide (§ 5.1), la duplication et les en-têtes.",
     "text": "/vibecoder:relire {{lang}} {{out}} {{commit}}"
@@ -125,6 +129,7 @@
     "step": "revue",
     "kind": "send",
     "needs": "none",
+    "reads": true,
     "label": "Lancer les vérifications",
     "hint": "Lance les vérifications du projet (typage, tests, invariants, lint) et en affiche le résultat.",
     "text": "/vibecoder:verifier {{lang}} {{out}}"
@@ -135,6 +140,7 @@
     "step": "revue",
     "kind": "send",
     "needs": "none",
+    "reads": true,
     "label": "Ponytail review",
     "hint": "Relit toute la branche : sur-ingénierie, duplication, note alignée avec le code, cas limites, sécurité, code mort ; ne modifie rien.",
     "text": "/vibecoder:ponytail {{lang}} {{out}}"
@@ -175,6 +181,7 @@
     "step": "pr",
     "kind": "send",
     "needs": "none",
+    "reads": true,
     "label": "Diagnostiquer la CI",
     "hint": "Lit l'état de la CI de la branche et, en cas d'échec, en donne la cause probable et le correctif ; ne corrige rien.",
     "text": "/vibecoder:ci {{lang}} {{out}}"
@@ -215,6 +222,7 @@
     "step": "pr",
     "kind": "send",
     "needs": "none",
+    "reads": true,
     "label": "Charger la PR",
     "hint": "Récupère la PR sans toucher à votre copie de travail, pour la relire.",
     "text": "/vibecoder:charger-pr {{lang}} {{out}} {{pr}}"
@@ -225,6 +233,7 @@
     "step": "pr",
     "kind": "send",
     "needs": "none",
+    "reads": true,
     "label": "Ouvrir dans un worktree",
     "hint": "Crée un worktree de la PR selon la convention du projet et le prépare (dépendances…) ; un robot « PR #n » s'y ajoute, après la question de confiance.",
     "text": "/vibecoder:worktree-pr {{lang}} {{out}} {{pr}}"
@@ -235,6 +244,7 @@
     "step": "pr",
     "kind": "send",
     "needs": "none",
+    "reads": true,
     "label": "Décharger",
     "hint": "L'agent du dépôt retire le worktree de la PR (refusé s'il reste des modifications) ; ce robot part avec lui.",
     "text": "/vibecoder:retirer-worktree {{lang}} {{out}} {{pr}}"
@@ -245,6 +255,7 @@
     "step": "note",
     "kind": "send",
     "needs": "none",
+    "reads": true,
     "label": "Relire la note",
     "hint": "Relit la note de la PR : décisions à discuter, manques, invariants mal classés.",
     "text": "/vibecoder:relire-note {{lang}} {{out}} {{pr}}"
@@ -255,6 +266,7 @@
     "step": "commits",
     "kind": "send",
     "needs": "none",
+    "reads": true,
     "label": "Relire les commits",
     "hint": "Relit la PR commit par commit : les quatre questions, la duplication, les en-têtes, l'histoire des commits.",
     "text": "/vibecoder:relire-commits {{lang}} {{out}} {{pr}}"
@@ -265,6 +277,7 @@
     "step": "ecran",
     "kind": "send",
     "needs": "none",
+    "reads": true,
     "label": "Plan de test à l'écran",
     "hint": "Prépare la liste de ce qu'il faut essayer à la main, et comment lancer la PR.",
     "text": "/vibecoder:ecran {{lang}} {{out}} {{pr}}"
@@ -275,6 +288,7 @@
     "step": "revue",
     "kind": "send",
     "needs": "none",
+    "reads": true,
     "label": "Publier la revue",
     "hint": "Publie le brouillon de revue sur GitHub, tel quel, avec le verdict choisi.",
     "text": "/vibecoder:publier-revue {{lang}} {{out}} {{pr}} {{verdict}}\n\n{{draft}}"
