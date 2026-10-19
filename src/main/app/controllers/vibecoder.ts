@@ -4,7 +4,8 @@
  *  à chaque conversation envoyée (refreshConversation), toutes les 4 s tant
  *  que le panneau est visible, aussitôt après une action, une validation, un
  *  réglage — au plus un par seconde ; null, une fois, quand l'agent affiché
- *  n'est plus en VibeCoder. Et ce que l'écran demande : une action (celle d'une
+ *  n'est plus en VibeCoder ; chaque relevé passe les demandes de l'orchestrateur
+ *  (runRequests de controllers/runs). Et ce que l'écran demande : une action (celle d'une
  *  étape court à part, ownRun → startRun de controllers/runs, sous sa propre
  *  entrée du runtime, si aucune course en cours ne la retient ; une action sans
  *  étape est un message à l'agent affiché, comme s'il était tapé, par
@@ -34,29 +35,30 @@
  *  controllers/processes.
  *  Ne connaît pas : la page (seulement ses canaux), la fenêtre.
  *  Utilisé par : app/ipc, app/menus, app/windows (vibeAgent : la taille du
- *  panneau), controllers/conversation. */
+ *  panneau), controllers/conversation, controllers/runs. */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { shell } from 'electron';
-import type { SendResult, VibeAction, VibeArgs, VibeLang, VibeView } from 'shared/bridge';
+import type { SendResult, VibeAction, VibeArgs, VibeLang, VibeRunOp, VibeView } from 'shared/bridge';
 import { EFFORTS, MODELS, MODES, type AgentConfig } from 'core/agents';
 import { agentVibe, vibeLang, type Config } from 'core/config';
 import { githubPage } from 'core/repo';
 import {
   addComment, blobSha, buildMessage, DIRECT_ACTIONS, draftText, editComment, findNote, forkedModel, isInvariantTest, isOutputName, isTest, itemCommit, itemPath,
-  json, noteKey, parseNote, prNumber, removeComment, safePath, setMark, vibeView, whoOf, type MessageError,
+  blockedBy, json, noteKey, ownRun, parseNote, prNumber, removeComment, runViews, safePath, setMark, vibeView, whoOf, type ActionDef, type MessageError,
 } from 'core/vibecoder';
 import { findEditor } from 'technicals/editor';
 import { directRunner, VERDICTS, type DirectResult } from 'technicals/direct';
 import { gitReader, gitRun, okRef } from 'technicals/git';
 import { ghRun, githubReader } from 'technicals/github';
 import { which } from 'technicals/paths';
-import { loadConfig, saveConfig, saveVibeStore, updateAgent, vibeActions, vibeOutDir, vibePluginDir, vibeStore } from 'app/settings';
+import { loadConfig, saveConfig, saveVibeStore, updateAgent, vibeActions, vibeOutDir, vibeStore } from 'app/settings';
 import { state } from 'app/state';
 import { conversationShown, openConversation } from 'app/windows';
 import { interruptAgent, isBusy, liveViewAgent, sendToAgent, setAgentSetting } from './agents';
 import { agentPrefix, processAction, processView } from './processes';
+import { lockingRuns, runOp, runPending, runRequests, runsOf, skillMd, startRun } from './runs';
 import { showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
 
 const VIBE_MS = 4000;          // le relevé régulier, panneau visible
@@ -117,6 +119,7 @@ let shown: string | null = null;           // l'agent dont le panneau a le relev
 let lastAt = 0;
 let running = false;
 let again = false;
+let againNow = false;
 let trailing: ReturnType<typeof setTimeout> | null = null;
 let timer: ReturnType<typeof setInterval> | null = null;
 
@@ -165,7 +168,7 @@ export async function refreshVibe({ now = false, fresh = false }: { now?: boolea
   // Panneau caché (réduit) : aucun relevé ; il reprend à sa réapparition.
   // (sauf le premier relevé d'un agent qu'on vient d'afficher : le panneau peut ne pas être encore montré)
   if (!now && !conversationShown() && agent.id === shown) return;
-  if (running) { again = true; return; }
+  if (running) { again = true; againNow ||= now; return; }
   const wait = now || agent.id !== shown ? 0 : lastAt + THROTTLE_MS - Date.now();
   if (wait > 0) { trailing ??= setTimeout(() => { trailing = null; refreshVibe(); }, wait); return; }
   shown = agent.id;
@@ -177,13 +180,14 @@ export async function refreshVibe({ now = false, fresh = false }: { now?: boolea
     if (state.panel && !state.panel.isDestroyed() && vibeAgent()?.id === agent.id) {
       last.set(agent.id, view);
       state.panel.webContents.send('conv:vibe', view);
+      runRequests(agent, view);   // les demandes de l'orchestrateur, d'après ce relevé
     }
   } catch (err) {
     console.error(`VibeCoder : relevé impossible (${err instanceof Error ? err.message : err})`);
   } finally {
     running = false;
   }
-  if (again) { again = false; refreshVibe(); }
+  if (again) { const n = againNow; again = againNow = false; refreshVibe({ now: n }); }
 }
 
 /* ---- Le relevé ------------------------------------------------------------ */
@@ -211,12 +215,6 @@ function readOutputs(out: string) {
     const file = readFile(path.join(out, name));
     return file ? [[name, file]] : [];
   }));
-}
-
-// Le SKILL.md du skill qu'appelle un gabarit (« /vibecoder:<nom> … ») ; null pour un autre texte.
-function skillMd(template: string) {
-  const name = /^\/vibecoder:([\w-]+)/.exec(template)?.[1];
-  try { return name ? fs.readFileSync(path.join(vibePluginDir(), 'skills', name, 'SKILL.md'), 'utf8') : null; } catch { return null; }
 }
 
 // Les skills du projet et de l'utilisateur : les dossiers de .claude/skills/ qui ont un SKILL.md.
@@ -317,20 +315,26 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     const reading = readFile(path.join(out, 'invariants', `${t.blob}.md`));
     return reading ? [[t.blob, reading.text]] : [];
   }));
-  // La note au début du tour (surlignage) : retenue quand l'agent se met au
-  // travail (pas de note : tout ce qui viendra est nouveau) ; « Vu » la remplace.
+  // La note au début du tour (surlignage) : retenue quand l'agent ou une course
+  // qui modifie la branche (la note, ses réponses, la forme…) se met au travail
+  // (pas de note : tout ce qui viendra est nouveau) ; « Vu » la remplace.
   const busy = isBusy(agent.id);
+  const writing = busy || lockingRuns(agent.id).some((r) => !r.reads);
   const turn = turnNote.get(agent.id);
-  if (busy && !turn?.busy) turnNote.set(agent.id, { text: noteText ?? '', busy });
-  else if (turn) turn.busy = busy;
+  if (writing && !turn?.busy) turnNote.set(agent.id, { text: noteText ?? '', busy: writing });
+  else if (turn) turn.busy = writing;
   const before = turnNote.get(agent.id)?.text ?? null;
   const store = vibeStore();
   const actions = vibeActions(lang);
   const skills = Object.fromEntries(actions.map((a) => [a.id, skillMd(a.text)]));
+  const who = Object.fromEntries(actions.map((a) => [a.id, whoOf(skills[a.id], lang)]));
+  const running = lockingRuns(agent.id);
   const journey = vibeView({
     agentId: agent.id, lang, flow, pr, autonomy,
     agent: { model: agent.model || '', effort: agent.effort || '', mode: agent.mode || 'default' },
     busy,
+    running,
+    runs: runViews(runsOf(agent), actions.map((a) => ({ id: a.id, label: a.label, who: who[a.id] })), runPending(agent.id)),
     repo,
     error: repo ? null : !which('git') ? ERRORS[lang].noGit : flow === 'create' ? ERRORS[lang].notRepo : null,
     note: notePath && noteText !== null ? { path: notePath, text: noteText, before: before !== null && before !== noteText ? before : null } : null,
@@ -339,11 +343,12 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     outputs,
     marks: store.marks[agent.id] || {},
     draft: flow === 'review' && pr ? store.drafts[agent.id]?.[pr] || [] : [],
-    worktree: worktreeState(agent, flow === 'review' ? pr : null, busy),
+    // en création : la conversation travaille, ou la course d'Ouvrir dans un worktree
+    worktree: worktreeState(agent, flow === 'review' ? pr : null, busy || running.some((r) => r.id === 'open-worktree')),
     github,
     actions,
     direct: directs.get(agent.id),
-    who: Object.fromEntries(actions.map((a) => [a.id, whoOf(skills[a.id], lang)])),
+    who,
     model: Object.fromEntries(actions.map((a) => [a.id, forkedModel(skills[a.id])])),
     skills: skillNames(agent.dir),
     exists: (rel) => { const file = safePath(agent.dir, rel, realpath); return !!file && fs.existsSync(file); },
@@ -371,22 +376,39 @@ export function runVibeAction(id: unknown, args: unknown): SendResult {
   if (!shownAction || !def || def.kind !== 'send') return fail(lang, 'action');
   if (shownAction.disabled) return { ok: false, error: shownAction.disabled };
   if (!args || typeof args !== 'object' || Array.isArray(args)) return fail(lang, 'args');
-  if ((args as VibeArgs).direct === true && DIRECT_ACTIONS.includes(def.id)) return runDirect(agent, def.id, args as VibeArgs, view, cfg);
+  if ((args as VibeArgs).direct === true && DIRECT_ACTIONS.includes(def.id)) return runDirect(agent, def, args as VibeArgs, view, cfg);
+  const sent = startAction(agent, def, args as VibeArgs, view, cfg);
+  if (sent.ok) refreshVibe({ now: true });
+  return { ok: sent.ok, error: sent.error };
+}
+
+// Une action envoyée, au clic comme à la demande de l'orchestrateur (runs : runRequests) : son gabarit
+// rempli (I-38) ; une action d'étape court à part (la règle sur les courses vivantes : startRun), les
+// autres vont à la conversation. invalid : ses arguments ne vont pas, rien à retenter.
+export function startAction(agent: AgentConfig, def: ActionDef, args: VibeArgs, view: VibeView, cfg: Config): SendResult & { invalid?: true } {
+  const lang = vibeLang(cfg);
   // Décharger, sur le robot d'un worktree : le message part à l'agent du dépôt (le worktree est à lui), avec ses sorties (F-110).
   const target = def.id === 'unload-worktree' ? worktreeParent(agent) : agent;
-  if (!target) return fail(lang, 'agent');
-  const message = buildMessage(def, args as VibeArgs, { view, out: vibeOutDir(target.id), lang });
-  if ('error' in message) return fail(lang, message.error);
-  const sent = sendToAgent(target, { text: message.text, images: [] }, cfg);
+  if (!target) return { ...fail(lang, 'agent'), invalid: true };
+  const message = buildMessage(def, args, { view, out: vibeOutDir(target.id), lang });
+  if ('error' in message) return { ...fail(lang, message.error), invalid: true };
+  const sent = ownRun(def) ? startRun(target, def, message.text, cfg) : sendToAgent(target, { text: message.text, images: [] }, cfg);
   if (sent.ok && def.id === 'open-worktree' && view.pr) wantWorktree(agent.id, view.pr.number);
-  if (sent.ok) refreshVibe({ now: true });
   return sent;
 }
 
-// Une course de l'écran (l'id de son action dans le dernier relevé) : l'arrêter,
-// la garder ou l'annuler, répondre à sa demande d'autorisation.
-export function vibeRunOp(_id: unknown, _op: unknown): SendResult {
-  throw new Error('not implemented');
+// Les actions directes en cours de l'agent, comme des courses (elles lisent ou modifient la branche) : startRun les respecte.
+export const directLocks = (agentId: string, defs: ActionDef[]) => Object.entries(directs.get(agentId) ?? {})
+  .filter(([, x]) => x.running).map(([id]) => ({ id, reads: !!defs.find((d) => d.id === id)?.reads }));
+
+const RUN_OPS: VibeRunOp[] = ['stop', 'keep', 'undo', 'allow', 'always', 'deny'];
+
+// Une course de l'agent affiché (l'id de son action, jamais un chemin ni un texte) :
+// l'arrêter, la garder ou l'annuler, répondre à sa demande d'autorisation (controllers/runs).
+export function vibeRunOp(id: unknown, op: unknown) {
+  const agent = vibeAgent();
+  if (!agent || typeof id !== 'string' || !RUN_OPS.includes(op as VibeRunOp)) return;
+  void runOp(agent, id, op as VibeRunOp);
 }
 
 // Une action directe (F-114) : l'appli lance elle-même sa liste fermée de
@@ -394,10 +416,14 @@ export function vibeRunOp(_id: unknown, _op: unknown): SendResult {
 // (la branche, la base de sa PR, la PR suivie, le brouillon) ou vérifiées (un
 // numéro de PR entier, un verdict des trois). En fond, une à la fois par agent :
 // « en cours » puis son résultat partent au relevé.
-function runDirect(agent: AgentConfig, id: string, args: VibeArgs, view: VibeView, cfg: Config): SendResult {
+function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, view: VibeView, cfg: Config): SendResult {
+  const { id } = def;
   const lang = vibeLang(cfg);
   const mine = directs.get(agent.id) ?? {};
   if (Object.values(mine).some((x) => x.running)) return fail(lang, 'action');
+  // Une course vivante la retient comme une autre course (la règle de runs).
+  const held = blockedBy(def, lockingRuns(agent.id), lang);
+  if (held) return { ok: false, error: held };
   const run = directRunner({ dir: agent.dir, out: vibeOutDir(agent.id), prefix: agentPrefix(agent, cfg) });
   const n = prNumber(view.pr?.number);
   let job: Promise<DirectResult>;

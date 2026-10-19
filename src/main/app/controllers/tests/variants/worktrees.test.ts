@@ -112,7 +112,10 @@ describe('Relire dans un worktree', () => {
     const { runVibeAction } = await import('app/controllers');
     expect(runVibeAction('unload-worktree', {})).toEqual({ ok: true });
     await settle();
-    expect(fake.messages).toEqual([[repo, `/vibecoder:retirer-worktree fr ${outA} 12`]]);
+    expect(fake.messages).toEqual([
+      [repo, `/vibecoder:retirer-worktree fr ${outA} 12`],
+      [repo, expect.stringMatching(/^VibeCoder : « .* » terminée/)],   // l'avis de fin, à la conversation de l'agent du dépôt
+    ]);
   });
 
   it('la fiche partie : le robot part, son dossier quitte les favoris, son brouillon revient, le panneau passe à l’agent du dépôt', async () => {

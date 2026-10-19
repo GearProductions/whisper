@@ -1,8 +1,9 @@
-/** controllers — les orchestrations de l'appli : dictée, lecture, agents, panneau, VibeCoder. */
+/** controllers — les orchestrations de l'appli : dictée, lecture, agents, panneau, VibeCoder et ses courses. */
 export * from './agents';
 export * from './conversation';
 export * from './dictation';
 export * from './processes';
+export * from './runs';
 export * from './speech';
 export * from './vibecoder';
 export * from './worktrees';

@@ -4,7 +4,7 @@
 import { PANEL_CHANNELS, type HandlerTable } from 'shared/bridge';
 import {
   answerPermission, copyDictation, currentSession, draftVibe, history, markVibe, openLink, openSession, openVibeItem, panelReady,
-  probeAgent, refreshVibe, resumeSession, runVibeAction, sendDraft, setPanelMode, setVibe, showFile, speakReply, vibeProcess,
+  probeAgent, refreshVibe, resumeSession, runVibeAction, sendDraft, setPanelMode, setVibe, showFile, speakReply, vibeProcess, vibeRunOp,
 } from 'app/controllers';
 import { openAttachMenu } from 'app/menus';
 import { hideConversation, setCompactHeight } from 'app/windows';
@@ -29,6 +29,7 @@ export const panelHandlers: HandlerTable<typeof PANEL_CHANNELS> = {
     'conv:vibeOpen': openVibeItem,
     'conv:vibeRefresh': () => { refreshVibe({ now: true, fresh: true }); },
     'conv:vibeProcess': (op, index) => { vibeProcess(op, index); },
+    'conv:vibeRunOp': vibeRunOp,
   },
   handle: {
     'conv:history': history,
