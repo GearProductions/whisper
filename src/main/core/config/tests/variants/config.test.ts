@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  agentColor, agentList, agentSlotCount, favoriteFolders, folderColors, randomColor, selectedAgent, speakMode, speakVolume, withDefaults,
+  agentColor, agentList, agentSlotCount, agentTemp, agentVibe, favoriteFolders, folderColors, randomColor, selectedAgent, speakMode,
+  speakVolume, tempAgent, vibeLang, withDefaults,
 } from 'core/config';
 
 const agent = (id: string, dir: string) => ({ id, dir, name: id, model: '', effort: '', mode: 'default', sessionId: null });
@@ -57,5 +58,33 @@ describe('lecture à voix haute', () => {
     expect(speakVolume(withDefaults({ speakVolume: -1 }))).toBe(0);
     expect(speakVolume(withDefaults({ speakVolume: 'x' }))).toBe(1);
     expect(speakVolume(withDefaults({ speakVolume: '0.4' }))).toBe(0.4);
+  });
+});
+
+describe('VibeCoder', () => {
+  it('langue : fr par défaut, en si demandé, rien d’autre', () => {
+    expect(vibeLang(withDefaults({}))).toBe('fr');
+    expect(vibeLang(withDefaults({ vibeLang: 'en' }))).toBe('en');
+    expect(vibeLang(withDefaults({ vibeLang: 'de' }))).toBe('fr');
+  });
+  it('réglages d’un agent : défauts (Créer, Guide, aucune PR), retouches à la main tolérées', () => {
+    const none = { flow: 'create', autonomy: 'guide', pr: null };
+    expect(agentVibe(agent('a', '/p'))).toEqual(none);
+    expect(agentVibe({ ...agent('a', '/p'), vibe: { flow: 'review', autonomy: 'vibe', pr: 12 } })).toEqual({ flow: 'review', autonomy: 'vibe', pr: 12 });
+    expect(agentVibe({ ...agent('a', '/p'), vibe: { flow: 'x', autonomy: 1, pr: 1.5 } as never })).toEqual(none);
+    expect(agentVibe({ ...agent('a', '/p'), vibe: { flow: 'review', autonomy: 'guide', pr: -3 } })).toEqual({ ...none, flow: 'review' });
+    expect(agentVibe({ ...agent('a', '/p'), vibe: 'cassé' as never })).toEqual(none);
+  });
+  it('robot temporaire d’une PR (F-110) : « PR #n », les réglages de l’agent du dépôt, en Relire', () => {
+    const parent = { ...agent('a', '/p'), model: 'opus', effort: 'high', mode: 'plan', vibe: { flow: 'create' as const, autonomy: 'vibe' as const, pr: null } };
+    const robot = tempAgent(parent, 12, '/p-worktrees/pr-12', 'b');
+    expect(robot).toEqual({
+      id: 'b', dir: '/p-worktrees/pr-12', name: 'PR #12', model: 'opus', effort: 'high', mode: 'plan', sessionId: null,
+      view: 'vibecoder', vibe: { flow: 'review', autonomy: 'vibe', pr: 12 }, temp: { parent: 'a', pr: 12 },
+    });
+    expect(agentTemp(robot)).toEqual({ parent: 'a', pr: 12 });
+    expect(agentTemp(parent)).toBeNull();
+    expect(agentTemp({ ...parent, temp: { parent: 'a', pr: 0 } })).toBeNull();
+    expect(agentTemp({ ...parent, temp: 'cassé' as never })).toBeNull();
   });
 });

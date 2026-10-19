@@ -1,6 +1,6 @@
 /** constants — la consigne <audio> par défaut, et les choix proposés pour un
  *  agent (modèle, effort, mode).
- *  Utilisé par : core/agents, app/menus, app/controllers/agents. */
+ *  Utilisé par : core/agents, app/menus, app/settings (AUDIO_RULES), app/controllers/vibecoder (les choix). */
 
 export const AUDIO_RULES = [
   'Tu réponds à travers Whisper, une application vocale : l\'utilisateur DICTE ses messages (tolère les fautes de',

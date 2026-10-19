@@ -1,0 +1,49 @@
+/* L'étape À l'écran de Relire (ecran-view) : la barre d'avancement, une case
+   par chose à essayer. Sous .vc, couleurs de vibecoder.css. */
+
+.vc-plan-bar { position: relative; height: 4px; margin: -2px 0 10px; overflow: hidden; border-radius: 2px; background: var(--vc-line); }
+.vc-plan-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--done);
+  border-radius: 2px;
+  background: var(--vc-ok);
+  transition: width 0.2s;
+}
+.vc-plan-list { list-style: none; margin: 0 -14px -12px; padding: 0; }
+.vc-plan-list li + li { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04); }
+.vc-plan-list label { display: flex; align-items: flex-start; gap: 11px; padding: 8px 14px; cursor: pointer; transition: background-color 0.12s; }
+.vc-plan-list label:hover { background: rgba(255, 255, 255, 0.03); }
+.vc-plan-list input {
+  position: relative;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 3px 0 0;
+  border: 1.5px solid #5a6273;
+  border-radius: 4px;
+  background: var(--vc-code);
+  cursor: pointer;
+  appearance: none;
+  transition: background-color 0.12s, border-color 0.12s;
+}
+.vc-plan-list label:hover input:not(:checked) { border-color: var(--accent); }
+.vc-plan-list input:checked { border-color: var(--vc-ok); background: var(--vc-ok); }
+.vc-plan-list input:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 0.5px;
+  width: 4px;
+  height: 8px;
+  border: solid #0e1117;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.vc-plan-list input:focus-visible { outline: 2px solid var(--vc-ring); outline-offset: 2px; }
+.vc-plan-text { flex: 1; min-width: 0; color: #d5d9e1; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+.vc-plan-text code { padding: 1px 5px; border-radius: 4px; background: var(--vc-code); color: var(--vc-text); font: 12px/1.5 var(--vc-mono); }
+.vc-plan-text a { color: var(--vc-link); text-decoration: underline; text-underline-offset: 2px; }
+.vc-plan-list label[data-done] .vc-plan-text, .vc-plan-list label[data-done] .vc-plan-text code { color: var(--vc-muted); }
+.vc-plan-empty { color: var(--vc-muted); font-size: 12.5px; }

@@ -5,7 +5,8 @@
  *  l'agent de lui-même : c'est un tour comme un autre, dont la réponse arrive
  *  non lue. Le premier processus crée la session, les suivants la reprennent
  *  (`resume`). Ce qu'un processus vivant ne peut pas changer (dossier, effort,
- *  consigne, commande : launchKey) le fait relancer au message suivant.
+ *  consigne, commande, plugins, dossiers en plus : launchKey) le fait relancer
+ *  au message suivant.
  *
  *  Mode « manuel » : l'agent demande l'autorisation avant d'agir (canUseTool) ;
  *  la demande remonte à l'appli, qui répond par answer(). Plusieurs demandes
@@ -215,7 +216,7 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     const sdk = await loadSdk();
     r.hooks = hooks;
     r.name = agent.name;
-    const key = launchKey(agent, command, instructions);
+    const key = launchKey(agent, command, instructions, hooks);
     if (r.process && r.process.key !== key) await close(agent.id);
     if (r.process) {
       await r.process.query.setPermissionMode(agent.mode || 'default').catch(() => {});
@@ -226,7 +227,7 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     if (!r.process) {
       const input = createQueue<SdkMessage>();
       const abort = new AbortController();
-      const query = sdk.query({ prompt: input, options: { ...queryOptions(agent, launch, instructions), abortController: abort, canUseTool: asker(r, agent.id) } });
+      const query = sdk.query({ prompt: input, options: { ...queryOptions(agent, launch, instructions, hooks), abortController: abort, canUseTool: asker(r, agent.id) } });
       r.process = { id: agent.id, query, input, abort, key, ended: Promise.resolve() };
       r.process.ended = loop(r, agent.id, r.process); // ne lit rien avant le tour ouvert ci-dessous (pas d'await entre)
       journal(agent, 'processus lancé', `mode ${agent.mode || 'default'}${agent.sessionId ? `, reprise ${agent.sessionId.slice(0, 8)}` : ', nouvelle session'}`);
@@ -346,9 +347,10 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
 
   // Les commandes de l'agent (« /compact », ses skills…) et le détail de son
   // contexte. Processus vivant : c'est à lui qu'on demande. Sinon, Claude Code
-  // est lancé le temps des deux questions, sans message : la conversation n'en
-  // est pas touchée. Lance 'notInstalled' ou une erreur.
-  async function probe(agent: AgentConfig, { command, instructions = AUDIO_RULES }: { command?: unknown; instructions?: string } = {}) {
+  // est lancé le temps des deux questions, sans message (avec les plugins et
+  // dossiers d'un tour) : la conversation n'en est pas touchée. Lance
+  // 'notInstalled' ou une erreur.
+  async function probe(agent: AgentConfig, { command, instructions = AUDIO_RULES, plugins, dirs }: Pick<TurnHooks, 'command' | 'instructions' | 'plugins' | 'dirs'> = {}) {
     const r = rt(agent.id);
     if (r.process) return askProbe(r, r.process.query);
     const launch = launcher(command);
@@ -357,7 +359,7 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     const held = createQueue<SdkMessage>(); // entrée vide, fermée à la fin : Claude Code sort
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), PROBE_MS);
-    const q = sdk.query({ prompt: held, options: { ...queryOptions(agent, launch, instructions), abortController: abort } });
+    const q = sdk.query({ prompt: held, options: { ...queryOptions(agent, launch, instructions, { plugins, dirs }), abortController: abort } });
     try {
       return await askProbe(r, q);
     } finally {

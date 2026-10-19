@@ -1,0 +1,352 @@
+[
+  {
+    "id": "note",
+    "flow": "create",
+    "step": "note",
+    "kind": "send",
+    "needs": "text",
+    "label": "Rédiger la note",
+    "hint": "L'agent rédige ou met à jour la note du ticket d'après la demande du champ, et pose à part ses questions ouvertes.",
+    "text": "/vibecoder:note {{lang}} {{out}} {{text}}"
+  },
+  {
+    "id": "answers",
+    "flow": "create",
+    "step": "note",
+    "kind": "send",
+    "needs": "none",
+    "label": "Envoyer les réponses",
+    "hint": "Envoie en une fois vos réponses aux questions ouvertes ; l'agent met la note à jour.",
+    "text": "Réponses aux questions ouvertes :\n{{answers}}\n\nMets la note à jour, puis réécris {{out}}/questions.md avec les questions qui restent (vide s'il n'y en a plus)."
+  },
+  {
+    "id": "forme",
+    "flow": "create",
+    "step": "forme",
+    "kind": "send",
+    "needs": "none",
+    "label": "Poser la forme",
+    "hint": "L'agent pose la rubrique « Forme » de la note (modules, signatures, contrats) sans écrire de code ; le champ peut la préciser.",
+    "text": "/vibecoder:forme {{lang}} {{out}} {{text}}"
+  },
+  {
+    "id": "invariants",
+    "flow": "create",
+    "step": "invariants",
+    "kind": "send",
+    "needs": "none",
+    "label": "Écrire les invariants (rouges)",
+    "hint": "Écrit les tests d'invariants, rouges, d'après la note ou d'après le pseudo-code du champ, sans commiter.",
+    "text": "/vibecoder:invariants {{lang}} {{out}} {{text}}"
+  },
+  {
+    "id": "read-invariants",
+    "flow": "both",
+    "step": "invariants",
+    "kind": "send",
+    "needs": "none",
+    "label": "Lire en pseudo-code",
+    "hint": "Traduit chaque test d'invariant pas encore lu en pseudo-code, cas par cas, avec ses cas limites et ses points d'attention ; un fichier qui a changé est relu de lui-même ; « Relire » (un fichier) et « Tout relire » refont une lecture.",
+    "text": "/vibecoder:lire-invariants {{lang}} {{out}} {{ref}} {{files}}"
+  },
+  {
+    "id": "align",
+    "flow": "both",
+    "step": "invariants",
+    "kind": "send",
+    "needs": "none",
+    "label": "Vérifier l'alignement",
+    "hint": "Vérifie que chaque ligne « → invariant » a un test qui l'observe vraiment, que chaque test a sa ligne et que la forme correspond aux fichiers.",
+    "text": "/vibecoder:aligner {{lang}} {{out}} {{ref}}"
+  },
+  {
+    "id": "commit-prepare",
+    "flow": "create",
+    "step": "modules",
+    "kind": "send",
+    "needs": "none",
+    "label": "Préparer le commit",
+    "hint": "Choisit et indexe les fichiers du prochain commit et propose son message, affiché ici avant de commiter.",
+    "text": "/vibecoder:commit-preparer {{lang}} {{out}}"
+  },
+  {
+    "id": "commit",
+    "flow": "create",
+    "step": "modules",
+    "kind": "send",
+    "needs": "none",
+    "label": "✓ Commiter",
+    "hint": "Commite avec le message proposé, tel qu'il est affiché.",
+    "text": "/vibecoder:commit {{lang}} {{out}}"
+  },
+  {
+    "id": "module",
+    "flow": "create",
+    "step": "modules",
+    "kind": "send",
+    "needs": "none",
+    "label": "Générer ce module",
+    "hint": "Implémente le module choisi selon la note et sa forme, avec ponytail, et lance les tests ; ne commite pas.",
+    "text": "/vibecoder:module {{lang}} {{out}} {{module}}"
+  },
+  {
+    "id": "next",
+    "flow": "create",
+    "step": "modules",
+    "kind": "send",
+    "needs": "none",
+    "label": "✓ Valider → commit → suivant",
+    "hint": "Commite le module relu, puis génère le suivant.",
+    "text": "/vibecoder:suivant {{lang}} {{out}} {{module}}"
+  },
+  {
+    "id": "modules",
+    "flow": "create",
+    "step": "modules",
+    "kind": "send",
+    "needs": "none",
+    "label": "Générer les modules restants",
+    "hint": "L'agent confie les modules restants à des agents Opus en parallèle, relit chaque diff et commite module par module ; long et coûteux.",
+    "text": "/vibecoder:modules {{lang}} {{out}}"
+  },
+  {
+    "id": "review-diff",
+    "flow": "create",
+    "step": "modules",
+    "kind": "send",
+    "needs": "none",
+    "label": "Relire le diff",
+    "hint": "Relit le diff choisi, ou les changements en cours, avec les quatre questions du guide (§ 5.1), la duplication et les en-têtes.",
+    "text": "/vibecoder:relire {{lang}} {{out}} {{commit}}"
+  },
+  {
+    "id": "checks",
+    "flow": "create",
+    "step": "revue",
+    "kind": "send",
+    "needs": "none",
+    "label": "Lancer les vérifications",
+    "hint": "Lance les vérifications du projet (typage, tests, invariants, lint) et en affiche le résultat.",
+    "text": "/vibecoder:verifier {{lang}} {{out}}"
+  },
+  {
+    "id": "ponytail",
+    "flow": "create",
+    "step": "revue",
+    "kind": "send",
+    "needs": "none",
+    "label": "Ponytail review",
+    "hint": "Relit toute la branche : sur-ingénierie, duplication, note alignée avec le code, cas limites, sécurité, code mort ; ne modifie rien.",
+    "text": "/vibecoder:ponytail {{lang}} {{out}}"
+  },
+  {
+    "id": "apply",
+    "flow": "create",
+    "step": "revue",
+    "kind": "send",
+    "needs": "none",
+    "label": "Appliquer la revue",
+    "hint": "L'agent applique les remarques de la revue qu'il juge justes (toutes, ou celle d'Appliquer), chacune en fixup du commit concerné, et dit lesquelles il écarte.",
+    "text": "Applique les remarques de {{out}}/ponytail.md que tu juges justes, chacune en fixup du commit qui possède le code (/gear-fix-up s'il existe), sans rien ajouter d'autre ; dis lesquelles tu écartes et pourquoi. Seulement celle-ci (vide : toutes) : {{text}}"
+  },
+  {
+    "id": "fixups",
+    "flow": "create",
+    "step": "revue",
+    "kind": "send",
+    "needs": "none",
+    "label": "Replier les fixups",
+    "hint": "Replie les commits « fixup! » dans leurs cibles avant d'ouvrir la PR ; ne pousse pas.",
+    "text": "/vibecoder:fixups {{lang}} {{out}}"
+  },
+  {
+    "id": "pr",
+    "flow": "create",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "Valider la feature (ouvrir la PR)",
+    "hint": "Pousse la branche et ouvre la PR, titre et description selon la convention du projet.",
+    "text": "/vibecoder:pr {{lang}} {{out}}"
+  },
+  {
+    "id": "ci",
+    "flow": "create",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "Diagnostiquer la CI",
+    "hint": "Lit l'état de la CI de la branche et, en cas d'échec, en donne la cause probable et le correctif ; ne corrige rien.",
+    "text": "/vibecoder:ci {{lang}} {{out}}"
+  },
+  {
+    "id": "rc",
+    "flow": "create",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "Release candidate",
+    "hint": "Publie une release candidate selon la procédure du projet et l'installe chez vous en gardant la précédente ; long, car il attend la CI.",
+    "text": "/vibecoder:rc {{lang}} {{out}}"
+  },
+  {
+    "id": "base",
+    "flow": "create",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "PR mergée → revenir sur la base",
+    "hint": "Si la PR est fusionnée : revient sur la base, la met à jour et supprime la branche locale ; sinon, ne fait rien.",
+    "text": "/vibecoder:base {{lang}} {{out}}"
+  },
+  {
+    "id": "release",
+    "flow": "create",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "Release officielle",
+    "hint": "Publie la version officielle selon la procédure du projet ; les pré-versions ne sont supprimées qu'avec votre accord.",
+    "text": "/vibecoder:release {{lang}} {{out}}"
+  },
+  {
+    "id": "load-pr",
+    "flow": "review",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "Charger la PR",
+    "hint": "Récupère la PR sans toucher à votre copie de travail, pour la relire.",
+    "text": "/vibecoder:charger-pr {{lang}} {{out}} {{pr}}"
+  },
+  {
+    "id": "open-worktree",
+    "flow": "review",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "Ouvrir dans un worktree",
+    "hint": "Crée un worktree de la PR selon la convention du projet et le prépare (dépendances…) ; un robot « PR #n » s'y ajoute, après la question de confiance.",
+    "text": "/vibecoder:worktree-pr {{lang}} {{out}} {{pr}}"
+  },
+  {
+    "id": "unload-worktree",
+    "flow": "review",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "Décharger",
+    "hint": "L'agent du dépôt retire le worktree de la PR (refusé s'il reste des modifications) ; ce robot part avec lui.",
+    "text": "/vibecoder:retirer-worktree {{lang}} {{out}} {{pr}}"
+  },
+  {
+    "id": "review-note",
+    "flow": "review",
+    "step": "note",
+    "kind": "send",
+    "needs": "none",
+    "label": "Relire la note",
+    "hint": "Relit la note de la PR : décisions à discuter, manques, invariants mal classés.",
+    "text": "/vibecoder:relire-note {{lang}} {{out}} {{pr}}"
+  },
+  {
+    "id": "review-commits",
+    "flow": "review",
+    "step": "commits",
+    "kind": "send",
+    "needs": "none",
+    "label": "Relire les commits",
+    "hint": "Relit la PR commit par commit : les quatre questions, la duplication, les en-têtes, l'histoire des commits.",
+    "text": "/vibecoder:relire-commits {{lang}} {{out}} {{pr}}"
+  },
+  {
+    "id": "screen",
+    "flow": "review",
+    "step": "ecran",
+    "kind": "send",
+    "needs": "none",
+    "label": "Plan de test à l'écran",
+    "hint": "Prépare la liste de ce qu'il faut essayer à la main, et comment lancer la PR.",
+    "text": "/vibecoder:ecran {{lang}} {{out}} {{pr}}"
+  },
+  {
+    "id": "publish",
+    "flow": "review",
+    "step": "revue",
+    "kind": "send",
+    "needs": "none",
+    "label": "Publier la revue",
+    "hint": "Publie le brouillon de revue sur GitHub, tel quel, avec le verdict choisi.",
+    "text": "/vibecoder:publier-revue {{lang}} {{out}} {{pr}} {{verdict}}\n\n{{draft}}"
+  },
+  {
+    "id": "vibe",
+    "flow": "create",
+    "step": null,
+    "kind": "send",
+    "needs": "text",
+    "label": "Tout dérouler",
+    "hint": "L'agent déroule tout le guide pour la demande du champ, jusqu'à la PR et la release candidate, et ne s'arrête que sur une question qui bloque ; long et coûteux.",
+    "text": "/vibecoder:vibe {{lang}} {{out}} {{text}}"
+  },
+  {
+    "id": "guide",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Où j'en suis ?",
+    "hint": "Demande au skill gear-guide la prochaine étape, d'après l'état du dépôt et la question du champ.",
+    "text": "/gear-guide {{text}}"
+  },
+  {
+    "id": "ask",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "text",
+    "label": "Demander sans modifier",
+    "hint": "Envoie la question du champ en demandant à l'agent de ne rien modifier.",
+    "text": "{{text}}\n\n(Réponds seulement : ne modifie aucun fichier et ne lance rien qui modifie quoi que ce soit.)"
+  },
+  {
+    "id": "comment",
+    "flow": "both",
+    "step": null,
+    "kind": "prefill",
+    "needs": "none",
+    "label": "💬 Commenter",
+    "hint": "Cite l'élément dans le champ, pour le commenter avant d'envoyer.",
+    "text": "À propos de « {{quote}} » : "
+  },
+  {
+    "id": "case-ko",
+    "flow": "both",
+    "step": "invariants",
+    "kind": "prefill",
+    "needs": "none",
+    "label": "✗ À revoir",
+    "hint": "Cite le cas dans le champ, pour dire ce qu'il faut changer.",
+    "text": "Invariant « {{quote}} » : à revoir — "
+  },
+  {
+    "id": "fix",
+    "flow": "create",
+    "step": null,
+    "kind": "prefill",
+    "needs": "none",
+    "label": "Retour → fixup",
+    "hint": "Prépare dans le champ un retour à corriger en fixup du module concerné.",
+    "text": "Retour à corriger, en fixup du module concerné : "
+  },
+  {
+    "id": "propose-run",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Proposer les commandes",
+    "hint": "L'agent cherche comment lancer le projet (README, package.json, process-compose, Makefile, AGENTS.md, alias du .bashrc…) et propose ses commandes ; l'appli les adopte s'il n'y a pas encore de fichier du projet. Le champ peut le guider.",
+    "text": "/vibecoder:lancement {{lang}} {{out}} {{text}}"
+  }
+]

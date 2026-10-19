@@ -1,5 +1,5 @@
 /** text — un texte sur une ligne, espaces resserrés ; la fin d'un texte long.
- *  Ne connaît pas : le métier. Utilisé par : core/agents, app/controllers/conversation. */
+ *  Ne connaît pas : le métier. Utilisé par : core/agents, core/vibecoder (note), app/controllers/conversation. */
 
 export const oneLine = (s: unknown) => String(s || '').replace(/\s+/g, ' ').trim();
 

@@ -1,0 +1,5 @@
+{
+  "name": "vibecoder",
+  "version": "0.8.0",
+  "description": "VibeCoder : les étapes du guide « Développer avec l'IA » (note, forme, invariants, modules, revue, PR, relecture d'une PR), un skill par bouton de l'écran."
+}

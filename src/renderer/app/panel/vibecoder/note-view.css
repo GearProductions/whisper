@@ -1,0 +1,84 @@
+/* La note (note-view) : en-tête (chemin, Ouvrir, validation), bandeau des
+   changements, liseré vert des blocs changés, marques des lignes « ne doit
+   pas », diff brut. Sous .vc. */
+
+.vc-note .vc-card-head { min-height: 42px; gap: 8px; }
+.vc-note-file { flex: none; font-size: 13px; opacity: 0.75; }
+/* Trop long : le dossier se coupe, jamais le nom de la note. */
+.vc-note-path { display: flex; min-width: 0; white-space: nowrap; font-size: 12px; }
+.vc-note-path > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--vc-muted); }
+.vc-note-path > b { flex: none; color: var(--vc-text); font-weight: 600; }
+.vc-note .vc-note-open { margin-left: 2px; }
+.vc-note-mark { margin-left: auto; display: flex; padding-left: 8px; }
+.vc-note > .vc-card-body { padding: 16px 18px 18px 22px; }
+
+/* Ce que l'agent vient de changer. */
+.vc-note-changes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px 7px 14px;
+  border-bottom: 1px solid var(--vc-line);
+  background: color-mix(in srgb, var(--vc-ok) 8%, var(--vc-card));
+  color: var(--vc-soft);
+  font-size: 12.5px;
+}
+.vc-note-pulse { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--vc-ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--vc-ok) 25%, transparent); }
+.vc-note-what { flex: 1; min-width: 0; }
+.vc-note-n { margin-left: 6px; padding: 0 6px; border-radius: 8px; font: 600 11.5px/17px var(--vc-mono); white-space: nowrap; }
+.vc-note-n[data-kind="added"] { background: color-mix(in srgb, var(--vc-ok) 18%, transparent); color: #7ee08f; }
+.vc-note-n[data-kind="removed"] { background: color-mix(in srgb, #d9383a 18%, transparent); color: #f08a8b; }
+.vc-note-changes .vc-mini { margin-left: 0; }
+.vc-note-changes .vc-mini[aria-pressed="true"] { border-color: var(--vc-ok); color: #7ee08f; }
+
+/* Liseré vert à gauche d'un bloc ou d'un élément changé, dans la marge de la carte. */
+.vc-note .vc-md [data-changed] { position: relative; }
+.vc-note .vc-md [data-changed]::before {
+  content: "";
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  left: -12px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--vc-ok);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--vc-ok) 45%, transparent);
+}
+.vc-note .vc-md li[data-changed]::before { left: -34px; }
+.vc-note .vc-md li li[data-changed]::before { left: -56px; }
+.vc-note .vc-md li li li[data-changed]::before { left: -78px; }
+.vc-note .vc-md .vc-block[data-changed] { background: linear-gradient(90deg, color-mix(in srgb, var(--vc-ok) 7%, transparent), transparent 70%); border-radius: 0 4px 4px 0; }
+.vc-note .vc-md li[data-changed] { background: linear-gradient(90deg, color-mix(in srgb, var(--vc-ok) 7%, transparent), transparent 70%); border-radius: 0 4px 4px 0; }
+
+/* La marque d'une ligne de « Ce que ça ne doit pas faire ». */
+.vc-mn {
+  display: inline-block;
+  min-width: 62px;
+  margin-right: 8px;
+  padding: 0 7px;
+  box-sizing: border-box;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  font: 600 10.5px/17px var(--vc-mono);
+  text-align: center;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+.vc-mn[data-mark="invariant"] { border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: color-mix(in srgb, var(--accent) 22%, transparent); color: color-mix(in srgb, var(--accent) 45%, #fff); }
+.vc-mn[data-mark="variant"] { border-color: color-mix(in srgb, #7fb0ff 50%, transparent); background: color-mix(in srgb, #7fb0ff 16%, transparent); color: #a9c8ff; }
+.vc-mn[data-mark="review"] { border-color: var(--vc-edge); background: rgba(255, 255, 255, 0.05); color: var(--vc-soft); }
+.vc-mn[data-mark="structure"] { border-color: color-mix(in srgb, #a78bfa 50%, transparent); background: color-mix(in srgb, #a78bfa 16%, transparent); color: #c9b8fc; }
+.vc-mn[data-mark="none"] { border: 1px dashed color-mix(in srgb, var(--vc-warn) 60%, transparent); color: var(--vc-warn); font-weight: 500; }
+
+/* Le diff brut. */
+.vc-rawdiff { margin: -4px -6px; border-radius: 6px; background: var(--vc-code); padding: 6px 0; font: 12.5px/1.55 var(--vc-mono); }
+.vc-dl { display: flex; padding-right: 12px; color: var(--vc-muted); text-decoration: none; }
+.vc-dl-sign { flex: none; width: 26px; text-align: center; user-select: none; }
+.vc-dl-text { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.vc-dl[data-kind="added"] { background: color-mix(in srgb, var(--vc-ok) 14%, transparent); color: #b6efc0; }
+.vc-dl[data-kind="added"] .vc-dl-sign { color: var(--vc-ok); }
+.vc-dl[data-kind="removed"] { background: color-mix(in srgb, #d9383a 13%, transparent); color: #f0a3a4; }
+.vc-dl[data-kind="removed"] .vc-dl-text { text-decoration: line-through; text-decoration-color: color-mix(in srgb, #f08a8b 70%, transparent); }
+.vc-dl[data-kind="removed"] .vc-dl-sign { color: #f08a8b; }
+.vc-dl-skip { margin: 3px 0; padding: 2px 0 2px 26px; background: rgba(255, 255, 255, 0.03); color: var(--vc-faint); font-family: system-ui, sans-serif; font-size: 11.5px; }
+.vc-note-refuse { padding: 4px 16px 0; }

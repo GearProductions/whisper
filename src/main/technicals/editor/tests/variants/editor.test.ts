@@ -33,6 +33,28 @@ describe('findEditor', () => {
     expect(argsOf('zed')).toEqual(['/projet']);
     expect(argsOf('zed --add')).toEqual(['--add', '/projet']);
   });
+  it('un fichier : là où l\'éditeur le range, sans -n ; commande réglée : ses arguments tels quels', () => {
+    only('zed');
+    findEditor('')!.openFile('/projet/a.ts');
+    expect(spawned.at(-1)?.[1]).toEqual(['/projet/a.ts']);
+    findEditor('zed --add')!.openFile('/projet/a.ts');
+    expect(spawned.at(-1)?.[1]).toEqual(['--add', '/projet/a.ts']);
+  });
+  it('à une ligne : zed fichier:ligne ; code, cursor, codium -g fichier:ligne', () => {
+    only('zed', 'code', 'cursor', 'codium', 'flatpak');
+    const at = (command: string) => { findEditor(command)!.openFile('/projet/a.ts', 12); return spawned.at(-1)?.[1]; };
+    expect([at(''), at('code'), at('cursor'), at('codium'), at('flatpak run com.visualstudio.code')]).toEqual([
+      ['/projet/a.ts:12'], ['-g', '/projet/a.ts:12'], ['-g', '/projet/a.ts:12'], ['-g', '/projet/a.ts:12'],
+      ['run', 'com.visualstudio.code', '-g', '/projet/a.ts:12'],
+    ]);
+  });
+  it('à une ligne, un éditeur inconnu ou une ligne invalide : le fichier seul', () => {
+    only('gedit', 'zed');
+    findEditor('gedit')!.openFile('/projet/a.ts', 12);
+    expect(spawned.at(-1)?.[1]).toEqual(['/projet/a.ts']);
+    findEditor('zed')!.openFile('/projet/a.ts', 0);
+    expect(spawned.at(-1)?.[1]).toEqual(['/projet/a.ts']);
+  });
   it('commande réglée introuvable : null', () => {
     only('zed');
     expect(findEditor('/nulle/part/zed')).toBeNull();
