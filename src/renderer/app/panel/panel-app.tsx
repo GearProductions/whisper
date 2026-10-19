@@ -9,8 +9,11 @@
  *  l'écran VibeCoder à la place de l'en-tête et du corps, la même
  *  conversation dans sa colonne de droite (affichée ou masquée, sa largeur :
  *  retenues ici, pour tous les agents), le volet des tâches dans son onglet
- *  Tâches ; une action y prend le texte du champ
- *  s'il lui en faut un (vidé une fois parti), ou y prépare un message.
+ *  Tâches ; une action prend le texte que l'écran lui donne (le champ de son
+ *  étape, une remarque) ; seul un message de la conversation (Demander sans
+ *  modifier, Où j'en suis ?, Proposer les commandes) prend celui du champ de
+ *  la conversation (vidé une fois parti), ou y prépare un message. La dictée
+ *  va au champ d'étape qui a le clavier, sinon à celui de la conversation.
  *  La colle : seul fichier du panneau qui connaît le pont (window.conv) ; il
  *  tient le brouillon de chaque conversation.
  *  Ne connaît pas : l'icône, la bulle. Utilisé par : main.tsx. */
@@ -125,6 +128,10 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     });
     // La dictée, panneau ouvert sur cet agent : ajoutée au champ, à relire.
     conv.onDictation((text) => {
+      // Le champ d'une étape de VibeCoder a le clavier : la dictée s'y insère (son onChange suit).
+      const f = document.activeElement;
+      if (f instanceof HTMLTextAreaElement && f.dataset.field
+        && document.execCommand('insertText', false, `${f.value && !/\s$/.test(f.value) ? ' ' : ''}${text}`)) return;
       focusEnd.current = true;
       setDraft((d) => ({ ...d, text: appendDictation(d.text, text) }));
     });
@@ -213,27 +220,33 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   }
 
   // VibeCoder : une action du relevé. 'prefill' : préparée dans le champ ;
-  // 'send' : envoyée à l'agent, avec le texte du champ si son gabarit le prend
-  // (exigé et vide : on le demande ; envoyé : le champ se vide, ses pièces
-  // jointes restent).
-  async function vibeRun(id: string, args: VibeArgs = {}) {
+  // 'send' : envoyée, avec le texte que la vue donne (args.text : le champ de
+  // l'étape, une remarque). Sans lui, un message de la conversation dont le
+  // gabarit prend un texte emporte celui du champ de la conversation (exigé et
+  // vide : on le demande ; envoyé : le champ se vide, ses pièces jointes
+  // restent). true : partie.
+  async function vibeRun(id: string, args: VibeArgs = {}): Promise<boolean> {
     const a = vibe?.actions.find((x) => x.id === id);
-    if (!vibe || !a || sending) return;
-    if (a.kind === 'prefill') { vibePrefill(id, ''); return; }
-    // Le champ, sauf si la vue donne elle-même le texte (Appliquer une remarque : args.text).
-    const text = args.text === undefined && (a.needs === 'text' || a.usesText) ? draft.text.trim() : '';
-    if (a.needs === 'text' && !text) { setStatus(vibeStrings(vibe.lang).needText); el.input.current!.focus(); return; }
+    if (!vibe || !a || sending) return false;
+    if (a.kind === 'prefill') { vibePrefill(id, ''); return false; }
+    const field = args.text === undefined && (a.needs === 'text' || a.usesText) ? draft.text.trim() : '';
+    if (a.needs === 'text' && !field && !args.text?.trim()) {
+      setStatus(vibeStrings(vibe.lang).needText);
+      if (args.text === undefined) el.input.current!.focus();
+      return false;
+    }
     setStatus('');
     setSending(true);
     let res: SendResult | null = null;
-    try { res = await conv.vibeRun(id, text ? { ...args, text } : args); } catch { res = null; }
+    try { res = await conv.vibeRun(id, field ? { ...args, text: field } : args); } catch { res = null; }
     setSending(false);
     if (res && res.ok) {
-      if (text) setDraft((d) => ({ ...d, text: '' }));
+      if (field) setDraft((d) => ({ ...d, text: '' }));
       el.thread.current!.scrollTop = el.thread.current!.scrollHeight;
-    } else {
-      setStatus((res && res.error) || vibeStrings(vibe.lang).sendFailed);
+      return true;
     }
+    setStatus((res && res.error) || vibeStrings(vibe.lang).sendFailed);
+    return false;
   }
 
   // Une action 'prefill' : son texte, ce qu'on cite à la place de {{quote}},
@@ -248,7 +261,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
 
   const vibeAct: VibeActs = {
     run: vibeRun, prefill: vibePrefill, set: conv.vibeSet, mark: conv.vibeMark, draft: conv.vibeDraft, open: conv.vibeOpen,
-    openLink: conv.openLink, refresh: conv.vibeRefresh, process: conv.vibeProcess,
+    openLink: conv.openLink, refresh: conv.vibeRefresh, process: conv.vibeProcess, runOp: conv.vibeRunOp,
   };
 
   const act: ThreadActions = {
