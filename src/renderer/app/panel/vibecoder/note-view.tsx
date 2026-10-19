@@ -38,7 +38,7 @@ const fr = {
     none: ['à classer', 'Sans marque : → invariant, variant, review ou structure ?'],
   } as Record<NonNullable<MustNotMark> | 'none', [string, string]>,
   noNote: 'Pas encore de note pour cette branche',
-  noNoteText: ' Dictez ou écrivez la demande dans le champ, à droite, puis « Rédiger la note » : l\'agent la rédige sous docs/tickets/ et pose à part ses questions ouvertes.',
+  noNoteText: ' Dictez ou écrivez la demande dans le champ ci-dessus, puis « Rédiger la note » : l\'agent la rédige sous docs/tickets/ et pose à part ses questions ouvertes.',
   noNoteReview: 'Pas de note de ticket dans cette PR',
   noNoteReviewText: ' Une note se cherche sous docs/tickets/, d\'après la branche de la PR ; chargez d\'abord la PR à l\'étape PR.',
 };
@@ -61,7 +61,7 @@ const S: Record<VibeLang, typeof fr> = {
       none: ['unmarked', 'No mark: → invariant, variant, review or structure?'],
     },
     noNote: 'No note for this branch yet',
-    noNoteText: ' Dictate or type the request in the field, on the right, then « Write the note »: the agent writes it under docs/tickets/ and asks its open questions apart.',
+    noNoteText: ' Dictate or type the request in the field above, then « Write the note »: the agent writes it under docs/tickets/ and asks its open questions apart.',
     noNoteReview: 'No ticket note in this PR',
     noNoteReviewText: ' A note is looked for under docs/tickets/, after the PR\'s branch; load the PR first, at the PR step.',
   },

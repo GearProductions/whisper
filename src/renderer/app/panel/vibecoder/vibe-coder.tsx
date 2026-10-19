@@ -7,26 +7,32 @@
  *  étapes, l'étape choisie (step-views : son en-tête porte ses actions ; en
  *  Vibe, un bandeau le rappelle en haut ; Relire, une PR fusionnée ou fermée
  *  aussi) ; à droite, en onglets, la conversation (reçue en children), les
- *  tâches de fond (`tasks`, le nombre en cours dans l'onglet) ou les
- *  processus du projet (processes-view, le nombre en cours), masquable, sa
+ *  actions lancées (runs-view, le nombre en cours, en attente d'une
+ *  autorisation ou arrêtées à trancher), les tâches de fond (`tasks`, le
+ *  nombre en cours) ou les processus du projet (processes-view, le nombre en
+ *  cours), masquable, sa
  *  largeur à la poignée (300 px → 60 %) ; la barre d'état en bas (son ⚙
  *  Tâches ouvre l'onglet). Ctrl+1…6 ouvrent les étapes. Une vue d'étape qui
  *  échoue ne fait tomber ni l'écran ni le brouillon (I-29). Il tient les
  *  réponses en cours aux questions ouvertes, le verdict de la revue (Relire),
- *  le modèle choisi par action (envoyé s'il n'est pas le conseillé).
- *  Préparer un message dans le champ, ou une action qui exige son texte,
- *  réaffiche la conversation (colonne masquée, ou onglet Tâches, Processus).
+ *  le modèle choisi par action (envoyé s'il n'est pas le conseillé), le champ
+ *  de chaque étape et celui de Tout dérouler (fieldOf : son texte part en
+ *  args.text de l'action ; exigé et vide, le champ prend le clavier ; partie,
+ *  il se vide). Préparer un message dans le champ de la conversation, ou un
+ *  message qui exige son texte, réaffiche la conversation (colonne masquée,
+ *  ou onglet Actions, Tâches, Processus).
  *  Ne connaît pas : le pont (rappels passés), le contenu de la conversation.
  *  Utilisé par : panel-app. */
 import { Component, useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { isBusy, titleOf } from 'core/conversation';
-import { convWidth, modelArg, t as strings, type Answers, type ModelPicks, type Strings } from 'core/vibecoder';
+import { convWidth, fieldOf, modelArg, t as strings, type Answers, type ModelPicks, type Strings } from 'core/vibecoder';
 import type { Thread, VibeLang, VibeStepId, VibeView } from 'technicals/bridge';
 import { Journey } from './journey';
 import { ProcessesView } from './processes-view';
 import { Picks } from './model-pick';
+import { RunsView } from './runs-view';
 import { StatusBar } from './status-bar';
-import { ClosedBanner, VibeBanner, WorktreeBadge } from './step-parts';
+import { ClosedBanner, StopRun, VibeBanner, WorktreeBadge } from './step-parts';
 import { STEP_VIEWS, type StepProps, type VibeActs } from './step-views';
 import './vibecoder.css';
 
@@ -58,23 +64,38 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   const onAnswer: StepProps['onAnswer'] = (q, a) => setAnswers((all) => ({ ...all, [q]: a }));
   const [picks, setPicks] = useState<ModelPicks>({});
   const root = useRef<HTMLDivElement>(null);
-  const [procs, setProcs] = useState(false);   // l'onglet Processus est choisi (par-dessus Conversation | Tâches)
-  const show = () => { if (!side.open) onSide({ ...side, open: true }); setProcs(false); if (tasksOpen) onTasks(); };
-  // ⚙ Tâches (barre d'état) : la colonne masquée, ou l'onglet Processus, s'affiche sur l'onglet Tâches ; sinon, l'onglet bascule.
+  // L'onglet Actions ou Processus, choisi par-dessus Conversation | Tâches (que panel-app tient).
+  const [pane, setPane] = useState<'runs' | 'procs' | null>(null);
+  const show = () => { if (!side.open) onSide({ ...side, open: true }); setPane(null); if (tasksOpen) onTasks(); };
+  // ⚙ Tâches (barre d'état) : la colonne masquée, ou l'onglet Actions, Processus, s'affiche sur l'onglet Tâches ; sinon, l'onglet bascule.
   const toggleTasks = () => {
     if (!side.open) onSide({ ...side, open: true });
-    if (procs) { setProcs(false); if (!tasksOpen) onTasks(); } else if (side.open || !tasksOpen) onTasks();
+    if (pane) { setPane(null); if (!tasksOpen) onTasks(); } else if (side.open || !tasksOpen) onTasks();
   };
   const running = thread.tasks?.filter((x) => x.status === 'running').length || 0;
   const up = view.processes?.filter((p) => p.status === 'running').length || 0;
-  // Les rappels, avec le modèle choisi (s'il n'est pas le conseillé) ; ce qui passe par le champ le réaffiche.
+  const runs = view.runs ?? [];
+  const live = runs.filter((r) => r.state === 'running' || r.state === 'asking' || r.state === 'stopped').length;
+  // Le champ de chaque étape, et celui de Tout dérouler ('vibe') : par fieldOf.
+  const [texts, setTexts] = useState<Record<string, string>>({});
+  const setText = (key: string) => (text: string) => setTexts((all) => ({ ...all, [key]: text }));
+  // Les rappels, avec le modèle choisi (s'il n'est pas le conseillé) et le texte du champ de l'action ;
+  // ce qui passe par le champ de la conversation le réaffiche.
   const act: VibeActs = {
     ...given,
-    run: (id, args = {}) => {
+    run: async (id, args = {}) => {
       const a = view.actions.find((x) => x.id === id);
       const model = a && modelArg(a, picks);
-      if (a && (a.kind === 'prefill' || a.needs === 'text')) show();
-      given.run(id, model ? { ...args, model } : args);
+      const key = a && args.text === undefined ? fieldOf(a) : null;
+      const text = key ? (texts[key] ?? '').trim() : undefined;
+      if (key && a!.needs === 'text' && !text) {
+        root.current?.querySelector<HTMLTextAreaElement>(`[data-field="${key}"]`)?.focus();
+        return false;
+      }
+      if (a && (a.kind === 'prefill' || (a.needs === 'text' && !key && args.text === undefined))) show();
+      const sent = await given.run(id, { ...args, ...(key ? { text } : {}), ...(model ? { model } : {}) });
+      if (sent && key) setText(key)('');
+      return sent;
     },
     prefill: (id, quote) => { show(); given.prefill(id, quote); },
   };
@@ -97,6 +118,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   const View = step && STEP_VIEWS[step.id];
   return (
     <Picks.Provider value={{ picks, lang: view.lang, pick: (id, m) => setPicks((p) => ({ ...p, [id]: m })) }}>
+    <StopRun.Provider value={{ stop: (id) => act.runOp(id, 'stop'), state: (id) => view.runs?.find((r) => r.id === id)?.state ?? null }}>
       <div className="vc" ref={root} data-conv={side.open ? undefined : 'hidden'} style={{ '--vc-conv': `${side.width}px` } as CSSProperties}>
         <Top view={view} thread={thread} busy={busy} t={t} act={act} side={side} onSide={onSide} onHide={onHide} />
         <Journey view={view} t={t} selected={step && step.id} onPick={setPicked} onOpen={act.open} />
@@ -111,33 +133,42 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
           </div>
           {view.error ? <div className="vc-error" role="status"><b>{view.error}</b> {t.errorHint}</div> : null}
           <div className="vc-step scroll" key={step ? step.id : ''} role="tabpanel">
-            {view.autonomy === 'vibe' ? <VibeBanner lang={view.lang} /> : null}
+            {view.autonomy === 'vibe' ? (
+              <VibeBanner lang={view.lang}
+                field={view.actions.some((a) => fieldOf(a) === 'vibe' && a.primary) ? { text: texts.vibe ?? '', setText: setText('vibe') } : undefined} />
+            ) : null}
             {view.flow === 'review' ? <ClosedBanner pr={view.pr} t={t} /> : null}
-            {step && View ? <Guard t={t}><View view={view} step={step} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} verdict={verdict} onVerdict={setVerdict} /></Guard> : null}
+            {step && View ? <Guard t={t}><View view={view} step={step} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} verdict={verdict} onVerdict={setVerdict}
+              text={texts[step.id] ?? ''} setText={setText(step.id)} /></Guard> : null}
           </div>
         </section>
         <section className="vc-conv" aria-label={t.conversation}>
           <Resizer t={t} side={side} root={root} onSide={onSide} />
           <div className="vc-side-tabs vc-band" role="tablist">
-            <button type="button" role="tab" className="vc-tab" aria-selected={!tasksOpen && !procs} title={titleOf(thread)}
-              onClick={() => { setProcs(false); if (tasksOpen) onTasks(); }}>
+            <button type="button" role="tab" className="vc-tab" aria-selected={!tasksOpen && !pane} title={titleOf(thread)}
+              onClick={() => { setPane(null); if (tasksOpen) onTasks(); }}>
               {t.conversation}<span className="vc-conv-name">{titleOf(thread)}</span>
             </button>
-            <button type="button" role="tab" className="vc-tab" aria-selected={tasksOpen && !procs} title={t.tasksTitle}
-              onClick={() => { setProcs(false); if (!tasksOpen) onTasks(); }}>
+            <button type="button" role="tab" className="vc-tab" aria-selected={pane === 'runs'} title={t.runsTitle} onClick={() => setPane('runs')}>
+              {t.runsOf(live)}
+            </button>
+            <button type="button" role="tab" className="vc-tab" aria-selected={tasksOpen && !pane} title={t.tasksTitle}
+              onClick={() => { setPane(null); if (!tasksOpen) onTasks(); }}>
               {t.tasksOf(running)}
             </button>
-            <button type="button" role="tab" className="vc-tab" aria-selected={procs} title={t.procsTitle} onClick={() => setProcs(true)}>
+            <button type="button" role="tab" className="vc-tab" aria-selected={pane === 'procs'} title={t.procsTitle} onClick={() => setPane('procs')}>
               {t.procsOf(up)}
             </button>
           </div>
           {children}
-          {tasksOpen && !procs ? <div className="vc-tasks-tab" role="tabpanel">{tasks}</div> : null}
-          {procs ? <div className="vc-tasks-tab" role="tabpanel"><Guard t={t}><ProcessesView view={view} t={t} act={act} busy={busy} /></Guard></div> : null}
+          {tasksOpen && !pane ? <div className="vc-tasks-tab" role="tabpanel">{tasks}</div> : null}
+          {pane === 'runs' ? <div className="vc-tasks-tab" role="tabpanel"><Guard t={t}><RunsView runs={runs} t={t} onRunOp={act.runOp} onOpenLink={act.openLink} /></Guard></div> : null}
+          {pane === 'procs' ? <div className="vc-tasks-tab" role="tabpanel"><Guard t={t}><ProcessesView view={view} t={t} act={act} busy={busy} /></Guard></div> : null}
         </section>
-        <StatusBar view={view} thread={thread} t={t} busy={busy} tasksOpen={tasksOpen && !procs} contextOpen={contextOpen}
+        <StatusBar view={view} thread={thread} t={t} busy={busy} tasksOpen={tasksOpen && !pane} contextOpen={contextOpen}
           onSet={act.set} onGauge={onGauge} onTasks={toggleTasks} />
       </div>
+    </StopRun.Provider>
     </Picks.Provider>
   );
 }

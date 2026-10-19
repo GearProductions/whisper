@@ -1,12 +1,13 @@
 /** step-views — l'aiguillage des étapes : la vue de chaque étape du parcours,
  *  et ce qu'elle reçoit (StepProps : le relevé, l'étape, les libellés, les
- *  rappels de l'écran ; StepHead y prend les actions de l'étape). Chaque étape a sa vue ; PR et Revue ont chacune une
+ *  rappels de l'écran, le texte du champ de l'étape ; StepHead y prend les
+ *  actions de l'étape et ce champ). Chaque étape a sa vue ; PR et Revue ont chacune une
  *  vue pour Créer et une pour Relire ; Note et Invariants servent aux deux
  *  (en lecture seule pour Relire).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder, panel-app (VibeActs). */
 import type { ComponentType } from 'react';
 import type { Answer, Answers, Strings } from 'core/vibecoder';
-import type { VibeArgs, VibePatch, VibeProcessOp, VibeStep, VibeStepId, VibeView } from 'technicals/bridge';
+import type { VibeArgs, VibePatch, VibeProcessOp, VibeRunOp, VibeStep, VibeStepId, VibeView } from 'technicals/bridge';
 import { CommitsView } from './commits-view';
 import { DraftView } from './draft-view';
 import { EcranView } from './ecran-view';
@@ -20,7 +21,8 @@ import { ReviewView } from './review-view';
 
 // Les rappels de l'écran, que panel-app relie au pont.
 export type VibeActs = {
-  run(id: string, args?: VibeArgs): void;      // une action du relevé : envoyée (le champ si elle en a besoin), ou préparée
+  // Une action du relevé : envoyée (avec le texte de son champ, fieldOf), ou préparée ; true : partie.
+  run(id: string, args?: VibeArgs): Promise<boolean>;
   prefill(id: string, quote: string): void;    // une action 'prefill' : {{quote}}, ce qu'on cite
   set(patch: VibePatch): void;
   mark(target: string, verdict: 'ok' | 'ko' | null): void;
@@ -30,6 +32,7 @@ export type VibeActs = {
   openLink(url: string): void;
   refresh(): void;
   process(op: VibeProcessOp, index?: number): void;  // Processus : une commande par son rang, ou 'edit' (le fichier du projet)
+  runOp(id: string, op: VibeRunOp): void;      // Actions : une course par l'id de son action (arrêter, garder, annuler, autoriser…)
 };
 
 export type StepProps = {
@@ -38,6 +41,8 @@ export type StepProps = {
   onAnswer(question: string, a: Answer): void;
   verdict: NonNullable<VibeArgs['verdict']>;   // Relire : le verdict choisi pour la revue (vibe-coder le tient)
   onVerdict(v: NonNullable<VibeArgs['verdict']>): void;
+  text: string;                                // le champ de l'étape (vibe-coder le tient, par étape, tant que l'écran vit)
+  setText(text: string): void;
 };
 
 // PR et Revue : une vue pour Créer, une autre pour Relire.
