@@ -357,16 +357,18 @@ conversation reste utilisable.
   cours ; gris : à venir), chacune avec ses faits en une ligne, puis les
   commits de la branche ;
 - au centre, l'étape choisie (onglets, ou Ctrl+1…6) — la note du ticket, ce
-  que les skills ont produit —, ses actions sous son titre (celle qui fait
-  avancer l'étape en cours en tête, discrètement mise en avant) ; chaque
-  carte produite par un skill a son *Relancer* ;
-- à droite, trois onglets : la **conversation** de l'agent, comme d'habitude
+  que les skills ont produit —, sous son titre son **champ** (quand une de
+  ses actions prend un texte) et ses actions (celle qui fait avancer l'étape
+  en cours en tête, discrètement mise en avant) ; chaque carte produite par
+  un skill a son *Relancer* ;
+- à droite, quatre onglets : la **conversation** de l'agent, comme d'habitude
   (fil, autorisations, champ, dictée, commandes « / » ; au-dessus du champ,
-  *Demander sans modifier* : il répond sans rien toucher), ses **Tâches**
-  de fond et les **Processus** du projet (le nombre en cours dans l'onglet) ;
+  *Demander sans modifier* : il répond sans rien toucher), les **Actions**
+  lancées, ses **Tâches** de fond et les **Processus** du projet (le nombre
+  en cours dans l'onglet) ;
 - en bas : modèle, effort et mode de l'agent (comme dans son menu), jauge du
-  contexte, *⚙ Tâches* (l'onglet), *⏹ Arrêter* quand il travaille, fichiers
-  modifiés, heure du dernier relevé.
+  contexte, *⚙ Tâches* (l'onglet), *⏹ Arrêter* quand la conversation
+  travaille, fichiers modifiés, heure du dernier relevé.
 
 L'écran se lit sur le dépôt, sans modèle : la branche, ses commits et ses
 fichiers changés, la note du ticket (trouvée parmi ces fichiers d'après le
@@ -375,15 +377,37 @@ branche), ses tests
 d'invariants, ce que les skills ont écrit. Il suit tout seul (toutes les 4 s,
 et pendant que l'agent travaille).
 
-**Tout passe par la conversation.** Un bouton envoie à l'agent un message,
-comme si vous l'aviez tapé (`/vibecoder:note fr … votre demande`) : revenu en
-conversation, chaque action est dans le fil. Un bouton qui a besoin d'un
-texte — la demande de feature, du pseudo-code, une question — prend celui du
-**champ** : dictez, puis cliquez ; le champ se vide une fois le message
-parti. 💬 sur un passage (de la note, d'une relecture) le cite dans le champ,
-à compléter puis envoyer. Pendant que l'agent travaille, les boutons
-attendent ; *⏹ Arrêter* l'interrompt (comme *Interrompre* de son menu) ; un
-bouton grisé dit pourquoi.
+**Les actions tournent à côté de la conversation.** Un bouton d'étape
+(*Rédiger la note*, *Écrire les invariants (rouges)*, *Ponytail review*…)
+lance l'action dans **sa propre conversation**, avec son skill et son
+modèle, comme si vous aviez tapé `/vibecoder:note fr … votre demande` : la
+conversation de l'agent reste libre, vous lui parlez pendant ce temps. Un
+bouton qui a besoin d'un texte — la demande de feature, du pseudo-code —
+prend celui du **champ de son étape** : dictez-y (ou écrivez), puis
+cliquez ; le champ se vide une fois l'action partie. Le champ de la
+conversation ne sert plus qu'à elle (et à *Demander sans modifier*, *Où
+j'en suis ?*) ; 💬 sur un passage (de la note, d'une relecture) l'y cite, à
+compléter puis envoyer.
+
+L'onglet **Actions** suit chaque action lancée : qui travaille, son état,
+depuis quand, sa réponse ; ses demandes d'autorisation (*Autoriser*,
+*Toujours*, *Refuser*). ⏹ (là, ou à côté du bouton) l'arrête à tout moment ;
+vous choisissez ensuite **Garder** ce qu'elle a déjà écrit, ou **Annuler** :
+les fichiers qu'elle a écrits — et eux seuls, pas les vôtres ni ceux d'une
+autre action — reviennent à leur état d'avant (ce qu'elle a changé par une
+commande, `git` ou un script, reste). Deux actions qui modifient la branche
+ne tournent jamais ensemble, ni une relecture pendant une modification ; les
+relectures et vérifications, elles, tournent ensemble. Un bouton qui doit
+attendre est grisé et dit pourquoi ; une action arrêtée retient les autres
+tant que vous n'avez pas choisi. *⏹ Arrêter* de la barre d'état n'arrête
+que le tour de la conversation.
+
+La conversation est l'**orchestrateur** : elle est prévenue de la fin de
+chaque action (une ligne dans le fil, pas pour une action que vous avez
+arrêtée) ; demandez-lui « où en sont les actions ? », ou de lancer ou
+d'arrêter l'une d'elles. Une action qu'elle lance et qui doit attendre part
+d'elle-même dès que la voie est libre. En *Guide*, elle ne lance rien que
+vous ne lui demandiez.
 
 **Ouvrir dans l'éditeur.** *Ouvrir* sur la note, un module, un test (à la
 ligne du cas : zed, VS Code, Cursor, VSCodium), un fichier d'un commit. En
@@ -394,14 +418,15 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
 
 **Créer** — les étapes du guide :
 
-1. **Note** : *Rédiger la note* d'après la demande du champ (sur la branche
+1. **Note** : *Rédiger la note* d'après la demande du champ de l'étape (sur la branche
    principale, l'agent crée d'abord la branche du ticket) ; ses questions
    ouvertes s'affichent à part, avec des réponses proposées : *Envoyer les
-   réponses* ; puis ✓ pour valider la note.
+   réponses* (à l'action qui a rédigé la note : elle garde son contexte) ;
+   puis ✓ pour valider la note.
 2. **Forme** : *Poser la forme* (les modules et leurs contrats, dans la note,
    sans code) ; ✓.
 3. **Invariants** : *Écrire les invariants (rouges)*, d'après la note ou
-   d'après le pseudo-code écrit dans le champ ; puis *Lire en pseudo-code* :
+   d'après le pseudo-code écrit dans le champ de l'étape ; puis *Lire en pseudo-code* :
    chaque cas de test traduit en étapes simples (`test "…":`, `given`,
    `when`, `then` — une ligne `then` par assertion), quel que soit le
    langage du test, avec ses cas limites, ce qu'il garantit, et un
@@ -491,10 +516,13 @@ les mêmes journaux et peut demander l'arrêt ou la relance d'une commande (il
 **Guide ou Vibe.** *Guide* (par défaut) : vous validez la note, la forme et
 chaque invariant ; l'étape en cours attend vos ✓. *Vibe* : vous donnez la
 main à l'agent, vous testez et approuvez à la fin. Plus rien n'attend vos ✓,
-et *Tout dérouler* envoie la demande du champ : l'agent tient le rôle du
-développeur du guide jusqu'à la PR et la release candidate (modules confiés à
-des agents Opus en parallèle), ne s'arrête que sur une question qui bloque,
-et le parcours se remplit sous vos yeux. Il ne fusionne pas la PR et ne
+et *Tout dérouler* envoie la demande de son champ (dans le bandeau *Vibe*) :
+l'agent tient le rôle du développeur du guide jusqu'à la PR et la release
+candidate en **enchaînant lui-même les actions de l'écran** — les mêmes que
+vous lanceriez, visibles et arrêtables dans l'onglet *Actions* (modules
+confiés à des agents Opus en parallèle) —, ne s'arrête que sur une question
+qui bloque, ne choisit jamais *Garder* / *Annuler* à votre place, et le
+parcours se remplit sous vos yeux. Il ne fusionne pas la PR et ne
 publie pas de version officielle.
 
 **Qui travaille, ce que ça coûte.** Chaque bouton dit qui travaille :
@@ -506,10 +534,11 @@ Sonnet prépare un commit, ouvre la PR, replie les fixups, diagnostique la CI,
 écrit le plan de test, lit les invariants en pseudo-code (une lecture n'est
 refaite que si le test change). Opus, effort élevé, écrit les invariants,
 génère un module, relit un diff, une note ou des commits, vérifie
-l'alignement, fait la ponytail review. Restent dans la conversation, sur le
-modèle de l'agent : la note, la forme, les réponses aux questions,
-*Appliquer la revue*, *Générer les modules restants*, *Tout dérouler*, les
-releases — ces trois derniers, longs et coûteux. Pour une étape qui tourne à
+l'alignement, fait la ponytail review. Sur le modèle de l'agent, chacune
+dans sa conversation : la note, la forme, les réponses aux questions,
+*Appliquer la revue*, *Générer les modules restants*, les releases ; dans
+la conversation : *Tout dérouler* — ce dernier, *Générer les modules
+restants* et les releases, longs et coûteux. Pour une étape qui tourne à
 part, vous pouvez choisir un modèle plus léger (ou plus fort) que le conseillé,
 le temps d'un clic : VibeCoder génère pour cela une variante de chaque skill
 (`<nom>--haiku`, `--sonnet`, `--opus`). VibeCoder ne passe jamais un
@@ -549,7 +578,10 @@ commit et de PR suivent la convention du projet). Pour tous les agents. La conve
 champ) reste en français.
 
 **Limites.** La note n'est trouvée que si le nom de la branche porte le
-ticket ou la version, et que la branche la change (ou la crée). Non essayé
+ticket ou la version, et que la branche la change (ou la crée). Les actions
+lancées ne survivent pas à un redémarrage de l'appli ; *Annuler* une action
+suppose que Claude Code reçoive le suivi des fichiers à travers sa commande
+de lancement (une box : la variable d'environnement doit passer). Non essayé
 sous Windows.
 
 ### Son des autres applications

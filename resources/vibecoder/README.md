@@ -31,7 +31,7 @@ Un tableau, dans l'ordre d'affichage. Chaque bouton :
 | `flow` | `create` (*Créer*), `review` (*Relire*) ou `both` |
 | `step` | l'étape où il apparaît : `note`, `forme`, `invariants`, `modules`, `revue`, `pr`, `commits`, `ecran` ; `null` : partout |
 | `kind` | `send` : envoyé aussitôt à l'agent ; `prefill` : préparé dans le champ, à compléter puis envoyer |
-| `needs` | `text` : il exige le texte du champ (vide : le bouton le demande) ; sinon `none` |
+| `needs` | `text` : il exige le texte de son champ — celui de son étape, ou celui de la conversation sans étape (vide : le bouton le demande) ; sinon `none` |
 | `reads` | `true` : l'action ne fait que lire (relectures, vérifications…) ; absent : elle modifie la branche (le cas sûr pour un bouton ajouté) |
 | `label` | le libellé : court, un verbe |
 | `hint` | l'aide : une phrase, ce que ça fait et ce que ça coûte si c'est notable |
@@ -60,7 +60,8 @@ actions par des fichiers de `{{out}}` :
 L'appli supprime une demande une fois appliquée ; un lancement qui doit
 attendre reste en place, en attente (`waiting`), et part de lui-même dès que la
 voie est libre. À la fin de chaque action, la conversation reçoit une ligne
-« VibeCoder : « <libellé> » … État : `{{out}}`/actions.json ».
+« VibeCoder : « <libellé> » … État : `{{out}}`/actions.json » (pas pour une
+action arrêtée).
 
 **Ce qui se personnalise : `label`, `hint` et `text`** (le libellé, l'aide, le
 message). Les `id` livrés sont un contrat : l'écran et le parcours s'appuient
@@ -87,7 +88,7 @@ l'action.
 
 | Variable | Valeur |
 |---|---|
-| `{{text}}` | le texte du champ ; requis quand `needs` vaut `text`, sinon il peut être vide ; 20 000 caractères au plus |
+| `{{text}}` | le texte du champ de l'étape (sans étape : celui de la conversation) ; requis quand `needs` vaut `text`, sinon il peut être vide ; 20 000 caractères au plus |
 | `{{out}}` | le dossier de sorties de l'agent : `userData/vibecoder-out/<agent>` |
 | `{{lang}}` | `fr` ou `en` |
 | `{{branch}}`, `{{base}}` | la branche et sa base (il faut un dépôt git) |
@@ -189,6 +190,10 @@ note, les releases.
 
 Si vous modifiez ce qu'un skill écrit dans `{{out}}`, gardez le nom et le
 format du fichier : VibeCoder ne lit ses sorties que sous ces noms.
+
+« conversation » : sans sous-contexte, là où le bouton l'envoie — la
+conversation propre à l'action pour un bouton d'étape, celle de l'agent
+sinon.
 
 | Skill | Où | Modèle · effort | Écrit dans `{{out}}` |
 |---|---|---|---|
