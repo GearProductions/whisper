@@ -1,10 +1,12 @@
 /** i18n — les libellés de l'écran VibeCoder, en français et en anglais
  *  (vibeLang) : en-tête, parcours et ses commits, étapes, Relancer, Arrêter,
- *  onglets Conversation / Tâches, choix du modèle, zone de commentaire, barre d'état, titres des
- *  sorties. Ceux des boutons viennent des actions
- *  (actions.<langue>.json).
+ *  onglets Conversation / Actions / Tâches / Processus, le champ d'une étape,
+ *  l'onglet Actions (états d'une course, Garder / Annuler, Autoriser /
+ *  Toujours / Refuser), choix du modèle, zone de commentaire, barre d'état,
+ *  titres des sorties ; une durée en clair. Ceux des boutons viennent des
+ *  actions (actions.<langue>.json).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
-import type { VibeAutonomy, VibeFlow, VibeLang, VibeStepId } from 'technicals/bridge';
+import type { VibeAutonomy, VibeFlow, VibeLang, VibeRun, VibeStepId } from 'technicals/bridge';
 
 type Choices = [string, string][]; // [valeur, libellé]
 
@@ -79,6 +81,25 @@ const fr = {
   tasksTitle: 'Les tâches de fond de l\'agent',
   procsOf: (running: number) => (running ? `Processus (${running})` : 'Processus'),
   procsTitle: 'Les commandes qui lancent le projet (serveur, front, services) : lancées par l\'appli, arrêtées à sa sortie',
+  runsOf: (live: number) => (live ? `Actions (${live})` : 'Actions'),
+  runsTitle: 'Les actions lancées, chacune dans sa propre conversation, à côté de celle-ci',
+  noRuns: 'Aucune action lancée.',
+  runState: {
+    running: 'en cours', asking: 'attend une autorisation', stopped: 'arrêtée — à garder ou annuler', done: 'finie',
+    failed: 'en échec', kept: 'gardée', undone: 'annulée',
+  } as Record<VibeRun['state'], string>,
+  runFor: (d: string) => `depuis ${d}`,
+  runStop: '⏹ Arrêter',
+  runStopTitle: 'Arrêter cette action (on choisit ensuite de garder ou d\'annuler ce qu\'elle a écrit)',
+  runReply: 'Sa réponse',
+  runAsks: 'Demande',
+  allow: 'Autoriser', allowTitle: 'Autoriser cette fois',
+  always: 'Toujours', alwaysTitle: 'Autoriser, et ne plus demander pour cet outil',
+  deny: 'Refuser', denyTitle: 'Refuser : l\'action continue sans',
+  keep: 'Garder', keepTitle: 'Garder ce que l\'action a déjà écrit',
+  undo: 'Annuler', undoTitle: 'Remettre les fichiers qu\'elle a écrits dans leur état d\'avant (et eux seuls)',
+  fieldHint: 'Dictez ou écrivez ici la demande, puis cliquez sur l\'action : elle part avec.',
+  vibeFieldHint: 'La demande pour « Tout dérouler » : dictez-la ou écrivez-la ici, puis cliquez.',
   changed: (n: number) => (n > 1 ? `${n} fichiers modifiés` : `${n} fichier modifié`),
   at: (time: string) => `relevé à ${time}`,
 };
@@ -156,6 +177,25 @@ const en: Strings = {
   tasksTitle: 'The agent\'s background tasks',
   procsOf: (running) => (running ? `Processes (${running})` : 'Processes'),
   procsTitle: 'The commands that start the project (server, front, services): started by the app, stopped when it quits',
+  runsOf: (live) => (live ? `Actions (${live})` : 'Actions'),
+  runsTitle: 'The started actions, each in its own conversation, beside this one',
+  noRuns: 'No action started.',
+  runState: {
+    running: 'running', asking: 'awaiting a permission', stopped: 'stopped — keep or undo', done: 'done',
+    failed: 'failed', kept: 'kept', undone: 'undone',
+  },
+  runFor: (d) => `for ${d}`,
+  runStop: '⏹ Stop',
+  runStopTitle: 'Stop this action (then choose to keep or undo what it wrote)',
+  runReply: 'Its reply',
+  runAsks: 'Asks',
+  allow: 'Allow', allowTitle: 'Allow this time',
+  always: 'Always', alwaysTitle: 'Allow, and stop asking for this tool',
+  deny: 'Deny', denyTitle: 'Deny: the action goes on without',
+  keep: 'Keep', keepTitle: 'Keep what the action already wrote',
+  undo: 'Undo', undoTitle: 'Put the files it wrote back as they were (and only those)',
+  fieldHint: 'Dictate or type the request here, then click the action: it goes with it.',
+  vibeFieldHint: 'The request for « Run it all »: dictate or type it here, then click.',
   changed: (n) => `${n} file${n === 1 ? '' : 's'} changed`,
   at: (time) => `read at ${time}`,
 };
@@ -163,3 +203,9 @@ const en: Strings = {
 const STRINGS: Record<VibeLang, Strings> = { fr, en };
 
 export function t(lang: VibeLang): Strings { return STRINGS[lang] || fr; }
+
+// Une durée en clair, la même dans les deux langues : 12 s, 3 min, 2 h 05.
+export function duration(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return s < 60 ? `${s} s` : s < 3600 ? `${Math.floor(s / 60)} min` : `${Math.floor(s / 3600)} h ${String(Math.floor(s / 60) % 60).padStart(2, '0')}`;
+}
