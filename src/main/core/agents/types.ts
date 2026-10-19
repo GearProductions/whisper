@@ -31,6 +31,7 @@ export type SdkQuery = AsyncIterable<SdkMessage> & {
   setModel(model?: string): Promise<unknown>;
   supportedCommands?(): Promise<unknown>;
   getContextUsage?(o: { detail: string }): Promise<SdkMessage | null>;
+  rewindFiles?(userMessageId: string, o?: { dryRun?: boolean }): Promise<SdkMessage>;   // enableFileCheckpointing (rewind)
 };
 
 export type Sdk = {
@@ -57,4 +58,5 @@ export type TurnHooks = {
   onSession(sessionId: string): void;
   onPermission(p: { tool: string; input: unknown }): void;
   onProgress?(): void;
+  checkpoint?: boolean; // une action qui court à part : ses fichiers suivis, pour l'annuler (rewind)
 };

@@ -4,10 +4,14 @@
  *  à chaque conversation envoyée (refreshConversation), toutes les 4 s tant
  *  que le panneau est visible, aussitôt après une action, une validation, un
  *  réglage — au plus un par seconde ; null, une fois, quand l'agent affiché
- *  n'est plus en VibeCoder. Et ce que l'écran demande : une action (un message
- *  à l'agent affiché, comme s'il était tapé, par sendToAgent : refusé s'il
- *  travaille, I-25 ; ou, pour commit, publish, load-pr et base, au clic de
- *  « direct » : leurs commandes, lancées par l'appli, F-114), un réglage (dont arrêter l'agent, comme Interrompre de son
+ *  n'est plus en VibeCoder. Et ce que l'écran demande : une action (celle d'une
+ *  étape court à part, ownRun → startRun de controllers/runs, sous sa propre
+ *  entrée du runtime, si aucune course en cours ne la retient ; une action sans
+ *  étape est un message à l'agent affiché, comme s'il était tapé, par
+ *  sendToAgent : refusé s'il travaille, I-25 ; ou, pour commit, publish, load-pr
+ *  et base, au clic de « direct » : leurs commandes, lancées par l'appli,
+ *  F-114), une course (vibeRunOp : l'arrêter, la garder ou l'annuler, répondre
+ *  à sa demande d'autorisation), un réglage (dont arrêter l'agent, comme Interrompre de son
  *  menu), une validation, le brouillon de revue, ouvrir un fichier ou un commit
  *  du relevé (dans l'éditeur, à une ligne ; la page d'un commit dans le
  *  navigateur, d'après l'origine GitHub du dépôt, I-32).
@@ -377,6 +381,12 @@ export function runVibeAction(id: unknown, args: unknown): SendResult {
   if (sent.ok && def.id === 'open-worktree' && view.pr) wantWorktree(agent.id, view.pr.number);
   if (sent.ok) refreshVibe({ now: true });
   return sent;
+}
+
+// Une course de l'écran (l'id de son action dans le dernier relevé) : l'arrêter,
+// la garder ou l'annuler, répondre à sa demande d'autorisation.
+export function vibeRunOp(_id: unknown, _op: unknown): SendResult {
+  throw new Error('not implemented');
 }
 
 // Une action directe (F-114) : l'appli lance elle-même sa liste fermée de

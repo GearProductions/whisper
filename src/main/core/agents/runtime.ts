@@ -17,7 +17,8 @@
  *  Le mode et le modèle changés s'appliquent aussitôt au processus, tour en
  *  cours ou non (setMode, setModel). Interrompre = demander à Claude Code
  *  d'arrêter son tour ; fermer = fermer son entrée ; on ne tue qu'en dernier
- *  recours (I-19).
+ *  recours (I-19). Annuler une action qui court à part (rewind) : rewindFiles
+ *  du SDK au premier message envoyé à son processus en cours.
  *  Ses tâches de fond sont tenues à jour d'après chaque message du flux (tasks).
  *  Ne connaît pas : Electron, les fenêtres ; SDK, lancement et journal injectés.
  *  Utilisé par : app/controllers (agents, conversation), app/lifecycle. */
@@ -369,6 +370,12 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     }
   }
 
+  // Les fichiers que les outils d'édition de l'entrée ont écrits, ramenés à leur état
+  // d'avant le premier message envoyé à son processus en cours.
+  async function rewind(_id: string): Promise<{ ok: boolean; files: number; error?: string }> {
+    throw new Error('not implemented');
+  }
+
   return {
     isAvailable: (command: unknown) => !!launcher(command),
     state,
@@ -392,6 +399,7 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     interrupt,
     stop,
     probe,
+    rewind,
   };
 }
 
