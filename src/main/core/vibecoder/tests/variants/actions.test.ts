@@ -162,7 +162,7 @@ describe('buildMessage : ce qui manque refuse l\'action', () => {
 
 // Une entrée d'actions.<langue>.json valide, à retoucher.
 const entry = (over: Record<string, unknown> = {}) => (
-  { id: 'note', flow: 'create', step: 'note', kind: 'send', needs: 'text', label: 'Rédiger la note', hint: 'h', text: '/vibecoder:note {{text}}', ...over });
+  { id: 'note', flow: 'create', step: 'note', kind: 'send', needs: 'text', label: 'Rédiger la note', hint: 'h', text: '/vibecoder:note {{text}}', reads: false, ...over });
 
 describe('parseActions : seulement les entrées valides', () => {
   it('une entrée valide est gardée telle quelle', () => {
@@ -222,6 +222,12 @@ describe('parseActions : seulement les entrées valides', () => {
     expect(parseActions([entry({ model: 'fable' })])[0]).not.toHaveProperty('model');
   });
 
+  it('"reads": true : elle lit seulement ; absent ou autre chose que true : elle modifie la branche', () => {
+    const { reads: _r, ...bare } = entry();
+    expect([entry({ reads: true }), bare, entry({ id: 'x', reads: 'yes' })].flatMap((e) => parseActions([e])).map((a) => a.reads))
+      .toEqual([true, false, false]);
+  });
+
   it('les entrées valides gardent leur ordre', () => {
     expect(parseActions([entry({ id: 'b' }), entry({ id: 'x', step: '?' }), entry({ id: 'a' })]).map((a) => a.id)).toEqual(['b', 'a']);
   });
@@ -237,6 +243,14 @@ describe('parseActions sur les actions livrées', () => {
 
   it('actions.en.json : toutes valides', () => {
     expect(parseActions(shipped('en'))).toHaveLength(shipped('en').length);
+  });
+
+  it('les lectures lisent, les autres modifient la branche', () => {
+    const reads = (lang: string) => Object.fromEntries(parseActions(shipped(lang)).map((a) => [a.id, a.reads]));
+    for (const lang of ['fr', 'en']) {
+      expect([reads(lang).ponytail, reads(lang)['read-invariants'], reads(lang).forme, reads(lang).invariants])
+        .toEqual([true, true, false, false]);
+    }
   });
 
   it('Appliquer la revue : une remarque citée (Appliquer) ou aucune (Tout appliquer)', () => {
@@ -306,7 +320,7 @@ describe('forkedModel : un skill en sous-contexte, dont on peut changer le modè
 describe('buildMessage : un autre modèle que le conseillé', () => {
   const shown = (models: string[], model: string | null) => ({
     id: 'essai', step: null, label: 'Essai', hint: '', who: 'opus', models, model, kind: 'send' as const, needs: 'none' as const,
-    usesText: false, primary: false, disabled: null,
+    usesText: false, primary: false, disabled: null, running: false,
   });
   const withAction = (models = SKILL_MODELS, model: string | null = 'opus') => ({ ...ctx, view: { ...view, actions: [shown(models, model)] } });
   const RELIRE = '/vibecoder:relire {{lang}} {{out}} {{commit}}';

@@ -8,9 +8,11 @@
  *  module, une PR ne sont pris que dans le dernier relevé, et aucune autre
  *  valeur n'a de caractère de contrôle ; une variable inconnue fait refuser
  *  l'action (l'agent lance des commandes avec ces valeurs, I-38). Et les
- *  actions que l'appli fait aussi elle-même (DIRECT_ACTIONS, F-114).
+ *  actions que l'appli fait aussi elle-même (DIRECT_ACTIONS, F-114). Si une
+ *  action lit seulement (reads) ou modifie la branche : la règle des courses
+ *  (runs, blockedBy).
  *  Ne connaît pas : Electron, le disque, l'agent (le message est rendu, pas envoyé).
- *  Utilisé par : core/vibecoder (journey, defaults), app/controllers/vibecoder, app/settings. */
+ *  Utilisé par : core/vibecoder (journey, runs, defaults), app/controllers/vibecoder, app/settings. */
 import type { VibeAction, VibeArgs, VibeLang, VibeStepId, VibeView } from 'shared/bridge';
 
 export type ActionDef = {
@@ -22,6 +24,9 @@ export type ActionDef = {
   label: string;
   hint: string;
   text: string;                // le gabarit
+  // Elle lit seulement ("reads": true) ; sinon elle modifie la branche (runs : blockedBy). Toujours posé
+  // par parseActions ; facultatif pour les actions écrites à la main (tests) : absent, elle modifie.
+  reads?: boolean;
 };
 
 export type MessageContext = { view: VibeView; out: string; lang: VibeLang };
@@ -52,13 +57,14 @@ export const templateVars = (text: string) => [...text.matchAll(VAR)].map((m) =>
 // Les entrées valides, dans leur ordre ; les autres sont ignorées : un champ
 // manquant ou d'un autre type, une étape inconnue, un id déjà vu, un gabarit
 // 'prefill' qui a une autre variable que {{quote}}. hint, needs et step
-// peuvent manquer ('', 'none', null).
+// peuvent manquer ('', 'none', null) ; reads n'est vrai que pour `"reads": true`
+// (absent ou autre : elle modifie la branche, le cas sûr pour une action ajoutée).
 export function parseActions(json: unknown): ActionDef[] {
   if (!Array.isArray(json)) return [];
   const ids = new Set<string>();
   return json.flatMap((raw): ActionDef[] => {
     if (!raw || typeof raw !== 'object') return [];
-    const { id, flow, step = null, kind, needs = 'none', label, hint = '', text } = raw as Record<string, unknown>;
+    const { id, flow, step = null, kind, needs = 'none', label, hint = '', text, reads } = raw as Record<string, unknown>;
     const valid = typeof id === 'string' && id !== '' && !ids.has(id)
       && (flow === 'create' || flow === 'review' || flow === 'both')
       && (step === null || STEPS.includes(step as string))
@@ -68,7 +74,7 @@ export function parseActions(json: unknown): ActionDef[] {
       && (kind === 'send' || templateVars(text).every((v) => v === 'quote'));
     if (!valid) return [];
     ids.add(id);
-    return [{ id, flow, step: step as VibeStepId | null, kind, needs: needs as ActionDef['needs'], label, hint, text }];
+    return [{ id, flow, step: step as VibeStepId | null, kind, needs: needs as ActionDef['needs'], label, hint, text, reads: reads === true }];
   });
 }
 
