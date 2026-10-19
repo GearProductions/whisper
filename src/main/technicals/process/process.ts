@@ -64,9 +64,12 @@ export function createProcesses({ killAfter = 5000, logMax = 5 * 1024 * 1024 } =
     let size = 0;
     const write = (text: string | Buffer) => {
       if (fd === null) return;
-      const data = typeof text === 'string' ? Buffer.from(text) : text;
-      // Plein : le journal passe en .old AVANT d'écrire, pour que les dernières lignes restent à l'écran.
-      if (size > 0 && size + data.length > logMax) {
+      let data = typeof text === 'string' ? Buffer.from(text) : text;
+      // Plein : le journal passe en .old AVANT d'écrire la suite, pour que les
+      // dernières lignes restent à l'écran ; un morceau plus gros que la limite
+      // y laisse son début, le journal n'en garde que la fin.
+      if (size + data.length > logMax && (size > 0 || data.length > logMax)) {
+        if (data.length > logMax) { fs.writeSync(fd, data.subarray(0, data.length - logMax)); data = data.subarray(data.length - logMax); }
         fs.closeSync(fd);
         fs.renameSync(log, `${log}.old`);
         fd = fs.openSync(log, 'w');

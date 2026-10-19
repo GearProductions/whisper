@@ -74,10 +74,22 @@ describe.skipIf(process.platform === 'win32')('une commande lancée', () => {
     const log = readTail(path.join(dir, 'run', 'x.log'), 10000);
     expect(log.length).toBeLessThanOrEqual(1000);
     expect(log).toMatch(/ligne 300\n$/);
-    // l'ancien journal, plein mais pas au-delà de la taille maximale
+    // l'ancien journal garde le début
     expect(fs.statSync(path.join(dir, 'run', 'x.log.old')).size).toBeGreaterThan(0);
-    expect(fs.statSync(path.join(dir, 'run', 'x.log.old')).size).toBeLessThanOrEqual(1000);
   });
+});
+
+it('un seul morceau plus gros que la limite : le journal en garde la fin', async () => {
+  const dir = fresh();
+  const procs = createProcesses({ logMax: 100 });
+  procs.start('a', sh(dir, 'printf "%0300d" 0; echo FIN'));
+  await until(() => procs.state('a')?.status !== 'running');
+  await new Promise((r) => setTimeout(r, 100));
+  const log = readTail(path.join(dir, 'run', 'x.log'), 10000);
+  // le journal reste dans la limite
+  expect(log.length).toBeLessThanOrEqual(100);
+  // et finit par la dernière sortie
+  expect(log).toMatch(/FIN\n$/);
 });
 
 it('la fin d’un fichier : ses derniers octets ; absent : rien', () => {
