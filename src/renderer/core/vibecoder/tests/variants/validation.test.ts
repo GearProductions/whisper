@@ -11,7 +11,7 @@ const tests = (marks: VibeTestFile['marks'], read = true): VibeTestFile[] => [{
 }];
 const view = (current: VibeStepId, over: Partial<VibeView> = {}): VibeView => ({
   agentId: 'a1', lang: 'fr', flow: 'create', autonomy: 'guide', agent: { model: '', effort: '', mode: '' }, repo: null, error: null,
-  steps: ['note', 'forme', 'invariants'].map((id) => ({ id: id as VibeStepId, status: id === current ? 'current' : 'todo', facts: '' })),
+  steps: ['note', 'forme', 'invariants'].map((id) => ({ id: id as VibeStepId, status: id === current ? 'current' : 'todo', facts: '', open: true })),
   note: note(), questions: [], modules: [{ path: 'a.ts', contract: '', file: null, touched: false, commits: [] }], invariants: [], variants: [],
   commits: [], outputs: {}, checklist: [], actions: [], skills: [], pr: null, prs: null, draft: [], time: 0, ...over,
 });

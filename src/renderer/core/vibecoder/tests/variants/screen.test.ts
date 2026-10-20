@@ -4,7 +4,7 @@ import type { VibeAction } from 'technicals/bridge';
 
 const action = (over: Partial<VibeAction> = {}): VibeAction => ({
   id: 'read-invariants', step: 'invariants', label: 'Lire en pseudo-code', hint: '', who: 'sonnet · moyen',
-  models: ['haiku', 'sonnet', 'opus'], model: 'sonnet', kind: 'send', needs: 'none', usesText: false, primary: false, disabled: null,
+  models: ['haiku', 'sonnet', 'opus'], model: 'sonnet', kind: 'send', needs: 'none', usesText: false, primary: false, disabled: null, hidden: false,
   ...over,
 });
 
