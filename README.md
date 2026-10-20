@@ -435,16 +435,20 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    l'alignement*, d'après la note ou d'après le pseudo-code écrit dans le
    champ de l'étape — dans la même action, l'agent vérifie que note, forme
    et tests concordent, retouche les tests s'il y a des écarts (3 tours au
-   plus) et dit ce qui reste (la carte de l'alignement) ; puis *Lire en pseudo-code* :
+   plus) et dit ce qui reste (la carte de l'alignement) ; puis ✓ ou ✗ par cas
+   (✗ le cite dans le champ, pour dire quoi changer), *✓ Tout valider* pour
+   un fichier. *Lire en pseudo-code* aide à lire, sans être obligatoire :
    chaque cas de test traduit en étapes simples (`test "…":`, `given`,
    `when`, `then` — une ligne `then` par assertion), quel que soit le
    langage du test, avec ses cas limites, ce qu'il garantit, et un
-   point d'attention s'il n'observe pas vraiment la propriété ; ✓ ou ✗ par cas
-   (✗ le cite dans le champ, pour dire quoi changer) ; *Code* montre le code
+   point d'attention s'il n'observe pas vraiment la propriété ; *Code* montre le code
    d'origine du cas à la place du pseudo-code, *Voir le fichier* le fichier
    entier, colorés comme sur GitHub (TypeScript / JavaScript, Rust, Python,
    Go ; un autre langage : sans couleurs) ; *Relire* un fichier
    (ou *Tout relire*) refait sa lecture ; *Préparer le commit* puis *✓ Commiter*.
+   Une note sans ligne « → invariant » passe l'étape tout de suite (pas de
+   test à écrire, *Écrire les invariants* n'est pas proposée) : la note et la
+   forme se commitent à l'étape Modules.
 4. **Modules** : *Générer ce module* (avec `ponytail`, tests lancés, sans
    commit), *Relire le diff*, *✓ Valider → commit → suivant* ; ou *Générer
    les modules restants* (en parallèle, chacun relu et commité à part).

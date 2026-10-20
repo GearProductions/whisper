@@ -795,7 +795,9 @@ fait que masquer (une demande juste après *Valider la feature* ne tombe pas
 sur un relevé en retard) : sans PR, *Valider la feature (ouvrir la PR)*
 seule ; ouverte (ou son état pas encore connu), *Diagnostiquer la CI* et
 *Release candidate* ; fusionnée, *PR mergée → revenir sur la base* et
-*Release officielle* ; fermée, aucune.
+*Release officielle* ; fermée, aucune. De même, *Écrire les invariants*
+d'une note sans ligne « → invariant » est masquée sans être grisée, et
+revient quand la note en gagne une.
 Une action dont le skill tourne en sous-contexte (`context: fork`) sur
 *haiku*, *sonnet* ou *opus* propose aussi les deux autres (`models`, le
 conseillé : `model`) : on peut prendre plus léger (ou plus fort) pour cette
@@ -890,8 +892,12 @@ conversation ; note `0.9.0-actions-independantes.md`).
    (touché par la branche, existe, à créer), commits ; 💬, *Ouvrir*. *Poser
    la forme* (dans la note, sans code ; le champ de l'étape peut la préciser), puis
    *✓ Valider la forme*.
-3. **Invariants** — faite : aucune ligne « → invariant », ou des tests
-   d'invariants dont chaque fichier est lu et chaque cas validé. Montre le
+3. **Invariants** — faite : aucune ligne « → invariant » dans la note (ni
+   test ni commit attendus : la note et la forme se commitent à l'étape
+   Modules ; *Écrire les invariants* masquée, elle revient quand la note
+   gagne une ligne « → invariant »), ou des tests d'invariants dont chaque
+   cas est validé, lu ou pas, note et tests commités. *Lire en pseudo-code*
+   n'est qu'une aide à la lecture, facultative. Montre le
    résumé (cas, validés, refusés, modifiés depuis, avec un point d'attention,
    à lire), l'alignement (`align.md`, sans *Relancer*, F-93), puis chaque fichier : sa progression,
    *Ouvrir*, *Relire* (lu : refaire sa lecture) ; lu, une carte par cas —
@@ -903,17 +909,19 @@ conversation ; note `0.9.0-actions-independantes.md`).
    ✗ (cite le cas dans le champ), 💬, *Ouvrir*, et *Pseudo-code / Code* : le
    code d'origine du cas à la place du pseudo-code (de sa ligne à celle du cas
    suivant, monospace, numéroté, coloré : F-113) ; *✓ Tout valider* quand
-   chaque cas est lu sans point d'attention ; *Voir le fichier* (replié : tout
-   son code, numéroté) ; pas lu (ou changé depuis) : ses cas, chacun se
-   dépliant sur son code, et *Lire en pseudo-code*. Le relevé porte le texte
+   aucun cas n'a de point d'attention, le fichier lu ou pas ; *Voir le
+   fichier* (replié : tout son code, numéroté) ; pas lu (ou changé depuis) :
+   ses cartes sans lecture, avec ✓ et ✗, et *Lire en pseudo-code*. Le relevé porte le texte
    du test, vide au-delà de 200 000 caractères (rien de tout cela n'est
    alors montré). En tête : *Tout relire* (dès qu'un fichier
    est lu). Prochaine action : *Écrire les invariants
    (rouges), puis vérifier l'alignement* (d'après la note, ou le pseudo-code
-   du champ de l'étape ; l'alignement dans la même course, F-93), *Lire en
+   du champ de l'étape ; l'alignement dans la même course, F-93) tant qu'il
+   n'y a pas de test, puis les cas à valider (dans la vue), *✓ Commiter* (un
+   commit préparé), *Préparer le commit* (des fichiers à commiter). *Lire en
    pseudo-code* (les fichiers pas encore lus : une lecture est nommée par
-   l'empreinte du fichier ; relire la remplace), *✓ Commiter* (un commit préparé), *Préparer le
-   commit* (des fichiers à commiter).
+   l'empreinte du fichier ; relire la remplace) n'est mise en avant qu'en
+   *Vibe* ; en *Guide*, elle reste dans la rangée de l'étape.
 4. **Modules** — faite : chaque module de la Forme touché par un commit de la
    branche. Montre en tête le commit proposé (`commit.md` : le message tel
    qu'il sera commité, *✓ Commiter*, direct ou *via* l'agent, F-114 ; 💬) et la relecture du dernier diff
@@ -984,8 +992,8 @@ avec cette raison (« PR déjà fusionnée : rien à relire », « PR fermée : 
    au brouillon). Montre la note de la PR (comme en *Créer*)
    et sa relecture par l'agent (`pr-<n>-note.md`). *Relire la note*
    (décisions à discuter, manques, invariants mal classés).
-3. **Invariants** — chaque fichier lu et chaque cas jugé (✓ ou ✗). Les mêmes
-   cartes qu'en *Créer* ; *Lire en pseudo-code*, *Vérifier
+3. **Invariants** — chaque cas jugé (✓ ou ✗), lu ou pas. Les mêmes
+   cartes qu'en *Créer* ; *Lire en pseudo-code* (facultative), *Vérifier
    l'alignement*.
 4. **Commits** — relus (`pr-<n>-commits.md`). Sans IA, les commits de la PR
    (hash, sujet, fichiers touchés), chacun avec *Voir le diff*, *GitHub ↗*
