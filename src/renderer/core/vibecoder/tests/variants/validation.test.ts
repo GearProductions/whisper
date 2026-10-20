@@ -52,3 +52,15 @@ describe('awaiting', () => {
     expect(awaiting(view('invariants', { flow: 'review', invariants: tests({ a: 'ko', b: 'changed' }) }))).toEqual({ kind: 'cases', count: 1 });
   });
 });
+
+// 0.9.0-rc.4 : valider ne demande plus d'avoir lu (docs/tickets/fix/0.9.0-vibecoder-etape-invariants.md).
+describe('awaiting, un fichier pas lu', () => {
+  it('l\'étape Invariants en cours, un fichier pas lu sans verdict : ses cas attendent leur validation', () => {
+    const invariants = tests({}, false);
+
+    const waiting = awaiting(view('invariants', { invariants }));
+
+    // Chaque cas du fichier attend son ✓, lu ou pas.
+    expect(waiting).toEqual({ kind: 'cases', count: invariants[0].cases.length });
+  });
+});

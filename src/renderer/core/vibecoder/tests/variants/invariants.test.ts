@@ -150,3 +150,13 @@ describe('pseudoLines', () => {
     expect(kinds).toEqual(['keyword', 'text', 'string', 'text', 'comment']);
   });
 });
+
+// 0.9.0-rc.4 : valider ne demande plus d'avoir lu (docs/tickets/fix/0.9.0-vibecoder-etape-invariants.md).
+describe('progress, un fichier pas lu', () => {
+  it('Tout valider s\'offre sur un fichier pas lu, sans verdict', () => {
+    const unread = file({ reading: null });
+
+    // Pas lu n'empêche pas de tout valider.
+    expect(progress([unread]).all).toBe(true);
+  });
+});

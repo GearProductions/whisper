@@ -761,3 +761,25 @@ describe('checks.json et la dernière course checks (I-46)', () => {
     expect([v.pr?.number, primary(v)]).toEqual([31, 'checks']);
   });
 });
+
+// Le bug de la 0.9.0-rc.3 (docs/tickets/fix/0.9.0-vibecoder-etape-invariants.md) : rouge avant le correctif.
+describe('l\'étape Invariants, sans invariant et sans lecture (0.9.0-rc.4)', () => {
+  const text = NOTE.replace('- Lire un autre fichier. → invariant\n', '');
+  const marks: Marks = { note: ok(text), forme: ok(parseNote(text).forme) };
+
+  it('une note sans ligne « → invariant », pas commitée : l\'étape Invariants est faite, les Modules s\'ouvrent', () => {
+    const v = vibeView(input({ note: { ...note, text }, marks, repo: repo([NOTE_PATH]) }));
+
+    // Rien à écrire : l'étape n'attend ni test ni commit.
+    expect(status(v).invariants).toBe('done');
+    // Depuis le parcours guidé, on peut aller aux Modules.
+    expect(v.steps.find((s) => s.id === 'modules')?.open).toBe(true);
+  });
+
+  it('un fichier d\'invariants pas lu, chaque cas validé : l\'étape Invariants est faite', () => {
+    const v = vibeView(ready({ readings: {} }));
+
+    // La lecture en pseudo-code n'est pas exigée.
+    expect(status(v).invariants).toBe('done');
+  });
+});
