@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { chosenModel, convWidth, modelArg } from 'core/vibecoder';
-import type { VibeAction } from 'technicals/bridge';
+import { chosenModel, convWidth, modelArg, vibeScreenActions } from 'core/vibecoder';
+import type { VibeAction, VibeView } from 'technicals/bridge';
 
 const action = (over: Partial<VibeAction> = {}): VibeAction => ({
   id: 'read-invariants', step: 'invariants', label: 'Lire en pseudo-code', hint: '', who: 'sonnet · moyen',
@@ -62,5 +62,23 @@ describe('convWidth', () => {
 
   it('écran trop étroit pour les deux bornes : 300 px', () => {
     expect(convWidth(400, 400)).toBe(300);
+  });
+});
+
+describe('vibeScreenActions', () => {
+  const all = ['release', 'base', 'vibe', 'note', 'forme'].map((id) => action({ id }));
+  const view = (over: Partial<VibeView>) => ({ note: null, actions: all, ...over }) as VibeView;
+
+  it('sans note : note, vibe, base, release, dans cet ordre ; rien d\'autre', () => {
+    expect(vibeScreenActions(view({}))).toEqual(['note', 'vibe', 'base', 'release']);
+  });
+
+  it('la note posée : plus de note', () => {
+    expect(vibeScreenActions(view({ note: {} as VibeView['note'] }))).toEqual(['vibe', 'base', 'release']);
+  });
+
+  it('les masquées (PR pas fusionnée) et les absentes du relevé : retirées', () => {
+    const actions = [action({ id: 'vibe' }), action({ id: 'base', hidden: true }), action({ id: 'release', hidden: true })];
+    expect(vibeScreenActions(view({ actions }))).toEqual(['vibe']);
   });
 });
