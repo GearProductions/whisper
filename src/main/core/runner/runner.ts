@@ -8,9 +8,10 @@
  *  fichier (`bash -ic` par défaut : alias et fonctions de l'utilisateur ;
  *  seule exception à I-27, limitée à ces commandes). Les demandes de l'agent (<nom>.stop,
  *  <nom>.restart) ne valent que pour les noms du fichier. La fin d'un journal,
- *  sans couleurs.
+ *  sans couleurs. Le préfixe vu de l'agent (agentSidePrefix) : le même, sans
+ *  la box où il tourne déjà.
  *  Ne connaît pas : le disque, les processus, Electron.
- *  Utilisé par : app/controllers/processes (et vibecoder : le préfixe de gh). */
+ *  Utilisé par : app/controllers/processes (et vibecoder : le préfixe de gh, celui vu de l'agent). */
 import { splitCommand } from 'helpers';
 
 export type ProjectCommand = { name: string; run: string; cwd?: string };
@@ -67,6 +68,14 @@ export function commandPrefix(project: Project | null, setting: unknown, agentCo
   if (project?.prefix !== undefined) return splitCommand(project.prefix);
   const own = splitCommand(setting);
   return own.length ? own : boxPrefix(agentCommand);
+}
+
+// Le préfixe vu de l'agent (le message d'une action) : commandPrefix sans la
+// box où l'agent tourne déjà (boxPrefix de sa commande), s'il commence par elle.
+export function agentSidePrefix(project: Project | null, setting: unknown, agentCommand: unknown): string[] {
+  const prefix = commandPrefix(project, setting, agentCommand);
+  const box = boxPrefix(agentCommand);
+  return box.length && box.every((w, i) => prefix[i] === w) ? prefix.slice(box.length) : prefix;
 }
 
 // La commande au rang `index` du fichier (un entier, rien d'autre) : son nom,
