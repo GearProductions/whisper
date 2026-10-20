@@ -399,7 +399,9 @@ les fichiers qu'elle a écrits — et eux seuls, pas les vôtres ni ceux d'une
 autre action — reviennent à leur état d'avant (ce qu'elle a changé par une
 commande, `git` ou un script, reste). Deux actions qui modifient la branche
 ne tournent jamais ensemble, ni une relecture pendant une modification ; les
-relectures et vérifications, elles, tournent ensemble. Un bouton qui doit
+relectures et vérifications, elles, tournent ensemble. Une action n'est
+finie que quand son travail l'est (ses sous-agents, la CI qu'elle attend) :
+pas de limite de temps, ⏹ l'arrête. Un bouton qui doit
 attendre est grisé et dit pourquoi ; un bouton qui n'a pas encore de sens
 n'est pas affiché (pas de *✓ Commiter* sans commit préparé, pas de *Release
 candidate* sans PR…) ; une action arrêtée retient les autres
@@ -448,7 +450,9 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    les modules restants* (en parallèle, chacun relu et commité à part).
 5. **Revue** : *Lancer les vérifications et la ponytail review* (les deux
    tournent ensemble ; des avertissements seulement : en orange, la
-   vérification passe ; pour refaire l'une, on relance ce bouton), *Tout appliquer* ou
+   vérification passe ; pour refaire l'une, on relance ce bouton ; les
+   commandes du projet sont vraiment lancées, par le préfixe des commandes,
+   et un résultat d'avant ce lancement ne compte pas), *Tout appliquer* ou
    *Appliquer* une remarque (en fixups), *Replier les fixups* ; la liste du
    guide avant une PR, cochée quand le dépôt le dit — « chaque diff relu » et
    « AGENTS.md à jour » se cochent à la main, jusqu'au prochain commit.
@@ -526,7 +530,8 @@ chaque invariant ; l'étape en cours attend vos ✓. *Vibe* (*Créer*
 seulement) : vous donnez la main à l'agent, vous testez et approuvez à la
 fin. Plus rien n'attend vos ✓, et l'écran change : un **fil d'Ariane** (les
 étapes faites, en cours, à venir, sans clic) à la place du parcours, la zone
-*Vibe*, puis la note. En deux temps :
+*Vibe* (et, la PR fusionnée, *PR mergée → revenir sur la base* et *Release
+officielle*), puis la note. En deux temps :
 
 1. la demande dans le champ, *Rédiger la note* ; l'agent vous pose
    **toutes** les questions de la note (*Envoyer les réponses*) — il n'en

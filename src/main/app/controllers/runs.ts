@@ -3,8 +3,9 @@
  *  Lancer (startRun : si aucune course vivante ni action directe en cours ne
  *  la retient, blockedBy ; un processus neuf, suivi des fichiers écrits ;
  *  modèle et effort du skill que son message appelle, sinon ceux de l'agent ; answers reprend la session de la course de la note),
- *  suivre (sa fin, ou son échec avant même son tour : fermée, et un avis à la conversation de l'agent, gardé tant
- *  qu'elle travaille, I-25), agir sur une course (runOp : l'arrêter — son
+ *  suivre (son état d'après runPhase : en cours tant que son processus travaille ou que le runtime lui voit des
+ *  tâches de fond, aucune limite de temps ; sa fin, revenue au repos après avoir travaillé, ou son échec avant
+ *  même son tour : fermée, et un avis à la conversation de l'agent, gardé tant qu'elle travaille, I-25), agir sur une course (runOp : l'arrêter — son
  *  processus et son verrou restent —, la garder ou l'annuler — rewind, puis
  *  fermée —, répondre à sa demande d'autorisation), les demandes de
  *  l'orchestrateur (runRequests : <sorties>/actions/<id>.start | .stop ; un
@@ -21,7 +22,7 @@ import type { SendResult, VibeRunOp, VibeView } from 'shared/bridge';
 import { shortTarget, type AgentConfig } from 'core/agents';
 import { agentList, vibeLang, type Config } from 'core/config';
 import {
-  blockedBy, endNotice, forkedModel, headField, LOCKING, ownRun, parseRequest, runKey, runsFile, type ActionDef, type Run,
+  blockedBy, endNotice, forkedModel, headField, LOCKING, ownRun, parseRequest, runKey, runPhase, runsFile, type ActionDef, type Run,
 } from 'core/vibecoder';
 import { loadConfig, vibeActions, vibeOutDir, vibePluginDir } from 'app/settings';
 import { agents, CLAUDE_MISSING, isBusy, launchOptions, sendToAgent } from './agents';
@@ -89,7 +90,8 @@ export function startRun(agent: AgentConfig, def: ActionDef, message: string, cf
     model: forkedModel(md) ?? agent.model, effort: headField(md, 'effort') || agent.effort,
   };
   // Un processus neuf par course : rewind ramène au premier message de CELLE-CI.
-  agents.close(entry.id).then(() => agents.send(entry, { text: message, images: [] }, {
+  // Ses tâches de fond oubliées : celles d'une course précédente, tuée en route, la tiendraient en cours.
+  agents.close(entry.id).then(() => agents.forgetReply(entry.id)).then(() => agents.send(entry, { text: message, images: [] }, {
     ...launchOptions(agent, cfg), checkpoint: true,
     onChange: () => changed(agent.id, run),
     onSession: (id) => { run.sessionId = id; },
@@ -105,12 +107,14 @@ export function startRun(agent: AgentConfig, def: ActionDef, message: string, cf
   return { ok: true };
 }
 
-// Un changement de l'entrée d'une course : son état suit ; revenue au repos après avoir travaillé, sans
-// qu'on l'ait arrêtée : sa fin.
+// Un changement de l'entrée d'une course (son tour, ses tâches de fond) : son état suit (runPhase) ; revenue au
+// repos après avoir travaillé, sans qu'on l'ait arrêtée : sa fin. Pas de limite de temps : on l'arrête à la main.
+// Un processus mort emporte ses tâches de fond (core/agents) : la course revient au repos.
 function changed(agentId: string, run: Live) {
   if (run.state === 'running' || run.state === 'asking') {
-    const { status } = agents.state(entryId(agentId, run.key));
-    if (status === 'working' || status === 'asking') Object.assign(run, { seen: true, state: status === 'asking' ? 'asking' : 'running' });
+    const { status, tasks } = agents.state(entryId(agentId, run.key));
+    const phase = runPhase(status, tasks);
+    if (phase !== 'idle') Object.assign(run, { seen: true, state: phase });
     else if (run.seen) finish(agentId, run);
   }
   save(agentId);

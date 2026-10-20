@@ -11,6 +11,8 @@ allowed-tools: "Bash(gh pr view *), Bash(git status *), Bash(git branch *), Bash
 
 # Back to the base, once the PR is merged
 
+Do it now, without asking: run the steps below on the current repository, then answer. This is your task; nothing else is coming.
+
 `$ARGUMENTS` = `<lang> <out>`. `lang`: the user's language, not used here — code-related work: your answer in English. `out`: nothing to write there.
 
 1. The branch: `git branch --show-current`. Its PR: `gh pr view --json state,baseRefName,headRefOid`.

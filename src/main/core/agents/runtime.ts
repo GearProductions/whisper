@@ -21,7 +21,8 @@
  *  du SDK au premier message envoyé à son processus en cours (chaque message
  *  envoyé porte un uuid ; le premier de chaque processus est retenu, un
  *  nouveau processus repart de zéro). Jamais sur une autre entrée.
- *  Ses tâches de fond sont tenues à jour d'après chaque message du flux (tasks).
+ *  Ses tâches de fond sont tenues à jour d'après chaque message du flux (tasks) ;
+ *  elles meurent avec lui.
  *  Ne connaît pas : Electron, les fenêtres ; SDK, lancement et journal injectés.
  *  Utilisé par : app/controllers (agents, conversation), app/lifecycle. */
 import { randomUUID } from 'node:crypto';
@@ -204,9 +205,10 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     } catch (err) {
       failure = (err instanceof Error && err.message) || failure;
     }
-    if (r.process === proc) r.process = null;
+    if (r.process === proc) { r.process = null; r.tasks = EMPTY_LOG; } // ses tâches de fond meurent avec lui
     journal({ id, name: r.name }, 'processus terminé', proc.abort.signal.aborted ? 'tué' : '');
     if (r.turn) end(r, id, null, proc.abort.signal.aborted ? 'interrupted' : failure);
+    else changed(r);
   }
 
   // Envoie `message` à l'agent. Résout quand le tour est fini ; rejette 'busy'

@@ -25,7 +25,7 @@ const view: VibeView = {
   outputs: {}, checklist: [], actions: [], skills: [], pr: null, prs: null,
   draft: [{ id: 1, target: 'note', text: 'Trop vague' }, { id: 2, target: 'commit 9fceb02', text: 'Hors périmètre' }], time: 0,
 };
-const ctx: MessageContext = { view, out: '/u/vibecoder-out/a1', lang: 'fr' };
+const ctx: MessageContext = { view, out: '/u/vibecoder-out/a1', lang: 'fr', prefix: '' };
 const review: MessageContext = { ...ctx, view: { ...view, flow: 'review', pr: { number: 12, title: 't', url: '', author: '', base: 'main', head: 'x', body: '', state: 'OPEN' } } };
 const action = (text: string, needs: ActionDef['needs'] = 'none'): ActionDef => (
   { id: 'essai', flow: 'both', step: null, kind: 'send', needs, label: 'Essai', hint: '', text });
@@ -98,6 +98,21 @@ describe('buildMessage : chaque variable', () => {
 
   it('{{draft}} : une ligne « - [cible] texte » par remarque', () => {
     expect(build('{{draft}}')).toEqual({ text: '- [note] Trop vague\n- [commit 9fceb02] Hors périmètre' });
+  });
+
+  it('{{prefix}} : le préfixe donné, en fin de message ; vide permis', () => {
+    const verifier = '/vibecoder:verifier {{lang}} {{out}} {{prefix}}';
+    expect(build(verifier, {}, { ...ctx, prefix: 'distrobox enter dev --' })).toEqual({ text: `/vibecoder:verifier fr ${ctx.out} distrobox enter dev --` });
+    expect(build(verifier)).toEqual({ text: `/vibecoder:verifier fr ${ctx.out} ` });
+  });
+
+  it('{{prefix}} sans préfixe dans le contexte : vide', () => {
+    const { prefix: _, ...sans } = ctx;
+    expect(build('[{{prefix}}]', {}, sans)).toEqual({ text: '[]' });
+  });
+
+  it('{{prefix}} avec un caractère de contrôle : variable', () => {
+    expect(build('{{prefix}}', {}, { ...ctx, prefix: 'distrobox\nrm -rf ~' })).toEqual({ error: 'variable' });
   });
 
   it('{{ lang }} avec des blancs : la même variable', () => {

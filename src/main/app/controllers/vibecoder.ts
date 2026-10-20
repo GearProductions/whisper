@@ -21,7 +21,8 @@
  *  désigne un fichier par son id dans le dernier relevé, jamais par un chemin
  *  (I-37). Ce qu'il écrit pour l'ouvrir (un fichier de la PR, le diff d'un
  *  commit) va sous <sorties>/files/, en lecture seule. Le message d'une
- *  action : son gabarit, rempli par buildMessage (I-38). git en lecture seule
+ *  action : son gabarit, rempli par buildMessage (I-38), avec le préfixe des
+ *  commandes vu de l'agent qui le reçoit ({{prefix}} : processes.promptPrefix). git en lecture seule
  *  (technicals/git, I-39), sauf les actions directes (technicals/direct) ; gh aussi, sans agent (technicals/github, derrière
  *  le préfixe de l'agent : processes.agentPrefix) : Créer, la PR de la
  *  branche ; Relire, l'état de la PR chargée (60 s en cache, demandés en
@@ -57,7 +58,7 @@ import { loadConfig, saveConfig, saveVibeStore, updateAgent, vibeActions, vibeOu
 import { state } from 'app/state';
 import { conversationShown, openConversation } from 'app/windows';
 import { interruptAgent, isBusy, liveViewAgent, sendToAgent, setAgentSetting } from './agents';
-import { agentPrefix, processAction, processView } from './processes';
+import { agentPrefix, processAction, processView, promptPrefix } from './processes';
 import { lockingRuns, runOp, viewLocks, runPending, runRequests, runsOf, skillMd, startRun } from './runs';
 import { showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
 
@@ -395,7 +396,7 @@ export function startAction(agent: AgentConfig, def: ActionDef, args: VibeArgs, 
   // Décharger, sur le robot d'un worktree : le message part à l'agent du dépôt (le worktree est à lui), avec ses sorties (F-110).
   const target = def.id === 'unload-worktree' ? worktreeParent(agent) : agent;
   if (!target) return { ...fail(lang, 'agent'), invalid: true };
-  const message = buildMessage(def, args, { view, out: vibeOutDir(target.id), lang });
+  const message = buildMessage(def, args, { view, out: vibeOutDir(target.id), lang, prefix: promptPrefix(target, cfg) });
   if ('error' in message) return { ...fail(lang, message.error), invalid: true };
   const sent = ownRun(def) ? startRun(target, def, message.text, cfg) : sendToAgent(target, { text: message.text, images: [] }, cfg);
   if (sent.ok && def.id === 'open-worktree' && view.pr) wantWorktree(agent.id, view.pr.number);

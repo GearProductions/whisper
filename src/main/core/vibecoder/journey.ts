@@ -10,7 +10,9 @@
  *  résultat ; les règles : la note du ticket 0.8.0), les courses (une action
  *  d'étape court à part : grisée par blockedBy de runs, pas par la
  *  conversation qui travaille ; note 0.9.0 des actions indépendantes ; le
- *  parcours guidé : note 0.9.0-parcours-guide).
+ *  parcours guidé : note 0.9.0-parcours-guide) ; un checks.json antérieur au
+ *  départ de la dernière course checks ignoré partout, sorties comprises
+ *  (I-46 ; note 0.9.0-vibecoder-pr-verifications-courses).
  *  Ne connaît pas : Electron, le disque, git (tout est passé ; `exists` dit si
  *  un chemin du dossier de l'agent existe).
  *  Utilisé par : app/controllers/vibecoder (refreshVibe). */
@@ -118,8 +120,19 @@ function within(file: string, bare: string): string | null {
 const str = (v: unknown): string =>
   typeof v === 'string' ? v : typeof (v as { login?: unknown } | null)?.login === 'string' ? (v as { login: string }).login : '';
 
+// Le départ de la dernière course checks ; un checks.json dont le time (le champ du résultat, pas l'heure
+// du fichier) le précède, ou sans time, est retiré des sorties : ignoré partout (I-46). Aucune course
+// checks connue (appli relancée) : il compte.
+function freshOutputs(outputs: JourneyInput['outputs'], runs: VibeRun[]): JourneyInput['outputs'] {
+  const start = Math.max(...runs.filter((r) => r.id === 'checks').map((r) => r.since));
+  const checks = outputs['checks.json'];
+  if (!checks || start === -Infinity || (json(checks.text)?.time as number) >= start) return outputs;
+  return Object.fromEntries(Object.entries(outputs).filter(([name]) => name !== 'checks.json'));
+}
+
 export function vibeView(input: JourneyInput): VibeView {
-  const { lang, flow, repo, outputs, marks } = input;
+  const { lang, flow, repo, marks } = input;
+  const outputs = freshOutputs(input.outputs, input.runs);
   const T = TEXT[lang];
   const count = (n: number, [one, many]: string[]) => `${n} ${T.plural(n) ? many : one}`;
   const line = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(' · ');

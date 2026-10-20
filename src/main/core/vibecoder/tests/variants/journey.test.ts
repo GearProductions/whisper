@@ -737,3 +737,27 @@ describe('le parcours guidé (0.9.0) : étapes ouvertes, actions masquées', () 
       .toBe('Answer the note\'s questions first');
   });
 });
+
+describe('checks.json et la dernière course checks (I-46)', () => {
+  const checksRun = (since: number) => ({ id: 'checks', label: 'checks', who: 'agent', state: 'done' as const, since, end: since + 1, reply: '', permission: null });
+  const green = (time?: number) => out(JSON.stringify({ items: [{ name: 'tests', ok: true }], time }));
+  const revue = (outputs: JourneyInput['outputs'], since = 100) =>
+    vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), runs: [checksRun(since)], outputs }));
+
+  it('sans time, une course checks connue : ignoré', () => {
+    expect(revue({ 'checks.json': green(), 'ponytail.md': out('- rien') }).outputs).not.toHaveProperty(['checks.json']);
+  });
+
+  it('ignoré : les autres sorties restent', () => {
+    expect(Object.keys(revue({ 'checks.json': green(50), 'ponytail.md': out('- rien') }).outputs)).toEqual(['ponytail.md']);
+  });
+
+  it('frais : la revue passe à la PR', () => {
+    expect(primary(revue({ 'checks.json': green(100), 'ponytail.md': out('- rien') }))).toBe('pr');
+  });
+
+  it('ancien : l\'état de la PR ne change pas (pr.json lu)', () => {
+    const v = revue({ 'checks.json': green(50), 'ponytail.md': out('- rien'), 'pr.json': out('{"number":31,"url":"u","title":"G2-1"}') });
+    expect([v.pr?.number, primary(v)]).toEqual([31, 'checks']);
+  });
+});

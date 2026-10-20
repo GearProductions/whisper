@@ -1,7 +1,7 @@
 // Variants des commandes du projet (note 0.8.0, « Lancer le projet ») : le
 // fichier lu, la proposition adoptée, la box de l'agent, la fin d'un journal.
 import { describe, expect, it } from 'vitest';
-import { boxPrefix, commandAt, commandPrefix, DEFAULT_SHELL, logTail, parseProject, projectSlug, projectText } from 'core/runner';
+import { agentSidePrefix, boxPrefix, commandAt, commandPrefix, DEFAULT_SHELL, logTail, parseProject, projectSlug, projectText } from 'core/runner';
 
 describe('le fichier du projet', () => {
   it('ses commandes valides, dans l’ordre ; le shell par défaut : bash -ic', () => {
@@ -67,6 +67,14 @@ describe('le préfixe des commandes (processus, gh)', () => {
     expect(commandPrefix(parseProject('{"commands":[],"prefix":""}'), 'toolbox run', box)).toEqual([]);
     const p = parseProject('{"commands":[{"name":"g","run":"gear"}],"prefix":"podman exec dev"}');
     expect(commandAt(p, 0, box)?.argv).toEqual(['podman', 'exec', 'dev', 'bash', '-ic', 'gear']);
+  });
+
+  it('vu de l’agent : sans la box où il tourne déjà', () => {
+    expect(agentSidePrefix(null, '', box)).toEqual([]);
+    expect(agentSidePrefix(parseProject('{"commands":[],"prefix":"distrobox enter dev -- mise exec --"}'), '', box)).toEqual(['mise', 'exec', '--']);
+    expect(agentSidePrefix(null, 'distrobox enter autre --', box)).toEqual(['distrobox', 'enter', 'autre', '--']);
+    expect(agentSidePrefix(null, 'toolbox run -c dev', 'claude')).toEqual(['toolbox', 'run', '-c', 'dev']);
+    expect(agentSidePrefix(parseProject('{"commands":[],"prefix":""}'), '', box)).toEqual([]);
   });
 
   it('une proposition ne pose pas de préfixe', () => {

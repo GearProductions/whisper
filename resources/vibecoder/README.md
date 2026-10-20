@@ -55,7 +55,7 @@ actions par des fichiers de `{{out}}` :
 
 | Fichier | Rôle |
 |---|---|
-| `actions.json` | l'état, réécrit par l'appli : `{ actions: [{id, label, reads}], runs: [{id, label, state, reads, since, end, reply}], waiting: [{id, reason}] }` ; `state` : `running`, `asking`, `stopped` (arrêtée, à garder ou annuler), `done`, `failed`, `kept`, `undone` |
+| `actions.json` | l'état, réécrit par l'appli : `{ actions: [{id, label, reads}], runs: [{id, label, state, reads, since, end, reply}], waiting: [{id, reason}] }` ; `state` : `running`, `asking`, `stopped` (arrêtée, à garder ou annuler), `done` (son tour fini et plus de tâche de fond, sans limite de temps), `failed`, `kept`, `undone` |
 | `actions/<id>.start` | demande de lancement : un objet JSON de ses arguments (`text`, `module`, `commit`, `file`, `pr`, `model`, `answers`), `{}` sans argument |
 | `actions/<id>.stop` | vide : demande d'arrêt |
 
@@ -106,6 +106,7 @@ l'action.
 | `{{verdict}}` | `approve`, `comment` ou `request-changes` |
 | `{{draft}}` | le brouillon de revue : une ligne « - [cible] texte » par remarque (il en faut une) |
 | `{{quote}}` | (`prefill` seulement) ce qu'on cite |
+| `{{prefix}}` | le préfixe des commandes du projet vu de l'agent (sans la box où il tourne déjà) ; peut être vide |
 
 ### Ajouter un bouton
 
@@ -237,6 +238,10 @@ sinon.
 élément par commande ; `level` vaut `ok`, `warning` (des avertissements
 seulement : la vérification passe, en orange à l'écran) ou `error` (`ok` :
 `false` pour `error` seulement). Un fichier sans `level` se lit d'après `ok`.
+`verifier` reçoit `{{lang}} {{out}} {{prefix}}` et lance chaque commande
+derrière ce préfixe (vide : telle quelle). Un `checks.json` dont le `time`
+précède le départ de la course de vérifications (ou sans `time`) est ignoré ;
+appli relancée, sans course connue, il compte.
 
 ## Les commandes du projet : `projets/<dossier>.json`
 

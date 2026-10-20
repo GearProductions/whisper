@@ -5,13 +5,15 @@
  *  un autre choisi parmi SKILL_MODELS pour un skill en sous-contexte).
  *  Seuls {{text}}, {{answers}} et {{draft}} (écrits par l'utilisateur : le
  *  champ, I-2, ses réponses, ses remarques) sont libres ; un commit, un
- *  module, une PR ne sont pris que dans le dernier relevé, et aucune autre
+ *  module, une PR ne sont pris que dans le dernier relevé, le préfixe des
+ *  commandes ({{prefix}}) est donné par l'appelant (absent : vide), et aucune autre
  *  valeur n'a de caractère de contrôle ; une variable inconnue fait refuser
  *  l'action (l'agent lance des commandes avec ces valeurs, I-38). Et les
  *  actions que l'appli fait aussi elle-même (DIRECT_ACTIONS, F-114). Si une
  *  action lit seulement (reads) ou modifie la branche : la règle des courses
  *  (runs, blockedBy).
- *  Ne connaît pas : Electron, le disque, l'agent (le message est rendu, pas envoyé).
+ *  Ne connaît pas : Electron, le disque, l'agent (le message est rendu, pas envoyé),
+ *  le calcul du préfixe (core/runner, fait par l'appelant).
  *  Utilisé par : core/vibecoder (journey, runs, defaults), app/controllers/vibecoder, app/settings. */
 import type { VibeAction, VibeArgs, VibeLang, VibeStepId, VibeView } from 'shared/bridge';
 
@@ -29,7 +31,9 @@ export type ActionDef = {
   reads?: boolean;
 };
 
-export type MessageContext = { view: VibeView; out: string; lang: VibeLang };
+// prefix : le préfixe des commandes du projet vu de l'agent (vide s'il tourne déjà dans la box) ;
+// facultatif : absent, vide (les appelants qui n'envoient pas {{prefix}} n'ont pas à le donner).
+export type MessageContext = { view: VibeView; out: string; lang: VibeLang; prefix?: string };
 // La variable qui manque ou ne va pas ; 'variable' : une variable inconnue.
 export type MessageError = 'text' | 'module' | 'commit' | 'pr' | 'answers' | 'verdict' | 'draft' | 'files' | 'note' | 'repo' | 'variable' | 'model';
 
@@ -83,6 +87,7 @@ const NO_ANSWER: Record<VibeLang, string> = { fr: '(pas de réponse)', en: '(no 
 // Les variables, liste fermée (une autre → 'variable') :
 //   {{text}}           args.text trimé ; requis si needs = 'text' ; ≤ 20 000 caractères → sinon 'text'
 //   {{out}} {{lang}}   le dossier de sorties de l'agent ; fr ou en
+//   {{prefix}}         le préfixe des commandes du projet vu de l'agent, vide permis ; absent : vide (F-112)
 //   {{branch}} {{base}}  du relevé → 'repo' sans dépôt
 //   {{note}}           le chemin de la note → 'note' sans note
 //   {{ref}}            WORKTREE (Créer) ou refs/vibecoder/pr/<n> (Relire) → 'pr' sans PR
@@ -114,6 +119,7 @@ export function buildMessage(def: ActionDef, args: VibeArgs, ctx: MessageContext
     },
     out: () => ctx.out,
     lang: () => ctx.lang,
+    prefix: () => ctx.prefix ?? '',
     branch: () => view.repo?.branch ?? fail('repo'),
     base: () => view.repo?.base ?? fail('repo'),
     note: () => view.note?.path ?? fail('note'),

@@ -6,8 +6,10 @@
  *  tranchée comprise ; une lecture n'attend qu'une modification ; la même
  *  action déjà en cours), les courses à l'écran (runViews), le texte de
  *  <sorties>/actions.json pour l'orchestrateur (runsFile), son avis de fin
- *  (endNotice), et la lecture d'une demande de l'orchestrateur
- *  (<sorties>/actions/<id>.start | .stop : parseRequest).
+ *  (endNotice), la lecture d'une demande de l'orchestrateur
+ *  (<sorties>/actions/<id>.start | .stop : parseRequest), et où en est une
+ *  course d'après son entrée du runtime (runPhase : en cours tant qu'elle
+ *  travaille ou que des tâches de fond tournent ; pas de limite de temps).
  *  Ne connaît pas : Electron, le disque, le runtime des agents (tout est passé).
  *  Utilisé par : core/vibecoder (journey), app/controllers/runs. */
 import type { VibeArgs, VibeLang, VibeRun } from 'shared/bridge';
@@ -80,6 +82,14 @@ export function runsFile(runs: Run[], defs: ActionDef[], waiting: { id: string; 
     })),
     waiting,
   }, null, 2);
+}
+
+// Où en est une course d'après son entrée du runtime (status, nombre de tâches de fond en cours) :
+// une autorisation attend d'abord ; en cours tant qu'elle travaille ou que ses tâches de fond tournent ;
+// sinon au repos (sa fin, si elle a travaillé).
+export function runPhase(status: string, tasks: number): 'running' | 'asking' | 'idle' {
+  if (status === 'asking') return 'asking';
+  return status === 'working' || tasks > 0 ? 'running' : 'idle';
 }
 
 const REPLY_MAX = 300;
