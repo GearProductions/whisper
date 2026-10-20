@@ -12,7 +12,11 @@
  *  conversation qui travaille ; note 0.9.0 des actions indépendantes ; le
  *  parcours guidé : note 0.9.0-parcours-guide) ; un checks.json antérieur au
  *  départ de la dernière course checks ignoré partout, sorties comprises
- *  (I-46 ; note 0.9.0-vibecoder-pr-verifications-courses).
+ *  (I-46 ; note 0.9.0-vibecoder-pr-verifications-courses) ; l'étape
+ *  Invariants faite sans ligne « → invariant » (Écrire les invariants masquée
+ *  sans griser, comme l'étape PR), sinon chaque cas validé (Créer) ou jugé
+ *  (Relire), lu ou pas ; Lire en pseudo-code mise en avant seulement en Vibe
+ *  (note 0.9.0-vibecoder-etape-invariants).
  *  Ne connaît pas : Electron, le disque, git (tout est passé ; `exists` dit si
  *  un chemin du dossier de l'agent existe).
  *  Utilisé par : app/controllers/vibecoder (refreshVibe). */
@@ -164,6 +168,7 @@ export function vibeView(input: JourneyInput): VibeView {
     };
   });
   const untouched = modules.some((m) => !m.touched);
+  const invLines = !!facts?.mustNot.some((l) => l.mark === 'invariant');
 
   // Les tests de la branche (ceux qui ont des cas) : invariants et variants.
   const tests = input.tests.map((t) => ({ ...t, cases: caseTitles(t.text), lines: caseLines(t.text) })).filter((t) => t.cases.length);
@@ -174,6 +179,7 @@ export function vibeView(input: JourneyInput): VibeView {
   }));
   const variants = tests.filter((t) => !isInvariantTest(t.path)).map((t, i) => ({ id: `v${i}`, path: t.path, cases: t.cases.length }));
   const allRead = invariants.every((f) => f.reading !== null);
+  const casesOk = invariants.every((f) => f.cases.every((c) => f.marks[c] === 'ok'));
   const caseCount = invariants.reduce((s, f) => s + f.cases.length, 0);
   const readCount = invariants.reduce((s, f) => s + (f.reading ? f.cases.length : 0), 0);
 
@@ -240,15 +246,14 @@ export function vibeView(input: JourneyInput): VibeView {
   let next: Partial<Record<VibeStepId, string | null>>;
   let stepFacts: Partial<Record<VibeStepId, string>>;
   if (flow === 'create') {
-    const invLines = !!facts?.mustNot.some((l) => l.mark === 'invariant');
     const inProgress = bares.some((b) => uncommitted.some((f) => within(f, b) !== null));
     done = {
       note: !!note?.filled && !questions.length && validated(note.mark),
       forme: !!note && modules.length > 0 && validated(note.formeMark),
-      // … et le premier commit (note, forme, invariants) fait : rien de tout ça n'attend d'être commité.
-      invariants: !!note && (!invLines || (invariants.length > 0
-        && (vibe || (allRead && invariants.every((f) => f.cases.every((c) => f.marks[c] === 'ok'))))))
-        && !uncommitted.some((f) => f === note.path || invariants.some((t) => t.path === f)),
+      // Sans ligne « → invariant » : rien à écrire ni à commiter. Avec : chaque cas validé, lu ou pas, et le
+      // premier commit (note, forme, invariants) fait.
+      invariants: !!note && (!invLines || (invariants.length > 0 && (vibe || casesOk)
+        && !uncommitted.some((f) => f === note.path || invariants.some((t) => t.path === f)))),
       modules: modules.length > 0 && modules.every((m) => m.commits.length > 0),
       revue: checksOk && ponytail && !fixups,
       pr: !!pr,
@@ -256,10 +261,9 @@ export function vibeView(input: JourneyInput): VibeView {
     next = {
       note: !note?.filled ? 'note' : questions.length ? 'answers' : null,
       forme: modules.length ? null : 'forme',
-      // Guide : les cas lus attendent leur validation avant le commit.
-      invariants: !invariants.length ? 'invariants' : !allRead ? 'read-invariants'
-        : !vibe && !invariants.every((f) => f.cases.every((c) => f.marks[c] === 'ok')) ? null
-          : commitMd ? 'commit' : uncommitted.length ? 'commit-prepare' : null,
+      // Vibe : la lecture d'abord (l'orchestrateur la vérifie) ; Guide : les cas attendent leurs ✓, lus ou pas.
+      invariants: !invariants.length ? 'invariants' : vibe && !allRead ? 'read-invariants' : !vibe && !casesOk ? null
+        : commitMd ? 'commit' : uncommitted.length ? 'commit-prepare' : null,
       modules: commitMd ? 'commit' : inProgress ? (untouched ? 'next' : 'commit-prepare') : 'module',
       // Lancer les vérifications demande aussi la ponytail review (F-115) : elle n'a plus son bouton.
       revue: !checksOk || !ponytail ? 'checks' : fixups ? 'fixups' : null,
@@ -279,7 +283,7 @@ export function vibeView(input: JourneyInput): VibeView {
     done = {
       pr: loaded,
       note: loaded && (!note || judged(note.mark)),
-      invariants: loaded && invariants.every((f) => f.reading !== null && f.cases.every((c) => judged(f.marks[c]))),
+      invariants: loaded && invariants.every((f) => f.cases.every((c) => judged(f.marks[c]))),
       commits: !!n && out(`pr-${n}-commits.md`) !== null,
       ecran: checklist.length > 0 && boxes === checklist.length,
       revue: !!n && out(`pr-${n}-review.json`) !== null,
@@ -288,7 +292,7 @@ export function vibeView(input: JourneyInput): VibeView {
       // prs : l'action d'un actions.json retouché d'avant la 0.8.0-rc.10 ; sinon, le bouton de l'écran (gh).
       pr: !n && !prs ? 'prs' : 'load-pr',
       note: note && n && out(`pr-${n}-note.md`) === null ? 'review-note' : null,
-      invariants: allRead ? null : 'read-invariants',
+      invariants: null,   // les cas attendent leur verdict, lus ou pas
       commits: 'review-commits',
       ecran: n && plan === null ? 'screen' : null,
       revue: 'publish',
@@ -355,8 +359,11 @@ export function vibeView(input: JourneyInput): VibeView {
   const prShown: Record<string, boolean> = {
     pr: !prState, ci: prState === 'OPEN', rc: prState === 'OPEN', base: prState === 'MERGED', release: prState === 'MERGED',
   };
+  // Écrire les invariants, sans ligne « → invariant » dans la note : masquée sans griser, elle aussi (un clic
+  // reste possible si le relevé retarde sur une ligne ajoutée ; runs.test.ts, invariant, le clique ainsi).
   const hidden = (d: ActionDef, reason: Reason | null) =>
-    (flow === 'create' && Object.hasOwn(prShown, d.id) && !prShown[d.id]) || (reason !== null && notYet.has(reason));
+    (flow === 'create' && ((Object.hasOwn(prShown, d.id) && !prShown[d.id]) || (d.id === 'invariants' && !!note && !invLines)))
+    || (reason !== null && notYet.has(reason));
   const actions: VibeAction[] = input.actions
     .filter((d) => (d.flow === 'both' || d.flow === flow) && (d.id !== 'guide' || input.skills.includes('gear-guide')))
     .map((d) => {

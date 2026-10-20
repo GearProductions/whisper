@@ -114,8 +114,12 @@ describe('Créer, Guide : les étapes et la prochaine action', () => {
     expect([status(v).invariants, primary(v)]).toEqual(['current', 'invariants']);
   });
 
-  it('des tests pas encore lus : Lire en pseudo-code', () => {
-    expect(primary(vibeView(input({ note, marks: NOTE_OK, tests: [test] })))).toBe('read-invariants');
+  it('des tests pas encore lus (Guide) : aucune action, la validation des cas passe avant la lecture', () => {
+    expect(primary(vibeView(input({ note, marks: NOTE_OK, tests: [test] })))).toBeNull();
+  });
+
+  it('des tests pas encore lus (Vibe) : Lire en pseudo-code', () => {
+    expect(primary(vibeView(input({ note, marks: NOTE_OK, tests: [test], autonomy: 'vibe', repo: repo([NOTE_PATH, TEST_PATH]) })))).toBe('read-invariants');
   });
 
   it('lus mais pas tous validés (Guide) : aucune action, la validation attend', () => {
@@ -249,8 +253,13 @@ describe('Relire : les étapes et la prochaine action', () => {
     expect(status(vibeView(loaded({ marks: { note: { hash: blobSha(NOTE), verdict: 'ko' } } }))).note).toBe('done');
   });
 
-  it('note jugée, tests pas lus : Lire en pseudo-code', () => {
-    expect(primary(vibeView(loaded({ marks: { note: ok(NOTE) } })))).toBe('read-invariants');
+  it('note jugée, cas pas jugés : l\'étape attend leurs verdicts, sans action', () => {
+    const v = vibeView(loaded({ marks: { note: ok(NOTE) } }));
+    expect([status(v).invariants, primary(v)]).toEqual(['current', null]);
+  });
+
+  it('tests pas lus, chaque cas jugé : l\'étape Invariants est faite', () => {
+    expect(status(vibeView(loaded({ marks: { note: ok(NOTE), ...CASES_OK } }))).invariants).toBe('done');
   });
 
   it('tests lus et jugés : Relire les commits', () => {
@@ -781,5 +790,14 @@ describe('l\'étape Invariants, sans invariant et sans lecture (0.9.0-rc.4)', ()
 
     // La lecture en pseudo-code n'est pas exigée.
     expect(status(v).invariants).toBe('done');
+  });
+
+  it('une note sans ligne « → invariant » : Écrire les invariants masquée ; elle revient avec une ligne', () => {
+    expect(action(vibeView(input({ note: { ...note, text }, marks })), 'invariants')?.hidden).toBe(true);
+    expect(action(vibeView(input({ note, marks: NOTE_OK })), 'invariants')?.hidden).toBe(false);
+  });
+
+  it('une ligne « → invariant », cas validés, pas commités : l\'étape reste en cours (le premier commit)', () => {
+    expect(status(vibeView(ready({ readings: {}, repo: repo([NOTE_PATH, TEST_PATH]) }))).invariants).toBe('current');
   });
 });
