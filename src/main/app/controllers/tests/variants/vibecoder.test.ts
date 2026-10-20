@@ -205,6 +205,19 @@ describe('une action', () => {
     await settle();
     expect(fake.messages).toEqual([`/vibecoder:verifier fr ${out}`, expect.stringMatching(/^VibeCoder : « Lancer les vérifications » terminée — ok\. /)]);
   });
+
+  it('{{prefix}} : le préfixe des commandes vu de l’agent qui reçoit le message (0.9.0)', async () => {
+    write(path.join(fake.userData, 'vibecoder', 'actions.fr.json'), JSON.stringify([
+      { id: 'checks', flow: 'create', step: 'revue', kind: 'send', label: 'Lancer les vérifications', text: '/vibecoder:verifier {{lang}} {{out}} {{prefix}}' },
+    ]));
+    const cfgFile = path.join(fake.userData, 'config.json');
+    write(cfgFile, JSON.stringify({ ...JSON.parse(fs.readFileSync(cfgFile, 'utf8')), vibeCommandPrefix: 'distrobox enter dev --' }));
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+    expect(runVibeAction('checks', {})).toEqual({ ok: true });
+    await settle();
+    expect(fake.messages[0]).toBe(`/vibecoder:verifier fr ${out} distrobox enter dev --`);
+  });
 });
 
 describe('followBranch : les sorties de Créer suivent la branche', () => {
