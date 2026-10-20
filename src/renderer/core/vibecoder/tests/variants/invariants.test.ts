@@ -76,13 +76,13 @@ describe('progress', () => {
     expect(progress(files)).toEqual({ total: 4, ok: 1, ko: 1, changed: 1, warnings: 1, unread: 2, all: false });
   });
 
-  it('Tout valider : chaque cas lu, aucun point d\'attention, un au moins sans verdict', () => {
+  it('Tout valider : aucun point d\'attention, un au moins sans verdict, lus ou pas', () => {
     const r = [reading('refuse'), reading('accepte')];
     expect(progress([file({ reading: r })]).all).toBe(true);
     expect(progress([file({ reading: r, marks: { refuse: 'ko', accepte: 'changed' } })]).all).toBe(true);
     expect(progress([file({ reading: r, marks: { refuse: 'ok', accepte: 'ko' } })]).all).toBe(false);
     expect(progress([file({ reading: [reading('refuse', 'mock'), reading('accepte')] })]).all).toBe(false);
-    expect(progress([file({ reading: [reading('refuse')] })]).all).toBe(false);
+    expect(progress([file({ reading: [reading('refuse')] })]).all).toBe(true);
     expect(progress([]).all).toBe(false);
   });
 });
