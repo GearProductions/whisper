@@ -58,7 +58,7 @@ import { state } from 'app/state';
 import { conversationShown, openConversation } from 'app/windows';
 import { interruptAgent, isBusy, liveViewAgent, sendToAgent, setAgentSetting } from './agents';
 import { agentPrefix, processAction, processView } from './processes';
-import { lockingRuns, runOp, runPending, runRequests, runsOf, skillMd, startRun } from './runs';
+import { lockingRuns, runOp, viewLocks, runPending, runRequests, runsOf, skillMd, startRun } from './runs';
 import { showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
 
 const VIBE_MS = 4000;          // le relevé régulier, panneau visible
@@ -117,7 +117,7 @@ const directs = new Map<string, Record<string, NonNullable<VibeAction['direct']>
 const prsFound = new Map<string, unknown[]>();   // Relire : Mes PR à relire, par agent (la dernière réponse de gh)
 let shown: string | null = null;           // l'agent dont le panneau a le relevé (null : aucun, ou null envoyé)
 let lastAt = 0;
-let running = false;
+let running: Promise<void> | null = null;   // le relevé en cours
 let again = false;
 let againNow = false;
 let trailing: ReturnType<typeof setTimeout> | null = null;
@@ -149,8 +149,9 @@ function fromGh<T>(key: string, ask: () => Promise<T | null>): T | null {
 
 // Relève l'agent affiché en VibeCoder et envoie son parcours au panneau ;
 // sinon null, une fois. Un relevé à la fois, au plus un par seconde (sauf
-// `now`, ou un autre agent) : le suivant attend. `fresh` (↻) : les réponses
-// de gh sont redemandées.
+// `now`, ou un autre agent) : le suivant attend ; un appel pendant un relevé
+// se résout à sa fin (panelReady attend ainsi le premier). `fresh` (↻) : les
+// réponses de gh sont redemandées.
 export async function refreshVibe({ now = false, fresh = false }: { now?: boolean; fresh?: boolean } = {}) {
   if (fresh) for (const entry of ghCache.values()) entry.at = 0;
   syncWorktrees(); // Relire dans un worktree : le robot temporaire arrive ou part (F-110)
@@ -168,25 +169,26 @@ export async function refreshVibe({ now = false, fresh = false }: { now?: boolea
   // Panneau caché (réduit) : aucun relevé ; il reprend à sa réapparition.
   // (sauf le premier relevé d'un agent qu'on vient d'afficher : le panneau peut ne pas être encore montré)
   if (!now && !conversationShown() && agent.id === shown) return;
-  if (running) { again = true; againNow ||= now; return; }
+  if (running) { again = true; againNow ||= now; return running; }
   const wait = now || agent.id !== shown ? 0 : lastAt + THROTTLE_MS - Date.now();
   if (wait > 0) { trailing ??= setTimeout(() => { trailing = null; refreshVibe(); }, wait); return; }
   shown = agent.id;
   lastAt = Date.now();
-  running = true;
-  try {
-    const view = await survey(agent, cfg);
-    // Pendant le relevé, l'agent a pu changer de vue, ou le panneau d'agent.
-    if (state.panel && !state.panel.isDestroyed() && vibeAgent()?.id === agent.id) {
-      last.set(agent.id, view);
-      state.panel.webContents.send('conv:vibe', view);
-      runRequests(agent, view);   // les demandes de l'orchestrateur, d'après ce relevé
+  running = (async () => {
+    try {
+      const view = await survey(agent, cfg);
+      // Pendant le relevé, l'agent a pu changer de vue, ou le panneau d'agent.
+      if (state.panel && !state.panel.isDestroyed() && vibeAgent()?.id === agent.id) {
+        last.set(agent.id, view);
+        state.panel.webContents.send('conv:vibe', view);
+        runRequests(agent, view);   // les demandes de l'orchestrateur, d'après ce relevé
+      }
+    } catch (err) {
+      console.error(`VibeCoder : relevé impossible (${err instanceof Error ? err.message : err})`);
     }
-  } catch (err) {
-    console.error(`VibeCoder : relevé impossible (${err instanceof Error ? err.message : err})`);
-  } finally {
-    running = false;
-  }
+  })();
+  await running;
+  running = null;
   if (again) { const n = againNow; again = againNow = false; refreshVibe({ now: n }); }
 }
 
@@ -374,7 +376,6 @@ export function runVibeAction(id: unknown, args: unknown): SendResult {
   const shownAction = view.actions.find((a) => a.id === id);
   const def = vibeActions(lang).find((a) => a.id === id);
   if (!shownAction || !def || def.kind !== 'send') return fail(lang, 'action');
-  if (shownAction.disabled) return { ok: false, error: shownAction.disabled };
   if (!args || typeof args !== 'object' || Array.isArray(args)) return fail(lang, 'args');
   if ((args as VibeArgs).direct === true && DIRECT_ACTIONS.includes(def.id)) return runDirect(agent, def, args as VibeArgs, view, cfg);
   const sent = startAction(agent, def, args as VibeArgs, view, cfg);
@@ -382,11 +383,15 @@ export function runVibeAction(id: unknown, args: unknown): SendResult {
   return { ok: sent.ok, error: sent.error };
 }
 
-// Une action envoyée, au clic comme à la demande de l'orchestrateur (runs : runRequests) : son gabarit
-// rempli (I-38) ; une action d'étape court à part (la règle sur les courses vivantes : startRun), les
-// autres vont à la conversation. invalid : ses arguments ne vont pas, rien à retenter.
+// Une action envoyée, au clic comme à la demande de l'orchestrateur (runs : runRequests) : grisée au
+// relevé pour une autre raison qu'une course, refusée (une course, startRun la revoit sur l'état vivant :
+// le relevé peut avoir un temps de retard) ; son gabarit rempli (I-38) ; une action d'étape court à
+// part, les autres vont à la conversation. invalid : ses arguments ne vont pas, rien à retenter.
 export function startAction(agent: AgentConfig, def: ActionDef, args: VibeArgs, view: VibeView, cfg: Config): SendResult & { invalid?: true } {
   const lang = vibeLang(cfg);
+  const shown = view.actions.find((a) => a.id === def.id);
+  const held = ownRun(def) ? blockedBy(def, viewLocks(view, vibeActions(lang)), lang) : null;
+  if (shown?.disabled && shown.disabled !== held) return { ok: false, error: shown.disabled };
   // Décharger, sur le robot d'un worktree : le message part à l'agent du dépôt (le worktree est à lui), avec ses sorties (F-110).
   const target = def.id === 'unload-worktree' ? worktreeParent(agent) : agent;
   if (!target) return { ...fail(lang, 'agent'), invalid: true };

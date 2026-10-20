@@ -179,7 +179,7 @@ export async function runOp(agent: AgentConfig, id: string, op: VibeRunOp): Prom
 }
 
 // Les courses et actions directes qui retenaient au relevé `view` (ce que le parcours a passé à blockedBy).
-const viewLocks = (view: VibeView, defs: ActionDef[]) => [
+export const viewLocks = (view: VibeView, defs: ActionDef[]) => [
   ...(view.runs ?? []).filter((r) => LOCKING.includes(r.state)).map((r) => r.id),
   ...view.actions.filter((a) => a.direct?.running).map((a) => a.id),
 ].map((id) => ({ id, reads: !!defs.find((d) => d.id === id)?.reads }));
@@ -229,9 +229,7 @@ export function runRequests(agent: AgentConfig, view = views.get(agent.id)): boo
       drop();
       continue;
     }
-    // Grisée à l'écran pour une autre raison qu'une course (celles-là, startRun les revoit sur l'état vivant).
-    const other = shown.disabled && shown.disabled !== blockedBy(def, viewLocks(view, defs), lang) ? shown.disabled : null;
-    const sent = other ? { ok: false, error: other } : startAction(agent, def, req.args, view, cfg);
+    const sent = startAction(agent, def, req.args, view, cfg);
     if (!sent.ok && 'invalid' in sent) { console.error(`VibeCoder : demande ignorée (${name} : ${sent.error})`); drop(); continue; }
     if (!sent.ok) { waiting.push({ id: req.id, reason: sent.error ?? '' }); continue; }
     started = true;

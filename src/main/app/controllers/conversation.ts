@@ -119,13 +119,15 @@ export function conversationProgress() {
 
 /* ---- Ce que demande le panneau ------------------------------------------- */
 
-// La page est prête : sa conversation, puis ce qui l'attendait (dictée, focus
-// du champ), puis le message. Ce qui attend n'est remis qu'avec une
+// La page est prête : sa conversation (et, un agent en VibeCoder, son premier
+// relevé : un clic n'arrive jamais avant lui), puis ce qui l'attendait (dictée,
+// focus du champ), puis le message. Ce qui attend n'est remis qu'avec une
 // conversation envoyée (refreshConversation) : devancé par un rafraîchissement
 // plus récent, celui-ci n'envoie rien, et la dictée arriverait avant le fil.
 export async function panelReady() {
   state.convReady = true;
   await refreshConversation();
+  await refreshVibe({ now: true });   // l'agent en VibeCoder : prêt quand son premier relevé est là
   if (state.convNotice) state.panel!.webContents.send('conv:notice', state.convNotice);
 }
 
