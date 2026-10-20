@@ -5,7 +5,8 @@
  *  d'autorisation ne vaut que pour celle affichée. Copier ne transporte aucun
  *  texte : le principal copie le sien. VibeCoder : le relevé de l'agent
  *  affiché, ses actions désignées par leur id, ses fichiers par leur id dans
- *  le relevé — aucun pont ne transporte un chemin.
+ *  le relevé, ses courses par l'id de leur action — aucun pont ne transporte
+ *  un chemin.
  *  Ne connaît pas : le principal (seulement ses canaux). Chargé par le panneau. */
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { ConvApi } from 'shared/bridge';
@@ -53,6 +54,7 @@ const conv: ConvApi = {
   vibeOpen: (id, line) => ipcRenderer.send('conv:vibeOpen', id, line),       // un fichier ou un commit du relevé, par son id (et une ligne) : jamais un chemin
   vibeRefresh: () => ipcRenderer.send('conv:vibeRefresh'),                   // relever maintenant
   vibeProcess: (op, index) => ipcRenderer.send('conv:vibeProcess', op, index), // une commande du projet par son rang : jamais un texte
+  vibeRunOp: (id, op) => ipcRenderer.send('conv:vibeRunOp', id, op),         // une course par l'id de son action : jamais un chemin ni un texte
 };
 
 contextBridge.exposeInMainWorld('conv', conv);

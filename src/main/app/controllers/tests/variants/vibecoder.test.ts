@@ -198,12 +198,12 @@ describe('une action', () => {
     expect(fake.messages).toEqual([]);
   });
 
-  it('part à l’agent affiché comme un message tapé : son gabarit rempli, rien d’autre', async () => {
+  it('une action d’étape court à part : son gabarit rempli, rien d’autre ; à sa fin, l’avis à la conversation', async () => {
     await open();
     const { runVibeAction } = await import('app/controllers');
     expect(runVibeAction('checks', {})).toEqual({ ok: true });
     await settle();
-    expect(fake.messages).toEqual([`/vibecoder:verifier fr ${out}`]);
+    expect(fake.messages).toEqual([`/vibecoder:verifier fr ${out}`, expect.stringMatching(/^VibeCoder : « Lancer les vérifications » terminée — ok\. /)]);
   });
 });
 
@@ -269,7 +269,7 @@ describe('rc.2', () => {
     expect(runVibeAction('checks', { model: 'fable' })).toMatchObject({ ok: false });
     expect(runVibeAction('checks', { model: 'sonnet' })).toEqual({ ok: true });
     await settle();
-    expect(fake.messages).toEqual([`/vibecoder:verifier--sonnet fr ${out}`]);
+    expect(fake.messages[0]).toBe(`/vibecoder:verifier--sonnet fr ${out}`);
   });
 
   it('les variantes des skills : générées à côté, hors manifeste, réécrites à chaque démarrage', async () => {

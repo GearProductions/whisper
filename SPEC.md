@@ -42,7 +42,7 @@ VibeCoder dans le panneau (`docs/tickets/feat/0.8.0-vibecoder.md`) :
 | Module (`src/renderer/`) | Rôle |
 |---|---|
 | `core/vibecoder` | pur : Markdown en blocs (jamais de HTML, liens `http(s)` seuls, I-40), lignes changées (`lineDiff`), coloration du pseudo-code et du code d'un test (`codeLines`, F-113), libellés FR et EN |
-| `app/panel/vibecoder/` | l'écran (en-tête, parcours, onglets et vues des étapes et leurs actions, conversation et tâches en onglets, barre des skills, barre d'état) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
+| `app/panel/vibecoder/` | l'écran (en-tête, parcours, onglets et vues des étapes, leur champ et leurs actions, conversation, actions lancées, tâches et processus en onglets, barre des skills, barre d'état) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
 
 Toutes : sans cadre, hors de la barre des tâches, `contextIsolation`,
 `sandbox`, préchargement minimal (`contextBridge`). Le principal
@@ -55,17 +55,17 @@ des processus.
 |---|---|
 | `app/lifecycle` | démarrage (une instance, aucun agent sélectionné, permissions), sortie (dont les processus du projet, F-111) |
 | `app/windows` | les trois fenêtres : créer, placer, montrer (icône, bulle, panneau) |
-| `app/controllers` | dictée (coupures, transcription, destination, modèle), lecture, agents, contenu du panneau, VibeCoder (`vibecoder.ts` : relevé, actions, réglages, validations, brouillon de revue, fichier à ouvrir ; `processes.ts` : les commandes du projet, F-111) |
+| `app/controllers` | dictée (coupures, transcription, destination, modèle), lecture, agents, contenu du panneau, VibeCoder (`vibecoder.ts` : relevé, actions, réglages, validations, brouillon de revue, fichier à ouvrir ; `processes.ts` : les commandes du projet, F-111 ; `runs.ts` : les courses — lancées, suivies, arrêtées, gardées ou annulées —, leur avis de fin à la conversation, les demandes de l'orchestrateur, `actions.json`, F-115) |
 | `app/menus` | menus de l'icône, des robots, du « + », du trombone |
 | `app/ipc` | une table de gestionnaires par fenêtre, écoutée par `technicals/ipc` |
 | `core/config` | réglages, démarrage, dossiers favoris et couleurs, confiance |
 | `core/dictation` | transcription d'une ligne, destination, collage et presse-papiers |
 | `core/sound` | couper et rétablir ce qu'on a coupé |
-| `core/agents` | processus (un par agent), tours, tâches de fond, file d'autorisations, interruption, sonde, transcriptions, sessions |
+| `core/agents` | processus (un par entrée : l'agent, et chaque course `<agent>~<clé>`, F-115), tours, retour en arrière des fichiers d'une entrée (`rewind`, I-45), tâches de fond, file d'autorisations, interruption, sonde, transcriptions, sessions |
 | `core/conversation` | actions et demandes d'autorisation écrites, pièces jointes, tâches de fond vues par le volet |
 | `core/guards` | permissions des pages, liens, fichiers montrés |
 | `core/repo` | page GitHub d'un dossier, d'après son remote `origin` |
-| `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier ou un commit désigné par son id (`safePath`, `itemPath`, `itemCommit`), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`, `forkedModel`), le parcours (`vibeView`), les sorties des skills, les fichiers par défaut (`syncDefaults`) et les variantes des skills (`skillVariants`), les validations et brouillons de revue |
+| `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier ou un commit désigné par son id (`safePath`, `itemPath`, `itemCommit`), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`, `forkedModel`), le parcours (`vibeView`), les sorties des skills, les fichiers par défaut (`syncDefaults`) et les variantes des skills (`skillVariants`), les validations et brouillons de revue, les courses (`runs` : `ownRun`, `runKey`, la règle `blockedBy`, `actions.json`, l'avis de fin, `parseRequest`, F-115) |
 | `core/runner` | les commandes du projet (F-111) : le fichier du projet lu (`parseProject`), une commande par son rang (`commandAt` : shell du fichier, préfixe `commandPrefix` — celui du fichier, du réglage, ou la box de l'agent, le même pour `gh`), les demandes de l'agent (`requestsOf`), la fin d'un journal (I-42) |
 | `technicals/process` | les processus lancés pour l'utilisateur : détachés, marqués dans leur environnement, arrêtés avec ce qu'ils ont lancé (SIGTERM, SIGKILL après 5 s), leur journal ; `writeNew` (I-43) |
 | `technicals/git` | git en lecture seule (`gitRun`, `gitReader`, `GIT_READ`) : les faits d'une branche ou d'une PR chargée, un fichier à un ref, un commit et son diff (I-39) |
@@ -78,7 +78,7 @@ Scripts lancés par l'appli : `resources/scripts/` (`windows-helper.ps1`,
 `pocket-helper.py`), livrés hors de l'archive comme les binaires. De même
 `resources/vibecoder/` (`extraResources` → `vibecoder/`) : `README.md`,
 `actions.fr.json`, `actions.en.json`, `plugin/` (`.claude-plugin/plugin.json`,
-`skills/<nom>/SKILL.md`, `agents/developpeur.md`, `agents/relecteur.md`),
+`skills/<nom>/SKILL.md`, `agents/developpeur.md`),
 recopiés dans `userData/vibecoder/` (F-107).
 
 ### Canaux IPC
@@ -103,7 +103,10 @@ Vers le principal :
   commande du projet par son rang : lancer, arrêter, relancer, son journal ;
   ou le fichier du projet dans l'éditeur, F-111),
   `conv:vibeRun` (une action par son id et ses arguments — `direct` : par
-  l'appli elle-même, F-114 —, avec réponse `{ ok, error }`).
+  l'appli elle-même, F-114 —, avec réponse `{ ok, error }`),
+  `conv:vibeRunOp` (une course par l'id de son action dans le dernier
+  relevé : l'arrêter, la garder ou l'annuler, répondre à sa demande
+  d'autorisation ; F-115).
 
 Vers les pages : `tts:state`, `tts:chunk`, `tts:end`, `tts:speakReply`,
 `agents:state` (icône) ; `bubble:show` (bulle) ; `conv:thread`, `conv:notice`,
@@ -125,7 +128,7 @@ fichier se désignent par leur id dans le dernier relevé (I-37, I-38).
 | `consigne-agents.md` | consigne ajoutée au prompt système des agents |
 | `agents.log` (`.old`) | journal des agents, 1 Mo puis rotation |
 | `vibecoder/` | ce que VibeCoder fait dire, à retoucher (F-107) : `actions.fr.json`, `actions.en.json`, `plugin/` (le plugin `vibecoder` : skills, agents ; `skills/<nom>--<modèle>/`, les variantes générées, F-106), `README.md` ; `.defaults.json`, le manifeste de ce que l'appli y a écrit ; `projets/<dossier>.json`, les commandes du projet d'un dossier (F-111), à l'utilisateur |
-| `vibecoder-out/<agent>/` | les sorties des skills pour l'écran (F-95) ; `branches/<branche>/`, celles de *Créer* d'une branche quittée, et `.branche`, la dernière branche vue ; `files/`, ce que l'appli écrit pour l'ouvrir dans l'éditeur, en lecture seule (`pr-<n>/<chemin>`, `<hash>.diff`, F-101) ; `run/<nom>.log` (`.old`), les journaux des commandes du projet, et `run/<nom>.stop`, `.restart`, les demandes de l'agent (F-111) ; `direct.log`, une ligne par commande d'une action directe, et `pr-<n>-review-body.md`, le brouillon publié (F-114) ; dossier de travail en plus de Claude Code (F-58) |
+| `vibecoder-out/<agent>/` | les sorties des skills pour l'écran (F-95) ; `branches/<branche>/`, celles de *Créer* d'une branche quittée, et `.branche`, la dernière branche vue ; `files/`, ce que l'appli écrit pour l'ouvrir dans l'éditeur, en lecture seule (`pr-<n>/<chemin>`, `<hash>.diff`, F-101) ; `run/<nom>.log` (`.old`), les journaux des commandes du projet, et `run/<nom>.stop`, `.restart`, les demandes de l'agent (F-111) ; `direct.log`, une ligne par commande d'une action directe, et `pr-<n>-review-body.md`, le brouillon publié (F-114) ; `actions.json`, les courses pour l'orchestrateur, et `actions/<id>.start`, `.stop`, ses demandes (F-115) ; dossier de travail en plus de Claude Code (F-58) |
 | `vibecoder-state.json` | validations (par agent) et brouillons de revue (par agent et par PR) |
 
 En développement : `--user-data-dir=.data` (cf. LINUX_SETUP.md).
@@ -354,7 +357,9 @@ message et **gardé entre les tours** : les messages suivants passent par son
 entrée. Le premier tour crée la session (retenue dans `sessionId`). Relancé,
 session reprise, s'il est mort ou si le dossier, l'effort, la consigne,
 `agentCommand`, les plugins ou les dossiers en plus ont changé (`launchKey`). Fermé à *Nouvelle session*, *Retirer*, *Reprendre*
-une autre session et à la sortie (I-19, I-33). Une tâche lancée en
+une autre session et à la sortie (I-19, I-33). Une course de VibeCoder
+(F-115) a son propre processus, sous l'entrée `<agent>~<clé>` : ce n'est
+pas la conversation de l'agent. Une tâche lancée en
 arrière-plan (commande, surveillance) survit au tour ; à sa fin, Claude Code
 prévient l'agent, qui peut ouvrir un tour de lui-même : sa réponse arrive
 comme une autre (pastille verte, bip). Images avant le texte ; sans image,
@@ -493,7 +498,8 @@ liens vers le navigateur seulement, jamais de navigation.
 
 ## 7 bis. VibeCoder
 
-Note du ticket : `docs/tickets/feat/0.8.0-vibecoder.md` ; le guide :
+Notes des tickets : `docs/tickets/feat/0.8.0-vibecoder.md`,
+`0.9.0-actions-independantes.md` (les courses) ; le guide :
 `docs/dev_guide/guide-travail-dev-ia.html`.
 
 ### Ouvrir, l'écran
@@ -529,17 +535,21 @@ conversation des agents qui ne sont pas en VibeCoder ne change pas.
 - au centre, les **onglets** des étapes (Ctrl+1…6), l'étape choisie — sinon
   celle en cours, que l'écran suit —, ses actions dans son en-tête (F-93) ;
   pas de carte « prochaine étape » : le parcours dit où l'on en est ;
-- à droite, deux onglets : **Conversation** (son intitulé ; le message en tête,
+- à droite, des onglets : **Conversation** (son intitulé ; le message en tête,
   F-74, le fil et ses demandes d'autorisation, le détail du contexte, la
   barre des skills, F-93, le champ, F-68 à F-70 : dictée, brouillon, pièces
-  jointes, commandes « / ») : on lui parle toujours ; **Tâches (n)** (n en
-  cours) : le volet des tâches (F-77), par-dessus la conversation, qui garde
-  sa place. Préparer un message dans le champ, ou une action qui l'exige,
-  revient à l'onglet Conversation ;
+  jointes, commandes « / ») : on lui parle toujours, même pendant qu'une
+  action tourne ; **Actions (n)** (n en cours, en attente d'une
+  autorisation ou arrêtées à trancher) : les courses (F-115) ; **Tâches (n)**
+  (n en cours) : le volet des tâches (F-77) ; **Processus (n)** (F-111) ;
+  par-dessus la conversation, qui garde sa place. Préparer un message dans
+  le champ de la conversation, ou un message sans étape qui l'exige, revient
+  à l'onglet Conversation ;
 - en bas, la **barre d'état** : modèle, effort, mode de l'agent (des listes,
   comme son menu, F-56, F-57), jauge du contexte (clic : le détail, F-71),
   *⚙ Tâches (n)* (l'onglet Tâches, et retour ; la colonne masquée
-  s'affiche), *⏹ Arrêter* quand l'agent travaille, fichiers modifiés, heure
+  s'affiche), *⏹ Arrêter* quand la conversation travaille (son tour
+  seulement, pas les courses), fichiers modifiés, heure
   du dernier relevé.
 
 En *Vibe*, un bandeau le rappelle en haut de l'étape (« l'agent déroule le
@@ -551,7 +561,11 @@ inattendu : « Cette étape ne peut pas s'afficher. » et *Réessayer* ; le rest
 de l'écran et le brouillon tiennent (I-29).
 
 **F-93 Les actions d'une étape, Relancer, barre des skills.**
-- Sous le titre de l'étape, une **rangée d'actions** compacte : celles de
+- Une action d'étape **court à part** de la conversation, dans sa propre
+  conversation (une course, F-115) : pendant qu'elle tourne, on parle à
+  l'agent comme d'habitude. Sous le titre de l'étape, le **champ de
+  l'étape** quand une de ses actions prend un texte (F-98).
+- Sous le titre de l'étape (et son champ), une **rangée d'actions** compacte : celles de
   l'étape, chacune avec qui travaille ou le choix du modèle (F-99) et
   pourquoi elle est grisée ; sans celles que la vue montre déjà ailleurs
   (une invitation, une carte, une ligne : jamais deux fois). À l'étape en
@@ -559,9 +573,13 @@ de l'écran et le brouillon tiennent (I-29).
   discrètement mise en avant, même si elle appartient à une autre étape
   (*Préparer le commit* à l'étape Invariants). Ce qu'attend une validation
   reste dans la vue : *✓ Valider la note*, *✓ Valider la forme*, « N cas à
-  valider » en tête des invariants. Agent au travail : les actions envoyées
-  sont grisées ; *⏹ Arrêter* (barre d'état) arrête son tour, comme
-  *Interrompre* de son menu (F-56).
+  valider » en tête des invariants. Une action dont la course tourne :
+  « en cours » et ⏹ à côté de son bouton (arrêtée, à trancher dans l'onglet
+  *Actions*). Conversation au travail : seuls les messages sans étape
+  (*Demander sans modifier*, *Où j'en suis ?*, *Proposer les commandes*,
+  *Tout dérouler*) sont grisés ; *⏹ Arrêter* (barre
+  d'état) arrête son tour, comme *Interrompre* de son menu (F-56), sans
+  toucher aux courses.
 - **Relancer** : chaque carte d'une sortie de skill (alignement, relecture
   du diff, commit proposé, vérifications, ponytail review, CI, relecture de
   la note et des commits, plan de test) refait son action, mêmes arguments
@@ -640,7 +658,9 @@ depuis quand ; un JSON mis en forme, un Markdown rendu, F-104).
 **F-96 Les actions** sont des données (`actions.<langue>.json`, F-107) : par
 bouton `id`, `flow` (`create`, `review`, `both`), `step` (son étape ; `null` :
 la barre des skills), `kind` (`send` : envoyé ; `prefill` : préparé dans le
-champ), `needs` (`text` : il exige le champ ; sinon `none`), `label`,
+champ), `needs` (`text` : il exige un texte ; sinon `none`), `reads`
+(`true` : elle ne fait que lire ; absent : elle modifie la branche, le cas
+sûr pour une action ajoutée ; F-115), `label`,
 `hint`, `text` (le gabarit). Les `id` livrés sont un contrat : le parcours
 (l'action mise en avant) et les vues (les boutons propres à une étape) s'y
 réfèrent ; on personnalise `label`, `hint` et `text`, retirer une entrée
@@ -650,20 +670,23 @@ autre type, étape inconnue, id déjà vu, `prefill` avec une autre variable que
 un tableau vide : aucun bouton. Montrées : celles du flow, et `both` ;
 *Où j'en suis ?* seulement si le skill `gear-guide` existe (projet ou
 utilisateur).
-**Tout passe par la conversation** : une action `send` est un message à
-l'agent affiché, sur sa conversation en cours, écrit comme s'il avait été
-tapé — son gabarit, ses variables remplies (un skill `/vibecoder:<nom>` et ses
-arguments, ou du texte) — par le chemin du champ (`sendToAgent` : refusé à un
-agent au travail, I-25 ; jamais à un autre agent, I-33, ni à une ancienne
-conversation, I-22). Aucun appel au modèle à part : revenu en conversation,
-chaque action est dans le fil. Seules exceptions : les quatre actions
-directes, que l'appli fait elle-même sans agent ni modèle (F-114). La page ne donne qu'un id d'action de son
+**Un message, dans sa conversation** : une action `send` est un message
+écrit comme s'il avait été tapé — son gabarit, ses variables remplies (un
+skill `/vibecoder:<nom>` et ses arguments, ou du texte). Celle d'une étape
+(`step` renseigné) part dans **sa propre conversation**, une course (F-115),
+suivie dans l'onglet *Actions*. Les autres (`vibe`, `guide`, `ask`,
+`propose-run`) vont à l'agent affiché, sur sa conversation en cours, par le
+chemin du champ (`sendToAgent` : refusé à un agent au travail, I-25 ; jamais
+à un autre agent, I-33, ni à une ancienne conversation, I-22) : revenu en
+conversation, elles sont dans le fil. Les quatre actions directes, elles,
+l'appli les fait sans agent ni modèle (F-114). La page ne donne qu'un id d'action de son
 dernier relevé et ses arguments (texte, rang de module, hash de commit,
 id de test, numéro de PR, réponses, verdict, modèle), chacun vérifié (type, taille, valeur) par
 la variable qui le prend ; une action inconnue, grisée ou `prefill` est
 refusée.
 
-**F-97 Gabarit et variables** (liste fermée, I-38) : `{{text}}` (le champ,
+**F-97 Gabarit et variables** (liste fermée, I-38) : `{{text}}` (le champ
+de son étape — celui de la conversation pour un message sans étape, F-98 —,
 sans ses blancs autour, 20 000 caractères au plus) ; `{{out}}` (F-95) ;
 `{{lang}}` (`fr`, `en`) ; `{{branch}}`, `{{base}}` ; `{{note}}` (le chemin de
 la note) ; `{{ref}}` (`WORKTREE` en *Créer*, `refs/vibecoder/pr/<n>` en
@@ -689,17 +712,26 @@ choisi (F-99), autre que le conseillé : le `/vibecoder:<nom>` de tête devient
 propose pas refuse l'action (« Ce modèle ne peut pas être choisi pour cette
 action. »).
 
-**F-98 Le champ** : une action dont le gabarit prend `{{text}}` emporte le
-texte du champ s'il y en a (*Poser la forme*, *Écrire les invariants*, *Où
-j'en suis ?*), ou l'exige (`needs: text` : *Rédiger la note*, *Tout
-dérouler*, *Demander sans modifier* ; vide → « Dictez ou écrivez d'abord
-votre demande dans le champ, puis cliquez. », le champ prend le clavier) :
-on dicte, puis on clique. Sauf quand la vue donne elle-même le texte
+**F-98 Les champs** : une action dont le gabarit prend `{{text}}` emporte le
+texte de **son champ** s'il y en a, ou l'exige (`needs: text` ; vide →
+« Dictez ou écrivez d'abord votre demande dans le champ, puis cliquez. », le
+champ prend le clavier) : on dicte, puis on clique. Son champ :
+- une action d'étape : le **champ de l'étape**, sous son titre (F-93),
+  montré quand une de ses actions prend un texte — *Rédiger la note* (exigé),
+  *Poser la forme*, *Écrire les invariants (rouges)* ; la dictée y va quand
+  il a le clavier ;
+- *Tout dérouler* : le champ du bandeau du mode *Vibe* (exigé) ;
+- un message sans étape (*Où j'en suis ?*, *Demander sans modifier* (exigé),
+  *Proposer les commandes*) : le **champ de la conversation**, qui ne sert
+  plus qu'à elle et à eux.
+
+Sauf quand la vue donne elle-même le texte
 (*Appliquer* une remarque de la ponytail review : la remarque ; *Tout
-appliquer* : rien) : le champ ne part pas et reste tel quel. Partie, le champ se vide (ses pièces jointes
-restent : une action n'envoie pas d'image) et le fil descend ; refusée, sa
-raison s'affiche sous le champ. Une action à la fois. Une action `prefill`
-ajoute son texte au champ (à la ligne s'il n'est pas vide), `{{quote}}`
+appliquer* : rien) : aucun champ ne part, ils restent tels quels. Partie, le
+champ se vide (celui de la conversation : ses pièces jointes restent, une
+action n'envoie pas d'image, et le fil descend) ; refusée, sa raison
+s'affiche sous le champ de la conversation. Une action `prefill`
+ajoute son texte au champ de la conversation (à la ligne s'il n'est pas vide), `{{quote}}`
 remplacé par ce qu'on cite (une ligne, 300 caractères au plus) : en *Créer*,
 💬 sur un bloc, un module ou un cas (« À propos de « … » : »), ✗ sur un cas
 de test (« Invariant « … » : à revoir — »), *Retour → fixup* ; possible
@@ -712,7 +744,10 @@ l'utilisateur (`model`, et `effort` au-delà de `low`) : *haiku*, *sonnet ·
 moyen*, *opus · élevé* ; sans modèle, ou sans skill (un message en clair,
 `/gear-guide`) : *agent*, le modèle de l'agent. Une action grisée dit
 pourquoi (sous le bouton, au survol ; le principal la refuse de même) :
-l'agent travaille ; une action directe en cours (les quatre, F-114) ; pas de dépôt git ; pas encore de note (aussi la Forme et
+une action d'étape, par la règle des courses (F-115 : « Cette action est
+déjà en cours », « Une autre action est en cours », « Une action modifie la
+branche ») ; un message sans étape, quand la conversation travaille
+(« L'agent travaille » : elle ne grise plus que ceux-là) ; une action directe en cours (les quatre, F-114) ; pas de dépôt git ; pas encore de note (aussi la Forme et
 les invariants en *Créer*) ; aucun test d'invariant ; *Relire* :
 aucune PR choisie, ou charger d'abord la PR ; brouillon de revue vide ;
 *✓ Commiter* sans commit préparé ; *Envoyer les réponses* sans question
@@ -723,6 +758,65 @@ Une action dont le skill tourne en sous-contexte (`context: fork`) sur
 conseillé : `model`) : on peut prendre plus léger (ou plus fort) pour cette
 fois ; le conseillé reste le choix par défaut. Jamais Fable (I-36).
 
+**F-115 Les courses** (une action d'étape qui court à part de la
+conversation ; note `0.9.0-actions-independantes.md`).
+- **Sa propre conversation** : une action `send` d'une étape (F-96) lance un
+  processus Claude Code neuf, l'entrée `<agent>~<clé>` du runtime des agents
+  (la clé : l'id de l'action ; *Envoyer les réponses* reprend celle de la
+  note, `note`, et sa session : l'agent qui a rédigé la note garde son
+  contexte). Mêmes dossier, consigne, plugin, dossiers en plus, mode et
+  autorisations que l'agent (F-58), interruption comme lui (I-19) ; le modèle
+  et l'effort de son skill en sous-contexte (ou celui choisi, F-99), sinon
+  ceux de l'agent ; le suivi des fichiers écrits de Claude Code
+  (`enableFileCheckpointing`). Pas de limite au nombre de courses ; la
+  conversation de l'agent n'est jamais occupée par l'une d'elles. Finie, la
+  course est fermée (son processus aussi).
+- **La règle** (`blockedBy`, sans modèle) : une action qui **modifie la
+  branche** attend toute course en cours ; une **lecture** (`reads`, F-96)
+  n'attend qu'une modification, les lectures tournent ensemble ; la même
+  action (même clé) ne court pas deux fois. En cours : *en cours*, *attend
+  une autorisation*, ou *arrêtée* pas encore tranchée (I-44). Au clic, une
+  action retenue est grisée avec la raison (F-99) ; le principal la refuse
+  de même.
+- **L'onglet Actions (n)** : une ligne par course, la plus récente d'abord —
+  son libellé, qui travaille, son état (*en cours*, *attend une
+  autorisation*, *arrêtée — à garder ou annuler*, *finie*, *en échec*,
+  *gardée*, *annulée*), depuis quand ; ⏹ tant qu'elle travaille ; sa
+  demande d'autorisation (outil, cible ; *Autoriser*, *Toujours*,
+  *Refuser*) ; sa réponse, repliée. Une course se désigne par l'id de son
+  action (`conv:vibeRunOp`), jamais par un texte ni un chemin.
+- **Arrêter, puis Garder ou Annuler** : ⏹ (onglet *Actions*, ou à côté du
+  bouton) interrompt son tour (I-19) ; son processus reste, et elle retient
+  les autres, jusqu'au choix de l'utilisateur : *Garder* ce qu'elle a déjà
+  écrit, ou *Annuler* — les fichiers que **ses** outils d'édition ont écrits
+  reviennent à leur état d'avant son premier message (`rewindFiles` du SDK,
+  sur son processus, I-45) ; puis elle est fermée. Un retour impossible :
+  *en échec*, et la raison.
+- **L'orchestrateur** (la conversation de l'agent, skill `actions`) : il lit
+  `<sorties>/actions.json`, réécrit à chaque changement (`actions` : celles
+  qui courent à part, et `reads` ; `runs` : chaque course, son état, sa
+  réponse ; `waiting` : les demandes retenues et pourquoi), quand on le lui
+  demande. Il demande un lancement par `<sorties>/actions/<id>.start` (un
+  objet JSON de ses arguments : `text`, `module`, `commit`, `file`, `pr`,
+  `model`, `answers` ; jamais `direct`) ou un arrêt par `<id>.stop` (vide) ;
+  l'appli les lit au relevé, à la fin de chaque tour de la conversation et à
+  la fin de chaque course, les `.stop` d'abord. Un lancement suit la même
+  règle et les mêmes vérifications qu'un clic (`buildMessage`, I-38) ; parti,
+  ou invalide, le fichier est supprimé ; retenu, il reste « en attente »
+  (`waiting`) et **part de lui-même** au premier passage où plus rien ne le
+  retient. En *Guide*, il ne lance ou n'arrête une action qu'à la demande de
+  l'utilisateur ; en *Vibe*, il les enchaîne (F-103).
+- **L'avis de fin** : une course finie (*finie*, *en échec*) envoie une
+  ligne à la conversation de l'agent (« VibeCoder : « <libellé> » finie —
+  <sa réponse, 300 caractères au plus>. État : <sorties>/actions.json ») ;
+  gardée tant que la conversation travaille (I-25), envoyée dès qu'elle est
+  libre, plusieurs en un message. Pas d'avis pour une course arrêtée :
+  l'utilisateur (ou l'orchestrateur) le sait, et son état est dans
+  `actions.json`.
+- Les courses, les avis et les demandes retenues sont **en mémoire** ;
+  *Nouvelle session*, *Retirer* l'agent ou retirer le robot d'un worktree
+  (F-110) ferment et oublient ses courses.
+
 ### Créer, Relire
 
 **F-100 Créer** (la branche du dossier de l'agent ; les étapes du guide,
@@ -730,7 +824,8 @@ fois ; le conseillé reste le choix par défaut. Jamais Fable (I-36).
 1. **Note** — faite : « Ce que ça fait » rédigée, aucune question ouverte
    (`questions.md` vide), la note validée (F-102). Montre la note rendue
    (F-104), à jour pendant que l'agent l'écrit : ce qui a changé depuis le
-   début du dernier tour porte un liseré, *Voir les modifications* montre le
+   début du dernier tour (de la conversation, ou d'une course qui modifie la
+   branche) porte un liseré, *Voir les modifications* montre le
    diff brut (retraits compris, replié autour des changements), *✓ Vu* en
    repart ; les lignes « ne doit pas » portent leur marque en pastille
    (*invariant*, *variant*, *review*, *structure*, sinon *à classer*) ;
@@ -739,13 +834,13 @@ fois ; le conseillé reste le choix par défaut. Jamais Fable (I-36).
    clic la retire), *Conseille-moi*, *Je te laisse trancher*, une précision
    libre ; *Envoyer les réponses* les envoie en une fois, une par question
    (grisé tant qu'aucune n'a de réponse). Prochaine action : *Rédiger la
-   note* (la demande du champ ; sur la base, l'agent crée d'abord la branche
+   note* (la demande du champ de l'étape ; sur la base, l'agent crée d'abord la branche
    du ticket), puis *Envoyer les réponses*, puis *✓ Valider la note*.
 2. **Forme** — faite : au moins un module dans la rubrique « Forme », validée.
    Montre les modules groupés par premier dossier (`src/` de tête ignoré) :
    chemin, contrat en rubriques (expose, ne connaît pas, utilisé par), état
    (touché par la branche, existe, à créer), commits ; 💬, *Ouvrir*. *Poser
-   la forme* (dans la note, sans code ; le champ peut la préciser), puis
+   la forme* (dans la note, sans code ; le champ de l'étape peut la préciser), puis
    *✓ Valider la forme*.
 3. **Invariants** — faite : aucune ligne « → invariant », ou des tests
    d'invariants dont chaque fichier est lu et chaque cas validé. Montre le
@@ -766,7 +861,7 @@ fois ; le conseillé reste le choix par défaut. Jamais Fable (I-36).
    du test, vide au-delà de 200 000 caractères (rien de tout cela n'est
    alors montré). En tête : *Tout relire* (dès qu'un fichier
    est lu). Prochaine action : *Écrire les invariants
-   (rouges)* (d'après la note, ou le pseudo-code du champ), *Lire en
+   (rouges)* (d'après la note, ou le pseudo-code du champ de l'étape), *Lire en
    pseudo-code* (les fichiers pas encore lus : une lecture est nommée par
    l'empreinte du fichier ; relire la remplace), *✓ Commiter* (un commit préparé), *Préparer le
    commit* (des fichiers à commiter) ; aussi *Vérifier l'alignement*.
@@ -916,18 +1011,28 @@ contenu change → « modifiée depuis » (*✓ Revalider*), et l'étape attend 
 nouvelle validation. Une cible absente du dernier relevé est ignorée.
 Gardées par agent (`vibecoder-state.json`) ; aucune n'envoie de message.
 
-**F-103 Guide et Vibe** (par agent, `agents[].vibe.autonomy`). *Guide* (par
+**F-103 Guide et Vibe** (par agent, `agents[].vibe.autonomy`), sur la même
+mécanique, les courses (F-115). *Guide* (par
 défaut) : le développeur valide la note, la forme et chaque cas des
-invariants ; l'étape en cours attend ses validations. *Vibe* : on donne la
+invariants ; l'étape en cours attend ses validations ; il lance les actions
+dans l'ordre qu'il veut, et l'orchestrateur ne lance ni n'arrête rien qu'il
+ne lui demande. *Vibe* : on donne la
 main à l'agent, le développeur teste et approuve à la fin ; les validations
 ne sont plus attendues (note, forme, et invariants dès qu'il y a des tests,
 faits sans ✓ ni lecture). *Tout dérouler* (*Créer* ; l'action mise en avant
 de l'étape en cours, F-93, en *Vibe* tant que la branche n'a pas de note) : la demande
-du champ part au skill `vibe` ; l'agent tient le rôle du développeur du
-guide — note, forme, invariants rouges, premier commit, modules confiés à des
-agents Opus avec `ponytail`, vérifications, `ponytail-review`, fixups, PR,
-release candidate si le projet en documente une —, ne s'arrête que sur une
-question qui bloque (`questions.md`), et le parcours se remplit au fil du
+du champ du bandeau part au skill `vibe`, dans la conversation ; l'agent,
+l'**orchestrateur**, tient le rôle du développeur du
+guide et **enchaîne les actions de l'écran** par leurs demandes (F-115) —
+note, réponses aux questions qu'il tranche (`answers`), forme, invariants
+rouges, premier commit, modules (confiés à des agents Opus avec
+`ponytail`), vérifications et ponytail review, fixups, PR, release
+candidate si le projet en documente une —, une demande puis la fin de son
+tour, réveillé par l'avis de fin ; chaque action reste visible et
+arrêtable dans l'onglet *Actions*, et ce qui doit attendre part de
+soi-même. Il ne s'arrête que sur une
+question qui bloque (`questions.md`), ne tranche jamais *Garder* /
+*Annuler* (c'est à l'utilisateur), et le parcours se remplit au fil du
 relevé. Jamais : `git push --force`, fusionner la PR, publier une version
 officielle, supprimer une version, un tag ou une branche.
 
@@ -1050,15 +1155,20 @@ l'appli (I-39, I-29).
 SDK au Claude Code de chaque agent (F-58) : ses skills s'appellent
 `/vibecoder:<nom>` ; `disable-model-invocation` : seul un bouton, ou
 l'utilisateur qui tape la commande, les lance (sauf `processus`, F-111, que
-l'agent appelle quand il a besoin d'un journal ou d'une relance) — ils ne coûtent rien tant
+l'agent appelle quand il a besoin d'un journal ou d'une relance, et
+`actions`, F-115, quand on lui demande où en sont les actions, ou d'en lancer
+ou d'en arrêter une — en *Guide*, seulement à la demande de l'utilisateur)
+— ils ne coûtent rien tant
 qu'on ne les appelle pas —, et rien n'est écrit dans les projets pour eux.
 Ils s'appuient sur les skills du projet et de l'utilisateur quand ils
 existent (`gear-prompt-specs-to-feature-note`, `gear-commit-message`,
 `gear-fix-up`, `ponytail`, `ponytail-review`) : ils en suivent les
 instructions, sinon le guide du dépôt (`docs/dev_guide/`), sinon les leurs.
-Deux agents du plugin, Opus à effort élevé, lancés par `modules` et `vibe` :
-`developpeur` (un module de la Forme, `ponytail` préchargé, rien de commité)
-et `relecteur` (relit, ne modifie rien). Aucun skill livré ne fait
+`vibe` est la consigne d'enchaînement de l'orchestrateur (F-103) : il ne
+fait plus la feature dans un seul tour, il lance les actions par le
+protocole d'`actions`.
+Un agent du plugin, Opus à effort élevé : `developpeur` (un module de la
+Forme, `ponytail` préchargé, rien de commité), lancé par `modules`. Aucun skill livré ne fait
 `git push --force` ni ne fusionne une PR ; une version, un tag, une release
 candidate ne se suppriment qu'avec l'accord de l'utilisateur.
 
@@ -1076,11 +1186,12 @@ longueur de celle-ci.
 
 `lire-invariants` : Sonnet à effort moyen, retenu par un banc (tests Rust de
 workflows-tester, tests TypeScript de whisper) : 79/90, contre 84/90 pour
-Opus à effort moyen, 1,8 fois plus cher ; Haiku écarté. Restent dans la
-conversation, sur le modèle de l'agent (en changer en cours de conversation
-en perdrait le cache) : `note`, `forme`, `modules`, `vibe`, `rc`, `release`, `processus`,
-et les messages sans skill (*Envoyer les réponses*, *Appliquer la revue*,
-*Demander sans modifier*, *Où j'en suis ?*).
+Opus à effort moyen, 1,8 fois plus cher ; Haiku écarté. Sans sous-contexte,
+sur le modèle de l'agent : `note`, `forme`, `modules`, `rc`, `release` et les
+messages sans skill d'une étape (*Envoyer les réponses*, *Appliquer la
+revue*), chacun dans sa course (F-115) ; dans la conversation (en changer de
+modèle en cours de conversation en perdrait le cache) : `vibe`, `processus`,
+`actions`, et *Demander sans modifier*, *Où j'en suis ?*.
 
 **Un autre modèle pour une étape** (F-99) : au démarrage (et à chaque
 ouverture du dossier, F-107), pour chaque skill `<nom>` du plugin de
@@ -1220,7 +1331,11 @@ VibeCoder, I-35 à I-40 : `src/main/core/vibecoder/tests/invariants/`
 `actions.test.ts` I-38), `src/main/technicals/git/tests/invariants/read-only.test.ts`,
 `src/main/technicals/github/tests/invariants/read-only.test.ts`, `src/main/technicals/direct/tests/invariants/direct.test.ts` (I-39), `src/renderer/core/vibecoder/tests/invariants/markdown.test.ts` (I-40) ;
 I-42, I-43 : `src/main/core/runner/tests/invariants/runner.test.ts`,
-`src/main/technicals/process/tests/invariants/process.test.ts`.
+`src/main/technicals/process/tests/invariants/process.test.ts` ; I-44 :
+`src/main/app/controllers/tests/invariants/runs.test.ts` (sur le vrai
+principal, git réel, SDK factice) ; I-45 :
+`src/main/core/agents/tests/invariants/rewind.test.ts` (ce que l'appli
+demande à Claude Code) et le dernier cas de `runs.test.ts`.
 Les autres (focus, fenêtres, I-1, I-18, I-22, I-28) : scénarios du § 13 et
 bancs de comparaison.
 
@@ -1313,12 +1428,14 @@ bancs de comparaison.
 - **I-24** La consigne `<audio>` ne s'applique qu'aux sessions créées par
   l'appli, jamais aux sessions Claude Code habituelles.
 - **I-25** Un message n'est jamais envoyé à un agent au travail (le texte est
-  gardé : brouillon, ou presse-papiers).
+  gardé : brouillon, ou presse-papiers). Une course de VibeCoder n'est pas
+  un message à l'agent : elle part dans sa propre conversation (F-115) ; son
+  avis de fin attend que la conversation de l'agent soit libre.
 - **I-33** Le processus d'un agent survit à la fin d'un tour, et ce qu'il a
   lancé en arrière-plan aussi ; il n'est fermé qu'à *Nouvelle session*,
   *Retirer*, *Reprendre*, à la sortie ou pour être relancé (F-59), par la fin
   de son entrée d'abord (I-19). Un message part toujours au processus **de
-  son agent**.
+  son agent** (une course, à celui de son entrée `<agent>~<clé>`, F-115).
 - **I-34** Le principal ne lit que les fichiers de sortie que Claude Code a
   nommés dans le flux de la session (notification de tâche, résultat d'une
   commande en arrière-plan) : jamais un chemin venu d'une page, jamais un
@@ -1418,6 +1535,19 @@ bancs de comparaison.
   et les processus marqués de **son** jeton (dans leur environnement), rien
   d'autre ; une clé inconnue n'arrête rien ; quitter arrête tout, même un
   descendant sorti du groupe. SIGTERM, puis SIGKILL après 5 s (comme I-19).
+- **I-44** Jamais **deux courses qui modifient la branche** en cours en même
+  temps, ni **une lecture pendant une modification** (F-115), qu'elles
+  viennent d'un clic ou de l'orchestrateur (`actions/<id>.start`), de deux
+  clics sans relevé entre eux ou de deux demandes lues au même passage. Une
+  course arrêtée dont l'utilisateur n'a pas encore choisi *Garder* ou
+  *Annuler* compte comme en cours (retour en arrière compris).
+- **I-45** *Annuler* une course ne ramène **que ce que ses propres outils
+  d'édition ont écrit** : `rewindFiles` du SDK sur **son** processus (son
+  entrée `<agent>~<clé>`, lancé neuf pour elle, avec le suivi des fichiers),
+  à **son** premier message — jamais sur la conversation de l'agent ni sur
+  une autre course, en cours ou gardée ; une course qui reprend la session
+  d'une autre (*Envoyer les réponses*) ne ramène qu'elle-même. Le travail du
+  développeur et celui des autres courses restent.
 
 ### Système et code
 
@@ -1655,6 +1785,34 @@ Copier, erreurs ; mêmes relevés).
   revenir sur la base* sur une PR ouverte → ✗ « … OPEN, not merged: nothing
   done. », rien ne bouge ; fusionnée → sur la base, à jour, branche locale
   supprimée. `direct.log` : une ligne par commande.
+- **S-68** Courses (F-115), *Guide*, une branche de ticket : à l'étape
+  **Forme**, un mot dans le champ de l'étape, *Poser la forme* → le champ se
+  vide, « en cours » et ⏹ à côté du bouton, *Actions (1)* ; pendant ce temps,
+  une question dans le champ de la conversation → l'agent répond. *Écrire
+  les invariants (rouges)* grisé « Une autre action est en cours » ; à
+  l'étape Revue, *Ponytail review* grisé « Une action modifie la branche ».
+  ⏹ → *arrêtée — à garder ou annuler*, les autres toujours grisées ;
+  *Annuler* → la note revient telle qu'avant la course (`git diff` vide sur
+  ce qu'elle avait touché), un autre fichier modifié à la main pendant ce
+  temps reste modifié, *annulée*, les boutons se libèrent. Relancée puis *Garder*
+  → ses changements restent. *Lancer les vérifications* et *Ponytail
+  review* ensemble → deux lignes *en cours*. Une course finie → une ligne
+  « VibeCoder : « … » finie — … » dans le fil (après le tour en cours de la
+  conversation, s'il y en a un) ; une course arrêtée → aucune. Mode
+  *manuel* : la demande d'autorisation d'une course dans l'onglet
+  *Actions*, *Autoriser* → elle reprend. *Nouvelle session* → l'onglet se
+  vide.
+- **S-69** L'orchestrateur (F-115, F-103) : « Lance la ponytail review » →
+  `actions/ponytail.start`, la course part (onglet *Actions*), l'avis de fin
+  arrive ; « où en sont les actions ? » → il lit `actions.json` et répond.
+  Pendant *Poser la forme* (clic), « lance les vérifications » → *en
+  attente* dans `actions.json` (`waiting`, avec la raison), puis part
+  d'elle-même à la fin de la forme, sans qu'on redemande. « Arrête-la » →
+  `.stop`, *arrêtée*, pas d'avis de fin. *Guide*, sans rien demander : il ne
+  lance rien. *Vibe*, *Tout dérouler* avec une petite demande → les actions
+  s'enchaînent une à une dans l'onglet *Actions* (note, réponses, forme,
+  invariants, …), la conversation libre entre deux ; ⏹ sur l'une d'elles
+  → elle attend *Garder* / *Annuler*, l'orchestrateur ne tranche pas.
 
 ---
 
@@ -1668,7 +1826,8 @@ Copier, erreurs ; mêmes relevés).
 - Le panneau prend le focus : sous KDE, il ne va sur tous les bureaux qu'à la
   main (Alt+F3), réglage perdu quand il se rouvre de lui-même (F-64).
 - Un processus Claude Code par agent utilisé depuis le lancement (quelques
-  centaines de Mo chacun), jusqu'à *Nouvelle session*, *Retirer* ou la sortie.
+  centaines de Mo chacun), jusqu'à *Nouvelle session*, *Retirer* ou la sortie ;
+  et un par course de VibeCoder en cours ou arrêtée (F-115).
 - Réponses en texte brut dans le fil (Markdown non rendu, sauf blocs de code
   et liens ; VibeCoder rend celui de la note et des sorties, F-104).
 - Les tâches de fond d'un lancement précédent de l'appli ne sont pas
@@ -1726,6 +1885,20 @@ Copier, erreurs ; mêmes relevés).
   ils tournent là où tourne l'appli. Le
   dernier résultat ne survit pas à la sortie de l'appli (`direct.log`, si) ;
   `pr-<n>-review.json` porte le lien de la PR, pas celui de la revue.
+- VibeCoder, courses (F-115) : *Annuler* ne ramène que ce que les outils
+  d'édition de Claude Code ont écrit (Write, Edit…) ; ce qu'une course a
+  changé par une commande (`git`, `sed`, un script, `npm install`) reste. Le
+  suivi des fichiers passe par une variable d'environnement que le SDK pose
+  pour Claude Code : lancé par une commande enveloppe (`distrobox enter …
+  --`), il faut qu'elle traverse jusqu'à lui, sinon *Annuler* échoue (la
+  course passe *en échec*, avec la raison). *Annuler* a besoin du processus
+  de la course : si Claude Code n'a pas obéi à l'arrêt en 5 s, il est tué
+  (I-19) et *Annuler* échoue de même. Les courses, et la
+  session de la note que reprend *Envoyer les réponses*, sont en mémoire :
+  après un redémarrage de l'appli, l'onglet *Actions* est vide et les
+  réponses partent dans une nouvelle conversation. Les demandes de
+  l'orchestrateur ne sont lues qu'une fois VibeCoder affiché (au moins un
+  relevé).
 - VibeCoder, GitHub sans IA (F-112), coloration (F-113) : un échec de gh (pas connecté, pas
   d'origine GitHub, box absente) ne se dit pas ; *Mes PR à relire* ne change
   rien. La coloration du code ne connaît pas les expressions régulières de

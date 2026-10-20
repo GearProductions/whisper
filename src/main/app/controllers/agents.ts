@@ -2,7 +2,9 @@
  *  `agentsEnabled`). Un robot sélectionné reçoit la dictée au lieu du curseur ;
  *  sa conversation s'affiche dans le panneau. Le robot sélectionné et le robot
  *  affiché vont ensemble. Chaque lancement de Claude Code (tour, sonde) reçoit
- *  le plugin de VibeCoder et le dossier de sorties de l'agent.
+ *  le plugin de VibeCoder et le dossier de sorties de l'agent. À chaque
+ *  changement des agents, les courses suivent (controllers/runs : les avis de
+ *  fin en attente, envoyés dès que la conversation est libre).
  *  Ne connaît pas : le contenu du panneau (controllers/conversation).
  *  Utilisé par : app (fenêtres, menus, gestionnaires). */
 import fs from 'node:fs';
@@ -16,6 +18,7 @@ import { agentInstructions, journalFile, loadConfig, saveConfig, updateAgent, vi
 import { state } from 'app/state';
 import { applyWidth, bubbleShown, conversationShown, inConversation, openConversation, sendToIcon } from 'app/windows';
 import { conversationProgress, refreshConversation } from './conversation';
+import { runsFollow } from './runs';
 
 const sdk = loadSdk as unknown as () => Promise<Sdk>;
 export const agents = createAgentRuntime({ loadSdk: sdk, launcher, journal: createJournal(() => journalFile()) });
@@ -56,6 +59,7 @@ export function pushAgents() {
     // n'apparaît pas (lue d'office, ci-dessus).
     agents: enabled ? agentList(cfg).map((a) => ({ id: a.id, name: a.name, color: agentColor(a, cfg), selected: a.id === cfg.agentSelected, ...agents.state(a.id) })) : [],
   });
+  runsFollow(agentList(cfg), cfg); // les avis de fin des courses, conversation libre ; ses demandes, tour fini
   refreshConversation(); // le panneau suit (réponse arrivée, agent au travail…)
 }
 

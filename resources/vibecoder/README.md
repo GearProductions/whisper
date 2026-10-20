@@ -31,14 +31,37 @@ Un tableau, dans l'ordre d'affichage. Chaque bouton :
 | `flow` | `create` (*Créer*), `review` (*Relire*) ou `both` |
 | `step` | l'étape où il apparaît : `note`, `forme`, `invariants`, `modules`, `revue`, `pr`, `commits`, `ecran` ; `null` : partout |
 | `kind` | `send` : envoyé aussitôt à l'agent ; `prefill` : préparé dans le champ, à compléter puis envoyer |
-| `needs` | `text` : il exige le texte du champ (vide : le bouton le demande) ; sinon `none` |
+| `needs` | `text` : il exige le texte de son champ — celui de son étape, ou celui de la conversation sans étape (vide : le bouton le demande) ; sinon `none` |
+| `reads` | `true` : l'action ne fait que lire (relectures, vérifications…) ; absent : elle modifie la branche (le cas sûr pour un bouton ajouté) |
 | `label` | le libellé : court, un verbe |
 | `hint` | l'aide : une phrase, ce que ça fait et ce que ça coûte si c'est notable |
 | `text` | le message, avec ses variables (`\n` pour aller à la ligne) |
 
-Un bouton envoie à l'agent un message de la conversation, écrit comme s'il
-avait été tapé : un skill `/vibecoder:<nom>` et ses arguments, ou du texte. On
-le retrouve dans le fil.
+Un bouton envoie un message écrit comme s'il avait été tapé : un skill
+`/vibecoder:<nom>` et ses arguments, ou du texte. Celui d'une étape (`step`
+renseigné) part dans **sa propre conversation**, à côté de celle de l'agent :
+on la suit dans l'onglet *Actions*, on peut l'arrêter, puis garder ce qu'elle a
+écrit ou l'annuler. Les autres (`vibe`, `guide`, `ask`, `propose-run`) vont à
+la conversation, dans le fil.
+
+Une action qui modifie la branche attend toute autre action en cours ; une
+lecture (`reads`) n'attend qu'une modification, et les lectures tournent
+ensemble. Le bouton qui doit attendre est grisé, avec la raison.
+
+La conversation (l'orchestrateur, skill `actions`) suit et commande les
+actions par des fichiers de `{{out}}` :
+
+| Fichier | Rôle |
+|---|---|
+| `actions.json` | l'état, réécrit par l'appli : `{ actions: [{id, label, reads}], runs: [{id, label, state, reads, since, end, reply}], waiting: [{id, reason}] }` ; `state` : `running`, `asking`, `stopped` (arrêtée, à garder ou annuler), `done`, `failed`, `kept`, `undone` |
+| `actions/<id>.start` | demande de lancement : un objet JSON de ses arguments (`text`, `module`, `commit`, `file`, `pr`, `model`, `answers`), `{}` sans argument |
+| `actions/<id>.stop` | vide : demande d'arrêt |
+
+L'appli supprime une demande une fois appliquée ; un lancement qui doit
+attendre reste en place, en attente (`waiting`), et part de lui-même dès que la
+voie est libre. À la fin de chaque action, la conversation reçoit une ligne
+« VibeCoder : « <libellé> » … État : `{{out}}`/actions.json » (pas pour une
+action arrêtée).
 
 **Ce qui se personnalise : `label`, `hint` et `text`** (le libellé, l'aide, le
 message). Les `id` livrés sont un contrat : l'écran et le parcours s'appuient
@@ -65,7 +88,7 @@ l'action.
 
 | Variable | Valeur |
 |---|---|
-| `{{text}}` | le texte du champ ; requis quand `needs` vaut `text`, sinon il peut être vide ; 20 000 caractères au plus |
+| `{{text}}` | le texte du champ de l'étape (sans étape : celui de la conversation) ; requis quand `needs` vaut `text`, sinon il peut être vide ; 20 000 caractères au plus |
 | `{{out}}` | le dossier de sorties de l'agent : `userData/vibecoder-out/<agent>` |
 | `{{lang}}` | `fr` ou `en` |
 | `{{branch}}`, `{{base}}` | la branche et sa base (il faut un dépôt git) |
@@ -168,6 +191,10 @@ note, les releases.
 Si vous modifiez ce qu'un skill écrit dans `{{out}}`, gardez le nom et le
 format du fichier : VibeCoder ne lit ses sorties que sous ces noms.
 
+« conversation » : sans sous-contexte, là où le bouton l'envoie — la
+conversation propre à l'action pour un bouton d'étape, celle de l'agent
+sinon.
+
 | Skill | Où | Modèle · effort | Écrit dans `{{out}}` |
 |---|---|---|---|
 | `note` | conversation | agent | `questions.md` |
@@ -197,7 +224,8 @@ format du fichier : VibeCoder ne lit ses sorties que sous ces noms.
 | `relire-commits` | sous-contexte | opus · high | `pr-<n>-commits.md` |
 | `ecran` | sous-contexte | sonnet · medium | `pr-<n>-ecran.md` |
 | `publier-revue` | sous-contexte | haiku · low | `pr-<n>-review.json` |
-| `vibe` | conversation | agent, sous-agents opus | ceux des étapes qu'il déroule |
+| `vibe` | conversation | agent ; enchaîne les actions | `actions/<id>.start` |
+| `actions` | conversation (l'agent l'appelle de lui-même) | agent | `actions/<id>.start`, `actions/<id>.stop` |
 | `lancement` | sous-contexte | haiku · low | `lancement.json` |
 | `processus` | conversation (l'agent l'appelle de lui-même) | agent | `run/<nom>.stop`, `run/<nom>.restart` |
 

@@ -202,6 +202,9 @@ export interface ConvApi {
   /** Processus : une commande du fichier du projet par son rang dans VibeView.processes (lancer,
    *  arrêter, relancer, ouvrir son journal) ; ou ouvrir le fichier du projet ('edit') — jamais un texte ni un chemin. */
   vibeProcess(op: VibeProcessOp, index?: number): void;
+  /** Une course (l'id de son action dans VibeView.runs) : l'arrêter, la garder ou l'annuler (arrêtée),
+   *  répondre à sa demande d'autorisation — jamais un chemin ni un texte. */
+  vibeRunOp(id: string, op: VibeRunOp): void;
 }
 
 /* ---- VibeCoder (dans le panneau) ------------------------------------------------ */
@@ -281,6 +284,20 @@ export type VibeAction = {
   direct?: { running: boolean; last: { ok: boolean; line: string; detail: string; time: number } | null };
 };
 
+// Une course : une action d'étape qui court à part de la conversation (onglet Actions). stopped : arrêtée,
+// à garder (kept) ou annuler (undone) ; running, asking (une autorisation attend) et stopped retiennent les autres.
+export type VibeRun = {
+  id: string;                  // l'id de son action
+  label: string;
+  who: string;                 // qui travaille, comme VibeAction.who
+  state: 'running' | 'asking' | 'stopped' | 'done' | 'failed' | 'kept' | 'undone';
+  since: number;               // lancée à
+  end: number | null;          // finie ou arrêtée à
+  reply: string;               // sa réponse (Markdown), '' tant qu'elle n'a rien dit
+  permission: { tool: string; target: string } | null;   // sa demande d'autorisation en attente
+};
+export type VibeRunOp = 'stop' | 'keep' | 'undo' | 'allow' | 'always' | 'deny';
+
 export type VibePr = {
   number: number; title: string; url: string; author: string; base: string; head: string; body: string;
   state: 'OPEN' | 'CLOSED' | 'MERGED' | null;   // null : inconnu (fiche d'avant la 0.8.0-rc.2)
@@ -327,6 +344,7 @@ export type VibeView = {
   // Processus : les commandes du fichier du projet (toujours remplis par le relevé) ; projectFile : il existe.
   processes?: VibeProcess[];
   projectFile?: boolean;
+  runs?: VibeRun[];                      // les courses, la plus récente d'abord (toujours rempli par le relevé)
   time: number;                          // heure du relevé
 };
 

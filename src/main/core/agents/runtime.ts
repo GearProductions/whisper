@@ -5,8 +5,8 @@
  *  l'agent de lui-même : c'est un tour comme un autre, dont la réponse arrive
  *  non lue. Le premier processus crée la session, les suivants la reprennent
  *  (`resume`). Ce qu'un processus vivant ne peut pas changer (dossier, effort,
- *  consigne, commande, plugins, dossiers en plus : launchKey) le fait relancer
- *  au message suivant.
+ *  consigne, commande, plugins, dossiers en plus, suivi des fichiers : launchKey)
+ *  le fait relancer au message suivant.
  *
  *  Mode « manuel » : l'agent demande l'autorisation avant d'agir (canUseTool) ;
  *  la demande remonte à l'appli, qui répond par answer(). Plusieurs demandes
@@ -17,10 +17,14 @@
  *  Le mode et le modèle changés s'appliquent aussitôt au processus, tour en
  *  cours ou non (setMode, setModel). Interrompre = demander à Claude Code
  *  d'arrêter son tour ; fermer = fermer son entrée ; on ne tue qu'en dernier
- *  recours (I-19).
+ *  recours (I-19). Annuler une action qui court à part (rewind) : rewindFiles
+ *  du SDK au premier message envoyé à son processus en cours (chaque message
+ *  envoyé porte un uuid ; le premier de chaque processus est retenu, un
+ *  nouveau processus repart de zéro). Jamais sur une autre entrée.
  *  Ses tâches de fond sont tenues à jour d'après chaque message du flux (tasks).
  *  Ne connaît pas : Electron, les fenêtres ; SDK, lancement et journal injectés.
  *  Utilisé par : app/controllers (agents, conversation), app/lifecycle. */
+import { randomUUID } from 'node:crypto';
 import { createQueue, type AsyncQueue } from 'helpers/async-queue';
 import { AUDIO_RULES, EDIT_TOOLS, MODES } from './constants';
 import { launchKey, queryOptions, userMessage } from './options';
@@ -33,8 +37,9 @@ export type AgentStatus = 'idle' | 'working' | 'asking' | 'error';
 export type Reply = { text: string; audio: string; error?: boolean; asked: string };
 type Response = Record<string, unknown>;
 type Pending = { key: number; tool: string; input: unknown; rules: SessionRule[]; resolve: (r: Response) => void; at: number };
-// Le processus de l'agent : `input` son entrée, `key` sa launchKey, `ended` sa fin.
-type Proc = { id: string; query: SdkQuery; input: AsyncQueue<SdkMessage>; abort: AbortController; key: string; ended: Promise<void> };
+// Le processus de l'agent : `input` son entrée, `key` sa launchKey, `ended` sa
+// fin, `first` l'uuid du premier message qu'il a reçu (cf. rewind).
+type Proc = { id: string; query: SdkQuery; input: AsyncQueue<SdkMessage>; abort: AbortController; key: string; ended: Promise<void>; first: string | null };
 // Le tour en cours : `asked` le message envoyé ('' : tour commencé par l'agent).
 type Turn = { asked: string; since: number; resolve: () => void; permissionFailures: number; interrupted: boolean };
 type Runtime = {
@@ -228,7 +233,7 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
       const input = createQueue<SdkMessage>();
       const abort = new AbortController();
       const query = sdk.query({ prompt: input, options: { ...queryOptions(agent, launch, instructions, hooks), abortController: abort, canUseTool: asker(r, agent.id) } });
-      r.process = { id: agent.id, query, input, abort, key, ended: Promise.resolve() };
+      r.process = { id: agent.id, query, input, abort, key, ended: Promise.resolve(), first: null };
       r.process.ended = loop(r, agent.id, r.process); // ne lit rien avant le tour ouvert ci-dessous (pas d'await entre)
       journal(agent, 'processus lancé', `mode ${agent.mode || 'default'}${agent.sessionId ? `, reprise ${agent.sessionId.slice(0, 8)}` : ', nouvelle session'}`);
     }
@@ -236,7 +241,9 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     // reconnaît (cf. app/controllers/conversation).
     r.sent = message; // affiché tant que la transcription ne l'a pas (cf. core/conversation)
     const done = new Promise<void>((resolve) => begin(r, agent.id, message.text || '', resolve));
-    r.process.input.push(userMessage(message));
+    const uuid = randomUUID();
+    r.process.first ??= uuid;
+    r.process.input.push(userMessage(message, uuid));
     return done;
   }
 
@@ -369,6 +376,23 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     }
   }
 
+  // Les fichiers que les outils d'édition de l'entrée ont écrits, ramenés à leur état
+  // d'avant le premier message envoyé à son processus en cours.
+  // Claude Code ne peut le faire que si l'entrée a été lancée avec checkpoint.
+  async function rewind(id: string): Promise<{ ok: boolean; files: number; error?: string }> {
+    const r = runtime.get(id);
+    const proc = r && r.process;
+    if (!r || !proc || !proc.first || !proc.query.rewindFiles) return { ok: false, files: 0, error: 'Aucun processus en cours à ramener.' };
+    try {
+      const res = await proc.query.rewindFiles(proc.first);
+      const files = (res.filesChanged || []).length;
+      journal({ id, name: r.name }, 'retour en arrière', res.canRewind ? `${files} fichier(s)` : `impossible : ${res.error || ''}`);
+      return res.canRewind ? { ok: true, files } : { ok: false, files: 0, error: res.error || 'Retour en arrière impossible.' };
+    } catch (err) {
+      return { ok: false, files: 0, error: (err instanceof Error && err.message) || 'Retour en arrière impossible.' };
+    }
+  }
+
   return {
     isAvailable: (command: unknown) => !!launcher(command),
     state,
@@ -392,6 +416,7 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     interrupt,
     stop,
     probe,
+    rewind,
   };
 }
 

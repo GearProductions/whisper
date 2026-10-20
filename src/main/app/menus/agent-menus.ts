@@ -1,7 +1,7 @@
 /** agent-menus — les menus des agents : le clic droit sur un robot (écrire,
  *  ouvrir sur GitHub, dans l'éditeur, VibeCoder ou la conversation, couleur,
  *  modèle, effort, mode, conversations, interrompre, nouvelle session,
- *  retirer), le « + » (nouvel
+ *  retirer : ces deux-là ferment aussi ses courses), le « + » (nouvel
  *  agent dans un dossier favori ou un autre dossier, avec la question de
  *  confiance, I-23), et le trombone du panneau (fichiers, texte sélectionné).
  *  Ne connaît pas : les pages. Utilisé par : app/ipc. */
@@ -17,7 +17,7 @@ import { readText } from 'technicals/selection';
 import { loadConfig, saveConfig, updateAgent } from 'app/settings';
 import { state } from 'app/state';
 import {
-  agents, CLAUDE_MISSING, ensureFolderColors, interruptAgent, isBusy, newAgent, pushAgents, setAgentSetting, setAgentView, trustFolder,
+  agents, CLAUDE_MISSING, closeRuns, ensureFolderColors, interruptAgent, isBusy, newAgent, pushAgents, setAgentSetting, setAgentView, trustFolder,
 } from 'app/controllers';
 import { conversationFocusInput, openConversation } from 'app/windows';
 
@@ -69,12 +69,14 @@ export function openAgentMenu(id: unknown) {
     { label: 'Interrompre', enabled: busy, click: () => interruptAgent(agent.id) },
     { label: 'Nouvelle session (effacer le contexte)', click: () => {
       agents.forget(agent.id);
+      closeRuns(agent); // ses actions en cours partent avec la session
       updateAgent(agent.id, { sessionId: null });
       pushAgents(); // le panneau des conversations, s'il est ouvert, se vide
     } },
     { type: 'separator' },
     { label: 'Retirer cet agent', click: () => {
       agents.forget(agent.id);
+      closeRuns(agent);
       const cfg = loadConfig();
       saveConfig({
         agents: agentList(cfg).filter((a) => a.id !== agent.id),

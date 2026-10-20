@@ -1,0 +1,249 @@
+/** runs — les courses : une action d'étape qui court à part de la conversation,
+ *  sous sa propre entrée du runtime des agents, `<agent>~<clé>` (runKey).
+ *  Lancer (startRun : si aucune course vivante ni action directe en cours ne
+ *  la retient, blockedBy ; un processus neuf, suivi des fichiers écrits ;
+ *  modèle et effort du skill que son message appelle, sinon ceux de l'agent ; answers reprend la session de la course de la note),
+ *  suivre (sa fin, ou son échec avant même son tour : fermée, et un avis à la conversation de l'agent, gardé tant
+ *  qu'elle travaille, I-25), agir sur une course (runOp : l'arrêter — son
+ *  processus et son verrou restent —, la garder ou l'annuler — rewind, puis
+ *  fermée —, répondre à sa demande d'autorisation), les demandes de
+ *  l'orchestrateur (runRequests : <sorties>/actions/<id>.start | .stop ; un
+ *  .start retenu reste, « en attente » ; il part comme un clic, par
+ *  startAction de controllers/vibecoder, I-38 ; une demande pour une action
+ *  déjà en cours est supprimée), et <sorties>/actions.json, réécrit à chaque changement.
+ *  Courses, avis et demandes retenues : en mémoire. closeRuns : l'agent oublié.
+ *  Ne connaît pas : la page, les fenêtres.
+ *  Utilisé par : controllers/vibecoder, controllers/agents, controllers/worktrees,
+ *  menus/agent-menus. */
+import fs from 'node:fs';
+import path from 'node:path';
+import type { SendResult, VibeRunOp, VibeView } from 'shared/bridge';
+import { shortTarget, type AgentConfig } from 'core/agents';
+import { agentList, vibeLang, type Config } from 'core/config';
+import {
+  blockedBy, endNotice, forkedModel, headField, LOCKING, ownRun, parseRequest, runKey, runsFile, type ActionDef, type Run,
+} from 'core/vibecoder';
+import { loadConfig, vibeActions, vibeOutDir, vibePluginDir } from 'app/settings';
+import { agents, CLAUDE_MISSING, isBusy, launchOptions, sendToAgent } from './agents';
+import { directLocks, refreshVibe, startAction } from './vibecoder';
+
+const REQUEST_MAX = 64 * 1024;   // une demande plus grosse n'est pas lue
+
+// Une course, et ce que la règle et sa fin en retiennent : `reads` (elle lit seulement), `seen` (son tour a commencé).
+type Live = Run & { reads: boolean; seen: boolean };
+
+const all = new Map<string, Map<string, Live>>();                       // par agent, par clé : la dernière course
+const waits = new Map<string, { id: string; reason: string }[]>();      // par agent : les .start retenus
+const notices = new Map<string, string[]>();                            // par agent : les avis de fin pas encore envoyés
+const views = new Map<string, VibeView>();                              // par agent : le dernier relevé (runRequests)
+const wasBusy = new Set<string>();                                      // les conversations au travail au dernier changement
+
+const entryId = (agentId: string, key: string) => `${agentId}~${key}`;
+const mine = (agentId: string) => [...(all.get(agentId)?.values() ?? [])];
+
+// Les courses de l'agent (pour le relevé, l'onglet Actions).
+export const runsOf = (agent: Pick<AgentConfig, 'id'>): Run[] => mine(agent.id);
+
+// Celles qui retiennent les autres (LOCKING), pour blockedBy et le parcours.
+export const lockingRuns = (agentId: string) => mine(agentId).filter((r) => LOCKING.includes(r.state)).map((r) => ({ id: r.id, reads: r.reads }));
+
+// La demande d'autorisation en attente de la course d'une action, pour runViews.
+export const runPending = (agentId: string) => (id: string) => {
+  const p = agents.pendingPermission(entryId(agentId, runKey(id)));
+  return p ? { tool: p.tool, target: shortTarget(p.input) } : null;
+};
+
+// Le SKILL.md du skill qu'appelle un gabarit (« /vibecoder:<nom> … ») ; null pour un autre texte.
+export function skillMd(template: string) {
+  const name = /^\/vibecoder:([\w-]+)/.exec(template)?.[1];
+  try { return name ? fs.readFileSync(path.join(vibePluginDir(), 'skills', name, 'SKILL.md'), 'utf8') : null; } catch { return null; }
+}
+
+// <sorties>/actions.json, pour l'orchestrateur.
+function save(agentId: string) {
+  try {
+    fs.writeFileSync(path.join(vibeOutDir(agentId), 'actions.json'),
+      runsFile(mine(agentId), vibeActions(vibeLang(loadConfig())), waits.get(agentId) ?? []));
+  } catch (err) { console.error(`VibeCoder : actions.json (${err instanceof Error ? err.message : err})`); }
+}
+
+// Lance l'action `def` (son message déjà rempli) dans sa course, si aucune course vivante ni action directe
+// en cours de l'agent ne la retient. Modèle et effort : ceux du skill que le message appelle (la variante
+// du modèle choisi à l'écran, /vibecoder:<nom>--<modèle>), sinon ceux de l'agent.
+export function startRun(agent: AgentConfig, def: ActionDef, message: string, cfg: Config): SendResult {
+  const lang = vibeLang(cfg);
+  const held = blockedBy(def, [...lockingRuns(agent.id), ...directLocks(agent.id, vibeActions(lang))], lang);
+  if (held) return { ok: false, error: held };
+  if (!agents.isAvailable(cfg.agentCommand)) return { ok: false, error: CLAUDE_MISSING };
+  const key = runKey(def.id);
+  const runs = all.get(agent.id) ?? new Map<string, Live>();
+  all.set(agent.id, runs);
+  const run: Live = {
+    id: def.id, key, since: Date.now(), end: null, state: 'running', reply: '', reads: !!def.reads, seen: false,
+    sessionId: def.id === 'answers' ? runs.get(key)?.sessionId ?? null : null,
+  };
+  runs.set(key, run);   // tout de suite : un second clic la voit (blockedBy)
+  const md = skillMd(message);
+  const entry: AgentConfig = {
+    ...agent, id: entryId(agent.id, key), name: `${agent.name} ~ ${def.id}`, sessionId: run.sessionId,
+    model: forkedModel(md) ?? agent.model, effort: headField(md, 'effort') || agent.effort,
+  };
+  // Un processus neuf par course : rewind ramène au premier message de CELLE-CI.
+  agents.close(entry.id).then(() => agents.send(entry, { text: message, images: [] }, {
+    ...launchOptions(agent, cfg), checkpoint: true,
+    onChange: () => changed(agent.id, run),
+    onSession: (id) => { run.sessionId = id; },
+    onPermission: () => { refreshVibe(); },
+  })).catch((err) => {
+    // Partie en échec avant son tour : une fin comme une autre, l'orchestrateur en est prévenu.
+    if (run.state !== 'running') return;
+    finish(agent.id, run, err instanceof Error ? err.message : String(err));
+    save(agent.id);
+    refreshVibe();
+  });
+  save(agent.id);
+  return { ok: true };
+}
+
+// Un changement de l'entrée d'une course : son état suit ; revenue au repos après avoir travaillé, sans
+// qu'on l'ait arrêtée : sa fin.
+function changed(agentId: string, run: Live) {
+  if (run.state === 'running' || run.state === 'asking') {
+    const { status } = agents.state(entryId(agentId, run.key));
+    if (status === 'working' || status === 'asking') Object.assign(run, { seen: true, state: status === 'asking' ? 'asking' : 'running' });
+    else if (run.seen) finish(agentId, run);
+  }
+  save(agentId);
+  refreshVibe();
+}
+
+// Fin d'une course : sa réponse (ou `failure` : elle n'a pas pu partir), son processus fermé, l'avis à la
+// conversation, les demandes revues.
+function finish(agentId: string, run: Live, failure?: string) {
+  const entry = entryId(agentId, run.key);
+  const last = failure === undefined ? agents.lastReply(entry) : { error: true, text: failure };
+  Object.assign(run, { state: last?.error ? 'failed' : 'done', reply: last?.text ?? '', end: Date.now() });
+  void agents.close(entry);
+  const cfg = loadConfig();
+  const lang = vibeLang(cfg);
+  const def = vibeActions(lang).find((d) => d.id === run.id);
+  notices.set(agentId, [...(notices.get(agentId) ?? []), endNotice(run, def, lang, vibeOutDir(agentId))]);
+  const agent = agentList(cfg).find((a) => a.id === agentId);
+  if (!agent) return;
+  deliver(agent, cfg);
+  runRequests(agent);
+}
+
+// Les avis de fin en attente, d'un message, si la conversation est libre (I-25).
+// ponytail: un avis arrivé entre l'envoi et le début du tour (await du SDK) peut être refusé « busy » et perdu ;
+// un drapeau « en envoi » par agent si ça arrive.
+function deliver(agent: AgentConfig, cfg: Config) {
+  const queued = notices.get(agent.id);
+  if (!queued?.length || isBusy(agent.id)) return;
+  notices.delete(agent.id);
+  if (!sendToAgent(agent, { text: queued.join('\n'), images: [] }, cfg).ok) notices.set(agent.id, queued);
+}
+
+// À chaque changement des agents (pushAgents) : un tour de conversation fini → les demandes revues ; une
+// conversation libre → ses avis de fin.
+export function runsFollow(list: AgentConfig[], cfg: Config) {
+  for (const agent of list) {
+    const busy = isBusy(agent.id);
+    if (!busy && wasBusy.delete(agent.id)) runRequests(agent);
+    if (busy) wasBusy.add(agent.id);
+    deliver(agent, cfg);
+  }
+}
+
+// Agir sur une course de l'agent (l'id de son action) : l'arrêter (en cours), la garder ou l'annuler
+// (arrêtée), répondre à sa demande d'autorisation. false : rien à faire.
+export async function runOp(agent: AgentConfig, id: string, op: VibeRunOp): Promise<boolean> {
+  const run = mine(agent.id).find((r) => r.id === id);
+  if (!run) return false;
+  const entry = entryId(agent.id, run.key);
+  if (op === 'stop' && (run.state === 'running' || run.state === 'asking')) {
+    Object.assign(run, { state: 'stopped', end: Date.now() });   // avant interrupt : sa fin n'en est pas une
+    agents.interrupt(entry);
+  } else if ((op === 'keep' || op === 'undo') && run.state === 'stopped') {
+    if (op === 'undo') {
+      const back = await agents.rewind(entry);   // retient encore (stopped) pendant l'attente
+      Object.assign(run, back.ok ? { state: 'undone' } : { state: 'failed', reply: back.error ?? '' });
+    } else run.state = 'kept';
+    void agents.close(entry);
+  } else if (op === 'allow' || op === 'always' || op === 'deny') {
+    if (!agents.answer(entry, op)) return false;
+  } else return false;
+  save(agent.id);
+  refreshVibe({ now: true });
+  return true;
+}
+
+// Les courses et actions directes qui retenaient au relevé `view` (ce que le parcours a passé à blockedBy).
+export const viewLocks = (view: VibeView, defs: ActionDef[]) => [
+  ...(view.runs ?? []).filter((r) => LOCKING.includes(r.state)).map((r) => r.id),
+  ...view.actions.filter((a) => a.direct?.running).map((a) => a.id),
+].map((id) => ({ id, reads: !!defs.find((d) => d.id === id)?.reads }));
+
+// Un fichier ordinaire, petit : son texte ; null sinon (parti entre-temps, dossier, lien…).
+function readRequest(file: string) {
+  try {
+    const st = fs.lstatSync(file);
+    return st.isFile() && st.size <= REQUEST_MAX ? fs.readFileSync(file, 'utf8') : null;
+  } catch { return null; }
+}
+
+// Les demandes de l'orchestrateur, une à une contre l'état vivant (les .stop d'abord) : un .stop arrête la
+// course et retire le .start de la même action ; un .start part comme un clic (startAction), ou reste en
+// attente si quelque chose le retient (une course, une raison de l'écran : PR fusionnée…) ; invalide, ou
+// pour une action déjà en cours (elle repartirait à sa fin) : supprimé. `view` : le relevé (retenu pour les
+// passages sans relevé). true : une course est partie.
+export function runRequests(agent: AgentConfig, view = views.get(agent.id)): boolean {
+  if (!view) return false;
+  views.set(agent.id, view);
+  const dir = path.join(vibeOutDir(agent.id), 'actions');
+  let names: string[];
+  try { names = fs.readdirSync(dir); } catch { return false; }
+  const cfg = loadConfig();
+  const lang = vibeLang(cfg);
+  const defs = vibeActions(lang);
+  const waiting: { id: string; reason: string }[] = [];
+  let started = false;
+  for (const name of names.sort((a, b) => Number(b.endsWith('.stop')) - Number(a.endsWith('.stop')))) {
+    const file = path.join(dir, name);
+    const drop = () => fs.rmSync(file, { force: true });
+    const text = readRequest(file);
+    if (text === null) continue;
+    const req = parseRequest(name, text);
+    if (!req) { drop(); continue; }
+    if (req.op === 'stop') {
+      void runOp(agent, req.id, 'stop');
+      fs.rmSync(path.join(dir, `${req.id}.start`), { force: true });
+      drop();
+      continue;
+    }
+    const def = defs.find((d) => d.id === req.id);
+    const shown = view.actions.find((a) => a.id === req.id);
+    const live = lockingRuns(agent.id);
+    if (!def || !shown || !ownRun(def) || live.some((r) => runKey(r.id) === runKey(def.id))) {
+      console.error(`VibeCoder : demande ignorée (${name})`);
+      drop();
+      continue;
+    }
+    const sent = startAction(agent, def, req.args, view, cfg);
+    if (!sent.ok && 'invalid' in sent) { console.error(`VibeCoder : demande ignorée (${name} : ${sent.error})`); drop(); continue; }
+    if (!sent.ok) { waiting.push({ id: req.id, reason: sent.error ?? '' }); continue; }
+    started = true;
+    drop();
+  }
+  waits.set(agent.id, waiting);
+  save(agent.id);
+  return started;
+}
+
+// L'agent oublié (retiré, nouvelle session, robot d'un worktree retiré) : ses courses fermées et oubliées.
+export function closeRuns(agent: Pick<AgentConfig, 'id'>) {
+  for (const r of mine(agent.id)) agents.forget(entryId(agent.id, r.key));
+  for (const m of [all, waits, notices, views]) m.delete(agent.id);
+  wasBusy.delete(agent.id);
+  save(agent.id);
+}

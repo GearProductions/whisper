@@ -1,6 +1,6 @@
 ---
 name: developpeur
-description: "VibeCoder's module writer: implements exactly the module it is given from the ticket note's forme, the simplest code that works (ponytail), tests run, nothing committed. Started by the modules and vibe skills."
+description: "VibeCoder's module writer: implements exactly the module it is given from the ticket note's forme, the simplest code that works (ponytail), tests run, nothing committed. Started by the modules skill."
 model: opus
 effort: high
 skills: ponytail

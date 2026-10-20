@@ -16,8 +16,8 @@ const ACTIONS: ActionDef[] = [
   A('commit', 'create', 'modules', '/vibecoder:commit {{lang}} {{out}}'),
   A('module', 'create', 'modules', '/vibecoder:module {{lang}} {{out}} {{module}}'),
   A('next', 'create', 'modules', '/vibecoder:suivant {{lang}} {{out}} {{module}}'),
-  A('checks', 'create', 'revue', '/vibecoder:verifier {{lang}} {{out}}'),
-  A('ponytail', 'create', 'revue', '/vibecoder:ponytail {{lang}} {{out}}'),
+  { ...A('checks', 'create', 'revue', '/vibecoder:verifier {{lang}} {{out}}'), reads: true },
+  { ...A('ponytail', 'create', 'revue', '/vibecoder:ponytail {{lang}} {{out}}'), reads: true },
   A('fixups', 'create', 'revue', '/vibecoder:fixups {{lang}} {{out}}'),
   A('pr', 'create', 'pr', '/vibecoder:pr {{lang}} {{out}}'),
   A('prs', 'review', 'pr', '/vibecoder:prs {{lang}} {{out}}'),
@@ -63,7 +63,7 @@ const repo = (changed: string[] = [], commits: ReturnType<typeof commit>[] = [])
 const out = (text = '') => ({ text, time: 1 });
 const input = (over: Partial<JourneyInput> = {}): JourneyInput => ({
   agentId: 'a1', lang: 'fr', flow: 'create', pr: null, autonomy: 'guide', agent: { model: 'opus', effort: 'high', mode: 'default' },
-  busy: false, repo: repo(), error: null, note: null, tests: [], readings: {}, outputs: {}, marks: {}, draft: [], actions: ACTIONS,
+  busy: false, running: [], runs: [], repo: repo(), error: null, note: null, tests: [], readings: {}, outputs: {}, marks: {}, draft: [], actions: ACTIONS,
   who: {}, model: {}, skills: [], exists: () => false, now: 1700000000000, ...over,
 });
 // Un état de Créer : note et forme validées, invariants écrits, lus, validés et commités.
@@ -265,8 +265,8 @@ describe('Relire : les étapes et la prochaine action', () => {
 });
 
 describe('les actions grisées, et pourquoi', () => {
-  it('l\'agent travaille : chaque action envoyée est grisée', () => {
-    expect(action(vibeView(input({ busy: true })), 'note')?.disabled).toBe('L\'agent travaille');
+  it('la conversation travaille : chaque action envoyée à la conversation est grisée', () => {
+    expect(action(vibeView(input({ busy: true })), 'vibe')?.disabled).toBe('L\'agent travaille');
   });
 
   it('l\'agent travaille : une action qui prépare le champ reste possible', () => {
@@ -311,7 +311,7 @@ describe('les actions grisées, et pourquoi', () => {
   });
 
   it('en anglais', () => {
-    expect(action(vibeView(input({ lang: 'en', busy: true })), 'note')?.disabled).toBe('The agent is working');
+    expect(action(vibeView(input({ lang: 'en', busy: true })), 'vibe')?.disabled).toBe('The agent is working');
   });
 });
 
@@ -582,8 +582,46 @@ describe('les actions que l\'appli fait elle-même (F-114)', () => {
     expect(action(vibeView(input({ direct: { commit: { running: false, last } } })), 'commit')?.direct?.last).toEqual(last);
   });
 
-  it('une en cours : les actions directes sont grisées, pas les autres', () => {
+  it('une en cours : elle-même grisée, et elle retient les courses comme une modification (0.9.0) ; pas la conversation', () => {
     const v = vibeView(ready({ outputs: { 'commit.md': out('x') }, direct: { commit: { running: true, last: null } } }));
-    expect([action(v, 'commit')?.disabled, action(v, 'module')?.disabled]).toEqual(['Une commande directe est en cours', null]);
+    expect([action(v, 'commit')?.disabled, action(v, 'module')?.disabled, action(v, 'vibe')?.disabled])
+      .toEqual(['Cette action est déjà en cours', 'Une autre action est en cours', null]);
+  });
+});
+
+describe('les actions qui courent à part (0.9.0)', () => {
+  const forme = [{ id: 'forme', reads: false }];
+
+  it('la conversation travaille : une action d\'étape reste possible', () => {
+    expect(action(vibeView(input({ busy: true })), 'note')?.disabled).toBeNull();
+  });
+
+  it('une modification en cours : elle-même, une autre modification et une lecture attendent ; la conversation non', () => {
+    const v = vibeView(ready({ running: forme }));
+    expect([action(v, 'forme')?.disabled, action(v, 'module')?.disabled, action(v, 'ponytail')?.disabled, action(v, 'vibe')?.disabled])
+      .toEqual(['Cette action est déjà en cours', 'Une autre action est en cours', 'Une action modifie la branche', null]);
+  });
+
+  it('une lecture en cours : une autre lecture part, une modification attend', () => {
+    const v = vibeView(ready({ running: [{ id: 'ponytail', reads: true }] }));
+    expect([action(v, 'checks')?.disabled, action(v, 'module')?.disabled]).toEqual([null, 'Une autre action est en cours']);
+  });
+
+  it('la course de la note en cours : Envoyer les réponses attend (même agent)', () => {
+    expect(action(vibeView(input({ note, running: [{ id: 'note', reads: false }] })), 'answers')?.disabled).toBe('Cette action est déjà en cours');
+  });
+
+  it('une commande directe en cours (Commiter) retient les courses comme une modification', () => {
+    const v = vibeView(ready({ direct: { commit: { running: true, last: null } } }));
+    expect([action(v, 'forme')?.disabled, action(v, 'ponytail')?.disabled]).toEqual(['Une autre action est en cours', 'Une action modifie la branche']);
+  });
+
+  it('les courses passent telles quelles dans le relevé', () => {
+    const runs = [{ id: 'forme', label: 'forme', who: 'opus', state: 'done' as const, since: 1, end: 2, reply: 'ok', permission: null }];
+    expect(vibeView(input({ runs })).runs).toEqual(runs);
+  });
+
+  it('en anglais', () => {
+    expect(action(vibeView(ready({ lang: 'en', running: forme })), 'ponytail')?.disabled).toBe('An action is changing the branch');
   });
 });

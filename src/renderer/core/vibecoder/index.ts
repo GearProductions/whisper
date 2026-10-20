@@ -5,7 +5,8 @@
  *  que Relire prend de l'utilisateur ; la note (ses changements, ses marques),
  *  les réponses aux questions, la Forme par dossier, les cas d'invariants et
  *  leur pseudo-code, la validation qu'attend l'étape en cours ; ce qui s'écrit
- *  dans le champ (une action « préparer ») ; le modèle choisi d'une action, la
+ *  dans le champ (une action « préparer »), le champ dont une action emporte
+ *  le texte ; une durée en clair ; le modèle choisi d'une action, la
  *  largeur de la colonne de la conversation. */
 export * from './diff';
 export * from './field';

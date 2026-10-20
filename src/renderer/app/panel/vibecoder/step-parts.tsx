@@ -1,20 +1,23 @@
 /** step-parts — les pièces des vues d'étape : l'en-tête d'étape (nom, état,
- *  faits, outils à droite, et dessous la rangée des actions de l'étape — celle
- *  que le guide fait faire ensuite mise en avant, et elle seule d'une autre
- *  étape quand celle-ci est en cours —, sauf celles que la vue montre
+ *  faits, outils à droite ; dessous, le champ de l'étape quand une de ses
+ *  actions en prend le texte (fieldOf), puis la rangée des actions de l'étape
+ *  — celle que le guide fait faire ensuite mise en avant, et elle seule d'une
+ *  autre étape quand celle-ci est en cours —, sauf celles que la vue montre
  *  elle-même), la carte d'une sortie de skill (titre, fichier, depuis quand),
  *  le bouton d'une action du relevé (son libellé ou un plus court, qui
- *  travaille ou le choix du modèle, pourquoi c'est grisé ; absent si l'action
- *  n'existe pas ; une action que l'appli fait elle-même : « direct », à côté
- *  « via » l'agent, et dessous son dernier résultat, F-114), l'invitation (rien encore, et ce qui le produit), la carte
- *  d'une PR, le bandeau du mode Vibe, celui d'une PR fusionnée ou fermée, le
- *  badge du robot d'une PR ouverte dans un worktree (et Décharger).
- *  Ne connaît pas : le pont (rappels passés).
+ *  travaille ou le choix du modèle, pourquoi c'est grisé ; sa course en
+ *  cours : « en cours » et ⏹ ; absent si l'action n'existe pas ; une action
+ *  que l'appli fait elle-même : « direct », à côté « via » l'agent, et dessous
+ *  son dernier résultat, F-114), l'invitation (rien encore, et ce qui le
+ *  produit), la carte d'une PR, le bandeau du mode Vibe (et le champ de Tout
+ *  dérouler), celui d'une PR fusionnée ou fermée, le badge du robot d'une PR
+ *  ouverte dans un worktree (et Décharger).
+ *  Ne connaît pas : le pont (rappels passés ; ⏹ par le contexte StopRun).
  *  Utilisé par : les vues d'étape ; vibe-coder (bandeaux, badge du worktree). */
-import type { ReactNode } from 'react';
-import { webUrl, type Strings } from 'core/vibecoder';
-import type { VibeAction, VibeArgs, VibeLang, VibePr, VibeView } from 'technicals/bridge';
-import { ModelPick } from './model-pick';
+import { createContext, useContext, type ReactNode } from 'react';
+import { fieldOf, t as strings, webUrl, type Strings } from 'core/vibecoder';
+import type { VibeAction, VibeArgs, VibeLang, VibePr, VibeRun, VibeView } from 'technicals/bridge';
+import { ModelPick, Picks } from './model-pick';
 import type { StepProps } from './step-views';
 import './step-parts.css';
 
@@ -39,9 +42,22 @@ const S: Record<VibeLang, typeof fr> = {
 // Une action qui cite ({{quote}}) part d'un bloc ou d'un cas, pas d'un bouton à elle.
 const cites = (a: VibeAction) => a.kind === 'prefill' && !!a.text?.includes('{{quote}}');
 
+// La course d'une action sur son bouton : son état (VibeView.runs) et ⏹ (vibe-coder le relie à act.runOp(id, 'stop')).
+export const StopRun = createContext<{ stop(id: string): void; state(id: string): VibeRun['state'] | null }>({ stop: () => {}, state: () => null });
+
+// Le champ d'une étape (ou de Tout dérouler) : son texte part avec l'action qui le prend (fieldOf).
+export function StepField({ name, text, setText, hint }: { name: string; text: string; setText(text: string): void; hint: string }) {
+  return (
+    <div className="vc-cbox vc-step-field">
+      <textarea data-field={name} value={text} rows={3} placeholder={hint} aria-label={hint} onChange={(e) => setText(e.target.value)} />
+    </div>
+  );
+}
+
 // L'en-tête d'une étape ; `own` : les actions que la vue montre elle-même (pas répétées ici).
 export function StepHead({ p, own = [], children }: { p: StepProps; own?: string[]; children?: ReactNode }) {
   const { view, step, t, act, busy } = p;
+  const field = view.actions.some((a) => fieldOf(a) === step.id);
   const current = step.status === 'current';
   const acts = view.actions
     .filter((a) => (a.step === step.id || (a.primary && current)) && !cites(a) && !own.includes(a.id))
@@ -52,6 +68,7 @@ export function StepHead({ p, own = [], children }: { p: StepProps; own?: string
       <span className="vc-badge" data-status={step.status}>{t.stepStatus[step.status]}</span>
       {step.facts ? <span className="vc-facts">{step.facts}</span> : null}
       {children ? <div className="vc-step-tools">{children}</div> : null}
+      {field ? <StepField name={step.id} text={p.text} setText={p.setText} hint={t.fieldHint} /> : null}
       {acts.length ? (
         <div className="vc-step-acts">
           {acts.map((a) => <Run key={a.id} a={a} busy={busy} tone={a.primary && current ? 'accent' : 'plain'} onRun={(x) => act.run(a.id, x)} />)}
@@ -83,23 +100,35 @@ export function OutputCard({ title, file, time, t, tools, className, children }:
 // onRun : sans argument, par l'agent ; { direct: true } : par l'appli elle-même (VibeAction.direct).
 type RunProps = { a: VibeAction | undefined; busy: boolean; label?: ReactNode; tone?: 'accent' | 'plain' | 'ghost'; onRun(extra?: VibeArgs): void };
 
-// Une action du relevé : envoyée (grisée si l'agent travaille) ou préparée dans le champ ;
-// en sous-contexte, le choix du modèle à côté (sinon, qui travaille). Une action
+// Une action du relevé : envoyée ou préparée dans le champ ; un message de la conversation (sans
+// étape) est grisé tant qu'elle travaille, une action d'étape court à part (sa course en cours :
+// « en cours » et ⏹). En sous-contexte, le choix du modèle à côté (sinon, qui travaille). Une action
 // que l'appli fait elle-même (F-114) : le bouton « direct », puis le petit « via »
 // l'agent (son modèle ou qui travaille), et dessous « … » en cours, sinon son dernier
 // résultat (✓ ou ✗, une ligne, le détail déplié).
 export function Run({ a, busy, label, tone = 'plain', onRun }: RunProps) {
+  const run = useContext(StopRun);
+  const t = strings(useContext(Picks)?.lang ?? 'fr');
   if (!a) return null;
   const send = a.kind === 'send';
-  const off = !!a.disabled || (busy && send);
+  const waits = busy && send && a.step === null;   // un message de la conversation, qui travaille
+  const off = !!a.disabled || waits;
   const direct = send ? a.direct : undefined;
+  const state = run.state(a.id);
+  const live = state === 'running' || state === 'asking' || state === 'stopped';   // sa course retient les autres
+  const running = live && state ? (
+    <span className="vc-run-on">
+      {t.runState[state]}
+      {state !== 'stopped' ? <button type="button" className="vc-icon" title={t.runStopTitle} aria-label={t.runStop} onClick={() => run.stop(a.id)}>⏹</button> : null}
+    </span>
+  ) : null;
   const button = (
     <button type="button" className="vc-run" data-tone={tone} disabled={off}
       title={a.disabled ? `${a.hint}\n— ${a.disabled}` : a.hint} onClick={() => (direct ? onRun({ direct: true }) : onRun())}>
       <span className="vc-run-label">{label ?? a.label}</span>
       {direct ? <span className="vc-run-who">direct</span>
         : send && !a.models.length && tone !== 'ghost' ? <span className="vc-run-who">{a.who}</span> : null}
-      {a.disabled && !busy && tone !== 'ghost' && !direct?.running ? <span className="vc-run-why">{a.disabled}</span> : null}
+      {a.disabled && !waits && tone !== 'ghost' && !direct?.running && !live ? <span className="vc-run-why">{a.disabled}</span> : null}
     </button>
   );
   if (direct) {
@@ -112,6 +141,7 @@ export function Run({ a, busy, label, tone = 'plain', onRun }: RunProps) {
             via{a.models.length ? null : <span className="vc-run-who">{a.who}</span>}
           </button>
           {a.models.length ? <ModelPick a={a} /> : null}
+          {running}
         </span>
         {direct.running ? <span className="vc-direct-res" data-state="running">…</span> : last ? (
           <details className="vc-direct-res" data-state={last.ok ? 'ok' : 'ko'}>
@@ -122,7 +152,7 @@ export function Run({ a, busy, label, tone = 'plain', onRun }: RunProps) {
       </span>
     );
   }
-  return send && a.models.length ? <span className="vc-run-group">{button}<ModelPick a={a} /></span> : button;
+  return (send && a.models.length) || running ? <span className="vc-run-group">{button}{send ? <ModelPick a={a} /> : null}{running}</span> : button;
 }
 
 // Rien encore : ce qui manque, et le bouton qui le produit.
@@ -162,8 +192,14 @@ export function ClosedBanner({ pr, t }: { pr: VibePr | null; t: Strings }) {
   return <div className="vc-closed" role="status"><b>{`#${pr.number}`}</b>{t.prClosed[pr.state]}</div>;
 }
 
-export function VibeBanner({ lang }: { lang: VibeLang }) {
-  return <div className="vc-vibe-banner" role="note"><span aria-hidden="true">⚡</span>{S[lang].vibe}</div>;
+// Le bandeau du mode Vibe ; field : le champ de Tout dérouler (quand son bouton est proposé).
+export function VibeBanner({ lang, field }: { lang: VibeLang; field?: { text: string; setText(text: string): void } }) {
+  return (
+    <div className="vc-vibe-banner" role="note">
+      <span aria-hidden="true">⚡</span>{S[lang].vibe}
+      {field ? <StepField name="vibe" text={field.text} setText={field.setText} hint={strings(lang).vibeFieldHint} /> : null}
+    </div>
+  );
 }
 
 // Le robot temporaire d'une PR ouverte dans un worktree (F-110) : « PR #n · worktree » et Décharger

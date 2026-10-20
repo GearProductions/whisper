@@ -4,18 +4,20 @@
  *  action, les actions possibles et pourquoi une autre est grisée — Créer ou
  *  Relire, Guide ou Vibe, la PR dans un worktree, ce que l'appli fait aussi
  *  elle-même (F-114 : en cours, dernier résultat ; les règles : la note du
- *  ticket 0.8.0).
+ *  ticket 0.8.0), les courses (une action d'étape court à part : grisée par
+ *  blockedBy de runs, pas par la conversation qui travaille ; note 0.9.0).
  *  Ne connaît pas : Electron, le disque, git (tout est passé ; `exists` dit si
  *  un chemin du dossier de l'agent existe).
  *  Utilisé par : app/controllers/vibecoder (refreshVibe). */
 import type {
   VibeAction, VibeAutonomy, VibeCheck, VibeComment, VibeFlow, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePr,
-  VibePrItem, VibeStepId, VibeTestFile, VibeView, VibeWorktree,
+  VibePrItem, VibeRun, VibeStepId, VibeTestFile, VibeView, VibeWorktree,
 } from 'shared/bridge';
 import { DIRECT_ACTIONS, prNumber, SKILL_MODELS, templateVars, type ActionDef } from './actions';
 import { markState, type Marks } from './marks';
 import { parseNote } from './note';
 import { json, parseChecklist, parseQuestions, parseReading } from './outputs';
+import { blockedBy, ownRun } from './runs';
 import { blobSha, caseLines, caseTitles, isInvariantTest } from './test-files';
 
 export type JourneyInput = {
@@ -25,7 +27,9 @@ export type JourneyInput = {
   pr: number | null;            // Relire : la PR suivie (vibeSet({ pr }))
   autonomy: VibeAutonomy;
   agent: { model: string; effort: string; mode: string };
-  busy: boolean;                                    // l'agent travaille
+  busy: boolean;                                    // la conversation de l'agent travaille
+  running: { id: string; reads: boolean }[];        // les courses qui retiennent (runs : LOCKING), par id d'action
+  runs: VibeRun[];                                  // les courses à l'écran (runViews)
   repo: { branch: string; base: string; changed: string[]; commits: { hash: string; subject: string; files: string[] }[] } | null;
   error: string | null;                             // pourquoi le dépôt manque
   note: { path: string; text: string; before: string | null } | null;
@@ -277,13 +281,17 @@ export function vibeView(input: JourneyInput): VibeView {
   const current = ORDER[flow].find((s) => !done[s]) ?? null;
   const primary = flow === 'create' && vibe && !note ? 'vibe' : current && next[current];
 
-  // Une action directe en cours (F-114) : les autres attendent, comme quand l'agent travaille.
+  // Une action directe en cours (F-114) : les autres attendent, comme quand l'agent travaille ; et elle
+  // retient les courses comme l'une d'elles (elle lit, publish, load-pr, ou modifie, commit, base).
   const running = Object.values(input.direct ?? {}).some((x) => x.running);
-  // Pourquoi une action est grisée : l'agent travaille, une commande directe est en cours, une variable
-  // de son gabarit manque, elle ne sert pas ici.
+  const locks = [...input.running, ...Object.entries(input.direct ?? {}).filter(([, x]) => x.running)
+    .map(([id]) => ({ id, reads: !!input.actions.find((a) => a.id === id)?.reads }))];
+  // Pourquoi une action est grisée : une course la retient (celle d'une étape) ou la conversation travaille
+  // (les autres), une commande directe est en cours, une variable de son gabarit manque, elle ne sert pas ici.
   const why = (d: ActionDef): string | null => {
     if (d.kind === 'prefill') return null;
-    if (input.busy) return T.busy;
+    const held = ownRun(d) ? blockedBy(d, locks, lang) : input.busy ? T.busy : null;
+    if (held) return held;
     if (DIRECT_ACTIONS.includes(d.id) && running) return T.directRunning;
     // Relire une PR fusionnée ou fermée : elle se charge, mais ne se relit pas.
     if (flow === 'review' && d.step !== null && d.step !== 'pr' && (pr?.state === 'MERGED' || pr?.state === 'CLOSED')) {
@@ -322,6 +330,6 @@ export function vibeView(input: JourneyInput): VibeView {
     error: input.error,
     steps: ORDER[flow].map((id) => ({ id, status: done[id] ? 'done' : id === current ? 'current' : 'todo', facts: stepFacts[id] ?? '' })),
     note, questions, modules, invariants, variants, commits: viewCommits, outputs, checklist, actions,
-    skills: input.skills, pr, prs, draft: input.draft, worktree: input.worktree ?? null, time: input.now,
+    skills: input.skills, pr, prs, draft: input.draft, worktree: input.worktree ?? null, runs: input.runs, time: input.now,
   };
 }

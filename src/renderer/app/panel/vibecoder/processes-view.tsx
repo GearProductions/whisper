@@ -8,7 +8,7 @@
  *  rang, jamais par un texte.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
 import { useLayoutEffect, useRef, useState } from 'react';
-import type { Strings } from 'core/vibecoder';
+import { duration, type Strings } from 'core/vibecoder';
 import type { VibeLang, VibeProcess, VibeProcessOp, VibeView } from 'technicals/bridge';
 import { Run } from './step-parts';
 import type { VibeActs } from './step-views';
@@ -38,12 +38,6 @@ const S = {
   },
 } satisfies Record<VibeLang, unknown>;
 type Labels = typeof S.fr;
-
-// Une durée en clair : 12 s, 3 min, 2 h 05.
-const duration = (ms: number) => {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  return s < 60 ? `${s} s` : s < 3600 ? `${Math.floor(s / 60)} min` : `${Math.floor(s / 3600)} h ${String(Math.floor(s / 60) % 60).padStart(2, '0')}`;
-};
 
 type Props = { view: VibeView; t: Strings; act: VibeActs; busy: boolean };
 

@@ -11,7 +11,7 @@
  *  remove`), avec son dossier des favoris ; son brouillon de revue revient à
  *  l'agent du dépôt.
  *  Ne connaît pas : la page (seulement ce que demande controllers/vibecoder).
- *  Utilisé par : controllers/vibecoder. */
+ *  Utilisé par : controllers/vibecoder, controllers/runs. */
 import fs from 'node:fs';
 import path from 'node:path';
 import type { VibeWorktree } from 'shared/bridge';
@@ -23,6 +23,7 @@ import { loadConfig, saveConfig, saveVibeStore, vibeOutDir, vibeStore } from 'ap
 import { state } from 'app/state';
 import { openConversation } from 'app/windows';
 import { agents, ensureFolderColors, isBusy, pushAgents, trustFolder } from './agents';
+import { closeRuns } from './runs';
 
 const wanted = new Set<string>();   // `<agent>:<n>` : l'écran a demandé le worktree de cette PR (en mémoire)
 let syncing = false;
@@ -103,11 +104,12 @@ async function adopt(parent: AgentConfig, pr: number) {
   pushAgents();
 }
 
-// Retire le robot temporaire : son processus, ses sorties, ses validations, son
+// Retire le robot temporaire : son processus et ses courses, ses sorties, ses validations, son
 // dossier des favoris ; son brouillon revient à l'agent du dépôt. Affiché : le
 // panneau passe à l'agent du dépôt.
 function removeRobot(robot: AgentConfig, parent: AgentConfig | null, pr: number) {
   agents.forget(robot.id);
+  closeRuns(robot);
   const store = vibeStore();
   const draft = store.drafts[robot.id]?.[pr];
   if (parent && draft) store.drafts[parent.id] = { ...store.drafts[parent.id], [pr]: draft };
