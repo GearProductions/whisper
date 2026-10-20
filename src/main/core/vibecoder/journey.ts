@@ -1,11 +1,16 @@
 /** journey — le parcours de l'écran VibeCoder, calculé sans modèle à partir du
  *  relevé (dépôt, note, tests, sorties des skills, validations) : les étapes
- *  (faite, en cours, à venir) et leurs faits en une ligne, la prochaine
- *  action, les actions possibles et pourquoi une autre est grisée — Créer ou
- *  Relire, Guide ou Vibe, la PR dans un worktree, ce que l'appli fait aussi
- *  elle-même (F-114 : en cours, dernier résultat ; les règles : la note du
- *  ticket 0.8.0), les courses (une action d'étape court à part : grisée par
- *  blockedBy de runs, pas par la conversation qui travaille ; note 0.9.0).
+ *  (faite, en cours, à venir), leurs faits en une ligne et celles qu'un clic
+ *  ouvre (open : Créer en Guide, faite ou en cours ; Relire, toutes ; Créer en
+ *  Vibe, aucune), la prochaine action, les actions possibles, pourquoi une
+ *  autre est grisée et celles qui n'ont pas encore de sens (hidden : masquées,
+ *  leur raison d'être grisée gardée ; l'étape PR d'après l'état de la PR, qui
+ *  ne fait que masquer) — Créer ou Relire, Guide ou Vibe, la PR dans un
+ *  worktree, ce que l'appli fait aussi elle-même (F-114 : en cours, dernier
+ *  résultat ; les règles : la note du ticket 0.8.0), les courses (une action
+ *  d'étape court à part : grisée par blockedBy de runs, pas par la
+ *  conversation qui travaille ; note 0.9.0 des actions indépendantes ; le
+ *  parcours guidé : note 0.9.0-parcours-guide).
  *  Ne connaît pas : Electron, le disque, git (tout est passé ; `exists` dit si
  *  un chemin du dossier de l'agent existe).
  *  Utilisé par : app/controllers/vibecoder (refreshVibe). */
@@ -71,6 +76,7 @@ const TEXT = {
     busy: 'L\'agent travaille', directRunning: 'Une commande directe est en cours', noRepo: 'Pas de dépôt git', noNoteYet: 'Pas encore de note', nothingToRead: 'Aucun test d\'invariant à lire',
     noModule: 'Aucun module à générer', noPrChosen: 'Aucune PR choisie', loadFirst: 'Charger d\'abord la PR',
     emptyDraft: 'Le brouillon de revue est vide', noCommitMd: 'Préparer d\'abord le commit', noQuestion: 'Aucune question ouverte',
+    openQuestions: 'Répondre d\'abord aux questions de la note', started: 'Déjà lancée : la forme est posée',
     noFixup: 'Aucun commit fixup!', worktreeOpen: 'Déjà ouverte dans un worktree', notWorktree: 'Seulement sur le robot d\'un worktree',
     merged: 'PR déjà fusionnée : rien à relire', closed: 'PR fermée : rien à relire',
     checklist: ['La note est à jour', 'Les invariants passent', 'Chaque diff a été relu', 'Un commit par module, fixups repliés',
@@ -87,12 +93,16 @@ const TEXT = {
     busy: 'The agent is working', directRunning: 'A direct command is running', noRepo: 'No git repository', noNoteYet: 'No note yet', nothingToRead: 'No invariant test to read',
     noModule: 'No module to generate', noPrChosen: 'No PR chosen', loadFirst: 'Load the PR first',
     emptyDraft: 'The review draft is empty', noCommitMd: 'Prepare the commit first', noQuestion: 'No open question',
+    openQuestions: 'Answer the note\'s questions first', started: 'Already started: the shape is set',
     noFixup: 'No fixup! commit', worktreeOpen: 'Already open in a worktree', notWorktree: 'Only on a worktree\'s robot',
     merged: 'PR already merged: nothing to review', closed: 'PR closed: nothing to review',
     checklist: ['The note is up to date', 'The invariants pass', 'Every diff has been reviewed', 'One commit per module, fixups folded',
       'AGENTS.md updated if a convention changed'],
   },
 };
+
+// Pourquoi une action est grisée (sense) : la clé de son texte.
+type Reason = { [K in keyof typeof TEXT.fr]: typeof TEXT.fr[K] extends string ? K : never }[keyof typeof TEXT.fr];
 
 const FIXUP = /^(fixup|squash|amend)! /;
 
@@ -238,7 +248,8 @@ export function vibeView(input: JourneyInput): VibeView {
         : !vibe && !invariants.every((f) => f.cases.every((c) => f.marks[c] === 'ok')) ? null
           : commitMd ? 'commit' : uncommitted.length ? 'commit-prepare' : null,
       modules: commitMd ? 'commit' : inProgress ? (untouched ? 'next' : 'commit-prepare') : 'module',
-      revue: !checksOk ? 'checks' : !ponytail ? 'ponytail' : fixups ? 'fixups' : null,
+      // Lancer les vérifications demande aussi la ponytail review (F-115) : elle n'a plus son bouton.
+      revue: !checksOk || !ponytail ? 'checks' : fixups ? 'fixups' : null,
       pr: 'pr',
     };
     stepFacts = {
@@ -279,7 +290,9 @@ export function vibeView(input: JourneyInput): VibeView {
     };
   }
   const current = ORDER[flow].find((s) => !done[s]) ?? null;
-  const primary = flow === 'create' && vibe && !note ? 'vibe' : current && next[current];
+  // Vibe : la note d'abord (le défaut), puis Valider et développer, la note rédigée sans question.
+  const primary = flow === 'create' && vibe && current === 'forme' ? 'vibe' : current && next[current];
+  const open = (id: VibeStepId) => flow === 'review' || (!vibe && (!!done[id] || id === current));
 
   // Une action directe en cours (F-114) : les autres attendent, comme quand l'agent travaille ; et elle
   // retient les courses comme l'une d'elles (elle lit, publish, load-pr, ou modifie, commit, base).
@@ -287,48 +300,69 @@ export function vibeView(input: JourneyInput): VibeView {
   const locks = [...input.running, ...Object.entries(input.direct ?? {}).filter(([, x]) => x.running)
     .map(([id]) => ({ id, reads: !!input.actions.find((a) => a.id === id)?.reads }))];
   // Pourquoi une action est grisée : une course la retient (celle d'une étape) ou la conversation travaille
-  // (les autres), une commande directe est en cours, une variable de son gabarit manque, elle ne sert pas ici.
-  const why = (d: ActionDef): string | null => {
-    if (d.kind === 'prefill') return null;
-    const held = ownRun(d) ? blockedBy(d, locks, lang) : input.busy ? T.busy : null;
-    if (held) return held;
-    if (DIRECT_ACTIONS.includes(d.id) && running) return T.directRunning;
+  // (les autres), une commande directe est en cours (held) ; une variable de son gabarit manque, elle ne
+  // sert pas ici (sense).
+  const held = (d: ActionDef): string | null =>
+    (ownRun(d) ? blockedBy(d, locks, lang) : input.busy ? T.busy : null)
+    ?? (DIRECT_ACTIONS.includes(d.id) && running ? T.directRunning : null);
+  const sense = (d: ActionDef): Reason | null => {
     // Relire une PR fusionnée ou fermée : elle se charge, mais ne se relit pas.
     if (flow === 'review' && d.step !== null && d.step !== 'pr' && (pr?.state === 'MERGED' || pr?.state === 'CLOSED')) {
-      return pr.state === 'MERGED' ? T.merged : T.closed;
+      return pr.state === 'MERGED' ? 'merged' : 'closed';
     }
     const v = new Set(templateVars(d.text));
-    if ((v.has('branch') || v.has('base')) && !repo) return T.noRepo;
+    if ((v.has('branch') || v.has('base')) && !repo) return 'noRepo';
     // La Forme et les invariants s'écrivent d'après la note.
-    if (!note && (v.has('note') || (flow === 'create' && (d.step === 'forme' || d.step === 'invariants')))) return T.noNoteYet;
-    if (v.has('files') && !invariants.length) return T.nothingToRead;   // tout lu : on peut relire (args.file)
+    if (!note && (v.has('note') || (flow === 'create' && (d.step === 'forme' || d.step === 'invariants')))) return 'noNoteYet';
+    // Valider et développer : la note rédigée, ses questions à l'utilisateur avant ; la forme faite, seulement
+    // pour reprendre après une question qui bloque (la dernière course : des réponses).
+    if (flow === 'create' && d.id === 'vibe') {
+      if (!note?.filled) return 'noNoteYet';
+      if (questions.length) return 'openQuestions';
+      if (done.forme && input.runs[0]?.id !== 'answers') return 'started';
+    }
+    if (v.has('files') && !invariants.length) return 'nothingToRead';   // tout lu : on peut relire (args.file)
     // Relire : ce qui lit la PR attend qu'elle soit chargée (l'étape PR, elle, prend son numéro de la page).
-    if (flow === 'review' && !loaded && d.step !== 'pr' && (v.has('pr') || v.has('ref'))) return pr ? T.loadFirst : T.noPrChosen;
-    if (v.has('draft') && !input.draft.length) return T.emptyDraft;
-    if (d.id === 'commit' && !commitMd) return T.noCommitMd;
-    if (d.id === 'answers' && !questions.length) return T.noQuestion;
-    if (d.id === 'fixups' && !fixups) return T.noFixup;
+    if (flow === 'review' && !loaded && d.step !== 'pr' && (v.has('pr') || v.has('ref'))) return pr ? 'loadFirst' : 'noPrChosen';
+    if (v.has('draft') && !input.draft.length) return 'emptyDraft';
+    if (d.id === 'commit' && !commitMd) return 'noCommitMd';
+    if (d.id === 'answers' && !questions.length) return 'noQuestion';
+    if (d.id === 'fixups' && !fixups) return 'noFixup';
     // Relire dans un worktree : ouvrir une PR chargée, une fois ; décharger, sur son robot.
-    if (d.id === 'open-worktree') return input.worktree ? T.worktreeOpen : loaded ? null : pr ? T.loadFirst : T.noPrChosen;
-    if (d.id === 'unload-worktree' && !input.worktree?.temp) return T.notWorktree;
+    if (d.id === 'open-worktree') return input.worktree ? 'worktreeOpen' : loaded ? null : pr ? 'loadFirst' : 'noPrChosen';
+    if (d.id === 'unload-worktree' && !input.worktree?.temp) return 'notWorktree';
     return null;
   };
+  // Pas encore de sens : masquée (sa raison reste). L'étape PR (Créer) d'après l'état de la PR, sans griser :
+  // une demande juste après pr ne doit pas tomber sur un relevé en retard.
+  const notYet = new Set<Reason>(['noNoteYet', 'nothingToRead', 'noCommitMd', 'noQuestion', 'noFixup', 'notWorktree', 'worktreeOpen',
+    'openQuestions', 'started']);
+  // ponytail: une PR sans état connu (pr.json, avant que gh réponde) compte comme ouverte.
+  const prState = pr && (pr.state ?? 'OPEN');
+  const prShown: Record<string, boolean> = {
+    pr: !prState, ci: prState === 'OPEN', rc: prState === 'OPEN', base: prState === 'MERGED', release: prState === 'MERGED',
+  };
+  const hidden = (d: ActionDef, reason: Reason | null) =>
+    (flow === 'create' && Object.hasOwn(prShown, d.id) && !prShown[d.id]) || (reason !== null && notYet.has(reason));
   const actions: VibeAction[] = input.actions
     .filter((d) => (d.flow === 'both' || d.flow === flow) && (d.id !== 'guide' || input.skills.includes('gear-guide')))
-    .map((d) => ({
-      id: d.id, step: d.step, label: d.label, hint: d.hint, who: input.who[d.id] ?? 'agent',
-      model: input.model[d.id] ?? null, models: input.model[d.id] ? SKILL_MODELS : [], kind: d.kind, needs: d.needs,
-      usesText: templateVars(d.text).includes('text'),
-      ...(d.kind === 'prefill' ? { text: d.text } : {}),
-      primary: d.id === primary, disabled: why(d),
-      ...(DIRECT_ACTIONS.includes(d.id) ? { direct: input.direct?.[d.id] ?? { running: false, last: null } } : {}),
-    }));
+    .map((d) => {
+      const reason = d.kind === 'prefill' ? null : sense(d);
+      return {
+        id: d.id, step: d.step, label: d.label, hint: d.hint, who: input.who[d.id] ?? 'agent',
+        model: input.model[d.id] ?? null, models: input.model[d.id] ? SKILL_MODELS : [], kind: d.kind, needs: d.needs,
+        usesText: templateVars(d.text).includes('text'),
+        ...(d.kind === 'prefill' ? { text: d.text } : {}),
+        primary: d.id === primary, disabled: d.kind === 'prefill' ? null : held(d) ?? (reason && T[reason]), hidden: hidden(d, reason),
+        ...(DIRECT_ACTIONS.includes(d.id) ? { direct: input.direct?.[d.id] ?? { running: false, last: null } } : {}),
+      };
+    });
 
   return {
     agentId: input.agentId, lang, flow, autonomy: input.autonomy, agent: input.agent,
     repo: repo && { branch: repo.branch, base: repo.base, changed: changed.length },
     error: input.error,
-    steps: ORDER[flow].map((id) => ({ id, status: done[id] ? 'done' : id === current ? 'current' : 'todo', facts: stepFacts[id] ?? '' })),
+    steps: ORDER[flow].map((id) => ({ id, status: done[id] ? 'done' : id === current ? 'current' : 'todo', facts: stepFacts[id] ?? '', open: open(id) })),
     note, questions, modules, invariants, variants, commits: viewCommits, outputs, checklist, actions,
     skills: input.skills, pr, prs, draft: input.draft, worktree: input.worktree ?? null, runs: input.runs, time: input.now,
   };
