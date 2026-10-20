@@ -3,17 +3,18 @@
  *  actions en prend le texte (fieldOf), puis la rangée des actions de l'étape
  *  — celle que le guide fait faire ensuite mise en avant, et elle seule d'une
  *  autre étape quand celle-ci est en cours —, sauf celles que la vue montre
- *  elle-même), la carte d'une sortie de skill (titre, fichier, depuis quand),
- *  le bouton d'une action du relevé (son libellé ou un plus court, qui
- *  travaille ou le choix du modèle, pourquoi c'est grisé ; sa course en
- *  cours : « en cours » et ⏹ ; absent si l'action n'existe pas ; une action
- *  que l'appli fait elle-même : « direct », à côté « via » l'agent, et dessous
- *  son dernier résultat, F-114), l'invitation (rien encore, et ce qui le
- *  produit), la carte d'une PR, le bandeau du mode Vibe (et le champ de Tout
- *  dérouler), celui d'une PR fusionnée ou fermée, le badge du robot d'une PR
- *  ouverte dans un worktree (et Décharger).
+ *  elle-même et celles que le relevé masque), le champ d'une étape, la carte
+ *  d'une sortie de skill (titre, fichier, depuis quand), le bouton d'une
+ *  action du relevé (son libellé ou un plus court, qui travaille ou le choix
+ *  du modèle, pourquoi c'est grisé ; sa course en cours : « en cours » et ⏹ ;
+ *  absent si l'action n'existe pas ou que le relevé la masque (hidden) ; une
+ *  action que l'appli fait elle-même : « direct », à côté « via » l'agent, et
+ *  dessous son dernier résultat, F-114), l'invitation (rien encore, et ce qui
+ *  le produit), la carte d'une PR, le bandeau d'une PR fusionnée ou fermée,
+ *  le badge du robot d'une PR ouverte dans un worktree (et Décharger).
  *  Ne connaît pas : le pont (rappels passés ; ⏹ par le contexte StopRun).
- *  Utilisé par : les vues d'étape ; vibe-coder (bandeaux, badge du worktree). */
+ *  Utilisé par : les vues d'étape, vibe-screen ; vibe-coder (bandeau d'une
+ *  PR fermée, badge du worktree). */
 import { createContext, useContext, type ReactNode } from 'react';
 import { fieldOf, t as strings, webUrl, type Strings } from 'core/vibecoder';
 import type { VibeAction, VibeArgs, VibeLang, VibePr, VibeRun, VibeView } from 'technicals/bridge';
@@ -22,7 +23,6 @@ import type { StepProps } from './step-views';
 import './step-parts.css';
 
 const fr = {
-  vibe: 'Mode Vibe : l\'agent déroule le guide ; vous testez et approuvez à la fin.',
   openPr: 'Ouvrir ↗',
   openPrTitle: 'Ouvrir la PR dans le navigateur',
   by: (author: string) => `par ${author}`,
@@ -31,7 +31,6 @@ const fr = {
 const S: Record<VibeLang, typeof fr> = {
   fr,
   en: {
-    vibe: 'Vibe mode: the agent runs the guide; you test and approve at the end.',
     openPr: 'Open ↗',
     openPrTitle: 'Open the PR in the browser',
     by: (author) => `by ${author}`,
@@ -45,7 +44,7 @@ const cites = (a: VibeAction) => a.kind === 'prefill' && !!a.text?.includes('{{q
 // La course d'une action sur son bouton : son état (VibeView.runs) et ⏹ (vibe-coder le relie à act.runOp(id, 'stop')).
 export const StopRun = createContext<{ stop(id: string): void; state(id: string): VibeRun['state'] | null }>({ stop: () => {}, state: () => null });
 
-// Le champ d'une étape (ou de Tout dérouler) : son texte part avec l'action qui le prend (fieldOf).
+// Le champ d'une étape (ou de l'écran Vibe, celui de la note) : son texte part avec l'action qui le prend (fieldOf).
 export function StepField({ name, text, setText, hint }: { name: string; text: string; setText(text: string): void; hint: string }) {
   return (
     <div className="vc-cbox vc-step-field">
@@ -54,13 +53,13 @@ export function StepField({ name, text, setText, hint }: { name: string; text: s
   );
 }
 
-// L'en-tête d'une étape ; `own` : les actions que la vue montre elle-même (pas répétées ici).
+// L'en-tête d'une étape ; `own` : les actions que la vue montre elle-même (pas répétées ici) ; les masquées, nulle part.
 export function StepHead({ p, own = [], children }: { p: StepProps; own?: string[]; children?: ReactNode }) {
   const { view, step, t, act, busy } = p;
   const field = view.actions.some((a) => fieldOf(a) === step.id);
   const current = step.status === 'current';
   const acts = view.actions
-    .filter((a) => (a.step === step.id || (a.primary && current)) && !cites(a) && !own.includes(a.id))
+    .filter((a) => !a.hidden && (a.step === step.id || (a.primary && current)) && !cites(a) && !own.includes(a.id))
     .sort((a, b) => Number(b.primary && current) - Number(a.primary && current));
   return (
     <div className="vc-step-head">
@@ -100,7 +99,7 @@ export function OutputCard({ title, file, time, t, tools, className, children }:
 // onRun : sans argument, par l'agent ; { direct: true } : par l'appli elle-même (VibeAction.direct).
 type RunProps = { a: VibeAction | undefined; busy: boolean; label?: ReactNode; tone?: 'accent' | 'plain' | 'ghost'; onRun(extra?: VibeArgs): void };
 
-// Une action du relevé : envoyée ou préparée dans le champ ; un message de la conversation (sans
+// Une action du relevé (masquée, hidden : rien) : envoyée ou préparée dans le champ ; un message de la conversation (sans
 // étape) est grisé tant qu'elle travaille, une action d'étape court à part (sa course en cours :
 // « en cours » et ⏹). En sous-contexte, le choix du modèle à côté (sinon, qui travaille). Une action
 // que l'appli fait elle-même (F-114) : le bouton « direct », puis le petit « via »
@@ -109,7 +108,7 @@ type RunProps = { a: VibeAction | undefined; busy: boolean; label?: ReactNode; t
 export function Run({ a, busy, label, tone = 'plain', onRun }: RunProps) {
   const run = useContext(StopRun);
   const t = strings(useContext(Picks)?.lang ?? 'fr');
-  if (!a) return null;
+  if (!a || a.hidden) return null;
   const send = a.kind === 'send';
   const waits = busy && send && a.step === null;   // un message de la conversation, qui travaille
   const off = !!a.disabled || waits;
@@ -190,16 +189,6 @@ export function PrCard({ pr, lang, onOpenLink, children }: { pr: VibePr; lang: V
 export function ClosedBanner({ pr, t }: { pr: VibePr | null; t: Strings }) {
   if (!pr?.state || pr.state === 'OPEN') return null;
   return <div className="vc-closed" role="status"><b>{`#${pr.number}`}</b>{t.prClosed[pr.state]}</div>;
-}
-
-// Le bandeau du mode Vibe ; field : le champ de Tout dérouler (quand son bouton est proposé).
-export function VibeBanner({ lang, field }: { lang: VibeLang; field?: { text: string; setText(text: string): void } }) {
-  return (
-    <div className="vc-vibe-banner" role="note">
-      <span aria-hidden="true">⚡</span>{S[lang].vibe}
-      {field ? <StepField name="vibe" text={field.text} setText={field.setText} hint={strings(lang).vibeFieldHint} /> : null}
-    </div>
-  );
 }
 
 // Le robot temporaire d'une PR ouverte dans un worktree (F-110) : « PR #n · worktree » et Décharger

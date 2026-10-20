@@ -1,5 +1,5 @@
 /* Les pièces des vues d'étape (step-parts) : outils de l'en-tête et des
-   cartes, bouton d'action, invitation, carte de PR, bandeau Vibe. Sous .vc,
+   cartes, bouton d'action, invitation, carte de PR. Sous .vc,
    avec les couleurs de vibecoder.css. */
 
 .vc-step-tools { margin-left: auto; display: flex; align-items: center; gap: 8px; align-self: center; }
@@ -125,22 +125,6 @@ button.vc-chip:hover { border-color: var(--accent); color: var(--vc-text); }
 .vc-pr-head:last-child { padding-bottom: 12px; }
 .vc-pr .vc-pr-body { border-top: 1px solid var(--vc-line); }
 
-/* ---- Bandeau du mode Vibe, en haut de l'étape -------------------------------- */
-.vc-vibe-banner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: -4px 0 16px;
-  padding: 7px 12px;
-  border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--accent) 9%, var(--vc-editor));
-  color: var(--vc-soft);
-  font-size: 12.5px;
-  line-height: 1.4;
-}
-.vc-vibe-banner > span { color: var(--accent); }
-
 /* ---- Relire : PR fusionnée ou fermée ----------------------------------------- */
 .vc-closed {
   display: flex;
@@ -171,10 +155,8 @@ button.vc-chip:hover { border-color: var(--accent); color: var(--vc-text); }
   white-space: nowrap;
 }
 
-/* ---- Le champ d'une étape (et de Tout dérouler) : l'allure de la zone de commentaire, sur toute la largeur ---- */
+/* ---- Le champ d'une étape : l'allure de la zone de commentaire, sur toute la largeur ---- */
 .vc-step-field { flex-basis: 100%; margin: 6px 0 0; }
-.vc-vibe-banner:has(.vc-step-field) { flex-wrap: wrap; }
-.vc-vibe-banner .vc-step-field { margin: 4px 0 2px; }
 /* Une action dont la course est en cours : « en cours » et ⏹, à côté de son bouton. */
 .vc-run-on { display: inline-flex; align-items: center; gap: 2px; margin-left: 6px; color: var(--accent); font-size: 12px; }
 .vc-run-on .vc-icon { width: 24px; height: 24px; font-size: 13px; line-height: 24px; }

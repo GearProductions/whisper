@@ -12,7 +12,8 @@
  *  code, numéroté) ; pas lu : ses cas (chacun se déplie sur son code) et « Lire
  *  en pseudo-code ». En tête : « Tout relire », le résumé de l'étape, les cas
  *  à valider, ce que veut dire « Attention » (s'il y en a), l'alignement
- *  (align.md, Relancer).
+ *  (align.md, sans Relancer : Créer, « Écrire les invariants » le refait ;
+ *  Relire, son bouton est dans la rangée de l'étape).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useMemo, useState } from 'react';
 import {
@@ -52,7 +53,7 @@ const fr = {
   rereadAll: 'Tout relire',
   casesHere: (n: number) => `${n} cas à valider : ✓ ou ✗ sur chaque carte, ou « Tout valider » sur un fichier sans point d'attention.`,
   noTests: 'Aucun test d\'invariant sur la branche',
-  noTestsText: ' « Écrire les invariants (rouges) » les écrit d\'après les lignes « → invariant » de la note ; ou dictez du pseudo-code dans le champ, il est traduit dans le langage du projet.',
+  noTestsText: ' « Écrire les invariants (rouges), puis vérifier l\'alignement » les écrit d\'après les lignes « → invariant » de la note ; ou dictez du pseudo-code dans le champ, il est traduit dans le langage du projet.',
   noTestsReview: 'Aucun test d\'invariant dans cette PR',
   noTestsReviewText: ' Les tests d\'invariants sont rangés sous tests/invariants/.',
   pseudo: 'Pseudo-code',
@@ -88,7 +89,7 @@ const S: Record<VibeLang, typeof fr> = {
     rereadAll: 'Read all again',
     casesHere: (n) => `${n} case${n > 1 ? 's' : ''} to approve: ✓ or ✗ on each card, or « Approve all » on a file with no warning.`,
     noTests: 'No invariant test on the branch',
-    noTestsText: ' « Write the invariants (red) » writes them from the note\'s « → invariant » lines; or dictate pseudo-code in the field, it is translated into the project\'s language.',
+    noTestsText: ' « Write the invariants (red), then check the alignment » writes them from the note\'s « → invariant » lines; or dictate pseudo-code in the field, it is translated into the project\'s language.',
     noTestsReview: 'No invariant test in this PR',
     noTestsReviewText: ' Invariant tests live under tests/invariants/.',
     pseudo: 'Pseudo-code',
@@ -104,7 +105,6 @@ export function InvariantsView(props: StepProps) {
   const { view, t, act, busy } = props;
   const s = S[view.lang];
   const read = view.actions.find((a) => a.id === 'read-invariants');
-  const alignAction = view.actions.find((a) => a.id === 'align');
   const wait = awaiting(view);
   const review = view.flow === 'review';
   const total = progress(view.invariants);
@@ -119,7 +119,7 @@ export function InvariantsView(props: StepProps) {
   const commentAlign = review ? (q: string, text: string) => act.draft({ add: remark(`align: ${excerpt(q, 80)}`, text) }) : undefined;
   return (
     <>
-      <StepHead p={props} own={['read-invariants', ...(view.invariants.length ? [] : ['invariants']), ...(align ? ['align'] : [])]}>
+      <StepHead p={props} own={['read-invariants', ...(view.invariants.length ? [] : ['invariants'])]}>
         {view.invariants.some((f) => f.reading) ? (
           <Run a={read} busy={busy} label={s.rereadAll} onRun={() => act.run('read-invariants', { file: '*' })} />
         ) : null}
@@ -134,10 +134,6 @@ export function InvariantsView(props: StepProps) {
             <span className="vc-card-file vc-mono">align.md</span>
             <span className="vc-card-end">
               <span className="vc-card-time" title={new Date(align.time).toLocaleString(t.locale)}>{t.ago(Date.now() - align.time)}</span>
-              {/* Dans le résumé : le clic sur Relancer ne replie pas la carte. */}
-              <span onClick={(e) => e.preventDefault()}>
-                <Run a={alignAction} busy={busy} tone="ghost" label={t.rerun} onRun={() => act.run('align')} />
-              </span>
             </span>
           </summary>
           <div className="vc-card-body"><MarkdownView md={align.text} t={t} onOpenLink={act.openLink} onQuote={quoteAlign} onComment={commentAlign} /></div>

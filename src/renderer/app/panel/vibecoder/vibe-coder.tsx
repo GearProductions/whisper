@@ -2,25 +2,26 @@
  *  corps du panneau : en-tête (agent — sa couleur, seule touche de couleur
  *  avec Envoyer —, branche, Créer / Relire, Guide / Vibe, langue, relevé,
  *  conversation affichée ou masquée, retour à la conversation, fermer ; le
- *  robot d'une PR dans un worktree : son badge et Décharger) ; le
- *  parcours à gauche (il dit où l'on en est) ; au centre, les onglets des
- *  étapes, l'étape choisie (step-views : son en-tête porte ses actions ; en
- *  Vibe, un bandeau le rappelle en haut ; Relire, une PR fusionnée ou fermée
- *  aussi) ; à droite, en onglets, la conversation (reçue en children), les
- *  actions lancées (runs-view, le nombre en cours, en attente d'une
- *  autorisation ou arrêtées à trancher), les tâches de fond (`tasks`, le
- *  nombre en cours) ou les processus du projet (processes-view, le nombre en
- *  cours), masquable, sa
- *  largeur à la poignée (300 px → 60 %) ; la barre d'état en bas (son ⚙
- *  Tâches ouvre l'onglet). Ctrl+1…6 ouvrent les étapes. Une vue d'étape qui
- *  échoue ne fait tomber ni l'écran ni le brouillon (I-29). Il tient les
- *  réponses en cours aux questions ouvertes, le verdict de la revue (Relire),
- *  le modèle choisi par action (envoyé s'il n'est pas le conseillé), le champ
- *  de chaque étape et celui de Tout dérouler (fieldOf : son texte part en
+ *  robot d'une PR dans un worktree : son badge et Décharger) ; le parcours à
+ *  gauche (il dit où l'on en est) ; au centre, l'étape choisie (step-views :
+ *  son en-tête porte ses actions ; Relire, une PR fusionnée ou fermée en
+ *  bandeau) ; Créer en Vibe, l'écran Vibe (vibe-screen) à la place du
+ *  parcours et de l'étape ; à droite, en onglets, la conversation (reçue en
+ *  children), les actions lancées (runs-view, le nombre en cours, en attente
+ *  d'une autorisation ou arrêtées à trancher), les tâches de fond (`tasks`,
+ *  le nombre en cours) ou les processus du projet (processes-view, le nombre
+ *  en cours), masquable, sa largeur à la poignée (300 px → 60 %) ; la barre
+ *  d'état en bas (son ⚙ Tâches ouvre l'onglet). Le parcours et Ctrl+1…6
+ *  n'ouvrent qu'une étape que le relevé dit ouverte (open) ; une étape
+ *  choisie qui ne l'est plus laisse la place à celle en cours. Une vue
+ *  d'étape qui échoue ne fait tomber ni l'écran ni le brouillon (I-29). Il
+ *  tient les réponses en cours aux questions ouvertes, le verdict de la revue
+ *  (Relire), le modèle choisi par action (envoyé s'il n'est pas le
+ *  conseillé), le champ de chaque étape (fieldOf : son texte part en
  *  args.text de l'action ; exigé et vide, le champ prend le clavier ; partie,
- *  il se vide). Préparer un message dans le champ de la conversation, ou un
- *  message qui exige son texte, réaffiche la conversation (colonne masquée,
- *  ou onglet Actions, Tâches, Processus).
+ *  il se vide ; en Vibe, celui de la note). Préparer un message dans le champ
+ *  de la conversation, ou un message qui exige son texte, réaffiche la
+ *  conversation (colonne masquée, ou onglet Actions, Tâches, Processus).
  *  Ne connaît pas : le pont (rappels passés), le contenu de la conversation.
  *  Utilisé par : panel-app. */
 import { Component, useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
@@ -32,8 +33,9 @@ import { ProcessesView } from './processes-view';
 import { Picks } from './model-pick';
 import { RunsView } from './runs-view';
 import { StatusBar } from './status-bar';
-import { ClosedBanner, StopRun, VibeBanner, WorktreeBadge } from './step-parts';
+import { ClosedBanner, StopRun, WorktreeBadge } from './step-parts';
 import { STEP_VIEWS, type StepProps, type VibeActs } from './step-views';
+import { VibeScreen } from './vibe-screen';
 import './vibecoder.css';
 
 type Props = {
@@ -57,8 +59,11 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   const t = strings(view.lang);
   const [picked, setPicked] = useState<VibeStepId | null>(null);
   const { steps } = view;
-  // L'étape choisie, sinon celle en cours (elle suit le parcours tant qu'on n'a rien choisi).
-  const step = steps.find((s) => s.id === picked) || steps.find((s) => s.status === 'current') || steps[0] || null;
+  // Créer en Vibe : l'écran Vibe, sur l'étape Note (son champ porte la demande).
+  const vibe = view.flow === 'create' && view.autonomy === 'vibe';
+  // L'étape choisie si elle est ouverte, sinon celle en cours (elle suit le parcours tant qu'on n'a rien choisi).
+  const step = (vibe ? steps.find((s) => s.id === 'note') : steps.find((s) => s.id === picked && s.open))
+    || steps.find((s) => s.status === 'current') || steps[0] || null;
   const busy = isBusy(thread.status);
   const [answers, setAnswers] = useState<Answers>({});
   const onAnswer: StepProps['onAnswer'] = (q, a) => setAnswers((all) => ({ ...all, [q]: a }));
@@ -76,7 +81,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   const up = view.processes?.filter((p) => p.status === 'running').length || 0;
   const runs = view.runs ?? [];
   const live = runs.filter((r) => r.state === 'running' || r.state === 'asking' || r.state === 'stopped').length;
-  // Le champ de chaque étape, et celui de Tout dérouler ('vibe') : par fieldOf.
+  // Le champ de chaque étape : par fieldOf.
   const [texts, setTexts] = useState<Record<string, string>>({});
   const setText = (key: string) => (text: string) => setTexts((all) => ({ ...all, [key]: text }));
   // Les rappels, avec le modèle choisi (s'il n'est pas le conseillé) et le texte du champ de l'action ;
@@ -107,7 +112,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
     const onKey = (e: KeyboardEvent) => {
       const digit = /^(?:Digit|Numpad)([1-6])$/.exec(e.code);
       const s = digit && e.ctrlKey && !e.altKey && !e.metaKey ? steps[Number(digit[1]) - 1] : null;
-      if (!s) return;
+      if (!s?.open) return;
       e.preventDefault();
       setPicked(s.id);
     };
@@ -115,28 +120,16 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
     return () => document.removeEventListener('keydown', onKey);
   }, [steps]);
 
-  const View = step && STEP_VIEWS[step.id];
+  const View = step && (vibe ? VibeScreen : STEP_VIEWS[step.id]);
   return (
     <Picks.Provider value={{ picks, lang: view.lang, pick: (id, m) => setPicks((p) => ({ ...p, [id]: m })) }}>
     <StopRun.Provider value={{ stop: (id) => act.runOp(id, 'stop'), state: (id) => view.runs?.find((r) => r.id === id)?.state ?? null }}>
       <div className="vc" ref={root} data-conv={side.open ? undefined : 'hidden'} style={{ '--vc-conv': `${side.width}px` } as CSSProperties}>
         <Top view={view} thread={thread} busy={busy} t={t} act={act} side={side} onSide={onSide} onHide={onHide} />
-        <Journey view={view} t={t} selected={step && step.id} onPick={setPicked} onOpen={act.open} />
-        <section className="vc-center">
-          <div className="vc-tabs vc-band" role="tablist">
-            {steps.map((s, i) => (
-              <button key={s.id} type="button" role="tab" className="vc-tab" aria-selected={s === step} data-status={s.status}
-                title={i < 6 ? t.shortcut(i + 1) : undefined} onClick={() => setPicked(s.id)}>
-                <span className="vc-tdot" />{t.steps[s.id]}
-              </button>
-            ))}
-          </div>
+        {vibe ? null : <Journey view={view} t={t} selected={step && step.id} onPick={setPicked} onOpen={act.open} />}
+        <section className="vc-center" data-wide={vibe || undefined}>
           {view.error ? <div className="vc-error" role="status"><b>{view.error}</b> {t.errorHint}</div> : null}
-          <div className="vc-step scroll" key={step ? step.id : ''} role="tabpanel">
-            {view.autonomy === 'vibe' ? (
-              <VibeBanner lang={view.lang}
-                field={view.actions.some((a) => fieldOf(a) === 'vibe' && a.primary) ? { text: texts.vibe ?? '', setText: setText('vibe') } : undefined} />
-            ) : null}
+          <div className="vc-step scroll" key={vibe ? 'vibe' : step ? step.id : ''}>
             {view.flow === 'review' ? <ClosedBanner pr={view.pr} t={t} /> : null}
             {step && View ? <Guard t={t}><View view={view} step={step} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} verdict={verdict} onVerdict={setVerdict}
               text={texts[step.id] ?? ''} setText={setText(step.id)} /></Guard> : null}
