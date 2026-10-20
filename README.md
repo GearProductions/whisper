@@ -401,7 +401,10 @@ commande, `git` ou un script, reste). Deux actions qui modifient la branche
 ne tournent jamais ensemble, ni une relecture pendant une modification ; les
 relectures et vérifications, elles, tournent ensemble. Une action n'est
 finie que quand son travail l'est (ses sous-agents, la CI qu'elle attend) :
-pas de limite de temps, ⏹ l'arrête. Un bouton qui doit
+pas de limite de temps, ⏹ l'arrête. Quand ce qu'elle attendait se termine,
+elle reste en cours 10 s : si l'agent repart en dire le résultat, elle finit
+avec cette réponse ; sinon, au bout des 10 s (un agent qui repart plus tard
+trouve l'action déjà finie). Un bouton qui doit
 attendre est grisé et dit pourquoi ; un bouton qui n'a pas encore de sens
 n'est pas affiché (pas de *✓ Commiter* sans commit préparé, pas de *Release
 candidate* sans PR…) ; une action arrêtée retient les autres
