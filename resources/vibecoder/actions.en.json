@@ -35,8 +35,8 @@
     "step": "invariants",
     "kind": "send",
     "needs": "none",
-    "label": "Write the invariants (red)",
-    "hint": "Writes the invariant tests, red, from the note or from the pseudo-code in the field, without committing.",
+    "label": "Write the invariants (red), then check the alignment",
+    "hint": "Writes the invariant tests, red, from the note or from the pseudo-code in the field, then checks the alignment (align.md): on gaps, fixes the tests and checks again, 3 rounds at most; doesn't commit.",
     "text": "/vibecoder:invariants {{lang}} {{out}} {{text}}"
   },
   {
@@ -52,7 +52,7 @@
   },
   {
     "id": "align",
-    "flow": "both",
+    "flow": "review",
     "step": "invariants",
     "kind": "send",
     "needs": "none",
@@ -130,8 +130,8 @@
     "kind": "send",
     "needs": "none",
     "reads": true,
-    "label": "Run the checks",
-    "hint": "Runs the project's checks (typecheck, tests, invariants, lint) and shows the result.",
+    "label": "Run the checks and the ponytail review",
+    "hint": "Runs the project's checks (typecheck, tests, invariants, lint) and shows the result, and the ponytail review at the same time.",
     "text": "/vibecoder:verifier {{lang}} {{out}}"
   },
   {
@@ -142,7 +142,7 @@
     "needs": "none",
     "reads": true,
     "label": "Ponytail review",
-    "hint": "Reviews the whole branch: over-engineering, duplication, note aligned with the code, edge cases, security, dead code; changes nothing.",
+    "hint": "Started with the checks: reviews the whole branch — over-engineering, duplication, note aligned with the code, edge cases, security, dead code; changes nothing.",
     "text": "/vibecoder:ponytail {{lang}} {{out}}"
   },
   {
@@ -172,7 +172,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Approve the feature (open the PR)",
-    "hint": "Pushes the branch and opens the PR, title and description following the project's convention.",
+    "hint": "No PR yet: pushes the branch and opens the PR, title and description following the project's convention.",
     "text": "/vibecoder:pr {{lang}} {{out}}"
   },
   {
@@ -183,7 +183,7 @@
     "needs": "none",
     "reads": true,
     "label": "Diagnose the CI",
-    "hint": "Reads the CI state of the branch and, on failure, gives the probable cause and the fix; fixes nothing.",
+    "hint": "PR open: reads the state of its CI and, on failure, gives the probable cause and the fix; fixes nothing.",
     "text": "/vibecoder:ci {{lang}} {{out}}"
   },
   {
@@ -193,7 +193,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Release candidate",
-    "hint": "Publishes a release candidate following the project's procedure and installs it for you, keeping the previous one; long, as it waits for the CI.",
+    "hint": "PR open: publishes a release candidate following the project's procedure and installs it for you, keeping the previous one; long, as it waits for the CI.",
     "text": "/vibecoder:rc {{lang}} {{out}}"
   },
   {
@@ -203,7 +203,7 @@
     "kind": "send",
     "needs": "none",
     "label": "PR merged → back to the base",
-    "hint": "If the PR is merged: goes back to the base, updates it and deletes the local branch; otherwise, does nothing.",
+    "hint": "PR merged: goes back to the base, updates it and deletes the local branch.",
     "text": "/vibecoder:base {{lang}} {{out}}"
   },
   {
@@ -213,7 +213,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Official release",
-    "hint": "Publishes the official release following the project's procedure; pre-releases are deleted only with your agreement.",
+    "hint": "PR merged: publishes the official release following the project's procedure; pre-releases are deleted only with your agreement.",
     "text": "/vibecoder:release {{lang}} {{out}}"
   },
   {
@@ -298,10 +298,10 @@
     "flow": "create",
     "step": null,
     "kind": "send",
-    "needs": "text",
-    "label": "Run it all",
-    "hint": "The agent runs the whole guide for the request in the field, up to the PR and the release candidate, and stops only on a blocking question; long and costly.",
-    "text": "/vibecoder:vibe {{lang}} {{out}} {{text}}"
+    "needs": "none",
+    "label": "Approve and develop",
+    "hint": "The agent picks up at the shape and chains everything up to the release candidate (invariants, modules, review, PR), without settling the note's questions, and stops only on a blocking question; long and costly.",
+    "text": "/vibecoder:vibe {{lang}} {{out}}"
   },
   {
     "id": "guide",

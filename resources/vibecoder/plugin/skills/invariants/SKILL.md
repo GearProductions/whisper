@@ -1,6 +1,6 @@
 ---
 name: invariants
-description: "Write the red invariant tests of the ticket from the note's « → invariant » lines, or from the pseudo-code given, in the project's language and test framework, without committing."
+description: "Write the red invariant tests of the ticket from the note's « → invariant » lines, or from the pseudo-code given, in the project's language and test framework, then check the alignment (aligner, <out>/align.md) and fix the tests, 3 rounds at most, without committing."
 argument-hint: "<lang> <out> [pseudo-code…]"
 disable-model-invocation: true
 context: fork
@@ -10,7 +10,7 @@ effort: high
 
 # Invariants — red, from the note (guide §3)
 
-`$ARGUMENTS` = `<lang> <out> [pseudo-code…]`. `lang`: the user's language, not used here — code-related work: your answer in English. The tests follow the project's convention (`AGENTS.md`), else English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces): nothing to write there. Pseudo-code: optional, written by the developer — when given, it is the test to write, every case and every assertion of it, translated into the project's language and test framework.
+`$ARGUMENTS` = `<lang> <out> [pseudo-code…]`. `lang`: the user's language, not used here — code-related work: your answer in English. The tests follow the project's convention (`AGENTS.md`), else English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces): only `align.md` is written there. Pseudo-code: optional, written by the developer — when given, it is the test to write, every case and every assertion of it, translated into the project's language and test framework.
 
 ## Read first
 
@@ -36,4 +36,12 @@ effort: high
 
 Run the project's invariant command (else its test command on your files). Every new test must fail — on its assertion or on its call to the missing code, never on a mistake of its own (syntax, import path, helper). A test that already passes → check it really observes the property, and say so. Commit nothing.
 
-Answer in English, 1 to 3 lines: the files, the number of cases, red confirmed (or what passes and why).
+## Then, the alignment — in this same run
+
+Read `${CLAUDE_SKILL_DIR}/../aligner/SKILL.md` and follow it with `<lang> <out> WORKTREE`: it writes `<out>/align.md`. The modules come at a later step: a Forme module not written yet is not a gap here.
+
+- « Aligned. » → done.
+- Gaps → fix the invariant tests (same rules as above; still red), then follow the aligner again: it rewrites `align.md`. **3 rounds of fixes at most.** Gaps still there after the third → stop: no more fixes.
+- A gap only the note or the forme can close (a missing line, a module that doesn't match): not yours — leave it in `align.md`, don't spend a round on it.
+
+Answer in English, 1 to 3 lines: the files, the number of cases, red confirmed (or what passes and why), the alignment — « Aligned. » after how many rounds, or the gaps that remain.

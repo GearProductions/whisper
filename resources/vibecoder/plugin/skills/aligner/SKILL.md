@@ -1,6 +1,6 @@
 ---
 name: aligner
-description: "Check that note, forme and invariant tests (and the code, if any) agree — every « → invariant » line truly observed by a test, every test tied to a line, the forme matching the files — and list the gaps in <out>/align.md."
+description: "Check that note, forme and invariant tests (and the code, if any) agree — every « → invariant » line truly observed by a test, every test tied to a line, the forme matching the files — and list the gaps in <out>/align.md. Also followed by invariants (Create), in its own run, after the red tests."
 argument-hint: "<lang> <out> <ref>"
 disable-model-invocation: true
 context: fork

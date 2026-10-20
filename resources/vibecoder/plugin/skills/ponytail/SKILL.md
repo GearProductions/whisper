@@ -1,6 +1,6 @@
 ---
 name: ponytail
-description: "Review the whole branch with ponytail-review, plus note/code alignment, duplication, edge cases, security, dead code and leftovers, one remark per line in <out>/ponytail.md, changing nothing."
+description: "Review the whole branch with ponytail-review, plus note/code alignment, duplication, edge cases, security, dead code and leftovers, one remark per line in <out>/ponytail.md, changing nothing. Started by verifier (Run the checks), alongside the checks."
 argument-hint: "<lang> <out>"
 disable-model-invocation: true
 context: fork
