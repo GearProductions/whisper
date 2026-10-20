@@ -9,7 +9,9 @@
  *  (endNotice), la lecture d'une demande de l'orchestrateur
  *  (<sorties>/actions/<id>.start | .stop : parseRequest), et où en est une
  *  course d'après son entrée du runtime (runPhase : en cours tant qu'elle
- *  travaille ou que des tâches de fond tournent ; pas de limite de temps).
+ *  travaille ou que des tâches de fond tournent ; pas de limite de temps ;
+ *  grace quand ses tâches de fond viennent de tomber à 0 hors tour, le délai
+ *  GRACE_MS que le contrôleur laisse au tour qu'elles réveillent).
  *  Ne connaît pas : Electron, le disque, le runtime des agents (tout est passé).
  *  Utilisé par : core/vibecoder (journey), app/controllers/runs. */
 import type { VibeArgs, VibeLang, VibeRun } from 'shared/bridge';
@@ -84,12 +86,17 @@ export function runsFile(runs: Run[], defs: ActionDef[], waiting: { id: string; 
   }, null, 2);
 }
 
+// Le délai de grâce d'une course dont les tâches de fond viennent de tomber à 0 hors tour.
+export const GRACE_MS = 10_000;
+
 // Où en est une course d'après son entrée du runtime (status, nombre de tâches de fond en cours) :
 // une autorisation attend d'abord ; en cours tant qu'elle travaille ou que ses tâches de fond tournent ;
-// sinon au repos (sa fin, si elle a travaillé).
-export function runPhase(status: string, tasks: number): 'running' | 'asking' | 'idle' {
+// before : ses tâches de fond au changement précédent ; tombées à 0 hors tour, grace (le tour qu'elles
+// réveillent peut suivre) ; sinon au repos (sa fin, si elle a travaillé).
+export function runPhase(status: string, tasks: number, before = 0): 'running' | 'asking' | 'idle' | 'grace' {
   if (status === 'asking') return 'asking';
-  return status === 'working' || tasks > 0 ? 'running' : 'idle';
+  if (status === 'working' || tasks > 0) return 'running';
+  return before > 0 ? 'grace' : 'idle';
 }
 
 const REPLY_MAX = 300;

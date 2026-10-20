@@ -108,4 +108,10 @@ describe('runPhase', () => {
       runPhase('asking', 0), runPhase('asking', 2), runPhase('working', 0), runPhase('idle', 1), runPhase('idle', 0),
     ]).toEqual(['asking', 'asking', 'running', 'running', 'idle']);
   });
+
+  it('tâches de fond tombées à 0 hors tour : grace ; au travail, ou une autorisation qui attend : pas de grace', () => {
+    expect([
+      runPhase('idle', 0, 1), runPhase('idle', 0, 0), runPhase('working', 0, 1), runPhase('asking', 0, 1), runPhase('idle', 1, 2),
+    ]).toEqual(['grace', 'idle', 'running', 'asking', 'running']);
+  });
 });

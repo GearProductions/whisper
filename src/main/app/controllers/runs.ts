@@ -4,7 +4,8 @@
  *  la retient, blockedBy ; un processus neuf, suivi des fichiers écrits ;
  *  modèle et effort du skill que son message appelle, sinon ceux de l'agent ; answers reprend la session de la course de la note),
  *  suivre (son état d'après runPhase : en cours tant que son processus travaille ou que le runtime lui voit des
- *  tâches de fond, aucune limite de temps ; sa fin, revenue au repos après avoir travaillé, ou son échec avant
+ *  tâches de fond, aucune limite de temps ; ses tâches de fond tombées à 0 hors tour, GRACE_MS laissés au tour
+ *  qu'elles réveillent ; sa fin, revenue au repos après avoir travaillé, ou son échec avant
  *  même son tour : fermée, et un avis à la conversation de l'agent, gardé tant qu'elle travaille, I-25), agir sur une course (runOp : l'arrêter — son
  *  processus et son verrou restent —, la garder ou l'annuler — rewind, puis
  *  fermée —, répondre à sa demande d'autorisation), les demandes de
@@ -22,7 +23,7 @@ import type { SendResult, VibeRunOp, VibeView } from 'shared/bridge';
 import { shortTarget, type AgentConfig } from 'core/agents';
 import { agentList, vibeLang, type Config } from 'core/config';
 import {
-  blockedBy, endNotice, forkedModel, headField, LOCKING, ownRun, parseRequest, runKey, runPhase, runsFile, type ActionDef, type Run,
+  blockedBy, endNotice, forkedModel, GRACE_MS, headField, LOCKING, ownRun, parseRequest, runKey, runPhase, runsFile, type ActionDef, type Run,
 } from 'core/vibecoder';
 import { loadConfig, vibeActions, vibeOutDir, vibePluginDir } from 'app/settings';
 import { agents, CLAUDE_MISSING, isBusy, launchOptions, sendToAgent } from './agents';
@@ -30,8 +31,11 @@ import { directLocks, refreshVibe, startAction } from './vibecoder';
 
 const REQUEST_MAX = 64 * 1024;   // une demande plus grosse n'est pas lue
 
-// Une course, et ce que la règle et sa fin en retiennent : `reads` (elle lit seulement), `seen` (son tour a commencé).
-type Live = Run & { reads: boolean; seen: boolean };
+// Une course, et ce que la règle et sa fin en retiennent : `reads` (elle lit seulement), `seen` (son tour a commencé),
+// `tasks` (ses tâches de fond au dernier changement), `grace` (le minuteur du délai de grâce, s'il court).
+type Live = Run & { reads: boolean; seen: boolean; tasks: number; grace?: NodeJS.Timeout };
+
+const stopGrace = (run: Live) => { clearTimeout(run.grace); run.grace = undefined; };
 
 const all = new Map<string, Map<string, Live>>();                       // par agent, par clé : la dernière course
 const waits = new Map<string, { id: string; reason: string }[]>();      // par agent : les .start retenus
@@ -80,7 +84,7 @@ export function startRun(agent: AgentConfig, def: ActionDef, message: string, cf
   const runs = all.get(agent.id) ?? new Map<string, Live>();
   all.set(agent.id, runs);
   const run: Live = {
-    id: def.id, key, since: Date.now(), end: null, state: 'running', reply: '', reads: !!def.reads, seen: false,
+    id: def.id, key, since: Date.now(), end: null, state: 'running', reply: '', reads: !!def.reads, seen: false, tasks: 0,
     sessionId: def.id === 'answers' ? runs.get(key)?.sessionId ?? null : null,
   };
   runs.set(key, run);   // tout de suite : un second clic la voit (blockedBy)
@@ -109,13 +113,17 @@ export function startRun(agent: AgentConfig, def: ActionDef, message: string, cf
 
 // Un changement de l'entrée d'une course (son tour, ses tâches de fond) : son état suit (runPhase) ; revenue au
 // repos après avoir travaillé, sans qu'on l'ait arrêtée : sa fin. Pas de limite de temps : on l'arrête à la main.
+// Ses tâches de fond tombées à 0 hors tour (grace) : elle reste en cours GRACE_MS, le temps du tour qu'elles
+// réveillent ; un tour qui commence annule le minuteur, au bout son état relu (ce même chemin) la finit au repos.
 // Un processus mort emporte ses tâches de fond (core/agents) : la course revient au repos.
 function changed(agentId: string, run: Live) {
   if (run.state === 'running' || run.state === 'asking') {
     const { status, tasks } = agents.state(entryId(agentId, run.key));
-    const phase = runPhase(status, tasks);
-    if (phase !== 'idle') Object.assign(run, { seen: true, state: phase });
-    else if (run.seen) finish(agentId, run);
+    const phase = runPhase(status, tasks, run.tasks);
+    run.tasks = tasks;
+    if (phase === 'grace') run.grace ??= setTimeout(() => { run.grace = undefined; changed(agentId, run); }, GRACE_MS);
+    else if (phase !== 'idle') { stopGrace(run); Object.assign(run, { seen: true, state: phase }); }
+    else if (run.seen && !run.grace) finish(agentId, run);
   }
   save(agentId);
   refreshVibe();
@@ -124,6 +132,7 @@ function changed(agentId: string, run: Live) {
 // Fin d'une course : sa réponse (ou `failure` : elle n'a pas pu partir), son processus fermé, l'avis à la
 // conversation, les demandes revues.
 function finish(agentId: string, run: Live, failure?: string) {
+  stopGrace(run);
   const entry = entryId(agentId, run.key);
   const last = failure === undefined ? agents.lastReply(entry) : { error: true, text: failure };
   Object.assign(run, { state: last?.error ? 'failed' : 'done', reply: last?.text ?? '', end: Date.now() });
@@ -166,6 +175,7 @@ export async function runOp(agent: AgentConfig, id: string, op: VibeRunOp): Prom
   if (!run) return false;
   const entry = entryId(agent.id, run.key);
   if (op === 'stop' && (run.state === 'running' || run.state === 'asking')) {
+    stopGrace(run);
     Object.assign(run, { state: 'stopped', end: Date.now() });   // avant interrupt : sa fin n'en est pas une
     agents.interrupt(entry);
   } else if ((op === 'keep' || op === 'undo') && run.state === 'stopped') {
@@ -246,7 +256,7 @@ export function runRequests(agent: AgentConfig, view = views.get(agent.id)): boo
 
 // L'agent oublié (retiré, nouvelle session, robot d'un worktree retiré) : ses courses fermées et oubliées.
 export function closeRuns(agent: Pick<AgentConfig, 'id'>) {
-  for (const r of mine(agent.id)) agents.forget(entryId(agent.id, r.key));
+  for (const r of mine(agent.id)) { stopGrace(r); agents.forget(entryId(agent.id, r.key)); }
   for (const m of [all, waits, notices, views]) m.delete(agent.id);
   wasBusy.delete(agent.id);
   save(agent.id);

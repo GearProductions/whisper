@@ -817,8 +817,15 @@ conversation ; note `0.9.0-actions-independantes.md`).
   conversation de l'agent n'est jamais occupée par l'une d'elles.
   **Finie** : son tour fini et plus aucune tâche de fond que le runtime lui
   voit (sous-agents, commandes en fond, F-77) ; jusque-là *en cours*, sans
-  limite de temps (une CI qui dure : ⏹ à la main). Finie, la course est
-  fermée (son processus aussi), puis `actions.json` et l'avis de fin.
+  limite de temps (une CI qui dure : ⏹ à la main). Ses tâches de fond
+  tombées à 0 hors tour : encore *en cours* 10 s (`GRACE_MS`), le temps du
+  tour que leur fin réveille ; un tour qui commence entre-temps la garde en
+  cours jusqu'à sa fin, elle finit alors avec la réponse de ce tour ; sinon
+  elle finit au bout des 10 s. Revenue au repos à la fin de son tour, sans
+  tâche de fond, elle finit aussitôt. Limite : un agent qui repart plus de
+  10 s après la fin de sa tâche trouve sa course déjà finie. Finie, la
+  course est fermée (son processus aussi), puis `actions.json` et l'avis de
+  fin.
 - **Un ancien résultat ne compte pas** : un `checks.json` dont le `time`
   précède le départ de la dernière course `checks` est ignoré (I-46).
 - **La règle** (`blockedBy`, sans modèle) : une action qui **modifie la
