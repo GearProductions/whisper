@@ -132,7 +132,7 @@
     "reads": true,
     "label": "Run the checks and the ponytail review",
     "hint": "Runs the project's checks (typecheck, tests, invariants, lint) and shows the result, and the ponytail review at the same time.",
-    "text": "/vibecoder:verifier {{lang}} {{out}}"
+    "text": "/vibecoder:verifier {{lang}} {{out}} {{prefix}}"
   },
   {
     "id": "ponytail",

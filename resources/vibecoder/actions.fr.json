@@ -132,7 +132,7 @@
     "reads": true,
     "label": "Lancer les vérifications et la ponytail review",
     "hint": "Lance les vérifications du projet (typage, tests, invariants, lint) et en affiche le résultat, et la ponytail review en même temps.",
-    "text": "/vibecoder:verifier {{lang}} {{out}}"
+    "text": "/vibecoder:verifier {{lang}} {{out}} {{prefix}}"
   },
   {
     "id": "ponytail",
