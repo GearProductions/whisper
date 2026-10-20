@@ -175,6 +175,23 @@ describe('tours', () => {
     expect(hooks.onChange).toHaveBeenCalled();
   });
 
+  it('processus mort entre deux tours : ses tâches de fond avec lui', async () => {
+    let die = () => {};
+    const died = new Promise<void>((go) => { die = go; });
+    const { rt, hooks } = runtime(async function* t() {
+      yield { type: 'system', subtype: 'task_started', task_id: 't1', description: 'gh run watch', task_type: 'local_bash' };
+      yield ok;
+      await died;
+      throw new Error('mort');
+    });
+    await rt.send(agent, { text: 'surveille' }, hooks);
+    expect(rt.state('a1').tasks).toBe(1);
+    hooks.onChange.mockClear();
+    die();
+    await vi.waitFor(() => expect(rt.state('a1').tasks).toBe(0));
+    expect(hooks.onChange).toHaveBeenCalled();
+  });
+
   it('effort changé entre deux tours : nouveau processus, qui reprend la session', async () => {
     const { rt, hooks, queries } = runtime(async function* t() { yield { type: 'system', subtype: 'init', session_id: 's1' }; yield ok; });
     const a = { ...agent };
