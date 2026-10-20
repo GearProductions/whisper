@@ -562,7 +562,9 @@ cours, à venir, sans clic), puis la **zone Vibe** (« la demande, puis
 les questions de la note ; ensuite l'agent développe seul, vous testez et
 approuvez à la fin » ; sans note, le champ et
 *Rédiger la note* ; la note rédigée sans question ouverte, *Valider et
-développer*), puis la note, ses questions et *Envoyer les réponses* (F-100).
+développer* ; la PR fusionnée, *PR mergée → revenir sur la base* et
+*Release officielle*, F-114, masquées avant), puis la note, ses questions
+et *Envoyer les réponses* (F-100).
 La colonne de droite reste : les courses se suivent et s'arrêtent dans
 l'onglet *Actions*. *Relire* n'a qu'un écran, celui du *Guide*. git introuvable, dossier sans
 dépôt : un bandeau le dit au-dessus de l'étape, la conversation reste
@@ -724,7 +726,8 @@ commit de la branche, sinon `WORKTREE` : les changements en cours) ; `{{pr}}`
 (le numéro donné, sinon la PR du relevé) ; `{{answers}}` (« 1. … » par ligne,
 une vide : « (pas de réponse) » ; 50 réponses de 2 000 caractères au plus) ; `{{verdict}}` (`approve`, `comment`,
 `request-changes`) ; `{{draft}}` (« - [cible] texte » par remarque) ;
-`{{quote}}` (`prefill` seulement, rempli par la page). Les skills de
+`{{quote}}` (`prefill` seulement, rempli par la page) ; `{{prefix}}` (le
+préfixe des commandes vu de l'agent, F-112 ; vide permis). Les skills de
 VibeCoder reçoivent d'abord `{{lang}} {{out}}`. Une valeur qui manque refuse
 l'action, avec sa raison (« Dictez ou écrivez d'abord dans le champ », « Pas
 encore de note pour cette branche », « Ce commit n'est pas dans la
@@ -809,8 +812,13 @@ conversation ; note `0.9.0-actions-independantes.md`).
   et l'effort de son skill en sous-contexte (ou celui choisi, F-99), sinon
   ceux de l'agent ; le suivi des fichiers écrits de Claude Code
   (`enableFileCheckpointing`). Pas de limite au nombre de courses ; la
-  conversation de l'agent n'est jamais occupée par l'une d'elles. Finie, la
-  course est fermée (son processus aussi).
+  conversation de l'agent n'est jamais occupée par l'une d'elles.
+  **Finie** : son tour fini et plus aucune tâche de fond que le runtime lui
+  voit (sous-agents, commandes en fond, F-77) ; jusque-là *en cours*, sans
+  limite de temps (une CI qui dure : ⏹ à la main). Finie, la course est
+  fermée (son processus aussi), puis `actions.json` et l'avis de fin.
+- **Un ancien résultat ne compte pas** : un `checks.json` dont le `time`
+  précède le départ de la dernière course `checks` est ignoré (I-46).
 - **La règle** (`blockedBy`, sans modèle) : une action qui **modifie la
   branche** attend toute course en cours ; une **lecture** (`reads`, F-96)
   n'attend qu'une modification, les lectures tournent ensemble ; la même
@@ -920,7 +928,8 @@ conversation ; note `0.9.0-actions-independantes.md`).
    quatre questions du § 5.1), *Générer les modules restants* (confiés à des
    agents Opus en parallèle, chaque diff relu, un commit par module).
 5. **Revue** — faite : vérifications toutes passées (`checks.json` ; des
-   avertissements seulement passent), ponytail review faite (`ponytail.md`),
+   avertissements seulement passent ; un ancien ne compte pas, I-46),
+   ponytail review faite (`ponytail.md`),
    aucun commit `fixup!`. Montre la
    liste du § A.3, cochée d'après le dépôt quand c'est possible (la note dans
    un commit de la branche ; tous les contrôles dont le nom contient
@@ -1158,6 +1167,9 @@ absente (I-29).
   (`gh pr view <n> --json state`), qui l'emporte sur sa fiche.
 - Une réponse vaut 60 s (par branche, par PR) ; elle est demandée en fond,
   le relevé ne l'attend pas et repart quand elle change ; ↻ les redemande.
+- Le skill `verifier` reçoit ce préfixe **vu de l'agent** (`{{prefix}}`,
+  F-97) : sans la box où l'agent tourne déjà (vide si `agentCommand` y
+  entre) ; il y lance les commandes du projet, sans en ajouter.
 
 **F-113 Coloration du code d'un test** (F-100, étape Invariants : *Code*, *Voir le
 fichier*) : d'après l'extension — `ts`, `tsx`, `js`, `jsx`, `mjs`, `cjs`,
@@ -1390,7 +1402,8 @@ I-42, I-43 : `src/main/core/runner/tests/invariants/runner.test.ts`,
 `src/main/app/controllers/tests/invariants/runs.test.ts` (sur le vrai
 principal, git réel, SDK factice) ; I-45 :
 `src/main/core/agents/tests/invariants/rewind.test.ts` (ce que l'appli
-demande à Claude Code) et le dernier cas de `runs.test.ts`.
+demande à Claude Code) et le dernier cas de `runs.test.ts` ; I-46 :
+`src/main/core/vibecoder/tests/invariants/checks.test.ts`.
 Les autres (focus, fenêtres, I-1, I-18, I-22, I-28) : scénarios du § 13 et
 bancs de comparaison.
 
@@ -1603,6 +1616,10 @@ bancs de comparaison.
   une autre course, en cours ou gardée ; une course qui reprend la session
   d'une autre (*Envoyer les réponses*) ne ramène qu'elle-même. Le travail du
   développeur et celui des autres courses restent.
+- **I-46** Un `checks.json` dont le `time` **précède le départ de la
+  dernière course `checks`** (ou sans `time`) ne compte pas : ignoré partout
+  (sorties à l'écran, prochaine action, étape Revue, liste de contrôle),
+  comme absent. Sans course `checks` connue (appli relancée), il compte.
 
 ### Système et code
 
