@@ -1,5 +1,5 @@
 /** invariants-view — l'étape Invariants : chaque test d'invariant de la
- *  branche (ou de la PR), lu en pseudo-code, une carte par cas : son titre,
+ *  branche (ou de la PR) ; lu en pseudo-code, une carte par cas : son titre,
  *  le pseudo-code coloré (assertions et « étant donné / quand / alors »
  *  repérés), ses cas limites, ce qu'il garantit, son point d'attention ; ✓ /
  *  ✗ (l'état : validé, refusé, modifié depuis), 💬, Ouvrir (à la ligne du
@@ -7,11 +7,15 @@
  *  (coloré d'après l'extension du fichier, comme « Voir le fichier »). ✗ et 💬 citent le
  *  cas dans le champ (Relire : ils ouvrent sous la carte une zone de
  *  commentaire, pour le brouillon de revue, le cas en cible). Par fichier : sa
- *  progression, « Tout valider » quand chaque cas est lu sans point
- *  d'attention, « Relire » (refaire sa lecture), « Voir le fichier » (tout son
- *  code, numéroté) ; pas lu : ses cas (chacun se déplie sur son code) et « Lire
- *  en pseudo-code ». En tête : « Tout relire », le résumé de l'étape, les cas
- *  à valider, ce que veut dire « Attention » (s'il y en a), l'alignement
+ *  progression, « Tout valider » quand aucun cas n'a de point d'attention (lu
+ *  ou pas, progress().all), « Relire » (refaire sa lecture), « Voir le
+ *  fichier » (tout son code, numéroté) ; pas lu : ses cartes sans lecture
+ *  (✓ / ✗ quand même, la lecture est facultative), et « Lire en
+ *  pseudo-code », en accent seulement quand c'est l'action mise en avant
+ *  (primary : Vibe). Sans test, l'invitation à les écrire, ou « rien à
+ *  écrire » si la note n'a aucune ligne « → invariant ». En tête : « Tout
+ *  relire », le résumé de l'étape, les cas à valider, ce que veut dire
+ *  « Attention » (s'il y en a), l'alignement
  *  (align.md, sans Relancer : Créer, « Écrire les invariants » le refait ;
  *  Relire, son bouton est dans la rangée de l'étape).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
@@ -38,7 +42,7 @@ const fr = {
   toRead: 'à lire',
   validated: (ok: number, total: number) => `${ok} / ${total} validé${ok > 1 ? 's' : ''}`,
   all: '✓ Tout valider',
-  allTitle: 'Valider chaque cas de ce fichier qui n\'a pas de verdict : tous sont lus, aucun n\'a de point d\'attention',
+  allTitle: 'Valider chaque cas de ce fichier qui n\'a pas de verdict : aucun n\'a de point d\'attention',
   state: { ok: '✓ Validé', ko: '✗ Refusé', changed: '⚠ Modifié depuis la validation' },
   changedTitle: 'Le test a changé depuis votre verdict : relisez le cas',
   edges: 'Cas limites',
@@ -47,13 +51,13 @@ const fr = {
   warningHelp: 'Attention : le relecteur pense que ce test ne vérifie pas vraiment ce qu\'il annonce (mock, boucle, assertion faible…). Ce n\'est pas un échec : une piste pour votre relecture.',
   quote: 'Citer ce cas dans le champ',
   quoteReview: 'Une remarque sur ce cas, au brouillon de revue',
-  unreadText: (n: number) => `${n} cas, pas encore lu${n > 1 ? 's' : ''} en pseudo-code (ou le fichier a changé depuis la lecture).`,
   noReading: 'Pas de lecture pour ce cas (son titre a pu changer) : « Relire » le fichier.',
   reread: 'Relire',
   rereadAll: 'Tout relire',
   casesHere: (n: number) => `${n} cas à valider : ✓ ou ✗ sur chaque carte, ou « Tout valider » sur un fichier sans point d'attention.`,
   noTests: 'Aucun test d\'invariant sur la branche',
   noTestsText: ' « Écrire les invariants (rouges), puis vérifier l\'alignement » les écrit d\'après les lignes « → invariant » de la note ; ou dictez du pseudo-code dans le champ, il est traduit dans le langage du projet.',
+  noInvLines: ' La note ne demande aucun invariant : rien à écrire.',
   noTestsReview: 'Aucun test d\'invariant dans cette PR',
   noTestsReviewText: ' Les tests d\'invariants sont rangés sous tests/invariants/.',
   pseudo: 'Pseudo-code',
@@ -74,7 +78,7 @@ const S: Record<VibeLang, typeof fr> = {
     toRead: 'to read',
     validated: (ok, total) => `${ok} / ${total} approved`,
     all: '✓ Approve all',
-    allTitle: 'Approve every case of this file that has no verdict: all are read, none has a warning',
+    allTitle: 'Approve every case of this file that has no verdict: none has a warning',
     state: { ok: '✓ Approved', ko: '✗ Rejected', changed: '⚠ Changed since the approval' },
     changedTitle: 'The test changed since your verdict: read the case again',
     edges: 'Edge cases',
@@ -83,13 +87,13 @@ const S: Record<VibeLang, typeof fr> = {
     warningHelp: 'Warning: the reviewer thinks this test does not really check what it claims (mock, loop, weak assertion…). It is not a failure: a lead for your review.',
     quote: 'Quote this case in the field',
     quoteReview: 'A remark on this case, to the review draft',
-    unreadText: (n) => `${n} case${n === 1 ? '' : 's'}, not read as pseudo-code yet (or the file changed since the reading).`,
     noReading: 'No reading for this case (its title may have changed): « Read again » the file.',
     reread: 'Read again',
     rereadAll: 'Read all again',
     casesHere: (n) => `${n} case${n > 1 ? 's' : ''} to approve: ✓ or ✗ on each card, or « Approve all » on a file with no warning.`,
     noTests: 'No invariant test on the branch',
     noTestsText: ' « Write the invariants (red), then check the alignment » writes them from the note\'s « → invariant » lines; or dictate pseudo-code in the field, it is translated into the project\'s language.',
+    noInvLines: ' The note asks for no invariant: nothing to write.',
     noTestsReview: 'No invariant test in this PR',
     noTestsReviewText: ' Invariant tests live under tests/invariants/.',
     pseudo: 'Pseudo-code',
@@ -105,6 +109,7 @@ export function InvariantsView(props: StepProps) {
   const { view, t, act, busy } = props;
   const s = S[view.lang];
   const read = view.actions.find((a) => a.id === 'read-invariants');
+  const write = view.actions.find((a) => a.id === 'invariants');
   const wait = awaiting(view);
   const review = view.flow === 'review';
   const total = progress(view.invariants);
@@ -168,38 +173,18 @@ export function InvariantsView(props: StepProps) {
                 <Source code={f.source} path={f.path} />
               </details>
             ) : null}
-            {f.reading ? casesOf(f).map((c, i) => (
+            {casesOf(f).map((c, i) => (
               <CaseCard key={c.title} c={c} n={i + 1} code={caseSource(f, i)} from={f.lines[i]} path={f.path} s={s} t={t} lang={view.lang} review={review} onOpenLink={act.openLink}
                 onVerdict={(v) => verdict(f, c.title, v)} onQuote={() => act.prefill('comment', c.title)} onOpen={() => act.open(f.id, caseLine(f, c.title))}
                 onComment={(text) => act.draft({ add: remark(target(f, c.title), text) })} />
-            )) : (
-              <div className="vc-iunread">
-                <p>{s.unreadText(f.cases.length)}</p>
-                <ol>
-                  {casesOf(f).map((c, i) => {
-                    const code = caseSource(f, i);
-                    const head = (
-                      <>
-                        <span>{c.title}</span>
-                        {c.mark ? <span className="vc-case-state" data-state={c.mark}>{s.state[c.mark]}</span> : null}
-                      </>
-                    );
-                    return (
-                      <li key={c.title}>
-                        {code ? <details><summary>{head}</summary><Source code={code} from={f.lines[i]} path={f.path} /></details> : head}
-                      </li>
-                    );
-                  })}
-                </ol>
-                <Run a={read} busy={busy} tone="accent" onRun={() => act.run('read-invariants')} />
-              </div>
-            )}
+            ))}
+            {f.reading ? null : <Run a={read} busy={busy} tone={read?.primary ? 'accent' : 'plain'} onRun={() => act.run('read-invariants')} />}
           </section>
         );
       })}
       {view.invariants.length ? null : (
-        <Invite title={review ? s.noTestsReview : s.noTests} text={review ? s.noTestsReviewText : s.noTestsText}>
-          {review ? null : <Run a={view.actions.find((a) => a.id === 'invariants')} busy={busy} tone="accent" onRun={() => act.run('invariants')} />}
+        <Invite title={review ? s.noTestsReview : s.noTests} text={review ? s.noTestsReviewText : write?.hidden ? s.noInvLines : s.noTestsText}>
+          {review ? null : <Run a={write} busy={busy} tone="accent" onRun={() => act.run('invariants')} />}
         </Invite>
       )}
     </>
@@ -280,7 +265,7 @@ function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVe
         </>
       ) : <p className="vc-case-none">{s.noReading}</p>}
       <div className="vc-case-foot">
-        {r ? <CaseVerdict state={c.mark} lang={lang} onMark={verdict} /> : null}
+        <CaseVerdict state={c.mark} lang={lang} onMark={verdict} />
         <span className="vc-case-tools">
           <button type="button" className="vc-tool" title={quote} aria-label={quote} aria-pressed={review ? writing : undefined}
             onClick={() => (review ? setWriting(!writing) : onQuote())}>💬</button>
