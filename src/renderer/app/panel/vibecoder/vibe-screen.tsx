@@ -1,10 +1,12 @@
 /** vibe-screen — l'écran Vibe (Créer), à la place du parcours et de l'étape :
  *  le fil d'Ariane, la zone Vibe (le texte du bandeau ; sans note, le champ
- *  de la note et Rédiger la note ; Valider et développer — chaque action
- *  telle que le relevé la donne : masquée, grisée, en cours, mise en avant),
+ *  de la note ; un bouton par action de vibeScreenActions — Rédiger la note
+ *  sans note, Valider et développer, base et release — chacune telle que le
+ *  relevé la donne : grisée, en cours, mise en avant),
  *  puis, la note posée, la vue Note (la note, ses questions et Envoyer les
  *  réponses).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
+import { vibeScreenActions } from 'core/vibecoder';
 import type { VibeLang } from 'technicals/bridge';
 import { Breadcrumb } from './breadcrumb';
 import { NoteView } from './note-view';
@@ -21,7 +23,7 @@ export function VibeScreen(p: StepProps) {
   const { view, t, act, busy } = p;
   const run = (id: string) => {
     const a = view.actions.find((x) => x.id === id);
-    return <Run a={a} busy={busy} tone={a?.primary ? 'accent' : 'plain'} onRun={(x) => act.run(id, x)} />;
+    return <Run key={id} a={a} busy={busy} tone={a?.primary ? 'accent' : 'plain'} onRun={(x) => act.run(id, x)} />;
   };
   return (
     <>
@@ -29,8 +31,7 @@ export function VibeScreen(p: StepProps) {
       <div className="vc-vibe-banner" role="note">
         <span aria-hidden="true">⚡</span>{S[view.lang]}
         {view.note ? null : <StepField name="note" text={p.text} setText={p.setText} hint={t.vibeFieldHint} />}
-        {view.note ? null : run('note')}
-        {run('vibe')}
+        {vibeScreenActions(view).map(run)}
       </div>
       {view.note ? <NoteView {...p} /> : null}
     </>
