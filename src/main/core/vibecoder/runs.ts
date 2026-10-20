@@ -84,6 +84,9 @@ export function runsFile(runs: Run[], defs: ActionDef[], waiting: { id: string; 
   }, null, 2);
 }
 
+// Le délai de grâce d'une course dont les tâches de fond viennent de tomber à 0 hors tour.
+export const GRACE_MS = 10_000;
+
 // Où en est une course d'après son entrée du runtime (status, nombre de tâches de fond en cours) :
 // une autorisation attend d'abord ; en cours tant qu'elle travaille ou que ses tâches de fond tournent ;
 // sinon au repos (sa fin, si elle a travaillé).

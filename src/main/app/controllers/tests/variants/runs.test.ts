@@ -1,6 +1,8 @@
 // Variants des actions qui courent à part (note 0.9.0) : l'avis de fin à
 // l'orchestrateur (gardé tant que la conversation travaille), une course finie
-// seulement quand ses tâches de fond le sont (sans limite de temps), l'arrêt demandé au
+// seulement quand ses tâches de fond le sont (sans limite de temps) et, tombées à 0 hors
+// tour, après le délai de grâce ou le tour qu'elles réveillent (note fix/0.9.0-reveil-
+// apres-tache-de-fond, F-115 ; horloge simulée), l'arrêt demandé au
 // processus de la course, les demandes de l'orchestrateur (retenue puis partie,
 // invalide, arrêt), answers qui reprend la session de la note.
 // Sur le vrai principal (contrôleurs, fenêtres, état, réglages et fichiers sur
@@ -98,7 +100,9 @@ vi.mock('technicals/paths', async (original) => ({
 
 const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' });
 const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
-const settle = () => new Promise((r) => setTimeout(r, 300));
+// Le vrai setTimeout, pris avant toute horloge simulée : attendre les fichiers même quand elle est posée.
+const realSetTimeout = globalThis.setTimeout;
+const settle = () => new Promise((r) => realSetTimeout(r, 300));
 const turn = (start: string) => fake.turns.find((t) => t.text.startsWith(start));
 const actionsJson = () => JSON.parse(fs.readFileSync(path.join(out, 'actions.json'), 'utf8'));
 let out = '';
@@ -180,7 +184,7 @@ const taskStarted = { type: 'system', subtype: 'task_started', task_id: 'k1', ta
 const taskDone = { type: 'system', subtype: 'task_notification', task_id: 'k1', status: 'completed' };
 
 describe('une course n’est finie que quand son travail l’est', () => {
-  it('son tour fini, des tâches de fond encore en cours : en cours, sans limite de temps ; finie avec elles', async () => {
+  it('son tour fini, des tâches de fond encore en cours : en cours, sans limite de temps', async () => {
     const { runVibeAction } = await open();
     runVibeAction('forme', {});
     await settle();
@@ -198,12 +202,72 @@ describe('une course n’est finie que quand son travail l’est', () => {
     // toujours en cours : pas de fin, ni dans actions.json, ni d'avis à la conversation (pourtant libre)
     expect(actionsJson().runs).toMatchObject([{ id: 'forme', state: 'running', end: null }]);
     expect(turn('VibeCoder')).toBeUndefined();
-    expect(runVibeAction('invariants', {})).toMatchObject({ ok: false });   // elle retient encore
+    // elle retient encore
+    expect(runVibeAction('invariants', {})).toMatchObject({ ok: false });
+  });
+
+  it('ses tâches de fond finies sans tour qui suive : en cours pendant le délai de grâce, finie après avec la réponse de son tour', async () => {
+    const { GRACE_MS } = await import('core/vibecoder');
+    const { runVibeAction } = await open();
+    runVibeAction('forme', {});
+    await settle();
+    const forme = turn('/vibecoder:forme')!;
+    forme.emit(taskStarted);
+    forme.finish('Wave 1 is running');
+    await settle();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
 
     forme.emit(taskDone);
     await settle();
+    // l'agent ne repart pas : le délai de grâce s'écoule, à une milliseconde près
+    vi.advanceTimersByTime(GRACE_MS - 1);
+    await settle();
+
+    // avant la fin du délai : toujours en cours, sans avis à la conversation
+    expect(actionsJson().runs).toMatchObject([{ id: 'forme', state: 'running', end: null }]);
+    expect(turn('VibeCoder')).toBeUndefined();
+
+    vi.advanceTimersByTime(1);
+    vi.useRealTimers();
+    await settle();
+
+    // le délai passé : finie, avec la réponse de son dernier tour
     expect(actionsJson().runs).toMatchObject([{ id: 'forme', state: 'done', reply: 'Wave 1 is running' }]);
+    // l'avis de fin part à la conversation, avec cette réponse
     expect(turn('VibeCoder')?.text).toMatch(/terminée — Wave 1 is running\./);
+  });
+
+  it('ses tâches de fond finies, l’agent repart : en cours jusqu’à la fin de ce tour, puis finie avec sa réponse', async () => {
+    const { GRACE_MS } = await import('core/vibecoder');
+    const { runVibeAction } = await open();
+    runVibeAction('forme', {});
+    await settle();
+    const forme = turn('/vibecoder:forme')!;
+    forme.emit(taskStarted);
+    forme.finish('Wave 1 is running');
+    await settle();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+
+    // la tâche finit et l'agent repart aussitôt de lui-même (un nouveau tour)
+    forme.emit(taskDone);
+    forme.emit({ type: 'assistant', message: { content: [{ type: 'text', text: 'Je regarde la CI' }] } });
+    await settle();
+    // le tour réveillé dure plus que le délai de grâce
+    vi.advanceTimersByTime(GRACE_MS * 2);
+    vi.useRealTimers();
+    await settle();
+
+    // pendant ce tour : toujours en cours, sans avis à la conversation
+    expect(actionsJson().runs).toMatchObject([{ id: 'forme', state: 'running', end: null }]);
+    expect(turn('VibeCoder')).toBeUndefined();
+
+    forme.finish('La CI a échoué');
+    await settle();
+
+    // ce tour fini, sans tâche de fond : finie, avec la réponse de ce tour (son processus a vécu jusque-là)
+    expect(actionsJson().runs).toMatchObject([{ id: 'forme', state: 'done', reply: 'La CI a échoué' }]);
+    // l'avis de fin porte cette réponse
+    expect(turn('VibeCoder')?.text).toMatch(/terminée — La CI a échoué\./);
   });
 
   it('une demande d’autorisation, tâches de fond ou non : elle demande', async () => {
