@@ -35,10 +35,9 @@ describe('awaiting', () => {
     expect(awaiting(view('forme', { note: note({ formeMark: 'ok' }) }))).toBeNull();
   });
 
-  it('invariants tous lus : le nombre de cas sans validation ; un fichier pas lu : rien (Lire d\'abord)', () => {
+  it('invariants : le nombre de cas sans validation ; tous validés ou sans test : rien', () => {
     expect(awaiting(view('invariants', { invariants: tests({ a: 'ok', b: 'ko' }) }))).toEqual({ kind: 'cases', count: 1 });
     expect(awaiting(view('invariants', { invariants: tests({ a: 'ok', b: 'ok' }) }))).toBeNull();
-    expect(awaiting(view('invariants', { invariants: tests({}, false) }))).toBeNull();
     expect(awaiting(view('invariants'))).toBeNull();
   });
 
@@ -46,7 +45,7 @@ describe('awaiting', () => {
     expect(awaiting(view('note', { autonomy: 'vibe' }))).toBeNull();
   });
 
-  it('Relire : un verdict, ✓ ou ✗, sur la note (même pas rédigée) et sur chaque cas lu', () => {
+  it('Relire : un verdict, ✓ ou ✗, sur la note (même pas rédigée) et sur chaque cas', () => {
     expect(awaiting(view('note', { flow: 'review', note: note({ filled: false }) }))).toEqual({ kind: 'note' });
     expect(awaiting(view('note', { flow: 'review', note: note({ mark: 'ko' }) }))).toBeNull();
     expect(awaiting(view('invariants', { flow: 'review', invariants: tests({ a: 'ko', b: 'changed' }) }))).toEqual({ kind: 'cases', count: 1 });
