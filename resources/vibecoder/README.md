@@ -46,7 +46,9 @@ la conversation, dans le fil.
 
 Une action qui modifie la branche attend toute autre action en cours ; une
 lecture (`reads`) n'attend qu'une modification, et les lectures tournent
-ensemble. Le bouton qui doit attendre est grisé, avec la raison.
+ensemble. Le bouton qui doit attendre est grisé, avec la raison ; celui qui
+n'a pas encore de sens (pas de note, pas de commit préparé, pas de PR…)
+n'est pas affiché.
 
 La conversation (l'orchestrateur, skill `actions`) suit et commande les
 actions par des fichiers de `{{out}}` :
@@ -67,7 +69,9 @@ action arrêtée).
 message). Les `id` livrés sont un contrat : l'écran et le parcours s'appuient
 sur eux (l'action mise en avant de l'étape en cours, les boutons propres à une vue : *✓ Commiter*,
 *Relire le diff* d'un module, *Publier la revue*…) ; un `id` changé est un
-bouton retiré suivi d'un bouton ajouté. Les skills de VibeCoder reçoivent toujours d'abord
+bouton retiré suivi d'un bouton ajouté. `ponytail` n'a pas de bouton : `checks`
+(skill `verifier`) la demande ; `align` n'en a qu'en *Relire* : en *Créer*,
+`invariants` vérifie l'alignement. Les skills de VibeCoder reçoivent toujours d'abord
 `{{lang}} {{out}}`. Le bouton `guide` n'apparaît que si le skill `gear-guide`
 existe (dans le projet ou chez l'utilisateur).
 
@@ -199,7 +203,7 @@ sinon.
 |---|---|---|---|
 | `note` | conversation | agent | `questions.md` |
 | `forme` | conversation | agent | — |
-| `invariants` | sous-contexte | opus · high | — |
+| `invariants` | sous-contexte | opus · high | `align.md` (suit `aligner`) |
 | `lire-invariants` | sous-contexte | sonnet · medium | `invariants/<blob>.md` |
 | `aligner` | sous-contexte | opus · high | `align.md` |
 | `module` | sous-contexte | opus · high | — |
@@ -208,7 +212,7 @@ sinon.
 | `relire` | sous-contexte | opus · high | `review.md` |
 | `commit-preparer` | sous-contexte | sonnet · low | `commit.md` |
 | `commit` | sous-contexte | haiku · low | (supprime `commit.md`) |
-| `verifier` | sous-contexte | haiku · low | `checks.json` |
+| `verifier` | sous-contexte | haiku · low | `actions/ponytail.start`, `checks.json` |
 | `ponytail` | sous-contexte | opus · high | `ponytail.md` |
 | `fixups` | sous-contexte | sonnet · medium | — |
 | `pr` | sous-contexte | sonnet · medium | `pr.json` |
@@ -224,7 +228,7 @@ sinon.
 | `relire-commits` | sous-contexte | opus · high | `pr-<n>-commits.md` |
 | `ecran` | sous-contexte | sonnet · medium | `pr-<n>-ecran.md` |
 | `publier-revue` | sous-contexte | haiku · low | `pr-<n>-review.json` |
-| `vibe` | conversation | agent ; enchaîne les actions | `actions/<id>.start` |
+| `vibe` | conversation | agent ; *Valider et développer* : enchaîne les actions à partir de la forme | `actions/<id>.start` |
 | `actions` | conversation (l'agent l'appelle de lui-même) | agent | `actions/<id>.start`, `actions/<id>.stop` |
 | `lancement` | sous-contexte | haiku · low | `lancement.json` |
 | `processus` | conversation (l'agent l'appelle de lui-même) | agent | `run/<nom>.stop`, `run/<nom>.restart` |

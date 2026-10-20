@@ -355,8 +355,10 @@ conversation reste utilisable.
   *FR* / *EN* ; ↻ (relire le dépôt tout de suite) ; 💬 ; × ;
 - à gauche, le **parcours** : les étapes (point plein : faite ; anneau : en
   cours ; gris : à venir), chacune avec ses faits en une ligne, puis les
-  commits de la branche ;
-- au centre, l'étape choisie (onglets, ou Ctrl+1…6) — la note du ticket, ce
+  commits de la branche. Il mène : un clic (ou Ctrl+1…6) ouvre une étape
+  faite, pour revenir en arrière, ou celle en cours ; une étape à venir
+  reste visible, sans clic (en *Relire*, toutes s'ouvrent) ;
+- au centre, l'étape choisie — la note du ticket, ce
   que les skills ont produit —, sous son titre son **champ** (quand une de
   ses actions prend un texte) et ses actions (celle qui fait avancer l'étape
   en cours en tête, discrètement mise en avant) ; chaque carte produite par
@@ -378,7 +380,7 @@ d'invariants, ce que les skills ont écrit. Il suit tout seul (toutes les 4 s,
 et pendant que l'agent travaille).
 
 **Les actions tournent à côté de la conversation.** Un bouton d'étape
-(*Rédiger la note*, *Écrire les invariants (rouges)*, *Ponytail review*…)
+(*Rédiger la note*, *Écrire les invariants (rouges)*, *Lancer les vérifications*…)
 lance l'action dans **sa propre conversation**, avec son skill et son
 modèle, comme si vous aviez tapé `/vibecoder:note fr … votre demande` : la
 conversation de l'agent reste libre, vous lui parlez pendant ce temps. Un
@@ -398,7 +400,9 @@ autre action — reviennent à leur état d'avant (ce qu'elle a changé par une
 commande, `git` ou un script, reste). Deux actions qui modifient la branche
 ne tournent jamais ensemble, ni une relecture pendant une modification ; les
 relectures et vérifications, elles, tournent ensemble. Un bouton qui doit
-attendre est grisé et dit pourquoi ; une action arrêtée retient les autres
+attendre est grisé et dit pourquoi ; un bouton qui n'a pas encore de sens
+n'est pas affiché (pas de *✓ Commiter* sans commit préparé, pas de *Release
+candidate* sans PR…) ; une action arrêtée retient les autres
 tant que vous n'avez pas choisi. *⏹ Arrêter* de la barre d'état n'arrête
 que le tour de la conversation.
 
@@ -425,8 +429,11 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    puis ✓ pour valider la note.
 2. **Forme** : *Poser la forme* (les modules et leurs contrats, dans la note,
    sans code) ; ✓.
-3. **Invariants** : *Écrire les invariants (rouges)*, d'après la note ou
-   d'après le pseudo-code écrit dans le champ de l'étape ; puis *Lire en pseudo-code* :
+3. **Invariants** : *Écrire les invariants (rouges), puis vérifier
+   l'alignement*, d'après la note ou d'après le pseudo-code écrit dans le
+   champ de l'étape — dans la même action, l'agent vérifie que note, forme
+   et tests concordent, retouche les tests s'il y a des écarts (3 tours au
+   plus) et dit ce qui reste (la carte de l'alignement) ; puis *Lire en pseudo-code* :
    chaque cas de test traduit en étapes simples (`test "…":`, `given`,
    `when`, `then` — une ligne `then` par assertion), quel que soit le
    langage du test, avec ses cas limites, ce qu'il garantit, et un
@@ -435,18 +442,19 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    d'origine du cas à la place du pseudo-code, *Voir le fichier* le fichier
    entier, colorés comme sur GitHub (TypeScript / JavaScript, Rust, Python,
    Go ; un autre langage : sans couleurs) ; *Relire* un fichier
-   (ou *Tout relire*) refait sa lecture ; *Vérifier l'alignement* ; *Préparer le commit* puis *✓ Commiter*.
+   (ou *Tout relire*) refait sa lecture ; *Préparer le commit* puis *✓ Commiter*.
 4. **Modules** : *Générer ce module* (avec `ponytail`, tests lancés, sans
    commit), *Relire le diff*, *✓ Valider → commit → suivant* ; ou *Générer
    les modules restants* (en parallèle, chacun relu et commité à part).
-5. **Revue** : *Lancer les vérifications* (des avertissements seulement : en
-   orange, la vérification passe), *Ponytail review*, *Tout appliquer* ou
+5. **Revue** : *Lancer les vérifications et la ponytail review* (les deux
+   tournent ensemble ; des avertissements seulement : en orange, la
+   vérification passe ; pour refaire l'une, on relance ce bouton), *Tout appliquer* ou
    *Appliquer* une remarque (en fixups), *Replier les fixups* ; la liste du
    guide avant une PR, cochée quand le dépôt le dit — « chaque diff relu » et
    « AGENTS.md à jour » se cochent à la main, jusqu'au prochain commit.
-6. **PR** : *Valider la feature (ouvrir la PR)*, *Diagnostiquer la CI*,
-   *Release candidate*, *PR mergée → revenir sur la base*, *Release
-   officielle*. L'étape est faite dès qu'une PR existe pour la branche :
+6. **PR** : sans PR, *Valider la feature (ouvrir la PR)* ; la PR ouverte,
+   *Diagnostiquer la CI* et *Release candidate* ; fusionnée, *PR mergée →
+   revenir sur la base* et *Release officielle*. L'étape est faite dès qu'une PR existe pour la branche :
    l'appli la demande elle-même à `gh` (sans IA, en lecture seule ; toutes
    les 60 s au plus, ↻ pour tout de suite).
 
@@ -514,16 +522,23 @@ les mêmes journaux et peut demander l'arrêt ou la relance d'une commande (il
 écrit un petit fichier que l'appli exécute, VibeCoder affiché).
 
 **Guide ou Vibe.** *Guide* (par défaut) : vous validez la note, la forme et
-chaque invariant ; l'étape en cours attend vos ✓. *Vibe* : vous donnez la
-main à l'agent, vous testez et approuvez à la fin. Plus rien n'attend vos ✓,
-et *Tout dérouler* envoie la demande de son champ (dans le bandeau *Vibe*) :
-l'agent tient le rôle du développeur du guide jusqu'à la PR et la release
-candidate en **enchaînant lui-même les actions de l'écran** — les mêmes que
-vous lanceriez, visibles et arrêtables dans l'onglet *Actions* (modules
-confiés à des agents Opus en parallèle) —, ne s'arrête que sur une question
-qui bloque, ne choisit jamais *Garder* / *Annuler* à votre place, et le
-parcours se remplit sous vos yeux. Il ne fusionne pas la PR et ne
-publie pas de version officielle.
+chaque invariant ; l'étape en cours attend vos ✓. *Vibe* (*Créer*
+seulement) : vous donnez la main à l'agent, vous testez et approuvez à la
+fin. Plus rien n'attend vos ✓, et l'écran change : un **fil d'Ariane** (les
+étapes faites, en cours, à venir, sans clic) à la place du parcours, la zone
+*Vibe*, puis la note. En deux temps :
+
+1. la demande dans le champ, *Rédiger la note* ; l'agent vous pose
+   **toutes** les questions de la note (*Envoyer les réponses*) — il n'en
+   tranche aucune ;
+2. *Valider et développer* : l'agent reprend à la première étape pas faite et tient le rôle du
+   développeur du guide jusqu'à la PR et la release candidate en
+   **enchaînant lui-même les actions de l'écran** — les mêmes que vous
+   lanceriez, visibles et arrêtables dans l'onglet *Actions* (modules
+   confiés à des agents Opus en parallèle) —, ne s'arrête que sur une
+   question qui bloque, ne choisit jamais *Garder* / *Annuler* à votre
+   place, et le fil d'Ariane se remplit sous vos yeux. Il ne fusionne pas
+   la PR et ne publie pas de version officielle.
 
 **Qui travaille, ce que ça coûte.** Chaque bouton dit qui travaille :
 *haiku*, *sonnet · moyen*, *opus · élevé*… ou *agent* (le modèle de l'agent).
@@ -537,7 +552,7 @@ génère un module, relit un diff, une note ou des commits, vérifie
 l'alignement, fait la ponytail review. Sur le modèle de l'agent, chacune
 dans sa conversation : la note, la forme, les réponses aux questions,
 *Appliquer la revue*, *Générer les modules restants*, les releases ; dans
-la conversation : *Tout dérouler* — ce dernier, *Générer les modules
+la conversation : *Valider et développer* — ce dernier, *Générer les modules
 restants* et les releases, longs et coûteux. Pour une étape qui tourne à
 part, vous pouvez choisir un modèle plus léger (ou plus fort) que le conseillé,
 le temps d'un clic : VibeCoder génère pour cela une variante de chaque skill
