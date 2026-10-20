@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockedBy, endNotice, ownRun, parseRequest, runKey, runsFile, runViews, type ActionDef, type Run } from 'core/vibecoder';
+import { blockedBy, endNotice, ownRun, parseRequest, runKey, runPhase, runsFile, runViews, type ActionDef, type Run } from 'core/vibecoder';
 
 const A = (id: string, step: ActionDef['step'], reads = false, kind: ActionDef['kind'] = 'send'): ActionDef =>
   ({ id, flow: 'create', step, kind, needs: 'none', label: `L-${id}`, hint: '', text: `/vibecoder:${id}`, reads });
@@ -99,5 +99,13 @@ describe('parseRequest : une demande de l\'orchestrateur', () => {
     expect(parseRequest('module.start', JSON.stringify(args))?.args)
       .toEqual({ text: 't', module: 2, commit: 'abc', file: '*', pr: 7, model: 'sonnet', answers: ['a', ''] });
     expect(parseRequest('module.start', JSON.stringify({ module: 1.5, pr: '7', answers: [1], text: 3 }))?.args).toEqual({});
+  });
+});
+
+describe('runPhase', () => {
+  it('asking d\'abord ; en cours au travail ou tant que des tâches de fond tournent ; au repos sinon', () => {
+    expect([
+      runPhase('asking', 0), runPhase('asking', 2), runPhase('working', 0), runPhase('idle', 1), runPhase('idle', 0),
+    ]).toEqual(['asking', 'asking', 'running', 'running', 'idle']);
   });
 });
