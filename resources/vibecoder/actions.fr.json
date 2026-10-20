@@ -35,8 +35,8 @@
     "step": "invariants",
     "kind": "send",
     "needs": "none",
-    "label": "Écrire les invariants (rouges)",
-    "hint": "Écrit les tests d'invariants, rouges, d'après la note ou d'après le pseudo-code du champ, sans commiter.",
+    "label": "Écrire les invariants (rouges), puis vérifier l'alignement",
+    "hint": "Écrit les tests d'invariants, rouges, d'après la note ou d'après le pseudo-code du champ, puis vérifie l'alignement (align.md) : s'il y a des écarts, retouche les tests et revérifie, 3 tours au plus ; ne commite pas.",
     "text": "/vibecoder:invariants {{lang}} {{out}} {{text}}"
   },
   {
@@ -52,7 +52,7 @@
   },
   {
     "id": "align",
-    "flow": "both",
+    "flow": "review",
     "step": "invariants",
     "kind": "send",
     "needs": "none",
@@ -130,8 +130,8 @@
     "kind": "send",
     "needs": "none",
     "reads": true,
-    "label": "Lancer les vérifications",
-    "hint": "Lance les vérifications du projet (typage, tests, invariants, lint) et en affiche le résultat.",
+    "label": "Lancer les vérifications et la ponytail review",
+    "hint": "Lance les vérifications du projet (typage, tests, invariants, lint) et en affiche le résultat, et la ponytail review en même temps.",
     "text": "/vibecoder:verifier {{lang}} {{out}}"
   },
   {
@@ -142,7 +142,7 @@
     "needs": "none",
     "reads": true,
     "label": "Ponytail review",
-    "hint": "Relit toute la branche : sur-ingénierie, duplication, note alignée avec le code, cas limites, sécurité, code mort ; ne modifie rien.",
+    "hint": "Lancée avec les vérifications : relit toute la branche — sur-ingénierie, duplication, note alignée avec le code, cas limites, sécurité, code mort ; ne modifie rien.",
     "text": "/vibecoder:ponytail {{lang}} {{out}}"
   },
   {
@@ -172,7 +172,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Valider la feature (ouvrir la PR)",
-    "hint": "Pousse la branche et ouvre la PR, titre et description selon la convention du projet.",
+    "hint": "Sans PR : pousse la branche et ouvre la PR, titre et description selon la convention du projet.",
     "text": "/vibecoder:pr {{lang}} {{out}}"
   },
   {
@@ -183,7 +183,7 @@
     "needs": "none",
     "reads": true,
     "label": "Diagnostiquer la CI",
-    "hint": "Lit l'état de la CI de la branche et, en cas d'échec, en donne la cause probable et le correctif ; ne corrige rien.",
+    "hint": "La PR ouverte : lit l'état de sa CI et, en cas d'échec, en donne la cause probable et le correctif ; ne corrige rien.",
     "text": "/vibecoder:ci {{lang}} {{out}}"
   },
   {
@@ -193,7 +193,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Release candidate",
-    "hint": "Publie une release candidate selon la procédure du projet et l'installe chez vous en gardant la précédente ; long, car il attend la CI.",
+    "hint": "La PR ouverte : publie une release candidate selon la procédure du projet et l'installe chez vous en gardant la précédente ; long, car il attend la CI.",
     "text": "/vibecoder:rc {{lang}} {{out}}"
   },
   {
@@ -203,7 +203,7 @@
     "kind": "send",
     "needs": "none",
     "label": "PR mergée → revenir sur la base",
-    "hint": "Si la PR est fusionnée : revient sur la base, la met à jour et supprime la branche locale ; sinon, ne fait rien.",
+    "hint": "La PR fusionnée : revient sur la base, la met à jour et supprime la branche locale.",
     "text": "/vibecoder:base {{lang}} {{out}}"
   },
   {
@@ -213,7 +213,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Release officielle",
-    "hint": "Publie la version officielle selon la procédure du projet ; les pré-versions ne sont supprimées qu'avec votre accord.",
+    "hint": "La PR fusionnée : publie la version officielle selon la procédure du projet ; les pré-versions ne sont supprimées qu'avec votre accord.",
     "text": "/vibecoder:release {{lang}} {{out}}"
   },
   {
@@ -298,10 +298,10 @@
     "flow": "create",
     "step": null,
     "kind": "send",
-    "needs": "text",
-    "label": "Tout dérouler",
-    "hint": "L'agent déroule tout le guide pour la demande du champ, jusqu'à la PR et la release candidate, et ne s'arrête que sur une question qui bloque ; long et coûteux.",
-    "text": "/vibecoder:vibe {{lang}} {{out}} {{text}}"
+    "needs": "none",
+    "label": "Valider et développer",
+    "hint": "L'agent reprend à la forme et enchaîne jusqu'à la release candidate (invariants, modules, revue, PR), sans trancher les questions de la note, et ne s'arrête que sur une question qui bloque ; long et coûteux.",
+    "text": "/vibecoder:vibe {{lang}} {{out}}"
   },
   {
     "id": "guide",

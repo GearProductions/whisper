@@ -20,6 +20,10 @@ const ACTIONS: ActionDef[] = [
   { ...A('ponytail', 'create', 'revue', '/vibecoder:ponytail {{lang}} {{out}}'), reads: true },
   A('fixups', 'create', 'revue', '/vibecoder:fixups {{lang}} {{out}}'),
   A('pr', 'create', 'pr', '/vibecoder:pr {{lang}} {{out}}'),
+  A('ci', 'create', 'pr', '/vibecoder:ci {{lang}} {{out}}'),
+  A('rc', 'create', 'pr', '/vibecoder:rc {{lang}} {{out}}'),
+  A('base', 'create', 'pr', '/vibecoder:base {{lang}} {{out}}'),
+  A('release', 'create', 'pr', '/vibecoder:release {{lang}} {{out}}'),
   A('prs', 'review', 'pr', '/vibecoder:prs {{lang}} {{out}}'),
   A('load-pr', 'review', 'pr', '/vibecoder:charger-pr {{lang}} {{out}} {{pr}}'),
   A('open-worktree', 'review', 'pr', '/vibecoder:worktree-pr {{lang}} {{out}} {{pr}}'),
@@ -28,7 +32,7 @@ const ACTIONS: ActionDef[] = [
   A('review-commits', 'review', 'commits', '/vibecoder:relire-commits {{lang}} {{out}} {{pr}}'),
   A('screen', 'review', 'ecran', '/vibecoder:ecran {{lang}} {{out}} {{pr}}'),
   A('publish', 'review', 'revue', '/vibecoder:publier-revue {{lang}} {{out}} {{pr}} {{verdict}}\n\n{{draft}}'),
-  A('vibe', 'create', null, '/vibecoder:vibe {{lang}} {{out}} {{text}}', 'text'),
+  A('vibe', 'create', null, '/vibecoder:vibe {{lang}} {{out}}'),
   A('guide', 'both', null, '/gear-guide {{text}}'),
   A('comment', 'both', null, 'À propos de « {{quote}} » : ', 'none', 'prefill'),
 ];
@@ -61,6 +65,8 @@ const BUTTON = commit('c', 'app/button', ['src/app/button.tsx']);
 const repo = (changed: string[] = [], commits: ReturnType<typeof commit>[] = []) =>
   ({ branch: 'feat/G2-1-bouton', base: 'origin/main', changed: [...new Set([...changed, ...commits.flatMap((c) => c.files)])], commits });
 const out = (text = '') => ({ text, time: 1 });
+// La dernière course : des réponses envoyées (la course arrêtée sur une question qui bloque).
+const ANSWERED = [{ id: 'answers', label: 'answers', who: 'agent', state: 'done' as const, since: 2, end: 3, reply: '', permission: null }];
 const input = (over: Partial<JourneyInput> = {}): JourneyInput => ({
   agentId: 'a1', lang: 'fr', flow: 'create', pr: null, autonomy: 'guide', agent: { model: 'opus', effort: 'high', mode: 'default' },
   busy: false, running: [], runs: [], repo: repo(), error: null, note: null, tests: [], readings: {}, outputs: {}, marks: {}, draft: [], actions: ACTIONS,
@@ -150,9 +156,13 @@ describe('Créer, Guide : les étapes et la prochaine action', () => {
     expect([status(v).modules, status(v).revue, primary(v)]).toEqual(['done', 'current', 'checks']);
   });
 
-  it('vérifications passées : Ponytail review', () => {
+  it('vérifications passées sans ponytail review : relancer les vérifications (elles la demandent)', () => {
     const checks = out('{"items":[{"name":"tests","ok":true}],"time":1}');
-    expect(primary(vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), outputs: { 'checks.json': checks } })))).toBe('ponytail');
+    expect(primary(vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), outputs: { 'checks.json': checks } })))).toBe('checks');
+  });
+
+  it('ponytail review sans vérifications : Lancer les vérifications', () => {
+    expect(primary(vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), outputs: { 'ponytail.md': out('- rien') } })))).toBe('checks');
   });
 
   it('un commit fixup! : Replier les fixups', () => {
@@ -178,8 +188,17 @@ describe('Créer, Guide : les étapes et la prochaine action', () => {
 });
 
 describe('Créer, Vibe : aucune validation attendue', () => {
-  it('pas de note : Tout dérouler', () => {
-    expect(primary(vibeView(input({ autonomy: 'vibe' })))).toBe('vibe');
+  it('pas de note : Rédiger la note', () => {
+    expect(primary(vibeView(input({ autonomy: 'vibe' })))).toBe('note');
+  });
+
+  it('note rédigée avec des questions : Envoyer les réponses', () => {
+    expect(primary(vibeView(input({ autonomy: 'vibe', note, outputs: { 'questions.md': out('## 1. Quelle couleur ?\n') } })))).toBe('answers');
+  });
+
+  it('note rédigée sans question, forme pas faite : Valider et développer', () => {
+    const text = NOTE.slice(0, NOTE.indexOf('## Forme'));
+    expect(primary(vibeView(input({ autonomy: 'vibe', note: { ...note, text } })))).toBe('vibe');
   });
 
   it('note rédigée sans validation : note et forme faites', () => {
@@ -402,12 +421,11 @@ describe('Créer : les vérifications et leurs avertissements (level)', () => {
   const revue = (x: VibeView) => x.steps.find((s) => s.id === 'revue')!.facts;
 
   it('des avertissements seulement : passées, « n avertissements » dans les faits', () => {
-    const x = v([{ name: 'tests', ok: true, level: 'ok' }, { name: 'lint', ok: true, level: 'warning' }]);
-    expect([primary(x), revue(x)]).toEqual(['ponytail', 'vérifications ok · 1 avertissement']);
+    expect(revue(v([{ name: 'tests', ok: true, level: 'ok' }, { name: 'lint', ok: true, level: 'warning' }]))).toBe('vérifications ok · 1 avertissement');
   });
 
   it('level l\'emporte sur ok : warning passe même si ok est faux, error échoue même si ok est vrai', () => {
-    expect(primary(v([{ name: 'lint', ok: false, level: 'warning' }]))).toBe('ponytail');
+    expect(revue(v([{ name: 'lint', ok: false, level: 'warning' }]))).toBe('vérifications ok · 1 avertissement');
     expect(revue(v([{ name: 'lint', ok: true, level: 'error' }]))).toBe('vérifications en échec');
   });
 
@@ -583,7 +601,7 @@ describe('les actions que l\'appli fait elle-même (F-114)', () => {
   });
 
   it('une en cours : elle-même grisée, et elle retient les courses comme une modification (0.9.0) ; pas la conversation', () => {
-    const v = vibeView(ready({ outputs: { 'commit.md': out('x') }, direct: { commit: { running: true, last: null } } }));
+    const v = vibeView(ready({ outputs: { 'commit.md': out('x') }, direct: { commit: { running: true, last: null } }, runs: ANSWERED }));
     expect([action(v, 'commit')?.disabled, action(v, 'module')?.disabled, action(v, 'vibe')?.disabled])
       .toEqual(['Cette action est déjà en cours', 'Une autre action est en cours', null]);
   });
@@ -597,7 +615,7 @@ describe('les actions qui courent à part (0.9.0)', () => {
   });
 
   it('une modification en cours : elle-même, une autre modification et une lecture attendent ; la conversation non', () => {
-    const v = vibeView(ready({ running: forme }));
+    const v = vibeView(ready({ running: forme, runs: ANSWERED }));
     expect([action(v, 'forme')?.disabled, action(v, 'module')?.disabled, action(v, 'ponytail')?.disabled, action(v, 'vibe')?.disabled])
       .toEqual(['Cette action est déjà en cours', 'Une autre action est en cours', 'Une action modifie la branche', null]);
   });
@@ -623,5 +641,99 @@ describe('les actions qui courent à part (0.9.0)', () => {
 
   it('en anglais', () => {
     expect(action(vibeView(ready({ lang: 'en', running: forme })), 'ponytail')?.disabled).toBe('An action is changing the branch');
+  });
+});
+
+describe('le parcours guidé (0.9.0) : étapes ouvertes, actions masquées', () => {
+  const opened = (v: VibeView) => v.steps.filter((s) => s.open).map((s) => s.id);
+  const shown = (v: VibeView, ids: string[]) => ids.filter((id) => !action(v, id)?.hidden);
+  const PR_STEP = ['pr', 'ci', 'rc', 'base', 'release'];
+  const reviewed = { 'checks.json': out('{"items":[{"name":"tests","ok":true}]}'), 'ponytail.md': out('- rien') };
+  const withPr = (pr: Record<string, unknown> | null, outputs: JourneyInput['outputs'] = reviewed) =>
+    vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), outputs, github: { pr } }));
+
+  it('Créer, Guide : les étapes faites et celle en cours s\'ouvrent, pas celles à venir', () => {
+    expect(opened(vibeView(ready()))).toEqual(['note', 'forme', 'invariants', 'modules']);
+    expect(opened(vibeView(input()))).toEqual(['note']);
+  });
+
+  it('Relire : toutes s\'ouvrent ; Créer en Vibe : aucune (fil d\'Ariane)', () => {
+    expect(opened(vibeView(input({ flow: 'review' })))).toEqual(['pr', 'note', 'invariants', 'commits', 'ecran', 'revue']);
+    expect(opened(vibeView(ready({ autonomy: 'vibe' })))).toEqual([]);
+  });
+
+  it('l\'étape PR sans PR : seulement Valider la feature', () => {
+    expect(shown(withPr(null), PR_STEP)).toEqual(['pr']);
+  });
+
+  it('PR ouverte : Diagnostiquer la CI et Release candidate ; PR fusionnée : revenir sur la base et Release officielle', () => {
+    expect(shown(withPr({ number: 31, state: 'OPEN' }), PR_STEP)).toEqual(['ci', 'rc']);
+    expect(shown(withPr({ number: 31, state: 'MERGED' }), PR_STEP)).toEqual(['base', 'release']);
+    expect(shown(withPr({ number: 31, state: 'CLOSED' }), PR_STEP)).toEqual([]);
+  });
+
+  it('une PR sans état connu (pr.json, avant gh) : comme ouverte', () => {
+    expect(shown(withPr(null, { ...reviewed, 'pr.json': out('{"number":9}') }), PR_STEP)).toEqual(['ci', 'rc']);
+  });
+
+  it('l\'état de la PR masque sans griser', () => {
+    const v = withPr({ number: 31, state: 'OPEN' });
+    expect(PR_STEP.map((id) => action(v, id)?.disabled)).toEqual([null, null, null, null, null]);
+  });
+
+  it('pas encore de sens : masquée, sa raison gardée', () => {
+    const v = vibeView(input());
+    expect([action(v, 'commit'), action(v, 'answers'), action(v, 'fixups'), action(v, 'forme')].map((a) => [a?.hidden, a?.disabled]))
+      .toEqual([[true, 'Préparer d\'abord le commit'], [true, 'Aucune question ouverte'], [true, 'Aucun commit fixup!'], [true, 'Pas encore de note']]);
+    expect(action(vibeView(ready({ tests: [] })), 'read-invariants')?.hidden).toBe(true);
+  });
+
+  it('Relire dans un worktree : Ouvrir déjà fait et Décharger hors du robot masqués', () => {
+    const v = vibeView(input({ flow: 'review', pr: 12, outputs: { 'pr-12.json': out('{"number":12}') }, worktree: { state: 'open', temp: false, dir: '/w' } }));
+    expect([action(v, 'open-worktree')?.hidden, action(v, 'unload-worktree')?.hidden]).toEqual([true, true]);
+  });
+
+  it('grisée par une course ou la conversation : affichée ; masquée tout de même si elle n\'a pas de sens', () => {
+    const v = vibeView(ready({ running: [{ id: 'forme', reads: false }], busy: true, runs: ANSWERED }));
+    expect([action(v, 'module')?.hidden, action(v, 'vibe')?.hidden, action(v, 'commit')?.hidden]).toEqual([false, false, true]);
+    expect(action(v, 'commit')?.disabled).toBe('Une autre action est en cours');
+  });
+
+  it('une PR fusionnée, en Relire : grisée, pas masquée', () => {
+    const v = vibeView(input({ flow: 'review', pr: 12, repo: repo([], [FIRST]), outputs: { 'pr-12.json': out('{"number":12,"state":"MERGED"}') } }));
+    expect([action(v, 'publish')?.hidden, action(v, 'publish')?.disabled]).toEqual([false, 'PR déjà fusionnée : rien à relire']);
+  });
+
+  it('Valider et développer : masquée sans note ou avec des questions ouvertes, et refusée', () => {
+    const questions = { 'questions.md': out('## 1. Quelle couleur ?\n') };
+    expect([vibeView(input()), vibeView(input({ note, outputs: questions })), vibeView(input({ note }))]
+      .map((v) => [action(v, 'vibe')?.hidden, action(v, 'vibe')?.disabled]))
+      .toEqual([[true, 'Pas encore de note'], [true, 'Répondre d\'abord aux questions de la note'], [false, null]]);
+  });
+
+  it('Valider et développer : masquée tant que la note n\'est pas rédigée', () => {
+    const text = NOTE.replace('Un bouton qui dit bonjour.', '');
+    const v = vibeView(input({ note: { ...note, text } }));
+    expect([action(v, 'vibe')?.hidden, action(v, 'vibe')?.disabled]).toEqual([true, 'Pas encore de note']);
+  });
+
+  it('Valider et développer : masquée et refusée la forme faite', () => {
+    const v = vibeView(ready());
+    expect([action(v, 'vibe')?.hidden, action(v, 'vibe')?.disabled]).toEqual([true, 'Déjà lancée : la forme est posée']);
+  });
+
+  it('Valider et développer : la forme faite, revient quand des réponses ont vidé questions.md', () => {
+    const v = vibeView(ready({ runs: ANSWERED, outputs: { 'questions.md': out() } }));
+    expect([action(v, 'vibe')?.hidden, action(v, 'vibe')?.disabled]).toEqual([false, null]);
+  });
+
+  it('Valider et développer : la forme faite, des réponses suivies d\'une autre course : masquée', () => {
+    const forme = { ...ANSWERED[0], id: 'forme', since: 4, end: 5 };
+    expect(action(vibeView(ready({ runs: [forme, ...ANSWERED] })), 'vibe')?.hidden).toBe(true);
+  });
+
+  it('en anglais : la raison des questions ouvertes', () => {
+    expect(action(vibeView(input({ lang: 'en', note, outputs: { 'questions.md': out('## 1. ?\n') } })), 'vibe')?.disabled)
+      .toBe('Answer the note\'s questions first');
   });
 });

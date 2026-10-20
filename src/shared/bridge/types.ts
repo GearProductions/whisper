@@ -214,7 +214,8 @@ export type VibeFlow = 'create' | 'review';      // Créer une feature, Relire u
 export type VibeAutonomy = 'guide' | 'vibe';
 // Créer : note → forme → invariants → modules → revue → pr ; Relire : pr → note → invariants → commits → ecran → revue.
 export type VibeStepId = 'note' | 'forme' | 'invariants' | 'modules' | 'revue' | 'pr' | 'commits' | 'ecran';
-export type VibeStep = { id: VibeStepId; status: 'done' | 'current' | 'todo'; facts: string };
+// open : un clic (ou Ctrl+1…6) l'ouvre — Créer en Guide, faite ou en cours ; Relire, toutes ; Créer en Vibe, aucune.
+export type VibeStep = { id: VibeStepId; status: 'done' | 'current' | 'todo'; facts: string; open: boolean };
 
 // Une validation : validé, refusé, validé mais changé depuis, rien.
 export type VibeMarkState = 'ok' | 'ko' | 'changed' | null;
@@ -278,7 +279,8 @@ export type VibeAction = {
   usesText: boolean;           // son gabarit prend le texte du champ ({{text}}), s'il y en a
   text?: string;               // 'prefill' : le texte à mettre dans le champ ({{quote}} : ce qu'on cite)
   primary: boolean;            // ce que le guide fait faire ensuite (mis en avant dans l'en-tête de l'étape en cours)
-  disabled: string | null;     // pourquoi c'est grisé
+  disabled: string | null;     // pourquoi c'est grisé (le principal la refuse), même masquée
+  hidden: boolean;             // pas de sens maintenant : pas affichée (l'état de la PR ne fait que masquer)
   // Faite aussi par l'appli, sans agent (F-114 : commit, publish, load-pr, base) : en cours, et son dernier
   // résultat (✓/✗, une ligne, le détail) ; absent : seulement par l'agent.
   direct?: { running: boolean; last: { ok: boolean; line: string; detail: string; time: number } | null };

@@ -238,7 +238,7 @@ const BRANCH_OUTPUTS = ['questions.md', 'align.md', 'review.md', 'commit.md', 'c
 // Les sorties de Créer suivent la branche : la dernière vue est dans
 // <out>/.branche ; quand elle passe de P à N, celles de la racine vont dans
 // branches/<P>/ (remplacé) — sauf si P est la base : une feature lancée depuis
-// la base (Rédiger la note, Tout dérouler) crée sa branche et garde ce que ses
+// la base (Rédiger la note) crée sa branche et garde ce que ses
 // skills ont écrit — puis celles de branches/<N>/, s'il existe, reviennent à
 // la racine. Une erreur n'empêche pas le relevé (I-29).
 export function followBranch(out: string, branch: string, base: string) {

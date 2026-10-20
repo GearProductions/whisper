@@ -1,6 +1,9 @@
 /** i18n — les libellés de l'écran VibeCoder, en français et en anglais
- *  (vibeLang) : en-tête, parcours et ses commits, étapes, Relancer, Arrêter,
- *  onglets Conversation / Actions / Tâches / Processus, le champ d'une étape,
+ *  (vibeLang) : en-tête, parcours et ses commits, étapes (une étape pas
+ *  encore ouverte), fil d'Ariane, Relancer, Arrêter, onglets Conversation /
+ *  Actions / Tâches / Processus, le champ d'une étape, celui de l'écran Vibe
+ *  (la demande, pour la note), la ponytail review lancée avec les
+ *  vérifications,
  *  l'onglet Actions (états d'une course, Garder / Annuler, Autoriser /
  *  Toujours / Refuser), choix du modèle, zone de commentaire, barre d'état,
  *  titres des sorties ; une durée en clair. Ceux des boutons viennent des
@@ -17,6 +20,8 @@ const fr = {
     ecran: 'À l\'écran',
   } as Record<VibeStepId, string>,
   stepStatus: { done: 'faite', current: 'en cours', todo: 'à venir' },
+  notOpen: 'pas encore ouverte : elle suit l\'étape en cours',
+  breadcrumb: 'Où en est la feature',
   flow: { create: 'Créer', review: 'Relire' } as Record<VibeFlow, string>,
   flowTitle: 'Créer une feature sur la branche, ou relire une PR',
   autonomy: { guide: 'Guide', vibe: 'Vibe' } as Record<VibeAutonomy, string>,
@@ -99,7 +104,8 @@ const fr = {
   keep: 'Garder', keepTitle: 'Garder ce que l\'action a déjà écrit',
   undo: 'Annuler', undoTitle: 'Remettre les fichiers qu\'elle a écrits dans leur état d\'avant (et eux seuls)',
   fieldHint: 'Dictez ou écrivez ici la demande, puis cliquez sur l\'action : elle part avec.',
-  vibeFieldHint: 'La demande pour « Tout dérouler » : dictez-la ou écrivez-la ici, puis cliquez.',
+  vibeFieldHint: 'La demande, pour la note : dictez-la ou écrivez-la ici, puis « Rédiger la note ».',
+  ponytailWithChecks: 'Lancée avec les vérifications.',
   changed: (n: number) => (n > 1 ? `${n} fichiers modifiés` : `${n} fichier modifié`),
   at: (time: string) => `relevé à ${time}`,
 };
@@ -113,6 +119,8 @@ const en: Strings = {
     ecran: 'On screen',
   },
   stepStatus: { done: 'done', current: 'in progress', todo: 'to do' },
+  notOpen: 'not open yet: it follows the current step',
+  breadcrumb: 'Where the feature stands',
   flow: { create: 'Create', review: 'Review' },
   flowTitle: 'Create a feature on the branch, or review a PR',
   autonomy: { guide: 'Guide', vibe: 'Vibe' },
@@ -195,7 +203,8 @@ const en: Strings = {
   keep: 'Keep', keepTitle: 'Keep what the action already wrote',
   undo: 'Undo', undoTitle: 'Put the files it wrote back as they were (and only those)',
   fieldHint: 'Dictate or type the request here, then click the action: it goes with it.',
-  vibeFieldHint: 'The request for « Run it all »: dictate or type it here, then click.',
+  vibeFieldHint: 'The request, for the note: dictate or type it here, then « Write the note ».',
+  ponytailWithChecks: 'Started with the checks.',
   changed: (n) => `${n} file${n === 1 ? '' : 's'} changed`,
   at: (time) => `read at ${time}`,
 };

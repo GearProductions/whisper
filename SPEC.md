@@ -42,7 +42,7 @@ VibeCoder dans le panneau (`docs/tickets/feat/0.8.0-vibecoder.md`) :
 | Module (`src/renderer/`) | Rôle |
 |---|---|
 | `core/vibecoder` | pur : Markdown en blocs (jamais de HTML, liens `http(s)` seuls, I-40), lignes changées (`lineDiff`), coloration du pseudo-code et du code d'un test (`codeLines`, F-113), libellés FR et EN |
-| `app/panel/vibecoder/` | l'écran (en-tête, parcours, onglets et vues des étapes, leur champ et leurs actions, conversation, actions lancées, tâches et processus en onglets, barre des skills, barre d'état) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
+| `app/panel/vibecoder/` | l'écran (en-tête, parcours, vues des étapes, leur champ et leurs actions, écran *Vibe* et son fil d'Ariane, conversation, actions lancées, tâches et processus en onglets, barre des skills, barre d'état) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
 
 Toutes : sans cadre, hors de la barre des tâches, `contextIsolation`,
 `sandbox`, préchargement minimal (`contextBridge`). Le principal
@@ -499,7 +499,8 @@ liens vers le navigateur seulement, jamais de navigation.
 ## 7 bis. VibeCoder
 
 Notes des tickets : `docs/tickets/feat/0.8.0-vibecoder.md`,
-`0.9.0-actions-independantes.md` (les courses) ; le guide :
+`0.9.0-actions-independantes.md` (les courses), `0.9.0-parcours-guide.md`
+(le parcours guidé, Guide et Vibe séparés) ; le guide :
 `docs/dev_guide/guide-travail-dev-ia.html`.
 
 ### Ouvrir, l'écran
@@ -530,11 +531,14 @@ conversation des agents qui ne sont pas en VibeCoder ne change pas.
   couleur de l'agent : en cours, la première non faite ; gris : à venir),
   leurs faits en une ligne (« 2 fichiers · 5 cas · 3 lus »), le compte des
   étapes faites ; dessous, les commits de la branche (hash court, sujet ;
-  `fixup!`, `squash!`, `amend!` en couleur d'attention). Un clic ouvre
-  l'étape ;
-- au centre, les **onglets** des étapes (Ctrl+1…6), l'étape choisie — sinon
-  celle en cours, que l'écran suit —, ses actions dans son en-tête (F-93) ;
-  pas de carte « prochaine étape » : le parcours dit où l'on en est ;
+  `fixup!`, `squash!`, `amend!` en couleur d'attention). Le parcours mène :
+  un clic (ou Ctrl+1…6) ouvre une étape faite ou celle en cours, pas une
+  étape à venir, visible mais sans clic (son état au survol) ; en *Relire*,
+  toutes s'ouvrent ;
+- au centre, l'étape choisie — sinon celle en cours, que l'écran suit ; une
+  étape choisie qui ne s'ouvre plus laisse place à celle en cours —, ses
+  actions dans son en-tête (F-93) ; ni onglets des étapes ni carte
+  « prochaine étape » : le parcours dit où l'on en est ;
 - à droite, des onglets : **Conversation** (son intitulé ; le message en tête,
   F-74, le fil et ses demandes d'autorisation, le détail du contexte, la
   barre des skills, F-93, le champ, F-68 à F-70 : dictée, brouillon, pièces
@@ -552,8 +556,15 @@ conversation des agents qui ne sont pas en VibeCoder ne change pas.
   seulement, pas les courses), fichiers modifiés, heure
   du dernier relevé.
 
-En *Vibe*, un bandeau le rappelle en haut de l'étape (« l'agent déroule le
-guide ; vous testez et approuvez à la fin »). git introuvable, dossier sans
+En *Vibe*, *Créer* a son propre écran (F-103), à la place du parcours et de
+l'étape : le **fil d'Ariane** (les étapes de *Créer* en une ligne, faites, en
+cours, à venir, sans clic), puis la **zone Vibe** (« la demande, puis
+les questions de la note ; ensuite l'agent développe seul, vous testez et
+approuvez à la fin » ; sans note, le champ et
+*Rédiger la note* ; la note rédigée sans question ouverte, *Valider et
+développer*), puis la note, ses questions et *Envoyer les réponses* (F-100).
+La colonne de droite reste : les courses se suivent et s'arrêtent dans
+l'onglet *Actions*. *Relire* n'a qu'un écran, celui du *Guide*. git introuvable, dossier sans
 dépôt : un bandeau le dit au-dessus de l'étape, la conversation reste
 utilisable. Une étape sans sortie dit ce qui manque et montre l'action qui le
 produit. Une vue d'étape qui échoue sur un texte
@@ -567,7 +578,8 @@ de l'écran et le brouillon tiennent (I-29).
   l'étape** quand une de ses actions prend un texte (F-98).
 - Sous le titre de l'étape (et son champ), une **rangée d'actions** compacte : celles de
   l'étape, chacune avec qui travaille ou le choix du modèle (F-99) et
-  pourquoi elle est grisée ; sans celles que la vue montre déjà ailleurs
+  pourquoi elle est grisée ; sans celles qui n'ont pas encore de sens
+  (masquées, F-99), ni celles que la vue montre déjà ailleurs
   (une invitation, une carte, une ligne : jamais deux fois). À l'étape en
   cours, l'action qui la fait avancer (F-100, F-101, F-103) est en tête,
   discrètement mise en avant, même si elle appartient à une autre étape
@@ -577,14 +589,27 @@ de l'écran et le brouillon tiennent (I-29).
   « en cours » et ⏹ à côté de son bouton (arrêtée, à trancher dans l'onglet
   *Actions*). Conversation au travail : seuls les messages sans étape
   (*Demander sans modifier*, *Où j'en suis ?*, *Proposer les commandes*,
-  *Tout dérouler*) sont grisés ; *⏹ Arrêter* (barre
+  *Valider et développer*) sont grisés ; *⏹ Arrêter* (barre
   d'état) arrête son tour, comme *Interrompre* de son menu (F-56), sans
   toucher aux courses.
-- **Relancer** : chaque carte d'une sortie de skill (alignement, relecture
-  du diff, commit proposé, vérifications, ponytail review, CI, relecture de
-  la note et des commits, plan de test) refait son action, mêmes arguments
-  par défaut ; *Lire en pseudo-code* se refait par fichier (*Relire*, même
-  lu) ou pour tous (*Tout relire*, F-100).
+- **Ce que l'IA fait seule n'a pas de bouton** ; les actions qui vont
+  ensemble partent ensemble, en *Guide* comme en *Vibe*, sans que l'appli
+  enchaîne rien : *Écrire les invariants (rouges), puis vérifier
+  l'alignement* vérifie l'alignement dans sa course (skill `aligner`,
+  `align.md` ; un écart → l'agent retouche les invariants et revérifie, 3
+  tours au plus, puis dit les écarts qui restent) ; *Lancer les
+  vérifications et la ponytail review* demande la ponytail review
+  (`<sorties>/actions/ponytail.start`, F-115) : deux lectures, qui courent
+  ensemble. En *Créer*, plus de bouton *Vérifier l'alignement* ni *Ponytail
+  review* ; leurs cartes restent.
+- **Relancer** : chaque carte d'une sortie de skill (relecture du diff,
+  commit proposé, vérifications, CI, relecture de la note et des commits,
+  plan de test) refait son action, mêmes arguments par défaut ; *Lire en
+  pseudo-code* se refait par fichier (*Relire*, même lu) ou pour tous (*Tout
+  relire*, F-100). L'alignement et la ponytail review n'ont pas de
+  *Relancer* : on relance *Écrire les invariants* ou *Lancer les
+  vérifications* (en *Relire*, *Vérifier l'alignement* reste dans la rangée
+  de l'étape).
 - La **barre des skills**, au-dessus du champ : deux liens, *Demander sans
   modifier* et *Retour → fixup* (*Créer*) ; les skills se trouvent par « / »
   dans le champ.
@@ -639,8 +664,8 @@ faite : la dernière branche vue est retenue (`.branche`) ; quand elle change,
 les sorties de *Créer* (`questions.md` à `ci.md` ci-dessous, ni les lectures
 `invariants/`, ni celles de *Relire*) de la branche quittée vont dans
 `branches/<branche>/` (caractères hors de `[A-Za-z0-9._-]` → `-` ; remplacé),
-sauf si c'est la base — une feature lancée depuis la base (*Rédiger la note*,
-*Tout dérouler*) crée sa branche et garde ce que ses skills ont écrit — ; puis
+sauf si c'est la base — une feature lancée depuis la base (*Rédiger la note*)
+crée sa branche et garde ce que ses skills ont écrit — ; puis
 celles de la branche retrouvée, si elle en a de côté, reviennent. Une erreur
 ne bloque pas le relevé (I-29). Seuls ces noms sont lus (I-37) : `questions.md` (questions ouvertes), `align.md`
 (alignement), `review.md` (relecture d'un diff), `commit.md` (message
@@ -720,7 +745,8 @@ champ prend le clavier) : on dicte, puis on clique. Son champ :
   montré quand une de ses actions prend un texte — *Rédiger la note* (exigé),
   *Poser la forme*, *Écrire les invariants (rouges)* ; la dictée y va quand
   il a le clavier ;
-- *Tout dérouler* : le champ du bandeau du mode *Vibe* (exigé) ;
+- en *Vibe* (*Créer*), le champ de la zone Vibe est celui de l'étape Note
+  (*Rédiger la note*) ; *Valider et développer* ne prend pas de texte ;
 - un message sans étape (*Où j'en suis ?*, *Demander sans modifier* (exigé),
   *Proposer les commandes*) : le **champ de la conversation**, qui ne sert
   plus qu'à elle et à eux.
@@ -738,7 +764,7 @@ de test (« Invariant « … » : à revoir — »), *Retour → fixup* ; possib
 pendant que l'agent travaille. On complète, puis on envoie. En *Relire*, 💬
 et ✗ vont au brouillon de revue (F-101), pas au champ.
 
-**F-99 Qui travaille, pourquoi c'est grisé.** Chaque action envoyée dit qui
+**F-99 Qui travaille, grisée ou masquée.** Chaque action envoyée dit qui
 travaille, d'après l'en-tête du skill qu'elle appelle, dans le plugin de
 l'utilisateur (`model`, et `effort` au-delà de `low`) : *haiku*, *sonnet ·
 moyen*, *opus · élevé* ; sans modèle, ou sans skill (un message en clair,
@@ -747,12 +773,26 @@ pourquoi (sous le bouton, au survol ; le principal la refuse de même) :
 une action d'étape, par la règle des courses (F-115 : « Cette action est
 déjà en cours », « Une autre action est en cours », « Une action modifie la
 branche ») ; un message sans étape, quand la conversation travaille
-(« L'agent travaille » : elle ne grise plus que ceux-là) ; une action directe en cours (les quatre, F-114) ; pas de dépôt git ; pas encore de note (aussi la Forme et
-les invariants en *Créer*) ; aucun test d'invariant ; *Relire* :
+(« L'agent travaille » : elle ne grise plus que ceux-là) ; une action directe en cours (les quatre, F-114) ; pas de dépôt git ; *Relire* :
 aucune PR choisie, ou charger d'abord la PR ; brouillon de revue vide ;
-*✓ Commiter* sans commit préparé ; *Envoyer les réponses* sans question
-ouverte ; *Replier les fixups* sans commit `fixup!` ; *Relire* une PR
-fusionnée ou fermée (F-101).
+*Relire* une PR fusionnée ou fermée (F-101).
+Une action qui **n'a pas encore de sens** n'est pas affichée (`hidden`), au
+lieu d'être grisée ; elle garde sa raison (`disabled`) : le principal la
+refuse de même. Ce sont : pas encore de note (aussi la Forme et les
+invariants en *Créer*) ; aucun test d'invariant ; *✓
+Commiter* sans commit préparé ; *Envoyer les réponses* sans question
+ouverte ; *Replier les fixups* sans commit `fixup!` ; *Ouvrir dans un
+worktree* déjà ouvert ; *Décharger* hors du robot d'un worktree ; *Valider
+et développer* tant que la note n'est pas rédigée (« Pas encore de note »),
+avec des questions ouvertes (« Répondre d'abord aux questions de la note »)
+ou la forme faite (« Déjà lancée : la forme est posée »), sauf pour
+reprendre après une question qui bloque (la dernière course : *Envoyer les
+réponses*). En *Créer*, l'étape PR suit l'état de la PR, qui ne
+fait que masquer (une demande juste après *Valider la feature* ne tombe pas
+sur un relevé en retard) : sans PR, *Valider la feature (ouvrir la PR)*
+seule ; ouverte (ou son état pas encore connu), *Diagnostiquer la CI* et
+*Release candidate* ; fusionnée, *PR mergée → revenir sur la base* et
+*Release officielle* ; fermée, aucune.
 Une action dont le skill tourne en sous-contexte (`context: fork`) sur
 *haiku*, *sonnet* ou *opus* propose aussi les deux autres (`models`, le
 conseillé : `model`) : on peut prendre plus léger (ou plus fort) pour cette
@@ -845,7 +885,7 @@ conversation ; note `0.9.0-actions-independantes.md`).
 3. **Invariants** — faite : aucune ligne « → invariant », ou des tests
    d'invariants dont chaque fichier est lu et chaque cas validé. Montre le
    résumé (cas, validés, refusés, modifiés depuis, avec un point d'attention,
-   à lire), l'alignement (`align.md`), puis chaque fichier : sa progression,
+   à lire), l'alignement (`align.md`, sans *Relancer*, F-93), puis chaque fichier : sa progression,
    *Ouvrir*, *Relire* (lu : refaire sa lecture) ; lu, une carte par cas —
    titre, pseudo-code en étapes `test "…":` / `given` / `when` / `then` /
    `and`, quel que soit le langage du test (coloré ; chaque `then` est une
@@ -861,10 +901,11 @@ conversation ; note `0.9.0-actions-independantes.md`).
    du test, vide au-delà de 200 000 caractères (rien de tout cela n'est
    alors montré). En tête : *Tout relire* (dès qu'un fichier
    est lu). Prochaine action : *Écrire les invariants
-   (rouges)* (d'après la note, ou le pseudo-code du champ de l'étape), *Lire en
+   (rouges), puis vérifier l'alignement* (d'après la note, ou le pseudo-code
+   du champ de l'étape ; l'alignement dans la même course, F-93), *Lire en
    pseudo-code* (les fichiers pas encore lus : une lecture est nommée par
    l'empreinte du fichier ; relire la remplace), *✓ Commiter* (un commit préparé), *Préparer le
-   commit* (des fichiers à commiter) ; aussi *Vérifier l'alignement*.
+   commit* (des fichiers à commiter).
 4. **Modules** — faite : chaque module de la Forme touché par un commit de la
    branche. Montre en tête le commit proposé (`commit.md` : le message tel
    qu'il sera commité, *✓ Commiter*, direct ou *via* l'agent, F-114 ; 💬) et la relecture du dernier diff
@@ -897,14 +938,17 @@ conversation ; note `0.9.0-actions-independantes.md`).
    review rendue, 💬 et *Appliquer* par remarque, *Tout appliquer* sur la
    carte (l'action `apply`, qui travaille : l'agent ; *Appliquer* lui donne
    la remarque, `{{text}}`, *Tout appliquer* rien : toutes ; ni l'un ni
-   l'autre ne prend le champ ; absents sans remarque en liste). Prochaine
-   action : *Lancer les vérifications*, *Ponytail review*, *Replier les
-   fixups*.
+   l'autre ne prend le champ ; absents sans remarque en liste ; pas de
+   *Relancer* ; sans sortie, une invitation sans bouton : elle part avec les
+   vérifications). Prochaine action : *Lancer les vérifications et la
+   ponytail review* (tant que `checks.json` ou `ponytail.md` manque, ou
+   qu'une vérification échoue), puis *Replier les fixups*.
 6. **PR** — faite : une PR pour la branche, lue par gh (F-112 ; sinon
    `pr.json`). Montre la PR (numéro, titre, base ← branche,
-   *Ouvrir ↗* dans le navigateur) et l'état de la CI (`ci.md`). *Valider la
-   feature (ouvrir la PR)* ; aussi *Diagnostiquer la CI*, *Release
-   candidate*, *PR mergée → revenir sur la base* (F-114), *Release officielle*.
+   *Ouvrir ↗* dans le navigateur) et l'état de la CI (`ci.md`). Ses actions
+   suivent l'état de la PR (F-99) : sans PR, *Valider la feature (ouvrir la
+   PR)* ; ouverte, *Diagnostiquer la CI* et *Release candidate* ; fusionnée,
+   *PR mergée → revenir sur la base* (F-114) et *Release officielle*.
 
 À l'étape Note et à l'étape Forme, l'agent n'étant pas sur Fable, une
 pastille *✦ Fable · élevé* (« plus cher ») l'y passe d'un clic, comme son
@@ -1016,24 +1060,34 @@ mécanique, les courses (F-115). *Guide* (par
 défaut) : le développeur valide la note, la forme et chaque cas des
 invariants ; l'étape en cours attend ses validations ; il lance les actions
 dans l'ordre qu'il veut, et l'orchestrateur ne lance ni n'arrête rien qu'il
-ne lui demande. *Vibe* : on donne la
-main à l'agent, le développeur teste et approuve à la fin ; les validations
-ne sont plus attendues (note, forme, et invariants dès qu'il y a des tests,
-faits sans ✓ ni lecture). *Tout dérouler* (*Créer* ; l'action mise en avant
-de l'étape en cours, F-93, en *Vibe* tant que la branche n'a pas de note) : la demande
-du champ du bandeau part au skill `vibe`, dans la conversation ; l'agent,
-l'**orchestrateur**, tient le rôle du développeur du
-guide et **enchaîne les actions de l'écran** par leurs demandes (F-115) —
-note, réponses aux questions qu'il tranche (`answers`), forme, invariants
-rouges, premier commit, modules (confiés à des agents Opus avec
-`ponytail`), vérifications et ponytail review, fixups, PR, release
-candidate si le projet en documente une —, une demande puis la fin de son
-tour, réveillé par l'avis de fin ; chaque action reste visible et
-arrêtable dans l'onglet *Actions*, et ce qui doit attendre part de
-soi-même. Il ne s'arrête que sur une
-question qui bloque (`questions.md`), ne tranche jamais *Garder* /
-*Annuler* (c'est à l'utilisateur), et le parcours se remplit au fil du
-relevé. Jamais : `git push --force`, fusionner la PR, publier une version
+ne lui demande. *Vibe* (*Créer* seulement : *Relire* n'a que l'écran du
+*Guide*) : on donne la main à l'agent, le développeur teste et approuve à la
+fin ; les validations ne sont plus attendues (note, forme, et invariants dès
+qu'il y a des tests, faits sans ✓ ni lecture). Son écran (F-92), en deux
+temps :
+1. **La note et ses questions**, sans orchestrateur : la demande dans le
+   champ de la zone Vibe, *Rédiger la note* (l'action `note`, sa course,
+   mise en avant tant que la branche n'a pas de note) ; ses questions vont
+   **toutes** à l'utilisateur (*Envoyer les réponses*) : personne ne les
+   tranche à sa place.
+2. ***Valider et développer*** (l'action `vibe`, mise en avant la note
+   rédigée sans question ouverte et la forme pas faite ; masquée la note
+   pas rédigée, avec des questions ouvertes, ou la forme faite sauf pour
+   reprendre après une question qui bloque, F-99) : sans texte, au skill `vibe`,
+   dans la conversation ; l'agent, l'**orchestrateur**, tient le rôle du
+   développeur du guide, reprend à la première étape pas faite et **enchaîne les actions de
+   l'écran** par leurs demandes (F-115) — forme, invariants rouges
+   (l'alignement compris), premier commit, modules (confiés à des agents
+   Opus avec `ponytail`), vérifications (la ponytail review comprise),
+   fixups, PR, CI, release candidate si le projet en documente une —, une
+   demande puis la fin de son tour, réveillé par l'avis de fin ; chaque
+   action reste visible et arrêtable dans l'onglet *Actions*, et ce qui
+   doit attendre part de soi-même. Rien n'est développé avant ce clic.
+
+L'orchestrateur ne s'arrête que sur une question qui bloque
+(`questions.md`), ne tranche aucune question de la note, ne lance ni
+`note` ni `answers`, ne tranche jamais *Garder* / *Annuler* (c'est à
+l'utilisateur), et le fil d'Ariane se remplit au fil du relevé. Jamais : `git push --force`, fusionner la PR, publier une version
 officielle, supprimer une version, un tag ou une branche.
 
 **F-104 Markdown** (la note, les sorties) : titres, paragraphes, listes et
@@ -1166,7 +1220,8 @@ existent (`gear-prompt-specs-to-feature-note`, `gear-commit-message`,
 instructions, sinon le guide du dépôt (`docs/dev_guide/`), sinon les leurs.
 `vibe` est la consigne d'enchaînement de l'orchestrateur (F-103) : il ne
 fait plus la feature dans un seul tour, il lance les actions par le
-protocole d'`actions`.
+protocole d'`actions`, à partir de la forme. `invariants` suit `aligner`
+dans sa course ; `verifier` demande `ponytail` (F-93).
 Un agent du plugin, Opus à effort élevé : `developpeur` (un module de la
 Forme, `ponytail` préchargé, rien de commité), lancé par `modules`. Aucun skill livré ne fait
 `git push --force` ni ne fusionne une PR ; une version, un tag, une release
@@ -1741,7 +1796,8 @@ Copier, erreurs ; mêmes relevés).
   comme par *Interrompre* (« Interrompu. »), les boutons se rallument.
 - **S-63** Pas de carte « Prochaine étape » : les actions de l'étape sont
   sous son titre, celle qui fait avancer en tête. Une carte de sortie
-  (alignement, ponytail review…) : *Relancer* la refait. *Relire* : étape PR,
+  (relecture du diff, vérifications…) : *Relancer* la refait ; l'alignement
+  et la ponytail review n'en ont pas. *Relire* : étape PR,
   *Décharger la PR* → le choix d'une PR revient. Une commande en
   arrière-plan : *⚙ Tâches* → l'onglet *Tâches (1)* à droite ;
   *Conversation* → le fil, à sa place.
@@ -1790,29 +1846,42 @@ Copier, erreurs ; mêmes relevés).
   vide, « en cours » et ⏹ à côté du bouton, *Actions (1)* ; pendant ce temps,
   une question dans le champ de la conversation → l'agent répond. *Écrire
   les invariants (rouges)* grisé « Une autre action est en cours » ; à
-  l'étape Revue, *Ponytail review* grisé « Une action modifie la branche ».
+  l'étape Revue, *Lancer les vérifications et la ponytail review* grisé
+  « Une action modifie la branche ».
   ⏹ → *arrêtée — à garder ou annuler*, les autres toujours grisées ;
   *Annuler* → la note revient telle qu'avant la course (`git diff` vide sur
   ce qu'elle avait touché), un autre fichier modifié à la main pendant ce
   temps reste modifié, *annulée*, les boutons se libèrent. Relancée puis *Garder*
-  → ses changements restent. *Lancer les vérifications* et *Ponytail
-  review* ensemble → deux lignes *en cours*. Une course finie → une ligne
+  → ses changements restent. *Lancer les vérifications et la ponytail
+  review* → deux lignes *en cours* (la ponytail review demandée par la
+  course des vérifications). Une course finie → une ligne
   « VibeCoder : « … » finie — … » dans le fil (après le tour en cours de la
   conversation, s'il y en a un) ; une course arrêtée → aucune. Mode
   *manuel* : la demande d'autorisation d'une course dans l'onglet
   *Actions*, *Autoriser* → elle reprend. *Nouvelle session* → l'onglet se
   vide.
-- **S-69** L'orchestrateur (F-115, F-103) : « Lance la ponytail review » →
-  `actions/ponytail.start`, la course part (onglet *Actions*), l'avis de fin
-  arrive ; « où en sont les actions ? » → il lit `actions.json` et répond.
+- **S-69** L'orchestrateur (F-115, F-103) : « Lance la relecture du diff »
+  → `actions/review-diff.start`, la course part (onglet *Actions*), l'avis
+  de fin arrive ; « où en sont les actions ? » → il lit `actions.json` et répond.
   Pendant *Poser la forme* (clic), « lance les vérifications » → *en
   attente* dans `actions.json` (`waiting`, avec la raison), puis part
   d'elle-même à la fin de la forme, sans qu'on redemande. « Arrête-la » →
   `.stop`, *arrêtée*, pas d'avis de fin. *Guide*, sans rien demander : il ne
-  lance rien. *Vibe*, *Tout dérouler* avec une petite demande → les actions
-  s'enchaînent une à une dans l'onglet *Actions* (note, réponses, forme,
-  invariants, …), la conversation libre entre deux ; ⏹ sur l'une d'elles
-  → elle attend *Garder* / *Annuler*, l'orchestrateur ne tranche pas.
+  lance rien. *Vibe* : le fil d'Ariane, sans clic, et la zone Vibe ; une
+  petite demande, *Rédiger la note* → la note et ses questions, sans
+  orchestrateur, pas de *Valider et développer* tant qu'une question est
+  ouverte ; les réponses envoyées, *Valider et développer* → les actions
+  s'enchaînent une à une dans l'onglet *Actions* (forme, invariants, …), la
+  conversation libre entre deux, aucune question de la note tranchée par
+  l'agent ; ⏹ sur l'une d'elles → elle attend *Garder* / *Annuler*,
+  l'orchestrateur ne tranche pas.
+- **S-70** Le parcours guidé, *Guide*, *Créer*, une branche sans note : pas
+  d'onglets d'étapes ; le parcours n'ouvre que la Note, les autres étapes
+  visibles sans clic, Ctrl+3 ne fait rien. Plus loin : ni *Vérifier
+  l'alignement* ni *Ponytail review* ; *✓ Commiter* seulement un commit
+  préparé ; l'étape PR sans PR : *Valider la feature* seule ; la PR ouverte :
+  *Diagnostiquer la CI* et *Release candidate* ; fusionnée : *PR mergée →
+  revenir sur la base* et *Release officielle*.
 
 ---
 
@@ -1848,7 +1917,7 @@ Copier, erreurs ; mêmes relevés).
   sous-contexte, ≈ 0,02 $ sur Haiku (≈ 25 000 jetons : le prompt de Claude
   Code et le skill ; SDK 0.3.285, Claude Code 2.1.285), quelle que soit la
   longueur de la conversation, bien davantage sur Opus à effort élevé ;
-  *Générer les modules restants*, *Tout dérouler*, les releases : longs et
+  *Générer les modules restants*, *Valider et développer*, les releases : longs et
   coûteux. Une lecture d'invariants n'est refaite que si le fichier change.
   Choisir un modèle plus léger pour une étape coûte moins, au prix de la
   qualité (`lire-invariants` sur Haiku a été écarté par le banc, F-106).

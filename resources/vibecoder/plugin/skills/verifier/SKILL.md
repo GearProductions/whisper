@@ -1,6 +1,6 @@
 ---
 name: verifier
-description: "Run the project's own verification commands — typecheck, tests, invariants, lint — and write the results to <out>/checks.json."
+description: "Ask the app for the ponytail review (<out>/actions/ponytail.start), then run the project's own verification commands — typecheck, tests, invariants, lint — and write the results to <out>/checks.json."
 argument-hint: "<lang> <out>"
 disable-model-invocation: true
 context: fork
@@ -12,6 +12,10 @@ allowed-tools: "Read, Glob, Grep, Write"
 # Checks — the project's own commands
 
 `$ARGUMENTS` = `<lang> <out>`. `lang`: the user's language, not used here — code-related work: the `detail` texts and your answer in English. `out`: absolute path of the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
+
+## First, the ponytail review
+
+Before any command, write `<out>/actions/ponytail.start` containing `{}` (the orchestrator's request, `${CLAUDE_SKILL_DIR}/../actions/SKILL.md`): the app starts the ponytail review in its own run, and both reads run together. Nothing else to do for it: don't wait for it, don't read `ponytail.md`.
 
 ## Which commands
 
@@ -36,4 +40,4 @@ A project in several parts (e.g. front and back) → one item per part and kind,
 - `time`: when the checks finished, in milliseconds since the epoch (`date +%s%3N`).
 - No command found → `{"items":[],"time":…}`, and say so.
 
-Valid JSON only. Change nothing else. Answer in English, one line: all green, the warnings, or the failures.
+Valid JSON only. Change nothing else (`actions/ponytail.start` aside). Answer in English, one line: all green, the warnings, or the failures.

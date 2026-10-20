@@ -1,7 +1,9 @@
 /** journey — le parcours, à gauche : les étapes (point plein : faite ;
  *  anneau qui pulse : en cours ; gris : à venir ; leurs faits en une ligne),
  *  reliées d'un trait, puis les commits de la branche (un `fixup!` en couleur
- *  d'attention). Un clic ouvre l'étape ; un clic sur un commit le déplie :
+ *  d'attention). Un clic ouvre l'étape, si elle est ouverte (VibeStep.open,
+ *  dit par le principal) ; une étape pas ouverte : sans clic, son état en
+ *  titre. Un clic sur un commit le déplie :
  *  Voir le diff (dans l'éditeur, c<rang>), GitHub ↗ (sa page, gh:c<rang>) et
  *  ses fichiers, chacun ouvrable (c<rang>/<i>), sans IA.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
@@ -20,8 +22,8 @@ export function Journey({ view, t, selected, onPick, onOpen }: Props) {
       <ol className="vc-steps">
         {view.steps.map((s, i) => (
           <li key={s.id} data-status={s.status}>
-            <button type="button" className="vc-jstep" aria-current={s.id === selected ? 'step' : undefined} onClick={() => onPick(s.id)}
-              title={`${t.steps[s.id]} — ${t.stepStatus[s.status]}${i < 6 ? ` (${t.shortcut(i + 1)})` : ''}`}>
+            <button type="button" className="vc-jstep" aria-current={s.id === selected ? 'step' : undefined} disabled={!s.open} onClick={() => onPick(s.id)}
+              title={`${t.steps[s.id]} — ${t.stepStatus[s.status]}${!s.open ? ` · ${t.notOpen}` : i < 6 ? ` (${t.shortcut(i + 1)})` : ''}`}>
               <span className="vc-jdot" />
               <span className="vc-jlabel">{t.steps[s.id]}</span>
               <span className="vc-jfacts">{s.facts}</span>

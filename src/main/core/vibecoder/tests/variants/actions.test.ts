@@ -320,7 +320,7 @@ describe('forkedModel : un skill en sous-contexte, dont on peut changer le modè
 describe('buildMessage : un autre modèle que le conseillé', () => {
   const shown = (models: string[], model: string | null) => ({
     id: 'essai', step: null, label: 'Essai', hint: '', who: 'opus', models, model, kind: 'send' as const, needs: 'none' as const,
-    usesText: false, primary: false, disabled: null, running: false,
+    usesText: false, primary: false, disabled: null, hidden: false, running: false,
   });
   const withAction = (models = SKILL_MODELS, model: string | null = 'opus') => ({ ...ctx, view: { ...view, actions: [shown(models, model)] } });
   const RELIRE = '/vibecoder:relire {{lang}} {{out}} {{commit}}';

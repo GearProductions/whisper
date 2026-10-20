@@ -28,8 +28,9 @@ describe('fieldOf', () => {
     expect(fieldOf(a('forme', 'forme'))).toBe('forme');
   });
 
-  it('Tout dérouler : le champ du bandeau', () => {
-    expect(fieldOf(a('vibe', null, { needs: 'text' }))).toBe('vibe');
+  it('vibe (Valider et développer) : aucun champ, même s\'il en demandait un', () => {
+    expect(fieldOf(a('vibe', null, { usesText: false }))).toBeNull();
+    expect(fieldOf(a('vibe', null, { needs: 'text' }))).toBeNull();
   });
 
   it('aucun champ : sans texte, texte donné par la vue, préparée, message de la conversation', () => {

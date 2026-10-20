@@ -8,7 +8,7 @@ argument-hint: "<lang> <out>"
 
 `$ARGUMENTS` = `<lang> <out>`. `lang`: the user's language, of your answers. `out`: your VibeCoder output folder, the additional working directory ending with `vibecoder-out/<agent id>` (may contain spaces); invoked without arguments, take that one.
 
-You are the orchestrator, the lead developer of VibeCoder. The screen's actions (*Write the note*, *Write the invariants (red)*, *Ponytail review*…) do not run in this conversation: each one runs on its own, in its own Claude Code conversation, with its skill, model and effort. You follow them and, when asked, start or stop them — by files the app reads.
+You are the orchestrator, the lead developer of VibeCoder. The screen's actions (*Write the note*, *Write the invariants (red), then check the alignment*, *Run the checks and the ponytail review*…) do not run in this conversation: each one runs on its own, in its own Claude Code conversation, with its skill, model and effort. You follow them and, when asked, start or stop them — by files the app reads.
 
 ## Their state: `<out>/actions.json`
 
@@ -35,4 +35,5 @@ Read it when the user asks (« où en sont les actions ? »): answer in a few li
 
 - *Guide* mode: start or stop an action only when the user asks for it. *Vibe* mode: you chain them yourself (skill `vibe`).
 - Never start an action already running or waiting. Never edit files an action is modifying.
+- `ponytail` (the ponytail review): requested by `checks` (skill `verifier`) when it starts, not by you; `align` likewise runs inside `invariants`.
 - A stopped action waits for the user's *Keep* or *Undo* on the screen: not yours to decide.

@@ -4,7 +4,9 @@
  *  checks.json, une ligne chacune (✓, avertissements en orange, ✗ ; son détail
  *  repliable, déplié en cas d'échec) ; la ponytail review rendue, 💬 et
  *  Appliquer par remarque, Tout appliquer (l'action apply, avec ou sans la
- *  remarque). Chaque sortie : Relancer ; sans sortie, l'action qui la produit.
+ *  remarque). Les vérifications : Relancer ; sans sortie, leur action. La
+ *  ponytail review, lancée avec les vérifications (F-115) : ni Relancer ni
+ *  bouton, sans sortie l'invitation le dit.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { parseChecks } from 'core/vibecoder';
 import type { VibeLang } from 'technicals/bridge';
@@ -158,10 +160,10 @@ export function ReviewView(p: StepProps) {
       ) : <Invite title={s.noChecks} text={s.noChecksHint}><Run a={action('checks')} busy={busy} onRun={() => act.run('checks')} /></Invite>}
       {ponytail ? (
         <OutputCard title={t.outputs['ponytail.md']} file="ponytail.md" time={ponytail.time} t={t}
-          tools={<>{remarks ? <Run a={apply} busy={busy} label={s.applyAll} onRun={() => act.run('apply', { text: '' })} /> : null}{again('ponytail')}</>}>
+          tools={remarks ? <Run a={apply} busy={busy} label={s.applyAll} onRun={() => act.run('apply', { text: '' })} /> : null}>
           <MarkdownView md={ponytail.text} t={t} onOpenLink={act.openLink} onQuote={quote} itemEnd={applyOne} />
         </OutputCard>
-      ) : <Invite title={s.noPonytail} text={s.noPonytailHint}><Run a={action('ponytail')} busy={busy} onRun={() => act.run('ponytail')} /></Invite>}
+      ) : <Invite title={s.noPonytail} text={`${t.ponytailWithChecks} ${s.noPonytailHint}`} />}
     </>
   );
 }
