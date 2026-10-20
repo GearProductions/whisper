@@ -12,7 +12,7 @@ const fake = vi.hoisted(() => ({ userData: '', edited: [] as string[] }));
 vi.mock('electron', () => ({ app: { getPath: () => fake.userData } }));
 vi.mock('technicals/editor', () => ({ findEditor: () => ({ openFile: (file: string) => { fake.edited.push(file); } }) }));
 
-const { processAction, processView, projectFile, stopProcesses } = await import('app/controllers/processes');
+const { processAction, processView, projectFile, promptPrefix, stopProcesses } = await import('app/controllers/processes');
 
 const until = async (ok: () => boolean, ms = 8000) => {
   for (const end = Date.now() + ms; !ok() && Date.now() < end;) await new Promise((r) => setTimeout(r, 50));
@@ -98,5 +98,14 @@ describe('le fichier du projet', () => {
 
   it('dans userData/vibecoder/projets/, d’après le dossier de l’agent', () => {
     expect(path.dirname(projectFile(agent.dir))).toBe(path.join(fake.userData, 'vibecoder', 'projets'));
+  });
+
+  it('promptPrefix : le préfixe vu de l’agent — vide dans sa box, celui du fichier sinon', () => {
+    const box = withDefaults({ agentCommand: 'distrobox enter dev -- mise exec -- claude' });
+    expect(promptPrefix(agent, box)).toBe('');
+    expect(promptPrefix(agent, withDefaults({ ...box, vibeCommandPrefix: 'distrobox enter dev -- mise exec --' }))).toBe('mise exec --');
+    fs.mkdirSync(path.dirname(projectFile(agent.dir)), { recursive: true });
+    fs.writeFileSync(projectFile(agent.dir), JSON.stringify({ commands: [], prefix: 'toolbox run' }));
+    expect(promptPrefix(agent, box)).toBe('toolbox run');
   });
 });

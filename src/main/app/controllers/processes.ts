@@ -3,7 +3,8 @@
  *  (userData/vibecoder/projets/<slug du dossier>.json, propre à la machine),
  *  lancées par l'appli (core/runner : par leur rang, dans le shell du fichier,
  *  après le préfixe — celui du fichier, du réglage, ou la box de l'agent —,
- *  le même pour gh : agentPrefix ; technicals/process : détachées, marquées, leur
+ *  le même pour gh : agentPrefix ; vu de l'agent, sans la box où il tourne
+ *  déjà, pour le message d'une action : promptPrefix ; technicals/process : détachées, marquées, leur
  *  journal dans <sorties>/run/<nom>.log). Au relevé : la proposition du skill
  *  lancement (<sorties>/lancement.json) devient le fichier du projet s'il
  *  n'existe pas — jamais par-dessus —, les demandes de l'agent
@@ -21,7 +22,7 @@ import path from 'node:path';
 import type { VibeProcess } from 'shared/bridge';
 import type { AgentConfig } from 'core/agents';
 import type { Config } from 'core/config';
-import { commandAt, commandPrefix, logTail, parseProject, projectSlug, projectText, requestsOf, type Project } from 'core/runner';
+import { agentSidePrefix, commandAt, commandPrefix, logTail, parseProject, projectSlug, projectText, requestsOf, type Project } from 'core/runner';
 import { findEditor } from 'technicals/editor';
 import { createProcesses, readTail, writeNew } from 'technicals/process';
 import { vibeDir, vibeOutDir } from 'app/settings';
@@ -52,9 +53,16 @@ function launch(agent: AgentConfig, cfg: Config, p: Project | null, index: numbe
   if (c) procs.start(key(agent.id, c.name), { argv: c.argv, cwd: path.resolve(agent.dir, c.cwd ?? '.'), log: logOf(agent.id, c.name) });
 }
 
+const projectOf = (agent: AgentConfig) => parseProject(readText(projectFile(agent.dir)));
+
 // Ce qui précède gh pour cet agent : comme ses commandes (core/runner, commandPrefix).
 export const agentPrefix = (agent: AgentConfig, cfg: Config) =>
-  commandPrefix(parseProject(readText(projectFile(agent.dir))), cfg.vibeCommandPrefix, cfg.agentCommand);
+  commandPrefix(projectOf(agent), cfg.vibeCommandPrefix, cfg.agentCommand);
+
+// Le préfixe vu de l'agent, pour le message d'une action ({{prefix}}) : les
+// mêmes mots sans la box où il tourne déjà (agentSidePrefix), joints par des espaces.
+export const promptPrefix = (agent: AgentConfig, cfg: Config) =>
+  agentSidePrefix(projectOf(agent), cfg.vibeCommandPrefix, cfg.agentCommand).join(' ');
 
 // Au relevé : la proposition adoptée, les demandes de l'agent, l'état de chaque commande.
 export function processView(agent: AgentConfig, cfg: Config): { processes: VibeProcess[]; projectFile: boolean } {
