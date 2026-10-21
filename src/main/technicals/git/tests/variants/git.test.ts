@@ -171,3 +171,29 @@ describe('gitRun : seulement GIT_READ', () => {
     expect(git(dir, 'rev-parse', 'HEAD')).toBe(before);
   });
 });
+
+describe('gitRun : worktree list, et seulement list', () => {
+  it('worktree list --porcelain -z : la copie principale et ses worktrees', async () => {
+    const dir = repo();
+    const wt = path.join(tmp, `worktree-${n++}`);
+    git(dir, 'worktree', 'add', '-q', '-b', 'feat/y', wt);
+    const out = await gitRun(dir)(['worktree', 'list', '--porcelain', '-z']);
+    const worktrees = (out ?? '').split('\0').filter((l) => l.startsWith('worktree ')).map((l) => fs.realpathSync(l.slice(9)));
+    expect(worktrees).toEqual([fs.realpathSync(dir), fs.realpathSync(wt)]);
+    expect(out).toContain('branch refs/heads/feat/y');
+  });
+
+  it('worktree add et remove : null, sans lancer git', async () => {
+    const dir = repo();
+    const wt = path.join(tmp, `worktree-${n++}`);
+    expect(await gitRun(dir)(['worktree', 'add', wt])).toBeNull();
+    expect(fs.existsSync(wt)).toBe(false);
+    git(dir, 'worktree', 'add', '-q', '-b', 'feat/z', wt);
+    expect(await gitRun(dir)(['worktree', 'remove', '--force', wt])).toBeNull();
+    expect(fs.existsSync(wt)).toBe(true);
+  });
+
+  it('worktree sans sous-commande : null', async () => {
+    expect(await gitRun(repo())(['worktree'])).toBeNull();
+  });
+});
