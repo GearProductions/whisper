@@ -1690,6 +1690,9 @@ bancs de comparaison.
   partagés) : demandée par la page là où elle tourne ailleurs, elle n'est
   lancée qu'une fois arrêtée là-bas, sur *Arrêter et lancer ici* ; *Non* ne
   lance rien ; une demande de l'agent (`run/<nom>.restart`) ne la lance pas.
+  La règle garde les lancements : des agents qui font déjà tourner la même
+  commande et qu'un rattachement réunit ensuite (un agent ajouté sur la
+  copie principale) la gardent chacun, rien n'est arrêté d'office.
 
 ### Système et code
 
@@ -2024,6 +2027,9 @@ Copier, erreurs ; mêmes relevés).
   reste, en lien s'il est en `http(s)`) ; pas d'🕘 Historique (revenir à la
   conversation) ; une revue de PR est un commentaire d'ensemble, pas de
   commentaire sur une ligne du diff.
+- Familles (F-51) : une copie principale dont le `.git` est un lien, ou
+  créée avec `--separate-git-dir`, n'est pas reconnue comme telle : son
+  agent n'a ni famille ni sous-menu *Worktrees*.
 - VibeCoder, *Relire dans un worktree* (F-110) : le robot temporaire arrive
   et part au relevé, donc seulement quand un agent est en VibeCoder dans le
   panneau ; la demande d'*Ouvrir dans un worktree* est gardée en mémoire —

@@ -23,7 +23,8 @@
  *  (app/lifecycle) ; retirer un agent, ses commandes (I-47). Un échec ne bloque pas le relevé (I-29).
  *  Ne connaît pas : la page (seulement ses demandes), les fenêtres (la boîte
  *  de dialogue sans parent), git (la branche lue sur le disque).
- *  Utilisé par : controllers/vibecoder, controllers/agents, app/lifecycle. */
+ *  Utilisé par : controllers/vibecoder, controllers/agents (et readFile), app/menus
+ *  (readFile), app/lifecycle. */
 import fs from 'node:fs';
 import path from 'node:path';
 import type { VibeProcess } from 'shared/bridge';
@@ -35,7 +36,6 @@ import { agentSidePrefix, commandAt, commandPrefix, logTail, parseProject, proje
 import { findEditor } from 'technicals/editor';
 import { createProcesses, readTail, writeNew } from 'technicals/process';
 import { vibeDir, vibeOutDir } from 'app/settings';
-import { readFile } from './agents';
 
 const LOG_BYTES = 32 * 1024;   // la fin du journal lue à chaque relevé…
 const LOG_LINES = 200;         // … et ses dernières lignes, à l'écran
@@ -61,6 +61,14 @@ function launch(agent: AgentConfig, cfg: Config, p: Project | null, index: numbe
 
 // Le fichier du projet d'un agent : celui de sa famille (familyOwner).
 const familyFile = (agent: AgentConfig, cfg: Config) => projectFile(familyOwner(agent, agentList(cfg)).dir);
+// Un fichier ordinaire (pas un lien) d'au plus 1 Mo, en texte ; null sinon.
+export function readFile(file: string) {
+  try {
+    const st = fs.lstatSync(file);
+    return st.isFile() && st.size <= 1024 * 1024 ? fs.readFileSync(file, 'utf8') : null;
+  } catch { return null; }
+}
+
 const projectOf = (agent: AgentConfig, cfg: Config) => parseProject(readFile(familyFile(agent, cfg)));
 
 // Ce qui précède gh pour cet agent : comme ses commandes (core/runner, commandPrefix).

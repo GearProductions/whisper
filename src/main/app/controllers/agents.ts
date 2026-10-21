@@ -24,7 +24,7 @@ import { agentInstructions, journalFile, loadConfig, saveConfig, updateAgent, vi
 import { state } from 'app/state';
 import { applySize, bubbleShown, conversationShown, inConversation, openConversation, sendToIcon } from 'app/windows';
 import { conversationProgress, refreshConversation } from './conversation';
-import { stopAgentProcesses } from './processes';
+import { readFile, stopAgentProcesses } from './processes';
 import { closeRuns, runsFollow } from './runs';
 
 const sdk = loadSdk as unknown as () => Promise<Sdk>;
@@ -53,14 +53,6 @@ export function ensureFolderColors() {
 // L'agent sélectionné : celui qui reçoit la dictée, celui du panneau.
 export function selectAgent(id: string | null) {
   saveConfig({ agentSelected: id });
-}
-
-// Un fichier ordinaire (pas un lien) d'au plus 1 Mo, en texte ; null sinon.
-export function readFile(file: string) {
-  try {
-    const st = fs.lstatSync(file);
-    return st.isFile() && st.size <= 1024 * 1024 ? fs.readFileSync(file, 'utf8') : null;
-  } catch { return null; }
 }
 
 // État des robots pour la page de l'icône (par famille), et taille de la fenêtre.
