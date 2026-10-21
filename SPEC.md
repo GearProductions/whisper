@@ -55,12 +55,13 @@ des processus.
 |---|---|
 | `app/lifecycle` | démarrage (une instance, aucun agent sélectionné, permissions), sortie (dont les processus du projet, F-111) |
 | `app/windows` | les trois fenêtres : créer, placer, montrer (icône, bulle, panneau) |
-| `app/controllers` | dictée (coupures, transcription, destination, modèle), lecture, agents, contenu du panneau, VibeCoder (`vibecoder.ts` : relevé, actions, réglages, validations, brouillon de revue, fichier à ouvrir ; `processes.ts` : les commandes du projet, F-111 ; `runs.ts` : les courses — lancées, suivies, arrêtées, gardées ou annulées —, leur avis de fin à la conversation, les demandes de l'orchestrateur, `actions.json`, F-115) |
+| `app/controllers` | dictée (coupures, transcription, destination, modèle), lecture, agents, familles (`worktrees.ts` : le rattachement par git, *Ouvrir un agent ici*, le robot d'une PR, F-51, F-110), contenu du panneau, VibeCoder (`vibecoder.ts` : relevé, actions, réglages, validations, brouillon de revue, fichier à ouvrir ; `processes.ts` : les commandes du projet, F-111 ; `runs.ts` : les courses — lancées, suivies, arrêtées, gardées ou annulées —, leur avis de fin à la conversation, les demandes de l'orchestrateur, `actions.json`, F-115) |
 | `app/menus` | menus de l'icône, des robots, du « + », du trombone |
 | `app/ipc` | une table de gestionnaires par fenêtre, écoutée par `technicals/ipc` |
 | `core/config` | réglages, démarrage, dossiers favoris et couleurs, confiance |
 | `core/dictation` | transcription d'une ligne, destination, collage et presse-papiers |
 | `core/sound` | couper et rétablir ce qu'on a coupé |
+| `core/family` | les familles d'agents sans Electron, git ni disque (passés) : le `parent` enregistré (`agentParent`, l'ancien `temp` compris), l'enfant créé (`childAgent`), la tête et les groupes affichés (`familyHead`, `familyGroups`), les rattachements d'après git (`familyLinks`, `childOf`, I-41), les worktrees (`parseWorktrees`, `branchOf`), le fichier du projet et où tourne une commande, par le `parent` enregistré (`familyOwner`, `heldBy`, I-47) |
 | `core/agents` | processus (un par entrée : l'agent, et chaque course `<agent>~<clé>`, F-115), tours, retour en arrière des fichiers d'une entrée (`rewind`, I-45), tâches de fond, file d'autorisations, interruption, sonde, transcriptions, sessions |
 | `core/conversation` | actions et demandes d'autorisation écrites, pièces jointes, tâches de fond vues par le volet |
 | `core/guards` | permissions des pages, liens, fichiers montrés |
@@ -68,7 +69,7 @@ des processus.
 | `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier ou un commit désigné par son id (`safePath`, `itemPath`, `itemCommit`), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`, `forkedModel`), le parcours (`vibeView`), les sorties des skills, les fichiers par défaut (`syncDefaults`) et les variantes des skills (`skillVariants`), les validations et brouillons de revue, les courses (`runs` : `ownRun`, `runKey`, la règle `blockedBy`, `actions.json`, l'avis de fin, `parseRequest`, F-115) |
 | `core/runner` | les commandes du projet (F-111) : le fichier du projet lu (`parseProject`), une commande par son rang (`commandAt` : shell du fichier, préfixe `commandPrefix` — celui du fichier, du réglage, ou la box de l'agent, le même pour `gh`), les demandes de l'agent (`requestsOf`), la fin d'un journal (I-42) |
 | `technicals/process` | les processus lancés pour l'utilisateur : détachés, marqués dans leur environnement, arrêtés avec ce qu'ils ont lancé (SIGTERM, SIGKILL après 5 s), leur journal ; `writeNew` (I-43) |
-| `technicals/git` | git en lecture seule (`gitRun`, `gitReader`, `GIT_READ`) : les faits d'une branche ou d'une PR chargée, un fichier à un ref, un commit et son diff (I-39) |
+| `technicals/git` | git en lecture seule (`gitRun`, `gitReader`, `GIT_READ`, plus `worktree list`) : les faits d'une branche ou d'une PR chargée, un fichier à un ref, un commit et son diff (I-39) |
 | `technicals/github` | gh en lecture seule, derrière le préfixe (`ghRun`, `githubReader`, `GH_READ`) : la PR d'une branche, les PR à relire, l'état d'une PR (F-112, I-39) |
 | `technicals/direct` | les actions directes (F-114, I-39) : `directRunner` → `commit`, `publish`, `loadPr`, `toBase`, une liste fermée de commandes (`DIRECT_GIT`, `DIRECT_GH`), 60 s, `direct.log` |
 | `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `paste`, `windows-helper`, `pipewire`, `clipboard`, `selection`, `pocket-tts`, `claude`, `editor` (un dossier, ou un fichier de VibeCoder, à une ligne), `journal`, `images`, `paths`, `config-file` |
@@ -294,8 +295,27 @@ reçoit que l'ordre `tts:speakReply`).
 défaut). Un robot par agent à droite de l'icône, puis « + ».
 
 **F-51 Un agent = un dossier** (un seul agent par dossier) : `{ id, dir, name,
-model, effort, mode, sessionId, contextWindow }`, et pour VibeCoder `view`,
-`vibe`, `temp` (§ 9). Nom = nom du dossier, modifiable dans `config.json`.
+model, effort, mode, sessionId, contextWindow }`, `parent` (ci-dessous), et
+pour VibeCoder `view`, `vibe` (§ 9). Nom = nom du dossier, modifiable dans
+`config.json`.
+
+**Familles** : les agents d'un même dépôt git. Le **parent** est l'agent à la
+racine de la copie principale ; un **enfant**, un agent à la racine d'un
+autre worktree du même dépôt (même `git rev-parse --git-common-dir`, résolu ;
+un sous-dossier n'est jamais enfant, I-41). Git le reconnaît au lancement,
+après « + » et à *Ouvrir un agent ici* (F-56) — pas le robot d'une PR, lié
+à sa fiche (F-110) ; il est retenu dans
+`agents[].parent` (§ 9), qui survit au redémarrage : l'affichage, le menu et
+les commandes du projet (F-111) ne lisent que lui. Un enfant est un agent
+ordinaire (conversation, éditeur, VibeCoder) ; il s'affiche **sous** son
+parent, moitié plus petit qu'un robot, avec une pastille : la branche de son
+dossier (lue dans `.git`), ou « PR #n » (F-110) ; deux enfants par place, la
+fenêtre de l'icône s'allonge d'une courte rangée dès qu'un enfant s'affiche.
+Il s'affiche de la couleur du parent ; né d'*Ouvrir un agent ici* ou d'une
+PR, son dossier la prend aussi. Un
+enfant sans PR ne part qu'à *Retirer* ; retirer le parent garde ses enfants
+(des robots ordinaires, `parent` gardé), sauf le robot d'une PR, qui part
+avec lui (F-110).
 
 **F-52 « + »** : *Nouvel agent dans un dossier favori* (dossiers déjà choisis
 sans agent), *Choisir un autre dossier…*, *Oublier un dossier favori* ;
@@ -327,11 +347,19 @@ droit ; grisé sans origine GitHub) ; *Ouvrir dans l'éditeur (zed)*
 (`editorCommand`, sinon le premier trouvé parmi zed, code, cursor, codium,
 dans une nouvelle fenêtre ; grisé sans éditeur) ; *◧ Ouvrir VibeCoder*, ou,
 l'agent y étant, *💬 Revenir à la conversation* (F-91) ; *✎ Écrire un message…*
-(panneau + focus du champ) ; couleur du dossier ; modèle (défaut, fable, opus,
+(panneau + focus du champ) ; couleur du dossier (pas pour un enfant : celle
+de son parent) ; modèle (défaut, fable, opus,
 sonnet, haiku) ; effort (défaut, low → max) ; mode (manuel, accepter les
 modifications, auto, plan) ; *Dernier échange* ; *⤢ Conversation complète* ;
 *Interrompre* (au travail) ; *Nouvelle session* (oublie la session) ; *Retirer*
-(le dossier reste favori).
+(ses commandes lancées s'arrêtent, I-47 ; le dossier reste favori). Pour un
+agent sans parent à la racine d'un dépôt,
+le sous-menu *Worktrees* : les worktrees du dépôt sans agent (`git worktree
+list`, relu à chaque clic droit ; git sans réponse en 1 s : pas de
+sous-menu), « <branche> — <dossier court> » (détaché :
+le nom du dossier), chacun avec *Ouvrir un agent ici* — un enfant (F-51) nommé
+par sa branche, après la question de confiance pour un dossier jamais choisi
+(I-23, I-41) ; aucun : « Aucun worktree sans agent », grisé.
 
 **F-57 Mode et modèle changés en cours de tour ou entre deux tours**
 s'appliquent aussitôt, sans relancer le processus (F-59) ;
@@ -1051,7 +1079,8 @@ la branche de la PR (ou `pr-<n>`), le prépare comme le projet le dit
 (dépendances, fichiers copiés), et l'inscrit en dernier dans
 `pr-<n>-worktree.json` (`{ dir, branch }`). Pendant ce temps : « Création du
 worktree en cours… ». La fiche arrivée, l'appli ajoute un **robot
-temporaire** « PR #n » sur ce dossier (`agents[].temp`, § 9 : le modèle,
+temporaire** « PR #n » sur ce dossier, un enfant de l'agent du dépôt
+(F-51) avec sa PR (`agents[].parent` `{ id, pr }`, § 9 : le modèle,
 l'effort, le mode et l'autonomie de l'agent du dépôt, en VibeCoder, *Relire*,
 la PR suivie, sa fiche et son brouillon de revue repris) — seulement après la
 question de confiance, toujours posée pour un worktree de PR (ses réglages
@@ -1064,8 +1093,9 @@ worktree est à lui ; skill `retirer-worktree`, haiku · faible), qui fait
 `git worktree remove` — refusé s'il reste des modifications, et il le dit —
 puis supprime la fiche ; la fiche partie, l'appli retire le robot (pas au
 travail) : son brouillon de revue revient à l'agent du dépôt, son dossier
-quitte les favoris, le panneau passe à l'agent du dépôt. *Retirer* le robot
-(clic droit) oublie aussi son dossier. La relecture sans worktree
+quitte les favoris, le panneau passe à l'agent du dépôt ; de même, au
+relevé, l'agent du dépôt retiré. *Retirer* le robot (clic droit) oublie
+aussi son dossier. La relecture sans worktree
 (`refs/vibecoder/pr/<n>`) reste la même.
 
 **F-102 Validations** : ✓, ✗ ou oublier, sur la note, sa Forme, un cas de
@@ -1167,6 +1197,15 @@ la fin ; dépliable ; *Journal complet* l'ouvre dans l'éditeur).
   qu'il appelle de lui-même) et demande l'arrêt ou la relance par un fichier
   vide, `<sorties>/run/<nom>.stop` ou `.restart`, que l'appli exécute puis
   retire au relevé — pour un nom du fichier seulement (I-42).
+- **Famille** (F-51) : un enfant reprend le fichier du projet de son parent
+  (lu, proposition adoptée, *Modifier les commandes* ; le parent retiré, ses
+  enfants restent une famille, avec le fichier du premier d'entre eux) et lance ses commandes
+  dans **son** dossier (`cwd` relatif à lui). Une commande ne tourne qu'à un
+  endroit de la famille (ports et base partagés, I-47) : *Lancer* ou
+  *Relancer* là où elle tourne ailleurs demande « <nom> tourne dans
+  <branche> : l'arrêter et le lancer ici ? » (*Arrêter et lancer ici* :
+  arrêtée là-bas, puis lancée ici ; *Non* : rien) ; un `.restart` de l'agent
+  pour une commande qui tourne ailleurs : pas lancée.
 - **Quitter l'appli** arrête tout ce qu'elle a lancé (F-81, I-43).
 
 **F-112 GitHub sans IA** : l'appli lit elle-même trois faits de GitHub par
@@ -1366,13 +1405,16 @@ puis le dossier ouvert, F-107) ; Ouvrir le dossier whisper ; Modifier la configu
 Dans `agents`, pour VibeCoder : `view` (`vibecoder` ; absent : la
 conversation) et `vibe` `{ flow, autonomy, pr }` — `flow` `create` (défaut)
 ou `review`, `autonomy` `guide` (défaut) ou `vibe`, `pr` la PR suivie (un
-entier positif, sinon `null`) ; une valeur inconnue prend le défaut. Le
-robot d'une PR ouverte dans un worktree porte `temp` `{ parent, pr }`
-(l'agent du dépôt et la PR, F-110) ; mal formé, c'est un agent ordinaire.
+entier positif, sinon `null`) ; une valeur inconnue prend le défaut. Un
+enfant (F-51) porte `parent` `{ id, pr? }` : l'agent du dépôt, et pour le
+robot d'une PR ouverte dans un worktree, la PR (F-110) ; mal formé, c'est un
+agent ordinaire. L'ancien `temp` `{ parent, pr }` se lit comme `parent`, et
+devient `parent` au lancement.
 
 Relue à chaque usage (une retouche à la main prend effet sans relancer, sauf
 `size`). Clés inconnues ignorées (ex. l'ancien `speakEngine`). Anciens formats
-tolérés : `agentFolders` en chemins seuls, couleur portée par l'agent.
+tolérés : `agentFolders` en chemins seuls, couleur portée par l'agent,
+`temp` (ci-dessus).
 
 ## 10. Cycle de vie
 
@@ -1418,7 +1460,9 @@ I-42, I-43 : `src/main/core/runner/tests/invariants/runner.test.ts`,
 principal, git réel, SDK factice) ; I-45 :
 `src/main/core/agents/tests/invariants/rewind.test.ts` (ce que l'appli
 demande à Claude Code) et le dernier cas de `runs.test.ts` ; I-46 :
-`src/main/core/vibecoder/tests/invariants/checks.test.ts`.
+`src/main/core/vibecoder/tests/invariants/checks.test.ts` ; I-41, I-47 :
+`src/main/app/controllers/tests/invariants/worktree.test.ts`,
+`family-commands.test.ts` (sur le vrai principal, git réel).
 Les autres (focus, fenêtres, I-1, I-18, I-22, I-28) : scénarios du § 13 et
 bancs de comparaison.
 
@@ -1583,7 +1627,8 @@ bancs de comparaison.
   une PR est un **entier positif** ; aucun texte d'une page n'en devient un
   argument. Et git lancé sans shell
   (I-27), seulement pour une liste fermée de sous-commandes en lecture
-  (`GIT_READ` : `rev-parse`, `status`, `diff`, `log`, `show`), sans verrou
+  (`GIT_READ` : `rev-parse`, `status`, `diff`, `log`, `show` ; et
+  `worktree list`, seul de ses sous-commandes), sans verrou
   (`--no-optional-locks` : `status` ne réécrit pas l'index), sans programme
   externe (`--no-ext-diff`, `--no-textconv`). Un ref ou un chemin venu
   d'ailleurs ne devient **jamais une option** : refusé sans lancer git s'il
@@ -1596,15 +1641,20 @@ bancs de comparaison.
   `http(s)` — une balise reste du texte, un lien `javascript:`, `data:`,
   `file:`, `vbscript:` ou `//hôte` n'est pas un lien —, ouverts dans le
   navigateur (I-21).
-- **I-41** Le robot temporaire d'une PR (F-110) ne naît que de la fiche
-  `pr-<n>-worktree.json` que le skill a écrite **dans les sorties de l'agent
-  du dépôt** (un fichier, pas un lien), après une demande de l'écran pour
-  cette PR, si son `dir` est un chemin absolu, un dossier existant, la
-  **racine d'un worktree du même dépôt** (même `git rev-parse
-  --git-common-dir`, résolu) autre que le dossier de l'agent du dépôt, sans
-  agent ; et seulement après la question de confiance **acceptée**, posée à
-  chaque fois (I-23). Aucune page ne donne de dossier : l'écran ne peut que
-  demander d'afficher ou de proposer le robot de la PR suivie.
+- **I-41** Un enfant (F-51) ne naît que sur la **racine d'un worktree du
+  même dépôt** (même `git rev-parse --git-common-dir`, résolu ; jamais un
+  sous-dossier, un fichier, un chemin relatif ni un autre dépôt) autre que la
+  copie de son parent, **sans agent**, un dossier existant ; et seulement
+  après la question de confiance **acceptée** (I-23). Trois naissances : le
+  robot d'une PR (F-110), de la seule fiche `pr-<n>-worktree.json` que le
+  skill a écrite **dans les sorties de l'agent du dépôt** (un fichier, pas un
+  lien, `dir` absolu), après une demande de l'écran pour cette PR, la question
+  posée à chaque fois ; *Ouvrir un agent ici* (F-56), parmi les worktrees que
+  git liste, la question pour un dossier jamais choisi, le tout revérifié
+  après elle (worktree retiré, agent arrivé : rien) ; le rattachement par git
+  d'un agent existant (au lancement, après « + »). Aucune page ne donne de
+  dossier : l'écran ne peut que demander d'afficher ou de proposer le robot
+  de la PR suivie.
 - **I-42** VibeCoder ne lance **que les commandes du fichier du projet**
   (F-111) : une page désigne une commande par son **rang** (un entier du
   fichier), jamais par un texte ; un rang hors du fichier, en texte, négatif
@@ -1635,6 +1685,11 @@ bancs de comparaison.
   dernière course `checks`** (ou sans `time`) ne compte pas : ignoré partout
   (sorties à l'écran, prochaine action, étape Revue, liste de contrôle),
   comme absent. Sans course `checks` connue (appli relancée), il compte.
+- **I-47** Une même commande du fichier du projet ne tourne **jamais à deux
+  endroits d'une famille** (F-51 : le parent, ses enfants, ports et base
+  partagés) : demandée par la page là où elle tourne ailleurs, elle n'est
+  lancée qu'une fois arrêtée là-bas, sur *Arrêter et lancer ici* ; *Non* ne
+  lance rien ; une demande de l'agent (`run/<nom>.restart`) ne la lance pas.
 
 ### Système et code
 

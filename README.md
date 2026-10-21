@@ -174,6 +174,15 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   favori. Le nouvel agent est sélectionné ; panneau ouvert, il y affiche sa
   conversation. Chaque **dossier** reçoit une couleur au hasard, qu'il garde : son
   robot, le liseré du micro et son panneau la portent.
+- **Worktrees** : les agents d'un même dépôt git forment une famille,
+  reconnue toute seule. L'agent du dossier principal est le parent ; l'agent
+  d'un autre worktree du dépôt, un **robot enfant**, plus petit, rangé sous
+  lui, avec une pastille : sa branche (ou « PR #n »). Clic droit sur le
+  parent → *Worktrees* : les worktrees du dépôt qui n'ont pas d'agent, chacun
+  avec *Ouvrir un agent ici* (un dossier jamais choisi passe par la question
+  de confiance) ; l'enfant porte le nom de sa branche et la couleur du parent.
+  C'est un agent comme un autre ; il reste jusqu'à ce qu'on le retire, et
+  retirer le parent ne le retire pas.
 - **Clic sur un robot** : il est sélectionné (à la couleur de son dossier). La dictée du gros bouton
   lui est alors **destinée** au lieu d'être collée. Un second clic le
   désélectionne.
@@ -509,7 +518,8 @@ d'habitude (son skill, son script ou sa doc de worktrees ; sinon à côté du
 dépôt, `<dépôt>-worktrees/pr-<n>`) et le prépare (dépendances…). L'appli
 vous demande alors si vous faites confiance à ce dossier — les réglages
 `.claude` de la PR, écrits par son auteur, se chargeront —, puis ajoute un
-robot « PR #n » sur ce dossier, déjà en *Relire* : *Aller au robot PR #n*.
+robot « PR #n » sur ce dossier, sous celui du dépôt, déjà en *Relire* :
+*Aller au robot PR #n*.
 Sur ce robot, *Décharger* demande à l'agent du dépôt de retirer le worktree
 (refusé s'il reste des modifications) ; le robot part avec lui, et votre
 brouillon de revue revient à l'agent du dépôt.
@@ -530,7 +540,11 @@ préfixe sert aux appels de l'appli à `gh` (l'AppImage tourne sur l'hôte,
 `gh` est souvent dans la box). C'est l'appli qui lance :
 quitter l'appli arrête tout ce qu'elle a lancé, et rien d'autre. L'agent lit
 les mêmes journaux et peut demander l'arrêt ou la relance d'une commande (il
-écrit un petit fichier que l'appli exécute, VibeCoder affiché).
+écrit un petit fichier que l'appli exécute, VibeCoder affiché). Un robot
+enfant reprend les commandes de son parent et les lance dans son propre
+dossier ; une commande ne tourne qu'à un endroit de la famille (ports et
+base partagés ; le parent retiré, ses enfants restent une famille) : la lancer ailleurs demande « <nom> tourne dans <branche> :
+l'arrêter et le lancer ici ? ».
 
 **Guide ou Vibe.** *Guide* (par défaut) : vous validez la note, la forme et
 chaque invariant ; l'étape en cours attend vos ✓. *Vibe* (*Créer*
@@ -653,7 +667,7 @@ s'affiche le temps de l'enregistrement, une fois la coupure confirmée.
 | `agentsEnabled` | Afficher les agents Claude Code                               |
 | `agentCommand` | Commande qui lance Claude Code (vide : `claude`)               |
 | `editorCommand` | Éditeur de code des agents (vide : `zed`, `code`, `cursor` ou `codium`, le premier trouvé) |
-| `agents`     | Les agents : dossier, nom, modèle, effort, mode, session, vue et réglages VibeCoder (`view`, `vibe`) (gérés par l'appli ; `name` se modifie ici) |
+| `agents`     | Les agents : dossier, nom, modèle, effort, mode, session, parent d'un robot enfant (`parent`), vue et réglages VibeCoder (`view`, `vibe`) (gérés par l'appli ; `name` se modifie ici) |
 | `agentFolders` | Dossiers favoris proposés par « + », chacun avec sa couleur    |
 | `agentReview` | Dictée vers un agent : dans le champ de son panneau, à relire ; `false` : envoyée aussitôt |
 | `onTop`      | Icône, bulles et panneau au-dessus des autres fenêtres            |
