@@ -33,9 +33,7 @@ import { gitRun } from 'technicals/git';
 import { loadConfig, saveConfig, saveVibeStore, vibeOutDir, vibeStore } from 'app/settings';
 import { state } from 'app/state';
 import { openConversation } from 'app/windows';
-import { newId, real } from './agents';
-import { agents, ensureFolderColors, isBusy, pushAgents, trustFolder } from './agents';
-import { closeRuns } from './runs';
+import { ensureFolderColors, isBusy, newId, pushAgents, real, removeAgent, trustFolder } from './agents';
 
 const wanted = new Set<string>();   // `<agent>:<n>` : l'écran a demandé le worktree de cette PR (en mémoire)
 let syncing = false;
@@ -113,27 +111,20 @@ async function adopt(parent: AgentConfig, pr: number) {
   pushAgents();
 }
 
-// Retire le robot d'une PR : son processus et ses courses, ses sorties, ses validations, son
-// dossier des favoris ; son brouillon revient à l'agent du dépôt. Affiché : le
-// panneau passe à l'agent du dépôt.
+// Retire le robot d'une PR : son brouillon revient à l'agent du dépôt, ses
+// validations partent ; affiché, le panneau passe à l'agent du dépôt ; puis
+// removeAgent (son processus, ses courses et ses commandes, son dossier des
+// favoris) et ses sorties.
 function removeRobot(robot: AgentConfig, parent: AgentConfig | null, pr: number) {
-  agents.forget(robot.id);
-  closeRuns(robot);
   const store = vibeStore();
   const draft = store.drafts[robot.id]?.[pr];
   if (parent && draft) store.drafts[parent.id] = { ...store.drafts[parent.id], [pr]: draft };
   delete store.drafts[robot.id];
   delete store.marks[robot.id];
   saveVibeStore(store);
-  fs.rmSync(vibeOutDir(robot.id), { recursive: true, force: true });
-  const cfg = loadConfig();
-  saveConfig({
-    agents: agentList(cfg).filter((a) => a.id !== robot.id),
-    agentSelected: cfg.agentSelected === robot.id ? null : cfg.agentSelected,
-    agentFolders: favoriteFolders(cfg).filter((f) => f.dir !== robot.dir),
-  });
   if (parent && state.convView?.agentId === robot.id) openConversation(parent.id, { mode: 'full' });
-  else pushAgents();
+  removeAgent(robot.id);
+  fs.rmSync(vibeOutDir(robot.id), { recursive: true, force: true });
 }
 
 // À chaque relevé : retire les robots de PR (enfants avec pr) dont la fiche

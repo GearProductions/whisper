@@ -7,7 +7,7 @@
  *  fin en attente, envoyés dès que la conversation est libre). Les robots
  *  s'envoient par famille (core/family) : chacun ses enfants, et sa pastille
  *  (la branche de son dossier, lue sur le disque, ou « PR #n »). Retirer un
- *  agent oublie son processus et ses courses ; ses enfants gardent leur parent.
+ *  agent oublie son processus, ses courses et ses commandes ; ses enfants gardent leur parent.
  *  Ne connaît pas : le contenu du panneau (controllers/conversation), git
  *  (la branche se lit dans .git).
  *  Utilisé par : app (fenêtres, menus, gestionnaires). */
@@ -24,6 +24,7 @@ import { agentInstructions, journalFile, loadConfig, saveConfig, updateAgent, vi
 import { state } from 'app/state';
 import { applySize, bubbleShown, conversationShown, inConversation, openConversation, sendToIcon } from 'app/windows';
 import { conversationProgress, refreshConversation } from './conversation';
+import { stopAgentProcesses } from './processes';
 import { closeRuns, runsFollow } from './runs';
 
 const sdk = loadSdk as unknown as () => Promise<Sdk>;
@@ -86,15 +87,16 @@ export function pushAgents() {
   refreshConversation(); // le panneau suit (réponse arrivée, agent au travail…)
 }
 
-// Retirer cet agent (son menu) : son processus et ses courses partent, la
-// sélection aussi. Son dossier reste proposé par « + », avec sa couleur ; pas
-// celui du robot d'une PR (le worktree de la PR, F-110). Ses enfants gardent
-// leur parent : des robots ordinaires.
+// Retirer cet agent (son menu) : son processus, ses courses et ses commandes
+// (I-47) partent, la sélection aussi. Son dossier reste proposé par « + »,
+// avec sa couleur ; pas celui du robot d'une PR (le worktree de la PR, F-110).
+// Ses enfants gardent leur parent : des robots ordinaires.
 export function removeAgent(id: string) {
   const agent = agentList(loadConfig()).find((a) => a.id === id);
   if (!agent) return;
   agents.forget(id);
   closeRuns(agent);
+  stopAgentProcesses(id);
   const cfg = loadConfig();
   const pr = agentParent(agent)?.pr;
   saveConfig({
