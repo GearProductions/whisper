@@ -154,3 +154,15 @@ export async function syncWorktrees() {
     syncing = false;
   }
 }
+
+// Ouvrir un agent ici (clic droit du parent → Worktrees) : l'enfant du
+// worktree `dir` de `parent`, après la question de confiance (I-23, I-41).
+export async function openHere(_parent: AgentConfig, _dir: string): Promise<void> {
+  throw new Error('not implemented');
+}
+
+// Le rattachement par git (au lancement, après « + ») : le `parent` de chaque
+// agent d'après son dépôt (core/family : familyLinks). Un passage à la fois.
+export async function syncFamilies(): Promise<void> {
+  throw new Error('not implemented');
+}
