@@ -1,17 +1,20 @@
 /** icon-app — la fenêtre de l'icône : le micro (geste, dictée), le bouton de
- *  lecture, les robots des agents, le menu du clic droit. La colle : seul
- *  fichier de l'icône qui connaît le pont (window.api).
+ *  lecture, les robots des agents et de leurs enfants (bip d'une réponse non
+ *  lue, cible de la dictée : enfants compris), le menu du clic droit. La
+ *  colle : seul fichier de l'icône qui connaît le pont (window.api).
  *  Ne connaît pas : le panneau, la bulle. Utilisé par : main.tsx. */
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { createDictation, type Phase } from 'core/dictation';
 import { createSpeechPlayer, ERROR_MS, type SpeechView } from 'core/speech';
 import { beep, listInputs, openMic, record } from 'technicals/audio';
-import type { AgentsState, IconApi } from 'technicals/bridge';
+import type { AgentsState, AgentView, IconApi } from 'technicals/bridge';
 import { AgentButtons, PlayButton } from './components';
 import { useGesture } from './hooks';
 
 const HINT = 'Maintenir pour dicter · glisser pour déplacer · clic droit : réglages';
 const REPLY_FREQ = 660;
+// Les robots et leurs enfants (worktrees), à plat.
+const withChildren = (agents: AgentView[]) => agents.flatMap((a) => [a, ...a.children]);
 
 export function IconApp({ api }: { api: IconApi }) {
   // Phase de l'icône et message de son infobulle (effacé après ERROR_MS).
@@ -65,7 +68,7 @@ export function IconApp({ api }: { api: IconApi }) {
       setAgents(s || { enabled: false });
       // Une réponse vient d'arriver : le bip de fin, comme pour une dictée (pas
       // pour celle de l'agent affiché : déjà lue, elle n'est jamais « non lue »).
-      const unread = new Set(((s && s.enabled && s.agents) || []).filter((a) => a.unread).map((a) => a.id));
+      const unread = new Set(withChildren((s && s.enabled && s.agents) || []).filter((a) => a.unread).map((a) => a.id));
       if ([...unread].some((id) => !unreadBefore.current.has(id))) {
         api.getConfig().then((cfg) => { if (cfg.sound !== false) beep(REPLY_FREQ); });
       }
@@ -81,7 +84,7 @@ export function IconApp({ api }: { api: IconApi }) {
   }, []);
 
   const list = (agents.enabled && agents.agents) || [];
-  const selected = list.find((a) => a.selected);
+  const selected = withChildren(list).find((a) => a.selected);
   const hint = selected ? `Maintenir pour parler à ${selected.name} · glisser pour déplacer · clic droit : réglages` : HINT;
   const view = speech || player.view();
 
