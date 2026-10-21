@@ -4,6 +4,7 @@
  *  pendant un tour d'agent : on rend d'abord le son et le micro Discord, on
  *  interrompt les agents et on attend la fin de leurs tours (I-11, I-19) ;
  *  les processus lancés par l'onglet Processus de VibeCoder sont arrêtés.
+ *  Au lancement, les familles d'agents sont relues par git (syncFamilies).
  *  Ne connaît pas : le détail des fenêtres et des contrôleurs.
  *  Utilisé par : src/main/index.ts. */
 import { app, session } from 'electron';
@@ -15,7 +16,7 @@ import * as tts from 'technicals/pocket-tts';
 import * as windows from 'technicals/windows-helper';
 import {
   agents, ensureFolderColors, ensureModel, muter, pollSpeak, processesRunning, pushAgents, resetSpeakState, SPEAK_POLL_MS, startHealing,
-  stopProcesses,
+  stopProcesses, syncFamilies,
 } from 'app/controllers';
 import { registerIpc } from 'app/ipc';
 import { ensureVibeFiles, loadConfig, saveConfig } from 'app/settings';
@@ -47,6 +48,8 @@ export function start() {
     // doit pas recevoir (et envoyer à Claude) ce qu'on croit dicter pour soi.
     const patch = startupPatch(loadConfig());
     if (patch) saveConfig(patch);
+    // Les familles d'agents (un dépôt, ses worktrees), relues par git.
+    syncFamilies();
     // VibeCoder : ses fichiers par défaut, sans écraser une retouche ; un échec ne bloque rien (I-29).
     ensureVibeFiles();
     setInterval(pollSpeak, SPEAK_POLL_MS);
