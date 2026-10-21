@@ -1,10 +1,12 @@
 /** icon-window — la fenêtre de l'icône : ronde, flottante, au premier plan
  *  (réglage `onTop`), qui ne prend JAMAIS le focus (I-1) — le texte dicté doit
  *  arriver dans l'application où est le curseur. Elle s'élargit des petits
- *  boutons accolés (lecture, robots, « + »), moitié moins grands.
- *  Ne connaît pas : la dictée, les agents. Utilisé par : app. */
+ *  boutons accolés (lecture, robots, « + »), moitié moins grands, et s'allonge
+ *  d'une rangée quand un robot enfant s'affiche sous son parent.
+ *  Ne connaît pas : la dictée, les agents (seulement combien de places et s'il
+ *  y a des enfants). Utilisé par : app (lifecycle, controllers, menus, ipc). */
 import { BrowserWindow, screen } from 'electron';
-import { agentSlotCount, DEFAULTS, speakMode } from 'core/config';
+import { agentSlotCount, childRow, DEFAULTS, speakMode } from 'core/config';
 import { loadConfig, page, preload } from 'app/settings';
 import { state } from 'app/state';
 
@@ -21,6 +23,10 @@ export function applyOnTop() {
 // Les petits boutons (lecture, agents, ajout) s'alignent à droite de l'icône :
 // la fenêtre s'élargit d'autant (cf. style.css de la page).
 export const winWidth = () => state.winSize + ((state.speakShown ? 1 : 0) + state.agentSlots) * (Math.round(state.winSize / 2) + 4);
+// Les enfants, un quart d'icône, se rangent sous leur parent (centré sur
+// l'icône) : leur bas tombe à winSize + 2 (row-gap), leur pastille dépasse de
+// 3 px encore (cf. .family, .agent.child, .child .tag de style.css).
+export const winHeight = () => state.winSize + (state.childRow ? 5 : 0);
 
 // Une position mémorisée peut pointer hors écran (moniteur débranché) : on ne
 // la retient que si l'icône reste visible.
@@ -38,11 +44,12 @@ export function createIconWindow(onLoad: () => void) {
   state.winSize = size;
   state.speakShown = speakMode(cfg, canReadSelection) !== 'off';
   state.agentSlots = agentSlotCount(cfg);
+  state.childRow = childRow(cfg);
   const wa = screen.getPrimaryDisplay().workArea;
   const pos = isVisible(cfg.pos, size) ? cfg.pos : { x: wa.x + wa.width - size - 24, y: wa.y + wa.height - size - 24 };
 
   const win = new BrowserWindow({
-    x: Math.round(pos.x), y: Math.round(pos.y), width: winWidth(), height: size,
+    x: Math.round(pos.x), y: Math.round(pos.y), width: winWidth(), height: winHeight(),
     frame: false,
     transparent: true,
     resizable: false,
@@ -62,18 +69,18 @@ export function createIconWindow(onLoad: () => void) {
   win.webContents.on('did-finish-load', onLoad);
 }
 
-// Boutons montrés ou masqués : on élargit ou rétrécit la fenêtre.
-export function applyWidth() {
+// Boutons ou rangée d'enfants montrés ou masqués : on redimensionne la fenêtre.
+export function applySize() {
   if (!state.icon) return;
   const { x, y } = state.icon.getBounds();
-  state.icon.setBounds({ x, y, width: winWidth(), height: state.winSize });
+  state.icon.setBounds({ x, y, width: winWidth(), height: winHeight() });
 }
 
 // setBounds et non setPosition : avec une échelle d'affichage fractionnaire
 // (1,1 sous KDE…), chaque setPosition arrondit la taille vers le haut et
 // l'icône grossit à chaque pas du glisser. On réimpose donc la taille.
 export function moveIcon(x: number, y: number) {
-  state.icon?.setBounds({ x: Math.round(x), y: Math.round(y), width: winWidth(), height: state.winSize });
+  state.icon?.setBounds({ x: Math.round(x), y: Math.round(y), width: winWidth(), height: winHeight() });
 }
 
 // Un message à la page de l'icône.
