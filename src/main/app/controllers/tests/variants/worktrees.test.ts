@@ -1,10 +1,14 @@
 // Variants de Relire dans un worktree (note 0.8.0, F-110) : l'état du worktree
 // dans le relevé, Aller au robot, Décharger (à l'agent du dépôt) et le départ
-// du robot temporaire.
+// du robot de PR (ici à l'ancien format `temp`) ; des familles d'agents (note
+// 0.10.0) : un enfant sans PR reste, le rattachement par git (liens
+// symboliques, `temp` réécrit en `parent`), les worktrees libres, Ouvrir un
+// agent ici.
 // Sur le vrai principal (contrôleurs, fenêtres, état, réglages et fichiers sur
 // disque, parcours) ; faux : Electron (fenêtres qui relèvent ce qu'on leur
 // envoie) et le SDK de Claude Code (relève les messages et le dossier où ils
 // partent ; le tour finit aussitôt).
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -141,6 +145,15 @@ describe('Relire dans un worktree', () => {
     expect(loadConfig().agents.map((a) => a.id)).toEqual(['a1', 'a2']);
   });
 
+  it('un enfant sans PR reste au relevé : il ne part qu’à Retirer', async () => {
+    const { loadConfig, saveConfig } = await import('app/settings');
+    const { syncWorktrees } = await import('app/controllers');
+    saveConfig({ agents: loadConfig().agents.map((a) => (a.id === 'a2' ? { ...AGENT, id: 'a2', dir: worktree, parent: { id: 'a1' } } as never : a)) });
+    fs.rmSync(card);
+    await syncWorktrees();
+    expect(loadConfig().agents.map((a) => a.id)).toEqual(['a1', 'a2']);
+  });
+
   it('sur l’agent du dépôt : son robot là, Aller au robot l’affiche', async () => {
     const view = await open('a1');
     expect(view()!.worktree).toEqual({ state: 'robot', temp: false, dir: worktree });
@@ -162,5 +175,77 @@ describe('Relire dans un worktree', () => {
     expect(worktreeState(a1, 12, true)).toEqual({ state: 'creating', temp: false, dir: '' });
     expect(worktreeState(a1, 12, false)).toBeNull();   // le tour a fini sans fiche
     expect(worktreeState(a1, null, true)).toBeNull();
+  });
+});
+
+describe('les familles par git', () => {
+  const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' });
+  let real = '';   // le dépôt, résolu
+  let wt = '';     // son worktree, résolu
+  let link = '';   // le même dossier par un lien symbolique (comme /home → /var/home)
+
+  beforeEach(() => {
+    const root = fs.realpathSync.native(fake.userData);
+    real = path.join(root, 'g', 'projet');
+    wt = path.join(root, 'g', 'projet-wt');
+    fs.mkdirSync(real, { recursive: true });
+    git(real, 'init', '-q');
+    git(real, 'commit', '-q', '--allow-empty', '-m', 'init');
+    git(real, 'worktree', 'add', '-q', '-b', 'feat-y', wt);
+    link = path.join(root, 'lien');
+    fs.symlinkSync(path.join(root, 'g'), link);
+  });
+
+  const config = async (agents: object[], agentFolders: object[] = []) => {
+    const { saveConfig } = await import('app/settings');
+    saveConfig({ agents: agents as never, agentFolders: agentFolders as never });
+  };
+
+  it('le rattachement : dossiers par un lien, l’ancien `temp` réécrit en `parent` (PR gardée), un sous-dossier jamais enfant', async () => {
+    fs.mkdirSync(path.join(real, 'src'));
+    write(path.join(outA, 'pr-3-worktree.json'), JSON.stringify({ dir: wt, branch: 'feat-y' }));   // le robot de PR garde sa fiche
+    await config([
+      { ...AGENT, id: 'a1', dir: path.join(link, 'projet') },
+      { ...AGENT, id: 'a2', dir: path.join(link, 'projet-wt'), temp: { parent: 'a1', pr: 3 } },
+      { ...AGENT, id: 'a3', dir: path.join(link, 'projet', 'src') },
+    ]);
+    const { syncFamilies } = await import('app/controllers');
+    const { loadConfig } = await import('app/settings');
+    await syncFamilies();
+    const [a1, a2, a3] = loadConfig().agents;
+    expect(a1.parent).toBeUndefined();
+    expect(a2.parent).toEqual({ id: 'a1', pr: 3 });
+    expect(a2.temp).toBeUndefined();
+    expect(a3.parent).toBeUndefined();
+  });
+
+  it('les worktrees libres : sans la copie principale ni un dossier qui a un agent (même par un lien)', async () => {
+    await config([{ ...AGENT, id: 'a1', dir: path.join(link, 'projet') }]);
+    const { freeWorktrees } = await import('app/controllers');
+    const { loadConfig } = await import('app/settings');
+    expect((await freeWorktrees(loadConfig().agents[0]))?.free).toEqual([{ dir: wt, branch: 'feat-y' }]);
+    await config([{ ...AGENT, id: 'a1', dir: path.join(link, 'projet') }, { ...AGENT, id: 'a2', dir: path.join(link, 'projet-wt') }]);
+    expect((await freeWorktrees(loadConfig().agents[0]))?.free).toEqual([]);
+  });
+
+  it('les worktrees libres : null pour un agent hors de la racine de la copie principale', async () => {
+    fs.mkdirSync(path.join(real, 'src'));
+    await config([{ ...AGENT, id: 'a1', dir: path.join(real, 'src') }, { ...AGENT, id: 'a2', dir: wt }]);
+    const { freeWorktrees } = await import('app/controllers');
+    const { loadConfig } = await import('app/settings');
+    const [a1, a2] = loadConfig().agents;
+    expect(await freeWorktrees(a1)).toBeNull();
+    expect(await freeWorktrees(a2)).toBeNull();
+  });
+
+  it('Ouvrir un agent ici : l’enfant nommé par sa branche, de la couleur du parent (dossier déjà favori : pas de question)', async () => {
+    await config([{ ...AGENT, id: 'a1', dir: real }], [{ dir: real, color: '#ef4444' }, { dir: wt, color: '#22c55e' }]);
+    const { openHere } = await import('app/controllers');
+    const { loadConfig } = await import('app/settings');
+    await openHere(loadConfig().agents[0], wt);
+    const cfg = loadConfig();
+    expect(cfg.agents[1]).toMatchObject({ dir: wt, name: 'feat-y', parent: { id: 'a1' } });
+    expect(cfg.agents[1].parent).toEqual({ id: 'a1' });
+    expect(cfg.agentFolders).toContainEqual({ dir: wt, color: '#ef4444' });
   });
 });

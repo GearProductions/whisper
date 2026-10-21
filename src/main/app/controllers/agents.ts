@@ -27,6 +27,9 @@ export const sessions = createSessions({ loadSdk: sdk, realpath: fs.realpathSync
 export const CLAUDE_MISSING = 'Claude Code introuvable : installez-le, ou réglez la commande de lancement (clic droit → Agents Claude Code).';
 
 export const isBusy = (id: string) => ['working', 'asking'].includes(agents.state(id).status);
+export const newId = () => `a${Date.now().toString(36)}`;
+// Un chemin résolu (liens symboliques : /home → /var/home) ; null s'il n'existe pas.
+export const real = (dir: string) => { try { return fs.realpathSync.native(dir); } catch { return null; } };
 
 // L'agent affiché dans le panneau ; `liveViewAgent` : seulement sur sa session en cours.
 export const viewAgent = (cfg: Config = loadConfig()) => (state.convView && agentList(cfg).find((a) => a.id === state.convView!.agentId)) || null;
