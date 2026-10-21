@@ -50,7 +50,10 @@ describe('parseWorktrees', () => {
 });
 
 describe('branchOf', () => {
-  const disk = (files: Record<string, string>) => (file: string) => files[path.resolve(file)] ?? null;
+  const disk = (files: Record<string, string>) => {
+    const byPath = new Map(Object.entries(files).map(([k, v]) => [path.resolve(k), v])); // \p\… sous Windows
+    return (file: string) => byPath.get(path.resolve(file)) ?? null;
+  };
   it('par <dir>/.git (dossier, ou gitdir: d’un worktree) puis HEAD', () => {
     expect(branchOf('/p', disk({ '/p/.git/HEAD': 'ref: refs/heads/master\n' }))).toBe('master');
     expect(branchOf('/w/pr-7', disk({

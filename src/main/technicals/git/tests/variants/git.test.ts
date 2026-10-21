@@ -178,8 +178,9 @@ describe('gitRun : worktree list, et seulement list', () => {
     const wt = path.join(tmp, `worktree-${n++}`);
     git(dir, 'worktree', 'add', '-q', '-b', 'feat/y', wt);
     const out = await gitRun(dir)(['worktree', 'list', '--porcelain', '-z']);
-    const worktrees = (out ?? '').split('\0').filter((l) => l.startsWith('worktree ')).map((l) => fs.realpathSync(l.slice(9)));
-    expect(worktrees).toEqual([fs.realpathSync(dir), fs.realpathSync(wt)]);
+    const worktrees = (out ?? '').split('\0').filter((l) => l.startsWith('worktree ')).map((l) => fs.realpathSync.native(l.slice(9)));
+    // native : les noms longs sous Windows (RUNNER~1 → runneradmin), comme git
+    expect(worktrees).toEqual([fs.realpathSync.native(dir), fs.realpathSync.native(wt)]);
     expect(out).toContain('branch refs/heads/feat/y');
   });
 

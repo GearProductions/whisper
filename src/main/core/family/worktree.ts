@@ -18,7 +18,7 @@ export async function repoOf(run: (args: string[]) => Promise<string | null>, re
 }
 
 // La copie principale : son dossier git est <racine>/.git.
-export const isMain = (repo: Repo) => repo.common === path.join(repo.top, '.git');
+export const isMain = (repo: Repo) => path.resolve(repo.common) === path.resolve(repo.top, '.git');
 
 // `dir` est la racine d'un worktree (`wt`) du même dépôt que `own`, autre que
 // la copie `own` (I-41) : un sous-dossier n'en est jamais un.
