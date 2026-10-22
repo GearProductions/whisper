@@ -7,11 +7,15 @@
  *  contrat ; les commits qui le touchent en puces (un clic : son diff dans
  *  l'éditeur) ; au survol (ou au clavier) :
  *  Générer, Relire le diff (du dernier commit qui le touche, sinon les
- *  changements non commités), Ouvrir.
+ *  changements non commités), Ouvrir. Sous un module touché, l'accordéon
+ *  Voir le code (ModuleCode) : un seul déplié à la fois, le chemin du module
+ *  déplié tenu ici.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
+import { useState } from 'react';
 import { fileParts, moduleCommits } from 'core/vibecoder';
 import type { VibeLang, VibeModule } from 'technicals/bridge';
 import { MarkdownView } from './markdown-view';
+import { ModuleCode } from './module-code';
 import { Invite, OutputCard, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
 import './modules-view.css';
@@ -56,6 +60,7 @@ const stateOf = (m: VibeModule): State => (m.commits.length ? 'done' : m.touched
 
 export function ModulesView(p: StepProps) {
   const { view, t, act, busy } = p;
+  const [opened, setOpened] = useState<string | null>(null); // le module dont le code est déplié
   const s = S[view.lang];
   const action = (id: string) => view.actions.find((a) => a.id === id);
   const quote = action('comment') ? (text: string) => act.prefill('comment', text) : undefined;
@@ -119,6 +124,11 @@ export function ModulesView(p: StepProps) {
                       ))}
                     </div>
                     {m.contract ? <div className="vc-mod-contract" title={m.contract}>{m.contract}</div> : null}
+                    {m.touched ? (
+                      <ModuleCode m={m} code={p.code} t={t} open={opened === m.path}
+                        onOpen={(o) => setOpened(o ? m.path : null)} onFollow={act.follow} onSave={act.save}
+                        onQuote={(block, id) => act.prefill(id, block, true)} />
+                    ) : null}
                   </div>
                   <div className="vc-mod-acts">
                     {generate ? (
