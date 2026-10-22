@@ -207,6 +207,12 @@ export interface ConvApi {
   /** Une course (l'id de son action dans VibeView.runs) : l'arrêter, la garder ou l'annuler (arrêtée),
    *  répondre à sa demande d'autorisation — jamais un chemin ni un texte. */
   vibeRunOp(id: string, op: VibeRunOp): void;
+  /** Voir le code : suivre un fichier d'un module touché (son id `m<rang>/<i>` dans le relevé), null : ne plus suivre ;
+   *  son texte arrive par onVibeCode, à chaque changement sur le disque. */
+  vibeFollow(id: string | null): void;
+  onVibeCode(fn: (code: VibeCode | null) => void): void;
+  /** Enregistrer le fichier suivi (son id) : le principal refuse un autre id, un fichier sorti du relevé ou grisé. */
+  vibeSave(id: string, text: string): Promise<SendResult>;
 }
 
 /* ---- VibeCoder (dans le panneau) ------------------------------------------------ */
