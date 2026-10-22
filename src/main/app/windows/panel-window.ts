@@ -18,7 +18,7 @@
 import { BrowserWindow, screen } from 'electron';
 import type { BubbleKind, ConvMode } from 'shared/bridge';
 import { agentList } from 'core/config';
-import { pushAgents, selectAgent, vibeAgent } from 'app/controllers';
+import { pushAgents, runsTab, selectAgent, vibeAgent } from 'app/controllers';
 import { loadConfig, page, preload, saveConfig } from 'app/settings';
 import { state } from 'app/state';
 import { BUBBLE_GAP, hideBubble } from './bubble-window';
@@ -95,7 +95,8 @@ function createConversation(focus: boolean) {
     placeConversation();
     if (focus) { conv.show(); conv.focus(); } else conv.showInactive();
   });
-  conv.on('closed', () => { state.panel = null; state.convView = null; state.convThread = []; state.convReady = false; });
+  // Fermé : l'onglet Actions aussi (la page ne le dit pas en partant).
+  conv.on('closed', () => { state.panel = null; state.convView = null; state.convThread = []; state.convReady = false; runsTab(null); });
   conv.on('focus', pushAgents); // la conversation affichée est lue
   // Agrandi et redimensionné à la main (pas par placeConversation) : la taille
   // est retenue, puis le panneau se recale contre l'icône.

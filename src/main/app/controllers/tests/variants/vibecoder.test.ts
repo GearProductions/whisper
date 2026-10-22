@@ -33,6 +33,7 @@ const fake = vi.hoisted(() => {
   return {
     Win, userData: '', windows: [] as InstanceType<typeof Win>[], facts: null as unknown, messages: [] as unknown[],
     shown: null as string | null, diff: null as string | null, edited: [] as unknown[][], opened: [] as string[],
+    tabs: [] as (string | null)[],
   };
 });
 
@@ -86,6 +87,12 @@ vi.mock('core/vibecoder', async (original) => ({
   }),
 }));
 
+// Les courses : vraies ; runsTab relevé au passage.
+vi.mock('app/controllers/runs', async (original) => {
+  const runs = await original<typeof import('app/controllers/runs')>();
+  return { ...runs, runsTab: (id: string | null) => { fake.tabs.push(id); runs.runsTab(id); } };
+});
+
 const NOTE = '# 0.8.0 — essai\n\n## Ce que ça fait\n\n- un essai\n';
 const TEST = 'it(\'un cas\', () => {});\n';
 const settle = () => new Promise((r) => setTimeout(r, 150));
@@ -102,6 +109,7 @@ beforeEach(() => {
   fake.shown = null;
   fake.diff = null;
   fake.opened = [];
+  fake.tabs = [];
   fake.userData = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-vibecoder-'));
   dir = path.join(fake.userData, 'projet');
   out = path.join(fake.userData, 'vibecoder-out', 'a1');   // les sorties de l'agent
@@ -404,5 +412,44 @@ describe('rc.7', () => {
     markVibe('a3:9', 'ok');   // hors de la liste
     markVibe('a3:0', 'ok');
     expect(vibeStore().marks.a1).toEqual({ 'a3:0': { hash: HASH, verdict: 'ok' } });
+  });
+});
+
+describe('0.11.0 : invariants existants et courses', () => {
+  it('runsSeen : true → les courses de l’agent affiché vues, false → aucun ; autre valeur : rien', async () => {
+    await open();
+    const { setVibe } = await import('app/controllers');
+    setVibe({ runsSeen: true });
+    setVibe({ runsSeen: false });
+    setVibe({ runsSeen: 'a2' });
+    expect(fake.tabs).toEqual(['a1', null]);
+  });
+
+  it('runsSeen false après avoir quitté VibeCoder : l’onglet Actions fermé quand même', async () => {
+    await open();
+    const { setVibe } = await import('app/controllers');
+    setVibe({ runsSeen: true });
+    setVibe({ view: 'conversation' });
+    setVibe({ runsSeen: false });
+    expect(fake.tabs).toEqual(['a1', null]);
+  });
+
+  it('le panneau fermé : l’onglet Actions fermé', async () => {
+    await open();
+    const { setVibe } = await import('app/controllers');
+    setVibe({ runsSeen: true });
+    fake.windows.at(-1)!.emit('closed');
+    expect(fake.tabs).toEqual(['a1', null]);
+  });
+
+  it('✓ Rien à écrire : validé pour le texte de la note ; oublié par null', async () => {
+    await open();
+    const { markVibe } = await import('app/controllers');
+    const { vibeStore } = await import('app/settings');
+    const { blobSha } = await import('core/vibecoder');
+    markVibe('nothing', 'ok');
+    expect(vibeStore().marks.a1).toEqual({ nothing: { hash: blobSha(NOTE), verdict: 'ok' } });
+    markVibe('nothing', null);
+    expect(vibeStore().marks.a1).toEqual({});
   });
 });
