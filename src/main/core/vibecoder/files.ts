@@ -48,6 +48,9 @@ export function itemCommit(view: VibeView | null, id: string): { hash: string; w
 // module) ; null pour tout autre id (note, test, commit, module pas touché,
 // id inconnu), l'id n'étant jamais lu comme un chemin.
 export function codeFile(view: VibeView | null, id: string): { path: string; module: VibeModule } | null {
-  void view; void id;
-  throw new Error('not implemented');
+  for (const module of view?.modules ?? []) {
+    const f = module.touched ? module.files?.find((x) => x.id === id) : undefined;
+    if (f) return { path: f.path, module };
+  }
+  return null;
 }
