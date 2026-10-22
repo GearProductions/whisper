@@ -19,14 +19,15 @@
  *  (Relire), le modèle choisi par action (envoyé s'il n'est pas le
  *  conseillé), le champ de chaque étape (fieldOf : son texte part en
  *  args.text de l'action ; exigé et vide, le champ prend le clavier ; partie,
- *  il se vide ; en Vibe, celui de la note). Préparer un message dans le champ
+ *  il se vide ; en Vibe, celui de la note) — tout cela gardé par agent
+ *  (kept : l'écran est recréé à chaque changement d'agent). Préparer un message dans le champ
  *  de la conversation, ou un message qui exige son texte, réaffiche la
  *  conversation (colonne masquée, ou onglet Actions, Tâches, Processus).
  *  Ne connaît pas : le pont (rappels passés), le contenu de la conversation.
  *  Utilisé par : panel-app. */
 import { Component, useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { isBusy, titleOf } from 'core/conversation';
-import { convWidth, fieldOf, modelArg, t as strings, type Answers, type ModelPicks, type Strings } from 'core/vibecoder';
+import { convWidth, fieldOf, modelArg, t as strings, type Answers, type Kept, type ModelPicks, type Strings } from 'core/vibecoder';
 import type { Thread, VibeLang, VibeStepId, VibeView } from 'technicals/bridge';
 import { Journey } from './journey';
 import { ProcessesView } from './processes-view';
@@ -51,13 +52,21 @@ type Props = {
   side: Side;                  // la colonne de la conversation : affichée, sa largeur (panel-app la retient)
   onSide(side: Side): void;
   children: ReactNode;         // la colonne de la conversation
+  kept: Kept;                  // la saisie de l'écran, par agent (panel-app la tient)
 };
 
 export type Side = { open: boolean; width: number };
 
-export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextOpen, onGauge, onTasks, onHide, side, onSide, children }: Props) {
+// Un état de l'écran, gardé pour l'agent : rendu quand on revient sur lui.
+function useKept<T>(kept: Kept, agent: string, key: string, initial: T) {
+  const [value, set] = useState<T>(() => kept.get(agent, key, initial));
+  useEffect(() => { kept.set(agent, key, value); }, [kept, agent, key, value]);
+  return [value, set] as const;
+}
+
+export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextOpen, onGauge, onTasks, onHide, side, onSide, children, kept }: Props) {
   const t = strings(view.lang);
-  const [picked, setPicked] = useState<VibeStepId | null>(null);
+  const [picked, setPicked] = useKept<VibeStepId | null>(kept, view.agentId, 'picked', null);
   const { steps } = view;
   // Créer en Vibe : l'écran Vibe, sur l'étape Note (son champ porte la demande).
   const vibe = view.flow === 'create' && view.autonomy === 'vibe';
@@ -65,9 +74,9 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   const step = (vibe ? steps.find((s) => s.id === 'note') : steps.find((s) => s.id === picked && s.open))
     || steps.find((s) => s.status === 'current') || steps[0] || null;
   const busy = isBusy(thread.status);
-  const [answers, setAnswers] = useState<Answers>({});
+  const [answers, setAnswers] = useKept<Answers>(kept, view.agentId, 'answers', {});
   const onAnswer: StepProps['onAnswer'] = (q, a) => setAnswers((all) => ({ ...all, [q]: a }));
-  const [picks, setPicks] = useState<ModelPicks>({});
+  const [picks, setPicks] = useKept<ModelPicks>(kept, view.agentId, 'picks', {});
   const root = useRef<HTMLDivElement>(null);
   // L'onglet Actions ou Processus, choisi par-dessus Conversation | Tâches (que panel-app tient).
   const [pane, setPane] = useState<'runs' | 'procs' | null>(null);
@@ -82,7 +91,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   const runs = view.runs ?? [];
   const live = runs.filter((r) => r.state === 'running' || r.state === 'asking' || r.state === 'stopped').length;
   // Le champ de chaque étape : par fieldOf.
-  const [texts, setTexts] = useState<Record<string, string>>({});
+  const [texts, setTexts] = useKept<Record<string, string>>(kept, view.agentId, 'texts', {});
   const setText = (key: string) => (text: string) => setTexts((all) => ({ ...all, [key]: text }));
   // Les rappels, avec le modèle choisi (s'il n'est pas le conseillé) et le texte du champ de l'action ;
   // ce qui passe par le champ de la conversation le réaffiche.
@@ -105,7 +114,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
     prefill: (id, quote) => { show(); given.prefill(id, quote); },
   };
   // Le verdict de la revue (Relire), tenu ici comme les réponses : il survit à un changement d'onglet.
-  const [verdict, setVerdict] = useState<StepProps['verdict']>('comment');
+  const [verdict, setVerdict] = useKept<StepProps['verdict']>(kept, view.agentId, 'verdict', 'comment');
 
   // Ctrl+1…6 : par la touche (sur un clavier AZERTY, le chiffre est sous Maj).
   useEffect(() => {

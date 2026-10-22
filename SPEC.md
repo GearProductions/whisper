@@ -544,7 +544,10 @@ envoient à l'agent le message du guide, avec le skill et le modèle qu'il faut
 *💬 Revenir à la conversation* (même menu, ou 💬 de l'en-tête). La vue est
 retenue par agent (`agents[].view`), d'un lancement à l'autre : un agent en
 conversation, un autre en VibeCoder ; cliquer un robot montre la vue de cet
-agent (F-54). Le choix ouvre le panneau sur l'agent, agrandi, avec le
+agent (F-54). Ce qu'on a commencé sur l'écran d'un agent (réponses aux
+questions, champ de chaque étape, modèle choisi, verdict de la revue, étape
+choisie) l'attend quand on revient sur lui, le temps que l'appli tourne.
+Le choix ouvre le panneau sur l'agent, agrandi, avec le
 clavier. VibeCoder montre la conversation **en cours** de l'agent (pas
 d'🕘 Historique : on revient à la conversation pour le consulter). La vue
 conversation des agents qui ne sont pas en VibeCoder ne change pas.
