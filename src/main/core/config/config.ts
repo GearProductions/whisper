@@ -1,12 +1,14 @@
 /** config — les réglages (config.json) : défauts, lecture tolérante (une
  *  retouche à la main, d'anciens formats), état au lancement (aucun agent
  *  sélectionné, I-8), dossiers favoris et leur couleur, confiance (I-23),
- *  lecture à voix haute, VibeCoder (langue, réglages d'un agent, robot
- *  temporaire d'une PR ouverte dans un worktree).
- *  Ne connaît pas : le fichier (technicals/config-file), Electron.
+ *  lecture à voix haute, VibeCoder (langue, réglages d'un agent), la place
+ *  des robots dans l'icône (familles : core/family).
+ *  Ne connaît pas : le fichier (technicals/config-file), Electron, git (le
+ *  parent d'un agent, l'enfant qu'on crée : core/family).
  *  Utilisé par : app. */
 import type { VibeAutonomy, VibeFlow, VibeLang } from 'shared/bridge';
 import type { AgentConfig } from 'core/agents';
+import { familyGroups } from 'core/family';
 
 export type Folder = { dir: string; color: string | null };
 export type Config = {
@@ -97,8 +99,14 @@ export function randomColor(folders: Folder[], random = Math.random) {
 
 export const agentList = (cfg: Config): AgentConfig[] => (Array.isArray(cfg.agents) ? cfg.agents.filter((a) => a && a.id && a.dir) : []);
 
-// Un petit bouton par agent, plus le « + ».
-export const agentSlotCount = (cfg: Config) => (cfg.agentsEnabled === true ? agentList(cfg).length + 1 : 0);
+// La largeur en places de robot : un groupe (familyGroups) prend une place, ou
+// une par enfant s'il en a plusieurs (de la taille d'un robot, sous lui) ;
+// plus le « + ».
+export const agentSlotCount = (cfg: Config) => (cfg.agentsEnabled === true
+  ? familyGroups(agentList(cfg)).reduce((n, g) => n + Math.max(1, g.children.length), 1) : 0);
+
+// Une rangée d'enfants sous les robots : au moins un enfant affiché sous son parent.
+export const childRow = (cfg: Config) => cfg.agentsEnabled === true && familyGroups(agentList(cfg)).some((g) => g.children.length > 0);
 
 // Dossiers favoris [{ dir, color }] : ceux déjà choisis, qu'ils aient encore un
 // agent ou non. Tolère les anciens formats (chemins seuls, couleur sur l'agent).
@@ -153,21 +161,6 @@ export function agentVibe(agent: AgentConfig): { flow: VibeFlow; autonomy: VibeA
     pr: Number.isInteger(v.pr) && (v.pr as number) > 0 ? v.pr as number : null,
   };
 }
-
-// Un robot temporaire (Relire dans un worktree, F-110) : l'agent du dépôt et
-// la PR ; null pour un autre agent (ou un `temp` mal formé).
-export function agentTemp(agent: AgentConfig): { parent: string; pr: number } | null {
-  const t: Partial<Record<string, unknown>> = agent.temp && typeof agent.temp === 'object' ? agent.temp : {};
-  return typeof t.parent === 'string' && Number.isInteger(t.pr) && (t.pr as number) > 0 ? { parent: t.parent, pr: t.pr as number } : null;
-}
-
-// Le robot temporaire de la PR `pr` ouverte dans le worktree `dir` : « PR #n »,
-// le modèle, l'effort, le mode et l'autonomie de l'agent du dépôt, en
-// VibeCoder, Relire, la PR suivie.
-export const tempAgent = (parent: AgentConfig, pr: number, dir: string, id: string): AgentConfig => ({
-  id, dir, name: `PR #${pr}`, model: parent.model, effort: parent.effort, mode: parent.mode, sessionId: null,
-  view: 'vibecoder', vibe: { flow: 'review', autonomy: agentVibe(parent).autonomy, pr }, temp: { parent: parent.id, pr },
-});
 
 /* ---- Lecture à voix haute ------------------------------------------------- */
 

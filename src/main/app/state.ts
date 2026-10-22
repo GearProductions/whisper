@@ -15,6 +15,7 @@ export const state = {
   winSize: 0,          // taille voulue de l'icône, en px logiques
   speakShown: false,   // bouton de lecture montré (réglage `speak` ≠ 'off')
   agentSlots: 0,       // robots montrés + le bouton « + » (0 : agents désactivés)
+  childRow: false,     // une rangée d'enfants sous les robots (core/config childRow)
   // bubble-window
   bubble: null as BrowserWindow | null,
   bubbleKind: null as BubbleKind | null, // 'notice' (le temps d'un enregistrement), 'status' ou 'volume'

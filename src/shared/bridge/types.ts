@@ -44,6 +44,8 @@ export type AgentView = {
   status: AgentStatus;
   unread: boolean;
   tasks: number;        // tâches de fond en cours (commande, surveillance, sous-agent…)
+  badge: string | null; // la branche du dossier, ou « PR #n » (robot de PR)
+  children: AgentView[]; // les robots enfants (worktrees du dépôt) ; vide pour un enfant
 };
 export type AgentsState = { enabled: boolean; agents?: AgentView[] };
 

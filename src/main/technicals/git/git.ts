@@ -1,6 +1,7 @@
 /** git — lire un dépôt, sans jamais le modifier : `git` lancé sans shell
- *  (execFile, I-27), 5 s au plus, null s'il manque ou échoue (I-29) ; une
- *  liste fermée de sous-commandes en lecture (GIT_READ) ; aucun ref ni chemin
+ *  (execFile, I-27), 5 s au plus (ou le délai donné), null s'il manque ou échoue (I-29) ; une
+ *  liste fermée de sous-commandes en lecture (GIT_READ), plus `worktree list`
+ *  seul (tout autre `worktree` : null sans lancer git) ; aucun ref ni chemin
  *  venu d'ailleurs ne peut devenir une option ; diff, show et log sans
  *  programme externe (--no-ext-diff, --no-textconv), sans verrou
  *  (--no-optional-locks : status ne réécrit pas l'index). Les faits d'une
@@ -9,7 +10,8 @@
  *  cite ou qui contient un caractère de contrôle. Un fichier à un ref (show) ;
  *  un commit et son diff (commit).
  *  Ne connaît pas : VibeCoder, Electron.
- *  Utilisé par : app/controllers/vibecoder (gitRun, gitReader, okRef). */
+ *  Utilisé par : app/controllers/vibecoder (gitRun, gitReader, okRef),
+ *  app/controllers/worktrees (gitRun : rev-parse, worktree list). */
 import { execFile } from 'node:child_process';
 
 // Les seules sous-commandes lancées : toutes en lecture.
@@ -26,13 +28,15 @@ export type GitFacts = {
   commits: { hash: string; subject: string; files: string[] }[];   // de la base au ref, le plus ancien d'abord
 };
 
-// git -C <dir> --no-optional-locks <args> : sans shell, 5 s, null en cas
-// d'échec ; une sous-commande hors de GIT_READ n'est pas lancée.
-export function gitRun(dir: string): Run {
+// git -C <dir> --no-optional-locks <args> : sans shell, `timeout` ms, null en cas
+// d'échec ; une sous-commande hors de GIT_READ n'est pas lancée, sauf
+// `worktree list` (worktree seul : add, remove, prune… écrivent).
+export function gitRun(dir: string, timeout = 5000): Run {
   return (args) => new Promise((resolve) => {
-    if (!(GIT_READ as readonly string[]).includes(args[0])) return resolve(null);
+    const ok = (GIT_READ as readonly string[]).includes(args[0]) || (args[0] === 'worktree' && args[1] === 'list');
+    if (!ok) return resolve(null);
     try {
-      execFile('git', ['-C', dir, '--no-optional-locks', ...args], { timeout: 5000, maxBuffer: 64 * 1024 * 1024, windowsHide: true },
+      execFile('git', ['-C', dir, '--no-optional-locks', ...args], { timeout, maxBuffer: 64 * 1024 * 1024, windowsHide: true },
         (err, stdout) => resolve(err ? null : stdout));
     } catch {
       resolve(null);   // un argument que execFile refuse d'emblée

@@ -15,7 +15,7 @@
  *  déjà en cours est supprimée), et <sorties>/actions.json, réécrit à chaque changement.
  *  Courses, avis et demandes retenues : en mémoire. closeRuns : l'agent oublié.
  *  Ne connaît pas : la page, les fenêtres.
- *  Utilisé par : controllers/vibecoder, controllers/agents, controllers/worktrees,
+ *  Utilisé par : controllers/vibecoder, controllers/agents,
  *  menus/agent-menus. */
 import fs from 'node:fs';
 import path from 'node:path';

@@ -38,9 +38,9 @@ const CONTEXT = {
 const COMMANDS = [{ name: 'compact', description: 'Résumer la conversation', argumentHint: '[consigne]' },
   { name: 'context', description: 'Contexte utilisé' }, { name: 'recompile', description: 'x' }];
 const AGENTS = { enabled: true, agents: [
-  { id: 'a1', name: 'alpha', color: '#22c55e', selected: true, status: 'working', unread: false },
-  { id: 'a2', name: 'beta', color: '#3b82f6', selected: false, status: 'idle', unread: true },
-  { id: 'a3', name: 'gamma', color: '#ec4899', selected: false, status: 'asking', unread: false },
+  { id: 'a1', name: 'alpha', color: '#22c55e', selected: true, status: 'working', unread: false, badge: null, children: [] },
+  { id: 'a2', name: 'beta', color: '#3b82f6', selected: false, status: 'idle', unread: true, badge: null, children: [] },
+  { id: 'a3', name: 'gamma', color: '#ec4899', selected: false, status: 'asking', unread: false, badge: null, children: [] },
 ] };
 const TTS = { mode: 'selection', volume: 1, ready: true, hasText: true };
 const value = (sel) => `document.querySelector(${JSON.stringify(sel)}).value`;

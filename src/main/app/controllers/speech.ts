@@ -11,7 +11,7 @@ import * as tts from 'technicals/pocket-tts';
 import { hasText, peekText, readText } from 'technicals/selection';
 import { loadConfig, saveConfig } from 'app/settings';
 import { state } from 'app/state';
-import { applyWidth, canReadSelection, sendToIcon, showBubble } from 'app/windows';
+import { applySize, canReadSelection, sendToIcon, showBubble } from 'app/windows';
 
 // Aucun évènement ne signale un changement de sélection ou de presse-papiers :
 // on les relit régulièrement, et la page n'est prévenue que d'un changement
@@ -35,7 +35,7 @@ async function updateSpeakState() {
   // Réglage changé (menu ou config.json retouché) : bouton montré ou masqué.
   if ((mode !== 'off') !== state.speakShown) {
     state.speakShown = mode !== 'off';
-    applyWidth();
+    applySize();
   }
   let s: Record<string, unknown> = { mode };
   if (mode !== 'off') {

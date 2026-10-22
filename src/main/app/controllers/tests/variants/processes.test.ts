@@ -1,6 +1,7 @@
 // Variants de l'onglet Processus (note 0.8.0, « Lancer le projet ») : sur le
 // vrai contrôleur, de vrais processus (bash -ic), un userData temporaire ;
-// faux : Electron (le dossier userData), l'éditeur (relève ce qu'on ouvre).
+// faux : Electron (le dossier userData, la boîte de dialogue : relève ses
+// questions, répond Non), l'éditeur (relève ce qu'on ouvre).
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -8,8 +9,11 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentConfig } from 'core/agents';
 import { withDefaults } from 'core/config';
 
-const fake = vi.hoisted(() => ({ userData: '', edited: [] as string[] }));
-vi.mock('electron', () => ({ app: { getPath: () => fake.userData } }));
+const fake = vi.hoisted(() => ({ userData: '', edited: [] as string[], asked: [] as string[] }));
+vi.mock('electron', () => ({
+  app: { getPath: () => fake.userData },
+  dialog: { showMessageBox: async (o: { message: string }) => { fake.asked.push(o.message); return { response: 0 }; } },
+}));
 vi.mock('technicals/editor', () => ({ findEditor: () => ({ openFile: (file: string) => { fake.edited.push(file); } }) }));
 
 const { processAction, processView, projectFile, promptPrefix, stopProcesses } = await import('app/controllers/processes');
@@ -25,6 +29,7 @@ let n = 0;
 beforeEach(() => {
   fake.userData = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-processus-'));
   fake.edited = [];
+  fake.asked = [];
   const dir = path.join(fake.userData, 'projet');
   fs.mkdirSync(dir);
   agent = { id: `a${n++}`, dir, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null };
@@ -108,4 +113,45 @@ describe('le fichier du projet', () => {
     fs.writeFileSync(projectFile(agent.dir), JSON.stringify({ commands: [], prefix: 'toolbox run' }));
     expect(promptPrefix(agent, box)).toBe('toolbox run');
   });
+});
+
+describe.skipIf(process.platform === 'win32')('une famille : le fichier de la tête, le dossier de chacun', () => {
+  // Le parent sur `projet`, l'enfant sur un worktree (sa branche lue par .git → HEAD).
+  const family = () => {
+    const parent = agent;
+    const dir = path.join(fake.userData, 'feat-a');
+    const gitDir = path.join(fake.userData, 'projet', '.git', 'worktrees', 'feat-a');
+    fs.mkdirSync(dir);
+    fs.mkdirSync(gitDir, { recursive: true });
+    fs.writeFileSync(path.join(dir, '.git'), `gitdir: ${gitDir}\n`);
+    fs.writeFileSync(path.join(gitDir, 'HEAD'), 'ref: refs/heads/feat/a\n');
+    const child: AgentConfig = { ...parent, id: `${parent.id}-enfant`, dir, name: 'enfant', parent: { id: parent.id } };
+    return { parent, child, fam: withDefaults({ agents: [parent, child] }) };
+  };
+
+  it('l’enfant : les commandes du parent, lancées dans son dossier ; sa proposition et Modifier vont au fichier du parent', async () => {
+    const { child, fam } = family();
+    fs.mkdirSync(path.join(fake.userData, 'vibecoder-out', child.id), { recursive: true });
+    fs.writeFileSync(path.join(fake.userData, 'vibecoder-out', child.id, 'lancement.json'), '{"commands":[{"name":"ici","run":"pwd"}]}');
+    expect(processView(child, fam).processes.map((p) => p.name)).toEqual(['ici']);
+    expect(fs.existsSync(projectFile(agent.dir))).toBe(true);
+    await processAction(child, fam, 'start', 0, processView(child, fam).processes);
+    expect(await until(() => processView(child, fam).processes[0].log.split('\n').includes(child.dir))).toBe(true);
+    await processAction(child, fam, 'edit', undefined, []);
+    expect(fake.edited).toEqual([projectFile(agent.dir)]);
+  }, 15000);
+
+  it('tenue ailleurs : la question nomme la branche (sinon le nom), Non : rien', async () => {
+    writeProject([{ name: 'srv', run: 'sleep 30' }]);
+    const { parent, child, fam } = family();
+    await processAction(child, fam, 'start', 0, processView(child, fam).processes);
+    await processAction(parent, fam, 'start', 0, processView(parent, fam).processes);
+    expect(fake.asked).toEqual(['srv tourne dans feat/a : l\'arrêter et le lancer ici ?']);
+    expect(processView(parent, fam).processes[0].status).toBe('stopped');
+    fs.rmSync(path.join(child.dir, '.git'));
+    await processAction(parent, fam, 'restart', 0, processView(parent, fam).processes);
+    expect(fake.asked.at(-1)).toBe('srv tourne dans enfant : l\'arrêter et le lancer ici ?');
+    expect(processView(parent, fam).processes[0].status).toBe('stopped');
+    await processAction(child, fam, 'stop', 0, processView(child, fam).processes);
+  }, 15000);
 });
