@@ -15,7 +15,10 @@
  *  (I-46 ; note 0.9.0-vibecoder-pr-verifications-courses) ; l'étape
  *  Invariants faite sans ligne « → invariant » (Écrire les invariants masquée
  *  sans griser, comme l'étape PR), sinon chaque cas validé (Créer) ou jugé
- *  (Relire), lu ou pas ; Lire en pseudo-code mise en avant seulement en Vibe
+ *  (Relire), lu ou pas ; en Créer, sans test d'invariant de la branche (la ligne
+ *  déjà observée par un test existant) : la dernière course invariants ou align
+ *  finie, ou ✓ Rien à écrire validé à la main, Vibe compris (nothingMark, pour le texte de la note ;
+ *  note 0.11.0-vibecoder-invariants-existants-et-courses) ; Lire en pseudo-code mise en avant seulement en Vibe
  *  (note 0.9.0-vibecoder-etape-invariants). Les fichiers d'un module touché
  *  (files : ids `m<rang>/<i>`, triés) et pourquoi son code ne s'édite pas
  *  (locked : codeLock de runs ; note 0.11.0-code-des-modules).
@@ -162,6 +165,7 @@ export function vibeView(input: JourneyInput): VibeView {
   const note: VibeNote | null = input.note && facts && {
     id: 'n', path: input.note.path, text: input.note.text, before: input.note.before, filled: facts.filled, mustNot: facts.mustNot,
     mark: markState(marks, 'note', blobSha(input.note.text)), formeMark: markState(marks, 'forme', blobSha(facts.forme)),
+    nothingMark: markState(marks, 'nothing', blobSha(input.note.text)),
   };
   const bares = (facts?.modules ?? []).map((m) => m.path.replace(/\/+$/, ''));
   const modules: VibeModule[] = (facts?.modules ?? []).map((m, i) => {
@@ -259,10 +263,13 @@ export function vibeView(input: JourneyInput): VibeView {
     done = {
       note: !!note?.filled && !questions.length && validated(note.mark),
       forme: !!note && modules.length > 0 && validated(note.formeMark),
-      // Sans ligne « → invariant » : rien à écrire ni à commiter. Avec : chaque cas validé, lu ou pas, et le
-      // premier commit (note, forme, invariants) fait.
-      invariants: !!note && (!invLines || (invariants.length > 0 && (vibe || casesOk)
-        && !uncommitted.some((f) => f === note.path || invariants.some((t) => t.path === f)))),
+      // Sans ligne « → invariant » : rien à écrire ni à commiter. Avec, sans test de la branche (déjà observée
+      // par un test existant) : la dernière course Écrire les invariants ou Vérifier l'alignement finie, ou
+      // ✓ Rien à écrire. Avec des tests : chaque cas validé, lu ou pas, et le premier commit (note, forme,
+      // invariants) fait.
+      invariants: !!note && (!invLines || (!invariants.length
+        ? input.runs.find((r) => r.id === 'invariants' || r.id === 'align')?.state === 'done' || note.nothingMark === 'ok'
+        : (vibe || casesOk) && !uncommitted.some((f) => f === note.path || invariants.some((t) => t.path === f)))),
       modules: modules.length > 0 && modules.every((m) => m.commits.length > 0),
       revue: checksOk && ponytail && !fixups,
       pr: !!pr,
