@@ -6,7 +6,9 @@
  *  texte : le principal copie le sien. VibeCoder : le relevé de l'agent
  *  affiché, ses actions désignées par leur id, ses fichiers par leur id dans
  *  le relevé, ses courses par l'id de leur action — aucun pont ne transporte
- *  un chemin.
+ *  un chemin. Voir le code : un fichier d'un module par son id ; seul texte
+ *  envoyé, celui du fichier affiché, à enregistrer (le principal vérifie
+ *  qu'il est suivi, dans le relevé, et pas grisé).
  *  Ne connaît pas : le principal (seulement ses canaux). Chargé par le panneau. */
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { ConvApi } from 'shared/bridge';
@@ -55,6 +57,10 @@ const conv: ConvApi = {
   vibeRefresh: () => ipcRenderer.send('conv:vibeRefresh'),                   // relever maintenant
   vibeProcess: (op, index) => ipcRenderer.send('conv:vibeProcess', op, index), // une commande du projet par son rang : jamais un texte
   vibeRunOp: (id, op) => ipcRenderer.send('conv:vibeRunOp', id, op),         // une course par l'id de son action : jamais un chemin ni un texte
+  // Voir le code : le fichier suivi, par son id (null : plus aucun) ; son texte revient par onVibeCode.
+  vibeFollow: (id) => ipcRenderer.send('conv:vibeFollow', id),
+  onVibeCode: (fn) => { ipcRenderer.on('conv:vibeCode', (_e, code) => fn(code)); },
+  vibeSave: (id, text) => ipcRenderer.invoke('conv:vibeSave', id, text),     // le texte du seul fichier affiché → { ok, error }
 };
 
 contextBridge.exposeInMainWorld('conv', conv);
