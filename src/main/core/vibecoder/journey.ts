@@ -16,9 +16,12 @@
  *  Invariants faite sans ligne « → invariant » (Écrire les invariants masquée
  *  sans griser, comme l'étape PR), sinon chaque cas validé (Créer) ou jugé
  *  (Relire), lu ou pas ; Lire en pseudo-code mise en avant seulement en Vibe
- *  (note 0.9.0-vibecoder-etape-invariants).
+ *  (note 0.9.0-vibecoder-etape-invariants). Les fichiers d'un module touché
+ *  (files : ids `m<rang>/<i>`, triés) et pourquoi son code ne s'édite pas
+ *  (locked : codeLock de runs ; note 0.11.0-code-des-modules).
  *  Ne connaît pas : Electron, le disque, git (tout est passé ; `exists` dit si
- *  un chemin du dossier de l'agent existe).
+ *  un chemin du dossier de l'agent existe, `list` donne les fichiers d'un
+ *  dossier).
  *  Utilisé par : app/controllers/vibecoder (refreshVibe). */
 import type {
   VibeAction, VibeAutonomy, VibeCheck, VibeComment, VibeFlow, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePr,
@@ -28,7 +31,7 @@ import { DIRECT_ACTIONS, prNumber, SKILL_MODELS, templateVars, type ActionDef } 
 import { markState, type Marks } from './marks';
 import { parseNote } from './note';
 import { json, parseChecklist, parseQuestions, parseReading } from './outputs';
-import { blockedBy, ownRun } from './runs';
+import { blockedBy, codeLock, ownRun } from './runs';
 import { blobSha, caseLines, caseTitles, isInvariantTest } from './test-files';
 
 export type JourneyInput = {
@@ -39,7 +42,8 @@ export type JourneyInput = {
   autonomy: VibeAutonomy;
   agent: { model: string; effort: string; mode: string };
   busy: boolean;                                    // la conversation de l'agent travaille
-  running: { id: string; reads: boolean }[];        // les courses qui retiennent (runs : LOCKING), par id d'action
+  // Les courses qui retiennent (runs : LOCKING), par id d'action, avec le module qu'elles génèrent (Run.module).
+  running: { id: string; reads: boolean; module?: string | null }[];
   runs: VibeRun[];                                  // les courses à l'écran (runViews)
   repo: { branch: string; base: string; changed: string[]; commits: { hash: string; subject: string; files: string[] }[] } | null;
   error: string | null;                             // pourquoi le dépôt manque
@@ -59,6 +63,9 @@ export type JourneyInput = {
   model: Record<string, string | null>;             // par id d'action : le modèle de son skill en sous-contexte (forkedModel)
   skills: string[];
   exists: (rel: string) => boolean;
+  // Les fichiers d'un dossier et de ses sous-dossiers, relatifs au dépôt (un fichier : lui-même). Absent : aucun
+  // (les fixtures des invariants protégés d'avant la 0.11.0).
+  list?: (rel: string) => string[];
   now: number;                                      // l'heure du relevé
 };
 
@@ -162,9 +169,11 @@ export function vibeView(input: JourneyInput): VibeView {
     const by = commits.filter((c) => c.files.some((f) => within(f, bares[i]) !== null));
     // ponytail: un module jamais touché n'est cherché qu'à la racine et sous src/ (la Forme omet souvent src/).
     const real = [...new Set([...hits, bares[i], `src/${bares[i]}`])].find((p) => input.exists(p));
+    const touched = hits.length > 0 || by.length > 0;
+    const files = touched && real ? [...(input.list?.(real) ?? [])].sort().map((path, j) => ({ id: `m${i}/${j}`, path })) : [];
     return {
       path: m.path, contract: m.contract, file: real ? { id: `m${i}`, path: real } : null,
-      touched: hits.length > 0 || by.length > 0, commits: by.map((c) => c.hash),
+      touched, commits: by.map((c) => c.hash), files, locked: codeLock(m.path, input.busy, input.running, lang),
     };
   });
   const untouched = modules.some((m) => !m.touched);

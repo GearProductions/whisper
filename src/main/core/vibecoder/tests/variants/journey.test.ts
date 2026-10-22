@@ -453,7 +453,8 @@ describe('le relevé : modules, tests, faits', () => {
     const text = '# x\n\n## Ce que ça fait\nx\n\n## Forme\nmain/core/x/   pur\n';
     const v = vibeView(input({ note: { ...note, text }, repo: repo([], [commit('e', 'core/x', ['src/main/core/x/a.ts'])]),
       exists: (p) => p === 'src/main/core/x' }));
-    expect(v.modules[0]).toEqual({ path: 'main/core/x/', contract: 'pur', file: { id: 'm0', path: 'src/main/core/x' }, touched: true, commits: ['e'.repeat(40)] });
+    expect(v.modules[0]).toEqual({ path: 'main/core/x/', contract: 'pur', file: { id: 'm0', path: 'src/main/core/x' }, touched: true, commits: ['e'.repeat(40)],
+      files: [], locked: null });
   });
 
   it('un module introuvable n\'a pas de fichier', () => {
@@ -799,5 +800,31 @@ describe('l\'étape Invariants, sans invariant et sans lecture (0.9.0-rc.4)', ()
 
   it('une ligne « → invariant », cas validés, pas commités : l\'étape reste en cours (le premier commit)', () => {
     expect(status(vibeView(ready({ readings: {}, repo: repo([NOTE_PATH, TEST_PATH]) }))).invariants).toBe('current');
+  });
+});
+
+describe('Voir le code : les fichiers d\'un module et pourquoi il est grisé (0.11.0)', () => {
+  const list = (rel: string) => [`${rel}/z.ts`, `${rel}/a.ts`];
+  const modules = (over: Partial<JourneyInput> = {}) =>
+    vibeView(ready({ repo: repo(['src/core/hello.ts'], [FIRST]), exists: () => true, list, ...over })).modules;
+
+  it('un module touché : ses fichiers d\'après list, triés, ids m<rang>/<i> ; pas touché : aucun', () => {
+    const [hello, button] = modules();
+    expect(hello.files).toEqual([{ id: 'm0/0', path: 'src/core/hello.ts/a.ts' }, { id: 'm0/1', path: 'src/core/hello.ts/z.ts' }]);
+    expect(button.files).toEqual([]);
+  });
+
+  it('sans list (relevé d\'avant la 0.11.0) : aucun fichier', () => {
+    expect(modules({ list: undefined })[0].files).toEqual([]);
+  });
+
+  it('locked : la conversation travaille, une course génère ce module ou tous ; sinon éditable', () => {
+    expect(modules().map((m) => m.locked)).toEqual([null, null]);
+    expect(modules({ busy: true }).map((m) => m.locked)).toEqual(['La conversation travaille', 'La conversation travaille']);
+    const one = modules({ running: [{ id: 'module', reads: false, module: 'src/core/hello.ts' }] });
+    expect(one.map((m) => m.locked)).toEqual(['Ce module est en cours de génération', null]);
+    const all = modules({ running: [{ id: 'modules', reads: false, module: '*' }] });
+    expect(all.every((m) => m.locked === 'Ce module est en cours de génération')).toBe(true);
+    expect(modules({ running: [{ id: 'checks', reads: true }] }).map((m) => m.locked)).toEqual([null, null]);
   });
 });
