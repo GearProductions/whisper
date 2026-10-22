@@ -1,6 +1,6 @@
 /** agent-buttons — un groupe (famille) par robot : le robot, puis sous lui ses
- *  enfants (worktrees du dépôt : même bouton, classe child, moitié plus
- *  petits, leur pastille tag = la branche ou « PR #n »). Chaque robot : sa
+ *  enfants (worktrees du dépôt : même bouton et même taille, classe child,
+ *  leur pastille tag = la branche ou « PR #n »). Chaque robot : sa
  *  couleur, son état (au travail, autorisation demandée, réponse non lue,
  *  erreur, tâches de fond au repos), sélectionné ou non ; son title porte la
  *  pastille.

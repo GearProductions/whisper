@@ -50,7 +50,7 @@ describe('agents', () => {
     expect(agentSlotCount(alone)).toBe(3);
     expect(childRow(alone)).toBe(false);
     const fam = withDefaults({ agentsEnabled: true, agents: [agent('a', '/a'), child('c1', 'a'), child('c2', 'a'), child('c3', 'a'), agent('b', '/b'), child('d', 'b'), child('o', 'absent')] });
-    expect(agentSlotCount(fam)).toBe(2 + 1 + 1 + 1); // a : 3 enfants → 2 ; b : 1 ; o (parent absent) : 1 ; « + »
+    expect(agentSlotCount(fam)).toBe(3 + 1 + 1 + 1); // a : 3 enfants → 3 ; b : 1 ; o (parent absent) : 1 ; « + »
     expect(childRow(fam)).toBe(true);
     expect(childRow(withDefaults({ agentsEnabled: true, agents: [child('o', 'absent')] }))).toBe(false);
     expect(childRow({ ...fam, agentsEnabled: false })).toBe(false);

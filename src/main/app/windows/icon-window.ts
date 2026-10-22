@@ -23,10 +23,10 @@ export function applyOnTop() {
 // Les petits boutons (lecture, agents, ajout) s'alignent à droite de l'icône :
 // la fenêtre s'élargit d'autant (cf. style.css de la page).
 export const winWidth = () => state.winSize + ((state.speakShown ? 1 : 0) + state.agentSlots) * (Math.round(state.winSize / 2) + 4);
-// Les enfants, un quart d'icône, se rangent sous leur parent (centré sur
-// l'icône) : leur bas tombe à winSize + 2 (row-gap), leur pastille dépasse de
-// 3 px encore (cf. .family, .agent.child, .child .tag de style.css).
-export const winHeight = () => state.winSize + (state.childRow ? 5 : 0);
+// Les enfants, de la taille de leur parent, se rangent sous lui : le parent
+// occupe s/4 → 3s/4, l'enfant tombe à 5s/4 + 2 (row-gap), sa pastille dépasse
+// de 3 px encore (cf. .family, .agent.child, .child .tag de style.css).
+export const winHeight = () => state.winSize + (state.childRow ? Math.round(state.winSize / 4) + 5 : 0);
 
 // Une position mémorisée peut pointer hors écran (moniteur débranché) : on ne
 // la retient que si l'icône reste visible.

@@ -74,7 +74,7 @@ describe('robots par famille', () => {
     expect(a1.children.map((c) => [c.id, c.badge, c.children])).toEqual([['a2', 'feat/essai', []], ['a3', 'PR #12', []]]);
     expect(a1.children.map((c) => c.color)).toEqual([a1.color, a1.color]); // de la couleur du parent
     expect(state.childRow).toBe(true);
-    expect(state.agentSlots).toBe(2);
+    expect(state.agentSlots).toBe(3); // deux enfants, une place chacun ; « + »
     const tall = win.bounds.height;
     const { removeAgent } = await import('app/controllers');
     removeAgent('a2');

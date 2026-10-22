@@ -1,8 +1,8 @@
 /* La fenêtre EST l'icône : fond transparent, un disque. Les petits boutons
    (lecture, agents, ajout), moitié moins grands, s'alignent à sa droite : la
    fenêtre est élargie d'autant par le principal (winWidth). Les robots
-   enfants (worktrees) se rangent sous leur parent, deux fois plus petits
-   encore : le principal ajoute une rangée de hauteur (childRow).
+   enfants (worktrees) se rangent sous leur parent, à la même taille, un par
+   place de robot : le principal ajoute une rangée de hauteur (childRow).
 
    Tout se mesure sur --s, la taille configurée de l'icône (posée par
    main.tsx), et non sur la fenêtre : avec une mise à l'échelle fractionnaire,
@@ -125,18 +125,19 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
 .agent[data-status="asking"] .badge { display: flex; background: #e0a23b; }
 .agent[data-status="asking"] .badge::after { content: "?"; }
 
-/* Une famille : le robot, puis sous lui ses enfants, deux par place de robot
-   (grille de quarts d'icône ; le parent en occupe deux). Calée en haut pour
-   que le parent reste aligné sur les autres petits boutons (centrés). */
+/* Une famille : le robot, puis sous lui ses enfants, de la même taille, un
+   par place de robot (grille de places, même écart que #side). Calée en haut
+   pour que le parent reste aligné sur les autres petits boutons (centrés). */
 .family {
   align-self: flex-start;
   margin-top: calc(var(--s) / 4);
   display: grid;
-  grid-auto-columns: calc(var(--s) / 4);
+  grid-auto-columns: calc(var(--s) / 2);
+  column-gap: 4px;
   row-gap: 2px;
 }
-.family > .agent:not(.child) { grid-row: 1; grid-column: 1 / span 2; }
-.agent.child { grid-row: 2; width: calc(var(--s) / 4); height: calc(var(--s) / 4); border-width: 1px; }
+.family > .agent:not(.child) { grid-row: 1; grid-column: 1; }
+.agent.child { grid-row: 2; }
 /* La pastille d'un enfant : sa branche, ou « PR #n » ; tronquée, entière au survol. */
 .child .tag {
   position: absolute;
@@ -150,7 +151,7 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
   border-radius: 3px;
   background: var(--agent, #8b5cf6);
   color: #fff;
-  font: 600 6px/1.2 system-ui, sans-serif;
+  font: 600 8px/1.2 system-ui, sans-serif;
   pointer-events: none;
 }
 .child:hover .tag { max-width: none; z-index: 1; }

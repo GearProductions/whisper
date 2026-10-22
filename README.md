@@ -176,7 +176,7 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   robot, le liseré du micro et son panneau la portent.
 - **Worktrees** : les agents d'un même dépôt git forment une famille,
   reconnue toute seule. L'agent du dossier principal est le parent ; l'agent
-  d'un autre worktree du dépôt, un **robot enfant**, plus petit, rangé sous
+  d'un autre worktree du dépôt, un **robot enfant**, de la même taille, rangé sous
   lui, avec une pastille : sa branche (ou « PR #n »). Clic droit sur le
   parent → *Worktrees* : les worktrees du dépôt qui n'ont pas d'agent, chacun
   avec *Ouvrir un agent ici* (un dossier jamais choisi passe par la question

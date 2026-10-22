@@ -308,9 +308,9 @@ après « + » et à *Ouvrir un agent ici* (F-56) — pas le robot d'une PR, li�
 `agents[].parent` (§ 9), qui survit au redémarrage : l'affichage, le menu et
 les commandes du projet (F-111) ne lisent que lui. Un enfant est un agent
 ordinaire (conversation, éditeur, VibeCoder) ; il s'affiche **sous** son
-parent, moitié plus petit qu'un robot, avec une pastille : la branche de son
-dossier (lue dans `.git`), ou « PR #n » (F-110) ; deux enfants par place, la
-fenêtre de l'icône s'allonge d'une courte rangée dès qu'un enfant s'affiche.
+parent, de la même taille qu'un robot, avec une pastille : la branche de son
+dossier (lue dans `.git`), ou « PR #n » (F-110) ; un enfant par place, la
+fenêtre de l'icône s'allonge d'une rangée dès qu'un enfant s'affiche.
 Il s'affiche de la couleur du parent ; né d'*Ouvrir un agent ici* ou d'une
 PR, son dossier la prend aussi. Un
 enfant sans PR ne part qu'à *Retirer* ; retirer le parent garde ses enfants

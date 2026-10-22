@@ -100,9 +100,10 @@ export function randomColor(folders: Folder[], random = Math.random) {
 export const agentList = (cfg: Config): AgentConfig[] => (Array.isArray(cfg.agents) ? cfg.agents.filter((a) => a && a.id && a.dir) : []);
 
 // La largeur en places de robot : un groupe (familyGroups) prend une place, ou
-// plus si ses enfants, deux par place sous lui, débordent ; plus le « + ».
+// une par enfant s'il en a plusieurs (de la taille d'un robot, sous lui) ;
+// plus le « + ».
 export const agentSlotCount = (cfg: Config) => (cfg.agentsEnabled === true
-  ? familyGroups(agentList(cfg)).reduce((n, g) => n + Math.max(1, Math.ceil(g.children.length / 2)), 1) : 0);
+  ? familyGroups(agentList(cfg)).reduce((n, g) => n + Math.max(1, g.children.length), 1) : 0);
 
 // Une rangée d'enfants sous les robots : au moins un enfant affiché sous son parent.
 export const childRow = (cfg: Config) => cfg.agentsEnabled === true && familyGroups(agentList(cfg)).some((g) => g.children.length > 0);
