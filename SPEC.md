@@ -347,6 +347,13 @@ tant qu'une tâche de fond tourne (titre « surveille N tâche(s) de fond »,
 F-77) ; « ? » demande d'autorisation ;
 pastille verte = réponse non lue (bip 660 Hz à l'arrivée) ; erreur. La réponse
 de l'agent affiché dans le panneau est **lue d'office** (jamais de pastille).
+Ses **courses** (F-115) aussi, par-dessus une conversation au repos (l'état
+de la conversation d'abord) : *attend une autorisation* → « ? », *finie* →
+pastille verte, *en échec* → erreur, chacune avec le bip de la réponse
+(660 Hz, réglage *Bip*) ; titre « une action attend une autorisation », « …
+est finie », « … a échoué » ; une course *arrêtée* ne se signale pas. Le
+clic ouvre sa conversation (F-54) ; l'onglet *Actions (n)* de l'agent
+l'efface (F-92).
 
 **F-56 Clic droit sur un robot** : nom, dossier ; *Ouvrir sur GitHub —
 propriétaire/dépôt* (remote `origin` du `.git` du dossier, lu à chaque clic
@@ -583,7 +590,9 @@ conversation des agents qui ne sont pas en VibeCoder ne change pas.
   barre des skills, F-93, le champ, F-68 à F-70 : dictée, brouillon, pièces
   jointes, commandes « / ») : on lui parle toujours, même pendant qu'une
   action tourne ; **Actions (n)** (n en cours, en attente d'une
-  autorisation ou arrêtées à trancher) : les courses (F-115) ; **Tâches (n)**
+  autorisation ou arrêtées à trancher) : les courses (F-115) ; l'ouvrir
+  efface le signal de ses courses sur le robot (F-55), et tant qu'il est
+  ouvert sur l'agent affiché, ses courses ne se signalent pas ; **Tâches (n)**
   (n en cours) : le volet des tâches (F-77) ; **Processus (n)** (F-111) ;
   par-dessus la conversation, qui garde sa place. Préparer un message dans
   le champ de la conversation, ou un message sans étape qui l'exige, revient
@@ -626,7 +635,7 @@ de l'écran et le brouillon tiennent (I-29).
   discrètement mise en avant, même si elle appartient à une autre étape
   (*Préparer le commit* à l'étape Invariants). Ce qu'attend une validation
   reste dans la vue : *✓ Valider la note*, *✓ Valider la forme*, « N cas à
-  valider » en tête des invariants. Une action dont la course tourne :
+  valider » en tête des invariants, *✓ Rien à écrire* à l'étape Invariants. Une action dont la course tourne :
   « en cours » et ⏹ à côté de son bouton (arrêtée, à trancher dans l'onglet
   *Actions*). Conversation au travail : seuls les messages sans étape
   (*Demander sans modifier*, *Où j'en suis ?*, *Proposer les commandes*,
@@ -891,6 +900,10 @@ conversation ; note `0.9.0-actions-independantes.md`).
   demande d'autorisation (outil, cible ; *Autoriser*, *Toujours*,
   *Refuser*) ; sa réponse, repliée. Une course se désigne par l'id de son
   action (`conv:vibeRunOp`), jamais par un texte ni un chemin.
+- **Le signal** : une course qui attend une autorisation, finit ou échoue se
+  signale sur le robot de son agent, avec le bip (F-55), jusqu'à ce qu'on
+  ouvre son onglet *Actions (n)* (F-92 ; chaque course retient l'état où
+  elle a été vue). Pas de signal pour une course arrêtée.
 - **Arrêter, puis Garder ou Annuler** : ⏹ (onglet *Actions*, ou à côté du
   bouton) interrompt son tour (I-19) ; son processus reste, et elle retient
   les autres, jusqu'au choix de l'utilisateur : *Garder* ce qu'elle a déjà
@@ -952,7 +965,14 @@ conversation ; note `0.9.0-actions-independantes.md`).
    test ni commit attendus : la note et la forme se commitent à l'étape
    Modules ; *Écrire les invariants* masquée, elle revient quand la note
    gagne une ligne « → invariant »), ou des tests d'invariants dont chaque
-   cas est validé, lu ou pas, note et tests commités. *Lire en pseudo-code*
+   cas est validé, lu ou pas, note et tests commités. Des lignes
+   « → invariant » mais aucun test d'invariant de la branche (des tests
+   existants les observent déjà) : faite quand la dernière course *Écrire
+   les invariants* ou *Vérifier l'alignement* est *finie* (pas *en échec*,
+   pas *arrêtée*), ou *✓ Rien à écrire* validé (à côté de l'invitation à
+   écrire ; l'empreinte du texte de la note : il tombe à n'importe quel
+   changement de la note, comme *✓ Valider la note*). En *Vibe* aussi, rien
+   d'automatique : la course finie ou le ✓. *Lire en pseudo-code*
    n'est qu'une aide à la lecture, facultative. Montre le
    résumé (cas, validés, refusés, modifiés depuis, avec un point d'attention,
    à lire), l'alignement (`align.md`, sans *Relancer*, F-93), puis chaque fichier : sa progression,
