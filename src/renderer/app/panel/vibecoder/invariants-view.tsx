@@ -14,7 +14,10 @@
  *  (✓ / ✗ quand même, la lecture est facultative), et « Lire en
  *  pseudo-code », en accent seulement quand c'est l'action mise en avant
  *  (primary : Vibe). Sans test, l'invitation à les écrire, ou « rien à
- *  écrire » si la note n'a aucune ligne « → invariant ». En tête : « Tout
+ *  écrire » si la note n'a aucune ligne « → invariant » ; Créer, la note avec
+ *  une ligne « → invariant » : à côté, « ✓ Rien à écrire » (elles sont déjà
+ *  observées par des tests existants), validation à la main pour la note telle
+ *  qu'elle est (MarkControl, comme « ✓ Valider la note »). En tête : « Tout
  *  relire », le résumé de l'étape, les cas à valider, ce que veut dire
  *  « Attention » (s'il y en a), l'alignement
  *  (align.md, sans Relancer : Créer, « Écrire les invariants » le refait ;
@@ -30,7 +33,7 @@ import { CommentBox } from './comment-box';
 import { InlineMd, MarkdownView } from './markdown-view';
 import { Invite, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
-import { CaseVerdict } from './validation';
+import { CaseVerdict, MarkControl } from './validation';
 import './invariants-view.css';
 
 const fr = {
@@ -187,6 +190,7 @@ export function InvariantsView(props: StepProps) {
       {view.invariants.length ? null : (
         <Invite title={review ? s.noTestsReview : s.noTests} text={review ? s.noTestsReviewText : write?.hidden ? s.noInvLines : s.noTestsText}>
           {review ? null : <Run a={write} busy={busy} tone="accent" onRun={() => act.run('invariants')} />}
+          {review || write?.hidden ? null : <MarkControl what="nothing" state={view.note?.nothingMark ?? null} review={false} lang={view.lang} onMark={(v) => act.mark('nothing', v)} />}
         </Invite>
       )}
     </>
