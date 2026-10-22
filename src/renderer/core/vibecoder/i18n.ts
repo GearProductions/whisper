@@ -6,7 +6,8 @@
  *  vérifications,
  *  l'onglet Actions (états d'une course, Garder / Annuler, Autoriser /
  *  Toujours / Refuser), choix du modèle, zone de commentaire, barre d'état,
- *  titres des sorties ; une durée en clair. Ceux des boutons viennent des
+ *  titres des sorties ; une
+ *  durée en clair. Ceux des boutons viennent des
  *  actions (actions.<langue>.json).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
 import type { VibeAutonomy, VibeFlow, VibeLang, VibeRun, VibeStepId } from 'technicals/bridge';
@@ -43,6 +44,8 @@ const fr = {
   open: 'Ouvrir',
   openTitle: 'Ouvrir dans l\'éditeur',
   quote: 'Citer dans le champ',
+  fix: 'Retour → fixup',
+  fixTitle: 'Citer ces lignes dans un retour à corriger en fixup du module',
   ago: (ms: number) => (ms < 60000 ? 'à l\'instant' : ms < 3600000 ? `il y a ${Math.floor(ms / 60000)} min`
     : ms < 86400000 ? `il y a ${Math.floor(ms / 3600000)} h` : `il y a ${Math.floor(ms / 86400000)} j`),
   outputs: {
@@ -142,6 +145,8 @@ const en: Strings = {
   open: 'Open',
   openTitle: 'Open in the editor',
   quote: 'Quote in the field',
+  fix: 'Feedback → fixup',
+  fixTitle: 'Quote these lines in a feedback to fix as a fixup of the module',
   ago: (ms) => (ms < 60000 ? 'just now' : ms < 3600000 ? `${Math.floor(ms / 60000)} min ago`
     : ms < 86400000 ? `${Math.floor(ms / 3600000)} h ago` : `${Math.floor(ms / 86400000)} d ago`),
   outputs: {
