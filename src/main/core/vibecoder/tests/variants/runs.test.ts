@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockedBy, endNotice, ownRun, parseRequest, runKey, runPhase, runsFile, runViews, type ActionDef, type Run } from 'core/vibecoder';
+import { blockedBy, codeLock, endNotice, ownRun, parseRequest, runKey, runModule, runPhase, runsFile, runViews, type ActionDef, type Run } from 'core/vibecoder';
 
 const A = (id: string, step: ActionDef['step'], reads = false, kind: ActionDef['kind'] = 'send'): ActionDef =>
   ({ id, flow: 'create', step, kind, needs: 'none', label: `L-${id}`, hint: '', text: `/vibecoder:${id}`, reads });
@@ -8,7 +8,7 @@ const PONYTAIL = A('ponytail', 'revue', true);
 const CHECKS = A('checks', 'revue', true);
 const DEFS = [FORME, PONYTAIL, CHECKS, A('vibe', null), A('comment', 'note', false, 'prefill')];
 const run = (id: string, over: Partial<Run> = {}): Run =>
-  ({ id, key: runKey(id), since: 1, end: null, state: 'running', reply: '', sessionId: null, ...over });
+  ({ id, key: runKey(id), since: 1, end: null, state: 'running', reply: '', sessionId: null, module: null, ...over });
 
 describe('ownRun et runKey', () => {
   it('court à part : une action envoyée d\'une étape ; pas sans étape, pas un prefill', () => {
@@ -113,5 +113,31 @@ describe('runPhase', () => {
     expect([
       runPhase('idle', 0, 1), runPhase('idle', 0, 0), runPhase('working', 0, 1), runPhase('asking', 0, 1), runPhase('idle', 1, 2),
     ]).toEqual(['grace', 'idle', 'running', 'asking', 'running']);
+  });
+});
+
+describe('runModule : le module que génère une course', () => {
+  const mod = (path: string, touched: boolean) => ({ path, contract: '', file: null, touched, commits: [] });
+  const MODS = [mod('a', true), mod('b', false), mod('c', false)];
+
+  it('module, next : le rang donné, sinon le premier pas touché ; un rang inconnu → null', () => {
+    expect([runModule('module', { module: 2 }, MODS), runModule('next', {}, MODS), runModule('module', { module: 9 }, MODS)])
+      .toEqual(['c', 'b', null]);
+  });
+
+  it('modules → * ; une autre action → null ; tout touché → null', () => {
+    expect([runModule('modules', {}, MODS), runModule('forme', { module: 1 }, MODS), runModule('next', {}, [mod('a', true)])])
+      .toEqual(['*', null, null]);
+  });
+});
+
+describe('codeLock : pourquoi le code ne s\'édite pas', () => {
+  it('un tour de la conversation passe avant ; une course qui retient ce module ou * ; sinon éditable', () => {
+    expect([
+      codeLock('a', true, [], 'fr'),
+      codeLock('a', false, [{ module: 'a' }], 'en'),
+      codeLock('a', false, [{ module: '*' }], 'fr'),
+      codeLock('a', false, [{ module: 'b' }, { module: null }], 'fr'),
+    ]).toEqual(['La conversation travaille', 'This module is being generated', 'Ce module est en cours de génération', null]);
   });
 });

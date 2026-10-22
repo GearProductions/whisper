@@ -11,11 +11,14 @@
  *  course d'après son entrée du runtime (runPhase : en cours tant qu'elle
  *  travaille ou que des tâches de fond tournent ; pas de limite de temps ;
  *  grace quand ses tâches de fond viennent de tomber à 0 hors tour, le délai
- *  GRACE_MS que le contrôleur laisse au tour qu'elles réveillent).
+ *  GRACE_MS que le contrôleur laisse au tour qu'elles réveillent). Le module
+ *  qu'une course génère (runModule : Run.module) et pourquoi Voir le code est
+ *  grisé (codeLock : un tour de la conversation, une course qui génère ce module).
  *  Ne connaît pas : Electron, le disque, le runtime des agents (tout est passé).
- *  Utilisé par : core/vibecoder (journey), app/controllers/runs. */
-import type { VibeArgs, VibeLang, VibeRun } from 'shared/bridge';
-import type { ActionDef } from './actions';
+ *  Utilisé par : core/vibecoder (journey), app/controllers (runs, vibecoder,
+ *  module-code). */
+import type { VibeArgs, VibeLang, VibeModule, VibeRun } from 'shared/bridge';
+import { targetModule, type ActionDef } from './actions';
 
 export type RunState = VibeRun['state'];
 export type Run = {
@@ -26,6 +29,7 @@ export type Run = {
   state: RunState;
   reply: string;
   sessionId: string | null;
+  module: string | null;       // le chemin (Forme) du module qu'elle génère, '*' : tous, null : aucun
 };
 
 // Les états qui retiennent les autres : en cours, une autorisation attend, arrêtée pas encore tranchée.
@@ -42,11 +46,13 @@ const TEXT = {
     same: 'Cette action est déjà en cours', busy: 'Une autre action est en cours', changing: 'Une action modifie la branche',
     end: { done: 'terminée', failed: 'en échec' }, notice: 'VibeCoder :', state: 'État :',
     quote: (s: string) => `« ${s} »`,
+    talking: 'La conversation travaille', generating: 'Ce module est en cours de génération',
   },
   en: {
     same: 'This action is already running', busy: 'Another action is running', changing: 'An action is changing the branch',
     end: { done: 'finished', failed: 'failed' }, notice: 'VibeCoder:', state: 'State:',
     quote: (s: string) => `“${s}”`,
+    talking: 'The conversation is working', generating: 'This module is being generated',
   },
 };
 
@@ -57,6 +63,22 @@ export function blockedBy(def: Pick<ActionDef, 'id' | 'reads'>, running: { id: s
   if (!def.reads && running.length) return T.busy;
   if (running.some((r) => !r.reads)) return T.changing;
   return null;
+}
+
+// Le module que génère une action : module, next → celui que vise son message (targetModule) ;
+// modules → '*' (tous) ; une autre, ou un rang inconnu → null.
+export function runModule(actionId: string, args: VibeArgs, modules: VibeModule[]): string | null {
+  if (actionId === 'modules') return '*';
+  if (actionId !== 'module' && actionId !== 'next') return null;
+  return targetModule(args, modules)?.path ?? null;
+}
+
+// Pourquoi le code du module ne s'édite pas : un tour de la conversation (busy), une course qui le
+// génère (son chemin ou '*') ; null : éditable.
+export function codeLock(module: string, busy: boolean, running: { module?: string | null }[], lang: VibeLang): string | null {
+  const T = TEXT[lang];
+  if (busy) return T.talking;
+  return running.some((r) => r.module === module || r.module === '*') ? T.generating : null;
 }
 
 type Shown = Pick<ActionDef, 'id' | 'label'> & { who?: string };
