@@ -15,14 +15,15 @@
  *  la conversation (vidé une fois parti), ou y prépare un message. La dictée
  *  va au champ d'étape qui a le clavier, sinon à celui de la conversation.
  *  La colle : seul fichier du panneau qui connaît le pont (window.conv) ; il
- *  tient le brouillon de chaque conversation.
+ *  tient le brouillon de chaque conversation et la saisie de VibeCoder de
+ *  chaque agent (createKept).
  *  Ne connaît pas : l'icône, la bulle. Utilisé par : main.tsx. */
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import {
   appendDictation, createDrafts, createPermissionGuard, EMPTY, followsEnd, IMAGE_TYPES, isBusy, revoke, titleOf, toDraft,
   withAttached, withFile, type Draft, type Piece,
 } from 'core/conversation';
-import { t as vibeStrings, withPrefill } from 'core/vibecoder';
+import { createKept, t as vibeStrings, withPrefill } from 'core/vibecoder';
 import type { Command, ConvApi, Notice, ProbeResult, SendResult, Session, Thread, VibeArgs, VibeView } from 'technicals/bridge';
 import { compactHeight } from 'technicals/dom';
 import {
@@ -52,6 +53,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   const [vibeSide, setVibeSide] = useState<Side>({ open: true, width: 400 });
 
   const [drafts] = useState(createDrafts);
+  const [kept] = useState(createKept); // la saisie de VibeCoder, par agent
   const [guard] = useState(() => createPermissionGuard());
   const commands = useRef(new Map<string, Command[]>()).current;
   const current = useRef<Thread | null>(null);  // la conversation affichée, pour les écoutes
@@ -311,7 +313,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
         <VibeCoder key={vibeShown.agentId} view={vibeShown} thread={data} act={vibeAct} tasksOpen={tasksOpen}
           tasks={<TasksPane tasks={data.tasks ?? []} onOpenLink={conv.openLink} onShowFile={conv.showFile} />}
           contextOpen={overlay === 'context'} onGauge={toggleContext} onTasks={toggleTasks} onHide={() => conv.hide()}
-          side={vibeSide} onSide={setVibeSide}>
+          side={vibeSide} onSide={setVibeSide} kept={kept}>
           {noticeBar}
           {body}
           <SkillsBar view={vibeShown} busy={isBusy(data.status)} onRun={vibeRun} />

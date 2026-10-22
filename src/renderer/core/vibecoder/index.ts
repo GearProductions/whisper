@@ -7,13 +7,15 @@
  *  leur pseudo-code, la validation qu'attend l'étape en cours ; ce qui s'écrit
  *  dans le champ (une action « préparer »), le champ dont une action emporte
  *  le texte ; une durée en clair ; le modèle choisi d'une action, la
- *  largeur de la colonne de la conversation. */
+ *  largeur de la colonne de la conversation ; la saisie de l'écran gardée
+ *  par agent. */
 export * from './diff';
 export * from './field';
 export * from './forme';
 export * from './highlight';
 export * from './i18n';
 export * from './invariants';
+export * from './kept';
 export * from './markdown';
 export * from './module-row';
 export * from './note';
