@@ -5,7 +5,7 @@
  *  un autre choisi parmi SKILL_MODELS pour un skill en sous-contexte).
  *  Seuls {{text}}, {{answers}} et {{draft}} (écrits par l'utilisateur : le
  *  champ, I-2, ses réponses, ses remarques) sont libres ; un commit, un
- *  module, une PR ne sont pris que dans le dernier relevé, le préfixe des
+ *  module (targetModule, que reprend runs), une PR ne sont pris que dans le dernier relevé, le préfixe des
  *  commandes ({{prefix}}) est donné par l'appelant (absent : vide), et aucune autre
  *  valeur n'a de caractère de contrôle ; une variable inconnue fait refuser
  *  l'action (l'agent lance des commandes avec ces valeurs, I-38). Et les
@@ -15,7 +15,7 @@
  *  Ne connaît pas : Electron, le disque, l'agent (le message est rendu, pas envoyé),
  *  le calcul du préfixe (core/runner, fait par l'appelant).
  *  Utilisé par : core/vibecoder (journey, runs, defaults), app/controllers/vibecoder, app/settings. */
-import type { VibeAction, VibeArgs, VibeLang, VibeStepId, VibeView } from 'shared/bridge';
+import type { VibeAction, VibeArgs, VibeLang, VibeModule, VibeStepId, VibeView } from 'shared/bridge';
 
 export type ActionDef = {
   id: string;
@@ -104,6 +104,10 @@ const NO_ANSWER: Record<VibeLang, string> = { fr: '(pas de réponse)', en: '(no 
 // args.model : un autre modèle que le conseillé, parmi ceux que le relevé
 // propose pour cette action (VibeAction.models) → /vibecoder:<nom>--<modèle>,
 // sa variante (skillVariants) ; sinon 'model'.
+// Le module que vise une action ({{module}}) : modules[args.module] ; sans rang, le premier pas touché.
+export const targetModule = (args: VibeArgs, modules: VibeModule[]): VibeModule | undefined =>
+  args.module === undefined ? modules.find((x) => !x.touched) : Number.isInteger(args.module) ? modules[args.module] : undefined;
+
 // Les arguments viennent d'une page : le type de chacun est vérifié ici.
 // Le gabarit est lu une fois : une valeur insérée n'est jamais relue comme un gabarit.
 // Hors {{text}}, {{answers}} et {{draft}}, une valeur qui contient un caractère de
@@ -134,8 +138,7 @@ export function buildMessage(def: ActionDef, args: VibeArgs, ctx: MessageContext
       return files.length ? files.map((f) => `${f.path}@${f.blob}`).join(' ') : fail('files');
     },
     module: () => {
-      const m = args.module === undefined ? view.modules.find((x) => !x.touched)
-        : Number.isInteger(args.module) ? view.modules[args.module] : undefined;
+      const m = targetModule(args, view.modules);
       return !m ? fail('module') : m.contract ? `${m.path} — ${m.contract}` : m.path;
     },
     commit: () => {

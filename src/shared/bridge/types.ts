@@ -207,6 +207,12 @@ export interface ConvApi {
   /** Une course (l'id de son action dans VibeView.runs) : l'arrêter, la garder ou l'annuler (arrêtée),
    *  répondre à sa demande d'autorisation — jamais un chemin ni un texte. */
   vibeRunOp(id: string, op: VibeRunOp): void;
+  /** Voir le code : suivre un fichier d'un module touché (son id `m<rang>/<i>` dans le relevé), null : ne plus suivre ;
+   *  son texte arrive par onVibeCode, à chaque changement sur le disque. */
+  vibeFollow(id: string | null): void;
+  onVibeCode(fn: (code: VibeCode | null) => void): void;
+  /** Enregistrer le fichier suivi (son id) : le principal refuse un autre id, un fichier sorti du relevé ou grisé. */
+  vibeSave(id: string, text: string): Promise<SendResult>;
 }
 
 /* ---- VibeCoder (dans le panneau) ------------------------------------------------ */
@@ -241,7 +247,12 @@ export type VibeModule = {
   file: VibeFile | null;       // son fichier ou dossier, s'il existe
   touched: boolean;            // la branche le touche
   commits: string[];           // hash des commits qui le touchent
+  files?: VibeFile[];          // touché : ses fichiers (ids m<rang>/<i>) ; absent = []
+  locked?: string | null;      // pourquoi Voir le code est grisé (codeLock) ; absent = null : éditable
 };
+
+// Le texte d'un fichier de module, poussé par le principal (Voir le code) ; null : trop gros ou illisible.
+export type VibeCode = { id: string; text: string | null; time: number };
 
 // Un cas d'un test d'invariant, lu en pseudo-code.
 export type ReadingCase = {

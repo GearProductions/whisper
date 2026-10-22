@@ -16,7 +16,10 @@
  *  va au champ d'étape qui a le clavier, sinon à celui de la conversation.
  *  La colle : seul fichier du panneau qui connaît le pont (window.conv) ; il
  *  tient le brouillon de chaque conversation et la saisie de VibeCoder de
- *  chaque agent (createKept).
+ *  chaque agent (createKept). Voir le code : le fichier de module suivi
+ *  (`conv:vibeCode`), suivre et enregistrer reliés au pont ; un autre fichier
+ *  suivi, ou aucun, efface le texte du précédent (vibe-coder cesse de suivre
+ *  quand l'agent ou l'étape change).
  *  Ne connaît pas : l'icône, la bulle. Utilisé par : main.tsx. */
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import {
@@ -24,7 +27,7 @@ import {
   withAttached, withFile, type Draft, type Piece,
 } from 'core/conversation';
 import { createKept, t as vibeStrings, withPrefill } from 'core/vibecoder';
-import type { Command, ConvApi, Notice, ProbeResult, SendResult, Session, Thread, VibeArgs, VibeView } from 'technicals/bridge';
+import type { Command, ConvApi, Notice, ProbeResult, SendResult, Session, Thread, VibeArgs, VibeCode, VibeView } from 'technicals/bridge';
 import { compactHeight } from 'technicals/dom';
 import {
   ArchivedBar, Composer, ContextDetail, Header, HistoryList, Lightbox, NoticeBar, showsWorking, TasksPane, ThreadContent,
@@ -51,6 +54,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   const [tasksOpen, setTasksOpen] = useState(false);
   const [vibe, setVibe] = useState<VibeView | null>(null);
   const [vibeSide, setVibeSide] = useState<Side>({ open: true, width: 400 });
+  const [vibeCode, setVibeCode] = useState<VibeCode | null>(null);
 
   const [drafts] = useState(createDrafts);
   const [kept] = useState(createKept); // la saisie de VibeCoder, par agent
@@ -139,6 +143,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     });
     conv.onFocusInput(() => el.input.current!.focus());
     conv.onVibe(setVibe);
+    conv.onVibeCode(setVibeCode);
     conv.onAttached((what) => {
       setDraft((d) => ({ ...d, pieces: withAttached(d.pieces, what) }));
       el.input.current!.focus();
@@ -252,17 +257,26 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   }
 
   // Une action 'prefill' : son texte, ce qu'on cite à la place de {{quote}},
-  // ajouté au champ (withPrefill), à compléter puis envoyer.
-  function vibePrefill(id: string, quote: string) {
+  // ajouté au champ (withPrefill ; block : un bloc de code, en entier), à compléter puis envoyer.
+  function vibePrefill(id: string, quote: string, block = false) {
     const a = vibe?.actions.find((x) => x.id === id && x.kind === 'prefill');
     if (!a) return;
     focusEnd.current = true;
     setStatus('');
-    setDraft((d) => ({ ...d, text: withPrefill(d.text, a.text || '', quote) }));
+    setDraft((d) => ({ ...d, text: withPrefill(d.text, a.text || '', quote, block) }));
+  }
+
+  // Voir le code : enregistrer le fichier suivi ; refusé, le motif comme une action qui n'est pas partie.
+  async function vibeSave(id: string, text: string) {
+    let res: SendResult | null = null;
+    try { res = await conv.vibeSave(id, text); } catch { res = null; }
+    if (!res?.ok) setStatus((res && res.error) || vibeStrings(vibe?.lang ?? 'fr').sendFailed);
+    return !!res?.ok;
   }
 
   const vibeAct: VibeActs = {
     run: vibeRun, prefill: vibePrefill, set: conv.vibeSet, mark: conv.vibeMark, draft: conv.vibeDraft, open: conv.vibeOpen,
+    follow: (id) => { setVibeCode(null); conv.vibeFollow(id); }, save: vibeSave,
     openLink: conv.openLink, refresh: conv.vibeRefresh, process: conv.vibeProcess, runOp: conv.vibeRunOp,
   };
 
@@ -310,7 +324,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     <div id="app" data-view={data ? (data.dictation ? 'dictation' : 'agent') : undefined} data-mode={data?.mode}
       className={dragging ? 'dragging' : undefined} style={data ? { '--accent': data.color } as CSSProperties : undefined}>
       {vibeShown && data ? (
-        <VibeCoder key={vibeShown.agentId} view={vibeShown} thread={data} act={vibeAct} tasksOpen={tasksOpen}
+        <VibeCoder key={vibeShown.agentId} view={vibeShown} thread={data} act={vibeAct} tasksOpen={tasksOpen} code={vibeCode}
           tasks={<TasksPane tasks={data.tasks ?? []} onOpenLink={conv.openLink} onShowFile={conv.showFile} />}
           contextOpen={overlay === 'context'} onGauge={toggleContext} onTasks={toggleTasks} onHide={() => conv.hide()}
           side={vibeSide} onSide={setVibeSide} kept={kept}>

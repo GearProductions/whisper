@@ -4,7 +4,8 @@
 // tour, après le délai de grâce ou le tour qu'elles réveillent (note fix/0.9.0-reveil-
 // apres-tache-de-fond, F-115 ; horloge simulée), l'arrêt demandé au
 // processus de la course, les demandes de l'orchestrateur (retenue puis partie,
-// invalide, arrêt), answers qui reprend la session de la note.
+// invalide, arrêt), answers qui reprend la session de la note, le module qu'une
+// course retient (note 0.11.0).
 // Sur le vrai principal (contrôleurs, fenêtres, état, réglages et fichiers sur
 // disque, git réel sur un dépôt d'essai, les actions livrées dans resources/) ;
 // faux : Electron et le SDK de Claude Code (chaque message reçu ouvre un tour,
@@ -176,6 +177,27 @@ describe('la fin d’une course', () => {
     runVibeAction('forme', {});
     await settle();
     expect(turn('/vibecoder:forme')!.options).toMatchObject({ enableFileCheckpointing: true, model: 'opus', effort: 'high' });
+  });
+
+  it('elle retient le module qu’elle génère (note 0.11.0), null par défaut', async () => {
+    const { startRun, lockingRuns } = await open();
+    const { loadConfig, vibeActions } = await import('app/settings');
+    const { agentList, vibeLang } = await import('core/config');
+    const cfg = loadConfig();
+    const defs = vibeActions(vibeLang(cfg));
+    const agent = agentList(cfg)[0];
+    expect(startRun(agent, defs.find((d) => d.id === 'module')!, '/vibecoder:module src/a.ts', cfg, 'src/a.ts')).toEqual({ ok: true });
+    expect(lockingRuns('a1')).toEqual([{ id: 'module', reads: false, module: 'src/a.ts' }]);
+  });
+
+  it('sans module donné : null', async () => {
+    const { startRun, lockingRuns } = await open();
+    const { loadConfig, vibeActions } = await import('app/settings');
+    const { agentList, vibeLang } = await import('core/config');
+    const cfg = loadConfig();
+    const def = vibeActions(vibeLang(cfg)).find((d) => d.id === 'forme')!;
+    expect(startRun(agentList(cfg)[0], def, '/vibecoder:forme', cfg)).toEqual({ ok: true });
+    expect(lockingRuns('a1')).toEqual([{ id: 'forme', reads: false, module: null }]);
   });
 });
 

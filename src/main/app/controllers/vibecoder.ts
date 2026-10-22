@@ -18,8 +18,12 @@
  *  navigateur, d'après l'origine GitHub du dépôt, I-32).
  *  Ne lit que la note et les tests que git donne dans le dossier de l'agent
  *  (safePath), et les sorties de cet agent sous leurs noms connus : une page
- *  désigne un fichier par son id dans le dernier relevé, jamais par un chemin
- *  (I-37). Ce qu'il écrit pour l'ouvrir (un fichier de la PR, le diff d'un
+ *  désigne un fichier par son id dans le dernier relevé (lastView), jamais par
+ *  un chemin (I-37). Les fichiers d'un module touché : leurs chemins seulement
+ *  (list : sous son dossier, ni lien ni fichier ou dossier caché ni node_modules,
+ *  target, dist, build, son dossier par safePath, au plus LIST_MAX),
+ *  pas leur texte (controllers/module-code lit le fichier ouvert). Une action qui génère un module : sa course le retient
+ *  (runModule → startRun). Ce qu'il écrit pour l'ouvrir (un fichier de la PR, le diff d'un
  *  commit) va sous <sorties>/files/, en lecture seule. Le message d'une
  *  action : son gabarit, rempli par buildMessage (I-38), avec le préfixe des
  *  commandes vu de l'agent qui le reçoit ({{prefix}} : processes.promptPrefix). git en lecture seule
@@ -36,7 +40,8 @@
  *  controllers/processes.
  *  Ne connaît pas : la page (seulement ses canaux), la fenêtre.
  *  Utilisé par : app/ipc, app/menus, app/windows (vibeAgent : la taille du
- *  panneau), controllers/conversation, controllers/runs. */
+ *  panneau), controllers/conversation, controllers/runs, controllers/module-code
+ *  (lastView). */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -47,7 +52,7 @@ import { agentVibe, vibeLang, type Config } from 'core/config';
 import { githubPage } from 'core/repo';
 import {
   addComment, blobSha, buildMessage, DIRECT_ACTIONS, draftText, editComment, findNote, forkedModel, isInvariantTest, isOutputName, isTest, itemCommit, itemPath,
-  blockedBy, json, noteKey, ownRun, parseNote, prNumber, removeComment, runViews, safePath, setMark, vibeView, whoOf, type ActionDef, type MessageError,
+  blockedBy, json, noteKey, ownRun, parseNote, prNumber, removeComment, runModule, runViews, safePath, setMark, vibeView, whoOf, type ActionDef, type MessageError,
 } from 'core/vibecoder';
 import { findEditor } from 'technicals/editor';
 import { directRunner, VERDICTS, type DirectResult } from 'technicals/direct';
@@ -58,16 +63,17 @@ import { loadConfig, saveConfig, saveVibeStore, updateAgent, vibeActions, vibeOu
 import { state } from 'app/state';
 import { conversationShown, openConversation } from 'app/windows';
 import { interruptAgent, isBusy, liveViewAgent, sendToAgent, setAgentSetting } from './agents';
-import { agentPrefix, processAction, processView, promptPrefix } from './processes';
+import { agentPrefix, processAction, processView, promptPrefix, readFile, readTimed } from './processes';
 import { lockingRuns, runOp, viewLocks, runPending, runRequests, runsOf, skillMd, startRun } from './runs';
 import { showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
 
 const VIBE_MS = 4000;          // le relevé régulier, panneau visible
 const THROTTLE_MS = 1000;      // au plus un relevé par seconde
-const READ_MAX = 1024 * 1024;  // un fichier plus gros n'est pas lu
 const TARGET_MAX = 300;        // une remarque du brouillon de revue : sa cible…
 const REMARK_MAX = 5000;       // … et son texte
 const GH_MS = 60_000;          // une réponse de gh vaut 60 s
+const LIST_MAX = 1000;         // les fichiers d'un module au relevé : les premiers seulement
+const SKIP_DIRS = new Set(['node_modules', 'target', 'dist', 'build']);   // ni leurs fichiers
 
 const ERRORS: Record<VibeLang, Record<MessageError | 'agent' | 'action' | 'args' | 'noGit' | 'notRepo', string>> = {
   fr: {
@@ -123,6 +129,9 @@ let again = false;
 let againNow = false;
 let trailing: ReturnType<typeof setTimeout> | null = null;
 let timer: ReturnType<typeof setInterval> | null = null;
+
+// Le dernier relevé envoyé au panneau pour cet agent : ce que la page désigne par ses ids.
+export const lastView = (agentId: string): VibeView | null => last.get(agentId) ?? null;
 
 // L'agent affiché, sur sa session en cours, s'il est en VibeCoder.
 export function vibeAgent(cfg: Config = loadConfig()) {
@@ -195,19 +204,33 @@ export async function refreshVibe({ now = false, fresh = false }: { now?: boolea
 
 /* ---- Le relevé ------------------------------------------------------------ */
 
-// Un fichier ordinaire (pas un lien) d'au plus READ_MAX octets : son texte et
-// son heure ; null s'il manque ou ne se lit pas.
-function readFile(file: string) {
+// Les fichiers d'un chemin du dépôt et de ses sous-dossiers, relatifs au dépôt (un fichier : lui-même) ;
+// ni lien (ni fichier ni dossier pour son Dirent) ni dossier ou fichier caché, ni SKIP_DIRS, le chemin
+// dans le dossier de l'agent (safePath, une fois) ; au plus LIST_MAX, les premiers trouvés. Leurs chemins, pas leur texte.
+function listFiles(dir: string, rel: string): string[] {
+  const out: string[] = [];
+  const walk = (r: string) => {
+    try {
+      for (const e of fs.readdirSync(path.join(dir, r), { withFileTypes: true })) {
+        if (out.length >= LIST_MAX || e.name.startsWith('.')) continue;
+        if (e.isFile()) out.push(path.posix.join(r, e.name));
+        else if (e.isDirectory() && !SKIP_DIRS.has(e.name)) walk(path.posix.join(r, e.name));
+      }
+    } catch { /* illisible : sans lui */ }
+  };
+  if (!safePath(dir, rel, fs.realpathSync.native)) return out;
   try {
-    const st = fs.lstatSync(file);
-    return st.isFile() && st.size <= READ_MAX ? { text: fs.readFileSync(file, 'utf8'), time: st.mtimeMs } : null;
-  } catch { return null; }
+    const st = fs.lstatSync(path.join(dir, rel));
+    if (st.isFile()) out.push(rel);
+    else if (st.isDirectory()) walk(rel);
+  } catch { /* illisible : sans lui */ }
+  return out;
 }
 
 // Un fichier du dossier de l'agent, s'il y reste (`..` et liens résolus).
 function onDisk(dir: string, rel: string) {
   const file = safePath(dir, rel, fs.realpathSync.native);
-  return (file && readFile(file)?.text) ?? null;
+  return (file && readFile(file)) ?? null;
 }
 
 // Les sorties des skills : chaque nom connu présent dans le dossier de sorties.
@@ -215,7 +238,7 @@ function readOutputs(out: string) {
   let names: string[] = [];
   try { names = fs.readdirSync(out); } catch { /* pas encore de sortie */ }
   return Object.fromEntries(names.filter(isOutputName).flatMap((name) => {
-    const file = readFile(path.join(out, name));
+    const file = readTimed(path.join(out, name));
     return file ? [[name, file]] : [];
   }));
 }
@@ -315,7 +338,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     return text === null ? [] : [{ path: p, blob: blobSha(text), text }];
   }))).flat();
   const readings = Object.fromEntries(tests.filter((t) => isInvariantTest(t.path)).flatMap((t) => {
-    const reading = readFile(path.join(out, 'invariants', `${t.blob}.md`));
+    const reading = readTimed(path.join(out, 'invariants', `${t.blob}.md`));
     return reading ? [[t.blob, reading.text]] : [];
   }));
   // La note au début du tour (surlignage) : retenue quand l'agent ou une course
@@ -355,6 +378,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     model: Object.fromEntries(actions.map((a) => [a.id, forkedModel(skills[a.id])])),
     skills: skillNames(agent.dir),
     exists: (rel) => { const file = safePath(agent.dir, rel, realpath); return !!file && fs.existsSync(file); },
+    list: flow === 'create' ? (rel) => listFiles(agent.dir, rel) : undefined,   // Relire : le disque n'est pas la PR
     now: Date.now(),
   });
   // Processus : les commandes du projet, leur état (controllers/processes).
@@ -398,7 +422,7 @@ export function startAction(agent: AgentConfig, def: ActionDef, args: VibeArgs, 
   if (!target) return { ...fail(lang, 'agent'), invalid: true };
   const message = buildMessage(def, args, { view, out: vibeOutDir(target.id), lang, prefix: promptPrefix(target, cfg) });
   if ('error' in message) return { ...fail(lang, message.error), invalid: true };
-  const sent = ownRun(def) ? startRun(target, def, message.text, cfg) : sendToAgent(target, { text: message.text, images: [] }, cfg);
+  const sent = ownRun(def) ? startRun(target, def, message.text, cfg, runModule(def.id, args, view.modules)) : sendToAgent(target, { text: message.text, images: [] }, cfg);
   if (sent.ok && def.id === 'open-worktree' && view.pr) wantWorktree(agent.id, view.pr.number);
   return sent;
 }
@@ -605,7 +629,7 @@ export async function openVibeItem(id: unknown, line?: unknown) {
   const git = gitReader(gitRun(agent.dir));
   const commit = itemCommit(view, id);
   if (commit?.web) {
-    const page = githubPage(agent.dir, (f) => readFile(f)?.text ?? null);
+    const page = githubPage(agent.dir, readFile);
     if (page && /^[0-9a-f]{7,64}$/.test(commit.hash)) shell.openExternal(`${page}/commit/${commit.hash}`);
   } else if (commit) {
     const text = await git.commit(commit.hash);

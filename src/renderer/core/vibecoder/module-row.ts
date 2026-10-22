@@ -1,15 +1,27 @@
 /** module-row — un chemin en nom et dossier (un module de la Forme, un fichier
- *  du relevé) ; les commits de la branche qui touchent un module (le dernier
- *  est celui dont on relit le diff).
+ *  du relevé) ; les fichiers d'un module rangés par dossier (Voir le code) ;
+ *  les commits de la branche qui touchent un module (le dernier est celui dont
+ *  on relit le diff).
  *  Ne connaît pas : le DOM, React.
- *  Utilisé par : app/panel/vibecoder (modules-view, forme-view, note-view, invariants-view). */
-import type { VibeCommit, VibeModule } from 'technicals/bridge';
+ *  Utilisé par : app/panel/vibecoder (modules-view, module-code, forme-view, note-view, invariants-view). */
+import type { VibeCommit, VibeFile, VibeModule } from 'technicals/bridge';
 
 // « main/core/x.ts » → dossier « main/core/ », nom « x.ts » ; un dossier garde son « / ».
 export function fileParts(path: string): { dir: string; name: string } {
   const p = path.trim();
   const i = p.replace(/\/+$/, '').lastIndexOf('/');
   return { dir: p.slice(0, i + 1), name: p.slice(i + 1) };
+}
+
+// Les fichiers par dossier (fileParts) : les dossiers dans l'ordre de leur
+// premier fichier, les fichiers dans celui du relevé.
+export function filesByDir(files: VibeFile[]): { dir: string; files: VibeFile[] }[] {
+  const by = new Map<string, VibeFile[]>();
+  for (const f of files) {
+    const { dir } = fileParts(f.path);
+    by.set(dir, [...(by.get(dir) ?? []), f]);
+  }
+  return [...by].map(([dir, list]) => ({ dir, files: list }));
 }
 
 // Les commits du relevé (le plus ancien d'abord) que désignent les hash du

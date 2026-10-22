@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fileParts, moduleCommits } from 'core/vibecoder';
+import { fileParts, filesByDir, moduleCommits } from 'core/vibecoder';
 import type { VibeCommit, VibeModule } from 'technicals/bridge';
 
 describe('fileParts', () => {
@@ -49,5 +49,21 @@ describe('moduleCommits', () => {
 
   it('branche sans commit : aucun', () => {
     expect(moduleCommits(mod(['34349c1aaaa00000']), [])).toEqual([]);
+  });
+});
+
+describe('filesByDir', () => {
+  const f = (path: string, i: number) => ({ id: `m0/${i}`, path });
+  it('par dossier, dans l\'ordre du premier fichier ; un fichier à la racine : le dossier \'\'', () => {
+    const files = ['src/a/x.ts', 'src/b/y.ts', 'src/a/z.ts', 'README.md'].map(f);
+    expect(filesByDir(files)).toEqual([
+      { dir: 'src/a/', files: [files[0], files[2]] },
+      { dir: 'src/b/', files: [files[1]] },
+      { dir: '', files: [files[3]] },
+    ]);
+  });
+
+  it('aucun fichier : aucun dossier', () => {
+    expect(filesByDir([])).toEqual([]);
   });
 });

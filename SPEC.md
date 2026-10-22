@@ -41,8 +41,8 @@ VibeCoder dans le panneau (`docs/tickets/feat/0.8.0-vibecoder.md`) :
 
 | Module (`src/renderer/`) | Rôle |
 |---|---|
-| `core/vibecoder` | pur : Markdown en blocs (jamais de HTML, liens `http(s)` seuls, I-40), lignes changées (`lineDiff`), coloration du pseudo-code et du code d'un test (`codeLines`, F-113), libellés FR et EN |
-| `app/panel/vibecoder/` | l'écran (en-tête, parcours, vues des étapes, leur champ et leurs actions, écran *Vibe* et son fil d'Ariane, conversation, actions lancées, tâches et processus en onglets, barre des skills, barre d'état) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
+| `core/vibecoder` | pur : Markdown en blocs (jamais de HTML, liens `http(s)` seuls, I-40), lignes changées (`lineDiff`), coloration du pseudo-code et du code d'un fichier (`codeLines`, F-113), les lignes entières d'une sélection (`codeBlock`, F-98), libellés FR et EN |
+| `app/panel/vibecoder/` | l'écran (en-tête, parcours, vues des étapes, leur champ et leurs actions, écran *Vibe* et son fil d'Ariane, conversation, actions lancées, tâches et processus en onglets, barre des skills, barre d'état ; `code-view` : le code d'un fichier, numéroté, coloré, éditable, F-113 ; `module-code` : *Voir le code* d'un module, F-100) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
 
 Toutes : sans cadre, hors de la barre des tâches, `contextIsolation`,
 `sandbox`, préchargement minimal (`contextBridge`). Le principal
@@ -55,7 +55,7 @@ des processus.
 |---|---|
 | `app/lifecycle` | démarrage (une instance, aucun agent sélectionné, permissions), sortie (dont les processus du projet, F-111) |
 | `app/windows` | les trois fenêtres : créer, placer, montrer (icône, bulle, panneau) |
-| `app/controllers` | dictée (coupures, transcription, destination, modèle), lecture, agents, familles (`worktrees.ts` : le rattachement par git, *Ouvrir un agent ici*, le robot d'une PR, F-51, F-110), contenu du panneau, VibeCoder (`vibecoder.ts` : relevé, actions, réglages, validations, brouillon de revue, fichier à ouvrir ; `processes.ts` : les commandes du projet, F-111 ; `runs.ts` : les courses — lancées, suivies, arrêtées, gardées ou annulées —, leur avis de fin à la conversation, les demandes de l'orchestrateur, `actions.json`, F-115) |
+| `app/controllers` | dictée (coupures, transcription, destination, modèle), lecture, agents, familles (`worktrees.ts` : le rattachement par git, *Ouvrir un agent ici*, le robot d'une PR, F-51, F-110), contenu du panneau, VibeCoder (`vibecoder.ts` : relevé, actions, réglages, validations, brouillon de revue, fichier à ouvrir ; `processes.ts` : les commandes du projet, F-111 ; `runs.ts` : les courses — lancées, suivies, arrêtées, gardées ou annulées, chacune avec le module qu'elle génère —, leur avis de fin à la conversation, les demandes de l'orchestrateur, `actions.json`, F-115 ; `module-code.ts` : le fichier que suit *Voir le code*, lu, surveillé, poussé, enregistré au geste, F-100) |
 | `app/menus` | menus de l'icône, des robots, du « + », du trombone |
 | `app/ipc` | une table de gestionnaires par fenêtre, écoutée par `technicals/ipc` |
 | `core/config` | réglages, démarrage, dossiers favoris et couleurs, confiance |
@@ -66,7 +66,7 @@ des processus.
 | `core/conversation` | actions et demandes d'autorisation écrites, pièces jointes, tâches de fond vues par le volet |
 | `core/guards` | permissions des pages, liens, fichiers montrés |
 | `core/repo` | page GitHub d'un dossier, d'après son remote `origin` |
-| `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier ou un commit désigné par son id (`safePath`, `itemPath`, `itemCommit`), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`, `forkedModel`), le parcours (`vibeView`), les sorties des skills, les fichiers par défaut (`syncDefaults`) et les variantes des skills (`skillVariants`), les validations et brouillons de revue, les courses (`runs` : `ownRun`, `runKey`, la règle `blockedBy`, `actions.json`, l'avis de fin, `parseRequest`, F-115) |
+| `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier ou un commit désigné par son id (`safePath`, `itemPath`, `itemCommit`, `codeFile` : un fichier d'un module touché), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`, `forkedModel`), le parcours (`vibeView`), les sorties des skills, les fichiers par défaut (`syncDefaults`) et les variantes des skills (`skillVariants`), les validations et brouillons de revue, les courses (`runs` : `ownRun`, `runKey`, la règle `blockedBy`, le module qu'une course génère et le verrou de son code (`runModule`, `codeLock`), `actions.json`, l'avis de fin, `parseRequest`, F-115) |
 | `core/runner` | les commandes du projet (F-111) : le fichier du projet lu (`parseProject`), une commande par son rang (`commandAt` : shell du fichier, préfixe `commandPrefix` — celui du fichier, du réglage, ou la box de l'agent, le même pour `gh`), les demandes de l'agent (`requestsOf`), la fin d'un journal (I-42) |
 | `technicals/process` | les processus lancés pour l'utilisateur : détachés, marqués dans leur environnement, arrêtés avec ce qu'ils ont lancé (SIGTERM, SIGKILL après 5 s), leur journal ; `writeNew` (I-43) |
 | `technicals/git` | git en lecture seule (`gitRun`, `gitReader`, `GIT_READ`, plus `worktree list`) : les faits d'une branche ou d'une PR chargée, un fichier à un ref, un commit et son diff (I-39) |
@@ -107,17 +107,24 @@ Vers le principal :
   l'appli elle-même, F-114 —, avec réponse `{ ok, error }`),
   `conv:vibeRunOp` (une course par l'id de son action dans le dernier
   relevé : l'arrêter, la garder ou l'annuler, répondre à sa demande
-  d'autorisation ; F-115).
+  d'autorisation ; F-115), `conv:vibeFollow` (le fichier d'un module que suit
+  *Voir le code*, par son id, ou `null` : plus aucun ; F-100),
+  `conv:vibeSave` (l'enregistrer : son id et son texte, avec réponse `{ ok,
+  error }` ; F-100, I-39).
 
 Vers les pages : `tts:state`, `tts:chunk`, `tts:end`, `tts:speakReply`,
 `agents:state` (icône) ; `bubble:show` (bulle) ; `conv:thread`, `conv:notice`,
 `conv:dictation`, `conv:focusInput`, `conv:attached`, `conv:vibe` (le relevé de
-l'agent affiché en VibeCoder, ou `null`) (panneau).
+l'agent affiché en VibeCoder, ou `null`), `conv:vibeCode` (le fichier suivi :
+son id, son texte — `null` : plus d'1 Mo ou illisible —, l'heure ; à chaque
+changement sur le disque ; ou `null`) (panneau).
 
 Chaque fenêtre n'est écoutée que sur ses propres canaux, et un message d'une
 autre fenêtre est ignoré (`technicals/ipc`, cf. I-20). Aucun canal de
 VibeCoder ne transporte un chemin ni un message tout fait : une action, un
-fichier se désignent par leur id dans le dernier relevé (I-37, I-38).
+fichier se désignent par leur id dans le dernier relevé (I-37, I-38) ; le
+seul texte de la page qui touche au disque est celui de `conv:vibeSave`,
+écrit tel quel dans le fichier suivi (I-39).
 
 ### Fichiers de données (`userData`)
 
@@ -674,7 +681,15 @@ principal pour l'agent affiché en VibeCoder :
   rangés sous `tests/invariants/` sont les invariants. Un fichier sans cas
   n'est pas montré ;
 - les **modules** de la Forme : touchés par la branche ou non, les commits qui
-  les touchent, leur fichier s'il existe (tel quel ou sous `src/`) ;
+  les touchent, leur fichier s'il existe (tel quel ou sous `src/`) ; un module
+  touché, en *Créer* seulement (*Relire* : le disque n'est pas la PR), ses
+  fichiers (`files`, ids `m<rang>/<i>`, triés : son dossier et ses
+  sous-dossiers, sans lien ni fichier ou dossier caché ni dossier
+  `node_modules`, `target`, `dist`, `build`, chacun dans le dossier de
+  l'agent ; au plus 1 000, les premiers trouvés ; un fichier : lui-même),
+  leurs chemins sans leur texte ;
+  un module pas touché n'en a aucun ; et pourquoi son code ne s'édite pas
+  (`locked`, F-100 ; `null` : éditable) ;
 - les sorties des skills (F-95), les validations et le brouillon de revue
   (`vibecoder-state.json`), les actions (F-96), les skills du projet et de
   l'utilisateur.
@@ -793,7 +808,9 @@ champ se vide (celui de la conversation : ses pièces jointes restent, une
 action n'envoie pas d'image, et le fil descend) ; refusée, sa raison
 s'affiche sous le champ de la conversation. Une action `prefill`
 ajoute son texte au champ de la conversation (à la ligne s'il n'est pas vide), `{{quote}}`
-remplacé par ce qu'on cite (une ligne, 300 caractères au plus) : en *Créer*,
+remplacé par ce qu'on cite (une ligne, 300 caractères au plus ; des lignes de
+*Voir le code*, F-100 : entières, gardées, sans limite, à la suite du texte
+si le gabarit n'a pas `{{quote}}`) : en *Créer*,
 💬 sur un bloc, un module ou un cas (« À propos de « … » : »), ✗ sur un cas
 de test (« Invariant « … » : à revoir — »), *Retour → fixup* ; possible
 pendant que l'agent travaille. On complète, puis on envoie. En *Relire*, 💬
@@ -967,7 +984,29 @@ conversation ; note `0.9.0-actions-independantes.md`).
    (`review.md`) ; puis une ligne par module (commité, en cours : modifié pas
    commité, à faire ; nom, dossier, contrat, « à créer », ses commits) avec
    *Générer* (ce module), *Relire le diff* (du dernier commit qui le touche,
-   sinon des changements en cours), *Ouvrir*. Prochaine action : *✓ Commiter*
+   sinon des changements en cours), *Ouvrir*, et sous un module touché
+   *Voir le code* (replié ; un seul déplié à la fois) : ses fichiers par
+   dossier et le fichier choisi, monospace, numéroté, coloré (F-113). Seul ce
+   fichier est lu, à l'ouverture puis à chaque changement sur le disque
+   (surveillé et poussé par le principal, pas au rythme du relevé : pendant
+   la génération, le code s'écrit) ; la vue reste sur lui tant qu'il est dans
+   le module ; plus d'1 Mo ou illisible : « fichier trop gros ». Le code est
+   modifiable, enregistré au geste (Ctrl+S, *Enregistrer*) : le seul fichier
+   suivi, existant, dans le dossier de l'agent (I-37, I-39) ; une
+   modification est gardée tant qu'elle n'est pas enregistrée, sinon la vue
+   suit le disque. Elle n'est jamais jetée sans geste ni écrite par-dessus
+   le disque : si le fichier a changé depuis son début (son heure,
+   `VibeCode.time` ; pendant une course, un tour ou d'ailleurs), elle reste
+   affichée mais *Enregistrer* est grisé (« Le fichier a changé sur le
+   disque ») et *Abandonner* remet le texte du disque. Édition grisée (le motif en titre ; la vue suit toujours
+   le disque) pendant un tour de la conversation (« La conversation
+   travaille » : on ne sait pas quels fichiers il touche) et pendant une
+   course qui génère ce module (*Générer*, *✓ Valider → commit → suivant* :
+   ce module ; *Générer les modules restants* : tous ; « Ce module est en
+   cours de génération ») ; le principal recalcule ce verrou avant d'écrire,
+   sans se fier à la page. Un clic sur une ligne, ou une sélection : 💬 (une
+   question, une vérification) ou *Retour → fixup* (une correction) cite ses
+   lignes entières dans le champ de la conversation (F-98). Prochaine action : *✓ Commiter*
    (un commit préparé), *✓ Valider → commit → suivant* (un module en cours,
    un autre reste), *Préparer le commit* (le dernier en cours), sinon
    *Générer ce module* (le premier qu'aucun commit ne touche ; avec
@@ -1229,8 +1268,11 @@ absente (I-29).
   F-97) : sans la box où l'agent tourne déjà (vide si `agentCommand` y
   entre) ; il y lance les commandes du projet, sans en ajouter.
 
-**F-113 Coloration du code d'un test** (F-100, étape Invariants : *Code*, *Voir le
-fichier*) : d'après l'extension — `ts`, `tsx`, `js`, `jsx`, `mjs`, `cjs`,
+**F-113 Coloration du code** (F-100, étape Invariants : *Code*, *Voir le
+fichier*, en lecture seule, sans citer ; étape Modules : *Voir le code*,
+éditable — une zone de saisie posée sur le code coloré, en lecture quand
+l'édition est grisée —, un clic ou une sélection cite ses lignes, F-98) :
+d'après l'extension — `ts`, `tsx`, `js`, `jsx`, `mjs`, `cjs`,
 `mts`, `cts` ; `rs` (attributs `#[…]`, macros `nom!`, durées de vie `'a`,
 chaînes brutes `r#"…"#`, caractères) ; `py` (triples guillemets, préfixes,
 décorateurs) ; `go` (chaînes brutes `` `…` ``) ; un autre : en texte. La
@@ -1457,7 +1499,7 @@ I-13 à I-17, I-19, I-20, I-21, I-23, I-24, I-27, I-29, I-30, I-32 à I-34 ;
 VibeCoder, I-35 à I-40 : `src/main/core/vibecoder/tests/invariants/`
 (`defaults.test.ts` I-35, `fable.test.ts` I-36, `files.test.ts` I-37,
 `actions.test.ts` I-38), `src/main/technicals/git/tests/invariants/read-only.test.ts`,
-`src/main/technicals/github/tests/invariants/read-only.test.ts`, `src/main/technicals/direct/tests/invariants/direct.test.ts` (I-39), `src/renderer/core/vibecoder/tests/invariants/markdown.test.ts` (I-40) ;
+`src/main/technicals/github/tests/invariants/read-only.test.ts`, `src/main/technicals/direct/tests/invariants/direct.test.ts` (I-39), `src/main/app/controllers/tests/invariants/module-code.test.ts` (I-37, I-39 : *Voir le code*, sur le vrai principal), `src/renderer/core/vibecoder/tests/invariants/markdown.test.ts`, `src/renderer/app/panel/vibecoder/tests/invariants/code-view.test.ts` (I-40) ;
 I-42, I-43 : `src/main/core/runner/tests/invariants/runner.test.ts`,
 `src/main/technicals/process/tests/invariants/process.test.ts` ; I-44 :
 `src/main/app/controllers/tests/invariants/runs.test.ts` (sur le vrai
@@ -1595,12 +1637,14 @@ bancs de comparaison.
   ces modèles. Seul un clic de
   l'utilisateur y passe l'agent (coût).
 - **I-37** Le principal ne lit pour VibeCoder que la note et les tests que git
-  lui donne, **dans le dossier de l'agent** (`..` et liens résolus ; ni
+  lui donne, et le seul fichier que suit *Voir le code* (F-100), d'un module
+  touché par la branche (`m<rang>/<i>`), **dans le dossier de l'agent** (`..` et liens résolus ; ni
   chemin absolu, ni NUL), et les sorties de cet agent **sous leurs noms
   connus** (F-95 ; ni `..`, ni autre dossier qu'`invariants/`, ni un lien). Une
   page désigne un fichier par son **id dans le dernier relevé**, jamais par un
   chemin : un id en forme de chemin, ou égal au chemin d'un fichier du relevé,
-  ne désigne rien (I-34) ; un commit, par son rang (`c<rang>`, `gh:c<rang>`,
+  ne désigne rien (I-34), ni la note, un test, un commit ou un module pas
+  touché pour *Voir le code* ; un commit, par son rang (`c<rang>`, `gh:c<rang>`,
   `c<rang>/<i>`, F-101), jamais par une URL. Ce que le principal écrit pour
   ouvrir (une version de la PR, un diff) va sous `files/` du dossier de
   sorties de l'agent, en lecture seule, et n'est jamais relu.
@@ -1614,7 +1658,8 @@ bancs de comparaison.
   (l'agent lance des commandes avec ces valeurs). Le message est le gabarit,
   ses variables remplies, rien d'autre.
 - **I-39** Le principal ne **modifie jamais le dépôt**, ni rien sur GitHub,
-  **hors des quatre actions directes** (F-114), et celles-ci seulement au
+  **hors des quatre actions directes** (F-114) et d'*Enregistrer*
+  (ci-dessous), et celles-ci seulement au
   **clic de leur bouton** (jamais au relevé, ni d'elles-mêmes), par une
   **liste fermée** de commandes (`DIRECT_GIT` : `commit -F <sorties>/commit.md`,
   `fetch origin +pull/<n>/head:refs/vibecoder/pr/<n> <base>`, `switch <base>`,
@@ -1638,9 +1683,15 @@ bancs de comparaison.
   d'ailleurs ne devient **jamais une option** : refusé sans lancer git s'il
   commence par « - » ou contient un NUL, et pour un ref, « .. » ou un
   caractère hors de `[A-Za-z0-9._/-]` ; `--end-of-options` là où git le
-  permet. Push, rebase, checkout, ouvrir une PR, et le *via* des actions
+  permet. Seule autre exception, validée par l'équipe : *Enregistrer* de
+  *Voir le code* (F-100), **au geste** de l'utilisateur (Ctrl+S ou le
+  bouton), n'écrit que le fichier suivi, désigné par son id (I-37), un
+  fichier existant du dossier de l'agent, le texte une chaîne d'1 Mo au
+  plus ; jamais pendant un tour de la conversation ni une course qui génère
+  ce module (verrou recalculé par le principal, sans se fier à la page). Push, rebase, checkout, ouvrir une PR, et le *via* des actions
   directes passent par l'agent, dans la conversation, avec ses autorisations.
-- **I-40** Aucun HTML rendu depuis un texte (note, sortie d'un skill) : le
+- **I-40** Aucun HTML rendu depuis un texte (note, sortie d'un skill, code
+  d'un fichier, F-113 : des morceaux de texte, éditable ou non) : le
   Markdown de VibeCoder ne produit que du texte, du code et des liens
   `http(s)` — une balise reste du texte, un lien `javascript:`, `data:`,
   `file:`, `vbscript:` ou `//hôte` n'est pas un lien —, ouverts dans le

@@ -5,13 +5,19 @@
 //   git lui donne dans le dossier de l'agent, et les sorties de cet agent sous
 //   leurs noms connus ; une page désigne un fichier par son identifiant dans
 //   le dernier relevé, jamais par un chemin (I-34).
+//   Note 0.11.0 (docs/tickets/feat/0.11.0-code-des-modules.md), « Ce que ça ne
+//   doit pas faire » : la page ne désigne un fichier du module que par son id
+//   dans le dernier relevé, jamais par un chemin ; le principal ne lit que le
+//   fichier ouvert, d'un module touché par la branche, rien hors du dossier de
+//   l'agent (I-37, élargi aux fichiers des modules) — ici codeFile ; sur le
+//   vrai principal : app/controllers/tests/invariants/module-code.test.ts.
 // Sur du réel : un dossier temporaire, un lien qui en sort, fs.realpathSync.native.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import type { VibeView } from 'shared/bridge';
-import { isOutputName, itemPath, safePath } from 'core/vibecoder';
+import { codeFile, isOutputName, itemPath, safePath } from 'core/vibecoder';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vibecoder-fichiers-'));
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
@@ -156,5 +162,79 @@ describe('isOutputName : les noms connus des sorties, rien d’autre', () => {
   it('x.json, hors de la liste : refusé', () => {
     // un nom inconnu
     expect(isOutputName('x.json')).toBe(false);
+  });
+});
+
+// Le même relevé, où la branche touche le premier module (deux fichiers, ids
+// m0/<i>) et pas le second ; celui-ci porte quand même un fichier, pour voir
+// qu'il n'est pas lu ; et un commit, avec son fichier c0/0.
+const coded = {
+  ...view,
+  modules: [
+    { ...view.modules[0], touched: true, files: [file('m0/0', 'src/main/core/x/index.ts'), file('m0/1', 'src/main/core/x/tests/x.test.ts')], locked: null },
+    { path: 'src/main/core/y', contract: 'expose y', file: file('m1', 'src/main/core/y'), touched: false, commits: [], files: [file('m1/0', 'src/main/core/y/index.ts')], locked: null },
+  ],
+  commits: [{ hash: 'e83c516', subject: 'x', fixup: false, files: ['src/main/core/x/index.ts'] }],
+};
+
+describe('codeFile : le fichier d’un module touché, par son id dans le dernier relevé, jamais par un chemin', () => {
+  it('m0/0, d’un module touché : son chemin dans le relevé', () => {
+    // l'id mène au chemin que le relevé donne à ce fichier
+    expect(codeFile(coded, 'm0/0')?.path).toBe(coded.modules[0].files[0].path);
+  });
+
+  it('m0/0, d’un module touché : son module dans le relevé', () => {
+    // l'id mène au module qui porte ce fichier
+    expect(codeFile(coded, 'm0/0')?.module.path).toBe(coded.modules[0].path);
+  });
+
+  it('le fichier d’un module que la branche ne touche pas : rien', () => {
+    // même porté par le relevé, un module pas touché ne donne aucun fichier
+    expect(codeFile(coded, 'm1/0')).toBeNull();
+  });
+
+  it('l’id du dossier d’un module (son fichier dans le relevé) : rien', () => {
+    // un module n'est pas un de ses fichiers
+    expect(codeFile(coded, 'm1')).toBeNull();
+  });
+
+  it('l’id de la note : rien', () => {
+    // la note n'est pas un fichier de module
+    expect(codeFile(coded, 'n1')).toBeNull();
+  });
+
+  it('l’id d’un test d’invariant : rien', () => {
+    // un test du relevé n'est pas un fichier de module
+    expect(codeFile(coded, 't1')).toBeNull();
+  });
+
+  it('l’id du fichier d’un commit (c0/0) : rien', () => {
+    // le fichier d'un commit n'est pas un fichier de module, même s'il en a le chemin
+    expect(codeFile(coded, 'c0/0')).toBeNull();
+  });
+
+  it('un id inconnu (m0/9) : rien', () => {
+    // le module n'a pas de dixième fichier
+    expect(codeFile(coded, 'm0/9')).toBeNull();
+  });
+
+  it('un id en forme de chemin relatif (../../etc/passwd) : rien', () => {
+    // l'id n'est jamais lu comme un chemin
+    expect(codeFile(coded, '../../etc/passwd')).toBeNull();
+  });
+
+  it('un id en forme de chemin absolu (/etc/passwd) : rien', () => {
+    // l'id n'est jamais lu comme un chemin
+    expect(codeFile(coded, '/etc/passwd')).toBeNull();
+  });
+
+  it('un id égal au chemin d’un fichier du module : rien', () => {
+    // même le chemin d'un fichier du module n'est pas un id
+    expect(codeFile(coded, coded.modules[0].files[0].path)).toBeNull();
+  });
+
+  it('sans relevé : rien', () => {
+    // pas de relevé, pas de fichier
+    expect(codeFile(null, 'm0/0')).toBeNull();
   });
 });

@@ -58,31 +58,6 @@
 .vc-ifile-src > summary:hover { color: var(--vc-text); }
 .vc-ifile-src > .vc-src { max-height: 420px; margin-top: 8px; }
 
-/* Le code d'origine : monospace, numéroté (les numéros ne se sélectionnent pas). */
-.vc-src {
-  margin: 0 0 12px;
-  padding: 8px 0;
-  max-height: 360px;
-  overflow: auto;
-  border: 1px solid #1c2130;
-  border-radius: 7px;
-  background: var(--vc-code);
-  color: #c9d1e3;
-  font: 12px/1.6 var(--vc-mono);
-}
-.vc-src code { display: block; min-width: max-content; font: inherit; }
-.vc-src::-webkit-scrollbar-corner { background: transparent; }
-.vc-sl { display: block; min-height: 1.6em; padding-right: 14px; white-space: pre; }
-.vc-sl::before { content: attr(data-n); display: inline-block; width: 4ch; margin-right: 12px; padding-right: 8px; border-right: 1px solid #262c3b; color: var(--vc-faint); text-align: right; }
-/* Sa coloration : la palette sombre de GitHub. */
-.vc-cx-keyword { color: #ff7b72; }
-.vc-cx-string { color: #a5d6ff; }
-.vc-cx-comment { color: #8b949e; font-style: italic; }
-.vc-cx-constant { color: #79c0ff; }
-.vc-cx-function { color: #d2a8ff; }
-.vc-cx-type { color: #ffa657; }
-.vc-cx-attr { color: #7ee787; }
-
 /* ---- Un cas -------------------------------------------------------------------- */
 .vc-case {
   position: relative;

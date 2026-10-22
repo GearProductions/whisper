@@ -4,9 +4,12 @@
  *  n'est retenu que s'il reste, `..` et liens résolus, dans le dossier de
  *  l'agent (safePath).
  *  Ne connaît pas : Electron, le disque (realpath passé).
- *  Utilisé par : app/controllers/vibecoder (lire la note et les tests, ouvrir un fichier ou un commit du relevé). */
+ *  Un fichier d'un module touché par la branche (codeFile) : son id
+ *  `m<rang>/<i>` dans le dernier relevé, jamais lu comme un chemin.
+ *  Utilisé par : app/controllers (vibecoder : lire la note et les tests, ouvrir
+ *  un fichier ou un commit du relevé ; module-code : le fichier de Voir le code). */
 import path from 'node:path';
-import type { VibeView } from 'shared/bridge';
+import type { VibeModule, VibeView } from 'shared/bridge';
 
 // Le chemin absolu de `rel` dans `dir`, `..` et liens résolus par realpath (le
 // dossier comme la cible) ; null s'il en sort, si `rel` est absolu ou contient
@@ -39,4 +42,15 @@ export function itemCommit(view: VibeView | null, id: string): { hash: string; w
   const m = /^(gh:)?c(\d+)$/.exec(id);
   const c = m && view?.commits[Number(m[2])];
   return m && c ? { hash: c.hash, web: !!m[1] } : null;
+}
+
+// Le fichier d'un module touché du relevé que désigne `m<rang>/<i>` (et son
+// module) ; null pour tout autre id (note, test, commit, module pas touché,
+// id inconnu), l'id n'étant jamais lu comme un chemin.
+export function codeFile(view: VibeView | null, id: string): { path: string; module: VibeModule } | null {
+  for (const module of view?.modules ?? []) {
+    const f = module.touched ? module.files?.find((x) => x.id === id) : undefined;
+    if (f) return { path: f.path, module };
+  }
+  return null;
 }

@@ -583,3 +583,64 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 .vc-procs-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
 .vc-procs-foot .vc-mini { margin-left: 0; }
 .vc-procs .vc-empty { margin-bottom: 12px; }
+
+/* CodeView (invariants-view, module-code) : monospace, numéroté (les numéros ne se sélectionnent pas). */
+.vc-src {
+  margin: 0 0 12px;
+  padding: 8px 0;
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid #1c2130;
+  border-radius: 7px;
+  background: var(--vc-code);
+  color: #c9d1e3;
+  font: 12px/1.6 var(--vc-mono);
+}
+.vc-src code { display: block; min-width: max-content; font: inherit; }
+.vc-src::-webkit-scrollbar-corner { background: transparent; }
+.vc-sl { display: block; min-height: 1.6em; padding-right: 14px; white-space: pre; }
+.vc-sl::before { content: attr(data-n); display: inline-block; width: 4ch; margin-right: 12px; padding-right: 8px; border-right: 1px solid #262c3b; color: var(--vc-faint); text-align: right; }
+/* Sa coloration : la palette sombre de GitHub. */
+.vc-cx-keyword { color: #ff7b72; }
+.vc-cx-string { color: #a5d6ff; }
+.vc-cx-comment { color: #8b949e; font-style: italic; }
+.vc-cx-constant { color: #79c0ff; }
+.vc-cx-function { color: #d2a8ff; }
+.vc-cx-type { color: #ffa657; }
+.vc-cx-attr { color: #7ee787; }
+
+/* CodeView : la zone de saisie transparente posée sur le code coloré (même
+   police, mêmes lignes, décalée de la colonne des numéros : 4ch + 8px + 1px + 12px). */
+.vc-src-edit { display: grid; min-width: max-content; }
+.vc-src-edit > * { grid-area: 1 / 1; }
+.vc-src-edit > code { user-select: none; }
+.vc-src-edit > textarea {
+  margin: 0;
+  padding: 0 14px 0 calc(4ch + 21px);
+  overflow: hidden;
+  resize: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--vc-text);
+  font: inherit;
+  white-space: pre;
+}
+.vc-src[data-locked] { opacity: 0.6; }
+.vc-src[data-locked] textarea { cursor: not-allowed; }
+.vc-src-tools { display: flex; gap: 6px; align-items: center; margin: -6px 0 12px; }
+.vc-src-tools .vc-mini { margin-left: 0; }
+.vc-src-tools button:disabled { opacity: 0.4; cursor: default; }
+
+/* ModuleCode : Voir le code, sous la ligne d'un module touché. */
+.vc-mod-code { margin-top: 6px; }
+.vc-mod-code > summary { width: max-content; color: var(--vc-muted); font-size: 12px; cursor: pointer; }
+.vc-mod-code > summary:hover { color: var(--vc-text); }
+.vc-mod-tree { margin: 6px 0 8px; }
+.vc-mod-tree-dir { color: var(--vc-faint); font-size: 11px; line-height: 1.6; }
+.vc-mod-tree .vc-jfiles { padding-left: 12px; }
+.vc-mod-tree button[aria-current] { background: var(--vc-control); color: var(--vc-text); }
+.vc-mod-code .vc-src { max-height: 420px; }
+.vc-mod-code-foot { display: flex; justify-content: flex-end; margin: -6px 0 12px; }
+.vc-mod-code-foot .vc-mini:disabled { opacity: 0.4; cursor: default; }

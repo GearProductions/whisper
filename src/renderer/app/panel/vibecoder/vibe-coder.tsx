@@ -23,12 +23,15 @@
  *  (kept : l'écran est recréé à chaque changement d'agent). Préparer un message dans le champ
  *  de la conversation, ou un message qui exige son texte, réaffiche la
  *  conversation (colonne masquée, ou onglet Actions, Tâches, Processus).
+ *  Le fichier de module suivi (`code`, Voir le code) passe à la vue d'étape ;
+ *  l'étape change ou l'écran se ferme (dont un changement d'agent) : plus
+ *  aucun fichier suivi.
  *  Ne connaît pas : le pont (rappels passés), le contenu de la conversation.
  *  Utilisé par : panel-app. */
 import { Component, useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { isBusy, titleOf } from 'core/conversation';
 import { convWidth, fieldOf, modelArg, t as strings, type Answers, type Kept, type ModelPicks, type Strings } from 'core/vibecoder';
-import type { Thread, VibeLang, VibeStepId, VibeView } from 'technicals/bridge';
+import type { Thread, VibeCode, VibeLang, VibeStepId, VibeView } from 'technicals/bridge';
 import { Journey } from './journey';
 import { ProcessesView } from './processes-view';
 import { Picks } from './model-pick';
@@ -53,6 +56,7 @@ type Props = {
   onSide(side: Side): void;
   children: ReactNode;         // la colonne de la conversation
   kept: Kept;                  // la saisie de l'écran, par agent (panel-app la tient)
+  code: VibeCode | null;       // le fichier de module suivi (act.follow), tel que le principal le pousse
 };
 
 export type Side = { open: boolean; width: number };
@@ -64,7 +68,7 @@ function useKept<T>(kept: Kept, agent: string, key: string, initial: T) {
   return [value, set] as const;
 }
 
-export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextOpen, onGauge, onTasks, onHide, side, onSide, children, kept }: Props) {
+export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextOpen, onGauge, onTasks, onHide, side, onSide, children, kept, code }: Props) {
   const t = strings(view.lang);
   const [picked, setPicked] = useKept<VibeStepId | null>(kept, view.agentId, 'picked', null);
   const { steps } = view;
@@ -111,8 +115,11 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
       if (sent && key) setText(key)('');
       return sent;
     },
-    prefill: (id, quote) => { show(); given.prefill(id, quote); },
+    prefill: (id, quote, block) => { show(); given.prefill(id, quote, block); },
   };
+  // L'étape change, ou l'écran se ferme (il est recréé à chaque changement d'agent) : plus aucun fichier suivi.
+  const stepId = step && step.id;
+  useEffect(() => () => given.follow(null), [stepId]);
   // Le verdict de la revue (Relire), tenu ici comme les réponses : il survit à un changement d'onglet.
   const [verdict, setVerdict] = useKept<StepProps['verdict']>(kept, view.agentId, 'verdict', 'comment');
 
@@ -141,7 +148,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
           <div className="vc-step scroll" key={vibe ? 'vibe' : step ? step.id : ''}>
             {view.flow === 'review' ? <ClosedBanner pr={view.pr} t={t} /> : null}
             {step && View ? <Guard t={t}><View view={view} step={step} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} verdict={verdict} onVerdict={setVerdict}
-              text={texts[step.id] ?? ''} setText={setText(step.id)} /></Guard> : null}
+              text={texts[step.id] ?? ''} setText={setText(step.id)} code={code} /></Guard> : null}
           </div>
         </section>
         <section className="vc-conv" aria-label={t.conversation}>

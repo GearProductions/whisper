@@ -465,6 +465,16 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
 4. **Modules** : *Générer ce module* (avec `ponytail`, tests lancés, sans
    commit), *Relire le diff*, *✓ Valider → commit → suivant* ; ou *Générer
    les modules restants* (en parallèle, chacun relu et commité à part).
+   Sous un module touché, *Voir le code* : ses fichiers et celui choisi,
+   coloré comme sur GitHub, qui suit le disque (pendant la génération, on
+   voit le code s'écrire ; plus d'1 Mo : « fichier trop gros »). Il se
+   modifie sur place, enregistré par Ctrl+S ou *Enregistrer* — grisé pendant
+   un tour de la conversation ou pendant que ce module est généré, et si le
+   fichier a changé sur le disque depuis la modification (*Abandonner* remet
+   alors le texte du disque). Un clic
+   sur une ligne, ou un bloc sélectionné : 💬 le cite dans le champ de la
+   conversation pour une question, *Retour → fixup* pour une correction (les
+   lignes entières, sans limite).
 5. **Revue** : *Lancer les vérifications et la ponytail review* (les deux
    tournent ensemble ; des avertissements seulement : en orange, la
    vérification passe ; pour refaire l'une, on relance ce bouton ; les
