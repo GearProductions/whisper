@@ -14,4 +14,14 @@ describe('agentTitle', () => {
   it('sans pastille : le nom seul', () => {
     expect(agentTitle(robot({ unread: true }))).toBe('alpha — a répondu : cliquer pour lire');
   });
+  it('le signal des courses quand la conversation ne dit rien', () => {
+    expect(agentTitle(robot({ signal: 'asking', status: 'asking' }))).toBe('alpha — une action attend une autorisation');
+    expect(agentTitle(robot({ signal: 'failed', status: 'error' }))).toBe('alpha — une action a échoué');
+    expect(agentTitle(robot({ signal: 'done', unread: true }))).toBe('alpha — une action est finie');
+  });
+  it('la conversation d\'abord', () => {
+    expect(agentTitle(robot({ signal: 'asking', status: 'working' }))).toBe('alpha — au travail…');
+    expect(agentTitle(robot({ signal: 'done', status: 'asking' }))).toBe('alpha — attend une autorisation');
+    expect(agentTitle(robot({ signal: null, unread: true }))).toBe('alpha — a répondu : cliquer pour lire');
+  });
 });
