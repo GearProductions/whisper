@@ -14,27 +14,31 @@
  *  .start retenu reste, « en attente » ; il part comme un clic, par
  *  startAction de controllers/vibecoder, I-38 ; une demande pour une action
  *  déjà en cours est supprimée), et <sorties>/actions.json, réécrit à chaque changement.
+ *  Le signal des courses sur le robot (F-55) : chacune retient l'état où on l'a vue (noticed) ; runsTab :
+ *  l'agent dont l'onglet Actions est ouvert, ses courses vues d'office ; runSignalOf (pour pushAgents) ;
+ *  à chaque changement d'une course, le robot suit si son signal a changé.
  *  Courses, avis et demandes retenues : en mémoire. closeRuns : l'agent oublié.
  *  Ne connaît pas : la page, les fenêtres.
  *  Utilisé par : controllers/vibecoder, controllers/agents,
  *  controllers/module-code, menus/agent-menus. */
 import fs from 'node:fs';
 import path from 'node:path';
-import type { SendResult, VibeRunOp, VibeView } from 'shared/bridge';
+import type { RunSignal, SendResult, VibeRunOp, VibeView } from 'shared/bridge';
 import { shortTarget, type AgentConfig } from 'core/agents';
 import { agentList, vibeLang, type Config } from 'core/config';
 import {
-  blockedBy, endNotice, forkedModel, GRACE_MS, headField, LOCKING, ownRun, parseRequest, runKey, runPhase, runsFile, type ActionDef, type Run,
+  blockedBy, endNotice, forkedModel, GRACE_MS, headField, LOCKING, ownRun, parseRequest, runKey, runPhase, runsFile, runSignal, type ActionDef, type Run, type RunState,
 } from 'core/vibecoder';
 import { loadConfig, vibeActions, vibeOutDir, vibePluginDir } from 'app/settings';
-import { agents, CLAUDE_MISSING, isBusy, launchOptions, sendToAgent } from './agents';
+import { agents, CLAUDE_MISSING, isBusy, launchOptions, pushAgents, sendToAgent } from './agents';
 import { directLocks, refreshVibe, startAction } from './vibecoder';
 
 const REQUEST_MAX = 64 * 1024;   // une demande plus grosse n'est pas lue
 
 // Une course, et ce que la règle et sa fin en retiennent : `reads` (elle lit seulement), `seen` (son tour a commencé),
-// `tasks` (ses tâches de fond au dernier changement), `grace` (le minuteur du délai de grâce, s'il court).
-type Live = Run & { reads: boolean; seen: boolean; tasks: number; grace?: NodeJS.Timeout };
+// `tasks` (ses tâches de fond au dernier changement), `grace` (le minuteur du délai de grâce, s'il court),
+// `noticed` (l'état où l'utilisateur l'a vue, null : jamais).
+type Live = Run & { reads: boolean; seen: boolean; tasks: number; noticed: RunState | null; grace?: NodeJS.Timeout };
 
 const stopGrace = (run: Live) => { clearTimeout(run.grace); run.grace = undefined; };
 
@@ -43,9 +47,29 @@ const waits = new Map<string, { id: string; reason: string }[]>();      // par a
 const notices = new Map<string, string[]>();                            // par agent : les avis de fin pas encore envoyés
 const views = new Map<string, VibeView>();                              // par agent : le dernier relevé (runRequests)
 const wasBusy = new Set<string>();                                      // les conversations au travail au dernier changement
+const signals = new Map<string, RunSignal>();                           // par agent : le signal montré au dernier changement
+let tab: string | null = null;                                          // l'agent dont l'onglet Actions est ouvert
 
 const entryId = (agentId: string, key: string) => `${agentId}~${key}`;
 const mine = (agentId: string) => [...(all.get(agentId)?.values() ?? [])];
+
+// Le signal des courses de l'agent sur son robot (pushAgents).
+export const runSignalOf = (agentId: string): RunSignal | null => runSignal(mine(agentId));
+
+// Une course de l'agent a changé : vue d'office si son onglet Actions est ouvert ; le robot suit si son signal a changé.
+function signalFollow(agentId: string) {
+  if (tab === agentId) for (const r of mine(agentId)) r.noticed = r.state;
+  const signal = runSignalOf(agentId);
+  if (signal === (signals.get(agentId) ?? null)) return;
+  if (signal) signals.set(agentId, signal); else signals.delete(agentId);
+  pushAgents();
+}
+
+// L'onglet Actions ouvert sur cet agent (null : fermé) : ses courses vues aussitôt.
+export function runsTab(agentId: string | null) {
+  tab = agentId;
+  if (agentId) signalFollow(agentId);
+}
 
 // Les courses de l'agent (pour le relevé, l'onglet Actions).
 export const runsOf = (agent: Pick<AgentConfig, 'id'>): Run[] => mine(agent.id);
@@ -87,7 +111,7 @@ export function startRun(agent: AgentConfig, def: ActionDef, message: string, cf
   const runs = all.get(agent.id) ?? new Map<string, Live>();
   all.set(agent.id, runs);
   const run: Live = {
-    id: def.id, key, since: Date.now(), end: null, state: 'running', reply: '', reads: !!def.reads, seen: false, tasks: 0, module,
+    id: def.id, key, since: Date.now(), end: null, state: 'running', reply: '', reads: !!def.reads, seen: false, tasks: 0, noticed: null, module,
     sessionId: def.id === 'answers' ? runs.get(key)?.sessionId ?? null : null,
   };
   runs.set(key, run);   // tout de suite : un second clic la voit (blockedBy)
@@ -128,6 +152,7 @@ function changed(agentId: string, run: Live) {
     else if (phase !== 'idle') { stopGrace(run); Object.assign(run, { seen: true, state: phase }); }
     else if (run.seen && !run.grace) finish(agentId, run);
   }
+  signalFollow(agentId);
   save(agentId);
   refreshVibe();
 }
@@ -140,6 +165,7 @@ function finish(agentId: string, run: Live, failure?: string) {
   const last = failure === undefined ? agents.lastReply(entry) : { error: true, text: failure };
   Object.assign(run, { state: last?.error ? 'failed' : 'done', reply: last?.text ?? '', end: Date.now() });
   void agents.close(entry);
+  signalFollow(agentId);
   const cfg = loadConfig();
   const lang = vibeLang(cfg);
   const def = vibeActions(lang).find((d) => d.id === run.id);
@@ -190,6 +216,7 @@ export async function runOp(agent: AgentConfig, id: string, op: VibeRunOp): Prom
   } else if (op === 'allow' || op === 'always' || op === 'deny') {
     if (!agents.answer(entry, op)) return false;
   } else return false;
+  signalFollow(agent.id);
   save(agent.id);
   refreshVibe({ now: true });
   return true;
@@ -260,7 +287,7 @@ export function runRequests(agent: AgentConfig, view = views.get(agent.id)): boo
 // L'agent oublié (retiré, nouvelle session, robot d'un worktree retiré) : ses courses fermées et oubliées.
 export function closeRuns(agent: Pick<AgentConfig, 'id'>) {
   for (const r of mine(agent.id)) { stopGrace(r); agents.forget(entryId(agent.id, r.key)); }
-  for (const m of [all, waits, notices, views]) m.delete(agent.id);
+  for (const m of [all, waits, notices, views, signals]) m.delete(agent.id);
   wasBusy.delete(agent.id);
   save(agent.id);
 }

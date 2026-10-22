@@ -5,7 +5,8 @@
 // apres-tache-de-fond, F-115 ; horloge simulée), l'arrêt demandé au
 // processus de la course, les demandes de l'orchestrateur (retenue puis partie,
 // invalide, arrêt), answers qui reprend la session de la note, le module qu'une
-// course retient (note 0.11.0).
+// course retient (note 0.11.0), le signal des courses sur le robot, effacé par l'onglet
+// Actions, vu d'office quand il est ouvert (note fix/0.11.0-vibecoder-invariants-existants-et-courses).
 // Sur le vrai principal (contrôleurs, fenêtres, état, réglages et fichiers sur
 // disque, git réel sur un dépôt d'essai, les actions livrées dans resources/) ;
 // faux : Electron et le SDK de Claude Code (chaque message reçu ouvre un tour,
@@ -393,4 +394,35 @@ it('answers reprend la session de la course de la note', async () => {
   expect(runVibeAction('answers', { answers: ['oui'] })).toEqual({ ok: true });
   await settle();
   expect(turn('Réponses')?.options.resume).toBe(session);
+});
+
+describe('le signal des courses', () => {
+  it('finie onglet fermé : signale, jusqu’à l’ouverture de l’onglet Actions', async () => {
+    const { runVibeAction, runSignalOf, runsTab } = await open();
+    runVibeAction('forme', {});
+    await settle();
+    expect(runSignalOf('a1')).toBeNull();   // en cours : rien
+    turn('/vibecoder:forme')!.finish('ok');
+    await settle();
+    expect(runSignalOf('a1')).toBe('done');
+    runsTab('a1');
+    expect(runSignalOf('a1')).toBeNull();
+  });
+
+  it('onglet ouvert sur l’agent : vue d’office, pas de signal ; arrêtée : pas de signal', async () => {
+    const { runVibeAction, runSignalOf, runsTab, vibeRunOp } = await open();
+    runsTab('a1');
+    runVibeAction('forme', {});
+    await settle();
+    turn('/vibecoder:forme')!.finish('ok');
+    await settle();
+    expect(runSignalOf('a1')).toBeNull();
+
+    runsTab(null);
+    runVibeAction('invariants', {});
+    await settle();
+    vibeRunOp('invariants', 'stop');
+    await settle();
+    expect(runSignalOf('a1')).toBeNull();
+  });
 });
