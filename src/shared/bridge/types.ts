@@ -241,7 +241,12 @@ export type VibeModule = {
   file: VibeFile | null;       // son fichier ou dossier, s'il existe
   touched: boolean;            // la branche le touche
   commits: string[];           // hash des commits qui le touchent
+  files?: VibeFile[];          // touché : ses fichiers (ids m<rang>/<i>) ; absent = []
+  locked?: string | null;      // pourquoi Voir le code est grisé (codeLock) ; absent = null : éditable
 };
+
+// Le texte d'un fichier de module, poussé par le principal (Voir le code) ; null : trop gros ou illisible.
+export type VibeCode = { id: string; text: string | null; time: number };
 
 // Un cas d'un test d'invariant, lu en pseudo-code.
 export type ReadingCase = {
