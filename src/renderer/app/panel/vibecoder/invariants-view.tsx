@@ -4,7 +4,8 @@
  *  repérés), ses cas limites, ce qu'il garantit, son point d'attention ; ✓ /
  *  ✗ (l'état : validé, refusé, modifié depuis), 💬, Ouvrir (à la ligne du
  *  cas) ; « Pseudo-code / Code » montre à la place son code d'origine
- *  (coloré d'après l'extension du fichier, comme « Voir le fichier »). ✗ et 💬 citent le
+ *  (CodeView : coloré d'après l'extension du fichier, comme « Voir le
+ *  fichier » ; en lecture seule, sans 💬 sur ses lignes). ✗ et 💬 citent le
  *  cas dans le champ (Relire : ils ouvrent sous la carte une zone de
  *  commentaire, pour le brouillon de revue, le cas en cible). Par fichier : sa
  *  progression, « Tout valider » quand aucun cas n'a de point d'attention (lu
@@ -21,9 +22,10 @@
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useMemo, useState } from 'react';
 import {
-  awaiting, caseLine, caseSource, casesOf, codeLines, excerpt, fileParts, progress, pseudoLines, remark, type CaseView, type Progress, type Strings,
+  awaiting, caseLine, caseSource, casesOf, excerpt, fileParts, progress, pseudoLines, remark, type CaseView, type Progress, type Strings,
 } from 'core/vibecoder';
 import type { VibeLang, VibeTestFile } from 'technicals/bridge';
+import { CodeView } from './code-view';
 import { CommentBox } from './comment-box';
 import { InlineMd, MarkdownView } from './markdown-view';
 import { Invite, Run, StepHead } from './step-parts';
@@ -170,7 +172,7 @@ export function InvariantsView(props: StepProps) {
             {f.source ? (
               <details className="vc-ifile-src">
                 <summary>{s.wholeFile}</summary>
-                <Source code={f.source} path={f.path} />
+                <CodeView code={f.source} path={f.path} t={t} />
               </details>
             ) : null}
             {casesOf(f).map((c, i) => (
@@ -240,7 +242,7 @@ function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVe
           </span>
         ) : null}
       </div>
-      {showCode ? <Source code={code} from={from} path={path} /> : null}
+      {showCode ? <CodeView code={code} from={from} path={path} t={t} /> : null}
       {r ? (
         <>
           {showCode ? null : <Pseudo code={r.pseudo} />}
@@ -286,24 +288,6 @@ function Pseudo({ code }: { code: string }) {
         {lines.map((l, i) => (
           <span key={i} className="vc-pl" data-assert={l.assert || undefined}>
             {l.parts.map((p, j) => (p.kind === 'text' ? p.text : <span key={j} className={`vc-tk-${p.kind}`}>{p.text}</span>))}
-          </span>
-        ))}
-      </code>
-    </pre>
-  );
-}
-
-// Le code d'origine, coloré d'après l'extension de son fichier (codeLines : des
-// morceaux, jamais du HTML ; langage inconnu : en texte) ; les numéros de ligne
-// en CSS, hors de la sélection.
-function Source({ code, path, from = 1 }: { code: string; path: string; from?: number }) {
-  const lines = useMemo(() => codeLines(code, path), [code, path]);
-  return (
-    <pre className="vc-src scroll">
-      <code>
-        {lines.map((l, i) => (
-          <span key={i} className="vc-sl" data-n={from + i}>
-            {l.map((t, j) => (t.kind === 'text' ? t.text : <span key={j} className={`vc-cx-${t.kind}`}>{t.text}</span>))}
           </span>
         ))}
       </code>
