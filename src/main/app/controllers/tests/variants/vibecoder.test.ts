@@ -173,6 +173,48 @@ describe('le relevé', () => {
     expect(v.error).toEqual(expect.any(String));
   });
 
+  it('list (0.11.0) : les fichiers d’un dossier et de ses sous-dossiers, relatifs au dépôt ; ni lien, ni caché, ni dehors', async () => {
+    write(path.join(dir, 'src/m/index.ts'), 'a');
+    write(path.join(dir, 'src/m/sous/b.ts'), 'b');
+    write(path.join(dir, 'src/m/.cache/c.ts'), 'c');
+    write(path.join(dir, 'src/m/.env'), 'd');
+    write(path.join(fake.userData, 'dehors.ts'), 'dehors');
+    if (process.platform !== 'win32') {
+      fs.symlinkSync(path.join(fake.userData, 'dehors.ts'), path.join(dir, 'src/m/lien.ts'));
+      fs.symlinkSync(fake.userData, path.join(dir, 'src/m/lien-dossier'));
+    }
+    const { list } = (await open()).view()!;
+    expect(list!('src/m').sort()).toEqual(['src/m/index.ts', 'src/m/sous/b.ts']);
+    expect(list!('src/m/index.ts')).toEqual(['src/m/index.ts']);   // un fichier : lui-même
+    expect(list!('../dehors.ts')).toEqual([]);
+    expect(list!(path.join(fake.userData, 'dehors.ts'))).toEqual([]);
+    expect(list!('src/absent')).toEqual([]);
+    const { lastView } = await import('app/controllers');
+    expect(lastView('a1')).toMatchObject({ agentId: 'a1' });
+    expect(lastView('inconnu')).toBeNull();
+  });
+
+  it('list : sans node_modules, target, dist ni build ; au plus 1 000 fichiers, les premiers trouvés', async () => {
+    write(path.join(dir, 'src/m/index.ts'), 'a');
+    for (const d of ['node_modules', 'target', 'dist', 'build', 'sous/node_modules']) write(path.join(dir, 'src/m', d, 'x.js'), 'x');
+    write(path.join(dir, 'src/m/dist.ts'), 'un fichier, pas un dossier');
+    for (let i = 0; i < 1005; i++) write(path.join(dir, 'src/n', `f${i}.ts`), '');
+    const { list } = (await open()).view()!;
+    expect(list!('src/m').sort()).toEqual(['src/m/dist.ts', 'src/m/index.ts']);
+    expect(list!('src/n')).toHaveLength(1000);
+  });
+
+  it('une action qui génère des modules : sa course retient le module (runModule → startRun)', async () => {
+    write(path.join(fake.userData, 'vibecoder', 'actions.fr.json'), JSON.stringify([
+      { id: 'modules', flow: 'create', step: 'modules', kind: 'send', label: 'Générer les modules restants', text: '/vibecoder:modules {{lang}} {{out}}' },
+    ]));
+    await open();
+    const { runVibeAction, lockingRuns } = await import('app/controllers');
+    expect(runVibeAction('modules', {})).toEqual({ ok: true });
+    expect(lockingRuns('a1')).toEqual([expect.objectContaining({ id: 'modules', module: '*' })]);
+    await settle();
+  });
+
   it('revenu à la conversation : null, une fois', async () => {
     const { vibes } = await open();
     const { pushAgents, setVibe } = await import('app/controllers');
