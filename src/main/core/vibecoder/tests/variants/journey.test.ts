@@ -114,6 +114,13 @@ describe('Créer, Guide : les étapes et la prochaine action', () => {
     expect([status(v).invariants, primary(v)]).toEqual(['current', 'invariants']);
   });
 
+  // Bogue 0.11.0 : la ligne « → invariant » déjà observée par un test existant, aucun test de la branche.
+  it('ligne « → invariant » sans test de la branche, Écrire les invariants finie : invariants faits, Modules en cours', () => {
+    const wrote = { id: 'invariants', label: 'invariants', who: 'agent', state: 'done' as const, since: 4, end: 5, reply: '', permission: null };
+    const v = vibeView(input({ note, marks: NOTE_OK, runs: [wrote], repo: repo([], [commit('a', 'Note, forme', [NOTE_PATH])]) }));
+    expect([status(v).invariants, status(v).modules]).toEqual(['done', 'current']);
+  });
+
   it('des tests pas encore lus (Guide) : aucune action, la validation des cas passe avant la lecture', () => {
     expect(primary(vibeView(input({ note, marks: NOTE_OK, tests: [test] })))).toBeNull();
   });
