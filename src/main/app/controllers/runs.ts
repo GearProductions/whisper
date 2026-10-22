@@ -1,7 +1,8 @@
 /** runs — les courses : une action d'étape qui court à part de la conversation,
  *  sous sa propre entrée du runtime des agents, `<agent>~<clé>` (runKey).
  *  Lancer (startRun : si aucune course vivante ni action directe en cours ne
- *  la retient, blockedBy ; un processus neuf, suivi des fichiers écrits ;
+ *  la retient, blockedBy ; elle retient le module qu'elle génère, Run.module,
+ *  pour codeLock ; un processus neuf, suivi des fichiers écrits ;
  *  modèle et effort du skill que son message appelle, sinon ceux de l'agent ; answers reprend la session de la course de la note),
  *  suivre (son état d'après runPhase : en cours tant que son processus travaille ou que le runtime lui voit des
  *  tâches de fond, aucune limite de temps ; ses tâches de fond tombées à 0 hors tour, GRACE_MS laissés au tour
@@ -16,7 +17,7 @@
  *  Courses, avis et demandes retenues : en mémoire. closeRuns : l'agent oublié.
  *  Ne connaît pas : la page, les fenêtres.
  *  Utilisé par : controllers/vibecoder, controllers/agents,
- *  menus/agent-menus. */
+ *  controllers/module-code, menus/agent-menus. */
 import fs from 'node:fs';
 import path from 'node:path';
 import type { SendResult, VibeRunOp, VibeView } from 'shared/bridge';
@@ -49,8 +50,9 @@ const mine = (agentId: string) => [...(all.get(agentId)?.values() ?? [])];
 // Les courses de l'agent (pour le relevé, l'onglet Actions).
 export const runsOf = (agent: Pick<AgentConfig, 'id'>): Run[] => mine(agent.id);
 
-// Celles qui retiennent les autres (LOCKING), pour blockedBy et le parcours.
-export const lockingRuns = (agentId: string) => mine(agentId).filter((r) => LOCKING.includes(r.state)).map((r) => ({ id: r.id, reads: r.reads }));
+// Celles qui retiennent les autres (LOCKING), pour blockedBy, le parcours et codeLock (module).
+export const lockingRuns = (agentId: string) => mine(agentId).filter((r) => LOCKING.includes(r.state))
+  .map((r) => ({ id: r.id, reads: r.reads, module: r.module }));
 
 // La demande d'autorisation en attente de la course d'une action, pour runViews.
 export const runPending = (agentId: string) => (id: string) => {
@@ -74,8 +76,9 @@ function save(agentId: string) {
 
 // Lance l'action `def` (son message déjà rempli) dans sa course, si aucune course vivante ni action directe
 // en cours de l'agent ne la retient. Modèle et effort : ceux du skill que le message appelle (la variante
-// du modèle choisi à l'écran, /vibecoder:<nom>--<modèle>), sinon ceux de l'agent.
-export function startRun(agent: AgentConfig, def: ActionDef, message: string, cfg: Config): SendResult {
+// du modèle choisi à l'écran, /vibecoder:<nom>--<modèle>), sinon ceux de l'agent. `module` : celui qu'elle
+// génère (runModule), retenu tant qu'elle court.
+export function startRun(agent: AgentConfig, def: ActionDef, message: string, cfg: Config, module: string | null = null): SendResult {
   const lang = vibeLang(cfg);
   const held = blockedBy(def, [...lockingRuns(agent.id), ...directLocks(agent.id, vibeActions(lang))], lang);
   if (held) return { ok: false, error: held };
@@ -84,7 +87,7 @@ export function startRun(agent: AgentConfig, def: ActionDef, message: string, cf
   const runs = all.get(agent.id) ?? new Map<string, Live>();
   all.set(agent.id, runs);
   const run: Live = {
-    id: def.id, key, since: Date.now(), end: null, state: 'running', reply: '', reads: !!def.reads, seen: false, tasks: 0,
+    id: def.id, key, since: Date.now(), end: null, state: 'running', reply: '', reads: !!def.reads, seen: false, tasks: 0, module,
     sessionId: def.id === 'answers' ? runs.get(key)?.sessionId ?? null : null,
   };
   runs.set(key, run);   // tout de suite : un second clic la voit (blockedBy)
