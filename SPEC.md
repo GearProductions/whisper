@@ -345,8 +345,8 @@ de l'agent affiché dans le panneau est **lue d'office** (jamais de pastille).
 propriétaire/dépôt* (remote `origin` du `.git` du dossier, lu à chaque clic
 droit ; grisé sans origine GitHub) ; *Ouvrir dans l'éditeur (zed)*
 (`editorCommand`, sinon le premier trouvé parmi zed, code, cursor, codium,
-dans une nouvelle fenêtre ; grisé sans éditeur) ; *◧ Ouvrir VibeCoder*, ou,
-l'agent y étant, *💬 Revenir à la conversation* (F-91) ; *✎ Écrire un message…*
+dans une nouvelle fenêtre ; grisé sans éditeur) ; *◧ Ouvrir VibeCoder* et
+*💬 Ouvrir la conversation*, toujours tous deux, panneau ouvert ou non (F-91) ; *✎ Écrire un message…*
 (panneau + focus du champ) ; couleur du dossier (pas pour un enfant : celle
 de son parent) ; modèle (défaut, fable, opus,
 sonnet, haiku) ; effort (défaut, low → max) ; mode (manuel, accepter les
@@ -540,8 +540,9 @@ candidate) ou *Relire* une PR du dépôt. Chaque étape a ses boutons, qui
 envoient à l'agent le message du guide, avec le skill et le modèle qu'il faut
 (F-96, F-106).
 
-**F-91 Ouvrir, revenir** : clic droit sur un robot → *◧ Ouvrir VibeCoder* ;
-*💬 Revenir à la conversation* (même menu, ou 💬 de l'en-tête). La vue est
+**F-91 Ouvrir, revenir** : clic droit sur un robot → *◧ Ouvrir VibeCoder* ou
+*💬 Ouvrir la conversation* (même menu, les deux toujours proposés ; ou 💬 de
+l'en-tête). La vue est
 retenue par agent (`agents[].view`), d'un lancement à l'autre : un agent en
 conversation, un autre en VibeCoder ; cliquer un robot montre la vue de cet
 agent (F-54). Ce qu'on a commencé sur l'écran d'un agent (réponses aux
