@@ -632,3 +632,15 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 .vc-src-tools { display: flex; gap: 6px; align-items: center; margin: -6px 0 12px; }
 .vc-src-tools .vc-mini { margin-left: 0; }
 .vc-src-tools button:disabled { opacity: 0.4; cursor: default; }
+
+/* ModuleCode : Voir le code, sous la ligne d'un module touché. */
+.vc-mod-code { margin-top: 6px; }
+.vc-mod-code > summary { width: max-content; color: var(--vc-muted); font-size: 12px; cursor: pointer; }
+.vc-mod-code > summary:hover { color: var(--vc-text); }
+.vc-mod-tree { margin: 6px 0 8px; }
+.vc-mod-tree-dir { color: var(--vc-faint); font-size: 11px; line-height: 1.6; }
+.vc-mod-tree .vc-jfiles { padding-left: 12px; }
+.vc-mod-tree button[aria-current] { background: var(--vc-control); color: var(--vc-text); }
+.vc-mod-code .vc-src { max-height: 420px; }
+.vc-mod-code-foot { display: flex; justify-content: flex-end; margin: -6px 0 12px; }
+.vc-mod-code-foot .vc-mini:disabled { opacity: 0.4; cursor: default; }

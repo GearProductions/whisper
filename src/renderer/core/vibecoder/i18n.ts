@@ -6,7 +6,7 @@
  *  vérifications,
  *  l'onglet Actions (états d'une course, Garder / Annuler, Autoriser /
  *  Toujours / Refuser), choix du modèle, zone de commentaire, barre d'état,
- *  titres des sorties ; une
+ *  titres des sorties ; Voir le code (Enregistrer, fichier trop gros) ; une
  *  durée en clair. Ceux des boutons viennent des
  *  actions (actions.<langue>.json).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
@@ -46,6 +46,13 @@ const fr = {
   quote: 'Citer dans le champ',
   fix: 'Retour → fixup',
   fixTitle: 'Citer ces lignes dans un retour à corriger en fixup du module',
+  seeCode: 'Voir le code',
+  save: 'Enregistrer',
+  saveTitle: 'Enregistrer sur le disque (Ctrl+S)',
+  changedOnDisk: 'Le fichier a changé sur le disque',
+  discard: 'Abandonner',
+  discardTitle: 'Remettre le texte du disque',
+  tooBig: 'Fichier trop gros pour être affiché (plus d\'1 Mo) ou illisible.',
   ago: (ms: number) => (ms < 60000 ? 'à l\'instant' : ms < 3600000 ? `il y a ${Math.floor(ms / 60000)} min`
     : ms < 86400000 ? `il y a ${Math.floor(ms / 3600000)} h` : `il y a ${Math.floor(ms / 86400000)} j`),
   outputs: {
@@ -147,6 +154,13 @@ const en: Strings = {
   quote: 'Quote in the field',
   fix: 'Feedback → fixup',
   fixTitle: 'Quote these lines in a feedback to fix as a fixup of the module',
+  seeCode: 'See the code',
+  save: 'Save',
+  saveTitle: 'Save to disk (Ctrl+S)',
+  changedOnDisk: 'The file changed on disk',
+  discard: 'Discard',
+  discardTitle: 'Restore the text on disk',
+  tooBig: 'File too big to display (over 1 MB) or unreadable.',
   ago: (ms) => (ms < 60000 ? 'just now' : ms < 3600000 ? `${Math.floor(ms / 60000)} min ago`
     : ms < 86400000 ? `${Math.floor(ms / 3600000)} h ago` : `${Math.floor(ms / 86400000)} d ago`),
   outputs: {
