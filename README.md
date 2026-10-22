@@ -350,7 +350,8 @@ bon message, avec le bon skill et le bon modèle. Deux usages : **Créer** une
 feature sur la branche du dossier de l'agent, ou **Relire** une PR du dépôt.
 
 **Ouvrir.** Clic droit sur un robot → *Ouvrir VibeCoder* ; pour revenir,
-*Revenir à la conversation* (même menu, ou 💬 en haut de l'écran). Le choix
+*Ouvrir la conversation* (même menu, ou 💬 en haut de l'écran) : les deux
+sont toujours proposés, panneau ouvert ou fermé. Le choix
 est retenu pour chaque agent : l'un peut rester en VibeCoder, l'autre en
 conversation ; cliquer un robot montre sa vue. Le panneau s'agrandit
 (1280 × 820 la première fois, redimensionnable, taille retenue à part de celle

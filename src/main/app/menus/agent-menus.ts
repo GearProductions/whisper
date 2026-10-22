@@ -59,10 +59,9 @@ export async function openAgentMenu(id: unknown) {
       enabled: !!page, click: () => { if (page) shell.openExternal(page); } },
     { label: editor ? `Ouvrir dans l'éditeur (${editor.name})` : 'Ouvrir dans l\'éditeur',
       enabled: !!editor, click: () => editor?.open(agent.dir) },
-    // La vue de cet agent, retenue : le panneau s'ouvre dessus.
-    agent.view === 'vibecoder'
-      ? { label: '💬 Revenir à la conversation', click: () => setAgentView(agent.id, null) }
-      : { label: '◧ Ouvrir VibeCoder', click: () => setAgentView(agent.id, 'vibecoder') },
+    // L'une ou l'autre vue, directement (retenue ensuite pour cet agent), quelle que soit celle affichée.
+    { label: '◧ Ouvrir VibeCoder', click: () => setAgentView(agent.id, 'vibecoder') },
+    { label: '💬 Ouvrir la conversation', click: () => setAgentView(agent.id, null) },
     { type: 'separator' },
     // Sans parler (micro indisponible, lieu calme) : le champ de son panneau.
     { label: '✎ Écrire un message…', click: () => { openConversation(agent.id); conversationFocusInput(); } },
