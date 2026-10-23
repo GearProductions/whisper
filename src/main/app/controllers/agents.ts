@@ -169,7 +169,7 @@ export function clickAgent(id: unknown) {
     openConversation(cfg.agentSelected === agent.id && state.convView && state.convView.agentId === agent.id ? null : agent.id);
     return;
   }
-  if (st.status === 'asking' || st.unread || st.signal) { openConversation(agent.id); return; }
+  if (st.status === 'asking' || st.unread || (st.signal && st.signal !== 'working')) { openConversation(agent.id); return; }
   selectAgent(cfg.agentSelected === agent.id ? null : agent.id);
   pushAgents();
 }

@@ -4,7 +4,7 @@
 // tour, après le délai de grâce ou le tour qu'elles réveillent (note fix/0.9.0-reveil-
 // apres-tache-de-fond, F-115 ; horloge simulée), l'arrêt demandé au
 // processus de la course, les demandes de l'orchestrateur (retenue puis partie,
-// invalide, arrêt), answers qui reprend la session de la note, le module qu'une
+// refusée ou aux arguments ignorés : l’agent prévenu ; arrêt), answers qui reprend la session de la note, le module qu'une
 // course retient (note 0.11.0), le signal des courses sur le robot, effacé par l'onglet
 // Actions, vu d'office quand il est ouvert (note fix/0.11.0-vibecoder-invariants-existants-et-courses).
 // Sur le vrai principal (contrôleurs, fenêtres, état, réglages et fichiers sur
@@ -355,13 +355,33 @@ describe('les demandes de l’orchestrateur', () => {
     expect(actionsJson().waiting).toEqual([]);
   });
 
-  it('invalide (une action de la conversation, un JSON illisible, un nom inconnu) : supprimée, rien ne part', async () => {
+  it('invalide (une action de la conversation, un JSON illisible, un nom inconnu) : supprimée, rien ne part, l’agent prévenu', async () => {
     await open();
     await orchestratorAsks('vibe.start', '{"text":"tout"}');
     await orchestratorAsks('forme.start', '{pas du json');
     await orchestratorAsks('rien.start');
-    expect(fake.turns).toEqual([]);
+    // rien ne part : aucune action, seulement des avis à la conversation ; les demandes supprimées
+    expect(fake.turns.every((t) => t.text.startsWith('VibeCoder'))).toBe(true);
     expect(fs.readdirSync(path.join(out, 'actions'))).toEqual([]);
+    // un avis par refus : le premier tout de suite, les suivants d'un message à la fin de son tour (I-25)
+    fake.turns[0].finish('vu');
+    await settle();
+    expect(fake.turns.map((t) => t.text)).toEqual([
+      'VibeCoder : demande vibe refusée — action qui ne court pas à part',
+      'VibeCoder : demande forme.start refusée — nom ou JSON illisible\nVibeCoder : demande rien refusée — action inconnue',
+    ]);
+    // le relevé que ces tours déclenchent (THROTTLE_MS) tombe dans ce cas, pas dans le suivant (même config)
+    await new Promise((r) => realSetTimeout(r, 1100));
+  });
+
+  it('partie avec des arguments ignorés : elle court, l’agent prévenu', async () => {
+    await open();
+    await orchestratorAsks('forme.start', '{"model":"aucun"}');
+    expect(turn('/vibecoder:forme')).toBeDefined();
+    expect(fs.readdirSync(path.join(out, 'actions'))).toEqual([]);
+    turn('/vibecoder:forme')!.finish('ok');
+    await settle();
+    expect(turn('VibeCoder')?.text).toMatch(/^VibeCoder : demande forme partie, arguments ignorés : model/m);
   });
 
   it('un .stop arrête la course et retire un .start de la même action', async () => {
