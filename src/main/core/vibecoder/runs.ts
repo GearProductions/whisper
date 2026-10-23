@@ -74,8 +74,10 @@ export function runModule(actionId: string, args: VibeArgs, modules: VibeModule[
 }
 
 // Pourquoi le code du module ne s'édite pas : un tour de la conversation (busy), une course qui le
-// génère (son chemin ou '*') ; null : éditable.
-export function codeLock(module: string, busy: boolean, running: { module?: string | null }[], lang: VibeLang): string | null {
+// génère (son chemin ou '*') ; null : éditable. module null (la note, un test d'invariant) : un tour,
+// ou n'importe quelle course qui retient (note 0.11.0-editer-invariants-et-note).
+export function codeLock(module: string | null, busy: boolean, running: { module?: string | null }[], lang: VibeLang): string | null {
+  if (module === null) throw new Error('not implemented');
   const T = TEXT[lang];
   if (busy) return T.talking;
   return running.some((r) => r.module === module || r.module === '*') ? T.generating : null;
