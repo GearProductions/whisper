@@ -3,17 +3,28 @@
  *  leur pastille tag = la branche ou « PR #n »). Chaque robot : sa
  *  couleur, son état (au travail, autorisation demandée, réponse non lue,
  *  erreur, tâches de fond au repos), sélectionné ou non ; son title porte la
- *  pastille.
+ *  pastille, et le signal de ses courses (F-55) quand l'état fusionné vient de
+ *  lui (data-status et data-unread : l'état fusionné, tel que reçu).
  *  Ne connaît pas : le pont (onClick est passé), git (badge vient du
  *  principal). Utilisé par : icon-app. */
 import type { CSSProperties } from 'react';
-import type { AgentView } from 'technicals/bridge';
+import type { AgentView, RunSignal } from 'technicals/bridge';
 
 const STATUS_TEXT: Partial<Record<AgentView['status'], string>> = {
   working: 'au travail…', asking: 'attend une autorisation', error: 'erreur',
 };
 
-export const agentTitle = (a: AgentView) => `${a.name}${a.badge ? ` (${a.badge})` : ''} — ${STATUS_TEXT[a.status]
+const SIGNAL_TEXT: Record<RunSignal, string> = {
+  asking: 'une action attend une autorisation', done: 'une action est finie', failed: 'une action a échoué',
+};
+
+// Le signal explique l'état fusionné (robotState du principal) : la conversation ne dit rien.
+// ponytail: ambigu si la conversation dit la même chose (« ? » des deux côtés) — le signal l'emporte ;
+// un état de conversation séparé dans AgentView si ça gêne.
+const SIGNAL_STATUS = { asking: 'asking', failed: 'error', done: 'idle' } as const;
+
+export const agentTitle = (a: AgentView) => `${a.name}${a.badge ? ` (${a.badge})` : ''} — ${
+  (a.signal && SIGNAL_STATUS[a.signal] === a.status && SIGNAL_TEXT[a.signal]) || STATUS_TEXT[a.status]
   || (a.status === 'idle' && a.tasks ? `surveille ${a.tasks} tâche${a.tasks > 1 ? 's' : ''} de fond` : '')
   || (a.unread ? 'a répondu : cliquer pour lire' : a.selected ? 'sélectionné' : 'cliquer pour lui parler')}`;
 

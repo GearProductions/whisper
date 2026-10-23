@@ -25,7 +25,9 @@
  *  conversation (colonne masquée, ou onglet Actions, Tâches, Processus).
  *  Le fichier de module suivi (`code`, Voir le code) passe à la vue d'étape ;
  *  l'étape change ou l'écran se ferme (dont un changement d'agent) : plus
- *  aucun fichier suivi.
+ *  aucun fichier suivi. L'onglet Actions ouvert le dit au principal
+ *  (runsSeen : true, les courses de l'agent vues) ; quitté, ou l'écran fermé
+ *  (dont un changement d'agent) : runsSeen false.
  *  Ne connaît pas : le pont (rappels passés), le contenu de la conversation.
  *  Utilisé par : panel-app. */
 import { Component, useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
@@ -120,6 +122,13 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   // L'étape change, ou l'écran se ferme (il est recréé à chaque changement d'agent) : plus aucun fichier suivi.
   const stepId = step && step.id;
   useEffect(() => () => given.follow(null), [stepId]);
+  // L'onglet Actions ouvert : ses courses vues ; quitté, ou l'écran fermé (dont un changement d'agent) : plus vues.
+  const runsOpen = pane === 'runs';
+  useEffect(() => {
+    if (!runsOpen) return;
+    given.set({ runsSeen: true });
+    return () => given.set({ runsSeen: false });
+  }, [runsOpen]);
   // Le verdict de la revue (Relire), tenu ici comme les réponses : il survit à un changement d'onglet.
   const [verdict, setVerdict] = useKept<StepProps['verdict']>(kept, view.agentId, 'verdict', 'comment');
 

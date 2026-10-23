@@ -1,9 +1,12 @@
 // Variants des familles côté robots (note 0.10.0) : pushAgents envoie chaque
 // parent avec ses enfants et leur pastille (branche lue dans .git, ou « PR #n »),
 // la fenêtre suit la rangée d'enfants ; removeAgent oublie l'agent, le dossier
-// d'un robot de PR, et laisse leur parent aux enfants.
+// d'un robot de PR, et laisse leur parent aux enfants. Le signal des courses
+// sur le robot (note fix/0.11.0-vibecoder-invariants-existants-et-courses) :
+// l'état du robot par-dessus sa conversation au repos, le clic qui ouvre son panneau.
 // Sur le vrai principal (contrôleurs, fenêtres, état, réglages et fichiers sur
-// disque) ; faux : Electron (fenêtres qui relèvent ce qu'on leur envoie).
+// disque) ; faux : Electron (fenêtres qui relèvent ce qu'on leur envoie), le signal
+// des courses de chaque agent (runSignalOf, variants dans runs.test.ts).
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -17,9 +20,10 @@ const fake = vi.hoisted(() => {
     webContents = { send: (ch: string, payload?: unknown) => { this.sent.push([ch, payload]); }, on: () => {} };
     on() { return this; } once() { return this; }
     getBounds() { return this.bounds; } setBounds(b: typeof this.bounds) { this.bounds = b; }
-    isVisible() { return false; } isDestroyed() { return false; }
+    isVisible() { return false; } isDestroyed() { return false; } isMinimized() { return false; }
+    setResizable() {} show() {} focus() {} hide() {} showInactive() {}
   }
-  return { Win, userData: '' };
+  return { Win, userData: '', signals: {} as Record<string, string> };
 });
 
 vi.mock('electron', () => ({
@@ -27,6 +31,10 @@ vi.mock('electron', () => ({
   BrowserWindow: fake.Win,
   screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) },
   shell: {}, dialog: {}, clipboard: {}, nativeImage: {},
+}));
+
+vi.mock('app/controllers/runs', async (orig) => ({
+  ...(await orig<object>()), runSignalOf: (id: string) => fake.signals[id] ?? null,
 }));
 
 const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
@@ -37,6 +45,7 @@ let pr = '';
 
 beforeEach(() => {
   vi.resetModules();
+  fake.signals = {};
   fake.userData = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-agents-'));
   repo = path.join(fake.userData, 'projet');
   wt = path.join(fake.userData, 'wt', 'essai');
@@ -104,5 +113,36 @@ describe('robots par famille', () => {
     const { loadConfig } = await import('app/settings');
     expect(loadConfig().agents.map((a) => a.id)).toEqual(['a1']);
     expect(loadConfig().agentFolders).toEqual([{ dir: repo, color: '#22c55e' }, { dir: wt, color: '#3b82f6' }]);
+  });
+});
+
+describe('le signal des courses sur le robot', () => {
+  it('par-dessus une conversation au repos : asking → « ? », failed → erreur, done → pastille ; le signal suit', async () => {
+    fake.signals = { a1: 'done', a2: 'asking', a3: 'failed' };
+    const { last } = await icon();
+    const { pushAgents } = await import('app/controllers');
+    pushAgents();
+    const [a1] = last().agents!;
+    expect([a1, ...a1.children].map((a) => [a.id, a.status, a.unread, a.signal])).toEqual([
+      ['a1', 'idle', true, 'done'], ['a2', 'asking', false, 'asking'], ['a3', 'error', false, 'failed'],
+    ]);
+  });
+
+  it.each(['asking', 'done', 'failed'])('clickAgent : une course %s ouvre le panneau du robot, sans basculer la sélection (F-54)', async (signal) => {
+    fake.signals = { a2: signal };
+    const { state } = await icon();
+    state.panel = new fake.Win() as never;
+    const { clickAgent } = await import('app/controllers');
+    clickAgent('a2');
+    expect(state.convView?.agentId).toBe('a2');
+  });
+
+  it('clickAgent : sans signal ni conversation qui attend, la sélection bascule', async () => {
+    const { state } = await icon();
+    const { clickAgent } = await import('app/controllers');
+    clickAgent('a2');
+    const { loadConfig } = await import('app/settings');
+    expect(loadConfig().agentSelected).toBe('a2');
+    expect(state.convView).toBeFalsy();
   });
 });

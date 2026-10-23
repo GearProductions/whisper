@@ -46,7 +46,10 @@ export type AgentView = {
   tasks: number;        // tâches de fond en cours (commande, surveillance, sous-agent…)
   badge: string | null; // la branche du dossier, ou « PR #n » (robot de PR)
   children: AgentView[]; // les robots enfants (worktrees du dépôt) ; vide pour un enfant
+  signal?: RunSignal | null; // le signal de ses courses (F-55) ; absent = null
 };
+// Ce qu'une course de l'agent signale sur son robot, tant que l'utilisateur ne l'a pas vue.
+export type RunSignal = 'asking' | 'done' | 'failed';
 export type AgentsState = { enabled: boolean; agents?: AgentView[] };
 
 export interface IconApi {
@@ -239,6 +242,7 @@ export type VibeNote = VibeFile & {
   mustNot: { text: string; mark: MustNotMark }[];
   mark: VibeMarkState;         // la note
   formeMark: VibeMarkState;    // sa rubrique « Forme »
+  nothingMark?: VibeMarkState; // ✓ Rien à écrire (Invariants, Créer) ; absent = null
 };
 
 export type VibeModule = {
@@ -388,4 +392,5 @@ export type VibePatch = {
   interrupt?: boolean;         // arrêter le tour en cours de l'agent (comme Interrompre de son menu)
   worktree?: true;             // le robot de la PR suivie dans son worktree : l'afficher, ou le proposer (question de confiance)
   prs?: true;                  // Relire : Mes PR à relire (gh, sans agent)
+  runsSeen?: boolean;          // true : l'onglet Actions de l'agent affiché est ouvert, ses courses vues ; false : fermé
 };

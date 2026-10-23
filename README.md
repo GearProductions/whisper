@@ -419,7 +419,10 @@ attendre est grisé et dit pourquoi ; un bouton qui n'a pas encore de sens
 n'est pas affiché (pas de *✓ Commiter* sans commit préparé, pas de *Release
 candidate* sans PR…) ; une action arrêtée retient les autres
 tant que vous n'avez pas choisi. *⏹ Arrêter* de la barre d'état n'arrête
-que le tour de la conversation.
+que le tour de la conversation. Une action qui attend une autorisation,
+finit ou échoue se voit sur le robot de son agent quand sa conversation est
+au repos (« ? », pastille verte, erreur ; avec le bip), jusqu'à ce que vous
+ouvriez son onglet *Actions* ; une action que vous avez arrêtée, non.
 
 La conversation est l'**orchestrateur** : elle est prévenue de la fin de
 chaque action (une ligne dans le fil, pas pour une action que vous avez
@@ -461,7 +464,11 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    (ou *Tout relire*) refait sa lecture ; *Préparer le commit* puis *✓ Commiter*.
    Une note sans ligne « → invariant » passe l'étape tout de suite (pas de
    test à écrire, *Écrire les invariants* n'est pas proposée) : la note et la
-   forme se commitent à l'étape Modules.
+   forme se commitent à l'étape Modules. Des lignes « → invariant » déjà
+   observées par des tests existants (aucun test ajouté par la branche) :
+   l'étape passe quand *Écrire les invariants* ou *Vérifier l'alignement*
+   a fini, ou par *✓ Rien à écrire* (à revalider si la note change ; en
+   *Vibe* aussi).
 4. **Modules** : *Générer ce module* (avec `ponytail`, tests lancés, sans
    commit), *Relire le diff*, *✓ Valider → commit → suivant* ; ou *Générer
    les modules restants* (en parallèle, chacun relu et commité à part).

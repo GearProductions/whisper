@@ -114,6 +114,50 @@ describe('Créer, Guide : les étapes et la prochaine action', () => {
     expect([status(v).invariants, primary(v)]).toEqual(['current', 'invariants']);
   });
 
+  // Bogue 0.11.0 : la ligne « → invariant » déjà observée par un test existant, aucun test de la branche.
+  it('ligne « → invariant » sans test de la branche, Écrire les invariants finie : invariants faits, Modules en cours', () => {
+    const wrote = { id: 'invariants', label: 'invariants', who: 'agent', state: 'done' as const, since: 4, end: 5, reply: '', permission: null };
+    const v = vibeView(input({ note, marks: NOTE_OK, runs: [wrote], repo: repo([], [commit('a', 'Note, forme', [NOTE_PATH])]) }));
+    expect([status(v).invariants, status(v).modules]).toEqual(['done', 'current']);
+  });
+
+  const run = (id: string, state: 'done' | 'failed' | 'stopped', since: number) =>
+    ({ id, label: id, who: 'agent', state, since, end: since + 1, reply: '', permission: null });
+  const NOTHING_OK: Marks = { ...NOTE_OK, nothing: ok(NOTE) };
+
+  it('ligne « → invariant » sans test de la branche, Vérifier l\'alignement finie : invariants faits', () => {
+    expect(status(vibeView(input({ note, marks: NOTE_OK, runs: [run('align', 'done', 4)] }))).invariants).toBe('done');
+  });
+
+  it('ligne « → invariant » sans test de la branche, la dernière course en échec ou arrêtée : pas faits', () => {
+    for (const state of ['failed', 'stopped'] as const) {
+      // La plus récente d'abord : une course finie plus ancienne ne compte pas.
+      const v = vibeView(input({ note, marks: NOTE_OK, runs: [run('invariants', state, 6), run('align', 'done', 4)] }));
+      expect(status(v).invariants).toBe('current');
+    }
+  });
+
+  it('ligne « → invariant » sans test de la branche, ✓ Rien à écrire : invariants faits', () => {
+    const v = vibeView(input({ note, marks: NOTHING_OK }));
+    expect([v.note?.nothingMark, status(v).invariants, status(v).modules]).toEqual(['ok', 'done', 'current']);
+  });
+
+  it('Vibe, ligne « → invariant » sans test de la branche, sans course finie ni ✓ Rien à écrire : pas faits', () => {
+    expect(status(vibeView(input({ note, marks: NOTE_OK, autonomy: 'vibe' }))).invariants).toBe('current');
+  });
+
+  it('✓ Rien à écrire puis la note changée : à revalider, pas faits', () => {
+    const text = `${NOTE}\nUne ligne de plus.`;
+    const v = vibeView(input({ note: { ...note, text }, marks: { note: ok(text), forme: ok(parseNote(text).forme), nothing: ok(NOTE) } }));
+    expect([v.note?.nothingMark, status(v).invariants]).toEqual(['changed', 'current']);
+  });
+
+  it('des tests d\'invariant de la branche pas validés : ni course finie ni ✓ Rien à écrire ne font l\'étape', () => {
+    const v = vibeView(input({ note, marks: NOTHING_OK, tests: [test], readings: { [BLOB]: READING }, runs: [run('invariants', 'done', 4)],
+      repo: repo([], [FIRST]) }));
+    expect(status(v).invariants).toBe('current');
+  });
+
   it('des tests pas encore lus (Guide) : aucune action, la validation des cas passe avant la lecture', () => {
     expect(primary(vibeView(input({ note, marks: NOTE_OK, tests: [test] })))).toBeNull();
   });

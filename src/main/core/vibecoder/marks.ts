@@ -1,5 +1,6 @@
-/** marks — les validations de l'utilisateur (la note, la forme, un cas de
- *  test, une case du plan de test, une case du § A.3 cochée à la main), chacune pour l'empreinte du contenu
+/** marks — les validations de l'utilisateur (la note, la forme, « rien à écrire »
+ *  de l'étape Invariants, un cas de test, une case du plan de test, une case du
+ *  § A.3 cochée à la main), chacune pour l'empreinte du contenu
  *  validé : « modifié depuis » si le contenu a changé. Et le brouillon de revue
  *  de chaque PR (Relire) : ajouter, modifier, retirer une remarque. Rend un
  *  nouvel état, ne touche pas à l'ancien.
@@ -7,7 +8,7 @@
  *  Utilisé par : core/vibecoder (journey), app/controllers/vibecoder, app/settings. */
 import type { VibeComment, VibeMarkState } from 'shared/bridge';
 
-// Par cible ('note', 'forme', 'case:<chemin du fichier>:<titre du cas>', 'check:<pr>:<rang>', 'a3:<rang>').
+// Par cible ('note', 'forme', 'nothing' (pour le texte de la note), 'case:<chemin du fichier>:<titre du cas>', 'check:<pr>:<rang>', 'a3:<rang>').
 export type Marks = Record<string, { hash: string; verdict: 'ok' | 'ko' }>;
 // Par numéro de PR.
 export type Drafts = Record<string, VibeComment[]>;

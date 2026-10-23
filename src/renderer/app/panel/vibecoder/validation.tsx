@@ -1,5 +1,6 @@
 /** validation — les validations de l'utilisateur à l'écran : l'état et les
- *  boutons de celle de la note ou de la forme (✓ Valider ; validée et
+ *  boutons de celle de la note, de la forme ou de « ✓ Rien à écrire » (étape
+ *  Invariants) (✓ Valider ; validée et
  *  Annuler ; modifiée depuis et Revalider ; Relire : ✓ ou ✗), le verdict d'un
  *  cas d'invariant (✓ / ✗, celui donné pressé, un second clic l'annule), et
  *  la pastille Fable des étapes Note et Forme (Créer).
@@ -9,12 +10,12 @@ import type { VibeLang, VibeMarkState } from 'technicals/bridge';
 import './validation.css';
 
 type Verdict = 'ok' | 'ko' | null;
-type What = 'note' | 'forme';
+type What = 'note' | 'forme' | 'nothing';
 
 const fr = {
-  validate: { note: '✓ Valider la note', forme: '✓ Valider la forme' } as Record<What, string>,
-  done: { note: 'Note validée', forme: 'Forme validée' } as Record<What, string>,
-  refused: { note: 'Note refusée', forme: 'Forme refusée' } as Record<What, string>,
+  validate: { note: '✓ Valider la note', forme: '✓ Valider la forme', nothing: '✓ Rien à écrire' } as Record<What, string>,
+  done: { note: 'Note validée', forme: 'Forme validée', nothing: 'Rien à écrire : validé' } as Record<What, string>,
+  refused: { note: 'Note refusée', forme: 'Forme refusée', nothing: 'Rien à écrire : refusé' } as Record<What, string>,
   validateTitle: 'Valider ce contenu tel qu\'il est : un changement ultérieur l\'affichera « modifié depuis »',
   changed: 'Modifiée depuis la validation',
   changedTitle: 'Le contenu a changé depuis la validation : relisez-le, puis revalidez-le',
@@ -32,9 +33,9 @@ const fr = {
 const S: Record<VibeLang, typeof fr> = {
   fr,
   en: {
-    validate: { note: '✓ Approve the note', forme: '✓ Approve the shape' },
-    done: { note: 'Note approved', forme: 'Shape approved' },
-    refused: { note: 'Note rejected', forme: 'Shape rejected' },
+    validate: { note: '✓ Approve the note', forme: '✓ Approve the shape', nothing: '✓ Nothing to write' },
+    done: { note: 'Note approved', forme: 'Shape approved', nothing: 'Nothing to write: approved' },
+    refused: { note: 'Note rejected', forme: 'Shape rejected', nothing: 'Nothing to write: rejected' },
     validateTitle: 'Approve this content as it is: a later change will show it as « changed since »',
     changed: 'Changed since the approval',
     changedTitle: 'The content changed since the approval: read it again, then approve it again',
@@ -53,7 +54,7 @@ const S: Record<VibeLang, typeof fr> = {
 
 type MarkProps = { what: What; state: VibeMarkState; review: boolean; lang: VibeLang; onMark(v: Verdict): void };
 
-// La validation de la note ou de la forme. Relire : un verdict, ✓ ou ✗.
+// La validation de la note, de la forme ou de « Rien à écrire ». Relire : un verdict, ✓ ou ✗.
 export function MarkControl({ what, state, review, lang, onMark }: MarkProps) {
   const s = S[lang];
   const refuse = review ? <button type="button" className="vc-vbtn" data-v="ko" title={s.refuseTitle} onClick={() => onMark('ko')}>{s.refuse}</button> : null;

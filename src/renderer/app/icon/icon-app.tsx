@@ -1,6 +1,7 @@
 /** icon-app — la fenêtre de l'icône : le micro (geste, dictée), le bouton de
  *  lecture, les robots des agents et de leurs enfants (bip d'une réponse non
- *  lue, cible de la dictée : enfants compris), le menu du clic droit. La
+ *  lue ou d'un signal de course qui apparaît ou change, cible de la dictée :
+ *  enfants compris), le menu du clic droit. La
  *  colle : seul fichier de l'icône qui connaît le pont (window.api).
  *  Ne connaît pas : le panneau, la bulle. Utilisé par : main.tsx. */
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
@@ -24,7 +25,7 @@ export function IconApp({ api }: { api: IconApi }) {
   const messageTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [agents, setAgents] = useState<AgentsState>({ enabled: false });
   const [speech, setSpeech] = useState<SpeechView | null>(null);
-  const unreadBefore = useRef(new Set<string>());
+  const heardBefore = useRef(new Set<string>());
 
   const setPhase = (p: Phase, msg = '') => {
     phaseRef.current = p;
@@ -66,13 +67,15 @@ export function IconApp({ api }: { api: IconApi }) {
     api.onSpeakReply(player.speakReply);
     api.onAgents((s) => {
       setAgents(s || { enabled: false });
-      // Une réponse vient d'arriver : le bip de fin, comme pour une dictée (pas
-      // pour celle de l'agent affiché : déjà lue, elle n'est jamais « non lue »).
-      const unread = new Set(withChildren((s && s.enabled && s.agents) || []).filter((a) => a.unread).map((a) => a.id));
-      if ([...unread].some((id) => !unreadBefore.current.has(id))) {
+      // Une réponse vient d'arriver, ou le signal d'une course (F-55) apparaît ou
+      // change : le bip de fin, comme pour une dictée (pas pour l'agent affiché :
+      // déjà lu, ni « non lu » ni signal). Le signal, pas l'état fusionné.
+      const heard = new Set(withChildren((s && s.enabled && s.agents) || [])
+        .flatMap((a) => [a.unread ? a.id : '', a.signal ? `${a.id}~${a.signal}` : '']).filter(Boolean));
+      if ([...heard].some((k) => !heardBefore.current.has(k))) {
         api.getConfig().then((cfg) => { if (cfg.sound !== false) beep(REPLY_FREQ); });
       }
-      unreadBefore.current = unread;
+      heardBefore.current = heard;
     });
     // Sur l'icône comme sur le bouton de lecture ; un robot a son propre menu.
     document.addEventListener('contextmenu', async (e) => {

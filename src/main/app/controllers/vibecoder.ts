@@ -13,7 +13,8 @@
  *  et base, au clic de « direct » : leurs commandes, lancées par l'appli,
  *  F-114), une course (vibeRunOp : l'arrêter, la garder ou l'annuler, répondre
  *  à sa demande d'autorisation), un réglage (dont arrêter l'agent, comme Interrompre de son
- *  menu), une validation, le brouillon de revue, ouvrir un fichier ou un commit
+ *  menu ; l'onglet Actions ouvert ou fermé : ses courses vues, runsTab de controllers/runs),
+ *  une validation (dont ✓ Rien à écrire, Créer : pour le texte de la note), le brouillon de revue, ouvrir un fichier ou un commit
  *  du relevé (dans l'éditeur, à une ligne ; la page d'un commit dans le
  *  navigateur, d'après l'origine GitHub du dépôt, I-32).
  *  Ne lit que la note et les tests que git donne dans le dossier de l'agent
@@ -64,7 +65,7 @@ import { state } from 'app/state';
 import { conversationShown, openConversation } from 'app/windows';
 import { interruptAgent, isBusy, liveViewAgent, sendToAgent, setAgentSetting } from './agents';
 import { agentPrefix, processAction, processView, promptPrefix, readFile, readTimed } from './processes';
-import { lockingRuns, runOp, viewLocks, runPending, runRequests, runsOf, skillMd, startRun } from './runs';
+import { lockingRuns, runOp, viewLocks, runPending, runRequests, runsOf, runsTab, skillMd, startRun } from './runs';
 import { showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
 
 const VIBE_MS = 4000;          // le relevé régulier, panneau visible
@@ -496,11 +497,14 @@ export function setAgentView(id: string, view: 'vibecoder' | null) {
 // menu (une valeur hors de ses choix est ignorée) ; arrêter son tour, comme
 // Interrompre de son menu ; le robot de la PR dans son worktree (l'afficher,
 // ou le proposer à nouveau : jamais un chemin, F-110) ; Mes PR à relire (gh,
-// sans agent ; un échec laisse la liste d'avant).
+// sans agent ; un échec laisse la liste d'avant) ; l'onglet Actions ouvert
+// (ses courses vues, controllers/runs) ou fermé — même l'écran déjà quitté.
 export function setVibe(patch: unknown) {
-  const agent = vibeAgent();
-  if (!agent || !patch || typeof patch !== 'object') return;
+  if (!patch || typeof patch !== 'object') return;
   const p = patch as Record<string, unknown>;
+  if (p.runsSeen === false) runsTab(null);
+  const agent = vibeAgent();
+  if (!agent) return;
   const vibe = agentVibe(agent);
   if (p.flow === 'create' || p.flow === 'review') vibe.flow = p.flow;
   if (p.autonomy === 'guide' || p.autonomy === 'vibe') vibe.autonomy = p.autonomy;
@@ -516,6 +520,7 @@ export function setVibe(patch: unknown) {
   }
   if (p.interrupt === true && isBusy(agent.id)) interruptAgent(agent.id);
   if (p.worktree === true) showWorktree(agent);
+  if (p.runsSeen === true) runsTab(agent.id);
   if (p.prs === true && vibe.flow === 'review') {
     githubReader(ghRun(agent.dir, agentPrefix(agent, loadConfig()))).prsToReview().then((list) => {
       if (list) prsFound.set(agent.id, list);
@@ -527,14 +532,15 @@ export function setVibe(patch: unknown) {
 }
 
 // L'empreinte du contenu d'une cible dans le relevé : la note (son texte), la
-// forme (sa rubrique), un cas de test (le fichier), une case du plan de test
+// forme (sa rubrique), « rien à écrire » de l'étape Invariants (Créer : le texte de la note), un cas de test (le fichier), une case du plan de test
 // (le plan), une case du § A.3 à cocher à la main (le commit de tête de la
 // branche) ; null si la cible n'y est pas.
 function targetHash(view: VibeView, target: string) {
   const { note } = view;
   const a3 = /^a3:(\d+)$/.exec(target);
   if (a3) return view.flow === 'create' && view.checklist[Number(a3[1])]?.manual ? view.commits.at(-1)?.hash ?? null : null;
-  if (target === 'note' || target === 'forme') return note && blobSha(target === 'note' ? note.text : parseNote(note.text).forme);
+  if (target === 'nothing' && view.flow !== 'create') return null;
+  if (target === 'note' || target === 'nothing' || target === 'forme') return note && blobSha(target === 'forme' ? parseNote(note.text).forme : note.text);
   const file = view.invariants.find((f) => target.startsWith(`case:${f.path}:`) && f.cases.includes(target.slice(`case:${f.path}:`.length)));
   if (file) return file.blob;
   const check = /^check:(\d+):(\d+)$/.exec(target);
