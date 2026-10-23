@@ -24,7 +24,7 @@ export type VibeActs = {
   // Une action du relevé : envoyée (avec le texte de son champ, fieldOf), ou préparée ; true : partie.
   run(id: string, args?: VibeArgs): Promise<boolean>;
   prefill(id: string, quote: string, block?: boolean): void; // une action 'prefill' : {{quote}}, ce qu'on cite (block : en entier, F-98)
-  follow(id: string | null): void;             // Voir le code : suivre un fichier de module par son id (m<rang>/<i>) ; null : plus aucun
+  follow(id: string | null): void;             // suivre un fichier du relevé par son id : module (m<rang>/<i>), note (n), test (t<i>) ; null : plus aucun
   save(id: string, text: string): Promise<boolean>; // Enregistrer le fichier suivi ; true : enregistré (refusé : le motif en barre d'état)
   set(patch: VibePatch): void;
   mark(target: string, verdict: 'ok' | 'ko' | null): void;
@@ -45,7 +45,7 @@ export type StepProps = {
   onVerdict(v: NonNullable<VibeArgs['verdict']>): void;
   text: string;                                // le champ de l'étape (vibe-coder le tient, par étape, tant que l'écran vit)
   setText(text: string): void;
-  code: VibeCode | null;                       // le fichier de module suivi (act.follow), tel que le principal le pousse
+  code: VibeCode | null;                       // le fichier suivi (act.follow : module, note, test), tel que le principal le pousse
 };
 
 // PR et Revue : une vue pour Créer, une autre pour Relire.
