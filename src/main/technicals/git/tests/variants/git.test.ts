@@ -70,6 +70,13 @@ describe('facts() : la branche et sa copie de travail', () => {
   it('les fichiers changés : ceux des commits, ceux modifiés, les nouveaux un par un (accents tels quels)', async () => {
     expect((await facts)?.changed.sort()).toEqual(['b é.txt', 'd.txt', 'nouveau/dossier/c.txt']);
   });
+
+  it('les fichiers hors de tout commit (dirty) : ceux du status seulement', async () => {
+    const f = await facts;
+    expect(f?.dirty.every((p) => f.changed.includes(p))).toBe(true);
+    expect(f?.dirty).toContain('nouveau/dossier/c.txt');
+    expect(f?.dirty).not.toContain('d.txt');
+  });
 });
 
 describe('facts() : la base', () => {
@@ -160,6 +167,31 @@ describe('commit', () => {
 
   it('un ref qui commence par « - » : null', async () => {
     expect(await reader.commit('--output=/tmp/x')).toBeNull();
+  });
+});
+
+describe('forkPoint', () => {
+  const dir = repo();
+  const reader = gitReader(gitRun(dir));
+
+  it('le commit où la branche part de base', async () => {
+    expect(await reader.forkPoint('main')).toBe(git(dir, 'rev-parse', 'main'));
+  });
+
+  it('base avancée après le départ : toujours le point de départ', async () => {
+    const d = repo();
+    const start = git(d, 'rev-parse', 'main');
+    git(d, 'commit', '-q', '--allow-empty', '-m', 'wip');
+    git(d, 'branch', '-f', 'main', git(d, 'commit-tree', 'main^{tree}', '-p', 'main', '-m', 'sur main'));
+    expect(await gitReader(gitRun(d)).forkPoint('main')).toBe(start);
+  });
+
+  it('une base inconnue : null', async () => {
+    expect(await reader.forkPoint('nulle-part')).toBeNull();
+  });
+
+  it('une base qui commence par « - » : null', async () => {
+    expect(await reader.forkPoint('--output=/tmp/x')).toBeNull();
   });
 });
 
