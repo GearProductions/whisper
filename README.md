@@ -419,17 +419,21 @@ attendre est grisé et dit pourquoi ; un bouton qui n'a pas encore de sens
 n'est pas affiché (pas de *✓ Commiter* sans commit préparé, pas de *Release
 candidate* sans PR…) ; une action arrêtée retient les autres
 tant que vous n'avez pas choisi. *⏹ Arrêter* de la barre d'état n'arrête
-que le tour de la conversation. Une action qui attend une autorisation,
-finit ou échoue se voit sur le robot de son agent quand sa conversation est
-au repos (« ? », pastille verte, erreur ; avec le bip), jusqu'à ce que vous
-ouvriez son onglet *Actions* ; une action que vous avez arrêtée, non.
+que le tour de la conversation. Quand sa conversation est au repos, le robot
+de l'agent montre ses actions : il clignote pendant qu'une action travaille ;
+« ? » quand l'une attend une autorisation, jusqu'à votre réponse ; erreur ou
+pastille verte quand l'une échoue ou finit, jusqu'à ce que vous ouvriez son
+onglet *Actions* (avec le bip, sauf pour le clignotement) ; une action que
+vous avez arrêtée, non.
 
 La conversation est l'**orchestrateur** : elle est prévenue de la fin de
 chaque action (une ligne dans le fil, pas pour une action que vous avez
 arrêtée) ; demandez-lui « où en sont les actions ? », ou de lancer ou
 d'arrêter l'une d'elles. Une action qu'elle lance et qui doit attendre part
-d'elle-même dès que la voie est libre. En *Guide*, elle ne lance rien que
-vous ne lui demandiez.
+d'elle-même dès que la voie est libre ; une demande refusée (action inconnue,
+pas proposée, déjà en cours…) lui est dite, avec la raison, et un argument
+que l'action ne prend pas est ignoré (l'action part, elle en est prévenue).
+En *Guide*, elle ne lance rien que vous ne lui demandiez.
 
 **Ouvrir dans l'éditeur.** *Ouvrir* sur la note, un module, un test (à la
 ligne du cas : zed, VS Code, Cursor, VSCodium), un fichier d'un commit. En
@@ -444,8 +448,9 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    principale, l'agent crée d'abord la branche du ticket) ; ses questions
    ouvertes s'affichent à part, avec des réponses proposées : *Envoyer les
    réponses* (à l'action qui a rédigé la note : elle garde son contexte) ;
-   puis ✓ pour valider la note. La note se modifie sur place, comme dans
-   Obsidian : ce qu'on tape se met en forme au fil de la frappe (un titre
+   puis ✓ pour valider la note. La note s'affiche tout de suite ;
+   *Modifier* la rend modifiable sur place (*Fermer* garde la modification),
+   comme dans Obsidian : ce qu'on tape se met en forme au fil de la frappe (un titre
    apparaît en titre, pas en `#`) ; *Brut* montre le Markdown tel qu'il est
    dans le fichier, modifiable aussi. Enregistrée par Ctrl+S ou
    *Enregistrer*, avec les garde-fous de *Voir le code* (étape Modules) ;
@@ -458,7 +463,8 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    et tests concordent, retouche les tests s'il y a des écarts (3 tours au
    plus) et dit ce qui reste (la carte de l'alignement) ; puis ✓ ou ✗ par cas
    (✗ le cite dans le champ, pour dire quoi changer), *✓ Tout valider* pour
-   un fichier. *Lire en pseudo-code* aide à lire, sans être obligatoire :
+   un fichier. *Lire en pseudo-code* aide à lire, sans être obligatoire (à
+   la main, jamais mise en avant ; en *Vibe*, l'agent ne la lance pas) :
    chaque cas de test traduit en étapes simples (`test "…":`, `given`,
    `when`, `then` — une ligne `then` par assertion), quel que soit le
    langage du test, avec ses cas limites, ce qu'il garantit, et un
@@ -478,9 +484,16 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    *Vibe* aussi).
 4. **Modules** : *Générer ce module* (avec `ponytail`, tests lancés, sans
    commit), *Relire le diff*, *✓ Valider → commit → suivant* ; ou *Générer
-   les modules restants* (en parallèle, chacun relu et commité à part).
+   les modules restants* (en parallèle, chacun relu, sans commit). Générer
+   et commiter sont deux gestes : *Commiter* sur un module modifié, ou
+   *Commiter les modules* (un commit par module, un fixup pour un module
+   déjà commité) ; vous pouvez donc retoucher le code entre les deux. Les
+   boutons d'un module sont sous son code (sous son contrat s'il n'est pas
+   encore touché).
    Sous un module touché, *Voir le code* : ses fichiers et celui choisi,
-   coloré comme sur GitHub, qui suit le disque (pendant la génération, on
+   coloré comme sur GitHub, ou son diff depuis la base de la branche (tout
+   ce que le ticket a changé) ou depuis le dernier commit (ce qui n'est pas
+   commité), au choix ; il suit le disque (pendant la génération, on
    voit le code s'écrire ; plus d'1 Mo : « fichier trop gros »). Il se
    modifie sur place, enregistré par Ctrl+S ou *Enregistrer* — grisé pendant
    un tour de la conversation ou pendant que ce module est généré, et si le
@@ -491,10 +504,11 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    lignes entières, sans limite).
 5. **Revue** : *Lancer les vérifications et la ponytail review* (les deux
    tournent ensemble ; des avertissements seulement : en orange, la
-   vérification passe ; pour refaire l'une, on relance ce bouton ; les
+   vérification passe ; *Relancer* sur l'une ne relance qu'elle ; les
    commandes du projet sont vraiment lancées, par le préfixe des commandes,
    et un résultat d'avant ce lancement ne compte pas), *Tout appliquer* ou
-   *Appliquer* une remarque (en fixups), *Replier les fixups* ; la liste du
+   *Appliquer* une remarque (en fixups ; une remarque appliquée est marquée
+   ✓, toutes : « Appliquée »), *Replier les fixups* ; la liste du
    guide avant une PR, cochée quand le dépôt le dit — « chaque diff relu » et
    « AGENTS.md à jour » se cochent à la main, jusqu'au prochain commit.
 6. **PR** : sans PR, *Valider la feature (ouvrir la PR)* ; la PR ouverte,
@@ -555,8 +569,10 @@ le nom de chacune, sa commande en petit dessous, ▶, ⏹, ↻, son état, depui
 déplier ; *Journal complet* dans l'éditeur). Les commandes sont à vous, propres
 à la machine (`vibecoder/projets/<dossier>.json`) : *Proposer les commandes*
 (Haiku lit le README, `package.json`, `process-compose`, vos alias et
-fonctions du `.bashrc`…) les écrit s'il n'y en a pas encore ; *Modifier les
-commandes* ouvre le fichier. Chacune passe par `bash -ic` (vos alias et
+fonctions du `.bashrc`…) les écrit s'il n'y en a pas encore, sinon n'y
+ajoute que celles dont le nom n'y est pas (les vôtres restent telles
+quelles) ; *Modifier les commandes* ouvre le fichier, et une commande
+ajoutée apparaît, enregistrée, sans relancer l'appli. Chacune passe par `bash -ic` (vos alias et
 fonctions marchent : `gear` pour gt-plugins), dans la box de l'agent si sa
 commande passe par `distrobox enter <box> --`. Autre chose devant (une
 autre box, `toolbox run`, rien) : le réglage `vibeCommandPrefix`, ou
@@ -574,7 +590,8 @@ l'arrêter et le lancer ici ? ».
 **Guide ou Vibe.** *Guide* (par défaut) : vous validez la note, la forme et
 chaque invariant ; l'étape en cours attend vos ✓. *Vibe* (*Créer*
 seulement) : vous donnez la main à l'agent, vous testez et approuvez à la
-fin. Plus rien n'attend vos ✓, et l'écran change : un **fil d'Ariane** (les
+fin. Plus rien n'attend vos ✓ (revenu en *Guide*, les étapes qu'il a
+passées gardent leur ✓), et l'écran change : un **fil d'Ariane** (les
 étapes faites, en cours, à venir, sans clic) à la place du parcours, la zone
 *Vibe* (et, la PR fusionnée, *PR mergée → revenir sur la base* et *Release
 officielle*), puis la note. En deux temps :
@@ -582,11 +599,12 @@ officielle*), puis la note. En deux temps :
 1. la demande dans le champ, *Rédiger la note* ; l'agent vous pose
    **toutes** les questions de la note (*Envoyer les réponses*) — il n'en
    tranche aucune ;
-2. *Valider et développer* : l'agent reprend à la première étape pas faite et tient le rôle du
+2. *Valider et développer* (plus proposé pendant que la conversation ou
+   une action travaille) : l'agent reprend à la première étape pas faite et tient le rôle du
    développeur du guide jusqu'à la PR et la release candidate en
    **enchaînant lui-même les actions de l'écran** — les mêmes que vous
    lanceriez, visibles et arrêtables dans l'onglet *Actions* (modules
-   confiés à des agents Opus en parallèle) —, ne s'arrête que sur une
+   confiés à des agents Opus en parallèle, puis commités) —, ne s'arrête que sur une
    question qui bloque, ne choisit jamais *Garder* / *Annuler* à votre
    place, et le fil d'Ariane se remplit sous vos yeux. Il ne fusionne pas
    la PR et ne publie pas de version officielle.
@@ -596,7 +614,7 @@ officielle*), puis la note. En deux temps :
 Ce qui se suffit à soi-même tourne à part, sans relire la conversation : son
 prix ne dépend pas de la longueur de celle-ci (≈ 0,02 $ sur Haiku : lister ou
 charger une PR, lancer les vérifications, commiter, publier une revue).
-Sonnet prépare un commit, ouvre la PR, replie les fixups, diagnostique la CI,
+Sonnet prépare un commit, commite les modules, ouvre la PR, replie les fixups, diagnostique la CI,
 écrit le plan de test, lit les invariants en pseudo-code (une lecture n'est
 refaite que si le test change). Opus, effort élevé, écrit les invariants,
 génère un module, relit un diff, une note ou des commits, vérifie
