@@ -8,16 +8,33 @@
  *  tenues par vibe-coder), Ctrl+S, Enregistrer et Abandonner : useFileDraft
  *  et DraftEditor (file-draft), grisés si m.locked (le motif en titre). Sans
  *  texte du disque : « fichier trop gros ».
- *  Ne connaît pas : le pont (rappels passés), le disque, les autres modules.
+ *  Sous l'arbre, un sélecteur (si le principal a poussé code.at) : Fichier ·
+ *  Diff depuis la base de la branche · Diff depuis le dernier commit ; un
+ *  diff → DiffView(lineDiff(at.base | at.head ?? '', le texte affiché)), en
+ *  texte (I-40) ; depuis la base grisé si at.base est null et at.head non
+ *  (trop gros, pas de base : tout serait ajouté). En dessous, la barre d'outils du module (tools, passée par
+ *  modules-view).
+ *  Ne connaît pas : le pont (rappels passés), le disque, les autres modules,
+ *  les actions de la barre d'outils.
  *  Utilisé par : modules-view. */
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { fileParts, filesByDir, type Strings } from 'core/vibecoder';
-import type { VibeCode, VibeModule } from 'technicals/bridge';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { fileParts, filesByDir, lineDiff, type Strings } from 'core/vibecoder';
+import type { VibeCode, VibeLang, VibeModule } from 'technicals/bridge';
+import { DiffView } from './diff-view';
 import { DraftEditor, useFileDraft } from './file-draft';
 import type { StepProps } from './step-views';
 
-export function ModuleCode({ m, code, t, open, onOpen, onFollow, onSave, onQuote, drafts }: {
+type Shown = 'file' | 'base' | 'head';
+
+const S: Record<VibeLang, Record<Shown, string> & { pick: string }> = {
+  fr: { pick: 'Ce qui est affiché', file: 'Fichier', base: 'Diff depuis la base de la branche', head: 'Diff depuis le dernier commit' },
+  en: { pick: 'What is shown', file: 'File', base: 'Diff since the branch base', head: 'Diff since the last commit' },
+};
+
+export function ModuleCode({ m, code, t, lang, open, onOpen, onFollow, onSave, onQuote, drafts, tools }: {
   m: VibeModule;
+  lang: VibeLang;
+  tools?: ReactNode;                           // la barre d'outils du module, sous le code
   open: boolean;
   onOpen(open: boolean): void;
   code: VibeCode | null;
@@ -49,6 +66,13 @@ export function ModuleCode({ m, code, t, open, onOpen, onFollow, onSave, onQuote
   };
 
   const d = useFileDraft(file ?? null, code, locked, onSave, drafts);
+  const [shown, setShown] = useState<Shown>('file');
+  const at = file && code?.id === file.id ? code.at : undefined; // note et tests : pas de at
+  // Pas de version à la base alors qu'il y en a une au dernier commit (trop grosse, pas de base) : pas de diff
+  // depuis la base, il montrerait tout ajouté ; absent des deux (vraiment nouveau) : tout ajouté.
+  const noBase = at?.base === null && at.head !== null;
+  const diff = useMemo(() => (shown !== 'file' && at && d.text != null && !(shown === 'base' && noBase)
+    ? lineDiff(at[shown] ?? '', d.text) : null), [shown, at, d.text, noBase]);
 
   return (
     <details open={open} className="vc-mod-code" onToggle={(e) => toggle(e.currentTarget.open)}>
@@ -70,7 +94,17 @@ export function ModuleCode({ m, code, t, open, onOpen, onFollow, onSave, onQuote
               </div>
             ))}
           </div>
-          {file ? <DraftEditor d={d} file={file} locked={locked} t={t} onQuote={onQuote} /> : null}
+          {at ? (
+            <select className="vc-mod-shown" value={shown} title={S[lang].pick} aria-label={S[lang].pick}
+              onChange={(e) => setShown(e.target.value as Shown)}>
+              {(['file', 'base', 'head'] as Shown[]).map((k) => (
+                <option key={k} value={k} disabled={k === 'base' && noBase}>{S[lang][k]}</option>
+              ))}
+            </select>
+          ) : null}
+          {diff ? <DiffView diff={diff} lang={lang} />
+            : file ? <DraftEditor d={d} file={file} locked={locked} t={t} onQuote={onQuote} /> : null}
+          {tools}
         </>
       ) : null}
     </details>
