@@ -3,13 +3,20 @@
  *  le pseudo-code coloré (assertions et « étant donné / quand / alors »
  *  repérés), ses cas limites, ce qu'il garantit, son point d'attention ; ✓ /
  *  ✗ (l'état : validé, refusé, modifié depuis), 💬, Ouvrir (à la ligne du
- *  cas) ; « Pseudo-code / Code » montre à la place son code d'origine
- *  (CodeView : coloré d'après l'extension du fichier, comme « Voir le
- *  fichier » ; en lecture seule, sans 💬 sur ses lignes). ✗ et 💬 citent le
+ *  cas) ; « Pseudo-code / Code » montre à la place son code (CodeView :
+ *  coloré d'après l'extension du fichier, comme « Voir le fichier » ; sans 💬
+ *  sur ses lignes). Relire : le code d'origine du cas, en lecture seule.
+ *  Créer : Code et Voir le fichier ouvrent le fichier entier modifiable (Code :
+ *  défilé à la ligne du cas), un seul à la fois, suivi par son id (act.follow ;
+ *  refermé par l'utilisateur : act.follow(null)) ; la modification gardée,
+ *  Ctrl+S, Enregistrer, Abandonner : useFileDraft et DraftEditor (file-draft),
+ *  grisés si f.locked (le motif en titre). ✗ et 💬 citent le
  *  cas dans le champ (Relire : ils ouvrent sous la carte une zone de
  *  commentaire, pour le brouillon de revue, le cas en cible). Par fichier : sa
  *  progression, « Tout valider » quand aucun cas n'a de point d'attention (lu
- *  ou pas, progress().all), « Relire » (refaire sa lecture), « Voir le
+ *  ou pas, progress().all), « Relire » (refaire sa lecture ; en accent si la
+ *  lecture est périmée, f.stale : le test a changé depuis, sa lecture reste
+ *  affichée, marquée « lecture périmée »), « Voir le
  *  fichier » (tout son code, numéroté) ; pas lu : ses cartes sans lecture
  *  (✓ / ✗ quand même, la lecture est facultative), et « Lire en
  *  pseudo-code », en accent seulement quand c'est l'action mise en avant
@@ -23,13 +30,14 @@
  *  (align.md, sans Relancer : Créer, « Écrire les invariants » le refait ;
  *  Relire, son bouton est dans la rangée de l'étape).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   awaiting, caseLine, caseSource, casesOf, excerpt, fileParts, progress, pseudoLines, remark, type CaseView, type Progress, type Strings,
 } from 'core/vibecoder';
 import type { VibeLang, VibeTestFile } from 'technicals/bridge';
 import { CodeView } from './code-view';
 import { CommentBox } from './comment-box';
+import { DraftEditor, useFileDraft } from './file-draft';
 import { InlineMd, MarkdownView } from './markdown-view';
 import { Invite, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
@@ -45,6 +53,8 @@ const fr = {
   unread: 'à lire',
   read: 'lu',
   toRead: 'à lire',
+  stale: 'lecture périmée',
+  staleTitle: 'Le test a changé depuis cette lecture : « Relire » le fichier',
   validated: (ok: number, total: number) => `${ok} / ${total} validé${ok > 1 ? 's' : ''}`,
   all: '✓ Tout valider',
   allTitle: 'Valider chaque cas de ce fichier qui n\'a pas de verdict : aucun n\'a de point d\'attention',
@@ -81,6 +91,8 @@ const S: Record<VibeLang, typeof fr> = {
     unread: 'to read',
     read: 'read',
     toRead: 'to read',
+    stale: 'outdated reading',
+    staleTitle: 'The test changed since this reading: « Read again » the file',
     validated: (ok, total) => `${ok} / ${total} approved`,
     all: '✓ Approve all',
     allTitle: 'Approve every case of this file that has no verdict: none has a warning',
@@ -127,6 +139,18 @@ export function InvariantsView(props: StepProps) {
   };
   const quoteAlign = !review && view.actions.some((a) => a.id === 'comment') ? (q: string) => act.prefill('comment', q) : undefined;
   const commentAlign = review ? (q: string, text: string) => act.draft({ add: remark(`align: ${excerpt(q, 80)}`, text) }) : undefined;
+
+  // Créer : le fichier ouvert, par son chemin (un id t<i> change de fichier quand la liste change),
+  // et où (le titre d'un cas, Code ; null, Voir le fichier). Un seul à la fois.
+  const [shown, setShown] = useState<{ path: string; title: string | null } | null>(null);
+  const file = review || !shown ? undefined : view.invariants.find((f) => f.path === shown.path);
+  const id = file?.id ?? null;
+  // null n'est pas envoyé ici : refermé par l'utilisateur, show(null) l'envoie.
+  useEffect(() => { if (id) act.follow(id); }, [id]);
+  const show = (next: typeof shown) => { setShown(next); if (!next) act.follow(null); };
+  const locked = file?.locked ?? null;
+  const d = useFileDraft(file ?? null, props.code, locked, act.save, props.drafts);
+  const editor = (at?: number): ReactNode => (file ? <DraftEditor d={d} file={file} locked={locked} t={t} at={at} /> : null);
   return (
     <>
       <StepHead p={props} own={['read-invariants', ...(view.invariants.length ? [] : ['invariants'])]}>
@@ -156,7 +180,9 @@ export function InvariantsView(props: StepProps) {
           <section key={f.id} className="vc-ifile" aria-label={f.path}>
             <div className="vc-ifile-head">
               <span className="vc-ifile-path vc-mono" title={f.path}><span className="vc-ifile-dir">{dir}</span><b>{name}</b></span>
-              <span className="vc-ifile-read" data-read={!!f.reading || undefined}>{f.reading ? s.read : s.toRead}</span>
+              <span className="vc-ifile-read" data-read={(!!f.reading && !f.stale) || undefined} title={f.stale ? s.staleTitle : undefined}>
+                {f.stale ? s.stale : f.reading ? s.read : s.toRead}
+              </span>
               <span className="vc-ifile-progress">
                 <Bar p={p} />
                 <span>{s.validated(p.ok, p.total)}</span>
@@ -168,20 +194,32 @@ export function InvariantsView(props: StepProps) {
                     {s.all}
                   </button>
                 ) : null}
-                {f.reading ? <Run a={read} busy={busy} tone="ghost" label={s.reread} onRun={() => act.run('read-invariants', { file: f.id })} /> : null}
+                {f.reading ? <Run a={read} busy={busy} tone={f.stale ? 'accent' : 'ghost'} label={s.reread} onRun={() => act.run('read-invariants', { file: f.id })} /> : null}
                 <button type="button" className="vc-mini" title={t.openTitle} onClick={() => act.open(f.id)}>{t.open}</button>
               </span>
             </div>
-            {f.source ? (
+            {f.source ? review ? (
               <details className="vc-ifile-src">
                 <summary>{s.wholeFile}</summary>
                 <CodeView code={f.source} path={f.path} t={t} />
+              </details>
+            ) : (
+              // onToggle part aussi quand open change par les props : seul l'écart est un geste.
+              <details className="vc-ifile-src" open={f === file && shown?.title === null}
+                onToggle={(e) => { const now = e.currentTarget.open; if (now !== (f === file && shown?.title === null)) show(now ? { path: f.path, title: null } : null); }}>
+                <summary>{s.wholeFile}</summary>
+                {f === file && shown?.title === null ? editor() : null}
               </details>
             ) : null}
             {casesOf(f).map((c, i) => (
               <CaseCard key={c.title} c={c} n={i + 1} code={caseSource(f, i)} from={f.lines[i]} path={f.path} s={s} t={t} lang={view.lang} review={review} onOpenLink={act.openLink}
                 onVerdict={(v) => verdict(f, c.title, v)} onQuote={() => act.prefill('comment', c.title)} onOpen={() => act.open(f.id, caseLine(f, c.title))}
-                onComment={(text) => act.draft({ add: remark(target(f, c.title), text) })} />
+                onComment={(text) => act.draft({ add: remark(target(f, c.title), text) })}
+                edit={review ? undefined : {
+                  shown: f === file && shown?.title === c.title,
+                  onShow: (on) => show(on ? { path: f.path, title: c.title } : null),
+                  view: () => editor(f.lines[i]),
+                }} />
             ))}
             {f.reading ? null : <Run a={read} busy={busy} tone={read?.primary ? 'accent' : 'plain'} onRun={() => act.run('read-invariants')} />}
           </section>
@@ -224,13 +262,18 @@ type CardProps = {
   code: string; from: number; path: string;   // son code d'origine ('' : inconnu), sa première ligne, son fichier
   onOpenLink(url: string): void; onVerdict(v: Verdict): void; onQuote(): void; onOpen(): void;
   onComment(text: string): void;   // Relire : la remarque de la zone de commentaire, sur ce cas
+  // Créer : Code ouvre le fichier entier modifiable, un seul à la fois (invariants-view le tient) ; Relire : absent.
+  edit?: { shown: boolean; onShow(on: boolean): void; view(): ReactNode };
 };
 
-function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVerdict, onQuote, onOpen, onComment }: CardProps) {
+function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVerdict, onQuote, onOpen, onComment, edit }: CardProps) {
   const r = c.reading;
   const quote = review ? s.quoteReview : s.quote;
   const [writing, setWriting] = useState(false);
-  const [showCode, setShowCode] = useState(false);
+  const [local, setLocal] = useState(false);
+  const showCode = edit ? edit.shown : local;
+  // Pseudo-code sur une carte déjà fermée ne referme pas le fichier ouvert ailleurs.
+  const setShowCode = edit ? (on: boolean) => { if (on !== edit.shown) edit.onShow(on); } : setLocal;
   // Relire : ✗ et 💬 ouvrent la zone de commentaire ; Créer : 💬 cite le cas dans le champ.
   const verdict = (v: Verdict) => { onVerdict(v); if (review && v === 'ko') setWriting(true); };
   return (
@@ -246,7 +289,7 @@ function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVe
           </span>
         ) : null}
       </div>
-      {showCode ? <CodeView code={code} from={from} path={path} t={t} /> : null}
+      {showCode ? edit ? edit.view() : <CodeView code={code} from={from} path={path} t={t} /> : null}
       {r ? (
         <>
           {showCode ? null : <Pseudo code={r.pseudo} />}

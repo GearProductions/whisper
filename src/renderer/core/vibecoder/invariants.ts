@@ -41,16 +41,17 @@ export function caseSource(file: VibeTestFile, i: number): string {
 export type Progress = {
   total: number; ok: number; ko: number; changed: number;
   warnings: number;            // cas lus avec un point d'attention
-  unread: number;              // cas sans lecture
+  unread: number;              // cas sans lecture, ou à lecture périmée
   all: boolean;                // « Tout valider » : aucun point d'attention, un cas au moins sans verdict, lus ou pas
 };
 
 export function progress(files: VibeTestFile[]): Progress {
-  const cases = files.flatMap(casesOf);
-  const count = (f: (c: CaseView) => boolean) => cases.filter(f).length;
+  // une lecture périmée n'est pas lue (comme côté principal)
+  const cases = files.flatMap((file) => casesOf(file).map((c) => ({ ...c, stale: !!file.stale })));
+  const count = (f: (c: CaseView & { stale: boolean }) => boolean) => cases.filter(f).length;
   const p = {
     total: cases.length, ok: count((c) => c.mark === 'ok'), ko: count((c) => c.mark === 'ko'),
-    changed: count((c) => c.mark === 'changed'), warnings: count((c) => !!c.reading?.warning), unread: count((c) => !c.reading),
+    changed: count((c) => c.mark === 'changed'), warnings: count((c) => !!c.reading?.warning), unread: count((c) => !c.reading || c.stale),
   };
   return { ...p, all: !p.warnings && p.ok + p.ko < p.total };
 }

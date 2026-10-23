@@ -84,13 +84,14 @@ export function DraftFoot({ d, locked, t }: { d: FileDraft; locked: string | nul
 }
 
 /** L'éditeur d'un fichier suivi (CodeView, modifiable) et son pied ; le disque a répondu sans texte : « fichier trop gros ». */
-export function DraftEditor({ d, file, locked, t, onQuote }: {
+export function DraftEditor({ d, file, locked, t, at, onQuote }: {
   d: FileDraft; file: VibeFile; locked: string | null; t: Strings;
+  at?: number;                                 // défilé à cette ligne (CodeView)
   onQuote?(block: string, id: 'comment' | 'fix'): void;
 }): ReactNode {
   return d.text != null ? (
     <>
-      <CodeView key={file.path} code={d.text} path={file.path} t={t} onQuote={onQuote}
+      <CodeView key={file.path} code={d.text} path={file.path} at={at} t={t} onQuote={onQuote}
         edit={{ locked, onChange: d.change, onSave: d.save }} />
       <DraftFoot d={d} locked={locked} t={t} />
     </>
