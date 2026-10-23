@@ -2,8 +2,10 @@
  *  titres, paragraphes, listes (cases à cocher), citations, code, tableaux,
  *  filets ; en ligne (parseInline, aussi seul) : texte, code, gras,
  *  italique, liens http(s). Jamais de HTML : une balise reste du texte, un
- *  lien qui n'est pas en http(s) aussi (I-21).
- *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder (markdown-view). */
+ *  lien qui n'est pas en http(s) aussi (I-21). blockQuotes : ce que cite le 💬
+ *  de chaque bloc et élément de liste, et sa ligne.
+ *  Ne connaît pas : le DOM, React.
+ *  Utilisé par : app/panel/vibecoder (markdown-view, note-editor). */
 
 export type Inline = { kind: 'text' | 'code' | 'strong' | 'em'; text: string } | { kind: 'link'; text: string; href: string };
 export type ListItem = { inline: Inline[]; checked: boolean | null; line: number; children: Block[] };
@@ -19,6 +21,34 @@ export type Block =
 
 export function parseMarkdown(md: string): Block[] {
   return blocks(md.split(/\r?\n/), 0);
+}
+
+// Le 💬 de chaque bloc et de chaque élément de liste (à toute profondeur), dans
+// l'ordre du texte : sa ligne (depuis 0) et ce qu'il cite. Un bloc ou un
+// élément sans texte n'a pas de 💬 ; une liste ou un filet non plus (une liste
+// se cite élément par élément).
+export function blockQuotes(md: string): { line: number; text: string }[] {
+  const out: { line: number; text: string }[] = [];
+  const add = (line: number, text: string) => { if (text.trim()) out.push({ line, text }); };
+  const items = (b: Block): void => {
+    if (b.kind === 'quote') b.blocks.forEach(items);
+    if (b.kind === 'list') for (const it of b.items) { add(it.line, plain(it.inline)); it.children.forEach(items); }
+  };
+  for (const b of parseMarkdown(md)) { add(b.line, said(b)); items(b); }
+  return out;
+}
+
+const plain = (inline: Inline[]) => inline.map((x) => x.text).join('');
+
+// Le texte d'un bloc, tel qu'un 💬 le cite.
+function said(b: Block): string {
+  switch (b.kind) {
+    case 'heading': case 'paragraph': return plain(b.inline);
+    case 'code': return b.text;
+    case 'quote': return b.blocks.map(said).join(' ');
+    case 'table': return [b.head, ...b.rows].map((row) => row.map(plain).join(' | ')).join(' · ');
+    default: return '';
+  }
 }
 
 const FENCE = /^( {0,3})(`{3,}|~{3,})(.*)$/;
