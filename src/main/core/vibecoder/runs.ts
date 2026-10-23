@@ -13,7 +13,8 @@
  *  grace quand ses tâches de fond viennent de tomber à 0 hors tour, le délai
  *  GRACE_MS que le contrôleur laisse au tour qu'elles réveillent). Le module
  *  qu'une course génère (runModule : Run.module) et pourquoi Voir le code est
- *  grisé (codeLock : un tour de la conversation, une course qui génère ce module).
+ *  grisé (codeLock : un tour de la conversation, une course qui génère ce module ;
+ *  sans module — la note, un test — n'importe quelle course qui retient).
  *  Ne connaît pas : Electron, le disque, le runtime des agents (tout est passé).
  *  Utilisé par : core/vibecoder (journey), app/controllers (runs, vibecoder,
  *  module-code). */
@@ -47,12 +48,14 @@ const TEXT = {
     end: { done: 'terminée', failed: 'en échec' }, notice: 'VibeCoder :', state: 'État :',
     quote: (s: string) => `« ${s} »`,
     talking: 'La conversation travaille', generating: 'Ce module est en cours de génération',
+    running: 'Une action de l’agent est en cours',
   },
   en: {
     same: 'This action is already running', busy: 'Another action is running', changing: 'An action is changing the branch',
     end: { done: 'finished', failed: 'failed' }, notice: 'VibeCoder:', state: 'State:',
     quote: (s: string) => `“${s}”`,
     talking: 'The conversation is working', generating: 'This module is being generated',
+    running: 'An action of the agent is running',
   },
 };
 
@@ -77,9 +80,9 @@ export function runModule(actionId: string, args: VibeArgs, modules: VibeModule[
 // génère (son chemin ou '*') ; null : éditable. module null (la note, un test d'invariant) : un tour,
 // ou n'importe quelle course qui retient (note 0.11.0-editer-invariants-et-note).
 export function codeLock(module: string | null, busy: boolean, running: { module?: string | null }[], lang: VibeLang): string | null {
-  if (module === null) throw new Error('not implemented');
   const T = TEXT[lang];
   if (busy) return T.talking;
+  if (module === null) return running.length ? T.running : null;
   return running.some((r) => r.module === module || r.module === '*') ? T.generating : null;
 }
 
