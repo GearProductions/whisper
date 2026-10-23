@@ -1,6 +1,7 @@
-/* La note (note-view) : en-tête (chemin, Ouvrir, validation), bandeau des
-   changements, liseré vert des blocs changés, marques des lignes « ne doit
-   pas », diff brut. Sous .vc. */
+/* La note (note-view) : en-tête (chemin, Ouvrir, Brut, validation), bandeau
+   des changements, liseré vert des blocs changés, marques des lignes « ne
+   doit pas », la note éditable (NoteEditor : vc-note-editor, cm-md-*), diff
+   brut. Sous .vc. */
 
 .vc-note .vc-card-head { min-height: 42px; gap: 8px; }
 .vc-note-file { flex: none; font-size: 13px; opacity: 0.75; }
@@ -64,11 +65,57 @@
   vertical-align: 1px;
   white-space: nowrap;
 }
-.vc-mn[data-mark="invariant"] { border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: color-mix(in srgb, var(--accent) 22%, transparent); color: color-mix(in srgb, var(--accent) 45%, #fff); }
-.vc-mn[data-mark="variant"] { border-color: color-mix(in srgb, #7fb0ff 50%, transparent); background: color-mix(in srgb, #7fb0ff 16%, transparent); color: #a9c8ff; }
-.vc-mn[data-mark="review"] { border-color: var(--vc-edge); background: rgba(255, 255, 255, 0.05); color: var(--vc-soft); }
-.vc-mn[data-mark="structure"] { border-color: color-mix(in srgb, #a78bfa 50%, transparent); background: color-mix(in srgb, #a78bfa 16%, transparent); color: #c9b8fc; }
-.vc-mn[data-mark="none"] { border: 1px dashed color-mix(in srgb, var(--vc-warn) 60%, transparent); color: var(--vc-warn); font-weight: 500; }
+.vc-mn:is([data-mark="invariant"], .vc-mn-invariant) { border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: color-mix(in srgb, var(--accent) 22%, transparent); color: color-mix(in srgb, var(--accent) 45%, #fff); }
+.vc-mn:is([data-mark="variant"], .vc-mn-variant) { border-color: color-mix(in srgb, #7fb0ff 50%, transparent); background: color-mix(in srgb, #7fb0ff 16%, transparent); color: #a9c8ff; }
+.vc-mn:is([data-mark="review"], .vc-mn-review) { border-color: var(--vc-edge); background: rgba(255, 255, 255, 0.05); color: var(--vc-soft); }
+.vc-mn:is([data-mark="structure"], .vc-mn-structure) { border-color: color-mix(in srgb, #a78bfa 50%, transparent); background: color-mix(in srgb, #a78bfa 16%, transparent); color: #c9b8fc; }
+.vc-mn:is([data-mark="none"], .vc-mn-none) { border: 1px dashed color-mix(in srgb, var(--vc-warn) 60%, transparent); color: var(--vc-warn); font-weight: 500; }
+
+/* La note éditable (NoteEditor, Créer) : le texte comme le rendu (.vc-md),
+   les marques Markdown masquées hors du curseur, liseré, pastilles et 💬 dans
+   des gouttières à droite. */
+.vc-note-editor { margin-left: -10px; color: #d5d9e1; font-size: 13.5px; line-height: 1.6; }
+.vc-note-editor[data-locked] { opacity: 0.6; }
+.vc-note-editor[data-locked] .cm-content { cursor: not-allowed; }
+.vc-note-editor .cm-editor { background: transparent; }
+.vc-note-editor .cm-editor.cm-focused { outline: 0; }
+.vc-note-editor .cm-scroller { font: inherit; }
+.vc-note-editor .cm-content { padding: 0; caret-color: var(--vc-text); }
+.vc-note-editor .cm-line { padding: 0 0 0 10px; }
+.vc-note-editor .cm-gutters { border: 0; background: transparent; }
+.vc-note-editor .cm-line.vc-changed {
+  box-shadow: inset 3px 0 var(--vc-ok);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--vc-ok) 7%, transparent), transparent 70%);
+}
+.vc-note-editor :is(.cm-md-h1, .cm-md-h2, .cm-md-h3, .cm-md-h4, .cm-md-h5, .cm-md-h6) { padding-top: 10px; padding-bottom: 4px; color: var(--vc-text); font-weight: 600; line-height: 1.3; }
+.vc-note-editor .cm-md-h1 { font-size: 18px; }
+.vc-note-editor .cm-md-h2 { border-bottom: 1px solid var(--vc-line); font-size: 15.5px; }
+.vc-note-editor .cm-md-h3 { font-size: 14.5px; }
+.vc-note-editor :is(.cm-md-h4, .cm-md-h5, .cm-md-h6) { color: var(--vc-soft); }
+.vc-note-editor .cm-md-strong { color: var(--vc-text); font-weight: 600; }
+.vc-note-editor .cm-md-em { font-style: italic; }
+.vc-note-editor .cm-md-code { padding: 1px 5px; border-radius: 4px; background: var(--vc-code); color: var(--vc-text); font: 12.5px/1.5 var(--vc-mono); }
+.vc-note-editor .cm-md-codeblock { background: var(--vc-code); color: var(--vc-text); font: 12.5px/1.5 var(--vc-mono); }
+.vc-note-editor .cm-md-link { color: var(--vc-link); text-decoration: underline; text-underline-offset: 2px; }
+.vc-note-editor .cm-md-badges .cm-gutterElement { padding-left: 8px; }
+.vc-note-editor .cm-md-badges .vc-mn { margin-right: 0; }
+.vc-note-editor .cm-md-buttons .cm-gutterElement { padding-left: 4px; }
+/* 💬 : une gouttière ne connaît pas le survol de sa ligne ; à demi au survol de la note, entier au sien. */
+.vc-note-editor .cm-md-button {
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  font-size: 12px;
+  line-height: 20px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s, background-color 0.12s, border-color 0.12s;
+}
+.vc-note-editor:hover .cm-md-button { opacity: 0.35; }
+.vc-note-editor .cm-gutterElement:hover .cm-md-button, .vc-note-editor .cm-md-button:focus-visible { opacity: 1; border-color: var(--vc-edge); background: var(--vc-control); }
 
 /* Le diff brut. */
 .vc-rawdiff { margin: -4px -6px; border-radius: 6px; background: var(--vc-code); padding: 6px 0; font: 12.5px/1.55 var(--vc-mono); }
