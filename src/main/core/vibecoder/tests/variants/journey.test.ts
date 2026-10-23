@@ -49,6 +49,7 @@ const TEST = 'it("dit bonjour", () => {});\nit("ne lit rien d\'autre", () => {})
 const BLOB = blobSha(TEST);
 const test = { path: TEST_PATH, blob: BLOB, text: TEST };
 const READING = '## dit bonjour\n\n## ne lit rien d\'autre\n';
+const READINGS = [{ blob: BLOB, text: READING, time: 1 }];
 
 // Validé, pour ce contenu-là.
 const ok = (text: string) => ({ hash: blobSha(text), verdict: 'ok' as const });
@@ -69,12 +70,12 @@ const out = (text = '') => ({ text, time: 1 });
 const ANSWERED = [{ id: 'answers', label: 'answers', who: 'agent', state: 'done' as const, since: 2, end: 3, reply: '', permission: null }];
 const input = (over: Partial<JourneyInput> = {}): JourneyInput => ({
   agentId: 'a1', lang: 'fr', flow: 'create', pr: null, autonomy: 'guide', agent: { model: 'opus', effort: 'high', mode: 'default' },
-  busy: false, running: [], runs: [], repo: repo(), error: null, note: null, tests: [], readings: {}, outputs: {}, marks: {}, draft: [], actions: ACTIONS,
+  busy: false, running: [], runs: [], repo: repo(), error: null, note: null, tests: [], readings: [], outputs: {}, marks: {}, draft: [], actions: ACTIONS,
   who: {}, model: {}, skills: [], exists: () => false, now: 1700000000000, ...over,
 });
 // Un état de Créer : note et forme validées, invariants écrits, lus, validés et commités.
 const ready = (over: Partial<JourneyInput> = {}) => input({
-  note, tests: [test], readings: { [BLOB]: READING }, marks: { ...NOTE_OK, ...CASES_OK }, repo: repo([], [FIRST]), ...over,
+  note, tests: [test], readings: READINGS, marks: { ...NOTE_OK, ...CASES_OK }, repo: repo([], [FIRST]), ...over,
 });
 
 const status = (v: VibeView) => Object.fromEntries(v.steps.map((s) => [s.id, s.status]));
@@ -153,7 +154,7 @@ describe('Créer, Guide : les étapes et la prochaine action', () => {
   });
 
   it('des tests d\'invariant de la branche pas validés : ni course finie ni ✓ Rien à écrire ne font l\'étape', () => {
-    const v = vibeView(input({ note, marks: NOTHING_OK, tests: [test], readings: { [BLOB]: READING }, runs: [run('invariants', 'done', 4)],
+    const v = vibeView(input({ note, marks: NOTHING_OK, tests: [test], readings: READINGS, runs: [run('invariants', 'done', 4)],
       repo: repo([], [FIRST]) }));
     expect(status(v).invariants).toBe('current');
   });
@@ -167,18 +168,18 @@ describe('Créer, Guide : les étapes et la prochaine action', () => {
   });
 
   it('lus mais pas tous validés (Guide) : aucune action, la validation attend', () => {
-    expect(primary(vibeView(input({ note, marks: NOTE_OK, tests: [test], readings: { [BLOB]: READING }, repo: repo([NOTE_PATH, TEST_PATH]) }))))
+    expect(primary(vibeView(input({ note, marks: NOTE_OK, tests: [test], readings: READINGS, repo: repo([NOTE_PATH, TEST_PATH]) }))))
       .toBeNull();
   });
 
   it('lus et validés, des fichiers pas commités : Préparer le commit', () => {
-    expect(primary(vibeView(input({ note, marks: { ...NOTE_OK, ...CASES_OK }, tests: [test], readings: { [BLOB]: READING }, repo: repo([NOTE_PATH, TEST_PATH]) }))))
+    expect(primary(vibeView(input({ note, marks: { ...NOTE_OK, ...CASES_OK }, tests: [test], readings: READINGS, repo: repo([NOTE_PATH, TEST_PATH]) }))))
       .toBe('commit-prepare');
   });
 
   it('un commit préparé (commit.md) : Commiter', () => {
     expect(primary(vibeView(input({
-      note, marks: { ...NOTE_OK, ...CASES_OK }, tests: [test], readings: { [BLOB]: READING }, repo: repo([NOTE_PATH, TEST_PATH]), outputs: { 'commit.md': out('x') },
+      note, marks: { ...NOTE_OK, ...CASES_OK }, tests: [test], readings: READINGS, repo: repo([NOTE_PATH, TEST_PATH]), outputs: { 'commit.md': out('x') },
     })))).toBe('commit');
   });
 
@@ -307,13 +308,13 @@ describe('Relire : les étapes et la prochaine action', () => {
   });
 
   it('tests lus et jugés : Relire les commits', () => {
-    const v = vibeView(loaded({ marks: { note: ok(NOTE), ...CASES_OK }, readings: { [BLOB]: READING } }));
+    const v = vibeView(loaded({ marks: { note: ok(NOTE), ...CASES_OK }, readings: READINGS }));
     expect([status(v).commits, primary(v)]).toEqual(['current', 'review-commits']);
   });
 
   it('un plan de test pas tout coché : l\'écran reste en cours, sans action', () => {
     const outputs = { 'pr-12-commits.md': out('## abc x'), 'pr-12-ecran.md': out('- [ ] Ouvrir\n- [x] Dicter\n') };
-    const v = vibeView(loaded({ marks: { note: ok(NOTE), ...CASES_OK }, readings: { [BLOB]: READING }, outputs }));
+    const v = vibeView(loaded({ marks: { note: ok(NOTE), ...CASES_OK }, readings: READINGS, outputs }));
     expect([status(v).ecran, primary(v)]).toEqual(['current', null]);
   });
 
@@ -331,7 +332,7 @@ describe('Relire : les étapes et la prochaine action', () => {
 
   it('tout coché : Publier la revue', () => {
     const outputs = { 'pr-12-commits.md': out('## abc x'), 'pr-12-ecran.md': out('- [x] Ouvrir\n') };
-    const v = vibeView(loaded({ marks: { note: ok(NOTE), ...CASES_OK }, readings: { [BLOB]: READING }, outputs }));
+    const v = vibeView(loaded({ marks: { note: ok(NOTE), ...CASES_OK }, readings: READINGS, outputs }));
     expect([status(v).revue, primary(v)]).toEqual(['current', 'publish']);
   });
 });
@@ -831,7 +832,7 @@ describe('l\'étape Invariants, sans invariant et sans lecture (0.9.0-rc.4)', ()
   });
 
   it('un fichier d\'invariants pas lu, chaque cas validé : l\'étape Invariants est faite', () => {
-    const v = vibeView(ready({ readings: {} }));
+    const v = vibeView(ready({ readings: [] }));
 
     // La lecture en pseudo-code n'est pas exigée.
     expect(status(v).invariants).toBe('done');
@@ -843,7 +844,7 @@ describe('l\'étape Invariants, sans invariant et sans lecture (0.9.0-rc.4)', ()
   });
 
   it('une ligne « → invariant », cas validés, pas commités : l\'étape reste en cours (le premier commit)', () => {
-    expect(status(vibeView(ready({ readings: {}, repo: repo([NOTE_PATH, TEST_PATH]) }))).invariants).toBe('current');
+    expect(status(vibeView(ready({ readings: [], repo: repo([NOTE_PATH, TEST_PATH]) }))).invariants).toBe('current');
   });
 });
 
@@ -870,5 +871,37 @@ describe('Voir le code : les fichiers d\'un module et pourquoi il est grisé (0.
     const all = modules({ running: [{ id: 'modules', reads: false, module: '*' }] });
     expect(all.every((m) => m.locked === 'Ce module est en cours de génération')).toBe(true);
     expect(modules({ running: [{ id: 'checks', reads: true }] }).map((m) => m.locked)).toEqual([null, null]);
+  });
+});
+
+describe('Lecture périmée et grisé de la note et des tests (0.11.0-editer-invariants-et-note)', () => {
+  // Une lecture d'une version précédente du test : commence par `# <chemin du test>`, empreinte d'avant.
+  const OLD = { blob: 'f'.repeat(40), text: `# ${TEST_PATH}\n${READING}`, time: 1 };
+  const facts = (v: VibeView) => v.steps.find((s) => s.id === 'invariants')?.facts;
+
+  it('le test a changé depuis sa lecture : elle est montrée, périmée, et ne compte pas comme lue', () => {
+    const v = vibeView(ready({ readings: [OLD] }));
+    expect(v.invariants[0]).toMatchObject({ stale: true, reading: [{ title: 'dit bonjour' }, { title: 'ne lit rien d\'autre' }] });
+    expect(facts(v)).toBe('1 fichier · 2 cas · 0 lu');
+  });
+
+  it('Vibe : une lecture périmée remet Lire en pseudo-code en tête', () => {
+    const at = (readings: JourneyInput['readings']) =>
+      primary(vibeView(input({ note, marks: NOTE_OK, tests: [test], autonomy: 'vibe', repo: repo([NOTE_PATH, TEST_PATH]), readings })));
+    expect(at([OLD])).toBe('read-invariants');
+    expect(at([OLD, ...READINGS])).not.toBe('read-invariants');
+  });
+
+  it('la lecture de son empreinte : à jour, lue', () => {
+    const v = vibeView(ready({ readings: [{ ...OLD, time: 9 }, ...READINGS] }));
+    expect(v.invariants[0].stale).toBe(false);
+    expect(facts(v)).toBe('1 fichier · 2 cas · 2 lus');
+  });
+
+  it('locked de la note et des tests : la conversation, ou n\'importe quelle course qui retient ; sinon éditable', () => {
+    const locks = (over: Partial<JourneyInput>) => { const v = vibeView(ready(over)); return [v.note?.locked, v.invariants[0].locked]; };
+    expect(locks({})).toEqual([null, null]);
+    expect(locks({ busy: true })).toEqual(['La conversation travaille', 'La conversation travaille']);
+    expect(locks({ running: [{ id: 'checks', reads: true }] })).toEqual(['Une action de l’agent est en cours', 'Une action de l’agent est en cours']);
   });
 });

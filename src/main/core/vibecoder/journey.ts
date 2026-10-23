@@ -20,8 +20,10 @@
  *  finie, ou ✓ Rien à écrire validé à la main, Vibe compris (nothingMark, pour le texte de la note ;
  *  note 0.11.0-vibecoder-invariants-existants-et-courses) ; Lire en pseudo-code mise en avant seulement en Vibe
  *  (note 0.9.0-vibecoder-etape-invariants). Les fichiers d'un module touché
- *  (files : ids `m<rang>/<i>`, triés) et pourquoi son code ne s'édite pas
- *  (locked : codeLock de runs ; note 0.11.0-code-des-modules).
+ *  (files : ids `m<rang>/<i>`, triés) et pourquoi son code, la note ou un test
+ *  ne s'édite pas (locked : codeLock de runs ; notes 0.11.0-code-des-modules et
+ *  0.11.0-editer-invariants-et-note) ; la lecture d'un test (readingOf), celle
+ *  d'une version précédente montrée périmée (stale), jamais comptée comme lue.
  *  Ne connaît pas : Electron, le disque, git (tout est passé ; `exists` dit si
  *  un chemin du dossier de l'agent existe, `list` donne les fichiers d'un
  *  dossier).
@@ -35,7 +37,7 @@ import { markState, type Marks } from './marks';
 import { parseNote } from './note';
 import { json, parseChecklist, parseQuestions, parseReading } from './outputs';
 import { blockedBy, codeLock, ownRun } from './runs';
-import { blobSha, caseLines, caseTitles, isInvariantTest } from './test-files';
+import { blobSha, caseLines, caseTitles, isInvariantTest, readingOf } from './test-files';
 
 export type JourneyInput = {
   agentId: string;
@@ -52,7 +54,8 @@ export type JourneyInput = {
   error: string | null;                             // pourquoi le dépôt manque
   note: { path: string; text: string; before: string | null } | null;
   tests: { path: string; blob: string; text: string }[];   // les tests de la branche
-  readings: Record<string, string>;                 // par blob : sa lecture (<sorties>/invariants/<blob>.md)
+  // Toutes les lectures (<sorties>/invariants/<blob>.md) ; par blob : d'avant la 0.11.0 (fixtures protégées), heure 0.
+  readings: { blob: string; text: string; time: number }[] | Record<string, string>;
   outputs: Record<string, { text: string; time: number }>; // par nom connu (OUTPUTS)
   marks: Marks;
   draft: VibeComment[];
@@ -165,7 +168,7 @@ export function vibeView(input: JourneyInput): VibeView {
   const note: VibeNote | null = input.note && facts && {
     id: 'n', path: input.note.path, text: input.note.text, before: input.note.before, filled: facts.filled, mustNot: facts.mustNot,
     mark: markState(marks, 'note', blobSha(input.note.text)), formeMark: markState(marks, 'forme', blobSha(facts.forme)),
-    nothingMark: markState(marks, 'nothing', blobSha(input.note.text)),
+    nothingMark: markState(marks, 'nothing', blobSha(input.note.text)), locked: codeLock(null, input.busy, input.running, lang),
   };
   const bares = (facts?.modules ?? []).map((m) => m.path.replace(/\/+$/, ''));
   const modules: VibeModule[] = (facts?.modules ?? []).map((m, i) => {
@@ -185,16 +188,21 @@ export function vibeView(input: JourneyInput): VibeView {
 
   // Les tests de la branche (ceux qui ont des cas) : invariants et variants.
   const tests = input.tests.map((t) => ({ ...t, cases: caseTitles(t.text), lines: caseLines(t.text) })).filter((t) => t.cases.length);
-  const invariants: VibeTestFile[] = tests.filter((t) => isInvariantTest(t.path)).map((t, i) => ({
-    id: `t${i}`, path: t.path, blob: t.blob, cases: t.cases, lines: t.lines, source: t.text.length > SOURCE_MAX ? '' : t.text,
-    reading: Object.hasOwn(input.readings, t.blob) ? parseReading(input.readings[t.blob]) : null,
-    marks: Object.fromEntries(t.cases.map((c) => [c, markState(marks, `case:${t.path}:${c}`, t.blob)])),
-  }));
+  const readings = Array.isArray(input.readings) ? input.readings : Object.entries(input.readings).map(([blob, text]) => ({ blob, text, time: 0 }));
+  const invariants: VibeTestFile[] = tests.filter((t) => isInvariantTest(t.path)).map((t, i) => {
+    const r = readingOf(t, readings);
+    return {
+      id: `t${i}`, path: t.path, blob: t.blob, cases: t.cases, lines: t.lines, source: t.text.length > SOURCE_MAX ? '' : t.text,
+      reading: r && parseReading(r.text), stale: !!r?.stale, locked: codeLock(null, input.busy, input.running, lang),
+      marks: Object.fromEntries(t.cases.map((c) => [c, markState(marks, `case:${t.path}:${c}`, t.blob)])),
+    };
+  });
   const variants = tests.filter((t) => !isInvariantTest(t.path)).map((t, i) => ({ id: `v${i}`, path: t.path, cases: t.cases.length }));
-  const allRead = invariants.every((f) => f.reading !== null);
+  const isRead = (f: VibeTestFile) => f.reading !== null && !f.stale;   // une lecture périmée n'est pas lue
+  const allRead = invariants.every(isRead);
   const casesOk = invariants.every((f) => f.cases.every((c) => f.marks[c] === 'ok'));
   const caseCount = invariants.reduce((s, f) => s + f.cases.length, 0);
-  const readCount = invariants.reduce((s, f) => s + (f.reading ? f.cases.length : 0), 0);
+  const readCount = invariants.reduce((s, f) => s + (isRead(f) ? f.cases.length : 0), 0);
 
   // Les sorties des skills.
   const questions = parseQuestions(out('questions.md') ?? '');
