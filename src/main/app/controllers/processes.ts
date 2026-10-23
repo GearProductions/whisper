@@ -9,7 +9,9 @@
  *  déjà, pour le message d'une action : promptPrefix ; technicals/process : détachées, marquées, leur
  *  journal dans <sorties>/run/<nom>.log). Au relevé : la proposition du skill
  *  lancement (<sorties>/lancement.json) devient le fichier du projet s'il
- *  n'existe pas — jamais par-dessus —, les demandes de l'agent
+ *  n'existe pas ; s'il existe, seules ses commandes de nom nouveau s'y
+ *  ajoutent (core/runner mergeProject ; rien de nouveau : pas réécrit) ; la
+ *  proposition supprimée dans les deux cas ; les demandes de l'agent
  *  (<sorties>/run/<nom>.stop, .restart, pour un nom du fichier) sont faites,
  *  une commande retirée du fichier est arrêtée ; l'état et la fin du journal
  *  de chaque commande. Ce que demande la page : une commande par son rang
@@ -33,7 +35,7 @@ import { dialog } from 'electron';
 import type { AgentConfig } from 'core/agents';
 import { agentList, type Config } from 'core/config';
 import { branchOf, familyOwner, heldBy } from 'core/family';
-import { agentSidePrefix, commandAt, commandPrefix, logTail, parseProject, projectSlug, projectText, requestsOf, type Project } from 'core/runner';
+import { agentSidePrefix, commandAt, commandPrefix, logTail, mergeProject, parseProject, projectSlug, projectText, requestsOf, type Project } from 'core/runner';
 import { findEditor } from 'technicals/editor';
 import { createProcesses, readTail, writeNew } from 'technicals/process';
 import { vibeDir, vibeOutDir } from 'app/settings';
@@ -86,14 +88,16 @@ export const agentPrefix = (agent: AgentConfig, cfg: Config) =>
 export const promptPrefix = (agent: AgentConfig, cfg: Config) =>
   agentSidePrefix(projectOf(agent, cfg), cfg.vibeCommandPrefix, cfg.agentCommand).join(' ');
 
-// Au relevé : la proposition adoptée, les demandes de l'agent, l'état de chaque commande.
+// Au relevé : la proposition adoptée (ou fusionnée), les demandes de l'agent, l'état de chaque commande.
 export function processView(agent: AgentConfig, cfg: Config): { processes: VibeProcess[]; projectFile: boolean } {
   try {
     const file = familyFile(agent, cfg);
     const out = vibeOutDir(agent.id);
     const proposal = projectText(readFile(path.join(out, 'lancement.json')));
     if (proposal) {
-      writeNew(file, proposal);
+      const current = writeNew(file, proposal) ? null : readFile(file);
+      const merged = current === null ? null : mergeProject(current, proposal);
+      if (merged) fs.writeFileSync(file, merged);
       fs.rmSync(path.join(out, 'lancement.json'), { force: true });
     }
     const p = parseProject(readFile(file));
