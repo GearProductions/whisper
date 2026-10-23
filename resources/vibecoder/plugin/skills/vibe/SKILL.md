@@ -1,6 +1,6 @@
 ---
 name: vibe
-description: "Approve and develop: once the note is written and its questions answered, take the developer's seat of the guide and, as VibeCoder's orchestrator, chain the screen's actions from the forme — red invariants (alignment included), first commit, modules, checks (ponytail review included), fixups, PR, CI, release candidate — stopping only on a blocking question."
+description: "Approve and develop: once the note is written and its questions answered, take the developer's seat of the guide and, as VibeCoder's orchestrator, chain the screen's actions from the forme — red invariants (alignment included), first commit, modules and their commits, checks (ponytail review included), fixups, PR, CI, release candidate — stopping only on a blocking question."
 argument-hint: "<lang> <out>"
 disable-model-invocation: true
 ---
@@ -24,10 +24,10 @@ Read `${CLAUDE_SKILL_DIR}/../actions/SKILL.md` first: it is the protocol — `<o
 
 1. **Start.** Read `AGENTS.md`, `CLAUDE.md` and the guide, those that exist, and the note. Uncommitted changes that are not yours, no note, or a question still open in `<out>/questions.md` → blocking question: the note's questions are the user's, never settle one yourself. Then start at the first step not done yet (the forme in the note, the invariants on the branch, the first commit, the modules' commits…): after a blocking question, the user brings you back with *Approve and develop*.
 2. **Forme** — `forme` (`text`: a precision, if any). Check it: small modules, from the inside out.
-3. **Invariants** — `invariants`: it writes the red tests, then checks the alignment and fixes the tests itself (3 rounds at most). Then `read-invariants`. Gaps left in `align.md`, or an assertion that does not truly observe its property → `invariants` again with `text` saying what to fix; a gap only the note can close → blocking question.
+3. **Invariants** — `invariants`: it writes the red tests, then checks the alignment and fixes the tests itself (3 rounds at most); no `read-invariants`, its pseudo-code is for the user. Gaps left in `align.md`, or an assertion that does not truly observe its property → `invariants` again with `text` saying what to fix; a gap only the note can close → blocking question.
 4. **First commit** — `commit-prepare`, check `<out>/commit.md` (note, forme, red invariants), then `commit`.
-5. **Modules** — `modules`: parallel Opus subagents, each diff reviewed, one commit per module.
-6. **Review** — `checks`: it requests the ponytail review itself, both run together; wait for both end notices (`checks.json`, `ponytail.md`). Then `apply` (`text`: the remarks you keep; empty: all) and say which ones you discard and why. A red check → fix it as a fixup of the commit that owns the code. `checks` again.
+5. **Modules** — `modules`: parallel Opus subagents, each diff reviewed; it commits nothing. Then `commit-modules`: one commit per module (a fixup for a module already committed).
+6. **Review** — `checks`: it requests the ponytail review itself, both run together; wait for both end notices (`checks.json`, `ponytail.md`). Then `apply` (`text`: the remarks you keep; empty: all) and say which ones you discard and why. A red check → fix it as a fixup of the commit that owns the code, then `checks` again with `check`: its rank in `checks.json` (that check alone).
 7. **Docs** — the note matches what is delivered (A.3); `SPEC.md`, `README.md`, `AGENTS.md`… follow where a behaviour or a convention changed: a doc commit, or fixups.
 8. **Fold** — `fixups`.
 9. **PR** — `pr` (→ `pr.json`), then `ci`. Red → fix the cause from `ci.md` in a new commit (the PR is open: no rewrite), push, `ci` again.

@@ -56,14 +56,19 @@ actions par des fichiers de `{{out}}` :
 | Fichier | Rôle |
 |---|---|
 | `actions.json` | l'état, réécrit par l'appli : `{ actions: [{id, label, reads}], runs: [{id, label, state, reads, since, end, reply}], waiting: [{id, reason}] }` ; `state` : `running`, `asking`, `stopped` (arrêtée, à garder ou annuler), `done` (son tour fini et plus de tâche de fond, sans limite de temps), `failed`, `kept`, `undone` |
-| `actions/<id>.start` | demande de lancement : un objet JSON de ses arguments (`text`, `module`, `commit`, `file`, `pr`, `model`, `answers`), `{}` sans argument |
+| `actions/<id>.start` | demande de lancement : un objet JSON de ses arguments (`text`, `module`, `commit`, `file`, `pr`, `check`, `model`, `answers`), `{}` sans argument |
 | `actions/<id>.stop` | vide : demande d'arrêt |
 
 L'appli supprime une demande une fois appliquée ; un lancement qui doit
 attendre reste en place, en attente (`waiting`), et part de lui-même dès que la
 voie est libre. À la fin de chaque action, la conversation reçoit une ligne
 « VibeCoder : « <libellé> » … État : `{{out}}`/actions.json » (pas pour une
-action arrêtée).
+action arrêtée). Une demande que l'appli ne lance ni ne met en attente
+(illisible, inconnue, pas proposée, déjà en cours, argument invalide) est
+supprimée, et la conversation reçoit « VibeCoder : demande <id> refusée —
+<raison> » ; un argument que l'action ne lit pas (ou un modèle qu'elle ne
+propose pas) ne la fait pas refuser : elle part, avec l'avis « … partie,
+arguments ignorés : <noms> ».
 
 **Ce qui se personnalise : `label`, `hint` et `text`** (le libellé, l'aide, le
 message). Les `id` livrés sont un contrat : l'écran et le parcours s'appuient
@@ -105,6 +110,7 @@ l'action.
 | `{{answers}}` | les réponses aux questions ouvertes, une par ligne : « 1. … » |
 | `{{verdict}}` | `approve`, `comment` ou `request-changes` |
 | `{{draft}}` | le brouillon de revue : une ligne « - [cible] texte » par remarque (il en faut une) |
+| `{{check}}` | le rang d'une vérification de `checks.json` (*Relancer* sur l'une d'elles) ; sans choix : `*` (toutes) |
 | `{{quote}}` | (`prefill` seulement) ce qu'on cite |
 | `{{prefix}}` | le préfixe des commandes du projet vu de l'agent (sans la box où il tourne déjà) ; peut être vide |
 
@@ -208,12 +214,13 @@ sinon.
 | `lire-invariants` | sous-contexte | sonnet · medium | `invariants/<blob>.md` |
 | `aligner` | sous-contexte | opus · high | `align.md` |
 | `module` | sous-contexte | opus · high | — |
-| `suivant` | sous-contexte | opus · high | — |
-| `modules` | conversation | agent, sous-agents opus | — |
+| `suivant` | sous-contexte | opus · high | — (commite comme `commiter-modules`) |
+| `modules` | conversation | agent, sous-agents opus | — (ne commite pas) |
+| `commiter-modules` | sous-contexte | sonnet · medium | — (un module, ou tous ceux qui ont des changements : un commit chacun, un fixup pour un module déjà commité) |
 | `relire` | sous-contexte | opus · high | `review.md` |
 | `commit-preparer` | sous-contexte | sonnet · low | `commit.md` |
 | `commit` | sous-contexte | haiku · low | (supprime `commit.md`) |
-| `verifier` | sous-contexte | haiku · low | `actions/ponytail.start`, `checks.json` |
+| `verifier` | sous-contexte | haiku · low | `actions/ponytail.start` (toutes les vérifications seulement), `checks.json` |
 | `ponytail` | sous-contexte | opus · high | `ponytail.md` |
 | `fixups` | sous-contexte | sonnet · medium | — |
 | `pr` | sous-contexte | sonnet · medium | `pr.json` |
@@ -238,10 +245,16 @@ sinon.
 élément par commande ; `level` vaut `ok`, `warning` (des avertissements
 seulement : la vérification passe, en orange à l'écran) ou `error` (`ok` :
 `false` pour `error` seulement). Un fichier sans `level` se lit d'après `ok`.
-`verifier` reçoit `{{lang}} {{out}} {{prefix}}` et lance chaque commande
-derrière ce préfixe (vide : telle quelle). Un `checks.json` dont le `time`
+`verifier` reçoit `{{lang}} {{out}} {{check}} {{prefix}}` et lance chaque commande
+derrière ce préfixe (vide : telle quelle) ; `{{check}}` un rang : cette
+vérification seule, les autres éléments de `checks.json` gardés tels quels,
+sans ponytail review. Un `checks.json` dont le `time`
 précède le départ de la course de vérifications (ou sans `time`) est ignoré ;
 appli relancée, sans course connue, il compte.
+
+`ponytail-applied.json` : `{"applied":["<fichier>:L<ligne>",…]}`, écrit par
+*Appliquer la revue* (`apply`, sans skill) : les remarques de `ponytail.md`
+appliquées, marquées ✓ à l'écran ; plus vieux que `ponytail.md`, ignoré.
 
 ## Les commandes du projet : `projets/<dossier>.json`
 
@@ -270,5 +283,6 @@ Chaque commande passe par ce shell, dans la box de l'agent si sa commande de
 lancement (`agentCommand`) commence par `distrobox enter <box> --`. Son
 journal : `userData/vibecoder-out/<agent>/run/<nom>.log` (le précédent en
 `.log.old`). *Proposer les commandes* (skill `lancement`) écrit le fichier s'il
-n'existe pas encore ; *Modifier les commandes* l'ouvre dans l'éditeur (créé
+n'existe pas encore, sinon y ajoute les commandes dont le nom n'y est pas
+(les autres restent telles quelles) ; *Modifier les commandes* l'ouvre dans l'éditeur (créé
 d'un exemple s'il manque). Quitter l'appli arrête tout ce qu'elle a lancé.
