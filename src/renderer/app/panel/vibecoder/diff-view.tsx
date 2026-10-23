@@ -4,10 +4,30 @@
  *  modifications) et celui d'un fichier de module (Voir le code, F-113).
  *  Ne connaît pas : le pont, le relevé.
  *  Utilisé par : note-view, module-code. */
-import type { ReactElement } from 'react';
-import type { DiffLine } from 'core/vibecoder';
+import { useMemo, type ReactElement } from 'react';
+import { foldDiff, type DiffLine } from 'core/vibecoder';
 import type { VibeLang } from 'technicals/bridge';
+import './diff-view.css';
 
-export function DiffView(_props: { diff: DiffLine[]; lang: VibeLang }): ReactElement {
-  throw new Error('not implemented');
+const S: Record<VibeLang, { skip: (n: number) => string }> = {
+  fr: { skip: (n) => `⋯ ${n} ligne${n > 1 ? 's' : ''} inchangée${n > 1 ? 's' : ''}` },
+  en: { skip: (n) => `⋯ ${n} unchanged line${n === 1 ? '' : 's'}` },
+};
+
+export function DiffView({ diff, lang }: { diff: DiffLine[]; lang: VibeLang }): ReactElement {
+  const folded = useMemo(() => foldDiff(diff), [diff]);
+  return (
+    <div className="vc-rawdiff scroll">
+      {folded.map((l, i) => {
+        if (l.kind === 'skip') return <div key={i} className="vc-dl-skip">{S[lang].skip(l.count)}</div>;
+        const Line = l.kind === 'added' ? 'ins' : l.kind === 'removed' ? 'del' : 'div';
+        return (
+          <Line key={i} className="vc-dl" data-kind={l.kind}>
+            <span className="vc-dl-sign" aria-hidden="true">{l.kind === 'added' ? '+' : l.kind === 'removed' ? '−' : ' '}</span>
+            <span className="vc-dl-text">{l.text || ' '}</span>
+          </Line>
+        );
+      })}
+    </div>
+  );
 }
