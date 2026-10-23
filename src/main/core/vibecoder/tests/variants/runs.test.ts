@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockedBy, codeLock, endNotice, ownRun, parseRequest, runKey, runModule, runPhase, runsFile, runViews, type ActionDef, type Run } from 'core/vibecoder';
+import { blockedBy, codeLock, endNotice, ownRun, parseRequest, requestNotice, runKey, runModule, runPhase, runsFile, runViews, type ActionDef, type Run } from 'core/vibecoder';
 
 const A = (id: string, step: ActionDef['step'], reads = false, kind: ActionDef['kind'] = 'send'): ActionDef =>
   ({ id, flow: 'create', step, kind, needs: 'none', label: `L-${id}`, hint: '', text: `/vibecoder:${id}`, reads });
@@ -95,10 +95,26 @@ describe('parseRequest : une demande de l\'orchestrateur', () => {
   });
 
   it('seulement les arguments connus, de leur type ; jamais direct', () => {
-    const args = { text: 't', module: 2, commit: 'abc', file: '*', pr: 7, model: 'sonnet', answers: ['a', ''], direct: true, verdict: 'approve' };
+    const args = { text: 't', module: 2, commit: 'abc', file: '*', pr: 7, model: 'sonnet', check: 0, answers: ['a', ''], direct: true, verdict: 'approve' };
     expect(parseRequest('module.start', JSON.stringify(args))?.args)
-      .toEqual({ text: 't', module: 2, commit: 'abc', file: '*', pr: 7, model: 'sonnet', answers: ['a', ''] });
-    expect(parseRequest('module.start', JSON.stringify({ module: 1.5, pr: '7', answers: [1], text: 3 }))?.args).toEqual({});
+      .toEqual({ text: 't', module: 2, commit: 'abc', file: '*', pr: 7, model: 'sonnet', check: 0, answers: ['a', ''] });
+    expect(parseRequest('module.start', JSON.stringify({ module: 1.5, pr: '7', answers: [1], text: 3, check: '2' }))?.args).toEqual({});
+  });
+});
+
+describe('requestNotice : l\'avis d\'une demande', () => {
+  it('refusée, sa raison ; partie, les arguments ignorés ; en anglais', () => {
+    expect([
+      requestNotice('forme', { refused: 'Une autre action est en cours' }, 'fr'),
+      requestNotice('modules', { ignored: ['model'] }, 'fr'),
+      requestNotice('modules', { ignored: ['model', 'pr'] }, 'en'),
+      requestNotice('forme', { refused: 'same' }, 'en'),
+    ]).toEqual([
+      'VibeCoder : demande forme refusée — Une autre action est en cours',
+      'VibeCoder : demande modules partie, arguments ignorés : model',
+      'VibeCoder: request modules started, ignored arguments: model, pr',
+      'VibeCoder: request forme refused — This action is already running',
+    ]);
   });
 });
 
