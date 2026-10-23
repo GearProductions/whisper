@@ -1,7 +1,7 @@
 /** outputs — ce que les skills écrivent pour l'écran dans le dossier de
  *  sorties de l'agent : les seuls noms que le principal y lit, et leur
  *  lecture (cas d'un test lus en pseudo-code, questions ouvertes, cases à
- *  cocher, un JSON, le worktree d'une PR).
+ *  cocher, un JSON, le worktree d'une PR, les remarques ponytail appliquées).
  *  Ne connaît pas : le disque (textes passés), les skills.
  *  Utilisé par : core/vibecoder (journey), app/controllers/vibecoder. */
 import path from 'node:path';
@@ -13,6 +13,7 @@ import type { ReadingCase, VibeCheck, VibeQuestion } from 'shared/bridge';
 export const OUTPUTS: readonly string[] = [
   'questions.md', 'align.md', 'review.md', 'commit.md', 'checks.json', 'ponytail.md', 'pr.json', 'ci.md', 'prs.json',
   'lancement.json',   // la proposition des commandes du projet (skill lancement), adoptée par controllers/processes
+  'ponytail-applied.json', // { applied: ["<fichier>:L<ligne>", …] } : les remarques de ponytail.md que la course apply a appliquées
 ];
 
 // Un nom de sortie connu, rien d'autre : ni `..`, ni autre dossier qu'invariants/.
