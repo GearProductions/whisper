@@ -1,7 +1,7 @@
-/* La note (note-view) : en-tête (chemin, Ouvrir, Brut, validation), bandeau
-   des changements, liseré vert des blocs changés, marques des lignes « ne
-   doit pas », la note éditable (NoteEditor : vc-note-editor, cm-md-*), diff
-   brut. Sous .vc. */
+/* La note (note-view) : en-tête (chemin, Ouvrir, Modifier, Brut,
+   validation), bandeau des changements, liseré vert des blocs changés,
+   marques des lignes « ne doit pas », la note éditable (NoteEditor :
+   vc-note-editor, cm-md-*). Sous .vc. */
 
 .vc-note .vc-card-head { min-height: 42px; gap: 8px; }
 .vc-note-file { flex: none; font-size: 13px; opacity: 0.75; }
@@ -88,6 +88,7 @@
   background: linear-gradient(90deg, color-mix(in srgb, var(--vc-ok) 7%, transparent), transparent 70%);
 }
 .vc-note-editor :is(.cm-md-h1, .cm-md-h2, .cm-md-h3, .cm-md-h4, .cm-md-h5, .cm-md-h6) { padding-top: 10px; padding-bottom: 4px; color: var(--vc-text); font-weight: 600; line-height: 1.3; }
+.vc-note-editor .cm-content > .cm-line:first-child { padding-top: 0; } /* pas d'espace au-dessus de la note, comme le rendu */
 .vc-note-editor .cm-md-h1 { font-size: 18px; }
 .vc-note-editor .cm-md-h2 { border-bottom: 1px solid var(--vc-line); font-size: 15.5px; }
 .vc-note-editor .cm-md-h3 { font-size: 14.5px; }
@@ -117,15 +118,4 @@
 .vc-note-editor:hover .cm-md-button { opacity: 0.35; }
 .vc-note-editor .cm-gutterElement:hover .cm-md-button, .vc-note-editor .cm-md-button:focus-visible { opacity: 1; border-color: var(--vc-edge); background: var(--vc-control); }
 
-/* Le diff brut. */
-.vc-rawdiff { margin: -4px -6px; border-radius: 6px; background: var(--vc-code); padding: 6px 0; font: 12.5px/1.55 var(--vc-mono); }
-.vc-dl { display: flex; padding-right: 12px; color: var(--vc-muted); text-decoration: none; }
-.vc-dl-sign { flex: none; width: 26px; text-align: center; user-select: none; }
-.vc-dl-text { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-.vc-dl[data-kind="added"] { background: color-mix(in srgb, var(--vc-ok) 14%, transparent); color: #b6efc0; }
-.vc-dl[data-kind="added"] .vc-dl-sign { color: var(--vc-ok); }
-.vc-dl[data-kind="removed"] { background: color-mix(in srgb, #d9383a 13%, transparent); color: #f0a3a4; }
-.vc-dl[data-kind="removed"] .vc-dl-text { text-decoration: line-through; text-decoration-color: color-mix(in srgb, #f08a8b 70%, transparent); }
-.vc-dl[data-kind="removed"] .vc-dl-sign { color: #f08a8b; }
-.vc-dl-skip { margin: 3px 0; padding: 2px 0 2px 26px; background: rgba(255, 255, 255, 0.03); color: var(--vc-faint); font-family: system-ui, sans-serif; font-size: 11.5px; }
 .vc-note-refuse { padding: 4px 16px 0; }
