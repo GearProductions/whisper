@@ -1,5 +1,6 @@
 /* L'étape Revue de Créer (review-view) : la liste du § A.3, les
-   vérifications et leur détail repliable. Sous .vc, couleurs de vibecoder.css
+   vérifications, leur détail repliable et leur Relancer ; la ponytail review
+   (Appliquer, remarque appliquée, bandeau « Appliquée »). Sous .vc, couleurs de vibecoder.css
    (rouge : celui de Whisper). */
 
 /* Une marque d'état : ✓ (ok), ✗ (ko), anneau pointillé (à vérifier à la main). */
@@ -120,3 +121,18 @@
 .vc-apply-one:disabled { cursor: default; opacity: 0.35; }
 .vc-checks-note { margin-bottom: 8px; color: var(--vc-muted); font-size: 12.5px; }
 .vc-checks-note:last-child { margin-bottom: 0; }
+/* Relancer une vérification seule : en bout de ligne, avant le chevron ; discret, net au survol. */
+.vc-check-again { padding: 0 8px; font-size: 11px; opacity: 0.6; }
+.vc-check-list li:hover .vc-check-again, .vc-check-again:focus-visible { opacity: 1; }
+.vc-check-again:disabled { cursor: default; opacity: 0.35; }
+.vc-check-list summary:has(.vc-check-again)::after { margin-left: 0; }
+/* Une remarque appliquée : ✓ vert, son texte grisé ; toutes, le bandeau « Appliquée » de l'encart. */
+.vc-md li:has(> .vc-remark-applied) { opacity: 0.55; }
+.vc-remark-applied { margin-left: 8px; color: var(--vc-ok); font-weight: 700; }
+.vc-applied-banner {
+  padding: 0 8px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--vc-ok) 15%, transparent);
+  color: var(--vc-ok);
+  font: 600 11px/18px system-ui, sans-serif;
+}

@@ -34,7 +34,7 @@
  *  Utilisé par : panel-app. */
 import { Component, useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { isBusy, titleOf } from 'core/conversation';
-import { convWidth, fieldOf, modelArg, t as strings, type Answers, type Kept, type ModelPicks, type Strings } from 'core/vibecoder';
+import { convWidth, fieldOf, isLive, modelArg, t as strings, type Answers, type Kept, type ModelPicks, type Strings } from 'core/vibecoder';
 import type { Thread, VibeCode, VibeLang, VibeStepId, VibeView } from 'technicals/bridge';
 import type { Drafts } from './file-draft';
 import { Journey } from './journey';
@@ -98,7 +98,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   const running = thread.tasks?.filter((x) => x.status === 'running').length || 0;
   const up = view.processes?.filter((p) => p.status === 'running').length || 0;
   const runs = view.runs ?? [];
-  const live = runs.filter((r) => r.state === 'running' || r.state === 'asking' || r.state === 'stopped').length;
+  const live = runs.filter((r) => isLive(r.state)).length;
   // Le champ de chaque étape : par fieldOf.
   const [texts, setTexts] = useKept<Record<string, string>>(kept, view.agentId, 'texts', {});
   const setText = (key: string) => (text: string) => setTexts((all) => ({ ...all, [key]: text }));
