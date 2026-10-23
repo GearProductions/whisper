@@ -401,7 +401,7 @@ describe('le signal des courses', () => {
     const { runVibeAction, runSignalOf, runsTab } = await open();
     runVibeAction('forme', {});
     await settle();
-    expect(runSignalOf('a1')).toBeNull();   // en cours : rien
+    expect(runSignalOf('a1')).toBe('working');   // en cours : travaille
     turn('/vibecoder:forme')!.finish('ok');
     await settle();
     expect(runSignalOf('a1')).toBe('done');
