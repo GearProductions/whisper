@@ -23,7 +23,8 @@
     `links`, `ui`) ;
   - `helpers/` : fonctions pures sans lien avec le métier ;
   - `technicals/` : ce que fournit la plateforme (`bridge` : types des ponts ;
-    `audio` : micro, bips, PCM ; `dom`).
+    `audio` : micro, bips, PCM ; `dom` ; `codemirror` : réglages de
+    l'éditeur, sans métier).
 - Principal (`src/main/`) :
   - `app/` : ce qui connaît Electron et les fenêtres (`state`, `settings`,
     `windows`, `controllers`, `menus`, `ipc`, `lifecycle`) ;

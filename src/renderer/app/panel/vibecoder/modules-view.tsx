@@ -127,7 +127,7 @@ export function ModulesView(p: StepProps) {
                     {m.touched ? (
                       <ModuleCode m={m} code={p.code} t={t} open={opened === m.path}
                         onOpen={(o) => setOpened(o ? m.path : null)} onFollow={act.follow} onSave={act.save}
-                        onQuote={(block, id) => act.prefill(id, block, true)} />
+                        onQuote={(block, id) => act.prefill(id, block, true)} drafts={p.drafts} />
                     ) : null}
                   </div>
                   <div className="vc-mod-acts">

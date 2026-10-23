@@ -151,10 +151,16 @@ describe('le relevé', () => {
   it('lit la note du ticket, les tests de la branche et leur lecture, les sorties sous leurs noms connus', async () => {
     const { blobSha } = await import('core/vibecoder');
     write(path.join(out, 'invariants', `${blobSha(TEST)}.md`), '# lecture\n');
+    write(path.join(out, 'invariants', `${'f'.repeat(40)}.md`), '# une version précédente\n');   // toutes les lectures
+    write(path.join(out, 'invariants', 'notes.md'), 'pas une lecture');                        // pas un nom connu
     const v = (await open()).view()!;
     expect(v.note).toMatchObject({ path: 'docs/tickets/feat/0.8.0-essai.md', text: NOTE, before: null });
     expect(v.tests).toEqual([{ path: 'src/x/tests/invariants/x.test.ts', blob: blobSha(TEST), text: TEST }]);
-    expect(v.readings).toEqual({ [blobSha(TEST)]: '# lecture\n' });
+    expect(v.readings).toHaveLength(2);
+    expect(v.readings).toEqual(expect.arrayContaining([
+      { blob: blobSha(TEST), text: '# lecture\n', time: expect.any(Number) },
+      { blob: 'f'.repeat(40), text: '# une version précédente\n', time: expect.any(Number) },
+    ]));
     expect(Object.keys(v.outputs)).toEqual(['ponytail.md']); // secret.txt : pas un nom connu
   });
 

@@ -4,7 +4,8 @@
  *  italique, liens. Rien n'est rendu en HTML (aucun dangerouslySetInnerHTML)
  *  et un lien ne navigue pas : onOpenLink (le principal l'ouvre dans le
  *  navigateur, I-21). Avec onQuote, un 💬 au survol de chaque bloc et de
- *  chaque élément de liste le cite ; avec onComment (Relire), ce 💬 ouvre
+ *  chaque élément de liste cite son texte (blockQuotes) ; avec onComment
+ *  (Relire), ce 💬 ouvre
  *  sous lui une zone de commentaire, et la remarque part avec ce qu'il cite.
  *  Avec changed (des numéros de ligne du
  *  texte), un liseré sur les blocs et éléments qui en contiennent une ; tag
@@ -12,10 +13,10 @@
  *  itemEnd un bouton après lui (par son texte : Appliquer une remarque).
  *  InlineMd : un texte d'une ligne (réponse proposée, cas limite…) en ligne.
  *  Ne connaît pas : le pont (rappels passés).
- *  Utilisé par : les vues d'étape (note-view, questions-view, forme-view, invariants-view, modules-view,
- *  review-view, pr-view, pr-picker, commits-view, ecran-view, draft-view). */
+ *  Utilisé par : les vues d'étape (note-view en Relire, questions-view, forme-view, invariants-view,
+ *  modules-view, review-view, pr-view, pr-picker, commits-view, ecran-view, draft-view, runs-view). */
 import { useMemo, useState, type ReactNode } from 'react';
-import { parseInline, parseMarkdown, type Block, type Inline, type Strings } from 'core/vibecoder';
+import { blockQuotes, parseInline, parseMarkdown, type Block, type Inline, type Strings } from 'core/vibecoder';
 import { CommentBox } from './comment-box';
 
 type Ctx = {
@@ -30,18 +31,23 @@ type Ctx = {
 
 // La zone de commentaire ouverte : la ligne de ce qu'elle cite.
 type Open = { at: number | null; set(line: number | null): void };
+// Ce que cite le 💬 du bloc ou de l'élément qui commence à une ligne (depuis 0).
+// ponytail: une ligne, un texte — une citation ou un élément qui s'ouvre sur une
+// liste (« > - a », « - - a ») prend le texte de son élément ; clé plus fine si gênant.
+type Quotes = Map<number, string>;
 
 export function MarkdownView({ md, ...given }: Ctx & { md: string }) {
   const blocks = useMemo(() => parseMarkdown(md), [md]);
+  const quotes = useMemo<Quotes>(() => new Map(blockQuotes(md).map((q) => [q.line, q.text])), [md]);
   const [at, set] = useState<number | null>(null);
-  const ctx: Ctx & { open: Open } = { ...given, open: { at, set } };
+  const ctx: Full = { ...given, open: { at, set }, quotes };
   return (
     <div className="vc-md">
       {blocks.map((b, i) => {
         const end = blocks[i + 1]?.line ?? Infinity;
         return b.kind === 'list' || b.kind === 'rule' ? <BlockView key={i} b={b} end={end} ctx={ctx} /> : (
           <div key={i} className="vc-block" data-changed={touched(ctx, b.line, end) || undefined}>
-            <BlockView b={b} end={end} ctx={ctx} /><Quote text={said(b)} line={b.line} ctx={ctx} />
+            <BlockView b={b} end={end} ctx={ctx} /><Quote line={b.line} ctx={ctx} />
           </div>
         );
       })}
@@ -52,30 +58,19 @@ export function MarkdownView({ md, ...given }: Ctx & { md: string }) {
 // Un texte d'une ligne : code, gras, italique, liens (jamais de HTML).
 export function InlineMd({ text, ...ctx }: Ctx & { text: string }) {
   const inline = useMemo(() => parseInline(text), [text]);
-  return <Inlines inline={inline} ctx={{ ...ctx, open: { at: null, set: () => {} } }} />;
+  return <Inlines inline={inline} ctx={{ ...ctx, open: { at: null, set: () => {} }, quotes: new Map() }} />;
 }
 
-const plain = (inline: Inline[]) => inline.map((x) => x.text).join('');
 // Une ligne de [from, to) est ajoutée ou changée.
 const touched = ({ changed }: Ctx, from: number, to: number) => !!changed && [...changed].some((l) => l >= from && l < to);
 
-// Le texte d'un bloc, tel qu'un 💬 le cite (une liste se cite élément par élément).
-function said(b: Block): string {
-  switch (b.kind) {
-    case 'heading': case 'paragraph': return plain(b.inline);
-    case 'code': return b.text;
-    case 'quote': return b.blocks.map(said).join(' ');
-    case 'table': return [b.head, ...b.rows].map((row) => row.map(plain).join(' | ')).join(' · ');
-    default: return '';
-  }
-}
-
-type Full = Ctx & { open: Open };
+type Full = Ctx & { open: Open; quotes: Quotes };
 
 // 💬 : cite (onQuote) ; Relire (onComment) : ouvre ou ferme la zone de commentaire, rendue juste après.
-function Quote({ text, line, ctx }: { text: string; line: number; ctx: Full }) {
+function Quote({ line, ctx }: { line: number; ctx: Full }) {
   const { onQuote, onComment, open, t } = ctx;
-  if ((!onQuote && !onComment) || !text.trim()) return null;
+  const text = ctx.quotes.get(line);
+  if ((!onQuote && !onComment) || !text) return null;
   const here = open.at === line;
   const title = onComment ? t.commentAdd : t.quote;
   return (
@@ -127,8 +122,8 @@ function BlockView({ b, end, ctx }: { b: Block; end: number; ctx: Full }) {
                 {item.checked === null ? null : <span className="vc-box" data-checked={item.checked || undefined} aria-hidden="true" />}
                 {ctx.tag?.(item.line)}
                 <Inlines inline={item.inline} ctx={ctx} />
-                {ctx.itemEnd?.(plain(item.inline))}
-                <Quote text={plain(item.inline)} line={item.line} ctx={ctx} />
+                {ctx.itemEnd?.(ctx.quotes.get(item.line) ?? '')}
+                <Quote line={item.line} ctx={ctx} />
                 {item.children.map((c, j) => <BlockView key={j} b={c} end={item.children[j + 1]?.line ?? next} ctx={ctx} />)}
               </li>
             );

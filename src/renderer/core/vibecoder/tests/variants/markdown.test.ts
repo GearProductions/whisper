@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { parseMarkdown, type Block, type Inline } from 'core/vibecoder';
+import { blockQuotes, parseMarkdown, type Block, type Inline } from 'core/vibecoder';
 
 const t = (text: string): Inline => ({ kind: 'text', text });
 const item = (text: string, line: number, over: object = {}) => ({ inline: [t(text)], checked: null, line, children: [], ...over });
@@ -259,5 +259,30 @@ describe('une note réelle : 0.7.0-taches-en-arriere-plan.md', () => {
 
   it('sa Forme : un bloc de code, tel quel', () => {
     expect(parseMarkdown(md).find((b) => b.kind === 'code')).toEqual({ kind: 'code', lang: '', text: md.split('\n').slice(81, 114).join('\n'), line: 80 });
+  });
+});
+
+describe('blockQuotes', () => {
+  it('chaque bloc et élément de liste : sa ligne (depuis 0) et son texte brut', () => {
+    expect(blockQuotes('# **Titre**\n\nun `code`\n\n- a\n  - b\n- [x] c\n\n---\n\n```\nx\n```')).toEqual([
+      { line: 0, text: 'Titre' },
+      { line: 2, text: 'un code' },
+      { line: 4, text: 'a' },
+      { line: 5, text: 'b' },
+      { line: 6, text: 'c' },
+      { line: 10, text: 'x' },
+    ]);
+  });
+
+  it('une citation entière, puis ses éléments de liste ; un tableau par cellules', () => {
+    expect(blockQuotes('> a\n> - b\n\n| x | y |\n|---|---|\n| 1 | 2 |')).toEqual([
+      { line: 0, text: 'a ' },
+      { line: 1, text: 'b' },
+      { line: 3, text: 'x | y · 1 | 2' },
+    ]);
+  });
+
+  it('sans texte, pas de 💬', () => {
+    expect(blockQuotes('- \n\n---\n\n```\n```')).toEqual([]);
   });
 });

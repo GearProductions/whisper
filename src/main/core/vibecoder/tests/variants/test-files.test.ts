@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
-import { blobSha, caseLines, caseTitles, isInvariantTest, isTest } from 'core/vibecoder';
+import { blobSha, caseLines, caseTitles, isInvariantTest, isTest, readingOf } from 'core/vibecoder';
 
 describe('isTest : un fichier de test, quel que soit son langage', () => {
   it('Vitest : *.test.ts', () => {
@@ -150,5 +150,26 @@ describe('blobSha : l\'empreinte git d\'un contenu', () => {
 
   it('le contenu vide : l\'empreinte bien connue de git', () => {
     expect(blobSha('')).toBe('e69de29bb2d1d6434b8b29ae775ad8c2e48c5391');
+  });
+});
+
+describe('readingOf : la lecture d\'un test, à jour ou périmée', () => {
+  const test = { path: 'src/x/tests/invariants/a.test.ts', blob: 'b2' };
+  const old = { blob: 'b0', text: '# src/x/tests/invariants/a.test.ts\nancienne', time: 1 };
+  const prev = { blob: 'b1', text: '# src/x/tests/invariants/a.test.ts\r\nprécédente', time: 2 };
+  const other = { blob: 'b9', text: '# src/x/tests/invariants/b.test.ts\nautre', time: 9 };
+
+  it('celle de son empreinte, à jour', () => {
+    const own = { blob: 'b2', text: 'actuelle', time: 0 };
+    expect(readingOf(test, [old, own, prev])).toEqual({ text: 'actuelle', stale: false });
+  });
+
+  it('sinon la plus récente de son fichier, périmée', () => {
+    expect(readingOf(test, [prev, other, old])).toEqual({ text: prev.text, stale: true });
+  });
+
+  it('pas celle d\'un autre fichier ni d\'un chemin qui le prolonge', () => {
+    const longer = { blob: 'b8', text: '# src/x/tests/invariants/a.test.ts.bak\n', time: 5 };
+    expect(readingOf(test, [other, longer])).toBeNull();
   });
 });

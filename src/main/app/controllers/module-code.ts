@@ -1,13 +1,15 @@
 /** module-code — le fichier ouvert dans l'accordéon Voir le code de l'étape
- *  Modules, un à la fois, de l'agent affiché : followCode le suit (id du
- *  dernier relevé traduit par codeFile, safePath ; lu jusqu'à READ_MAX,
- *  au-delà text null ; surveillé par fs.watch de son dossier, filtré sur son
- *  nom — une écriture par renommage compte —, poussé à la page par
- *  conv:vibeCode à l'ouverture et à chaque changement ; un id qui ne désigne
- *  rien : null poussé, rien lu) ; saveCode l'enregistre au geste de
- *  l'utilisateur, seulement le fichier suivi, s'il est encore dans le relevé,
- *  que codeLock (recalculé ici : isBusy, lockingRuns) ne le grise pas et qu'il
- *  existe déjà (exception à I-39), puis refreshVibe.
+ *  Modules, ou, en Créer seulement, la note de la branche ou un de ses tests
+ *  d'invariants ; un à la fois, de l'agent affiché : followCode le suit (id du
+ *  dernier relevé traduit par codeFile — `m<rang>/<i>`, `n`, `t<i>` —,
+ *  safePath ; lu jusqu'à READ_MAX, au-delà text null ; surveillé par fs.watch
+ *  de son dossier, filtré sur son nom — une écriture par renommage compte —,
+ *  poussé à la page par conv:vibeCode à l'ouverture et à chaque changement ;
+ *  un id qui ne désigne rien : null poussé, rien lu) ; saveCode l'enregistre
+ *  au geste de l'utilisateur, seulement le fichier suivi, s'il est encore dans
+ *  le relevé, que codeLock (recalculé ici, sans se fier à la page : isBusy,
+ *  lockingRuns ; sans module, la note ou un test, toute course retient) ne le
+ *  grise pas et qu'il existe déjà (exception à I-39), puis refreshVibe.
  *  Ne connaît pas : la page (seulement ses canaux). La fenêtre : seulement
  *  state.panel pour pousser conv:vibeCode, comme controllers/vibecoder pour
  *  conv:vibe (aucun assistant d'envoi au panneau n'existe).
@@ -78,7 +80,7 @@ export function saveCode(id: unknown, text: unknown): SendResult {
   if (!agent || !followed || followed.agentId !== agent.id || id !== followed.id) return { ok: false, error: T.file };
   const found = codeFile(lastView(agent.id), followed.id);
   if (!found || found.path !== followed.rel) return { ok: false, error: T.file };
-  const locked = codeLock(found.module.path, isBusy(agent.id), lockingRuns(agent.id), lang);
+  const locked = codeLock(found.module?.path ?? null, isBusy(agent.id), lockingRuns(agent.id), lang);
   if (locked) return { ok: false, error: locked };
   if (typeof text !== 'string' || Buffer.byteLength(text) > READ_MAX) return { ok: false, error: T.text };
   const file = fileOf(agent.dir, found.path);

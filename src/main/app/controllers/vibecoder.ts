@@ -18,7 +18,9 @@
  *  du relevé (dans l'éditeur, à une ligne ; la page d'un commit dans le
  *  navigateur, d'après l'origine GitHub du dépôt, I-32).
  *  Ne lit que la note et les tests que git donne dans le dossier de l'agent
- *  (safePath), et les sorties de cet agent sous leurs noms connus : une page
+ *  (safePath), et les sorties de cet agent sous leurs noms connus (isOutputName),
+ *  dont toutes ses lectures d'invariants (invariants/<blob>.md : celle d'un
+ *  test modifié depuis reste montrée, périmée, core/vibecoder) : une page
  *  désigne un fichier par son id dans le dernier relevé (lastView), jamais par
  *  un chemin (I-37). Les fichiers d'un module touché : leurs chemins seulement
  *  (list : sous son dossier, ni lien ni fichier ou dossier caché ni node_modules,
@@ -52,7 +54,7 @@ import { EFFORTS, MODELS, MODES, type AgentConfig } from 'core/agents';
 import { agentVibe, vibeLang, type Config } from 'core/config';
 import { githubPage } from 'core/repo';
 import {
-  addComment, blobSha, buildMessage, DIRECT_ACTIONS, draftText, editComment, findNote, forkedModel, isInvariantTest, isOutputName, isTest, itemCommit, itemPath,
+  addComment, blobSha, buildMessage, DIRECT_ACTIONS, draftText, editComment, findNote, forkedModel, isOutputName, isTest, itemCommit, itemPath,
   blockedBy, json, noteKey, ownRun, parseNote, prNumber, removeComment, runModule, runViews, safePath, setMark, vibeView, whoOf, type ActionDef, type MessageError,
 } from 'core/vibecoder';
 import { findEditor } from 'technicals/editor';
@@ -338,10 +340,14 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     const text = await read(p);
     return text === null ? [] : [{ path: p, blob: blobSha(text), text }];
   }))).flat();
-  const readings = Object.fromEntries(tests.filter((t) => isInvariantTest(t.path)).flatMap((t) => {
-    const reading = readTimed(path.join(out, 'invariants', `${t.blob}.md`));
-    return reading ? [[t.blob, reading.text]] : [];
-  }));
+  // Toutes les lectures d'invariants : un test modifié depuis la sienne reprend la plus récente de son fichier,
+  // périmée (readingOf, core/vibecoder).
+  let names: string[] = [];
+  try { names = fs.readdirSync(path.join(out, 'invariants')); } catch { /* pas encore de lecture */ }
+  const readings = names.filter((n) => isOutputName(`invariants/${n}`)).flatMap((n) => {
+    const reading = readTimed(path.join(out, 'invariants', n));
+    return reading ? [{ blob: n.slice(0, -3), ...reading }] : [];
+  });
   // La note au début du tour (surlignage) : retenue quand l'agent ou une course
   // qui modifie la branche (la note, ses réponses, la forme…) se met au travail
   // (pas de note : tout ce qui viendra est nouveau) ; « Vu » la remplace.

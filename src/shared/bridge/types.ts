@@ -210,11 +210,12 @@ export interface ConvApi {
   /** Une course (l'id de son action dans VibeView.runs) : l'arrêter, la garder ou l'annuler (arrêtée),
    *  répondre à sa demande d'autorisation — jamais un chemin ni un texte. */
   vibeRunOp(id: string, op: VibeRunOp): void;
-  /** Voir le code : suivre un fichier d'un module touché (son id `m<rang>/<i>` dans le relevé), null : ne plus suivre ;
+  /** Voir le code : suivre un fichier du relevé — module (`m<rang>/<i>`), note (`n`), test d'invariant (`t<i>`) —
+   *  par son id, en Créer seulement pour la note et les tests ; null : ne plus suivre ;
    *  son texte arrive par onVibeCode, à chaque changement sur le disque. */
   vibeFollow(id: string | null): void;
   onVibeCode(fn: (code: VibeCode | null) => void): void;
-  /** Enregistrer le fichier suivi (son id) : le principal refuse un autre id, un fichier sorti du relevé ou grisé. */
+  /** Enregistrer le fichier suivi (son id : module, note, test) : le principal refuse un autre id, un fichier sorti du relevé ou grisé. */
   vibeSave(id: string, text: string): Promise<SendResult>;
 }
 
@@ -243,6 +244,7 @@ export type VibeNote = VibeFile & {
   mark: VibeMarkState;         // la note
   formeMark: VibeMarkState;    // sa rubrique « Forme »
   nothingMark?: VibeMarkState; // ✓ Rien à écrire (Invariants, Créer) ; absent = null
+  locked?: string | null;      // pourquoi elle ne s'édite pas (codeLock) ; absent = null : éditable
 };
 
 export type VibeModule = {
@@ -272,8 +274,10 @@ export type VibeTestFile = VibeFile & {
   cases: string[];                       // titres des cas trouvés dans le fichier
   lines: number[];                       // la ligne (1…) de chaque cas, dans l'ordre de cases : Ouvrir à la ligne
   source: string;                        // le texte du fichier, pour le montrer à côté de sa lecture ; '' au-delà de 200 Ko
-  reading: ReadingCase[] | null;         // null : pas encore lu, ou changé depuis
+  reading: ReadingCase[] | null;         // null : pas encore lu
+  stale?: boolean;                       // sa lecture est celle d'une version précédente ; absent = false
   marks: Record<string, VibeMarkState>;  // par titre de cas
+  locked?: string | null;                // pourquoi il ne s'édite pas (codeLock) ; absent = null : éditable
 };
 
 export type VibeQuestion = { n: number; text: string; options: string[] };

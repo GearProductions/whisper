@@ -1,15 +1,16 @@
 /** step-views — l'aiguillage des étapes : la vue de chaque étape du parcours,
  *  et ce qu'elle reçoit (StepProps : le relevé, l'étape, les libellés, les
  *  rappels de l'écran, le texte du champ de l'étape, le fichier de module
- *  suivi ; StepHead y prend les actions de l'étape et ce champ). Chaque étape a sa vue ; PR et Revue ont chacune une
+ *  suivi, les modifications gardées des fichiers suivis ; StepHead y prend les actions de l'étape et ce champ). Chaque étape a sa vue ; PR et Revue ont chacune une
  *  vue pour Créer et une pour Relire ; Note et Invariants servent aux deux
  *  (en lecture seule pour Relire).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder, panel-app (VibeActs). */
-import type { ComponentType } from 'react';
+import type { ComponentType, Dispatch, SetStateAction } from 'react';
 import type { Answer, Answers, Strings } from 'core/vibecoder';
 import type { VibeArgs, VibeCode, VibePatch, VibeProcessOp, VibeRunOp, VibeStep, VibeStepId, VibeView } from 'technicals/bridge';
 import { CommitsView } from './commits-view';
 import { DraftView } from './draft-view';
+import type { Drafts } from './file-draft';
 import { EcranView } from './ecran-view';
 import { FormeView } from './forme-view';
 import { InvariantsView } from './invariants-view';
@@ -24,7 +25,7 @@ export type VibeActs = {
   // Une action du relevé : envoyée (avec le texte de son champ, fieldOf), ou préparée ; true : partie.
   run(id: string, args?: VibeArgs): Promise<boolean>;
   prefill(id: string, quote: string, block?: boolean): void; // une action 'prefill' : {{quote}}, ce qu'on cite (block : en entier, F-98)
-  follow(id: string | null): void;             // Voir le code : suivre un fichier de module par son id (m<rang>/<i>) ; null : plus aucun
+  follow(id: string | null): void;             // suivre un fichier du relevé par son id : module (m<rang>/<i>), note (n), test (t<i>) ; null : plus aucun
   save(id: string, text: string): Promise<boolean>; // Enregistrer le fichier suivi ; true : enregistré (refusé : le motif en barre d'état)
   set(patch: VibePatch): void;
   mark(target: string, verdict: 'ok' | 'ko' | null): void;
@@ -45,7 +46,8 @@ export type StepProps = {
   onVerdict(v: NonNullable<VibeArgs['verdict']>): void;
   text: string;                                // le champ de l'étape (vibe-coder le tient, par étape, tant que l'écran vit)
   setText(text: string): void;
-  code: VibeCode | null;                       // le fichier de module suivi (act.follow), tel que le principal le pousse
+  code: VibeCode | null;                       // le fichier suivi (act.follow : module, note, test), tel que le principal le pousse
+  drafts: readonly [Drafts, Dispatch<SetStateAction<Drafts>>]; // les modifications gardées, par chemin (vibe-coder les tient, par agent : useFileDraft)
 };
 
 // PR et Revue : une vue pour Créer, une autre pour Relire.

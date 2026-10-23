@@ -444,7 +444,12 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    principale, l'agent crée d'abord la branche du ticket) ; ses questions
    ouvertes s'affichent à part, avec des réponses proposées : *Envoyer les
    réponses* (à l'action qui a rédigé la note : elle garde son contexte) ;
-   puis ✓ pour valider la note.
+   puis ✓ pour valider la note. La note se modifie sur place, comme dans
+   Obsidian : ce qu'on tape se met en forme au fil de la frappe (un titre
+   apparaît en titre, pas en `#`) ; *Brut* montre le Markdown tel qu'il est
+   dans le fichier, modifiable aussi. Enregistrée par Ctrl+S ou
+   *Enregistrer*, avec les garde-fous de *Voir le code* (étape Modules) ;
+   grisée pendant un tour de la conversation ou une action de l'agent.
 2. **Forme** : *Poser la forme* (les modules et leurs contrats, dans la note,
    sans code) ; ✓.
 3. **Invariants** : *Écrire les invariants (rouges), puis vérifier
@@ -460,8 +465,10 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    point d'attention s'il n'observe pas vraiment la propriété ; *Code* montre le code
    d'origine du cas à la place du pseudo-code, *Voir le fichier* le fichier
    entier, colorés comme sur GitHub (TypeScript / JavaScript, Rust, Python,
-   Go ; un autre langage : sans couleurs) ; *Relire* un fichier
-   (ou *Tout relire*) refait sa lecture ; *Préparer le commit* puis *✓ Commiter*.
+   Go ; un autre langage : sans couleurs) et modifiables comme la note ;
+   *Relire* un fichier (ou *Tout relire*) refait sa lecture — un test
+   modifié depuis garde sa lecture, marquée « lecture périmée », et
+   *Relire* est mis en avant ; *Préparer le commit* puis *✓ Commiter*.
    Une note sans ligne « → invariant » passe l'étape tout de suite (pas de
    test à écrire, *Écrire les invariants* n'est pas proposée) : la note et la
    forme se commitent à l'étape Modules. Des lignes « → invariant » déjà

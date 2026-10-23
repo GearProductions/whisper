@@ -19,7 +19,9 @@
  *  (Relire), le modèle choisi par action (envoyé s'il n'est pas le
  *  conseillé), le champ de chaque étape (fieldOf : son texte part en
  *  args.text de l'action ; exigé et vide, le champ prend le clavier ; partie,
- *  il se vide ; en Vibe, celui de la note) — tout cela gardé par agent
+ *  il se vide ; en Vibe, celui de la note), les modifications gardées des
+ *  fichiers suivis (drafts, par chemin : useFileDraft ; changer d'étape ne
+ *  les jette pas) — tout cela gardé par agent
  *  (kept : l'écran est recréé à chaque changement d'agent). Préparer un message dans le champ
  *  de la conversation, ou un message qui exige son texte, réaffiche la
  *  conversation (colonne masquée, ou onglet Actions, Tâches, Processus).
@@ -34,6 +36,7 @@ import { Component, useEffect, useRef, useState, type CSSProperties, type ReactN
 import { isBusy, titleOf } from 'core/conversation';
 import { convWidth, fieldOf, modelArg, t as strings, type Answers, type Kept, type ModelPicks, type Strings } from 'core/vibecoder';
 import type { Thread, VibeCode, VibeLang, VibeStepId, VibeView } from 'technicals/bridge';
+import type { Drafts } from './file-draft';
 import { Journey } from './journey';
 import { ProcessesView } from './processes-view';
 import { Picks } from './model-pick';
@@ -99,6 +102,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   // Le champ de chaque étape : par fieldOf.
   const [texts, setTexts] = useKept<Record<string, string>>(kept, view.agentId, 'texts', {});
   const setText = (key: string) => (text: string) => setTexts((all) => ({ ...all, [key]: text }));
+  const drafts = useKept<Drafts>(kept, view.agentId, 'drafts', {});
   // Les rappels, avec le modèle choisi (s'il n'est pas le conseillé) et le texte du champ de l'action ;
   // ce qui passe par le champ de la conversation le réaffiche.
   const act: VibeActs = {
@@ -157,7 +161,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
           <div className="vc-step scroll" key={vibe ? 'vibe' : step ? step.id : ''}>
             {view.flow === 'review' ? <ClosedBanner pr={view.pr} t={t} /> : null}
             {step && View ? <Guard t={t}><View view={view} step={step} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} verdict={verdict} onVerdict={setVerdict}
-              text={texts[step.id] ?? ''} setText={setText(step.id)} code={code} /></Guard> : null}
+              text={texts[step.id] ?? ''} setText={setText(step.id)} code={code} drafts={drafts} /></Guard> : null}
           </div>
         </section>
         <section className="vc-conv" aria-label={t.conversation}>

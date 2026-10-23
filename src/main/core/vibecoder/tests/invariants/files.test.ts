@@ -11,6 +11,12 @@
 //   fichier ouvert, d'un module touché par la branche, rien hors du dossier de
 //   l'agent (I-37, élargi aux fichiers des modules) — ici codeFile ; sur le
 //   vrai principal : app/controllers/tests/invariants/module-code.test.ts.
+//   Note 0.11.0 (docs/tickets/feat/0.11.0-editer-invariants-et-note.md), « Ce
+//   que ça ne doit pas faire » : Enregistrer n'écrit que le fichier affiché —
+//   la note de la branche, ou un test d'invariant de la branche —, désigné par
+//   son id dans le dernier relevé, jamais par un chemin (I-37, I-39 élargis) —
+//   ici codeFile : en Créer, la note et un test se lisent par leur id ; en
+//   Relire, rien (adapté avec accord).
 // Sur du réel : un dossier temporaire, un lien qui en sort, fs.realpathSync.native.
 import fs from 'node:fs';
 import os from 'node:os';
@@ -176,8 +182,10 @@ const coded = {
   ],
   commits: [{ hash: 'e83c516', subject: 'x', fixup: false, files: ['src/main/core/x/index.ts'] }],
 };
+// Le même relevé, en Relire.
+const reviewed = { ...coded, flow: 'review' as const };
 
-describe('codeFile : le fichier d’un module touché, par son id dans le dernier relevé, jamais par un chemin', () => {
+describe('codeFile : le fichier d’un module touché, ou en Créer la note et un test, par son id dans le dernier relevé, jamais par un chemin', () => {
   it('m0/0, d’un module touché : son chemin dans le relevé', () => {
     // l'id mène au chemin que le relevé donne à ce fichier
     expect(codeFile(coded, 'm0/0')?.path).toBe(coded.modules[0].files[0].path);
@@ -185,7 +193,7 @@ describe('codeFile : le fichier d’un module touché, par son id dans le dernie
 
   it('m0/0, d’un module touché : son module dans le relevé', () => {
     // l'id mène au module qui porte ce fichier
-    expect(codeFile(coded, 'm0/0')?.module.path).toBe(coded.modules[0].path);
+    expect(codeFile(coded, 'm0/0')?.module?.path).toBe(coded.modules[0].path);
   });
 
   it('le fichier d’un module que la branche ne touche pas : rien', () => {
@@ -198,14 +206,25 @@ describe('codeFile : le fichier d’un module touché, par son id dans le dernie
     expect(codeFile(coded, 'm1')).toBeNull();
   });
 
-  it('l’id de la note : rien', () => {
-    // la note n'est pas un fichier de module
-    expect(codeFile(coded, 'n1')).toBeNull();
+  it('l’id de la note, en Créer : son chemin dans le relevé', () => {
+    // l'id de la note mène au chemin que le relevé lui donne
+    expect(codeFile(coded, coded.note!.id)?.path).toBe(coded.note!.path);
   });
 
-  it('l’id d’un test d’invariant : rien', () => {
-    // un test du relevé n'est pas un fichier de module
-    expect(codeFile(coded, 't1')).toBeNull();
+  it('l’id d’un test d’invariant, en Créer : son chemin dans le relevé', () => {
+    // l'id du test mène au chemin que le relevé lui donne
+    expect(codeFile(coded, coded.invariants[0].id)?.path).toBe(coded.invariants[0].path);
+  });
+
+  // Relire : la PR d'un autre, ni sa note ni ses tests ne se lisent pour être modifiés.
+  it('l’id de la note, en Relire : rien', () => {
+    // la note d'une PR relue n'est pas un fichier à suivre
+    expect(codeFile(reviewed, reviewed.note!.id)).toBeNull();
+  });
+
+  it('l’id d’un test d’invariant, en Relire : rien', () => {
+    // un test d'une PR relue n'est pas un fichier à suivre
+    expect(codeFile(reviewed, reviewed.invariants[0].id)).toBeNull();
   });
 
   it('l’id du fichier d’un commit (c0/0) : rien', () => {

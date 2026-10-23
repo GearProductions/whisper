@@ -1,20 +1,29 @@
-/** note-view — l'étape Note : la note du ticket rendue, à jour pendant que
- *  l'agent l'écrit. Ce qu'il a changé depuis le début de son dernier tour a
- *  un liseré vert ; « Voir les modifications » montre le diff brut, retraits
- *  compris, replié autour des changements ; « Vu » repart de la note
- *  actuelle. Les lignes de « Ce que ça ne doit pas faire » portent leur
- *  marque en pastille. 💬 sur un bloc le cite dans le champ (Relire : il
- *  ouvre sous le bloc une zone de commentaire, pour le brouillon de revue ;
- *  ✗ sur la note aussi, sous son en-tête). En tête : son chemin, Ouvrir, sa
- *  validation, la pastille Fable (Créer). Au-dessus, Créer : les questions ouvertes
- *  (questions-view) ; Relire : la relecture de la note par l'agent (Relancer). Pas de
- *  note : ce qu'il faut faire pour en avoir une.
- *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
-import { useMemo, useState } from 'react';
+/** note-view — l'étape Note : la note du ticket, à jour pendant que l'agent
+ *  l'écrit. Créer : modifiable, mise en forme au fil de la frappe (NoteEditor),
+ *  ou Brut, le Markdown en texte (DraftEditor) ; suivie par son id tant que
+ *  l'étape est affichée (act.follow('n') ; vibe-coder cesse de la suivre au
+ *  changement d'étape) ; la modification gardée, Ctrl+S, Enregistrer,
+ *  Abandonner : useFileDraft, DraftFoot et DraftEditor (file-draft), grisés si
+ *  note.locked (le motif en titre) ; avant le premier texte poussé, rendue en
+ *  lecture. Relire : rendue (MarkdownView), en lecture. Ce que l'agent a
+ *  changé depuis le début de son dernier tour a un liseré vert ; « Voir les
+ *  modifications » montre le diff brut, retraits compris, replié autour des
+ *  changements ; « Vu » repart de la note actuelle. Les lignes de « Ce que ça
+ *  ne doit pas faire » portent leur marque en pastille. 💬 sur un bloc le cite
+ *  dans le champ (Relire : il ouvre sous le bloc une zone de commentaire, pour
+ *  le brouillon de revue ; ✗ sur la note aussi, sous son en-tête). En tête :
+ *  son chemin, Ouvrir, Brut (Créer), sa validation, la pastille Fable (Créer).
+ *  Au-dessus, Créer : les questions ouvertes (questions-view) ; Relire : la
+ *  relecture de la note par l'agent (Relancer). Pas de note : ce qu'il faut
+ *  faire pour en avoir une. Styles : note-view.css.
+ *  Ne connaît pas : le pont (rappels passés), le disque. Utilisé par : step-views. */
+import { useEffect, useMemo, useState } from 'react';
 import { changedLines, excerpt, fileParts, foldDiff, lineDiff, mustNotTags, remark, type DiffLine } from 'core/vibecoder';
 import type { MustNotMark, VibeLang } from 'technicals/bridge';
 import { CommentBox } from './comment-box';
+import { DraftEditor, DraftFoot, useFileDraft } from './file-draft';
 import { MarkdownView } from './markdown-view';
+import { NoteEditor } from './note-editor';
 import { QuestionsView } from './questions-view';
 import { Invite, OutputCard, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
@@ -27,6 +36,9 @@ const fr = {
   removed: 'lignes retirées',
   showDiff: 'Voir les modifications',
   showNote: 'Voir la note',
+  raw: 'Brut',
+  rendered: 'Rendu',
+  rawTitle: 'Le Markdown tel qu\'il est dans le fichier',
   seen: 'Vu',
   seenTitle: 'Ne plus surligner : la note actuelle devient la référence',
   skip: (n: number) => `⋯ ${n} ligne${n > 1 ? 's' : ''} inchangée${n > 1 ? 's' : ''}`,
@@ -50,6 +62,9 @@ const S: Record<VibeLang, typeof fr> = {
     removed: 'lines removed',
     showDiff: 'Show the changes',
     showNote: 'Show the note',
+    raw: 'Raw',
+    rendered: 'Rendered',
+    rawTitle: 'The Markdown as it is in the file',
     seen: 'Seen',
     seenTitle: 'Stop highlighting: the current note becomes the reference',
     skip: (n) => `⋯ ${n} unchanged line${n === 1 ? '' : 's'}`,
@@ -73,10 +88,19 @@ export function NoteView(p: StepProps) {
   const { note } = view;
   const review = view.flow === 'review';
   const [raw, setRaw] = useState(false);
+  const [brut, setBrut] = useState(false);
   const before = note?.before ?? null, text = note?.text ?? '';
   const diff = useMemo(() => (before === null ? null : lineDiff(before, text)), [before, text]);
-  const changed = useMemo(() => (diff ? changedLines(diff) : undefined), [diff]);
-  const tags = mustNotTags(text, note?.mustNot ?? []);
+
+  // Créer : la note suivie tant que l'étape est affichée, modifiable.
+  const editable = !review && note ? note : null;
+  useEffect(() => { if (editable) act.follow(editable.id); }, [editable?.id]);
+  const locked = note?.locked ?? null;
+  const d = useFileDraft(editable, p.code, locked, act.save, p.drafts);
+  const editing = !!editable && d.text != null;
+  const shown = editing ? d.text! : text; // les pastilles et le liseré suivent le texte affiché
+  const changed = useMemo(() => (before === null ? undefined : changedLines(lineDiff(before, shown))), [before, shown]);
+  const tags = mustNotTags(shown, note?.mustNot ?? []);
   const output = review && view.pr ? view.outputs[`pr-${view.pr.number}-note.md`] : undefined;
 
   // 💬 : Créer, cité dans le champ ; Relire, une zone de commentaire sous le bloc, pour le brouillon de revue.
@@ -93,7 +117,12 @@ export function NoteView(p: StepProps) {
     const [label, title] = s.marks[tags.get(line) ?? 'none'];
     return <span className="vc-mn" data-mark={tags.get(line) ?? 'none'} title={title}>{label}</span>;
   };
-  const added = changed ? changed.size : 0;
+  // Les pastilles : celles du rendu (vc-mn), la marque en classe (une gouttière ne pose pas data-mark).
+  const editorTags = [...tags].map(([line, m]) => {
+    const [label, title] = s.marks[m ?? 'none'];
+    return { line, text: label, title, cls: `vc-mn vc-mn-${m ?? 'none'}` };
+  });
+  const added = diff ? changedLines(diff).size : 0;
   const removed = diff ? diff.filter((l) => l.kind === 'removed').length : 0;
 
   return (
@@ -114,6 +143,9 @@ export function NoteView(p: StepProps) {
             <span className="vc-note-file">📄</span>
             <span className="vc-note-path vc-mono" title={note.path}><span>{fileParts(note.path).dir}</span><b>{fileParts(note.path).name}</b></span>
             <button type="button" className="vc-mini vc-note-open" title={t.openTitle} onClick={() => act.open(note.id)}>{t.open}</button>
+            {editing ? (
+              <button type="button" className="vc-mini" aria-pressed={brut} title={s.rawTitle} onClick={() => setBrut(!brut)}>{brut ? s.rendered : s.raw}</button>
+            ) : null}
             <span className="vc-note-mark"><MarkControl what="note" state={note.mark} review={review} lang={view.lang} onMark={mark} /></span>
           </div>
           {refusing ? (
@@ -136,6 +168,15 @@ export function NoteView(p: StepProps) {
           ) : null}
           <div className="vc-card-body">
             {raw && diff ? <RawDiff diff={diff} lang={view.lang} />
+              : editing && brut ? <DraftEditor d={d} file={note} locked={locked} t={t} />
+              : editing ? (
+                <>
+                  <NoteEditor text={d.text!} locked={locked} changed={changed} tags={editorTags}
+                    onChange={d.change} onSave={d.save} onQuote={quote} onOpenLink={act.openLink} />
+                  <DraftFoot d={d} locked={locked} t={t} />
+                </>
+              )
+              : editable && d.tooBig ? <div className="vc-empty">{t.tooBig}</div>
               : <MarkdownView md={note.text} t={t} onOpenLink={act.openLink} onQuote={quote} onComment={comment} changed={changed} tag={tag} />}
           </div>
         </section>

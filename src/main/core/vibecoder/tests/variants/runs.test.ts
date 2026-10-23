@@ -140,4 +140,8 @@ describe('codeLock : pourquoi le code ne s\'édite pas', () => {
       codeLock('a', false, [{ module: 'b' }, { module: null }], 'fr'),
     ]).toEqual(['La conversation travaille', 'This module is being generated', 'Ce module est en cours de génération', null]);
   });
+  it('sans module (la note, un test) : un tour, ou n\'importe quelle course qui retient', () => {
+    expect([codeLock(null, true, [{ module: 'a' }], 'fr'), codeLock(null, false, [{ module: 'b' }], 'en'), codeLock(null, false, [], 'fr')])
+      .toEqual(['La conversation travaille', 'An action of the agent is running', null]);
+  });
 });

@@ -1,6 +1,6 @@
 /** vibecoder — ce que l'écran VibeCoder calcule, sans le DOM : le Markdown
- *  (jamais de HTML), les lignes changées, la coloration (du pseudo-code, du
- *  code d'un test), les libellés ; les
+ *  (jamais de HTML), les lignes changées, la coloration du
+ *  pseudo-code, les libellés ; les
  *  sorties des skills lues sans s'y fier, les lignes de l'étape Modules, ce
  *  que Relire prend de l'utilisateur ; la note (ses changements, ses marques),
  *  les réponses aux questions, la Forme par dossier, les cas d'invariants et
@@ -23,5 +23,4 @@ export * from './outputs';
 export * from './questions';
 export * from './review-flow';
 export * from './screen';
-export * from './syntax';
 export * from './validation';

@@ -11,6 +11,10 @@
 //   - pas d'enregistrement pendant une course qui génère le module ni pendant
 //     un tour de la conversation (le principal recalcule codeLock avant
 //     d'écrire, sans se fier à la page).
+// Note 0.11.0 (docs/tickets/feat/0.11.0-editer-invariants-et-note.md) : la
+// note et les tests d'invariants de la branche se lisent aussi par leur id, en
+// Créer seulement (I-37 élargi ; adapté avec accord) — ici la note, en Créer
+// et en Relire ; le reste : note-and-tests-save.test.ts.
 // Protégé : si un test échoue, corriger le code.
 //
 // Sur le vrai principal (contrôleurs, fenêtres, état, réglages et fichiers sur
@@ -103,6 +107,12 @@ function idOf(rel: string) {
   if (!f) throw new Error(`le relevé ne donne aucun id à ${rel}`);
   return f.id;
 }
+// L'id que le dernier relevé donne à la note ; sans id, le cas ne peut pas commencer.
+function noteId() {
+  const n = survey().note;
+  if (!n) throw new Error('le relevé ne donne aucune note');
+  return n.id;
+}
 // Les skills (ou premiers mots) des tours en cours.
 const inProgress = () => fake.turns.filter((t) => !t.done).map((t) => t.skill);
 // Le rang d'un module dans le dernier relevé (VibeArgs.module).
@@ -114,6 +124,7 @@ const linkOut = (rel: string) => { fs.rmSync(path.join(dir, rel)); fs.symlinkSyn
 
 const HELLO = 'src/core/hello/index.ts';
 const GREET = 'src/core/hello/greet.ts';
+const NOTE = 'docs/tickets/feat/0.11.0-essai.md';
 
 beforeEach(() => {
   vi.resetModules();
@@ -134,7 +145,7 @@ beforeEach(() => {
   git(dir, 'add', '.');
   git(dir, 'commit', '-q', '-m', 'init');
   git(dir, 'checkout', '-q', '-b', 'feat/0.11.0-essai');
-  write(path.join(dir, 'docs/tickets/feat/0.11.0-essai.md'), ['# 0.11.0 — essai', '', '## Ce que ça fait', '', '- un essai', '',
+  write(path.join(dir, NOTE), ['# 0.11.0 — essai', '', '## Ce que ça fait', '', '- un essai', '',
     '## Forme', '', '```', 'src/core/hello    hello() · ne connaît pas : le DOM', 'src/core/autre    autre() · ne connaît pas : le DOM', '```', ''].join('\n'));
   write(path.join(dir, HELLO), 'HELLO_TEXTE');
   write(path.join(dir, GREET), 'GREET_TEXTE');
@@ -147,6 +158,20 @@ beforeEach(() => {
   }));
 });
 afterEach(() => { vi.useRealTimers(); });
+
+// L'agent en Relire, sur la PR 7 : la branche d'essai, chargée à sa référence
+// locale (comme par le skill charger-pr), sa fiche dans les sorties de l'agent.
+function review() {
+  git(dir, 'update-ref', 'refs/vibecoder/pr/7', 'HEAD');
+  git(dir, 'update-ref', 'refs/remotes/origin/main', 'main');
+  write(path.join(fake.userData, 'vibecoder-out', 'a1', 'pr-7.json'),
+    JSON.stringify({ number: 7, title: 'Essai', base: 'main', head: 'feat/0.11.0-essai', state: 'OPEN' }));
+  write(path.join(fake.userData, 'config.json'), JSON.stringify({
+    agentsEnabled: true,
+    agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
+      vibe: { flow: 'review', autonomy: 'guide', pr: 7 } }],
+  }));
+}
 
 // Le panneau ouvert sur l'agent, en VibeCoder, son premier relevé reçu.
 async function open() {
@@ -188,7 +213,7 @@ async function save(id: unknown, text: unknown) {
   await settle();
 }
 
-describe('Voir le code : le principal ne lit que le fichier ouvert, d’un module touché, dans le dossier de l’agent (I-37)', () => {
+describe('Voir le code : le principal ne lit que le fichier ouvert, d’un module touché (ou en Créer la note), dans le dossier de l’agent (I-37)', () => {
   it('témoin : l’id d’un fichier d’un module touché, son texte est poussé à la page', async () => {
     await open();
 
@@ -247,12 +272,23 @@ describe('Voir le code : le principal ne lit que le fichier ouvert, d’un modul
     expect(texts()).toEqual([]);
   });
 
-  it('l’id de la note : rien n’est lu', async () => {
+  it('l’id de la note, en Créer : son texte est poussé à la page', async () => {
     await open();
 
     await follow(survey().note!.id);
 
-    // la note n'est pas un fichier de module : aucun texte poussé
+    // la page reçoit la note telle qu'elle est sur le disque
+    expect(texts()).toContain(fs.readFileSync(path.join(dir, NOTE), 'utf8'));
+  });
+
+  // Relire : la PR d'un autre, sa note ne se lit pas pour être modifiée.
+  it('l’id de la note, en Relire : rien n’est lu', async () => {
+    review();
+    await open();
+
+    await follow(noteId());
+
+    // aucun texte de fichier poussé
     expect(texts()).toEqual([]);
   });
 
