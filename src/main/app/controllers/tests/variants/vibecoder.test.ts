@@ -33,7 +33,7 @@ const fake = vi.hoisted(() => {
   return {
     Win, userData: '', windows: [] as InstanceType<typeof Win>[], facts: null as unknown, messages: [] as unknown[],
     shown: null as string | null, diff: null as string | null, edited: [] as unknown[][], opened: [] as string[],
-    tabs: [] as (string | null)[],
+    tabs: [] as (string | null)[], steps: [] as { id: string; status: string }[],
   };
 });
 
@@ -79,7 +79,7 @@ vi.mock('technicals/paths', async (original) => ({
 vi.mock('core/vibecoder', async (original) => ({
   ...await original<typeof import('core/vibecoder')>(),
   vibeView: (input: JourneyInput) => ({
-    ...input, pr: input.pr && { number: input.pr }, commits: input.repo?.commits ?? [], invariants: [], variants: [], modules: [],
+    ...input, pr: input.pr && { number: input.pr }, steps: fake.steps, commits: input.repo?.commits ?? [], invariants: [], variants: [], modules: [],
     checklist: [{ text: 'Chaque diff a été relu', done: null, manual: true }, { text: 'La note est à jour', done: false }],
     actions: input.actions.map((a) => ({
       ...a, who: input.who[a.id], model: input.model[a.id], models: input.model[a.id] ? ['haiku', 'sonnet', 'opus'] : [], primary: false, disabled: null,
@@ -110,6 +110,7 @@ beforeEach(() => {
   fake.diff = null;
   fake.opened = [];
   fake.tabs = [];
+  fake.steps = [];
   fake.userData = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-vibecoder-'));
   dir = path.join(fake.userData, 'projet');
   out = path.join(fake.userData, 'vibecoder-out', 'a1');   // les sorties de l'agent
@@ -331,11 +332,17 @@ function review() {
 const HASH = 'a'.repeat(40);
 
 describe('rc.2', () => {
-  it('une action sur un autre modèle : la variante de son skill ; un modèle hors des choix : refusé', async () => {
+  it('une action sur un autre modèle : la variante de son skill ; un modèle hors des choix : ignoré, rendu dans ignored (0.11.0)', async () => {
     write(path.join(fake.userData, 'vibecoder', 'plugin', 'skills', 'verifier', 'SKILL.md'), '---\ncontext: fork\nmodel: haiku\n---\n');
     await open();
-    const { runVibeAction } = await import('app/controllers');
-    expect(runVibeAction('checks', { model: 'fable' })).toMatchObject({ ok: false });
+    const { runVibeAction, startAction, vibeAgent, lastView } = await import('app/controllers');
+    const { loadConfig, vibeActions } = await import('app/settings');
+    const agent = vibeAgent()!;
+    const def = vibeActions('fr').find((a) => a.id === 'checks')!;
+    expect(startAction(agent, def, { model: 'fable' }, lastView('a1')!, loadConfig())).toEqual({ ok: true, ignored: ['model'] });
+    await settle();
+    expect(fake.messages[0]).toBe(`/vibecoder:verifier fr ${out}`);
+    fake.messages = [];
     expect(runVibeAction('checks', { model: 'sonnet' })).toEqual({ ok: true });
     await settle();
     expect(fake.messages[0]).toBe(`/vibecoder:verifier--sonnet fr ${out}`);
@@ -446,6 +453,32 @@ describe('0.11.0 : invariants existants et courses', () => {
     setVibe({ runsSeen: true });
     fake.windows.at(-1)!.emit('closed');
     expect(fake.tabs).toEqual(['a1', null]);
+  });
+
+  it('de Vibe à Guide : les étapes passées reçoivent leur ✓ ; Guide à Guide ou Vibe à Vibe : rien', async () => {
+    write(path.join(fake.userData, 'config.json'), JSON.stringify({
+      agentsEnabled: true,
+      agents: [{ id: 'a1', dir, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null, view: 'vibecoder',
+        vibe: { flow: 'create', autonomy: 'vibe', pr: null } }],
+    }));
+    fake.steps = [{ id: 'note', status: 'done' }, { id: 'forme', status: 'todo' }];
+    await open();
+    const { setVibe } = await import('app/controllers');
+    const { vibeStore } = await import('app/settings');
+    const { blobSha } = await import('core/vibecoder');
+    setVibe({ autonomy: 'vibe' });
+    expect(vibeStore().marks.a1 ?? {}).toEqual({});
+    setVibe({ autonomy: 'guide' });
+    expect(vibeStore().marks.a1).toEqual({ note: { hash: blobSha(NOTE), verdict: 'ok' } });
+    fake.steps = [{ id: 'note', status: 'done' }, { id: 'forme', status: 'done' }];
+    await settle();
+    setVibe({ autonomy: 'guide' });
+    expect(Object.keys(vibeStore().marks.a1)).toEqual(['note']);
+  });
+
+  it('le relevé passe repo.dirty au parcours (VibeModule.uncommitted)', async () => {
+    fake.facts = { ...fake.facts as object, dirty: ['src/x/index.ts'] };
+    expect((await open()).view()!.repo).toMatchObject({ dirty: ['src/x/index.ts'] });
   });
 
   it('✓ Rien à écrire : validé pour le texte de la note ; oublié par null', async () => {

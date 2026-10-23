@@ -13,7 +13,8 @@
  *  et base, au clic de « direct » : leurs commandes, lancées par l'appli,
  *  F-114), une course (vibeRunOp : l'arrêter, la garder ou l'annuler, répondre
  *  à sa demande d'autorisation), un réglage (dont arrêter l'agent, comme Interrompre de son
- *  menu ; l'onglet Actions ouvert ou fermé : ses courses vues, runsTab de controllers/runs),
+ *  menu ; de Vibe à Guide : les étapes que Vibe a passées reçoivent leur ✓, vibeMarks ;
+ *  l'onglet Actions ouvert ou fermé : ses courses vues, runsTab de controllers/runs),
  *  une validation (dont ✓ Rien à écrire, Créer : pour le texte de la note), le brouillon de revue, ouvrir un fichier ou un commit
  *  du relevé (dans l'éditeur, à une ligne ; la page d'un commit dans le
  *  navigateur, d'après l'origine GitHub du dépôt, I-32).
@@ -28,7 +29,8 @@
  *  pas leur texte (controllers/module-code lit le fichier ouvert). Une action qui génère un module : sa course le retient
  *  (runModule → startRun). Ce qu'il écrit pour l'ouvrir (un fichier de la PR, le diff d'un
  *  commit) va sous <sorties>/files/, en lecture seule. Le message d'une
- *  action : son gabarit, rempli par buildMessage (I-38), avec le préfixe des
+ *  action : son gabarit, rempli par buildMessage (I-38 ; un argument inutile est
+ *  ignoré, rendu dans ignored pour l'orchestrateur, F-115), avec le préfixe des
  *  commandes vu de l'agent qui le reçoit ({{prefix}} : processes.promptPrefix). git en lecture seule
  *  (technicals/git, I-39), sauf les actions directes (technicals/direct) ; gh aussi, sans agent (technicals/github, derrière
  *  le préfixe de l'agent : processes.agentPrefix) : Créer, la PR de la
@@ -54,8 +56,8 @@ import { EFFORTS, MODELS, MODES, type AgentConfig } from 'core/agents';
 import { agentVibe, vibeLang, type Config } from 'core/config';
 import { githubPage } from 'core/repo';
 import {
-  addComment, blobSha, buildMessage, DIRECT_ACTIONS, draftText, editComment, findNote, forkedModel, isOutputName, isTest, itemCommit, itemPath,
-  blockedBy, json, noteKey, ownRun, parseNote, prNumber, removeComment, runModule, runViews, safePath, setMark, vibeView, whoOf, type ActionDef, type MessageError,
+  addComment, blobSha, buildMessage, vibeMarks, DIRECT_ACTIONS, draftText, editComment, findNote, forkedModel, isOutputName, isTest, itemCommit, itemPath,
+  blockedBy, json, noteKey, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, targetHash, vibeView, whoOf, type ActionDef, type MessageError,
 } from 'core/vibecoder';
 import { findEditor } from 'technicals/editor';
 import { directRunner, VERDICTS, type DirectResult } from 'technicals/direct';
@@ -260,7 +262,7 @@ const branchName = (v: unknown) => (typeof v === 'string' && okRef(v) ? v : null
 
 // Créer : les sorties que les skills écrivent pour une branche (pas les lectures
 // invariants/, nommées par l'empreinte du test, ni celles de Relire, par PR).
-const BRANCH_OUTPUTS = ['questions.md', 'align.md', 'review.md', 'commit.md', 'checks.json', 'ponytail.md', 'pr.json', 'ci.md'];
+const BRANCH_OUTPUTS = ['questions.md', 'align.md', 'review.md', 'commit.md', 'checks.json', 'ponytail.md', 'ponytail-applied.json', 'pr.json', 'ci.md'];
 
 // Les sorties de Créer suivent la branche : la dernière vue est dans
 // <out>/.branche ; quand elle passe de P à N, celles de la racine vont dans
@@ -329,7 +331,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     }
     return showCache.get(key)!;
   };
-  const repo = facts && { branch: branchName(card?.head) ?? facts.branch, base: facts.base, changed: facts.changed, commits: facts.commits };
+  const repo = facts && { branch: branchName(card?.head) ?? facts.branch, base: facts.base, changed: facts.changed, dirty: facts.dirty, commits: facts.commits };
   // La note du ticket : sa clé d'après la branche (ticket, sinon version), parmi
   // les .md de docs/tickets/ que change la branche (ou la PR).
   const key = repo && noteKey(repo.branch, null);
@@ -418,8 +420,11 @@ export function runVibeAction(id: unknown, args: unknown): SendResult {
 // Une action envoyée, au clic comme à la demande de l'orchestrateur (runs : runRequests) : grisée au
 // relevé pour une autre raison qu'une course, refusée (une course, startRun la revoit sur l'état vivant :
 // le relevé peut avoir un temps de retard) ; son gabarit rempli (I-38) ; une action d'étape court à
-// part, les autres vont à la conversation. invalid : ses arguments ne vont pas, rien à retenter.
-export function startAction(agent: AgentConfig, def: ActionDef, args: VibeArgs, view: VibeView, cfg: Config): SendResult & { invalid?: true } {
+// part, les autres vont à la conversation. invalid : ses arguments ne vont pas, rien à retenter ;
+// ignored : les arguments donnés qui ne servent pas à l'action, ignorés (buildMessage).
+export function startAction(
+  agent: AgentConfig, def: ActionDef, args: VibeArgs, view: VibeView, cfg: Config,
+): SendResult & { invalid?: true; ignored?: (keyof VibeArgs)[] } {
   const lang = vibeLang(cfg);
   const shown = view.actions.find((a) => a.id === def.id);
   const held = ownRun(def) ? blockedBy(def, viewLocks(view, vibeActions(lang)), lang) : null;
@@ -431,7 +436,7 @@ export function startAction(agent: AgentConfig, def: ActionDef, args: VibeArgs, 
   if ('error' in message) return { ...fail(lang, message.error), invalid: true };
   const sent = ownRun(def) ? startRun(target, def, message.text, cfg, runModule(def.id, args, view.modules)) : sendToAgent(target, { text: message.text, images: [] }, cfg);
   if (sent.ok && def.id === 'open-worktree' && view.pr) wantWorktree(agent.id, view.pr.number);
-  return sent;
+  return message.ignored ? { ...sent, ignored: message.ignored } : sent;
 }
 
 // Les actions directes en cours de l'agent, comme des courses (elles lisent ou modifient la branche) : startRun les respecte.
@@ -497,7 +502,8 @@ export function setAgentView(id: string, view: 'vibecoder' | null) {
   openConversation(id, { mode: 'full' });
 }
 
-// Un réglage de l'écran : Créer ou Relire, Guide ou Vibe, la PR suivie (pour
+// Un réglage de l'écran : Créer ou Relire, Guide ou Vibe (de Vibe à Guide :
+// les étapes passées d'après le dernier relevé reçoivent leur ✓, vibeMarks), la PR suivie (pour
 // l'agent) ; la langue (tout VibeCoder) ; « Vu » (la note de référence devient
 // l'actuelle) ; revenir à la conversation ; modèle, effort et mode comme son
 // menu (une valeur hors de ses choix est ignorée) ; arrêter son tour, comme
@@ -513,6 +519,12 @@ export function setVibe(patch: unknown) {
   if (!agent) return;
   const vibe = agentVibe(agent);
   if (p.flow === 'create' || p.flow === 'review') vibe.flow = p.flow;
+  const view = last.get(agent.id);
+  if (vibe.autonomy === 'vibe' && p.autonomy === 'guide' && view) {
+    const store = vibeStore();
+    store.marks[agent.id] = vibeMarks(store.marks[agent.id] || {}, view);
+    saveVibeStore(store);
+  }
   if (p.autonomy === 'guide' || p.autonomy === 'vibe') vibe.autonomy = p.autonomy;
   if (p.pr === null || prNumber(p.pr)) vibe.pr = p.pr as number | null;
   updateAgent(agent.id, { vibe });
@@ -535,24 +547,6 @@ export function setVibe(patch: unknown) {
   }
   if (p.view === 'conversation') setAgentView(agent.id, null);
   else refreshVibe({ now: true });
-}
-
-// L'empreinte du contenu d'une cible dans le relevé : la note (son texte), la
-// forme (sa rubrique), « rien à écrire » de l'étape Invariants (Créer : le texte de la note), un cas de test (le fichier), une case du plan de test
-// (le plan), une case du § A.3 à cocher à la main (le commit de tête de la
-// branche) ; null si la cible n'y est pas.
-function targetHash(view: VibeView, target: string) {
-  const { note } = view;
-  const a3 = /^a3:(\d+)$/.exec(target);
-  if (a3) return view.flow === 'create' && view.checklist[Number(a3[1])]?.manual ? view.commits.at(-1)?.hash ?? null : null;
-  if (target === 'nothing' && view.flow !== 'create') return null;
-  if (target === 'note' || target === 'nothing' || target === 'forme') return note && blobSha(target === 'forme' ? parseNote(note.text).forme : note.text);
-  const file = view.invariants.find((f) => target.startsWith(`case:${f.path}:`) && f.cases.includes(target.slice(`case:${f.path}:`.length)));
-  if (file) return file.blob;
-  const check = /^check:(\d+):(\d+)$/.exec(target);
-  const plan = check && view.pr?.number === Number(check[1]) && Number(check[2]) < view.checklist.length
-    ? view.outputs[`pr-${check[1]}-ecran.md`] : undefined;
-  return plan ? blobSha(plan.text) : null;
 }
 
 // ✓, ✗ ou oublier (null), pour le contenu que l'utilisateur a sous les yeux.
