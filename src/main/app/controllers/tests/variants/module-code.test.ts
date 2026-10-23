@@ -94,6 +94,7 @@ afterEach(async () => { (await import('app/controllers')).followCode(null); vi.u
 it('le fichier suivi est poussé à chaque changement, écrit directement ou par renommage', async () => {
   const { followCode } = await import('app/controllers');
   followCode(idOf(HELLO));
+  await settle();
   write(path.join(dir, HELLO), 'HELLO_DIRECT');
   await settle();
   write(path.join(dir, 'src/core/hello/.tmp'), 'HELLO_RENOMME');
@@ -119,6 +120,7 @@ it('un fichier plus gros que READ_MAX : text null', async () => {
   const { followCode, READ_MAX } = await import('app/controllers');
   write(path.join(dir, HELLO), 'x'.repeat(READ_MAX + 1));
   followCode(idOf(HELLO));
+  await settle();
   expect(codes().at(-1)).toMatchObject({ id: idOf(HELLO), text: null });
 });
 
