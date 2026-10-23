@@ -41,8 +41,9 @@ VibeCoder dans le panneau (`docs/tickets/feat/0.8.0-vibecoder.md`) :
 
 | Module (`src/renderer/`) | Rôle |
 |---|---|
-| `core/vibecoder` | pur : Markdown en blocs (jamais de HTML, liens `http(s)` seuls, I-40), lignes changées (`lineDiff`), coloration du pseudo-code et du code d'un fichier (`codeLines`, F-113), les lignes entières d'une sélection (`codeBlock`, F-98), libellés FR et EN |
-| `app/panel/vibecoder/` | l'écran (en-tête, parcours, vues des étapes, leur champ et leurs actions, écran *Vibe* et son fil d'Ariane, conversation, actions lancées, tâches et processus en onglets, barre des skills, barre d'état ; `code-view` : le code d'un fichier, numéroté, coloré, éditable, F-113 ; `module-code` : *Voir le code* d'un module, F-100) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
+| `core/vibecoder` | pur : Markdown en blocs (jamais de HTML, liens `http(s)` seuls, I-40), lignes changées (`lineDiff`), coloration du pseudo-code des lectures (`highlight`), ce que cite le 💬 de chaque bloc (`blockQuotes`, F-104), les lignes entières d'une sélection (`codeBlock`, F-98), libellés FR et EN |
+| `app/panel/vibecoder/` | l'écran (en-tête, parcours, vues des étapes, leur champ et leurs actions, écran *Vibe* et son fil d'Ariane, conversation, actions lancées, tâches et processus en onglets, barre des skills, barre d'état ; `code-view` : le code d'un fichier, numéroté, coloré, éditable, F-113 ; `module-code` : *Voir le code* d'un module, F-100 ; `note-editor` : la note éditable, F-104 ; `file-draft` : la modification gardée d'un fichier suivi, *Enregistrer*, *Abandonner*, partagée par les trois) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
+| `technicals/codemirror` | les réglages de CodeMirror 6, sans métier : le langage d'un fichier et la coloration (`languageFor`, `codeHighlight`, F-113), le Markdown mis en forme au fil de la frappe, liseré, pastilles et boutons en gouttière (`live-markdown`, F-104) |
 
 Toutes : sans cadre, hors de la barre des tâches, `contextIsolation`,
 `sandbox`, préchargement minimal (`contextBridge`). Le principal
@@ -55,7 +56,7 @@ des processus.
 |---|---|
 | `app/lifecycle` | démarrage (une instance, aucun agent sélectionné, permissions), sortie (dont les processus du projet, F-111) |
 | `app/windows` | les trois fenêtres : créer, placer, montrer (icône, bulle, panneau) |
-| `app/controllers` | dictée (coupures, transcription, destination, modèle), lecture, agents, familles (`worktrees.ts` : le rattachement par git, *Ouvrir un agent ici*, le robot d'une PR, F-51, F-110), contenu du panneau, VibeCoder (`vibecoder.ts` : relevé, actions, réglages, validations, brouillon de revue, fichier à ouvrir ; `processes.ts` : les commandes du projet, F-111 ; `runs.ts` : les courses — lancées, suivies, arrêtées, gardées ou annulées, chacune avec le module qu'elle génère —, leur avis de fin à la conversation, les demandes de l'orchestrateur, `actions.json`, F-115 ; `module-code.ts` : le fichier que suit *Voir le code*, lu, surveillé, poussé, enregistré au geste, F-100) |
+| `app/controllers` | dictée (coupures, transcription, destination, modèle), lecture, agents, familles (`worktrees.ts` : le rattachement par git, *Ouvrir un agent ici*, le robot d'une PR, F-51, F-110), contenu du panneau, VibeCoder (`vibecoder.ts` : relevé, actions, réglages, validations, brouillon de revue, fichier à ouvrir ; `processes.ts` : les commandes du projet, F-111 ; `runs.ts` : les courses — lancées, suivies, arrêtées, gardées ou annulées, chacune avec le module qu'elle génère —, leur avis de fin à la conversation, les demandes de l'orchestrateur, `actions.json`, F-115 ; `module-code.ts` : le fichier suivi — celui de *Voir le code*, la note ou un test d'invariant —, lu, surveillé, poussé, enregistré au geste, F-100) |
 | `app/menus` | menus de l'icône, des robots, du « + », du trombone |
 | `app/ipc` | une table de gestionnaires par fenêtre, écoutée par `technicals/ipc` |
 | `core/config` | réglages, démarrage, dossiers favoris et couleurs, confiance |
@@ -107,8 +108,9 @@ Vers le principal :
   l'appli elle-même, F-114 —, avec réponse `{ ok, error }`),
   `conv:vibeRunOp` (une course par l'id de son action dans le dernier
   relevé : l'arrêter, la garder ou l'annuler, répondre à sa demande
-  d'autorisation ; F-115), `conv:vibeFollow` (le fichier d'un module que suit
-  *Voir le code*, par son id, ou `null` : plus aucun ; F-100),
+  d'autorisation ; F-115), `conv:vibeFollow` (le fichier suivi — d'un module, par
+  *Voir le code* ; la note ou un test d'invariant, en *Créer* —, par son id,
+  ou `null` : plus aucun ; F-100),
   `conv:vibeSave` (l'enregistrer : son id et son texte, avec réponse `{ ok,
   error }` ; F-100, I-39).
 
@@ -683,12 +685,12 @@ principal pour l'agent affiché en VibeCoder :
   lignes « ne doit pas » et leur marque (le premier mot connu après la
   dernière flèche : *invariant*, *variant*, *review*, *structure*), les
   modules de la Forme et leur contrat (un chemin en tête de ligne, ou un
-  titre `###`) ;
+  titre `###`) ; et pourquoi elle ne s'édite pas (`locked`, F-100) ;
 - les **tests** de la branche : ses fichiers changés qui sont des tests
   (Vitest, Jest, pytest, Go, Rust sous `tests/`), leurs cas (titres `it` /
   `test`, fonctions `#[test]`, `def test_…`) et leur empreinte git ; ceux
-  rangés sous `tests/invariants/` sont les invariants. Un fichier sans cas
-  n'est pas montré ;
+  rangés sous `tests/invariants/` sont les invariants (et pourquoi ils ne
+  s'éditent pas, `locked`). Un fichier sans cas n'est pas montré ;
 - les **modules** de la Forme : touchés par la branche ou non, les commits qui
   les touchent, leur fichier s'il existe (tel quel ou sous `src/`) ; un module
   touché, en *Créer* seulement (*Relire* : le disque n'est pas la PR), ses
@@ -735,7 +737,8 @@ ouverte, si gh ne l'a pas dite, F-112), `ci.md`, `prs.json` (PR à relire, d'un 
 fiche), `pr-<n>-note.md`, `pr-<n>-commits.md`, `pr-<n>-ecran.md` (plan de
 test), `pr-<n>-review.json` (revue publiée), `pr-<n>-worktree.json` (son
 worktree, F-110) ; les lectures
-`invariants/<empreinte>.md`. Chaque étape montre les siennes (titre, fichier,
+`invariants/<empreinte>.md` (toutes : celle d'un test qui a changé depuis
+reste, périmée, F-100). Chaque étape montre les siennes (titre, fichier,
 depuis quand ; un JSON mis en forme, un Markdown rendu, F-104).
 
 **F-96 Les actions** sont des données (`actions.<langue>.json`, F-107) : par
@@ -948,7 +951,19 @@ conversation ; note `0.9.0-actions-independantes.md`).
    diff brut (retraits compris, replié autour des changements), *✓ Vu* en
    repart ; les lignes « ne doit pas » portent leur marque en pastille
    (*invariant*, *variant*, *review*, *structure*, sinon *à classer*) ;
-   *Ouvrir* (dans l'éditeur). Au-dessus, les questions ouvertes, une carte
+   *Ouvrir* (dans l'éditeur). Modifiable sur place, à la manière
+   d'Obsidian (CodeMirror 6) : ce qu'on tape se met en forme au fil de la
+   frappe (un titre en titre, les marques `#`, `**`, `` ` ``, `[](…)`
+   masquées hors des lignes du curseur ; Ctrl+clic ouvre un lien) ; le 💬
+   de chaque bloc et les pastilles dans une gouttière à droite des lignes,
+   le liseré (vert) des changements. *Brut* montre le
+   Markdown tel qu'il est dans le fichier, modifiable lui aussi (F-113).
+   Mêmes gestes et garde-fous que *Voir le code* (étape Modules) :
+   enregistrée au geste, la modification gardée, *Enregistrer* grisé si le
+   fichier a changé sur le disque, *Abandonner* ; grisée (le motif en titre,
+   la vue suit le disque) pendant un tour de la conversation et pendant
+   toute course de l'agent qui retient (« Une action de l'agent est en
+   cours »). Au-dessus, les questions ouvertes, une carte
    numérotée par question : ses réponses proposées (une choisie, un second
    clic la retire), *Conseille-moi*, *Je te laisse trancher*, une précision
    libre ; *Envoyer les réponses* les envoie en une fois, une par question
@@ -986,8 +1001,13 @@ conversation ; note `0.9.0-actions-independantes.md`).
    code d'origine du cas à la place du pseudo-code (de sa ligne à celle du cas
    suivant, monospace, numéroté, coloré : F-113) ; *✓ Tout valider* quand
    aucun cas n'a de point d'attention, le fichier lu ou pas ; *Voir le
-   fichier* (replié : tout son code, numéroté) ; pas lu (ou changé depuis) :
-   ses cartes sans lecture, avec ✓ et ✗, et *Lire en pseudo-code*. Le relevé porte le texte
+   fichier* (replié : tout son code, numéroté) ; pas lu : ses cartes sans
+   lecture, avec ✓ et ✗, et *Lire en pseudo-code* ; lu puis changé : sa
+   dernière lecture reste affichée, marquée « lecture périmée », pas
+   comptée comme lue, *Relire* en accent. Seuls les tests déjà écrits de la
+   branche se modifient : *Code* et *Voir le fichier* ouvrent le fichier
+   entier (*Code* : à la ligne du cas ; un seul à la fois), avec les gestes
+   et le verrou de la note (ci-dessus). Le relevé porte le texte
    du test, vide au-delà de 200 000 caractères (rien de tout cela n'est
    alors montré). En tête : *Tout relire* (dès qu'un fichier
    est lu). Prochaine action : *Écrire les invariants
@@ -996,7 +1016,8 @@ conversation ; note `0.9.0-actions-independantes.md`).
    n'y a pas de test, puis les cas à valider (dans la vue), *✓ Commiter* (un
    commit préparé), *Préparer le commit* (des fichiers à commiter). *Lire en
    pseudo-code* (les fichiers pas encore lus : une lecture est nommée par
-   l'empreinte du fichier ; relire la remplace) n'est mise en avant qu'en
+   l'empreinte du fichier, sa première ligne `# <chemin du test>` ; relire
+   la remplace) n'est mise en avant qu'en
    *Vibe* ; en *Guide*, elle reste dans la rangée de l'étape.
 4. **Modules** — faite : chaque module de la Forme touché par un commit de la
    branche. Montre en tête le commit proposé (`commit.md` : le message tel
@@ -1212,7 +1233,9 @@ cases à cocher, citations, code, tableaux, filets ; en ligne : code, gras,
 italique, liens. Jamais de HTML : une balise reste du texte ; un lien n'est
 un lien qu'en `http(s)`, ouvert dans le navigateur (I-40, I-21). Un 💬 au
 survol de chaque bloc et de chaque élément de liste le cite (F-98 ; *Relire* :
-au brouillon, F-101). Un JSON écrit par un skill est lu sans s'y fier :
+au brouillon, F-101). En *Créer*, la note se modifie rendue ou en *Brut*
+(F-100) ; une balise tapée ou écrite dans le fichier reste du texte. Un
+JSON écrit par un skill est lu sans s'y fier :
 illisible, l'écran le dit ou le montre tel quel.
 
 ### Lancer le projet
@@ -1289,17 +1312,16 @@ absente (I-29).
   entre) ; il y lance les commandes du projet, sans en ajouter.
 
 **F-113 Coloration du code** (F-100, étape Invariants : *Code*, *Voir le
-fichier*, en lecture seule, sans citer ; étape Modules : *Voir le code*,
-éditable — une zone de saisie posée sur le code coloré, en lecture quand
-l'édition est grisée —, un clic ou une sélection cite ses lignes, F-98) :
-d'après l'extension — `ts`, `tsx`, `js`, `jsx`, `mjs`, `cjs`,
-`mts`, `cts` ; `rs` (attributs `#[…]`, macros `nom!`, durées de vie `'a`,
-chaînes brutes `r#"…"#`, caractères) ; `py` (triples guillemets, préfixes,
-décorateurs) ; `go` (chaînes brutes `` `…` ``) ; un autre : en texte. La
-palette sombre de GitHub : mots-clés, chaînes, commentaires, nombres et
-constantes, fonctions, types, attributs. Écrite à la main, sans dépendance ;
-des morceaux de texte, jamais du HTML (I-40), qui redonnent le code tel
-quel.
+fichier*, sans citer, éditables en *Créer* ; étape Modules : *Voir le code*,
+éditable, un clic ou une sélection cite ses lignes, F-98 ; étape Note :
+*Brut*, éditable) : CodeMirror 6, en lecture quand l'édition est grisée ;
+d'après l'extension — `ts`, `tsx`, `js`, `jsx`, `mjs`, `cjs`, `mts`, `cts`,
+`rs`, `py`, `go` ; un autre : en texte. La palette sombre de GitHub :
+mots-clés, chaînes, commentaires, nombres et constantes, fonctions, types,
+attributs. Du texte, jamais du HTML (I-40), qui redonne le code tel quel.
+Le pseudo-code des lectures garde sa coloration écrite à la main
+(`highlight`) : ses étapes `given` / `when` / `then` ne sont pas un
+langage de CodeMirror.
 
 **F-114 Actions directes** (sans IA, au clic) : quatre actions ne sont que
 des commandes connues d'avance ; l'appli les lance elle-même, sans agent, ni
@@ -1519,7 +1541,7 @@ I-13 à I-17, I-19, I-20, I-21, I-23, I-24, I-27, I-29, I-30, I-32 à I-34 ;
 VibeCoder, I-35 à I-40 : `src/main/core/vibecoder/tests/invariants/`
 (`defaults.test.ts` I-35, `fable.test.ts` I-36, `files.test.ts` I-37,
 `actions.test.ts` I-38), `src/main/technicals/git/tests/invariants/read-only.test.ts`,
-`src/main/technicals/github/tests/invariants/read-only.test.ts`, `src/main/technicals/direct/tests/invariants/direct.test.ts` (I-39), `src/main/app/controllers/tests/invariants/module-code.test.ts` (I-37, I-39 : *Voir le code*, sur le vrai principal), `src/renderer/core/vibecoder/tests/invariants/markdown.test.ts`, `src/renderer/app/panel/vibecoder/tests/invariants/code-view.test.ts` (I-40) ;
+`src/main/technicals/github/tests/invariants/read-only.test.ts`, `src/main/technicals/direct/tests/invariants/direct.test.ts` (I-39), `src/main/app/controllers/tests/invariants/module-code.test.ts` et `note-and-tests-save.test.ts` (I-37, I-39 : *Voir le code*, la note, les tests, sur le vrai principal), `src/main/core/vibecoder/tests/invariants/note-and-tests-files.test.ts` (I-37), `src/renderer/core/vibecoder/tests/invariants/markdown.test.ts`, `src/renderer/app/panel/vibecoder/tests/invariants/code-view.test.ts` et `note-editor.test.ts` (I-40) ;
 I-42, I-43 : `src/main/core/runner/tests/invariants/runner.test.ts`,
 `src/main/technicals/process/tests/invariants/process.test.ts` ; I-44 :
 `src/main/app/controllers/tests/invariants/runs.test.ts` (sur le vrai
@@ -1657,14 +1679,15 @@ bancs de comparaison.
   ces modèles. Seul un clic de
   l'utilisateur y passe l'agent (coût).
 - **I-37** Le principal ne lit pour VibeCoder que la note et les tests que git
-  lui donne, et le seul fichier que suit *Voir le code* (F-100), d'un module
-  touché par la branche (`m<rang>/<i>`), **dans le dossier de l'agent** (`..` et liens résolus ; ni
+  lui donne, et le seul fichier suivi (F-100) — celui de *Voir le code*, d'un
+  module touché par la branche (`m<rang>/<i>`), ou, en *Créer* seulement, la
+  note (`n`) ou un test d'invariant de la branche (`t<i>`) —, **dans le dossier de l'agent** (`..` et liens résolus ; ni
   chemin absolu, ni NUL), et les sorties de cet agent **sous leurs noms
   connus** (F-95 ; ni `..`, ni autre dossier qu'`invariants/`, ni un lien). Une
   page désigne un fichier par son **id dans le dernier relevé**, jamais par un
   chemin : un id en forme de chemin, ou égal au chemin d'un fichier du relevé,
-  ne désigne rien (I-34), ni la note, un test, un commit ou un module pas
-  touché pour *Voir le code* ; un commit, par son rang (`c<rang>`, `gh:c<rang>`,
+  ne désigne rien (I-34), ni un commit ou un module pas touché pour le
+  fichier suivi, ni la note ou un test en *Relire* ; un commit, par son rang (`c<rang>`, `gh:c<rang>`,
   `c<rang>/<i>`, F-101), jamais par une URL. Ce que le principal écrit pour
   ouvrir (une version de la PR, un diff) va sous `files/` du dossier de
   sorties de l'agent, en lecture seule, et n'est jamais relu.
@@ -1704,14 +1727,17 @@ bancs de comparaison.
   commence par « - » ou contient un NUL, et pour un ref, « .. » ou un
   caractère hors de `[A-Za-z0-9._/-]` ; `--end-of-options` là où git le
   permet. Seule autre exception, validée par l'équipe : *Enregistrer* de
-  *Voir le code* (F-100), **au geste** de l'utilisateur (Ctrl+S ou le
-  bouton), n'écrit que le fichier suivi, désigné par son id (I-37), un
-  fichier existant du dossier de l'agent, le texte une chaîne d'1 Mo au
-  plus ; jamais pendant un tour de la conversation ni une course qui génère
-  ce module (verrou recalculé par le principal, sans se fier à la page). Push, rebase, checkout, ouvrir une PR, et le *via* des actions
+  *Voir le code*, de la note ou d'un test d'invariant (F-100), **au
+  geste** de l'utilisateur (Ctrl+S ou le bouton), n'écrit que le fichier
+  suivi, désigné par son id (I-37), un fichier existant du dossier de
+  l'agent, le texte une chaîne d'1 Mo au plus ; jamais pendant un tour de
+  la conversation, ni une course qui génère ce module, ni, pour la note et
+  les tests, une course de l'agent qui retient (verrou recalculé par le
+  principal, sans se fier à la page). Push, rebase, checkout, ouvrir une PR, et le *via* des actions
   directes passent par l'agent, dans la conversation, avec ses autorisations.
-- **I-40** Aucun HTML rendu depuis un texte (note, sortie d'un skill, code
-  d'un fichier, F-113 : des morceaux de texte, éditable ou non) : le
+- **I-40** Aucun HTML rendu depuis un texte (note, rendue ou en édition,
+  sortie d'un skill, code d'un fichier, F-113, éditable ou non : une balise
+  tapée ou écrite dans le fichier reste du texte) : le
   Markdown de VibeCoder ne produit que du texte, du code et des liens
   `http(s)` — une balise reste du texte, un lien `javascript:`, `data:`,
   `file:`, `vbscript:` ou `//hôte` n'est pas un lien —, ouverts dans le
@@ -2138,10 +2164,8 @@ Copier, erreurs ; mêmes relevés).
   relevé).
 - VibeCoder, GitHub sans IA (F-112), coloration (F-113) : un échec de gh (pas connecté, pas
   d'origine GitHub, box absente) ne se dit pas ; *Mes PR à relire* ne change
-  rien. La coloration du code ne connaît pas les expressions régulières de
-  JavaScript (un guillemet dedans colore la fin de la ligne en chaîne) ni
-  les commentaires imbriqués de Rust ; un extrait (*Code*) commencé dans un
-  commentaire ou une chaîne se colore mal — le texte, lui, reste exact.
+  rien. Un extrait (*Code*, en *Relire*) commencé dans un commentaire ou une
+  chaîne se colore mal — le texte, lui, reste exact.
 
 ## 15. Décisions en attente
 
