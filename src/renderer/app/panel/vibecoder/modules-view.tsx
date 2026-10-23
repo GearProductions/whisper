@@ -5,11 +5,13 @@
  *  module de la Forme : point plein s'il est touché (vert : commité ; accent :
  *  modifié, pas encore commité), anneau sinon ; nom en gras, dossier atténué,
  *  contrat ; les commits qui le touchent en puces (un clic : son diff dans
- *  l'éditeur) ; au survol (ou au clavier) :
- *  Générer, Relire le diff (du dernier commit qui le touche, sinon les
- *  changements non commités), Ouvrir. Sous un module touché, l'accordéon
- *  Voir le code (ModuleCode) : un seul déplié à la fois, le chemin du module
- *  déplié tenu ici.
+ *  l'éditeur). Sa barre d'outils : Générer, Relire le diff (du dernier commit
+ *  qui le touche, sinon les changements non commités), Ouvrir, Commiter
+ *  (m.uncommitted : commit-module) ; sous le code, dans l'accordéon Voir le
+ *  code (ModuleCode) d'un module touché, sous le contrat sinon. Un seul
+ *  accordéon déplié à la fois, le chemin du module déplié tenu ici. Dans les
+ *  outils de la carte, Commiter les modules (commit-modules), s'il y a un
+ *  module pas commité.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useState } from 'react';
 import { fileParts, moduleCommits } from 'core/vibecoder';
@@ -33,6 +35,8 @@ const fr = {
   reviewOf: (hash: string) => `Relire le diff de ${hash}, le dernier commit qui touche ce module`,
   reviewWip: 'Relire les changements pas encore commités',
   open: 'Ouvrir',
+  commit: 'Commiter',
+  commitTitle: 'Commiter les changements de ce module',
   toCreate: 'à créer',
   noModule: 'La Forme ne liste aucun module',
   noModuleHint: 'Les modules viennent de la rubrique « Forme » de la note : étape Forme, Poser la forme.',
@@ -50,6 +54,8 @@ const S: Record<VibeLang, typeof fr> = {
     reviewOf: (hash) => `Review the diff of ${hash}, the last commit touching this module`,
     reviewWip: 'Review the changes not committed yet',
     open: 'Open',
+    commit: 'Commit',
+    commitTitle: 'Commit the changes of this module',
     toCreate: 'to create',
     noModule: 'The Shape lists no module',
     noModuleHint: 'Modules come from the “Forme” section of the note: Shape step, Set the shape.',
@@ -69,9 +75,10 @@ export function ModulesView(p: StepProps) {
   const counts = view.modules.reduce((n, m) => ({ ...n, [stateOf(m)]: n[stateOf(m)] + 1 }), { done: 0, wip: 0, todo: 0 } as Record<State, number>);
   const generate = action('module');
   const reviewDiff = action('review-diff');
+  const commitModule = action('commit-module');
   return (
     <>
-      <StepHead p={p} own={[...(commit ? ['commit', 'commit-prepare'] : []), ...(review ? ['review-diff'] : [])]} />
+      <StepHead p={p} own={[...(commit ? ['commit', 'commit-prepare'] : []), ...(review ? ['review-diff'] : []), 'commit-modules']} />
       {commit ? (
         <OutputCard className="vc-proposed" title={t.outputs['commit.md']} file="commit.md" time={commit.time} t={t}
           tools={(
@@ -96,11 +103,15 @@ export function ModulesView(p: StepProps) {
       ) : null}
       {view.modules.length ? (
         <OutputCard className="vc-modules" title={s.modules} t={t} tools={(
-          <span className="vc-mod-legend">
-            {(['done', 'wip', 'todo'] as State[]).map((k) => (
-              <span key={k} data-state={k}><i className="vc-mod-dot" />{`${counts[k]} ${s.state[k]}`}</span>
-            ))}
-          </span>
+          <>
+            <span className="vc-mod-legend">
+              {(['done', 'wip', 'todo'] as State[]).map((k) => (
+                <span key={k} data-state={k}><i className="vc-mod-dot" />{`${counts[k]} ${s.state[k]}`}</span>
+              ))}
+            </span>
+            {view.modules.some((m) => m.uncommitted)
+              ? <Run a={action('commit-modules')} busy={busy} tone="ghost" onRun={(x) => act.run('commit-modules', x)} /> : null}
+          </>
         )}>
           <ul className="vc-mod-list">
             {view.modules.map((m, i) => {
@@ -108,6 +119,28 @@ export function ModulesView(p: StepProps) {
               const { dir, name } = fileParts(m.path);
               const commits = moduleCommits(m, view.commits);
               const last = commits[commits.length - 1];
+              const tools = (
+                <div className="vc-mod-acts">
+                  {generate ? (
+                    <button type="button" disabled={!!generate.disabled || busy}
+                      title={`${generate.hint} (${generate.who})${generate.disabled ? `\n— ${generate.disabled}` : ''}`}
+                      onClick={() => act.run('module', { module: i })}>{s.generate}</button>
+                  ) : null}
+                  {reviewDiff && m.touched ? (
+                    <button type="button" disabled={!!reviewDiff.disabled || busy}
+                      title={`${last ? s.reviewOf(last.hash.slice(0, 7)) : s.reviewWip} (${reviewDiff.who})${reviewDiff.disabled ? `\n— ${reviewDiff.disabled}` : ''}`}
+                      onClick={() => act.run('review-diff', last ? { commit: last.hash } : {})}>{s.review}</button>
+                  ) : null}
+                  {m.file ? (
+                    <button type="button" title={`${t.openTitle} : ${m.file.path}`} onClick={() => act.open(m.file!.id)}>{s.open}</button>
+                  ) : null}
+                  {commitModule && !commitModule.hidden && m.uncommitted ? (
+                    <button type="button" disabled={!!commitModule.disabled || busy}
+                      title={`${s.commitTitle} (${commitModule.who})${commitModule.disabled ? `\n— ${commitModule.disabled}` : ''}`}
+                      onClick={() => act.run('commit-module', { module: i })}>{s.commit}</button>
+                  ) : null}
+                </div>
+              );
               return (
                 <li key={`${i}:${m.path}`} className="vc-mod" data-state={state}>
                   <span className="vc-mod-dot" title={s.stateTitle[state]} />
@@ -125,25 +158,10 @@ export function ModulesView(p: StepProps) {
                     </div>
                     {m.contract ? <div className="vc-mod-contract" title={m.contract}>{m.contract}</div> : null}
                     {m.touched ? (
-                      <ModuleCode m={m} code={p.code} t={t} open={opened === m.path}
+                      <ModuleCode m={m} code={p.code} t={t} lang={view.lang} open={opened === m.path} tools={tools}
                         onOpen={(o) => setOpened(o ? m.path : null)} onFollow={act.follow} onSave={act.save}
                         onQuote={(block, id) => act.prefill(id, block, true)} drafts={p.drafts} />
-                    ) : null}
-                  </div>
-                  <div className="vc-mod-acts">
-                    {generate ? (
-                      <button type="button" disabled={!!generate.disabled || busy}
-                        title={`${generate.hint} (${generate.who})${generate.disabled ? `\n— ${generate.disabled}` : ''}`}
-                        onClick={() => act.run('module', { module: i })}>{s.generate}</button>
-                    ) : null}
-                    {reviewDiff && m.touched ? (
-                      <button type="button" disabled={!!reviewDiff.disabled || busy}
-                        title={`${last ? s.reviewOf(last.hash.slice(0, 7)) : s.reviewWip} (${reviewDiff.who})${reviewDiff.disabled ? `\n— ${reviewDiff.disabled}` : ''}`}
-                        onClick={() => act.run('review-diff', last ? { commit: last.hash } : {})}>{s.review}</button>
-                    ) : null}
-                    {m.file ? (
-                      <button type="button" title={`${t.openTitle} : ${m.file.path}`} onClick={() => act.open(m.file!.id)}>{s.open}</button>
-                    ) : null}
+                    ) : tools}
                   </div>
                 </li>
               );
