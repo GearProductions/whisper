@@ -1,7 +1,8 @@
 /** runner — les commandes qui lancent le projet d'un agent (onglet Processus
  *  de VibeCoder), lues dans son fichier du projet (`{ commands: [{ name, run,
  *  cwd? }], shell?, prefix? }`, écrit par l'utilisateur ou adopté d'une
- *  proposition). Une commande se désigne par son rang dans ce fichier, jamais
+ *  proposition ; fichier existant : la proposition n'y ajoute que ses commandes
+ *  de nom nouveau, mergeProject). Une commande se désigne par son rang dans ce fichier, jamais
  *  par un texte : son argv est le préfixe (commandPrefix : celui du fichier,
  *  sinon le réglage vibeCommandPrefix, sinon la box de l'agent si sa commande
  *  passe par `distrobox enter <box> --` ; le même pour gh), puis le shell du
@@ -19,7 +20,7 @@ export type Project = { commands: ProjectCommand[]; shell: string[]; prefix?: st
 export type Request = { name: string; op: 'stop' | 'restart'; file: string };
 
 export const DEFAULT_SHELL = ['bash', '-ic'];
-const NAME = /^[A-Za-z0-9][\w.-]{0,39}$/;   // il nomme un fichier : <nom>.log
+const NAME = /^[A-Za-z0-9](?:[\w. -]{0,38}[\w.-])?$/;   // il nomme un fichier : <nom>.log ; des espaces au milieu
 const RUN_MAX = 4000;
 const okText = (v: unknown, max: number): v is string => typeof v === 'string' && v.trim() !== '' && v.length <= max && !v.includes('\0');
 
@@ -52,6 +53,22 @@ export function projectText(text: string | null | undefined): string | null {
   if (!p?.commands.length) return null;
   const shell = p.shell === DEFAULT_SHELL ? {} : { shell: p.shell };
   return `${JSON.stringify({ commands: p.commands, ...shell }, null, 2)}\n`;
+}
+
+// Le fichier existant (current) et une proposition → le texte du fichier :
+// son objet JSON tel quel (champs inconnus, commandes invalides compris), plus,
+// à la fin de commands, les commandes valides de la proposition dont le nom n'y
+// est pas ; null s'il n'y a rien de nouveau ou si le fichier est illisible (il
+// appartient à l'utilisateur : jamais réécrit). Jamais le `prefix` ni le
+// `shell` de la proposition.
+export function mergeProject(current: string, proposal: string): string | null {
+  if (!parseProject(current)) return null;
+  const raw = JSON.parse(current) as { commands: unknown[] };
+  const taken = new Set(raw.commands.map((c) => (c && typeof c === 'object' ? (c as { name?: unknown }).name : undefined)));
+  const added = (parseProject(proposal)?.commands ?? []).filter((c) => !taken.has(c.name));
+  if (!added.length) return null;
+  raw.commands.push(...added);
+  return `${JSON.stringify(raw, null, 2)}\n`;
 }
 
 // `distrobox enter <box> … --` en tête de la commande de l'agent : ce préfixe ; sinon [].
