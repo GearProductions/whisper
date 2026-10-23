@@ -4,10 +4,13 @@
  *  n'est retenu que s'il reste, `..` et liens résolus, dans le dossier de
  *  l'agent (safePath).
  *  Ne connaît pas : Electron, le disque (realpath passé).
- *  Un fichier d'un module touché par la branche (codeFile) : son id
- *  `m<rang>/<i>` dans le dernier relevé, jamais lu comme un chemin.
+ *  Un fichier à suivre et enregistrer (codeFile) : celui d'un module touché
+ *  par la branche (`m<rang>/<i>`) ou, en Créer seulement, la note (`n`) ou un
+ *  test d'invariant (`t<i>`), par son id dans le dernier relevé, jamais lu
+ *  comme un chemin.
  *  Utilisé par : app/controllers (vibecoder : lire la note et les tests, ouvrir
- *  un fichier ou un commit du relevé ; module-code : le fichier de Voir le code). */
+ *  un fichier ou un commit du relevé ; module-code : le fichier de Voir le code,
+ *  la note ou le test qu'on modifie). */
 import path from 'node:path';
 import type { VibeModule, VibeView } from 'shared/bridge';
 
@@ -44,13 +47,16 @@ export function itemCommit(view: VibeView | null, id: string): { hash: string; w
   return m && c ? { hash: c.hash, web: !!m[1] } : null;
 }
 
-// Le fichier d'un module touché du relevé que désigne `m<rang>/<i>` (et son
-// module) ; null pour tout autre id (note, test, commit, module pas touché,
-// id inconnu), l'id n'étant jamais lu comme un chemin.
-export function codeFile(view: VibeView | null, id: string): { path: string; module: VibeModule } | null {
+// Le fichier du relevé que désigne `m<rang>/<i>` (un fichier d'un module
+// touché, et son module) ou, en Créer, l'id de la note ou d'un test
+// d'invariant (module null) ; null pour tout autre id (variant, commit, module
+// pas touché, note ou test en Relire, id inconnu), l'id n'étant jamais lu
+// comme un chemin.
+export function codeFile(view: VibeView | null, id: string): { path: string; module: VibeModule | null } | null {
   for (const module of view?.modules ?? []) {
     const f = module.touched ? module.files?.find((x) => x.id === id) : undefined;
     if (f) return { path: f.path, module };
   }
-  return null;
+  const own = view?.flow === 'create' ? [view.note, ...view.invariants].find((f) => f?.id === id) : undefined;
+  return own ? { path: own.path, module: null } : null;
 }

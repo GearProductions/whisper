@@ -48,3 +48,9 @@ describe('codeFile : m<rang>/<i>, un fichier d\'un module touché', () => {
     expect([codeFile(coded, 'm0/0'), codeFile(coded, 'm1/0')?.path]).toEqual([null, 'b/index.ts']);
   });
 });
+
+describe('codeFile : n, t<i> en Créer', () => {
+  it('sans note dans le relevé : n ne mène à rien', () => {
+    expect(codeFile({ ...view, flow: 'create' } as VibeView, 'n')).toBeNull();
+  });
+});
