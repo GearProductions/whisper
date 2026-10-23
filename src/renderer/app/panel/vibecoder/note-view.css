@@ -11,7 +11,8 @@
 .vc-note-path > b { flex: none; color: var(--vc-text); font-weight: 600; }
 .vc-note .vc-note-open { margin-left: 2px; }
 .vc-note-mark { margin-left: auto; display: flex; padding-left: 8px; }
-.vc-note > .vc-card-body { padding: 16px 18px 18px 22px; }
+/* Le haut serré comme les autres cartes : la note commence sous l'en-tête. */
+.vc-note > .vc-card-body { padding: 8px 18px 18px 22px; }
 
 /* Ce que l'agent vient de changer. */
 .vc-note-changes {
@@ -29,7 +30,6 @@
 .vc-note-n { margin-left: 6px; padding: 0 6px; border-radius: 8px; font: 600 11.5px/17px var(--vc-mono); white-space: nowrap; }
 .vc-note-n[data-kind="added"] { background: color-mix(in srgb, var(--vc-ok) 18%, transparent); color: #7ee08f; }
 .vc-note-n[data-kind="removed"] { background: color-mix(in srgb, #d9383a 18%, transparent); color: #f08a8b; }
-.vc-note-changes .vc-mini { margin-left: 0; }
 .vc-note-changes .vc-mini[aria-pressed="true"] { border-color: var(--vc-ok); color: #7ee08f; }
 
 /* Liseré vert à gauche d'un bloc ou d'un élément changé, dans la marge de la carte. */
