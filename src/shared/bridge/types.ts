@@ -48,8 +48,9 @@ export type AgentView = {
   children: AgentView[]; // les robots enfants (worktrees du dépôt) ; vide pour un enfant
   signal?: RunSignal | null; // le signal de ses courses (F-55) ; absent = null
 };
-// Ce qu'une course de l'agent signale sur son robot, tant que l'utilisateur ne l'a pas vue.
-export type RunSignal = 'asking' | 'done' | 'failed';
+// Ce qu'une course de l'agent signale sur son robot : une question tant qu'elle attend sa réponse,
+// une fin tant que l'utilisateur ne l'a pas vue ; working : une course travaille.
+export type RunSignal = 'asking' | 'done' | 'failed' | 'working';
 export type AgentsState = { enabled: boolean; agents?: AgentView[] };
 
 export interface IconApi {
@@ -255,10 +256,18 @@ export type VibeModule = {
   commits: string[];           // hash des commits qui le touchent
   files?: VibeFile[];          // touché : ses fichiers (ids m<rang>/<i>) ; absent = []
   locked?: string | null;      // pourquoi Voir le code est grisé (codeLock) ; absent = null : éditable
+  uncommitted?: boolean;       // des fichiers changés pas encore commités, ou commités puis retouchés (git status) ; absent = false
 };
 
 // Le texte d'un fichier de module, poussé par le principal (Voir le code) ; null : trop gros ou illisible.
-export type VibeCode = { id: string; text: string | null; time: number };
+// at : son texte à la base de la branche et au dernier commit (null : absent là) ; absent : pas un
+// fichier de module (la note, un test).
+export type VibeCode = {
+  id: string;
+  text: string | null;
+  time: number;
+  at?: { base: string | null; head: string | null };
+};
 
 // Un cas d'un test d'invariant, lu en pseudo-code.
 export type ReadingCase = {
@@ -376,6 +385,7 @@ export type VibeArgs = {
   module?: number;             // rang dans VibeView.modules
   commit?: string;             // hash d'un commit de VibeView.commits
   file?: string;               // {{files}} : l'id d'un test de VibeView.invariants (relu même s'il est lu), ou '*' : tous
+  check?: number;              // {{check}} : le rang d'un élément de checks.json ; absent : toutes
   pr?: number;
   answers?: string[];          // réponses aux questions, dans leur ordre
   verdict?: 'approve' | 'comment' | 'request-changes';
