@@ -584,10 +584,9 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 .vc-procs-foot .vc-mini { margin-left: 0; }
 .vc-procs .vc-empty { margin-bottom: 12px; }
 
-/* CodeView (invariants-view, module-code) : monospace, numéroté (les numéros ne se sélectionnent pas). */
+/* CodeView (invariants-view, module-code, note-view) : l'éditeur CodeMirror, monospace, numéroté. */
 .vc-src {
   margin: 0 0 12px;
-  padding: 8px 0;
   max-height: 360px;
   overflow: auto;
   border: 1px solid #1c2130;
@@ -596,10 +595,14 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
   color: #c9d1e3;
   font: 12px/1.6 var(--vc-mono);
 }
-.vc-src code { display: block; min-width: max-content; font: inherit; }
 .vc-src::-webkit-scrollbar-corner { background: transparent; }
-.vc-sl { display: block; min-height: 1.6em; padding-right: 14px; white-space: pre; }
-.vc-sl::before { content: attr(data-n); display: inline-block; width: 4ch; margin-right: 12px; padding-right: 8px; border-right: 1px solid #262c3b; color: var(--vc-faint); text-align: right; }
+.vc-src .cm-editor { background: transparent; }
+.vc-src .cm-editor.cm-focused { outline: 0; }
+.vc-src .cm-editor .cm-scroller { font: inherit; }
+.vc-src .cm-editor .cm-content { padding: 8px 14px 8px 0; caret-color: var(--vc-text); }
+.vc-src .cm-editor .cm-line { padding-left: 12px; }
+.vc-src .cm-editor .cm-gutters { padding: 8px 0; border-right: 1px solid #262c3b; background: transparent; color: var(--vc-faint); }
+.vc-src .cm-editor .cm-lineNumbers .cm-gutterElement { min-width: 4ch; padding: 0 8px 0 0; }
 /* Sa coloration : la palette sombre de GitHub. */
 .vc-cx-keyword { color: #ff7b72; }
 .vc-cx-string { color: #a5d6ff; }
@@ -608,27 +611,8 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 .vc-cx-function { color: #d2a8ff; }
 .vc-cx-type { color: #ffa657; }
 .vc-cx-attr { color: #7ee787; }
-
-/* CodeView : la zone de saisie transparente posée sur le code coloré (même
-   police, mêmes lignes, décalée de la colonne des numéros : 4ch + 8px + 1px + 12px). */
-.vc-src-edit { display: grid; min-width: max-content; }
-.vc-src-edit > * { grid-area: 1 / 1; }
-.vc-src-edit > code { user-select: none; }
-.vc-src-edit > textarea {
-  margin: 0;
-  padding: 0 14px 0 calc(4ch + 21px);
-  overflow: hidden;
-  resize: none;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: transparent;
-  caret-color: var(--vc-text);
-  font: inherit;
-  white-space: pre;
-}
 .vc-src[data-locked] { opacity: 0.6; }
-.vc-src[data-locked] textarea { cursor: not-allowed; }
+.vc-src[data-locked] .cm-content { cursor: not-allowed; }
 .vc-src-tools { display: flex; gap: 6px; align-items: center; margin: -6px 0 12px; }
 .vc-src-tools .vc-mini { margin-left: 0; }
 .vc-src-tools button:disabled { opacity: 0.4; cursor: default; }
