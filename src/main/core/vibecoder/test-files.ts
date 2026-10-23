@@ -1,8 +1,9 @@
 /** test-files — les fichiers de test d'une branche : lequel est un test, lequel un
  *  test d'invariant (rangé sous tests/invariants/), les titres de ses cas (it,
  *  test, #[test], def test_…) et leur ligne, et son empreinte git, qui nomme sa lecture
- *  (<sorties>/invariants/<blob>.md).
- *  Ne connaît pas : le disque, git (textes et chemins passés).
+ *  (<sorties>/invariants/<blob>.md), et sa lecture : celle de son empreinte,
+ *  sinon la plus récente de son fichier, périmée.
+ *  Ne connaît pas : le disque, git (textes, chemins et lectures passés).
  *  Utilisé par : core/vibecoder (journey), app/controllers/vibecoder (les tests
  *  de la branche et l'empreinte de chacun ; blobSha : aussi l'empreinte de ce
  *  qu'on valide). */
@@ -44,4 +45,18 @@ export function caseLines(src: string): number[] {
 export function blobSha(text: string): string {
   const body = Buffer.from(text, 'utf8');
   return createHash('sha1').update(`blob ${body.length}\0`).update(body).digest('hex');
+}
+
+// La lecture d'un test : celle de son empreinte, sinon la plus récente dont la
+// première ligne est « # <chemin du test> » (skill lire-invariants), périmée.
+export function readingOf(
+  test: { path: string; blob: string },
+  readings: { blob: string; text: string; time: number }[],
+): { text: string; stale: boolean } | null {
+  const own = readings.find((r) => r.blob === test.blob);
+  if (own) return { text: own.text, stale: false };
+  const last = readings
+    .filter((r) => r.text.split('\n', 1)[0].trimEnd() === `# ${test.path}`)
+    .reduce<{ text: string; time: number } | null>((a, r) => (a && a.time >= r.time ? a : r), null);
+  return last && { text: last.text, stale: true };
 }
