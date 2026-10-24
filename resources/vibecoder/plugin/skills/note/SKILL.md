@@ -1,6 +1,6 @@
 ---
 name: note
-description: "Write or update the ticket note from a request, following the project's note skill or the guide, with the open questions written to <out>/questions.md and never into the note."
+description: "Write or update the ticket note from a request, following the project's note skill or the guide, with the open questions written to <out>/questions.md and never into the note. Also applies when the user answers the note's questions in the conversation: the answers go into the note, then questions.md is rewritten with what remains."
 argument-hint: "<lang> <out> <request…>"
 disable-model-invocation: true
 ---
@@ -30,7 +30,7 @@ Anything unclear, contradictory or missing is an open question. Write them all t
 - <option>
 ```
 
-No question → write the file empty: it means « no more questions ». When the answers come back (« Réponses aux questions ouvertes… » / « Answers to the open questions… »): write each decision in the note, at its place; an answer asking for your advice → give it in your reply and keep the question; an answer leaving it to you → decide, and say what you chose. Then rewrite `questions.md` with what remains.
+No question → write the file empty: it means « no more questions ». Any answer, whatever its path — the screen's message (« Réponses aux questions ouvertes… » / « Answers to the open questions… ») or the user answering in the conversation: write each decision in the note, at its place; an answer asking for your advice → give it in your reply and keep the question; an answer leaving it to you → decide, and say what you chose. Then rewrite `questions.md` with what remains (empty: no more questions) — the screen shows the questionnaire as long as the file has a question.
 
 ## Answer
 
