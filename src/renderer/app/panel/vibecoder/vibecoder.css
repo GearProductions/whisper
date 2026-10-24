@@ -584,21 +584,21 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 .vc-procs-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
 .vc-procs .vc-empty { margin-bottom: 12px; }
 
-/* CodeView (invariants-view, module-code, note-view) : l'éditeur CodeMirror, monospace, numéroté. */
+/* CodeView (invariants-view, module-code, note-view) : l'éditeur CodeMirror, monospace, numéroté.
+   Un simple cadre : la hauteur est bornée sur .cm-editor et c'est .cm-scroller
+   qui défile (la configuration canonique de CodeMirror). */
 .vc-src {
   margin: 0 0 12px;
-  max-height: 360px;
-  overflow: auto;
   border: 1px solid #1c2130;
   border-radius: 7px;
   background: var(--vc-code);
   color: #c9d1e3;
   font: 12px/1.6 var(--vc-mono);
 }
-.vc-src::-webkit-scrollbar-corner { background: transparent; }
-.vc-src .cm-editor { background: transparent; }
+.vc-src .cm-editor { max-height: 360px; background: transparent; }
 .vc-src .cm-editor.cm-focused { outline: 0; }
-.vc-src .cm-editor .cm-scroller { font: inherit; }
+.vc-src .cm-editor .cm-scroller { overflow: auto; font: inherit; }
+.vc-src .cm-scroller::-webkit-scrollbar-corner { background: transparent; }
 .vc-src .cm-editor .cm-content { padding: 8px 14px 8px 0; caret-color: var(--vc-text); }
 .vc-src .cm-editor .cm-line { padding-left: 12px; }
 .vc-src .cm-editor .cm-gutters { padding: 8px 0; border-right: 1px solid #262c3b; background: transparent; color: var(--vc-faint); }
@@ -626,7 +626,7 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 .vc-mod-tree-dir { color: var(--vc-faint); font-size: 11px; line-height: 1.6; }
 .vc-mod-tree .vc-jfiles { padding-left: 12px; }
 .vc-mod-tree button[aria-current] { background: var(--vc-control); color: var(--vc-text); }
-.vc-mod-code .vc-src { max-height: 420px; }
+.vc-mod-code .vc-src .cm-editor { max-height: 420px; }
 .vc-mod-shown {
   display: block;
   height: 24px;

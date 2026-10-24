@@ -55,7 +55,8 @@
 .vc-ifile-src { margin: -4px 0 12px; }
 .vc-ifile-src > summary { width: max-content; color: var(--vc-muted); font-size: 12px; cursor: pointer; }
 .vc-ifile-src > summary:hover { color: var(--vc-text); }
-.vc-ifile-src > .vc-src { max-height: 420px; margin-top: 8px; }
+.vc-ifile-src > .vc-src { margin-top: 8px; }
+.vc-ifile-src > .vc-src .cm-editor { max-height: 420px; }
 
 /* ---- Un cas -------------------------------------------------------------------- */
 .vc-case {
