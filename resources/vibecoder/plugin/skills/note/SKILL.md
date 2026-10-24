@@ -1,6 +1,6 @@
 ---
 name: note
-description: "Write or update the ticket note from a request, following the project's note skill or the guide, with the open questions written to <out>/questions.md and never into the note. Also applies when the user answers the note's questions in the conversation: the answers go into the note, then questions.md is rewritten with what remains."
+description: "Write or update the ticket note from a request, following the project's note skill or the guide, with the open questions written to <out>/questions.md and never into the note."
 argument-hint: "<lang> <out> <request…>"
 disable-model-invocation: true
 ---
