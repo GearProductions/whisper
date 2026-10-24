@@ -36,7 +36,7 @@ Read `${CLAUDE_SKILL_DIR}/../actions/SKILL.md` first: it is the protocol — `<o
 
 ## Blocking questions — the only reason to stop
 
-A question blocks when any answer you could pick would make the user own something they did not ask for — scope, cost, data, security, a public behaviour, anything irreversible — or when the note contradicts itself or the code. Leave it in `<out>/questions.md` (format of `note`: `## <n>. <question>`, then 2 to 4 options `- …`), list it in your answer, and stop. The user answers with *Send the answers* (the note is updated) or in this conversation; when they come back to you, resume the flow where you stopped.
+A question blocks when any answer you could pick would make the user own something they did not ask for — scope, cost, data, security, a public behaviour, anything irreversible — or when the note contradicts itself or the code. Leave it in `<out>/questions.md` (format of `note`: `## <n>. <question>`, then 2 to 4 options `- …`), list it in your answer, and stop. The user answers with *Send the answers* (the note is updated) or in this conversation: then, as `note` does, write each decision in the note at its place and rewrite `<out>/questions.md` with what remains (empty: no more questions) — the screen shows the questionnaire as long as the file has a question. When they come back to you, resume the flow where you stopped.
 
 ## Never
 
