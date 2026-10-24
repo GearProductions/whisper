@@ -391,7 +391,10 @@ fichier en attente.
 (« distrobox enter dev -- mise exec -- claude ») : découpée (guillemets
 gérés), les arguments du SDK passent derrière, stdin/stdout tels quels.
 Options : `cwd` = dossier, réglages `user`, `project`, `local`, préréglage
-`claude_code` + la consigne de `consigne-agents.md` ; le plugin `vibecoder`
+`claude_code` + la consigne de `consigne-agents.md`, suivie de la ligne
+VibeCoder du questionnaire (une réponse aux questions de la note donnée
+dans la conversation → la note, puis `<sorties>/questions.md` réécrit :
+les skills de VibeCoder ne s'y chargent jamais d'eux-mêmes) ; le plugin `vibecoder`
 (`userData/vibecoder/plugin`, s'il existe : F-105) et le dossier de sorties de
 l'agent (`userData/vibecoder-out/<agent>`) en dossier de travail en plus
 (`additionalDirectories`). Pour tous les agents de l'appli, en VibeCoder ou
@@ -966,7 +969,10 @@ conversation ; note `0.9.0-actions-independantes.md`).
 **F-100 Créer** (la branche du dossier de l'agent ; les étapes du guide,
 § 4.1). L'étape en cours est la première qui n'est pas faite :
 1. **Note** — faite : « Ce que ça fait » rédigée, aucune question ouverte
-   (`questions.md` vide), la note validée (F-102). Montre la note rendue
+   (`questions.md` vide), la note validée (F-102). Le questionnaire suit
+   `questions.md` seul, quel que soit le chemin des réponses (*Envoyer les
+   réponses*, ou la conversation : skill `vibe`, ou la ligne de la consigne
+   hors d'un skill). Montre la note rendue
    (F-104), à jour pendant que l'agent l'écrit : ce qui a changé depuis le
    début du dernier tour (de la conversation, ou d'une course qui modifie la
    branche) porte un liseré, *Voir les modifications* montre le
@@ -1058,12 +1064,15 @@ conversation ; note `0.9.0-actions-independantes.md`).
    depuis la base de la branche* (le commit d'où elle part ; grisé quand sa
    version est inconnue — pas de point de départ, trop grosse — alors que le
    fichier est au dernier commit), *Diff depuis le dernier commit* (`HEAD`) :
-   le diff de lignes du texte
-   affiché, replié autour des changements, en texte (I-40), seulement pour
+   le diff du texte affiché comme celui de VS Code (`@codemirror/merge`),
+   *En ligne* ou *Côte à côte* au choix, en lecture seule, numéroté et
+   coloré, replié autour des changements, en texte (I-40), seulement pour
    un fichier de module (ni la note ni un test, I-37). Générer ne commite
    pas : *Commiter* et *Commiter les modules* (skill `commiter-modules`, un
    commit par module selon la convention du projet, un fixup pour un module
-   déjà commité) sont des gestes à part. Seul ce
+   déjà commité, un nouveau commit une fois la PR ouverte) sont des gestes à
+   part. Les éditeurs (le code, la note en édition) défilent dans
+   CodeMirror lui-même, hauteur bornée : pas de vide au-dessus du texte. Seul ce
    fichier est lu, à l'ouverture puis à chaque changement sur le disque
    (surveillé et poussé par le principal, pas au rythme du relevé : pendant
    la génération, le code s'écrit) ; la vue reste sur lui tant qu'il est dans
@@ -1795,7 +1804,8 @@ bancs de comparaison.
   principal, sans se fier à la page). Push, rebase, checkout, ouvrir une PR, et le *via* des actions
   directes passent par l'agent, dans la conversation, avec ses autorisations.
 - **I-40** Aucun HTML rendu depuis un texte (note, rendue ou en édition,
-  sortie d'un skill, code d'un fichier, F-113, éditable ou non : une balise
+  sortie d'un skill, code d'un fichier, F-113, éditable ou non, son diff en
+  ligne ou côte à côte : une balise
   tapée ou écrite dans le fichier reste du texte) : le
   Markdown de VibeCoder ne produit que du texte, du code et des liens
   `http(s)` — une balise reste du texte, un lien `javascript:`, `data:`,

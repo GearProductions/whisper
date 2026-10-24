@@ -493,7 +493,8 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    Sous un module touché, *Voir le code* : ses fichiers et celui choisi,
    coloré comme sur GitHub, ou son diff depuis la base de la branche (tout
    ce que le ticket a changé) ou depuis le dernier commit (ce qui n'est pas
-   commité), au choix ; il suit le disque (pendant la génération, on
+   commité), au choix, comme dans VS Code : en ligne ou côte à côte ; il
+   suit le disque (pendant la génération, on
    voit le code s'écrire ; plus d'1 Mo : « fichier trop gros »). Il se
    modifie sur place, enregistré par Ctrl+S ou *Enregistrer* — grisé pendant
    un tour de la conversation ou pendant que ce module est généré, et si le
@@ -597,7 +598,8 @@ passées gardent leur ✓), et l'écran change : un **fil d'Ariane** (les
 officielle*), puis la note. En deux temps :
 
 1. la demande dans le champ, *Rédiger la note* ; l'agent vous pose
-   **toutes** les questions de la note (*Envoyer les réponses*) — il n'en
+   **toutes** les questions de la note (*Envoyer les réponses*, ou vos
+   réponses dans la conversation : le questionnaire suit) — il n'en
    tranche aucune ;
 2. *Valider et développer* (plus proposé pendant que la conversation ou
    une action travaille) : l'agent reprend à la première étape pas faite et tient le rôle du
