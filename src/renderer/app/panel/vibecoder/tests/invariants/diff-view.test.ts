@@ -2,8 +2,8 @@
 // Invariant du diff d'un fichier (note 0.11.0,
 // docs/tickets/feat/0.11.0-stabiliser-vibecoder.md, « Ce que ça ne doit pas
 // faire ») : le diff s'affiche en morceaux de texte, jamais en HTML (I-40) —
-// le diff d'un fichier de module (Voir le code, depuis la base de la branche
-// ou le dernier commit) et le diff brut de la note, tous par DiffView. Le code
+// le diff brut de la note, par DiffView. Le diff d'un fichier de module (en
+// ligne ou côte à côte, ModuleDiffView) : module-diff-view.test.ts. Le code
 // sans diff : code-view.test.ts.
 // Protégé : si un test échoue, corriger le code.
 //
