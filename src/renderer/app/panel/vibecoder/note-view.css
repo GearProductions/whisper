@@ -73,13 +73,15 @@
 
 /* La note éditable (NoteEditor, Créer) : le texte comme le rendu (.vc-md),
    les marques Markdown masquées hors du curseur, liseré, pastilles et 💬 dans
-   des gouttières à droite. */
+   des gouttières à droite. Le défilement porté par l'éditeur, comme CodeView :
+   hauteur bornée sur .cm-editor, .cm-scroller défile ; .vc-note-editor
+   n'est qu'un cadre. */
 .vc-note-editor { margin-left: -10px; color: #d5d9e1; font-size: 13.5px; line-height: 1.6; }
 .vc-note-editor[data-locked] { opacity: 0.6; }
 .vc-note-editor[data-locked] .cm-content { cursor: not-allowed; }
-.vc-note-editor .cm-editor { background: transparent; }
+.vc-note-editor .cm-editor { max-height: 70vh; background: transparent; }
 .vc-note-editor .cm-editor.cm-focused { outline: 0; }
-.vc-note-editor .cm-scroller { font: inherit; }
+.vc-note-editor .cm-scroller { overflow: auto; font: inherit; }
 .vc-note-editor .cm-content { padding: 0; caret-color: var(--vc-text); }
 .vc-note-editor .cm-line { padding: 0 0 0 10px; }
 .vc-note-editor .cm-gutters { border: 0; background: transparent; }

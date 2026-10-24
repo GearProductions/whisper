@@ -7,6 +7,8 @@
  *  seule, le motif en titre. Un texte changé par les props (le disque,
  *  Abandonner) remplace le document sans revenir à onChange. En texte, jamais
  *  en HTML (I-40). Lignes de changed et tags numérotées depuis 0.
+ *  Défile en lui-même (hauteur bornée sur .cm-editor, .cm-scroller défile),
+ *  pas avec la colonne : CodeMirror ne dessine que ce qu'il voit.
  *  Les styles (cm-md-*, vc-note-editor, vc-changed) : note-view.css.
  *  Ne connaît pas : le pont, le relevé.
  *  Utilisé par : note-view. */
@@ -50,6 +52,7 @@ export function NoteEditor({ text, locked, changed, tags, onChange, onSave, onQu
         ],
       }),
     });
+    v.scrollDOM.classList.add('scroll'); // la barre aux couleurs de l'appli, sur ce qui défile
     view.current = v;
     return () => { v.destroy(); view.current = null; };
   }, []);
@@ -76,5 +79,5 @@ export function NoteEditor({ text, locked, changed, tags, onChange, onSave, onQu
     if (q) latest.current.onQuote?.(q.text);
   })), [quoteKey, quoting]);
 
-  return <div ref={host} className="vc-note-editor scroll" data-locked={locked ? true : undefined} title={locked ?? undefined} />;
+  return <div ref={host} className="vc-note-editor" data-locked={locked ? true : undefined} title={locked ?? undefined} />;
 }
