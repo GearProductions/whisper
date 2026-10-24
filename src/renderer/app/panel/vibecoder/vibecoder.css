@@ -627,10 +627,11 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 .vc-mod-tree .vc-jfiles { padding-left: 12px; }
 .vc-mod-tree button[aria-current] { background: var(--vc-control); color: var(--vc-text); }
 .vc-mod-code .vc-src .cm-editor { max-height: 420px; }
+/* Le sélecteur et, sur un diff, En ligne · Côte à côte (module-code). */
+.vc-mod-bar { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
 .vc-mod-shown {
   display: block;
   height: 24px;
-  margin: 0 0 8px;
   padding: 0 8px;
   border: 1px solid var(--vc-edge);
   border-radius: 6px;
@@ -644,8 +645,6 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 .vc-mod-shown:hover { border-color: var(--accent); }
 .vc-mod-shown:focus-visible { outline: 2px solid var(--vc-ring); outline-offset: 1px; }
 .vc-mod-shown option { background: var(--vc-editor); color: var(--vc-text); }
-/* Le diff (DiffView, styles de note-view.css) : à la place du fichier, sans la marge négative de la note. */
-.vc-mod-code .vc-rawdiff { margin: 0 0 12px; max-height: 420px; overflow: auto; border: 1px solid #1c2130; }
 /* Le pied d'un éditeur (DraftFoot : module-code, note-view) ; en bas d'une carte, sans marge. */
 .vc-mod-code-foot { display: flex; justify-content: flex-end; gap: 6px; margin: -6px 0 12px; }
 .vc-mod-code-foot:last-child { margin-bottom: 0; }

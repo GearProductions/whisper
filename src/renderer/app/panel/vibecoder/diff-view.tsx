@@ -1,9 +1,9 @@
 /** diff-view — un diff de lignes affiché (DiffLine[], de lineDiff) : replié
  *  autour des changements (foldDiff), ajouts en vert, retraits barrés, en
  *  texte, jamais en HTML (I-40). Le diff brut de la note (Voir les
- *  modifications) et celui d'un fichier de module (Voir le code, F-113).
+ *  modifications) ; celui d'un fichier de module : module-diff-view.
  *  Ne connaît pas : le pont, le relevé.
- *  Utilisé par : note-view, module-code. */
+ *  Utilisé par : note-view. */
 import { useMemo, type ReactElement } from 'react';
 import { foldDiff, type DiffLine } from 'core/vibecoder';
 import type { VibeLang } from 'technicals/bridge';
