@@ -2,7 +2,7 @@
    la couleur de l'agent, une carte par question, réponses en pastilles. */
 
 .vc-questions {
-  margin: 0 0 16px;
+  margin: 0 0 20px;
   padding: 14px 16px 12px;
   border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--vc-line));
   border-radius: 10px;

@@ -1,5 +1,6 @@
 /* L'étape Modules (modules-view) : le commit proposé, puis une ligne par
-   module, ses actions au survol. Sous .vc, couleurs de vibecoder.css. */
+   module et sa barre d'outils (sous le code déplié, ou sous le contrat si le
+   module n'est pas touché). Sous .vc, couleurs de vibecoder.css. */
 
 /* Le commit proposé : liseré d'accent, le message tel qu'il sera commité (sujet en gras). */
 .vc-proposed { border-color: color-mix(in srgb, var(--accent) 45%, var(--vc-line)); }
@@ -26,11 +27,10 @@
 .vc-mod-list { list-style: none; margin: 0; padding: 0; }
 .vc-mod {
   --row: var(--vc-card);
-  position: relative;
   display: grid;
   grid-template-columns: 10px minmax(0, 1fr);
   column-gap: 12px;
-  padding: 8px 14px;
+  padding: 8px 16px;
   background: var(--row);
   transition: background-color 0.12s;
 }
@@ -48,20 +48,8 @@
 .vc-mod-new { flex: none; color: var(--vc-faint); font-size: 11px; font-style: italic; }
 .vc-mod-contract { margin-top: 2px; overflow: hidden; color: var(--vc-muted); font-size: 12px; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Les actions d'une ligne : à droite, par-dessus la fin de ses deux lignes, au survol ou au clavier. */
-.vc-mod-acts {
-  position: absolute;
-  inset: 0 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 10px 0 36px;
-  background: linear-gradient(to right, transparent, var(--row) 32px);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.12s;
-}
-.vc-mod:hover .vc-mod-acts, .vc-mod:focus-within .vc-mod-acts { opacity: 1; pointer-events: auto; }
+/* La barre d'outils du module : une rangée sous le code (ou le contrat), boutons de la hauteur de .vc-mini. */
+.vc-mod-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
 .vc-mod-acts button {
   height: 24px;
   padding: 0 10px;

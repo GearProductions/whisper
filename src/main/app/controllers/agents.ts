@@ -20,7 +20,7 @@ import type { AgentView } from 'shared/bridge';
 import { createAgentRuntime, createSessions, type AgentConfig, type OutgoingMessage, type Sdk } from 'core/agents';
 import { agentColor, agentList, agentSlotCount, childRow, folderColors, needsTrust, type Config } from 'core/config';
 import { agentParent, branchOf, familyGroups } from 'core/family';
-import { robotState } from 'core/vibecoder';
+import { questionsRule, robotState } from 'core/vibecoder';
 import { launcher, loadSdk } from 'technicals/claude';
 import { createJournal } from 'technicals/journal';
 import { agentInstructions, journalFile, loadConfig, saveConfig, updateAgent, vibeOutDir, vibePluginDir } from 'app/settings';
@@ -116,12 +116,16 @@ export function interruptAgent(id: string) {
 }
 
 // Ce que reçoit Claude Code pour cet agent, à chaque tour comme à la sonde : la
-// commande, la consigne, le plugin de VibeCoder (seulement s'il est là :
-// ensureVibeFiles a pu échouer) et le dossier de sorties de l'agent.
+// commande, la consigne (la consigne audio, puis la ligne du questionnaire,
+// questionsRule : fixe pour un agent, elle ne relance pas son processus), le
+// plugin de VibeCoder (seulement s'il est là : ensureVibeFiles a pu échouer) et
+// le dossier de sorties de l'agent.
 export function launchOptions(agent: AgentConfig, cfg: Config) {
   const plugin = vibePluginDir();
+  const audio = agentInstructions();
+  const rule = questionsRule(vibeOutDir(agent.id));
   return {
-    command: cfg.agentCommand, instructions: agentInstructions(),
+    command: cfg.agentCommand, instructions: audio ? `${audio}\n\n${rule}` : rule,
     plugins: fs.existsSync(plugin) ? [plugin] : [], dirs: [vibeOutDir(agent.id)],
   };
 }
@@ -169,7 +173,7 @@ export function clickAgent(id: unknown) {
     openConversation(cfg.agentSelected === agent.id && state.convView && state.convView.agentId === agent.id ? null : agent.id);
     return;
   }
-  if (st.status === 'asking' || st.unread || st.signal) { openConversation(agent.id); return; }
+  if (st.status === 'asking' || st.unread || (st.signal && st.signal !== 'working')) { openConversation(agent.id); return; }
   selectAgent(cfg.agentSelected === agent.id ? null : agent.id);
   pushAgents();
 }

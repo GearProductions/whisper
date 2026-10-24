@@ -18,8 +18,11 @@
  *  (Relire), lu ou pas ; en Créer, sans test d'invariant de la branche (la ligne
  *  déjà observée par un test existant) : la dernière course invariants ou align
  *  finie, ou ✓ Rien à écrire validé à la main, Vibe compris (nothingMark, pour le texte de la note ;
- *  note 0.11.0-vibecoder-invariants-existants-et-courses) ; Lire en pseudo-code mise en avant seulement en Vibe
- *  (note 0.9.0-vibecoder-etape-invariants). Les fichiers d'un module touché
+ *  note 0.11.0-vibecoder-invariants-existants-et-courses) ; Lire en pseudo-code jamais mise en avant, Vibe
+ *  compris (à la main ; note 0.11.0-stabiliser-vibecoder). Valider et développer masquée ('started') la forme
+ *  faite, pendant un tour de la conversation ou une course qui retient ; un module aux fichiers changés pas
+ *  commités (uncommitted : hors des commits de la branche, ou modifiés depuis) : Commiter les modules, s'il n'en reste pas à faire (note
+ *  0.11.0-stabiliser-vibecoder), l'étape Modules pas faite tant qu'il en reste un ; les fichiers d'un module touché
  *  (files : ids `m<rang>/<i>`, triés) et pourquoi son code, la note ou un test
  *  ne s'édite pas (locked : codeLock de runs ; notes 0.11.0-code-des-modules et
  *  0.11.0-editer-invariants-et-note) ; la lecture d'un test (readingOf), celle
@@ -50,7 +53,7 @@ export type JourneyInput = {
   // Les courses qui retiennent (runs : LOCKING), par id d'action, avec le module qu'elles génèrent (Run.module).
   running: { id: string; reads: boolean; module?: string | null }[];
   runs: VibeRun[];                                  // les courses à l'écran (runViews)
-  repo: { branch: string; base: string; changed: string[]; commits: { hash: string; subject: string; files: string[] }[] } | null;
+  repo: { branch: string; base: string; changed: string[]; dirty?: string[]; commits: { hash: string; subject: string; files: string[] }[] } | null;
   error: string | null;                             // pourquoi le dépôt manque
   note: { path: string; text: string; before: string | null } | null;
   tests: { path: string; blob: string; text: string }[];   // les tests de la branche
@@ -158,10 +161,7 @@ export function vibeView(input: JourneyInput): VibeView {
   const out = (name: string) => outputs[name]?.text ?? null;
   const commits = repo?.commits ?? [];
   const changed = repo?.changed ?? [];
-  const committed = new Set(commits.flatMap((c) => c.files));
-  // ponytail: « pas commité » = changé sans être dans un commit de la branche ; un fichier commité puis
-  // retouché n'y est pas. Passer la copie de travail seule (status) dans le relevé si ça gêne.
-  const uncommitted = changed.filter((f) => !committed.has(f));
+  const dirty = repo?.dirty ?? [];   // pas commités : hors de tout commit, ou retouchés depuis
 
   // La note, ses validations, les modules de sa Forme.
   const facts = input.note && parseNote(input.note.text);
@@ -177,10 +177,11 @@ export function vibeView(input: JourneyInput): VibeView {
     // ponytail: un module jamais touché n'est cherché qu'à la racine et sous src/ (la Forme omet souvent src/).
     const real = [...new Set([...hits, bares[i], `src/${bares[i]}`])].find((p) => input.exists(p));
     const touched = hits.length > 0 || by.length > 0;
+    const uncommitted = hits.some((f) => dirty.includes(f));
     const files = touched && real ? [...(input.list?.(real) ?? [])].sort().map((path, j) => ({ id: `m${i}/${j}`, path })) : [];
     return {
       path: m.path, contract: m.contract, file: real ? { id: `m${i}`, path: real } : null,
-      touched, commits: by.map((c) => c.hash), files, locked: codeLock(m.path, input.busy, input.running, lang),
+      touched, commits: by.map((c) => c.hash), files, locked: codeLock(m.path, input.busy, input.running, lang), uncommitted,
     };
   });
   const untouched = modules.some((m) => !m.touched);
@@ -199,7 +200,6 @@ export function vibeView(input: JourneyInput): VibeView {
   });
   const variants = tests.filter((t) => !isInvariantTest(t.path)).map((t, i) => ({ id: `v${i}`, path: t.path, cases: t.cases.length }));
   const isRead = (f: VibeTestFile) => f.reading !== null && !f.stale;   // une lecture périmée n'est pas lue
-  const allRead = invariants.every(isRead);
   const casesOk = invariants.every((f) => f.cases.every((c) => f.marks[c] === 'ok'));
   const caseCount = invariants.reduce((s, f) => s + f.cases.length, 0);
   const readCount = invariants.reduce((s, f) => s + (isRead(f) ? f.cases.length : 0), 0);
@@ -267,7 +267,6 @@ export function vibeView(input: JourneyInput): VibeView {
   let next: Partial<Record<VibeStepId, string | null>>;
   let stepFacts: Partial<Record<VibeStepId, string>>;
   if (flow === 'create') {
-    const inProgress = bares.some((b) => uncommitted.some((f) => within(f, b) !== null));
     done = {
       note: !!note?.filled && !questions.length && validated(note.mark),
       forme: !!note && modules.length > 0 && validated(note.formeMark),
@@ -277,18 +276,18 @@ export function vibeView(input: JourneyInput): VibeView {
       // invariants) fait.
       invariants: !!note && (!invLines || (!invariants.length
         ? input.runs.find((r) => r.id === 'invariants' || r.id === 'align')?.state === 'done' || note.nothingMark === 'ok'
-        : (vibe || casesOk) && !uncommitted.some((f) => f === note.path || invariants.some((t) => t.path === f)))),
-      modules: modules.length > 0 && modules.every((m) => m.commits.length > 0),
+        : (vibe || casesOk) && !dirty.some((f) => f === note.path || invariants.some((t) => t.path === f)))),
+      modules: modules.length > 0 && modules.every((m) => m.commits.length > 0) && !modules.some((m) => m.uncommitted),
       revue: checksOk && ponytail && !fixups,
       pr: !!pr,
     };
     next = {
       note: !note?.filled ? 'note' : questions.length ? 'answers' : null,
       forme: modules.length ? null : 'forme',
-      // Vibe : la lecture d'abord (l'orchestrateur la vérifie) ; Guide : les cas attendent leurs ✓, lus ou pas.
-      invariants: !invariants.length ? 'invariants' : vibe && !allRead ? 'read-invariants' : !vibe && !casesOk ? null
-        : commitMd ? 'commit' : uncommitted.length ? 'commit-prepare' : null,
-      modules: commitMd ? 'commit' : inProgress ? (untouched ? 'next' : 'commit-prepare') : 'module',
+      // Guide : les cas attendent leurs ✓, lus ou pas ; Vibe : sans lecture (Écrire les invariants vérifie l'alignement).
+      invariants: !invariants.length ? 'invariants' : !vibe && !casesOk ? null
+        : commitMd ? 'commit' : dirty.length ? 'commit-prepare' : null,
+      modules: commitMd ? 'commit' : modules.some((m) => m.uncommitted) ? (untouched ? 'next' : 'commit-modules') : 'module',
       // Lancer les vérifications demande aussi la ponytail review (F-115) : elle n'a plus son bouton.
       revue: !checksOk || !ponytail ? 'checks' : fixups ? 'fixups' : null,
       pr: 'pr',
@@ -356,11 +355,12 @@ export function vibeView(input: JourneyInput): VibeView {
     // La Forme et les invariants s'écrivent d'après la note.
     if (!note && (v.has('note') || (flow === 'create' && (d.step === 'forme' || d.step === 'invariants')))) return 'noNoteYet';
     // Valider et développer : la note rédigée, ses questions à l'utilisateur avant ; la forme faite, seulement
-    // pour reprendre après une question qui bloque (la dernière course : des réponses).
+    // pour reprendre après une question qui bloque (la dernière course : des réponses) ; rien pendant un tour ou une
+    // course qui retient (celle qu'elle a lancée).
     if (flow === 'create' && d.id === 'vibe') {
       if (!note?.filled) return 'noNoteYet';
       if (questions.length) return 'openQuestions';
-      if (done.forme && input.runs[0]?.id !== 'answers') return 'started';
+      if (input.busy || input.running.length || (done.forme && input.runs[0]?.id !== 'answers')) return 'started';
     }
     if (v.has('files') && !invariants.length) return 'nothingToRead';   // tout lu : on peut relire (args.file)
     // Relire : ce qui lit la PR attend qu'elle soit chargée (l'étape PR, elle, prend son numéro de la page).

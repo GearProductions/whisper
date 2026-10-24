@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { addComment, editComment, markState, removeComment, setMark, type Drafts, type Marks } from 'core/vibecoder';
+import {
+  addComment, blobSha, editComment, markState, parseNote, removeComment, setMark, vibeMarks, vibeView,
+  type Drafts, type JourneyInput, type Marks,
+} from 'core/vibecoder';
 
 describe('markState : une validation vaut pour le contenu validé', () => {
   const marks: Marks = { note: { hash: 'h1', verdict: 'ok' }, forme: { hash: 'h2', verdict: 'ko' } };
@@ -73,5 +76,55 @@ describe('editComment : changer le texte d\'une remarque', () => {
   it('un id inconnu : rien ne change', () => {
     const drafts: Drafts = { 12: [{ id: 1, target: 'x', text: 'a' }] };
     expect(editComment(drafts, 12, 9, 'b')).toEqual(drafts);
+  });
+});
+
+describe('vibeMarks : Vibe → Guide, le ✓ des étapes que Vibe a passées', () => {
+  const NOTE = ['# G2-1 — Un bouton', '', '## Ce que ça fait', 'Un bouton.', '', '## Ce que ça ne doit pas faire',
+    '- Lire un autre fichier. → invariant', '', '## Forme', '```', 'src/core/hello.ts    hello()', '```', ''].join('\n');
+  const NOTE_PATH = 'docs/tickets/feat/G2-1-bouton.md';
+  const TEST_PATH = 'src/core/tests/invariants/hello.test.ts';
+  const TEST = 'it("dit bonjour", () => {});\nit("ne lit rien", () => {});\n';
+  const BLOB = blobSha(TEST);
+  const input = (over: Partial<JourneyInput> = {}): JourneyInput => ({
+    agentId: 'a1', lang: 'fr', flow: 'create', pr: null, autonomy: 'vibe', agent: { model: 'opus', effort: 'high', mode: 'default' },
+    busy: false, running: [], runs: [], error: null, readings: [], outputs: {}, marks: {}, draft: [], actions: [],
+    who: {}, model: {}, skills: [], exists: () => false, now: 1700000000000,
+    note: { path: NOTE_PATH, text: NOTE, before: null }, tests: [{ path: TEST_PATH, blob: BLOB, text: TEST }],
+    repo: { branch: 'feat/G2-1-bouton', base: 'origin/main', changed: [NOTE_PATH, TEST_PATH],
+      commits: [{ hash: 'a'.repeat(40), subject: 'Note, forme, invariants', files: [NOTE_PATH, TEST_PATH] }] },
+    ...over,
+  });
+  const status = (marks: Marks) => Object.fromEntries(vibeView(input({ autonomy: 'guide', marks })).steps.map((s) => [s.id, s.status]));
+
+  it('les cibles et empreintes d\'un clic sur ✓ : note, forme, chaque cas', () => {
+    expect(vibeMarks({}, vibeView(input()))).toEqual({
+      note: { hash: blobSha(NOTE), verdict: 'ok' },
+      forme: { hash: blobSha(parseNote(NOTE).forme), verdict: 'ok' },
+      [`case:${TEST_PATH}:dit bonjour`]: { hash: BLOB, verdict: 'ok' },
+      [`case:${TEST_PATH}:ne lit rien`]: { hash: BLOB, verdict: 'ok' },
+    });
+  });
+
+  it('en Guide, ces étapes restent faites sans recliquer', () => {
+    expect(status({})).toMatchObject({ note: 'current' });
+    expect(status(vibeMarks({}, vibeView(input())))).toMatchObject({ note: 'done', forme: 'done', invariants: 'done' });
+  });
+
+  it('un ✗ déjà donné pour ce contenu reste ; une validation d\'un autre contenu est remplacée', () => {
+    const marks: Marks = { note: { hash: blobSha(NOTE), verdict: 'ko' }, forme: { hash: 'vieux', verdict: 'ko' } };
+    const next = vibeMarks(marks, vibeView(input({ marks })));
+    expect(next.note).toEqual({ hash: blobSha(NOTE), verdict: 'ko' });
+    expect(next.forme).toEqual({ hash: blobSha(parseNote(NOTE).forme), verdict: 'ok' });
+  });
+
+  it('une étape pas faite ne reçoit rien', () => {
+    // Les invariants écrits mais pas commités : l'étape Invariants n'est pas faite.
+    const v = vibeView(input({ repo: { branch: 'b', base: 'origin/main', changed: [NOTE_PATH, TEST_PATH], dirty: [NOTE_PATH, TEST_PATH], commits: [] } }));
+    expect(Object.keys(vibeMarks({}, v))).toEqual(['note', 'forme']);
+  });
+
+  it('Relire : rien', () => {
+    expect(vibeMarks({}, vibeView(input({ flow: 'review' })))).toEqual({});
   });
 });

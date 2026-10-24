@@ -11,11 +11,14 @@
  *  l'action (l'agent lance des commandes avec ces valeurs, I-38). Et les
  *  actions que l'appli fait aussi elle-même (DIRECT_ACTIONS, F-114). Si une
  *  action lit seulement (reads) ou modifie la branche : la règle des courses
- *  (runs, blockedBy).
+ *  (runs, blockedBy). Un argument qu'aucune variable du gabarit ne lit (hors text), ou un
+ *  modèle hors des choix de l'action, ne fait pas refuser l'action : il est
+ *  ignoré, et rendu (ignored) pour que l'appelant prévienne l'agent (F-115).
  *  Ne connaît pas : Electron, le disque, l'agent (le message est rendu, pas envoyé),
  *  le calcul du préfixe (core/runner, fait par l'appelant).
  *  Utilisé par : core/vibecoder (journey, runs, defaults), app/controllers/vibecoder, app/settings. */
 import type { VibeAction, VibeArgs, VibeLang, VibeModule, VibeStepId, VibeView } from 'shared/bridge';
+import { json } from './outputs';
 
 export type ActionDef = {
   id: string;
@@ -35,7 +38,7 @@ export type ActionDef = {
 // facultatif : absent, vide (les appelants qui n'envoient pas {{prefix}} n'ont pas à le donner).
 export type MessageContext = { view: VibeView; out: string; lang: VibeLang; prefix?: string };
 // La variable qui manque ou ne va pas ; 'variable' : une variable inconnue.
-export type MessageError = 'text' | 'module' | 'commit' | 'pr' | 'answers' | 'verdict' | 'draft' | 'files' | 'note' | 'repo' | 'variable' | 'model';
+export type MessageError = 'text' | 'module' | 'commit' | 'pr' | 'answers' | 'verdict' | 'draft' | 'files' | 'note' | 'repo' | 'variable' | 'check';
 
 const STEPS = ['note', 'forme', 'invariants', 'modules', 'revue', 'pr', 'commits', 'ecran'];
 const VERDICTS = ['approve', 'comment', 'request-changes'];
@@ -44,6 +47,12 @@ const FREE = ['text', 'answers', 'draft'];   // écrits par l'utilisateur : libr
 const TEXT_MAX = 20000;
 const ANSWERS_MAX = 50;
 const ANSWER_MAX = 2000;
+// La variable qui lit chaque argument ; model et direct n'en ont pas (le modèle se vérifie à part,
+// direct est lu par l'appelant) : jamais ignorés pour ça. text non plus : le texte du champ, qu'un
+// gabarit sans {{text}} laisse tomber sans le signaler (invariant actions.test.ts).
+const READ_BY: Partial<Record<keyof VibeArgs, string>> = {
+  module: 'module', commit: 'commit', file: 'files', check: 'check', pr: 'pr', answers: 'answers', verdict: 'verdict',
+};
 
 // Les actions que l'appli fait aussi elle-même, sans agent, au clic de leur bouton « direct » (F-114) ;
 // leur gabarit reste la voie « via » l'agent.
@@ -100,10 +109,11 @@ const NO_ANSWER: Record<VibeLang, string> = { fr: '(pas de réponse)', en: '(no 
 //                      au plus → 'answers' sinon, ou s'il manque
 //   {{verdict}}        approve, comment ou request-changes → sinon 'verdict'
 //   {{draft}}          view.draft, une ligne « - [cible] texte » par remarque → 'draft' s'il est vide
+//   {{check}}          args.check, le rang d'un élément du checks.json du relevé ; absent : '*' (toutes) → sinon 'check'
 //   {{quote}}          ('prefill') ce que la page cite, rempli par elle : jamais ici
 // args.model : un autre modèle que le conseillé, parmi ceux que le relevé
 // propose pour cette action (VibeAction.models) → /vibecoder:<nom>--<modèle>,
-// sa variante (skillVariants) ; sinon 'model'.
+// sa variante (skillVariants) ; sinon il est ignoré.
 // Le module que vise une action ({{module}}) : modules[args.module] ; sans rang, le premier pas touché.
 export const targetModule = (args: VibeArgs, modules: VibeModule[]): VibeModule | undefined =>
   args.module === undefined ? modules.find((x) => !x.touched) : Number.isInteger(args.module) ? modules[args.module] : undefined;
@@ -112,7 +122,10 @@ export const targetModule = (args: VibeArgs, modules: VibeModule[]): VibeModule 
 // Le gabarit est lu une fois : une valeur insérée n'est jamais relue comme un gabarit.
 // Hors {{text}}, {{answers}} et {{draft}}, une valeur qui contient un caractère de
 // contrôle (saut de ligne…) fait refuser l'action → 'variable'.
-export function buildMessage(def: ActionDef, args: VibeArgs, ctx: MessageContext): { text: string } | { error: MessageError } {
+// ignored : les arguments donnés qu'aucune variable du gabarit ne lit (READ_BY), et model hors des choix de
+// l'action ; absent s'il n'y en a pas.
+export function buildMessage(def: ActionDef, args: VibeArgs, ctx: MessageContext):
+  { text: string; ignored?: (keyof VibeArgs)[] } | { error: MessageError } {
   const { view } = ctx;
   const fail = (error: MessageError) => ({ error });
   const values: Record<string, () => string | { error: MessageError }> = {
@@ -157,16 +170,22 @@ export function buildMessage(def: ActionDef, args: VibeArgs, ctx: MessageContext
     },
     verdict: () => (VERDICTS.includes(args.verdict as string) ? args.verdict as string : fail('verdict')),
     draft: () => (view.draft.length ? draftText(view.draft) : fail('draft')),
+    check: () => {
+      if (args.check === undefined) return '*';
+      const items = json(view.outputs['checks.json']?.text)?.items;
+      return Number.isInteger(args.check) && Array.isArray(items) && args.check >= 0 && args.check < items.length
+        ? String(args.check) : fail('check');
+    },
   };
   let template = def.text;
+  const vars = templateVars(template);
+  const ignored = (Object.keys(READ_BY) as (keyof VibeArgs)[])
+    .filter((k) => Object.hasOwn(args, k) && args[k] !== undefined && !vars.includes(READ_BY[k]!));
   if (args.model !== undefined) {
     const shown = view.actions.find((a) => a.id === def.id);
-    if (!shown || !shown.models.includes(args.model as string)) return fail('model');
-    if (args.model !== shown.model) {
-      const skill = /^\/vibecoder:([\w-]+)/.exec(template);
-      if (!skill) return fail('model');
-      template = `/vibecoder:${skill[1]}--${args.model}${template.slice(skill[0].length)}`;
-    }
+    const skill = /^\/vibecoder:([\w-]+)/.exec(template);
+    if (!shown || !shown.models.includes(args.model as string) || (args.model !== shown.model && !skill)) ignored.push('model');
+    else if (skill && args.model !== shown.model) template = `/vibecoder:${skill[1]}--${args.model}${template.slice(skill[0].length)}`;
   }
   let error: MessageError | null = null;
   const text = template.replace(VAR, (_, name: string) => {
@@ -177,7 +196,7 @@ export function buildMessage(def: ActionDef, args: VibeArgs, ctx: MessageContext
     error ??= value.error;
     return '';
   });
-  return error ? { error } : { text };
+  return error ? { error } : ignored.length ? { text, ignored } : { text };
 }
 
 const EFFORT: Record<VibeLang, Record<string, string>> = {

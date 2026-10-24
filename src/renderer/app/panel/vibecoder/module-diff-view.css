@@ -1,0 +1,11 @@
+/* Le diff d'un fichier de module (module-diff-view) : le cadre et la
+   numérotation de .vc-src (vibecoder.css), les couleurs de diff-view.css.
+   En ligne, .cm-editor est borné et défile ; côte à côte, c'est .cm-mergeView
+   (ses deux éditeurs suivent sa hauteur). Sous .vc. */
+.vc-src.vc-mdiff .cm-mergeView { max-height: 420px; }
+.vc-src.vc-mdiff .cm-mergeView .cm-editor { max-height: none; }
+.vc-src.vc-mdiff .cm-mergeViewEditor + .cm-mergeViewEditor { border-left: 1px solid #262c3b; }
+.vc-mdiff .cm-merge-b .cm-changedLine { background: color-mix(in srgb, var(--vc-ok) 14%, transparent); }
+.vc-mdiff .cm-merge-a .cm-changedLine,
+.vc-mdiff .cm-deletedChunk { background: color-mix(in srgb, #d9383a 13%, transparent); }
+.vc-mdiff .cm-collapsedLines { background: rgba(255, 255, 255, 0.03); color: var(--vc-faint); font: 11.5px system-ui, sans-serif; }

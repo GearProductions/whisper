@@ -2,8 +2,9 @@
  *  lancent le projet de l'agent (son fichier du projet), chacune avec
  *  son nom, sa commande en petit dessous, ▶ Lancer, ⏹ Arrêter, ↻ Relancer, son état (un point), depuis quand, la fin
  *  de son journal (monospace, qui suit la fin tant qu'on n'est pas remonté,
- *  dépliable ; *Journal complet* dans l'éditeur). Sans fichier : *Proposer les
- *  commandes* (l'action propose-run, qui dit qui travaille) ; *Modifier les
+ *  dépliable ; *Journal complet* dans l'éditeur). *Proposer les commandes*,
+ *  fichier ou pas (l'action propose-run, qui dit qui travaille ; fichier
+ *  existant : seules les commandes nouvelles s'y ajoutent) ; *Modifier les
  *  commandes* ouvre le fichier dans l'éditeur. Une commande se désigne par son
  *  rang, jamais par un texte.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
@@ -49,7 +50,7 @@ export function ProcessesView({ view, t, act, busy }: Props) {
       {list.map((p, i) => <Proc key={p.name} p={p} s={s} t={t} onOp={(op) => act.process(op, i)} />)}
       {list.length ? null : <div className="vc-empty">{view.projectFile ? s.none : s.noFile}</div>}
       <div className="vc-procs-foot">
-        {view.projectFile ? null : <Run a={view.actions.find((a) => a.id === 'propose-run')} busy={busy} onRun={() => act.run('propose-run')} />}
+        <Run a={view.actions.find((a) => a.id === 'propose-run')} busy={busy} onRun={() => act.run('propose-run')} />
         <button type="button" className="vc-mini" title={s.editTitle} onClick={() => act.process('edit')}>{s.edit}</button>
       </div>
     </div>

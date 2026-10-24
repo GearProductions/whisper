@@ -14,6 +14,7 @@ const ACTIONS: ActionDef[] = [
   A('align', 'both', 'invariants', '/vibecoder:aligner {{lang}} {{out}} {{ref}}'),
   A('commit-prepare', 'create', 'modules', '/vibecoder:commit-preparer {{lang}} {{out}}'),
   A('commit', 'create', 'modules', '/vibecoder:commit {{lang}} {{out}}'),
+  A('commit-modules', 'create', 'modules', '/vibecoder:commiter-modules {{lang}} {{out}}'),
   A('module', 'create', 'modules', '/vibecoder:module {{lang}} {{out}} {{module}}'),
   A('next', 'create', 'modules', '/vibecoder:suivant {{lang}} {{out}} {{module}}'),
   { ...A('checks', 'create', 'revue', '/vibecoder:verifier {{lang}} {{out}}'), reads: true },
@@ -63,8 +64,11 @@ const FIRST = commit('a', 'Note, forme, invariants', [NOTE_PATH, TEST_PATH]);
 const HELLO = commit('b', 'core/hello', ['src/core/hello.ts']);
 const BUTTON = commit('c', 'app/button', ['src/app/button.tsx']);
 
-const repo = (changed: string[] = [], commits: ReturnType<typeof commit>[] = []) =>
-  ({ branch: 'feat/G2-1-bouton', base: 'origin/main', changed: [...new Set([...changed, ...commits.flatMap((c) => c.files)])], commits });
+// changed : les fichiers changés hors des commits, donc aussi dans dirty (git status), comme git.ts.
+const repo = (changed: string[] = [], commits: ReturnType<typeof commit>[] = []) => ({
+  branch: 'feat/G2-1-bouton', base: 'origin/main', changed: [...new Set([...changed, ...commits.flatMap((c) => c.files)])], commits,
+  dirty: changed.filter((f) => !commits.some((c) => c.files.includes(f))),
+});
 const out = (text = '') => ({ text, time: 1 });
 // La dernière course : des réponses envoyées (la course arrêtée sur une question qui bloque).
 const ANSWERED = [{ id: 'answers', label: 'answers', who: 'agent', state: 'done' as const, since: 2, end: 3, reply: '', permission: null }];
@@ -163,8 +167,8 @@ describe('Créer, Guide : les étapes et la prochaine action', () => {
     expect(primary(vibeView(input({ note, marks: NOTE_OK, tests: [test] })))).toBeNull();
   });
 
-  it('des tests pas encore lus (Vibe) : Lire en pseudo-code', () => {
-    expect(primary(vibeView(input({ note, marks: NOTE_OK, tests: [test], autonomy: 'vibe', repo: repo([NOTE_PATH, TEST_PATH]) })))).toBe('read-invariants');
+  it('des tests pas encore lus (Vibe) : pas de lecture, Préparer le commit', () => {
+    expect(primary(vibeView(input({ note, marks: NOTE_OK, tests: [test], autonomy: 'vibe', repo: repo([NOTE_PATH, TEST_PATH]) })))).toBe('commit-prepare');
   });
 
   it('lus mais pas tous validés (Guide) : aucune action, la validation attend', () => {
@@ -196,8 +200,22 @@ describe('Créer, Guide : les étapes et la prochaine action', () => {
     expect(primary(vibeView(ready({ repo: repo(['src/core/hello.ts'], [FIRST]) })))).toBe('next');
   });
 
-  it('le dernier module modifié, pas commité : Préparer le commit', () => {
-    expect(primary(vibeView(ready({ repo: repo(['src/app/button.tsx'], [FIRST, HELLO]) })))).toBe('commit-prepare');
+  it('le dernier module modifié, pas commité : Commiter les modules', () => {
+    expect(primary(vibeView(ready({ repo: repo(['src/app/button.tsx'], [FIRST, HELLO]) })))).toBe('commit-modules');
+  });
+
+  it('les deux modules modifiés, aucun commité : Commiter les modules', () => {
+    expect(primary(vibeView(ready({ repo: repo(['src/core/hello.ts', 'src/app/button.tsx'], [FIRST]) })))).toBe('commit-modules');
+  });
+
+  it('uncommitted : un module aux fichiers changés hors de tout commit ; commité (pas retouché) ou pas touché, non', () => {
+    const v = vibeView(ready({ repo: repo(['src/app/button.tsx'], [FIRST, HELLO]) }));
+    expect(v.modules.map((m) => m.uncommitted)).toEqual([false, true]);
+  });
+
+  it('uncommitted : un module commité puis retouché (dirty), oui', () => {
+    const v = vibeView(ready({ repo: { ...repo([], [FIRST, HELLO]), dirty: ['src/core/hello.ts'] } }));
+    expect(v.modules.map((m) => m.uncommitted)).toEqual([true, false]);
   });
 
   it('chaque module commité : la revue, d\'abord les vérifications', () => {
@@ -499,7 +517,7 @@ describe('le relevé : modules, tests, faits', () => {
     const v = vibeView(input({ note: { ...note, text }, repo: repo([], [commit('e', 'core/x', ['src/main/core/x/a.ts'])]),
       exists: (p) => p === 'src/main/core/x' }));
     expect(v.modules[0]).toEqual({ path: 'main/core/x/', contract: 'pur', file: { id: 'm0', path: 'src/main/core/x' }, touched: true, commits: ['e'.repeat(40)],
-      files: [], locked: null });
+      files: [], locked: null, uncommitted: false });
   });
 
   it('un module introuvable n\'a pas de fichier', () => {
@@ -671,8 +689,8 @@ describe('les actions qui courent à part (0.9.0)', () => {
 
   it('une modification en cours : elle-même, une autre modification et une lecture attendent ; la conversation non', () => {
     const v = vibeView(ready({ running: forme, runs: ANSWERED }));
-    expect([action(v, 'forme')?.disabled, action(v, 'module')?.disabled, action(v, 'ponytail')?.disabled, action(v, 'vibe')?.disabled])
-      .toEqual(['Cette action est déjà en cours', 'Une autre action est en cours', 'Une action modifie la branche', null]);
+    expect([action(v, 'forme')?.disabled, action(v, 'module')?.disabled, action(v, 'ponytail')?.disabled])
+      .toEqual(['Cette action est déjà en cours', 'Une autre action est en cours', 'Une action modifie la branche']);
   });
 
   it('une lecture en cours : une autre lecture part, une modification attend', () => {
@@ -750,7 +768,7 @@ describe('le parcours guidé (0.9.0) : étapes ouvertes, actions masquées', () 
 
   it('grisée par une course ou la conversation : affichée ; masquée tout de même si elle n\'a pas de sens', () => {
     const v = vibeView(ready({ running: [{ id: 'forme', reads: false }], busy: true, runs: ANSWERED }));
-    expect([action(v, 'module')?.hidden, action(v, 'vibe')?.hidden, action(v, 'commit')?.hidden]).toEqual([false, false, true]);
+    expect([action(v, 'module')?.hidden, action(v, 'commit')?.hidden]).toEqual([false, true]);
     expect(action(v, 'commit')?.disabled).toBe('Une autre action est en cours');
   });
 
@@ -780,6 +798,16 @@ describe('le parcours guidé (0.9.0) : étapes ouvertes, actions masquées', () 
   it('Valider et développer : la forme faite, revient quand des réponses ont vidé questions.md', () => {
     const v = vibeView(ready({ runs: ANSWERED, outputs: { 'questions.md': out() } }));
     expect([action(v, 'vibe')?.hidden, action(v, 'vibe')?.disabled]).toEqual([false, null]);
+  });
+
+  it('Valider et développer : masquée pendant un tour de la conversation ou une course qui retient', () => {
+    const vibe = (over: Partial<JourneyInput>) => action(vibeView(input({ note, ...over })), 'vibe')?.hidden;
+    expect([vibe({}), vibe({ busy: true }), vibe({ running: [{ id: 'forme', reads: false }] })]).toEqual([false, true, true]);
+  });
+
+  it('Valider et développer : la forme faite, des réponses, mais leur course qui travaille : masquée', () => {
+    expect(action(vibeView(ready({ runs: ANSWERED, outputs: { 'questions.md': out() }, running: [{ id: 'answers', reads: false }] })), 'vibe')?.hidden)
+      .toBe(true);
   });
 
   it('Valider et développer : la forme faite, des réponses suivies d\'une autre course : masquée', () => {
@@ -885,11 +913,10 @@ describe('Lecture périmée et grisé de la note et des tests (0.11.0-editer-inv
     expect(facts(v)).toBe('1 fichier · 2 cas · 0 lu');
   });
 
-  it('Vibe : une lecture périmée remet Lire en pseudo-code en tête', () => {
+  it('Vibe : lecture périmée ou pas, Lire en pseudo-code n\'est jamais en tête (0.11.0)', () => {
     const at = (readings: JourneyInput['readings']) =>
       primary(vibeView(input({ note, marks: NOTE_OK, tests: [test], autonomy: 'vibe', repo: repo([NOTE_PATH, TEST_PATH]), readings })));
-    expect(at([OLD])).toBe('read-invariants');
-    expect(at([OLD, ...READINGS])).not.toBe('read-invariants');
+    expect([at([]), at([OLD]), at([OLD, ...READINGS])]).toEqual(['commit-prepare', 'commit-prepare', 'commit-prepare']);
   });
 
   it('la lecture de son empreinte : à jour, lue', () => {

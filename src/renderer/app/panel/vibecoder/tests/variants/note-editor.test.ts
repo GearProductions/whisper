@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 // NoteEditor (note-editor.tsx) : Ctrl+S → onSave, sauf grisé ; le texte changé par les props
 // remplace le document sans revenir à onChange ; 💬 cite son bloc, et suit les blocs tapés.
+// Le défilement porté par .cm-scroller (la barre de l'appli sur lui), pas par le cadre.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EditorView } from '@codemirror/view';
@@ -71,4 +72,11 @@ it('sans onQuote, pas de 💬 ; pastilles et liseré sur leurs lignes', async ()
   expect(v.buttons()).toHaveLength(0);
   expect(v.page.querySelector('.cm-line.vc-changed')?.textContent).toBe('b');
   expect(v.page.querySelector('.vc-tag')?.textContent).toBe('inv');
+});
+
+it('le défilement est celui de l\'éditeur (.cm-scroller), pas de son cadre', async () => {
+  const v = mount();
+  await v.render({ text: 'a' });
+  expect(v.view().scrollDOM.classList.contains('scroll')).toBe(true);
+  expect(v.page.querySelector('.vc-note-editor')!.classList.contains('scroll')).toBe(false);
 });

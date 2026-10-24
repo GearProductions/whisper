@@ -2,16 +2,21 @@
  *  relevé : ✓, ✗ ; ce que le dépôt ne dit pas, une case à cocher à la main,
  *  validée pour le commit de tête : `a3:<rang>`) ; les vérifications de
  *  checks.json, une ligne chacune (✓, avertissements en orange, ✗ ; son détail
- *  repliable, déplié en cas d'échec) ; la ponytail review rendue, 💬 et
- *  Appliquer par remarque, Tout appliquer (l'action apply, avec ou sans la
- *  remarque). Les vérifications : Relancer ; sans sortie, leur action. La
- *  ponytail review, lancée avec les vérifications (F-115) : ni Relancer ni
- *  bouton, sans sortie l'invitation le dit.
- *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
-import { parseChecks } from 'core/vibecoder';
+ *  repliable, déplié en cas d'échec ; Relancer chacune seule, hors d'une
+ *  course checks) ; la ponytail review rendue, 💬 et Appliquer par remarque,
+ *  Tout appliquer (l'action apply, avec ou sans la remarque). Appliquer n'est
+ *  pas proposé pendant une course apply ; une remarque appliquée
+ *  (ponytail-applied.json) est marquée ✓ et grisée, toutes : le bandeau
+ *  « Appliquée » sur l'encart, sans Tout appliquer. Les vérifications :
+ *  Relancer ; sans sortie, leur action. La ponytail review, lancée avec les
+ *  vérifications (F-115) : ni Relancer ni bouton, sans sortie l'invitation le dit.
+ *  Ne connaît pas : le pont (rappels passés ; l'état des courses par StopRun).
+ *  Utilisé par : step-views. */
+import { useContext } from 'react';
+import { allApplied, appliedRemarks, BULLET, isLive, parseChecks, remarkMark } from 'core/vibecoder';
 import type { VibeLang } from 'technicals/bridge';
 import { MarkdownView } from './markdown-view';
-import { Invite, OutputCard, Run, StepHead } from './step-parts';
+import { Invite, OutputCard, Run, StepHead, StopRun } from './step-parts';
 import type { StepProps } from './step-views';
 import './review-view.css';
 
@@ -29,6 +34,9 @@ const fr = {
   applyAll: 'Tout appliquer',
   applyOne: 'Appliquer',
   applyOneTitle: 'L\'agent applique cette remarque seule (en fixup), s\'il la juge juste',
+  applied: 'Appliquée',
+  appliedTitle: 'Remarque appliquée par la dernière course Appliquer',
+  rerunOneTitle: 'Relancer cette vérification seule',
   okTitle: 'Vu dans le dépôt',
   koTitle: 'Pas encore, d\'après le dépôt',
   checksCount: (ok: number, n: number) => (ok === n ? `${n} / ${n} ok` : `${n - ok} en échec`),
@@ -55,6 +63,9 @@ const S: Record<VibeLang, typeof fr> = {
     applyAll: 'Apply all',
     applyOne: 'Apply',
     applyOneTitle: 'The agent applies this remark alone (as a fixup), if it judges it right',
+    applied: 'Applied',
+    appliedTitle: 'Remark applied by the last Apply run',
+    rerunOneTitle: 'Run this check again, alone',
     okTitle: 'Seen in the repository',
     koTitle: 'Not yet, according to the repository',
     checksCount: (ok, n) => (ok === n ? `${n} / ${n} pass` : `${n - ok} failing`),
@@ -72,6 +83,7 @@ const REVIEWED = 2;   // « Chaque diff a été relu » : son rang dans la liste
 
 export function ReviewView(p: StepProps) {
   const { view, t, act, busy } = p;
+  const runState = useContext(StopRun).state;
   const s = S[view.lang];
   const action = (id: string) => view.actions.find((a) => a.id === id);
   const quote = action('comment') ? (text: string) => act.prefill('comment', text) : undefined;
@@ -81,13 +93,27 @@ export function ReviewView(p: StepProps) {
   const warned = checks ? checks.filter((c) => c.level === 'warning').length : 0;
   const ponytail = view.outputs['ponytail.md'];
   const again = (id: string) => <Run a={action(id)} busy={busy} tone="ghost" label={t.rerun} onRun={() => act.run(id)} />;
+  // Relancer une vérification seule (args.check : son rang) ; pendant une course checks, rien (celle de la carte la montre).
+  const checksAct = action('checks');
+  const checksLive = isLive(runState('checks'));
+  const againOne = (i: number) => checksAct && !checksAct.hidden && !checksLive ? (
+    <button type="button" className="vc-mini vc-check-again" disabled={busy || !!checksAct.disabled}
+      title={checksAct.disabled || s.rerunOneTitle} onClick={(e) => { e.preventDefault(); act.run('checks', { check: i }); }}>{t.rerun}</button>
+  ) : null;
   // Appliquer : l'action apply, avec la remarque (args.text) ou sans (toutes) ; jamais le champ.
   const apply = action('apply');
-  const remarks = !!ponytail && /^\s*(?:[-*+]|\d+[.)])\s/m.test(ponytail.text);
-  const applyOne = apply && remarks ? (text: string) => (
-    <button type="button" className="vc-mini vc-apply-one" disabled={busy || !!apply.disabled}
-      title={apply.disabled || s.applyOneTitle} onClick={() => act.run('apply', { text })}>{s.applyOne}</button>
-  ) : undefined;
+  const remarks = !!ponytail && ponytail.text.split(/\r?\n/).some((l) => BULLET.test(l));
+  const applied = ponytail ? appliedRemarks(view.outputs['ponytail-applied.json'], ponytail.time) : new Set<string>();
+  const done = !!ponytail && allApplied(ponytail.text, applied);
+  const applyState = runState('apply');
+  const remarkEnd = remarks ? (text: string) => {
+    const mark = remarkMark(text, applied, applyState);
+    if (mark === 'applied') return <span className="vc-remark-applied" title={s.appliedTitle} aria-label={s.applied}>✓</span>;
+    return mark && apply ? (
+      <button type="button" className="vc-mini vc-apply-one" disabled={busy || !!apply.disabled}
+        title={apply.disabled || s.applyOneTitle} onClick={() => act.run('apply', { text })}>{s.applyOne}</button>
+    ) : null;
+  } : undefined;
   const noHead = !view.commits.length;
   return (
     <>
@@ -143,6 +169,7 @@ export function ReviewView(p: StepProps) {
                         <span className="vc-mark" aria-hidden="true" /><span className="vc-check-name">{c.name}</span>
                         {c.level === 'warning' ? <span className="vc-check-warn">{s.warningPill}</span> : null}
                         <span className="vc-check-line">{c.detail.split('\n')[0]}</span>
+                        {againOne(i)}
                       </summary>
                       <pre className="vc-check-detail">{c.detail}</pre>
                     </details>
@@ -150,6 +177,7 @@ export function ReviewView(p: StepProps) {
                     <div className="vc-check-row">
                       <span className="vc-mark" aria-hidden="true" /><span className="vc-check-name">{c.name}</span>
                       {c.level === 'warning' ? <span className="vc-check-warn">{s.warningPill}</span> : null}
+                      {againOne(i)}
                     </div>
                   )}
                 </li>
@@ -160,8 +188,9 @@ export function ReviewView(p: StepProps) {
       ) : <Invite title={s.noChecks} text={s.noChecksHint}><Run a={action('checks')} busy={busy} onRun={() => act.run('checks')} /></Invite>}
       {ponytail ? (
         <OutputCard title={t.outputs['ponytail.md']} file="ponytail.md" time={ponytail.time} t={t}
-          tools={remarks ? <Run a={apply} busy={busy} label={s.applyAll} onRun={() => act.run('apply', { text: '' })} /> : null}>
-          <MarkdownView md={ponytail.text} t={t} onOpenLink={act.openLink} onQuote={quote} itemEnd={applyOne} />
+          tools={done ? <span className="vc-applied-banner">✓ {s.applied}</span>
+            : remarks ? <Run a={apply} busy={busy} label={s.applyAll} onRun={() => act.run('apply', { text: '' })} /> : null}>
+          <MarkdownView md={ponytail.text} t={t} onOpenLink={act.openLink} onQuote={quote} itemEnd={remarkEnd} />
         </OutputCard>
       ) : <Invite title={s.noPonytail} text={`${t.ponytailWithChecks} ${s.noPonytailHint}`} />}
     </>

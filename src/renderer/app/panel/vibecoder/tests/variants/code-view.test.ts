@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 // CodeView (code-view.tsx) : Ctrl+S → onSave, sauf grisé ; le code changé par les props
-// remplace le document ; 💬 cite les lignes entières de la sélection.
+// remplace le document ; 💬 cite les lignes entières de la sélection ; .cm-scroller défile, pas .vc-src.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EditorView } from '@codemirror/view';
@@ -57,4 +57,11 @@ it('💬 cite les lignes entières de la sélection, numérotées depuis from', 
   await act(() => { v.view().dispatch({ selection: { anchor: 4, head: 7 } }); });
   await act(() => { button.click(); });
   expect(quoted).toEqual(['l2\nl3']);
+});
+
+it("le défilement est celui de l'éditeur : .cm-scroller porte la barre, .vc-src n'est qu'un cadre", async () => {
+  const v = mount();
+  await v.render({ code: 'a', path: 'src/a.ts' });
+  expect(v.page.querySelector('.cm-scroller')!.classList.contains('scroll')).toBe(true);
+  expect(v.page.querySelector('.vc-src')!.classList.contains('scroll')).toBe(false);
 });

@@ -229,7 +229,7 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 .vc-commits .vc-none { padding: 3px 8px; color: var(--vc-faint); white-space: normal; }
 .vc-jcommit-detail { padding: 6px 8px 10px 22px; }
 .vc-jcommit-links { display: flex; gap: 6px; margin-bottom: 6px; }
-.vc-jcommit-links .vc-mini { margin-left: 0; padding: 1px 8px; font-size: 11.5px; }
+.vc-jcommit-links .vc-mini { height: 22px; padding: 0 8px; font-size: 11.5px; }
 .vc-jfiles { list-style: none; margin: 0; padding: 0; color: var(--vc-muted); font-size: 11px; line-height: 1.6; }
 .vc-jfiles button, .vc-commit-files button {
   display: block;
@@ -330,13 +330,14 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 .vc-card-body { padding: 6px 16px 14px; }
 .vc-mini {
   flex: none;
-  margin-left: auto;
-  padding: 2px 10px;
+  height: 24px;
+  padding: 0 10px;
   border-radius: 6px;
   border: 1px solid var(--vc-edge);
   background: var(--vc-control);
   color: var(--vc-text);
-  font: 12px/1.4 system-ui, sans-serif;
+  font: 12px/1 system-ui, sans-serif;
+  white-space: nowrap;
   cursor: pointer;
 }
 .vc-mini:hover { border-color: var(--accent); }
@@ -581,24 +582,23 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 .vc-proc-log[data-open] { max-height: 420px; }
 .vc-proc-foot { display: flex; gap: 14px; padding: 4px 12px 8px; }
 .vc-procs-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
-.vc-procs-foot .vc-mini { margin-left: 0; }
 .vc-procs .vc-empty { margin-bottom: 12px; }
 
-/* CodeView (invariants-view, module-code, note-view) : l'éditeur CodeMirror, monospace, numéroté. */
+/* CodeView (invariants-view, module-code, note-view) : l'éditeur CodeMirror, monospace, numéroté.
+   Un simple cadre : la hauteur est bornée sur .cm-editor et c'est .cm-scroller
+   qui défile (la configuration canonique de CodeMirror). */
 .vc-src {
   margin: 0 0 12px;
-  max-height: 360px;
-  overflow: auto;
   border: 1px solid #1c2130;
   border-radius: 7px;
   background: var(--vc-code);
   color: #c9d1e3;
   font: 12px/1.6 var(--vc-mono);
 }
-.vc-src::-webkit-scrollbar-corner { background: transparent; }
-.vc-src .cm-editor { background: transparent; }
+.vc-src .cm-editor { max-height: 360px; background: transparent; }
 .vc-src .cm-editor.cm-focused { outline: 0; }
-.vc-src .cm-editor .cm-scroller { font: inherit; }
+.vc-src .cm-editor .cm-scroller { overflow: auto; font: inherit; }
+.vc-src .cm-scroller::-webkit-scrollbar-corner { background: transparent; }
 .vc-src .cm-editor .cm-content { padding: 8px 14px 8px 0; caret-color: var(--vc-text); }
 .vc-src .cm-editor .cm-line { padding-left: 12px; }
 .vc-src .cm-editor .cm-gutters { padding: 8px 0; border-right: 1px solid #262c3b; background: transparent; color: var(--vc-faint); }
@@ -614,10 +614,11 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 .vc-src[data-locked] { opacity: 0.6; }
 .vc-src[data-locked] .cm-content { cursor: not-allowed; }
 .vc-src-tools { display: flex; gap: 6px; align-items: center; margin: -6px 0 12px; }
-.vc-src-tools .vc-mini { margin-left: 0; }
 .vc-src-tools button:disabled { opacity: 0.4; cursor: default; }
 
-/* ModuleCode : Voir le code, sous la ligne d'un module touché. */
+/* ModuleCode : Voir le code, sous la ligne d'un module touché : l'arbre, le
+   sélecteur Fichier | Diff, le fichier (CodeView) ou son diff (DiffView), puis
+   la barre d'outils du module (.vc-mod-acts, modules-view.css). */
 .vc-mod-code { margin-top: 6px; }
 .vc-mod-code > summary { width: max-content; color: var(--vc-muted); font-size: 12px; cursor: pointer; }
 .vc-mod-code > summary:hover { color: var(--vc-text); }
@@ -625,6 +626,26 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 .vc-mod-tree-dir { color: var(--vc-faint); font-size: 11px; line-height: 1.6; }
 .vc-mod-tree .vc-jfiles { padding-left: 12px; }
 .vc-mod-tree button[aria-current] { background: var(--vc-control); color: var(--vc-text); }
-.vc-mod-code .vc-src { max-height: 420px; }
-.vc-mod-code-foot { display: flex; justify-content: flex-end; margin: -6px 0 12px; }
+.vc-mod-code .vc-src .cm-editor { max-height: 420px; }
+/* Le sélecteur et, sur un diff, En ligne · Côte à côte (module-code). */
+.vc-mod-bar { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
+.vc-mod-shown {
+  display: block;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--vc-edge);
+  border-radius: 6px;
+  outline: none;
+  background: var(--vc-control);
+  color: var(--vc-text);
+  font: 12px/1 system-ui, sans-serif;
+  color-scheme: dark;
+  cursor: pointer;
+}
+.vc-mod-shown:hover { border-color: var(--accent); }
+.vc-mod-shown:focus-visible { outline: 2px solid var(--vc-ring); outline-offset: 1px; }
+.vc-mod-shown option { background: var(--vc-editor); color: var(--vc-text); }
+/* Le pied d'un éditeur (DraftFoot : module-code, note-view) ; en bas d'une carte, sans marge. */
+.vc-mod-code-foot { display: flex; justify-content: flex-end; gap: 6px; margin: -6px 0 12px; }
+.vc-mod-code-foot:last-child { margin-bottom: 0; }
 .vc-mod-code-foot .vc-mini:disabled { opacity: 0.4; cursor: default; }

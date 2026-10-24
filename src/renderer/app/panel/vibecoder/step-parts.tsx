@@ -16,7 +16,7 @@
  *  Utilisé par : les vues d'étape, vibe-screen ; vibe-coder (bandeau d'une
  *  PR fermée, badge du worktree). */
 import { createContext, useContext, type ReactNode } from 'react';
-import { fieldOf, t as strings, webUrl, type Strings } from 'core/vibecoder';
+import { fieldOf, isLive, t as strings, webUrl, type Strings } from 'core/vibecoder';
 import type { VibeAction, VibeArgs, VibeLang, VibePr, VibeRun, VibeView } from 'technicals/bridge';
 import { ModelPick, Picks } from './model-pick';
 import type { StepProps } from './step-views';
@@ -114,7 +114,7 @@ export function Run({ a, busy, label, tone = 'plain', onRun }: RunProps) {
   const off = !!a.disabled || waits;
   const direct = send ? a.direct : undefined;
   const state = run.state(a.id);
-  const live = state === 'running' || state === 'asking' || state === 'stopped';   // sa course retient les autres
+  const live = isLive(state);   // sa course retient les autres
   const running = live && state ? (
     <span className="vc-run-on">
       {t.runState[state]}

@@ -2,12 +2,14 @@
  *  format : les vérifications (checks.json), la revue publiée
  *  (pr-<n>-review.json), un Markdown coupé en rubriques `##` (une par commit
  *  dans pr-<n>-commits.md), le titre d'une rubrique de commit et les
- *  rubriques rangées par commit du relevé ; une adresse
- *  n'est gardée qu'en http(s) (I-21). Illisible : null, l'écran le dit.
+ *  rubriques rangées par commit du relevé ; la clé « <fichier>:L<ligne> »
+ *  d'une remarque de la ponytail review et celles que la course apply a
+ *  appliquées (ponytail-applied.json) ; une adresse n'est gardée qu'en
+ *  http(s) (I-21). Illisible : null, l'écran le dit.
  *  Ne connaît pas : le DOM, React, les noms des fichiers.
  *  Utilisé par : app/panel/vibecoder (review-view, pr-picker, commits-view, draft-view, step-parts). */
 
-import type { VibeCommit } from 'technicals/bridge';
+import type { VibeCommit, VibeOutput } from 'technicals/bridge';
 
 export type Check = { name: string; ok: boolean; level: 'ok' | 'warning' | 'error'; detail: string };
 
@@ -97,4 +99,21 @@ export function commitReviews(md: string, commits: VibeCommit[]): { byHash: Map<
     else others.push(sec);
   }
   return { byHash, others };
+}
+
+// La clé d'une remarque de ponytail.md : « <fichier>:L<ligne> » en tête
+// (entre accents graves ou non ; d'une plage L12-38, la première ligne) ;
+// pas de clé : null.
+export function remarkKey(text: string): string | null {
+  const m = /^\s*`?([^\s`]+):L(\d+)\b/.exec(text);
+  return m ? `${m[1]}:L${m[2]}` : null;
+}
+
+// ponytail-applied.json : {"applied":["<fichier>:L<ligne>",…]} → les clés des
+// remarques appliquées ; absent, plus vieux que ponytail.md (une revue
+// d'avant) ou illisible : aucune.
+export function appliedRemarks(applied: VibeOutput | undefined, ponytailTime: number): Set<string> {
+  if (!applied || applied.time < ponytailTime) return new Set();
+  const list = (json(applied.text) as { applied?: unknown } | null | undefined)?.applied;
+  return new Set(Array.isArray(list) ? list.flatMap((x) => (typeof x === 'string' && remarkKey(x)) || []) : []);
 }

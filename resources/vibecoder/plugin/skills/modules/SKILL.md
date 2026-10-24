@@ -1,19 +1,19 @@
 ---
 name: modules
-description: "Hand the remaining modules of the forme to parallel Opus subagents on disjoint files with ponytail, review each diff, then commit module by module, pure → orchestration → UI → doc, without pushing."
+description: "Hand the remaining modules of the forme to parallel Opus subagents on disjoint files with ponytail, review each diff and run the tests, without committing: committing is the commiter-modules skill's job."
 argument-hint: "<lang> <out>"
 disable-model-invocation: true
 ---
 
-# Modules — the rest of the Forme, in parallel, reviewed, one commit each
+# Modules — the rest of the Forme, in parallel, reviewed, not committed
 
-`$ARGUMENTS` = `<lang> <out>`. `lang`: the user's language, not used here — code-related work: your answer in English. Commit messages and code follow the project's convention. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). The user hands you the remaining modules: generate, review and commit them without asking, as the developer of the guide would (`docs/dev_guide/*.html` §4.1, §5.1, §5.2, if present).
+`$ARGUMENTS` = `<lang> <out>`. `lang`: the user's language, not used here — code-related work: your answer in English. Code follows the project's convention. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). The user hands you the remaining modules: generate and review them without asking, as the developer of the guide would (`docs/dev_guide/*.html` §4.1, §5.1, if present). Commit nothing: *Commit the modules* (skill `commiter-modules`) does it, one commit per module.
 
 ## 1. What remains
 
 - Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists. Then `git log --format='%h %s' --name-only <base>..HEAD` and `git status --short`.
-- The note's « Forme » (under `docs/tickets/`, named like the branch, or the one the branch adds or changes): the modules no commit of the branch touches, in its order. None → say so and stop.
-- Uncommitted changes of a module → review and commit that module first (steps 3 and 4).
+- The note's « Forme » (under `docs/tickets/`, named like the branch, or the one the branch adds or changes): the modules no commit of the branch touches and with no uncommitted changes, in its order. None → say so and stop.
+- Uncommitted changes of a module → it is written: review it with the first wave (step 3), don't generate it again.
 
 ## 2. Generate, in waves
 
@@ -27,12 +27,8 @@ A module waits until the modules it uses are written: pure functions → orchest
 
 Before the next wave, for each module (`git diff -- <files>`, new files read in full): the four questions of §5.1 — out of the planned scope? a dependency added? I/O in a loop, an N+1, a blocking call? a read or write without the right scoping? — plus duplication with existing code, the file header true to the contract, its invariants green and untouched, its variants present, under ~400 lines. Fix small things yourself; otherwise a new subagent with the precise correction. Then the project's typecheck and tests, once per wave.
 
-## 4. Commit, one module per commit
-
-In the Forme's order (pure → orchestration → UI → doc): `git add -- <the module's files>`, then a commit whose message follows the project's convention — its `gear-commit-message` skill if present (read its `SKILL.md`, follow its format, skip the clipboard), else the guide §5.2: subject `<module> : <what>`, the contract in the body — plus the attribution trailer your instructions ask for. A change to an already-committed module → `git commit --fixup <sha> -- <files>`.
-
-Never: push; edit a protected test to make it pass; close, kill or restart the user's running app (you may be running inside it).
+Never: commit or push; edit a protected test to make it pass; close, kill or restart the user's running app (you may be running inside it).
 
 ## Answer
 
-In English: one line per commit (`<short hash> <subject>`), then what is left or what you had to decide.
+In English: one line per module generated (its files, its tests), then what is left or what you had to decide. Nothing is committed.

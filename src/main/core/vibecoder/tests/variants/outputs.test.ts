@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isOutputName, parseChecklist, parseQuestions, parseReading, worktreeCard } from 'core/vibecoder';
+import { isOutputName, parseChecklist, parseQuestions, parseReading, questionsRule, worktreeCard } from 'core/vibecoder';
 
 const READING_FR = `# src/main/core/x/tests/invariants/x.test.ts
 
@@ -127,5 +127,14 @@ describe('worktreeCard : la fiche du worktree d’une PR (F-110)', () => {
     for (const dir of ['p-worktrees/pr-12', '/p\n-x', 12, '']) expect(worktreeCard(JSON.stringify({ dir }))).toBeNull();
     expect(worktreeCard('{ pas du json')).toBeNull();
     expect(worktreeCard(null)).toBeNull();
+  });
+});
+
+describe('questionsRule : la ligne de la consigne', () => {
+  it('nomme questions.md dans le dossier de sorties, tel quel (espaces compris)', () => {
+    const line = questionsRule('/home/x/vibecoder-out/mon agent');
+    expect(line).toContain('/home/x/vibecoder-out/mon agent/questions.md');
+    expect(line).toContain('note');
+    expect(line.split('\n')).toHaveLength(1);
   });
 });

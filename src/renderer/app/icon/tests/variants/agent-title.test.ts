@@ -18,6 +18,7 @@ describe('agentTitle', () => {
     expect(agentTitle(robot({ signal: 'asking', status: 'asking' }))).toBe('alpha — une action attend une autorisation');
     expect(agentTitle(robot({ signal: 'failed', status: 'error' }))).toBe('alpha — une action a échoué');
     expect(agentTitle(robot({ signal: 'done', unread: true }))).toBe('alpha — une action est finie');
+    expect(agentTitle(robot({ signal: 'working', status: 'working' }))).toBe('alpha — une action travaille');
   });
   it('la conversation d\'abord', () => {
     expect(agentTitle(robot({ signal: 'asking', status: 'working' }))).toBe('alpha — au travail…');

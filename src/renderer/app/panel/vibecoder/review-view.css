@@ -1,5 +1,6 @@
 /* L'étape Revue de Créer (review-view) : la liste du § A.3, les
-   vérifications et leur détail repliable. Sous .vc, couleurs de vibecoder.css
+   vérifications, leur détail repliable et leur Relancer ; la ponytail review
+   (Appliquer, remarque appliquée, bandeau « Appliquée »). Sous .vc, couleurs de vibecoder.css
    (rouge : celui de Whisper). */
 
 /* Une marque d'état : ✓ (ok), ✗ (ko), anneau pointillé (à vérifier à la main). */
@@ -72,9 +73,9 @@
 }
 
 /* ---- Vérifications ----------------------------------------------------------- */
-.vc-check-list { margin: -12px -14px; }
+.vc-check-list { margin: -6px -16px -14px; }
 .vc-check-list li + li { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04); }
-.vc-check-list summary, .vc-check-row { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px 14px; font-size: 13px; }
+.vc-check-list summary, .vc-check-row { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px 16px; font-size: 13px; }
 .vc-check-list summary { list-style: none; cursor: pointer; transition: background-color 0.12s; }
 .vc-check-list summary::-webkit-details-marker { display: none; }
 .vc-check-list summary:hover { background: rgba(255, 255, 255, 0.03); }
@@ -94,7 +95,7 @@
 .vc-check-line { min-width: 0; overflow: hidden; color: var(--vc-muted); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
 .vc-check-list details[open] .vc-check-line { visibility: hidden; }
 .vc-check-detail {
-  margin: 0 14px 10px 40px;
+  margin: 0 16px 10px 42px;
   padding: 8px 10px;
   border-radius: 6px;
   background: var(--vc-code);
@@ -115,8 +116,25 @@
 [data-state="warn"] .vc-check-detail { box-shadow: inset 2px 0 0 var(--vc-warn); }
 .vc-count[data-warn] { background: color-mix(in srgb, var(--vc-warn) 18%, transparent); color: var(--vc-warn); }
 /* Appliquer une remarque de la ponytail review : discret, net au survol. */
-.vc-md li > .vc-apply-one { margin-left: 8px; padding: 0 8px; font-size: 11px; vertical-align: 1px; opacity: 0.6; }
+.vc-md li > .vc-apply-one { height: 20px; margin-left: 8px; padding: 0 8px; font-size: 11px; vertical-align: 1px; opacity: 0.6; }
 .vc-md li:hover:not(:has(li:hover)) > .vc-apply-one, .vc-apply-one:focus-visible { opacity: 1; }
 .vc-apply-one:disabled { cursor: default; opacity: 0.35; }
 .vc-checks-note { margin-bottom: 8px; color: var(--vc-muted); font-size: 12.5px; }
 .vc-checks-note:last-child { margin-bottom: 0; }
+/* Relancer une vérification seule : en bout de ligne, avant le chevron ; discret, net au survol. */
+.vc-check-again { height: 22px; margin-left: auto; padding: 0 8px; font-size: 11px; opacity: 0.6; }
+.vc-check-list li:hover .vc-check-again, .vc-check-again:focus-visible { opacity: 1; }
+.vc-check-again:disabled { cursor: default; opacity: 0.35; }
+.vc-check-list summary:has(.vc-check-again)::after { margin-left: 0; }
+/* Une remarque appliquée : ✓ vert, son texte grisé ; toutes, le bandeau « Appliquée » de l'encart. */
+.vc-md li:has(> .vc-remark-applied) { opacity: 0.55; }
+.vc-remark-applied { margin-left: 8px; color: var(--vc-ok); font-weight: 700; }
+.vc-applied-banner {
+  flex: none;
+  padding: 0 8px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--vc-ok) 15%, transparent);
+  color: var(--vc-ok);
+  font: 600 11px/18px system-ui, sans-serif;
+  white-space: nowrap;
+}

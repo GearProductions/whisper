@@ -93,6 +93,16 @@
     "text": "/vibecoder:module {{lang}} {{out}} {{module}}"
   },
   {
+    "id": "commit-module",
+    "flow": "create",
+    "step": "modules",
+    "kind": "send",
+    "needs": "none",
+    "label": "Commit this module",
+    "hint": "Commits the chosen module's changes: one commit following the project's convention, or a fixup if it is already committed.",
+    "text": "/vibecoder:commiter-modules {{lang}} {{out}} {{module}}"
+  },
+  {
     "id": "next",
     "flow": "create",
     "step": "modules",
@@ -109,8 +119,18 @@
     "kind": "send",
     "needs": "none",
     "label": "Generate the remaining modules",
-    "hint": "The agent hands the remaining modules to Opus agents in parallel, reviews each diff and commits module by module; long and costly.",
+    "hint": "The agent hands the remaining modules to Opus agents in parallel and reviews each diff; does not commit; long and costly.",
     "text": "/vibecoder:modules {{lang}} {{out}}"
+  },
+  {
+    "id": "commit-modules",
+    "flow": "create",
+    "step": "modules",
+    "kind": "send",
+    "needs": "none",
+    "label": "Commit the modules",
+    "hint": "Commits each module with uncommitted changes, one commit per module in the shape's order (a fixup for a module already committed).",
+    "text": "/vibecoder:commiter-modules {{lang}} {{out}}"
   },
   {
     "id": "review-diff",
@@ -131,8 +151,8 @@
     "needs": "none",
     "reads": true,
     "label": "Run the checks and the ponytail review",
-    "hint": "Runs the project's checks (typecheck, tests, invariants, lint) and shows the result, and the ponytail review at the same time.",
-    "text": "/vibecoder:verifier {{lang}} {{out}} {{prefix}}"
+    "hint": "Runs the project's checks (typecheck, tests, invariants, lint) and shows the result, and the ponytail review at the same time; Run again on one check runs only that one, without the ponytail review.",
+    "text": "/vibecoder:verifier {{lang}} {{out}} {{check}} {{prefix}}"
   },
   {
     "id": "ponytail",
@@ -153,7 +173,7 @@
     "needs": "none",
     "label": "Apply the review",
     "hint": "The agent applies the review remarks it judges right (all of them, or the one of Apply), each as a fixup of the commit concerned, and says which ones it discards.",
-    "text": "Apply the remarks of {{out}}/ponytail.md that you judge right, each as a fixup of the commit that owns the code (/gear-fix-up if it exists), adding nothing else; say which ones you discard and why. Only this one (empty: all of them): {{text}}"
+    "text": "Apply the remarks of {{out}}/ponytail.md that you judge right, each as a fixup of the commit that owns the code (/gear-fix-up if it exists), adding nothing else; say which ones you discard and why. Then write {{out}}/ponytail-applied.json: {\"applied\":[\"<file>:L<line>\", …]}, the address heading each applied remark, plus those it already holds if it is newer than ponytail.md. Only this one (empty: all of them): {{text}}"
   },
   {
     "id": "fixups",
@@ -360,7 +380,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Propose the commands",
-    "hint": "The agent looks for how to start the project (README, package.json, process-compose, Makefile, AGENTS.md, .bashrc aliases…) and proposes its commands; the app adopts them when there is no project file yet. The field can guide it.",
+    "hint": "The agent looks for how to start the project (README, package.json, process-compose, Makefile, AGENTS.md, .bashrc aliases…) and proposes its commands; with no project file, the app adopts them; otherwise it adds those whose name is not in it yet, leaving the others untouched. The field can guide it.",
     "text": "/vibecoder:lancement {{lang}} {{out}} {{text}}"
   }
 ]
