@@ -6,7 +6,7 @@ disable-model-invocation: true
 context: fork
 model: sonnet
 effort: medium
-allowed-tools: "Read, Glob, Grep, Write, Bash(git status *), Bash(git diff *), Bash(git log *), Bash(git rev-parse *), Bash(git symbolic-ref *), Bash(git add *), Bash(git commit *)"
+allowed-tools: "Read, Glob, Grep, Write, Bash(git status *), Bash(git diff *), Bash(git log *), Bash(git rev-parse *), Bash(git symbolic-ref *), Bash(git add *), Bash(git commit *), Bash(gh pr view *)"
 ---
 
 # Commit the modules — one commit per module (guide §5.2, §5.3)
