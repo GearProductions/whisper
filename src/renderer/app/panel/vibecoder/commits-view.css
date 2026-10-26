@@ -8,7 +8,7 @@
 .vc-commit-subject { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .vc-commit-review .vc-count { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--vc-text); }
 .vc-commit-review .vc-card-end { flex: none; }
-.vc-commit-review .vc-card-end .vc-mini { margin-left: 0; padding: 1px 8px; font-size: 11.5px; }
+.vc-commit-review .vc-card-end .vc-mini { height: 22px; padding: 0 8px; font-size: 11.5px; }
 .vc-commit-files summary { color: var(--vc-muted); font-size: 12px; cursor: pointer; }
 .vc-commit-files ul { list-style: none; margin: 4px 0 0; padding: 0 0 0 14px; color: var(--vc-soft); font-size: 11.5px; line-height: 1.7; }
 .vc-commit-ai { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.05); }

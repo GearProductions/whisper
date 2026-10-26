@@ -39,7 +39,7 @@ export function foldDiff(diff: DiffLine[], context = 3): Fold[] {
 // La rubrique comme le principal la reconnaît (main/core/vibecoder/note.ts) : un titre ##, casse,
 // accents et apostrophes ignorés ; ses lignes, les puces jusqu'au ## suivant (hors blocs de code).
 const MUST_NOT = /^(ce que ca ne doit|what it (must|should)(n't| not| never))/;
-const BULLET = /^\s*(?:[-*+]|\d+[.)])\s+/;
+export const BULLET = /^\s*(?:[-*+]|\d+[.)])\s+/;   // une ligne de liste (review-flow, review-view)
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/[’`]/g, '\'');
 const oneLine = (s: string) => s.replace(/\s+/g, ' ').trim();
 

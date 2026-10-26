@@ -51,7 +51,7 @@ header {
   font-size: 12px;
   color: #b8bdc8;
 }
-#archived span { flex: 1; }
+#archived span { flex: 1; min-width: 0; }
 #current { flex: none; padding: 4px 10px; border-radius: 6px; border: 1px solid #3a4150; background: #2a3142; color: #e6e8ee; font: 12px/1.4 system-ui, sans-serif; cursor: pointer; }
 #current:hover { border-color: var(--accent); }
 #archived[hidden], #history[hidden] { display: none; }
@@ -65,11 +65,12 @@ header {
 #tasks .hint { color: #8a91a0; }
 .task { margin: 0 0 12px; padding: 0 0 10px; border-bottom: 1px solid #2a3142; overflow-wrap: anywhere; }
 .task-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-weight: 600; }
-.task .mark { color: #8a91a0; }
+.task .mark { flex: none; color: #8a91a0; }
 .task[data-status="running"] .mark { color: var(--accent); animation: pulse 0.8s ease-in-out infinite alternate; }
 .task[data-status="completed"] .mark { color: #3fb950; }
 .task[data-status="failed"] .mark { color: #d9383a; }
-.task .elapsed { margin-left: auto; font-weight: 400; color: #6b7282; font-variant-numeric: tabular-nums; }
+.task .kind { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task .elapsed { flex: none; margin-left: auto; font-weight: 400; color: #6b7282; font-variant-numeric: tabular-nums; }
 .task code { display: block; margin: 4px 0; color: #b8bdc8; font: 11.5px/1.4 ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace; }
 .task-line { margin: 4px 0; color: #b8bdc8; }
 .task a { color: #7fb0ff; text-decoration: underline; cursor: pointer; }

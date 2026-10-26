@@ -7,7 +7,8 @@
  *  action déjà en cours), les courses à l'écran (runViews), le texte de
  *  <sorties>/actions.json pour l'orchestrateur (runsFile), son avis de fin
  *  (endNotice), la lecture d'une demande de l'orchestrateur
- *  (<sorties>/actions/<id>.start | .stop : parseRequest), et où en est une
+ *  (<sorties>/actions/<id>.start | .stop : parseRequest), l'avis d'une demande
+ *  refusée ou partie avec des arguments ignorés (requestNotice), et où en est une
  *  course d'après son entrée du runtime (runPhase : en cours tant qu'elle
  *  travaille ou que des tâches de fond tournent ; pas de limite de temps ;
  *  grace quand ses tâches de fond viennent de tomber à 0 hors tour, le délai
@@ -16,8 +17,8 @@
  *  grisé (codeLock : un tour de la conversation, une course qui génère ce module ;
  *  sans module — la note, un test — n'importe quelle course qui retient).
  *  Ne connaît pas : Electron, le disque, le runtime des agents (tout est passé).
- *  Utilisé par : core/vibecoder (journey), app/controllers (runs, vibecoder,
- *  module-code). */
+ *  Utilisé par : core/vibecoder (journey), app/controllers (runs : parseRequest,
+ *  endNotice, requestNotice ; vibecoder, module-code). */
 import type { VibeArgs, VibeLang, VibeModule, VibeRun } from 'shared/bridge';
 import { targetModule, type ActionDef } from './actions';
 
@@ -49,6 +50,9 @@ const TEXT = {
     quote: (s: string) => `« ${s} »`,
     talking: 'La conversation travaille', generating: 'Ce module est en cours de génération',
     running: 'Une action de l’agent est en cours',
+    request: 'demande', refused: 'refusée', ignored: 'partie, arguments ignorés :',
+    unreadable: 'nom ou JSON illisible', unknown: 'action inconnue', hidden: 'action pas proposée à l’écran',
+    direct: 'action qui ne court pas à part',
   },
   en: {
     same: 'This action is already running', busy: 'Another action is running', changing: 'An action is changing the branch',
@@ -56,6 +60,9 @@ const TEXT = {
     quote: (s: string) => `“${s}”`,
     talking: 'The conversation is working', generating: 'This module is being generated',
     running: 'An action of the agent is running',
+    request: 'request', refused: 'refused', ignored: 'started, ignored arguments:',
+    unreadable: 'unreadable name or JSON', unknown: 'unknown action', hidden: 'action not offered on screen',
+    direct: 'action that does not run on its own',
   },
 };
 
@@ -143,7 +150,7 @@ const isInt = (v: unknown) => Number.isInteger(v);
 const isStr = (v: unknown) => typeof v === 'string';
 // Les arguments qu'une demande peut porter, chacun avec son type ; jamais direct (F-114 : un clic seulement).
 const KEEP: Record<string, (v: unknown) => boolean> = {
-  text: isStr, module: isInt, commit: isStr, file: isStr, pr: isInt, model: isStr,
+  text: isStr, module: isInt, commit: isStr, file: isStr, pr: isInt, model: isStr, check: isInt,
   answers: (v) => Array.isArray(v) && v.every(isStr),
 };
 
@@ -160,4 +167,15 @@ export function parseRequest(name: string, text: string): { id: string; op: 'sta
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const args = Object.fromEntries(Object.entries(raw).filter(([k, v]) => Object.hasOwn(KEEP, k) && KEEP[k](v)));
   return { id: m[1], op, args };
+}
+
+// Pourquoi une demande est refusée, par clé ; une autre raison (invalide : l'erreur de startAction) est rendue telle quelle.
+const REFUSALS = ['unreadable', 'unknown', 'hidden', 'direct', 'same'] as const;
+
+// L'avis d'une ligne à l'orchestrateur pour une demande refusée (sa raison) ou partie avec des arguments ignorés.
+export function requestNotice(id: string, what: { refused: string } | { ignored: string[] }, lang: VibeLang): string {
+  const T = TEXT[lang];
+  const why = (r: string) => ((REFUSALS as readonly string[]).includes(r) ? T[r as (typeof REFUSALS)[number]] : r);
+  const how = 'refused' in what ? `${T.refused} — ${why(what.refused)}` : `${T.ignored} ${what.ignored.join(', ')}`;
+  return `${T.notice} ${T.request} ${id} ${how}`;
 }

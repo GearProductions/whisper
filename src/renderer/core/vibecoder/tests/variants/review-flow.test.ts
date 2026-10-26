@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { prNumber, remark } from 'core/vibecoder';
+import { allApplied, prNumber, remark, remarkMark } from 'core/vibecoder';
 
 describe('prNumber', () => {
   it('un numéro, avec ou sans #, espaces du bord ignorés', () => {
@@ -41,5 +41,40 @@ describe('remark', () => {
     expect(r.target.endsWith('…')).toBe(true);
     expect(r.text.length).toBe(5000);
     expect(remark('c'.repeat(300), 't'.repeat(5000))).toEqual({ target: 'c'.repeat(300), text: 't'.repeat(5000) });
+  });
+});
+
+describe('remarkMark', () => {
+  const applied = new Set(['src/a.ts:L12']);
+
+  it('une remarque appliquée : appliquée, course apply en cours ou pas', () => {
+    expect(remarkMark('src/a.ts:L12 — yagni: x — y', applied, null)).toBe('applied');
+    expect(remarkMark('src/a.ts:L12-30 — delete: x', applied, 'running')).toBe('applied');
+  });
+
+  it('pas appliquée, pas de course apply en cours : Appliquer', () => {
+    for (const state of [null, 'done', 'failed', 'kept', 'undone'] as const) expect(remarkMark('src/b.ts:L3 — dead: x', applied, state)).toBe('apply');
+    expect(remarkMark('une remarque sans clé', applied, null)).toBe('apply');
+  });
+
+  it('pendant une course apply (en cours, en attente, arrêtée non tranchée) : rien', () => {
+    for (const state of ['running', 'asking', 'stopped'] as const) expect(remarkMark('src/b.ts:L3 — dead: x', applied, state)).toBeNull();
+  });
+});
+
+describe('allApplied', () => {
+  const md = '- `src/a.ts:L12` — yagni: x\n- src/b.ts:L3 — dead: y\n\nnet: -4 lines possible.';
+
+  it('toutes les lignes de liste appliquées : vrai', () => {
+    expect(allApplied(md, new Set(['src/a.ts:L12', 'src/b.ts:L3']))).toBe(true);
+  });
+
+  it('une remarque pas appliquée, ou sans clé : faux', () => {
+    expect(allApplied(md, new Set(['src/a.ts:L12']))).toBe(false);
+    expect(allApplied('- src/a.ts:L12 — x\n- pas de clé', new Set(['src/a.ts:L12']))).toBe(false);
+  });
+
+  it('aucune remarque (Lean already. Ship.) : faux', () => {
+    expect(allApplied('Lean already. Ship.', new Set(['src/a.ts:L12']))).toBe(false);
   });
 });

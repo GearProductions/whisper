@@ -1,7 +1,7 @@
 // Variants des commandes du projet (note 0.8.0, « Lancer le projet ») : le
-// fichier lu, la proposition adoptée, la box de l'agent, la fin d'un journal.
+// fichier lu, la proposition adoptée ou fusionnée (0.11.0), la box de l'agent, la fin d'un journal.
 import { describe, expect, it } from 'vitest';
-import { agentSidePrefix, boxPrefix, commandAt, commandPrefix, DEFAULT_SHELL, logTail, parseProject, projectSlug, projectText } from 'core/runner';
+import { agentSidePrefix, boxPrefix, commandAt, commandPrefix, DEFAULT_SHELL, logTail, mergeProject, parseProject, projectSlug, projectText } from 'core/runner';
 
 describe('le fichier du projet', () => {
   it('ses commandes valides, dans l’ordre ; le shell par défaut : bash -ic', () => {
@@ -33,6 +33,33 @@ describe('le fichier du projet', () => {
       .toBe('{\n  "commands": [\n    {\n      "name": "dev",\n      "run": "npm run dev"\n    }\n  ]\n}\n');
     expect(projectText('{"commands":[]}')).toBeNull();
     expect(projectText('du texte')).toBeNull();
+  });
+});
+
+describe('le nom d’une commande (0.11.0)', () => {
+  it('des espaces au milieu, pas aux bords ; jamais / ni ..', () => {
+    const names = (n: string[]) => parseProject(JSON.stringify({ commands: n.map((name) => ({ name, run: 'x' })) }))?.commands.map((c) => c.name);
+    expect(names(['install deps', 'a b.c-d_e', ' x', 'y ', 'a/b', '..', 'a\tb'])).toEqual(['install deps', 'a b.c-d_e']);
+  });
+});
+
+describe('une proposition, le fichier existant (0.11.0)', () => {
+  const current = '{"commands":[{"name":"dev","run":"mon dev","cwd":"web"},{"name":"x","bad":1}],"prefix":"","mien":true}';
+
+  it('seules les commandes de nom nouveau, à la fin ; le reste du fichier tel quel', () => {
+    const merged = mergeProject(current, JSON.stringify({ commands: [
+      { name: 'dev', run: 'npm run dev' }, { name: 'x', run: 'ok' }, { name: 'test', run: 'npm test' }, { name: '../y', run: 'z' },
+    ], shell: ['zsh', '-c'], prefix: 'sudo' }));
+    expect(JSON.parse(merged!)).toEqual({ commands: [
+      { name: 'dev', run: 'mon dev', cwd: 'web' }, { name: 'x', bad: 1 }, { name: 'test', run: 'npm test' },
+    ], prefix: '', mien: true });
+  });
+
+  it('rien de nouveau, ou un fichier illisible : null', () => {
+    expect(mergeProject(current, '{"commands":[{"name":"dev","run":"autre"}]}')).toBeNull();
+    expect(mergeProject(current, 'pas du json')).toBeNull();
+    expect(mergeProject('{ cassé', '{"commands":[{"name":"t","run":"t"}]}')).toBeNull();
+    expect(mergeProject('{"commands":{}}', '{"commands":[{"name":"t","run":"t"}]}')).toBeNull();
   });
 });
 

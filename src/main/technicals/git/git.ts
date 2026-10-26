@@ -8,10 +8,12 @@
  *  branche : son nom, sa base (origin/HEAD, sinon main ou master), HEAD, les
  *  fichiers changés, ses commits et leurs fichiers — sans un chemin que git
  *  cite ou qui contient un caractère de contrôle. Un fichier à un ref (show) ;
- *  un commit et son diff (commit).
+ *  un commit et son diff (commit) ; le commit où la branche part d'une base
+ *  (forkPoint, par log --boundary : GIT_READ n'a rien gagné, I-39).
  *  Ne connaît pas : VibeCoder, Electron.
  *  Utilisé par : app/controllers/vibecoder (gitRun, gitReader, okRef),
- *  app/controllers/worktrees (gitRun : rev-parse, worktree list). */
+ *  app/controllers/worktrees (gitRun : rev-parse, worktree list),
+ *  app/controllers/module-code (gitReader : show, forkPoint). */
 import { execFile } from 'node:child_process';
 
 // Les seules sous-commandes lancées : toutes en lecture.
@@ -25,6 +27,7 @@ export type GitFacts = {
   base: string;                // '' : ni origin/HEAD, ni main, ni master
   head: string;
   changed: string[];
+  dirty: string[];             // changés hors de tout commit (status) ; [] pour une PR chargée
   commits: { hash: string; subject: string; files: string[] }[];   // de la base au ref, le plus ancien d'abord
 };
 
@@ -60,11 +63,13 @@ const plainPath = (path: string) => path !== '' && !path.startsWith('"') && !/[\
 // défaut) ou une PR chargée, comparée à `base` (par défaut origin/HEAD, sinon
 // main ou master), ses chemins cités ou à caractère de contrôle écartés ;
 // show : le contenu d'un fichier à ce ref ; commit : un commit, ses fichiers
-// (--stat) et son diff.
+// (--stat) et son diff ; forkPoint : le commit commun à HEAD et à `base` — la
+// première limite de base..HEAD, sinon HEAD s'il n'a rien en propre.
 export function gitReader(run: Run): {
   facts(ref?: string, base?: string): Promise<GitFacts | null>;
   show(ref: string, path: string): Promise<string | null>;
   commit(ref: string): Promise<string | null>;
+  forkPoint(base: string): Promise<string | null>;
 } {
   const exists = async (ref: string) => (await run(['rev-parse', '--verify', '--quiet', '--end-of-options', ref])) !== null;
   const defaultBase = async () => (await run(['rev-parse', '--abbrev-ref', 'origin/HEAD']))?.trim()
@@ -83,11 +88,12 @@ export function gitReader(run: Run): {
         ref ? null : run(['status', '--porcelain', '-z', '--untracked-files=all']),
       ]);
       const changed = new Set((diff ?? '').split('\0').filter(plainPath));
+      const dirty: string[] = [];
       // status -z : « XY chemin », suivi du chemin d'origine pour un renommage ou une copie (sauté).
       const entries = (status ?? '').split('\0');
       for (let i = 0; i < entries.length; i++) {
         if (entries[i].length < 4) continue;
-        if (plainPath(entries[i].slice(3))) changed.add(entries[i].slice(3));
+        if (plainPath(entries[i].slice(3))) { changed.add(entries[i].slice(3)); dirty.push(entries[i].slice(3)); }
         if (/[RC]/.test(entries[i].slice(0, 2))) i++;
       }
       // log -z : « \x01<hash>\t<sujet> » par commit, puis ses fichiers (le premier précédé d'un saut de ligne).
@@ -98,9 +104,17 @@ export function gitReader(run: Run): {
         if (t.startsWith('\x01')) commits.push({ hash: t.slice(1, tab), subject: t.slice(tab + 1), files: [] });
         else if (plainPath(t)) commits[commits.length - 1]?.files.push(t);
       }
-      return { branch, base: from, head, changed: [...changed], commits };
+      return { branch, base: from, head, changed: [...changed], dirty, commits };
     },
     show: async (ref, path) => (okRef(ref) && okPath(path) ? run(['show', ...NO_PROGRAM, '--end-of-options', `${ref}:${path}`]) : null),
     commit: async (ref) => (okRef(ref) ? run(['show', ...NO_PROGRAM, '--stat', '--patch', '-M', '--end-of-options', ref]) : null),
+    async forkPoint(base) {
+      if (!okRef(base)) return null;
+      const out = await run(['log', '--boundary', '--format=%m%H', ...NO_PROGRAM, '--end-of-options', `${base}..HEAD`, '--']);
+      if (out === null) return null;
+      const lines = out.split('\n').filter(Boolean);
+      if (!lines.length) return 'HEAD';
+      return lines.find((l) => l.startsWith('-'))?.slice(1) ?? null;
+    },
   };
 }

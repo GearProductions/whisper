@@ -67,10 +67,10 @@ des processus.
 | `core/conversation` | actions et demandes d'autorisation écrites, pièces jointes, tâches de fond vues par le volet |
 | `core/guards` | permissions des pages, liens, fichiers montrés |
 | `core/repo` | page GitHub d'un dossier, d'après son remote `origin` |
-| `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier ou un commit désigné par son id (`safePath`, `itemPath`, `itemCommit`, `codeFile` : un fichier d'un module touché), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`, `forkedModel`), le parcours (`vibeView`), les sorties des skills, les fichiers par défaut (`syncDefaults`) et les variantes des skills (`skillVariants`), les validations et brouillons de revue, les courses (`runs` : `ownRun`, `runKey`, la règle `blockedBy`, le module qu'une course génère et le verrou de son code (`runModule`, `codeLock`), `actions.json`, l'avis de fin, `parseRequest`, F-115) |
-| `core/runner` | les commandes du projet (F-111) : le fichier du projet lu (`parseProject`), une commande par son rang (`commandAt` : shell du fichier, préfixe `commandPrefix` — celui du fichier, du réglage, ou la box de l'agent, le même pour `gh`), les demandes de l'agent (`requestsOf`), la fin d'un journal (I-42) |
+| `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier ou un commit désigné par son id (`safePath`, `itemPath`, `itemCommit`, `codeFile` : un fichier d'un module touché), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`, `forkedModel`), le parcours (`vibeView`), les sorties des skills, les fichiers par défaut (`syncDefaults`) et les variantes des skills (`skillVariants`), les validations et brouillons de revue, les courses (`runs` : `ownRun`, `runKey`, la règle `blockedBy`, le module qu'une course génère et le verrou de son code (`runModule`, `codeLock`), `actions.json`, l'avis de fin, `parseRequest`, l'avis d'une demande refusée ou aux arguments ignorés `requestNotice`, F-115), les ✓ des étapes passées en Vibe (`vibeMarks`) |
+| `core/runner` | les commandes du projet (F-111) : le fichier du projet lu (`parseProject`), une proposition fusionnée dans le fichier existant (`mergeProject`), une commande par son rang (`commandAt` : shell du fichier, préfixe `commandPrefix` — celui du fichier, du réglage, ou la box de l'agent, le même pour `gh`), les demandes de l'agent (`requestsOf`), la fin d'un journal (I-42) |
 | `technicals/process` | les processus lancés pour l'utilisateur : détachés, marqués dans leur environnement, arrêtés avec ce qu'ils ont lancé (SIGTERM, SIGKILL après 5 s), leur journal ; `writeNew` (I-43) |
-| `technicals/git` | git en lecture seule (`gitRun`, `gitReader`, `GIT_READ`, plus `worktree list`) : les faits d'une branche ou d'une PR chargée, un fichier à un ref, un commit et son diff (I-39) |
+| `technicals/git` | git en lecture seule (`gitRun`, `gitReader`, `GIT_READ`, plus `worktree list`) : les faits d'une branche ou d'une PR chargée, un fichier à un ref, un commit et son diff, le commit où la branche part de sa base (`forkPoint`) (I-39) |
 | `technicals/github` | gh en lecture seule, derrière le préfixe (`ghRun`, `githubReader`, `GH_READ`) : la PR d'une branche, les PR à relire, l'état d'une PR (F-112, I-39) |
 | `technicals/direct` | les actions directes (F-114, I-39) : `directRunner` → `commit`, `publish`, `loadPr`, `toBase`, une liste fermée de commandes (`DIRECT_GIT`, `DIRECT_GH`), 60 s, `direct.log` |
 | `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `paste`, `windows-helper`, `pipewire`, `clipboard`, `selection`, `pocket-tts`, `claude`, `editor` (un dossier, ou un fichier de VibeCoder, à une ligne), `journal`, `images`, `paths`, `config-file` |
@@ -350,12 +350,14 @@ F-77) ; « ? » demande d'autorisation ;
 pastille verte = réponse non lue (bip 660 Hz à l'arrivée) ; erreur. La réponse
 de l'agent affiché dans le panneau est **lue d'office** (jamais de pastille).
 Ses **courses** (F-115) aussi, par-dessus une conversation au repos (l'état
-de la conversation d'abord) : *attend une autorisation* → « ? », *finie* →
-pastille verte, *en échec* → erreur, chacune avec le bip de la réponse
-(660 Hz, réglage *Bip*) ; titre « une action attend une autorisation », « …
-est finie », « … a échoué » ; une course *arrêtée* ne se signale pas. Le
-clic ouvre sa conversation (F-54) ; l'onglet *Actions (n)* de l'agent
-l'efface (F-92).
+de la conversation d'abord), dans cet ordre (ce qui attend l'utilisateur
+prime sur ce qui travaille seul) : *attend une autorisation* → « ? », *en
+échec* → erreur, *finie* → pastille verte, chacune avec le bip de la réponse
+(660 Hz, réglage *Bip*) ; *en cours* → le clignotement d'un tour, sans bip ;
+titre « une action attend une autorisation », « … a échoué », « … est
+finie », « une action travaille » ; une course *arrêtée* ne se signale pas.
+Le clic ouvre sa conversation (F-54) ; l'onglet *Actions (n)* de l'agent
+efface *finie* et *en échec* (F-92) ; le « ? » reste jusqu'à la réponse.
 
 **F-56 Clic droit sur un robot** : nom, dossier ; *Ouvrir sur GitHub —
 propriétaire/dépôt* (remote `origin` du `.git` du dossier, lu à chaque clic
@@ -389,7 +391,10 @@ fichier en attente.
 (« distrobox enter dev -- mise exec -- claude ») : découpée (guillemets
 gérés), les arguments du SDK passent derrière, stdin/stdout tels quels.
 Options : `cwd` = dossier, réglages `user`, `project`, `local`, préréglage
-`claude_code` + la consigne de `consigne-agents.md` ; le plugin `vibecoder`
+`claude_code` + la consigne de `consigne-agents.md`, suivie de la ligne
+VibeCoder du questionnaire (une réponse aux questions de la note donnée
+dans la conversation → la note, puis `<sorties>/questions.md` réécrit :
+les skills de VibeCoder ne s'y chargent jamais d'eux-mêmes) ; le plugin `vibecoder`
 (`userData/vibecoder/plugin`, s'il existe : F-105) et le dossier de sorties de
 l'agent (`userData/vibecoder-out/<agent>`) en dossier de travail en plus
 (`additionalDirectories`). Pour tous les agents de l'appli, en VibeCoder ou
@@ -593,8 +598,9 @@ conversation des agents qui ne sont pas en VibeCoder ne change pas.
   jointes, commandes « / ») : on lui parle toujours, même pendant qu'une
   action tourne ; **Actions (n)** (n en cours, en attente d'une
   autorisation ou arrêtées à trancher) : les courses (F-115) ; l'ouvrir
-  efface le signal de ses courses sur le robot (F-55), et tant qu'il est
-  ouvert sur l'agent affiché, ses courses ne se signalent pas ; **Tâches (n)**
+  efface sur le robot les courses *finies* ou *en échec* (F-55), et tant
+  qu'il est ouvert sur l'agent affiché, celles-là ne s'y signalent pas (une
+  course qui attend une autorisation ou qui travaille, si) ; **Tâches (n)**
   (n en cours) : le volet des tâches (F-77) ; **Processus (n)** (F-111) ;
   par-dessus la conversation, qui garde sa place. Préparer un message dans
   le champ de la conversation, ou un message sans étape qui l'exige, revient
@@ -640,8 +646,8 @@ de l'écran et le brouillon tiennent (I-29).
   valider » en tête des invariants, *✓ Rien à écrire* à l'étape Invariants. Une action dont la course tourne :
   « en cours » et ⏹ à côté de son bouton (arrêtée, à trancher dans l'onglet
   *Actions*). Conversation au travail : seuls les messages sans étape
-  (*Demander sans modifier*, *Où j'en suis ?*, *Proposer les commandes*,
-  *Valider et développer*) sont grisés ; *⏹ Arrêter* (barre
+  (*Demander sans modifier*, *Où j'en suis ?*, *Proposer les commandes*)
+  sont grisés, *Valider et développer* masqué (F-99) ; *⏹ Arrêter* (barre
   d'état) arrête son tour, comme *Interrompre* de son menu (F-56), sans
   toucher aux courses.
 - **Ce que l'IA fait seule n'a pas de bouton** ; les actions qui vont
@@ -656,8 +662,10 @@ de l'écran et le brouillon tiennent (I-29).
   review* ; leurs cartes restent.
 - **Relancer** : chaque carte d'une sortie de skill (relecture du diff,
   commit proposé, vérifications, CI, relecture de la note et des commits,
-  plan de test) refait son action, mêmes arguments par défaut ; *Lire en
-  pseudo-code* se refait par fichier (*Relire*, même lu) ou pour tous (*Tout
+  plan de test) refait son action, mêmes arguments par défaut ; chaque
+  vérification a aussi le sien, qui ne relance qu'elle (`{{check}}`, F-97 :
+  les autres gardées, sans ponytail review ; pas pendant une course
+  `checks`) ; *Lire en pseudo-code* se refait par fichier (*Relire*, même lu) ou pour tous (*Tout
   relire*, F-100). L'alignement et la ponytail review n'ont pas de
   *Relancer* : on relance *Écrire les invariants* ou *Lancer les
   vérifications* (en *Relire*, *Vérifier l'alignement* reste dans la rangée
@@ -738,7 +746,10 @@ fiche), `pr-<n>-note.md`, `pr-<n>-commits.md`, `pr-<n>-ecran.md` (plan de
 test), `pr-<n>-review.json` (revue publiée), `pr-<n>-worktree.json` (son
 worktree, F-110) ; les lectures
 `invariants/<empreinte>.md` (toutes : celle d'un test qui a changé depuis
-reste, périmée, F-100). Chaque étape montre les siennes (titre, fichier,
+reste, périmée, F-100) ; `ponytail-applied.json` (`{ applied:
+["<fichier>:L<ligne>", …] }` : les remarques de `ponytail.md` que *Appliquer
+la revue* a appliquées ; plus vieux que `ponytail.md`, ou illisible : aucune ;
+suit la branche comme lui). Chaque étape montre les siennes (titre, fichier,
 depuis quand ; un JSON mis en forme, un Markdown rendu, F-104).
 
 **F-96 Les actions** sont des données (`actions.<langue>.json`, F-107) : par
@@ -767,7 +778,8 @@ chemin du champ (`sendToAgent` : refusé à un agent au travail, I-25 ; jamais
 conversation, elles sont dans le fil. Les quatre actions directes, elles,
 l'appli les fait sans agent ni modèle (F-114). La page ne donne qu'un id d'action de son
 dernier relevé et ses arguments (texte, rang de module, hash de commit,
-id de test, numéro de PR, réponses, verdict, modèle), chacun vérifié (type, taille, valeur) par
+id de test, numéro de PR, rang d'une vérification, réponses, verdict,
+modèle), chacun vérifié (type, taille, valeur) par
 la variable qui le prend ; une action inconnue, grisée ou `prefill` est
 refusée.
 
@@ -785,6 +797,8 @@ commit de la branche, sinon `WORKTREE` : les changements en cours) ; `{{pr}}`
 (le numéro donné, sinon la PR du relevé) ; `{{answers}}` (« 1. … » par ligne,
 une vide : « (pas de réponse) » ; 50 réponses de 2 000 caractères au plus) ; `{{verdict}}` (`approve`, `comment`,
 `request-changes`) ; `{{draft}}` (« - [cible] texte » par remarque) ;
+`{{check}}` (le rang d'un élément de `checks.json` du relevé, sinon `*` :
+toutes ; un rang absent refuse l'action) ;
 `{{quote}}` (`prefill` seulement, rempli par la page) ; `{{prefix}}` (le
 préfixe des commandes vu de l'agent, F-112 ; vide permis). Les skills de
 VibeCoder reçoivent d'abord `{{lang}} {{out}}`. Une valeur qui manque refuse
@@ -795,9 +809,11 @@ branche »…) ; une variable inconnue aussi, ou une valeur autre que
 contrôle (« Action mal écrite (variable inconnue), ou valeur refusée
 (caractère de contrôle) : voir le dossier de VibeCoder. »). Un **modèle**
 choisi (F-99), autre que le conseillé : le `/vibecoder:<nom>` de tête devient
-`/vibecoder:<nom>--<modèle>`, sa variante (F-106) ; un modèle que l'action ne
-propose pas refuse l'action (« Ce modèle ne peut pas être choisi pour cette
-action. »).
+`/vibecoder:<nom>--<modèle>`, sa variante (F-106). Un argument
+qu'aucune variable du gabarit ne lit (`module`, `commit`, `file`, `pr`,
+`check`, `answers`, `verdict` ; pas `text`), ou un modèle que l'action ne
+propose pas, ne refuse pas l'action : il est ignoré, et l'orchestrateur en
+est prévenu (F-115).
 
 **F-98 Les champs** : une action dont le gabarit prend `{{text}}` emporte le
 texte de **son champ** s'il y en a, ou l'exige (`needs: text` ; vide →
@@ -851,7 +867,8 @@ et développer* tant que la note n'est pas rédigée (« Pas encore de note »),
 avec des questions ouvertes (« Répondre d'abord aux questions de la note »)
 ou la forme faite (« Déjà lancée : la forme est posée »), sauf pour
 reprendre après une question qui bloque (la dernière course : *Envoyer les
-réponses*). En *Créer*, l'étape PR suit l'état de la PR, qui ne
+réponses*) ; masquée aussi pendant un tour de la conversation ou une course
+qui retient (celle qu'elle a lancée). En *Créer*, l'étape PR suit l'état de la PR, qui ne
 fait que masquer (une demande juste après *Valider la feature* ne tombe pas
 sur un relevé en retard) : sans PR, *Valider la feature (ouvrir la PR)*
 seule ; ouverte (ou son état pas encore connu), *Diagnostiquer la CI* et
@@ -904,9 +921,12 @@ conversation ; note `0.9.0-actions-independantes.md`).
   *Refuser*) ; sa réponse, repliée. Une course se désigne par l'id de son
   action (`conv:vibeRunOp`), jamais par un texte ni un chemin.
 - **Le signal** : une course qui attend une autorisation, finit ou échoue se
-  signale sur le robot de son agent, avec le bip (F-55), jusqu'à ce qu'on
-  ouvre son onglet *Actions (n)* (F-92 ; chaque course retient l'état où
-  elle a été vue). Pas de signal pour une course arrêtée.
+  signale sur le robot de son agent, avec le bip (F-55) ; finie ou en échec,
+  jusqu'à ce qu'on ouvre son onglet *Actions (n)* (F-92 ; chaque course
+  retient l'état où elle a été vue) ; une autorisation, jusqu'à sa réponse,
+  vue ou pas. Une course en cours fait clignoter le robot dès son départ,
+  sans bip, quand rien d'autre ne se signale. Pas de signal pour une course
+  arrêtée.
 - **Arrêter, puis Garder ou Annuler** : ⏹ (onglet *Actions*, ou à côté du
   bouton) interrompt son tour (I-19) ; son processus reste, et elle retient
   les autres, jusqu'au choix de l'utilisateur : *Garder* ce qu'elle a déjà
@@ -920,13 +940,18 @@ conversation ; note `0.9.0-actions-independantes.md`).
   réponse ; `waiting` : les demandes retenues et pourquoi), quand on le lui
   demande. Il demande un lancement par `<sorties>/actions/<id>.start` (un
   objet JSON de ses arguments : `text`, `module`, `commit`, `file`, `pr`,
-  `model`, `answers` ; jamais `direct`) ou un arrêt par `<id>.stop` (vide) ;
+  `check`, `model`, `answers` ; jamais `direct`) ou un arrêt par `<id>.stop` (vide) ;
   l'appli les lit au relevé, à la fin de chaque tour de la conversation et à
   la fin de chaque course, les `.stop` d'abord. Un lancement suit la même
   règle et les mêmes vérifications qu'un clic (`buildMessage`, I-38) ; parti,
-  ou invalide, le fichier est supprimé ; retenu, il reste « en attente »
+  ou refusé, le fichier est supprimé ; retenu, il reste « en attente »
   (`waiting`) et **part de lui-même** au premier passage où plus rien ne le
-  retient. En *Guide*, il ne lance ou n'arrête une action qu'à la demande de
+  retient. **Jamais refusée en silence** : une demande illisible, d'une
+  action inconnue, pas proposée à l'écran, qui ne court pas à part, déjà en
+  cours ou invalide envoie à l'agent « VibeCoder : demande <id> refusée —
+  <raison> » ; partie avec des arguments ignorés (F-97), « VibeCoder :
+  demande <id> partie, arguments ignorés : <noms> » — par le chemin de
+  l'avis de fin. En *Guide*, il ne lance ou n'arrête une action qu'à la demande de
   l'utilisateur ; en *Vibe*, il les enchaîne (F-103).
 - **L'avis de fin** : une course finie (*finie*, *en échec*) envoie une
   ligne à la conversation de l'agent (« VibeCoder : « <libellé> » finie —
@@ -944,15 +969,19 @@ conversation ; note `0.9.0-actions-independantes.md`).
 **F-100 Créer** (la branche du dossier de l'agent ; les étapes du guide,
 § 4.1). L'étape en cours est la première qui n'est pas faite :
 1. **Note** — faite : « Ce que ça fait » rédigée, aucune question ouverte
-   (`questions.md` vide), la note validée (F-102). Montre la note rendue
+   (`questions.md` vide), la note validée (F-102). Le questionnaire suit
+   `questions.md` seul, quel que soit le chemin des réponses (*Envoyer les
+   réponses*, ou la conversation : skill `vibe`, ou la ligne de la consigne
+   hors d'un skill). Montre la note rendue
    (F-104), à jour pendant que l'agent l'écrit : ce qui a changé depuis le
    début du dernier tour (de la conversation, ou d'une course qui modifie la
    branche) porte un liseré, *Voir les modifications* montre le
    diff brut (retraits compris, replié autour des changements), *✓ Vu* en
    repart ; les lignes « ne doit pas » portent leur marque en pastille
    (*invariant*, *variant*, *review*, *structure*, sinon *à classer*) ;
-   *Ouvrir* (dans l'éditeur). Modifiable sur place, à la manière
-   d'Obsidian (CodeMirror 6) : ce qu'on tape se met en forme au fil de la
+   *Ouvrir* (dans l'éditeur). Rendue d'emblée, sans attendre le texte
+   suivi ; *Modifier* la rend modifiable sur place (*Fermer* y revient, la
+   modification gardée), à la manière d'Obsidian (CodeMirror 6) : ce qu'on tape se met en forme au fil de la
    frappe (un titre en titre, les marques `#`, `**`, `` ` ``, `[](…)`
    masquées hors des lignes du curseur ; Ctrl+clic ouvre un lien) ; le 💬
    de chaque bloc et les pastilles dans une gouttière à droite des lignes,
@@ -1017,17 +1046,33 @@ conversation ; note `0.9.0-actions-independantes.md`).
    commit préparé), *Préparer le commit* (des fichiers à commiter). *Lire en
    pseudo-code* (les fichiers pas encore lus : une lecture est nommée par
    l'empreinte du fichier, sa première ligne `# <chemin du test>` ; relire
-   la remplace) n'est mise en avant qu'en
-   *Vibe* ; en *Guide*, elle reste dans la rangée de l'étape.
+   la remplace) n'est jamais mise en avant, *Vibe* compris (l'orchestrateur
+   ne la lance pas) : elle reste dans la rangée de l'étape.
 4. **Modules** — faite : chaque module de la Forme touché par un commit de la
    branche. Montre en tête le commit proposé (`commit.md` : le message tel
    qu'il sera commité, *✓ Commiter*, direct ou *via* l'agent, F-114 ; 💬) et la relecture du dernier diff
-   (`review.md`) ; puis une ligne par module (commité, en cours : modifié pas
-   commité, à faire ; nom, dossier, contrat, « à créer », ses commits) avec
-   *Générer* (ce module), *Relire le diff* (du dernier commit qui le touche,
-   sinon des changements en cours), *Ouvrir*, et sous un module touché
-   *Voir le code* (replié ; un seul déplié à la fois) : ses fichiers par
-   dossier et le fichier choisi, monospace, numéroté, coloré (F-113). Seul ce
+   (`review.md`) ; *Commiter les modules* dans les outils de la carte, s'il
+   y a un module pas commité ; puis une ligne par module (commité, en cours :
+   modifié pas commité, à faire ; nom, dossier, contrat, « à créer », ses
+   commits) avec sa barre d'outils — *Générer* (ce module), *Relire le diff*
+   (du dernier commit qui le touche, sinon des changements en cours),
+   *Ouvrir*, *Commiter* (des fichiers changés hors de tout commit de la
+   branche, ou modifiés depuis : ce module seul) — sous son contrat, ou, pour
+   un module touché, sous le code de *Voir le code* (replié ; un seul déplié
+   à la fois) : ses fichiers par dossier et le fichier choisi, monospace,
+   numéroté, coloré (F-113). Un sélecteur sous l'arbre : *Fichier*, *Diff
+   depuis la base de la branche* (le commit d'où elle part ; grisé quand sa
+   version est inconnue — pas de point de départ, trop grosse — alors que le
+   fichier est au dernier commit), *Diff depuis le dernier commit* (`HEAD`) :
+   le diff du texte affiché comme celui de VS Code (`@codemirror/merge`),
+   *En ligne* ou *Côte à côte* au choix, en lecture seule, numéroté et
+   coloré, replié autour des changements, en texte (I-40), seulement pour
+   un fichier de module (ni la note ni un test, I-37). Générer ne commite
+   pas : *Commiter* et *Commiter les modules* (skill `commiter-modules`, un
+   commit par module selon la convention du projet, un fixup pour un module
+   déjà commité, un nouveau commit une fois la PR ouverte) sont des gestes à
+   part. Les éditeurs (le code, la note en édition) défilent dans
+   CodeMirror lui-même, hauteur bornée : pas de vide au-dessus du texte. Seul ce
    fichier est lu, à l'ouverture puis à chaque changement sur le disque
    (surveillé et poussé par le principal, pas au rythme du relevé : pendant
    la génération, le code s'écrit) ; la vue reste sur lui tant qu'il est dans
@@ -1048,12 +1093,13 @@ conversation ; note `0.9.0-actions-independantes.md`).
    sans se fier à la page. Un clic sur une ligne, ou une sélection : 💬 (une
    question, une vérification) ou *Retour → fixup* (une correction) cite ses
    lignes entières dans le champ de la conversation (F-98). Prochaine action : *✓ Commiter*
-   (un commit préparé), *✓ Valider → commit → suivant* (un module en cours,
-   un autre reste), *Préparer le commit* (le dernier en cours), sinon
+   (un commit préparé), *✓ Valider → commit → suivant* (un module pas
+   commité, un autre reste ; il commite comme `commiter-modules`),
+   *Commiter les modules* (plus de module à faire), sinon
    *Générer ce module* (le premier qu'aucun commit ne touche ; avec
    `ponytail`, tests lancés, sans commit) ; aussi *Relire le diff* (les
    quatre questions du § 5.1), *Générer les modules restants* (confiés à des
-   agents Opus en parallèle, chaque diff relu, un commit par module).
+   agents Opus en parallèle, chaque diff relu, sans commit).
 5. **Revue** — faite : vérifications toutes passées (`checks.json` ; des
    avertissements seulement passent ; un ancien ne compte pas, I-46),
    ponytail review faite (`ponytail.md`),
@@ -1068,15 +1114,19 @@ conversation ; note `0.9.0-actions-independantes.md`).
    branche : un commit de plus les décoche ; grisées sans commit), cochées
    elles comptent comme faites ; les vérifications, une ligne
    chacune (✓, ✗, ou ! et la pastille orange « avertissements » ; le détail
-   déplié en cas d'échec ; *Relancer*), le compte de la carte « n en échec »
+   déplié en cas d'échec ; *Relancer*, qui ne relance qu'elle, F-93), le compte de la carte « n en échec »
    en rouge, sinon « n avertissements » en orange, sinon « n / n ok » ; les
    faits de l'étape ajoutent « n avertissements » ; la ponytail
    review rendue, 💬 et *Appliquer* par remarque, *Tout appliquer* sur la
    carte (l'action `apply`, qui travaille : l'agent ; *Appliquer* lui donne
    la remarque, `{{text}}`, *Tout appliquer* rien : toutes ; ni l'un ni
-   l'autre ne prend le champ ; absents sans remarque en liste ; pas de
-   *Relancer* ; sans sortie, une invitation sans bouton : elle part avec les
-   vérifications). Prochaine action : *Lancer les vérifications et la
+   l'autre ne prend le champ ; absents sans remarque en liste ; *Appliquer*
+   pas proposé pendant une course `apply` — en cours, en attente, arrêtée
+   pas tranchée ; pas de *Relancer* ; sans sortie, une invitation sans
+   bouton : elle part avec les vérifications). Une remarque appliquée
+   (`ponytail-applied.json`, F-95, d'après le `<fichier>:L<ligne>` en tête)
+   est marquée ✓ et grisée, sans *Appliquer* ; toutes : « Appliquée » sur la
+   carte, à la place de *Tout appliquer*. Prochaine action : *Lancer les vérifications et la
    ponytail review* (tant que `checks.json` ou `ponytail.md` manque, ou
    qu'une vérification échoue), puis *Replier les fixups*.
 6. **PR** — faite : une PR pour la branche, lue par gh (F-112 ; sinon
@@ -1191,6 +1241,9 @@ texte de la note, la rubrique « Forme », le fichier du test, le plan, le
 commit de tête de la branche pour une case du § A.3) : le
 contenu change → « modifiée depuis » (*✓ Revalider*), et l'étape attend une
 nouvelle validation. Une cible absente du dernier relevé est ignorée.
+De *Vibe* à *Guide* (F-103), chaque étape faite de *Créer* — la note, la
+forme, chaque cas des invariants — reçoit un ✓ pour son contenu
+d'aujourd'hui, comme un clic ; un ✓ ou ✗ déjà donné pour ce contenu reste.
 Gardées par agent (`vibecoder-state.json`) ; aucune n'envoie de message.
 
 **F-103 Guide et Vibe** (par agent, `agents[].vibe.autonomy`), sur la même
@@ -1201,7 +1254,8 @@ dans l'ordre qu'il veut, et l'orchestrateur ne lance ni n'arrête rien qu'il
 ne lui demande. *Vibe* (*Créer* seulement : *Relire* n'a que l'écran du
 *Guide*) : on donne la main à l'agent, le développeur teste et approuve à la
 fin ; les validations ne sont plus attendues (note, forme, et invariants dès
-qu'il y a des tests, faits sans ✓ ni lecture). Son écran (F-92), en deux
+qu'il y a des tests, faits sans ✓ ni lecture) ; revenu en *Guide*, les
+étapes qu'il a passées gardent leur ✓ (F-102). Son écran (F-92), en deux
 temps :
 1. **La note et ses questions**, sans orchestrateur : la demande dans le
    champ de la zone Vibe, *Rédiger la note* (l'action `note`, sa course,
@@ -1210,13 +1264,16 @@ temps :
    tranche à sa place.
 2. ***Valider et développer*** (l'action `vibe`, mise en avant la note
    rédigée sans question ouverte et la forme pas faite ; masquée la note
-   pas rédigée, avec des questions ouvertes, ou la forme faite sauf pour
-   reprendre après une question qui bloque, F-99) : sans texte, au skill `vibe`,
+   pas rédigée, avec des questions ouvertes, pendant un tour ou une course
+   qui retient, ou la forme faite sauf pour reprendre après une question qui
+   bloque, F-99) : sans texte, au skill `vibe`,
    dans la conversation ; l'agent, l'**orchestrateur**, tient le rôle du
    développeur du guide, reprend à la première étape pas faite et **enchaîne les actions de
    l'écran** par leurs demandes (F-115) — forme, invariants rouges
-   (l'alignement compris), premier commit, modules (confiés à des agents
-   Opus avec `ponytail`), vérifications (la ponytail review comprise),
+   (l'alignement compris, sans *Lire en pseudo-code*), premier commit,
+   modules (confiés à des agents Opus avec `ponytail`) puis *Commiter les
+   modules*, vérifications (la ponytail review comprise ; un échec corrigé :
+   cette vérification seule relancée),
    fixups, PR, CI, release candidate si le projet en documente une —, une
    demande puis la fin de son tour, réveillé par l'avis de fin ; chaque
    action reste visible et arrêtable dans l'onglet *Actions*, et ce qui
@@ -1233,8 +1290,8 @@ cases à cocher, citations, code, tableaux, filets ; en ligne : code, gras,
 italique, liens. Jamais de HTML : une balise reste du texte ; un lien n'est
 un lien qu'en `http(s)`, ouvert dans le navigateur (I-40, I-21). Un 💬 au
 survol de chaque bloc et de chaque élément de liste le cite (F-98 ; *Relire* :
-au brouillon, F-101). En *Créer*, la note se modifie rendue ou en *Brut*
-(F-100) ; une balise tapée ou écrite dans le fichier reste du texte. Un
+au brouillon, F-101). En *Créer*, après *Modifier*, la note se modifie
+rendue ou en *Brut* (F-100) ; une balise tapée ou écrite dans le fichier reste du texte. Un
 JSON écrit par un skill est lu sans s'y fier :
 illisible, l'écran le dit ou le montre tel quel.
 
@@ -1247,20 +1304,26 @@ l'agent (serveur, front, services) sont dans
 ses séparateurs en `-`), propre à la machine — par exemple `gear` pour
 gt-plugins, une fonction du `.bashrc` :
 `{ "commands": [{ "name", "run", "cwd"? }], "shell"? }`. Un `name` sûr et
-unique (lettres, chiffres, `.`, `_`, `-` : il nomme le journal), `run` tel
+unique (40 caractères au plus : lettres, chiffres, `.`, `_`, `-`, et des
+espaces au milieu ; il nomme le journal), `run` tel
 que tapé dans un terminal, `cwd` relatif au dossier de l'agent ; une entrée
-mal formée est ignorée. Chaque commande a son nom (entier, coupé s'il est vraiment long ; la
+mal formée est ignorée. Le fichier est relu à chaque relevé : une commande
+ajoutée et enregistrée apparaît sans relancer l'appli. Chaque commande a son nom (entier, coupé s'il est vraiment long ; la
 bulle donne nom et commande), sa commande en petit dessous, ▶ *Lancer*, ⏹ *Arrêter*,
 ↻ *Relancer*, son état (en cours, arrêtée, en échec et son code), depuis
 quand, et la fin de son journal (200 lignes au plus, sans couleurs, qui suit
 la fin ; dépliable ; *Journal complet* l'ouvre dans l'éditeur).
-- **Pas de fichier** : *Proposer les commandes* (action `propose-run`, skill
+- *Proposer les commandes*, fichier ou pas (action `propose-run`, skill
   `lancement`, sous-contexte, haiku · faible ; le champ peut le guider) :
   l'agent cherche comment lancer le projet (AGENTS.md, CLAUDE.md, README,
   `package.json`, `process-compose`, Makefile, compose, alias et fonctions du
   `.bashrc`) et écrit `lancement.json` dans ses sorties ; au relevé, l'appli
-  en fait le fichier du projet **s'il n'existe pas** (jamais par-dessus,
-  I-42), puis retire la proposition. *Modifier les commandes* ouvre le
+  en fait le fichier du projet s'il n'existe pas ; s'il existe, elle n'y
+  ajoute, à la fin de `commands`, que les commandes de la proposition dont
+  le nom n'y est pas — le reste du fichier tel quel (champs inconnus,
+  commandes mal formées compris ; jamais le `shell` ni le `prefix` de la
+  proposition) ; rien de nouveau, ou un fichier illisible : pas réécrit.
+  Puis elle retire la proposition. *Modifier les commandes* ouvre le
   fichier dans l'éditeur (créé d'un exemple s'il manque).
 - **C'est l'appli qui lance** : par le shell du fichier (`bash -ic` par
   défaut : les alias et fonctions de l'utilisateur ; exception à I-27,
@@ -1309,12 +1372,14 @@ absente (I-29).
   le relevé ne l'attend pas et repart quand elle change ; ↻ les redemande.
 - Le skill `verifier` reçoit ce préfixe **vu de l'agent** (`{{prefix}}`,
   F-97) : sans la box où l'agent tourne déjà (vide si `agentCommand` y
-  entre) ; il y lance les commandes du projet, sans en ajouter.
+  entre) ; il y lance les commandes du projet, sans en ajouter — toutes, ou
+  celle à relancer seule (`{{check}}`).
 
 **F-113 Coloration du code** (F-100, étape Invariants : *Code*, *Voir le
 fichier*, sans citer, éditables en *Créer* ; étape Modules : *Voir le code*,
-éditable, un clic ou une sélection cite ses lignes, F-98 ; étape Note :
-*Brut*, éditable) : CodeMirror 6, en lecture quand l'édition est grisée ;
+éditable, un clic ou une sélection cite ses lignes, F-98 ; ses diffs, eux,
+en texte sans coloration, ajouts en vert, retraits barrés ; étape Note :
+*Brut*, éditable après *Modifier*) : CodeMirror 6, en lecture quand l'édition est grisée ;
 d'après l'extension — `ts`, `tsx`, `js`, `jsx`, `mjs`, `cjs`, `mts`, `cts`,
 `rs`, `py`, `go` ; un autre : en texte. La palette sombre de GitHub :
 mots-clés, chaînes, commentaires, nombres et constantes, fonctions, types,
@@ -1375,7 +1440,10 @@ instructions, sinon le guide du dépôt (`docs/dev_guide/`), sinon les leurs.
 `vibe` est la consigne d'enchaînement de l'orchestrateur (F-103) : il ne
 fait plus la feature dans un seul tour, il lance les actions par le
 protocole d'`actions`, à partir de la forme. `invariants` suit `aligner`
-dans sa course ; `verifier` demande `ponytail` (F-93).
+dans sa course ; `verifier` demande `ponytail` quand il lance toutes les
+vérifications (F-93). `modules` et `module` ne commitent pas :
+`commiter-modules` commite un module ou tous ceux qui ont des changements,
+un commit chacun ; `suivant` commite comme lui.
 Un agent du plugin, Opus à effort élevé : `developpeur` (un module de la
 Forme, `ponytail` préchargé, rien de commité), lancé par `modules`. Aucun skill livré ne fait
 `git push --force` ni ne fusionne une PR ; une version, un tag, une release
@@ -1389,7 +1457,7 @@ longueur de celle-ci.
   message préparé, tel quel), `base`, `publier-revue` (`charger-pr`, `commit`, `base`, `publier-revue` : le
   *via* des actions directes, F-114), `retirer-worktree`, `lancement` ;
 - *sonnet* : `commit-preparer` (faible) ; `pr`, `fixups`, `ci`, `ecran`,
-  `lire-invariants`, `worktree-pr` (moyen) ;
+  `lire-invariants`, `worktree-pr`, `commiter-modules` (moyen) ;
 - *opus · élevé* : `invariants`, `module`, `suivant`, `relire`, `aligner`,
   `ponytail`, `relire-note`, `relire-commits`.
 
@@ -1736,7 +1804,8 @@ bancs de comparaison.
   principal, sans se fier à la page). Push, rebase, checkout, ouvrir une PR, et le *via* des actions
   directes passent par l'agent, dans la conversation, avec ses autorisations.
 - **I-40** Aucun HTML rendu depuis un texte (note, rendue ou en édition,
-  sortie d'un skill, code d'un fichier, F-113, éditable ou non : une balise
+  sortie d'un skill, code d'un fichier, F-113, éditable ou non, son diff en
+  ligne ou côte à côte : une balise
   tapée ou écrite dans le fichier reste du texte) : le
   Markdown de VibeCoder ne produit que du texte, du code et des liens
   `http(s)` — une balise reste du texte, un lien `javascript:`, `data:`,
@@ -1759,10 +1828,12 @@ bancs de comparaison.
 - **I-42** VibeCoder ne lance **que les commandes du fichier du projet**
   (F-111) : une page désigne une commande par son **rang** (un entier du
   fichier), jamais par un texte ; un rang hors du fichier, en texte, négatif
-  ou non entier ne lance rien. L'appli n'écrit ce fichier que **s'il n'existe
-  pas** (la proposition du skill, l'exemple de *Modifier*), jamais
-  par-dessus. Les demandes de l'agent (`run/<nom>.stop`, `.restart`) ne
-  valent que pour un nom du fichier. Exception à I-27, limitée à ces
+  ou non entier ne lance rien. L'appli **crée** ce fichier s'il n'existe pas
+  (la proposition du skill, l'exemple de *Modifier*) ; existant, elle ne le
+  réécrit que pour y **ajouter** les commandes de nom nouveau d'une
+  proposition, sans modifier ni retirer celles qui y sont. Les demandes de
+  l'agent (`run/<nom>.stop`, `.restart`) ne valent que pour un nom du
+  fichier. Exception à I-27, limitée à ces
   commandes, écrites par l'utilisateur : le shell du fichier (`bash -ic`).
 - **I-43** Rien de ce que l'appli a lancé ne **survit à sa sortie**, et elle
   n'arrête **que ce qu'elle a lancé** : arrêter vise le groupe du processus

@@ -32,7 +32,6 @@
 .vc-pr-form button:disabled { border-style: dashed; background: transparent; color: var(--vc-faint); cursor: default; }
 
 .vc-pr-worktree { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
-.vc-pr-worktree .vc-mini { margin-left: 0; }
 
 .vc-pr-nobody { color: var(--vc-faint); font-size: 12.5px; font-style: italic; }
 

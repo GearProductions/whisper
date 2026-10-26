@@ -1,0 +1,12 @@
+/* Un diff de lignes (diff-view) : celui de la note, celui d'un fichier de
+   module ; ajouts, retraits, lignes repliées. Sous .vc. */
+.vc-rawdiff { margin: -4px -6px; border-radius: 6px; background: var(--vc-code); padding: 6px 0; font: 12.5px/1.55 var(--vc-mono); }
+.vc-dl { display: flex; padding-right: 12px; color: var(--vc-muted); text-decoration: none; }
+.vc-dl-sign { flex: none; width: 26px; text-align: center; user-select: none; }
+.vc-dl-text { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.vc-dl[data-kind="added"] { background: color-mix(in srgb, var(--vc-ok) 14%, transparent); color: #b6efc0; }
+.vc-dl[data-kind="added"] .vc-dl-sign { color: var(--vc-ok); }
+.vc-dl[data-kind="removed"] { background: color-mix(in srgb, #d9383a 13%, transparent); color: #f0a3a4; }
+.vc-dl[data-kind="removed"] .vc-dl-text { text-decoration: line-through; text-decoration-color: color-mix(in srgb, #f08a8b 70%, transparent); }
+.vc-dl[data-kind="removed"] .vc-dl-sign { color: #f08a8b; }
+.vc-dl-skip { margin: 3px 0; padding: 2px 0 2px 26px; background: rgba(255, 255, 255, 0.03); color: var(--vc-faint); font-family: system-ui, sans-serif; font-size: 11.5px; }

@@ -6,6 +6,9 @@
  *  titre). Un code changé par les props remplace le document. Avec `onQuote` :
  *  un clic sur une ligne ou une sélection, puis 💬 ou Retour → fixup citent ses
  *  lignes entières (codeBlock). Libellés : `t` (français par défaut).
+ *  Le défilement est celui de l'éditeur : .vc-src n'est qu'un cadre, la hauteur
+ *  est bornée sur .cm-editor (vibecoder.css, invariants-view.css) et c'est
+ *  .cm-scroller qui défile, avec la barre de l'appli (.scroll).
  *  Ne connaît pas : le pont, le relevé, la note.
  *  Utilisé par : invariants-view (Code, Voir le fichier), module-code (Voir le
  *  code), note-view (Brut). */
@@ -53,6 +56,7 @@ export function CodeView({ code, path, from = 1, at, edit, onQuote, t = strings(
         ],
       }),
     });
+    v.scrollDOM.classList.add('scroll');
     view.current = v;
     return () => { v.destroy(); view.current = null; };
     // Le code et la lecture seule suivent par les effets ci-dessous.
@@ -80,7 +84,7 @@ export function CodeView({ code, path, from = 1, at, edit, onQuote, t = strings(
   };
   return (
     <>
-      <div ref={host} className="vc-src scroll" data-locked={locked ? true : undefined} title={locked ?? undefined}
+      <div ref={host} className="vc-src" data-locked={locked ? true : undefined} title={locked ?? undefined}
         aria-label={path} />
       {onQuote ? (
         <div className="vc-src-tools">

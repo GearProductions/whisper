@@ -146,3 +146,15 @@ describe('le signal des courses sur le robot', () => {
     expect(state.convView).toBeFalsy();
   });
 });
+
+describe('la consigne de la conversation', () => {
+  it('launchOptions : la consigne audio, puis la ligne du questionnaire avec le dossier de sorties de l’agent', async () => {
+    const { launchOptions } = await import('app/controllers');
+    const { loadConfig, vibeOutDir } = await import('app/settings');
+    const cfg = loadConfig();
+    const { instructions } = launchOptions(cfg.agents![0] as never, cfg);
+    expect(instructions).toContain('<audio>');
+    expect(instructions).toContain(`${vibeOutDir('a1')}/questions.md`);
+    expect(instructions.indexOf('<audio>')).toBeLessThan(instructions.indexOf('questions.md'));
+  });
+});

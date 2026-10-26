@@ -1,6 +1,6 @@
 /** icon-app — la fenêtre de l'icône : le micro (geste, dictée), le bouton de
  *  lecture, les robots des agents et de leurs enfants (bip d'une réponse non
- *  lue ou d'un signal de course qui apparaît ou change, cible de la dictée :
+ *  lue ou d'un signal de course qui apparaît ou change, sauf working, cible de la dictée :
  *  enfants compris), le menu du clic droit. La
  *  colle : seul fichier de l'icône qui connaît le pont (window.api).
  *  Ne connaît pas : le panneau, la bulle. Utilisé par : main.tsx. */
@@ -69,9 +69,10 @@ export function IconApp({ api }: { api: IconApi }) {
       setAgents(s || { enabled: false });
       // Une réponse vient d'arriver, ou le signal d'une course (F-55) apparaît ou
       // change : le bip de fin, comme pour une dictée (pas pour l'agent affiché :
-      // déjà lu, ni « non lu » ni signal). Le signal, pas l'état fusionné.
+      // déjà lu, ni « non lu » ni signal). Le signal, pas l'état fusionné ; une
+      // course qui travaille ne bipe pas (rien n'attend l'utilisateur).
       const heard = new Set(withChildren((s && s.enabled && s.agents) || [])
-        .flatMap((a) => [a.unread ? a.id : '', a.signal ? `${a.id}~${a.signal}` : '']).filter(Boolean));
+        .flatMap((a) => [a.unread ? a.id : '', a.signal && a.signal !== 'working' ? `${a.id}~${a.signal}` : '']).filter(Boolean));
       if ([...heard].some((k) => !heardBefore.current.has(k))) {
         api.getConfig().then((cfg) => { if (cfg.sound !== false) beep(REPLY_FREQ); });
       }

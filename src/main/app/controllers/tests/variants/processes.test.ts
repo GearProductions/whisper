@@ -83,13 +83,26 @@ describe('le fichier du projet', () => {
     expect(fs.existsSync(path.join(out(), 'lancement.json'))).toBe(false);
   });
 
-  it('la proposition ne remplace jamais un fichier existant', () => {
-    writeProject([{ name: 'gear', run: 'gear' }]);
+  // 0.11.0 : fichier existant, la proposition n'y ajoute que ses commandes
+  // de nom nouveau ; celles qui y sont restent telles quelles.
+  it('la fusion d’une proposition : seules les commandes nouvelles ajoutées ; rien de nouveau : pas réécrit ; supprimée dans les deux cas', () => {
+    const propose = (commands: unknown[]) => {
+      fs.mkdirSync(out(), { recursive: true });
+      fs.writeFileSync(path.join(out(), 'lancement.json'), JSON.stringify({ commands }));
+    };
+    writeProject([{ name: 'gear', run: 'gear --mine' }]);
+    propose([{ name: 'gear', run: 'gear' }, { name: 'dev', run: 'npm run dev' }]);
+    expect(view().processes.map((p) => [p.name, p.run])).toEqual([['gear', 'gear --mine'], ['dev', 'npm run dev']]);
+    expect(fs.existsSync(path.join(out(), 'lancement.json'))).toBe(false);
+
     const before = fs.readFileSync(projectFile(agent.dir), 'utf8');
-    fs.mkdirSync(out(), { recursive: true });
-    fs.writeFileSync(path.join(out(), 'lancement.json'), '{"commands":[{"name":"dev","run":"npm run dev"}]}');
-    expect(view().processes.map((p) => p.name)).toEqual(['gear']);
+    const time = new Date(2000, 0, 1);
+    fs.utimesSync(projectFile(agent.dir), time, time);
+    propose([{ name: 'dev', run: 'yarn dev' }]);
+    view();
     expect(fs.readFileSync(projectFile(agent.dir), 'utf8')).toBe(before);
+    expect(fs.statSync(projectFile(agent.dir)).mtimeMs).toBe(time.getTime());
+    expect(fs.existsSync(path.join(out(), 'lancement.json'))).toBe(false);
   });
 
   it('Modifier les commandes : le fichier dans l’éditeur, un exemple s’il manque, jamais par-dessus', async () => {
@@ -99,6 +112,16 @@ describe('le fichier du projet', () => {
     fs.writeFileSync(projectFile(agent.dir), '{"commands":[]}');
     await processAction(agent, cfg, 'edit', undefined, []);
     expect(fs.readFileSync(projectFile(agent.dir), 'utf8')).toBe('{"commands":[]}');
+  });
+
+  // 0.11.0, « Processus : reproduire d'abord » : enregistré sur place ou par
+  // renommage, le fichier est relu à chaque relevé (vert) ; ce qui manquait est
+  // la commande elle-même, au nom à espace (le cas réel : « install deps »).
+  it('une commande ajoutée au fichier, au nom à espace : au relevé suivant', () => {
+    writeProject([{ name: 'gear', run: 'gear' }]);
+    expect(view().processes).toHaveLength(1);
+    writeProject([{ name: 'gear', run: 'gear' }, { name: 'install deps', run: 'yarn install' }]);
+    expect(view().processes.map((p) => p.name)).toEqual(['gear', 'install deps']);
   });
 
   it('dans userData/vibecoder/projets/, d’après le dossier de l’agent', () => {

@@ -348,15 +348,62 @@ describe('buildMessage : un autre modèle que le conseillé', () => {
     expect(build(RELIRE, { model: 'opus' }, withAction())).toEqual({ text: '/vibecoder:relire fr /u/vibecoder-out/a1 WORKTREE' });
   });
 
-  it('un modèle hors de ceux proposés (fable) : model', () => {
-    expect(build(RELIRE, { model: 'fable' }, withAction())).toEqual({ error: 'model' });
+  it('un modèle hors de ceux proposés (fable) : ignoré, le skill tel quel', () => {
+    expect(build(RELIRE, { model: 'fable' }, withAction())).toEqual({ text: '/vibecoder:relire fr /u/vibecoder-out/a1 WORKTREE', ignored: ['model'] });
   });
 
-  it('une action sans choix de modèle (dans la conversation) : model', () => {
-    expect(build(RELIRE, { model: 'haiku' }, withAction([], null))).toEqual({ error: 'model' });
+  it('une action sans choix de modèle (dans la conversation) : ignoré', () => {
+    expect(build(RELIRE, { model: 'haiku' }, withAction([], null))).toEqual({ text: '/vibecoder:relire fr /u/vibecoder-out/a1 WORKTREE', ignored: ['model'] });
   });
 
-  it('un modèle qui n\'est pas un texte : model', () => {
-    expect(build(RELIRE, { model: ['haiku'] as never }, withAction())).toEqual({ error: 'model' });
+  it('un modèle qui n\'est pas un texte : ignoré', () => {
+    expect(build(RELIRE, { model: ['haiku'] as never }, withAction())).toEqual({ text: '/vibecoder:relire fr /u/vibecoder-out/a1 WORKTREE', ignored: ['model'] });
+  });
+
+  it('un autre modèle proposé, gabarit sans skill : ignoré', () => {
+    expect(build('{{lang}}', { model: 'haiku' }, withAction())).toEqual({ text: 'fr', ignored: ['model'] });
+  });
+});
+
+describe('buildMessage : un argument qu\'aucune variable ne lit est ignoré, l\'action part', () => {
+  it('modules restants demandés avec model et module : les deux ignorés (F-115)', () => {
+    expect(build('/vibecoder:modules {{lang}} {{out}}', { module: 0, model: 'opus' }))
+      .toEqual({ text: '/vibecoder:modules fr /u/vibecoder-out/a1', ignored: ['module', 'model'] });
+  });
+
+  it('commit, file, check, pr, answers, verdict sans leur variable : ignorés, même d\'un autre type', () => {
+    const args = { commit: 'x', file: 't9', check: -1, pr: 0, answers: [], verdict: 'merge' as never };
+    expect(build('{{lang}}', args)).toEqual({ text: 'fr', ignored: ['commit', 'file', 'check', 'pr', 'answers', 'verdict'] });
+  });
+
+  it('text, direct, un argument absent : jamais signalés', () => {
+    expect(build('{{lang}}', { text: 'champ', direct: true, module: undefined })).toEqual({ text: 'fr' });
+  });
+
+  it('une variable qui le lit refuse encore une valeur fausse', () => {
+    expect(build('{{commit}}', { commit: 'x', pr: 3 })).toEqual({ error: 'commit' });
+  });
+});
+
+describe('buildMessage : {{check}}', () => {
+  const checks = (items: unknown) => ({ ...ctx, view: { ...view, outputs: { 'checks.json': { text: JSON.stringify({ items }), time: 1 } } } });
+  const two = checks([{ name: 'invariants', ok: false }, { name: 'tests', ok: true }]);
+
+  it('absent : toutes', () => {
+    expect(build('{{check}}', {}, two)).toEqual({ text: '*' });
+  });
+
+  it('le rang d\'un élément de checks.json', () => {
+    expect(build('{{check}}', { check: 1 }, two)).toEqual({ text: '1' });
+  });
+
+  it('hors de la liste, négatif, pas entier, pas un nombre : check', () => {
+    expect([2, -1, 0.5, '0' as never].map((check) => build('{{check}}', { check }, two))).toEqual(Array(4).fill({ error: 'check' }));
+  });
+
+  it('sans checks.json, ou illisible : check', () => {
+    const bad = { ...ctx, view: { ...view, outputs: { 'checks.json': { text: '{', time: 1 } } } };
+    expect([build('{{check}}', { check: 0 }), build('{{check}}', { check: 0 }, bad), build('{{check}}', { check: 0 }, checks('x'))])
+      .toEqual(Array(3).fill({ error: 'check' }));
   });
 });

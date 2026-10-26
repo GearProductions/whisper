@@ -1,10 +1,16 @@
 /** review-flow — ce que Relire prend de l'utilisateur et passe au principal :
  *  un numéro de PR tapé ou collé, une remarque du brouillon de revue dans les
  *  bornes que le principal accepte (draftVibe : cible d'une ligne, 300
- *  caractères ; texte de 5 000).
- *  Ne connaît pas : le DOM, React, le pont.
- *  Utilisé par : app/panel/vibecoder (pr-picker, commits-view, note-view, invariants-view, comment-box : DRAFT_MAX). */
-import { excerpt } from './note';
+ *  caractères ; texte de 5 000). Et, à l'étape Revue de Créer, ce que montre
+ *  chaque remarque de la ponytail review (appliquée, Appliquer ou rien) et si
+ *  toutes sont appliquées (remarkMark, allApplied) ; si une course retient
+ *  les autres (isLive).
+ *  Ne connaît pas : le DOM, React, le pont, les noms des fichiers de sortie.
+ *  Utilisé par : app/panel/vibecoder (pr-picker, commits-view, note-view, invariants-view, comment-box : DRAFT_MAX ;
+ *  review-view : remarkMark, allApplied ; review-view, step-parts, vibe-coder : isLive). */
+import type { VibeRun } from 'technicals/bridge';
+import { BULLET, excerpt } from './note';
+import { remarkKey } from './outputs';
 
 // « 27 », « #27 » ou l'adresse d'une PR (…/pull/27) → 27 ; sinon null.
 export function prNumber(input: string): number | null {
@@ -24,4 +30,22 @@ const clip = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1
 export function remark(target: string, text: string): { target: string; text: string } {
   const t = excerpt(target, TARGET_MAX);
   return { target: t, text: clip(text.trim() || t, DRAFT_MAX) };
+}
+
+// Une course qui retient les autres : en cours, en attente d'une autorisation, arrêtée non tranchée.
+export const isLive = (state: VibeRun['state'] | null | undefined) => state === 'running' || state === 'asking' || state === 'stopped';
+
+// Une remarque de la ponytail review (son texte) : appliquée (sa clé dans
+// applied) ; sinon Appliquer, sauf pendant une course apply (Tout appliquer ou
+// une autre remarque : en cours, en attente, arrêtée non tranchée) → rien.
+export function remarkMark(text: string, applied: Set<string>, apply: VibeRun['state'] | null): 'applied' | 'apply' | null {
+  const key = remarkKey(text);
+  if (key && applied.has(key)) return 'applied';
+  return isLive(apply) ? null : 'apply';
+}
+
+// ponytail.md : chacune de ses lignes de liste (au moins une) appliquée → le bandeau « Appliquée ».
+export function allApplied(md: string, applied: Set<string>): boolean {
+  const items = md.split(/\r?\n/).filter((l) => BULLET.test(l)).map((l) => l.replace(BULLET, ''));
+  return items.length > 0 && items.every((x) => applied.has(remarkKey(x) ?? ''));
 }
