@@ -601,7 +601,7 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 .vc-src .cm-scroller::-webkit-scrollbar-corner { background: transparent; }
 .vc-src .cm-editor .cm-content { padding: 8px 14px 8px 0; caret-color: var(--vc-text); }
 .vc-src .cm-editor .cm-line { padding-left: 12px; }
-.vc-src .cm-editor .cm-gutters { padding: 8px 0; border-right: 1px solid #262c3b; background: transparent; color: var(--vc-faint); }
+.vc-src .cm-editor .cm-gutters { border-right: 1px solid #262c3b; background: transparent; color: var(--vc-faint); }
 .vc-src .cm-editor .cm-lineNumbers .cm-gutterElement { min-width: 4ch; padding: 0 8px 0 0; }
 /* Sa coloration : la palette sombre de GitHub. */
 .vc-cx-keyword { color: #ff7b72; }
