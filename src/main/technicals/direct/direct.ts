@@ -150,6 +150,11 @@ export function directRunner({ dir, out, prefix, launch = launchFile }: { dir: s
       return result(true, `On ${branch}.`);
     },
 
+    // git stash push -u, arguments fixes (aucune autre forme de stash). À écrire (0.12.0).
+    async stash(): Promise<DirectResult> {
+      throw new Error('not implemented');
+    },
+
     // git branch -D pr-<n> : la branche de l'appli, son worktree retiré (jamais une autre).
     async dropPrBranch(n: unknown): Promise<DirectResult> {
       if (!okNumber(n)) return result(false, 'Refused: the PR is not a positive integer.');
