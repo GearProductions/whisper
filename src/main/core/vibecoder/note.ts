@@ -135,10 +135,14 @@ export function noteKey(branch: string, version: string | null): string | null {
     ?? (version || null);
 }
 
-// Le premier .md sous docs/tickets/ (dans l'ordre des chemins) dont le nom
-// contient `key` en mot entier, sans tenir compte de la casse ; null si aucun.
-// `paths` : les fichiers que la branche change (la note du ticket en est).
-export function findNote(paths: string[], key: string): string | null {
+// Le .md sous docs/tickets/ nommé comme la branche (`<type>/<nom>` → `<nom>.md`),
+// sinon le premier (dans l'ordre des chemins) dont le nom contient `key` en mot
+// entier, sans tenir compte de la casse ; null si aucun. `paths` : les fichiers
+// que la branche change (la note du ticket en est, parfois avec la note d'un
+// autre ticket de la même version).
+export function findNote(paths: string[], key: string, branch?: string): string | null {
   const word = new RegExp(`(?<![A-Za-z0-9])${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z0-9])`, 'i');
-  return [...paths].sort().find((p) => /(^|\/)docs\/tickets\/.*\.md$/i.test(p) && word.test(p.slice(p.lastIndexOf('/') + 1))) ?? null;
+  const notes = [...paths].sort().filter((p) => /(^|\/)docs\/tickets\/.*\.md$/i.test(p) && word.test(p.slice(p.lastIndexOf('/') + 1)));
+  const own = branch && `/${branch.slice(branch.lastIndexOf('/') + 1)}.md`.toLowerCase();
+  return notes.find((p) => own && `/${p}`.toLowerCase().endsWith(own)) ?? notes[0] ?? null;
 }
