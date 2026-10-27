@@ -5,8 +5,12 @@
  *  set({ prs })). Choisir une PR : la suivre (set), puis la charger
  *  (load-pr, par l'appli elle-même, F-114 ; « via » l'agent sous la PR suivie
  *  pas encore chargée), sans toucher à la copie de travail ; Décharger la PR : ne plus
- *  la suivre (le choix revient). La PR chargée s'ouvre dans un worktree (son
- *  état : en création, ouverte → aller à son robot, ou le proposer à nouveau).
+ *  la suivre (le choix revient). La PR chargée : « Où la relire ? » et ses
+ *  actions du relevé, pr-here (Ici) et pr-worktree (Dans un worktree), directes
+ *  (F-114), grisées avec leur raison, absentes si le relevé les masque (lieu
+ *  choisi par le fichier du projet) ; son worktree, s'il existe (en création,
+ *  ouvert → aller à son robot, ou le proposer à nouveau). Retirer le worktree
+ *  est sur le badge du robot (vibe-coder), pas ici.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useState } from 'react';
 import { prNumber, webUrl } from 'core/vibecoder';
@@ -15,6 +19,9 @@ import { MarkdownView } from './markdown-view';
 import { Invite, PrCard, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
 import './pr-picker.css';
+
+// Où relire la PR chargée : ici (git switch) ou dans un worktree (la recette), actions directes du relevé.
+const PLACES = ['pr-here', 'pr-worktree'];
 
 const fr = {
   field: 'Numéro ou lien de la PR',
@@ -33,6 +40,7 @@ const fr = {
   open: 'Ouvrir dans le navigateur',
   unload: 'Décharger la PR',
   unloadTitle: 'Ne plus suivre cette PR : revenir au choix d\'une PR (sa référence locale reste)',
+  where: 'Où la relire ?',
   wtCreating: 'Création du worktree en cours…',
   wtOpen: 'Ouverte dans un worktree',
   goRobot: (n: number) => `Aller au robot PR #${n}`,
@@ -58,6 +66,7 @@ const S: Record<VibeLang, typeof fr> = {
     open: 'Open in the browser',
     unload: 'Unload the PR',
     unloadTitle: 'Stop following this PR: back to choosing one (its local ref stays)',
+    where: 'Where to review it?',
     wtCreating: 'Creating the worktree…',
     wtOpen: 'Open in a worktree',
     goRobot: (n) => `Go to the PR #${n} robot`,
@@ -79,9 +88,10 @@ export function PrPicker(props: StepProps) {
   const pr = view.pr;
   const loaded = !!pr && !!view.outputs[`pr-${pr.number}.json`];
   const wt = view.worktree;
+  const places = view.actions.filter((a) => PLACES.includes(a.id) && !a.hidden);
   return (
     <>
-      <StepHead p={props} own={['prs', 'load-pr', 'open-worktree', 'unload-worktree']}>
+      <StepHead p={props} own={['prs', 'load-pr', ...PLACES, 'remove-worktree']}>
         <form className="vc-pr-form" onSubmit={(e) => { e.preventDefault(); if (asked && canLoad) { load(asked, { direct: true }); setTyped(''); } }}>
           <input className="vc-mono" value={typed} placeholder={s.placeholder} aria-label={s.field} title={s.field} spellCheck={false}
             onChange={(e) => setTyped(e.target.value)} />
@@ -100,14 +110,19 @@ export function PrPicker(props: StepProps) {
       ) : null}
       {pr && loaded && !wt?.temp ? (
         <div className="vc-pr-worktree">
-          {!wt ? <Run a={action('open-worktree')} busy={busy} onRun={() => act.run('open-worktree')} />
-            : wt.state === 'creating' ? <span className="vc-pr-hint">{s.wtCreating}</span> : (
-              <>
-                <span className="vc-pr-hint" title={wt.dir}>{s.wtOpen}</span>
-                <button type="button" className="vc-mini" title={wt.state === 'robot' ? wt.dir : s.addRobotTitle}
-                  onClick={() => act.set({ worktree: true })}>{wt.state === 'robot' ? s.goRobot(pr.number) : s.addRobot(pr.number)}</button>
-              </>
-            )}
+          {places.length ? (
+            <>
+              <span className="vc-pr-hint">{s.where}</span>
+              {places.map((a) => <Run key={a.id} a={a} busy={busy} onRun={(x) => act.run(a.id, x)} />)}
+            </>
+          ) : null}
+          {!wt ? null : wt.state === 'creating' ? <span className="vc-pr-hint">{s.wtCreating}</span> : (
+            <>
+              <span className="vc-pr-hint" title={wt.dir}>{s.wtOpen}</span>
+              <button type="button" className="vc-mini" title={wt.state === 'robot' ? wt.dir : s.addRobotTitle}
+                onClick={() => act.set({ worktree: true })}>{wt.state === 'robot' ? s.goRobot(pr.number) : s.addRobot(pr.number)}</button>
+            </>
+          )}
         </div>
       ) : null}
       <div className="vc-pr-list-head">
