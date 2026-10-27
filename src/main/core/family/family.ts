@@ -1,13 +1,15 @@
 /** family — les familles d'agents : un dépôt, ses worktrees. Le `parent`
- *  enregistré d'un agent (l'ancien `temp` lu pareil), l'enfant qu'on crée,
- *  la tête d'une famille, les groupes affichés (ordre de config), les
- *  rattachements à écrire d'après les dépôts relevés par git, et, pour les
- *  commandes du projet, la famille par le `parent` enregistré : le membre qui
- *  en porte le fichier, celui où une commande tourne déjà (une seule à la fois).
+ *  enregistré d'un agent (l'ancien `temp` lu pareil), l'enfant qu'on crée
+ *  (robot d'une PR en Relire, ou d'une nouvelle demande en Créer), la tête
+ *  d'une famille, les groupes affichés (ordre de config), les rattachements à
+ *  écrire d'après les dépôts relevés par git, et, pour les commandes du
+ *  projet, la famille par le `parent` enregistré : le membre qui en porte le
+ *  fichier (jamais un worktree), celui où une commande tourne déjà (une seule
+ *  à la fois).
  *  Ne connaît pas : Electron, git, le disque (les dépôts et isRunning sont
  *  donnés), la config (seulement AgentConfig).
  *  Utilisé par : core/config, app/controllers (agents, worktrees, processes,
- *  vibecoder), app/menus. */
+ *  recipe, vibecoder), app/menus. */
 import type { AgentConfig } from 'core/agents';
 import { childOf, isMain, type Repo } from './worktree';
 
@@ -26,10 +28,11 @@ export function agentParent(agent: AgentConfig): { id: string; pr: number | null
 
 // L'enfant de `parent` dans le worktree `dir` : son modèle, son effort, son
 // mode ; avec `pr`, le robot de cette PR (F-110) : « PR #n », en VibeCoder,
-// Relire, la PR suivie, l'autonomie du parent.
-export function childAgent(parent: AgentConfig, dir: string, id: string, o: { name?: string; pr?: number }): AgentConfig {
+// Relire, la PR suivie, l'autonomie du parent ; avec `create`, celui d'une
+// nouvelle demande : en VibeCoder, Créer.
+export function childAgent(parent: AgentConfig, dir: string, id: string, o: { name?: string; pr?: number; create?: true }): AgentConfig {
   const child: AgentConfig = { id, dir, name: o.name ?? '', model: parent.model, effort: parent.effort, mode: parent.mode, sessionId: null, parent: { id: parent.id } };
-  if (!o.pr) return child;
+  if (!o.pr) return o.create ? { ...child, view: 'vibecoder', vibe: { flow: 'create', pr: null } } : child;
   return {
     ...child, name: `PR #${o.pr}`, parent: { id: parent.id, pr: o.pr }, view: 'vibecoder',
     vibe: { flow: 'review', autonomy: parent.vibe?.autonomy === 'vibe' ? 'vibe' : 'guide', pr: o.pr },
@@ -87,11 +90,12 @@ export function familyLinks(agents: AgentConfig[], repos: Record<string, Repo | 
 // sinon lui.
 const familyId = (agent: AgentConfig) => agentParent(agent)?.id ?? agent.id;
 
-// Le membre dont la famille de `agent` prend le fichier du projet : le parent
-// présent, sinon le premier de la famille (ordre de config), sinon lui.
-export function familyOwner(agent: AgentConfig, agents: AgentConfig[]): AgentConfig {
-  const id = familyId(agent);
-  return agents.find((a) => a.id === id) ?? agents.find((a) => familyId(a) === id) ?? agent;
+// Le membre dont `agent` prend le fichier du projet : son parent présent ;
+// sans parent enregistré, lui ; un enfant dont le parent est parti : null
+// (un autre membre serait un worktree, dont une PR peut changer le fichier).
+export function familyOwner(agent: AgentConfig, agents: AgentConfig[]): AgentConfig | null {
+  const p = agentParent(agent);
+  return p ? agents.find((a) => a.id === p.id) ?? null : agent;
 }
 
 // Le membre de la famille de `self` (autre que lui) où la commande `name`

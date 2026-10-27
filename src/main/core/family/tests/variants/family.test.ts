@@ -34,6 +34,12 @@ describe('childAgent', () => {
     expect(agentParent(robot)).toEqual({ id: 'a', pr: 12 });
     expect(childAgent(agent('a'), '/w', 'b', { name: 'w', pr: 3 }).vibe?.autonomy).toBe('guide');
   });
+  it('avec create : la nouvelle demande, en VibeCoder, Créer', () => {
+    expect(childAgent(parent, '/w/feat', 'b', { name: 'feat', create: true })).toEqual({
+      id: 'b', dir: '/w/feat', name: 'feat', model: 'opus', effort: 'high', mode: 'plan', sessionId: null,
+      view: 'vibecoder', vibe: { flow: 'create', pr: null }, parent: { id: 'a' },
+    });
+  });
 });
 
 describe('familles', () => {
@@ -77,11 +83,12 @@ describe('familles', () => {
     // le parent retiré : ses enfants restent une famille
     expect(heldBy('web', b, [b, c, d], running(['d']))).toBe(d);
   });
-  it('familyOwner : le parent présent, sinon le premier de la famille, sinon lui', () => {
+  it('familyOwner : le parent présent ; sans parent, lui ; parent parti : null (jamais un worktree)', () => {
     expect(familyOwner(d, [a, b, c, d])).toBe(a);
+    expect(familyOwner(b, [a, b])).toBe(a);
     expect(familyOwner(a, [a, b])).toBe(a);
-    expect(familyOwner(d, [c, b, d])).toBe(b);
-    expect(familyOwner(orphan, [c, orphan])).toBe(orphan);
+    expect(familyOwner(d, [c, b, d])).toBeNull();
+    expect(familyOwner(orphan, [c, orphan])).toBeNull();
     expect(familyOwner(c, [])).toBe(c);
   });
 });
