@@ -8,6 +8,7 @@ import path from 'node:path';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentConfig } from 'core/agents';
 import { withDefaults } from 'core/config';
+import { projectSlug } from 'core/runner';
 
 const fake = vi.hoisted(() => ({ userData: '', edited: [] as string[], asked: [] as string[] }));
 vi.mock('electron', () => ({
@@ -124,9 +125,59 @@ describe('le fichier du projet', () => {
     expect(view().processes.map((p) => p.name)).toEqual(['gear', 'install deps']);
   });
 
-  it('dans userData/vibecoder/projets/, d’après le dossier de l’agent', () => {
-    expect(path.dirname(projectFile(agent.dir))).toBe(path.join(fake.userData, 'vibecoder', 'projets'));
+  // 0.12.0 : le fichier quitte userData pour <dossier du parent>/.vibecoder/.
+  it('dans <dossier>/.vibecoder/project.json', () => {
+    expect(projectFile(agent.dir)).toBe(path.join(agent.dir, '.vibecoder', 'project.json'));
   });
+
+  it('l’ancien fichier de userData : repris s’il n’y a rien dans .vibecoder/, gardé ; jamais par-dessus', () => {
+    const old = (dir: string) => path.join(fake.userData, 'vibecoder', 'projets', `${projectSlug(dir)}.json`);
+    fs.mkdirSync(path.dirname(old(agent.dir)), { recursive: true });
+    fs.writeFileSync(old(agent.dir), '{"commands":[{"name":"ancien","run":"true"}]}');
+    expect(view().processes.map((p) => p.name)).toEqual(['ancien']);
+    expect(fs.existsSync(old(agent.dir))).toBe(true);
+
+    const other = path.join(fake.userData, 'autre');
+    fs.mkdirSync(other);
+    fs.writeFileSync(old(other), '{"commands":[{"name":"ancien","run":"true"}]}');
+    fs.mkdirSync(path.join(other, '.vibecoder'));
+    fs.writeFileSync(path.join(other, '.vibecoder', 'project.json'), '{"commands":[{"name":"nouveau","run":"true"}]}');
+    expect(processView({ ...agent, id: `${agent.id}-autre`, dir: other }, cfg).processes.map((p) => p.name)).toEqual(['nouveau']);
+  });
+
+  it('.vibecoder/ ajouté à .git/info/exclude d’une copie principale, une seule fois ; rien sans .git dossier', () => {
+    const exclude = path.join(agent.dir, '.git', 'info', 'exclude');
+    fs.mkdirSync(path.dirname(exclude), { recursive: true });
+    fs.writeFileSync(exclude, '# git ls-files\n*.log');
+    view();
+    expect(fs.readFileSync(exclude, 'utf8')).toBe('# git ls-files\n*.log\n.vibecoder/\n');
+
+    const done = path.join(fake.userData, 'deja');
+    fs.mkdirSync(path.join(done, '.git', 'info'), { recursive: true });
+    fs.writeFileSync(path.join(done, '.git', 'info', 'exclude'), '/.vibecoder/\n');
+    projectFile(done);
+    expect(fs.readFileSync(path.join(done, '.git', 'info', 'exclude'), 'utf8')).toBe('/.vibecoder/\n');
+
+    const wt = path.join(fake.userData, 'wt');
+    fs.mkdirSync(wt);
+    fs.writeFileSync(path.join(wt, '.git'), 'gitdir: /ailleurs\n');
+    projectFile(wt);
+    expect(fs.readFileSync(path.join(wt, '.git'), 'utf8')).toBe('gitdir: /ailleurs\n');
+  });
+
+  it('setup : montré si le fichier en a un ; « setup » lance la recette, sans fichier à setup : rien', async () => {
+    writeProject([]);
+    await processAction(agent, cfg, 'setup', undefined, []);
+    expect(view()).toMatchObject({ setup: false, recipe: null });
+    // un fichier relatif : il atterrit au dossier de l'agent (pwd donnerait un chemin POSIX sous Windows)
+    const seen = path.join(agent.dir, 'seen.txt');
+    fs.writeFileSync(projectFile(agent.dir), JSON.stringify({ commands: [], setup: ['echo vu > seen.txt'] }));
+    expect(view().setup).toBe(true);
+    await processAction(agent, cfg, 'setup', undefined, []);
+    expect(await until(() => view().recipe?.running === false)).toBe(true);
+    expect(view().recipe).toMatchObject({ op: 'setup', last: { ok: true } });
+    expect(fs.readFileSync(seen, 'utf8').trim()).toBe('vu');
+  }, 15000);
 
   it('promptPrefix : le préfixe vu de l’agent — vide dans sa box, celui du fichier sinon', () => {
     const box = withDefaults({ agentCommand: 'distrobox enter dev -- mise exec -- claude' });
@@ -162,6 +213,18 @@ describe.skipIf(process.platform === 'win32')('une famille : le fichier de la t�
     expect(await until(() => processView(child, fam).processes[0].log.split('\n').includes(child.dir))).toBe(true);
     await processAction(child, fam, 'edit', undefined, []);
     expect(fake.edited).toEqual([projectFile(agent.dir)]);
+  }, 15000);
+
+  it('le parent parti : aucune commande (celles qui tournaient, arrêtées), Modifier ne crée rien', async () => {
+    writeProject([{ name: 'srv', run: 'sleep 30' }]);
+    const { child, fam } = family();
+    await processAction(child, fam, 'start', 0, processView(child, fam).processes);
+    const alone = withDefaults({ agents: [child] });
+    expect(processView(child, alone)).toMatchObject({ processes: [], projectFile: false, setup: false, recipe: null });
+    await processAction(child, alone, 'edit', undefined, []);
+    expect(fake.edited).toEqual([]);
+    expect(fs.existsSync(path.join(child.dir, '.vibecoder'))).toBe(false);
+    expect(await until(() => processView(child, fam).processes[0].status === 'stopped')).toBe(true);
   }, 15000);
 
   it('tenue ailleurs : la question nomme la branche (sinon le nom), Non : rien', async () => {

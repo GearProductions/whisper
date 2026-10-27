@@ -15,6 +15,7 @@
  *  app/controllers/worktrees (gitRun : rev-parse, worktree list),
  *  app/controllers/module-code (gitReader : show, forkPoint). */
 import { execFile } from 'node:child_process';
+import { okRef } from 'helpers';
 
 // Les seules sous-commandes lancées : toutes en lecture.
 export const GIT_READ = ['rev-parse', 'status', 'diff', 'log', 'show'] as const;
@@ -47,9 +48,9 @@ export function gitRun(dir: string, timeout = 5000): Run {
   });
 }
 
-// Un ref : [A-Za-z0-9._/-], ni « - » en tête, ni « .. » (aussi pour un nom de
-// branche lu ailleurs : app/controllers/vibecoder) ; un chemin : ni « - » en tête, ni NUL.
-export const okRef = (ref: string) => /^(?!-)(?!.*\.\.)[A-Za-z0-9._/-]+$/.test(ref);
+// Un ref : okRef (helpers, réexporté pour direct et app/controllers/vibecoder) ;
+// un chemin : ni « - » en tête, ni NUL.
+export { okRef };
 const okPath = (path: string) => path !== '' && !path.startsWith('-') && !path.includes('\0');
 const NO_PROGRAM = ['--no-ext-diff', '--no-textconv'];
 // Un chemin que git rend cité (« "… ») ou qui contient un caractère de contrôle

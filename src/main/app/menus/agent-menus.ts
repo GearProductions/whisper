@@ -1,5 +1,6 @@
 /** agent-menus — les menus des agents : le clic droit sur un robot (écrire,
- *  ouvrir sur GitHub, dans l'éditeur, VibeCoder ou la conversation, couleur
+ *  ouvrir sur GitHub, dans l'éditeur, un terminal dans son dossier
+ *  (terminalCommand, sinon le premier trouvé ; grisé s'il n'y en a pas), VibeCoder ou la conversation, couleur
  *  (pas pour un enfant dont le parent est là : celle de son parent), modèle, effort, mode,
  *  conversations, interrompre, nouvelle session, retirer : ces deux-là
  *  ferment aussi ses courses ; pour un agent sans parent à la racine d'un
@@ -17,7 +18,7 @@ import { AGENT_COLORS, agentColor, agentList, colorDot, favoriteFolders } from '
 import { SELECTION_MAX } from 'core/conversation';
 import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
-import { findEditor } from 'technicals/editor';
+import { findEditor, findTerminal } from 'technicals/editor';
 import { readText } from 'technicals/selection';
 import { loadConfig, saveConfig, updateAgent } from 'app/settings';
 import { state } from 'app/state';
@@ -45,7 +46,9 @@ export async function openAgentMenu(id: unknown) {
   const st = agents.state(agent.id);
   const busy = isBusy(agent.id);
   const page = githubPage(agent.dir, readFile); // relu à chaque clic droit
-  const editor = findEditor(loadConfig().editorCommand);
+  const cfg = loadConfig();
+  const editor = findEditor(cfg.editorCommand);
+  const terminal = findTerminal(cfg.terminalCommand);
   // Agent au travail : le tour en cours suit le nouveau mode, le nouveau modèle.
   const radio = (key: 'model' | 'effort' | 'mode', options: [string, string][]) => options.map(([value, label]) => ({
     label, type: 'radio' as const, checked: ((agent as AgentConfig)[key] || options[0][0]) === value,
@@ -59,6 +62,8 @@ export async function openAgentMenu(id: unknown) {
       enabled: !!page, click: () => { if (page) shell.openExternal(page); } },
     { label: editor ? `Ouvrir dans l'éditeur (${editor.name})` : 'Ouvrir dans l\'éditeur',
       enabled: !!editor, click: () => editor?.open(agent.dir) },
+    { label: terminal ? `Ouvrir un terminal ici (${terminal.name})` : 'Ouvrir un terminal ici',
+      enabled: !!terminal, click: () => terminal?.open(agent.dir) },
     // L'une ou l'autre vue, directement (retenue ensuite pour cet agent), quelle que soit celle affichée.
     { label: '◧ Ouvrir VibeCoder', click: () => setAgentView(agent.id, 'vibecoder') },
     { label: '💬 Ouvrir la conversation', click: () => setAgentView(agent.id, null) },

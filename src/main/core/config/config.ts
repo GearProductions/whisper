@@ -1,6 +1,7 @@
 /** config — les réglages (config.json) : défauts, lecture tolérante (une
  *  retouche à la main, d'anciens formats), état au lancement (aucun agent
- *  sélectionné, I-8), dossiers favoris et leur couleur, confiance (I-23),
+ *  sélectionné, I-8), commandes de l'agent, de l'éditeur et du terminal,
+ *  dossiers favoris et leur couleur, confiance (I-23),
  *  lecture à voix haute, VibeCoder (langue, réglages d'un agent), la place
  *  des robots dans l'icône (familles : core/family).
  *  Ne connaît pas : le fichier (technicals/config-file), Electron, git (le
@@ -22,10 +23,13 @@ export type Config = {
   // appartient au DOSSIER, l'agent qu'on y crée la porte. `agentCommand` : la
   // commande qui lance Claude Code ('' : `claude` ; ex. « distrobox enter dev
   // -- mise exec -- claude ») ; `editorCommand` : celle qui ouvre un dossier
-  // dans l'éditeur de code ('' : le premier trouvé parmi zed, code, cursor, codium).
+  // dans l'éditeur de code ('' : le premier trouvé parmi zed, code, cursor, codium) ;
+  // `terminalCommand` : celle qui ouvre un terminal dans le dossier d'un agent,
+  // `{dir}` pour le dossier ('' : le premier terminal trouvé du système).
   agentsEnabled: boolean;
   agentCommand: string;
   editorCommand: string;
+  terminalCommand: string;
   agents: AgentConfig[];
   agentFolders: (Folder | string)[];
   agentSelected: string | null;
@@ -52,7 +56,7 @@ export type Config = {
 
 export const DEFAULTS: Config = {
   lang: 'fr', vocabulary: '', sound: true, showText: true, discordMute: false,
-  agentsEnabled: false, agentCommand: '', editorCommand: '', agents: [], agentFolders: [], agentSelected: null,
+  agentsEnabled: false, agentCommand: '', editorCommand: '', terminalCommand: '', agents: [], agentFolders: [], agentSelected: null,
   agentReview: true,
   onTop: true,
   muteOthers: false,

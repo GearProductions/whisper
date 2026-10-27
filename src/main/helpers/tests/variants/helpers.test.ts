@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectLanguage, oneLine, splitCommand, tail } from 'helpers';
+import { detectLanguage, oneLine, splitCommand, tail, withDir } from 'helpers';
 
 describe('splitCommand', () => {
   it('arguments et guillemets', () => {
@@ -10,6 +10,13 @@ describe('splitCommand', () => {
   });
   it('rien d’interprété', () => {
     expect(splitCommand('claude; rm -rf $HOME > /tmp/x')).toEqual(['claude;', 'rm', '-rf', '$HOME', '>', '/tmp/x']);
+  });
+});
+
+describe('withDir', () => {
+  it('un argument {dir} entier remplacé, jamais au milieu d’un mot', () => {
+    expect(withDir(['konsole', '--workdir', '{dir}', '--x={dir}', 'a{dir}'], '/a b; c')).toEqual(['konsole', '--workdir', '/a b; c', '--x={dir}', 'a{dir}']);
+    expect(withDir(['wt', '-d', '{dir}', '{dir}'], '/p')).toEqual(['wt', '-d', '/p', '/p']);
   });
 });
 

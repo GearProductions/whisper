@@ -181,8 +181,10 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   parent → *Worktrees* : les worktrees du dépôt qui n'ont pas d'agent, chacun
   avec *Ouvrir un agent ici* (un dossier jamais choisi passe par la question
   de confiance) ; l'enfant porte le nom de sa branche et la couleur du parent.
-  C'est un agent comme un autre ; il reste jusqu'à ce qu'on le retire, et
-  retirer le parent ne le retire pas.
+  C'est un agent comme un autre ; il reste jusqu'à ce qu'on le retire (ou
+  avec son worktree : *Retirer le worktree*, en [VibeCoder](#vibecoder)), et
+  retirer le parent ne le retire pas. VibeCoder crée aussi des worktrees et
+  leur robot : pour relire une PR, pour une nouvelle demande.
 - **Clic sur un robot** : il est sélectionné (à la couleur de son dossier). La dictée du gros bouton
   lui est alors **destinée** au lieu d'être collée. Un second clic le
   désélectionne.
@@ -251,7 +253,9 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   En tête du menu, *Ouvrir sur GitHub — propriétaire/dépôt* ouvre la page du
   dépôt (grisé si le dossier n'a pas d'origine GitHub). *Ouvrir dans
   l'éditeur (zed)* ouvre le dossier dans une nouvelle fenêtre de l'éditeur de
-  code (grisé si aucun n'est trouvé). *Ouvrir VibeCoder* : voir
+  code (grisé si aucun n'est trouvé). *Ouvrir un terminal ici* ouvre le
+  terminal du système dans le dossier de l'agent (grisé si aucun n'est
+  trouvé). *Ouvrir VibeCoder* : voir
   [VibeCoder](#vibecoder), plus bas.
 
 **Entre deux messages**, l'agent garde son Claude Code lancé : ce qu'il a lancé
@@ -320,6 +324,19 @@ commande est lancée telle quelle, le dossier en dernier argument (ajouter
 "editorCommand": "flatpak run com.visualstudio.code -n"
 ```
 
+**Terminal** (réglage `terminalCommand`, dans `config.json`) : vide, c'est le
+premier trouvé — sous Linux `konsole`, `gnome-terminal`, `kitty`,
+`alacritty`, `wezterm`, `xterm` ; sous Windows `wt`, sinon `cmd` —, ouvert
+dans le dossier de l'agent. Réglé, la commande est découpée comme
+`agentCommand` (guillemets respectés) et `{dir}` y est remplacé par le
+dossier ; jamais de shell. Pour arriver directement dans une box :
+
+```json
+"terminalCommand": "konsole --workdir {dir} -e distrobox enter dev"
+```
+
+(Windows : `"wt.exe -d {dir}"`.)
+
 **Autorisations en série, interruption, journal.**
 
 - Plusieurs demandes d'autorisation peuvent arriver à la fois (l'agent lance
@@ -376,7 +393,8 @@ conversation reste utilisable.
   un skill a son *Relancer* ;
 - à droite, quatre onglets : la **conversation** de l'agent, comme d'habitude
   (fil, autorisations, champ, dictée, commandes « / » ; au-dessus du champ,
-  *Demander sans modifier* : il répond sans rien toucher), les **Actions**
+  *Demander sans modifier* : il répond sans rien toucher, et *Nouvelle
+  demande dans un worktree*, plus bas), les **Actions**
   lancées, ses **Tâches** de fond et les **Processus** du projet (le nombre
   en cours dans l'onglet) ;
 - en bas : modèle, effort et mode de l'agent (comme dans son menu), jauge du
@@ -515,16 +533,20 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    « AGENTS.md à jour » se cochent à la main, jusqu'au prochain commit.
 6. **PR** : sans PR, *Valider la feature (ouvrir la PR)* ; la PR ouverte,
    *Diagnostiquer la CI* et *Release candidate* ; fusionnée, *PR mergée →
-   revenir sur la base* et *Release officielle*. L'étape est faite dès qu'une PR existe pour la branche :
+   revenir sur la base* (refusé s'il y a des modifications en cours ; sur
+   le robot d'un worktree, *Retirer le worktree* à la place) et *Release
+   officielle*. L'étape est faite dès qu'une PR existe pour la branche :
    l'appli la demande elle-même à `gh` (sans IA, en lecture seule ; toutes
    les 60 s au plus, ↻ pour tout de suite).
 
-**Sans IA** : *✓ Commiter*, *Charger* (une PR), *Publier la revue* et *PR
-mergée → revenir sur la base* ne sont que des commandes connues : l'appli
-les lance elle-même (bouton « direct », aucun jeton) — `git commit -F` du
-message affiché ; `gh pr view` puis `git fetch` de la PR ; `gh pr review`
-du brouillon ; et, seulement si la PR est fusionnée, `git switch`, `git pull
---ff-only`, `git branch -d`. Le résultat s'affiche sous le bouton (✓ ou ✗,
+**Sans IA** : *✓ Commiter*, *Charger* (une PR), *Publier la revue*, *PR
+mergée → revenir sur la base*, *Ici*, *Dans un worktree* et *Retirer le
+worktree* ne sont que des commandes connues : l'appli les lance elle-même
+(bouton « direct », aucun jeton) — `git commit -F` du message affiché ;
+`gh pr view` puis `git fetch` de la PR ; `gh pr review` du brouillon ;
+seulement si la PR est fusionnée, `git switch`, `git pull --ff-only`, `git
+branch -d` ; `git fetch` et `git switch` de la branche de la PR ; la
+recette du projet (plus bas) pour créer ou retirer un worktree. Le résultat s'affiche sous le bouton (✓ ou ✗,
 le détail à déplier), chaque commande dans `direct.log` des sorties de
 l'agent ; git et `gh` passent par le préfixe des commandes (la box : les
 hooks de commit y trouvent Node). En cas de souci, le petit *via* à côté
@@ -553,23 +575,45 @@ toutes les 60 s au plus). Enfin le verdict (*Commenter* par défaut, *Approuver*
 des changements*) et *Publier la revue*, qui l'envoie sur GitHub telle
 quelle.
 
-Pour lancer la PR, ou la relire à côté de votre travail : *Ouvrir dans un
-worktree*. L'agent crée un worktree de la PR comme le projet le fait
-d'habitude (son skill, son script ou sa doc de worktrees ; sinon à côté du
-dépôt, `<dépôt>-worktrees/pr-<n>`) et le prépare (dépendances…). L'appli
-vous demande alors si vous faites confiance à ce dossier — les réglages
-`.claude` de la PR, écrits par son auteur, se chargeront —, puis ajoute un
-robot « PR #n » sur ce dossier, sous celui du dépôt, déjà en *Relire* :
-*Aller au robot PR #n*.
-Sur ce robot, *Décharger* demande à l'agent du dépôt de retirer le worktree
-(refusé s'il reste des modifications) ; le robot part avec lui, et votre
-brouillon de revue revient à l'agent du dépôt.
+La PR chargée, *Où la relire ?* — pour la lancer, ou la relire à côté de
+votre travail :
+
+- *Ici* : le dossier passe sur la branche de la PR (`git switch`), grisé
+  s'il y a des modifications en cours (et refusé si vous en faites une juste
+  avant de cliquer) ; ce que *Créer* avait produit pour votre branche revient
+  avec elle ;
+- *Dans un worktree* : l'appli crée un worktree de la PR avec la recette du
+  projet (plus bas ; sans `worktree` réglé, `git worktree add` à côté du
+  dépôt, `<dépôt>-worktrees/pr-<n>`) et le prépare (`setup`), sans toucher à
+  votre dossier. Elle vous demande alors si vous faites confiance à ce
+  dossier — les réglages `.claude` de la PR, écrits par son auteur, se
+  chargeront —, puis ajoute un robot « PR #n » sur ce dossier, sous celui du
+  dépôt, déjà en *Relire* : *Aller au robot PR #n*. Sur ce robot, *Retirer
+  le worktree* le retire (refusé s'il reste des modifications) ; le robot
+  part avec lui, et votre brouillon de revue revient à l'agent du dépôt.
+
+`"prWorktree": "here"` ou `"worktree"` dans le fichier du projet : plus de
+question, le chargement d'une PR fait l'un ou l'autre.
+
+**Une nouvelle demande dans un worktree.** Sous le champ de la conversation,
+*Nouvelle demande dans un worktree* (dictez d'abord la demande) : l'agent
+nomme la branche d'après la demande (Haiku, selon la convention du projet,
+sinon `<type>/<ticket>-<intitulé>` ou `<type>/<version>-<intitulé>`),
+l'appli crée le worktree sur cette branche, vous demande si vous lui faites
+confiance, puis un robot enfant s'y ouvre en *Créer* et rédige la note
+d'après votre demande (un échec : ✗ et sa raison à côté du lien). Votre
+robot reste sur sa branche, même au milieu d'une PR. La PR de l'enfant fusionnée : *Retirer le worktree* (à la place de
+*PR mergée → revenir sur la base*) ; le robot part avec lui.
+`"featureWorktree": "here"` dans le fichier du projet masque ce lien.
 
 **Lancer le projet.** L'onglet *Processus* lance, arrête et relance les
 commandes qui font tourner le projet de l'agent (serveur, front, services) :
 le nom de chacune, sa commande en petit dessous, ▶, ⏹, ↻, son état, depuis quand, et la fin de son journal (à
 déplier ; *Journal complet* dans l'éditeur). Les commandes sont à vous, propres
-à la machine (`vibecoder/projets/<dossier>.json`) : *Proposer les commandes*
+à la machine, dans le **fichier du projet**, `.vibecoder/project.json` à la
+racine du dossier (comme `.zed` ou `.claude` ; l'appli ajoute `.vibecoder/`
+à `.git/info/exclude` : rien à commiter ; un ancien
+`vibecoder/projets/<dossier>.json` y est recopié) : *Proposer les commandes*
 (Haiku lit le README, `package.json`, `process-compose`, vos alias et
 fonctions du `.bashrc`…) les écrit s'il n'y en a pas encore, sinon n'y
 ajoute que celles dont le nom n'y est pas (les vôtres restent telles
@@ -586,8 +630,32 @@ les mêmes journaux et peut demander l'arrêt ou la relance d'une commande (il
 écrit un petit fichier que l'appli exécute, VibeCoder affiché). Un robot
 enfant reprend les commandes de son parent et les lance dans son propre
 dossier ; une commande ne tourne qu'à un endroit de la famille (ports et
-base partagés ; le parent retiré, ses enfants restent une famille) : la lancer ailleurs demande « <nom> tourne dans <branche> :
-l'arrêter et le lancer ici ? ».
+base partagés) : la lancer ailleurs demande « <nom> tourne dans <branche> :
+l'arrêter et le lancer ici ? ». Le fichier du projet est toujours celui
+du dossier du parent, jamais celui d'un worktree (une PR pourrait y apporter
+ses propres commandes) : le parent retiré, ses enfants n'en ont plus.
+
+La même proposition, une fois par projet, apporte la **recette** si le
+fichier ne l'a pas encore : `setup` (ce qui prépare une copie neuve, ex.
+`yarn install`) et `worktree` (`create`, `remove`, `dir` : les scripts de
+worktree du projet). L'appli la lance elle-même, sans IA : *Préparer le
+projet* (onglet *Processus*) ; créer et retirer un worktree (ci-dessus).
+Pour gt-plugins :
+
+```json
+"setup": ["yarn install"],
+"worktree": {
+  "create": "yarn setup-worktree \"$VIBECODER_BRANCH\" \"$VIBECODER_BASE\"",
+  "remove": "yarn cleanup-worktree \"$VIBECODER_BRANCH\"",
+  "dir": "../gt-plugins-worktrees/{branch}"
+}
+```
+
+La branche et sa base n'arrivent que par `VIBECODER_BRANCH` et
+`VIBECODER_BASE`. Une étape à la fois, 15 min au plus chacune, sans
+clavier (une question y/N échoue, et l'écran montre sa dernière ligne) ;
+le journal : `recipe.log` des sorties de l'agent. Un worktree n'est jamais
+retiré s'il a des modifications.
 
 **Vibe.** D'ordinaire, vous validez la note, la forme et chaque
 invariant ; l'étape en cours attend vos ✓. *Vibe* (*Créer* seulement) :
@@ -620,7 +688,8 @@ reprendre.
 *haiku*, *sonnet · moyen*, *opus · élevé*… ou *agent* (le modèle de l'agent).
 Ce qui se suffit à soi-même tourne à part, sans relire la conversation : son
 prix ne dépend pas de la longueur de celle-ci (≈ 0,02 $ sur Haiku : lister ou
-charger une PR, lancer les vérifications, commiter, publier une revue).
+charger une PR, lancer les vérifications, commiter, publier une revue,
+nommer la branche d'une nouvelle demande, proposer les commandes).
 Sonnet prépare un commit, commite les modules, ouvre la PR, replie les fixups, diagnostique la CI,
 écrit le plan de test, lit les invariants en pseudo-code (une lecture n'est
 refaite que si le test change). Opus, effort élevé, écrit les invariants,
@@ -670,7 +739,8 @@ champ) reste en français.
 
 **Limites.** La note n'est trouvée que si le nom de la branche porte le
 ticket ou la version, et que la branche la change (ou la crée). Les actions
-lancées ne survivent pas à un redémarrage de l'appli ; *Annuler* une action
+lancées, et une nouvelle demande dans un worktree pas encore créé, ne
+survivent pas à un redémarrage de l'appli ; *Annuler* une action
 suppose que Claude Code reçoive le suivi des fichiers à travers sa commande
 de lancement (une box : la variable d'environnement doit passer). Non essayé
 sous Windows.
@@ -717,6 +787,7 @@ s'affiche le temps de l'enregistrement, une fois la coupure confirmée.
 | `agentsEnabled` | Afficher les agents Claude Code                               |
 | `agentCommand` | Commande qui lance Claude Code (vide : `claude`)               |
 | `editorCommand` | Éditeur de code des agents (vide : `zed`, `code`, `cursor` ou `codium`, le premier trouvé) |
+| `terminalCommand` | Terminal de *Ouvrir un terminal ici*, `{dir}` pour le dossier (vide : le premier trouvé, ex. `konsole`) |
 | `agents`     | Les agents : dossier, nom, modèle, effort, mode, session, parent d'un robot enfant (`parent`), vue et réglages VibeCoder (`view`, `vibe`) (gérés par l'appli ; `name` se modifie ici) |
 | `agentFolders` | Dossiers favoris proposés par « + », chacun avec sa couleur    |
 | `agentReview` | Dictée vers un agent : dans le champ de son panneau, à relire ; `false` : envoyée aussitôt |

@@ -123,3 +123,25 @@ it('le nom du fichier du projet : le chemin du dossier, en lettres sûres', () =
   expect(projectSlug('/var/home/u/dev/Gear/Projets/gt-plugins')).toBe('var-home-u-dev-Gear-Projets-gt-plugins');
   expect(projectSlug('C:\\Users\\u\\projet x')).toBe('C-Users-u-projet-x');
 });
+
+describe('la recette du fichier du projet (0.12.0)', () => {
+  it('setup, worktree et les Place valides ; une valeur mal formée : comme absente', () => {
+    expect(parseProject(JSON.stringify({ commands: [], setup: ['yarn'], worktree: { create: 'c', dir: '../w/{branch}', x: 1 }, prWorktree: 'here', featureWorktree: 'worktree' })))
+      .toEqual({ commands: [], shell: DEFAULT_SHELL, setup: ['yarn'], worktree: { create: 'c', dir: '../w/{branch}' }, prWorktree: 'here', featureWorktree: 'worktree' });
+    expect(parseProject(JSON.stringify({ commands: [], setup: ['yarn', ''], worktree: { create: 1 }, prWorktree: 'oui', featureWorktree: null })))
+      .toEqual({ commands: [], shell: DEFAULT_SHELL });
+    expect(parseProject(JSON.stringify({ commands: [], setup: 'yarn' }))?.setup).toBeUndefined();
+  });
+
+  it('une proposition sans commande mais avec un setup : adoptée, sans ses Place', () => {
+    const text = projectText(JSON.stringify({ commands: [], setup: ['yarn'], prWorktree: 'here', featureWorktree: 'ask' }));
+    expect(JSON.parse(text!)).toEqual({ commands: [], setup: ['yarn'] });
+  });
+
+  it('fusion : setup et worktree seulement si le fichier n’a pas la clé, même mal formée', () => {
+    const proposal = JSON.stringify({ commands: [], setup: ['yarn'], worktree: { remove: 'r' } });
+    expect(JSON.parse(mergeProject('{"commands":[]}', proposal)!)).toEqual({ commands: [], setup: ['yarn'], worktree: { remove: 'r' } });
+    expect(mergeProject('{"commands":[],"setup":"cassé","worktree":{}}', proposal)).toBeNull();
+    expect(mergeProject('{"commands":[]}', '{"commands":[],"prWorktree":"here"}')).toBeNull();
+  });
+});

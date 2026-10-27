@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isOutputName, parseChecklist, parseQuestions, parseReading, questionsRule, worktreeCard } from 'core/vibecoder';
+import { isOutputName, parseChecklist, parseQuestions, parseReading, newWorktreeCard, questionsRule, worktreeCard } from 'core/vibecoder';
 
 const READING_FR = `# src/main/core/x/tests/invariants/x.test.ts
 
@@ -127,6 +127,22 @@ describe('worktreeCard : la fiche du worktree d’une PR (F-110)', () => {
     for (const dir of ['p-worktrees/pr-12', '/p\n-x', 12, '']) expect(worktreeCard(JSON.stringify({ dir }))).toBeNull();
     expect(worktreeCard('{ pas du json')).toBeNull();
     expect(worktreeCard(null)).toBeNull();
+  });
+});
+
+describe('newWorktreeCard : la branche d’une nouvelle demande dans un worktree', () => {
+  it('new-worktree.json : un nom de sortie connu', () => {
+    expect(isOutputName('new-worktree.json')).toBe(true);
+  });
+
+  it('la branche, un ref sûr', () => {
+    expect(newWorktreeCard(JSON.stringify({ branch: 'feat/G2-3-bouton' }))).toEqual({ branch: 'feat/G2-3-bouton' });
+  });
+
+  it('refusée : une option, « .. », un espace, un caractère de contrôle, pas un texte, illisible', () => {
+    for (const branch of ['-x', 'feat/../x', 'feat/a b', 'feat/x\n', 12, '']) expect(newWorktreeCard(JSON.stringify({ branch }))).toBeNull();
+    expect(newWorktreeCard('{ pas du json')).toBeNull();
+    expect(newWorktreeCard(null)).toBeNull();
   });
 });
 

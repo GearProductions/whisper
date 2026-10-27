@@ -248,26 +248,34 @@
     "text": "/vibecoder:charger-pr {{lang}} {{out}} {{pr}}"
   },
   {
-    "id": "open-worktree",
+    "id": "pr-here",
     "flow": "review",
     "step": "pr",
     "kind": "send",
     "needs": "none",
-    "reads": true,
-    "label": "Open in a worktree",
-    "hint": "Creates a worktree of the PR following the project's convention and sets it up (dependencies…); a \"PR #n\" robot is added there, after the trust question.",
-    "text": "/vibecoder:worktree-pr {{lang}} {{out}} {{pr}}"
+    "label": "Here",
+    "hint": "Puts this folder on the PR's branch (git switch), to review and run it here; refused if there are uncommitted changes. Create's state comes back with its branch.",
+    "text": "Put this folder on the branch of PR #{{pr}} (its `head`, in {{out}}/pr-{{pr}}.json): if `git status --porcelain` shows anything, say so and change nothing; otherwise `git fetch origin <head>` then `git switch <head>`. Nothing else."
   },
   {
-    "id": "unload-worktree",
+    "id": "pr-worktree",
     "flow": "review",
     "step": "pr",
     "kind": "send",
     "needs": "none",
-    "reads": true,
-    "label": "Unload",
-    "hint": "The repository's agent removes the PR's worktree (refused if changes remain); this robot leaves with it.",
-    "text": "/vibecoder:retirer-worktree {{lang}} {{out}} {{pr}}"
+    "label": "In a worktree",
+    "hint": "Creates a worktree of the PR with the project's recipe (.vibecoder/project.json), without touching this folder; a \"PR #n\" robot is added there, after the trust question.",
+    "text": "Create the worktree of PR #{{pr}} without touching this folder, with the recipe of .vibecoder/project.json: `git fetch origin <head>` (the `head` of {{out}}/pr-{{pr}}.json), then `worktree.create` with VIBECODER_BRANCH=pr-{{pr}} and VIBECODER_BASE=<head> in the environment; without `worktree.create`: `git worktree add -b pr-{{pr}} <folder> refs/vibecoder/pr/{{pr}}` then the `setup` commands in the worktree. Last, write {{out}}/pr-{{pr}}-worktree.json: {\"dir\": \"<absolute path of the worktree>\", \"branch\": \"pr-{{pr}}\"}. Nothing else."
+  },
+  {
+    "id": "remove-worktree",
+    "flow": "both",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "Remove the worktree",
+    "hint": "Removes this worktree with the project's recipe (refused if changes remain); this robot leaves with it, the panel goes to the parent.",
+    "text": "Remove the worktree: only by the app (direct), never by the agent."
   },
   {
     "id": "review-note",
@@ -342,6 +350,17 @@
     "label": "Ask without changing",
     "hint": "Sends the question in the field, telling the agent not to change anything.",
     "text": "{{text}}\n\n(Answer only: do not modify any file and do not run anything that modifies anything.)"
+  },
+  {
+    "id": "new-worktree",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "text",
+    "reads": true,
+    "label": "New request in a worktree",
+    "hint": "The agent names the branch after the request in the field; the app creates the worktree on that branch and opens a robot there in Create, which writes the note. This folder stays on its branch.",
+    "text": "/vibecoder:nouvelle-demande {{lang}} {{out}} {{text}}"
   },
   {
     "id": "comment",

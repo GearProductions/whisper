@@ -1,11 +1,13 @@
 /** outputs — ce que les skills écrivent pour l'écran dans le dossier de
  *  sorties de l'agent : les seuls noms que le principal y lit, et leur
  *  lecture (cas d'un test lus en pseudo-code, questions ouvertes, cases à
- *  cocher, un JSON, le worktree d'une PR, les remarques ponytail appliquées) ;
+ *  cocher, un JSON, le worktree d'une PR, la branche d'une nouvelle demande dans un
+ *  worktree, les remarques ponytail appliquées) ;
  *  la ligne de la consigne qui fait vider questions.md par la conversation.
  *  Ne connaît pas : le disque (textes passés), les skills.
  *  Utilisé par : core/vibecoder (journey), app/controllers (vibecoder, agents). */
 import path from 'node:path';
+import { okRef } from 'helpers';
 import type { ReadingCase, VibeCheck, VibeQuestion } from 'shared/bridge';
 
 // Les noms fixes. S'y ajoutent, par PR : pr-<n>.json, pr-<n>-note.md,
@@ -15,6 +17,7 @@ export const OUTPUTS: readonly string[] = [
   'questions.md', 'align.md', 'review.md', 'commit.md', 'checks.json', 'ponytail.md', 'pr.json', 'ci.md', 'prs.json',
   'lancement.json',   // la proposition des commandes du projet (skill lancement), adoptée par controllers/processes
   'ponytail-applied.json', // { applied: ["<fichier>:L<ligne>", …] } : les remarques de ponytail.md que la course apply a appliquées
+  'new-worktree.json',     // { branch } : la branche d'une nouvelle demande dans un worktree (skill nouvelle-demande)
 ];
 
 // Un nom de sortie connu, rien d'autre : ni `..`, ni autre dossier qu'invariants/.
@@ -33,13 +36,19 @@ export function json(text: string | null | undefined): Record<string, unknown> |
   }
 }
 
-// pr-<n>-worktree.json (skill worktree-pr) : le dossier du worktree, un chemin
+// pr-<n>-worktree.json (écrite par l'appli, prWorktreeReady) : le dossier du worktree, un chemin
 // absolu sans caractère de contrôle, et sa branche ; sinon null.
 export function worktreeCard(text: string | null | undefined): { dir: string; branch: string } | null {
   const card = json(text);
   const dir = card?.dir;
   if (typeof dir !== 'string' || !path.isAbsolute(dir) || /[\0-\x1f\x7f]/.test(dir)) return null;
   return { dir, branch: typeof card!.branch === 'string' ? card!.branch : '' };
+}
+
+// new-worktree.json (skill nouvelle-demande) : la branche, un ref sûr (okRef) ; sinon null.
+export function newWorktreeCard(text: string | null | undefined): { branch: string } | null {
+  const branch = json(text)?.branch;
+  return typeof branch === 'string' && okRef(branch) ? { branch } : null;
 }
 
 const BULLET = /^\s*(?:[-*+]|\d+[.)])\s+/;

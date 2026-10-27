@@ -27,8 +27,10 @@ const ACTIONS: ActionDef[] = [
   A('release', 'create', 'pr', '/vibecoder:release {{lang}} {{out}}'),
   A('prs', 'review', 'pr', '/vibecoder:prs {{lang}} {{out}}'),
   A('load-pr', 'review', 'pr', '/vibecoder:charger-pr {{lang}} {{out}} {{pr}}'),
-  A('open-worktree', 'review', 'pr', '/vibecoder:worktree-pr {{lang}} {{out}} {{pr}}'),
-  A('unload-worktree', 'review', 'pr', '/vibecoder:retirer-worktree {{lang}} {{out}} {{pr}}'),
+  A('pr-here', 'review', 'pr', '/vibecoder:ici {{lang}} {{out}} {{pr}}'),
+  A('pr-worktree', 'review', 'pr', '/vibecoder:pr-worktree {{lang}} {{out}} {{pr}}'),
+  A('remove-worktree', 'both', 'pr', '/vibecoder:retirer {{lang}} {{out}}'),
+  A('new-worktree', 'both', null, '/vibecoder:nouvelle-demande {{lang}} {{out}} {{text}}', 'text'),
   A('review-note', 'review', 'note', '/vibecoder:relire-note {{lang}} {{out}} {{pr}}'),
   A('review-commits', 'review', 'commits', '/vibecoder:relire-commits {{lang}} {{out}} {{pr}}'),
   A('screen', 'review', 'ecran', '/vibecoder:ecran {{lang}} {{out}} {{pr}}'),
@@ -614,25 +616,90 @@ describe('rc.2 : modèle au choix, PR fermée, fichiers des commits', () => {
   });
 });
 
-describe('Relire dans un worktree (F-110)', () => {
-  const loaded = (over: Partial<JourneyInput> = {}) => input({ flow: 'review', pr: 12, outputs: { 'pr-12.json': out('{"number":12}') }, ...over });
-  const why = (v: VibeView, id: string) => v.actions.find((a) => a.id === id)?.disabled;
+describe('Ici ou dans un worktree (0.12.0)', () => {
+  const CARD = JSON.stringify({ number: 12, head: 'feat/G2-1' });
+  const loaded = (over: Partial<JourneyInput> = {}) => vibeView(input({ flow: 'review', pr: 12, outputs: { 'pr-12.json': out(CARD) }, ...over }));
+  const seen = (v: VibeView, ids: string[]) => ids.filter((id) => !action(v, id)?.hidden);
+  const PLACES = ['pr-here', 'pr-worktree'];
+  const RUNNING = { op: 'create' as const, running: true, last: null };
 
-  it('Ouvrir dans un worktree : une PR chargée, pas encore dans un worktree', () => {
-    expect(why(vibeView(loaded()), 'open-worktree')).toBeNull();
-    expect(why(vibeView(input({ flow: 'review', pr: 12 })), 'open-worktree')).toBe('Charger d\'abord la PR');
-    expect(why(vibeView(input({ flow: 'review' })), 'open-worktree')).toBe('Aucune PR choisie');
-    for (const state of ['creating', 'open', 'robot'] as const) {
-      expect(why(vibeView(loaded({ worktree: { state, temp: false, dir: '/w' } })), 'open-worktree')).toBe('Déjà ouverte dans un worktree');
-    }
+  it('Relire : Ici et Dans un worktree, la PR chargée ; pas avant', () => {
+    expect(seen(loaded(), PLACES)).toEqual(PLACES);
+    expect(seen(vibeView(input({ flow: 'review', pr: 12 })), PLACES)).toEqual([]);
+    expect(seen(vibeView(input({ flow: 'review' })), PLACES)).toEqual([]);
   });
 
-  it('Décharger : seulement sur le robot du worktree ; l’état du worktree passe au relevé', () => {
-    expect(why(vibeView(loaded()), 'unload-worktree')).toBe('Seulement sur le robot d\'un worktree');
-    const robot = vibeView(loaded({ worktree: { state: 'robot', temp: true, dir: '/w' } }));
-    expect(why(robot, 'unload-worktree')).toBeNull();
+  it('Ici : grisé s\'il y a des modifications, avec sa raison, pas masqué', () => {
+    const v = loaded({ checkout: { branch: 'main', dirty: true } });
+    expect([action(v, 'pr-here')?.hidden, action(v, 'pr-here')?.disabled]).toEqual([false, 'Des modifications en cours']);
+    expect(action(loaded({ lang: 'en', checkout: { branch: 'main', dirty: true } }), 'pr-here')?.disabled).toBe('Uncommitted changes');
+    expect(action(loaded({ checkout: { branch: 'main', dirty: false } }), 'pr-here')?.disabled).toBeNull();
+    // les fichiers du ref de la PR ne comptent pas : c'est le dossier qui change de branche
+    expect(action(loaded({ repo: repo(['a.txt']), checkout: { branch: 'main', dirty: false } }), 'pr-here')?.disabled).toBeNull();
+  });
+
+  it('Ici : masqué sur la branche de la PR', () => {
+    expect(seen(loaded({ checkout: { branch: 'feat/G2-1', dirty: false } }), PLACES)).toEqual(['pr-worktree']);
+  });
+
+  it('Ici : masqué sur le robot d\'une PR (déjà dans son worktree)', () => {
+    expect(seen(loaded({ child: true, worktree: { state: 'robot', temp: true, dir: '/w' } }), PLACES)).toEqual([]);
+  });
+
+  it('prWorktree réglé : l\'autre choix masqué', () => {
+    expect(seen(loaded({ place: { pr: 'here', feature: 'ask' } }), PLACES)).toEqual(['pr-here']);
+    expect(seen(loaded({ place: { pr: 'worktree', feature: 'ask' } }), PLACES)).toEqual(['pr-worktree']);
+  });
+
+  it('Dans un worktree : masqué la PR déjà dans un worktree, ou sur un enfant', () => {
+    for (const state of ['creating', 'open', 'robot'] as const) {
+      expect(seen(loaded({ worktree: { state, temp: false, dir: '/w' } }), PLACES)).toEqual(['pr-here']);
+    }
+    expect(seen(loaded({ child: true }), PLACES)).toEqual(['pr-here']);
+  });
+
+  it('une recette en cours : les actions de worktree grisées, avec sa raison', () => {
+    const v = loaded({ recipe: RUNNING });
+    expect(PLACES.map((id) => action(v, id)?.disabled)).toEqual(['Une recette du projet est en cours', 'Une recette du projet est en cours']);
+    expect(action(loaded({ recipe: { ...RUNNING, running: false } }), 'pr-worktree')?.disabled).toBeNull();
+  });
+
+  it('pr-here, pr-worktree, remove-worktree : directes ; remove-worktree seulement (pas de via)', () => {
+    expect(['pr-here', 'pr-worktree'].map((id) => action(loaded(), id)?.direct)).toEqual([{ running: false, last: null }, { running: false, last: null }]);
+    expect(action(vibeView(input()), 'remove-worktree')?.direct).toEqual({ running: false, last: null, only: true });
+  });
+
+  it('new-worktree : son dernier résultat, comme une action directe', () => {
+    const last = { ok: false, line: 'No base branch found for this repository: no worktree created.', detail: '', time: 1 };
+    expect(action(vibeView(input()), 'new-worktree')?.direct).toEqual({ running: false, last: null });
+    expect(action(vibeView(input({ direct: { 'new-worktree': { running: false, last } } })), 'new-worktree')?.direct?.last).toEqual(last);
+  });
+
+  it('Nouvelle demande dans un worktree : sur une tête, dans les deux parcours, le texte du champ', () => {
+    for (const flow of ['create', 'review'] as const) expect(action(vibeView(input({ flow })), 'new-worktree')).toMatchObject({ hidden: false, usesText: true });
+    expect(action(vibeView(input({ child: true })), 'new-worktree')?.hidden).toBe(true);
+    expect(action(vibeView(input({ place: { pr: 'ask', feature: 'here' } })), 'new-worktree')?.hidden).toBe(true);
+    expect(action(vibeView(input({ place: { pr: 'ask', feature: 'worktree' } })), 'new-worktree')?.hidden).toBe(false);
+  });
+
+  it('Nouvelle demande dans un worktree : grisée pendant une recette, ou quand la conversation travaille', () => {
+    expect(action(vibeView(input({ recipe: RUNNING })), 'new-worktree')?.disabled).toBe('Une recette du projet est en cours');
+    expect(action(vibeView(input({ busy: true })), 'new-worktree')?.disabled).toBe('L\'agent travaille');
+  });
+
+  it('Retirer le worktree, en Créer : sur un enfant, sa PR fusionnée ; revenir sur la base masqué sur un enfant', () => {
+    const merged = (child: boolean) => vibeView(ready({ child, github: { pr: { number: 31, state: 'MERGED' } } }));
+    expect(seen(merged(true), ['remove-worktree', 'base'])).toEqual(['remove-worktree']);
+    expect(seen(merged(false), ['remove-worktree', 'base'])).toEqual(['base']);
+    expect(action(vibeView(ready({ child: true, github: { pr: { number: 31, state: 'OPEN' } } })), 'remove-worktree')?.hidden).toBe(true);
+  });
+
+  it('Retirer le worktree, en Relire : sur le robot d\'une PR seulement ; l\'état du worktree passe au relevé', () => {
+    const robot = loaded({ child: true, worktree: { state: 'robot', temp: true, dir: '/w' } });
+    expect([action(robot, 'remove-worktree')?.hidden, action(robot, 'remove-worktree')?.disabled]).toEqual([false, null]);
     expect(robot.worktree).toEqual({ state: 'robot', temp: true, dir: '/w' });
-    expect(vibeView(loaded()).worktree).toBeNull();
+    expect(action(loaded({ worktree: { state: 'robot', temp: false, dir: '/w' } }), 'remove-worktree')?.hidden).toBe(true);
+    expect(vibeView(input({ flow: 'review', pr: 12, outputs: { 'pr-12.json': out(CARD) } })).worktree).toBeNull();
   });
 });
 
@@ -765,11 +832,6 @@ describe('le parcours guidé (0.9.0) : étapes ouvertes, actions masquées', () 
     expect([action(v, 'commit'), action(v, 'answers'), action(v, 'fixups'), action(v, 'forme')].map((a) => [a?.hidden, a?.disabled]))
       .toEqual([[true, 'Préparer d\'abord le commit'], [true, 'Aucune question ouverte'], [true, 'Aucun commit fixup!'], [true, 'Pas encore de note']]);
     expect(action(vibeView(ready({ tests: [] })), 'read-invariants')?.hidden).toBe(true);
-  });
-
-  it('Relire dans un worktree : Ouvrir déjà fait et Décharger hors du robot masqués', () => {
-    const v = vibeView(input({ flow: 'review', pr: 12, outputs: { 'pr-12.json': out('{"number":12}') }, worktree: { state: 'open', temp: false, dir: '/w' } }));
-    expect([action(v, 'open-worktree')?.hidden, action(v, 'unload-worktree')?.hidden]).toEqual([true, true]);
   });
 
   it('grisée par une course ou la conversation : affichée ; masquée tout de même si elle n\'a pas de sens', () => {

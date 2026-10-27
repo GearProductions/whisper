@@ -55,8 +55,12 @@ const READ_BY: Partial<Record<keyof VibeArgs, string>> = {
 };
 
 // Les actions que l'appli fait aussi elle-même, sans agent, au clic de leur bouton « direct » (F-114) ;
-// leur gabarit reste la voie « via » l'agent.
-export const DIRECT_ACTIONS = ['commit', 'publish', 'load-pr', 'base'];
+// leur gabarit reste la voie « via » l'agent. Ici, Dans un worktree, Retirer le worktree : la recette du
+// projet ou git, lancés par l'appli (note 0.12.0-worktrees).
+export const DIRECT_ACTIONS = ['commit', 'publish', 'load-pr', 'base', 'pr-here', 'pr-worktree', 'remove-worktree'];
+// Celles que seule l'appli fait : pas de « via » (leur gabarit n'est jamais envoyé). Retirer le worktree :
+// l'agent ne retirerait pas son robot.
+export const DIRECT_ONLY = ['remove-worktree'];
 
 // Le brouillon de revue en texte : une ligne « - [cible] texte » par remarque.
 export const draftText = (draft: VibeView['draft']) => draft.map((c) => `- [${c.target}] ${c.text}`).join('\n');

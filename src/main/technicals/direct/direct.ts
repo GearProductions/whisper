@@ -1,6 +1,9 @@
-/** direct — les quatre actions que l'appli fait elle-même, sans agent ni
+/** direct — les sept actions que l'appli fait elle-même, sans agent ni
  *  modèle, au clic de leur bouton (F-114, I-39) : commiter le message
- *  préparé, publier la revue, charger une PR, revenir sur la base. Une liste
+ *  préparé, publier la revue, charger une PR, revenir sur la base, aller sur
+ *  une branche (Ici : git switch, le dossier propre vérifié par l'appelant),
+ *  rapatrier une branche d'origin (la tête d'une PR avant son worktree),
+ *  supprimer la branche pr-<n> de l'appli (son worktree retiré). Une liste
  *  fermée de commandes (DIRECT_GIT, DIRECT_GH), aux arguments fixes ou
  *  vérifiés : une PR est un entier positif, un verdict l'un des trois, une
  *  branche un ref sûr (okRef) ; un fichier est écrit par l'appli dans le
@@ -129,6 +132,30 @@ export function directRunner({ dir, out, prefix, launch = launchFile }: { dir: s
         if (r.exit !== 0) return result(false, first(r, `git ${args[0]} failed.`));
       }
       return result(true, `On ${base}, up to date; ${branch} deleted.`);
+    },
+
+    // git fetch origin <branch> : origin/<branch> à jour.
+    async fetchBranch(branch: unknown): Promise<DirectResult> {
+      if (typeof branch !== 'string' || !okRef(branch)) return result(false, 'Refused: branch missing or unsafe.');
+      const r = await run('git', ['fetch', 'origin', branch]);
+      if (r.exit !== 0) return result(false, first(r, 'git fetch failed.'));
+      return result(true, `origin/${branch} fetched.`);
+    },
+
+    // git switch <branch> (le dossier propre : à l'appelant de l'avoir vérifié).
+    async switchTo(branch: unknown): Promise<DirectResult> {
+      if (typeof branch !== 'string' || !okRef(branch)) return result(false, 'Refused: branch missing or unsafe.');
+      const r = await run('git', ['switch', branch]);
+      if (r.exit !== 0) return result(false, first(r, 'git switch failed.'));
+      return result(true, `On ${branch}.`);
+    },
+
+    // git branch -D pr-<n> : la branche de l'appli, son worktree retiré (jamais une autre).
+    async dropPrBranch(n: unknown): Promise<DirectResult> {
+      if (!okNumber(n)) return result(false, 'Refused: the PR is not a positive integer.');
+      const r = await run('git', ['branch', '-D', `pr-${n}`]);
+      if (r.exit !== 0) return result(false, first(r, 'git branch -D failed.'));
+      return result(true, `pr-${n} deleted.`);
     },
   };
 }

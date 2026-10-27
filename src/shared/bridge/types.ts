@@ -310,9 +310,10 @@ export type VibeAction = {
   primary: boolean;            // ce que le guide fait faire ensuite (mis en avant dans l'en-tête de l'étape en cours)
   disabled: string | null;     // pourquoi c'est grisé (le principal la refuse), même masquée
   hidden: boolean;             // pas de sens maintenant : pas affichée (l'état de la PR ne fait que masquer)
-  // Faite aussi par l'appli, sans agent (F-114 : commit, publish, load-pr, base) : en cours, et son dernier
-  // résultat (✓/✗, une ligne, le détail) ; absent : seulement par l'agent.
-  direct?: { running: boolean; last: { ok: boolean; line: string; detail: string; time: number } | null };
+  // Faite aussi par l'appli, sans agent (F-114 : commit, publish, load-pr, base…) : en cours, et son dernier
+  // résultat (✓/✗, une ligne, le détail) ; only : seulement par l'appli (pas de « via ») ; absent : seulement
+  // par l'agent. new-worktree : le résultat de ce que l'appli fait après l'agent (le worktree, l'enfant).
+  direct?: { running: boolean; last: { ok: boolean; line: string; detail: string; time: number } | null; only?: true };
 };
 
 // Une course : une action d'étape qui court à part de la conversation (onglet Actions). stopped : arrêtée,
@@ -344,7 +345,10 @@ export type VibeProcess = {
   exit: number | null;         // le code de sa dernière fin (null : tuée par un signal, ou pas finie)
   log: string;                 // la fin de son journal, sans couleurs
 };
-export type VibeProcessOp = 'start' | 'stop' | 'restart' | 'log' | 'edit';
+export type VibeProcessOp = 'start' | 'stop' | 'restart' | 'log' | 'edit' | 'setup';
+// La recette du fichier du projet (setup, créer ou retirer un worktree), lancée
+// par l'appli : la dernière de la famille, en cours ou finie (sa dernière ligne utile).
+export type VibeRecipe = { op: 'setup' | 'create' | 'remove'; running: boolean; last: { ok: boolean; line: string; time: number } | null };
 export type VibeWorktree = { state: 'creating' | 'open' | 'robot'; temp: boolean; dir: string };
 
 export type VibeView = {
@@ -376,6 +380,8 @@ export type VibeView = {
   // Processus : les commandes du fichier du projet (toujours remplis par le relevé) ; projectFile : il existe.
   processes?: VibeProcess[];
   projectFile?: boolean;
+  setup?: boolean;                       // le fichier du projet a un setup (*Préparer le projet*)
+  recipe?: VibeRecipe | null;            // la recette de la famille, en cours ou la dernière
   runs?: VibeRun[];                      // les courses, la plus récente d'abord (toujours rempli par le relevé)
   time: number;                          // heure du relevé
 };

@@ -11,7 +11,7 @@
  *  action que l'appli fait elle-même : « direct », à côté « via » l'agent, et
  *  dessous son dernier résultat, F-114), l'invitation (rien encore, et ce qui
  *  le produit), la carte d'une PR, le bandeau d'une PR fusionnée ou fermée,
- *  le badge du robot d'une PR ouverte dans un worktree (et Décharger).
+ *  le badge du robot d'une PR ouverte dans un worktree (et Retirer le worktree).
  *  Ne connaît pas : le pont (rappels passés ; ⏹ par le contexte StopRun).
  *  Utilisé par : les vues d'étape ; vibe-coder (bandeau d'une
  *  PR fermée, badge du worktree). */
@@ -97,7 +97,7 @@ type RunProps = { a: VibeAction | undefined; busy: boolean; label?: ReactNode; t
 // étape) est grisé tant qu'elle travaille, une action d'étape court à part (sa course en cours :
 // « en cours » et ⏹). En sous-contexte, le choix du modèle à côté (sinon, qui travaille). Une action
 // que l'appli fait elle-même (F-114) : le bouton « direct », puis le petit « via »
-// l'agent (son modèle ou qui travaille), et dessous « … » en cours, sinon son dernier
+// l'agent (son modèle ou qui travaille ; aucun pour une action directe seulement, only), et dessous « … » en cours, sinon son dernier
 // résultat (✓ ou ✗, une ligne, le détail déplié).
 export function Run({ a, busy, label, tone = 'plain', onRun }: RunProps) {
   const run = useContext(StopRun);
@@ -130,10 +130,12 @@ export function Run({ a, busy, label, tone = 'plain', onRun }: RunProps) {
       <span className="vc-direct">
         <span className="vc-run-group">
           {button}
-          <button type="button" className="vc-via" disabled={off} title={a.hint} onClick={() => onRun()}>
-            via{a.models.length ? null : <span className="vc-run-who">{a.who}</span>}
-          </button>
-          {a.models.length ? <ModelPick a={a} /> : null}
+          {direct.only ? null : (
+            <button type="button" className="vc-via" disabled={off} title={a.hint} onClick={() => onRun()}>
+              via{a.models.length ? null : <span className="vc-run-who">{a.who}</span>}
+            </button>
+          )}
+          {a.models.length && !direct.only ? <ModelPick a={a} /> : null}
           {running}
         </span>
         {direct.running ? <span className="vc-direct-res" data-state="running">…</span> : last ? (
@@ -185,14 +187,14 @@ export function ClosedBanner({ pr, t }: { pr: VibePr | null; t: Strings }) {
   return <div className="vc-closed" role="status"><b>{`#${pr.number}`}</b>{t.prClosed[pr.state]}</div>;
 }
 
-// Le robot temporaire d'une PR ouverte dans un worktree (F-110) : « PR #n · worktree » et Décharger
-// (l'agent du dépôt retire le worktree, le robot part avec lui).
-export function WorktreeBadge({ view, busy, onRun }: { view: VibeView; busy: boolean; onRun(): void }) {
+// Le robot temporaire d'une PR ouverte dans un worktree (F-110) : « PR #n · worktree » et Retirer le worktree
+// (remove-worktree, direct : la recette du projet le retire, le robot part avec lui).
+export function WorktreeBadge({ view, busy, onRun }: { view: VibeView; busy: boolean; onRun(extra?: VibeArgs): void }) {
   if (!view.worktree?.temp || !view.pr) return null;
   return (
     <span className="vc-wt" title={view.worktree.dir}>
       <span className="vc-wt-badge">{S[view.lang].worktree(view.pr.number)}</span>
-      <Run a={view.actions.find((a) => a.id === 'unload-worktree')} busy={busy} tone="ghost" onRun={onRun} />
+      <Run a={view.actions.find((a) => a.id === 'remove-worktree')} busy={busy} tone="ghost" onRun={onRun} />
     </span>
   );
 }

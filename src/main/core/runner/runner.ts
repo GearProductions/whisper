@@ -1,22 +1,30 @@
 /** runner — les commandes qui lancent le projet d'un agent (onglet Processus
  *  de VibeCoder), lues dans son fichier du projet (`{ commands: [{ name, run,
- *  cwd? }], shell?, prefix? }`, écrit par l'utilisateur ou adopté d'une
+ *  cwd? }], shell?, prefix?, setup?, worktree?: { create?, remove?, dir? },
+ *  prWorktree?, featureWorktree? }`, écrit par l'utilisateur ou adopté d'une
  *  proposition ; fichier existant : la proposition n'y ajoute que ses commandes
- *  de nom nouveau, mergeProject). Une commande se désigne par son rang dans ce fichier, jamais
+ *  de nom nouveau, et `setup`, `worktree` si le fichier n'a pas encore la clé,
+ *  jamais par-dessus : mergeProject, I-42). Une commande se désigne par son rang dans ce fichier, jamais
  *  par un texte : son argv est le préfixe (commandPrefix : celui du fichier,
  *  sinon le réglage vibeCommandPrefix, sinon la box de l'agent si sa commande
  *  passe par `distrobox enter <box> --` ; le même pour gh), puis le shell du
  *  fichier (`bash -ic` par défaut : alias et fonctions de l'utilisateur ;
- *  seule exception à I-27, limitée à ces commandes). Les demandes de l'agent (<nom>.stop,
+ *  seule exception à I-27, limitée à ces commandes et à la recette). Les demandes de l'agent (<nom>.stop,
  *  <nom>.restart) ne valent que pour les noms du fichier. La fin d'un journal,
  *  sans couleurs. Le préfixe vu de l'agent (agentSidePrefix) : le même, sans
  *  la box où il tourne déjà.
  *  Ne connaît pas : le disque, les processus, Electron.
- *  Utilisé par : app/controllers/processes (et vibecoder : le préfixe de gh, celui vu de l'agent). */
+ *  Utilisé par : app/controllers (processes, recipe), core/runner/recipe (et vibecoder : le préfixe de gh, celui vu de l'agent). */
 import { splitCommand } from 'helpers';
 
 export type ProjectCommand = { name: string; run: string; cwd?: string };
-export type Project = { commands: ProjectCommand[]; shell: string[]; prefix?: string };
+// Où va une PR à relire, une nouvelle demande : demander, ici, dans un worktree.
+export type Place = 'ask' | 'here' | 'worktree';
+export type Project = {
+  commands: ProjectCommand[]; shell: string[]; prefix?: string;
+  setup?: string[]; worktree?: { create?: string; remove?: string; dir?: string };
+  prWorktree?: Place; featureWorktree?: Place;
+};
 export type Request = { name: string; op: 'stop' | 'restart'; file: string };
 
 export const DEFAULT_SHELL = ['bash', '-ic'];
@@ -25,13 +33,14 @@ const RUN_MAX = 4000;
 const okText = (v: unknown, max: number): v is string => typeof v === 'string' && v.trim() !== '' && v.length <= max && !v.includes('\0');
 
 // Le fichier du projet (JSON) → ses commandes valides, dans leur ordre (une
-// entrée mal formée ou un nom déjà vu : ignorés) ; null s'il manque ou n'est
+// entrée mal formée ou un nom déjà vu : ignorés), et ses autres clés valides
+// (une valeur mal formée : ignorée, comme absente) ; null s'il manque ou n'est
 // pas un objet à liste `commands`.
 export function parseProject(text: string | null | undefined): Project | null {
   let raw: unknown;
   try { raw = JSON.parse(text ?? ''); } catch { return null; }
   if (!raw || typeof raw !== 'object' || !Array.isArray((raw as { commands?: unknown }).commands)) return null;
-  const { commands, shell, prefix } = raw as { commands: unknown[]; shell?: unknown; prefix?: unknown };
+  const { commands, shell, prefix, setup, worktree, prWorktree, featureWorktree } = raw as Record<string, unknown> & { commands: unknown[] };
   const names = new Set<string>();
   const list = commands.flatMap((c): ProjectCommand[] => {
     const { name, run, cwd } = (c && typeof c === 'object' ? c : {}) as Record<string, unknown>;
@@ -42,32 +51,49 @@ export function parseProject(text: string | null | undefined): Project | null {
   });
   const okShell = Array.isArray(shell) && shell.length > 0 && shell.length <= 5 && shell.every((s) => okText(s, 200));
   const own = typeof prefix === 'string' && prefix.length <= 1000 && !prefix.includes('\0') ? { prefix } : {};
-  return { commands: list, shell: okShell ? shell as string[] : DEFAULT_SHELL, ...own };
+  // setup : une liste ordonnée, gardée entière ou pas du tout (une étape qui manque fausserait la suite).
+  const okSetup = Array.isArray(setup) && setup.length > 0 && setup.every((s) => okText(s, RUN_MAX));
+  const w = (worktree && typeof worktree === 'object' ? worktree : {}) as Record<string, unknown>;
+  const recipe = Object.fromEntries((['create', 'remove', 'dir'] as const)
+    .filter((k) => okText(w[k], k === 'dir' ? 1000 : RUN_MAX)).map((k) => [k, w[k] as string]));
+  const place = (v: unknown) => (['ask', 'here', 'worktree'] as unknown[]).includes(v) ? v as Place : undefined;
+  return {
+    commands: list, shell: okShell ? shell as string[] : DEFAULT_SHELL, ...own,
+    ...(okSetup ? { setup: setup as string[] } : {}),
+    ...(Object.keys(recipe).length ? { worktree: recipe } : {}),
+    ...(place(prWorktree) ? { prWorktree: place(prWorktree) } : {}),
+    ...(place(featureWorktree) ? { featureWorktree: place(featureWorktree) } : {}),
+  };
 }
 
 // Une proposition (<out>/lancement.json) → le texte du fichier du projet, ou
-// null si elle n'a aucune commande valide. Jamais son `prefix` : il précède
-// aussi les appels à gh, faits sans clic ; seul l'utilisateur l'écrit.
+// null si elle n'a ni commande, ni setup, ni worktree valides. Jamais son
+// `prefix` : il précède aussi les appels à gh, faits sans clic ; seul
+// l'utilisateur l'écrit. Ni prWorktree, ni featureWorktree : ses choix à lui.
 export function projectText(text: string | null | undefined): string | null {
   const p = parseProject(text);
-  if (!p?.commands.length) return null;
+  if (!p || (!p.commands.length && !p.setup && !p.worktree)) return null;
   const shell = p.shell === DEFAULT_SHELL ? {} : { shell: p.shell };
-  return `${JSON.stringify({ commands: p.commands, ...shell }, null, 2)}\n`;
+  return `${JSON.stringify({ commands: p.commands, ...shell, setup: p.setup, worktree: p.worktree }, null, 2)}\n`;
 }
 
 // Le fichier existant (current) et une proposition → le texte du fichier :
 // son objet JSON tel quel (champs inconnus, commandes invalides compris), plus,
 // à la fin de commands, les commandes valides de la proposition dont le nom n'y
-// est pas ; null s'il n'y a rien de nouveau ou si le fichier est illisible (il
-// appartient à l'utilisateur : jamais réécrit). Jamais le `prefix` ni le
-// `shell` de la proposition.
+// est pas, et son `setup`, son `worktree` valides si le fichier n'a pas la clé
+// (même mal formée : jamais par-dessus, I-42) ; null s'il n'y a rien de nouveau
+// ou si le fichier est illisible (il appartient à l'utilisateur : jamais
+// réécrit). Jamais le `prefix`, le `shell`, ni les Place de la proposition.
 export function mergeProject(current: string, proposal: string): string | null {
   if (!parseProject(current)) return null;
-  const raw = JSON.parse(current) as { commands: unknown[] };
+  const raw = JSON.parse(current) as Record<string, unknown> & { commands: unknown[] };
+  const p = parseProject(proposal);
   const taken = new Set(raw.commands.map((c) => (c && typeof c === 'object' ? (c as { name?: unknown }).name : undefined)));
-  const added = (parseProject(proposal)?.commands ?? []).filter((c) => !taken.has(c.name));
-  if (!added.length) return null;
+  const added = (p?.commands ?? []).filter((c) => !taken.has(c.name));
+  const keys = (['setup', 'worktree'] as const).filter((k) => p?.[k] && !(k in raw));
+  if (!added.length && !keys.length) return null;
   raw.commands.push(...added);
+  for (const k of keys) raw[k] = p![k];
   return `${JSON.stringify(raw, null, 2)}\n`;
 }
 
