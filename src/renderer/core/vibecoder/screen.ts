@@ -1,11 +1,13 @@
 /** screen — les choix de l'écran VibeCoder qui ne sont pas des validations :
- *  les actions de l'écran Vibe (note sans note, vibe, base, release — sans
- *  les masquées ni les absentes du relevé) ; le modèle d'une action en sous-contexte (le conseillé par défaut ; un autre
+ *  la rangée des actions d'une étape (stepActions : les siennes, et à l'étape
+ *  en cours Vibe en Créer puis celle mise en avant ; sans les masquées, celles
+ *  que la vue montre elle-même ni celles qui citent) ; le modèle d'une
+ *  action en sous-contexte (le conseillé par défaut ; un autre
  *  seulement s'il est des siens, et envoyé seulement s'il diffère du
  *  conseillé) ; la largeur de la colonne de la conversation (300 px au moins,
  *  60 % de l'écran au plus).
- *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (vibe-coder, model-pick, vibe-screen). */
-import type { VibeAction, VibeView } from 'technicals/bridge';
+ *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (vibe-coder, model-pick, step-parts). */
+import type { VibeAction, VibeStep, VibeView } from 'technicals/bridge';
 
 export type ModelPicks = Record<string, string>;   // par id d'action, le modèle choisi
 
@@ -29,8 +31,19 @@ export function convWidth(wanted: number, total: number): number {
   return Math.round(Math.max(CONV_MIN, Math.min(wanted, total * CONV_MAX)));
 }
 
-// Les ids des actions de l'écran Vibe, dans l'ordre ; note seulement sans note.
-export function vibeScreenActions(view: VibeView): string[] {
-  const ids = view.note ? ['vibe', 'base', 'release'] : ['note', 'vibe', 'base', 'release'];
-  return ids.filter((id) => view.actions.some((a) => a.id === id && !a.hidden));
+type StepAction = { a: VibeAction; tone: 'vibe' | 'accent' | 'plain' };
+
+// Une action qui cite ({{quote}}) part d'un bloc ou d'un cas, pas d'un bouton à elle.
+const cites = (a: VibeAction) => a.kind === 'prefill' && !!a.text?.includes('{{quote}}');
+
+// La rangée d'une étape : ses actions ; à l'étape en cours, Vibe (Créer) d'abord, puis celle mise en avant.
+export function stepActions(view: VibeView, step: VibeStep, own: string[]): StepAction[] {
+  const current = step.status === 'current';
+  const tone = (a: VibeAction): StepAction['tone'] =>
+    !current ? 'plain' : a.id === 'vibe' && view.flow === 'create' ? 'vibe' : a.primary ? 'accent' : 'plain';
+  const rank = { vibe: 0, accent: 1, plain: 2 };
+  return view.actions
+    .filter((a) => !a.hidden && !cites(a) && !own.includes(a.id) && (a.step === step.id || tone(a) !== 'plain'))
+    .map((a) => ({ a, tone: tone(a) }))
+    .sort((x, y) => rank[x.tone] - rank[y.tone]);
 }
