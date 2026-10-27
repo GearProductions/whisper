@@ -1,8 +1,8 @@
 /** i18n — les libellés de l'écran VibeCoder, en français et en anglais
  *  (vibeLang) : en-tête, parcours et ses commits, étapes (une étape pas
- *  encore ouverte), fil d'Ariane, Relancer, Arrêter, onglets Conversation /
- *  Actions / Tâches / Processus, le champ d'une étape, celui de l'écran Vibe
- *  (la demande, pour la note), la ponytail review lancée avec les
+ *  encore ouverte), Relancer, Arrêter, onglets Conversation /
+ *  Actions / Tâches / Processus, la bannière du mode Vibe (en cours,
+ *  Arrêter Vibe), le champ d'une étape, la ponytail review lancée avec les
  *  vérifications,
  *  l'onglet Actions (états d'une course, Garder / Annuler, Autoriser /
  *  Toujours / Refuser), choix du modèle, zone de commentaire, barre d'état,
@@ -10,7 +10,7 @@
  *  durée en clair. Ceux des boutons viennent des
  *  actions (actions.<langue>.json).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
-import type { VibeAutonomy, VibeFlow, VibeLang, VibeRun, VibeStepId } from 'technicals/bridge';
+import type { VibeFlow, VibeLang, VibeRun, VibeStepId } from 'technicals/bridge';
 
 type Choices = [string, string][]; // [valeur, libellé]
 
@@ -22,11 +22,8 @@ const fr = {
   } as Record<VibeStepId, string>,
   stepStatus: { done: 'faite', current: 'en cours', todo: 'à venir' },
   notOpen: 'pas encore ouverte : elle suit l\'étape en cours',
-  breadcrumb: 'Où en est la feature',
   flow: { create: 'Créer', review: 'Relire' } as Record<VibeFlow, string>,
   flowTitle: 'Créer une feature sur la branche, ou relire une PR',
-  autonomy: { guide: 'Guide', vibe: 'Vibe' } as Record<VibeAutonomy, string>,
-  autonomyTitle: 'Guide : vous validez chaque étape. Vibe : l\'agent déroule le guide, vous testez et approuvez à la fin',
   langTitle: 'Langue de l\'écran et des messages envoyés à l\'agent',
   refresh: 'Relever maintenant (dépôt, note, sorties)',
   back: 'Revenir à la conversation',
@@ -114,8 +111,10 @@ const fr = {
   keep: 'Garder', keepTitle: 'Garder ce que l\'action a déjà écrit',
   undo: 'Annuler', undoTitle: 'Remettre les fichiers qu\'elle a écrits dans leur état d\'avant (et eux seuls)',
   fieldHint: 'Dictez ou écrivez ici la demande, puis cliquez sur l\'action : elle part avec.',
-  vibeFieldHint: 'La demande, pour la note : dictez-la ou écrivez-la ici, puis « Rédiger la note ».',
   ponytailWithChecks: 'Lancée avec les vérifications.',
+  vibeOn: 'Vibe en cours : l\'agent enchaîne les étapes ; une question qui bloque vous attend à l\'étape Note',
+  vibeStop: 'Arrêter Vibe',
+  vibeStopTitle: 'La course en cours finit, la suivante ne part pas',
   changed: (n: number) => (n > 1 ? `${n} fichiers modifiés` : `${n} fichier modifié`),
   at: (time: string) => `relevé à ${time}`,
 };
@@ -130,11 +129,8 @@ const en: Strings = {
   },
   stepStatus: { done: 'done', current: 'in progress', todo: 'to do' },
   notOpen: 'not open yet: it follows the current step',
-  breadcrumb: 'Where the feature stands',
   flow: { create: 'Create', review: 'Review' },
   flowTitle: 'Create a feature on the branch, or review a PR',
-  autonomy: { guide: 'Guide', vibe: 'Vibe' },
-  autonomyTitle: 'Guide: you approve each step. Vibe: the agent runs the guide, you test and approve at the end',
   langTitle: 'Language of the screen and of the messages sent to the agent',
   refresh: 'Refresh now (repository, note, outputs)',
   back: 'Back to the conversation',
@@ -222,8 +218,10 @@ const en: Strings = {
   keep: 'Keep', keepTitle: 'Keep what the action already wrote',
   undo: 'Undo', undoTitle: 'Put the files it wrote back as they were (and only those)',
   fieldHint: 'Dictate or type the request here, then click the action: it goes with it.',
-  vibeFieldHint: 'The request, for the note: dictate or type it here, then « Write the note ».',
   ponytailWithChecks: 'Started with the checks.',
+  vibeOn: 'Vibe in progress: the agent chains the steps; a blocking question waits for you at the Note step',
+  vibeStop: 'Stop Vibe',
+  vibeStopTitle: 'The running action finishes, the next one does not start',
   changed: (n) => `${n} file${n === 1 ? '' : 's'} changed`,
   at: (time) => `read at ${time}`,
 };
