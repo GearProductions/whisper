@@ -2,7 +2,7 @@
  *  corps du panneau : en-tête (agent — sa couleur, seule touche de couleur
  *  avec Envoyer —, branche, Créer / Relire, langue, relevé,
  *  conversation affichée ou masquée, retour à la conversation, fermer ; le
- *  robot d'une PR dans un worktree : son badge et Décharger) ; le parcours à
+ *  robot d'une PR dans un worktree : son badge et Retirer le worktree) ; le parcours à
  *  gauche (il dit où l'on en est) ; au centre, l'étape choisie (step-views :
  *  son en-tête porte ses actions ; Relire, une PR fusionnée ou fermée en
  *  bandeau) ; Vibe ou pas, le même parcours et la même étape — pendant Vibe
@@ -232,7 +232,7 @@ function Top({ view, thread, busy, t, act, side, onSide, onHide }: TopProps) {
         <span className="vc-dot" data-busy={busy || undefined} />
         <span className="vc-name" title={thread.dir}>{thread.name}</span>
         {view.repo ? <span className="vc-branch" title={t.branch(view.repo.branch, view.repo.base)}>{`⎇ ${view.repo.branch}`}</span> : null}
-        <WorktreeBadge view={view} busy={busy} onRun={() => act.run('unload-worktree')} />
+        <WorktreeBadge view={view} busy={busy} onRun={(x) => act.run('remove-worktree', x)} />
       </div>
       <div className="vc-modes">
         <Segmented value={view.flow} labels={t.flow} title={t.flowTitle} onPick={(flow) => act.set({ flow })} />
