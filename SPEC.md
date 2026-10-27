@@ -42,7 +42,7 @@ VibeCoder dans le panneau (`docs/tickets/feat/0.8.0-vibecoder.md`) :
 | Module (`src/renderer/`) | Rôle |
 |---|---|
 | `core/vibecoder` | pur : Markdown en blocs (jamais de HTML, liens `http(s)` seuls, I-40), lignes changées (`lineDiff`), coloration du pseudo-code des lectures (`highlight`), ce que cite le 💬 de chaque bloc (`blockQuotes`, F-104), les lignes entières d'une sélection (`codeBlock`, F-98), libellés FR et EN |
-| `app/panel/vibecoder/` | l'écran (en-tête, parcours, vues des étapes, leur champ et leurs actions, écran *Vibe* et son fil d'Ariane, conversation, actions lancées, tâches et processus en onglets, barre des skills, barre d'état ; `code-view` : le code d'un fichier, numéroté, coloré, éditable, F-113 ; `module-code` : *Voir le code* d'un module, F-100 ; `note-editor` : la note éditable, F-104 ; `file-draft` : la modification gardée d'un fichier suivi, *Enregistrer*, *Abandonner*, partagée par les trois) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
+| `app/panel/vibecoder/` | l'écran (en-tête, parcours, vues des étapes, leur champ et leurs actions, bannière du mode *Vibe*, conversation, actions lancées, tâches et processus en onglets, barre des skills, barre d'état ; `code-view` : le code d'un fichier, numéroté, coloré, éditable, F-113 ; `module-code` : *Voir le code* d'un module, F-100 ; `note-editor` : la note éditable, F-104 ; `file-draft` : la modification gardée d'un fichier suivi, *Enregistrer*, *Abandonner*, partagée par les trois) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
 | `technicals/codemirror` | les réglages de CodeMirror 6, sans métier : le langage d'un fichier et la coloration (`languageFor`, `codeHighlight`, F-113), le Markdown mis en forme au fil de la frappe, liseré, pastilles et boutons en gouttière (`live-markdown`, F-104) |
 
 Toutes : sans cadre, hors de la barre des tâches, `contextIsolation`,
@@ -96,7 +96,7 @@ Vers le principal :
   `conv:hide`, `conv:send`, `conv:attach`, `conv:answer`, `conv:speak`,
   `conv:probe`, `conv:history`, `conv:open`, `conv:current`, `conv:resume`,
   `conv:copy`, `conv:openLink`, `conv:showFile` ; VibeCoder : `conv:vibeSet`
-  (Créer / Relire, Guide / Vibe, PR suivie, langue, *Vu*, retour à la
+  (Créer / Relire, arrêter Vibe, PR suivie, langue, *Vu*, retour à la
   conversation, modèle, effort, mode, arrêter l'agent, le robot d'une PR dans
   son worktree), `conv:vibeMark` (✓, ✗
   ou oublier une cible), `conv:vibeDraft` (brouillon de revue : ajouter,
@@ -549,7 +549,7 @@ liens vers le navigateur seulement, jamais de navigation.
 
 Notes des tickets : `docs/tickets/feat/0.8.0-vibecoder.md`,
 `0.9.0-actions-independantes.md` (les courses), `0.9.0-parcours-guide.md`
-(le parcours guidé, Guide et Vibe séparés) ; le guide :
+(le parcours guidé), `0.12.0-mode-vibe.md` (le mode *Vibe*) ; le guide :
 `docs/dev_guide/guide-travail-dev-ia.html`.
 
 ### Ouvrir, l'écran
@@ -578,7 +578,7 @@ conversation des agents qui ne sont pas en VibeCoder ne change pas.
 `#171b24`, la couleur de l'agent en accent) :
 - **en-tête** : pastille (animée au travail) et nom de l'agent (son dossier
   au survol), branche (`⎇`, sa base au survol) ; *Créer* / *Relire* ;
-  *Guide* / *Vibe* ; *FR* / *EN* ; ↻ (relever maintenant) ; 💬 (revenir à la
+  *FR* / *EN* ; ↻ (relever maintenant) ; 💬 (revenir à la
   conversation) ; × (la croix du panneau, F-64) ;
 - à gauche, le **parcours** : les étapes (point plein : faite ; anneau à la
   couleur de l'agent : en cours, la première non faite ; gris : à venir),
@@ -612,17 +612,10 @@ conversation des agents qui ne sont pas en VibeCoder ne change pas.
   seulement, pas les courses), fichiers modifiés, heure
   du dernier relevé.
 
-En *Vibe*, *Créer* a son propre écran (F-103), à la place du parcours et de
-l'étape : le **fil d'Ariane** (les étapes de *Créer* en une ligne, faites, en
-cours, à venir, sans clic), puis la **zone Vibe** (« la demande, puis
-les questions de la note ; ensuite l'agent développe seul, vous testez et
-approuvez à la fin » ; sans note, le champ et
-*Rédiger la note* ; la note rédigée sans question ouverte, *Valider et
-développer* ; la PR fusionnée, *PR mergée → revenir sur la base* et
-*Release officielle*, F-114, masquées avant), puis la note, ses questions
-et *Envoyer les réponses* (F-100).
-La colonne de droite reste : les courses se suivent et s'arrêtent dans
-l'onglet *Actions*. *Relire* n'a qu'un écran, celui du *Guide*. git introuvable, dossier sans
+Un seul écran, *Vibe* ou pas : pendant le mode *Vibe* (F-103), le parcours
+et l'étape restent, une **bannière** en tête du centre (« Vibe en cours :
+l'agent enchaîne les étapes ; une question qui bloque vous attend à l'étape
+Note », *Arrêter Vibe*). git introuvable, dossier sans
 dépôt : un bandeau le dit au-dessus de l'étape, la conversation reste
 utilisable. Une étape sans sortie dit ce qui manque et montre l'action qui le
 produit. Une vue d'étape qui échoue sur un texte
@@ -639,7 +632,8 @@ de l'écran et le brouillon tiennent (I-29).
   pourquoi elle est grisée ; sans celles qui n'ont pas encore de sens
   (masquées, F-99), ni celles que la vue montre déjà ailleurs
   (une invitation, une carte, une ligne : jamais deux fois). À l'étape en
-  cours, l'action qui la fait avancer (F-100, F-101, F-103) est en tête,
+  cours, en tête : *Vibe* (*Créer*, F-103), avec son propre accent, puis
+  l'action qui fait avancer l'étape (F-100, F-101), Vibe ou pas,
   discrètement mise en avant, même si elle appartient à une autre étape
   (*Préparer le commit* à l'étape Invariants). Ce qu'attend une validation
   reste dans la vue : *✓ Valider la note*, *✓ Valider la forme*, « N cas à
@@ -647,11 +641,11 @@ de l'écran et le brouillon tiennent (I-29).
   « en cours » et ⏹ à côté de son bouton (arrêtée, à trancher dans l'onglet
   *Actions*). Conversation au travail : seuls les messages sans étape
   (*Demander sans modifier*, *Où j'en suis ?*, *Proposer les commandes*)
-  sont grisés, *Valider et développer* masqué (F-99) ; *⏹ Arrêter* (barre
+  sont grisés, *Vibe* masqué (F-99) ; *⏹ Arrêter* (barre
   d'état) arrête son tour, comme *Interrompre* de son menu (F-56), sans
   toucher aux courses.
 - **Ce que l'IA fait seule n'a pas de bouton** ; les actions qui vont
-  ensemble partent ensemble, en *Guide* comme en *Vibe*, sans que l'appli
+  ensemble partent ensemble, *Vibe* ou pas, sans que l'appli
   enchaîne rien : *Écrire les invariants (rouges), puis vérifier
   l'alignement* vérifie l'alignement dans sa course (skill `aligner`,
   `align.md` ; un écart → l'agent retouche les invariants et revérifie, 3
@@ -823,8 +817,6 @@ champ prend le clavier) : on dicte, puis on clique. Son champ :
   montré quand une de ses actions prend un texte — *Rédiger la note* (exigé),
   *Poser la forme*, *Écrire les invariants (rouges)* ; la dictée y va quand
   il a le clavier ;
-- en *Vibe* (*Créer*), le champ de la zone Vibe est celui de l'étape Note
-  (*Rédiger la note*) ; *Valider et développer* ne prend pas de texte ;
 - un message sans étape (*Où j'en suis ?*, *Demander sans modifier* (exigé),
   *Proposer les commandes*) : le **champ de la conversation**, qui ne sert
   plus qu'à elle et à eux.
@@ -862,13 +854,11 @@ refuse de même. Ce sont : pas encore de note (aussi la Forme et les
 invariants en *Créer*) ; aucun test d'invariant ; *✓
 Commiter* sans commit préparé ; *Envoyer les réponses* sans question
 ouverte ; *Replier les fixups* sans commit `fixup!` ; *Ouvrir dans un
-worktree* déjà ouvert ; *Décharger* hors du robot d'un worktree ; *Valider
-et développer* tant que la note n'est pas rédigée (« Pas encore de note »),
-avec des questions ouvertes (« Répondre d'abord aux questions de la note »)
-ou la forme faite (« Déjà lancée : la forme est posée »), sauf pour
-reprendre après une question qui bloque (la dernière course : *Envoyer les
-réponses*) ; masquée aussi pendant un tour de la conversation ou une course
-qui retient (celle qu'elle a lancée). En *Créer*, l'étape PR suit l'état de la PR, qui ne
+worktree* déjà ouvert ; *Décharger* hors du robot d'un worktree ; *Vibe*
+tant que la note n'est pas rédigée (« Pas encore de note »), a des
+questions ouvertes (« Répondre d'abord aux questions de la note ») ou n'est
+pas validée (« Valider d'abord la note ») ; masquée aussi pendant le mode
+*Vibe*, un tour de la conversation ou une course en cours (« Déjà en cours »). En *Créer*, l'étape PR suit l'état de la PR, qui ne
 fait que masquer (une demande juste après *Valider la feature* ne tombe pas
 sur un relevé en retard) : sans PR, *Valider la feature (ouvrir la PR)*
 seule ; ouverte (ou son état pas encore connu), *Diagnostiquer la CI* et
@@ -951,8 +941,12 @@ conversation ; note `0.9.0-actions-independantes.md`).
   cours ou invalide envoie à l'agent « VibeCoder : demande <id> refusée —
   <raison> » ; partie avec des arguments ignorés (F-97), « VibeCoder :
   demande <id> partie, arguments ignorés : <noms> » — par le chemin de
-  l'avis de fin. En *Guide*, il ne lance ou n'arrête une action qu'à la demande de
-  l'utilisateur ; en *Vibe*, il les enchaîne (F-103).
+  l'avis de fin. Hors *Vibe*, il ne lance ou n'arrête une action qu'à la demande de
+  l'utilisateur ; pendant *Vibe*, il les enchaîne (F-103). *Vibe* arrêté
+  (la bannière) : les demandes retenues sont jetées, et chaque lancement
+  est refusé (« … refusée — le mode Vibe a été arrêté par l'utilisateur :
+  ne lance plus rien ») jusqu'à ce que tout soit au repos ; les `.stop`
+  sont toujours lus.
 - **L'avis de fin** : une course finie (*finie*, *en échec*) envoie une
   ligne à la conversation de l'agent (« VibeCoder : « <libellé> » finie —
   <sa réponse, 300 caractères au plus>. État : <sorties>/actions.json ») ;
@@ -960,7 +954,7 @@ conversation ; note `0.9.0-actions-independantes.md`).
   libre, plusieurs en un message. Pas d'avis pour une course arrêtée :
   l'utilisateur (ou l'orchestrateur) le sait, et son état est dans
   `actions.json`.
-- Les courses, les avis et les demandes retenues sont **en mémoire** ;
+- Les courses, les avis, les demandes retenues et le mode *Vibe* sont **en mémoire** ;
   *Nouvelle session*, *Retirer* l'agent ou retirer le robot d'un worktree
   (F-110) ferment et oublient ses courses.
 
@@ -1015,7 +1009,7 @@ conversation ; note `0.9.0-actions-independantes.md`).
    les invariants* ou *Vérifier l'alignement* est *finie* (pas *en échec*,
    pas *arrêtée*), ou *✓ Rien à écrire* validé (à côté de l'invitation à
    écrire ; l'empreinte du texte de la note : il tombe à n'importe quel
-   changement de la note, comme *✓ Valider la note*). En *Vibe* aussi, rien
+   changement de la note, comme *✓ Valider la note*). Pendant *Vibe* aussi, rien
    d'automatique : la course finie ou le ✓. *Lire en pseudo-code*
    n'est qu'une aide à la lecture, facultative. Montre le
    résumé (cas, validés, refusés, modifiés depuis, avec un point d'attention,
@@ -1215,7 +1209,7 @@ la branche de la PR (ou `pr-<n>`), le prépare comme le projet le dit
 worktree en cours… ». La fiche arrivée, l'appli ajoute un **robot
 temporaire** « PR #n » sur ce dossier, un enfant de l'agent du dépôt
 (F-51) avec sa PR (`agents[].parent` `{ id, pr }`, § 9 : le modèle,
-l'effort, le mode et l'autonomie de l'agent du dépôt, en VibeCoder, *Relire*,
+l'effort et le mode de l'agent du dépôt, en VibeCoder, *Relire*,
 la PR suivie, sa fiche et son brouillon de revue repris) — seulement après la
 question de confiance, toujours posée pour un worktree de PR (ses réglages
 `.claude` sont ceux de la PR et se chargeront ; I-23, I-41). *Annuler* : pas
@@ -1241,34 +1235,32 @@ texte de la note, la rubrique « Forme », le fichier du test, le plan, le
 commit de tête de la branche pour une case du § A.3) : le
 contenu change → « modifiée depuis » (*✓ Revalider*), et l'étape attend une
 nouvelle validation. Une cible absente du dernier relevé est ignorée.
-De *Vibe* à *Guide* (F-103), chaque étape faite de *Créer* — la note, la
-forme, chaque cas des invariants — reçoit un ✓ pour son contenu
-d'aujourd'hui, comme un clic ; un ✓ ou ✗ déjà donné pour ce contenu reste.
+Pendant le mode *Vibe* (F-103), à chaque relevé, chaque étape faite de
+*Créer* — la note, la forme, chaque cas des invariants — reçoit un ✓ pour
+son contenu d'aujourd'hui, comme un clic ; un ✓ ou ✗ déjà donné pour ce
+contenu reste. *Vibe* arrêté, fini ou l'appli relancée, elles le gardent.
 Gardées par agent (`vibecoder-state.json`) ; aucune n'envoie de message.
 
-**F-103 Guide et Vibe** (par agent, `agents[].vibe.autonomy`), sur la même
-mécanique, les courses (F-115). *Guide* (par
-défaut) : le développeur valide la note, la forme et chaque cas des
-invariants ; l'étape en cours attend ses validations ; il lance les actions
-dans l'ordre qu'il veut, et l'orchestrateur ne lance ni n'arrête rien qu'il
-ne lui demande. *Vibe* (*Créer* seulement : *Relire* n'a que l'écran du
-*Guide*) : on donne la main à l'agent, le développeur teste et approuve à la
-fin ; les validations ne sont plus attendues (note, forme, et invariants dès
-qu'il y a des tests, faits sans ✓ ni lecture) ; revenu en *Guide*, les
-étapes qu'il a passées gardent leur ✓ (F-102). Son écran (F-92), en deux
-temps :
-1. **La note et ses questions**, sans orchestrateur : la demande dans le
-   champ de la zone Vibe, *Rédiger la note* (l'action `note`, sa course,
-   mise en avant tant que la branche n'a pas de note) ; ses questions vont
-   **toutes** à l'utilisateur (*Envoyer les réponses*) : personne ne les
-   tranche à sa place.
-2. ***Valider et développer*** (l'action `vibe`, mise en avant la note
-   rédigée sans question ouverte et la forme pas faite ; masquée la note
-   pas rédigée, avec des questions ouvertes, pendant un tour ou une course
-   qui retient, ou la forme faite sauf pour reprendre après une question qui
-   bloque, F-99) : sans texte, au skill `vibe`,
-   dans la conversation ; l'agent, l'**orchestrateur**, tient le rôle du
-   développeur du guide, reprend à la première étape pas faite et **enchaîne les actions de
+**F-103 Le mode Vibe** (*Créer* seulement ; par agent, **en mémoire** :
+l'appli relancée repart sans lui, on relance *Vibe* pour reprendre), sur la
+même mécanique, les courses (F-115). Hors *Vibe* : le développeur valide la
+note, la forme et chaque cas des invariants ; l'étape en cours attend ses
+validations ; il lance les actions dans l'ordre qu'il veut, et
+l'orchestrateur ne lance ni n'arrête rien qu'il ne lui demande. *Vibe* : on
+donne la main à l'agent, le développeur teste et approuve à la fin ; les
+validations ne sont plus attendues (forme, et invariants dès qu'il y a des
+tests, faits sans ✓ ni lecture) ; les étapes qu'il passe reçoivent leur ✓
+(F-102). Un seul écran (F-92) :
+1. **La note et ses questions**, sans orchestrateur : *Rédiger la note*
+   (l'action `note`, sa course) ; ses questions vont **toutes** à
+   l'utilisateur (*Envoyer les réponses*) : personne ne les tranche à sa
+   place ; puis *✓ Valider la note* : l'utilisateur a pris connaissance de
+   la note avant de donner la main.
+2. ***Vibe*** (l'action `vibe`, en tête de la rangée de l'étape en cours,
+   F-93 ; masquée avant la note validée, F-99) : sans texte, au skill
+   `vibe`, dans la conversation, à n'importe quelle étape après la note ;
+   l'agent, l'**orchestrateur**, tient le rôle du développeur du guide,
+   reprend à la première étape pas faite et **enchaîne les actions de
    l'écran** par leurs demandes (F-115) — forme, invariants rouges
    (l'alignement compris, sans *Lire en pseudo-code*), premier commit,
    modules (confiés à des agents Opus avec `ponytail`) puis *Commiter les
@@ -1277,13 +1269,24 @@ temps :
    fixups, PR, CI, release candidate si le projet en documente une —, une
    demande puis la fin de son tour, réveillé par l'avis de fin ; chaque
    action reste visible et arrêtable dans l'onglet *Actions*, et ce qui
-   doit attendre part de soi-même. Rien n'est développé avant ce clic.
+   doit attendre part de soi-même. *Vibe* ne valide pas la note ; rien
+   n'est développé avant ce clic.
+3. **La bannière** (F-92), tant que *Vibe* est en cours : *Arrêter Vibe*
+   (« La course en cours finit, la suivante ne part pas ») — la bannière
+   disparaît aussitôt, la course en cours n'est pas interrompue, les
+   demandes retenues sont jetées, et chaque
+   lancement que demande l'orchestrateur est refusé (F-115) jusqu'à ce que
+   tout soit au repos (conversation libre, aucune course vivante ni
+   retenue). *Vibe* finit aussi seul : la conversation libre, sans course
+   vivante, demande retenue ni question ouverte (l'orchestrateur a fini, ou
+   son tour a été arrêté).
 
-L'orchestrateur ne s'arrête que sur une question qui bloque
-(`questions.md`), ne tranche aucune question de la note, ne lance ni
-`note` ni `answers`, ne tranche jamais *Garder* / *Annuler* (c'est à
-l'utilisateur), et le fil d'Ariane se remplit au fil du relevé. Jamais : `git push --force`, fusionner la PR, publier une version
-officielle, supprimer une version, un tag ou une branche.
+Une question qui bloque (`questions.md`) arrête l'orchestrateur, pas
+*Vibe* : les réponses envoyées, l'avis de fin d'*Envoyer les réponses* le
+réveille, et il reprend seul. Il ne tranche aucune question de la note, ne
+lance ni `note` ni `answers`, ne tranche jamais *Garder* / *Annuler* (c'est
+à l'utilisateur). Jamais : `git push --force`, fusionner la PR, publier une
+version officielle, supprimer une version, un tag ou une branche.
 
 **F-104 Markdown** (la note, les sorties) : titres, paragraphes, listes et
 cases à cocher, citations, code, tableaux, filets ; en ligne : code, gras,
@@ -1430,7 +1433,7 @@ SDK au Claude Code de chaque agent (F-58) : ses skills s'appellent
 l'utilisateur qui tape la commande, les lance (sauf `processus`, F-111, que
 l'agent appelle quand il a besoin d'un journal ou d'une relance, et
 `actions`, F-115, quand on lui demande où en sont les actions, ou d'en lancer
-ou d'en arrêter une — en *Guide*, seulement à la demande de l'utilisateur)
+ou d'en arrêter une — hors *Vibe*, seulement à la demande de l'utilisateur ; *Vibe* arrêté, rien)
 — ils ne coûtent rien tant
 qu'on ne les appelle pas —, et rien n'est écrit dans les projets pour eux.
 Ils s'appuient sur les skills du projet et de l'utilisateur quand ils
@@ -1559,9 +1562,11 @@ puis le dossier ouvert, F-107) ; Ouvrir le dossier whisper ; Modifier la configu
 | `vibeCommandPrefix` | `''` | VibeCoder : ce qui précède les commandes du projet et gh (F-111, F-112) ; `''` → `distrobox enter <box> --` d'après `agentCommand`, sinon rien |
 
 Dans `agents`, pour VibeCoder : `view` (`vibecoder` ; absent : la
-conversation) et `vibe` `{ flow, autonomy, pr }` — `flow` `create` (défaut)
-ou `review`, `autonomy` `guide` (défaut) ou `vibe`, `pr` la PR suivie (un
-entier positif, sinon `null`) ; une valeur inconnue prend le défaut. Un
+conversation) et `vibe` `{ flow, pr }` — `flow` `create` (défaut)
+ou `review`, `pr` la PR suivie (un
+entier positif, sinon `null`) ; une valeur inconnue prend le défaut ; un
+`autonomy` d'avant la 0.12.0 est ignoré (le mode *Vibe* n'est qu'en mémoire,
+F-103). Un
 enfant (F-51) porte `parent` `{ id, pr? }` : l'agent du dépôt, et pour le
 robot d'une PR ouverte dans un worktree, la PR (F-110) ; mal formé, c'est un
 agent ordinaire. L'ancien `temp` `{ parent, pr }` se lit comme `parent`, et
@@ -2103,7 +2108,7 @@ Copier, erreurs ; mêmes relevés).
   revenir sur la base* sur une PR ouverte → ✗ « … OPEN, not merged: nothing
   done. », rien ne bouge ; fusionnée → sur la base, à jour, branche locale
   supprimée. `direct.log` : une ligne par commande.
-- **S-68** Courses (F-115), *Guide*, une branche de ticket : à l'étape
+- **S-68** Courses (F-115), une branche de ticket : à l'étape
   **Forme**, un mot dans le champ de l'étape, *Poser la forme* → le champ se
   vide, « en cours » et ⏹ à côté du bouton, *Actions (1)* ; pendant ce temps,
   une question dans le champ de la conversation → l'agent répond. *Écrire
@@ -2128,16 +2133,21 @@ Copier, erreurs ; mêmes relevés).
   Pendant *Poser la forme* (clic), « lance les vérifications » → *en
   attente* dans `actions.json` (`waiting`, avec la raison), puis part
   d'elle-même à la fin de la forme, sans qu'on redemande. « Arrête-la » →
-  `.stop`, *arrêtée*, pas d'avis de fin. *Guide*, sans rien demander : il ne
-  lance rien. *Vibe* : le fil d'Ariane, sans clic, et la zone Vibe ; une
-  petite demande, *Rédiger la note* → la note et ses questions, sans
-  orchestrateur, pas de *Valider et développer* tant qu'une question est
-  ouverte ; les réponses envoyées, *Valider et développer* → les actions
-  s'enchaînent une à une dans l'onglet *Actions* (forme, invariants, …), la
-  conversation libre entre deux, aucune question de la note tranchée par
-  l'agent ; ⏹ sur l'une d'elles → elle attend *Garder* / *Annuler*,
-  l'orchestrateur ne tranche pas.
-- **S-70** Le parcours guidé, *Guide*, *Créer*, une branche sans note : pas
+  `.stop`, *arrêtée*, pas d'avis de fin. Hors *Vibe*, sans rien demander :
+  il ne lance rien. Une petite demande, *Rédiger la note* → la note et ses
+  questions, sans orchestrateur, pas de *Vibe* tant qu'une question est
+  ouverte ni avant *✓ Valider la note* ; validée, *Vibe* en tête de la
+  rangée → la bannière, le même écran, les actions s'enchaînent une à une
+  dans l'onglet *Actions* (forme, invariants, …), la conversation libre
+  entre deux, aucune question de la note tranchée par l'agent ; ⏹ sur l'une
+  d'elles → elle attend *Garder* / *Annuler*, l'orchestrateur ne tranche
+  pas. Une question qui bloque → la bannière reste ; les réponses envoyées,
+  il reprend seul. *Arrêter Vibe* → la course en cours finit, la suivante
+  ne part pas (« VibeCoder : demande … refusée — le mode Vibe a été
+  arrêté… ») ; les étapes passées gardent leur ✓. Relancer l'appli pendant
+  *Vibe* → elle repart sans lui.
+- **S-70** Le parcours guidé, *Créer*, une branche sans note : en-tête sans
+  bascule de mode, pas de *Vibe* dans la rangée (ni en *Relire*) ; pas
   d'onglets d'étapes ; le parcours n'ouvre que la Note, les autres étapes
   visibles sans clic, Ctrl+3 ne fait rien. Plus loin : ni *Vérifier
   l'alignement* ni *Ponytail review* ; *✓ Commiter* seulement un commit
@@ -2179,7 +2189,7 @@ Copier, erreurs ; mêmes relevés).
   sous-contexte, ≈ 0,02 $ sur Haiku (≈ 25 000 jetons : le prompt de Claude
   Code et le skill ; SDK 0.3.285, Claude Code 2.1.285), quelle que soit la
   longueur de la conversation, bien davantage sur Opus à effort élevé ;
-  *Générer les modules restants*, *Valider et développer*, les releases : longs et
+  *Générer les modules restants*, *Vibe*, les releases : longs et
   coûteux. Une lecture d'invariants n'est refaite que si le fichier change.
   Choisir un modèle plus léger pour une étape coûte moins, au prix de la
   qualité (`lire-invariants` sur Haiku a été écarté par le banc, F-106).
