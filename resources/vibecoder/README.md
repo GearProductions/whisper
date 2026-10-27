@@ -42,7 +42,7 @@ Un bouton envoie un message écrit comme s'il avait été tapé : un skill
 renseigné) part dans **sa propre conversation**, à côté de celle de l'agent :
 on la suit dans l'onglet *Actions*, on peut l'arrêter, puis garder ce qu'elle a
 écrit ou l'annuler. Les autres (`vibe`, `guide`, `ask`, `propose-run`,
-`new-worktree`) vont à la conversation, dans le fil.
+`new-request`) vont à la conversation, dans le fil.
 
 Une action qui modifie la branche attend toute autre action en cours ; une
 lecture (`reads`) n'attend qu'une modification, et les lectures tournent
@@ -81,19 +81,24 @@ bouton retiré suivi d'un bouton ajouté. `ponytail` n'a pas de bouton : `checks
 `{{lang}} {{out}}`. Le bouton `guide` n'apparaît que si le skill `gear-guide`
 existe (dans le projet ou chez l'utilisateur).
 
-Sept boutons ont aussi une voie **directe**, sans agent : `commit`,
-`publish`, `load-pr`, `base`, `pr-here`, `pr-worktree` et `remove-worktree`.
-Le bouton « direct » lance lui-même des commandes fixes (`git commit -F`, `gh
-pr review`, `gh pr view` et `git fetch`, `git switch` / `pull --ff-only` /
-`branch -d` si la PR est fusionnée et le dossier sans modifications ; *Ici* :
-`git fetch` et `git switch` de la branche de la PR, le dossier sans
-modifications), écrites dans l'appli et inscrites dans `direct.log` des
-sorties, ou la recette du fichier du projet (*Dans un worktree*, *Retirer le
-worktree* ; voir plus bas, `recipe.log` ; la PR d'un worktree retiré perd
-aussi sa branche `pr-<n>`, `git branch -D`) ; leur `text` reste le message du
-petit *via* à côté (le skill ou le message, dans la conversation).
-Personnaliser leur `text` ne change donc que le *via*. `remove-worktree`
-n'a pas de *via* : seule l'appli retire un worktree.
+Onze boutons ont aussi une voie **directe**, sans agent : `commit`,
+`publish`, `load-pr`, `base`, `pr-here`, `pr-worktree`, `remove-worktree`,
+`stash`, `unload-pr`, `new-here` et `new-worktree`. Le bouton « direct »
+lance lui-même des commandes fixes (`git commit -F`, `gh pr review`, `gh pr
+view` puis `git fetch origin <tête>` (la PR se relit dans le dossier de
+l'agent), `git switch` / `pull --ff-only` / `branch -d` si la PR est
+fusionnée et le dossier sans modifications ; *Changer de branche* : `git
+fetch` et `git switch` de la branche de la PR, ou `git switch -c` de celle
+d'une nouvelle demande ; *Décharger* : `git switch` de la branche
+principale ; ces trois-là, le dossier sans modifications ; *Mettre de
+côté* : `git stash push -u`, rien d'autre), écrites dans l'appli et inscrites
+dans `direct.log` des sorties, ou la recette du fichier du projet (*Dans un
+nouveau worktree*, *Retirer le worktree* ; voir plus bas, `recipe.log` ; la
+PR d'un worktree retiré perd aussi sa branche `pr-<n>`, `git branch -D`) ;
+leur `text` reste le message du petit *via* à côté (le skill ou le message,
+dans la conversation). Personnaliser leur `text` ne change donc que le
+*via*. `remove-worktree`, `stash`, `unload-pr`, `new-here` et
+`new-worktree` n'ont pas de *via* : seule l'appli les fait.
 
 ### Les variables
 
@@ -109,7 +114,7 @@ l'action.
 | `{{lang}}` | `fr` ou `en` |
 | `{{branch}}`, `{{base}}` | la branche et sa base (il faut un dépôt git) |
 | `{{note}}` | le chemin de la note du ticket (il en faut une) |
-| `{{ref}}` | `WORKTREE` (*Créer*) ou `refs/vibecoder/pr/<n>` (*Relire*) |
+| `{{ref}}` | `WORKTREE` (*Créer*) ou `HEAD` (*Relire* : la PR est la branche du dossier) |
 | `{{files}}` | les tests d'invariants pas encore lus : `chemin@blob`, séparés par des espaces (il en faut un) |
 | `{{module}}` | le module choisi, sinon le premier qu'aucun commit ne touche : `chemin — contrat` |
 | `{{commit}}` | le commit choisi parmi ceux de la branche ; sans choix : `WORKTREE` (les changements en cours) |
@@ -243,7 +248,7 @@ sinon.
 | `publier-revue` | sous-contexte | haiku · low | `pr-<n>-review.json` |
 | `vibe` | conversation | agent ; *Vibe* : reprend à la première étape pas faite et enchaîne les actions | `actions/<id>.start` |
 | `actions` | conversation (l'agent l'appelle de lui-même) | agent | `actions/<id>.start`, `actions/<id>.stop` |
-| `nouvelle-demande` | sous-contexte | haiku · low | `new-worktree.json` (`{ "branch" }` : la branche d'une nouvelle demande ; l'appli crée le worktree et son robot, la demande n'y est pas) |
+| `nouvelle-demande` | sous-contexte | haiku · low | `new-request.json` (`{ "branch" }` : la branche d'une nouvelle demande ; l'appli propose d'y passer ou d'ouvrir son worktree, la demande n'y est pas) |
 | `lancement` | sous-contexte | haiku · low | `lancement.json` (les commandes ; `setup` et `worktree`, une seule fois par projet) |
 | `processus` | conversation (l'agent l'appelle de lui-même) | agent | `run/<nom>.stop`, `run/<nom>.restart` |
 
@@ -285,9 +290,7 @@ commiter) et, la première fois, y recopie l'ancien
     "create": "yarn setup-worktree \"$VIBECODER_BRANCH\" \"$VIBECODER_BASE\"",
     "remove": "yarn cleanup-worktree \"$VIBECODER_BRANCH\"",
     "dir": "../gt-plugins-worktrees/{branch}"
-  },
-  "prWorktree": "ask",
-  "featureWorktree": "ask"
+  }
 }
 ```
 
@@ -302,15 +305,13 @@ commiter) et, la première fois, y recopie l'ancien
 | `worktree.create` | facultatif : la commande qui crée un worktree, lancée au dossier du parent ; sans elle, `git worktree add -b <branche> <dossier> <départ>` puis `setup` dans le worktree (avec elle, le script prépare son worktree) |
 | `worktree.remove` | facultatif : la commande qui le retire ; sans elle, `git worktree remove <dossier>` (jamais `--force`) |
 | `worktree.dir` | facultatif : où `create` met le worktree d'une branche (l'appli y vérifie qu'il est bien né, puis y ouvre le robot), relatif au dossier du parent, `{branch}` pour la branche ; par défaut `../<dossier>-worktrees/{branch}` |
-| `prWorktree` | où relire une PR : `ask` (la question, par défaut), `here` (*Ici*), `worktree` (*Dans un worktree*) |
-| `featureWorktree` | une nouvelle demande : `ask` (par défaut) ou `worktree` (le lien *Nouvelle demande dans un worktree*), `here` (pas de lien) |
 
 Chaque commande passe par ce shell, derrière le préfixe. Son
 journal : `userData/vibecoder-out/<agent>/run/<nom>.log` (le précédent en
 `.log.old`). *Proposer les commandes* (skill `lancement`) écrit le fichier s'il
 n'existe pas encore, sinon y ajoute les commandes dont le nom n'y est pas, et
 `setup`, `worktree` seulement si le fichier n'a pas encore la clé (les autres
-restent telles quelles ; jamais `prefix`, `prWorktree`, `featureWorktree`) ;
+restent telles quelles ; jamais `prefix`) ;
 *Modifier les commandes* l'ouvre dans l'éditeur (créé d'un exemple s'il
 manque). Quitter l'appli arrête tout ce qu'elle a lancé.
 

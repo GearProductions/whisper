@@ -1,6 +1,6 @@
 ---
 name: nouvelle-demande
-description: "Name the branch of a new request, following the project's branch convention, into <out>/new-worktree.json; the app then creates the worktree and its robot. Creates nothing, starts nothing."
+description: "Name the branch of a new request, following the project's branch convention, into <out>/new-request.json; the app then offers to switch this folder to it or to open it in a new worktree. Creates nothing, starts nothing."
 argument-hint: "<lang> <out> <request…>"
 disable-model-invocation: true
 context: fork
@@ -9,7 +9,7 @@ effort: low
 allowed-tools: "Read, Glob, Grep, Write, Bash(git branch *)"
 ---
 
-# New request in a worktree — only its branch name
+# New request — only its branch name
 
 Do it now, without asking: name the branch, write the file, then answer. This is your task; nothing else is coming.
 
@@ -21,11 +21,11 @@ Do it now, without asking: name the branch, write the file, then answer. This is
    - `<version>`: none named in the request → the next patch of the project's version (`package.json`, `Cargo.toml`, `pyproject.toml`…) for a bug, the next minor for the rest;
    - `<slug>`: a few words of the subject, lowercase, hyphens, no accents (`son-reste-coupe`).
 2. **A safe name.** Only `A-Z a-z 0-9 . _ / -`; no leading `-`, no `..`, no `//`, nothing ending in `/`, `.` or `.lock`. Already a branch (`git branch -a --list "<branch>" "*/<branch>"` finds it) → add `-2`, `-3`…
-3. **Write** `<out>/new-worktree.json`, exactly (JSON, nothing else):
+3. **Write** `<out>/new-request.json`, exactly (JSON, nothing else):
    ```json
    { "branch": "feat/0.12.0-export-csv" }
    ```
 
-Nothing else: no branch, worktree, switch, note, install or command — the app creates the worktree on that branch, opens its robot in *Créer* and sends it the request. Never write the request into the file.
+Nothing else: no branch, worktree, switch, stash, note, install or command — the user then chooses, and the app switches this folder to that branch or creates its worktree and robot, in *Créer*, and sends the request. Never write the request into the file.
 
 Answer in `lang`, one line: the branch name.

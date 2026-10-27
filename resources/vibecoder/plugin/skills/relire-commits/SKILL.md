@@ -15,12 +15,12 @@ The diff, commit by commit, before any summary.
 
 `$ARGUMENTS` = `<lang> <out> <n>`. `lang`: the user's language, not used here — code-related work: the review and your answer in English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `n`: the PR number.
 
-The PR is the ref `refs/vibecoder/pr/<n>`, never checked out; its base is the `base` of `<out>/pr-<n>.json`. The commits: `git log --reverse --format='%h %s' origin/<base>..refs/vibecoder/pr/<n>`, then `git show <hash>` for each. The note (under `docs/tickets/`, added or changed by the PR) and its « Forme »: the contract of each module. Also `AGENTS.md` and the guide (`docs/dev_guide/*.html`) §5, if present.
+The PR is the branch of this folder (`HEAD`), checked out; its base is the `base` of `<out>/pr-<n>.json`. The commits: `git log --reverse --format='%h %s' origin/<base>..HEAD`, then `git show <hash>` for each. The note (under `docs/tickets/`, added or changed by the PR) and its « Forme »: the contract of each module. Also `AGENTS.md` and the guide (`docs/dev_guide/*.html`) §5, if present.
 
 ## For each commit
 
 - The four questions (§5.1): out of its scope? a dependency added? I/O in a loop, an N+1, a blocking call? a read or write without the right scoping (tenant, user, folder; a path or an id from outside unchecked)?
-- Duplication with code that already exists (`git grep <name> refs/vibecoder/pr/<n>`): name it.
+- Duplication with code that already exists (`git grep <name> HEAD`): name it.
 - File headers still true to the contract; no import breaking a « ne connaît pas ».
 - Glue code and whatever touches rights or data: read in full. A generic module: judge it by its imports.
 - The story (§5.2): the first commit holds the note, the forme and the red invariants; then one commit per module, with its variants and its contract in the message; no `wip`, `fix`, `retry` or `fixup!` commit; over ~400 lines, the module was too big; an invariant test changed after the first commit (they are protected) — say it.
