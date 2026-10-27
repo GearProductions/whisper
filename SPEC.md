@@ -698,7 +698,8 @@ principal pour l'agent affiché en VibeCoder :
   lignes « ne doit pas » et leur marque (le premier mot connu après la
   dernière flèche : *invariant*, *variant*, *review*, *structure*), les
   modules de la Forme et leur contrat (un chemin en tête de ligne, ou un
-  titre `###`) ; et pourquoi elle ne s'édite pas (`locked`, F-100) ;
+  titre `###` ; hors bloc de code, pas la suite d'un paragraphe qui
+  commence par un chemin) ; et pourquoi elle ne s'édite pas (`locked`, F-100) ;
 - les **tests** de la branche : ses fichiers changés qui sont des tests
   (Vitest, Jest, pytest, Go, Rust sous `tests/`), leurs cas (titres `it` /
   `test`, fonctions `#[test]`, `def test_…`) et leur empreinte git ; ceux
