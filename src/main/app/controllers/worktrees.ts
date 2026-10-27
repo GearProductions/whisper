@@ -60,6 +60,13 @@ export function worktreeParent(agent: AgentConfig) {
   return (p && agentList(loadConfig()).find((a) => a.id === p.id)) || null;
 }
 
+// Le worktree de la PR `pr` créé par l'appli (pr-worktree) : la fiche
+// pr-<n>-worktree.json écrite par l'appli, wantWorktree, syncWorktrees (adopt :
+// la question de confiance toujours posée, I-41).
+export async function prWorktreeReady(_agent: AgentConfig, _pr: number, _dir: string, _branch: string): Promise<void> {
+  throw new Error('not implemented');
+}
+
 // L'écran a envoyé « Ouvrir dans un worktree » pour la PR `pr` de cet agent.
 export function wantWorktree(agentId: string, pr: number) {
   wanted.add(key(agentId, pr));
