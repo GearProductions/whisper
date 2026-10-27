@@ -34,6 +34,7 @@ const fake = vi.hoisted(() => {
     Win, userData: '', windows: [] as InstanceType<typeof Win>[], facts: null as unknown, messages: [] as unknown[],
     shown: null as string | null, diff: null as string | null, edited: [] as unknown[][], opened: [] as string[],
     tabs: [] as (string | null)[], steps: [] as { id: string; status: string }[],
+    git: (() => null) as (args: string[]) => string | null, calls: [] as unknown[][],
   };
 });
 
@@ -60,7 +61,7 @@ vi.mock('technicals/claude', () => ({
 }));
 
 vi.mock('technicals/git', () => ({
-  gitRun: () => async () => null,
+  gitRun: () => async (args: string[]) => fake.git(args),
   gitReader: () => ({ facts: async () => fake.facts, show: async () => fake.shown, commit: async () => fake.diff }),
   okRef: (ref: string) => /^(?!-)(?!.*\.\.)[A-Za-z0-9._/-]+$/.test(ref),
 }));
@@ -87,6 +88,43 @@ vi.mock('core/vibecoder', async (original) => ({
   }),
 }));
 
+// Les actions directes, la recette et les worktrees : relevés (0.12.0-worktrees).
+const OK = { ok: true, line: 'ok', detail: '' };
+vi.mock('technicals/direct', async (original) => ({
+  ...await original<typeof import('technicals/direct')>(),
+  directRunner: ({ out: o }: { out: string }) => ({
+    loadPr: async (n: number) => {
+      fake.calls.push(['loadPr', n]);
+      fs.writeFileSync(path.join(o, `pr-${n}.json`), JSON.stringify({ number: n, head: 'feat/x', base: 'main' }));
+      return OK;
+    },
+    fetchBranch: async (b: string) => { fake.calls.push(['fetch', b]); return OK; },
+    switchTo: async (b: string) => { fake.calls.push(['switch', b]); return OK; },
+    toBase: async (b: string, base: string) => { fake.calls.push(['toBase', b, base]); return OK; },
+  }),
+}));
+vi.mock('app/controllers/recipe', async (original) => ({
+  ...await original<typeof import('app/controllers/recipe')>(),
+  createWorktree: async (home: { id: string }, w: unknown) => {
+    fake.calls.push(['createWorktree', home.id, w]);
+    return { ok: true, line: 'worktree créé', dir: '/wt' };
+  },
+}));
+vi.mock('app/controllers/worktrees', async (original) => ({
+  ...await original<typeof import('app/controllers/worktrees')>(),
+  prWorktreeReady: async (a: { id: string }, ...rest: unknown[]) => { fake.calls.push(['prWorktreeReady', a.id, ...rest]); },
+  removeWorktreeChild: async (a: { id: string }) => { fake.calls.push(['removeWorktreeChild', a.id]); return { ok: true, line: 'worktree retiré' }; },
+  // L'enfant de la nouvelle demande : enregistré, en Créer.
+  openChild: async (parent: { id: string }, dir: string, o: unknown) => {
+    fake.calls.push(['openChild', parent.id, dir, o]);
+    const { loadConfig, saveConfig } = await import('app/settings');
+    const child = { id: 'c1', dir, name: 'enfant', model: '', effort: '', mode: 'default', sessionId: null, parent: { id: parent.id },
+      view: 'vibecoder' as const, vibe: { flow: 'create' as const, pr: null } };
+    saveConfig({ agents: [...loadConfig().agents, child] });
+    return child;
+  },
+}));
+
 // Les courses : vraies ; runsTab relevé au passage.
 vi.mock('app/controllers/runs', async (original) => {
   const runs = await original<typeof import('app/controllers/runs')>();
@@ -111,6 +149,8 @@ beforeEach(() => {
   fake.opened = [];
   fake.tabs = [];
   fake.steps = [];
+  fake.git = () => null;
+  fake.calls = [];
   fake.userData = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-vibecoder-'));
   dir = path.join(fake.userData, 'projet');
   out = path.join(fake.userData, 'vibecoder-out', 'a1');   // les sorties de l'agent
@@ -492,5 +532,155 @@ describe('0.11.0 : invariants existants et courses', () => {
     expect(vibeStore().marks.a1).toEqual({ nothing: { hash: blobSha(NOTE), verdict: 'ok' } });
     markVibe('nothing', null);
     expect(vibeStore().marks.a1).toEqual({});
+  });
+});
+
+describe('0.12.0-worktrees : Ici, Dans un worktree, Retirer, Nouvelle demande', () => {
+  const ACTIONS = [
+    { id: 'load-pr', flow: 'review', step: 'pr', kind: 'send', needs: 'none', reads: true, label: 'Charger', text: '/vibecoder:charger-pr {{lang}} {{out}} {{pr}}' },
+    { id: 'pr-here', flow: 'review', step: 'pr', kind: 'send', needs: 'none', label: 'Ici', text: 'ici {{pr}}' },
+    { id: 'pr-worktree', flow: 'review', step: 'pr', kind: 'send', needs: 'none', label: 'Dans un worktree', text: 'worktree {{pr}}' },
+    { id: 'remove-worktree', flow: 'both', step: 'pr', kind: 'send', needs: 'none', label: 'Retirer', text: 'retirer' },
+    { id: 'base', flow: 'create', step: 'pr', kind: 'send', needs: 'none', label: 'Base', text: 'base' },
+    { id: 'note', flow: 'create', step: 'note', kind: 'send', needs: 'text', label: 'Rédiger la note', text: '/vibecoder:note {{lang}} {{out}} {{text}}' },
+    { id: 'new-worktree', flow: 'both', step: null, kind: 'send', needs: 'text', reads: true, label: 'Nouvelle demande', text: '/vibecoder:nouvelle-demande {{lang}} {{out}} {{text}}' },
+  ];
+  // git : la branche du dossier et son état (status), réglés par le cas.
+  const gitWith = (status: string | null, branch = 'main') => {
+    fake.git = (args) => (args[0] === 'status' ? status : args[0] === 'rev-parse' ? `${branch}\n` : null);
+  };
+  // Le parcours est faux ici (vibeView rend son entrée) : direct, celui que le relevé lui donne.
+  const directOf = async (id: string) => ((await import('app/controllers')).lastView('a1') as unknown as JourneyInput | null)?.direct?.[id];
+  const until = async (ok: () => boolean | Promise<boolean>) => {
+    for (let i = 0; i < 60 && !await ok(); i++) await settle();
+  };
+  beforeEach(() => {
+    write(path.join(fake.userData, 'vibecoder', 'actions.fr.json'), JSON.stringify(ACTIONS));
+    write(path.join(out, 'pr-12.json'), JSON.stringify({ number: 12, head: 'feat/x', base: 'main' }));
+  });
+
+  it('le relevé : place (le fichier du projet du parent), child, recipe, et en Relire checkout (le dossier lui-même)', async () => {
+    review();
+    gitWith(' M a.txt\n');
+    write(path.join(dir, '.vibecoder', 'project.json'), JSON.stringify({ commands: [], prWorktree: 'worktree' }));
+    const v = (await open()).view()!;
+    expect([v.place, v.child, v.recipe, v.checkout]).toEqual([{ pr: 'worktree', feature: 'ask' }, false, null, { branch: 'main', dirty: true }]);
+  });
+
+  it('le relevé, sans fichier du projet ni git : ask, ask ; checkout null', async () => {
+    review();
+    const v = (await open()).view()!;
+    expect([v.place, v.checkout]).toEqual([{ pr: 'ask', feature: 'ask' }, null]);
+  });
+
+  it('Ici, propre au clic : la tête de pr-12.json rapatriée, puis git switch', async () => {
+    review();
+    gitWith('');
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+    expect(runVibeAction('pr-here', { direct: true })).toEqual({ ok: true });
+    await until(async () => (await directOf('pr-here'))?.running === false);
+    expect(fake.calls).toEqual([['fetch', 'feat/x'], ['switch', 'feat/x']]);
+    expect((await directOf('pr-here'))?.last).toMatchObject({ ok: true });
+  });
+
+  it('Ici, des modifications au clic, ou git status sans réponse : refusé, pas de git switch', async () => {
+    for (const status of [' M a.txt\n', null]) {
+      vi.resetModules();
+      fake.calls = [];
+      review();
+      gitWith(status);
+      await open();
+      const { runVibeAction } = await import('app/controllers');
+      runVibeAction('pr-here', { direct: true });
+      await until(async () => (await directOf('pr-here'))?.running === false);
+      expect(fake.calls.filter(([c]) => c === 'switch')).toEqual([]);
+      expect((await directOf('pr-here'))?.last).toMatchObject({ ok: false, line: expect.stringMatching(/^Refused/) });
+    }
+  });
+
+  it('base : des modifications au clic → refusé, rien lancé ; propre → toBase', async () => {
+    gitWith(' M a.txt\n');
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+    runVibeAction('base', { direct: true });
+    await until(async () => (await directOf('base'))?.running === false);
+    expect(fake.calls).toEqual([]);
+    gitWith('');
+    runVibeAction('base', { direct: true });
+    await until(async () => fake.calls.length > 0);
+    expect(fake.calls).toEqual([['toBase', 'feat/0.8.0-essai', 'main']]);
+  });
+
+  it('Dans un worktree : la tête rapatriée, la recette (pr-12, base la tête, départ refs/vibecoder/pr/12), puis le robot', async () => {
+    review();
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+    runVibeAction('pr-worktree', { direct: true });
+    await until(async () => (await directOf('pr-worktree'))?.running === false);
+    expect(fake.calls).toEqual([
+      ['fetch', 'feat/x'],
+      ['createWorktree', 'a1', { branch: 'pr-12', base: 'feat/x', start: 'refs/vibecoder/pr/12' }],
+      ['prWorktreeReady', 'a1', 12, '/wt', 'pr-12'],
+    ]);
+    expect((await directOf('pr-worktree'))?.last).toMatchObject({ ok: true, line: 'worktree créé' });
+  });
+
+  it('load-pr réussi, prWorktree réglé : la suite dans le même job ; ask : rien de plus', async () => {
+    review();
+    gitWith('');
+    write(path.join(dir, '.vibecoder', 'project.json'), JSON.stringify({ commands: [], prWorktree: 'here' }));
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+    runVibeAction('load-pr', { direct: true, pr: 12 });
+    await until(async () => (await directOf('load-pr'))?.running === false);
+    expect(fake.calls).toEqual([['loadPr', 12], ['fetch', 'feat/x'], ['switch', 'feat/x']]);
+    expect((await directOf('pr-here'))?.last).toMatchObject({ ok: true });
+    fake.calls = [];
+    write(path.join(dir, '.vibecoder', 'project.json'), JSON.stringify({ commands: [] }));
+    runVibeAction('load-pr', { direct: true, pr: 12 });
+    await until(async () => fake.calls.length > 0 && (await directOf('load-pr'))?.running === false);
+    expect(fake.calls).toEqual([['loadPr', 12]]);
+  });
+
+  it('Retirer le worktree (direct) : removeWorktreeChild ; plus de message au parent', async () => {
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+    runVibeAction('remove-worktree', { direct: true });
+    await until(async () => (await directOf('remove-worktree'))?.running === false);
+    expect(fake.calls).toEqual([['removeWorktreeChild', 'a1']]);
+    expect(fake.messages).toEqual([]);
+  });
+
+  it('Nouvelle demande, retenue : au relevé, la fiche supprimée, le worktree depuis origin/<base>, l’enfant affiché, puis sa note avec la demande', async () => {
+    await open();
+    const { refreshVibe, runVibeAction, vibeAgent } = await import('app/controllers');
+    expect(runVibeAction('new-worktree', { text: 'ajouter un bouton' })).toEqual({ ok: true });
+    await until(() => fake.messages.length > 0);
+    expect(fake.messages[0]).toBe(`/vibecoder:nouvelle-demande fr ${out} ajouter un bouton`);
+    write(path.join(out, 'new-worktree.json'), JSON.stringify({ branch: 'feat/0.13.0-bouton' }));
+    await refreshVibe({ now: true });
+    expect(fs.existsSync(path.join(out, 'new-worktree.json'))).toBe(false);
+    await until(() => vibeAgent()?.id === 'c1');
+    await refreshVibe({ now: true });
+    await until(() => fake.messages.length > 1);
+    expect(fake.calls).toEqual([
+      ['createWorktree', 'a1', { branch: 'feat/0.13.0-bouton', base: 'main', start: 'origin/main' }],
+      ['openChild', 'a1', '/wt', { name: 'feat/0.13.0-bouton', create: true }],
+    ]);
+    expect(fake.messages[1]).toBe(`/vibecoder:note fr ${path.join(fake.userData, 'vibecoder-out', 'c1')} ajouter un bouton`);
+    // une fois seulement
+    await refreshVibe({ now: true });
+    await settle();
+    expect(fake.messages.filter((m) => String(m).startsWith('/vibecoder:note'))).toHaveLength(1);
+  });
+
+  it('Nouvelle demande : une fiche sans demande retenue est supprimée, rien d’autre', async () => {
+    write(path.join(out, 'new-worktree.json'), JSON.stringify({ branch: 'feat/0.13.0-bouton' }));
+    await open();
+    await settle();
+    expect(fs.existsSync(path.join(out, 'new-worktree.json'))).toBe(false);
+    expect(fake.calls).toEqual([]);
+    expect(fake.messages).toEqual([]);
   });
 });
