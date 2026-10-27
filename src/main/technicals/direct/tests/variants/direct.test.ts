@@ -169,3 +169,56 @@ describe('publier la revue', () => {
     expect(fs.existsSync(path.join(out, 'pr-7-review.json'))).toBe(false);
   });
 });
+
+describe('Ici : rapatrier une branche, aller dessus', () => {
+  it('fetchBranch : origin/<branche> à jour, la copie de travail intacte ; switchTo : la branche suivie créée d’après origin', async () => {
+    const { root, origin, work, runner } = setup();
+    // feat/y, poussée d'ailleurs : inconnue du clone.
+    const other = path.join(root, 'other');
+    execFileSync('git', ['clone', '-q', origin, other], { env: ENV });
+    git(other, 'switch', '-q', '-c', 'feat/y');
+    fs.writeFileSync(path.join(other, 'y.txt'), 'y\n');
+    git(other, 'add', 'y.txt');
+    git(other, 'commit', '-q', '-m', 'sur y');
+    git(other, 'push', '-q', 'origin', 'feat/y');
+    const tip = git(other, 'rev-parse', 'HEAD');
+    const f = await runner.fetchBranch('feat/y');
+    expect(f).toMatchObject({ ok: true, line: 'origin/feat/y fetched.' });
+    expect(git(work, 'rev-parse', 'origin/feat/y')).toBe(tip);
+    expect(git(work, 'branch', '--show-current')).toBe('feat/x');
+    const s = await runner.switchTo('feat/y');
+    expect(s).toMatchObject({ ok: true, line: 'On feat/y.' });
+    expect(s.detail).toMatch(/\$ git switch feat\/y/);
+    expect(git(work, 'branch', '--show-current')).toBe('feat/y');
+    expect(git(work, 'rev-parse', 'HEAD')).toBe(tip);
+  });
+
+  it('une branche absente d’origin : échec rendu, rien ne bouge', async () => {
+    const { work, runner } = setup();
+    expect((await runner.fetchBranch('nulle-part')).ok).toBe(false);
+    expect((await runner.switchTo('nulle-part')).ok).toBe(false);
+    expect(git(work, 'branch', '--show-current')).toBe('feat/x');
+  });
+
+  it('un ref pas sûr (« -f », « a..b », pas un texte) : refusé sans lancer git', async () => {
+    const { out, runner } = setup();
+    for (const b of ['-f', '--force', 'a..b', 'a b', '', 7]) {
+      expect((await runner.fetchBranch(b)).ok).toBe(false);
+      expect((await runner.switchTo(b)).ok).toBe(false);
+    }
+    expect(fs.existsSync(path.join(out, 'direct.log'))).toBe(false);
+  });
+});
+
+describe('Retirer le worktree d’une PR : sa branche pr-<n>', () => {
+  it('dropPrBranch : pr-<n> supprimée, même non fusionnée ; une autre branche jamais', async () => {
+    const { work, runner } = setup();
+    git(work, 'branch', 'pr-7');
+    const r = await runner.dropPrBranch(7);
+    expect(r).toMatchObject({ ok: true, line: 'pr-7 deleted.' });
+    expect(git(work, 'branch', '--list', 'pr-7')).toBe('');
+    expect((await runner.dropPrBranch(7)).ok).toBe(false);   // déjà partie : l'échec rendu
+    for (const n of [0, -1, 1.5, '7', 'feat/x']) expect((await runner.dropPrBranch(n)).ok).toBe(false);
+    expect(git(work, 'branch', '--list', 'feat/x')).not.toBe('');
+  });
+});
