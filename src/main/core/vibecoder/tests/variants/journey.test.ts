@@ -30,7 +30,11 @@ const ACTIONS: ActionDef[] = [
   A('pr-here', 'review', 'pr', '/vibecoder:ici {{lang}} {{out}} {{pr}}'),
   A('pr-worktree', 'review', 'pr', '/vibecoder:pr-worktree {{lang}} {{out}} {{pr}}'),
   A('remove-worktree', 'both', 'pr', '/vibecoder:retirer {{lang}} {{out}}'),
-  A('new-worktree', 'both', null, '/vibecoder:nouvelle-demande {{lang}} {{out}} {{text}}', 'text'),
+  A('unload-pr', 'review', 'pr', 'Décharger la PR : seulement par l\'appli.'),
+  A('stash', 'both', null, 'Mettre de côté : seulement par l\'appli.'),
+  A('new-request', 'both', null, '/vibecoder:nouvelle-demande {{lang}} {{out}} {{text}}', 'text'),
+  A('new-here', 'both', null, 'Changer de branche pour une demande : seulement par l\'appli.'),
+  A('new-worktree', 'both', null, 'Nouvelle demande dans un worktree : seulement par l\'appli.'),
   A('review-note', 'review', 'note', '/vibecoder:relire-note {{lang}} {{out}} {{pr}}'),
   A('review-commits', 'review', 'commits', '/vibecoder:relire-commits {{lang}} {{out}} {{pr}}'),
   A('screen', 'review', 'ecran', '/vibecoder:ecran {{lang}} {{out}} {{pr}}'),
@@ -288,8 +292,9 @@ describe('Créer, Vibe en cours : aucune validation attendue', () => {
 
 describe('Relire : les étapes et la prochaine action', () => {
   const PR = '{"number":12,"title":"G2-1 — Un bouton","url":"https://github.com/o/d/pull/12","author":{"login":"kb"},"base":"main","head":"feat/G2-1","body":"…"}';
+  // Chargée, le dossier sur sa tête.
   const loaded = (over: Partial<JourneyInput> = {}) => input({
-    flow: 'review', pr: 12, note, tests: [test], repo: repo([], [FIRST, HELLO]), ...over,
+    flow: 'review', pr: 12, note, tests: [test], repo: repo([], [FIRST, HELLO]), checkout: { branch: 'feat/G2-1', dirty: false }, ...over,
     outputs: { 'pr-12.json': out(PR), ...over.outputs },
   });
 
@@ -405,7 +410,7 @@ describe('les actions grisées, et pourquoi', () => {
   });
 
   it('Relire, brouillon vide : Publier la revue est grisé', () => {
-    const v = vibeView(input({ flow: 'review', pr: 12, outputs: { 'pr-12.json': out('{}') } }));
+    const v = vibeView(input({ flow: 'review', pr: 12, outputs: { 'pr-12.json': out('{"head":"feat/x"}') }, checkout: { branch: 'feat/x', dirty: false } }));
     expect(action(v, 'publish')?.disabled).toBe('Le brouillon de revue est vide');
   });
 
@@ -616,75 +621,98 @@ describe('rc.2 : modèle au choix, PR fermée, fichiers des commits', () => {
   });
 });
 
-describe('Ici ou dans un worktree (0.12.0)', () => {
+describe('Créer et Relire sur le même dossier : les choix de lieu (0.12.0)', () => {
   const CARD = JSON.stringify({ number: 12, head: 'feat/G2-1' });
-  const loaded = (over: Partial<JourneyInput> = {}) => vibeView(input({ flow: 'review', pr: 12, outputs: { 'pr-12.json': out(CARD) }, ...over }));
-  const seen = (v: VibeView, ids: string[]) => ids.filter((id) => !action(v, id)?.hidden);
-  const PLACES = ['pr-here', 'pr-worktree'];
+  const MAIN = { branch: 'main', dirty: false };
+  const DIRTY = { branch: 'main', dirty: true };
+  const loaded = (over: Partial<JourneyInput> = {}) => vibeView(input({ flow: 'review', pr: 12, outputs: { 'pr-12.json': out(CARD) }, checkout: MAIN, ...over }));
+  // Montrées : présentes dans ce parcours et pas masquées.
+  const seen = (v: VibeView, ids: string[]) => ids.filter((id) => action(v, id)?.hidden === false);
+  const PLACES = ['pr-here', 'pr-worktree', 'unload-pr', 'stash', 'new-here', 'new-worktree'];
   const RUNNING = { op: 'create' as const, running: true, last: null };
 
-  it('Relire : Ici et Dans un worktree, la PR chargée ; pas avant', () => {
-    expect(seen(loaded(), PLACES)).toEqual(PLACES);
-    expect(seen(vibeView(input({ flow: 'review', pr: 12 })), PLACES)).toEqual([]);
-    expect(seen(vibeView(input({ flow: 'review' })), PLACES)).toEqual([]);
+  it('Relire, la fiche chargée, le dossier propre hors de sa tête : changer de branche, décharger ; rien avant', () => {
+    expect(seen(loaded(), PLACES)).toEqual(['pr-here', 'unload-pr']);
+    expect(seen(vibeView(input({ flow: 'review', pr: 12, checkout: MAIN })), PLACES)).toEqual([]);
+    expect(seen(vibeView(input({ flow: 'review', checkout: MAIN })), PLACES)).toEqual([]);
   });
 
-  it('Ici : grisé s\'il y a des modifications, avec sa raison, pas masqué', () => {
-    const v = loaded({ checkout: { branch: 'main', dirty: true } });
-    expect([action(v, 'pr-here')?.hidden, action(v, 'pr-here')?.disabled]).toEqual([false, 'Des modifications en cours']);
-    expect(action(loaded({ lang: 'en', checkout: { branch: 'main', dirty: true } }), 'pr-here')?.disabled).toBe('Uncommitted changes');
-    expect(action(loaded({ checkout: { branch: 'main', dirty: false } }), 'pr-here')?.disabled).toBeNull();
-    // les fichiers du ref de la PR ne comptent pas : c'est le dossier qui change de branche
-    expect(action(loaded({ repo: repo(['a.txt']), checkout: { branch: 'main', dirty: false } }), 'pr-here')?.disabled).toBeNull();
+  it('la fiche chargée sans dépôt relevé : ses choix quand même', () => {
+    expect(seen(loaded({ repo: null }), PLACES)).toEqual(['pr-here', 'unload-pr']);
   });
 
-  it('Ici : masqué sur la branche de la PR', () => {
-    expect(seen(loaded({ checkout: { branch: 'feat/G2-1', dirty: false } }), PLACES)).toEqual(['pr-worktree']);
+  it('des modifications : en plus un nouveau worktree et mettre de côté ; les changements de branche grisés, pas masqués', () => {
+    const v = loaded({ checkout: DIRTY });
+    expect(seen(v, PLACES)).toEqual(['pr-here', 'pr-worktree', 'unload-pr', 'stash']);
+    expect(['pr-here', 'unload-pr', 'pr-worktree', 'stash'].map((id) => action(v, id)?.disabled))
+      .toEqual(['Des modifications en cours', 'Des modifications en cours', null, null]);
+    expect(action(loaded({ lang: 'en', checkout: DIRTY }), 'pr-here')?.disabled).toBe('Uncommitted changes');
   });
 
-  it('Ici : masqué sur le robot d\'une PR (déjà dans son worktree)', () => {
-    expect(seen(loaded({ child: true, worktree: { state: 'robot', temp: true, dir: '/w' } }), PLACES)).toEqual([]);
+  it('sur la tête de la PR : plus de changement de branche ; décharger reste', () => {
+    expect(seen(loaded({ checkout: { branch: 'feat/G2-1', dirty: true } }), PLACES)).toEqual(['unload-pr', 'stash']);
   });
 
-  it('prWorktree réglé : l\'autre choix masqué', () => {
-    expect(seen(loaded({ place: { pr: 'here', feature: 'ask' } }), PLACES)).toEqual(['pr-here']);
-    expect(seen(loaded({ place: { pr: 'worktree', feature: 'ask' } }), PLACES)).toEqual(['pr-worktree']);
+  it('sur le robot d\'une PR : aucun choix de lieu', () => {
+    expect(seen(loaded({ child: true, checkout: DIRTY, worktree: { state: 'robot', temp: true, dir: '/w' } }), PLACES)).toEqual([]);
   });
 
-  it('Dans un worktree : masqué la PR déjà dans un worktree, ou sur un enfant', () => {
-    for (const state of ['creating', 'open', 'robot'] as const) {
-      expect(seen(loaded({ worktree: { state, temp: false, dir: '/w' } }), PLACES)).toEqual(['pr-here']);
+  it('un nouveau worktree : masqué la PR déjà dans un worktree, ou sur un enfant', () => {
+    expect(action(loaded({ checkout: DIRTY, worktree: { state: 'open', temp: false, dir: '/w' } }), 'pr-worktree')?.hidden).toBe(true);
+    expect(action(loaded({ checkout: DIRTY, child: true }), 'pr-worktree')?.hidden).toBe(true);
+  });
+
+  it('Relire : l\'étape PR faite le dossier sur la tête (ou le robot) ; sinon les étapes suivantes grisées, elsewhere', () => {
+    const away = loaded({ note, tests: [test], repo: repo([], [FIRST]) });
+    expect(status(away).pr).toBe('current');
+    expect([action(away, 'review-note')?.disabled, action(away, 'read-invariants')?.disabled, action(away, 'load-pr')?.disabled])
+      .toEqual(['Passer d\'abord sur la branche de la PR', 'Passer d\'abord sur la branche de la PR', null]);
+    expect(action(loaded({ lang: 'en' }), 'review-note')?.disabled).toBe('Switch to the PR branch first');
+    for (const on of [{ checkout: { branch: 'feat/G2-1', dirty: false } }, { worktree: { state: 'robot' as const, temp: true, dir: '/w' } }]) {
+      const v = loaded({ note, tests: [test], repo: repo([], [FIRST]), ...on });
+      expect([status(v).pr, action(v, 'review-note')?.disabled]).toEqual(['done', null]);
     }
-    expect(seen(loaded({ child: true }), PLACES)).toEqual(['pr-here']);
   });
 
-  it('une recette en cours : les actions de worktree grisées, avec sa raison', () => {
-    const v = loaded({ recipe: RUNNING });
-    expect(PLACES.map((id) => action(v, id)?.disabled)).toEqual(['Une recette du projet est en cours', 'Une recette du projet est en cours']);
-    expect(action(loaded({ recipe: { ...RUNNING, running: false } }), 'pr-worktree')?.disabled).toBeNull();
+  it('une nouvelle demande retenue : sa branche au relevé, ses choix, dans les deux parcours', () => {
+    for (const flow of ['create', 'review'] as const) {
+      const v = vibeView(input({ flow, request: 'feat/G3-1', checkout: MAIN }));
+      expect([v.request, seen(v, PLACES)]).toEqual([{ branch: 'feat/G3-1' }, ['new-here']]);
+    }
+    expect(seen(vibeView(input({ request: 'feat/G3-1', checkout: DIRTY })), PLACES)).toEqual(['stash', 'new-here', 'new-worktree']);
+    expect(action(vibeView(input({ request: 'feat/G3-1', checkout: DIRTY })), 'new-here')?.disabled).toBe('Des modifications en cours');
+    expect(seen(vibeView(input({ request: 'feat/G3-1', checkout: DIRTY, child: true })), PLACES)).toEqual(['stash', 'new-here']);
   });
 
-  it('pr-here, pr-worktree, remove-worktree : directes ; remove-worktree seulement (pas de via)', () => {
-    expect(['pr-here', 'pr-worktree'].map((id) => action(loaded(), id)?.direct)).toEqual([{ running: false, last: null }, { running: false, last: null }]);
-    expect(action(vibeView(input()), 'remove-worktree')?.direct).toEqual({ running: false, last: null, only: true });
+  it('aucune demande retenue : ni sa branche ni ses choix ; Nouvelle demande, le texte du champ, toujours là', () => {
+    const v = vibeView(input({ checkout: DIRTY }));
+    expect([v.request, seen(v, PLACES)]).toEqual([null, []]);
+    expect(action(v, 'new-request')).toMatchObject({ hidden: false, usesText: true });
   });
 
-  it('new-worktree : son dernier résultat, comme une action directe', () => {
+  it('une recette en cours : les choix de lieu et Retirer le worktree grisés, avec sa raison', () => {
+    const v = loaded({ recipe: RUNNING, checkout: DIRTY, request: 'feat/G3-1' });
+    const ids = [...PLACES, 'remove-worktree'];
+    expect(ids.map((id) => action(v, id)?.disabled)).toEqual(ids.map(() => 'Une recette du projet est en cours'));
+    expect(action(loaded({ recipe: { ...RUNNING, running: false }, checkout: DIRTY }), 'pr-worktree')?.disabled).toBeNull();
+  });
+
+  it('les choix de lieu, Retirer le worktree : directs ; pr-here, pr-worktree avec leur via, les autres par l\'appli seule', () => {
+    const v = loaded();
+    expect(['pr-here', 'pr-worktree'].map((id) => action(v, id)?.direct)).toEqual([{ running: false, last: null }, { running: false, last: null }]);
+    for (const id of ['unload-pr', 'stash', 'new-here', 'new-worktree', 'remove-worktree']) {
+      expect(action(v, id)?.direct).toEqual({ running: false, last: null, only: true });
+    }
+    expect(action(vibeView(input()), 'new-request')?.direct).toBeUndefined();
+  });
+
+  it('leur dernier résultat suit dans le relevé', () => {
     const last = { ok: false, line: 'No base branch found for this repository: no worktree created.', detail: '', time: 1 };
-    expect(action(vibeView(input()), 'new-worktree')?.direct).toEqual({ running: false, last: null });
     expect(action(vibeView(input({ direct: { 'new-worktree': { running: false, last } } })), 'new-worktree')?.direct?.last).toEqual(last);
   });
 
-  it('Nouvelle demande dans un worktree : sur une tête, dans les deux parcours, le texte du champ', () => {
-    for (const flow of ['create', 'review'] as const) expect(action(vibeView(input({ flow })), 'new-worktree')).toMatchObject({ hidden: false, usesText: true });
-    expect(action(vibeView(input({ child: true })), 'new-worktree')?.hidden).toBe(true);
-    expect(action(vibeView(input({ place: { pr: 'ask', feature: 'here' } })), 'new-worktree')?.hidden).toBe(true);
-    expect(action(vibeView(input({ place: { pr: 'ask', feature: 'worktree' } })), 'new-worktree')?.hidden).toBe(false);
-  });
-
-  it('Nouvelle demande dans un worktree : grisée pendant une recette, ou quand la conversation travaille', () => {
-    expect(action(vibeView(input({ recipe: RUNNING })), 'new-worktree')?.disabled).toBe('Une recette du projet est en cours');
-    expect(action(vibeView(input({ busy: true })), 'new-worktree')?.disabled).toBe('L\'agent travaille');
+  it('un choix de lieu grisé quand la conversation travaille', () => {
+    expect(action(vibeView(input({ busy: true, request: 'feat/G3-1' })), 'new-worktree')?.disabled).toBe('L\'agent travaille');
   });
 
   it('Retirer le worktree, en Créer : sur un enfant, sa PR fusionnée ; revenir sur la base masqué sur un enfant', () => {
@@ -699,7 +727,7 @@ describe('Ici ou dans un worktree (0.12.0)', () => {
     expect([action(robot, 'remove-worktree')?.hidden, action(robot, 'remove-worktree')?.disabled]).toEqual([false, null]);
     expect(robot.worktree).toEqual({ state: 'robot', temp: true, dir: '/w' });
     expect(action(loaded({ worktree: { state: 'robot', temp: false, dir: '/w' } }), 'remove-worktree')?.hidden).toBe(true);
-    expect(vibeView(input({ flow: 'review', pr: 12, outputs: { 'pr-12.json': out(CARD) } })).worktree).toBeNull();
+    expect(loaded().worktree).toBeNull();
   });
 });
 
