@@ -1,9 +1,12 @@
-/** direct — les sept actions que l'appli fait elle-même, sans agent ni
+/** direct — les actions que l'appli fait elle-même, sans agent ni
  *  modèle, au clic de leur bouton (F-114, I-39) : commiter le message
- *  préparé, publier la revue, charger une PR, revenir sur la base, aller sur
- *  une branche (Ici : git switch, le dossier propre vérifié par l'appelant),
- *  rapatrier une branche d'origin (la tête d'une PR avant son worktree),
- *  supprimer la branche pr-<n> de l'appli (son worktree retiré). Une liste
+ *  préparé, publier la revue, dire si une PR vient d'un fork, charger une PR
+ *  (sa fiche, puis sa seule branche : git fetch origin <tête>), revenir sur
+ *  la base, aller sur une branche ou la créer depuis un point de départ (git
+ *  switch [-c], le dossier propre vérifié par l'appelant), rapatrier une
+ *  branche d'origin, la mettre à jour (git pull --ff-only origin), mettre les
+ *  modifications de côté (git stash push -u, rien d'autre), supprimer la
+ *  branche pr-<n> de l'appli (son worktree retiré). Une liste
  *  fermée de commandes (DIRECT_GIT, DIRECT_GH), aux arguments fixes ou
  *  vérifiés : une PR est un entier positif, un verdict l'un des trois, une
  *  branche un ref sûr (okRef) ; un fichier est écrit par l'appli dans le
@@ -12,15 +15,16 @@
  *  trouvent Node), sans shell (execFile, I-27), 60 s au plus chacun ; chaque commande, une ligne de <out>/direct.log ; un échec
  *  s'arrête là et se rend (ok faux, la sortie), sans rien bloquer (I-29).
  *  Les réponses sont en anglais, comme celles des skills techniques (F-108).
+ *  Le texte de pr-<n>.json (prCardText), le même pour l'appelant qui l'écrit.
  *  Ne connaît pas : VibeCoder (sa vue, ses actions), Electron, la configuration.
- *  Utilisé par : app/controllers/vibecoder (runVibeAction, sur une action « direct »). */
+ *  Utilisé par : app/controllers/vibecoder (runDirect, depuis runVibeAction sur args.direct). */
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { okRef } from 'technicals/git';
 
 // Les seules commandes lancées : git <sous-commande>, gh pr review (écrit), gh pr view (lit).
-export const DIRECT_GIT = ['commit', 'fetch', 'switch', 'pull', 'branch'] as const;
+export const DIRECT_GIT = ['commit', 'fetch', 'switch', 'pull', 'branch', 'stash'] as const;
 export const DIRECT_GH = [['pr', 'review'], ['pr', 'view']] as const;
 export const VERDICTS = ['approve', 'comment', 'request-changes'] as const;
 
@@ -47,6 +51,11 @@ const parse = (text: string): Record<string, unknown> | null => {
 };
 const STATE = { approve: 'APPROVED', comment: 'COMMENTED', 'request-changes': 'CHANGES_REQUESTED' } as const;
 const PR_FIELDS = 'number,title,url,author,baseRefName,headRefName,body,state';
+
+// pr-<n>.json : la fiche d'une PR, ces clés, dans cet ordre (loadPr ; app/controllers, pour suivre une PR sans la charger).
+type PrCard = Record<'number' | 'title' | 'url' | 'author' | 'base' | 'head' | 'body' | 'state', unknown>;
+export const prCardText = ({ number, title, url, author, base, head, body, state }: PrCard) =>
+  `${JSON.stringify({ number, title, url, author, base, head, body, state }, null, 2)}\n`;
 
 export function directRunner({ dir, out, prefix, launch = launchFile }: { dir: string; out: string; prefix: string[]; launch?: Launch }) {
   const done: string[] = [];   // le détail de l'action en cours : chaque commande et sa sortie
@@ -98,23 +107,31 @@ export function directRunner({ dir, out, prefix, launch = launchFile }: { dir: s
       return result(true, `${state} ${url}`.trim());
     },
 
-    // gh pr view <n> → <out>/pr-<n>.json, puis git fetch origin +pull/<n>/head:refs/vibecoder/pr/<n> <base>.
+    // gh pr view <n> --json isCrossRepository : ok si la branche de la PR est sur ce dépôt ; d'un fork, refusé.
+    async sameRepo(n: unknown): Promise<DirectResult> {
+      if (!okNumber(n)) return result(false, 'Refused: the PR is not a positive integer.');
+      const v = await run('gh', ['pr', 'view', '--json', 'isCrossRepository', '--', String(n)]);
+      const p = v.exit === 0 ? parse(v.stdout) : null;
+      if (!p) return result(false, first(v, `gh pr view ${n} failed.`));
+      if (p.isCrossRepository === true) return result(false, `Refused: PR #${n} comes from a fork; only PRs whose branch is on origin load.`);
+      return result(true, `#${n} is on origin.`);
+    },
+
+    // gh pr view <n> → <out>/pr-<n>.json, puis git fetch origin <tête> (une PR d'un fork : sa branche n'est pas sur origin, échec).
     async loadPr(n: unknown): Promise<DirectResult> {
       if (!okNumber(n)) return result(false, 'Refused: the PR is not a positive integer.');
       const v = await run('gh', ['pr', 'view', '--json', PR_FIELDS, '--', String(n)]);
       const p = v.exit === 0 ? parse(v.stdout) : null;
       if (!p || p.number !== n) return result(false, first(v, `gh pr view ${n} failed.`));
       const base = String(p.baseRefName ?? '');
-      if (!okRef(base)) return result(false, `Refused: unexpected base « ${base} ».`);
-      const card = {
-        number: n, title: p.title, url: p.url, author: (p.author as { login?: unknown } | null)?.login ?? '',
-        base, head: p.headRefName, body: p.body, state: p.state,
-      };
+      const head = String(p.headRefName ?? '');
+      if (!okRef(base) || !okRef(head)) return result(false, `Refused: unexpected base or head « ${base} », « ${head} ».`);
+      const author = (p.author as { login?: unknown } | null)?.login ?? '';
       fs.mkdirSync(out, { recursive: true });
-      fs.writeFileSync(path.join(out, `pr-${n}.json`), `${JSON.stringify(card, null, 2)}\n`);
-      const f = await run('git', ['fetch', 'origin', `+pull/${n}/head:refs/vibecoder/pr/${n}`, base]);
+      fs.writeFileSync(path.join(out, `pr-${n}.json`), prCardText({ number: n, title: p.title, url: p.url, author, base, head, body: p.body, state: p.state }));
+      const f = await run('git', ['fetch', 'origin', head]);
       if (f.exit !== 0) return result(false, first(f, 'git fetch failed.'));
-      return result(true, `#${n} ${String(p.title ?? '')} (${String(p.headRefName ?? '')} → ${base})${p.state === 'OPEN' ? '' : `, ${String(p.state)}`}`);
+      return result(true, `#${n} ${String(p.title ?? '')} (${head} → ${base})${p.state === 'OPEN' ? '' : `, ${String(p.state)}`}`);
     },
 
     // Seulement si la PR de `branch` est MERGED : git switch <base>, git pull --ff-only, git branch -d <branch>.
@@ -142,17 +159,28 @@ export function directRunner({ dir, out, prefix, launch = launchFile }: { dir: s
       return result(true, `origin/${branch} fetched.`);
     },
 
-    // git switch <branch> (le dossier propre : à l'appelant de l'avoir vérifié).
-    async switchTo(branch: unknown): Promise<DirectResult> {
+    // git pull --ff-only origin <branch> (remote et branche nommés : une branche locale sans suivi passe) ; non fast-forward : l'échec.
+    async pullBranch(branch: unknown): Promise<DirectResult> {
       if (typeof branch !== 'string' || !okRef(branch)) return result(false, 'Refused: branch missing or unsafe.');
-      const r = await run('git', ['switch', branch]);
+      const r = await run('git', ['pull', '--ff-only', 'origin', branch]);
+      if (r.exit !== 0) return result(false, first(r, 'git pull failed.'));
+      return result(true, `${branch} up to date with origin.`);
+    },
+
+    // git switch <branch> ; avec `start` : git switch -c <branch> <start> (le dossier propre : à l'appelant de l'avoir vérifié).
+    async switchTo(branch: unknown, start?: unknown): Promise<DirectResult> {
+      if (typeof branch !== 'string' || !okRef(branch)) return result(false, 'Refused: branch missing or unsafe.');
+      if (start !== undefined && (typeof start !== 'string' || !okRef(start))) return result(false, 'Refused: start point unsafe.');
+      const r = await run('git', start === undefined ? ['switch', branch] : ['switch', '-c', branch, start]);
       if (r.exit !== 0) return result(false, first(r, 'git switch failed.'));
       return result(true, `On ${branch}.`);
     },
 
-    // git stash push -u, arguments fixes (aucune autre forme de stash). À écrire (0.12.0).
+    // git stash push -u, arguments fixes (aucune autre forme de stash) ; le dossier relu par l'appelant.
     async stash(): Promise<DirectResult> {
-      throw new Error('not implemented');
+      const r = await run('git', ['stash', 'push', '-u']);
+      if (r.exit !== 0) return result(false, first(r, 'git stash failed.'));
+      return result(true, first(r, 'Changes stashed.'));
     },
 
     // git branch -D pr-<n> : la branche de l'appli, son worktree retiré (jamais une autre).

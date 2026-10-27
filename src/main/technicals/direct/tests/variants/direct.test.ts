@@ -134,20 +134,36 @@ describe('base', () => {
 });
 
 describe('charger une PR', () => {
-  it('pr-<n>.json écrit d’après gh, la PR dans refs/vibecoder/pr/<n>, la copie de travail intacte', async () => {
-    const { origin, work, out, runner } = setup();
+  it('pr-<n>.json écrit d’après gh, origin/<tête> rapatriée, la copie de travail intacte', async () => {
+    const { work, out, runner } = setup();
     const tip = git(work, 'rev-parse', 'feat/x');
-    git(origin, 'update-ref', 'refs/pull/7/head', tip);
     git(work, 'switch', '-q', 'main');
+    git(work, 'update-ref', '-d', 'refs/remotes/origin/feat/x');
     answer({ number: 7, title: 'Le titre', url: 'https://github.com/o/d/pull/7', author: { login: 'bob' }, baseRefName: 'main',
       headRefName: 'feat/x', body: 'Corps', state: 'OPEN' });
     const r = await runner.loadPr(7);
     expect(r).toMatchObject({ ok: true, line: '#7 Le titre (feat/x → main)' });
     expect(JSON.parse(fs.readFileSync(path.join(out, 'pr-7.json'), 'utf8'))).toEqual({
       number: 7, title: 'Le titre', url: 'https://github.com/o/d/pull/7', author: 'bob', base: 'main', head: 'feat/x', body: 'Corps', state: 'OPEN' });
-    expect(git(work, 'rev-parse', 'refs/vibecoder/pr/7')).toBe(tip);
+    expect(git(work, 'rev-parse', 'origin/feat/x')).toBe(tip);
+    expect(git(work, 'for-each-ref', 'refs/vibecoder')).toBe('');
     expect(git(work, 'branch', '--show-current')).toBe('main');
     expect(git(work, 'status', '--porcelain')).toBe('');
+  });
+
+  it('une tête absente d’origin (une PR d’un fork) : la fiche écrite, l’échec rendu', async () => {
+    const { runner } = setup();
+    answer({ number: 7, title: 't', url: 'u', author: { login: 'bob' }, baseRefName: 'main', headRefName: 'fork/ailleurs', body: '', state: 'OPEN' });
+    expect((await runner.loadPr(7)).ok).toBe(false);
+  });
+
+  it('sameRepo : une PR d’un fork (isCrossRepository) refusée, clairement ; sinon ok', async () => {
+    const { runner } = setup();
+    answer({ isCrossRepository: true });
+    expect(await runner.sameRepo(7)).toMatchObject({ ok: false, line: expect.stringMatching(/fork/) });
+    expect(ghCalls()).toEqual([['gh', 'pr', 'view', '--json', 'isCrossRepository', '--', '7']]);
+    answer({ isCrossRepository: false });
+    expect((await runner.sameRepo(7)).ok).toBe(true);
   });
 });
 
@@ -193,6 +209,33 @@ describe('Ici : rapatrier une branche, aller dessus', () => {
     expect(git(work, 'rev-parse', 'HEAD')).toBe(tip);
   });
 
+  it('switchTo(branche, départ) : la branche créée depuis le départ', async () => {
+    const { work, runner } = setup();
+    const s = await runner.switchTo('feat/neuve', 'origin/main');
+    expect(s).toMatchObject({ ok: true, line: 'On feat/neuve.' });
+    expect(git(work, 'branch', '--show-current')).toBe('feat/neuve');
+    expect(git(work, 'rev-parse', 'HEAD')).toBe(git(work, 'rev-parse', 'origin/main'));
+    expect((await runner.switchTo('feat/neuve', 'origin/main')).ok).toBe(false);   // existe déjà : l'échec rendu
+  });
+
+  it('pullBranch : une branche locale sans suivi mise à jour d’après origin ; non fast-forward : l’échec rendu', async () => {
+    const { root, origin, work, runner } = setup();
+    const other = path.join(root, 'autre');
+    execFileSync('git', ['clone', '-q', '-b', 'feat/x', origin, other], { env: ENV });
+    fs.writeFileSync(path.join(other, 'c.txt'), 'trois\n');
+    git(other, 'add', 'c.txt');
+    git(other, 'commit', '-q', '-m', 'troisième');
+    git(other, 'push', '-q', 'origin', 'feat/x');
+    git(work, 'branch', '--unset-upstream');
+    expect((await runner.pullBranch('feat/x')).ok).toBe(true);
+    expect(git(work, 'rev-parse', 'HEAD')).toBe(git(other, 'rev-parse', 'HEAD'));
+    git(work, 'reset', '-q', '--hard', 'HEAD~1');
+    fs.writeFileSync(path.join(work, 'd.txt'), 'à part\n');
+    git(work, 'add', 'd.txt');
+    git(work, 'commit', '-q', '-m', 'divergent');
+    expect((await runner.pullBranch('feat/x')).ok).toBe(false);
+  });
+
   it('une branche absente d’origin : échec rendu, rien ne bouge', async () => {
     const { work, runner } = setup();
     expect((await runner.fetchBranch('nulle-part')).ok).toBe(false);
@@ -205,8 +248,26 @@ describe('Ici : rapatrier une branche, aller dessus', () => {
     for (const b of ['-f', '--force', 'a..b', 'a b', '', 7]) {
       expect((await runner.fetchBranch(b)).ok).toBe(false);
       expect((await runner.switchTo(b)).ok).toBe(false);
+      expect((await runner.switchTo('feat/z', b)).ok).toBe(false);
+      expect((await runner.pullBranch(b)).ok).toBe(false);
     }
     expect(fs.existsSync(path.join(out, 'direct.log'))).toBe(false);
+  });
+});
+
+describe('Mettre de côté', () => {
+  it('stash : modifications et fichiers non suivis mis de côté, le dossier propre, la branche inchangée ; récupérables', async () => {
+    const { work, runner } = setup();
+    fs.writeFileSync(path.join(work, 'a.txt'), 'un, modifié\n');
+    fs.writeFileSync(path.join(work, 'neuf.txt'), 'neuf\n');
+    const r = await runner.stash();
+    expect(r.ok).toBe(true);
+    expect(r.detail).toMatch(/\$ git stash push -u/);
+    expect(git(work, 'status', '--porcelain')).toBe('');
+    expect(git(work, 'branch', '--show-current')).toBe('feat/x');
+    expect(git(work, 'stash', 'list')).toMatch(/stash@\{0\}/);
+    git(work, 'stash', 'pop', '-q');
+    expect(fs.readFileSync(path.join(work, 'neuf.txt'), 'utf8')).toBe('neuf\n');
   });
 });
 
