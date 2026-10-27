@@ -8,7 +8,8 @@
  *  <sorties>/actions.json pour l'orchestrateur (runsFile), son avis de fin
  *  (endNotice), la lecture d'une demande de l'orchestrateur
  *  (<sorties>/actions/<id>.start | .stop : parseRequest), l'avis d'une demande
- *  refusée ou partie avec des arguments ignorés (requestNotice), et où en est une
+ *  refusée — 'halted' : le mode Vibe arrêté — ou partie avec des arguments
+ *  ignorés (requestNotice), et où en est une
  *  course d'après son entrée du runtime (runPhase : en cours tant qu'elle
  *  travaille ou que des tâches de fond tournent ; pas de limite de temps ;
  *  grace quand ses tâches de fond viennent de tomber à 0 hors tour, le délai
@@ -53,6 +54,7 @@ const TEXT = {
     request: 'demande', refused: 'refusée', ignored: 'partie, arguments ignorés :',
     unreadable: 'nom ou JSON illisible', unknown: 'action inconnue', hidden: 'action pas proposée à l’écran',
     direct: 'action qui ne court pas à part',
+    halted: 'le mode Vibe a été arrêté par l’utilisateur : ne lance plus rien',
   },
   en: {
     same: 'This action is already running', busy: 'Another action is running', changing: 'An action is changing the branch',
@@ -63,6 +65,7 @@ const TEXT = {
     request: 'request', refused: 'refused', ignored: 'started, ignored arguments:',
     unreadable: 'unreadable name or JSON', unknown: 'unknown action', hidden: 'action not offered on screen',
     direct: 'action that does not run on its own',
+    halted: 'Vibe was stopped by the user: start nothing more',
   },
 };
 
@@ -170,7 +173,7 @@ export function parseRequest(name: string, text: string): { id: string; op: 'sta
 }
 
 // Pourquoi une demande est refusée, par clé ; une autre raison (invalide : l'erreur de startAction) est rendue telle quelle.
-const REFUSALS = ['unreadable', 'unknown', 'hidden', 'direct', 'same'] as const;
+const REFUSALS = ['unreadable', 'unknown', 'hidden', 'direct', 'same', 'halted'] as const;
 
 // L'avis d'une ligne à l'orchestrateur pour une demande refusée (sa raison) ou partie avec des arguments ignorés.
 export function requestNotice(id: string, what: { refused: string } | { ignored: string[] }, lang: VibeLang): string {
