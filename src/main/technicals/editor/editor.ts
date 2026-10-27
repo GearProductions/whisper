@@ -8,7 +8,8 @@
  *  fichier seul). Le chemin part en dernier argument, jamais interprété (I-27) ;
  *  un échec ne fait rien (I-29). L'éditeur est détaché : il survit à l'appli.
  *  Ne connaît pas : Electron, les agents, la config.
- *  Utilisé par : app/menus, app/controllers/vibecoder. */
+ *  Utilisé par : app/menus, app/controllers/vibecoder ; launchDetached :
+ *  terminal.ts. */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import { splitCommand } from 'helpers';
@@ -38,14 +39,18 @@ export function findEditor(command: unknown): Editor | null {
   return program ? editor(String(command).trim(), program, argv.slice(1), argv.slice(1), known) : null;
 }
 
+// Lancé détaché (il survit à l'appli), sans shell. Erreurs avalées :
+// asynchrones (introuvable, EACCES, cwd absent) par 'error' ; synchrones (un
+// .cmd sans shell sous Windows : EINVAL) par le catch. windowsHide : faux pour
+// un terminal (sa fenêtre est le but). Partagé avec terminal.ts.
+export function launchDetached(program: string, args: string[], { cwd, windowsHide = true }: { cwd?: string; windowsHide?: boolean } = {}) {
+  try {
+    spawn(program, args, { cwd, detached: true, stdio: 'ignore', windowsHide }).on('error', () => {}).unref();
+  } catch { /* rien */ }
+}
+
 function editor(name: string, program: string, dirArgs: string[], fileArgs: string[], known: string | null): Editor {
-  // Erreurs avalées : asynchrones (introuvable, EACCES) par 'error' ;
-  // synchrones (un .cmd sans shell sous Windows : EINVAL) par le catch.
-  const launch = (args: string[]) => {
-    try {
-      spawn(program, args, { detached: true, stdio: 'ignore', windowsHide: true }).on('error', () => {}).unref();
-    } catch { /* rien */ }
-  };
+  const launch = (args: string[]) => launchDetached(program, args);
   const at = (file: string, line?: number) => (!line || !Number.isInteger(line) || line < 1 || !known ? [file]
     : known === 'zed' ? [`${file}:${line}`] : ['-g', `${file}:${line}`]);
   return { name, open: (dir) => launch([...dirArgs, dir]), openFile: (file, line) => launch([...fileArgs, ...at(file, line)]) };
