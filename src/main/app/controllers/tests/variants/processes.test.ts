@@ -169,13 +169,14 @@ describe('le fichier du projet', () => {
     writeProject([]);
     await processAction(agent, cfg, 'setup', undefined, []);
     expect(view()).toMatchObject({ setup: false, recipe: null });
-    const seen = path.join(fake.userData, 'seen.txt');
-    fs.writeFileSync(projectFile(agent.dir), JSON.stringify({ commands: [], setup: [`pwd >> '${seen}'`] }));
+    // un fichier relatif : il atterrit au dossier de l'agent (pwd donnerait un chemin POSIX sous Windows)
+    const seen = path.join(agent.dir, 'seen.txt');
+    fs.writeFileSync(projectFile(agent.dir), JSON.stringify({ commands: [], setup: ['echo vu > seen.txt'] }));
     expect(view().setup).toBe(true);
     await processAction(agent, cfg, 'setup', undefined, []);
     expect(await until(() => view().recipe?.running === false)).toBe(true);
     expect(view().recipe).toMatchObject({ op: 'setup', last: { ok: true } });
-    expect(fs.readFileSync(seen, 'utf8').trim()).toBe(agent.dir);
+    expect(fs.readFileSync(seen, 'utf8').trim()).toBe('vu');
   }, 15000);
 
   it('promptPrefix : le préfixe vu de l’agent — vide dans sa box, celui du fichier sinon', () => {

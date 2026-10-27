@@ -1,15 +1,16 @@
 // Variants de la recette et du fichier du projet dans .vibecoder/ (note 0.12.0,
 // « La recette, sans IA », « Le fichier du projet, dans .vibecoder/ »).
 import { describe, expect, it } from 'vitest';
+import path from 'node:path';
 import { createSteps, parseProject, projectPath, recipeEnv, removeSteps, withExclude, worktreeDir, type Project } from 'core/runner';
 
 const project = (extra: object) => parseProject(JSON.stringify({ commands: [], ...extra })) as Project;
 
 describe('la recette', () => {
   it('le dossier du worktree : à côté du dépôt par défaut, sinon worktree.dir, résolu depuis le dépôt', () => {
-    expect(worktreeDir(project({}), '/r/projet', 'pr-7')).toBe('/r/projet-worktrees/pr-7');
-    expect(worktreeDir(project({ worktree: { dir: '../wt/{branch}/x' } }), '/r/projet', 'feat/a')).toBe('/r/wt/feat/a/x');
-    expect(worktreeDir(project({ worktree: { dir: '/abs/{branch}' } }), '/r/projet', 'b')).toBe('/abs/b');
+    expect(worktreeDir(project({}), '/r/projet', 'pr-7')).toBe(path.resolve('/r/projet-worktrees/pr-7'));
+    expect(worktreeDir(project({ worktree: { dir: '../wt/{branch}/x' } }), '/r/projet', 'feat/a')).toBe(path.resolve('/r/wt/feat/a/x'));
+    expect(worktreeDir(project({ worktree: { dir: '/abs/{branch}' } }), '/r/projet', 'b')).toBe(path.resolve('/abs/b'));
   });
 
   it('sans base : la branche seule', () => {
@@ -31,7 +32,7 @@ describe('la recette', () => {
 
 describe('le fichier du projet, dans .vibecoder/', () => {
   it('son chemin', () => {
-    expect(projectPath('/r/projet')).toBe('/r/projet/.vibecoder/project.json');
+    expect(projectPath('/r/projet')).toBe(path.join('/r/projet', '.vibecoder', 'project.json'));
   });
 
   it('.git/info/exclude : la ligne ajoutée à la fin, une fois', () => {
