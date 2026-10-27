@@ -86,7 +86,7 @@ const status = (v: VibeView) => Object.fromEntries(v.steps.map((s) => [s.id, s.s
 const primary = (v: VibeView) => v.actions.find((a) => a.primary)?.id ?? null;
 const action = (v: VibeView, id: string) => v.actions.find((a) => a.id === id);
 
-describe('Créer, Guide : les étapes et la prochaine action', () => {
+describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
   it('pas de note : la note est en cours, rien d\'autre n\'est fait', () => {
     expect(status(vibeView(input()))).toEqual({ note: 'current', forme: 'todo', invariants: 'todo', modules: 'todo', revue: 'todo', pr: 'todo' });
   });
@@ -148,7 +148,7 @@ describe('Créer, Guide : les étapes et la prochaine action', () => {
   });
 
   it('Vibe, ligne « → invariant » sans test de la branche, sans course finie ni ✓ Rien à écrire : pas faits', () => {
-    expect(status(vibeView(input({ note, marks: NOTE_OK, autonomy: 'vibe' }))).invariants).toBe('current');
+    expect(status(vibeView(input({ note, marks: NOTE_OK, vibe: true }))).invariants).toBe('current');
   });
 
   it('✓ Rien à écrire puis la note changée : à revalider, pas faits', () => {
@@ -163,15 +163,15 @@ describe('Créer, Guide : les étapes et la prochaine action', () => {
     expect(status(v).invariants).toBe('current');
   });
 
-  it('des tests pas encore lus (Guide) : aucune action, la validation des cas passe avant la lecture', () => {
+  it('des tests pas encore lus (hors Vibe) : aucune action, la validation des cas passe avant la lecture', () => {
     expect(primary(vibeView(input({ note, marks: NOTE_OK, tests: [test] })))).toBeNull();
   });
 
   it('des tests pas encore lus (Vibe) : pas de lecture, Préparer le commit', () => {
-    expect(primary(vibeView(input({ note, marks: NOTE_OK, tests: [test], autonomy: 'vibe', repo: repo([NOTE_PATH, TEST_PATH]) })))).toBe('commit-prepare');
+    expect(primary(vibeView(input({ note, marks: NOTE_OK, tests: [test], vibe: true, repo: repo([NOTE_PATH, TEST_PATH]) })))).toBe('commit-prepare');
   });
 
-  it('lus mais pas tous validés (Guide) : aucune action, la validation attend', () => {
+  it('lus mais pas tous validés (hors Vibe) : aucune action, la validation attend', () => {
     expect(primary(vibeView(input({ note, marks: NOTE_OK, tests: [test], readings: READINGS, repo: repo([NOTE_PATH, TEST_PATH]) }))))
       .toBeNull();
   });
@@ -254,27 +254,33 @@ describe('Créer, Guide : les étapes et la prochaine action', () => {
   });
 });
 
-describe('Créer, Vibe : aucune validation attendue', () => {
+describe('Créer, Vibe en cours : aucune validation attendue', () => {
   it('pas de note : Rédiger la note', () => {
-    expect(primary(vibeView(input({ autonomy: 'vibe' })))).toBe('note');
+    expect(primary(vibeView(input({ vibe: true })))).toBe('note');
   });
 
   it('note rédigée avec des questions : Envoyer les réponses', () => {
-    expect(primary(vibeView(input({ autonomy: 'vibe', note, outputs: { 'questions.md': out('## 1. Quelle couleur ?\n') } })))).toBe('answers');
+    expect(primary(vibeView(input({ vibe: true, note, outputs: { 'questions.md': out('## 1. Quelle couleur ?\n') } })))).toBe('answers');
   });
 
-  it('note rédigée sans question, forme pas faite : Valider et développer', () => {
+  it('note rédigée sans question, forme pas faite : Poser la forme (primary suit next, plus Vibe)', () => {
     const text = NOTE.slice(0, NOTE.indexOf('## Forme'));
-    expect(primary(vibeView(input({ autonomy: 'vibe', note: { ...note, text } })))).toBe('vibe');
+    expect(primary(vibeView(input({ vibe: true, note: { ...note, text }, marks: { note: ok(text) } })))).toBe('forme');
   });
 
   it('note rédigée sans validation : note et forme faites', () => {
-    const v = vibeView(input({ autonomy: 'vibe', note }));
+    const v = vibeView(input({ vibe: true, note }));
     expect([status(v).note, status(v).forme]).toEqual(['done', 'done']);
   });
 
   it('un test d\'invariant, ni lu ni validé : invariants faits', () => {
-    expect(status(vibeView(input({ autonomy: 'vibe', note, tests: [test] }))).invariants).toBe('done');
+    expect(status(vibeView(input({ vibe: true, note, tests: [test] }))).invariants).toBe('done');
+  });
+
+  it('le relevé dit si Vibe est en cours ; autonomy ne compte plus, ni rendue', () => {
+    expect([vibeView(input({ vibe: true })).vibe, vibeView(input()).vibe]).toEqual([true, undefined]);
+    expect(status(vibeView(input({ autonomy: 'vibe', note }))).note).toBe('current');
+    expect('autonomy' in vibeView(input({ autonomy: 'vibe' }))).toBe(false);
   });
 });
 
@@ -725,14 +731,14 @@ describe('le parcours guidé (0.9.0) : étapes ouvertes, actions masquées', () 
   const withPr = (pr: Record<string, unknown> | null, outputs: JourneyInput['outputs'] = reviewed) =>
     vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), outputs, github: { pr } }));
 
-  it('Créer, Guide : les étapes faites et celle en cours s\'ouvrent, pas celles à venir', () => {
+  it('Créer, hors Vibe : les étapes faites et celle en cours s\'ouvrent, pas celles à venir', () => {
     expect(opened(vibeView(ready()))).toEqual(['note', 'forme', 'invariants', 'modules']);
     expect(opened(vibeView(input()))).toEqual(['note']);
   });
 
-  it('Relire : toutes s\'ouvrent ; Créer en Vibe : aucune (fil d\'Ariane)', () => {
+  it('Relire : toutes s\'ouvrent ; Créer, Vibe en cours : comme sans Vibe', () => {
     expect(opened(vibeView(input({ flow: 'review' })))).toEqual(['pr', 'note', 'invariants', 'commits', 'ecran', 'revue']);
-    expect(opened(vibeView(ready({ autonomy: 'vibe' })))).toEqual([]);
+    expect(opened(vibeView(ready({ vibe: true })))).toEqual(['note', 'forme', 'invariants', 'modules']);
   });
 
   it('l\'étape PR sans PR : seulement Valider la feature', () => {
@@ -777,42 +783,30 @@ describe('le parcours guidé (0.9.0) : étapes ouvertes, actions masquées', () 
     expect([action(v, 'publish')?.hidden, action(v, 'publish')?.disabled]).toEqual([false, 'PR déjà fusionnée : rien à relire']);
   });
 
-  it('Valider et développer : masquée sans note ou avec des questions ouvertes, et refusée', () => {
+  it('Vibe : masquée sans note, avec des questions ouvertes ou la note pas validée, et refusée', () => {
     const questions = { 'questions.md': out('## 1. Quelle couleur ?\n') };
-    expect([vibeView(input()), vibeView(input({ note, outputs: questions })), vibeView(input({ note }))]
+    expect([vibeView(input()), vibeView(input({ note, outputs: questions })), vibeView(input({ note })), vibeView(input({ note, marks: NOTE_OK }))]
       .map((v) => [action(v, 'vibe')?.hidden, action(v, 'vibe')?.disabled]))
-      .toEqual([[true, 'Pas encore de note'], [true, 'Répondre d\'abord aux questions de la note'], [false, null]]);
+      .toEqual([[true, 'Pas encore de note'], [true, 'Répondre d\'abord aux questions de la note'], [true, 'Valider d\'abord la note'],
+        [false, null]]);
   });
 
-  it('Valider et développer : masquée tant que la note n\'est pas rédigée', () => {
+  it('Vibe : masquée tant que la note n\'est pas rédigée', () => {
     const text = NOTE.replace('Un bouton qui dit bonjour.', '');
-    const v = vibeView(input({ note: { ...note, text } }));
+    const v = vibeView(input({ note: { ...note, text }, marks: { note: ok(text) } }));
     expect([action(v, 'vibe')?.hidden, action(v, 'vibe')?.disabled]).toEqual([true, 'Pas encore de note']);
   });
 
-  it('Valider et développer : masquée et refusée la forme faite', () => {
-    const v = vibeView(ready());
-    expect([action(v, 'vibe')?.hidden, action(v, 'vibe')?.disabled]).toEqual([true, 'Déjà lancée : la forme est posée']);
+  it('Vibe : se lance à n\'importe quelle étape après la note', () => {
+    const v = vibeView(ready({ repo: repo([], [FIRST, HELLO]) }));
+    expect([status(v).modules, action(v, 'vibe')?.hidden, action(v, 'vibe')?.disabled]).toEqual(['current', false, null]);
   });
 
-  it('Valider et développer : la forme faite, revient quand des réponses ont vidé questions.md', () => {
-    const v = vibeView(ready({ runs: ANSWERED, outputs: { 'questions.md': out() } }));
-    expect([action(v, 'vibe')?.hidden, action(v, 'vibe')?.disabled]).toEqual([false, null]);
-  });
-
-  it('Valider et développer : masquée pendant un tour de la conversation ou une course qui retient', () => {
-    const vibe = (over: Partial<JourneyInput>) => action(vibeView(input({ note, ...over })), 'vibe')?.hidden;
-    expect([vibe({}), vibe({ busy: true }), vibe({ running: [{ id: 'forme', reads: false }] })]).toEqual([false, true, true]);
-  });
-
-  it('Valider et développer : la forme faite, des réponses, mais leur course qui travaille : masquée', () => {
-    expect(action(vibeView(ready({ runs: ANSWERED, outputs: { 'questions.md': out() }, running: [{ id: 'answers', reads: false }] })), 'vibe')?.hidden)
-      .toBe(true);
-  });
-
-  it('Valider et développer : la forme faite, des réponses suivies d\'une autre course : masquée', () => {
-    const forme = { ...ANSWERED[0], id: 'forme', since: 4, end: 5 };
-    expect(action(vibeView(ready({ runs: [forme, ...ANSWERED] })), 'vibe')?.hidden).toBe(true);
+  it('Vibe : masquée pendant Vibe, un tour de la conversation ou une course qui retient', () => {
+    const vibe = (over: Partial<JourneyInput>) => action(vibeView(input({ note, marks: NOTE_OK, ...over })), 'vibe')?.hidden;
+    expect([vibe({}), vibe({ vibe: true }), vibe({ busy: true }), vibe({ running: [{ id: 'forme', reads: false }] })])
+      .toEqual([false, true, true, true]);
+    expect(action(vibeView(ready({ vibe: true })), 'vibe')?.disabled).toBe('Déjà en cours');
   });
 
   it('en anglais : la raison des questions ouvertes', () => {
@@ -915,7 +909,7 @@ describe('Lecture périmée et grisé de la note et des tests (0.11.0-editer-inv
 
   it('Vibe : lecture périmée ou pas, Lire en pseudo-code n\'est jamais en tête (0.11.0)', () => {
     const at = (readings: JourneyInput['readings']) =>
-      primary(vibeView(input({ note, marks: NOTE_OK, tests: [test], autonomy: 'vibe', repo: repo([NOTE_PATH, TEST_PATH]), readings })));
+      primary(vibeView(input({ note, marks: NOTE_OK, tests: [test], vibe: true, repo: repo([NOTE_PATH, TEST_PATH]), readings })));
     expect([at([]), at([OLD]), at([OLD, ...READINGS])]).toEqual(['commit-prepare', 'commit-prepare', 'commit-prepare']);
   });
 

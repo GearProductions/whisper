@@ -1,11 +1,12 @@
 /** types — un agent tel qu'enregistré, ce que le runtime attend du SDK et du
  *  lancement de Claude Code (injectés : le métier ne les connaît pas).
  *  Utilisé par : core/agents, core/config, core/conversation, app. */
-import type { VibeAutonomy, VibeFlow } from 'shared/bridge';
+import type { VibeFlow } from 'shared/bridge';
 
 // Un agent = un dossier : { id, dir, name, model, effort, mode, sessionId, contextWindow }.
 // `view` : VibeCoder à la place de sa conversation (absent : la conversation) ;
-// `vibe` : ses réglages VibeCoder (lus par core/config : agentVibe) ;
+// `vibe` : ses réglages VibeCoder (lus par core/config : agentVibe ; `autonomy`,
+// d'avant la 0.12.0, ignorée) ;
 // `parent` : un robot enfant, l'agent `id` du même dépôt (sa copie principale),
 // durable ; avec `pr` : le robot de cette PR (F-110) ;
 // `temp` : l'ancien format de `parent` ({ parent, pr }), lu, plus écrit.
@@ -19,7 +20,7 @@ export type AgentConfig = {
   sessionId: string | null;
   contextWindow?: number | null;
   view?: 'vibecoder';
-  vibe?: { flow: VibeFlow; autonomy: VibeAutonomy; pr: number | null };
+  vibe?: { flow: VibeFlow; pr: number | null; autonomy?: 'guide' | 'vibe' };
   parent?: { id: string; pr?: number };
   temp?: { parent: string; pr: number };
 };

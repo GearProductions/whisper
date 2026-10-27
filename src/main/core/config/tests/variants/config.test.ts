@@ -79,10 +79,10 @@ describe('VibeCoder', () => {
     expect(vibeLang(withDefaults({ vibeLang: 'en' }))).toBe('en');
     expect(vibeLang(withDefaults({ vibeLang: 'de' }))).toBe('fr');
   });
-  it('réglages d’un agent : défauts (Créer, Guide, aucune PR), retouches à la main tolérées', () => {
-    const none = { flow: 'create', autonomy: 'guide', pr: null };
+  it('réglages d’un agent : défauts (Créer, aucune PR), retouches à la main tolérées, autonomy d’avant ignorée', () => {
+    const none = { flow: 'create', pr: null };
     expect(agentVibe(agent('a', '/p'))).toEqual(none);
-    expect(agentVibe({ ...agent('a', '/p'), vibe: { flow: 'review', autonomy: 'vibe', pr: 12 } })).toEqual({ flow: 'review', autonomy: 'vibe', pr: 12 });
+    expect(agentVibe({ ...agent('a', '/p'), vibe: { flow: 'review', autonomy: 'vibe', pr: 12 } })).toEqual({ flow: 'review', pr: 12 });
     expect(agentVibe({ ...agent('a', '/p'), vibe: { flow: 'x', autonomy: 1, pr: 1.5 } as never })).toEqual(none);
     expect(agentVibe({ ...agent('a', '/p'), vibe: { flow: 'review', autonomy: 'guide', pr: -3 } })).toEqual({ ...none, flow: 'review' });
     expect(agentVibe({ ...agent('a', '/p'), vibe: 'cassé' as never })).toEqual(none);

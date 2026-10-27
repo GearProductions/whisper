@@ -4,8 +4,7 @@
  *  lui, en entier, ses lignes gardées, et à la suite d'un texte sans
  *  {{quote}} — ajouté à la ligne) ; les lignes entières d'un code que couvre
  *  une sélection (le bloc cité) ; le champ dont une action emporte le texte
- *  (celui de son étape, ou aucun : vibe ne prend pas de texte, le champ de la
- *  note sert en Vibe).
+ *  (celui de son étape, ou aucun : vibe ne prend pas de texte).
  *  Ne connaît pas : le DOM, React, le pont.
  *  Utilisé par : app/panel/panel-app, app/panel/vibecoder (vibe-coder,
  *  step-parts, code-view). */

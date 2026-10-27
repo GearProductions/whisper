@@ -1,22 +1,22 @@
 /** step-parts — les pièces des vues d'étape : l'en-tête d'étape (nom, état,
  *  faits, outils à droite ; dessous, le champ de l'étape quand une de ses
  *  actions en prend le texte (fieldOf), puis la rangée des actions de l'étape
- *  — celle que le guide fait faire ensuite mise en avant, et elle seule d'une
- *  autre étape quand celle-ci est en cours —, sauf celles que la vue montre
- *  elle-même et celles que le relevé masque), le champ d'une étape, la carte
- *  d'une sortie de skill (titre, fichier, depuis quand), le bouton d'une
- *  action du relevé (son libellé ou un plus court, qui travaille ou le choix
- *  du modèle, pourquoi c'est grisé ; sa course en cours : « en cours » et ⏹ ;
+ *  par stepActions — à l'étape en cours, Vibe d'abord avec son propre accent,
+ *  puis celle qui fait avancer l'étape mise en avant), le champ d'une étape,
+ *  la carte d'une sortie de skill (titre, fichier, depuis quand), le bouton
+ *  d'une action du relevé (son libellé ou un plus court, qui travaille ou le
+ *  choix du modèle, pourquoi c'est grisé ; ton plain, accent, vibe ou ghost ;
+ *  sa course en cours : « en cours » et ⏹ ;
  *  absent si l'action n'existe pas ou que le relevé la masque (hidden) ; une
  *  action que l'appli fait elle-même : « direct », à côté « via » l'agent, et
  *  dessous son dernier résultat, F-114), l'invitation (rien encore, et ce qui
  *  le produit), la carte d'une PR, le bandeau d'une PR fusionnée ou fermée,
  *  le badge du robot d'une PR ouverte dans un worktree (et Décharger).
  *  Ne connaît pas : le pont (rappels passés ; ⏹ par le contexte StopRun).
- *  Utilisé par : les vues d'étape, vibe-screen ; vibe-coder (bandeau d'une
+ *  Utilisé par : les vues d'étape ; vibe-coder (bandeau d'une
  *  PR fermée, badge du worktree). */
 import { createContext, useContext, type ReactNode } from 'react';
-import { fieldOf, isLive, t as strings, webUrl, type Strings } from 'core/vibecoder';
+import { fieldOf, isLive, stepActions, t as strings, webUrl, type Strings } from 'core/vibecoder';
 import type { VibeAction, VibeArgs, VibeLang, VibePr, VibeRun, VibeView } from 'technicals/bridge';
 import { ModelPick, Picks } from './model-pick';
 import type { StepProps } from './step-views';
@@ -38,13 +38,10 @@ const S: Record<VibeLang, typeof fr> = {
   },
 };
 
-// Une action qui cite ({{quote}}) part d'un bloc ou d'un cas, pas d'un bouton à elle.
-const cites = (a: VibeAction) => a.kind === 'prefill' && !!a.text?.includes('{{quote}}');
-
 // La course d'une action sur son bouton : son état (VibeView.runs) et ⏹ (vibe-coder le relie à act.runOp(id, 'stop')).
 export const StopRun = createContext<{ stop(id: string): void; state(id: string): VibeRun['state'] | null }>({ stop: () => {}, state: () => null });
 
-// Le champ d'une étape (ou de l'écran Vibe, celui de la note) : son texte part avec l'action qui le prend (fieldOf).
+// Le champ d'une étape : son texte part avec l'action qui le prend (fieldOf).
 export function StepField({ name, text, setText, hint }: { name: string; text: string; setText(text: string): void; hint: string }) {
   return (
     <div className="vc-cbox vc-step-field">
@@ -57,10 +54,7 @@ export function StepField({ name, text, setText, hint }: { name: string; text: s
 export function StepHead({ p, own = [], children }: { p: StepProps; own?: string[]; children?: ReactNode }) {
   const { view, step, t, act, busy } = p;
   const field = view.actions.some((a) => fieldOf(a) === step.id);
-  const current = step.status === 'current';
-  const acts = view.actions
-    .filter((a) => !a.hidden && (a.step === step.id || (a.primary && current)) && !cites(a) && !own.includes(a.id))
-    .sort((a, b) => Number(b.primary && current) - Number(a.primary && current));
+  const acts = stepActions(view, step, own);
   return (
     <div className="vc-step-head">
       <h2>{t.steps[step.id]}</h2>
@@ -70,7 +64,7 @@ export function StepHead({ p, own = [], children }: { p: StepProps; own?: string
       {field ? <StepField name={step.id} text={p.text} setText={p.setText} hint={t.fieldHint} /> : null}
       {acts.length ? (
         <div className="vc-step-acts">
-          {acts.map((a) => <Run key={a.id} a={a} busy={busy} tone={a.primary && current ? 'accent' : 'plain'} onRun={(x) => act.run(a.id, x)} />)}
+          {acts.map(({ a, tone }) => <Run key={a.id} a={a} busy={busy} tone={tone} onRun={(x) => act.run(a.id, x)} />)}
         </div>
       ) : null}
     </div>
@@ -97,7 +91,7 @@ export function OutputCard({ title, file, time, t, tools, className, children }:
 }
 
 // onRun : sans argument, par l'agent ; { direct: true } : par l'appli elle-même (VibeAction.direct).
-type RunProps = { a: VibeAction | undefined; busy: boolean; label?: ReactNode; tone?: 'accent' | 'plain' | 'ghost'; onRun(extra?: VibeArgs): void };
+type RunProps = { a: VibeAction | undefined; busy: boolean; label?: ReactNode; tone?: 'vibe' | 'accent' | 'plain' | 'ghost'; onRun(extra?: VibeArgs): void };
 
 // Une action du relevé (masquée, hidden : rien) : envoyée ou préparée dans le champ ; un message de la conversation (sans
 // étape) est grisé tant qu'elle travaille, une action d'étape court à part (sa course en cours :

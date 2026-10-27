@@ -248,9 +248,8 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 }
 .vc-jfiles button:hover, .vc-commit-files button:hover { background: var(--vc-control); color: var(--vc-text); }
 
-/* ---- Centre : l'étape (Créer en Vibe : l'écran Vibe, sur la place du parcours aussi) ---- */
+/* ---- Centre : la bannière de Vibe, l'étape ---- */
 .vc-center { grid-area: main; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--vc-editor); }
-.vc-center[data-wide] { grid-column: side-start / main-end; }
 /* Un onglet : ceux de la colonne de droite. */
 .vc-tab {
   position: relative;
@@ -290,21 +289,14 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 .vc-badge[data-status="current"] { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
 .vc-facts { color: var(--vc-muted); font-size: 12.5px; }
 
-/* ---- Écran Vibe (Créer) : le fil d'Ariane, puis la zone Vibe ---------------- */
-.vc-crumbs { display: flex; flex-wrap: wrap; gap: 4px 0; margin: -8px 0 16px; padding: 0; list-style: none; font-size: 12.5px; color: var(--vc-muted); }
-.vc-crumbs li { display: flex; align-items: center; gap: 6px; }
-.vc-crumbs li:not(:last-child)::after { content: "›"; margin: 0 10px; color: var(--vc-faint); }
-.vc-crumbs [data-status="done"] { color: var(--vc-soft); }
-.vc-crumbs [data-status="current"] { color: var(--vc-text); font-weight: 600; }
-.vc-tdot { width: 7px; height: 7px; box-sizing: border-box; border-radius: 50%; border: 1.5px solid #4a5163; }
-[data-status="done"] > .vc-tdot { border-color: var(--vc-ok); background: var(--vc-ok); }
-[data-status="current"] > .vc-tdot { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 35%, transparent); }
+/* Pendant Vibe, en tête du centre (hors du défilement de l'étape) : vibe-banner. */
 .vc-vibe-banner {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  flex: none;
   gap: 8px;
-  margin: 0 0 20px;
+  margin: 12px 24px 0;
   padding: 10px 12px;
   border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
   border-radius: 7px;
@@ -314,7 +306,6 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
   line-height: 1.4;
 }
 .vc-vibe-banner > span { color: var(--accent); }
-.vc-vibe-banner .vc-step-field { margin: 4px 0 2px; }
 .vc-card { margin: 0 0 20px; border: 1px solid rgba(255, 255, 255, 0.045); border-radius: 10px; background: #212634; overflow: hidden; }
 .vc-card-head {
   display: flex;

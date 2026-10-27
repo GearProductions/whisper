@@ -13,3 +13,4 @@ export * from './outputs';
 export * from './runs';
 export * from './signal';
 export * from './test-files';
+export * from './vibe-mode';

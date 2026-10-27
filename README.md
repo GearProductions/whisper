@@ -361,7 +361,7 @@ conversation reste utilisable.
 
 **L'écran.**
 
-- en haut : l'agent et sa branche ; *Créer* / *Relire* ; *Guide* / *Vibe* ;
+- en haut : l'agent et sa branche ; *Créer* / *Relire* ;
   *FR* / *EN* ; ↻ (relire le dépôt tout de suite) ; 💬 ; × ;
 - à gauche, le **parcours** : les étapes (point plein : faite ; anneau : en
   cours ; gris : à venir), chacune avec ses faits en une ligne, puis les
@@ -370,8 +370,9 @@ conversation reste utilisable.
   reste visible, sans clic (en *Relire*, toutes s'ouvrent) ;
 - au centre, l'étape choisie — la note du ticket, ce
   que les skills ont produit —, sous son titre son **champ** (quand une de
-  ses actions prend un texte) et ses actions (celle qui fait avancer l'étape
-  en cours en tête, discrètement mise en avant) ; chaque carte produite par
+  ses actions prend un texte) et ses actions (à l'étape en cours, en tête :
+  *Vibe* en *Créer*, puis celle qui fait avancer l'étape, discrètement mise
+  en avant) ; pendant *Vibe*, une bannière au-dessus ; chaque carte produite par
   un skill a son *Relancer* ;
 - à droite, quatre onglets : la **conversation** de l'agent, comme d'habitude
   (fil, autorisations, champ, dictée, commandes « / » ; au-dessus du champ,
@@ -433,7 +434,7 @@ d'arrêter l'une d'elles. Une action qu'elle lance et qui doit attendre part
 d'elle-même dès que la voie est libre ; une demande refusée (action inconnue,
 pas proposée, déjà en cours…) lui est dite, avec la raison, et un argument
 que l'action ne prend pas est ignoré (l'action part, elle en est prévenue).
-En *Guide*, elle ne lance rien que vous ne lui demandiez.
+Hors *Vibe*, elle ne lance rien que vous ne lui demandiez.
 
 **Ouvrir dans l'éditeur.** *Ouvrir* sur la note, un module, un test (à la
 ligne du cas : zed, VS Code, Cursor, VSCodium), un fichier d'un commit. En
@@ -480,8 +481,8 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    forme se commitent à l'étape Modules. Des lignes « → invariant » déjà
    observées par des tests existants (aucun test ajouté par la branche) :
    l'étape passe quand *Écrire les invariants* ou *Vérifier l'alignement*
-   a fini, ou par *✓ Rien à écrire* (à revalider si la note change ; en
-   *Vibe* aussi).
+   a fini, ou par *✓ Rien à écrire* (à revalider si la note change ;
+   pendant *Vibe* aussi).
 4. **Modules** : *Générer ce module* (avec `ponytail`, tests lancés, sans
    commit), *Relire le diff*, *✓ Valider → commit → suivant* ; ou *Générer
    les modules restants* (en parallèle, chacun relu, sans commit). Générer
@@ -588,28 +589,32 @@ dossier ; une commande ne tourne qu'à un endroit de la famille (ports et
 base partagés ; le parent retiré, ses enfants restent une famille) : la lancer ailleurs demande « <nom> tourne dans <branche> :
 l'arrêter et le lancer ici ? ».
 
-**Guide ou Vibe.** *Guide* (par défaut) : vous validez la note, la forme et
-chaque invariant ; l'étape en cours attend vos ✓. *Vibe* (*Créer*
-seulement) : vous donnez la main à l'agent, vous testez et approuvez à la
-fin. Plus rien n'attend vos ✓ (revenu en *Guide*, les étapes qu'il a
-passées gardent leur ✓), et l'écran change : un **fil d'Ariane** (les
-étapes faites, en cours, à venir, sans clic) à la place du parcours, la zone
-*Vibe* (et, la PR fusionnée, *PR mergée → revenir sur la base* et *Release
-officielle*), puis la note. En deux temps :
+**Vibe.** D'ordinaire, vous validez la note, la forme et chaque
+invariant ; l'étape en cours attend vos ✓. *Vibe* (*Créer* seulement) :
+vous donnez la main à l'agent, vous testez et approuvez à la fin. Même
+écran, une bannière en tête dit que *Vibe* est en cours ; plus rien
+n'attend vos ✓, et les étapes qu'il passe les gardent. En deux temps :
 
 1. la demande dans le champ, *Rédiger la note* ; l'agent vous pose
    **toutes** les questions de la note (*Envoyer les réponses*, ou vos
    réponses dans la conversation : le questionnaire suit) — il n'en
-   tranche aucune ;
-2. *Valider et développer* (plus proposé pendant que la conversation ou
-   une action travaille) : l'agent reprend à la première étape pas faite et tient le rôle du
-   développeur du guide jusqu'à la PR et la release candidate en
-   **enchaînant lui-même les actions de l'écran** — les mêmes que vous
-   lanceriez, visibles et arrêtables dans l'onglet *Actions* (modules
-   confiés à des agents Opus en parallèle, puis commités) —, ne s'arrête que sur une
-   question qui bloque, ne choisit jamais *Garder* / *Annuler* à votre
-   place, et le fil d'Ariane se remplit sous vos yeux. Il ne fusionne pas
-   la PR et ne publie pas de version officielle.
+   tranche aucune ; puis vous lisez la note et la validez (*✓ Valider la
+   note*) ;
+2. *Vibe*, en tête des actions de l'étape en cours (proposé une fois la
+   note validée, à n'importe quelle étape ensuite : écrivez vos invariants
+   à la main, puis *Vibe* pour le reste) : l'agent reprend à la première
+   étape pas faite et tient le rôle du développeur du guide jusqu'à la PR
+   et la release candidate en **enchaînant lui-même les actions de
+   l'écran** — les mêmes que vous lanceriez, visibles et arrêtables dans
+   l'onglet *Actions* (modules confiés à des agents Opus en parallèle, puis
+   commités) —, ne choisit jamais *Garder* / *Annuler* à votre place. Une
+   question qui bloque vous attend à l'étape Note, sans arrêter *Vibe* :
+   vos réponses envoyées, il reprend seul. Il ne fusionne pas la PR et ne
+   publie pas de version officielle.
+
+*Arrêter Vibe* (la bannière) : l'action en cours finit, la suivante ne part
+pas. *Vibe* ne survit pas à un redémarrage de l'appli : relancez-le pour
+reprendre.
 
 **Qui travaille, ce que ça coûte.** Chaque bouton dit qui travaille :
 *haiku*, *sonnet · moyen*, *opus · élevé*… ou *agent* (le modèle de l'agent).
@@ -623,7 +628,7 @@ génère un module, relit un diff, une note ou des commits, vérifie
 l'alignement, fait la ponytail review. Sur le modèle de l'agent, chacune
 dans sa conversation : la note, la forme, les réponses aux questions,
 *Appliquer la revue*, *Générer les modules restants*, les releases ; dans
-la conversation : *Valider et développer* — ce dernier, *Générer les modules
+la conversation : *Vibe* — ce dernier, *Générer les modules
 restants* et les releases, longs et coûteux. Pour une étape qui tourne à
 part, vous pouvez choisir un modèle plus léger (ou plus fort) que le conseillé,
 le temps d'un clic : VibeCoder génère pour cela une variante de chaque skill

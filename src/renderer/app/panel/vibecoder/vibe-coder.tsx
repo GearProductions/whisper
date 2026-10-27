@@ -1,12 +1,13 @@
 /** vibe-coder — l'écran VibeCoder d'un agent, à la place de l'en-tête et du
  *  corps du panneau : en-tête (agent — sa couleur, seule touche de couleur
- *  avec Envoyer —, branche, Créer / Relire, Guide / Vibe, langue, relevé,
+ *  avec Envoyer —, branche, Créer / Relire, langue, relevé,
  *  conversation affichée ou masquée, retour à la conversation, fermer ; le
  *  robot d'une PR dans un worktree : son badge et Décharger) ; le parcours à
  *  gauche (il dit où l'on en est) ; au centre, l'étape choisie (step-views :
  *  son en-tête porte ses actions ; Relire, une PR fusionnée ou fermée en
- *  bandeau) ; Créer en Vibe, l'écran Vibe (vibe-screen) à la place du
- *  parcours et de l'étape ; à droite, en onglets, la conversation (reçue en
+ *  bandeau) ; Vibe ou pas, le même parcours et la même étape — pendant Vibe
+ *  (view.vibe), une bannière en tête du centre (vibe-banner) qui l'arrête
+ *  (set vibe false) ; à droite, en onglets, la conversation (reçue en
  *  children), les actions lancées (runs-view, le nombre en cours, en attente
  *  d'une autorisation ou arrêtées à trancher), les tâches de fond (`tasks`,
  *  le nombre en cours) ou les processus du projet (processes-view, le nombre
@@ -19,7 +20,7 @@
  *  (Relire), le modèle choisi par action (envoyé s'il n'est pas le
  *  conseillé), le champ de chaque étape (fieldOf : son texte part en
  *  args.text de l'action ; exigé et vide, le champ prend le clavier ; partie,
- *  il se vide ; en Vibe, celui de la note), les modifications gardées des
+ *  il se vide), les modifications gardées des
  *  fichiers suivis (drafts, par chemin : useFileDraft ; changer d'étape ne
  *  les jette pas) — tout cela gardé par agent
  *  (kept : l'écran est recréé à chaque changement d'agent). Préparer un message dans le champ
@@ -44,7 +45,7 @@ import { RunsView } from './runs-view';
 import { StatusBar } from './status-bar';
 import { ClosedBanner, StopRun, WorktreeBadge } from './step-parts';
 import { STEP_VIEWS, type StepProps, type VibeActs } from './step-views';
-import { VibeScreen } from './vibe-screen';
+import { VibeBanner } from './vibe-banner';
 import './vibecoder.css';
 
 type Props = {
@@ -77,10 +78,8 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   const t = strings(view.lang);
   const [picked, setPicked] = useKept<VibeStepId | null>(kept, view.agentId, 'picked', null);
   const { steps } = view;
-  // Créer en Vibe : l'écran Vibe, sur l'étape Note (son champ porte la demande).
-  const vibe = view.flow === 'create' && view.autonomy === 'vibe';
   // L'étape choisie si elle est ouverte, sinon celle en cours (elle suit le parcours tant qu'on n'a rien choisi).
-  const step = (vibe ? steps.find((s) => s.id === 'note') : steps.find((s) => s.id === picked && s.open))
+  const step = steps.find((s) => s.id === picked && s.open)
     || steps.find((s) => s.status === 'current') || steps[0] || null;
   const busy = isBusy(thread.status);
   const [answers, setAnswers] = useKept<Answers>(kept, view.agentId, 'answers', {});
@@ -149,16 +148,17 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
     return () => document.removeEventListener('keydown', onKey);
   }, [steps]);
 
-  const View = step && (vibe ? VibeScreen : STEP_VIEWS[step.id]);
+  const View = step && STEP_VIEWS[step.id];
   return (
     <Picks.Provider value={{ picks, lang: view.lang, pick: (id, m) => setPicks((p) => ({ ...p, [id]: m })) }}>
     <StopRun.Provider value={{ stop: (id) => act.runOp(id, 'stop'), state: (id) => view.runs?.find((r) => r.id === id)?.state ?? null }}>
       <div className="vc" ref={root} data-conv={side.open ? undefined : 'hidden'} style={{ '--vc-conv': `${side.width}px` } as CSSProperties}>
         <Top view={view} thread={thread} busy={busy} t={t} act={act} side={side} onSide={onSide} onHide={onHide} />
-        {vibe ? null : <Journey view={view} t={t} selected={step && step.id} onPick={setPicked} onOpen={act.open} />}
-        <section className="vc-center" data-wide={vibe || undefined}>
+        <Journey view={view} t={t} selected={step && step.id} onPick={setPicked} onOpen={act.open} />
+        <section className="vc-center">
+          {view.vibe ? <VibeBanner t={t} onStop={() => act.set({ vibe: false })} /> : null}
           {view.error ? <div className="vc-error" role="status"><b>{view.error}</b> {t.errorHint}</div> : null}
-          <div className="vc-step scroll" key={vibe ? 'vibe' : step ? step.id : ''}>
+          <div className="vc-step scroll" key={step ? step.id : ''}>
             {view.flow === 'review' ? <ClosedBanner pr={view.pr} t={t} /> : null}
             {step && View ? <Guard t={t}><View view={view} step={step} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} verdict={verdict} onVerdict={setVerdict}
               text={texts[step.id] ?? ''} setText={setText(step.id)} code={code} drafts={drafts} /></Guard> : null}
@@ -236,7 +236,6 @@ function Top({ view, thread, busy, t, act, side, onSide, onHide }: TopProps) {
       </div>
       <div className="vc-modes">
         <Segmented value={view.flow} labels={t.flow} title={t.flowTitle} onPick={(flow) => act.set({ flow })} />
-        <Segmented value={view.autonomy} labels={t.autonomy} title={t.autonomyTitle} onPick={(autonomy) => act.set({ autonomy })} />
       </div>
       <div className="vc-tools">
         <Segmented value={view.lang} labels={LANGS} title={t.langTitle} onPick={(lang) => act.set({ lang })} />

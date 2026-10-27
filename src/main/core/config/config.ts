@@ -6,7 +6,7 @@
  *  Ne connaît pas : le fichier (technicals/config-file), Electron, git (le
  *  parent d'un agent, l'enfant qu'on crée : core/family).
  *  Utilisé par : app. */
-import type { VibeAutonomy, VibeFlow, VibeLang } from 'shared/bridge';
+import type { VibeFlow, VibeLang } from 'shared/bridge';
 import type { AgentConfig } from 'core/agents';
 import { familyGroups } from 'core/family';
 
@@ -151,13 +151,12 @@ export const needsTrust = (cfg: Config, dir: string) => !favoriteFolders(cfg).so
 // config.json se retouche à la main : une valeur inconnue prend le défaut.
 export const vibeLang = (cfg: Config): VibeLang => (cfg.vibeLang === 'en' ? 'en' : 'fr');
 
-// Les réglages VibeCoder d'un agent : Créer (défaut) ou Relire, Guide (défaut)
-// ou Vibe, la PR suivie (un entier positif, sinon aucune).
-export function agentVibe(agent: AgentConfig): { flow: VibeFlow; autonomy: VibeAutonomy; pr: number | null } {
+// Les réglages VibeCoder d'un agent : Créer (défaut) ou Relire, la PR suivie
+// (un entier positif, sinon aucune). Une `autonomy` d'avant la 0.12.0 : ignorée.
+export function agentVibe(agent: AgentConfig): { flow: VibeFlow; pr: number | null } {
   const v: Partial<Record<string, unknown>> = agent.vibe && typeof agent.vibe === 'object' ? agent.vibe : {};
   return {
     flow: v.flow === 'review' ? 'review' : 'create',
-    autonomy: v.autonomy === 'vibe' ? 'vibe' : 'guide',
     pr: Number.isInteger(v.pr) && (v.pr as number) > 0 ? v.pr as number : null,
   };
 }

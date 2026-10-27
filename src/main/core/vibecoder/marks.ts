@@ -1,8 +1,8 @@
 /** marks — les validations de l'utilisateur (la note, la forme, « rien à écrire »
  *  de l'étape Invariants, un cas de test, une case du plan de test, une case du
  *  § A.3 cochée à la main), chacune pour l'empreinte du contenu
- *  validé (targetHash) : « modifié depuis » si le contenu a changé. Au passage de Vibe à
- *  Guide, le ✓ des étapes que Vibe a passées (vibeMarks). Et le brouillon de
+ *  validé (targetHash) : « modifié depuis » si le contenu a changé. Le ✓ des
+ *  étapes faites pendant Vibe (vibeMarks). Et le brouillon de
  *  revue de chaque PR (Relire) : ajouter, modifier, retirer une remarque. Rend
  *  un nouvel état, ne touche pas à l'ancien.
  *  Ne connaît pas : Electron, le disque (l'état est rangé par app/settings).

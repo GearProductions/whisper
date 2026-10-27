@@ -2,7 +2,7 @@
  *  rien à lancer : valider la note, la forme, ou les cas d'invariants, lus en
  *  pseudo-code ou pas (la lecture est facultative ; l'écran n'en montre plus
  *  que les cas : la note et la forme ont leur ✓).
- *  Créer en Guide : la validation (✓) ; en Vibe, rien. Relire : un verdict
+ *  Créer : la validation (✓) ; pendant Vibe (view.vibe), rien. Relire : un verdict
  *  (✓ ou ✗) sur la note et sur chaque cas.
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder (invariants-view : les cas à valider). */
 import type { VibeMarkState, VibeView } from 'technicals/bridge';
@@ -11,7 +11,7 @@ export type Awaiting = { kind: 'note' } | { kind: 'forme' } | { kind: 'cases'; c
 
 export function awaiting(view: VibeView): Awaiting | null {
   const { note, flow } = view;
-  if (flow === 'create' && view.autonomy === 'vibe') return null;
+  if (flow === 'create' && view.vibe) return null;
   const judged = (s: VibeMarkState) => s === 'ok' || (flow === 'review' && s === 'ko');
   const current = view.steps.find((s) => s.status === 'current')?.id;
   if (current === 'note' && note && !judged(note.mark) && (flow === 'review' || (note.filled && !view.questions.length))) return { kind: 'note' };

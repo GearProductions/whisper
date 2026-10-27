@@ -79,7 +79,7 @@ describe('editComment : changer le texte d\'une remarque', () => {
   });
 });
 
-describe('vibeMarks : Vibe → Guide, le ✓ des étapes que Vibe a passées', () => {
+describe('vibeMarks : le ✓ des étapes faites pendant Vibe', () => {
   const NOTE = ['# G2-1 — Un bouton', '', '## Ce que ça fait', 'Un bouton.', '', '## Ce que ça ne doit pas faire',
     '- Lire un autre fichier. → invariant', '', '## Forme', '```', 'src/core/hello.ts    hello()', '```', ''].join('\n');
   const NOTE_PATH = 'docs/tickets/feat/G2-1-bouton.md';
@@ -87,7 +87,7 @@ describe('vibeMarks : Vibe → Guide, le ✓ des étapes que Vibe a passées', (
   const TEST = 'it("dit bonjour", () => {});\nit("ne lit rien", () => {});\n';
   const BLOB = blobSha(TEST);
   const input = (over: Partial<JourneyInput> = {}): JourneyInput => ({
-    agentId: 'a1', lang: 'fr', flow: 'create', pr: null, autonomy: 'vibe', agent: { model: 'opus', effort: 'high', mode: 'default' },
+    agentId: 'a1', lang: 'fr', flow: 'create', pr: null, autonomy: 'guide', vibe: true, agent: { model: 'opus', effort: 'high', mode: 'default' },
     busy: false, running: [], runs: [], error: null, readings: [], outputs: {}, marks: {}, draft: [], actions: [],
     who: {}, model: {}, skills: [], exists: () => false, now: 1700000000000,
     note: { path: NOTE_PATH, text: NOTE, before: null }, tests: [{ path: TEST_PATH, blob: BLOB, text: TEST }],
@@ -95,7 +95,7 @@ describe('vibeMarks : Vibe → Guide, le ✓ des étapes que Vibe a passées', (
       commits: [{ hash: 'a'.repeat(40), subject: 'Note, forme, invariants', files: [NOTE_PATH, TEST_PATH] }] },
     ...over,
   });
-  const status = (marks: Marks) => Object.fromEntries(vibeView(input({ autonomy: 'guide', marks })).steps.map((s) => [s.id, s.status]));
+  const status = (marks: Marks) => Object.fromEntries(vibeView(input({ vibe: false, marks })).steps.map((s) => [s.id, s.status]));
 
   it('les cibles et empreintes d\'un clic sur ✓ : note, forme, chaque cas', () => {
     expect(vibeMarks({}, vibeView(input()))).toEqual({
@@ -106,7 +106,7 @@ describe('vibeMarks : Vibe → Guide, le ✓ des étapes que Vibe a passées', (
     });
   });
 
-  it('en Guide, ces étapes restent faites sans recliquer', () => {
+  it('Vibe arrêté ou fini, ces étapes restent faites sans recliquer', () => {
     expect(status({})).toMatchObject({ note: 'current' });
     expect(status(vibeMarks({}, vibeView(input())))).toMatchObject({ note: 'done', forme: 'done', invariants: 'done' });
   });

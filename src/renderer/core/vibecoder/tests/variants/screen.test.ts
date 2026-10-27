@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { chosenModel, convWidth, modelArg, vibeScreenActions } from 'core/vibecoder';
-import type { VibeAction, VibeView } from 'technicals/bridge';
+import { chosenModel, convWidth, modelArg, stepActions } from 'core/vibecoder';
+import type { VibeAction, VibeStep, VibeView } from 'technicals/bridge';
 
 const action = (over: Partial<VibeAction> = {}): VibeAction => ({
   id: 'read-invariants', step: 'invariants', label: 'Lire en pseudo-code', hint: '', who: 'sonnet · moyen',
@@ -65,20 +65,44 @@ describe('convWidth', () => {
   });
 });
 
-describe('vibeScreenActions', () => {
-  const all = ['release', 'base', 'vibe', 'note', 'forme'].map((id) => action({ id }));
-  const view = (over: Partial<VibeView>) => ({ note: null, actions: all, ...over }) as VibeView;
+describe('stepActions', () => {
+  const actions = [
+    action({ id: 'forme-review', step: 'forme' }),
+    action({ id: 'forme', step: 'forme', primary: true }),
+    action({ id: 'vibe', step: null }),
+    action({ id: 'quote-forme', step: 'forme', kind: 'prefill', text: 'Sur {{quote}} :' }),
+    action({ id: 'prep-forme', step: 'forme', kind: 'prefill', text: 'Revoir la forme' }),
+    action({ id: 'gone', step: 'forme', hidden: true }),
+    action({ id: 'other', step: 'modules' }),
+  ];
+  const view = (over: Partial<VibeView> = {}) => ({ flow: 'create', actions, ...over }) as VibeView;
+  const step = (status: VibeStep['status']): VibeStep => ({ id: 'forme', status, facts: '', open: true });
+  const row = (v: VibeView, s: VibeStep, own: string[] = []) => stepActions(v, s, own).map(({ a, tone }) => `${a.id}:${tone}`);
 
-  it('sans note : note, vibe, base, release, dans cet ordre ; rien d\'autre', () => {
-    expect(vibeScreenActions(view({}))).toEqual(['note', 'vibe', 'base', 'release']);
+  it('étape en cours, Créer : vibe, puis la mise en avant, puis les siennes ; sans masquée, qui cite, ni d\'une autre étape', () => {
+    expect(row(view(), step('current'))).toEqual(['vibe:vibe', 'forme:accent', 'forme-review:plain', 'prep-forme:plain']);
   });
 
-  it('la note posée : plus de note', () => {
-    expect(vibeScreenActions(view({ note: {} as VibeView['note'] }))).toEqual(['vibe', 'base', 'release']);
+  it('étape pas en cours : les siennes seulement, sans accent ni vibe', () => {
+    expect(row(view(), step('done'))).toEqual(['forme-review:plain', 'forme:plain', 'prep-forme:plain']);
   });
 
-  it('les masquées (PR pas fusionnée) et les absentes du relevé : retirées', () => {
-    const actions = [action({ id: 'vibe' }), action({ id: 'base', hidden: true }), action({ id: 'release', hidden: true })];
-    expect(vibeScreenActions(view({ actions }))).toEqual(['vibe']);
+  it('Relire : pas de vibe', () => {
+    expect(row(view({ flow: 'review' }), step('current'))).toEqual(['forme:accent', 'forme-review:plain', 'prep-forme:plain']);
+  });
+
+  it('vibe masquée (note pas validée, Vibe en cours) : absente', () => {
+    const hidden = actions.map((a) => (a.id === 'vibe' ? { ...a, hidden: true } : a));
+    expect(row(view({ actions: hidden }), step('current'))).toEqual(['forme:accent', 'forme-review:plain', 'prep-forme:plain']);
+  });
+
+  it('celles que la vue montre elle-même (own) : retirées, vibe comprise', () => {
+    expect(row(view(), step('current'), ['vibe', 'forme-review'])).toEqual(['forme:accent', 'prep-forme:plain']);
+  });
+
+  it('la mise en avant d\'une autre étape : à l\'étape en cours seulement', () => {
+    const next = [...actions, action({ id: 'modules', step: 'modules', primary: true })];
+    expect(row(view({ actions: next }), step('current'))).toContain('modules:accent');
+    expect(row(view({ actions: next }), step('done'))).not.toContain('modules:accent');
   });
 });

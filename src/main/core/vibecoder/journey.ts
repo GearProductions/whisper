@@ -1,11 +1,12 @@
 /** journey — le parcours de l'écran VibeCoder, calculé sans modèle à partir du
  *  relevé (dépôt, note, tests, sorties des skills, validations) : les étapes
  *  (faite, en cours, à venir), leurs faits en une ligne et celles qu'un clic
- *  ouvre (open : Créer en Guide, faite ou en cours ; Relire, toutes ; Créer en
- *  Vibe, aucune), la prochaine action, les actions possibles, pourquoi une
+ *  ouvre (open : Créer, faite ou en cours, Vibe ou pas ; Relire, toutes), la
+ *  prochaine action (celle de l'étape en cours, Vibe ou pas), les actions possibles, pourquoi une
  *  autre est grisée et celles qui n'ont pas encore de sens (hidden : masquées,
  *  leur raison d'être grisée gardée ; l'étape PR d'après l'état de la PR, qui
- *  ne fait que masquer) — Créer ou Relire, Guide ou Vibe, la PR dans un
+ *  ne fait que masquer) — Créer ou Relire, le mode Vibe en cours ou pas
+ *  (vibe : les validations tenues pour données ; note 0.12.0-mode-vibe), la PR dans un
  *  worktree, ce que l'appli fait aussi elle-même (F-114 : en cours, dernier
  *  résultat ; les règles : la note du ticket 0.8.0), les courses (une action
  *  d'étape court à part : grisée par blockedBy de runs, pas par la
@@ -19,8 +20,9 @@
  *  déjà observée par un test existant) : la dernière course invariants ou align
  *  finie, ou ✓ Rien à écrire validé à la main, Vibe compris (nothingMark, pour le texte de la note ;
  *  note 0.11.0-vibecoder-invariants-existants-et-courses) ; Lire en pseudo-code jamais mise en avant, Vibe
- *  compris (à la main ; note 0.11.0-stabiliser-vibecoder). Valider et développer masquée ('started') la forme
- *  faite, pendant un tour de la conversation ou une course qui retient ; un module aux fichiers changés pas
+ *  compris (à la main ; note 0.11.0-stabiliser-vibecoder). Vibe masquée tant que la note n'est pas
+ *  rédigée, a des questions ouvertes ou n'a pas son ✓ (unvalidated), pendant Vibe, un tour de la conversation ou
+ *  une course qui retient (started) ; un module aux fichiers changés pas
  *  commités (uncommitted : hors des commits de la branche, ou modifiés depuis) : Commiter les modules, s'il n'en reste pas à faire (note
  *  0.11.0-stabiliser-vibecoder), l'étape Modules pas faite tant qu'il en reste un ; les fichiers d'un module touché
  *  (files : ids `m<rang>/<i>`, triés) et pourquoi son code, la note ou un test
@@ -32,7 +34,7 @@
  *  dossier).
  *  Utilisé par : app/controllers/vibecoder (refreshVibe). */
 import type {
-  VibeAction, VibeAutonomy, VibeCheck, VibeComment, VibeFlow, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePr,
+  VibeAction, VibeCheck, VibeComment, VibeFlow, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePr,
   VibePrItem, VibeRun, VibeStepId, VibeTestFile, VibeView, VibeWorktree,
 } from 'shared/bridge';
 import { DIRECT_ACTIONS, prNumber, SKILL_MODELS, templateVars, type ActionDef } from './actions';
@@ -47,7 +49,8 @@ export type JourneyInput = {
   lang: VibeLang;
   flow: VibeFlow;
   pr: number | null;            // Relire : la PR suivie (vibeSet({ pr }))
-  autonomy: VibeAutonomy;
+  autonomy?: 'guide' | 'vibe';  // d'avant la 0.12.0, ignorée (plus rendue) : vibe la remplace
+  vibe?: boolean;               // le mode Vibe en cours (F-103) ; absent : non
   agent: { model: string; effort: string; mode: string };
   busy: boolean;                                    // la conversation de l'agent travaille
   // Les courses qui retiennent (runs : LOCKING), par id d'action, avec le module qu'elles génèrent (Run.module).
@@ -98,7 +101,7 @@ const TEXT = {
     busy: 'L\'agent travaille', directRunning: 'Une commande directe est en cours', noRepo: 'Pas de dépôt git', noNoteYet: 'Pas encore de note', nothingToRead: 'Aucun test d\'invariant à lire',
     noModule: 'Aucun module à générer', noPrChosen: 'Aucune PR choisie', loadFirst: 'Charger d\'abord la PR',
     emptyDraft: 'Le brouillon de revue est vide', noCommitMd: 'Préparer d\'abord le commit', noQuestion: 'Aucune question ouverte',
-    openQuestions: 'Répondre d\'abord aux questions de la note', started: 'Déjà lancée : la forme est posée',
+    openQuestions: 'Répondre d\'abord aux questions de la note', unvalidated: 'Valider d\'abord la note', started: 'Déjà en cours',
     noFixup: 'Aucun commit fixup!', worktreeOpen: 'Déjà ouverte dans un worktree', notWorktree: 'Seulement sur le robot d\'un worktree',
     merged: 'PR déjà fusionnée : rien à relire', closed: 'PR fermée : rien à relire',
     checklist: ['La note est à jour', 'Les invariants passent', 'Chaque diff a été relu', 'Un commit par module, fixups repliés',
@@ -115,7 +118,7 @@ const TEXT = {
     busy: 'The agent is working', directRunning: 'A direct command is running', noRepo: 'No git repository', noNoteYet: 'No note yet', nothingToRead: 'No invariant test to read',
     noModule: 'No module to generate', noPrChosen: 'No PR chosen', loadFirst: 'Load the PR first',
     emptyDraft: 'The review draft is empty', noCommitMd: 'Prepare the commit first', noQuestion: 'No open question',
-    openQuestions: 'Answer the note\'s questions first', started: 'Already started: the shape is set',
+    openQuestions: 'Answer the note\'s questions first', unvalidated: 'Approve the note first', started: 'Already running',
     noFixup: 'No fixup! commit', worktreeOpen: 'Already open in a worktree', notWorktree: 'Only on a worktree\'s robot',
     merged: 'PR already merged: nothing to review', closed: 'PR closed: nothing to review',
     checklist: ['The note is up to date', 'The invariants pass', 'Every diff has been reviewed', 'One commit per module, fixups folded',
@@ -156,7 +159,7 @@ export function vibeView(input: JourneyInput): VibeView {
   const T = TEXT[lang];
   const count = (n: number, [one, many]: string[]) => `${n} ${T.plural(n) ? many : one}`;
   const line = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(' · ');
-  const vibe = input.autonomy === 'vibe';
+  const vibe = !!input.vibe;
   const n = input.pr;
   const out = (name: string) => outputs[name]?.text ?? null;
   const commits = repo?.commits ?? [];
@@ -284,7 +287,7 @@ export function vibeView(input: JourneyInput): VibeView {
     next = {
       note: !note?.filled ? 'note' : questions.length ? 'answers' : null,
       forme: modules.length ? null : 'forme',
-      // Guide : les cas attendent leurs ✓, lus ou pas ; Vibe : sans lecture (Écrire les invariants vérifie l'alignement).
+      // Hors Vibe : les cas attendent leurs ✓, lus ou pas ; Vibe : sans lecture (Écrire les invariants vérifie l'alignement).
       invariants: !invariants.length ? 'invariants' : !vibe && !casesOk ? null
         : commitMd ? 'commit' : dirty.length ? 'commit-prepare' : null,
       modules: commitMd ? 'commit' : modules.some((m) => m.uncommitted) ? (untouched ? 'next' : 'commit-modules') : 'module',
@@ -330,9 +333,8 @@ export function vibeView(input: JourneyInput): VibeView {
     };
   }
   const current = ORDER[flow].find((s) => !done[s]) ?? null;
-  // Vibe : la note d'abord (le défaut), puis Valider et développer, la note rédigée sans question.
-  const primary = flow === 'create' && vibe && current === 'forme' ? 'vibe' : current && next[current];
-  const open = (id: VibeStepId) => flow === 'review' || (!vibe && (!!done[id] || id === current));
+  const primary = current && next[current];
+  const open = (id: VibeStepId) => flow === 'review' || !!done[id] || id === current;
 
   // Une action directe en cours (F-114) : les autres attendent, comme quand l'agent travaille ; et elle
   // retient les courses comme l'une d'elles (elle lit, publish, load-pr, ou modifie, commit, base).
@@ -354,13 +356,13 @@ export function vibeView(input: JourneyInput): VibeView {
     if ((v.has('branch') || v.has('base')) && !repo) return 'noRepo';
     // La Forme et les invariants s'écrivent d'après la note.
     if (!note && (v.has('note') || (flow === 'create' && (d.step === 'forme' || d.step === 'invariants')))) return 'noNoteYet';
-    // Valider et développer : la note rédigée, ses questions à l'utilisateur avant ; la forme faite, seulement
-    // pour reprendre après une question qui bloque (la dernière course : des réponses) ; rien pendant un tour ou une
-    // course qui retient (celle qu'elle a lancée).
+    // Vibe : la note rédigée, ses questions répondues et validée par l'utilisateur (Vibe ne la valide pas) ;
+    // rien pendant Vibe, un tour ou une course qui retient.
     if (flow === 'create' && d.id === 'vibe') {
       if (!note?.filled) return 'noNoteYet';
       if (questions.length) return 'openQuestions';
-      if (input.busy || input.running.length || (done.forme && input.runs[0]?.id !== 'answers')) return 'started';
+      if (note.mark !== 'ok') return 'unvalidated';
+      if (vibe || input.busy || input.running.length) return 'started';
     }
     if (v.has('files') && !invariants.length) return 'nothingToRead';   // tout lu : on peut relire (args.file)
     // Relire : ce qui lit la PR attend qu'elle soit chargée (l'étape PR, elle, prend son numéro de la page).
@@ -377,7 +379,7 @@ export function vibeView(input: JourneyInput): VibeView {
   // Pas encore de sens : masquée (sa raison reste). L'étape PR (Créer) d'après l'état de la PR, sans griser :
   // une demande juste après pr ne doit pas tomber sur un relevé en retard.
   const notYet = new Set<Reason>(['noNoteYet', 'nothingToRead', 'noCommitMd', 'noQuestion', 'noFixup', 'notWorktree', 'worktreeOpen',
-    'openQuestions', 'started']);
+    'openQuestions', 'unvalidated', 'started']);
   // ponytail: une PR sans état connu (pr.json, avant que gh réponde) compte comme ouverte.
   const prState = pr && (pr.state ?? 'OPEN');
   const prShown: Record<string, boolean> = {
@@ -403,7 +405,7 @@ export function vibeView(input: JourneyInput): VibeView {
     });
 
   return {
-    agentId: input.agentId, lang, flow, autonomy: input.autonomy, agent: input.agent,
+    agentId: input.agentId, lang, flow, vibe: input.vibe, agent: input.agent,
     repo: repo && { branch: repo.branch, base: repo.base, changed: changed.length },
     error: input.error,
     steps: ORDER[flow].map((id) => ({ id, status: done[id] ? 'done' : id === current ? 'current' : 'todo', facts: stepFacts[id] ?? '', open: open(id) })),

@@ -1,5 +1,5 @@
 /* Les pièces des vues d'étape (step-parts) : outils de l'en-tête et des
-   cartes, bouton d'action, invitation, carte de PR. Sous .vc,
+   cartes, bouton d'action (tons accent, vibe, ghost), invitation, carte de PR. Sous .vc,
    avec les couleurs de vibecoder.css. */
 
 .vc-step-tools { margin-left: auto; display: flex; align-items: center; gap: 8px; align-self: center; }
@@ -77,6 +77,12 @@ button.vc-chip:hover { border-color: var(--accent); color: var(--vc-text); }
   background: color-mix(in srgb, var(--accent) 18%, var(--vc-control));
 }
 .vc-run[data-tone="accent"]:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 28%, var(--vc-control)); }
+/* Vibe : son propre accent (l'ambre du panneau), distinct de celui de l'action qui fait avancer l'étape. */
+.vc-run[data-tone="vibe"] {
+  border-color: color-mix(in srgb, var(--vc-warn) 50%, transparent);
+  background: color-mix(in srgb, var(--vc-warn) 16%, var(--vc-control));
+}
+.vc-run[data-tone="vibe"]:hover:not(:disabled) { border-color: var(--vc-warn); background: color-mix(in srgb, var(--vc-warn) 26%, var(--vc-control)); }
 .vc-run[data-tone="ghost"] { height: 24px; padding-left: 9px; border-color: transparent; background: transparent; color: var(--vc-soft); font-size: 12px; }
 .vc-run[data-tone="ghost"]:hover:not(:disabled) { border-color: var(--vc-edge); background: var(--vc-control); color: var(--vc-text); }
 .vc-run:disabled { border: 1px dashed var(--vc-edge); background: transparent; color: var(--vc-faint); box-shadow: none; cursor: default; }

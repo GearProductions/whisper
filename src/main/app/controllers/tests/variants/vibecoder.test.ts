@@ -79,7 +79,7 @@ vi.mock('technicals/paths', async (original) => ({
 vi.mock('core/vibecoder', async (original) => ({
   ...await original<typeof import('core/vibecoder')>(),
   vibeView: (input: JourneyInput) => ({
-    ...input, pr: input.pr && { number: input.pr }, steps: fake.steps, commits: input.repo?.commits ?? [], invariants: [], variants: [], modules: [],
+    ...input, pr: input.pr && { number: input.pr }, steps: fake.steps, commits: input.repo?.commits ?? [], invariants: [], variants: [], modules: [], questions: [],
     checklist: [{ text: 'Chaque diff a été relu', done: null, manual: true }, { text: 'La note est à jour', done: false }],
     actions: input.actions.map((a) => ({
       ...a, who: input.who[a.id], model: input.model[a.id], models: input.model[a.id] ? ['haiku', 'sonnet', 'opus'] : [], primary: false, disabled: null,
@@ -455,25 +455,27 @@ describe('0.11.0 : invariants existants et courses', () => {
     expect(fake.tabs).toEqual(['a1', null]);
   });
 
-  it('de Vibe à Guide : les étapes passées reçoivent leur ✓ ; Guide à Guide ou Vibe à Vibe : rien', async () => {
-    write(path.join(fake.userData, 'config.json'), JSON.stringify({
-      agentsEnabled: true,
-      agents: [{ id: 'a1', dir, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null, view: 'vibecoder',
-        vibe: { flow: 'create', autonomy: 'vibe', pr: null } }],
-    }));
+  it('Vibe (0.12.0) : lancé par son action ; en cours, les étapes faites reçoivent leur ✓ ; arrêté, elles le gardent', async () => {
+    write(path.join(fake.userData, 'vibecoder', 'actions.fr.json'), JSON.stringify([
+      { id: 'vibe', flow: 'create', step: null, kind: 'send', label: 'Vibe', text: '/vibecoder:vibe {{lang}} {{out}}' },
+    ]));
     fake.steps = [{ id: 'note', status: 'done' }, { id: 'forme', status: 'todo' }];
-    await open();
-    const { setVibe } = await import('app/controllers');
+    const { vibes } = await open();
+    const { runVibeAction, setVibe } = await import('app/controllers');
     const { vibeStore } = await import('app/settings');
     const { blobSha } = await import('core/vibecoder');
-    setVibe({ autonomy: 'vibe' });
-    expect(vibeStore().marks.a1 ?? {}).toEqual({});
-    setVibe({ autonomy: 'guide' });
+    expect(vibes().at(-1)).toMatchObject({ vibe: false });
+    expect(vibeStore().marks.a1 ?? {}).toEqual({});   // hors Vibe : aucun ✓ donné
+    expect(runVibeAction('vibe', {})).toEqual({ ok: true });
+    await settle();
+    expect(fake.messages[0]).toBe(`/vibecoder:vibe fr ${out}`);
+    expect(vibes().some((v) => v?.vibe === true)).toBe(true);
     expect(vibeStore().marks.a1).toEqual({ note: { hash: blobSha(NOTE), verdict: 'ok' } });
+    setVibe({ vibe: false });
     fake.steps = [{ id: 'note', status: 'done' }, { id: 'forme', status: 'done' }];
     await settle();
-    setVibe({ autonomy: 'guide' });
-    expect(Object.keys(vibeStore().marks.a1)).toEqual(['note']);
+    expect(vibes().at(-1)).toMatchObject({ vibe: false });
+    expect(vibeStore().marks.a1).toEqual({ note: { hash: blobSha(NOTE), verdict: 'ok' } });   // gardé, rien de plus
   });
 
   it('le relevé passe repo.dirty au parcours (VibeModule.uncommitted)', async () => {

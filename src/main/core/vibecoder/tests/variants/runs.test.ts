@@ -109,11 +109,13 @@ describe('requestNotice : l\'avis d\'une demande', () => {
       requestNotice('modules', { ignored: ['model'] }, 'fr'),
       requestNotice('modules', { ignored: ['model', 'pr'] }, 'en'),
       requestNotice('forme', { refused: 'same' }, 'en'),
+      requestNotice('modules', { refused: 'halted' }, 'fr'),
     ]).toEqual([
       'VibeCoder : demande forme refusée — Une autre action est en cours',
       'VibeCoder : demande modules partie, arguments ignorés : model',
       'VibeCoder: request modules started, ignored arguments: model, pr',
       'VibeCoder: request forme refused — This action is already running',
+      'VibeCoder : demande modules refusée — le mode Vibe a été arrêté par l’utilisateur : ne lance plus rien',
     ]);
   });
 });

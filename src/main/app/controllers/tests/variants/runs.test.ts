@@ -6,7 +6,10 @@
 // processus de la course, les demandes de l'orchestrateur (retenue puis partie,
 // refusée ou aux arguments ignorés : l’agent prévenu ; arrêt), answers qui reprend la session de la note, le module qu'une
 // course retient (note 0.11.0), le signal des courses sur le robot, effacé par l'onglet
-// Actions, vu d'office quand il est ouvert (note fix/0.11.0-vibecoder-invariants-existants-et-courses).
+// Actions, vu d'office quand il est ouvert (note fix/0.11.0-vibecoder-invariants-existants-et-courses) ;
+// le mode Vibe (note 0.12.0) : arrêté, la course finit, rien de nouveau ne part ; une question de
+// questions.md le garde ; un relevé forcé avant de le quitter (les ✓) ; ⏹ le met au repos ; en mémoire.
+// Deux avis d'un coup : le second attend que le premier soit parti.
 // Sur le vrai principal (contrôleurs, fenêtres, état, réglages et fichiers sur
 // disque, git réel sur un dépôt d'essai, les actions livrées dans resources/) ;
 // faux : Electron et le SDK de Claude Code (chaque message reçu ouvre un tour,
@@ -171,6 +174,27 @@ describe('la fin d’une course', () => {
     const notice = turn('VibeCoder');
     expect(notice?.text).toMatch(/^VibeCoder : « .+ » terminée — Forme posée\. État : .*\/actions\.json$/);
     expect(notice?.options.enableFileCheckpointing).toBeUndefined();
+  });
+
+  it('deux fins d’un coup : le second avis attend que le premier soit parti, aucun perdu', async () => {
+    const { startRun } = await open();
+    const { loadConfig, vibeActions } = await import('app/settings');
+    const { agentList, vibeLang } = await import('core/config');
+    const cfg = loadConfig();
+    const defs = vibeActions(vibeLang(cfg));
+    const agent = agentList(cfg)[0];
+    for (const id of ['ponytail', 'ci']) startRun(agent, defs.find((d) => d.id === id)!, `/vibecoder:${id}`, cfg);
+    await settle();
+    turn('/vibecoder:ponytail')!.finish('a');
+    turn('/vibecoder:ci')!.finish('b');
+    await settle();
+    const notices = () => fake.turns.filter((t) => t.text.startsWith('VibeCoder'));
+    expect(notices()).toHaveLength(1);
+
+    notices()[0].finish('vu');
+    await settle();
+    expect(notices()).toHaveLength(2);
+    expect(notices().map((t) => t.text).join('\n')).toMatch(/— a\.[\s\S]*— b\.|— b\.[\s\S]*— a\./);
   });
 
   it('sa course : un processus à part, suivi des fichiers, modèle et effort de son skill, sinon de l’agent', async () => {
@@ -444,5 +468,104 @@ describe('le signal des courses', () => {
     vibeRunOp('invariants', 'stop');
     await settle();
     expect(runSignalOf('a1')).toBeNull();
+  });
+});
+
+describe('le mode Vibe', () => {
+  // le relevé retardé (THROTTLE_MS) du cas précédent, sur ses propres modules, réécrirait actions.json de celui-ci
+  beforeEach(() => new Promise((r) => realSetTimeout(r, 1100)));
+
+  it('arrêté : la course en cours finit, la demande retenue jetée, une nouvelle refusée ; au repos, hors Vibe', async () => {
+    const { runVibeAction, vibeOn, vibeStart, vibeStop } = await open();
+    vibeStart({ id: 'a1' });
+    runVibeAction('forme', {});
+    await settle();
+    await orchestratorAsks('invariants.start', '{"text":"les cas"}');   // retenue par la Forme
+    expect(actionsJson().waiting).toHaveLength(1);
+
+    vibeStop({ id: 'a1' });
+    // la bannière disparaît aussitôt ; la course n'est pas interrompue ; la demande retenue et son fichier jetés
+    expect(vibeOn('a1')).toBe(false);
+    expect(turn('/vibecoder:forme')!.interrupted).toBe(false);
+    expect(fs.readdirSync(path.join(out, 'actions'))).toEqual([]);
+    expect(actionsJson().waiting).toEqual([]);
+
+    // une nouvelle demande : refusée, l'agent prévenu ; l'avis de fin attend que le sien soit parti
+    await orchestratorAsks('ponytail.start');
+    expect(fs.readdirSync(path.join(out, 'actions'))).toEqual([]);
+    turn('/vibecoder:forme')!.finish('ok');
+    await settle();
+    expect(turn('/vibecoder:invariants')).toBeUndefined();
+    expect(turn('/vibecoder:ponytail')).toBeUndefined();
+    expect(turn('VibeCoder')?.text).toMatch(/demande ponytail refusée — le mode Vibe a été arrêté/);
+    turn('VibeCoder')!.finish('vu');
+    await settle();
+    const ended = turn('VibeCoder : « Poser la forme » terminée');
+    expect(ended).toBeDefined();
+
+    // la conversation finit son tour, plus rien ne vit : hors Vibe, les demandes partent comme avant
+    ended!.finish('vu');
+    await settle();
+    await orchestratorAsks('invariants.start', '{"text":"les cas"}');
+    expect(turn('/vibecoder:invariants')).toBeDefined();
+  });
+
+  it('en cours : une question ouverte le garde, fini seul quand la conversation finit son tour sans rien d’ouvert', async () => {
+    const { refreshVibe, runVibeAction, vibeOn, vibeStart } = await open();
+    runVibeAction('ask', { text: 'une question' });
+    vibeStart({ id: 'a1' });
+    await settle();
+    // écrite pendant le tour qui finit, sans relevé entre-temps : lue quand même
+    write(path.join(out, 'questions.md'), '## 1. Une question ?\n');
+    turn('une question')!.finish('ok');
+    await settle();
+    expect(vibeOn('a1')).toBe(true);
+
+    fs.rmSync(path.join(out, 'questions.md'));
+    await refreshVibe({ now: true });
+    runVibeAction('ask', { text: 'encore' });
+    await settle();
+    expect(vibeOn('a1')).toBe(true);   // la conversation travaille
+    turn('encore')!.finish('ok');
+    await settle();
+    expect(vibeOn('a1')).toBe(false);
+  });
+
+  it('panneau caché tout du long : un relevé forcé avant de finir, les étapes faites reçoivent leur ✓', async () => {
+    const { runVibeAction, vibeOn, vibeStart } = await open();
+    const { state } = await import('app/state');
+    const { vibeStore } = await import('app/settings');
+    runVibeAction('ask', { text: 'une question' });
+    await settle();
+    state.panel!.hide();
+    vibeStart({ id: 'a1' });
+    turn('une question')!.finish('ok');
+    await settle();
+    expect(vibeOn('a1')).toBe(false);
+    expect(vibeStore().marks.a1).toHaveProperty('note');
+  });
+
+  it('la course en cours arrêtée par ⏹ : au repos, hors Vibe', async () => {
+    const { runVibeAction, vibeOn, vibeRunOp, vibeStart } = await open();
+    runVibeAction('forme', {});
+    vibeStart({ id: 'a1' });
+    await settle();
+    vibeRunOp('forme', 'stop');
+    await settle();
+    expect(turn('/vibecoder:forme')!.interrupted).toBe(true);
+    expect(vibeOn('a1')).toBe(false);
+  });
+
+  it('arrêté au repos : hors Vibe aussitôt ; closeRuns l’oublie', async () => {
+    const { closeRuns, vibeOn, vibeStart, vibeStop } = await open();
+    vibeStart({ id: 'a1' });
+    expect(vibeOn('a1')).toBe(true);
+    vibeStop({ id: 'a1' });
+    await orchestratorAsks('forme.start');
+    expect(turn('/vibecoder:forme')).toBeDefined();   // pas halted : elle part
+
+    vibeStart({ id: 'a1' });
+    closeRuns({ id: 'a1' });
+    expect(vibeOn('a1')).toBe(false);
   });
 });

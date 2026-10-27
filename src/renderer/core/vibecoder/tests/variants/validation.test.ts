@@ -17,7 +17,7 @@ const view = (current: VibeStepId, over: Partial<VibeView> = {}): VibeView => ({
 });
 
 describe('awaiting', () => {
-  it('Créer, Guide : la note rédigée, sans question, pas validée → la valider', () => {
+  it('Créer : la note rédigée, sans question, pas validée → la valider', () => {
     expect(awaiting(view('note'))).toEqual({ kind: 'note' });
     expect(awaiting(view('note', { note: note({ mark: 'changed' }) }))).toEqual({ kind: 'note' });
   });
@@ -41,8 +41,9 @@ describe('awaiting', () => {
     expect(awaiting(view('invariants'))).toBeNull();
   });
 
-  it('Vibe : rien à valider', () => {
-    expect(awaiting(view('note', { autonomy: 'vibe' }))).toBeNull();
+  it('Vibe en cours : rien à valider', () => {
+    expect(awaiting(view('note', { vibe: true }))).toBeNull();
+    expect(awaiting(view('note', { vibe: false }))).toEqual({ kind: 'note' });
   });
 
   it('Relire : un verdict, ✓ ou ✗, sur la note (même pas rédigée) et sur chaque cas', () => {

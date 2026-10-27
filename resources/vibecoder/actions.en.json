@@ -319,8 +319,8 @@
     "step": null,
     "kind": "send",
     "needs": "none",
-    "label": "Approve and develop",
-    "hint": "The agent picks up at the shape and chains everything up to the release candidate (invariants, modules, review, PR), without settling the note's questions, and stops only on a blocking question; long and costly.",
+    "label": "Vibe",
+    "hint": "The agent picks up at the first step not done and chains everything up to the release candidate; a blocking question waits for you without stopping it; the banner stops it; long and costly.",
     "text": "/vibecoder:vibe {{lang}} {{out}}"
   },
   {
