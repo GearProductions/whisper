@@ -9,7 +9,9 @@
  *  commandes ({{prefix}}) est donné par l'appelant (absent : vide), et aucune autre
  *  valeur n'a de caractère de contrôle ; une variable inconnue fait refuser
  *  l'action (l'agent lance des commandes avec ces valeurs, I-38). Et les
- *  actions que l'appli fait aussi elle-même (DIRECT_ACTIONS, F-114). Si une
+ *  actions que l'appli fait aussi elle-même (DIRECT_ACTIONS, F-114), dont
+ *  celles qu'elle seule fait (DIRECT_ONLY). {{ref}} : WORKTREE en Créer,
+ *  HEAD en Relire (la PR se charge dans le dossier de l'agent). Si une
  *  action lit seulement (reads) ou modifie la branche : la règle des courses
  *  (runs, blockedBy). Un argument qu'aucune variable du gabarit ne lit (hors text), ou un
  *  modèle hors des choix de l'action, ne fait pas refuser l'action : il est
@@ -56,11 +58,14 @@ const READ_BY: Partial<Record<keyof VibeArgs, string>> = {
 
 // Les actions que l'appli fait aussi elle-même, sans agent, au clic de leur bouton « direct » (F-114) ;
 // leur gabarit reste la voie « via » l'agent. Ici, Dans un worktree, Retirer le worktree : la recette du
-// projet ou git, lancés par l'appli (note 0.12.0-worktrees).
-export const DIRECT_ACTIONS = ['commit', 'publish', 'load-pr', 'base', 'pr-here', 'pr-worktree', 'remove-worktree'];
+// projet ou git, lancés par l'appli (note 0.12.0-worktrees) ; Mettre de côté, Décharger, Créer ici ou dans
+// un worktree (note 0.12.0-creer-relire-meme-dossier).
+export const DIRECT_ACTIONS = ['commit', 'publish', 'load-pr', 'base', 'pr-here', 'pr-worktree', 'remove-worktree',
+  'stash', 'unload-pr', 'new-here', 'new-worktree'];
 // Celles que seule l'appli fait : pas de « via » (leur gabarit n'est jamais envoyé). Retirer le worktree :
-// l'agent ne retirerait pas son robot.
-export const DIRECT_ONLY = ['remove-worktree'];
+// l'agent ne retirerait pas son robot ; mettre de côté, changer de branche ou ouvrir un worktree pour une
+// demande : l'appli seule, au clic.
+export const DIRECT_ONLY = ['remove-worktree', 'stash', 'unload-pr', 'new-here', 'new-worktree'];
 
 // Le brouillon de revue en texte : une ligne « - [cible] texte » par remarque.
 export const draftText = (draft: VibeView['draft']) => draft.map((c) => `- [${c.target}] ${c.text}`).join('\n');
@@ -103,7 +108,7 @@ const NO_ANSWER: Record<VibeLang, string> = { fr: '(pas de réponse)', en: '(no 
 //   {{prefix}}         le préfixe des commandes du projet vu de l'agent, vide permis ; absent : vide (F-112)
 //   {{branch}} {{base}}  du relevé → 'repo' sans dépôt
 //   {{note}}           le chemin de la note → 'note' sans note
-//   {{ref}}            WORKTREE (Créer) ou refs/vibecoder/pr/<n> (Relire) → 'pr' sans PR
+//   {{ref}}            WORKTREE (Créer) ou HEAD (Relire : la PR est chargée dans le dossier) → 'pr' sans PR
 //   {{files}}          les tests d'invariants pas encore lus, « chemin@blob » séparés par des espaces ; args.file :
 //                      celui de cet id dans view.invariants, lu ou non (relire), '*' : tous → 'files' si aucun
 //   {{module}}         args.module (rang dans view.modules), sinon le premier non touché : « chemin — contrat » → 'module'
@@ -144,11 +149,7 @@ export function buildMessage(def: ActionDef, args: VibeArgs, ctx: MessageContext
     branch: () => view.repo?.branch ?? fail('repo'),
     base: () => view.repo?.base ?? fail('repo'),
     note: () => view.note?.path ?? fail('note'),
-    ref: () => {
-      if (view.flow !== 'review') return 'WORKTREE';
-      const n = prNumber(view.pr?.number);
-      return n ? `refs/vibecoder/pr/${n}` : fail('pr');
-    },
+    ref: () => (view.flow !== 'review' ? 'WORKTREE' : prNumber(view.pr?.number) ? 'HEAD' : fail('pr')),
     files: () => {
       const files = args.file === undefined ? view.invariants.filter((f) => f.reading === null)
         : args.file === '*' ? view.invariants : view.invariants.filter((f) => f.id === args.file);
