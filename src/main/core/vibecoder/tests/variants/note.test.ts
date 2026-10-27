@@ -299,4 +299,10 @@ describe('findNote : le .md de docs/tickets/ qui nomme la clé', () => {
   it('plusieurs : le premier dans l\'ordre des chemins', () => {
     expect(findNote(['docs/tickets/refactor/0.7.0-processus.md', 'docs/tickets/feat/0.7.0-taches.md'], '0.7.0')).toBe('docs/tickets/feat/0.7.0-taches.md');
   });
+
+  it('plusieurs, dont celle nommée comme la branche : celle-là, même si une autre vient avant', () => {
+    const paths = ['docs/tickets/feat/0.12.0-worktrees.md', 'docs/tickets/refactor/0.12.0-creer-relire.md'];
+    expect(findNote(paths, '0.12.0', 'refactor/0.12.0-creer-relire')).toBe('docs/tickets/refactor/0.12.0-creer-relire.md');
+    expect(findNote(paths, '0.12.0', 'refactor/0.12.0-autre')).toBe('docs/tickets/feat/0.12.0-worktrees.md');
+  });
 });
