@@ -64,7 +64,8 @@ attendre reste en place, en attente (`waiting`), et part de lui-même dès que l
 voie est libre. À la fin de chaque action, la conversation reçoit une ligne
 « VibeCoder : « <libellé> » … État : `{{out}}`/actions.json » (pas pour une
 action arrêtée). Une demande que l'appli ne lance ni ne met en attente
-(illisible, inconnue, pas proposée, déjà en cours, argument invalide) est
+(illisible, inconnue, pas proposée, déjà en cours, argument invalide, ou
+*Vibe* arrêté par l'utilisateur : tout lancement, jusqu'au repos) est
 supprimée, et la conversation reçoit « VibeCoder : demande <id> refusée —
 <raison> » ; un argument que l'action ne lit pas (ou un modèle qu'elle ne
 propose pas) ne la fait pas refuser : elle part, avec l'avis « … partie,
@@ -236,7 +237,7 @@ sinon.
 | `relire-commits` | sous-contexte | opus · high | `pr-<n>-commits.md` |
 | `ecran` | sous-contexte | sonnet · medium | `pr-<n>-ecran.md` |
 | `publier-revue` | sous-contexte | haiku · low | `pr-<n>-review.json` |
-| `vibe` | conversation | agent ; *Valider et développer* : enchaîne les actions à partir de la forme | `actions/<id>.start` |
+| `vibe` | conversation | agent ; *Vibe* : reprend à la première étape pas faite et enchaîne les actions | `actions/<id>.start` |
 | `actions` | conversation (l'agent l'appelle de lui-même) | agent | `actions/<id>.start`, `actions/<id>.stop` |
 | `lancement` | sous-contexte | haiku · low | `lancement.json` |
 | `processus` | conversation (l'agent l'appelle de lui-même) | agent | `run/<nom>.stop`, `run/<nom>.restart` |

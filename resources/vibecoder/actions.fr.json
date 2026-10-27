@@ -319,8 +319,8 @@
     "step": null,
     "kind": "send",
     "needs": "none",
-    "label": "Valider et développer",
-    "hint": "L'agent reprend à la forme et enchaîne jusqu'à la release candidate (invariants, modules, revue, PR), sans trancher les questions de la note, et ne s'arrête que sur une question qui bloque ; long et coûteux.",
+    "label": "Vibe",
+    "hint": "L'agent reprend à la première étape pas faite et enchaîne jusqu'à la release candidate ; une question qui bloque l'attend sans l'arrêter ; la bannière l'arrête ; long et coûteux.",
     "text": "/vibecoder:vibe {{lang}} {{out}}"
   },
   {
