@@ -1,13 +1,15 @@
 // Variants de Relire dans un worktree (note 0.8.0, F-110) : l'état du worktree
-// dans le relevé, Aller au robot, Décharger (à l'agent du dépôt) et le départ
-// du robot de PR (ici à l'ancien format `temp`) ; des familles d'agents (note
-// 0.10.0) : un enfant sans PR reste, le rattachement par git (liens
-// symboliques, `temp` réécrit en `parent`), les worktrees libres, Ouvrir un
-// agent ici.
+// dans le relevé, Aller au robot et le départ du robot de PR (ici à l'ancien
+// format `temp`) ; des familles d'agents (note 0.10.0) : un enfant sans PR
+// reste, le rattachement par git (liens symboliques, `temp` réécrit en
+// `parent`), les worktrees libres, Ouvrir un agent ici ; des worktrees (note
+// 0.12.0) : le worktree de la PR prêt (prWorktreeReady), l'enfant d'une
+// nouvelle demande (openChild), Retirer le worktree (removeWorktreeChild).
 // Sur le vrai principal (contrôleurs, fenêtres, état, réglages et fichiers sur
 // disque, parcours) ; faux : Electron (fenêtres qui relèvent ce qu'on leur
-// envoie) et le SDK de Claude Code (relève les messages et le dossier où ils
-// partent ; le tour finit aussitôt).
+// envoie, la boîte de dialogue qui répond `fake.answer`), le SDK de Claude
+// Code (relève les messages et le dossier où ils partent ; le tour finit
+// aussitôt) et la recette (removeWorktree répond `fake.removed`).
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -34,15 +36,18 @@ const fake = vi.hoisted(() => {
     show() { this.visible = true; } showInactive() { this.visible = true; } hide() { this.visible = false; }
     focus() { this.emit('focus'); } restore() {} minimize() { this.visible = false; }
   }
-  return { Win, userData: '', windows: [] as InstanceType<typeof Win>[], messages: [] as [string, unknown][] };
+  return { Win, userData: '', windows: [] as InstanceType<typeof Win>[], messages: [] as [string, unknown][], answer: 1, removed: { ok: true, line: '' } };
 });
 
 vi.mock('electron', () => ({
   app: { getPath: () => fake.userData },
   BrowserWindow: class extends fake.Win { constructor() { super(); fake.windows.push(this); } },
   screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) },
-  shell: {}, dialog: {}, clipboard: {}, nativeImage: {},
+  shell: {}, clipboard: {}, nativeImage: {},
+  dialog: { showMessageBox: async () => ({ response: fake.answer }) },
 }));
+
+vi.mock('app/controllers/recipe', () => ({ removeWorktree: async () => fake.removed }));
 
 vi.mock('technicals/claude', () => ({
   launcher: () => ({ executable: 'claude' }),
@@ -78,6 +83,8 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
   fake.windows = [];
   fake.messages = [];
+  fake.answer = 1;
+  fake.removed = { ok: true, line: '' };
   fake.userData = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-worktrees-'));
   repo = path.join(fake.userData, 'projet');
   worktree = path.join(fake.userData, 'projet-worktrees', 'pr-12');
@@ -110,16 +117,45 @@ async function open(id: string) {
 }
 
 describe('Relire dans un worktree', () => {
-  it('sur le robot : son badge, et Décharger part à l’agent du dépôt, avec ses sorties', async () => {
+  it('sur le robot : son badge', async () => {
     const view = await open('a2');
     expect(view()!.worktree).toEqual({ state: 'robot', temp: true, dir: worktree });
-    const { runVibeAction } = await import('app/controllers');
-    expect(runVibeAction('unload-worktree', {})).toEqual({ ok: true });
-    await settle();
-    expect(fake.messages).toEqual([
-      [repo, `/vibecoder:retirer-worktree fr ${outA} 12`],
-      [repo, expect.stringMatching(/^VibeCoder : « .* » terminée/)],   // l'avis de fin, à la conversation de l'agent du dépôt
-    ]);
+  });
+
+  it('Retirer le worktree, refusé par la recette : le robot et sa fiche restent', async () => {
+    fake.removed = { ok: false, line: 'des modifications' };
+    const { removeWorktreeChild } = await import('app/controllers');
+    const { loadConfig } = await import('app/settings');
+    expect(await removeWorktreeChild(loadConfig().agents[1])).toEqual({ ok: false, line: 'des modifications' });
+    expect(loadConfig().agents.map((a) => a.id)).toEqual(['a1', 'a2']);
+    expect(fs.existsSync(card)).toBe(true);
+  });
+
+  it('Retirer le worktree du robot d’une PR : sa fiche part, le robot avec, son brouillon revient', async () => {
+    await open('a2');
+    const { draftVibe, removeWorktreeChild } = await import('app/controllers');
+    const { loadConfig, vibeStore } = await import('app/settings');
+    draftVibe({ add: { target: 'note', text: 'à revoir' } });
+    expect(await removeWorktreeChild(loadConfig().agents[1])).toEqual({ ok: true, line: '' });
+    expect(fs.existsSync(card)).toBe(false);
+    expect(loadConfig().agents.map((a) => a.id)).toEqual(['a1']);
+    expect(vibeStore().drafts.a1?.[12]).toEqual([{ id: expect.any(Number), target: 'note', text: 'à revoir' }]);
+  });
+
+  it('Retirer le worktree d’un enfant sans PR : il part, son dossier quitte les favoris, ses sorties partent, le panneau passe au parent', async () => {
+    const { loadConfig, saveConfig, vibeOutDir } = await import('app/settings');
+    saveConfig({ agents: loadConfig().agents.map((a) => (a.id === 'a2' ? { ...AGENT, id: 'a2', dir: worktree, parent: { id: 'a1' } } as never : a)) });
+    await open('a2');
+    const outB = vibeOutDir('a2');
+    write(path.join(outB, 'note.md'), 'x');
+    const { removeWorktreeChild } = await import('app/controllers');
+    const { state } = await import('app/state');
+    expect((await removeWorktreeChild(loadConfig().agents[1])).ok).toBe(true);
+    const cfg = loadConfig();
+    expect(cfg.agents.map((a) => a.id)).toEqual(['a1']);
+    expect(cfg.agentFolders).toEqual([{ dir: repo, color: '#22c55e' }]);
+    expect(fs.existsSync(outB)).toBe(false);
+    expect(state.convView?.agentId).toBe('a1');
   });
 
   it('la fiche partie : le robot part, son dossier quitte les favoris, son brouillon revient, le panneau passe à l’agent du dépôt', async () => {
@@ -163,17 +199,15 @@ describe('Relire dans un worktree', () => {
     expect(state.convView?.agentId).toBe('a2');
   });
 
-  it('l’état sur l’agent du dépôt : en création (demandé, au travail), ouverte sans robot, rien', async () => {
-    const { worktreeState, wantWorktree } = await import('app/controllers');
+  it('l’état sur l’agent du dépôt : ouverte sans robot, en création (pr-worktree en cours), rien', async () => {
+    const { worktreeState } = await import('app/controllers');
     const { loadConfig, saveConfig } = await import('app/settings');
     saveConfig({ agents: loadConfig().agents.filter((a) => a.id === 'a1') });
     const a1 = loadConfig().agents[0];
     expect(worktreeState(a1, 12, false)).toEqual({ state: 'open', temp: false, dir: worktree });
     fs.rmSync(card);
-    expect(worktreeState(a1, 12, true)).toBeNull();
-    wantWorktree('a1', 12);
     expect(worktreeState(a1, 12, true)).toEqual({ state: 'creating', temp: false, dir: '' });
-    expect(worktreeState(a1, 12, false)).toBeNull();   // le tour a fini sans fiche
+    expect(worktreeState(a1, 12, false)).toBeNull();   // la recette a fini sans worktree
     expect(worktreeState(a1, null, true)).toBeNull();
   });
 });
@@ -247,5 +281,38 @@ describe('les familles par git', () => {
     expect(cfg.agents[1]).toMatchObject({ dir: wt, name: 'feat-y', parent: { id: 'a1' } });
     expect(cfg.agents[1].parent).toEqual({ id: 'a1' });
     expect(cfg.agentFolders).toContainEqual({ dir: wt, color: '#ef4444' });
+  });
+
+  it('le worktree de la PR prêt : la fiche écrite par l’appli (pas à travers un lien), le robot « PR #3 » après la question', async () => {
+    await config([{ ...AGENT, id: 'a1', dir: real }]);
+    const target = path.join(fake.userData, 'cible.txt');
+    write(target, 'intact');
+    write(path.join(outA, 'pr-3.json'), '{}');
+    fs.symlinkSync(target, path.join(outA, 'pr-3-worktree.json'));
+    const { prWorktreeReady } = await import('app/controllers');
+    const { loadConfig } = await import('app/settings');
+    await prWorktreeReady(loadConfig().agents[0], 3, wt, 'pr-3');
+    expect(fs.readFileSync(target, 'utf8')).toBe('intact');
+    expect(JSON.parse(fs.readFileSync(path.join(outA, 'pr-3-worktree.json'), 'utf8'))).toEqual({ dir: wt, branch: 'pr-3' });
+    expect(loadConfig().agents[1]).toMatchObject({ dir: wt, name: 'PR #3', parent: { id: 'a1', pr: 3 } });
+  });
+
+  it('l’enfant d’une nouvelle demande : en Créer, le dossier résolu (donné par un lien), de la couleur du parent', async () => {
+    await config([{ ...AGENT, id: 'a1', dir: real }], [{ dir: real, color: '#ef4444' }, { dir: wt, color: '#22c55e' }]);
+    const { openChild } = await import('app/controllers');
+    const { loadConfig } = await import('app/settings');
+    const child = await openChild(loadConfig().agents[0], path.join(link, 'projet-wt'), { name: 'feat/y', create: true });
+    expect(child).toMatchObject({ dir: wt, name: 'feat/y', parent: { id: 'a1' }, view: 'vibecoder', vibe: { flow: 'create', pr: null } });
+    expect(loadConfig().agents[1]).toEqual(child);
+    expect(loadConfig().agentFolders).toContainEqual({ dir: wt, color: '#ef4444' });
+  });
+
+  it('l’enfant d’une nouvelle demande, question refusée : null, aucun enfant', async () => {
+    fake.answer = 0;
+    await config([{ ...AGENT, id: 'a1', dir: real }]);
+    const { openChild } = await import('app/controllers');
+    const { loadConfig } = await import('app/settings');
+    expect(await openChild(loadConfig().agents[0], wt, { name: 'feat/y', create: true })).toBeNull();
+    expect(loadConfig().agents).toHaveLength(1);
   });
 });

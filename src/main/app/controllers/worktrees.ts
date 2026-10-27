@@ -1,23 +1,27 @@
 /** worktrees — les robots enfants des worktrees d'un dépôt (core/family) et
- *  leur `parent` enregistré. Trois naissances, toujours sur la racine d'un
+ *  leur `parent` enregistré. Leurs naissances, toujours sur la racine d'un
  *  worktree du même dépôt (même `git rev-parse --git-common-dir`), autre que
  *  la copie du parent, sans agent, après la question de confiance (I-23,
  *  I-41) :
- *  - le robot « PR #n » (F-110, un enfant avec `pr`), né du fichier que le
- *    skill worktree-pr écrit dans les sorties de l'agent du dépôt
- *    (`pr-<n>-worktree.json`), après une demande de l'écran (Ouvrir dans un
- *    worktree, ou le proposer à nouveau) ; la question toujours posée. Il
- *    part quand ce fichier n'est plus là (Décharger : le skill
- *    retirer-worktree le supprime après `git worktree remove`), avec son
- *    dossier des favoris ; son brouillon de revue revient à l'agent du dépôt ;
- *  - *Ouvrir un agent ici* (openHere, clic droit du parent → Worktrees, parmi
- *    freeWorktrees : `git worktree list`, 1 s au plus) ; la question pour un dossier jamais
- *    choisi ; nommé par sa branche, de la couleur du parent ;
+ *  - le robot « PR #n » (F-110, un enfant avec `pr`), né de la fiche
+ *    `pr-<n>-worktree.json` que l'appli écrit dans les sorties de l'agent du
+ *    dépôt quand la recette a créé le worktree de la PR (prWorktreeReady,
+ *    après *Dans un worktree*), ou à nouveau proposé (showWorktree) ; la
+ *    question toujours posée. Il part quand cette fiche n'est plus là (Retirer
+ *    le worktree : removeWorktreeChild la supprime une fois le worktree
+ *    retiré par la recette), avec son dossier des favoris ; son brouillon de
+ *    revue revient à l'agent du dépôt ;
+ *  - un enfant sur un worktree libre (openChild) : *Ouvrir un agent ici*
+ *    (openHere, clic droit du parent → Worktrees, parmi freeWorktrees :
+ *    `git worktree list`, 1 s au plus), nommé par sa branche, ou celui d'une
+ *    nouvelle demande (en Créer) ; la question pour un dossier jamais choisi ;
+ *    de la couleur du parent ;
  *  - le rattachement par git (syncFamilies) : le `parent` de chaque agent
  *    d'après son dépôt (familyLinks), l'ancien `temp` réécrit en `parent`.
- *  Un enfant sans `pr` ne part qu'à Retirer (controllers/agents). Les dossiers
- *  des agents sont résolus (liens symboliques) avant d'être comparés à ceux
- *  de git. Aucune page ne donne de chemin.
+ *  Un enfant sans `pr` ne part qu'à Retirer (controllers/agents) ou avec son
+ *  worktree (removeWorktreeChild). Les dossiers des agents sont résolus (liens
+ *  symboliques) avant d'être comparés à ceux de git. Aucune page ne donne de
+ *  chemin. La création et le retrait des worktrees : controllers/recipe.
  *  Ne connaît pas : la page (seulement ce que demandent controllers/vibecoder
  *  et app/menus).
  *  Utilisé par : controllers/vibecoder, controllers/runs, app/menus,
@@ -34,6 +38,7 @@ import { loadConfig, saveConfig, saveVibeStore, vibeOutDir, vibeStore } from 'ap
 import { state } from 'app/state';
 import { openConversation } from 'app/windows';
 import { ensureFolderColors, isBusy, newId, pushAgents, real, removeAgent, trustFolder } from './agents';
+import { removeWorktree, type RecipeResult } from './recipe';
 
 const wanted = new Set<string>();   // `<agent>:<n>` : l'écran a demandé le worktree de cette PR (en mémoire)
 let syncing = false;
@@ -60,29 +65,34 @@ export function worktreeParent(agent: AgentConfig) {
   return (p && agentList(loadConfig()).find((a) => a.id === p.id)) || null;
 }
 
-// Le worktree de la PR `pr` créé par l'appli (pr-worktree) : la fiche
-// pr-<n>-worktree.json écrite par l'appli, wantWorktree, syncWorktrees (adopt :
-// la question de confiance toujours posée, I-41).
-export async function prWorktreeReady(_agent: AgentConfig, _pr: number, _dir: string, _branch: string): Promise<void> {
-  throw new Error('not implemented');
+// Le worktree `dir` de la PR `pr` créé par la recette (pr-worktree) : la fiche
+// pr-<n>-worktree.json écrite par l'appli (jamais à travers un lien laissé là),
+// puis le robot, comme à la demande de l'écran (adopt : tout revérifié, la
+// question de confiance toujours posée, I-41).
+export async function prWorktreeReady(agent: AgentConfig, pr: number, dir: string, branch: string): Promise<void> {
+  const file = cardFile(agent.id, pr);
+  fs.rmSync(file, { force: true });
+  fs.writeFileSync(file, JSON.stringify({ dir, branch }), { flag: 'wx' });
+  wantWorktree(agent.id, pr);
+  await syncWorktrees();
 }
 
-// L'écran a envoyé « Ouvrir dans un worktree » pour la PR `pr` de cet agent.
+// Le robot de la PR `pr` de cet agent est attendu (sa fiche écrite, ou à nouveau proposé).
 export function wantWorktree(agentId: string, pr: number) {
   wanted.add(key(agentId, pr));
 }
 
 // La PR suivie dans un worktree, pour le relevé : ce robot-ci (un enfant avec
 // pr), ou, pour l'agent du dépôt, son robot là, le worktree ouvert sans robot,
-// ou en création (demandé, l'agent au travail).
-export function worktreeState(agent: AgentConfig, pr: number | null, busy: boolean): VibeWorktree | null {
+// ou en création (`creating` : pr-worktree en cours, donné par l'appelant).
+export function worktreeState(agent: AgentConfig, pr: number | null, creating: boolean): VibeWorktree | null {
   if (agentParent(agent)?.pr) return { state: 'robot', temp: true, dir: agent.dir };
   if (!pr) return null;
   const robot = robotOf(agentList(loadConfig()), agent.id, pr);
   if (robot) return { state: 'robot', temp: false, dir: robot.dir };
   const card = readCard(agent.id, pr);
   if (card) return { state: 'open', temp: false, dir: card.dir };
-  return busy && wanted.has(key(agent.id, pr)) ? { state: 'creating', temp: false, dir: '' } : null;
+  return creating ? { state: 'creating', temp: false, dir: '' } : null;
 }
 
 // « Aller au robot PR #n » : l'afficher ; le worktree ouvert sans robot (question refusée…) : le proposer à nouveau.
@@ -118,20 +128,36 @@ async function adopt(parent: AgentConfig, pr: number) {
   pushAgents();
 }
 
-// Retire le robot d'une PR : son brouillon revient à l'agent du dépôt, ses
-// validations partent ; affiché, le panneau passe à l'agent du dépôt ; puis
-// removeAgent (son processus, ses courses et ses commandes, son dossier des
-// favoris) et ses sorties.
-function removeRobot(robot: AgentConfig, parent: AgentConfig | null, pr: number) {
+// Retire un enfant : le brouillon de sa PR revient au parent, ses validations
+// partent ; affiché, le panneau passe au parent ; puis removeAgent (son
+// processus, ses courses et ses commandes), son dossier des favoris et ses
+// sorties.
+function removeChild(child: AgentConfig, parent: AgentConfig | null) {
+  const pr = agentParent(child)?.pr;
   const store = vibeStore();
-  const draft = store.drafts[robot.id]?.[pr];
-  if (parent && draft) store.drafts[parent.id] = { ...store.drafts[parent.id], [pr]: draft };
-  delete store.drafts[robot.id];
-  delete store.marks[robot.id];
+  const draft = pr && store.drafts[child.id]?.[pr];
+  if (pr && parent && draft) store.drafts[parent.id] = { ...store.drafts[parent.id], [pr]: draft };
+  delete store.drafts[child.id];
+  delete store.marks[child.id];
   saveVibeStore(store);
-  if (parent && state.convView?.agentId === robot.id) openConversation(parent.id, { mode: 'full' });
-  removeAgent(robot.id);
-  fs.rmSync(vibeOutDir(robot.id), { recursive: true, force: true });
+  if (parent && state.convView?.agentId === child.id) openConversation(parent.id, { mode: 'full' });
+  removeAgent(child.id);
+  saveConfig({ agentFolders: ensureFolderColors().filter((f) => f.dir !== child.dir) });
+  fs.rmSync(vibeOutDir(child.id), { recursive: true, force: true });
+}
+
+// Retirer le worktree (remove-worktree) : la recette le retire (refusé s'il a
+// des modifications) ; retiré, le robot d'une PR perd sa fiche (syncWorktrees
+// le retire, son brouillon revient), un autre enfant part aussitôt.
+export async function removeWorktreeChild(child: AgentConfig): Promise<RecipeResult> {
+  const result = await removeWorktree(child);
+  if (!result.ok) return result;
+  const p = agentParent(child);
+  if (p?.pr) {
+    fs.rmSync(cardFile(p.id, p.pr), { force: true });
+    await syncWorktrees();
+  } else removeChild(child, worktreeParent(child));
+  return result;
 }
 
 // À chaque relevé : retire les robots de PR (enfants avec pr) dont la fiche
@@ -146,7 +172,7 @@ export async function syncWorktrees() {
     for (const a of list) {
       const p = agentParent(a);
       const parent = p && list.find((o) => o.id === p.id);
-      if (p?.pr && !isBusy(a.id) && (!parent || !fs.existsSync(cardFile(parent.id, p.pr)))) removeRobot(a, parent || null, p.pr);
+      if (p?.pr && !isBusy(a.id) && (!parent || !fs.existsSync(cardFile(parent.id, p.pr)))) removeChild(a, parent || null);
     }
     for (const k of [...wanted]) {
       const [id, n] = [k.slice(0, k.lastIndexOf(':')), Number(k.slice(k.lastIndexOf(':') + 1))];
@@ -188,20 +214,30 @@ async function freeChild(parentId: string, dir: string) {
   return owner && wts && free && wt && childOf(dir, wts.own, wt) ? { owner, branch: free.branch } : null;
 }
 
-// Ouvrir un agent ici (clic droit du parent → Worktrees) : l'enfant du
-// worktree `dir` de `parent`, après la question de confiance (dossier jamais
-// choisi, I-23, I-41), le tout revérifié après elle (elle a pu durer). Un
-// dossier déjà favori garde son chemin (/home… ou /var/home…).
-export async function openHere(parent: AgentConfig, dir: string): Promise<void> {
-  const here = favoriteFolders(loadConfig()).find((f) => real(f.dir) === dir)?.dir ?? dir;
-  if (!await freeChild(parent.id, dir) || !await trustFolder(here)) return;
-  const ok = await freeChild(parent.id, dir);
-  if (!ok) return;
+// L'enfant du worktree libre `dir` de `parent`, nommé `name`, sinon par sa
+// branche (`create` : celui d'une nouvelle demande, en Créer), après la
+// question de confiance (dossier jamais choisi, I-23, I-41), le tout revérifié
+// après elle (elle a pu durer) ; null sinon. `dir` absolu, résolu (liens
+// symboliques) ; un dossier déjà favori garde son chemin (/home… ou /var/home…).
+export async function openChild(parent: AgentConfig, dir: string, o: { name?: string; create?: true }): Promise<AgentConfig | null> {
+  const at = path.isAbsolute(dir) ? real(dir) : null;
+  if (!at) return null;
+  const here = favoriteFolders(loadConfig()).find((f) => real(f.dir) === at)?.dir ?? at;
+  if (!await freeChild(parent.id, at) || !await trustFolder(here)) return null;
+  const ok = await freeChild(parent.id, at);
+  if (!ok) return null;
   const cfg = loadConfig();
-  if (hasAgent(dir)) return;   // deux clics : le premier l'a déjà enregistré
-  const child = childAgent(ok.owner, here, newId(), { name: ok.branch ?? path.basename(dir) });
+  if (hasAgent(at)) return null;   // deux clics : le premier l'a déjà enregistré
+  const child = childAgent(ok.owner, here, newId(), { ...o, name: o.name ?? ok.branch ?? path.basename(at) });
   saveConfig({ agents: [...agentList(cfg), child], agentFolders: withFolder(here, agentColor(ok.owner, cfg)) });
   pushAgents();
+  return child;
+}
+
+// Ouvrir un agent ici (clic droit du parent → Worktrees) : l'enfant du
+// worktree `dir`, nommé par sa branche.
+export async function openHere(parent: AgentConfig, dir: string): Promise<void> {
+  await openChild(parent, dir, {});
 }
 
 // Le rattachement par git (au lancement, après « + ») : le `parent` de chaque
