@@ -5,8 +5,10 @@
  *  dépliable ; *Journal complet* dans l'éditeur). *Proposer les commandes*,
  *  fichier ou pas (l'action propose-run, qui dit qui travaille ; fichier
  *  existant : seules les commandes nouvelles s'y ajoutent) ; *Modifier les
- *  commandes* ouvre le fichier dans l'éditeur. Une commande se désigne par son
- *  rang, jamais par un texte.
+ *  commandes* ouvre le fichier dans l'éditeur. *Préparer le projet* (le
+ *  fichier a un setup : la recette, lancée par l'appli), grisé pendant une
+ *  recette de la famille ; son dernier échec dessous (une ligne). Une
+ *  commande se désigne par son rang, jamais par un texte.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
 import { useLayoutEffect, useRef, useState } from 'react';
 import { duration, type Strings } from 'core/vibecoder';
@@ -25,6 +27,7 @@ const S = {
     edit: 'Modifier les commandes', editTitle: 'Le fichier des commandes du projet, dans l\'éditeur (propre à cette machine)',
     noFile: 'Aucune commande pour ce projet. Proposez-les (l\'agent lit le README, package.json, process-compose, vos alias…) ou écrivez-les.',
     none: 'Le fichier du projet n\'a aucune commande valide.',
+    setup: 'Préparer le projet', setupTitle: 'Lance les commandes setup du fichier du projet (ex. yarn install), sans IA',
   },
   en: {
     status: { running: 'running', stopped: 'stopped', failed: 'failed' },
@@ -36,6 +39,7 @@ const S = {
     edit: 'Modify the commands', editTitle: 'The file of the project\'s commands, in the editor (specific to this machine)',
     noFile: 'No command for this project yet. Propose them (the agent reads the README, package.json, process-compose, your aliases…) or write them.',
     none: 'The project file has no valid command.',
+    setup: 'Prepare the project', setupTitle: 'Runs the setup commands of the project file (e.g. yarn install), without AI',
   },
 } satisfies Record<VibeLang, unknown>;
 type Labels = typeof S.fr;
@@ -45,11 +49,21 @@ type Props = { view: VibeView; t: Strings; act: VibeActs; busy: boolean };
 export function ProcessesView({ view, t, act, busy }: Props) {
   const s = S[view.lang];
   const list = view.processes ?? [];
+  const recipe = view.recipe;
+  const failed = recipe?.op === 'setup' && recipe.last && !recipe.last.ok ? recipe.last.line : null;
   return (
     <div className="vc-procs scroll">
       {list.map((p, i) => <Proc key={p.name} p={p} s={s} t={t} onOp={(op) => act.process(op, i)} />)}
       {list.length ? null : <div className="vc-empty">{view.projectFile ? s.none : s.noFile}</div>}
       <div className="vc-procs-foot">
+        {view.setup ? (
+          <span className="vc-direct">
+            <button type="button" className="vc-run" data-tone="plain" title={s.setupTitle} disabled={!!recipe?.running}
+              onClick={() => act.process('setup')}><span className="vc-run-label">{s.setup}</span></button>
+            {recipe?.running && recipe.op === 'setup' ? <span className="vc-direct-res" data-state="running">…</span>
+              : failed ? <span className="vc-direct-res" data-state="ko" title={failed}><span className="vc-direct-mark">✗</span> {failed}</span> : null}
+          </span>
+        ) : null}
         <Run a={view.actions.find((a) => a.id === 'propose-run')} busy={busy} onRun={() => act.run('propose-run')} />
         <button type="button" className="vc-mini" title={s.editTitle} onClick={() => act.process('edit')}>{s.edit}</button>
       </div>
