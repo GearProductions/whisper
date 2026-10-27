@@ -5,7 +5,10 @@
  *  que le panneau est visible, aussitôt après une action, une validation, un
  *  réglage — au plus un par seconde ; null, une fois, quand l'agent affiché
  *  n'est plus en VibeCoder ; chaque relevé passe les demandes de l'orchestrateur
- *  (runRequests de controllers/runs). Et ce que l'écran demande : une action (celle d'une
+ *  (runRequests de controllers/runs). Le mode Vibe en cours (vibeOn de
+ *  controllers/runs) part au parcours ; pendant Vibe, chaque relevé donne
+ *  leur ✓ aux étapes faites (vibeMarks), qu'elles gardent après (F-102) ;
+ *  l'action vibe partie le lance (vibeStart). Et ce que l'écran demande : une action (celle d'une
  *  étape court à part, ownRun → startRun de controllers/runs, sous sa propre
  *  entrée du runtime, si aucune course en cours ne la retient ; une action sans
  *  étape est un message à l'agent affiché, comme s'il était tapé, par
@@ -13,7 +16,7 @@
  *  et base, au clic de « direct » : leurs commandes, lancées par l'appli,
  *  F-114), une course (vibeRunOp : l'arrêter, la garder ou l'annuler, répondre
  *  à sa demande d'autorisation), un réglage (dont arrêter l'agent, comme Interrompre de son
- *  menu ; de Vibe à Guide : les étapes que Vibe a passées reçoivent leur ✓, vibeMarks ;
+ *  menu ; arrêter Vibe, la bannière : vibeStop de controllers/runs ;
  *  l'onglet Actions ouvert ou fermé : ses courses vues, runsTab de controllers/runs),
  *  une validation (dont ✓ Rien à écrire, Créer : pour le texte de la note), le brouillon de revue, ouvrir un fichier ou un commit
  *  du relevé (dans l'éditeur, à une ligne ; la page d'un commit dans le
@@ -69,7 +72,7 @@ import { state } from 'app/state';
 import { conversationShown, openConversation } from 'app/windows';
 import { interruptAgent, isBusy, liveViewAgent, sendToAgent, setAgentSetting } from './agents';
 import { agentPrefix, processAction, processView, promptPrefix, readFile, readTimed } from './processes';
-import { lockingRuns, runOp, viewLocks, runPending, runRequests, runsOf, runsTab, skillMd, startRun } from './runs';
+import { lockingRuns, runOp, viewLocks, runPending, runRequests, runsOf, runsTab, skillMd, startRun, vibeOn, vibeStart, vibeStop } from './runs';
 import { showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
 
 const VIBE_MS = 4000;          // le relevé régulier, panneau visible
@@ -296,7 +299,7 @@ export function followBranch(out: string, branch: string, base: string) {
 
 async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const lang = vibeLang(cfg);
-  const { flow, autonomy, pr } = agentVibe(agent);
+  const { flow, pr } = agentVibe(agent);
   const realpath = fs.realpathSync.native;
   const git = gitReader(gitRun(agent.dir));
   // Créer : la copie de travail. Relire : la PR suivie, à sa référence locale
@@ -365,7 +368,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const who = Object.fromEntries(actions.map((a) => [a.id, whoOf(skills[a.id], lang)]));
   const running = lockingRuns(agent.id);
   const journey = vibeView({
-    agentId: agent.id, lang, flow, pr, autonomy,
+    agentId: agent.id, lang, flow, pr, vibe: vibeOn(agent.id),
     agent: { model: agent.model || '', effort: agent.effort || '', mode: agent.mode || 'default' },
     busy,
     running,
@@ -390,6 +393,12 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     list: flow === 'create' ? (rel) => listFiles(agent.dir, rel) : undefined,   // Relire : le disque n'est pas la PR
     now: Date.now(),
   });
+  // Vibe en cours : les étapes faites reçoivent leur ✓, qu'elles gardent une fois Vibe fini (F-102).
+  if (journey.vibe) {
+    const marks = store.marks[agent.id] || {};
+    const next = vibeMarks(marks, journey);
+    if (next !== marks) { store.marks[agent.id] = next; saveVibeStore(store); }
+  }
   // Processus : les commandes du projet, leur état (controllers/processes).
   return { ...journey, ...processView(agent, cfg) };
 }
@@ -413,6 +422,7 @@ export function runVibeAction(id: unknown, args: unknown): SendResult {
   if (!args || typeof args !== 'object' || Array.isArray(args)) return fail(lang, 'args');
   if ((args as VibeArgs).direct === true && DIRECT_ACTIONS.includes(def.id)) return runDirect(agent, def, args as VibeArgs, view, cfg);
   const sent = startAction(agent, def, args as VibeArgs, view, cfg);
+  if (sent.ok && def.id === 'vibe') vibeStart(agent);   // son message parti : le mode Vibe en cours (controllers/runs)
   if (sent.ok) refreshVibe({ now: true });
   return { ok: sent.ok, error: sent.error };
 }
@@ -502,8 +512,8 @@ export function setAgentView(id: string, view: 'vibecoder' | null) {
   openConversation(id, { mode: 'full' });
 }
 
-// Un réglage de l'écran : Créer ou Relire, Guide ou Vibe (de Vibe à Guide :
-// les étapes passées d'après le dernier relevé reçoivent leur ✓, vibeMarks), la PR suivie (pour
+// Un réglage de l'écran : Créer ou Relire, arrêter Vibe (la bannière : vibeStop,
+// la course en cours finit), la PR suivie (pour
 // l'agent) ; la langue (tout VibeCoder) ; « Vu » (la note de référence devient
 // l'actuelle) ; revenir à la conversation ; modèle, effort et mode comme son
 // menu (une valeur hors de ses choix est ignorée) ; arrêter son tour, comme
@@ -519,13 +529,7 @@ export function setVibe(patch: unknown) {
   if (!agent) return;
   const vibe = agentVibe(agent);
   if (p.flow === 'create' || p.flow === 'review') vibe.flow = p.flow;
-  const view = last.get(agent.id);
-  if (vibe.autonomy === 'vibe' && p.autonomy === 'guide' && view) {
-    const store = vibeStore();
-    store.marks[agent.id] = vibeMarks(store.marks[agent.id] || {}, view);
-    saveVibeStore(store);
-  }
-  if (p.autonomy === 'guide' || p.autonomy === 'vibe') vibe.autonomy = p.autonomy;
+  if (p.vibe === false) vibeStop(agent);
   if (p.pr === null || prNumber(p.pr)) vibe.pr = p.pr as number | null;
   updateAgent(agent.id, { vibe });
   if (p.lang === 'fr' || p.lang === 'en') saveConfig({ vibeLang: p.lang });
