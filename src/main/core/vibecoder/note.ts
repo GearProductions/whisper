@@ -86,13 +86,17 @@ type Mod = { path: string; parts: string[]; sep: string; col: number };
 //    qui finit par `/` est un dossier, dont les `####` (un nom suffit) sont les modules ;
 //  - des lignes (bloc de code, liste, texte) qui commencent par un chemin : le reste de la ligne et ses
 //    lignes de suite, plus indentées, forment le contrat ; sous un chemin qui finit par `/`, une ligne
-//    moins indentée que son contrat, « fichier␣␣contrat » ou « fichier » seul, est un module de ce dossier.
+//    moins indentée que son contrat, « fichier␣␣contrat » ou « fichier » seul, est un module de ce dossier ;
+//    hors bloc de code, la suite d'un paragraphe (sans ligne vide entre) n'en est pas un, même si elle
+//    commence par un chemin.
 // Un dossier qui a des modules n'en est plus un lui-même.
 function modulesOf(forme: string): { path: string; contract: string }[] {
   const mods: Mod[] = [];
   let cur: Mod | null = null;
   let group: Mod | null = null;      // le dossier dont les lignes suivantes peuvent être des modules
   let heading = false;               // cur vient d'un titre : toutes les lignes jusqu'au suivant sont son contrat
+  let prose = false;                 // hors bloc de code, la ligne d'avant, non indentée, est du texte : la suivante, non indentée, le continue
+  let fenced = false;                // dans un bloc de code (```) : chaque ligne non indentée peut ouvrir un module
   // Un module (dans `dir`, qui cesse alors d'en être un) ; son contrat commence par `first`, à la colonne `col`.
   const add = (dir: Mod | null, path: string, first: string, sep: string, col = Infinity): Mod => {
     if (dir && mods.includes(dir)) mods.splice(mods.indexOf(dir), 1);
@@ -101,7 +105,8 @@ function modulesOf(forme: string): { path: string; contract: string }[] {
     return mod;
   };
   for (const line of forme.split('\n')) {
-    if (!line.trim() || /^\s*(```|~~~)/.test(line)) continue;
+    if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
+    if (!line.trim() || /^\s*(```|~~~)/.test(line)) { prose = false; continue; }
     const h = /^(#{3,4})\s+(.*)$/.exec(line);
     if (h) {
       const top = h[1] === '###';
@@ -111,16 +116,20 @@ function modulesOf(forme: string): { path: string; contract: string }[] {
       cur = path ? add(top ? null : group, path, m![3], ' · ') : null;
       if (top) group = path?.endsWith('/') ? cur : null;
       heading = !!cur;
+      prose = false;
       continue;
     }
     const text = line.trim().replace(/^[-*+]\s+/, '');
     const m = LINE.exec(line);
     const path = m && isPath(m[1]) ? m[1] : null;
     const indent = line.length - line.trimStart().length;
+    if (indent) prose = false;
     if (heading) cur?.parts.push(text);
     else if (!indent) {
-      cur = path ? add(null, path, m![3], ' ', m![3] ? line.length - m![3].length : Infinity) : null;
+      // Un chemin en tête de la suite d'un paragraphe (texte replié) n'ouvre pas de module.
+      cur = path && !prose ? add(null, path, m![3], ' ', m![3] ? line.length - m![3].length : Infinity) : null;
       group = path?.endsWith('/') ? cur : null;
+      prose = !cur && !fenced;
     } else if (group && path && indent < group.col && (m![2].length >= 2 || !m![3])) cur = add(group, path, m![3], ' ');
     else cur?.parts.push(text);
   }
