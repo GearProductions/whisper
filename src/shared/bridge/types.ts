@@ -224,10 +224,9 @@ export interface ConvApi {
 
 export type VibeLang = 'fr' | 'en';
 export type VibeFlow = 'create' | 'review';      // Créer une feature, Relire une PR
-export type VibeAutonomy = 'guide' | 'vibe';
 // Créer : note → forme → invariants → modules → revue → pr ; Relire : pr → note → invariants → commits → ecran → revue.
 export type VibeStepId = 'note' | 'forme' | 'invariants' | 'modules' | 'revue' | 'pr' | 'commits' | 'ecran';
-// open : un clic (ou Ctrl+1…6) l'ouvre — Créer en Guide, faite ou en cours ; Relire, toutes ; Créer en Vibe, aucune.
+// open : un clic (ou Ctrl+1…6) l'ouvre — Créer, faite ou en cours ; Relire, toutes.
 export type VibeStep = { id: VibeStepId; status: 'done' | 'current' | 'todo'; facts: string; open: boolean };
 
 // Une validation : validé, refusé, validé mais changé depuis, rien.
@@ -352,7 +351,8 @@ export type VibeView = {
   agentId: string;
   lang: VibeLang;
   flow: VibeFlow;
-  autonomy: VibeAutonomy;
+  autonomy?: 'guide' | 'vibe';            // d'avant la 0.12.0, ignorée
+  vibe?: boolean;                        // le mode Vibe en cours (F-103) ; absent : non
   agent: { model: string; effort: string; mode: string };
   repo: { branch: string; base: string; changed: number } | null;
   error: string | null;                  // pourquoi le parcours manque (pas un dépôt, git introuvable…)
@@ -395,7 +395,7 @@ export type VibeArgs = {
 
 export type VibePatch = {
   flow?: VibeFlow;
-  autonomy?: VibeAutonomy;
+  vibe?: false;                // la bannière : arrêter le mode Vibe (la course en cours finit)
   lang?: VibeLang;
   pr?: number | null;          // Relire : la PR suivie
   seen?: boolean;              // « Vu » : la note de référence devient l'actuelle
