@@ -20,7 +20,7 @@
 .vc-br-new input::placeholder { color: var(--vc-faint); }
 .vc-br-new :is(input, select):focus { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent); }
 
-.vc-pr-worktree { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.vc-pr-worktree { display: flex; align-items: flex-start; gap: 10px; margin-top: 10px; }
 
 .vc-pr-nobody { color: var(--vc-faint); font-size: 12.5px; font-style: italic; }
 
