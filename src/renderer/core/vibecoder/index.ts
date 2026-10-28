@@ -8,7 +8,8 @@
  *  dans le champ (une action « préparer »), le champ dont une action emporte
  *  le texte ; une durée en clair ; le modèle choisi d'une action, la
  *  largeur de la colonne de la conversation ; la saisie de l'écran gardée
- *  par agent. */
+ *  par agent ; la recherche de la vue des branches et les PR où se demander en
+ *  relecture. */
 export * from './diff';
 export * from './field';
 export * from './forme';
@@ -23,4 +24,5 @@ export * from './outputs';
 export * from './questions';
 export * from './review-flow';
 export * from './screen';
+export * from './search';
 export * from './validation';
