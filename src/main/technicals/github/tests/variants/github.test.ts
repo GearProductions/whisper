@@ -18,15 +18,29 @@ describe('la PR d’une branche', () => {
   });
 });
 
-describe('les PR à relire', () => {
-  it('la liste telle que gh la donne ; [] : aucune', async () => {
-    expect(await githubReader(answering('[{"number":3,"title":"t","author":{"login":"kb"},"url":"u"}]')).prsToReview())
-      .toEqual([{ number: 3, title: 't', author: { login: 'kb' }, url: 'u' }]);
-    expect(await githubReader(answering('[]')).prsToReview()).toEqual([]);
+describe('les PR ouvertes', () => {
+  it('trois listes telles que gh les donne : les miennes, à relire, toutes', async () => {
+    const calls: string[][] = [];
+    const gh = githubReader(async (args) => {
+      calls.push(args);
+      return args.includes('--author') ? '[{"number":1}]' : args.includes('--search') ? '[{"number":2}]' : '[{"number":1},{"number":2},{"number":3}]';
+    });
+    expect(await gh.openPrs()).toEqual({ mine: [{ number: 1 }], review: [{ number: 2 }], all: [{ number: 1 }, { number: 2 }, { number: 3 }] });
+    expect(calls).toEqual([
+      ['pr', 'list', '--author', '@me', '--json', 'number,title,author,url'],
+      ['pr', 'list', '--search', 'review-requested:@me', '--json', 'number,title,author,url'],
+      ['pr', 'list', '--limit', '100', '--json', 'number,title,author,url'],
+    ]);
   });
 
-  it('gh en échec : null (pas une liste vide)', async () => {
-    expect(await githubReader(answering(null)).prsToReview()).toBeNull();
+  it('[] : aucune', async () => {
+    expect(await githubReader(answering('[]')).openPrs()).toEqual({ mine: [], review: [], all: [] });
+  });
+
+  it('une liste en échec ou illisible : null (pas une liste vide)', async () => {
+    expect(await githubReader(answering(null)).openPrs()).toBeNull();
+    expect(await githubReader(answering('{}')).openPrs()).toBeNull();
+    expect(await githubReader(async (args) => (args.includes('--search') ? null : '[]')).openPrs()).toBeNull();
   });
 });
 
