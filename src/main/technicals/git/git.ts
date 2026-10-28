@@ -21,7 +21,7 @@ import { execFile } from 'node:child_process';
 import { okRef } from 'helpers';
 
 // Les seules sous-commandes lancées : toutes en lecture.
-export const GIT_READ = ['rev-parse', 'status', 'diff', 'log', 'show'] as const;
+export const GIT_READ = ['rev-parse', 'status', 'diff', 'log', 'show', 'for-each-ref'] as const;
 
 // Lance git (args[0] : la sous-commande) → sa sortie, ou null.
 export type Run = (args: string[]) => Promise<string | null>;
@@ -68,7 +68,10 @@ const plainPath = (path: string) => path !== '' && !path.startsWith('"') && !/[\
 // main ou master), ses chemins cités ou à caractère de contrôle écartés ;
 // show : le contenu d'un fichier à ce ref ; commit : un commit, ses fichiers
 // (--stat) et son diff ; forkPoint : le commit commun à HEAD et à `base` — la
-// première limite de base..HEAD, sinon HEAD s'il n'a rien en propre.
+// première limite de base..HEAD, sinon HEAD s'il n'a rien en propre ;
+// branches : les branches locales, noms hors d'okRef écartés ; sync : behind,
+// les commits de @{u} absents de HEAD (null sans @{u}), baseAhead, ceux de
+// origin/<base> (null si absente) ; une base hors d'okRef : null sans lancer git.
 export function gitReader(run: Run): {
   facts(ref?: string, base?: string): Promise<GitFacts | null>;
   show(ref: string, path: string): Promise<string | null>;
@@ -123,11 +126,17 @@ export function gitReader(run: Run): {
       return lines.find((l) => l.startsWith('-'))?.slice(1) ?? null;
     },
     async branches() {
-      throw new Error('not implemented');
+      const out = await run(['for-each-ref', '--format=%(refname:short)', 'refs/heads/']);
+      return out === null ? null : out.split('\n').filter((name) => name && okRef(name));
     },
     async sync(base) {
-      void base;
-      throw new Error('not implemented');
+      if (!okRef(base)) return null;
+      const count = async (range: string) => {
+        const out = await run(['log', '--format=%H', ...NO_PROGRAM, '--end-of-options', range, '--']);
+        return out === null ? null : out.split('\n').filter(Boolean).length;
+      };
+      const [behind, baseAhead] = await Promise.all([count('HEAD..@{u}'), count(`HEAD..origin/${base}`)]);
+      return { behind, baseAhead };
     },
   };
 }

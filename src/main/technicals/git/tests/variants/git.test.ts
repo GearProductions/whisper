@@ -195,6 +195,53 @@ describe('forkPoint', () => {
   });
 });
 
+describe('branches', () => {
+  it('les branches locales, sans les distantes', async () => {
+    const dir = repo();
+    git(dir, 'remote', 'add', 'origin', dir);
+    git(dir, 'fetch', '-q', 'origin');
+    expect((await gitReader(gitRun(dir)).branches())?.sort()).toEqual(['feat/x', 'main']);
+  });
+
+  it('hors d\'un dépôt : null', async () => {
+    expect(await gitReader(gitRun(path.join(tmp, 'nulle-part'))).branches()).toBeNull();
+  });
+});
+
+describe('sync', () => {
+  // feat/x suit origin/feat/x ; origin : le dépôt lui-même, ses refs figées au fetch.
+  function tracking() {
+    const dir = repo();
+    git(dir, 'remote', 'add', 'origin', dir);
+    git(dir, 'fetch', '-q', 'origin');
+    git(dir, 'branch', '-q', '--set-upstream-to=origin/feat/x');
+    return dir;
+  }
+
+  it('à jour : behind 0, baseAhead 0', async () => {
+    expect(await gitReader(gitRun(tracking())).sync('main')).toEqual({ behind: 0, baseAhead: 0 });
+  });
+
+  it('en retard sur @{u}, origin/main avancée : les commits comptés', async () => {
+    const dir = tracking();
+    git(dir, 'commit', '-q', '--allow-empty', '-m', 'sur feat/x');
+    git(dir, 'branch', '-f', 'main', git(dir, 'commit-tree', 'main^{tree}', '-p', 'main', '-m', 'sur main'));
+    git(dir, 'fetch', '-q', 'origin');
+    git(dir, 'reset', '-q', '--hard', 'HEAD~2');
+    expect(await gitReader(gitRun(dir)).sync('main')).toEqual({ behind: 2, baseAhead: 1 });
+  });
+
+  it('sans @{u} : behind null ; origin/<base> absente : baseAhead null', async () => {
+    expect(await gitReader(gitRun(repo())).sync('main')).toEqual({ behind: null, baseAhead: null });
+  });
+
+  it('une base hors d\'okRef : null sans lancer git', async () => {
+    const calls: string[][] = [];
+    expect(await gitReader(async (args) => { calls.push(args); return null; }).sync('--output=/tmp/x')).toBeNull();
+    expect(calls).toEqual([]);
+  });
+});
+
 describe('gitRun : seulement GIT_READ', () => {
   it('une sous-commande qui écrit n\'est pas lancée', async () => {
     const dir = repo();
