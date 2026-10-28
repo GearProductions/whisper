@@ -71,8 +71,8 @@ des processus.
 | `core/runner` | les commandes du projet (F-111) : le fichier du projet, `<dossier du parent>/.vibecoder/project.json` (`projectPath`, la ligne de `.git/info/exclude` : `withExclude`), lu (`parseProject`), une proposition fusionnée dans le fichier existant (`mergeProject`), une commande par son rang (`commandAt` : shell du fichier, préfixe `commandPrefix` — celui du fichier, du réglage, ou la box de l'agent, le même pour `gh`), les demandes de l'agent (`requestsOf`), la fin d'un journal, la recette en étapes (`setupSteps`, `createSteps`, `removeSteps` ; la branche et la base par l'environnement, `recipeEnv` ; le dossier d'un worktree, `worktreeDir`) (I-42) |
 | `technicals/process` | les processus lancés pour l'utilisateur : détachés, marqués dans leur environnement, arrêtés avec ce qu'ils ont lancé (SIGTERM, SIGKILL après 5 s), leur journal ; `writeNew` (I-43) ; une étape de la recette attendue jusqu'à sa fin (`runOnce` : l'entrée fermée, un délai, la dernière ligne utile) |
 | `technicals/git` | git en lecture seule (`gitRun`, `gitReader`, `GIT_READ`, plus `worktree list`) : les faits d'une branche ou d'une PR chargée, un fichier à un ref, un commit et son diff, le commit où la branche part de sa base (`forkPoint`), les branches locales (`branches`), le retard sur `@{u}` et sur `origin/<base>` (`sync`) (I-39) |
-| `technicals/github` | gh en lecture seule, derrière le préfixe (`ghRun`, `githubReader`, `GH_READ`) : la PR d'une branche, les PR ouvertes du dépôt en trois listes (`openPrs`), l'état d'une PR (F-112, I-39) |
-| `technicals/direct` | les actions directes (F-114, I-39) : `directRunner` → `commit`, `publish`, `sameRepo`, `loadPr`, `toBase`, `fetchBranch`, `pullBranch`, `switchTo`, `stash`, `pull`, `rebase`, `push`, `fetchAll`, le texte de `pr-<n>.json` (`prCardText`), une liste fermée de commandes (`DIRECT_GIT`, `DIRECT_GH`), 60 s, `direct.log` |
+| `technicals/github` | gh en lecture seule, derrière le préfixe (`ghRun`, `githubReader`, `GH_READ`, `GH_LOGIN`) : la PR d'une branche, les PR ouvertes du dépôt en trois listes (`openPrs`), l'état d'une PR, l'identifiant de l'utilisateur (`login`, `okLogin`) (F-112, I-39) |
+| `technicals/direct` | les actions directes (F-114, I-39) : `directRunner` → `commit`, `publish`, `sameRepo`, `loadPr`, `toBase`, `fetchBranch`, `pullBranch`, `switchTo`, `stash`, `pull`, `rebase`, `push`, `fetchAll`, `requestReview`, le texte de `pr-<n>.json` (`prCardText`), une liste fermée de commandes (`DIRECT_GIT`, `DIRECT_GH`), 60 s, `direct.log` |
 | `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `paste`, `windows-helper`, `pipewire`, `clipboard`, `selection`, `pocket-tts`, `claude`, `editor` (un dossier, ou un fichier de VibeCoder, à une ligne ; le terminal d'un dossier, `findTerminal`), `journal`, `images`, `paths`, `config-file` |
 | `helpers` | découper une commande, français ou anglais, une ligne, `async-queue` (l'entrée d'un processus d'agent) |
 
@@ -1272,7 +1272,14 @@ du champ de la conversation (ci-dessous). La vue montre :
   du dépôt, demandées à gh à l'ouverture, F-112) — un clic sur une PR la
   suit et la charge (F-101, F-114), puis ses choix (ci-dessous) — et
   *Branches locales* (la branche active marquée) — un clic : *Aller sur la
-  branche* (`switch-branch`) ;
+  branche* (`switch-branch`) ; un champ de recherche filtre l'onglet ouvert
+  (chaque mot, sans casse, dans le numéro, le titre ou l'auteur d'une PR, le
+  nom d'une branche), dans les listes déjà lues, sans appel à gh ; dans
+  *Toutes les PR*, *Me demander en relecture* (`request-review`, direct) sur
+  une PR ni des miennes ni déjà à relire : au clic, l'identifiant lu (`gh api
+  user --jq .login`), puis `gh pr edit <n> --add-reviewer <identifiant>`, et
+  les trois listes relues (la PR passe dans *À relire*) ; son dernier échec
+  sous les onglets ;
 - la PR chargée et ses choix ; *Revenir sur la branche principale* ;
   *Créer une branche* ; *Retirer le worktree* (sur un enfant) ;
   *Actualiser* (`fetch`, F-114 : l'état distant, pour *Pull* et la pastille
@@ -1613,10 +1620,11 @@ d'avant, le skill ou le message dans la conversation, en cas de souci ;
 sauf celles que l'appli fait seule : *Retirer le worktree* (l'agent
 n'emporterait pas le robot), *Mettre de côté*, *Revenir sur la branche
 principale*, les choix d'une nouvelle demande (et *Créer une branche*),
-*Aller sur la branche*, *Pull*, *Rebase*, *Pousser* et *Actualiser*. Les
+*Aller sur la branche*, *Pull*, *Rebase*, *Pousser*, *Actualiser* et *Me
+demander en relecture*. Les
 `id` (`commit`, `publish`, `load-pr`, `base`, `pr-here`, `pr-worktree`,
 `remove-worktree`, `stash`, `unload-pr`, `new-here`, `new-worktree`,
-`switch-branch`, `pull`, `rebase`, `push`, `fetch`) restent ceux d'`actions.<langue>.json` : leur gabarit est
+`switch-branch`, `pull`, `rebase`, `push`, `fetch`, `request-review`) restent ceux d'`actions.<langue>.json` : leur gabarit est
 le *via* ; une entrée retirée retire les deux boutons.
 - *✓ Commiter* : `git commit -F <sorties>/commit.md` (rien d'ajouté à
   l'index : ce que *Préparer le commit* y a mis), puis `commit.md`
@@ -1674,6 +1682,11 @@ le *via* ; une entrée retirée retire les deux boutons.
 - *Actualiser* (`fetch`) : `git fetch origin` (tout le distant), arguments
   fixes, puis un relevé : *Pull* et la pastille de *Rebase* (F-92) suivent
   ce fetch. Jamais de fetch au relevé ni à intervalles.
+- *Me demander en relecture* (`request-review`, `{ pr }`) : une PR de
+  *Toutes les PR*, ni des miennes ni déjà à relire (le dernier relevé), sinon
+  refusé ; l'identifiant lu (`gh api user --jq .login`, en échec : rien de
+  lancé), puis `gh pr edit <n> --add-reviewer <identifiant>`, et les trois
+  listes relues.
 
 *Pull* et *Rebase* sont permis avec des modifications en cours :
 `--autostash` les met de côté le temps de la commande et les reprend après,
@@ -2077,7 +2090,9 @@ bancs de comparaison.
   seul clic de *Pousser*, jamais à la suite d'un rebase), `fetch origin`
   (au seul clic d'*Actualiser* : jamais au relevé ni à intervalles) ;
   `DIRECT_GH` : `pr review <n>
-  --<verdict> --body-file <fichier>`, et `pr view` pour lire), sans shell,
+  --<verdict> --body-file <fichier>`, `pr edit <n> --add-reviewer
+  <identifiant>` (au seul clic de *Me demander en relecture*, l'identifiant
+  aux seuls caractères d'un identifiant GitHub), et `pr view` pour lire), sans shell,
   git et gh derrière le préfixe, 60 s au plus ; leurs valeurs : une PR **entier
   positif**, un verdict des trois, une branche et une base refs sûrs
   (ci-dessous) pris du relevé (la base d'une PR à charger : celle que gh
@@ -2097,7 +2112,9 @@ bancs de comparaison.
   le repli git, sans `--force`. Hors de là, en lecture seule :
   gh lancé sans shell (I-27), derrière le préfixe (F-111), seulement pour
   `pr view` et `pr list` (`GH_READ` ; `pr list --author @me`, `--search
-  review-requested:@me`, sans filtre), aux autres arguments fixes ; une
+  review-requested:@me`, sans filtre), aux autres arguments fixes, et une
+  seule commande `gh api`, exacte (`GH_LOGIN` : `api user --jq .login`,
+  l'identifiant de l'utilisateur ; aucune autre forme, `-X PATCH` écrirait) ; une
   branche (lue par git) passe après `--` et doit être un ref sûr (ci-dessous),
   une PR est un **entier positif** ; aucun texte d'une page n'en devient un
   argument. Et git lancé sans shell

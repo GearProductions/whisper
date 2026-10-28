@@ -597,6 +597,12 @@ branches à la place de l'étape (un nouveau clic la referme). Elle montre :
   l'on vous demande en relecture), *Toutes les PR* ; un clic sur l'une
   d'elles la charge, son nom apparaît aussitôt dans le bouton ;
 - *Branches locales* : un clic passe sur la branche (`git switch`) ;
+- un champ de recherche, à droite des onglets, filtre l'onglet ouvert : le
+  numéro, le titre ou l'auteur d'une PR, le nom d'une branche ;
+- dans *Toutes les PR*, *Me demander en relecture* sur une PR d'un autre où
+  l'on ne vous demande pas encore : au clic, l'appli vous ajoute comme
+  relecteur sur GitHub (`gh pr edit --add-reviewer`), et la PR passe dans
+  *À relire* ;
 - *Revenir sur la branche principale* ; *Créer une branche* ; *Retirer le
   worktree* (sur le robot d'un worktree) ; *Actualiser* (`git fetch origin` :
   l'état du distant, pour *Pull* et *Rebase*).
