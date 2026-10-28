@@ -50,3 +50,16 @@ describe('l’état d’une PR', () => {
     expect(await githubReader(answering('{"state":"DRAFT"}')).prState(7)).toBeNull();
   });
 });
+
+describe('l’identifiant de l’utilisateur', () => {
+  it('la ligne de gh api user, sans son saut de ligne', async () => {
+    expect(await githubReader(answering('Reykugo-Gear\n')).login()).toBe('Reykugo-Gear');
+  });
+
+  it('gh en échec, ou autre chose qu’un identifiant : null', async () => {
+    expect(await githubReader(answering(null)).login()).toBeNull();
+    expect(await githubReader(answering('')).login()).toBeNull();
+    expect(await githubReader(answering('-x')).login()).toBeNull();
+    expect(await githubReader(answering('a b')).login()).toBeNull();
+  });
+});

@@ -2,11 +2,12 @@
  *  modèle : `gh` lancé sans shell (execFile, I-27), derrière le préfixe donné
  *  (la box où gh est installé : core/runner, commandPrefix), au dossier du
  *  dépôt, 15 s au plus, null s'il manque ou échoue (I-29). Une liste fermée de
- *  sous-commandes en lecture (GH_READ : `pr view`, `pr list`) ; les autres
+ *  sous-commandes en lecture (GH_READ : `pr view`, `pr list`), plus une
+ *  commande exacte (GH_LOGIN : `api user --jq .login`) ; les autres
  *  arguments sont fixes, sauf une branche lue par git (okRef, après `--`) et
  *  un numéro de PR (un entier positif). La PR d'une branche (prForBranch), les
  *  PR ouvertes du dépôt en trois listes (openPrs : les miennes, à relire,
- *  toutes), l'état d'une PR (prState).
+ *  toutes), l'état d'une PR (prState), l'identifiant de l'utilisateur (login).
  *  Ne connaît pas : VibeCoder, Electron, la configuration.
  *  Utilisé par : app/controllers/vibecoder. */
 import { execFile } from 'node:child_process';
@@ -24,10 +25,12 @@ export type GhRun = (args: string[]) => Promise<string | null>;
 export type GhPr = { number: number; title: string; url: string; state: string; base: string; head: string };
 
 // <prefix…> gh <args>, au dossier `dir` : sans shell, 15 s, null en cas
-// d'échec ; une sous-commande hors de GH_READ n'est pas lancée.
+// d'échec ; une sous-commande hors de GH_READ, ou une autre commande que
+// GH_LOGIN exactement, n'est pas lancée.
 export function ghRun(dir: string, prefix: string[]): GhRun {
   return (args) => new Promise((resolve) => {
-    if (!GH_READ.some(([a, b]) => args[0] === a && args[1] === b)) return resolve(null);
+    const login = args.length === GH_LOGIN.length && GH_LOGIN.every((a, i) => args[i] === a);
+    if (!login && !GH_READ.some(([a, b]) => args[0] === a && args[1] === b)) return resolve(null);
     const argv = [...prefix, 'gh', ...args];
     try {
       execFile(argv[0], argv.slice(1), { cwd: dir, timeout: 15_000, maxBuffer: 8 * 1024 * 1024, windowsHide: true },
@@ -40,6 +43,8 @@ export function ghRun(dir: string, prefix: string[]): GhRun {
 
 const parse = (text: string | null): unknown => { try { return text === null ? null : JSON.parse(text); } catch { return null; } };
 const okNumber = (n: unknown): n is number => Number.isInteger(n) && (n as number) > 0;
+// Un identifiant GitHub : lettres, chiffres, tirets, 39 au plus, sans tiret en tête.
+export const okLogin = (s: unknown): s is string => typeof s === 'string' && /^[A-Za-z0-9][A-Za-z0-9-]{0,38}$/.test(s);
 
 // Tout passe par `run`. Une branche hors d'okRef, un numéro qui n'est pas un
 // entier positif : null sans lancer gh.
@@ -68,7 +73,8 @@ export function githubReader(run: GhRun) {
     },
     // L'identifiant GitHub de l'utilisateur (gh api user), ou null.
     async login(): Promise<string | null> {
-      throw new Error('not implemented');
+      const login = (await run([...GH_LOGIN]))?.trim() ?? '';
+      return okLogin(login) ? login : null;
     },
     // OPEN, CLOSED ou MERGED, ou null.
     async prState(n: unknown): Promise<string | null> {
