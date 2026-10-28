@@ -414,6 +414,11 @@ describe('les actions directes', () => {
     expect(ids.every((id) => DIRECT_ACTIONS.includes(id) && DIRECT_ONLY.includes(id))).toBe(true);
   });
 
+  it('switch-branch, pull, rebase, push, fetch : directes, et seulement par l\'appli', () => {
+    const ids = ['switch-branch', 'pull', 'rebase', 'push', 'fetch'];
+    expect(ids.every((id) => DIRECT_ACTIONS.includes(id) && DIRECT_ONLY.includes(id))).toBe(true);
+  });
+
   it('chaque action seulement directe est une action directe', () => {
     expect(DIRECT_ONLY.every((id) => DIRECT_ACTIONS.includes(id))).toBe(true);
   });
