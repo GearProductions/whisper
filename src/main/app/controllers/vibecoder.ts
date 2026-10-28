@@ -166,6 +166,8 @@ const ERRORS: Record<VibeLang, Record<MessageError | 'agent' | 'action' | 'args'
 const last = new Map<string, VibeView>();  // le dernier relevé envoyé, par agent : ce que la page désigne
 const turnNote = new Map<string, { text: string; busy: boolean }>();  // la note au début du tour (surlignage)
 const ghCache = new Map<string, { at: number; value: unknown; pending: boolean }>();  // par question à gh
+type GitState = { branches: string[] | null; sync: { behind: number | null; baseAhead: number | null } | null };
+const gitCache = new Map<string, { key: string; at: number; value: GitState | null; pending: boolean }>();  // par agent : branches et sync
 const directs = new Map<string, Record<string, NonNullable<VibeAction['direct']>>>();  // par agent : ses actions directes (F-114)
 const prsFound = new Map<string, { mine: unknown[]; review: unknown[]; all: unknown[] } | false>();   // les PR ouvertes, par agent (la dernière réponse de gh ; false : en échec)
 const requests = new Map<string, { text: string; branch?: string }>();  // new-request : la demande partie, par agent (en mémoire), puis sa branche
@@ -205,13 +207,30 @@ function fromGh<T>(key: string, ask: () => Promise<T | null>): T | null {
   return (hit?.value ?? null) as T | null;
 }
 
+// Les branches locales et l'état distant (git en lecture) : la dernière réponse pour ce HEAD et cette base ;
+// HEAD ou la base changés (ou sa clé effacée : une action directe finie), plus vieille que 60 s, ou ↻ : redemandée en fond,
+// et un relevé de plus si elle change. Le relevé ne les attend jamais (sous Windows, chaque git compte).
+function fromGit(agentId: string, key: string, ask: () => Promise<GitState>): GitState | null {
+  const hit = gitCache.get(agentId);
+  if (!hit || (!hit.pending && (hit.key !== key || Date.now() - hit.at > GH_MS))) {
+    const entry = { key, at: Date.now(), value: hit?.value ?? null, pending: true };
+    gitCache.set(agentId, entry);
+    ask().then((value) => {
+      const changed = JSON.stringify(value) !== JSON.stringify(entry.value);
+      Object.assign(entry, { value, pending: false, at: Date.now() });
+      if (changed) refreshVibe({ now: true });
+    });
+  }
+  return hit?.value ?? null;
+}
+
 // Relève l'agent affiché en VibeCoder et envoie son parcours au panneau ;
 // sinon null, une fois. Un relevé à la fois, au plus un par seconde (sauf
 // `now`, ou un autre agent) : le suivant attend ; un appel pendant un relevé
 // se résout à sa fin (panelReady attend ainsi le premier). `fresh` (↻) : les
 // réponses de gh sont redemandées.
 export async function refreshVibe({ now = false, fresh = false }: { now?: boolean; fresh?: boolean } = {}) {
-  if (fresh) for (const entry of ghCache.values()) entry.at = 0;
+  if (fresh) for (const entry of [...ghCache.values(), ...gitCache.values()]) entry.at = 0;
   syncWorktrees(); // Relire dans un worktree : le robot temporaire arrive ou part (F-110)
   const cfg = loadConfig();
   const agent = vibeAgent(cfg);
@@ -371,11 +390,6 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const git = gitReader(gitRun(agent.dir));
   // La copie de travail, dans les deux parcours. Relire : la PR chargée (sa fiche), comparée à la base
   // de sa fiche, sous le nom de sa branche ; sans fiche, rien à lire. La fiche de la PR suivie : les deux parcours.
-  // Les branches locales et l'état distant (git en lecture, aucun fetch), lus pendant facts : sync sur la
-  // base du relevé d'avant (sans « origin/ »), relu après si elle a changé. Le relevé n'attend pas un tour de git de plus.
-  const strip = (b: string) => b.replace(/^origin\//, '');
-  const known = lastView(agent.id)?.repo?.base;
-  const early = Promise.all([git.branches(), known ? git.sync(strip(known)) : null]);
   const created = flow === 'create' ? await git.facts() : null;
   const out = vibeOutDir(agent.id);
   if (created) followBranch(out, created.branch, created.base);
@@ -384,8 +398,14 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const card = pr ? json(outputs[`pr-${pr}.json`]?.text) : null;
   const base = branchName(card?.base);
   const facts = created ?? (card && flow === 'review' ? await git.facts(undefined, base ? `origin/${base}` : undefined) : null);
-  const [branches, earlySync] = await early;
-  const sync = !facts ? null : known && strip(known) === strip(facts.base) ? earlySync : await git.sync(strip(facts.base));
+  // Les branches locales et l'état distant (git en lecture, aucun fetch), en fond (fromGit) : sync prend la base sans « origin/ ».
+  const syncBase = facts?.base.replace(/^origin\//, '') ?? null;
+  const gitState = fromGit(agent.id, `${facts?.head ?? ''} ${syncBase ?? ''}`, async () => {
+    const [branches, sync] = await Promise.all([git.branches(), syncBase !== null ? git.sync(syncBase) : null]);
+    return { branches, sync };
+  });
+  const branches = gitState?.branches ?? null;
+  const sync = facts ? gitState?.sync ?? null : null;
   // gh, sans agent : Créer, la PR de la branche (pas sur la base) ; l'état de la PR suivie ; les PR ouvertes (setVibe({ prs })).
   const gh = githubReader(ghRun(agent.dir, agentPrefix(agent, cfg)));
   const feature = created && created.branch !== 'HEAD' && created.base !== created.branch && !created.base.endsWith(`/${created.branch}`)
@@ -723,7 +743,9 @@ function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, view: Vib
     job = async () => moved(await clean() ? await run.toBase(branch, base) : refused(DIRTY));
   }
   directs.set(agent.id, mine);
-  void track(mine, id, job);
+  // Fini, les branches et l'état distant relus (Actualiser, Pull, Rebase… : HEAD ne bouge pas toujours) ;
+  // l'ancienne réponse reste affichée d'ici là.
+  void track(mine, id, () => job().finally(() => { const hit = gitCache.get(agent.id); if (hit) hit.key = ''; }));
   return { ok: true };
 }
 
