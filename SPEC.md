@@ -1694,7 +1694,9 @@ le *via* ; une entrée retirée retire les deux boutons.
 log HEAD..@{u}` (en retard : *Pull* actif ; à jour, ou pas de branche
 suivie : grisé, avec sa raison) et `git
 log HEAD..origin/<base>` (des commits : la pastille de *Rebase*, toujours
-permis).
+permis). Ces lectures, et la liste des branches locales, se font en fond :
+le relevé ne les attend pas ; leur réponse vaut tant que `HEAD` et la base
+ne bougent pas, 60 s au plus, et jusqu'à la fin d'une action directe ou ↻.
 - *Mettre de côté* (F-110) : `git stash push -u`, arguments fixes (aucune
   autre forme de `git stash`), puis un `git status` frais : propre → ✓.
   Rien d'autre ne suit, jamais de changement de branche.
