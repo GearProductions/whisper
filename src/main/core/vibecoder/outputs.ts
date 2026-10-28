@@ -15,7 +15,7 @@ import type { ReadingCase, VibeCheck, VibeQuestion } from 'shared/bridge';
 // pr-<n>-commits.md, pr-<n>-ecran.md, pr-<n>-review.json, pr-<n>-worktree.json ; et les lectures
 // invariants/<blob>.md.
 export const OUTPUTS: readonly string[] = [
-  'questions.md', 'align.md', 'review.md', 'commit.md', 'checks.json', 'ponytail.md', 'pr.json', 'ci.md', 'prs.json',
+  'questions.md', 'align.md', 'review.md', 'commit.md', 'checks.json', 'ponytail.md', 'pr.json', 'ci.md',
   'lancement.json',   // la proposition des commandes du projet (skill lancement), adoptée par controllers/processes
   'ponytail-applied.json', // { applied: ["<fichier>:L<ligne>", …] } : les remarques de ponytail.md que la course apply a appliquées
   'new-request.json',      // { branch } : la branche d'une nouvelle demande (skill nouvelle-demande)
