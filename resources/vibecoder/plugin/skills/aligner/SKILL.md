@@ -13,7 +13,7 @@ allowed-tools: "Read, Glob, Grep, Write, Bash(git show *), Bash(git diff *), Bas
 
 `$ARGUMENTS` = `<lang> <out> <ref>`. `lang`: the user's language, not used here — code-related work: `align.md` and your answer in English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `ref`:
 - `WORKTREE`: the current branch, uncommitted and untracked files included. Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists; range `<base>...HEAD`.
-- `refs/vibecoder/pr/<n>`: a pull request, never checked out — read with `git show <ref>:<path>`, search with `git grep <pattern> <ref>`; base = `base` in `<out>/pr-<n>.json`, range `origin/<base>...<ref>`.
+- `HEAD`: a pull request, checked out in this folder — read its files in the folder; base = `base` of the `<out>/pr-<n>.json` whose `head` is the current branch (`git rev-parse --abbrev-ref HEAD`; on a `pr-<n>` branch, that `<n>`); none → as for `WORKTREE`; range `origin/<base>...HEAD`.
 
 Read: the note (under `docs/tickets/`, named like the branch, or the one the range adds or changes) — its « Ce que ça ne doit pas faire » and « Forme »; the invariant tests the range adds or changes (`tests/invariants/` folders, or where `AGENTS.md`, if present, puts them); the code of the Forme's modules, if it exists; the project's list of invariants, if any (e.g. `SPEC.md`); the guide (`docs/dev_guide/*.html`) §3.1 to §3.5, if present.
 

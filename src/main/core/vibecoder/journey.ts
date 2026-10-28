@@ -6,13 +6,12 @@
  *  autre est grisée et celles qui n'ont pas encore de sens (hidden : masquées,
  *  leur raison d'être grisée gardée ; l'étape PR d'après l'état de la PR, qui
  *  ne fait que masquer) — Créer ou Relire, le mode Vibe en cours ou pas
- *  (vibe : les validations tenues pour données ; note 0.12.0-mode-vibe), où relire la PR et où
- *  commencer une demande, ici ou dans un worktree, et le retrait du worktree d'un enfant (note
- *  0.12.0-worktrees : pr-here grisé s'il y a des modifications dans le dossier (checkout), masqué sur sa branche et sur le robot
- *  d'une PR ; pr-worktree,
- *  new-worktree masqués sur un enfant ; remove-worktree sur un enfant seulement ; les quatre grisés
- *  pendant une recette ; prWorktree et featureWorktree, place, masquent l'autre choix ; remove-worktree
- *  directe seulement ; le résultat de new-worktree comme celui d'une action directe), ce que l'appli fait aussi elle-même (F-114 : en cours, dernier
+ *  (vibe : les validations tenues pour données ; note 0.12.0-mode-vibe), les choix de lieu d'une PR
+ *  chargée, d'un Décharger et d'une nouvelle demande retenue (request), montrés et grisés par core/vibecoder
+ *  place d'après le dossier (checkout, les deux parcours), et le retrait du worktree d'un enfant (sur un enfant
+ *  seulement, grisé pendant une recette) ; Relire : la PR chargée (sa fiche) ouvre ses choix, l'étape PR
+ *  faite le dossier sur sa tête (ou son robot), les étapes suivantes grisées sinon (elsewhere ; note
+ *  0.12.0-creer-relire-meme-dossier), ce que l'appli fait aussi elle-même (F-114 : en cours, dernier
  *  résultat ; les règles : la note du ticket 0.8.0), les courses (une action
  *  d'étape court à part : grisée par blockedBy de runs, pas par la
  *  conversation qui travaille ; note 0.9.0 des actions indépendantes ; le
@@ -38,7 +37,6 @@
  *  un chemin du dossier de l'agent existe, `list` donne les fichiers d'un
  *  dossier).
  *  Utilisé par : app/controllers/vibecoder (refreshVibe). */
-import type { Place } from 'core/runner';
 import type {
   VibeAction, VibeCheck, VibeComment, VibeFlow, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePr,
   VibePrItem, VibeRecipe, VibeRun, VibeStepId, VibeTestFile, VibeView, VibeWorktree,
@@ -47,6 +45,7 @@ import { DIRECT_ACTIONS, DIRECT_ONLY, prNumber, SKILL_MODELS, templateVars, type
 import { markState, type Marks } from './marks';
 import { parseNote } from './note';
 import { json, parseChecklist, parseQuestions, parseReading } from './outputs';
+import { onPr, placeReason, placeShown, type PlaceState } from './place';
 import { blockedBy, codeLock, ownRun } from './runs';
 import { blobSha, caseLines, caseTitles, isInvariantTest, readingOf } from './test-files';
 
@@ -72,16 +71,16 @@ export type JourneyInput = {
   marks: Marks;
   draft: VibeComment[];
   worktree?: VibeWorktree | null;                   // Relire : la PR suivie dans un worktree (F-110)
-  place?: { pr: Place; feature: Place };            // prWorktree, featureWorktree du fichier du projet ; absent : 'ask'
   child?: boolean;                                  // l'agent est l'enfant d'un worktree (agent.parent)
   recipe?: VibeRecipe | null;                       // la recette de la famille ; en cours : les actions de worktree grisées
-  // Relire : le dossier lui-même (repo est le ref de la PR), sa branche et s'il a des modifications (git status), pour Ici.
+  // Le dossier (les deux parcours) : sa branche et s'il a des modifications (git status), pour les choix de lieu.
   checkout?: { branch: string; dirty: boolean } | null;
+  request?: string | null;                          // la branche de la nouvelle demande retenue, qui attend son choix
   // Lu par gh, sans agent (technicals/github) : Créer, la PR de la branche ; Relire,
   // les PR à relire et l'état de la PR suivie. Absent ou null : les sorties des skills.
   github?: { pr?: Record<string, unknown> | null; prs?: unknown[] | null; state?: string | null };
   actions: ActionDef[];
-  direct?: Record<string, NonNullable<VibeAction['direct']>>;   // par id de DIRECT_ACTIONS (et new-worktree) : en cours, dernier résultat (F-114)
+  direct?: Record<string, NonNullable<VibeAction['direct']>>;   // par id de DIRECT_ACTIONS : en cours, dernier résultat (F-114)
   who: Record<string, string>;                      // par id d'action : qui travaille
   model: Record<string, string | null>;             // par id d'action : le modèle de son skill en sous-contexte (forkedModel)
   skills: string[];
@@ -114,6 +113,7 @@ const TEXT = {
     emptyDraft: 'Le brouillon de revue est vide', noCommitMd: 'Préparer d\'abord le commit', noQuestion: 'Aucune question ouverte',
     openQuestions: 'Répondre d\'abord aux questions de la note', unvalidated: 'Valider d\'abord la note', started: 'Déjà en cours',
     noFixup: 'Aucun commit fixup!', dirty: 'Des modifications en cours', preparing: 'Une recette du projet est en cours',
+    elsewhere: 'Passer d\'abord sur la branche de la PR',
     merged: 'PR déjà fusionnée : rien à relire', closed: 'PR fermée : rien à relire',
     checklist: ['La note est à jour', 'Les invariants passent', 'Chaque diff a été relu', 'Un commit par module, fixups repliés',
       'AGENTS.md à jour si une convention a changé'],
@@ -131,6 +131,7 @@ const TEXT = {
     emptyDraft: 'The review draft is empty', noCommitMd: 'Prepare the commit first', noQuestion: 'No open question',
     openQuestions: 'Answer the note\'s questions first', unvalidated: 'Approve the note first', started: 'Already running',
     noFixup: 'No fixup! commit', dirty: 'Uncommitted changes', preparing: 'A project recipe is running',
+    elsewhere: 'Switch to the PR branch first',
     merged: 'PR already merged: nothing to review', closed: 'PR closed: nothing to review',
     checklist: ['The note is up to date', 'The invariants pass', 'Every diff has been reviewed', 'One commit per module, fixups folded',
       'AGENTS.md updated if a convention changed'],
@@ -141,9 +142,6 @@ const TEXT = {
 type Reason = { [K in keyof typeof TEXT.fr]: typeof TEXT.fr[K] extends string ? K : never }[keyof typeof TEXT.fr];
 
 const FIXUP = /^(fixup|squash|amend)! /;
-
-// Les actions de worktree : grisées pendant une recette de la famille (une à la fois).
-const RECIPE_ACTIONS = ['pr-here', 'pr-worktree', 'new-worktree', 'remove-worktree'];
 
 // Le chemin, dans le dépôt, du module `bare` de la Forme (souvent sans src/ ni
 // le dossier du paquet) d'après un fichier qui est lui ou qu'il contient ;
@@ -244,7 +242,14 @@ export function vibeView(input: JourneyInput): VibeView {
     number, title: str(card?.title), url: str(card?.url), author: str(card?.author), base: str(card?.base), head: str(card?.head),
     body: str(card?.body), state: ['OPEN', 'CLOSED', 'MERGED'].includes(card?.state as string) ? card!.state as VibePr['state'] : null,
   } : null;
-  const loaded = flow === 'review' && !!card && repo !== null;
+  // Relire : la fiche de la PR ouvre ses choix de lieu ; le dossier sur sa tête (ou son robot), l'étape PR est faite.
+  const loaded = flow === 'review' && !!card;
+  const place: PlaceState = {
+    head: loaded ? pr!.head : null, branch: input.checkout?.branch ?? null, dirty: !!input.checkout?.dirty,
+    child: !!input.child, robot: !!input.worktree?.temp, prWorktree: !!input.worktree, request: input.request ?? null,
+    recipe: !!input.recipe?.running,
+  };
+  const here = loaded && onPr(place);
   const list = flow === 'review' ? gh.prs ?? json(out('prs.json')) : null;
   const prs: VibePrItem[] | null = Array.isArray(list)
     ? (list as (Record<string, unknown> | null)[]).flatMap((p) => {
@@ -321,9 +326,9 @@ export function vibeView(input: JourneyInput): VibeView {
   } else {
     const boxes = checklist.filter((c) => c.done).length;
     done = {
-      pr: loaded,
-      note: loaded && (!note || judged(note.mark)),
-      invariants: loaded && invariants.every((f) => f.cases.every((c) => judged(f.marks[c]))),
+      pr: here,
+      note: here && (!note || judged(note.mark)),
+      invariants: here && invariants.every((f) => f.cases.every((c) => judged(f.marks[c]))),
       commits: !!n && out(`pr-${n}-commits.md`) !== null,
       ecran: checklist.length > 0 && boxes === checklist.length,
       revue: !!n && out(`pr-${n}-review.json`) !== null,
@@ -381,13 +386,14 @@ export function vibeView(input: JourneyInput): VibeView {
     if (v.has('files') && !invariants.length) return 'nothingToRead';   // tout lu : on peut relire (args.file)
     // Relire : ce qui lit la PR attend qu'elle soit chargée (l'étape PR, elle, prend son numéro de la page).
     if (flow === 'review' && !loaded && d.step !== 'pr' && (v.has('pr') || v.has('ref'))) return pr ? 'loadFirst' : 'noPrChosen';
+    // Chargée, le dossier ailleurs que sur sa tête : les étapes après PR lisent la copie de travail.
+    if (flow === 'review' && loaded && !here && d.step !== null && d.step !== 'pr') return 'elsewhere';
     if (v.has('draft') && !input.draft.length) return 'emptyDraft';
     if (d.id === 'commit' && !commitMd) return 'noCommitMd';
     if (d.id === 'answers' && !questions.length) return 'noQuestion';
     if (d.id === 'fixups' && !fixups) return 'noFixup';
-    if (RECIPE_ACTIONS.includes(d.id) && input.recipe?.running) return 'preparing';
-    if (d.id === 'pr-here' && input.checkout?.dirty) return 'dirty';   // git switch : jamais sur des modifications
-    return null;
+    if (d.id === 'remove-worktree' && place.recipe) return 'preparing';
+    return placeReason(d.id, place);
   };
   // Pas encore de sens : masquée (sa raison reste). L'étape PR (Créer) d'après l'état de la PR, sans griser :
   // une demande juste après pr ne doit pas tomber sur un relevé en retard.
@@ -399,22 +405,17 @@ export function vibeView(input: JourneyInput): VibeView {
   const prShown: Record<string, boolean> = {
     pr: !prState, ci: prState === 'OPEN', rc: prState === 'OPEN', base: prState === 'MERGED' && !child, release: prState === 'MERGED',
   };
-  // Ici ou dans un worktree (les deux parcours), sans griser : Relire, la PR chargée, Ici hors de sa branche, Dans
-  // un worktree pas déjà là ni sur un enfant ; Nouvelle demande dans un worktree, sur une tête ; ce que prWorktree
-  // ou featureWorktree a choisi masque l'autre. Retirer le worktree : sur un enfant, sa PR fusionnée (Créer) ou
-  // sur le robot d'une PR (Relire).
-  const place = input.place ?? { pr: 'ask', feature: 'ask' };
-  const placeShown: Record<string, boolean> = {
-    'pr-here': loaded && input.checkout?.branch !== pr!.head && !input.worktree?.temp && place.pr !== 'worktree',
-    'pr-worktree': loaded && !input.worktree && !child && place.pr !== 'here',
-    'new-worktree': !child && place.feature !== 'here',
-    'remove-worktree': child && (flow === 'create' ? prState === 'MERGED' : !!input.worktree?.temp),
+  // Les choix de lieu (core/vibecoder place), sans griser. Retirer le worktree : sur un enfant, sa PR fusionnée
+  // (Créer) ou sur le robot d'une PR (Relire).
+  const shown: Record<string, boolean> = {
+    ...placeShown(place),
+    'remove-worktree': child && (flow === 'create' ? prState === 'MERGED' : place.robot),
   };
   // Écrire les invariants, sans ligne « → invariant » dans la note : masquée sans griser, elle aussi (un clic
   // reste possible si le relevé retarde sur une ligne ajoutée ; runs.test.ts, invariant, le clique ainsi).
   const hidden = (d: ActionDef, reason: Reason | null) =>
     (flow === 'create' && ((Object.hasOwn(prShown, d.id) && !prShown[d.id]) || (d.id === 'invariants' && !!note && !invLines)))
-    || (Object.hasOwn(placeShown, d.id) && !placeShown[d.id])
+    || (Object.hasOwn(shown, d.id) && !shown[d.id])
     || (reason !== null && notYet.has(reason));
   const actions: VibeAction[] = input.actions
     .filter((d) => (d.flow === 'both' || d.flow === flow) && (d.id !== 'guide' || input.skills.includes('gear-guide')))
@@ -426,7 +427,7 @@ export function vibeView(input: JourneyInput): VibeView {
         usesText: templateVars(d.text).includes('text'),
         ...(d.kind === 'prefill' ? { text: d.text } : {}),
         primary: d.id === primary, disabled: d.kind === 'prefill' ? null : held(d) ?? (reason && T[reason]), hidden: hidden(d, reason),
-        ...(DIRECT_ACTIONS.includes(d.id) || d.id === 'new-worktree' ? {
+        ...(DIRECT_ACTIONS.includes(d.id) ? {
           direct: { ...input.direct?.[d.id] ?? { running: false, last: null }, ...(DIRECT_ONLY.includes(d.id) ? { only: true as const } : {}) },
         } : {}),
       };
@@ -438,6 +439,7 @@ export function vibeView(input: JourneyInput): VibeView {
     error: input.error,
     steps: ORDER[flow].map((id) => ({ id, status: done[id] ? 'done' : id === current ? 'current' : 'todo', facts: stepFacts[id] ?? '', open: open(id) })),
     note, questions, modules, invariants, variants, commits: viewCommits, outputs, checklist, actions,
-    skills: input.skills, pr, prs, draft: input.draft, worktree: input.worktree ?? null, runs: input.runs, time: input.now,
+    skills: input.skills, pr, prs, draft: input.draft, worktree: input.worktree ?? null, runs: input.runs,
+    request: place.request ? { branch: place.request } : null, time: input.now,
   };
 }

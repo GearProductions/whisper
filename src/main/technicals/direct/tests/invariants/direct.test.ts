@@ -1,13 +1,18 @@
 // Invariant des actions directes de VibeCoder. Protégé : si un test échoue, corriger le code.
 //   Note 0.8.0, « Ce que ça ne doit pas faire » ; SPEC I-39, F-114 : le
-//   principal ne modifie le dépôt ou GitHub que par quatre actions, au clic de
-//   leur bouton, et seulement par une liste fermée de commandes (git commit,
-//   fetch, switch, pull, branch ; gh pr review, et gh pr view pour lire), sans
-//   shell (I-27), git et gh derrière le préfixe ; aucun texte d'une page n'en devient
+//   principal ne modifie le dépôt ou GitHub que par ses actions directes, au
+//   clic de leur bouton, et seulement par une liste fermée de commandes (git
+//   commit, fetch, switch, pull, branch, stash ; gh pr review, et gh pr view
+//   pour lire), sans shell (I-27), git et gh derrière le préfixe ; aucun texte d'une page n'en devient
 //   un argument (une PR : un entier positif ; un verdict : l'un des trois ;
 //   une branche : un ref sûr ; un fichier : écrit par l'appli dans les
 //   sorties). Les modules en lecture (technicals/git, technicals/github)
 //   restent en lecture.
+//   Note 0.12.0 docs/tickets/refactor/0.12.0-creer-relire-meme-dossier.md,
+//   « Ce que ça ne doit pas faire » : « Lancer git stash autrement que git
+//   stash push -u (arguments fixes, liste fermée DIRECT_GIT) » ; et une PR se
+//   charge par sa seule branche (git fetch origin <tête>), plus de
+//   refs/vibecoder/pr/<n>.
 // Un Launch qui relève ce qu'on lancerait, sans rien lancer ; et un faux
 // préfixe (node et un script) pour ce que gh recevrait vraiment.
 import fs from 'node:fs';
@@ -39,8 +44,8 @@ const CARD = JSON.stringify({ number: 7, title: 't', url: 'u', author: { login: 
 const commitMd = (text: string) => { fs.mkdirSync(OUT, { recursive: true }); fs.writeFileSync(path.join(OUT, 'commit.md'), text); };
 
 describe('seulement la liste fermée', () => {
-  it('DIRECT_GIT : commit, fetch, switch, pull, branch ; DIRECT_GH : pr review, pr view ; rien d’autre', () => {
-    expect([...DIRECT_GIT]).toEqual(['commit', 'fetch', 'switch', 'pull', 'branch']);
+  it('DIRECT_GIT : commit, fetch, switch, pull, branch, stash ; DIRECT_GH : pr review, pr view ; rien d’autre', () => {
+    expect([...DIRECT_GIT]).toEqual(['commit', 'fetch', 'switch', 'pull', 'branch', 'stash']);
     expect(DIRECT_GH.map((c) => c.join(' '))).toEqual(['pr review', 'pr view']);
   });
 
@@ -57,13 +62,34 @@ describe('seulement la liste fermée', () => {
     expect(calls).toEqual([[...PREFIX, 'gh', 'pr', 'review', '7', '--request-changes', '--body-file', path.join(OUT, 'pr-7-review-body.md')]]);
   });
 
-  it('loadPr : gh pr view (lecture), puis git fetch (tous deux derrière le préfixe) origin +pull/<n>/head:refs/vibecoder/pr/<n> <base>', async () => {
+  it('stash : <préfixe> git -C <dépôt> stash push -u, rien d’autre (ni pop, ni drop, ni clear, ni autre argument)', async () => {
+    const { calls, runner } = recorder();
+
+    await runner.stash();
+
+    // une seule commande, aux arguments fixes
+    expect(calls).toEqual([[...PREFIX, 'git', '-C', DIR, 'stash', 'push', '-u']]);
+  });
+
+  it('loadPr : gh pr view (lecture), puis git fetch origin <tête> (tous deux derrière le préfixe), la branche de la PR seulement', async () => {
     const { calls, runner } = recorder(CARD);
+
     await runner.loadPr(7);
+
+    // la fiche, puis la seule branche de la PR
     expect(calls).toEqual([
       [...PREFIX, 'gh', 'pr', 'view', '--json', 'number,title,url,author,baseRefName,headRefName,body,state', '--', '7'],
-      [...PREFIX, 'git', '-C', DIR, 'fetch', 'origin', '+pull/7/head:refs/vibecoder/pr/7', 'main'],
+      [...PREFIX, 'git', '-C', DIR, 'fetch', 'origin', 'feat/x'],
     ]);
+  });
+
+  it('loadPr : aucune référence refs/vibecoder ni pull/<n>/head n’est passée à git', async () => {
+    const { calls, runner } = recorder(CARD);
+
+    await runner.loadPr(7);
+
+    // aucun argument ne nomme une référence de l'appli ou de GitHub
+    expect(calls.flat().filter((a) => a.includes('refs/vibecoder') || a.includes('pull/'))).toEqual([]);
   });
 
   it('toBase, PR fusionnée : gh pr view, puis git switch <base>, git pull --ff-only, git branch -d <branche>', async () => {
@@ -125,6 +151,15 @@ describe('un texte venu d’une page ne devient jamais un argument', () => {
   it('loadPr : une base rendue par gh qui commence par « - » n’est pas passée à git fetch', async () => {
     const { calls, runner } = recorder(JSON.stringify({ ...JSON.parse(CARD), baseRefName: '--upload-pack=touch pwned' }));
     expect((await runner.loadPr(7)).ok).toBe(false);
+    expect(calls.filter((a) => a.includes('fetch'))).toEqual([]);
+  });
+
+  it('loadPr : une tête rendue par gh qui commence par « - » n’est pas passée à git fetch', async () => {
+    const { calls, runner } = recorder(JSON.stringify({ ...JSON.parse(CARD), headRefName: '--upload-pack=touch pwned' }));
+
+    // refusé
+    expect((await runner.loadPr(7)).ok).toBe(false);
+    // aucun git fetch lancé
     expect(calls.filter((a) => a.includes('fetch'))).toEqual([]);
   });
 

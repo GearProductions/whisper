@@ -15,11 +15,11 @@ The eye sees in two seconds what no test captures.
 
 `$ARGUMENTS` = `<lang> <out> <n>`. `lang`: language of the plan and of your answer. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `n`: the PR number.
 
-The PR is the ref `refs/vibecoder/pr/<n>`, never checked out; its base is the `base` of `<out>/pr-<n>.json`; range `origin/<base>...refs/vibecoder/pr/<n>`. Read at that ref: the note (« Ce que ça fait », the lines marked `→ vu en review`), the project's scenarios or spec if any (`SPEC.md`, `docs/`), `README.md` and `AGENTS.md` (how to run the project), and the parts of the diff the user sees.
+The PR is the branch of this folder (`HEAD`), checked out: read its files in the folder; its base is the `base` of `<out>/pr-<n>.json`; range `origin/<base>...HEAD`. Read: the note (« Ce que ça fait », the lines marked `→ vu en review`), the project's scenarios or spec if any (`SPEC.md`, `docs/`), `README.md` and `AGENTS.md` (how to run the project), and the parts of the diff the user sees.
 
 ## `<out>/pr-<n>-ecran.md`, in `lang`: checkboxes only
 
-- First, how to run the PR without touching the user's working copy: e.g. `git worktree add <folder> refs/vibecoder/pr/<n>`, then the project's install and run commands there (`AGENTS.md`, `README.md`) — or the release candidate to install, if the project publishes one for PRs. If it cannot run beside the version the user is running, say so in a box; never close or kill that version yourself.
+- First, how to run the PR: it is checked out in this folder, so the project's install and run commands here (`AGENTS.md`, `README.md`) — or the release candidate to install, if the project publishes one for PRs. If it cannot run beside the version the user is running, say so in a box; never close or kill that version yourself.
 - Then one box per thing to try: a concrete action and what must be seen (« Envoyer le formulaire vide : le message d'erreur s'affiche sous le champ, rien n'est enregistré »). The behaviour the note promises, each `→ vu en review` line, the edge cases a user meets (empty, long, an error, offline, twice at once), and what must not change elsewhere.
 - In the order a user would go; 5 to 20 boxes; nothing a test already proves.
 

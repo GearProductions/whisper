@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { VibeView } from 'shared/bridge';
-import { buildMessage, forkedModel, parseActions, SKILL_MODELS, whoOf, type ActionDef, type MessageContext } from 'core/vibecoder';
+import { buildMessage, DIRECT_ACTIONS, DIRECT_ONLY, forkedModel, parseActions, SKILL_MODELS, whoOf, type ActionDef, type MessageContext } from 'core/vibecoder';
 
 const C1 = '9fceb02d0ae598e95dc970b74767f19372d61af8';
 const BLOB = '3b18e512dba79e4c8300dd08aeb37f8e728b8dad';
@@ -52,8 +52,8 @@ describe('buildMessage : chaque variable', () => {
     expect(build('{{ref}}')).toEqual({ text: 'WORKTREE' });
   });
 
-  it('{{ref}} en Relire : la référence locale de la PR', () => {
-    expect(build('{{ref}}', {}, review)).toEqual({ text: 'refs/vibecoder/pr/12' });
+  it('{{ref}} en Relire : HEAD, la PR chargée dans le dossier', () => {
+    expect(build('{{ref}}', {}, review)).toEqual({ text: 'HEAD' });
   });
 
   it('{{files}} : les tests d\'invariants pas encore lus, chemin@blob', () => {
@@ -405,5 +405,16 @@ describe('buildMessage : {{check}}', () => {
     const bad = { ...ctx, view: { ...view, outputs: { 'checks.json': { text: '{', time: 1 } } } };
     expect([build('{{check}}', { check: 0 }), build('{{check}}', { check: 0 }, bad), build('{{check}}', { check: 0 }, checks('x'))])
       .toEqual(Array(3).fill({ error: 'check' }));
+  });
+});
+
+describe('les actions directes', () => {
+  it('stash, unload-pr, new-here, new-worktree : directes, et seulement par l\'appli', () => {
+    const ids = ['stash', 'unload-pr', 'new-here', 'new-worktree'];
+    expect(ids.every((id) => DIRECT_ACTIONS.includes(id) && DIRECT_ONLY.includes(id))).toBe(true);
+  });
+
+  it('chaque action seulement directe est une action directe', () => {
+    expect(DIRECT_ONLY.every((id) => DIRECT_ACTIONS.includes(id))).toBe(true);
   });
 });

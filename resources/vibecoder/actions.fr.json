@@ -244,7 +244,7 @@
     "needs": "none",
     "reads": true,
     "label": "Charger la PR",
-    "hint": "Récupère la PR sans toucher à votre copie de travail, pour la relire.",
+    "hint": "Récupère la PR (sa fiche et sa branche) pour la relire dans ce dossier ; le dossier ne change pas encore de branche : vous choisissez ensuite.",
     "text": "/vibecoder:charger-pr {{lang}} {{out}} {{pr}}"
   },
   {
@@ -253,8 +253,8 @@
     "step": "pr",
     "kind": "send",
     "needs": "none",
-    "label": "Ici",
-    "hint": "Met ce dossier sur la branche de la PR (git switch), pour la relire et la lancer ici ; refusé s'il y a des modifications en cours. L'état de Créer revient avec sa branche.",
+    "label": "Changer de branche",
+    "hint": "Met ce dossier sur la branche de la PR (git switch), pour la relire et la lancer ici ; refusé s'il y a des modifications en cours (mettez-les de côté d'abord). L'état de Créer revient avec sa branche.",
     "text": "Mets ce dossier sur la branche de la PR #{{pr}} (son `head`, dans {{out}}/pr-{{pr}}.json) : si `git status --porcelain` affiche quoi que ce soit, dis-le et ne change rien ; sinon `git fetch origin <head>` puis `git switch <head>`. Rien d'autre."
   },
   {
@@ -263,9 +263,29 @@
     "step": "pr",
     "kind": "send",
     "needs": "none",
-    "label": "Dans un worktree",
-    "hint": "Crée un worktree de la PR avec la recette du projet (.vibecoder/project.json), sans toucher à ce dossier ; un robot « PR #n » s'y ajoute, après la question de confiance.",
-    "text": "Crée le worktree de la PR #{{pr}} sans toucher à ce dossier, avec la recette de .vibecoder/project.json : `git fetch origin <head>` (le `head` de {{out}}/pr-{{pr}}.json), puis `worktree.create` avec VIBECODER_BRANCH=pr-{{pr}} et VIBECODER_BASE=<head> dans l'environnement ; sans `worktree.create` : `git worktree add -b pr-{{pr}} <dossier> refs/vibecoder/pr/{{pr}}` puis les commandes `setup` dans le worktree. Écris enfin {{out}}/pr-{{pr}}-worktree.json : {\"dir\": \"<chemin absolu du worktree>\", \"branch\": \"pr-{{pr}}\"}. Rien d'autre."
+    "label": "Dans un nouveau worktree",
+    "hint": "Crée un worktree de la PR avec la recette du projet (.vibecoder/project.json), depuis origin/<tête>, sans toucher à ce dossier ni à ses modifications ; un robot « PR #n » s'y ajoute, après la question de confiance.",
+    "text": "Crée le worktree de la PR #{{pr}} sans toucher à ce dossier, avec la recette de .vibecoder/project.json : `git fetch origin <head>` (le `head` de {{out}}/pr-{{pr}}.json), puis `worktree.create` avec VIBECODER_BRANCH=pr-{{pr}} et VIBECODER_BASE=<head> dans l'environnement ; sans `worktree.create` : `git worktree add -b pr-{{pr}} <dossier> origin/<head>` puis les commandes `setup` dans le worktree. Écris enfin {{out}}/pr-{{pr}}-worktree.json : {\"dir\": \"<chemin absolu du worktree>\", \"branch\": \"pr-{{pr}}\"}. Rien d'autre."
+  },
+  {
+    "id": "stash",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Mettre de côté",
+    "hint": "Met de côté les modifications en cours, fichiers non suivis compris (git stash push -u ; git stash pop les reprend) ; ne change pas de branche : un deuxième clic le fait.",
+    "text": "Mettre de côté : seulement par l'appli (direct), jamais par l'agent."
+  },
+  {
+    "id": "unload-pr",
+    "flow": "review",
+    "step": "pr",
+    "kind": "send",
+    "needs": "none",
+    "label": "Décharger",
+    "hint": "Remet ce dossier sur la branche principale du dépôt (git switch) et ne suit plus la PR ; refusé s'il y a des modifications en cours (mettez-les de côté, ou restez sur la branche).",
+    "text": "Décharger la PR : seulement par l'appli (direct), jamais par l'agent."
   },
   {
     "id": "remove-worktree",
@@ -352,15 +372,35 @@
     "text": "{{text}}\n\n(Réponds seulement : ne modifie aucun fichier et ne lance rien qui modifie quoi que ce soit.)"
   },
   {
-    "id": "new-worktree",
+    "id": "new-request",
     "flow": "both",
     "step": null,
     "kind": "send",
     "needs": "text",
     "reads": true,
-    "label": "Nouvelle demande dans un worktree",
-    "hint": "L'agent nomme la branche d'après la demande du champ ; l'appli crée le worktree sur cette branche et y ouvre un robot en Créer, qui rédige la note. Ce dossier reste sur sa branche.",
+    "label": "Nouvelle demande",
+    "hint": "L'agent nomme la branche d'après la demande du champ ; vous choisissez ensuite : changer de branche ici, ou, avec des modifications en cours, un nouveau worktree avec son robot en Créer, ou les mettre de côté.",
     "text": "/vibecoder:nouvelle-demande {{lang}} {{out}} {{text}}"
+  },
+  {
+    "id": "new-here",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Changer de branche",
+    "hint": "Crée la branche de la demande depuis la base à jour (git switch -c) et y met ce dossier, en Créer, qui rédige la note ; refusé s'il y a des modifications en cours.",
+    "text": "Changer de branche pour une demande : seulement par l'appli (direct), jamais par l'agent."
+  },
+  {
+    "id": "new-worktree",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Dans un nouveau worktree",
+    "hint": "Crée le worktree de la demande, sur sa branche, avec la recette du projet, et y ouvre un robot en Créer, qui rédige la note ; ce dossier reste sur sa branche, avec ses modifications.",
+    "text": "Nouvelle demande dans un worktree : seulement par l'appli (direct), jamais par l'agent."
   },
   {
     "id": "comment",

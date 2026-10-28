@@ -4,9 +4,10 @@
 // d'un worktree du même dépôt, ou sans la question de confiance acceptée » ;
 // I-23). Un enfant ne naît que sur la racine d'un worktree du même dépôt,
 // autre que la copie de son parent, sans agent, après la question de confiance
-// acceptée. Il naît de trois façons : le robot d'une PR (F-110, de la fiche que
-// le skill worktree-pr a écrite dans les sorties de l'agent du dépôt, après
-// une demande de l'écran ; la question posée à chaque fois), *Ouvrir un agent
+// acceptée. Il naît de trois façons : le robot d'une PR (F-110, de la fiche
+// pr-<n>-worktree.json des sorties de l'agent du dépôt, après une demande de
+// l'écran ; depuis la 0.12.0, c'est l'appli qui crée ce worktree, plus un
+// skill : pr-place.test.ts ; la question posée à chaque fois), *Ouvrir un agent
 // ici* (openHere, depuis le clic droit du parent ; la question pour un dossier
 // jamais choisi) et le rattachement par git (syncFamilies, au lancement).
 // Aucune page ne donne le dossier.

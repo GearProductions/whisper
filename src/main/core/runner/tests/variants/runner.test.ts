@@ -125,15 +125,15 @@ it('le nom du fichier du projet : le chemin du dossier, en lettres sûres', () =
 });
 
 describe('la recette du fichier du projet (0.12.0)', () => {
-  it('setup, worktree et les Place valides ; une valeur mal formée : comme absente', () => {
+  it('setup et worktree valides ; une valeur mal formée : comme absente ; prWorktree, featureWorktree (F-111) : ignorés', () => {
     expect(parseProject(JSON.stringify({ commands: [], setup: ['yarn'], worktree: { create: 'c', dir: '../w/{branch}', x: 1 }, prWorktree: 'here', featureWorktree: 'worktree' })))
-      .toEqual({ commands: [], shell: DEFAULT_SHELL, setup: ['yarn'], worktree: { create: 'c', dir: '../w/{branch}' }, prWorktree: 'here', featureWorktree: 'worktree' });
+      .toEqual({ commands: [], shell: DEFAULT_SHELL, setup: ['yarn'], worktree: { create: 'c', dir: '../w/{branch}' } });
     expect(parseProject(JSON.stringify({ commands: [], setup: ['yarn', ''], worktree: { create: 1 }, prWorktree: 'oui', featureWorktree: null })))
       .toEqual({ commands: [], shell: DEFAULT_SHELL });
     expect(parseProject(JSON.stringify({ commands: [], setup: 'yarn' }))?.setup).toBeUndefined();
   });
 
-  it('une proposition sans commande mais avec un setup : adoptée, sans ses Place', () => {
+  it('une proposition sans commande mais avec un setup : adoptée, sans prWorktree ni featureWorktree', () => {
     const text = projectText(JSON.stringify({ commands: [], setup: ['yarn'], prWorktree: 'here', featureWorktree: 'ask' }));
     expect(JSON.parse(text!)).toEqual({ commands: [], setup: ['yarn'] });
   });

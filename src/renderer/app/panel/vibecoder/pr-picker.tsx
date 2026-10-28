@@ -4,13 +4,16 @@
  *  leur liste en cartes (demandée à gh par le principal, sans agent :
  *  set({ prs })). Choisir une PR : la suivre (set), puis la charger
  *  (load-pr, par l'appli elle-même, F-114 ; « via » l'agent sous la PR suivie
- *  pas encore chargée), sans toucher à la copie de travail ; Décharger la PR : ne plus
- *  la suivre (le choix revient). La PR chargée : « Où la relire ? » et ses
- *  actions du relevé, pr-here (Ici) et pr-worktree (Dans un worktree), directes
- *  (F-114), grisées avec leur raison, absentes si le relevé les masque (lieu
- *  choisi par le fichier du projet) ; son worktree, s'il existe (en création,
- *  ouvert → aller à son robot, ou le proposer à nouveau). Retirer le worktree
- *  est sur le badge du robot (vibe-coder), pas ici.
+ *  pas encore chargée) : sa fiche et sa branche, dans ce dossier. La PR
+ *  chargée : ses choix du relevé, directs (F-114), grisés avec leur raison,
+ *  absents si le relevé les masque — pr-here (changer de branche), pr-worktree
+ *  (un nouveau worktree), stash (mettre de côté), unload-pr (Décharger :
+ *  revenir sur la base) et, avec des modifications (stash montré), « Rester
+ *  sur la branche » (ne plus la suivre, set({ pr: null }), sans git) ; la PR
+ *  suivie pas chargée, ou sur son robot : Décharger ne fait que ne plus la
+ *  suivre. Son worktree, s'il existe (en création, ouvert → aller à son robot,
+ *  ou le proposer à nouveau). Retirer le worktree est sur le badge du robot
+ *  (vibe-coder), pas ici.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useState } from 'react';
 import { prNumber, webUrl } from 'core/vibecoder';
@@ -20,8 +23,8 @@ import { Invite, PrCard, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
 import './pr-picker.css';
 
-// Où relire la PR chargée : ici (git switch) ou dans un worktree (la recette), actions directes du relevé.
-const PLACES = ['pr-here', 'pr-worktree'];
+// Les choix de la PR chargée, actions directes du relevé (main/core/vibecoder place), dans cet ordre.
+const PLACES = ['pr-here', 'pr-worktree', 'stash', 'unload-pr'];
 
 const fr = {
   field: 'Numéro ou lien de la PR',
@@ -29,7 +32,7 @@ const fr = {
   load: 'Charger',
   noBody: 'Pas de description.',
   notLoaded: (n: number) => `PR #${n} pas encore chargée`,
-  notLoadedHint: 'Charger récupère la PR dans une référence locale, sans toucher à la copie de travail.',
+  notLoadedHint: 'Charger récupère la fiche de la PR et sa branche ; ce dossier ne change de branche qu\'à votre choix.',
   loading: (n: number) => `Chargement de la PR #${n}…`,
   toReview: 'À relire',
   list: 'Mes PR à relire',
@@ -39,8 +42,9 @@ const fr = {
   pick: (n: number) => `Suivre et charger la PR #${n}`,
   open: 'Ouvrir dans le navigateur',
   unload: 'Décharger la PR',
-  unloadTitle: 'Ne plus suivre cette PR : revenir au choix d\'une PR (sa référence locale reste)',
-  where: 'Où la relire ?',
+  unloadTitle: 'Ne plus suivre cette PR : revenir au choix d\'une PR',
+  stay: 'Rester sur la branche',
+  stayTitle: 'Ne plus suivre cette PR sans changer de branche : le dossier garde ses modifications',
   wtCreating: 'Création du worktree en cours…',
   wtOpen: 'Ouverte dans un worktree',
   goRobot: (n: number) => `Aller au robot PR #${n}`,
@@ -55,7 +59,7 @@ const S: Record<VibeLang, typeof fr> = {
     load: 'Load',
     noBody: 'No description.',
     notLoaded: (n) => `PR #${n} not loaded yet`,
-    notLoadedHint: 'Load fetches the PR into a local ref, without touching the working copy.',
+    notLoadedHint: 'Load fetches the PR\'s card and its branch; this folder switches branch only when you choose.',
     loading: (n) => `Loading PR #${n}…`,
     toReview: 'To review',
     list: 'My PRs to review',
@@ -65,8 +69,9 @@ const S: Record<VibeLang, typeof fr> = {
     pick: (n) => `Follow and load PR #${n}`,
     open: 'Open in the browser',
     unload: 'Unload the PR',
-    unloadTitle: 'Stop following this PR: back to choosing one (its local ref stays)',
-    where: 'Where to review it?',
+    unloadTitle: 'Stop following this PR: back to choosing one',
+    stay: 'Stay on the branch',
+    stayTitle: 'Stop following this PR without switching branch: the folder keeps its changes',
     wtCreating: 'Creating the worktree…',
     wtOpen: 'Open in a worktree',
     goRobot: (n) => `Go to the PR #${n} robot`,
@@ -88,7 +93,10 @@ export function PrPicker(props: StepProps) {
   const pr = view.pr;
   const loaded = !!pr && !!view.outputs[`pr-${pr.number}.json`];
   const wt = view.worktree;
-  const places = view.actions.filter((a) => PLACES.includes(a.id) && !a.hidden);
+  const places = PLACES.flatMap((id) => { const a = action(id); return a && !a.hidden ? [a] : []; });
+  const shown = (id: string) => places.some((a) => a.id === id);
+  // Décharger sans git : la PR pas chargée ou sur son robot (unload-pr masqué) ; avec des modifications, Rester sur la branche.
+  const stay = shown('unload-pr') && shown('stash');
   return (
     <>
       <StepHead p={props} own={['prs', 'load-pr', ...PLACES, 'remove-worktree']}>
@@ -97,7 +105,7 @@ export function PrPicker(props: StepProps) {
             onChange={(e) => setTyped(e.target.value)} />
           <button type="submit" disabled={!asked || !canLoad} title={loadAction ? loadAction.hint : undefined}>{s.load}</button>
         </form>
-        {pr ? <button type="button" className="vc-mini" title={s.unloadTitle} onClick={() => act.set({ pr: null })}>{s.unload}</button> : null}
+        {pr && !shown('unload-pr') ? <button type="button" className="vc-mini" title={s.unloadTitle} onClick={() => act.set({ pr: null })}>{s.unload}</button> : null}
       </StepHead>
       {pr && loaded ? (
         <PrCard pr={pr} lang={view.lang} onOpenLink={act.openLink}>
@@ -110,12 +118,8 @@ export function PrPicker(props: StepProps) {
       ) : null}
       {pr && loaded && !wt?.temp ? (
         <div className="vc-pr-worktree">
-          {places.length ? (
-            <>
-              <span className="vc-pr-hint">{s.where}</span>
-              {places.map((a) => <Run key={a.id} a={a} busy={busy} onRun={(x) => act.run(a.id, x)} />)}
-            </>
-          ) : null}
+          {places.map((a) => <Run key={a.id} a={a} busy={busy} onRun={(x) => act.run(a.id, x)} />)}
+          {stay ? <button type="button" className="vc-mini" title={s.stayTitle} onClick={() => act.set({ pr: null })}>{s.stay}</button> : null}
           {!wt ? null : wt.state === 'creating' ? <span className="vc-pr-hint">{s.wtCreating}</span> : (
             <>
               <span className="vc-pr-hint" title={wt.dir}>{s.wtOpen}</span>

@@ -10,6 +10,7 @@ export * from './journey';
 export * from './marks';
 export * from './note';
 export * from './outputs';
+export * from './place';
 export * from './runs';
 export * from './signal';
 export * from './test-files';

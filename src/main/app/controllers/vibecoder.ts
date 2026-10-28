@@ -12,8 +12,9 @@
  *  étape court à part, ownRun → startRun de controllers/runs, sous sa propre
  *  entrée du runtime, si aucune course en cours ne la retient ; une action sans
  *  étape est un message à l'agent affiché, comme s'il était tapé, par
- *  sendToAgent : refusé s'il travaille, I-25 ; ou, pour commit, publish, load-pr,
- *  base, pr-here, pr-worktree et remove-worktree, au clic de « direct » : leurs
+ *  sendToAgent : refusé s'il travaille, I-25 ; ou, pour les actions de
+ *  DIRECT_ACTIONS (commit, publish, load-pr, base, pr-here, pr-worktree,
+ *  remove-worktree, stash, unload-pr, new-here, new-worktree), au clic de « direct » : leurs
  *  commandes, lancées par l'appli, F-114), une course (vibeRunOp : l'arrêter, la garder ou l'annuler, répondre
  *  à sa demande d'autorisation), un réglage (dont arrêter l'agent, comme Interrompre de son
  *  menu ; arrêter Vibe, la bannière : vibeStop de controllers/runs ;
@@ -30,7 +31,7 @@
  *  (list : sous son dossier, ni lien ni fichier ou dossier caché ni node_modules,
  *  target, dist, build, son dossier par safePath, au plus LIST_MAX),
  *  pas leur texte (controllers/module-code lit le fichier ouvert). Une action qui génère un module : sa course le retient
- *  (runModule → startRun). Ce qu'il écrit pour l'ouvrir (un fichier de la PR, le diff d'un
+ *  (runModule → startRun). Ce qu'il écrit pour l'ouvrir (le diff d'un
  *  commit) va sous <sorties>/files/, en lecture seule. Le message d'une
  *  action : son gabarit, rempli par buildMessage (I-38 ; un argument inutile est
  *  ignoré, rendu dans ignored pour l'orchestrateur, F-115), avec le préfixe des
@@ -40,27 +41,33 @@
  *  branche ; Relire, l'état de la PR chargée (60 s en cache, demandés en
  *  fond : le relevé ne les attend pas ; ↻ les redemande) et Mes PR à relire
  *  (setVibe({ prs })). Créer : les sorties
- *  suivent la branche (followBranch). Au relevé, pour le parcours : où va une
- *  PR, une demande (place : prWorktree, featureWorktree du fichier du projet du
- *  parent, controllers/processes ; absents : ask), l'agent enfant d'un worktree
- *  (child), la recette de sa famille (controllers/recipe), en Relire le dossier
- *  lui-même (checkout : sa branche, ses modifications). Relire, Ici (pr-here) et
- *  revenir sur la base (base) : git status relu au clic, une ligne ou pas de
- *  réponse → refusé (jamais de changement de branche sur des modifications) ;
- *  Ici : la tête de pr-<n>.json rapatriée puis git switch ; Dans un worktree
- *  (pr-worktree) : la tête rapatriée, la recette (VIBECODER_BRANCH pr-<n>,
- *  VIBECODER_BASE la tête, départ refs/vibecoder/pr/<n>), puis le robot
- *  (controllers/worktrees prWorktreeReady : la question de confiance toujours,
- *  I-41) ; prWorktree réglé : la suite d'un load-pr réussi, dans son job.
- *  Retirer le worktree (remove-worktree, directe seulement, jamais par
- *  l'agent) : controllers/worktrees ; celui d'une PR retiré, sa branche pr-<n>
- *  supprimée au dossier du parent (technicals/direct). Nouvelle
- *  demande dans un worktree (new-worktree) : la demande retenue en mémoire ; au
- *  relevé, <sorties>/new-worktree.json (la branche nommée par l'agent)
- *  supprimé et, avec une demande retenue, le worktree (départ origin/<base>),
- *  l'enfant (la question de confiance), affiché, et à son premier relevé
- *  Rédiger la note avec la demande ; son résultat (un échec : sa ligne) au
- *  relevé, comme celui d'une action directe ; sans demande : rien d'autre.
+ *  suivent la branche (followBranch). Relire lit la copie de travail, comme
+ *  Créer, comparée à origin/<base de la fiche pr-<n>.json> (note
+ *  0.12.0-creer-relire-meme-dossier : la PR se charge dans ce dossier) ; passer
+ *  en Relire sans PR suivie suit la PR ouverte du dernier relevé de Créer (sa
+ *  fiche écrite, rien de chargé). Au relevé, pour le parcours : le dossier
+ *  (checkout : sa branche, ses modifications), l'agent enfant d'un worktree
+ *  (child), la recette de sa famille (controllers/recipe), la branche d'une
+ *  nouvelle demande retenue (request). Chaque choix de lieu est une action
+ *  directe, au clic seulement, jamais au relevé ni à la suite d'une autre :
+ *  avant tout git switch (pr-here, unload-pr, new-here, base), git status relu,
+ *  une ligne ou pas de réponse → refusé ; pr-here : la tête de pr-<n>.json
+ *  rapatriée puis git switch ; pr-worktree : la tête rapatriée, la recette
+ *  (VIBECODER_BRANCH pr-<n>, VIBECODER_BASE la tête, départ origin/<tête>),
+ *  puis le robot (controllers/worktrees prWorktreeReady : la question de
+ *  confiance toujours, I-41) ; stash : git stash push -u, puis git status
+ *  relu (propre : ok ; sinon l'échec), rien d'autre ne suit ; unload-pr : la
+ *  base du dépôt, puis la PR plus suivie. Retirer le worktree
+ *  (remove-worktree, directe seulement, jamais par l'agent) :
+ *  controllers/worktrees ; celui d'une PR retiré, sa branche pr-<n> supprimée
+ *  au dossier du parent (technicals/direct). Nouvelle demande (new-request) :
+ *  la demande retenue en mémoire ; au relevé, <sorties>/new-request.json (la
+ *  branche nommée par l'agent) supprimé et, avec une demande retenue, sa
+ *  branche retenue avec elle (rien de créé au relevé) ; new-here : git switch
+ *  -c <branche> origin/<base>, le dossier en Créer ; new-worktree : le
+ *  worktree (départ origin/<base>), l'enfant (la question de confiance),
+ *  affiché ; puis, au premier relevé du dossier ou de l'enfant, Rédiger la
+ *  note avec la demande.
  *  git manquant, dossier sans dépôt,
  *  fichier illisible : rien ne bloque le fil ni l'agent (I-29). L'onglet
  *  Processus (les commandes du projet, au relevé ; vibeProcess) :
@@ -75,15 +82,15 @@ import path from 'node:path';
 import { shell } from 'electron';
 import type { SendResult, VibeAction, VibeArgs, VibeLang, VibeRunOp, VibeView } from 'shared/bridge';
 import { EFFORTS, MODELS, MODES, type AgentConfig } from 'core/agents';
-import { agentVibe, vibeLang, type Config } from 'core/config';
+import { agentList, agentVibe, vibeLang, type Config } from 'core/config';
 import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
 import {
   addComment, blobSha, buildMessage, vibeMarks, DIRECT_ACTIONS, DIRECT_ONLY, draftText, editComment, findNote, forkedModel, isOutputName, isTest, itemCommit, itemPath,
-  blockedBy, json, newWorktreeCard, noteKey, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, targetHash, vibeView, whoOf, type ActionDef, type MessageError,
+  blockedBy, json, newRequestCard, noteKey, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, targetHash, vibeView, whoOf, type ActionDef, type MessageError,
 } from 'core/vibecoder';
 import { findEditor } from 'technicals/editor';
-import { directRunner, VERDICTS, type DirectResult } from 'technicals/direct';
+import { directRunner, prCardText, VERDICTS, type DirectResult } from 'technicals/direct';
 import { gitReader, gitRun, okRef } from 'technicals/git';
 import { ghRun, githubReader } from 'technicals/github';
 import { which } from 'technicals/paths';
@@ -91,7 +98,7 @@ import { loadConfig, saveConfig, saveVibeStore, updateAgent, vibeActions, vibeOu
 import { state } from 'app/state';
 import { conversationShown, openConversation } from 'app/windows';
 import { interruptAgent, isBusy, liveViewAgent, sendToAgent, setAgentSetting } from './agents';
-import { agentPrefix, homeOf, processAction, processView, projectAt, promptPrefix, readFile, readTimed } from './processes';
+import { agentPrefix, processAction, processView, promptPrefix, readFile, readTimed } from './processes';
 import { createWorktree } from './recipe';
 import { lockingRuns, runOp, viewLocks, runPending, runRequests, runsOf, runsTab, skillMd, startRun, vibeOn, vibeStart, vibeStop } from './runs';
 import { openChild, prWorktreeReady, removeWorktreeChild, showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
@@ -147,12 +154,11 @@ const ERRORS: Record<VibeLang, Record<MessageError | 'agent' | 'action' | 'args'
 
 const last = new Map<string, VibeView>();  // le dernier relevé envoyé, par agent : ce que la page désigne
 const turnNote = new Map<string, { text: string; busy: boolean }>();  // la note au début du tour (surlignage)
-const showCache = new Map<string, Promise<string | null>>();  // Relire : un fichier à un commit donné ne change pas
 const ghCache = new Map<string, { at: number; value: unknown; pending: boolean }>();  // par question à gh
 const directs = new Map<string, Record<string, NonNullable<VibeAction['direct']>>>();  // par agent : ses actions directes (F-114)
 const prsFound = new Map<string, unknown[]>();   // Relire : Mes PR à relire, par agent (la dernière réponse de gh)
-const requests = new Map<string, string>();     // new-worktree : la demande partie, par agent du parent (en mémoire)
-const firstNotes = new Map<string, string>();   // … puis par enfant né d'elle : sa note à rédiger, à son premier relevé
+const requests = new Map<string, { text: string; branch?: string }>();  // new-request : la demande partie, par agent (en mémoire), puis sa branche
+const firstNotes = new Map<string, string>();   // … puis par agent qui la prend (lui, ou l'enfant né d'elle) : sa note à rédiger, à son premier relevé
 let shown: string | null = null;           // l'agent dont le panneau a le relevé (null : aucun, ou null envoyé)
 let lastAt = 0;
 let running: Promise<void> | null = null;   // le relevé en cours
@@ -321,49 +327,23 @@ export function followBranch(out: string, branch: string, base: string) {
   } catch { /* le relevé part quand même */ }
 }
 
-// Où va une PR, une demande : prWorktree, featureWorktree du fichier du projet du parent ; absents, ou sans parent : ask.
-function placeOf(agent: AgentConfig, cfg: Config) {
-  const home = homeOf(agent, cfg);
-  const project = home ? projectAt(home) : null;
-  return { pr: project?.prWorktree ?? 'ask', feature: project?.featureWorktree ?? 'ask' } as const;
-}
-
-// Le dossier lui-même (Relire : repo décrit la PR) : sa branche, s'il a des modifications ; null si git ne répond pas.
+// Le dossier lui-même : sa branche, s'il a des modifications ; null si git ne répond pas.
 async function checkoutOf(dir: string) {
   const run = gitRun(dir);
   const [branch, status] = await Promise.all([run(['rev-parse', '--abbrev-ref', 'HEAD']), run(['status', '--porcelain'])]);
   return branch === null || status === null ? null : { branch: branch.trim(), dirty: !!status.trim() };
 }
 
-// new-worktree.json au relevé du parent : supprimé (une fois) ; avec une demande retenue, en fond (le relevé
-// n'attend pas la recette) : le worktree de la branche depuis origin/<base>, l'enfant (la question de
-// confiance), affiché, sa demande retenue pour son premier relevé (firstNote). Son résultat, au relevé,
-// comme celui d'une action directe (directs, sans « en cours » : la recette grise déjà l'action).
-function newWorktree(agent: AgentConfig, text: string, cfg: Config) {
-  fs.rmSync(path.join(vibeOutDir(agent.id), 'new-worktree.json'), { force: true });
+// new-request.json au relevé : supprimé (une fois) ; avec une demande retenue, sa branche retenue avec elle
+// (request au relevé, qui attend son choix : new-here, new-worktree ; rien de créé ici).
+function takeRequest(agent: AgentConfig, text: string) {
+  fs.rmSync(path.join(vibeOutDir(agent.id), 'new-request.json'), { force: true });
   const asked = requests.get(agent.id);
-  requests.delete(agent.id);
-  const card = newWorktreeCard(text);
-  if (asked === undefined || !card) return;
-  void (async (): Promise<{ ok: boolean; line: string }> => {
-    const base = (await gitReader(gitRun(agent.dir)).facts())?.base.replace(/^origin\//, '');
-    if (!base) return { ok: false, line: 'No base branch found for this repository: no worktree created.' };
-    const r = await createWorktree(agent, { branch: card.branch, base, start: `origin/${base}` }, cfg);
-    if (!r.ok || !r.dir) return r;
-    const child = await openChild(agent, r.dir, { name: card.branch, create: true });
-    if (!child) return { ok: false, line: `Worktree created (${r.dir}), but no agent opened there.` };
-    firstNotes.set(child.id, asked);
-    setAgentView(child.id, 'vibecoder');
-    return r;
-  })().catch((err) => ({ ok: false, line: err instanceof Error ? err.message : String(err) })).then((r) => {
-    const mine = directs.get(agent.id) ?? {};
-    mine['new-worktree'] = { running: false, last: { ok: r.ok, line: r.line, detail: '', time: Date.now() } };
-    directs.set(agent.id, mine);
-    refreshVibe({ now: true });
-  });
+  const card = newRequestCard(text);
+  if (asked && card) asked.branch = card.branch;
 }
 
-// Le premier relevé de l'enfant d'une nouvelle demande : Rédiger la note avec elle (retentée au relevé suivant si refusée, sauf invalide).
+// Le premier relevé de l'agent qui prend une nouvelle demande (lui, ou l'enfant né d'elle) : Rédiger la note avec elle (retentée au relevé suivant si refusée, sauf invalide).
 function firstNote(agent: AgentConfig, view: VibeView, cfg: Config) {
   const text = firstNotes.get(agent.id);
   const def = text === undefined ? null : vibeActions(vibeLang(cfg)).find((a) => a.id === 'note');
@@ -377,18 +357,16 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const { flow, pr } = agentVibe(agent);
   const realpath = fs.realpathSync.native;
   const git = gitReader(gitRun(agent.dir));
-  // Créer : la copie de travail. Relire : la PR suivie, à sa référence locale
-  // (posée par le skill charger-pr), comparée à la base de sa fiche, sous le
-  // nom de sa branche.
-  const ref = flow === 'review' && pr ? `refs/vibecoder/pr/${pr}` : null;
+  // La copie de travail, dans les deux parcours. Relire : la PR chargée (sa fiche), comparée à la base
+  // de sa fiche, sous le nom de sa branche ; sans fiche, rien à lire.
   const created = flow === 'create' ? await git.facts() : null;
   const out = vibeOutDir(agent.id);
   if (created) followBranch(out, created.branch, created.base);
   const outputs = readOutputs(out);
-  if (outputs['new-worktree.json']) newWorktree(agent, outputs['new-worktree.json'].text, cfg);
-  const card = ref ? json(outputs[`pr-${pr}.json`]?.text) : null;
+  if (outputs['new-request.json']) takeRequest(agent, outputs['new-request.json'].text);
+  const card = flow === 'review' && pr ? json(outputs[`pr-${pr}.json`]?.text) : null;
   const base = branchName(card?.base);
-  const facts = flow === 'create' ? created : ref ? await git.facts(ref, base ? `origin/${base}` : undefined) : null;
+  const facts = created ?? (card ? await git.facts(undefined, base ? `origin/${base}` : undefined) : null);
   // gh, sans agent : Créer, la PR de la branche (pas sur la base) ; Relire, l'état de la PR chargée.
   const gh = githubReader(ghRun(agent.dir, agentPrefix(agent, cfg)));
   const feature = created && created.branch !== 'HEAD' && created.base !== created.branch && !created.base.endsWith(`/${created.branch}`)
@@ -398,29 +376,17 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     state: card && pr ? fromGh(`state ${agent.dir} ${pr}`, () => gh.prState(pr)) : null,
     prs: flow === 'review' ? prsFound.get(agent.id) ?? null : null,
   };
-  // Relire : lu une fois par commit de tête de la PR (git show coûte un processus).
-  const read = (rel: string) => {
-    if (!ref || !facts) return Promise.resolve(onDisk(agent.dir, rel));
-    const key = `${agent.dir}:${facts.head}:${rel}`;
-    if (!showCache.has(key)) {
-      if (showCache.size > 500) showCache.clear();
-      const text = git.show(ref, rel);
-      showCache.set(key, text);
-      text.then((t) => { if (t === null) showCache.delete(key); });   // un échec se retente
-    }
-    return showCache.get(key)!;
-  };
   const repo = facts && { branch: branchName(card?.head) ?? facts.branch, base: facts.base, changed: facts.changed, dirty: facts.dirty, commits: facts.commits };
   // La note du ticket : sa clé d'après la branche (ticket, sinon version), parmi
   // les .md de docs/tickets/ que change la branche (ou la PR).
   const key = repo && noteKey(repo.branch, null);
   const notePath = repo && key ? findNote(repo.changed, key, repo.branch) : null;
-  const noteText = notePath ? await read(notePath) : null;
+  const noteText = notePath ? onDisk(agent.dir, notePath) : null;
   // Les tests de la branche, et leur empreinte, qui nomme leur lecture.
-  const tests = (await Promise.all((repo?.changed ?? []).filter(isTest).map(async (p) => {
-    const text = await read(p);
+  const tests = (repo?.changed ?? []).filter(isTest).flatMap((p) => {
+    const text = onDisk(agent.dir, p);
     return text === null ? [] : [{ path: p, blob: blobSha(text), text }];
-  }))).flat();
+  });
   // Toutes les lectures d'invariants : un test modifié depuis la sienne reprend la plus récente de son fichier,
   // périmée (readingOf, core/vibecoder).
   let names: string[] = [];
@@ -443,7 +409,8 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const skills = Object.fromEntries(actions.map((a) => [a.id, skillMd(a.text)]));
   const who = Object.fromEntries(actions.map((a) => [a.id, whoOf(skills[a.id], lang)]));
   const running = lockingRuns(agent.id);
-  const checkout = flow === 'review' ? await checkoutOf(agent.dir) : null;
+  // Le dossier : d'après facts (même copie de travail) ; Relire sans fiche, relu à part.
+  const checkout = facts ? { branch: facts.branch, dirty: facts.dirty.length > 0 } : await checkoutOf(agent.dir);
   // Processus : les commandes du projet, leur état, la recette de la famille (controllers/processes).
   const proc = processView(agent, cfg);
   const journey = vibeView({
@@ -462,10 +429,10 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     draft: flow === 'review' && pr ? store.drafts[agent.id]?.[pr] || [] : [],
     // en création : Dans un worktree (pr-worktree, direct) en cours
     worktree: worktreeState(agent, flow === 'review' ? pr : null, !!directs.get(agent.id)?.['pr-worktree']?.running),
-    place: placeOf(agent, cfg),
     child: !!agentParent(agent),
     recipe: proc.recipe,
     checkout,
+    request: requests.get(agent.id)?.branch ?? null,
     github,
     actions,
     direct: directs.get(agent.id),
@@ -473,7 +440,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     model: Object.fromEntries(actions.map((a) => [a.id, forkedModel(skills[a.id])])),
     skills: skillNames(agent.dir),
     exists: (rel) => { const file = safePath(agent.dir, rel, realpath); return !!file && fs.existsSync(file); },
-    list: flow === 'create' ? (rel) => listFiles(agent.dir, rel) : undefined,   // Relire : le disque n'est pas la PR
+    list: (rel) => listFiles(agent.dir, rel),
     now: Date.now(),
   });
   // Vibe en cours : les étapes faites reçoivent leur ✓, qu'elles gardent une fois Vibe fini (F-102).
@@ -527,11 +494,11 @@ export function startAction(
   const sent = ownRun(def) ? startRun(agent, def, message.text, cfg, runModule(def.id, args, view.modules)) : sendToAgent(agent, { text: message.text, images: [] }, cfg);
   // Dans un worktree, par l'agent : sa fiche pr-<n>-worktree.json attendue (syncWorktrees, la question de confiance).
   if (sent.ok && def.id === 'pr-worktree' && view.pr) wantWorktree(agent.id, view.pr.number);
-  // Nouvelle demande dans un worktree : la demande retenue ; une fiche d'avant et le dernier résultat, oubliés.
-  if (sent.ok && def.id === 'new-worktree') {
-    fs.rmSync(path.join(vibeOutDir(agent.id), 'new-worktree.json'), { force: true });
-    requests.set(agent.id, args.text as string);
-    delete directs.get(agent.id)?.['new-worktree'];
+  // Nouvelle demande : la demande retenue ; une fiche d'avant et les derniers résultats de ses choix, oubliés.
+  if (sent.ok && def.id === 'new-request') {
+    fs.rmSync(path.join(vibeOutDir(agent.id), 'new-request.json'), { force: true });
+    requests.set(agent.id, { text: args.text as string });
+    for (const id of ['new-here', 'new-worktree']) delete directs.get(agent.id)?.[id];
   }
   return message.ignored ? { ...sent, ignored: message.ignored } : sent;
 }
@@ -553,13 +520,12 @@ export function vibeRunOp(id: unknown, op: unknown) {
 // Une action directe (F-114) : l'appli lance elle-même sa liste fermée de
 // commandes (technicals/direct) ou la recette (controllers/recipe), sans agent,
 // avec des valeurs du dernier relevé (la branche, la base de sa PR, la PR
-// suivie, le brouillon), de la fiche pr-<n>.json (la tête de la PR) ou
-// vérifiées (un numéro de PR entier, un verdict des trois). En fond, une à la
-// fois par agent : « en cours » puis son résultat partent au relevé. Ici et
-// base : git status relu juste avant de changer de branche ; une ligne, ou pas
-// de réponse → refusé. load-pr réussi, prWorktree réglé : Ici ou Dans un
-// worktree à la suite, dans le même job (sur la tête de famille seulement pour
-// un worktree ; pas sur le robot d'une PR).
+// suivie, le brouillon), de la fiche pr-<n>.json (la tête de la PR), de la
+// demande retenue (sa branche), de git (la base du dépôt) ou vérifiées (un
+// numéro de PR entier, un verdict des trois). En fond, une à la fois par
+// agent : « en cours » puis son résultat partent au relevé. Rien ne suit une
+// action (load-pr charge seulement). Avant tout git switch : git status relu ;
+// une ligne, ou pas de réponse → refusé.
 function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, view: VibeView, cfg: Config): SendResult {
   const { id } = def;
   const lang = vibeLang(cfg);
@@ -574,6 +540,9 @@ function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, view: Vib
   const refused = (line: string): DirectResult => ({ ok: false, line, detail: '' });
   const clean = async () => (await gitRun(agent.dir)(['status', '--porcelain']))?.trim() === '';
   const DIRTY = 'Refused: uncommitted changes in this folder (or no answer from git status): nothing done.';
+  const NO_BASE = 'No base branch found for this repository: nothing done.';
+  // La base du dépôt (origin/HEAD, sinon main ou master), sans « origin/ ».
+  const repoBase = async () => (await gitReader(gitRun(agent.dir)).facts())?.base.replace(/^origin\//, '') || null;
   // La tête de la PR (de pr-<n>.json), rapatriée ; sinon le refus ou l'échec, à rendre.
   const fetchHead = async (pr: number): Promise<{ head: string; detail: string } | DirectResult> => {
     const head = branchName(json(readFile(path.join(out, `pr-${pr}.json`)))?.head);
@@ -581,42 +550,94 @@ function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, view: Vib
     const fetched = await run.fetchBranch(head);
     return fetched.ok ? { head, detail: fetched.detail } : fetched;
   };
-  // Ici : la tête rapatriée, puis git switch, le dossier propre à cet instant.
-  const here = async (pr: number) => {
-    const f = await fetchHead(pr);
-    if (!('head' in f)) return f;
-    return await clean() ? run.switchTo(f.head) : refused(DIRTY);
-  };
-  // Dans un worktree : la tête rapatriée (origin/<tête> pour la recette), le worktree pr-<n>, puis le robot (I-41).
-  const inWorktree = async (pr: number): Promise<DirectResult> => {
-    const f = await fetchHead(pr);
-    if (!('head' in f)) return f;
-    const branch = `pr-${pr}`;
-    const r = await createWorktree(agent, { branch, base: f.head, start: `refs/vibecoder/pr/${pr}` }, cfg);
-    if (r.ok && r.dir) await prWorktreeReady(agent, pr, r.dir, branch);
-    return { ok: r.ok, line: r.line, detail: f.detail };
-  };
+  const asked = requests.get(agent.id);
   let job: () => Promise<DirectResult>;
   if (id === 'commit') job = () => run.commit();
   else if (id === 'load-pr') {
-    const asked = args.pr === undefined ? n : prNumber(args.pr);
-    if (!asked) return fail(lang, 'pr');
+    const pr = args.pr === undefined ? n : prNumber(args.pr);
+    if (!pr) return fail(lang, 'pr');
+    // Une PR d'un fork refusée ; la fiche et la tête, puis la base de la fiche (le relevé compare à origin/<base>).
     job = async () => {
-      const r = await run.loadPr(asked);
-      const place = placeOf(agent, cfg).pr;
-      const p = agentParent(agent);
-      const next = !r.ok ? null : place === 'here' && !p?.pr ? 'pr-here' : place === 'worktree' && !p ? 'pr-worktree' : null;
-      if (next) await track(mine, next, () => (next === 'pr-here' ? here(asked) : inWorktree(asked)));
-      return r;
+      const same = await run.sameRepo(pr);
+      if (!same.ok) return same;
+      const r = await run.loadPr(pr);
+      const base = r.ok ? branchName(json(readFile(path.join(out, `pr-${pr}.json`)))?.base) : null;
+      if (!base) return r;
+      const f = await run.fetchBranch(base);
+      return f.ok ? { ...r, detail: `${same.detail}\n\n${r.detail}\n\n${f.detail}` } : f;
     };
   } else if (id === 'publish') {
     if (!n) return fail(lang, 'pr');
     if (!(VERDICTS as readonly unknown[]).includes(args.verdict)) return fail(lang, 'verdict');
     if (!view.draft.length) return fail(lang, 'draft');
     job = () => run.publish(n, args.verdict, draftText(view.draft), view.pr?.url ?? '');
-  } else if (id === 'pr-here' || id === 'pr-worktree') {
+  } else if (id === 'pr-here') {
     if (!n) return fail(lang, 'pr');
-    job = () => (id === 'pr-here' ? here(n) : inWorktree(n));
+    // La tête rapatriée, puis git switch (le dossier propre à cet instant) et git pull --ff-only origin <tête>.
+    job = async () => {
+      const f = await fetchHead(n);
+      if (!('head' in f)) return f;
+      const r = await clean() ? await run.switchTo(f.head) : refused(DIRTY);
+      if (!r.ok) return r;
+      const p = await run.pullBranch(f.head);
+      return p.ok ? r : p;
+    };
+  } else if (id === 'pr-worktree') {
+    if (!n) return fail(lang, 'pr');
+    // La tête rapatriée, le worktree pr-<n> depuis origin/<tête>, puis le robot (I-41).
+    job = async () => {
+      const f = await fetchHead(n);
+      if (!('head' in f)) return f;
+      const branch = `pr-${n}`;
+      const r = await createWorktree(agent, { branch, base: f.head, start: `origin/${f.head}` }, cfg);
+      if (r.ok && r.dir) await prWorktreeReady(agent, n, r.dir, branch);
+      return { ok: r.ok, line: r.line, detail: f.detail };
+    };
+  } else if (id === 'stash') {
+    // git stash push -u, puis le dossier relu : propre, ok ; sinon l'échec. Rien d'autre ne suit.
+    job = async () => {
+      const r = await run.stash();
+      if (!r.ok || await clean()) return r;
+      return { ...r, ok: false, line: 'Stash done, but this folder still has changes (or no answer from git status).' };
+    };
+  } else if (id === 'unload-pr') {
+    // La base du dépôt, le dossier propre à cet instant ; puis la PR plus suivie.
+    job = async () => {
+      const base = await repoBase();
+      if (!base) return refused(NO_BASE);
+      const r = await clean() ? await run.switchTo(base) : refused(DIRTY);
+      if (r.ok) patchVibe(agent.id, { pr: null });
+      return r;
+    };
+  } else if (id === 'new-here' || id === 'new-worktree') {
+    const branch = asked?.branch;
+    if (!asked || !branch) return fail(lang, 'action');
+    // La base du dépôt rapatriée, puis le choix.
+    job = async () => {
+      const base = await repoBase();
+      if (!base) return refused(NO_BASE);
+      const f = await run.fetchBranch(base);
+      if (!f.ok) return f;
+      if (id === 'new-here') {
+        // git switch -c <branche> origin/<base> (le dossier propre à cet instant), le dossier en Créer.
+        const r = await clean() ? await run.switchTo(branch, `origin/${base}`) : refused(DIRTY);
+        if (!r.ok) return r;
+        requests.delete(agent.id);
+        patchVibe(agent.id, { flow: 'create' });
+        firstNotes.set(agent.id, asked.text);
+        return r;
+      }
+      // Le worktree de la branche depuis origin/<base>, l'enfant (la question de confiance), affiché ;
+      // pas d'enfant (confiance refusée…) : la demande reste retenue ici.
+      const r = await createWorktree(agent, { branch, base, start: `origin/${base}` }, cfg);
+      if (!r.ok || !r.dir) return { ok: r.ok, line: r.line, detail: f.detail };
+      const child = await openChild(agent, r.dir, { name: branch, create: true });
+      if (!child) return refused(`Worktree created (${r.dir}), but no agent opened there: the request stays here.`);
+      requests.delete(agent.id);
+      firstNotes.set(child.id, asked.text);
+      setAgentView(child.id, 'vibecoder');
+      return { ok: true, line: r.line, detail: f.detail };
+    };
   } else if (id === 'remove-worktree') {
     // Retiré, le worktree d'une PR emporte sa branche pr-<n>, au dossier du parent (hors de la recette).
     job = async () => {
@@ -638,6 +659,12 @@ function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, view: Vib
   return { ok: true };
 }
 
+// Le parcours de l'agent (Créer ou Relire, la PR suivie), changé d'après ses réglages à cet instant.
+function patchVibe(id: string, patch: Partial<ReturnType<typeof agentVibe>>) {
+  const agent = agentList(loadConfig()).find((a) => a.id === id);
+  if (agent) updateAgent(id, { vibe: { ...agentVibe(agent), ...patch } });
+}
+
 // Une action directe de l'agent : « en cours », puis son résultat (un échec inattendu : sa ligne), au relevé.
 async function track(mine: Record<string, NonNullable<VibeAction['direct']>>, id: string, job: () => Promise<DirectResult>) {
   mine[id] = { running: true, last: mine[id]?.last ?? null };
@@ -654,7 +681,9 @@ export function setAgentView(id: string, view: 'vibecoder' | null) {
   openConversation(id, { mode: 'full' });
 }
 
-// Un réglage de l'écran : Créer ou Relire, arrêter Vibe (la bannière : vibeStop,
+// Un réglage de l'écran : Créer ou Relire (passer en Relire sans PR suivie : la
+// PR ouverte du dernier relevé de Créer suivie, sa fiche pr-<n>.json écrite
+// d'après lui, rien de chargé), arrêter Vibe (la bannière : vibeStop,
 // la course en cours finit), la PR suivie (pour
 // l'agent) ; la langue (tout VibeCoder) ; « Vu » (la note de référence devient
 // l'actuelle) ; revenir à la conversation ; modèle, effort et mode comme son
@@ -673,6 +702,13 @@ export function setVibe(patch: unknown) {
   if (p.flow === 'create' || p.flow === 'review') vibe.flow = p.flow;
   if (p.vibe === false) vibeStop(agent);
   if (p.pr === null || prNumber(p.pr)) vibe.pr = p.pr as number | null;
+  const was = last.get(agent.id);
+  if (p.flow === 'review' && !vibe.pr && was?.flow === 'create' && was.pr?.state === 'OPEN' && prNumber(was.pr.number)) {
+    const out = vibeOutDir(agent.id);
+    fs.mkdirSync(out, { recursive: true });
+    fs.writeFileSync(path.join(out, `pr-${was.pr.number}.json`), prCardText(was.pr));
+    vibe.pr = was.pr.number;
+  }
   updateAgent(agent.id, { vibe });
   if (p.lang === 'fr' || p.lang === 'en') saveConfig({ vibeLang: p.lang });
   if (p.seen === true) {
@@ -733,8 +769,7 @@ export function draftVibe(op: unknown) {
   refreshVibe({ now: true });
 }
 
-// Un fichier écrit pour être ouvert (un fichier de la PR, le diff d'un
-// commit) : <sorties>/<rel>, en lecture seule, remplacé s'il existe ; son
+// Un fichier écrit pour être ouvert (le diff d'un commit) : <sorties>/<rel>, en lecture seule, remplacé s'il existe ; son
 // dossier doit rester dans le dossier de sorties (`..`, ou un lien qui en
 // sort : rien). Son chemin, ou null.
 function writeForEditor(out: string, rel: string, text: string) {
@@ -765,8 +800,7 @@ export async function vibeProcess(op: unknown, index?: unknown) {
 
 // Un fichier ou un commit du relevé, par son id (jamais un chemin, I-37) :
 // - un fichier (n, t…, v…, m…, `c<rang>/<i>`) dans l'éditeur, à `line` si
-//   elle est donnée ; Créer : la copie de travail ; Relire : sa version à la
-//   tête de la PR (git show), écrite dans <sorties>/files/pr-<n>/<chemin> ;
+//   elle est donnée : celui du dossier de l'agent (safePath), dans les deux parcours ;
 // - `c<rang>` : le diff du commit (git show), écrit dans <sorties>/files/<hash>.diff ;
 // - `gh:c<rang>` : la page du commit sur GitHub, dans le navigateur, d'après
 //   l'origine du dépôt (githubPage, I-32) ; sans origine GitHub, rien.
@@ -788,13 +822,6 @@ export async function openVibeItem(id: unknown, line?: unknown) {
     open(text === null ? null : writeForEditor(out, path.join('files', `${commit.hash}.diff`), text));
   } else {
     const rel = itemPath(view, id);
-    const n = prNumber(view.pr?.number);
-    if (!rel) return;
-    if (view.flow === 'create') return open(safePath(agent.dir, rel, fs.realpathSync.native));
-    if (!n) return;
-    const ref = `refs/vibecoder/pr/${n}`;
-    const text = await git.show(ref, rel);
-    // ponytail: un dossier (le fichier d'un module) rend sa liste (« tree <ref>:<chemin> ») : pas ouvert.
-    open(text === null || text.startsWith(`tree ${ref}:`) ? null : writeForEditor(out, path.join('files', `pr-${n}`, rel), text));
+    if (rel) open(safePath(agent.dir, rel, fs.realpathSync.native));
   }
 }

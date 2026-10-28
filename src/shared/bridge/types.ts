@@ -383,7 +383,8 @@ export type VibeView = {
   setup?: boolean;                       // le fichier du projet a un setup (*Préparer le projet*)
   recipe?: VibeRecipe | null;            // la recette de la famille, en cours ou la dernière
   runs?: VibeRun[];                      // les courses, la plus récente d'abord (toujours rempli par le relevé)
-  time: number;                          // heure du relevé
+  request?: { branch: string } | null;   // Créer : la branche nommée pour la nouvelle demande retenue, qui attend son choix
+  time: number;                        // heure du relevé
 };
 
 export type VibeArgs = {
