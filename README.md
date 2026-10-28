@@ -643,7 +643,8 @@ VS Code, sur toute branche (la PR d'un autre comprise) :
 - *Rebase* : `git rebase --autostash` sur la branche principale distante
   (`origin/<base>`), ou sur une autre branche au choix (▾). Une pastille le
   signale quand `origin/<base>` a avancé depuis la base de la branche (une
-  PR à rebaser sur un `master` mis à jour) ; il reste permis à tout moment.
+  PR à rebaser sur un `master` mis à jour) ; il reste permis à tout moment,
+  sauf sur la branche principale elle-même, où il est masqué.
   Un conflit : `git rebase --abort` aussitôt, l'échec affiché, rien ne
   bouge. Réussi : *Pousser* apparaît (`git push --force-with-lease`, à son
   seul clic).
