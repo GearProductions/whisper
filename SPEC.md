@@ -689,14 +689,17 @@ principal pour l'agent affiché en VibeCoder :
   de sa fiche (`pr-<n>.json`), sans la copie de travail ;
 - la **note du ticket** : sa clé d'après la branche — un ticket (`G2-6675`),
   sinon une version (`0.8.0`) : la branche doit porter l'un ou l'autre — ; le
-  premier `.md` de `docs/tickets/` que change la branche (*Relire* : la PR)
-  dont le nom la contient en mot entier. Lue par ses
+  `.md` de `docs/tickets/` que change la branche (*Relire* : la PR) nommé
+  comme elle (`feat/0.8.0-vibecoder` → `0.8.0-vibecoder.md`), sinon le
+  premier dont le nom contient la clé en mot entier (une branche qui change
+  aussi la note d'un autre ticket de la même version garde la sienne). Lue par ses
   titres (`## Ce que ça fait`, `## Ce que ça ne doit pas faire`, `## Forme`,
   ou `What it does`, `What it must not do`, `Shape`) : rédigée ou non, les
   lignes « ne doit pas » et leur marque (le premier mot connu après la
   dernière flèche : *invariant*, *variant*, *review*, *structure*), les
   modules de la Forme et leur contrat (un chemin en tête de ligne, ou un
-  titre `###`) ; et pourquoi elle ne s'édite pas (`locked`, F-100) ;
+  titre `###` ; hors bloc de code, pas la suite d'un paragraphe qui
+  commence par un chemin) ; et pourquoi elle ne s'édite pas (`locked`, F-100) ;
 - les **tests** de la branche : ses fichiers changés qui sont des tests
   (Vitest, Jest, pytest, Go, Rust sous `tests/`), leurs cas (titres `it` /
   `test`, fonctions `#[test]`, `def test_…`) et leur empreinte git ; ceux
@@ -1084,7 +1087,9 @@ conversation ; note `0.9.0-actions-independantes.md`).
    un fichier de module (ni la note ni un test, I-37). Générer ne commite
    pas : *Commiter* et *Commiter les modules* (skill `commiter-modules`, un
    commit par module selon la convention du projet, un fixup pour un module
-   déjà commité, un nouveau commit une fois la PR ouverte) sont des gestes à
+   déjà commité — jamais du premier commit de la branche, qui ne porte que la
+   note, la forme, les invariants rouges et leurs squelettes —, un nouveau
+   commit une fois la PR ouverte) sont des gestes à
    part. Les éditeurs (le code, la note en édition) défilent dans
    CodeMirror lui-même, hauteur bornée : pas de vide au-dessus du texte. Seul ce
    fichier est lu, à l'ouverture puis à chaque changement sur le disque

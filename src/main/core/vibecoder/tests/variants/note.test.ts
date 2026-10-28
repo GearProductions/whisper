@@ -169,6 +169,11 @@ describe('parseNote : modules en liste ou en texte', () => {
     expect(parseNote('## Forme\nlib/a.ts  pur\nLe reste est de la colle.\n').modules).toEqual([{ path: 'lib/a.ts', contract: 'pur' }]);
   });
 
+  it('la suite d\'un paragraphe qui commence par un chemin n\'est pas un module', () => {
+    const forme = '## Forme\n**Relire.** Les fixtures de a.test.ts et\nmodule-code.test.ts qui écrivent une référence restent.\n\n**Canaux.** `src/preload/` et\n`shared/bridge/channels.ts` inchangés.\n\n```\nlib/a.ts  pur\n```\n';
+    expect(parseNote(forme).modules).toEqual([{ path: 'lib/a.ts', contract: 'pur' }]);
+  });
+
   it('une rubrique « Shape » (anglais) est la Forme', () => {
     expect(parseNote('## Shape\nlib/a.ts  pure\n').modules).toEqual([{ path: 'lib/a.ts', contract: 'pure' }]);
   });
@@ -298,5 +303,11 @@ describe('findNote : le .md de docs/tickets/ qui nomme la clé', () => {
 
   it('plusieurs : le premier dans l\'ordre des chemins', () => {
     expect(findNote(['docs/tickets/refactor/0.7.0-processus.md', 'docs/tickets/feat/0.7.0-taches.md'], '0.7.0')).toBe('docs/tickets/feat/0.7.0-taches.md');
+  });
+
+  it('plusieurs, dont celle nommée comme la branche : celle-là, même si une autre vient avant', () => {
+    const paths = ['docs/tickets/feat/0.12.0-worktrees.md', 'docs/tickets/refactor/0.12.0-creer-relire.md'];
+    expect(findNote(paths, '0.12.0', 'refactor/0.12.0-creer-relire')).toBe('docs/tickets/refactor/0.12.0-creer-relire.md');
+    expect(findNote(paths, '0.12.0', 'refactor/0.12.0-autre')).toBe('docs/tickets/feat/0.12.0-worktrees.md');
   });
 });

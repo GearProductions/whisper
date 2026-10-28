@@ -402,9 +402,9 @@ conversation reste utilisable.
   travaille, fichiers modifiés, heure du dernier relevé.
 
 L'écran se lit sur le dépôt, sans modèle : la branche, ses commits et ses
-fichiers changés, la note du ticket (trouvée parmi ces fichiers d'après le
-ticket — `G2-6675` — ou la version — `0.8.0` — que porte le nom de la
-branche), ses tests
+fichiers changés, la note du ticket (trouvée parmi ces fichiers : celle nommée comme la
+branche, sinon d'après le ticket — `G2-6675` — ou la version — `0.8.0` — que
+porte son nom), ses tests
 d'invariants, ce que les skills ont écrit. Il suit tout seul (toutes les 4 s,
 et pendant que l'agent travaille).
 
