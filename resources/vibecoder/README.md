@@ -81,24 +81,34 @@ bouton retiré suivi d'un bouton ajouté. `ponytail` n'a pas de bouton : `checks
 `{{lang}} {{out}}`. Le bouton `guide` n'apparaît que si le skill `gear-guide`
 existe (dans le projet ou chez l'utilisateur).
 
-Onze boutons ont aussi une voie **directe**, sans agent : `commit`,
+Seize boutons ont aussi une voie **directe**, sans agent : `commit`,
 `publish`, `load-pr`, `base`, `pr-here`, `pr-worktree`, `remove-worktree`,
-`stash`, `unload-pr`, `new-here` et `new-worktree`. Le bouton « direct »
+`stash`, `unload-pr`, `new-here`, `new-worktree`, `switch-branch`, `pull`,
+`rebase`, `push` et `fetch`. Le bouton « direct »
 lance lui-même des commandes fixes (`git commit -F`, `gh pr review`, `gh pr
 view` puis `git fetch origin <tête>` (la PR se relit dans le dossier de
 l'agent), `git switch` / `pull --ff-only` / `branch -d` si la PR est
 fusionnée et le dossier sans modifications ; *Changer de branche* : `git
-fetch` et `git switch` de la branche de la PR, ou `git switch -c` de celle
-d'une nouvelle demande ; *Décharger* : `git switch` de la branche
-principale ; ces trois-là, le dossier sans modifications ; *Mettre de
-côté* : `git stash push -u`, rien d'autre), écrites dans l'appli et inscrites
+fetch` et `git switch` de la branche de la PR ; *Aller sur la branche* :
+`git switch` d'une branche locale ; *Créer ici* : `git switch -c` de la
+branche d'une nouvelle demande, ou du nom saisi depuis le départ choisi ;
+*Revenir sur la branche principale* : `git switch` de la branche
+principale ; ces quatre-là, le dossier sans modifications ; *Mettre de
+côté* : `git stash push -u`, rien d'autre ; *Pull* : `git pull --ff-only
+--autostash` ; *Rebase* : `git rebase --autostash <sur>`, et `git rebase
+--abort` aussitôt s'il échoue ; *Pousser* : `git push --force-with-lease`,
+jamais `--force` ; *Actualiser* : `git fetch origin`, seulement à son
+clic), écrites dans l'appli et inscrites
 dans `direct.log` des sorties, ou la recette du fichier du projet (*Dans un
 nouveau worktree*, *Retirer le worktree* ; voir plus bas, `recipe.log` ; la
 PR d'un worktree retiré perd aussi sa branche `pr-<n>`, `git branch -D`) ;
 leur `text` reste le message du petit *via* à côté (le skill ou le message,
 dans la conversation). Personnaliser leur `text` ne change donc que le
-*via*. `remove-worktree`, `stash`, `unload-pr`, `new-here` et
-`new-worktree` n'ont pas de *via* : seule l'appli les fait.
+*via*. `remove-worktree`, `stash`, `unload-pr`, `new-here`,
+`new-worktree`, `switch-branch`, `pull`, `rebase`, `push` et `fetch`
+n'ont pas de *via* : seule l'appli les fait. Les actions de branche sont
+dans la vue des branches, qu'ouvre la branche de l'en-tête (*Pull*,
+*Rebase*, *Pousser* : à côté d'elle).
 
 ### Les variables
 
@@ -240,7 +250,6 @@ sinon.
 | `base` | sous-contexte | haiku · low | — |
 | `rc` | conversation | agent | — |
 | `release` | conversation | agent | — |
-| `prs` | sous-contexte | haiku · low | `prs.json` (gardé ; l'écran demande la liste à `gh` lui-même) |
 | `charger-pr` | sous-contexte | haiku · low | `pr-<n>.json` |
 | `relire-note` | sous-contexte | opus · high | `pr-<n>-note.md` |
 | `relire-commits` | sous-contexte | opus · high | `pr-<n>-commits.md` |
@@ -248,7 +257,7 @@ sinon.
 | `publier-revue` | sous-contexte | haiku · low | `pr-<n>-review.json` |
 | `vibe` | conversation | agent ; *Vibe* : reprend à la première étape pas faite et enchaîne les actions | `actions/<id>.start` |
 | `actions` | conversation (l'agent l'appelle de lui-même) | agent | `actions/<id>.start`, `actions/<id>.stop` |
-| `nouvelle-demande` | sous-contexte | haiku · low | `new-request.json` (`{ "branch" }` : la branche d'une nouvelle demande ; l'appli propose d'y passer ou d'ouvrir son worktree, la demande n'y est pas) |
+| `nouvelle-demande` | sous-contexte | haiku · low | `new-request.json` (`{ "branch" }` : le nom proposé pour la branche d'une nouvelle demande, ou de *Rédiger la note* sur la branche principale ; l'appli le montre prérempli, l'utilisateur le valide ou le change, puis la crée ici ou dans un worktree ; la demande n'y est pas) |
 | `lancement` | sous-contexte | haiku · low | `lancement.json` (les commandes ; `setup` et `worktree`, une seule fois par projet) |
 | `processus` | conversation (l'agent l'appelle de lui-même) | agent | `run/<nom>.stop`, `run/<nom>.restart` |
 

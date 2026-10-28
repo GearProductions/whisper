@@ -11,7 +11,6 @@ disable-model-invocation: true
 
 ## The note
 
-0. On the base branch (`origin/HEAD`, else `main`, else `master`)? First create the ticket branch named after the note — `<type>/<note file name without .md>`, or the project's branch convention — with `git switch -c` (uncommitted files follow). The screen finds the note through the branch name.
 1. The project or user skill `gear-prompt-specs-to-feature-note`: read its `SKILL.md` (`.claude/skills/<name>/` at the repo root, else `~/.claude/skills/<name>/`) and follow it — dictation cleanup, sections, marks, never inventing, file name, living note. Where it puts the questions in chat, do what « Questions » below says.
 2. Without it: the guide (`docs/dev_guide/*.html`: §2, §3.1 to §3.3, A.1; find the sections with `Grep` on `<h[12]>`), else these rules:
    - one file, `docs/tickets/<type>/<ticket or version>-<slug>.md`, `<type>` = `feat`, `fix`, `refactor` or `chore`, named like the project's other notes; a note for this ticket exists → update it in place: final state only, the why of a choice in parentheses;

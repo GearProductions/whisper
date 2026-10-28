@@ -6,7 +6,7 @@
     "kind": "send",
     "needs": "text",
     "label": "Rédiger la note",
-    "hint": "L'agent rédige ou met à jour la note du ticket d'après la demande du champ, et pose à part ses questions ouvertes.",
+    "hint": "L'agent rédige ou met à jour la note du ticket d'après la demande du champ, et pose à part ses questions ouvertes ; sur la branche principale, il propose d'abord un nom de branche, que vous validez ou changez avant qu'elle ne soit créée.",
     "text": "/vibecoder:note {{lang}} {{out}} {{text}}"
   },
   {
@@ -238,8 +238,8 @@
   },
   {
     "id": "load-pr",
-    "flow": "review",
-    "step": "pr",
+    "flow": "both",
+    "step": null,
     "kind": "send",
     "needs": "none",
     "reads": true,
@@ -249,8 +249,8 @@
   },
   {
     "id": "pr-here",
-    "flow": "review",
-    "step": "pr",
+    "flow": "both",
+    "step": null,
     "kind": "send",
     "needs": "none",
     "label": "Changer de branche",
@@ -259,8 +259,8 @@
   },
   {
     "id": "pr-worktree",
-    "flow": "review",
-    "step": "pr",
+    "flow": "both",
+    "step": null,
     "kind": "send",
     "needs": "none",
     "label": "Dans un nouveau worktree",
@@ -279,23 +279,73 @@
   },
   {
     "id": "unload-pr",
-    "flow": "review",
-    "step": "pr",
+    "flow": "both",
+    "step": null,
     "kind": "send",
     "needs": "none",
-    "label": "Décharger",
+    "label": "Revenir sur la branche principale",
     "hint": "Remet ce dossier sur la branche principale du dépôt (git switch) et ne suit plus la PR ; refusé s'il y a des modifications en cours (mettez-les de côté, ou restez sur la branche).",
-    "text": "Décharger la PR : seulement par l'appli (direct), jamais par l'agent."
+    "text": "Revenir sur la branche principale : seulement par l'appli (direct), jamais par l'agent."
   },
   {
     "id": "remove-worktree",
     "flow": "both",
-    "step": "pr",
+    "step": null,
     "kind": "send",
     "needs": "none",
     "label": "Retirer le worktree",
     "hint": "Retire ce worktree avec la recette du projet (refusé s'il reste des modifications) ; ce robot part avec lui, le panneau passe au parent.",
     "text": "Retirer le worktree : seulement par l'appli (direct), jamais par l'agent."
+  },
+  {
+    "id": "switch-branch",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Aller sur la branche",
+    "hint": "Met ce dossier sur la branche locale choisie (git switch) ; refusé s'il y a des modifications en cours (mettez-les de côté d'abord).",
+    "text": "Aller sur la branche : seulement par l'appli (direct), jamais par l'agent."
+  },
+  {
+    "id": "pull",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Pull",
+    "hint": "Récupère les commits de la branche distante suivie, en avance rapide seulement (git pull --ff-only --autostash : les modifications en cours sont mises de côté puis reprises) ; grisé sans branche distante suivie, ou déjà à jour.",
+    "text": "Pull : seulement par l'appli (direct), jamais par l'agent."
+  },
+  {
+    "id": "rebase",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Rebase",
+    "hint": "Rejoue les commits de la branche sur origin/<base> ou sur la branche choisie (git rebase --autostash) ; un conflit l'annule aussitôt (git rebase --abort) ; sa pastille : la branche principale a avancé.",
+    "text": "Rebase : seulement par l'appli (direct), jamais par l'agent."
+  },
+  {
+    "id": "push",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Pousser",
+    "hint": "Pousse la branche après un rebase (git push --force-with-lease : refusé si le distant a changé depuis votre dernier Actualiser ; jamais --force).",
+    "text": "Pousser : seulement par l'appli (direct), jamais par l'agent."
+  },
+  {
+    "id": "fetch",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Actualiser",
+    "hint": "Récupère l'état du dépôt distant (git fetch origin), que lisent Pull et Rebase ; jamais automatique.",
+    "text": "Actualiser : seulement par l'appli (direct), jamais par l'agent."
   },
   {
     "id": "review-note",
@@ -379,7 +429,7 @@
     "needs": "text",
     "reads": true,
     "label": "Nouvelle demande",
-    "hint": "L'agent nomme la branche d'après la demande du champ ; vous choisissez ensuite : changer de branche ici, ou, avec des modifications en cours, un nouveau worktree avec son robot en Créer, ou les mettre de côté.",
+    "hint": "L'agent propose un nom de branche d'après la demande du champ ; vous le validez ou le changez, puis choisissez : créer ici, ou, avec des modifications en cours, dans un nouveau worktree avec son robot en Créer, ou les mettre de côté.",
     "text": "/vibecoder:nouvelle-demande {{lang}} {{out}} {{text}}"
   },
   {
@@ -388,9 +438,9 @@
     "step": null,
     "kind": "send",
     "needs": "none",
-    "label": "Changer de branche",
-    "hint": "Crée la branche de la demande depuis la base à jour (git switch -c) et y met ce dossier, en Créer, qui rédige la note ; refusé s'il y a des modifications en cours.",
-    "text": "Changer de branche pour une demande : seulement par l'appli (direct), jamais par l'agent."
+    "label": "Créer ici",
+    "hint": "Crée la branche (git switch -c : la demande depuis la base à jour, ou le nom saisi depuis le départ choisi) et y met ce dossier ; pour une demande, en Créer, qui rédige la note ; refusé s'il y a des modifications en cours.",
+    "text": "Créer ici : seulement par l'appli (direct), jamais par l'agent."
   },
   {
     "id": "new-worktree",
@@ -399,8 +449,8 @@
     "kind": "send",
     "needs": "none",
     "label": "Dans un nouveau worktree",
-    "hint": "Crée le worktree de la demande, sur sa branche, avec la recette du projet, et y ouvre un robot en Créer, qui rédige la note ; ce dossier reste sur sa branche, avec ses modifications.",
-    "text": "Nouvelle demande dans un worktree : seulement par l'appli (direct), jamais par l'agent."
+    "hint": "Crée la branche (la demande, ou le nom saisi depuis le départ choisi) dans un nouveau worktree, avec la recette du projet, et y ouvre un robot en Créer (pour une demande, il rédige la note) ; ce dossier reste sur sa branche, avec ses modifications.",
+    "text": "Dans un nouveau worktree : seulement par l'appli (direct), jamais par l'agent."
   },
   {
     "id": "comment",
