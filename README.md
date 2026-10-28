@@ -378,8 +378,10 @@ conversation reste utilisable.
 
 **L'écran.**
 
-- en haut : l'agent et sa branche ; *Créer* / *Relire* ;
-  *FR* / *EN* ; ↻ (relire le dépôt tout de suite) ; 💬 ; × ;
+- en haut : l'agent et sa branche — un bouton, qui ouvre (et referme) la
+  **vue des branches**, plus bas — avec *Pull* et *Rebase* à côté ;
+  *Créer* / *Relire* ; *FR* / *EN* ; ↻ (relire le dépôt tout de suite) ;
+  💬 ; × ;
 - à gauche, le **parcours** : les étapes (point plein : faite ; anneau : en
   cours ; gris : à venir), chacune avec ses faits en une ligne, puis les
   commits de la branche. Il mène : un clic (ou Ctrl+1…6) ouvre une étape
@@ -393,8 +395,7 @@ conversation reste utilisable.
   un skill a son *Relancer* ;
 - à droite, quatre onglets : la **conversation** de l'agent, comme d'habitude
   (fil, autorisations, champ, dictée, commandes « / » ; au-dessus du champ,
-  *Demander sans modifier* : il répond sans rien toucher, et *Nouvelle
-  demande dans un worktree*, plus bas), les **Actions**
+  *Demander sans modifier* : il répond sans rien toucher), les **Actions**
   lancées, ses **Tâches** de fond et les **Processus** du projet (le nombre
   en cours dans l'onglet) ;
 - en bas : modèle, effort et mode de l'agent (comme dans son menu), jauge du
@@ -464,7 +465,8 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
 **Créer** — les étapes du guide :
 
 1. **Note** : *Rédiger la note* d'après la demande du champ de l'étape (sur la branche
-   principale, l'agent crée d'abord la branche du ticket) ; ses questions
+   principale, c'est une nouvelle demande : l'agent propose d'abord un nom
+   de branche, plus bas) ; ses questions
    ouvertes s'affichent à part, avec des réponses proposées : *Envoyer les
    réponses* (à l'action qui a rédigé la note : elle garde son contexte) ;
    puis ✓ pour valider la note. La note s'affiche tout de suite ;
@@ -534,21 +536,26 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
 6. **PR** : sans PR, *Valider la feature (ouvrir la PR)* ; la PR ouverte,
    *Diagnostiquer la CI* et *Release candidate* ; fusionnée, *PR mergée →
    revenir sur la base* (refusé s'il y a des modifications en cours ; sur
-   le robot d'un worktree, *Retirer le worktree* à la place) et *Release
+   le robot d'un worktree, *Retirer le worktree*, dans la vue des branches,
+   à la place) et *Release
    officielle*. L'étape est faite dès qu'une PR existe pour la branche :
    l'appli la demande elle-même à `gh` (sans IA, en lecture seule ; toutes
    les 60 s au plus, ↻ pour tout de suite).
 
 **Sans IA** : *✓ Commiter*, *Charger* (une PR), *Publier la revue*, *PR
-mergée → revenir sur la base*, *Changer de branche*, *Dans un nouveau
-worktree*, *Mettre de côté*, *Décharger* et *Retirer le worktree* ne sont
+mergée → revenir sur la base*, *Changer de branche*, *Aller sur la
+branche*, *Créer ici*, *Dans un nouveau worktree*, *Mettre de côté*,
+*Revenir sur la branche principale*, *Retirer le worktree*, *Pull*,
+*Rebase*, *Pousser* et *Actualiser* ne sont
 que des commandes connues : l'appli les lance elle-même (bouton « direct »,
 aucun jeton) — `git commit -F` du message affiché ; `gh pr view` puis `git
 fetch origin` de la branche de la PR et de sa base ; `gh pr review` du brouillon ; seulement
 si la PR est fusionnée, `git switch`, `git pull --ff-only`, `git branch -d`
 ; `git switch` d'une branche (jamais avec des modifications en cours),
 suivi pour celle d'une PR de `git pull --ff-only origin <branche>` ;
-`git stash push -u`, et rien d'autre ; la recette du projet (plus bas) pour
+`git stash push -u`, et rien d'autre ; `git pull --ff-only --autostash`,
+`git rebase --autostash` (un conflit : `git rebase --abort` aussitôt),
+`git push --force-with-lease`, `git fetch origin` ; la recette du projet (plus bas) pour
 créer ou retirer un worktree. Le résultat s'affiche sous le bouton (✓ ou ✗,
 le détail à déplier), chaque commande dans `direct.log` des sorties de
 l'agent ; git et `gh` passent par le préfixe des commandes (la box : les
@@ -561,17 +568,15 @@ votre ✓, l'étape vous le dit (*✓ Valider la note*, « N cas à valider »).
 l'agent vient de changer sont surlignées (*Voir les modifications* : le
 diff ; *Vu* : ne plus surligner).
 
-**Relire** — une PR : son numéro ou son lien, puis *Charger* ; ou *Mes PR à
-relire* (celles où l'on vous demande, que l'appli demande à `gh`, sans IA)
-et un clic sur l'une d'elles ;
-*Décharger* pour en choisir une autre. *Créer* et *Relire* travaillent
-sur le même dossier : la PR se charge **dans le dossier de l'agent**
-(`gh pr view`, puis `git fetch origin` de la branche de la PR et de sa
-base ; une PR venue d'un fork, dont la branche n'est pas sur `origin`, est
-refusée), et on
-la relit sur sa branche. Sur une branche qui a déjà sa PR ouverte (la
-vôtre, avant le relecteur), *Relire* la montre directement, sans rien
-charger. Puis la note (*Relire la note* : les décisions à discuter), les
+**Relire** — la PR de la branche du dossier : sur une branche qui a sa PR
+ouverte (la vôtre, avant le relecteur, ou celle d'un autre chargée dans la
+vue des branches, ci-dessous), *Relire* la suit d'emblée et commence à la
+note ; sur une branche sans PR (la branche principale comprise), *Relire*
+est grisé. *Créer* et *Relire* travaillent sur le même dossier : la PR se
+charge **dans le dossier de l'agent** (`gh pr view`, puis `git fetch
+origin` de la branche de la PR et de sa base ; une PR venue d'un fork, dont
+la branche n'est pas sur `origin`, est refusée), et on la relit sur sa
+branche. Puis la note (*Relire la note* : les décisions à discuter), les
 invariants (les mêmes cartes en pseudo-code), les commits (*Relire les
 commits* — ou, sans IA, la liste des commits, leurs fichiers, leur diff —,
 une carte par commit), le plan de test (*Plan de test à l'écran* : des cases
@@ -582,6 +587,19 @@ mais il n'y a rien à relire : l'écran le dit (son état est redemandé à `gh`
 toutes les 60 s au plus). Enfin le verdict (*Commenter* par défaut, *Approuver*, *Demander
 des changements*) et *Publier la revue*, qui l'envoie sur GitHub telle
 quelle.
+
+**La vue des branches.** Tout ce qui change de branche passe par un seul
+endroit : un clic sur la branche, en haut à gauche, ouvre la vue des
+branches à la place de l'étape (un nouveau clic la referme). Elle montre :
+
+- les PR ouvertes du dépôt (que l'appli demande à `gh`, sans IA), en trois
+  onglets : *Mes PR* (celles que vous avez créées), *À relire* (celles où
+  l'on vous demande en relecture), *Toutes les PR* ; un clic sur l'une
+  d'elles la charge, son nom apparaît aussitôt dans le bouton ;
+- *Branches locales* : un clic passe sur la branche (`git switch`) ;
+- *Revenir sur la branche principale* ; *Créer une branche* ; *Retirer le
+  worktree* (sur le robot d'un worktree) ; *Actualiser* (`git fetch origin` :
+  l'état du distant, pour *Pull* et *Rebase*).
 
 La PR chargée, l'appli vous demande toujours quoi faire de votre dossier :
 
@@ -604,30 +622,59 @@ La PR chargée, l'appli vous demande toujours quoi faire de votre dossier :
   Seulement à ce clic, et sans changer de branche : le dossier propre,
   *Changer de branche* n'est plus grisé, un deuxième clic y passe.
 
-*Décharger* remet le dossier sur la branche principale du dépôt et ne suit
-plus la PR (publier la revue, lui, ne change pas de branche). Avec des
-modifications en cours : *Mettre de côté* puis *Décharger*, ou *Rester sur
-la branche* (ne plus suivre la PR, sans git).
+*Revenir sur la branche principale* remet le dossier sur la branche
+principale du dépôt et ne suit plus la PR (publier la revue, lui, ne change
+pas de branche). Avec des modifications en cours : *Mettre de côté* puis
+revenir, ou *Rester sur la branche* (ne plus suivre la PR, sans git). Passer
+sur une branche locale suit la même règle.
 
-**Une nouvelle demande.** Sous le champ de la conversation, *Nouvelle
-demande* (dictez d'abord la demande) : l'agent nomme la branche d'après la
-demande (Haiku, selon la convention du projet, sinon
-`<type>/<ticket>-<intitulé>` ou `<type>/<version>-<intitulé>`), puis
-l'appli vous propose les mêmes choix :
+*Créer une branche* : son nom, son départ (par défaut la branche principale
+à jour, `origin/<base>`, ou une branche locale), puis *Créer ici* (`git
+switch -c`, grisé s'il y a des modifications en cours) ou *Dans un nouveau
+worktree* (un robot enfant s'y ouvre, comme pour une nouvelle demande,
+ci-dessous).
 
-- *Changer de branche* : la branche est créée depuis la base à jour (`git
-  switch -c`) et le dossier y passe, en *Créer*, qui rédige la note d'après
-  votre demande ; grisé s'il y a des modifications en cours ;
+**Pull et Rebase.** À côté de la branche, deux boutons à icône, comme dans
+VS Code, sur toute branche (la PR d'un autre comprise) :
+
+- *Pull* : `git pull --ff-only --autostash` ; grisé quand la branche est à
+  jour avec sa branche distante (ou n'en a pas) ; sans avance rapide
+  possible, l'échec s'affiche ;
+- *Rebase* : `git rebase --autostash` sur la branche principale distante
+  (`origin/<base>`), ou sur une autre branche au choix (▾). Une pastille le
+  signale quand `origin/<base>` a avancé depuis la base de la branche (une
+  PR à rebaser sur un `master` mis à jour) ; il reste permis à tout moment.
+  Un conflit : `git rebase --abort` aussitôt, l'échec affiché, rien ne
+  bouge. Réussi : *Pousser* apparaît (`git push --force-with-lease`, à son
+  seul clic).
+
+Les deux sont permis avec des modifications en cours : `--autostash` les
+met de côté le temps de l'opération et les reprend après. Leur état se lit
+sans rien modifier (`git log`) ; il suit le distant tel que le dernier
+*Actualiser* l'a laissé : l'appli ne fait jamais de `git fetch` d'elle-même.
+
+**Une nouvelle demande.** Sur la branche principale, en *Créer*, dictez la
+demande dans le champ de l'étape Note, puis *Rédiger la note* : l'agent
+propose un nom de branche (Haiku, selon la convention du projet, sinon
+`<type>/<ticket>-<intitulé>` ou `<type>/<version>-<intitulé>`), et l'appli
+vous demande « Voulez-vous créer la branche … ? », le nom prérempli et
+modifiable. Rien n'est créé sans votre clic :
+
+- *Créer ici* : la branche est créée depuis la base à jour (`git
+  switch -c`) et le dossier y passe, puis la note s'écrit d'après votre
+  demande ; grisé s'il y a des modifications en cours ;
 - *Dans un nouveau worktree*, le dossier propre ou pas (l'appli crée le
   worktree sur cette branche, vous demande si vous lui faites confiance,
   puis un robot enfant s'y ouvre en *Créer* et rédige la note ; votre robot
   reste sur sa branche, avec ses modifications s'il en a) ;
 - avec des modifications en cours, en plus : *Mettre de côté*, puis
-  *Changer de branche* d'un deuxième clic.
+  *Créer ici* d'un deuxième clic.
 
-Un échec : ✗ et sa raison à côté du choix. La PR de l'enfant fusionnée :
-*Retirer le worktree* (à la place de *PR mergée → revenir sur la base*) ;
-le robot part avec lui.
+Sur une autre branche, *Rédiger la note* rédige la note de cette branche,
+sans proposer de nouvelle branche. Un échec : ✗ et sa raison à côté du
+choix. La PR de l'enfant fusionnée : *Retirer le worktree*, dans la vue des
+branches (à la place de *PR mergée → revenir sur la base*) ; le robot part
+avec lui.
 
 **Lancer le projet.** L'onglet *Processus* lance, arrête et relance les
 commandes qui font tourner le projet de l'agent (serveur, front, services) :
