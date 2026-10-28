@@ -371,6 +371,11 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const git = gitReader(gitRun(agent.dir));
   // La copie de travail, dans les deux parcours. Relire : la PR chargée (sa fiche), comparée à la base
   // de sa fiche, sous le nom de sa branche ; sans fiche, rien à lire. La fiche de la PR suivie : les deux parcours.
+  // Les branches locales et l'état distant (git en lecture, aucun fetch), lus pendant facts : sync sur la
+  // base du relevé d'avant (sans « origin/ »), relu après si elle a changé. Le relevé n'attend pas un tour de git de plus.
+  const strip = (b: string) => b.replace(/^origin\//, '');
+  const known = lastView(agent.id)?.repo?.base;
+  const early = Promise.all([git.branches(), known ? git.sync(strip(known)) : null]);
   const created = flow === 'create' ? await git.facts() : null;
   const out = vibeOutDir(agent.id);
   if (created) followBranch(out, created.branch, created.base);
@@ -379,8 +384,8 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const card = pr ? json(outputs[`pr-${pr}.json`]?.text) : null;
   const base = branchName(card?.base);
   const facts = created ?? (card && flow === 'review' ? await git.facts(undefined, base ? `origin/${base}` : undefined) : null);
-  // Les branches locales et l'état distant (git en lecture, aucun fetch) : sync prend la base sans « origin/ ».
-  const [branches, sync] = await Promise.all([git.branches(), facts ? git.sync(facts.base.replace(/^origin\//, '')) : null]);
+  const [branches, earlySync] = await early;
+  const sync = !facts ? null : known && strip(known) === strip(facts.base) ? earlySync : await git.sync(strip(facts.base));
   // gh, sans agent : Créer, la PR de la branche (pas sur la base) ; l'état de la PR suivie ; les PR ouvertes (setVibe({ prs })).
   const gh = githubReader(ghRun(agent.dir, agentPrefix(agent, cfg)));
   const feature = created && created.branch !== 'HEAD' && created.base !== created.branch && !created.base.endsWith(`/${created.branch}`)
