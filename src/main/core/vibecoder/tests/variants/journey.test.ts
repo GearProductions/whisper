@@ -1084,9 +1084,10 @@ describe('la gestion des branches (0.12.0) : la PR suivie, Relire possible, Pull
     expect(action(vibeView(input({ lang: 'en', sync: { behind: 0, baseAhead: 0 } })), 'pull')?.disabled).toBe('Already up to date');
   });
 
-  it('Rebase : toujours montré, jamais grisé par l\'état distant', () => {
-    const v = vibeView(input({ sync: { behind: 0, baseAhead: 0 }, checkout: { branch: 'main', dirty: true } }));
+  it('Rebase : montré hors de la base, jamais grisé par l\'état distant ; masqué sur la base', () => {
+    const v = vibeView(input({ sync: { behind: 0, baseAhead: 0 }, checkout: { branch: 'feat/G2-1-bouton', dirty: true } }));
     expect([action(v, 'rebase')?.hidden, action(v, 'rebase')?.disabled]).toEqual([false, null]);
+    expect(action(vibeView(input({ checkout: { branch: 'main', dirty: false } })), 'rebase')?.hidden).toBe(true);
   });
 
   it('Pousser : montré après un rebase réussi, jusqu\'à un push réussi ; un push en échec le laisse', () => {

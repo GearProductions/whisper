@@ -419,10 +419,11 @@ export function vibeView(input: JourneyInput): VibeView {
   const prShown: Record<string, boolean> = {
     pr: !prState, ci: prState === 'OPEN', rc: prState === 'OPEN', base: prState === 'MERGED' && !child, release: prState === 'MERGED',
   };
-  // Les choix de lieu (core/vibecoder place), Pousser (après un rebase pas encore poussé), sans griser ; Nouvelle demande sur
-  // la base seulement. Retirer le worktree : sur un enfant, sa PR fusionnée (Créer) ou sur le robot d'une PR (Relire).
+  // Les choix de lieu (core/vibecoder place), Pousser (après un rebase pas encore poussé), sans griser ; Rebase hors
+  // de la base ; Nouvelle demande sur la base seulement. Retirer le worktree : sur un enfant, sa PR fusionnée (Créer) ou sur le robot d'une PR (Relire).
   const shown: Record<string, boolean> = {
     ...placeShown(place),
+    rebase: !place.onBase,
     push: sync.rebased,
     'new-request': place.onBase,
     'remove-worktree': child && (flow === 'create' ? prState === 'MERGED' : place.robot),
