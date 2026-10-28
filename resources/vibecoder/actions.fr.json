@@ -348,7 +348,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Vibe",
-    "hint": "L'agent reprend à la première étape pas faite et enchaîne jusqu'à la release candidate ; une question qui bloque l'attend sans l'arrêter ; la bannière l'arrête ; long et coûteux.",
+    "hint": "L'agent reprend à la première étape pas faite et enchaîne jusqu'à la PR et sa CI au vert ; une question qui bloque l'attend sans l'arrêter ; la bannière l'arrête ; long et coûteux.",
     "text": "/vibecoder:vibe {{lang}} {{out}}"
   },
   {
