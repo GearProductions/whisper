@@ -1,6 +1,6 @@
 /** place — où relire une PR et où commencer une demande (note 0.12.0-creer-relire-meme-dossier) : quels
- *  choix de lieu montrer d'après l'état du dossier (changer de branche, un nouveau worktree, décharger la PR,
- *  mettre de côté), et pourquoi l'un est grisé (des modifications : pas de git switch ; une recette en cours).
+ *  choix de lieu montrer d'après l'état du dossier (changer de branche, un nouveau worktree, propre ou pas,
+ *  décharger la PR, mettre de côté), et pourquoi l'un est grisé (des modifications : pas de git switch ; une recette en cours).
  *  Masqué n'est pas refusé : le principal revérifie au clic.
  *  Ne connaît pas : Electron, git, le disque, les libellés.
  *  Utilisé par : core/vibecoder (journey). */
@@ -29,10 +29,10 @@ export function placeShown(s: PlaceState): Record<string, boolean> {
   const newHere = s.request !== null;
   return {
     'pr-here': prHere,
-    'pr-worktree': prHere && s.dirty && !s.child && !s.prWorktree,
+    'pr-worktree': prHere && !s.child && !s.prWorktree,
     'unload-pr': unloadPr,
     'new-here': newHere,
-    'new-worktree': newHere && s.dirty && !s.child,
+    'new-worktree': newHere && !s.child,
     stash: s.dirty && (prHere || unloadPr || newHere),
   };
 }

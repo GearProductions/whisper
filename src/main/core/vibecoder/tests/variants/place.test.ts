@@ -22,17 +22,19 @@ describe('placeShown', () => {
     expect(shown({ dirty: true })).toEqual([]);
   });
 
-  it('PR chargée, dossier propre hors de sa tête : changer de branche, décharger', () => {
-    expect(shown({ head: 'feat/x' })).toEqual(['pr-here', 'unload-pr']);
+  it('PR chargée, dossier propre hors de sa tête : changer de branche, un worktree, décharger', () => {
+    expect(shown({ head: 'feat/x' })).toEqual(['pr-here', 'pr-worktree', 'unload-pr']);
   });
 
-  it('avec des modifications : en plus un worktree et mettre de côté', () => {
+  it('avec des modifications : en plus mettre de côté', () => {
     expect(shown({ head: 'feat/x', dirty: true })).toEqual(['pr-here', 'pr-worktree', 'unload-pr', 'stash']);
   });
 
-  it('pas de worktree sur un enfant, ni quand la PR a déjà le sien', () => {
-    expect(shown({ head: 'feat/x', dirty: true, child: true })).not.toContain('pr-worktree');
-    expect(shown({ head: 'feat/x', dirty: true, prWorktree: true })).not.toContain('pr-worktree');
+  it('pas de worktree sur un enfant, ni quand la PR a déjà le sien, propre ou pas', () => {
+    for (const dirty of [false, true]) {
+      expect(shown({ head: 'feat/x', dirty, child: true })).not.toContain('pr-worktree');
+      expect(shown({ head: 'feat/x', dirty, prWorktree: true })).not.toContain('pr-worktree');
+    }
   });
 
   it('sur la tête : décharger seulement (et mettre de côté avec des modifications)', () => {
@@ -44,8 +46,9 @@ describe('placeShown', () => {
     expect(shown({ head: 'feat/x', robot: true, child: true, dirty: true })).toEqual([]);
   });
 
-  it('une demande en attente : ici ; avec des modifications, un worktree (pas sur un enfant) et mettre de côté', () => {
-    expect(shown({ request: 'feat/y' })).toEqual(['new-here']);
+  it('une demande en attente : ici et un worktree (pas sur un enfant) ; avec des modifications, mettre de côté', () => {
+    expect(shown({ request: 'feat/y' })).toEqual(['new-here', 'new-worktree']);
+    expect(shown({ request: 'feat/y', child: true })).toEqual(['new-here']);
     expect(shown({ request: 'feat/y', dirty: true })).toEqual(['new-here', 'new-worktree', 'stash']);
     expect(shown({ request: 'feat/y', dirty: true, child: true })).toEqual(['new-here', 'stash']);
   });
