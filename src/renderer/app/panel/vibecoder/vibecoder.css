@@ -95,7 +95,17 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: pointer;
 }
+/* La branche est un bouton : il ouvre et ferme la vue des branches. */
+.vc-branch:hover { color: var(--vc-text); border-color: color-mix(in srgb, var(--accent) 45%, var(--vc-line)); }
+.vc-branch[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent) 26%, var(--vc-control));
+  color: #fff;
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.vc-seg button:disabled { opacity: 0.4; cursor: default; }
+.vc-seg button:disabled:hover { background: transparent; color: var(--vc-muted); }
 .vc-modes { display: flex; gap: 10px; }
 .vc-tools { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
 .vc-tools .vc-seg { margin-right: 8px; }
