@@ -35,7 +35,7 @@ const fake = vi.hoisted(() => {
     shown: null as string | null, diff: null as string | null, edited: [] as unknown[][], opened: [] as string[],
     tabs: [] as (string | null)[], steps: [] as { id: string; status: string }[],
     git: (() => null) as (args: string[]) => string | null, calls: [] as unknown[][], noChild: false,
-    branches: null as string[] | null, synced: [] as string[], prs: null as unknown,
+    branches: null as string[] | null, synced: [] as string[], prs: null as unknown, login: 'moi' as string | null,
   };
 });
 
@@ -73,7 +73,7 @@ vi.mock('technicals/git', () => ({
 // gh : les PR ouvertes du dépôt, réglées par le cas ; le reste sans réponse.
 vi.mock('technicals/github', async (original) => ({
   ...await original<typeof import('technicals/github')>(),
-  githubReader: () => ({ prForBranch: async () => null, prState: async () => null, openPrs: async () => fake.prs }),
+  githubReader: () => ({ prForBranch: async () => null, prState: async () => null, openPrs: async () => fake.prs, login: async () => fake.login }),
 }));
 
 // L'éditeur : relève ce qu'on lui fait ouvrir.
@@ -90,7 +90,7 @@ vi.mock('technicals/paths', async (original) => ({
 vi.mock('core/vibecoder', async (original) => ({
   ...await original<typeof import('core/vibecoder')>(),
   vibeView: (input: JourneyInput) => ({
-    ...input, pr: input.pr && { number: input.pr }, steps: fake.steps, commits: input.repo?.commits ?? [], invariants: [], variants: [], modules: [], questions: [],
+    ...input, pr: input.pr && { number: input.pr }, prs: input.github?.prs ?? null, steps: fake.steps, commits: input.repo?.commits ?? [], invariants: [], variants: [], modules: [], questions: [],
     checklist: [{ text: 'Chaque diff a été relu', done: null, manual: true }, { text: 'La note est à jour', done: false }],
     actions: input.actions.map((a) => ({
       ...a, who: input.who[a.id], model: input.model[a.id], models: input.model[a.id] ? ['haiku', 'sonnet', 'opus'] : [], primary: false, disabled: null,
@@ -118,6 +118,7 @@ vi.mock('technicals/direct', async (original) => ({
     pull: async () => { fake.calls.push(['pull']); return OK; },
     rebase: async (onto: string) => { fake.calls.push(['rebase', onto]); return OK; },
     push: async () => { fake.calls.push(['push']); return OK; },
+    requestReview: async (n: number, login: string) => { fake.calls.push(['requestReview', n, login]); return OK; },
   }),
 }));
 vi.mock('app/controllers/recipe', async (original) => ({
@@ -172,6 +173,7 @@ beforeEach(() => {
   fake.branches = ['main', 'feat/x'];
   fake.synced = [];
   fake.prs = null;
+  fake.login = 'moi';
   fake.userData = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-vibecoder-'));
   dir = path.join(fake.userData, 'projet');
   out = path.join(fake.userData, 'vibecoder-out', 'a1');   // les sorties de l'agent
@@ -566,7 +568,7 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     { id: 'new-here', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Changer de branche', text: 'ici' },
     { id: 'new-worktree', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Dans un nouveau worktree', text: 'worktree' },
     { id: 'stash', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Mettre de côté', text: 'de côté' },
-    ...['switch-branch', 'pull', 'rebase', 'push', 'fetch'].map((id) => ({ id, flow: 'both', step: null, kind: 'send', needs: 'none', label: id, text: id })),
+    ...['switch-branch', 'pull', 'rebase', 'push', 'fetch', 'request-review'].map((id) => ({ id, flow: 'both', step: null, kind: 'send', needs: 'none', label: id, text: id })),
   ];
   // git : la branche du dossier et son état (status, ou une fonction : à chaque appel), réglés par le cas.
   const gitWith = (status: string | null | (() => string | null), branch = 'main') => {
@@ -862,6 +864,34 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
       await until(() => done(id));
     }
     expect(fake.calls).toEqual([['fetchAll'], ['pull'], ['push']]);
+  });
+
+  it('Me demander en relecture : une PR de Toutes les PR, ni des miennes ni à relire ; mon identifiant, puis les listes relues', async () => {
+    fake.prs = { mine: [{ number: 1 }], review: [{ number: 2 }], all: [{ number: 1 }, { number: 2 }, { number: 3 }] };
+    const { view } = await open();
+    const { runVibeAction, setVibe } = await import('app/controllers');
+    setVibe({ prs: true });
+    await until(() => !!view()?.github?.prs);
+    // la mienne, une déjà à relire, une hors de la liste, pas un numéro : refusées, rien de lancé
+    for (const pr of [1, 2, 9, '3']) expect(runVibeAction('request-review', { direct: true, pr: pr as number })).toMatchObject({ ok: false });
+    expect(fake.calls).toEqual([]);
+    fake.prs = { mine: [{ number: 1 }], review: [{ number: 2 }, { number: 3 }], all: [{ number: 1 }, { number: 2 }, { number: 3 }] };
+    expect(runVibeAction('request-review', { direct: true, pr: 3 })).toEqual({ ok: true });
+    await until(() => done('request-review'));
+    expect(fake.calls).toEqual([['requestReview', 3, 'moi']]);
+    await until(() => (view()?.github?.prs as { review: unknown[] } | undefined)?.review.length === 2);   // la PR passe dans À relire
+  });
+
+  it('Me demander en relecture : sans identifiant (gh api user en échec), rien de lancé', async () => {
+    fake.prs = { mine: [], review: [], all: [{ number: 3 }] };
+    fake.login = null;
+    const { view } = await open();
+    const { runVibeAction, setVibe } = await import('app/controllers');
+    setVibe({ prs: true });
+    await until(() => !!view()?.github?.prs);
+    runVibeAction('request-review', { direct: true, pr: 3 });
+    await until(() => done('request-review'));
+    expect(fake.calls).toEqual([]);
   });
 
   it('Rebase : origin/<base> rapatriée par défaut, ou une branche locale ; une autre → refusé', async () => {

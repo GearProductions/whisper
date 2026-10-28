@@ -15,7 +15,7 @@
  *  sendToAgent : refusé s'il travaille, I-25 ; ou, pour les actions de
  *  DIRECT_ACTIONS (commit, publish, load-pr, base, pr-here, pr-worktree,
  *  remove-worktree, stash, unload-pr, switch-branch, new-here, new-worktree, pull, rebase, push,
- *  fetch), au clic de « direct » : leurs
+ *  fetch, request-review), au clic de « direct » : leurs
  *  commandes, lancées par l'appli, F-114), une course (vibeRunOp : l'arrêter, la garder ou l'annuler, répondre
  *  à sa demande d'autorisation), un réglage (dont arrêter l'agent, comme Interrompre de son
  *  menu ; arrêter Vibe, la bannière : vibeStop de controllers/runs ;
@@ -598,6 +598,20 @@ function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, view: Vib
       if (!base) return refused(NO_BASE);
       const f = await run.fetchBranch(base);
       return f.ok ? run.rebase(onto ?? `origin/${base}`) : f;
+    };
+  } else if (id === 'request-review') {
+    // Une PR de Toutes les PR, ni des miennes ni déjà à relire ; mon identifiant lu par gh, puis gh pr edit ; les listes relues.
+    const pr = prNumber(args.pr);
+    const prs = view.prs || null;
+    const has = (list: { number: number }[]) => list.some((p) => p.number === pr);
+    if (!pr || !prs || !has(prs.all) || has(prs.mine) || has(prs.review)) return fail(lang, 'pr');
+    job = async () => {
+      const gh = githubReader(ghRun(agent.dir, agentPrefix(agent, cfg)));
+      const login = await gh.login();
+      if (!login) return refused('No GitHub login (gh api user): nothing done.');
+      const r = await run.requestReview(pr, login);
+      if (r.ok) prsFound.set(agent.id, (await gh.openPrs()) ?? false);
+      return r;
     };
   } else if (id === 'load-pr') {
     const pr = args.pr === undefined ? n : prNumber(args.pr);
