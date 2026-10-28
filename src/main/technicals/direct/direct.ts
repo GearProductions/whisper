@@ -9,9 +9,11 @@
  *  branche pr-<n> de l'appli (son worktree retiré) ; Pull de la branche
  *  suivie (git pull --ff-only --autostash), Rebase (git rebase --autostash
  *  <onto> ; un échec → git rebase --abort aussitôt), Pousser (git push
- *  --force-with-lease, jamais --force), Actualiser (git fetch origin).
+ *  --force-with-lease, jamais --force), Actualiser (git fetch origin), Me
+ *  demander en relecture (gh pr edit <n> --add-reviewer <identifiant>).
  *  Une liste fermée de commandes (DIRECT_GIT, DIRECT_GH), aux arguments fixes ou
- *  vérifiés : une PR est un entier positif, un verdict l'un des trois, une
+ *  vérifiés : une PR est un entier positif, un verdict l'un des trois, un
+ *  identifiant GitHub ses seuls caractères (okLogin), une
  *  branche un ref sûr (okRef) ; un fichier est écrit par l'appli dans le
  *  dossier de sorties, jamais donné. git (au dossier du dépôt) et gh derrière
  *  le préfixe (core/runner, commandPrefix : la box, où les hooks de git
@@ -25,10 +27,11 @@ import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { okRef } from 'technicals/git';
+import { okLogin } from 'technicals/github';
 
-// Les seules commandes lancées : git <sous-commande>, gh pr review (écrit), gh pr view (lit).
+// Les seules commandes lancées : git <sous-commande>, gh pr review et gh pr edit (écrivent), gh pr view (lit).
 export const DIRECT_GIT = ['commit', 'fetch', 'switch', 'pull', 'branch', 'stash', 'rebase', 'push'] as const;
-export const DIRECT_GH = [['pr', 'review'], ['pr', 'view']] as const;
+export const DIRECT_GH = [['pr', 'review'], ['pr', 'view'], ['pr', 'edit']] as const;
 export const VERDICTS = ['approve', 'comment', 'request-changes'] as const;
 
 // Lance argv (sans shell) au dossier `cwd` → son code de sortie (null : pas lancé, tué, trop long) et ses sorties.
@@ -211,8 +214,11 @@ export function directRunner({ dir, out, prefix, launch = launchFile }: { dir: s
 
     // git fetch origin : tout le distant (Actualiser, au clic seulement).
     // gh pr edit <n> --add-reviewer <identifiant> : s'ajouter en relecteur.
-    async requestReview(_n: unknown, _login: unknown): Promise<DirectResult> {
-      throw new Error('not implemented');
+    async requestReview(n: unknown, login: unknown): Promise<DirectResult> {
+      if (!okNumber(n) || !okLogin(login)) return result(false, 'Refused: PR or GitHub login missing.');
+      const r = await run('gh', ['pr', 'edit', String(n), '--add-reviewer', login]);
+      if (r.exit !== 0) return result(false, first(r, 'gh pr edit failed.'));
+      return result(true, `Review requested from ${login} on #${n}.`);
     },
 
     async fetchAll(): Promise<DirectResult> {

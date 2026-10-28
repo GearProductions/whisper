@@ -332,3 +332,16 @@ describe('Pull, Rebase, Pousser, Actualiser', () => {
     expect(fs.existsSync(path.join(out, 'direct.log'))).toBe(false);
   });
 });
+
+describe('Me demander en relecture', () => {
+  const runner = (exit: number, stderr = '') => directRunner({ dir: tmp, out: tmp, prefix: [], launch: async () => ({ exit, stdout: '', stderr }) });
+
+  it('réussi : la ligne dit qui est demandé, sur quelle PR', async () => {
+    expect(await runner(0).requestReview(7, 'kb')).toMatchObject({ ok: true, line: 'Review requested from kb on #7.' });
+  });
+
+  it('gh en échec (l’auteur de la PR, pas de droit) : sa première ligne', async () => {
+    expect(await runner(1, 'Review cannot be requested from pull request author.\n').requestReview(7, 'kb'))
+      .toMatchObject({ ok: false, line: 'Review cannot be requested from pull request author.' });
+  });
+});
