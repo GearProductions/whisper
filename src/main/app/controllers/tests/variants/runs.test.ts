@@ -527,7 +527,8 @@ describe('le mode Vibe', () => {
     await settle();
     expect(vibeOn('a1')).toBe(true);   // la conversation travaille
     turn('encore')!.finish('ok');
-    await settle();
+    // fini au relevé qui suit le tour (ses lectures git, lentes sur un runner Windows)
+    for (let i = 0; i < 30 && vibeOn('a1'); i++) await settle();
     expect(vibeOn('a1')).toBe(false);
   });
 
