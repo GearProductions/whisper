@@ -46,6 +46,8 @@ vi.mock('technicals/paths', async (original) => ({
 const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' });
 const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
 const settle = () => new Promise((r) => setTimeout(r, 300));
+// un poussé de ce fichier arrivé (ses lectures git, lentes sur un runner Windows)
+const pushedFor = (id: string) => vi.waitFor(() => expect(codes().at(-1)).toMatchObject({ id }), { timeout: 10_000 });
 const HELLO = 'src/core/hello/index.ts';
 const GREET = 'src/core/hello/greet.ts';
 let dir = '';
@@ -94,7 +96,7 @@ afterEach(async () => { (await import('app/controllers')).followCode(null); vi.u
 it('le fichier suivi est poussé à chaque changement, écrit directement ou par renommage', async () => {
   const { followCode } = await import('app/controllers');
   followCode(idOf(HELLO));
-  await settle();
+  await pushedFor(idOf(HELLO));
   write(path.join(dir, HELLO), 'HELLO_DIRECT');
   await settle();
   write(path.join(dir, 'src/core/hello/.tmp'), 'HELLO_RENOMME');
@@ -110,8 +112,7 @@ it('suivre un autre fichier : l’ancien n’est plus lu', async () => {
   const { followCode } = await import('app/controllers');
   followCode(idOf(HELLO));
   followCode(idOf(GREET));
-  // le nouveau poussé d'abord (ses lectures git, lentes sur un runner Windows), puis l'ancien changé
-  await vi.waitFor(() => expect(codes().at(-1)).toMatchObject({ id: idOf(GREET) }), { timeout: 10_000 });
+  await pushedFor(idOf(GREET));   // le nouveau poussé d'abord, puis l'ancien changé
   write(path.join(dir, HELLO), 'HELLO_CHANGE');
   await settle();
   expect(JSON.stringify(codes())).not.toContain('HELLO_CHANGE');
@@ -122,7 +123,7 @@ it('un fichier plus gros que READ_MAX : text null', async () => {
   const { followCode, READ_MAX } = await import('app/controllers');
   write(path.join(dir, HELLO), 'x'.repeat(READ_MAX + 1));
   followCode(idOf(HELLO));
-  await settle();
+  await pushedFor(idOf(HELLO));
   expect(codes().at(-1)).toMatchObject({ id: idOf(HELLO), text: null });
 });
 
