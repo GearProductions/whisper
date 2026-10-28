@@ -3,7 +3,7 @@
 // Sur le vrai principal (contrôleurs, fenêtres, état, réglages et fichiers sur
 // disque, core) ; faux : Electron (fenêtres qui relèvent ce qu'on leur
 // envoie), le SDK de Claude Code (relève les messages), git (ses faits, réglés
-// par le cas), les fichiers livrés (ceux du dépôt) et le parcours (vibeView
+// par le cas), gh (les PR ouvertes, réglées par le cas), les fichiers livrés (ceux du dépôt) et le parcours (vibeView
 // rend ce qu'il reçoit, pour le regarder).
 import fs from 'node:fs';
 import os from 'node:os';
@@ -35,6 +35,7 @@ const fake = vi.hoisted(() => {
     shown: null as string | null, diff: null as string | null, edited: [] as unknown[][], opened: [] as string[],
     tabs: [] as (string | null)[], steps: [] as { id: string; status: string }[],
     git: (() => null) as (args: string[]) => string | null, calls: [] as unknown[][], noChild: false,
+    branches: null as string[] | null, synced: [] as string[], prs: null as unknown, login: 'moi' as string | null,
   };
 });
 
@@ -62,8 +63,17 @@ vi.mock('technicals/claude', () => ({
 
 vi.mock('technicals/git', () => ({
   gitRun: () => async (args: string[]) => fake.git(args),
-  gitReader: () => ({ facts: async () => fake.facts, show: async () => fake.shown, commit: async () => fake.diff }),
+  gitReader: () => ({
+    facts: async () => fake.facts, show: async () => fake.shown, commit: async () => fake.diff,
+    branches: async () => fake.branches, sync: async (base: string) => { fake.synced.push(base); return { behind: 1, baseAhead: 2 }; },
+  }),
   okRef: (ref: string) => /^(?!-)(?!.*\.\.)[A-Za-z0-9._/-]+$/.test(ref),
+}));
+
+// gh : les PR ouvertes du dépôt, réglées par le cas ; le reste sans réponse.
+vi.mock('technicals/github', async (original) => ({
+  ...await original<typeof import('technicals/github')>(),
+  githubReader: () => ({ prForBranch: async () => null, prState: async () => null, openPrs: async () => fake.prs, login: async () => fake.login }),
 }));
 
 // L'éditeur : relève ce qu'on lui fait ouvrir.
@@ -80,7 +90,7 @@ vi.mock('technicals/paths', async (original) => ({
 vi.mock('core/vibecoder', async (original) => ({
   ...await original<typeof import('core/vibecoder')>(),
   vibeView: (input: JourneyInput) => ({
-    ...input, pr: input.pr && { number: input.pr }, steps: fake.steps, commits: input.repo?.commits ?? [], invariants: [], variants: [], modules: [], questions: [],
+    ...input, pr: input.pr && { number: input.pr }, prs: input.github?.prs ?? null, steps: fake.steps, commits: input.repo?.commits ?? [], invariants: [], variants: [], modules: [], questions: [],
     checklist: [{ text: 'Chaque diff a été relu', done: null, manual: true }, { text: 'La note est à jour', done: false }],
     actions: input.actions.map((a) => ({
       ...a, who: input.who[a.id], model: input.model[a.id], models: input.model[a.id] ? ['haiku', 'sonnet', 'opus'] : [], primary: false, disabled: null,
@@ -104,6 +114,11 @@ vi.mock('technicals/direct', async (original) => ({
     switchTo: async (...b: string[]) => { fake.calls.push(['switch', ...b]); return OK; },
     stash: async () => { fake.calls.push(['stash']); return OK; },
     toBase: async (b: string, base: string) => { fake.calls.push(['toBase', b, base]); return OK; },
+    fetchAll: async () => { fake.calls.push(['fetchAll']); return OK; },
+    pull: async () => { fake.calls.push(['pull']); return OK; },
+    rebase: async (onto: string) => { fake.calls.push(['rebase', onto]); return OK; },
+    push: async () => { fake.calls.push(['push']); return OK; },
+    requestReview: async (n: number, login: string) => { fake.calls.push(['requestReview', n, login]); return OK; },
   }),
 }));
 vi.mock('app/controllers/recipe', async (original) => ({
@@ -155,6 +170,10 @@ beforeEach(() => {
   fake.steps = [];
   fake.git = () => null;
   fake.calls = [];
+  fake.branches = ['main', 'feat/x'];
+  fake.synced = [];
+  fake.prs = null;
+  fake.login = 'moi';
   fake.userData = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-vibecoder-'));
   dir = path.join(fake.userData, 'projet');
   out = path.join(fake.userData, 'vibecoder-out', 'a1');   // les sorties de l'agent
@@ -549,6 +568,7 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     { id: 'new-here', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Changer de branche', text: 'ici' },
     { id: 'new-worktree', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Dans un nouveau worktree', text: 'worktree' },
     { id: 'stash', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Mettre de côté', text: 'de côté' },
+    ...['switch-branch', 'pull', 'rebase', 'push', 'fetch', 'request-review'].map((id) => ({ id, flow: 'both', step: null, kind: 'send', needs: 'none', label: id, text: id })),
   ];
   // git : la branche du dossier et son état (status, ou une fonction : à chaque appel), réglés par le cas.
   const gitWith = (status: string | null | (() => string | null), branch = 'main') => {
@@ -795,7 +815,7 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     const { setVibe } = await import('app/controllers');
     const pr = { number: 34, title: 'Essai', url: 'u', author: 'moi', base: 'main', head: 'feat/0.8.0-essai', body: '', state: 'OPEN' };
     const { lastView } = await import('app/controllers');
-    Object.assign(lastView('a1')!, { pr });   // le relevé de Créer : la PR ouverte de la branche (gh)
+    Object.assign(lastView('a1')!, { pr, reviewable: true });   // le relevé de Créer : la PR ouverte de la branche (gh)
     expect(view()!.flow).toBe('create');
     setVibe({ flow: 'review' });
     expect(await vibeOf()).toMatchObject({ flow: 'review', pr: 34 });
@@ -804,17 +824,155 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     expect(fake.calls).toEqual([]);
   });
 
-  it('passer en Relire, la PR de Créer fusionnée, ou une PR déjà suivie : rien de suivi de plus', async () => {
+  it('passer en Relire : refusé sans reviewable au dernier relevé ; sinon, depuis Créer, toujours la PR de la branche suivie', async () => {
     review();
     await open();
     const { lastView, setVibe } = await import('app/controllers');
-    Object.assign(lastView('a1')!, { flow: 'create', pr: { number: 34, state: 'OPEN', head: 'h', base: 'main' } });
+    setVibe({ flow: 'create' });
+    await settle();
+    Object.assign(lastView('a1')!, { flow: 'create', pr: { number: 34, state: 'MERGED', head: 'h', base: 'main' }, reviewable: false });
     setVibe({ flow: 'review' });
-    expect(await vibeOf()).toMatchObject({ pr: 12 });
-    setVibe({ flow: 'create', pr: null });
-    Object.assign(lastView('a1')!, { flow: 'create', pr: { number: 34, state: 'MERGED', head: 'h', base: 'main' } });
-    setVibe({ flow: 'review' });
-    expect(await vibeOf()).toMatchObject({ flow: 'review', pr: null });
+    expect(await vibeOf()).toMatchObject({ flow: 'create', pr: 12 });
     expect(fs.existsSync(path.join(out, 'pr-34.json'))).toBe(false);
+    await settle();
+    Object.assign(lastView('a1')!, { flow: 'create', pr: { number: 34, state: 'OPEN', head: 'h', base: 'main' }, reviewable: true });
+    setVibe({ flow: 'review' });
+    expect(await vibeOf()).toMatchObject({ flow: 'review', pr: 34 });   // la PR 12 suivie avant : celle de la branche la remplace
+  });
+
+  // 0.12.0-gestion-des-branches
+  it('le relevé : branches locales et état distant (sync sur la base sans origin/), sans fetch ; les PR ouvertes en Créer aussi, false en échec', async () => {
+    fake.prs = { mine: [{ number: 1 }], review: [], all: [{ number: 1 }, { number: 2 }] };
+    const { view } = await open();
+    expect(view()).toMatchObject({ branches: ['main', 'feat/x'], sync: { behind: 1, baseAhead: 2 } });
+    expect(fake.synced.length > 0 && fake.synced.every((b) => b === 'main')).toBe(true);
+    const { setVibe } = await import('app/controllers');
+    setVibe({ prs: true });
+    await until(() => !!view()?.github?.prs);
+    expect(view()!.github!.prs).toEqual(fake.prs);
+    fake.prs = null;   // gh en échec : false, affiché à la place de la liste
+    setVibe({ prs: true });
+    await until(() => view()?.github?.prs === false);
+    expect(fake.calls).toEqual([]);   // aucun fetch au relevé
+  });
+
+  it('Actualiser, Pull, Pousser : fetchAll, pull, push, au clic', async () => {
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+    for (const id of ['fetch', 'pull', 'push']) {
+      expect(runVibeAction(id, { direct: true })).toEqual({ ok: true });
+      await until(() => done(id));
+    }
+    expect(fake.calls).toEqual([['fetchAll'], ['pull'], ['push']]);
+  });
+
+  it('Me demander en relecture : une PR de Toutes les PR, ni des miennes ni à relire ; mon identifiant, puis les listes relues', async () => {
+    fake.prs = { mine: [{ number: 1 }], review: [{ number: 2 }], all: [{ number: 1 }, { number: 2 }, { number: 3 }] };
+    const { view } = await open();
+    const { runVibeAction, setVibe } = await import('app/controllers');
+    setVibe({ prs: true });
+    await until(() => !!view()?.github?.prs);
+    // la mienne, une déjà à relire, une hors de la liste, pas un numéro : refusées, rien de lancé
+    for (const pr of [1, 2, 9, '3']) expect(runVibeAction('request-review', { direct: true, pr: pr as number })).toMatchObject({ ok: false });
+    expect(fake.calls).toEqual([]);
+    fake.prs = { mine: [{ number: 1 }], review: [{ number: 2 }, { number: 3 }], all: [{ number: 1 }, { number: 2 }, { number: 3 }] };
+    expect(runVibeAction('request-review', { direct: true, pr: 3 })).toEqual({ ok: true });
+    await until(() => done('request-review'));
+    expect(fake.calls).toEqual([['requestReview', 3, 'moi']]);
+    await until(() => (view()?.github?.prs as { review: unknown[] } | undefined)?.review.length === 2);   // la PR passe dans À relire
+  });
+
+  it('Me demander en relecture : sans identifiant (gh api user en échec), rien de lancé', async () => {
+    fake.prs = { mine: [], review: [], all: [{ number: 3 }] };
+    fake.login = null;
+    const { view } = await open();
+    const { runVibeAction, setVibe } = await import('app/controllers');
+    setVibe({ prs: true });
+    await until(() => !!view()?.github?.prs);
+    runVibeAction('request-review', { direct: true, pr: 3 });
+    await until(() => done('request-review'));
+    expect(fake.calls).toEqual([]);
+  });
+
+  it('Rebase : origin/<base> rapatriée par défaut, ou une branche locale ; une autre → refusé', async () => {
+    gitWith('');
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+    expect(runVibeAction('rebase', { direct: true, onto: 'origin/feat/x' })).toMatchObject({ ok: false });
+    runVibeAction('rebase', { direct: true });
+    await until(() => done('rebase'));
+    runVibeAction('rebase', { direct: true, onto: 'feat/x' });
+    await until(() => fake.calls.length === 4 && done('rebase'));
+    expect(fake.calls).toEqual([['fetch', 'main'], ['rebase', 'origin/main'], ['fetch', 'main'], ['rebase', 'feat/x']]);
+  });
+
+  it('switch-branch : une branche du relevé, le dossier propre ; le changement oublie les derniers Rebase et Pousser', async () => {
+    gitWith('');
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+    expect(runVibeAction('switch-branch', { direct: true, branch: 'feat/inconnue' })).toMatchObject({ ok: false });
+    expect(runVibeAction('switch-branch', { direct: true })).toMatchObject({ ok: false });
+    runVibeAction('rebase', { direct: true });
+    await until(() => done('rebase'));
+    runVibeAction('push', { direct: true });
+    await until(() => done('push'));
+    runVibeAction('switch-branch', { direct: true, branch: 'feat/x' });
+    await until(() => done('switch-branch'));
+    expect(fake.calls.at(-1)).toEqual(['switch', 'feat/x']);
+    expect([await directOf('rebase'), await directOf('push')]).toEqual([undefined, undefined]);
+  });
+
+  it('Créer une branche (new-here, sans demande) : le nom saisi, son départ ; rien ne suit (ni Créer, ni note)', async () => {
+    review();
+    gitWith('');
+    await open();
+    const { refreshVibe, runVibeAction } = await import('app/controllers');
+    expect(runVibeAction('new-here', { direct: true, branch: 'feat/x' })).toMatchObject({ ok: false });       // déjà une branche locale
+    expect(runVibeAction('new-here', { direct: true, branch: '-x' })).toMatchObject({ ok: false });           // pas un ref sûr
+    expect(runVibeAction('new-here', { direct: true, branch: 'feat/y', start: 'origin/x' })).toMatchObject({ ok: false });
+    runVibeAction('new-here', { direct: true, branch: 'feat/y', start: 'feat/x' });
+    await until(() => done('new-here'));
+    expect(fake.calls).toEqual([['fetch', 'main'], ['switch', 'feat/y', 'feat/x']]);
+    await refreshVibe({ now: true });
+    await settle();
+    expect(await vibeOf()).toMatchObject({ flow: 'review', pr: 12 });
+    expect(fake.messages).toEqual([]);
+  });
+
+  it('Créer une branche dans un worktree (new-worktree, sans demande) : depuis origin/<base>, l’enfant ouvert, pas de note', async () => {
+    gitWith('');
+    await open();
+    const { refreshVibe, runVibeAction, vibeAgent } = await import('app/controllers');
+    runVibeAction('new-worktree', { direct: true, branch: 'feat/y' });
+    await until(() => vibeAgent()?.id === 'c1');
+    await refreshVibe({ now: true });
+    await settle();
+    expect(fake.calls).toEqual([
+      ['fetch', 'main'],
+      ['createWorktree', 'a1', { branch: 'feat/y', base: 'main', start: 'origin/main' }],
+      ['openChild', 'a1', '/wt', { name: 'feat/y', create: true }],
+    ]);
+    expect(fake.messages).toEqual([]);
+  });
+
+  it('load-pr réussi, en Créer : la PR suivie', async () => {
+    gitWith('');
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+    runVibeAction('load-pr', { direct: true, pr: 12 });
+    await until(() => done('load-pr'));
+    expect(await vibeOf()).toMatchObject({ pr: 12 });
+  });
+
+  it('Rédiger la note sur la base, en Créer : la nouvelle demande (son message, la demande retenue)', async () => {
+    fake.facts = { ...fake.facts as object, branch: 'main' };
+    await open();
+    const { refreshVibe, runVibeAction, lastView } = await import('app/controllers');
+    expect(runVibeAction('note', { text: 'ajouter un bouton' })).toEqual({ ok: true });
+    await until(() => fake.messages.length > 0);
+    expect(fake.messages[0]).toBe(`/vibecoder:nouvelle-demande fr ${out} ajouter un bouton`);
+    write(path.join(out, 'new-request.json'), JSON.stringify({ branch: 'feat/0.13.0-bouton' }));
+    await refreshVibe({ now: true });
+    expect((lastView('a1') as unknown as JourneyInput).request).toBe('feat/0.13.0-bouton');
   });
 });

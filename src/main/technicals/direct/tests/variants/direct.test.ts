@@ -283,3 +283,65 @@ describe('Retirer le worktree d’une PR : sa branche pr-<n>', () => {
     expect(git(work, 'branch', '--list', 'feat/x')).not.toBe('');
   });
 });
+
+describe('Pull, Rebase, Pousser, Actualiser', () => {
+  it('fetchAll puis pull : la branche suivie avancée, les modifications en cours reprises', async () => {
+    const { root, origin, work, runner } = setup();
+    const other = path.join(root, 'autre');
+    execFileSync('git', ['clone', '-q', '-b', 'feat/x', origin, other], { env: ENV });
+    fs.writeFileSync(path.join(other, 'c.txt'), 'trois\n');
+    git(other, 'add', 'c.txt');
+    git(other, 'commit', '-q', '-m', 'troisième');
+    git(other, 'push', '-q', 'origin', 'feat/x');
+    fs.writeFileSync(path.join(work, 'a.txt'), 'un, en cours\n');
+    expect((await runner.fetchAll()).ok).toBe(true);
+    expect(git(work, 'rev-parse', 'origin/feat/x')).toBe(git(other, 'rev-parse', 'HEAD'));
+    expect((await runner.pull()).ok).toBe(true);
+    expect(git(work, 'rev-parse', 'HEAD')).toBe(git(other, 'rev-parse', 'HEAD'));
+    expect(git(work, 'status', '--porcelain')).toBe('M a.txt');
+    expect(git(work, 'stash', 'list')).toBe('');
+  });
+
+  it('rebase sur origin/main avancée, puis push --force-with-lease : origin/feat/x réécrite ; un bail périmé : refusé', async () => {
+    const { root, origin, work, runner } = setup();
+    const other = path.join(root, 'autre');
+    execFileSync('git', ['clone', '-q', origin, other], { env: ENV });
+    fs.writeFileSync(path.join(other, 'm.txt'), 'base\n');
+    git(other, 'add', 'm.txt');
+    git(other, 'commit', '-q', '-m', 'la base avance');
+    git(other, 'push', '-q', 'origin', 'main');
+    await runner.fetchAll();
+    const r = await runner.rebase('origin/main');
+    expect(r).toMatchObject({ ok: true, line: 'Rebased on origin/main.' });
+    expect(git(work, 'merge-base', 'HEAD', 'origin/main')).toBe(git(work, 'rev-parse', 'origin/main'));
+    expect((await runner.push()).ok).toBe(true);
+    expect(git(origin, 'rev-parse', 'feat/x')).toBe(git(work, 'rev-parse', 'HEAD'));
+    // quelqu'un pousse sur feat/x sans qu'on l'ait rapatrié : le bail ne tient plus
+    git(other, 'fetch', '-q', 'origin');
+    git(other, 'switch', '-q', 'feat/x');
+    git(other, 'commit', '-q', '--allow-empty', '-m', 'ailleurs');
+    git(other, 'push', '-q', 'origin', 'feat/x');
+    git(work, 'commit', '-q', '--amend', '--allow-empty', '-m', 'réécrit');
+    expect((await runner.push()).ok).toBe(false);
+    expect(git(origin, 'log', '-1', '--format=%s', 'feat/x')).toBe('ailleurs');
+  });
+
+  it('rebase : un ref pas sûr refusé sans lancer git', async () => {
+    const { out, runner } = setup();
+    for (const b of ['-i', '--exec=x', 'a..b', 'a b', '', 7, undefined]) expect((await runner.rebase(b)).ok).toBe(false);
+    expect(fs.existsSync(path.join(out, 'direct.log'))).toBe(false);
+  });
+});
+
+describe('Me demander en relecture', () => {
+  const runner = (exit: number, stderr = '') => directRunner({ dir: tmp, out: tmp, prefix: [], launch: async () => ({ exit, stdout: '', stderr }) });
+
+  it('réussi : la ligne dit qui est demandé, sur quelle PR', async () => {
+    expect(await runner(0).requestReview(7, 'kb')).toMatchObject({ ok: true, line: 'Review requested from kb on #7.' });
+  });
+
+  it('gh en échec (l’auteur de la PR, pas de droit) : sa première ligne', async () => {
+    expect(await runner(1, 'Review cannot be requested from pull request author.\n').requestReview(7, 'kb'))
+      .toMatchObject({ ok: false, line: 'Review cannot be requested from pull request author.' });
+  });
+});

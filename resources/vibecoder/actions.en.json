@@ -6,7 +6,7 @@
     "kind": "send",
     "needs": "text",
     "label": "Write the note",
-    "hint": "The agent writes or updates the ticket note from the request in the field, and asks its open questions separately.",
+    "hint": "The agent writes or updates the ticket note from the request in the field, and asks its open questions separately; on the main branch, it first suggests a branch name, which you accept or change before the branch is created.",
     "text": "/vibecoder:note {{lang}} {{out}} {{text}}"
   },
   {
@@ -238,8 +238,8 @@
   },
   {
     "id": "load-pr",
-    "flow": "review",
-    "step": "pr",
+    "flow": "both",
+    "step": null,
     "kind": "send",
     "needs": "none",
     "reads": true,
@@ -249,8 +249,8 @@
   },
   {
     "id": "pr-here",
-    "flow": "review",
-    "step": "pr",
+    "flow": "both",
+    "step": null,
     "kind": "send",
     "needs": "none",
     "label": "Switch branch",
@@ -259,8 +259,8 @@
   },
   {
     "id": "pr-worktree",
-    "flow": "review",
-    "step": "pr",
+    "flow": "both",
+    "step": null,
     "kind": "send",
     "needs": "none",
     "label": "In a new worktree",
@@ -279,23 +279,83 @@
   },
   {
     "id": "unload-pr",
-    "flow": "review",
-    "step": "pr",
+    "flow": "both",
+    "step": null,
     "kind": "send",
     "needs": "none",
-    "label": "Unload",
+    "label": "Back to the main branch",
     "hint": "Puts this folder back on the repository's main branch (git switch) and stops following the PR; refused if there are uncommitted changes (put them aside, or stay on the branch).",
-    "text": "Unload the PR: only by the app (direct), never by the agent."
+    "text": "Back to the main branch: only by the app (direct), never by the agent."
   },
   {
     "id": "remove-worktree",
     "flow": "both",
-    "step": "pr",
+    "step": null,
     "kind": "send",
     "needs": "none",
     "label": "Remove the worktree",
     "hint": "Removes this worktree with the project's recipe (refused if changes remain); this robot leaves with it, the panel goes to the parent.",
     "text": "Remove the worktree: only by the app (direct), never by the agent."
+  },
+  {
+    "id": "switch-branch",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Go to branch",
+    "hint": "Puts this folder on the chosen local branch (git switch); refused if there are uncommitted changes (put them aside first).",
+    "text": "Go to branch: only by the app (direct), never by the agent."
+  },
+  {
+    "id": "pull",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Pull",
+    "hint": "Brings in the commits of the tracked remote branch, fast-forward only (git pull --ff-only --autostash: uncommitted changes are put aside then brought back); greyed out without a tracked remote branch, or when up to date.",
+    "text": "Pull: only by the app (direct), never by the agent."
+  },
+  {
+    "id": "rebase",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Rebase",
+    "hint": "Replays the branch's commits on origin/<base> or on the chosen branch (git rebase --autostash); a conflict aborts it at once (git rebase --abort); its badge: the main branch has moved on.",
+    "text": "Rebase: only by the app (direct), never by the agent."
+  },
+  {
+    "id": "push",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Push",
+    "hint": "Pushes the branch after a rebase (git push --force-with-lease: refused if the remote changed since your last Refresh; never --force).",
+    "text": "Push: only by the app (direct), never by the agent."
+  },
+  {
+    "id": "fetch",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Refresh",
+    "hint": "Fetches the remote repository's state (git fetch origin), which Pull and Rebase read; never automatic.",
+    "text": "Refresh: only by the app (direct), never by the agent."
+  },
+  {
+    "id": "request-review",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Request my review",
+    "hint": "Adds you as a reviewer of this PR on GitHub (gh pr edit --add-reviewer): it moves to To review.",
+    "text": "Request my review: only by the app (direct), never by the agent."
   },
   {
     "id": "review-note",
@@ -379,7 +439,7 @@
     "needs": "text",
     "reads": true,
     "label": "New request",
-    "hint": "The agent names the branch after the request in the field; then you choose: switch branch here or, with uncommitted changes, a new worktree with its robot in Create, or put them aside.",
+    "hint": "The agent suggests a branch name from the request in the field; you accept or change it, then choose: create it here or, with uncommitted changes, in a new worktree with its robot in Create, or put them aside.",
     "text": "/vibecoder:nouvelle-demande {{lang}} {{out}} {{text}}"
   },
   {
@@ -388,9 +448,9 @@
     "step": null,
     "kind": "send",
     "needs": "none",
-    "label": "Switch branch",
-    "hint": "Creates the request's branch from the up-to-date base (git switch -c) and puts this folder on it, in Create, which writes the note; refused if there are uncommitted changes.",
-    "text": "Switch branch for a request: only by the app (direct), never by the agent."
+    "label": "Create here",
+    "hint": "Creates the branch (git switch -c: the request's from the up-to-date base, or the typed name from the chosen start) and puts this folder on it; for a request, in Create, which writes the note; refused if there are uncommitted changes.",
+    "text": "Create here: only by the app (direct), never by the agent."
   },
   {
     "id": "new-worktree",
@@ -399,8 +459,8 @@
     "kind": "send",
     "needs": "none",
     "label": "In a new worktree",
-    "hint": "Creates the request's worktree, on its branch, with the project's recipe, and opens a robot there in Create, which writes the note; this folder stays on its branch, with its changes.",
-    "text": "New request in a worktree: only by the app (direct), never by the agent."
+    "hint": "Creates the branch (the request's, or the typed name from the chosen start) in a new worktree, with the project's recipe, and opens a robot there in Create (for a request, it writes the note); this folder stays on its branch, with its changes.",
+    "text": "In a new worktree: only by the app (direct), never by the agent."
   },
   {
     "id": "comment",

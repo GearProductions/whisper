@@ -11,7 +11,8 @@
  *  action que l'appli fait elle-même : « direct », à côté « via » l'agent, et
  *  dessous son dernier résultat, F-114), l'invitation (rien encore, et ce qui
  *  le produit), la carte d'une PR, le bandeau d'une PR fusionnée ou fermée,
- *  le badge du robot d'une PR ouverte dans un worktree (et Retirer le worktree).
+ *  le badge du robot d'une PR ouverte dans un worktree (le badge seul :
+ *  Retirer le worktree est dans la vue des branches).
  *  Ne connaît pas : le pont (rappels passés ; ⏹ par le contexte StopRun).
  *  Utilisé par : les vues d'étape ; vibe-coder (bandeau d'une
  *  PR fermée, badge du worktree). */
@@ -187,14 +188,8 @@ export function ClosedBanner({ pr, t }: { pr: VibePr | null; t: Strings }) {
   return <div className="vc-closed" role="status"><b>{`#${pr.number}`}</b>{t.prClosed[pr.state]}</div>;
 }
 
-// Le robot temporaire d'une PR ouverte dans un worktree (F-110) : « PR #n · worktree » et Retirer le worktree
-// (remove-worktree, direct : la recette du projet le retire, le robot part avec lui).
-export function WorktreeBadge({ view, busy, onRun }: { view: VibeView; busy: boolean; onRun(extra?: VibeArgs): void }) {
+// Le robot temporaire d'une PR ouverte dans un worktree (F-110) : « PR #n · worktree », son dossier en infobulle.
+export function WorktreeBadge({ view }: { view: VibeView }) {
   if (!view.worktree?.temp || !view.pr) return null;
-  return (
-    <span className="vc-wt" title={view.worktree.dir}>
-      <span className="vc-wt-badge">{S[view.lang].worktree(view.pr.number)}</span>
-      <Run a={view.actions.find((a) => a.id === 'remove-worktree')} busy={busy} tone="ghost" onRun={onRun} />
-    </span>
-  );
+  return <span className="vc-wt-badge" title={view.worktree.dir}>{S[view.lang].worktree(view.pr.number)}</span>;
 }

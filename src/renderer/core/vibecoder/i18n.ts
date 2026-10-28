@@ -1,5 +1,5 @@
 /** i18n — les libellés de l'écran VibeCoder, en français et en anglais
- *  (vibeLang) : en-tête, parcours et ses commits, étapes (une étape pas
+ *  (vibeLang) : en-tête (dont le bouton de la branche, Relire grisé), parcours et ses commits, étapes (une étape pas
  *  encore ouverte), Relancer, Arrêter, onglets Conversation /
  *  Actions / Tâches / Processus, la bannière du mode Vibe (en cours,
  *  Arrêter Vibe), le champ d'une étape, la ponytail review lancée avec les
@@ -29,6 +29,9 @@ const fr = {
   back: 'Revenir à la conversation',
   close: 'Fermer',
   branch: (branch: string, base: string) => `Branche ${branch}, comparée à ${base}`,
+  branchesOpen: 'Ouvrir la vue des branches : PR, branches locales, créer une branche',
+  branchesClose: 'Fermer la vue des branches',
+  notReviewable: 'Pas de PR ouverte sur cette branche : chargez-en une depuis la branche (⎇)',
   journey: 'Parcours',
   commits: 'Commits',
   noCommits: 'Aucun commit sur la branche.',
@@ -55,7 +58,7 @@ const fr = {
   outputs: {
     'questions.md': 'Questions ouvertes', 'align.md': 'Alignement note · forme · invariants', 'review.md': 'Relecture du diff',
     'commit.md': 'Commit proposé', 'checks.json': 'Vérifications', 'ponytail.md': 'Ponytail review', 'pr.json': 'PR ouverte',
-    'ci.md': 'CI', 'prs.json': 'PR à relire', 'pr-#.json': 'PR chargée', 'pr-#-note.md': 'Relecture de la note',
+    'ci.md': 'CI', 'pr-#.json': 'PR chargée', 'pr-#-note.md': 'Relecture de la note',
     'pr-#-commits.md': 'Relecture des commits', 'pr-#-ecran.md': 'Plan de test', 'pr-#-review.json': 'Revue publiée',
   } as Record<string, string>,
   needText: 'Dictez ou écrivez d\'abord votre demande dans le champ, puis cliquez.',
@@ -136,6 +139,9 @@ const en: Strings = {
   back: 'Back to the conversation',
   close: 'Close',
   branch: (branch, base) => `Branch ${branch}, compared with ${base}`,
+  branchesOpen: 'Open the branch view: PRs, local branches, create a branch',
+  branchesClose: 'Close the branch view',
+  notReviewable: 'No open PR on this branch: load one from the branch (⎇)',
   journey: 'Journey',
   commits: 'Commits',
   noCommits: 'No commit on the branch.',
@@ -162,7 +168,7 @@ const en: Strings = {
   outputs: {
     'questions.md': 'Open questions', 'align.md': 'Alignment note · shape · invariants', 'review.md': 'Diff review',
     'commit.md': 'Proposed commit', 'checks.json': 'Checks', 'ponytail.md': 'Ponytail review', 'pr.json': 'Opened PR',
-    'ci.md': 'CI', 'prs.json': 'PRs to review', 'pr-#.json': 'Loaded PR', 'pr-#-note.md': 'Note review',
+    'ci.md': 'CI', 'pr-#.json': 'Loaded PR', 'pr-#-note.md': 'Note review',
     'pr-#-commits.md': 'Commits review', 'pr-#-ecran.md': 'Test plan', 'pr-#-review.json': 'Published review',
   },
   needText: 'First dictate or write your request in the field, then click.',

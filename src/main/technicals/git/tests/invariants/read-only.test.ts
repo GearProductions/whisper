@@ -4,6 +4,12 @@
 //   sous-commandes, sans qu'un argument venu d'ailleurs puisse devenir une
 //   option ; commit, push, rebase, checkout passent par l'agent, dans la
 //   conversation, avec ses autorisations.
+//   Note 0.12.0 docs/tickets/feat/0.12.0-gestion-des-branches.md, « Ce que ça
+//   ne doit pas faire » : « Calculer l'état de Pull et de Rebase (grisé,
+//   pastille) autrement qu'en lecture seule » ; « Lister les PR ou les
+//   branches autrement qu'en lecture seule (GIT_READ, I-39) » : branches() et
+//   sync() ne lancent que GIT_READ (for-each-ref compris) et laissent le dépôt
+//   tel quel.
 // Les appels relevés au passage (Run) ; et sur du réel : un dépôt temporaire
 // (git init, commits), le vrai git.
 import { execFileSync } from 'node:child_process';
@@ -78,6 +84,15 @@ describe('un argument venu d’ailleurs ne devient jamais une option', () => {
     expect(await gitReader(run).show('HEAD', 'a.txt\0--output=/tmp/x')).toBeNull();
     // sans que git soit lancé
     expect(calls).toEqual([]);
+  });
+
+  it('sync : une base qui commence par « - » (--output=…) n’arrive jamais à git', async () => {
+    const { calls, run } = recorder();
+
+    await gitReader(run).sync('--output=/tmp/x');
+
+    // aucun argument lancé ne porte la base
+    expect(calls.flat().filter((a) => a.includes('--output'))).toEqual([]);
   });
 
   it('un ref hors de [A-Za-z0-9._/-] (« HEAD; rm -rf ~ ») est refusé sans lancer git', async () => {
@@ -167,6 +182,58 @@ describe('sur un vrai dépôt', () => {
     expect(calls.length).toBeGreaterThan(0);
     // et seulement en lecture
     expect(outside(calls)).toEqual([]);
+  });
+
+  // Un dépôt neuf dont feat/x suit une branche distante (origin : le dépôt
+  // lui-même), pour que sync lise @{u} et origin/main.
+  function tracking() {
+    const dir = repo();
+    git(dir, 'remote', 'add', 'origin', dir);
+    git(dir, 'fetch', '-q', 'origin');
+    git(dir, 'branch', '-q', '--set-upstream-to=origin/main');
+    return dir;
+  }
+
+  it('branches() : chaque appel est une sous-commande de GIT_READ', async () => {
+    const { calls, run } = recordedGit();
+
+    await gitReader(run).branches();
+
+    // git a bien été interrogé
+    expect(calls.length).toBeGreaterThan(0);
+    // et seulement en lecture
+    expect(outside(calls)).toEqual([]);
+  });
+
+  it('sync(base) : chaque appel est une sous-commande de GIT_READ', async () => {
+    const real = gitRun(tracking());
+    const calls: string[][] = [];
+    const run: Run = (args) => { calls.push(args); return real(args); };
+
+    await gitReader(run).sync('main');
+
+    // git a bien été interrogé
+    expect(calls.length).toBeGreaterThan(0);
+    // et seulement en lecture
+    expect(outside(calls)).toEqual([]);
+  });
+
+  it('branches() et sync() laissent l’état, les références et l’index du dépôt tels quels', async () => {
+    const dir = tracking();
+    // ce que git en montre (sans prendre de verrou), ses références, son index
+    const snapshot = () => [
+      git(dir, '--no-optional-locks', 'status', '--porcelain', '--branch'),
+      git(dir, 'for-each-ref'),
+      fs.readFileSync(path.join(dir, '.git', 'index')).toString('base64'),
+    ];
+    const before = snapshot();
+    const reader = gitReader(gitRun(dir));
+
+    await reader.branches();
+    await reader.sync('main');
+
+    // rien n'a bougé
+    expect(snapshot()).toEqual(before);
   });
 
   it('un relevé laisse l’état, les références et l’index du dépôt tels quels', async () => {

@@ -12,6 +12,7 @@ export * from './note';
 export * from './outputs';
 export * from './place';
 export * from './runs';
+export * from './sync';
 export * from './signal';
 export * from './test-files';
 export * from './vibe-mode';

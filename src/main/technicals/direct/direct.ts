@@ -6,9 +6,14 @@
  *  switch [-c], le dossier propre vérifié par l'appelant), rapatrier une
  *  branche d'origin, la mettre à jour (git pull --ff-only origin), mettre les
  *  modifications de côté (git stash push -u, rien d'autre), supprimer la
- *  branche pr-<n> de l'appli (son worktree retiré). Une liste
- *  fermée de commandes (DIRECT_GIT, DIRECT_GH), aux arguments fixes ou
- *  vérifiés : une PR est un entier positif, un verdict l'un des trois, une
+ *  branche pr-<n> de l'appli (son worktree retiré) ; Pull de la branche
+ *  suivie (git pull --ff-only --autostash), Rebase (git rebase --autostash
+ *  <onto> ; un échec → git rebase --abort aussitôt), Pousser (git push
+ *  --force-with-lease, jamais --force), Actualiser (git fetch origin), Me
+ *  demander en relecture (gh pr edit <n> --add-reviewer <identifiant>).
+ *  Une liste fermée de commandes (DIRECT_GIT, DIRECT_GH), aux arguments fixes ou
+ *  vérifiés : une PR est un entier positif, un verdict l'un des trois, un
+ *  identifiant GitHub ses seuls caractères (okLogin), une
  *  branche un ref sûr (okRef) ; un fichier est écrit par l'appli dans le
  *  dossier de sorties, jamais donné. git (au dossier du dépôt) et gh derrière
  *  le préfixe (core/runner, commandPrefix : la box, où les hooks de git
@@ -22,10 +27,11 @@ import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { okRef } from 'technicals/git';
+import { okLogin } from 'technicals/github';
 
-// Les seules commandes lancées : git <sous-commande>, gh pr review (écrit), gh pr view (lit).
-export const DIRECT_GIT = ['commit', 'fetch', 'switch', 'pull', 'branch', 'stash'] as const;
-export const DIRECT_GH = [['pr', 'review'], ['pr', 'view']] as const;
+// Les seules commandes lancées : git <sous-commande>, gh pr review et gh pr edit (écrivent), gh pr view (lit).
+export const DIRECT_GIT = ['commit', 'fetch', 'switch', 'pull', 'branch', 'stash', 'rebase', 'push'] as const;
+export const DIRECT_GH = [['pr', 'review'], ['pr', 'view'], ['pr', 'edit']] as const;
 export const VERDICTS = ['approve', 'comment', 'request-changes'] as const;
 
 // Lance argv (sans shell) au dossier `cwd` → son code de sortie (null : pas lancé, tué, trop long) et ses sorties.
@@ -181,6 +187,44 @@ export function directRunner({ dir, out, prefix, launch = launchFile }: { dir: s
       const r = await run('git', ['stash', 'push', '-u']);
       if (r.exit !== 0) return result(false, first(r, 'git stash failed.'));
       return result(true, first(r, 'Changes stashed.'));
+    },
+
+    // git pull --ff-only --autostash : la branche suivie, aucun argument donné ; pas d'avance rapide : l'échec.
+    async pull(): Promise<DirectResult> {
+      const r = await run('git', ['pull', '--ff-only', '--autostash']);
+      if (r.exit !== 0) return result(false, first(r, 'git pull failed.'));
+      return result(true, first(r, 'Up to date.'));
+    },
+
+    // git rebase --autostash <onto> (onto : okRef) ; un échec → git rebase --abort aussitôt, puis l'échec rendu.
+    async rebase(onto: unknown): Promise<DirectResult> {
+      if (typeof onto !== 'string' || !okRef(onto)) return result(false, 'Refused: branch missing or unsafe.');
+      const r = await run('git', ['rebase', '--autostash', onto]);
+      if (r.exit === 0) return result(true, `Rebased on ${onto}.`);
+      const a = await run('git', ['rebase', '--abort']);
+      return result(false, `${first(r, 'git rebase failed.')}${a.exit === 0 ? ' (rebase aborted)' : ' (git rebase --abort failed too)'}`);
+    },
+
+    // git push --force-with-lease, arguments fixes (jamais --force).
+    async push(): Promise<DirectResult> {
+      const r = await run('git', ['push', '--force-with-lease']);
+      if (r.exit !== 0) return result(false, first(r, 'git push failed.'));
+      return result(true, 'Pushed.');
+    },
+
+    // git fetch origin : tout le distant (Actualiser, au clic seulement).
+    // gh pr edit <n> --add-reviewer <identifiant> : s'ajouter en relecteur.
+    async requestReview(n: unknown, login: unknown): Promise<DirectResult> {
+      if (!okNumber(n) || !okLogin(login)) return result(false, 'Refused: PR or GitHub login missing.');
+      const r = await run('gh', ['pr', 'edit', String(n), '--add-reviewer', login]);
+      if (r.exit !== 0) return result(false, first(r, 'gh pr edit failed.'));
+      return result(true, `Review requested from ${login} on #${n}.`);
+    },
+
+    async fetchAll(): Promise<DirectResult> {
+      const r = await run('git', ['fetch', 'origin']);
+      if (r.exit !== 0) return result(false, first(r, 'git fetch failed.'));
+      return result(true, 'origin fetched.');
     },
 
     // git branch -D pr-<n> : la branche de l'appli, son worktree retiré (jamais une autre).

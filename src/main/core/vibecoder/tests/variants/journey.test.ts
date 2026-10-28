@@ -25,16 +25,22 @@ const ACTIONS: ActionDef[] = [
   A('rc', 'create', 'pr', '/vibecoder:rc {{lang}} {{out}}'),
   A('base', 'create', 'pr', '/vibecoder:base {{lang}} {{out}}'),
   A('release', 'create', 'pr', '/vibecoder:release {{lang}} {{out}}'),
-  A('prs', 'review', 'pr', '/vibecoder:prs {{lang}} {{out}}'),
-  A('load-pr', 'review', 'pr', '/vibecoder:charger-pr {{lang}} {{out}} {{pr}}'),
-  A('pr-here', 'review', 'pr', '/vibecoder:ici {{lang}} {{out}} {{pr}}'),
-  A('pr-worktree', 'review', 'pr', '/vibecoder:pr-worktree {{lang}} {{out}} {{pr}}'),
-  A('remove-worktree', 'both', 'pr', '/vibecoder:retirer {{lang}} {{out}}'),
-  A('unload-pr', 'review', 'pr', 'Décharger la PR : seulement par l\'appli.'),
+  // La vue des branches (0.12.0-gestion-des-branches) : les deux parcours, sans étape.
+  A('load-pr', 'both', null, '/vibecoder:charger-pr {{lang}} {{out}} {{pr}}'),
+  A('pr-here', 'both', null, '/vibecoder:ici {{lang}} {{out}} {{pr}}'),
+  A('pr-worktree', 'both', null, '/vibecoder:pr-worktree {{lang}} {{out}} {{pr}}'),
+  A('remove-worktree', 'both', null, '/vibecoder:retirer {{lang}} {{out}}'),
+  A('unload-pr', 'both', null, 'Revenir sur la branche principale : seulement par l\'appli.'),
   A('stash', 'both', null, 'Mettre de côté : seulement par l\'appli.'),
   A('new-request', 'both', null, '/vibecoder:nouvelle-demande {{lang}} {{out}} {{text}}', 'text'),
   A('new-here', 'both', null, 'Changer de branche pour une demande : seulement par l\'appli.'),
   A('new-worktree', 'both', null, 'Nouvelle demande dans un worktree : seulement par l\'appli.'),
+  A('switch-branch', 'both', null, 'Aller sur la branche : seulement par l\'appli.'),
+  A('pull', 'both', null, 'Pull : seulement par l\'appli.'),
+  A('rebase', 'both', null, 'Rebase : seulement par l\'appli.'),
+  A('push', 'both', null, 'Pousser : seulement par l\'appli.'),
+  A('fetch', 'both', null, 'Actualiser : seulement par l\'appli.'),
+  A('request-review', 'both', null, 'Me demander en relecture : seulement par l\'appli.'),
   A('review-note', 'review', 'note', '/vibecoder:relire-note {{lang}} {{out}} {{pr}}'),
   A('review-commits', 'review', 'commits', '/vibecoder:relire-commits {{lang}} {{out}} {{pr}}'),
   A('screen', 'review', 'ecran', '/vibecoder:ecran {{lang}} {{out}} {{pr}}'),
@@ -298,18 +304,13 @@ describe('Relire : les étapes et la prochaine action', () => {
     outputs: { 'pr-12.json': out(PR), ...over.outputs },
   });
 
-  it('aucune PR suivie : Mes PR à relire', () => {
+  it('plus d\'étape PR : Relire commence à la Note ; aucune PR suivie, aucune action en tête', () => {
     const v = vibeView(input({ flow: 'review', repo: null }));
-    expect([status(v).pr, primary(v)]).toEqual(['current', 'prs']);
+    expect([v.steps.map((s) => s.id), v.pr, primary(v)]).toEqual([['note', 'invariants', 'commits', 'ecran', 'revue'], null, null]);
   });
 
-  it('la liste des PR à relire est lue', () => {
-    const v = vibeView(input({ flow: 'review', repo: null, outputs: { 'prs.json': out('[{"number":12,"title":"t","author":"kb","url":"u"},{"number":"x"}]') } }));
-    expect(v.prs).toEqual([{ number: 12, title: 't', author: 'kb', url: 'u' }]);
-  });
-
-  it('une PR suivie, pas chargée : Charger la PR', () => {
-    expect(primary(vibeView(input({ flow: 'review', pr: 12, repo: null })))).toBe('load-pr');
+  it('une PR suivie, pas chargée : pas de loaded', () => {
+    expect(vibeView(input({ flow: 'review', pr: 12, repo: null })).loaded).toBeNull();
   });
 
   it('une PR suivie, pas chargée : son numéro est dans le relevé', () => {
@@ -320,9 +321,9 @@ describe('Relire : les étapes et la prochaine action', () => {
     expect(vibeView(loaded()).pr).toMatchObject({ number: 12, title: 'G2-1 — Un bouton', author: 'kb', base: 'main', head: 'feat/G2-1' });
   });
 
-  it('chargée : Relire la note', () => {
+  it('chargée, le dossier sur sa tête : Relire la note', () => {
     const v = vibeView(loaded());
-    expect([status(v).pr, status(v).note, primary(v)]).toEqual(['done', 'current', 'review-note']);
+    expect([status(v).note, primary(v)]).toEqual(['current', 'review-note']);
   });
 
   it('la note refusée : un verdict suffit, l\'étape est faite', () => {
@@ -603,8 +604,8 @@ describe('rc.2 : modèle au choix, PR fermée, fichiers des commits', () => {
     expect(action(merged('CLOSED'), 'read-invariants')?.disabled).toBe('PR fermée : rien à relire');
   });
 
-  it('une PR fusionnée se charge encore (l\'étape PR)', () => {
-    expect([action(merged(), 'load-pr')?.disabled, action(merged(), 'prs')?.disabled]).toEqual([null, null]);
+  it('une PR fusionnée se charge encore (la vue des branches)', () => {
+    expect(action(merged(), 'load-pr')?.disabled).toBeNull();
   });
 
   it('un test d\'invariant : la ligne de chaque cas, d\'après son texte', () => {
@@ -628,33 +629,40 @@ describe('Créer et Relire sur le même dossier : les choix de lieu (0.12.0)', (
   const loaded = (over: Partial<JourneyInput> = {}) => vibeView(input({ flow: 'review', pr: 12, outputs: { 'pr-12.json': out(CARD) }, checkout: MAIN, ...over }));
   // Montrées : présentes dans ce parcours et pas masquées.
   const seen = (v: VibeView, ids: string[]) => ids.filter((id) => action(v, id)?.hidden === false);
-  const PLACES = ['pr-here', 'pr-worktree', 'unload-pr', 'stash', 'new-here', 'new-worktree'];
+  const PLACES = ['pr-here', 'pr-worktree', 'unload-pr', 'stash', 'switch-branch', 'new-here', 'new-worktree'];
+  const BRANCH = ['switch-branch', 'new-here', 'new-worktree'];   // aller sur une branche, en créer une : toujours
   const RUNNING = { op: 'create' as const, running: true, last: null };
 
-  it('Relire, la fiche chargée, le dossier propre hors de sa tête : changer de branche, un nouveau worktree, décharger ; rien avant', () => {
-    expect(seen(loaded(), PLACES)).toEqual(['pr-here', 'pr-worktree', 'unload-pr']);
-    expect(seen(vibeView(input({ flow: 'review', pr: 12, checkout: MAIN })), PLACES)).toEqual([]);
-    expect(seen(vibeView(input({ flow: 'review', checkout: MAIN })), PLACES)).toEqual([]);
+  it('Relire, la fiche chargée, le dossier propre sur la base : la charger ici ou dans un worktree, revenir ; sans fiche, les branches seules', () => {
+    expect(seen(loaded(), PLACES)).toEqual(['pr-here', 'pr-worktree', 'unload-pr', ...BRANCH]);
+    expect(seen(vibeView(input({ flow: 'review', pr: 12, checkout: MAIN })), PLACES)).toEqual(BRANCH);
+    expect(seen(vibeView(input({ flow: 'review', checkout: MAIN })), PLACES)).toEqual(BRANCH);
   });
 
   it('la fiche chargée sans dépôt relevé : ses choix quand même', () => {
-    expect(seen(loaded({ repo: null }), PLACES)).toEqual(['pr-here', 'pr-worktree', 'unload-pr']);
+    expect(seen(loaded({ repo: null }), PLACES)).toEqual(['pr-here', 'pr-worktree', 'unload-pr', ...BRANCH]);
   });
 
   it('des modifications : en plus mettre de côté ; les changements de branche grisés, pas masqués', () => {
     const v = loaded({ checkout: DIRTY });
-    expect(seen(v, PLACES)).toEqual(['pr-here', 'pr-worktree', 'unload-pr', 'stash']);
-    expect(['pr-here', 'unload-pr', 'pr-worktree', 'stash'].map((id) => action(v, id)?.disabled))
-      .toEqual(['Des modifications en cours', 'Des modifications en cours', null, null]);
+    expect(seen(v, PLACES)).toEqual(PLACES);
+    expect(['pr-here', 'unload-pr', 'switch-branch', 'new-here', 'pr-worktree', 'stash', 'new-worktree'].map((id) => action(v, id)?.disabled))
+      .toEqual(['Des modifications en cours', 'Des modifications en cours', 'Des modifications en cours', 'Des modifications en cours', null, null, null]);
     expect(action(loaded({ lang: 'en', checkout: DIRTY }), 'pr-here')?.disabled).toBe('Uncommitted changes');
   });
 
-  it('sur la tête de la PR : plus de changement de branche ; décharger reste', () => {
-    expect(seen(loaded({ checkout: { branch: 'feat/G2-1', dirty: true } }), PLACES)).toEqual(['unload-pr', 'stash']);
+  it('sur la tête de la PR : plus de la charger ; revenir sur la base reste', () => {
+    expect(seen(loaded({ checkout: { branch: 'feat/G2-1', dirty: true } }), PLACES)).toEqual(['unload-pr', 'stash', ...BRANCH]);
   });
 
-  it('sur le robot d\'une PR : aucun choix de lieu', () => {
-    expect(seen(loaded({ child: true, checkout: DIRTY, worktree: { state: 'robot', temp: true, dir: '/w' } }), PLACES)).toEqual([]);
+  it('sur le robot d\'une PR : ni la charger, ni revenir sur la base, ni un nouveau worktree', () => {
+    expect(seen(loaded({ child: true, checkout: DIRTY, worktree: { state: 'robot', temp: true, dir: '/w' } }), PLACES))
+      .toEqual(['stash', 'switch-branch', 'new-here']);
+  });
+
+  it('revenir sur la base : hors de la base, même sans PR suivie ; sur la base (origin/ ou pas), masqué', () => {
+    const at = (branch: string) => action(vibeView(input({ flow: 'review', checkout: { branch, dirty: false } })), 'unload-pr')?.hidden;
+    expect([at('feat/x'), at('main')]).toEqual([false, true]);
   });
 
   it('un nouveau worktree : masqué la PR déjà dans un worktree, ou sur un enfant', () => {
@@ -662,32 +670,34 @@ describe('Créer et Relire sur le même dossier : les choix de lieu (0.12.0)', (
     expect(action(loaded({ checkout: DIRTY, child: true }), 'pr-worktree')?.hidden).toBe(true);
   });
 
-  it('Relire : l\'étape PR faite le dossier sur la tête (ou le robot) ; sinon les étapes suivantes grisées, elsewhere', () => {
+  it('Relire : le dossier hors de la tête de la PR suivie, ses étapes grisées (elsewhere) ; sur la tête ou le robot, non', () => {
     const away = loaded({ note, tests: [test], repo: repo([], [FIRST]) });
-    expect(status(away).pr).toBe('current');
+    expect(status(away).note).toBe('current');
     expect([action(away, 'review-note')?.disabled, action(away, 'read-invariants')?.disabled, action(away, 'load-pr')?.disabled])
       .toEqual(['Passer d\'abord sur la branche de la PR', 'Passer d\'abord sur la branche de la PR', null]);
     expect(action(loaded({ lang: 'en' }), 'review-note')?.disabled).toBe('Switch to the PR branch first');
     for (const on of [{ checkout: { branch: 'feat/G2-1', dirty: false } }, { worktree: { state: 'robot' as const, temp: true, dir: '/w' } }]) {
       const v = loaded({ note, tests: [test], repo: repo([], [FIRST]), ...on });
-      expect([status(v).pr, action(v, 'review-note')?.disabled]).toEqual(['done', null]);
+      expect([primary(v), action(v, 'review-note')?.disabled]).toEqual(['review-note', null]);
     }
   });
 
-  it('une nouvelle demande retenue : sa branche au relevé, ses choix, dans les deux parcours', () => {
+  it('une nouvelle demande retenue : sa branche au relevé, dans les deux parcours ; les choix de branche comme sans elle', () => {
     for (const flow of ['create', 'review'] as const) {
       const v = vibeView(input({ flow, request: 'feat/G3-1', checkout: MAIN }));
-      expect([v.request, seen(v, PLACES)]).toEqual([{ branch: 'feat/G3-1' }, ['new-here', 'new-worktree']]);
+      expect([v.request, seen(v, PLACES)]).toEqual([{ branch: 'feat/G3-1' }, BRANCH]);
     }
-    expect(seen(vibeView(input({ request: 'feat/G3-1', checkout: DIRTY })), PLACES)).toEqual(['stash', 'new-here', 'new-worktree']);
+    expect(seen(vibeView(input({ request: 'feat/G3-1', checkout: DIRTY })), PLACES)).toEqual(['stash', ...BRANCH]);
     expect(action(vibeView(input({ request: 'feat/G3-1', checkout: DIRTY })), 'new-here')?.disabled).toBe('Des modifications en cours');
-    expect(seen(vibeView(input({ request: 'feat/G3-1', checkout: DIRTY, child: true })), PLACES)).toEqual(['stash', 'new-here']);
+    expect(seen(vibeView(input({ request: 'feat/G3-1', checkout: DIRTY, child: true })), PLACES)).toEqual(['stash', 'switch-branch', 'new-here']);
   });
 
-  it('aucune demande retenue : ni sa branche ni ses choix ; Nouvelle demande, le texte du champ, toujours là', () => {
+  it('aucune demande retenue : pas de branche au relevé ; Nouvelle demande sur la base seulement', () => {
     const v = vibeView(input({ checkout: DIRTY }));
-    expect([v.request, seen(v, PLACES)]).toEqual([null, []]);
+    expect([v.request, seen(v, PLACES)]).toEqual([null, ['stash', ...BRANCH]]);
     expect(action(v, 'new-request')).toMatchObject({ hidden: false, usesText: true });
+    expect(action(vibeView(input({ checkout: { branch: 'feat/G2-1-bouton', dirty: false } })), 'new-request')?.hidden).toBe(true);
+    expect(action(vibeView(input({ checkout: null })), 'new-request')?.hidden).toBe(true);
   });
 
   it('une recette en cours : les choix de lieu et Retirer le worktree grisés, avec sa raison', () => {
@@ -700,7 +710,7 @@ describe('Créer et Relire sur le même dossier : les choix de lieu (0.12.0)', (
   it('les choix de lieu, Retirer le worktree : directs ; pr-here, pr-worktree avec leur via, les autres par l\'appli seule', () => {
     const v = loaded();
     expect(['pr-here', 'pr-worktree'].map((id) => action(v, id)?.direct)).toEqual([{ running: false, last: null }, { running: false, last: null }]);
-    for (const id of ['unload-pr', 'stash', 'new-here', 'new-worktree', 'remove-worktree']) {
+    for (const id of ['unload-pr', 'stash', 'new-here', 'new-worktree', 'remove-worktree', 'switch-branch', 'pull', 'rebase', 'push', 'fetch', 'request-review']) {
       expect(action(v, id)?.direct).toEqual({ running: false, last: null, only: true });
     }
     expect(action(vibeView(input()), 'new-request')?.direct).toBeUndefined();
@@ -751,12 +761,14 @@ describe('rc.10 : GitHub lu par gh, sans agent', () => {
     expect([v.pr?.state, v.pr?.title]).toEqual(['MERGED', 't']);
   });
 
-  it('Relire : les PR à relire d\'après gh, avant prs.json', () => {
-    const v = vibeView(input({
-      flow: 'review', repo: null, outputs: { 'prs.json': out('[{"number":1}]') },
-      github: { prs: [{ number: 3, title: 't', author: { login: 'kb' }, url: 'u' }] },
-    }));
-    expect(v.prs).toEqual([{ number: 3, title: 't', author: 'kb', url: 'u' }]);
+  it('les PR ouvertes du dépôt, les trois listes, dans les deux parcours ; une PR sans numéro écartée', () => {
+    const one = { number: 3, title: 't', author: { login: 'kb' }, url: 'u' };
+    for (const flow of ['create', 'review'] as const) {
+      const v = vibeView(input({ flow, github: { prs: { mine: [one], review: [{ number: 'x' }], all: [one, null] } } }));
+      const item = { number: 3, title: 't', author: 'kb', url: 'u' };
+      expect(v.prs).toEqual({ mine: [item], review: [], all: [item] });
+    }
+    expect(vibeView(input({ flow: 'review', outputs: { 'prs.json': out('[{"number":1}]') } })).prs).toBeNull();
   });
 });
 
@@ -832,7 +844,7 @@ describe('le parcours guidé (0.9.0) : étapes ouvertes, actions masquées', () 
   });
 
   it('Relire : toutes s\'ouvrent ; Créer, Vibe en cours : comme sans Vibe', () => {
-    expect(opened(vibeView(input({ flow: 'review' })))).toEqual(['pr', 'note', 'invariants', 'commits', 'ecran', 'revue']);
+    expect(opened(vibeView(input({ flow: 'review' })))).toEqual(['note', 'invariants', 'commits', 'ecran', 'revue']);
     expect(opened(vibeView(ready({ vibe: true })))).toEqual(['note', 'forme', 'invariants', 'modules']);
   });
 
@@ -1028,5 +1040,60 @@ describe('Lecture périmée et grisé de la note et des tests (0.11.0-editer-inv
     expect(locks({})).toEqual([null, null]);
     expect(locks({ busy: true })).toEqual(['La conversation travaille', 'La conversation travaille']);
     expect(locks({ running: [{ id: 'checks', reads: true }] })).toEqual(['Une action de l’agent est en cours', 'Une action de l’agent est en cours']);
+  });
+});
+
+describe('la gestion des branches (0.12.0) : la PR suivie, Relire possible, Pull, Rebase, Pousser', () => {
+  const CARD = out(JSON.stringify({ number: 12, title: 'G3', head: 'feat/G3', base: 'main', state: 'OPEN' }));
+  const at = (time: number, ok = true) => ({ running: false, last: { ok, line: '', detail: '', time } });
+
+  it('Créer : la PR suivie et sa fiche (loaded), à part de la PR de la branche ; son état d\'après gh ; elle ouvre ses choix', () => {
+    const v = vibeView(input({ pr: 12, outputs: { 'pr-12.json': CARD }, github: { pr: { number: 31 }, state: 'MERGED' },
+      checkout: { branch: 'main', dirty: false } }));
+    expect([v.pr?.number, v.loaded?.number, v.loaded?.head, v.loaded?.state]).toEqual([31, 12, 'feat/G3', 'MERGED']);
+    expect([vibeView(input({ pr: 12 })).loaded, vibeView(input()).loaded]).toEqual([null, null]);
+  });
+
+  it('reviewable : en Relire, la PR suivie ouverte et le dossier sur sa tête ; en Créer, la PR de la branche ouverte (ou sans état connu)', () => {
+    const create = (pr: Record<string, unknown> | null) => vibeView(input({ github: { pr } })).reviewable;
+    const review = (branch: string, state?: string) =>
+      vibeView(input({ flow: 'review', pr: 12, outputs: { 'pr-12.json': CARD }, github: { state }, checkout: { branch, dirty: false } })).reviewable;
+    expect([review('feat/G3'), review('main'), review('feat/G3', 'MERGED'), vibeView(input({ flow: 'review' })).reviewable])
+      .toEqual([true, false, false, false]);
+    expect([create({ number: 31, state: 'OPEN' }), create({ number: 31 }), create({ number: 31, state: 'MERGED' }), create(null)])
+      .toEqual([true, true, false, false]);
+  });
+
+  it('les branches locales et l\'état distant passent tels quels ; absents : null', () => {
+    const v = vibeView(input({ branches: ['main', 'feat/x'], sync: { behind: 2, baseAhead: 0 } }));
+    expect([v.branches, v.sync]).toEqual([['main', 'feat/x'], { behind: 2, baseAhead: 0 }]);
+    expect([vibeView(input()).branches, vibeView(input()).sync]).toEqual([null, null]);
+  });
+
+  it('Créer : la PR suivie chargée ouvre ses choix ; Charger la PR, sans fiche, jamais grisée', () => {
+    const v = vibeView(input({ pr: 12, outputs: { 'pr-12.json': CARD }, checkout: { branch: 'main', dirty: false } }));
+    expect(['load-pr', 'pr-here', 'pr-worktree', 'unload-pr'].map((id) => [action(v, id)?.hidden, action(v, id)?.disabled]))
+      .toEqual([[false, null], [false, null], [false, null], [false, null]]);
+    for (const flow of ['create', 'review'] as const) expect(action(vibeView(input({ flow, pr: 12 })), 'load-pr')?.disabled).toBeNull();
+  });
+
+  it('Pull : grisé sans branche distante suivie ou à jour ; en retard, actif, même avec des modifications', () => {
+    const pull = (over: Partial<JourneyInput>) => action(vibeView(input(over)), 'pull');
+    expect([pull({}), pull({ sync: { behind: null, baseAhead: 1 } }), pull({ sync: { behind: 0, baseAhead: 1 } }),
+      pull({ sync: { behind: 2, baseAhead: 0 }, checkout: { branch: 'main', dirty: true } })].map((a) => [a?.hidden, a?.disabled]))
+      .toEqual([[false, 'Pas de branche distante suivie'], [false, 'Pas de branche distante suivie'], [false, 'Déjà à jour'], [false, null]]);
+    expect(action(vibeView(input({ lang: 'en', sync: { behind: 0, baseAhead: 0 } })), 'pull')?.disabled).toBe('Already up to date');
+  });
+
+  it('Rebase : montré hors de la base, jamais grisé par l\'état distant ; masqué sur la base', () => {
+    const v = vibeView(input({ sync: { behind: 0, baseAhead: 0 }, checkout: { branch: 'feat/G2-1-bouton', dirty: true } }));
+    expect([action(v, 'rebase')?.hidden, action(v, 'rebase')?.disabled]).toEqual([false, null]);
+    expect(action(vibeView(input({ checkout: { branch: 'main', dirty: false } })), 'rebase')?.hidden).toBe(true);
+  });
+
+  it('Pousser : montré après un rebase réussi, jusqu\'à un push réussi ; un push en échec le laisse', () => {
+    const push = (direct: JourneyInput['direct']) => action(vibeView(input({ direct })), 'push')?.hidden;
+    expect([push(undefined), push({ rebase: at(5, false) }), push({ rebase: at(5) }), push({ rebase: at(5), push: at(6) }),
+      push({ rebase: at(5), push: at(6, false) }), push({ rebase: at(7), push: at(6) })]).toEqual([true, true, false, true, false, false]);
   });
 });

@@ -9,7 +9,10 @@
  *  fichiers changés, ses commits et leurs fichiers — sans un chemin que git
  *  cite ou qui contient un caractère de contrôle. Un fichier à un ref (show) ;
  *  un commit et son diff (commit) ; le commit où la branche part d'une base
- *  (forkPoint, par log --boundary : GIT_READ n'a rien gagné, I-39).
+ *  (forkPoint, par log --boundary : GIT_READ n'a rien gagné, I-39). Les
+ *  branches locales (branches : for-each-ref refs/heads/, hors d'okRef
+ *  écartées) ; l'état de Pull et de Rebase (sync : les commits de @{u}, puis
+ *  ceux de origin/<base>, absents de HEAD, comptés par log).
  *  Ne connaît pas : VibeCoder, Electron.
  *  Utilisé par : app/controllers/vibecoder (gitRun, gitReader, okRef),
  *  app/controllers/worktrees (gitRun : rev-parse, worktree list),
@@ -18,7 +21,7 @@ import { execFile } from 'node:child_process';
 import { okRef } from 'helpers';
 
 // Les seules sous-commandes lancées : toutes en lecture.
-export const GIT_READ = ['rev-parse', 'status', 'diff', 'log', 'show'] as const;
+export const GIT_READ = ['rev-parse', 'status', 'diff', 'log', 'show', 'for-each-ref'] as const;
 
 // Lance git (args[0] : la sous-commande) → sa sortie, ou null.
 export type Run = (args: string[]) => Promise<string | null>;
@@ -65,12 +68,17 @@ const plainPath = (path: string) => path !== '' && !path.startsWith('"') && !/[\
 // main ou master), ses chemins cités ou à caractère de contrôle écartés ;
 // show : le contenu d'un fichier à ce ref ; commit : un commit, ses fichiers
 // (--stat) et son diff ; forkPoint : le commit commun à HEAD et à `base` — la
-// première limite de base..HEAD, sinon HEAD s'il n'a rien en propre.
+// première limite de base..HEAD, sinon HEAD s'il n'a rien en propre ;
+// branches : les branches locales, noms hors d'okRef écartés ; sync : behind,
+// les commits de @{u} absents de HEAD (null sans @{u}), baseAhead, ceux de
+// origin/<base> (null si absente) ; une base hors d'okRef : null sans lancer git.
 export function gitReader(run: Run): {
   facts(ref?: string, base?: string): Promise<GitFacts | null>;
   show(ref: string, path: string): Promise<string | null>;
   commit(ref: string): Promise<string | null>;
   forkPoint(base: string): Promise<string | null>;
+  branches(): Promise<string[] | null>;
+  sync(base: string): Promise<{ behind: number | null; baseAhead: number | null } | null>;
 } {
   const exists = async (ref: string) => (await run(['rev-parse', '--verify', '--quiet', '--end-of-options', ref])) !== null;
   const defaultBase = async () => (await run(['rev-parse', '--abbrev-ref', 'origin/HEAD']))?.trim()
@@ -116,6 +124,19 @@ export function gitReader(run: Run): {
       const lines = out.split('\n').filter(Boolean);
       if (!lines.length) return 'HEAD';
       return lines.find((l) => l.startsWith('-'))?.slice(1) ?? null;
+    },
+    async branches() {
+      const out = await run(['for-each-ref', '--format=%(refname:short)', 'refs/heads/']);
+      return out === null ? null : out.split('\n').filter((name) => name && okRef(name));
+    },
+    async sync(base) {
+      if (!okRef(base)) return null;
+      const count = async (range: string) => {
+        const out = await run(['log', '--format=%H', ...NO_PROGRAM, '--end-of-options', range, '--']);
+        return out === null ? null : out.split('\n').filter(Boolean).length;
+      };
+      const [behind, baseAhead] = await Promise.all([count('HEAD..@{u}'), count(`HEAD..origin/${base}`)]);
+      return { behind, baseAhead };
     },
   };
 }

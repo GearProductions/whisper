@@ -14,7 +14,7 @@
  *  InlineMd : un texte d'une ligne (réponse proposée, cas limite…) en ligne.
  *  Ne connaît pas : le pont (rappels passés).
  *  Utilisé par : les vues d'étape (note-view en Relire, questions-view, forme-view, invariants-view,
- *  modules-view, review-view, pr-view, pr-picker, commits-view, ecran-view, draft-view, runs-view). */
+ *  modules-view, review-view, pr-view, branches-view, commits-view, ecran-view, draft-view, runs-view). */
 import { useMemo, useState, type ReactNode } from 'react';
 import { blockQuotes, parseInline, parseMarkdown, type Block, type Inline, type Strings } from 'core/vibecoder';
 import { CommentBox } from './comment-box';

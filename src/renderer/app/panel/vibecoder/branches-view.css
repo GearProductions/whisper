@@ -1,9 +1,11 @@
-/* L'étape PR de Relire (pr-picker) : le champ numéro de l'en-tête, la PR
-   chargée, la liste des PR à relire. Sous .vc, couleurs de vibecoder.css. */
+/* La vue des branches (branches-view) : ses outils, la PR chargée, les onglets
+   des PR et des branches locales, Créer une branche. Sous .vc, couleurs de vibecoder.css. */
 
-.vc-pr-form { display: flex; align-items: center; gap: 6px; }
-.vc-pr-form input {
-  width: 130px;
+.vc-br-tools { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-bottom: 10px; }
+
+.vc-br-new { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.vc-br-new :is(input, select) {
+  width: 200px;
   height: 28px;
   box-sizing: border-box;
   padding: 0 9px;
@@ -15,27 +17,14 @@
   font-size: 12.5px;
   transition: border-color 0.12s, box-shadow 0.12s;
 }
-.vc-pr-form input::placeholder { color: var(--vc-faint); }
-.vc-pr-form input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent); }
-.vc-pr-form button {
-  height: 28px;
-  padding: 0 12px;
-  border: 1px solid var(--vc-edge);
-  border-radius: 6px;
-  background: var(--vc-control);
-  color: var(--vc-text);
-  font: 500 12.5px/1 system-ui, sans-serif;
-  cursor: pointer;
-  transition: border-color 0.12s, background-color 0.12s;
-}
-.vc-pr-form button:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--vc-control)); }
-.vc-pr-form button:disabled { border-style: dashed; background: transparent; color: var(--vc-faint); cursor: default; }
+.vc-br-new input::placeholder { color: var(--vc-faint); }
+.vc-br-new :is(input, select):focus { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent); }
 
-.vc-pr-worktree { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.vc-pr-worktree { display: flex; align-items: flex-start; gap: 10px; margin-top: 10px; }
 
 .vc-pr-nobody { color: var(--vc-faint); font-size: 12.5px; font-style: italic; }
 
-/* ---- PR à relire ------------------------------------------------------------- */
+/* ---- Les onglets, les listes ------------------------------------------------------------- */
 .vc-pr-list-head {
   display: flex;
   align-items: center;
@@ -49,7 +38,27 @@
   text-transform: uppercase;
 }
 .vc-pr-list-head .vc-count { letter-spacing: 0; }
-.vc-pr-list-head .vc-run { margin-left: auto; letter-spacing: 0; text-transform: none; }
+.vc-pr-list-head .vc-seg { letter-spacing: 0; text-transform: none; }
+.vc-pr-list-head .vc-seg .vc-count { margin-left: 6px; }
+.vc-br-search {
+  width: 180px;
+  height: 28px;
+  box-sizing: border-box;
+  margin-left: auto;
+  padding: 0 9px;
+  border: 1px solid var(--vc-edge);
+  border-radius: 6px;
+  outline: none;
+  background: var(--vc-code);
+  color: var(--vc-text);
+  font: 12.5px system-ui, sans-serif;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.vc-br-search::placeholder { color: var(--vc-faint); }
+.vc-br-search:focus { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent); }
+.vc-pr-hint[data-state="ko"] { color: #f85149; }
+.vc-pr-list .vc-mini { flex: none; margin-right: 6px; }
 .vc-pr-hint { padding: 2px 0; color: var(--vc-faint); font-size: 12.5px; }
 .vc-pr-list { display: grid; gap: 6px; list-style: none; margin: 0; padding: 0; }
 .vc-pr-list li {

@@ -8,6 +8,9 @@
 //   unload-pr (revenir sur la base du dépôt) et new-here (git switch -c sur la
 //   branche de la demande) relisent l'état du dossier au clic ; des
 //   modifications → refusé, même si le relevé affiché le disait propre.
+//   Note 0.12.0 docs/tickets/feat/0.12.0-gestion-des-branches.md, même ligne :
+//   aller sur une branche locale depuis la vue des branches (switch-branch)
+//   est un changement de branche de plus, relu de même au clic.
 // Sur le vrai principal (contrôleurs, réglages et fichiers sur disque, git réel
 // sur un dépôt d'essai et son origin, un dépôt nu local) ; faux : Electron
 // (fenêtres, boîte de dialogue), le SDK de Claude Code (le tour finit aussitôt,
@@ -134,7 +137,7 @@ async function openPanel() {
 // L'action `id` dans le dernier relevé de a1.
 const shown = async (id: string) => (await import('app/controllers')).lastView('a1')?.actions.find((a) => a.id === id);
 // Le clic sur une action directe.
-const click = async (id: string) => (await import('app/controllers')).runVibeAction(id, { direct: true });
+const click = async (id: string, args: object = {}) => (await import('app/controllers')).runVibeAction(id, { ...args, direct: true });
 
 describe.skipIf(process.platform === 'win32')('Décharger (unload-pr) : jamais de changement de branche dans un dossier qui a des modifications', () => {
   beforeEach(() => {
@@ -234,6 +237,54 @@ describe.skipIf(process.platform === 'win32')('Nouvelle demande ici (new-here) :
     expect(await shown('new-here')).toBeDefined();
 
     await click('new-here');
+    await wait(2000);
+
+    // toujours sur main
+    expect(branch()).toBe('main');
+    // la modification est toujours là
+    expect(fs.readFileSync(path.join(repo, 'a.txt'), 'utf8')).toBe('modifié\n');
+  }, 20000);
+});
+
+describe.skipIf(process.platform === 'win32')('Aller sur une branche (switch-branch) : jamais de changement de branche dans un dossier qui a des modifications', () => {
+  beforeEach(() => {
+    // a1 en Créer, sur main ; feat/x, une branche locale.
+    configure({ flow: 'create', autonomy: 'guide' });
+    git(repo, 'branch', '-q', 'feat/x', 'origin/feat/x');
+  });
+
+  it('propre : switch-branch passe sur la branche choisie (le clic agit bien)', async () => {
+    await openPanel();
+
+    await click('switch-branch', { branch: 'feat/x' });
+    await until(() => branch() === 'feat/x');
+
+    // sur la branche choisie
+    expect(branch()).toBe('feat/x');
+  }, 20000);
+
+  it('un fichier modifié après le relevé : refusé, la branche et la modification restent', async () => {
+    await openPanel();
+    // le relevé propose switch-branch, actif : le dossier y était propre
+    expect(await shown('switch-branch')).toMatchObject({ disabled: null });
+    write(path.join(repo, 'a.txt'), 'modifié\n');
+
+    await click('switch-branch', { branch: 'feat/x' });
+    await wait(2000);
+
+    // toujours sur main
+    expect(branch()).toBe('main');
+    // la modification est toujours là
+    expect(fs.readFileSync(path.join(repo, 'a.txt'), 'utf8')).toBe('modifié\n');
+  }, 20000);
+
+  it('des modifications déjà au relevé : refusé, la branche et la modification restent', async () => {
+    write(path.join(repo, 'a.txt'), 'modifié\n');
+    await openPanel();
+    // le relevé montre bien switch-branch (grisé)
+    expect(await shown('switch-branch')).toBeDefined();
+
+    await click('switch-branch', { branch: 'feat/x' });
     await wait(2000);
 
     // toujours sur main

@@ -1,9 +1,13 @@
 /** vibe-coder — l'écran VibeCoder d'un agent, à la place de l'en-tête et du
  *  corps du panneau : en-tête (agent — sa couleur, seule touche de couleur
- *  avec Envoyer —, branche, Créer / Relire, langue, relevé,
- *  conversation affichée ou masquée, retour à la conversation, fermer ; le
- *  robot d'une PR dans un worktree : son badge et Retirer le worktree) ; le parcours à
- *  gauche (il dit où l'on en est) ; au centre, l'étape choisie (step-views :
+ *  avec Envoyer —, la branche ⎇, un bouton qui ouvre et ferme la vue des
+ *  branches, et à côté Pull, Rebase, Pousser (sync-buttons) ; Créer / Relire,
+ *  Relire grisé sans PR ouverte sur la branche (view.reviewable) ; langue,
+ *  relevé, conversation affichée ou masquée, retour à la conversation,
+ *  fermer ; le robot d'une PR dans un worktree : son badge, sans action) ; le
+ *  parcours à gauche (il dit où l'on en est ; y choisir une étape, ou Créer /
+ *  Relire, ferme la vue des branches) ; au centre, la vue des branches
+ *  (branches-view) si elle est ouverte, sinon l'étape choisie (step-views :
  *  son en-tête porte ses actions ; Relire, une PR fusionnée ou fermée en
  *  bandeau) ; Vibe ou pas, le même parcours et la même étape — pendant Vibe
  *  (view.vibe), une bannière en tête du centre (vibe-banner) qui l'arrête
@@ -20,14 +24,14 @@
  *  (Relire), le modèle choisi par action (envoyé s'il n'est pas le
  *  conseillé), le champ de chaque étape (fieldOf : son texte part en
  *  args.text de l'action ; exigé et vide, le champ prend le clavier ; partie,
- *  il se vide), les modifications gardées des
+ *  il se vide), la vue des branches ouverte ou non, les modifications gardées des
  *  fichiers suivis (drafts, par chemin : useFileDraft ; changer d'étape ne
  *  les jette pas) — tout cela gardé par agent
  *  (kept : l'écran est recréé à chaque changement d'agent). Préparer un message dans le champ
  *  de la conversation, ou un message qui exige son texte, réaffiche la
  *  conversation (colonne masquée, ou onglet Actions, Tâches, Processus).
  *  Le fichier de module suivi (`code`, Voir le code) passe à la vue d'étape ;
- *  l'étape change ou l'écran se ferme (dont un changement d'agent) : plus
+ *  l'étape change, la vue des branches s'ouvre ou l'écran se ferme (dont un changement d'agent) : plus
  *  aucun fichier suivi. L'onglet Actions ouvert le dit au principal
  *  (runsSeen : true, les courses de l'agent vues) ; quitté, ou l'écran fermé
  *  (dont un changement d'agent) : runsSeen false.
@@ -38,11 +42,13 @@ import { isBusy, titleOf } from 'core/conversation';
 import { convWidth, fieldOf, isLive, modelArg, t as strings, type Answers, type Kept, type ModelPicks, type Strings } from 'core/vibecoder';
 import type { Thread, VibeCode, VibeLang, VibeStepId, VibeView } from 'technicals/bridge';
 import type { Drafts } from './file-draft';
+import { BranchesView } from './branches-view';
 import { Journey } from './journey';
 import { ProcessesView } from './processes-view';
 import { Picks } from './model-pick';
 import { RunsView } from './runs-view';
 import { StatusBar } from './status-bar';
+import { SyncButtons } from './sync-buttons';
 import { ClosedBanner, StopRun, WorktreeBadge } from './step-parts';
 import { STEP_VIEWS, type StepProps, type VibeActs } from './step-views';
 import { VibeBanner } from './vibe-banner';
@@ -82,6 +88,10 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   const step = steps.find((s) => s.id === picked && s.open)
     || steps.find((s) => s.status === 'current') || steps[0] || null;
   const busy = isBusy(thread.status);
+  // La vue des branches (le bouton ⎇) : ouverte, elle prend le centre à la place de l'étape.
+  const [branchesOpen, setBranchesOpen] = useKept(kept, view.agentId, 'branches', false);
+  const branches = branchesOpen && !!view.repo;
+  const pick = (id: VibeStepId) => { setBranchesOpen(false); setPicked(id); };
   const [answers, setAnswers] = useKept<Answers>(kept, view.agentId, 'answers', {});
   const onAnswer: StepProps['onAnswer'] = (q, a) => setAnswers((all) => ({ ...all, [q]: a }));
   const [picks, setPicks] = useKept<ModelPicks>(kept, view.agentId, 'picks', {});
@@ -122,9 +132,9 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
     },
     prefill: (id, quote, block) => { show(); given.prefill(id, quote, block); },
   };
-  // L'étape change, ou l'écran se ferme (il est recréé à chaque changement d'agent) : plus aucun fichier suivi.
+  // L'étape change, la vue des branches s'ouvre, ou l'écran se ferme (il est recréé à chaque changement d'agent) : plus aucun fichier suivi.
   const stepId = step && step.id;
-  useEffect(() => () => given.follow(null), [stepId]);
+  useEffect(() => () => given.follow(null), [stepId, branches]);
   // L'onglet Actions ouvert : ses courses vues ; quitté, ou l'écran fermé (dont un changement d'agent) : plus vues.
   const runsOpen = pane === 'runs';
   useEffect(() => {
@@ -142,7 +152,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
       const s = digit && e.ctrlKey && !e.altKey && !e.metaKey ? steps[Number(digit[1]) - 1] : null;
       if (!s?.open) return;
       e.preventDefault();
-      setPicked(s.id);
+      pick(s.id);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -153,16 +163,21 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
     <Picks.Provider value={{ picks, lang: view.lang, pick: (id, m) => setPicks((p) => ({ ...p, [id]: m })) }}>
     <StopRun.Provider value={{ stop: (id) => act.runOp(id, 'stop'), state: (id) => view.runs?.find((r) => r.id === id)?.state ?? null }}>
       <div className="vc" ref={root} data-conv={side.open ? undefined : 'hidden'} style={{ '--vc-conv': `${side.width}px` } as CSSProperties}>
-        <Top view={view} thread={thread} busy={busy} t={t} act={act} side={side} onSide={onSide} onHide={onHide} />
-        <Journey view={view} t={t} selected={step && step.id} onPick={setPicked} onOpen={act.open} />
+        <Top view={view} thread={thread} busy={busy} t={t} act={act} side={side} onSide={onSide} onHide={onHide}
+          branches={branches} onBranches={() => setBranchesOpen(!branches)} onFlow={() => setBranchesOpen(false)} />
+        <Journey view={view} t={t} selected={branches ? null : step && step.id} onPick={pick} onOpen={act.open} />
         <section className="vc-center">
           {view.vibe ? <VibeBanner t={t} onStop={() => act.set({ vibe: false })} /> : null}
           {view.error ? <div className="vc-error" role="status"><b>{view.error}</b> {t.errorHint}</div> : null}
-          <div className="vc-step scroll" key={step ? step.id : ''}>
-            {view.flow === 'review' ? <ClosedBanner pr={view.pr} t={t} /> : null}
-            {step && View ? <Guard t={t}><View view={view} step={step} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} verdict={verdict} onVerdict={setVerdict}
-              text={texts[step.id] ?? ''} setText={setText(step.id)} code={code} drafts={drafts} /></Guard> : null}
-          </div>
+          {branches ? (
+            <div className="vc-step scroll" key="branches"><Guard t={t}><BranchesView view={view} t={t} act={act} busy={busy} /></Guard></div>
+          ) : (
+            <div className="vc-step scroll" key={step ? step.id : ''}>
+              {view.flow === 'review' ? <ClosedBanner pr={view.pr} t={t} /> : null}
+              {step && View ? <Guard t={t}><View view={view} step={step} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} verdict={verdict} onVerdict={setVerdict}
+                text={texts[step.id] ?? ''} setText={setText(step.id)} code={code} drafts={drafts} /></Guard> : null}
+            </div>
+          )}
         </section>
         <section className="vc-conv" aria-label={t.conversation}>
           <Resizer t={t} side={side} root={root} onSide={onSide} />
@@ -222,20 +237,30 @@ function Resizer({ t, side, root, onSide }: { t: Strings; side: Side; root: RefO
 
 const LANGS: Record<VibeLang, string> = { fr: 'FR', en: 'EN' };
 
-type TopProps = { view: VibeView; thread: Thread; busy: boolean; t: Strings; act: VibeActs; side: Side; onSide(side: Side): void; onHide(): void };
+type TopProps = {
+  view: VibeView; thread: Thread; busy: boolean; t: Strings; act: VibeActs; side: Side; onSide(side: Side): void; onHide(): void;
+  branches: boolean; onBranches(): void; onFlow(): void;   // la vue des branches ouverte ; le bouton ⎇ ; Créer / Relire choisi
+};
 
-function Top({ view, thread, busy, t, act, side, onSide, onHide }: TopProps) {
+function Top({ view, thread, busy, t, act, side, onSide, onHide, branches, onBranches, onFlow }: TopProps) {
   const [spins, setSpins] = useState(0); // ⟳ tourne une fois par clic
   return (
     <div className="vc-top">
       <div className="vc-ident">
         <span className="vc-dot" data-busy={busy || undefined} />
         <span className="vc-name" title={thread.dir}>{thread.name}</span>
-        {view.repo ? <span className="vc-branch" title={t.branch(view.repo.branch, view.repo.base)}>{`⎇ ${view.repo.branch}`}</span> : null}
-        <WorktreeBadge view={view} busy={busy} onRun={(x) => act.run('remove-worktree', x)} />
+        {view.repo ? (
+          <button type="button" className="vc-branch" aria-pressed={branches} onClick={onBranches}
+            title={`${t.branch(view.repo.branch, view.repo.base)}\n${branches ? t.branchesClose : t.branchesOpen}`}>
+            {`⎇ ${view.repo.branch}`}
+          </button>
+        ) : null}
+        {view.repo ? <SyncButtons view={view} onRun={act.run} /> : null}
+        <WorktreeBadge view={view} />
       </div>
       <div className="vc-modes">
-        <Segmented value={view.flow} labels={t.flow} title={t.flowTitle} onPick={(flow) => act.set({ flow })} />
+        <Segmented value={view.flow} labels={t.flow} title={t.flowTitle} off={view.reviewable ? {} : { review: t.notReviewable }}
+          onPick={(flow) => { onFlow(); act.set({ flow }); }} />
       </div>
       <div className="vc-tools">
         <Segmented value={view.lang} labels={LANGS} title={t.langTitle} onPick={(lang) => act.set({ lang })} />
@@ -254,11 +279,13 @@ function Top({ view, thread, busy, t, act, side, onSide, onHide }: TopProps) {
   );
 }
 
-function Segmented<T extends string>({ value, labels, title, onPick }: { value: T; labels: Record<T, string>; title: string; onPick(v: T): void }) {
+// off : les choix grisés et leur raison (en infobulle).
+function Segmented<T extends string>({ value, labels, title, off = {}, onPick }: { value: T; labels: Record<T, string>; title: string; off?: Partial<Record<T, string>>; onPick(v: T): void }) {
   return (
     <div className="vc-seg" role="group" title={title}>
       {(Object.keys(labels) as T[]).map((k) => (
-        <button key={k} type="button" aria-pressed={k === value} onClick={() => { if (k !== value) onPick(k); }}>{labels[k]}</button>
+        <button key={k} type="button" aria-pressed={k === value} disabled={!!off[k]} title={off[k]}
+          onClick={() => { if (k !== value) onPick(k); }}>{labels[k]}</button>
       ))}
     </div>
   );

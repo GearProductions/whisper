@@ -1,9 +1,10 @@
 /** step-views — l'aiguillage des étapes : la vue de chaque étape du parcours,
  *  et ce qu'elle reçoit (StepProps : le relevé, l'étape, les libellés, les
  *  rappels de l'écran, le texte du champ de l'étape, le fichier de module
- *  suivi, les modifications gardées des fichiers suivis ; StepHead y prend les actions de l'étape et ce champ). Chaque étape a sa vue ; PR et Revue ont chacune une
- *  vue pour Créer et une pour Relire ; Note et Invariants servent aux deux
- *  (en lecture seule pour Relire).
+ *  suivi, les modifications gardées des fichiers suivis ; StepHead y prend les actions de l'étape et ce champ). Chaque étape a sa vue ; Revue en a
+ *  une pour Créer et une pour Relire ; PR n'est que de Créer (Relire commence
+ *  à Note : la PR se charge depuis la vue des branches) ; Note et Invariants
+ *  servent aux deux (en lecture seule pour Relire).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder, panel-app (VibeActs). */
 import type { ComponentType, Dispatch, SetStateAction } from 'react';
 import type { Answer, Answers, Strings } from 'core/vibecoder';
@@ -16,7 +17,6 @@ import { FormeView } from './forme-view';
 import { InvariantsView } from './invariants-view';
 import { ModulesView } from './modules-view';
 import { NoteView } from './note-view';
-import { PrPicker } from './pr-picker';
 import { PrView } from './pr-view';
 import { ReviewView } from './review-view';
 
@@ -50,7 +50,7 @@ export type StepProps = {
   drafts: readonly [Drafts, Dispatch<SetStateAction<Drafts>>]; // les modifications gardées, par chemin (vibe-coder les tient, par agent : useFileDraft)
 };
 
-// PR et Revue : une vue pour Créer, une autre pour Relire.
+// Revue : une vue pour Créer, une autre pour Relire.
 const byFlow = (create: ComponentType<StepProps>, review: ComponentType<StepProps>) => function ByFlow(p: StepProps) {
   const View = p.view.flow === 'review' ? review : create;
   return <View {...p} />;
@@ -60,7 +60,7 @@ export const STEP_VIEWS: Record<VibeStepId, ComponentType<StepProps>> = {
   note: NoteView, forme: FormeView, invariants: InvariantsView,
   modules: ModulesView,
   revue: byFlow(ReviewView, DraftView),
-  pr: byFlow(PrView, PrPicker),
+  pr: PrView,
   commits: CommitsView,
   ecran: EcranView,
 };

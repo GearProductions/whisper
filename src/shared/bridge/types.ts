@@ -372,7 +372,16 @@ export type VibeView = {
   actions: VibeAction[];
   skills: string[];                      // skills du projet et de l'utilisateur
   pr: VibePr | null;                     // Créer : la PR ouverte ; Relire : la PR chargée
-  prs: VibePrItem[] | null;              // Relire : les PR à relire
+  // Les PR ouvertes du dépôt (les deux parcours) : les miennes, celles à relire, toutes ; null : pas encore
+  // de réponse de gh ; false : gh en échec.
+  prs: { mine: VibePrItem[]; review: VibePrItem[]; all: VibePrItem[] } | false | null;
+  // Toujours remplis par le relevé (optionnels pour les vues écrites à la main, comme les tests) :
+  loaded?: VibePr | null;                // la PR suivie et sa fiche pr-<n>.json (les deux parcours : la vue des branches)
+  reviewable?: boolean;                  // la branche a sa PR ouverte : Relire possible ; absent : non
+  branches?: string[] | null;            // les branches locales
+  // behind : commits de @{u} absents de HEAD (null : pas de branche distante suivie) ;
+  // baseAhead : commits de origin/<base> absents de HEAD.
+  sync?: { behind: number | null; baseAhead: number | null } | null;
   draft: VibeComment[];                  // Relire : le brouillon de revue de la PR
   // Relire : la PR suivie dans un worktree (F-110) — sur l'agent du dépôt, en
   // création, ouvert sans robot, ou son robot temporaire là ; temp : ce robot-ci.
@@ -398,6 +407,9 @@ export type VibeArgs = {
   verdict?: 'approve' | 'comment' | 'request-changes';
   model?: string;              // sous-contexte : un autre modèle que le conseillé, parmi VibeAction.models
   direct?: boolean;            // VibeAction.direct : l'appli la fait elle-même, sans agent (F-114)
+  branch?: string;             // switch-branch : une branche de VibeView.branches ; new-here, new-worktree : le nom saisi
+  start?: string;              // le départ d'une branche créée
+  onto?: string;               // rebase : sur quoi rebaser
 };
 
 export type VibePatch = {
@@ -412,6 +424,6 @@ export type VibePatch = {
   mode?: string;
   interrupt?: boolean;         // arrêter le tour en cours de l'agent (comme Interrompre de son menu)
   worktree?: true;             // le robot de la PR suivie dans son worktree : l'afficher, ou le proposer (question de confiance)
-  prs?: true;                  // Relire : Mes PR à relire (gh, sans agent)
+  prs?: true;                  // les trois listes de VibeView.prs (gh, sans agent), les deux parcours
   runsSeen?: boolean;          // true : l'onglet Actions de l'agent affiché est ouvert, ses courses vues ; false : fermé
 };

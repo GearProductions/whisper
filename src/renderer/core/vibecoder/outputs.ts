@@ -7,7 +7,7 @@
  *  appliquées (ponytail-applied.json) ; une adresse n'est gardée qu'en
  *  http(s) (I-21). Illisible : null, l'écran le dit.
  *  Ne connaît pas : le DOM, React, les noms des fichiers.
- *  Utilisé par : app/panel/vibecoder (review-view, pr-picker, commits-view, draft-view, step-parts). */
+ *  Utilisé par : app/panel/vibecoder (review-view, branches-view, commits-view, draft-view, step-parts). */
 
 import type { VibeCommit, VibeOutput } from 'technicals/bridge';
 
