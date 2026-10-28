@@ -348,7 +348,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Vibe",
-    "hint": "The agent picks up at the first step not done and chains everything up to the release candidate; a blocking question waits for you without stopping it; the banner stops it; long and costly.",
+    "hint": "The agent picks up at the first step not done and chains everything up to the PR and its CI green; a blocking question waits for you without stopping it; the banner stops it; long and costly.",
     "text": "/vibecoder:vibe {{lang}} {{out}}"
   },
   {

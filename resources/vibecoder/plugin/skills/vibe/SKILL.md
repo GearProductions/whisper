@@ -1,6 +1,6 @@
 ---
 name: vibe
-description: "Vibe: once the note is written, its questions answered and the note validated by the user, take the developer's seat of the guide and, as VibeCoder's orchestrator, chain the screen's actions from the forme — red invariants (alignment included), first commit, modules and their commits, checks (ponytail review included), fixups, PR, CI, release candidate — stopping only on a blocking question."
+description: "Vibe: once the note is written, its questions answered and the note validated by the user, take the developer's seat of the guide and, as VibeCoder's orchestrator, chain the screen's actions from the forme — red invariants (alignment included), first commit, modules and their commits, checks (ponytail review included), fixups, PR, CI followed until green — stopping only on a blocking question."
 argument-hint: "<lang> <out>"
 disable-model-invocation: true
 ---
@@ -31,9 +31,8 @@ Read `${CLAUDE_SKILL_DIR}/../actions/SKILL.md` first: it is the protocol — `<o
 6. **Review** — `checks`: it requests the ponytail review itself, both run together; wait for both end notices (`checks.json`, `ponytail.md`). Then `apply` (`text`: the remarks you keep; empty: all) and say which ones you discard and why. A red check → fix it as a fixup of the commit that owns the code, then `checks` again with `check`: its rank in `checks.json` (that check alone).
 7. **Docs** — the note matches what is delivered (A.3); `SPEC.md`, `README.md`, `AGENTS.md`… follow where a behaviour or a convention changed: a doc commit, or fixups.
 8. **Fold** — `fixups`.
-9. **PR** — `pr` (→ `pr.json`), then `ci`. Red → fix the cause from `ci.md` in a new commit (the PR is open: no rewrite), push, `ci` again.
-10. **Release candidate** — only if the project documents a procedure: `rc`.
-11. **Answer** — in `lang`: the PR's link, the release candidate installed (or why not), what to try first, the decisions you took alone.
+9. **PR** — `pr` (→ `pr.json`), then `ci`, followed until green. Red → fix the cause from `ci.md` in a new commit (the PR is open: no rewrite), push, `ci` again. Green → stop: no further action.
+10. **Answer** — in `lang`: the PR's link, what to try first, the decisions you took alone; *Release candidate* is the user's call, from the PR step.
 
 ## Blocking questions — the only reason to stop
 
@@ -42,6 +41,7 @@ A question blocks when any answer you could pick would make the user own somethi
 ## Never
 
 - `git push --force`: only `--force-with-lease`, and only after folding fixups.
+- Start `rc` (*Release candidate*): the user starts it from the PR step.
 - Merge the PR, publish an official release, delete a release, a tag or a branch.
 - Change a protected test (`AGENTS.md`) to make it pass: fix the code, or ask.
 - Close, kill or restart the user's running app: you may be running inside it.

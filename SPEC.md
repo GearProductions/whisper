@@ -875,7 +875,7 @@ Commiter* sans commit préparé ; *Envoyer les réponses* sans question
 ouverte ; *Replier les fixups* sans commit `fixup!` ; les choix de F-110
 (ceux d'une PR avant qu'elle soit chargée, et sur sa branche ou sur son
 robot ; ceux d'une nouvelle demande sans demande en attente ; *Dans un
-nouveau worktree* sans modifications, sur un enfant, ou la PR déjà dans un
+nouveau worktree* sur un enfant, ou la PR déjà dans un
 worktree ; *Mettre de côté* sans modifications ; *Décharger* sur le robot
 d'une PR ; *Retirer le worktree* hors d'un enfant) ; *Vibe*
 tant que la note n'est pas rédigée (« Pas encore de note »), a des
@@ -1023,7 +1023,8 @@ conversation ; note `0.9.0-actions-independantes.md`).
    (touché par la branche, existe, à créer), commits ; 💬, *Ouvrir*. *Poser
    la forme* (dans la note, sans code ; le champ de l'étape peut la préciser), puis
    *✓ Valider la forme*.
-3. **Invariants** — faite : aucune ligne « → invariant » dans la note (ni
+3. **Invariants** — faite, seulement si la Note et la Forme le sont : aucune ligne
+   « → invariant » dans la note (ni
    test ni commit attendus : la note et la forme se commitent à l'étape
    Modules ; *Écrire les invariants* masquée, elle revient quand la note
    gagne une ligne « → invariant »), ou des tests d'invariants dont chaque
@@ -1084,7 +1085,9 @@ conversation ; note `0.9.0-actions-independantes.md`).
    fichier est au dernier commit), *Diff depuis le dernier commit* (`HEAD`) :
    le diff du texte affiché comme celui de VS Code (`@codemirror/merge`),
    *En ligne* ou *Côte à côte* au choix, en lecture seule, numéroté et
-   coloré, replié autour des changements, en texte (I-40), seulement pour
+   coloré, replié autour des changements (le texte changé dans une ligne
+   sur un fond vert ou rouge plus foncé que celui de sa ligne, pas
+   souligné), en texte (I-40), seulement pour
    un fichier de module (ni la note ni un test, I-37). Générer ne commite
    pas : *Commiter* et *Commiter les modules* (skill `commiter-modules`, un
    commit par module selon la convention du projet, un fixup pour un module
@@ -1189,7 +1192,7 @@ avec cette raison (« PR déjà fusionnée : rien à relire », « PR fermée : 
 1. **PR** — chargée, le dossier sur sa branche (ou sur son robot). Montre
    la PR (titre, auteur, base ← tête, description rendue, *Ouvrir ↗*), ou
    celle qu'on suit, à charger ; la liste à relire. Chargée : *Changer de
-   branche* ; avec des modifications, *Dans un nouveau worktree* et *Mettre
+   branche*, *Dans un nouveau worktree* ; avec des modifications, *Mettre
    de côté* (F-110). *Décharger* : revenir sur la base du dépôt et ne plus
    la suivre (le choix d'une PR revient) ; avec des modifications, *Mettre
    de côté* ou *Rester sur la branche* (F-110).
@@ -1256,7 +1259,7 @@ une ligne, ou pas de réponse → refusé, rien ne bouge.
     modifications en cours »). L'état de *Créer* reste rangé par branche
     (F-95) et revient avec elle. Masqué sur la branche de la PR et sur le
     robot d'une PR ;
-  - avec des modifications, en plus, *Dans un nouveau worktree*
+  - *Dans un nouveau worktree*, le dossier propre ou pas
     (`pr-worktree` ; *via* : l'agent) : `git fetch origin <tête>`
     (`origin/<tête>` existe pour le script du projet), puis la recette crée
     le worktree avec `VIBECODER_BRANCH` = `pr-<n>` (une branche locale
@@ -1274,7 +1277,7 @@ une ligne, ou pas de réponse → refusé, rien ne bouge.
     I-23, I-41). *Annuler* : pas de robot ; *Ajouter le robot PR #n* la
     repose. Le robot là : *Aller au robot PR #n*. Masqué la PR déjà dans un
     worktree, et sur un enfant ;
-  - et *Mettre de côté* (ci-dessous).
+  - avec des modifications, en plus, *Mettre de côté* (ci-dessous).
 - **Décharger** (`unload-pr`, la PR chargée, pas sur son robot) : `git
   switch <base>` (la base du dépôt), puis la PR n'est plus suivie (le choix
   d'une PR revient) ; grisé avec des modifications. Avec des modifications :
@@ -1295,15 +1298,15 @@ une ligne, ou pas de réponse → refusé, rien ne bouge.
   - *Changer de branche* (`new-here`) : `git fetch origin <base>`, puis
     `git switch -c <branche> origin/<base>` (la base du dépôt) ; grisé avec
     des modifications ;
-  - avec des modifications, en plus, *Dans un nouveau worktree*
+  - *Dans un nouveau worktree*, le dossier propre ou pas
     (`new-worktree`, pas sur un enfant) : `git fetch origin <base>`, puis la
     recette crée le worktree sur
     cette branche (`VIBECODER_BASE` = la base du dépôt, départ
     `origin/<base>`), puis un enfant s'y ouvre (la question de confiance
     pour un dossier jamais choisi, I-23 ; refusée : la demande reste
     retenue, l'échec le dit), affiché ; le robot du parent reste
-    sur sa branche, avec ses modifications ;
-  - et *Mettre de côté*.
+    sur sa branche, avec ses modifications s'il en a ;
+  - avec des modifications, en plus, *Mettre de côté*.
 
   Ensuite le dossier (ou l'enfant) est en VibeCoder, *Créer* ; à son premier
   relevé, *Rédiger la note* part avec la demande. Un échec (pas de base, la
@@ -1370,7 +1373,9 @@ tests, faits sans ✓ ni lecture) ; les étapes qu'il passe reçoivent leur ✓
    modules (confiés à des agents Opus avec `ponytail`) puis *Commiter les
    modules*, vérifications (la ponytail review comprise ; un échec corrigé :
    cette vérification seule relancée),
-   fixups, PR, CI, release candidate si le projet en documente une —, une
+   fixups, PR, CI suivie jusqu'au vert (un échec : un commit de correction
+   poussé, *Diagnostiquer la CI* relancé), puis il s'arrête ; jamais
+   *Release candidate*, laissée à l'utilisateur à l'étape PR —, une
    demande puis la fin de son tour, réveillé par l'avis de fin ; chaque
    action reste visible et arrêtable dans l'onglet *Actions*, et ce qui
    doit attendre part de soi-même. *Vibe* ne valide pas la note ; rien
@@ -2294,9 +2299,9 @@ Copier, erreurs ; mêmes relevés).
   arrière-plan : *⚙ Tâches* → l'onglet *Tâches (1)* à droite ;
   *Conversation* → le fil, à sa place.
 - **S-64** *Relire* sur gt-plugins (`.vibecoder/project.json` avec son
-  `worktree`), une PR chargée : *Changer de branche* ; un fichier modifié
-  dans le dossier → *Changer de branche* grisé « Des modifications en
-  cours », *Dans un nouveau worktree* et *Mettre de côté* en plus ; *Mettre
+  `worktree`), une PR chargée : *Changer de branche* et *Dans un nouveau
+  worktree* ; un fichier modifié dans le dossier → *Changer de branche*
+  grisé « Des modifications en cours », *Mettre de côté* en plus ; *Mettre
   de côté* → le dossier propre, toujours sur sa branche, *Changer de
   branche* → le dossier sur la branche de la PR, sans agent ni jeton.
   *Dans un nouveau worktree* → « Création du worktree en cours… », le worktree dans

@@ -494,7 +494,7 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    *Relire* un fichier (ou *Tout relire*) refait sa lecture — un test
    modifié depuis garde sa lecture, marquée « lecture périmée », et
    *Relire* est mis en avant ; *Préparer le commit* puis *✓ Commiter*.
-   Une note sans ligne « → invariant » passe l'étape tout de suite (pas de
+   Une note sans ligne « → invariant » passe l'étape dès la forme validée (pas de
    test à écrire, *Écrire les invariants* n'est pas proposée) : la note et la
    forme se commitent à l'étape Modules. Des lignes « → invariant » déjà
    observées par des tests existants (aucun test ajouté par la branche) :
@@ -589,21 +589,20 @@ La PR chargée, l'appli vous demande toujours quoi faire de votre dossier :
   switch`) ; grisé s'il y a des modifications en cours (et refusé si vous en
   faites une juste avant de cliquer) ; ce que *Créer* avait produit pour
   votre branche revient avec elle ;
-- avec des modifications en cours, en plus :
-  - *Dans un nouveau worktree* : l'appli crée un worktree de la PR avec la
-    recette du projet (plus bas ; sans `worktree` réglé, `git worktree add`
-    à côté du dépôt, `<dépôt>-worktrees/pr-<n>`) et le prépare (`setup`),
-    sans toucher à votre dossier. Elle vous demande alors si vous faites
-    confiance à ce dossier — à chaque fois : les réglages `.claude` de la
-    PR, écrits par son auteur, se chargeront —, puis ajoute un robot « PR
-    #n » sur ce dossier, sous celui du dépôt, déjà en *Relire* : *Aller au
-    robot PR #n*. Sur ce robot, *Retirer le worktree* le retire (refusé
-    s'il reste des modifications) ; le robot part avec lui, et votre
-    brouillon de revue revient à l'agent du dépôt ;
-  - *Mettre de côté* : `git stash push -u` (fichiers non suivis compris ;
-    `git stash pop` les reprend). Seulement à ce clic, et sans changer de
-    branche : le dossier propre, *Changer de branche* n'est plus grisé, un
-    deuxième clic y passe.
+- *Dans un nouveau worktree*, le dossier propre ou pas : l'appli crée un
+  worktree de la PR avec la recette du projet (plus bas ; sans `worktree`
+  réglé, `git worktree add` à côté du dépôt, `<dépôt>-worktrees/pr-<n>`) et
+  le prépare (`setup`), sans toucher à votre dossier. Elle vous demande
+  alors si vous faites confiance à ce dossier — à chaque fois : les
+  réglages `.claude` de la PR, écrits par son auteur, se chargeront —, puis
+  ajoute un robot « PR #n » sur ce dossier, sous celui du dépôt, déjà en
+  *Relire* : *Aller au robot PR #n*. Sur ce robot, *Retirer le worktree* le
+  retire (refusé s'il reste des modifications) ; le robot part avec lui, et
+  votre brouillon de revue revient à l'agent du dépôt ;
+- avec des modifications en cours, en plus, *Mettre de côté* : `git stash
+  push -u` (fichiers non suivis compris ; `git stash pop` les reprend).
+  Seulement à ce clic, et sans changer de branche : le dossier propre,
+  *Changer de branche* n'est plus grisé, un deuxième clic y passe.
 
 *Décharger* remet le dossier sur la branche principale du dépôt et ne suit
 plus la PR (publier la revue, lui, ne change pas de branche). Avec des
@@ -619,11 +618,12 @@ l'appli vous propose les mêmes choix :
 - *Changer de branche* : la branche est créée depuis la base à jour (`git
   switch -c`) et le dossier y passe, en *Créer*, qui rédige la note d'après
   votre demande ; grisé s'il y a des modifications en cours ;
-- avec des modifications en cours, en plus : *Dans un nouveau worktree*
-  (l'appli crée le worktree sur cette branche, vous demande si vous lui
-  faites confiance, puis un robot enfant s'y ouvre en *Créer* et rédige la
-  note ; votre robot reste sur sa branche, avec ses modifications), ou
-  *Mettre de côté*, puis *Changer de branche* d'un deuxième clic.
+- *Dans un nouveau worktree*, le dossier propre ou pas (l'appli crée le
+  worktree sur cette branche, vous demande si vous lui faites confiance,
+  puis un robot enfant s'y ouvre en *Créer* et rédige la note ; votre robot
+  reste sur sa branche, avec ses modifications s'il en a) ;
+- avec des modifications en cours, en plus : *Mettre de côté*, puis
+  *Changer de branche* d'un deuxième clic.
 
 Un échec : ✗ et sa raison à côté du choix. La PR de l'enfant fusionnée :
 *Retirer le worktree* (à la place de *PR mergée → revenir sur la base*) ;
@@ -695,7 +695,8 @@ n'attend vos ✓, et les étapes qu'il passe les gardent. En deux temps :
    note validée, à n'importe quelle étape ensuite : écrivez vos invariants
    à la main, puis *Vibe* pour le reste) : l'agent reprend à la première
    étape pas faite et tient le rôle du développeur du guide jusqu'à la PR
-   et la release candidate en **enchaînant lui-même les actions de
+   et sa CI au vert (*Release candidate* reste à vous, à l'étape PR) en
+   **enchaînant lui-même les actions de
    l'écran** — les mêmes que vous lanceriez, visibles et arrêtables dans
    l'onglet *Actions* (modules confiés à des agents Opus en parallèle, puis
    commités) —, ne choisit jamais *Garder* / *Annuler* à votre place. Une

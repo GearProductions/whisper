@@ -631,17 +631,17 @@ describe('Créer et Relire sur le même dossier : les choix de lieu (0.12.0)', (
   const PLACES = ['pr-here', 'pr-worktree', 'unload-pr', 'stash', 'new-here', 'new-worktree'];
   const RUNNING = { op: 'create' as const, running: true, last: null };
 
-  it('Relire, la fiche chargée, le dossier propre hors de sa tête : changer de branche, décharger ; rien avant', () => {
-    expect(seen(loaded(), PLACES)).toEqual(['pr-here', 'unload-pr']);
+  it('Relire, la fiche chargée, le dossier propre hors de sa tête : changer de branche, un nouveau worktree, décharger ; rien avant', () => {
+    expect(seen(loaded(), PLACES)).toEqual(['pr-here', 'pr-worktree', 'unload-pr']);
     expect(seen(vibeView(input({ flow: 'review', pr: 12, checkout: MAIN })), PLACES)).toEqual([]);
     expect(seen(vibeView(input({ flow: 'review', checkout: MAIN })), PLACES)).toEqual([]);
   });
 
   it('la fiche chargée sans dépôt relevé : ses choix quand même', () => {
-    expect(seen(loaded({ repo: null }), PLACES)).toEqual(['pr-here', 'unload-pr']);
+    expect(seen(loaded({ repo: null }), PLACES)).toEqual(['pr-here', 'pr-worktree', 'unload-pr']);
   });
 
-  it('des modifications : en plus un nouveau worktree et mettre de côté ; les changements de branche grisés, pas masqués', () => {
+  it('des modifications : en plus mettre de côté ; les changements de branche grisés, pas masqués', () => {
     const v = loaded({ checkout: DIRTY });
     expect(seen(v, PLACES)).toEqual(['pr-here', 'pr-worktree', 'unload-pr', 'stash']);
     expect(['pr-here', 'unload-pr', 'pr-worktree', 'stash'].map((id) => action(v, id)?.disabled))
@@ -677,7 +677,7 @@ describe('Créer et Relire sur le même dossier : les choix de lieu (0.12.0)', (
   it('une nouvelle demande retenue : sa branche au relevé, ses choix, dans les deux parcours', () => {
     for (const flow of ['create', 'review'] as const) {
       const v = vibeView(input({ flow, request: 'feat/G3-1', checkout: MAIN }));
-      expect([v.request, seen(v, PLACES)]).toEqual([{ branch: 'feat/G3-1' }, ['new-here']]);
+      expect([v.request, seen(v, PLACES)]).toEqual([{ branch: 'feat/G3-1' }, ['new-here', 'new-worktree']]);
     }
     expect(seen(vibeView(input({ request: 'feat/G3-1', checkout: DIRTY })), PLACES)).toEqual(['stash', 'new-here', 'new-worktree']);
     expect(action(vibeView(input({ request: 'feat/G3-1', checkout: DIRTY })), 'new-here')?.disabled).toBe('Des modifications en cours');
@@ -932,9 +932,10 @@ describe('checks.json et la dernière course checks (I-46)', () => {
 // Le bug de la 0.9.0-rc.3 (docs/tickets/fix/0.9.0-vibecoder-etape-invariants.md) : rouge avant le correctif.
 describe('l\'étape Invariants, sans invariant et sans lecture (0.9.0-rc.4)', () => {
   const text = NOTE.replace('- Lire un autre fichier. → invariant\n', '');
+  // La note et la forme validées.
   const marks: Marks = { note: ok(text), forme: ok(parseNote(text).forme) };
 
-  it('une note sans ligne « → invariant », pas commitée : l\'étape Invariants est faite, les Modules s\'ouvrent', () => {
+  it('une note sans ligne « → invariant », la forme validée, pas commitée : l\'étape Invariants est faite, les Modules s\'ouvrent', () => {
     const v = vibeView(input({ note: { ...note, text }, marks, repo: repo([NOTE_PATH]) }));
 
     // Rien à écrire : l'étape n'attend ni test ni commit.
@@ -957,6 +958,19 @@ describe('l\'étape Invariants, sans invariant et sans lecture (0.9.0-rc.4)', ()
 
   it('une ligne « → invariant », cas validés, pas commités : l\'étape reste en cours (le premier commit)', () => {
     expect(status(vibeView(ready({ readings: [], repo: repo([NOTE_PATH, TEST_PATH]) }))).invariants).toBe('current');
+  });
+
+  it('la note validée puis dévalidée, sans ligne « → invariant » : l\'étape Invariants n\'est pas faite (0.12.0)', () => {
+    // Dévalider oublie le ✓ de la note seule (setMark à null) : celui de la forme reste.
+    const v = vibeView(input({ note: { ...note, text }, marks: { forme: ok(parseNote(text).forme) }, repo: repo([NOTE_PATH]) }));
+
+    expect(status(v).invariants).not.toBe('done');
+  });
+
+  it('sans ligne « → invariant », la note validée mais pas la forme : l\'étape Invariants n\'est pas faite (0.12.0)', () => {
+    const v = vibeView(input({ note: { ...note, text }, marks: { note: ok(text) }, repo: repo([NOTE_PATH]) }));
+
+    expect(status(v).invariants).not.toBe('done');
   });
 });
 
