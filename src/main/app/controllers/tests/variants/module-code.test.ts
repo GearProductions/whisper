@@ -110,6 +110,8 @@ it('suivre un autre fichier : l’ancien n’est plus lu', async () => {
   const { followCode } = await import('app/controllers');
   followCode(idOf(HELLO));
   followCode(idOf(GREET));
+  // le nouveau poussé d'abord (ses lectures git, lentes sur un runner Windows), puis l'ancien changé
+  await vi.waitFor(() => expect(codes().at(-1)).toMatchObject({ id: idOf(GREET) }), { timeout: 10_000 });
   write(path.join(dir, HELLO), 'HELLO_CHANGE');
   await settle();
   expect(JSON.stringify(codes())).not.toContain('HELLO_CHANGE');
