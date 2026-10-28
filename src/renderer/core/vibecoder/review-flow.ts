@@ -1,23 +1,16 @@
 /** review-flow — ce que Relire prend de l'utilisateur et passe au principal :
- *  un numéro de PR tapé ou collé, une remarque du brouillon de revue dans les
+ *  une remarque du brouillon de revue dans les
  *  bornes que le principal accepte (draftVibe : cible d'une ligne, 300
  *  caractères ; texte de 5 000). Et, à l'étape Revue de Créer, ce que montre
  *  chaque remarque de la ponytail review (appliquée, Appliquer ou rien) et si
  *  toutes sont appliquées (remarkMark, allApplied) ; si une course retient
  *  les autres (isLive).
  *  Ne connaît pas : le DOM, React, le pont, les noms des fichiers de sortie.
- *  Utilisé par : app/panel/vibecoder (pr-picker, commits-view, note-view, invariants-view, comment-box : DRAFT_MAX ;
+ *  Utilisé par : app/panel/vibecoder (commits-view, note-view, invariants-view, comment-box : DRAFT_MAX ;
  *  review-view : remarkMark, allApplied ; review-view, step-parts, vibe-coder : isLive). */
 import type { VibeRun } from 'technicals/bridge';
 import { BULLET, excerpt } from './note';
 import { remarkKey } from './outputs';
-
-// « 27 », « #27 » ou l'adresse d'une PR (…/pull/27) → 27 ; sinon null.
-export function prNumber(input: string): number | null {
-  const m = /^\s*(?:#?(\d+)|https?:\/\/\S+?\/pull\/(\d+)(?:[/?#]\S*)?)\s*$/i.exec(input);
-  const n = m ? Number(m[1] ?? m[2]) : NaN;
-  return Number.isSafeInteger(n) && n > 0 ? n : null;
-}
 
 // Les bornes du principal (draftVibe) : la cible d'une remarque, son texte.
 const TARGET_MAX = 300;

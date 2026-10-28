@@ -1,26 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allApplied, prNumber, remark, remarkMark } from 'core/vibecoder';
-
-describe('prNumber', () => {
-  it('un numéro, avec ou sans #, espaces du bord ignorés', () => {
-    expect(prNumber('27')).toBe(27);
-    expect(prNumber(' #27 ')).toBe(27);
-  });
-
-  it('l\'adresse d\'une PR, avec un onglet ou une ancre', () => {
-    expect(prNumber('https://github.com/GearProductions/whisper/pull/27')).toBe(27);
-    expect(prNumber('https://github.com/o/r/pull/27/files?w=1')).toBe(27);
-    expect(prNumber('http://ghe.local/o/r/pull/3#discussion_r1')).toBe(3);
-  });
-
-  it('zéro, négatif, décimal, trop grand : null', () => {
-    for (const s of ['0', '-3', '2.5', '1e3', '99999999999999999999']) expect(prNumber(s)).toBeNull();
-  });
-
-  it('autre chose : null', () => {
-    for (const s of ['', '  ', '#', 'abc', '27 28', 'https://github.com/o/r/issues/27', 'pull/27', 'ftp://x/pull/27']) expect(prNumber(s)).toBeNull();
-  });
-});
+import { allApplied, remark, remarkMark } from 'core/vibecoder';
 
 describe('remark', () => {
   it('la cible et le texte, tels quels', () => {
