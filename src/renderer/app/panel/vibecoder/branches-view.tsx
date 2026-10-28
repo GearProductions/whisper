@@ -11,14 +11,17 @@
  *  Mes PR, À relire, Toutes les PR (view.prs, demandées à gh à l'ouverture :
  *  set({ prs: true }) ; false : gh en échec) — un clic suit la PR et la charge (set({ pr }),
  *  load-pr) — et Branches locales (view.branches, la branche active marquée ;
- *  un clic → switch-branch { branch }). Créer une branche : son nom, son
+ *  un clic → switch-branch { branch }) ; un champ de recherche filtre l'onglet
+ *  ouvert (core/vibecoder search) ; dans Toutes les PR, Me demander en
+ *  relecture (request-review { pr }) sur une PR ni des miennes ni à relire,
+ *  son dernier échec sous les onglets. Créer une branche : son nom, son
  *  départ (origin/<base>, par défaut : sans start, ou une branche locale), Créer ici
  *  (new-here) ou Dans un nouveau worktree (new-worktree), { branch, start? }.
  *  Toutes ces actions sont directes (F-114, { direct: true }), grisées avec
  *  leur raison, absentes si le relevé les masque ; le principal revérifie.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
 import { useEffect, useState } from 'react';
-import { webUrl, type Strings } from 'core/vibecoder';
+import { prMatch, reviewAskable, searchMatch, webUrl, type Strings } from 'core/vibecoder';
 import type { VibeArgs, VibeLang, VibeView } from 'technicals/bridge';
 import { MarkdownView } from './markdown-view';
 import { PrCard, Run } from './step-parts';
@@ -53,6 +56,8 @@ const fr = {
   name: 'Nom de la branche',
   start: 'Départ',
   nameFirst: 'Saisissez un nom',
+  search: 'Rechercher',
+  noMatch: 'Aucun résultat.',
 };
 const S: Record<VibeLang, typeof fr> = {
   fr,
@@ -78,6 +83,8 @@ const S: Record<VibeLang, typeof fr> = {
     name: 'Branch name',
     start: 'Start',
     nameFirst: 'Type a name',
+    search: 'Search',
+    noMatch: 'No match.',
   },
 };
 
@@ -89,6 +96,7 @@ export function BranchesView({ view, t, act, busy }: Props) {
   const origin = originBase(view);
   const [name, setName] = useState('');
   const [start, setStart] = useState('');   // '' : origin/<base>, le défaut du principal
+  const [query, setQuery] = useState('');
   // Les trois listes de PR, demandées à gh (sans agent) à l'ouverture.
   useEffect(() => { act.set({ prs: true }); }, []);
   const action = (id: string) => view.actions.find((a) => a.id === id);
@@ -101,6 +109,12 @@ export function BranchesView({ view, t, act, busy }: Props) {
   const shown = (id: string) => places.some((a) => a.id === id);
   const branches = view.branches ?? [];
   const items = tab === 'local' || !view.prs ? null : view.prs[tab];
+  const foundItems = items?.filter((p) => prMatch(query, p)) ?? null;
+  const foundBranches = branches.filter((b) => searchMatch(query, b));
+  // Me demander en relecture : dans Toutes les PR ; son dernier échec affiché sous les onglets.
+  const ask = action('request-review');
+  const askable = (n: number) => tab === 'all' && !!view.prs && !!ask && !ask.hidden && reviewAskable(view.prs, n);
+  const askFailed = ask?.direct?.last && !ask.direct.last.ok ? ask.direct.last.line : null;
   // Créer une branche : sans nom, ses deux choix grisés.
   const named = (id: string) => { const a = action(id); return a && !name.trim() ? { ...a, disabled: a.disabled ?? s.nameFirst } : a; };
   const create = (id: string) => { run(id, { branch: name.trim(), ...(start ? { start } : {}) }); setName(''); };
@@ -139,11 +153,15 @@ export function BranchesView({ view, t, act, busy }: Props) {
             );
           })}
         </div>
+        <input className="vc-br-search" type="search" value={query} placeholder={s.search} aria-label={s.search}
+          spellCheck={false} onChange={(e) => setQuery(e.target.value)} />
       </div>
+      {askFailed ? <div className="vc-pr-hint" data-state="ko">✗ {askFailed}</div> : null}
       {tab === 'local' ? (
-        !branches.length ? <div className="vc-pr-hint">{s.noBranch}</div> : (
+        !branches.length ? <div className="vc-pr-hint">{s.noBranch}</div>
+        : !foundBranches.length ? <div className="vc-pr-hint">{s.noMatch}</div> : (
           <ul className="vc-pr-list">
-            {branches.map((b) => {
+            {foundBranches.map((b) => {
               const here = b === view.repo?.branch;
               const why = action('switch-branch')?.disabled;
               return (
@@ -160,9 +178,10 @@ export function BranchesView({ view, t, act, busy }: Props) {
         )
       ) : view.prs === false ? <div className="vc-pr-hint">{s.failed}</div>
         : !items ? <div className="vc-pr-hint">{s.loading}</div>
-        : !items.length ? <div className="vc-pr-hint">{s.none}</div> : (
+        : !items.length ? <div className="vc-pr-hint">{s.none}</div>
+        : !foundItems?.length ? <div className="vc-pr-hint">{s.noMatch}</div> : (
           <ul className="vc-pr-list">
-            {items.map((p) => {
+            {foundItems.map((p) => {
               const url = webUrl(p.url);
               return (
                 <li key={p.number} aria-current={p.number === pr?.number || undefined}>
@@ -171,6 +190,10 @@ export function BranchesView({ view, t, act, busy }: Props) {
                     <span className="vc-pr-item-title">{p.title}</span>
                     {p.author ? <span className="vc-pr-item-author">{p.author}</span> : null}
                   </button>
+                  {askable(p.number) ? (
+                    <button type="button" className="vc-mini" disabled={!ready('request-review')}
+                      title={ask!.disabled ? `${ask!.hint}\n— ${ask!.disabled}` : ask!.hint} onClick={() => run('request-review', { pr: p.number })}>{ask!.label}</button>
+                  ) : null}
                   {url ? <button type="button" className="vc-tool" title={`${s.open}\n${url}`} aria-label={s.open} onClick={() => act.openLink(url)}>↗</button> : null}
                 </li>
               );

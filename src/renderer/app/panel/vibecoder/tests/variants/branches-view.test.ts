@@ -84,10 +84,10 @@ it('BranchesView : sans PR chargée, Revenir sur la branche principale sans Rest
 it('BranchesView : Créer une branche, grisé sans nom, puis { branch } (origin/<base>, le défaut du principal) ou { branch, start } (une locale)', async () => {
   await draw([a('new-here'), a('new-worktree')], null);
   expect(button('new-here').disabled).toBe(true);
-  await type(page.querySelector('input')!, ' feat/x ');
+  await type(page.querySelector('.vc-br-new input')!, ' feat/x ');
   button('new-here').click();
   expect(runs.at(-1)).toEqual(['new-here', { direct: true, branch: 'feat/x' }]);
-  await type(page.querySelector('input')!, 'feat/y');
+  await type(page.querySelector('.vc-br-new input')!, 'feat/y');
   await act(() => {
     const sel = page.querySelector('select')!;
     sel.value = 'feat';
@@ -102,4 +102,39 @@ it('BranchesView : Actualiser et Retirer le worktree, directs ; absents si masqu
   expect(labels().some((x) => x.startsWith('remove-worktree'))).toBe(false);
   button('fetch').click();
   expect(runs.at(-1)).toEqual(['fetch', { direct: true }]);
+});
+
+it('BranchesView : la recherche filtre l\'onglet ouvert ; rien : « Aucun résultat. »', async () => {
+  await draw([a('load-pr'), a('switch-branch')]);
+  button('Toutes les PR').click();
+  await act(async () => {});
+  await type(page.querySelector('.vc-br-search')!, 'pr 2');
+  expect([...page.querySelectorAll('.vc-pr-item-number')].map((e) => e.textContent)).toEqual(['#2']);
+  await type(page.querySelector('.vc-br-search')!, 'zz');
+  expect(page.textContent).toContain('Aucun résultat.');
+  button('Branches locales').click();
+  await type(page.querySelector('.vc-br-search')!, 'mas');
+  expect([...page.querySelectorAll('.vc-pr-item-title')].map((e) => e.textContent)).toEqual(['master']);
+  await type(page.querySelector('.vc-br-search')!, '');   // la page est gardée d'un cas à l'autre
+});
+
+it('BranchesView : Me demander en relecture, dans Toutes les PR, sur une PR ni des miennes ni à relire', async () => {
+  const draw3 = (last: { ok: boolean; line: string } | null) => act(() => {
+    const ask = { ...a('request-review'), label: 'Me demander en relecture', direct: { running: false, last, only: true } } as unknown as VibeAction;
+    const view = {
+      lang: 'fr', flow: 'create', actions: [a('load-pr'), ask], loaded: null, worktree: null, repo: { branch: 'feat', base: 'master', changed: 0 },
+      prs: { mine: [item(1)], review: [item(2)], all: [item(1), item(2), item(3)] }, branches: [],
+    } as unknown as VibeView;
+    const acts = { set: (p: unknown) => sets.push(p), run: async (id: string, x: unknown) => { runs.push([id, x]); return true; }, openLink: () => {} };
+    root.render(createElement(BranchesView, { view, t: t('fr'), act: acts, busy: false }));
+  });
+  await draw3(null);
+  expect(labels().filter((l) => l === 'Me demander en relecture')).toEqual([]);   // pas dans Mes PR
+  button('Toutes les PR').click();
+  await act(async () => {});
+  expect(labels().filter((l) => l === 'Me demander en relecture').length).toBe(1);   // la #3 seulement
+  button('Me demander en relecture').click();
+  expect(runs.at(-1)).toEqual(['request-review', { direct: true, pr: 3 }]);
+  await draw3({ ok: false, line: 'Review cannot be requested from pull request author.' });
+  expect(page.textContent).toContain('✗ Review cannot be requested from pull request author.');
 });
