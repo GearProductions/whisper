@@ -10,6 +10,17 @@
 //   de branche (pr-here) ou un nouveau worktree (pr-worktree, new-worktree) ; seul le clic sur stash met de côté, tout (git stash
 //   push -u : les non suivis compris), et rien d'autre ne suit (le dossier
 //   reste sur sa branche). La forme exacte de la commande : direct.test.ts.
+//   Note 0.12.0 docs/tickets/feat/0.12.0-gestion-des-branches.md, « Ce que ça
+//   ne doit pas faire » : « Mettre des modifications de côté sans que
+//   l'utilisateur l'ait choisi au clic (Pull et Rebase : --autostash,
+//   seulement à leur clic, repris après) » : aller sur une branche
+//   (switch-branch) ou créer une branche dans un worktree (new-worktree avec
+//   son nom, sans demande) ne met rien de côté ; Pull et Rebase, au clic, sur le
+//   dossier modifié, font leur travail et rendent les modifications (suivies
+//   et non suivies), sans laisser d'entrée de stash. Le rebase en conflit :
+//   technicals/direct, rebase.test.ts. Et « Pousser sans un clic sur
+//   Pousser » : un Rebase réussi ne pousse rien (la branche distante reste
+//   où elle était) ; la forme de git push : direct.test.ts.
 // Sur le vrai principal (contrôleurs, réglages et fichiers sur disque, git réel
 // sur un dépôt d'essai et son origin, un dépôt nu local) ; faux : Electron
 // (fenêtres, boîte de dialogue), le SDK de Claude Code (le tour finit aussitôt,
@@ -317,6 +328,104 @@ describe.skipIf(process.platform === 'win32')('jamais de mise de côté sans un 
     // le fichier non suivi est toujours là
     expect(untracked()).toBe(true);
   }, 30000);
+});
+
+describe.skipIf(process.platform === 'win32')('Pull, Rebase, aller sur une branche : rien ne reste de côté', () => {
+  // Le dépôt sur feat/x, qui suit origin/feat/x.
+  const onFeature = () => git(repo, 'switch', '-q', 'feat/x');
+  // Le dépôt nu d'origin.
+  const origin = () => path.join(root, 'origin.git');
+  const head = (ref = 'HEAD') => git(repo, 'rev-parse', ref);
+  const contains = (ancestor: string) => {
+    try { git(repo, 'merge-base', '--is-ancestor', ancestor, 'HEAD'); return true; } catch { return false; }
+  };
+
+  it('aller sur une branche : switch-branch sur le dossier modifié, rien n’est mis de côté', async () => {
+    git(repo, 'branch', '-q', 'feat/x', 'origin/feat/x');
+    makeDirty();
+    await openPanel();
+
+    await click('switch-branch', { branch: 'feat/x' });
+    await surveyAgain();
+
+    // aucune entrée de stash
+    expect(stashes()).toEqual([]);
+    // le fichier suivi garde sa modification
+    expect(tracked()).toBe('modifié\n');
+    // le fichier non suivi est toujours là
+    expect(untracked()).toBe(true);
+  }, 20000);
+
+  it('Créer une branche dans un worktree : new-worktree { branch } sur le dossier modifié crée le worktree, rien n’est mis de côté', async () => {
+    configure({ flow: 'create', autonomy: 'guide' });
+    makeDirty();
+    await openPanel();
+
+    await click('new-worktree', { branch: 'feat/y' });
+    await until(() => worktrees() > 1);
+    await surveyAgain();
+
+    // le worktree de la branche est bien créé (le clic a agi)
+    expect(worktrees()).toBeGreaterThan(1);
+    // aucune entrée de stash
+    expect(stashes()).toEqual([]);
+    // le fichier suivi garde sa modification
+    expect(tracked()).toBe('modifié\n');
+    // le fichier non suivi est toujours là
+    expect(untracked()).toBe(true);
+  }, 30000);
+
+  it('Pull : la branche en retard, le dossier modifié : la branche avance, les modifications reviennent, aucune entrée de stash', async () => {
+    onFeature();
+    // origin/feat/x a un commit de plus ; la branche locale, en retard d'un commit
+    write(path.join(repo, 'd.txt'), 'suite\n');
+    git(repo, 'add', 'd.txt');
+    git(repo, 'commit', '-q', '-m', 'la suite');
+    git(repo, 'push', '-q', 'origin', 'feat/x');
+    git(repo, 'reset', '-q', '--hard', 'HEAD~1');
+    makeDirty();
+    await openPanel();
+
+    await click('pull');
+    await until(() => head() === head('origin/feat/x'));
+    await surveyAgain();
+
+    // la branche a rejoint origin/feat/x (le clic a agi)
+    expect(head()).toBe(head('origin/feat/x'));
+    // aucune entrée de stash
+    expect(stashes()).toEqual([]);
+    // le fichier suivi a retrouvé sa modification
+    expect(tracked()).toBe('modifié\n');
+    // le fichier non suivi est toujours là
+    expect(untracked()).toBe(true);
+  }, 20000);
+
+  it('Rebase : la branche principale a avancé, le dossier modifié : la branche est rebasée, les modifications reviennent, aucune entrée de stash', async () => {
+    // origin/main a un commit de plus que la base de feat/x
+    write(path.join(repo, 'e.txt'), 'la base avance\n');
+    git(repo, 'add', 'e.txt');
+    git(repo, 'commit', '-q', '-m', 'la base avance');
+    git(repo, 'push', '-q', 'origin', 'main');
+    onFeature();
+    const pushed = git(origin(), 'rev-parse', 'feat/x');
+    makeDirty();
+    await openPanel();
+
+    await click('rebase');
+    await until(() => contains(head('origin/main')));
+    await surveyAgain();
+
+    // la branche part maintenant de origin/main (le clic a agi)
+    expect(contains(head('origin/main'))).toBe(true);
+    // rien n'a été poussé sans un clic sur Pousser : la branche distante n'a pas bougé
+    expect(git(origin(), 'rev-parse', 'feat/x')).toBe(pushed);
+    // aucune entrée de stash
+    expect(stashes()).toEqual([]);
+    // le fichier suivi a retrouvé sa modification
+    expect(tracked()).toBe('modifié\n');
+    // le fichier non suivi est toujours là
+    expect(untracked()).toBe(true);
+  }, 20000);
 });
 
 describe.skipIf(process.platform === 'win32')('le clic sur stash : tout de côté, et rien d’autre ne suit', () => {

@@ -13,6 +13,14 @@
 //   stash push -u (arguments fixes, liste fermée DIRECT_GIT) » ; et une PR se
 //   charge par sa seule branche (git fetch origin <tête>), plus de
 //   refs/vibecoder/pr/<n>.
+//   Note 0.12.0 docs/tickets/feat/0.12.0-gestion-des-branches.md, « Ce que ça
+//   ne doit pas faire » : « Lancer Pull ou Rebase autrement que par la liste
+//   fermée des commandes directes, aux arguments fixes (DIRECT_GIT, F-114) » ;
+//   « Pousser sans un clic sur Pousser, ou autrement que git push
+//   --force-with-lease (jamais --force seul) » ; « Laisser un rebase en cours
+//   après un conflit : git rebase --abort aussitôt » (sur du vrai git :
+//   rebase.test.ts). DIRECT_GIT gagne rebase et push ; GIT_READ gagne
+//   for-each-ref (lister les branches locales, en lecture).
 // Un Launch qui relève ce qu'on lancerait, sans rien lancer ; et un faux
 // préfixe (node et un script) pour ce que gh recevrait vraiment.
 import fs from 'node:fs';
@@ -30,13 +38,14 @@ const OUT = path.join(tmp, 'sorties');
 const PREFIX = ['distrobox', 'enter', 'dev', '--'];
 const SRC = path.resolve(__dirname, '../../../..');   // src/main
 
-// Ce qu'on aurait lancé, et la réponse de chaque commande (gh pr view : `answer`).
-function recorder(answer = '{"state":"MERGED"}') {
+// Ce qu'on aurait lancé, et la réponse de chaque commande (gh pr view :
+// `answer` ; le code de sortie : `exit`, 0 par défaut).
+function recorder(answer = '{"state":"MERGED"}', exit = (_argv: string[]) => 0) {
   const calls: string[][] = [];
   const launch: Launch = async (argv) => {
     calls.push(argv);
     const view = argv.includes('view');
-    return { exit: 0, stdout: view ? answer : '', stderr: '' };
+    return { exit: exit(argv), stdout: view ? answer : '', stderr: '' };
   };
   return { calls, runner: directRunner({ dir: DIR, out: OUT, prefix: PREFIX, launch }) };
 }
@@ -44,8 +53,8 @@ const CARD = JSON.stringify({ number: 7, title: 't', url: 'u', author: { login: 
 const commitMd = (text: string) => { fs.mkdirSync(OUT, { recursive: true }); fs.writeFileSync(path.join(OUT, 'commit.md'), text); };
 
 describe('seulement la liste fermée', () => {
-  it('DIRECT_GIT : commit, fetch, switch, pull, branch, stash ; DIRECT_GH : pr review, pr view ; rien d’autre', () => {
-    expect([...DIRECT_GIT]).toEqual(['commit', 'fetch', 'switch', 'pull', 'branch', 'stash']);
+  it('DIRECT_GIT : commit, fetch, switch, pull, branch, stash, rebase, push ; DIRECT_GH : pr review, pr view ; rien d’autre', () => {
+    expect([...DIRECT_GIT]).toEqual(['commit', 'fetch', 'switch', 'pull', 'branch', 'stash', 'rebase', 'push']);
     expect(DIRECT_GH.map((c) => c.join(' '))).toEqual(['pr review', 'pr view']);
   });
 
@@ -129,7 +138,111 @@ describe('seulement la liste fermée', () => {
   });
 });
 
+describe('Pull, Rebase, Pousser : la liste fermée, aux arguments fixes', () => {
+  it('pull : <préfixe> git -C <dépôt> pull --ff-only --autostash, rien d’autre (la branche suivie, aucun argument donné)', async () => {
+    const { calls, runner } = recorder();
+
+    await runner.pull();
+
+    // une seule commande, aux arguments fixes
+    expect(calls).toEqual([[...PREFIX, 'git', '-C', DIR, 'pull', '--ff-only', '--autostash']]);
+  });
+
+  it('rebase, réussi : <préfixe> git -C <dépôt> rebase --autostash <onto>, rien d’autre', async () => {
+    const { calls, runner } = recorder();
+
+    await runner.rebase('origin/main');
+
+    // une seule commande, aux arguments fixes et la branche donnée en dernier
+    expect(calls).toEqual([[...PREFIX, 'git', '-C', DIR, 'rebase', '--autostash', 'origin/main']]);
+  });
+
+  it('rebase, en échec (un conflit) : git rebase --abort aussitôt après, et l’échec rendu', async () => {
+    // git rebase échoue, git rebase --abort réussit
+    const { calls, runner } = recorder(undefined, (argv) => (argv.includes('rebase') && !argv.includes('--abort') ? 1 : 0));
+
+    const result = await runner.rebase('origin/main');
+
+    // le rebase, puis son abandon, rien d'autre
+    expect(calls).toEqual([
+      [...PREFIX, 'git', '-C', DIR, 'rebase', '--autostash', 'origin/main'],
+      [...PREFIX, 'git', '-C', DIR, 'rebase', '--abort'],
+    ]);
+    // l'échec est rendu
+    expect(result.ok).toBe(false);
+  });
+
+  it('rebase : jamais suivi d’un git push, réussi ou non', async () => {
+    const ok = recorder();
+    const failed = recorder(undefined, (argv) => (argv.includes('rebase') && !argv.includes('--abort') ? 1 : 0));
+
+    await ok.runner.rebase('origin/main');
+    await failed.runner.rebase('origin/main');
+
+    // aucun push après un rebase réussi
+    expect(ok.calls.filter((a) => a.includes('push'))).toEqual([]);
+    // aucun push après un rebase en échec
+    expect(failed.calls.filter((a) => a.includes('push'))).toEqual([]);
+  });
+
+  it('push : <préfixe> git -C <dépôt> push --force-with-lease, rien d’autre', async () => {
+    const { calls, runner } = recorder();
+
+    await runner.push();
+
+    // une seule commande, aux arguments fixes
+    expect(calls).toEqual([[...PREFIX, 'git', '-C', DIR, 'push', '--force-with-lease']]);
+    // jamais --force seul
+    expect(calls.flat()).not.toContain('--force');
+  });
+
+  it('fetchAll : <préfixe> git -C <dépôt> fetch origin, rien d’autre', async () => {
+    const { calls, runner } = recorder();
+
+    await runner.fetchAll();
+
+    // une seule commande, aux arguments fixes
+    expect(calls).toEqual([[...PREFIX, 'git', '-C', DIR, 'fetch', 'origin']]);
+  });
+});
+
 describe('un texte venu d’une page ne devient jamais un argument', () => {
+  it('rebase : une branche qui commence par « - » (--exec=…) est refusée sans rien lancer', async () => {
+    const { calls, runner } = recorder();
+
+    const result = await runner.rebase('--exec=touch pwned');
+
+    // refusé
+    expect(result.ok).toBe(false);
+    // sans que rien soit lancé
+    expect(calls).toEqual([]);
+  });
+
+  it('rebase : une branche hors de [A-Za-z0-9._/-], ou avec « .. », est refusée sans rien lancer', async () => {
+    const { calls, runner } = recorder();
+
+    const shell = await runner.rebase('main; rm -rf ~');
+    const dots = await runner.rebase('../main');
+
+    // des caractères hors du ref sûr : refusé
+    expect(shell.ok).toBe(false);
+    // « .. » : refusé
+    expect(dots.ok).toBe(false);
+    // sans que rien soit lancé
+    expect(calls).toEqual([]);
+  });
+
+  it('rebase : une branche qui n’est pas un texte est refusée sans rien lancer', async () => {
+    const { calls, runner } = recorder();
+
+    const result = await runner.rebase(['main', '--exec=touch pwned']);
+
+    // refusé
+    expect(result.ok).toBe(false);
+    // sans que rien soit lancé
+    expect(calls).toEqual([]);
+  });
+
   it('loadPr : un numéro en texte (« 7 ») est refusé sans rien lancer', async () => {
     const { calls, runner } = recorder(CARD);
     expect((await runner.loadPr('7')).ok).toBe(false);
@@ -236,8 +349,8 @@ describe('rien sans un clic', () => {
 });
 
 describe('les modules en lecture restent en lecture', () => {
-  it('GIT_READ et GH_READ n’ont rien gagné', () => {
-    expect([...GIT_READ]).toEqual(['rev-parse', 'status', 'diff', 'log', 'show']);
+  it('GIT_READ n’a gagné que for-each-ref (les branches locales), GH_READ rien', () => {
+    expect([...GIT_READ]).toEqual(['rev-parse', 'status', 'diff', 'log', 'show', 'for-each-ref']);
     expect(GH_READ.map((c) => c.join(' '))).toEqual(['pr view', 'pr list']);
   });
 

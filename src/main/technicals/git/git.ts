@@ -9,7 +9,10 @@
  *  fichiers changés, ses commits et leurs fichiers — sans un chemin que git
  *  cite ou qui contient un caractère de contrôle. Un fichier à un ref (show) ;
  *  un commit et son diff (commit) ; le commit où la branche part d'une base
- *  (forkPoint, par log --boundary : GIT_READ n'a rien gagné, I-39).
+ *  (forkPoint, par log --boundary : GIT_READ n'a rien gagné, I-39). Les
+ *  branches locales (branches : for-each-ref refs/heads/, hors d'okRef
+ *  écartées) ; l'état de Pull et de Rebase (sync : les commits de @{u}, puis
+ *  ceux de origin/<base>, absents de HEAD, comptés par log).
  *  Ne connaît pas : VibeCoder, Electron.
  *  Utilisé par : app/controllers/vibecoder (gitRun, gitReader, okRef),
  *  app/controllers/worktrees (gitRun : rev-parse, worktree list),
@@ -71,6 +74,8 @@ export function gitReader(run: Run): {
   show(ref: string, path: string): Promise<string | null>;
   commit(ref: string): Promise<string | null>;
   forkPoint(base: string): Promise<string | null>;
+  branches(): Promise<string[] | null>;
+  sync(base: string): Promise<{ behind: number | null; baseAhead: number | null } | null>;
 } {
   const exists = async (ref: string) => (await run(['rev-parse', '--verify', '--quiet', '--end-of-options', ref])) !== null;
   const defaultBase = async () => (await run(['rev-parse', '--abbrev-ref', 'origin/HEAD']))?.trim()
@@ -116,6 +121,13 @@ export function gitReader(run: Run): {
       const lines = out.split('\n').filter(Boolean);
       if (!lines.length) return 'HEAD';
       return lines.find((l) => l.startsWith('-'))?.slice(1) ?? null;
+    },
+    async branches() {
+      throw new Error('not implemented');
+    },
+    async sync(base) {
+      void base;
+      throw new Error('not implemented');
     },
   };
 }

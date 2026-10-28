@@ -4,6 +4,10 @@
 //   préfixe du réglage ou de la commande de l'agent ; aucun texte venu d'une
 //   page ne devient un argument : une PR est un entier positif, une branche
 //   (lue par git) ne peut pas devenir une option.
+//   Note 0.12.0 docs/tickets/feat/0.12.0-gestion-des-branches.md, « Ce que ça
+//   ne doit pas faire » : « Lister les PR ou les branches autrement qu'en
+//   lecture seule (GH_READ, I-39) » : openPrs (qui remplace prsToReview) ne
+//   lance que gh pr list.
 // Un faux préfixe : node et un script qui relève ses arguments (ce que gh
 // aurait reçu) et répond une fiche de PR.
 import fs from 'node:fs';
@@ -61,16 +65,27 @@ describe('seulement des sous-commandes en lecture', () => {
     expect(launched()).toEqual([]);
   });
 
-  it('prForBranch, prsToReview, prState : chaque lancement est gh pr view ou gh pr list', async () => {
+  it('prForBranch, prState : chaque lancement est gh pr view ou gh pr list', async () => {
     const gh = githubReader(ghRun(tmp, PREFIX));
     await gh.prForBranch('feat/x');
-    await gh.prsToReview();
     await gh.prState(7);
     const calls = launched();
     // gh a bien été lancé, une fois par appel
-    expect(calls.length).toBe(3);
+    expect(calls.length).toBe(2);
     // et seulement en lecture
     expect(calls.filter((a) => a[0] !== 'gh' || !GH_READ.some(([x, y]) => a[1] === x && a[2] === y))).toEqual([]);
+  });
+
+  it('openPrs : chaque lancement est gh pr list', async () => {
+    const gh = githubReader(ghRun(tmp, PREFIX));
+
+    await gh.openPrs();
+    const calls = launched();
+
+    // gh a bien été lancé
+    expect(calls.length).toBeGreaterThan(0);
+    // et seulement pour lister
+    expect(calls.filter((a) => a[0] !== 'gh' || a[1] !== 'pr' || a[2] !== 'list')).toEqual([]);
   });
 });
 

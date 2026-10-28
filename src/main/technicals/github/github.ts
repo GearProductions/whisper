@@ -5,7 +5,9 @@
  *  sous-commandes en lecture (GH_READ : `pr view`, `pr list`) ; les autres
  *  arguments sont fixes, sauf une branche lue par git (okRef, après `--`) et
  *  un numéro de PR (un entier positif). La PR d'une branche (prForBranch), les
- *  PR où ma relecture est demandée (prsToReview), l'état d'une PR (prState).
+ *  PR où ma relecture est demandée (prsToReview), les PR ouvertes du dépôt en
+ *  trois listes (openPrs : les miennes, à relire, toutes), l'état d'une PR
+ *  (prState).
  *  Ne connaît pas : VibeCoder, Electron, la configuration.
  *  Utilisé par : app/controllers/vibecoder. */
 import { execFile } from 'node:child_process';
@@ -55,6 +57,11 @@ export function githubReader(run: GhRun) {
     async prsToReview(): Promise<unknown[] | null> {
       const list = parse(await run(['pr', 'list', '--search', 'review-requested:@me', '--json', 'number,title,author,url']));
       return Array.isArray(list) ? list : null;
+    },
+    // Les PR ouvertes du dépôt, en trois listes (gh pr list --author @me ;
+    // --search review-requested:@me ; sans filtre, --limit 100) ; une qui échoue → null.
+    async openPrs(): Promise<{ mine: unknown[]; review: unknown[]; all: unknown[] } | null> {
+      throw new Error('not implemented');
     },
     // OPEN, CLOSED ou MERGED, ou null.
     async prState(n: unknown): Promise<string | null> {

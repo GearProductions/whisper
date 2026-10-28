@@ -6,7 +6,11 @@
  *  switch [-c], le dossier propre vérifié par l'appelant), rapatrier une
  *  branche d'origin, la mettre à jour (git pull --ff-only origin), mettre les
  *  modifications de côté (git stash push -u, rien d'autre), supprimer la
- *  branche pr-<n> de l'appli (son worktree retiré). Une liste
+ *  branche pr-<n> de l'appli (son worktree retiré) ; Pull de la branche
+ *  suivie (git pull --ff-only --autostash), Rebase (git rebase --autostash
+ *  <onto> ; un échec → git rebase --abort aussitôt), Pousser (git push
+ *  --force-with-lease, jamais --force), le fetch régulier (git fetch origin).
+ *  Une liste
  *  fermée de commandes (DIRECT_GIT, DIRECT_GH), aux arguments fixes ou
  *  vérifiés : une PR est un entier positif, un verdict l'un des trois, une
  *  branche un ref sûr (okRef) ; un fichier est écrit par l'appli dans le
@@ -181,6 +185,27 @@ export function directRunner({ dir, out, prefix, launch = launchFile }: { dir: s
       const r = await run('git', ['stash', 'push', '-u']);
       if (r.exit !== 0) return result(false, first(r, 'git stash failed.'));
       return result(true, first(r, 'Changes stashed.'));
+    },
+
+    // git pull --ff-only --autostash : la branche suivie, aucun argument donné ; pas d'avance rapide : l'échec.
+    async pull(): Promise<DirectResult> {
+      throw new Error('not implemented');
+    },
+
+    // git rebase --autostash <onto> (onto : okRef) ; un échec → git rebase --abort aussitôt, puis l'échec rendu.
+    async rebase(onto: unknown): Promise<DirectResult> {
+      void onto;
+      throw new Error('not implemented');
+    },
+
+    // git push --force-with-lease, arguments fixes (jamais --force).
+    async push(): Promise<DirectResult> {
+      throw new Error('not implemented');
+    },
+
+    // git fetch origin : tout le distant (le fetch régulier).
+    async fetchAll(): Promise<DirectResult> {
+      throw new Error('not implemented');
     },
 
     // git branch -D pr-<n> : la branche de l'appli, son worktree retiré (jamais une autre).
