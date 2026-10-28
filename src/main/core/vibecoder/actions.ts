@@ -61,14 +61,14 @@ const READ_BY: Partial<Record<keyof VibeArgs, string>> = {
 // leur gabarit reste la voie « via » l'agent. Ici, Dans un worktree, Retirer le worktree : la recette du
 // projet ou git, lancés par l'appli (note 0.12.0-worktrees) ; Mettre de côté, Décharger, Créer ici ou dans
 // un worktree (note 0.12.0-creer-relire-meme-dossier) ; Aller sur la branche, Pull, Rebase, Pousser,
-// Actualiser (note 0.12.0-gestion-des-branches).
+// Actualiser, Me demander en relecture (note 0.12.0-gestion-des-branches).
 export const DIRECT_ACTIONS = ['commit', 'publish', 'load-pr', 'base', 'pr-here', 'pr-worktree', 'remove-worktree',
-  'stash', 'unload-pr', 'new-here', 'new-worktree', 'switch-branch', 'pull', 'rebase', 'push', 'fetch'];
+  'stash', 'unload-pr', 'new-here', 'new-worktree', 'switch-branch', 'pull', 'rebase', 'push', 'fetch', 'request-review'];
 // Celles que seule l'appli fait : pas de « via » (leur gabarit n'est jamais envoyé). Retirer le worktree :
 // l'agent ne retirerait pas son robot ; mettre de côté, changer de branche, ouvrir un worktree pour une
-// demande, pull, rebase, pousser, fetch : l'appli seule, au clic.
+// demande, pull, rebase, pousser, fetch, se demander en relecture : l'appli seule, au clic.
 export const DIRECT_ONLY = ['remove-worktree', 'stash', 'unload-pr', 'new-here', 'new-worktree',
-  'switch-branch', 'pull', 'rebase', 'push', 'fetch'];
+  'switch-branch', 'pull', 'rebase', 'push', 'fetch', 'request-review'];
 
 // Le brouillon de revue en texte : une ligne « - [cible] texte » par remarque.
 export const draftText = (draft: VibeView['draft']) => draft.map((c) => `- [${c.target}] ${c.text}`).join('\n');

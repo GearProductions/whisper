@@ -40,6 +40,7 @@ const ACTIONS: ActionDef[] = [
   A('rebase', 'both', null, 'Rebase : seulement par l\'appli.'),
   A('push', 'both', null, 'Pousser : seulement par l\'appli.'),
   A('fetch', 'both', null, 'Actualiser : seulement par l\'appli.'),
+  A('request-review', 'both', null, 'Me demander en relecture : seulement par l\'appli.'),
   A('review-note', 'review', 'note', '/vibecoder:relire-note {{lang}} {{out}} {{pr}}'),
   A('review-commits', 'review', 'commits', '/vibecoder:relire-commits {{lang}} {{out}} {{pr}}'),
   A('screen', 'review', 'ecran', '/vibecoder:ecran {{lang}} {{out}} {{pr}}'),
@@ -709,7 +710,7 @@ describe('Créer et Relire sur le même dossier : les choix de lieu (0.12.0)', (
   it('les choix de lieu, Retirer le worktree : directs ; pr-here, pr-worktree avec leur via, les autres par l\'appli seule', () => {
     const v = loaded();
     expect(['pr-here', 'pr-worktree'].map((id) => action(v, id)?.direct)).toEqual([{ running: false, last: null }, { running: false, last: null }]);
-    for (const id of ['unload-pr', 'stash', 'new-here', 'new-worktree', 'remove-worktree', 'switch-branch', 'pull', 'rebase', 'push', 'fetch']) {
+    for (const id of ['unload-pr', 'stash', 'new-here', 'new-worktree', 'remove-worktree', 'switch-branch', 'pull', 'rebase', 'push', 'fetch', 'request-review']) {
       expect(action(v, id)?.direct).toEqual({ running: false, last: null, only: true });
     }
     expect(action(vibeView(input()), 'new-request')?.direct).toBeUndefined();
