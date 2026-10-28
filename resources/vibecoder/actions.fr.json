@@ -348,6 +348,16 @@
     "text": "Actualiser : seulement par l'appli (direct), jamais par l'agent."
   },
   {
+    "id": "request-review",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Me demander en relecture",
+    "hint": "Vous ajoute comme relecteur de cette PR sur GitHub (gh pr edit --add-reviewer) : elle passe dans À relire.",
+    "text": "Me demander en relecture : seulement par l'appli (direct), jamais par l'agent."
+  },
+  {
     "id": "review-note",
     "flow": "review",
     "step": "note",

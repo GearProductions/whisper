@@ -348,6 +348,16 @@
     "text": "Refresh: only by the app (direct), never by the agent."
   },
   {
+    "id": "request-review",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Request my review",
+    "hint": "Adds you as a reviewer of this PR on GitHub (gh pr edit --add-reviewer): it moves to To review.",
+    "text": "Request my review: only by the app (direct), never by the agent."
+  },
+  {
     "id": "review-note",
     "flow": "review",
     "step": "note",
