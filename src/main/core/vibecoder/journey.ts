@@ -18,9 +18,9 @@
  *  parcours guidé : note 0.9.0-parcours-guide) ; un checks.json antérieur au
  *  départ de la dernière course checks ignoré partout, sorties comprises
  *  (I-46 ; note 0.9.0-vibecoder-pr-verifications-courses) ; l'étape
- *  Invariants faite sans ligne « → invariant » (Écrire les invariants masquée
- *  sans griser, comme l'étape PR), sinon chaque cas validé (Créer) ou jugé
- *  (Relire), lu ou pas ; en Créer, sans test d'invariant de la branche (la ligne
+ *  Invariants faite seulement si la Note et la Forme le sont (note 0.12.0-vibe-sans-rc-diff-en-fond),
+ *  puis sans ligne « → invariant » (Écrire les invariants masquée sans griser,
+ *  comme l'étape PR), sinon chaque cas validé (Créer) ou jugé (Relire), lu ou pas ; en Créer, sans test d'invariant de la branche (la ligne
  *  déjà observée par un test existant) : la dernière course invariants ou align
  *  finie, ou ✓ Rien à écrire validé à la main, Vibe compris (nothingMark, pour le texte de la note ;
  *  note 0.11.0-vibecoder-invariants-existants-et-courses) ; Lire en pseudo-code jamais mise en avant, Vibe
@@ -289,14 +289,16 @@ export function vibeView(input: JourneyInput): VibeView {
   let next: Partial<Record<VibeStepId, string | null>>;
   let stepFacts: Partial<Record<VibeStepId, string>>;
   if (flow === 'create') {
+    const noteDone = !!note?.filled && !questions.length && validated(note.mark);
+    const formeDone = !!note && modules.length > 0 && validated(note.formeMark);
     done = {
-      note: !!note?.filled && !questions.length && validated(note.mark),
-      forme: !!note && modules.length > 0 && validated(note.formeMark),
-      // Sans ligne « → invariant » : rien à écrire ni à commiter. Avec, sans test de la branche (déjà observée
-      // par un test existant) : la dernière course Écrire les invariants ou Vérifier l'alignement finie, ou
-      // ✓ Rien à écrire. Avec des tests : chaque cas validé, lu ou pas, et le premier commit (note, forme,
-      // invariants) fait.
-      invariants: !!note && (!invLines || (!invariants.length
+      note: noteDone,
+      forme: formeDone,
+      // Seulement si la Note et la Forme le sont (note 0.12.0-vibe-sans-rc-diff-en-fond), puis : sans ligne « → invariant »,
+      // rien à écrire ni à commiter. Avec, sans test de la branche (déjà observée par un test existant) : la
+      // dernière course Écrire les invariants ou Vérifier l'alignement finie, ou ✓ Rien à écrire. Avec des
+      // tests : chaque cas validé, lu ou pas, et le premier commit (note, forme, invariants) fait.
+      invariants: noteDone && formeDone && (!invLines || (!invariants.length
         ? input.runs.find((r) => r.id === 'invariants' || r.id === 'align')?.state === 'done' || note.nothingMark === 'ok'
         : (vibe || casesOk) && !dirty.some((f) => f === note.path || invariants.some((t) => t.path === f)))),
       modules: modules.length > 0 && modules.every((m) => m.commits.length > 0) && !modules.some((m) => m.uncommitted),
