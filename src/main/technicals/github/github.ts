@@ -14,6 +14,8 @@ import { okRef } from 'technicals/git';
 
 // Les seules sous-commandes lancées : en lecture.
 export const GH_READ = [['pr', 'view'], ['pr', 'list']] as const;
+// La seule commande gh api : exacte (lire son identifiant, login).
+export const GH_LOGIN = ['api', 'user', '--jq', '.login'] as const;
 
 // Lance gh (args[0..1] : la sous-commande) → sa sortie, ou null.
 export type GhRun = (args: string[]) => Promise<string | null>;
@@ -63,6 +65,10 @@ export function githubReader(run: GhRun) {
         list(['--author', '@me']), list(['--search', 'review-requested:@me']), list(['--limit', '100']),
       ]);
       return mine && review && all ? { mine, review, all } : null;
+    },
+    // L'identifiant GitHub de l'utilisateur (gh api user), ou null.
+    async login(): Promise<string | null> {
+      throw new Error('not implemented');
     },
     // OPEN, CLOSED ou MERGED, ou null.
     async prState(n: unknown): Promise<string | null> {

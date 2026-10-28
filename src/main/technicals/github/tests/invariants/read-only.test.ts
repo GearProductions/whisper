@@ -8,6 +8,9 @@
 //   ne doit pas faire » : « Lister les PR ou les branches autrement qu'en
 //   lecture seule (GH_READ, I-39) » : openPrs (qui remplace prsToReview) ne
 //   lance que gh pr list.
+//   Même note : « l'identifiant lu en lecture seule » : une seule commande
+//   gh api, exacte (GH_LOGIN : gh api user --jq .login) ; aucune autre forme
+//   de gh api, même sur user (-X PATCH écrirait).
 // Un faux préfixe : node et un script qui relève ses arguments (ce que gh
 // aurait reçu) et répond une fiche de PR.
 import fs from 'node:fs';
@@ -15,7 +18,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { commandPrefix } from 'core/runner';
-import { GH_READ, ghRun, githubReader, type GhRun } from 'technicals/github';
+import { GH_LOGIN, GH_READ, ghRun, githubReader, type GhRun } from 'technicals/github';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vibecoder-gh-'));
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
@@ -63,6 +66,24 @@ describe('seulement des sous-commandes en lecture', () => {
     expect(await ghRun(tmp, PREFIX)(['api', '-X', 'DELETE', 'repos/o/d'])).toBeNull();
     // sans que rien soit lancé
     expect(launched()).toEqual([]);
+  });
+
+  it('GH_LOGIN : gh api user --jq .login, exactement', () => {
+    expect([...GH_LOGIN]).toEqual(['api', 'user', '--jq', '.login']);
+  });
+
+  it('gh api user, sous une autre forme (une méthode, un champ, une autre requête), n’est pas lancé', async () => {
+    for (const args of [['api', 'user', '-X', 'PATCH', '-f', 'name=x'], ['api', 'user'], ['api', 'user', '--jq', '.login', '-X', 'PATCH'], ['api', 'user/emails']]) {
+      // refusé
+      expect(await ghRun(tmp, PREFIX)(args)).toBeNull();
+    }
+    // sans que rien soit lancé
+    expect(launched()).toEqual([]);
+  });
+
+  it('login : un seul lancement, gh api user --jq .login', async () => {
+    await githubReader(ghRun(tmp, PREFIX)).login();
+    expect(launched()).toEqual([['gh', 'api', 'user', '--jq', '.login']]);
   });
 
   it('prForBranch, prState : chaque lancement est gh pr view ou gh pr list', async () => {

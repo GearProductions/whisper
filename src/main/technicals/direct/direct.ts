@@ -210,6 +210,11 @@ export function directRunner({ dir, out, prefix, launch = launchFile }: { dir: s
     },
 
     // git fetch origin : tout le distant (Actualiser, au clic seulement).
+    // gh pr edit <n> --add-reviewer <identifiant> : s'ajouter en relecteur.
+    async requestReview(_n: unknown, _login: unknown): Promise<DirectResult> {
+      throw new Error('not implemented');
+    },
+
     async fetchAll(): Promise<DirectResult> {
       const r = await run('git', ['fetch', 'origin']);
       if (r.exit !== 0) return result(false, first(r, 'git fetch failed.'));

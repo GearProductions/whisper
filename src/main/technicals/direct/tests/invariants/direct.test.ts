@@ -21,6 +21,9 @@
 //   après un conflit : git rebase --abort aussitôt » (sur du vrai git :
 //   rebase.test.ts). DIRECT_GIT gagne rebase et push ; GIT_READ gagne
 //   for-each-ref (lister les branches locales, en lecture).
+//   Même note : « S'ajouter en relecteur sans un clic, ou autrement que par
+//   une commande directe aux arguments fixes (DIRECT_GH, I-39) » : DIRECT_GH
+//   gagne pr edit, seulement gh pr edit <n> --add-reviewer <identifiant>.
 // Un Launch qui relève ce qu'on lancerait, sans rien lancer ; et un faux
 // préfixe (node et un script) pour ce que gh recevrait vraiment.
 import fs from 'node:fs';
@@ -53,9 +56,9 @@ const CARD = JSON.stringify({ number: 7, title: 't', url: 'u', author: { login: 
 const commitMd = (text: string) => { fs.mkdirSync(OUT, { recursive: true }); fs.writeFileSync(path.join(OUT, 'commit.md'), text); };
 
 describe('seulement la liste fermée', () => {
-  it('DIRECT_GIT : commit, fetch, switch, pull, branch, stash, rebase, push ; DIRECT_GH : pr review, pr view ; rien d’autre', () => {
+  it('DIRECT_GIT : commit, fetch, switch, pull, branch, stash, rebase, push ; DIRECT_GH : pr review, pr view, pr edit ; rien d’autre', () => {
     expect([...DIRECT_GIT]).toEqual(['commit', 'fetch', 'switch', 'pull', 'branch', 'stash', 'rebase', 'push']);
-    expect(DIRECT_GH.map((c) => c.join(' '))).toEqual(['pr review', 'pr view']);
+    expect(DIRECT_GH.map((c) => c.join(' '))).toEqual(['pr review', 'pr view', 'pr edit']);
   });
 
   it('commit : <préfixe> git commit -F <sorties>/commit.md, rien d’autre (ni add, ni -a, ni --amend, ni --no-verify)', async () => {
@@ -203,6 +206,33 @@ describe('Pull, Rebase, Pousser : la liste fermée, aux arguments fixes', () => 
 
     // une seule commande, aux arguments fixes
     expect(calls).toEqual([[...PREFIX, 'git', '-C', DIR, 'fetch', 'origin']]);
+  });
+});
+
+describe('Me demander en relecture : gh pr edit, aux arguments fixes', () => {
+  it('requestReview : <préfixe> gh pr edit <n> --add-reviewer <identifiant>, rien d’autre', async () => {
+    const { calls, runner } = recorder();
+
+    await runner.requestReview(7, 'Reykugo-Gear');
+
+    // une seule commande : s'ajouter en relecteur, rien d'autre (ni titre, ni base, ni assigné, ni label)
+    expect(calls).toEqual([[...PREFIX, 'gh', 'pr', 'edit', '7', '--add-reviewer', 'Reykugo-Gear']]);
+  });
+
+  it('requestReview : un identifiant qui n’en est pas un (une option, plusieurs, un espace, pas un texte) est refusé sans rien lancer', async () => {
+    const { calls, runner } = recorder();
+    for (const login of ['--remove-reviewer=x', '-x', 'a,b', 'a b', 'a/b', '', 'x'.repeat(40), 42, null]) {
+      expect((await runner.requestReview(7, login)).ok).toBe(false);
+    }
+    expect(calls).toEqual([]);
+  });
+
+  it('requestReview : un numéro en texte, zéro, un négatif ou un non-entier est refusé sans rien lancer', async () => {
+    const { calls, runner } = recorder();
+    for (const n of ['7', '7 --repo evil/x', 0, -1, 1.5]) {
+      expect((await runner.requestReview(n, 'kb')).ok).toBe(false);
+    }
+    expect(calls).toEqual([]);
   });
 });
 
