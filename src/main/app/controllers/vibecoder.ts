@@ -380,7 +380,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   // La note du ticket : sa clé d'après la branche (ticket, sinon version), parmi
   // les .md de docs/tickets/ que change la branche (ou la PR).
   const key = repo && noteKey(repo.branch, null);
-  const notePath = repo && key ? findNote(repo.changed, key) : null;
+  const notePath = repo && key ? findNote(repo.changed, key, repo.branch) : null;
   const noteText = notePath ? onDisk(agent.dir, notePath) : null;
   // Les tests de la branche, et leur empreinte, qui nomme leur lecture.
   const tests = (repo?.changed ?? []).filter(isTest).flatMap((p) => {
