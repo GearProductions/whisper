@@ -105,8 +105,8 @@ import { agentList, agentVibe, vibeLang, type Config } from 'core/config';
 import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
 import {
-  addComment, artifactOf, blobSha, buildMessage, vibeMarks, DIRECT_ACTIONS, DIRECT_ONLY, draftText, editComment, findNote, forkedModel, isOutputName, isTest, itemCommit, itemPath,
-  blockedBy, BRANCH_CHANGES, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, targetHash, vibeView, whoOf, type ActionDef, type MessageError,
+  addComment, artifactOf, blobSha, buildMessage, vibeMarks, DIRECT_ACTIONS, DIRECT_ONLY, draftText, editComment, findNote, headField, isOutputName, isTest, itemCommit, itemPath,
+  blockedBy, BRANCH_CHANGES, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeView, whoOf, type ActionDef, type MessageError,
 } from 'core/vibecoder';
 import { findEditor } from 'technicals/editor';
 import { directRunner, prCardText, VERDICTS, type DirectResult } from 'technicals/direct';
@@ -490,7 +490,9 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     actions,
     direct: directs.get(agent.id),
     who,
-    model: Object.fromEntries(actions.map((a) => [a.id, forkedModel(skills[a.id])])),
+    // Le modèle d'une action qui court, ou d'un skill en sous-contexte ; envoyé à la conversation, celui de l'agent (null).
+    model: Object.fromEntries(actions.map((a) => [a.id,
+      ownRun(a) || headField(skills[a.id], 'context') === 'fork' ? skillModel(skills[a.id]) : null])),
     skills: skillNames(agent.dir),
     exists: (rel) => { const file = safePath(agent.dir, rel, realpath); return !!file && fs.existsSync(file); },
     list: (rel) => listFiles(agent.dir, rel),

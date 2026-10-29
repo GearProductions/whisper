@@ -81,7 +81,7 @@ export function ensureVibeFiles() {
       .map((rel) => ({ path: rel.split(path.sep).join('/'), content: fs.readFileSync(path.join(root, rel), 'utf8') }));
     const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
     syncDefaults(vibeDir(), files, { read, write });
-    // Les variantes des skills en sous-contexte (un autre modèle, choisi à
+    // Les variantes des skills qui fixent leur modèle (un autre, choisi à
     // l'écran) : générées d'après les skills de l'utilisateur, hors manifeste,
     // réécrites à chaque fois.
     const skills = path.join(vibePluginDir(), 'skills');
