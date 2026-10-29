@@ -29,13 +29,11 @@
  *  dont toutes ses lectures d'invariants (invariants/<blob>.md : celle d'un
  *  test modifié depuis reste montrée, périmée, core/vibecoder) : une page
  *  désigne un fichier par son id dans le dernier relevé (lastView), jamais par
- *  un chemin (I-37). Le texte d'un test à la base : par git seul (show au
+ *  un chemin (I-37). Le texte d'un test d'invariants à la base : par git seul (show au
  *  commit où la branche, ou la PR, part de repo.base : forkPoint, un par relevé ;
  *  null : absent là, pas de base ; au-delà de 200 Ko, core/vibecoder). Les fichiers d'un module
  *  touché : ceux que la branche change (core/vibecoder, d'après repo.changed),
- *  pas leur texte (controllers/module-code lit le fichier ouvert). listFiles
- *  (ni lien ni fichier ou dossier caché ni node_modules, target, dist, build,
- *  par safePath, au plus LIST_MAX) : pour controllers/artifacts. Les
+ *  pas leur texte (controllers/module-code lit le fichier ouvert). Les
  *  artefacts de l'agent (<sorties>/artifacts/, controllers/artifacts) : leur
  *  liste au relevé, sans leur texte ; ouverts ou copiés par leur id (a<i>)
  *  dans le dernier relevé, jamais par un chemin. Une action qui génère un module : sa course le retient
@@ -108,7 +106,7 @@ import { agentList, agentVibe, vibeLang, type Config } from 'core/config';
 import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
 import {
-  addComment, artifactOf, blobSha, buildMessage, vibeMarks, DIRECT_ACTIONS, DIRECT_ONLY, draftText, editComment, findNote, headField, isOutputName, isTest, itemCommit, itemPath,
+  addComment, artifactOf, blobSha, buildMessage, vibeMarks, DIRECT_ACTIONS, DIRECT_ONLY, draftText, editComment, findNote, headField, isInvariantTest, isOutputName, isTest, itemCommit, itemPath,
   blockedBy, BRANCH_CHANGES, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeView, whoOf, type ActionDef, type MessageError,
 } from 'core/vibecoder';
 import { findEditor } from 'technicals/editor';
@@ -132,8 +130,6 @@ const THROTTLE_MS = 1000;      // au plus un relevé par seconde
 const TARGET_MAX = 300;        // une remarque du brouillon de revue : sa cible…
 const REMARK_MAX = 5000;       // … et son texte
 const GH_MS = 60_000;          // une réponse de gh vaut 60 s
-const LIST_MAX = 1000;         // listFiles (les artefacts) : les premiers seulement
-const SKIP_DIRS = new Set(['node_modules', 'target', 'dist', 'build']);   // ni leurs fichiers
 
 const ERRORS: Record<VibeLang, Record<MessageError | 'agent' | 'action' | 'args' | 'noGit' | 'notRepo' | 'worktree', string>> = {
   fr: {
@@ -287,29 +283,6 @@ export async function refreshVibe({ now = false, fresh = false }: { now?: boolea
 
 /* ---- Le relevé ------------------------------------------------------------ */
 
-// Les fichiers d'un chemin du dépôt et de ses sous-dossiers, relatifs au dépôt (un fichier : lui-même) ;
-// ni lien (ni fichier ni dossier pour son Dirent) ni dossier ou fichier caché, ni SKIP_DIRS, le chemin
-// dans le dossier de l'agent (safePath, une fois) ; au plus LIST_MAX, les premiers trouvés. Leurs chemins, pas leur texte.
-export function listFiles(dir: string, rel: string): string[] {
-  const out: string[] = [];
-  const walk = (r: string) => {
-    try {
-      for (const e of fs.readdirSync(path.join(dir, r), { withFileTypes: true })) {
-        if (out.length >= LIST_MAX || e.name.startsWith('.')) continue;
-        if (e.isFile()) out.push(path.posix.join(r, e.name));
-        else if (e.isDirectory() && !SKIP_DIRS.has(e.name)) walk(path.posix.join(r, e.name));
-      }
-    } catch { /* illisible : sans lui */ }
-  };
-  if (!safePath(dir, rel, fs.realpathSync.native)) return out;
-  try {
-    const st = fs.lstatSync(path.join(dir, rel));
-    if (st.isFile()) out.push(rel);
-    else if (st.isDirectory()) walk(rel);
-  } catch { /* illisible : sans lui */ }
-  return out;
-}
-
 // Un fichier du dossier de l'agent, s'il y reste (`..` et liens résolus).
 function onDisk(dir: string, rel: string) {
   const file = safePath(dir, rel, fs.realpathSync.native);
@@ -441,10 +414,10 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     const text = onDisk(agent.dir, p);
     return text === null ? [] : [{ path: p, blob: blobSha(text), text }];
   });
-  // Leur texte à la base (par git seul, I-37) : au commit où la branche part de repo.base (forkPoint, un par
-  // relevé, comme at.base de controllers/module-code) ; null : absent là, pas de base (au-delà de 200 Ko : core/vibecoder).
-  const fork = repo && tests.length ? await git.forkPoint(repo.base) : null;
-  const based = await Promise.all(tests.map(async (t) => ({ ...t, base: fork ? await git.show(fork, t.path) : null })));
+  // Le texte d'un test d'invariants à la base (par git seul, I-37) : au commit où la branche part de repo.base (forkPoint,
+  // un par relevé, comme at.base de controllers/module-code) ; null : absent là, pas de base, un variant (au-delà de 200 Ko : core/vibecoder).
+  const fork = repo && tests.some((t) => isInvariantTest(t.path)) ? await git.forkPoint(repo.base) : null;
+  const based = await Promise.all(tests.map(async (t) => ({ ...t, base: fork && isInvariantTest(t.path) ? await git.show(fork, t.path) : null })));
   // Toutes les lectures d'invariants : un test modifié depuis la sienne reprend la plus récente de son fichier,
   // périmée (readingOf, core/vibecoder).
   let names: string[] = [];

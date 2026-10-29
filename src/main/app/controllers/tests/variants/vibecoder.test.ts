@@ -275,15 +275,16 @@ describe('le relevé', () => {
     expect(v.error).toEqual(expect.any(String));
   });
 
-  it('le texte d’un test à la base (0.13.0) : git show au forkPoint de repo.base, un forkPoint par relevé', async () => {
+  it('le texte d’un test à la base (0.13.0) : git show au forkPoint de repo.base, un forkPoint par relevé ; pas d’un variant', async () => {
     fake.fork = 'f0';
     fake.shown = 'BASE';
-    fake.facts = { ...fake.facts as object, changed: [...(fake.facts as { changed: string[] }).changed, 'src/y/tests/invariants/y.test.ts'] };
+    fake.facts = { ...fake.facts as object, changed: [...(fake.facts as { changed: string[] }).changed, 'src/y/tests/invariants/y.test.ts', 'src/z/tests/variants/z.test.ts'] };
     write(path.join(dir, 'src/y/tests/invariants/y.test.ts'), TEST);
+    write(path.join(dir, 'src/z/tests/variants/z.test.ts'), TEST);
     const { vibes, view } = await open();
     const v = view()!;
-    expect(v.tests.map((t) => t.base)).toEqual(['BASE', 'BASE']);
-    // par relevé envoyé : un forkPoint, puis un show par test
+    expect(v.tests.map((t) => t.base)).toEqual(['BASE', 'BASE', null]);
+    // par relevé envoyé : un forkPoint, puis un show par test d'invariants
     expect(fake.reads).toEqual(vibes().flatMap(() => [['forkPoint', 'origin/main'],
       ['show', 'f0', 'src/x/tests/invariants/x.test.ts'], ['show', 'f0', 'src/y/tests/invariants/y.test.ts']]));
     expect(v).not.toHaveProperty('list');
@@ -305,37 +306,11 @@ describe('le relevé', () => {
     expect(fake.reads).toEqual([]);
   });
 
-  it('listFiles (0.11.0, les artefacts) : les fichiers d’un dossier et de ses sous-dossiers, relatifs au dépôt ; ni lien, ni caché, ni dehors', async () => {
-    write(path.join(dir, 'src/m/index.ts'), 'a');
-    write(path.join(dir, 'src/m/sous/b.ts'), 'b');
-    write(path.join(dir, 'src/m/.cache/c.ts'), 'c');
-    write(path.join(dir, 'src/m/.env'), 'd');
-    write(path.join(fake.userData, 'dehors.ts'), 'dehors');
-    if (process.platform !== 'win32') {
-      fs.symlinkSync(path.join(fake.userData, 'dehors.ts'), path.join(dir, 'src/m/lien.ts'));
-      fs.symlinkSync(fake.userData, path.join(dir, 'src/m/lien-dossier'));
-    }
+  it('lastView : le dernier relevé de l’agent, null pour un autre', async () => {
     await open();
-    const { listFiles } = await import('app/controllers');
-    const list = (rel: string) => listFiles(dir, rel);
-    expect(list('src/m').sort()).toEqual(['src/m/index.ts', 'src/m/sous/b.ts']);
-    expect(list('src/m/index.ts')).toEqual(['src/m/index.ts']);   // un fichier : lui-même
-    expect(list('../dehors.ts')).toEqual([]);
-    expect(list(path.join(fake.userData, 'dehors.ts'))).toEqual([]);
-    expect(list('src/absent')).toEqual([]);
     const { lastView } = await import('app/controllers');
     expect(lastView('a1')).toMatchObject({ agentId: 'a1' });
     expect(lastView('inconnu')).toBeNull();
-  });
-
-  it('listFiles : sans node_modules, target, dist ni build ; au plus 1 000 fichiers, les premiers trouvés', async () => {
-    write(path.join(dir, 'src/m/index.ts'), 'a');
-    for (const d of ['node_modules', 'target', 'dist', 'build', 'sous/node_modules']) write(path.join(dir, 'src/m', d, 'x.js'), 'x');
-    write(path.join(dir, 'src/m/dist.ts'), 'un fichier, pas un dossier');
-    for (let i = 0; i < 1005; i++) write(path.join(dir, 'src/n', `f${i}.ts`), '');
-    const { listFiles } = await import('app/controllers');
-    expect(listFiles(dir, 'src/m').sort()).toEqual(['src/m/dist.ts', 'src/m/index.ts']);
-    expect(listFiles(dir, 'src/n')).toHaveLength(1000);
   });
 
   it('une action qui génère des modules : sa course retient le module (runModule → startRun)', async () => {
