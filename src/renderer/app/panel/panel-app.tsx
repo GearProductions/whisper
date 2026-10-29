@@ -13,7 +13,9 @@
  *  étape, une remarque) ; seul un message de la conversation (Demander sans
  *  modifier, Où j'en suis ?, Proposer les commandes) prend celui du champ de
  *  la conversation (vidé une fois parti), ou y prépare un message. La dictée
- *  va au champ d'étape qui a le clavier, sinon à celui de la conversation.
+ *  va à la zone de texte qui a le clavier (champ d'étape, commentaire,
+ *  réponse libre ; pas un éditeur de code ni un champ d'une ligne), sous sa
+ *  longueur, sinon au champ de la conversation.
  *  La colle : seul fichier du panneau qui connaît le pont (window.conv) ; il
  *  tient le brouillon de chaque conversation et la saisie de VibeCoder de
  *  chaque agent (createKept). Voir le code : le fichier de module suivi
@@ -28,7 +30,7 @@ import {
 } from 'core/conversation';
 import { createKept, t as vibeStrings, withPrefill } from 'core/vibecoder';
 import type { Command, ConvApi, Notice, ProbeResult, SendResult, Session, Thread, VibeArgs, VibeCode, VibeView } from 'technicals/bridge';
-import { compactHeight } from 'technicals/dom';
+import { compactHeight, dictationField, dictationText } from 'technicals/dom';
 import {
   ArchivedBar, Composer, ContextDetail, Header, HistoryList, Lightbox, NoticeBar, showsWorking, TasksPane, ThreadContent,
   type ThreadActions,
@@ -134,10 +136,11 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     });
     // La dictée, panneau ouvert sur cet agent : ajoutée au champ, à relire.
     conv.onDictation((text) => {
-      // Le champ d'une étape de VibeCoder a le clavier : la dictée s'y insère (son onChange suit).
-      const f = document.activeElement;
-      if (f instanceof HTMLTextAreaElement && f.dataset.field
-        && document.execCommand('insertText', false, `${f.value && !/\s$/.test(f.value) ? ' ' : ''}${text}`)) return;
+      // Une autre zone de texte a le clavier (champ d'étape, commentaire, réponse libre) : la dictée
+      // s'y insère à la place de la sélection, sous sa longueur (son onChange suit) ; plus de place : rien.
+      const f = dictationField(document.activeElement, el.input.current);
+      const s = f && dictationText(f, text);
+      if (f && (!s || document.execCommand('insertText', false, s))) return;
       focusEnd.current = true;
       setDraft((d) => ({ ...d, text: appendDictation(d.text, text) }));
     });
