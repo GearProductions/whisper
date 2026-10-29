@@ -1,6 +1,7 @@
 /* L'étape Commits de Relire (commits-view) : la relecture et son âge dans
-   l'en-tête, une carte par commit (ses fichiers, ses liens, la relecture s'il
-   y en a une ; le fichier ouvert sous elle). Sous .vc, couleurs de vibecoder.css. */
+   l'en-tête, une carte par commit (ses fichiers : une liste compacte, une
+   ligne par fichier ; ses liens, des IconButton ; la relecture s'il y en a
+   une ; le fichier ouvert sous elle). Sous .vc, couleurs de vibecoder.css. */
 
 .vc-out-meta { display: flex; align-items: center; gap: 10px; color: var(--vc-faint); font-size: 11.5px; white-space: nowrap; }
 .vc-commit-review > .vc-card-head .vc-card-title { display: flex; align-items: center; gap: 9px; }
@@ -8,9 +9,7 @@
 .vc-commit-subject { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .vc-commit-review .vc-count { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--vc-text); }
 .vc-commit-review .vc-card-end { flex: none; }
-.vc-commit-review .vc-card-end .vc-mini { height: 22px; padding: 0 8px; font-size: 11.5px; }
-.vc-commit-files summary { color: var(--vc-muted); font-size: 12px; cursor: pointer; }
-.vc-commit-files ul { list-style: none; margin: 4px 0 0; padding: 0 0 0 14px; color: var(--vc-soft); font-size: 11.5px; line-height: 1.7; }
+.vc-commit-files { list-style: none; margin: 0; padding: 0; color: var(--vc-soft); font-size: 11.5px; line-height: 1.7; }
 .vc-commit-ai { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
 .vc-commit-files li button[aria-pressed='true'] { color: var(--vc-text); }
 .vc-commit-file { margin-top: 8px; }

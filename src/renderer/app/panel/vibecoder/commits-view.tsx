@@ -1,6 +1,7 @@
 /** commits-view — l'étape Commits (Relire) : les commits de la PR, sans IA,
  *  une carte chacun (hash, sujet ; Voir le diff dans l'éditeur, c<rang> ;
- *  GitHub ↗, gh:c<rang> ; ses fichiers) ; s'il y a une relecture
+ *  GitHub, gh:c<rang> — des IconButton ; ses fichiers, une liste compacte,
+ *  une ligne par fichier, sans cadre ni titre, leur nombre en aria-label) ; s'il y a une relecture
  *  (pr-<n>-commits.md), ses remarques sous le commit qu'elles visent, et ses
  *  autres rubriques (l'ensemble…) en tête. 💬 sur une carte : une zone de
  *  commentaire sous elle, la remarque va au brouillon de revue pour ce
@@ -18,6 +19,7 @@ import { commitReviews, quoteRemark, remark, type Strings } from 'core/vibecoder
 import type { VibeComment, VibeLang } from 'technicals/bridge';
 import { CommentBox } from './comment-box';
 import { CommitFile } from './commit-file';
+import { IconButton } from './icons';
 import { MarkdownView } from './markdown-view';
 import { OutputCard, Run, StepHead } from './step-parts';
 import type { StepProps, VibeActs } from './step-views';
@@ -80,26 +82,23 @@ export function CommitsView(p: StepProps) {
             title={<><code className="vc-chip" data-fixup={c.fixup || undefined}>{c.hash.slice(0, 7)}</code><span className="vc-commit-subject">{c.subject}</span></>}
             links={(
               <>
-                <button type="button" className="vc-mini" title={t.diffTitle} onClick={() => act.open(`c${i}`)}>{t.diff}</button>
-                <button type="button" className="vc-mini" title={t.githubTitle} onClick={() => act.open(`gh:c${i}`)}>{t.github}</button>
+                <IconButton icon="diff" label={t.diffTitle} onClick={() => act.open(`c${i}`)} />
+                <IconButton icon="external" label={t.githubTitle} onClick={() => act.open(`gh:c${i}`)} />
               </>
             )}>
             {c.files.length ? (
-              <details className="vc-commit-files" open={c.files.length <= 6}>
-                <summary>{t.files(c.files.length)}</summary>
-                <ul>
-                  {c.files.map((f, k) => (
-                    <li key={f}><button type="button" className="vc-mono" aria-pressed={k === j}
-                      onClick={() => follow(k === j ? null : { i, k, hash: c.hash, path: f })}>{f}</button></li>
-                  ))}
-                </ul>
-              </details>
+              <ul className="vc-commit-files" aria-label={t.files(c.files.length)}>
+                {c.files.map((f, k) => (
+                  <li key={f}><button type="button" className="vc-mono" aria-pressed={k === j}
+                    onClick={() => follow(k === j ? null : { i, k, hash: c.hash, path: f })}>{f}</button></li>
+                ))}
+              </ul>
             ) : null}
             {path != null ? (
               <div className="vc-commit-file">
                 <div className="vc-commit-file-head">
                   <span className="vc-mono">{path}</span>
-                  <button type="button" className="vc-tool" title={t.close} aria-label={t.close} onClick={() => follow(null)}>✕</button>
+                  <IconButton icon="close" label={t.close} onClick={() => follow(null)} />
                 </div>
                 <CommitFile file={{ id: `c${i}/${j}`, path }} code={p.code} lang={view.lang} t={t} onQuote={setQuote} />
                 {quote != null ? (
@@ -133,7 +132,7 @@ function Commented({ target, title, links, s, t, act, draft, children }: Comment
         <>
           {drafted ? <span className="vc-count">{s.inDraft(drafted)}</span> : null}
           {links}
-          <button type="button" className="vc-tool" title={s.toDraft} aria-label={s.toDraft} aria-pressed={writing} onClick={() => setWriting(!writing)}>💬</button>
+          <IconButton icon="comment" label={s.toDraft} pressed={writing} onClick={() => setWriting(!writing)} />
         </>
       )}>
       {children || writing ? (

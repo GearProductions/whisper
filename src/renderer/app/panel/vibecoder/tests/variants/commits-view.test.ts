@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 // CommitsView (commits-view.tsx) : un fichier d'un commit, cliqué → act.follow(c<rang>/<i>) et ouvert sous sa
 // carte, un seul à la fois ; recliqué, fermé ou décalé par un relevé → act.follow(null) ; 💬 d'une ligne → une zone de commentaire,
-// la remarque au brouillon sur la cible du commit, le chemin et les lignes citées (quoteRemark).
+// la remarque au brouillon sur la cible du commit, le chemin et les lignes citées (quoteRemark). Finitions : Voir le diff,
+// GitHub, 💬, fermer → des IconButton (libellé en aria-label) ; les fichiers, une liste sans <details> ni titre.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EditorView } from '@codemirror/view';
@@ -29,8 +30,9 @@ const draw = (code: VibeCode | null, cs = commits) => act(() => {
       draft: (op: unknown) => { drafts.push(op); }, open: () => {}, openLink: () => {}, save: async () => true } } as unknown as StepProps;
   root.render(createElement(CommitsView, props));
 });
+// Un bouton par son texte, ou par son libellé (aria-label) pour un IconButton.
 const click = (text: string) => act(() => {
-  ([...page.querySelectorAll('button')].find((b) => b.textContent === text) as HTMLButtonElement).click();
+  ([...page.querySelectorAll('button')].find((b) => b.textContent === text || b.getAttribute('aria-label') === text) as HTMLButtonElement).click();
 });
 
 it('cliqué : suivi et ouvert sous sa carte, un seul ; recliqué ou fermé : follow(null)', async () => {
@@ -47,7 +49,7 @@ it('cliqué : suivi et ouvert sous sa carte, un seul ; recliqué ou fermé : fol
   expect(follows.at(-1)).toBeNull();
   expect(page.querySelector('.vc-commit-file')).toBeNull();
   await click('src/a.ts');
-  await click('✕');
+  await click(t('fr').close);
   expect(follows.slice(-2)).toEqual(['c0/0', null]);
   expect(page.querySelector('.vc-commit-file')).toBeNull();
 });
@@ -76,4 +78,34 @@ it('💬 d\'une ligne : une zone de commentaire, la remarque au brouillon sur la
   await click('Ajouter au brouillon');
   expect(drafts.at(-1)).toEqual({ add: quoteRemark('aaaaaaa un', 'src/a.ts', 'x = 1', 'pourquoi ?') });
   expect(page.querySelector('.vc-commit-file textarea')).toBeNull();
+});
+
+it('finitions : liens et 💬 en IconButton, les fichiers en liste compacte', async () => {
+  const opened: string[] = [];
+  await act(() => {
+    const view = { lang: 'fr', flow: 'review', actions: [], outputs: {}, pr: null, commits, draft: [] } as unknown as VibeView;
+    const props = { view, step: { id: 'commits', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
+      code: null, drafts: [{}, () => {}], act: { run: async () => true, follow: () => {}, mark: () => {}, prefill: () => {}, draft: () => {},
+        open: (id: string) => { opened.push(id); }, openLink: () => {}, save: async () => true } } as unknown as StepProps;
+    root.render(createElement(CommitsView, props));
+  });
+  const tr = t('fr');
+  await click(tr.diffTitle);
+  await click(tr.githubTitle);
+  expect(opened).toEqual(['c0', 'gh:c0']);
+  const card = page.querySelector('.vc-commit-review')!;
+  for (const label of [tr.diffTitle, tr.githubTitle, 'Une remarque sur ce commit, au brouillon de revue']) {
+    const b = card.querySelector(`button[aria-label="${label}"]`)!;
+    expect(b.className).toBe('vc-tool');
+    expect(b.getAttribute('title')).toBe(label);
+    expect(b.querySelector('svg')).not.toBeNull();
+  }
+  expect(page.querySelector('details')).toBeNull();
+  expect(page.textContent).not.toMatch(/💬|✕|↗|2 fichiers/);
+  const list = card.querySelector('ul.vc-commit-files')!;
+  expect(list.getAttribute('aria-label')).toBe(tr.files(2));
+  expect([...list.querySelectorAll('li')].map((li) => li.textContent)).toEqual(['src/a.ts', 'src/b.ts']);
+  await click('Une remarque sur ce commit, au brouillon de revue');
+  expect(card.querySelector('button[aria-label="Une remarque sur ce commit, au brouillon de revue"]')!.getAttribute('aria-pressed')).toBe('true');
+  expect(card.querySelector('textarea')).not.toBeNull();
 });
