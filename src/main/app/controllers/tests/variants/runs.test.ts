@@ -19,6 +19,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { slow } from '../slow';
 
 const fake = vi.hoisted(() => {
   type Handler = (...a: unknown[]) => void;
@@ -107,7 +108,7 @@ const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user
 const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
 // Le vrai setTimeout, pris avant toute horloge simulée : attendre les fichiers même quand elle est posée.
 const realSetTimeout = globalThis.setTimeout;
-const settle = () => new Promise((r) => realSetTimeout(r, 300));
+const settle = () => new Promise((r) => realSetTimeout(r, slow(300)));
 const turn = (start: string) => fake.turns.find((t) => t.text.startsWith(start));
 const actionsJson = () => JSON.parse(fs.readFileSync(path.join(out, 'actions.json'), 'utf8'));
 let out = '';

@@ -16,6 +16,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VibeView } from 'shared/bridge';
+import { slow } from '../slow';
 
 const fake = vi.hoisted(() => {
   type Handler = (...a: unknown[]) => void;
@@ -69,7 +70,7 @@ vi.mock('technicals/paths', async (original) => ({
 }));
 
 const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
-const settle = () => new Promise((r) => setTimeout(r, 150));
+const settle = () => new Promise((r) => setTimeout(r, slow(150)));
 let repo = '';
 let worktree = '';
 let outA = '';
