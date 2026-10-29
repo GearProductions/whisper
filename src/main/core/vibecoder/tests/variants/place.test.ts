@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { onBase, onPr, PLACE_ACTIONS, placeReason, placeShown, type PlaceState } from 'core/vibecoder';
+import { BRANCH_CHANGES, onBase, onPr, PLACE_ACTIONS, placeReason, placeShown, type PlaceState } from 'core/vibecoder';
 
 const base: PlaceState = {
   head: null, branch: 'master', onBase: true, dirty: false, child: false, robot: false, prWorktree: false, recipe: false,
@@ -68,10 +68,15 @@ describe('placeShown', () => {
     expect(shown({ head: 'feat/x', branch: 'feat/x', onBase: false, dirty: true })).toEqual(['unload-pr', ...ALWAYS, 'stash']);
   });
 
-  it('le robot de la PR : ni charger ni revenir sur la base', () => {
-    const s = shown({ head: 'feat/x', branch: 'pr-7', onBase: false, robot: true, child: true });
-    expect(s).toEqual(['switch-branch', 'new-here']);
-    expect(shown({ head: 'feat/x', branch: 'pr-7', onBase: false, robot: true, child: true, dirty: true })).toEqual([...s, 'stash']);
+  it('un worktree, robot d\'une PR ou enfant d\'une demande : rien qui change sa branche ; mettre de côté seulement', () => {
+    expect(shown({ head: 'feat/x', branch: 'pr-7', onBase: false, robot: true, child: true })).toEqual([]);
+    expect(shown({ head: 'feat/x', branch: 'pr-7', onBase: false, robot: true, child: true, dirty: true })).toEqual(['stash']);
+    expect(shown({ branch: 'feat/enfant', onBase: false, child: true })).toEqual([]);
+    expect(shown({ head: 'feat/x', branch: 'feat/enfant', onBase: false, child: true, dirty: true })).toEqual(['stash']);
+  });
+
+  it('BRANCH_CHANGES : chaque choix de lieu sauf mettre de côté, plus charger une PR et revenir sur la base d\'une PR fusionnée', () => {
+    expect([...BRANCH_CHANGES].sort()).toEqual([...PLACE_ACTIONS.filter((id) => id !== 'stash'), 'load-pr', 'base'].sort());
   });
 
   it('une clé par action de lieu', () => {

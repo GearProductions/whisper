@@ -2,11 +2,15 @@
  *  0.12.0-gestion-des-branches) : quels choix de lieu montrer d'après l'état du dossier (charger la PR ici ou
  *  dans un nouveau worktree, aller sur une branche, créer une branche ici ou dans un worktree, revenir sur la
  *  base, mettre de côté), et pourquoi l'un est grisé (des modifications : pas de git switch ; une recette en cours).
+ *  Un worktree (enfant ou robot) reste sur sa branche : rien de ce qui en change (BRANCH_CHANGES) n'y est montré.
  *  Masqué n'est pas refusé : le principal revérifie au clic.
  *  Ne connaît pas : Electron, git, le disque, les libellés.
  *  Utilisé par : core/vibecoder (journey), app/controllers/vibecoder (onBase). */
 
 export const PLACE_ACTIONS: readonly string[] = ['pr-here', 'pr-worktree', 'unload-pr', 'switch-branch', 'new-here', 'new-worktree', 'stash'];
+// Ce qui change la branche du dossier ou la PR qu'il suit : jamais dans un worktree, enfant ou robot (note
+// 0.12.0-gestion-des-branches) ; le principal le refuse (app/controllers/vibecoder).
+export const BRANCH_CHANGES: readonly string[] = ['pr-here', 'pr-worktree', 'unload-pr', 'switch-branch', 'new-here', 'new-worktree', 'load-pr', 'base'];
 
 export type PlaceState = {
   head: string | null;      // la tête de la PR chargée (sa fiche) ; null : pas de PR chargée
@@ -31,14 +35,15 @@ export function onPr(s: PlaceState): boolean {
 }
 
 export function placeShown(s: PlaceState): Record<string, boolean> {
-  const prHere = s.head !== null && !onPr(s);
+  const free = !s.child;   // un worktree reste sur sa branche
+  const prHere = free && s.head !== null && !onPr(s);
   return {
     'pr-here': prHere,
-    'pr-worktree': prHere && !s.child && !s.prWorktree,
-    'unload-pr': (s.head !== null || !s.onBase) && !s.robot,
-    'switch-branch': true,
-    'new-here': true,
-    'new-worktree': !s.child,
+    'pr-worktree': prHere && !s.prWorktree,
+    'unload-pr': free && (s.head !== null || !s.onBase),
+    'switch-branch': free,
+    'new-here': free,
+    'new-worktree': free,
     stash: s.dirty,
   };
 }
