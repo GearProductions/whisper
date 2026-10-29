@@ -540,7 +540,8 @@ describe('le mode Vibe', () => {
     state.panel!.hide();
     vibeStart({ id: 'a1' });
     turn('une question')!.finish('ok');
-    await settle();
+    // fini au relevé forcé qui suit le tour (ses lectures git, lentes sur un runner Windows)
+    for (let i = 0; i < 30 && vibeOn('a1'); i++) await settle();
     expect(vibeOn('a1')).toBe(false);
     expect(vibeStore().marks.a1).toHaveProperty('note');
   });
