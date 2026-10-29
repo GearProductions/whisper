@@ -607,6 +607,11 @@ branches à la place de l'étape (un nouveau clic la referme). Elle montre :
   worktree* (sur le robot d'un worktree) ; *Actualiser* (`git fetch origin` :
   l'état du distant, pour *Pull* et *Rebase*).
 
+Dans un worktree (l'enfant d'une demande, le robot d'une PR), on ne change
+pas de branche : la vue n'y montre qu'*Actualiser* et *Retirer le worktree*.
+*Pull* et *Rebase*, à côté de la branche, servent à le mettre à jour (sur la
+branche principale ou celle dont il part).
+
 La PR chargée, l'appli vous demande toujours quoi faire de votre dossier :
 
 - *Changer de branche* : le dossier passe sur la branche de la PR (`git

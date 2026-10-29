@@ -1285,6 +1285,14 @@ du champ de la conversation (ci-dessous). La vue montre :
   *Actualiser* (`fetch`, F-114 : l'état distant, pour *Pull* et la pastille
   de *Rebase*, F-92).
 
+Un **worktree** (l'enfant d'une demande, le robot d'une PR) reste sur sa
+branche : sa vue des branches ne montre qu'*Actualiser* et *Retirer le
+worktree* ; *Pull*, *Rebase* (sur la branche principale ou une autre) et
+*Pousser* restent à côté de la branche. Le principal refuse, sur un worktree,
+tout ce qui change la branche du dossier ou la PR qu'il suit (`BRANCH_CHANGES` :
+les choix de lieu sauf *Mettre de côté*, charger une PR, revenir sur la base
+d'une PR fusionnée), au clic, via l'agent ou à la demande de l'orchestrateur.
+
 Chaque choix est une
 action directe (F-114), au clic seulement ; créer et retirer un worktree,
 c'est la recette du projet (F-111), lancée par l'appli, sans IA. L'appli
