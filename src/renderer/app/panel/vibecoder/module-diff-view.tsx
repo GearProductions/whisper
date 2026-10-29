@@ -3,11 +3,12 @@
  *  (un éditeur sur after, unifiedMergeView, sans boutons Accepter/Rejeter) ou
  *  côte à côte (MergeView, sans revertControls) ; en lecture seule, numéroté
  *  et coloré comme CodeView (languageFor, codeHighlight), replié autour des
- *  changements (collapseUnchanged, « N lignes inchangées » d'après lang) ; le
- *  texte en texte, jamais en HTML (I-40). Recréé quand une prop change. Ses
+ *  changements (collapseUnchanged, « N lignes inchangées » d'après lang), sauf
+ *  avec `whole` (le fichier entier, ses lignes retirées, modifiées, ajoutées
+ *  marquées) ; le texte en texte, jamais en HTML (I-40). Recréé quand une prop change. Ses
  *  styles : module-diff-view.css (le cadre et la numérotation : .vc-src).
  *  Ne connaît pas : le pont, le relevé, git, lineDiff.
- *  Utilisé par : module-code. */
+ *  Utilisé par : module-code, invariants-view, commit-file. */
 import { useEffect, useRef, type ReactElement } from 'react';
 import { MergeView, unifiedMergeView } from '@codemirror/merge';
 import { EditorState } from '@codemirror/state';
@@ -21,13 +22,15 @@ const PHRASES: Record<VibeLang, Record<string, string>> = {
   en: {},
 };
 
-export function ModuleDiffView({ before, after, path, mode, lang }: {
+export function ModuleDiffView({ before, after, path, mode, lang, whole }: {
   before: string;
   after: string;
   path: string;
   mode: 'inline' | 'split';
   lang: VibeLang;
+  whole?: boolean;
 }): ReactElement {
+  if (whole) throw new Error('not implemented');
   const host = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

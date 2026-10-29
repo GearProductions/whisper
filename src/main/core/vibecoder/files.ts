@@ -7,7 +7,9 @@
  *  Un fichier à suivre et enregistrer (codeFile) : celui d'un module touché
  *  par la branche (`m<rang>/<i>`) ou, en Créer seulement, la note (`n`) ou un
  *  test d'invariant (`t<i>`), par son id dans le dernier relevé, jamais lu
- *  comme un chemin.
+ *  comme un chemin. Un fichier d'un commit à suivre (commitFile) : en Relire
+ *  seulement, par son id `c<rang>/<i>` du dernier relevé, jamais lu comme un
+ *  chemin.
  *  Utilisé par : app/controllers (vibecoder : lire la note et les tests, ouvrir
  *  un fichier ou un commit du relevé ; module-code : le fichier de Voir le code,
  *  la note ou le test qu'on modifie). */
@@ -59,4 +61,11 @@ export function codeFile(view: VibeView | null, id: string): { path: string; mod
   }
   const own = view?.flow === 'create' ? [view.note, ...view.invariants].find((f) => f?.id === id) : undefined;
   return own ? { path: own.path, module: null } : null;
+}
+
+// Le fichier d'un commit que désigne `c<rang>/<i>` (le i-ème fichier du commit
+// de ce rang dans le relevé, et le hash de ce commit), en Relire seulement ;
+// null pour tout autre id, Créer compris, l'id n'étant jamais lu comme un chemin.
+export function commitFile(_view: VibeView | null, _id: string): { path: string; hash: string } | null {
+  throw new Error('not implemented');
 }

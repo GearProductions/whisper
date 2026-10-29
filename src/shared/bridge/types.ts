@@ -265,7 +265,8 @@ export type VibeCode = {
   id: string;
   text: string | null;
   time: number;
-  at?: { base: string | null; head: string | null };
+  // commit : un fichier d'un commit, son texte au parent du commit et au commit (null : absent là)
+  at?: { base: string | null; head: string | null; commit?: { before: string | null; after: string | null } };
   truncated?: boolean;         // un artefact en texte, coupé à la limite configurée (artifactTextMax) ; absent : entier
 };
 
