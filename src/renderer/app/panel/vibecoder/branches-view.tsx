@@ -14,7 +14,8 @@
  *  un clic → switch-branch { branch }) ; un champ de recherche filtre l'onglet
  *  ouvert (core/vibecoder search) ; dans Toutes les PR, Me demander en
  *  relecture (request-review { pr }) sur une PR ni des miennes ni à relire,
- *  son dernier échec sous les onglets. Créer une branche : son nom, son
+ *  son dernier échec sous les onglets. Dans un worktree (view.child), Actualiser et Retirer le
+ *  worktree seulement : il reste sur sa branche. Créer une branche : son nom, son
  *  départ (origin/<base>, par défaut : sans start, ou une branche locale), Créer ici
  *  (new-here) ou Dans un nouveau worktree (new-worktree), { branch, start? }.
  *  Toutes ces actions sont directes (F-114, { direct: true }), grisées avec
@@ -58,6 +59,7 @@ const fr = {
   nameFirst: 'Saisissez un nom',
   search: 'Rechercher',
   noMatch: 'Aucun résultat.',
+  worktree: 'Un worktree reste sur sa branche : Pull et Rebase, à côté de la branche, pour la mettre à jour.',
 };
 const S: Record<VibeLang, typeof fr> = {
   fr,
@@ -85,6 +87,7 @@ const S: Record<VibeLang, typeof fr> = {
     nameFirst: 'Type a name',
     search: 'Search',
     noMatch: 'No match.',
+    worktree: 'A worktree stays on its branch: Pull and Rebase, next to the branch, keep it up to date.',
   },
 };
 
@@ -118,12 +121,17 @@ export function BranchesView({ view, t, act, busy }: Props) {
   // Créer une branche : sans nom, ses deux choix grisés.
   const named = (id: string) => { const a = action(id); return a && !name.trim() ? { ...a, disabled: a.disabled ?? s.nameFirst } : a; };
   const create = (id: string) => { run(id, { branch: name.trim(), ...(start ? { start } : {}) }); setName(''); };
+  const tools = (
+    <div className="vc-br-tools">
+      <Run a={action('fetch')} busy={busy} onRun={() => run('fetch')} />
+      <Run a={action('remove-worktree')} busy={busy} tone="ghost" onRun={() => run('remove-worktree')} />
+    </div>
+  );
+  // Un worktree (enfant ou robot) reste sur sa branche : Actualiser et Retirer le worktree, rien d'autre.
+  if (view.child) return <>{tools}<div className="vc-pr-hint">{s.worktree}</div></>;
   return (
     <>
-      <div className="vc-br-tools">
-        <Run a={action('fetch')} busy={busy} onRun={() => run('fetch')} />
-        <Run a={action('remove-worktree')} busy={busy} tone="ghost" onRun={() => run('remove-worktree')} />
-      </div>
+      {tools}
       {pr ? (
         <PrCard pr={pr} lang={view.lang} onOpenLink={act.openLink}>
           {pr.body.trim() ? <MarkdownView md={pr.body} t={t} onOpenLink={act.openLink} /> : <span className="vc-pr-nobody">{s.noBody}</span>}

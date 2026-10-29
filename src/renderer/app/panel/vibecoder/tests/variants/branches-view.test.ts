@@ -138,3 +138,18 @@ it('BranchesView : Me demander en relecture, dans Toutes les PR, sur une PR ni d
   await draw3({ ok: false, line: 'Review cannot be requested from pull request author.' });
   expect(page.textContent).toContain('✗ Review cannot be requested from pull request author.');
 });
+
+it('BranchesView : dans un worktree (view.child), Actualiser et Retirer le worktree seulement', async () => {
+  await act(() => {
+    const view = {
+      lang: 'fr', flow: 'review', child: true, loaded: pr, worktree: { state: 'robot', temp: true, dir: '/w' },
+      actions: [a('fetch'), a('remove-worktree'), a('load-pr'), a('switch-branch'), a('new-here'), a('stash')],
+      repo: { branch: 'pr-7', base: 'master', changed: 0 }, prs: { mine: [item(1)], review: [], all: [item(1)] }, branches: ['master', 'pr-7'],
+    } as unknown as VibeView;
+    const acts = { set: (p: unknown) => sets.push(p), run: async (id: string, x: unknown) => { runs.push([id, x]); return true; }, openLink: () => {} };
+    root.render(createElement(BranchesView, { view, t: t('fr'), act: acts, busy: false }));
+  });
+  expect(labels().filter((l) => !l.startsWith('fetch') && !l.startsWith('remove-worktree'))).toEqual([]);
+  expect([page.querySelector('.vc-seg'), page.querySelector('.vc-br-new'), page.querySelector('.vc-br-search')]).toEqual([null, null, null]);
+  expect(page.textContent).toContain('Un worktree reste sur sa branche');
+});
