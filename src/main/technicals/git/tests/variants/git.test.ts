@@ -41,7 +41,8 @@ function repo(base = 'main') {
 
 describe('facts() : la branche et sa copie de travail', () => {
   const dir = repo();
-  const facts = gitReader(gitRun(dir)).facts();
+  // lu une fois, à la collecte, en même temps que tous les fichiers de test : un runner chargé dépasse les 5 s par défaut
+  const facts = gitReader(gitRun(dir, 60_000)).facts();
 
   it('le nom de la branche', async () => {
     expect((await facts)?.branch).toBe('feat/x');
