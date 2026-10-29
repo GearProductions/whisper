@@ -42,7 +42,7 @@ VibeCoder dans le panneau (`docs/tickets/feat/0.8.0-vibecoder.md`) :
 | Module (`src/renderer/`) | Rôle |
 |---|---|
 | `core/vibecoder` | pur : Markdown en blocs (jamais de HTML, liens `http(s)` seuls, I-40), lignes changées (`lineDiff`), coloration du pseudo-code des lectures (`highlight`), ce que cite le *Commenter* de chaque bloc (`blockQuotes`, F-104), les lignes entières d'une sélection (`codeBlock`, F-98), libellés FR et EN |
-| `app/panel/vibecoder/` | l'écran (en-tête, parcours, vues des étapes, leur champ et leurs actions, bannière du mode *Vibe*, conversation, actions lancées, tâches et processus en onglets, barre des skills, barre d'état ; `code-view` : le code d'un fichier, numéroté, coloré, éditable, F-113 ; `module-code` : *Voir le code* d'un module, F-100 ; `note-editor` : la note éditable, F-104 ; `file-draft` : la modification gardée d'un fichier suivi, *Enregistrer*, *Abandonner*, partagée par les trois) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
+| `app/panel/vibecoder/` | l'écran (en-tête, fil d'Ariane des étapes, vues des étapes, leur champ et leurs actions, bannière du mode *Vibe*, conversation, actions lancées, tâches et processus en onglets, barre des skills, barre d'état ; `code-view` : le code d'un fichier, numéroté, coloré, éditable, F-113 ; `module-code` : *Voir le code* d'un module, F-100 ; `note-editor` : la note éditable, F-104 ; `file-draft` : la modification gardée d'un fichier suivi, *Enregistrer*, *Abandonner*, partagée par les trois) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
 | `technicals/codemirror` | les réglages de CodeMirror 6, sans métier : le langage d'un fichier et la coloration (`languageFor`, `codeHighlight`, F-113), le Markdown mis en forme au fil de la frappe, liseré, pastilles et boutons en gouttière (`live-markdown`, F-104) |
 
 Toutes : sans cadre, hors de la barre des tâches, `contextIsolation`,
@@ -470,8 +470,12 @@ Claude Code ; « Nouvelle conversation » sinon), nom et dossier, jauge du
 contexte, *⚙ Tâches (n)* (n en cours ; caché si la conversation n'a jamais
 eu de tâche, F-77), Historique (agrandi), ⤢/⤡, ×.
 
-**F-66 Fil** : messages avec leur heure (date complète au survol) ; texte tel
-quel, liens cliquables, blocs ``` en blocs de code ; pièces jointes de vos
+**F-66 Fil** : messages avec leur heure (date complète au survol) ; ceux de
+l'agent rendus en Markdown (titres, gras, italique, listes, code, liens
+`http(s)` : le Markdown de VibeCoder, F-104, sans *Commenter* ; jamais de
+HTML, I-40), en VibeCoder comme en conversation ; les autres (les vôtres, la
+dictée, sorties de commandes, résumé d'une compaction) en texte tel quel,
+liens cliquables, blocs ``` en blocs de code ; pièces jointes de vos
 messages (aperçus d'images ≤ 800 px, clic : en grand ; fichiers, clic : montrés
 dans le gestionnaire de fichiers ; sélection jointe, à déplier) ; actions de
 l'agent sur une ligne, chemins raccourcis (`/home/…` et `/var/home/…`) ;
@@ -494,12 +498,15 @@ Claude Code ne l'écrive dans sa transcription), Maj+Entrée va à la ligne ;
 il grandit jusqu'à 160 px.
 **Brouillon par conversation**, pièces jointes comprises, gardé quand on
 change d'agent. Agent au travail : on écrit, on n'envoie pas (bouton grisé).
+Dans le cadre du champ, deux petites icônes : la pièce jointe (un trombone,
+F-69) au début, *Envoyer* (une flèche) à la fin, leur libellé en infobulle ;
+*Envoyer* à la couleur de l'agent, sauf en VibeCoder (F-92).
 La dictée vers l'agent s'y ajoute (espace de séparation) et y met le focus,
 sauf quand une autre zone de texte du panneau a le clavier (F-98).
 
 **F-69 Pièces jointes** : glisser-déposer et Ctrl+V (images PNG, JPEG, GIF,
 WebP envoyées en image ; autres fichiers par leur **chemin**, l'agent les lit
-lui-même ; un fichier sans chemin est refusé) ; 📎 → *Images ou fichiers…*
+lui-même ; un fichier sans chemin est refusé) ; le trombone du champ → *Images ou fichiers…*
 (une image choisie part en image) et *Texte sélectionné* (Linux, aperçu dans
 le menu). Images réduites à 1568 px, ≤ 3,75 Mo (PNG, sinon JPEG 85) ;
 ≤ 20 images, ≤ 50 fichiers, sélection ≤ 100 000 caractères. Le message
@@ -603,23 +610,28 @@ conversation des agents qui ne sont pas en VibeCoder ne change pas.
   base comprise, F-101) ; à côté, hors d'eux, **Artefacts** (*Artifacts* en
   anglais), un bouton à part (enfoncé tant que le panneau est ouvert) : un
   autre contexte, ni le parcours de *Créer* ni celui de *Relire* ; un clic
-  ouvre le **panneau des artefacts** (F-95), qui prend la gauche et le
-  centre à la place du parcours et de l'étape (ou de la vue des branches),
-  la colonne de droite gardée ; un nouveau clic, ou le choix d'une étape, le
+  ouvre le **panneau des artefacts** (F-95), qui prend le centre à la place
+  du fil d'Ariane et de l'étape (ou de la vue des branches), la colonne de
+  droite gardée ; un nouveau clic, ou le choix d'une étape, le
   referme ; *FR* / *EN* ; en icônes, *Relever maintenant*, *Revenir
   à la conversation*, *Fermer* (la croix du panneau, F-64) ;
-- à gauche, le **parcours** : les étapes (point plein : faite ; anneau à la
-  couleur de l'agent : en cours, la première non faite ; gris : à venir),
-  leurs faits en une ligne (« 2 fichiers · 5 cas · 3 lus »), le compte des
-  étapes faites ; dessous, les commits de la branche (hash court, sujet ;
-  `fixup!`, `squash!`, `amend!` en couleur d'attention). Le parcours mène :
+- au centre, en tête, le **fil d'Ariane** : les étapes en une ligne,
+  reliées par un trait (point plein : faite ; anneau à la couleur de
+  l'agent, qui pulse : en cours, la première non faite ; gris : à venir),
+  chacune son libellé, ses faits en infobulle (« 2 fichiers · 5 cas · 3
+  lus ») ; trop étroit, il défile à l'horizontale. Au bout, « N commits »
+  déplie sous le fil, par-dessus l'étape, les commits de la branche (hash
+  court, sujet ; `fixup!`, `squash!`, `amend!` en couleur d'attention ; un
+  clic sur l'un : *Voir le diff*, *GitHub* et ses fichiers) ; un nouveau
+  clic les replie ; « aucun commit » : sans clic. Le fil d'Ariane mène :
   un clic (ou Ctrl+1…6) ouvre une étape faite ou celle en cours, pas une
   étape à venir, visible mais sans clic (son état au survol) ; en *Relire*,
   toutes s'ouvrent ;
-- au centre, l'étape choisie — sinon celle en cours, que l'écran suit ; une
-  étape choisie qui ne s'ouvre plus laisse place à celle en cours —, ses
-  actions dans son en-tête (F-93) ; ni onglets des étapes ni carte
-  « prochaine étape » : le parcours dit où l'on en est ;
+- dessous, sur toute la largeur à gauche de la conversation, l'étape
+  choisie — sinon celle en cours, que l'écran suit ; une étape choisie qui
+  ne s'ouvre plus laisse place à celle en cours —, ses actions dans son
+  en-tête (F-93) ; ni onglets des étapes ni carte « prochaine étape » : le
+  fil d'Ariane dit où l'on en est ;
 - à droite, des onglets : **Conversation** (son intitulé ; le message en tête,
   F-74, le fil et ses demandes d'autorisation, le détail du contexte, la
   barre des skills, F-93, le champ, F-68 à F-70 : dictée, brouillon, pièces
@@ -632,11 +644,15 @@ conversation des agents qui ne sont pas en VibeCoder ne change pas.
   (n en cours) : le volet des tâches (F-77) ; **Processus (n)** (F-111) ;
   par-dessus la conversation, qui garde sa place. Préparer un message dans
   le champ de la conversation, ou un message sans étape qui l'exige, revient
-  à l'onglet Conversation ;
+  à l'onglet Conversation. *Envoyer* y a la couleur neutre des autres
+  boutons : la pastille de l'agent suffit ;
 - en bas, la **barre d'état** : modèle, effort, mode de l'agent (des listes,
   comme son menu, F-56, F-57), jauge du contexte (clic : le détail, F-71),
   *⚙ Tâches (n)* (l'onglet Tâches, et retour ; la colonne masquée
-  s'affiche), *⏹ Arrêter* quand la conversation travaille (son tour
+  s'affiche), l'action en cours (un point vert qui clignote et son nom)
+  ou, plusieurs, « N actions en cours » — un clic : l'onglet Actions (la
+  colonne masquée s'affiche) ; aucune : rien ; l'agent au travail n'y
+  compte pas —, *⏹ Arrêter* quand la conversation travaille (son tour
   seulement, pas les courses), fichiers modifiés, heure
   du dernier relevé.
 
@@ -653,8 +669,8 @@ la note et les outils d'une ligne de la Forme n'apparaissent qu'au survol.
 Ci-dessous, un bouton-icône est nommé par son libellé (*Commenter*,
 *Valider*, *À revoir*, *Arrêter*…).
 
-Un seul écran, *Vibe* ou pas : pendant le mode *Vibe* (F-103), le parcours
-et l'étape restent, une **bannière** en tête du centre (« Vibe en cours :
+Un seul écran, *Vibe* ou pas : pendant le mode *Vibe* (F-103), le fil
+d'Ariane et l'étape restent, une **bannière** entre les deux (« Vibe en cours :
 l'agent enchaîne les étapes ; une question qui bloque vous attend à l'étape
 Note », *Arrêter Vibe*). git introuvable, dossier sans
 dépôt : un bandeau le dit au-dessus de l'étape, la conversation reste
@@ -1154,7 +1170,9 @@ conversation ; note `0.9.0-actions-independantes.md`).
    d'attention quand le test n'observe pas vraiment la propriété — avec *Valider*,
    *À revoir* (cite le cas dans le champ), *Commenter*, *Ouvrir*, et *Pseudo-code / Code* : le
    code d'origine du cas à la place du pseudo-code (de sa ligne à celle du cas
-   suivant, monospace, numéroté, coloré : F-113) ; *Tout valider* quand
+   suivant, monospace, numéroté, coloré : F-113) ; un cas validé, discret :
+   ni cadre ni fond, la seule fine bordure verte à gauche, son état par
+   l'icône *Validé* ; *Tout valider* quand
    aucun cas n'a de point d'attention, le fichier lu ou pas ; *Voir le
    fichier* (replié : tout son code, numéroté ; un test qui existait à la
    base de la branche et qu'elle modifie : un sélecteur *Fichier* · *Diff
@@ -1576,7 +1594,7 @@ lance ni `note` ni `answers`, ne tranche jamais *Garder* / *Annuler* (c'est
 à l'utilisateur). Jamais : `git push --force`, fusionner la PR, publier une
 version officielle, supprimer une version, un tag ou une branche.
 
-**F-104 Markdown** (la note, les sorties) : titres, paragraphes, listes et
+**F-104 Markdown** (la note, les sorties, les messages de l'agent, F-66) : titres, paragraphes, listes et
 cases à cocher, citations, code, tableaux, filets ; en ligne : code, gras,
 italique, liens. Jamais de HTML : une balise reste du texte ; un lien n'est
 un lien qu'en `http(s)`, ouvert dans le navigateur (I-40, I-21). Un *Commenter* au
@@ -1925,7 +1943,7 @@ travaille) sont relus à chaque relevé. S'y ajoutent les variantes générées 
 skills (F-106), réécrites à chaque fois.
 
 **F-108 FR / EN** (`vibeLang`, pour tout VibeCoder) : la langue de l'écran
-(libellés, faits du parcours, raisons et erreurs), des actions
+(libellés, faits des étapes, raisons et erreurs), des actions
 (`actions.<langue>.json` : libellés, aides, messages envoyés) et de ce que
 les skills écrivent pour l'utilisateur (`{{lang}}`) : la note, les questions
 ouvertes, le plan de test à l'écran, la relecture de la note, les releases.
@@ -2290,7 +2308,8 @@ bancs de comparaison.
   n'exécute aucun script et ne joint pas le réseau (F-95). Un push autre que *Pousser*, un rebase autre que *Rebase*, checkout, ouvrir une PR, et le *via* des actions
   directes passent par l'agent, dans la conversation, avec ses autorisations.
 - **I-40** Aucun HTML rendu depuis un texte (note, rendue ou en édition,
-  sortie d'un skill, code d'un fichier, F-113, éditable ou non, son diff en
+  sortie d'un skill, message de l'agent dans le fil de la conversation,
+  F-66, en VibeCoder comme en conversation, code d'un fichier, F-113, éditable ou non, son diff en
   ligne ou côte à côte : une balise
   tapée ou écrite dans le fichier reste du texte) : le
   Markdown de VibeCoder ne produit que du texte, du code et des liens
@@ -2449,7 +2468,7 @@ Copier, erreurs ; mêmes relevés).
 - **S-27** Historique : ouvrir une ancienne conversation (lecture seule, pas de
   champ), *Reprendre*, *← Conversation en cours*.
 - **S-28** Pièces jointes : capture collée, image et fichier déposés, image
-  choisie par 📎, texte sélectionné ; l'agent les reçoit ; le fil les montre.
+  choisie par le trombone du champ, texte sélectionné ; l'agent les reçoit ; le fil les montre.
 - **S-29** « /comp » → /compact proposé, Entrée le choisit, le message part ;
   la jauge attend une nouvelle mesure. Deux agents de même nom dans deux
   dossiers : chacun ses commandes.
@@ -2498,8 +2517,8 @@ Copier, erreurs ; mêmes relevés).
 **VibeCoder** (un agent dans un dépôt d'essai qui a `docs/tickets/` ; pour
 *Relire*, une PR d'essai sur GitHub)
 - **S-50** Clic droit sur un robot → *◧ Ouvrir VibeCoder* : panneau agrandi
-  (1280×820 la première fois), en-tête (nom, `⎇` branche), parcours à
-  gauche, étape en cours au centre, conversation à droite. Redimensionner :
+  (1280×820 la première fois), en-tête (nom, `⎇` branche), au centre le
+  fil d'Ariane au-dessus de l'étape en cours, conversation à droite. Redimensionner :
   taille retenue, celle de la conversation (`convSize`) inchangée. Barre
   d'état : changer modèle, effort, mode → le menu du robot les montre ;
   pastille *✦ Fable · élevé* de l'étape Note → Fable, effort élevé. Un
@@ -2533,7 +2552,7 @@ Copier, erreurs ; mêmes relevés).
   champ → deux remarques au brouillon ; en retirer une. Brouillon vide :
   *Publier la revue* grisé. *Publier la revue* (commenter) : la revue paraît
   sur la PR d'essai, telle quelle ; l'étape Revue est faite.
-- **S-55** *EN* : l'écran, les boutons, les faits du parcours en anglais ;
+- **S-55** *EN* : l'écran, les boutons, les faits des étapes en anglais ;
   une action part en anglais (`/vibecoder:… en …`), l'agent répond en
   anglais ; le fil et le champ restent en français ; un autre agent en
   VibeCoder aussi en anglais. *FR* : retour.
@@ -2668,7 +2687,7 @@ Copier, erreurs ; mêmes relevés).
   *Vibe* → elle repart sans lui.
 - **S-70** Le parcours guidé, *Créer*, une branche sans note : en-tête sans
   bascule de mode, pas de *Vibe* dans la rangée (ni en *Relire*) ; pas
-  d'onglets d'étapes ; le parcours n'ouvre que la Note, les autres étapes
+  d'onglets d'étapes ; le fil d'Ariane n'ouvre que la Note, les autres étapes
   visibles sans clic, Ctrl+3 ne fait rien. Plus loin : ni *Vérifier
   l'alignement* ni *Ponytail review* ; *✓ Commiter* seulement un commit
   préparé ; l'étape PR sans PR : *Valider la feature* seule ; la PR ouverte :
@@ -2700,8 +2719,6 @@ Copier, erreurs ; mêmes relevés).
 - Un processus Claude Code par agent utilisé depuis le lancement (quelques
   centaines de Mo chacun), jusqu'à *Nouvelle session*, *Retirer* ou la sortie ;
   et un par course de VibeCoder en cours ou arrêtée (F-115).
-- Réponses en texte brut dans le fil (Markdown non rendu, sauf blocs de code
-  et liens ; VibeCoder rend celui de la note et des sorties, F-104).
 - Les tâches de fond d'un lancement précédent de l'appli ne sont pas
   montrées (le volet lit le flux du processus, pas la transcription).
 - Le renommage d'un agent et la commande de lancement passent par
@@ -2737,7 +2754,7 @@ Copier, erreurs ; mêmes relevés).
 - VibeCoder : seuls ses libellés passent en anglais ; la conversation (fil,
   champ, volet des tâches, détail du contexte), les menus et les messages de
   l'appli restent en français.
-- VibeCoder : les images d'un Markdown ne sont pas montrées (leur texte
+- VibeCoder : les images d'un Markdown (un message de l'agent aussi, F-66) ne sont pas montrées (leur texte
   reste, en lien s'il est en `http(s)`) ; pas d'🕘 Historique (revenir à la
   conversation) ; une revue de PR est un commentaire d'ensemble, pas de
   commentaire sur une ligne du diff.

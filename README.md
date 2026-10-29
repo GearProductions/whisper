@@ -226,7 +226,9 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
     Redimensionnable par ses bords (la taille est retenue).
 
   **×** le ferme. Chaque conversation porte son **intitulé** (celui que lui
-  donne Claude Code) ; chaque message, son **heure**. Pendant que l'agent
+  donne Claude Code) ; chaque message, son **heure** ; les réponses de
+  l'agent sont mises en forme (Markdown : titres, gras, listes, code, liens),
+  vos messages restent tels que vous les avez écrits. Pendant que l'agent
   travaille, le fil le suit et l'anime (avec le temps écoulé). Les **liens**
   s'ouvrent dans le navigateur. Les **pièces jointes** de vos messages se
   voient : aperçu des images (clic : en grand), fichiers (clic : montrés dans
@@ -237,7 +239,8 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   **Maj+Entrée** va à la ligne ; un brouillon par agent). Sans parler (micro indisponible, lieu calme) : clic droit sur le
   robot → *✎ Écrire un message…*. **Pièces jointes** : glisser-déposer ou
   **Ctrl+V** (images envoyées à Claude — réduites au-delà de 1568 px —, autres
-  fichiers par leur chemin, que l'agent lit lui-même) ; **📎** : choisir des
+  fichiers par leur chemin, que l'agent lit lui-même) ; le **trombone**, au
+  début du champ (la flèche *Envoyer* est à sa fin) : choisir des
   images ou fichiers, ou joindre le **texte sélectionné** (Linux, aperçu dans le
   menu ; sous Windows, collez-le dans le champ). Pendant que l'agent travaille,
   on écrit mais on n'envoie pas. *Agents Claude Code* → *Relire avant
@@ -405,24 +408,27 @@ conversation reste utilisable.
   *Créer* / *Relire* ; **Artefacts**, à part (plus bas) ; *FR* / *EN* ; en
   icônes, *Relever maintenant* (relire le dépôt tout de suite), *Revenir à la
   conversation*, *Fermer* ;
-- à gauche, le **parcours** : les étapes (point plein : faite ; anneau : en
-  cours ; gris : à venir), chacune avec ses faits en une ligne, puis les
-  commits de la branche. Il mène : un clic (ou Ctrl+1…6) ouvre une étape
-  faite, pour revenir en arrière, ou celle en cours ; une étape à venir
-  reste visible, sans clic (en *Relire*, toutes s'ouvrent) ;
-- au centre, l'étape choisie — la note du ticket, ce
+- au centre, en tête, le **fil d'Ariane** : les étapes en une ligne (point
+  plein : faite ; anneau qui pulse : en cours ; gris : à venir), leurs faits
+  au survol ; au bout, « N commits » déplie les commits de la branche. Il
+  mène : un clic (ou Ctrl+1…6) ouvre une étape faite, pour revenir en
+  arrière, ou celle en cours ; une étape à venir reste visible, sans clic
+  (en *Relire*, toutes s'ouvrent) ;
+- dessous, sur toute la largeur, l'étape choisie — la note du ticket, ce
   que les skills ont produit —, sous son titre son **champ** (quand une de
   ses actions prend un texte) et ses actions (à l'étape en cours, en tête :
   *Vibe* en *Créer*, puis celle qui fait avancer l'étape, discrètement mise
   en avant) ; pendant *Vibe*, une bannière au-dessus ; chaque carte produite par
   un skill a son *Relancer* ;
 - à droite, quatre onglets : la **conversation** de l'agent, comme d'habitude
-  (fil, autorisations, champ, dictée, commandes « / » ; au-dessus du champ,
+  (fil, autorisations, champ, dictée, commandes « / » ; *Envoyer* sans la
+  couleur de l'agent, sa pastille suffit ; au-dessus du champ,
   *Demander sans modifier* : il répond sans rien toucher), les **Actions**
   lancées, ses **Tâches** de fond et les **Processus** du projet (le nombre
   en cours dans l'onglet) ;
 - en bas : modèle, effort et mode de l'agent (comme dans son menu), jauge du
-  contexte, *⚙ Tâches* (l'onglet), *⏹ Arrêter* quand la conversation
+  contexte, *⚙ Tâches* (l'onglet), l'action en cours ou « N actions en
+  cours » (un clic : l'onglet *Actions*), *⏹ Arrêter* quand la conversation
   travaille, fichiers modifiés, heure du dernier relevé.
 
 L'écran se lit sur le dépôt, sans modèle : la branche, ses commits et ses
@@ -487,8 +493,8 @@ une présentation, un wireframe, un document externe, un fichier de
 conception : preuve de concept ou autre — : il le crée en **artefact**, de
 lui-même (skill `/vibecoder:artefact`, sans bouton), dans
 `vibecoder-out/<agent>/artifacts/`, les mêmes pour toutes ses branches. Le
-bouton *Artefacts* de l'en-tête ouvre leur panneau à la place du parcours et
-de l'étape : la liste à gauche, au centre celui que vous choisissez. Image,
+bouton *Artefacts* de l'en-tête ouvre leur panneau à la place du fil d'Ariane
+et de l'étape : la liste à gauche, au centre celui que vous choisissez. Image,
 PDF, son, vidéo, page HTML ou SVG s'affichent tels quels (une page sans
 script ni réseau) ; le reste en texte, un binaire compris, coupé au-delà de
 10 Mo (`artifactTextMax`) — *Ouvrir dans l'éditeur* montre la suite. *Copier
