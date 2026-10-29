@@ -34,7 +34,7 @@ import type { RunSignal, SendResult, VibeRunOp, VibeView } from 'shared/bridge';
 import { shortTarget, type AgentConfig } from 'core/agents';
 import { agentList, vibeLang, type Config } from 'core/config';
 import {
-  blockedBy, endNotice, forkedModel, GRACE_MS, headField, LOCKING, nextVibeMode, ownRun, parseQuestions, parseRequest, requestNotice, runKey,
+  blockedBy, endNotice, GRACE_MS, headField, LOCKING, nextVibeMode, ownRun, parseQuestions, parseRequest, requestNotice, runKey, skillModel,
   runPhase, runsFile, runSignal, type ActionDef, type Run, type RunState, type VibeMode,
 } from 'core/vibecoder';
 import { loadConfig, vibeActions, vibeOutDir, vibePluginDir } from 'app/settings';
@@ -129,7 +129,7 @@ export function startRun(agent: AgentConfig, def: ActionDef, message: string, cf
   const md = skillMd(message);
   const entry: AgentConfig = {
     ...agent, id: entryId(agent.id, key), name: `${agent.name} ~ ${def.id}`, sessionId: run.sessionId,
-    model: forkedModel(md) ?? agent.model, effort: headField(md, 'effort') || agent.effort,
+    model: skillModel(md) ?? agent.model, effort: headField(md, 'effort') || agent.effort,
   };
   // Un processus neuf par course : rewind ramène au premier message de CELLE-CI.
   // Ses tâches de fond oubliées : celles d'une course précédente, tuée en route, la tiendraient en cours.

@@ -109,8 +109,8 @@
     "kind": "send",
     "needs": "none",
     "label": "✓ Approve → commit → next",
-    "hint": "Commits the reviewed module, then generates the next one.",
-    "text": "/vibecoder:suivant {{lang}} {{out}} {{module}}"
+    "hint": "Commits the reviewed module, then starts Generate this module on the next one, in a second run.",
+    "text": "/vibecoder:suivant {{lang}} {{out}}"
   },
   {
     "id": "modules",
@@ -119,7 +119,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Generate the remaining modules",
-    "hint": "The agent hands the remaining modules to Opus agents in parallel and reviews each diff; does not commit; long and costly.",
+    "hint": "The agent hands the remaining modules to Sonnet agents in parallel and reviews each diff; does not commit; long and costly.",
     "text": "/vibecoder:modules {{lang}} {{out}}"
   },
   {
@@ -173,7 +173,7 @@
     "needs": "none",
     "label": "Apply the review",
     "hint": "The agent applies the review remarks it judges right (all of them, or the one of Apply), each as a fixup of the commit concerned, and says which ones it discards.",
-    "text": "Apply the remarks of {{out}}/ponytail.md that you judge right, each as a fixup of the commit that owns the code (/gear-fix-up if it exists), adding nothing else; say which ones you discard and why. Then write {{out}}/ponytail-applied.json: {\"applied\":[\"<file>:L<line>\", …]}, the address heading each applied remark, plus those it already holds if it is newer than ponytail.md. Only this one (empty: all of them): {{text}}"
+    "text": "/vibecoder:appliquer-revue {{lang}} {{out}} {{text}}"
   },
   {
     "id": "fixups",

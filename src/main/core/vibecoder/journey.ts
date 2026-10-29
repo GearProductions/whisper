@@ -92,7 +92,7 @@ export type JourneyInput = {
   actions: ActionDef[];
   direct?: Record<string, NonNullable<VibeAction['direct']>>;   // par id de DIRECT_ACTIONS : en cours, dernier résultat (F-114)
   who: Record<string, string>;                      // par id d'action : qui travaille
-  model: Record<string, string | null>;             // par id d'action : le modèle de son skill en sous-contexte (forkedModel)
+  model: Record<string, string | null>;             // par id d'action : le modèle que fixe son skill (skillModel)
   skills: string[];
   exists: (rel: string) => boolean;
   // Les fichiers d'un dossier et de ses sous-dossiers, relatifs au dépôt (un fichier : lui-même). Absent : aucun

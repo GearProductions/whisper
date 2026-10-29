@@ -23,7 +23,7 @@ const SKILL = ['---', 'name: relire', 'description: "Review a diff."', 'argument
   'disable-model-invocation: true', 'context: fork', 'model: opus', 'effort: high', 'allowed-tools: "Read, Bash(git show *)"',
   '---', '', '# relire', ''].join('\n');
 
-describe('skillVariants : un skill en sous-contexte, sur un autre modèle', () => {
+describe('skillVariants : un skill qui fixe son modèle, sur un autre', () => {
   const variants = skillVariants('relire', SKILL);
 
   it('une variante par autre modèle, à côté du skill', () => {
@@ -32,7 +32,7 @@ describe('skillVariants : un skill en sous-contexte, sur un autre modèle', () =
 
   it('le même en-tête, son modèle et son effort par défaut, un corps qui renvoie au skill', () => {
     expect(variants[0].content).toBe(['---', 'name: relire--haiku', 'description: "Review a diff."', 'argument-hint: "<lang> <out> <commit>"',
-      'disable-model-invocation: true', 'allowed-tools: "Read, Bash(git show *)"', 'context: fork', 'model: haiku', 'effort: low', '---', '',
+      'disable-model-invocation: true', 'context: fork', 'allowed-tools: "Read, Bash(git show *)"', 'model: haiku', 'effort: low', '---', '',
       'Follow exactly the instructions of `${CLAUDE_SKILL_DIR}/../relire/SKILL.md` with these arguments: $ARGUMENTS', ''].join('\n'));
   });
 
@@ -40,8 +40,14 @@ describe('skillVariants : un skill en sous-contexte, sur un autre modèle', () =
     expect(variants[1].content).toContain('\nmodel: sonnet\neffort: medium\n');
   });
 
-  it('un skill dans la conversation (sans context: fork) : aucune', () => {
-    expect(skillVariants('note', SKILL.replace('context: fork\n', ''))).toEqual([]);
+  it('un skill dans la conversation (sans context: fork) : ses variantes, sans context: fork', () => {
+    const inline = skillVariants('modules', SKILL.replace('context: fork\n', ''));
+    expect(inline).toHaveLength(2);
+    expect(inline.every((v) => !v.content.includes('context:'))).toBe(true);
+  });
+
+  it('un skill sans modèle (celui de l\'agent) : aucune', () => {
+    expect(skillVariants('note', SKILL.replace('model: opus\n', ''))).toEqual([]);
   });
 
   it('une variante n\'a pas de variante', () => {

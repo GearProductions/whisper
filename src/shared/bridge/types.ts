@@ -314,7 +314,7 @@ export type VibeAction = {
   label: string;
   hint: string;
   who: string;                 // qui travaille : 'haiku', 'sonnet', 'opus · élevé', 'agent'
-  models: string[];            // sous-contexte : les modèles qu'on peut lui choisir ('haiku', 'sonnet', 'opus') ; [] : modèle de l'agent
+  models: string[];            // un skill qui fixe son modèle : les modèles qu'on peut lui choisir ('haiku', 'sonnet', 'opus') ; [] : modèle de l'agent
   model: string | null;        // le modèle conseillé (celui du skill) ; null : modèle de l'agent
   kind: 'send' | 'prefill';    // envoyé aussitôt, ou préparé dans le champ
   needs: 'none' | 'text';      // 'text' : il exige le texte du champ
@@ -421,7 +421,7 @@ export type VibeArgs = {
   pr?: number;
   answers?: string[];          // réponses aux questions, dans leur ordre
   verdict?: 'approve' | 'comment' | 'request-changes';
-  model?: string;              // sous-contexte : un autre modèle que le conseillé, parmi VibeAction.models
+  model?: string;              // un skill qui fixe son modèle : un autre modèle que le conseillé, parmi VibeAction.models
   direct?: boolean;            // VibeAction.direct : l'appli la fait elle-même, sans agent (F-114)
   branch?: string;             // switch-branch : une branche de VibeView.branches ; new-here, new-worktree : le nom saisi
   start?: string;              // le départ d'une branche créée

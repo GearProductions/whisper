@@ -448,7 +448,7 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 .vc-cbox-foot { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
 .vc-cbox-hint { margin-left: auto; color: var(--vc-faint); font-size: 11.5px; }
 
-/* Le choix du modèle d'une action en sous-contexte : une petite liste à côté de son bouton. */
+/* Le choix du modèle d'une action dont le skill fixe son modèle : une petite liste à côté de son bouton. */
 .vc-run-group { display: inline-flex; align-items: center; gap: 2px; flex: none; }
 .vc-model {
   position: relative;

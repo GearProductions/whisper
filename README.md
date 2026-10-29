@@ -539,9 +539,14 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    l'étape passe quand *Écrire les invariants* ou *Vérifier l'alignement*
    a fini, ou par *✓ Rien à écrire* (à revalider si la note change ;
    pendant *Vibe* aussi).
-4. **Modules** : *Générer ce module* (avec `ponytail`, tests lancés, sans
-   commit), *Relire le diff*, *✓ Valider → commit → suivant* ; ou *Générer
-   les modules restants* (en parallèle, chacun relu, sans commit). Générer
+4. **Modules** : *Générer ce module* (avec `ponytail`, typecheck et tests du
+   module lancés, sans commit), *Relire le diff*, *✓ Valider → commit →
+   suivant* (commite le module, puis génère le suivant dans une seconde
+   course ; un commit refusé, par un hook par exemple, n'en génère aucun) ;
+   ou *Générer les modules restants* (des agents Sonnet en parallèle, chaque
+   diff relu : un défaut est corrigé ou renvoyé au même agent, relancé sur
+   Opus au second échec ; toute la suite des tests une fois par vague ; sans
+   commit). Générer
    et commiter sont deux gestes : *Commiter* sur un module modifié, ou
    *Commiter les modules* (un commit par module, un fixup pour un module
    déjà commité) ; vous pouvez donc retoucher le code entre les deux. Les
@@ -793,7 +798,7 @@ n'attend vos ✓, et les étapes qu'il passe les gardent. En deux temps :
    et sa CI au vert (*Release candidate* reste à vous, à l'étape PR) en
    **enchaînant lui-même les actions de
    l'écran** — les mêmes que vous lanceriez, visibles et arrêtables dans
-   l'onglet *Actions* (modules confiés à des agents Opus en parallèle, puis
+   l'onglet *Actions* (modules confiés à des agents Sonnet en parallèle, puis
    commités) —, ne choisit jamais *Garder* / *Annuler* à votre place. Une
    question qui bloque vous attend à l'étape Note, sans arrêter *Vibe* :
    vos réponses envoyées, il reprend seul. Il ne fusionne pas la PR et ne
@@ -809,21 +814,57 @@ Ce qui se suffit à soi-même tourne à part, sans relire la conversation : son
 prix ne dépend pas de la longueur de celle-ci (≈ 0,02 $ sur Haiku : lister ou
 charger une PR, lancer les vérifications, commiter, publier une revue,
 nommer la branche d'une nouvelle demande, proposer les commandes).
-Sonnet prépare un commit, commite les modules, ouvre la PR, replie les fixups, diagnostique la CI,
-écrit le plan de test, lit les invariants en pseudo-code (une lecture n'est
-refaite que si le test change). Opus, effort élevé, écrit les invariants,
-génère un module, relit un diff, une note ou des commits, vérifie
-l'alignement, fait la ponytail review. Sur le modèle de l'agent, chacune
-dans sa conversation : la note, la forme, les réponses aux questions,
-*Appliquer la revue*, *Générer les modules restants*, les releases ; dans
-la conversation : *Vibe* — ce dernier, *Générer les modules
-restants* et les releases, longs et coûteux. Pour une étape qui tourne à
-part, vous pouvez choisir un modèle plus léger (ou plus fort) que le conseillé,
-le temps d'un clic : VibeCoder génère pour cela une variante de chaque skill
-(`<nom>--haiku`, `--sonnet`, `--opus`). VibeCoder ne passe jamais un
+Sonnet écrit le code : il génère un module (seul, ou chacun de ceux de
+*Générer les modules restants*), applique la revue, commite le module puis
+lance le suivant (*Valider → commit → suivant*), publie les releases ; il
+prépare aussi un commit, commite les modules, ouvre la PR, replie les
+fixups, diagnostique la CI, écrit le plan de test, lit les invariants en
+pseudo-code (une lecture n'est refaite que si le test change). Opus, effort
+élevé, juge : il écrit les invariants, relit un diff, une note ou des
+commits, vérifie l'alignement, fait la ponytail review, et orchestre
+*Générer les modules restants* (il relit chaque diff, renvoie une
+correction au même agent Sonnet, et ne relance un module sur Opus qu'au
+second échec). Sur le modèle de l'agent, chacune dans sa conversation : la
+note, la forme et les réponses aux questions (qui reprennent la
+conversation de la note, et son cache) ; dans la conversation de l'agent :
+*Vibe*, *Demander sans modifier*, *Où j'en suis ?* — *Vibe*, *Générer les
+modules restants* et les releases sont longs et coûteux. Pour une étape qui
+tourne à part, vous pouvez choisir un modèle plus léger (ou plus fort) que
+le conseillé, le temps d'un clic : VibeCoder génère pour cela une variante
+de chaque skill qui fixe son modèle (`<nom>--haiku`, `--sonnet`, `--opus`).
+*Vibe* tourne dans la conversation de l'agent : pour le passer sur Sonnet,
+passez l'agent sur Sonnet (menu du robot ou barre d'état) avant de lancer
+*Vibe*. VibeCoder ne passe jamais un
 agent sur Fable de lui-même : vous seul le faites (menu du robot, barre
 d'état, ou la pastille *✦ Fable · élevé* des étapes Note et Forme, pour les
 rédiger avec le plus de soin — plus cher).
+
+**Mesurer le coût d'un ticket.** Claude Code journalise chaque session dans
+`~/.claude/projects/<dossier>/<session>.jsonl` (`<dossier>` : le chemin du
+projet, chaque `/` et `.` changé en `-` ; un même projet peut en avoir deux,
+`-home-…` et `-var-home-…`), et chaque sous-agent ou skill en sous-contexte
+(`context: fork`) dans `<session>/subagents/*.jsonl`. Dans la box `dev`, ce
+`node -e` fait la somme des jetons (`message.usage` : entrée, cache écrit,
+cache lu, sortie) par modèle, sur les sessions du dossier passées par la
+branche du ticket (sans branche : toutes), d'un côté les sessions, de
+l'autre leurs `subagents/` :
+
+```bash
+node -e '
+const fs=require("fs"),p=require("path"),[dir,branch]=process.argv.slice(1),t={},vus=new Set();
+const lire=(f,part)=>{for(const l of fs.readFileSync(f,"utf8").split("\n")){let m;try{m=JSON.parse(l).message}catch{continue}
+  if(!m?.usage||vus.has(m.id))continue;vus.add(m.id);const u=m.usage,s=t[part+" "+m.model]??={entrée:0,"cache écrit":0,"cache lu":0,sortie:0};
+  s.entrée+=u.input_tokens;s["cache écrit"]+=u.cache_creation_input_tokens??0;s["cache lu"]+=u.cache_read_input_tokens??0;s.sortie+=u.output_tokens}};
+for(const f of fs.readdirSync(dir).filter(f=>f.endsWith(".jsonl"))){const g=p.join(dir,f),sub=p.join(dir,f.slice(0,-6),"subagents");
+  if(branch&&!fs.readFileSync(g,"utf8").includes(`"gitBranch":"${branch}"`))continue;lire(g,"session");
+  if(fs.existsSync(sub))for(const h of fs.readdirSync(sub).filter(h=>h.endsWith(".jsonl")))lire(p.join(sub,h),"subagents")}
+console.table(t)' ~/.claude/projects/<dossier> <branche>
+```
+
+Un message est compté une fois (le journal le répète, une ligne par bloc).
+Multipliez chaque colonne par le tarif du modèle pour un prix. Une course
+dont le skill tourne en sous-contexte n'a de jetons que dans ses
+`subagents/` : son processus n'appelle pas le modèle lui-même.
 
 **Les skills.** Les boutons s'appuient sur un plugin, `vibecoder`, que l'appli
 donne à Claude Code : ses skills (`/vibecoder:note`, `/vibecoder:relire`…)

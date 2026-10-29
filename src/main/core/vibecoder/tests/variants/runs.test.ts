@@ -138,13 +138,13 @@ describe('runModule : le module que génère une course', () => {
   const mod = (path: string, touched: boolean) => ({ path, contract: '', file: null, touched, commits: [] });
   const MODS = [mod('a', true), mod('b', false), mod('c', false)];
 
-  it('module, next : le rang donné, sinon le premier pas touché ; un rang inconnu → null', () => {
-    expect([runModule('module', { module: 2 }, MODS), runModule('next', {}, MODS), runModule('module', { module: 9 }, MODS)])
+  it('module : le rang donné, sinon le premier pas touché ; un rang inconnu → null', () => {
+    expect([runModule('module', { module: 2 }, MODS), runModule('module', {}, MODS), runModule('module', { module: 9 }, MODS)])
       .toEqual(['c', 'b', null]);
   });
 
   it('modules → * ; une autre action → null ; tout touché → null', () => {
-    expect([runModule('modules', {}, MODS), runModule('forme', { module: 1 }, MODS), runModule('next', {}, [mod('a', true)])])
+    expect([runModule('modules', {}, MODS), runModule('forme', { module: 1 }, MODS), runModule('module', {}, [mod('a', true)])])
       .toEqual(['*', null, null]);
   });
 });

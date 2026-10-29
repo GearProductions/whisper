@@ -198,20 +198,28 @@ allowed-tools: "Read, Glob, Grep, Write, Bash(git show *)"
 
 Modifiez les lignes `model:` et `effort:` de son en-tête. Le bouton affiche qui
 travaille d'après elles (« haiku », « opus · élevé »… ou « agent » sans
-`model`). Un skill qui tourne dans la conversation (sans `context: fork`) reste
-sans `model` : changer de modèle en cours de conversation en perd le cache.
+`model`). Un bouton d'étape part dans sa propre course, qui prend ce modèle et
+cet effort, que le skill ait `context: fork` ou non. Un skill envoyé à la
+conversation de l'agent (`vibe`, `actions`, `processus`…) garde le modèle de
+l'agent : changer de modèle en cours de conversation en perd le cache. `note`
+et `forme` restent sans `model` : *Envoyer les réponses* reprend la
+conversation de la note.
 
 ### Un modèle plus léger (ou plus fort) pour une étape
 
-Un bouton dont le skill tourne en sous-contexte (`context: fork`, sur `haiku`,
-`sonnet` ou `opus`) propose de choisir son modèle, le conseillé (celui de
-l'en-tête) d'abord. Pour cela, VibeCoder écrit à chaque démarrage, à côté de
-chaque tel skill `<nom>`, une variante par autre modèle :
-`plugin/skills/<nom>--<modèle>/SKILL.md` — même en-tête, ce modèle, son effort
-par défaut (haiku `low`, sonnet `medium`, opus `high`), et un corps qui suit
-`<nom>/SKILL.md`. Ces variantes sont **générées** : réécrites à chaque
-démarrage, ne les modifiez pas (modifiez le skill lui-même) ; les noms finissant
-par `--haiku`, `--sonnet` ou `--opus` leur sont réservés. Jamais Fable.
+Un bouton dont le skill fixe son modèle (`haiku`, `sonnet` ou `opus`) propose
+d'en choisir un autre, le conseillé (celui de l'en-tête) d'abord, s'il part
+dans sa propre course (un bouton d'étape) ou si le skill tourne en
+sous-contexte (`context: fork`) ; envoyé sans sous-contexte à la conversation
+de l'agent, il garde le modèle de l'agent. Pour cela, VibeCoder écrit à chaque
+démarrage, à côté de chaque skill `<nom>` qui fixe son modèle, avec ou sans
+`context: fork`, une variante par autre modèle :
+`plugin/skills/<nom>--<modèle>/SKILL.md` — même en-tête (`context: fork`
+seulement si le skill l'a : `modules--sonnet` lance encore ses sous-agents),
+ce modèle, son effort par défaut (haiku `low`, sonnet `medium`, opus
+`high`), et un corps qui suit `<nom>/SKILL.md`. Ces variantes sont
+**générées** : réécrites à chaque démarrage, ne les modifiez pas (modifiez le
+skill lui-même) ; les noms finissant par `--haiku`, `--sonnet` ou `--opus` leur sont réservés. Jamais Fable.
 
 ### Langue
 
@@ -237,21 +245,22 @@ sinon.
 | `invariants` | sous-contexte | opus · high | `align.md` (suit `aligner`) |
 | `lire-invariants` | sous-contexte | sonnet · medium | `invariants/<blob>.md` |
 | `aligner` | sous-contexte | opus · high | `align.md` |
-| `module` | sous-contexte | opus · high | — |
-| `suivant` | sous-contexte | opus · high | — (commite comme `commiter-modules`) |
-| `modules` | conversation | agent, sous-agents opus | — (ne commite pas) |
+| `module` | sous-contexte | sonnet · high | — |
+| `suivant` | sous-contexte | sonnet · medium | `actions/module.start` (commite comme `commiter-modules`, puis, le commit fait, demande *Générer ce module* dans une seconde course) |
+| `modules` | conversation | opus · high, sous-agents `developpeur` sonnet · high (opus au second échec) | — (ne commite pas) |
 | `commiter-modules` | sous-contexte | sonnet · medium | — (un module, ou tous ceux qui ont des changements : un commit chacun, un fixup pour un module déjà commité) |
 | `relire` | sous-contexte | opus · high | `review.md` |
 | `commit-preparer` | sous-contexte | sonnet · low | `commit.md` |
 | `commit` | sous-contexte | haiku · low | (supprime `commit.md`) |
 | `verifier` | sous-contexte | haiku · low | `actions/ponytail.start` (toutes les vérifications seulement), `checks.json` |
 | `ponytail` | sous-contexte | opus · high | `ponytail.md` |
+| `appliquer-revue` | conversation | sonnet · high | `ponytail-applied.json` |
 | `fixups` | sous-contexte | sonnet · medium | — |
 | `pr` | sous-contexte | sonnet · medium | `pr.json` |
 | `ci` | sous-contexte | sonnet · medium | `ci.md` |
 | `base` | sous-contexte | haiku · low | — |
-| `rc` | conversation | agent | — |
-| `release` | conversation | agent | — |
+| `rc` | conversation | sonnet · medium | — |
+| `release` | conversation | sonnet · medium | — |
 | `charger-pr` | sous-contexte | haiku · low | `pr-<n>.json` |
 | `relire-note` | sous-contexte | opus · high | `pr-<n>-note.md` |
 | `relire-commits` | sous-contexte | opus · high | `pr-<n>-commits.md` |
@@ -276,7 +285,7 @@ précède le départ de la course de vérifications (ou sans `time`) est ignoré
 appli relancée, sans course connue, il compte.
 
 `ponytail-applied.json` : `{"applied":["<fichier>:L<ligne>",…]}`, écrit par
-*Appliquer la revue* (`apply`, sans skill) : les remarques de `ponytail.md`
+*Appliquer la revue* (`apply`, skill `appliquer-revue`) : les remarques de `ponytail.md`
 appliquées, marquées ✓ à l'écran ; plus vieux que `ponytail.md`, ignoré.
 
 ## Le fichier du projet : `.vibecoder/project.json`
