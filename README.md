@@ -389,7 +389,7 @@ bon message, avec le bon skill et le bon modèle. Deux usages : **Créer** une
 feature sur la branche du dossier de l'agent, ou **Relire** une PR du dépôt.
 
 **Ouvrir.** Clic droit sur un robot → *Ouvrir VibeCoder* ; pour revenir,
-*Ouvrir la conversation* (même menu, ou 💬 en haut de l'écran) : les deux
+*Ouvrir la conversation* (même menu, ou *Revenir à la conversation* en haut de l'écran) : les deux
 sont toujours proposés, panneau ouvert ou fermé. Le choix
 est retenu pour chaque agent : l'un peut rester en VibeCoder, l'autre en
 conversation ; cliquer un robot montre sa vue. Le panneau s'agrandit
@@ -402,8 +402,9 @@ conversation reste utilisable.
 
 - en haut : l'agent et sa branche — un bouton, qui ouvre (et referme) la
   **vue des branches**, plus bas — avec *Pull* et *Rebase* à côté ;
-  *Créer* / *Relire* ; **Artefacts**, à part (plus bas) ; *FR* / *EN* ; ↻
-  (relire le dépôt tout de suite) ; 💬 ; × ;
+  *Créer* / *Relire* ; **Artefacts**, à part (plus bas) ; *FR* / *EN* ; en
+  icônes, *Relever maintenant* (relire le dépôt tout de suite), *Revenir à la
+  conversation*, *Fermer* ;
 - à gauche, le **parcours** : les étapes (point plein : faite ; anneau : en
   cours ; gris : à venir), chacune avec ses faits en une ligne, puis les
   commits de la branche. Il mène : un clic (ou Ctrl+1…6) ouvre une étape
@@ -444,12 +445,12 @@ zone de texte qui a le clavier — le champ d'une étape, un commentaire de
 champ d'une ligne —, à la place de la sélection, sans dépasser sa longueur
 (pleine : rien n'est ajouté) ; sinon, au champ de la conversation. Le champ de la
 conversation ne sert plus qu'à elle (et à *Demander sans modifier*, *Où
-j'en suis ?*) ; 💬 sur un passage (de la note, d'une relecture) l'y cite, à
+j'en suis ?*) ; *Commenter* sur un passage (de la note, d'une relecture) l'y cite, à
 compléter puis envoyer.
 
 L'onglet **Actions** suit chaque action lancée : qui travaille, son état,
 depuis quand, sa réponse ; ses demandes d'autorisation (*Autoriser*,
-*Toujours*, *Refuser*). ⏹ (là, ou à côté du bouton) l'arrête à tout moment ;
+*Toujours*, *Refuser*). *Arrêter* (là, ou à côté du bouton) l'arrête à tout moment ;
 vous choisissez ensuite **Garder** ce qu'elle a déjà écrit, ou **Annuler** :
 les fichiers qu'elle a écrits — et eux seuls, pas les vôtres ni ceux d'une
 autre action — reviennent à leur état d'avant (ce qu'elle a changé par une
@@ -457,7 +458,7 @@ commande, `git` ou un script, reste). Deux actions qui modifient la branche
 ne tournent jamais ensemble, ni une relecture pendant une modification ; les
 relectures et vérifications, elles, tournent ensemble. Une action n'est
 finie que quand son travail l'est (ses sous-agents, la CI qu'elle attend) :
-pas de limite de temps, ⏹ l'arrête. Quand ce qu'elle attendait se termine,
+pas de limite de temps, *Arrêter* l'arrête. Quand ce qu'elle attendait se termine,
 elle reste en cours 10 s : si l'agent repart en dire le résultat, elle finit
 avec cette réponse ; sinon, au bout des 10 s (un agent qui repart plus tard
 trouve l'action déjà finie). Un bouton qui doit
@@ -498,7 +499,7 @@ droite : demandez-y une retouche, l'artefact se met à jour.
 **Ouvrir dans l'éditeur.** *Ouvrir* sur la note, un module, un test (à la
 ligne du cas : zed, VS Code, Cursor, VSCodium). Un commit : *Voir le diff*
 (écrit en lecture seule sous `vibecoder-out/<agent>/files/`, puis ouvert)
-ou *GitHub ↗* (sa page, dans le navigateur).
+ou *GitHub* (sa page, dans le navigateur).
 
 **Créer** — les étapes du guide :
 
@@ -507,7 +508,7 @@ ou *GitHub ↗* (sa page, dans le navigateur).
    de branche, plus bas) ; ses questions
    ouvertes s'affichent à part, avec des réponses proposées : *Envoyer les
    réponses* (à l'action qui a rédigé la note : elle garde son contexte) ;
-   puis ✓ pour valider la note. La note s'affiche tout de suite ;
+   puis *Valider la note*. La note s'affiche tout de suite ;
    *Modifier* la rend modifiable sur place (*Fermer* garde la modification),
    comme dans Obsidian : ce qu'on tape se met en forme au fil de la frappe (un titre
    apparaît en titre, pas en `#`) ; *Brut* montre le Markdown tel qu'il est
@@ -515,13 +516,13 @@ ou *GitHub ↗* (sa page, dans le navigateur).
    *Enregistrer*, avec les garde-fous de *Voir le code* (étape Modules) ;
    grisée pendant un tour de la conversation ou une action de l'agent.
 2. **Forme** : *Poser la forme* (les modules et leurs contrats, dans la note,
-   sans code) ; ✓.
+   sans code) ; *Valider la forme*.
 3. **Invariants** : *Écrire les invariants (rouges), puis vérifier
    l'alignement*, d'après la note ou d'après le pseudo-code écrit dans le
    champ de l'étape — dans la même action, l'agent vérifie que note, forme
    et tests concordent, retouche les tests s'il y a des écarts (3 tours au
-   plus) et dit ce qui reste (la carte de l'alignement) ; puis ✓ ou ✗ par cas
-   (✗ le cite dans le champ, pour dire quoi changer), *✓ Tout valider* pour
+   plus) et dit ce qui reste (la carte de l'alignement) ; puis *Valider* ou *À revoir* par
+   cas (*À revoir* le cite dans le champ, pour dire quoi changer), *Tout valider* pour
    un fichier. *Lire en pseudo-code* (dans les outils en haut du fichier)
    aide à lire, sans être obligatoire (à
    la main, jamais mise en avant ; en *Vibe*, l'agent ne la lance pas) :
@@ -543,7 +544,7 @@ ou *GitHub ↗* (sa page, dans le navigateur).
    forme se commitent à l'étape Modules. Des lignes « → invariant » déjà
    observées par des tests existants (aucun test ajouté par la branche) :
    l'étape passe quand *Écrire les invariants* ou *Vérifier l'alignement*
-   a fini, ou par *✓ Rien à écrire* (à revalider si la note change ;
+   a fini, ou par *Rien à écrire* (à revalider si la note change ;
    pendant *Vibe* aussi).
 4. **Modules** : *Générer ce module* (avec `ponytail`, typecheck et tests du
    module lancés, sans commit), *Relire le diff*, *✓ Valider → commit →
@@ -570,7 +571,7 @@ ou *GitHub ↗* (sa page, dans le navigateur).
    un tour de la conversation ou pendant que ce module est généré, et si le
    fichier a changé sur le disque depuis la modification (*Abandonner* remet
    alors le texte du disque). Un clic
-   sur une ligne, ou un bloc sélectionné : 💬 le cite dans le champ de la
+   sur une ligne, ou un bloc sélectionné : *Commenter* le cite dans le champ de la
    conversation pour une question, *Retour → fixup* pour une correction (les
    lignes entières, sans limite).
 5. **Revue** : *Lancer les vérifications et la ponytail review* (les deux
@@ -613,7 +614,7 @@ passe par l'agent, comme avant.
 
 Une validation vaut pour le contenu validé : une note modifiée ensuite
 repasse « modifiée depuis », à revalider. Quand l'étape n'attend plus que
-votre ✓, l'étape vous le dit (*✓ Valider la note*, « N cas à valider »). Les lignes de la note que
+votre validation, l'étape vous le dit (*Valider la note*, « N cas à valider »). Les lignes de la note que
 l'agent vient de changer sont surlignées (*Voir les modifications* : le
 diff ; *Vu* : ne plus surligner).
 
@@ -630,9 +631,9 @@ invariants (les mêmes cartes en pseudo-code), les commits (*Relire les
 commits* — ou, sans IA, la liste des commits, leurs fichiers, leur diff —,
 une carte par commit ; un clic sur un fichier d'un commit l'ouvre sous sa
 carte, tel qu'il est dans la PR, en lecture seule, ou son diff dans ce
-commit, ou depuis la base de la PR ; 💬 sur des lignes les cite dans une
+commit, ou depuis la base de la PR ; *Commenter* sur des lignes les cite dans une
 remarque), le plan de test (*Plan de test à l'écran* : des cases
-à cocher pendant l'essai). ✗ et 💬 ajoutent une remarque au **brouillon de
+à cocher pendant l'essai). *À revoir* et *Commenter* ajoutent une remarque au **brouillon de
 revue** (un par PR) : le texte du champ, sinon ce qu'on cite ; elle se
 modifie sur place, × la retire. Une PR déjà fusionnée ou fermée se charge,
 mais il n'y a rien à relire : l'écran le dit (son état est redemandé à `gh`
@@ -742,7 +743,7 @@ avec lui.
 
 **Lancer le projet.** L'onglet *Processus* lance, arrête et relance les
 commandes qui font tourner le projet de l'agent (serveur, front, services) :
-le nom de chacune, sa commande en petit dessous, ▶, ⏹, ↻, son état, depuis quand, et la fin de son journal (à
+le nom de chacune, sa commande en petit dessous, *Lancer*, *Arrêter*, *Relancer* (icônes), son état, depuis quand, et la fin de son journal (à
 déplier ; *Journal complet* dans l'éditeur). Les commandes sont à vous, propres
 à la machine, dans le **fichier du projet**, `.vibecoder/project.json` à la
 racine du dossier (comme `.zed` ou `.claude` ; l'appli ajoute `.vibecoder/`
@@ -792,15 +793,15 @@ le journal : `recipe.log` des sorties de l'agent. Un worktree n'est jamais
 retiré s'il a des modifications.
 
 **Vibe.** D'ordinaire, vous validez la note, la forme et chaque
-invariant ; l'étape en cours attend vos ✓. *Vibe* (*Créer* seulement) :
+invariant ; l'étape en cours attend vos validations. *Vibe* (*Créer* seulement) :
 vous donnez la main à l'agent, vous testez et approuvez à la fin. Même
 écran, une bannière en tête dit que *Vibe* est en cours ; plus rien
-n'attend vos ✓, et les étapes qu'il passe les gardent. En deux temps :
+n'attend vos validations, et les étapes qu'il passe les gardent. En deux temps :
 
 1. la demande dans le champ, *Rédiger la note* ; l'agent vous pose
    **toutes** les questions de la note (*Envoyer les réponses*, ou vos
    réponses dans la conversation : le questionnaire suit) — il n'en
-   tranche aucune ; puis vous lisez la note et la validez (*✓ Valider la
+   tranche aucune ; puis vous lisez la note et la validez (*Valider la
    note*) ;
 2. *Vibe*, en tête des actions de l'étape en cours (proposé une fois la
    note validée, à n'importe quelle étape ensuite : écrivez vos invariants
