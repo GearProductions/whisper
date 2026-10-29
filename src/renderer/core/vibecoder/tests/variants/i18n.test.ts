@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { duration } from 'core/vibecoder';
+import { duration, fileSize } from 'core/vibecoder';
 
 describe('duration', () => {
   it('secondes, minutes, heures et minutes sur deux chiffres', () => {
@@ -10,5 +10,14 @@ describe('duration', () => {
 
   it('une durée négative (horloge décalée) : 0 s', () => {
     expect(duration(-5000)).toBe('0 s');
+  });
+});
+
+describe('fileSize', () => {
+  it('octets, Ko, Mo en base 1024, dans la langue de l\'écran', () => {
+    expect(fileSize(512, 'fr')).toBe('512 o');
+    expect(fileSize(1536, 'fr')).toBe('1,5 Ko');
+    expect(fileSize(10 * 1024 * 1024, 'en')).toBe('10 MB');
+    expect(fileSize(0, 'en')).toBe('0 B');
   });
 });
