@@ -1,5 +1,5 @@
-/** model-pick — le petit choix du modèle, à côté du bouton d'une action en
- *  sous-contexte (VibeAction.models) : fermé, le nom du modèle ; ouvert, la
+/** model-pick — le petit choix du modèle, à côté du bouton d'une action dont
+ *  le skill fixe son modèle (VibeAction.models) : fermé, le nom du modèle ; ouvert, la
  *  liste, le conseillé marqué « conseillé » et choisi par défaut ; le choix vaut pour cette action tant qu'on reste sur cet agent.
  *  Le contexte Picks (tenu par vibe-coder) le porte jusqu'aux boutons ; rien
  *  pour une action qui tourne avec le modèle de l'agent.

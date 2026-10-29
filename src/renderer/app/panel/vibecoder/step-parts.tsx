@@ -96,7 +96,7 @@ type RunProps = { a: VibeAction | undefined; busy: boolean; label?: ReactNode; t
 
 // Une action du relevé (masquée, hidden : rien) : envoyée ou préparée dans le champ ; un message de la conversation (sans
 // étape) est grisé tant qu'elle travaille, une action d'étape court à part (sa course en cours :
-// « en cours » et ⏹). En sous-contexte, le choix du modèle à côté (sinon, qui travaille). Une action
+// « en cours » et ⏹). Un skill qui fixe son modèle : le choix du modèle à côté (sinon, qui travaille). Une action
 // que l'appli fait elle-même (F-114) : le bouton « direct », puis le petit « via »
 // l'agent (son modèle ou qui travaille ; aucun pour une action directe seulement, only), et dessous « … » en cours, sinon son dernier
 // résultat (✓ ou ✗, une ligne, le détail déplié).
