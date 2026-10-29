@@ -98,7 +98,7 @@ import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
 import {
   addComment, blobSha, buildMessage, vibeMarks, DIRECT_ACTIONS, DIRECT_ONLY, draftText, editComment, findNote, forkedModel, isOutputName, isTest, itemCommit, itemPath,
-  blockedBy, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, targetHash, vibeView, whoOf, type ActionDef, type MessageError,
+  blockedBy, BRANCH_CHANGES, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, targetHash, vibeView, whoOf, type ActionDef, type MessageError,
 } from 'core/vibecoder';
 import { findEditor } from 'technicals/editor';
 import { directRunner, prCardText, VERDICTS, type DirectResult } from 'technicals/direct';
@@ -122,7 +122,7 @@ const GH_MS = 60_000;          // une réponse de gh vaut 60 s
 const LIST_MAX = 1000;         // les fichiers d'un module au relevé : les premiers seulement
 const SKIP_DIRS = new Set(['node_modules', 'target', 'dist', 'build']);   // ni leurs fichiers
 
-const ERRORS: Record<VibeLang, Record<MessageError | 'agent' | 'action' | 'args' | 'noGit' | 'notRepo', string>> = {
+const ERRORS: Record<VibeLang, Record<MessageError | 'agent' | 'action' | 'args' | 'noGit' | 'notRepo' | 'worktree', string>> = {
   fr: {
     agent: 'Aucun agent en VibeCoder dans le panneau.',
     action: 'Action inconnue ou indisponible.',
@@ -137,6 +137,7 @@ const ERRORS: Record<VibeLang, Record<MessageError | 'agent' | 'action' | 'args'
     files: 'Aucun test d\'invariant à lire (ou ce test n\'est plus dans la branche).',
     note: 'Pas encore de note pour cette branche.',
     repo: 'Pas de dépôt git dans ce dossier.',
+    worktree: 'Un worktree reste sur sa branche : ni changer de branche, ni charger une autre PR.',
     variable: 'Action mal écrite (variable inconnue), ou valeur refusée (caractère de contrôle) : voir le dossier de VibeCoder.',
     check: 'Cette vérification n\'est pas dans la dernière liste (checks.json).',
     noGit: 'git est introuvable : le parcours ne peut pas être lu. La conversation reste utilisable.',
@@ -156,6 +157,7 @@ const ERRORS: Record<VibeLang, Record<MessageError | 'agent' | 'action' | 'args'
     files: 'No invariant test to read (or this test is no longer on the branch).',
     note: 'No note for this branch yet.',
     repo: 'No git repository in this folder.',
+    worktree: 'A worktree stays on its branch: no branch switch, no other PR loaded.',
     variable: 'Badly written action (unknown variable), or refused value (control character): see the VibeCoder folder.',
     check: 'This check is not in the last list (checks.json).',
     noGit: 'git not found: the journey cannot be read. The conversation still works.',
@@ -527,6 +529,7 @@ export function startAction(
 ): SendResult & { invalid?: true; ignored?: (keyof VibeArgs)[] } {
   const lang = vibeLang(cfg);
   if (DIRECT_ONLY.includes(def.id)) return fail(lang, 'action');   // seulement par l'appli (runDirect), jamais via l'agent
+  if (agentParent(agent) && BRANCH_CHANGES.includes(def.id)) return { ...fail(lang, 'worktree'), invalid: true };   // un worktree reste sur sa branche
   // Rédiger la note sur la base, en Créer : la nouvelle demande (son skill nomme la branche, que l'utilisateur valide).
   if (def.id === 'note' && view.flow === 'create' && onBase(view.repo?.branch ?? null, view.repo?.base ?? null)) {
     def = vibeActions(lang).find((a) => a.id === 'new-request') ?? def;
@@ -575,6 +578,8 @@ function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, view: Vib
   const { id } = def;
   const lang = vibeLang(cfg);
   const mine = directs.get(agent.id) ?? {};
+  // Un worktree (enfant ou robot) reste sur sa branche, quel que soit l'écran (note 0.12.0-gestion-des-branches).
+  if (agentParent(agent) && BRANCH_CHANGES.includes(id)) return fail(lang, 'worktree');
   if (Object.values(mine).some((x) => x.running)) return fail(lang, 'action');
   // Une course vivante la retient comme une autre course (la règle de runs).
   const held = blockedBy(def, lockingRuns(agent.id), lang);
