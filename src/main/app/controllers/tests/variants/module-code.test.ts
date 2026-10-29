@@ -1,7 +1,8 @@
 // Variants de module-code (note 0.11.0) : le fichier suivi poussé à chaque
 // changement (écriture directe ou par renommage), trop gros → text null, un
 // seul suivi à la fois, Enregistrer refusé pour un texte invalide ; un fichier
-// supprimé et, en Relire, un fichier d'un commit (note 0.13.0) : lus par git, sans veilleur.
+// supprimé (par la branche, sans veilleur, ou pendant qu'il est suivi) et, en Relire, un fichier
+// d'un commit (note 0.13.0) : lus par git.
 // Sur le vrai principal et un vrai dépôt git ; faux : Electron (fenêtres qui
 // relèvent ce qu'on leur envoie) et le SDK de Claude Code (aucun tour).
 import { execFileSync } from 'node:child_process';
@@ -168,6 +169,14 @@ it('un fichier de module supprimé par la branche : text null, ses versions par 
   write(path.join(dir, GREET), 'GREET_REVENU');
   await settle();
   expect(codes().length).toBe(n);
+});
+
+it('un fichier de module supprimé pendant qu’il est suivi : text null, ses versions par git', async () => {
+  const { followCode } = await import('app/controllers');
+  followCode(idOf(HELLO));
+  await pushedFor(idOf(HELLO));
+  fs.rmSync(path.join(dir, HELLO));
+  await vi.waitFor(() => expect(codes().at(-1)).toMatchObject({ id: idOf(HELLO), text: null, at: { base: 'HELLO_MAIN', head: 'HELLO_TEXTE' } }), { timeout: 10_000 });
 });
 
 it('en Relire, un fichier ajouté par un commit : avant null, après et tête par git, le disque jamais lu', async () => {

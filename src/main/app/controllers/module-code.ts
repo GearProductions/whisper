@@ -9,7 +9,8 @@
  *  lu : avec at, son texte au commit où la branche part de repo.base
  *  (forkPoint) et à HEAD (gitReader.show), relus à chaque poussée, null là où
  *  il manque ou dépasse READ_MAX ; la note et les tests : sans at). Un fichier
- *  de module supprimé (deleted au relevé) : text null, at, sans veilleur. En
+ *  de module supprimé (deleted au relevé) : text null, at, sans veilleur ;
+ *  supprimé pendant qu'il est suivi : text null, at aussi. En
  *  Relire, un fichier d'un commit (commitFile, `c<rang>/<i>`) : rien lu sur le
  *  disque, sans veilleur, poussé une fois ; at.base au forkPoint de la base de
  *  la PR, at.head à HEAD (la tête de la PR, = text), at.commit : before au
@@ -93,7 +94,7 @@ function readHead(file: string, max: number) {
 }
 
 // Pousse le fichier suivi : son texte (null : trop gros, illisible, sorti du
-// dossier) et, d'un module, ses versions ; d'un commit ou supprimé, git seul
+// dossier) et, d'un module lu ou disparu, ses versions ; d'un commit ou supprimé, git seul
 // (text : sa version à HEAD, d'un commit ; null, supprimé). Seule la dernière lancée pousse
 // (des lectures git plus lentes ne passent pas derrière), le disque lu après git.
 let pushes = 0;
@@ -106,12 +107,12 @@ async function pushFollowed(dir: string) {
     push({ id: me.id, text: read?.text ?? null, time: read?.time ?? 0, ...(read?.truncated && { truncated: true }) });
     return;
   }
-  const at = !me.disk || (me.module && fileOf(dir, me.rel)) ? await versions(dir, me.agentId, me.rel, me.commit) : undefined;
+  const at = !me.disk || me.module ? await versions(dir, me.agentId, me.rel, me.commit) : undefined;
   if (followed !== me || n !== pushes) return;
   if (!me.disk) { push({ id: me.id, text: me.commit ? at?.head ?? null : null, time: 0, at }); return; }
   const file = fileOf(dir, me.rel);
   const read = file ? readTimed(file) : null;
-  push({ id: me.id, text: read?.text ?? null, time: read?.time ?? 0, ...(at && read && { at }) });
+  push({ id: me.id, text: read?.text ?? null, time: read?.time ?? 0, ...(at && (read || !file) && { at }) });
 }
 
 // Un artefact en texte (markdown, text) du dernier relevé : son fichier ; sinon null.
