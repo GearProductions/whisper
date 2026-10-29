@@ -1,6 +1,6 @@
 /** artifacts — les artefacts de l'agent (vibecoder-out/<agent>/artifacts/) :
- *  listArtifacts (le relevé : listFiles de controllers/vibecoder, sous-dossiers
- *  compris, ni lien ni fichier ou dossier caché, au plus LIST_MAX),
+ *  listArtifacts (le relevé : sous-dossiers compris, ni lien ni fichier ou
+ *  dossier caché, artifacts/ par safePath et pas un lien, au plus LIST_MAX),
  *  artifactFile (l'agent affiché en VibeCoder, un artefact de son dernier
  *  relevé — artifactOf —, safePath sous artifacts/, ni artifacts/ ni le
  *  fichier un lien — I-37), resolveArtifact (pour
@@ -23,15 +23,34 @@ import { vibeLang } from 'core/config';
 import { ARTIFACTS, artifactList, artifactOf, artifactType, safePath } from 'core/vibecoder';
 import type { Served } from 'technicals/file-scheme';
 import { loadConfig, vibeOutDir } from 'app/settings';
-import { lastView, listFiles, vibeAgent } from './vibecoder';
+import { lastView, vibeAgent } from './vibecoder';
 
 // La forme de DirectResult (technicals/direct, que seul controllers/vibecoder importe) : il la passe telle quelle.
 type DirectResult = { ok: boolean; line: string; detail: string };
+
+const LIST_MAX = 1000;   // les premiers trouvés seulement
 
 const LABELS = {
   fr: { title: 'Copier dans le projet', exists: (n: string) => `« ${n} » existe déjà dans ce dossier. Le remplacer ?`, cancel: 'Annuler', replace: 'Remplacer' },
   en: { title: 'Copy to project', exists: (n: string) => `"${n}" already exists in this folder. Replace it?`, cancel: 'Cancel', replace: 'Replace' },
 };
+
+// Les fichiers de <out>/<rel>/ et de ses sous-dossiers, relatifs à out ; ni lien (ni fichier ni dossier pour
+// son Dirent) ni fichier ou dossier caché ; <rel> par safePath, un dossier, pas un lien ; au plus LIST_MAX.
+function listFiles(out: string, rel: string): string[] {
+  const files: string[] = [];
+  const walk = (r: string) => {
+    try {
+      for (const e of fs.readdirSync(path.join(out, r), { withFileTypes: true })) {
+        if (files.length >= LIST_MAX || e.name.startsWith('.')) continue;
+        if (e.isFile()) files.push(path.posix.join(r, e.name));
+        else if (e.isDirectory()) walk(path.posix.join(r, e.name));
+      }
+    } catch { /* illisible : sans lui */ }
+  };
+  if (safePath(out, rel, fs.realpathSync.native) && fs.lstatSync(path.join(out, rel), { throwIfNoEntry: false })?.isDirectory()) walk(rel);
+  return files;
+}
 
 // Les artefacts sous <out>/artifacts/ (leur nom, taille, date ; pas leur texte), `max` : la limite du texte.
 export function listArtifacts(agentId: string, out: string, max: number): VibeArtifact[] {

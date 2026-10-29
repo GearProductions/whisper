@@ -41,6 +41,7 @@ it('SkillsBar : la demande retenue, sa branche et ses choix directs', async () =
   expect(page.textContent).toContain('Voulez-vous créer la branche');
   expect(field().value).toBe('feat/x');
   expect(page.textContent).toContain('stash refusé');
+  expect(page.querySelector('[data-state="ko"] .vc-direct-mark svg')).not.toBeNull();   // l'icône ko, plus de ✗
   const [ask, here, wt, stash] = page.querySelectorAll('button');
   expect(here.disabled).toBe(true);
   expect(here.title).toContain('Modifications en cours');

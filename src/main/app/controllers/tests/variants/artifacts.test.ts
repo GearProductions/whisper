@@ -23,8 +23,7 @@ vi.mock('electron', () => ({
     showMessageBox: async (o: Box) => { fake.asked.push(o); return { response: fake.answer(o) }; },
   },
 }));
-vi.mock('app/controllers/vibecoder', async (actual) => ({
-  listFiles: (await actual<typeof import('app/controllers/vibecoder')>()).listFiles,
+vi.mock('app/controllers/vibecoder', () => ({
   vibeAgent: () => (fake.shown ? { id: fake.shown } : null),
   lastView: (id: string) => (id === fake.shown ? fake.view : null),
 }));

@@ -1,15 +1,16 @@
-/* Le panneau Artefacts (artifacts-view) : la liste à gauche (dans .vc-journey), l'artefact
-   choisi au centre (dans .vc-center), qui prend toute la hauteur. Sous .vc, couleurs de vibecoder.css. */
+/* Le panneau Artefacts (artifacts-view) : la liste à gauche (dans .vc-art-side), l'artefact
+   choisi au centre (dans .vc-center), qui prend toute la hauteur. Sous .vc, couleurs de vibecoder.css ;
+   coins --vc-radius, marges un cran en dessous (0.13.0). */
 
-.vc-art-list { list-style: none; margin: 0; padding: 0 8px; }
+.vc-art-list { list-style: none; margin: 0; padding: 0 6px; }
 .vc-art-item {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
-  padding: 5px 8px;
+  padding: 4px 6px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--vc-radius);
   background: transparent;
   color: var(--vc-soft);
   font: 12.5px/1.5 system-ui, sans-serif;
@@ -21,15 +22,15 @@
 .vc-art-item[aria-current] { background: #262d3d; color: var(--vc-text); box-shadow: inset 2px 0 0 var(--accent); }
 .vc-art-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .vc-art-item small { flex: none; margin-left: auto; color: var(--vc-faint); font-size: 11px; font-variant-numeric: tabular-nums; }
-.vc-art-none { padding: 3px 8px; color: var(--vc-faint); font-size: 12px; line-height: 1.5; }
+.vc-art-none { padding: 3px 6px; color: var(--vc-faint); font-size: 12px; line-height: 1.5; }
 
-.vc-art { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 20px 36px 24px; }
-.vc-art-head { flex: none; align-items: center; margin-bottom: 14px; }
+.vc-art { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 15px 27px 18px; }
+.vc-art-head { flex: none; align-items: center; margin-bottom: 10px; }
 .vc-art-head h2 { min-width: 0; overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
 .vc-art-size { margin-right: auto; color: var(--vc-muted); font-size: 12px; }
-.vc-art-cut { flex: none; margin-bottom: 8px; color: var(--vc-warn); font-size: 12.5px; }
+.vc-art-cut { flex: none; margin-bottom: 6px; color: var(--vc-warn); font-size: 12.5px; }
 .vc-art-md { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-.vc-art-frame { flex: 1 1 auto; min-height: 0; width: 100%; border: 1px solid var(--vc-line); border-radius: 7px; background: #fff; }
+.vc-art-frame { flex: 1 1 auto; min-height: 0; width: 100%; border: 1px solid var(--vc-line); border-radius: var(--vc-radius); background: #fff; }
 /* Le texte prend la hauteur : c'est .cm-scroller qui défile, comme partout ailleurs. */
 .vc-art .vc-src { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; margin: 0; }
 .vc-art .vc-src .cm-editor { flex: 1 1 auto; min-height: 0; max-height: none; }

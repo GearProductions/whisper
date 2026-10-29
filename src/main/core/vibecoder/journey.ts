@@ -34,13 +34,15 @@
  *  une course qui retient (started) ; un module aux fichiers changés pas
  *  commités (uncommitted : hors des commits de la branche, ou modifiés depuis) : Commiter les modules, s'il n'en reste pas à faire (note
  *  0.11.0-stabiliser-vibecoder), l'étape Modules pas faite tant qu'il en reste un ; les fichiers d'un module touché
- *  (files : ids `m<rang>/<i>`, triés) et pourquoi son code, la note ou un test
+ *  (files : ceux que la branche change sous son chemin, la copie de travail comprise, ids `m<rang>/<i>`,
+ *  triés, deleted : absents du disque ; note 0.13.0-ameliorations-interface) et pourquoi son code, la note ou un test
  *  ne s'édite pas (locked : codeLock de runs ; notes 0.11.0-code-des-modules et
  *  0.11.0-editer-invariants-et-note) ; la lecture d'un test (readingOf), celle
- *  d'une version précédente montrée périmée (stale), jamais comptée comme lue.
+ *  d'une version précédente montrée périmée (stale), jamais comptée comme lue ; le texte d'un test à la base
+ *  (base, passé ; au-delà de SOURCE_MAX : null).
  *  Ne connaît pas : Electron, le disque, git (tout est passé ; `exists` dit si
- *  un chemin du dossier de l'agent existe, `list` donne les fichiers d'un
- *  dossier).
+ *  un chemin du dossier de l'agent existe ; les textes des tests, à la tête et à la base, sont lus par
+ *  l'appelant).
  *  Utilisé par : app/controllers/vibecoder (refreshVibe). */
 import type {
   VibeAction, VibeCheck, VibeComment, VibeFlow, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePr,
@@ -50,7 +52,7 @@ import { DIRECT_ACTIONS, DIRECT_ONLY, prNumber, SKILL_MODELS, templateVars, type
 import { markState, type Marks } from './marks';
 import { parseNote } from './note';
 import { json, parseChecklist, parseQuestions, parseReading } from './outputs';
-import { onBase, onPr, placeReason, placeShown, type PlaceState } from './place';
+import { ELSEWHERE, onBase, onPr, placeReason, placeShown, type PlaceState } from './place';
 import { blockedBy, codeLock, ownRun } from './runs';
 import { syncReason } from './sync';
 import { blobSha, caseLines, caseTitles, isInvariantTest, readingOf } from './test-files';
@@ -70,7 +72,9 @@ export type JourneyInput = {
   repo: { branch: string; base: string; changed: string[]; dirty?: string[]; commits: { hash: string; subject: string; files: string[] }[] } | null;
   error: string | null;                             // pourquoi le dépôt manque
   note: { path: string; text: string; before: string | null } | null;
-  tests: { path: string; blob: string; text: string }[];   // les tests de la branche
+  // Les tests de la branche ; base : leur texte à la base de la branche (null : ajouté, au-delà de 200 Ko, pas
+  // de base ; absent : null, les fixtures des invariants protégés d'avant la 0.13.0).
+  tests: { path: string; blob: string; text: string; base?: string | null }[];
   // Toutes les lectures (<sorties>/invariants/<blob>.md) ; par blob : d'avant la 0.11.0 (fixtures protégées), heure 0.
   readings: { blob: string; text: string; time: number }[] | Record<string, string>;
   outputs: Record<string, { text: string; time: number }>; // par nom connu (OUTPUTS)
@@ -94,14 +98,12 @@ export type JourneyInput = {
   who: Record<string, string>;                      // par id d'action : qui travaille
   model: Record<string, string | null>;             // par id d'action : le modèle que fixe son skill (skillModel)
   skills: string[];
-  exists: (rel: string) => boolean;
-  // Les fichiers d'un dossier et de ses sous-dossiers, relatifs au dépôt (un fichier : lui-même). Absent : aucun
-  // (les fixtures des invariants protégés d'avant la 0.11.0).
-  list?: (rel: string) => string[];
+  exists: (rel: string) => boolean;                 // un chemin, relatif au dépôt, existe sur le disque
   now: number;                                      // l'heure du relevé
 };
 
-// Le texte d'un test d'invariant, montré à l'écran à côté de sa lecture ; au-delà : '' (la vue ne le montre pas).
+// Le texte d'un test d'invariant, montré à l'écran à côté de sa lecture ; au-delà : '' (la vue ne le montre pas) ;
+// son texte à la base, au-delà : null.
 const SOURCE_MAX = 200_000;
 
 const ORDER: Record<VibeFlow, VibeStepId[]> = {
@@ -214,7 +216,10 @@ export function vibeView(input: JourneyInput): VibeView {
     const real = [...new Set([...hits, bares[i], `src/${bares[i]}`])].find((p) => input.exists(p));
     const touched = hits.length > 0 || by.length > 0;
     const uncommitted = hits.some((f) => dirty.includes(f));
-    const files = touched && real ? [...(input.list?.(real) ?? [])].sort().map((path, j) => ({ id: `m${i}/${j}`, path })) : [];
+    // Les fichiers que la branche change sous son chemin (changed : la copie de travail comprise), dans son dossier
+    // seulement (real) ; sans dossier (supprimé), sous tout chemin qui le contient ; absent : supprimé.
+    const files = !touched ? [] : changed.filter((f) => (real ? within(f, bares[i]) === real : within(f, bares[i]) !== null)).sort()
+      .map((path, j) => (input.exists(path) ? { id: `m${i}/${j}`, path } : { id: `m${i}/${j}`, path, deleted: true }));
     return {
       path: m.path, contract: m.contract, file: real ? { id: `m${i}`, path: real } : null,
       touched, commits: by.map((c) => c.hash), files, locked: codeLock(m.path, input.busy, input.running, lang), uncommitted,
@@ -230,6 +235,7 @@ export function vibeView(input: JourneyInput): VibeView {
     const r = readingOf(t, readings);
     return {
       id: `t${i}`, path: t.path, blob: t.blob, cases: t.cases, lines: t.lines, source: t.text.length > SOURCE_MAX ? '' : t.text,
+      base: t.base != null && t.base.length <= SOURCE_MAX ? t.base : null,
       reading: r && parseReading(r.text), stale: !!r?.stale, locked: codeLock(null, input.busy, input.running, lang),
       marks: Object.fromEntries(t.cases.map((c) => [c, markState(marks, `case:${t.path}:${c}`, t.blob)])),
     };
@@ -369,9 +375,10 @@ export function vibeView(input: JourneyInput): VibeView {
   const open = (id: VibeStepId) => flow === 'review' || !!done[id] || id === current;
 
   // Une action directe en cours (F-114) : les autres attendent, comme quand l'agent travaille ; et elle
-  // retient les courses comme l'une d'elles (elle lit, publish, load-pr, ou modifie, commit, base).
+  // retient les courses comme l'une d'elles (elle lit, publish, load-pr, ou modifie, commit, base) ; pas un
+  // nouveau worktree (ELSEWHERE), qui travaille dans un autre dossier.
   const running = Object.values(input.direct ?? {}).some((x) => x.running);
-  const locks = [...input.running, ...Object.entries(input.direct ?? {}).filter(([, x]) => x.running)
+  const locks = [...input.running, ...Object.entries(input.direct ?? {}).filter(([id, x]) => x.running && !ELSEWHERE.includes(id))
     .map(([id]) => ({ id, reads: !!input.actions.find((a) => a.id === id)?.reads }))];
   // Pourquoi une action est grisée : une course la retient (celle d'une étape) ou la conversation travaille
   // (les autres), une commande directe est en cours (held) ; une variable de son gabarit manque, elle ne

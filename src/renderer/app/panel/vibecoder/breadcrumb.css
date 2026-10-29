@@ -1,0 +1,106 @@
+/* Le fil d'Ariane (breadcrumb.tsx), au-dessus de l'étape : les étapes en une ligne,
+   points et traits repris du parcours ; « N commits » au bout, leur liste dépliée en
+   surimpression sous le fil. Tout sous .vc-crumbs. Animation vc-ring : vibecoder.css. */
+.vc-crumbs { position: relative; flex: none; background: var(--vc-side); border-bottom: 1px solid var(--vc-line); }
+/* La ligne : défile à l'horizontale si trop étroite. */
+.vc-crumbs-line { display: flex; align-items: center; gap: 12px; padding: 4px 12px; overflow-x: auto; white-space: nowrap; }
+.vc-crumbs .vc-steps { display: flex; align-items: center; flex: none; list-style: none; margin: 0; padding: 0; }
+.vc-crumbs .vc-steps li { display: flex; align-items: center; }
+/* Le trait jusqu'au point suivant ; coloré quand l'étape est faite. */
+.vc-crumbs .vc-steps li:not(:last-child)::after {
+  content: "";
+  flex: none;
+  width: 14px;
+  height: 2px;
+  margin: 0 2px;
+  border-radius: 1px;
+  background: var(--vc-line);
+}
+.vc-crumbs .vc-steps li[data-status="done"]:not(:last-child)::after { background: color-mix(in srgb, var(--vc-ok) 65%, transparent); }
+.vc-crumbs .vc-jstep {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--vc-soft);
+  font: 12.5px/1.4 system-ui, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.vc-crumbs .vc-jstep:hover { background: #222838; color: var(--vc-text); }
+/* Une étape pas encore ouverte (VibeStep.open) : sans clic. */
+.vc-crumbs .vc-jstep:disabled { cursor: default; }
+.vc-crumbs .vc-jstep:disabled:hover { background: transparent; color: var(--vc-soft); }
+.vc-crumbs .vc-jstep[aria-current] { background: #262d3d; color: var(--vc-text); box-shadow: inset 0 -2px 0 var(--accent); }
+.vc-crumbs .vc-jdot {
+  position: relative;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 2px solid #4a5163;
+  background: var(--vc-side);
+}
+.vc-crumbs li[data-status="done"] .vc-jdot { border-color: var(--vc-ok); background: var(--vc-ok); }
+.vc-crumbs li[data-status="done"] .vc-jdot::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0;
+  width: 2px;
+  height: 5px;
+  border: solid #0e1117;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+.vc-crumbs li[data-status="current"] .vc-jdot { border-color: var(--accent); animation: vc-ring 2.4s ease-in-out infinite; }
+.vc-crumbs .vc-jlabel { font-weight: 500; }
+.vc-crumbs li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
+/* « N commits » : un bouton discret ; aucun commit : le texte seul. */
+.vc-ccount { flex: none; margin-left: auto; padding: 2px 8px; border: 0; border-radius: 10px; background: none; color: var(--vc-faint); font: 11.5px/1.5 system-ui, sans-serif; }
+button.vc-ccount { cursor: pointer; }
+button.vc-ccount:hover, button.vc-ccount[aria-expanded="true"] { background: var(--vc-control); color: var(--vc-text); }
+/* La liste des commits, en surimpression sous le fil, à droite. */
+.vc-crumbs .vc-commits {
+  position: absolute;
+  top: 100%;
+  right: 8px;
+  z-index: 5;
+  width: min(420px, calc(100% - 16px));
+  max-height: 60vh;
+  overflow-y: auto;
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 6px;
+  box-sizing: border-box;
+  border: 1px solid var(--vc-line);
+  border-radius: 8px;
+  background: var(--vc-side);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
+  font-size: 12px;
+}
+.vc-crumbs .vc-jcommit {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--vc-soft);
+  font: 12px/1.5 system-ui, sans-serif;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.vc-crumbs .vc-jcommit:hover, .vc-crumbs .vc-jcommit[aria-expanded="true"] { background: #222838; color: var(--vc-text); }
+.vc-crumbs .vc-jcommit code { flex: none; color: var(--vc-faint); font: 11.5px/1.5 var(--vc-mono); }
+.vc-crumbs .vc-jcommit span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.vc-crumbs .fixup .vc-jcommit span { color: var(--vc-warn); }
+.vc-crumbs .vc-jcommit-detail { padding: 6px 8px 10px 22px; }
+.vc-crumbs .vc-jcommit-links { display: flex; gap: 6px; margin-bottom: 6px; }
+.vc-crumbs .vc-jfiles li { padding: 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

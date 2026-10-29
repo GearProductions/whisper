@@ -41,8 +41,8 @@ VibeCoder dans le panneau (`docs/tickets/feat/0.8.0-vibecoder.md`) :
 
 | Module (`src/renderer/`) | Rôle |
 |---|---|
-| `core/vibecoder` | pur : Markdown en blocs (jamais de HTML, liens `http(s)` seuls, I-40), lignes changées (`lineDiff`), coloration du pseudo-code des lectures (`highlight`), ce que cite le 💬 de chaque bloc (`blockQuotes`, F-104), les lignes entières d'une sélection (`codeBlock`, F-98), libellés FR et EN |
-| `app/panel/vibecoder/` | l'écran (en-tête, parcours, vues des étapes, leur champ et leurs actions, bannière du mode *Vibe*, conversation, actions lancées, tâches et processus en onglets, barre des skills, barre d'état ; `code-view` : le code d'un fichier, numéroté, coloré, éditable, F-113 ; `module-code` : *Voir le code* d'un module, F-100 ; `note-editor` : la note éditable, F-104 ; `file-draft` : la modification gardée d'un fichier suivi, *Enregistrer*, *Abandonner*, partagée par les trois) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
+| `core/vibecoder` | pur : Markdown en blocs (jamais de HTML, liens `http(s)` seuls, I-40), lignes changées (`lineDiff`), coloration du pseudo-code des lectures (`highlight`), ce que cite le *Commenter* de chaque bloc (`blockQuotes`, F-104), les lignes entières d'une sélection (`codeBlock`, F-98), libellés FR et EN |
+| `app/panel/vibecoder/` | l'écran (en-tête, fil d'Ariane des étapes, vues des étapes, leur champ et leurs actions, bannière du mode *Vibe*, conversation, actions lancées, tâches et processus en onglets, barre des skills, barre d'état ; `code-view` : le code d'un fichier, numéroté, coloré, éditable, F-113 ; `module-code` : *Voir le code* d'un module, F-100 ; `note-editor` : la note éditable, F-104 ; `file-draft` : la modification gardée d'un fichier suivi, *Enregistrer*, *Abandonner*, partagée par les trois) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
 | `technicals/codemirror` | les réglages de CodeMirror 6, sans métier : le langage d'un fichier et la coloration (`languageFor`, `codeHighlight`, F-113), le Markdown mis en forme au fil de la frappe, liseré, pastilles et boutons en gouttière (`live-markdown`, F-104) |
 
 Toutes : sans cadre, hors de la barre des tâches, `contextIsolation`,
@@ -470,8 +470,12 @@ Claude Code ; « Nouvelle conversation » sinon), nom et dossier, jauge du
 contexte, *⚙ Tâches (n)* (n en cours ; caché si la conversation n'a jamais
 eu de tâche, F-77), Historique (agrandi), ⤢/⤡, ×.
 
-**F-66 Fil** : messages avec leur heure (date complète au survol) ; texte tel
-quel, liens cliquables, blocs ``` en blocs de code ; pièces jointes de vos
+**F-66 Fil** : messages avec leur heure (date complète au survol) ; ceux de
+l'agent rendus en Markdown (titres, gras, italique, listes, code, liens
+`http(s)` : le Markdown de VibeCoder, F-104, sans *Commenter* ; jamais de
+HTML, I-40), en VibeCoder comme en conversation ; les autres (les vôtres, la
+dictée, sorties de commandes, résumé d'une compaction) en texte tel quel,
+liens cliquables, blocs ``` en blocs de code ; pièces jointes de vos
 messages (aperçus d'images ≤ 800 px, clic : en grand ; fichiers, clic : montrés
 dans le gestionnaire de fichiers ; sélection jointe, à déplier) ; actions de
 l'agent sur une ligne, chemins raccourcis (`/home/…` et `/var/home/…`) ;
@@ -494,11 +498,15 @@ Claude Code ne l'écrive dans sa transcription), Maj+Entrée va à la ligne ;
 il grandit jusqu'à 160 px.
 **Brouillon par conversation**, pièces jointes comprises, gardé quand on
 change d'agent. Agent au travail : on écrit, on n'envoie pas (bouton grisé).
-La dictée vers l'agent s'y ajoute (espace de séparation) et y met le focus.
+Dans le cadre du champ, deux petites icônes : la pièce jointe (un trombone,
+F-69) au début, *Envoyer* (une flèche) à la fin, leur libellé en infobulle ;
+*Envoyer* à la couleur de l'agent, sauf en VibeCoder (F-92).
+La dictée vers l'agent s'y ajoute (espace de séparation) et y met le focus,
+sauf quand une autre zone de texte du panneau a le clavier (F-98).
 
 **F-69 Pièces jointes** : glisser-déposer et Ctrl+V (images PNG, JPEG, GIF,
 WebP envoyées en image ; autres fichiers par leur **chemin**, l'agent les lit
-lui-même ; un fichier sans chemin est refusé) ; 📎 → *Images ou fichiers…*
+lui-même ; un fichier sans chemin est refusé) ; le trombone du champ → *Images ou fichiers…*
 (une image choisie part en image) et *Texte sélectionné* (Linux, aperçu dans
 le menu). Images réduites à 1568 px, ≤ 3,75 Mo (PNG, sinon JPEG 85) ;
 ≤ 20 images, ≤ 50 fichiers, sélection ≤ 100 000 caractères. Le message
@@ -574,8 +582,8 @@ envoient à l'agent le message du guide, avec le skill et le modèle qu'il faut
 (F-96, F-106).
 
 **F-91 Ouvrir, revenir** : clic droit sur un robot → *◧ Ouvrir VibeCoder* ou
-*💬 Ouvrir la conversation* (même menu, les deux toujours proposés ; ou 💬 de
-l'en-tête). La vue est
+*💬 Ouvrir la conversation* (même menu, les deux toujours proposés ; ou
+*Revenir à la conversation*, dans l'en-tête). La vue est
 retenue par agent (`agents[].view`), d'un lancement à l'autre : un agent en
 conversation, un autre en VibeCoder ; cliquer un robot montre la vue de cet
 agent (F-54). Ce qu'on a commencé sur l'écran d'un agent (réponses aux
@@ -602,23 +610,28 @@ conversation des agents qui ne sont pas en VibeCoder ne change pas.
   base comprise, F-101) ; à côté, hors d'eux, **Artefacts** (*Artifacts* en
   anglais), un bouton à part (enfoncé tant que le panneau est ouvert) : un
   autre contexte, ni le parcours de *Créer* ni celui de *Relire* ; un clic
-  ouvre le **panneau des artefacts** (F-95), qui prend la gauche et le
-  centre à la place du parcours et de l'étape (ou de la vue des branches),
-  la colonne de droite gardée ; un nouveau clic, ou le choix d'une étape, le
-  referme ; *FR* / *EN* ; ↻ (relever maintenant) ; 💬 (revenir
-  à la conversation) ; × (la croix du panneau, F-64) ;
-- à gauche, le **parcours** : les étapes (point plein : faite ; anneau à la
-  couleur de l'agent : en cours, la première non faite ; gris : à venir),
-  leurs faits en une ligne (« 2 fichiers · 5 cas · 3 lus »), le compte des
-  étapes faites ; dessous, les commits de la branche (hash court, sujet ;
-  `fixup!`, `squash!`, `amend!` en couleur d'attention). Le parcours mène :
+  ouvre le **panneau des artefacts** (F-95), qui prend le centre à la place
+  du fil d'Ariane et de l'étape (ou de la vue des branches), la colonne de
+  droite gardée ; un nouveau clic, ou le choix d'une étape, le
+  referme ; *FR* / *EN* ; en icônes, *Relever maintenant*, *Revenir
+  à la conversation*, *Fermer* (la croix du panneau, F-64) ;
+- au centre, en tête, le **fil d'Ariane** : les étapes en une ligne,
+  reliées par un trait (point plein : faite ; anneau à la couleur de
+  l'agent, qui pulse : en cours, la première non faite ; gris : à venir),
+  chacune son libellé, ses faits en infobulle (« 2 fichiers · 5 cas · 3
+  lus ») ; trop étroit, il défile à l'horizontale. Au bout, « N commits »
+  déplie sous le fil, par-dessus l'étape, les commits de la branche (hash
+  court, sujet ; `fixup!`, `squash!`, `amend!` en couleur d'attention ; un
+  clic sur l'un : *Voir le diff*, *GitHub* et ses fichiers) ; un nouveau
+  clic les replie ; « aucun commit » : sans clic. Le fil d'Ariane mène :
   un clic (ou Ctrl+1…6) ouvre une étape faite ou celle en cours, pas une
   étape à venir, visible mais sans clic (son état au survol) ; en *Relire*,
   toutes s'ouvrent ;
-- au centre, l'étape choisie — sinon celle en cours, que l'écran suit ; une
-  étape choisie qui ne s'ouvre plus laisse place à celle en cours —, ses
-  actions dans son en-tête (F-93) ; ni onglets des étapes ni carte
-  « prochaine étape » : le parcours dit où l'on en est ;
+- dessous, sur toute la largeur à gauche de la conversation, l'étape
+  choisie — sinon celle en cours, que l'écran suit ; une étape choisie qui
+  ne s'ouvre plus laisse place à celle en cours —, ses actions dans son
+  en-tête (F-93) ; ni onglets des étapes ni carte « prochaine étape » : le
+  fil d'Ariane dit où l'on en est ;
 - à droite, des onglets : **Conversation** (son intitulé ; le message en tête,
   F-74, le fil et ses demandes d'autorisation, le détail du contexte, la
   barre des skills, F-93, le champ, F-68 à F-70 : dictée, brouillon, pièces
@@ -631,16 +644,33 @@ conversation des agents qui ne sont pas en VibeCoder ne change pas.
   (n en cours) : le volet des tâches (F-77) ; **Processus (n)** (F-111) ;
   par-dessus la conversation, qui garde sa place. Préparer un message dans
   le champ de la conversation, ou un message sans étape qui l'exige, revient
-  à l'onglet Conversation ;
+  à l'onglet Conversation. *Envoyer* y a la couleur neutre des autres
+  boutons : la pastille de l'agent suffit ;
 - en bas, la **barre d'état** : modèle, effort, mode de l'agent (des listes,
   comme son menu, F-56, F-57), jauge du contexte (clic : le détail, F-71),
   *⚙ Tâches (n)* (l'onglet Tâches, et retour ; la colonne masquée
-  s'affiche), *⏹ Arrêter* quand la conversation travaille (son tour
+  s'affiche), l'action en cours (un point vert qui clignote et son nom)
+  ou, plusieurs, « N actions en cours » — un clic : l'onglet Actions (la
+  colonne masquée s'affiche) ; aucune : rien ; l'agent au travail n'y
+  compte pas —, *⏹ Arrêter* quand la conversation travaille (son tour
   seulement, pas les courses), fichiers modifiés, heure
   du dernier relevé.
 
-Un seul écran, *Vibe* ou pas : pendant le mode *Vibe* (F-103), le parcours
-et l'étape restent, une **bannière** en tête du centre (« Vibe en cours :
+**L'apparence**, sobre et dense : boutons de 22 px de haut, coins peu
+arrondis, bordures fines, ni dégradés ni halos ; le texte garde sa taille
+(12 à 13,5 px). Une action dont l'icône est claire (fermer, ouvrir dans
+l'éditeur, GitHub, diff, commenter, valider, à revoir, arrêter, lancer,
+relever, modifier, *Pull*, *Rebase*, *Pousser*) est un bouton-icône : un
+SVG monochrome écrit dans le projet (ni emoji ni caractère Unicode, rendus
+différemment selon le système), son libellé en infobulle et en
+`aria-label` ; les autres gardent leur texte. Les actions secondaires
+restent visibles, en petites icônes grises ; seuls *Commenter* d'un bloc de
+la note et les outils d'une ligne de la Forme n'apparaissent qu'au survol.
+Ci-dessous, un bouton-icône est nommé par son libellé (*Commenter*,
+*Valider*, *À revoir*, *Arrêter*…).
+
+Un seul écran, *Vibe* ou pas : pendant le mode *Vibe* (F-103), le fil
+d'Ariane et l'étape restent, une **bannière** entre les deux (« Vibe en cours :
 l'agent enchaîne les étapes ; une question qui bloque vous attend à l'étape
 Note », *Arrêter Vibe*). git introuvable, dossier sans
 dépôt : un bandeau le dit au-dessus de l'étape, la conversation reste
@@ -663,9 +693,9 @@ de l'écran et le brouillon tiennent (I-29).
   l'action qui fait avancer l'étape (F-100, F-101), Vibe ou pas,
   discrètement mise en avant, même si elle appartient à une autre étape
   (*Préparer le commit* à l'étape Invariants). Ce qu'attend une validation
-  reste dans la vue : *✓ Valider la note*, *✓ Valider la forme*, « N cas à
-  valider » en tête des invariants, *✓ Rien à écrire* à l'étape Invariants. Une action dont la course tourne :
-  « en cours » et ⏹ à côté de son bouton (arrêtée, à trancher dans l'onglet
+  reste dans la vue : *Valider la note*, *Valider la forme*, « N cas à
+  valider » en tête des invariants, *Rien à écrire* à l'étape Invariants. Une action dont la course tourne :
+  « en cours » et *Arrêter* à côté de son bouton (arrêtée, à trancher dans l'onglet
   *Actions*). Conversation au travail : seuls les messages sans étape
   (*Demander sans modifier*, *Où j'en suis ?*, *Proposer les commandes*)
   sont grisés, *Vibe* masqué (F-99) ; *⏹ Arrêter* (barre
@@ -886,7 +916,7 @@ champ prend le clavier) : on dicte, puis on clique. Son champ :
 - une action d'étape : le **champ de l'étape**, sous son titre (F-93),
   montré quand une de ses actions prend un texte — *Rédiger la note* (exigé),
   *Poser la forme*, *Écrire les invariants (rouges)* ; la dictée y va quand
-  il a le clavier ;
+  il a le clavier (ci-dessous) ;
 - un message sans étape (*Où j'en suis ?*, *Demander sans modifier* (exigé),
   *Proposer les commandes* ; la nouvelle demande, *Rédiger la note* sur la
   base, prend le champ de l'étape, F-110) : le
@@ -902,10 +932,24 @@ ajoute son texte au champ de la conversation (à la ligne s'il n'est pas vide), 
 remplacé par ce qu'on cite (une ligne, 300 caractères au plus ; des lignes de
 *Voir le code*, F-100 : entières, gardées, sans limite, à la suite du texte
 si le gabarit n'a pas `{{quote}}`) : en *Créer*,
-💬 sur un bloc, un module ou un cas (« À propos de « … » : »), ✗ sur un cas
+*Commenter* sur un bloc, un module ou un cas (« À propos de « … » : »), *À revoir* sur un cas
 de test (« Invariant « … » : à revoir — »), *Retour → fixup* ; possible
-pendant que l'agent travaille. On complète, puis on envoie. En *Relire*, 💬
-et ✗ vont au brouillon de revue (F-101), pas au champ.
+pendant que l'agent travaille. On complète, puis on envoie. En *Relire*, *Commenter*
+et *À revoir* vont au brouillon de revue (F-101), pas au champ ; le *Commenter* d'une ligne
+ou d'une sélection d'un fichier d'un commit aussi : une zone de commentaire,
+puis une remarque pour ce commit, son chemin et ses lignes entières citées
+en bloc de code.
+
+**La dictée**, panneau ouvert, va à la zone de texte qui a le clavier : le
+champ d'une étape, la zone de commentaire de *Relire* (*Commenter*, *À revoir*, une remarque
+du brouillon), la réponse libre d'une question ouverte ; à la place de la
+sélection, précédée d'une espace si le texte avant le curseur ne finit pas
+par un blanc, coupée à la longueur de la zone (un commentaire : 5 000
+caractères ; plus de place : rien n'est inséré). Les éditeurs de code (la
+note, *Voir le code*, un test) et les champs d'une ligne (recherche de
+branche, nom de branche, skill) ne la reçoivent pas ; aucune zone n'a le
+clavier : le champ de la conversation (F-68). Pas de canal de plus : la
+même dictée, insérée par la page.
 
 **F-99 Qui travaille, grisée ou masquée.** Chaque action envoyée dit qui
 travaille, d'après l'en-tête du skill qu'elle appelle, dans le plugin de
@@ -973,7 +1017,7 @@ conversation ; note `0.9.0-actions-independantes.md`).
   conversation de l'agent n'est jamais occupée par l'une d'elles.
   **Finie** : son tour fini et plus aucune tâche de fond que le runtime lui
   voit (sous-agents, commandes en fond, F-77) ; jusque-là *en cours*, sans
-  limite de temps (une CI qui dure : ⏹ à la main). Ses tâches de fond
+  limite de temps (une CI qui dure : *Arrêter* à la main). Ses tâches de fond
   tombées à 0 hors tour : encore *en cours* 10 s (`GRACE_MS`), le temps du
   tour que leur fin réveille ; un tour qui commence entre-temps la garde en
   cours jusqu'à sa fin, elle finit alors avec la réponse de ce tour ; sinon
@@ -990,11 +1034,14 @@ conversation ; note `0.9.0-actions-independantes.md`).
   action (même clé) ne court pas deux fois. En cours : *en cours*, *attend
   une autorisation*, ou *arrêtée* pas encore tranchée (I-44). Au clic, une
   action retenue est grisée avec la raison (F-99) ; le principal la refuse
-  de même.
+  de même. Sauf *Créer une branche dans un nouveau worktree* (`new-worktree`,
+  F-110, `ELSEWHERE`) : il travaille dans un autre dossier, sans toucher à
+  la branche de celui-ci ; aucune course ne le retient, et il ne retient
+  aucune course.
 - **L'onglet Actions (n)** : une ligne par course, la plus récente d'abord —
   son libellé, qui travaille, son état (*en cours*, *attend une
   autorisation*, *arrêtée — à garder ou annuler*, *finie*, *en échec*,
-  *gardée*, *annulée*), depuis quand ; ⏹ tant qu'elle travaille ; sa
+  *gardée*, *annulée*), depuis quand ; *Arrêter* tant qu'elle travaille ; sa
   demande d'autorisation (outil, cible ; *Autoriser*, *Toujours*,
   *Refuser*) ; sa réponse, repliée. Une course se désigne par l'id de son
   action (`conv:vibeRunOp`), jamais par un texte ni un chemin.
@@ -1005,7 +1052,7 @@ conversation ; note `0.9.0-actions-independantes.md`).
   vue ou pas. Une course en cours fait clignoter le robot dès son départ,
   sans bip, quand rien d'autre ne se signale. Pas de signal pour une course
   arrêtée.
-- **Arrêter, puis Garder ou Annuler** : ⏹ (onglet *Actions*, ou à côté du
+- **Arrêter, puis Garder ou Annuler** : *Arrêter* (onglet *Actions*, ou à côté du
   bouton) interrompt son tour (I-19) ; son processus reste, et elle retient
   les autres, jusqu'au choix de l'utilisateur : *Garder* ce qu'elle a déjà
   écrit, ou *Annuler* — les fichiers que **ses** outils d'édition ont écrits
@@ -1064,14 +1111,14 @@ conversation ; note `0.9.0-actions-independantes.md`).
    (F-104), à jour pendant que l'agent l'écrit : ce qui a changé depuis le
    début du dernier tour (de la conversation, ou d'une course qui modifie la
    branche) porte un liseré, *Voir les modifications* montre le
-   diff brut (retraits compris, replié autour des changements), *✓ Vu* en
+   diff brut (retraits compris, replié autour des changements), *Vu* en
    repart ; les lignes « ne doit pas » portent leur marque en pastille
    (*invariant*, *variant*, *review*, *structure*, sinon *à classer*) ;
    *Ouvrir* (dans l'éditeur). Rendue d'emblée, sans attendre le texte
    suivi ; *Modifier* la rend modifiable sur place (*Fermer* y revient, la
    modification gardée), à la manière d'Obsidian (CodeMirror 6) : ce qu'on tape se met en forme au fil de la
    frappe (un titre en titre, les marques `#`, `**`, `` ` ``, `[](…)`
-   masquées hors des lignes du curseur ; Ctrl+clic ouvre un lien) ; le 💬
+   masquées hors des lignes du curseur ; Ctrl+clic ouvre un lien) ; le *Commenter*
    de chaque bloc et les pastilles dans une gouttière à droite des lignes,
    le liseré (vert) des changements. *Brut* montre le
    Markdown tel qu'il est dans le fichier, modifiable lui aussi (F-113).
@@ -1086,7 +1133,7 @@ conversation ; note `0.9.0-actions-independantes.md`).
    libre ; *Envoyer les réponses* les envoie en une fois, une par question
    (grisé tant qu'aucune n'a de réponse). Prochaine action : *Rédiger la
    note* (la demande du champ de l'étape), puis *Envoyer les réponses*, puis
-   *✓ Valider la note*. Sur la base seulement, *Rédiger la note* part comme
+   *Valider la note*. Sur la base seulement, *Rédiger la note* part comme
    une nouvelle demande (F-110) : l'agent propose un nom de branche (skill
    `nouvelle-demande`, rien de plus), qui attend dans un champ prérempli et
    modifiable, avec « Voulez-vous créer la branche … ? » et ses choix ; rien
@@ -1096,9 +1143,9 @@ conversation ; note `0.9.0-actions-independantes.md`).
 2. **Forme** — faite : au moins un module dans la rubrique « Forme », validée.
    Montre les modules groupés par premier dossier (`src/` de tête ignoré) :
    chemin, contrat en rubriques (expose, ne connaît pas, utilisé par), état
-   (touché par la branche, existe, à créer), commits ; 💬, *Ouvrir*. *Poser
+   (touché par la branche, existe, à créer), commits ; *Commenter*, *Ouvrir*. *Poser
    la forme* (dans la note, sans code ; le champ de l'étape peut la préciser), puis
-   *✓ Valider la forme*.
+   *Valider la forme*.
 3. **Invariants** — faite, seulement si la Note et la Forme le sont : aucune ligne
    « → invariant » dans la note (ni
    test ni commit attendus : la note et la forme se commitent à l'étape
@@ -1108,10 +1155,10 @@ conversation ; note `0.9.0-actions-independantes.md`).
    « → invariant » mais aucun test d'invariant de la branche (des tests
    existants les observent déjà) : faite quand la dernière course *Écrire
    les invariants* ou *Vérifier l'alignement* est *finie* (pas *en échec*,
-   pas *arrêtée*), ou *✓ Rien à écrire* validé (à côté de l'invitation à
+   pas *arrêtée*), ou *Rien à écrire* validé (à côté de l'invitation à
    écrire ; l'empreinte du texte de la note : il tombe à n'importe quel
-   changement de la note, comme *✓ Valider la note*). Pendant *Vibe* aussi, rien
-   d'automatique : la course finie ou le ✓. *Lire en pseudo-code*
+   changement de la note, comme *Valider la note*). Pendant *Vibe* aussi, rien
+   d'automatique : la course finie ou la validation. *Lire en pseudo-code*
    n'est qu'une aide à la lecture, facultative. Montre le
    résumé (cas, validés, refusés, modifiés depuis, avec un point d'attention,
    à lire), l'alignement (`align.md`, sans *Relancer*, F-93), puis chaque fichier : sa progression,
@@ -1120,20 +1167,29 @@ conversation ; note `0.9.0-actions-independantes.md`).
    `and`, quel que soit le langage du test (coloré ; chaque `then` est une
    assertion, sa valeur attendue après `#` ; les lectures d'avant, proches
    de Vitest, se lisent encore), cas limites, ce qu'il garantit, un point
-   d'attention quand le test n'observe pas vraiment la propriété — avec ✓,
-   ✗ (cite le cas dans le champ), 💬, *Ouvrir*, et *Pseudo-code / Code* : le
+   d'attention quand le test n'observe pas vraiment la propriété — avec *Valider*,
+   *À revoir* (cite le cas dans le champ), *Commenter*, *Ouvrir*, et *Pseudo-code / Code* : le
    code d'origine du cas à la place du pseudo-code (de sa ligne à celle du cas
-   suivant, monospace, numéroté, coloré : F-113) ; *✓ Tout valider* quand
+   suivant, monospace, numéroté, coloré : F-113) ; un cas validé, discret :
+   ni cadre ni fond, la seule fine bordure verte à gauche, son état par
+   l'icône *Validé* ; *Tout valider* quand
    aucun cas n'a de point d'attention, le fichier lu ou pas ; *Voir le
-   fichier* (replié : tout son code, numéroté) ; pas lu : ses cartes sans
-   lecture, avec ✓ et ✗, et *Lire en pseudo-code* ; lu puis changé : sa
+   fichier* (replié : tout son code, numéroté ; un test qui existait à la
+   base de la branche et qu'elle modifie : un sélecteur *Fichier* · *Diff
+   depuis la base de la branche*, le diff *En ligne* ou *Côte à côte*, en
+   lecture seule, jusqu'au texte de l'éditeur, le test entier, pas replié
+   autour des changements, ses lignes retirées, modifiées et ajoutées
+   marquées ; un test ajouté par la branche : pas de sélecteur) ; pas lu :
+   ses cartes sans lecture, avec *Valider* et *À revoir*, et *Lire en pseudo-code* dans les
+   outils de son en-tête, avec les autres ; lu puis changé : sa
    dernière lecture reste affichée, marquée « lecture périmée », pas
    comptée comme lue, *Relire* en accent. Seuls les tests déjà écrits de la
    branche se modifient : *Code* et *Voir le fichier* ouvrent le fichier
    entier (*Code* : à la ligne du cas ; un seul à la fois), avec les gestes
    et le verrou de la note (ci-dessus). Le relevé porte le texte
    du test, vide au-delà de 200 000 caractères (rien de tout cela n'est
-   alors montré). En tête : *Tout relire* (dès qu'un fichier
+   alors montré), et son texte au commit d'où part la branche (par git ;
+   aucun : ajouté par la branche, ou au-delà de 200 000 caractères). En tête : *Tout relire* (dès qu'un fichier
    est lu). Prochaine action : *Écrire les invariants
    (rouges), puis vérifier l'alignement* (d'après la note, ou le pseudo-code
    du champ de l'étape ; l'alignement dans la même course, F-93) tant qu'il
@@ -1145,7 +1201,7 @@ conversation ; note `0.9.0-actions-independantes.md`).
    ne la lance pas) : elle reste dans la rangée de l'étape.
 4. **Modules** — faite : chaque module de la Forme touché par un commit de la
    branche. Montre en tête le commit proposé (`commit.md` : le message tel
-   qu'il sera commité, *✓ Commiter*, direct ou *via* l'agent, F-114 ; 💬) et la relecture du dernier diff
+   qu'il sera commité, *✓ Commiter*, direct ou *via* l'agent, F-114 ; *Commenter*) et la relecture du dernier diff
    (`review.md`) ; *Commiter les modules* dans les outils de la carte, s'il
    y a un module pas commité ; puis une ligne par module (commité, en cours :
    modifié pas commité, à faire ; nom, dossier, contrat, « à créer », ses
@@ -1154,8 +1210,11 @@ conversation ; note `0.9.0-actions-independantes.md`).
    *Ouvrir*, *Commiter* (des fichiers changés hors de tout commit de la
    branche, ou modifiés depuis : ce module seul) — sous son contrat, ou, pour
    un module touché, sous le code de *Voir le code* (replié ; un seul déplié
-   à la fois) : ses fichiers par dossier et le fichier choisi, monospace,
-   numéroté, coloré (F-113). Un sélecteur sous l'arbre : *Fichier*, *Diff
+   à la fois) : ses fichiers que la branche change (modifiés, ajoutés,
+   supprimés, depuis sa base, la copie de travail comprise) par dossier et
+   le fichier choisi, monospace, numéroté, coloré (F-113) ; un supprimé est
+   marqué « supprimé », choisi : son diff depuis la base, tout en retraits,
+   sans sélecteur, ni édition, ni *Enregistrer*. Un sélecteur sous l'arbre : *Fichier*, *Diff
    depuis la base de la branche* (le commit d'où elle part ; grisé quand sa
    version est inconnue — pas de point de départ, trop grosse — alors que le
    fichier est au dernier commit), *Diff depuis le dernier commit* (`HEAD`) :
@@ -1164,7 +1223,8 @@ conversation ; note `0.9.0-actions-independantes.md`).
    coloré, replié autour des changements (le texte changé dans une ligne
    sur un fond vert ou rouge plus foncé que celui de sa ligne, pas
    souligné), en texte (I-40), seulement pour
-   un fichier de module (ni la note ni un test, I-37). Générer ne commite
+   un fichier de module ou d'un commit (ni la note ni un test, I-37 ; un
+   test a le sien, étape Invariants). Générer ne commite
    pas : *Commiter* et *Commiter les modules* (skill `commiter-modules`, un
    commit par module selon la convention du projet, un fixup pour un module
    déjà commité — jamais du premier commit de la branche, qui ne porte que la
@@ -1189,7 +1249,7 @@ conversation ; note `0.9.0-actions-independantes.md`).
    course qui génère ce module (*Générer*, *✓ Valider → commit → suivant* :
    ce module ; *Générer les modules restants* : tous ; « Ce module est en
    cours de génération ») ; le principal recalcule ce verrou avant d'écrire,
-   sans se fier à la page. Un clic sur une ligne, ou une sélection : 💬 (une
+   sans se fier à la page. Un clic sur une ligne, ou une sélection : *Commenter* (une
    question, une vérification) ou *Retour → fixup* (une correction) cite ses
    lignes entières dans le champ de la conversation (F-98). Prochaine action : *✓ Commiter*
    (un commit préparé), *✓ Valider → commit → suivant* (un module pas
@@ -1217,7 +1277,7 @@ conversation ; note `0.9.0-actions-independantes.md`).
    déplié en cas d'échec ; *Relancer*, qui ne relance qu'elle, F-93), le compte de la carte « n en échec »
    en rouge, sinon « n avertissements » en orange, sinon « n / n ok » ; les
    faits de l'étape ajoutent « n avertissements » ; la ponytail
-   review rendue, 💬 et *Appliquer* par remarque, *Tout appliquer* sur la
+   review rendue, *Commenter* et *Appliquer* par remarque, *Tout appliquer* sur la
    carte (l'action `apply`, skill `appliquer-revue`, sur Sonnet ; *Appliquer* lui donne
    la remarque, `{{text}}`, *Tout appliquer* rien : toutes ; ni l'un ni
    l'autre ne prend le champ ; absents sans remarque en liste ; *Appliquer*
@@ -1231,7 +1291,7 @@ conversation ; note `0.9.0-actions-independantes.md`).
    qu'une vérification échoue), puis *Replier les fixups*.
 6. **PR** — faite : une PR pour la branche, lue par gh (F-112 ; sinon
    `pr.json`). Montre la PR (numéro, titre, base ← branche,
-   *Ouvrir ↗* dans le navigateur) et l'état de la CI (`ci.md`). Ses actions
+   *Ouvrir* dans le navigateur) et l'état de la CI (`ci.md`). Ses actions
    suivent l'état de la PR (F-99) : sans PR, *Valider la feature (ouvrir la
    PR)* ; ouverte, *Diagnostiquer la CI* et *Release candidate* ; fusionnée,
    *PR mergée → revenir sur la base* (F-114 ; sur un enfant, *Retirer le
@@ -1272,17 +1332,27 @@ relit pas (l'état que gh donne l'emporte sur la fiche, F-112) : un bandeau le d
 avec cette raison (« PR déjà fusionnée : rien à relire », « PR fermée : rien
 à relire »). Plus d'étape PR : le parcours commence à **Note**. Les
 étapes, faites quand :
-1. **Note** — absente de la PR, ou jugée : ✓, ou ✗ (« La note est à revoir. »
+1. **Note** — absente de la PR, ou jugée : *Valider*, ou *À revoir* (« La note est à revoir. »
    au brouillon). Montre la note de la PR (comme en *Créer*)
    et sa relecture par l'agent (`pr-<n>-note.md`). *Relire la note*
    (décisions à discuter, manques, invariants mal classés).
-2. **Invariants** — chaque cas jugé (✓ ou ✗), lu ou pas. Les mêmes
-   cartes qu'en *Créer* ; *Lire en pseudo-code* (facultative), *Vérifier
+2. **Invariants** — chaque cas jugé (*Valider* ou *À revoir*), lu ou pas. Les mêmes
+   cartes qu'en *Créer* (*Voir le fichier* et son diff depuis la base de la
+   PR en lecture seule) ; *Lire en pseudo-code* (facultative), *Vérifier
    l'alignement*.
 3. **Commits** — relus (`pr-<n>-commits.md`). Sans IA, les commits de la PR
-   (hash, sujet, fichiers touchés), chacun avec *Voir le diff*, *GitHub ↗*
-   et ses fichiers à ouvrir (ci-dessous) ; relus, une carte par commit (hash,
-   sujet, remarques). *Relire les commits* (un par un : les quatre questions,
+   (hash, sujet, fichiers touchés), chacun avec *Voir le diff*, *GitHub*
+   (ci-dessous) et ses fichiers ; relus, une carte par commit (hash, sujet,
+   remarques). Un clic sur un fichier d'un commit l'ouvre dans le panneau,
+   sous sa carte (un seul à la fois ; recliqué : fermé) : sa version à la
+   tête de la PR, comme le code de *Voir le code* (F-113), en lecture seule
+   (ni édition, ni *Enregistrer*, ni Ctrl+S) ; absent là ou trop gros, « absent
+   à la tête de la PR, ou trop gros ». Un sélecteur : *Fichier* · *Diff de ce
+   commit* (depuis son parent) · *Diff depuis la base de la PR* ; un diff
+   *En ligne* ou *Côte à côte*. Lu par git seul, relu à chaque ouverture
+   (pas suivi sur le disque). *Commenter* sur une ligne ou une sélection : une zone de
+   commentaire, la remarque au brouillon pour ce commit, ses lignes citées
+   (F-98). *Relire les commits* (un par un : les quatre questions,
    la duplication, les en-têtes, l'histoire des commits).
 4. **À l'écran** — chaque case du plan de test cochée (dans le fichier, ou
    cochée à l'écran : validée pour ce plan-là, F-102 ; décocher la refuse,
@@ -1296,16 +1366,16 @@ avec cette raison (« PR déjà fusionnée : rien à relire », « PR fermée : 
 Le brouillon, gardé par PR : une remarque = sa cible (une ligne, 300
 caractères au plus) et son texte (5 000 au plus) — le texte du champ s'il y
 en a (le champ se vide ; trop long, il reste et l'écran le dit), sinon ce
-qu'on cite. ✗ sur la note ou un cas, 💬 sur la note, sa relecture,
-l'alignement, un cas ou un commit y ajoutent une remarque ; elle se modifie
+qu'on cite. *À revoir* sur la note ou un cas, *Commenter* sur la note, sa relecture,
+l'alignement, un cas, un commit ou les lignes d'un fichier d'un commit y
+ajoutent une remarque ; elle se modifie
 sur place (même cible, mêmes limites) ou se retire (×).
 
 **Ouvrir**, en *Créer* comme en *Relire*, ce que désigne un id du dernier
 relevé (I-37), dans l'éditeur (`editorCommand`, sinon le premier trouvé,
 F-56) :
-- un fichier (la note, un test, un variant, un module ; `c<rang>/<i>`, le
-  i-ème fichier d'un commit), à une ligne si l'écran la donne (un cas de
-  test : zed `fichier:ligne`, code, cursor, codium `-g fichier:ligne`, un
+- un fichier (la note, un test, un variant, un module), à une ligne si
+  l'écran la donne (un cas de test : zed `fichier:ligne`, code, cursor, codium `-g fichier:ligne`, un
   autre éditeur : le fichier seul), celui de la copie de travail, en *Relire*
   aussi (le dossier sur la branche de la PR ; un dossier ne s'ouvre pas) ;
 - `c<rang>` : le diff d'un commit (`git show`, sans programme externe, I-39),
@@ -1459,14 +1529,15 @@ une ligne, ou pas de réponse → refusé, rien ne bouge.
   PR. *Retirer* le robot (clic droit) oublie aussi son dossier, sans
   toucher au worktree.
 
-**F-102 Validations** : ✓, ✗ ou oublier, sur la note, sa Forme, un cas de
+**F-102 Validations** : valider, refuser (*À revoir*) ou oublier, sur la note, sa Forme, un cas de
 test, une case du plan de test (*Relire*), une case du § A.3 que le dépôt ne
-peut pas cocher (*Créer*, `a3:<rang>` : cocher la valide, décocher l'oublie). La note et la forme : *✓ Valider*
-(*Relire* : ✓ ou ✗), puis « validée » et *Annuler* ; un cas : ✓ ou ✗, un
-second clic l'annule. Chacune vaut pour l'empreinte du contenu validé (le
+peut pas cocher (*Créer*, `a3:<rang>` : cocher la valide, décocher l'oublie). La note et la forme : *Valider*
+(*Relire* : *Valider* ou *À revoir*), puis « validée » et *Annuler* ; un cas : *Valider* ou
+*À revoir* (icônes ; celle donnée enfoncée, « Validé » ou « Refusé — Cliquer
+de nouveau pour annuler » en infobulle), un second clic l'annule. Chacune vaut pour l'empreinte du contenu validé (le
 texte de la note, la rubrique « Forme », le fichier du test, le plan, le
 commit de tête de la branche pour une case du § A.3) : le
-contenu change → « modifiée depuis » (*✓ Revalider*), et l'étape attend une
+contenu change → « modifiée depuis » (*Revalider*), et l'étape attend une
 nouvelle validation. Une cible absente du dernier relevé est ignorée.
 Pendant le mode *Vibe* (F-103), à chaque relevé, chaque étape faite de
 *Créer* — la note, la forme, chaque cas des invariants — reçoit un ✓ pour
@@ -1487,7 +1558,7 @@ tests, faits sans ✓ ni lecture) ; les étapes qu'il passe reçoivent leur ✓
 1. **La note et ses questions**, sans orchestrateur : *Rédiger la note*
    (l'action `note`, sa course) ; ses questions vont **toutes** à
    l'utilisateur (*Envoyer les réponses*) : personne ne les tranche à sa
-   place ; puis *✓ Valider la note* : l'utilisateur a pris connaissance de
+   place ; puis *Valider la note* : l'utilisateur a pris connaissance de
    la note avant de donner la main.
 2. ***Vibe*** (l'action `vibe`, en tête de la rangée de l'étape en cours,
    F-93 ; masquée avant la note validée, F-99) : sans texte, au skill
@@ -1523,10 +1594,10 @@ lance ni `note` ni `answers`, ne tranche jamais *Garder* / *Annuler* (c'est
 à l'utilisateur). Jamais : `git push --force`, fusionner la PR, publier une
 version officielle, supprimer une version, un tag ou une branche.
 
-**F-104 Markdown** (la note, les sorties) : titres, paragraphes, listes et
+**F-104 Markdown** (la note, les sorties, les messages de l'agent, F-66) : titres, paragraphes, listes et
 cases à cocher, citations, code, tableaux, filets ; en ligne : code, gras,
 italique, liens. Jamais de HTML : une balise reste du texte ; un lien n'est
-un lien qu'en `http(s)`, ouvert dans le navigateur (I-40, I-21). Un 💬 au
+un lien qu'en `http(s)`, ouvert dans le navigateur (I-40, I-21). Un *Commenter* au
 survol de chaque bloc et de chaque élément de liste le cite (F-98 ; *Relire* :
 au brouillon, F-101). En *Créer*, après *Modifier*, la note se modifie
 rendue ou en *Brut* (F-100) ; une balise tapée ou écrite dans le fichier reste du texte. Un
@@ -1557,8 +1628,8 @@ espaces au milieu ; il nomme le journal), `run` tel
 que tapé dans un terminal, `cwd` relatif au dossier de l'agent ; une entrée
 mal formée est ignorée. Le fichier est relu à chaque relevé : une commande
 ajoutée et enregistrée apparaît sans relancer l'appli. Chaque commande a son nom (entier, coupé s'il est vraiment long ; la
-bulle donne nom et commande), sa commande en petit dessous, ▶ *Lancer*, ⏹ *Arrêter*,
-↻ *Relancer*, son état (en cours, arrêtée, en échec et son code), depuis
+bulle donne nom et commande), sa commande en petit dessous, *Lancer*, *Arrêter*,
+*Relancer* (icônes), son état (en cours, arrêtée, en échec et son code), depuis
 quand, et la fin de son journal (200 lignes au plus, sans couleurs, qui suit
 la fin ; dépliable ; *Journal complet* l'ouvre dans l'éditeur).
 - *Proposer les commandes*, fichier ou pas (action `propose-run`, skill
@@ -1667,7 +1738,9 @@ absente (I-29).
 fichier*, sans citer, éditables en *Créer* ; étape Modules : *Voir le code*,
 éditable, un clic ou une sélection cite ses lignes, F-98 ; ses diffs, eux,
 en texte sans coloration, ajouts en vert, retraits barrés ; étape Note :
-*Brut*, éditable après *Modifier*) : CodeMirror 6, en lecture quand l'édition est grisée ;
+*Brut*, éditable après *Modifier* ; *Relire*, étape Commits : un fichier
+d'un commit, en lecture seule, un clic ou une sélection cite ses lignes,
+F-101) : CodeMirror 6, en lecture quand l'édition est grisée ;
 d'après l'extension — `ts`, `tsx`, `js`, `jsx`, `mjs`, `cjs`, `mts`, `cts`,
 `rs`, `py`, `go` ; un autre : en texte. La palette sombre de GitHub :
 mots-clés, chaînes, commentaires, nombres et constantes, fonctions, types,
@@ -1870,7 +1943,7 @@ travaille) sont relus à chaque relevé. S'y ajoutent les variantes générées 
 skills (F-106), réécrites à chaque fois.
 
 **F-108 FR / EN** (`vibeLang`, pour tout VibeCoder) : la langue de l'écran
-(libellés, faits du parcours, raisons et erreurs), des actions
+(libellés, faits des étapes, raisons et erreurs), des actions
 (`actions.<langue>.json` : libellés, aides, messages envoyés) et de ce que
 les skills écrivent pour l'utilisateur (`{{lang}}`) : la note, les questions
 ouvertes, le plan de test à l'écran, la relecture de la note, les releases.
@@ -2136,7 +2209,9 @@ bancs de comparaison.
 - **I-37** Le principal ne lit pour VibeCoder que la note et les tests que git
   lui donne, et le seul fichier suivi (F-100) — celui de *Voir le code*, d'un
   module touché par la branche (`m<rang>/<i>`), ou, en *Créer* seulement, la
-  note (`n`) ou un test d'invariant de la branche (`t<i>`) —, **dans le dossier de l'agent** (`..` et liens résolus ; ni
+  note (`n`) ou un test d'invariant de la branche (`t<i>`), ou, en *Relire*
+  seulement, un fichier d'un commit (`c<rang>/<i>`, lu par git seul, jamais
+  enregistré) —, **dans le dossier de l'agent** (`..` et liens résolus ; ni
   chemin absolu, ni NUL), et les sorties de cet agent **sous leurs noms
   connus** (F-95 ; ni `..`, ni autre dossier qu'`invariants/` et
   `artifacts/`, ni un lien) ; un artefact (F-95), pour l'afficher (son texte
@@ -2146,8 +2221,12 @@ bancs de comparaison.
   page désigne un fichier par son **id dans le dernier relevé**, jamais par un
   chemin : un id en forme de chemin, ou égal au chemin d'un fichier du relevé,
   ne désigne rien (I-34), ni un commit ou un module pas touché pour le
-  fichier suivi, ni la note ou un test en *Relire* ; un commit, par son rang (`c<rang>`, `gh:c<rang>`,
-  `c<rang>/<i>`, F-101), jamais par une URL. Ce que le principal écrit pour
+  fichier suivi, ni la note ou un test en *Relire*, ni un fichier d'un commit
+  en *Créer* ; un commit, par son rang (`c<rang>`, `gh:c<rang>`,
+  `c<rang>/<i>`, F-101), jamais par une URL. Les autres versions d'un
+  fichier — à la base, au parent d'un commit, à un commit, à `HEAD`, celles
+  d'un fichier supprimé, le texte d'un test à la base — ne se lisent que par
+  git (`show`), au chemin du relevé, jamais à un chemin donné par une page. Ce que le principal écrit pour
   ouvrir (une version de la PR, un diff) va sous `files/` du dossier de
   sorties de l'agent, en lecture seule, et n'est jamais relu.
 - **I-38** Dans le message d'une action, seuls `{{text}}`, les réponses aux
@@ -2229,7 +2308,8 @@ bancs de comparaison.
   n'exécute aucun script et ne joint pas le réseau (F-95). Un push autre que *Pousser*, un rebase autre que *Rebase*, checkout, ouvrir une PR, et le *via* des actions
   directes passent par l'agent, dans la conversation, avec ses autorisations.
 - **I-40** Aucun HTML rendu depuis un texte (note, rendue ou en édition,
-  sortie d'un skill, code d'un fichier, F-113, éditable ou non, son diff en
+  sortie d'un skill, message de l'agent dans le fil de la conversation,
+  F-66, en VibeCoder comme en conversation, code d'un fichier, F-113, éditable ou non, son diff en
   ligne ou côte à côte : une balise
   tapée ou écrite dans le fichier reste du texte) : le
   Markdown de VibeCoder ne produit que du texte, du code et des liens
@@ -2388,7 +2468,7 @@ Copier, erreurs ; mêmes relevés).
 - **S-27** Historique : ouvrir une ancienne conversation (lecture seule, pas de
   champ), *Reprendre*, *← Conversation en cours*.
 - **S-28** Pièces jointes : capture collée, image et fichier déposés, image
-  choisie par 📎, texte sélectionné ; l'agent les reçoit ; le fil les montre.
+  choisie par le trombone du champ, texte sélectionné ; l'agent les reçoit ; le fil les montre.
 - **S-29** « /comp » → /compact proposé, Entrée le choisit, le message part ;
   la jauge attend une nouvelle mesure. Deux agents de même nom dans deux
   dossiers : chacun ses commandes.
@@ -2437,8 +2517,8 @@ Copier, erreurs ; mêmes relevés).
 **VibeCoder** (un agent dans un dépôt d'essai qui a `docs/tickets/` ; pour
 *Relire*, une PR d'essai sur GitHub)
 - **S-50** Clic droit sur un robot → *◧ Ouvrir VibeCoder* : panneau agrandi
-  (1280×820 la première fois), en-tête (nom, `⎇` branche), parcours à
-  gauche, étape en cours au centre, conversation à droite. Redimensionner :
+  (1280×820 la première fois), en-tête (nom, `⎇` branche), au centre le
+  fil d'Ariane au-dessus de l'étape en cours, conversation à droite. Redimensionner :
   taille retenue, celle de la conversation (`convSize`) inchangée. Barre
   d'état : changer modèle, effort, mode → le menu du robot les montre ;
   pastille *✦ Fable · élevé* de l'étape Note → Fable, effort élevé. Un
@@ -2458,7 +2538,7 @@ Copier, erreurs ; mêmes relevés).
   réponses* : « 1. … 2. … » dans le fil, puis la note à jour.
 - **S-53** Une branche avec deux tests d'invariants (TypeScript, Rust) :
   *Lire en pseudo-code* (sonnet · moyen) → une carte par cas (pseudo-code,
-  cas limites, garantie, attention) ; ✓ sur un cas, ✗ sur un autre (cité
+  cas limites, garantie, attention) ; *Valider* sur un cas, *À revoir* sur un autre (cité
   dans le champ). Modifier l'un des tests : ses cas passent « modifié
   depuis », *Lire en pseudo-code* ne relit que lui. *Relire* sur un fichier
   lu : sa lecture est refaite (et remplacée) ; *Tout relire* : tous.
@@ -2468,15 +2548,15 @@ Copier, erreurs ; mêmes relevés).
   récupérée, son nom dans le bouton ; *Changer de branche* → le dossier sur
   la branche de la PR ; *Relire* commence à Note, le parcours se lit dans la copie de travail (note,
   invariants, commits). *Relire la note*, *Relire les commits*, *Plan de test
-  à l'écran* : leurs sorties dans les étapes. Un ✗ et un 💬 complété par le
+  à l'écran* : leurs sorties dans les étapes. Un *À revoir* et un *Commenter* complété par le
   champ → deux remarques au brouillon ; en retirer une. Brouillon vide :
   *Publier la revue* grisé. *Publier la revue* (commenter) : la revue paraît
   sur la PR d'essai, telle quelle ; l'étape Revue est faite.
-- **S-55** *EN* : l'écran, les boutons, les faits du parcours en anglais ;
+- **S-55** *EN* : l'écran, les boutons, les faits des étapes en anglais ;
   une action part en anglais (`/vibecoder:… en …`), l'agent répond en
   anglais ; le fil et le champ restent en français ; un autre agent en
   VibeCoder aussi en anglais. *FR* : retour.
-- **S-56** Après quelques actions, 💬 → la conversation : chaque action est
+- **S-56** Après quelques actions, *Revenir à la conversation* → chaque action est
   dans le fil, comme un message tapé, avec sa réponse. *◧ Ouvrir VibeCoder* :
   retour sur l'étape en cours.
 - **S-57** Menu de l'icône → *Agents Claude Code → Dossier de VibeCoder* : le
@@ -2494,10 +2574,16 @@ Copier, erreurs ; mêmes relevés).
   pseudo-code*, *Relire les commits*, *Plan de test*, *Publier* grisés avec
   cette raison. Une PR ouverte : rien de grisé pour cette raison.
 - **S-60** *Relire* : étape Commits → *Voir le diff* d'un commit : son diff
-  s'ouvre dans l'éditeur (`files/<hash>.diff`, en lecture seule) ; *GitHub ↗* :
-  la page du commit dans le navigateur ; un fichier du commit : sa version de
-  la PR, en lecture seule ; *Ouvrir* sur un cas d'invariant : le fichier, à la
-  ligne du cas (zed, code).
+  s'ouvre dans l'éditeur (`files/<hash>.diff`, en lecture seule) ; *GitHub* :
+  la page du commit dans le navigateur ; un clic sur un fichier du commit :
+  il s'ouvre sous sa carte, sa version à la tête de la PR, en lecture seule
+  (un autre : le premier se ferme) ; *Diff de ce commit*, *Diff depuis la
+  base de la PR*, en ligne et côte à côte ; *Commenter* sur deux lignes → une zone de
+  commentaire : y dicter, la dictée s'y insère (pas dans le champ de la
+  conversation) ; la remarque au brouillon, pour ce commit, son chemin et
+  ses lignes citées. Un champ d'une ligne (recherche de branche) a le
+  clavier : la dictée va au champ de la conversation. *Ouvrir* sur un cas
+  d'invariant : le fichier, à la ligne du cas (zed, code).
 - **S-61** *Lire en pseudo-code* (*Relire les commits*) sur un skill
   `sonnet · moyen` (`opus · élevé`) : choisir *haiku* → le message part en
   `/vibecoder:lire-invariants--haiku …` (le fil le montre). Les lectures sont en anglais, en *FR* comme en *EN*.
@@ -2537,10 +2623,10 @@ Copier, erreurs ; mêmes relevés).
   `.vibecoder/` dans `.git/info/exclude` (`git status` n'en dit rien). ▶ → point vert, « depuis 5 s »,
   le journal de process-compose défile ; *Processus (1)* dans l'onglet.
   L'agent, prié de relancer le serveur, écrit `run/gear.restart` → le journal
-  repart. ⏹ → arrêtée, plus aucun processus de process-compose dans la box
-  (`pgrep -f process-compose`). ▶ puis quitter l'appli → rien ne reste, ni
+  repart. *Arrêter* → arrêtée, plus aucun processus de process-compose dans la box
+  (`pgrep -f process-compose`). *Lancer* puis quitter l'appli → rien ne reste, ni
   sur l'hôte ni dans la box. Un `sleep 1000` lancé à la main dans la box
-  survit à ⏹ et à la sortie. *Modifier les commandes* → le fichier dans
+  survit à *Arrêter* et à la sortie. *Modifier les commandes* → le fichier dans
   l'éditeur ; une commande renommée → l'ancienne, si elle tournait, arrêtée.
 - **S-66** Même appli sur l'hôte (sans gh), gh dans la box : *Créer* sur une
   branche qui a sa PR, sans `pr.json` → l'étape **PR** faite en quelques
@@ -2563,12 +2649,12 @@ Copier, erreurs ; mêmes relevés).
   supprimée. `direct.log` : une ligne par commande.
 - **S-68** Courses (F-115), une branche de ticket : à l'étape
   **Forme**, un mot dans le champ de l'étape, *Poser la forme* → le champ se
-  vide, « en cours » et ⏹ à côté du bouton, *Actions (1)* ; pendant ce temps,
+  vide, « en cours » et *Arrêter* à côté du bouton, *Actions (1)* ; pendant ce temps,
   une question dans le champ de la conversation → l'agent répond. *Écrire
   les invariants (rouges)* grisé « Une autre action est en cours » ; à
   l'étape Revue, *Lancer les vérifications et la ponytail review* grisé
   « Une action modifie la branche ».
-  ⏹ → *arrêtée — à garder ou annuler*, les autres toujours grisées ;
+  *Arrêter* → *arrêtée — à garder ou annuler*, les autres toujours grisées ;
   *Annuler* → la note revient telle qu'avant la course (`git diff` vide sur
   ce qu'elle avait touché), un autre fichier modifié à la main pendant ce
   temps reste modifié, *annulée*, les boutons se libèrent. Relancée puis *Garder*
@@ -2589,10 +2675,10 @@ Copier, erreurs ; mêmes relevés).
   `.stop`, *arrêtée*, pas d'avis de fin. Hors *Vibe*, sans rien demander :
   il ne lance rien. Une petite demande, *Rédiger la note* → la note et ses
   questions, sans orchestrateur, pas de *Vibe* tant qu'une question est
-  ouverte ni avant *✓ Valider la note* ; validée, *Vibe* en tête de la
+  ouverte ni avant *Valider la note* ; validée, *Vibe* en tête de la
   rangée → la bannière, le même écran, les actions s'enchaînent une à une
   dans l'onglet *Actions* (forme, invariants, …), la conversation libre
-  entre deux, aucune question de la note tranchée par l'agent ; ⏹ sur l'une
+  entre deux, aucune question de la note tranchée par l'agent ; *Arrêter* sur l'une
   d'elles → elle attend *Garder* / *Annuler*, l'orchestrateur ne tranche
   pas. Une question qui bloque → la bannière reste ; les réponses envoyées,
   il reprend seul. *Arrêter Vibe* → la course en cours finit, la suivante
@@ -2601,7 +2687,7 @@ Copier, erreurs ; mêmes relevés).
   *Vibe* → elle repart sans lui.
 - **S-70** Le parcours guidé, *Créer*, une branche sans note : en-tête sans
   bascule de mode, pas de *Vibe* dans la rangée (ni en *Relire*) ; pas
-  d'onglets d'étapes ; le parcours n'ouvre que la Note, les autres étapes
+  d'onglets d'étapes ; le fil d'Ariane n'ouvre que la Note, les autres étapes
   visibles sans clic, Ctrl+3 ne fait rien. Plus loin : ni *Vérifier
   l'alignement* ni *Ponytail review* ; *✓ Commiter* seulement un commit
   préparé ; l'étape PR sans PR : *Valider la feature* seule ; la PR ouverte :
@@ -2633,8 +2719,6 @@ Copier, erreurs ; mêmes relevés).
 - Un processus Claude Code par agent utilisé depuis le lancement (quelques
   centaines de Mo chacun), jusqu'à *Nouvelle session*, *Retirer* ou la sortie ;
   et un par course de VibeCoder en cours ou arrêtée (F-115).
-- Réponses en texte brut dans le fil (Markdown non rendu, sauf blocs de code
-  et liens ; VibeCoder rend celui de la note et des sorties, F-104).
 - Les tâches de fond d'un lancement précédent de l'appli ne sont pas
   montrées (le volet lit le flux du processus, pas la transcription).
 - Le renommage d'un agent et la commande de lancement passent par
@@ -2670,7 +2754,7 @@ Copier, erreurs ; mêmes relevés).
 - VibeCoder : seuls ses libellés passent en anglais ; la conversation (fil,
   champ, volet des tâches, détail du contexte), les menus et les messages de
   l'appli restent en français.
-- VibeCoder : les images d'un Markdown ne sont pas montrées (leur texte
+- VibeCoder : les images d'un Markdown (un message de l'agent aussi, F-66) ne sont pas montrées (leur texte
   reste, en lien s'il est en `http(s)`) ; pas d'🕘 Historique (revenir à la
   conversation) ; une revue de PR est un commentaire d'ensemble, pas de
   commentaire sur une ligne du diff.

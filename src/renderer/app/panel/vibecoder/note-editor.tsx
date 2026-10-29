@@ -1,6 +1,7 @@
 /** note-editor — la note éditable façon Obsidian (CodeMirror 6, liveMarkdown) :
- *  ce qui est tapé se met en forme au fil de la frappe ; 💬 par bloc
- *  (blockQuotes, lineButtons), recalculés sur le document tapé, cite le texte
+ *  ce qui est tapé se met en forme au fil de la frappe ; un bouton-icône
+ *  comment par bloc (blockQuotes, lineButtons, iconElement ; quoteLabel en
+ *  title et aria-label), recalculés sur le document tapé, cite le texte
  *  du bloc (onQuote) ; liseré vert des changements de l'agent (lineMarks) ;
  *  pastilles des marques de « Ce que ça ne doit pas faire » (lineBadges) ;
  *  Ctrl+clic sur un lien → onOpenLink ; Ctrl+S → onSave (editorBase) ; locked : lecture
@@ -17,10 +18,14 @@ import { Compartment, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { editorBase, lineBadges, lineButtons, lineMarks, liveMarkdown, syncDoc } from 'technicals/codemirror';
 import { blockQuotes } from 'core/vibecoder';
+import { iconElement } from './icons';
 
 type Tag = { line: number; text: string; title: string; cls: string };
 
-export function NoteEditor({ text, locked, changed, tags, onChange, onSave, onQuote, onOpenLink }: {
+// Stable : une fonction neuve à chaque rendu reconstruirait les boutons de la gouttière.
+const commentIcon = () => iconElement('comment');
+
+export function NoteEditor({ text, locked, changed, tags, onChange, onSave, onQuote, quoteLabel = '', onOpenLink }: {
   text: string;
   locked: string | null;
   changed?: Set<number>;
@@ -28,6 +33,7 @@ export function NoteEditor({ text, locked, changed, tags, onChange, onSave, onQu
   onChange(text: string): void;
   onSave(): void;
   onQuote?(text: string): void;
+  quoteLabel?: string;   // le libellé du bouton de citation (title, aria-label)
   onOpenLink(url: string): void;
 }): ReactNode {
   const host = useRef<HTMLDivElement>(null);
@@ -73,11 +79,11 @@ export function NoteEditor({ text, locked, changed, tags, onChange, onSave, onQu
 
   const quoteKey = useMemo(() => blockQuotes(text).map((q) => q.line).join(','), [text]);
   const quoting = !!onQuote;
-  useEffect(() => configure(buttons, !quoting || !quoteKey ? [] : lineButtons(quoteKey.split(',').map(Number), '💬', (line) => {
+  useEffect(() => configure(buttons, !quoting || !quoteKey ? [] : lineButtons(quoteKey.split(',').map(Number), quoteLabel, (line) => {
     // le bloc de cette ligne dans le document au moment du clic
     const q = blockQuotes(view.current!.state.doc.toString()).find((b) => b.line === line);
     if (q) latest.current.onQuote?.(q.text);
-  })), [quoteKey, quoting]);
+  }, commentIcon)), [quoteKey, quoting, quoteLabel]);
 
   return <div ref={host} className="vc-note-editor" data-locked={locked ? true : undefined} title={locked ?? undefined} />;
 }

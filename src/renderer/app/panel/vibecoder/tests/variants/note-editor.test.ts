@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 // NoteEditor (note-editor.tsx) : Ctrl+S → onSave, sauf grisé ; le texte changé par les props
-// remplace le document sans revenir à onChange ; 💬 cite son bloc, et suit les blocs tapés.
+// remplace le document sans revenir à onChange ; le bouton de citation (icône comment, quoteLabel en
+// title et aria-label) cite son bloc, et suit les blocs tapés.
 // Le défilement porté par .cm-scroller (la barre de l'appli sur lui), pas par le cadre.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -50,11 +51,16 @@ it('le texte changé par les props remplace le document, sans le renvoyer à onC
   expect(typed).toEqual(['deux!']);
 });
 
-it('💬 cite le texte de son bloc, et suit les blocs tapés', async () => {
+it('le bouton de citation cite le texte de son bloc, et suit les blocs tapés', async () => {
   const quoted: string[] = [];
   const v = mount();
-  await v.render({ text: '# Un **titre**\n\nUn paragraphe.', onQuote: (t) => quoted.push(t) });
+  await v.render({ text: '# Un **titre**\n\nUn paragraphe.', onQuote: (t) => quoted.push(t), quoteLabel: 'Citer' });
   expect(v.buttons()).toHaveLength(2);
+  // une icône, pas d'emoji ; le libellé en title et aria-label
+  const [b] = v.buttons();
+  expect(b.querySelector('svg')).not.toBeNull();
+  expect(b.textContent).toBe('');
+  expect([b.title, b.getAttribute('aria-label')]).toEqual(['Citer', 'Citer']);
   // happy-dom n'a pas de mise en page : le clic tombe sur la première ligne
   await act(() => { v.buttons()[0].click(); });
   expect(quoted).toEqual(['Un titre']);
@@ -66,7 +72,7 @@ it('💬 cite le texte de son bloc, et suit les blocs tapés', async () => {
   expect(v.buttons()).toHaveLength(3);
 });
 
-it('sans onQuote, pas de 💬 ; pastilles et liseré sur leurs lignes', async () => {
+it('sans onQuote, pas de bouton de citation ; pastilles et liseré sur leurs lignes', async () => {
   const v = mount();
   await v.render({ text: 'a\nb\nc', changed: new Set([1]), tags: [{ line: 2, text: 'inv', title: 'invariant', cls: 'vc-tag' }] });
   expect(v.buttons()).toHaveLength(0);

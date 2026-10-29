@@ -8,7 +8,14 @@
  *  un id qui ne désigne rien : null poussé, rien lu ; un fichier de module,
  *  lu : avec at, son texte au commit où la branche part de repo.base
  *  (forkPoint) et à HEAD (gitReader.show), relus à chaque poussée, null là où
- *  il manque ou dépasse READ_MAX ; la note et les tests : sans at) ; saveCode l'enregistre
+ *  il manque ou dépasse READ_MAX ; la note et les tests : sans at). Un fichier
+ *  de module supprimé (deleted au relevé) : text null, at, sans veilleur ;
+ *  supprimé pendant qu'il est suivi : text null, at aussi. En
+ *  Relire, un fichier d'un commit (commitFile, `c<rang>/<i>`) : rien lu sur le
+ *  disque, sans veilleur, poussé une fois ; at.base au forkPoint de la base de
+ *  la PR, at.head à HEAD (la tête de la PR, = text), at.commit : before au
+ *  parent du commit (gitReader.parent), after au commit, null là où il manque
+ *  ou dépasse READ_MAX ; les lectures git en parallèle. saveCode l'enregistre
  *  au geste de l'utilisateur, seulement le fichier suivi, s'il est encore dans
  *  le relevé, que codeLock (recalculé ici, sans se fier à la page : isBusy,
  *  lockingRuns ; sans module, la note ou un test, toute course retient) ne le
@@ -18,7 +25,7 @@
  *  descripteur jusqu'à cfg.artifactTextMax octets, jamais au-delà, décodé en
  *  UTF-8 (un binaire compris), truncated s'il est plus long ; relu par
  *  artifactFile à chaque poussée (sorti du relevé, devenu lien : text null) ;
- *  saveCode le refuse (ce n'est pas un codeFile).
+ *  saveCode le refuse, comme un fichier d'un commit (ce n'est pas un codeFile).
  *  Ne connaît pas : la page (seulement ses canaux) ; git (technicals/git). La fenêtre : seulement
  *  state.panel pour pousser conv:vibeCode, comme controllers/vibecoder pour
  *  conv:vibe (aucun assistant d'envoi au panneau n'existe).
@@ -27,7 +34,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { SendResult, VibeCode, VibeLang } from 'shared/bridge';
 import { vibeLang } from 'core/config';
-import { artifactOf, codeFile, codeLock, safePath } from 'core/vibecoder';
+import { artifactOf, codeFile, codeLock, commitFile, safePath } from 'core/vibecoder';
 import { artifactFile } from './artifacts';
 import { gitReader, gitRun } from 'technicals/git';
 import { loadConfig } from 'app/settings';
@@ -43,8 +50,12 @@ const ERRORS: Record<VibeLang, Record<'file' | 'text' | 'write', string>> = {
 };
 
 // Le fichier suivi : l'agent, l'id, son chemin dans le dépôt (d'un artefact : son
-// chemin absolu, artifact vrai), son veilleur.
-type Followed = { agentId: string; id: string; rel: string; module: boolean; artifact: boolean; watcher: fs.FSWatcher | null };
+// chemin absolu, artifact vrai), le hash de son commit (un fichier d'un commit),
+// disk faux s'il ne se lit que par git (d'un commit, supprimé), son veilleur.
+type Followed = {
+  agentId: string; id: string; rel: string; module: boolean; artifact: boolean; commit: string | null; disk: boolean;
+  watcher: fs.FSWatcher | null;
+};
 let followed: Followed | null = null;
 
 const push = (code: VibeCode | null) => {
@@ -54,14 +65,18 @@ const push = (code: VibeCode | null) => {
 // Le fichier, s'il reste dans le dossier de l'agent (`..` et liens résolus).
 const fileOf = (dir: string, rel: string) => safePath(dir, rel, fs.realpathSync.native);
 
-// Ses textes à la base de la branche et à HEAD (null : absent là, trop gros, pas de base).
-async function versions(dir: string, agentId: string, rel: string): Promise<NonNullable<VibeCode['at']>> {
+// Ses textes à la base de la branche et à HEAD et, d'un commit (hash), à son parent
+// et à lui (null : absent là, trop gros, pas de base ni de parent).
+async function versions(dir: string, agentId: string, rel: string, hash: string | null): Promise<NonNullable<VibeCode['at']>> {
   const git = gitReader(gitRun(dir));
   const base = lastView(agentId)?.repo?.base;
-  const fork = base ? await git.forkPoint(base) : null;
-  const small = (t: string | null) => (t !== null && Buffer.byteLength(t) <= READ_MAX ? t : null);
-  const [atBase, atHead] = await Promise.all([fork ? git.show(fork, rel) : null, git.show('HEAD', rel)]);
-  return { base: small(atBase), head: small(atHead) };
+  const [fork, parent] = await Promise.all([base ? git.forkPoint(base) : null, hash ? git.parent(hash) : null]);
+  const show = async (ref: string | null) => {
+    const t = ref ? await git.show(ref, rel) : null;
+    return t !== null && Buffer.byteLength(t) <= READ_MAX ? t : null;
+  };
+  const [atBase, head, before, after] = await Promise.all([show(fork), show('HEAD'), show(parent), show(hash)]);
+  return { base: atBase, head, ...(hash && { commit: { before, after } }) };
 }
 
 // Le début d'un fichier ordinaire, au plus `max` octets, par un descripteur (jamais
@@ -79,7 +94,8 @@ function readHead(file: string, max: number) {
 }
 
 // Pousse le fichier suivi : son texte (null : trop gros, illisible, sorti du
-// dossier) et, d'un module, ses versions. Seule la dernière lancée pousse
+// dossier) et, d'un module lu ou disparu, ses versions ; d'un commit ou supprimé, git seul
+// (text : sa version à HEAD, d'un commit ; null, supprimé). Seule la dernière lancée pousse
 // (des lectures git plus lentes ne passent pas derrière), le disque lu après git.
 let pushes = 0;
 async function pushFollowed(dir: string) {
@@ -91,11 +107,12 @@ async function pushFollowed(dir: string) {
     push({ id: me.id, text: read?.text ?? null, time: read?.time ?? 0, ...(read?.truncated && { truncated: true }) });
     return;
   }
-  const at = me.module && fileOf(dir, me.rel) ? await versions(dir, me.agentId, me.rel) : undefined;
+  const at = !me.disk || me.module ? await versions(dir, me.agentId, me.rel, me.commit) : undefined;
   if (followed !== me || n !== pushes) return;
+  if (!me.disk) { push({ id: me.id, text: me.commit ? at?.head ?? null : null, time: 0, at }); return; }
   const file = fileOf(dir, me.rel);
   const read = file ? readTimed(file) : null;
-  push({ id: me.id, text: read?.text ?? null, time: read?.time ?? 0, ...(at && read && { at }) });
+  push({ id: me.id, text: read?.text ?? null, time: read?.time ?? 0, ...(at && (read || !file) && { at }) });
 }
 
 // Un artefact en texte (markdown, text) du dernier relevé : son fichier ; sinon null.
@@ -111,12 +128,18 @@ export function followCode(id: unknown): void {
   if (id === null) return;
   const agent = vibeAgent();
   if (!agent || typeof id !== 'string') { push(null); return; }
-  const found = codeFile(lastView(agent.id), id);
-  const file = found ? fileOf(agent.dir, found.path) : textArtifact(agent.id, id);
-  if (!file) { push(null); return; }
-  const me: Followed = { agentId: agent.id, id, rel: found?.path ?? file, module: !!found?.module, artifact: !found, watcher: null };
+  const view = lastView(agent.id);
+  const found = codeFile(view, id);
+  const commit = found ? null : commitFile(view, id);
+  const file = found ? fileOf(agent.dir, found.path) : commit ? null : textArtifact(agent.id, id);
+  const deleted = !file && !!found?.module?.files?.find((f) => f.id === id)?.deleted;
+  if (!file && !commit && !deleted) { push(null); return; }
+  const me: Followed = {
+    agentId: agent.id, id, rel: found?.path ?? commit?.path ?? file!, module: !!found?.module, artifact: !found && !commit,
+    commit: commit?.hash ?? null, disk: !!file, watcher: null,
+  };
   followed = me;
-  try {
+  if (file) try {
     const name = path.basename(file);
     me.watcher = fs.watch(path.dirname(file), (_ev, changed) => {
       if (followed === me && (!changed || changed.toString() === name)) void pushFollowed(agent.dir);

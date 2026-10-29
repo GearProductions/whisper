@@ -211,9 +211,10 @@ export interface ConvApi {
   /** Une course (l'id de son action dans VibeView.runs) : l'arrêter, la garder ou l'annuler (arrêtée),
    *  répondre à sa demande d'autorisation — jamais un chemin ni un texte. */
   vibeRunOp(id: string, op: VibeRunOp): void;
-  /** Voir le code : suivre un fichier du relevé — module (`m<rang>/<i>`), note (`n`), test d'invariant (`t<i>`) —
-   *  par son id, en Créer seulement pour la note et les tests ; null : ne plus suivre ;
-   *  son texte arrive par onVibeCode, à chaque changement sur le disque. */
+  /** Voir le code : suivre un fichier du relevé — module (`m<rang>/<i>`), note (`n`), test d'invariant (`t<i>`),
+   *  fichier d'un commit (`c<rang>/<i>`) — par son id, en Créer seulement pour la note et les tests, en Relire
+   *  seulement pour un fichier d'un commit ; null : ne plus suivre ; son texte arrive par onVibeCode, à chaque
+   *  changement sur le disque (un fichier d'un commit : lu par git, une fois). */
   vibeFollow(id: string | null): void;
   onVibeCode(fn: (code: VibeCode | null) => void): void;
   /** Enregistrer le fichier suivi (son id : module, note, test) : le principal refuse un autre id, un fichier sorti du relevé ou grisé. */
@@ -253,19 +254,21 @@ export type VibeModule = {
   file: VibeFile | null;       // son fichier ou dossier, s'il existe
   touched: boolean;            // la branche le touche
   commits: string[];           // hash des commits qui le touchent
-  files?: VibeFile[];          // touché : ses fichiers (ids m<rang>/<i>) ; absent = []
+  files?: (VibeFile & { deleted?: boolean })[];  // touché : ses fichiers que la branche change (ids m<rang>/<i>) ; deleted : supprimé par la branche (absent = false) ; absent = []
   locked?: string | null;      // pourquoi Voir le code est grisé (codeLock) ; absent = null : éditable
   uncommitted?: boolean;       // des fichiers changés pas encore commités, ou commités puis retouchés (git status) ; absent = false
 };
 
-// Le texte d'un fichier de module, poussé par le principal (Voir le code) ; null : trop gros ou illisible.
-// at : son texte à la base de la branche et au dernier commit (null : absent là) ; absent : pas un
-// fichier de module (la note, un test).
+// Le texte d'un fichier de module ou d'un commit, poussé par le principal (Voir le code) ; null : trop gros,
+// illisible, supprimé (ou, d'un commit, absent à la tête de la PR).
+// at : son texte à la base de la branche et au dernier commit (null : absent là) ; d'un commit : at.base à la
+// base de la PR, at.head à sa tête (= text), at.commit ; absent : ni l'un ni l'autre (la note, un test).
 export type VibeCode = {
   id: string;
   text: string | null;
   time: number;
-  at?: { base: string | null; head: string | null };
+  // commit : un fichier d'un commit, son texte au parent du commit et au commit (null : absent là)
+  at?: { base: string | null; head: string | null; commit?: { before: string | null; after: string | null } };
   truncated?: boolean;         // un artefact en texte, coupé à la limite configurée (artifactTextMax) ; absent : entier
 };
 
@@ -295,6 +298,7 @@ export type VibeTestFile = VibeFile & {
   cases: string[];                       // titres des cas trouvés dans le fichier
   lines: number[];                       // la ligne (1…) de chaque cas, dans l'ordre de cases : Ouvrir à la ligne
   source: string;                        // le texte du fichier, pour le montrer à côté de sa lecture ; '' au-delà de 200 Ko
+  base?: string | null;                  // son texte à la base de la branche ; null ou absent : ajouté par la branche, ou au-delà de 200 Ko
   reading: ReadingCase[] | null;         // null : pas encore lu
   stale?: boolean;                       // sa lecture est celle d'une version précédente ; absent = false
   marks: Record<string, VibeMarkState>;  // par titre de cas

@@ -1,9 +1,15 @@
 /* Les invariants (invariants-view) : résumé, alignement, un bloc par fichier
    (en-tête, progression), une carte par cas (pseudo-code coloré, cas
-   limites, garantie, attention, verdict). Sous .vc. */
+   limites, garantie, attention, verdict). Sobre et dense (0.13.0) : marges
+   un cran en dessous (--vc-pad), coins --vc-radius ; les outils de l'en-tête
+   d'un fichier alignés sur 22 px ; les icônes (Icon) de l'état et de « Tout
+   valider » à la taille du texte. Un cas validé, discret : ni cadre, ni fond,
+   ni pastille ; la fine bordure verte à gauche et l'icône. Sous .vc.
+   Ne connaît pas : les composants (seulement leurs classes).
+   Utilisé par : invariants-view (importé). */
 
 /* ---- Résumé de l'étape ----------------------------------------------------- */
-.vc-isum { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 18px; margin: -4px 0 16px; color: var(--vc-muted); font-size: 12.5px; }
+.vc-isum { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; margin: -3px 0 12px; color: var(--vc-muted); font-size: 12.5px; }
 .vc-isum-stat { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
 .vc-isum-stat b { color: var(--vc-text); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .vc-isum-stat[data-tone="ok"] b { color: #6fdd85; }
@@ -26,16 +32,16 @@
 .vc-ialign > .vc-card-body { max-height: 320px; overflow-y: auto; }
 
 /* ---- Un fichier --------------------------------------------------------------- */
-.vc-ifile { margin: 0 0 20px; }
+.vc-ifile { margin: 0 0 15px; }
 .vc-ifile-head {
   position: sticky;
   top: -18px;
   z-index: 2;
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 38px;
-  margin: 0 -4px 10px;
+  gap: 8px;
+  min-height: 32px;
+  margin: 0 -4px 8px;
   padding: 0 4px;
   border-bottom: 1px solid var(--vc-line);
   background: var(--vc-editor);
@@ -47,32 +53,35 @@
 .vc-ifile-read { flex: none; padding: 0 8px; border-radius: 9px; background: color-mix(in srgb, var(--vc-warn) 14%, transparent); color: var(--vc-warn); font: 500 11px/18px system-ui, sans-serif; }
 .vc-ifile-read[data-read] { background: rgba(255, 255, 255, 0.06); color: var(--vc-soft); }
 .vc-ifile-progress { flex: none; display: inline-flex; align-items: center; gap: 8px; color: var(--vc-muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.vc-ifile-tools { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.vc-ifile-tools { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+/* Alignés : Tout valider, Relire / Lire en pseudo-code et Ouvrir, à la hauteur des boutons (22 px). */
+.vc-ifile-tools > :is(.vc-run, .vc-vbtn) { height: 22px; border-radius: var(--vc-radius); }
+.vc-ifile-tools > .vc-vbtn { display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; }
+:is(.vc-ifile-tools > .vc-vbtn, .vc-case-state) svg { flex: none; width: 13px; height: 13px; }
 
-/* Pas encore lu : ses cas, et Lire en pseudo-code. */
-
-/* Voir le fichier : tout son code, replié. */
-.vc-ifile-src { margin: -4px 0 12px; }
+/* Voir le fichier : tout son code, replié ; un test modifié, le sélecteur Fichier · Diff. */
+.vc-ifile-src { margin: -3px 0 9px; }
 .vc-ifile-src > summary { width: max-content; color: var(--vc-muted); font-size: 12px; cursor: pointer; }
 .vc-ifile-src > summary:hover { color: var(--vc-text); }
-.vc-ifile-src > .vc-src { margin-top: 8px; }
+.vc-ifile-src > :is(.vc-src, .vc-mod-bar) { margin-top: 8px; }
 .vc-ifile-src > .vc-src .cm-editor { max-height: 420px; }
 
 /* ---- Un cas -------------------------------------------------------------------- */
 .vc-case {
   position: relative;
-  margin: 0 0 12px;
-  padding: 12px 14px 10px 16px;
+  margin: 0 0 9px;
+  padding: 9px 10px 8px var(--vc-pad);
   border: 1px solid var(--vc-line);
-  border-radius: 9px;
+  border-radius: var(--vc-radius);
   background: var(--vc-card);
   box-shadow: inset 3px 0 0 var(--vc-edge);
-  scroll-margin-top: 48px;  /* sous l'en-tête collant du fichier */
+  scroll-margin-top: 40px;  /* sous l'en-tête collant du fichier */
 }
-.vc-case[data-mark="ok"] { border-color: color-mix(in srgb, var(--vc-ok) 35%, var(--vc-line)); box-shadow: inset 3px 0 0 var(--vc-ok); }
+/* Validé, discret : ni cadre ni fond, la seule fine bordure verte à gauche. */
+.vc-case[data-mark="ok"] { border-color: transparent; background: transparent; box-shadow: inset 3px 0 0 var(--vc-ok); }
 .vc-case[data-mark="ko"] { border-color: color-mix(in srgb, #d9383a 40%, var(--vc-line)); box-shadow: inset 3px 0 0 #d9383a; }
 .vc-case[data-mark="changed"] { box-shadow: inset 3px 0 0 var(--vc-warn); }
-.vc-case-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+.vc-case-head { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
 .vc-case-n {
   flex: none;
   min-width: 20px;
@@ -86,23 +95,22 @@
   font: 600 11px/20px system-ui, sans-serif;
   text-align: center;
 }
-.vc-case[data-mark="ok"] .vc-case-n { background: var(--vc-ok); color: #0e1117; }
 .vc-case[data-mark="ko"] .vc-case-n { background: #d9383a; color: #fff; }
 .vc-case-title { flex: 1; min-width: 0; margin: 0; color: var(--vc-text); font-size: 14px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
 .vc-case-view { flex: none; margin-top: -1px; }
 .vc-case-view button { padding: 0 9px; font-size: 11.5px; line-height: 20px; }
-.vc-case-state { flex: none; padding: 1px 9px; border-radius: 10px; font: 600 11.5px/1.5 system-ui, sans-serif; white-space: nowrap; }
-.vc-case-state[data-state="ok"] { background: color-mix(in srgb, var(--vc-ok) 16%, transparent); color: #6fdd85; }
+.vc-case-state { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: var(--vc-radius); font: 600 11.5px/1.5 system-ui, sans-serif; white-space: nowrap; }
+.vc-case-state[data-state="ok"] { padding: 1px 0; color: #6fdd85; }  /* sans pastille : l'icône seule */
 .vc-case-state[data-state="ko"] { background: color-mix(in srgb, #d9383a 18%, transparent); color: #f08a8b; }
 .vc-case-state[data-state="changed"] { background: color-mix(in srgb, var(--vc-warn) 15%, transparent); color: var(--vc-warn); font-weight: 500; }
 .vc-case-none { margin: 0 0 8px; color: var(--vc-muted); font-size: 12.5px; }
 
 /* Le pseudo-code : lignes, assertions repérées, couleurs sobres. */
 .vc-pseudo {
-  margin: 0 0 12px;
-  padding: 10px 0;
+  margin: 0 0 9px;
+  padding: 8px 0;
   border: 1px solid #1c2130;
-  border-radius: 7px;
+  border-radius: var(--vc-radius);
   background: var(--vc-code);
   color: #c9d1e3;
   font: 12.5px/1.6 var(--vc-mono);
@@ -132,24 +140,24 @@
 /* Attention : l'encart ambre. */
 .vc-attention {
   display: flex;
-  gap: 10px;
-  margin: 10px 0 8px;
-  padding: 9px 12px;
+  gap: 8px;
+  margin: 8px 0 6px;
+  padding: 7px 9px;
   border: 1px solid color-mix(in srgb, var(--vc-warn) 50%, transparent);
-  border-radius: 7px;
+  border-radius: var(--vc-radius);
   background: color-mix(in srgb, var(--vc-warn) 10%, var(--vc-card));
   color: #f1dcb4;
   font-size: 12.8px;
   line-height: 1.5;
 }
 /* En tête de l'étape : ce que veut dire « Attention », discret. */
-.vc-ihelp { display: flex; gap: 8px; margin: -6px 0 18px; color: var(--vc-muted); font-size: 12.5px; line-height: 1.5; }
+.vc-ihelp { display: flex; gap: 8px; margin: -4px 0 14px; color: var(--vc-muted); font-size: 12.5px; line-height: 1.5; }
 .vc-ihelp > span { flex: none; color: var(--vc-warn); }
 .vc-attention { cursor: help; }
 .vc-attention-icon { flex: none; color: var(--vc-warn); font-size: 14px; line-height: 1.35; }
 .vc-attention p { margin: 0; }
 .vc-attention b { margin-right: 6px; color: var(--vc-warn); font-weight: 600; }
 
-/* Le pied : verdict, 💬, Ouvrir. */
-.vc-case-foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+/* Le pied : verdict, 💬, Ouvrir (IconButton, vc-tool). */
+.vc-case-foot { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
 .vc-case-tools { margin-left: auto; display: flex; align-items: center; gap: 4px; }

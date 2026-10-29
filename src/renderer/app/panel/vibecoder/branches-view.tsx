@@ -14,7 +14,8 @@
  *  un clic → switch-branch { branch }) ; un champ de recherche filtre l'onglet
  *  ouvert (core/vibecoder search) ; dans Toutes les PR, Me demander en
  *  relecture (request-review { pr }) sur une PR ni des miennes ni à relire,
- *  son dernier échec sous les onglets. Dans un worktree (view.child), Actualiser et Retirer le
+ *  son dernier échec sous les onglets (icône ko) ; une PR avec une adresse : Ouvrir dans le
+ *  navigateur (icône external, l'adresse en infobulle). Dans un worktree (view.child), Actualiser et Retirer le
  *  worktree seulement : il reste sur sa branche. Créer une branche : son nom, son
  *  départ (origin/<base>, par défaut : sans start, ou une branche locale), Créer ici
  *  (new-here) ou Dans un nouveau worktree (new-worktree), { branch, start? }.
@@ -24,6 +25,7 @@
 import { useEffect, useState } from 'react';
 import { prMatch, reviewAskable, searchMatch, webUrl, type Strings } from 'core/vibecoder';
 import type { VibeArgs, VibeLang, VibeView } from 'technicals/bridge';
+import { Icon, IconButton } from './icons';
 import { MarkdownView } from './markdown-view';
 import { PrCard, Run } from './step-parts';
 import type { VibeActs } from './step-views';
@@ -164,7 +166,7 @@ export function BranchesView({ view, t, act, busy }: Props) {
         <input className="vc-br-search" type="search" value={query} placeholder={s.search} aria-label={s.search}
           spellCheck={false} onChange={(e) => setQuery(e.target.value)} />
       </div>
-      {askFailed ? <div className="vc-pr-hint" data-state="ko">✗ {askFailed}</div> : null}
+      {askFailed ? <div className="vc-pr-hint" data-state="ko"><Icon name="ko" /> {askFailed}</div> : null}
       {tab === 'local' ? (
         !branches.length ? <div className="vc-pr-hint">{s.noBranch}</div>
         : !foundBranches.length ? <div className="vc-pr-hint">{s.noMatch}</div> : (
@@ -202,7 +204,7 @@ export function BranchesView({ view, t, act, busy }: Props) {
                     <button type="button" className="vc-mini" disabled={!ready('request-review')}
                       title={ask!.disabled ? `${ask!.hint}\n— ${ask!.disabled}` : ask!.hint} onClick={() => run('request-review', { pr: p.number })}>{ask!.label}</button>
                   ) : null}
-                  {url ? <button type="button" className="vc-tool" title={`${s.open}\n${url}`} aria-label={s.open} onClick={() => act.openLink(url)}>↗</button> : null}
+                  {url ? <IconButton icon="external" label={`${s.open}\n${url}`} onClick={() => act.openLink(url)} /> : null}
                 </li>
               );
             })}

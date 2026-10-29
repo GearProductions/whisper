@@ -5,7 +5,8 @@
  *  lien qui n'est pas en http(s) aussi (I-21). blockQuotes : ce que cite le 💬
  *  de chaque bloc et élément de liste, et sa ligne.
  *  Ne connaît pas : le DOM, React.
- *  Utilisé par : app/panel/vibecoder (markdown-view, note-editor). */
+ *  Utilisé par : app/panel/vibecoder (markdown-view — aussi le fil de la
+ *  conversation —, note-editor). */
 
 export type Inline = { kind: 'text' | 'code' | 'strong' | 'em'; text: string } | { kind: 'link'; text: string; href: string };
 export type ListItem = { inline: Inline[]; checked: boolean | null; line: number; children: Block[] };

@@ -1,10 +1,14 @@
 /** composer — le champ de saisie : écrire à l'agent affiché (Entrée envoie,
  *  Maj+Entrée va à la ligne), ses pièces jointes, les commandes « / ».
- *  Le brouillon appartient à panel-app (un par conversation) ; ici, l'édition.
+ *  #composer-row est le cadre du champ : la pièce jointe (#attach) en icône au
+ *  début, #message sans bordure, Envoyer (#send) en icône à la fin, chacune
+ *  nommée (title, aria-label). Le brouillon appartient à panel-app (un par
+ *  conversation) ; ici, l'édition.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : panel-app. */
 import { useLayoutEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent, type RefObject } from 'react';
 import { cycle, matchCommands, pickCommand, pieceLabel, pieceTitle, slashQuery, type Draft, type Piece } from 'core/conversation';
 import type { Command, ProbeResult } from 'technicals/bridge';
+import { Icon } from 'app/panel/vibecoder';
 
 const MAX_HEIGHT = 160;
 
@@ -128,8 +132,8 @@ export function Composer(p: Props) {
         ))}
       </div>
       <div id="composer-row">
-        <button id="attach" type="button" onClick={p.onAttach}
-          title="Joindre des images, des fichiers ou le texte sélectionné (aussi : glisser-déposer, Ctrl+V)">📎</button>
+        <button id="attach" type="button" onClick={p.onAttach} aria-label="Joindre…"
+          title="Joindre des images, des fichiers ou le texte sélectionné (aussi : glisser-déposer, Ctrl+V)"><Icon name="attach" /></button>
         <textarea id="message" className="scroll" rows={1} ref={p.input} value={p.draft.text}
           placeholder={p.busy ? `${p.name} travaille : vous pourrez envoyer quand il aura fini.`
             : `Écrire à ${p.name}… (Entrée : envoyer, Maj+Entrée : à la ligne)`}
@@ -140,7 +144,8 @@ export function Composer(p: Props) {
           }}
           onPaste={onPaste}
           onBlur={() => setTimeout(close, 150)} />
-        <button id="send" type="button" title="Envoyer (Entrée)" disabled={p.sending || p.busy} onClick={p.onSend}>Envoyer</button>
+        <button id="send" type="button" title="Envoyer (Entrée)" aria-label="Envoyer" disabled={p.sending || p.busy}
+          onClick={p.onSend}><Icon name="send" /></button>
       </div>
       <div id="composer-status">{p.status}</div>
     </footer>

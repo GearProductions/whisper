@@ -1,7 +1,7 @@
 // Ouvrir un commit du relevé, ou l'un de ses fichiers : par un id, jamais un chemin.
 import { describe, expect, it } from 'vitest';
 import type { VibeView } from 'shared/bridge';
-import { codeFile, itemCommit, itemPath } from 'core/vibecoder';
+import { codeFile, commitFile, itemCommit } from 'core/vibecoder';
 
 const C0 = '9fceb02d0ae598e95dc970b74767f19372d61af8';
 const C1 = 'e83c5163316f89bfbde7d9ab23ca2e25604af290';
@@ -25,16 +25,6 @@ describe('itemCommit : c<rang>, gh:c<rang>', () => {
   });
 });
 
-describe('itemPath : c<rang>/<i>, le i-ème fichier d\'un commit', () => {
-  it('c0/1 : son chemin', () => {
-    expect(itemPath(view, 'c0/1')).toBe('src/b.ts');
-  });
-
-  it('un fichier absent : rien', () => {
-    expect([itemPath(view, 'c0/2'), itemPath(view, 'c1/0')]).toEqual([null, null]);
-  });
-});
-
 describe('codeFile : m<rang>/<i>, un fichier d\'un module touché', () => {
   const coded = {
     ...view,
@@ -52,5 +42,16 @@ describe('codeFile : m<rang>/<i>, un fichier d\'un module touché', () => {
 describe('codeFile : n, t<i> en Créer', () => {
   it('sans note dans le relevé : n ne mène à rien', () => {
     expect(codeFile({ ...view, flow: 'create' } as VibeView, 'n')).toBeNull();
+  });
+});
+
+describe('commitFile : c<rang>/<i> en Relire', () => {
+  it('c0/0 : le chemin et le hash ; sans parcours ou un commit sans fichiers : rien', () => {
+    expect([commitFile({ ...view, flow: 'review' } as VibeView, 'c0/0'), commitFile(view, 'c0/0'), commitFile({ ...view, flow: 'review' } as VibeView, 'c1/0')])
+      .toEqual([{ path: 'src/a.ts', hash: C0 }, null, null]);
+  });
+
+  it('codeFile inchangé : un id c… ne mène à rien, en Relire comme en Créer', () => {
+    expect([codeFile({ ...view, flow: 'review' } as VibeView, 'c0/0'), codeFile({ ...view, flow: 'create' } as VibeView, 'c0/0')]).toEqual([null, null]);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allApplied, remark, remarkMark } from 'core/vibecoder';
+import { allApplied, quoteRemark, remark, remarkMark } from 'core/vibecoder';
 
 describe('remark', () => {
   it('la cible et le texte, tels quels', () => {
@@ -20,6 +20,33 @@ describe('remark', () => {
     expect(r.target.endsWith('…')).toBe(true);
     expect(r.text.length).toBe(5000);
     expect(remark('c'.repeat(300), 't'.repeat(5000))).toEqual({ target: 'c'.repeat(300), text: 't'.repeat(5000) });
+  });
+});
+
+describe('quoteRemark', () => {
+  it('la cible du commit ; le chemin, les lignes en bloc de code, puis la remarque', () => {
+    expect(quoteRemark('Commit 34349c1', 'src/a.ts', 'const a = 1;\nconst b = 2;', ' dupliqué ')).toEqual({
+      target: 'Commit 34349c1',
+      text: 'src/a.ts\n```\nconst a = 1;\nconst b = 2;\n```\ndupliqué',
+    });
+  });
+
+  it('même cible que la carte du commit (comptée sur elle)', () => {
+    expect(quoteRemark(' Commit\n34349c1 ', 'a.ts', 'x', 'y').target).toBe(remark(' Commit\n34349c1 ', '').target);
+  });
+
+  it('remarque vide : le chemin et les lignes', () => {
+    expect(quoteRemark('Commit 1', 'a.ts', 'x', '  ').text).toBe('a.ts\n```\nx\n```');
+  });
+
+  it('des ``` dans les lignes : une clôture plus longue', () => {
+    expect(quoteRemark('Commit 1', 'a.md', '```ts\nx\n```', 'y').text).toBe('a.md\n````\n```ts\nx\n```\n````\ny');
+  });
+
+  it('coupé à DRAFT_MAX, dans les lignes : la remarque reste', () => {
+    const { text } = quoteRemark('Commit 1', 'a.ts', 'x'.repeat(6000), 'y');
+    expect(text.length).toBe(5000);
+    expect(text.endsWith('…\n```\ny')).toBe(true);
   });
 });
 

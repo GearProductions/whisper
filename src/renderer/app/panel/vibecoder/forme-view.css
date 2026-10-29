@@ -1,5 +1,7 @@
 /* La Forme (forme-view) : une carte, ses modules groupés par dossier ; un
-   module : point d'état, chemin, état, contrat en rubriques. Sous .vc. */
+   module : point d'état, chemin, état (Icon ok devant « touché »), contrat en
+   rubriques ; ses outils (.vc-tool) n'apparaissent qu'au survol de la ligne,
+   comme avant 0.13.0. Sous .vc, couleurs et .vc-tool de vibecoder.css. */
 
 .vc-forme .vc-card-head { min-height: 42px; }
 .vc-forme-sum { color: var(--vc-muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -10,7 +12,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px 4px;
+  padding: 10px var(--vc-pad) 4px;
   color: var(--vc-muted);
   font-size: 11.5px;
   font-weight: 600;
@@ -19,7 +21,7 @@
 .vc-fgroup-n { padding: 0 6px; border-radius: 8px; background: rgba(255, 255, 255, 0.06); font: 500 10.5px/16px system-ui, sans-serif; letter-spacing: 0; }
 
 .vc-fmods { list-style: none; margin: 0; padding: 0 8px 8px; }
-.vc-fmod { display: flex; gap: 10px; padding: 8px 8px 9px; border-radius: 6px; }
+.vc-fmod { display: flex; gap: 10px; padding: 6px 8px 7px; border-radius: var(--vc-radius); }
 .vc-fmod:hover { background: rgba(255, 255, 255, 0.03); }
 .vc-fmod + .vc-fmod { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04); }
 
@@ -34,12 +36,13 @@
 .vc-fdir { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--vc-muted); }
 .vc-fpath b { flex: none; color: var(--vc-text); font-weight: 600; }
 .vc-fmod[data-state="missing"] .vc-fpath b { color: var(--vc-soft); }
-.vc-fstate { flex: none; padding: 0 7px; border-radius: 8px; font: 500 11px/17px system-ui, sans-serif; white-space: nowrap; }
+.vc-fstate { flex: none; display: inline-flex; align-items: center; gap: 3px; padding: 0 7px; border-radius: 8px; font: 500 11px/17px system-ui, sans-serif; white-space: nowrap; }
+.vc-fstate svg { width: 11px; height: 11px; }
 .vc-fstate[data-state="touched"] { background: color-mix(in srgb, var(--vc-ok) 16%, transparent); color: #6fdd85; }
 .vc-fstate[data-state="exists"] { background: rgba(255, 255, 255, 0.06); color: var(--vc-soft); }
 .vc-fstate[data-state="missing"] { border: 1px dashed var(--vc-edge); color: var(--vc-muted); line-height: 15px; }
 .vc-fcommits { flex: none; color: var(--vc-faint); font-size: 11px; }
-.vc-ftools { margin-left: auto; display: flex; align-items: center; gap: 4px; opacity: 0; transition: opacity 0.12s; }
+.vc-ftools { margin-left: auto; display: flex; align-items: center; gap: 2px; opacity: 0; transition: opacity 0.12s; }
 .vc-fmod:hover .vc-ftools, .vc-ftools:focus-within { opacity: 1; }
 
 /* Le contrat : la première rubrique en texte, les autres avec leur libellé. */

@@ -11,6 +11,9 @@ export const PLACE_ACTIONS: readonly string[] = ['pr-here', 'pr-worktree', 'unlo
 // Ce qui change la branche du dossier ou la PR qu'il suit : jamais dans un worktree, enfant ou robot (note
 // 0.12.0-gestion-des-branches) ; le principal le refuse (app/controllers/vibecoder).
 export const BRANCH_CHANGES: readonly string[] = ['pr-here', 'pr-worktree', 'unload-pr', 'switch-branch', 'new-here', 'new-worktree', 'load-pr', 'base'];
+// Ce qui travaille dans un nouveau dossier (un worktree), sans toucher à la branche de celui-ci : une
+// course ne le retient pas, et il ne retient pas les courses (app/controllers/vibecoder, journey).
+export const ELSEWHERE: readonly string[] = ['new-worktree'];
 
 export type PlaceState = {
   head: string | null;      // la tête de la PR chargée (sa fiche) ; null : pas de PR chargée

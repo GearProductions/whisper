@@ -10,11 +10,11 @@
  *  Relire : rendue, en lecture. Ce que l'agent a
  *  changé depuis le début de son dernier tour a un liseré vert ; « Voir les
  *  modifications » montre le diff brut, retraits compris, replié autour des
- *  changements (DiffView) ; « Vu » repart de la note actuelle. Les lignes de « Ce que ça
+ *  changements (DiffView) ; « Vu » (Icon ok + texte) repart de la note actuelle. Les lignes de « Ce que ça
  *  ne doit pas faire » portent leur marque en pastille. 💬 sur un bloc le cite
  *  dans le champ (Relire : il ouvre sous le bloc une zone de commentaire, pour
  *  le brouillon de revue ; ✗ sur la note aussi, sous son en-tête). En tête :
- *  son chemin, Ouvrir, Modifier ou Fermer et Brut (Créer), sa validation, la pastille Fable (Créer).
+ *  son chemin, Ouvrir (IconButton open), Modifier ou Fermer et Brut (Créer), sa validation, la pastille Fable (Créer).
  *  Au-dessus, Créer : les questions ouvertes (questions-view) ; Relire : la
  *  relecture de la note par l'agent (Relancer). Pas de note : ce qu'il faut
  *  faire pour en avoir une. Styles : note-view.css.
@@ -30,6 +30,7 @@ import { NoteEditor } from './note-editor';
 import { QuestionsView } from './questions-view';
 import { Invite, OutputCard, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
+import { Icon, IconButton } from './icons';
 import { FablePill, MarkControl } from './validation';
 import './note-view.css';
 
@@ -149,7 +150,7 @@ export function NoteView(p: StepProps) {
           <div className="vc-card-head">
             <span className="vc-note-file">📄</span>
             <span className="vc-note-path vc-mono" title={note.path}><span>{fileParts(note.path).dir}</span><b>{fileParts(note.path).name}</b></span>
-            <button type="button" className="vc-mini vc-note-open" title={t.openTitle} onClick={() => act.open(note.id)}>{t.open}</button>
+            <IconButton icon="open" className="vc-note-open" label={t.openTitle} onClick={() => act.open(note.id)} />
             {!review ? (
               <button type="button" className="vc-mini" aria-pressed={open} title={open ? undefined : s.editTitle} onClick={toggle}>{open ? t.close : s.edit}</button>
             ) : null}
@@ -173,7 +174,7 @@ export function NoteView(p: StepProps) {
                 {removed ? <span className="vc-note-n" data-kind="removed" title={s.removed}>{`−${removed}`}</span> : null}
               </span>
               <button type="button" className="vc-mini" aria-pressed={raw} onClick={() => setRaw(!raw)}>{raw ? s.showNote : s.showDiff}</button>
-              <button type="button" className="vc-mini" title={s.seenTitle} onClick={() => { setRaw(false); act.set({ seen: true }); }}>{`✓ ${s.seen}`}</button>
+              <button type="button" className="vc-mini" title={s.seenTitle} onClick={() => { setRaw(false); act.set({ seen: true }); }}><Icon name="ok" />{s.seen}</button>
             </div>
           ) : null}
           <div className="vc-card-body">
@@ -182,7 +183,7 @@ export function NoteView(p: StepProps) {
               : editing ? (
                 <>
                   <NoteEditor text={d.text!} locked={locked} changed={changed} tags={editorTags}
-                    onChange={d.change} onSave={d.save} onQuote={quote} onOpenLink={act.openLink} />
+                    onChange={d.change} onSave={d.save} onQuote={quote} quoteLabel={t.quote} onOpenLink={act.openLink} />
                   <DraftFoot d={d} locked={locked} t={t} />
                 </>
               )

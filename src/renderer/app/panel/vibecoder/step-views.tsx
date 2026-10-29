@@ -25,13 +25,13 @@ export type VibeActs = {
   // Une action du relevé : envoyée (avec le texte de son champ, fieldOf), ou préparée ; true : partie.
   run(id: string, args?: VibeArgs): Promise<boolean>;
   prefill(id: string, quote: string, block?: boolean): void; // une action 'prefill' : {{quote}}, ce qu'on cite (block : en entier, F-98)
-  follow(id: string | null): void;             // suivre un fichier du relevé par son id : module (m<rang>/<i>), note (n), test (t<i>) ; null : plus aucun
+  follow(id: string | null): void;             // suivre un fichier du relevé par son id : module (m<rang>/<i>), note (n), test (t<i>), en Relire fichier d'un commit (c<rang>/<i>) ; null : plus aucun
   save(id: string, text: string): Promise<boolean>; // Enregistrer le fichier suivi ; true : enregistré (refusé : le motif en barre d'état)
   set(patch: VibePatch): void;
   mark(target: string, verdict: 'ok' | 'ko' | null): void;
   draft(op: { add?: { target: string; text: string }; edit?: { id: number; text: string }; remove?: number }): void; // Relire : le brouillon de revue
   open(id: string, line?: number): void;       // par son id : un fichier du relevé (à la ligne), un commit (c<rang>, son diff ;
-                                               // c<rang>/<i>, son i-e fichier ; gh:c<rang>, sa page sur GitHub)
+                                               // gh:c<rang>, sa page sur GitHub)
   openLink(url: string): void;
   refresh(): void;
   process(op: VibeProcessOp, index?: number): void;  // Processus : une commande par son rang, ou 'edit' (le fichier du projet)

@@ -1,12 +1,12 @@
-/** artifacts-view — le panneau Artefacts (F-94, F-95), les deux cases de
- *  gauche et du centre de l'écran (.vc-journey, .vc-center : vibe-coder le met
- *  à la place du parcours et de l'étape). À gauche la liste (nom, taille ;
+/** artifacts-view — le panneau Artefacts (F-94, F-95), au centre de l'écran
+ *  (.vc-art-side, .vc-center : vibe-coder le met à la place du fil d'Ariane
+ *  et de l'étape). À gauche la liste (nom, taille ;
  *  vide → ce que le skill fait, en une ligne) ; au centre l'artefact choisi :
  *  markdown → MarkdownView, text → CodeView en lecture seule (le texte reçu
  *  par `code`, VibeCode de son id), « fichier tronqué » si truncated ; page →
  *  <iframe sandbox> (attribut vide : ni script, ni réseau) sur url ; media →
- *  <iframe> sur url ; en tête, Ouvrir dans l'éditeur (onOpen) et Copier dans
- *  le projet (onCopy). Le choix, état local, tenu par le nom (les ids a<i>
+ *  <iframe> sur url ; en tête, Ouvrir dans l'éditeur (onOpen, IconButton open)
+ *  et Copier dans le projet (onCopy, en texte). Le choix, état local, tenu par le nom (les ids a<i>
  *  glissent quand la liste change) : le premier par défaut, disparu → le
  *  premier ; chaque id choisi, par défaut compris, est annoncé par onChoose
  *  (vibe-coder suit son texte). Un lien d'un Markdown ne mène nulle part (pas
@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from 'react';
 import { fileSize, t as strings } from 'core/vibecoder';
 import type { VibeArtifact, VibeCode, VibeLang } from 'technicals/bridge';
 import { CodeView } from './code-view';
+import { IconButton } from './icons';
 import { MarkdownView } from './markdown-view';
 import './artifacts-view.css';
 
@@ -48,7 +49,7 @@ export function ArtifactsView({ artifacts, lang, code, onChoose, onOpen, onCopy 
   const text = art && code?.id === art.id ? code : null;
   return (
     <>
-      <nav className="vc-journey scroll" aria-label={t.artifacts}>
+      <nav className="vc-art-side scroll" aria-label={t.artifacts}>
         <div className="vc-side-title vc-band"><span>{t.artifacts}</span><span>{artifacts.length || ''}</span></div>
         <ul className="vc-art-list">
           {artifacts.length ? artifacts.map((a) => (
@@ -67,7 +68,7 @@ export function ArtifactsView({ artifacts, lang, code, onChoose, onOpen, onCopy 
             <div className="vc-step-head vc-art-head">
               <h2 className="vc-mono" title={art.name}>{art.name}</h2>
               <span className="vc-art-size">{fileSize(art.size, lang)}</span>
-              <button type="button" className="vc-mini" onClick={() => onOpen(art.id)}>{t.openTitle}</button>
+              <IconButton icon="open" label={t.openTitle} onClick={() => onOpen(art.id)} />
               <button type="button" className="vc-mini" title={t.artifactCopyTitle} onClick={() => onCopy(art.id)}>{t.artifactCopy}</button>
             </div>
             {art.kind === 'page' && art.url ? <iframe className="vc-art-frame" sandbox="" src={art.url} title={art.name} />

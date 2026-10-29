@@ -1,6 +1,7 @@
 /* L'étape Modules (modules-view) : le commit proposé, puis une ligne par
    module et sa barre d'outils (sous le code déplié, ou sous le contrat si le
-   module n'est pas touché). Sous .vc, couleurs de vibecoder.css. */
+   module n'est pas touché) ; le point d'état à plat, sans halo. Sous .vc,
+   couleurs et .vc-tool de vibecoder.css. */
 
 /* Le commit proposé : liseré d'accent, le message tel qu'il sera commité (sujet en gras). */
 .vc-proposed { border-color: color-mix(in srgb, var(--accent) 45%, var(--vc-line)); }
@@ -8,7 +9,7 @@
 .vc-commit-msg {
   margin: 0;
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: var(--vc-radius);
   background: var(--vc-code);
   color: var(--vc-soft);
   font: 12.5px/1.6 var(--vc-mono);
@@ -30,7 +31,7 @@
   display: grid;
   grid-template-columns: 10px minmax(0, 1fr);
   column-gap: 12px;
-  padding: 8px 16px;
+  padding: 6px var(--vc-pad);
   background: var(--row);
   transition: background-color 0.12s;
 }
@@ -39,7 +40,7 @@
 .vc-mod-dot { display: inline-block; width: 10px; height: 10px; box-sizing: border-box; border: 2px solid #4a5163; border-radius: 50%; }
 .vc-mod > .vc-mod-dot { margin-top: 4px; }
 [data-state="done"] > .vc-mod-dot { border-color: var(--vc-ok); background: var(--vc-ok); }
-[data-state="wip"] > .vc-mod-dot { border-color: var(--accent); background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+[data-state="wip"] > .vc-mod-dot { border-color: var(--accent); background: var(--accent); }
 .vc-mod-main { min-width: 0; }
 .vc-mod-line { display: flex; align-items: baseline; gap: 8px; min-width: 0; white-space: nowrap; }
 .vc-mod-name { flex: none; color: var(--vc-text); font-size: 13px; font-weight: 600; }
@@ -48,13 +49,13 @@
 .vc-mod-new { flex: none; color: var(--vc-faint); font-size: 11px; font-style: italic; }
 .vc-mod-contract { margin-top: 2px; overflow: hidden; color: var(--vc-muted); font-size: 12px; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
 
-/* La barre d'outils du module : une rangée sous le code (ou le contrat), boutons de la hauteur de .vc-mini. */
+/* La barre d'outils du module : une rangée sous le code (ou le contrat), boutons de la hauteur de .vc-mini (22 px). */
 .vc-mod-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
 .vc-mod-acts button {
-  height: 24px;
-  padding: 0 10px;
+  height: 22px;
+  padding: 0 8px;
   border: 1px solid var(--vc-edge);
-  border-radius: 5px;
+  border-radius: var(--vc-radius);
   background: var(--vc-control);
   color: var(--vc-text);
   font: 12px/1 system-ui, sans-serif;
@@ -68,4 +69,7 @@
 /* La légende, dans l'en-tête de la carte : combien de modules dans chaque état. */
 .vc-mod-legend { display: flex; gap: 12px; padding-right: 4px; color: var(--vc-muted); font-size: 11.5px; white-space: nowrap; }
 .vc-mod-legend > span { display: inline-flex; align-items: center; gap: 6px; }
-.vc-mod-legend .vc-mod-dot { width: 8px; height: 8px; border-width: 1.5px; box-shadow: none; }
+.vc-mod-legend .vc-mod-dot { width: 8px; height: 8px; border-width: 1.5px; }
+
+/* Voir le code : un fichier supprimé par la branche, marqué « supprimé ». */
+.vc-mod-tree .vc-mod-gone { margin-left: 6px; color: var(--vc-faint); font-style: italic; }

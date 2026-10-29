@@ -2,12 +2,14 @@
  *  de la note, groupés par premier dossier ; chacun son chemin (dossier
  *  atténué, nom en gras), son contrat en rubriques (ce qu'il expose, ne
  *  connaît pas, utilisé par) et son état (touché par la branche, existe, à
- *  créer) ; 💬 le cite dans le champ, Ouvrir s'il existe. En tête : la
- *  validation de la forme, la pastille Fable. Sans module : ce qu'il faut
- *  faire pour en avoir.
+ *  créer, Icon ok devant « touché ») ; ses outils, au survol de la ligne
+ *  (IconButton) : comment le cite dans le champ, open l'ouvre s'il existe.
+ *  En tête : la validation de la forme, la pastille Fable. Sans module : ce
+ *  qu'il faut faire pour en avoir.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { contractParts, fileParts, groupModules, type Strings } from 'core/vibecoder';
 import type { VibeLang, VibeModule } from 'technicals/bridge';
+import { Icon, IconButton } from './icons';
 import { InlineMd } from './markdown-view';
 import { Invite, Run, StepHead } from './step-parts';
 import type { StepProps, VibeActs } from './step-views';
@@ -109,11 +111,11 @@ function ModuleRow({ m, s, t, act, onQuote }: RowProps) {
       <div className="vc-fmain">
         <div className="vc-fline">
           <span className="vc-fpath vc-mono" title={m.path}><span className="vc-fdir">{dir}</span><b>{name}</b></span>
-          <span className="vc-fstate" data-state={state} title={s.stateTitle[state]}>{state === 'touched' ? `✓ ${s.state.touched}` : s.state[state]}</span>
+          <span className="vc-fstate" data-state={state} title={s.stateTitle[state]}>{state === 'touched' ? <><Icon name="ok" />{s.state.touched}</> : s.state[state]}</span>
           {m.commits.length ? <span className="vc-fcommits vc-mono" title={m.commits.map((h) => h.slice(0, 7)).join(' ')}>{s.commits(m.commits.length)}</span> : null}
           <span className="vc-ftools">
-            {onQuote ? <button type="button" className="vc-tool" title={s.quote} aria-label={s.quote} onClick={() => onQuote(m.path)}>💬</button> : null}
-            {m.file ? <button type="button" className="vc-mini" title={t.openTitle} onClick={() => act.open(m.file!.id)}>{t.open}</button> : null}
+            {onQuote ? <IconButton icon="comment" label={s.quote} onClick={() => onQuote(m.path)} /> : null}
+            {m.file ? <IconButton icon="open" label={t.openTitle} onClick={() => act.open(m.file!.id)} /> : null}
           </span>
         </div>
         {parts.length ? (

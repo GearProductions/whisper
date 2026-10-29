@@ -226,7 +226,9 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
     Redimensionnable par ses bords (la taille est retenue).
 
   **×** le ferme. Chaque conversation porte son **intitulé** (celui que lui
-  donne Claude Code) ; chaque message, son **heure**. Pendant que l'agent
+  donne Claude Code) ; chaque message, son **heure** ; les réponses de
+  l'agent sont mises en forme (Markdown : titres, gras, listes, code, liens),
+  vos messages restent tels que vous les avez écrits. Pendant que l'agent
   travaille, le fil le suit et l'anime (avec le temps écoulé). Les **liens**
   s'ouvrent dans le navigateur. Les **pièces jointes** de vos messages se
   voient : aperçu des images (clic : en grand), fichiers (clic : montrés dans
@@ -237,7 +239,8 @@ Un agent est une conversation Claude Code attachée à un **dossier de projet**
   **Maj+Entrée** va à la ligne ; un brouillon par agent). Sans parler (micro indisponible, lieu calme) : clic droit sur le
   robot → *✎ Écrire un message…*. **Pièces jointes** : glisser-déposer ou
   **Ctrl+V** (images envoyées à Claude — réduites au-delà de 1568 px —, autres
-  fichiers par leur chemin, que l'agent lit lui-même) ; **📎** : choisir des
+  fichiers par leur chemin, que l'agent lit lui-même) ; le **trombone**, au
+  début du champ (la flèche *Envoyer* est à sa fin) : choisir des
   images ou fichiers, ou joindre le **texte sélectionné** (Linux, aperçu dans le
   menu ; sous Windows, collez-le dans le champ). Pendant que l'agent travaille,
   on écrit mais on n'envoie pas. *Agents Claude Code* → *Relire avant
@@ -389,7 +392,7 @@ bon message, avec le bon skill et le bon modèle. Deux usages : **Créer** une
 feature sur la branche du dossier de l'agent, ou **Relire** une PR du dépôt.
 
 **Ouvrir.** Clic droit sur un robot → *Ouvrir VibeCoder* ; pour revenir,
-*Ouvrir la conversation* (même menu, ou 💬 en haut de l'écran) : les deux
+*Ouvrir la conversation* (même menu, ou *Revenir à la conversation* en haut de l'écran) : les deux
 sont toujours proposés, panneau ouvert ou fermé. Le choix
 est retenu pour chaque agent : l'un peut rester en VibeCoder, l'autre en
 conversation ; cliquer un robot montre sa vue. Le panneau s'agrandit
@@ -402,26 +405,30 @@ conversation reste utilisable.
 
 - en haut : l'agent et sa branche — un bouton, qui ouvre (et referme) la
   **vue des branches**, plus bas — avec *Pull* et *Rebase* à côté ;
-  *Créer* / *Relire* ; **Artefacts**, à part (plus bas) ; *FR* / *EN* ; ↻
-  (relire le dépôt tout de suite) ; 💬 ; × ;
-- à gauche, le **parcours** : les étapes (point plein : faite ; anneau : en
-  cours ; gris : à venir), chacune avec ses faits en une ligne, puis les
-  commits de la branche. Il mène : un clic (ou Ctrl+1…6) ouvre une étape
-  faite, pour revenir en arrière, ou celle en cours ; une étape à venir
-  reste visible, sans clic (en *Relire*, toutes s'ouvrent) ;
-- au centre, l'étape choisie — la note du ticket, ce
+  *Créer* / *Relire* ; **Artefacts**, à part (plus bas) ; *FR* / *EN* ; en
+  icônes, *Relever maintenant* (relire le dépôt tout de suite), *Revenir à la
+  conversation*, *Fermer* ;
+- au centre, en tête, le **fil d'Ariane** : les étapes en une ligne (point
+  plein : faite ; anneau qui pulse : en cours ; gris : à venir), leurs faits
+  au survol ; au bout, « N commits » déplie les commits de la branche. Il
+  mène : un clic (ou Ctrl+1…6) ouvre une étape faite, pour revenir en
+  arrière, ou celle en cours ; une étape à venir reste visible, sans clic
+  (en *Relire*, toutes s'ouvrent) ;
+- dessous, sur toute la largeur, l'étape choisie — la note du ticket, ce
   que les skills ont produit —, sous son titre son **champ** (quand une de
   ses actions prend un texte) et ses actions (à l'étape en cours, en tête :
   *Vibe* en *Créer*, puis celle qui fait avancer l'étape, discrètement mise
   en avant) ; pendant *Vibe*, une bannière au-dessus ; chaque carte produite par
   un skill a son *Relancer* ;
 - à droite, quatre onglets : la **conversation** de l'agent, comme d'habitude
-  (fil, autorisations, champ, dictée, commandes « / » ; au-dessus du champ,
+  (fil, autorisations, champ, dictée, commandes « / » ; *Envoyer* sans la
+  couleur de l'agent, sa pastille suffit ; au-dessus du champ,
   *Demander sans modifier* : il répond sans rien toucher), les **Actions**
   lancées, ses **Tâches** de fond et les **Processus** du projet (le nombre
   en cours dans l'onglet) ;
 - en bas : modèle, effort et mode de l'agent (comme dans son menu), jauge du
-  contexte, *⚙ Tâches* (l'onglet), *⏹ Arrêter* quand la conversation
+  contexte, *⚙ Tâches* (l'onglet), l'action en cours ou « N actions en
+  cours » (un clic : l'onglet *Actions*), *⏹ Arrêter* quand la conversation
   travaille, fichiers modifiés, heure du dernier relevé.
 
 L'écran se lit sur le dépôt, sans modèle : la branche, ses commits et ses
@@ -438,14 +445,18 @@ modèle, comme si vous aviez tapé `/vibecoder:note fr … votre demande` : la
 conversation de l'agent reste libre, vous lui parlez pendant ce temps. Un
 bouton qui a besoin d'un texte — la demande de feature, du pseudo-code —
 prend celui du **champ de son étape** : dictez-y (ou écrivez), puis
-cliquez ; le champ se vide une fois l'action partie. Le champ de la
+cliquez ; le champ se vide une fois l'action partie. La dictée va à la
+zone de texte qui a le clavier — le champ d'une étape, un commentaire de
+*Relire*, la réponse libre d'une question ; pas un éditeur de code ni un
+champ d'une ligne —, à la place de la sélection, sans dépasser sa longueur
+(pleine : rien n'est ajouté) ; sinon, au champ de la conversation. Le champ de la
 conversation ne sert plus qu'à elle (et à *Demander sans modifier*, *Où
-j'en suis ?*) ; 💬 sur un passage (de la note, d'une relecture) l'y cite, à
+j'en suis ?*) ; *Commenter* sur un passage (de la note, d'une relecture) l'y cite, à
 compléter puis envoyer.
 
 L'onglet **Actions** suit chaque action lancée : qui travaille, son état,
 depuis quand, sa réponse ; ses demandes d'autorisation (*Autoriser*,
-*Toujours*, *Refuser*). ⏹ (là, ou à côté du bouton) l'arrête à tout moment ;
+*Toujours*, *Refuser*). *Arrêter* (là, ou à côté du bouton) l'arrête à tout moment ;
 vous choisissez ensuite **Garder** ce qu'elle a déjà écrit, ou **Annuler** :
 les fichiers qu'elle a écrits — et eux seuls, pas les vôtres ni ceux d'une
 autre action — reviennent à leur état d'avant (ce qu'elle a changé par une
@@ -453,7 +464,7 @@ commande, `git` ou un script, reste). Deux actions qui modifient la branche
 ne tournent jamais ensemble, ni une relecture pendant une modification ; les
 relectures et vérifications, elles, tournent ensemble. Une action n'est
 finie que quand son travail l'est (ses sous-agents, la CI qu'elle attend) :
-pas de limite de temps, ⏹ l'arrête. Quand ce qu'elle attendait se termine,
+pas de limite de temps, *Arrêter* l'arrête. Quand ce qu'elle attendait se termine,
 elle reste en cours 10 s : si l'agent repart en dire le résultat, elle finit
 avec cette réponse ; sinon, au bout des 10 s (un agent qui repart plus tard
 trouve l'action déjà finie). Un bouton qui doit
@@ -482,8 +493,8 @@ une présentation, un wireframe, un document externe, un fichier de
 conception : preuve de concept ou autre — : il le crée en **artefact**, de
 lui-même (skill `/vibecoder:artefact`, sans bouton), dans
 `vibecoder-out/<agent>/artifacts/`, les mêmes pour toutes ses branches. Le
-bouton *Artefacts* de l'en-tête ouvre leur panneau à la place du parcours et
-de l'étape : la liste à gauche, au centre celui que vous choisissez. Image,
+bouton *Artefacts* de l'en-tête ouvre leur panneau à la place du fil d'Ariane
+et de l'étape : la liste à gauche, au centre celui que vous choisissez. Image,
 PDF, son, vidéo, page HTML ou SVG s'affichent tels quels (une page sans
 script ni réseau) ; le reste en texte, un binaire compris, coupé au-delà de
 10 Mo (`artifactTextMax`) — *Ouvrir dans l'éditeur* montre la suite. *Copier
@@ -492,11 +503,9 @@ même nom n'est remplacé que si vous l'acceptez). La conversation reste à
 droite : demandez-y une retouche, l'artefact se met à jour.
 
 **Ouvrir dans l'éditeur.** *Ouvrir* sur la note, un module, un test (à la
-ligne du cas : zed, VS Code, Cursor, VSCodium), un fichier d'un commit. En
-*Relire*, la PR n'est pas sur votre disque : l'appli écrit le fichier tel
-qu'il est dans la PR, en lecture seule, sous `vibecoder-out/<agent>/files/`,
-et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
-*GitHub ↗* (sa page, dans le navigateur).
+ligne du cas : zed, VS Code, Cursor, VSCodium). Un commit : *Voir le diff*
+(écrit en lecture seule sous `vibecoder-out/<agent>/files/`, puis ouvert)
+ou *GitHub* (sa page, dans le navigateur).
 
 **Créer** — les étapes du guide :
 
@@ -505,7 +514,7 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    de branche, plus bas) ; ses questions
    ouvertes s'affichent à part, avec des réponses proposées : *Envoyer les
    réponses* (à l'action qui a rédigé la note : elle garde son contexte) ;
-   puis ✓ pour valider la note. La note s'affiche tout de suite ;
+   puis *Valider la note*. La note s'affiche tout de suite ;
    *Modifier* la rend modifiable sur place (*Fermer* garde la modification),
    comme dans Obsidian : ce qu'on tape se met en forme au fil de la frappe (un titre
    apparaît en titre, pas en `#`) ; *Brut* montre le Markdown tel qu'il est
@@ -513,14 +522,15 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    *Enregistrer*, avec les garde-fous de *Voir le code* (étape Modules) ;
    grisée pendant un tour de la conversation ou une action de l'agent.
 2. **Forme** : *Poser la forme* (les modules et leurs contrats, dans la note,
-   sans code) ; ✓.
+   sans code) ; *Valider la forme*.
 3. **Invariants** : *Écrire les invariants (rouges), puis vérifier
    l'alignement*, d'après la note ou d'après le pseudo-code écrit dans le
    champ de l'étape — dans la même action, l'agent vérifie que note, forme
    et tests concordent, retouche les tests s'il y a des écarts (3 tours au
-   plus) et dit ce qui reste (la carte de l'alignement) ; puis ✓ ou ✗ par cas
-   (✗ le cite dans le champ, pour dire quoi changer), *✓ Tout valider* pour
-   un fichier. *Lire en pseudo-code* aide à lire, sans être obligatoire (à
+   plus) et dit ce qui reste (la carte de l'alignement) ; puis *Valider* ou *À revoir* par
+   cas (*À revoir* le cite dans le champ, pour dire quoi changer), *Tout valider* pour
+   un fichier. *Lire en pseudo-code* (dans les outils en haut du fichier)
+   aide à lire, sans être obligatoire (à
    la main, jamais mise en avant ; en *Vibe*, l'agent ne la lance pas) :
    chaque cas de test traduit en étapes simples (`test "…":`, `given`,
    `when`, `then` — une ligne `then` par assertion), quel que soit le
@@ -528,7 +538,10 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    point d'attention s'il n'observe pas vraiment la propriété ; *Code* montre le code
    d'origine du cas à la place du pseudo-code, *Voir le fichier* le fichier
    entier, colorés comme sur GitHub (TypeScript / JavaScript, Rust, Python,
-   Go ; un autre langage : sans couleurs) et modifiables comme la note ;
+   Go ; un autre langage : sans couleurs) et modifiables comme la note ; un
+   test qui existait déjà et que la branche modifie : *Diff depuis la base de
+   la branche*, en ligne ou côte à côte, le test entier, ses lignes
+   retirées, modifiées et ajoutées marquées ;
    *Relire* un fichier (ou *Tout relire*) refait sa lecture — un test
    modifié depuis garde sa lecture, marquée « lecture périmée », et
    *Relire* est mis en avant ; *Préparer le commit* puis *✓ Commiter*.
@@ -537,7 +550,7 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    forme se commitent à l'étape Modules. Des lignes « → invariant » déjà
    observées par des tests existants (aucun test ajouté par la branche) :
    l'étape passe quand *Écrire les invariants* ou *Vérifier l'alignement*
-   a fini, ou par *✓ Rien à écrire* (à revalider si la note change ;
+   a fini, ou par *Rien à écrire* (à revalider si la note change ;
    pendant *Vibe* aussi).
 4. **Modules** : *Générer ce module* (avec `ponytail`, typecheck et tests du
    module lancés, sans commit), *Relire le diff*, *✓ Valider → commit →
@@ -552,7 +565,9 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    déjà commité) ; vous pouvez donc retoucher le code entre les deux. Les
    boutons d'un module sont sous son code (sous son contrat s'il n'est pas
    encore touché).
-   Sous un module touché, *Voir le code* : ses fichiers et celui choisi,
+   Sous un module touché, *Voir le code* : ses fichiers que la branche
+   change (modifiés, ajoutés, ou « supprimé » : son diff, tout en retraits,
+   rien à modifier) et celui choisi,
    coloré comme sur GitHub, ou son diff depuis la base de la branche (tout
    ce que le ticket a changé) ou depuis le dernier commit (ce qui n'est pas
    commité), au choix, comme dans VS Code : en ligne ou côte à côte ; il
@@ -562,7 +577,7 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    un tour de la conversation ou pendant que ce module est généré, et si le
    fichier a changé sur le disque depuis la modification (*Abandonner* remet
    alors le texte du disque). Un clic
-   sur une ligne, ou un bloc sélectionné : 💬 le cite dans le champ de la
+   sur une ligne, ou un bloc sélectionné : *Commenter* le cite dans le champ de la
    conversation pour une question, *Retour → fixup* pour une correction (les
    lignes entières, sans limite).
 5. **Revue** : *Lancer les vérifications et la ponytail review* (les deux
@@ -601,11 +616,13 @@ créer ou retirer un worktree. Le résultat s'affiche sous le bouton (✓ ou ✗
 le détail à déplier), chaque commande dans `direct.log` des sorties de
 l'agent ; git et `gh` passent par le préfixe des commandes (la box : les
 hooks de commit y trouvent Node). En cas de souci, le petit *via* à côté
-passe par l'agent, comme avant.
+passe par l'agent, comme avant. *Créer une branche dans un nouveau
+worktree* reste possible pendant une action : il travaille dans un autre
+dossier.
 
 Une validation vaut pour le contenu validé : une note modifiée ensuite
 repasse « modifiée depuis », à revalider. Quand l'étape n'attend plus que
-votre ✓, l'étape vous le dit (*✓ Valider la note*, « N cas à valider »). Les lignes de la note que
+votre validation, l'étape vous le dit (*Valider la note*, « N cas à valider »). Les lignes de la note que
 l'agent vient de changer sont surlignées (*Voir les modifications* : le
 diff ; *Vu* : ne plus surligner).
 
@@ -620,8 +637,11 @@ la branche n'est pas sur `origin`, est refusée), et on la relit sur sa
 branche. Puis la note (*Relire la note* : les décisions à discuter), les
 invariants (les mêmes cartes en pseudo-code), les commits (*Relire les
 commits* — ou, sans IA, la liste des commits, leurs fichiers, leur diff —,
-une carte par commit), le plan de test (*Plan de test à l'écran* : des cases
-à cocher pendant l'essai). ✗ et 💬 ajoutent une remarque au **brouillon de
+une carte par commit ; un clic sur un fichier d'un commit l'ouvre sous sa
+carte, tel qu'il est dans la PR, en lecture seule, ou son diff dans ce
+commit, ou depuis la base de la PR ; *Commenter* sur des lignes les cite dans une
+remarque), le plan de test (*Plan de test à l'écran* : des cases
+à cocher pendant l'essai). *À revoir* et *Commenter* ajoutent une remarque au **brouillon de
 revue** (un par PR) : le texte du champ, sinon ce qu'on cite ; elle se
 modifie sur place, × la retire. Une PR déjà fusionnée ou fermée se charge,
 mais il n'y a rien à relire : l'écran le dit (son état est redemandé à `gh`
@@ -731,7 +751,7 @@ avec lui.
 
 **Lancer le projet.** L'onglet *Processus* lance, arrête et relance les
 commandes qui font tourner le projet de l'agent (serveur, front, services) :
-le nom de chacune, sa commande en petit dessous, ▶, ⏹, ↻, son état, depuis quand, et la fin de son journal (à
+le nom de chacune, sa commande en petit dessous, *Lancer*, *Arrêter*, *Relancer* (icônes), son état, depuis quand, et la fin de son journal (à
 déplier ; *Journal complet* dans l'éditeur). Les commandes sont à vous, propres
 à la machine, dans le **fichier du projet**, `.vibecoder/project.json` à la
 racine du dossier (comme `.zed` ou `.claude` ; l'appli ajoute `.vibecoder/`
@@ -781,15 +801,15 @@ le journal : `recipe.log` des sorties de l'agent. Un worktree n'est jamais
 retiré s'il a des modifications.
 
 **Vibe.** D'ordinaire, vous validez la note, la forme et chaque
-invariant ; l'étape en cours attend vos ✓. *Vibe* (*Créer* seulement) :
+invariant ; l'étape en cours attend vos validations. *Vibe* (*Créer* seulement) :
 vous donnez la main à l'agent, vous testez et approuvez à la fin. Même
 écran, une bannière en tête dit que *Vibe* est en cours ; plus rien
-n'attend vos ✓, et les étapes qu'il passe les gardent. En deux temps :
+n'attend vos validations, et les étapes qu'il passe les gardent. En deux temps :
 
 1. la demande dans le champ, *Rédiger la note* ; l'agent vous pose
    **toutes** les questions de la note (*Envoyer les réponses*, ou vos
    réponses dans la conversation : le questionnaire suit) — il n'en
-   tranche aucune ; puis vous lisez la note et la validez (*✓ Valider la
+   tranche aucune ; puis vous lisez la note et la validez (*Valider la
    note*) ;
 2. *Vibe*, en tête des actions de l'étape en cours (proposé une fois la
    note validée, à n'importe quelle étape ensuite : écrivez vos invariants

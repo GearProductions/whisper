@@ -1,8 +1,9 @@
 /* Les pièces des vues d'étape (step-parts) : outils de l'en-tête et des
    cartes, bouton d'action (tons accent, vibe, ghost), invitation, carte de PR. Sous .vc,
-   avec les couleurs de vibecoder.css. */
+   avec les couleurs, --vc-radius, --vc-pad et le bouton-icône (.vc-tool) de vibecoder.css.
+   Sobre et dense (0.13.0) : un cran en dessous, sans ombre ; le texte garde sa taille. */
 
-.vc-step-tools { margin-left: auto; display: flex; align-items: center; gap: 8px; align-self: center; }
+.vc-step-tools { margin-left: auto; display: flex; align-items: center; gap: 6px; align-self: center; }
 .vc-card-end { margin-left: auto; display: flex; align-items: center; gap: 4px; min-width: 0; }
 .vc-card-end .vc-card-time { margin-left: 0; padding-right: 4px; white-space: nowrap; }
 
@@ -35,40 +36,24 @@ button.vc-chip { cursor: pointer; }
 button.vc-chip:hover { border-color: var(--accent); color: var(--vc-text); }
 .vc-chip[data-fixup] { border-color: color-mix(in srgb, var(--vc-warn) 40%, transparent); color: var(--vc-warn); }
 
-/* Un bouton d'outil sans bord (💬, ×) : visible au survol. */
-.vc-tool {
-  flex: none;
-  width: 26px;
-  height: 24px;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--vc-muted);
-  font: 13px/22px system-ui, sans-serif;
-  cursor: pointer;
-  transition: background-color 0.12s, border-color 0.12s, color 0.12s, opacity 0.12s;
-}
-.vc-tool:hover { border-color: var(--vc-edge); background: var(--vc-control); color: var(--vc-text); }
-
 /* ---- Bouton d'action du relevé -------------------------------------------- */
 .vc-run {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  height: 28px;
-  padding: 0 5px 0 12px;
+  gap: 6px;
+  height: 24px;
+  padding: 0 4px 0 9px;
   border: 1px solid var(--vc-edge);
-  border-radius: 6px;
+  border-radius: var(--vc-radius);
   background: var(--vc-control);
   color: var(--vc-text);
   font: 500 12.5px/1 system-ui, sans-serif;
   white-space: nowrap;
   cursor: pointer;
-  transition: background-color 0.12s, border-color 0.12s, color 0.12s, filter 0.15s, transform 0.08s;
+  transition: background-color 0.12s, border-color 0.12s, color 0.12s, transform 0.08s;
 }
-.vc-run:not(:has(.vc-run-who)) { padding-right: 12px; }
+.vc-run:not(:has(.vc-run-who)) { padding-right: 9px; }
 .vc-run:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--vc-control)); }
 .vc-run:active:not(:disabled) { transform: translateY(1px); }
 /* Plein discret : l'accent neutre, jamais un aplat vif. */
@@ -83,16 +68,16 @@ button.vc-chip:hover { border-color: var(--accent); color: var(--vc-text); }
   background: color-mix(in srgb, var(--vc-warn) 16%, var(--vc-control));
 }
 .vc-run[data-tone="vibe"]:hover:not(:disabled) { border-color: var(--vc-warn); background: color-mix(in srgb, var(--vc-warn) 26%, var(--vc-control)); }
-.vc-run[data-tone="ghost"] { height: 24px; padding-left: 9px; border-color: transparent; background: transparent; color: var(--vc-soft); font-size: 12px; }
+.vc-run[data-tone="ghost"] { height: 22px; padding-left: 7px; border-color: transparent; background: transparent; color: var(--vc-soft); font-size: 12px; }
 .vc-run[data-tone="ghost"]:hover:not(:disabled) { border-color: var(--vc-edge); background: var(--vc-control); color: var(--vc-text); }
-.vc-run:disabled { border: 1px dashed var(--vc-edge); background: transparent; color: var(--vc-faint); box-shadow: none; cursor: default; }
+.vc-run:disabled { border: 1px dashed var(--vc-edge); background: transparent; color: var(--vc-faint); cursor: default; }
 .vc-run[data-tone="ghost"]:disabled { border-color: transparent; }
 .vc-run-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.vc-run-who { padding: 2px 7px; border-radius: 9px; background: rgba(255, 255, 255, 0.07); color: var(--vc-muted); font: 500 10.5px/1.4 var(--vc-mono); }
+.vc-run-who { padding: 1px 6px; border-radius: 9px; background: rgba(255, 255, 255, 0.07); color: var(--vc-muted); font: 500 10.5px/1.4 var(--vc-mono); }
 .vc-run-why { margin-right: 7px; color: var(--vc-faint); font-size: 11.5px; font-weight: 400; }
 .vc-run-why::before { content: "· "; }
 /* Une action que l'appli fait elle-même (F-114) : « via » l'agent en lien discret, le dernier résultat dessous. */
-.vc-direct { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px; max-width: 100%; }
+.vc-direct { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 3px; max-width: 100%; }
 .vc-via { flex: none; margin-left: 6px; padding: 0 2px; border: 0; background: none; color: var(--vc-muted); font: 12px system-ui, sans-serif; text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
 .vc-via:hover:not(:disabled) { color: var(--vc-text); }
 .vc-via:disabled { color: var(--vc-faint); cursor: default; text-decoration: none; }
@@ -100,20 +85,21 @@ button.vc-chip:hover { border-color: var(--accent); color: var(--vc-text); }
 .vc-direct-res { width: 0; min-width: 100%; color: var(--vc-muted); font-size: 12px; }
 .vc-direct-res[open] { width: auto; }
 .vc-direct-res[open] summary { white-space: normal; }
+.vc-direct-mark svg { width: 12px; height: 12px; vertical-align: -2px; }
 .vc-direct-res[data-state="ok"] .vc-direct-mark { color: #3fb950; }
 .vc-direct-res[data-state="ko"] .vc-direct-mark { color: #f85149; }
 .vc-direct-res summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
-.vc-direct-res pre { max-height: 220px; margin: 6px 0 0; padding: 8px 10px; overflow: auto; border-radius: 6px; background: rgba(0, 0, 0, 0.25); font-size: 11.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.vc-direct-res pre { max-height: 220px; margin: 5px 0 0; padding: 6px 8px; overflow: auto; border-radius: var(--vc-radius); background: rgba(0, 0, 0, 0.25); font-size: 11.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* ---- Invitation : rien encore, et ce qui le produit -------------------------- */
 .vc-invite {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin: 0 0 20px;
-  padding: 16px 18px;
+  gap: 12px;
+  margin: 0 0 15px;
+  padding: var(--vc-pad) 14px;
   border: 1px dashed rgba(255, 255, 255, 0.09);
-  border-radius: 10px;
+  border-radius: var(--vc-radius);
   color: var(--vc-muted);
   font-size: 12.5px;
   line-height: 1.5;
@@ -121,25 +107,25 @@ button.vc-chip:hover { border-color: var(--accent); color: var(--vc-text); }
 .vc-invite > div { flex: 1; min-width: 0; }
 .vc-invite b { display: block; margin-bottom: 1px; color: var(--vc-text); font-size: 13px; font-weight: 600; }
 
-/* ---- Carte de PR ------------------------------------------------------------ */
-.vc-pr-head { display: flex; align-items: center; gap: 9px; min-height: 30px; padding: 12px 12px 0 16px; }
+/* ---- Carte de PR (ses méta alignées sur le titre : --vc-pad + l'icône 16 + l'écart 9) ---- */
+.vc-pr-head { display: flex; align-items: center; gap: 9px; min-height: 26px; padding: 9px 8px 0 var(--vc-pad); }
 .vc-pr-icon { flex: none; width: 16px; height: 16px; fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .vc-pr-number { flex: none; color: var(--vc-muted); font: 600 13px/1.3 var(--vc-mono); }
 .vc-pr-title { flex: 1; min-width: 0; color: var(--vc-text); font-size: 15px; font-weight: 600; line-height: 1.35; }
-.vc-pr-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 6px 14px 12px 41px; color: var(--vc-muted); font-size: 12px; }
+.vc-pr-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 5px 10px 9px calc(var(--vc-pad) + 25px); color: var(--vc-muted); font-size: 12px; }
 .vc-pr-branches { padding: 1px 9px; border-radius: 10px; border: 1px solid var(--vc-line); background: var(--vc-code); color: var(--vc-soft); font-size: 11.5px; line-height: 1.6; }
-.vc-pr-head:last-child { padding-bottom: 12px; }
+.vc-pr-head:last-child { padding-bottom: 9px; }
 .vc-pr .vc-pr-body { border-top: 1px solid var(--vc-line); }
 
 /* ---- Relire : PR fusionnée ou fermée ----------------------------------------- */
 .vc-closed {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: -4px 0 20px;
-  padding: 10px 14px;
+  gap: 8px;
+  margin: -3px 0 15px;
+  padding: 8px 10px;
   border: 1px solid color-mix(in srgb, var(--vc-warn) 45%, transparent);
-  border-radius: 8px;
+  border-radius: var(--vc-radius);
   background: color-mix(in srgb, var(--vc-warn) 10%, var(--vc-editor));
   color: var(--vc-text);
   font-size: 13px;
@@ -147,7 +133,7 @@ button.vc-chip:hover { border-color: var(--accent); color: var(--vc-text); }
 .vc-closed b { color: var(--vc-warn); font: 600 12.5px/1 var(--vc-mono); }
 
 /* ---- La rangée des actions de l'étape, sous son titre ----------------------- */
-.vc-step-acts { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; }
+.vc-step-acts { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 5px 6px; margin-top: 4px; }
 
 /* ---- Le robot d'une PR dans un worktree : son badge dans l'en-tête ---------- */
 .vc-wt-badge {
@@ -162,7 +148,7 @@ button.vc-chip:hover { border-color: var(--accent); color: var(--vc-text); }
 }
 
 /* ---- Le champ d'une étape : l'allure de la zone de commentaire, sur toute la largeur ---- */
-.vc-step-field { flex-basis: 100%; margin: 6px 0 0; }
-/* Une action dont la course est en cours : « en cours » et ⏹, à côté de son bouton. */
-.vc-run-on { display: inline-flex; align-items: center; gap: 2px; margin-left: 6px; color: var(--accent); font-size: 12px; }
-.vc-run-on .vc-icon { width: 24px; height: 24px; font-size: 13px; line-height: 24px; }
+.vc-step-field { flex-basis: 100%; margin: 4px 0 0; }
+.vc-cbox.vc-step-field textarea { border-radius: var(--vc-radius); }
+/* Une action dont la course est en cours : « en cours » et ⏹ (IconButton stop), à côté de son bouton. */
+.vc-run-on { display: inline-flex; align-items: center; gap: 2px; margin-left: 5px; color: var(--accent); font-size: 12px; }

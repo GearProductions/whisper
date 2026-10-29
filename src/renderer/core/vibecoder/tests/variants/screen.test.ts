@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { chosenModel, convWidth, modelArg, stepActions } from 'core/vibecoder';
-import type { VibeAction, VibeStep, VibeView } from 'technicals/bridge';
+import { chosenModel, convWidth, modelArg, runningRuns, stepActions } from 'core/vibecoder';
+import type { VibeAction, VibeRun, VibeStep, VibeView } from 'technicals/bridge';
 
 const action = (over: Partial<VibeAction> = {}): VibeAction => ({
   id: 'read-invariants', step: 'invariants', label: 'Lire en pseudo-code', hint: '', who: 'sonnet · moyen',
@@ -104,5 +104,20 @@ describe('stepActions', () => {
     const next = [...actions, action({ id: 'modules', step: 'modules', primary: true })];
     expect(row(view({ actions: next }), step('current'))).toContain('modules:accent');
     expect(row(view({ actions: next }), step('done'))).not.toContain('modules:accent');
+  });
+});
+
+describe('runningRuns', () => {
+  const run = (id: string, state: VibeRun['state']): VibeRun =>
+    ({ id, label: id, who: 'sonnet', state, since: 0, end: null, reply: '', permission: null });
+
+  it('en cours et en attente d\'autorisation, dans l\'ordre reçu ; ni arrêtées, ni finies', () => {
+    const runs = [run('a', 'done'), run('b', 'asking'), run('c', 'stopped'), run('d', 'running'),
+      run('e', 'failed'), run('f', 'kept'), run('g', 'undone')];
+    expect(runningRuns(runs).map((r) => r.id)).toEqual(['b', 'd']);
+  });
+
+  it('aucune : vide', () => {
+    expect(runningRuns([])).toEqual([]);
   });
 });

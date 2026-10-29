@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 // ModuleDiffView (module-diff-view.tsx) : en lecture seule dans les deux modes ; recréé
-// quand une prop change ; replié autour des changements, « N lignes inchangées » d'après lang.
+// quand une prop change ; replié autour des changements, « N lignes inchangées » d'après lang,
+// sauf avec whole.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EditorView } from '@codemirror/view';
@@ -45,4 +46,13 @@ it('les lignes inchangées repliées, le libellé d’après lang', async () => 
   expect(v.page.querySelector('.cm-collapsedLines')?.textContent).toMatch(/^\d+ lignes inchangées$/);
   await v.render({ before: lines(20, 'x'), after: lines(20, 'y'), path: 'src/a.ts', mode: 'split', lang: 'en' });
   expect(v.page.querySelector('.cm-collapsedLines')?.textContent).toMatch(/^\d+ unchanged lines$/);
+});
+
+it('whole : rien de replié, en ligne comme côte à côte', async () => {
+  const v = mount();
+  await v.render({ before: lines(20, 'x'), after: lines(20, 'y'), path: 'src/a.ts', mode: 'inline', lang: 'fr', whole: true });
+  expect(v.page.querySelector('.cm-collapsedLines')).toBeNull();
+  await v.render({ before: lines(20, 'x'), after: lines(20, 'y'), path: 'src/a.ts', mode: 'split', lang: 'fr', whole: true });
+  expect(v.page.querySelector('.cm-collapsedLines')).toBeNull();
+  expect(v.views()).toHaveLength(2);
 });

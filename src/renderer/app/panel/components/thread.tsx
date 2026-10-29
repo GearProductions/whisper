@@ -1,12 +1,15 @@
-/** thread — le fil : messages (heure, texte avec liens et blocs de code,
- *  actions de l'agent, pièces jointes, Écouter, Copier), demande
- *  d'autorisation, agent au travail.
+/** thread — le fil : messages (heure, texte — celui de l'agent rendu en
+ *  Markdown par MarkdownView, sans 💬 ; les autres tels quels, avec liens et
+ *  blocs de code —, actions de l'agent, pièces jointes, Écouter, Copier),
+ *  demande d'autorisation, agent au travail.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : panel-app. */
 import { useEffect, useState } from 'react';
 import { baseName, isBusy, kindOf, visibleFrom } from 'core/conversation';
 import { Linkified } from 'core/ui';
+import { t as strings } from 'core/vibecoder';
 import { clock, elapsed, fullDate } from 'helpers';
 import type { Decision, Message, Thread as ThreadData } from 'technicals/bridge';
+import { MarkdownView } from 'app/panel/vibecoder';
 import { PermissionCard } from './permission-card';
 
 export type ThreadActions = {
@@ -18,8 +21,14 @@ export type ThreadActions = {
   answer(decision: Decision, key: number): boolean;
 };
 
-// Le texte tel quel, liens cliquables ; seuls les blocs ``` deviennent des blocs de code.
-function Body({ text, openLink }: { text: string; openLink(url: string): void }) {
+const FR = strings('fr');
+
+// Un message de l'agent : en Markdown (jamais de HTML, liens http(s) seulement).
+// Les autres : le texte tel quel, liens cliquables ; seuls les blocs ``` deviennent des blocs de code.
+function Body({ text, role, openLink }: { text: string; role: Message['role']; openLink(url: string): void }) {
+  if (role === 'assistant') {
+    return <div className="body" hidden={!text}><MarkdownView md={String(text || '')} t={FR} onOpenLink={openLink} /></div>;
+  }
   return (
     <div className="body" hidden={!text}>
       {String(text || '').split('```').map((part, i) => (i % 2 === 0
@@ -56,7 +65,7 @@ function who(m: Message, data: ThreadData) {
 function MessageView({ m, index, data, act }: { m: Message; index: number; data: ThreadData; act: ThreadActions }) {
   const [copied, setCopied] = useState(false);
   useEffect(() => setCopied(false), [m.text, m.time]); // une nouvelle dictée : à copier
-  const body = <Body text={m.text} openLink={act.openLink} />;
+  const body = <Body text={m.text} role={m.role} openLink={act.openLink} />;
   return (
     <article className={`message ${m.role}`}>
       <div className="who">

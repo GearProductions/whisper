@@ -1,9 +1,11 @@
 /** invariants-view — l'étape Invariants : chaque test d'invariant de la
  *  branche (ou de la PR) ; lu en pseudo-code, une carte par cas : son titre,
  *  le pseudo-code coloré (assertions et « étant donné / quand / alors »
- *  repérés), ses cas limites, ce qu'il garantit, son point d'attention ; ✓ /
- *  ✗ (l'état : validé, refusé, modifié depuis), 💬, Ouvrir (à la ligne du
- *  cas) ; « Pseudo-code / Code » montre à la place son code (CodeView :
+ *  repérés), ses cas limites, ce qu'il garantit, son point d'attention ; son
+ *  verdict (CaseVerdict : ✓ / ✗), l'état (validé : Icon ok seule, « Validé »
+ *  en title et aria-label, la carte discrète ; refusé, modifié depuis : Icon
+ *  ko / warn et texte), 💬 et Ouvrir (à la ligne du cas) en
+ *  IconButton ; « Pseudo-code / Code » montre à la place son code (CodeView :
  *  coloré d'après l'extension du fichier, comme « Voir le fichier » ; sans 💬
  *  sur ses lignes). Relire : le code d'origine du cas, en lecture seule.
  *  Créer : Code et Voir le fichier ouvrent le fichier entier modifiable (Code :
@@ -13,14 +15,18 @@
  *  grisés si f.locked (le motif en titre). ✗ et 💬 citent le
  *  cas dans le champ (Relire : ils ouvrent sous la carte une zone de
  *  commentaire, pour le brouillon de revue, le cas en cible). Par fichier : sa
- *  progression, « Tout valider » quand aucun cas n'a de point d'attention (lu
- *  ou pas, progress().all), « Relire » (refaire sa lecture ; en accent si la
+ *  progression ; dans les outils de l'en-tête, alignés : « Tout valider »
+ *  (Icon ok et texte) quand aucun cas n'a de point d'attention (lu ou pas,
+ *  progress().all), « Relire » (refaire sa lecture ; en accent si la
  *  lecture est périmée, f.stale : le test a changé depuis, sa lecture reste
- *  affichée, marquée « lecture périmée »), « Voir le
- *  fichier » (tout son code, numéroté) ; pas lu : ses cartes sans lecture
- *  (✓ / ✗ quand même, la lecture est facultative), et « Lire en
- *  pseudo-code », en accent seulement quand c'est l'action mise en avant
- *  (primary : Vibe). Sans test, l'invitation à les écrire, ou « rien à
+ *  affichée, marquée « lecture périmée ») ou, pas lu, « Lire en pseudo-code »
+ *  (texte ; en accent seulement quand c'est l'action mise en avant, primary :
+ *  Vibe ; ses cartes sans lecture, ✓ / ✗ quand même, la lecture est
+ *  facultative), Ouvrir (IconButton). « Voir le fichier » (tout son code,
+ *  numéroté ; un test que la branche, ou la PR, modifie, f.base : DiffPicker
+ *  Fichier · Diff depuis la base de la branche, le diff ModuleDiffView entier,
+ *  en lecture seule, de f.base au texte de l'éditeur en Créer, à f.source en
+ *  Relire). Sans test, l'invitation à les écrire, ou « rien à
  *  écrire » si la note n'a aucune ligne « → invariant » ; Créer, la note avec
  *  une ligne « → invariant » : à côté, « ✓ Rien à écrire » (elles sont déjà
  *  observées par des tests existants), validation à la main pour la note telle
@@ -37,8 +43,11 @@ import {
 import type { VibeLang, VibeTestFile } from 'technicals/bridge';
 import { CodeView } from './code-view';
 import { CommentBox } from './comment-box';
+import { DiffPicker } from './diff-picker';
 import { DraftEditor, useFileDraft } from './file-draft';
+import { Icon, IconButton } from './icons';
 import { InlineMd, MarkdownView } from './markdown-view';
+import { ModuleDiffView } from './module-diff-view';
 import { Invite, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
 import { CaseVerdict, MarkControl } from './validation';
@@ -56,9 +65,9 @@ const fr = {
   stale: 'lecture périmée',
   staleTitle: 'Le test a changé depuis cette lecture : « Relire » le fichier',
   validated: (ok: number, total: number) => `${ok} / ${total} validé${ok > 1 ? 's' : ''}`,
-  all: '✓ Tout valider',
+  all: 'Tout valider',
   allTitle: 'Valider chaque cas de ce fichier qui n\'a pas de verdict : aucun n\'a de point d\'attention',
-  state: { ok: '✓ Validé', ko: '✗ Refusé', changed: '⚠ Modifié depuis la validation' },
+  state: { ok: 'Validé', ko: 'Refusé', changed: 'Modifié depuis la validation' },
   changedTitle: 'Le test a changé depuis votre verdict : relisez le cas',
   edges: 'Cas limites',
   guarantees: 'Garantit',
@@ -69,7 +78,7 @@ const fr = {
   noReading: 'Pas de lecture pour ce cas (son titre a pu changer) : « Relire » le fichier.',
   reread: 'Relire',
   rereadAll: 'Tout relire',
-  casesHere: (n: number) => `${n} cas à valider : ✓ ou ✗ sur chaque carte, ou « Tout valider » sur un fichier sans point d'attention.`,
+  casesHere: (n: number) => `${n} cas à valider : Valider ou À revoir sur chaque carte, ou « Tout valider » sur un fichier sans point d'attention.`,
   noTests: 'Aucun test d\'invariant sur la branche',
   noTestsText: ' « Écrire les invariants (rouges), puis vérifier l\'alignement » les écrit d\'après les lignes « → invariant » de la note ; ou dictez du pseudo-code dans le champ, il est traduit dans le langage du projet.',
   noInvLines: ' La note ne demande aucun invariant : rien à écrire.',
@@ -79,6 +88,7 @@ const fr = {
   code: 'Code',
   show: 'Montrer',
   wholeFile: 'Voir le fichier',
+  sinceBase: 'Diff depuis la base de la branche',
 };
 const S: Record<VibeLang, typeof fr> = {
   fr,
@@ -94,9 +104,9 @@ const S: Record<VibeLang, typeof fr> = {
     stale: 'outdated reading',
     staleTitle: 'The test changed since this reading: « Read again » the file',
     validated: (ok, total) => `${ok} / ${total} approved`,
-    all: '✓ Approve all',
+    all: 'Approve all',
     allTitle: 'Approve every case of this file that has no verdict: none has a warning',
-    state: { ok: '✓ Approved', ko: '✗ Rejected', changed: '⚠ Changed since the approval' },
+    state: { ok: 'Approved', ko: 'Rejected', changed: 'Changed since the approval' },
     changedTitle: 'The test changed since your verdict: read the case again',
     edges: 'Edge cases',
     guarantees: 'Guarantees',
@@ -107,7 +117,7 @@ const S: Record<VibeLang, typeof fr> = {
     noReading: 'No reading for this case (its title may have changed): « Read again » the file.',
     reread: 'Read again',
     rereadAll: 'Read all again',
-    casesHere: (n) => `${n} case${n > 1 ? 's' : ''} to approve: ✓ or ✗ on each card, or « Approve all » on a file with no warning.`,
+    casesHere: (n) => `${n} case${n > 1 ? 's' : ''} to approve: Approve or Needs rework on each card, or « Approve all » on a file with no warning.`,
     noTests: 'No invariant test on the branch',
     noTestsText: ' « Write the invariants (red), then check the alignment » writes them from the note\'s « → invariant » lines; or dictate pseudo-code in the field, it is translated into the project\'s language.',
     noInvLines: ' The note asks for no invariant: nothing to write.',
@@ -117,10 +127,12 @@ const S: Record<VibeLang, typeof fr> = {
     code: 'Code',
     show: 'Show',
     wholeFile: 'View the file',
+    sinceBase: 'Diff since the branch base',
   },
 };
 type Labels = typeof fr;
 type Verdict = 'ok' | 'ko' | null;
+const STATE_ICON = { ok: 'ok', ko: 'ko', changed: 'warn' } as const;
 
 export function InvariantsView(props: StepProps) {
   const { view, t, act, busy } = props;
@@ -160,7 +172,7 @@ export function InvariantsView(props: StepProps) {
       </StepHead>
       {wait?.kind === 'cases' ? <p className="vc-ihelp">{s.casesHere(wait.count)}</p> : null}
       {view.invariants.length ? <Summary p={total} s={s} /> : null}
-      {total.warnings ? <p className="vc-ihelp"><span aria-hidden="true">⚠</span>{s.warningHelp}</p> : null}
+      {total.warnings ? <p className="vc-ihelp"><span><Icon name="warn" /></span>{s.warningHelp}</p> : null}
       {align ? (
         <details className="vc-card vc-ialign" open>
           <summary className="vc-card-head">
@@ -191,24 +203,25 @@ export function InvariantsView(props: StepProps) {
                 {p.all ? (
                   <button type="button" className="vc-vbtn" title={s.allTitle}
                     onClick={() => casesOf(f).forEach((c) => { if (c.mark !== 'ok' && c.mark !== 'ko') act.mark(target(f, c.title), 'ok'); })}>
-                    {s.all}
+                    <Icon name="ok" />{s.all}
                   </button>
                 ) : null}
-                {f.reading ? <Run a={read} busy={busy} tone={f.stale ? 'accent' : 'ghost'} label={s.reread} onRun={() => act.run('read-invariants', { file: f.id })} /> : null}
-                <button type="button" className="vc-mini" title={t.openTitle} onClick={() => act.open(f.id)}>{t.open}</button>
+                {f.reading ? <Run a={read} busy={busy} tone={f.stale ? 'accent' : 'ghost'} label={s.reread} onRun={() => act.run('read-invariants', { file: f.id })} />
+                  : <Run a={read} busy={busy} tone={read?.primary ? 'accent' : 'plain'} onRun={() => act.run('read-invariants')} />}
+                <IconButton icon="open" label={t.openTitle} onClick={() => act.open(f.id)} />
               </span>
             </div>
             {f.source ? review ? (
               <details className="vc-ifile-src">
                 <summary>{s.wholeFile}</summary>
-                <CodeView code={f.source} path={f.path} t={t} />
+                <FileOrDiff f={f} after={f.source} s={s} lang={view.lang}><CodeView code={f.source} path={f.path} t={t} /></FileOrDiff>
               </details>
             ) : (
               // onToggle part aussi quand open change par les props : seul l'écart est un geste.
               <details className="vc-ifile-src" open={f === file && shown?.title === null}
                 onToggle={(e) => { const now = e.currentTarget.open; if (now !== (f === file && shown?.title === null)) show(now ? { path: f.path, title: null } : null); }}>
                 <summary>{s.wholeFile}</summary>
-                {f === file && shown?.title === null ? editor() : null}
+                {f === file && shown?.title === null ? <FileOrDiff f={f} after={d.text ?? f.source} s={s} lang={view.lang}>{editor()}</FileOrDiff> : null}
               </details>
             ) : null}
             {casesOf(f).map((c, i) => (
@@ -221,7 +234,6 @@ export function InvariantsView(props: StepProps) {
                   view: () => editor(f.lines[i]),
                 }} />
             ))}
-            {f.reading ? null : <Run a={read} busy={busy} tone={read?.primary ? 'accent' : 'plain'} onRun={() => act.run('read-invariants')} />}
           </section>
         );
       })}
@@ -231,6 +243,21 @@ export function InvariantsView(props: StepProps) {
           {review || write?.hidden ? null : <MarkControl what="nothing" state={view.note?.nothingMark ?? null} review={false} lang={view.lang} onMark={(v) => act.mark('nothing', v)} />}
         </Invite>
       )}
+    </>
+  );
+}
+
+// Voir le fichier : un test que la branche modifie (f.base, son texte à la base), Fichier (children) · son diff
+// depuis la base, entier, en lecture seule ; ajouté (pas de f.base) : le fichier seul.
+function FileOrDiff({ f, after, s, lang, children }: { f: VibeTestFile; after: string; s: Labels; lang: VibeLang; children: ReactNode }) {
+  const [shown, setShown] = useState<'file' | 'base'>('file');
+  const [mode, setMode] = useState<'inline' | 'split'>('inline');
+  if (typeof f.base !== 'string') return children;
+  return (
+    <>
+      <DiffPicker<'base'> options={[{ key: 'base', label: s.sinceBase }]} shown={shown} onShown={setShown}
+        mode={shown === 'base' ? mode : null} onMode={setMode} lang={lang} />
+      {shown === 'base' ? <ModuleDiffView before={f.base} after={after} path={f.path} mode={mode} lang={lang} whole /> : children}
     </>
   );
 }
@@ -281,7 +308,8 @@ function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVe
       <div className="vc-case-head">
         <span className="vc-case-n">{n}</span>
         <h3 className="vc-case-title">{c.title}</h3>
-        {c.mark ? <span className="vc-case-state" data-state={c.mark} title={c.mark === 'changed' ? s.changedTitle : undefined}>{s.state[c.mark]}</span> : null}
+        {c.mark === 'ok' ? <span className="vc-case-state" data-state="ok" role="img" title={s.state.ok} aria-label={s.state.ok}><Icon name="ok" /></span>
+          : c.mark ? <span className="vc-case-state" data-state={c.mark} title={c.mark === 'changed' ? s.changedTitle : undefined}><Icon name={STATE_ICON[c.mark]} />{s.state[c.mark]}</span> : null}
         {code ? (
           <span className="vc-seg vc-case-view" role="group" aria-label={s.show}>
             <button type="button" aria-pressed={!showCode} onClick={() => setShowCode(false)}>{s.pseudo}</button>
@@ -307,7 +335,7 @@ function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVe
           ) : null}
           {r.warning ? (
             <div className="vc-attention" role="note" title={s.warningHelp}>
-              <span className="vc-attention-icon" aria-hidden="true">⚠</span>
+              <span className="vc-attention-icon"><Icon name="warn" /></span>
               <p><b>{s.warning}</b><InlineMd text={r.warning} t={t} onOpenLink={onOpenLink} /></p>
             </div>
           ) : null}
@@ -316,9 +344,8 @@ function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVe
       <div className="vc-case-foot">
         <CaseVerdict state={c.mark} lang={lang} onMark={verdict} />
         <span className="vc-case-tools">
-          <button type="button" className="vc-tool" title={quote} aria-label={quote} aria-pressed={review ? writing : undefined}
-            onClick={() => (review ? setWriting(!writing) : onQuote())}>💬</button>
-          <button type="button" className="vc-mini" title={t.openTitle} onClick={onOpen}>{t.open}</button>
+          <IconButton icon="comment" label={quote} pressed={review ? writing : undefined} onClick={() => (review ? setWriting(!writing) : onQuote())} />
+          <IconButton icon="open" label={t.openTitle} onClick={onOpen} />
         </span>
       </div>
       {writing ? <CommentBox t={t} onCancel={() => setWriting(false)} onSave={(text) => { onComment(text); setWriting(false); }} /> : null}
