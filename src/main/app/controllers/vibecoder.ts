@@ -29,10 +29,13 @@
  *  dont toutes ses lectures d'invariants (invariants/<blob>.md : celle d'un
  *  test modifié depuis reste montrée, périmée, core/vibecoder) : une page
  *  désigne un fichier par son id dans le dernier relevé (lastView), jamais par
- *  un chemin (I-37). Les fichiers d'un module touché : leurs chemins seulement
- *  (list : sous son dossier, ni lien ni fichier ou dossier caché ni node_modules,
- *  target, dist, build, son dossier par safePath, au plus LIST_MAX),
- *  pas leur texte (controllers/module-code lit le fichier ouvert). Les
+ *  un chemin (I-37). Le texte d'un test à la base : par git seul (show au
+ *  commit où la branche, ou la PR, part de repo.base : forkPoint, un par relevé ;
+ *  null : absent là, pas de base ; au-delà de 200 Ko, core/vibecoder). Les fichiers d'un module
+ *  touché : ceux que la branche change (core/vibecoder, d'après repo.changed),
+ *  pas leur texte (controllers/module-code lit le fichier ouvert). listFiles
+ *  (ni lien ni fichier ou dossier caché ni node_modules, target, dist, build,
+ *  par safePath, au plus LIST_MAX) : pour controllers/artifacts. Les
  *  artefacts de l'agent (<sorties>/artifacts/, controllers/artifacts) : leur
  *  liste au relevé, sans leur texte ; ouverts ou copiés par leur id (a<i>)
  *  dans le dernier relevé, jamais par un chemin. Une action qui génère un module : sa course le retient
@@ -129,7 +132,7 @@ const THROTTLE_MS = 1000;      // au plus un relevé par seconde
 const TARGET_MAX = 300;        // une remarque du brouillon de revue : sa cible…
 const REMARK_MAX = 5000;       // … et son texte
 const GH_MS = 60_000;          // une réponse de gh vaut 60 s
-const LIST_MAX = 1000;         // les fichiers d'un module au relevé : les premiers seulement
+const LIST_MAX = 1000;         // listFiles (les artefacts) : les premiers seulement
 const SKIP_DIRS = new Set(['node_modules', 'target', 'dist', 'build']);   // ni leurs fichiers
 
 const ERRORS: Record<VibeLang, Record<MessageError | 'agent' | 'action' | 'args' | 'noGit' | 'notRepo' | 'worktree', string>> = {
@@ -438,6 +441,10 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     const text = onDisk(agent.dir, p);
     return text === null ? [] : [{ path: p, blob: blobSha(text), text }];
   });
+  // Leur texte à la base (par git seul, I-37) : au commit où la branche part de repo.base (forkPoint, un par
+  // relevé, comme at.base de controllers/module-code) ; null : absent là, pas de base (au-delà de 200 Ko : core/vibecoder).
+  const fork = repo && tests.length ? await git.forkPoint(repo.base) : null;
+  const based = await Promise.all(tests.map(async (t) => ({ ...t, base: fork ? await git.show(fork, t.path) : null })));
   // Toutes les lectures d'invariants : un test modifié depuis la sienne reprend la plus récente de son fichier,
   // périmée (readingOf, core/vibecoder).
   let names: string[] = [];
@@ -473,7 +480,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     repo,
     error: repo ? null : !which('git') ? ERRORS[lang].noGit : flow === 'create' ? ERRORS[lang].notRepo : null,
     note: notePath && noteText !== null ? { path: notePath, text: noteText, before: before !== null && before !== noteText ? before : null } : null,
-    tests,
+    tests: based,
     readings,
     outputs,
     marks: store.marks[agent.id] || {},
@@ -495,7 +502,6 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
       ownRun(a) || headField(skills[a.id], 'context') === 'fork' ? skillModel(skills[a.id]) : null])),
     skills: skillNames(agent.dir),
     exists: (rel) => { const file = safePath(agent.dir, rel, realpath); return !!file && fs.existsSync(file); },
-    list: (rel) => listFiles(agent.dir, rel),
     now: Date.now(),
   });
   // Vibe en cours : les étapes faites reçoivent leur ✓, qu'elles gardent une fois Vibe fini (F-102).

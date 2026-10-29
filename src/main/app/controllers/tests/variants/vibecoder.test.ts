@@ -38,6 +38,7 @@ const fake = vi.hoisted(() => {
     git: (() => null) as (args: string[]) => string | null, calls: [] as unknown[][], noChild: false,
     branches: null as string[] | null, synced: [] as string[], prs: null as unknown, login: 'moi' as string | null,
     dev: null as 'reload' | 'restart' | null, answer: 0, busy: false, release: (() => {}) as (v?: unknown) => void,
+    fork: null as string | null, reads: [] as unknown[][],
   };
 });
 
@@ -74,7 +75,9 @@ vi.mock('technicals/claude', () => ({
 vi.mock('technicals/git', () => ({
   gitRun: () => async (args: string[]) => fake.git(args),
   gitReader: () => ({
-    facts: async () => fake.facts, show: async () => fake.shown, commit: async () => fake.diff,
+    facts: async () => fake.facts, commit: async () => fake.diff,
+    show: async (ref: string, p: string) => { fake.reads.push(['show', ref, p]); return fake.shown; },
+    forkPoint: async (base: string) => { fake.reads.push(['forkPoint', base]); return fake.fork; },
     branches: async () => fake.branches, sync: async (base: string) => { fake.synced.push(base); return { behind: 1, baseAhead: 2 }; },
   }),
   okRef: (ref: string) => /^(?!-)(?!.*\.\.)[A-Za-z0-9._/-]+$/.test(ref),
@@ -180,6 +183,8 @@ beforeEach(() => {
   fake.messages = [];
   fake.edited = [];
   fake.shown = null;
+  fake.fork = null;
+  fake.reads = [];
   fake.diff = null;
   fake.opened = [];
   fake.tabs = [];
@@ -238,7 +243,7 @@ describe('le relevé', () => {
     write(path.join(out, 'invariants', 'notes.md'), 'pas une lecture');                        // pas un nom connu
     const v = (await open()).view()!;
     expect(v.note).toMatchObject({ path: 'docs/tickets/feat/0.8.0-essai.md', text: NOTE, before: null });
-    expect(v.tests).toEqual([{ path: 'src/x/tests/invariants/x.test.ts', blob: blobSha(TEST), text: TEST }]);
+    expect(v.tests).toEqual([{ path: 'src/x/tests/invariants/x.test.ts', blob: blobSha(TEST), text: TEST, base: null }]);
     expect(v.readings).toHaveLength(2);
     expect(v.readings).toEqual(expect.arrayContaining([
       { blob: blobSha(TEST), text: '# lecture\n', time: expect.any(Number) },
@@ -270,7 +275,37 @@ describe('le relevé', () => {
     expect(v.error).toEqual(expect.any(String));
   });
 
-  it('list (0.11.0) : les fichiers d’un dossier et de ses sous-dossiers, relatifs au dépôt ; ni lien, ni caché, ni dehors', async () => {
+  it('le texte d’un test à la base (0.13.0) : git show au forkPoint de repo.base, un forkPoint par relevé', async () => {
+    fake.fork = 'f0';
+    fake.shown = 'BASE';
+    fake.facts = { ...fake.facts as object, changed: [...(fake.facts as { changed: string[] }).changed, 'src/y/tests/invariants/y.test.ts'] };
+    write(path.join(dir, 'src/y/tests/invariants/y.test.ts'), TEST);
+    const { vibes, view } = await open();
+    const v = view()!;
+    expect(v.tests.map((t) => t.base)).toEqual(['BASE', 'BASE']);
+    // par relevé envoyé : un forkPoint, puis un show par test
+    expect(fake.reads).toEqual(vibes().flatMap(() => [['forkPoint', 'origin/main'],
+      ['show', 'f0', 'src/x/tests/invariants/x.test.ts'], ['show', 'f0', 'src/y/tests/invariants/y.test.ts']]));
+    expect(v).not.toHaveProperty('list');
+  });
+
+  it('le texte d’un test à la base : null absent à la base, ou sans base ; sans test, aucun git', async () => {
+    fake.fork = 'f0';
+    fake.shown = null;   // absent à la base
+    expect((await open()).view()!.tests[0].base).toBeNull();
+    vi.resetModules();
+    fake.fork = null;    // pas de base
+    fake.reads = [];
+    expect((await open()).view()!.tests[0].base).toBeNull();
+    expect(fake.reads.filter(([c]) => c === 'show')).toEqual([]);
+    vi.resetModules();
+    fake.facts = { ...fake.facts as object, changed: ['docs/tickets/feat/0.8.0-essai.md'] };
+    fake.reads = [];
+    expect((await open()).view()!.tests).toEqual([]);
+    expect(fake.reads).toEqual([]);
+  });
+
+  it('listFiles (0.11.0, les artefacts) : les fichiers d’un dossier et de ses sous-dossiers, relatifs au dépôt ; ni lien, ni caché, ni dehors', async () => {
     write(path.join(dir, 'src/m/index.ts'), 'a');
     write(path.join(dir, 'src/m/sous/b.ts'), 'b');
     write(path.join(dir, 'src/m/.cache/c.ts'), 'c');
@@ -280,25 +315,27 @@ describe('le relevé', () => {
       fs.symlinkSync(path.join(fake.userData, 'dehors.ts'), path.join(dir, 'src/m/lien.ts'));
       fs.symlinkSync(fake.userData, path.join(dir, 'src/m/lien-dossier'));
     }
-    const { list } = (await open()).view()!;
-    expect(list!('src/m').sort()).toEqual(['src/m/index.ts', 'src/m/sous/b.ts']);
-    expect(list!('src/m/index.ts')).toEqual(['src/m/index.ts']);   // un fichier : lui-même
-    expect(list!('../dehors.ts')).toEqual([]);
-    expect(list!(path.join(fake.userData, 'dehors.ts'))).toEqual([]);
-    expect(list!('src/absent')).toEqual([]);
+    await open();
+    const { listFiles } = await import('app/controllers');
+    const list = (rel: string) => listFiles(dir, rel);
+    expect(list('src/m').sort()).toEqual(['src/m/index.ts', 'src/m/sous/b.ts']);
+    expect(list('src/m/index.ts')).toEqual(['src/m/index.ts']);   // un fichier : lui-même
+    expect(list('../dehors.ts')).toEqual([]);
+    expect(list(path.join(fake.userData, 'dehors.ts'))).toEqual([]);
+    expect(list('src/absent')).toEqual([]);
     const { lastView } = await import('app/controllers');
     expect(lastView('a1')).toMatchObject({ agentId: 'a1' });
     expect(lastView('inconnu')).toBeNull();
   });
 
-  it('list : sans node_modules, target, dist ni build ; au plus 1 000 fichiers, les premiers trouvés', async () => {
+  it('listFiles : sans node_modules, target, dist ni build ; au plus 1 000 fichiers, les premiers trouvés', async () => {
     write(path.join(dir, 'src/m/index.ts'), 'a');
     for (const d of ['node_modules', 'target', 'dist', 'build', 'sous/node_modules']) write(path.join(dir, 'src/m', d, 'x.js'), 'x');
     write(path.join(dir, 'src/m/dist.ts'), 'un fichier, pas un dossier');
     for (let i = 0; i < 1005; i++) write(path.join(dir, 'src/n', `f${i}.ts`), '');
-    const { list } = (await open()).view()!;
-    expect(list!('src/m').sort()).toEqual(['src/m/dist.ts', 'src/m/index.ts']);
-    expect(list!('src/n')).toHaveLength(1000);
+    const { listFiles } = await import('app/controllers');
+    expect(listFiles(dir, 'src/m').sort()).toEqual(['src/m/dist.ts', 'src/m/index.ts']);
+    expect(listFiles(dir, 'src/n')).toHaveLength(1000);
   });
 
   it('une action qui génère des modules : sa course retient le module (runModule → startRun)', async () => {
@@ -625,13 +662,12 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     expect(v.checkout).toEqual({ branch: 'main', dirty: true });
   });
 
-  it('Relire lit la copie de travail : la note et les tests du dossier, list donné ; checkout d’après facts', async () => {
+  it('Relire lit la copie de travail : la note et les tests du dossier ; checkout d’après facts', async () => {
     review();
     write(path.join(out, 'pr-12.json'), JSON.stringify({ number: 12, head: 'feat/0.8.0-essai', base: 'main' }));
     const v = (await open()).view()!;
     expect(v.note).toMatchObject({ path: 'docs/tickets/feat/0.8.0-essai.md', text: NOTE });
     expect(v.tests).toEqual([expect.objectContaining({ path: 'src/x/tests/invariants/x.test.ts', text: TEST })]);
-    expect(v.list).toEqual(expect.any(Function));
     expect(v.checkout).toEqual({ branch: 'feat/0.8.0-essai', dirty: false });
   });
 
