@@ -1,12 +1,14 @@
 /** status-bar — la barre d'état de VibeCoder : modèle, effort et mode de
  *  l'agent (une liste chacun, comme son menu), jauge du contexte (clic : le
- *  détail), ⚙ Tâches (l'onglet Tâches de la colonne de droite), ⏹
- *  Arrêter quand l'agent travaille, fichiers modifiés, heure du dernier
- *  relevé.
+ *  détail), ⚙ Tâches (l'onglet Tâches de la colonne de droite), les
+ *  actions qui tournent (une : un point vert qui clignote et son nom ;
+ *  plusieurs : leur nombre ; clic : l'onglet Actions ; aucune : rien ; le
+ *  tour de l'agent n'y compte pas), ⏹ Arrêter quand l'agent travaille,
+ *  fichiers modifiés, heure du dernier relevé.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
 import type { CSSProperties } from 'react';
 import { gauge } from 'core/conversation';
-import type { Strings } from 'core/vibecoder';
+import { runningRuns, type Strings } from 'core/vibecoder';
 import type { Thread, VibePatch, VibeView } from 'technicals/bridge';
 
 type Props = {
@@ -19,11 +21,13 @@ type Props = {
   onSet(patch: VibePatch): void;
   onGauge(): void;
   onTasks(): void;
+  onRuns(): void;
 };
 
-export function StatusBar({ view, thread, t, busy, tasksOpen, contextOpen, onSet, onGauge, onTasks }: Props) {
+export function StatusBar({ view, thread, t, busy, tasksOpen, contextOpen, onSet, onGauge, onTasks, onRuns }: Props) {
   const g = gauge(thread.context);
   const running = thread.tasks?.filter((x) => x.status === 'running').length || 0;
+  const runs = runningRuns(view.runs ?? []);
   return (
     <div className="vc-status">
       <Choice label={t.model} title={t.modelTitle} value={view.agent.model || ''} options={t.models} onPick={(model) => onSet({ model })} />
@@ -38,6 +42,12 @@ export function StatusBar({ view, thread, t, busy, tasksOpen, contextOpen, onSet
       <button type="button" className="vc-sitem" title={t.tasksTitle} aria-pressed={tasksOpen} onClick={onTasks}>
         {`⚙ ${t.tasksOf(running)}`}
       </button>
+      {runs.length ? (
+        <button type="button" className="vc-sitem" title={t.runsTitle} onClick={onRuns}>
+          <span className="vc-srun" aria-hidden="true" />
+          {runs.length === 1 ? runs[0].label : t.runsRunning(runs.length)}
+        </button>
+      ) : null}
       {busy ? <button type="button" className="vc-sitem vc-sstop" title={t.stopTitle} onClick={() => onSet({ interrupt: true })}>{t.stop}</button> : null}
       <span className="vc-spacer" />
       {view.repo ? <span className="vc-sinfo">{t.changed(view.repo.changed)}</span> : null}
