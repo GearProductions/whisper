@@ -284,8 +284,12 @@ function Top({ view, thread, busy, t, act, side, onSide, onHide, branches, onBra
         </div>
       </div>
       <div className="vc-tools">
-        {view.dev ? (
-          <button type="button" className="vc-mini vc-reload-ui" title={t.reloadUiTitle} onClick={() => act.set({ reloadUi: true })}>{t.reloadUi}</button>
+        {view.dev === 'reload' ? (
+          <button type="button" className="vc-mini vc-dev" title={t.reloadUiTitle} onClick={() => act.set({ reloadUi: true })}>{t.reloadUi}</button>
+        ) : view.dev === 'restart' ? (
+          <button type="button" className="vc-mini vc-dev" data-restart title={t.restartAppTitle} onClick={() => act.set({ restartApp: true })}>
+            <span className="vc-dev-dot" aria-hidden="true" />{t.restartApp}
+          </button>
         ) : null}
         <Segmented value={view.lang} labels={LANGS} title={t.langTitle} onPick={(lang) => act.set({ lang })} />
         <button type="button" className="vc-icon vc-refresh" title={t.refresh} aria-label={t.refresh}
