@@ -4,13 +4,15 @@
  *  par classes (cm-md-*) ; Ctrl+clic sur un lien → onLink(url). lineMarks : un
  *  liseré sur des lignes, reporté au fil de la frappe ; lineBadges, lineButtons :
  *  pastilles et boutons dans une gouttière à droite des lignes, construits par
- *  textContent, jamais en HTML (I-40).
+ *  textContent, jamais en HTML (I-40) ; le libellé d'un bouton en title et
+ *  aria-label, son contenu l'icône passée (icon(), un élément neuf par bouton)
+ *  ou, sans icône, le libellé en texte.
  *  Ni widget en ligne ni Decoration.replace : CodeMirror pose à côté de chacun
  *  un <img class="cm-widgetBuffer">, et la page de la note ne doit montrer
  *  aucun élément img (invariant note-editor). Les marques sont donc cachées par
  *  une classe (display: none), pas retirées du DOM.
  *  Lignes numérotées depuis 0 (doc.line(n + 1), seule conversion).
- *  Ne connaît pas : React, le pont, le métier.
+ *  Ne connaît pas : React, le pont, le métier, app/ (l'icône est passée).
  *  Utilisé par : app/panel/vibecoder (note-editor). */
 import { markdown } from '@codemirror/lang-markdown';
 import { syntaxTree } from '@codemirror/language';
@@ -138,20 +140,25 @@ export function lineBadges(badges: { line: number; text: string; title: string; 
 }
 
 class LineButton extends GutterMarker {
-  constructor(readonly label: string) { super(); }
-  eq(o: LineButton) { return o.label === this.label; }
+  constructor(readonly label: string, readonly icon?: () => Element) { super(); }
+  eq(o: LineButton) { return o.label === this.label && o.icon === this.icon; }
   toDOM() {
     const el = document.createElement('button');
     el.type = 'button';
     el.className = 'cm-md-button';
-    el.textContent = this.label;
+    el.title = this.label;
+    el.setAttribute('aria-label', this.label);
+    if (this.icon) el.append(this.icon());
+    else el.textContent = this.label;
     el.addEventListener('mousedown', (e) => e.preventDefault()); // l'éditeur garde le focus
     return el;
   }
 }
 
-export function lineButtons(lines: number[], label: string, onClick: (line: number) => void): Extension {
-  const button = new LineButton(label);
+export function lineButtons(
+  lines: number[], label: string, onClick: (line: number) => void, icon?: () => Element,
+): Extension {
+  const button = new LineButton(label, icon);
   const field = onLines(lines.map((line) => ({ line })), () => button);
   return [field, gutter({
     class: 'cm-md-buttons', side: 'after', markers: (v) => v.state.field(field),

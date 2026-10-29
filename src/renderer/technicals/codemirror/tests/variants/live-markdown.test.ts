@@ -94,6 +94,26 @@ describe('lineButtons', () => {
     btn.click();
     expect(onClick).toHaveBeenCalledWith(1);
   });
+
+  it('le libellé en title et aria-label ; sans icône, en texte', () => {
+    const v = mount('a', lineButtons([0], 'Commenter', () => {}));
+    const btn = v.dom.querySelector('.cm-md-button') as HTMLButtonElement;
+    expect([btn.title, btn.getAttribute('aria-label'), btn.textContent]).toEqual(['Commenter', 'Commenter', 'Commenter']);
+  });
+
+  it('avec une icône : elle est le contenu, un élément neuf par bouton', () => {
+    const icon = () => document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const v = mount('a\nb', lineButtons([0, 1], 'Commenter', () => {}, icon));
+    const btns = [...v.dom.querySelectorAll<HTMLButtonElement>('.cm-md-button')];
+    expect(btns).toHaveLength(2);
+    for (const b of btns) {
+      expect(b.children).toHaveLength(1);
+      expect(b.firstElementChild!.tagName.toLowerCase()).toBe('svg');
+      expect(b.textContent).toBe('');
+      expect(b.getAttribute('aria-label')).toBe('Commenter');
+    }
+    expect(btns[0].firstElementChild).not.toBe(btns[1].firstElementChild);
+  });
 });
 
 // CodeMirror pose un <img class="cm-widgetBuffer"> à côté de tout widget en ligne : il n'en faut aucun.
