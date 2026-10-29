@@ -15,8 +15,9 @@
  *  sendToAgent : refusé s'il travaille, I-25 ; ou, pour les actions de
  *  DIRECT_ACTIONS (commit, publish, load-pr, base, pr-here, pr-worktree,
  *  remove-worktree, stash, unload-pr, switch-branch, new-here, new-worktree, pull, rebase, push,
- *  fetch, request-review), au clic de « direct » : leurs
- *  commandes, lancées par l'appli, F-114), une course (vibeRunOp : l'arrêter, la garder ou l'annuler, répondre
+ *  fetch, request-review, copy-artifact), au clic de « direct » : leurs
+ *  commandes, lancées par l'appli, F-114 ; copy-artifact : un artefact du
+ *  dernier relevé, copié par controllers/artifacts, I-39), une course (vibeRunOp : l'arrêter, la garder ou l'annuler, répondre
  *  à sa demande d'autorisation), un réglage (dont arrêter l'agent, comme Interrompre de son
  *  menu ; arrêter Vibe, la bannière : vibeStop de controllers/runs ;
  *  l'onglet Actions ouvert ou fermé : ses courses vues, runsTab de controllers/runs),
@@ -31,7 +32,10 @@
  *  un chemin (I-37). Les fichiers d'un module touché : leurs chemins seulement
  *  (list : sous son dossier, ni lien ni fichier ou dossier caché ni node_modules,
  *  target, dist, build, son dossier par safePath, au plus LIST_MAX),
- *  pas leur texte (controllers/module-code lit le fichier ouvert). Une action qui génère un module : sa course le retient
+ *  pas leur texte (controllers/module-code lit le fichier ouvert). Les
+ *  artefacts de l'agent (<sorties>/artifacts/, controllers/artifacts) : leur
+ *  liste au relevé, sans leur texte ; ouverts ou copiés par leur id (a<i>)
+ *  dans le dernier relevé, jamais par un chemin. Une action qui génère un module : sa course le retient
  *  (runModule → startRun). Ce qu'il écrit pour l'ouvrir (le diff d'un
  *  commit) va sous <sorties>/files/, en lecture seule. Le message d'une
  *  action : son gabarit, rempli par buildMessage (I-38 ; un argument inutile est
@@ -86,7 +90,7 @@
  *  Ne connaît pas : la page (seulement ses canaux), la fenêtre.
  *  Utilisé par : app/ipc, app/menus, app/windows (vibeAgent : la taille du
  *  panneau), controllers/conversation, controllers/runs, controllers/module-code
- *  (lastView). */
+ *  (lastView), controllers/artifacts (lastView, vibeAgent). */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -97,7 +101,7 @@ import { agentList, agentVibe, vibeLang, type Config } from 'core/config';
 import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
 import {
-  addComment, blobSha, buildMessage, vibeMarks, DIRECT_ACTIONS, DIRECT_ONLY, draftText, editComment, findNote, forkedModel, isOutputName, isTest, itemCommit, itemPath,
+  addComment, artifactOf, blobSha, buildMessage, vibeMarks, DIRECT_ACTIONS, DIRECT_ONLY, draftText, editComment, findNote, forkedModel, isOutputName, isTest, itemCommit, itemPath,
   blockedBy, BRANCH_CHANGES, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, targetHash, vibeView, whoOf, type ActionDef, type MessageError,
 } from 'core/vibecoder';
 import { findEditor } from 'technicals/editor';
@@ -110,6 +114,7 @@ import { state } from 'app/state';
 import { conversationShown, openConversation } from 'app/windows';
 import { interruptAgent, isBusy, liveViewAgent, sendToAgent, setAgentSetting } from './agents';
 import { agentPrefix, processAction, processView, promptPrefix, readFile, readTimed } from './processes';
+import { artifactFile, copyArtifact, listArtifacts } from './artifacts';
 import { createWorktree } from './recipe';
 import { lockingRuns, runOp, viewLocks, runPending, runRequests, runsOf, runsTab, skillMd, startRun, vibeOn, vibeStart, vibeStop } from './runs';
 import { openChild, prWorktreeReady, removeWorktreeChild, showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
@@ -277,7 +282,7 @@ export async function refreshVibe({ now = false, fresh = false }: { now?: boolea
 // Les fichiers d'un chemin du dépôt et de ses sous-dossiers, relatifs au dépôt (un fichier : lui-même) ;
 // ni lien (ni fichier ni dossier pour son Dirent) ni dossier ou fichier caché, ni SKIP_DIRS, le chemin
 // dans le dossier de l'agent (safePath, une fois) ; au plus LIST_MAX, les premiers trouvés. Leurs chemins, pas leur texte.
-function listFiles(dir: string, rel: string): string[] {
+export function listFiles(dir: string, rel: string): string[] {
   const out: string[] = [];
   const walk = (r: string) => {
     try {
@@ -492,7 +497,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     const next = vibeMarks(marks, journey);
     if (next !== marks) { store.marks[agent.id] = next; saveVibeStore(store); }
   }
-  return { ...journey, ...proc };
+  return { ...journey, ...proc, artifacts: listArtifacts(agent.id, out, cfg.artifactTextMax) };
 }
 
 /* ---- Ce que demande l'écran ------------------------------------------------ */
@@ -638,6 +643,11 @@ function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, view: Vib
       if (r.ok) prsFound.set(agent.id, (await gh.openPrs()) ?? false);
       return r;
     };
+  } else if (id === 'copy-artifact') {
+    // Un artefact du dernier relevé, par son id ; le dossier choisi dans la boîte de dialogue (controllers/artifacts).
+    const artifact = artifactOf(view, args.artifact as string);
+    if (!artifact) return fail(lang, 'args');
+    job = () => copyArtifact(agent, artifact.id);
   } else if (id === 'load-pr') {
     const pr = args.pr === undefined ? n : prNumber(args.pr);
     if (!pr) return fail(lang, 'pr');
@@ -900,7 +910,8 @@ export async function vibeProcess(op: unknown, index?: unknown) {
 //   elle est donnée : celui du dossier de l'agent (safePath), dans les deux parcours ;
 // - `c<rang>` : le diff du commit (git show), écrit dans <sorties>/files/<hash>.diff ;
 // - `gh:c<rang>` : la page du commit sur GitHub, dans le navigateur, d'après
-//   l'origine du dépôt (githubPage, I-32) ; sans origine GitHub, rien.
+//   l'origine du dépôt (githubPage, I-32) ; sans origine GitHub, rien ;
+// - `a<i>` : un artefact de l'agent, dans l'éditeur (artifactFile : sous artifacts/, sans lien).
 export async function openVibeItem(id: unknown, line?: unknown) {
   const cfg = loadConfig();
   const agent = vibeAgent(cfg);
@@ -911,7 +922,8 @@ export async function openVibeItem(id: unknown, line?: unknown) {
   const out = vibeOutDir(agent.id);
   const git = gitReader(gitRun(agent.dir));
   const commit = itemCommit(view, id);
-  if (commit?.web) {
+  if (/^a\d+$/.test(id)) open(artifactFile(agent.id, artifactOf(view, id)));
+  else if (commit?.web) {
     const page = githubPage(agent.dir, readFile);
     if (page && /^[0-9a-f]{7,64}$/.test(commit.hash)) shell.openExternal(`${page}/commit/${commit.hash}`);
   } else if (commit) {

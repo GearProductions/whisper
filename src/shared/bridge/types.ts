@@ -266,6 +266,19 @@ export type VibeCode = {
   text: string | null;
   time: number;
   at?: { base: string | null; head: string | null };
+  truncated?: boolean;         // un artefact en texte, coupé à la limite configurée (artifactTextMax) ; absent : entier
+};
+
+// Un artefact de l'agent (vibecoder-out/<agent>/artifacts/), tel que le relevé le donne : la page ne
+// le désigne que par son id (I-37). url : page, media (vibe-artifact://<agent>/a<i>?t=<time>) ; null : du texte.
+export type VibeArtifact = {
+  id: string;                  // a<i>, dans l'ordre des noms
+  name: string;                // son chemin sous artifacts/, avec ses sous-dossiers
+  kind: 'markdown' | 'text' | 'page' | 'media';   // page : HTML, SVG, en bac à sable ; media : image, PDF, son, vidéo
+  size: number;
+  time: number;
+  url: string | null;
+  truncated: boolean;          // du texte au-delà de la limite configurée
 };
 
 // Un cas d'un test d'invariant, lu en pseudo-code.
@@ -394,6 +407,7 @@ export type VibeView = {
   recipe?: VibeRecipe | null;            // la recette de la famille, en cours ou la dernière
   runs?: VibeRun[];                      // les courses, la plus récente d'abord (toujours rempli par le relevé)
   request?: { branch: string } | null;   // Créer : la branche nommée pour la nouvelle demande retenue, qui attend son choix
+  artifacts?: VibeArtifact[];            // les artefacts de l'agent (toujours rempli par le relevé)
   time: number;                        // heure du relevé
 };
 
@@ -411,6 +425,7 @@ export type VibeArgs = {
   branch?: string;             // switch-branch : une branche de VibeView.branches ; new-here, new-worktree : le nom saisi
   start?: string;              // le départ d'une branche créée
   onto?: string;               // rebase : sur quoi rebaser
+  artifact?: string;           // copy-artifact : l'id d'un artefact de VibeView.artifacts
 };
 
 export type VibePatch = {

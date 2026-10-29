@@ -4,6 +4,7 @@
  *  défaut, les validations, le signal des courses sur le robot. Disque et git
  *  passés. */
 export * from './actions';
+export * from './artifacts';
 export * from './defaults';
 export * from './files';
 export * from './journey';

@@ -358,6 +358,16 @@
     "text": "Request my review: only by the app (direct), never by the agent."
   },
   {
+    "id": "copy-artifact",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Copy to project",
+    "hint": "Copies the shown artifact into the folder you choose; a file of the same name is replaced only if you accept.",
+    "text": "Copy to project: only by the app (direct), never by the agent."
+  },
+  {
     "id": "review-note",
     "flow": "review",
     "step": "note",

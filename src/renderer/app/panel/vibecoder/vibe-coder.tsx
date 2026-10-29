@@ -2,7 +2,12 @@
  *  corps du panneau : en-tête (agent — sa couleur, seule touche de couleur
  *  avec Envoyer —, la branche ⎇, un bouton qui ouvre et ferme la vue des
  *  branches, et à côté Pull, Rebase, Pousser (sync-buttons) ; Créer / Relire,
- *  Relire grisé sans PR ouverte sur la branche (view.reviewable) ; langue,
+ *  Relire grisé sans PR ouverte sur la branche (view.reviewable), et à part
+ *  Artefacts (un bouton, hors de Créer / Relire, F-92 : ouvert, le panneau
+ *  artifacts-view prend la gauche et le centre, à la place du parcours et de
+ *  l'étape ou de la vue des branches ; l'artefact choisi est suivi
+ *  (follow) ; Copier dans le projet : copy-artifact, direct ; le refermer,
+ *  choisir une étape, Créer / Relire ou la vue des branches le ferme) ; langue,
  *  relevé, conversation affichée ou masquée, retour à la conversation,
  *  fermer ; le robot d'une PR dans un worktree : son badge, sans action) ; le
  *  parcours à gauche (il dit où l'on en est ; y choisir une étape, ou Créer /
@@ -24,14 +29,14 @@
  *  (Relire), le modèle choisi par action (envoyé s'il n'est pas le
  *  conseillé), le champ de chaque étape (fieldOf : son texte part en
  *  args.text de l'action ; exigé et vide, le champ prend le clavier ; partie,
- *  il se vide), la vue des branches ouverte ou non, les modifications gardées des
+ *  il se vide), la vue des branches ouverte ou non, le panneau Artefacts ouvert ou non, les modifications gardées des
  *  fichiers suivis (drafts, par chemin : useFileDraft ; changer d'étape ne
  *  les jette pas) — tout cela gardé par agent
  *  (kept : l'écran est recréé à chaque changement d'agent). Préparer un message dans le champ
  *  de la conversation, ou un message qui exige son texte, réaffiche la
  *  conversation (colonne masquée, ou onglet Actions, Tâches, Processus).
  *  Le fichier de module suivi (`code`, Voir le code) passe à la vue d'étape ;
- *  l'étape change, la vue des branches s'ouvre ou l'écran se ferme (dont un changement d'agent) : plus
+ *  l'étape change, la vue des branches ou les Artefacts s'ouvrent ou se ferment, ou l'écran se ferme (dont un changement d'agent) : plus
  *  aucun fichier suivi. L'onglet Actions ouvert le dit au principal
  *  (runsSeen : true, les courses de l'agent vues) ; quitté, ou l'écran fermé
  *  (dont un changement d'agent) : runsSeen false.
@@ -42,6 +47,7 @@ import { isBusy, titleOf } from 'core/conversation';
 import { convWidth, fieldOf, isLive, modelArg, t as strings, type Answers, type Kept, type ModelPicks, type Strings } from 'core/vibecoder';
 import type { Thread, VibeCode, VibeLang, VibeStepId, VibeView } from 'technicals/bridge';
 import type { Drafts } from './file-draft';
+import { ArtifactsView } from './artifacts-view';
 import { BranchesView } from './branches-view';
 import { Journey } from './journey';
 import { ProcessesView } from './processes-view';
@@ -91,7 +97,9 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   // La vue des branches (le bouton ⎇) : ouverte, elle prend le centre à la place de l'étape.
   const [branchesOpen, setBranchesOpen] = useKept(kept, view.agentId, 'branches', false);
   const branches = branchesOpen && !!view.repo;
-  const pick = (id: VibeStepId) => { setBranchesOpen(false); setPicked(id); };
+  // Le panneau Artefacts : ouvert, il prend la gauche et le centre ; il ne change pas le parcours (flow).
+  const [arts, setArts] = useKept(kept, view.agentId, 'artifacts', false);
+  const pick = (id: VibeStepId) => { setBranchesOpen(false); setArts(false); setPicked(id); };
   const [answers, setAnswers] = useKept<Answers>(kept, view.agentId, 'answers', {});
   const onAnswer: StepProps['onAnswer'] = (q, a) => setAnswers((all) => ({ ...all, [q]: a }));
   const [picks, setPicks] = useKept<ModelPicks>(kept, view.agentId, 'picks', {});
@@ -132,9 +140,10 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
     },
     prefill: (id, quote, block) => { show(); given.prefill(id, quote, block); },
   };
-  // L'étape change, la vue des branches s'ouvre, ou l'écran se ferme (il est recréé à chaque changement d'agent) : plus aucun fichier suivi.
-  const stepId = step && step.id;
-  useEffect(() => () => given.follow(null), [stepId, branches]);
+  // L'étape change, la vue des branches ou les Artefacts s'ouvrent ou se ferment, ou l'écran se ferme
+  // (il est recréé à chaque changement d'agent) : plus aucun fichier suivi. Les Artefacts suivent le leur (onChoose).
+  const center = arts ? ':artifacts' : branches ? ':branches' : step && step.id;
+  useEffect(() => () => given.follow(null), [center]);
   // L'onglet Actions ouvert : ses courses vues ; quitté, ou l'écran fermé (dont un changement d'agent) : plus vues.
   const runsOpen = pane === 'runs';
   useEffect(() => {
@@ -164,7 +173,14 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
     <StopRun.Provider value={{ stop: (id) => act.runOp(id, 'stop'), state: (id) => view.runs?.find((r) => r.id === id)?.state ?? null }}>
       <div className="vc" ref={root} data-conv={side.open ? undefined : 'hidden'} style={{ '--vc-conv': `${side.width}px` } as CSSProperties}>
         <Top view={view} thread={thread} busy={busy} t={t} act={act} side={side} onSide={onSide} onHide={onHide}
-          branches={branches} onBranches={() => setBranchesOpen(!branches)} onFlow={() => setBranchesOpen(false)} />
+          branches={branches} onBranches={() => { setArts(false); setBranchesOpen(!branches); }}
+          arts={arts} onArts={() => setArts(!arts)} onFlow={() => { setBranchesOpen(false); setArts(false); }} />
+        {arts ? (
+          <Guard t={t}>
+            <ArtifactsView artifacts={view.artifacts ?? []} lang={view.lang} code={code} onChoose={act.follow} onOpen={act.open}
+              onCopy={(artifact) => act.run('copy-artifact', { direct: true, artifact })} />
+          </Guard>
+        ) : <>
         <Journey view={view} t={t} selected={branches ? null : step && step.id} onPick={pick} onOpen={act.open} />
         <section className="vc-center">
           {view.vibe ? <VibeBanner t={t} onStop={() => act.set({ vibe: false })} /> : null}
@@ -179,6 +195,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
             </div>
           )}
         </section>
+        </>}
         <section className="vc-conv" aria-label={t.conversation}>
           <Resizer t={t} side={side} root={root} onSide={onSide} />
           <div className="vc-side-tabs vc-band" role="tablist">
@@ -240,9 +257,10 @@ const LANGS: Record<VibeLang, string> = { fr: 'FR', en: 'EN' };
 type TopProps = {
   view: VibeView; thread: Thread; busy: boolean; t: Strings; act: VibeActs; side: Side; onSide(side: Side): void; onHide(): void;
   branches: boolean; onBranches(): void; onFlow(): void;   // la vue des branches ouverte ; le bouton ⎇ ; Créer / Relire choisi
+  arts: boolean; onArts(): void;                           // le panneau Artefacts ouvert ; son bouton
 };
 
-function Top({ view, thread, busy, t, act, side, onSide, onHide, branches, onBranches, onFlow }: TopProps) {
+function Top({ view, thread, busy, t, act, side, onSide, onHide, branches, onBranches, onFlow, arts, onArts }: TopProps) {
   const [spins, setSpins] = useState(0); // ⟳ tourne une fois par clic
   return (
     <div className="vc-top">
@@ -261,6 +279,9 @@ function Top({ view, thread, busy, t, act, side, onSide, onHide, branches, onBra
       <div className="vc-modes">
         <Segmented value={view.flow} labels={t.flow} title={t.flowTitle} off={view.reviewable ? {} : { review: t.notReviewable }}
           onPick={(flow) => { onFlow(); act.set({ flow }); }} />
+        <div className="vc-seg">
+          <button type="button" aria-pressed={arts} title={t.artifactsTitle} onClick={onArts}>{t.artifacts}</button>
+        </div>
       </div>
       <div className="vc-tools">
         <Segmented value={view.lang} labels={LANGS} title={t.langTitle} onPick={(lang) => act.set({ lang })} />

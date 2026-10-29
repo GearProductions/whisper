@@ -6,7 +6,7 @@
  *  les réponses aux questions, la Forme par dossier, les cas d'invariants et
  *  leur pseudo-code, la validation qu'attend l'étape en cours ; ce qui s'écrit
  *  dans le champ (une action « préparer »), le champ dont une action emporte
- *  le texte ; une durée en clair ; le modèle choisi d'une action, la
+ *  le texte ; une durée, une taille de fichier en clair ; le modèle choisi d'une action, la
  *  largeur de la colonne de la conversation ; la saisie de l'écran gardée
  *  par agent ; la recherche de la vue des branches et les PR où se demander en
  *  relecture. */

@@ -6,8 +6,9 @@
  *  vérifications,
  *  l'onglet Actions (états d'une course, Garder / Annuler, Autoriser /
  *  Toujours / Refuser), choix du modèle, zone de commentaire, barre d'état,
- *  titres des sorties ; Voir le code (Enregistrer, fichier trop gros) ; une
- *  durée en clair. Ceux des boutons viennent des
+ *  titres des sorties ; Voir le code (Enregistrer, fichier trop gros) ; le panneau
+ *  Artefacts (son bouton, la liste vide, Copier, fichier tronqué) ; une durée,
+ *  une taille de fichier en clair. Ceux des boutons viennent des
  *  actions (actions.<langue>.json).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
 import type { VibeFlow, VibeLang, VibeRun, VibeStepId } from 'technicals/bridge';
@@ -120,6 +121,13 @@ const fr = {
   vibeStopTitle: 'La course en cours finit, la suivante ne part pas',
   changed: (n: number) => (n > 1 ? `${n} fichiers modifiés` : `${n} fichier modifié`),
   at: (time: string) => `relevé à ${time}`,
+  artifacts: 'Artefacts',
+  artifactsTitle: 'Les documents que l\'agent crée hors du projet : wireframes, PDF, présentations…',
+  artifactsNone: 'Aucun artefact : demandez à l\'agent un document hors du projet (wireframe, PDF, présentation…), il le crée ici.',
+  artifactCopy: 'Copier dans le projet',
+  artifactCopyTitle: 'Copier ce fichier dans un dossier choisi',
+  artifactTruncated: 'Fichier tronqué : Ouvrir dans l\'éditeur montre la suite.',
+  artifactUnreadable: 'Fichier illisible.',
 };
 
 export type Strings = typeof fr;
@@ -230,11 +238,26 @@ const en: Strings = {
   vibeStopTitle: 'The running action finishes, the next one does not start',
   changed: (n) => `${n} file${n === 1 ? '' : 's'} changed`,
   at: (time) => `read at ${time}`,
+  artifacts: 'Artifacts',
+  artifactsTitle: 'The documents the agent makes outside the project: wireframes, PDFs, slides…',
+  artifactsNone: 'No artifact: ask the agent for a document outside the project (wireframe, PDF, slides…), it makes it here.',
+  artifactCopy: 'Copy to project',
+  artifactCopyTitle: 'Copy this file to a chosen folder',
+  artifactTruncated: 'File truncated: Open in the editor shows the rest.',
+  artifactUnreadable: 'Unreadable file.',
 };
 
 const STRINGS: Record<VibeLang, Strings> = { fr, en };
 
 export function t(lang: VibeLang): Strings { return STRINGS[lang] || fr; }
+
+// Une taille de fichier en clair, dans la langue de l'écran : 512 o, 1,5 Ko, 10 Mo (512 B, 1.5 KB, 10 MB).
+const UNITS: Record<VibeLang, string[]> = { fr: ['o', 'Ko', 'Mo', 'Go'], en: ['B', 'KB', 'MB', 'GB'] };
+export function fileSize(bytes: number, lang: VibeLang): string {
+  let n = Math.max(0, bytes), i = 0;
+  while (n >= 1024 && i < 3) { n /= 1024; i++; }
+  return `${n.toLocaleString(t(lang).locale, { maximumFractionDigits: i ? 1 : 0 })} ${(UNITS[lang] || UNITS.fr)[i]}`;
+}
 
 // Une durée en clair, la même dans les deux langues : 12 s, 3 min, 2 h 05.
 export function duration(ms: number): string {

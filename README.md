@@ -380,8 +380,8 @@ conversation reste utilisable.
 
 - en haut : l'agent et sa branche — un bouton, qui ouvre (et referme) la
   **vue des branches**, plus bas — avec *Pull* et *Rebase* à côté ;
-  *Créer* / *Relire* ; *FR* / *EN* ; ↻ (relire le dépôt tout de suite) ;
-  💬 ; × ;
+  *Créer* / *Relire* ; **Artefacts**, à part (plus bas) ; *FR* / *EN* ; ↻
+  (relire le dépôt tout de suite) ; 💬 ; × ;
 - à gauche, le **parcours** : les étapes (point plein : faite ; anneau : en
   cours ; gris : à venir), chacune avec ses faits en une ligne, puis les
   commits de la branche. Il mène : un clic (ou Ctrl+1…6) ouvre une étape
@@ -454,6 +454,20 @@ d'elle-même dès que la voie est libre ; une demande refusée (action inconnue,
 pas proposée, déjà en cours…) lui est dite, avec la raison, et un argument
 que l'action ne prend pas est ignoré (l'action part, elle en est prévenue).
 Hors *Vibe*, elle ne lance rien que vous ne lui demandiez.
+
+**Artefacts.** Demandez à l'agent un document qui sort du projet — un PDF,
+une présentation, un wireframe, un document externe, un fichier de
+conception : preuve de concept ou autre — : il le crée en **artefact**, de
+lui-même (skill `/vibecoder:artefact`, sans bouton), dans
+`vibecoder-out/<agent>/artifacts/`, les mêmes pour toutes ses branches. Le
+bouton *Artefacts* de l'en-tête ouvre leur panneau à la place du parcours et
+de l'étape : la liste à gauche, au centre celui que vous choisissez. Image,
+PDF, son, vidéo, page HTML ou SVG s'affichent tels quels (une page sans
+script ni réseau) ; le reste en texte, un binaire compris, coupé au-delà de
+10 Mo (`artifactTextMax`) — *Ouvrir dans l'éditeur* montre la suite. *Copier
+dans le projet* le copie dans le dossier que vous choisissez (un fichier du
+même nom n'est remplacé que si vous l'acceptez). La conversation reste à
+droite : demandez-y une retouche, l'artefact se met à jour.
 
 **Ouvrir dans l'éditeur.** *Ouvrir* sur la note, un module, un test (à la
 ligne du cas : zed, VS Code, Cursor, VSCodium), un fichier d'un commit. En
@@ -879,6 +893,7 @@ s'affiche le temps de l'enregistrement, une fois la coupure confirmée.
 | `vibeLang`   | VibeCoder : langue de l'écran et des messages envoyés, `fr` ou `en` |
 | `vibeSize`   | Taille du panneau en VibeCoder (retenue au redimensionnement) |
 | `vibeCommandPrefix` | VibeCoder : ce qui précède les commandes du projet et `gh` (vide : `distrobox enter <box> --` tiré de `agentCommand`, sinon rien) ; ex. `toolbox run -c dev` |
+| `artifactTextMax` | VibeCoder : taille (octets) au-delà de laquelle un artefact affiché en texte est coupé (10 Mo par défaut) |
 | `muteOthers` | Couper le son des autres applications pendant l'enregistrement   |
 | `autoPaste`  | Coller le texte là où est le curseur ; `false` : il reste dans le presse-papiers |
 | `showText`   | Panneau du texte transcrit (contexte *Dictée*) à la fin d'une dictée |

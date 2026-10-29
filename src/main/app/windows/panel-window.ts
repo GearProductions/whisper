@@ -81,7 +81,7 @@ function createConversation(focus: boolean) {
     width: COMPACT.width, height: state.convCompactH, minWidth: CONV_MIN_WIDTH, minHeight: COMPACT.minHeight, show: false,
     frame: false, resizable: state.convMode === 'full', maximizable: false, fullscreenable: false, skipTaskbar: true,
     alwaysOnTop: onTop(), backgroundColor: '#171b24', title: 'Whisper — conversation',
-    webPreferences: { preload: preload('panel'), contextIsolation: true, sandbox: true },
+    webPreferences: { preload: preload('panel'), contextIsolation: true, sandbox: true, plugins: true },   // plugins : le visionneur PDF d'un artefact
   });
   state.panel = conv;
   conv.setAlwaysOnTop(onTop(), 'floating');

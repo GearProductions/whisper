@@ -11,7 +11,7 @@
  *  l'action (l'agent lance des commandes avec ces valeurs, I-38). Et les
  *  actions que l'appli fait aussi elle-même (DIRECT_ACTIONS, F-114), dont
  *  celles qu'elle seule fait (DIRECT_ONLY : changer de branche, pull, rebase,
- *  pousser, fetch, les lieux). {{ref}} : WORKTREE en Créer,
+ *  pousser, fetch, les lieux, copier un artefact dans le projet). {{ref}} : WORKTREE en Créer,
  *  HEAD en Relire (la PR se charge dans le dossier de l'agent). Si une
  *  action lit seulement (reads) ou modifie la branche : la règle des courses
  *  (runs, blockedBy). Un argument qu'aucune variable du gabarit ne lit (hors text), ou un
@@ -61,14 +61,17 @@ const READ_BY: Partial<Record<keyof VibeArgs, string>> = {
 // leur gabarit reste la voie « via » l'agent. Ici, Dans un worktree, Retirer le worktree : la recette du
 // projet ou git, lancés par l'appli (note 0.12.0-worktrees) ; Mettre de côté, Décharger, Créer ici ou dans
 // un worktree (note 0.12.0-creer-relire-meme-dossier) ; Aller sur la branche, Pull, Rebase, Pousser,
-// Actualiser, Me demander en relecture (note 0.12.0-gestion-des-branches).
+// Actualiser, Me demander en relecture (note 0.12.0-gestion-des-branches) ; Copier dans le projet (note
+// 0.13.0-panneau-artifacts).
 export const DIRECT_ACTIONS = ['commit', 'publish', 'load-pr', 'base', 'pr-here', 'pr-worktree', 'remove-worktree',
-  'stash', 'unload-pr', 'new-here', 'new-worktree', 'switch-branch', 'pull', 'rebase', 'push', 'fetch', 'request-review'];
+  'stash', 'unload-pr', 'new-here', 'new-worktree', 'switch-branch', 'pull', 'rebase', 'push', 'fetch', 'request-review',
+  'copy-artifact'];
 // Celles que seule l'appli fait : pas de « via » (leur gabarit n'est jamais envoyé). Retirer le worktree :
 // l'agent ne retirerait pas son robot ; mettre de côté, changer de branche, ouvrir un worktree pour une
-// demande, pull, rebase, pousser, fetch, se demander en relecture : l'appli seule, au clic.
+// demande, pull, rebase, pousser, fetch, se demander en relecture, copier un artefact dans le projet :
+// l'appli seule, au clic.
 export const DIRECT_ONLY = ['remove-worktree', 'stash', 'unload-pr', 'new-here', 'new-worktree',
-  'switch-branch', 'pull', 'rebase', 'push', 'fetch', 'request-review'];
+  'switch-branch', 'pull', 'rebase', 'push', 'fetch', 'request-review', 'copy-artifact'];
 
 // Le brouillon de revue en texte : une ligne « - [cible] texte » par remarque.
 export const draftText = (draft: VibeView['draft']) => draft.map((c) => `- [${c.target}] ${c.text}`).join('\n');
