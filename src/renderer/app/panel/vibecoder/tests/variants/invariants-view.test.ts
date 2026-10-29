@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 // InvariantsView (invariants-view.tsx) : Voir le fichier d'un test modifié (f.base) → Fichier · Diff depuis la
 // base de la branche, le diff entier en lecture seule (Relire : de f.base à f.source ; Créer : au texte de
-// l'éditeur) ; un test ajouté, pas de sélecteur ; Lire en pseudo-code dans les outils de l'en-tête, même action.
+// l'éditeur) ; un test ajouté, pas de sélecteur ; Lire en pseudo-code dans les outils de l'en-tête, même action ;
+// 💬 et Ouvrir en IconButton (nommés, 💬 pressé pendant la saisie en Relire), l'état et Tout valider : une icône et leur texte.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EditorView } from '@codemirror/view';
@@ -26,7 +27,7 @@ const draw = (f: VibeTestFile, flow: 'create' | 'review') => act(() => {
   const view = { lang: 'fr', flow, actions: [read], invariants: [f], outputs: {}, note: null, steps: [], modules: [], questions: [], checklist: [], draft: [] } as unknown as VibeView;
   const props = { view, step: { id: 'invariants', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
     code: null, drafts: [{}, () => {}], act: { run: (...a: unknown[]) => runs.push(a), follow: () => {}, mark: () => {}, prefill: () => {},
-      draft: () => {}, open: () => {}, openLink: () => {}, save: async () => true } } as unknown as StepProps;
+      draft: () => {}, open: (...a: unknown[]) => runs.push(['open', ...a]), openLink: () => {}, save: async () => true } } as unknown as StepProps;
   root.render(createElement(InvariantsView, props));
 });
 const src = () => page.querySelector('details.vc-ifile-src') as HTMLDetailsElement;
@@ -75,4 +76,23 @@ it('pas lu : Lire en pseudo-code dans les outils de l\'en-tête, plus sous les c
   expect([...page.querySelectorAll('.vc-ifile > .vc-run')]).toEqual([]);
   b.click();
   expect(runs).toEqual([['read-invariants']]);
+});
+
+it('icônes : 💬 et Ouvrir nommés, mêmes actions ; l\'état et Tout valider, icône et texte', async () => {
+  await draw(test({ cases: ['a', 'b'], lines: [1, 2], marks: { a: 'changed' } }), 'review');
+  const named = (l: string) => [...page.querySelectorAll<HTMLButtonElement>('button.vc-tool')].filter((b) => b.getAttribute('aria-label') === l);
+  expect(named('Ouvrir dans l\'éditeur').every((b) => b.title === 'Ouvrir dans l\'éditeur' && b.querySelector('svg'))).toBe(true);
+  expect(named('Ouvrir dans l\'éditeur')).toHaveLength(3);   // le fichier, puis chaque cas
+  named('Ouvrir dans l\'éditeur')[2].click();
+  expect(runs).toEqual([['open', 't0', 2]]);   // à la ligne du cas b
+  const quote = named('Une remarque sur ce cas, au brouillon de revue')[0];
+  expect(quote.getAttribute('aria-pressed')).toBe('false');
+  await act(async () => quote.click());
+  expect(quote.getAttribute('aria-pressed')).toBe('true');
+  expect(page.querySelector('.vc-case textarea')).not.toBeNull();
+  const state = page.querySelector('.vc-case-state')!;
+  expect(state.querySelector('svg')).not.toBeNull();
+  expect(state.textContent).toBe('Modifié depuis la validation');
+  const all = [...page.querySelectorAll('.vc-ifile-tools button')].find((b) => b.textContent === 'Tout valider')!;
+  expect(all.querySelector('svg')).not.toBeNull();
 });
