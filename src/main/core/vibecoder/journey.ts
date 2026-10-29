@@ -457,7 +457,7 @@ export function vibeView(input: JourneyInput): VibeView {
     error: input.error,
     steps: ORDER[flow].map((id) => ({ id, status: done[id] ? 'done' : id === current ? 'current' : 'todo', facts: stepFacts[id] ?? '', open: open(id) })),
     note, questions, modules, invariants, variants, commits: viewCommits, outputs, checklist, actions,
-    skills: input.skills, pr, prs, loaded, reviewable: prState === 'OPEN' && (flow === 'create' || here), branches: input.branches ?? null,
+    skills: input.skills, pr, prs, loaded, reviewable: prState === 'OPEN' && (flow === 'create' || here), child, branches: input.branches ?? null,
     sync: input.sync ?? null, draft: input.draft, worktree: input.worktree ?? null, runs: input.runs,
     request: input.request ? { branch: input.request } : null, time: input.now,
   };
