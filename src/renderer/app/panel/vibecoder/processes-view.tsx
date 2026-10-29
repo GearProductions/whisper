@@ -1,18 +1,20 @@
 /** processes-view — l'onglet Processus de VibeCoder : les commandes qui
  *  lancent le projet de l'agent (son fichier du projet), chacune avec
- *  son nom, sa commande en petit dessous, ▶ Lancer, ⏹ Arrêter, ↻ Relancer, son état (un point), depuis quand, la fin
+ *  son nom, sa commande en petit dessous, Lancer, Arrêter, Relancer (icônes
+ *  play, stop, refresh, libellé en infobulle), son état (un point), depuis quand, la fin
  *  de son journal (monospace, qui suit la fin tant qu'on n'est pas remonté,
  *  dépliable ; *Journal complet* dans l'éditeur). *Proposer les commandes*,
  *  fichier ou pas (l'action propose-run, qui dit qui travaille ; fichier
  *  existant : seules les commandes nouvelles s'y ajoutent) ; *Modifier les
  *  commandes* ouvre le fichier dans l'éditeur. *Préparer le projet* (le
  *  fichier a un setup : la recette, lancée par l'appli), grisé pendant une
- *  recette de la famille ; son dernier échec dessous (une ligne). Une
+ *  recette de la famille ; son dernier échec dessous (une ligne, icône ko). Une
  *  commande se désigne par son rang, jamais par un texte.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
 import { useLayoutEffect, useRef, useState } from 'react';
 import { duration, type Strings } from 'core/vibecoder';
 import type { VibeLang, VibeProcess, VibeProcessOp, VibeView } from 'technicals/bridge';
+import { Icon, type IconName } from './icons';
 import { Run } from './step-parts';
 import type { VibeActs } from './step-views';
 
@@ -61,7 +63,7 @@ export function ProcessesView({ view, t, act, busy }: Props) {
             <button type="button" className="vc-run" data-tone="plain" title={s.setupTitle} disabled={!!recipe?.running}
               onClick={() => act.process('setup')}><span className="vc-run-label">{s.setup}</span></button>
             {recipe?.running && recipe.op === 'setup' ? <span className="vc-direct-res" data-state="running">…</span>
-              : failed ? <span className="vc-direct-res" data-state="ko" title={failed}><span className="vc-direct-mark">✗</span> {failed}</span> : null}
+              : failed ? <span className="vc-direct-res" data-state="ko" title={failed}><span className="vc-direct-mark"><Icon name="ko" /></span> {failed}</span> : null}
           </span>
         ) : null}
         <Run a={view.actions.find((a) => a.id === 'propose-run')} busy={busy} onRun={() => act.run('propose-run')} />
@@ -80,8 +82,8 @@ function Proc({ p, s, t, onOp }: { p: VibeProcess; s: Labels; t: Strings; onOp(o
   const when = p.since === null ? s.never
     : running ? s.up(duration(Date.now() - p.since))
       : `${p.status === 'failed' ? `${s.exit(p.exit)} · ` : ''}${t.ago(Date.now() - p.since)}`;
-  const icon = (op: VibeProcessOp, glyph: string, label: string, enabled: boolean) => (
-    <button type="button" className="vc-icon" title={label} aria-label={label} disabled={!enabled} onClick={() => onOp(op)}>{glyph}</button>
+  const icon = (op: VibeProcessOp, glyph: IconName, label: string, enabled: boolean) => (
+    <button type="button" className="vc-icon" title={label} aria-label={label} disabled={!enabled} onClick={() => onOp(op)}><Icon name={glyph} /></button>
   );
   return (
     <section className="vc-card vc-proc" data-status={p.status}>
@@ -92,9 +94,9 @@ function Proc({ p, s, t, onOp }: { p: VibeProcess; s: Labels; t: Strings; onOp(o
           <code className="vc-proc-run" title={p.run}>{p.run}</code>
         </span>
         <span className="vc-card-time" title={p.since === null ? undefined : new Date(p.since).toLocaleString(t.locale)}>{when}</span>
-        {icon('start', '▶', s.start, !running)}
-        {icon('stop', '⏹', s.stop, running)}
-        {icon('restart', '↻', s.restart, running)}
+        {icon('start', 'play', s.start, !running)}
+        {icon('stop', 'stop', s.stop, running)}
+        {icon('restart', 'refresh', s.restart, running)}
       </div>
       {p.log ? (
         <>

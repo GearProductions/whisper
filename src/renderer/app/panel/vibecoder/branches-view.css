@@ -1,16 +1,17 @@
 /* La vue des branches (branches-view) : ses outils, la PR chargée, les onglets
-   des PR et des branches locales, Créer une branche. Sous .vc, couleurs de vibecoder.css. */
+   des PR et des branches locales, Créer une branche. Sous .vc, couleurs de vibecoder.css ;
+   coins --vc-radius, marges un cran en dessous (0.13.0). */
 
-.vc-br-tools { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-bottom: 10px; }
+.vc-br-tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-bottom: 8px; }
 
-.vc-br-new { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.vc-br-new { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .vc-br-new :is(input, select) {
   width: 200px;
-  height: 28px;
+  height: 24px;
   box-sizing: border-box;
-  padding: 0 9px;
+  padding: 0 7px;
   border: 1px solid var(--vc-edge);
-  border-radius: 6px;
+  border-radius: var(--vc-radius);
   outline: none;
   background: var(--vc-code);
   color: var(--vc-text);
@@ -20,7 +21,7 @@
 .vc-br-new input::placeholder { color: var(--vc-faint); }
 .vc-br-new :is(input, select):focus { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent); }
 
-.vc-pr-worktree { display: flex; align-items: flex-start; gap: 10px; margin-top: 10px; }
+.vc-pr-worktree { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; }
 
 .vc-pr-nobody { color: var(--vc-faint); font-size: 12.5px; font-style: italic; }
 
@@ -29,8 +30,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 28px;
-  margin: 22px 0 8px;
+  min-height: 24px;
+  margin: 16px 0 6px;
   color: var(--vc-muted);
   font-size: 11px;
   font-weight: 600;
@@ -42,12 +43,12 @@
 .vc-pr-list-head .vc-seg .vc-count { margin-left: 6px; }
 .vc-br-search {
   width: 180px;
-  height: 28px;
+  height: 24px;
   box-sizing: border-box;
   margin-left: auto;
-  padding: 0 9px;
+  padding: 0 7px;
   border: 1px solid var(--vc-edge);
-  border-radius: 6px;
+  border-radius: var(--vc-radius);
   outline: none;
   background: var(--vc-code);
   color: var(--vc-text);
@@ -58,14 +59,15 @@
 .vc-br-search::placeholder { color: var(--vc-faint); }
 .vc-br-search:focus { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent); }
 .vc-pr-hint[data-state="ko"] { color: #f85149; }
+.vc-pr-hint svg { width: 12px; height: 12px; vertical-align: -2px; }
 .vc-pr-list .vc-mini { flex: none; margin-right: 6px; }
 .vc-pr-hint { padding: 2px 0; color: var(--vc-faint); font-size: 12.5px; }
-.vc-pr-list { display: grid; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.vc-pr-list { display: grid; gap: 5px; list-style: none; margin: 0; padding: 0; }
 .vc-pr-list li {
   display: flex;
   align-items: center;
   border: 1px solid var(--vc-line);
-  border-radius: 8px;
+  border-radius: var(--vc-radius);
   background: var(--vc-card);
   transition: border-color 0.12s, background-color 0.12s;
 }
@@ -77,10 +79,10 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: baseline;
-  gap: 10px;
-  padding: 10px 8px 10px 14px;
+  gap: 8px;
+  padding: 7px 6px 7px 10px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--vc-radius);
   background: transparent;
   color: var(--vc-text);
   font: 13px/1.4 system-ui, sans-serif;

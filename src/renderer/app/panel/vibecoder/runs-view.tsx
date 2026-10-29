@@ -1,13 +1,14 @@
 /** runs-view — l'onglet Actions de VibeCoder : une ligne par course (une
  *  action d'étape qui court à part de la conversation), la plus récente
  *  d'abord, telles que le relevé les donne : son libellé, qui travaille, son
- *  état (un point), depuis quand ; ⏹ tant qu'elle travaille ; sa demande
+ *  état (un point), depuis quand ; Arrêter (icône stop) tant qu'elle travaille ; sa demande
  *  d'autorisation (outil, cible) avec Autoriser / Toujours / Refuser ;
  *  arrêtée : Garder / Annuler ; sa réponse (Markdown), repliée, dépliable.
  *  Une course se désigne par l'id de son action, jamais par un texte.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
 import { duration, type Strings } from 'core/vibecoder';
 import type { VibeRun, VibeRunOp } from 'technicals/bridge';
+import { Icon } from './icons';
 import { MarkdownView } from './markdown-view';
 import './runs-view.css';
 
@@ -37,7 +38,7 @@ function Row({ r, t, onOp, onOpenLink }: { r: VibeRun; t: Strings; onOp(op: Vibe
           <span className="vc-proc-run">{`${r.who} · ${t.runState[r.state]}`}</span>
         </span>
         <span className="vc-card-time" title={new Date(r.since).toLocaleString(t.locale)}>{when}</span>
-        {working ? <button type="button" className="vc-icon" title={t.runStopTitle} aria-label={t.runStop} onClick={() => onOp('stop')}>⏹</button> : null}
+        {working ? <button type="button" className="vc-icon" title={t.runStopTitle} aria-label={t.runStopTitle} onClick={() => onOp('stop')}><Icon name="stop" /></button> : null}
       </div>
       {r.permission ? (
         <div className="vc-run-bar" role="alert">

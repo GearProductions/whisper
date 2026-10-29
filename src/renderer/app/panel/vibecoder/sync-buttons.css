@@ -1,6 +1,7 @@
-/* sync-buttons — Pull, Rebase (▾ : sur quoi), Pousser, à côté de la branche. */
+/* sync-buttons — Pull, Rebase (▾ : sur quoi), Pousser, à côté de la branche ; des .vc-icon
+   (taille, svg : vibecoder.css). */
 .vc-sync { display: inline-flex; align-items: center; gap: 2px; }
-.vc-sync-btn { position: relative; width: 24px; height: 24px; font-size: 14px; line-height: 24px; }
+.vc-sync-btn { position: relative; }
 .vc-sync-btn:disabled { color: var(--vc-faint); opacity: 0.45; cursor: default; background: none; }
 .vc-sync-btn[data-ko] { color: #f08a8b; }
 /* La pastille de Rebase : origin/<base> a avancé. */

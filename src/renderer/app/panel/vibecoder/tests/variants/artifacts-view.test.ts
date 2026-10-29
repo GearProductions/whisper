@@ -23,7 +23,7 @@ const draw = (artifacts: VibeArtifact[], code: VibeCode | null = null) => act(()
     onChoose: (id) => calls.push(`choose ${id}`), onOpen: (id) => calls.push(`open ${id}`), onCopy: (id) => calls.push(`copy ${id}`),
   }));
 });
-const button = (text: string) => [...page.querySelectorAll('button')].find((b) => b.textContent?.startsWith(text))!;
+const button = (text: string) => [...page.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') || b.textContent)?.startsWith(text))!;
 
 it('le premier choisi par défaut et annoncé, un clic en annonce un autre, une seule fois', async () => {
   await draw([art('a0', 'a.txt'), art('a1', 'b.html', 'page')]);
@@ -54,6 +54,8 @@ it('un média dans un cadre sans bac à sable ; Ouvrir et Copier donnent l\'id',
   await draw([art('a0', 'img.png', 'media')]);
   expect(page.querySelector('iframe')?.getAttribute('src')).toBe('vibe-artifact://x/a0?t=1');
   expect(page.querySelector('iframe')?.hasAttribute('sandbox')).toBe(false);
+  expect([button('Ouvrir').title, button('Ouvrir').textContent]).toEqual(['Ouvrir dans l\'éditeur', '']);   // une icône, le libellé en infobulle
+  expect(button('Copier').textContent).toBe('Copier dans le projet');   // Copier garde son texte
   button('Ouvrir').click();
   button('Copier').click();
   expect(calls).toEqual(['choose a0', 'open a0', 'copy a0']);

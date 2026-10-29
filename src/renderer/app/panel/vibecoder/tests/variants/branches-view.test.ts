@@ -136,7 +136,9 @@ it('BranchesView : Me demander en relecture, dans Toutes les PR, sur une PR ni d
   button('Me demander en relecture').click();
   expect(runs.at(-1)).toEqual(['request-review', { direct: true, pr: 3 }]);
   await draw3({ ok: false, line: 'Review cannot be requested from pull request author.' });
-  expect(page.textContent).toContain('✗ Review cannot be requested from pull request author.');
+  const ko = page.querySelector('.vc-pr-hint[data-state="ko"]');
+  expect(ko?.textContent).toContain('Review cannot be requested from pull request author.');
+  expect(ko?.querySelector('svg')).not.toBeNull();   // l'icône ko, plus de ✗
 });
 
 it('BranchesView : dans un worktree (view.child), Actualiser et Retirer le worktree seulement', async () => {

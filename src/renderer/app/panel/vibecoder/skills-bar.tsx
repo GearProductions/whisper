@@ -6,12 +6,13 @@
  *  à view.request.branch quand elle change), ses choix du relevé (new-here,
  *  new-worktree avec { direct: true, branch: le nom saisi } ; stash avec
  *  { direct: true }, F-114), grisés avec leur raison, absents si masqués ; le
- *  dernier échec de chaque lien à côté. Les skills, eux, se trouvent par « / »
+ *  dernier échec de chaque lien à côté (icône ko). Les skills, eux, se trouvent par « / »
  *  dans le champ. Une action prend le texte du champ s'il lui en faut un
  *  (panel-app).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : panel-app. */
 import { Fragment, useState, type ReactElement } from 'react';
 import type { VibeAction, VibeArgs, VibeView } from 'technicals/bridge';
+import { Icon } from './icons';
 
 const SHOWN = ['ask', 'fix'];
 // Les choix d'une nouvelle demande retenue, faits par l'appli elle-même.
@@ -31,7 +32,7 @@ export function SkillsBar({ view, busy, onRun }: Props) {
       <Fragment key={a.id}>
         <button type="button" className="vc-barlink" disabled={!!a.disabled || !!off || (busy && a.kind === 'send')}
           title={a.disabled ? `${a.hint}\n— ${a.disabled}` : a.hint} onClick={() => onRun(a.id, args)}>{a.label}</button>
-        {failed ? <span className="vc-direct-res" data-state="ko" title={failed}><span className="vc-direct-mark">✗</span> {failed}</span> : null}
+        {failed ? <span className="vc-direct-res" data-state="ko" title={failed}><span className="vc-direct-mark"><Icon name="ko" /></span> {failed}</span> : null}
       </Fragment>
     );
   };

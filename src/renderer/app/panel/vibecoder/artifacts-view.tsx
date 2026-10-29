@@ -5,8 +5,8 @@
  *  markdown → MarkdownView, text → CodeView en lecture seule (le texte reçu
  *  par `code`, VibeCode de son id), « fichier tronqué » si truncated ; page →
  *  <iframe sandbox> (attribut vide : ni script, ni réseau) sur url ; media →
- *  <iframe> sur url ; en tête, Ouvrir dans l'éditeur (onOpen) et Copier dans
- *  le projet (onCopy). Le choix, état local, tenu par le nom (les ids a<i>
+ *  <iframe> sur url ; en tête, Ouvrir dans l'éditeur (onOpen, IconButton open)
+ *  et Copier dans le projet (onCopy, en texte). Le choix, état local, tenu par le nom (les ids a<i>
  *  glissent quand la liste change) : le premier par défaut, disparu → le
  *  premier ; chaque id choisi, par défaut compris, est annoncé par onChoose
  *  (vibe-coder suit son texte). Un lien d'un Markdown ne mène nulle part (pas
@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from 'react';
 import { fileSize, t as strings } from 'core/vibecoder';
 import type { VibeArtifact, VibeCode, VibeLang } from 'technicals/bridge';
 import { CodeView } from './code-view';
+import { IconButton } from './icons';
 import { MarkdownView } from './markdown-view';
 import './artifacts-view.css';
 
@@ -67,7 +68,7 @@ export function ArtifactsView({ artifacts, lang, code, onChoose, onOpen, onCopy 
             <div className="vc-step-head vc-art-head">
               <h2 className="vc-mono" title={art.name}>{art.name}</h2>
               <span className="vc-art-size">{fileSize(art.size, lang)}</span>
-              <button type="button" className="vc-mini" onClick={() => onOpen(art.id)}>{t.openTitle}</button>
+              <IconButton icon="open" label={t.openTitle} onClick={() => onOpen(art.id)} />
               <button type="button" className="vc-mini" title={t.artifactCopyTitle} onClick={() => onCopy(art.id)}>{t.artifactCopy}</button>
             </div>
             {art.kind === 'page' && art.url ? <iframe className="vc-art-frame" sandbox="" src={art.url} title={art.name} />

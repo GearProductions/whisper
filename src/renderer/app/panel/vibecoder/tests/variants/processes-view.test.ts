@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 // ProcessesView (processes-view.tsx) : Préparer le projet montré si le fichier a un
-// setup, grisé pendant une recette, son dernier échec dessous.
+// setup, grisé pendant une recette, son dernier échec dessous ; Lancer, Arrêter, Relancer en icônes.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
@@ -39,4 +39,16 @@ it('Préparer le projet : montré si setup, grisé pendant une recette, le derni
 
   await procs({ setup: true, recipe: recipe({ last: { ok: true, line: 'fait', time: 1 } }) });
   expect(page.querySelector('[data-state="ko"]')).toBeNull();
+});
+
+it('Lancer, Arrêter, Relancer : des icônes, libellé en infobulle et aria-label, même état grisé, même action', async () => {
+  const process = vi.fn();
+  const acts = { process, run: vi.fn() } as unknown as VibeActs;
+  const p = { name: 'web', run: 'yarn dev', status: 'running', since: 1, exit: null, log: '' } as const;
+  await render(createElement(ProcessesView, { view: view({ processes: [p] }), t: t('fr'), act: acts, busy: false }));
+  const icons = [...page.querySelectorAll<HTMLButtonElement>('.vc-proc .vc-icon')];
+  expect(icons.map((b) => [b.title, b.getAttribute('aria-label'), b.disabled, b.textContent, !!b.querySelector('svg')])).toEqual([
+    ['Lancer', 'Lancer', true, '', true], ['Arrêter', 'Arrêter', false, '', true], ['Relancer', 'Relancer', false, '', true]]);
+  await act(() => { icons[1].click(); });
+  expect(process).toHaveBeenCalledWith('stop', 0);
 });
