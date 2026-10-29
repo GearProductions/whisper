@@ -28,7 +28,7 @@ const draw = (ponytail: string, applied: string[], busy = false) => act(() => {
       draft: () => {}, open: () => {}, openLink: () => {}, save: async () => true } } as unknown as StepProps;
   root.render(createElement(ReviewView, props));
 });
-const again = () => [...page.querySelectorAll<HTMLButtonElement>('.vc-check-again button')];
+const again = () => [...page.querySelectorAll<HTMLButtonElement>('button.vc-check-again')];
 
 it('Relancer une vérification : IconButton nommé, checks avec son rang, sans replier le détail, grisé pendant busy', async () => {
   await draw('- une remarque', []);

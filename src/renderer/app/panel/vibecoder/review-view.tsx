@@ -99,12 +99,10 @@ export function ReviewView(p: StepProps) {
   // Relancer une vérification seule (args.check : son rang) ; pendant une course checks, rien (celle de la carte la montre).
   const checksAct = action('checks');
   const checksLive = isLive(runState('checks'));
-  // Le span arrête le clic avant le <summary> (sinon il replie le détail).
+  // preventDefault : dans le <summary>, le clic ne replie pas le détail.
   const againOne = (i: number) => checksAct && !checksAct.hidden && !checksLive ? (
-    <span className="vc-check-again" onClick={(e) => e.preventDefault()}>
-      <IconButton icon="refresh" label={checksAct.disabled || s.rerunOneTitle} disabled={busy || !!checksAct.disabled}
-        onClick={() => act.run('checks', { check: i })} />
-    </span>
+    <IconButton icon="refresh" className="vc-check-again" label={checksAct.disabled || s.rerunOneTitle} disabled={busy || !!checksAct.disabled}
+      onClick={(e) => { e.preventDefault(); act.run('checks', { check: i }); }} />
   ) : null;
   // Appliquer : l'action apply, avec la remarque (args.text) ou sans (toutes) ; jamais le champ.
   const apply = action('apply');

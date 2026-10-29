@@ -127,7 +127,7 @@
 .vc-checks-note { margin-bottom: 8px; color: var(--vc-muted); font-size: 12.5px; }
 .vc-checks-note:last-child { margin-bottom: 0; }
 /* Relancer une vérification seule (IconButton refresh, gris : .vc-tool) : en bout de ligne, avant le chevron. */
-.vc-check-again { flex: none; display: flex; margin-left: auto; }
+.vc-check-again { margin-left: auto; }
 .vc-check-list :is(summary, .vc-check-row):has(.vc-check-again)::after { margin-left: 0; }
 /* Une remarque appliquée : ✓ vert, son texte grisé ; toutes, le bandeau « Appliquée » de l'encart. */
 .vc-md li:has(> .vc-remark-applied) { opacity: 0.55; }
