@@ -67,7 +67,7 @@ des processus.
 | `core/conversation` | actions et demandes d'autorisation écrites, pièces jointes, tâches de fond vues par le volet |
 | `core/guards` | permissions des pages, liens, fichiers montrés |
 | `core/repo` | page GitHub d'un dossier, d'après son remote `origin` |
-| `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier ou un commit désigné par son id (`safePath`, `itemPath`, `itemCommit`, `codeFile` : un fichier d'un module touché), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`, `forkedModel`), le parcours (`vibeView`), les choix de lieu d'après l'état du dossier (`place` : `placeShown`, `placeReason`, `onBase`, F-110), *Pull*, *Rebase*, *Pousser* (`sync` : `syncReason`, F-114), les sorties des skills, les fichiers par défaut (`syncDefaults`) et les variantes des skills (`skillVariants`), les validations et brouillons de revue, les courses (`runs` : `ownRun`, `runKey`, la règle `blockedBy`, le module qu'une course génère et le verrou de son code (`runModule`, `codeLock`), `actions.json`, l'avis de fin, `parseRequest`, l'avis d'une demande refusée ou aux arguments ignorés `requestNotice`, F-115), les ✓ des étapes passées en Vibe (`vibeMarks`) |
+| `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier ou un commit désigné par son id (`safePath`, `itemPath`, `itemCommit`, `codeFile` : un fichier d'un module touché), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`, `skillModel`), le parcours (`vibeView`), les choix de lieu d'après l'état du dossier (`place` : `placeShown`, `placeReason`, `onBase`, F-110), *Pull*, *Rebase*, *Pousser* (`sync` : `syncReason`, F-114), les sorties des skills, les fichiers par défaut (`syncDefaults`) et les variantes des skills (`skillVariants`), les validations et brouillons de revue, les courses (`runs` : `ownRun`, `runKey`, la règle `blockedBy`, le module qu'une course génère et le verrou de son code (`runModule`, `codeLock`), `actions.json`, l'avis de fin, `parseRequest`, l'avis d'une demande refusée ou aux arguments ignorés `requestNotice`, F-115), les ✓ des étapes passées en Vibe (`vibeMarks`) |
 | `core/runner` | les commandes du projet (F-111) : le fichier du projet, `<dossier du parent>/.vibecoder/project.json` (`projectPath`, la ligne de `.git/info/exclude` : `withExclude`), lu (`parseProject`), une proposition fusionnée dans le fichier existant (`mergeProject`), une commande par son rang (`commandAt` : shell du fichier, préfixe `commandPrefix` — celui du fichier, du réglage, ou la box de l'agent, le même pour `gh`), les demandes de l'agent (`requestsOf`), la fin d'un journal, la recette en étapes (`setupSteps`, `createSteps`, `removeSteps` ; la branche et la base par l'environnement, `recipeEnv` ; le dossier d'un worktree, `worktreeDir`) (I-42) |
 | `technicals/process` | les processus lancés pour l'utilisateur : détachés, marqués dans leur environnement, arrêtés avec ce qu'ils ont lancé (SIGTERM, SIGKILL après 5 s), leur journal ; `writeNew` (I-43) ; une étape de la recette attendue jusqu'à sa fin (`runOnce` : l'entrée fermée, un délai, la dernière ligne utile) |
 | `technicals/git` | git en lecture seule (`gitRun`, `gitReader`, `GIT_READ`, plus `worktree list`) : les faits d'une branche ou d'une PR chargée, un fichier à un ref, un commit et son diff, le commit où la branche part de sa base (`forkPoint`), les branches locales (`branches`), le retard sur `@{u}` et sur `origin/<base>` (`sync`) (I-39) |
@@ -952,10 +952,12 @@ enfant, *Retirer le worktree* à sa place) et *Release officielle* ; fermée,
 aucune. De même, *Écrire les invariants*
 d'une note sans ligne « → invariant » est masquée sans être grisée, et
 revient quand la note en gagne une.
-Une action dont le skill tourne en sous-contexte (`context: fork`) sur
-*haiku*, *sonnet* ou *opus* propose aussi les deux autres (`models`, le
-conseillé : `model`) : on peut prendre plus léger (ou plus fort) pour cette
-fois ; le conseillé reste le choix par défaut. Jamais Fable (I-36).
+Une action dont le skill fixe son modèle (*haiku*, *sonnet* ou *opus*) et
+qui court à part (F-115) ou tourne en sous-contexte (`context: fork`)
+propose aussi les deux autres (`models`, le conseillé : `model`) : on peut
+prendre plus léger (ou plus fort) pour cette fois ; le conseillé reste le
+choix par défaut. Un skill sans sous-contexte envoyé à la conversation
+(`vibe`…) garde le modèle de l'agent. Jamais Fable (I-36).
 
 **F-115 Les courses** (une action d'étape qui court à part de la
 conversation ; note `0.9.0-actions-independantes.md`).
@@ -965,8 +967,8 @@ conversation ; note `0.9.0-actions-independantes.md`).
   note, `note`, et sa session : l'agent qui a rédigé la note garde son
   contexte). Mêmes dossier, consigne, plugin, dossiers en plus, mode et
   autorisations que l'agent (F-58), interruption comme lui (I-19) ; le modèle
-  et l'effort de son skill en sous-contexte (ou celui choisi, F-99), sinon
-  ceux de l'agent ; le suivi des fichiers écrits de Claude Code
+  et l'effort de l'en-tête de son skill, en sous-contexte ou non (ou le
+  modèle choisi, F-99), sinon ceux de l'agent ; le suivi des fichiers écrits de Claude Code
   (`enableFileCheckpointing`). Pas de limite au nombre de courses ; la
   conversation de l'agent n'est jamais occupée par l'une d'elles.
   **Finie** : son tour fini et plus aucune tâche de fond que le runtime lui
@@ -1033,6 +1035,12 @@ conversation ; note `0.9.0-actions-independantes.md`).
   est refusé (« … refusée — le mode Vibe a été arrêté par l'utilisateur :
   ne lance plus rien ») jusqu'à ce que tout soit au repos ; les `.stop`
   sont toujours lus.
+- ***✓ Valider → commit → suivant*, deux courses** : `suivant` commite comme
+  `commiter-modules`, puis, le commit fait, demande *Générer ce module*
+  (`<sorties>/actions/module.start`, vide : le premier module qu'aucun
+  commit ne touche) au lieu de le générer ; la demande attend la fin de
+  `next` (« en attente ») et part dans sa course, au modèle de *Générer ce
+  module*. Un commit qui échoue (un hook) : pas de demande.
 - **L'avis de fin** : une course finie (*finie*, *en échec*) envoie une
   ligne à la conversation de l'agent (« VibeCoder : « <libellé> » finie —
   <sa réponse, 300 caractères au plus>. État : <sorties>/actions.json ») ;
@@ -1185,12 +1193,13 @@ conversation ; note `0.9.0-actions-independantes.md`).
    question, une vérification) ou *Retour → fixup* (une correction) cite ses
    lignes entières dans le champ de la conversation (F-98). Prochaine action : *✓ Commiter*
    (un commit préparé), *✓ Valider → commit → suivant* (un module pas
-   commité, un autre reste ; il commite comme `commiter-modules`),
+   commité, un autre reste ; il commite comme `commiter-modules`, puis
+   *Générer ce module* part sur le suivant, dans une seconde course, F-115),
    *Commiter les modules* (plus de module à faire), sinon
    *Générer ce module* (le premier qu'aucun commit ne touche ; avec
    `ponytail`, tests lancés, sans commit) ; aussi *Relire le diff* (les
    quatre questions du § 5.1), *Générer les modules restants* (confiés à des
-   agents Opus en parallèle, chaque diff relu, sans commit).
+   agents Sonnet en parallèle, chaque diff relu, sans commit).
 5. **Revue** — faite : vérifications toutes passées (`checks.json` ; des
    avertissements seulement passent ; un ancien ne compte pas, I-46),
    ponytail review faite (`ponytail.md`),
@@ -1209,7 +1218,7 @@ conversation ; note `0.9.0-actions-independantes.md`).
    en rouge, sinon « n avertissements » en orange, sinon « n / n ok » ; les
    faits de l'étape ajoutent « n avertissements » ; la ponytail
    review rendue, 💬 et *Appliquer* par remarque, *Tout appliquer* sur la
-   carte (l'action `apply`, qui travaille : l'agent ; *Appliquer* lui donne
+   carte (l'action `apply`, skill `appliquer-revue`, sur Sonnet ; *Appliquer* lui donne
    la remarque, `{{text}}`, *Tout appliquer* rien : toutes ; ni l'un ni
    l'autre ne prend le champ ; absents sans remarque en liste ; *Appliquer*
    pas proposé pendant une course `apply` — en cours, en attente, arrêtée
@@ -1487,7 +1496,7 @@ tests, faits sans ✓ ni lecture) ; les étapes qu'il passe reçoivent leur ✓
    reprend à la première étape pas faite et **enchaîne les actions de
    l'écran** par leurs demandes (F-115) — forme, invariants rouges
    (l'alignement compris, sans *Lire en pseudo-code*), premier commit,
-   modules (confiés à des agents Opus avec `ponytail`) puis *Commiter les
+   modules (confiés à des agents Sonnet avec `ponytail`) puis *Commiter les
    modules*, vérifications (la ponytail review comprise ; un échec corrigé :
    cette vérification seule relancée),
    fixups, PR, CI suivie jusqu'au vert (un échec : un commit de correction
@@ -1800,8 +1809,12 @@ dans sa course ; `verifier` demande `ponytail` quand il lance toutes les
 vérifications (F-93). `modules` et `module` ne commitent pas :
 `commiter-modules` commite un module ou tous ceux qui ont des changements,
 un commit chacun ; `suivant` commite comme lui.
-Un agent du plugin, Opus à effort élevé : `developpeur` (un module de la
-Forme, `ponytail` préchargé, rien de commité), lancé par `modules`. Aucun skill livré ne fait
+Un agent du plugin, Sonnet à effort élevé : `developpeur` (un module de la
+Forme, `ponytail` préchargé, le typecheck et les tests de son module
+seulement, rien de commité), lancé par `modules` (Opus · élevé), qui relit
+chaque diff : un petit défaut corrigé lui-même, sinon la correction renvoyée
+au même sous-agent, au second échec le module relancé sur Opus ; la suite
+complète une fois par vague. Aucun skill livré ne fait
 `git push --force` ni ne fusionne une PR ; une version, un tag, une release
 candidate ne se suppriment qu'avec l'accord de l'utilisateur.
 
@@ -1813,25 +1826,29 @@ longueur de celle-ci.
   message préparé, tel quel), `base`, `publier-revue` (`charger-pr`, `commit`, `base`, `publier-revue` : le
   *via* des actions directes, F-114), `nouvelle-demande` (F-110), `lancement` ;
 - *sonnet* : `commit-preparer` (faible) ; `pr`, `fixups`, `ci`, `ecran`,
-  `lire-invariants`, `commiter-modules` (moyen) ;
-- *opus · élevé* : `invariants`, `module`, `suivant`, `relire`, `aligner`,
+  `lire-invariants`, `commiter-modules`, `suivant`, `rc`, `release` (moyen) ;
+  `module`, `appliquer-revue` (élevé) ;
+- *opus · élevé* : `invariants`, `modules`, `relire`, `aligner`,
   `ponytail`, `relire-note`, `relire-commits`.
 
 `lire-invariants` : Sonnet à effort moyen, retenu par un banc (tests Rust de
 workflows-tester, tests TypeScript de whisper) : 79/90, contre 84/90 pour
 Opus à effort moyen, 1,8 fois plus cher ; Haiku écarté. Sans sous-contexte,
-sur le modèle de l'agent : `note`, `forme`, `modules`, `rc`, `release` et les
-messages sans skill d'une étape (*Envoyer les réponses*, *Appliquer la
-revue*), chacun dans sa course (F-115) ; dans la conversation (en changer de
+chacun dans sa course (F-115) : `modules`, `rc`, `release`,
+`appliquer-revue` sur leur modèle ; `note`, `forme` et *Envoyer les
+réponses* (un message sans skill, qui reprend la session de la note) sur
+celui de l'agent (la pastille de F-109) ; dans la conversation (en changer de
 modèle en cours de conversation en perdrait le cache) : `vibe`, `processus`,
 `actions`, et *Demander sans modifier*, *Où j'en suis ?*.
 
 **Un autre modèle pour une étape** (F-99) : au démarrage (et à chaque
 ouverture du dossier, F-107), pour chaque skill `<nom>` du plugin de
-l'utilisateur qui tourne en sous-contexte sur *haiku*, *sonnet* ou *opus*,
-l'appli écrit une variante par autre modèle, `skills/<nom>--<modèle>/SKILL.md` :
-le même en-tête (`description`, `argument-hint`, `disable-model-invocation`,
-`allowed-tools`, `context: fork`), ce modèle et son effort par défaut (haiku
+l'utilisateur qui fixe son modèle (*haiku*, *sonnet* ou *opus*), en
+sous-contexte ou non, l'appli écrit une variante par autre modèle,
+`skills/<nom>--<modèle>/SKILL.md` : le même en-tête (`description`,
+`argument-hint`, `disable-model-invocation`, `allowed-tools` ; `context:
+fork` seulement si le skill l'a : `modules--sonnet` lance encore ses
+sous-agents), ce modèle et son effort par défaut (haiku
 `low`, sonnet `medium`, opus `high`), un corps qui suit `<nom>/SKILL.md` avec
 les mêmes arguments. Ce sont des fichiers générés, pas des défauts : hors du
 manifeste, réécrits à chaque fois (les noms en `--haiku`, `--sonnet`,
