@@ -107,7 +107,7 @@ import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
 import {
   addComment, artifactOf, blobSha, buildMessage, vibeMarks, DIRECT_ACTIONS, DIRECT_ONLY, draftText, editComment, findNote, headField, isInvariantTest, isOutputName, isTest, itemCommit, itemPath,
-  blockedBy, BRANCH_CHANGES, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeView, whoOf, type ActionDef, type MessageError,
+  blockedBy, BRANCH_CHANGES, ELSEWHERE, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeView, whoOf, type ActionDef, type MessageError,
 } from 'core/vibecoder';
 import { findEditor } from 'technicals/editor';
 import { directRunner, prCardText, VERDICTS, type DirectResult } from 'technicals/direct';
@@ -542,9 +542,10 @@ export function startAction(
   return message.ignored ? { ...sent, ignored: message.ignored } : sent;
 }
 
-// Les actions directes en cours de l'agent, comme des courses (elles lisent ou modifient la branche) : startRun les respecte.
+// Les actions directes en cours de l'agent, comme des courses (elles lisent ou modifient la branche) : startRun les respecte ;
+// pas un nouveau worktree (ELSEWHERE), qui travaille dans un autre dossier.
 export const directLocks = (agentId: string, defs: ActionDef[]) => Object.entries(directs.get(agentId) ?? {})
-  .filter(([, x]) => x.running).map(([id]) => ({ id, reads: !!defs.find((d) => d.id === id)?.reads }));
+  .filter(([id, x]) => x.running && !ELSEWHERE.includes(id)).map(([id]) => ({ id, reads: !!defs.find((d) => d.id === id)?.reads }));
 
 const RUN_OPS: VibeRunOp[] = ['stop', 'keep', 'undo', 'allow', 'always', 'deny'];
 
@@ -572,8 +573,8 @@ function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, view: Vib
   // Un worktree (enfant ou robot) reste sur sa branche, quel que soit l'écran (note 0.12.0-gestion-des-branches).
   if (agentParent(agent) && BRANCH_CHANGES.includes(id)) return fail(lang, 'worktree');
   if (Object.values(mine).some((x) => x.running)) return fail(lang, 'action');
-  // Une course vivante la retient comme une autre course (la règle de runs).
-  const held = blockedBy(def, lockingRuns(agent.id), lang);
+  // Une course vivante la retient comme une autre course (la règle de runs) ; pas un nouveau worktree (ailleurs).
+  const held = ELSEWHERE.includes(id) ? null : blockedBy(def, lockingRuns(agent.id), lang);
   if (held) return { ok: false, error: held };
   const out = vibeOutDir(agent.id);
   const run = directRunner({ dir: agent.dir, out, prefix: agentPrefix(agent, cfg) });

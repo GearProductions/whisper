@@ -1022,6 +1022,26 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     expect(fake.messages).toEqual([]);
   });
 
+  // Un autre dossier : rien de celui-ci ne bouge, une action qui modifie la branche ne la retient pas.
+  it('Créer une branche dans un worktree pendant une action qui modifie la branche : le worktree est créé', async () => {
+    gitWith('');
+    await open();
+    const { lockingRuns, runVibeAction, vibeAgent } = await import('app/controllers');
+    expect(runVibeAction('note', { text: 'une demande' })).toEqual({ ok: true });
+    expect(lockingRuns('a1')).toEqual([expect.objectContaining({ id: 'note', reads: false })]);
+    expect(runVibeAction('new-worktree', { direct: true, branch: 'feat/y' })).toEqual({ ok: true });
+    await until(() => vibeAgent()?.id === 'c1');
+    expect(fake.calls).toContainEqual(['createWorktree', 'a1', { branch: 'feat/y', base: 'main', start: 'origin/main' }]);
+  });
+
+  it('Changer de branche (new-here) pendant une action qui modifie la branche : refusé', async () => {
+    gitWith('');
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+    expect(runVibeAction('note', { text: 'une demande' })).toEqual({ ok: true });
+    expect(runVibeAction('new-here', { direct: true, branch: 'feat/y' })).toMatchObject({ ok: false });
+  });
+
   it('load-pr réussi, en Créer : la PR suivie', async () => {
     gitWith('');
     await open();
