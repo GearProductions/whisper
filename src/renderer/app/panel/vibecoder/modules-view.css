@@ -69,3 +69,6 @@
 .vc-mod-legend { display: flex; gap: 12px; padding-right: 4px; color: var(--vc-muted); font-size: 11.5px; white-space: nowrap; }
 .vc-mod-legend > span { display: inline-flex; align-items: center; gap: 6px; }
 .vc-mod-legend .vc-mod-dot { width: 8px; height: 8px; border-width: 1.5px; box-shadow: none; }
+
+/* Voir le code : un fichier supprimé par la branche, marqué « supprimé ». */
+.vc-mod-tree .vc-mod-gone { margin-left: 6px; color: var(--vc-faint); font-style: italic; }

@@ -14,9 +14,9 @@ export function fileParts(path: string): { dir: string; name: string } {
 }
 
 // Les fichiers par dossier (fileParts) : les dossiers dans l'ordre de leur
-// premier fichier, les fichiers dans celui du relevé.
-export function filesByDir(files: VibeFile[]): { dir: string; files: VibeFile[] }[] {
-  const by = new Map<string, VibeFile[]>();
+// premier fichier, les fichiers (les mêmes objets) dans celui du relevé.
+export function filesByDir<F extends VibeFile>(files: F[]): { dir: string; files: F[] }[] {
+  const by = new Map<string, F[]>();
   for (const f of files) {
     const { dir } = fileParts(f.path);
     by.set(dir, [...(by.get(dir) ?? []), f]);
