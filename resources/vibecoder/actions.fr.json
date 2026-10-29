@@ -358,6 +358,16 @@
     "text": "Me demander en relecture : seulement par l'appli (direct), jamais par l'agent."
   },
   {
+    "id": "copy-artifact",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Copier dans le projet",
+    "hint": "Copie l'artefact affiché dans le dossier que vous choisissez ; un fichier du même nom n'est remplacé que si vous l'acceptez.",
+    "text": "Copier dans le projet : seulement par l'appli (direct), jamais par l'agent."
+  },
+  {
     "id": "review-note",
     "flow": "review",
     "step": "note",

@@ -419,6 +419,10 @@ describe('les actions directes', () => {
     expect(ids.every((id) => DIRECT_ACTIONS.includes(id) && DIRECT_ONLY.includes(id))).toBe(true);
   });
 
+  it('copy-artifact : directe, et seulement par l\'appli', () => {
+    expect(DIRECT_ACTIONS.includes('copy-artifact') && DIRECT_ONLY.includes('copy-artifact')).toBe(true);
+  });
+
   it('chaque action seulement directe est une action directe', () => {
     expect(DIRECT_ONLY.every((id) => DIRECT_ACTIONS.includes(id))).toBe(true);
   });
