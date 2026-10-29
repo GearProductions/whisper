@@ -32,12 +32,10 @@ export function safePath(dir: string, rel: string, realpath: (p: string) => stri
 }
 
 // Le chemin relatif du fichier du relevé qui porte cet id (la note, un test
-// d'invariant, un variant, le fichier d'un module ; `c<rang>/<i>` : le i-ème
-// fichier du commit de ce rang) ; null pour un id inconnu.
+// d'invariant, un variant, le fichier d'un module) ; null pour un id inconnu.
 export function itemPath(view: VibeView | null, id: string): string | null {
   if (!view) return null;
-  const files = [view.note, ...view.invariants, ...view.variants, ...view.modules.map((m) => m.file),
-    ...commitFiles(view)];
+  const files = [view.note, ...view.invariants, ...view.variants, ...view.modules.map((m) => m.file)];
   return files.find((f) => f?.id === id)?.path ?? null;
 }
 

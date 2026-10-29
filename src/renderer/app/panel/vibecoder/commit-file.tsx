@@ -1,7 +1,7 @@
 /** commit-file — un fichier d'un commit (étape Commits, Relire), ouvert sous
  *  sa carte : le texte poussé pour file.id seulement (un autre : rien encore) ;
  *  un sélecteur (DiffPicker, si code.at) Fichier · Diff de ce commit
- *  (at.commit.before ?? '' → after ?? '', grisé sans at.commit) · Diff depuis
+ *  (at.commit.before ?? '' → after ?? '') · Diff depuis
  *  la base de la PR (at.base ?? '' → at.head ?? '') ; avec un diff, En ligne ·
  *  Côte à côte (en ligne d'abord). Fichier : CodeView en lecture seule (sans
  *  edit, ni Enregistrer ni Ctrl+S), fix false, 💬 → onQuote(block) ; un diff :
@@ -43,7 +43,7 @@ export function CommitFile({ file, code, lang, t, onQuote }: {
     <>
       {at ? (
         <DiffPicker<'commit' | 'base'> options={(['commit', 'base'] as const).map((k) => (
-          { key: k, label: S[lang][k], disabled: k === 'commit' && !at.commit }))}
+          { key: k, label: S[lang][k] }))}
           shown={shown} onShown={setShown} mode={diff ? mode : null} onMode={setMode} lang={lang} />
       ) : null}
       {!mine ? null

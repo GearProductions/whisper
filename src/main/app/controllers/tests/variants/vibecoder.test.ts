@@ -490,18 +490,6 @@ describe('rc.2', () => {
     expect(vibeStore().drafts.a1[12]).toEqual([{ id: 1, target: 'note', text: 'la forme est trop vague' }]);
   });
 
-  it('Relire : un fichier d\'un commit, celui du dossier (la PR se charge dans ce dossier), ouvert à la ligne ; rien sous files/', async () => {
-    review();
-    write(path.join(out, 'pr-12.json'), JSON.stringify({ number: 12, head: 'feat/x', base: 'main' }));
-    write(path.join(dir, 'src', 'x.ts'), 'x');
-    fake.facts = { ...fake.facts as object, commits: [{ hash: HASH, subject: 'core/x', files: ['src/x.ts'] }] };
-    await open();
-    const { openVibeItem } = await import('app/controllers');
-    await openVibeItem('c0/0', 7);
-    expect(fake.edited).toEqual([[fs.realpathSync.native(path.join(dir, 'src', 'x.ts')), 7]]);
-    expect(fs.existsSync(path.join(out, 'files'))).toBe(false);
-  });
-
   it('un commit : son diff écrit sous files/ et ouvert ; gh: sa page GitHub, d\'après l\'origine du dépôt', async () => {
     write(path.join(dir, '.git', 'config'), '[remote "origin"]\n\turl = git@github.com:o/d.git\n');
     fake.facts = { ...fake.facts as object, commits: [{ hash: HASH, subject: 'core/x', files: [] }] };
@@ -514,7 +502,7 @@ describe('rc.2', () => {
     expect(fake.opened).toEqual([`https://github.com/o/d/commit/${HASH}`]);
   });
 
-  it('Créer : un fichier d\'un commit, la copie de travail ; un chemin à la place d\'un id : rien', async () => {
+  it('un fichier d\'un commit ne s\'ouvre plus dans l\'éditeur ; un chemin à la place d\'un id : rien', async () => {
     write(path.join(dir, 'src', 'x.ts'), 'x');
     fake.facts = { ...fake.facts as object, commits: [{ hash: HASH, subject: 'core/x', files: ['src/x.ts'] }] };
     await open();
@@ -522,7 +510,7 @@ describe('rc.2', () => {
     await openVibeItem('/etc/passwd', 1);
     await openVibeItem('gh:https://exemple.fr');
     await openVibeItem('c0/0', 3);
-    expect(fake.edited).toEqual([[fs.realpathSync.native(path.join(dir, 'src', 'x.ts')), 3]]);
+    expect(fake.edited).toEqual([]);
     expect(fake.opened).toEqual([]);
   });
 });

@@ -942,7 +942,7 @@ export async function vibeProcess(op: unknown, index?: unknown) {
 }
 
 // Un fichier ou un commit du relevé, par son id (jamais un chemin, I-37) :
-// - un fichier (n, t…, v…, m…, `c<rang>/<i>`) dans l'éditeur, à `line` si
+// - un fichier (n, t…, v…, m…) dans l'éditeur, à `line` si
 //   elle est donnée : celui du dossier de l'agent (safePath), dans les deux parcours ;
 // - `c<rang>` : le diff du commit (git show), écrit dans <sorties>/files/<hash>.diff ;
 // - `gh:c<rang>` : la page du commit sur GitHub, dans le navigateur, d'après

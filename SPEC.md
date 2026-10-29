@@ -1340,9 +1340,8 @@ sur place (même cible, mêmes limites) ou se retire (×).
 **Ouvrir**, en *Créer* comme en *Relire*, ce que désigne un id du dernier
 relevé (I-37), dans l'éditeur (`editorCommand`, sinon le premier trouvé,
 F-56) :
-- un fichier (la note, un test, un variant, un module ; `c<rang>/<i>`, le
-  i-ème fichier d'un commit), à une ligne si l'écran la donne (un cas de
-  test : zed `fichier:ligne`, code, cursor, codium `-g fichier:ligne`, un
+- un fichier (la note, un test, un variant, un module), à une ligne si
+  l'écran la donne (un cas de test : zed `fichier:ligne`, code, cursor, codium `-g fichier:ligne`, un
   autre éditeur : le fichier seul), celui de la copie de travail, en *Relire*
   aussi (le dossier sur la branche de la PR ; un dossier ne s'ouvre pas) ;
 - `c<rang>` : le diff d'un commit (`git show`, sans programme externe, I-39),

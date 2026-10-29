@@ -216,8 +216,9 @@ export function vibeView(input: JourneyInput): VibeView {
     const real = [...new Set([...hits, bares[i], `src/${bares[i]}`])].find((p) => input.exists(p));
     const touched = hits.length > 0 || by.length > 0;
     const uncommitted = hits.some((f) => dirty.includes(f));
-    // Les fichiers que la branche change sous son chemin (changed : la copie de travail comprise) ; absent : supprimé.
-    const files = !touched ? [] : changed.filter((f) => within(f, bares[i]) !== null).sort()
+    // Les fichiers que la branche change sous son chemin (changed : la copie de travail comprise), dans son dossier
+    // seulement (real) ; sans dossier (supprimé), sous tout chemin qui le contient ; absent : supprimé.
+    const files = !touched ? [] : changed.filter((f) => (real ? within(f, bares[i]) === real : within(f, bares[i]) !== null)).sort()
       .map((path, j) => (input.exists(path) ? { id: `m${i}/${j}`, path } : { id: `m${i}/${j}`, path, deleted: true }));
     return {
       path: m.path, contract: m.contract, file: real ? { id: `m${i}`, path: real } : null,
