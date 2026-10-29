@@ -3,11 +3,13 @@
  *  validée pour le commit de tête : `a3:<rang>`) ; les vérifications de
  *  checks.json, une ligne chacune (✓, avertissements en orange, ✗ ; son détail
  *  repliable, déplié en cas d'échec ; Relancer chacune seule, hors d'une
- *  course checks) ; la ponytail review rendue, 💬 et Appliquer par remarque,
- *  Tout appliquer (l'action apply, avec ou sans la remarque). Appliquer n'est
- *  pas proposé pendant une course apply ; une remarque appliquée
- *  (ponytail-applied.json) est marquée ✓ et grisée, toutes : le bandeau
- *  « Appliquée » sur l'encart, sans Tout appliquer. Les vérifications :
+ *  course checks : IconButton refresh, en bout de ligne, aligné que la ligne
+ *  ait un détail ou non) ; la ponytail review rendue, 💬 et Appliquer par
+ *  remarque (un vc-mini texte), Tout appliquer (l'action apply, avec ou sans
+ *  la remarque). Appliquer n'est pas proposé pendant une course apply ; une
+ *  remarque appliquée (ponytail-applied.json) est marquée (Icon ok) et
+ *  grisée, toutes : le bandeau « Appliquée » (Icon ok) sur l'encart, sans
+ *  Tout appliquer. Les vérifications :
  *  Relancer ; sans sortie, leur action. La ponytail review, lancée avec les
  *  vérifications (F-115) : ni Relancer ni bouton, sans sortie l'invitation le dit.
  *  Ne connaît pas : le pont (rappels passés ; l'état des courses par StopRun).
@@ -15,6 +17,7 @@
 import { useContext } from 'react';
 import { allApplied, appliedRemarks, BULLET, isLive, parseChecks, remarkMark } from 'core/vibecoder';
 import type { VibeLang } from 'technicals/bridge';
+import { Icon, IconButton } from './icons';
 import { MarkdownView } from './markdown-view';
 import { Invite, OutputCard, Run, StepHead, StopRun } from './step-parts';
 import type { StepProps } from './step-views';
@@ -96,9 +99,12 @@ export function ReviewView(p: StepProps) {
   // Relancer une vérification seule (args.check : son rang) ; pendant une course checks, rien (celle de la carte la montre).
   const checksAct = action('checks');
   const checksLive = isLive(runState('checks'));
+  // Le span arrête le clic avant le <summary> (sinon il replie le détail).
   const againOne = (i: number) => checksAct && !checksAct.hidden && !checksLive ? (
-    <button type="button" className="vc-mini vc-check-again" disabled={busy || !!checksAct.disabled}
-      title={checksAct.disabled || s.rerunOneTitle} onClick={(e) => { e.preventDefault(); act.run('checks', { check: i }); }}>{t.rerun}</button>
+    <span className="vc-check-again" onClick={(e) => e.preventDefault()}>
+      <IconButton icon="refresh" label={checksAct.disabled || s.rerunOneTitle} disabled={busy || !!checksAct.disabled}
+        onClick={() => act.run('checks', { check: i })} />
+    </span>
   ) : null;
   // Appliquer : l'action apply, avec la remarque (args.text) ou sans (toutes) ; jamais le champ.
   const apply = action('apply');
@@ -108,7 +114,7 @@ export function ReviewView(p: StepProps) {
   const applyState = runState('apply');
   const remarkEnd = remarks ? (text: string) => {
     const mark = remarkMark(text, applied, applyState);
-    if (mark === 'applied') return <span className="vc-remark-applied" title={s.appliedTitle} aria-label={s.applied}>✓</span>;
+    if (mark === 'applied') return <span className="vc-remark-applied" role="img" title={s.appliedTitle} aria-label={s.applied}><Icon name="ok" /></span>;
     return mark && apply ? (
       <button type="button" className="vc-mini vc-apply-one" disabled={busy || !!apply.disabled}
         title={apply.disabled || s.applyOneTitle} onClick={() => act.run('apply', { text })}>{s.applyOne}</button>
@@ -188,7 +194,7 @@ export function ReviewView(p: StepProps) {
       ) : <Invite title={s.noChecks} text={s.noChecksHint}><Run a={action('checks')} busy={busy} onRun={() => act.run('checks')} /></Invite>}
       {ponytail ? (
         <OutputCard title={t.outputs['ponytail.md']} file="ponytail.md" time={ponytail.time} t={t}
-          tools={done ? <span className="vc-applied-banner">✓ {s.applied}</span>
+          tools={done ? <span className="vc-applied-banner"><Icon name="ok" />{s.applied}</span>
             : remarks ? <Run a={apply} busy={busy} label={s.applyAll} onRun={() => act.run('apply', { text: '' })} /> : null}>
           <MarkdownView md={ponytail.text} t={t} onOpenLink={act.openLink} onQuote={quote} itemEnd={remarkEnd} />
         </OutputCard>
