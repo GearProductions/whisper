@@ -655,9 +655,10 @@ describe('Créer et Relire sur le même dossier : les choix de lieu (0.12.0)', (
     expect(seen(loaded({ checkout: { branch: 'feat/G2-1', dirty: true } }), PLACES)).toEqual(['unload-pr', 'stash', ...BRANCH]);
   });
 
-  it('sur le robot d\'une PR : ni la charger, ni revenir sur la base, ni un nouveau worktree', () => {
-    expect(seen(loaded({ child: true, checkout: DIRTY, worktree: { state: 'robot', temp: true, dir: '/w' } }), PLACES))
-      .toEqual(['stash', 'switch-branch', 'new-here']);
+  it('sur le robot d\'une PR : rien qui change sa branche (ni charger une PR), mettre de côté seulement', () => {
+    const v = loaded({ child: true, checkout: DIRTY, worktree: { state: 'robot', temp: true, dir: '/w' } });
+    expect(seen(v, PLACES)).toEqual(['stash']);
+    expect(action(v, 'load-pr')?.hidden).toBe(true);
   });
 
   it('revenir sur la base : hors de la base, même sans PR suivie ; sur la base (origin/ ou pas), masqué', () => {
@@ -689,7 +690,7 @@ describe('Créer et Relire sur le même dossier : les choix de lieu (0.12.0)', (
     }
     expect(seen(vibeView(input({ request: 'feat/G3-1', checkout: DIRTY })), PLACES)).toEqual(['stash', ...BRANCH]);
     expect(action(vibeView(input({ request: 'feat/G3-1', checkout: DIRTY })), 'new-here')?.disabled).toBe('Des modifications en cours');
-    expect(seen(vibeView(input({ request: 'feat/G3-1', checkout: DIRTY, child: true })), PLACES)).toEqual(['stash', 'switch-branch', 'new-here']);
+    expect(seen(vibeView(input({ request: 'feat/G3-1', checkout: DIRTY, child: true })), PLACES)).toEqual(['stash']);   // un worktree reste sur sa branche
   });
 
   it('aucune demande retenue : pas de branche au relevé ; Nouvelle demande sur la base seulement', () => {

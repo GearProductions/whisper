@@ -424,6 +424,7 @@ export function vibeView(input: JourneyInput): VibeView {
   const shown: Record<string, boolean> = {
     ...placeShown(place),
     rebase: !place.onBase,
+    'load-pr': !place.child,   // un worktree reste sur sa branche (place : BRANCH_CHANGES)
     push: sync.rebased,
     'new-request': place.onBase,
     'remove-worktree': child && (flow === 'create' ? prState === 'MERGED' : place.robot),
