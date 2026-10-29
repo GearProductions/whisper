@@ -17,10 +17,13 @@
  *  ou pas, progress().all), « Relire » (refaire sa lecture ; en accent si la
  *  lecture est périmée, f.stale : le test a changé depuis, sa lecture reste
  *  affichée, marquée « lecture périmée »), « Voir le
- *  fichier » (tout son code, numéroté) ; pas lu : ses cartes sans lecture
- *  (✓ / ✗ quand même, la lecture est facultative), et « Lire en
- *  pseudo-code », en accent seulement quand c'est l'action mise en avant
- *  (primary : Vibe). Sans test, l'invitation à les écrire, ou « rien à
+ *  fichier » (tout son code, numéroté ; un test que la branche, ou la PR,
+ *  modifie, f.base : DiffPicker Fichier · Diff depuis la base de la branche,
+ *  le diff ModuleDiffView entier, en lecture seule, de f.base au texte de
+ *  l'éditeur en Créer, à f.source en Relire) ; pas lu : ses cartes sans
+ *  lecture (✓ / ✗ quand même, la lecture est facultative), et « Lire en
+ *  pseudo-code » dans les outils de l'en-tête, en accent seulement quand
+ *  c'est l'action mise en avant (primary : Vibe). Sans test, l'invitation à les écrire, ou « rien à
  *  écrire » si la note n'a aucune ligne « → invariant » ; Créer, la note avec
  *  une ligne « → invariant » : à côté, « ✓ Rien à écrire » (elles sont déjà
  *  observées par des tests existants), validation à la main pour la note telle
@@ -37,8 +40,10 @@ import {
 import type { VibeLang, VibeTestFile } from 'technicals/bridge';
 import { CodeView } from './code-view';
 import { CommentBox } from './comment-box';
+import { DiffPicker } from './diff-picker';
 import { DraftEditor, useFileDraft } from './file-draft';
 import { InlineMd, MarkdownView } from './markdown-view';
+import { ModuleDiffView } from './module-diff-view';
 import { Invite, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
 import { CaseVerdict, MarkControl } from './validation';
@@ -79,6 +84,7 @@ const fr = {
   code: 'Code',
   show: 'Montrer',
   wholeFile: 'Voir le fichier',
+  sinceBase: 'Diff depuis la base de la branche',
 };
 const S: Record<VibeLang, typeof fr> = {
   fr,
@@ -117,6 +123,7 @@ const S: Record<VibeLang, typeof fr> = {
     code: 'Code',
     show: 'Show',
     wholeFile: 'View the file',
+    sinceBase: 'Diff since the branch base',
   },
 };
 type Labels = typeof fr;
@@ -194,21 +201,22 @@ export function InvariantsView(props: StepProps) {
                     {s.all}
                   </button>
                 ) : null}
-                {f.reading ? <Run a={read} busy={busy} tone={f.stale ? 'accent' : 'ghost'} label={s.reread} onRun={() => act.run('read-invariants', { file: f.id })} /> : null}
+                {f.reading ? <Run a={read} busy={busy} tone={f.stale ? 'accent' : 'ghost'} label={s.reread} onRun={() => act.run('read-invariants', { file: f.id })} />
+                  : <Run a={read} busy={busy} tone={read?.primary ? 'accent' : 'plain'} onRun={() => act.run('read-invariants')} />}
                 <button type="button" className="vc-mini" title={t.openTitle} onClick={() => act.open(f.id)}>{t.open}</button>
               </span>
             </div>
             {f.source ? review ? (
               <details className="vc-ifile-src">
                 <summary>{s.wholeFile}</summary>
-                <CodeView code={f.source} path={f.path} t={t} />
+                <FileOrDiff f={f} after={f.source} s={s} lang={view.lang}><CodeView code={f.source} path={f.path} t={t} /></FileOrDiff>
               </details>
             ) : (
               // onToggle part aussi quand open change par les props : seul l'écart est un geste.
               <details className="vc-ifile-src" open={f === file && shown?.title === null}
                 onToggle={(e) => { const now = e.currentTarget.open; if (now !== (f === file && shown?.title === null)) show(now ? { path: f.path, title: null } : null); }}>
                 <summary>{s.wholeFile}</summary>
-                {f === file && shown?.title === null ? editor() : null}
+                {f === file && shown?.title === null ? <FileOrDiff f={f} after={d.text ?? f.source} s={s} lang={view.lang}>{editor()}</FileOrDiff> : null}
               </details>
             ) : null}
             {casesOf(f).map((c, i) => (
@@ -221,7 +229,6 @@ export function InvariantsView(props: StepProps) {
                   view: () => editor(f.lines[i]),
                 }} />
             ))}
-            {f.reading ? null : <Run a={read} busy={busy} tone={read?.primary ? 'accent' : 'plain'} onRun={() => act.run('read-invariants')} />}
           </section>
         );
       })}
@@ -231,6 +238,21 @@ export function InvariantsView(props: StepProps) {
           {review || write?.hidden ? null : <MarkControl what="nothing" state={view.note?.nothingMark ?? null} review={false} lang={view.lang} onMark={(v) => act.mark('nothing', v)} />}
         </Invite>
       )}
+    </>
+  );
+}
+
+// Voir le fichier : un test que la branche modifie (f.base, son texte à la base), Fichier (children) · son diff
+// depuis la base, entier, en lecture seule ; ajouté (pas de f.base) : le fichier seul.
+function FileOrDiff({ f, after, s, lang, children }: { f: VibeTestFile; after: string; s: Labels; lang: VibeLang; children: ReactNode }) {
+  const [shown, setShown] = useState<'file' | 'base'>('file');
+  const [mode, setMode] = useState<'inline' | 'split'>('inline');
+  if (typeof f.base !== 'string') return children;
+  return (
+    <>
+      <DiffPicker<'base'> options={[{ key: 'base', label: s.sinceBase }]} shown={shown} onShown={setShown}
+        mode={shown === 'base' ? mode : null} onMode={setMode} lang={lang} />
+      {shown === 'base' ? <ModuleDiffView before={f.base} after={after} path={f.path} mode={mode} lang={lang} whole /> : children}
     </>
   );
 }

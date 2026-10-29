@@ -49,13 +49,11 @@
 .vc-ifile-progress { flex: none; display: inline-flex; align-items: center; gap: 8px; color: var(--vc-muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .vc-ifile-tools { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 
-/* Pas encore lu : ses cas, et Lire en pseudo-code. */
-
-/* Voir le fichier : tout son code, replié. */
+/* Voir le fichier : tout son code, replié ; un test modifié, le sélecteur Fichier · Diff. */
 .vc-ifile-src { margin: -4px 0 12px; }
 .vc-ifile-src > summary { width: max-content; color: var(--vc-muted); font-size: 12px; cursor: pointer; }
 .vc-ifile-src > summary:hover { color: var(--vc-text); }
-.vc-ifile-src > .vc-src { margin-top: 8px; }
+.vc-ifile-src > :is(.vc-src, .vc-mod-bar) { margin-top: 8px; }
 .vc-ifile-src > .vc-src .cm-editor { max-height: 420px; }
 
 /* ---- Un cas -------------------------------------------------------------------- */
