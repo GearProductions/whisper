@@ -25,6 +25,8 @@ const gitEnv = {
 
 export default defineConfig({
   test: {
+    // Les dossiers temporaires des tests : un par lancement, effacé à la fin.
+    globalSetup: ['tests/tmp-dir.ts'],
     projects: [
       { resolve: { alias: aliases('renderer') }, test: { name: 'pages', include: ['src/renderer/**/tests/**/*.test.ts'], environment: 'node', ...ci } },
       { resolve: { alias: aliases('main') }, test: { name: 'principal', include: ['src/main/**/tests/**/*.test.ts', 'tests/**/*.test.ts'], environment: 'node', env: gitEnv, ...ci } },
