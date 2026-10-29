@@ -1,4 +1,5 @@
-/** markdown-view — un texte Markdown rendu (note, sortie d'un skill) : les
+/** markdown-view — un texte Markdown rendu (note, sortie d'un skill, message
+ *  de l'agent) : les
  *  blocs de parseMarkdown en éléments — titres, paragraphes, listes et leurs
  *  cases, citations, code, tableaux, filets ; en ligne : code, gras,
  *  italique, liens. Rien n'est rendu en HTML (aucun dangerouslySetInnerHTML)
@@ -14,7 +15,8 @@
  *  InlineMd : un texte d'une ligne (réponse proposée, cas limite…) en ligne.
  *  Ne connaît pas : le pont (rappels passés).
  *  Utilisé par : les vues d'étape (note-view en Relire, questions-view, forme-view, invariants-view,
- *  modules-view, review-view, pr-view, branches-view, commits-view, ecran-view, draft-view, runs-view). */
+ *  modules-view, review-view, pr-view, branches-view, commits-view, ecran-view, draft-view, runs-view) ;
+ *  components (thread : un message de l'agent, sans onQuote ni onComment). */
 import { useMemo, useState, type ReactNode } from 'react';
 import { blockQuotes, parseInline, parseMarkdown, type Block, type Inline, type Strings } from 'core/vibecoder';
 import { CommentBox } from './comment-box';
