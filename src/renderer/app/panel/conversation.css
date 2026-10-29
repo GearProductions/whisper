@@ -156,6 +156,22 @@ header {
 .body[hidden], .context[hidden] { display: none; }
 .body a { color: #7fb0ff; text-decoration: underline; cursor: pointer; }
 .body a:hover { color: #a9c8ff; }
+/* Un message de l'agent en Markdown (thread → MarkdownView, règles .vc-md de
+   vibecoder.css). Hors de .vc (mode conversation), les variables dont il a
+   besoin, aux valeurs de .vc ; partout, le texte replié normalement et sans la
+   place du 💬 (le fil n'en a pas). */
+.body .vc-md:not(.vc *) {
+  --vc-text: #e6e8ee;
+  --vc-soft: #b8bdc8;
+  --vc-line: #2a3142;
+  --vc-edge: #3a4150;
+  --vc-code: #11141b;
+  --vc-link: #7fb0ff;
+  --vc-ok: #3fb950;
+  --vc-mono: ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace;
+}
+.body .vc-md { white-space: normal; }
+.body .vc-md :is(.vc-block, li) { padding-right: 0; }
 
 /* Pièces jointes d'un message : aperçus d'images, fichiers, texte sélectionné. */
 .attachments { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
@@ -255,21 +271,30 @@ header {
 /* Champ de saisie : écrire à l'agent affiché. */
 #composer { flex: none; padding: 10px 16px; border-top: 1px solid #2a3142; background: #1f2430; }
 #composer[hidden] { display: none; }
-#composer-row { display: flex; align-items: flex-end; gap: 8px; }
-#message {
-  flex: 1;
-  min-height: 36px;
-  max-height: 160px;
-  resize: none;
-  padding: 8px 10px;
+/* La rangée est le cadre du champ : la pièce jointe, le texte sans bordure, Envoyer. */
+#composer-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 6px 8px;
   border-radius: 8px;
   border: 1px solid #3a4150;
   background: #171b24;
+}
+#composer-row:focus-within { border-color: var(--accent); }
+#message {
+  flex: 1;
+  min-height: 22px;
+  max-height: 160px;
+  resize: none;
+  padding: 1px 2px;
+  border: 0;
+  background: transparent;
   color: #e6e8ee;
   font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Ubuntu, sans-serif;
   box-sizing: border-box;
 }
-#message:focus { outline: none; border-color: var(--accent); }
+#message:focus { outline: none; }
 #composer button {
   flex: none;
   height: 36px;
@@ -283,7 +308,19 @@ header {
 }
 #composer button:hover:not(:disabled) { border-color: var(--accent); }
 #composer button:disabled { opacity: 0.5; cursor: default; }
-#send { border-color: var(--accent) !important; background: color-mix(in srgb, var(--accent) 30%, #2a3142) !important; }
+#composer-row button {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #8a91a0;
+}
+#composer-row button:hover:not(:disabled) { background: #2a3142; color: #e6e8ee; }
+#send { color: var(--accent) !important; }
 #composer-status { font-size: 12px; color: #f08a8b; }
 #composer-status:not(:empty) { margin-top: 6px; }
 
