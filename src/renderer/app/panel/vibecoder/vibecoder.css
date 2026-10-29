@@ -5,7 +5,11 @@
    l'en-tête et Envoyer ; partout ailleurs --accent devient un accent neutre
    (--vc-accent) : un agent rouge ne fait pas croire à des erreurs. Tout est
    sous .vc : la vue conversation n'en voit rien (animations préfixées vc-
-   pour ne pas remplacer celles de conversation.css). */
+   pour ne pas remplacer celles de conversation.css). Sobre et dense : coins
+   --vc-radius, marges --vc-pad, bordures 1 px, ni dégradé ni halo ; boutons
+   de 22 px (.vc-mini texte, .vc-tool le bouton-icône d'IconButton, gris).
+   Ne connaît pas : les vues (leurs .css affinent), le pont.
+   Utilisé par : vibe-coder (importé), toutes les vues de vibecoder. */
 
 .vc {
   --vc-side: #1a1e28;
@@ -26,6 +30,8 @@
   --vc-accent: #8f99d6;
   --vc-agent: var(--accent);
   --vc-ring: color-mix(in srgb, var(--vc-accent) 70%, #fff);
+  --vc-radius: 4px;
+  --vc-pad: 12px; /* 16 px avant 0.13.0 : réduit d'un quart */
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
@@ -41,7 +47,7 @@
 .vc[data-conv="hidden"] { grid-template-columns: 248px minmax(0, 1fr) 0; }
 .vc[data-conv="hidden"] > .vc-conv { display: none; }
 .vc :is(button, a):focus-visible { outline: 2px solid var(--vc-ring); outline-offset: 1px; }
-.vc :is(.vc-seg button, .vc-icon, .vc-jstep, .vc-tab, .vc-skill, .vc-sitem, .vc-mini) {
+.vc :is(.vc-seg button, .vc-icon, .vc-tool, .vc-jstep, .vc-tab, .vc-skill, .vc-sitem, .vc-mini) {
   transition: background-color 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
 }
 .vc-mono { font-family: var(--vc-mono); }
@@ -80,9 +86,8 @@
   height: 10px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 }
-.vc-dot[data-busy] { animation: vc-glow 1.4s ease-in-out infinite; }
+.vc-dot[data-busy] { animation: vc-pulse 1.4s ease-in-out infinite; }
 .vc-name { flex: none; max-width: 45%; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vc-branch {
   min-width: 0;
@@ -109,14 +114,14 @@
 .vc-modes { display: flex; gap: 10px; }
 .vc-tools { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
 .vc-tools .vc-seg { margin-right: 8px; }
-.vc-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 7px; border: 1px solid var(--vc-line); background: var(--vc-code); }
+.vc-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--vc-radius); border: 1px solid var(--vc-line); background: var(--vc-code); }
 .vc-seg button {
-  padding: 0 12px;
+  padding: 0 9px;
   border: 0;
-  border-radius: 5px;
+  border-radius: 2px;
   background: transparent;
   color: var(--vc-muted);
-  font: 500 12px/22px system-ui, sans-serif;
+  font: 500 12px/20px system-ui, sans-serif;
   cursor: pointer;
 }
 .vc-seg button:hover { background: #1d2230; color: var(--vc-text); }
@@ -127,19 +132,22 @@
 }
 .vc-icon {
   flex: none;
-  width: 28px;
-  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--vc-radius);
   background: transparent;
   color: var(--vc-muted);
-  font: 15px/28px system-ui, sans-serif;
+  font: 15px/24px system-ui, sans-serif;
   cursor: pointer;
 }
 .vc-icon:hover { background: var(--vc-control); color: var(--vc-text); }
-.vc-icon > span { display: inline-block; }
-.vc-refresh { font-size: 17px; }
+.vc-icon svg { width: 16px; height: 16px; }
+.vc-icon > span { display: flex; }
 .vc-dev { margin-right: 6px; display: inline-flex; align-items: center; gap: 6px; }
 .vc-dev[data-restart] { border-color: color-mix(in srgb, #f0883e 55%, transparent); color: #f0883e; }
 .vc-dev-dot { width: 7px; height: 7px; border-radius: 50%; background: #f0883e; }
@@ -242,7 +250,6 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 .vc-commits .vc-none { padding: 3px 8px; color: var(--vc-faint); white-space: normal; }
 .vc-jcommit-detail { padding: 6px 8px 10px 22px; }
 .vc-jcommit-links { display: flex; gap: 6px; margin-bottom: 6px; }
-.vc-jcommit-links .vc-mini { height: 22px; padding: 0 8px; font-size: 11.5px; }
 .vc-jfiles { list-style: none; margin: 0; padding: 0; color: var(--vc-muted); font-size: 11px; line-height: 1.6; }
 .vc-jfiles button, .vc-commit-files button {
   display: block;
@@ -294,8 +301,8 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
   font-size: 13px;
 }
 .vc-error b { color: var(--vc-warn); font-weight: 600; }
-.vc-step { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 24px 36px 36px; }
-.vc-step-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; margin-bottom: 20px; }
+.vc-step { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 18px 27px 27px; }
+.vc-step-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; margin-bottom: 15px; }
 .vc-step-head h2 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
 .vc-badge { padding: 0 8px; border-radius: 9px; border: 1px solid var(--vc-edge); color: var(--vc-muted); font-size: 11px; line-height: 18px; }
 .vc-badge[data-status="done"] { color: var(--vc-ok); border-color: color-mix(in srgb, var(--vc-ok) 50%, transparent); }
@@ -319,24 +326,24 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
   line-height: 1.4;
 }
 .vc-vibe-banner > span { color: var(--accent); }
-.vc-card { margin: 0 0 20px; border: 1px solid rgba(255, 255, 255, 0.045); border-radius: 10px; background: #212634; overflow: hidden; }
+.vc-card { margin: 0 0 15px; border: 1px solid rgba(255, 255, 255, 0.045); border-radius: var(--vc-radius); background: #212634; overflow: hidden; }
 .vc-card-head {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 36px;
-  padding: 2px 10px 0 16px;
+  min-height: 30px;
+  padding: 2px 8px 0 var(--vc-pad);
   font-size: 12px;
 }
 .vc-card-title { min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vc-card-file { min-width: 0; color: var(--vc-faint); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vc-card-time { flex: none; margin-left: auto; padding-right: 4px; color: var(--vc-faint); }
-.vc-card-body { padding: 6px 16px 14px; }
+.vc-card-body { padding: 5px var(--vc-pad) 11px; }
 .vc-mini {
   flex: none;
-  height: 24px;
-  padding: 0 10px;
-  border-radius: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--vc-radius);
   border: 1px solid var(--vc-edge);
   background: var(--vc-control);
   color: var(--vc-text);
@@ -346,7 +353,27 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 }
 .vc-mini:hover { border-color: var(--accent); }
 .vc-mini[aria-pressed="true"] { border-color: var(--accent); }
-.vc-empty { padding: 28px 24px; border: 1px dashed var(--vc-edge); border-radius: 8px; color: var(--vc-muted); font-size: 13px; line-height: 1.6; text-align: center; }
+/* Le bouton-icône (IconButton) : sans cadre, gris. Survol et pressé sous
+   :where() : le .css d'une vue garde la main sur leurs couleurs (× rouge du brouillon). */
+.vc-tool {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--vc-radius);
+  background: transparent;
+  color: var(--vc-muted);
+  font: 13px/22px system-ui, sans-serif;
+  cursor: pointer;
+}
+.vc-tool svg { width: 14px; height: 14px; }
+.vc-tool:where(:hover, [aria-pressed="true"]) { background: var(--vc-control); color: var(--vc-text); }
+.vc-tool:disabled { opacity: 0.4; background: transparent; color: var(--vc-muted); cursor: default; }
+.vc-empty { padding: 21px 18px; border: 1px dashed var(--vc-edge); border-radius: var(--vc-radius); color: var(--vc-muted); font-size: 13px; line-height: 1.6; text-align: center; }
 
 /* ---- Markdown (note, sorties) -------------------------------------------- */
 .vc-md { color: #d5d9e1; font-size: 13.5px; line-height: 1.6; overflow-wrap: anywhere; }
@@ -411,22 +438,25 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
   position: absolute;
   top: 0;
   right: 0;
-  width: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
   height: 22px;
   padding: 0;
-  border: 1px solid transparent;
-  border-radius: 5px;
+  border: 0;
+  border-radius: var(--vc-radius);
   background: transparent;
-  font-size: 12px;
-  line-height: 20px;
+  color: var(--vc-muted);
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.12s, background-color 0.12s, border-color 0.12s;
+  transition: opacity 0.12s, background-color 0.12s, color 0.12s;
 }
 .vc-block:hover > .vc-quote, .vc-md li:hover:not(:has(li:hover)) > .vc-quote, .vc-quote:focus-visible { opacity: 1; }
 .vc-block:has(> .vc-quote):hover, .vc-md li:has(> .vc-quote):hover:not(:has(li:hover)) { border-radius: 4px; background: rgba(255, 255, 255, 0.03); }
-.vc-quote:hover { border-color: var(--vc-edge); background: var(--vc-control); }
-.vc-quote[aria-pressed="true"] { opacity: 1; border-color: var(--vc-edge); background: var(--vc-control); }
+.vc-quote svg { width: 14px; height: 14px; }
+.vc-quote:hover { background: var(--vc-control); color: var(--vc-text); }
+.vc-quote[aria-pressed="true"] { opacity: 1; background: var(--vc-control); color: var(--vc-text); }
 
 /* ---- Zone de commentaire (Relire) ------------------------------------------ */
 .vc-cbox { margin: 8px 0 4px; }
@@ -474,8 +504,9 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 /* ---- Conversation (colonne de droite) : celle du mode conversation -------- */
 .vc-conv { position: relative; grid-area: conv; min-width: 0; min-height: 0; display: flex; flex-direction: column; border-left: 1px solid var(--vc-line); background: #171b24; }
 /* La poignée, sur le bord gauche : glisser change la largeur. */
-.vc-resize { position: absolute; z-index: 5; top: 0; bottom: 0; left: -4px; width: 8px; cursor: col-resize; touch-action: none; }
-.vc-resize:hover, .vc-resize:active, .vc-resize:focus-visible { outline: none; background: linear-gradient(90deg, transparent 3px, color-mix(in srgb, var(--accent) 60%, transparent) 3px 5px, transparent 5px); }
+.vc-resize { position: absolute; z-index: 5; top: 0; bottom: 0; left: -4px; width: 8px; padding: 0 3px; box-sizing: border-box; background-clip: content-box; cursor: col-resize; touch-action: none; }
+/* Survolée : un trait plein de 2 px au milieu (le contenu), sans dégradé. */
+.vc-resize:hover, .vc-resize:active, .vc-resize:focus-visible { outline: none; background-color: color-mix(in srgb, var(--accent) 60%, transparent); }
 .vc-conv > .vc-band { background: var(--vc-side); }
 /* Ses onglets, Conversation (et son titre) | Tâches : ceux des étapes. */
 .vc-side-tabs { display: flex; min-width: 0; }
@@ -552,7 +583,7 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
   50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 0%, transparent); }
 }
-@keyframes vc-glow { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 10%, transparent); } }
+@keyframes vc-pulse { 50% { opacity: 0.35; } }
 @keyframes vc-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
   .vc *, .vc *::before, .vc *::after { animation: none !important; transition: none !important; }
@@ -566,7 +597,7 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 .vc-proc-name { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; padding: 4px 0; }
 .vc-proc-run { color: var(--vc-faint); font: 11px/1.4 var(--vc-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vc-proc .vc-card-time { margin-left: 0; }
-.vc-proc .vc-icon { width: 24px; height: 24px; font-size: 13px; line-height: 24px; }
+.vc-proc .vc-icon { font-size: 13px; }
 .vc-proc .vc-icon:disabled { color: var(--vc-faint); opacity: 0.45; cursor: default; background: none; }
 .vc-proc-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--vc-faint); }
 .vc-proc[data-status="running"] .vc-proc-dot { background: var(--vc-ok); }
@@ -635,10 +666,10 @@ li[data-status="todo"] .vc-jlabel { color: var(--vc-muted); }
 .vc-mod-bar { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
 .vc-mod-shown {
   display: block;
-  height: 24px;
+  height: 22px;
   padding: 0 8px;
   border: 1px solid var(--vc-edge);
-  border-radius: 6px;
+  border-radius: var(--vc-radius);
   outline: none;
   background: var(--vc-control);
   color: var(--vc-text);
