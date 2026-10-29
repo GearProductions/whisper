@@ -1,7 +1,7 @@
 /** modules-view — l'étape Modules (Créer). En tête, le commit proposé
  *  (commit.md : le message tel qu'il sera commité ; ✓ Commiter, direct ou
- *  via l'agent, F-114 ; 💬, Relancer)
- *  et la relecture du dernier diff (review.md, 💬 par bloc, Relancer). Puis une ligne par
+ *  via l'agent, F-114 ; IconButton comment le cite, Relancer)
+ *  et la relecture du dernier diff (review.md, citer par bloc, Relancer). Puis une ligne par
  *  module de la Forme : point plein s'il est touché (vert : commité ; accent :
  *  modifié, pas encore commité), anneau sinon ; nom en gras, dossier atténué,
  *  contrat ; les commits qui le touchent en puces (un clic : son diff dans
@@ -16,6 +16,7 @@
 import { useState } from 'react';
 import { fileParts, moduleCommits } from 'core/vibecoder';
 import type { VibeLang, VibeModule } from 'technicals/bridge';
+import { IconButton } from './icons';
 import { MarkdownView } from './markdown-view';
 import { ModuleCode } from './module-code';
 import { Invite, OutputCard, Run, StepHead } from './step-parts';
@@ -83,8 +84,7 @@ export function ModulesView(p: StepProps) {
         <OutputCard className="vc-proposed" title={t.outputs['commit.md']} file="commit.md" time={commit.time} t={t}
           tools={(
             <>
-              {quote ? <button type="button" className="vc-tool" title={s.quoteCommit} aria-label={s.quoteCommit}
-                onClick={() => quote(commit.text.trim().split('\n')[0])}>💬</button> : null}
+              {quote ? <IconButton icon="comment" label={s.quoteCommit} onClick={() => quote(commit.text.trim().split('\n')[0])} /> : null}
               <Run a={action('commit-prepare')} busy={busy} tone="ghost" label={t.rerun} onRun={() => act.run('commit-prepare')} />
             </>
           )}>
