@@ -5,17 +5,21 @@
  *  interrompt les agents et on attend la fin de leurs tours (I-11, I-19) ;
  *  les processus lancés par l'onglet Processus de VibeCoder sont arrêtés.
  *  Au lancement, les familles d'agents sont relues par git (syncFamilies).
+ *  Le schéma vibe-artifact (les artefacts de VibeCoder, F-95) : déclaré
+ *  avant ready, servi à ready (resolveArtifact).
  *  Ne connaît pas : le détail des fenêtres et des contrôleurs.
  *  Utilisé par : src/main/index.ts. */
 import { app, session } from 'electron';
 import { startupPatch } from 'core/config';
+import { ARTIFACT_SCHEME } from 'core/vibecoder';
 import { allowPermission, allowPermissionCheck } from 'core/guards';
+import { registerScheme, serveFiles } from 'technicals/file-scheme';
 import { binDir } from 'technicals/paths';
 import * as paste from 'technicals/paste';
 import * as tts from 'technicals/pocket-tts';
 import * as windows from 'technicals/windows-helper';
 import {
-  agents, ensureFolderColors, ensureModel, muter, pollSpeak, processesRunning, pushAgents, resetSpeakState, SPEAK_POLL_MS, startHealing,
+  agents, ensureFolderColors, ensureModel, muter, pollSpeak, processesRunning, pushAgents, resetSpeakState, resolveArtifact, SPEAK_POLL_MS, startHealing,
   stopProcesses, syncFamilies,
 } from 'app/controllers';
 import { registerIpc } from 'app/ipc';
@@ -38,9 +42,11 @@ export function start() {
   if (process.platform === 'linux') app.commandLine.appendSwitch('enable-transparent-visuals');
   if (!app.requestSingleInstanceLock()) app.quit();
   registerIpc();
+  registerScheme(ARTIFACT_SCHEME);
 
   app.whenReady().then(() => {
     setupPermissions(session.defaultSession);
+    serveFiles(ARTIFACT_SCHEME, resolveArtifact);
     createIconWindow(() => { resetSpeakState(); pushAgents(); });
     createBubble();
     ensureFolderColors();

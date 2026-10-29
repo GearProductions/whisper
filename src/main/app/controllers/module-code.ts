@@ -13,6 +13,12 @@
  *  le relevé, que codeLock (recalculé ici, sans se fier à la page : isBusy,
  *  lockingRuns ; sans module, la note ou un test, toute course retient) ne le
  *  grise pas et qu'il existe déjà (exception à I-39), puis refreshVibe.
+ *  Un artefact `a<i>` du dernier relevé, markdown ou text (artifactFile ; une
+ *  page, un media : null poussé, rien lu) : suivi de même, sans at, lu par un
+ *  descripteur jusqu'à cfg.artifactTextMax octets, jamais au-delà, décodé en
+ *  UTF-8 (un binaire compris), truncated s'il est plus long ; relu par
+ *  artifactFile à chaque poussée (sorti du relevé, devenu lien : text null) ;
+ *  saveCode le refuse (ce n'est pas un codeFile).
  *  Ne connaît pas : la page (seulement ses canaux) ; git (technicals/git). La fenêtre : seulement
  *  state.panel pour pousser conv:vibeCode, comme controllers/vibecoder pour
  *  conv:vibe (aucun assistant d'envoi au panneau n'existe).
@@ -21,7 +27,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { SendResult, VibeCode, VibeLang } from 'shared/bridge';
 import { vibeLang } from 'core/config';
-import { codeFile, codeLock, safePath } from 'core/vibecoder';
+import { artifactOf, codeFile, codeLock, safePath } from 'core/vibecoder';
+import { artifactFile } from './artifacts';
 import { gitReader, gitRun } from 'technicals/git';
 import { loadConfig } from 'app/settings';
 import { state } from 'app/state';
@@ -35,8 +42,10 @@ const ERRORS: Record<VibeLang, Record<'file' | 'text' | 'write', string>> = {
   en: { file: 'This file is no longer shown.', text: 'Invalid or too large text.', write: 'Could not save.' },
 };
 
-// Le fichier suivi : l'agent, l'id, son chemin dans le dépôt, son veilleur.
-let followed: { agentId: string; id: string; rel: string; module: boolean; watcher: fs.FSWatcher | null } | null = null;
+// Le fichier suivi : l'agent, l'id, son chemin dans le dépôt (d'un artefact : son
+// chemin absolu, artifact vrai), son veilleur.
+type Followed = { agentId: string; id: string; rel: string; module: boolean; artifact: boolean; watcher: fs.FSWatcher | null };
+let followed: Followed | null = null;
 
 const push = (code: VibeCode | null) => {
   if (state.panel && !state.panel.isDestroyed()) state.panel.webContents.send('conv:vibeCode', code);
@@ -55,6 +64,20 @@ async function versions(dir: string, agentId: string, rel: string): Promise<NonN
   return { base: small(atBase), head: small(atHead) };
 }
 
+// Le début d'un fichier ordinaire, au plus `max` octets, par un descripteur (jamais
+// le fichier entier) ; truncated s'il est plus long ; null s'il ne se lit pas.
+function readHead(file: string, max: number) {
+  let fd: number | null = null;
+  try {
+    fd = fs.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0));
+    const st = fs.fstatSync(fd);
+    if (!st.isFile()) return null;
+    const buf = Buffer.alloc(Math.min(st.size, max));
+    const n = fs.readSync(fd, buf, 0, buf.length, 0);
+    return { text: buf.toString('utf8', 0, n), time: st.mtimeMs, truncated: st.size > max };
+  } catch { return null; } finally { if (fd !== null) fs.closeSync(fd); }
+}
+
 // Pousse le fichier suivi : son texte (null : trop gros, illisible, sorti du
 // dossier) et, d'un module, ses versions. Seule la dernière lancée pousse
 // (des lectures git plus lentes ne passent pas derrière), le disque lu après git.
@@ -63,11 +86,22 @@ async function pushFollowed(dir: string) {
   const me = followed;
   if (!me) return;
   const n = ++pushes;
+  if (me.artifact) {
+    const read = textArtifact(me.agentId, me.id) === me.rel ? readHead(me.rel, loadConfig().artifactTextMax) : null;
+    push({ id: me.id, text: read?.text ?? null, time: read?.time ?? 0, ...(read?.truncated && { truncated: true }) });
+    return;
+  }
   const at = me.module && fileOf(dir, me.rel) ? await versions(dir, me.agentId, me.rel) : undefined;
   if (followed !== me || n !== pushes) return;
   const file = fileOf(dir, me.rel);
   const read = file ? readTimed(file) : null;
   push({ id: me.id, text: read?.text ?? null, time: read?.time ?? 0, ...(at && read && { at }) });
+}
+
+// Un artefact en texte (markdown, text) du dernier relevé : son fichier ; sinon null.
+function textArtifact(agentId: string, id: string) {
+  const a = artifactOf(lastView(agentId), id);
+  return a?.kind === 'markdown' || a?.kind === 'text' ? artifactFile(agentId, a) : null;
 }
 
 // Suit le fichier de cet id (null : ne plus suivre).
@@ -76,10 +110,11 @@ export function followCode(id: unknown): void {
   followed = null;
   if (id === null) return;
   const agent = vibeAgent();
-  const found = agent && typeof id === 'string' ? codeFile(lastView(agent.id), id) : null;
-  const file = found && fileOf(agent!.dir, found.path);
-  if (!agent || !found || !file) { push(null); return; }
-  const me = { agentId: agent.id, id: id as string, rel: found.path, module: found.module !== null, watcher: null as fs.FSWatcher | null };
+  if (!agent || typeof id !== 'string') { push(null); return; }
+  const found = codeFile(lastView(agent.id), id);
+  const file = found ? fileOf(agent.dir, found.path) : textArtifact(agent.id, id);
+  if (!file) { push(null); return; }
+  const me: Followed = { agentId: agent.id, id, rel: found?.path ?? file, module: !!found?.module, artifact: !found, watcher: null };
   followed = me;
   try {
     const name = path.basename(file);

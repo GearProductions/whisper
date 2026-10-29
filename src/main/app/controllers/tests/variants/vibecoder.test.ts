@@ -145,6 +145,12 @@ vi.mock('app/controllers/worktrees', async (original) => ({
   },
 }));
 
+// Copier un artefact : relevé, puis une erreur inattendue (un droit d'écriture manquant…) ; le reste, vrai.
+vi.mock('app/controllers/artifacts', async (original) => ({
+  ...await original<typeof import('app/controllers/artifacts')>(),
+  copyArtifact: async (a: { id: string }, id: string) => { fake.calls.push(['copyArtifact', a.id, id]); throw new Error('EACCES: permission denied'); },
+}));
+
 // Les courses : vraies ; runsTab relevé au passage.
 vi.mock('app/controllers/runs', async (original) => {
   const runs = await original<typeof import('app/controllers/runs')>();
@@ -975,5 +981,28 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     write(path.join(out, 'new-request.json'), JSON.stringify({ branch: 'feat/0.13.0-bouton' }));
     await refreshVibe({ now: true });
     expect((lastView('a1') as unknown as JourneyInput).request).toBe('feat/0.13.0-bouton');
+  });
+});
+
+describe('0.13.0 : les artefacts', () => {
+  beforeEach(() => {
+    write(path.join(fake.userData, 'vibecoder', 'actions.fr.json'), JSON.stringify([
+      { id: 'copy-artifact', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Copier dans le projet', text: 'copier' },
+    ]));
+    write(path.join(out, 'artifacts', 'notes.md'), '# notes\n');
+  });
+  const directOf = async () => ((await import('app/controllers')).lastView('a1') as unknown as JourneyInput | null)?.direct?.['copy-artifact'];
+
+  it('copy-artifact : jamais à l’agent, ni sans le clic, ni sans un id du relevé ; une erreur de la copie rendue au relevé', async () => {
+    const { view } = await open();
+    const { runVibeAction } = await import('app/controllers');
+    const id = (view() as unknown as { artifacts: { id: string; name: string }[] }).artifacts.find((a) => a.name === 'notes.md')!.id;
+    expect(runVibeAction('copy-artifact', { artifact: id })).toMatchObject({ ok: false });
+    expect(runVibeAction('copy-artifact', { direct: true })).toMatchObject({ ok: false });
+    expect(runVibeAction('copy-artifact', { direct: true, artifact: 'notes.md' })).toMatchObject({ ok: false });
+    expect(runVibeAction('copy-artifact', { direct: true, artifact: id })).toEqual({ ok: true });
+    for (let i = 0; i < 60 && (await directOf())?.running !== false; i++) await settle();
+    expect((await directOf())?.last).toMatchObject({ ok: false, line: 'EACCES: permission denied' });
+    expect([fake.calls, fake.messages]).toEqual([[['copyArtifact', 'a1', id]], []]);
   });
 });
