@@ -103,5 +103,4 @@ button.vc-ccount:hover, button.vc-ccount[aria-expanded="true"] { background: var
 .vc-crumbs .fixup .vc-jcommit span { color: var(--vc-warn); }
 .vc-crumbs .vc-jcommit-detail { padding: 6px 8px 10px 22px; }
 .vc-crumbs .vc-jcommit-links { display: flex; gap: 6px; margin-bottom: 6px; }
-.vc-crumbs .vc-jfiles { list-style: none; margin: 0; padding: 0; color: var(--vc-muted); font-size: 11px; line-height: 1.6; }
 .vc-crumbs .vc-jfiles li { padding: 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
