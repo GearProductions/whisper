@@ -6,7 +6,7 @@
  *  arrêtée : Garder / Annuler ; sa réponse (Markdown), repliée, dépliable.
  *  Une course se désigne par l'id de son action, jamais par un texte.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
-import { duration, type Strings } from 'core/vibecoder';
+import { duration, isRunning, type Strings } from 'core/vibecoder';
 import type { VibeRun, VibeRunOp } from 'technicals/bridge';
 import { Icon } from './icons';
 import { MarkdownView } from './markdown-view';
@@ -24,7 +24,7 @@ export function RunsView({ runs, t, onRunOp, onOpenLink }: Props) {
 }
 
 function Row({ r, t, onOp, onOpenLink }: { r: VibeRun; t: Strings; onOp(op: VibeRunOp): void; onOpenLink(url: string): void }) {
-  const working = r.state === 'running' || r.state === 'asking';
+  const working = isRunning(r);
   const when = working ? t.runFor(duration(Date.now() - r.since)) : t.ago(Date.now() - (r.end ?? r.since));
   const button = (op: VibeRunOp, label: string, title: string, tone: 'accent' | 'plain' | 'ghost' = 'plain') => (
     <button type="button" className="vc-run" data-tone={tone} title={title} onClick={() => onOp(op)}>{label}</button>
