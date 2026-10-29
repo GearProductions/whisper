@@ -77,6 +77,20 @@ npm run test:front-diff -- v0.4.0    # pages comparées à une version : mêmes 
 npm run test:main-diff -- v0.5.0-rc.1  # appli réelle comparée à une version : mêmes résultats
 ```
 
+**Itérer sur l'interface sans arrêter les agents.** Lancée depuis les sources
+(`app.isPackaged` faux), l'appli montre un bouton **Recharger l'interface**
+dans l'en-tête de VibeCoder, à côté de FR / EN : il recharge les fenêtres avec
+les pages de `out/renderer`, sans redémarrer le principal ; les agents et
+leurs tours continuent. Pour que les pages suivent les sources, les
+reconstruire en continu à côté de l'appli :
+
+```bash
+npx vite build --watch   # les pages (src/renderer) reconstruites à chaque enregistrement
+```
+
+Un changement du principal (`src/main`) demande de relancer l'appli. La
+version publiée n'a pas ce bouton.
+
 ### whisper.cpp (depuis les sources)
 
 `npm run build:whisper` compile whisper-cli dans `resources/bin/` (git, cmake,
