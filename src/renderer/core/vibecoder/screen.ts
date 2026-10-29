@@ -5,9 +5,10 @@
  *  action en sous-contexte (le conseillé par défaut ; un autre
  *  seulement s'il est des siens, et envoyé seulement s'il diffère du
  *  conseillé) ; la largeur de la colonne de la conversation (300 px au moins,
- *  60 % de l'écran au plus) ; les actions qui tournent (runningRuns : en
+ *  60 % de l'écran au plus) ; les actions qui tournent (isRunning, runningRuns : en
  *  cours ou en attente d'autorisation, ni arrêtées ni finies).
- *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (vibe-coder, model-pick, step-parts, status-bar). */
+ *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (vibe-coder, model-pick, step-parts, status-bar ;
+ *  runs-view : isRunning). */
 import type { VibeAction, VibeRun, VibeStep, VibeView } from 'technicals/bridge';
 
 export type ModelPicks = Record<string, string>;   // par id d'action, le modèle choisi
@@ -49,7 +50,10 @@ export function stepActions(view: VibeView, step: VibeStep, own: string[]): Step
     .sort((x, y) => rank[x.tone] - rank[y.tone]);
 }
 
-// Les actions qui tournent (en cours ou qui attendent une autorisation), dans l'ordre reçu.
+// Une action qui tourne : en cours ou qui attend une autorisation.
+export const isRunning = (r: VibeRun) => r.state === 'running' || r.state === 'asking';
+
+// Les actions qui tournent, dans l'ordre reçu.
 export function runningRuns(runs: VibeRun[]): VibeRun[] {
-  return runs.filter((r) => r.state === 'running' || r.state === 'asking');
+  return runs.filter(isRunning);
 }
