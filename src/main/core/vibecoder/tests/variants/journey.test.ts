@@ -529,9 +529,9 @@ describe('le relevé : modules, tests, faits', () => {
   it('un module de la Forme sans src/ : trouvé sous src/, touché par les fichiers de la branche', () => {
     const text = '# x\n\n## Ce que ça fait\nx\n\n## Forme\nmain/core/x/   pur\n';
     const v = vibeView(input({ note: { ...note, text }, repo: repo([], [commit('e', 'core/x', ['src/main/core/x/a.ts'])]),
-      exists: (p) => p === 'src/main/core/x' }));
+      exists: (p) => p.startsWith('src/main/core/x') }));
     expect(v.modules[0]).toEqual({ path: 'main/core/x/', contract: 'pur', file: { id: 'm0', path: 'src/main/core/x' }, touched: true, commits: ['e'.repeat(40)],
-      files: [], locked: null, uncommitted: false });
+      files: [{ id: 'm0/0', path: 'src/main/core/x/a.ts' }], locked: null, uncommitted: false });
   });
 
   it('un module introuvable n\'a pas de fichier', () => {
@@ -615,6 +615,12 @@ describe('rc.2 : modèle au choix, PR fermée, fichiers des commits', () => {
   it('un test d\'invariant trop long (plus de 200 000 caractères) : son texte n\'est pas montré', () => {
     const big = { ...test, text: `${TEST}//${'x'.repeat(200_000)}` };
     expect(vibeView(input({ tests: [big] })).invariants[0]).toMatchObject({ cases: ['dit bonjour', 'ne lit rien d\'autre'], source: '' });
+  });
+
+  it('le texte d\'un test à la base, passé tel quel ; absent (ajouté par la branche) ou plus de 200 000 caractères : null', () => {
+    expect(vibeView(input({ tests: [{ ...test, base: 'avant' }] })).invariants[0].base).toBe('avant');
+    expect(vibeView(input({ tests: [test] })).invariants[0].base).toBeNull();
+    expect(vibeView(input({ tests: [{ ...test, base: 'x'.repeat(200_001) }] })).invariants[0].base).toBeNull();
   });
 
   it('chaque commit, avec ses fichiers', () => {
@@ -988,18 +994,19 @@ describe('l\'étape Invariants, sans invariant et sans lecture (0.9.0-rc.4)', ()
 });
 
 describe('Voir le code : les fichiers d\'un module et pourquoi il est grisé (0.11.0)', () => {
-  const list = (rel: string) => [`${rel}/z.ts`, `${rel}/a.ts`];
   const modules = (over: Partial<JourneyInput> = {}) =>
-    vibeView(ready({ repo: repo(['src/core/hello.ts'], [FIRST]), exists: () => true, list, ...over })).modules;
+    vibeView(ready({ repo: repo(['src/core/hello.ts/z.ts', 'src/core/hello.ts/a.ts', 'src/core/other.ts'], [FIRST]), exists: () => true, ...over })).modules;
 
-  it('un module touché : ses fichiers d\'après list, triés, ids m<rang>/<i> ; pas touché : aucun', () => {
+  it('un module touché : ses fichiers que la branche change, sous son chemin, triés, ids m<rang>/<i> ; pas touché : aucun', () => {
     const [hello, button] = modules();
     expect(hello.files).toEqual([{ id: 'm0/0', path: 'src/core/hello.ts/a.ts' }, { id: 'm0/1', path: 'src/core/hello.ts/z.ts' }]);
     expect(button.files).toEqual([]);
   });
 
-  it('sans list (relevé d\'avant la 0.11.0) : aucun fichier', () => {
-    expect(modules({ list: undefined })[0].files).toEqual([]);
+  it('un fichier changé absent du disque : deleted (le dossier du module supprimé compris)', () => {
+    expect(modules({ exists: (p) => p !== 'src/core/hello.ts/z.ts' })[0].files)
+      .toEqual([{ id: 'm0/0', path: 'src/core/hello.ts/a.ts' }, { id: 'm0/1', path: 'src/core/hello.ts/z.ts', deleted: true }]);
+    expect(modules({ exists: () => false })[0].files?.map((f) => f.deleted)).toEqual([true, true]);
   });
 
   it('locked : la conversation travaille, une course génère ce module ou tous ; sinon éditable', () => {
