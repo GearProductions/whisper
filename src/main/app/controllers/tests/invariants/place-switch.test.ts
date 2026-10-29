@@ -11,6 +11,9 @@
 //   Note 0.12.0 docs/tickets/feat/0.12.0-gestion-des-branches.md, même ligne :
 //   aller sur une branche locale depuis la vue des branches (switch-branch)
 //   est un changement de branche de plus, relu de même au clic.
+//   Même note : « Changer la branche d'un worktree (enfant ou robot) : aller
+//   sur une branche, charger une PR, revenir sur la base, créer une branche
+//   ici. Le principal le refuse, quel que soit l'écran. »
 // Sur le vrai principal (contrôleurs, réglages et fichiers sur disque, git réel
 // sur un dépôt d'essai et son origin, un dépôt nu local) ; faux : Electron
 // (fenêtres, boîte de dialogue), le SDK de Claude Code (le tour finit aussitôt,
@@ -291,5 +294,90 @@ describe.skipIf(process.platform === 'win32')('Aller sur une branche (switch-bra
     expect(branch()).toBe('main');
     // la modification est toujours là
     expect(fs.readFileSync(path.join(repo, 'a.txt'), 'utf8')).toBe('modifié\n');
+  }, 20000);
+});
+
+describe.skipIf(process.platform === 'win32')('Un worktree (enfant ou robot) ne change jamais de branche', () => {
+  // Note 0.12.0 docs/tickets/feat/0.12.0-gestion-des-branches.md, « Ce que ça ne doit pas faire » :
+  // « Changer la branche d'un worktree (enfant ou robot) : aller sur une branche, charger une PR, revenir
+  // sur la base, créer une branche ici. Le principal le refuse, quel que soit l'écran. »
+  // a0 : le dépôt ; a1 : son enfant, dans un vrai worktree (git worktree add).
+  let wt = '';
+  const asChild = (vibe: object, pr?: number) => write(path.join(root, 'config.json'), JSON.stringify({
+    agentsEnabled: true,
+    vibeCommandPrefix: `"${process.execPath}" "${path.join(root, 'faux-prefixe.cjs')}"`,
+    agents: [
+      { id: 'a0', dir: repo, name: 'projet', model: 'opus', effort: 'high', mode: 'default', sessionId: null },
+      { id: 'a1', dir: wt, name: pr ? `PR #${pr}` : 'enfant', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder', vibe,
+        parent: pr ? { id: 'a0', pr } : { id: 'a0' } },
+    ],
+  }));
+  const wtBranch = () => git(wt, 'rev-parse', '--abbrev-ref', 'HEAD');
+  const heads = () => git(repo, 'for-each-ref', '--format=%(refname:short)', 'refs/heads/');
+  // Le relevé connaît les branches locales (lues en fond) : un refus vient du worktree, pas d'une branche inconnue.
+  const branchesRead = async () => {
+    const { lastView } = await import('app/controllers');
+    await until(() => (lastView('a1')?.branches?.length ?? 0) > 1);
+    expect(lastView('a1')?.branches?.length).toBeGreaterThan(1);
+  };
+  // Un clic, puis plus aucune action directe en cours : le refus du suivant n'est pas « une autre en cours ».
+  const clickDone = async (id: string, args: object = {}) => {
+    const r = await click(id, args);
+    const { lastView } = await import('app/controllers');
+    await wait(300);
+    await until(() => !lastView('a1')?.actions.some((a) => a.direct?.running));
+    return r;
+  };
+  beforeEach(() => {
+    wt = path.join(root, 'worktree');
+    git(repo, 'branch', '-q', 'feat/x', 'origin/feat/x');
+  });
+
+  it('l’enfant d’une demande : aller sur une branche, créer une branche ici ou dans un worktree, charger une PR, revenir sur la base → refusés, rien ne bouge', async () => {
+    git(repo, 'worktree', 'add', '-q', '-b', 'feat/enfant', wt, 'main');
+    asChild({ flow: 'create', autonomy: 'guide' });
+    await openPanel();
+    await branchesRead();
+    const before = heads();
+
+    const answers = [
+      await clickDone('switch-branch', { branch: 'feat/x' }),
+      await clickDone('new-here', { branch: 'feat/nouvelle' }),
+      await clickDone('new-worktree', { branch: 'feat/autre' }),
+      await clickDone('load-pr', { pr: 7 }),
+      await clickDone('unload-pr'),
+    ];
+    await wait(2000);
+
+    // chaque clic refusé
+    expect(answers.map((a) => a.ok)).toEqual([false, false, false, false, false]);
+    // toujours sur sa branche, aucune branche créée
+    expect(wtBranch()).toBe('feat/enfant');
+    expect(heads()).toBe(before);
+  }, 20000);
+
+  it('le robot d’une PR : aller sur une branche, charger une autre PR, la PR ici, revenir sur la base → refusés, rien ne bouge', async () => {
+    git(repo, 'worktree', 'add', '-q', '-b', 'pr-7', wt, 'origin/feat/x');
+    // le worktree de la PR, chez le parent (sans lui, le robot est retiré) ; la fiche de la PR, chez le robot
+    write(path.join(root, 'vibecoder-out', 'a0', 'pr-7-worktree.json'), JSON.stringify({ dir: wt, branch: 'pr-7' }));
+    write(path.join(root, 'vibecoder-out', 'a1', 'pr-7.json'), JSON.stringify({ number: 7, title: 'Essai', url: 'u', author: 'bob', base: 'main', head: 'feat/x', body: '', state: 'OPEN' }));
+    asChild({ flow: 'review', autonomy: 'guide', pr: 7 }, 7);
+    await openPanel();
+    await branchesRead();
+    const before = heads();
+
+    const answers = [
+      await clickDone('switch-branch', { branch: 'feat/x' }),
+      await clickDone('load-pr', { pr: 8 }),
+      await clickDone('pr-here'),
+      await clickDone('unload-pr'),
+    ];
+    await wait(2000);
+
+    // chaque clic refusé
+    expect(answers.map((a) => a.ok)).toEqual([false, false, false, false]);
+    // toujours sur la branche du robot, aucune branche créée
+    expect(wtBranch()).toBe('pr-7');
+    expect(heads()).toBe(before);
   }, 20000);
 });
