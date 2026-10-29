@@ -12,7 +12,7 @@ const page = document.createElement('div');
 document.body.append(page);
 const root = createRoot(page);
 const NAMES: IconName[] = ['close', 'open', 'external', 'diff', 'comment', 'ok', 'ko', 'warn', 'stop', 'play', 'refresh',
-  'edit', 'pull', 'push', 'rebase'];
+  'edit', 'pull', 'push', 'rebase', 'attach', 'send'];
 const paths = (svg: Element) => [...svg.querySelectorAll('path')].map((p) => p.getAttribute('d'));
 
 it('Icon et iconElement : le même dessin, 16×16, aria-hidden, currentColor', async () => {

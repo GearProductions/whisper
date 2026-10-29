@@ -6,10 +6,12 @@
  *  le bouton-icône (classe vc-tool, vibecoder.css), son libellé en title et
  *  aria-label, pressed → aria-pressed.
  *  Ne connaît pas : le pont, le relevé, le métier ; aucune dépendance.
- *  Utilisé par : les vues de vibecoder, note-editor. */
+ *  Utilisé par : les vues de vibecoder, note-editor ; components (composer :
+ *  attach, send). */
 
 export type IconName = 'close' | 'open' | 'external' | 'diff' | 'comment' | 'ok' | 'ko' | 'warn'
-  | 'stop' | 'play' | 'refresh' | 'edit' | 'pull' | 'push' | 'rebase';
+  | 'stop' | 'play' | 'refresh' | 'edit' | 'pull' | 'push' | 'rebase'
+  | 'attach' | 'send';
 
 const X = ['M4 4l8 8', 'M12 4l-8 8'];
 const PATHS: Record<IconName, string[]> = {
@@ -28,6 +30,8 @@ const PATHS: Record<IconName, string[]> = {
   pull: ['M8 2v9', 'M4.5 7.5L8 11l3.5-3.5', 'M3 14h10'],
   push: ['M8 14V5', 'M4.5 8.5L8 5l3.5 3.5', 'M3 2h10'],
   rebase: ['M4 14V2', 'M4 10c0-4 8-3 8-7', 'M9.5 3.5L12 2.5l1 2.5'],
+  attach: ['M13.5 7.5l-5.6 5.6a3.5 3.5 0 0 1-5-5l5.9-5.9a2.3 2.3 0 0 1 3.3 3.3L6.2 11.4a1.1 1.1 0 0 1-1.6-1.6l5.2-5.2'],
+  send: ['M3 8h10', 'M9 4l4 4-4 4'],
 };
 
 export function Icon({ name }: { name: IconName }) {
