@@ -1,6 +1,6 @@
-/** artifacts-view — le panneau Artefacts (F-94, F-95), les deux cases de
- *  gauche et du centre de l'écran (.vc-journey, .vc-center : vibe-coder le met
- *  à la place du parcours et de l'étape). À gauche la liste (nom, taille ;
+/** artifacts-view — le panneau Artefacts (F-94, F-95), au centre de l'écran
+ *  (.vc-art-side, .vc-center : vibe-coder le met à la place du fil d'Ariane
+ *  et de l'étape). À gauche la liste (nom, taille ;
  *  vide → ce que le skill fait, en une ligne) ; au centre l'artefact choisi :
  *  markdown → MarkdownView, text → CodeView en lecture seule (le texte reçu
  *  par `code`, VibeCode de son id), « fichier tronqué » si truncated ; page →
@@ -49,7 +49,7 @@ export function ArtifactsView({ artifacts, lang, code, onChoose, onOpen, onCopy 
   const text = art && code?.id === art.id ? code : null;
   return (
     <>
-      <nav className="vc-journey scroll" aria-label={t.artifacts}>
+      <nav className="vc-art-side scroll" aria-label={t.artifacts}>
         <div className="vc-side-title vc-band"><span>{t.artifacts}</span><span>{artifacts.length || ''}</span></div>
         <ul className="vc-art-list">
           {artifacts.length ? artifacts.map((a) => (

@@ -161,17 +161,17 @@
 .vc-close { border-radius: 50%; font-size: 18px; }
 .vc-spin { animation: vc-spin 0.6s ease-out; }
 
-/* ---- Le panneau Artefacts : au centre, sa liste à gauche (.vc-journey) et l'artefact ---- */
+/* ---- Le panneau Artefacts : au centre, sa liste à gauche (.vc-art-side) et l'artefact ---- */
 .vc-arts { grid-area: main; min-width: 0; min-height: 0; display: grid; grid-template-columns: 248px minmax(0, 1fr); }
 .vc-arts > * { grid-area: auto; }
-.vc-journey {
+.vc-art-side {
   min-height: 0;
   overflow-y: auto;
   padding-bottom: 16px;
   background: var(--vc-side);
   border-right: 1px solid var(--vc-line);
 }
-.vc-journey > .vc-band { position: sticky; top: 0; z-index: 2; margin-bottom: 8px; background: var(--vc-side); }
+.vc-art-side > .vc-band { position: sticky; top: 0; z-index: 2; margin-bottom: 8px; background: var(--vc-side); }
 
 /* Les fichiers d'un module (module-code) et d'un commit (commits-view). */
 .vc-jfiles { list-style: none; margin: 0; padding: 0; color: var(--vc-muted); font-size: 11px; line-height: 1.6; }
