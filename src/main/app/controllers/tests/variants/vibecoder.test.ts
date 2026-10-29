@@ -21,9 +21,7 @@ const fake = vi.hoisted(() => {
     webContents = {
       send: (ch: string, payload?: unknown) => { this.sent.push([ch, payload]); },
       on: () => {}, setWindowOpenHandler: () => {},
-      reloadIgnoringCache: () => { this.reloads++; },
     };
-    reloads = 0;
     on(ev: string, fn: Handler) { this.handlers.set(ev, [...(this.handlers.get(ev) || []), fn]); return this; }
     once(ev: string, fn: Handler) { return this.on(ev, fn); }
     emit(ev: string) { for (const fn of this.handlers.get(ev) || []) fn(); }
@@ -38,15 +36,23 @@ const fake = vi.hoisted(() => {
     shown: null as string | null, diff: null as string | null, edited: [] as unknown[][], opened: [] as string[],
     tabs: [] as (string | null)[], steps: [] as { id: string; status: string }[],
     git: (() => null) as (args: string[]) => string | null, calls: [] as unknown[][], noChild: false,
-    branches: null as string[] | null, synced: [] as string[], prs: null as unknown, login: 'moi' as string | null, packaged: false,
+    branches: null as string[] | null, synced: [] as string[], prs: null as unknown, login: 'moi' as string | null,
+    dev: null as 'reload' | 'restart' | null, answer: 0, busy: false, release: (() => {}) as (v?: unknown) => void,
   };
 });
 
 vi.mock('electron', () => ({
-  app: { getPath: () => fake.userData, get isPackaged() { return fake.packaged; } },
-  BrowserWindow: class extends fake.Win { constructor() { super(); fake.windows.push(this); } static getAllWindows() { return fake.windows; } },
+  app: { getPath: () => fake.userData },
+  BrowserWindow: class extends fake.Win { constructor() { super(); fake.windows.push(this); } },
   screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) },
-  shell: { openExternal: (url: string) => { fake.opened.push(url); } }, dialog: {}, clipboard: {}, nativeImage: {},
+  shell: { openExternal: (url: string) => { fake.opened.push(url); } }, clipboard: {}, nativeImage: {},
+  dialog: { showMessageBox: async (o: { message: string }) => { fake.calls.push(['dialog', o.message]); return { response: fake.answer }; } },
+}));
+// L'appli lancée depuis les sources (app/dev) : son état réglé par le cas, ses actions relevées.
+vi.mock('app/dev', () => ({
+  devState: () => fake.dev,
+  reloadPages: () => { fake.calls.push(['reloadPages']); },
+  restartApp: () => { fake.calls.push(['restartApp']); },
 }));
 
 // Claude Code : chaque message reçu est relevé, et le tour finit aussitôt.
@@ -58,6 +64,7 @@ vi.mock('technicals/claude', () => ({
     query: ({ prompt }: { prompt: AsyncIterable<{ message: { content: unknown } }> }) => Object.assign((async function* run() {
       for await (const m of prompt) {
         fake.messages.push(m.message.content);
+        if (fake.busy) await new Promise((r) => { fake.release = r; });   // un tour qui dure : l'agent au travail
         yield { type: 'result', subtype: 'success', is_error: false, result: 'ok' };
       }
     }()), { setPermissionMode: async () => {}, setModel: async () => {}, interrupt: async () => {} }),
@@ -183,7 +190,9 @@ beforeEach(() => {
   fake.synced = [];
   fake.prs = null;
   fake.login = 'moi';
-  fake.packaged = false;
+  fake.dev = null;
+  fake.answer = 0;
+  fake.busy = false;
   fake.userData = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-vibecoder-'));
   dir = path.join(fake.userData, 'projet');
   out = path.join(fake.userData, 'vibecoder-out', 'a1');   // les sorties de l'agent
@@ -852,16 +861,52 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
 
   // 0.12.0-gestion-des-branches
   // 0.13.0-recharger-interface
-  it('Recharger l\'interface : en dev, chaque fenêtre rechargée, dev au relevé ; empaquetée, rien', async () => {
+  it('Recharger l\'interface : seulement les pages reconstruites ; l\'état au relevé', async () => {
     const { view } = await open();
+    const { refreshVibe, setVibe } = await import('app/controllers');
+    setVibe({ reloadUi: true });   // rien de reconstruit : rien
+    fake.dev = 'restart';
+    setVibe({ reloadUi: true });   // le principal reconstruit : recharger casserait, rien
+    fake.dev = 'reload';
+    await refreshVibe({ now: true });
+    expect((view() as { dev?: string } | null)?.dev).toBe('reload');
+    setVibe({ reloadUi: true });
+    expect(fake.calls).toEqual([['reloadPages']]);
+  });
+
+  it('Redémarrer : seulement le principal reconstruit ; aucun agent au travail : aussitôt', async () => {
+    await open();
     const { setVibe } = await import('app/controllers');
-    expect((view() as { dev?: boolean } | null)?.dev).toBe(true);
-    setVibe({ reloadUi: true });
-    expect(fake.windows.map((w) => w.reloads)).toEqual(fake.windows.map(() => 1));
-    fake.packaged = true;
-    setVibe({ reloadUi: true });
-    expect(fake.windows.map((w) => w.reloads)).toEqual(fake.windows.map(() => 1));
-    expect(fake.calls).toEqual([]);   // rien d'autre ne suit
+    fake.dev = 'reload';
+    setVibe({ restartApp: true });
+    fake.dev = 'restart';
+    setVibe({ restartApp: true });
+    await until(() => fake.calls.length > 0);
+    expect(fake.calls).toEqual([['restartApp']]);
+  });
+
+  it('Redémarrer avec des agents au travail : la question d\'abord ; Non : rien ; Oui : relancée', async () => {
+    await open();
+    const { setVibe } = await import('app/controllers');
+    const { sendToAgent, lastView } = await import('app/controllers');
+    const { loadConfig } = await import('app/settings');
+    fake.dev = 'restart';
+    fake.busy = true;
+    const cfg = loadConfig();
+    expect(sendToAgent(cfg.agents![0], { text: 'une question', images: [] }, cfg)).toEqual({ ok: true });   // un tour qui dure
+    await until(() => fake.messages.length > 0);
+    setVibe({ restartApp: true });
+    await until(() => fake.calls.length > 0);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(fake.calls).toEqual([['dialog', 'Des agents tournent : voulez-vous quand même redémarrer ?']]);
+    fake.calls = [];
+    fake.answer = 1;
+    setVibe({ restartApp: true });
+    await until(() => fake.calls.length > 1);
+    expect(fake.calls).toEqual([['dialog', 'Des agents tournent : voulez-vous quand même redémarrer ?'], ['restartApp']]);
+    expect(lastView('a1')).toBeTruthy();
+    fake.busy = false;
+    fake.release();
   });
 
   it('le relevé : branches locales et état distant (sync sur la base sans origin/), sans fetch ; les PR ouvertes en Créer aussi, false en échec', async () => {

@@ -86,7 +86,11 @@
  *  git manquant, dossier sans dépôt,
  *  fichier illisible : rien ne bloque le fil ni l'agent (I-29). L'onglet
  *  Processus (les commandes du projet, au relevé ; vibeProcess) :
- *  controllers/processes.
+ *  controllers/processes. Depuis les sources (app/dev) : ce qui a été
+ *  reconstruit, au relevé (dev : devState) ; Recharger l'interface (reloadUi,
+ *  pages seules reconstruites, pas pendant une dictée : reloadPages) ;
+ *  Redémarrer (restartApp, principal reconstruit ; la question d'abord si un
+ *  agent travaille).
  *  Ne connaît pas : la page (seulement ses canaux), la fenêtre.
  *  Utilisé par : app/ipc, app/menus, app/windows (vibeAgent : la taille du
  *  panneau), controllers/conversation, controllers/runs, controllers/module-code
@@ -94,7 +98,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { app, BrowserWindow, shell } from 'electron';
+import { dialog, shell } from 'electron';
 import type { SendResult, VibeAction, VibeArgs, VibeLang, VibeRunOp, VibeView } from 'shared/bridge';
 import { EFFORTS, MODELS, MODES, type AgentConfig } from 'core/agents';
 import { agentList, agentVibe, vibeLang, type Config } from 'core/config';
@@ -109,6 +113,7 @@ import { directRunner, prCardText, VERDICTS, type DirectResult } from 'technical
 import { gitReader, gitRun, okRef } from 'technicals/git';
 import { ghRun, githubReader } from 'technicals/github';
 import { which } from 'technicals/paths';
+import { devState, reloadPages, restartApp } from 'app/dev';
 import { loadConfig, saveConfig, saveVibeStore, updateAgent, vibeActions, vibeOutDir, vibeStore } from 'app/settings';
 import { state } from 'app/state';
 import { conversationShown, openConversation } from 'app/windows';
@@ -497,7 +502,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     const next = vibeMarks(marks, journey);
     if (next !== marks) { store.marks[agent.id] = next; saveVibeStore(store); }
   }
-  return { ...journey, ...proc, artifacts: listArtifacts(agent.id, out, cfg.artifactTextMax), dev: !app.isPackaged };
+  return { ...journey, ...proc, artifacts: listArtifacts(agent.id, out, cfg.artifactTextMax), dev: devState() };
 }
 
 /* ---- Ce que demande l'écran ------------------------------------------------ */
@@ -786,6 +791,24 @@ export function setAgentView(id: string, view: 'vibecoder' | null) {
   openConversation(id, { mode: 'full' });
 }
 
+// Redémarrer depuis les sources : si un agent travaille (son tour, une course), la question d'abord, une à la
+// fois ; Non : rien.
+let asking = false;
+async function confirmRestart() {
+  if (asking) return;
+  const busy = agentList(loadConfig()).filter((a) => isBusy(a.id) || lockingRuns(a.id).length > 0);
+  if (busy.length) {
+    asking = true;
+    const { response } = await dialog.showMessageBox({
+      type: 'warning', buttons: ['Non', 'Oui'], defaultId: 0, cancelId: 0, title: 'Redémarrer',
+      message: 'Des agents tournent : voulez-vous quand même redémarrer ?',
+      detail: `${busy.map((a) => a.name || a.dir).join('\n')}\n\nLeurs tours en cours s'arrêtent ; leurs conversations reprennent après.`,
+    }).finally(() => { asking = false; });
+    if (response !== 1) return;
+  }
+  restartApp();
+}
+
 // Un réglage de l'écran : Créer ou Relire (Relire refusé sans reviewable au
 // dernier relevé ; depuis Créer, la PR ouverte de la branche suivie, sa fiche
 // pr-<n>.json écrite d'après le relevé, rien de chargé), arrêter Vibe (la bannière : vibeStop,
@@ -796,7 +819,8 @@ export function setAgentView(id: string, view: 'vibecoder' | null) {
 // Interrompre de son menu ; le robot de la PR dans son worktree (l'afficher,
 // ou le proposer à nouveau : jamais un chemin, F-110) ; les PR ouvertes du dépôt (gh,
 // sans agent, les deux parcours ; un échec s'affiche à la place) ; l'onglet Actions ouvert
-// (ses courses vues, controllers/runs) ou fermé — même l'écran déjà quitté.
+// (ses courses vues, controllers/runs) ou fermé — même l'écran déjà quitté ; depuis les sources (app/dev),
+// Recharger l'interface (reloadUi, pas pendant une dictée) ou Redémarrer (restartApp).
 export function setVibe(patch: unknown) {
   if (!patch || typeof patch !== 'object') return;
   const p = patch as Record<string, unknown>;
@@ -828,8 +852,10 @@ export function setVibe(patch: unknown) {
   if (p.interrupt === true && isBusy(agent.id)) interruptAgent(agent.id);
   if (p.worktree === true) showWorktree(agent);
   if (p.runsSeen === true) runsTab(agent.id);
-  // En dev seulement : chaque fenêtre rechargée, ses pages reconstruites (whisper-dev) ; le principal et les agents continuent.
-  if (p.reloadUi === true && !app.isPackaged) for (const w of BrowserWindow.getAllWindows()) w.webContents.reloadIgnoringCache();
+  // Depuis les sources (app/dev) : les pages seules reconstruites → les fenêtres rechargées, le principal et les
+  // agents continuent ; le principal reconstruit → l'appli relancée, confirmé si un agent travaille.
+  if (p.reloadUi === true && devState() === 'reload' && !state.recording) reloadPages();
+  if (p.restartApp === true && devState() === 'restart') void confirmRestart();
   if (p.prs === true) {
     githubReader(ghRun(agent.dir, agentPrefix(agent, loadConfig()))).openPrs().then((list) => {
       prsFound.set(agent.id, list ?? false);
