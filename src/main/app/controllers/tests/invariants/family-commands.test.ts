@@ -19,6 +19,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { slow } from '../slow';
 
 const fake = vi.hoisted(() => ({ userData: '', yes: false, asked: [] as unknown[] }));
 
@@ -40,7 +41,7 @@ const { loadConfig } = await import('app/settings');
 const { processAction, processView, projectFile, stopProcesses } = await import('app/controllers/processes');
 
 const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' });
-const settle = () => new Promise((r) => setTimeout(r, 800));
+const settle = () => new Promise((r) => setTimeout(r, slow(800)));
 const until = async (ok: () => boolean, ms = 8000) => {
   for (const end = Date.now() + ms; !ok() && Date.now() < end;) await new Promise((r) => setTimeout(r, 50));
   return ok();

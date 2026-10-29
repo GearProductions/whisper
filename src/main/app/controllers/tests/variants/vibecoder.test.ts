@@ -10,6 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { JourneyInput } from 'core/vibecoder';
+import { slow } from '../slow';
 
 const fake = vi.hoisted(() => {
   type Handler = (...a: unknown[]) => void;
@@ -152,7 +153,7 @@ vi.mock('app/controllers/runs', async (original) => {
 
 const NOTE = '# 0.8.0 — essai\n\n## Ce que ça fait\n\n- un essai\n';
 const TEST = 'it(\'un cas\', () => {});\n';
-const settle = () => new Promise((r) => setTimeout(r, 150));
+const settle = () => new Promise((r) => setTimeout(r, slow(150)));
 const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
 let dir = '';
 let out = '';
