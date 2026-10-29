@@ -171,7 +171,7 @@ export function InvariantsView(props: StepProps) {
       </StepHead>
       {wait?.kind === 'cases' ? <p className="vc-ihelp">{s.casesHere(wait.count)}</p> : null}
       {view.invariants.length ? <Summary p={total} s={s} /> : null}
-      {total.warnings ? <p className="vc-ihelp"><span aria-hidden="true">⚠</span>{s.warningHelp}</p> : null}
+      {total.warnings ? <p className="vc-ihelp"><span><Icon name="warn" /></span>{s.warningHelp}</p> : null}
       {align ? (
         <details className="vc-card vc-ialign" open>
           <summary className="vc-card-head">
@@ -333,7 +333,7 @@ function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVe
           ) : null}
           {r.warning ? (
             <div className="vc-attention" role="note" title={s.warningHelp}>
-              <span className="vc-attention-icon" aria-hidden="true">⚠</span>
+              <span className="vc-attention-icon"><Icon name="warn" /></span>
               <p><b>{s.warning}</b><InlineMd text={r.warning} t={t} onOpenLink={onOpenLink} /></p>
             </div>
           ) : null}
