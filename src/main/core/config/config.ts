@@ -2,8 +2,9 @@
  *  retouche à la main, d'anciens formats), état au lancement (aucun agent
  *  sélectionné, I-8), commandes de l'agent, de l'éditeur et du terminal,
  *  dossiers favoris et leur couleur, confiance (I-23),
- *  lecture à voix haute, VibeCoder (langue, réglages d'un agent), la place
- *  des robots dans l'icône (familles : core/family).
+ *  lecture à voix haute, VibeCoder (langue, réglages d'un agent, limite
+ *  d'affichage d'un artefact en texte), la place des robots dans l'icône
+ *  (familles : core/family).
  *  Ne connaît pas : le fichier (technicals/config-file), Electron, git (le
  *  parent d'un agent, l'enfant qu'on crée : core/family).
  *  Utilisé par : app. */
@@ -51,6 +52,7 @@ export type Config = {
   // agentCommand, `distrobox enter <box> --`, sinon rien ; core/runner).
   vibeCommandPrefix: string;
   vibeSize?: { width: number; height: number };  // le panneau en VibeCoder (à part de convSize)
+  artifactTextMax: number; // octets : un artefact affiché en texte est coupé au-delà (« fichier tronqué »)
   [key: string]: unknown;
 };
 
@@ -66,6 +68,7 @@ export const DEFAULTS: Config = {
   speakVoices: { fr: 'estelle', en: 'jane' },
   deviceId: '', deviceLabel: '', size: 64, pos: null,
   vibeLang: 'fr', vibeCommandPrefix: '',
+  artifactTextMax: 10 * 1024 * 1024,
 };
 
 // Langues de la dictée, dans l'ordre du menu.
@@ -73,7 +76,12 @@ export const DICTATION_LANGS: Record<string, string> = {
   fr: 'Français', en: 'English', auto: 'Détection auto', es: 'Español', de: 'Deutsch', it: 'Italiano', pt: 'Português', nl: 'Nederlands',
 };
 
-export const withDefaults = (raw: Record<string, unknown>): Config => ({ ...DEFAULTS, ...raw } as Config);
+// Une limite retouchée à la main qui n'est pas un entier positif prend le défaut.
+export function withDefaults(raw: Record<string, unknown>): Config {
+  const cfg = { ...DEFAULTS, ...raw } as Config;
+  if (!Number.isInteger(cfg.artifactTextMax) || cfg.artifactTextMax <= 0) cfg.artifactTextMax = DEFAULTS.artifactTextMax;
+  return cfg;
+}
 
 // Au lancement, la dictée va au curseur : un agent sélectionné la veille ne
 // doit pas recevoir (et envoyer à Claude) ce qu'on croit dicter pour soi.

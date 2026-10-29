@@ -88,3 +88,12 @@ describe('VibeCoder', () => {
     expect(agentVibe({ ...agent('a', '/p'), vibe: 'cassé' as never })).toEqual(none);
   });
 });
+
+describe('artefacts', () => {
+  it('limite du texte : 10 Mo par défaut, un entier positif sinon le défaut', () => {
+    const max = 10 * 1024 * 1024;
+    expect(withDefaults({}).artifactTextMax).toBe(max);
+    expect(withDefaults({ artifactTextMax: 1000 }).artifactTextMax).toBe(1000);
+    for (const v of [0, -5, 1.5, '1000', null, NaN]) expect(withDefaults({ artifactTextMax: v }).artifactTextMax).toBe(max);
+  });
+});
