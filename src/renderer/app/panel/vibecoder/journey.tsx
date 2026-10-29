@@ -4,12 +4,14 @@
  *  d'attention). Un clic ouvre l'étape, si elle est ouverte (VibeStep.open,
  *  dit par le principal) ; une étape pas ouverte : sans clic, son état en
  *  titre. Un clic sur un commit le déplie :
- *  Voir le diff (dans l'éditeur, c<rang>), GitHub ↗ (sa page, gh:c<rang>) et
- *  ses fichiers, chacun ouvrable (c<rang>/<i>), sans IA.
+ *  Voir le diff (dans l'éditeur, c<rang>), GitHub (sa page, gh:c<rang>) —
+ *  deux IconButton (icons), libellé en infobulle — et ses fichiers, chacun
+ *  ouvrable (c<rang>/<i>), sans IA.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
 import { useState } from 'react';
 import type { Strings } from 'core/vibecoder';
 import type { VibeCommit, VibeStepId, VibeView } from 'technicals/bridge';
+import { IconButton } from './icons';
 
 type Props = { view: VibeView; t: Strings; selected: VibeStepId | null; onPick(id: VibeStepId): void; onOpen(id: string): void };
 
@@ -52,8 +54,8 @@ function CommitDetail({ c, rank, t, onOpen }: { c: VibeCommit; rank: number; t: 
   return (
     <div className="vc-jcommit-detail">
       <div className="vc-jcommit-links">
-        <button type="button" className="vc-mini" title={t.diffTitle} onClick={() => onOpen(`c${rank}`)}>{t.diff}</button>
-        <button type="button" className="vc-mini" title={t.githubTitle} onClick={() => onOpen(`gh:c${rank}`)}>{t.github}</button>
+        <IconButton icon="diff" label={t.diffTitle} onClick={() => onOpen(`c${rank}`)} />
+        <IconButton icon="external" label={t.githubTitle} onClick={() => onOpen(`gh:c${rank}`)} />
       </div>
       <ul className="vc-jfiles" aria-label={t.files(c.files.length)}>
         {c.files.map((f, i) => (

@@ -8,8 +8,9 @@
  *  l'étape ou de la vue des branches ; l'artefact choisi est suivi
  *  (follow) ; Copier dans le projet : copy-artifact, direct ; le refermer,
  *  choisir une étape, Créer / Relire ou la vue des branches le ferme) ; langue,
- *  relevé, conversation affichée ou masquée, retour à la conversation,
- *  fermer ; le robot d'une PR dans un worktree : son badge, sans action) ; le
+ *  relevé (↻ qui tourne), conversation affichée ou masquée, retour à la
+ *  conversation, fermer — des icônes (icons), libellé en title et
+ *  aria-label ; le robot d'une PR dans un worktree : son badge, sans action) ; le
  *  parcours à gauche (il dit où l'on en est ; y choisir une étape, ou Créer /
  *  Relire, ferme la vue des branches) ; au centre, la vue des branches
  *  (branches-view) si elle est ouverte, sinon l'étape choisie (step-views :
@@ -48,6 +49,7 @@ import { convWidth, fieldOf, isLive, modelArg, t as strings, type Answers, type 
 import type { Thread, VibeCode, VibeLang, VibeStepId, VibeView } from 'technicals/bridge';
 import type { Drafts } from './file-draft';
 import { ArtifactsView } from './artifacts-view';
+import { Icon } from './icons';
 import { BranchesView } from './branches-view';
 import { Journey } from './journey';
 import { ProcessesView } from './processes-view';
@@ -294,14 +296,14 @@ function Top({ view, thread, busy, t, act, side, onSide, onHide, branches, onBra
         <Segmented value={view.lang} labels={LANGS} title={t.langTitle} onPick={(lang) => act.set({ lang })} />
         <button type="button" className="vc-icon vc-refresh" title={t.refresh} aria-label={t.refresh}
           onClick={() => { setSpins((n) => n + 1); act.refresh(); }}>
-          <span key={spins} className={spins ? 'vc-spin' : undefined}>↻</span>
+          <span key={spins} className={spins ? 'vc-spin' : undefined}><Icon name="refresh" /></span>
         </button>
         <button type="button" className="vc-icon vc-side-toggle" title={side.open ? t.convHide : t.convShow} aria-label={side.open ? t.convHide : t.convShow}
           aria-pressed={side.open} onClick={() => onSide({ ...side, open: !side.open })}>
           <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" /><path d="M10 2.5v11" /></svg>
         </button>
-        <button type="button" className="vc-icon" title={t.back} aria-label={t.back} onClick={() => act.set({ view: 'conversation' })}>💬</button>
-        <button type="button" className="vc-icon vc-close" title={t.close} aria-label={t.close} onClick={onHide}>×</button>
+        <button type="button" className="vc-icon" title={t.back} aria-label={t.back} onClick={() => act.set({ view: 'conversation' })}><Icon name="comment" /></button>
+        <button type="button" className="vc-icon vc-close" title={t.close} aria-label={t.close} onClick={onHide}><Icon name="close" /></button>
       </div>
     </div>
   );
