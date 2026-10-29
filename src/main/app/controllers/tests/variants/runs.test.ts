@@ -134,7 +134,10 @@ beforeEach(() => {
       vibe: { flow: 'create', autonomy: 'guide', pr: null } }],
   }));
 });
-afterEach(() => { vi.useRealTimers(); });
+// Chaque cas recharge les modules, mais le relevé retardé (THROTTLE_MS) des anciens reste armé : il lirait la
+// config du cas suivant (même fake.userData) et traiterait ses demandes, ses avis perdus dans l'ancienne
+// conversation. Il tombe ici, dans son cas.
+afterEach(async () => { vi.useRealTimers(); await new Promise((r) => realSetTimeout(r, 1100)); });
 
 async function open() {
   const { state } = await import('app/state');
@@ -394,8 +397,6 @@ describe('les demandes de l’orchestrateur', () => {
       'VibeCoder : demande vibe refusée — action qui ne court pas à part',
       'VibeCoder : demande forme.start refusée — nom ou JSON illisible\nVibeCoder : demande rien refusée — action inconnue',
     ]);
-    // le relevé que ces tours déclenchent (THROTTLE_MS) tombe dans ce cas, pas dans le suivant (même config)
-    await new Promise((r) => realSetTimeout(r, 1100));
   });
 
   it('partie avec des arguments ignorés : elle court, l’agent prévenu', async () => {
@@ -472,8 +473,6 @@ describe('le signal des courses', () => {
 });
 
 describe('le mode Vibe', () => {
-  // le relevé retardé (THROTTLE_MS) du cas précédent, sur ses propres modules, réécrirait actions.json de celui-ci
-  beforeEach(() => new Promise((r) => realSetTimeout(r, 1100)));
 
   it('arrêté : la course en cours finit, la demande retenue jetée, une nouvelle refusée ; au repos, hors Vibe', async () => {
     const { runVibeAction, vibeOn, vibeStart, vibeStop } = await open();
@@ -552,7 +551,8 @@ describe('le mode Vibe', () => {
     vibeStart({ id: 'a1' });
     await settle();
     vibeRunOp('forme', 'stop');
-    await settle();
+    // au repos au relevé qui suit l'arrêt (lent sur un runner Windows)
+    for (let i = 0; i < 30 && vibeOn('a1'); i++) await settle();
     expect(turn('/vibecoder:forme')!.interrupted).toBe(true);
     expect(vibeOn('a1')).toBe(false);
   });
