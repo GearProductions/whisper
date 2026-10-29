@@ -1,6 +1,7 @@
 // Variants de module-code (note 0.11.0) : le fichier suivi poussé à chaque
 // changement (écriture directe ou par renommage), trop gros → text null, un
-// seul suivi à la fois, Enregistrer refusé pour un texte invalide.
+// seul suivi à la fois, Enregistrer refusé pour un texte invalide ; un fichier
+// supprimé et, en Relire, un fichier d'un commit (note 0.13.0) : lus par git, sans veilleur.
 // Sur le vrai principal et un vrai dépôt git ; faux : Electron (fenêtres qui
 // relèvent ce qu'on leur envoie) et le SDK de Claude Code (aucun tour).
 import { execFileSync } from 'node:child_process';
@@ -150,4 +151,50 @@ it('Enregistrer : le fichier suivi supprimé n’est pas recréé', async () => 
   fs.rmSync(path.join(dir, HELLO));
   expect(saveCode(idOf(HELLO), 'HELLO_RECREE').ok).toBe(false);
   expect(fs.existsSync(path.join(dir, HELLO))).toBe(false);
+});
+
+// Le dernier relevé redemandé, après un changement du dépôt ou des réglages.
+const resurvey = async () => { await (await import('app/controllers')).refreshVibe({ now: true }); await settle(); };
+
+it('un fichier de module supprimé par la branche : text null, ses versions par git, pas de veilleur', async () => {
+  const { followCode } = await import('app/controllers');
+  git(dir, 'rm', '-q', GREET);
+  git(dir, 'commit', '-q', '-m', 'sans greet');
+  await resurvey();
+  followCode(idOf(GREET));
+  await pushedFor(idOf(GREET));
+  expect(codes().at(-1)).toMatchObject({ id: idOf(GREET), text: null, at: { base: 'GREET_MAIN', head: null } });
+  const n = codes().length;
+  write(path.join(dir, GREET), 'GREET_REVENU');
+  await settle();
+  expect(codes().length).toBe(n);
+});
+
+it('en Relire, un fichier ajouté par un commit : avant null, après et tête par git, le disque jamais lu', async () => {
+  const { followCode } = await import('app/controllers');
+  const NEW = 'src/core/hello/new.ts';
+  write(path.join(dir, NEW), 'NEW_COMMIT');
+  git(dir, 'add', '.');
+  git(dir, 'commit', '-q', '-m', 'new');
+  git(dir, 'update-ref', 'refs/remotes/origin/main', 'main');
+  write(path.join(fake.userData, 'vibecoder-out', 'a1', 'pr-7.json'),
+    JSON.stringify({ number: 7, title: 'Essai', base: 'main', head: 'feat/0.11.0-essai', state: 'OPEN' }));
+  write(path.join(fake.userData, 'config.json'), JSON.stringify({
+    agentsEnabled: true,
+    agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
+      vibe: { flow: 'review', autonomy: 'guide', pr: 7 } }],
+  }));
+  await resurvey();
+  const view = panel().sent.filter(([ch]) => ch === 'conv:vibe').at(-1)![1] as { commits: { subject: string; files: string[] }[] };
+  const rank = view.commits.findIndex((c) => c.subject === 'new');
+  const id = `c${rank}/${view.commits[rank].files.indexOf(NEW)}`;
+  write(path.join(dir, NEW), 'NEW_DISQUE');
+  followCode(id);
+  await pushedFor(id);
+  expect(codes().at(-1)).toMatchObject({
+    id, text: 'NEW_COMMIT', at: { base: null, head: 'NEW_COMMIT', commit: { before: null, after: 'NEW_COMMIT' } },
+  });
+  write(path.join(dir, NEW), 'NEW_DISQUE_2');
+  await settle();
+  expect(JSON.stringify(codes())).not.toContain('NEW_DISQUE');
 });
