@@ -3,7 +3,8 @@
    limites, garantie, attention, verdict). Sobre et dense (0.13.0) : marges
    un cran en dessous (--vc-pad), coins --vc-radius ; les outils de l'en-tête
    d'un fichier alignés sur 22 px ; les icônes (Icon) de l'état et de « Tout
-   valider » à la taille du texte. Sous .vc.
+   valider » à la taille du texte. Un cas validé, discret : ni cadre, ni fond,
+   ni pastille ; la fine bordure verte à gauche et l'icône. Sous .vc.
    Ne connaît pas : les composants (seulement leurs classes).
    Utilisé par : invariants-view (importé). */
 
@@ -76,7 +77,8 @@
   box-shadow: inset 3px 0 0 var(--vc-edge);
   scroll-margin-top: 40px;  /* sous l'en-tête collant du fichier */
 }
-.vc-case[data-mark="ok"] { border-color: color-mix(in srgb, var(--vc-ok) 35%, var(--vc-line)); box-shadow: inset 3px 0 0 var(--vc-ok); }
+/* Validé, discret : ni cadre ni fond, la seule fine bordure verte à gauche. */
+.vc-case[data-mark="ok"] { border-color: transparent; background: transparent; box-shadow: inset 3px 0 0 var(--vc-ok); }
 .vc-case[data-mark="ko"] { border-color: color-mix(in srgb, #d9383a 40%, var(--vc-line)); box-shadow: inset 3px 0 0 #d9383a; }
 .vc-case[data-mark="changed"] { box-shadow: inset 3px 0 0 var(--vc-warn); }
 .vc-case-head { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
@@ -93,13 +95,12 @@
   font: 600 11px/20px system-ui, sans-serif;
   text-align: center;
 }
-.vc-case[data-mark="ok"] .vc-case-n { background: var(--vc-ok); color: #0e1117; }
 .vc-case[data-mark="ko"] .vc-case-n { background: #d9383a; color: #fff; }
 .vc-case-title { flex: 1; min-width: 0; margin: 0; color: var(--vc-text); font-size: 14px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
 .vc-case-view { flex: none; margin-top: -1px; }
 .vc-case-view button { padding: 0 9px; font-size: 11.5px; line-height: 20px; }
 .vc-case-state { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: var(--vc-radius); font: 600 11.5px/1.5 system-ui, sans-serif; white-space: nowrap; }
-.vc-case-state[data-state="ok"] { background: color-mix(in srgb, var(--vc-ok) 16%, transparent); color: #6fdd85; }
+.vc-case-state[data-state="ok"] { padding: 1px 0; color: #6fdd85; }  /* sans pastille : l'icône seule */
 .vc-case-state[data-state="ko"] { background: color-mix(in srgb, #d9383a 18%, transparent); color: #f08a8b; }
 .vc-case-state[data-state="changed"] { background: color-mix(in srgb, var(--vc-warn) 15%, transparent); color: var(--vc-warn); font-weight: 500; }
 .vc-case-none { margin: 0 0 8px; color: var(--vc-muted); font-size: 12.5px; }

@@ -2,7 +2,8 @@
 // InvariantsView (invariants-view.tsx) : Voir le fichier d'un test modifié (f.base) → Fichier · Diff depuis la
 // base de la branche, le diff entier en lecture seule (Relire : de f.base à f.source ; Créer : au texte de
 // l'éditeur) ; un test ajouté, pas de sélecteur ; Lire en pseudo-code dans les outils de l'en-tête, même action ;
-// 💬 et Ouvrir en IconButton (nommés, 💬 pressé pendant la saisie en Relire), l'état et Tout valider : une icône et leur texte.
+// 💬 et Ouvrir en IconButton (nommés, 💬 pressé pendant la saisie en Relire), l'état et Tout valider : une icône et leur texte ;
+// un cas validé : l'icône seule, « Validé » en title et aria-label.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EditorView } from '@codemirror/view';
@@ -95,4 +96,14 @@ it('icônes : 💬 et Ouvrir nommés, mêmes actions ; l\'état et Tout valider,
   expect(state.textContent).toBe('Modifié depuis la validation');
   const all = [...page.querySelectorAll('.vc-ifile-tools button')].find((b) => b.textContent === 'Tout valider')!;
   expect(all.querySelector('svg')).not.toBeNull();
+});
+
+it('un cas validé : son état, l\'icône seule, « Validé » en title et aria-label ; Refusé garde son texte', async () => {
+  await draw(test({ cases: ['a', 'b'], lines: [1, 2], marks: { a: 'ok', b: 'ko' } }), 'review');
+  const [ok, ko] = [...page.querySelectorAll<HTMLElement>('.vc-case-state')];
+  expect(ok.dataset.state).toBe('ok');
+  expect(ok.querySelector('svg')).not.toBeNull();
+  expect(ok.textContent).toBe('');
+  expect([ok.title, ok.getAttribute('aria-label')]).toEqual(['Validé', 'Validé']);
+  expect(ko.textContent).toBe('Refusé');
 });

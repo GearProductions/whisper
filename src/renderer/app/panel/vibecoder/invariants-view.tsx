@@ -2,8 +2,9 @@
  *  branche (ou de la PR) ; lu en pseudo-code, une carte par cas : son titre,
  *  le pseudo-code coloré (assertions et « étant donné / quand / alors »
  *  repérés), ses cas limites, ce qu'il garantit, son point d'attention ; son
- *  verdict (CaseVerdict : ✓ / ✗), l'état (Icon ok / ko / warn et texte :
- *  validé, refusé, modifié depuis), 💬 et Ouvrir (à la ligne du cas) en
+ *  verdict (CaseVerdict : ✓ / ✗), l'état (validé : Icon ok seule, « Validé »
+ *  en title et aria-label, la carte discrète ; refusé, modifié depuis : Icon
+ *  ko / warn et texte), 💬 et Ouvrir (à la ligne du cas) en
  *  IconButton ; « Pseudo-code / Code » montre à la place son code (CodeView :
  *  coloré d'après l'extension du fichier, comme « Voir le fichier » ; sans 💬
  *  sur ses lignes). Relire : le code d'origine du cas, en lecture seule.
@@ -307,7 +308,8 @@ function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVe
       <div className="vc-case-head">
         <span className="vc-case-n">{n}</span>
         <h3 className="vc-case-title">{c.title}</h3>
-        {c.mark ? <span className="vc-case-state" data-state={c.mark} title={c.mark === 'changed' ? s.changedTitle : undefined}><Icon name={STATE_ICON[c.mark]} />{s.state[c.mark]}</span> : null}
+        {c.mark === 'ok' ? <span className="vc-case-state" data-state="ok" role="img" title={s.state.ok} aria-label={s.state.ok}><Icon name="ok" /></span>
+          : c.mark ? <span className="vc-case-state" data-state={c.mark} title={c.mark === 'changed' ? s.changedTitle : undefined}><Icon name={STATE_ICON[c.mark]} />{s.state[c.mark]}</span> : null}
         {code ? (
           <span className="vc-seg vc-case-view" role="group" aria-label={s.show}>
             <button type="button" aria-pressed={!showCode} onClick={() => setShowCode(false)}>{s.pseudo}</button>
