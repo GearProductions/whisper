@@ -438,7 +438,11 @@ modèle, comme si vous aviez tapé `/vibecoder:note fr … votre demande` : la
 conversation de l'agent reste libre, vous lui parlez pendant ce temps. Un
 bouton qui a besoin d'un texte — la demande de feature, du pseudo-code —
 prend celui du **champ de son étape** : dictez-y (ou écrivez), puis
-cliquez ; le champ se vide une fois l'action partie. Le champ de la
+cliquez ; le champ se vide une fois l'action partie. La dictée va à la
+zone de texte qui a le clavier — le champ d'une étape, un commentaire de
+*Relire*, la réponse libre d'une question ; pas un éditeur de code ni un
+champ d'une ligne —, à la place de la sélection, sans dépasser sa longueur
+(pleine : rien n'est ajouté) ; sinon, au champ de la conversation. Le champ de la
 conversation ne sert plus qu'à elle (et à *Demander sans modifier*, *Où
 j'en suis ?*) ; 💬 sur un passage (de la note, d'une relecture) l'y cite, à
 compléter puis envoyer.
@@ -492,11 +496,9 @@ même nom n'est remplacé que si vous l'acceptez). La conversation reste à
 droite : demandez-y une retouche, l'artefact se met à jour.
 
 **Ouvrir dans l'éditeur.** *Ouvrir* sur la note, un module, un test (à la
-ligne du cas : zed, VS Code, Cursor, VSCodium), un fichier d'un commit. En
-*Relire*, la PR n'est pas sur votre disque : l'appli écrit le fichier tel
-qu'il est dans la PR, en lecture seule, sous `vibecoder-out/<agent>/files/`,
-et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
-*GitHub ↗* (sa page, dans le navigateur).
+ligne du cas : zed, VS Code, Cursor, VSCodium). Un commit : *Voir le diff*
+(écrit en lecture seule sous `vibecoder-out/<agent>/files/`, puis ouvert)
+ou *GitHub ↗* (sa page, dans le navigateur).
 
 **Créer** — les étapes du guide :
 
@@ -520,7 +522,8 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    et tests concordent, retouche les tests s'il y a des écarts (3 tours au
    plus) et dit ce qui reste (la carte de l'alignement) ; puis ✓ ou ✗ par cas
    (✗ le cite dans le champ, pour dire quoi changer), *✓ Tout valider* pour
-   un fichier. *Lire en pseudo-code* aide à lire, sans être obligatoire (à
+   un fichier. *Lire en pseudo-code* (dans les outils en haut du fichier)
+   aide à lire, sans être obligatoire (à
    la main, jamais mise en avant ; en *Vibe*, l'agent ne la lance pas) :
    chaque cas de test traduit en étapes simples (`test "…":`, `given`,
    `when`, `then` — une ligne `then` par assertion), quel que soit le
@@ -528,7 +531,10 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    point d'attention s'il n'observe pas vraiment la propriété ; *Code* montre le code
    d'origine du cas à la place du pseudo-code, *Voir le fichier* le fichier
    entier, colorés comme sur GitHub (TypeScript / JavaScript, Rust, Python,
-   Go ; un autre langage : sans couleurs) et modifiables comme la note ;
+   Go ; un autre langage : sans couleurs) et modifiables comme la note ; un
+   test qui existait déjà et que la branche modifie : *Diff depuis la base de
+   la branche*, en ligne ou côte à côte, le test entier, ses lignes
+   retirées, modifiées et ajoutées marquées ;
    *Relire* un fichier (ou *Tout relire*) refait sa lecture — un test
    modifié depuis garde sa lecture, marquée « lecture périmée », et
    *Relire* est mis en avant ; *Préparer le commit* puis *✓ Commiter*.
@@ -552,7 +558,9 @@ et l'ouvre. Un commit : *Voir le diff* (de même, en lecture seule) ou
    déjà commité) ; vous pouvez donc retoucher le code entre les deux. Les
    boutons d'un module sont sous son code (sous son contrat s'il n'est pas
    encore touché).
-   Sous un module touché, *Voir le code* : ses fichiers et celui choisi,
+   Sous un module touché, *Voir le code* : ses fichiers que la branche
+   change (modifiés, ajoutés, ou « supprimé » : son diff, tout en retraits,
+   rien à modifier) et celui choisi,
    coloré comme sur GitHub, ou son diff depuis la base de la branche (tout
    ce que le ticket a changé) ou depuis le dernier commit (ce qui n'est pas
    commité), au choix, comme dans VS Code : en ligne ou côte à côte ; il
@@ -620,7 +628,10 @@ la branche n'est pas sur `origin`, est refusée), et on la relit sur sa
 branche. Puis la note (*Relire la note* : les décisions à discuter), les
 invariants (les mêmes cartes en pseudo-code), les commits (*Relire les
 commits* — ou, sans IA, la liste des commits, leurs fichiers, leur diff —,
-une carte par commit), le plan de test (*Plan de test à l'écran* : des cases
+une carte par commit ; un clic sur un fichier d'un commit l'ouvre sous sa
+carte, tel qu'il est dans la PR, en lecture seule, ou son diff dans ce
+commit, ou depuis la base de la PR ; 💬 sur des lignes les cite dans une
+remarque), le plan de test (*Plan de test à l'écran* : des cases
 à cocher pendant l'essai). ✗ et 💬 ajoutent une remarque au **brouillon de
 revue** (un par PR) : le texte du champ, sinon ce qu'on cite ; elle se
 modifie sur place, × la retire. Une PR déjà fusionnée ou fermée se charge,

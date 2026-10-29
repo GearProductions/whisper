@@ -494,7 +494,8 @@ Claude Code ne l'écrive dans sa transcription), Maj+Entrée va à la ligne ;
 il grandit jusqu'à 160 px.
 **Brouillon par conversation**, pièces jointes comprises, gardé quand on
 change d'agent. Agent au travail : on écrit, on n'envoie pas (bouton grisé).
-La dictée vers l'agent s'y ajoute (espace de séparation) et y met le focus.
+La dictée vers l'agent s'y ajoute (espace de séparation) et y met le focus,
+sauf quand une autre zone de texte du panneau a le clavier (F-98).
 
 **F-69 Pièces jointes** : glisser-déposer et Ctrl+V (images PNG, JPEG, GIF,
 WebP envoyées en image ; autres fichiers par leur **chemin**, l'agent les lit
@@ -886,7 +887,7 @@ champ prend le clavier) : on dicte, puis on clique. Son champ :
 - une action d'étape : le **champ de l'étape**, sous son titre (F-93),
   montré quand une de ses actions prend un texte — *Rédiger la note* (exigé),
   *Poser la forme*, *Écrire les invariants (rouges)* ; la dictée y va quand
-  il a le clavier ;
+  il a le clavier (ci-dessous) ;
 - un message sans étape (*Où j'en suis ?*, *Demander sans modifier* (exigé),
   *Proposer les commandes* ; la nouvelle demande, *Rédiger la note* sur la
   base, prend le champ de l'étape, F-110) : le
@@ -905,7 +906,21 @@ si le gabarit n'a pas `{{quote}}`) : en *Créer*,
 💬 sur un bloc, un module ou un cas (« À propos de « … » : »), ✗ sur un cas
 de test (« Invariant « … » : à revoir — »), *Retour → fixup* ; possible
 pendant que l'agent travaille. On complète, puis on envoie. En *Relire*, 💬
-et ✗ vont au brouillon de revue (F-101), pas au champ.
+et ✗ vont au brouillon de revue (F-101), pas au champ ; le 💬 d'une ligne
+ou d'une sélection d'un fichier d'un commit aussi : une zone de commentaire,
+puis une remarque pour ce commit, son chemin et ses lignes entières citées
+en bloc de code.
+
+**La dictée**, panneau ouvert, va à la zone de texte qui a le clavier : le
+champ d'une étape, la zone de commentaire de *Relire* (💬, ✗, une remarque
+du brouillon), la réponse libre d'une question ouverte ; à la place de la
+sélection, précédée d'une espace si le texte avant le curseur ne finit pas
+par un blanc, coupée à la longueur de la zone (un commentaire : 5 000
+caractères ; plus de place : rien n'est inséré). Les éditeurs de code (la
+note, *Voir le code*, un test) et les champs d'une ligne (recherche de
+branche, nom de branche, skill) ne la reçoivent pas ; aucune zone n'a le
+clavier : le champ de la conversation (F-68). Pas de canal de plus : la
+même dictée, insérée par la page.
 
 **F-99 Qui travaille, grisée ou masquée.** Chaque action envoyée dit qui
 travaille, d'après l'en-tête du skill qu'elle appelle, dans le plugin de
@@ -1125,15 +1140,22 @@ conversation ; note `0.9.0-actions-independantes.md`).
    code d'origine du cas à la place du pseudo-code (de sa ligne à celle du cas
    suivant, monospace, numéroté, coloré : F-113) ; *✓ Tout valider* quand
    aucun cas n'a de point d'attention, le fichier lu ou pas ; *Voir le
-   fichier* (replié : tout son code, numéroté) ; pas lu : ses cartes sans
-   lecture, avec ✓ et ✗, et *Lire en pseudo-code* ; lu puis changé : sa
+   fichier* (replié : tout son code, numéroté ; un test qui existait à la
+   base de la branche et qu'elle modifie : un sélecteur *Fichier* · *Diff
+   depuis la base de la branche*, le diff *En ligne* ou *Côte à côte*, en
+   lecture seule, jusqu'au texte de l'éditeur, le test entier, pas replié
+   autour des changements, ses lignes retirées, modifiées et ajoutées
+   marquées ; un test ajouté par la branche : pas de sélecteur) ; pas lu :
+   ses cartes sans lecture, avec ✓ et ✗, et *Lire en pseudo-code* dans les
+   outils de son en-tête, avec les autres ; lu puis changé : sa
    dernière lecture reste affichée, marquée « lecture périmée », pas
    comptée comme lue, *Relire* en accent. Seuls les tests déjà écrits de la
    branche se modifient : *Code* et *Voir le fichier* ouvrent le fichier
    entier (*Code* : à la ligne du cas ; un seul à la fois), avec les gestes
    et le verrou de la note (ci-dessus). Le relevé porte le texte
    du test, vide au-delà de 200 000 caractères (rien de tout cela n'est
-   alors montré). En tête : *Tout relire* (dès qu'un fichier
+   alors montré), et son texte au commit d'où part la branche (par git ;
+   aucun : ajouté par la branche, ou au-delà de 200 000 caractères). En tête : *Tout relire* (dès qu'un fichier
    est lu). Prochaine action : *Écrire les invariants
    (rouges), puis vérifier l'alignement* (d'après la note, ou le pseudo-code
    du champ de l'étape ; l'alignement dans la même course, F-93) tant qu'il
@@ -1154,8 +1176,11 @@ conversation ; note `0.9.0-actions-independantes.md`).
    *Ouvrir*, *Commiter* (des fichiers changés hors de tout commit de la
    branche, ou modifiés depuis : ce module seul) — sous son contrat, ou, pour
    un module touché, sous le code de *Voir le code* (replié ; un seul déplié
-   à la fois) : ses fichiers par dossier et le fichier choisi, monospace,
-   numéroté, coloré (F-113). Un sélecteur sous l'arbre : *Fichier*, *Diff
+   à la fois) : ses fichiers que la branche change (modifiés, ajoutés,
+   supprimés, depuis sa base, la copie de travail comprise) par dossier et
+   le fichier choisi, monospace, numéroté, coloré (F-113) ; un supprimé est
+   marqué « supprimé », choisi : son diff depuis la base, tout en retraits,
+   sans sélecteur, ni édition, ni *Enregistrer*. Un sélecteur sous l'arbre : *Fichier*, *Diff
    depuis la base de la branche* (le commit d'où elle part ; grisé quand sa
    version est inconnue — pas de point de départ, trop grosse — alors que le
    fichier est au dernier commit), *Diff depuis le dernier commit* (`HEAD`) :
@@ -1164,7 +1189,8 @@ conversation ; note `0.9.0-actions-independantes.md`).
    coloré, replié autour des changements (le texte changé dans une ligne
    sur un fond vert ou rouge plus foncé que celui de sa ligne, pas
    souligné), en texte (I-40), seulement pour
-   un fichier de module (ni la note ni un test, I-37). Générer ne commite
+   un fichier de module ou d'un commit (ni la note ni un test, I-37 ; un
+   test a le sien, étape Invariants). Générer ne commite
    pas : *Commiter* et *Commiter les modules* (skill `commiter-modules`, un
    commit par module selon la convention du projet, un fixup pour un module
    déjà commité — jamais du premier commit de la branche, qui ne porte que la
@@ -1277,12 +1303,22 @@ avec cette raison (« PR déjà fusionnée : rien à relire », « PR fermée : 
    et sa relecture par l'agent (`pr-<n>-note.md`). *Relire la note*
    (décisions à discuter, manques, invariants mal classés).
 2. **Invariants** — chaque cas jugé (✓ ou ✗), lu ou pas. Les mêmes
-   cartes qu'en *Créer* ; *Lire en pseudo-code* (facultative), *Vérifier
+   cartes qu'en *Créer* (*Voir le fichier* et son diff depuis la base de la
+   PR en lecture seule) ; *Lire en pseudo-code* (facultative), *Vérifier
    l'alignement*.
 3. **Commits** — relus (`pr-<n>-commits.md`). Sans IA, les commits de la PR
    (hash, sujet, fichiers touchés), chacun avec *Voir le diff*, *GitHub ↗*
-   et ses fichiers à ouvrir (ci-dessous) ; relus, une carte par commit (hash,
-   sujet, remarques). *Relire les commits* (un par un : les quatre questions,
+   (ci-dessous) et ses fichiers ; relus, une carte par commit (hash, sujet,
+   remarques). Un clic sur un fichier d'un commit l'ouvre dans le panneau,
+   sous sa carte (un seul à la fois ; recliqué : fermé) : sa version à la
+   tête de la PR, comme le code de *Voir le code* (F-113), en lecture seule
+   (ni édition, ni *Enregistrer*, ni Ctrl+S) ; absent là ou trop gros, « absent
+   à la tête de la PR, ou trop gros ». Un sélecteur : *Fichier* · *Diff de ce
+   commit* (depuis son parent) · *Diff depuis la base de la PR* ; un diff
+   *En ligne* ou *Côte à côte*. Lu par git seul, relu à chaque ouverture
+   (pas suivi sur le disque). 💬 sur une ligne ou une sélection : une zone de
+   commentaire, la remarque au brouillon pour ce commit, ses lignes citées
+   (F-98). *Relire les commits* (un par un : les quatre questions,
    la duplication, les en-têtes, l'histoire des commits).
 4. **À l'écran** — chaque case du plan de test cochée (dans le fichier, ou
    cochée à l'écran : validée pour ce plan-là, F-102 ; décocher la refuse,
@@ -1297,7 +1333,8 @@ Le brouillon, gardé par PR : une remarque = sa cible (une ligne, 300
 caractères au plus) et son texte (5 000 au plus) — le texte du champ s'il y
 en a (le champ se vide ; trop long, il reste et l'écran le dit), sinon ce
 qu'on cite. ✗ sur la note ou un cas, 💬 sur la note, sa relecture,
-l'alignement, un cas ou un commit y ajoutent une remarque ; elle se modifie
+l'alignement, un cas, un commit ou les lignes d'un fichier d'un commit y
+ajoutent une remarque ; elle se modifie
 sur place (même cible, mêmes limites) ou se retire (×).
 
 **Ouvrir**, en *Créer* comme en *Relire*, ce que désigne un id du dernier
@@ -1667,7 +1704,9 @@ absente (I-29).
 fichier*, sans citer, éditables en *Créer* ; étape Modules : *Voir le code*,
 éditable, un clic ou une sélection cite ses lignes, F-98 ; ses diffs, eux,
 en texte sans coloration, ajouts en vert, retraits barrés ; étape Note :
-*Brut*, éditable après *Modifier*) : CodeMirror 6, en lecture quand l'édition est grisée ;
+*Brut*, éditable après *Modifier* ; *Relire*, étape Commits : un fichier
+d'un commit, en lecture seule, un clic ou une sélection cite ses lignes,
+F-101) : CodeMirror 6, en lecture quand l'édition est grisée ;
 d'après l'extension — `ts`, `tsx`, `js`, `jsx`, `mjs`, `cjs`, `mts`, `cts`,
 `rs`, `py`, `go` ; un autre : en texte. La palette sombre de GitHub :
 mots-clés, chaînes, commentaires, nombres et constantes, fonctions, types,
@@ -2136,7 +2175,9 @@ bancs de comparaison.
 - **I-37** Le principal ne lit pour VibeCoder que la note et les tests que git
   lui donne, et le seul fichier suivi (F-100) — celui de *Voir le code*, d'un
   module touché par la branche (`m<rang>/<i>`), ou, en *Créer* seulement, la
-  note (`n`) ou un test d'invariant de la branche (`t<i>`) —, **dans le dossier de l'agent** (`..` et liens résolus ; ni
+  note (`n`) ou un test d'invariant de la branche (`t<i>`), ou, en *Relire*
+  seulement, un fichier d'un commit (`c<rang>/<i>`, lu par git seul, jamais
+  enregistré) —, **dans le dossier de l'agent** (`..` et liens résolus ; ni
   chemin absolu, ni NUL), et les sorties de cet agent **sous leurs noms
   connus** (F-95 ; ni `..`, ni autre dossier qu'`invariants/` et
   `artifacts/`, ni un lien) ; un artefact (F-95), pour l'afficher (son texte
@@ -2146,8 +2187,12 @@ bancs de comparaison.
   page désigne un fichier par son **id dans le dernier relevé**, jamais par un
   chemin : un id en forme de chemin, ou égal au chemin d'un fichier du relevé,
   ne désigne rien (I-34), ni un commit ou un module pas touché pour le
-  fichier suivi, ni la note ou un test en *Relire* ; un commit, par son rang (`c<rang>`, `gh:c<rang>`,
-  `c<rang>/<i>`, F-101), jamais par une URL. Ce que le principal écrit pour
+  fichier suivi, ni la note ou un test en *Relire*, ni un fichier d'un commit
+  en *Créer* ; un commit, par son rang (`c<rang>`, `gh:c<rang>`,
+  `c<rang>/<i>`, F-101), jamais par une URL. Les autres versions d'un
+  fichier — à la base, au parent d'un commit, à un commit, à `HEAD`, celles
+  d'un fichier supprimé, le texte d'un test à la base — ne se lisent que par
+  git (`show`), au chemin du relevé, jamais à un chemin donné par une page. Ce que le principal écrit pour
   ouvrir (une version de la PR, un diff) va sous `files/` du dossier de
   sorties de l'agent, en lecture seule, et n'est jamais relu.
 - **I-38** Dans le message d'une action, seuls `{{text}}`, les réponses aux
@@ -2495,9 +2540,15 @@ Copier, erreurs ; mêmes relevés).
   cette raison. Une PR ouverte : rien de grisé pour cette raison.
 - **S-60** *Relire* : étape Commits → *Voir le diff* d'un commit : son diff
   s'ouvre dans l'éditeur (`files/<hash>.diff`, en lecture seule) ; *GitHub ↗* :
-  la page du commit dans le navigateur ; un fichier du commit : sa version de
-  la PR, en lecture seule ; *Ouvrir* sur un cas d'invariant : le fichier, à la
-  ligne du cas (zed, code).
+  la page du commit dans le navigateur ; un clic sur un fichier du commit :
+  il s'ouvre sous sa carte, sa version à la tête de la PR, en lecture seule
+  (un autre : le premier se ferme) ; *Diff de ce commit*, *Diff depuis la
+  base de la PR*, en ligne et côte à côte ; 💬 sur deux lignes → une zone de
+  commentaire : y dicter, la dictée s'y insère (pas dans le champ de la
+  conversation) ; la remarque au brouillon, pour ce commit, son chemin et
+  ses lignes citées. Un champ d'une ligne (recherche de branche) a le
+  clavier : la dictée va au champ de la conversation. *Ouvrir* sur un cas
+  d'invariant : le fichier, à la ligne du cas (zed, code).
 - **S-61** *Lire en pseudo-code* (*Relire les commits*) sur un skill
   `sonnet · moyen` (`opus · élevé`) : choisir *haiku* → le message part en
   `/vibecoder:lire-invariants--haiku …` (le fil le montre). Les lectures sont en anglais, en *FR* comme en *EN*.
