@@ -5,8 +5,9 @@
  *  et coloré comme CodeView (languageFor, codeHighlight), replié autour des
  *  changements (collapseUnchanged, « N lignes inchangées » d'après lang), sauf
  *  avec `whole` (le fichier entier, ses lignes retirées, modifiées, ajoutées
- *  marquées) ; le texte en texte, jamais en HTML (I-40). Recréé quand une prop change. Ses
- *  styles : module-diff-view.css (le cadre et la numérotation : .vc-src).
+ *  marquées) ; le texte en texte, jamais en HTML (I-40). Recréé quand une
+ *  prop change. Ses styles : module-diff-view.css (le cadre et la
+ *  numérotation : .vc-src).
  *  Ne connaît pas : le pont, le relevé, git, lineDiff.
  *  Utilisé par : module-code, invariants-view, commit-file. */
 import { useEffect, useRef, type ReactElement } from 'react';
@@ -30,7 +31,6 @@ export function ModuleDiffView({ before, after, path, mode, lang, whole }: {
   lang: VibeLang;
   whole?: boolean;
 }): ReactElement {
-  if (whole) throw new Error('not implemented');
   const host = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,7 +43,7 @@ export function ModuleDiffView({ before, after, path, mode, lang, whole }: {
       EditorView.editable.of(false),
       EditorState.phrases.of(PHRASES[lang]),
     ];
-    const collapseUnchanged = {};
+    const collapseUnchanged = whole ? undefined : {};
     const parent = host.current!;
     if (mode === 'inline') {
       const v = new EditorView({
@@ -59,7 +59,7 @@ export function ModuleDiffView({ before, after, path, mode, lang, whole }: {
     const m = new MergeView({ parent, a: { doc: before, extensions }, b: { doc: after, extensions }, collapseUnchanged });
     m.dom.classList.add('scroll');
     return () => m.destroy();
-  }, [before, after, path, mode, lang]);
+  }, [before, after, path, mode, lang, whole]);
 
   return <div ref={host} className="vc-src vc-mdiff" data-mode={mode} aria-label={path} />;
 }
