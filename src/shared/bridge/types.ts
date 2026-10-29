@@ -378,6 +378,7 @@ export type VibeView = {
   // Toujours remplis par le relevé (optionnels pour les vues écrites à la main, comme les tests) :
   loaded?: VibePr | null;                // la PR suivie et sa fiche pr-<n>.json (les deux parcours : la vue des branches)
   reviewable?: boolean;                  // la branche a sa PR ouverte : Relire possible ; absent : non
+  child?: boolean;                       // l'agent est un worktree (enfant ou robot) : il reste sur sa branche
   branches?: string[] | null;            // les branches locales
   // behind : commits de @{u} absents de HEAD (null : pas de branche distante suivie) ;
   // baseAhead : commits de origin/<base> absents de HEAD.
