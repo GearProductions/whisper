@@ -610,7 +610,9 @@ créer ou retirer un worktree. Le résultat s'affiche sous le bouton (✓ ou ✗
 le détail à déplier), chaque commande dans `direct.log` des sorties de
 l'agent ; git et `gh` passent par le préfixe des commandes (la box : les
 hooks de commit y trouvent Node). En cas de souci, le petit *via* à côté
-passe par l'agent, comme avant.
+passe par l'agent, comme avant. *Créer une branche dans un nouveau
+worktree* reste possible pendant une action : il travaille dans un autre
+dossier.
 
 Une validation vaut pour le contenu validé : une note modifiée ensuite
 repasse « modifiée depuis », à revalider. Quand l'étape n'attend plus que

@@ -1018,7 +1018,10 @@ conversation ; note `0.9.0-actions-independantes.md`).
   action (même clé) ne court pas deux fois. En cours : *en cours*, *attend
   une autorisation*, ou *arrêtée* pas encore tranchée (I-44). Au clic, une
   action retenue est grisée avec la raison (F-99) ; le principal la refuse
-  de même.
+  de même. Sauf *Créer une branche dans un nouveau worktree* (`new-worktree`,
+  F-110, `ELSEWHERE`) : il travaille dans un autre dossier, sans toucher à
+  la branche de celui-ci ; aucune course ne le retient, et il ne retient
+  aucune course.
 - **L'onglet Actions (n)** : une ligne par course, la plus récente d'abord —
   son libellé, qui travaille, son état (*en cours*, *attend une
   autorisation*, *arrêtée — à garder ou annuler*, *finie*, *en échec*,
