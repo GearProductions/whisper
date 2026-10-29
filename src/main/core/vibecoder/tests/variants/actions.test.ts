@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { VibeView } from 'shared/bridge';
-import { buildMessage, DIRECT_ACTIONS, DIRECT_ONLY, forkedModel, parseActions, SKILL_MODELS, whoOf, type ActionDef, type MessageContext } from 'core/vibecoder';
+import { buildMessage, DIRECT_ACTIONS, DIRECT_ONLY, parseActions, skillModel, SKILL_MODELS, whoOf, type ActionDef, type MessageContext } from 'core/vibecoder';
 
 const C1 = '9fceb02d0ae598e95dc970b74767f19372d61af8';
 const BLOB = '3b18e512dba79e4c8300dd08aeb37f8e728b8dad';
@@ -271,9 +271,9 @@ describe('parseActions sur les actions livrées', () => {
   it('Appliquer la revue : une remarque citée (Appliquer) ou aucune (Tout appliquer)', () => {
     const apply = parseActions(shipped('fr')).find((a) => a.id === 'apply')!;
     const one = buildMessage(apply, { text: 'src/a.ts:L3 — dead: x() — personne ne l\'appelle' }, ctx);
-    expect('text' in one && one.text.endsWith(' : src/a.ts:L3 — dead: x() — personne ne l\'appelle')).toBe(true);
+    expect('text' in one && one.text).toBe('/vibecoder:appliquer-revue fr /u/vibecoder-out/a1 src/a.ts:L3 — dead: x() — personne ne l\'appelle');
     const all = buildMessage(apply, {}, ctx);
-    expect('text' in all && all.text.endsWith('(vide : toutes) : ')).toBe(true);
+    expect('text' in all && all.text.trimEnd()).toBe('/vibecoder:appliquer-revue fr /u/vibecoder-out/a1');
   });
 });
 
@@ -317,18 +317,27 @@ describe('whoOf : qui travaille, d\'après l\'en-tête du skill', () => {
   });
 });
 
-describe('forkedModel : un skill en sous-contexte, dont on peut changer le modèle', () => {
+describe('skillModel : un skill qui fixe son modèle, qu\'on peut changer', () => {
   it('sous-contexte sur opus : opus', () => {
-    expect(forkedModel(skill('context: fork\nmodel: opus\neffort: high'))).toBe('opus');
+    expect(skillModel(skill('context: fork\nmodel: opus\neffort: high'))).toBe('opus');
   });
 
-  it('dans la conversation (sans context: fork) : null', () => {
-    expect(forkedModel(skill('model: opus'))).toBeNull();
+  it('dans la conversation (sans context: fork) : son modèle aussi', () => {
+    expect(skillModel(skill('model: sonnet'))).toBe('sonnet');
   });
 
-  it('sous-contexte sans modèle, ou sur un autre (fable, inherit) : null', () => {
-    expect([skill('context: fork'), skill('context: fork\nmodel: fable'), skill('context: fork\nmodel: inherit')].map(forkedModel))
+  it('sans modèle, ou sur un autre (fable, inherit) : null', () => {
+    expect([skill('context: fork'), skill('model: fable'), skill('context: fork\nmodel: inherit')].map(skillModel))
       .toEqual([null, null, null]);
+  });
+
+  it('note, forme (livrés) et le texte de answers (sans skill) : null, « agent » (F-109)', () => {
+    const ROOT = path.resolve(__dirname, '../../../../../../resources/vibecoder/plugin/skills');
+    const shipped = ['note', 'forme'].map((n) => fs.readFileSync(path.join(ROOT, n, 'SKILL.md'), 'utf8'));
+    for (const md of [...shipped, null]) {
+      expect(skillModel(md)).toBeNull();
+      expect(whoOf(md, 'fr')).toBe('agent');
+    }
   });
 });
 

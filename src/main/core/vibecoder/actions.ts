@@ -2,7 +2,7 @@
  *  leurs entrées valides, le message qu'une action envoie à l'agent — son
  *  gabarit, chaque variable remplacée par une valeur vérifiée, rien d'autre —
  *  et qui travaille quand elle part (le modèle du skill qu'elle appelle, ou
- *  un autre choisi parmi SKILL_MODELS pour un skill en sous-contexte).
+ *  un autre choisi parmi SKILL_MODELS pour un skill qui fixe son modèle).
  *  Seuls {{text}}, {{answers}} et {{draft}} (écrits par l'utilisateur : le
  *  champ, I-2, ses réponses, ses remarques) sont libres ; un commit, un
  *  module (targetModule, que reprend runs), une PR ne sont pris que dans le dernier relevé, le préfixe des
@@ -19,7 +19,7 @@
  *  ignoré, et rendu (ignored) pour que l'appelant prévienne l'agent (F-115).
  *  Ne connaît pas : Electron, le disque, l'agent (le message est rendu, pas envoyé),
  *  le calcul du préfixe (core/runner, fait par l'appelant).
- *  Utilisé par : core/vibecoder (journey, runs, defaults), app/controllers/vibecoder, app/settings. */
+ *  Utilisé par : core/vibecoder (journey, runs, defaults), app/controllers (vibecoder, runs), app/settings. */
 import type { VibeAction, VibeArgs, VibeLang, VibeModule, VibeStepId, VibeView } from 'shared/bridge';
 import { json } from './outputs';
 
@@ -215,7 +215,7 @@ const EFFORT: Record<VibeLang, Record<string, string>> = {
   en: { medium: 'medium', high: 'high', xhigh: 'extra high', max: 'max' },
 };
 
-// Les modèles qu'on peut choisir pour un skill en sous-contexte (jamais Fable, I-36).
+// Les modèles qu'on peut choisir pour un skill qui fixe le sien (jamais Fable, I-36).
 export const SKILL_MODELS = ['haiku', 'sonnet', 'opus'];
 
 // Un champ de l'en-tête (frontmatter) d'un skill, sans ses guillemets ; '' s'il manque.
@@ -224,11 +224,11 @@ export function headField(skillMd: string | null, key: string): string {
   return new RegExp(`^${key}:[ \\t]*(.*?)[ \\t]*$`, 'm').exec(head)?.[1].replace(/^(['"])(.*)\1$/, '$2') || '';
 }
 
-// Le modèle d'un skill en sous-contexte (context: fork) s'il est l'un de
-// SKILL_MODELS : on peut lui en choisir un autre ; sinon null.
-export function forkedModel(skillMd: string | null): string | null {
+// Le modèle que fixe un skill (l'en-tête, context: fork ou non) s'il est l'un
+// de SKILL_MODELS : on peut lui en choisir un autre ; sinon null (l'agent).
+export function skillModel(skillMd: string | null): string | null {
   const model = headField(skillMd, 'model');
-  return headField(skillMd, 'context') === 'fork' && SKILL_MODELS.includes(model) ? model : null;
+  return SKILL_MODELS.includes(model) ? model : null;
 }
 
 // Qui travaille pour un skill, d'après son en-tête (frontmatter) : son modèle,

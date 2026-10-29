@@ -78,11 +78,11 @@ export function blockedBy(def: Pick<ActionDef, 'id' | 'reads'>, running: { id: s
   return null;
 }
 
-// Le module que génère une action : module, next → celui que vise son message (targetModule) ;
+// Le module que génère une action : module → celui que vise son message (targetModule) ;
 // modules → '*' (tous) ; une autre, ou un rang inconnu → null.
 export function runModule(actionId: string, args: VibeArgs, modules: VibeModule[]): string | null {
   if (actionId === 'modules') return '*';
-  if (actionId !== 'module' && actionId !== 'next') return null;
+  if (actionId !== 'module') return null;
   return targetModule(args, modules)?.path ?? null;
 }
 
