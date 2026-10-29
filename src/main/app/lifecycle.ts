@@ -6,7 +6,9 @@
  *  les processus lancés par l'onglet Processus de VibeCoder sont arrêtés.
  *  Au lancement, les familles d'agents sont relues par git (syncFamilies).
  *  Le schéma vibe-artifact (les artefacts de VibeCoder, F-95) : déclaré
- *  avant ready, servi à ready (resolveArtifact).
+ *  avant ready, servi à ready (resolveArtifact). Lancée depuis les sources :
+ *  ce qui est reconstruit dans out/ est suivi (app/dev), le relevé de
+ *  VibeCoder le montre.
  *  Ne connaît pas : le détail des fenêtres et des contrôleurs.
  *  Utilisé par : src/main/index.ts. */
 import { app, session } from 'electron';
@@ -19,9 +21,10 @@ import * as paste from 'technicals/paste';
 import * as tts from 'technicals/pocket-tts';
 import * as windows from 'technicals/windows-helper';
 import {
-  agents, ensureFolderColors, ensureModel, muter, pollSpeak, processesRunning, pushAgents, resetSpeakState, resolveArtifact, SPEAK_POLL_MS, startHealing,
-  stopProcesses, syncFamilies,
+  agents, ensureFolderColors, ensureModel, muter, pollSpeak, processesRunning, pushAgents, refreshVibe, resetSpeakState, resolveArtifact, SPEAK_POLL_MS,
+  startHealing, stopProcesses, syncFamilies,
 } from 'app/controllers';
+import { startDev } from 'app/dev';
 import { registerIpc } from 'app/ipc';
 import { ensureVibeFiles, loadConfig, saveConfig } from 'app/settings';
 import { state } from 'app/state';
@@ -59,6 +62,8 @@ export function start() {
     // VibeCoder : ses fichiers par défaut, sans écraser une retouche ; un échec ne bloque rien (I-29).
     ensureVibeFiles();
     setInterval(pollSpeak, SPEAK_POLL_MS);
+    // Depuis les sources : recharger ou redémarrer, d'après ce qui est reconstruit (rien en version empaquetée).
+    startDev(() => { void refreshVibe({ now: true }); });
     // Une application restée muette après une dictée passée : rétablie dès qu'elle rejoue.
     startHealing();
     // Windows : l'assistant PowerShell sert au premier collage comme à la

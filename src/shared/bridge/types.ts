@@ -392,6 +392,7 @@ export type VibeView = {
   loaded?: VibePr | null;                // la PR suivie et sa fiche pr-<n>.json (les deux parcours : la vue des branches)
   reviewable?: boolean;                  // la branche a sa PR ouverte : Relire possible ; absent : non
   child?: boolean;                       // l'agent est un worktree (enfant ou robot) : il reste sur sa branche
+  dev?: 'reload' | 'restart' | null;     // depuis les sources : les pages reconstruites (recharger) ou le principal (redémarrer)
   branches?: string[] | null;            // les branches locales
   // behind : commits de @{u} absents de HEAD (null : pas de branche distante suivie) ;
   // baseAhead : commits de origin/<base> absents de HEAD.
@@ -442,4 +443,6 @@ export type VibePatch = {
   worktree?: true;             // le robot de la PR suivie dans son worktree : l'afficher, ou le proposer (question de confiance)
   prs?: true;                  // les trois listes de VibeView.prs (gh, sans agent), les deux parcours
   runsSeen?: boolean;          // true : l'onglet Actions de l'agent affiché est ouvert, ses courses vues ; false : fermé
+  reloadUi?: true;             // en dev, les pages reconstruites : recharger les fenêtres, le principal continue
+  restartApp?: true;           // en dev, le principal reconstruit : relancer l'appli (confirmé si des agents travaillent)
 };

@@ -77,6 +77,28 @@ npm run test:front-diff -- v0.4.0    # pages comparées à une version : mêmes 
 npm run test:main-diff -- v0.5.0-rc.1  # appli réelle comparée à une version : mêmes résultats
 ```
 
+**Itérer sans attendre une release.** Lancée depuis les sources
+(`app.isPackaged` faux), l'appli compare toutes les 2 s ce qui est construit
+dans `out/` à ce qu'elle a chargé (par empreinte du contenu) et le montre dans
+l'en-tête de VibeCoder, à côté de FR / EN :
+
+- les pages seules ont changé : **Recharger l'interface** recharge les
+  fenêtres ; le principal et les agents continuent ;
+- le principal ou un pont a changé : **Redémarrer**, avec une pastille,
+  relance l'appli (des pages neuves face à l'ancien principal pourraient
+  casser) ; si des agents travaillent, l'appli le demande d'abord ;
+- rien : aucun bouton.
+
+Pour que `out/` suive les sources, les reconstruire en continu à côté de
+l'appli :
+
+```bash
+npx vite build --watch                            # les pages (src/renderer)
+npx vite build -c vite.main.config.mts --watch    # le principal et les ponts
+```
+
+La version publiée n'a rien de tout cela.
+
 ### whisper.cpp (depuis les sources)
 
 `npm run build:whisper` compile whisper-cli dans `resources/bin/` (git, cmake,
