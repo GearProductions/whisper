@@ -52,7 +52,7 @@ import { DIRECT_ACTIONS, DIRECT_ONLY, prNumber, SKILL_MODELS, templateVars, type
 import { markState, type Marks } from './marks';
 import { parseNote } from './note';
 import { json, parseChecklist, parseQuestions, parseReading } from './outputs';
-import { onBase, onPr, placeReason, placeShown, type PlaceState } from './place';
+import { ELSEWHERE, onBase, onPr, placeReason, placeShown, type PlaceState } from './place';
 import { blockedBy, codeLock, ownRun } from './runs';
 import { syncReason } from './sync';
 import { blobSha, caseLines, caseTitles, isInvariantTest, readingOf } from './test-files';
@@ -375,9 +375,10 @@ export function vibeView(input: JourneyInput): VibeView {
   const open = (id: VibeStepId) => flow === 'review' || !!done[id] || id === current;
 
   // Une action directe en cours (F-114) : les autres attendent, comme quand l'agent travaille ; et elle
-  // retient les courses comme l'une d'elles (elle lit, publish, load-pr, ou modifie, commit, base).
+  // retient les courses comme l'une d'elles (elle lit, publish, load-pr, ou modifie, commit, base) ; pas un
+  // nouveau worktree (ELSEWHERE), qui travaille dans un autre dossier.
   const running = Object.values(input.direct ?? {}).some((x) => x.running);
-  const locks = [...input.running, ...Object.entries(input.direct ?? {}).filter(([, x]) => x.running)
+  const locks = [...input.running, ...Object.entries(input.direct ?? {}).filter(([id, x]) => x.running && !ELSEWHERE.includes(id))
     .map(([id]) => ({ id, reads: !!input.actions.find((a) => a.id === id)?.reads }))];
   // Pourquoi une action est grisée : une course la retient (celle d'une étape) ou la conversation travaille
   // (les autres), une commande directe est en cours (held) ; une variable de son gabarit manque, elle ne
