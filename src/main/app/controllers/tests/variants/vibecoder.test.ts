@@ -21,7 +21,9 @@ const fake = vi.hoisted(() => {
     webContents = {
       send: (ch: string, payload?: unknown) => { this.sent.push([ch, payload]); },
       on: () => {}, setWindowOpenHandler: () => {},
+      reloadIgnoringCache: () => { this.reloads++; },
     };
+    reloads = 0;
     on(ev: string, fn: Handler) { this.handlers.set(ev, [...(this.handlers.get(ev) || []), fn]); return this; }
     once(ev: string, fn: Handler) { return this.on(ev, fn); }
     emit(ev: string) { for (const fn of this.handlers.get(ev) || []) fn(); }
@@ -36,13 +38,13 @@ const fake = vi.hoisted(() => {
     shown: null as string | null, diff: null as string | null, edited: [] as unknown[][], opened: [] as string[],
     tabs: [] as (string | null)[], steps: [] as { id: string; status: string }[],
     git: (() => null) as (args: string[]) => string | null, calls: [] as unknown[][], noChild: false,
-    branches: null as string[] | null, synced: [] as string[], prs: null as unknown, login: 'moi' as string | null,
+    branches: null as string[] | null, synced: [] as string[], prs: null as unknown, login: 'moi' as string | null, packaged: false,
   };
 });
 
 vi.mock('electron', () => ({
-  app: { getPath: () => fake.userData },
-  BrowserWindow: class extends fake.Win { constructor() { super(); fake.windows.push(this); } },
+  app: { getPath: () => fake.userData, get isPackaged() { return fake.packaged; } },
+  BrowserWindow: class extends fake.Win { constructor() { super(); fake.windows.push(this); } static getAllWindows() { return fake.windows; } },
   screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) },
   shell: { openExternal: (url: string) => { fake.opened.push(url); } }, dialog: {}, clipboard: {}, nativeImage: {},
 }));
@@ -181,6 +183,7 @@ beforeEach(() => {
   fake.synced = [];
   fake.prs = null;
   fake.login = 'moi';
+  fake.packaged = false;
   fake.userData = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-vibecoder-'));
   dir = path.join(fake.userData, 'projet');
   out = path.join(fake.userData, 'vibecoder-out', 'a1');   // les sorties de l'agent
@@ -848,6 +851,19 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
   });
 
   // 0.12.0-gestion-des-branches
+  // 0.13.0-recharger-interface
+  it('Recharger l\'interface : en dev, chaque fenêtre rechargée, dev au relevé ; empaquetée, rien', async () => {
+    const { view } = await open();
+    const { setVibe } = await import('app/controllers');
+    expect((view() as { dev?: boolean } | null)?.dev).toBe(true);
+    setVibe({ reloadUi: true });
+    expect(fake.windows.map((w) => w.reloads)).toEqual(fake.windows.map(() => 1));
+    fake.packaged = true;
+    setVibe({ reloadUi: true });
+    expect(fake.windows.map((w) => w.reloads)).toEqual(fake.windows.map(() => 1));
+    expect(fake.calls).toEqual([]);   // rien d'autre ne suit
+  });
+
   it('le relevé : branches locales et état distant (sync sur la base sans origin/), sans fetch ; les PR ouvertes en Créer aussi, false en échec', async () => {
     fake.prs = { mine: [{ number: 1 }], review: [], all: [{ number: 1 }, { number: 2 }] };
     const { view } = await open();

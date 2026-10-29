@@ -94,7 +94,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { shell } from 'electron';
+import { app, BrowserWindow, shell } from 'electron';
 import type { SendResult, VibeAction, VibeArgs, VibeLang, VibeRunOp, VibeView } from 'shared/bridge';
 import { EFFORTS, MODELS, MODES, type AgentConfig } from 'core/agents';
 import { agentList, agentVibe, vibeLang, type Config } from 'core/config';
@@ -497,7 +497,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     const next = vibeMarks(marks, journey);
     if (next !== marks) { store.marks[agent.id] = next; saveVibeStore(store); }
   }
-  return { ...journey, ...proc, artifacts: listArtifacts(agent.id, out, cfg.artifactTextMax) };
+  return { ...journey, ...proc, artifacts: listArtifacts(agent.id, out, cfg.artifactTextMax), dev: !app.isPackaged };
 }
 
 /* ---- Ce que demande l'écran ------------------------------------------------ */
@@ -828,6 +828,8 @@ export function setVibe(patch: unknown) {
   if (p.interrupt === true && isBusy(agent.id)) interruptAgent(agent.id);
   if (p.worktree === true) showWorktree(agent);
   if (p.runsSeen === true) runsTab(agent.id);
+  // En dev seulement : chaque fenêtre rechargée, ses pages reconstruites (whisper-dev) ; le principal et les agents continuent.
+  if (p.reloadUi === true && !app.isPackaged) for (const w of BrowserWindow.getAllWindows()) w.webContents.reloadIgnoringCache();
   if (p.prs === true) {
     githubReader(ghRun(agent.dir, agentPrefix(agent, loadConfig()))).openPrs().then((list) => {
       prsFound.set(agent.id, list ?? false);
