@@ -23,6 +23,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { slow } from '../slow';
 
 const fake = vi.hoisted(() => {
   type Handler = (...a: unknown[]) => void;
@@ -82,7 +83,7 @@ vi.mock('technicals/paths', async (original) => ({
 
 const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' });
 const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
-const settle = () => new Promise((r) => setTimeout(r, 300));
+const settle = () => new Promise((r) => setTimeout(r, slow(300)));
 let dir = '';
 let secret = '';
 

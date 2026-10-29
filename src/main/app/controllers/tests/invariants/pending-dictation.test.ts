@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { slow } from '../slow';
 
 const fake = vi.hoisted(() => {
   type Handler = (...a: unknown[]) => void;
@@ -52,7 +53,7 @@ vi.mock('technicals/claude', () => ({
   }),
 }));
 
-const settle = () => new Promise((r) => setTimeout(r, 200));
+const settle = () => new Promise((r) => setTimeout(r, slow(200)));
 
 beforeEach(() => {
   vi.resetModules();
