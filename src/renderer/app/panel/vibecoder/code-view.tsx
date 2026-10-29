@@ -4,9 +4,11 @@
  *  à cette ligne (numérotée comme l'affichage). Avec `edit` : modifiable,
  *  Ctrl+S → onSave (editorBase) ; en lecture seule sans `edit` ou si `locked` (le motif, en
  *  titre). Un code changé par les props remplace le document. Avec `onQuote` :
- *  un clic sur une ligne ou une sélection, puis 💬 ou Retour → fixup citent ses
- *  lignes entières (codeBlock) ; `fix` à false (un fichier d'un commit) : 💬
- *  seul, sans Retour → fixup. Libellés : `t` (français par défaut).
+ *  un clic sur une ligne ou une sélection, puis le bouton-icône commentaire
+ *  (IconButton, icons.tsx ; libellé t.quote) ou le bouton texte Retour → fixup
+ *  (vc-mini) citent ses lignes entières (codeBlock), grisés sans sélection ;
+ *  `fix` à false (un fichier d'un commit) : commentaire seul, sans Retour →
+ *  fixup. Libellés : `t` (français par défaut).
  *  Le défilement est celui de l'éditeur : .vc-src n'est qu'un cadre, la hauteur
  *  est bornée sur .cm-editor (vibecoder.css, invariants-view.css) et c'est
  *  .cm-scroller qui défile, avec la barre de l'appli (.scroll).
@@ -18,6 +20,7 @@ import { Compartment, EditorState } from '@codemirror/state';
 import { EditorView, lineNumbers } from '@codemirror/view';
 import { codeHighlight, editorBase, languageFor, syncDoc } from 'technicals/codemirror';
 import { codeBlock, t as strings, type Strings } from 'core/vibecoder';
+import { IconButton } from './icons';
 
 export type CodeEdit = { locked: string | null; onChange(text: string): void; onSave(): void };
 
@@ -90,7 +93,7 @@ export function CodeView({ code, path, from = 1, at, edit, onQuote, fix = true, 
         aria-label={path} />
       {onQuote ? (
         <div className="vc-src-tools">
-          <button type="button" className="vc-tool" title={t.quote} aria-label={t.quote} disabled={!picked} onClick={() => quote('comment')}>💬</button>
+          <IconButton icon="comment" label={t.quote} disabled={!picked} onClick={() => quote('comment')} />
           {fix ? <button type="button" className="vc-mini" title={t.fixTitle} disabled={!picked} onClick={() => quote('fix')}>{t.fix}</button> : null}
         </div>
       ) : null}

@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 // CodeView (code-view.tsx) : Ctrl+S → onSave, sauf grisé ; le code changé par les props
-// remplace le document ; 💬 cite les lignes entières de la sélection ; fix false : 💬 seul ; .cm-scroller défile, pas .vc-src.
+// remplace le document ; le bouton-icône commentaire (nommé, svg) cite les lignes entières de la
+// sélection ; fix false : commentaire seul ; .cm-scroller défile, pas .vc-src.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EditorView } from '@codemirror/view';
@@ -47,12 +48,16 @@ it('le code changé par les props remplace le document, sans le renvoyer à onCh
   expect(typed).toEqual(['deux!']);
 });
 
-it('💬 cite les lignes entières de la sélection, numérotées depuis from', async () => {
+it('le bouton commentaire cite les lignes entières de la sélection, numérotées depuis from', async () => {
   const quoted: string[] = [];
   const v = mount();
   await v.render({ code: 'l1\nl2\nl3', path: 'src/a.ts', from: 10, onQuote: (b) => quoted.push(b) });
   const button = v.page.querySelector('.vc-tool') as HTMLButtonElement;
   expect(button.disabled).toBe(true);
+  expect(button.getAttribute('aria-label')).toBe(button.title);
+  expect(button.title).not.toBe('');
+  expect(button.querySelector('svg')).not.toBeNull();
+  expect(button.textContent).toBe('');
   expect(v.page.querySelector('.cm-gutterElement:last-child')?.textContent).toBe('12');
   await act(() => { v.view().dispatch({ selection: { anchor: 4, head: 7 } }); });
   await act(() => { button.click(); });
@@ -66,7 +71,7 @@ it("le défilement est celui de l'éditeur : .cm-scroller porte la barre, .vc-sr
   expect(v.page.querySelector('.vc-src')!.classList.contains('scroll')).toBe(false);
 });
 
-it('fix false : 💬 seul, sans Retour → fixup', async () => {
+it('fix false : commentaire seul, sans Retour → fixup', async () => {
   const v = mount();
   await v.render({ code: 'a', path: 'src/a.ts', onQuote: () => {} });
   expect(v.page.querySelector('.vc-mini')).not.toBeNull();
