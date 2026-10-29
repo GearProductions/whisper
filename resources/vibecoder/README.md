@@ -81,10 +81,10 @@ bouton retiré suivi d'un bouton ajouté. `ponytail` n'a pas de bouton : `checks
 `{{lang}} {{out}}`. Le bouton `guide` n'apparaît que si le skill `gear-guide`
 existe (dans le projet ou chez l'utilisateur).
 
-Seize boutons ont aussi une voie **directe**, sans agent : `commit`,
+Dix-huit boutons ont aussi une voie **directe**, sans agent : `commit`,
 `publish`, `load-pr`, `base`, `pr-here`, `pr-worktree`, `remove-worktree`,
 `stash`, `unload-pr`, `new-here`, `new-worktree`, `switch-branch`, `pull`,
-`rebase`, `push` et `fetch`. Le bouton « direct »
+`rebase`, `push`, `fetch`, `request-review` et `copy-artifact`. Le bouton « direct »
 lance lui-même des commandes fixes (`git commit -F`, `gh pr review`, `gh pr
 view` puis `git fetch origin <tête>` (la PR se relit dans le dossier de
 l'agent), `git switch` / `pull --ff-only` / `branch -d` si la PR est
@@ -98,15 +98,17 @@ côté* : `git stash push -u`, rien d'autre ; *Pull* : `git pull --ff-only
 --autostash` ; *Rebase* : `git rebase --autostash <sur>`, et `git rebase
 --abort` aussitôt s'il échoue ; *Pousser* : `git push --force-with-lease`,
 jamais `--force` ; *Actualiser* : `git fetch origin`, seulement à son
-clic), écrites dans l'appli et inscrites
+clic ; *Copier dans le projet* (panneau *Artefacts*) : copie l'artefact
+affiché dans le dossier choisi dans une boîte de dialogue, un fichier du
+même nom remplacé seulement si vous l'acceptez), écrites dans l'appli et inscrites
 dans `direct.log` des sorties, ou la recette du fichier du projet (*Dans un
 nouveau worktree*, *Retirer le worktree* ; voir plus bas, `recipe.log` ; la
 PR d'un worktree retiré perd aussi sa branche `pr-<n>`, `git branch -D`) ;
 leur `text` reste le message du petit *via* à côté (le skill ou le message,
 dans la conversation). Personnaliser leur `text` ne change donc que le
 *via*. `remove-worktree`, `stash`, `unload-pr`, `new-here`,
-`new-worktree`, `switch-branch`, `pull`, `rebase`, `push` et `fetch`
-n'ont pas de *via* : seule l'appli les fait. Les actions de branche sont
+`new-worktree`, `switch-branch`, `pull`, `rebase`, `push`, `fetch`, `request-review` et
+`copy-artifact` n'ont pas de *via* : seule l'appli les fait. Les actions de branche sont
 dans la vue des branches, qu'ouvre la branche de l'en-tête (*Pull*,
 *Rebase*, *Pousser* : à côté d'elle).
 
@@ -260,6 +262,7 @@ sinon.
 | `nouvelle-demande` | sous-contexte | haiku · low | `new-request.json` (`{ "branch" }` : le nom proposé pour la branche d'une nouvelle demande, ou de *Rédiger la note* sur la branche principale ; l'appli le montre prérempli, l'utilisateur le valide ou le change, puis la crée ici ou dans un worktree ; la demande n'y est pas) |
 | `lancement` | sous-contexte | haiku · low | `lancement.json` (les commandes ; `setup` et `worktree`, une seule fois par projet) |
 | `processus` | conversation (l'agent l'appelle de lui-même) | agent | `run/<nom>.stop`, `run/<nom>.restart` |
+| `artefact` | conversation (l'agent l'appelle de lui-même, sans bouton ; aussi par « / ») | agent | `artifacts/<nom>` (un fichier par artefact, montré dans le panneau *Artefacts* ; jamais le projet) |
 
 `checks.json` : `{"items":[{"name","ok","level","detail"}],"time"}`, un
 élément par commande ; `level` vaut `ok`, `warning` (des avertissements
