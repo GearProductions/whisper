@@ -4,10 +4,11 @@
  *  (PATHS). Icon : le <svg> en React ; iconElement : le même dessin hors React
  *  (createElementNS), pour les boutons de ligne de CodeMirror ; IconButton :
  *  le bouton-icône (classe vc-tool, vibecoder.css), son libellé en title et
- *  aria-label, pressed → aria-pressed.
+ *  aria-label, pressed → aria-pressed, l'événement du clic passé à onClick.
  *  Ne connaît pas : le pont, le relevé, le métier ; aucune dépendance.
  *  Utilisé par : les vues de vibecoder, note-editor ; components (composer :
  *  attach, send). */
+import type { MouseEvent } from 'react';
 
 export type IconName = 'close' | 'open' | 'external' | 'diff' | 'comment' | 'ok' | 'ko' | 'warn'
   | 'stop' | 'play' | 'refresh' | 'edit' | 'pull' | 'push' | 'rebase'
@@ -59,11 +60,11 @@ export function iconElement(name: IconName): SVGSVGElement {
 }
 
 export function IconButton({ icon, label, onClick, disabled, pressed, className }: {
-  icon: IconName; label: string; onClick(): void; disabled?: boolean; pressed?: boolean; className?: string;
+  icon: IconName; label: string; onClick(e: MouseEvent): void; disabled?: boolean; pressed?: boolean; className?: string;
 }) {
   return (
     <button type="button" className={className ? `vc-tool ${className}` : 'vc-tool'} title={label} aria-label={label}
-      aria-pressed={pressed} disabled={disabled} onClick={() => onClick()}>
+      aria-pressed={pressed} disabled={disabled} onClick={onClick}>
       <Icon name={icon} />
     </button>
   );
