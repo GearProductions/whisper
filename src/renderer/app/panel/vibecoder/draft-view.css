@@ -1,15 +1,16 @@
-/* L'étape Revue de Relire (draft-view) : la revue publiée, le brouillon, le
+/* L'étape Revue de Relire (draft-view) : la revue publiée (son état, un
+   point sans halo), le brouillon (ses icônes vc-tool, × rouge au survol), le
    verdict et Publier. Sous .vc, couleurs de vibecoder.css (rouge : celui de
-   Whisper). */
+   Whisper). Ne connaît pas : le pont. Utilisé par : draft-view. */
 
 .vc-review-state { display: inline-flex; align-items: center; gap: 8px; color: var(--vc-text); font-size: 14px; font-weight: 600; }
 .vc-review-state::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--vc-muted); }
 .vc-review-state[data-state="APPROVED"] { color: var(--vc-ok); }
-.vc-review-state[data-state="APPROVED"]::before { background: var(--vc-ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--vc-ok) 22%, transparent); }
+.vc-review-state[data-state="APPROVED"]::before { background: var(--vc-ok); }
 .vc-review-state[data-state="COMMENTED"] { color: var(--vc-link); }
-.vc-review-state[data-state="COMMENTED"]::before { background: var(--vc-link); box-shadow: 0 0 0 3px color-mix(in srgb, var(--vc-link) 22%, transparent); }
+.vc-review-state[data-state="COMMENTED"]::before { background: var(--vc-link); }
 .vc-review-state[data-state="CHANGES_REQUESTED"] { color: #f08a8b; }
-.vc-review-state[data-state="CHANGES_REQUESTED"]::before { background: #d9383a; box-shadow: 0 0 0 3px color-mix(in srgb, #d9383a 25%, transparent); }
+.vc-review-state[data-state="CHANGES_REQUESTED"]::before { background: #d9383a; }
 
 /* ---- Le brouillon -------------------------------------------------------------- */
 .vc-draft-list { list-style: none; margin: -6px -16px -14px; padding: 0; }
@@ -35,9 +36,8 @@
 .vc-draft-list .vc-md { font-size: 13px; }
 .vc-draft-list .vc-md ul { list-style: disc; }
 .vc-draft-tools { position: absolute; top: 9px; right: 10px; display: flex; gap: 2px; opacity: 0.5; }
-.vc-draft-remove { font-size: 16px; }
 .vc-draft-list > li:hover .vc-draft-tools, .vc-draft-tools:focus-within { opacity: 1; }
-.vc-draft-remove:hover { border-color: color-mix(in srgb, #d9383a 50%, transparent); background: color-mix(in srgb, #d9383a 14%, transparent); color: #f08a8b; }
+.vc-draft-remove:hover { background: color-mix(in srgb, #d9383a 14%, transparent); color: #f08a8b; }
 .vc-draft-empty { color: var(--vc-muted); font-size: 12.5px; line-height: 1.6; }
 
 /* ---- Verdict et Publier -------------------------------------------------------- */
