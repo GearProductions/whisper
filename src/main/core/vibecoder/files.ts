@@ -37,7 +37,7 @@ export function safePath(dir: string, rel: string, realpath: (p: string) => stri
 export function itemPath(view: VibeView | null, id: string): string | null {
   if (!view) return null;
   const files = [view.note, ...view.invariants, ...view.variants, ...view.modules.map((m) => m.file),
-    ...view.commits.flatMap((c, r) => c.files.map((p, i) => ({ id: `c${r}/${i}`, path: p })))];
+    ...commitFiles(view)];
   return files.find((f) => f?.id === id)?.path ?? null;
 }
 
@@ -66,6 +66,12 @@ export function codeFile(view: VibeView | null, id: string): { path: string; mod
 // Le fichier d'un commit que désigne `c<rang>/<i>` (le i-ème fichier du commit
 // de ce rang dans le relevé, et le hash de ce commit), en Relire seulement ;
 // null pour tout autre id, Créer compris, l'id n'étant jamais lu comme un chemin.
-export function commitFile(_view: VibeView | null, _id: string): { path: string; hash: string } | null {
-  throw new Error('not implemented');
+export function commitFile(view: VibeView | null, id: string): { path: string; hash: string } | null {
+  const f = view?.flow === 'review' ? commitFiles(view).find((x) => x.id === id) : undefined;
+  return f ? { path: f.path, hash: f.hash } : null;
+}
+
+// Les fichiers des commits du relevé, chacun son id `c<rang>/<i>` et le hash de son commit.
+function commitFiles(view: VibeView): { id: string; path: string; hash: string }[] {
+  return view.commits.flatMap((c, r) => c.files.map((p, i) => ({ id: `c${r}/${i}`, path: p, hash: c.hash })));
 }
