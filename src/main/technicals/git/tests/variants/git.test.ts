@@ -196,6 +196,27 @@ describe('forkPoint', () => {
   });
 });
 
+describe('parent', () => {
+  const dir = repo();
+  const reader = gitReader(gitRun(dir));
+
+  it('le premier parent d\'un commit', async () => {
+    expect(await reader.parent('HEAD')).toBe(git(dir, 'rev-parse', 'HEAD~1'));
+  });
+
+  it('un commit racine : null', async () => {
+    expect(await reader.parent('main')).toBeNull();
+  });
+
+  it('un ref inconnu : null', async () => {
+    expect(await reader.parent('nulle-part')).toBeNull();
+  });
+
+  it('un ref qui commence par « - » : null', async () => {
+    expect(await reader.parent('--output=/tmp/x')).toBeNull();
+  });
+});
+
 describe('branches', () => {
   it('les branches locales, sans les distantes', async () => {
     const dir = repo();
