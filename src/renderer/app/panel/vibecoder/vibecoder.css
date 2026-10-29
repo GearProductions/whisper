@@ -140,6 +140,7 @@
 .vc-icon:hover { background: var(--vc-control); color: var(--vc-text); }
 .vc-icon > span { display: inline-block; }
 .vc-refresh { font-size: 17px; }
+.vc-reload-ui { margin-right: 6px; }
 .vc-side-toggle svg { width: 16px; height: 16px; vertical-align: -3px; fill: none; stroke: currentColor; stroke-width: 1.3; }
 .vc-side-toggle[aria-pressed="true"] { color: var(--vc-soft); }
 .vc-close { border-radius: 50%; font-size: 18px; }

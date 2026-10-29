@@ -284,6 +284,9 @@ function Top({ view, thread, busy, t, act, side, onSide, onHide, branches, onBra
         </div>
       </div>
       <div className="vc-tools">
+        {view.dev ? (
+          <button type="button" className="vc-mini vc-reload-ui" title={t.reloadUiTitle} onClick={() => act.set({ reloadUi: true })}>{t.reloadUi}</button>
+        ) : null}
         <Segmented value={view.lang} labels={LANGS} title={t.langTitle} onPick={(lang) => act.set({ lang })} />
         <button type="button" className="vc-icon vc-refresh" title={t.refresh} aria-label={t.refresh}
           onClick={() => { setSpins((n) => n + 1); act.refresh(); }}>
