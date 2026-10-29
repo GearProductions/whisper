@@ -1,11 +1,13 @@
 /** i18n — les libellés de l'écran VibeCoder, en français et en anglais
- *  (vibeLang) : en-tête (dont le bouton de la branche, Relire grisé), parcours et ses commits, étapes (une étape pas
- *  encore ouverte), Relancer, Arrêter, onglets Conversation /
+ *  (vibeLang) : en-tête (dont le bouton de la branche, Relire grisé), le fil
+ *  d'Ariane des étapes (son aria-label journey, « N commits » à son bout),
+ *  étapes (une étape pas encore ouverte), Relancer, Arrêter, onglets Conversation /
  *  Actions / Tâches / Processus, la bannière du mode Vibe (en cours,
  *  Arrêter Vibe), le champ d'une étape, la ponytail review lancée avec les
  *  vérifications,
  *  l'onglet Actions (états d'une course, Garder / Annuler, Autoriser /
- *  Toujours / Refuser), choix du modèle, zone de commentaire, barre d'état,
+ *  Toujours / Refuser), choix du modèle, zone de commentaire, barre d'état
+ *  (« N actions en cours »),
  *  titres des sorties ; Voir le code (Enregistrer, fichier trop gros) ; le panneau
  *  Artefacts (son bouton, la liste vide, Copier, fichier tronqué) ; une durée,
  *  une taille de fichier en clair. Ceux des boutons viennent des
@@ -40,6 +42,7 @@ const fr = {
   journey: 'Parcours',
   commits: 'Commits',
   noCommits: 'Aucun commit sur la branche.',
+  commitsOf: (n: number) => (n > 1 ? `${n} commits` : n ? '1 commit' : 'aucun commit'),
   conversation: 'Conversation',
   shortcut: (n: number) => `Ctrl+${n}`,
   rerun: 'Relancer',
@@ -100,6 +103,7 @@ const fr = {
   procsTitle: 'Les commandes qui lancent le projet (serveur, front, services) : lancées par l\'appli, arrêtées à sa sortie',
   runsOf: (live: number) => (live ? `Actions (${live})` : 'Actions'),
   runsTitle: 'Les actions lancées, chacune dans sa propre conversation, à côté de celle-ci',
+  runsRunning: (n: number) => (n > 1 ? `${n} actions en cours` : `${n} action en cours`),
   noRuns: 'Aucune action lancée.',
   runState: {
     running: 'en cours', asking: 'attend une autorisation', stopped: 'arrêtée — à garder ou annuler', done: 'finie',
@@ -157,6 +161,7 @@ const en: Strings = {
   journey: 'Journey',
   commits: 'Commits',
   noCommits: 'No commit on the branch.',
+  commitsOf: (n) => (n > 1 ? `${n} commits` : n ? '1 commit' : 'no commit'),
   conversation: 'Conversation',
   shortcut: (n) => `Ctrl+${n}`,
   rerun: 'Run again',
@@ -217,6 +222,7 @@ const en: Strings = {
   procsTitle: 'The commands that start the project (server, front, services): started by the app, stopped when it quits',
   runsOf: (live) => (live ? `Actions (${live})` : 'Actions'),
   runsTitle: 'The started actions, each in its own conversation, beside this one',
+  runsRunning: (n) => `${n} action${n === 1 ? '' : 's'} running`,
   noRuns: 'No action started.',
   runState: {
     running: 'running', asking: 'awaiting a permission', stopped: 'stopped — keep or undo', done: 'done',
