@@ -3,7 +3,7 @@
  *  cases, citations, code, tableaux, filets ; en ligne : code, gras,
  *  italique, liens. Rien n'est rendu en HTML (aucun dangerouslySetInnerHTML)
  *  et un lien ne navigue pas : onOpenLink (le principal l'ouvre dans le
- *  navigateur, I-21). Avec onQuote, un 💬 au survol de chaque bloc et de
+ *  navigateur, I-21). Avec onQuote, un 💬 (Icon comment) au survol de chaque bloc et de
  *  chaque élément de liste cite son texte (blockQuotes) ; avec onComment
  *  (Relire), ce 💬 ouvre
  *  sous lui une zone de commentaire, et la remarque part avec ce qu'il cite.
@@ -18,6 +18,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { blockQuotes, parseInline, parseMarkdown, type Block, type Inline, type Strings } from 'core/vibecoder';
 import { CommentBox } from './comment-box';
+import { Icon } from './icons';
 
 type Ctx = {
   t: Strings;
@@ -76,7 +77,7 @@ function Quote({ line, ctx }: { line: number; ctx: Full }) {
   return (
     <>
       <button type="button" className="vc-quote" title={title} aria-label={title} aria-pressed={onComment ? here : undefined}
-        onClick={() => (onComment ? open.set(here ? null : line) : onQuote!(text))}>💬</button>
+        onClick={() => (onComment ? open.set(here ? null : line) : onQuote!(text))}><Icon name="comment" /></button>
       {onComment && here ? (
         <CommentBox t={t} onCancel={() => open.set(null)} onSave={(said) => { onComment(text, said); open.set(null); }} />
       ) : null}

@@ -1,7 +1,9 @@
 /* La note (note-view) : en-tête (chemin, Ouvrir, Modifier, Brut,
-   validation), bandeau des changements, liseré vert des blocs changés,
-   marques des lignes « ne doit pas », la note éditable (NoteEditor :
-   vc-note-editor, cm-md-*). Sous .vc. */
+   validation), bandeau des changements, liseré vert et teinte à plat des
+   blocs changés (ni dégradé ni halo), marques des lignes « ne doit pas »,
+   la note éditable (NoteEditor : vc-note-editor, cm-md-*, ses boutons de
+   citation gris, au survol). Sous .vc.
+   Ne connaît pas : les autres vues. Utilisé par : note-view, note-editor. */
 
 .vc-note .vc-card-head { min-height: 42px; gap: 8px; }
 .vc-note-file { flex: none; font-size: 13px; opacity: 0.75; }
@@ -25,11 +27,12 @@
   color: var(--vc-soft);
   font-size: 12.5px;
 }
-.vc-note-pulse { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--vc-ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--vc-ok) 25%, transparent); }
+.vc-note-pulse { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--vc-ok); }
 .vc-note-what { flex: 1; min-width: 0; }
 .vc-note-n { margin-left: 6px; padding: 0 6px; border-radius: 8px; font: 600 11.5px/17px var(--vc-mono); white-space: nowrap; }
 .vc-note-n[data-kind="added"] { background: color-mix(in srgb, var(--vc-ok) 18%, transparent); color: #7ee08f; }
 .vc-note-n[data-kind="removed"] { background: color-mix(in srgb, #d9383a 18%, transparent); color: #f08a8b; }
+.vc-note-changes .vc-mini svg { width: 12px; height: 12px; margin-right: 4px; vertical-align: -2px; }
 .vc-note-changes .vc-mini[aria-pressed="true"] { border-color: var(--vc-ok); color: #7ee08f; }
 
 /* Liseré vert à gauche d'un bloc ou d'un élément changé, dans la marge de la carte. */
@@ -43,13 +46,11 @@
   width: 3px;
   border-radius: 2px;
   background: var(--vc-ok);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--vc-ok) 45%, transparent);
 }
 .vc-note .vc-md li[data-changed]::before { left: -34px; }
 .vc-note .vc-md li li[data-changed]::before { left: -56px; }
 .vc-note .vc-md li li li[data-changed]::before { left: -78px; }
-.vc-note .vc-md .vc-block[data-changed] { background: linear-gradient(90deg, color-mix(in srgb, var(--vc-ok) 7%, transparent), transparent 70%); border-radius: 0 4px 4px 0; }
-.vc-note .vc-md li[data-changed] { background: linear-gradient(90deg, color-mix(in srgb, var(--vc-ok) 7%, transparent), transparent 70%); border-radius: 0 4px 4px 0; }
+.vc-note .vc-md :is(.vc-block, li)[data-changed] { background: color-mix(in srgb, var(--vc-ok) 6%, transparent); border-radius: 0 var(--vc-radius) var(--vc-radius) 0; }
 
 /* La marque d'une ligne de « Ce que ça ne doit pas faire ». */
 .vc-mn {
@@ -72,7 +73,8 @@
 .vc-mn:is([data-mark="none"], .vc-mn-none) { border: 1px dashed color-mix(in srgb, var(--vc-warn) 60%, transparent); color: var(--vc-warn); font-weight: 500; }
 
 /* La note éditable (NoteEditor, Créer) : le texte comme le rendu (.vc-md),
-   les marques Markdown masquées hors du curseur, liseré, pastilles et 💬 dans
+   les marques Markdown masquées hors du curseur, liseré, pastilles et
+   boutons de citation (icône comment) dans
    des gouttières à droite. Le défilement porté par l'éditeur, comme CodeView :
    hauteur bornée sur .cm-editor, .cm-scroller défile ; .vc-note-editor
    n'est qu'un cadre. */
@@ -87,7 +89,7 @@
 .vc-note-editor .cm-gutters { border: 0; background: transparent; }
 .vc-note-editor .cm-line.vc-changed {
   box-shadow: inset 3px 0 var(--vc-ok);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--vc-ok) 7%, transparent), transparent 70%);
+  background: color-mix(in srgb, var(--vc-ok) 6%, transparent);
 }
 .vc-note-editor :is(.cm-md-h1, .cm-md-h2, .cm-md-h3, .cm-md-h4, .cm-md-h5, .cm-md-h6) { padding-top: 10px; padding-bottom: 4px; color: var(--vc-text); font-weight: 600; line-height: 1.3; }
 .vc-note-editor .cm-content > .cm-line:first-child { padding-top: 0; } /* pas d'espace au-dessus de la note, comme le rendu */
@@ -103,21 +105,25 @@
 .vc-note-editor .cm-md-badges .cm-gutterElement { padding-left: 8px; }
 .vc-note-editor .cm-md-badges .vc-mn { margin-right: 0; }
 .vc-note-editor .cm-md-buttons .cm-gutterElement { padding-left: 4px; }
-/* 💬 : une gouttière ne connaît pas le survol de sa ligne ; à demi au survol de la note, entier au sien. */
+/* Le bouton de citation d'un bloc : comme .vc-tool (22×22, sans cadre, gris). Au survol seulement,
+   comme avant : une gouttière ne connaît pas le survol de sa ligne ; à demi au survol de la note, entier au sien. */
 .vc-note-editor .cm-md-button {
-  width: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
   height: 22px;
   padding: 0;
-  border: 1px solid transparent;
-  border-radius: 5px;
+  border: 0;
+  border-radius: var(--vc-radius);
   background: transparent;
-  font-size: 12px;
-  line-height: 20px;
+  color: var(--vc-muted);
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.12s, background-color 0.12s, border-color 0.12s;
+  transition: opacity 0.12s, background-color 0.12s, color 0.12s;
 }
-.vc-note-editor:hover .cm-md-button { opacity: 0.35; }
-.vc-note-editor .cm-gutterElement:hover .cm-md-button, .vc-note-editor .cm-md-button:focus-visible { opacity: 1; border-color: var(--vc-edge); background: var(--vc-control); }
+.vc-note-editor .cm-md-button svg { width: 14px; height: 14px; }
+.vc-note-editor:hover .cm-md-button { opacity: 0.5; }
+.vc-note-editor .cm-gutterElement:hover .cm-md-button, .vc-note-editor .cm-md-button:focus-visible { opacity: 1; background: var(--vc-control); color: var(--vc-text); }
 
 .vc-note-refuse { padding: 4px 16px 0; }
