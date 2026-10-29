@@ -3,6 +3,8 @@ name: rc
 description: "Publish a release candidate following the project's own procedure, wait for its CI and install it for the user beside the current version, asking before deleting anything."
 argument-hint: "<lang> <out>"
 disable-model-invocation: true
+model: sonnet
+effort: medium
 ---
 
 # Release candidate — the project's procedure, installed for the user

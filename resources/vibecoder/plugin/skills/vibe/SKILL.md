@@ -27,7 +27,7 @@ Read `${CLAUDE_SKILL_DIR}/../actions/SKILL.md` first: it is the protocol — `<o
 2. **Forme** — `forme` (`text`: a precision, if any). Check it: small modules, from the inside out.
 3. **Invariants** — `invariants`: it writes the red tests, then checks the alignment and fixes the tests itself (3 rounds at most); no `read-invariants`, its pseudo-code is for the user. Gaps left in `align.md`, or an assertion that does not truly observe its property → `invariants` again with `text` saying what to fix; a gap only the note can close → blocking question.
 4. **First commit** — `commit-prepare`, check `<out>/commit.md` (note, forme, red invariants), then `commit`.
-5. **Modules** — `modules`: parallel Opus subagents, each diff reviewed; it commits nothing. Then `commit-modules`: one commit per module (a fixup for a module already committed).
+5. **Modules** — `modules`: parallel Sonnet subagents, each diff reviewed; it commits nothing. Then `commit-modules`: one commit per module (a fixup for a module already committed).
 6. **Review** — `checks`: it requests the ponytail review itself, both run together; wait for both end notices (`checks.json`, `ponytail.md`). Then `apply` (`text`: the remarks you keep; empty: all) and say which ones you discard and why. A red check → fix it as a fixup of the commit that owns the code, then `checks` again with `check`: its rank in `checks.json` (that check alone).
 7. **Docs** — the note matches what is delivered (A.3); `SPEC.md`, `README.md`, `AGENTS.md`… follow where a behaviour or a convention changed: a doc commit, or fixups.
 8. **Fold** — `fixups`.

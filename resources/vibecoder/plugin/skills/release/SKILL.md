@@ -3,6 +3,8 @@ name: release
 description: "Publish the official release following the project's own procedure, deleting pre-releases only after the user agrees."
 argument-hint: "<lang> <out>"
 disable-model-invocation: true
+model: sonnet
+effort: medium
 ---
 
 # Official release — the project's procedure

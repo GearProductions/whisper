@@ -109,8 +109,8 @@
     "kind": "send",
     "needs": "none",
     "label": "✓ Valider → commit → suivant",
-    "hint": "Commite le module relu, puis génère le suivant.",
-    "text": "/vibecoder:suivant {{lang}} {{out}} {{module}}"
+    "hint": "Commite le module relu, puis lance Générer ce module sur le suivant, dans une seconde course.",
+    "text": "/vibecoder:suivant {{lang}} {{out}}"
   },
   {
     "id": "modules",
@@ -119,7 +119,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Générer les modules restants",
-    "hint": "L'agent confie les modules restants à des agents Opus en parallèle et relit chaque diff ; ne commite pas ; long et coûteux.",
+    "hint": "L'agent confie les modules restants à des agents Sonnet en parallèle et relit chaque diff ; ne commite pas ; long et coûteux.",
     "text": "/vibecoder:modules {{lang}} {{out}}"
   },
   {
@@ -173,7 +173,7 @@
     "needs": "none",
     "label": "Appliquer la revue",
     "hint": "L'agent applique les remarques de la revue qu'il juge justes (toutes, ou celle d'Appliquer), chacune en fixup du commit concerné, et dit lesquelles il écarte.",
-    "text": "Applique les remarques de {{out}}/ponytail.md que tu juges justes, chacune en fixup du commit qui possède le code (/gear-fix-up s'il existe), sans rien ajouter d'autre ; dis lesquelles tu écartes et pourquoi. Puis écris {{out}}/ponytail-applied.json : {\"applied\":[\"<fichier>:L<ligne>\", …]}, l'adresse en tête de chaque remarque appliquée, plus celles qu'il contient déjà s'il est plus récent que ponytail.md. Seulement celle-ci (vide : toutes) : {{text}}"
+    "text": "/vibecoder:appliquer-revue {{lang}} {{out}} {{text}}"
   },
   {
     "id": "fixups",
