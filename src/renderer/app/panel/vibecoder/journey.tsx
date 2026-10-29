@@ -5,8 +5,8 @@
  *  dit par le principal) ; une étape pas ouverte : sans clic, son état en
  *  titre. Un clic sur un commit le déplie :
  *  Voir le diff (dans l'éditeur, c<rang>), GitHub (sa page, gh:c<rang>) —
- *  deux IconButton (icons), libellé en infobulle — et ses fichiers, chacun
- *  ouvrable (c<rang>/<i>), sans IA.
+ *  deux IconButton (icons), libellé en infobulle — et ses fichiers, en texte
+ *  simple (sans clic), sans IA.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
 import { useState } from 'react';
 import type { Strings } from 'core/vibecoder';
@@ -58,8 +58,8 @@ function CommitDetail({ c, rank, t, onOpen }: { c: VibeCommit; rank: number; t: 
         <IconButton icon="external" label={t.githubTitle} onClick={() => onOpen(`gh:c${rank}`)} />
       </div>
       <ul className="vc-jfiles" aria-label={t.files(c.files.length)}>
-        {c.files.map((f, i) => (
-          <li key={f}><button type="button" className="vc-mono" title={`${t.openTitle} : ${f}`} onClick={() => onOpen(`c${rank}/${i}`)}>{f}</button></li>
+        {c.files.map((f) => (
+          <li key={f} className="vc-mono" title={f}>{f}</li>
         ))}
       </ul>
     </div>
