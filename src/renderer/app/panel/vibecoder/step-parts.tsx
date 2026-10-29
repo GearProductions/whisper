@@ -6,11 +6,11 @@
  *  la carte d'une sortie de skill (titre, fichier, depuis quand), le bouton
  *  d'une action du relevé (son libellé ou un plus court, qui travaille ou le
  *  choix du modèle, pourquoi c'est grisé ; ton plain, accent, vibe ou ghost ;
- *  sa course en cours : « en cours » et ⏹ ;
+ *  sa course en cours : « en cours » et IconButton stop ;
  *  absent si l'action n'existe pas ou que le relevé la masque (hidden) ; une
  *  action que l'appli fait elle-même : « direct », à côté « via » l'agent, et
- *  dessous son dernier résultat, F-114), l'invitation (rien encore, et ce qui
- *  le produit), la carte d'une PR, le bandeau d'une PR fusionnée ou fermée,
+ *  dessous son dernier résultat, Icon ok / ko, F-114), l'invitation (rien encore, et ce qui
+ *  le produit), la carte d'une PR (IconButton external : l'ouvrir), le bandeau d'une PR fusionnée ou fermée,
  *  le badge du robot d'une PR ouverte dans un worktree (le badge seul :
  *  Retirer le worktree est dans la vue des branches).
  *  Ne connaît pas : le pont (rappels passés ; ⏹ par le contexte StopRun).
@@ -19,12 +19,12 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { fieldOf, isLive, stepActions, t as strings, webUrl, type Strings } from 'core/vibecoder';
 import type { VibeAction, VibeArgs, VibeLang, VibePr, VibeRun, VibeView } from 'technicals/bridge';
+import { Icon, IconButton } from './icons';
 import { ModelPick, Picks } from './model-pick';
 import type { StepProps } from './step-views';
 import './step-parts.css';
 
 const fr = {
-  openPr: 'Ouvrir ↗',
   openPrTitle: 'Ouvrir la PR dans le navigateur',
   by: (author: string) => `par ${author}`,
   worktree: (n: number) => `PR #${n} · worktree`,
@@ -32,7 +32,6 @@ const fr = {
 const S: Record<VibeLang, typeof fr> = {
   fr,
   en: {
-    openPr: 'Open ↗',
     openPrTitle: 'Open the PR in the browser',
     by: (author) => `by ${author}`,
     worktree: (n) => `PR #${n} · worktree`,
@@ -99,7 +98,7 @@ type RunProps = { a: VibeAction | undefined; busy: boolean; label?: ReactNode; t
 // « en cours » et ⏹). Un skill qui fixe son modèle : le choix du modèle à côté (sinon, qui travaille). Une action
 // que l'appli fait elle-même (F-114) : le bouton « direct », puis le petit « via »
 // l'agent (son modèle ou qui travaille ; aucun pour une action directe seulement, only), et dessous « … » en cours, sinon son dernier
-// résultat (✓ ou ✗, une ligne, le détail déplié).
+// résultat (Icon ok ou ko, une ligne, le détail déplié).
 export function Run({ a, busy, label, tone = 'plain', onRun }: RunProps) {
   const run = useContext(StopRun);
   const t = strings(useContext(Picks)?.lang ?? 'fr');
@@ -113,7 +112,7 @@ export function Run({ a, busy, label, tone = 'plain', onRun }: RunProps) {
   const running = live && state ? (
     <span className="vc-run-on">
       {t.runState[state]}
-      {state !== 'stopped' ? <button type="button" className="vc-icon" title={t.runStopTitle} aria-label={t.runStop} onClick={() => run.stop(a.id)}>⏹</button> : null}
+      {state !== 'stopped' ? <IconButton icon="stop" label={t.runStopTitle} onClick={() => run.stop(a.id)} /> : null}
     </span>
   ) : null;
   const button = (
@@ -141,7 +140,7 @@ export function Run({ a, busy, label, tone = 'plain', onRun }: RunProps) {
         </span>
         {direct.running ? <span className="vc-direct-res" data-state="running">…</span> : last ? (
           <details className="vc-direct-res" data-state={last.ok ? 'ok' : 'ko'}>
-            <summary title={new Date(last.time).toLocaleString()}><span className="vc-direct-mark">{last.ok ? '✓' : '✗'}</span> {last.line}</summary>
+            <summary title={new Date(last.time).toLocaleString()}><span className="vc-direct-mark"><Icon name={last.ok ? 'ok' : 'ko'} /></span> {last.line}</summary>
             {last.detail ? <pre className="vc-mono">{last.detail}</pre> : null}
           </details>
         ) : null}
@@ -169,7 +168,7 @@ export function PrCard({ pr, lang, onOpenLink, children }: { pr: VibePr; lang: V
         </svg>
         <span className="vc-pr-number">{`#${pr.number}`}</span>
         <span className="vc-pr-title">{pr.title}</span>
-        {url ? <button type="button" className="vc-mini" title={`${s.openPrTitle}\n${url}`} onClick={() => onOpenLink(url)}>{s.openPr}</button> : null}
+        {url ? <IconButton icon="external" label={`${s.openPrTitle}\n${url}`} onClick={() => onOpenLink(url)} /> : null}
       </div>
       {pr.author || (pr.base && pr.head) ? (
         <div className="vc-pr-meta">
