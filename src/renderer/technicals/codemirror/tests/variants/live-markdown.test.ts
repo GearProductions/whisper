@@ -84,25 +84,18 @@ describe('lineBadges', () => {
   });
 });
 
+const icon = () => document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+
 describe('lineButtons', () => {
   it('un clic sur le bouton donne sa ligne (depuis 0)', () => {
     const onClick = vi.fn();
-    const v = mount('a\nb', lineButtons([1], '💬', onClick));
+    const v = mount('a\nb', lineButtons([1], 'Commenter', onClick, icon));
     v.lineBlockAtHeight = () => v.lineBlockAt(2); // happy-dom ne mesure rien : la ligne « b »
-    const btn = v.dom.querySelector('.cm-md-button') as HTMLButtonElement;
-    expect(btn.textContent).toBe('💬');
-    btn.click();
+    (v.dom.querySelector('.cm-md-button') as HTMLButtonElement).click();
     expect(onClick).toHaveBeenCalledWith(1);
   });
 
-  it('le libellé en title et aria-label ; sans icône, en texte', () => {
-    const v = mount('a', lineButtons([0], 'Commenter', () => {}));
-    const btn = v.dom.querySelector('.cm-md-button') as HTMLButtonElement;
-    expect([btn.title, btn.getAttribute('aria-label'), btn.textContent]).toEqual(['Commenter', 'Commenter', 'Commenter']);
-  });
-
-  it('avec une icône : elle est le contenu, un élément neuf par bouton', () => {
-    const icon = () => document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  it('l’icône est le contenu, un élément neuf par bouton ; le libellé en title et aria-label', () => {
     const v = mount('a\nb', lineButtons([0, 1], 'Commenter', () => {}, icon));
     const btns = [...v.dom.querySelectorAll<HTMLButtonElement>('.cm-md-button')];
     expect(btns).toHaveLength(2);
@@ -110,7 +103,7 @@ describe('lineButtons', () => {
       expect(b.children).toHaveLength(1);
       expect(b.firstElementChild!.tagName.toLowerCase()).toBe('svg');
       expect(b.textContent).toBe('');
-      expect(b.getAttribute('aria-label')).toBe('Commenter');
+      expect([b.title, b.getAttribute('aria-label')]).toEqual(['Commenter', 'Commenter']);
     }
     expect(btns[0].firstElementChild).not.toBe(btns[1].firstElementChild);
   });
@@ -120,7 +113,7 @@ describe('lineButtons', () => {
 it('ni img ni widget en ligne, marques cachées, pastilles et boutons ensemble', () => {
   const v = mount('# T\n\n**g** [l](u)\n- x', [
     liveMarkdown({ onLink: () => {} }), lineMarks(new Set([2]), 'vu'),
-    lineBadges([{ line: 3, text: 't', title: 't', cls: 'tag' }]), lineButtons([0, 2, 3], '💬', () => {}),
+    lineBadges([{ line: 3, text: 't', title: 't', cls: 'tag' }]), lineButtons([0, 2, 3], 'Commenter', () => {}, icon),
   ]);
   expect(v.dom.querySelector('img')).toBeNull();
   expect(v.dom.querySelectorAll('.cm-md-button')).toHaveLength(3);
