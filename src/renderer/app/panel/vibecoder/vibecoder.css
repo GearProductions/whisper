@@ -161,8 +161,9 @@
 .vc-spin { animation: vc-spin 0.6s ease-out; }
 
 /* ---- Le panneau Artefacts : au centre, sa liste à gauche (.vc-art-side) et l'artefact ---- */
-.vc-arts { grid-area: main; min-width: 0; min-height: 0; display: grid; grid-template-columns: 248px minmax(0, 1fr); }
-.vc-arts > * { grid-area: auto; }
+.vc-arts { grid-area: main; min-width: 0; min-height: 0; display: grid; grid-template-columns: 248px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+/* Sa grille n'a pas de zone « main » : .vc-center y prend la seconde colonne, sur toute la hauteur. */
+.vc-arts > .vc-center { grid-area: auto; }
 .vc-art-side {
   min-height: 0;
   overflow-y: auto;
