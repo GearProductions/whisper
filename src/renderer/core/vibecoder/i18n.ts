@@ -8,7 +8,7 @@
  *  l'onglet Actions (états d'une course, Garder / Annuler, Autoriser /
  *  Toujours / Refuser), choix du modèle, zone de commentaire, barre d'état
  *  (« N actions en cours »),
- *  titres des sorties ; Voir le code (Enregistrer, fichier trop gros) ; le panneau
+ *  titres des sorties ; le code d'un module (Enregistrer, fichier trop gros) ; le panneau
  *  Artefacts (son bouton, la liste vide, Copier, fichier tronqué) ; une durée,
  *  une taille de fichier en clair. Ceux des boutons viennent des
  *  actions (actions.<langue>.json).
@@ -51,7 +51,6 @@ const fr = {
   quote: 'Citer dans le champ',
   fix: 'Retour → fixup',
   fixTitle: 'Citer ces lignes dans un retour à corriger en fixup du module',
-  seeCode: 'Voir le code',
   save: 'Enregistrer',
   saveTitle: 'Enregistrer sur le disque (Ctrl+S)',
   changedOnDisk: 'Le fichier a changé sur le disque',
@@ -168,7 +167,6 @@ const en: Strings = {
   quote: 'Quote in the field',
   fix: 'Feedback → fixup',
   fixTitle: 'Quote these lines in a feedback to fix as a fixup of the module',
-  seeCode: 'See the code',
   save: 'Save',
   saveTitle: 'Save to disk (Ctrl+S)',
   changedOnDisk: 'The file changed on disk',
