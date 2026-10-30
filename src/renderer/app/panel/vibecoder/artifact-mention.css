@@ -1,0 +1,10 @@
+/* Artefacts proposés quand on tape « @ » (artifact-mention.tsx) : la boîte des commandes « / » ; les lignes sont
+   les leurs (.slash-item, .slash-name de conversation.css). */
+.mention {
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+  border: 1px solid #3a4150;
+  border-radius: 8px;
+  background: #171b24;
+}

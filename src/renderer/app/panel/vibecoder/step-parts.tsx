@@ -13,12 +13,15 @@
  *  le produit), la carte d'une PR (IconButton external : l'ouvrir), le bandeau d'une PR fusionnée ou fermée,
  *  le badge du robot d'une PR ouverte dans un worktree (le badge seul :
  *  Retirer le worktree est dans la vue des branches).
+ *  Le champ d'une étape cite les artefacts du projet par « @ » (useArtifactMention, d'après
+ *  VibeView.artifacts et artifactsDir).
  *  Ne connaît pas : le pont (rappels passés ; ⏹ par le contexte StopRun).
  *  Utilisé par : les vues d'étape ; vibe-coder (bandeau d'une
  *  PR fermée, badge du worktree). */
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useRef, type ReactNode } from 'react';
 import { fieldOf, isLive, stepActions, t as strings, webUrl, type Strings } from 'core/vibecoder';
-import type { VibeAction, VibeArgs, VibeLang, VibePr, VibeRun, VibeView } from 'technicals/bridge';
+import type { VibeAction, VibeArgs, VibeArtifact, VibeLang, VibePr, VibeRun, VibeView } from 'technicals/bridge';
+import { useArtifactMention } from './artifact-mention';
 import { Icon, IconButton } from './icons';
 import { ModelPick, Picks } from './model-pick';
 import type { StepProps } from './step-views';
@@ -41,11 +44,16 @@ const S: Record<VibeLang, typeof fr> = {
 // La course d'une action sur son bouton : son état (VibeView.runs) et ⏹ (vibe-coder le relie à act.runOp(id, 'stop')).
 export const StopRun = createContext<{ stop(id: string): void; state(id: string): VibeRun['state'] | null }>({ stop: () => {}, state: () => null });
 
-// Le champ d'une étape : son texte part avec l'action qui le prend (fieldOf).
-export function StepField({ name, text, setText, hint }: { name: string; text: string; setText(text: string): void; hint: string }) {
+// Le champ d'une étape : son texte part avec l'action qui le prend (fieldOf) ; « @ » cite un artefact du projet.
+type FieldProps = { name: string; text: string; setText(text: string): void; hint: string; artifacts?: VibeArtifact[]; artifactsDir?: string };
+export function StepField({ name, text, setText, hint, artifacts = [], artifactsDir = '' }: FieldProps) {
+  const input = useRef<HTMLTextAreaElement>(null);
+  const mention = useArtifactMention(artifacts, artifactsDir, input, setText);
   return (
     <div className="vc-cbox vc-step-field">
-      <textarea data-field={name} value={text} rows={3} placeholder={hint} aria-label={hint} onChange={(e) => setText(e.target.value)} />
+      {mention.list}
+      <textarea ref={input} data-field={name} value={text} rows={3} placeholder={hint} aria-label={hint}
+        onChange={(e) => { setText(e.target.value); mention.update(); }} onKeyDown={mention.key} onBlur={() => setTimeout(mention.close, 150)} />
     </div>
   );
 }
@@ -61,7 +69,7 @@ export function StepHead({ p, own = [], children }: { p: StepProps; own?: string
       <span className="vc-badge" data-status={step.status}>{t.stepStatus[step.status]}</span>
       {step.facts ? <span className="vc-facts">{step.facts}</span> : null}
       {children ? <div className="vc-step-tools">{children}</div> : null}
-      {field ? <StepField name={step.id} text={p.text} setText={p.setText} hint={t.fieldHint} /> : null}
+      {field ? <StepField name={step.id} text={p.text} setText={p.setText} hint={t.fieldHint} artifacts={view.artifacts} artifactsDir={view.artifactsDir} /> : null}
       {acts.length ? (
         <div className="vc-step-acts">
           {acts.map(({ a, tone }) => <Run key={a.id} a={a} busy={busy} tone={tone} onRun={(x) => act.run(a.id, x)} />)}
@@ -97,7 +105,7 @@ type RunProps = { a: VibeAction | undefined; busy: boolean; label?: ReactNode; t
 // étape) est grisé tant qu'elle travaille, une action d'étape court à part (sa course en cours :
 // « en cours » et ⏹). Un skill qui fixe son modèle : le choix du modèle à côté (sinon, qui travaille). Une action
 // que l'appli fait elle-même (F-114) : le bouton « direct », puis le petit « via »
-// l'agent (son modèle ou qui travaille ; aucun pour une action directe seulement, only), et dessous « … » en cours, sinon son dernier
+// l'agent (son modèle ou qui travaille ; aucun pour une action directe seulement, only ; direct.elsewhere : le bouton direct n'est pas grisé par la conversation qui travaille, « via » l'est), et dessous « … » en cours, sinon son dernier
 // résultat (Icon ok ou ko, une ligne, le détail déplié).
 export function Run({ a, busy, label, tone = 'plain', onRun }: RunProps) {
   const run = useContext(StopRun);
@@ -105,8 +113,9 @@ export function Run({ a, busy, label, tone = 'plain', onRun }: RunProps) {
   if (!a || a.hidden) return null;
   const send = a.kind === 'send';
   const waits = busy && send && a.step === null;   // un message de la conversation, qui travaille
-  const off = !!a.disabled || waits;
   const direct = send ? a.direct : undefined;
+  const off = !!a.disabled || waits;
+  const offDirect = !!a.disabled || (waits && !direct?.elsewhere);   // elsewhere : un autre dossier que celui de l'agent, « via » reste grisé (I-25)
   const state = run.state(a.id);
   const live = isLive(state);   // sa course retient les autres
   const running = live && state ? (
@@ -116,7 +125,7 @@ export function Run({ a, busy, label, tone = 'plain', onRun }: RunProps) {
     </span>
   ) : null;
   const button = (
-    <button type="button" className="vc-run" data-tone={tone} disabled={off}
+    <button type="button" className="vc-run" data-tone={tone} disabled={offDirect}
       title={a.disabled ? `${a.hint}\n— ${a.disabled}` : a.hint} onClick={() => (direct ? onRun({ direct: true }) : onRun())}>
       <span className="vc-run-label">{label ?? a.label}</span>
       {direct ? <span className="vc-run-who">direct</span>

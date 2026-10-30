@@ -1,6 +1,6 @@
 ---
 name: modules
-description: "Hand the remaining modules of the forme to parallel Sonnet subagents on disjoint files with ponytail, review each diff and run the full test suite once per wave, without committing: committing is the commiter-modules skill's job."
+description: "Hand the remaining modules of the forme to parallel Sonnet subagents on disjoint files with ponytail, review each diff, and after each wave run the typecheck and the tests of the modified files with the project's tool (the full suite if it cannot pick them), then the full suite once at the very end, without committing: committing is the commiter-modules skill's job."
 argument-hint: "<lang> <out>"
 disable-model-invocation: true
 model: opus
@@ -34,10 +34,14 @@ Before the next wave, for each module (`git diff -- <files>`, new files read in 
 - Otherwise → `SendMessage` to the same subagent (its agent id) with the precise correction: it keeps its context, nothing to reread. Review its new diff.
 - Second failure → a new Agent call, same `subagent_type`, with `model: "opus"` (it overrides the agent's header), the same prompt plus what went wrong twice.
 
-Then the project's typecheck and **full** test suite, once per wave, by you: a wave is not done until it has run. A failure → back to the module that owns it, as above.
+Then, by you, after each wave: the project's typecheck and the tests of the files that wave modified, with the project's own tool (commands from `AGENTS.md`, `package.json`, `Cargo.toml`…; its way of selecting tests from changed files, e.g. a "related" or "changed" option). If the tool cannot pick them, run the full suite instead. A wave is not done until it has run. A failure → back to the module that owns it, as above. Nothing runs before the first wave (neither suite, nor typecheck); the subagents run their own module's tests.
+
+## 4. End: the full suite
+
+After the last wave is reviewed and green, run the project's **full** test suite exactly once, by you: *Generate the modules* is not finished until it has run. Never run it before the first wave or between two waves. A failure → back to the module that owns it, as in step 3, then run the full suite once more.
 
 Never: commit or push; edit a protected test to make it pass; close, kill or restart the user's running app (you may be running inside it).
 
 ## Answer
 
-In English: one line per module generated (its files, its tests, who wrote it: Sonnet, or Opus after two failures), then what is left or what you had to decide. Nothing is committed.
+In English: one line per module generated (its files, its tests, who wrote it: Sonnet, or Opus after two failures), then the result of the full suite, then what is left or what you had to decide. Nothing is committed.

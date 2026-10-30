@@ -1,36 +1,38 @@
-/** artifacts — les artefacts de l'agent (vibecoder-out/<agent>/artifacts/) :
- *  listArtifacts (le relevé : sous-dossiers compris, ni lien ni dossier
- *  caché — un fichier caché, oui —, artifacts/ par safePath et pas un lien, au
+/** artifacts — les artefacts du projet de l'agent (<userData>/vibecoder-artifacts/<clé>/,
+ *  partagé par le dépôt, ses worktrees et leurs robots) :
+ *  projectArtifactsPath / projectArtifactsDir (le dossier du projet d'un dossier,
+ *  d'après projectKey lu sur le disque : sans le créer / créé), vibeOutRoot et
+ *  legacyArtifactsPath (le dossier des sorties, et les anciens artefacts d'un agent),
+ *  listArtifacts (le relevé de ce dossier, listé tel quel : sous-dossiers compris,
+ *  ni lien ni dossier caché — un fichier caché, oui —, la racine pas un lien, au
  *  plus LIST_MAX),
- *  artifactFile (l'agent affiché en VibeCoder, un artefact de son dernier
- *  relevé — artifactOf —, safePath sous artifacts/, ni artifacts/ ni le
- *  fichier un lien — I-37), resolveArtifact (pour
- *  serveFiles, le schéma vibe-artifact : <agent>/a<i>, une page ou un media
- *  seulement), copyArtifact (au clic, dans le dossier choisi dans la boîte de
- *  dialogue, sous le nom de base de l'artefact ; un fichier du même nom
- *  remplacé seulement après Remplacer, Annuler par défaut — I-39),
- *  addArtifacts (les chemins reçus, droppedPaths, copiés un à un par copyInto
- *  sous artifacts/ de l'agent, sans rien écraser ni suivre de lien, à la
- *  suite des retraits d'artifact-moves ; le rapport cumulé en addedLine) et pickArtifacts (les mêmes, choisis dans la
- *  boîte de dialogue du principal, des fichiers). Ses
- *  réponses (la forme de DirectResult) sont en anglais, comme celles de
- *  technicals/direct (F-108), qu'il n'importe pas ;
- *  ses boîtes de dialogue dans la langue de VibeCoder (vibeLang).
+ *  artifactFile (l'agent affiché en VibeCoder, un artefact de son dernier relevé —
+ *  artifactOf —, safePath sous le dossier de son projet, ni la racine ni le fichier
+ *  un lien — I-37), resolveArtifact (pour serveFiles, le schéma vibe-artifact :
+ *  <agent>/a<i>, une page ou un media seulement), copyArtifact (au clic, dans le
+ *  dossier choisi dans la boîte de dialogue, sous le nom de base de l'artefact ; un
+ *  fichier du même nom remplacé seulement après Remplacer, Annuler par défaut — I-39),
+ *  addArtifacts (les chemins reçus, droppedPaths, copiés un à un par copyInto dans le
+ *  dossier du projet, sans rien écraser ni suivre de lien ; le rapport cumulé en
+ *  addedLine) et pickArtifacts (les mêmes, choisis dans la boîte de dialogue du
+ *  principal, des fichiers). Ses réponses (la forme de DirectResult) sont en anglais,
+ *  comme celles de technicals/direct (F-108), qu'il n'importe pas ; ses boîtes de
+ *  dialogue dans la langue de VibeCoder (vibeLang).
  *  Ne connaît pas : la page (ses canaux), les libellés de l'écran.
- *  Utilisé par : controllers/vibecoder (survey, openVibeItem, runDirect),
- *  controllers/module-code, app/lifecycle. */
+ *  Utilisé par : controllers/vibecoder (survey, openVibeItem, runDirect), agents,
+ *  artifact-migration, module-code, app/lifecycle. */
 import fs from 'node:fs';
 import path from 'node:path';
-import { dialog } from 'electron';
+import { app, dialog } from 'electron';
 import type { VibeArtifact } from 'shared/bridge';
 import type { AgentConfig } from 'core/agents';
 import { vibeLang } from 'core/config';
-import { ARTIFACTS, addedLine, artifactList, artifactOf, artifactType, droppedPaths, safePath } from 'core/vibecoder';
+import { ARTIFACTS, ARTIFACTS_ROOT, addedLine, artifactList, artifactOf, artifactType, droppedPaths, projectFolder, projectKey, safePath } from 'core/vibecoder';
 import type { ArtifactsReport } from 'core/vibecoder';
 import { copyInto } from 'technicals/file-tree';
 import type { Served } from 'technicals/file-scheme';
-import { loadConfig, vibeOutDir } from 'app/settings';
-import { queued } from './artifact-moves';
+import { loadConfig, vibeOutPath } from 'app/settings';
+import { readFile } from './processes';
 import { lastView, vibeAgent } from './vibecoder';
 
 // La forme de DirectResult (technicals/direct, que seul controllers/vibecoder importe) : il la passe telle quelle.
@@ -43,37 +45,55 @@ const LABELS = {
   en: { title: 'Copy to project', add: 'Add to artifacts', exists: (n: string) => `"${n}" already exists in this folder. Replace it?`, cancel: 'Cancel', replace: 'Replace' },
 };
 
-// Les fichiers de <out>/<rel>/ et de ses sous-dossiers, relatifs à out ; ni lien (ni fichier ni dossier pour
-// son Dirent) ni dossier caché (un fichier caché, oui) ; <rel> par safePath, un dossier, pas un lien ; au plus LIST_MAX.
-function listFiles(out: string, rel: string): string[] {
+// Le dossier des sorties de tous les agents, et les anciens artefacts de l'un d'eux (avant le dossier du
+// projet) : sans les créer, celui d'un agent retiré ne doit pas renaître. Lus par worktrees et artifact-migration.
+export const vibeOutRoot = () => vibeOutPath('');
+export const legacyArtifactsPath = (agentId: string) => path.join(vibeOutPath(agentId), ARTIFACTS);
+
+// Le dossier d'artefacts du projet de ce dossier, sans le créer : <userData>/vibecoder-artifacts/<clé>.
+export function projectArtifactsPath(dir: string): string {
+  return path.join(app.getPath('userData'), ARTIFACTS_ROOT, projectFolder(projectKey(dir, readFile, fs.realpathSync.native)));
+}
+
+// Le même, créé au besoin : Claude Code le reçoit en dossier de travail. Un échec ne bloque pas l'agent (I-29).
+export function projectArtifactsDir(dir: string): string {
+  const folder = projectArtifactsPath(dir);
+  try { fs.mkdirSync(folder, { recursive: true }); } catch { /* l'agent part sans */ }
+  return folder;
+}
+
+// Les fichiers de `root` et de ses sous-dossiers, relatifs à root ; ni lien (ni fichier ni dossier pour
+// son Dirent) ni dossier caché (un fichier caché, oui) ; root un dossier, pas un lien ; au plus LIST_MAX.
+function listFiles(root: string): string[] {
   const files: string[] = [];
   const walk = (r: string) => {
     try {
-      for (const e of fs.readdirSync(path.join(out, r), { withFileTypes: true })) {
+      for (const e of fs.readdirSync(path.join(root, r), { withFileTypes: true })) {
         if (files.length >= LIST_MAX) continue;
         if (e.isFile()) files.push(path.posix.join(r, e.name));
         else if (e.isDirectory() && !e.name.startsWith('.')) walk(path.posix.join(r, e.name));
       }
     } catch { /* illisible : sans lui */ }
   };
-  if (safePath(out, rel, fs.realpathSync.native) && fs.lstatSync(path.join(out, rel), { throwIfNoEntry: false })?.isDirectory()) walk(rel);
+  if (fs.lstatSync(root, { throwIfNoEntry: false })?.isDirectory()) walk('');
   return files;
 }
 
-// Les artefacts sous <out>/artifacts/ (leur nom, taille, date ; pas leur texte), `max` : la limite du texte.
-export function listArtifacts(agentId: string, out: string, max: number): VibeArtifact[] {
-  const files = listFiles(out, ARTIFACTS).flatMap((rel) => {
-    const st = fs.lstatSync(path.join(out, rel), { throwIfNoEntry: false });
-    return st ? [{ name: path.posix.relative(ARTIFACTS, rel), size: st.size, time: Math.floor(st.mtimeMs) }] : [];
+// Les artefacts de `root`, le dossier du projet (leur nom, taille, date ; pas leur texte), `max` : la limite du texte.
+export function listArtifacts(agentId: string, root: string, max: number): VibeArtifact[] {
+  const files = listFiles(root).flatMap((name) => {
+    const st = fs.lstatSync(path.join(root, name), { throwIfNoEntry: false });
+    return st ? [{ name, size: st.size, time: Math.floor(st.mtimeMs) }] : [];
   });
   return artifactList(agentId, files, max);
 }
 
-// Le fichier de l'artefact `a` (artifactOf du dernier relevé) de l'agent affiché en VibeCoder ;
-// null pour un autre agent, aucun artefact, un lien (artifacts/ ou le fichier), ou un chemin qui sort de artifacts/.
+// Le fichier de l'artefact `a` (artifactOf du dernier relevé) de l'agent affiché en VibeCoder, dans le dossier de son projet ;
+// null pour un autre agent, aucun artefact, un lien (la racine ou le fichier), ou un chemin qui sort du dossier.
 export function artifactFile(agentId: string, a: VibeArtifact | null): string | null {
-  if (!a || vibeAgent()?.id !== agentId) return null;
-  const root = path.join(vibeOutDir(agentId), ARTIFACTS);
+  const agent = vibeAgent();
+  if (!a || agent?.id !== agentId) return null;
+  const root = projectArtifactsPath(agent.dir);
   try { if (!fs.lstatSync(root).isDirectory() || !fs.lstatSync(path.join(root, a.name)).isFile()) return null; } catch { return null; }
   return safePath(root, a.name, fs.realpathSync.native);
 }
@@ -114,19 +134,12 @@ export async function copyArtifact(agent: AgentConfig, id: string): Promise<Dire
   return done(true, `Replaced ${dest}.`);
 }
 
-// Ajouter : copie les chemins reçus (droppedPaths) un à un dans les artifacts/ de l'agent ; ok s'il n'y a
-// aucun échec et au moins un copié. À la suite des retraits et des retours (artifact-moves) : un agent retiré
-// pendant la copie ne reçoit pas le reste dans son artifacts/.
+// Ajouter : copie les chemins reçus (droppedPaths) un à un dans le dossier du projet de l'agent ; ok s'il n'y a
+// aucun échec et au moins un copié.
 export async function addArtifacts(agent: AgentConfig, paths: unknown): Promise<DirectResult> {
-  let result: DirectResult = { ok: false, line: '', detail: '' };
-  await queued(async () => { result = await copyDropped(agent, paths); });
-  return result;
-}
-
-async function copyDropped(agent: AgentConfig, paths: unknown): Promise<DirectResult> {
   const { paths: list, noPath } = droppedPaths(paths);
-  // vibeOutDir crée le dossier de l'agent : pas pour un envoi sans chemin valide
-  const root = list.length ? path.join(vibeOutDir(agent.id), ARTIFACTS) : '';
+  // projectArtifactsDir crée le dossier : pas pour un envoi sans chemin valide
+  const root = list.length ? projectArtifactsDir(agent.dir) : '';
   const report: ArtifactsReport = { copied: [], links: [], hidden: [], failed: [], noPath };
   for (const p of list) await copyInto(p, root, report);
   return { ok: !report.failed.length && report.copied.length > 0, line: addedLine(report, vibeLang(loadConfig())), detail: '' };

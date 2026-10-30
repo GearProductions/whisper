@@ -56,7 +56,7 @@ actions par des fichiers de `{{out}}` :
 | Fichier | Rôle |
 |---|---|
 | `actions.json` | l'état, réécrit par l'appli : `{ actions: [{id, label, reads}], runs: [{id, label, state, reads, since, end, reply}], waiting: [{id, reason}] }` ; `state` : `running`, `asking`, `stopped` (arrêtée, à garder ou annuler), `done` (son tour fini et plus de tâche de fond, sans limite de temps), `failed`, `kept`, `undone` |
-| `actions/<id>.start` | demande de lancement : un objet JSON de ses arguments (`text`, `module`, `commit`, `file`, `pr`, `check`, `model`, `answers`), `{}` sans argument |
+| `actions/<id>.start` | demande de lancement : un objet JSON de ses arguments (`text`, `module`, `commit`, `file`, `pr`, `check`, `model`, `effort`, `answers`), `{}` sans argument |
 | `actions/<id>.stop` | vide : demande d'arrêt |
 
 L'appli supprime une demande une fois appliquée ; un lancement qui doit
@@ -67,8 +67,8 @@ action arrêtée). Une demande que l'appli ne lance ni ne met en attente
 (illisible, inconnue, pas proposée, déjà en cours, argument invalide, ou
 *Vibe* arrêté par l'utilisateur : tout lancement, jusqu'au repos) est
 supprimée, et la conversation reçoit « VibeCoder : demande <id> refusée —
-<raison> » ; un argument que l'action ne lit pas (ou un modèle qu'elle ne
-propose pas) ne la fait pas refuser : elle part, avec l'avis « … partie,
+<raison> » ; un argument que l'action ne lit pas (ou un modèle ou un effort
+qu'elle ne propose pas) ne la fait pas refuser : elle part, avec l'avis « … partie,
 arguments ignorés : <noms> ».
 
 **Ce qui se personnalise : `label`, `hint` et `text`** (le libellé, l'aide, le
@@ -219,7 +219,12 @@ seulement si le skill l'a : `modules--sonnet` lance encore ses sous-agents),
 ce modèle, son effort par défaut (haiku `low`, sonnet `medium`, opus
 `high`), et un corps qui suit `<nom>/SKILL.md`. Ces variantes sont
 **générées** : réécrites à chaque démarrage, ne les modifiez pas (modifiez le
-skill lui-même) ; les noms finissant par `--haiku`, `--sonnet` ou `--opus` leur sont réservés. Jamais Fable.
+skill lui-même) ; les noms finissant par `--haiku`, `--sonnet` ou `--opus`, suivis ou non d'un `--<effort>`, leur sont réservés. Jamais Fable.
+
+**L'effort**, lui, se choisit aussi sur le bouton, à côté du modèle, pour toute
+action dont le skill fixe son modèle : la liste du menu de l'agent. Sans choix,
+rien ne change : l'effort de l'en-tête du skill, ou celui de la variante du
+modèle choisi. Le choix vaut pour cette action tant qu'on reste sur cet agent.
 
 ### Langue
 
@@ -271,7 +276,13 @@ sinon.
 | `nouvelle-demande` | sous-contexte | haiku · low | `new-request.json` (`{ "branch" }` : le nom proposé pour la branche d'une nouvelle demande, ou de *Rédiger la note* sur la branche principale ; l'appli le montre prérempli, l'utilisateur le valide ou le change, puis la crée ici ou dans un worktree ; la demande n'y est pas) |
 | `lancement` | sous-contexte | haiku · low | `lancement.json` (les commandes ; `setup` et `worktree`, une seule fois par projet) |
 | `processus` | conversation (l'agent l'appelle de lui-même) | agent | `run/<nom>.stop`, `run/<nom>.restart` |
-| `artefact` | conversation (l'agent l'appelle de lui-même, sans bouton ; aussi par « / ») | agent | `artifacts/<nom>` (un fichier par artefact, montré dans le panneau *Artefacts* ; jamais le projet) |
+| `artefact` | conversation (l'agent l'appelle de lui-même, sans bouton ; aussi par « / ») | agent | `<artefacts>/<nom>` (un fichier par artefact, montré dans le panneau *Artefacts* ; jamais le projet) |
+
+`<artefacts>` : `userData/vibecoder-artifacts/<projet>/`, **un seul dossier par
+projet** — le dépôt, ses worktrees et leurs robots y lisent et y écrivent les
+mêmes fichiers (deux robots qui écrivent le même nom écrivent le même fichier) ;
+Claude Code le reçoit en dossier supplémentaire. Retirer un agent, un robot ou
+un worktree n'y touche pas. Un dossier hors git est son propre projet.
 
 `checks.json` : `{"items":[{"name","ok","level","detail"}],"time"}`, un
 élément par commande ; `level` vaut `ok`, `warning` (des avertissements

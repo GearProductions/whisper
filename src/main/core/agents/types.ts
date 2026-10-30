@@ -1,5 +1,7 @@
 /** types — un agent tel qu'enregistré, ce que le runtime attend du SDK et du
- *  lancement de Claude Code (injectés : le métier ne les connaît pas).
+ *  lancement de Claude Code (injectés : le métier ne les connaît pas), et les
+ *  réglages d'un tour (TurnHooks, dont l'environnement du processus : `env`).
+ *  Ne connaît pas : le SDK, le lancement (injectés), process.env.
  *  Utilisé par : core/agents, core/config, core/conversation, app. */
 import type { VibeFlow } from 'shared/bridge';
 
@@ -57,6 +59,7 @@ export type TurnHooks = {
   instructions?: string;
   plugins?: string[];   // dossiers de plugins locaux (celui de VibeCoder)
   dirs?: string[];      // dossiers de travail en plus du sien (ses sorties VibeCoder)
+  env?: Record<string, string | undefined>;   // l'environnement du processus Claude Code : il REMPLACE celui du processus (le SDK ne fusionne pas), l'appelant y recopie process.env
   onChange(): void;
   onSession(sessionId: string): void;
   onPermission(p: { tool: string; input: unknown }): void;

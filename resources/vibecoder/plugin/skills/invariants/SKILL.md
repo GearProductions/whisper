@@ -31,6 +31,7 @@ effort: high
 - The code does not exist yet → only the skeleton the test needs to compile: the Forme's signatures with their file header, bodies that fail (`throw new Error('not implemented')`, `todo!()`, `raise NotImplementedError`). No implementation. In a compiled language, never leave the test suite uncompilable.
 - Apply the `ponytail` skill (`.claude/skills/ponytail/SKILL.md`, else `~/.claude/skills/ponytail/SKILL.md`) to helpers and harness — reuse, no new dependency — never to the cases.
 - Existing invariant files are protected: change one only if the note changes that invariant, and say so.
+- Nothing in the background: this run ends when you answer, and a command still running is lost. Never set `run_in_background`, never end the `Bash` command with `&`, never answer « still running ». A long command (the mutants, a full test run) runs in the foreground, in batches that each fit under Bash's maximum timeout (600000 ms): split by file or by mutant, run the batches one after the other. What did not run (batches left, mutants not tried) is named in the answer, never implied.
 
 ## Then
 
@@ -44,4 +45,4 @@ Read `${CLAUDE_SKILL_DIR}/../aligner/SKILL.md` and follow it with `<lang> <out> 
 - Gaps → fix the invariant tests (same rules as above; still red), then follow the aligner again: it rewrites `align.md`. **3 rounds of fixes at most.** Gaps still there after the third → stop: no more fixes.
 - A gap only the note or the forme can close (a missing line, a module that doesn't match): not yours — leave it in `align.md`, don't spend a round on it.
 
-Answer in English, 1 to 3 lines: the files, the number of cases, red confirmed (or what passes and why), the alignment — « Aligned. » after how many rounds, or the gaps that remain.
+Answer in English, 1 to 3 lines: the files, the number of cases, red confirmed (or what passes and why), the alignment — « Aligned. » after how many rounds, or the gaps that remain — and what did not run, if anything (rule « Nothing in the background »).

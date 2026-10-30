@@ -19,18 +19,22 @@ The user reads the message on screen, then clicks « Commit »: you prepare, you
 
 Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists. Then `git rev-list --count <base>..HEAD`, `git log --format='%h %s' <base>..HEAD`, `git status --short`; the note (under `docs/tickets/`, named like the branch, or the one the branch adds or changes) and its « Forme ». Nothing changed → say so, write nothing.
 
+First `gh pr view --json state,number` (before anything about fixups): `OPEN` → the branch's PR is open, its history is not rewritten. An error (no PR) or any other state → no open PR.
+
 ## 2. The files — one commit, one module (guide §5.2)
 
 - First commit of the branch: the note (with its Forme), the file headers or skeletons, the red invariant tests.
 - Otherwise one module: its files and its tests — the first in the Forme's order (pure → orchestration → UI → doc) among those changed. The rest waits for the next commit: say so.
-- A file already owned by an earlier commit of the branch (`git log --format=%h <base>..HEAD -- <file>`) is a fixup of that commit, not part of this one: leave it out and say « fixup » (the project's `gear-fix-up` skill, if present). Only such files → write no message.
+- A file already owned by an earlier commit of the branch (`git log --format=%h <base>..HEAD -- <file>`):
+  - PR open → never a fixup or an amend. It is a new commit of its own: stage it and write a message that says why the file changes again (the reason, not only the what), in the module's subject style.
+  - No open PR → a fixup of that commit, not part of this one: leave it out and say « fixup » (the project's `gear-fix-up` skill, if present). Only such files → write no message.
 - Docs only (`SPEC.md`, `README.md`, `AGENTS.md`…) → a doc commit.
 
 Stage exactly those: `git add -- <paths>`. Files already staged that don't belong → `git restore --staged -- <paths>`, and say so.
 
 ## 3. The message → `<out>/commit.md`
 
-The project's convention: its `gear-commit-message` skill if present (`.claude/skills/gear-commit-message/SKILL.md`, else `~/.claude/skills/gear-commit-message/SKILL.md`): follow its rules and format, write to the file instead of the clipboard. Otherwise the guide §5.2 (`docs/dev_guide/*.html`) and the style of `git log <base>`: subject `<module> : <what changes>`, a blank line, then the module's contract in a few lines (what it exposes, what it does not know, who uses it); first commit: the note, the forme and the red invariants. End with the attribution trailer your own instructions ask for, if any: the `commit` skill adds nothing.
+The project's convention: its `gear-commit-message` skill if present (`.claude/skills/gear-commit-message/SKILL.md`, else `~/.claude/skills/gear-commit-message/SKILL.md`): follow its rules and format, write to the file instead of the clipboard. Otherwise the guide §5.2 (`docs/dev_guide/*.html`) and the style of `git log <base>`: subject `<module> : <what changes>`, a blank line, then the module's contract in a few lines (what it exposes, what it does not know, who uses it); first commit: the note, the forme and the red invariants. End with the attribution trailer your own instructions ask for, if any: the `commit` skill adds nothing. Change after the PR opened: the body starts with why the module changes again.
 
 The file holds the exact message only — subject, blank line, body — no code fence, no comment.
 

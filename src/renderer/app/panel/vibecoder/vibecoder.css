@@ -610,3 +610,5 @@
 .vc-mod-code-foot { display: flex; justify-content: flex-end; gap: 6px; margin: -6px 0 12px; }
 .vc-mod-code-foot:last-child { margin-bottom: 0; }
 .vc-mod-code-foot .vc-mini:disabled { opacity: 0.4; cursor: default; }
+/* Sous le code d'un module, le pied (Abandonner, Enregistrer) est dans la rangée vc-src-tools : sans marge, à droite. */
+.vc-src-tools .vc-mod-code-foot { margin: 0 0 0 auto; }

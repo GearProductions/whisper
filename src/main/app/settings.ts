@@ -2,7 +2,7 @@
  *  config.json relu à chaque usage (une retouche à la main prend effet à
  *  l'usage suivant, sans relancer), la consigne des agents, le journal, le
  *  dossier whisper, les fichiers de VibeCoder (actions, skills, sorties des
- *  agents, validations, artefacts laissés par les agents retirés). Les pages construites (out/renderer) et les ponts.
+ *  agents, validations). Les pages construites (out/renderer) et les ponts.
  *  Ne connaît pas : les fenêtres. Utilisé par : app. */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,7 +10,7 @@ import { app } from 'electron';
 import type { VibeLang } from 'shared/bridge';
 import { agentList, withDefaults, type Config } from 'core/config';
 import { AUDIO_RULES, type AgentConfig } from 'core/agents';
-import { parseActions, skillVariants, syncDefaults, type ActionDef, type Drafts, type Marks } from 'core/vibecoder';
+import { parseActions, removeRetired, skillVariants, syncDefaults, type ActionDef, type Drafts, type Marks } from 'core/vibecoder';
 import { readJson, writeJson } from 'technicals/config-file';
 import { binDir, resourcePath } from 'technicals/paths';
 
@@ -72,10 +72,11 @@ const read = (file: string) => {
   try { return fs.readFileSync(file, 'utf8'); } catch (err) { if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null; throw err; }
 };
 
-// Les fichiers livrés (resources/vibecoder) écrits dans vibeDir sans jamais
-// écraser une retouche (core/vibecoder : syncDefaults), puis les variantes des
-// skills (skillVariants). Au démarrage et avant
-// d'ouvrir le dossier ; un échec ne bloque rien (I-29).
+// Les fichiers livrés (resources/vibecoder) suivis dans vibeDir sans jamais
+// toucher une retouche (core/vibecoder) : d'abord ceux qui ne sont plus livrés
+// retirés (removeRetired, avec leur dossier devenu vide), puis les autres écrits
+// (syncDefaults), puis les variantes des skills (skillVariants). Au démarrage et
+// avant d'ouvrir le dossier ; un échec ne bloque rien (I-29).
 export function ensureVibeFiles() {
   try {
     const root = resourcePath('vibecoder');
@@ -83,6 +84,12 @@ export function ensureVibeFiles() {
       .filter((rel) => fs.statSync(path.join(root, rel)).isFile())
       .map((rel) => ({ path: rel.split(path.sep).join('/'), content: fs.readFileSync(path.join(root, rel), 'utf8') }));
     const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
+    // rmdirSync refuse un dossier non vide : celui où l'utilisateur a mis un fichier reste.
+    const remove = (file: string) => {
+      fs.rmSync(file, { force: true });
+      try { fs.rmdirSync(path.dirname(file)); } catch { /* pas vide, ou déjà parti */ }
+    };
+    removeRetired(vibeDir(), files, { read, write, remove });
     syncDefaults(vibeDir(), files, { read, write });
     // Les variantes des skills qui fixent leur modèle (un autre, choisi à
     // l'écran) : générées d'après les skills de l'utilisateur, hors manifeste,
@@ -119,16 +126,6 @@ export function vibeStore(): VibeStore {
   return { marks: record(s.marks), drafts: record(s.drafts) } as VibeStore;
 }
 export const saveVibeStore = (s: VibeStore) => writeJson(vibeStoreFile(), s);
-
-// Les artefacts laissés par un agent retiré : { id de l'agent → son dossier résolu }
-// (artifacts-left.json), pour les rendre à un agent rouvert sur ce dossier. Hors de
-// vibecoder-state.json (survey en garde le store le temps de ses await et le
-// réécrit). Lu sans jamais lever : absent, illisible ou pas un objet → rien ; une
-// valeur qui n'est pas une chaîne est écartée.
-const leftFile = () => path.join(app.getPath('userData'), 'artifacts-left.json');
-export const leftArtifacts = (): Record<string, string> =>
-  Object.fromEntries(Object.entries(record(readJson(leftFile()))).filter(([, dir]) => typeof dir === 'string'));
-export const saveLeftArtifacts = (left: Record<string, string>) => writeJson(leftFile(), left);
 
 // Les pages (construites par Vite dans out/renderer) et les ponts (out/main).
 export const page = (name: string) => path.join(__dirname, '..', 'renderer', name);

@@ -1,9 +1,10 @@
-// Variants des artefacts de l'agent (note 0.13.0, le panneau Artefacts) : la
-// liste du relevé (sous-dossiers, ni dossier caché ni lien, au plus 1 000) et la copie
+// Variants des artefacts du projet (note 0.13.0, le panneau Artefacts, le dossier du projet) : le
+// dossier (partagé par un dépôt et son worktree, créé ou non), la liste du relevé (sous-dossiers, ni dossier caché ni lien, au plus 1 000) et la copie
 // dans le dossier choisi (annulée, un fichier du même nom, le nom de base).
 // Sur le vrai contrôleur et de vrais fichiers (userData temporaire) ; faux :
 // Electron (les boîtes de dialogue répondent ce que le cas règle) et
 // controllers/vibecoder (l'agent affiché et son dernier relevé, réglés par le cas).
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -13,7 +14,7 @@ import type { AgentConfig } from 'core/agents';
 
 type Box = { buttons: string[]; defaultId?: number; cancelId?: number };
 const fake = vi.hoisted(() => ({
-  userData: '', shown: 'a1' as string | null, view: null as unknown,
+  userData: '', dir: '', shown: 'a1' as string | null, view: null as unknown,
   pick: { canceled: false, filePaths: [] as string[] }, opened: [] as unknown[], asked: [] as Box[], answer: (o: Box) => o.cancelId ?? 0,
 }));
 vi.mock('electron', () => ({
@@ -25,21 +26,19 @@ vi.mock('electron', () => ({
 }));
 vi.mock('app/windows', () => ({ showBubble: () => {} }));
 vi.mock('app/controllers/vibecoder', () => ({
-  vibeAgent: () => (fake.shown ? { id: fake.shown } : null),
+  vibeAgent: () => (fake.shown ? { id: fake.shown, dir: fake.dir } : null),
   lastView: (id: string) => (id === fake.shown ? fake.view : null),
 }));
 
-const { addArtifacts, copyArtifact, listArtifacts, pickArtifacts, resolveArtifact } = await import('app/controllers/artifacts');
-const { retireArtifacts } = await import('app/controllers/artifact-moves');
+const { addArtifacts, copyArtifact, listArtifacts, pickArtifacts, projectArtifactsDir, projectArtifactsPath, resolveArtifact } = await import('app/controllers/artifacts');
 
 const write = (file: string, text: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, text); };
-let out = '';
-let arts = '';
+let arts = '';   // le dossier du projet de l'agent
 let chosen = '';
 let agent: AgentConfig;
-const names = () => listArtifacts('a1', out, 10).map((a) => a.name);
+const names = () => listArtifacts('a1', arts, 10).map((a) => a.name);
 // Le relevé que la page a reçu : les artefacts du disque.
-const survey = () => { fake.view = { artifacts: listArtifacts('a1', out, 10) } as Partial<VibeView>; };
+const survey = () => { fake.view = { artifacts: listArtifacts('a1', arts, 10) } as Partial<VibeView>; };
 const idOf = (name: string) => (fake.view as VibeView).artifacts!.find((a) => a.name === name)!.id;
 
 beforeEach(() => {
@@ -48,12 +47,35 @@ beforeEach(() => {
   fake.asked = [];
   fake.opened = [];
   fake.answer = (o) => o.cancelId ?? 0;
-  out = path.join(fake.userData, 'vibecoder-out', 'a1');
-  arts = path.join(out, 'artifacts');
   chosen = path.join(fake.userData, 'choisi');
   fs.mkdirSync(chosen, { recursive: true });
   fake.pick = { canceled: false, filePaths: [chosen] };
-  agent = { id: 'a1', dir: path.join(fake.userData, 'projet'), name: 'essai', model: '', effort: '', mode: 'default', sessionId: null };
+  fake.dir = path.join(fake.userData, 'projet');
+  fs.mkdirSync(fake.dir, { recursive: true });
+  arts = projectArtifactsPath(fake.dir);
+  agent = { id: 'a1', dir: fake.dir, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null };
+});
+
+describe('le dossier du projet', () => {
+  const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' });
+
+  it('un dépôt et son worktree : le même dossier ; un autre dépôt, un autre', () => {
+    const repo = path.join(fake.userData, 'depot');
+    const tree = path.join(fake.userData, 'depot-worktrees', 'enfant');
+    const other = path.join(fake.userData, 'autre');
+    for (const d of [repo, other]) { fs.mkdirSync(d, { recursive: true }); git(d, 'init', '-q', '-b', 'main'); git(d, 'commit', '-q', '--allow-empty', '-m', 'init'); }
+    git(repo, 'worktree', 'add', '-q', '-b', 'enfant', tree);
+
+    expect(projectArtifactsPath(tree)).toBe(projectArtifactsPath(repo));
+    expect(projectArtifactsPath(other)).not.toBe(projectArtifactsPath(repo));
+    expect(path.relative(path.join(fake.userData, 'vibecoder-artifacts'), projectArtifactsPath(repo))).toMatch(/^[0-9a-f]{16}$/);
+  });
+
+  it('projectArtifactsPath ne crée rien, projectArtifactsDir crée', () => {
+    expect(fs.existsSync(arts)).toBe(false);
+    expect(projectArtifactsDir(fake.dir)).toBe(arts);
+    expect(fs.statSync(arts).isDirectory()).toBe(true);
+  });
 });
 
 describe('listArtifacts', () => {
@@ -70,7 +92,7 @@ describe('listArtifacts', () => {
     expect(names()).toEqual(['.brouillon.md', 'notes.md']);
   });
 
-  it('ni lien vers un fichier, ni lien vers un dossier, ni artifacts/ en lien', () => {
+  it('ni lien vers un fichier, ni lien vers un dossier, ni le dossier du projet en lien', () => {
     write(path.join(arts, 'notes.md'), 'n');
     write(path.join(fake.userData, 'dehors', 'secret.md'), 's');
     fs.symlinkSync(path.join(fake.userData, 'dehors', 'secret.md'), path.join(arts, 'lien.md'));
@@ -86,14 +108,14 @@ describe('listArtifacts', () => {
     expect(names()).toHaveLength(1000);
   });
 
-  it('pas de dossier artifacts/ : aucun', () => {
+  it('pas de dossier du projet : aucun', () => {
     expect(names()).toEqual([]);
   });
 
   it('truncated : un texte au-delà de la limite reçue', () => {
     write(path.join(arts, 'long.txt'), 'x'.repeat(11));
     write(path.join(arts, 'court.txt'), 'x'.repeat(10));
-    expect(listArtifacts('a1', out, 10).map((a) => [a.name, a.truncated])).toEqual([['court.txt', false], ['long.txt', true]]);
+    expect(listArtifacts('a1', arts, 10).map((a) => [a.name, a.truncated])).toEqual([['court.txt', false], ['long.txt', true]]);
   });
 });
 
@@ -131,22 +153,6 @@ describe('copyArtifact', () => {
     expect(r.line).toBe(`${count} ajoutés.`);
     expect(r.ok).toBe(true);
   }, 60_000);
-
-  // L'ajout passe par la file de artifact-moves : l'agent retiré pendant la copie l'attend, tout arrive chez le parent.
-  it('un agent retiré pendant un long ajout : tout l’ajout part chez son parent, rien ne reste chez lui', async () => {
-    const lot = path.join(fake.userData, 'depot', 'lot');
-    fs.mkdirSync(lot, { recursive: true });
-    const count = process.platform === 'win32' ? 300 : 3000;   // NTFS, antivirus : bien plus lent
-    for (let i = 0; i < count; i++) fs.writeFileSync(path.join(lot, `f${i}`), '');
-    const parent = { ...agent, id: 'p1', dir: path.join(fake.userData, 'parent') };
-
-    const adding = addArtifacts(agent, [lot]);
-    await retireArtifacts(agent, parent);
-    await adding;
-
-    expect(fs.readdirSync(path.join(fake.userData, 'vibecoder-out', 'p1', 'artifacts', 'lot'))).toHaveLength(count);
-    expect(fs.readdirSync(arts)).toEqual([]);
-  });
 
   it('la boîte de dialogue annulée : rien n’est copié', async () => {
     write(path.join(arts, 'notes.md'), 'NOTES');
@@ -202,7 +208,7 @@ describe('copyArtifact', () => {
     write(path.join(arts, 'notes.md'), 'NOTES');
     survey();
     fs.rmSync(path.join(arts, 'notes.md'));
-    fs.symlinkSync(path.join(out, '..'), path.join(arts, 'notes.md'));
+    fs.symlinkSync(fake.userData, path.join(arts, 'notes.md'));
     const r = await copyArtifact(agent, idOf('notes.md'));
     expect(r.ok).toBe(false);
     expect(fs.readdirSync(chosen)).toEqual([]);

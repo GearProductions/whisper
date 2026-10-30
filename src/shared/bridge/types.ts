@@ -274,11 +274,11 @@ export type VibeCode = {
   truncated?: boolean;         // un artefact en texte, coupé à la limite configurée (artifactTextMax) ; absent : entier
 };
 
-// Un artefact de l'agent (vibecoder-out/<agent>/artifacts/), tel que le relevé le donne : la page ne
-// le désigne que par son id (I-37). url : page, media (vibe-artifact://<agent>/a<i>?t=<time>) ; null : du texte.
+// Un artefact de l'agent (le dossier du projet, VibeView.artifactsDir), tel que le relevé le donne : la page
+// ne le désigne que par son id (I-37). url : page, media (vibe-artifact://<agent>/a<i>?t=<time>) ; null : du texte.
 export type VibeArtifact = {
   id: string;                  // a<i>, dans l'ordre des noms
-  name: string;                // son chemin sous artifacts/, avec ses sous-dossiers
+  name: string;                // son chemin sous le dossier du projet, avec ses sous-dossiers
   kind: 'markdown' | 'text' | 'page' | 'media';   // page : HTML, SVG, en bac à sable ; media : image, PDF, son, vidéo
   size: number;
   time: number;
@@ -332,8 +332,15 @@ export type VibeAction = {
   // Faite aussi par l'appli, sans agent (F-114 : commit, publish, load-pr, base…) : en cours, et son dernier
   // résultat (✓/✗, une ligne, le détail) ; only : seulement par l'appli (pas de « via ») ; absent : seulement
   // par l'agent. new-worktree : le résultat de ce que l'appli fait après l'agent (le worktree, l'enfant).
-  direct?: { running: boolean; last: { ok: boolean; line: string; detail: string; time: number } | null; only?: true };
+  // elsewhere : elle travaille dans un autre dossier que celui de l'agent (place.ts : ELSEWHERE) : le bouton
+  // direct n'est pas grisé par une conversation qui travaille ; « via » l'est toujours.
+  direct?: { running: boolean; last: { ok: boolean; line: string; detail: string; time: number } | null; only?: true; elsewhere?: true };
+  efforts?: string[];          // un skill dont on choisit l'effort : les niveaux proposés ; absent = [] : celui du skill
 };
+
+// L'avancement d'une course : la vague en cours, les tâches finies sur le total, les corrections faites, et
+// si Opus a été appelé.
+export type VibeRunProgress = { wave: number; done: number; total: number; fixes: number; opus: boolean };
 
 // Une course : une action d'étape qui court à part de la conversation (onglet Actions). stopped : arrêtée,
 // à garder (kept) ou annuler (undone) ; running, asking (une autorisation attend) et stopped retiennent les autres.
@@ -346,6 +353,7 @@ export type VibeRun = {
   end: number | null;          // finie ou arrêtée à
   reply: string;               // sa réponse (Markdown), '' tant qu'elle n'a rien dit
   permission: { tool: string; target: string } | null;   // sa demande d'autorisation en attente
+  progress?: VibeRunProgress;  // son avancement, quand le fil de l'agent le donne ; absent : inconnu
 };
 export type VibeRunOp = 'stop' | 'keep' | 'undo' | 'allow' | 'always' | 'deny';
 
@@ -415,6 +423,7 @@ export type VibeView = {
   runs?: VibeRun[];                      // les courses, la plus récente d'abord (toujours rempli par le relevé)
   request?: { branch: string } | null;   // Créer : la branche nommée pour la nouvelle demande retenue, qui attend son choix
   artifacts?: VibeArtifact[];            // les artefacts de l'agent (toujours rempli par le relevé)
+  artifactsDir?: string;                 // le dossier du projet qui les contient (pour le `@`)
   time: number;                        // heure du relevé
 };
 
@@ -433,6 +442,7 @@ export type VibeArgs = {
   start?: string;              // le départ d'une branche créée
   onto?: string;               // rebase : sur quoi rebaser
   artifact?: string;           // copy-artifact : l'id d'un artefact de VibeView.artifacts
+  effort?: string;             // un skill dont on choisit l'effort : un autre que celui du skill, parmi VibeAction.efforts
 };
 
 export type VibePatch = {

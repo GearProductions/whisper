@@ -56,7 +56,7 @@ des processus.
 |---|---|
 | `app/lifecycle` | démarrage (une instance, aucun agent sélectionné, permissions), sortie (dont les processus du projet, F-111) |
 | `app/windows` | les trois fenêtres : créer, placer, montrer (icône, bulle, panneau) |
-| `app/controllers` | dictée (coupures, transcription, destination, modèle), lecture, agents, familles (`worktrees.ts` : le rattachement par git, *Ouvrir un agent ici*, le robot d'une PR, l'enfant d'une nouvelle demande, le retrait d'un worktree et de son robot, F-51, F-110 ; `artifact-moves.ts` : le sort des artefacts d'un agent retiré, transférés ou laissés, F-110), contenu du panneau, VibeCoder (`vibecoder.ts` : relevé, actions, réglages, validations, brouillon de revue, fichier à ouvrir ; `processes.ts` : les commandes du projet, F-111 ; `recipe.ts` : la recette du projet — préparer, créer et retirer un worktree —, lancée par l'appli, F-111 ; `runs.ts` : les courses — lancées, suivies, arrêtées, gardées ou annulées, chacune avec le module qu'elle génère —, leur avis de fin à la conversation, les demandes de l'orchestrateur, `actions.json`, F-115 ; `module-code.ts` : le fichier suivi — celui de *Voir le code*, la note ou un test d'invariant —, lu, surveillé, poussé, enregistré au geste, F-100) |
+| `app/controllers` | dictée (coupures, transcription, destination, modèle), lecture, agents, familles (`worktrees.ts` : le rattachement par git, *Ouvrir un agent ici*, le robot d'une PR, l'enfant d'une nouvelle demande, le retrait d'un worktree et de son robot, F-51, F-110 ; `artifacts.ts` : le dossier d'artefacts du projet, son relevé, ce qu'on y ajoute ou en copie, F-95 ; `artifact-migration.ts` : les anciens artefacts déplacés vers ce dossier au démarrage, F-95), contenu du panneau, VibeCoder (`vibecoder.ts` : relevé, actions, réglages, validations, brouillon de revue, fichier à ouvrir ; `processes.ts` : les commandes du projet, F-111 ; `recipe.ts` : la recette du projet — préparer, créer et retirer un worktree —, lancée par l'appli, F-111 ; `runs.ts` : les courses — lancées, suivies, arrêtées, gardées ou annulées, chacune avec le module qu'elle génère —, leur avis de fin à la conversation, les demandes de l'orchestrateur, `actions.json`, F-115 ; `module-code.ts` : le fichier suivi — celui de *Voir le code*, la note ou un test d'invariant —, lu, surveillé, poussé, enregistré au geste, F-100) |
 | `app/menus` | menus de l'icône, des robots, du « + », du trombone |
 | `app/ipc` | une table de gestionnaires par fenêtre, écoutée par `technicals/ipc` |
 | `core/config` | réglages, démarrage, dossiers favoris et couleurs, confiance |
@@ -73,7 +73,7 @@ des processus.
 | `technicals/git` | git en lecture seule (`gitRun`, `gitReader`, `GIT_READ`, plus `worktree list`) : les faits d'une branche ou d'une PR chargée, un fichier à un ref, un commit et son diff, le commit où la branche part de sa base (`forkPoint`), les branches locales (`branches`), le retard sur `@{u}` et sur `origin/<base>` (`sync`) (I-39) |
 | `technicals/github` | gh en lecture seule, derrière le préfixe (`ghRun`, `githubReader`, `GH_READ`, `GH_LOGIN`) : la PR d'une branche, les PR ouvertes du dépôt en trois listes (`openPrs`), l'état d'une PR, l'identifiant de l'utilisateur (`login`, `okLogin`) (F-112, I-39) |
 | `technicals/direct` | les actions directes (F-114, I-39) : `directRunner` → `commit`, `publish`, `sameRepo`, `loadPr`, `toBase`, `fetchBranch`, `pullBranch`, `switchTo`, `stash`, `pull`, `rebase`, `push`, `fetchAll`, `requestReview`, le texte de `pr-<n>.json` (`prCardText`), une liste fermée de commandes (`DIRECT_GIT`, `DIRECT_GH`), 60 s, `direct.log` |
-| `technicals/file-tree` | les artefacts copiés ou transférés (F-95, F-110, I-37, I-39) : `copyInto`, `moveContents`, `hasFiles` ; `fs.promises` seulement, un fichier à la fois, jamais écraser (`COPYFILE_EXCL`), un lien jamais suivi, sans limite de nombre ni de taille |
+| `technicals/file-tree` | les artefacts copiés ou déplacés (F-95, I-37, I-39) : `copyInto`, `moveContents`, `hasFiles` ; `fs.promises` seulement, un fichier à la fois, jamais écraser (`COPYFILE_EXCL`), un lien jamais suivi, sans limite de nombre ni de taille |
 | `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `paste`, `windows-helper`, `pipewire`, `clipboard`, `selection`, `pocket-tts`, `claude`, `editor` (un dossier, ou un fichier de VibeCoder, à une ligne ; le terminal d'un dossier, `findTerminal`), `journal`, `images`, `paths`, `config-file` |
 | `helpers` | découper une commande, français ou anglais, une ligne, `async-queue` (l'entrée d'un processus d'agent), `numbered-name` (`rapport-2.md`) |
 
@@ -142,9 +142,9 @@ celui de `conv:vibeSave`, écrit tel quel dans le fichier suivi (I-39).
 | `pocket-tts/` | Python, Pocket TTS, PyTorch installés par uv |
 | `consigne-agents.md` | consigne ajoutée au prompt système des agents |
 | `agents.log` (`.old`) | journal des agents, 1 Mo puis rotation |
-| `vibecoder/` | ce que VibeCoder fait dire, à retoucher (F-107) : `actions.fr.json`, `actions.en.json`, `plugin/` (le plugin `vibecoder` : skills, agents ; `skills/<nom>--<modèle>/`, les variantes générées, F-106), `README.md` ; `.defaults.json`, le manifeste de ce que l'appli y a écrit ; `projets/<dossier>.json`, l'ancien fichier du projet d'un dossier, d'avant la 0.12.0 (repris dans `.vibecoder/` du dossier, gardé ; F-111) |
-| `vibecoder-out/<agent>/` | les sorties des skills pour l'écran (F-95) ; `branches/<branche>/`, celles de *Créer* d'une branche quittée, et `.branche`, la dernière branche vue ; `files/`, ce que l'appli écrit pour l'ouvrir dans l'éditeur, en lecture seule (`<hash>.diff`, F-101) ; `run/<nom>.log` (`.old`), les journaux des commandes du projet, et `run/<nom>.stop`, `.restart`, les demandes de l'agent ; `artifacts/`, ses artefacts, pour toutes ses branches (F-95) ; ceux d'un enfant retiré y arrivent (F-110) ; `recipe.log`, celui de la recette (F-111) ; `direct.log`, une ligne par commande d'une action directe, et `pr-<n>-review-body.md`, le brouillon publié (F-114) ; `actions.json`, les courses pour l'orchestrateur, et `actions/<id>.start`, `.stop`, ses demandes (F-115) ; dossier de travail en plus de Claude Code (F-58) |
-| `artifacts-left.json` | les artefacts laissés sur le disque par un agent retiré (sans parent, ou un transfert qui a échoué) : `{ <id de l'agent> : <son dossier résolu> }`, rendus à l'agent rouvert sur ce dossier (F-110) ; retiré quand il n'en reste aucun ; aucune page ne le lit |
+| `vibecoder/` | ce que VibeCoder fait dire, à retoucher (F-107) : `actions.fr.json`, `actions.en.json`, `plugin/` (le plugin `vibecoder` : skills, agents ; `skills/<nom>--<modèle>/` et `--<modèle>--<effort>/`, les variantes générées, F-106), `README.md` ; `.defaults.json`, le manifeste de ce que l'appli y a écrit ; `projets/<dossier>.json`, l'ancien fichier du projet d'un dossier, d'avant la 0.12.0 (repris dans `.vibecoder/` du dossier, gardé ; F-111) |
+| `vibecoder-out/<agent>/` | les sorties des skills pour l'écran (F-95) ; `branches/<branche>/`, celles de *Créer* d'une branche quittée, et `.branche`, la dernière branche vue ; `files/`, ce que l'appli écrit pour l'ouvrir dans l'éditeur, en lecture seule (`<hash>.diff`, F-101) ; `run/<nom>.log` (`.old`), les journaux des commandes du projet, et `run/<nom>.stop`, `.restart`, les demandes de l'agent ; `artifacts/`, les anciens artefacts de l'agent, d'avant le dossier du projet : déplacés vers lui à chaque démarrage, le dossier vidé part (F-95) ; `recipe.log`, celui de la recette (F-111) ; `direct.log`, une ligne par commande d'une action directe, et `pr-<n>-review-body.md`, le brouillon publié (F-114) ; `actions.json`, les courses pour l'orchestrateur, et `actions/<id>.start`, `.stop`, ses demandes (F-115) ; dossier de travail en plus de Claude Code (F-58) |
+| `vibecoder-artifacts/<clé>/` | les artefacts d'un projet, partagés par le dépôt, ses worktrees et leurs robots (F-95) : la clé est le début (16 hexa) du sha1 du dossier git commun résolu, ou du dossier résolu hors git ; Claude Code le reçoit en dossier de travail en plus (F-58) ; retirer un agent, un robot ou un worktree n'y touche pas |
 | `vibecoder-state.json` | validations (par agent) et brouillons de revue (par agent et par PR) |
 
 En développement : `--user-data-dir=.data` (cf. LINUX_SETUP.md).
@@ -331,18 +331,16 @@ PR, son dossier la prend aussi. Un
 enfant sans PR ne part qu'à *Retirer*, ou avec son worktree (*Retirer le
 worktree*, F-110) ; retirer le parent garde ses enfants
 (des robots ordinaires, `parent` gardé), sauf le robot d'une PR, qui part
-avec lui (F-110). Retirer un agent ne perd pas ses artefacts : ceux d'un
-enfant vont dans les `artifacts/` de son parent, avec *Retirer*, *Retirer le
-worktree* et le relevé (F-110) ; sans parent (ou parti avec lui), ils restent
-sur le disque et reviennent à l'agent rouvert sur ce dossier, par n'importe
-quelle voie (F-52), jamais à un autre dossier.
+avec lui (F-110). Retirer un agent, un robot ou un worktree ne touche pas
+aux artefacts : ils sont ceux du projet, dans un dossier commun au dépôt, à ses
+worktrees et à leurs robots (F-95).
 
 **F-52 « + »** : *Nouvel agent dans un dossier favori* (dossiers déjà choisis
 sans agent), *Choisir un autre dossier…*, *Oublier un dossier favori* ;
 entrées grisées si Claude Code est introuvable. Un dossier **jamais choisi**
 passe par la confirmation de confiance (I-31). Le nouvel agent est
 sélectionné ; panneau ouvert, il y affiche sa conversation. Un agent né sur un
-dossier dont un agent retiré a laissé des artefacts les reprend (F-51).
+dossier retrouve les artefacts de son projet (F-95).
 
 **F-53 Couleur par dossier** : tirée au hasard parmi 8 (de préférence une
 couleur libre), enregistrée, gardée si l'agent est retiré puis recréé ;
@@ -416,8 +414,9 @@ VibeCoder du questionnaire (une réponse aux questions de la note donnée
 dans la conversation → la note, puis `<sorties>/questions.md` réécrit :
 les skills de VibeCoder ne s'y chargent jamais d'eux-mêmes) ; le plugin `vibecoder`
 (`userData/vibecoder/plugin`, s'il existe : F-105) et le dossier de sorties de
-l'agent (`userData/vibecoder-out/<agent>`) en dossier de travail en plus
-(`additionalDirectories`). Pour tous les agents de l'appli, en VibeCoder ou
+l'agent (`userData/vibecoder-out/<agent>`) et le dossier d'artefacts de son
+projet (`userData/vibecoder-artifacts/<clé>`, F-95) en dossiers de travail en
+plus (`additionalDirectories`). Pour tous les agents de l'appli, en VibeCoder ou
 non, à chaque tour comme à la sonde ; jamais aux sessions Claude Code
 habituelles.
 
@@ -527,6 +526,18 @@ fichiers — le panneau les retrouve dans la transcription pour les afficher.
 propose les commandes de l'agent (Claude Code, skills, projet), d'abord celles
 qui commencent par la saisie ; flèches, Entrée ou Tab choisissent, Échap
 ferme. Liste demandée une fois par dossier (sonde).
+
+Le champ de la conversation et celui de chaque étape (pour citer un
+artefact en rédigeant une note) ouvrent aussi, sur un `@` en début de mot (en
+début de champ ou après un espace : pas dans une adresse e-mail), la liste
+des **artefacts du projet** (F-95), filtrée à la frappe, d'abord ceux dont le
+nom commence par la saisie : mêmes gestes que les commandes « / » (flèches,
+Entrée ou Tab choisissent, Échap ferme). Choisir remplace le `@…` tapé par le
+chemin du fichier, que l'agent lit s'il en a besoin (aucun jeton dépensé avant
+la lecture). Rien ne correspond : la liste se ferme et Entrée et Tab restent
+au champ (`@types/node` se tape et part). La liste vient du relevé
+(`VibeView.artifacts`, le dossier dans `VibeView.artifactsDir`), sans canal de
+plus ni chemin donné par la page (I-37).
 
 **F-71 Jauge du contexte** : part de la fenêtre occupée lors de la dernière
 réponse (sinon la dernière sonde) ; orange ≥ 80 %, rouge ≥ 90 %. Clic : le
@@ -760,7 +771,10 @@ principal pour l'agent affiché en VibeCoder :
   dernière flèche : *invariant*, *variant*, *review*, *structure*), les
   modules de la Forme et leur contrat (un chemin en tête de ligne, ou un
   titre `###` ; hors bloc de code, pas la suite d'un paragraphe qui
-  commence par un chemin) ; et pourquoi elle ne s'édite pas (`locked`, F-100) ;
+  commence par un chemin ; une Forme sans titre `###` dont un bloc de code
+  ouvre un module : seules les lignes de ses blocs sont lues, la prose qui
+  commence par un nom de fichier n'est pas un module ; sans bloc de code,
+  les anciennes notes, la lecture ne change pas) ; et pourquoi elle ne s'édite pas (`locked`, F-100) ;
 - les **tests** de la branche : ses fichiers changés qui sont des tests
   (Vitest, Jest, pytest, Go, Rust sous `tests/`), leurs cas (titres `it` /
   `test`, fonctions `#[test]`, `def test_…`) et leur empreinte git ; ceux
@@ -778,10 +792,10 @@ principal pour l'agent affiché en VibeCoder :
 - les sorties des skills (F-95), les validations et le brouillon de revue
   (`vibecoder-state.json`), les actions (F-96), les skills du projet et de
   l'utilisateur ;
-- les **artefacts** de l'agent (F-95), toujours : les fichiers sous
-  `artifacts/` de ses sorties, sous-dossiers compris, sans lien ni dossier
+- les **artefacts** du projet de l'agent (F-95), toujours : les fichiers du
+  dossier d'artefacts du projet (`VibeView.artifactsDir`), sous-dossiers compris, sans lien ni dossier
   caché (les fichiers cachés, eux, y sont), au plus 1 000 ; triés par nom, ids `a<i>` dans cet ordre ;
-  par artefact son nom (son chemin sous `artifacts/`), sa sorte (`markdown`,
+  par artefact son nom (son chemin sous ce dossier), sa sorte (`markdown`,
   `text`, `page` : HTML, SVG ; `media` : image, PDF, son, vidéo ; d'après
   l'extension, tout autre fichier, binaire compris : `text`), sa taille, son
   heure, son adresse (`page`, `media` : `vibe-artifact://<agent>/a<i>`) et
@@ -831,8 +845,19 @@ depuis quand ; un JSON mis en forme, un Markdown rendu, F-104).
 **Les artefacts** : les documents que l'agent produit hors du projet (PDF,
 présentations, wireframes, documents externes, fichiers de conception :
 preuve de concept ou autre ; skill `artefact`, F-93), un fichier chacun,
-sous `artifacts/` des sorties : les mêmes pour toutes ses branches (jamais
-mis de côté avec *Créer*). Le **panneau des artefacts** (bouton *Artefacts*,
+dans le **dossier d'artefacts du projet** : un seul par projet, hors des
+sorties de l'agent (`userData/vibecoder-artifacts/<clé>/`, la clé étant le
+dossier git commun du dépôt, résolu ; un dossier hors git est son propre
+projet). Le dépôt, ses worktrees et leurs robots partagent le même dossier et
+y ont tous accès : tout robot du projet voit, lit et écrit les mêmes artefacts,
+les mêmes pour toutes les branches (jamais mis de côté avec *Créer*). Claude
+Code le reçoit en dossier de travail en plus (F-58). Le panneau *Artefacts*,
+*Ajouter*, *Copier dans le projet* et le skill `artefact` travaillent dans ce
+dossier. Deux robots qui écrivent le même nom écrivent le même fichier : risque
+accepté, c'est le prix d'un dossier commun (le skill dit de relire le fichier
+avant de l'écrire). Retirer un agent, un robot ou un worktree ne touche pas à ce
+dossier (F-110) ; un dossier caché écrit là y reste, et le panneau ne le liste
+toujours pas. Le **panneau des artefacts** (bouton *Artefacts*,
 F-92) : à gauche la liste (nom, taille ; vide → ce que fait le skill, en
 une ligne) ; au centre celui qu'on choisit (le premier par défaut ; disparu
 → le premier) :
@@ -859,12 +884,12 @@ l'agent de retoucher l'artefact affiché.
 **Ajouter des artefacts** : sous la liste, à gauche, une zone de dépôt et un
 bouton *Ajouter* (`add-artifact`, F-114), puis la dernière ligne du résultat
 (« … » tant que ça tourne). Ce qu'on dépose ou choisit est **copié** dans
-`artifacts/` de l'agent affiché, l'original intact, et paraît dans la liste :
+le dossier d'artefacts du projet de l'agent affiché, l'original intact, et paraît dans la liste :
 - un fichier, sans limite de taille (copié sans être chargé en mémoire ; son
   affichage en texte reste coupé à `artifactTextMax`) ;
 - un dossier, avec ses sous-dossiers, par la zone seulement (le bouton choisit
   des fichiers) ; un dossier du même nom se mêle, fichier par fichier ; un
-  dossier qui contient `artifacts/` de l'agent, ou l'est, est refusé ;
+  dossier qui contient le dossier d'artefacts du projet, ou l'est, est refusé ;
 - un nom déjà pris : le nouveau prend le premier numéro libre avant son
   extension, à partir de 2 (`rapport-2.md`), sans rien demander, sans jamais
   écraser ; un fichier ou un lien du nom d'un dossier à mêler ne s'y mêle pas
@@ -881,6 +906,17 @@ bloque pas le principal (un fichier à la fois, hors du fil principal) ; le
 disque plein est un échec, dit par le message. La liste, elle, s'arrête à
 1 000 fichiers : un dossier plus gros est copié en entier, la liste ne montre
 que les premiers.
+
+**Les anciens artefacts** (`vibecoder-out/<agent>/artifacts/`, d'avant le dossier
+du projet, ceux d'un agent retiré compris) rejoignent le dossier de leur projet
+à chaque démarrage, sans bloquer le démarrage (`moveContents` : rien n'est
+écrasé, un nom déjà pris reçoit le premier numéro libre, un échec laisse le
+fichier en place, avec un message, et il repart au démarrage suivant) ; le
+dossier vidé part. Le projet d'un agent est celui de son dossier dans la
+configuration ; pour un agent retiré, celui que gardait l'ancien
+`artifacts-left.json` (`{ <id de l'agent> : <son dossier résolu> }`), que l'appli
+n'écrit plus : lu pour la migration, supprimé quand plus aucune de ses entrées
+n'a de fichier ; un id sans dossier connu garde ses artefacts, au journal.
 
 **F-96 Les actions** sont des données (`actions.<langue>.json`, F-107) : par
 bouton `id`, `flow` (`create`, `review`, `both`), `step` (son étape ; `null` :
@@ -939,11 +975,15 @@ branche »…) ; une variable inconnue aussi, ou une valeur autre que
 contrôle (« Action mal écrite (variable inconnue), ou valeur refusée
 (caractère de contrôle) : voir le dossier de VibeCoder. »). Un **modèle**
 choisi (F-99), autre que le conseillé : le `/vibecoder:<nom>` de tête devient
-`/vibecoder:<nom>--<modèle>`, sa variante (F-106). Un argument
+`/vibecoder:<nom>--<modèle>`, sa variante (F-106). Un **effort**
+choisi (F-99) : `/vibecoder:<nom>--<modèle>--<effort>`, avec le modèle
+choisi, sinon le conseillé. Un argument
 qu'aucune variable du gabarit ne lit (`module`, `commit`, `file`, `pr`,
-`check`, `answers`, `verdict` ; pas `text`), ou un modèle que l'action ne
-propose pas, ne refuse pas l'action : il est ignoré, et l'orchestrateur en
-est prévenu (F-115).
+`check`, `answers`, `verdict`, et `text` quand le gabarit n'a pas `{{text}}` :
+`modules`, `commit-modules`, `commit-prepare`, `checks`…, sauf un `text` vide),
+ou un modèle ou un effort que l'action ne propose pas, ne refuse pas l'action :
+il est ignoré, et l'orchestrateur en est prévenu (F-115) ; le texte, lui, reste
+absent du message.
 
 **F-98 Les champs** : une action dont le gabarit prend `{{text}}` emporte le
 texte de **son champ** s'il y en a, ou l'exige (`needs: text` ; vide →
@@ -996,7 +1036,8 @@ pourquoi (sous le bouton, au survol ; le principal la refuse de même) :
 une action d'étape, par la règle des courses (F-115 : « Cette action est
 déjà en cours », « Une autre action est en cours », « Une action modifie la
 branche ») ; un message sans étape, quand la conversation travaille
-(« L'agent travaille » : elle ne grise plus que ceux-là) ; une action directe en cours (toutes, F-114) ; une recette du projet en
+(« L'agent travaille » : elle ne grise plus que ceux-là, et pas ceux qui
+travaillent ailleurs, `new-worktree` et `pr-worktree`, F-115) ; une action directe en cours (toutes, F-114) ; une recette du projet en
 cours dans la famille (les choix de lieu de F-110 et *Retirer le worktree* :
 « Une recette du projet est en cours », F-111) ; *Changer de branche*,
 *Revenir sur la branche principale*, *Aller sur la branche* et *Créer ici*
@@ -1036,8 +1077,13 @@ Une action dont le skill fixe son modèle (*haiku*, *sonnet* ou *opus*) et
 qui court à part (F-115) ou tourne en sous-contexte (`context: fork`)
 propose aussi les deux autres (`models`, le conseillé : `model`) : on peut
 prendre plus léger (ou plus fort) pour cette fois ; le conseillé reste le
-choix par défaut. Un skill sans sous-contexte envoyé à la conversation
-(`vibe`…) garde le modèle de l'agent. Jamais Fable (I-36).
+choix par défaut. L'**effort** se choisit de même, à côté du modèle, pour
+toute action dont le skill fixe son modèle (`efforts` : ceux du menu de
+l'agent, de faible à maximal) : sans choix, rien ne change — l'effort de
+l'en-tête du skill, ou celui de la variante du modèle choisi (haiku faible,
+sonnet moyen, opus élevé) ; le choix vaut pour cette action tant qu'on reste
+sur cet agent, comme le modèle. Un skill sans sous-contexte envoyé à la
+conversation (`vibe`…) garde le modèle de l'agent. Jamais Fable (I-36).
 
 **F-115 Les courses** (une action d'étape qui court à part de la
 conversation ; note `0.9.0-actions-independantes.md`).
@@ -1054,14 +1100,25 @@ conversation ; note `0.9.0-actions-independantes.md`).
   **Finie** : son tour fini et plus aucune tâche de fond que le runtime lui
   voit (sous-agents, commandes en fond, F-77) ; jusque-là *en cours*, sans
   limite de temps (une CI qui dure : *Arrêter* à la main). Ses tâches de fond
-  tombées à 0 hors tour : encore *en cours* 10 s (`GRACE_MS`), le temps du
-  tour que leur fin réveille ; un tour qui commence entre-temps la garde en
-  cours jusqu'à sa fin, elle finit alors avec la réponse de ce tour ; sinon
-  elle finit au bout des 10 s. Revenue au repos à la fin de son tour, sans
-  tâche de fond, elle finit aussitôt. Limite : un agent qui repart plus de
+  tombées à 0, hors tour ou pendant un tour (le rapport du dernier
+  sous-agent arrive pendant un tour et attend dans sa file) : encore
+  *en cours* 10 s (`GRACE_MS`), comptés dès la fin de ce tour dans le
+  second cas, le temps du tour que leur fin réveille ; un tour qui commence
+  entre-temps la garde en cours jusqu'à sa fin, elle finit alors avec la
+  réponse de ce tour ; sinon elle finit au bout des 10 s. Revenue au repos à
+  la fin de son tour, sans tâche de fond et sans qu'aucune soit tombée
+  pendant ce tour, elle finit aussitôt. Limite : un agent qui repart plus de
   10 s après la fin de sa tâche trouve sa course déjà finie. Finie, la
   course est fermée (son processus aussi), puis `actions.json` et l'avis de
   fin.
+  **Sans arrière-plan en sous-contexte** : une course dont le skill a
+  `context: fork` part avec `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` (le
+  sous-contexte attend ses commandes au premier plan, il ne les lance pas en
+  fond, où sa réponse les couperait). Si une commande d'arrière-plan a quand
+  même été coupée à sa fin (une tâche `local_bash` arrêtée), la course finit
+  *en échec* et sa réponse commence par la ligne qui le dit (« n commande(s)
+  en arrière-plan coupée(s) à la fin de l'action : le travail est
+  peut-être incomplet »).
 - **Un ancien résultat ne compte pas** : un `checks.json` dont le `time`
   précède le départ de la dernière course `checks` est ignoré (I-46).
 - **La règle** (`blockedBy`, sans modèle) : une action qui **modifie la
@@ -1070,17 +1127,30 @@ conversation ; note `0.9.0-actions-independantes.md`).
   action (même clé) ne court pas deux fois. En cours : *en cours*, *attend
   une autorisation*, ou *arrêtée* pas encore tranchée (I-44). Au clic, une
   action retenue est grisée avec la raison (F-99) ; le principal la refuse
-  de même. Sauf *Créer une branche dans un nouveau worktree* (`new-worktree`,
-  F-110, `ELSEWHERE`) : il travaille dans un autre dossier, sans toucher à
-  la branche de celui-ci ; aucune course ne le retient, et il ne retient
-  aucune course.
+  de même. Sauf *Créer une branche dans un nouveau worktree* (`new-worktree`)
+  et *Dans un nouveau worktree* d'une PR (`pr-worktree`) (F-110,
+  `ELSEWHERE`) : ils travaillent dans un autre dossier, sans toucher à la
+  branche de celui-ci ni à la PR qu'il suit ; aucune course ne les retient,
+  et ils ne retiennent aucune course. Ni la conversation qui travaille : ils
+  restent cliquables (par l'appli, `direct`), seul leur *via* est grisé
+  (I-25).
 - **L'onglet Actions (n)** : une ligne par course, la plus récente d'abord —
   son libellé, qui travaille, son état (*en cours*, *attend une
   autorisation*, *arrêtée — à garder ou annuler*, *finie*, *en échec*,
-  *gardée*, *annulée*), depuis quand ; *Arrêter* tant qu'elle travaille ; sa
+  *gardée*, *annulée*), depuis quand ; pour *Générer les modules* (`modules`),
+  son avancement en plus : la vague en cours, les modules faits sur le
+  total, les corrections renvoyées, une relance Opus s'il y en a eu ; *Arrêter* tant qu'elle travaille ; sa
   demande d'autorisation (outil, cible ; *Autoriser*, *Toujours*,
   *Refuser*) ; sa réponse, repliée. Une course se désigne par l'id de son
   action (`conv:vibeRunOp`), jamais par un texte ni un chemin.
+  L'avancement se lit dans le flux du SDK que l'appli lit déjà
+  (`core/agents/tasks`), sans fichier ni demande au modèle : une vague, les
+  appels `Agent` d'un même message (son identifiant) ; les modules faits, les
+  tâches finies, sur les modules restants de la Forme au départ de la
+  course ; les corrections, les appels `SendMessage` ; Opus, un appel
+  `Agent` avec `model: "opus"`. Gardé après la fin de la course. Un champ
+  absent du flux : l'onglet en montre moins ; l'avancement ne décide jamais
+  de l'état d'une course et ne la bloque pas.
 - **Le signal** : une course qui attend une autorisation, finit ou échoue se
   signale sur le robot de son agent, avec le bip (F-55) ; finie ou en échec,
   jusqu'à ce qu'on ouvre son onglet *Actions (n)* (F-92 ; chaque course
@@ -1101,7 +1171,7 @@ conversation ; note `0.9.0-actions-independantes.md`).
   réponse ; `waiting` : les demandes retenues et pourquoi), quand on le lui
   demande. Il demande un lancement par `<sorties>/actions/<id>.start` (un
   objet JSON de ses arguments : `text`, `module`, `commit`, `file`, `pr`,
-  `check`, `model`, `answers` ; jamais `direct`) ou un arrêt par `<id>.stop` (vide) ;
+  `check`, `model`, `effort`, `answers` ; jamais `direct`) ou un arrêt par `<id>.stop` (vide) ;
   l'appli les lit au relevé, à la fin de chaque tour de la conversation et à
   la fin de chaque course, les `.stop` d'abord. Un lancement suit la même
   règle et les mêmes vérifications qu'un clic (`buildMessage`, I-38) ; parti,
@@ -1230,7 +1300,11 @@ conversation ; note `0.9.0-actions-independantes.md`).
    (rouges), puis vérifier l'alignement* (d'après la note, ou le pseudo-code
    du champ de l'étape ; l'alignement dans la même course, F-93) tant qu'il
    n'y a pas de test, puis les cas à valider (dans la vue), *✓ Commiter* (un
-   commit préparé), *Préparer le commit* (des fichiers à commiter). *Lire en
+   commit préparé), *Préparer le commit* (des fichiers à commiter ; un fichier déjà porté par
+   un commit de la branche : un fixup de ce commit tant qu'aucune PR n'est
+   ouverte, un nouveau commit qui dit pourquoi le fichier change une fois
+   la PR ouverte, jamais un fixup ni un amend : son historique n'est pas
+   réécrit). *Lire en
    pseudo-code* (les fichiers pas encore lus : une lecture est nommée par
    l'empreinte du fichier, sa première ligne `# <chemin du test>` ; relire
    la remplace) n'est jamais mise en avant, *Vibe* compris (l'orchestrateur
@@ -1267,7 +1341,15 @@ conversation ; note `0.9.0-actions-independantes.md`).
    déjà commité — jamais du premier commit de la branche, qui ne porte que la
    note, la forme, les invariants rouges et leurs squelettes —, un nouveau
    commit une fois la PR ouverte) sont des gestes à
-   part. Les éditeurs (le code, la note en édition) défilent dans
+   part. *Commiter les modules* suit l'ordre de la Forme et vérifie, après
+   chaque commit, qu'il compile : le typage du projet sur le contenu du
+   commit (`git archive` dans un dossier temporaire, `node_modules` lié),
+   jamais sur le dossier de travail, que l'appli peut faire tourner et qui
+   contient les modules pas encore commités. Un projet sans typage connu
+   (ni `AGENTS.md`, ni manifeste qui en donne un) : le commit reste et la
+   réponse dit qu'il n'a pas été vérifié. Un commit qui ne compile pas :
+   elle s'arrête et le dit, les suivants ne sont pas faits ; ni amend, ni
+   rebase, ni `--no-verify` pour le rattraper. `suivant` suit la même règle. Les éditeurs (le code, la note en édition) défilent dans
    CodeMirror lui-même, hauteur bornée : pas de vide au-dessus du texte. Seul ce
    fichier est lu, à l'ouverture puis à chaque changement sur le disque
    (surveillé et poussé par le principal, pas au rythme du relevé : pendant
@@ -1489,7 +1571,10 @@ une ligne, ou pas de réponse → refusé, rien ne bouge.
     d'une PR (ses réglages `.claude` sont ceux de la PR et se chargeront ;
     I-23, I-41). *Annuler* : pas de robot ; *Ajouter le robot PR #n* la
     repose. Le robot là : *Aller au robot PR #n*. Masqué la PR déjà dans un
-    worktree, et sur un enfant ;
+    worktree, et sur un enfant. Il ne change ni la branche du dossier ni la
+    PR suivie : cliquable pendant une action et quand la conversation
+    travaille (F-115), par l'appli ; par l'agent (*via*), grisé quand elle
+    travaille (I-25) ;
   - avec des modifications, en plus, *Mettre de côté* (ci-dessous).
 - **Revenir sur la branche principale** (`unload-pr`, l'ancien *Décharger* ;
   une PR chargée, ou le dossier hors de la base ; pas sur le robot d'une
@@ -1526,7 +1611,8 @@ une ligne, ou pas de réponse → refusé, rien ne bouge.
     `origin/<base>`), puis un enfant s'y ouvre (la question de confiance
     pour un dossier jamais choisi, I-23 ; refusée : la demande reste
     retenue, l'échec le dit), affiché ; le robot du parent reste
-    sur sa branche, avec ses modifications s'il en a ;
+    sur sa branche, avec ses modifications s'il en a ; cliquable de même
+    quand la conversation travaille (F-115) ;
   - avec des modifications, en plus, *Mettre de côté*.
 
   Ensuite le dossier (ou l'enfant) est en VibeCoder, *Créer* ; à son premier
@@ -1564,17 +1650,11 @@ une ligne, ou pas de réponse → refusé, rien ne bouge.
   revenu à l'agent du dépôt, et sa branche `pr-<n>` est supprimée (la
   recette la garde ; la PR peut revenir *Dans un nouveau worktree*). De même, au relevé, l'agent du dépôt retiré emporte le robot de sa
   PR. *Retirer* le robot (clic droit) oublie aussi son dossier, sans
-  toucher au worktree. Les artefacts d'un enfant retiré (*Retirer*, *Retirer le
-  worktree*, le relevé qui retire le robot d'une PR dont la fiche a disparu) ne
-  sont pas perdus : ils vont dans les `artifacts/` de son parent (F-95), à leur
-  chemin sous `artifacts/`, un nom déjà pris recevant le premier numéro libre
-  (`rapport-2.md`) sans rien demander ; rien n'est effacé avant d'être arrivé,
-  un transfert qui échoue laisse le fichier sur le disque, avec un message. Sans
-  parent, ou parent parti (le robot d'une PR part avec lui), ils restent sur le
-  disque, notés dans `artifacts-left.json`, et reviennent dans les `artifacts/`
-  de l'agent rouvert sur ce même dossier (*+*, *Ouvrir un agent ici*, le robot
-  d'une PR), jamais d'un autre dossier. Seuls les artefacts sont transférés : le
-  reste des sorties garde son sort.
+  toucher au worktree. Les artefacts ne sont pas touchés : ils sont ceux du projet, dans un
+  dossier commun au dépôt, à ses worktrees et à leurs robots (F-95) ; *Retirer*,
+  *Retirer le worktree* et le relevé qui retire le robot d'une PR dont la
+  fiche a disparu ne les transfèrent ni ne les effacent, et un agent rouvert
+  sur ce dossier les retrouve. Le reste des sorties garde son sort.
 
 **F-102 Validations** : valider, refuser (*À revoir*) ou oublier, sur la note, sa Forme, un cas de
 test, une case du plan de test (*Relire*), une case du § A.3 que le dépôt ne
@@ -1883,7 +1963,7 @@ le *via* ; une entrée retirée retire les deux boutons.
   → rien) ; ou le dépôt sur la zone du panneau (`conv:vibeDrop`), mêmes
   vérifications que le clic (l'agent affiché, son relevé, l'action proposée,
   aucune autre action directe en cours) : mêmes « … » en cours et même dernière
-  ligne, au relevé. Copiés dans `artifacts/` de l'agent affiché, sans git ni gh
+  ligne, au relevé. Copiés dans le dossier d'artefacts du projet de l'agent affiché, sans git ni gh
   (I-39) ; la ligne dit combien sont ajoutés, les liens, dossiers cachés et
   fichiers sans chemin passés, les échecs.
 
@@ -1942,7 +2022,10 @@ Forme, `ponytail` préchargé, le typecheck et les tests de son module
 seulement, rien de commité), lancé par `modules` (Opus · élevé), qui relit
 chaque diff : un petit défaut corrigé lui-même, sinon la correction renvoyée
 au même sous-agent, au second échec le module relancé sur Opus ; la suite
-complète une fois par vague. Aucun skill livré ne fait
+complète une seule fois, à la fin de *Générer les modules*, par Opus (le
+typage et les tests des fichiers modifiés après chaque vague, avec l'outil du
+projet, la suite complète si le projet ne sait pas les choisir ; rien avant
+la première vague). Aucun skill livré ne fait
 `git push --force` ni ne fusionne une PR ; une version, un tag, une release
 candidate ne se suppriment qu'avec l'accord de l'utilisateur.
 
@@ -1973,14 +2056,17 @@ modèle en cours de conversation en perdrait le cache) : `vibe`, `processus`,
 ouverture du dossier, F-107), pour chaque skill `<nom>` du plugin de
 l'utilisateur qui fixe son modèle (*haiku*, *sonnet* ou *opus*), en
 sous-contexte ou non, l'appli écrit une variante par autre modèle,
-`skills/<nom>--<modèle>/SKILL.md` : le même en-tête (`description`,
+`skills/<nom>--<modèle>/SKILL.md`, et une par modèle et par effort, les
+15 couples (3 modèles × 5 efforts, `low` à `max`),
+`skills/<nom>--<modèle>--<effort>/SKILL.md` — le choix de l'effort (F-99) en
+nomme une : le même en-tête (`description`,
 `argument-hint`, `disable-model-invocation`, `allowed-tools` ; `context:
 fork` seulement si le skill l'a : `modules--sonnet` lance encore ses
-sous-agents), ce modèle et son effort par défaut (haiku
+sous-agents), ce modèle et son effort (par défaut : haiku
 `low`, sonnet `medium`, opus `high`), un corps qui suit `<nom>/SKILL.md` avec
 les mêmes arguments. Ce sont des fichiers générés, pas des défauts : hors du
 manifeste, réécrits à chaque fois (les noms en `--haiku`, `--sonnet`,
-`--opus` leur sont réservés). Jamais Fable (I-36).
+`--opus`, suivis ou non d'un `--<effort>`, leur sont réservés). Jamais Fable (I-36).
 
 **F-107 Le dossier de VibeCoder** (`userData/vibecoder/` ; menu de l'icône,
 *Agents Claude Code → Dossier de VibeCoder*, § 8) : `actions.fr.json`,
@@ -1991,8 +2077,13 @@ modèle et son effort, `agents/`), `README.md` (quoi modifier, comment revenir
 ouverture du dossier par le menu : un fichier absent est écrit — un fichier
 supprimé revient donc par défaut — ; un fichier jamais modifié suit les mises
 à jour de l'appli ; un fichier modifié par l'utilisateur, ou que l'appli n'a
-pas écrit, n'est jamais remplacé (I-35). Le manifeste `.defaults.json` retient
-l'empreinte de ce que l'appli a écrit ; illisible, plus rien n'est remplacé.
+pas écrit, n'est jamais remplacé (I-35). Un défaut que l'appli ne livre plus
+(un fichier du manifeste absent de `resources/vibecoder/` : un agent, un
+skill retirés) est supprimé au même moment, avec les variantes de son skill,
+s'il n'a pas été retouché ; retouché, il reste, et l'appli ne le suit plus.
+Le manifeste `.defaults.json` retient
+l'empreinte de ce que l'appli a écrit ; illisible, plus rien n'est remplacé
+ni supprimé.
 Un échec ne bloque rien (I-29). Les actions et l'en-tête des skills (qui
 travaille) sont relus à chaque relevé. S'y ajoutent les variantes générées des
 skills (F-106), réécrites à chaque fois.
@@ -2115,7 +2206,7 @@ I-13 à I-17, I-19, I-20, I-21, I-23, I-24, I-27 (et le terminal :
 VibeCoder, I-35 à I-40 : `src/main/core/vibecoder/tests/invariants/`
 (`defaults.test.ts` I-35, `fable.test.ts` I-36, `files.test.ts` I-37,
 `actions.test.ts` I-38), `src/main/technicals/git/tests/invariants/read-only.test.ts`,
-`src/main/technicals/github/tests/invariants/read-only.test.ts`, `src/main/technicals/direct/tests/invariants/direct.test.ts` et `rebase.test.ts` (I-39 ; *Rebase* sur du vrai git), `src/main/app/controllers/tests/invariants/module-code.test.ts` et `note-and-tests-save.test.ts` (I-37, I-39 : *Voir le code*, la note, les tests, sur le vrai principal), `src/main/core/vibecoder/tests/invariants/note-and-tests-files.test.ts` (I-37), `src/renderer/core/vibecoder/tests/invariants/markdown.test.ts`, `src/renderer/app/panel/vibecoder/tests/invariants/code-view.test.ts` et `note-editor.test.ts` (I-40) ; `src/main/app/controllers/tests/invariants/artifacts.test.ts`, `artifact-moves.test.ts` et `src/renderer/app/panel/vibecoder/tests/invariants/artifacts-view.test.ts` (I-37, I-39 : les artefacts, F-95, F-110) ;
+`src/main/technicals/github/tests/invariants/read-only.test.ts`, `src/main/technicals/direct/tests/invariants/direct.test.ts` et `rebase.test.ts` (I-39 ; *Rebase* sur du vrai git), `src/main/app/controllers/tests/invariants/module-code.test.ts` et `note-and-tests-save.test.ts` (I-37, I-39 : *Voir le code*, la note, les tests, sur le vrai principal), `src/main/core/vibecoder/tests/invariants/note-and-tests-files.test.ts` (I-37), `src/renderer/core/vibecoder/tests/invariants/markdown.test.ts`, `src/renderer/app/panel/vibecoder/tests/invariants/code-view.test.ts` et `note-editor.test.ts` (I-40) ; `src/main/app/controllers/tests/invariants/artifacts.test.ts`, `artifact-moves.test.ts`, `artifact-migration.test.ts`, `project-artifacts.test.ts` et `src/renderer/app/panel/vibecoder/tests/invariants/artifacts-view.test.ts` (I-37, I-39 : les artefacts, F-95, F-110) ;
 I-42, I-43 : `src/main/core/runner/tests/invariants/runner.test.ts`,
 `src/main/technicals/process/tests/invariants/process.test.ts` ; I-42 (la
 recette), I-39 (retirer un worktree) : `src/main/core/runner/tests/invariants/recipe.test.ts`,
@@ -2248,11 +2339,12 @@ bancs de comparaison.
 ### VibeCoder
 
 - **I-35** Un fichier de `userData/vibecoder/` que l'utilisateur a modifié, ou
-  que l'appli n'a pas écrit, n'est **jamais remplacé**, à aucune version :
+  que l'appli n'a pas écrit, n'est **jamais remplacé ni supprimé**, à aucune version :
   seul un fichier absent, ou encore tel que l'appli l'a écrit (empreinte du
-  manifeste `.defaults.json`), prend le défaut. Manifeste illisible : rien
-  n'est remplacé. Les variantes des skills (`skills/<nom>--<modèle>/`, F-106)
-  ne sont pas des fichiers de l'utilisateur : générées, hors manifeste,
+  manifeste `.defaults.json`), prend le défaut — ou part, quand l'appli ne le
+  livre plus (F-107). Manifeste illisible : rien n'est remplacé ni supprimé ;
+  un fichier absent du manifeste n'est jamais supprimé. Les variantes des skills (`skills/<nom>--<modèle>/` et
+  `--<modèle>--<effort>/`, F-106) ne sont pas des fichiers de l'utilisateur : générées, hors manifeste,
   réécrites à chaque démarrage.
 - **I-36** VibeCoder ne fait **jamais travailler Fable** de lui-même : un
   skill livré fixe haiku, sonnet ou opus, ou garde le modèle de l'agent ;
@@ -2268,17 +2360,21 @@ bancs de comparaison.
   seulement, un fichier d'un commit (`c<rang>/<i>`, lu par git seul, jamais
   enregistré) —, **dans le dossier de l'agent** (`..` et liens résolus ; ni
   chemin absolu, ni NUL), et les sorties de cet agent **sous leurs noms
-  connus** (F-95 ; ni `..`, ni autre dossier qu'`invariants/` et
-  `artifacts/`, ni un lien) ; un artefact (F-95), pour l'afficher (son texte
+  connus** (F-95 ; ni `..`, ni autre dossier qu'`invariants/`, ni un lien) ;
+  un artefact (F-95), pour l'afficher (son texte
   suivi, ou servi sous `vibe-artifact://<agent>/a<i>`, seulement pour
-  l'agent affiché en VibeCoder), l'ouvrir ou le copier, **sous
-  `artifacts/` seulement**, par son id `a<i>` du dernier relevé. **Seule
+  l'agent affiché en VibeCoder), l'ouvrir ou le copier, **dans le dossier
+  d'artefacts de son projet seulement** (ni un artefact d'un autre projet, ni
+  un fichier hors de ce dossier, ni un lien), par son id `a<i>` du dernier
+  relevé. Le `@` du champ (F-70) ne fait que mettre dans le texte le chemin
+  d'un artefact du relevé (le dossier est dans `VibeView`) : aucun canal de
+  plus, aucun fichier lu d'après un chemin donné par la page. **Seule
   exception, au geste de l'utilisateur** : `conv:vibeDrop`, le dépôt sur la zone
   des artefacts, porte des chemins, que le pont lit du `File` déposé
   (`webUtils.getPathForFile`), jamais donnés par la page (un `File` qu'elle
   construit n'a pas de chemin) ; le principal les revérifie (absolus, sans NUL
   ni segment `..`, `lstat` : un fichier ordinaire ou un dossier, un lien jamais
-  suivi) et ne fait que les **copier** sous `artifacts/` (I-39). `conv:vibeRun`
+  suivi) et ne fait que les **copier** dans le dossier d'artefacts du projet (I-39). `conv:vibeRun`
   ne prend jamais de chemin. Une
   page désigne un fichier par son **id dans le dernier relevé**, jamais par un
   chemin : un id en forme de chemin, ou égal au chemin d'un fichier du relevé,
@@ -2367,13 +2463,13 @@ bancs de comparaison.
   (I-37), sous son nom de base, **dans le seul dossier choisi** dans la
   boîte de dialogue ; un fichier existant n'est **jamais remplacé** sans
   *Remplacer* (annulé, ou la boîte fermée : rien n'est écrit). *Ajouter* (`add-artifact`, F-114), à côté de lui, n'écrit qu'**au clic** de son
-  bouton ou au dépôt de l'utilisateur sur la zone (I-37), **sous `artifacts/`
-  de l'agent affiché seulement** (un nom en `..` compris) : ce qui est choisi
+  bouton ou au dépôt de l'utilisateur sur la zone (I-37), **dans le dossier
+  d'artefacts du projet de l'agent affiché seulement** (un nom en `..` compris) : ce qui est choisi
   ou déposé est **copié**, l'original intact, **jamais écrasé** (un nom pris
   reçoit le premier numéro libre, sans demander) ; un lien n'est jamais suivi.
-  Le retrait d'un agent (F-110) ne déplace ses artefacts que vers `artifacts/`
-  de son parent ou de l'agent rouvert sur son dossier, de même sans rien
-  écraser. Un artefact
+  Le retrait d'un agent, d'un robot ou d'un worktree (F-110) ne touche pas à ce
+  dossier ; le déplacement des anciens artefacts (F-95) ne fait que les
+  **déplacer** vers lui, de même sans rien écraser. Un artefact
   n'exécute aucun script et ne joint pas le réseau (F-95). Un push autre que *Pousser*, un rebase autre que *Rebase*, checkout, ouvrir une PR, et le *via* des actions
   directes passent par l'agent, dans la conversation, avec ses autorisations.
 - **I-40** Aucun HTML rendu depuis un texte (note, rendue ou en édition,

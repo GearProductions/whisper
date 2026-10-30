@@ -64,3 +64,30 @@ it('commits : N commits déplie, re-clic replie ; un commit déplié : diff et G
   expect(page.querySelector('.vc-commits')).toBeNull();
   await unmount();
 });
+
+it('liste ouverte : Échap (n\'atteint pas les autres Échap) ou un clic dehors la ferme, un clic dedans non ; écouteurs retirés', async () => {
+  const view = { steps: [], commits: [{ hash: 'aaaaaaa1', subject: 'un', fixup: false, files: [] }] } as unknown as VibeView;
+  const { page, unmount } = await mount(view);
+  const count = page.querySelector<HTMLButtonElement>('button.vc-ccount')!;
+  const other: string[] = [];
+  const spy = (e: KeyboardEvent) => other.push(e.key);
+  document.addEventListener('keydown', spy);
+  const esc = () => act(() => { document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+  await esc();
+  expect(other).toEqual(['Escape']); // fermée : l'Échap passe
+  await act(() => count.click());
+  await act(() => { page.querySelector('.vc-commits')!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); });
+  expect(page.querySelector('.vc-commits')).not.toBeNull();
+  await act(() => { count.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); });
+  expect(page.querySelector('.vc-commits')).not.toBeNull();
+  await esc();
+  expect(page.querySelector('.vc-commits')).toBeNull();
+  expect(other).toEqual(['Escape']); // ouverte : capturé
+  await act(() => count.click());
+  await act(() => { document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); });
+  expect(page.querySelector('.vc-commits')).toBeNull();
+  await esc();
+  expect(other).toEqual(['Escape', 'Escape']); // écouteurs retirés
+  document.removeEventListener('keydown', spy);
+  await unmount();
+});

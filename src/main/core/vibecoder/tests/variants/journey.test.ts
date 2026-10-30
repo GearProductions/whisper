@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { VibeView } from 'shared/bridge';
-import { blobSha, parseNote, vibeView, type ActionDef, type JourneyInput, type Marks } from 'core/vibecoder';
+import { blobSha, EFFORT_LEVELS, parseNote, vibeView, type ActionDef, type JourneyInput, type Marks } from 'core/vibecoder';
 
 // Les actions du brief (celles dont le parcours a besoin), en français.
 const A = (id: string, flow: ActionDef['flow'], step: ActionDef['step'], text: string, needs: ActionDef['needs'] = 'none',
@@ -716,8 +716,9 @@ describe('Créer et Relire sur le même dossier : les choix de lieu (0.12.0)', (
 
   it('les choix de lieu, Retirer le worktree : directs ; pr-here, pr-worktree avec leur via, les autres par l\'appli seule', () => {
     const v = loaded();
-    expect(['pr-here', 'pr-worktree'].map((id) => action(v, id)?.direct)).toEqual([{ running: false, last: null }, { running: false, last: null }]);
-    for (const id of ['unload-pr', 'stash', 'new-here', 'new-worktree', 'remove-worktree', 'switch-branch', 'pull', 'rebase', 'push', 'fetch', 'request-review']) {
+    expect(['pr-here', 'pr-worktree'].map((id) => action(v, id)?.direct)).toEqual([{ running: false, last: null }, { running: false, last: null, elsewhere: true }]);
+    expect(action(v, 'new-worktree')?.direct).toEqual({ running: false, last: null, only: true, elsewhere: true });
+    for (const id of ['unload-pr', 'stash', 'new-here', 'remove-worktree', 'switch-branch', 'pull', 'rebase', 'push', 'fetch', 'request-review']) {
       expect(action(v, id)?.direct).toEqual({ running: false, last: null, only: true });
     }
     expect(action(vibeView(input()), 'new-request')?.direct).toBeUndefined();
@@ -728,8 +729,16 @@ describe('Créer et Relire sur le même dossier : les choix de lieu (0.12.0)', (
     expect(action(vibeView(input({ direct: { 'new-worktree': { running: false, last } } })), 'new-worktree')?.direct?.last).toEqual(last);
   });
 
-  it('un choix de lieu grisé quand la conversation travaille', () => {
-    expect(action(vibeView(input({ busy: true, request: 'feat/G3-1' })), 'new-worktree')?.disabled).toBe('L\'agent travaille');
+  it('un choix de lieu grisé quand la conversation travaille, sauf ceux qui travaillent ailleurs (ELSEWHERE) ; une directe en cours les grise tous', () => {
+    const v = vibeView(input({ busy: true, request: 'feat/G3-1' }));
+    expect(['new-here', 'new-worktree'].map((id) => action(v, id)?.disabled)).toEqual(['L\'agent travaille', null]);
+    const d = vibeView(input({ request: 'feat/G3-1', direct: { 'new-here': { running: true, last: null } } }));
+    expect(action(d, 'new-worktree')?.disabled).toBe('Une commande directe est en cours');
+  });
+
+  it('l\'effort se choisit pour une action dont le skill fixe son modèle', () => {
+    const v = vibeView(input({ model: { checks: 'haiku' } }));
+    expect([action(v, 'checks')?.efforts, action(v, 'note')?.efforts]).toEqual([EFFORT_LEVELS, []]);
   });
 
   it('Retirer le worktree, en Créer : sur un enfant, sa PR fusionnée ; revenir sur la base masqué sur un enfant', () => {

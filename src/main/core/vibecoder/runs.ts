@@ -13,14 +13,20 @@
  *  course d'après son entrée du runtime (runPhase : en cours tant qu'elle
  *  travaille ou que des tâches de fond tournent ; pas de limite de temps ;
  *  grace quand ses tâches de fond viennent de tomber à 0 hors tour, le délai
- *  GRACE_MS que le contrôleur laisse au tour qu'elles réveillent). Le module
+ *  GRACE_MS que le contrôleur laisse au tour qu'elles réveillent ; runTasks :
+ *  combien de tâches de fond lui compter, le plus haut de l'actuel et du
+ *  précédent hors repos). Son avancement (Run.progress, recopié par runViews) et
+ *  les modules qu'il reste au départ (remainingModules : Run.total). Le module
  *  qu'une course génère (runModule : Run.module) et pourquoi Voir le code est
  *  grisé (codeLock : un tour de la conversation, une course qui génère ce module ;
  *  sans module — la note, un test — n'importe quelle course qui retient).
+ *  Les commandes d'arrière-plan coupées par la fin d'une course (cutCommands : les
+ *  local_bash `stopped` de ses tâches) et la ligne qui le dit en tête de sa réponse
+ *  (cutLine).
  *  Ne connaît pas : Electron, le disque, le runtime des agents (tout est passé).
  *  Utilisé par : core/vibecoder (journey), app/controllers (runs : parseRequest,
  *  endNotice, requestNotice ; vibecoder, module-code). */
-import type { VibeArgs, VibeLang, VibeModule, VibeRun } from 'shared/bridge';
+import type { VibeArgs, VibeLang, VibeModule, VibeRun, VibeRunProgress } from 'shared/bridge';
 import { targetModule, type ActionDef } from './actions';
 
 export type RunState = VibeRun['state'];
@@ -33,6 +39,8 @@ export type Run = {
   reply: string;
   sessionId: string | null;
   module: string | null;       // le chemin (Forme) du module qu'elle génère, '*' : tous, null : aucun
+  total?: number | null;       // les modules restants au départ (action modules), null : sans objet
+  progress?: VibeRunProgress;  // son avancement d'après le fil de l'agent, absent : inconnu
 };
 
 // Les états qui retiennent les autres : en cours, une autorisation attend, arrêtée pas encore tranchée.
@@ -55,6 +63,7 @@ const TEXT = {
     unreadable: 'nom ou JSON illisible', unknown: 'action inconnue', hidden: 'action pas proposée à l’écran',
     direct: 'action qui ne court pas à part',
     halted: 'le mode Vibe a été arrêté par l’utilisateur : ne lance plus rien',
+    cut: (n: number) => `${n} commande${n > 1 ? 's' : ''} en arrière-plan coupée${n > 1 ? 's' : ''} à la fin de l’action : le travail est peut-être incomplet.`,
   },
   en: {
     same: 'This action is already running', busy: 'Another action is running', changing: 'An action is changing the branch',
@@ -66,6 +75,7 @@ const TEXT = {
     unreadable: 'unreadable name or JSON', unknown: 'unknown action', hidden: 'action not offered on screen',
     direct: 'action that does not run on its own',
     halted: 'Vibe was stopped by the user: start nothing more',
+    cut: (n: number) => `${n} background command${n > 1 ? 's' : ''} cut when the action ended: the work may be incomplete.`,
   },
 };
 
@@ -106,7 +116,7 @@ export function runViews(runs: Run[], defs: Shown[],
     const def = defs.find((d) => d.id === r.id);
     return {
       id: r.id, label: def?.label ?? r.id, who: def?.who ?? 'agent', state: r.state, since: r.since, end: r.end,
-      reply: r.reply, permission: pending(r.id),
+      reply: r.reply, permission: pending(r.id), ...(r.progress && { progress: r.progress }),
     };
   });
 }
@@ -136,6 +146,21 @@ export function runPhase(status: string, tasks: number, before = 0): 'running' |
   return before > 0 ? 'grace' : 'idle';
 }
 
+// Les tâches de fond d'une course à compter : hors repos (au travail, une autorisation attend), le plus haut
+// de tasks et before (une tâche tombée pendant un tour reste comptée jusqu'à sa fin) ; au repos, tasks.
+export const runTasks = (status: string, tasks: number, before: number) =>
+  status === 'working' || status === 'asking' ? Math.max(tasks, before) : tasks;
+
+// Les modules qu'il reste à générer : ni commit ni modification (la règle du skill modules).
+export const remainingModules = (modules: VibeModule[]) => modules.filter((m) => !m.touched && !m.uncommitted).length;
+
+// Les commandes d'arrière-plan qu'a coupées la fin d'une course : les local_bash arrêtés de ses tâches.
+export const cutCommands = (tasks: { type: string; status: string }[]) =>
+  tasks.filter((t) => t.type === 'local_bash' && t.status === 'stopped').length;
+
+// La ligne en tête de la réponse d'une course coupée (n : cutCommands, au moins 1).
+export const cutLine = (n: number, lang: VibeLang) => TEXT[lang].cut(n);
+
 const REPLY_MAX = 300;
 
 // L'avis de fin pour l'orchestrateur, une ligne : l'action, comment elle a fini, sa réponse en bref, où lire l'état.
@@ -153,7 +178,7 @@ const isInt = (v: unknown) => Number.isInteger(v);
 const isStr = (v: unknown) => typeof v === 'string';
 // Les arguments qu'une demande peut porter, chacun avec son type ; jamais direct (F-114 : un clic seulement).
 const KEEP: Record<string, (v: unknown) => boolean> = {
-  text: isStr, module: isInt, commit: isStr, file: isStr, pr: isInt, model: isStr, check: isInt,
+  text: isStr, module: isInt, commit: isStr, file: isStr, pr: isInt, model: isStr, effort: isStr, check: isInt,
   answers: (v) => Array.isArray(v) && v.every(isStr),
 };
 

@@ -1,20 +1,20 @@
 ---
 name: artefact
-description: "Create or retouch an artifact: a document outside the project — a PDF, a presentation, a wireframe, an external document, a design file, a proof of concept — written in the agent's artifacts folder, shown in VibeCoder's Artifacts panel, never in the project. Use when the user asks for such a document, or to change one already made."
+description: "Create or retouch an artifact: a document outside the project — a PDF, a presentation, a wireframe, an external document, a design file, a proof of concept — written in the project's artifacts folder, shown in VibeCoder's Artifacts panel, never in the project. Use when the user asks for such a document, or to change one already made."
 argument-hint: "[what to make or change]"
 ---
 
 # Artifacts (VibeCoder's Artifacts panel)
 
-`$ARGUMENTS`: what to make or change; invoked without arguments, the user's request in the conversation. Your VibeCoder output folder is the additional working directory ending with `vibecoder-out/<agent id>` (may contain spaces; call it `<out>`). Write in the user's language.
+`$ARGUMENTS`: what to make or change; invoked without arguments, the user's request in the conversation. The artifacts folder is the additional working directory ending with `vibecoder-artifacts/<key>` (may contain spaces; call it `<dir>`), shared by every robot of the project: others write there too. Write in the user's language.
 
 An artifact is a document that is not (yet) part of the project. The user sees it in the *Artifacts* panel, asks you here to retouch it, and copies it into the project with the panel's *Copy to project* button — not you.
 
 ## Where and how
 
-- Only under `<out>/artifacts/` (create the folder if missing; subfolders allowed). **Never touch the project**: no file written, moved or deleted in the repository, no git command that changes it, even to « prepare » the copy.
+- Only under `<dir>` (subfolders allowed). **Never touch the project**: no file written, moved or deleted in the repository, no git command that changes it, even to « prepare » the copy.
 - One file per artifact, under a meaningful name in kebab-case with its true extension (`login-wireframe.html`, `pitch-deck.pdf`, `api-proposal.md`). No hidden file (starting with `.`), no link: the panel ignores them.
-- **Retouch rather than add**: a request about an artifact that exists (the one shown, or named) changes that file in place; a new file only for a new document. List `<out>/artifacts/` first.
+- **Retouch rather than add**: a request about an artifact that exists (the one shown, or named) changes that file in place; a new file only for a new document. List `<dir>` first, and read a file again right before writing it: another robot writing the same name writes the same file, so never overwrite what you have not just read.
 
 ## The formats the panel shows
 
@@ -25,4 +25,4 @@ An artifact is a document that is not (yet) part of the project. The user sees i
 
 ## Answer
 
-One or two lines: the file written or changed (its name under `artifacts/`), and what is in it.
+One or two lines: the file written or changed (its name under `<dir>`), and what is in it.

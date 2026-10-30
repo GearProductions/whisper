@@ -1,9 +1,11 @@
 // Invariants du panneau Artefacts (note 0.13.0,
 // docs/tickets/feat/0.13.0-panneau-artifacts.md, « Ce que ça ne doit pas
-// faire ») :
-//   - lire, pour l'afficher ou l'ouvrir, un fichier hors de
-//     vibecoder-out/<agent>/artifacts/, ou désigné par un chemin venu de la page
-//     plutôt que par son id dans la liste (I-37, étendu à artifacts/) ;
+// faire ») ; les artefacts sont dans le dossier du projet (note
+// docs/tickets/fix/0.13.0-fix-and-improvements.md, sujet 8 : seule retouche acceptée,
+// ces règles gardées) :
+//   - lire, pour l'afficher ou l'ouvrir, un fichier hors du dossier du projet, ou
+//     désigné par un chemin venu de la page plutôt que par son id dans la liste
+//     (I-37, étendu aux artefacts) ;
 //   - exécuter un script d'un artefact, ou le laisser joindre le réseau — ici
 //     le schéma vibe-artifact:// : il ne sert que l'id d'un artefact du dernier
 //     relevé de l'agent affiché (jamais un chemin, ni ../), une page HTML ou SVG
@@ -106,7 +108,7 @@ const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(fil
 const settle = () => new Promise((r) => setTimeout(r, 300));
 let dir = '';        // le dépôt de l'agent
 let out = '';        // ses sorties
-let arts = '';       // ses artefacts
+let arts = '';       // les artefacts de son projet
 let chosen = '';     // le dossier que l'utilisateur choisit dans la boîte de dialogue
 let secret = '';     // un fichier hors de tout
 
@@ -145,7 +147,7 @@ const SVG = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><t
 // Une « image » qui contient du HTML : elle ne doit jamais devenir une page.
 const CAPTURE = '<html><script>alert(1)</script>CAPTURE</html>';
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.resetModules();
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] }); // le relevé des 4 s ne tourne pas
   fake.windows = [];
@@ -166,17 +168,21 @@ beforeEach(() => {
   git(dir, 'add', '.');
   git(dir, 'commit', '-q', '-m', 'init');
   git(dir, 'checkout', '-q', '-b', 'feat/0.13.0-essai');
-  // Ses sorties : un fichier hors des artefacts, et les artefacts (un sous-dossier compris).
+  // Un autre agent, sur un autre projet.
+  fs.mkdirSync(path.join(fake.userData, 'autre'), { recursive: true });
+  const { projectArtifactsPath } = await import('app/controllers');
+  // Ses sorties : un fichier hors des artefacts ; le dossier de son projet : les artefacts (un sous-dossier
+  // compris) ; juste au-dessus de ce dossier, un autre fichier, pour un `../` qui remonterait.
   out = path.join(fake.userData, 'vibecoder-out', 'a1');
-  arts = path.join(out, 'artifacts');
+  arts = projectArtifactsPath(dir);
   write(path.join(out, 'commit.md'), COMMIT);
+  write(path.join(arts, '..', 'commit.md'), COMMIT);
   write(path.join(arts, 'notes.md'), NOTES);
   write(path.join(arts, 'maquettes', 'accueil.html'), PAGE);
   write(path.join(arts, 'schema.svg'), SVG);
   write(path.join(arts, 'capture.png'), CAPTURE);
-  // Un autre agent, jamais affiché, et son artefact.
-  fs.mkdirSync(path.join(fake.userData, 'autre'), { recursive: true });
-  write(path.join(fake.userData, 'vibecoder-out', 'a2', 'artifacts', 'plan.html'), PLAN);
+  // L'artefact de l'autre projet, jamais affiché.
+  write(path.join(projectArtifactsPath(path.join(fake.userData, 'autre')), 'plan.html'), PLAN);
   // Le dossier que l'utilisateur choisira, hors du dépôt.
   chosen = path.join(fake.userData, 'choisi');
   fs.mkdirSync(chosen, { recursive: true });
@@ -250,7 +256,7 @@ const OFFLINE = ["'none'", "'unsafe-inline'", 'data:'];
 const networked = (csp: string) => [...directives(csp)].filter(([n]) => n !== 'sandbox').flatMap(([, v]) => v).filter((s) => !OFFLINE.includes(s));
 const cspOf = (res: Response) => res.headers.get('content-security-policy') ?? '';
 
-describe('afficher un artefact : par son id dans le dernier relevé, rien hors de artifacts/ (I-37)', () => {
+describe('afficher un artefact : par son id dans le dernier relevé, rien hors du dossier du projet (I-37)', () => {
   it('témoin : l’id d’un artefact Markdown, son texte est poussé à la page', async () => {
     await open();
 
@@ -271,7 +277,7 @@ describe('afficher un artefact : par son id dans le dernier relevé, rien hors d
     expect(sent).not.toContain(NOTES);
   });
 
-  it('un fichier des sorties hors de artifacts/ n’est pas un artefact', async () => {
+  it('un fichier des sorties n’est pas un artefact', async () => {
     await open();
 
     // témoin : les artefacts sont bien listés
@@ -291,7 +297,7 @@ describe('afficher un artefact : par son id dans le dernier relevé, rien hors d
     expect(texts()).toEqual([]);
   });
 
-  it('un chemin qui remonte hors de artifacts/ (../commit.md) : rien n’est lu', async () => {
+  it('un chemin qui remonte hors du dossier du projet (../commit.md) : rien n’est lu', async () => {
     await open();
 
     await follow('../commit.md');
@@ -348,8 +354,8 @@ describe('afficher un artefact : par son id dans le dernier relevé, rien hors d
   });
 });
 
-describe('ouvrir un artefact dans l’éditeur : par son id dans le dernier relevé, rien hors de artifacts/ (I-37)', () => {
-  it('témoin : l’id d’un artefact, l’éditeur ouvre ce fichier sous artifacts/', async () => {
+describe('ouvrir un artefact dans l’éditeur : par son id dans le dernier relevé, rien hors du dossier du projet (I-37)', () => {
+  it('témoin : l’id d’un artefact, l’éditeur ouvre ce fichier du dossier du projet', async () => {
     await open();
 
     await openInEditor(idOf('notes.md'));
@@ -369,7 +375,7 @@ describe('ouvrir un artefact dans l’éditeur : par son id dans le dernier rele
     expect(fake.edited).toEqual([]);
   });
 
-  it('un chemin qui remonte hors de artifacts/ (../commit.md) : rien n’est ouvert', async () => {
+  it('un chemin qui remonte hors du dossier du projet (../commit.md) : rien n’est ouvert', async () => {
     await open();
 
     await openInEditor('../commit.md');
@@ -425,7 +431,7 @@ describe('le schéma vibe-artifact:// ne sert que l’id d’un artefact du dern
   });
 
   // Encodé : ni le parseur d'URL ni la requête ne le résolvent avant le principal.
-  it('un chemin qui remonte hors de artifacts/ (..%2Fcommit.md) : rien n’est servi', async () => {
+  it('un chemin qui remonte hors du dossier du projet (..%2Fcommit.md) : rien n’est servi', async () => {
     await open();
 
     const res = await request('vibe-artifact://a1/..%2Fcommit.md');
@@ -467,14 +473,14 @@ describe('le schéma vibe-artifact:// ne sert que l’id d’un artefact du dern
     expect(res.ok).toBe(false);
   });
 
-  it('l’id d’un artefact d’un autre agent, pas affiché : rien n’est servi', async () => {
+  it('l’id d’un artefact d’un agent d’un autre projet, pas affiché : rien n’est servi', async () => {
     await open();
 
     const res = await request('vibe-artifact://a2/a0');
 
     // la réponse est un refus
     expect(res.ok).toBe(false);
-    // l'artefact de l'autre agent n'y est pas
+    // l'artefact de l'autre projet n'y est pas
     expect(await res.text()).not.toContain(PLAN);
   });
 
@@ -638,7 +644,7 @@ describe('copier un artefact : seulement au clic, seulement dans le dossier choi
     expect(inChosen()).toEqual([]);
   });
 
-  it('un chemin qui remonte hors de artifacts/ (../commit.md) : rien n’est copié', async () => {
+  it('un chemin qui remonte hors du dossier du projet (../commit.md) : rien n’est copié', async () => {
     await open();
 
     await copy('../commit.md');

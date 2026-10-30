@@ -1,18 +1,26 @@
-/** artifacts — les artefacts de l'agent (vibecoder-out/<agent>/artifacts/) :
+/** artifacts — les artefacts du projet d'un agent (le dossier du projet, ses anciens : vibecoder-out/<agent>/artifacts/) :
  *  le nom du dossier et du schéma qui les sert, le genre et le type MIME d'un
  *  fichier d'après son extension, la liste du relevé (ids a<i> dans l'ordre
  *  des noms, url, truncated), et l'artefact d'un id du dernier relevé (la page
  *  ne donne qu'un id, jamais un chemin : I-37), les chemins d'un dépôt
  *  (droppedPaths : lus du File par le pont, revérifiés ici), la clé d'un
- *  dossier (folderKey : le même dossier, même parti ou derrière un lien), et
- *  les deux libellés du dépôt et du retour (addedLine, failedLine : fr et en).
- *  Ne connaît pas : Electron, le disque (realpath et fichiers passés), git.
- *  Utilisé par : app/controllers (artifacts, artifact-moves, vibecoder, module-code). */
+ *  dossier (folderKey : le même dossier, même parti ou derrière un lien), les
+ *  deux libellés du dépôt et du déplacement en échec (addedLine, failedLine : fr et en), et
+ *  l'emplacement par projet : la racine (ARTIFACTS_ROOT), la clé d'un projet
+ *  (projectKey : le dossier git commun lu sur le disque), son dossier
+ *  (projectFolder : 16 hexa du sha1), le propriétaire d'un ancien dossier
+ *  (legacyOwner : la config, puis artifacts-left.json lu par leftEntries).
+ *  Ne connaît pas : Electron, le disque (realpath, fichiers et texte passés), git.
+ *  Utilisé par : app/controllers (artifacts, artifact-migration,
+ *  vibecoder, module-code). */
+import { createHash } from 'node:crypto';
 import path from 'node:path';
+import { commonDirOf } from 'core/family';
 import type { VibeArtifact, VibeLang, VibeView } from 'shared/bridge';
 import type { TreeReport } from 'technicals/file-tree';
 
 export const ARTIFACTS = 'artifacts';
+export const ARTIFACTS_ROOT = 'vibecoder-artifacts';
 export const ARTIFACT_SCHEME = 'vibe-artifact';
 
 const PAGES = new Map([['html', 'text/html'], ['htm', 'text/html'], ['svg', 'image/svg+xml']]);
@@ -119,4 +127,32 @@ export function failedLine(failed: number, lang: VibeLang): string {
   return lang === 'fr'
     ? `${failed} artefact${failed > 1 ? 's' : ''} resté${failed > 1 ? 's' : ''} sur le disque.`
     : `${failed} artifact${failed > 1 ? 's' : ''} left on disk.`;
+}
+
+// La clé d'un projet : le dossier git commun résolu (la valeur de git rev-parse
+// --git-common-dir), lu sur le disque sans lancer git ; hors git, folderKey(dir).
+// Le dossier est résolu avant de remonter : un sous-dossier atteint par un lien
+// retrouve son .git. Un realpath qui lève (dossier parti) garde le chemin tel quel.
+export function projectKey(dir: string, read: (file: string) => string | null, realpath: (p: string) => string): string {
+  const real = (p: string) => { try { return realpath(p); } catch { return p; } };
+  const common = commonDirOf(real(dir), read);
+  return common ? real(common) : folderKey(dir, realpath);
+}
+
+// Le nom du dossier d'artefacts d'une clé : les 16 premiers hexa de son sha1.
+export const projectFolder = (key: string): string => createHash('sha1').update(key).digest('hex').slice(0, 16);
+
+// Le dossier de l'ancien artefact d'un agent : celui de la config, sinon celui
+// d'artifacts-left.json ; null si l'id n'est connu de nulle part.
+export function legacyOwner(id: string, agents: { id: string; dir: string }[], left: Record<string, string>): string | null {
+  return agents.find((a) => a.id === id)?.dir ?? (Object.hasOwn(left, id) ? left[id] : null);
+}
+
+// artifacts-left.json lu : { id → dossier } ; absent, illisible, pas un objet : rien ; une valeur
+// qui n'est pas une chaîne est écartée. Ne lève jamais.
+export function leftEntries(text: string | null): Record<string, string> {
+  let parsed: unknown = null;
+  try { parsed = text === null ? null : JSON.parse(text); } catch { /* illisible : rien */ }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+  return Object.fromEntries(Object.entries(parsed).filter((e): e is [string, string] => typeof e[1] === 'string'));
 }

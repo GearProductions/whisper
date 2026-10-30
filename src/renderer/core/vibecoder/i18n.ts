@@ -10,13 +10,25 @@
  *  (« N actions en cours »),
  *  titres des sorties ; le code d'un module (Enregistrer, fichier trop gros) ; le panneau
  *  Artefacts (son bouton, la liste vide, Copier, Ajouter et sa zone de dépôt,
- *  fichier tronqué) ; une durée,
+ *  fichier tronqué, dossier commun au projet) ; l'avancement d'une course
+ *  (vague, modules faits, corrections, relance Opus) ; une durée,
  *  une taille de fichier en clair. Ceux des boutons viennent des
  *  actions (actions.<langue>.json).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
-import type { VibeFlow, VibeLang, VibeRun, VibeStepId } from 'technicals/bridge';
+import type { VibeFlow, VibeLang, VibeRun, VibeRunProgress, VibeStepId } from 'technicals/bridge';
 
 type Choices = [string, string][]; // [valeur, libellé]
+
+// L'avancement d'une course, partie par partie : une partie à 0 ou fausse est absente.
+const progressParts = (p: VibeRunProgress, l: { wave: string; modules: string; fixes: (n: number) => string; opus: string }) => {
+  const done = Math.min(p.done, p.total);
+  return [
+    p.wave > 0 && `${l.wave} ${p.wave}`,
+    p.total > 0 && `${done}/${p.total} ${l.modules}`,
+    p.fixes > 0 && l.fixes(p.fixes),
+    p.opus && l.opus,
+  ].filter(Boolean).join(' · ');
+};
 
 const fr = {
   locale: 'fr-FR',
@@ -89,6 +101,10 @@ const fr = {
   mode: 'Mode',
   modelTitle: 'Le modèle de l\'agent, comme dans son menu',
   effortTitle: 'L\'effort de l\'agent, comme dans son menu',
+  effortDefault: 'effort par défaut',
+  runProgress: (p: VibeRunProgress) => progressParts(p, {
+    wave: 'vague', modules: 'modules', fixes: (n) => `${n} correction${n > 1 ? 's' : ''}`, opus: 'relance Opus',
+  }),
   modeTitle: 'Le mode de l\'agent, comme dans son menu',
   models: [['', 'défaut'], ['fable', 'Fable (plus cher)'], ['opus', 'Opus'], ['sonnet', 'Sonnet'], ['haiku', 'Haiku']] as Choices,
   efforts: [['', 'défaut'], ['low', 'faible'], ['medium', 'moyen'], ['high', 'élevé'], ['xhigh', 'très élevé'], ['max', 'maximal']] as Choices,
@@ -124,13 +140,13 @@ const fr = {
   changed: (n: number) => (n > 1 ? `${n} fichiers modifiés` : `${n} fichier modifié`),
   at: (time: string) => `relevé à ${time}`,
   artifacts: 'Artefacts',
-  artifactsTitle: 'Les documents que l\'agent crée hors du projet : wireframes, PDF, présentations…',
-  artifactsNone: 'Aucun artefact : demandez à l\'agent un document hors du projet (wireframe, PDF, présentation…), il le crée ici.',
+  artifactsTitle: 'Les documents hors du projet, communs à tous ses agents : wireframes, PDF, présentations…',
+  artifactsNone: 'Aucun artefact dans ce projet : demandez à l\'agent un document (wireframe, PDF, présentation…), il le crée ici.',
   artifactCopy: 'Copier dans le projet',
   artifactCopyTitle: 'Copier ce fichier dans un dossier choisi',
   artifactAdd: 'Ajouter',
-  artifactAddTitle: 'Choisir des fichiers : ils sont copiés dans les artefacts de cet agent',
-  artifactDrop: 'Déposez des fichiers ou des dossiers ici : ils sont copiés dans les artefacts, les originaux restent en place.',
+  artifactAddTitle: 'Choisir des fichiers : ils sont copiés dans les artefacts du projet',
+  artifactDrop: 'Déposez des fichiers ou des dossiers ici : ils sont copiés dans les artefacts du projet, les originaux restent en place.',
   artifactTruncated: 'Fichier tronqué : Ouvrir dans l\'éditeur montre la suite.',
   artifactUnreadable: 'Fichier illisible.',
 };
@@ -208,6 +224,10 @@ const en: Strings = {
   mode: 'Mode',
   modelTitle: 'The agent\'s model, as in its menu',
   effortTitle: 'The agent\'s effort, as in its menu',
+  effortDefault: 'default effort',
+  runProgress: (p) => progressParts(p, {
+    wave: 'wave', modules: 'modules', fixes: (n) => `${n} fix${n > 1 ? 'es' : ''}`, opus: 'Opus retry',
+  }),
   modeTitle: 'The agent\'s mode, as in its menu',
   models: [['', 'default'], ['fable', 'Fable (pricier)'], ['opus', 'Opus'], ['sonnet', 'Sonnet'], ['haiku', 'Haiku']],
   efforts: [['', 'default'], ['low', 'low'], ['medium', 'medium'], ['high', 'high'], ['xhigh', 'extra high'], ['max', 'max']],
@@ -243,13 +263,13 @@ const en: Strings = {
   changed: (n) => `${n} file${n === 1 ? '' : 's'} changed`,
   at: (time) => `read at ${time}`,
   artifacts: 'Artifacts',
-  artifactsTitle: 'The documents the agent makes outside the project: wireframes, PDFs, slides…',
-  artifactsNone: 'No artifact: ask the agent for a document outside the project (wireframe, PDF, slides…), it makes it here.',
+  artifactsTitle: 'The documents outside the project, shared by all its agents: wireframes, PDFs, slides…',
+  artifactsNone: 'No artifact in this project: ask the agent for a document (wireframe, PDF, slides…), it makes it here.',
   artifactCopy: 'Copy to project',
   artifactCopyTitle: 'Copy this file to a chosen folder',
   artifactAdd: 'Add',
-  artifactAddTitle: 'Pick files: they are copied to this agent\'s artifacts',
-  artifactDrop: 'Drop files or folders here: they are copied into the artifacts, the originals stay put.',
+  artifactAddTitle: 'Pick files: they are copied to the project\'s artifacts',
+  artifactDrop: 'Drop files or folders here: they are copied into the project\'s artifacts, the originals stay put.',
   artifactTruncated: 'File truncated: Open in the editor shows the rest.',
   artifactUnreadable: 'Unreadable file.',
 };

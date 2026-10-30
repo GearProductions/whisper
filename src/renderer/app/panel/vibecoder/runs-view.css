@@ -6,3 +6,4 @@
 .vc-run-ask { flex-basis: 100%; min-width: 0; overflow: hidden; color: var(--vc-soft); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
 .vc-run-reply summary { padding: 3px 9px 6px; color: var(--vc-muted); font-size: 12px; cursor: pointer; }
 .vc-run-reply .vc-card-body { max-height: 420px; overflow: auto; }
+.vc-run-progress { color: var(--vc-muted); }

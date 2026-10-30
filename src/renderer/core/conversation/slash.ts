@@ -1,9 +1,11 @@
 /** slash — les commandes « / » du champ : ce qui est tapé, les commandes qui
- *  correspondent (d'abord celles qui commencent par la saisie), le choix.
+ *  correspondent (d'abord celles qui commencent par la saisie, sans les variantes
+ *  `<skill>--<modèle>--<effort>`, F-70), le choix.
  *  Ne connaît pas : le DOM, le pont. Utilisé par : app/panel (composer). */
 import type { Command } from 'technicals/bridge';
+import { matchByName } from './mention';
 
-const SHOWN = 50;
+const VARIANT = /--[a-z]+--[a-z]+$/;
 
 // Le champ commence par « / » (sans espace jusqu'au curseur) : ce qui suit, sinon null.
 export function slashQuery(value: string, caret: number) {
@@ -11,11 +13,8 @@ export function slashQuery(value: string, caret: number) {
   return m ? m[1].toLowerCase() : null;
 }
 
-export function matchCommands(list: Command[], q: string) {
-  const name = (c: Command) => c.name.toLowerCase();
-  return list.filter((c) => name(c).startsWith(q))
-    .concat(list.filter((c) => !name(c).startsWith(q) && name(c).includes(q))).slice(0, SHOWN);
-}
+export const matchCommands = (list: Command[], q: string) =>
+  matchByName(list.filter((c) => !VARIANT.test(c.name.toLowerCase())), q, (c) => c.name);
 
 // La commande choisie remplace ce qui est tapé ; le reste du champ suit.
 export function pickCommand(value: string, caret: number, c: Command) {

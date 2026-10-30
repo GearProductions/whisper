@@ -1,5 +1,7 @@
 /** composer — le champ de saisie : écrire à l'agent affiché (Entrée envoie,
- *  Maj+Entrée va à la ligne), ses pièces jointes, les commandes « / ».
+ *  Maj+Entrée va à la ligne), ses pièces jointes, les commandes « / »
+ *  et, après un « @ », les artefacts du projet (useArtifactMention : jamais
+ *  ouverts avec les commandes).
  *  #composer-row est le cadre du champ : la pièce jointe (#attach) en icône au
  *  début, #message sans bordure, Envoyer (#send) en icône à la fin, chacune
  *  nommée (title, aria-label). Le brouillon appartient à panel-app (un par
@@ -7,8 +9,8 @@
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : panel-app. */
 import { useLayoutEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent, type RefObject } from 'react';
 import { cycle, matchCommands, pickCommand, pieceLabel, pieceTitle, slashQuery, type Draft, type Piece } from 'core/conversation';
-import type { Command, ProbeResult } from 'technicals/bridge';
-import { Icon } from 'app/panel/vibecoder';
+import type { Command, ProbeResult, VibeArtifact } from 'technicals/bridge';
+import { Icon, useArtifactMention } from 'app/panel/vibecoder';
 
 const MAX_HEIGHT = 160;
 
@@ -31,6 +33,8 @@ type Props = {
   onLayout(): void;        // la hauteur a pu changer (réduit)
   ref: RefObject<HTMLElement | null>;
   input: RefObject<HTMLTextAreaElement | null>;
+  artifacts?: VibeArtifact[]; // pour le « @ » ; sans eux ou sans dossier, pas de liste
+  artifactsDir?: string;
 };
 
 type Slash = { open: boolean; items: Command[]; index: number; hint: string };
@@ -41,6 +45,7 @@ export function Composer(p: Props) {
   const loading = useRef(false);
   const list = useRef<HTMLDivElement>(null);
   const caret = useRef<number | null>(null); // curseur à poser après une commande choisie
+  const mention = useArtifactMention(p.artifacts ?? [], p.artifactsDir ?? '', p.input, p.setText);
 
   // Le champ grandit avec le texte, jusqu'à quelques lignes.
   useLayoutEffect(() => {
@@ -113,6 +118,7 @@ export function Composer(p: Props) {
 
   return (
     <footer id="composer" hidden={!p.live} ref={p.ref}>
+      {mention.list}
       <div id="slash" className="scroll" hidden={!slash.open} ref={list}>
         {slash.hint ? <div className="hint">{slash.hint}</div> : slash.items.map((c, i) => (
           <button key={i} type="button" className={`slash-item${i === slash.index ? ' active' : ''}`}
@@ -137,13 +143,13 @@ export function Composer(p: Props) {
         <textarea id="message" className="scroll" rows={1} ref={p.input} value={p.draft.text}
           placeholder={p.busy ? `${p.name} travaille : vous pourrez envoyer quand il aura fini.`
             : `Écrire à ${p.name}… (Entrée : envoyer, Maj+Entrée : à la ligne)`}
-          onChange={(e) => { p.setText(e.target.value); p.setStatus(''); update(0); }}
+          onChange={(e) => { p.setText(e.target.value); p.setStatus(''); update(0); slashQuery(e.target.value, e.target.selectionStart) === null ? mention.update() : mention.close(); }}
           onKeyDown={(e) => {
-            if (slashKey(e)) return;
+            if (slashKey(e) || mention.key(e)) return;
             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); p.onSend(); }
           }}
           onPaste={onPaste}
-          onBlur={() => setTimeout(close, 150)} />
+          onBlur={() => setTimeout(() => { close(); mention.close(); }, 150)} />
         <button id="send" type="button" title="Envoyer (Entrée)" aria-label="Envoyer" disabled={p.sending || p.busy}
           onClick={p.onSend}><Icon name="send" /></button>
       </div>

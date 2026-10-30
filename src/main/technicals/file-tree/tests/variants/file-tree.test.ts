@@ -108,4 +108,37 @@ describe('moveContents', () => {
     expect(read(path.join(tmp, 'from', 'a', '.cache', 'x'))).toBe('X');
     expect(fs.existsSync(path.join(tmp, 'from', 'a', 'y.md'))).toBe(false);
   });
+
+  it('mêmes octets sous un nom pris : rien dans copied, la source part', async () => {
+    write(path.join(root, 'a.md'), 'A');
+    write(path.join(tmp, 'from', 'a.md'), 'A');
+
+    const report = await moveContents(path.join(tmp, 'from'), root);
+
+    expect(report.copied).toEqual([]);
+    expect(fs.readdirSync(root)).toEqual(['a.md']);
+    expect(fs.existsSync(path.join(tmp, 'from', 'a.md'))).toBe(false);
+  });
+
+  it('les mêmes octets sous le numéro 2 : reconnus aussi', async () => {
+    write(path.join(root, 'a.md'), 'AUTRE');
+    write(path.join(root, 'a-2.md'), 'A');
+    write(path.join(tmp, 'from', 'a.md'), 'A');
+
+    await moveContents(path.join(tmp, 'from'), root);
+
+    expect(fs.readdirSync(root).sort()).toEqual(['a-2.md', 'a.md']);
+    expect(fs.existsSync(path.join(tmp, 'from', 'a.md'))).toBe(false);
+  });
+});
+
+describe('copyInto, mêmes octets', () => {
+  it('ajouter deux fois numérote', async () => {
+    write(path.join(tmp, 'a.md'), 'A');
+
+    await copyInto(path.join(tmp, 'a.md'), root);
+    await copyInto(path.join(tmp, 'a.md'), root);
+
+    expect(fs.readdirSync(root).sort()).toEqual(['a-2.md', 'a.md']);
+  });
 });

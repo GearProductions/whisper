@@ -230,6 +230,60 @@ describe('la fin d’une course', () => {
   });
 });
 
+// Une course en sous-contexte (note fix/0.13.0-fix-and-improvements, sujet 11) : rien en arrière-plan, et le dire si ça arrive.
+describe('une course dont le skill a context: fork', () => {
+  const start = async (id: string, head: string) => {
+    const { startRun } = await open();
+    const { loadConfig, vibeActions, vibePluginDir } = await import('app/settings');
+    const { agentList, vibeLang } = await import('core/config');
+    write(path.join(vibePluginDir(), 'skills', id, 'SKILL.md'), `---\nname: ${id}\n${head}---\n`);
+    const cfg = loadConfig();
+    const def = vibeActions(vibeLang(cfg)).find((d) => d.id === id)!;
+    expect(startRun(agentList(cfg)[0], def, `/vibecoder:${id}`, cfg)).toEqual({ ok: true });
+    await settle();
+    return turn(`/vibecoder:${id}`)!;
+  };
+  // La commande de fond finit (son état final) une fois le tour fini, puis le délai de grâce passe.
+  const endsWith = async (ci: Awaited<ReturnType<typeof start>>, status: string) => {
+    const { GRACE_MS } = await import('core/vibecoder');
+    ci.emit({ type: 'system', subtype: 'task_started', task_id: 'b1', task_type: 'local_bash', description: 'les mutants' });
+    ci.finish('Les mutants tournent encore');
+    await settle();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    ci.emit({ type: 'system', subtype: 'task_notification', task_id: 'b1', status });
+    await settle();
+    vi.advanceTimersByTime(GRACE_MS + 1);
+    vi.useRealTimers();
+    await settle();
+  };
+
+  it('part sans tâches de fond, le reste de l’environnement gardé', async () => {
+    const env = (await start('ci', 'context: fork\n')).options.env as Record<string, string>;
+    expect(env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS).toBe('1');
+    expect(env.PATH).toBe(process.env.PATH);
+  });
+
+  it('sans fork : l’environnement du processus', async () => {
+    expect((await start('ci', '')).options.env).toBeUndefined();
+  });
+
+  it('une commande de fond coupée à sa fin : en échec, sa réponse le dit en tête', async () => {
+    const { cutLine } = await import('core/vibecoder');
+    await endsWith(await start('ci', 'context: fork\n'), 'stopped');
+    expect(actionsJson().runs).toMatchObject([{ id: 'ci', state: 'failed', reply: `${cutLine(1, 'fr')}\nLes mutants tournent encore` }]);
+  });
+
+  it('une commande de fond finie normalement : la course finit bien', async () => {
+    await endsWith(await start('ci', 'context: fork\n'), 'completed');
+    expect(actionsJson().runs).toMatchObject([{ id: 'ci', state: 'done', reply: 'Les mutants tournent encore' }]);
+  });
+
+  it('sans fork, une commande de fond coupée : la course finit comme avant', async () => {
+    await endsWith(await start('ci', ''), 'stopped');
+    expect(actionsJson().runs).toMatchObject([{ id: 'ci', state: 'done' }]);
+  });
+});
+
 // Le flux d'une tâche de fond, comme le SDK l'émet.
 const taskStarted = { type: 'system', subtype: 'task_started', task_id: 'k1', task_type: 'local_agent', description: 'sous-agent' };
 const taskDone = { type: 'system', subtype: 'task_notification', task_id: 'k1', status: 'completed' };
@@ -334,6 +388,59 @@ describe('une course n’est finie que quand son travail l’est', () => {
     await settle();
 
     expect(actionsJson().runs).toMatchObject([{ id: 'forme', state: 'asking' }]);
+  });
+});
+
+describe('l’avancement d’une course (note 0.13.0)', () => {
+  it('modules : la vague, les sous-agents finis et le total d’au départ, gardés après sa fin ; une autre action : aucun', async () => {
+    const { GRACE_MS } = await import('core/vibecoder');
+    const { startRun, runsOf } = await open();
+    const { loadConfig, vibeActions } = await import('app/settings');
+    const { agentList, vibeLang } = await import('core/config');
+    const cfg = loadConfig();
+    const defs = vibeActions(vibeLang(cfg));
+    const agent = agentList(cfg)[0];
+    expect(startRun(agent, defs.find((d) => d.id === 'modules')!, '/vibecoder:modules', cfg)).toEqual({ ok: true });
+    await settle();
+    const modules = turn('/vibecoder:modules')!;
+
+    modules.emit({ type: 'assistant', message: { id: 'm1', content: [{ type: 'tool_use', id: 't1', name: 'Agent', input: { model: 'opus' } }] } });
+    modules.emit(taskStarted);
+    modules.finish('fini');
+    await settle();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    modules.emit(taskDone);
+    await settle();
+    vi.advanceTimersByTime(GRACE_MS);
+    vi.useRealTimers();
+    await settle();
+
+    expect(runsOf(agent)).toMatchObject([{ id: 'modules', state: 'done', total: 0, progress: { wave: 1, done: 1, total: 0, fixes: 0, opus: true } }]);
+
+    expect(startRun(agent, defs.find((d) => d.id === 'forme')!, '/vibecoder:forme', cfg)).toEqual({ ok: true });
+    expect(runsOf(agent).find((r) => r.id === 'forme')?.progress).toBeUndefined();
+  });
+
+  it('modules : le processus meurt en cours de course, l’avancement atteint reste', async () => {
+    const { GRACE_MS } = await import('core/vibecoder');
+    const { startRun, runsOf } = await open();
+    const { loadConfig, vibeActions } = await import('app/settings');
+    const { agentList, vibeLang } = await import('core/config');
+    const cfg = loadConfig();
+    const agent = agentList(cfg)[0];
+    expect(startRun(agent, vibeActions(vibeLang(cfg)).find((d) => d.id === 'modules')!, '/vibecoder:modules', cfg)).toEqual({ ok: true });
+    await settle();
+    const modules = turn('/vibecoder:modules')!;
+    modules.emit({ type: 'assistant', message: { id: 'm1', content: [{ type: 'tool_use', id: 't1', name: 'Agent', input: {} }] } });
+    modules.emit(taskStarted);
+    await settle();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    modules.emit(null as never); // le flux se ferme : le processus est mort, ses tâches avec lui
+    await settle();
+    vi.advanceTimersByTime(GRACE_MS);
+    vi.useRealTimers();
+    await settle();
+    expect(runsOf(agent)).toMatchObject([{ id: 'modules', state: 'failed', progress: { wave: 1, done: 0 } }]);
   });
 });
 

@@ -33,3 +33,22 @@ describe('pluriels du fil d\'Ariane et de la barre d\'état', () => {
     expect([1, 2].map(t('en').runsRunning)).toEqual(['1 action running', '2 actions running']);
   });
 });
+
+describe('runProgress : l\'avancement d\'une course', () => {
+  const full = { wave: 3, done: 8, total: 17, fixes: 2, opus: true };
+
+  it('toutes les parties, dans les deux langues', () => {
+    expect(t('fr').runProgress(full)).toBe('vague 3 · 8/17 modules · 2 corrections · relance Opus');
+    expect(t('en').runProgress(full)).toBe('wave 3 · 8/17 modules · 2 fixes · Opus retry');
+  });
+
+  it('une partie à 0 ou fausse est absente', () => {
+    expect(t('fr').runProgress({ wave: 1, done: 0, total: 5, fixes: 0, opus: false })).toBe('vague 1 · 0/5 modules');
+    expect(t('fr').runProgress({ wave: 0, done: 0, total: 0, fixes: 1, opus: false })).toBe('1 correction');
+    expect(t('fr').runProgress({ wave: 0, done: 0, total: 0, fixes: 0, opus: false })).toBe('');
+  });
+
+  it('les modules faits sont plafonnés au total', () => {
+    expect(t('fr').runProgress({ ...full, done: 20 })).toContain('17/17 modules');
+  });
+});

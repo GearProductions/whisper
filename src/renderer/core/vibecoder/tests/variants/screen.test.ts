@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chosenModel, convWidth, modelArg, runningRuns, stepActions } from 'core/vibecoder';
+import { chosenEffort, chosenModel, convWidth, modelArg, runningRuns, stepActions } from 'core/vibecoder';
 import type { VibeAction, VibeRun, VibeStep, VibeView } from 'technicals/bridge';
 
 const action = (over: Partial<VibeAction> = {}): VibeAction => ({
@@ -43,6 +43,28 @@ describe('modelArg', () => {
   it('pas des siens, ou modèle de l\'agent : rien', () => {
     expect(modelArg(action(), { 'read-invariants': 'fable' })).toBeUndefined();
     expect(modelArg(action({ models: [], model: null }), { 'read-invariants': 'haiku' })).toBeUndefined();
+  });
+});
+
+describe('chosenEffort', () => {
+  const a = action({ efforts: ['low', 'medium', 'high'] });
+
+  it('rien de choisi : celui du skill (vide, rien à envoyer)', () => {
+    expect(chosenEffort(a, {})).toBe('');
+  });
+
+  it('un effort des siens : celui-là', () => {
+    expect(chosenEffort(a, { 'read-invariants': 'high' })).toBe('high');
+  });
+
+  it('hors de la liste, ou skill sans choix d\'effort : ignoré', () => {
+    expect(chosenEffort(a, { 'read-invariants': 'max' })).toBe('');
+    expect(chosenEffort(action(), { 'read-invariants': 'high' })).toBe('');
+    expect(chosenEffort(action({ efforts: [] }), { 'read-invariants': 'high' })).toBe('');
+  });
+
+  it('le choix d\'une autre action ne compte pas', () => {
+    expect(chosenEffort(a, { forme: 'high' })).toBe('');
   });
 });
 

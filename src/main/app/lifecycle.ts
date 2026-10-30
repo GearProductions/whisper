@@ -4,7 +4,9 @@
  *  pendant un tour d'agent : on rend d'abord le son et le micro Discord, on
  *  interrompt les agents et on attend la fin de leurs tours (I-11, I-19) ;
  *  les processus lancés par l'onglet Processus de VibeCoder sont arrêtés.
- *  Au lancement, les familles d'agents sont relues par git (syncFamilies).
+ *  Au lancement, les familles d'agents sont relues par git (syncFamilies) ;
+ *  après ensureVibeFiles, les anciens artefacts sont déplacés (moveLegacyArtifacts)
+ *  sans bloquer le démarrage, puis VibeCoder est relu (refreshVibe).
  *  Le schéma vibe-artifact (les artefacts de VibeCoder, F-95) : déclaré
  *  avant ready, servi à ready (resolveArtifact). Lancée depuis les sources :
  *  ce qui est reconstruit dans out/ est suivi (app/dev), le relevé de
@@ -21,7 +23,7 @@ import * as paste from 'technicals/paste';
 import * as tts from 'technicals/pocket-tts';
 import * as windows from 'technicals/windows-helper';
 import {
-  agents, ensureFolderColors, ensureModel, muter, pollSpeak, processesRunning, pushAgents, refreshVibe, resetSpeakState, resolveArtifact, SPEAK_POLL_MS,
+  agents, ensureFolderColors, ensureModel, moveLegacyArtifacts, muter, pollSpeak, processesRunning, pushAgents, refreshVibe, resetSpeakState, resolveArtifact, SPEAK_POLL_MS,
   startHealing, stopProcesses, syncFamilies,
 } from 'app/controllers';
 import { startDev } from 'app/dev';
@@ -61,6 +63,8 @@ export function start() {
     syncFamilies();
     // VibeCoder : ses fichiers par défaut, sans écraser une retouche ; un échec ne bloque rien (I-29).
     ensureVibeFiles();
+    // Les anciens artefacts rejoignent le dossier de leur projet (ne rejette jamais), puis la vue est relue ; le démarrage n'attend pas.
+    void moveLegacyArtifacts().then(() => refreshVibe());
     setInterval(pollSpeak, SPEAK_POLL_MS);
     // Depuis les sources : recharger ou redémarrer, d'après ce qui est reconstruit (rien en version empaquetée).
     startDev(() => { void refreshVibe({ now: true }); });

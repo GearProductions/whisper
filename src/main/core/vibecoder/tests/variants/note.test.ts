@@ -174,6 +174,20 @@ describe('parseNote : modules en liste ou en texte', () => {
     expect(parseNote(forme).modules).toEqual([{ path: 'lib/a.ts', contract: 'pur' }]);
   });
 
+  it('avec un bloc de code et sans titre ###, une ligne de prose avant le bloc n\'est pas un module', () => {
+    const forme = '## Forme\n- Le fichier `journey.ts` porte 7 et 10, donc `actions.ts` le précède.\n\njourney.ts porte 7 et 10.\n\n```\nlib/a.ts  pur\n```\n';
+    expect(parseNote(forme).modules).toEqual([{ path: 'lib/a.ts', contract: 'pur' }]);
+  });
+
+  it('sans bloc de code, la Forme garde ses modules (ancienne note)', () => {
+    expect(parseNote('## Forme\nLe fichier x.\n\njourney.ts porte 7 et 10.\n').modules).toEqual([{ path: 'journey.ts', contract: 'porte 7 et 10.' }]);
+  });
+
+  it('un titre ### avec un exemple de code dans son contrat garde ses modules', () => {
+    const forme = '## Forme\n### lib/a.ts\nExpose : a\n```\nlib/b.ts  exemple\n```\n### lib/c.ts\nExpose : c\n';
+    expect(parseNote(forme).modules.map((m) => m.path)).toEqual(['lib/a.ts', 'lib/c.ts']);
+  });
+
   it('une rubrique « Shape » (anglais) est la Forme', () => {
     expect(parseNote('## Shape\nlib/a.ts  pure\n').modules).toEqual([{ path: 'lib/a.ts', contract: 'pure' }]);
   });

@@ -5,7 +5,9 @@
  *  pour codeLock ; le robot suit dès le départ ; un processus neuf, suivi des fichiers écrits ;
  *  modèle et effort du skill que son message appelle, sinon ceux de l'agent ; answers reprend la session de la course de la note),
  *  suivre (son état d'après runPhase : en cours tant que son processus travaille ou que le runtime lui voit des
- *  tâches de fond, aucune limite de temps ; ses tâches de fond tombées à 0 hors tour, GRACE_MS laissés au tour
+ *  tâches de fond — hors repos, le plus haut des comptes, runTasks —, aucune limite de temps ; son avancement,
+ *  Run.progress d'après les tâches du runtime et le total de modules restants au départ (action modules), gardé
+ *  après sa fin, jamais lu pour son état ; ses tâches de fond tombées à 0 hors tour, GRACE_MS laissés au tour
  *  qu'elles réveillent ; sa fin, revenue au repos après avoir travaillé, ou son échec avant
  *  même son tour : fermée, et un avis à la conversation de l'agent, gardé tant qu'elle travaille, I-25), agir sur une course (runOp : l'arrêter — son
  *  processus et son verrou restent —, la garder ou l'annuler — rewind, puis
@@ -25,28 +27,32 @@
  *  demandes et ses avis ; vibeStop ; une course arrêtée) : nextVibeMode, avec les questions ouvertes de
  *  <sorties>/questions.md (parseQuestions, comme le parcours) ; quitter on : un relevé forcé d'abord (ses ✓).
  *  Courses, avis, demandes retenues et mode Vibe : en mémoire. closeRuns : l'agent oublié.
+ *  Une course dont le skill a `context: fork` part sans tâches de fond (forked :
+ *  CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1, le fork attend ses commandes) ; si une
+ *  commande d'arrière-plan a quand même été coupée à sa fin, elle finit en échec et
+ *  sa réponse le dit en tête (cutCommands, cutLine).
  *  Ne connaît pas : la page, les fenêtres.
  *  Utilisé par : controllers/vibecoder, controllers/agents,
  *  controllers/module-code, menus/agent-menus. */
 import fs from 'node:fs';
 import path from 'node:path';
 import type { RunSignal, SendResult, VibeRunOp, VibeView } from 'shared/bridge';
-import { shortTarget, type AgentConfig } from 'core/agents';
+import { EMPTY_LOG, runProgress, shortTarget, type AgentConfig } from 'core/agents';
 import { agentList, vibeLang, type Config } from 'core/config';
 import {
-  blockedBy, endNotice, GRACE_MS, headField, LOCKING, nextVibeMode, ownRun, parseQuestions, parseRequest, requestNotice, runKey, skillModel,
-  runPhase, runsFile, runSignal, type ActionDef, type Run, type RunState, type VibeMode,
+  blockedBy, cutCommands, cutLine, endNotice, GRACE_MS, headField, LOCKING, nextVibeMode, ownRun, parseQuestions, parseRequest, requestNotice, runKey, skillModel,
+  remainingModules, runPhase, runsFile, runSignal, runTasks, type ActionDef, type Run, type RunState, type VibeMode,
 } from 'core/vibecoder';
 import { loadConfig, vibeActions, vibeOutDir, vibePluginDir } from 'app/settings';
 import { agents, CLAUDE_MISSING, isBusy, launchOptions, pushAgents, sendToAgent } from './agents';
-import { directLocks, refreshVibe, startAction } from './vibecoder';
+import { directLocks, lastView, refreshVibe, startAction } from './vibecoder';
 
 const REQUEST_MAX = 64 * 1024;   // une demande plus grosse n'est pas lue
 
 // Une course, et ce que la règle et sa fin en retiennent : `reads` (elle lit seulement), `seen` (son tour a commencé),
-// `tasks` (ses tâches de fond au dernier changement), `grace` (le minuteur du délai de grâce, s'il court),
+// `tasks` (ses tâches de fond comptées au dernier changement, runTasks), `forked` (son skill est en sous-contexte), `grace` (le minuteur du délai de grâce, s'il court),
 // `noticed` (l'état où l'utilisateur l'a vue, null : jamais).
-type Live = Run & { reads: boolean; seen: boolean; tasks: number; noticed: RunState | null; grace?: NodeJS.Timeout };
+type Live = Run & { reads: boolean; seen: boolean; forked: boolean; tasks: number; noticed: RunState | null; grace?: NodeJS.Timeout };
 
 const stopGrace = (run: Live) => { clearTimeout(run.grace); run.grace = undefined; };
 
@@ -120,13 +126,15 @@ export function startRun(agent: AgentConfig, def: ActionDef, message: string, cf
   const key = runKey(def.id);
   const runs = all.get(agent.id) ?? new Map<string, Live>();
   all.set(agent.id, runs);
+  const md = skillMd(message);
+  const forked = headField(md, 'context') === 'fork';
   const run: Live = {
-    id: def.id, key, since: Date.now(), end: null, state: 'running', reply: '', reads: !!def.reads, seen: false, tasks: 0, noticed: null, module,
+    id: def.id, key, since: Date.now(), end: null, state: 'running', reply: '', reads: !!def.reads, seen: false, forked, tasks: 0, noticed: null, module,
+    total: def.id === 'modules' ? remainingModules(lastView(agent.id)?.modules ?? []) : null,
     sessionId: def.id === 'answers' ? runs.get(key)?.sessionId ?? null : null,
   };
   runs.set(key, run);   // tout de suite : un second clic la voit (blockedBy)
   signalFollow(agent.id);   // le robot clignote dès le départ
-  const md = skillMd(message);
   const entry: AgentConfig = {
     ...agent, id: entryId(agent.id, key), name: `${agent.name} ~ ${def.id}`, sessionId: run.sessionId,
     model: skillModel(md) ?? agent.model, effort: headField(md, 'effort') || agent.effort,
@@ -135,6 +143,9 @@ export function startRun(agent: AgentConfig, def: ActionDef, message: string, cf
   // Ses tâches de fond oubliées : celles d'une course précédente, tuée en route, la tiendraient en cours.
   agents.close(entry.id).then(() => agents.forgetReply(entry.id)).then(() => agents.send(entry, { text: message, images: [] }, {
     ...launchOptions(agent, cfg), checkpoint: true,
+    // Un fork qui lance une commande de fond la verrait tuée à sa réponse : il l'attend au premier plan.
+    // env remplace celui du processus (le SDK ne fusionne pas) : process.env recopié.
+    ...(forked && { env: { ...process.env, CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1' } }),
     onChange: () => changed(agent.id, run),
     onSession: (id) => { run.sessionId = id; },
     onPermission: () => { refreshVibe(); },
@@ -158,7 +169,9 @@ function changed(agentId: string, run: Live) {
   if (run.state === 'running' || run.state === 'asking') {
     const { status, tasks } = agents.state(entryId(agentId, run.key));
     const phase = runPhase(status, tasks, run.tasks);
-    run.tasks = tasks;
+    run.tasks = runTasks(status, tasks, run.tasks);
+    const log = agents.tasks(entryId(agentId, run.key));
+    if (run.total != null && (log !== EMPTY_LOG || !run.progress)) run.progress = { ...runProgress(log), total: run.total };   // gardé après la fin, et après la mort du processus (log vidé)
     if (phase === 'grace') run.grace ??= setTimeout(() => { run.grace = undefined; changed(agentId, run); }, GRACE_MS);
     else if (phase !== 'idle') { stopGrace(run); Object.assign(run, { seen: true, state: phase }); }
     else if (run.seen && !run.grace) finish(agentId, run);
@@ -169,16 +182,18 @@ function changed(agentId: string, run: Live) {
 }
 
 // Fin d'une course : sa réponse (ou `failure` : elle n'a pas pu partir), son processus fermé, l'avis à la
-// conversation, les demandes revues.
+// conversation, les demandes revues. Un fork dont une commande de fond a été coupée (la variable n'a pas agi) :
+// en échec, sa réponse le dit en tête ; les tâches sont lues avant la fermeture, qui les emporte.
 function finish(agentId: string, run: Live, failure?: string) {
   stopGrace(run);
   const entry = entryId(agentId, run.key);
-  const last = failure === undefined ? agents.lastReply(entry) : { error: true, text: failure };
-  Object.assign(run, { state: last?.error ? 'failed' : 'done', reply: last?.text ?? '', end: Date.now() });
-  void agents.close(entry);
-  signalFollow(agentId);
   const cfg = loadConfig();
   const lang = vibeLang(cfg);
+  const last = failure === undefined ? agents.lastReply(entry) : { error: true, text: failure };
+  const cut = run.forked && failure === undefined ? cutCommands(agents.tasks(entry).tasks) : 0;
+  Object.assign(run, { state: cut || last?.error ? 'failed' : 'done', reply: (cut ? `${cutLine(cut, lang)}\n` : '') + (last?.text ?? ''), end: Date.now() });
+  void agents.close(entry);
+  signalFollow(agentId);
   const def = vibeActions(lang).find((d) => d.id === run.id);
   notify(agentId, endNotice(run, def, lang, vibeOutDir(agentId)));
   const agent = agentList(cfg).find((a) => a.id === agentId);

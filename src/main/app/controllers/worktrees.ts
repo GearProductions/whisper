@@ -22,28 +22,27 @@
  *  worktree (removeWorktreeChild). Les dossiers des agents sont résolus (liens
  *  symboliques) avant d'être comparés à ceux de git. Aucune page ne donne de
  *  chemin. La création et le retrait des worktrees : controllers/recipe.
- *  Les artefacts : un enfant retiré les passe à son parent (removeAgent) ;
- *  sans parent présent (le robot d'une PR parti avec lui), ils restent sur le
- *  disque (removeChild ne les efface pas : eraseOutputs) et reviennent, dans
- *  son artifacts/, à l'agent rouvert sur ce dossier (adopt, openChild :
- *  artifactsBack à la naissance).
+ *  Les artefacts : un enfant retiré efface ses sorties (eraseOutputs), sauf un
+ *  ancien artifacts/ pas encore parti ; jamais le dossier du projet.
  *  Ne connaît pas : la page (seulement ce que demandent controllers/vibecoder
  *  et app/menus).
  *  Utilisé par : controllers/vibecoder, controllers/runs, app/menus,
  *  app/lifecycle. */
 import fs from 'node:fs';
+import fsp from 'node:fs/promises';
 import path from 'node:path';
 import type { VibeWorktree } from 'shared/bridge';
 import type { AgentConfig } from 'core/agents';
 import { agentColor, agentList, agentVibe, favoriteFolders } from 'core/config';
 import { agentParent, childAgent, childOf, familyLinks, isMain, parseWorktrees, repoOf as gitRepoOf } from 'core/family';
-import { worktreeCard } from 'core/vibecoder';
+import { ARTIFACTS, worktreeCard } from 'core/vibecoder';
+import { hasFiles } from 'technicals/file-tree';
 import { gitRun } from 'technicals/git';
-import { loadConfig, saveConfig, saveVibeStore, vibeOutDir, vibeStore } from 'app/settings';
+import { loadConfig, saveConfig, saveVibeStore, vibeOutDir, vibeOutPath, vibeStore } from 'app/settings';
 import { state } from 'app/state';
 import { openConversation } from 'app/windows';
-import { artifactsBack, ensureFolderColors, isBusy, newId, pushAgents, real, removeAgent, trustFolder } from './agents';
-import { eraseOutputs } from './artifact-moves';
+import { ensureFolderColors, isBusy, newId, pushAgents, real, removeAgent, trustFolder } from './agents';
+import { legacyArtifactsPath } from './artifacts';
 import { removeWorktree, type RecipeResult } from './recipe';
 
 const wanted = new Set<string>();   // `<agent>:<n>` : l'écran a demandé le worktree de cette PR (en mémoire)
@@ -126,7 +125,6 @@ async function adopt(parent: AgentConfig, pr: number) {
   if (!owner || hasAgent(dir)) return;
   const robot = childAgent(owner, dir, newId(), { pr });
   saveConfig({ agents: [...agentList(cfg), robot], agentFolders: withFolder(dir, agentColor(owner, cfg)) });
-  artifactsBack(robot);
   // Ses sorties : la fiche de la PR ; son brouillon de revue : celui de l'agent du dépôt.
   try { fs.copyFileSync(path.join(vibeOutDir(owner.id), `pr-${pr}.json`), path.join(vibeOutDir(robot.id), `pr-${pr}.json`)); } catch { /* il la rechargera */ }
   const store = vibeStore();
@@ -135,11 +133,20 @@ async function adopt(parent: AgentConfig, pr: number) {
   pushAgents();
 }
 
+// Les sorties d'un agent retiré. Sur le disque, jamais d'après une entrée : un
+// ancien artifacts/ pas encore parti reste (rm ne suit pas un lien), le reste part.
+async function eraseOutputs(agentId: string): Promise<void> {
+  const dir = vibeOutPath(agentId);
+  if (!await hasFiles(legacyArtifactsPath(agentId))) { await fsp.rm(dir, { recursive: true, force: true }); return; }
+  for (const name of await fsp.readdir(dir).catch(() => [])) {
+    if (name !== ARTIFACTS) await fsp.rm(path.join(dir, name), { recursive: true, force: true });
+  }
+}
+
 // Retire un enfant : le brouillon de sa PR revient au parent, ses validations
 // partent ; affiché, le panneau passe au parent ; son dossier quitte les
-// favoris (sans attendre le transfert des artefacts) ; removeAgent (son
-// processus, ses courses et ses commandes, ses artefacts transférés) et ses sorties (eraseOutputs : sauf les artefacts laissés, sans
-// parent présent).
+// favoris ; removeAgent (son processus, ses courses et ses commandes) et ses
+// sorties (eraseOutputs : sauf un ancien artifacts/ pas encore parti).
 async function removeChild(child: AgentConfig, parent: AgentConfig | null) {
   const pr = agentParent(child)?.pr;
   const store = vibeStore();
@@ -149,9 +156,8 @@ async function removeChild(child: AgentConfig, parent: AgentConfig | null) {
   delete store.marks[child.id];
   saveVibeStore(store);
   if (parent && state.convView?.agentId === child.id) openConversation(parent.id, { mode: 'full' });
-  const gone = removeAgent(child.id);   // sa part synchrone d'abord : l'agent est parti de la config
+  removeAgent(child.id);   // d'abord : l'agent est parti de la config
   saveConfig({ agentFolders: ensureFolderColors().filter((f) => f.dir !== child.dir) });
-  await gone;
   await eraseOutputs(child.id);
 }
 
@@ -240,7 +246,6 @@ export async function openChild(parent: AgentConfig, dir: string, o: { name?: st
   const child = childAgent(ok.owner, here, newId(), { ...o, name: o.name ?? ok.branch ?? path.basename(at) });
   saveConfig({ agents: [...agentList(cfg), child], agentFolders: withFolder(here, agentColor(ok.owner, cfg)) });
   pushAgents();
-  artifactsBack(child);
   return child;
 }
 

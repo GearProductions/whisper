@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { branchOf, childOf, isMain, parseWorktrees, repoOf } from 'core/family';
+import { branchOf, commonDirOf, childOf, isMain, parseWorktrees, repoOf } from 'core/family';
 
 describe('repoOf', () => {
   it('dossier commun et racine, résolus ; pas un dépôt, chemin introuvable : null', async () => {
@@ -65,5 +65,30 @@ describe('branchOf', () => {
   it('détachée, illisible : null', () => {
     expect(branchOf('/p', disk({ '/p/.git/HEAD': '0123456789abcdef\n' }))).toBeNull();
     expect(branchOf('/p', disk({}))).toBeNull();
+  });
+});
+
+// Un disque factice aux chemins POSIX : sous Windows, path.resolve les ferait partir de D:\. Le vrai disque : project-key (invariants).
+describe.skipIf(process.platform === 'win32')('commonDirOf', () => {
+  const disk = (files: Record<string, string>) => (f: string) => files[f] ?? null;
+  it('un .git dossier : <dossier>/.git, depuis un sous-dossier aussi', () => {
+    const read = disk({ '/p/.git/HEAD': 'ref: refs/heads/main\n' });
+    expect(commonDirOf('/p', read)).toBe('/p/.git');
+    expect(commonDirOf('/p/src/profond', read)).toBe('/p/.git');
+  });
+  it('un worktree : commondir relatif au gitdir', () => {
+    const read = disk({ '/w/e/.git': 'gitdir: /p/.git/worktrees/e\n', '/p/.git/worktrees/e/commondir': '../..\n' });
+    expect(commonDirOf('/w/e/src', read)).toBe('/p/.git');
+  });
+  it('un gitdir relatif au dossier', () => {
+    const read = disk({ '/w/e/.git': 'gitdir: ../../p/.git/worktrees/e', '/p/.git/worktrees/e/commondir': '../..' });
+    expect(commonDirOf('/w/e', read)).toBe('/p/.git');
+  });
+  it('sans commondir (sous-module) : le gitdir lui-même', () => {
+    const read = disk({ '/p/m/.git': 'gitdir: ../.git/modules/m' });
+    expect(commonDirOf('/p/m', read)).toBe('/p/.git/modules/m');
+  });
+  it('hors de tout dépôt : null', () => {
+    expect(commonDirOf('/seul/a', disk({}))).toBeNull();
   });
 });

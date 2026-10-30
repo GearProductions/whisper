@@ -444,6 +444,18 @@ describe('rc.2', () => {
     expect(fake.messages[0]).toBe(`/vibecoder:verifier--sonnet fr ${out}`);
   });
 
+  it('un texte que le gabarit ne lit pas : l’action part, text rendu dans ignored (0.13.0, 12) ; vide, rien', async () => {
+    await open();
+    const { startAction, vibeAgent, lastView } = await import('app/controllers');
+    const { loadConfig, vibeActions } = await import('app/settings');
+    const agent = vibeAgent()!;
+    const def = vibeActions('fr').find((a) => a.id === 'checks')!;
+    expect(startAction(agent, def, { text: 'une consigne' }, lastView('a1')!, loadConfig())).toEqual({ ok: true, ignored: ['text'] });
+    await settle();
+    fake.messages = [];
+    expect(startAction(agent, def, { text: ' ' }, lastView('a1')!, loadConfig())).toEqual({ ok: true });
+  });
+
   it('les variantes des skills : générées à côté, hors manifeste, réécrites à chaque démarrage', async () => {
     const { ensureVibeFiles } = await import('app/settings');
     const variant = path.join(fake.userData, 'vibecoder', 'plugin', 'skills', 'aligner--haiku', 'SKILL.md');
@@ -1067,12 +1079,13 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
 });
 
 describe('0.13.0 : les artefacts', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     write(path.join(fake.userData, 'vibecoder', 'actions.fr.json'), JSON.stringify([
       { id: 'copy-artifact', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Copier dans le projet', text: 'copier' },
       { id: 'add-artifact', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Ajouter', text: 'ajouter' },
     ]));
-    write(path.join(out, 'artifacts', 'notes.md'), '# notes\n');
+    // Les artefacts vivent dans le dossier du projet, pas dans les sorties de l'agent.
+    write(path.join((await import('app/controllers/artifacts')).projectArtifactsDir(dir), 'notes.md'), '# notes\n');
   });
   const directOf = async (id = 'copy-artifact') => ((await import('app/controllers')).lastView('a1') as unknown as JourneyInput | null)?.direct?.[id];
 

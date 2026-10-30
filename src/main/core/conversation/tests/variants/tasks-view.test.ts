@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Task } from 'core/agents';
+import { EMPTY_LOG, type Task } from 'core/agents';
 import { taskViews } from 'core/conversation';
 
 const task = (id: string, extra: Partial<Task> = {}): Task => ({
@@ -8,7 +8,7 @@ const task = (id: string, extra: Partial<Task> = {}): Task => ({
 });
 
 describe('volet « Tâches »', () => {
-  const log = { tools: {}, tasks: [
+  const log = { ...EMPTY_LOG, tasks: [
     task('a', { started: 1, command: 'cat /var/home/u/p/src/a.ts', outputFile: '/tmp/a.output' }),
     task('b', { started: 3, type: 'inconnu' }),
   ] };

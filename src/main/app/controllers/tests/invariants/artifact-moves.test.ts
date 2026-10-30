@@ -1,26 +1,28 @@
 // Invariants du sort des artefacts (note 0.13.0,
 // docs/tickets/feat/0.13.0-ameliorer-artefacts.md, « Ce que ça ne doit pas
-// faire ») :
-//   - perdre un artefact au transfert ou au retour : un transfert qui échoue
-//     laisse le fichier sur le disque ; les artefacts d'un agent sans parent ne
-//     partent pas avec removeChild ;
-//   - écraser un artefact existant, au transfert, au retour ou au dépôt ;
+// faire ») ; les artefacts sont dans le dossier du projet, le transfert au parent et le
+// retour à l'agent rouvert ont disparu (note
+// docs/tickets/fix/0.13.0-fix-and-improvements.md, sujet 8 : seule retouche acceptée, ces
+// cas retirés, le reste sur le dossier du projet, ces règles gardées) :
+//   - perdre un artefact : retirer un agent, un robot ou un worktree ne touche pas au
+//     dossier du projet ;
+//   - écraser un artefact existant au dépôt ;
 //   - modifier, déplacer ou supprimer ce qui est déposé ou choisi ;
-//   - écrire ailleurs que sous artifacts/ : celui du parent au transfert, de
-//     l'agent rouvert au retour, de l'agent affiché à l'ajout (un nom en `..`
-//     compris) ;
-//   - suivre un lien : ni un lien sous artifacts/, ni un artifacts/ qui serait un
-//     lien, chez l'enfant comme chez le parent, ni un lien déposé ou choisi, seul
-//     ou dans un dossier ;
+//   - écrire ailleurs que dans le dossier du projet de l'agent affiché à l'ajout (un
+//     nom en `..` compris) ;
+//   - suivre un lien : ni un lien déposé ou choisi, seul ou dans un dossier, ni un
+//     dossier du projet qui serait un lien ;
 //   - lire un fichier désigné par un chemin venu de la page (I-37) : conv:vibeRun
 //     ne prend jamais de chemin, et ce que reçoit conv:vibeDrop est revérifié.
 // Le parcours lui-même (numéros, rapport, liens passés) :
 // technicals/file-tree/tests/invariants/file-tree.test.ts ; le pont :
-// tests/invariants/vibe-drop.test.ts.
+// tests/invariants/vibe-drop.test.ts ; le déplacement des anciens artefacts :
+// artifact-migration.test.ts ; le partage entre les robots d'un projet :
+// project-artifacts.test.ts.
 // Protégé : si un test échoue, corriger le code.
 //
 // Sur le vrai principal (contrôleurs, réglages et fichiers sur disque, vrais liens
-// symboliques, vrais droits, git réel sur un dépôt d'essai et son worktree) ; faux :
+// symboliques, git réel sur un dépôt d'essai et son worktree) ; faux :
 // Electron (fenêtres qui relèvent ce qu'on leur envoie, boîte de dialogue qui
 // répond ce que le cas règle) et le SDK de Claude Code (aucun tour ne commence ici).
 import { execFileSync } from 'node:child_process';
@@ -100,8 +102,9 @@ let outside = '';   // un dossier hors de tout, à ne pas toucher
 let secret = '';    // un fichier hors de tout
 
 const SECRET = 'SECRET_DEHORS';
-const outOf = (id: string) => path.join(fake.userData, 'vibecoder-out', id);
-const arts = (id: string) => path.join(outOf(id), 'artifacts');
+// Le dossier d'artefacts du projet de chaque agent.
+let projects: Record<string, string> = {};
+const arts = (id: string) => projects[id];
 // Tout ce qu'il y a sous un dossier, sans suivre aucun lien : chemin → contenu.
 function snapshot(dir: string) {
   const found: Record<string, string> = {};
@@ -114,31 +117,21 @@ function snapshot(dir: string) {
 }
 // Les contenus des fichiers sous un dossier, où qu'ils soient.
 const contents = (dir: string) => (fs.existsSync(dir) ? Object.values(snapshot(dir)) : []);
-// artifacts-left.json, sur le disque : { id de l'agent retiré → son dossier résolu }.
-const left = (): Record<string, string> => {
-  const file = path.join(fake.userData, 'artifacts-left.json');
-  return fs.existsSync(file) ? JSON.parse(read(file)) : {};
-};
-// Tout le profil, sauf les artifacts/ de cet agent.
+// Tout le profil, sauf le dossier du projet de cet agent.
 function outsideArts(id: string) {
   const under = path.relative(fake.userData, arts(id));
   return Object.entries(snapshot(fake.userData)).filter(([name]) => name !== under && !name.startsWith(under + path.sep));
 }
-// Les artifacts/ de cet agent remplacés par un lien.
+// Le dossier du projet de cet agent remplacé par un lien.
 function linkArts(id: string, target: string) {
   fs.rmSync(arts(id), { recursive: true, force: true });
-  fs.mkdirSync(outOf(id), { recursive: true });
+  fs.mkdirSync(path.dirname(arts(id)), { recursive: true });
   fs.symlinkSync(target, arts(id));
 }
 
-// Les droits retirés sont rendus, pour que le dossier temporaire s'efface.
-const locked: string[] = [];
-const lock = (p: string) => { fs.chmodSync(p, 0o555); locked.push(p); };
-const unlock = () => { for (const p of locked.splice(0)) fs.chmodSync(p, 0o755); };
-
 const AGENT = { model: 'opus', effort: 'high', mode: 'default', sessionId: null };
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.resetModules();
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] }); // le relevé des 4 s ne tourne pas
   fake.windows = [];
@@ -172,8 +165,10 @@ beforeEach(() => {
       { ...AGENT, id: 'a4', dir: other, name: 'autre' },
     ],
   }));
+  const { projectArtifactsPath } = await import('app/controllers');
+  projects = { a1: projectArtifactsPath(repo), a2: projectArtifactsPath(worktree), a3: projectArtifactsPath(solo), a4: projectArtifactsPath(other) };
 });
-afterEach(() => { unlock(); vi.useRealTimers(); process.chdir(fake.cwd); });
+afterEach(() => { vi.useRealTimers(); process.chdir(fake.cwd); });
 
 const agentOf = async (id: string) => {
   const { loadConfig } = await import('app/settings');
@@ -189,8 +184,6 @@ function addAgent(agent: object) {
   cfg.agents.push({ ...AGENT, name: 'robot', ...agent });
   write(file, JSON.stringify(cfg));
 }
-// Un nouvel agent rouvert sur le dossier d'un agent retiré : même dossier, nouvel id.
-const reopened = async (id: string) => ({ ...await agentOf(id), id: 'a9' });
 
 // Le panneau ouvert sur a1, en VibeCoder, son premier relevé reçu.
 async function open() {
@@ -209,187 +202,26 @@ const shownActions = () => {
   return ((views.at(-1)?.[1] as { actions?: { id: string }[] } | undefined)?.actions ?? []).map((a) => a.id);
 };
 
-describe('au transfert (Retirer cet agent) : rien de perdu, rien d’écrasé', () => {
-  it('témoin : l’artefact de l’enfant arrive chez le parent, sous son chemin', async () => {
-    write(path.join(arts('a2'), 'maquettes', 'accueil.html'), 'PAGE');
-    const { removeAgent } = await import('app/controllers');
-
-    await removeAgent('a2');
-
-    // chez le parent, avec son sous-dossier
-    expect(read(path.join(arts('a1'), 'maquettes', 'accueil.html'))).toBe('PAGE');
-    // plus chez l'enfant
-    expect(contents(arts('a2'))).not.toContain('PAGE');
-  });
-
-  it('un artefact du même nom chez le parent : il garde son texte, celui de l’enfant arrive', async () => {
-    write(path.join(arts('a1'), 'rapport.md'), 'PARENT');
-    write(path.join(arts('a2'), 'rapport.md'), 'ENFANT');
-    const { retireArtifacts } = await import('app/controllers');
-
-    await retireArtifacts(await agentOf('a2'), await agentOf('a1'));
-
-    // celui du parent n'a pas changé
-    expect(read(path.join(arts('a1'), 'rapport.md'))).toBe('PARENT');
-    // celui de l'enfant est arrivé
-    expect(contents(arts('a1'))).toContain('ENFANT');
-  });
-
-  // L'appli quittée en route : les fichiers restants reviendront, si l'entrée est déjà là.
-  it('l’entrée est posée avant tout transfert', async () => {
-    write(path.join(arts('a2'), 'rapport.md'), 'ENFANT');
-    const { retireArtifacts } = await import('app/controllers');
-
-    const pending = retireArtifacts(await agentOf('a2'), await agentOf('a1'));
-    const atOnce = Object.keys(left());
-    await pending;
-
-    // elle était sur le disque dès l'appel
-    expect(atOnce).toContain('a2');
-  });
-
-  it('rien n’est écrit ailleurs que sous les artifacts/ du parent', async () => {
-    write(path.join(arts('a2'), 'rapport.md'), 'ENFANT');
-    write(path.join(arts('a4'), 'plan.md'), 'AUTRE');
-    const before = { other: snapshot(arts('a4')), project: snapshot(repo), child: snapshot(worktree) };
-    const { retireArtifacts } = await import('app/controllers');
-
-    await retireArtifacts(await agentOf('a2'), await agentOf('a1'));
-
-    // témoin : il est arrivé
-    expect(contents(arts('a1'))).toContain('ENFANT');
-    // les artefacts d'un autre agent n'ont pas changé
-    expect(snapshot(arts('a4'))).toEqual(before.other);
-    // le dossier du parent n'a rien reçu
-    expect(snapshot(repo)).toEqual(before.project);
-    // le dossier de l'enfant n'a rien reçu
-    expect(snapshot(worktree)).toEqual(before.child);
-  });
-
-  // Le relevé s'arrête à 1 000 (LIST_MAX) ; le 1 001ᵉ serait perdu avec le dossier de l'enfant.
-  it('plus de 1 000 artefacts, puis les sorties effacées : tous sont chez le parent', async () => {
-    const count = 1001;
-    for (let i = 0; i < count; i++) write(path.join(arts('a2'), `f${i}.md`), `F${i}`);
-    const { eraseOutputs, retireArtifacts } = await import('app/controllers');
-
-    await retireArtifacts(await agentOf('a2'), await agentOf('a1'));
-    await eraseOutputs('a2');
-
-    // autant d'artefacts à l'arrivée qu'au départ
-    expect(Object.keys(snapshot(arts('a1')))).toHaveLength(count);
-  });
-
-  // Le retrait, et le retour lancé pendant : le retour attend, le fichier n'est perdu d'aucun côté.
-  it('un retour lancé pendant le retrait sur le même dossier : l’artefact n’est pas perdu', async () => {
-    write(path.join(arts('a2'), 'rapport.md'), 'ENFANT');
-    const { retireArtifacts, returnArtifacts } = await import('app/controllers');
-
-    await Promise.all([retireArtifacts(await agentOf('a2'), await agentOf('a1')), returnArtifacts(await reopened('a2'))]);
-
-    // il est chez le parent, ou chez l'agent rouvert
-    expect([...contents(arts('a1')), ...contents(arts('a9'))]).toContain('ENFANT');
-  });
-});
-
-posix('au transfert : un transfert qui échoue laisse le fichier sur le disque', () => {
-  // Le sous-dossier du parent est en lecture seule : la copie de ce fichier-là échoue.
-  function blocked() {
-    write(path.join(arts('a2'), 'sous', 'x.md'), 'BLOQUE');
-    write(path.join(outOf('a2'), 'commit.md'), 'SORTIE');
-    fs.mkdirSync(path.join(arts('a1'), 'sous'), { recursive: true });
-    lock(path.join(arts('a1'), 'sous'));
-  }
-
-  it('le fichier reste chez l’enfant, avec son texte, et la promesse ne rejette pas', async () => {
-    blocked();
-    const { retireArtifacts } = await import('app/controllers');
-
-    await retireArtifacts(await agentOf('a2'), await agentOf('a1'));
-
-    // il est toujours là
-    expect(read(path.join(arts('a2'), 'sous', 'x.md'))).toBe('BLOQUE');
-  });
-
-  it('l’entrée reste, pour qu’il revienne', async () => {
-    blocked();
-    const { retireArtifacts } = await import('app/controllers');
-
-    await retireArtifacts(await agentOf('a2'), await agentOf('a1'));
-
-    // l'entrée de l'enfant est toujours là
-    expect(Object.keys(left())).toContain('a2');
-  });
-
-  // removeChild efface les sorties ensuite : pas ce qui n'a pas pu partir.
-  it('les sorties effacées ensuite : le fichier reste, le reste des sorties part', async () => {
-    blocked();
-    const { eraseOutputs, retireArtifacts } = await import('app/controllers');
-
-    await retireArtifacts(await agentOf('a2'), await agentOf('a1'));
-    await eraseOutputs('a2');
-
-    // il est toujours là
-    expect(read(path.join(arts('a2'), 'sous', 'x.md'))).toBe('BLOQUE');
-    // témoin : l'effacement a bien eu lieu
-    expect(fs.existsSync(path.join(outOf('a2'), 'commit.md'))).toBe(false);
-  });
-
-  // Il n'a pas pu partir : il revient quand on rouvre un agent sur ce dossier.
-  it('il revient à l’agent rouvert sur ce dossier', async () => {
-    blocked();
-    const { retireArtifacts, returnArtifacts } = await import('app/controllers');
-    await retireArtifacts(await agentOf('a2'), await agentOf('a1'));
-
-    await returnArtifacts(await reopened('a2'));
-
-    // il est chez l'agent rouvert
-    expect(read(path.join(arts('a9'), 'sous', 'x.md'))).toBe('BLOQUE');
-  });
-});
-
 describe('sans parent : rien ne part', () => {
-  it('retiré sans parent : les artefacts restent à leur place', async () => {
+  it('retiré sans parent : les artefacts de son projet restent à leur place', async () => {
     write(path.join(arts('a3'), 'rapport.md'), 'SEUL');
     const before = snapshot(arts('a3'));
-    const { retireArtifacts } = await import('app/controllers');
+    const { removeAgent } = await import('app/controllers');
 
-    await retireArtifacts(await agentOf('a3'), null);
+    await removeAgent('a3');
 
+    // témoin : il est bien parti
+    expect(await ids()).not.toContain('a3');
     // rien n'a bougé
     expect(snapshot(arts('a3'))).toEqual(before);
   });
-
-  it('retiré sans parent : l’entrée relie ses artefacts à son dossier résolu', async () => {
-    write(path.join(arts('a3'), 'rapport.md'), 'SEUL');
-    const { retireArtifacts } = await import('app/controllers');
-
-    await retireArtifacts(await agentOf('a3'), null);
-
-    // l'entrée donne le dossier de l'agent
-    expect(left().a3).toBe(fs.realpathSync.native(solo));
-  });
-
-  it('les sorties effacées : les artefacts restent, le reste part', async () => {
-    write(path.join(arts('a3'), 'rapport.md'), 'SEUL');
-    write(path.join(outOf('a3'), 'commit.md'), 'SORTIE');
-    const { eraseOutputs, retireArtifacts } = await import('app/controllers');
-
-    await retireArtifacts(await agentOf('a3'), null);
-    await eraseOutputs('a3');
-
-    // l'artefact est toujours là
-    expect(read(path.join(arts('a3'), 'rapport.md'))).toBe('SEUL');
-    // témoin : l'effacement a bien eu lieu
-    expect(fs.existsSync(path.join(outOf('a3'), 'commit.md'))).toBe(false);
-  });
-
 });
 
 describe('removeChild (le relevé, Retirer le worktree) : les artefacts ne partent pas avec les sorties', () => {
   // Le relevé retire seul le robot dont le parent est parti (F-110), par removeChild, sans parent.
   it('le robot d’une PR retiré par le relevé, son parent parti : ses artefacts restent', async () => {
     addAgent({ id: 'a5', dir: other, temp: { parent: 'parti', pr: 7 } });
-    write(path.join(arts('a5'), 'rapport.md'), 'ROBOT');
+    write(path.join(arts('a4'), 'rapport.md'), 'ROBOT');
     const { syncWorktrees } = await import('app/controllers');
 
     await syncWorktrees();
@@ -397,266 +229,38 @@ describe('removeChild (le relevé, Retirer le worktree) : les artefacts ne parte
     // témoin : le robot est bien parti
     expect(await ids()).not.toContain('a5');
     // son artefact est toujours là
-    expect(read(path.join(arts('a5'), 'rapport.md'))).toBe('ROBOT');
+    expect(read(path.join(arts('a4'), 'rapport.md'))).toBe('ROBOT');
   });
 
-  // La fiche de la PR a disparu, le parent est là : le relevé le retire, l'artefact va au parent.
-  it('le robot d’une PR retiré par le relevé, son parent là : ses artefacts vont au parent', async () => {
-    addAgent({ id: 'a5', dir: other, temp: { parent: 'a1', pr: 7 } });
-    write(path.join(arts('a5'), 'rapport.md'), 'ROBOT');
+  // La fiche de la PR a disparu, le parent est là : le relevé le retire, l'artefact ne bouge pas.
+  it('le robot d’une PR retiré par le relevé, son parent là : ses artefacts restent', async () => {
+    addAgent({ id: 'a5', dir: worktree, temp: { parent: 'a1', pr: 7 } });
+    write(path.join(arts('a1'), 'rapport.md'), 'ROBOT');
     const { syncWorktrees } = await import('app/controllers');
 
     await syncWorktrees();
 
     // témoin : le robot est bien parti
     expect(await ids()).not.toContain('a5');
-    // son artefact est chez le parent
-    expect(contents(arts('a1'))).toContain('ROBOT');
+    // son artefact est toujours là
+    expect(read(path.join(arts('a1'), 'rapport.md'))).toBe('ROBOT');
   });
 
-  it('Retirer le worktree : les artefacts de l’enfant sont chez le parent, le worktree est parti', async () => {
-    write(path.join(arts('a2'), 'rapport.md'), 'ENFANT');
+  it('Retirer le worktree : les artefacts restent dans le dossier du projet, le worktree est parti', async () => {
+    write(path.join(arts('a1'), 'rapport.md'), 'ENFANT');
     const { removeWorktreeChild } = await import('app/controllers');
 
     await removeWorktreeChild(await agentOf('a2'));
 
     // témoin : l'enfant est bien parti
     expect(await ids()).not.toContain('a2');
-    // son artefact est chez le parent
-    expect(contents(arts('a1'))).toContain('ENFANT');
+    // son artefact est toujours là
+    expect(read(path.join(arts('a1'), 'rapport.md'))).toBe('ENFANT');
   });
 });
 
-describe('au retour : rien de perdu, rien d’écrasé', () => {
-  it('témoin : un agent rouvert sur ce dossier (+) retrouve les artefacts', async () => {
-    write(path.join(arts('a3'), 'maquettes', 'accueil.html'), 'PAGE');
-    const { newAgent, removeAgent } = await import('app/controllers');
-    const { loadConfig } = await import('app/settings');
-    await removeAgent('a3');
-
-    newAgent(solo);
-
-    const id = loadConfig().agents.find((a) => a.dir === solo)!.id;
-    // ils sont arrivés, sous leur chemin
-    await vi.waitFor(() => expect(read(path.join(arts(id), 'maquettes', 'accueil.html'))).toBe('PAGE'), { timeout: slow(2000) });
-  });
-
-  it('un artefact du même nom chez l’agent rouvert : il garde son texte, l’autre arrive', async () => {
-    write(path.join(arts('a3'), 'rapport.md'), 'LAISSE');
-    write(path.join(arts('a9'), 'rapport.md'), 'ROUVERT');
-    const { retireArtifacts, returnArtifacts } = await import('app/controllers');
-    await retireArtifacts(await agentOf('a3'), null);
-
-    await returnArtifacts(await reopened('a3'));
-
-    // le sien n'a pas changé
-    expect(read(path.join(arts('a9'), 'rapport.md'))).toBe('ROUVERT');
-    // celui laissé est arrivé
-    expect(contents(arts('a9'))).toContain('LAISSE');
-  });
-
-  // Le worktree est déjà parti quand on retire son robot : le lien vers son dossier ne doit pas se perdre.
-  it('le dossier déjà parti au retrait, recréé ensuite : les artefacts reviennent', async () => {
-    write(path.join(arts('a3'), 'rapport.md'), 'LAISSE');
-    const { retireArtifacts, returnArtifacts } = await import('app/controllers');
-    const gone = await agentOf('a3');
-    fs.rmSync(solo, { recursive: true });
-    await retireArtifacts(gone, null);
-    fs.mkdirSync(solo);
-
-    await returnArtifacts({ ...gone, id: 'a9' });
-
-    // ils sont chez l'agent rouvert
-    expect(contents(arts('a9'))).toContain('LAISSE');
-  });
-
-  it('rien n’est écrit ailleurs que sous les artifacts/ de l’agent rouvert', async () => {
-    write(path.join(arts('a3'), 'rapport.md'), 'LAISSE');
-    write(path.join(arts('a4'), 'plan.md'), 'AUTRE');
-    const { retireArtifacts, returnArtifacts } = await import('app/controllers');
-    await retireArtifacts(await agentOf('a3'), null);
-    const before = { other: snapshot(arts('a4')), parent: fs.existsSync(arts('a1')), project: snapshot(solo) };
-
-    await returnArtifacts(await reopened('a3'));
-
-    // témoin : il est arrivé
-    expect(contents(arts('a9'))).toContain('LAISSE');
-    // les artefacts d'un autre agent n'ont pas changé
-    expect(snapshot(arts('a4'))).toEqual(before.other);
-    // le parent n'a rien reçu
-    expect(fs.existsSync(arts('a1'))).toBe(before.parent);
-    // le dossier de l'agent n'a rien reçu
-    expect(snapshot(solo)).toEqual(before.project);
-  });
-});
-
-posix('au retour : un retour qui échoue laisse le fichier sur le disque', () => {
-  it('le fichier reste, l’entrée aussi, et il revient à la tentative suivante', async () => {
-    write(path.join(arts('a3'), 'sous', 'x.md'), 'BLOQUE');
-    fs.mkdirSync(path.join(arts('a9'), 'sous'), { recursive: true });
-    lock(path.join(arts('a9'), 'sous'));
-    const { retireArtifacts, returnArtifacts } = await import('app/controllers');
-    await retireArtifacts(await agentOf('a3'), null);
-
-    await returnArtifacts(await reopened('a3'));
-
-    // il est toujours là, avec son texte
-    expect(read(path.join(arts('a3'), 'sous', 'x.md'))).toBe('BLOQUE');
-    // l'entrée reste
-    expect(Object.keys(left())).toContain('a3');
-
-    unlock();
-    await returnArtifacts(await reopened('a3'));
-
-    // la tentative suivante le ramène
-    expect(read(path.join(arts('a9'), 'sous', 'x.md'))).toBe('BLOQUE');
-  });
-
-});
-
-posix('au retour : le dossier résolu, même atteint par un lien', () => {
-  // Le dossier d'un worktree atteint par un lien (/home → /var/home) : même dossier, sous un autre chemin.
-  it('le dossier parti au retrait, atteint par un lien : il revient à l’agent rouvert sur le vrai chemin', async () => {
-    const linked = path.join(fake.userData, 'lien-home');
-    fs.symlinkSync(fake.userData, linked);
-    write(path.join(arts('a3'), 'rapport.md'), 'LAISSE');
-    const { retireArtifacts, returnArtifacts } = await import('app/controllers');
-    const gone = { ...await agentOf('a3'), dir: path.join(linked, 'seul') };
-    fs.rmSync(solo, { recursive: true });
-    await retireArtifacts(gone, null);
-    fs.mkdirSync(solo);
-
-    await returnArtifacts({ ...await agentOf('a3'), id: 'a9', dir: solo });
-
-    // ils sont chez l'agent rouvert
-    expect(contents(arts('a9'))).toContain('LAISSE');
-  });
-});
-
-posix('au transfert : un lien n’est jamais suivi', () => {
-  it('les artifacts/ de l’enfant sont un lien : le dehors n’arrive pas chez le parent, et reste intact', async () => {
-    linkArts('a2', outside);
-    const before = snapshot(outside);
-    const { retireArtifacts } = await import('app/controllers');
-
-    await retireArtifacts(await agentOf('a2'), await agentOf('a1'));
-
-    // le dehors n'est pas chez le parent
-    expect(contents(arts('a1'))).not.toContain(SECRET);
-    // le dehors n'a pas changé
-    expect(snapshot(outside)).toEqual(before);
-  });
-
-  it('les artifacts/ de l’enfant sont un lien, les sorties effacées : le dehors reste intact', async () => {
-    linkArts('a2', outside);
-    const before = snapshot(outside);
-    const { eraseOutputs, retireArtifacts } = await import('app/controllers');
-
-    await retireArtifacts(await agentOf('a2'), await agentOf('a1'));
-    await eraseOutputs('a2');
-
-    // le dehors n'a pas changé
-    expect(snapshot(outside)).toEqual(before);
-  });
-
-  it('les artifacts/ du parent sont un lien : rien n’arrive dans sa cible, le fichier reste chez l’enfant', async () => {
-    write(path.join(arts('a2'), 'rapport.md'), 'ENFANT');
-    linkArts('a1', outside);
-    const before = snapshot(outside);
-    const { retireArtifacts } = await import('app/controllers');
-
-    await retireArtifacts(await agentOf('a2'), await agentOf('a1'));
-
-    // le dehors n'a pas changé
-    expect(snapshot(outside)).toEqual(before);
-    // le fichier est toujours chez l'enfant
-    expect(read(path.join(arts('a2'), 'rapport.md'))).toBe('ENFANT');
-  });
-
-  it('un lien sous les artifacts/ de l’enfant : sa cible n’arrive pas chez le parent, et reste intacte', async () => {
-    write(path.join(arts('a2'), 'rapport.md'), 'ENFANT');
-    fs.symlinkSync(secret, path.join(arts('a2'), 'lien.md'));
-    const { retireArtifacts } = await import('app/controllers');
-
-    await retireArtifacts(await agentOf('a2'), await agentOf('a1'));
-
-    // témoin : le fichier ordinaire est arrivé
-    expect(contents(arts('a1'))).toContain('ENFANT');
-    // la cible n'est pas chez le parent
-    expect(contents(arts('a1'))).not.toContain(SECRET);
-    // la cible n'a pas changé
-    expect(read(secret)).toBe(SECRET);
-  });
-
-  it('un lien sous les artifacts/ du parent, au nom d’un sous-dossier : rien n’arrive dans sa cible', async () => {
-    write(path.join(arts('a2'), 'sous', 'x.md'), 'ENFANT');
-    fs.mkdirSync(arts('a1'), { recursive: true });
-    fs.symlinkSync(outside, path.join(arts('a1'), 'sous'));
-    const before = snapshot(outside);
-    const { retireArtifacts } = await import('app/controllers');
-
-    await retireArtifacts(await agentOf('a2'), await agentOf('a1'));
-
-    // le dehors n'a pas changé
-    expect(snapshot(outside)).toEqual(before);
-    // le fichier est quelque part chez l'un ou l'autre
-    expect([...contents(arts('a1')), ...contents(arts('a2'))]).toContain('ENFANT');
-  });
-});
-
-posix('au retour : un lien n’est jamais suivi', () => {
-  // L'agent retiré a remplacé ses artifacts/ par un lien : ce qu'il désigne n'arrive pas.
-  it('les artifacts/ laissés sont un lien : le dehors n’arrive pas, et reste intact', async () => {
-    write(path.join(arts('a3'), 'rapport.md'), 'LAISSE');
-    const { retireArtifacts, returnArtifacts } = await import('app/controllers');
-    await retireArtifacts(await agentOf('a3'), null);
-    linkArts('a3', outside);
-    const before = snapshot(outside);
-
-    await returnArtifacts(await reopened('a3'));
-
-    // le dehors n'est pas chez l'agent rouvert
-    expect(contents(arts('a9'))).not.toContain(SECRET);
-    // le dehors n'a pas changé
-    expect(snapshot(outside)).toEqual(before);
-  });
-
-  it('un lien sous les artifacts/ laissés : sa cible n’arrive pas, et reste intacte', async () => {
-    write(path.join(arts('a3'), 'rapport.md'), 'LAISSE');
-    fs.symlinkSync(secret, path.join(arts('a3'), 'lien.md'));
-    const { retireArtifacts, returnArtifacts } = await import('app/controllers');
-    await retireArtifacts(await agentOf('a3'), null);
-
-    await returnArtifacts(await reopened('a3'));
-
-    // témoin : le fichier ordinaire est arrivé
-    expect(contents(arts('a9'))).toContain('LAISSE');
-    // la cible n'est pas chez l'agent rouvert
-    expect(contents(arts('a9'))).not.toContain(SECRET);
-    // la cible n'a pas changé
-    expect(read(secret)).toBe(SECRET);
-  });
-
-  it('les artifacts/ de l’agent rouvert sont un lien : rien n’arrive dans sa cible, le fichier et l’entrée restent', async () => {
-    write(path.join(arts('a3'), 'rapport.md'), 'LAISSE');
-    linkArts('a9', outside);
-    const before = snapshot(outside);
-    const { retireArtifacts, returnArtifacts } = await import('app/controllers');
-    await retireArtifacts(await agentOf('a3'), null);
-
-    await returnArtifacts(await reopened('a3'));
-
-    // le dehors n'a pas changé
-    expect(snapshot(outside)).toEqual(before);
-    // le fichier est toujours là
-    expect(read(path.join(arts('a3'), 'rapport.md'))).toBe('LAISSE');
-    // l'entrée reste
-    expect(Object.keys(left())).toContain('a3');
-  });
-});
-
-describe('à l’ajout : copié sous les artifacts/ de l’agent, l’original intact', () => {
-  it('témoin : un fichier déposé arrive sous ses artifacts/', async () => {
+describe('à l’ajout : copié dans le dossier du projet, l’original intact', () => {
+  it('témoin : un fichier déposé arrive dans le dossier du projet', async () => {
     write(path.join(drops, 'rapport.md'), 'DEPOSE');
     const { addArtifacts } = await import('app/controllers');
 
@@ -711,9 +315,9 @@ describe('à l’ajout : copié sous les artifacts/ de l’agent, l’original i
     expect(snapshot(drops)).toEqual(before);
   });
 
-  it('rien n’est écrit ailleurs que sous les artifacts/ de cet agent', async () => {
+  it('rien n’est écrit ailleurs que dans le dossier du projet de cet agent', async () => {
     write(path.join(drops, 'lot', 'a.md'), 'A');
-    fs.mkdirSync(outOf('a1'), { recursive: true });
+    fs.mkdirSync(path.dirname(arts('a1')), { recursive: true });
     const before = outsideArts('a1');
     const { addArtifacts } = await import('app/controllers');
 
@@ -725,7 +329,7 @@ describe('à l’ajout : copié sous les artifacts/ de l’agent, l’original i
     expect(outsideArts('a1')).toEqual(before);
   });
 
-  // Son nom de base est `..` : le mettre sous artifacts/, c'est écrire au-dessus.
+  // Son nom de base est `..` : le mettre dans le dossier du projet, c'est écrire au-dessus.
   it('un chemin dont le nom est `..` : rien n’est écrit', async () => {
     write(path.join(drops, 'x.md'), 'DEPOSE');
     fs.mkdirSync(path.join(drops, 'sous'));
@@ -736,7 +340,7 @@ describe('à l’ajout : copié sous les artifacts/ de l’agent, l’original i
 
     // refusé
     expect(r.ok).toBe(false);
-    // rien n'a changé, sous artifacts/ ni ailleurs
+    // rien n'a changé, dans le dossier du projet ni ailleurs
     expect(snapshot(fake.userData)).toEqual(before);
   });
 
@@ -749,7 +353,7 @@ describe('à l’ajout : copié sous les artifacts/ de l’agent, l’original i
 
     // refusé
     expect(r.ok).toBe(false);
-    // le fichier n'est pas sous artifacts/
+    // le fichier n'est pas dans le dossier du projet
     expect(contents(arts('a1'))).not.toContain(SECRET);
   });
 
@@ -763,7 +367,7 @@ describe('à l’ajout : copié sous les artifacts/ de l’agent, l’original i
 
     // refusé
     expect(r.ok).toBe(false);
-    // le fichier n'est pas sous artifacts/
+    // le fichier n'est pas dans le dossier du projet
     expect(contents(arts('a1'))).not.toContain(SECRET);
   });
 
@@ -774,7 +378,7 @@ describe('à l’ajout : copié sous les artifacts/ de l’agent, l’original i
 
     // refusé
     expect(r.ok).toBe(false);
-    // le fichier n'est pas sous artifacts/
+    // le fichier n'est pas dans le dossier du projet
     expect(contents(arts('a1'))).not.toContain(SECRET);
   });
 
@@ -786,7 +390,7 @@ describe('à l’ajout : copié sous les artifacts/ de l’agent, l’original i
 
     // refusé
     expect(r.ok).toBe(false);
-    // rien sous artifacts/
+    // rien dans le dossier du projet
     expect(contents(arts('a1'))).toEqual([]);
   });
 });
@@ -800,7 +404,7 @@ posix('à l’ajout : un lien n’est jamais suivi', () => {
 
     // refusé
     expect(r.ok).toBe(false);
-    // la cible n'est pas sous artifacts/
+    // la cible n'est pas dans le dossier du projet
     expect(contents(arts('a1'))).not.toContain(SECRET);
   });
 
@@ -812,7 +416,7 @@ posix('à l’ajout : un lien n’est jamais suivi', () => {
 
     // refusé
     expect(r.ok).toBe(false);
-    // le contenu de la cible n'est pas sous artifacts/
+    // le contenu de la cible n'est pas dans le dossier du projet
     expect(contents(arts('a1'))).not.toContain(SECRET);
   });
 
@@ -825,7 +429,7 @@ posix('à l’ajout : un lien n’est jamais suivi', () => {
 
     // refusé
     expect(r.ok).toBe(false);
-    // le contenu de la cible n'est pas sous artifacts/
+    // le contenu de la cible n'est pas dans le dossier du projet
     expect(contents(arts('a1'))).not.toContain(SECRET);
   });
 
@@ -838,7 +442,7 @@ posix('à l’ajout : un lien n’est jamais suivi', () => {
 
     // témoin : le fichier ordinaire est arrivé
     expect(contents(arts('a1'))).toContain('A');
-    // la cible n'est pas sous artifacts/
+    // la cible n'est pas dans le dossier du projet
     expect(contents(arts('a1'))).not.toContain(SECRET);
   });
 
@@ -851,11 +455,11 @@ posix('à l’ajout : un lien n’est jamais suivi', () => {
 
     // témoin : le fichier ordinaire est arrivé
     expect(contents(arts('a1'))).toContain('A');
-    // le contenu de la cible n'est pas sous artifacts/
+    // le contenu de la cible n'est pas dans le dossier du projet
     expect(contents(arts('a1'))).not.toContain(SECRET);
   });
 
-  it('les artifacts/ de l’agent sont un lien : rien n’arrive dans sa cible', async () => {
+  it('le dossier du projet est un lien : rien n’arrive dans sa cible', async () => {
     write(path.join(drops, 'a.md'), 'A');
     linkArts('a1', outside);
     const before = snapshot(outside);
@@ -871,7 +475,7 @@ posix('à l’ajout : un lien n’est jamais suivi', () => {
 });
 
 describe('Ajouter : la boîte de dialogue du principal', () => {
-  it('témoin : un fichier choisi arrive sous les artifacts/, l’original reste', async () => {
+  it('témoin : un fichier choisi arrive dans le dossier du projet, l’original reste', async () => {
     const file = path.join(drops, 'rapport.md');
     write(file, 'CHOISI');
     fake.pick = { canceled: false, filePaths: [file] };
@@ -890,7 +494,7 @@ describe('Ajouter : la boîte de dialogue du principal', () => {
 
     await pickArtifacts(await agentOf('a1'));
 
-    // rien sous artifacts/
+    // rien dans le dossier du projet
     expect(contents(arts('a1'))).toEqual([]);
   });
 });
@@ -905,7 +509,7 @@ posix('Ajouter : un lien choisi n’est jamais suivi', () => {
 
     // refusé
     expect(r.ok).toBe(false);
-    // la cible n'est pas sous artifacts/
+    // la cible n'est pas dans le dossier du projet
     expect(contents(arts('a1'))).not.toContain(SECRET);
   });
 });
@@ -937,11 +541,11 @@ describe('une page ne désigne aucun fichier (I-37)', () => {
     expect(shownActions()).toContain('add-artifact');
     // aucune boîte de dialogue
     expect(fake.picks).toEqual([]);
-    // rien sous artifacts/
+    // rien dans le dossier du projet
     expect(contents(arts('a1'))).not.toContain(SECRET);
   });
 
-  it('témoin : un dépôt (conv:vibeDrop) arrive sous les artifacts/ de l’agent affiché, et de lui seul', async () => {
+  it('témoin : un dépôt (conv:vibeDrop) arrive dans le dossier du projet de l’agent affiché, et de lui seul', async () => {
     const file = path.join(drops, 'rapport.md');
     write(file, 'DEPOSE');
     write(path.join(arts('a4'), 'plan.md'), 'AUTRE');
@@ -951,7 +555,7 @@ describe('une page ne désigne aucun fichier (I-37)', () => {
 
     dropOnArtifacts([file]);
 
-    // il est sous les artifacts/ de l'agent affiché
+    // il est dans le dossier du projet de l'agent affiché
     await vi.waitFor(() => expect(contents(arts('a1'))).toContain('DEPOSE'), { timeout: slow(2000) });
     // un autre agent n'a rien reçu
     expect(snapshot(arts('a4'))).toEqual(before);
@@ -965,8 +569,8 @@ describe('une page ne désigne aucun fichier (I-37)', () => {
 
     // refusé
     expect(r.ok).toBe(false);
-    // le fichier n'est sous aucun artifacts/
-    expect(contents(path.join(fake.userData, 'vibecoder-out'))).not.toContain(SECRET);
+    // le fichier n'est dans aucun dossier de projet
+    expect(contents(path.join(fake.userData, 'vibecoder-artifacts'))).not.toContain(SECRET);
   });
 
   it('un dépôt d’un chemin relatif : rien n’est lu', async () => {
@@ -980,7 +584,7 @@ describe('une page ne désigne aucun fichier (I-37)', () => {
 
     // témoin : le relevé montre bien l'action du dépôt
     expect(shownActions()).toContain('add-artifact');
-    // le fichier n'est pas sous artifacts/
+    // le fichier n'est pas dans le dossier du projet
     expect(contents(arts('a1'))).not.toContain(SECRET);
   });
 
@@ -994,7 +598,7 @@ describe('une page ne désigne aucun fichier (I-37)', () => {
 
     // témoin : le relevé montre bien l'action du dépôt
     expect(shownActions()).toContain('add-artifact');
-    // le fichier n'est pas sous artifacts/
+    // le fichier n'est pas dans le dossier du projet
     expect(contents(arts('a1'))).not.toContain(SECRET);
   });
 });

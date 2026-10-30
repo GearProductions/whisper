@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { addedLine, artifactKind, artifactList, artifactOf, artifactType, droppedPaths, failedLine, folderKey } from 'core/vibecoder';
+import { addedLine, artifactKind, artifactList, artifactOf, artifactType, droppedPaths, failedLine, folderKey, leftEntries, legacyOwner, projectFolder, ARTIFACTS_ROOT } from 'core/vibecoder';
 import type { VibeView } from 'shared/bridge';
 
 describe('artifactKind, artifactType', () => {
@@ -130,5 +130,30 @@ describe('failedLine', () => {
     expect(failedLine(3, 'fr')).toBe('3 artefacts restés sur le disque.');
     expect(failedLine(1, 'en')).toBe('1 artifact left on disk.');
     expect(failedLine(3, 'en')).toBe('3 artifacts left on disk.');
+  });
+});
+
+describe('projectFolder', () => {
+  it('16 hexa, stable', () => {
+    expect(projectFolder('/a/.git')).toMatch(/^[0-9a-f]{16}$/);
+    expect(projectFolder('/a/.git')).toBe(projectFolder('/a/.git'));
+  });
+  it('la racine', () => expect(ARTIFACTS_ROOT).toBe('vibecoder-artifacts'));
+});
+
+describe('legacyOwner', () => {
+  const agents = [{ id: 'a1', dir: '/config/a1' }];
+  it('la config d\'abord, puis left, sinon null', () => {
+    expect(legacyOwner('a1', agents, { a1: '/left/a1' })).toBe('/config/a1');
+    expect(legacyOwner('a2', agents, { a2: '/left/a2' })).toBe('/left/a2');
+    expect(legacyOwner('a3', agents, { a2: '/left/a2' })).toBeNull();
+  });
+  it('un id comme `constructor` n\'est pas dans left', () => expect(legacyOwner('constructor', [], {})).toBeNull());
+});
+
+describe('leftEntries', () => {
+  it('lit les chaînes, écarte le reste, ne lève jamais', () => {
+    expect(leftEntries('{"a":"/x","b":3,"c":null}')).toEqual({ a: '/x' });
+    for (const bad of [null, '', '{', '[]', '"x"', 'null', '3']) expect(leftEntries(bad)).toEqual({});
   });
 });

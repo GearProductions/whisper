@@ -1,7 +1,8 @@
 /** runs-view — l'onglet Actions de VibeCoder : une ligne par course (une
  *  action d'étape qui court à part de la conversation), la plus récente
  *  d'abord, telles que le relevé les donne : son libellé, qui travaille, son
- *  état (un point), depuis quand ; Arrêter (icône stop) tant qu'elle travaille ; sa demande
+ *  état (un point), son avancement (vague, modules…) sous le nom quand le flux
+ *  le donne (rien sinon, jamais une condition de l'état), depuis quand ; Arrêter (icône stop) tant qu'elle travaille ; sa demande
  *  d'autorisation (outil, cible) avec Autoriser / Toujours / Refuser ;
  *  arrêtée : Garder / Annuler ; sa réponse (Markdown), repliée, dépliable.
  *  Une course se désigne par l'id de son action, jamais par un texte.
@@ -26,6 +27,7 @@ export function RunsView({ runs, t, onRunOp, onOpenLink }: Props) {
 function Row({ r, t, onOp, onOpenLink }: { r: VibeRun; t: Strings; onOp(op: VibeRunOp): void; onOpenLink(url: string): void }) {
   const working = isRunning(r);
   const when = working ? t.runFor(duration(Date.now() - r.since)) : t.ago(Date.now() - (r.end ?? r.since));
+  const progress = r.progress ? t.runProgress(r.progress) : '';
   const button = (op: VibeRunOp, label: string, title: string, tone: 'accent' | 'plain' | 'ghost' = 'plain') => (
     <button type="button" className="vc-run" data-tone={tone} title={title} onClick={() => onOp(op)}>{label}</button>
   );
@@ -36,6 +38,7 @@ function Row({ r, t, onOp, onOpenLink }: { r: VibeRun; t: Strings; onOp(op: Vibe
         <span className="vc-proc-name">
           <span className="vc-card-title" title={r.label}>{r.label}</span>
           <span className="vc-proc-run">{`${r.who} · ${t.runState[r.state]}`}</span>
+          {progress ? <span className="vc-proc-run vc-run-progress" title={progress}>{progress}</span> : null}
         </span>
         <span className="vc-card-time" title={new Date(r.since).toLocaleString(t.locale)}>{when}</span>
         {working ? <button type="button" className="vc-icon" title={t.runStopTitle} aria-label={t.runStopTitle} onClick={() => onOp('stop')}><Icon name="stop" /></button> : null}

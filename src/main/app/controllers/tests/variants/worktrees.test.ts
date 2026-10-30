@@ -214,9 +214,7 @@ describe('Relire dans un worktree', () => {
 });
 
 describe('les artefacts d’un enfant retiré', () => {
-  const left = () => JSON.parse(fs.readFileSync(path.join(fake.userData, 'artifacts-left.json'), 'utf8'));
-
-  it('Retirer le worktree d’un enfant sans parent présent : ses artefacts restent, ses autres sorties partent', async () => {
+  it('Retirer le worktree d’un enfant : un ancien artifacts/ pas encore parti reste, ses autres sorties partent', async () => {
     const { loadConfig, saveConfig, vibeOutDir } = await import('app/settings');
     saveConfig({ agents: loadConfig().agents.map((a) => (a.id === 'a2' ? { ...AGENT, id: 'a2', dir: worktree, parent: { id: 'gone' } } as never : a)) });
     const { removeWorktreeChild } = await import('app/controllers');
@@ -226,27 +224,6 @@ describe('les artefacts d’un enfant retiré', () => {
     await removeWorktreeChild(loadConfig().agents[1]);
     expect(fs.readFileSync(path.join(outB, 'artifacts', 'plan.md'), 'utf8')).toBe('plan');
     expect(fs.existsSync(path.join(outB, 'note.md'))).toBe(false);
-    expect(Object.keys(left())).toEqual(['a2']);
-  });
-
-  it('Ouvrir un agent ici sur ce dossier : les artefacts laissés reviennent dans son artifacts/', async () => {
-    const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' });
-    const root = fs.realpathSync.native(fake.userData);
-    const real = path.join(root, 'g', 'projet');
-    const wt = path.join(root, 'g', 'projet-wt');
-    fs.mkdirSync(real, { recursive: true });
-    git(real, 'init', '-q');
-    git(real, 'commit', '-q', '--allow-empty', '-m', 'init');
-    git(real, 'worktree', 'add', '-q', '-b', 'feat-y', wt);
-    const { loadConfig, saveConfig, vibeOutDir } = await import('app/settings');
-    saveConfig({ agents: [{ ...AGENT, id: 'a1', dir: real }] as never, agentFolders: [{ dir: real, color: '#ef4444' }, { dir: wt, color: '#22c55e' }] });
-    write(path.join(root, 'vibecoder-out', 'gone', 'artifacts', 'plan.md'), 'plan');
-    write(path.join(fake.userData, 'artifacts-left.json'), JSON.stringify({ gone: wt }));
-    const { openChild } = await import('app/controllers');
-    const child = await openChild(loadConfig().agents[0], wt, {});
-    await settle();
-    expect(fs.readFileSync(path.join(vibeOutDir(child!.id), 'artifacts', 'plan.md'), 'utf8')).toBe('plan');
-    expect(left()).toEqual({});
   });
 });
 

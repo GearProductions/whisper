@@ -1,6 +1,6 @@
 // Variants des familles côté robots (note 0.10.0) : pushAgents envoie chaque
 // parent avec ses enfants et leur pastille (branche lue dans .git, ou « PR #n »),
-// la fenêtre suit la rangée d'enfants ; removeAgent oublie l'agent, le dossier
+// la fenêtre suit la rangée d'enfants ; removeAgent (synchrone) oublie l'agent, le dossier
 // d'un robot de PR, et laisse leur parent aux enfants. Le signal des courses
 // sur le robot (note fix/0.11.0-vibecoder-invariants-existants-et-courses) :
 // l'état du robot par-dessus sa conversation au repos, le clic qui ouvre son panneau.
@@ -116,34 +116,6 @@ describe('robots par famille', () => {
   });
 });
 
-// Les artefacts d'un agent retiré (note 0.13.0) : l'invariant du transfert et du
-// retour est dans tests/invariants/artifact-moves.test.ts ; ici, les cas voisins.
-describe('les artefacts au retrait et à la naissance', () => {
-  const arts = (id: string) => path.join(fake.userData, 'vibecoder-out', id, 'artifacts', 'a.md');
-  const left = () => JSON.parse(fs.readFileSync(path.join(fake.userData, 'artifacts-left.json'), 'utf8'));
-
-  it('removeAgent d’un enfant dont le parent est parti : comme sans parent, ses artefacts restent', async () => {
-    await icon();
-    const { removeAgent } = await import('app/controllers');
-    await removeAgent('a1');
-    write(arts('a2'), 'ENFANT');
-    await removeAgent('a2');
-    expect(fs.readFileSync(arts('a2'), 'utf8')).toBe('ENFANT');
-    expect(Object.keys(left())).toContain('a2');
-  });
-
-  it('newAgent sur un dossier qui a déjà son agent : rien ne revient', async () => {
-    await icon();
-    write(arts('parti'), 'LAISSE');
-    fs.writeFileSync(path.join(fake.userData, 'artifacts-left.json'), JSON.stringify({ parti: fs.realpathSync.native(repo) }));
-    const { newAgent } = await import('app/controllers');
-    newAgent(repo); // a1 existe déjà
-    await new Promise((r) => setTimeout(r, 100));
-    expect(fs.readFileSync(arts('parti'), 'utf8')).toBe('LAISSE');
-    expect(left()).toHaveProperty('parti');
-  });
-});
-
 describe('le signal des courses sur le robot', () => {
   it('par-dessus une conversation au repos : asking → « ? », failed → erreur, done → pastille ; le signal suit', async () => {
     fake.signals = { a1: 'done', a2: 'asking', a3: 'failed' };
@@ -184,5 +156,12 @@ describe('la consigne de la conversation', () => {
     expect(instructions).toContain('<audio>');
     expect(instructions).toContain(`${vibeOutDir('a1')}/questions.md`);
     expect(instructions.indexOf('<audio>')).toBeLessThan(instructions.indexOf('questions.md'));
+  });
+
+  it('launchOptions : les sorties de l’agent, puis le dossier d’artefacts de son projet', async () => {
+    const { launchOptions, projectArtifactsPath } = await import('app/controllers');
+    const { loadConfig, vibeOutDir } = await import('app/settings');
+    const cfg = loadConfig();
+    expect(launchOptions(cfg.agents![1] as never, cfg).dirs).toEqual([vibeOutDir('a2'), projectArtifactsPath(wt)]);
   });
 });

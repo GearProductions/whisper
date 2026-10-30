@@ -6,7 +6,9 @@
 // commande du fichier du projet ne tourne jamais à deux endroits à la fois,
 // qu'elle soit demandée par la page (la question « l'arrêter et le lancer
 // ici ? ») ou par l'agent (<sorties>/run/<nom>.restart).
-// Protégé : si ce test échoue, corriger le code.
+// Protégé : si ce test échoue, corriger le code. Seule retouche acceptée (note
+// docs/tickets/fix/0.13.0-fix-and-improvements.md, sujet 3) : la marque propre au
+// lancement ; toujours une seule instance par famille.
 //
 // Sur le vrai principal (contrôleur des processus, réglages et fichiers sur
 // disque, git réel sur un dépôt d'essai et ses worktrees, de vrais processus) ;
@@ -52,8 +54,9 @@ let worktree = '';
 let sibling = '';
 let seenFile = '';
 
-// La commande devient `sleep 9871` : ses instances vivantes, comptées par le système.
-const MARK = '^sleep 9871$';
+// La commande devient `sleep 9871.<pid de ce lancement>` : ses instances vivantes, comptées par le
+// système. La marque est propre au lancement : deux lancements en même temps ne se voient ni ne se tuent.
+const MARK = `^sleep 9871\\.${process.pid}$`;
 const alive = () => Number(spawnSync('pgrep', ['-fc', MARK], { encoding: 'utf8' }).stdout.trim() || 0);
 // Chaque lancement : combien d'instances tournaient déjà, et son dossier.
 const seen = () => (fs.existsSync(seenFile) ? fs.readFileSync(seenFile, 'utf8').trim().split('\n') : [])
@@ -99,7 +102,7 @@ beforeEach(() => {
   // Le fichier du projet de la famille : celui de la copie principale.
   fs.mkdirSync(path.dirname(projectFile(repo)), { recursive: true });
   fs.writeFileSync(projectFile(repo), JSON.stringify({
-    commands: [{ name: 'serveur', run: `echo "$(pgrep -fc '${MARK}') $PWD" >> '${seenFile}'; exec sleep 9871` }],
+    commands: [{ name: 'serveur', run: `echo "$(pgrep -fc '${MARK}') $PWD" >> '${seenFile}'; exec sleep 9871.${process.pid}` }],
   }));
 });
 afterEach(async () => {

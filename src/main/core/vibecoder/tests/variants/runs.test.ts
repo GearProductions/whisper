@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockedBy, codeLock, endNotice, ownRun, parseRequest, requestNotice, runKey, runModule, runPhase, runsFile, runViews, type ActionDef, type Run } from 'core/vibecoder';
+import { blockedBy, codeLock, cutCommands, cutLine, endNotice, ownRun, parseRequest, remainingModules, requestNotice, runKey, runModule, runPhase, runsFile, runTasks, runViews, type ActionDef, type Run } from 'core/vibecoder';
 
 const A = (id: string, step: ActionDef['step'], reads = false, kind: ActionDef['kind'] = 'send'): ActionDef =>
   ({ id, flow: 'create', step, kind, needs: 'none', label: `L-${id}`, hint: '', text: `/vibecoder:${id}`, reads });
@@ -48,6 +48,21 @@ describe('runViews', () => {
       { id: 'ponytail', label: 'L-ponytail', who: 'agent', state: 'asking', since: 3, end: null, reply: '', permission: { tool: 'Bash', target: 'ls' } },
       { id: 'forme', label: 'L-forme', who: 'opus · élevé', state: 'done', since: 1, end: 5, reply: '', permission: null },
     ]);
+  });
+});
+
+describe('runViews : progress', () => {
+  it('recopie progress quand la course en a un, sinon rien', () => {
+    const progress = { wave: 2, done: 3, total: 5, fixes: 1, opus: false };
+    const v = runViews([run('forme', { progress, since: 2 }), run('ponytail', { since: 1 })], DEFS, () => null);
+    expect([v[0].progress, 'progress' in v[1]]).toEqual([progress, false]);
+  });
+});
+
+describe('parseRequest : effort', () => {
+  it('l\'effort (texte) est gardé, un autre type ignoré', () => {
+    expect(parseRequest('forme.start', '{"effort":"high"}')?.args).toEqual({ effort: 'high' });
+    expect(parseRequest('forme.start', '{"effort":3}')?.args).toEqual({});
   });
 });
 
@@ -131,6 +146,35 @@ describe('runPhase', () => {
     expect([
       runPhase('idle', 0, 1), runPhase('idle', 0, 0), runPhase('working', 0, 1), runPhase('asking', 0, 1), runPhase('idle', 1, 2),
     ]).toEqual(['grace', 'idle', 'running', 'asking', 'running']);
+  });
+});
+
+describe('runTasks', () => {
+  it('hors repos, le plus haut de tasks et before ; au repos, tasks', () => {
+    expect([runTasks('working', 0, 2), runTasks('asking', 3, 1), runTasks('working', 2, 0), runTasks('idle', 0, 2), runTasks('idle', 1, 3)])
+      .toEqual([2, 3, 2, 0, 1]);
+  });
+});
+
+describe('cutCommands et cutLine', () => {
+  it('compte les local_bash arrêtés, pas les autres', () => {
+    const t = (type: string, status: string) => ({ type, status });
+    expect(cutCommands([t('local_bash', 'stopped'), t('local_bash', 'running'), t('local_bash', 'completed'), t('local_agent', 'stopped'), t('local_bash', 'stopped')])).toBe(2);
+    expect(cutCommands([])).toBe(0);
+  });
+
+  it('la ligne dit combien, dans la langue', () => {
+    expect(cutLine(1, 'fr')).toContain('1 commande en arrière-plan coupée ');
+    expect(cutLine(2, 'fr')).toContain('2 commandes en arrière-plan coupées ');
+    expect(cutLine(1, 'en')).toContain('1 background command cut ');
+    expect(cutLine(3, 'en')).toContain('3 background commands cut ');
+  });
+});
+
+describe('remainingModules', () => {
+  it('ni commit ni modification', () => {
+    const m = (touched: boolean, uncommitted?: boolean) => ({ path: 'p', contract: '', file: null, touched, commits: [], uncommitted });
+    expect(remainingModules([m(false), m(true), m(false, true), m(false, false), m(true, true)])).toBe(2);
   });
 });
 

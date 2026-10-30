@@ -9,6 +9,8 @@
  *  (vc-mini) citent ses lignes entières (codeBlock), grisés sans sélection ;
  *  `fix` à false (un fichier d'un commit) : commentaire seul, sans Retour →
  *  fixup. Libellés : `t` (français par défaut).
+ *  `tools` : des boutons de plus, à la fin de la rangée vc-src-tools (la rangée est
+ *  montrée si onQuote ou tools) ; sans, rendu inchangé.
  *  Le défilement est celui de l'éditeur : .vc-src n'est qu'un cadre, la hauteur
  *  est bornée sur .cm-editor (vibecoder.css, invariants-view.css) et c'est
  *  .cm-scroller qui défile, avec la barre de l'appli (.scroll).
@@ -24,7 +26,7 @@ import { IconButton } from './icons';
 
 export type CodeEdit = { locked: string | null; onChange(text: string): void; onSave(): void };
 
-export function CodeView({ code, path, from = 1, at, edit, onQuote, fix = true, t = strings('fr') }: {
+export function CodeView({ code, path, from = 1, at, edit, onQuote, fix = true, tools, t = strings('fr') }: {
   code: string;
   path: string;
   from?: number;
@@ -32,6 +34,7 @@ export function CodeView({ code, path, from = 1, at, edit, onQuote, fix = true, 
   edit?: CodeEdit;
   onQuote?(block: string, id: 'comment' | 'fix'): void;
   fix?: boolean;
+  tools?: ReactNode;
   t?: Strings;
 }): ReactNode {
   const host = useRef<HTMLDivElement>(null);
@@ -91,10 +94,11 @@ export function CodeView({ code, path, from = 1, at, edit, onQuote, fix = true, 
     <>
       <div ref={host} className="vc-src" data-locked={locked ? true : undefined} title={locked ?? undefined}
         aria-label={path} />
-      {onQuote ? (
+      {onQuote || tools ? (
         <div className="vc-src-tools">
-          <IconButton icon="comment" label={t.quote} disabled={!picked} onClick={() => quote('comment')} />
-          {fix ? <button type="button" className="vc-mini" title={t.fixTitle} disabled={!picked} onClick={() => quote('fix')}>{t.fix}</button> : null}
+          {onQuote ? <IconButton icon="comment" label={t.quote} disabled={!picked} onClick={() => quote('comment')} /> : null}
+          {onQuote && fix ? <button type="button" className="vc-mini" title={t.fixTitle} disabled={!picked} onClick={() => quote('fix')}>{t.fix}</button> : null}
+          {tools}
         </div>
       ) : null}
     </>
