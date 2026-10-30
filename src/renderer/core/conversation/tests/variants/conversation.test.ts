@@ -98,6 +98,11 @@ describe('commandes « / »', () => {
   it('d’abord ce qui commence par la saisie', () => {
     expect(matchCommands(list, 'comp').map((c) => c.name)).toEqual(['compact', 'recompile']);
   });
+  it('cache les variantes <skill>--<modèle>--<effort>', () => {
+    const l = [...list, { name: 'module', description: '' }, { name: 'module--sonnet--high', description: '' }, { name: 'a--b', description: '' }];
+    expect(matchCommands(l, 'mod').map((c) => c.name)).toEqual(['module']);
+    expect(matchCommands(l, 'a--b').map((c) => c.name)).toEqual(['a--b']);
+  });
   it('choix : la commande puis le reste du champ', () => {
     expect(pickCommand('/co  la suite', 3, list[0])).toEqual({ value: '/compact la suite', caret: 9 });
     expect(cycle(0, -1, 3)).toBe(2);
