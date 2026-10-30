@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { artifactKind, artifactList, artifactOf, artifactType } from 'core/vibecoder';
+import { addedLine, artifactKind, artifactList, artifactOf, artifactType, droppedPaths, failedLine, folderKey } from 'core/vibecoder';
 import type { VibeView } from 'shared/bridge';
 
 describe('artifactKind, artifactType', () => {
@@ -58,5 +58,75 @@ describe('artifactOf', () => {
     expect(artifactOf(view, '../commit.md')).toBeNull();
     expect(artifactOf(view, 'a1')).toBeNull();
     expect(artifactOf(null, 'a0')).toBeNull();
+  });
+});
+
+describe('folderKey', () => {
+  // Un disque factice : /var/home existe, /home y mène, les dossiers de worktree sont partis.
+  const links: Record<string, string> = { '/home': '/var/home' };
+  const exists = new Set(['/', '/var', '/var/home', '/var/home/u', '/var/home/u/out']);
+  const realpath = (p: string) => {
+    const hit = Object.keys(links).find((l) => p === l || p.startsWith(`${l}/`));
+    const r = hit ? links[hit] + p.slice(hit.length) : p;
+    if (!exists.has(r)) throw new Error('ENOENT');
+    return r;
+  };
+
+  it('un dossier qui existe : résolu', () => {
+    expect(folderKey('/home/u/out', realpath)).toBe('/var/home/u/out');
+  });
+
+  it('un dossier parti : le début existant résolu, plus la suite', () => {
+    expect(folderKey('/home/u/out/wt/agent', realpath)).toBe('/var/home/u/out/wt/agent');
+  });
+
+  it('deux dossiers différents : deux clés, même un parti et un voisin qui partage un préfixe', () => {
+    const keys = ['/home/u/out/wt', '/home/u/out/wt2', '/var/home/u/out/w', '/home/u/out'].map((d) => folderKey(d, realpath));
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('rien n’existe : le chemin tel quel', () => {
+    expect(folderKey('/a/b', () => { throw new Error('ENOENT'); })).toBe('/a/b');
+  });
+});
+
+describe('droppedPaths', () => {
+  it('un chemin refusé (relatif, NUL, `..`, la racine, pas un texte) est compté, sans chemin', () => {
+    expect(droppedPaths(['/a/b', 'a/b', '/a\0b', '/a/../b', '/', 3, ''])).toEqual({ paths: ['/a/b'], noPath: 6 });
+  });
+});
+
+describe('addedLine', () => {
+  const empty = { copied: [], links: [], hidden: [], failed: [], noPath: 0 };
+
+  it('les ajoutés', () => {
+    expect(addedLine({ ...empty, copied: ['/r/a'] }, 'fr')).toBe('1 ajouté.');
+    expect(addedLine({ ...empty, copied: ['/r/a', '/r/b'] }, 'fr')).toBe('2 ajoutés.');
+    expect(addedLine({ ...empty, copied: ['/r/a', '/r/b'] }, 'en')).toBe('2 added.');
+  });
+
+  it('les liens, les dossiers cachés, les sans chemin et les échecs, dans cet ordre', () => {
+    const r = { copied: ['/r/a'], links: ['/x/lien'], hidden: ['/x/.git'], noPath: 2, failed: [{ path: '/x/f', error: 'EACCES' }] };
+
+    const fr = addedLine(r, 'fr');
+    const en = addedLine(r, 'en');
+
+    expect(fr).toBe('1 ajouté. Lien non suivi : lien. Dossier caché passé : .git. 2 fichiers sans chemin sur le disque : déposez-les depuis le gestionnaire de fichiers. 1 échec : f. Première erreur : EACCES');
+    expect(en).toBe('1 added. Link not followed: lien. Hidden folder skipped: .git. 2 files without a path on disk: drop them from the file manager. 1 failed: f. First error: EACCES');
+  });
+
+  it('au plus quelques noms', () => {
+    const links = ['/x/a', '/x/b', '/x/c', '/x/d', '/x/e'];
+
+    expect(addedLine({ ...empty, links }, 'en')).toContain('Links not followed: a, b, c, ….');
+  });
+});
+
+describe('failedLine', () => {
+  it('des artefacts restés sur le disque, au singulier et au pluriel', () => {
+    expect(failedLine(1, 'fr')).toBe('1 artefact resté sur le disque.');
+    expect(failedLine(3, 'fr')).toBe('3 artefacts restés sur le disque.');
+    expect(failedLine(1, 'en')).toBe('1 artifact left on disk.');
+    expect(failedLine(3, 'en')).toBe('3 artifacts left on disk.');
   });
 });
