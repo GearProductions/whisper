@@ -6,7 +6,9 @@
  *  (IconButton) : comment le cite dans le champ, open l'ouvre s'il existe.
  *  En tête : la validation de la forme, la pastille Fable. Sans module : ce
  *  qu'il faut faire pour en avoir.
- *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
+ *  Contract : le contrat d'un module, par rubrique (contractParts, InlineMd).
+ *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views,
+ *  modules-view (Contract). */
 import { contractParts, fileParts, groupModules, type Strings } from 'core/vibecoder';
 import type { VibeLang, VibeModule } from 'technicals/bridge';
 import { Icon, IconButton } from './icons';
@@ -104,7 +106,6 @@ type RowProps = { m: VibeModule; s: typeof fr; t: Strings; act: VibeActs; onQuot
 function ModuleRow({ m, s, t, act, onQuote }: RowProps) {
   const state = m.touched ? 'touched' : m.file ? 'exists' : 'missing';
   const { dir, name } = fileParts(m.path);
-  const parts = contractParts(m.contract);
   return (
     <li className="vc-fmod" data-state={state}>
       <span className="vc-fdot" aria-hidden="true" />
@@ -118,17 +119,23 @@ function ModuleRow({ m, s, t, act, onQuote }: RowProps) {
             {m.file ? <IconButton icon="open" label={t.openTitle} onClick={() => act.open(m.file!.id)} /> : null}
           </span>
         </div>
-        {parts.length ? (
-          <dl className="vc-fcontract">
-            {parts.map((p, i) => (
-              <div key={i} data-label={p.label ? undefined : 'main'}>
-                {p.label ? <dt>{p.label}</dt> : null}
-                <dd><InlineMd text={p.text} t={t} onOpenLink={act.openLink} /></dd>
-              </div>
-            ))}
-          </dl>
-        ) : null}
+        <Contract text={m.contract} t={t} onOpenLink={act.openLink} />
       </div>
     </li>
   );
+}
+
+// Le contrat d'un module, par rubrique (expose · ne connaît pas · utilisé par) ; rien s'il est vide.
+export function Contract({ text, t, onOpenLink }: { text: string; t: Strings; onOpenLink(url: string): void }) {
+  const parts = contractParts(text);
+  return parts.length ? (
+    <dl className="vc-fcontract">
+      {parts.map((p, i) => (
+        <div key={i} data-label={p.label ? undefined : 'main'}>
+          {p.label ? <dt>{p.label}</dt> : null}
+          <dd><InlineMd text={p.text} t={t} onOpenLink={onOpenLink} /></dd>
+        </div>
+      ))}
+    </dl>
+  ) : null;
 }
