@@ -6,7 +6,9 @@
  *  texte : le principal copie le sien. VibeCoder : le relevé de l'agent
  *  affiché, ses actions désignées par leur id, ses fichiers par leur id dans
  *  le relevé, ses courses par l'id de leur action — aucun pont ne transporte
- *  un chemin. Voir le code : un fichier d'un module par son id ; seul texte
+ *  un chemin, sauf vibeDrop : les chemins des File déposés, lus par
+ *  webUtils.getPathForFile, jamais donnés par la page (le principal les
+ *  revérifie). Voir le code : un fichier d'un module par son id ; seul texte
  *  envoyé, celui du fichier affiché, à enregistrer (le principal vérifie
  *  qu'il est suivi, dans le relevé, et pas grisé).
  *  Ne connaît pas : le principal (seulement ses canaux). Chargé par le panneau. */
@@ -61,6 +63,8 @@ const conv: ConvApi = {
   vibeFollow: (id) => ipcRenderer.send('conv:vibeFollow', id),
   onVibeCode: (fn) => { ipcRenderer.on('conv:vibeCode', (_e, code) => fn(code)); },
   vibeSave: (id, text) => ipcRenderer.invoke('conv:vibeSave', id, text),     // le texte du seul fichier affiché → { ok, error }
+  // Dépôt sur les artefacts : un seul paramètre, les chemins lus des File (jamais donnés par la page).
+  vibeDrop: (files) => ipcRenderer.invoke('conv:vibeDrop', Array.from(files, (f) => webUtils.getPathForFile(f))),
 };
 
 contextBridge.exposeInMainWorld('conv', conv);

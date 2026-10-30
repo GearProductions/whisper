@@ -4,7 +4,7 @@
  *  Ne connaît pas : l'écoute elle-même (technicals/ipc). Utilisé par : app/ipc. */
 import { PANEL_CHANNELS, type HandlerTable } from 'shared/bridge';
 import {
-  answerPermission, copyDictation, currentSession, draftVibe, followCode, history, markVibe, openLink, openSession, openVibeItem,
+  answerPermission, copyDictation, currentSession, draftVibe, dropOnArtifacts, followCode, history, markVibe, openLink, openSession, openVibeItem,
   panelReady, probeAgent, refreshVibe, resumeSession, runVibeAction, saveCode, sendDraft, setPanelMode, setVibe, showFile,
   speakReply, vibeProcess, vibeRunOp,
 } from 'app/controllers';
@@ -41,5 +41,6 @@ export const panelHandlers: HandlerTable<typeof PANEL_CHANNELS> = {
     'conv:send': sendDraft,
     'conv:vibeRun': runVibeAction,
     'conv:vibeSave': saveCode,
+    'conv:vibeDrop': dropOnArtifacts,
   },
 };
