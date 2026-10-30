@@ -68,7 +68,8 @@ describe('branchOf', () => {
   });
 });
 
-describe('commonDirOf', () => {
+// Un disque factice aux chemins POSIX : sous Windows, path.resolve les ferait partir de D:\. Le vrai disque : project-key (invariants).
+describe.skipIf(process.platform === 'win32')('commonDirOf', () => {
   const disk = (files: Record<string, string>) => (f: string) => files[f] ?? null;
   it('un .git dossier : <dossier>/.git, depuis un sous-dossier aussi', () => {
     const read = disk({ '/p/.git/HEAD': 'ref: refs/heads/main\n' });
