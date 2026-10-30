@@ -5,11 +5,13 @@
  *  dit par le principal) ; une étape pas ouverte : sans clic. Au bout,
  *  « N commits » déplie sous le fil la liste des commits de la branche (un
  *  `fixup!` en couleur d'attention), re-clic : repliée ; aucun commit : le
- *  texte seul. Un clic sur un commit le déplie : Voir le diff (dans
+ *  texte seul. La liste ouverte se ferme avec Échap (écouté en capture : il
+ *  n'atteint pas les autres Échap du panneau) ou un clic hors de la liste et
+ *  de son bouton ; les écouteurs ne vivent que liste ouverte. Un clic sur un commit le déplie : Voir le diff (dans
  *  l'éditeur, c<rang>), GitHub (sa page, gh:c<rang>) — deux IconButton
  *  (icons), libellé en infobulle — et ses fichiers, en texte simple.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Strings } from 'core/vibecoder';
 import type { VibeCommit, VibeStepId, VibeView } from 'technicals/bridge';
 import { IconButton } from './icons';
@@ -21,6 +23,14 @@ export function Breadcrumb({ view, t, selected, onPick, onOpen }: Props) {
   const [list, setList] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const n = view.commits.length;
+  useEffect(() => {
+    if (!list) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); setList(false); } };
+    const onDown = (e: MouseEvent) => { if (!(e.target instanceof Element && e.target.closest('.vc-commits, .vc-ccount'))) setList(false); };
+    document.addEventListener('keydown', onKey, true);
+    document.addEventListener('mousedown', onDown);
+    return () => { document.removeEventListener('keydown', onKey, true); document.removeEventListener('mousedown', onDown); };
+  }, [list]);
   return (
     <nav className="vc-crumbs" aria-label={t.journey}>
       <div className="vc-crumbs-line">
