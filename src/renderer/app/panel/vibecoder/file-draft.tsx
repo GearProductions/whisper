@@ -13,8 +13,9 @@
  *  une fois l'édition rendue. Enregistrée : rebasée sur la poussée suivante
  *  (égale, supprimée ; sinon gardée, avec son heure pour base). text null :
  *  rien à montrer ; tooBig : le disque a répondu sans texte (trop gros).
- *  DraftEditor : le fichier dans CodeView (edit) et son pied, ou « fichier
- *  trop gros ».
+ *  DraftEditor : le fichier dans CodeView (edit) et son pied (footInTools : le
+ *  pied passé à CodeView, au bout de sa rangée d'outils, au lieu d'en dessous),
+ *  ou « fichier trop gros ».
  *  Ne connaît pas : le pont (rappels passés), le disque, le relevé.
  *  Utilisé par : module-code, invariants-view, note-view ; vibe-coder et
  *  step-views (Drafts). */
@@ -84,16 +85,18 @@ export function DraftFoot({ d, locked, t }: { d: FileDraft; locked: string | nul
 }
 
 /** L'éditeur d'un fichier suivi (CodeView, modifiable) et son pied ; le disque a répondu sans texte : « fichier trop gros ». */
-export function DraftEditor({ d, file, locked, t, at, onQuote }: {
+export function DraftEditor({ d, file, locked, t, at, onQuote, footInTools }: {
   d: FileDraft; file: VibeFile; locked: string | null; t: Strings;
   at?: number;                                 // défilé à cette ligne (CodeView)
   onQuote?(block: string, id: 'comment' | 'fix'): void;
+  footInTools?: boolean;                       // le pied dans la rangée d'outils de CodeView, pas dessous
 }): ReactNode {
+  const foot = <DraftFoot d={d} locked={locked} t={t} />;
   return d.text != null ? (
     <>
       <CodeView key={file.path} code={d.text} path={file.path} at={at} t={t} onQuote={onQuote}
-        edit={{ locked, onChange: d.change, onSave: d.save }} />
-      <DraftFoot d={d} locked={locked} t={t} />
+        edit={{ locked, onChange: d.change, onSave: d.save }} tools={footInTools ? foot : undefined} />
+      {footInTools ? null : foot}
     </>
   ) : d.tooBig ? <div className="vc-empty">{t.tooBig}</div> : null;
 }

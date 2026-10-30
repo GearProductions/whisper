@@ -56,3 +56,20 @@ it('un texte poussé pour un autre fichier est ignoré ; sans texte : trop gros'
   await v.render({ id: 'm1/0', text: null, time: 1 });
   expect(v.d).toMatchObject({ text: null, tooBig: true });
 });
+
+it('DraftEditor : le pied sous le code, ou dans la rangée d\'outils de CodeView (footInTools)', async () => {
+  const { DraftEditor } = await import('../../file-draft');
+  const { t } = await import('core/vibecoder');
+  const d = { text: 'a', draft: true, stale: false, tooBig: false, change() {}, save: async () => {}, drop() {} } as FileDraft;
+  const render = async (footInTools?: boolean) => {
+    const div = document.createElement('div');
+    await act(() => { createRoot(div).render(createElement(DraftEditor, { d, file, locked: null, t: t('fr'), onQuote: () => {}, footInTools })); });
+    return div;
+  };
+  const under = await render();
+  expect(under.querySelector('.vc-src-tools .vc-mod-code-foot')).toBeNull();
+  expect(under.querySelector('.vc-mod-code-foot')).not.toBeNull();
+  const inTools = await render(true);
+  expect(inTools.querySelector('.vc-src-tools .vc-mod-code-foot')).not.toBeNull();
+  expect(inTools.querySelectorAll('.vc-mod-code-foot')).toHaveLength(1);
+});
