@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BRANCH_CHANGES, onBase, onPr, PLACE_ACTIONS, placeReason, placeShown, type PlaceState } from 'core/vibecoder';
+import { BRANCH_CHANGES, ELSEWHERE, onBase, onPr, PLACE_ACTIONS, placeReason, placeShown, type PlaceState } from 'core/vibecoder';
 
 const base: PlaceState = {
   head: null, branch: 'master', onBase: true, dirty: false, child: false, robot: false, prWorktree: false, recipe: false,
@@ -7,6 +7,13 @@ const base: PlaceState = {
 const ALWAYS = ['switch-branch', 'new-here', 'new-worktree'];
 const shown = (s: Partial<PlaceState>) =>
   Object.entries(placeShown({ ...base, ...s })).filter(([, v]) => v).map(([k]) => k);
+
+describe('ELSEWHERE', () => {
+  it("l'ajout d'un artefact n'écrit que dans les sorties : ni retenu par une course, ni la retenant", () => {
+    expect(ELSEWHERE).toContain('add-artifact');
+    expect(BRANCH_CHANGES).not.toContain('add-artifact');
+  });
+});
 
 describe('onBase', () => {
   it('la branche est la base, avec ou sans origin/', () => {
