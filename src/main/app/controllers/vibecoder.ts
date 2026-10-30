@@ -15,9 +15,11 @@
  *  sendToAgent : refusé s'il travaille, I-25 ; ou, pour les actions de
  *  DIRECT_ACTIONS (commit, publish, load-pr, base, pr-here, pr-worktree,
  *  remove-worktree, stash, unload-pr, switch-branch, new-here, new-worktree, pull, rebase, push,
- *  fetch, request-review, copy-artifact), au clic de « direct » : leurs
+ *  fetch, request-review, copy-artifact, add-artifact), au clic de « direct » : leurs
  *  commandes, lancées par l'appli, F-114 ; copy-artifact : un artefact du
- *  dernier relevé, copié par controllers/artifacts, I-39), une course (vibeRunOp : l'arrêter, la garder ou l'annuler, répondre
+ *  dernier relevé, copié par controllers/artifacts, I-39 ; add-artifact : la boîte de dialogue
+ *  du principal, ou un dépôt sur le panneau (dropOnArtifacts, les chemins lus du File par le
+ *  pont) : mêmes « en cours » et dernier résultat ; conv:vibeRun ne porte jamais de chemin, I-37), une course (vibeRunOp : l'arrêter, la garder ou l'annuler, répondre
  *  à sa demande d'autorisation), un réglage (dont arrêter l'agent, comme Interrompre de son
  *  menu ; arrêter Vibe, la bannière : vibeStop de controllers/runs ;
  *  l'onglet Actions ouvert ou fermé : ses courses vues, runsTab de controllers/runs),
@@ -93,7 +95,7 @@
  *  Redémarrer (restartApp, principal reconstruit ; la question d'abord si un
  *  agent travaille).
  *  Ne connaît pas : la page (seulement ses canaux), la fenêtre.
- *  Utilisé par : app/ipc, app/menus, app/windows (vibeAgent : la taille du
+ *  Utilisé par : app/ipc (dropOnArtifacts), app/menus, app/windows (vibeAgent : la taille du
  *  panneau), controllers/conversation, controllers/runs, controllers/module-code
  *  (lastView), controllers/artifacts (lastView, vibeAgent). */
 import fs from 'node:fs';
@@ -120,7 +122,7 @@ import { state } from 'app/state';
 import { conversationShown, openConversation } from 'app/windows';
 import { interruptAgent, isBusy, liveViewAgent, sendToAgent, setAgentSetting } from './agents';
 import { agentPrefix, processAction, processView, promptPrefix, readFile, readTimed } from './processes';
-import { artifactFile, copyArtifact, listArtifacts } from './artifacts';
+import { addArtifacts, artifactFile, copyArtifact, listArtifacts, pickArtifacts } from './artifacts';
 import { createWorktree } from './recipe';
 import { lockingRuns, runOp, viewLocks, runPending, runRequests, runsOf, runsTab, skillMd, startRun, vibeOn, vibeStart, vibeStop } from './runs';
 import { openChild, prWorktreeReady, removeWorktreeChild, showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
@@ -491,8 +493,20 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
 const fail = (lang: VibeLang, key: keyof typeof ERRORS.fr): SendResult => ({ ok: false, error: ERRORS[lang][key] });
 
 // Un dépôt sur la zone du panneau : les chemins lus du File par le pont.
-export function dropOnArtifacts(_paths: unknown): SendResult {
-  throw new Error('not implemented');
+// Mêmes vérifications que runVibeAction (l'agent affiché, son relevé, l'action affichée), sans lire aucun
+// chemin ici ; puis la même action directe que le bouton (add-artifact : même « en cours », même résultat),
+// en fond (track) : cette fonction rend la main aussitôt.
+export function dropOnArtifacts(paths: unknown): SendResult {
+  const lang = vibeLang(loadConfig());
+  const agent = vibeAgent();
+  const view = agent && last.get(agent.id);
+  if (!agent || !view) return fail(lang, 'agent');
+  if (!view.actions.some((a) => a.id === 'add-artifact')) return fail(lang, 'action');
+  const mine = directs.get(agent.id) ?? {};
+  if (Object.values(mine).some((x) => x.running)) return fail(lang, 'action');
+  directs.set(agent.id, mine);
+  void track(mine, 'add-artifact', () => addArtifacts(agent, paths));
+  return { ok: true };
 }
 
 // Une action de l'écran (son id, dans le dernier relevé de l'agent affiché, et
@@ -640,6 +654,9 @@ function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, view: Vib
     const artifact = artifactOf(view, args.artifact as string);
     if (!artifact) return fail(lang, 'args');
     job = () => copyArtifact(agent, artifact.id);
+  } else if (id === 'add-artifact') {
+    // Le bouton : la boîte de dialogue du principal ; les arguments ne portent jamais de chemin (I-37).
+    job = () => pickArtifacts(agent);
   } else if (id === 'load-pr') {
     const pr = args.pr === undefined ? n : prNumber(args.pr);
     if (!pr) return fail(lang, 'pr');
