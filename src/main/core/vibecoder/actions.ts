@@ -16,10 +16,14 @@
  *  action lit seulement (reads) ou modifie la branche : la règle des courses
  *  (runs, blockedBy). Un argument qu'aucune variable du gabarit ne lit (hors text), ou un
  *  modèle hors des choix de l'action, ne fait pas refuser l'action : il est
- *  ignoré, et rendu (ignored) pour que l'appelant prévienne l'agent (F-115).
+ *  ignoré, et rendu (ignored) pour que l'appelant prévienne l'agent (F-115) ; le texte du champ qu'un
+ *  gabarit sans {{text}} laisse tomber, lui, se demande à ignoredText (buildMessage ne le rend pas). L'effort se choisit
+ *  comme le modèle, parmi EFFORT_LEVELS : le skill devient <skill>--<modèle>--<effort> (note
+ *  0.13.0-fix-and-improvements).
  *  Ne connaît pas : Electron, le disque, l'agent (le message est rendu, pas envoyé),
  *  le calcul du préfixe (core/runner, fait par l'appelant).
  *  Utilisé par : core/vibecoder (journey, runs, defaults), app/controllers (vibecoder, runs), app/settings. */
+import { EFFORTS } from 'core/agents';
 import type { VibeAction, VibeArgs, VibeLang, VibeModule, VibeStepId, VibeView } from 'shared/bridge';
 import { json } from './outputs';
 
@@ -82,6 +86,11 @@ export const prNumber = (v: unknown) => (Number.isInteger(v) && (v as number) > 
 
 // Les variables d'un gabarit ({{ x }} : x).
 export const templateVars = (text: string) => [...text.matchAll(VAR)].map((m) => m[1].trim());
+
+// Le texte du champ est-il perdu ? Un text non vide, et un gabarit sans {{text}} : buildMessage ne le signale pas
+// (READ_BY, invariant « un gabarit sans {{text}} »), l'appelant le met dans l'avis « arguments ignorés » (F-115).
+export const ignoredText = (def: Pick<ActionDef, 'text'>, args: VibeArgs): boolean =>
+  typeof args.text === 'string' && args.text.trim() !== '' && !templateVars(def.text).includes('text');
 
 // Les entrées valides, dans leur ordre ; les autres sont ignorées : un champ
 // manquant ou d'un autre type, une étape inconnue, un id déjà vu, un gabarit
@@ -193,12 +202,20 @@ export function buildMessage(def: ActionDef, args: VibeArgs, ctx: MessageContext
   const vars = templateVars(template);
   const ignored = (Object.keys(READ_BY) as (keyof VibeArgs)[])
     .filter((k) => Object.hasOwn(args, k) && args[k] !== undefined && !vars.includes(READ_BY[k]!));
+  const shown = view.actions.find((a) => a.id === def.id);
+  const skill = /^\/vibecoder:([\w-]+)/.exec(template);
+  let model = shown?.model ?? null;
   if (args.model !== undefined) {
-    const shown = view.actions.find((a) => a.id === def.id);
-    const skill = /^\/vibecoder:([\w-]+)/.exec(template);
     if (!shown || !shown.models.includes(args.model as string) || (args.model !== shown.model && !skill)) ignored.push('model');
-    else if (skill && args.model !== shown.model) template = `/vibecoder:${skill[1]}--${args.model}${template.slice(skill[0].length)}`;
+    else model = args.model as string;
   }
+  let effort: string | null = null;
+  if (args.effort !== undefined) {
+    if (!skill || !model || !shown?.efforts?.includes(args.effort as string)) ignored.push('effort');
+    else effort = args.effort as string;
+  }
+  if (skill && effort) template = `/vibecoder:${skill[1]}--${model}--${effort}${template.slice(skill[0].length)}`;
+  else if (skill && model && model !== shown?.model) template = `/vibecoder:${skill[1]}--${model}${template.slice(skill[0].length)}`;
   let error: MessageError | null = null;
   const text = template.replace(VAR, (_, name: string) => {
     const key = name.trim();
@@ -218,6 +235,9 @@ const EFFORT: Record<VibeLang, Record<string, string>> = {
 
 // Les modèles qu'on peut choisir pour un skill qui fixe le sien (jamais Fable, I-36).
 export const SKILL_MODELS = ['haiku', 'sonnet', 'opus'];
+
+// Les efforts qu'on peut choisir pour un skill qui fixe son modèle : ceux du menu de l'agent, sans « par défaut ».
+export const EFFORT_LEVELS = EFFORTS.map(([value]) => value).filter(Boolean);
 
 // Un champ de l'en-tête (frontmatter) d'un skill, sans ses guillemets ; '' s'il manque.
 export function headField(skillMd: string | null, key: string): string {

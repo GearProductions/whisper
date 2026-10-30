@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { VibeView } from 'shared/bridge';
-import { buildMessage, DIRECT_ACTIONS, DIRECT_ONLY, parseActions, skillModel, SKILL_MODELS, whoOf, type ActionDef, type MessageContext } from 'core/vibecoder';
+import { buildMessage, DIRECT_ACTIONS, ignoredText, EFFORT_LEVELS, DIRECT_ONLY, parseActions, skillModel, SKILL_MODELS, whoOf, type ActionDef, type MessageContext } from 'core/vibecoder';
 
 const C1 = '9fceb02d0ae598e95dc970b74767f19372d61af8';
 const BLOB = '3b18e512dba79e4c8300dd08aeb37f8e728b8dad';
@@ -374,6 +374,50 @@ describe('buildMessage : un autre modèle que le conseillé', () => {
   });
 });
 
+describe('buildMessage : l\'effort', () => {
+  const shown = (efforts: string[], model: string | null) => ({
+    id: 'essai', step: null, label: 'Essai', hint: '', who: 'opus', models: model ? SKILL_MODELS : [], efforts, model, kind: 'send' as const,
+    needs: 'none' as const, usesText: false, primary: false, disabled: null, hidden: false, running: false,
+  });
+  const withAction = (efforts = EFFORT_LEVELS, model: string | null = 'opus') => ({ ...ctx, view: { ...view, actions: [shown(efforts, model)] } });
+  const RELIRE = '/vibecoder:relire {{lang}}';
+
+  it('EFFORT_LEVELS : la liste du menu de l\'agent, sans « par défaut »', () => {
+    expect(EFFORT_LEVELS).toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
+  });
+
+  it('un effort proposé : <skill>--<modèle conseillé>--<effort>', () => {
+    expect(build(RELIRE, { effort: 'max' }, withAction())).toEqual({ text: '/vibecoder:relire--opus--max fr' });
+  });
+
+  it('un effort et un autre modèle : <skill>--<modèle choisi>--<effort>', () => {
+    expect(build(RELIRE, { model: 'haiku', effort: 'xhigh' }, withAction())).toEqual({ text: '/vibecoder:relire--haiku--xhigh fr' });
+  });
+
+  it('un effort et un modèle hors des choix : le modèle ignoré, l\'effort sur le conseillé', () => {
+    expect(build(RELIRE, { model: 'fable', effort: 'low' }, withAction())).toEqual({ text: '/vibecoder:relire--opus--low fr', ignored: ['model'] });
+  });
+
+  it('pas d\'effort : le nom d\'aujourd\'hui', () => {
+    expect(build(RELIRE, {}, withAction())).toEqual({ text: '/vibecoder:relire fr' });
+    expect(build(RELIRE, { model: 'sonnet' }, withAction())).toEqual({ text: '/vibecoder:relire--sonnet fr' });
+  });
+
+  it('un effort hors de la liste, ou qui n\'est pas un texte : ignoré, le skill tel quel', () => {
+    expect(build(RELIRE, { effort: 'ultra' }, withAction())).toEqual({ text: '/vibecoder:relire fr', ignored: ['effort'] });
+    expect(build(RELIRE, { effort: ['low'] as never }, withAction())).toEqual({ text: '/vibecoder:relire fr', ignored: ['effort'] });
+  });
+
+  it('une action sans choix d\'effort, ou un gabarit sans skill : ignoré', () => {
+    expect(build(RELIRE, { effort: 'low' }, withAction([], null))).toEqual({ text: '/vibecoder:relire fr', ignored: ['effort'] });
+    expect(build('{{lang}}', { effort: 'low' }, withAction())).toEqual({ text: 'fr', ignored: ['effort'] });
+  });
+
+  it('modèle et effort ignorés ensemble : dans cet ordre', () => {
+    expect(build('{{lang}}', { model: 'haiku', effort: 'low' }, withAction())).toEqual({ text: 'fr', ignored: ['model', 'effort'] });
+  });
+});
+
 describe('buildMessage : un argument qu\'aucune variable ne lit est ignoré, l\'action part', () => {
   it('modules restants demandés avec model et module : les deux ignorés (F-115)', () => {
     expect(build('/vibecoder:modules {{lang}} {{out}}', { module: 0, model: 'opus' }))
@@ -438,5 +482,24 @@ describe('les actions directes', () => {
 
   it('chaque action seulement directe est une action directe', () => {
     expect(DIRECT_ONLY.every((id) => DIRECT_ACTIONS.includes(id))).toBe(true);
+  });
+});
+
+describe('ignoredText : le texte du champ qu’un gabarit laisse tomber', () => {
+  it('un text non vide et un gabarit sans {{text}} : vrai', () => {
+    expect(ignoredText({ text: '/vibecoder:modules {{lang}} {{out}}' }, { text: 'une consigne' })).toBe(true);
+  });
+
+  it('un gabarit avec {{text}}, même espacé : faux', () => {
+    expect(ignoredText({ text: '/vibecoder:note {{text}}' }, { text: 'x' })).toBe(false);
+    expect(ignoredText({ text: '/vibecoder:note {{ text }}' }, { text: 'x' })).toBe(false);
+  });
+
+  it('pas de texte, un texte vide ou blanc, un texte qui n’en est pas un : faux', () => {
+    const def = { text: '{{lang}}' };
+    expect(ignoredText(def, {})).toBe(false);
+    expect(ignoredText(def, { text: '' })).toBe(false);
+    expect(ignoredText(def, { text: '  \n' })).toBe(false);
+    expect(ignoredText(def, { text: 42 as never })).toBe(false);
   });
 });
