@@ -21,7 +21,7 @@ vi.mock('app/controllers/vibecoder', () => ({
 
 const { state } = await import('app/state');
 const { followCode, saveCode } = await import('app/controllers/module-code');
-const { listArtifacts } = await import('app/controllers/artifacts');
+const { listArtifacts, projectArtifactsPath } = await import('app/controllers/artifacts');
 
 const MAX = 16;
 let arts = '';
@@ -32,7 +32,7 @@ const write = (name: string, data: string | Buffer) => {
 };
 // Le relevé reçu par la page, puis l'artefact de ce nom suivi.
 const follow = (name: string) => {
-  fake.view = { artifacts: listArtifacts('a1', path.dirname(arts), MAX) } as Partial<VibeView>;
+  fake.view = { artifacts: listArtifacts('a1', arts, MAX) } as Partial<VibeView>;
   const id = (fake.view as VibeView).artifacts!.find((a) => a.name === name)!.id;
   followCode(id);
   return id;
@@ -42,7 +42,7 @@ const last = () => fake.sent.at(-1) as { id: string; text: string | null; trunca
 beforeEach(() => {
   fake.userData = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-module-code-a-')));
   fake.sent = [];
-  arts = path.join(fake.userData, 'vibecoder-out', 'a1', 'artifacts');
+  arts = projectArtifactsPath(fake.userData);
   fs.writeFileSync(path.join(fake.userData, 'config.json'), JSON.stringify({ artifactTextMax: MAX }));
   state.panel = { isDestroyed: () => false, webContents: { send: (_ch: string, c: unknown) => fake.sent.push(c) } } as never;
 });
