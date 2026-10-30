@@ -575,17 +575,18 @@
 .vc-src-tools { display: flex; gap: 6px; align-items: center; margin: -6px 0 12px; }
 .vc-src-tools button:disabled { opacity: 0.4; cursor: default; }
 
-/* ModuleCode : Voir le code, sous la ligne d'un module touché : l'arbre, le
-   sélecteur Fichier | Diff, le fichier (CodeView) ou son diff (DiffView), puis
-   la barre d'outils du module (.vc-mod-acts, modules-view.css). */
-.vc-mod-code { margin-top: 6px; }
-.vc-mod-code > summary { width: max-content; color: var(--vc-muted); font-size: 12px; cursor: pointer; }
-.vc-mod-code > summary:hover { color: var(--vc-text); }
-.vc-mod-tree { margin: 6px 0 8px; }
-.vc-mod-tree-dir { color: var(--vc-faint); font-size: 11px; line-height: 1.6; }
-.vc-mod-tree .vc-jfiles { padding-left: 12px; }
+/* ModuleCode : le code d'un module touché, déplié : sur une rangée, ses fichiers
+   (dossier, puis ses fichiers, à la suite) et le sélecteur Fichier | Diff, au
+   bout ; dessous, le fichier (CodeView) ou son diff (DiffView). */
+.vc-mod-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0 0 6px; }
+.vc-mod-head > .vc-mod-bar { margin: 0 0 0 auto; }
+.vc-mod-tree { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; min-width: 0; }
+.vc-mod-tree > div { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; min-width: 0; }
+.vc-mod-tree-dir { color: var(--vc-faint); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.vc-mod-tree .vc-jfiles { display: flex; flex-wrap: wrap; gap: 2px; }
+.vc-mod-tree .vc-jfiles button { display: inline-block; width: auto; }
 .vc-mod-tree button[aria-current] { background: var(--vc-control); color: var(--vc-text); }
-.vc-mod-code .vc-src .cm-editor { max-height: 420px; }
+.vc-mod-main .vc-src .cm-editor { max-height: 420px; }
 /* Le sélecteur et, sur un diff, En ligne · Côte à côte (module-code). */
 .vc-mod-bar { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
 .vc-mod-shown {

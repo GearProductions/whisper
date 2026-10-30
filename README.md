@@ -519,7 +519,7 @@ ou *GitHub* (sa page, dans le navigateur).
    comme dans Obsidian : ce qu'on tape se met en forme au fil de la frappe (un titre
    apparaît en titre, pas en `#`) ; *Brut* montre le Markdown tel qu'il est
    dans le fichier, modifiable aussi. Enregistrée par Ctrl+S ou
-   *Enregistrer*, avec les garde-fous de *Voir le code* (étape Modules) ;
+   *Enregistrer*, avec les garde-fous du code d'un module (étape Modules) ;
    grisée pendant un tour de la conversation ou une action de l'agent.
 2. **Forme** : *Poser la forme* (les modules et leurs contrats, dans la note,
    sans code) ; *Valider la forme*.
@@ -527,8 +527,8 @@ ou *GitHub* (sa page, dans le navigateur).
    l'alignement*, d'après la note ou d'après le pseudo-code écrit dans le
    champ de l'étape — dans la même action, l'agent vérifie que note, forme
    et tests concordent, retouche les tests s'il y a des écarts (3 tours au
-   plus) et dit ce qui reste (la carte de l'alignement) ; puis *Valider* ou *À revoir* par
-   cas (*À revoir* le cite dans le champ, pour dire quoi changer), *Tout valider* pour
+   plus) et dit ce qui reste (la carte de l'alignement) ; puis, dans l'en-tête de chaque
+   cas, le badge *Validé* ou *À revoir*, qui s'allume au clic (*À revoir* le cite dans le champ, pour dire quoi changer), *Tout valider* pour
    un fichier. *Lire en pseudo-code* (dans les outils en haut du fichier)
    aide à lire, sans être obligatoire (à
    la main, jamais mise en avant ; en *Vibe*, l'agent ne la lance pas) :
@@ -562,10 +562,10 @@ ou *GitHub* (sa page, dans le navigateur).
    commit). Générer
    et commiter sont deux gestes : *Commiter* sur un module modifié, ou
    *Commiter les modules* (un commit par module, un fixup pour un module
-   déjà commité) ; vous pouvez donc retoucher le code entre les deux. Les
-   boutons d'un module sont sous son code (sous son contrat s'il n'est pas
-   encore touché).
-   Sous un module touché, *Voir le code* : ses fichiers que la branche
+   déjà commité) ; vous pouvez donc retoucher le code entre les deux. Chaque
+   module est un accordéon : un clic sur sa ligne montre ses boutons, sur la
+   même ligne, et son contrat.
+   Dessous, pour un module touché, son code : ses fichiers que la branche
    change (modifiés, ajoutés, ou « supprimé » : son diff, tout en retraits,
    rien à modifier) et celui choisi,
    coloré comme sur GitHub, ou son diff depuis la base de la branche (tout

@@ -2,7 +2,7 @@
    forme, verdict d'un cas, pastille Fable, validation proposée par la
    prochaine étape. Sous .vc ; vert : --vc-ok, ambre : --vc-warn, rouge : celui
    des autres vues (#d9383a, texte #f08a8b). Chaque libellé derrière son icône
-   (svg 14 px) ; le verdict d'un cas : deux IconButton (.vc-tool) colorés ici.
+   (svg 14 px) ; le verdict d'un cas : deux badges écrits, gris, celui donné allumé.
    Ne connaît pas : le pont. Utilisé par : validation.tsx (importé). */
 
 .vc-vmark { display: inline-flex; align-items: center; gap: 8px; flex: none; }
@@ -52,14 +52,24 @@
 .vc-vbtn[data-v="ko"] { border-color: color-mix(in srgb, #d9383a 55%, transparent); background: transparent; color: #f08a8b; }
 .vc-vbtn[data-v="ko"]:hover { border-color: #d9383a; background: #d9383a; color: #fff; }
 
-/* Verdict d'un cas : deux boutons-icônes (IconButton), teintés ; celui donné plein. */
-.vc-verdict { display: inline-flex; flex: none; gap: 2px; }
-.vc-verdict .vc-verdict-ok { color: #8fdc9c; }
-.vc-verdict .vc-verdict-ko { color: #e9a0a1; }
-.vc-verdict .vc-verdict-ok:hover { background: color-mix(in srgb, var(--vc-ok) 18%, transparent); color: #7ee08f; }
-.vc-verdict .vc-verdict-ko:hover { background: color-mix(in srgb, #d9383a 18%, transparent); color: #f08a8b; }
-.vc-verdict .vc-verdict-ok[aria-pressed="true"] { background: var(--vc-ok); color: #0e1117; }
-.vc-verdict .vc-verdict-ko[aria-pressed="true"] { background: #d9383a; color: #fff; }
+/* Verdict d'un cas : deux badges gris ; au survol, un avant-goût de leur couleur ; celui donné allumé. */
+.vc-verdict { display: inline-flex; flex: none; gap: 4px; }
+.vc-verdict button {
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--vc-edge);
+  border-radius: 11px;
+  background: transparent;
+  color: var(--vc-muted);
+  font: 600 11.5px/1 system-ui, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.12s, border-color 0.12s, color 0.12s;
+}
+.vc-verdict .vc-verdict-ok:hover { border-color: color-mix(in srgb, var(--vc-ok) 60%, transparent); color: #7ee08f; }
+.vc-verdict .vc-verdict-ko:hover { border-color: color-mix(in srgb, #d9383a 60%, transparent); color: #f08a8b; }
+.vc-verdict .vc-verdict-ok[aria-pressed="true"] { border-color: color-mix(in srgb, var(--vc-ok) 60%, transparent); background: color-mix(in srgb, var(--vc-ok) 18%, transparent); color: #7ee08f; }
+.vc-verdict .vc-verdict-ko[aria-pressed="true"] { border-color: color-mix(in srgb, #d9383a 65%, transparent); background: color-mix(in srgb, #d9383a 20%, transparent); color: #f08a8b; }
 
 /* Pastille Fable : discrète, le coût dit. */
 .vc-fable {

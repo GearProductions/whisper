@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-// validation (validation.tsx) : CaseVerdict, deux boutons-icônes (Valider, À revoir), celui donné pressé,
+// validation (validation.tsx) : CaseVerdict, deux badges écrits (Validé, À revoir), celui donné pressé,
 // un second clic l'annule ; MarkControl, l'icône devant le texte, sans glyphe Unicode.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -18,9 +18,8 @@ it('CaseVerdict : libellés, pressé = le verdict donné, un second clic annule'
   const draw = (state: 'ok' | 'ko' | null) => act(() => root.render(createElement(CaseVerdict,
     { state, lang: 'fr', onMark: (v) => { marks.push(v); } })));
   await draw(null);
-  expect(buttons().map((b) => [b.getAttribute('aria-label'), b.title, b.getAttribute('aria-pressed'), b.className]))
-    .toEqual([['Valider', 'Valider', 'false', 'vc-tool vc-verdict-ok'], ['À revoir', 'À revoir', 'false', 'vc-tool vc-verdict-ko']]);
-  expect(page.querySelectorAll('svg')).toHaveLength(2);
+  expect(buttons().map((b) => [b.textContent, b.title, b.getAttribute('aria-pressed'), b.className]))
+    .toEqual([['Validé', 'Valider', 'false', 'vc-verdict-ok'], ['À revoir', 'À revoir', 'false', 'vc-verdict-ko']]);
   buttons()[0].click();
   buttons()[1].click();
   await draw('ok');
