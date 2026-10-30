@@ -2,7 +2,8 @@
  *  le nom du dossier et du schéma qui les sert, le genre et le type MIME d'un
  *  fichier d'après son extension, la liste du relevé (ids a<i> dans l'ordre
  *  des noms, url, truncated), et l'artefact d'un id du dernier relevé (la page
- *  ne donne qu'un id, jamais un chemin : I-37).
+ *  ne donne qu'un id, jamais un chemin : I-37), et les chemins d'un dépôt
+ *  (droppedPaths : lus du File par le pont, revérifiés ici).
  *  Ne connaît pas : Electron, le disque (fichiers passés), git, les libellés.
  *  Utilisé par : app/controllers (artifacts, vibecoder, module-code). */
 import path from 'node:path';
@@ -56,4 +57,9 @@ export function artifactList(
 // L'artefact de l'id dans le relevé ; un id inconnu (ou un chemin) : null.
 export function artifactOf(view: VibeView | null, id: string): VibeArtifact | null {
   return view?.artifacts?.find((a) => a.id === id) ?? null;
+}
+
+// Les chemins reçus du pont : absolus, sans NUL ni segment `..`, ni racine ; le reste compté dans noPath.
+export function droppedPaths(_list: unknown): { paths: string[]; noPath: number } {
+  throw new Error('not implemented');
 }

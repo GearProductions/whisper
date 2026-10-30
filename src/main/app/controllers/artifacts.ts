@@ -28,6 +28,16 @@ import { lastView, vibeAgent } from './vibecoder';
 // La forme de DirectResult (technicals/direct, que seul controllers/vibecoder importe) : il la passe telle quelle.
 type DirectResult = { ok: boolean; line: string; detail: string };
 
+// Ajouter : copie les chemins reçus dans les artifacts/ de l'agent.
+export async function addArtifacts(_agent: AgentConfig, _paths: unknown): Promise<DirectResult> {
+  throw new Error('not implemented');
+}
+
+// Ajouter, par la boîte de dialogue du principal (des fichiers).
+export async function pickArtifacts(_agent: AgentConfig): Promise<DirectResult> {
+  throw new Error('not implemented');
+}
+
 const LIST_MAX = 1000;   // les premiers trouvés seulement
 
 const LABELS = {

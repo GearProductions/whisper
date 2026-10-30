@@ -490,6 +490,11 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
 
 const fail = (lang: VibeLang, key: keyof typeof ERRORS.fr): SendResult => ({ ok: false, error: ERRORS[lang][key] });
 
+// Un dépôt sur la zone du panneau : les chemins lus du File par le pont.
+export function dropOnArtifacts(_paths: unknown): SendResult {
+  throw new Error('not implemented');
+}
+
 // Une action de l'écran (son id, dans le dernier relevé de l'agent affiché, et
 // active) → son gabarit rempli de valeurs vérifiées (buildMessage : le type,
 // la taille et la valeur de chaque argument), envoyé comme un message tapé.
