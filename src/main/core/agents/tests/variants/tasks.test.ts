@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyTaskEvent, EMPTY_LOG, runningTasks, TOOLS_KEPT, type TaskLog } from 'core/agents';
+import { applyTaskEvent, EMPTY_LOG, runningTasks, runProgress, TOOLS_KEPT, type TaskLog } from 'core/agents';
 
 const started = (id: string, extra: Record<string, unknown> = {}) => ({ type: 'system', subtype: 'task_started', task_id: id, description: `tâche ${id}`, task_type: 'local_bash', ...extra });
 const bash = (id: string, input: Record<string, unknown>) => ({ type: 'assistant', message: { content: [{ type: 'text', text: 'je lance' }, { type: 'tool_use', id, name: 'Bash', input }] } });
@@ -68,5 +68,32 @@ describe('tâches de fond', () => {
     expect(Object.keys(log.tools)).toHaveLength(TOOLS_KEPT);
     expect(log.tools.tu4).toBeUndefined();
     expect(log.tools[`tu${TOOLS_KEPT + 4}`]).toMatchObject({ name: 'Bash' });
+  });
+});
+
+describe('appels du fil principal', () => {
+  const call = (mid: string | undefined, blocks: Record<string, unknown>[], extra: Record<string, unknown> = {}) =>
+    ({ type: 'assistant', ...extra, message: { ...(mid && { id: mid }), content: blocks.map((b, i) => ({ type: 'tool_use', id: `${mid}-${i}`, ...b })) } });
+  const agent = (input: Record<string, unknown> = {}) => ({ name: 'Agent', input });
+
+  it('une vague par message d’Agent, corrections et Opus comptés', () => {
+    const log = play(
+      call('m1', [agent(), agent()]), call('m1', [agent()]),
+      call('m2', [{ name: 'SendMessage', input: {} }]), call('m3', [agent({ model: 'opus' })]), call('m4', [{ name: 'Bash', input: {} }]),
+    );
+    expect(log.calls).toEqual({ waves: ['m1', 'm3'], fixes: 1, opus: true });
+    expect(runProgress(log)).toEqual({ wave: 2, done: 0, fixes: 1, opus: true });
+  });
+
+  it('sous-agents, blocs déjà vus et messages sans id : pas comptés', () => {
+    const m = call('m1', [agent()]);
+    expect(play(call('m9', [agent(), { name: 'SendMessage', input: {} }], { parent_tool_use_id: 'tu' })).calls).toEqual(EMPTY_LOG.calls);
+    expect(play(m, m).calls).toEqual({ waves: ['m1'], fixes: 0, opus: false });
+    expect(play(call(undefined, [agent()])).calls.waves).toEqual([]);
+  });
+
+  it('done : les local_agent terminés', () => {
+    const done = (id: string, type: string) => [started(id, { task_type: type }), { type: 'system', subtype: 'task_notification', task_id: id, status: 'completed' }];
+    expect(runProgress(play(...done('a', 'local_agent'), ...done('b', 'local_bash'), started('c', { task_type: 'local_agent' })))).toEqual({ wave: 0, done: 1, fixes: 0, opus: false });
   });
 });
