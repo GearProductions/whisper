@@ -2,10 +2,11 @@
  *  commun et la racine de sa copie (résolus), la copie principale, l'enfant
  *  légitime (I-41 : la racine d'un worktree du même dépôt, autre que la copie
  *  du parent), la liste de `git worktree list --porcelain -z`, la branche
- *  d'une copie lue sur le disque.
+ *  d'une copie lue sur le disque, le dossier git commun d'un dossier lu sur le
+ *  disque (sans git).
  *  Ne connaît pas : Electron, git (run injecté), le disque (realpath, read
  *  injectés), la config.
- *  Utilisé par : core/family, app/controllers (worktrees, agents), app/menus. */
+ *  Utilisé par : core/family, core/vibecoder (artifacts), app/controllers (worktrees, agents), app/menus. */
 import path from 'node:path';
 
 export type Repo = { common: string; top: string };
@@ -44,4 +45,23 @@ export function branchOf(dir: string, read: (file: string) => string | null): st
   const gitDir = pointer?.startsWith('gitdir:') ? path.resolve(dir, pointer.slice(7).trim()) : path.join(dir, '.git');
   const m = /^ref: refs\/heads\/(.+)$/.exec(read(path.join(gitDir, 'HEAD'))?.trim() ?? '');
   return m ? m[1] : null;
+}
+
+// Le dossier git commun de `dir`, sans lancer git : on remonte comme git. Un
+// `.git` dossier (on y lit HEAD) donne `<dossier>/.git` ; un `.git` fichier
+// (`gitdir: X`) donne ce que dit `X/commondir`, relatif à `X`, ou `X` sans lui
+// (un sous-module est son propre dépôt). Non résolu (liens : à l'appelant) ;
+// null hors de tout dépôt.
+export function commonDirOf(dir: string, read: (file: string) => string | null): string | null {
+  for (let d = path.resolve(dir); ; d = path.dirname(d)) {
+    const dotGit = path.join(d, '.git');
+    const pointer = read(dotGit);
+    if (pointer?.startsWith('gitdir:')) {
+      const gitDir = path.resolve(d, pointer.slice(7).trim());
+      const common = read(path.join(gitDir, 'commondir'))?.trim();
+      return common ? path.resolve(gitDir, common) : gitDir;
+    }
+    if (read(path.join(dotGit, 'HEAD')) !== null) return dotGit;
+    if (path.dirname(d) === d) return null;
+  }
 }
