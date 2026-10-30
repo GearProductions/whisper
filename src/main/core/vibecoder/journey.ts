@@ -20,7 +20,10 @@
  *  résultat ; les règles : la note du ticket 0.8.0), les courses (une action
  *  d'étape court à part : grisée par blockedBy de runs, pas par la
  *  conversation qui travaille ; note 0.9.0 des actions indépendantes ; le
- *  parcours guidé : note 0.9.0-parcours-guide) ; un checks.json antérieur au
+ *  parcours guidé : note 0.9.0-parcours-guide) ; une action de ELSEWHERE (place : elle travaille dans un autre
+ *  dossier) n'est pas grisée par la conversation qui travaille, et sa directe porte elsewhere (la page ne
+ *  grise que son « via »), une commande directe en cours la grise toujours ; efforts : ceux de EFFORT_LEVELS pour
+ *  une action dont le skill fixe son modèle (note 0.13.0-fix-and-improvements) ; un checks.json antérieur au
  *  départ de la dernière course checks ignoré partout, sorties comprises
  *  (I-46 ; note 0.9.0-vibecoder-pr-verifications-courses) ; l'étape
  *  Invariants faite seulement si la Note et la Forme le sont (note 0.12.0-vibe-sans-rc-diff-en-fond),
@@ -48,7 +51,7 @@ import type {
   VibeAction, VibeCheck, VibeComment, VibeFlow, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePr,
   VibePrItem, VibeRecipe, VibeRun, VibeStepId, VibeTestFile, VibeView, VibeWorktree,
 } from 'shared/bridge';
-import { DIRECT_ACTIONS, DIRECT_ONLY, prNumber, SKILL_MODELS, templateVars, type ActionDef } from './actions';
+import { DIRECT_ACTIONS, DIRECT_ONLY, EFFORT_LEVELS, prNumber, SKILL_MODELS, templateVars, type ActionDef } from './actions';
 import { markState, type Marks } from './marks';
 import { parseNote } from './note';
 import { json, parseChecklist, parseQuestions, parseReading } from './outputs';
@@ -384,7 +387,7 @@ export function vibeView(input: JourneyInput): VibeView {
   // (les autres), une commande directe est en cours (held) ; une variable de son gabarit manque, elle ne
   // sert pas ici (sense).
   const held = (d: ActionDef): string | null =>
-    (ownRun(d) ? blockedBy(d, locks, lang) : input.busy ? T.busy : null)
+    (ownRun(d) ? blockedBy(d, locks, lang) : input.busy && !ELSEWHERE.includes(d.id) ? T.busy : null)
     ?? (DIRECT_ACTIONS.includes(d.id) && running ? T.directRunning : null);
   const sense = (d: ActionDef): Reason | null => {
     // Relire une PR fusionnée ou fermée : elle se charge (la vue des branches, sans étape), mais ne se relit pas.
@@ -448,12 +451,12 @@ export function vibeView(input: JourneyInput): VibeView {
       const reason = d.kind === 'prefill' ? null : sense(d);
       return {
         id: d.id, step: d.step, label: d.label, hint: d.hint, who: input.who[d.id] ?? 'agent',
-        model: input.model[d.id] ?? null, models: input.model[d.id] ? SKILL_MODELS : [], kind: d.kind, needs: d.needs,
+        model: input.model[d.id] ?? null, models: input.model[d.id] ? SKILL_MODELS : [], efforts: input.model[d.id] ? EFFORT_LEVELS : [], kind: d.kind, needs: d.needs,
         usesText: templateVars(d.text).includes('text'),
         ...(d.kind === 'prefill' ? { text: d.text } : {}),
         primary: d.id === primary, disabled: d.kind === 'prefill' ? null : held(d) ?? (reason && T[reason]), hidden: hidden(d, reason),
         ...(DIRECT_ACTIONS.includes(d.id) ? {
-          direct: { ...input.direct?.[d.id] ?? { running: false, last: null }, ...(DIRECT_ONLY.includes(d.id) ? { only: true as const } : {}) },
+          direct: { ...input.direct?.[d.id] ?? { running: false, last: null }, ...(DIRECT_ONLY.includes(d.id) ? { only: true as const } : {}), ...(ELSEWHERE.includes(d.id) ? { elsewhere: true as const } : {}) },
         } : {}),
       };
     });
