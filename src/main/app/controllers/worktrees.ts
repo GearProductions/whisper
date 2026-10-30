@@ -22,6 +22,11 @@
  *  worktree (removeWorktreeChild). Les dossiers des agents sont résolus (liens
  *  symboliques) avant d'être comparés à ceux de git. Aucune page ne donne de
  *  chemin. La création et le retrait des worktrees : controllers/recipe.
+ *  Les artefacts : un enfant retiré les passe à son parent (removeAgent) ;
+ *  sans parent présent (le robot d'une PR parti avec lui), ils restent sur le
+ *  disque (removeChild ne les efface pas : eraseOutputs) et reviennent, dans
+ *  son artifacts/, à l'agent rouvert sur ce dossier (adopt, openChild :
+ *  artifactsBack à la naissance).
  *  Ne connaît pas : la page (seulement ce que demandent controllers/vibecoder
  *  et app/menus).
  *  Utilisé par : controllers/vibecoder, controllers/runs, app/menus,
@@ -37,7 +42,8 @@ import { gitRun } from 'technicals/git';
 import { loadConfig, saveConfig, saveVibeStore, vibeOutDir, vibeStore } from 'app/settings';
 import { state } from 'app/state';
 import { openConversation } from 'app/windows';
-import { ensureFolderColors, isBusy, newId, pushAgents, real, removeAgent, trustFolder } from './agents';
+import { artifactsBack, ensureFolderColors, isBusy, newId, pushAgents, real, removeAgent, trustFolder } from './agents';
+import { eraseOutputs } from './artifact-moves';
 import { removeWorktree, type RecipeResult } from './recipe';
 
 const wanted = new Set<string>();   // `<agent>:<n>` : l'écran a demandé le worktree de cette PR (en mémoire)
@@ -120,6 +126,7 @@ async function adopt(parent: AgentConfig, pr: number) {
   if (!owner || hasAgent(dir)) return;
   const robot = childAgent(owner, dir, newId(), { pr });
   saveConfig({ agents: [...agentList(cfg), robot], agentFolders: withFolder(dir, agentColor(owner, cfg)) });
+  artifactsBack(robot);
   // Ses sorties : la fiche de la PR ; son brouillon de revue : celui de l'agent du dépôt.
   try { fs.copyFileSync(path.join(vibeOutDir(owner.id), `pr-${pr}.json`), path.join(vibeOutDir(robot.id), `pr-${pr}.json`)); } catch { /* il la rechargera */ }
   const store = vibeStore();
@@ -129,10 +136,11 @@ async function adopt(parent: AgentConfig, pr: number) {
 }
 
 // Retire un enfant : le brouillon de sa PR revient au parent, ses validations
-// partent ; affiché, le panneau passe au parent ; puis removeAgent (son
-// processus, ses courses et ses commandes), son dossier des favoris et ses
-// sorties.
-function removeChild(child: AgentConfig, parent: AgentConfig | null) {
+// partent ; affiché, le panneau passe au parent ; son dossier quitte les
+// favoris (sans attendre le transfert des artefacts) ; removeAgent (son
+// processus, ses courses et ses commandes, ses artefacts transférés) et ses sorties (eraseOutputs : sauf les artefacts laissés, sans
+// parent présent).
+async function removeChild(child: AgentConfig, parent: AgentConfig | null) {
   const pr = agentParent(child)?.pr;
   const store = vibeStore();
   const draft = pr && store.drafts[child.id]?.[pr];
@@ -141,9 +149,10 @@ function removeChild(child: AgentConfig, parent: AgentConfig | null) {
   delete store.marks[child.id];
   saveVibeStore(store);
   if (parent && state.convView?.agentId === child.id) openConversation(parent.id, { mode: 'full' });
-  removeAgent(child.id);
+  const gone = removeAgent(child.id);   // sa part synchrone d'abord : l'agent est parti de la config
   saveConfig({ agentFolders: ensureFolderColors().filter((f) => f.dir !== child.dir) });
-  fs.rmSync(vibeOutDir(child.id), { recursive: true, force: true });
+  await gone;
+  await eraseOutputs(child.id);
 }
 
 // Retirer le worktree (remove-worktree) : la recette le retire (refusé s'il a
@@ -156,7 +165,7 @@ export async function removeWorktreeChild(child: AgentConfig): Promise<RecipeRes
   if (p?.pr) {
     fs.rmSync(cardFile(p.id, p.pr), { force: true });
     await syncWorktrees();
-  } else removeChild(child, worktreeParent(child));
+  } else await removeChild(child, worktreeParent(child));
   return result;
 }
 
@@ -172,7 +181,7 @@ export async function syncWorktrees() {
     for (const a of list) {
       const p = agentParent(a);
       const parent = p && list.find((o) => o.id === p.id);
-      if (p?.pr && !isBusy(a.id) && (!parent || !fs.existsSync(cardFile(parent.id, p.pr)))) removeChild(a, parent || null);
+      if (p?.pr && !isBusy(a.id) && (!parent || !fs.existsSync(cardFile(parent.id, p.pr)))) await removeChild(a, parent || null);
     }
     for (const k of [...wanted]) {
       const [id, n] = [k.slice(0, k.lastIndexOf(':')), Number(k.slice(k.lastIndexOf(':') + 1))];
@@ -231,6 +240,7 @@ export async function openChild(parent: AgentConfig, dir: string, o: { name?: st
   const child = childAgent(ok.owner, here, newId(), { ...o, name: o.name ?? ok.branch ?? path.basename(at) });
   saveConfig({ agents: [...agentList(cfg), child], agentFolders: withFolder(here, agentColor(ok.owner, cfg)) });
   pushAgents();
+  artifactsBack(child);
   return child;
 }
 
