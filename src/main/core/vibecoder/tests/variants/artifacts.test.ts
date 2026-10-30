@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { addedLine, artifactKind, artifactList, artifactOf, artifactType, droppedPaths, failedLine, folderKey } from 'core/vibecoder';
 import type { VibeView } from 'shared/bridge';
@@ -61,7 +62,8 @@ describe('artifactOf', () => {
   });
 });
 
-describe('folderKey', () => {
+// Un disque factice aux chemins POSIX : sous Windows, path.resolve les ferait partir de D:\.
+describe.skipIf(process.platform === 'win32')('folderKey', () => {
   // Un disque factice : /var/home existe, /home y mène, les dossiers de worktree sont partis.
   const links: Record<string, string> = { '/home': '/var/home' };
   const exists = new Set(['/', '/var', '/var/home', '/var/home/u', '/var/home/u/out']);
@@ -92,7 +94,7 @@ describe('folderKey', () => {
 
 describe('droppedPaths', () => {
   it('un chemin refusé (relatif, NUL, `..`, la racine, pas un texte) est compté, sans chemin', () => {
-    expect(droppedPaths(['/a/b', 'a/b', '/a\0b', '/a/../b', '/', 3, ''])).toEqual({ paths: ['/a/b'], noPath: 6 });
+    expect(droppedPaths(['/a/b', 'a/b', '/a\0b', '/a/../b', '/', 3, ''])).toEqual({ paths: [path.resolve('/a/b')], noPath: 6 });
   });
 });
 
