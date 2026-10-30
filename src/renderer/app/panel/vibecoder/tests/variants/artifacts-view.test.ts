@@ -1,11 +1,12 @@
 // @vitest-environment happy-dom
 // ArtifactsView (artifacts-view.tsx) : le choix annoncé (par défaut, au clic, au repli), le texte de l'artefact
-// choisi (tronqué, d'un autre id), un média sans bac à sable, Ouvrir et Copier par l'id, la liste vide.
+// choisi (tronqué, d'un autre id), un média sans bac à sable, Ouvrir et Copier par l'id, la liste vide ; la zone de
+// dépôt (data-own-drop, onDrop avec des fichiers seulement), Ajouter (grisé en cours) et la dernière ligne.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, expect, it } from 'vitest';
 import type { VibeArtifact, VibeCode } from 'technicals/bridge';
-import { ArtifactsView } from '../../artifacts-view';
+import { ArtifactsView, type ArtifactsViewProps as Props } from '../../artifacts-view';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -17,9 +18,10 @@ const art = (id: string, name: string, kind: VibeArtifact['kind'] = 'text', trun
 
 let calls: string[] = [];
 beforeEach(() => { calls = []; act(() => root.render(null)); });
-const draw = (artifacts: VibeArtifact[], code: VibeCode | null = null) => act(() => {
+const draw = (artifacts: VibeArtifact[], code: VibeCode | null = null, add: Partial<Props> = {}) => act(() => {
   root.render(createElement(ArtifactsView, {
-    artifacts, lang: 'fr', code,
+    artifacts, lang: 'fr', code, adding: false, added: null,
+    onAdd: () => calls.push('add'), onDrop: (files) => calls.push(`drop ${files.length}`), ...add,
     onChoose: (id) => calls.push(`choose ${id}`), onOpen: (id) => calls.push(`open ${id}`), onCopy: (id) => calls.push(`copy ${id}`),
   }));
 });
@@ -65,4 +67,40 @@ it('la liste vide : ce que le skill fait, rien annoncé', async () => {
   await draw([]);
   expect(page.textContent).toContain('Aucun artefact');
   expect(calls).toEqual([]);
+});
+
+const drop = (files: File[]) => {
+  const e = new Event('drop', { bubbles: true }) as Event & { dataTransfer?: unknown };
+  e.dataTransfer = { files };
+  act(() => { page.querySelector('[data-own-drop]')!.dispatchEvent(e); });
+};
+
+it('la zone de dépôt : data-own-drop, onDrop avec les fichiers déposés, pas sans fichier', async () => {
+  await draw([]);
+  expect(page.querySelector('[data-own-drop]')?.textContent).toContain('Déposez des fichiers');
+  drop([]);
+  expect(calls).toEqual([]);
+  drop([new File(['x'], 'a.txt'), new File(['y'], 'b.txt')]);
+  expect(calls).toEqual(['drop 2']);
+});
+
+it('Ajouter appelle onAdd, grisé pendant l\'ajout', async () => {
+  await draw([]);
+  button('Ajouter').click();
+  expect(calls).toEqual(['add']);
+  await draw([], null, { adding: true });
+  expect(button('Ajouter').disabled).toBe(true);
+});
+
+it('la dernière ligne : « … » en cours, rien si vide, l\'échec montré', async () => {
+  const res = () => page.querySelector('.vc-direct-res');
+  await draw([], null, { added: { ok: true, line: '' } });
+  expect(res()).toBeNull();
+  await draw([], null, { adding: true, added: { ok: true, line: '2 fichiers ajoutés' } });
+  expect(res()?.textContent).toBe('…');
+  await draw([], null, { added: { ok: false, line: 'Trop gros' } });
+  expect(res()?.getAttribute('data-state')).toBe('ko');
+  expect(res()?.textContent).toContain('Trop gros');
+  await draw([], null, { added: { ok: true, line: '2 fichiers ajoutés' } });
+  expect(res()?.getAttribute('data-state')).toBe('ok');
 });

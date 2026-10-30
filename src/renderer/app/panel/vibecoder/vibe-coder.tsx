@@ -6,7 +6,8 @@
  *  Artefacts (un bouton, hors de Créer / Relire, F-92 : ouvert, le panneau
  *  artifacts-view prend le centre, à la place du fil d'Ariane et de
  *  l'étape ou de la vue des branches ; l'artefact choisi est suivi
- *  (follow) ; Copier dans le projet : copy-artifact, direct ; le refermer,
+ *  (follow) ; Copier dans le projet : copy-artifact, direct ; Ajouter : add-artifact,
+ *  direct, son état lu dans view.actions, et les fichiers déposés : act.drop ; le refermer,
  *  choisir une étape, Créer / Relire ou la vue des branches le ferme) ; langue,
  *  relevé (↻ qui tourne), conversation affichée ou masquée, retour à la
  *  conversation, fermer — des icônes (icons), libellé en title et
@@ -100,6 +101,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   // La vue des branches (le bouton ⎇) : ouverte, elle prend le centre à la place de l'étape.
   const [branchesOpen, setBranchesOpen] = useKept(kept, view.agentId, 'branches', false);
   const branches = branchesOpen && !!view.repo;
+  const add = view.actions.find((a) => a.id === 'add-artifact')?.direct;   // l'ajout d'artefacts : en cours, dernier résultat
   // Le panneau Artefacts : ouvert, il prend le centre ; il ne change pas le parcours (flow).
   const [arts, setArts] = useKept(kept, view.agentId, 'artifacts', false);
   const pick = (id: VibeStepId) => { setBranchesOpen(false); setArts(false); setPicked(id); };
@@ -182,7 +184,8 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
           <div className="vc-arts">
             <Guard t={t}>
               <ArtifactsView artifacts={view.artifacts ?? []} lang={view.lang} code={code} onChoose={act.follow} onOpen={act.open}
-                onCopy={(artifact) => act.run('copy-artifact', { direct: true, artifact })} />
+                onCopy={(artifact) => act.run('copy-artifact', { direct: true, artifact })}
+                adding={!!add?.running} added={add?.last ?? null} onAdd={() => act.run('add-artifact', { direct: true })} onDrop={act.drop} />
             </Guard>
           </div>
         ) : (

@@ -27,6 +27,7 @@ export type VibeActs = {
   prefill(id: string, quote: string, block?: boolean): void; // une action 'prefill' : {{quote}}, ce qu'on cite (block : en entier, F-98)
   follow(id: string | null): void;             // suivre un fichier du relevé par son id : module (m<rang>/<i>), note (n), test (t<i>), en Relire fichier d'un commit (c<rang>/<i>) ; null : plus aucun
   save(id: string, text: string): Promise<boolean>; // Enregistrer le fichier suivi ; true : enregistré (refusé : le motif en barre d'état)
+  drop(files: File[]): void;                   // Artefacts : des fichiers déposés dans la zone, copiés dans le dossier de l'agent (refusé : le motif en barre d'état)
   set(patch: VibePatch): void;
   mark(target: string, verdict: 'ok' | 'ko' | null): void;
   draft(op: { add?: { target: string; text: string }; edit?: { id: number; text: string }; remove?: number }): void; // Relire : le brouillon de revue

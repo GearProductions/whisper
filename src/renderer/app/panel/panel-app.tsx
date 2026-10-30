@@ -21,7 +21,9 @@
  *  chaque agent (createKept). Voir le code : le fichier de module suivi
  *  (`conv:vibeCode`), suivre et enregistrer reliés au pont ; un autre fichier
  *  suivi, ou aucun, efface le texte du précédent (vibe-coder cesse de suivre
- *  quand l'agent ou l'étape change).
+ *  quand l'agent ou l'étape change). Un dépôt sur la page rejoint la conversation,
+ *  sauf dans une zone qui le prend elle-même (`[data-own-drop]` : la zone des
+ *  artefacts, via vibeAct.drop, qui passe les File au pont, jamais un chemin).
  *  Ne connaît pas : l'icône, la bulle. Utilisé par : main.tsx. */
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import {
@@ -164,7 +166,9 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
       drag(false);
       const files = [...(e.dataTransfer?.files || [])];
       if (files.length || e.target !== el.input.current) e.preventDefault();
-      if (files.length) addFiles(files);
+      // La zone des artefacts prend son dépôt elle-même (act.drop) : ne pas le joindre aussi à la conversation.
+      const own = e.target instanceof Element && !!e.target.closest('[data-own-drop]');
+      if (files.length && !own) addFiles(files);
     });
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
@@ -277,9 +281,16 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     return !!res?.ok;
   }
 
+  // Artefacts : des fichiers déposés dans la zone, copiés dans le dossier ; refusé, le motif comme vibeSave.
+  async function vibeDrop(files: File[]) {
+    let res: SendResult | null = null;
+    try { res = await conv.vibeDrop(files); } catch { res = null; }
+    if (!res?.ok) setStatus((res && res.error) || vibeStrings(vibe?.lang ?? 'fr').sendFailed);
+  }
+
   const vibeAct: VibeActs = {
     run: vibeRun, prefill: vibePrefill, set: conv.vibeSet, mark: conv.vibeMark, draft: conv.vibeDraft, open: conv.vibeOpen,
-    follow: (id) => { setVibeCode(null); conv.vibeFollow(id); }, save: vibeSave,
+    follow: (id) => { setVibeCode(null); conv.vibeFollow(id); }, save: vibeSave, drop: vibeDrop,
     openLink: conv.openLink, refresh: conv.vibeRefresh, process: conv.vibeProcess, runOp: conv.vibeRunOp,
   };
 
