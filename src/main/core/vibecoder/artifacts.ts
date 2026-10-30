@@ -120,3 +120,14 @@ export function failedLine(failed: number, lang: VibeLang): string {
     ? `${failed} artefact${failed > 1 ? 's' : ''} resté${failed > 1 ? 's' : ''} sur le disque.`
     : `${failed} artifact${failed > 1 ? 's' : ''} left on disk.`;
 }
+
+// La clé d'un projet : le dossier git commun résolu (la valeur de git rev-parse
+// --git-common-dir), lu sur le disque sans lancer git ; hors git, folderKey(dir).
+export function projectKey(_dir: string, _read: (file: string) => string | null, _realpath: (p: string) => string): string {
+  throw new Error('not implemented');
+}
+
+// Le nom du dossier d'artefacts d'une clé : les 16 premiers hexa de son sha1.
+export function projectFolder(_key: string): string {
+  throw new Error('not implemented');
+}

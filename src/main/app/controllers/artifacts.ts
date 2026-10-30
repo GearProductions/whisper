@@ -140,3 +140,8 @@ export async function pickArtifacts(agent: AgentConfig): Promise<DirectResult> {
   if (pick.canceled || !pick.filePaths.length) return { ok: true, line: '', detail: '' };
   return addArtifacts(agent, pick.filePaths);
 }
+
+// Le dossier d'artefacts du projet de ce dossier, sans le créer.
+export function projectArtifactsPath(_dir: string): string {
+  throw new Error('not implemented');
+}

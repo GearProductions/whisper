@@ -65,3 +65,9 @@ export function skillVariants(name: string, skillMd: string): DefaultFile[] {
       `Follow exactly the instructions of \`\${CLAUDE_SKILL_DIR}/../${name}/SKILL.md\` with these arguments: $ARGUMENTS`, ''].join('\n'),
   }));
 }
+
+// Les fichiers du manifeste qui ne sont plus livrés et n'ont pas été retouchés : supprimés,
+// avec les variantes d'un SKILL.md. Rend les chemins supprimés.
+export function removeRetired(_dir: string, _defaults: DefaultFile[], _disk: Disk & { remove(path: string): void }): string[] {
+  throw new Error('not implemented');
+}
