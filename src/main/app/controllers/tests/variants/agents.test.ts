@@ -86,8 +86,8 @@ describe('robots par famille', () => {
     expect(state.agentSlots).toBe(3); // deux enfants, une place chacun ; « + »
     const tall = win.bounds.height;
     const { removeAgent } = await import('app/controllers');
-    removeAgent('a2');
-    removeAgent('a3');
+    await removeAgent('a2');
+    await removeAgent('a3');
     expect(state.childRow).toBe(false);
     expect(win.bounds.height).toBeLessThan(tall);
   });
@@ -95,7 +95,7 @@ describe('robots par famille', () => {
   it('removeAgent du parent : la sélection part, ses enfants restent avec leur parent, en robots ordinaires', async () => {
     const { last } = await icon();
     const { removeAgent } = await import('app/controllers');
-    removeAgent('a1');
+    await removeAgent('a1');
     const { loadConfig } = await import('app/settings');
     const cfg = loadConfig();
     expect(cfg.agentSelected).toBeNull();
@@ -107,12 +107,40 @@ describe('robots par famille', () => {
   it('removeAgent d’un enfant : le dossier d’un robot de PR quitte les favoris, celui d’un enfant sans PR reste', async () => {
     await icon();
     const { removeAgent } = await import('app/controllers');
-    removeAgent('a3');
-    removeAgent('a2');
-    removeAgent('inconnu');
+    await removeAgent('a3');
+    await removeAgent('a2');
+    await removeAgent('inconnu');
     const { loadConfig } = await import('app/settings');
     expect(loadConfig().agents.map((a) => a.id)).toEqual(['a1']);
     expect(loadConfig().agentFolders).toEqual([{ dir: repo, color: '#22c55e' }, { dir: wt, color: '#3b82f6' }]);
+  });
+});
+
+// Les artefacts d'un agent retiré (note 0.13.0) : l'invariant du transfert et du
+// retour est dans tests/invariants/artifact-moves.test.ts ; ici, les cas voisins.
+describe('les artefacts au retrait et à la naissance', () => {
+  const arts = (id: string) => path.join(fake.userData, 'vibecoder-out', id, 'artifacts', 'a.md');
+  const left = () => JSON.parse(fs.readFileSync(path.join(fake.userData, 'artifacts-left.json'), 'utf8'));
+
+  it('removeAgent d’un enfant dont le parent est parti : comme sans parent, ses artefacts restent', async () => {
+    await icon();
+    const { removeAgent } = await import('app/controllers');
+    await removeAgent('a1');
+    write(arts('a2'), 'ENFANT');
+    await removeAgent('a2');
+    expect(fs.readFileSync(arts('a2'), 'utf8')).toBe('ENFANT');
+    expect(Object.keys(left())).toContain('a2');
+  });
+
+  it('newAgent sur un dossier qui a déjà son agent : rien ne revient', async () => {
+    await icon();
+    write(arts('parti'), 'LAISSE');
+    fs.writeFileSync(path.join(fake.userData, 'artifacts-left.json'), JSON.stringify({ parti: fs.realpathSync.native(repo) }));
+    const { newAgent } = await import('app/controllers');
+    newAgent(repo); // a1 existe déjà
+    await new Promise((r) => setTimeout(r, 100));
+    expect(fs.readFileSync(arts('parti'), 'utf8')).toBe('LAISSE');
+    expect(left()).toHaveProperty('parti');
   });
 });
 
