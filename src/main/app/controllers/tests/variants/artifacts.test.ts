@@ -118,7 +118,8 @@ describe('resolveArtifact', () => {
 
 describe('copyArtifact', () => {
   // Au-delà de 130 000 chemins, un push(...tableau) lève RangeError : le rapport est partagé, sans fusion.
-  it('un dossier de plus de 130 000 fichiers : tous copiés, le rapport sans erreur', async () => {
+  // Trop long sous Windows (NTFS, antivirus) : le rapport partagé ne dépend pas du système.
+  it.skipIf(process.platform === 'win32')('un dossier de plus de 130 000 fichiers : tous copiés, le rapport sans erreur', async () => {
     const lot = path.join(fake.userData, 'depot', 'lot');
     const count = 130_001;
     for (let d = 0; d <= count / 1000; d++) {
@@ -135,14 +136,15 @@ describe('copyArtifact', () => {
   it('un agent retiré pendant un long ajout : tout l’ajout part chez son parent, rien ne reste chez lui', async () => {
     const lot = path.join(fake.userData, 'depot', 'lot');
     fs.mkdirSync(lot, { recursive: true });
-    for (let i = 0; i < 3000; i++) fs.writeFileSync(path.join(lot, `f${i}`), '');
+    const count = process.platform === 'win32' ? 300 : 3000;   // NTFS, antivirus : bien plus lent
+    for (let i = 0; i < count; i++) fs.writeFileSync(path.join(lot, `f${i}`), '');
     const parent = { ...agent, id: 'p1', dir: path.join(fake.userData, 'parent') };
 
     const adding = addArtifacts(agent, [lot]);
     await retireArtifacts(agent, parent);
     await adding;
 
-    expect(fs.readdirSync(path.join(fake.userData, 'vibecoder-out', 'p1', 'artifacts', 'lot'))).toHaveLength(3000);
+    expect(fs.readdirSync(path.join(fake.userData, 'vibecoder-out', 'p1', 'artifacts', 'lot'))).toHaveLength(count);
     expect(fs.readdirSync(arts)).toEqual([]);
   });
 
