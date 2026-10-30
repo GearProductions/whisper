@@ -30,7 +30,7 @@
  *  d'étape qui échoue ne fait tomber ni l'écran ni le brouillon (I-29). Il
  *  tient les réponses en cours aux questions ouvertes, le verdict de la revue
  *  (Relire), le modèle choisi par action (envoyé s'il n'est pas le
- *  conseillé), le champ de chaque étape (fieldOf : son texte part en
+ *  conseillé), son effort (envoyé s'il est des siens), le champ de chaque étape (fieldOf : son texte part en
  *  args.text de l'action ; exigé et vide, le champ prend le clavier ; partie,
  *  il se vide), la vue des branches ouverte ou non, le panneau Artefacts ouvert ou non, les modifications gardées des
  *  fichiers suivis (drafts, par chemin : useFileDraft ; changer d'étape ne
@@ -47,7 +47,7 @@
  *  Utilisé par : panel-app. */
 import { Component, useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { isBusy, titleOf } from 'core/conversation';
-import { convWidth, fieldOf, isLive, modelArg, t as strings, type Answers, type Kept, type ModelPicks, type Strings } from 'core/vibecoder';
+import { chosenEffort, convWidth, fieldOf, isLive, modelArg, t as strings, type Answers, type EffortPicks, type Kept, type ModelPicks, type Strings } from 'core/vibecoder';
 import type { Thread, VibeCode, VibeLang, VibeStepId, VibeView } from 'technicals/bridge';
 import type { Drafts } from './file-draft';
 import { ArtifactsView } from './artifacts-view';
@@ -108,6 +108,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   const [answers, setAnswers] = useKept<Answers>(kept, view.agentId, 'answers', {});
   const onAnswer: StepProps['onAnswer'] = (q, a) => setAnswers((all) => ({ ...all, [q]: a }));
   const [picks, setPicks] = useKept<ModelPicks>(kept, view.agentId, 'picks', {});
+  const [efforts, setEfforts] = useKept<EffortPicks>(kept, view.agentId, 'efforts', {});
   const root = useRef<HTMLDivElement>(null);
   // L'onglet Actions ou Processus, choisi par-dessus Conversation | Tâches (que panel-app tient).
   const [pane, setPane] = useState<'runs' | 'procs' | null>(null);
@@ -132,6 +133,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
     run: async (id, args = {}) => {
       const a = view.actions.find((x) => x.id === id);
       const model = a && modelArg(a, picks);
+      const effort = a && chosenEffort(a, efforts);
       const key = a && args.text === undefined ? fieldOf(a) : null;
       const text = key ? (texts[key] ?? '').trim() : undefined;
       if (key && a!.needs === 'text' && !text) {
@@ -139,7 +141,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
         return false;
       }
       if (a && (a.kind === 'prefill' || (a.needs === 'text' && !key && args.text === undefined))) show();
-      const sent = await given.run(id, { ...args, ...(key ? { text } : {}), ...(model ? { model } : {}) });
+      const sent = await given.run(id, { ...args, ...(key ? { text } : {}), ...(model ? { model } : {}), ...(effort ? { effort } : {}) });
       if (sent && key) setText(key)('');
       return sent;
     },
@@ -174,7 +176,8 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
 
   const View = step && STEP_VIEWS[step.id];
   return (
-    <Picks.Provider value={{ picks, lang: view.lang, pick: (id, m) => setPicks((p) => ({ ...p, [id]: m })) }}>
+    <Picks.Provider value={{ picks, lang: view.lang, pick: (id, m) => setPicks((p) => ({ ...p, [id]: m })),
+      efforts, pickEffort: (id, e) => setEfforts((p) => ({ ...p, [id]: e })) }}>
     <StopRun.Provider value={{ stop: (id) => act.runOp(id, 'stop'), state: (id) => view.runs?.find((r) => r.id === id)?.state ?? null }}>
       <div className="vc" ref={root} data-conv={side.open ? undefined : 'hidden'} style={{ '--vc-conv': `${side.width}px` } as CSSProperties}>
         <Top view={view} thread={thread} busy={busy} t={t} act={act} side={side} onSide={onSide} onHide={onHide}
