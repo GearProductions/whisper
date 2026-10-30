@@ -1,10 +1,10 @@
 /* Les invariants (invariants-view) : résumé, alignement, un bloc par fichier
    (en-tête, progression), une carte par cas (pseudo-code coloré, cas
-   limites, garantie, attention, verdict). Sobre et dense (0.13.0) : marges
+   limites, garantie, attention ; verdict et outils dans son en-tête). Sobre et dense (0.13.0) : marges
    un cran en dessous (--vc-pad), coins --vc-radius ; les outils de l'en-tête
    d'un fichier alignés sur 22 px ; les icônes (Icon) de l'état et de « Tout
    valider » à la taille du texte. Un cas validé, discret : ni cadre, ni fond,
-   ni pastille ; la fine bordure verte à gauche et l'icône. Sous .vc.
+   la fine bordure verte à gauche et le badge allumé. Sous .vc.
    Ne connaît pas : les composants (seulement leurs classes).
    Utilisé par : invariants-view (importé). */
 
@@ -69,8 +69,8 @@
 /* ---- Un cas -------------------------------------------------------------------- */
 .vc-case {
   position: relative;
-  margin: 0 0 9px;
-  padding: 9px 10px 8px var(--vc-pad);
+  margin: 0 0 16px;
+  padding: 9px 10px 9px var(--vc-pad);
   border: 1px solid var(--vc-line);
   border-radius: var(--vc-radius);
   background: var(--vc-card);
@@ -81,7 +81,9 @@
 .vc-case[data-mark="ok"] { border-color: transparent; background: transparent; box-shadow: inset 3px 0 0 var(--vc-ok); }
 .vc-case[data-mark="ko"] { border-color: color-mix(in srgb, #d9383a 40%, var(--vc-line)); box-shadow: inset 3px 0 0 #d9383a; }
 .vc-case[data-mark="changed"] { box-shadow: inset 3px 0 0 var(--vc-warn); }
-.vc-case-head { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+.vc-case > :last-child { margin-bottom: 0; }
+/* L'en-tête : le titre, puis tout ce qu'on fait du cas, aligné ; trop étroit, ce reste passe à la ligne. */
+.vc-case-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 8px; margin-bottom: 8px; }
 .vc-case-n {
   flex: none;
   min-width: 20px;
@@ -96,13 +98,10 @@
   text-align: center;
 }
 .vc-case[data-mark="ko"] .vc-case-n { background: #d9383a; color: #fff; }
-.vc-case-title { flex: 1; min-width: 0; margin: 0; color: var(--vc-text); font-size: 14px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+.vc-case-title { flex: 1 1 240px; min-width: 0; margin: 0; color: var(--vc-text); font-size: 14px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
 .vc-case-view { flex: none; margin-top: -1px; }
 .vc-case-view button { padding: 0 9px; font-size: 11.5px; line-height: 20px; }
-.vc-case-state { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: var(--vc-radius); font: 600 11.5px/1.5 system-ui, sans-serif; white-space: nowrap; }
-.vc-case-state[data-state="ok"] { padding: 1px 0; color: #6fdd85; }  /* sans pastille : l'icône seule */
-.vc-case-state[data-state="ko"] { background: color-mix(in srgb, #d9383a 18%, transparent); color: #f08a8b; }
-.vc-case-state[data-state="changed"] { background: color-mix(in srgb, var(--vc-warn) 15%, transparent); color: var(--vc-warn); font-weight: 500; }
+.vc-case-state { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: var(--vc-radius); background: color-mix(in srgb, var(--vc-warn) 15%, transparent); color: var(--vc-warn); font: 500 11.5px/1.5 system-ui, sans-serif; white-space: nowrap; }
 .vc-case-none { margin: 0 0 8px; color: var(--vc-muted); font-size: 12.5px; }
 
 /* Le pseudo-code : lignes, assertions repérées, couleurs sobres. */
@@ -158,6 +157,5 @@
 .vc-attention p { margin: 0; }
 .vc-attention b { margin-right: 6px; color: var(--vc-warn); font-weight: 600; }
 
-/* Le pied : verdict, 💬, Ouvrir (IconButton, vc-tool). */
-.vc-case-foot { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
-.vc-case-tools { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+/* 💬, Ouvrir (IconButton, vc-tool), au bout de l'en-tête. */
+.vc-case-tools { flex: none; display: flex; align-items: center; gap: 2px; }
