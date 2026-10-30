@@ -36,14 +36,17 @@ async function refuseIfContains(dir: string, root: string) {
   if (r === d || r.startsWith(d + path.sep)) throw new Error(`${dir} contient ${root}`);
 }
 
-// Copie sans écraser : le nom pris (EEXIST, même un lien) fait passer au numéro suivant.
+// Copie sans écraser : le nom pris (même un lien) fait passer au numéro suivant. EEXIST, ou, sur un dossier
+// du même nom sous Windows, une autre erreur : c'est le disque qui dit si le nom est pris.
 async function copyFree(file: string, dir: string, name: string) {
   for (let n = 1; ; n++) {
     const target = path.join(dir, numberedName(name, n));
     try {
       await fs.copyFile(file, target, constants.COPYFILE_EXCL | constants.COPYFILE_FICLONE);
       return target;
-    } catch (e) { if (code(e) !== 'EEXIST') throw e; }
+    } catch (e) {
+      if (code(e) !== 'EEXIST' && !await fs.lstat(target).catch(() => null)) throw e;
+    }
   }
 }
 
