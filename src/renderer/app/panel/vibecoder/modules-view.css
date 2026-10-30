@@ -1,6 +1,6 @@
 /* L'étape Modules (modules-view) : le commit proposé, puis une ligne par
-   module et sa barre d'outils (sous le code déplié, ou sous le contrat si le
-   module n'est pas touché) ; le point d'état à plat, sans halo. Sous .vc,
+   module, un accordéon (déplié : ses outils sur sa ligne, son contrat, son
+   code) ; le point d'état à plat, sans halo. Sous .vc,
    couleurs et .vc-tool de vibecoder.css. */
 
 /* Le commit proposé : liseré d'accent, le message tel qu'il sera commité (sujet en gras). */
@@ -38,19 +38,22 @@
 .vc-mod + .vc-mod { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04); }
 .vc-mod:hover, .vc-mod:focus-within { --row: #2a303f; }
 .vc-mod-dot { display: inline-block; width: 10px; height: 10px; box-sizing: border-box; border: 2px solid #4a5163; border-radius: 50%; }
-.vc-mod > .vc-mod-dot { margin-top: 4px; }
+.vc-mod > .vc-mod-dot { margin-top: 6px; }
 [data-state="done"] > .vc-mod-dot { border-color: var(--vc-ok); background: var(--vc-ok); }
 [data-state="wip"] > .vc-mod-dot { border-color: var(--accent); background: var(--accent); }
 .vc-mod-main { min-width: 0; }
-.vc-mod-line { display: flex; align-items: baseline; gap: 8px; min-width: 0; white-space: nowrap; }
+.vc-mod-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; min-height: 22px; white-space: nowrap; list-style: none; cursor: pointer; }
+.vc-mod-line::-webkit-details-marker { display: none; }
+.vc-mod-line::before { content: "▸"; flex: none; color: var(--vc-muted); font-size: 11px; transition: transform 0.12s; }
+.vc-mod-main[open] > .vc-mod-line::before { transform: rotate(90deg); }
 .vc-mod-name { flex: none; color: var(--vc-text); font-size: 13px; font-weight: 600; }
 .vc-mod[data-state="todo"] .vc-mod-name { color: var(--vc-soft); }
 .vc-mod-dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--vc-faint); font-size: 12px; }
 .vc-mod-new { flex: none; color: var(--vc-faint); font-size: 11px; font-style: italic; }
-.vc-mod-contract { margin-top: 2px; overflow: hidden; color: var(--vc-muted); font-size: 12px; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
+.vc-mod-main > .vc-fcontract { margin: 4px 0 8px; }
 
-/* La barre d'outils du module : une rangée sous le code (ou le contrat), boutons de la hauteur de .vc-mini (22 px). */
-.vc-mod-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+/* La barre d'outils du module déplié, au bout de sa ligne, boutons de la hauteur de .vc-mini (22 px). */
+.vc-mod-acts { display: flex; flex: none; align-items: center; gap: 6px; margin-left: auto; }
 .vc-mod-acts button {
   height: 22px;
   padding: 0 8px;
@@ -71,5 +74,5 @@
 .vc-mod-legend > span { display: inline-flex; align-items: center; gap: 6px; }
 .vc-mod-legend .vc-mod-dot { width: 8px; height: 8px; border-width: 1.5px; }
 
-/* Voir le code : un fichier supprimé par la branche, marqué « supprimé ». */
+/* Le code : un fichier supprimé par la branche, marqué « supprimé ». */
 .vc-mod-tree .vc-mod-gone { margin-left: 6px; color: var(--vc-faint); font-style: italic; }

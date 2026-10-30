@@ -2,20 +2,23 @@
  *  (commit.md : le message tel qu'il sera commité ; ✓ Commiter, direct ou
  *  via l'agent, F-114 ; IconButton comment le cite, Relancer)
  *  et la relecture du dernier diff (review.md, citer par bloc, Relancer). Puis une ligne par
- *  module de la Forme : point plein s'il est touché (vert : commité ; accent :
- *  modifié, pas encore commité), anneau sinon ; nom en gras, dossier atténué,
- *  contrat ; les commits qui le touchent en puces (un clic : son diff dans
- *  l'éditeur). Sa barre d'outils : Générer, Relire le diff (du dernier commit
- *  qui le touche, sinon les changements non commités), Ouvrir, Commiter
- *  (m.uncommitted : commit-module) ; sous le code, dans l'accordéon Voir le
- *  code (ModuleCode) d'un module touché, sous le contrat sinon. Un seul
- *  accordéon déplié à la fois, le chemin du module déplié tenu ici. Dans les
+ *  module de la Forme, un accordéon : point plein s'il est touché (vert :
+ *  commité ; accent : modifié, pas encore commité), anneau sinon ; nom en
+ *  gras, dossier atténué ; les commits qui le touchent en puces (un clic : son
+ *  diff dans l'éditeur). Déplié : sur sa ligne, sa barre d'outils (Générer,
+ *  Relire le diff, du dernier commit qui le touche, sinon les changements non
+ *  commités, Ouvrir, Commiter, m.uncommitted : commit-module) ; dessous, son
+ *  contrat par rubrique (Contract) et, s'il est touché, son code (ModuleCode).
+ *  Un seul déplié à la fois, le chemin du module déplié tenu ici ; ici aussi
+ *  plus aucun fichier suivi quand on replie, ou que le module déplié n'a pas
+ *  (ou plus) de fichier (un module qui en a envoie lui-même le sien). Dans les
  *  outils de la carte, Commiter les modules (commit-modules), s'il y a un
  *  module pas commité.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { fileParts, moduleCommits } from 'core/vibecoder';
 import type { VibeLang, VibeModule } from 'technicals/bridge';
+import { Contract } from './forme-view';
 import { IconButton } from './icons';
 import { MarkdownView } from './markdown-view';
 import { ModuleCode } from './module-code';
@@ -67,7 +70,7 @@ const stateOf = (m: VibeModule): State => (m.commits.length ? 'done' : m.touched
 
 export function ModulesView(p: StepProps) {
   const { view, t, act, busy } = p;
-  const [opened, setOpened] = useState<string | null>(null); // le module dont le code est déplié
+  const [opened, setOpened] = useState<string | null>(null); // le module déplié
   const s = S[view.lang];
   const action = (id: string) => view.actions.find((a) => a.id === id);
   const quote = action('comment') ? (text: string) => act.prefill('comment', text) : undefined;
@@ -77,6 +80,9 @@ export function ModulesView(p: StepProps) {
   const generate = action('module');
   const reviewDiff = action('review-diff');
   const commitModule = action('commit-module');
+  // Un seul effet pour replier-sans-fichier : le module déplié n'a pas de fichier, ou n'existe plus.
+  const openedFiles = view.modules.find((m) => m.path === opened)?.files?.length ?? 0;
+  useEffect(() => { if (opened && !openedFiles) act.follow(null); }, [opened, openedFiles]);
   return (
     <>
       <StepHead p={p} own={[...(commit ? ['commit', 'commit-prepare'] : []), ...(review ? ['review-diff'] : []), 'commit-modules']} />
@@ -116,11 +122,12 @@ export function ModulesView(p: StepProps) {
           <ul className="vc-mod-list">
             {view.modules.map((m, i) => {
               const state = stateOf(m);
+              const open = opened === m.path;
               const { dir, name } = fileParts(m.path);
               const commits = moduleCommits(m, view.commits);
               const last = commits[commits.length - 1];
               const tools = (
-                <div className="vc-mod-acts">
+                <div className="vc-mod-acts" onClick={(e) => e.preventDefault()}>
                   {generate ? (
                     <button type="button" disabled={!!generate.disabled || busy}
                       title={`${generate.hint} (${generate.who})${generate.disabled ? `\n— ${generate.disabled}` : ''}`}
@@ -144,8 +151,14 @@ export function ModulesView(p: StepProps) {
               return (
                 <li key={`${i}:${m.path}`} className="vc-mod" data-state={state}>
                   <span className="vc-mod-dot" title={s.stateTitle[state]} />
-                  <div className="vc-mod-main">
-                    <div className="vc-mod-line" title={m.file ? m.file.path : m.path}>
+                  {/* onToggle part aussi quand open change par les props : seul l'écart est un geste. */}
+                  <details className="vc-mod-main" open={open} onToggle={(e) => {
+                    const now = e.currentTarget.open;
+                    if (now === open) return;
+                    setOpened(now ? m.path : null);
+                    if (!now) act.follow(null);
+                  }}>
+                    <summary className="vc-mod-line" title={m.file ? m.file.path : m.path}>
                       <span className="vc-mod-name vc-mono">{name}</span>
                       <span className="vc-mod-dir vc-mono">{dir}</span>
                       {!m.file && state === 'todo' ? <span className="vc-mod-new">{s.toCreate}</span> : null}
@@ -155,14 +168,14 @@ export function ModulesView(p: StepProps) {
                           {c.hash.slice(0, 7)}
                         </button>
                       ))}
-                    </div>
-                    {m.contract ? <div className="vc-mod-contract" title={m.contract}>{m.contract}</div> : null}
+                      {open ? tools : null}
+                    </summary>
+                    <Contract text={m.contract} t={t} onOpenLink={act.openLink} />
                     {m.touched ? (
-                      <ModuleCode m={m} code={p.code} t={t} lang={view.lang} open={opened === m.path} tools={tools}
-                        onOpen={(o) => setOpened(o ? m.path : null)} onFollow={act.follow} onSave={act.save}
+                      <ModuleCode m={m} code={p.code} t={t} lang={view.lang} open={open} onFollow={act.follow} onSave={act.save}
                         onQuote={(block, id) => act.prefill(id, block, true)} drafts={p.drafts} />
-                    ) : tools}
-                  </div>
+                    ) : null}
+                  </details>
                 </li>
               );
             })}

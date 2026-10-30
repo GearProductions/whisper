@@ -24,7 +24,7 @@ function mount() {
   const root = createRoot(page);
   const followed: (string | null)[] = [];
   const Probe = ({ code }: { code: VibeCode | null }) => createElement(ModuleCode, {
-    m, code, t: t('fr'), lang: 'fr', open: true, onOpen: () => {}, onFollow: (id) => { followed.push(id); },
+    m, code, t: t('fr'), lang: 'fr', open: true, onFollow: (id) => { followed.push(id); },
     onSave: async () => true, drafts: useState<Drafts>({}),
   });
   const render = (code: VibeCode | null) => act(() => { root.render(createElement(Probe, { code })); });
