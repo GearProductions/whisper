@@ -374,7 +374,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Add",
-    "hint": "Picks files through the app's dialog and copies them into this agent's artifacts; a file of the same name is kept, the new one is numbered.",
+    "hint": "Picks files through the app's dialog and copies them into the project's artifacts; a file of the same name is kept, the new one is numbered.",
     "text": "Add: only by the app (direct), never by the agent."
   },
   {
