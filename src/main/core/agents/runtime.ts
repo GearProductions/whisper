@@ -23,6 +23,8 @@
  *  nouveau processus repart de zéro). Jamais sur une autre entrée.
  *  Ses tâches de fond sont tenues à jour d'après chaque message du flux (tasks) ;
  *  elles meurent avec lui.
+ *  Les demandes d'autorisation en échec sont comptées d'après les tool_result en
+ *  erreur dont le texte commence par « Tool permission request failed ».
  *  Ne connaît pas : Electron, les fenêtres ; SDK, lancement et journal injectés.
  *  Utilisé par : app/controllers (agents, conversation), app/lifecycle. */
 import { randomUUID } from 'node:crypto';
@@ -31,7 +33,7 @@ import { AUDIO_RULES, EDIT_TOOLS, MODES } from './constants';
 import { launchKey, queryOptions, userMessage } from './options';
 import { describeRules, sessionRules, type SessionRule } from './permissions';
 import { shortTarget, splitReply } from './reply';
-import { applyTaskEvent, EMPTY_LOG, runningTasks, type TaskLog } from './tasks';
+import { applyTaskEvent, EMPTY_LOG, resultText, runningTasks, type TaskLog } from './tasks';
 import type { AgentConfig, JournalFn, Launch, OutgoingMessage, Sdk, SdkMessage, SdkQuery, TurnHooks } from './types';
 
 export type AgentStatus = 'idle' | 'working' | 'asking' | 'error';
@@ -65,6 +67,9 @@ export type RuntimeDeps = {
 };
 
 const INTERRUPT_GRACE_MS = 5000;
+// Le début du texte d'un tool_result en erreur quand Claude Code n'a pas pu demander l'autorisation.
+const PERMISSION_FAILED = 'Tool permission request failed';
+
 const PROBE_MS = 30000;
 
 export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) {
@@ -185,10 +190,13 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
         if (m.type === 'assistant' || m.type === 'user') r.hooks!.onProgress?.();
         // Un outil refusé faute d'avoir pu demander l'autorisation (Claude Code ne
         // reçoit plus les réponses) : à signaler, c'est le symptôme d'un blocage.
+        // Seul un résultat en erreur dont le texte COMMENCE par la phrase compte :
+        // un agent qui la lit dans le code ou le journal, ou une sortie en erreur
+        // qui la cite plus loin, ne signalent rien.
         if (m.type === 'user' && r.turn && Array.isArray(m.message && m.message.content)) {
           for (const b of m.message.content) {
-            const text = b && b.type === 'tool_result' ? JSON.stringify(b.content || '') : '';
-            if (text.includes('Tool permission request failed') && !r.turn.interrupted && !proc.abort.signal.aborted) {
+            const text = b && b.type === 'tool_result' && b.is_error === true ? resultText(b.content) : '';
+            if (text.startsWith(PERMISSION_FAILED) && !r.turn.interrupted && !proc.abort.signal.aborted) {
               r.turn.permissionFailures++;
               journal({ id, name: r.name }, 'ÉCHEC d\'une demande d\'autorisation', text.slice(0, 200));
             }

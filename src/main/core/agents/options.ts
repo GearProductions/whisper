@@ -3,14 +3,18 @@
  *  skills), avec la consigne de l'appli dans le prompt système de NOS sessions
  *  seulement (I-24) ; et ce que l'appli y ajoute (plugins locaux, dossiers de
  *  travail : le plugin de VibeCoder, les sorties de l'agent ; le suivi des
- *  fichiers écrits, pour une action qui court à part : checkpoint).
- *  Pur. Utilisé par : core/agents. */
+ *  fichiers écrits, pour une action qui court à part : checkpoint ; l'environnement
+ *  du processus : env, donné par l'appelant, absent : le processus hérite du
+ *  sien). launchKey retient la présence d'un env, jamais ses valeurs (secrets).
+ *  Pur. Ne connaît pas : process.env (l'appelant le fournit).
+ *  Utilisé par : core/agents. */
 import { MODES } from './constants';
 import type { AgentConfig, Launch, OutgoingMessage, SdkMessage, TurnHooks } from './types';
 
 // Ce que l'appli ajoute à Claude Code : des plugins locaux, des dossiers de
-// travail, le suivi des fichiers écrits (checkpoint : rewindFiles possible).
-type Extras = Pick<TurnHooks, 'plugins' | 'dirs' | 'checkpoint'>;
+// travail, le suivi des fichiers écrits (checkpoint : rewindFiles possible),
+// l'environnement du processus (env).
+type Extras = Pick<TurnHooks, 'plugins' | 'dirs' | 'checkpoint' | 'env'>;
 
 // Un message pour le SDK : les images ([{ mediaType, data (base64) }]) avant le
 // texte. Sans image, le texte seul : c'est sous cette forme que Claude Code
@@ -28,11 +32,12 @@ export function userMessage({ text, images = [] }: OutgoingMessage, uuid?: strin
 // Ce qu'un processus vivant ne peut pas changer : il est relancé si ça change
 // entre deux tours. Mode et modèle, eux, se changent à chaud (setPermissionMode,
 // setModel) ; la session, par close() quand on en reprend une autre.
-export const launchKey = (agent: AgentConfig, command: unknown, instructions: string, { plugins = [], dirs = [], checkpoint = false }: Extras = {}) => (
-  JSON.stringify([agent.dir, agent.effort || '', instructions, String(command || ''), plugins, dirs, checkpoint]));
+export const launchKey = (agent: AgentConfig, command: unknown, instructions: string, { plugins = [], dirs = [], checkpoint = false, env }: Extras = {}) => (
+  JSON.stringify([agent.dir, agent.effort || '', instructions, String(command || ''), plugins, dirs, checkpoint, !!env]));
 
-export function queryOptions(agent: AgentConfig, launch: Launch, instructions: string, { plugins = [], dirs = [], checkpoint = false }: Extras = {}) {
+export function queryOptions(agent: AgentConfig, launch: Launch, instructions: string, { plugins = [], dirs = [], checkpoint = false, env }: Extras = {}) {
   return {
+    ...(env ? { env } : {}),
     ...(checkpoint ? { enableFileCheckpointing: true } : {}),
     ...(plugins.length ? { plugins: plugins.map((p) => ({ type: 'local' as const, path: p })) } : {}),
     ...(dirs.length ? { additionalDirectories: dirs } : {}),

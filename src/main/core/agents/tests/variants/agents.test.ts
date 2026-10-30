@@ -140,6 +140,30 @@ describe('tours', () => {
     expect(answers.map((a) => a.behavior)).toEqual(['allow', 'deny']);
   });
 
+  it('échec d’autorisation : compté seulement sur un tool_result en erreur qui commence par la phrase', async () => {
+    const phrase = 'Tool permission request failed: AbortError: Stream closed';
+    const result = (content: unknown, is_error?: boolean) => ({ type: 'user', message: { content: [{ type: 'tool_result', content, ...(is_error === undefined ? {} : { is_error }) }] } });
+    const { rt, hooks } = runtime(async function* t() {
+      yield result(phrase, true); // vrai échec, en texte
+      yield result([{ type: 'text', text: phrase }], true); // vrai échec, en blocs text
+      yield result(phrase); // phrase lue sans is_error
+      yield result(phrase, false);
+      yield result(`échec de grep : ${phrase}`, true); // citée plus loin dans une sortie en erreur
+      yield ok;
+    });
+    await rt.send(agent, { text: 'x' }, hooks);
+    expect(rt.lastReply('a1')!.text).toContain('2 demande(s) d\'autorisation');
+  });
+
+  it('phrase lue sans échec : aucune alerte', async () => {
+    const { rt, hooks } = runtime(async function* t() {
+      yield { type: 'user', message: { content: [{ type: 'tool_result', content: 'Tool permission request failed' }] } };
+      yield ok;
+    });
+    await rt.send(agent, { text: 'x' }, hooks);
+    expect(rt.lastReply('a1')!.text).toBe('ok');
+  });
+
   it('tour commencé par l’agent lui-même : réponse non lue, sans message envoyé', async () => {
     let notify = () => {};
     const notified = new Promise<void>((go) => { notify = go; });
@@ -220,6 +244,22 @@ describe('tours', () => {
     const o = queryOptions(agent, { executable: 'claude' }, '', { plugins: [], dirs: [] });
     expect(o).not.toHaveProperty('plugins');
     expect(o).not.toHaveProperty('additionalDirectories');
+  });
+
+  it('env donné : passé tel quel aux options ; absent : les options n’en parlent pas', () => {
+    const env = { PATH: '/bin', HOME: '/h' };
+    expect(queryOptions(agent, { executable: 'claude' }, '', { env })).toMatchObject({ env });
+    expect(queryOptions(agent, { executable: 'claude' }, '')).not.toHaveProperty('env');
+  });
+
+  it('env : relancé s’il apparaît ou disparaît, pas quand seules ses valeurs changent', async () => {
+    const { rt, hooks, queries } = runtime(async function* t() { yield ok; });
+    await rt.send(agent, { text: 'un' }, { ...hooks, env: { A: '1' } });
+    await rt.send(agent, { text: 'deux' }, { ...hooks, env: { A: '2' } });
+    expect(queries).toHaveLength(1);
+    await rt.send(agent, { text: 'trois' }, hooks);
+    expect(queries).toHaveLength(2);
+    expect(queries[1]).not.toHaveProperty('env');
   });
 
   it('la sonde sans processus : lancée avec le plugin et le dossier de sorties', async () => {
