@@ -24,6 +24,8 @@
  *  quand l'agent ou l'étape change). Un dépôt sur la page rejoint la conversation,
  *  sauf dans une zone qui le prend elle-même (`[data-own-drop]` : la zone des
  *  artefacts, via vibeAct.drop, qui passe les File au pont, jamais un chemin).
+ *  Le « @ » du champ : le Composer reçoit les artefacts du seul agent affiché
+ *  (vibeShown : même clé que le relevé) ; sans relevé, pas de liste.
  *  Ne connaît pas : l'icône, la bulle. Utilisé par : main.tsx. */
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import {
@@ -329,6 +331,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     <Composer draft={draft} live={live} name={data?.name || ''} busy={!!data && isBusy(data.status)} sending={sending}
       setText={(text) => setDraft((d) => ({ ...d, text }))}
       removePiece={(p) => { revoke([p]); setDraft((d) => ({ ...d, pieces: d.pieces.filter((x) => x !== p) })); }}
+      artifacts={vibeShown?.artifacts} artifactsDir={vibeShown?.artifactsDir}
       status={status} setStatus={setStatus} dir={data?.dir || ''} commands={commands} probe={conv.probe}
       onSend={send} onAttach={() => conv.attach()} onFiles={addFiles} onLayout={reportHeight}
       ref={el.composer} input={el.input} />
