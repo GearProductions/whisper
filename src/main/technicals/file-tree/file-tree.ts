@@ -3,8 +3,13 @@
  *  nouveau prend le premier numéro libre), racine créée et refusée si elle est
  *  un lien ; une erreur va dans `failed` et n'arrête pas les suivants ; aucun
  *  appel synchrone, aucune limite de nombre ni de taille.
+ *  Déplacer seulement : un nom pris par un fichier ordinaire de mêmes taille et
+ *  octets (lus par morceaux) est le même fichier, déjà arrivé (coupure entre
+ *  la copie et l'effacement) : la source est effacée, rien n'est copié. Lien,
+ *  dossier, octets différents ou illisibles : le numéro libre. `copyInto` ne
+ *  compare rien (ajouter deux fois numérote).
  *  Ne connaît pas : les artefacts, les agents, Electron.
- *  Utilisé par : controllers (artifacts, artifact-moves). */
+ *  Utilisé par : controllers (artifacts, artifact-migration, worktrees). */
 import { constants } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -36,9 +41,29 @@ async function refuseIfContains(dir: string, root: string) {
   if (r === d || r.startsWith(d + path.sep)) throw new Error(`${dir} contient ${root}`);
 }
 
+// `b` est un fichier ordinaire (pas un lien) de mêmes taille et octets que `a`, lus par morceaux ;
+// toute erreur (illisible…) : pas le même.
+async function sameBytes(a: string, b: string) {
+  let fa, fb;
+  try {
+    const [sa, sb] = await Promise.all([fs.lstat(a), fs.lstat(b)]);
+    if (!sa.isFile() || !sb.isFile() || sa.size !== sb.size) return false;
+    [fa, fb] = [await fs.open(a), await fs.open(b)];
+    const [x, y] = [Buffer.alloc(65536), Buffer.alloc(65536)];
+    for (let left = sa.size; left > 0;) {
+      const [ra, rb] = await Promise.all([fa.read(x, 0, x.length, null), fb.read(y, 0, y.length, null)]);
+      if (!ra.bytesRead || ra.bytesRead !== rb.bytesRead || !x.subarray(0, ra.bytesRead).equals(y.subarray(0, rb.bytesRead))) return false;
+      left -= ra.bytesRead;
+    }
+    return true;
+  } catch { return false; }
+  finally { await Promise.all([fa?.close(), fb?.close()]).catch(() => {}); }
+}
+
 // Copie sans écraser : le nom pris (même un lien) fait passer au numéro suivant. EEXIST, ou, sur un dossier
 // du même nom sous Windows, une autre erreur : c'est le disque qui dit si le nom est pris.
-async function copyFree(file: string, dir: string, name: string) {
+// `dedupe` : un nom pris par les mêmes octets n'est pas recopié (null : le fichier est déjà là).
+async function copyFree(file: string, dir: string, name: string, dedupe = false) {
   for (let n = 1; ; n++) {
     const target = path.join(dir, numberedName(name, n));
     try {
@@ -46,6 +71,7 @@ async function copyFree(file: string, dir: string, name: string) {
       return target;
     } catch (e) {
       if (code(e) !== 'EEXIST' && !await fs.lstat(target).catch(() => null)) throw e;
+      if (dedupe && await sameBytes(file, target)) return null;
     }
   }
 }
@@ -72,7 +98,8 @@ async function walk(from: string, to: string, report: TreeReport, remove: boolea
         // non vide (échec, lien, caché resté) : rmdir refuse, la source reste
         if (remove) await fs.rmdir(p).catch(() => {});
       } else if (entry.isFile()) {
-        report.copied.push(await copyFree(p, to, entry.name));
+        const target = await copyFree(p, to, entry.name, remove);
+        if (target) report.copied.push(target);
         if (remove) await fs.unlink(p);
       } else report.links.push(p);
     } catch (e) { fail(report, p, e); }
@@ -88,7 +115,7 @@ export async function copyInto(src: string, root: string, report: TreeReport = n
     if (!st.isFile() && !st.isDirectory()) { report.links.push(from); return report; }
     if (st.isDirectory() && isHidden(name)) { report.hidden.push(from); return report; }
     await ensureRoot(root);
-    if (st.isFile()) report.copied.push(await copyFree(from, root, name));
+    if (st.isFile()) report.copied.push((await copyFree(from, root, name))!);
     else {
       await refuseIfContains(from, root);
       await walk(from, await openDir(root, name), report, false);
