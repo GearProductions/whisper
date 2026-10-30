@@ -1,12 +1,13 @@
 // @vitest-environment happy-dom
 // step-parts (step-parts.tsx) : les icônes à la place des caractères — ⏹ d'une course (IconButton stop, même
-// rappel StopRun), le dernier résultat d'une action directe (Icon ok / ko), Ouvrir la PR (IconButton external).
-import { act, createElement } from 'react';
+// rappel StopRun), la conversation qui travaille (direct.elsewhere : le bouton direct reste actif, « via » grisé), le « @ » du champ
+// d'une étape, le dernier résultat d'une action directe (Icon ok / ko), Ouvrir la PR (IconButton external).
+import { act, createElement, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
 import { t } from 'core/vibecoder';
-import type { VibeAction, VibePr } from 'technicals/bridge';
-import { PrCard, Run, StopRun } from '../../step-parts';
+import type { VibeAction, VibeArtifact, VibePr } from 'technicals/bridge';
+import { PrCard, Run, StepField, StopRun } from '../../step-parts';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -52,4 +53,40 @@ it('Ouvrir la PR : IconButton external, l\'adresse dans le libellé, le même ra
   expect(page.textContent).not.toMatch(GLYPHS);
   await act(() => { button.click(); });
   expect(open).toHaveBeenCalledWith(pr.url);
+});
+
+it('conversation qui travaille : direct.elsewhere dégrise le bouton direct, « via » reste grisé ; sinon les deux sont grisés', async () => {
+  for (const elsewhere of [true, false]) {
+    const direct = { running: false, last: null, ...(elsewhere ? { elsewhere: true as const } : {}) };
+    await render(createElement(Run, { a: action({ id: 'pr-worktree', step: null, direct }), busy: true, onRun: () => {} }));
+    expect(page.querySelector<HTMLButtonElement>('.vc-run')!.disabled).toBe(!elsewhere);
+    expect(page.querySelector<HTMLButtonElement>('.vc-via')!.disabled).toBe(true);
+  }
+});
+
+it('le champ d\'une étape : « @ » propose les artefacts, Entrée met le chemin ; « @types/node » part sans rien retenir', async () => {
+  const art = { id: 'a0', name: 'plan.md', kind: 'markdown', size: 1, time: 1, url: null, truncated: false } as VibeArtifact;
+  function Host() {
+    const [text, setText] = useState('');
+    return createElement(StepField, { name: 'note', text, setText, hint: 'h', artifacts: [art], artifactsDir: '/p/artifacts' });
+  }
+  await render(createElement(Host));
+  const ta = page.querySelector('textarea')!;
+  const type = async (value: string) => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(ta, value);
+    ta.setSelectionRange(value.length, value.length);
+    await act(() => { ta.dispatchEvent(new Event('input', { bubbles: true })); });
+  };
+  const enter = async () => {
+    const ev = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    await act(() => { ta.dispatchEvent(ev); });
+    return ev.defaultPrevented;
+  };
+  await type('voir @pl');
+  expect(page.querySelector('.mention .slash-item')?.textContent).toBe('plan.md');
+  expect(await enter()).toBe(true);
+  expect(ta.value).toBe('voir /p/artifacts/plan.md ');
+  await type('@types/node');
+  expect(page.querySelector('.mention')).toBeNull();
+  expect(await enter()).toBe(false);
 });
