@@ -74,7 +74,8 @@ describe('skillVariants : un skill qui fixe son modèle, sur un autre', () => {
   });
 });
 
-describe('removeRetired : un disque en mémoire', () => {
+// Un disque en mémoire aux chemins POSIX : sous Windows, path.join y mettrait des \. Le vrai disque : vibe-files-retired (invariants).
+describe.skipIf(process.platform === 'win32')('removeRetired : un disque en mémoire', () => {
   const memory = (files: Record<string, string>) => {
     const removed: string[] = [];
     const disk = {
