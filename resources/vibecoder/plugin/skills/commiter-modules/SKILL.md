@@ -6,7 +6,7 @@ disable-model-invocation: true
 context: fork
 model: sonnet
 effort: medium
-allowed-tools: "Read, Glob, Grep, Write, Bash(git status *), Bash(git diff *), Bash(git log *), Bash(git rev-parse *), Bash(git symbolic-ref *), Bash(git add *), Bash(git commit *), Bash(gh pr view *)"
+allowed-tools: "Read, Glob, Grep, Write, Bash(git status *), Bash(git diff *), Bash(git log *), Bash(git rev-parse *), Bash(git symbolic-ref *), Bash(git add *), Bash(git commit *), Bash(gh pr view *), Bash(git archive *), Bash(tar -x -C /tmp/vibecoder-commit-*), Bash(mktemp *), Bash(ln -s * /tmp/vibecoder-commit-*), Bash(rm -rf /tmp/vibecoder-commit-*), Bash(npm run typecheck*), Bash(yarn typecheck*), Bash(pnpm typecheck*), Bash(npx tsc *), Bash(cargo check*)"
 ---
 
 # Commit the modules — one commit per module (guide §5.2, §5.3)
@@ -31,6 +31,18 @@ For each module, in that order:
 
 A hook fails → stop there and report it; never `--no-verify`. Never push, amend, rebase or reset; never edit a file.
 
+## 3. After each commit — type what it contains, outside the working folder
+
+Right after each commit (fixup included), before the next module: check that the commit compiles on its own, **without touching the working folder** (the app may be running there, and the modules not yet committed are in it).
+
+1. `mktemp -d /tmp/vibecoder-commit-XXXXXX` → `<tmp>`.
+2. `git archive <new commit> | tar -x -C <tmp>`: the commit's tree, nothing else.
+3. `ln -s <working folder>/node_modules <tmp>/node_modules` (no `install`).
+4. From `<tmp>`, the project's typecheck, found as the `verifier` skill finds its commands: `AGENTS.md` first, else the manifests (`package.json`: `npm run typecheck`, `yarn …`, `pnpm …`, else `npx tsc --noEmit` if the project has a `tsconfig.json`; `Cargo.toml`: `cargo check`; `pyproject.toml`: the type checker it configures). Only that: no test, no build, no other tool — another tool goes through the permission request. No typecheck known (a project without one): skip this step, keep the commit, and say in the answer that it was not checked.
+5. `rm -rf <tmp>`, whatever the result.
+
+It fails (a typecheck that ran) → stop there, say so with the errors: the commits after it are not made, the files stay uncommitted. Never amend, rebase or `--no-verify` to catch it up; the developer decides.
+
 ## Answer
 
-In English: one line per commit (`<short hash> <subject>`), then what was left uncommitted, if anything.
+In English: one line per commit (`<short hash> <subject>`) with its typecheck result (or « not checked »), then what was left uncommitted, if anything.
