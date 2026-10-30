@@ -11,7 +11,8 @@
  *  texte du disque : « fichier trop gros ».
  *  Un fichier supprimé, choisi : son diff depuis la base, tout en retraits
  *  (ModuleDiffView(at.base ?? '', ''), en ligne), sans sélecteur, ni éditeur,
- *  ni Enregistrer (rien à éditer) ; rien tant que code.at n'est pas poussé.
+ *  ni Enregistrer (rien à éditer) ; le pied de l'éditeur (Abandonner, Enregistrer) est dans
+ *  la rangée d'outils du code (footInTools) ; rien tant que code.at n'est pas poussé.
  *  Sinon, au bout de la rangée, un sélecteur (DiffPicker, si le principal a
  *  poussé code.at) : Fichier · Diff depuis la base de la branche · Diff depuis le
  *  dernier commit ; un diff → ModuleDiffView(at.base | at.head ?? '', le
@@ -95,7 +96,7 @@ export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, 
       </div>
       {file?.deleted ? (at ? <ModuleDiffView before={at.base ?? ''} after="" path={file.path} mode="inline" lang={lang} /> : null)
         : before != null && file ? <ModuleDiffView before={before} after={d.text ?? ''} path={file.path} mode={mode} lang={lang} />
-        : file ? <DraftEditor d={d} file={file} locked={locked} t={t} onQuote={onQuote} /> : null}
+        : file ? <DraftEditor d={d} file={file} locked={locked} t={t} onQuote={onQuote} footInTools /> : null}
     </>
   );
 }

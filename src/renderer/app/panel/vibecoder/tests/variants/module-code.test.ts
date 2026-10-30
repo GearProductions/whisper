@@ -60,4 +60,5 @@ it('un fichier changé : pas marqué, le sélecteur et l\'éditeur avec Enregist
   expect(v.saveButton()).toBeDefined();
   const editor = EditorView.findFromDOM(v.page.querySelector('.cm-editor') as HTMLElement)!;
   expect(editor.state.readOnly).toBe(false);
+  expect(v.saveButton()!.closest('.vc-src-tools .vc-mod-code-foot')).not.toBeNull(); // le pied dans la rangée d'outils
 });
