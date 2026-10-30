@@ -2,13 +2,13 @@
  *  boutons de celle de la note, de la forme ou de « Rien à écrire » (étape
  *  Invariants) (Valider ; validée et Annuler ; modifiée depuis et Revalider ;
  *  Relire : Valider ou À revoir), chaque libellé derrière son icône (Icon ok /
- *  ko / warn), le verdict d'un cas d'invariant (IconButton ok et ko, libellés
- *  Valider et À revoir, celui donné pressé, un second clic l'annule), et la
- *  pastille Fable des étapes Note et Forme (Créer).
+ *  ko / warn), le verdict d'un cas d'invariant (deux badges écrits, Validé et
+ *  À revoir, gris ; celui donné pressé, allumé de sa couleur, un second clic
+ *  l'annule), et la pastille Fable des étapes Note et Forme (Créer).
  *  Ne connaît pas : le pont (rappels passés).
  *  Utilisé par : note-view, forme-view, invariants-view. */
 import type { VibeLang, VibeMarkState } from 'technicals/bridge';
-import { Icon, IconButton } from './icons';
+import { Icon } from './icons';
 import './validation.css';
 
 type Verdict = 'ok' | 'ko' | null;
@@ -79,14 +79,16 @@ export function MarkControl({ what, state, review, lang, onMark }: MarkProps) {
   );
 }
 
-// Le verdict d'un cas : ok et ko, celui donné pressé ; un second clic l'annule.
+// Le verdict d'un cas : deux badges gris, celui donné allumé (pressé) ; un second clic l'annule.
 export function CaseVerdict({ state, lang, onMark }: { state: VibeMarkState; lang: VibeLang; onMark(v: Verdict): void }) {
   const s = S[lang];
   return (
     <span className="vc-verdict" role="group">
       {(['ok', 'ko'] as const).map((v) => (
-        <IconButton key={v} icon={v} label={state === v ? `${s[`${v}Done`]} — ${s.verdictUndo}` : s[v]} className={`vc-verdict-${v}`} pressed={state === v}
-          onClick={() => onMark(state === v ? null : v)} />
+        <button key={v} type="button" className={`vc-verdict-${v}`} aria-pressed={state === v}
+          title={state === v ? `${s[`${v}Done`]} — ${s.verdictUndo}` : s[v]} onClick={() => onMark(state === v ? null : v)}>
+          {v === 'ok' ? s.okDone : s.ko}
+        </button>
       ))}
     </span>
   );
