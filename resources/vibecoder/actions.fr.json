@@ -368,6 +368,16 @@
     "text": "Copier dans le projet : seulement par l'appli (direct), jamais par l'agent."
   },
   {
+    "id": "add-artifact",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Ajouter",
+    "hint": "Choisit des fichiers par la fenêtre de l'appli et les copie dans les artefacts de cet agent ; un fichier du même nom est conservé, le nouveau est numéroté.",
+    "text": "Ajouter : seulement par l'appli (direct), jamais par l'agent."
+  },
+  {
     "id": "review-note",
     "flow": "review",
     "step": "note",
