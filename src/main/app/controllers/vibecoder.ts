@@ -36,13 +36,15 @@
  *  null : absent là, pas de base ; au-delà de 200 Ko, core/vibecoder). Les fichiers d'un module
  *  touché : ceux que la branche change (core/vibecoder, d'après repo.changed),
  *  pas leur texte (controllers/module-code lit le fichier ouvert). Les
- *  artefacts de l'agent (<sorties>/artifacts/, controllers/artifacts) : leur
- *  liste au relevé, sans leur texte ; ouverts ou copiés par leur id (a<i>)
+ *  artefacts du projet de l'agent (le dossier de son projet, controllers/artifacts ;
+ *  VibeView.artifactsDir le donne à la page pour le seul texte du `@`, aucun canal
+ *  ne le reçoit en retour) : leur liste au relevé, sans leur texte ; ouverts ou copiés par leur id (a<i>)
  *  dans le dernier relevé, jamais par un chemin. Une action qui génère un module : sa course le retient
  *  (runModule → startRun). Ce qu'il écrit pour l'ouvrir (le diff d'un
  *  commit) va sous <sorties>/files/, en lecture seule. Le message d'une
  *  action : son gabarit, rempli par buildMessage (I-38 ; un argument inutile est
- *  ignoré, rendu dans ignored pour l'orchestrateur, F-115), avec le préfixe des
+ *  ignoré, texte du champ compris si le gabarit n'a pas {{text}} — ignoredText —, rendu dans
+ *  ignored pour l'orchestrateur, F-115), avec le préfixe des
  *  commandes vu de l'agent qui le reçoit ({{prefix}} : processes.promptPrefix). git en lecture seule
  *  (technicals/git, I-39), sauf les actions directes (technicals/direct, la recette) ; gh aussi, sans agent (technicals/github, derrière
  *  le préfixe de l'agent : processes.agentPrefix) : Créer, la PR de la
@@ -108,7 +110,7 @@ import { agentList, agentVibe, vibeLang, type Config } from 'core/config';
 import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
 import {
-  addComment, artifactOf, blobSha, buildMessage, vibeMarks, DIRECT_ACTIONS, DIRECT_ONLY, draftText, editComment, findNote, headField, isInvariantTest, isOutputName, isTest, itemCommit, itemPath,
+  addComment, artifactOf, blobSha, buildMessage, vibeMarks, DIRECT_ACTIONS, DIRECT_ONLY, draftText, editComment, findNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath,
   blockedBy, BRANCH_CHANGES, ELSEWHERE, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeView, whoOf, type ActionDef, type MessageError,
 } from 'core/vibecoder';
 import { findEditor } from 'technicals/editor';
@@ -122,7 +124,7 @@ import { state } from 'app/state';
 import { conversationShown, openConversation } from 'app/windows';
 import { interruptAgent, isBusy, liveViewAgent, sendToAgent, setAgentSetting } from './agents';
 import { agentPrefix, processAction, processView, promptPrefix, readFile, readTimed } from './processes';
-import { addArtifacts, artifactFile, copyArtifact, listArtifacts, pickArtifacts } from './artifacts';
+import { addArtifacts, artifactFile, copyArtifact, listArtifacts, pickArtifacts, projectArtifactsDir } from './artifacts';
 import { createWorktree } from './recipe';
 import { lockingRuns, runOp, viewLocks, runPending, runRequests, runsOf, runsTab, skillMd, startRun, vibeOn, vibeStart, vibeStop } from './runs';
 import { openChild, prWorktreeReady, removeWorktreeChild, showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
@@ -485,7 +487,8 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     const next = vibeMarks(marks, journey);
     if (next !== marks) { store.marks[agent.id] = next; saveVibeStore(store); }
   }
-  return { ...journey, ...proc, artifacts: listArtifacts(agent.id, out, cfg.artifactTextMax), dev: devState() };
+  const artifactsDir = projectArtifactsDir(agent.dir);
+  return { ...journey, ...proc, artifacts: listArtifacts(agent.id, artifactsDir, cfg.artifactTextMax), artifactsDir, dev: devState() };
 }
 
 /* ---- Ce que demande l'écran ------------------------------------------------ */
@@ -558,7 +561,8 @@ export function startAction(
     requests.set(agent.id, { text: args.text as string });
     for (const id of ['new-here', 'new-worktree']) delete directs.get(agent.id)?.[id];
   }
-  return message.ignored ? { ...sent, ignored: message.ignored } : sent;
+  const ignored = ignoredText(def, args) ? [...(message.ignored ?? []), 'text' as const] : message.ignored;   // un texte que le gabarit ne lit pas : dit aussi (F-115)
+  return ignored ? { ...sent, ignored } : sent;
 }
 
 // Les actions directes en cours de l'agent, comme des courses (elles lisent ou modifient la branche) : startRun les respecte ;
@@ -943,7 +947,7 @@ export async function vibeProcess(op: unknown, index?: unknown) {
 // - `c<rang>` : le diff du commit (git show), écrit dans <sorties>/files/<hash>.diff ;
 // - `gh:c<rang>` : la page du commit sur GitHub, dans le navigateur, d'après
 //   l'origine du dépôt (githubPage, I-32) ; sans origine GitHub, rien ;
-// - `a<i>` : un artefact de l'agent, dans l'éditeur (artifactFile : sous artifacts/, sans lien).
+// - `a<i>` : un artefact du projet de l'agent, dans l'éditeur (artifactFile : dans son dossier, sans lien).
 export async function openVibeItem(id: unknown, line?: unknown) {
   const cfg = loadConfig();
   const agent = vibeAgent(cfg);
