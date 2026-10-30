@@ -79,3 +79,14 @@ it('fix false : commentaire seul, sans Retour → fixup', async () => {
   expect(v.page.querySelector('.vc-tool')).not.toBeNull();
   expect(v.page.querySelector('.vc-mini')).toBeNull();
 });
+
+it('tools : à la fin de la rangée, montrée même sans onQuote ; sans tools ni onQuote, pas de rangée', async () => {
+  const v = mount();
+  await v.render({ code: 'a', path: 'src/a.ts' });
+  expect(v.page.querySelector('.vc-src-tools')).toBeNull();
+  await v.render({ code: 'a', path: 'src/a.ts', tools: createElement('button', { id: 'extra' }) });
+  expect(v.page.querySelector('.vc-src-tools #extra')).not.toBeNull();
+  expect(v.page.querySelector('.vc-tool')).toBeNull();
+  await v.render({ code: 'a', path: 'src/a.ts', onQuote: () => {}, tools: createElement('button', { id: 'extra' }) });
+  expect(v.page.querySelector('.vc-src-tools')!.lastElementChild!.id).toBe('extra');
+});
