@@ -1167,12 +1167,12 @@ conversation ; note `0.9.0-actions-independantes.md`).
    `and`, quel que soit le langage du test (coloré ; chaque `then` est une
    assertion, sa valeur attendue après `#` ; les lectures d'avant, proches
    de Vitest, se lisent encore), cas limites, ce qu'il garantit, un point
-   d'attention quand le test n'observe pas vraiment la propriété — avec *Valider*,
-   *À revoir* (cite le cas dans le champ), *Commenter*, *Ouvrir*, et *Pseudo-code / Code* : le
-   code d'origine du cas à la place du pseudo-code (de sa ligne à celle du cas
-   suivant, monospace, numéroté, coloré : F-113) ; un cas validé, discret :
-   ni cadre ni fond, la seule fine bordure verte à gauche, son état par
-   l'icône *Validé* ; *Tout valider* quand
+   d'attention quand le test n'observe pas vraiment la propriété — avec, dans
+   son en-tête, *Pseudo-code / Code* (le
+   code d'origine du cas à la place du pseudo-code, de sa ligne à celle du cas
+   suivant, monospace, numéroté, coloré : F-113), les badges *Validé* et
+   *À revoir* (cite le cas dans le champ), *Commenter* et *Ouvrir* ; un cas validé, discret :
+   ni cadre ni fond, la seule fine bordure verte à gauche et son badge allumé ; *Tout valider* quand
    aucun cas n'a de point d'attention, le fichier lu ou pas ; *Voir le
    fichier* (replié : tout son code, numéroté ; un test qui existait à la
    base de la branche et qu'elle modifie : un sélecteur *Fichier* · *Diff
@@ -1203,18 +1203,19 @@ conversation ; note `0.9.0-actions-independantes.md`).
    branche. Montre en tête le commit proposé (`commit.md` : le message tel
    qu'il sera commité, *✓ Commiter*, direct ou *via* l'agent, F-114 ; *Commenter*) et la relecture du dernier diff
    (`review.md`) ; *Commiter les modules* dans les outils de la carte, s'il
-   y a un module pas commité ; puis une ligne par module (commité, en cours :
-   modifié pas commité, à faire ; nom, dossier, contrat, « à créer », ses
-   commits) avec sa barre d'outils — *Générer* (ce module), *Relire le diff*
+   y a un module pas commité ; puis une ligne par module, un accordéon (replié ;
+   un seul déplié à la fois ; commité, en cours :
+   modifié pas commité, à faire ; nom, dossier, « à créer », ses
+   commits). Déplié : sur sa ligne, sa barre d'outils — *Générer* (ce module), *Relire le diff*
    (du dernier commit qui le touche, sinon des changements en cours),
    *Ouvrir*, *Commiter* (des fichiers changés hors de tout commit de la
-   branche, ou modifiés depuis : ce module seul) — sous son contrat, ou, pour
-   un module touché, sous le code de *Voir le code* (replié ; un seul déplié
-   à la fois) : ses fichiers que la branche change (modifiés, ajoutés,
-   supprimés, depuis sa base, la copie de travail comprise) par dossier et
-   le fichier choisi, monospace, numéroté, coloré (F-113) ; un supprimé est
+   branche, ou modifiés depuis : ce module seul) — ; dessous, son contrat par
+   rubrique et, pour un module touché, son code (*Voir le code*, dans le reste
+   de ce document) : sur une rangée, ses fichiers que la branche change (modifiés, ajoutés,
+   supprimés, depuis sa base, la copie de travail comprise) par dossier,
+   puis, dessous, le fichier choisi, monospace, numéroté, coloré (F-113) ; un supprimé est
    marqué « supprimé », choisi : son diff depuis la base, tout en retraits,
-   sans sélecteur, ni édition, ni *Enregistrer*. Un sélecteur sous l'arbre : *Fichier*, *Diff
+   sans sélecteur, ni édition, ni *Enregistrer*. Un sélecteur au bout de la rangée : *Fichier*, *Diff
    depuis la base de la branche* (le commit d'où elle part ; grisé quand sa
    version est inconnue — pas de point de départ, trop grosse — alors que le
    fichier est au dernier commit), *Diff depuis le dernier commit* (`HEAD`) :
@@ -1336,7 +1337,7 @@ avec cette raison (« PR déjà fusionnée : rien à relire », « PR fermée : 
    au brouillon). Montre la note de la PR (comme en *Créer*)
    et sa relecture par l'agent (`pr-<n>-note.md`). *Relire la note*
    (décisions à discuter, manques, invariants mal classés).
-2. **Invariants** — chaque cas jugé (*Valider* ou *À revoir*), lu ou pas. Les mêmes
+2. **Invariants** — chaque cas jugé (*Validé* ou *À revoir*), lu ou pas. Les mêmes
    cartes qu'en *Créer* (*Voir le fichier* et son diff depuis la base de la
    PR en lecture seule) ; *Lire en pseudo-code* (facultative), *Vérifier
    l'alignement*.
@@ -1532,9 +1533,9 @@ une ligne, ou pas de réponse → refusé, rien ne bouge.
 **F-102 Validations** : valider, refuser (*À revoir*) ou oublier, sur la note, sa Forme, un cas de
 test, une case du plan de test (*Relire*), une case du § A.3 que le dépôt ne
 peut pas cocher (*Créer*, `a3:<rang>` : cocher la valide, décocher l'oublie). La note et la forme : *Valider*
-(*Relire* : *Valider* ou *À revoir*), puis « validée » et *Annuler* ; un cas : *Valider* ou
-*À revoir* (icônes ; celle donnée enfoncée, « Validé » ou « Refusé — Cliquer
-de nouveau pour annuler » en infobulle), un second clic l'annule. Chacune vaut pour l'empreinte du contenu validé (le
+(*Relire* : *Valider* ou *À revoir*), puis « validée » et *Annuler* ; un cas : *Validé* ou
+*À revoir* (deux badges écrits, *Validé* et *À revoir*, gris ; celui donné allumé de sa couleur,
+« Validé » ou « Refusé — Cliquer de nouveau pour annuler » en infobulle), un second clic l'annule. Chacune vaut pour l'empreinte du contenu validé (le
 texte de la note, la rubrique « Forme », le fichier du test, le plan, le
 commit de tête de la branche pour une case du § A.3) : le
 contenu change → « modifiée depuis » (*Revalider*), et l'étape attend une
