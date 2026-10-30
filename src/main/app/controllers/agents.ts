@@ -2,7 +2,7 @@
  *  `agentsEnabled`). Un robot sélectionné reçoit la dictée au lieu du curseur ;
  *  sa conversation s'affiche dans le panneau. Le robot sélectionné et le robot
  *  affiché vont ensemble. Chaque lancement de Claude Code (tour, sonde) reçoit
- *  le plugin de VibeCoder et le dossier de sorties de l'agent. À chaque
+ *  le plugin de VibeCoder, le dossier de sorties de l'agent et le dossier d'artefacts de son projet. À chaque
  *  changement des agents, les courses suivent (controllers/runs : les avis de
  *  fin en attente, envoyés dès que la conversation est libre). L'état d'un robot
  *  est celui de sa conversation, et par-dessus un état au repos le signal de
@@ -10,8 +10,7 @@
  *  s'envoient par famille (core/family) : chacun ses enfants, et sa pastille
  *  (la branche de son dossier, lue sur le disque, ou « PR #n »). Retirer un
  *  agent oublie son processus, ses courses et ses commandes ; ses enfants gardent leur parent ;
- *  ses artefacts partent chez son parent présent, ou restent pour l'agent rouvert sur son
- *  dossier (controllers/artifact-moves), qui les retrouve à sa naissance (artifactsBack).
+ *  le dossier d'artefacts du projet n'est pas touché (controllers/artifacts).
  *  Ne connaît pas : le contenu du panneau (controllers/conversation), git
  *  (la branche se lit dans .git).
  *  Utilisé par : app (fenêtres, menus, gestionnaires). */
@@ -30,9 +29,8 @@ import { state } from 'app/state';
 import { applySize, bubbleShown, conversationShown, inConversation, openConversation, sendToIcon } from 'app/windows';
 import { conversationProgress, refreshConversation } from './conversation';
 import { readFile, stopAgentProcesses } from './processes';
-import { retireArtifacts, returnArtifacts } from './artifact-moves';
+import { projectArtifactsDir } from './artifacts';
 import { closeRuns, runSignalOf, runsFollow } from './runs';
-import { worktreeParent } from './worktrees';
 
 const sdk = loadSdk as unknown as () => Promise<Sdk>;
 export const agents = createAgentRuntime({ loadSdk: sdk, launcher, journal: createJournal(() => journalFile()) });
@@ -96,13 +94,11 @@ export function pushAgents() {
 // Retirer cet agent (son menu) : son processus, ses courses et ses commandes
 // (I-47) partent, la sélection aussi. Son dossier reste proposé par « + »,
 // avec sa couleur ; pas celui du robot d'une PR (le worktree de la PR, F-110).
-// Ses enfants gardent leur parent : des robots ordinaires. Ses artefacts
-// suivent après coup (retireArtifacts, qui ne rejette pas), chez son parent
-// présent, lu avant l'enregistrement ; la liste du parent suit.
-export async function removeAgent(id: string): Promise<void> {
+// Ses enfants gardent leur parent : des robots ordinaires. Les artefacts sont
+// ceux du projet : rien à déplacer.
+export function removeAgent(id: string): void {
   const agent = agentList(loadConfig()).find((a) => a.id === id);
   if (!agent) return;
-  const parent = worktreeParent(agent);
   agents.forget(id);
   closeRuns(agent);
   stopAgentProcesses(id);
@@ -114,13 +110,6 @@ export async function removeAgent(id: string): Promise<void> {
     agentFolders: ensureFolderColors().filter((f) => !(pr && f.dir === agent.dir)),
   });
   pushAgents(); // son panneau, s'il est ouvert, se ferme (cf. refreshConversation)
-  await retireArtifacts(agent, parent);
-  pushAgents(); // la liste du parent suit
-}
-
-// Un agent est né sur ce dossier : les artefacts laissés par un agent retiré lui reviennent.
-export function artifactsBack(agent: AgentConfig): void {
-  void returnArtifacts(agent).then(pushAgents);
 }
 
 // Interrompre le tour de l'agent (menu du robot, ⏹ Arrêter de VibeCoder).
@@ -132,15 +121,15 @@ export function interruptAgent(id: string) {
 // Ce que reçoit Claude Code pour cet agent, à chaque tour comme à la sonde : la
 // commande, la consigne (la consigne audio, puis la ligne du questionnaire,
 // questionsRule : fixe pour un agent, elle ne relance pas son processus), le
-// plugin de VibeCoder (seulement s'il est là : ensureVibeFiles a pu échouer) et
-// le dossier de sorties de l'agent.
+// plugin de VibeCoder (seulement s'il est là : ensureVibeFiles a pu échouer), le
+// dossier de sorties de l'agent et le dossier d'artefacts de son projet.
 export function launchOptions(agent: AgentConfig, cfg: Config) {
   const plugin = vibePluginDir();
   const audio = agentInstructions();
   const rule = questionsRule(vibeOutDir(agent.id));
   return {
     command: cfg.agentCommand, instructions: audio ? `${audio}\n\n${rule}` : rule,
-    plugins: fs.existsSync(plugin) ? [plugin] : [], dirs: [vibeOutDir(agent.id)],
+    plugins: fs.existsSync(plugin) ? [plugin] : [], dirs: [vibeOutDir(agent.id), projectArtifactsDir(agent.dir)],
   };
 }
 
@@ -219,7 +208,6 @@ export function newAgent(dir: string) {
   if (!agent) {
     agent = { id: newId(), dir, name: path.basename(dir) || dir, model: '', effort: '', mode: 'default', sessionId: null };
     saveConfig({ agents: [...list, agent] });
-    artifactsBack(agent);
   }
   ensureFolderColors(); // nouveau dossier : il reçoit sa couleur et devient favori
   // Sélectionné ; panneau montré, il y affiche sa conversation (le robot
