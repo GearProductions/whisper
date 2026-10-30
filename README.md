@@ -455,7 +455,10 @@ j'en suis ?*) ; *Commenter* sur un passage (de la note, d'une relecture) l'y cit
 compléter puis envoyer.
 
 L'onglet **Actions** suit chaque action lancée : qui travaille, son état,
-depuis quand, sa réponse ; ses demandes d'autorisation (*Autoriser*,
+depuis quand, sa réponse ; pour *Générer les modules restants*, son avancement (la
+vague en cours, les modules faits sur le total, les corrections renvoyées, une relance
+Opus), lu dans le flux de l'agent : un champ absent ne montre que moins, l'état n'en
+dépend pas ; ses demandes d'autorisation (*Autoriser*,
 *Toujours*, *Refuser*). *Arrêter* (là, ou à côté du bouton) l'arrête à tout moment ;
 vous choisissez ensuite **Garder** ce qu'elle a déjà écrit, ou **Annuler** :
 les fichiers qu'elle a écrits — et eux seuls, pas les vôtres ni ceux d'une
@@ -467,7 +470,11 @@ finie que quand son travail l'est (ses sous-agents, la CI qu'elle attend) :
 pas de limite de temps, *Arrêter* l'arrête. Quand ce qu'elle attendait se termine,
 elle reste en cours 10 s : si l'agent repart en dire le résultat, elle finit
 avec cette réponse ; sinon, au bout des 10 s (un agent qui repart plus tard
-trouve l'action déjà finie). Un bouton qui doit
+trouve l'action déjà finie). Une action dont le skill tourne en sous-contexte
+ne lance rien en arrière-plan : elle attend ses commandes au premier plan (en fond,
+sa réponse les couperait). Si une commande a quand même été coupée à sa fin, l'action
+finit en échec et sa réponse le dit en première ligne (le travail est peut-être
+incomplet). Un bouton qui doit
 attendre est grisé et dit pourquoi ; un bouton qui n'a pas encore de sens
 n'est pas affiché (pas de *✓ Commiter* sans commit préparé, pas de *Release
 candidate* sans PR…) ; une action arrêtée retient les autres
@@ -491,8 +498,11 @@ Hors *Vibe*, elle ne lance rien que vous ne lui demandiez.
 **Artefacts.** Demandez à l'agent un document qui sort du projet — un PDF,
 une présentation, un wireframe, un document externe, un fichier de
 conception : preuve de concept ou autre — : il le crée en **artefact**, de
-lui-même (skill `/vibecoder:artefact`, sans bouton), dans
-`vibecoder-out/<agent>/artifacts/`, les mêmes pour toutes ses branches. Le
+lui-même (skill `/vibecoder:artefact`, sans bouton), dans le **dossier
+d'artefacts du projet** (`vibecoder-artifacts/<clé>/`, dans les données de l'appli) : le
+dépôt, ses worktrees et leurs robots partagent le même, et chaque robot du projet
+y lit et y écrit (deux robots qui écrivent le même nom écrivent le même fichier) ;
+un dossier hors git est son propre projet. Le
 bouton *Artefacts* de l'en-tête ouvre leur panneau à la place du fil d'Ariane
 et de l'étape : la liste à gauche, au centre celui que vous choisissez. Image,
 PDF, son, vidéo, page HTML ou SVG s'affichent tels quels (une page sans
@@ -507,8 +517,16 @@ sur la zone sous la liste, ou *Ajouter* pour choisir des fichiers. Ils sont
 copiés (l'original ne bouge pas), sans limite de taille ; un nom déjà pris
 reçoit un numéro (`rapport-2.md`), rien n'est jamais écrasé. Un lien, un
 dossier caché (`.git`…) ne sont pas copiés, et la ligne sous le bouton le dit.
-Retirer un agent ne perd pas ses artefacts : ceux d'un worktree passent à son
-parent, les autres reviennent à l'agent rouvert sur le même dossier.
+Retirer un agent, un robot ou un worktree ne touche pas à ce dossier. Au premier
+démarrage, les artefacts d'avant (`vibecoder-out/<agent>/artifacts/`) rejoignent le
+dossier de leur projet, sans rien écraser (un nom pris reçoit un numéro).
+
+**Citer un artefact avec `@`.** Dans le champ de la conversation et dans celui d'une
+étape, `@` en début de mot (pas au milieu, comme dans une adresse e-mail) ouvre la
+liste des artefacts du projet, filtrée à la frappe ; flèches, Entrée ou Tab choisissent,
+Échap ferme, comme les commandes « / ». Le choix remplace le `@…` tapé par le chemin du
+fichier, que l'agent lit s'il en a besoin. Rien ne correspond : Entrée et Tab
+servent comme d'habitude (`@types/node` se tape et part).
 
 **Ouvrir dans l'éditeur.** *Ouvrir* sur la note, un module, un test (à la
 ligne du cas : zed, VS Code, Cursor, VSCodium). Un commit : *Voir le diff*
@@ -552,7 +570,9 @@ ou *GitHub* (sa page, dans le navigateur).
    retirées, modifiées et ajoutées marquées ;
    *Relire* un fichier (ou *Tout relire*) refait sa lecture — un test
    modifié depuis garde sa lecture, marquée « lecture périmée », et
-   *Relire* est mis en avant ; *Préparer le commit* puis *✓ Commiter*.
+   *Relire* est mis en avant ; *Préparer le commit* puis *✓ Commiter* (un fichier
+   déjà porté par un commit de la branche : un fixup, sauf PR ouverte, où il va
+   dans un nouveau commit qui dit pourquoi).
    Une note sans ligne « → invariant » passe l'étape dès la forme validée (pas de
    test à écrire, *Écrire les invariants* n'est pas proposée) : la note et la
    forme se commitent à l'étape Modules. Des lignes « → invariant » déjà
@@ -566,11 +586,15 @@ ou *GitHub* (sa page, dans le navigateur).
    course ; un commit refusé, par un hook par exemple, n'en génère aucun) ;
    ou *Générer les modules restants* (des agents Sonnet en parallèle, chaque
    diff relu : un défaut est corrigé ou renvoyé au même agent, relancé sur
-   Opus au second échec ; toute la suite des tests une fois par vague ; sans
+   Opus au second échec ; à chaque vague, le typage et les tests des fichiers
+   modifiés (toute la suite si le projet ne sait pas les choisir), rien avant la première ;
+   la suite complète une seule fois, à la fin ; sans
    commit). Générer
    et commiter sont deux gestes : *Commiter* sur un module modifié, ou
-   *Commiter les modules* (un commit par module, un fixup pour un module
-   déjà commité) ; vous pouvez donc retoucher le code entre les deux. Chaque
+   *Commiter les modules* (un commit par module dans l'ordre de la Forme, un fixup
+   pour un module déjà commité ; le typage de chaque commit est vérifié sur son
+   contenu, hors du dossier de travail, et un commit qui ne compile pas arrête
+   là, sans rattrapage) ; vous pouvez donc retoucher le code entre les deux. Chaque
    module est un accordéon : un clic sur sa ligne montre ses boutons, sur la
    même ligne, et son contrat.
    Dessous, pour un module touché, son code : ses fichiers que la branche
@@ -859,7 +883,10 @@ conversation de la note, et son cache) ; dans la conversation de l'agent :
 modules restants* et les releases sont longs et coûteux. Pour une étape qui
 tourne à part, vous pouvez choisir un modèle plus léger (ou plus fort) que
 le conseillé, le temps d'un clic : VibeCoder génère pour cela une variante
-de chaque skill qui fixe son modèle (`<nom>--haiku`, `--sonnet`, `--opus`).
+de chaque skill qui fixe son modèle (`<nom>--haiku`, `--sonnet`, `--opus`). Le
+bouton propose aussi l'**effort**, à côté du modèle : sans choix, celui du skill
+(ou de la variante du modèle choisi) ; le choix vaut pour cette action tant qu'on
+reste sur cet agent (variantes `<nom>--<modèle>--<effort>`, cachées des commandes « / »).
 *Vibe* tourne dans la conversation de l'agent : pour le passer sur Sonnet,
 passez l'agent sur Sonnet (menu du robot ou barre d'état) avant de lancer
 *Vibe*. VibeCoder ne passe jamais un
