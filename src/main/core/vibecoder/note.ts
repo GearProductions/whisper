@@ -1,7 +1,8 @@
 /** note — la note du ticket lue par ses titres, sans modèle : son titre, si
  *  « Ce que ça fait » est rédigée, ses rubriques, les lignes de « Ce que ça ne
  *  doit pas faire » et leur marque (→ invariant, variant…), les modules de la
- *  « Forme » et leur contrat. Et où la trouver : la clé que porte la branche
+ *  « Forme » (si elle a un bloc de code et pas de titre ###, seules les lignes de
+ *  ses blocs comptent) et leur contrat. Et où la trouver : la clé que porte la branche
  *  (ticket ou version), le fichier de docs/tickets/ qui la nomme parmi ceux
  *  que la branche change.
  *  Les questions ouvertes ne sont pas dans la note (<sorties>/questions.md).
@@ -90,7 +91,24 @@ type Mod = { path: string; parts: string[]; sep: string; col: number };
 //    hors bloc de code, la suite d'un paragraphe (sans ligne vide entre) n'en est pas un, même si elle
 //    commence par un chemin.
 // Un dossier qui a des modules n'en est plus un lui-même.
+// Une Forme sans titre ### dont un bloc de code ouvre un module : seules les lignes de ses blocs sont
+// lues (« `journey.ts` porte 7 et 10 » avant le bloc n'est pas un module) ; toute autre Forme, comme avant.
 function modulesOf(forme: string): { path: string; contract: string }[] {
+  const lines = forme.split('\n');
+  if (!lines.some((l) => /^#{3,4}\s/.test(l))) {
+    let fenced = false;
+    const blocks = lines.filter((l) => {
+      const fence = /^\s*(```|~~~)/.test(l);
+      if (fence) fenced = !fenced;
+      return fence || fenced;
+    });
+    const mods = readModules(blocks);
+    if (mods.length) return mods;
+  }
+  return readModules(lines);
+}
+
+function readModules(lines: string[]): { path: string; contract: string }[] {
   const mods: Mod[] = [];
   let cur: Mod | null = null;
   let group: Mod | null = null;      // le dossier dont les lignes suivantes peuvent être des modules
@@ -104,7 +122,7 @@ function modulesOf(forme: string): { path: string; contract: string }[] {
     mods.push(mod);
     return mod;
   };
-  for (const line of forme.split('\n')) {
+  for (const line of lines) {
     if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
     if (!line.trim() || /^\s*(```|~~~)/.test(line)) { prose = false; continue; }
     const h = /^(#{3,4})\s+(.*)$/.exec(line);
