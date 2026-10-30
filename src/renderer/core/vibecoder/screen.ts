@@ -4,7 +4,8 @@
  *  que la vue montre elle-même ni celles qui citent) ; le modèle d'une
  *  action en sous-contexte (le conseillé par défaut ; un autre
  *  seulement s'il est des siens, et envoyé seulement s'il diffère du
- *  conseillé) ; la largeur de la colonne de la conversation (300 px au moins,
+ *  conseillé) ; l'effort d'un skill, de même (un des siens, sinon celui du
+ *  skill) ; la largeur de la colonne de la conversation (300 px au moins,
  *  60 % de l'écran au plus) ; les actions qui tournent (isRunning, runningRuns : en
  *  cours ou en attente d'autorisation, ni arrêtées ni finies).
  *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (vibe-coder, model-pick, step-parts, status-bar ;
@@ -23,6 +24,14 @@ export function chosenModel(a: VibeAction, picks: ModelPicks): string {
 export function modelArg(a: VibeAction, picks: ModelPicks): string | undefined {
   const m = chosenModel(a, picks);
   return m && m !== a.model ? m : undefined;
+}
+
+export type EffortPicks = Record<string, string>;   // par id d'action, l'effort choisi
+
+// L'effort affiché pour une action : celui choisi s'il est des siens, sinon '' (celui du skill).
+export function chosenEffort(a: VibeAction, picks: EffortPicks): string {
+  const e = Object.hasOwn(picks, a.id) ? picks[a.id] : '';
+  return a.efforts?.includes(e) ? e : '';
 }
 
 export const CONV_MIN = 300;
