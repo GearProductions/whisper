@@ -502,6 +502,14 @@ dans le projet* le copie dans le dossier que vous choisissez (un fichier du
 même nom n'est remplacé que si vous l'acceptez). La conversation reste à
 droite : demandez-y une retouche, l'artefact se met à jour.
 
+Vous pouvez aussi **ajouter les vôtres** : déposez des fichiers ou un dossier
+sur la zone sous la liste, ou *Ajouter* pour choisir des fichiers. Ils sont
+copiés (l'original ne bouge pas), sans limite de taille ; un nom déjà pris
+reçoit un numéro (`rapport-2.md`), rien n'est jamais écrasé. Un lien, un
+dossier caché (`.git`…) ne sont pas copiés, et la ligne sous le bouton le dit.
+Retirer un agent ne perd pas ses artefacts : ceux d'un worktree passent à son
+parent, les autres reviennent à l'agent rouvert sur le même dossier.
+
 **Ouvrir dans l'éditeur.** *Ouvrir* sur la note, un module, un test (à la
 ligne du cas : zed, VS Code, Cursor, VSCodium). Un commit : *Voir le diff*
 (écrit en lecture seule sous `vibecoder-out/<agent>/files/`, puis ouvert)

@@ -81,10 +81,10 @@ bouton retiré suivi d'un bouton ajouté. `ponytail` n'a pas de bouton : `checks
 `{{lang}} {{out}}`. Le bouton `guide` n'apparaît que si le skill `gear-guide`
 existe (dans le projet ou chez l'utilisateur).
 
-Dix-huit boutons ont aussi une voie **directe**, sans agent : `commit`,
+Dix-neuf boutons ont aussi une voie **directe**, sans agent : `commit`,
 `publish`, `load-pr`, `base`, `pr-here`, `pr-worktree`, `remove-worktree`,
 `stash`, `unload-pr`, `new-here`, `new-worktree`, `switch-branch`, `pull`,
-`rebase`, `push`, `fetch`, `request-review` et `copy-artifact`. Le bouton « direct »
+`rebase`, `push`, `fetch`, `request-review`, `copy-artifact` et `add-artifact`. Le bouton « direct »
 lance lui-même des commandes fixes (`git commit -F`, `gh pr review`, `gh pr
 view` puis `git fetch origin <tête>` (la PR se relit dans le dossier de
 l'agent), `git switch` / `pull --ff-only` / `branch -d` si la PR est
@@ -107,8 +107,8 @@ PR d'un worktree retiré perd aussi sa branche `pr-<n>`, `git branch -D`) ;
 leur `text` reste le message du petit *via* à côté (le skill ou le message,
 dans la conversation). Personnaliser leur `text` ne change donc que le
 *via*. `remove-worktree`, `stash`, `unload-pr`, `new-here`,
-`new-worktree`, `switch-branch`, `pull`, `rebase`, `push`, `fetch`, `request-review` et
-`copy-artifact` n'ont pas de *via* : seule l'appli les fait. Les actions de branche sont
+`new-worktree`, `switch-branch`, `pull`, `rebase`, `push`, `fetch`, `request-review`,
+`copy-artifact` et `add-artifact` n'ont pas de *via* : seule l'appli les fait. Les actions de branche sont
 dans la vue des branches, qu'ouvre la branche de l'en-tête (*Pull*,
 *Rebase*, *Pousser* : à côté d'elle).
 

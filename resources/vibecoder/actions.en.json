@@ -368,6 +368,16 @@
     "text": "Copy to project: only by the app (direct), never by the agent."
   },
   {
+    "id": "add-artifact",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Add",
+    "hint": "Picks files through the app's dialog and copies them into this agent's artifacts; a file of the same name is kept, the new one is numbered.",
+    "text": "Add: only by the app (direct), never by the agent."
+  },
+  {
     "id": "review-note",
     "flow": "review",
     "step": "note",

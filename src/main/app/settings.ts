@@ -2,7 +2,7 @@
  *  config.json relu à chaque usage (une retouche à la main prend effet à
  *  l'usage suivant, sans relancer), la consigne des agents, le journal, le
  *  dossier whisper, les fichiers de VibeCoder (actions, skills, sorties des
- *  agents, validations). Les pages construites (out/renderer) et les ponts.
+ *  agents, validations, artefacts laissés par les agents retirés). Les pages construites (out/renderer) et les ponts.
  *  Ne connaît pas : les fenêtres. Utilisé par : app. */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -55,11 +55,14 @@ export const journalFile = () => path.join(app.getPath('userData'), 'agents.log'
 export const vibeDir = () => path.join(app.getPath('userData'), 'vibecoder');
 export const vibePluginDir = () => path.join(vibeDir(), 'plugin');
 
+// Où est le dossier de sorties d'un agent, sans le créer (celui d'un agent retiré ne doit pas renaître).
+export const vibeOutPath = (agentId: string) => path.join(app.getPath('userData'), 'vibecoder-out', agentId);
+
 // Le dossier de sorties d'un agent (ce que ses skills écrivent pour l'écran),
 // créé au besoin : Claude Code le reçoit en dossier de travail. Un échec ne
 // bloque pas l'agent (I-29).
 export function vibeOutDir(agentId: string) {
-  const dir = path.join(app.getPath('userData'), 'vibecoder-out', agentId);
+  const dir = vibeOutPath(agentId);
   try { fs.mkdirSync(dir, { recursive: true }); } catch { /* l'agent part sans */ }
   return dir;
 }
@@ -116,6 +119,16 @@ export function vibeStore(): VibeStore {
   return { marks: record(s.marks), drafts: record(s.drafts) } as VibeStore;
 }
 export const saveVibeStore = (s: VibeStore) => writeJson(vibeStoreFile(), s);
+
+// Les artefacts laissés par un agent retiré : { id de l'agent → son dossier résolu }
+// (artifacts-left.json), pour les rendre à un agent rouvert sur ce dossier. Hors de
+// vibecoder-state.json (survey en garde le store le temps de ses await et le
+// réécrit). Lu sans jamais lever : absent, illisible ou pas un objet → rien ; une
+// valeur qui n'est pas une chaîne est écartée.
+const leftFile = () => path.join(app.getPath('userData'), 'artifacts-left.json');
+export const leftArtifacts = (): Record<string, string> =>
+  Object.fromEntries(Object.entries(record(readJson(leftFile()))).filter(([, dir]) => typeof dir === 'string'));
+export const saveLeftArtifacts = (left: Record<string, string>) => writeJson(leftFile(), left);
 
 // Les pages (construites par Vite dans out/renderer) et les ponts (out/main).
 export const page = (name: string) => path.join(__dirname, '..', 'renderer', name);

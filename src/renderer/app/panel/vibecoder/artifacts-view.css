@@ -34,3 +34,7 @@
 /* Le texte prend la hauteur : c'est .cm-scroller qui défile, comme partout ailleurs. */
 .vc-art .vc-src { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; margin: 0; }
 .vc-art .vc-src .cm-editor { flex: 1 1 auto; min-height: 0; max-height: none; }
+
+/* Sous la liste : la zone de dépôt (data-own-drop), Ajouter et le dernier résultat. */
+.vc-art-drop { margin: 10px 6px 0; padding: 12px 8px; border: 1px dashed var(--vc-edge); border-radius: var(--vc-radius); color: var(--vc-faint); font-size: 12px; line-height: 1.5; text-align: center; }
+.vc-art-add { margin: 8px 6px 0; }

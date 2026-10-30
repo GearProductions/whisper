@@ -219,6 +219,8 @@ export interface ConvApi {
   onVibeCode(fn: (code: VibeCode | null) => void): void;
   /** Enregistrer le fichier suivi (son id : module, note, test) : le principal refuse un autre id, un fichier sorti du relevé ou grisé. */
   vibeSave(id: string, text: string): Promise<SendResult>;
+  /** Fichiers déposés sur le panneau Artefacts : le pont lit leurs chemins du File, la page n'en donne aucun. */
+  vibeDrop(files: File[]): Promise<SendResult>;
 }
 
 /* ---- VibeCoder (dans le panneau) ------------------------------------------------ */

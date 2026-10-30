@@ -23,7 +23,8 @@ export const PANEL_CHANNELS = {
     'conv:attach', 'conv:answer', 'conv:openLink', 'conv:showFile',
     'conv:vibeSet', 'conv:vibeMark', 'conv:vibeDraft', 'conv:vibeOpen', 'conv:vibeRefresh', 'conv:vibeProcess',
     'conv:vibeRunOp', 'conv:vibeFollow'],
-  invoke: ['conv:history', 'conv:probe', 'conv:copy', 'conv:send', 'conv:vibeRun', 'conv:vibeSave'],
+  invoke: ['conv:history', 'conv:probe', 'conv:copy', 'conv:send', 'conv:vibeRun', 'conv:vibeSave',
+    'conv:vibeDrop'],
   events: ['conv:thread', 'conv:notice', 'conv:attached', 'conv:dictation', 'conv:focusInput', 'conv:vibe', 'conv:vibeCode'],
 } as const;
 

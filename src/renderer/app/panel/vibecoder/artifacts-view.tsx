@@ -10,14 +10,18 @@
  *  glissent quand la liste change) : le premier par défaut, disparu → le
  *  premier ; chaque id choisi, par défaut compris, est annoncé par onChoose
  *  (vibe-coder suit son texte). Un lien d'un Markdown ne mène nulle part (pas
- *  de rappel pour l'ouvrir). Libellés : core/vibecoder (t, fileSize).
+ *  de rappel pour l'ouvrir). Sous la liste : la zone de dépôt (data-own-drop :
+ *  panel-app n'envoie pas à la conversation ce qui y tombe ; seuls des File
+ *  remontent, par onDrop), Ajouter (onAdd, désactivé tant que adding) et la
+ *  dernière ligne (« … » en cours, sinon added.line, rien si vide : dialogue
+ *  annulé). Libellés : core/vibecoder (t, fileSize).
  *  Ne connaît pas : le pont (rappels passés), le disque, le schéma (url reçue).
  *  Utilisé par : vibe-coder. */
 import { useEffect, useRef, useState } from 'react';
 import { fileSize, t as strings } from 'core/vibecoder';
 import type { VibeArtifact, VibeCode, VibeLang } from 'technicals/bridge';
 import { CodeView } from './code-view';
-import { IconButton } from './icons';
+import { Icon, IconButton } from './icons';
 import { MarkdownView } from './markdown-view';
 import './artifacts-view.css';
 
@@ -28,11 +32,15 @@ export type ArtifactsViewProps = {
   onChoose: (id: string) => void;
   onOpen: (id: string) => void;
   onCopy: (id: string) => void;
+  adding?: boolean;                                   // un ajout en cours
+  added?: { ok: boolean; line: string } | null;       // le dernier ajout (line vide : dialogue annulé)
+  onAdd?: () => void;
+  onDrop?: (files: File[]) => void;
 };
 
 const noLink = () => {};
 
-export function ArtifactsView({ artifacts, lang, code, onChoose, onOpen, onCopy }: ArtifactsViewProps) {
+export function ArtifactsView({ artifacts, lang, code, onChoose, onOpen, onCopy, adding, added, onAdd, onDrop }: ArtifactsViewProps) {
   const t = strings(lang);
   const [chosen, setChosen] = useState<string | null>(null);
   const art = artifacts.find((a) => a.name === chosen) ?? artifacts[0];
@@ -61,6 +69,15 @@ export function ArtifactsView({ artifacts, lang, code, onChoose, onOpen, onCopy 
             </li>
           )) : <li className="vc-art-none">{t.artifactsNone}</li>}
         </ul>
+        <div className="vc-art-drop" data-own-drop
+          onDrop={(e) => { const files = [...e.dataTransfer.files]; if (files.length) onDrop?.(files); }}>
+          {t.artifactDrop}
+        </div>
+        <div className="vc-art-add vc-direct">
+          <button type="button" className="vc-mini" title={t.artifactAddTitle} disabled={adding} onClick={onAdd}>{t.artifactAdd}</button>
+          {adding ? <span className="vc-direct-res" data-state="running">…</span>
+            : added?.line ? <span className="vc-direct-res" data-state={added.ok ? 'ok' : 'ko'} title={added.line}><span className="vc-direct-mark"><Icon name={added.ok ? 'ok' : 'ko'} /></span> {added.line}</span> : null}
+        </div>
       </nav>
       <section className="vc-center">
         {art ? (

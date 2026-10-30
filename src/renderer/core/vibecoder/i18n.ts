@@ -9,7 +9,8 @@
  *  Toujours / Refuser), choix du modèle, zone de commentaire, barre d'état
  *  (« N actions en cours »),
  *  titres des sorties ; le code d'un module (Enregistrer, fichier trop gros) ; le panneau
- *  Artefacts (son bouton, la liste vide, Copier, fichier tronqué) ; une durée,
+ *  Artefacts (son bouton, la liste vide, Copier, Ajouter et sa zone de dépôt,
+ *  fichier tronqué) ; une durée,
  *  une taille de fichier en clair. Ceux des boutons viennent des
  *  actions (actions.<langue>.json).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
@@ -127,6 +128,9 @@ const fr = {
   artifactsNone: 'Aucun artefact : demandez à l\'agent un document hors du projet (wireframe, PDF, présentation…), il le crée ici.',
   artifactCopy: 'Copier dans le projet',
   artifactCopyTitle: 'Copier ce fichier dans un dossier choisi',
+  artifactAdd: 'Ajouter',
+  artifactAddTitle: 'Choisir des fichiers : ils sont copiés dans les artefacts de cet agent',
+  artifactDrop: 'Déposez des fichiers ou des dossiers ici : ils sont copiés dans les artefacts, les originaux restent en place.',
   artifactTruncated: 'Fichier tronqué : Ouvrir dans l\'éditeur montre la suite.',
   artifactUnreadable: 'Fichier illisible.',
 };
@@ -243,6 +247,9 @@ const en: Strings = {
   artifactsNone: 'No artifact: ask the agent for a document outside the project (wireframe, PDF, slides…), it makes it here.',
   artifactCopy: 'Copy to project',
   artifactCopyTitle: 'Copy this file to a chosen folder',
+  artifactAdd: 'Add',
+  artifactAddTitle: 'Pick files: they are copied to this agent\'s artifacts',
+  artifactDrop: 'Drop files or folders here: they are copied into the artifacts, the originals stay put.',
   artifactTruncated: 'File truncated: Open in the editor shows the rest.',
   artifactUnreadable: 'Unreadable file.',
 };
