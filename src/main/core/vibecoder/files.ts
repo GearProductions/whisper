@@ -5,9 +5,9 @@
  *  l'agent (safePath).
  *  Ne connaît pas : Electron, le disque (realpath passé).
  *  Un fichier à suivre et enregistrer (codeFile) : celui d'un module touché
- *  par la branche (`m<rang>/<i>`) ou, en Créer seulement, la note (`n`) ou un
+ *  par la branche (`m<rang>/<i>`) ou, en créateur seulement, la note (`n`) ou un
  *  test d'invariant (`t<i>`), par son id dans le dernier relevé, jamais lu
- *  comme un chemin. Un fichier d'un commit à suivre (commitFile) : en Relire
+ *  comme un chemin. Un fichier d'un commit à suivre (commitFile) : en relecteur
  *  seulement, par son id `c<rang>/<i>` du dernier relevé, jamais lu comme un
  *  chemin.
  *  Utilisé par : app/controllers (vibecoder : lire la note et les tests, ouvrir
@@ -48,9 +48,9 @@ export function itemCommit(view: VibeView | null, id: string): { hash: string; w
 }
 
 // Le fichier du relevé que désigne `m<rang>/<i>` (un fichier d'un module
-// touché, et son module) ou, en Créer, l'id de la note ou d'un test
+// touché, et son module) ou, en créateur, l'id de la note ou d'un test
 // d'invariant (module null) ; null pour tout autre id (variant, commit, module
-// pas touché, note ou test en Relire, id inconnu), l'id n'étant jamais lu
+// pas touché, note ou test en relecteur, id inconnu), l'id n'étant jamais lu
 // comme un chemin.
 export function codeFile(view: VibeView | null, id: string): { path: string; module: VibeModule | null } | null {
   for (const module of view?.modules ?? []) {
@@ -62,8 +62,8 @@ export function codeFile(view: VibeView | null, id: string): { path: string; mod
 }
 
 // Le fichier d'un commit que désigne `c<rang>/<i>` (le i-ème fichier du commit
-// de ce rang dans le relevé, et le hash de ce commit), en Relire seulement ;
-// null pour tout autre id, Créer compris, l'id n'étant jamais lu comme un chemin.
+// de ce rang dans le relevé, et le hash de ce commit), en relecteur seulement ;
+// null pour tout autre id, créateur compris, l'id n'étant jamais lu comme un chemin.
 export function commitFile(view: VibeView | null, id: string): { path: string; hash: string } | null {
   const f = view?.flow === 'review'
     ? view.commits.flatMap((c, r) => c.files.map((p, i) => ({ id: `c${r}/${i}`, path: p, hash: c.hash }))).find((x) => x.id === id)
