@@ -32,7 +32,7 @@ const write = (name: string, data: string | Buffer) => {
 };
 // Le relevé reçu par la page, puis l'artefact de ce nom suivi.
 const follow = (name: string) => {
-  fake.view = { artifacts: listArtifacts('a1', arts, MAX) } as Partial<VibeView>;
+  fake.view = listArtifacts('a1', arts, MAX) as Partial<VibeView>;
   const id = (fake.view as VibeView).artifacts!.find((a) => a.name === name)!.id;
   followCode(id);
   return id;

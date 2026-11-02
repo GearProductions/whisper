@@ -480,6 +480,12 @@ describe('les actions directes', () => {
     expect(DIRECT_ACTIONS.includes('add-artifact') && DIRECT_ONLY.includes('add-artifact')).toBe(true);
   });
 
+  it('les sept actions de gestion des artefacts : directes, et seulement par l\'appli', () => {
+    const ids = ['rename-artifact', 'new-artifact-file', 'new-artifact-folder', 'trash-artifacts', 'move-artifacts',
+      'copy-artifacts', 'duplicate-artifacts'];
+    expect(ids.every((id) => DIRECT_ACTIONS.includes(id) && DIRECT_ONLY.includes(id))).toBe(true);
+  });
+
   it('chaque action seulement directe est une action directe', () => {
     expect(DIRECT_ONLY.every((id) => DIRECT_ACTIONS.includes(id))).toBe(true);
   });

@@ -8,8 +8,16 @@
  *  la copie et l'effacement) : la source est effacée, rien n'est copié. Lien,
  *  dossier, octets différents ou illisibles : le numéro libre. `copyInto` ne
  *  compare rien (ajouter deux fois numérote).
+ *  Un dossier source déposé, copié ou déplacé n'est jamais mêlé à un dossier du
+ *  même nom : il prend le premier numéro libre, comme un fichier (seul
+ *  `moveContents` mêle, sous la racine). `moveInto` : copie puis source effacée
+ *  une fois arrivée ; `renameItem` : même dossier, nom pris → 'taken' sans
+ *  numéro, sinon copie exclusive puis effacement ; un dossier dont un caché ou
+ *  un lien est resté (la source reste) → 'left'. Jamais `rename` (il écrase).
+ *  Changer la seule casse sur un disque insensible à la casse : le nom visé « pris »
+ *  par soi-même (absent du relevé du dossier) passe par un nom provisoire visible.
  *  Ne connaît pas : les artefacts, les agents, Electron.
- *  Utilisé par : controllers (artifacts, artifact-migration, worktrees). */
+ *  Utilisé par : controllers (artifacts, artifact-ops, artifact-migration, worktrees). */
 import { constants } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -76,7 +84,7 @@ async function copyFree(file: string, dir: string, name: string, dedupe = false)
   }
 }
 
-// Le dossier d'arrivée : créé, ou un vrai dossier existant mêlé ; tout autre (fichier, lien) → numéro suivant.
+// Un dossier d'arrivée sous un dossier mêlé : créé, ou un vrai dossier existant mêlé ; tout autre (fichier, lien) → numéro suivant.
 async function openDir(dir: string, name: string) {
   for (let n = 1; ; n++) {
     const target = path.join(dir, numberedName(name, n));
@@ -106,22 +114,81 @@ async function walk(from: string, to: string, report: TreeReport, remove: boolea
   }
 }
 
-// `report` : celui où s'ajoute le résultat (un seul pour plusieurs sources, sans les fusionner).
-export async function copyInto(src: string, root: string, report: TreeReport = newReport()): Promise<TreeReport> {
+// Un dossier neuf, jamais mêlé à un existant (fichier, dossier ou lien) : le premier numéro libre.
+async function newDir(dir: string, name: string) {
+  for (let n = 1; ; n++) {
+    const target = path.join(dir, numberedName(name, n));
+    try { await fs.mkdir(target); return target; } catch (e) {
+      if (code(e) !== 'EEXIST' && !await fs.lstat(target).catch(() => null)) throw e;
+    }
+  }
+}
+
+// Copie (ou, avec `remove`, déplace) `src` sous `root` ; la source n'est effacée qu'une fois arrivée.
+async function place(src: string, root: string, report: TreeReport, remove: boolean) {
   const from = path.resolve(src);
   try {
     const st = await fs.lstat(from);
-    const name = path.basename(from);
     if (!st.isFile() && !st.isDirectory()) { report.links.push(from); return report; }
-    if (st.isDirectory() && isHidden(name)) { report.hidden.push(from); return report; }
+    if (st.isDirectory() && isHidden(path.basename(from))) { report.hidden.push(from); return report; }
     await ensureRoot(root);
-    if (st.isFile()) report.copied.push((await copyFree(from, root, name))!);
-    else {
+    if (st.isFile()) {
+      report.copied.push((await copyFree(from, root, path.basename(from)))!);
+      if (remove) await fs.unlink(from);
+    } else {
       await refuseIfContains(from, root);
-      await walk(from, await openDir(root, name), report, false);
+      await walk(from, await newDir(root, path.basename(from)), report, remove);
+      // non vide (échec, lien, caché resté) : rmdir refuse, la source reste
+      if (remove) await fs.rmdir(from).catch(() => {});
     }
   } catch (e) { fail(report, from, e); }
   return report;
+}
+
+// `report` : celui où s'ajoute le résultat (un seul pour plusieurs sources, sans les fusionner).
+export const copyInto = (src: string, root: string, report: TreeReport = newReport()) =>
+  place(src, root, report, false);
+
+export const moveInto = (src: string, root: string, report: TreeReport = newReport()) =>
+  place(src, root, report, true);
+
+// `from` → `to` (même dossier), sans écraser : copie exclusive puis effacement (pas de rename).
+async function renameOnce(from: string, to: string, isFile: boolean): Promise<'ok' | 'taken' | 'left'> {
+  try {
+    if (isFile) await fs.copyFile(from, to, constants.COPYFILE_EXCL | constants.COPYFILE_FICLONE);
+    else await fs.mkdir(to);
+  } catch (e) {
+    if (code(e) === 'EEXIST' || await fs.lstat(to).catch(() => null)) return 'taken';
+    throw e;
+  }
+  if (isFile) await fs.unlink(from);
+  else {
+    const report = newReport();
+    await walk(from, to, report, true);
+    if (report.failed.length) throw new Error(report.failed[0].error);
+    // liens et cachés restés : la source reste, et on le dit
+    if (await fs.rmdir(from).then(() => false, () => true)) return 'left';
+  }
+  return 'ok';
+}
+
+// Renomme dans le même dossier, sans jamais écraser. Disque insensible à la casse (Windows, macOS) : changer
+// la seule casse (Rapport.md → rapport.md) se heurte à soi-même ; si le dossier ne contient pas exactement le
+// nom visé, c'est ce cas, et on passe par un nom provisoire visible (jamais `rename`, qui écrase).
+export async function renameItem(src: string, name: string): Promise<'ok' | 'taken' | 'left'> {
+  const from = path.resolve(src);
+  if (!name || name === '.' || name === '..' || path.basename(name) !== name) throw new Error(`nom invalide : ${name}`);
+  const dir = path.dirname(from);
+  const to = path.join(dir, name);
+  const st = await fs.lstat(from);
+  if (!st.isFile() && !st.isDirectory()) throw new Error(`${from} est un lien ou un fichier spécial`);
+  const first = await renameOnce(from, to, st.isFile());
+  const base = path.basename(from);
+  if (first !== 'taken' || name === base || name.toLowerCase() !== base.toLowerCase()) return first;
+  if ((await fs.readdir(dir)).includes(name)) return 'taken';
+  const temp = path.join(dir, `${name}.renommage`);
+  const moved = await renameOnce(from, temp, st.isFile());
+  return moved === 'ok' ? renameOnce(temp, to, st.isFile()) : moved;
 }
 
 export async function moveContents(from: string, root: string): Promise<TreeReport> {

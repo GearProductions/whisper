@@ -1,7 +1,9 @@
 // Ouvrir un commit du relevé, ou l'un de ses fichiers : par un id, jamais un chemin.
 import { describe, expect, it } from 'vitest';
 import type { VibeView } from 'shared/bridge';
-import { codeFile, commitFile, itemCommit } from 'core/vibecoder';
+import type { Stats } from 'node:fs';
+import path from 'node:path';
+import { codeFile, commitFile, itemCommit, noLinkPath } from 'core/vibecoder';
 
 const C0 = '9fceb02d0ae598e95dc970b74767f19372d61af8';
 const C1 = 'e83c5163316f89bfbde7d9ab23ca2e25604af290';
@@ -53,5 +55,29 @@ describe('commitFile : c<rang>/<i> en Relire', () => {
 
   it('codeFile inchangé : un id c… ne mène à rien, en Relire comme en Créer', () => {
     expect([codeFile({ ...view, flow: 'review' } as VibeView, 'c0/0'), codeFile({ ...view, flow: 'create' } as VibeView, 'c0/0')]).toEqual([null, null]);
+  });
+});
+
+describe('noLinkPath : un chemin sans aucun lien', () => {
+  const dir = { isDirectory: () => true, isSymbolicLink: () => false } as Stats;
+  const file = { isDirectory: () => false, isSymbolicLink: () => false } as Stats;
+  const link = { isDirectory: () => false, isSymbolicLink: () => true } as Stats;
+  const disk: Record<string, Stats> = { '/r': dir, '/r/a': dir, '/r/a/f.md': file, '/r/l': link, '/r/a/d': link, '/r/a/f.md/x': file };
+  const lstat = (p: string) => disk[p.replace(/\\/g, '/')];   // Windows : path.join écrit des \
+
+  it('rel vide : root ; un fichier ou un dossier présent : son chemin', () => {
+    expect([noLinkPath('/r', '', lstat), noLinkPath('/r', 'a', lstat), noLinkPath('/r', 'a/f.md', lstat)]).toEqual(['/r', path.join('/r', 'a'), path.join('/r', 'a', 'f.md')]);
+  });
+
+  it('absent, lien (dernier ou au milieu), fichier pris pour un dossier : null', () => {
+    expect(['nope', 'l', 'l/x', 'a/d', 'a/f.md/x'].map((r) => noLinkPath('/r', r, lstat))).toEqual([null, null, null, null, null]);
+  });
+
+  it('.., absolu, NUL : null', () => {
+    expect(['..', 'a/../a', '/etc', 'a\0'].map((r) => noLinkPath('/r', r, lstat))).toEqual([null, null, null, null]);
+  });
+
+  it('root absent, pas un dossier ou un lien : null', () => {
+    expect([noLinkPath('/x', '', lstat), noLinkPath('/r/a/f.md', '', lstat), noLinkPath('/r/l', '', lstat)]).toEqual([null, null, null]);
   });
 });

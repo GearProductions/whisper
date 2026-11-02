@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { addedLine, artifactKind, artifactList, artifactOf, artifactType, droppedPaths, failedLine, folderKey, leftEntries, legacyOwner, projectFolder, ARTIFACTS_ROOT } from 'core/vibecoder';
+import { addedLine, artifactDirs, artifactItem, artifactKind, artifactList, artifactOf, artifactType, droppedPaths, failedLine, folderKey, folderOf, leftEntries, legacyOwner, projectFolder, within, ARTIFACTS_ROOT } from 'core/vibecoder';
 import type { VibeView } from 'shared/bridge';
 
 describe('artifactKind, artifactType', () => {
@@ -155,5 +155,37 @@ describe('leftEntries', () => {
   it('lit les chaînes, écarte le reste, ne lève jamais', () => {
     expect(leftEntries('{"a":"/x","b":3,"c":null}')).toEqual({ a: '/x' });
     for (const bad of [null, '', '{', '[]', '"x"', 'null', '3']) expect(leftEntries(bad)).toEqual({});
+  });
+});
+
+describe('artifactDirs, artifactItem, folderOf, within', () => {
+  const view = {
+    artifacts: artifactList('ag', [{ name: 'notes.md', size: 1, time: 1 }], 10),
+    artifactDirs: artifactDirs(['maq/v2', 'maq', 'a']),
+  } as VibeView;
+
+  it('artifactDirs : triés par nom, ids d<i> dans cet ordre', () => {
+    expect(view.artifactDirs).toEqual([{ id: 'd0', name: 'a' }, { id: 'd1', name: 'maq' }, { id: 'd2', name: 'maq/v2' }]);
+  });
+
+  it('artifactItem : a<i> un fichier, d<i> un dossier, tout autre id null', () => {
+    expect(artifactItem(view, 'a0')).toEqual({ name: 'notes.md', folder: false });
+    expect(artifactItem(view, 'd1')).toEqual({ name: 'maq', folder: true });
+    for (const id of ['d3', 'a1', 'maq', '../x', '/etc', '', 'toString', 4, null, undefined]) expect(artifactItem(view, id)).toBeNull();
+    expect(artifactItem(null, 'a0')).toBeNull();
+  });
+
+  it('folderOf : absent la racine, d<i> son nom, inconnu ou fichier null', () => {
+    expect(folderOf(view, undefined)).toBe('');
+    expect(folderOf(view, 'd2')).toBe('maq/v2');
+    for (const id of ['a0', 'd9', 'maq', '..', null, 0]) expect(folderOf(view, id)).toBeNull();
+  });
+
+  it('within : le dossier ou dessous, pas un voisin de même préfixe', () => {
+    expect(within('maq', 'maq')).toBe(true);
+    expect(within('maq/v2/x.md', 'maq')).toBe(true);
+    expect(within('maquette', 'maq')).toBe(false);
+    expect(within('x.md', 'maq')).toBe(false);
+    expect(within('x.md', '')).toBe(true);
   });
 });

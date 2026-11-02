@@ -10,13 +10,16 @@
  *  Toujours / Refuser), choix du modèle, zone de commentaire, barre d'état
  *  (« N actions en cours »),
  *  titres des sorties ; le code d'un module (Enregistrer, fichier trop gros) ; le panneau
- *  Artefacts (son bouton, la liste vide, Copier, Ajouter et sa zone de dépôt,
- *  fichier tronqué, dossier commun au projet) ; l'avancement d'une course
+ *  Artefacts (son bouton, la liste vide, Copier dans le projet, l'arborescence :
+ *  entrées du menu, Tout replier, motifs d'un nom refusé, confirmation de
+ *  suppression ; fichier tronqué, dossier commun au projet) ; l'avancement d'une course
  *  (vague, modules faits, corrections, relance Opus) ; une durée,
  *  une taille de fichier en clair. Ceux des boutons viennent des
  *  actions (actions.<langue>.json).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
 import type { VibeLang, VibeRun, VibeRunProgress, VibeStepId } from 'technicals/bridge';
+import type { MenuEntry } from './artifact-clipboard';
+import type { NameProblem } from './artifact-tree';
 
 type Choices = [string, string][]; // [valeur, libellé]
 
@@ -142,10 +145,21 @@ const fr = {
   artifactsTitle: 'Les documents hors du projet, communs à tous ses agents : wireframes, PDF, présentations…',
   artifactsNone: 'Aucun artefact dans ce projet : demandez à l\'agent un document (wireframe, PDF, présentation…), il le crée ici.',
   artifactCopy: 'Copier dans le projet',
-  artifactCopyTitle: 'Copier ce fichier dans un dossier choisi',
-  artifactAdd: 'Ajouter',
-  artifactAddTitle: 'Choisir des fichiers : ils sont copiés dans les artefacts du projet',
-  artifactDrop: 'Déposez des fichiers ou des dossiers ici : ils sont copiés dans les artefacts du projet, les originaux restent en place.',
+  artifactCopyTitle: 'Copier la sélection dans un dossier choisi',
+  artifactMenu: {
+    rename: 'Renommer', trash: 'Supprimer', copy: 'Copier', cut: 'Couper', paste: 'Coller', duplicate: 'Dupliquer',
+    newFile: 'Nouveau fichier', newFolder: 'Nouveau dossier',
+  } as Record<MenuEntry, string>,
+  artifactCollapseAll: 'Tout replier',
+  nameProblem: {
+    empty: 'Le nom est vide.', dots: 'Ce nom n\'est pas permis (. ou ..).', separator: 'Pas de / ni de \\ dans un nom.',
+    hidden: 'Un dossier ne commence pas par un point : il serait caché.', long: 'Nom trop long (255 octets au plus).',
+    windows: 'Nom refusé : pas de : * ? " < > |, pas d\'espace ni de point à la fin, pas de nom réservé de Windows (CON, NUL…).',
+    taken: 'Ce nom est déjà pris.',
+  } as Record<NameProblem, string>,
+  artifactConfirm: (n: number, name: string) => (n > 1 ? `Supprimer ces ${n} éléments ?` : `Supprimer « ${name} » ?`),
+  artifactConfirmHint: 'Ils vont dans la corbeille du système : on peut les y récupérer.',
+  artifactConfirmNo: 'Annuler',
   artifactTruncated: 'Fichier tronqué : Ouvrir dans l\'éditeur montre la suite.',
   artifactUnreadable: 'Fichier illisible.',
 };
@@ -263,10 +277,21 @@ const en: Strings = {
   artifactsTitle: 'The documents outside the project, shared by all its agents: wireframes, PDFs, slides…',
   artifactsNone: 'No artifact in this project: ask the agent for a document (wireframe, PDF, slides…), it makes it here.',
   artifactCopy: 'Copy to project',
-  artifactCopyTitle: 'Copy this file to a chosen folder',
-  artifactAdd: 'Add',
-  artifactAddTitle: 'Pick files: they are copied to the project\'s artifacts',
-  artifactDrop: 'Drop files or folders here: they are copied into the project\'s artifacts, the originals stay put.',
+  artifactCopyTitle: 'Copy the selection to a chosen folder',
+  artifactMenu: {
+    rename: 'Rename', trash: 'Delete', copy: 'Copy', cut: 'Cut', paste: 'Paste', duplicate: 'Duplicate',
+    newFile: 'New file', newFolder: 'New folder',
+  },
+  artifactCollapseAll: 'Collapse all',
+  nameProblem: {
+    empty: 'The name is empty.', dots: 'This name is not allowed (. or ..).', separator: 'No / or \\ in a name.',
+    hidden: 'A folder does not start with a dot: it would be hidden.', long: 'Name too long (255 bytes at most).',
+    windows: 'Name refused: no : * ? " < > |, no trailing space or dot, no Windows reserved name (CON, NUL…).',
+    taken: 'This name is already taken.',
+  },
+  artifactConfirm: (n, name) => (n > 1 ? `Delete these ${n} items?` : `Delete "${name}"?`),
+  artifactConfirmHint: 'They go to the system trash: they can be recovered there.',
+  artifactConfirmNo: 'Cancel',
   artifactTruncated: 'File truncated: Open in the editor shows the rest.',
   artifactUnreadable: 'Unreadable file.',
 };

@@ -5,6 +5,11 @@
 // que la page lui donne : un File construit par la page rend un chemin vide, et
 // aucun texte de la page ne part vers le principal. La revérification du
 // principal : src/main/core/vibecoder/tests/invariants/dropped-paths.test.ts.
+// Le dossier d'arrivée (note docs/tickets/feat/0.13.0-gestion-artefacts.md, accord de
+// l'utilisateur) : vibeDrop(files, folder) passe en plus l'id d'un dossier du relevé, une
+// chaîne seule, que le principal ne lit jamais comme un chemin (artifact-ops.test.ts) ; le
+// cas « un chemin en deuxième argument » devient : rien d'autre qu'une chaîne, ni un
+// troisième argument.
 // Protégé : si un test échoue, corriger le code.
 //
 // Sur le vrai pont (src/preload/panel.ts) ; faux : Electron, dont getPathForFile
@@ -49,11 +54,11 @@ beforeEach(async () => {
 });
 
 describe('vibeDrop : le chemin vient du File, jamais de la page (I-37)', () => {
-  it('témoin : les File déposés, le principal reçoit leurs chemins sur conv:vibeDrop', async () => {
-    await fake.conv.vibeDrop([dropped('/home/moi/a.md'), dropped('/home/moi/b.md')]);
+  it('témoin : les File déposés sur un dossier, le principal reçoit leurs chemins et l’id du dossier sur conv:vibeDrop', async () => {
+    await fake.conv.vibeDrop([dropped('/home/moi/a.md'), dropped('/home/moi/b.md')], 'd0');
 
-    // leurs chemins, dans l'ordre, et rien d'autre
-    expect(fake.used).toEqual([['conv:vibeDrop', [['/home/moi/a.md', '/home/moi/b.md']]]]);
+    // leurs chemins, dans l'ordre, l'id du dossier, et rien d'autre
+    expect(fake.used).toEqual([['conv:vibeDrop', [['/home/moi/a.md', '/home/moi/b.md'], 'd0']]]);
   });
 
   // La page construit un File du nom qu'elle veut : ce nom ne devient pas un chemin.
@@ -94,9 +99,21 @@ describe('vibeDrop : le chemin vient du File, jamais de la page (I-37)', () => {
     expect(sent()).not.toContain(SECRET);
   });
 
-  it('un chemin en plus, en deuxième argument : il ne part pas', async () => {
-    await fake.conv.vibeDrop([dropped('/home/moi/a.md')], SECRET);
+  // Le dossier n'est qu'une chaîne : un objet qui porte un chemin n'est pas un dossier.
+  it('un objet en deuxième argument, qui porte un chemin : il ne part pas', async () => {
+    await fake.conv.vibeDrop([dropped('/home/moi/a.md')], { path: SECRET });
 
+    // témoin : le chemin du File déposé part
+    expect(sent()).toContain('/home/moi/a.md');
+    // le chemin choisi par la page n'y est pas
+    expect(sent()).not.toContain(SECRET);
+  });
+
+  it('un chemin en plus, en troisième argument : il ne part pas', async () => {
+    await pageCalls([dropped('/home/moi/a.md')], 'd0', SECRET);
+
+    // témoin : le chemin du File déposé part
+    expect(sent()).toContain('/home/moi/a.md');
     // le chemin choisi par la page n'y est pas
     expect(sent()).not.toContain(SECRET);
   });

@@ -2,8 +2,9 @@
  *  autre (I-37) : elle ne donne qu'un id du dernier relevé, que itemPath
  *  traduit en chemin sans jamais lire l'id comme un chemin ; et un chemin
  *  n'est retenu que s'il reste, `..` et liens résolus, dans le dossier de
- *  l'agent (safePath).
- *  Ne connaît pas : Electron, le disque (realpath passé).
+ *  l'agent (safePath). noLinkPath est plus strict, pour écrire dans le dossier
+ *  d'artefacts : aucun lien, ni dossier ni fichier, sur tout le chemin.
+ *  Ne connaît pas : Electron, le disque (realpath et lstat passés).
  *  Un fichier à suivre et enregistrer (codeFile) : celui d'un module touché
  *  par la branche (`m<rang>/<i>`) ou, en créateur seulement, la note (`n`) ou un
  *  test d'invariant (`t<i>`), par son id dans le dernier relevé, jamais lu
@@ -12,7 +13,8 @@
  *  chemin.
  *  Utilisé par : app/controllers (vibecoder : lire la note et les tests, ouvrir
  *  un fichier ou un commit du relevé ; module-code : le fichier de Voir le code,
- *  la note ou le test qu'on modifie). */
+ *  la note ou le test qu'on modifie ; artifact-ops, artifacts : noLinkPath). */
+import type { Stats } from 'node:fs';
 import path from 'node:path';
 import type { VibeModule, VibeView } from 'shared/bridge';
 
@@ -29,6 +31,23 @@ export function safePath(dir: string, rel: string, realpath: (p: string) => stri
   } catch {
     return null;
   }
+}
+
+// Le chemin de `rel` sous `root` si `root` est un dossier, `rel` relatif sans
+// `..` ni NUL, et chaque segment existe sans être un lien (le dernier : fichier
+// ou dossier) ; null sinon. `rel` vide : `root`. Les `/` comptent aussi sous
+// Windows, comme dans path.resolve.
+export function noLinkPath(root: string, rel: string, lstat: (p: string) => Stats | undefined): string | null {
+  if (path.isAbsolute(rel) || rel.includes('\0')) return null;
+  const names = rel.split(path.sep === '\\' ? /[\\/]/ : '/').filter((n) => n && n !== '.');
+  if (names.includes('..') || !lstat(root)?.isDirectory()) return null;
+  let at = root;
+  for (const [i, name] of names.entries()) {
+    at = path.join(at, name);
+    const st = lstat(at);
+    if (!st || st.isSymbolicLink() || (i < names.length - 1 && !st.isDirectory())) return null;
+  }
+  return at;
 }
 
 // Le chemin relatif du fichier du relevé qui porte cet id (la note, un test

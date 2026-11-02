@@ -1,0 +1,15 @@
+/* Le champ de nom sur place (rename-field.tsx) : l'encart passe en rouge, le message dessous. */
+.vc-rename { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.vc-rename-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 1px 4px;
+  border: 1px solid var(--vc-edge);
+  border-radius: var(--vc-radius);
+  background: var(--vc-code);
+  color: var(--vc-text);
+  font: inherit;
+}
+.vc-rename-input:focus { outline: 1px solid var(--vc-accent); outline-offset: 0; }
+.vc-rename-input[aria-invalid] { border-color: #f85149; outline-color: #f85149; background: color-mix(in srgb, #f85149 12%, var(--vc-code)); }
+.vc-rename-problem { margin-top: 2px; color: #f85149; font-size: 11px; line-height: 1.3; }

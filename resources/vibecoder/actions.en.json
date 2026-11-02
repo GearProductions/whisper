@@ -393,9 +393,79 @@
     "step": null,
     "kind": "send",
     "needs": "none",
-    "label": "Add",
-    "hint": "Picks files through the app's dialog and copies them into the project's artifacts; a file of the same name is kept, the new one is numbered.",
-    "text": "Add: only by the app (direct), never by the agent."
+    "label": "Drop",
+    "hint": "Dropping files onto the artifacts; a file of the same name is kept, the new one is numbered.",
+    "text": "Drop: only by the app (direct), never by the agent."
+  },
+  {
+    "id": "rename-artifact",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Rename",
+    "hint": "Renames the chosen item; the typed name is a bare name, never a path.",
+    "text": "Rename: only by the app (direct), never by the agent."
+  },
+  {
+    "id": "new-artifact-file",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "New file",
+    "hint": "Creates an empty file in the chosen folder (the root by default); a name already taken is refused.",
+    "text": "New file: only by the app (direct), never by the agent."
+  },
+  {
+    "id": "new-artifact-folder",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "New folder",
+    "hint": "Creates a folder in the chosen folder (the root by default); a name already taken is refused.",
+    "text": "New folder: only by the app (direct), never by the agent."
+  },
+  {
+    "id": "trash-artifacts",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Trash",
+    "hint": "Moves the chosen items to the trash, once their names are confirmed.",
+    "text": "Trash: only by the app (direct), never by the agent."
+  },
+  {
+    "id": "move-artifacts",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Move",
+    "hint": "Moves the chosen items into the target folder; nothing is overwritten.",
+    "text": "Move: only by the app (direct), never by the agent."
+  },
+  {
+    "id": "copy-artifacts",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Paste",
+    "hint": "Copies the chosen items into the target folder; nothing is overwritten.",
+    "text": "Paste: only by the app (direct), never by the agent."
+  },
+  {
+    "id": "duplicate-artifacts",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Duplicate",
+    "hint": "Duplicates the chosen items next to the original, under a numbered name.",
+    "text": "Duplicate: only by the app (direct), never by the agent."
   },
   {
     "id": "review-note",

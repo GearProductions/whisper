@@ -164,12 +164,14 @@ vi.mock('app/controllers/worktrees', async (original) => ({
 // Copier un artefact : relevé, puis une erreur inattendue (un droit d'écriture manquant…) ; le reste, vrai.
 vi.mock('app/controllers/artifacts', async (original) => ({
   ...await original<typeof import('app/controllers/artifacts')>(),
-  copyArtifact: async (a: { id: string }, id: string) => { fake.calls.push(['copyArtifact', a.id, id]); throw new Error('EACCES: permission denied'); },
-  pickArtifacts: async (a: { id: string }) => { fake.calls.push(['pickArtifacts', a.id]); return { ok: true, line: 'Added by dialog.', detail: '' }; },
-  addArtifacts: async (a: { id: string }, paths: unknown) => { fake.calls.push(['addArtifacts', a.id, paths]); if (fake.busy) await new Promise((r) => { fake.release = r; }); return { ok: true, line: 'Added by drop.', detail: '' }; },
+  copyArtifact: async (a: { id: string }, ids: string[]) => { fake.calls.push(['copyArtifact', a.id, ids]); throw new Error('EACCES: permission denied'); },
+  addArtifacts: async (a: { id: string }, paths: unknown, folder?: unknown) => { fake.calls.push(['addArtifacts', a.id, paths, folder]); if (fake.busy) await new Promise((r) => { fake.release = r; }); return { ok: true, line: 'Added by drop.', detail: '' }; },
 }));
 
 // Les courses : vraies ; runsTab relevé au passage.
+vi.mock('app/controllers/artifact-ops', () => Object.fromEntries(
+  ['renameArtifact', 'newArtifact', 'trashArtifacts', 'moveArtifacts', 'copyArtifacts', 'duplicateArtifacts'].map((fn) =>
+    [fn, async (a: { id: string }, ...rest: unknown[]) => { fake.calls.push([fn, a.id, ...rest]); return { ok: true, line: `${fn} done.`, detail: '' }; }])));
 vi.mock('app/controllers/runs', async (original) => {
   const runs = await original<typeof import('app/controllers/runs')>();
   return { ...runs, runsTab: (id: string | null) => { fake.tabs.push(id); runs.runsTab(id); } };
@@ -1128,22 +1130,52 @@ describe('0.13.0 : les artefacts', () => {
     const { view } = await open();
     const { runVibeAction } = await import('app/controllers');
     const id = (view() as unknown as { artifacts: { id: string; name: string }[] }).artifacts.find((a) => a.name === 'notes.md')!.id;
-    expect(runVibeAction('copy-artifact', { artifact: id })).toMatchObject({ ok: false });
+    expect(runVibeAction('copy-artifact', { artifacts: [id] })).toMatchObject({ ok: false });
     expect(runVibeAction('copy-artifact', { direct: true })).toMatchObject({ ok: false });
-    expect(runVibeAction('copy-artifact', { direct: true, artifact: 'notes.md' })).toMatchObject({ ok: false });
-    expect(runVibeAction('copy-artifact', { direct: true, artifact: id })).toEqual({ ok: true });
+    expect(runVibeAction('copy-artifact', { direct: true, artifacts: [id] })).toEqual({ ok: true });
     for (let i = 0; i < 60 && (await directOf())?.running !== false; i++) await settle();
     expect((await directOf())?.last).toMatchObject({ ok: false, line: 'EACCES: permission denied' });
-    expect([fake.calls, fake.messages]).toEqual([[['copyArtifact', 'a1', id]], []]);
+    expect([fake.calls, fake.messages]).toEqual([[['copyArtifact', 'a1', [id]]], []]);
   });
 
-  it('add-artifact : jamais à l’agent, ni sans le clic ; le clic n’ouvre que la boîte de dialogue, sans chemin', async () => {
+  it('add-artifact : refusé par vibeRun, avec ou sans le clic, avec un chemin ou non : le dépôt seul', async () => {
     await open();
     const { runVibeAction } = await import('app/controllers');
     expect(runVibeAction('add-artifact', { paths: ['/etc/passwd'] })).toMatchObject({ ok: false });
-    expect(runVibeAction('add-artifact', { direct: true, paths: ['/etc/passwd'], dropped: ['/etc/passwd'] })).toEqual({ ok: true });
-    for (let i = 0; i < 60 && (await directOf('add-artifact'))?.running !== false; i++) await settle();
-    expect(fake.calls).toEqual([['pickArtifacts', 'a1']]);
+    expect(runVibeAction('add-artifact', { direct: true, paths: ['/etc/passwd'], dropped: ['/etc/passwd'] })).toMatchObject({ ok: false });
+    await settle();
+    expect([fake.calls, fake.messages]).toEqual([[], []]);
+  });
+
+  it('les six actions sur les artefacts : jamais à l’agent ; au clic, args.artifacts, folder, name et names passés tels quels', async () => {
+    write(path.join(fake.userData, 'vibecoder', 'actions.fr.json'), JSON.stringify(
+      ['rename-artifact', 'new-artifact-file', 'new-artifact-folder', 'trash-artifacts', 'move-artifacts', 'copy-artifacts', 'duplicate-artifacts']
+        .map((id) => ({ id, flow: 'both', step: null, kind: 'send', needs: 'none', label: id, text: id }))));
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+    const go = async (id: string, args: object) => {
+      const r = runVibeAction(id, { direct: true, ...args });
+      for (let i = 0; r.ok && i < 60 && (await directOf(id))?.running !== false; i++) await settle();
+      return r;
+    };
+    expect(runVibeAction('trash-artifacts', { artifacts: ['a0'], names: ['x'] })).toMatchObject({ ok: false });
+    expect(await go('rename-artifact', { artifacts: ['a0', 'a1'], name: 'n' })).toMatchObject({ ok: false });   // un seul id
+    expect(await go('rename-artifact', { artifacts: ['a0'], name: 'n', folder: 'd0' })).toEqual({ ok: true });
+    expect(await go('new-artifact-file', { folder: 'd0', name: 'f.md', artifacts: ['a0'] })).toEqual({ ok: true });
+    expect(await go('new-artifact-folder', { name: 'sous' })).toEqual({ ok: true });
+    expect(await go('trash-artifacts', { artifacts: ['a0', 'd1'], names: ['x', 'y'] })).toEqual({ ok: true });
+    expect(await go('move-artifacts', { artifacts: ['a0'], folder: 'd1' })).toEqual({ ok: true });
+    expect(await go('copy-artifacts', { artifacts: ['a0'] })).toEqual({ ok: true });
+    expect(await go('duplicate-artifacts', { artifacts: ['a0'], folder: 'd1' })).toEqual({ ok: true });
+    expect(fake.calls).toEqual([
+      ['renameArtifact', 'a1', 'a0', 'n'],
+      ['newArtifact', 'a1', 'd0', 'f.md', false],
+      ['newArtifact', 'a1', undefined, 'sous', true],
+      ['trashArtifacts', 'a1', ['a0', 'd1'], ['x', 'y']],
+      ['moveArtifacts', 'a1', ['a0'], 'd1'],
+      ['copyArtifacts', 'a1', ['a0'], undefined],
+      ['duplicateArtifacts', 'a1', ['a0']],
+    ]);
     expect(fake.messages).toEqual([]);
   });
 
@@ -1170,6 +1202,14 @@ describe('0.13.0 : les artefacts', () => {
     fake.release();
     for (let i = 0; i < 60 && (await directOf('add-artifact'))?.running !== false; i++) await settle();
     expect((await directOf('add-artifact'))?.last).toMatchObject({ ok: true, line: 'Added by drop.' });
-    expect(fake.calls).toEqual([['addArtifacts', 'a1', paths]]);
+    expect(fake.calls).toEqual([['addArtifacts', 'a1', paths, undefined]]);
+  });
+
+  it('un dépôt : le dossier d’arrivée (un id) suit jusqu’à addArtifacts', async () => {
+    await open();
+    const { dropOnArtifacts } = await import('app/controllers');
+    expect(dropOnArtifacts(['/tmp/a.md'], 'd1')).toEqual({ ok: true });
+    for (let i = 0; i < 60 && (await directOf('add-artifact'))?.running !== false; i++) await settle();
+    expect(fake.calls).toEqual([['addArtifacts', 'a1', ['/tmp/a.md'], 'd1']]);
   });
 });

@@ -2,6 +2,7 @@
 export * from './async-queue';
 export * from './build-state';
 export * from './command-line';
+export * from './file-name';
 export * from './git-ref';
 export * from './lang';
 export * from './numbered-name';

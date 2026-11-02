@@ -1,4 +1,5 @@
-/** vibecoder — ce que l'écran VibeCoder calcule, sans le DOM : le Markdown
+/** vibecoder — ce que l'écran VibeCoder calcule, sans le DOM : l'arborescence des
+ *  artefacts (nœuds, lignes visibles, ids, noms, touches, presse-papiers et menu), le Markdown
  *  (jamais de HTML), les lignes changées, la coloration du
  *  pseudo-code, les libellés ; les
  *  sorties des skills lues sans s'y fier, les lignes de l'étape Modules, ce
@@ -10,6 +11,8 @@
  *  actions qui tournent, la largeur de la colonne de la conversation ; la saisie de l'écran gardée
  *  par agent ; la recherche de la vue des branches et les PR où se demander en
  *  relecture. */
+export * from './artifact-clipboard';
+export * from './artifact-tree';
 export * from './diff';
 export * from './field';
 export * from './forme';
@@ -25,4 +28,5 @@ export * from './questions';
 export * from './review-flow';
 export * from './screen';
 export * from './search';
+export * from './tree-keys';
 export * from './validation';

@@ -33,7 +33,9 @@ async function shown(artifacts: VibeArtifact[]) {
   document.body.append(container);
   const root = createRoot(container);
   roots.push(root);
-  const props = { artifacts, lang: 'fr' as const, code: null, onChoose: () => {}, onOpen: () => {}, onCopy: () => {} };
+  // Les rappels de la vue, d'avant et d'après la note 0.13.0-gestion-artefacts (onCopy part, onRun et
+  // onDrop les remplacent ; artifactDirs : les dossiers du relevé) : seul l'appel change, ces règles gardées.
+  const props = { artifacts, artifactDirs: [], lang: 'fr' as const, code: null, onChoose: () => {}, onOpen: () => {}, onCopy: () => {}, onRun: () => {}, onDrop: () => {} };
   await act(async () => { root.render(createElement(ArtifactsView, props)); });
   return container;
 }
