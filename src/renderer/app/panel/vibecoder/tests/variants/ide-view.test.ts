@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 // IdeView (ide-view.tsx) : le premier fichier est choisi d'emblée ; un clic en choisit un autre et children
 // le reçoit ; le choix tient par chemin d'un `files` à l'autre, et retombe sur le premier quand il disparaît ;
-// un dossier se plie (et un dossier nouveau s'ouvre seul) ; le point d'état de chaque fichier, aucun s'il n'a pas d'état.
+// un dossier se plie (et un dossier nouveau s'ouvre seul) ; le point d'état de chaque fichier, aucun s'il n'a pas d'état ;
+// son numéro, le rang de son module + 1.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, expect, it } from 'vitest';
@@ -67,4 +68,11 @@ it('le point d\'état de chaque fichier, aucun sans état', async () => {
   expect(row('a/x.ts')!.dataset.state).toBe('done');
   expect(row('z.ts')!.dataset.state).toBe('wip');
   expect(row('a')!.querySelector('.vc-mod-dot')).toBeNull();
+});
+
+it('le numéro de chaque fichier : le rang de son module + 1, aucun pour un fichier de la branche', async () => {
+  await draw([{ ...f('a/x.ts'), rank: 0 }, { ...f('z.ts'), rank: 2 }, { ...f('b.ts'), rank: null, state: null }]);
+  expect(row('a/x.ts')!.querySelector('.vc-tree-rank')!.textContent).toBe('1');
+  expect(row('z.ts')!.querySelector('.vc-tree-rank')!.textContent).toBe('3');
+  expect(row('b.ts')!.querySelector('.vc-tree-rank')).toBeNull();
 });
