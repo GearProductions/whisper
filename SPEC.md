@@ -1294,6 +1294,12 @@ conversation ; note `0.9.0-actions-independantes.md`).
   commit ne touche) au lieu de le générer ; la demande attend la fin de
   `next` (« en attente ») et part dans sa course, au modèle de *Générer ce
   module*. Un commit qui échoue (un hook) : pas de demande.
+- ***Générer ce module*, puis *Relire le diff*, deux courses** : `module`,
+  le module écrit, demande *Relire le diff* des changements en cours
+  (`<sorties>/actions/review-diff.start`, `{}`) au lieu de relire lui-même ;
+  elle part dans sa course, au modèle de *Relire le diff* (un autre agent
+  que celui qui a écrit). Pas de demande s'il s'est arrêté sans écrire le
+  module, ni quand `modules` l'a lancé (il relit chaque diff lui-même).
 - **L'avis de fin** : une course finie (*finie*, *en échec*) envoie une
   ligne à la conversation de l'agent (« VibeCoder : « <libellé> » finie —
   <sa réponse, 300 caractères au plus>. État : <sorties>/actions.json ») ;
@@ -1495,8 +1501,13 @@ créateur ; le relecteur, F-101) :
    *Générer ce module* (le premier qu'aucun commit ne touche ; avec
    `ponytail`, tests lancés, sans commit) : pas dans l'en-tête de l'étape,
    c'est le *Générer* de ce module qui est mis en avant, sur sa ligne
-   (*Commiter ce module* non plus : le *Commiter* de chaque module) ; aussi *Relire le diff* (les
-   quatre questions du § 5.1), *Générer les modules restants* (confiés à des
+   (*Commiter ce module* non plus : le *Commiter* de chaque module) ;
+   *Préparer le commit* masqué sans rien à commiter, *✓ Valider → commit →
+   suivant* sans module pas commité ou sans suivant à générer. *Relire le
+   diff* (les quatre questions du § 5.1) part seul après *Générer* (voir
+   *Générer ce module, puis Relire le diff*) : pas dans l'en-tête non plus,
+   *Relancer* sur sa carte, ou sur la ligne d'un module déplié. Aussi
+   *Générer les modules restants* (confiés à des
    agents Sonnet en parallèle, chaque diff relu, sans commit).
    **Vue IDE** : un interrupteur *IDE* · *liste*, dans les outils de la carte,
    choisit entre l'accordéon ci-dessus (*liste*, inchangée) et une
@@ -2228,7 +2239,8 @@ instructions, sinon le guide du dépôt (`docs/dev_guide/`), sinon les leurs.
 fait plus la feature dans un seul tour, il lance les actions par le
 protocole d'`actions`, à partir de la forme. `invariants` suit `aligner`
 dans sa course ; `verifier` demande `ponytail` quand il lance toutes les
-vérifications (F-93). `modules` et `module` ne commitent pas :
+vérifications (F-93) ; `module` demande `relire` (`review-diff`) une fois
+le module écrit, sauf lancé par `modules`. `modules` et `module` ne commitent pas :
 `commiter-modules` commite un module ou tous ceux qui ont des changements,
 un commit chacun ; `suivant` commite comme lui.
 Un agent du plugin, Sonnet à effort élevé : `developpeur` (un module de la

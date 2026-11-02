@@ -607,7 +607,8 @@ relire une PR (le relecteur, plus bas) :
    a fini, ou par *Rien à écrire* (à revalider si la note change ;
    pendant *Vibe* aussi).
 4. **Modules** : *Générer ce module* (avec `ponytail`, typecheck et tests du
-   module lancés, sans commit), *Relire le diff*, *✓ Valider → commit →
+   module lancés, sans commit ; puis *Relire le diff* part seul, par un autre
+   agent, et sa relecture s'affiche dans une carte), *✓ Valider → commit →
    suivant* (commite le module, puis génère le suivant dans une seconde
    course ; un commit refusé, par un hook par exemple, n'en génère aucun) ;
    ou *Générer les modules restants* (des agents Sonnet en parallèle, chaque
