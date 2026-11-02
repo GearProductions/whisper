@@ -145,9 +145,6 @@ const fr = {
   artifacts: 'Artefacts',
   artifactsTitle: 'Les documents hors du projet, communs à tous ses agents : wireframes, PDF, présentations…',
   artifactsNone: 'Aucun artefact dans ce projet : demandez à l\'agent un document (wireframe, PDF, présentation…), il le crée ici.',
-  artifactAdd: 'Ajouter',
-  artifactAddTitle: 'Choisir des fichiers : ils sont copiés dans les artefacts du projet',
-  artifactDrop: 'Déposez des fichiers ou des dossiers ici : ils sont copiés dans les artefacts du projet, les originaux restent en place.',
   artifactCopy: 'Copier dans le projet',
   artifactCopyTitle: 'Copier la sélection dans un dossier choisi',
   artifactMenu: {
@@ -282,9 +279,6 @@ const en: Strings = {
   artifacts: 'Artifacts',
   artifactsTitle: 'The documents outside the project, shared by all its agents: wireframes, PDFs, slides…',
   artifactsNone: 'No artifact in this project: ask the agent for a document (wireframe, PDF, slides…), it makes it here.',
-  artifactAdd: 'Add',
-  artifactAddTitle: 'Pick files: they are copied to the project\'s artifacts',
-  artifactDrop: 'Drop files or folders here: they are copied into the project\'s artifacts, the originals stay put.',
   artifactCopy: 'Copy to project',
   artifactCopyTitle: 'Copy the selection to a chosen folder',
   artifactMenu: {

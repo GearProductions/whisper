@@ -1,0 +1,25 @@
+/* L'arborescence des artefacts (artifact-tree-view) : lignes indentées en ligne (padding-left posé en
+   style), chevron qui tourne en s'ouvrant, sélection comme la liste d'avant, filet d'accent sur le
+   dossier qui recevrait un lâcher. Sous .vc, couleurs de vibecoder.css. */
+.vc-tree { min-height: 48px; padding: 0 6px; outline: none; }
+.vc-tree[data-over] { box-shadow: inset 0 0 0 1px var(--accent); border-radius: var(--vc-radius); }
+.vc-tree-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding-block: 3px;
+  padding-right: 6px;
+  border-radius: var(--vc-radius);
+  color: var(--vc-soft);
+  font: 12.5px/1.5 system-ui, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+.vc-tree-row:hover { background: #222838; color: var(--vc-text); }
+.vc-tree-row[aria-selected="true"] { background: #262d3d; color: var(--vc-text); box-shadow: inset 2px 0 0 var(--accent); }
+.vc-tree:focus-visible .vc-tree-row[data-focus] { outline: 1px solid var(--accent); outline-offset: -1px; }
+.vc-tree-row[data-over] { background: color-mix(in srgb, var(--accent) 18%, transparent); box-shadow: inset 0 0 0 1px var(--accent); }
+.vc-tree-chevron { flex: none; width: 12px; color: var(--vc-faint); text-align: center; transition: transform 0.1s; }
+.vc-tree-chevron[data-open] { transform: rotate(90deg); }
+.vc-tree-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }

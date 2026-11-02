@@ -14,8 +14,9 @@ import { PanelApp } from '../../panel-app';
 
 // Le pont : chaque on…(cb) retient son rappel ; le reste ne fait rien.
 const on: Record<string, (v: unknown) => void> = {};
+const own: Record<string, unknown> = {}; // les méthodes qu'un test remplace
 const conv = new Proxy({}, {
-  get: (_, k: string) => (cb: (v: unknown) => void) => { if (k.startsWith('on')) on[k] = cb; return Promise.resolve(null); },
+  get: (_, k: string) => k in own ? own[k] : (cb: (v: unknown) => void) => { if (k.startsWith('on')) on[k] = cb; return Promise.resolve(null); },
 }) as unknown as ConvApi;
 
 // happy-dom n'a pas execCommand : insérer à la place de la sélection, comme Chromium.
@@ -84,4 +85,33 @@ it('un <input> ou un éditeur CodeMirror a le clavier : la dictée va au champ d
   await dictate('deux');
   expect(cm.state.doc.toString()).toBe('note');
   expect(input.value).toBe('bonjour un deux');
+});
+
+// Le dépôt sur la page : un fichier extérieur rejoint la conversation (le pont lit son chemin),
+// sauf sous [data-own-drop] ; un glisser interne de l'arborescence (aucun File) ne joint rien.
+const dropOn = (target: Element, files: File[]) => act(async () => {
+  const e = new Event('drop', { bubbles: true, cancelable: true });
+  Object.defineProperty(e, 'dataTransfer', { value: { files } });
+  target.dispatchEvent(e);
+});
+
+it('un fichier lâché hors de l\'arborescence est joint ; sous [data-own-drop] ou en glisser interne, rien', async () => {
+  const asked: File[] = [];
+  own.pathFor = (f: File) => { asked.push(f); return `/tmp/${f.name}`; };
+  await act(() => {
+    on.onThread({ mode: 'full', key: 'k', live: true, name: 'A', color: '#fff', title: 't', status: 'idle', messages: [] });
+  });
+  const tree = page.appendChild(document.createElement('div'));
+  tree.setAttribute('data-own-drop', '');
+  const row = tree.appendChild(document.createElement('span'));
+  const file = new File(['x'], 'a.md');
+
+  await dropOn(row, [file]);
+  expect(asked).toEqual([]);
+  await dropOn(row, []);   // un artefact glissé dans l'arborescence
+  await dropOn(document.body, []);   // le même, lâché hors de l'arborescence
+  expect(asked).toEqual([]);
+  await dropOn(document.body, [file]);
+  expect(asked).toEqual([file]);
+  tree.remove();
 });

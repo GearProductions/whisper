@@ -21,9 +21,11 @@
  *  chaque agent (createKept). Voir le code : le fichier de module suivi
  *  (`conv:vibeCode`), suivre et enregistrer reliés au pont ; un autre fichier
  *  suivi, ou aucun, efface le texte du précédent (vibe-coder cesse de suivre
- *  quand l'agent ou l'étape change). Un dépôt sur la page rejoint la conversation,
- *  sauf dans une zone qui le prend elle-même (`[data-own-drop]` : la zone des
- *  artefacts, via vibeAct.drop, qui passe les File au pont, jamais un chemin).
+ *  quand l'agent ou l'étape change). Un dépôt de fichiers sur la page rejoint la
+ *  conversation, sauf sous une zone qui le prend elle-même (`[data-own-drop]` :
+ *  l'arborescence des artefacts entière, via vibeAct.drop(files, dossier), qui passe les File
+ *  au pont et l'id du dossier d'arrivée, jamais un chemin) ; un glisser interne de
+ *  l'arborescence (aucun File), lâché où que ce soit, ne joint rien.
  *  Le « @ » du champ : le Composer reçoit les artefacts du seul agent affiché
  *  (vibeShown : même clé que le relevé) ; sans relevé, pas de liste.
  *  Ne connaît pas : l'icône, la bulle. Utilisé par : main.tsx. */
@@ -168,7 +170,8 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
       drag(false);
       const files = [...(e.dataTransfer?.files || [])];
       if (files.length || e.target !== el.input.current) e.preventDefault();
-      // La zone des artefacts prend son dépôt elle-même (act.drop) : ne pas le joindre aussi à la conversation.
+      // L'arborescence des artefacts prend son dépôt elle-même (act.drop) : ne pas le joindre aussi à la conversation.
+      // Un glisser interne n'a aucun File : rien à joindre.
       const own = e.target instanceof Element && !!e.target.closest('[data-own-drop]');
       if (files.length && !own) addFiles(files);
     });
@@ -283,10 +286,11 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     return !!res?.ok;
   }
 
-  // Artefacts : des fichiers déposés dans la zone, copiés dans le dossier ; refusé, le motif comme vibeSave.
-  async function vibeDrop(files: File[]) {
+  // Artefacts : des fichiers déposés dans l'arborescence, copiés dans le dossier visé (son id, sinon la racine) ;
+  // refusé, le motif comme vibeSave.
+  async function vibeDrop(files: File[], folder?: string) {
     let res: SendResult | null = null;
-    try { res = await conv.vibeDrop(files); } catch { res = null; }
+    try { res = await conv.vibeDrop(files, folder); } catch { res = null; }
     if (!res?.ok) setStatus((res && res.error) || vibeStrings(vibe?.lang ?? 'fr').sendFailed);
   }
 

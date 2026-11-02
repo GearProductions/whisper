@@ -450,7 +450,6 @@ export type VibeArgs = {
   branch?: string;             // switch-branch : une branche de VibeView.branches ; new-here, new-worktree : le nom saisi
   start?: string;              // le départ d'une branche créée
   onto?: string;               // rebase : sur quoi rebaser
-  artifact?: string;           // copy-artifact d'avant le panneau en arborescence : l'id d'un artefact
   artifacts?: string[];        // les actions sur les artefacts : des ids a<i> ou d<i> du dernier relevé, jamais un chemin
   folder?: string;             // le dossier visé : un id d<i> du dernier relevé ; absent : la racine
   name?: string;               // rename-artifact, new-artifact-* : le nom tapé, un nom seul, revérifié par le principal
