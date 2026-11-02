@@ -89,7 +89,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Generate this module",
-    "hint": "Implements the chosen module from the note and its shape, with ponytail, and runs the tests; does not commit.",
+    "hint": "Implements the chosen module from the note and its shape, with ponytail, and runs the tests; then Review the diff starts on its own, in a second run; does not commit.",
     "text": "/vibecoder:module {{lang}} {{out}} {{module}}"
   },
   {

@@ -25,7 +25,7 @@ A module waits until the modules it uses are written: pure functions → orchest
 - « Module (Forme entry): <the entry, verbatim>. "Ne doit pas" lines: <each one, with its invariant / variant / review tag>. Its invariants (protected, must turn green): <paths>. »
 - « Files you may create or change: <list>. Any other file must change → stop and say which one and why. »
 - « Other modules are being written at the same time: errors in files outside your list are not yours — report them, don't fix them. »
-- « Apply the ponytail skill. Commit nothing. »
+- « Apply the ponytail skill. Commit nothing. Don't request a review (`<out>/actions/review-diff.start`): I review your diff. »
 
 ## 3. Review each diff yourself
 
