@@ -161,8 +161,8 @@ it('le numéro d\'ordre de chaque module, celui de la Forme, en liste comme en v
   expect(page.querySelector('.vc-tree-rank')).toBeNull();
 });
 
-it('créateur : Générer ce module et Commiter ce module quittent l\'en-tête ; Générer, mis en avant sur le premier module pas touché quand c\'est la prochaine action ; Commiter sur la ligne d\'un module pas commité', async () => {
-  const actions = [{ id: 'module', primary: true, label: 'Générer ce module' }, { id: 'commit-module', label: 'Commiter ce module' }, { id: 'commit-modules', label: 'Commiter les modules' }]
+it('créateur : Générer ce module, Commiter ce module et Relire le diff quittent l\'en-tête ; Générer, mis en avant sur le premier module pas touché quand c\'est la prochaine action ; Commiter sur la ligne d\'un module pas commité', async () => {
+  const actions = [{ id: 'module', primary: true, label: 'Générer ce module' }, { id: 'commit-module', label: 'Commiter ce module' }, { id: 'commit-modules', label: 'Commiter les modules' }, { id: 'review-diff', label: 'Relire le diff' }]
     .map((a) => ({ hidden: false, who: '', hint: '', primary: false, step: 'modules', ...a }));
   await act(() => root.render(null));   // tout replié
   await act(() => {
@@ -173,6 +173,7 @@ it('créateur : Générer ce module et Commiter ce module quittent l\'en-tête ;
   });
   expect([...page.querySelectorAll('.vc-step-acts button')].map((b) => b.textContent)).not.toContain('Générer ce module');
   expect([...page.querySelectorAll('.vc-step-acts button')].map((b) => b.textContent)).not.toContain('Commiter ce module');
+  expect([...page.querySelectorAll('.vc-step-acts button')].map((b) => b.textContent)).not.toContain('Relire le diff');
   const line = (i: number) => [...page.querySelectorAll('.vc-mod')[i].querySelectorAll('summary .vc-mod-acts button')];
   expect(line(0).map((b) => b.textContent)).toEqual(['Générer', 'Commiter']);
   expect(line(1).map((b) => b.textContent)).toEqual(['Générer']);

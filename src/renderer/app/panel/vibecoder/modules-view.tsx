@@ -9,8 +9,9 @@
  *  diff dans l'éditeur) ; au bout de sa ligne, ses outils (ModuleTools) :
  *  Générer et Commiter (m.uncommitted : commit-module), replié comme déplié ;
  *  déplié, puis Relire le diff (du dernier commit qui le touche, sinon les
- *  changements non commités) et Ouvrir. Générer ce module et Commiter ce
- *  module ne sont pas dans l'en-tête de l'étape (own) : le Générer du premier
+ *  changements non commités) et Ouvrir. Générer ce module, Commiter ce
+ *  module et Relire le diff (lancé seul après Générer ; Relancer sur sa carte)
+ *  ne sont pas dans l'en-tête de l'étape (own) : le Générer du premier
  *  module pas touché est mis en avant quand c'est la prochaine action ; dessous, son
  *  contrat par rubrique (Contract) et, s'il est touché, son code (ModuleCode).
  *  Un seul déplié à la fois, le chemin du module déplié tenu ici ; ici aussi
@@ -166,7 +167,7 @@ export function ModulesView(p: StepProps) {
     <>
       <StepHead p={p} own={reviewer
         ? ['review-commits']
-        : [...(commit ? ['commit', 'commit-prepare'] : []), ...(review ? ['review-diff'] : []), 'commit-modules', 'module', 'commit-module']} />
+        : [...(commit ? ['commit', 'commit-prepare'] : []), 'review-diff', 'commit-modules', 'module', 'commit-module']} />
       {commit ? (
         <OutputCard className="vc-proposed" title={t.outputs['commit.md']} file="commit.md" time={commit.time} t={t}
           tools={(
