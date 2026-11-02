@@ -69,6 +69,7 @@
   transition: background-color 0.12s, border-color 0.12s;
 }
 .vc-mod-acts button:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--vc-control)); }
+.vc-mod-acts button[data-next]:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 28%, var(--vc-control)); color: var(--vc-text); }
 .vc-mod-acts button:disabled { border-style: dashed; background: var(--row); color: var(--vc-faint); cursor: default; }
 
 /* La légende, dans l'en-tête de la carte : combien de modules dans chaque état. */
@@ -81,4 +82,7 @@
 
 /* La vue IDE : l'arborescence et le fichier choisi, dans le corps de la carte ; les outils du module au-dessus du code. */
 .vc-mod-ide { padding: var(--vc-pad); }
-.vc-ide-main > .vc-mod-acts { --row: var(--vc-card); margin-bottom: 8px; }
+.vc-ide-main .vc-mod-acts { --row: var(--vc-card); }
+.vc-ide-main > .vc-mod-acts { margin-bottom: 8px; }
+/* Avec du code : les boutons du module en tête de la rangée du sélecteur (Fichier / diff), sur la même ligne. */
+.vc-mod-head > .vc-mod-acts { margin-left: 0; }

@@ -37,7 +37,8 @@ it('commit proposé : IconButton comment, cite le sujet ; absent sans l\'action'
   expect(quote()).toBeNull();
 });
 
-// Le module : un accordéon ; replié, sa ligne seule ; déplié, ses outils sur sa ligne et son contrat par rubrique.
+// Le module : un accordéon ; replié, sa ligne et Générer (Commiter s'il a des fichiers pas commités) ; déplié, tous ses
+// outils sur sa ligne et son contrat par rubrique.
 const module = (path: string, touched: boolean) => ({ path, contract: 'Fait `x` · ne connaît pas : y', file: { id: path, path }, touched, commits: [],
   ...(touched ? { files: [{ id: `${path}/0`, path: `${path}/a.ts` }] } : {}) });
 const followed: unknown[] = [];
@@ -52,12 +53,13 @@ const drawModules = () => act(() => {
 const row = (i: number) => page.querySelectorAll<HTMLDetailsElement>('details.vc-mod-main')[i];
 const toggle = (i: number, open: boolean) => act(async () => { row(i).open = open; });
 
-it('un module : replié, sans outils ni fichiers ; déplié, outils sur sa ligne, contrat par rubrique, le fichier suivi ; un seul déplié, sans code ou replié : plus aucun fichier suivi', async () => {
+it('un module : replié, Générer seul, sans fichiers ; déplié, tous ses outils sur sa ligne, contrat par rubrique, le fichier suivi ; un seul déplié, sans code ou replié : plus aucun fichier suivi', async () => {
   await drawModules();
+  const acts = (i: number) => [...row(i).querySelectorAll('summary .vc-mod-acts button')].map((b) => b.textContent);
   expect(row(0).open).toBe(false);
-  expect(row(0).querySelector('.vc-mod-acts')).toBeNull();
+  expect(acts(0)).toEqual(['Générer']);
   await toggle(0, true);
-  expect(row(0).querySelector('summary .vc-mod-acts button')?.textContent).toBe('Générer');
+  expect(acts(0)).toEqual(['Générer', 'Ouvrir']);
   expect(row(0).querySelector('.vc-fcontract code')?.textContent).toBe('x');
   expect(row(0).querySelector('.vc-mod-tree')).not.toBeNull();
   expect(followed).toEqual(['src/touche/0']);
@@ -123,7 +125,8 @@ it('vue IDE : arborescence avec points d\'état, outils du module du fichier cho
   expect(side.textContent).toContain('a.ts');
   expect(side.textContent).toContain('autre');
   expect(side.querySelectorAll('[data-state="wip"]').length).toBeGreaterThan(0);
-  expect([...page.querySelectorAll('.vc-ide-main .vc-mod-acts button')].map((b) => b.textContent)).toEqual(['Générer', 'Relire le diff', 'Ouvrir', 'Commiter']);
+  expect([...page.querySelectorAll('.vc-ide-main .vc-mod-acts button')].map((b) => b.textContent)).toEqual(['Générer', 'Commiter', 'Relire le diff', 'Ouvrir']);
+  expect(page.querySelector('.vc-ide-main .vc-mod-head > .vc-mod-acts')).not.toBeNull();   // sur la ligne du sélecteur
   expect(followed).toEqual(['src/touche/0']);
   // le fichier d'un module pas touché : ses outils seuls (Générer, Ouvrir), plus aucun fichier suivi
   const other = [...side.querySelectorAll<HTMLElement>('button, [role="treeitem"]')].find((b) => b.textContent?.includes('autre'))!;
@@ -156,4 +159,23 @@ it('le numéro d\'ordre de chaque module, celui de la Forme, en liste comme en v
   expect(rankOf('autre')).toBe('2');
   await drawView({ modulesView: 'ide', files: [{ id: 'f0', path: 'src/x/b.ts' }] }, []);
   expect(page.querySelector('.vc-tree-rank')).toBeNull();
+});
+
+it('créateur : Générer ce module et Commiter ce module quittent l\'en-tête ; Générer, mis en avant sur le premier module pas touché quand c\'est la prochaine action ; Commiter sur la ligne d\'un module pas commité', async () => {
+  const actions = [{ id: 'module', primary: true, label: 'Générer ce module' }, { id: 'commit-module', label: 'Commiter ce module' }, { id: 'commit-modules', label: 'Commiter les modules' }]
+    .map((a) => ({ hidden: false, who: '', hint: '', primary: false, step: 'modules', ...a }));
+  await act(() => root.render(null));   // tout replié
+  await act(() => {
+    const view = { lang: 'fr', flow: 'create', actions, commits: [], outputs: {}, modules: two } as unknown as VibeView;
+    const props = { view, step: { id: 'modules', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
+      code: null, drafts: [{}, () => {}], act: { run: async () => true, prefill: () => {}, open: () => {}, openLink: () => {}, follow: () => {}, save: async () => true } } as unknown as StepProps;
+    root.render(createElement(ModulesView, props));
+  });
+  expect([...page.querySelectorAll('.vc-step-acts button')].map((b) => b.textContent)).not.toContain('Générer ce module');
+  expect([...page.querySelectorAll('.vc-step-acts button')].map((b) => b.textContent)).not.toContain('Commiter ce module');
+  const line = (i: number) => [...page.querySelectorAll('.vc-mod')[i].querySelectorAll('summary .vc-mod-acts button')];
+  expect(line(0).map((b) => b.textContent)).toEqual(['Générer', 'Commiter']);
+  expect(line(1).map((b) => b.textContent)).toEqual(['Générer']);
+  expect(line(0)[0].hasAttribute('data-next')).toBe(false);
+  expect(line(1)[0].hasAttribute('data-next')).toBe(true);
 });
