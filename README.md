@@ -621,12 +621,15 @@ relire une PR (le relecteur, plus bas) :
    pour un module déjà commité ; le typage de chaque commit est vérifié sur son
    contenu, hors du dossier de travail, et un commit qui ne compile pas arrête
    là, sans rattrapage) ; vous pouvez donc retoucher le code entre les deux. Chaque
-   module est un accordéon : un clic sur sa ligne montre ses boutons, sur la
-   même ligne, et son contrat. Chaque module porte un numéro, son rang dans la
+   module est un accordéon : *Générer* et *Commiter* (s'il a des
+   changements pas commités) sont toujours au bout de sa ligne, le prochain
+   à générer mis en avant ; un clic sur la ligne ajoute *Relire le diff*,
+   *Ouvrir* et son contrat. Chaque module porte un numéro, son rang dans la
    Forme : l'ordre où le générer (un module attend ceux qu'il utilise). Un interrupteur *IDE* · *liste* (retenu d'une
    ouverture à l'autre) remplace l'accordéon par une arborescence des
    fichiers des modules, avec le point d'état et le numéro de chacun, et le fichier choisi
-   à droite, avec les boutons de son module ; aucune action de plus.
+   à droite, avec les boutons de son module sur la ligne du choix
+   *Fichier* / diff ; aucune action de plus.
    Dessous, pour un module touché, son code : ses fichiers que la branche
    change (modifiés, ajoutés, ou « supprimé » : son diff, tout en retraits,
    rien à modifier) et celui choisi,

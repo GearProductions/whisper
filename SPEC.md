@@ -1429,10 +1429,11 @@ créateur ; le relecteur, F-101) :
    modifié pas commité, à faire ; son numéro, son rang dans la Forme, l'ordre
    où les générer et les commiter, « Ordre de génération : n sur N » au
    survol ; nom, dossier, « à créer », ses
-   commits). Déplié : sur sa ligne, sa barre d'outils — *Générer* (ce module), *Relire le diff*
-   (du dernier commit qui le touche, sinon des changements en cours),
-   *Ouvrir*, *Commiter* (des fichiers changés hors de tout commit de la
-   branche, ou modifiés depuis : ce module seul) — ; dessous, son contrat par
+   commits). Sur sa ligne, au bout, replié comme déplié : *Générer* (ce
+   module) et *Commiter* (des fichiers changés hors de tout commit de la
+   branche, ou modifiés depuis : ce module seul ; absent sinon) ; déplié,
+   suivis de *Relire le diff* (du dernier commit qui le touche, sinon des
+   changements en cours) et *Ouvrir* ; dessous, son contrat par
    rubrique et, pour un module touché, son code (*Voir le code*, dans le reste
    de ce document) : sur une rangée, ses fichiers que la branche change (modifiés, ajoutés,
    supprimés, depuis sa base, la copie de travail comprise) par dossier,
@@ -1489,7 +1490,9 @@ créateur ; le relecteur, F-101) :
    *Générer ce module* part sur le suivant, dans une seconde course, F-115),
    *Commiter les modules* (plus de module à faire), sinon
    *Générer ce module* (le premier qu'aucun commit ne touche ; avec
-   `ponytail`, tests lancés, sans commit) ; aussi *Relire le diff* (les
+   `ponytail`, tests lancés, sans commit) : pas dans l'en-tête de l'étape,
+   c'est le *Générer* de ce module qui est mis en avant, sur sa ligne
+   (*Commiter ce module* non plus : le *Commiter* de chaque module) ; aussi *Relire le diff* (les
    quatre questions du § 5.1), *Générer les modules restants* (confiés à des
    agents Sonnet en parallèle, chaque diff relu, sans commit).
    **Vue IDE** : un interrupteur *IDE* · *liste*, dans les outils de la carte,
@@ -1498,9 +1501,10 @@ créateur ; le relecteur, F-101) :
    module de plusieurs fichiers n'y fait pas un nœud), chacun avec le point
    d'état et le numéro de son module (commité, en cours, à faire ; aucun pour
    un fichier de la branche, sans Forme), et le fichier choisi à
-   droite, avec les outils de son module (*Générer*, *Relire le diff*,
-   *Ouvrir*, *Commiter*) et son code en diff git (*Fichier* ou diff, *En ligne*
-   ou *Côte à côte*, comme *Voir le code*). La vue choisie est retenue d'une
+   droite, avec les outils de son module (*Générer*, *Commiter*, *Relire le
+   diff*, *Ouvrir*), sur la même ligne que le choix du code (*Fichier* ou
+   diff, *En ligne* ou *Côte à côte*, comme *Voir le code*), et son code en
+   diff git. La vue choisie est retenue d'une
    ouverture à l'autre (`vibeModulesView`, § 9 ; `conv:vibeSet`) ; défaut :
    *liste*. Sans module (sans Forme), les deux vues montrent l'arborescence
    des fichiers de la branche. La vue IDE n'ajoute aucune action : elle montre
