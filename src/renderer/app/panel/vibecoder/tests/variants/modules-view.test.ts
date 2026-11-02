@@ -175,7 +175,7 @@ it('créateur : l\'en-tête vide, les actions de l\'étape dans la carte des mod
   expect([...page.querySelectorAll('.vc-step-acts button')].map((b) => b.textContent)).not.toContain('Générer ce module');
   expect([...page.querySelectorAll('.vc-step-acts button')].map((b) => b.textContent)).not.toContain('Commiter ce module');
   expect(page.querySelectorAll('.vc-step-acts button')).toHaveLength(0);   // tout est dans la carte
-  expect([...page.querySelectorAll('.vc-mod-run .vc-run-label')].map((b) => b.textContent))
+  expect([...page.querySelectorAll('.vc-card-acts .vc-run-label')].map((b) => b.textContent))
     .toEqual(['Valider → commit → suivant', 'Préparer le commit', 'Générer les modules restants', 'Commiter les modules']);
   const line = (i: number) => [...page.querySelectorAll('.vc-mod')[i].querySelectorAll('summary .vc-mod-acts button')];
   expect(line(0).map((b) => b.textContent)).toEqual(['Générer', 'Commiter']);

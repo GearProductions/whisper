@@ -18,7 +18,7 @@
   background: var(--vc-side);
 }
 /* La poignée entre les deux colonnes : glisser (ou ← / →) change la largeur de l'arborescence. */
-.vc-ide-resize { flex: none; width: 12px; padding: 0 5px; box-sizing: border-box; background-clip: content-box; cursor: col-resize; touch-action: none; }
+.vc-ide-resize { flex: none; width: 8px; padding: 0 3px; box-sizing: border-box; background-clip: content-box; cursor: col-resize; touch-action: none; }
 .vc-ide-resize:hover, .vc-ide-resize:active, .vc-ide-resize:focus-visible { outline: none; background-color: color-mix(in srgb, var(--accent) 60%, transparent); }
 /* Le fichier choisi : une colonne dont seul le code défile ; les outils au-dessus (Générer…, Fichier / diff)
    et dessous restent en place. Sans code (la structure d'un module de la Forme), la colonne défile. */

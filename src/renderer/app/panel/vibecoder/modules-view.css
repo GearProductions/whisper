@@ -25,8 +25,7 @@
 
 /* ---- Les modules -------------------------------------------------------------- */
 .vc-modules > .vc-card-body { padding: 4px 0; }
-/* Les actions de l'étape, en tête du corps de la carte des modules. */
-.vc-mod-run { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 4px var(--vc-pad) 8px; }
+.vc-modules > .vc-card-head { flex-wrap: wrap; row-gap: 4px; padding-top: 4px; }
 .vc-mod-list { list-style: none; margin: 0; padding: 0; }
 .vc-mod {
   --row: var(--vc-card);
@@ -83,7 +82,7 @@
 .vc-mod-tree .vc-mod-gone { margin-left: 6px; color: var(--vc-faint); font-style: italic; }
 
 /* La vue IDE : l'arborescence et le fichier choisi, dans le corps de la carte ; les outils du module au-dessus du code. */
-.vc-mod-ide { padding: var(--vc-pad); }
+.vc-mod-ide { padding: 4px 8px 8px; }
 .vc-ide-main .vc-mod-acts { --row: var(--vc-card); }
 .vc-ide-main > .vc-mod-acts { margin-bottom: 8px; }
 /* Avec du code : les boutons du module en tête de la rangée du sélecteur (Fichier / diff), sur la même ligne. */

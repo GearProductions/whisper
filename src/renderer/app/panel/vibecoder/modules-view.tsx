@@ -17,8 +17,8 @@
  *  Un seul déplié à la fois, le chemin du module déplié tenu ici ; ici aussi
  *  plus aucun fichier suivi quand on replie, ou que le module déplié n'a pas
  *  (ou plus) de fichier (un module qui en a envoie lui-même le sien). Dans les
- *  outils de la carte, l'interrupteur et la légende ; en tête de son corps,
- *  une rangée (vc-mod-run) des actions de l'étape (CARD_ACTS : Valider →
+ *  outils de la carte, l'interrupteur et la légende ; à côté de son titre
+ *  (OutputCard acts), les actions de l'étape (CARD_ACTS : Valider →
  *  commit → suivant, Préparer le commit, Générer les modules restants, puis
  *  Commiter les modules s'il y a un module pas commité ; la prochaine action
  *  mise en avant), qui ne sont donc plus dans l'en-tête ; sans module, elles
@@ -198,7 +198,12 @@ export function ModulesView(p: StepProps) {
         </OutputCard>
       ) : null}
       {hasModules || files.length ? (
-        <OutputCard className="vc-modules" title={s.modules} t={t} tools={(
+        <OutputCard className="vc-modules" title={s.modules} t={t} acts={hasModules && !reviewer ? (
+          [...CARD_ACTS.filter((id) => !(commit && id === 'commit-prepare')), ...(view.modules.some((m) => m.uncommitted) ? ['commit-modules'] : [])].map((id) => {
+            const a = action(id);
+            return <Run key={id} a={a} busy={busy} tone={a?.primary ? 'accent' : 'plain'} onRun={(x) => act.run(id, x)} />;
+          })
+        ) : undefined} tools={(
           <>
             {hasModules ? (
               <>
@@ -216,14 +221,6 @@ export function ModulesView(p: StepProps) {
             ) : null}
           </>
         )}>
-          {hasModules && !reviewer ? (
-            <div className="vc-mod-run">
-              {[...CARD_ACTS.filter((id) => !(commit && id === 'commit-prepare')), ...(view.modules.some((m) => m.uncommitted) ? ['commit-modules'] : [])].map((id) => {
-                const a = action(id);
-                return <Run key={id} a={a} busy={busy} tone={a?.primary ? 'accent' : 'plain'} onRun={(x) => act.run(id, x)} />;
-              })}
-            </div>
-          ) : null}
           {ide ? (
             <div className="vc-mod-ide">
               <IdeView files={files}>{(file) => <IdeBody p={p} file={file} />}</IdeView>
