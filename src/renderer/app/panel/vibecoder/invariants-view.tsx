@@ -33,8 +33,9 @@
  *  qu'elle est (MarkControl, comme « ✓ Valider la note »). En tête : « Tout
  *  relire », le résumé de l'étape, les cas à valider, ce que veut dire
  *  « Attention » (s'il y en a), l'alignement
- *  (align.md, sans Relancer : créateur, « Écrire les invariants » le refait ;
- *  relecteur, son bouton est dans la rangée de l'étape).
+ *  (align.md ; créateur : Relancer dans son en-tête, l'action align seule, pour
+ *  revérifier après avoir corrigé les tests ; relecteur, son bouton est dans la
+ *  rangée de l'étape).
  *  Le bloc Attention a son 💬 : créateur, il cite le cas et son point
  *  d'attention en entier dans le champ (attentionQuote) ; relecteur, il ouvre la
  *  zone de la carte si elle est fermée et y ajoute le point d'attention
@@ -172,7 +173,7 @@ export function InvariantsView(props: StepProps) {
   const editor = (at?: number): ReactNode => (file ? <DraftEditor d={d} file={file} locked={locked} t={t} at={at} /> : null);
   return (
     <>
-      <StepHead p={props} own={['read-invariants', ...(view.invariants.length ? [] : ['invariants'])]}>
+      <StepHead p={props} own={['read-invariants', ...(review ? [] : ['align']), ...(view.invariants.length ? [] : ['invariants'])]}>
         {view.invariants.some((f) => f.reading) ? (
           <Run a={read} busy={busy} label={s.rereadAll} onRun={() => act.run('read-invariants', { file: '*' })} />
         ) : null}
@@ -187,6 +188,12 @@ export function InvariantsView(props: StepProps) {
             <span className="vc-card-file vc-mono">align.md</span>
             <span className="vc-card-end">
               <span className="vc-card-time" title={new Date(align.time).toLocaleString(t.locale)}>{t.ago(Date.now() - align.time)}</span>
+              {/* Dans le summary : le clic relance sans replier la carte. */}
+              {review ? null : (
+                <span onClick={(e) => e.preventDefault()}>
+                  <Run a={view.actions.find((a) => a.id === 'align')} busy={busy} tone="ghost" label={t.rerun} onRun={() => act.run('align')} />
+                </span>
+              )}
             </span>
           </summary>
           <div className="vc-card-body"><MarkdownView md={align.text} t={t} onOpenLink={act.openLink} onQuote={quoteAlign} onComment={commentAlign} /></div>

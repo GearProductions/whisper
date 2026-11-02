@@ -52,7 +52,7 @@
   },
   {
     "id": "align",
-    "flow": "review",
+    "flow": "both",
     "step": "invariants",
     "kind": "send",
     "needs": "none",

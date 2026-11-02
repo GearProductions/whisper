@@ -741,7 +741,7 @@ de l'écran et le brouillon tiennent (I-29).
   vérifications et la ponytail review* demande la ponytail review
   (`<sorties>/actions/ponytail.start`, F-115) : deux lectures, qui courent
   ensemble. Plus de bouton *Vérifier l'alignement* ni *Ponytail
-  review* ; leurs cartes restent. Un document demandé hors du projet (PDF,
+  review* dans la rangée de l'étape (créateur) ; leurs cartes restent. Un document demandé hors du projet (PDF,
   présentation, wireframe, document externe, fichier de conception) :
   l'agent le crée en artefact (F-95) par le skill `artefact`, qu'il prend
   seul — ni bouton ni lien ; il se trouve aussi par « / » dans le champ.
@@ -751,10 +751,11 @@ de l'écran et le brouillon tiennent (I-29).
   vérification a aussi le sien, qui ne relance qu'elle (`{{check}}`, F-97 :
   les autres gardées, sans ponytail review ; pas pendant une course
   `checks`) ; *Lire en pseudo-code* se refait par fichier (*Relire*, même lu) ou pour tous (*Tout
-  relire*, F-100). L'alignement et la ponytail review n'ont pas de
-  *Relancer* : on relance *Écrire les invariants* ou *Lancer les
-  vérifications* (relecteur : *Vérifier l'alignement* reste dans la rangée
-  de l'étape).
+  relire*, F-100). La carte de l'alignement a son *Relancer* (créateur) :
+  *Vérifier l'alignement* seule, pour revérifier après avoir corrigé les
+  tests, sans les réécrire (relecteur : *Vérifier l'alignement* reste dans
+  la rangée de l'étape). La ponytail review n'a pas de *Relancer* : on
+  relance *Lancer les vérifications*.
 - La **barre des skills**, au-dessus du champ : deux liens, *Demander sans
   modifier* et *Retour → fixup* (créateur) ; les skills se trouvent par « / »
   dans le champ.
@@ -1376,7 +1377,7 @@ créateur ; le relecteur, F-101) :
    d'automatique : la course finie ou la validation. *Lire en pseudo-code*
    n'est qu'une aide à la lecture, facultative. Montre le
    résumé (cas, validés, refusés, modifiés depuis, avec un point d'attention,
-   à lire), l'alignement (`align.md`, sans *Relancer*, F-93), puis chaque fichier : sa progression,
+   à lire), l'alignement (`align.md`, avec *Relancer* en créateur, F-93), puis chaque fichier : sa progression,
    *Ouvrir*, *Relire* (lu : refaire sa lecture) ; lu, une carte par cas —
    titre, pseudo-code en étapes `test "…":` / `given` / `when` / `then` /
    `and`, quel que soit le langage du test (coloré ; chaque `then` est une
