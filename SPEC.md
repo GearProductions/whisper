@@ -1444,7 +1444,10 @@ créateur ; le relecteur, F-101) :
    version est inconnue — pas de point de départ, trop grosse — alors que le
    fichier est au dernier commit), *Diff depuis le dernier commit* (`HEAD`) :
    le diff du texte affiché comme celui de VS Code (`@codemirror/merge`),
-   *En ligne* ou *Côte à côte* au choix, en lecture seule, numéroté et
+   *En ligne* ou *Côte à côte* au choix (d'abord : le diff depuis la base,
+   en ligne ; le fichier quand ce diff est grisé ; le choix, sélecteur comme
+   *En ligne* · *Côte à côte*, vaut pour tous les fichiers, d'un fichier et
+   d'une étape à l'autre, tant que la page vit, pas enregistré), en lecture seule, numéroté et
    coloré, replié autour des changements (le texte changé dans une ligne
    sur un fond vert ou rouge plus foncé que celui de sa ligne, pas
    souligné), en texte (I-40), seulement pour

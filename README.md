@@ -635,7 +635,8 @@ relire une PR (le relecteur, plus bas) :
    rien à modifier) et celui choisi,
    coloré comme sur GitHub, ou son diff depuis la base de la branche (tout
    ce que le ticket a changé) ou depuis le dernier commit (ce qui n'est pas
-   commité), au choix, comme dans VS Code : en ligne ou côte à côte ; il
+   commité), au choix, comme dans VS Code : en ligne ou côte à côte (d'abord
+   le diff depuis la base ; le choix vaut ensuite pour tous les fichiers) ; il
    suit le disque (pendant la génération, on
    voit le code s'écrire ; plus d'1 Mo : « fichier trop gros »). Il se
    modifie sur place, enregistré par Ctrl+S ou *Enregistrer* — grisé pendant
