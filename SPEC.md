@@ -1357,7 +1357,9 @@ créateur ; le relecteur, F-101) :
 2. **Forme** — faite : au moins un module dans la rubrique « Forme », validée.
    Montre, en **vue IDE** (la seule), l'arborescence des modules à gauche,
    par dossier (`src/` de tête ignoré), chacun avec son numéro (son rang dans
-   la Forme, l'ordre où les générer), et le module choisi à droite : chemin,
+   la Forme, l'ordre où les générer) et le nom coloré comme dans la vue IDE de
+   Modules (un module d'un seul fichier : sa couleur ; un dossier : modifié si
+   l'un de ses fichiers n'est pas commité), et le module choisi à droite : chemin,
    état (touché par la branche, existe, à créer), commits ; *Commenter*,
    *Ouvrir*. Un interrupteur *Structure* · *Code* : *Structure*, son contrat
    en rubriques (expose, ne connaît pas, utilisé par), en texte ; *Code*, son
@@ -1516,9 +1518,14 @@ créateur ; le relecteur, F-101) :
    **Vue IDE** : un interrupteur *IDE* · *liste*, dans les outils de la carte,
    choisit entre l'accordéon ci-dessus (*liste*, inchangée) et une
    arborescence à gauche, des fichiers des modules rangés par dossier (un
-   module de plusieurs fichiers n'y fait pas un nœud), chacun avec le point
-   d'état et le numéro de son module (commité, en cours, à faire ; aucun pour
-   un fichier de la branche, sans Forme), et le fichier choisi à
+   module de plusieurs fichiers n'y fait pas un nœud), chacun avec le numéro
+   de son module (aucun pour un fichier de la branche, sans Forme) et son nom
+   coloré comme dans VS Code : vert, nouveau ; jaune, modifié ; rouge barré,
+   supprimé (pas commités, d'après `git status`) ; la couleur ordinaire une
+   fois commité ; atténué en italique, un module pas encore généré. Plus de
+   point d'état dans l'arborescence (il disait l'état du module, pas du
+   fichier : un fichier commité au premier commit puis modifié restait vert).
+   Le fichier choisi à
    droite, avec les outils de son module (*Générer*, *Commiter*, *Relire le
    diff*, *Ouvrir*), sur la même ligne que le choix du code (*Fichier* ou
    diff, *En ligne* ou *Côte à côte*, comme *Voir le code*), et son code en
