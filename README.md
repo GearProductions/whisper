@@ -419,8 +419,8 @@ conversation reste utilisable.
   ouvrir une étape à venir ne lance rien ; seuls les boutons dont l'action
   a besoin d'une étape précédente restent grisés, leur raison au survol ;
 - dessous, sur toute la largeur, l'étape choisie — la note du ticket, ce
-  que les skills ont produit —, sous son titre son **champ** (quand une de
-  ses actions prend un texte) et ses actions (à l'étape en cours, en tête :
+  que les skills ont produit —, sur la ligne de son titre ses actions, et
+  dessous son **champ** (quand une de ses actions prend un texte) (à l'étape en cours, en tête :
   *Vibe* (créateur), puis celle qui fait avancer l'étape, discrètement mise
   en avant) ; pendant *Vibe*, une bannière au-dessus ; chaque carte produite par
   un skill a son *Relancer* ;
@@ -622,7 +622,7 @@ relire une PR (le relecteur, plus bas) :
    pour un module déjà commité ; le typage de chaque commit est vérifié sur son
    contenu, hors du dossier de travail, et un commit qui ne compile pas arrête
    là, sans rattrapage) ; vous pouvez donc retoucher le code entre les deux.
-   Ces boutons de l'étape sont en haut de la carte des modules, et n'y sont
+   Ces boutons de l'étape sont à côté du titre de la carte des modules, et n'y sont
    que s'ils ont quelque chose à faire. Chaque
    module est un accordéon : *Générer* et *Commiter* (s'il a des
    changements pas commités) sont toujours au bout de sa ligne, le prochain

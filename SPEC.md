@@ -1429,7 +1429,7 @@ créateur ; le relecteur, F-101) :
 4. **Modules** — faite : chaque module de la Forme touché par un commit de la
    branche. Montre en tête le commit proposé (`commit.md` : le message tel
    qu'il sera commité, *✓ Commiter*, direct ou *via* l'agent, F-114 ; *Commenter*) et la relecture du dernier diff
-   (`review.md`) ; en tête du corps de la carte des modules, les actions de
+   (`review.md`) ; à côté du titre de la carte des modules, les actions de
    l'étape, plus dans son en-tête (*✓ Valider → commit → suivant*, *Préparer
    le commit*, *Générer les modules restants*, puis *Commiter les modules*
    s'il y a un module pas commité ; la prochaine action mise en avant ; sans
@@ -3023,7 +3023,8 @@ relire, une PR d'essai sur GitHub)
 - **S-62** L'agent travaille sur un skill : *⏹ Arrêter* → le tour s'arrête
   comme par *Interrompre* (« Interrompu. »), les boutons se rallument.
 - **S-63** Pas de carte « Prochaine étape » : les actions de l'étape sont
-  sous son titre, celle qui fait avancer en tête. Une carte de sortie
+  sur la ligne de son titre (elles passent à la ligne s'il manque de la
+  place), celle qui fait avancer en tête ; le champ de l'étape dessous. Une carte de sortie
   (relecture du diff, vérifications…) : *Relancer* la refait ; l'alignement
   et la ponytail review n'en ont pas. La vue des branches, *Revenir sur la
   branche principale* → le dossier sur la base, plus de badge *Relecteur*. Une commande en
