@@ -1,6 +1,6 @@
-/** artifact-tree — l'arborescence des artefacts, sans le DOM : les nœuds (dossiers d'abord, puis
- *  fichiers, par nom), ceux qu'on voit selon les dossiers dépliés, les ids à envoyer pour une
- *  sélection, le problème d'un nom tapé. Un nœud est tenu par son nom (le chemin sous le dossier
+/** artifact-tree — l'arborescence des artefacts, sans le DOM : bâtie sur file-tree (les nœuds, dossiers
+ *  d'abord puis fichiers, par nom ; visibleRows aussi), à laquelle elle ajoute les ids à envoyer pour une
+ *  sélection et le problème d'un nom tapé. Un nœud est tenu par son nom (le chemin sous le dossier
  *  d'artefacts), stable d'un relevé à l'autre ; les ids (a<i>, d<i>) ne sont lus qu'au moment d'agir.
  *  Montre ce qu'on lui donne (le relevé s'arrête à 1 000 fichiers), pas les dossiers cachés.
  *  nameProblem double plainName (le principal, qui décide) : mêmes règles, pour l'encart rouge.
@@ -8,54 +8,19 @@
  *  refusé ou fait à moitié compris.
  *  Ne connaît pas : le pont, le DOM. Utilisé par : core/vibecoder, app/panel/vibecoder. */
 import type { VibeAction, VibeArtifact, VibeArtifactDir } from 'technicals/bridge';
+import { fileTree, type FileNode } from './file-tree';
 
-export type TreeNode = {
-  key: string;        // le nom : le chemin sous le dossier d'artefacts
-  label: string;      // son dernier segment
+export type TreeNode = FileNode & {
   id: string;         // a<i> ou d<i> du relevé ; '' : dossier impliqué par un chemin, sans d<i>
-  folder: boolean;
-  depth: number;
-  parent: string;     // la clé du dossier qui le contient ; '' : la racine
   artifact?: VibeArtifact;
 };
 
-const parentOf = (key: string) => key.slice(0, Math.max(key.lastIndexOf('/'), 0));
-
-// Les dossiers qui contiennent `path` : a, a/b pour a/b/c.
-const ancestors = (path: string) => {
-  const parts = path.split('/');
-  return parts.slice(0, -1).map((_, i) => parts.slice(0, i + 1).join('/'));
-};
-
 export const artifactTree = (artifacts: VibeArtifact[], dirs: VibeArtifactDir[]): TreeNode[] => {
-  const folders = new Map<string, string>();   // clé → id
-  for (const d of dirs) {
-    for (const a of ancestors(d.name)) if (!folders.has(a)) folders.set(a, '');
-    folders.set(d.name, d.id);
-  }
-  for (const a of artifacts) for (const p of ancestors(a.name)) if (!folders.has(p)) folders.set(p, '');
-
-  const all: TreeNode[] = [
-    ...[...folders].map(([key, id]) => ({ key, id, folder: true })),
-    ...artifacts.map((artifact) => ({ key: artifact.name, id: artifact.id, folder: false, artifact })),
-  ].map((n) => ({ ...n, label: n.key.slice(n.key.lastIndexOf('/') + 1), depth: n.key.split('/').length - 1, parent: parentOf(n.key) }));
-
-  const children = new Map<string, TreeNode[]>();
-  for (const n of all) children.set(n.parent, [...(children.get(n.parent) ?? []), n]);
-  const walk = (parent: string): TreeNode[] =>
-    (children.get(parent) ?? [])
-      .sort((a, b) => Number(b.folder) - Number(a.folder) || a.label.localeCompare(b.label))
-      .flatMap((n) => (n.folder ? [n, ...walk(n.key)] : [n]));
-  return walk('');
-};
-
-// Les nœuds dont tous les dossiers parents sont dans `open`.
-export const visibleRows = (nodes: TreeNode[], open: ReadonlySet<string>): TreeNode[] => {
-  const shown = new Set<string>(['']);   // les dossiers dont le contenu se voit
-  return nodes.filter((n) => {
-    if (!shown.has(n.parent)) return false;
-    if (n.folder && open.has(n.key)) shown.add(n.key);
-    return true;
+  const byName = new Map(artifacts.map((a) => [a.name, a]));
+  const dirId = new Map(dirs.map((d) => [d.name, d.id]));
+  return fileTree([...byName.keys()], dirs.map((d) => d.name)).map((n) => {
+    const artifact = n.folder ? undefined : byName.get(n.key);
+    return artifact ? { ...n, id: artifact.id, artifact } : { ...n, id: dirId.get(n.key) ?? '' };
   });
 };
 

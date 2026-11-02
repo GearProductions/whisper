@@ -2,7 +2,7 @@
  *  (vibeLang) : en-tête (dont le bouton de la branche, le badge Relecteur et son
  *  infobulle : plus de mode Créer / Relire, l'appli décide du rôle), le fil
  *  d'Ariane des étapes (son aria-label journey, « N commits » à son bout),
- *  étapes (une étape pas encore ouverte), Relancer, Arrêter, onglets Conversation /
+ *  étapes (toutes s'ouvrent), l'interrupteur IDE / liste de Modules et Structure / Code de Forme, Relancer, Arrêter, onglets Conversation /
  *  Actions / Tâches / Processus, la bannière du mode Vibe (en cours,
  *  Arrêter Vibe), le champ d'une étape, la ponytail review lancée avec les
  *  vérifications,
@@ -40,7 +40,8 @@ const fr = {
     note: 'Note', forme: 'Forme', invariants: 'Invariants', modules: 'Modules', revue: 'Revue', pr: 'PR',
   } as Record<VibeStepId, string>,
   stepStatus: { done: 'faite', current: 'en cours', todo: 'à venir' },
-  notOpen: 'pas encore ouverte : elle suit l\'étape en cours',
+  ideView: 'Vue IDE', listView: 'Vue liste', structure: 'Structure', code: 'Code',
+  noChange: 'la branche ne change pas ce module',
   reviewer: 'Relecteur',
   reviewerTitle: 'Vous relisez la PR d\'un autre : rien ne s\'édite ici. S\'assigner la PR, dans l\'étape PR, pour la modifier.',
   screenTitle: 'Relire à l\'écran',
@@ -172,7 +173,8 @@ const en: Strings = {
     note: 'Note', forme: 'Shape', invariants: 'Invariants', modules: 'Modules', revue: 'Review', pr: 'PR',
   },
   stepStatus: { done: 'done', current: 'in progress', todo: 'to do' },
-  notOpen: 'not open yet: it follows the current step',
+  ideView: 'IDE view', listView: 'List view', structure: 'Structure', code: 'Code',
+  noChange: 'the branch does not change this module',
   reviewer: 'Reviewer',
   reviewerTitle: 'You are reviewing someone else\'s PR: nothing is editable here. Assign the PR to yourself, in the PR step, to change it.',
   screenTitle: 'Review on screen',
