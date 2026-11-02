@@ -1,23 +1,24 @@
 /** vibe-coder — l'écran VibeCoder d'un agent, à la place de l'en-tête et du
  *  corps du panneau : en-tête (agent — sa couleur ne teinte que sa
  *  pastille —, la branche ⎇, un bouton qui ouvre et ferme la vue des
- *  branches, et à côté Pull, Rebase, Pousser (sync-buttons) ; Créer / Relire,
- *  Relire grisé sans PR ouverte sur la branche (view.reviewable), et à part
- *  Artefacts (un bouton, hors de Créer / Relire, F-92 : ouvert, le panneau
+ *  branches, et à côté Pull, Rebase, Pousser (sync-buttons) ; pas de bouton
+ *  Créer / Relire : l'app décide du rôle (view.flow), et le badge Relecteur
+ *  s'affiche à côté de celui du worktree quand c'est la relecture) ; Artefacts
+ *  (un bouton, F-92 : ouvert, le panneau
  *  artifacts-view prend le centre, à la place du fil d'Ariane et de
  *  l'étape ou de la vue des branches ; l'artefact choisi est suivi
  *  (follow) ; Copier dans le projet : copy-artifact, direct ; Ajouter : add-artifact,
  *  direct, son état lu dans view.actions, et les fichiers déposés : act.drop ; le refermer,
- *  choisir une étape, Créer / Relire ou la vue des branches le ferme) ; langue,
+ *  choisir une étape ou la vue des branches le ferme) ; langue,
  *  relevé (↻ qui tourne), conversation affichée ou masquée, retour à la
  *  conversation, fermer — des icônes (icons), libellé en title et
  *  aria-label ; le robot d'une PR dans un worktree : son badge, sans action) ; au
  *  centre, en tête, le fil d'Ariane (breadcrumb : il dit où l'on en est ; y
- *  choisir une étape, ou Créer / Relire, ferme la vue des branches), puis
+ *  choisir une étape ferme la vue des branches), puis
  *  pendant Vibe (view.vibe) une bannière qui l'arrête (vibe-banner, set vibe
  *  false), l'erreur du relevé, et la vue des branches (branches-view) si elle
  *  est ouverte, sinon l'étape choisie (step-views : son en-tête porte ses
- *  actions ; Relire, une PR fusionnée ou fermée en bandeau) ; Vibe ou pas, le
+ *  actions) ; Vibe ou pas, le
  *  même fil d'Ariane et la même étape ; à droite, en onglets, la conversation (reçue en
  *  children), les actions lancées (runs-view, le nombre en cours, en attente
  *  d'une autorisation ou arrêtées à trancher), les tâches de fond (`tasks`,
@@ -29,7 +30,7 @@
  *  choisie qui ne l'est plus laisse la place à celle en cours. Une vue
  *  d'étape qui échoue ne fait tomber ni l'écran ni le brouillon (I-29). Il
  *  tient les réponses en cours aux questions ouvertes, le verdict de la revue
- *  (Relire), le modèle choisi par action (envoyé s'il n'est pas le
+ *  (rôle Relecteur), le modèle choisi par action (envoyé s'il n'est pas le
  *  conseillé), son effort (envoyé s'il est des siens), le champ de chaque étape (fieldOf : son texte part en
  *  args.text de l'action ; exigé et vide, le champ prend le clavier ; partie,
  *  il se vide), la vue des branches ouverte ou non, le panneau Artefacts ouvert ou non, les modifications gardées des
@@ -59,7 +60,7 @@ import { Picks } from './model-pick';
 import { RunsView } from './runs-view';
 import { StatusBar } from './status-bar';
 import { SyncButtons } from './sync-buttons';
-import { ClosedBanner, StopRun, WorktreeBadge } from './step-parts';
+import { ReviewerBadge, StopRun, WorktreeBadge } from './step-parts';
 import { STEP_VIEWS, type StepProps, type VibeActs } from './step-views';
 import { VibeBanner } from './vibe-banner';
 import './vibecoder.css';
@@ -102,7 +103,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   const [branchesOpen, setBranchesOpen] = useKept(kept, view.agentId, 'branches', false);
   const branches = branchesOpen && !!view.repo;
   const add = view.actions.find((a) => a.id === 'add-artifact')?.direct;   // l'ajout d'artefacts : en cours, dernier résultat
-  // Le panneau Artefacts : ouvert, il prend le centre ; il ne change pas le parcours (flow).
+  // Le panneau Artefacts : ouvert, il prend le centre ; il ne change pas le rôle (flow).
   const [arts, setArts] = useKept(kept, view.agentId, 'artifacts', false);
   const pick = (id: VibeStepId) => { setBranchesOpen(false); setArts(false); setPicked(id); };
   const [answers, setAnswers] = useKept<Answers>(kept, view.agentId, 'answers', {});
@@ -182,7 +183,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
       <div className="vc" ref={root} data-conv={side.open ? undefined : 'hidden'} style={{ '--vc-conv': `${side.width}px` } as CSSProperties}>
         <Top view={view} thread={thread} busy={busy} t={t} act={act} side={side} onSide={onSide} onHide={onHide}
           branches={branches} onBranches={() => { setArts(false); setBranchesOpen(!branches); }}
-          arts={arts} onArts={() => setArts(!arts)} onFlow={() => { setBranchesOpen(false); setArts(false); }} />
+          arts={arts} onArts={() => setArts(!arts)} />
         {arts ? (
           <div className="vc-arts">
             <Guard t={t}>
@@ -200,7 +201,6 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
             <div className="vc-step scroll" key="branches"><Guard t={t}><BranchesView view={view} t={t} act={act} busy={busy} /></Guard></div>
           ) : (
             <div className="vc-step scroll" key={step ? step.id : ''}>
-              {view.flow === 'review' ? <ClosedBanner pr={view.pr} t={t} /> : null}
               {step && View ? <Guard t={t}><View view={view} step={step} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} verdict={verdict} onVerdict={setVerdict}
                 text={texts[step.id] ?? ''} setText={setText(step.id)} code={code} drafts={drafts} /></Guard> : null}
             </div>
@@ -268,11 +268,11 @@ const LANGS: Record<VibeLang, string> = { fr: 'FR', en: 'EN' };
 
 type TopProps = {
   view: VibeView; thread: Thread; busy: boolean; t: Strings; act: VibeActs; side: Side; onSide(side: Side): void; onHide(): void;
-  branches: boolean; onBranches(): void; onFlow(): void;   // la vue des branches ouverte ; le bouton ⎇ ; Créer / Relire choisi
+  branches: boolean; onBranches(): void;                   // la vue des branches ouverte ; le bouton ⎇
   arts: boolean; onArts(): void;                           // le panneau Artefacts ouvert ; son bouton
 };
 
-function Top({ view, thread, busy, t, act, side, onSide, onHide, branches, onBranches, onFlow, arts, onArts }: TopProps) {
+function Top({ view, thread, busy, t, act, side, onSide, onHide, branches, onBranches, arts, onArts }: TopProps) {
   const [spins, setSpins] = useState(0); // ⟳ tourne une fois par clic
   return (
     <div className="vc-top">
@@ -287,10 +287,9 @@ function Top({ view, thread, busy, t, act, side, onSide, onHide, branches, onBra
         ) : null}
         {view.repo ? <SyncButtons view={view} onRun={act.run} /> : null}
         <WorktreeBadge view={view} />
+        <ReviewerBadge view={view} t={t} />
       </div>
       <div className="vc-modes">
-        <Segmented value={view.flow} labels={t.flow} title={t.flowTitle} off={view.reviewable ? {} : { review: t.notReviewable }}
-          onPick={(flow) => { onFlow(); act.set({ flow }); }} />
         <div className="vc-seg">
           <button type="button" aria-pressed={arts} title={t.artifactsTitle} onClick={onArts}>{t.artifacts}</button>
         </div>
@@ -319,12 +318,11 @@ function Top({ view, thread, busy, t, act, side, onSide, onHide, branches, onBra
   );
 }
 
-// off : les choix grisés et leur raison (en infobulle).
-function Segmented<T extends string>({ value, labels, title, off = {}, onPick }: { value: T; labels: Record<T, string>; title: string; off?: Partial<Record<T, string>>; onPick(v: T): void }) {
+function Segmented<T extends string>({ value, labels, title, onPick }: { value: T; labels: Record<T, string>; title: string; onPick(v: T): void }) {
   return (
     <div className="vc-seg" role="group" title={title}>
       {(Object.keys(labels) as T[]).map((k) => (
-        <button key={k} type="button" aria-pressed={k === value} disabled={!!off[k]} title={off[k]}
+        <button key={k} type="button" aria-pressed={k === value}
           onClick={() => { if (k !== value) onPick(k); }}>{labels[k]}</button>
       ))}
     </div>
