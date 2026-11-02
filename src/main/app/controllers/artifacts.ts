@@ -3,31 +3,33 @@
  *  projectArtifactsPath / projectArtifactsDir (le dossier du projet d'un dossier,
  *  d'après projectKey lu sur le disque : sans le créer / créé), vibeOutRoot et
  *  legacyArtifactsPath (le dossier des sorties, et les anciens artefacts d'un agent),
- *  listArtifacts (le relevé de ce dossier, listé tel quel : sous-dossiers compris,
- *  ni lien ni dossier caché — un fichier caché, oui —, la racine pas un lien, au
- *  plus LIST_MAX),
+ *  listArtifacts (le relevé de ce dossier, listé tel quel : { artifacts, dirs } —
+ *  les fichiers, et les dossiers même vides —, sous-dossiers compris, ni lien ni
+ *  dossier caché — un fichier caché, oui —, la racine pas un lien ; au plus LIST_MAX
+ *  fichiers, les dossiers ne comptent pas),
  *  artifactFile (l'agent affiché en VibeCoder, un artefact de son dernier relevé —
  *  artifactOf —, safePath sous le dossier de son projet, ni la racine ni le fichier
  *  un lien — I-37), resolveArtifact (pour serveFiles, le schéma vibe-artifact :
- *  <agent>/a<i>, une page ou un media seulement), copyArtifact (au clic, dans le
- *  dossier choisi dans la boîte de dialogue, sous le nom de base de l'artefact ; un
- *  fichier du même nom remplacé seulement après Remplacer, Annuler par défaut — I-39),
- *  addArtifacts (les chemins reçus, droppedPaths, copiés un à un par copyInto dans le
- *  dossier du projet, sans rien écraser ni suivre de lien ; le rapport cumulé en
- *  addedLine) et pickArtifacts (les mêmes, choisis dans la boîte de dialogue du
- *  principal, des fichiers). Ses réponses (la forme de DirectResult) sont en anglais,
- *  comme celles de technicals/direct (F-108), qu'il n'importe pas ; ses boîtes de
- *  dialogue dans la langue de VibeCoder (vibeLang).
+ *  <agent>/a<i>, une page ou un media seulement), copyArtifact (au clic, la sélection
+ *  — des ids a<i> ou d<i> du dernier relevé, sans lien sur leur chemin —, dans le
+ *  dossier choisi dans la boîte de dialogue ; un fichier du même nom remplacé
+ *  seulement après Remplacer, Annuler par défaut, fichier par fichier ; un dossier
+ *  copié par copyInto, numéroté, jamais remplacé — I-39) et addArtifacts (les chemins
+ *  reçus, droppedPaths, copiés un à un par copyInto dans le dossier visé — l'id d<i>
+ *  du dernier relevé, absent ou inconnu : la racine —, sans rien écraser ni suivre de
+ *  lien, noLinkPath ; le rapport cumulé en addedLine). Ses réponses (la forme de
+ *  DirectResult) sont en anglais, comme celles de technicals/direct (F-108), qu'il
+ *  n'importe pas ; ses boîtes de dialogue dans la langue de VibeCoder (vibeLang).
  *  Ne connaît pas : la page (ses canaux), les libellés de l'écran.
- *  Utilisé par : controllers/vibecoder (survey, openVibeItem, runDirect), agents,
+ *  Utilisé par : controllers/vibecoder (survey, openVibeItem, runDirect, dropOnArtifacts), agents,
  *  artifact-migration, module-code, app/lifecycle. */
 import fs from 'node:fs';
 import path from 'node:path';
 import { app, dialog } from 'electron';
-import type { VibeArtifact } from 'shared/bridge';
+import type { VibeArtifact, VibeArtifactDir } from 'shared/bridge';
 import type { AgentConfig } from 'core/agents';
 import { vibeLang } from 'core/config';
-import { ARTIFACTS, ARTIFACTS_ROOT, addedLine, artifactList, artifactOf, artifactType, droppedPaths, projectFolder, projectKey, safePath } from 'core/vibecoder';
+import { ARTIFACTS, ARTIFACTS_ROOT, addedLine, artifactDirs, artifactItem, artifactList, artifactOf, artifactType, droppedPaths, folderOf, noLinkPath, projectFolder, projectKey, safePath } from 'core/vibecoder';
 import type { ArtifactsReport } from 'core/vibecoder';
 import { copyInto } from 'technicals/file-tree';
 import type { Served } from 'technicals/file-scheme';
@@ -38,11 +40,12 @@ import { lastView, vibeAgent } from './vibecoder';
 // La forme de DirectResult (technicals/direct, que seul controllers/vibecoder importe) : il la passe telle quelle.
 type DirectResult = { ok: boolean; line: string; detail: string };
 
-const LIST_MAX = 1000;   // les premiers trouvés seulement
+const LIST_MAX = 1000;   // les premiers fichiers trouvés seulement
+const lstat = (p: string) => fs.lstatSync(p, { throwIfNoEntry: false });
 
 const LABELS = {
-  fr: { title: 'Copier dans le projet', add: 'Ajouter aux artefacts', exists: (n: string) => `« ${n} » existe déjà dans ce dossier. Le remplacer ?`, cancel: 'Annuler', replace: 'Remplacer' },
-  en: { title: 'Copy to project', add: 'Add to artifacts', exists: (n: string) => `"${n}" already exists in this folder. Replace it?`, cancel: 'Cancel', replace: 'Replace' },
+  fr: { title: 'Copier dans le projet', exists: (n: string) => `« ${n} » existe déjà dans ce dossier. Le remplacer ?`, cancel: 'Annuler', replace: 'Remplacer' },
+  en: { title: 'Copy to project', exists: (n: string) => `"${n}" already exists in this folder. Replace it?`, cancel: 'Cancel', replace: 'Replace' },
 };
 
 // Le dossier des sorties de tous les agents, et les anciens artefacts de l'un d'eux (avant le dossier du
@@ -62,30 +65,35 @@ export function projectArtifactsDir(dir: string): string {
   return folder;
 }
 
-// Les fichiers de `root` et de ses sous-dossiers, relatifs à root ; ni lien (ni fichier ni dossier pour
-// son Dirent) ni dossier caché (un fichier caché, oui) ; root un dossier, pas un lien ; au plus LIST_MAX.
-function listFiles(root: string): string[] {
+// Les fichiers et les dossiers de `root` et de ses sous-dossiers, relatifs à root ; ni lien (ni fichier ni
+// dossier pour son Dirent) ni dossier caché (un fichier caché, oui) ; root un dossier, pas un lien ; au plus
+// LIST_MAX fichiers (les dossiers ne comptent pas).
+function listFiles(root: string): { files: string[]; dirs: string[] } {
   const files: string[] = [];
+  const dirs: string[] = [];
   const walk = (r: string) => {
     try {
       for (const e of fs.readdirSync(path.join(root, r), { withFileTypes: true })) {
-        if (files.length >= LIST_MAX) continue;
-        if (e.isFile()) files.push(path.posix.join(r, e.name));
-        else if (e.isDirectory() && !e.name.startsWith('.')) walk(path.posix.join(r, e.name));
+        const rel = path.posix.join(r, e.name);
+        if (e.isFile()) { if (files.length < LIST_MAX) files.push(rel); }
+        // la limite atteinte : plus de descente (ses dossiers seulement, pas tout un arbre relu à chaque relevé)
+        else if (e.isDirectory() && !e.name.startsWith('.')) { dirs.push(rel); if (files.length < LIST_MAX) walk(rel); }
       }
     } catch { /* illisible : sans lui */ }
   };
-  if (fs.lstatSync(root, { throwIfNoEntry: false })?.isDirectory()) walk('');
-  return files;
+  if (lstat(root)?.isDirectory()) walk('');
+  return { files, dirs };
 }
 
-// Les artefacts de `root`, le dossier du projet (leur nom, taille, date ; pas leur texte), `max` : la limite du texte.
-export function listArtifacts(agentId: string, root: string, max: number): VibeArtifact[] {
-  const files = listFiles(root).flatMap((name) => {
-    const st = fs.lstatSync(path.join(root, name), { throwIfNoEntry: false });
+// Les artefacts de `root`, le dossier du projet (leur nom, taille, date ; pas leur texte), `max` : la limite du texte ;
+// et ses dossiers, même vides.
+export function listArtifacts(agentId: string, root: string, max: number): { artifacts: VibeArtifact[]; dirs: VibeArtifactDir[] } {
+  const found = listFiles(root);
+  const files = found.files.flatMap((name) => {
+    const st = lstat(path.join(root, name));
     return st ? [{ name, size: st.size, time: Math.floor(st.mtimeMs) }] : [];
   });
-  return artifactList(agentId, files, max);
+  return { artifacts: artifactList(agentId, files, max), dirs: artifactDirs(found.dirs) };
 }
 
 // Le fichier de l'artefact `a` (artifactOf du dernier relevé) de l'agent affiché en VibeCoder, dans le dossier de son projet ;
@@ -107,49 +115,67 @@ export function resolveArtifact(url: URL): Served | null {
   return file ? { file, type: artifactType(a.name), sandbox: a.kind === 'page' } : null;
 }
 
-// Copier dans le projet (au clic) : le dossier choisi, l'artefact sous son nom de base ;
-// un fichier du même nom remplacé seulement après Remplacer (et s'il n'est qu'un fichier, pas un lien).
-export async function copyArtifact(agent: AgentConfig, id: string): Promise<DirectResult> {
+// Le chemin d'un élément du relevé (a<i> ou d<i>) sous le dossier du projet de l'agent affiché, du bon genre
+// (fichier ou dossier) et sans lien sur son chemin ; null sinon.
+function itemFile(agent: AgentConfig, id: unknown): string | null {
+  const item = artifactItem(lastView(agent.id), id);
+  if (!item || vibeAgent()?.id !== agent.id) return null;
+  const file = noLinkPath(projectArtifactsPath(agent.dir), item.name, lstat);
+  const st = file && lstat(file);
+  return st && (item.folder ? st.isDirectory() : st.isFile()) ? file : null;
+}
+
+// Copier dans le projet (au clic) : la sélection (ids du dernier relevé) dans le dossier choisi, sous son nom de
+// base ; un fichier du même nom remplacé seulement après Remplacer (et s'il n'est qu'un fichier, pas un lien) ;
+// un dossier numéroté s'il existe déjà, jamais mêlé ni remplacé.
+export async function copyArtifact(agent: AgentConfig, ids: string[]): Promise<DirectResult> {
   const done = (ok: boolean, line: string): DirectResult => ({ ok, line, detail: '' });
-  const file = artifactFile(agent.id, artifactOf(lastView(agent.id), id));
-  if (!file) return done(false, 'Refused: unknown artifact.');
+  const files = (Array.isArray(ids) ? ids : []).map((id) => itemFile(agent, id));
+  if (!files.length || files.includes(null)) return done(false, 'Refused: unknown artifact.');
   const l = LABELS[vibeLang(loadConfig())];
   const pick = await dialog.showOpenDialog({ title: l.title, defaultPath: agent.dir, properties: ['openDirectory', 'createDirectory'] });
   const chosen = pick.canceled ? undefined : pick.filePaths[0];
   if (!chosen) return done(true, 'Cancelled: nothing copied.');
-  const base = path.basename(file);
-  const dest = path.join(chosen, base);
-  try {
-    await fs.promises.copyFile(file, dest, fs.constants.COPYFILE_EXCL);
-    return done(true, `Copied to ${dest}.`);
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+  const lines: string[] = [];
+  let ok = true;
+  for (const file of files as string[]) {
+    const base = path.basename(file);
+    const dest = path.join(chosen, base);
+    if (lstat(file)?.isDirectory()) {
+      const r = await copyInto(file, chosen);
+      if (r.failed.length) ok = false;
+      lines.push(r.failed.length ? `Failed: ${base}: ${r.failed[0].error}` : `Copied folder ${base} to ${chosen}.`);
+      continue;
+    }
+    try {
+      await fs.promises.copyFile(file, dest, fs.constants.COPYFILE_EXCL);
+      lines.push(`Copied to ${dest}.`);
+      continue;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+    }
+    const { response } = await dialog.showMessageBox({
+      type: 'question', buttons: [l.cancel, l.replace], defaultId: 0, cancelId: 0, title: l.title, message: l.exists(base),
+    });
+    if (response !== 1) lines.push(`Not replaced: ${base} left as is.`);
+    else if (!lstat(dest)?.isFile()) { ok = false; lines.push(`Refused: ${dest} is not a regular file.`); }
+    else { await fs.promises.copyFile(file, dest); lines.push(`Replaced ${dest}.`); }
   }
-  const { response } = await dialog.showMessageBox({
-    type: 'question', buttons: [l.cancel, l.replace], defaultId: 0, cancelId: 0, title: l.title, message: l.exists(base),
-  });
-  if (response !== 1) return done(true, 'Not replaced: nothing copied.');
-  if (!fs.lstatSync(dest).isFile()) return done(false, `Refused: ${dest} is not a regular file.`);
-  await fs.promises.copyFile(file, dest);
-  return done(true, `Replaced ${dest}.`);
+  return done(ok, lines.join(' '));
 }
 
-// Ajouter : copie les chemins reçus (droppedPaths) un à un dans le dossier du projet de l'agent ; ok s'il n'y a
-// aucun échec et au moins un copié.
-export async function addArtifacts(agent: AgentConfig, paths: unknown): Promise<DirectResult> {
+// Ajouter : copie les chemins reçus (droppedPaths) un à un dans le dossier visé (folderOf du dernier relevé : absent ou
+// inconnu, la racine) du dossier du projet de l'agent ; ok s'il n'y a aucun échec et au moins un copié.
+// Un dossier visé disparu ou devenu un lien, ou la racine devenue un lien : rien n'est copié, chaque chemin en échec.
+export async function addArtifacts(agent: AgentConfig, paths: unknown, folder?: unknown): Promise<DirectResult> {
   const { paths: list, noPath } = droppedPaths(paths);
   // projectArtifactsDir crée le dossier : pas pour un envoi sans chemin valide
   const root = list.length ? projectArtifactsDir(agent.dir) : '';
+  const to = list.length ? noLinkPath(root, folderOf(lastView(agent.id), folder) ?? '', lstat) : '';
   const report: ArtifactsReport = { copied: [], links: [], hidden: [], failed: [], noPath };
-  for (const p of list) await copyInto(p, root, report);
+  for (const p of list) {
+    if (to === null) report.failed.push({ path: p, error: 'the target folder is gone or is a link' });
+    else await copyInto(p, to, report);
+  }
   return { ok: !report.failed.length && report.copied.length > 0, line: addedLine(report, vibeLang(loadConfig())), detail: '' };
-}
-
-// Ajouter, par la boîte de dialogue du principal (des fichiers) ; annulée : rien, sans message.
-export async function pickArtifacts(agent: AgentConfig): Promise<DirectResult> {
-  const pick = await dialog.showOpenDialog({
-    title: LABELS[vibeLang(loadConfig())].add, defaultPath: agent.dir, properties: ['openFile', 'multiSelections'],
-  });
-  if (pick.canceled || !pick.filePaths.length) return { ok: true, line: '', detail: '' };
-  return addArtifacts(agent, pick.filePaths);
 }
