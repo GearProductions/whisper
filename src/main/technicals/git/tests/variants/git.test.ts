@@ -78,6 +78,12 @@ describe('facts() : la branche et sa copie de travail', () => {
     expect(f?.dirty).toContain('nouveau/dossier/c.txt');
     expect(f?.dirty).not.toContain('d.txt');
   });
+
+  it('les nouveaux (added) : pas suivis, parmi dirty ; un fichier commité puis modifié, non', async () => {
+    const f = await facts;
+    expect(f?.added).toEqual(['nouveau/dossier/c.txt']);
+    expect(f?.dirty).toContain('b é.txt');
+  });
 });
 
 describe('facts() : la base', () => {

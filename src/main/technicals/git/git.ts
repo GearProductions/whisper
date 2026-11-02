@@ -33,6 +33,7 @@ export type GitFacts = {
   head: string;
   changed: string[];
   dirty: string[];             // changés hors de tout commit (status) ; [] pour une PR chargée
+  added: string[];             // parmi eux, les nouveaux : pas suivis (??) ou ajoutés (A)
   commits: { hash: string; subject: string; files: string[] }[];   // de la base au ref, le plus ancien d'abord
 };
 
@@ -101,11 +102,17 @@ export function gitReader(run: Run): {
       ]);
       const changed = new Set((diff ?? '').split('\0').filter(plainPath));
       const dirty: string[] = [];
+      const added: string[] = [];
       // status -z : « XY chemin », suivi du chemin d'origine pour un renommage ou une copie (sauté).
       const entries = (status ?? '').split('\0');
       for (let i = 0; i < entries.length; i++) {
         if (entries[i].length < 4) continue;
-        if (plainPath(entries[i].slice(3))) { changed.add(entries[i].slice(3)); dirty.push(entries[i].slice(3)); }
+        const p = entries[i].slice(3);
+        if (plainPath(p)) {
+          changed.add(p);
+          dirty.push(p);
+          if (/^\?\?|A/.test(entries[i].slice(0, 2))) added.push(p);
+        }
         if (/[RC]/.test(entries[i].slice(0, 2))) i++;
       }
       // log -z : « \x01<hash>\t<sujet> » par commit, puis ses fichiers (le premier précédé d'un saut de ligne).
@@ -116,7 +123,7 @@ export function gitReader(run: Run): {
         if (t.startsWith('\x01')) commits.push({ hash: t.slice(1, tab), subject: t.slice(tab + 1), files: [] });
         else if (plainPath(t)) commits[commits.length - 1]?.files.push(t);
       }
-      return { branch, base: from, head, changed: [...changed], dirty, commits };
+      return { branch, base: from, head, changed: [...changed], dirty, added, commits };
     },
     show: async (ref, path) => (okRef(ref) && okPath(path) ? run(['show', ...NO_PROGRAM, '--end-of-options', `${ref}:${path}`]) : null),
     commit: async (ref) => (okRef(ref) ? run(['show', ...NO_PROGRAM, '--stat', '--patch', '-M', '--end-of-options', ref]) : null),
