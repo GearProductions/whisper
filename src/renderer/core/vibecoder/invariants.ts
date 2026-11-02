@@ -3,7 +3,10 @@
  *  validation, sa ligne dans le fichier et son code d'origine ; ce qui est validé, refusé, à lire, avec un point d'attention,
  *  et si « Tout valider » est permis (lu ou pas : la lecture n'est qu'une aide) ; le pseudo-code ligne à ligne, coloré,
  *  ses assertions et ses « given / when / then » repérés — en tête de ligne
- *  (`test "…":`, la forme des lectures) ou en commentaire (`it(…)`, l'ancienne).
+ *  (`test "…":`, la forme des lectures) ou en commentaire (`it(…)`, l'ancienne) ;
+ *  le point d'attention d'un cas, versé en un clic : cité dans le champ de la
+ *  conversation (attentionQuote, comme on cite la note : du texte, sans `>`),
+ *  ou ajouté à la zone de commentaire sans rien effacer (withAttention).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder (invariants-view). */
 import type { ReadingCase, VibeMarkState, VibeTestFile } from 'technicals/bridge';
 import { tokens, type Token } from './highlight';
@@ -91,4 +94,14 @@ export function pseudoLines(code: string): PseudoLine[] {
     }
     return { parts: kept, assert: ASSERT.test(kept.map((p) => p.text).join('')) || (!!m && phase === 'then') };
   });
+}
+
+// Le cas et son point d'attention, à citer dans le champ de la conversation (citation entière : prefill block).
+export const attentionQuote = (title: string, attention: string): string => `${title}\n${attention}`;
+
+// Le texte d'une zone de commentaire, suivi du point d'attention (une ligne vide entre les deux) ;
+// texte vide → l'attention seule ; déjà au bout → inchangé (un second clic n'ajoute rien) ; rien d'effacé.
+export function withAttention(text: string, attention: string): string {
+  if (!text.trim()) return attention;
+  return text.trimEnd().endsWith(attention.trim()) ? text : `${text.trimEnd()}\n\n${attention}`;
 }
