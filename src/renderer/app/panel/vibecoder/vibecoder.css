@@ -166,11 +166,14 @@
 .vc-arts > .vc-center { grid-area: auto; }
 .vc-art-side {
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   padding-bottom: 16px;
   background: var(--vc-side);
   border-right: 1px solid var(--vc-line);
 }
+.vc-art-side > * { flex: none; }
 .vc-art-side > .vc-band { position: sticky; top: 0; z-index: 2; margin-bottom: 8px; background: var(--vc-side); }
 
 /* Les fichiers d'un module (module-code) et d'un commit (commits-view). */
