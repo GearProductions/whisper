@@ -1,4 +1,4 @@
-/* L'étape À l'écran de Relire (ecran-view) : la barre d'avancement, une case
+/* La section « Relire à l'écran » de la Revue (ecran-view) : la barre d'avancement, une case
    par chose à essayer. Sous .vc, couleurs de vibecoder.css. */
 
 .vc-plan-bar { position: relative; height: 4px; margin: -2px 0 10px; overflow: hidden; border-radius: 2px; background: var(--vc-line); }
