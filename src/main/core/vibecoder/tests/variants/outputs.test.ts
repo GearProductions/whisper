@@ -100,8 +100,8 @@ describe('isOutputName : les sorties d\'une PR', () => {
     expect(isOutputName('pr-12.json')).toBe(true);
   });
 
-  it('pr-12-ecran.md : lu', () => {
-    expect(isOutputName('pr-12-ecran.md')).toBe(true);
+  it('ecran.md : lu (une sortie de branche) ; pr-12-ecran.md : refusé (avant la 0.13.0)', () => {
+    expect([isOutputName('ecran.md'), isOutputName('pr-12-ecran.md')]).toEqual([true, false]);
   });
 
   it('pr-0.json : refusé (pas de PR 0)', () => {
