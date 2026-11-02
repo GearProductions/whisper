@@ -1,6 +1,6 @@
 ---
 name: relire-commits
-description: "Review pull request <n> commit by commit — the four questions, duplication, file headers, a first commit holding note + forme + invariants — into <out>/pr-<n>-commits.md."
+description: "Review pull request <n> commit by commit — the four questions, duplication, file headers, a first commit holding note + forme + invariants — into <out>/pr-<n>-commits.md. The reviewer's read-only commits of the Modules step."
 argument-hint: "<lang> <out> <n>"
 disable-model-invocation: true
 context: fork

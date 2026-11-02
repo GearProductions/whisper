@@ -1,6 +1,6 @@
 ---
 name: publier-revue
-description: "Publish the review draft of pull request <n> on GitHub, as is, with the chosen verdict, and record the result in <out>/pr-<n>-review.json."
+description: "Publish, from the PR step (reviewer only), the review draft of pull request <n> on GitHub, as is, with the chosen verdict, and record the result in <out>/pr-<n>-review.json."
 argument-hint: "<lang> <out> <n> <approve|comment|request-changes>, blank line, <draft>"
 disable-model-invocation: true
 context: fork
