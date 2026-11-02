@@ -1,5 +1,5 @@
 /** module-code — le fichier ouvert dans l'accordéon Voir le code de l'étape
- *  Modules, ou, en Créer seulement, la note de la branche ou un de ses tests
+ *  Modules, ou, en créateur seulement, la note de la branche ou un de ses tests
  *  d'invariants ; un à la fois, de l'agent affiché : followCode le suit (id du
  *  dernier relevé traduit par codeFile — `m<rang>/<i>`, `n`, `t<i>` —,
  *  safePath ; lu jusqu'à READ_MAX, au-delà text null ; surveillé par fs.watch
@@ -11,13 +11,14 @@
  *  il manque ou dépasse READ_MAX ; la note et les tests : sans at). Un fichier
  *  de module supprimé (deleted au relevé) : text null, at, sans veilleur ;
  *  supprimé pendant qu'il est suivi : text null, at aussi. En
- *  Relire, un fichier d'un commit (commitFile, `c<rang>/<i>`) : rien lu sur le
+ *  relecteur, un fichier d'un commit (commitFile, `c<rang>/<i>`) : rien lu sur le
  *  disque, sans veilleur, poussé une fois ; at.base au forkPoint de la base de
  *  la PR, at.head à HEAD (la tête de la PR, = text), at.commit : before au
  *  parent du commit (gitReader.parent), after au commit, null là où il manque
  *  ou dépasse READ_MAX ; les lectures git en parallèle. saveCode l'enregistre
  *  au geste de l'utilisateur, seulement le fichier suivi, s'il est encore dans
- *  le relevé, que codeLock (recalculé ici, sans se fier à la page : isBusy,
+ *  le relevé, jamais en relecteur (le rôle du dernier relevé, décidé par
+ *  l'appli, sans se fier à la page), que codeLock (recalculé ici, sans se fier à la page : isBusy,
  *  lockingRuns ; sans module, la note ou un test, toute course retient) ne le
  *  grise pas et qu'il existe déjà (exception à I-39), puis refreshVibe.
  *  Un artefact `a<i>` du dernier relevé, markdown ou text (artifactFile ; une
@@ -157,7 +158,9 @@ export function saveCode(id: unknown, text: unknown): SendResult {
   const T = ERRORS[lang];
   const agent = vibeAgent(cfg);
   if (!agent || !followed || followed.agentId !== agent.id || id !== followed.id) return { ok: false, error: T.file };
-  const found = codeFile(lastView(agent.id), followed.id);
+  const view = lastView(agent.id);
+  if (view?.flow === 'review') return { ok: false, error: T.file };   // le relecteur n'écrit rien
+  const found = codeFile(view, followed.id);
   if (!found || found.path !== followed.rel) return { ok: false, error: T.file };
   const locked = codeLock(found.module?.path ?? null, isBusy(agent.id), lockingRuns(agent.id), lang);
   if (locked) return { ok: false, error: locked };
