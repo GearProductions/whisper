@@ -10,14 +10,15 @@
  *  absent si l'action n'existe pas ou que le relevé la masque (hidden) ; une
  *  action que l'appli fait elle-même : « direct », à côté « via » l'agent, et
  *  dessous son dernier résultat, Icon ok / ko, F-114), l'invitation (rien encore, et ce qui
- *  le produit), la carte d'une PR (IconButton external : l'ouvrir), le bandeau d'une PR fusionnée ou fermée,
+ *  le produit), la carte d'une PR (IconButton external : l'ouvrir), le badge Relecteur (view.flow
+ *  'review', même allure que celui du worktree ; rien en créateur),
  *  le badge du robot d'une PR ouverte dans un worktree (le badge seul :
  *  Retirer le worktree est dans la vue des branches).
  *  Le champ d'une étape cite les artefacts du projet par « @ » (useArtifactMention, d'après
  *  VibeView.artifacts et artifactsDir).
  *  Ne connaît pas : le pont (rappels passés ; ⏹ par le contexte StopRun).
- *  Utilisé par : les vues d'étape ; vibe-coder (bandeau d'une
- *  PR fermée, badge du worktree). */
+ *  Utilisé par : les vues d'étape ; vibe-coder (badge Relecteur,
+ *  badge du worktree). */
 import { createContext, useContext, useRef, type ReactNode } from 'react';
 import { fieldOf, isLive, stepActions, t as strings, webUrl, type Strings } from 'core/vibecoder';
 import type { VibeAction, VibeArgs, VibeArtifact, VibeLang, VibePr, VibeRun, VibeView } from 'technicals/bridge';
@@ -190,10 +191,10 @@ export function PrCard({ pr, lang, onOpenLink, children }: { pr: VibePr; lang: V
   );
 }
 
-// Relire : la PR suivie est fusionnée ou fermée (son état connu et pas OPEN).
-export function ClosedBanner({ pr, t }: { pr: VibePr | null; t: Strings }) {
-  if (!pr?.state || pr.state === 'OPEN') return null;
-  return <div className="vc-closed" role="status"><b>{`#${pr.number}`}</b>{t.prClosed[pr.state]}</div>;
+// En relecteur (view.flow, décidé par l'appli) : le badge dans l'en-tête ; rien en créateur.
+export function ReviewerBadge({ view, t }: { view: VibeView; t: Strings }) {
+  if (view.flow !== 'review') return null;
+  return <span className="vc-wt-badge" title={t.reviewerTitle}>{t.reviewer}</span>;
 }
 
 // Le robot temporaire d'une PR ouverte dans un worktree (F-110) : « PR #n · worktree », son dossier en infobulle.
