@@ -46,6 +46,8 @@
 .vc-mod-line::-webkit-details-marker { display: none; }
 .vc-mod-line::before { content: "▸"; flex: none; color: var(--vc-muted); font-size: 11px; transition: transform 0.12s; }
 .vc-mod-main[open] > .vc-mod-line::before { transform: rotate(90deg); }
+/* Le numéro d'un module : son ordre de génération, celui de la Forme (liste et arborescence de la vue IDE). */
+.vc-mod-rank, .vc-tree-rank { flex: none; min-width: 1.4em; color: var(--vc-muted); font-size: 11px; font-variant-numeric: tabular-nums; text-align: right; }
 .vc-mod-name { flex: none; color: var(--vc-text); font-size: 13px; font-weight: 600; }
 .vc-mod[data-state="todo"] .vc-mod-name { color: var(--vc-soft); }
 .vc-mod-dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--vc-faint); font-size: 12px; }

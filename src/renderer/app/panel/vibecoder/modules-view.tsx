@@ -3,7 +3,8 @@
  *  via l'agent, F-114 ; IconButton comment le cite, Relancer)
  *  et la relecture du dernier diff (review.md, citer par bloc, Relancer). Puis une ligne par
  *  module de la Forme, un accordéon : point plein s'il est touché (vert :
- *  commité ; accent : modifié, pas encore commité), anneau sinon ; nom en
+ *  commité ; accent : modifié, pas encore commité), anneau sinon ; son numéro
+ *  (l'ordre de génération, celui de la Forme) ; nom en
  *  gras, dossier atténué ; les commits qui le touchent en puces (un clic : son
  *  diff dans l'éditeur). Déplié : sur sa ligne, sa barre d'outils (Générer,
  *  Relire le diff, du dernier commit qui le touche, sinon les changements non
@@ -57,6 +58,7 @@ const fr = {
   commit: 'Commiter',
   commitTitle: 'Commiter les changements de ce module',
   toCreate: 'à créer',
+  rankTitle: (n: number, of: number) => `Ordre de génération : ${n} sur ${of}`,
   readOnly: 'Lecture seule : vous relisez cette PR.',
   noModule: 'La Forme ne liste aucun module',
   noModuleHint: 'Les modules viennent de la rubrique « Forme » de la note : étape Forme, Poser la forme.',
@@ -77,6 +79,7 @@ const S: Record<VibeLang, typeof fr> = {
     commit: 'Commit',
     commitTitle: 'Commit the changes of this module',
     toCreate: 'to create',
+    rankTitle: (n: number, of: number) => `Generation order: ${n} of ${of}`,
     readOnly: 'Read only: you are reviewing this PR.',
     noModule: 'The Shape lists no module',
     noModuleHint: 'Modules come from the “Forme” section of the note: Shape step, Set the shape.',
@@ -220,6 +223,7 @@ export function ModulesView(p: StepProps) {
                     if (!now) act.follow(null);
                   }}>
                     <summary className="vc-mod-line" title={m.file ? m.file.path : m.path}>
+                      <span className="vc-mod-rank" title={s.rankTitle(i + 1, view.modules.length)}>{i + 1}</span>
                       <span className="vc-mod-name vc-mono">{name}</span>
                       <span className="vc-mod-dir vc-mono">{dir}</span>
                       {!m.file && state === 'todo' ? <span className="vc-mod-new">{s.toCreate}</span> : null}

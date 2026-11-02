@@ -144,3 +144,16 @@ it('sans module : les fichiers de la branche, dans les deux vues, sans interrupt
     expect(page.querySelector('.vc-ide-main .vc-mod-acts')).toBeNull();
   }
 });
+
+it('le numéro d\'ordre de chaque module, celui de la Forme, en liste comme en vue IDE ; aucun sans module', async () => {
+  await drawView({}, two);
+  expect([...page.querySelectorAll('.vc-mod-rank')].map((r) => r.textContent)).toEqual(['1', '2']);
+  expect(page.querySelector('.vc-mod-rank')!.getAttribute('title')).toBe('Ordre de génération : 1 sur 2');
+  await drawView({ modulesView: 'ide' }, two);
+  const side = page.querySelector('.vc-ide-side')!;
+  const rankOf = (name: string) => [...side.querySelectorAll('.vc-tree-row')].find((r) => r.textContent?.includes(name))?.querySelector('.vc-tree-rank')?.textContent;
+  expect(rankOf('a.ts')).toBe('1');
+  expect(rankOf('autre')).toBe('2');
+  await drawView({ modulesView: 'ide', files: [{ id: 'f0', path: 'src/x/b.ts' }] }, []);
+  expect(page.querySelector('.vc-tree-rank')).toBeNull();
+});
