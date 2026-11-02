@@ -98,7 +98,7 @@ describe('stepActions', () => {
     action({ id: 'other', step: 'modules' }),
   ];
   const view = (over: Partial<VibeView> = {}) => ({ flow: 'create', actions, ...over }) as VibeView;
-  const step = (status: VibeStep['status']): VibeStep => ({ id: 'forme', status, facts: '', open: true });
+  const step = (status: VibeStep['status']): VibeStep => ({ id: 'forme', status, facts: '' });
   const row = (v: VibeView, s: VibeStep, own: string[] = []) => stepActions(v, s, own).map(({ a, tone }) => `${a.id}:${tone}`);
 
   it('étape en cours, Créer : vibe, puis la mise en avant, puis les siennes ; sans masquée, qui cite, ni d\'une autre étape', () => {

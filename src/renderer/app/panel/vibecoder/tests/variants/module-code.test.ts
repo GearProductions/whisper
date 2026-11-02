@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 // ModuleCode (module-code.tsx) : l'arbre marque un fichier supprimé ; choisi, son diff depuis la base
 // tout en retraits, sans sélecteur, ni éditeur modifiable, ni Enregistrer ; un fichier changé : le
-// sélecteur (DiffPicker) et l'éditeur avec Enregistrer ; readOnly : lecture seule, sans pied.
+// sélecteur (DiffPicker) et l'éditeur avec Enregistrer ; readOnly : lecture seule, sans pied ;
+// noTree : sans la rangée des fichiers quand il n'y en a qu'un ; first 'base' : le diff depuis la base d'abord.
 import { act, createElement, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EditorView } from '@codemirror/view';
@@ -18,13 +19,13 @@ const m: VibeModule = {
   files: [{ id: 'm1/0', path: 'src/x/gone.ts', deleted: true }, { id: 'm1/1', path: 'src/x/kept.ts' }],
 };
 
-function mount() {
+function mount(extra: Partial<Parameters<typeof ModuleCode>[0]> = {}, mod: VibeModule = m) {
   const page = document.createElement('div');
   document.body.append(page);
   const root = createRoot(page);
   const followed: (string | null)[] = [];
   const Probe = ({ code, readOnly }: { code: VibeCode | null; readOnly?: string }) => createElement(ModuleCode, {
-    m, code, t: t('fr'), lang: 'fr', open: true, onFollow: (id) => { followed.push(id); },
+    ...extra, m: mod, code, t: t('fr'), lang: 'fr', open: true, onFollow: (id) => { followed.push(id); },
     onSave: async () => true, drafts: useState<Drafts>({}), readOnly,
   });
   const render = (code: VibeCode | null, readOnly?: string) => act(() => { root.render(createElement(Probe, { code, readOnly })); });
@@ -71,4 +72,31 @@ it('readOnly : l\'éditeur en lecture seule, ni Enregistrer ni Abandonner', asyn
   expect(EditorView.findFromDOM(v.page.querySelector('.cm-editor') as HTMLElement)!.state.readOnly).toBe(true);
   expect(v.saveButton()).toBeUndefined();
   expect(v.page.querySelector('.vc-mod-code-foot')).toBeNull();
+});
+
+const one: VibeModule = { ...m, files: [{ id: 'm1/1', path: 'src/x/kept.ts' }] };
+
+it('noTree : sans la rangée des fichiers quand il n\'y en a qu\'un, gardée quand il y en a plusieurs', async () => {
+  const solo = mount({ noTree: true }, one);
+  await solo.render({ id: 'm1/1', text: 'a', time: 1, at: { base: 'b', head: 'a' } });
+  expect(solo.page.querySelector('.vc-mod-tree')).toBeNull();
+  expect(solo.page.querySelector('select.vc-mod-shown')).not.toBeNull();
+  expect(solo.followed).toEqual(['m1/1']);
+  const many = mount({ noTree: true });
+  await many.render(null);
+  expect(many.page.querySelector('.vc-mod-tree')).not.toBeNull();
+});
+
+it('first base : s\'ouvre sur le diff depuis la base ; grisé (pas de base), le fichier', async () => {
+  const v = mount({ first: 'base' }, one);
+  await v.render({ id: 'm1/1', text: 'a', time: 1, at: { base: 'b', head: 'a' } });
+  expect((v.page.querySelector('select.vc-mod-shown') as HTMLSelectElement).value).toBe('base');
+  expect(v.page.querySelector('.vc-mdiff')).not.toBeNull();
+  const noBase = mount({ first: 'base' }, one);
+  await noBase.render({ id: 'm1/1', text: 'a', time: 1, at: { base: null, head: 'a' } });
+  expect((noBase.page.querySelector('select.vc-mod-shown') as HTMLSelectElement).value).toBe('file');
+  expect(noBase.page.querySelector('.vc-mdiff')).toBeNull();
+  const plain = mount({}, one);
+  await plain.render({ id: 'm1/1', text: 'a', time: 1, at: { base: 'b', head: 'a' } });
+  expect((plain.page.querySelector('select.vc-mod-shown') as HTMLSelectElement).value).toBe('file');
 });

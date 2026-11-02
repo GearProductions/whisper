@@ -26,7 +26,9 @@
  *  nom tapé y passe, sans canal de plus), une course (vibeRunOp : l'arrêter, la garder ou l'annuler, répondre
  *  à sa demande d'autorisation), un réglage (dont arrêter l'agent, comme Interrompre de son
  *  menu ; arrêter Vibe, la bannière : vibeStop de controllers/runs ;
- *  l'onglet Actions ouvert ou fermé : ses courses vues, runsTab de controllers/runs),
+ *  l'onglet Actions ouvert ou fermé : ses courses vues, runsTab de controllers/runs ;
+ *  la vue des Modules, IDE ou liste : `modulesView`, 'ide' ou 'list' seulement, rangée
+ *  dans les réglages comme la langue, rendue au relevé : vibeModulesView),
  *  une validation (dont ✓ Rien à écrire, Créer : pour le texte de la note), le brouillon de revue, ouvrir un fichier ou un commit
  *  du relevé (dans l'éditeur, à une ligne ; la page d'un commit dans le
  *  navigateur, d'après l'origine GitHub du dépôt, I-32).
@@ -117,7 +119,7 @@ import path from 'node:path';
 import { dialog, shell } from 'electron';
 import type { SendResult, VibeAction, VibeArgs, VibeLang, VibeRunOp, VibeView } from 'shared/bridge';
 import { EFFORTS, MODELS, MODES, type AgentConfig } from 'core/agents';
-import { agentList, agentVibe, vibeLang, type Config } from 'core/config';
+import { agentList, agentVibe, vibeLang, vibeModulesView, type Config } from 'core/config';
 import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
 import {
@@ -485,7 +487,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   // Processus : les commandes du projet, leur état, la recette de la famille (controllers/processes).
   const proc = processView(agent, cfg);
   const journey = vibeView({
-    agentId: agent.id, lang, flow: role, pr, people, login, vibe: vibeOn(agent.id),
+    agentId: agent.id, lang, modulesView: vibeModulesView(cfg), flow: role, pr, people, login, vibe: vibeOn(agent.id),
     agent: { model: agent.model || '', effort: agent.effort || '', mode: agent.mode || 'default' },
     busy,
     running,
@@ -901,6 +903,7 @@ export function setVibe(patch: unknown) {
   if (p.pr === null || prNumber(p.pr)) vibe.pr = p.pr as number | null;   // le rôle ne se choisit pas : un `flow` de la page est ignoré
   updateAgent(agent.id, { vibe });
   if (p.lang === 'fr' || p.lang === 'en') saveConfig({ vibeLang: p.lang });
+  if (p.modulesView === 'ide' || p.modulesView === 'list') saveConfig({ vibeModulesView: p.modulesView });   // la vue des Modules, retenue ; autre valeur : ignorée
   if (p.seen === true) {
     const text = last.get(agent.id)?.note?.text;
     if (text !== undefined) turnNote.set(agent.id, { text, busy: isBusy(agent.id) });

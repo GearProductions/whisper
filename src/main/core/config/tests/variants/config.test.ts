@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   agentColor, agentList, agentSlotCount, agentVibe, childRow, favoriteFolders, folderColors, randomColor, selectedAgent, speakMode,
-  speakVolume, vibeLang, withDefaults,
+  speakVolume, vibeLang, vibeModulesView, withDefaults,
 } from 'core/config';
 
 const agent = (id: string, dir: string) => ({ id, dir, name: id, model: '', effort: '', mode: 'default', sessionId: null });
@@ -78,6 +78,11 @@ describe('VibeCoder', () => {
     expect(vibeLang(withDefaults({}))).toBe('fr');
     expect(vibeLang(withDefaults({ vibeLang: 'en' }))).toBe('en');
     expect(vibeLang(withDefaults({ vibeLang: 'de' }))).toBe('fr');
+  });
+  it('vue des modules : liste par défaut, ide si demandé, une valeur inconnue prend le défaut', () => {
+    expect(vibeModulesView(withDefaults({}))).toBe('list');
+    expect(vibeModulesView(withDefaults({ vibeModulesView: 'ide' }))).toBe('ide');
+    expect(vibeModulesView(withDefaults({ vibeModulesView: 'grid' }))).toBe('list');
   });
   it('réglages d’un agent : défauts (Créer, aucune PR), retouches à la main tolérées, autonomy d’avant ignorée', () => {
     const none = { flow: 'create', pr: null };

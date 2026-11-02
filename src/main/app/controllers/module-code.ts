@@ -1,16 +1,18 @@
 /** module-code — le fichier ouvert dans l'accordéon Voir le code de l'étape
  *  Modules, ou, en créateur seulement, la note de la branche ou un de ses tests
  *  d'invariants ; un à la fois, de l'agent affiché : followCode le suit (id du
- *  dernier relevé traduit par codeFile — `m<rang>/<i>`, `n`, `t<i>` —,
+ *  dernier relevé traduit par codeFile — `m<rang>/<i>`, `b<i>`, `n`, `t<i>` —,
  *  safePath ; lu jusqu'à READ_MAX, au-delà text null ; surveillé par fs.watch
  *  de son dossier, filtré sur son nom — une écriture par renommage compte —,
  *  poussé à la page par conv:vibeCode à l'ouverture et à chaque changement ;
  *  un id qui ne désigne rien : null poussé, rien lu ; un fichier de module,
- *  lu : avec at, son texte au commit où la branche part de repo.base
+ *  lu, comme un fichier que change la branche (`b<i>`, les deux rôles) :
+ *  avec at, son texte au commit où la branche part de repo.base
  *  (forkPoint) et à HEAD (gitReader.show), relus à chaque poussée, null là où
  *  il manque ou dépasse READ_MAX ; la note et les tests : sans at). Un fichier
- *  de module supprimé (deleted au relevé) : text null, at, sans veilleur ;
- *  supprimé pendant qu'il est suivi : text null, at aussi. En
+ *  de module ou de la branche supprimé (deleted au relevé, dans le module ou
+ *  dans view.files) : text null, at, sans veilleur ; supprimé pendant qu'il
+ *  est suivi : text null, at aussi. En
  *  relecteur, un fichier d'un commit (commitFile, `c<rang>/<i>`) : rien lu sur le
  *  disque, sans veilleur, poussé une fois ; at.base au forkPoint de la base de
  *  la PR, at.head à HEAD (la tête de la PR, = text), at.commit : before au
@@ -19,7 +21,7 @@
  *  au geste de l'utilisateur, seulement le fichier suivi, s'il est encore dans
  *  le relevé, jamais en relecteur (le rôle du dernier relevé, décidé par
  *  l'appli, sans se fier à la page), que codeLock (recalculé ici, sans se fier à la page : isBusy,
- *  lockingRuns ; sans module, la note ou un test, toute course retient) ne le
+ *  lockingRuns ; sans module — la note, un test, un fichier `b<i>` —, toute course retient) ne le
  *  grise pas et qu'il existe déjà (exception à I-39), puis refreshVibe.
  *  Un artefact `a<i>` du dernier relevé, markdown ou text (artifactFile ; une
  *  page, un media : null poussé, rien lu) : suivi de même, sans at, lu par un
@@ -51,7 +53,7 @@ const ERRORS: Record<VibeLang, Record<'file' | 'text' | 'write', string>> = {
 };
 
 // Le fichier suivi : l'agent, l'id, son chemin dans le dépôt (d'un artefact : son
-// chemin absolu, artifact vrai), le hash de son commit (un fichier d'un commit),
+// chemin absolu, artifact vrai ; module vrai : d'un module ou de la branche, lu avec at), le hash de son commit (un fichier d'un commit),
 // disk faux s'il ne se lit que par git (d'un commit, supprimé), son veilleur.
 type Followed = {
   agentId: string; id: string; rel: string; module: boolean; artifact: boolean; commit: string | null; disk: boolean;
@@ -133,10 +135,10 @@ export function followCode(id: unknown): void {
   const found = codeFile(view, id);
   const commit = found ? null : commitFile(view, id);
   const file = found ? fileOf(agent.dir, found.path) : commit ? null : textArtifact(agent.id, id);
-  const deleted = !file && !!found?.module?.files?.find((f) => f.id === id)?.deleted;
+  const deleted = !file && !!(found?.module?.files ?? view?.files)?.find((f) => f.id === id)?.deleted;
   if (!file && !commit && !deleted) { push(null); return; }
   const me: Followed = {
-    agentId: agent.id, id, rel: found?.path ?? commit?.path ?? file!, module: !!found?.module, artifact: !found && !commit,
+    agentId: agent.id, id, rel: found?.path ?? commit?.path ?? file!, module: !!(found?.module ?? found?.branch), artifact: !found && !commit,
     commit: commit?.hash ?? null, disk: !!file, watcher: null,
   };
   followed = me;

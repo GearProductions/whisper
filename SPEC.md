@@ -67,7 +67,7 @@ des processus.
 | `core/conversation` | actions et demandes d'autorisation écrites, pièces jointes, tâches de fond vues par le volet |
 | `core/guards` | permissions des pages, liens, fichiers montrés |
 | `core/repo` | page GitHub d'un dossier, d'après son remote `origin` |
-| `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier ou un commit désigné par son id (`safePath`, `itemPath`, `itemCommit`, `codeFile` : un fichier d'un module touché), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`, `skillModel`), le parcours (`vibeView`), le rôle (`role` : `vibeRole`, `canAssign`, `unassignable`, F-101), les choix de lieu d'après l'état du dossier (`place` : `placeShown`, `placeReason`, `onBase`, F-110), *Pull*, *Rebase*, *Pousser* (`sync` : `syncReason`, F-114), les sorties des skills, les fichiers par défaut (`syncDefaults`) et les variantes des skills (`skillVariants`), les validations et brouillons de revue, les courses (`runs` : `ownRun`, `runKey`, la règle `blockedBy`, le module qu'une course génère et le verrou de son code (`runModule`, `codeLock`), `actions.json`, l'avis de fin, `parseRequest`, l'avis d'une demande refusée ou aux arguments ignorés `requestNotice`, F-115), les ✓ des étapes passées en Vibe (`vibeMarks`) |
+| `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier ou un commit désigné par son id (`safePath`, `itemPath`, `itemCommit`, `codeFile` : un fichier d'un module touché, ou de la branche), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`, `skillModel`), le parcours (`vibeView`), le rôle (`role` : `vibeRole`, `canAssign`, `unassignable`, F-101), les choix de lieu d'après l'état du dossier (`place` : `placeShown`, `placeReason`, `onBase`, F-110), *Pull*, *Rebase*, *Pousser* (`sync` : `syncReason`, F-114), les sorties des skills, les fichiers par défaut (`syncDefaults`) et les variantes des skills (`skillVariants`), les validations et brouillons de revue, les courses (`runs` : `ownRun`, `runKey`, la règle `blockedBy`, le module qu'une course génère et le verrou de son code (`runModule`, `codeLock`), `actions.json`, l'avis de fin, `parseRequest`, l'avis d'une demande refusée ou aux arguments ignorés `requestNotice`, F-115), les ✓ des étapes passées en Vibe (`vibeMarks`) |
 | `core/runner` | les commandes du projet (F-111) : le fichier du projet, `<dossier du parent>/.vibecoder/project.json` (`projectPath`, la ligne de `.git/info/exclude` : `withExclude`), lu (`parseProject`), une proposition fusionnée dans le fichier existant (`mergeProject`), une commande par son rang (`commandAt` : shell du fichier, préfixe `commandPrefix` — celui du fichier, du réglage, ou la box de l'agent, le même pour `gh`), les demandes de l'agent (`requestsOf`), la fin d'un journal, la recette en étapes (`setupSteps`, `createSteps`, `removeSteps` ; la branche et la base par l'environnement, `recipeEnv` ; le dossier d'un worktree, `worktreeDir`) (I-42) |
 | `technicals/process` | les processus lancés pour l'utilisateur : détachés, marqués dans leur environnement, arrêtés avec ce qu'ils ont lancé (SIGTERM, SIGKILL après 5 s), leur journal ; `writeNew` (I-43) ; une étape de la recette attendue jusqu'à sa fin (`runOnce` : l'entrée fermée, un délai, la dernière ligne utile) |
 | `technicals/git` | git en lecture seule (`gitRun`, `gitReader`, `GIT_READ`, plus `worktree list`) : les faits d'une branche ou d'une PR chargée, un fichier à un ref, un commit et son diff, le commit où la branche part de sa base (`forkPoint`), les branches locales (`branches`), le retard sur `@{u}` et sur `origin/<base>` (`sync`) (I-39) |
@@ -97,7 +97,7 @@ Vers le principal :
   `conv:hide`, `conv:send`, `conv:attach`, `conv:answer`, `conv:speak`,
   `conv:probe`, `conv:history`, `conv:open`, `conv:current`, `conv:resume`,
   `conv:copy`, `conv:openLink`, `conv:showFile` ; VibeCoder : `conv:vibeSet`
-  (arrêter Vibe, PR suivie, langue, *Vu*, retour à la
+  (arrêter Vibe, PR suivie, langue, vue Modules, *Vu*, retour à la
   conversation, modèle, effort, mode, arrêter l'agent, le robot d'une PR dans
   son worktree), `conv:vibeMark` (✓, ✗
   ou oublier une cible), `conv:vibeDraft` (brouillon de revue : ajouter,
@@ -653,12 +653,14 @@ conversation des agents qui ne sont pas en VibeCoder ne change pas.
   court, sujet ; `fixup!`, `squash!`, `amend!` en couleur d'attention ; un
   clic sur l'un : *Voir le diff*, *GitHub* et ses fichiers) ; un nouveau
   clic les replie ; « aucun commit » : sans clic. Le fil d'Ariane mène :
-  un clic (ou Ctrl+1…6) ouvre une étape faite ou celle en cours, pas une
-  étape à venir, visible mais sans clic (son état au survol) ; relecteur,
-  toutes s'ouvrent ;
+  un clic (ou Ctrl+1…6, le raccourci en infobulle) ouvre n'importe quelle
+  étape, faite, en cours ou à venir, dans les deux rôles : l'état reste au
+  fil (point, anneau, gris), l'étape en cours reste la première non faite
+  (sans note : la Note, mais on va librement aux autres). Ouvrir une étape à
+  venir ne lance rien et n'écrit rien ; seuls les boutons dont l'action a
+  besoin d'une étape précédente faite restent grisés, avec leur raison ;
 - dessous, sur toute la largeur à gauche de la conversation, l'étape
-  choisie — sinon celle en cours, que l'écran suit ; une étape choisie qui
-  ne s'ouvre plus laisse place à celle en cours —, ses actions dans son
+  choisie — sinon celle en cours, que l'écran suit —, ses actions dans son
   en-tête (F-93) ; ni onglets des étapes ni carte « prochaine étape » : le
   fil d'Ariane dit où l'on en est ;
 - à droite, des onglets : **Conversation** (son intitulé ; le message en tête,
@@ -716,7 +718,7 @@ de l'écran et le brouillon tiennent (I-29).
 - Sous le titre de l'étape (et son champ), une **rangée d'actions** compacte : celles de
   l'étape, chacune avec qui travaille ou le choix du modèle (F-99) et
   pourquoi elle est grisée ; sans celles qui n'ont pas encore de sens
-  (masquées, F-99), ni celles que la vue montre déjà ailleurs
+  (masquées, F-99 ; pas celles qui attendent une étape précédente : grisées), ni celles que la vue montre déjà ailleurs
   (une invitation, une carte, une ligne : jamais deux fois). À l'étape en
   cours, en tête : *Vibe* (créateur, F-103), avec son propre accent, puis
   l'action qui fait avancer l'étape (F-100, F-101), Vibe ou pas,
@@ -799,6 +801,10 @@ principal pour l'agent affiché en VibeCoder :
   leurs chemins sans leur texte ;
   un module pas touché n'en a aucun ; et pourquoi son code ne s'édite pas
   (`locked`, F-100 ; `null` : éditable) ;
+- les **fichiers de la branche** (`files`, ids `b<i>`, triés) : ceux qu'elle
+  change, la copie de travail comprise, avec « supprimé » (absent du disque)
+  et leur `locked`, comme un module : de quoi suivre une branche sans Forme
+  (F-100) ; le réglage de la vue Modules (`modulesView`, `ide` ou `list`) ;
 - les sorties des skills (F-95), les validations et le brouillon de revue
   (`vibecoder-state.json`), les actions (F-96), les skills du projet et de
   l'utilisateur ;
@@ -1133,11 +1139,13 @@ sur un dossier qui a des modifications (« Des modifications en
 cours », F-110) ; *Pull* sans branche distante suivie ou à jour avec elle
 (F-92) ; pas de dépôt git ; en relecteur, ses étapes, le dossier
 pas sur la branche de la PR ni sur son robot (« Passer d'abord sur la
-branche de la PR ») ; brouillon de revue vide.
+branche de la PR ») ; brouillon de revue vide ; **pas encore de note** (la
+Forme, les invariants, un gabarit qui lit la note, *Vibe* : « Pas encore de
+note ») : une action qui a besoin d'une étape précédente faite est grisée,
+jamais masquée, pour que chaque étape s'ouvre, même sans note.
 Une action qui **n'a pas encore de sens** n'est pas affichée (`hidden`), au
 lieu d'être grisée ; elle garde sa raison (`disabled`) : le principal la
-refuse de même. Ce sont : pas encore de note (aussi la Forme et les
-invariants en créateur) ; aucun test d'invariant ; *✓
+refuse de même. Ce sont : aucun test d'invariant ; *✓
 Commiter* sans commit préparé ; *Envoyer les réponses* sans question
 ouverte ; *Replier les fixups* sans commit `fixup!` ; les choix de F-110
 (ceux d'une PR avant qu'elle soit chargée, et sur sa branche ou sur son
@@ -1147,7 +1155,7 @@ worktree ; *Mettre de côté* sans modifications ; *Revenir sur la branche
 principale* sur le robot d'une PR, ou sur la base sans PR chargée ;
 *Retirer le worktree* hors d'un enfant ; *Pousser* sans rebase réussi
 depuis le dernier push ; la nouvelle demande hors de la base) ; *Vibe*
-tant que la note n'est pas rédigée (« Pas encore de note »), a des
+tant que la note a des
 questions ouvertes (« Répondre d'abord aux questions de la note ») ou n'est
 pas validée (« Valider d'abord la note ») ; masquée aussi pendant le mode
 *Vibe*, un tour de la conversation ou une course en cours (« Déjà en cours ») ;
@@ -1340,9 +1348,17 @@ créateur ; le relecteur, F-101) :
    branche est créée, puis la note s'écrit. Sur une autre branche, la note
    ne propose jamais de nouvelle branche.
 2. **Forme** — faite : au moins un module dans la rubrique « Forme », validée.
-   Montre les modules groupés par premier dossier (`src/` de tête ignoré) :
-   chemin, contrat en rubriques (expose, ne connaît pas, utilisé par), état
-   (touché par la branche, existe, à créer), commits ; *Commenter*, *Ouvrir*. *Poser
+   Montre, en **vue IDE** (la seule), l'arborescence des modules à gauche,
+   par dossier (`src/` de tête ignoré), et le module choisi à droite : chemin,
+   état (touché par la branche, existe, à créer), commits ; *Commenter*,
+   *Ouvrir*. Un interrupteur *Structure* · *Code* : *Structure*, son contrat
+   en rubriques (expose, ne connaît pas, utilisé par), en texte ; *Code*, son
+   code en diff depuis la base de la branche (*Voir le code*, étape Modules),
+   tout en vert pour un module à créer, seulement ce que la branche a ajouté
+   ou changé pour un module existant (« la branche ne change pas ce module »
+   sinon). Sans Forme dans la note, ou sans note : l'invitation, puis
+   l'arborescence des fichiers que change la branche (`VibeView.files`, ids
+   `b<i>`), pour suivre une petite PR qui n'a pas fait toutes les étapes. *Poser
    la forme* (dans la note, sans code ; le champ de l'étape peut la préciser), puis
    *Valider la forme*.
 3. **Invariants** — faite, seulement si la Note et la Forme le sont : aucune ligne
@@ -1427,7 +1443,7 @@ créateur ; le relecteur, F-101) :
    coloré, replié autour des changements (le texte changé dans une ligne
    sur un fond vert ou rouge plus foncé que celui de sa ligne, pas
    souligné), en texte (I-40), seulement pour
-   un fichier de module ou d'un commit (ni la note ni un test, I-37 ; un
+   un fichier de module, de la branche (`b<i>`, sans Forme) ou d'un commit (ni la note ni un test, I-37 ; un
    test a le sien, étape Invariants). Générer ne commite
    pas : *Commiter* et *Commiter les modules* (skill `commiter-modules`, un
    commit par module selon la convention du projet, un fixup pour un module
@@ -1471,8 +1487,19 @@ créateur ; le relecteur, F-101) :
    *Générer ce module* (le premier qu'aucun commit ne touche ; avec
    `ponytail`, tests lancés, sans commit) ; aussi *Relire le diff* (les
    quatre questions du § 5.1), *Générer les modules restants* (confiés à des
-   agents Sonnet en parallèle, chaque diff relu, sans commit). Relecteur : voir
-   F-101.
+   agents Sonnet en parallèle, chaque diff relu, sans commit).
+   **Vue IDE** : un interrupteur *IDE* · *liste*, dans les outils de la carte,
+   choisit entre l'accordéon ci-dessus (*liste*, inchangée) et une
+   arborescence à gauche, des fichiers des modules rangés par dossier (un
+   module de plusieurs fichiers n'y fait pas un nœud), chacun avec le point
+   d'état de son module (commité, en cours, à faire), et le fichier choisi à
+   droite, avec les outils de son module (*Générer*, *Relire le diff*,
+   *Ouvrir*, *Commiter*) et son code en diff git (*Fichier* ou diff, *En ligne*
+   ou *Côte à côte*, comme *Voir le code*). La vue choisie est retenue d'une
+   ouverture à l'autre (`vibeModulesView`, § 9 ; `conv:vibeSet`) ; défaut :
+   *liste*. Sans module (sans Forme), les deux vues montrent l'arborescence
+   des fichiers de la branche. La vue IDE n'ajoute aucune action : elle montre
+   ce que Forme et Modules montrent déjà. Relecteur : voir F-101.
 5. **Revue** — faite : vérifications toutes passées (`checks.json` ; des
    avertissements seulement passent ; un ancien ne compte pas, I-46),
    ponytail review faite (`ponytail.md`),
@@ -2316,6 +2343,7 @@ puis le dossier ouvert, F-107) ; Ouvrir le dossier whisper ; Modifier la configu
 | `agentReview` | `true` | dictée dans le champ |
 | `convSize` | — | taille du panneau agrandi |
 | `vibeLang` | `fr` | VibeCoder : fr, en (F-108) ; autre valeur → fr |
+| `vibeModulesView` | `list` | VibeCoder : la vue de l'étape Modules, `ide` ou `list` (F-100) ; autre valeur → `list` |
 | `vibeSize` | — | taille du panneau en VibeCoder (défaut 1280×820) |
 | `vibeCommandPrefix` | `''` | VibeCoder : ce qui précède les commandes du projet et gh (F-111, F-112) ; `''` → `distrobox enter <box> --` d'après `agentCommand`, sinon rien |
 | `artifactTextMax` | `10485760` (10 Mo) | VibeCoder : octets d'un artefact affiché en texte, au-delà « fichier tronqué » (F-95) ; un entier positif, sinon le défaut |
@@ -2523,7 +2551,9 @@ bancs de comparaison.
   l'utilisateur y passe l'agent (coût).
 - **I-37** Le principal ne lit pour VibeCoder que la note et les tests que git
   lui donne, et le seul fichier suivi (F-100) — celui de *Voir le code*, d'un
-  module touché par la branche (`m<rang>/<i>`), ou, en créateur seulement, la
+  module touché par la branche (`m<rang>/<i>`), ou un fichier que change la
+  branche (`b<i>`, les deux rôles, lu et enregistré comme un module sans
+  module), ou, en créateur seulement, la
   note (`n`) ou un test d'invariant de la branche (`t<i>`), ou, en relecteur
   seulement, un fichier d'un commit (`c<rang>/<i>`, lu par git seul, jamais
   enregistré) —, **dans le dossier de l'agent** (`..` et liens résolus ; ni
@@ -3053,9 +3083,12 @@ relire, une PR d'essai sur GitHub)
   arrêté… ») ; les étapes passées gardent leur ✓. Relancer l'appli pendant
   *Vibe* → elle repart sans lui.
 - **S-70** Le parcours guidé, une branche sans note : en-tête sans
-  bascule de mode, pas de *Vibe* dans la rangée (ni en relecteur) ; pas
-  d'onglets d'étapes ; le fil d'Ariane n'ouvre que la Note, les autres étapes
-  visibles sans clic, Ctrl+3 ne fait rien. Plus loin : ni *Vérifier
+  bascule de mode, *Vibe* grisé dans la rangée, « Pas encore de note » au
+  survol (absent en relecteur) ; pas
+  d'onglets d'étapes ; le fil d'Ariane ouvre n'importe quelle étape (F-92), la
+  Note comme les autres, sans rien lancer ni écrire, Ctrl+3 ouvre la troisième ;
+  les boutons qui ont besoin d'une étape précédente faite restent grisés, avec
+  leur raison. Plus loin : ni *Vérifier
   l'alignement* ni *Ponytail review* ; *✓ Commiter* seulement un commit
   préparé ; l'étape PR sans PR : *Valider la feature* seule ; la PR ouverte :
   *Diagnostiquer la CI* et *Release candidate* ; fusionnée : *PR mergée →

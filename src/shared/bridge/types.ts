@@ -231,8 +231,7 @@ export type VibeLang = 'fr' | 'en';
 export type VibeFlow = 'create' | 'review';
 // Un seul parcours, les deux rôles : note → forme → invariants → modules → revue → pr.
 export type VibeStepId = 'note' | 'forme' | 'invariants' | 'modules' | 'revue' | 'pr';
-// open : un clic (ou Ctrl+1…6) l'ouvre — créateur, faite ou en cours ; relecteur, toutes.
-export type VibeStep = { id: VibeStepId; status: 'done' | 'current' | 'todo'; facts: string; open: boolean };
+export type VibeStep = { id: VibeStepId; status: 'done' | 'current' | 'todo'; facts: string };
 
 // Une validation : validé, refusé, validé mais changé depuis, rien.
 export type VibeMarkState = 'ok' | 'ko' | 'changed' | null;
@@ -434,6 +433,10 @@ export type VibeView = {
   artifacts?: VibeArtifact[];            // les artefacts de l'agent (toujours rempli par le relevé)
   artifactsDir?: string;                 // le dossier du projet qui les contient (pour le `@`)
   artifactDirs?: VibeArtifactDir[];      // ses dossiers, même vides (toujours rempli par le relevé)
+  // Les fichiers que change la branche (ids b<i>, triés ; toujours rempli par le relevé) ; deleted : supprimé
+  // par la branche (absent = false) ; locked : pourquoi il ne s'édite pas (codeLock), null : éditable.
+  files?: (VibeFile & { deleted?: boolean; locked: string | null })[];
+  modulesView?: 'ide' | 'list';          // le réglage de la vue Modules
   time: number;                        // heure du relevé
 };
 
@@ -464,6 +467,7 @@ export type VibePatch = {
   pr?: number | null;          // la PR suivie
   seen?: boolean;              // « Vu » : la note de référence devient l'actuelle
   view?: 'conversation';       // revenir à la conversation
+  modulesView?: 'ide' | 'list'; // le réglage de la vue Modules
   model?: string;              // le modèle de l'agent, comme son menu
   effort?: string;
   mode?: string;

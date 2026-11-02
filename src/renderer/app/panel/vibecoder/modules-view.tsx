@@ -21,27 +21,34 @@
  *  Abandonner) ;
  *  les puces de commit et Ouvrir restent. Puis CommitsSection (commits-view),
  *  qui porte elle-même Relire les commits : 'review-commits' est dans own.
+ *  Deux vues, un interrupteur dans les outils de la carte (view.modulesView, retenu par le principal :
+ *  act.set({ modulesView }), liste par défaut) : la liste, l'accordéon ci-dessus ; la vue IDE (IdeView),
+ *  l'arborescence des fichiers des modules (ideFiles(view, 'file')) avec le point d'état de leur module,
+ *  et à droite, du fichier choisi, les outils de son module (ModuleTools, les mêmes boutons que ceux de
+ *  l'accordéon) puis son code (ModuleCode, noTree). Un fichier sans code (module pas touché) : les outils
+ *  seuls, et plus aucun fichier suivi. Sans module : les fichiers de la branche, dans les deux vues, sans
+ *  interrupteur. Basculer ne suit plus aucun fichier ; chaque vue suit ensuite le sien. Le point d'état
+ *  vient de moduleState (core).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useEffect, useState } from 'react';
-import { fileParts, moduleCommits } from 'core/vibecoder';
+import { fileParts, ideFiles, moduleCommits, moduleState, type IdeFile, type ModuleState } from 'core/vibecoder';
 import type { VibeLang, VibeModule } from 'technicals/bridge';
 import { CommitsSection } from './commits-view';
 import { Contract } from './forme-view';
 import { IconButton } from './icons';
+import { IdeView } from './ide-view';
 import { MarkdownView } from './markdown-view';
 import { ModuleCode } from './module-code';
 import { Invite, OutputCard, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
 import './modules-view.css';
 
-type State = 'done' | 'wip' | 'todo';
-
 const fr = {
   commitHint: 'Les fichiers indexés, avec ce message, mot pour mot.',
   quoteCommit: 'Citer le message dans le champ',
   modules: 'Modules de la Forme',
-  state: { done: 'commité', wip: 'en cours', todo: 'à faire' } as Record<State, string>,
-  stateTitle: { done: 'Commité sur la branche', wip: 'Modifié, pas encore commité', todo: 'Pas encore touché par la branche' } as Record<State, string>,
+  state: { done: 'commité', wip: 'en cours', todo: 'à faire' } as Record<ModuleState, string>,
+  stateTitle: { done: 'Commité sur la branche', wip: 'Modifié, pas encore commité', todo: 'Pas encore touché par la branche' } as Record<ModuleState, string>,
   generate: 'Générer',
   review: 'Relire le diff',
   reviewOf: (hash: string) => `Relire le diff de ${hash}, le dernier commit qui touche ce module`,
@@ -76,7 +83,55 @@ const S: Record<VibeLang, typeof fr> = {
   },
 };
 
-const stateOf = (m: VibeModule): State => (m.commits.length ? 'done' : m.touched ? 'wip' : 'todo');
+// Les outils d'un module (les mêmes dans l'accordéon et dans la vue IDE) ; i : son rang dans view.modules.
+function ModuleTools({ p, m, i }: { p: StepProps; m: VibeModule; i: number }) {
+  const { view, t, act, busy } = p;
+  const s = S[view.lang];
+  const action = (id: string) => view.actions.find((a) => a.id === id);
+  const generate = action('module');
+  const reviewDiff = action('review-diff');
+  const commitModule = action('commit-module');
+  const commits = moduleCommits(m, view.commits);
+  const last = commits[commits.length - 1];
+  return (
+    <div className="vc-mod-acts" onClick={(e) => e.preventDefault()}>
+      {generate ? (
+        <button type="button" disabled={!!generate.disabled || busy}
+          title={`${generate.hint} (${generate.who})${generate.disabled ? `\n— ${generate.disabled}` : ''}`}
+          onClick={() => act.run('module', { module: i })}>{s.generate}</button>
+      ) : null}
+      {reviewDiff && m.touched ? (
+        <button type="button" disabled={!!reviewDiff.disabled || busy}
+          title={`${last ? s.reviewOf(last.hash.slice(0, 7)) : s.reviewWip} (${reviewDiff.who})${reviewDiff.disabled ? `\n— ${reviewDiff.disabled}` : ''}`}
+          onClick={() => act.run('review-diff', last ? { commit: last.hash } : {})}>{s.review}</button>
+      ) : null}
+      {m.file ? (
+        <button type="button" title={`${t.openTitle} : ${m.file.path}`} onClick={() => act.open(m.file!.id)}>{s.open}</button>
+      ) : null}
+      {commitModule && !commitModule.hidden && m.uncommitted ? (
+        <button type="button" disabled={!!commitModule.disabled || busy}
+          title={`${s.commitTitle} (${commitModule.who})${commitModule.disabled ? `\n— ${commitModule.disabled}` : ''}`}
+          onClick={() => act.run('commit-module', { module: i })}>{s.commit}</button>
+      ) : null}
+    </div>
+  );
+}
+
+// Vue IDE : à droite, du fichier choisi, les outils de son module puis son code ; sans code, plus aucun fichier suivi.
+function IdeBody({ p, file }: { p: StepProps; file: IdeFile | null }) {
+  const { view, t, act } = p;
+  const has = !!file?.code;
+  useEffect(() => { if (!has) act.follow(null); }, [file?.path, has]);
+  return (
+    <>
+      {file && file.rank != null ? <ModuleTools p={p} m={view.modules[file.rank]} i={file.rank} /> : null}
+      {file?.code ? (
+        <ModuleCode key={file.path} m={file.code} noTree readOnly={view.flow === 'review' ? S[view.lang].readOnly : undefined} code={p.code} t={t} lang={view.lang} open
+          onFollow={act.follow} onSave={act.save} onQuote={(block, id) => act.prefill(id, block, true)} drafts={p.drafts} />
+      ) : null}
+    </>
+  );
+}
 
 export function ModulesView(p: StepProps) {
   const { view, t, act, busy } = p;
@@ -87,13 +142,15 @@ export function ModulesView(p: StepProps) {
   const reviewer = view.flow === 'review';
   const commit = reviewer ? undefined : view.outputs['commit.md'];
   const review = reviewer ? undefined : view.outputs['review.md'];
-  const counts = view.modules.reduce((n, m) => ({ ...n, [stateOf(m)]: n[stateOf(m)] + 1 }), { done: 0, wip: 0, todo: 0 } as Record<State, number>);
-  const generate = action('module');
+  const counts = view.modules.reduce((n, m) => ({ ...n, [moduleState(m)]: n[moduleState(m)] + 1 }), { done: 0, wip: 0, todo: 0 } as Record<ModuleState, number>);
   const reviewDiff = action('review-diff');
-  const commitModule = action('commit-module');
+  const files = ideFiles(view, 'file');
+  const hasModules = view.modules.length > 0;
+  const ide = view.modulesView === 'ide' || !hasModules;   // sans module : les fichiers de la branche, dans les deux vues
+  const switchTo = (k: 'ide' | 'list') => { act.follow(null); act.set({ modulesView: k }); };
   // Un seul effet pour replier-sans-fichier : le module déplié n'a pas de fichier, ou n'existe plus.
   const openedFiles = view.modules.find((m) => m.path === opened)?.files?.length ?? 0;
-  useEffect(() => { if (opened && !openedFiles) act.follow(null); }, [opened, openedFiles]);
+  useEffect(() => { if (!ide && opened && !openedFiles) act.follow(null); }, [ide, opened, openedFiles]);
   return (
     <>
       <StepHead p={p} own={reviewer
@@ -120,47 +177,38 @@ export function ModulesView(p: StepProps) {
           <MarkdownView md={review.text} t={t} onOpenLink={act.openLink} onQuote={quote} />
         </OutputCard>
       ) : null}
-      {view.modules.length ? (
+      {hasModules || files.length ? (
         <OutputCard className="vc-modules" title={s.modules} t={t} tools={(
           <>
-            <span className="vc-mod-legend">
-              {(['done', 'wip', 'todo'] as State[]).map((k) => (
-                <span key={k} data-state={k}><i className="vc-mod-dot" />{`${counts[k]} ${s.state[k]}`}</span>
-              ))}
-            </span>
+            {hasModules ? (
+              <>
+                <div className="vc-seg" role="group" aria-label={`${t.ideView} / ${t.listView}`}>
+                  {(['ide', 'list'] as const).map((k) => (
+                    <button key={k} type="button" aria-pressed={k === (ide ? 'ide' : 'list')} onClick={() => switchTo(k)}>{k === 'ide' ? t.ideView : t.listView}</button>
+                  ))}
+                </div>
+                <span className="vc-mod-legend">
+                  {(['done', 'wip', 'todo'] as ModuleState[]).map((k) => (
+                    <span key={k} data-state={k}><i className="vc-mod-dot" />{`${counts[k]} ${s.state[k]}`}</span>
+                  ))}
+                </span>
+              </>
+            ) : null}
             {view.modules.some((m) => m.uncommitted)
               ? <Run a={action('commit-modules')} busy={busy} tone="ghost" onRun={(x) => act.run('commit-modules', x)} /> : null}
           </>
         )}>
-          <ul className="vc-mod-list">
+          {ide ? (
+            <div className="vc-mod-ide">
+              <IdeView files={files}>{(file) => <IdeBody p={p} file={file} />}</IdeView>
+            </div>
+          ) : <ul className="vc-mod-list">
             {view.modules.map((m, i) => {
-              const state = stateOf(m);
+              const state = moduleState(m);
               const open = opened === m.path;
               const { dir, name } = fileParts(m.path);
               const commits = moduleCommits(m, view.commits);
-              const last = commits[commits.length - 1];
-              const tools = (
-                <div className="vc-mod-acts" onClick={(e) => e.preventDefault()}>
-                  {generate ? (
-                    <button type="button" disabled={!!generate.disabled || busy}
-                      title={`${generate.hint} (${generate.who})${generate.disabled ? `\n— ${generate.disabled}` : ''}`}
-                      onClick={() => act.run('module', { module: i })}>{s.generate}</button>
-                  ) : null}
-                  {reviewDiff && m.touched ? (
-                    <button type="button" disabled={!!reviewDiff.disabled || busy}
-                      title={`${last ? s.reviewOf(last.hash.slice(0, 7)) : s.reviewWip} (${reviewDiff.who})${reviewDiff.disabled ? `\n— ${reviewDiff.disabled}` : ''}`}
-                      onClick={() => act.run('review-diff', last ? { commit: last.hash } : {})}>{s.review}</button>
-                  ) : null}
-                  {m.file ? (
-                    <button type="button" title={`${t.openTitle} : ${m.file.path}`} onClick={() => act.open(m.file!.id)}>{s.open}</button>
-                  ) : null}
-                  {commitModule && !commitModule.hidden && m.uncommitted ? (
-                    <button type="button" disabled={!!commitModule.disabled || busy}
-                      title={`${s.commitTitle} (${commitModule.who})${commitModule.disabled ? `\n— ${commitModule.disabled}` : ''}`}
-                      onClick={() => act.run('commit-module', { module: i })}>{s.commit}</button>
-                  ) : null}
-                </div>
-              );
+              const tools = <ModuleTools p={p} m={m} i={i} />;
               return (
                 <li key={`${i}:${m.path}`} className="vc-mod" data-state={state}>
                   <span className="vc-mod-dot" title={s.stateTitle[state]} />
@@ -192,7 +240,7 @@ export function ModulesView(p: StepProps) {
                 </li>
               );
             })}
-          </ul>
+          </ul>}
         </OutputCard>
       ) : <Invite title={s.noModule} text={s.noModuleHint} />}
       <CommitsSection {...p} />

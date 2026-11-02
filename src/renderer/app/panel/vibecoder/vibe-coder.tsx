@@ -27,8 +27,9 @@
  *  en cours), masquable, sa largeur à la poignée (300 px → 60 %) ; la barre
  *  d'état en bas (son ⚙ Tâches ouvre l'onglet ; ses actions en cours, la
  *  colonne affichée sur l'onglet Actions). Le fil d'Ariane et Ctrl+1…6
- *  n'ouvrent qu'une étape que le relevé dit ouverte (open) ; une étape
- *  choisie qui ne l'est plus laisse la place à celle en cours. Une vue
+ *  ouvrent n'importe quelle étape, à venir comprise (le choix ne change que
+ *  l'étape affichée : aucun appel au pont, aucune action) ; sans choix,
+ *  c'est l'étape en cours. Une vue
  *  d'étape qui échoue ne fait tomber ni l'écran ni le brouillon (I-29). Il
  *  tient les réponses en cours aux questions ouvertes, le verdict de la revue
  *  (rôle Relecteur), le modèle choisi par action (envoyé s'il n'est pas le
@@ -96,8 +97,8 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   const t = strings(view.lang);
   const [picked, setPicked] = useKept<VibeStepId | null>(kept, view.agentId, 'picked', null);
   const { steps } = view;
-  // L'étape choisie si elle est ouverte, sinon celle en cours (elle suit le fil d'Ariane tant qu'on n'a rien choisi).
-  const step = steps.find((s) => s.id === picked && s.open)
+  // L'étape choisie, sinon celle en cours (elle suit le fil d'Ariane tant qu'on n'a rien choisi).
+  const step = steps.find((s) => s.id === picked)
     || steps.find((s) => s.status === 'current') || steps[0] || null;
   const busy = isBusy(thread.status);
   // La vue des branches (le bouton ⎇) : ouverte, elle prend le centre à la place de l'étape.
@@ -167,7 +168,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
     const onKey = (e: KeyboardEvent) => {
       const digit = /^(?:Digit|Numpad)([1-6])$/.exec(e.code);
       const s = digit && e.ctrlKey && !e.altKey && !e.metaKey ? steps[Number(digit[1]) - 1] : null;
-      if (!s?.open) return;
+      if (!s) return;
       e.preventDefault();
       pick(s.id);
     };

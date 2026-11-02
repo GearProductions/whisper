@@ -414,9 +414,10 @@ conversation reste utilisable.
 - au centre, en tête, le **fil d'Ariane** : les étapes en une ligne (point
   plein : faite ; anneau qui pulse : en cours ; gris : à venir), leurs faits
   au survol ; au bout, « N commits » déplie les commits de la branche. Il
-  mène : un clic (ou Ctrl+1…6) ouvre une étape faite, pour revenir en
-  arrière, ou celle en cours ; une étape à venir reste visible, sans clic
-  (relecteur : toutes s'ouvrent) ;
+  mène : un clic (ou Ctrl+1…6) ouvre n'importe quelle étape, faite, en
+  cours ou à venir (une branche créée à la main, sans note, se gère ainsi) ;
+  ouvrir une étape à venir ne lance rien ; seuls les boutons dont l'action
+  a besoin d'une étape précédente restent grisés, leur raison au survol ;
 - dessous, sur toute la largeur, l'étape choisie — la note du ticket, ce
   que les skills ont produit —, sous son titre son **champ** (quand une de
   ses actions prend un texte) et ses actions (à l'étape en cours, en tête :
@@ -569,7 +570,11 @@ relire une PR (le relecteur, plus bas) :
    *Enregistrer*, avec les garde-fous du code d'un module (étape Modules) ;
    grisée pendant un tour de la conversation ou une action de l'agent.
 2. **Forme** : *Poser la forme* (les modules et leurs contrats, dans la note,
-   sans code) ; *Valider la forme*.
+   sans code) ; *Valider la forme*. La vue est celle d'un IDE : à gauche
+   l'arborescence des modules, à droite le module choisi, son contrat
+   (*Structure*) ou son code en diff depuis la base de la branche (*Code* :
+   tout en vert pour un module neuf). Sans Forme, l'arborescence montre les
+   fichiers que change la branche.
 3. **Invariants** : *Écrire les invariants (rouges), puis vérifier
    l'alignement*, d'après la note ou d'après le pseudo-code écrit dans le
    champ de l'étape — dans la même action, l'agent vérifie que note, forme
@@ -617,7 +622,10 @@ relire une PR (le relecteur, plus bas) :
    contenu, hors du dossier de travail, et un commit qui ne compile pas arrête
    là, sans rattrapage) ; vous pouvez donc retoucher le code entre les deux. Chaque
    module est un accordéon : un clic sur sa ligne montre ses boutons, sur la
-   même ligne, et son contrat.
+   même ligne, et son contrat. Un interrupteur *IDE* · *liste* (retenu d'une
+   ouverture à l'autre) remplace l'accordéon par une arborescence des
+   fichiers des modules, avec le point d'état de chacun, et le fichier choisi
+   à droite, avec les boutons de son module ; aucune action de plus.
    Dessous, pour un module touché, son code : ses fichiers que la branche
    change (modifiés, ajoutés, ou « supprimé » : son diff, tout en retraits,
    rien à modifier) et celui choisi,

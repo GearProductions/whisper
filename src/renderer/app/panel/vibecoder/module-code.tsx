@@ -20,9 +20,13 @@
  *  texte affiché, file.path, mode), en texte (I-40) ; avec un diff, En ligne
  *  · Côte à côte (mode, en ligne d'abord) ; depuis la base grisé si at.base
  *  est null et at.head non (trop gros, pas de base : tout serait ajouté).
+ *  Deux réglages d'affichage, pour la vue IDE (forme-view, modules-view) : noTree
+ *  (sans la rangée des fichiers quand il n'y en a qu'un : l'arborescence la remplace)
+ *  et first='base' (le diff depuis la base affiché d'abord, comme si on l'avait choisi ;
+ *  sans effet tant que depuis la base est grisé).
  *  Ne connaît pas : le pont (rappels passés), le disque, les autres modules,
  *  les actions de la barre d'outils.
- *  Utilisé par : modules-view. */
+ *  Utilisé par : modules-view, forme-view. */
 import { useEffect, useState, type ReactNode } from 'react';
 import { fileParts, filesByDir, type Strings } from 'core/vibecoder';
 import type { VibeCode, VibeLang, VibeModule } from 'technicals/bridge';
@@ -39,10 +43,12 @@ const S: Record<VibeLang, Record<Exclude<Shown, 'file'> | 'deleted', string>> = 
   en: { base: 'Diff since the branch base', head: 'Diff since the last commit', deleted: 'deleted' },
 };
 
-export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, drafts, readOnly }: {
+export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, drafts, readOnly, noTree, first }: {
   m: VibeModule;
   readOnly?: string;               // le motif : le code ne s'édite pas, et son pied (Enregistrer, Abandonner) est masqué
   lang: VibeLang;
+  noTree?: boolean;                // sans la rangée des fichiers quand il n'y en a qu'un
+  first?: 'base';                  // le diff depuis la base affiché d'abord
   open: boolean;
   code: VibeCode | null;
   t: Strings;
@@ -62,7 +68,7 @@ export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, 
   useEffect(() => { if (id) onFollow(id); }, [id]);
 
   const d = useFileDraft(file ?? null, code, locked, onSave, drafts);
-  const [shown, setShown] = useState<Shown>('file');
+  const [shown, setShown] = useState<Shown>(first ?? 'file');
   const [mode, setMode] = useState<Mode>('inline');
   const at = file && code?.id === file.id ? code.at : undefined; // note et tests : pas de at
   // Pas de version à la base alors qu'il y en a une au dernier commit (trop grosse, pas de base) : pas de diff
@@ -75,7 +81,7 @@ export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, 
   return (
     <>
       <div className="vc-mod-head">
-        <div className="vc-mod-tree">
+        {noTree && files.length <= 1 ? null : <div className="vc-mod-tree">
           {filesByDir(files).map((g) => (
             <div key={g.dir}>
               {g.dir ? <div className="vc-mod-tree-dir vc-mono">{g.dir}</div> : null}
@@ -90,10 +96,10 @@ export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, 
               </ul>
             </div>
           ))}
-        </div>
+        </div>}
         {at && !file?.deleted ? (
           <DiffPicker<'base' | 'head'> options={(['base', 'head'] as const).map((k) => ({ key: k, label: S[lang][k], disabled: k === 'base' && noBase }))}
-            shown={shown} onShown={setShown} mode={before != null ? mode : null} onMode={setMode} lang={lang} />
+            shown={shown === 'base' && noBase ? 'file' : shown} onShown={setShown} mode={before != null ? mode : null} onMode={setMode} lang={lang} />
         ) : null}
       </div>
       {file?.deleted ? (at ? <ModuleDiffView before={at.base ?? ''} after="" path={file.path} mode="inline" lang={lang} /> : null)

@@ -2,10 +2,10 @@
  *  relevé (dépôt, note, tests, sorties des skills, validations) : un seul parcours
  *  (Note, Forme, Invariants, Modules, Revue, PR) pour les deux rôles (view.flow : créateur
  *  'create', relecteur 'review', décidé par l'appli, passé en entrée). Les étapes (faite,
- *  en cours, à venir), leurs faits en une ligne et celles qu'un clic ouvre (open : créateur,
- *  faite ou en cours, Vibe ou pas ; relecteur, toutes), la prochaine action (celle de
- *  l'étape en cours), les actions possibles, pourquoi une autre est grisée et celles qui n'ont
- *  pas encore de sens (hidden : masquées, leur raison d'être grisée gardée).
+ *  en cours — la première pas faite — , à venir ; toutes s'ouvrent, la page ne reçoit plus
+ *  d'`open`), leurs faits en une ligne, la prochaine action (celle de l'étape en cours), les
+ *  actions possibles, pourquoi une autre est grisée (noNoteYet : grisée, sa raison au survol) et
+ *  celles qui n'ont pas encore de sens (hidden : masquées, leur raison d'être grisée gardée).
  *  Faite, en relecteur : la Note jugée ; la Forme avec elle (rien à juger) ; les Invariants,
  *  chaque cas jugé ; les Modules, les commits relus ; la Revue, le plan à l'écran écrit et toutes
  *  ses cases cochées ; la PR, la revue publiée. En créateur, la Revue attend en plus chaque case
@@ -39,15 +39,18 @@
  *  (la ligne déjà observée par un test existant) : la dernière course invariants ou align
  *  finie, ou ✓ Rien à écrire validé à la main, Vibe compris (nothingMark ; note
  *  0.11.0-vibecoder-invariants-existants-et-courses) ; Lire en pseudo-code jamais mise en
- *  avant, Vibe compris (note 0.11.0-stabiliser-vibecoder). Vibe masquée tant que la note n'est
- *  pas rédigée, a des questions ouvertes ou n'a pas son ✓ (unvalidated), pendant Vibe, un tour
- *  de la conversation ou une course qui retient (started) ; un module aux fichiers changés pas
+ *  avant, Vibe compris (note 0.11.0-stabiliser-vibecoder). Vibe grisée tant que la note n'est
+ *  pas rédigée (noNoteYet), masquée si elle a des questions ouvertes ou n'a pas son ✓
+ *  (unvalidated), pendant Vibe, un tour de la conversation ou une course qui retient (started) ; un module aux fichiers changés pas
  *  commités (uncommitted) : Commiter les modules, s'il n'en reste pas à faire, l'étape Modules
  *  pas faite tant qu'il en reste un ; les fichiers d'un module touché (files : ceux que la
  *  branche change sous son chemin, la copie de travail comprise, ids `m<rang>/<i>`, triés,
  *  deleted : absents du disque ; note 0.13.0-ameliorations-interface) et pourquoi son code, la
  *  note ou un test ne s'édite pas (locked : codeLock de runs ; notes 0.11.0-code-des-modules et
- *  0.11.0-editer-invariants-et-note) ; la lecture d'un test (readingOf), celle d'une version
+ *  0.11.0-editer-invariants-et-note) ; les fichiers que change la branche (files : repo.changed,
+ *  la copie de travail comprise, triés, ids `b<i>`, deleted : absents du disque, locked : codeLock
+ *  sans module ; note 0.13.0-forme-modules-ide) et le réglage de la vue Modules (modulesView,
+ *  recopié) ; la lecture d'un test (readingOf), celle d'une version
  *  précédente montrée périmée (stale), jamais comptée comme lue ; le texte d'un test à la base
  *  (base, passé ; au-delà de SOURCE_MAX : null).
  *  Ne connaît pas : Electron, le disque, git, gh (tout est passé ; `exists` dit si
@@ -114,6 +117,7 @@ export type JourneyInput = {
   model: Record<string, string | null>;             // par id d'action : le modèle que fixe son skill (skillModel)
   skills: string[];
   exists: (rel: string) => boolean;                 // un chemin, relatif au dépôt, existe sur le disque
+  modulesView?: 'ide' | 'list';                     // le réglage de la vue Modules (config) ; absent : non rempli
   now: number;                                      // l'heure du relevé
 };
 
@@ -387,7 +391,6 @@ export function vibeView(input: JourneyInput): VibeView {
   }
   const current = ORDER.find((s) => !done[s]) ?? null;
   const primary = current && next[current];
-  const open = (id: VibeStepId) => flow === 'review' || !!done[id] || id === current;
 
   // Une action directe en cours (F-114) : les autres attendent, comme quand l'agent travaille ; et elle
   // retient les courses comme l'une d'elles (elle lit, publish, load-pr, ou modifie, commit, base) ; pas un
@@ -427,9 +430,9 @@ export function vibeView(input: JourneyInput): VibeView {
     if (d.id === 'remove-worktree' && place.recipe) return 'preparing';
     return placeReason(d.id, place) ?? syncReason(d.id, sync);
   };
-  // Pas encore de sens : masquée (sa raison reste). L'étape PR (créateur) d'après l'état de la PR, sans griser :
+  // Pas encore de sens : masquée (sa raison reste), sauf noNoteYet : grisée, sa raison au survol. L'étape PR (créateur) d'après l'état de la PR, sans griser :
   // une demande juste après pr ne doit pas tomber sur un relevé en retard.
-  const notYet = new Set<Reason>(['noNoteYet', 'nothingToRead', 'noCommitMd', 'noQuestion', 'noFixup',
+  const notYet = new Set<Reason>(['nothingToRead', 'noCommitMd', 'noQuestion', 'noFixup',
     'openQuestions', 'unvalidated', 'started']);
   // ponytail: une PR sans état connu (pr.json, avant que gh réponde) compte comme ouverte.
   const prState = pr && (pr.state ?? 'OPEN');
@@ -476,7 +479,11 @@ export function vibeView(input: JourneyInput): VibeView {
     agentId: input.agentId, lang, flow, vibe: input.vibe, agent: input.agent,
     repo: repo && { branch: repo.branch, base: repo.base, changed: changed.length },
     error: input.error,
-    steps: ORDER.map((id) => ({ id, status: done[id] ? 'done' : id === current ? 'current' : 'todo', facts: stepFacts[id] ?? '', open: open(id) })),
+    steps: ORDER.map((id) => ({ id, status: done[id] ? 'done' : id === current ? 'current' : 'todo', facts: stepFacts[id] ?? '' })),
+    files: [...changed].sort().map((path, i) => ({
+      id: `b${i}`, path, ...(input.exists(path) ? {} : { deleted: true }), locked: codeLock(null, input.busy, input.running, lang),
+    })),
+    modulesView: input.modulesView,
     note, questions, modules, invariants, variants, commits: viewCommits, outputs, checklist, screen, actions,
     skills: input.skills, pr, prs, loaded, child, branches: input.branches ?? null,
     sync: input.sync ?? null, draft: input.draft, worktree: input.worktree ?? null, runs: input.runs,

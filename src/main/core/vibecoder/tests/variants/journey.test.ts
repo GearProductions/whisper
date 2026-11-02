@@ -419,10 +419,6 @@ describe('Relecteur : rien de ce qui édite, génère ou commite ; tout ce que f
     expect(['rebase', 'push', 'copy-artifact'].map((id) => action(c, id)?.hidden)).toEqual([false, false, false]);
   });
 
-  it('toutes les étapes sont ouvertes', () => {
-    expect(reviewer().steps.every((s) => s.open)).toBe(true);
-  });
-
   it('juger la note et les cas, Relire la note, Vérifier l\'alignement, Lire les tests : à portée de clic', () => {
     const v = reviewer();
     expect(['review-note', 'align', 'read-invariants'].map((id) => [action(v, id)?.hidden, action(v, id)?.disabled]))
@@ -974,21 +970,16 @@ describe('les actions qui courent à part (0.9.0)', () => {
 });
 
 describe('le parcours guidé (0.9.0) : étapes ouvertes, actions masquées', () => {
-  const opened = (v: VibeView) => v.steps.filter((s) => s.open).map((s) => s.id);
   const shown = (v: VibeView, ids: string[]) => ids.filter((id) => !action(v, id)?.hidden);
   const PR_STEP = ['pr', 'ci', 'rc', 'base', 'release'];
   const reviewed = { 'checks.json': out('{"items":[{"name":"tests","ok":true}]}'), 'ponytail.md': out('- rien') };
   const withPr = (pr: Record<string, unknown> | null, outputs: JourneyInput['outputs'] = reviewed) =>
     vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), outputs, github: { pr } }));
 
-  it('Créer, hors Vibe : les étapes faites et celle en cours s\'ouvrent, pas celles à venir', () => {
-    expect(opened(vibeView(ready()))).toEqual(['note', 'forme', 'invariants', 'modules']);
-    expect(opened(vibeView(input()))).toEqual(['note']);
-  });
-
-  it('relecteur : toutes s\'ouvrent ; Créer, Vibe en cours : comme sans Vibe', () => {
-    expect(opened(vibeView(input({ flow: 'review' })))).toEqual(['note', 'forme', 'invariants', 'modules', 'revue', 'pr']);
-    expect(opened(vibeView(ready({ vibe: true })))).toEqual(['note', 'forme', 'invariants', 'modules']);
+  it('l\'étape en cours est la première pas faite ; le relevé ne dit plus lesquelles s\'ouvrent (elles le sont toutes)', () => {
+    expect(vibeView(ready()).steps.map((s) => s.status)).toEqual(['done', 'done', 'done', 'current', 'todo', 'todo']);
+    expect(vibeView(input()).steps.map((s) => s.status)).toEqual(['current', 'todo', 'todo', 'todo', 'todo', 'todo']);
+    expect(vibeView(ready()).steps.every((s) => !('open' in s))).toBe(true);
   });
 
   it('l\'étape PR sans PR : seulement Valider la feature', () => {
@@ -1010,10 +1001,12 @@ describe('le parcours guidé (0.9.0) : étapes ouvertes, actions masquées', () 
     expect(PR_STEP.map((id) => action(v, id)?.disabled)).toEqual([null, null, null, null, null]);
   });
 
-  it('pas encore de sens : masquée, sa raison gardée', () => {
+  it('pas encore de sens : masquée, sa raison gardée ; sans note : la Forme et les invariants grisés, sa raison au survol', () => {
     const v = vibeView(input());
-    expect([action(v, 'commit'), action(v, 'answers'), action(v, 'fixups'), action(v, 'forme')].map((a) => [a?.hidden, a?.disabled]))
-      .toEqual([[true, 'Préparer d\'abord le commit'], [true, 'Aucune question ouverte'], [true, 'Aucun commit fixup!'], [true, 'Pas encore de note']]);
+    expect([action(v, 'commit'), action(v, 'answers'), action(v, 'fixups')].map((a) => [a?.hidden, a?.disabled]))
+      .toEqual([[true, 'Préparer d\'abord le commit'], [true, 'Aucune question ouverte'], [true, 'Aucun commit fixup!']]);
+    expect(['forme', 'invariants'].map((id) => [action(v, id)?.hidden, action(v, id)?.disabled]))
+      .toEqual([[false, 'Pas encore de note'], [false, 'Pas encore de note']]);
     expect(action(vibeView(ready({ tests: [] })), 'read-invariants')?.hidden).toBe(true);
   });
 
@@ -1023,18 +1016,18 @@ describe('le parcours guidé (0.9.0) : étapes ouvertes, actions masquées', () 
     expect(action(v, 'commit')?.disabled).toBe('Une autre action est en cours');
   });
 
-  it('Vibe : masquée sans note, avec des questions ouvertes ou la note pas validée, et refusée', () => {
+  it('Vibe : grisée sans note, masquée avec des questions ouvertes ou la note pas validée, et refusée', () => {
     const questions = { 'questions.md': out('## 1. Quelle couleur ?\n') };
     expect([vibeView(input()), vibeView(input({ note, outputs: questions })), vibeView(input({ note })), vibeView(input({ note, marks: NOTE_OK }))]
       .map((v) => [action(v, 'vibe')?.hidden, action(v, 'vibe')?.disabled]))
-      .toEqual([[true, 'Pas encore de note'], [true, 'Répondre d\'abord aux questions de la note'], [true, 'Valider d\'abord la note'],
+      .toEqual([[false, 'Pas encore de note'], [true, 'Répondre d\'abord aux questions de la note'], [true, 'Valider d\'abord la note'],
         [false, null]]);
   });
 
-  it('Vibe : masquée tant que la note n\'est pas rédigée', () => {
+  it('Vibe : grisée tant que la note n\'est pas rédigée', () => {
     const text = NOTE.replace('Un bouton qui dit bonjour.', '');
     const v = vibeView(input({ note: { ...note, text }, marks: { note: ok(text) } }));
-    expect([action(v, 'vibe')?.hidden, action(v, 'vibe')?.disabled]).toEqual([true, 'Pas encore de note']);
+    expect([action(v, 'vibe')?.hidden, action(v, 'vibe')?.disabled]).toEqual([false, 'Pas encore de note']);
   });
 
   it('Vibe : se lance à n\'importe quelle étape après la note', () => {
@@ -1090,8 +1083,7 @@ describe('l\'étape Invariants, sans invariant et sans lecture (0.9.0-rc.4)', ()
 
     // Rien à écrire : l'étape n'attend ni test ni commit.
     expect(status(v).invariants).toBe('done');
-    // Depuis le parcours guidé, on peut aller aux Modules.
-    expect(v.steps.find((s) => s.id === 'modules')?.open).toBe(true);
+    expect(status(v).modules).toBe('current');
   });
 
   it('un fichier d\'invariants pas lu, chaque cas validé : l\'étape Invariants est faite', () => {
@@ -1228,5 +1220,29 @@ describe('la gestion des branches (0.12.0) : la PR suivie, Pull, Rebase, Pousser
     const push = (direct: JourneyInput['direct']) => action(vibeView(input({ direct })), 'push')?.hidden;
     expect([push(undefined), push({ rebase: at(5, false) }), push({ rebase: at(5) }), push({ rebase: at(5), push: at(6) }),
       push({ rebase: at(5), push: at(6, false) }), push({ rebase: at(7), push: at(6) })]).toEqual([true, true, false, true, false, false]);
+  });
+});
+
+describe('les fichiers de la branche et le réglage de la vue Modules (0.13.0)', () => {
+  it('files : repo.changed triés, ids b<i>, supprimé s\'il manque au disque, locked par codeLock', () => {
+    const exists = (p: string) => p !== 'src/gone.ts';
+    const v = vibeView(input({ repo: repo(['src/z.ts', 'src/gone.ts', 'a.md']), exists }));
+    expect(v.files).toEqual([
+      { id: 'b0', path: 'a.md', locked: null },
+      { id: 'b1', path: 'src/gone.ts', deleted: true, locked: null },
+      { id: 'b2', path: 'src/z.ts', locked: null },
+    ]);
+    expect(vibeView(input({ repo: null })).files).toEqual([]);
+  });
+
+  it('files : grisés comme la note quand l\'agent travaille', () => {
+    const v = vibeView(input({ repo: repo(['a.md']), busy: true, note }));
+    expect(v.files?.[0].locked).toBe(v.note?.locked);
+    expect(v.files?.[0].locked).toBeTruthy();
+  });
+
+  it('modulesView : recopié de l\'entrée', () => {
+    expect(vibeView(input({ modulesView: 'ide' })).modulesView).toBe('ide');
+    expect(vibeView(input({ modulesView: 'list' })).modulesView).toBe('list');
   });
 });

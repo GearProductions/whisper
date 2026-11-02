@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { artifactResult, artifactTree, idsOf, nameProblem, visibleRows } from 'core/vibecoder';
+import { artifactResult, artifactTree, idsOf, nameProblem } from 'core/vibecoder';
 
 const file = (id: string, name: string) => ({ id, name, kind: 'text' as const, size: 1, time: 0, url: null, truncated: false });
 const arts = [file('a0', 'z.md'), file('a1', 'docs/b.md'), file('a2', 'docs/sub/c.md'), file('a3', 'a.md')];
@@ -26,24 +26,6 @@ describe('artifactTree', () => {
   });
 
   it('rien : rien', () => expect(artifactTree([], [])).toEqual([]));
-});
-
-describe('visibleRows', () => {
-  it('tout plié : la racine seule', () => {
-    expect(visibleRows(tree, new Set()).map((n) => n.key)).toEqual(['docs', 'empty', 'a.md', 'z.md']);
-  });
-
-  it('un dossier déplié montre ses enfants, pas ceux d’un sous-dossier plié', () => {
-    expect(visibleRows(tree, new Set(['docs'])).map((n) => n.key)).toEqual(['docs', 'docs/sub', 'docs/b.md', 'empty', 'a.md', 'z.md']);
-  });
-
-  it('sous-dossier déplié sous un parent plié : caché', () => {
-    expect(visibleRows(tree, new Set(['docs/sub'])).map((n) => n.key)).toEqual(['docs', 'empty', 'a.md', 'z.md']);
-  });
-
-  it('tout déplié : tout', () => {
-    expect(visibleRows(tree, new Set(['docs', 'docs/sub']))).toEqual(tree);
-  });
 });
 
 describe('idsOf', () => {

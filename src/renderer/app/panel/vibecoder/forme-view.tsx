@@ -1,25 +1,30 @@
-/** forme-view — l'étape Forme (Créer) : les modules de la rubrique « Forme »
- *  de la note, groupés par premier dossier ; chacun son chemin (dossier
- *  atténué, nom en gras), son contrat en rubriques (ce qu'il expose, ne
- *  connaît pas, utilisé par) et son état (touché par la branche, existe, à
- *  créer, Icon ok devant « touché ») ; ses outils, au survol de la ligne
- *  (IconButton) : comment le cite dans le champ, open l'ouvre s'il existe.
- *  En tête : la validation de la forme, la pastille Fable. Sans module : ce
- *  qu'il faut faire pour en avoir.
- *  Relecteur (view.flow === 'review') : rien à juger ni à générer — ni
- *  validation, ni Fable, ni « Poser la forme » ; 💬 sur un module ouvre sous
- *  lui une zone de commentaire, pour le brouillon de revue (remark).
+/** forme-view — l'étape Forme (Créer) en vue IDE, la seule : à gauche l'arborescence des modules de la
+ *  rubrique « Forme » de la note (IdeView(ideFiles(view, 'module')), point d'état par module) ; à droite,
+ *  pour le module choisi, sa ligne (chemin : dossier atténué, nom en gras ; état : touché par la branche,
+ *  existe, à créer, Icon ok devant « touché » ; commits ; outils : comment le cite dans le champ, 💬 le
+ *  commente en relecteur, open l'ouvre s'il existe) et l'interrupteur Structure · Code (tenu ici).
+ *  Structure : son contrat par rubrique (Contract), et en relecteur la zone de commentaire (CommentBox,
+ *  pour le brouillon de revue, remark). Code : ModuleCode (noTree, diff depuis la base d'abord : tout vert
+ *  pour un module nouveau, seulement ce que la branche ajoute ou change pour un existant ; readOnly en
+ *  relecteur), ou « la branche ne change pas ce module » s'il n'a pas de code. Hors du code (Structure,
+ *  ou rien à montrer), act.follow(null) : le principal cesse de suivre un fichier.
+ *  En tête : la validation de la forme, la pastille Fable. Sans note, ou sans Forme : l'Invite de ce qu'il
+ *  faut faire, puis, s'il y en a, les fichiers que la branche change (chacun un module d'un seul fichier,
+ *  son code à droite).
+ *  Relecteur (view.flow === 'review') : rien à juger ni à générer — ni validation, ni Fable, ni « Poser la
+ *  forme » ; code en lecture seule.
  *  Contract : le contrat d'un module, par rubrique (contractParts, InlineMd).
- *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views,
- *  modules-view (Contract). */
-import { useState } from 'react';
-import { contractParts, fileParts, groupModules, remark, type Strings } from 'core/vibecoder';
+ *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views, modules-view (Contract). */
+import { useEffect, useState, type ReactNode } from 'react';
+import { contractParts, fileParts, ideFiles, remark, type IdeFile, type Strings } from 'core/vibecoder';
 import type { VibeLang, VibeModule } from 'technicals/bridge';
 import { Icon, IconButton } from './icons';
 import { CommentBox } from './comment-box';
 import { InlineMd } from './markdown-view';
+import { IdeView } from './ide-view';
+import { ModuleCode } from './module-code';
 import { Invite, Run, StepHead } from './step-parts';
-import type { StepProps, VibeActs } from './step-views';
+import type { StepProps } from './step-views';
 import { FablePill, MarkControl } from './validation';
 import './forme-view.css';
 
@@ -27,7 +32,7 @@ const fr = {
   title: 'Forme de la note',
   summary: (n: number, touched: number, missing: number) =>
     [`${n} module${n > 1 ? 's' : ''}`, touched && `${touched} touché${touched > 1 ? 's' : ''}`, missing && `${missing} à créer`].filter(Boolean).join(' · '),
-  root: 'racine',
+  readOnly: 'Lecture seule : vous relisez cette PR.',
   state: { touched: 'touché', exists: 'existe', missing: 'à créer' },
   stateTitle: {
     touched: 'La branche le modifie (commité ou non)',
@@ -50,7 +55,7 @@ const S: Record<VibeLang, typeof fr> = {
     title: 'The note\'s shape',
     summary: (n, touched, missing) =>
       [`${n} module${n === 1 ? '' : 's'}`, touched && `${touched} touched`, missing && `${missing} to create`].filter(Boolean).join(' · '),
-    root: 'root',
+    readOnly: 'Read only: you are reviewing this PR.',
     state: { touched: 'touched', exists: 'exists', missing: 'to create' },
     stateTitle: {
       touched: 'The branch changes it (committed or not)',
@@ -69,23 +74,31 @@ const S: Record<VibeLang, typeof fr> = {
   },
 };
 
+type Shown = 'structure' | 'code';
+
 export function FormeView(p: StepProps) {
   const { view, t, act, busy } = p;
   const s = S[view.lang];
   const { note, modules } = view;
-  const groups = groupModules(modules);
+  const [shown, setShown] = useState<Shown>('structure');
   const review = view.flow === 'review';
-  const quote = !review && view.actions.some((a) => a.id === 'comment') ? (text: string) => act.prefill('comment', text) : undefined;
-  const comment = review ? (path: string, text: string) => act.draft({ add: remark(`forme: ${path}`, text) }) : undefined;
+  const files = ideFiles(view, 'module');
+  const code = (m: VibeModule) => (
+    <ModuleCode key={m.path} m={m} readOnly={review ? s.readOnly : undefined} code={p.code} t={t} lang={view.lang} open onFollow={act.follow} onSave={act.save}
+      onQuote={(block, id) => act.prefill(id, block, true)} drafts={p.drafts} noTree first="base" />
+  );
   return (
     <>
       <StepHead p={p} own={note && !modules.length ? ['forme'] : []}>
         {!review && view.agent.model !== 'fable' ? <FablePill lang={view.lang} onPick={() => act.set({ model: 'fable', effort: 'high' })} /> : null}
       </StepHead>
       {!note || !modules.length ? (
-        <Invite title={note ? (review ? s.noFormeReview : s.noForme) : s.noNote} text={note ? (review ? s.noFormeReviewText : s.noFormeText) : s.noNoteText}>
-          {note ? <Run a={view.actions.find((a) => a.id === 'forme')} busy={busy} tone="accent" onRun={() => act.run('forme')} /> : null}
-        </Invite>
+        <>
+          <Invite title={note ? (review ? s.noFormeReview : s.noForme) : s.noNote} text={note ? (review ? s.noFormeReviewText : s.noFormeText) : s.noNoteText}>
+            {note ? <Run a={view.actions.find((a) => a.id === 'forme')} busy={busy} tone="accent" onRun={() => act.run('forme')} /> : null}
+          </Invite>
+          {files.length ? <section className="vc-card vc-forme"><IdeView files={files}>{(f) => (f?.code ? code(f.code) : null)}</IdeView></section> : null}
+        </>
       ) : (
         <section className="vc-card vc-forme">
           <div className="vc-card-head">
@@ -99,49 +112,53 @@ export function FormeView(p: StepProps) {
               </span>
             )}
           </div>
-          {groups.map((g) => (
-            <div key={g.folder} className="vc-fgroup">
-              <div className="vc-fgroup-head">
-                <span className="vc-mono">{g.folder || s.root}</span>
-                <span className="vc-fgroup-n">{g.modules.length}</span>
-              </div>
-              <ul className="vc-fmods">
-                {g.modules.map((m) => <ModuleRow key={m.path} m={m} s={s} t={t} act={act} onQuote={quote} onComment={comment} />)}
-              </ul>
-            </div>
-          ))}
+          <IdeView files={files}>
+            {(f) => f && f.rank !== null ? (
+              <Chosen key={f.path} f={f} m={modules[f.rank]} s={s} p={p} shown={shown} onShown={setShown} code={code} />
+            ) : null}
+          </IdeView>
         </section>
       )}
     </>
   );
 }
 
-type RowProps = { m: VibeModule; s: typeof fr; t: Strings; act: VibeActs; onQuote?(text: string): void; onComment?(path: string, text: string): void };
+type ChosenProps = { f: IdeFile; m: VibeModule; s: typeof fr; p: StepProps; shown: Shown; onShown(k: Shown): void; code(m: VibeModule): ReactNode };
 
-function ModuleRow({ m, s, t, act, onQuote, onComment }: RowProps) {
+// Le module choisi : sa ligne (chemin, état, commits, outils, interrupteur), puis le contrat ou le code.
+function Chosen({ f, m, s, p, shown, onShown, code }: ChosenProps) {
+  const { view, t, act } = p;
   const [commenting, setCommenting] = useState(false);
+  const review = view.flow === 'review';
+  const quote = !review && view.actions.some((a) => a.id === 'comment') ? (text: string) => act.prefill('comment', text) : undefined;
   const state = m.touched ? 'touched' : m.file ? 'exists' : 'missing';
   const { dir, name } = fileParts(m.path);
+  const showCode = shown === 'code' && !!f.code;
+  // Hors du code, le principal ne suit plus de fichier (ModuleCode envoie le sien quand il s'affiche).
+  useEffect(() => { if (!showCode) act.follow(null); }, [showCode]);
   return (
-    <li className="vc-fmod" data-state={state}>
-      <span className="vc-fdot" aria-hidden="true" />
-      <div className="vc-fmain">
-        <div className="vc-fline">
-          <span className="vc-fpath vc-mono" title={m.path}><span className="vc-fdir">{dir}</span><b>{name}</b></span>
-          <span className="vc-fstate" data-state={state} title={s.stateTitle[state]}>{state === 'touched' ? <><Icon name="ok" />{s.state.touched}</> : s.state[state]}</span>
-          {m.commits.length ? <span className="vc-fcommits vc-mono" title={m.commits.map((h) => h.slice(0, 7)).join(' ')}>{s.commits(m.commits.length)}</span> : null}
-          <span className="vc-ftools">
-            {onQuote ? <IconButton icon="comment" label={s.quote} onClick={() => onQuote(m.path)} /> : null}
-            {onComment ? <IconButton icon="comment" label={s.comment} onClick={() => setCommenting(!commenting)} /> : null}
-            {m.file ? <IconButton icon="open" label={t.openTitle} onClick={() => act.open(m.file!.id)} /> : null}
-          </span>
+    <div className="vc-fmain" data-state={state}>
+      <div className="vc-fline">
+        <span className="vc-fpath vc-mono" title={m.path}><span className="vc-fdir">{dir}</span><b>{name}</b></span>
+        <span className="vc-fstate" data-state={state} title={s.stateTitle[state]}>{state === 'touched' ? <><Icon name="ok" />{s.state.touched}</> : s.state[state]}</span>
+        {m.commits.length ? <span className="vc-fcommits vc-mono" title={m.commits.map((h) => h.slice(0, 7)).join(' ')}>{s.commits(m.commits.length)}</span> : null}
+        <span className="vc-ftools">
+          {quote ? <IconButton icon="comment" label={s.quote} onClick={() => quote(m.path)} /> : null}
+          {review ? <IconButton icon="comment" label={s.comment} onClick={() => setCommenting(!commenting)} /> : null}
+          {m.file ? <IconButton icon="open" label={t.openTitle} onClick={() => act.open(m.file!.id)} /> : null}
+        </span>
+        <div className="vc-seg" role="group" aria-label={`${t.structure} / ${t.code}`}>
+          {(['structure', 'code'] as Shown[]).map((k) => (
+            <button key={k} type="button" aria-pressed={k === shown} onClick={() => onShown(k)}>{t[k]}</button>
+          ))}
         </div>
-        <Contract text={m.contract} t={t} onOpenLink={act.openLink} />
-        {commenting && onComment ? (
-          <CommentBox t={t} onCancel={() => setCommenting(false)} onSave={(text) => { onComment(m.path, text); setCommenting(false); }} />
-        ) : null}
       </div>
-    </li>
+      {shown === 'structure' ? <Contract text={m.contract} t={t} onOpenLink={act.openLink} />
+        : f.code ? code(f.code) : <p className="vc-fnone">{t.noChange}</p>}
+      {commenting && review ? (
+        <CommentBox t={t} onCancel={() => setCommenting(false)} onSave={(text) => { act.draft({ add: remark(`forme: ${m.path}`, text) }); setCommenting(false); }} />
+      ) : null}
+    </div>
   );
 }
 

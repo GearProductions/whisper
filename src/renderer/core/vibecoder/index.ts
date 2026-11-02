@@ -1,5 +1,5 @@
 /** vibecoder — ce que l'écran VibeCoder calcule, sans le DOM : l'arborescence des
- *  artefacts (nœuds, lignes visibles, ids, noms, touches, presse-papiers et menu), le Markdown
+ *  artefacts et des fichiers (nœuds, lignes visibles, dossiers, ids, noms, touches, presse-papiers et menu), le Markdown
  *  (jamais de HTML), les lignes changées, la coloration du
  *  pseudo-code, les libellés ; les
  *  sorties des skills lues sans s'y fier, les lignes de l'étape Modules, ce
@@ -15,9 +15,11 @@ export * from './artifact-clipboard';
 export * from './artifact-tree';
 export * from './diff';
 export * from './field';
+export * from './file-tree';
 export * from './forme';
 export * from './highlight';
 export * from './i18n';
+export * from './ide-files';
 export * from './invariants';
 export * from './kept';
 export * from './markdown';
