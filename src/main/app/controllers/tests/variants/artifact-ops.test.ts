@@ -26,12 +26,14 @@ let arts = '';
 let agent: AgentConfig;
 let trashed: string[] = [];
 const trash = async (f: string) => { trashed.push(f); };
+// Un chemin sous le dossier d'artefacts écrit avec des /, comme le relevé (Windows : \).
+const slash = (n: string) => n.split(path.sep).join('/');
 // Tout sous le dossier d'artefacts : chemin → texte (dossier : null).
-const tree = () => Object.fromEntries(fs.readdirSync(arts, { recursive: true }).map(String).sort()
+const tree = () => Object.fromEntries(fs.readdirSync(arts, { recursive: true }).map(String).map(slash).sort()
   .map((n) => [n, fs.statSync(path.join(arts, n)).isDirectory() ? null : fs.readFileSync(path.join(arts, n), 'utf8')]));
 // Le relevé que la page a reçu : les artefacts et les dossiers du disque.
 function survey() {
-  const all = fs.readdirSync(arts, { recursive: true, withFileTypes: true }).map((e) => ({ e, name: path.relative(arts, path.join(e.parentPath, e.name)) }));
+  const all = fs.readdirSync(arts, { recursive: true, withFileTypes: true }).map((e) => ({ e, name: slash(path.relative(arts, path.join(e.parentPath, e.name))) }));
   const files = all.filter(({ e }) => e.isFile()).map(({ name }) => ({ name, size: 1, time: 1 }));
   fake.view = { artifacts: artifactList('a1', files, 10), artifactDirs: artifactDirs(all.filter(({ e }) => e.isDirectory()).map(({ name }) => name)) } as Partial<VibeView>;
 }

@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import type { VibeView } from 'shared/bridge';
 import type { Stats } from 'node:fs';
+import path from 'node:path';
 import { codeFile, commitFile, itemCommit, noLinkPath } from 'core/vibecoder';
 
 const C0 = '9fceb02d0ae598e95dc970b74767f19372d61af8';
@@ -62,10 +63,10 @@ describe('noLinkPath : un chemin sans aucun lien', () => {
   const file = { isDirectory: () => false, isSymbolicLink: () => false } as Stats;
   const link = { isDirectory: () => false, isSymbolicLink: () => true } as Stats;
   const disk: Record<string, Stats> = { '/r': dir, '/r/a': dir, '/r/a/f.md': file, '/r/l': link, '/r/a/d': link, '/r/a/f.md/x': file };
-  const lstat = (p: string) => disk[p];
+  const lstat = (p: string) => disk[p.replace(/\\/g, '/')];   // Windows : path.join écrit des \
 
   it('rel vide : root ; un fichier ou un dossier présent : son chemin', () => {
-    expect([noLinkPath('/r', '', lstat), noLinkPath('/r', 'a', lstat), noLinkPath('/r', 'a/f.md', lstat)]).toEqual(['/r', '/r/a', '/r/a/f.md']);
+    expect([noLinkPath('/r', '', lstat), noLinkPath('/r', 'a', lstat), noLinkPath('/r', 'a/f.md', lstat)]).toEqual(['/r', path.join('/r', 'a'), path.join('/r', 'a', 'f.md')]);
   });
 
   it('absent, lien (dernier ou au milieu), fichier pris pour un dossier : null', () => {

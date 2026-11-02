@@ -322,7 +322,8 @@ describe('renameItem, la casse seule', () => {
     expect(read(path.join(tmp, 'rapport.md.renommage'))).toBe('T');
   });
 
-  it('Linux, les deux noms existent vraiment : taken, rien d’écrasé', async () => {
+  // Sur un disque insensible à la casse (Windows, macOS), les deux noms sont un seul fichier.
+  it.skipIf(process.platform === 'win32' || process.platform === 'darwin')('Linux, les deux noms existent vraiment : taken, rien d’écrasé', async () => {
     write(path.join(tmp, 'Rapport.md'), 'R');
     write(path.join(tmp, 'rapport.md'), 'r');
 
