@@ -58,7 +58,7 @@ const dropMove = async (target: Element, dt: ReturnType<typeof fakeData>) =>
 it('une ligne par nœud, indentée selon sa profondeur ; chevron aux dossiers, ouvert ou fermé', async () => {
   await draw();
   expect([...page.querySelectorAll('.vc-tree-label')].map((l) => l.textContent)).toEqual(['a', 'b.md', 'c', 'z.md']);
-  expect(row('a/b.md').style.paddingLeft).toBe('20px');
+  expect(row('a/b.md').style.paddingLeft).toBe('16px');
   expect(row('a').getAttribute('aria-expanded')).toBe('true');
   expect(row('c').getAttribute('aria-expanded')).toBe('false');
   expect(row('z.md').hasAttribute('aria-expanded')).toBe(false);
@@ -111,7 +111,7 @@ it('nouvel élément : une ligne vide sous son dossier, à la bonne profondeur ;
   await draw({ editing: { key: 'a/new', folder: true, parent: 'a' } });
   const lines = [...page.querySelectorAll<HTMLElement>('.vc-tree-row')];
   expect(lines.map((l) => l.dataset.key)).toEqual(['a', 'a/new', 'a/b.md', 'c', 'z.md']);
-  expect(lines[1].style.paddingLeft).toBe('20px');
+  expect(lines[1].style.paddingLeft).toBe('16px');
   expect(lines[1].querySelector('input')!.value).toBe('');
   await draw({ editing: { key: 'new.md', folder: false, parent: '' } });
   expect(page.querySelector('.vc-tree-row')!.querySelector('input')).not.toBeNull();

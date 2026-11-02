@@ -1,14 +1,26 @@
-/* La vue IDE (ide-view) : l'arborescence à gauche, qui défile, le fichier choisi à droite, qui prend le
-   reste. Sous .vc, couleurs de vibecoder.css. */
-.vc-ide { display: flex; align-items: stretch; gap: 12px; min-height: 0; }
+/* La vue IDE (ide-view) : l'arborescence à gauche, sa largeur à la poignée (vc-ide-resize), le fichier
+   choisi à droite, qui prend le reste ; chaque colonne défile seule. Sa carte prend toute la hauteur
+   libre de l'étape (au moins 420 px), même avec peu de fichiers : l'étape devient une colonne flex
+   quand elle contient une vue IDE. Sous .vc, couleurs de vibecoder.css. */
+.vc-step:has(.vc-ide) { display: flex; flex-direction: column; }
+.vc-step:has(.vc-ide) > * { flex: none; }
+.vc-step:has(.vc-ide) > .vc-card:has(.vc-ide) { flex: 1 0 420px; display: flex; flex-direction: column; }
+.vc-card:has(.vc-ide) > .vc-card-body,
+.vc-card:has(.vc-ide) .vc-mod-ide { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.vc-ide { position: relative; flex: 1 1 auto; display: flex; align-items: stretch; min-height: 0; }
 .vc-ide-side {
   flex: none;
-  width: 240px;
-  max-height: 70vh;
+  min-width: 0;
   overflow: auto;
   padding: 6px 0;
   border: 1px solid var(--vc-line);
   border-radius: var(--vc-radius);
   background: var(--vc-side);
 }
-.vc-ide-main { flex: 1 1 auto; min-width: 0; }
+/* La poignée entre les deux colonnes : glisser (ou ← / →) change la largeur de l'arborescence. */
+.vc-ide-resize { flex: none; width: 12px; padding: 0 5px; box-sizing: border-box; background-clip: content-box; cursor: col-resize; touch-action: none; }
+.vc-ide-resize:hover, .vc-ide-resize:active, .vc-ide-resize:focus-visible { outline: none; background-color: color-mix(in srgb, var(--accent) 60%, transparent); }
+.vc-ide-main { flex: 1 1 auto; min-width: 0; min-height: 0; overflow: auto; }
+/* Le code n'a plus de hauteur bornée : c'est la colonne qui défile. */
+.vc-ide .vc-ide-main .vc-src .cm-editor,
+.vc-ide .vc-ide-main .vc-src.vc-mdiff .cm-mergeView { max-height: none; }

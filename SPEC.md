@@ -1499,7 +1499,12 @@ créateur ; le relecteur, F-101) :
    ouverture à l'autre (`vibeModulesView`, § 9 ; `conv:vibeSet`) ; défaut :
    *liste*. Sans module (sans Forme), les deux vues montrent l'arborescence
    des fichiers de la branche. La vue IDE n'ajoute aucune action : elle montre
-   ce que Forme et Modules montrent déjà. Relecteur : voir F-101.
+   ce que Forme et Modules montrent déjà. Dans les deux étapes, sa carte prend
+   toute la hauteur libre de l'étape (au moins 420 px), même avec peu de
+   fichiers, et chaque colonne défile seule ; une poignée entre les deux
+   colonnes (glisser, ou ← / →) règle la largeur de l'arborescence (160 px →
+   60 % de la vue), gardée pour les deux étapes tant que la page vit, pas
+   enregistrée. Relecteur : voir F-101.
 5. **Revue** — faite : vérifications toutes passées (`checks.json` ; des
    avertissements seulement passent ; un ancien ne compte pas, I-46),
    ponytail review faite (`ponytail.md`),
