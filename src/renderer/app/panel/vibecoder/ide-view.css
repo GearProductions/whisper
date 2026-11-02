@@ -1,5 +1,5 @@
 /* La vue IDE (ide-view) : l'arborescence à gauche, sa largeur à la poignée (vc-ide-resize), le fichier
-   choisi à droite, qui prend le reste ; chaque colonne défile seule. Sa carte prend toute la hauteur
+   choisi à droite, qui prend le reste ; l'arborescence défile seule, et à droite seul le code. Sa carte prend toute la hauteur
    libre de l'étape (au moins 420 px), même avec peu de fichiers : l'étape devient une colonne flex
    quand elle contient une vue IDE. Sous .vc, couleurs de vibecoder.css. */
 .vc-step:has(.vc-ide) { display: flex; flex-direction: column; }
@@ -20,7 +20,11 @@
 /* La poignée entre les deux colonnes : glisser (ou ← / →) change la largeur de l'arborescence. */
 .vc-ide-resize { flex: none; width: 12px; padding: 0 5px; box-sizing: border-box; background-clip: content-box; cursor: col-resize; touch-action: none; }
 .vc-ide-resize:hover, .vc-ide-resize:active, .vc-ide-resize:focus-visible { outline: none; background-color: color-mix(in srgb, var(--accent) 60%, transparent); }
-.vc-ide-main { flex: 1 1 auto; min-width: 0; min-height: 0; overflow: auto; }
-/* Le code n'a plus de hauteur bornée : c'est la colonne qui défile. */
-.vc-ide .vc-ide-main .vc-src .cm-editor,
-.vc-ide .vc-ide-main .vc-src.vc-mdiff .cm-mergeView { max-height: none; }
+/* Le fichier choisi : une colonne dont seul le code défile ; les outils au-dessus (Générer…, Fichier / diff)
+   et dessous restent en place. Sans code (la structure d'un module de la Forme), la colonne défile. */
+.vc-ide-main { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: auto; }
+.vc-ide-main > *, .vc-ide-main > .vc-fmain > * { flex: none; }
+.vc-ide-main > .vc-fmain { flex: 0 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.vc-ide .vc-ide-main .vc-src { flex: 0 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.vc-ide .vc-ide-main .vc-src > .cm-editor,
+.vc-ide .vc-ide-main .vc-src.vc-mdiff > .cm-mergeView { flex: 0 1 auto; min-height: 0; max-height: none; }
