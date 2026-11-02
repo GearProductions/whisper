@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-// Breadcrumb (breadcrumb.tsx) : les étapes en une ligne, une pas ouverte sans clic (toute étape ouverte
-// reste atteignable), état et faits en title ; « N commits » déplie la liste, re-clic la replie ; aucun
+// Breadcrumb (breadcrumb.tsx) : les étapes en une ligne, toutes cliquables (même à venir), état, faits
+// et raccourci en title ; « N commits » déplie la liste, re-clic la replie ; aucun
 // commit : le texte, sans bouton ; un commit déplié : diff et GitHub en IconButton, mêmes ids
 // (c<rang>, gh:c<rang>), ses fichiers en texte simple.
 import { act, createElement } from 'react';
@@ -22,21 +22,21 @@ async function mount(view: VibeView, picked: string[] = [], opened: string[] = [
   return { page, unmount: () => act(() => root.unmount()) };
 }
 
-it('étapes : une ligne, pas ouverte sans clic, choisie en aria-current, état et faits en title', async () => {
+it('étapes : une ligne, toutes cliquables, choisie en aria-current, état et faits en title', async () => {
   const picked: string[] = [];
   const view = { steps: [
-    { id: 'note', status: 'done', facts: '3 sections', open: true },
-    { id: 'forme', status: 'todo', facts: '', open: false },
+    { id: 'note', status: 'done', facts: '3 sections' },
+    { id: 'forme', status: 'todo', facts: '' },
   ], commits: [] } as unknown as VibeView;
   const { page, unmount } = await mount(view, picked);
   expect(page.querySelector('nav')!.getAttribute('aria-label')).toBe(s.journey);
   const steps = [...page.querySelectorAll<HTMLButtonElement>('.vc-jstep')];
   expect(steps.map((b) => [b.textContent, b.disabled, b.getAttribute('aria-current'), b.title])).toEqual([
     [s.steps.note, false, 'step', `${s.steps.note} — ${s.stepStatus.done} · 3 sections (${s.shortcut(1)})`],
-    [s.steps.forme, true, null, `${s.steps.forme} — ${s.stepStatus.todo} · ${s.notOpen}`],
+    [s.steps.forme, false, null, `${s.steps.forme} — ${s.stepStatus.todo} (${s.shortcut(2)})`],
   ]);
   for (const b of steps) await act(() => b.click());
-  expect(picked).toEqual(['note']);
+  expect(picked).toEqual(['note', 'forme']);
   expect(page.querySelector('.vc-ccount')!.tagName).toBe('SPAN');
   expect(page.querySelector('.vc-ccount')!.textContent).toBe(s.commitsOf(0));
   await unmount();

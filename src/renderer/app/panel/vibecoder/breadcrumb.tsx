@@ -1,8 +1,9 @@
 /** breadcrumb — le fil d'Ariane, au-dessus de l'étape : les étapes en une
  *  ligne (point plein : faite ; anneau qui pulse : en cours ; gris : à venir ;
  *  le libellé à côté du point), reliées d'un trait ; leur état et leurs faits
- *  en infobulle. Un clic ouvre l'étape, si elle est ouverte (VibeStep.open,
- *  dit par le principal) ; une étape pas ouverte : sans clic. Au bout,
+ *  en infobulle, avec le raccourci (Ctrl+1…6) pour les six. Chaque étape
+ *  est cliquable, faite, en cours ou à venir : un clic appelle onPick, rien
+ *  d'autre (le fil garde ses états). Au bout,
  *  « N commits » déplie sous le fil la liste des commits de la branche (un
  *  `fixup!` en couleur d'attention), re-clic : repliée ; aucun commit : le
  *  texte seul. La liste ouverte se ferme avec Échap (écouté en capture : il
@@ -37,8 +38,8 @@ export function Breadcrumb({ view, t, selected, onPick, onOpen }: Props) {
         <ol className="vc-steps">
           {view.steps.map((s, i) => (
             <li key={s.id} data-status={s.status}>
-              <button type="button" className="vc-jstep" aria-current={s.id === selected ? 'step' : undefined} disabled={!s.open} onClick={() => onPick(s.id)}
-                title={`${t.steps[s.id]} — ${t.stepStatus[s.status]}${s.facts ? ` · ${s.facts}` : ''}${!s.open ? ` · ${t.notOpen}` : i < 6 ? ` (${t.shortcut(i + 1)})` : ''}`}>
+              <button type="button" className="vc-jstep" aria-current={s.id === selected ? 'step' : undefined} onClick={() => onPick(s.id)}
+                title={`${t.steps[s.id]} — ${t.stepStatus[s.status]}${s.facts ? ` · ${s.facts}` : ''}${i < 6 ? ` (${t.shortcut(i + 1)})` : ''}`}>
                 <span className="vc-jdot" />
                 <span className="vc-jlabel">{t.steps[s.id]}</span>
               </button>
