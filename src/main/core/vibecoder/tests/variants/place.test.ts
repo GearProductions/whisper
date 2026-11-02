@@ -13,6 +13,14 @@ describe('ELSEWHERE', () => {
     expect(ELSEWHERE).toContain('add-artifact');
     expect(BRANCH_CHANGES).not.toContain('add-artifact');
   });
+
+  it('de même les sept actions de gestion des artefacts', () => {
+    for (const id of ['rename-artifact', 'new-artifact-file', 'new-artifact-folder', 'trash-artifacts', 'move-artifacts',
+      'copy-artifacts', 'duplicate-artifacts']) {
+      expect(ELSEWHERE).toContain(id);
+      expect(BRANCH_CHANGES).not.toContain(id);
+    }
+  });
 });
 
 describe('onBase', () => {

@@ -52,3 +52,21 @@ describe('runProgress : l\'avancement d\'une course', () => {
     expect(t('fr').runProgress({ ...full, done: 20 })).toContain('17/17 modules');
   });
 });
+
+describe('l\'arborescence des artefacts', () => {
+  const problems = ['empty', 'dots', 'separator', 'hidden', 'long', 'windows', 'taken'];
+  const entries = ['rename', 'trash', 'copy', 'cut', 'paste', 'duplicate', 'newFile', 'newFolder'];
+
+  it('un motif par valeur de nameProblem et une entrée par action du menu, dans les deux langues', () => {
+    for (const lang of ['fr', 'en'] as const) {
+      expect(Object.keys(t(lang).nameProblem).sort()).toEqual([...problems].sort());
+      expect(Object.keys(t(lang).artifactMenu).sort()).toEqual([...entries].sort());
+    }
+  });
+
+  it('la confirmation : un élément nommé, n éléments comptés', () => {
+    expect(t('fr').artifactConfirm(1, 'a.md')).toBe('Supprimer « a.md » ?');
+    expect(t('fr').artifactConfirm(3, 'a.md')).toBe('Supprimer ces 3 éléments ?');
+    expect(t('en').artifactConfirm(2, 'a.md')).toBe('Delete these 2 items?');
+  });
+});

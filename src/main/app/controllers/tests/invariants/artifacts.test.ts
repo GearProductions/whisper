@@ -17,6 +17,8 @@
 //     dans le dossier choisi dans la boîte de dialogue (I-39 : le principal ne
 //     modifie le dépôt qu'au clic) ;
 //   - remplacer un fichier existant sans que l'utilisateur l'ait accepté.
+// Copier dans le projet prend la sélection, args.artifacts (note
+// docs/tickets/feat/0.13.0-gestion-artefacts.md, Forme) : seul l'appel change, ces règles gardées.
 // Protégé : si un test échoue, corriger le code.
 //
 // Sur le vrai principal (contrôleurs, fenêtres, état, réglages et fichiers sur
@@ -232,7 +234,7 @@ async function run(id: string, args: object) {
   await settle();
 }
 // Le clic sur Copier dans le projet.
-const copy = (artifactId: unknown) => run('copy-artifact', { direct: true, artifact: artifactId });
+const copy = (artifactId: unknown) => run('copy-artifact', { direct: true, artifacts: [artifactId] });
 
 // Une requête au schéma, branché comme au démarrage ; la réponse du principal.
 async function request(url: string) {
@@ -625,7 +627,7 @@ describe('copier un artefact : seulement au clic, seulement dans le dossier choi
   it('sans le clic de l’appli (pas direct) : rien n’est copié', async () => {
     await open();
 
-    await run('copy-artifact', { artifact: idOf('notes.md') });
+    await run('copy-artifact', { artifacts: [idOf('notes.md')] });
 
     // aucune boîte de dialogue n'a demandé de dossier
     expect(fake.picks).toEqual([]);

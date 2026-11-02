@@ -8,6 +8,8 @@
 // est son propre projet. Les règles générales du panneau, du schéma et de l'ajout :
 // artifacts.test.ts et artifact-moves.test.ts ; le déplacement des anciens artefacts :
 // artifact-migration.test.ts.
+// Copier dans le projet prend la sélection, args.artifacts (note
+// docs/tickets/feat/0.13.0-gestion-artefacts.md, Forme) : seul l'appel change, ces règles gardées.
 // Protégé : si un test échoue, corriger le code.
 //
 // Sur le vrai principal (contrôleurs, fenêtres, état, réglages et fichiers sur disque,
@@ -204,7 +206,7 @@ async function openInEditor(id: unknown) {
 }
 async function copy(artifactId: unknown) {
   const { runVibeAction } = await import('app/controllers');
-  runVibeAction('copy-artifact', { direct: true, artifact: artifactId });
+  runVibeAction('copy-artifact', { direct: true, artifacts: [artifactId] });
   await settle();
 }
 // Une requête au schéma, branché comme au démarrage.

@@ -30,16 +30,18 @@ vi.mock('app/controllers/vibecoder', () => ({
   lastView: (id: string) => (id === fake.shown ? fake.view : null),
 }));
 
-const { addArtifacts, copyArtifact, listArtifacts, pickArtifacts, projectArtifactsDir, projectArtifactsPath, resolveArtifact } = await import('app/controllers/artifacts');
+const { addArtifacts, copyArtifact, listArtifacts, projectArtifactsDir, projectArtifactsPath, resolveArtifact } = await import('app/controllers/artifacts');
 
 const write = (file: string, text: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, text); };
 let arts = '';   // le dossier du projet de l'agent
 let chosen = '';
 let agent: AgentConfig;
-const names = () => listArtifacts('a1', arts, 10).map((a) => a.name);
+const names = () => listArtifacts('a1', arts, 10).artifacts.map((a) => a.name);
+const dirs = () => listArtifacts('a1', arts, 10).dirs.map((d) => d.name);
 // Le relevé que la page a reçu : les artefacts du disque.
-const survey = () => { fake.view = { artifacts: listArtifacts('a1', arts, 10) } as Partial<VibeView>; };
+const survey = () => { fake.view = { ...(({ artifacts, dirs }) => ({ artifacts, artifactDirs: dirs }))(listArtifacts('a1', arts, 10)) } as Partial<VibeView>; };
 const idOf = (name: string) => (fake.view as VibeView).artifacts!.find((a) => a.name === name)!.id;
+const dirOf = (name: string) => (fake.view as VibeView).artifactDirs!.find((d) => d.name === name)!.id;
 
 beforeEach(() => {
   fake.userData = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-artefacts-')));
@@ -103,19 +105,38 @@ describe('listArtifacts', () => {
     expect(names()).toEqual([]);
   });
 
-  it('au plus 1 000', () => {
+  it('au plus 1 000 fichiers ; les dossiers ne comptent pas', () => {
     for (let i = 0; i < 1005; i++) write(path.join(arts, `f${i}.txt`), '');
+    fs.mkdirSync(path.join(arts, 'zz-vide'));
     expect(names()).toHaveLength(1000);
+    expect(dirs()).toEqual(['zz-vide']);
+  });
+
+  it('les dossiers, même vides, sous leur chemin et leur id d<i> dans l’ordre des noms', () => {
+    fs.mkdirSync(path.join(arts, 'vide'), { recursive: true });
+    write(path.join(arts, 'maquettes', 'web', 'accueil.html'), 'p');
+    expect(listArtifacts('a1', arts, 10).dirs).toEqual([
+      { id: 'd0', name: 'maquettes' }, { id: 'd1', name: 'maquettes/web' }, { id: 'd2', name: 'vide' },
+    ]);
+  });
+
+  it('ni dossier caché (ni ce qu’il contient), ni dossier en lien', () => {
+    write(path.join(arts, '.cache', 'x.md'), 'x');
+    write(path.join(fake.userData, 'dehors', 'secret.md'), 's');
+    fs.symlinkSync(path.join(fake.userData, 'dehors'), path.join(arts, 'lien'));
+    fs.mkdirSync(path.join(arts, 'ok'));
+    expect(dirs()).toEqual(['ok']);
   });
 
   it('pas de dossier du projet : aucun', () => {
     expect(names()).toEqual([]);
+    expect(dirs()).toEqual([]);
   });
 
   it('truncated : un texte au-delà de la limite reçue', () => {
     write(path.join(arts, 'long.txt'), 'x'.repeat(11));
     write(path.join(arts, 'court.txt'), 'x'.repeat(10));
-    expect(listArtifacts('a1', arts, 10).map((a) => [a.name, a.truncated])).toEqual([['court.txt', false], ['long.txt', true]]);
+    expect(listArtifacts('a1', arts, 10).artifacts.map((a) => [a.name, a.truncated])).toEqual([['court.txt', false], ['long.txt', true]]);
   });
 });
 
@@ -158,7 +179,7 @@ describe('copyArtifact', () => {
     write(path.join(arts, 'notes.md'), 'NOTES');
     survey();
     fake.pick = { canceled: true, filePaths: [] };
-    const r = await copyArtifact(agent, idOf('notes.md'));
+    const r = await copyArtifact(agent, [idOf('notes.md')]);
     expect(r.ok).toBe(true);
     expect(fs.readdirSync(chosen)).toEqual([]);
   });
@@ -166,7 +187,7 @@ describe('copyArtifact', () => {
   it('sous son nom de base, sans ses sous-dossiers', async () => {
     write(path.join(arts, 'maquettes', 'accueil.html'), 'PAGE');
     survey();
-    await copyArtifact(agent, idOf('maquettes/accueil.html'));
+    await copyArtifact(agent, [idOf('maquettes/accueil.html')]);
     expect(fs.readdirSync(chosen, { recursive: true })).toEqual(['accueil.html']);
     expect(fs.readFileSync(path.join(chosen, 'accueil.html'), 'utf8')).toBe('PAGE');
   });
@@ -176,7 +197,7 @@ describe('copyArtifact', () => {
     write(path.join(chosen, 'notes.md'), 'MIEN');
     survey();
     fake.answer = (o) => o.defaultId ?? 0;
-    await copyArtifact(agent, idOf('notes.md'));
+    await copyArtifact(agent, [idOf('notes.md')]);
     expect(fake.asked[0].buttons[fake.asked[0].defaultId!]).toBe('Annuler');
     expect(fake.asked[0].cancelId).toBe(fake.asked[0].defaultId);
     expect(fs.readFileSync(path.join(chosen, 'notes.md'), 'utf8')).toBe('MIEN');
@@ -187,7 +208,7 @@ describe('copyArtifact', () => {
     write(path.join(chosen, 'notes.md'), 'MIEN');
     survey();
     fake.answer = (o) => o.buttons.indexOf('Remplacer');
-    const r = await copyArtifact(agent, idOf('notes.md'));
+    const r = await copyArtifact(agent, [idOf('notes.md')]);
     expect(r.ok).toBe(true);
     expect(fs.readFileSync(path.join(chosen, 'notes.md'), 'utf8')).toBe('NOTES');
   });
@@ -199,9 +220,56 @@ describe('copyArtifact', () => {
     fs.symlinkSync(ailleurs, path.join(chosen, 'notes.md'));
     survey();
     fake.answer = (o) => o.buttons.indexOf('Remplacer');
-    const r = await copyArtifact(agent, idOf('notes.md'));
+    const r = await copyArtifact(agent, [idOf('notes.md')]);
     expect(r.ok).toBe(false);
     expect(fs.readFileSync(ailleurs, 'utf8')).toBe('AILLEURS');
+  });
+
+  it('la sélection : plusieurs fichiers, une seule boîte de dialogue, Remplacer demandé pour le seul pris', async () => {
+    write(path.join(arts, 'a.md'), 'A');
+    write(path.join(arts, 'b.md'), 'B');
+    write(path.join(chosen, 'b.md'), 'MIEN');
+    survey();
+    fake.answer = (o) => o.buttons.indexOf('Remplacer');
+    const r = await copyArtifact(agent, [idOf('a.md'), idOf('b.md')]);
+    expect(r.ok).toBe(true);
+    expect(fake.opened).toHaveLength(1);
+    expect(fake.asked).toHaveLength(1);
+    expect(fs.readFileSync(path.join(chosen, 'a.md'), 'utf8')).toBe('A');
+    expect(fs.readFileSync(path.join(chosen, 'b.md'), 'utf8')).toBe('B');
+  });
+
+  it('un dossier : copié avec son contenu, numéroté s’il existe déjà, jamais remplacé ni mêlé', async () => {
+    write(path.join(arts, 'maquettes', 'web', 'accueil.html'), 'PAGE');
+    write(path.join(chosen, 'maquettes', 'mien.md'), 'MIEN');
+    survey();
+    fake.answer = (o) => o.buttons.indexOf('Remplacer');
+    const r = await copyArtifact(agent, [dirOf('maquettes')]);
+    expect(r.ok).toBe(true);
+    expect(fake.asked).toEqual([]);
+    expect(fs.readFileSync(path.join(chosen, 'maquettes', 'mien.md'), 'utf8')).toBe('MIEN');
+    expect(fs.readdirSync(path.join(chosen, 'maquettes'))).toEqual(['mien.md']);
+    expect(fs.readFileSync(path.join(chosen, 'maquettes-2', 'web', 'accueil.html'), 'utf8')).toBe('PAGE');
+  });
+
+  it('un id inconnu ou un chemin dans la sélection, ou une sélection vide : refusé, aucune boîte de dialogue', async () => {
+    write(path.join(arts, 'notes.md'), 'NOTES');
+    survey();
+    for (const ids of [[idOf('notes.md'), 'a99'], [idOf('notes.md'), '../x'], [], ['d0']]) {
+      expect((await copyArtifact(agent, ids)).ok).toBe(false);
+    }
+    expect(fake.opened).toEqual([]);
+    expect(fs.readdirSync(chosen)).toEqual([]);
+  });
+
+  it('un dossier devenu un lien après le relevé : refusé, sa cible n’est pas copiée', async () => {
+    write(path.join(arts, 'maquettes', 'a.md'), 'A');
+    write(path.join(fake.userData, 'dehors', 'secret.md'), 'S');
+    survey();
+    fs.rmSync(path.join(arts, 'maquettes'), { recursive: true });
+    fs.symlinkSync(path.join(fake.userData, 'dehors'), path.join(arts, 'maquettes'));
+    expect((await copyArtifact(agent, [dirOf('maquettes')])).ok).toBe(false);
+    expect(fs.readdirSync(chosen)).toEqual([]);
   });
 
   it('un artefact devenu lien après le relevé : refusé, rien n’est copié', async () => {
@@ -209,13 +277,13 @@ describe('copyArtifact', () => {
     survey();
     fs.rmSync(path.join(arts, 'notes.md'));
     fs.symlinkSync(fake.userData, path.join(arts, 'notes.md'));
-    const r = await copyArtifact(agent, idOf('notes.md'));
+    const r = await copyArtifact(agent, [idOf('notes.md')]);
     expect(r.ok).toBe(false);
     expect(fs.readdirSync(chosen)).toEqual([]);
   });
 });
 
-describe('addArtifacts et pickArtifacts', () => {
+describe('addArtifacts', () => {
   const dropped = () => { const f = path.join(fake.userData, 'depot', 'rapport.md'); write(f, 'R'); return f; };
 
   it('rien de copié (un chemin relatif) : ok false', async () => {
@@ -232,17 +300,51 @@ describe('addArtifacts et pickArtifacts', () => {
     expect(fs.readFileSync(path.join(arts, 'rapport.md'), 'utf8')).toBe('R');
   });
 
-  it('la boîte de dialogue annulée : ok, ligne vide, rien de copié', async () => {
-    fake.pick = { canceled: true, filePaths: [] };
-    expect(await pickArtifacts(agent)).toEqual({ ok: true, line: '', detail: '' });
-    expect(fs.existsSync(arts)).toBe(false);
+  it('sur un dossier du relevé : copié dedans, sans rien écraser', async () => {
+    write(path.join(arts, 'maquettes', 'rapport.md'), 'ANCIEN');
+    survey();
+    const r = await addArtifacts(agent, [dropped()], dirOf('maquettes'));
+    expect(r.ok).toBe(true);
+    expect(fs.readFileSync(path.join(arts, 'maquettes', 'rapport.md'), 'utf8')).toBe('ANCIEN');
+    expect(fs.readFileSync(path.join(arts, 'maquettes', 'rapport-2.md'), 'utf8')).toBe('R');
   });
 
-  it('la boîte de dialogue : fichiers, plusieurs, sur le dossier de l’agent ; ses chemins sont copiés', async () => {
-    fake.pick = { canceled: false, filePaths: [dropped()] };
-    const r = await pickArtifacts(agent);
-    expect(fake.opened[0]).toMatchObject({ title: 'Ajouter aux artefacts', defaultPath: agent.dir, properties: ['openFile', 'multiSelections'] });
-    expect(r.ok).toBe(true);
-    expect(fs.readFileSync(path.join(arts, 'rapport.md'), 'utf8')).toBe('R');
+  it('un id absent, inconnu ou en forme de chemin : à la racine', async () => {
+    write(path.join(arts, 'maquettes', 'x.md'), 'x');
+    survey();
+    for (const folder of [undefined, 'd99', '../..', fake.userData, 'a0']) await addArtifacts(agent, [dropped()], folder);
+    expect(fs.readdirSync(arts).sort()).toEqual(['maquettes', 'rapport-2.md', 'rapport-3.md', 'rapport-4.md', 'rapport-5.md', 'rapport.md']);
+    expect(fs.readdirSync(path.join(arts, 'maquettes'))).toEqual(['x.md']);
+    expect(fs.readdirSync(fake.userData)).not.toContain('rapport.md');
+  });
+
+  it('un dossier déposé : copié sous le dossier visé, numéroté s’il existe', async () => {
+    write(path.join(arts, 'maquettes', 'lot', 'vieux.md'), 'V');
+    write(path.join(fake.userData, 'depot', 'lot', 'neuf.md'), 'N');
+    survey();
+    await addArtifacts(agent, [path.join(fake.userData, 'depot', 'lot')], dirOf('maquettes'));
+    expect(fs.readdirSync(path.join(arts, 'maquettes', 'lot'))).toEqual(['vieux.md']);
+    expect(fs.readFileSync(path.join(arts, 'maquettes', 'lot-2', 'neuf.md'), 'utf8')).toBe('N');
+  });
+
+  it('le dossier visé devenu un lien après le relevé : rien n’arrive dans sa cible', async () => {
+    write(path.join(arts, 'maquettes', 'x.md'), 'x');
+    fs.mkdirSync(path.join(fake.userData, 'dehors'));
+    survey();
+    const id = dirOf('maquettes');
+    fs.rmSync(path.join(arts, 'maquettes'), { recursive: true });
+    fs.symlinkSync(path.join(fake.userData, 'dehors'), path.join(arts, 'maquettes'));
+    const r = await addArtifacts(agent, [dropped()], id);
+    expect(r.ok).toBe(false);
+    expect(fs.readdirSync(path.join(fake.userData, 'dehors'))).toEqual([]);
+  });
+
+  it('le dossier du projet devenu un lien : rien n’arrive dans sa cible', async () => {
+    fs.mkdirSync(path.join(fake.userData, 'dehors'));
+    fs.mkdirSync(path.dirname(arts), { recursive: true });
+    fs.symlinkSync(path.join(fake.userData, 'dehors'), arts);
+    const r = await addArtifacts(agent, [dropped()]);
+    expect(r.ok).toBe(false);
+    expect(fs.readdirSync(path.join(fake.userData, 'dehors'))).toEqual([]);
   });
 });

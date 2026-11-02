@@ -15,11 +15,15 @@
  *  sendToAgent : refusé s'il travaille, I-25 ; ou, pour les actions de
  *  DIRECT_ACTIONS (commit, publish, load-pr, base, pr-here, pr-worktree,
  *  remove-worktree, stash, unload-pr, switch-branch, new-here, new-worktree, pull, rebase, push,
- *  fetch, request-review, copy-artifact, add-artifact), au clic de « direct » : leurs
- *  commandes, lancées par l'appli, F-114 ; copy-artifact : un artefact du
- *  dernier relevé, copié par controllers/artifacts, I-39 ; add-artifact : la boîte de dialogue
- *  du principal, ou un dépôt sur le panneau (dropOnArtifacts, les chemins lus du File par le
- *  pont) : mêmes « en cours » et dernier résultat ; conv:vibeRun ne porte jamais de chemin, I-37), une course (vibeRunOp : l'arrêter, la garder ou l'annuler, répondre
+ *  fetch, request-review, copy-artifact, add-artifact, rename-artifact, new-artifact-file,
+ *  new-artifact-folder, trash-artifacts, move-artifacts, copy-artifacts, duplicate-artifacts), au clic de « direct » : leurs
+ *  commandes, lancées par l'appli, F-114 ; copy-artifact : des artefacts du
+ *  dernier relevé (args.artifacts), copiés par controllers/artifacts, I-39 ; les six autres actions sur
+ *  les artefacts (args.artifacts, args.folder, args.name, args.names, rien d'autre lu ; rename-artifact : un seul
+ *  id) vont à controllers/artifact-ops, qui revérifie tout ; add-artifact : refusé ici, seul un dépôt sur le
+ *  panneau le fait (dropOnArtifacts(paths, folder), les chemins lus du File par le pont ; le dossier : un id
+ *  du relevé) : mêmes « en cours » et dernier résultat ; conv:vibeRun ne porte jamais de chemin, I-37, et le
+ *  nom tapé y passe, sans canal de plus), une course (vibeRunOp : l'arrêter, la garder ou l'annuler, répondre
  *  à sa demande d'autorisation), un réglage (dont arrêter l'agent, comme Interrompre de son
  *  menu ; arrêter Vibe, la bannière : vibeStop de controllers/runs ;
  *  l'onglet Actions ouvert ou fermé : ses courses vues, runsTab de controllers/runs),
@@ -37,6 +41,7 @@
  *  touché : ceux que la branche change (core/vibecoder, d'après repo.changed),
  *  pas leur texte (controllers/module-code lit le fichier ouvert). Les
  *  artefacts du projet de l'agent (le dossier de son projet, controllers/artifacts ;
+ *  leurs dossiers, même vides : VibeView.artifactDirs ;
  *  VibeView.artifactsDir le donne à la page pour le seul texte du `@`, aucun canal
  *  ne le reçoit en retour) : leur liste au relevé, sans leur texte ; ouverts ou copiés par leur id (a<i>)
  *  dans le dernier relevé, jamais par un chemin. Une action qui génère un module : sa course le retient
@@ -99,7 +104,7 @@
  *  Ne connaît pas : la page (seulement ses canaux), la fenêtre.
  *  Utilisé par : app/ipc (dropOnArtifacts), app/menus, app/windows (vibeAgent : la taille du
  *  panneau), controllers/conversation, controllers/runs, controllers/module-code
- *  (lastView), controllers/artifacts (lastView, vibeAgent). */
+ *  (lastView), controllers/artifacts et controllers/artifact-ops (lastView, vibeAgent). */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -124,7 +129,8 @@ import { state } from 'app/state';
 import { conversationShown, openConversation } from 'app/windows';
 import { interruptAgent, isBusy, liveViewAgent, sendToAgent, setAgentSetting } from './agents';
 import { agentPrefix, processAction, processView, promptPrefix, readFile, readTimed } from './processes';
-import { addArtifacts, artifactFile, copyArtifact, listArtifacts, pickArtifacts, projectArtifactsDir } from './artifacts';
+import { addArtifacts, artifactFile, copyArtifact, listArtifacts, projectArtifactsDir } from './artifacts';
+import { copyArtifacts, duplicateArtifacts, moveArtifacts, newArtifact, renameArtifact, trashArtifacts } from './artifact-ops';
 import { createWorktree } from './recipe';
 import { lockingRuns, runOp, viewLocks, runPending, runRequests, runsOf, runsTab, skillMd, startRun, vibeOn, vibeStart, vibeStop } from './runs';
 import { openChild, prWorktreeReady, removeWorktreeChild, showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
@@ -488,7 +494,8 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     if (next !== marks) { store.marks[agent.id] = next; saveVibeStore(store); }
   }
   const artifactsDir = projectArtifactsDir(agent.dir);
-  return { ...journey, ...proc, artifacts: listArtifacts(agent.id, artifactsDir, cfg.artifactTextMax), artifactsDir, dev: devState() };
+  const { artifacts, dirs } = listArtifacts(agent.id, artifactsDir, cfg.artifactTextMax);
+  return { ...journey, ...proc, artifacts, artifactDirs: dirs, artifactsDir, dev: devState() };
 }
 
 /* ---- Ce que demande l'écran ------------------------------------------------ */
@@ -497,9 +504,9 @@ const fail = (lang: VibeLang, key: keyof typeof ERRORS.fr): SendResult => ({ ok:
 
 // Un dépôt sur la zone du panneau : les chemins lus du File par le pont.
 // Mêmes vérifications que runVibeAction (l'agent affiché, son relevé, l'action affichée), sans lire aucun
-// chemin ici ; puis la même action directe que le bouton (add-artifact : même « en cours », même résultat),
-// en fond (track) : cette fonction rend la main aussitôt.
-export function dropOnArtifacts(paths: unknown): SendResult {
+// chemin ici ; puis l'action directe add-artifact (même « en cours », même résultat), en fond (track) :
+// cette fonction rend la main aussitôt. folder : l'id d'un dossier du relevé, revérifié par addArtifacts.
+export function dropOnArtifacts(paths: unknown, folder?: unknown): SendResult {
   const lang = vibeLang(loadConfig());
   const agent = vibeAgent();
   const view = agent && last.get(agent.id);
@@ -508,7 +515,7 @@ export function dropOnArtifacts(paths: unknown): SendResult {
   const mine = directs.get(agent.id) ?? {};
   if (Object.values(mine).some((x) => x.running)) return fail(lang, 'action');
   directs.set(agent.id, mine);
-  void track(mine, 'add-artifact', () => addArtifacts(agent, paths));
+  void track(mine, 'add-artifact', () => addArtifacts(agent, paths, folder));
   return { ok: true };
 }
 
@@ -654,13 +661,28 @@ function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, view: Vib
       return r;
     };
   } else if (id === 'copy-artifact') {
-    // Un artefact du dernier relevé, par son id ; le dossier choisi dans la boîte de dialogue (controllers/artifacts).
-    const artifact = artifactOf(view, args.artifact as string);
-    if (!artifact) return fail(lang, 'args');
-    job = () => copyArtifact(agent, artifact.id);
+    // Des ids du dernier relevé ; le dossier choisi dans la boîte de dialogue (controllers/artifacts, qui revérifie).
+    if (!Array.isArray(args.artifacts)) return fail(lang, 'args');
+    const ids = args.artifacts;
+    job = () => copyArtifact(agent, ids);
   } else if (id === 'add-artifact') {
-    // Le bouton : la boîte de dialogue du principal ; les arguments ne portent jamais de chemin (I-37).
-    job = () => pickArtifacts(agent);
+    // Le dépôt seul (dropOnArtifacts) : conv:vibeRun ne porte jamais de chemin (I-37).
+    return fail(lang, 'action');
+  } else if (id === 'rename-artifact') {
+    // Un seul id ; le nom tapé, revérifié par artifact-ops (comme tout ce qui suit : les valeurs passent telles quelles).
+    if (!Array.isArray(args.artifacts) || args.artifacts.length !== 1) return fail(lang, 'args');
+    const [one] = args.artifacts;
+    job = () => renameArtifact(agent, one, args.name);
+  } else if (id === 'new-artifact-file' || id === 'new-artifact-folder') {
+    job = () => newArtifact(agent, args.folder, args.name, id === 'new-artifact-folder');
+  } else if (id === 'trash-artifacts') {
+    job = () => trashArtifacts(agent, args.artifacts, args.names);
+  } else if (id === 'move-artifacts') {
+    job = () => moveArtifacts(agent, args.artifacts, args.folder);
+  } else if (id === 'copy-artifacts') {
+    job = () => copyArtifacts(agent, args.artifacts, args.folder);
+  } else if (id === 'duplicate-artifacts') {
+    job = () => duplicateArtifacts(agent, args.artifacts);
   } else if (id === 'load-pr') {
     const pr = args.pr === undefined ? n : prNumber(args.pr);
     if (!pr) return fail(lang, 'pr');

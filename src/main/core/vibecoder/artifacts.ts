@@ -1,8 +1,11 @@
 /** artifacts — les artefacts du projet d'un agent (le dossier du projet, ses anciens : vibecoder-out/<agent>/artifacts/) :
  *  le nom du dossier et du schéma qui les sert, le genre et le type MIME d'un
  *  fichier d'après son extension, la liste du relevé (ids a<i> dans l'ordre
- *  des noms, url, truncated), et l'artefact d'un id du dernier relevé (la page
- *  ne donne qu'un id, jamais un chemin : I-37), les chemins d'un dépôt
+ *  des noms, url, truncated), les dossiers du relevé (artifactDirs : ids d<i>
+ *  dans l'ordre des noms), et l'artefact d'un id du dernier relevé (la page
+ *  ne donne qu'un id, jamais un chemin : I-37 ; artifactItem : a<i> ou d<i>,
+ *  folderOf : le dossier d'un d<i>, '' pour la racine, within : un nom est-il
+ *  dans un dossier), les chemins d'un dépôt
  *  (droppedPaths : lus du File par le pont, revérifiés ici), la clé d'un
  *  dossier (folderKey : le même dossier, même parti ou derrière un lien), les
  *  deux libellés du dépôt et du déplacement en échec (addedLine, failedLine : fr et en), et
@@ -12,11 +15,11 @@
  *  (legacyOwner : la config, puis artifacts-left.json lu par leftEntries).
  *  Ne connaît pas : Electron, le disque (realpath, fichiers et texte passés), git.
  *  Utilisé par : app/controllers (artifacts, artifact-migration,
- *  vibecoder, module-code). */
+ *  vibecoder, module-code, artifact-ops). */
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { commonDirOf } from 'core/family';
-import type { VibeArtifact, VibeLang, VibeView } from 'shared/bridge';
+import type { VibeArtifact, VibeArtifactDir, VibeLang, VibeView } from 'shared/bridge';
 import type { TreeReport } from 'technicals/file-tree';
 
 export const ARTIFACTS = 'artifacts';
@@ -68,6 +71,32 @@ export function artifactList(
 // L'artefact de l'id dans le relevé ; un id inconnu (ou un chemin) : null.
 export function artifactOf(view: VibeView | null, id: string): VibeArtifact | null {
   return view?.artifacts?.find((a) => a.id === id) ?? null;
+}
+
+// Les dossiers du relevé : triés par nom (comme les fichiers), ids d<i> dans cet ordre.
+export function artifactDirs(names: string[]): VibeArtifactDir[] {
+  return [...names].sort().map((name, i) => ({ id: `d${i}`, name }));
+}
+
+// L'élément du relevé d'un id : a<i> (fichier) ou d<i> (dossier) ; tout autre id, un chemin compris : null.
+export function artifactItem(view: VibeView | null, id: unknown): { name: string; folder: boolean } | null {
+  if (typeof id !== 'string') return null;
+  const file = view?.artifacts?.find((a) => a.id === id);
+  if (file) return { name: file.name, folder: false };
+  const dir = view?.artifactDirs?.find((d) => d.id === id);
+  return dir ? { name: dir.name, folder: true } : null;
+}
+
+// Le dossier visé : '' si l'id est absent (la racine), le nom du d<i> du relevé, null si l'id est inconnu.
+export function folderOf(view: VibeView | null, id: unknown): string | null {
+  if (id === undefined) return '';
+  const item = artifactItem(view, id);
+  return item?.folder ? item.name : null;
+}
+
+// Le nom est le dossier ou dessous ; '' (la racine) contient tout.
+export function within(name: string, folder: string): boolean {
+  return folder === '' || name === folder || name.startsWith(`${folder}/`);
 }
 
 // Les chemins reçus du pont : absolus, sans NUL ni segment `..`, ni racine ; le reste compté dans noPath.

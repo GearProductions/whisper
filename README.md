@@ -504,7 +504,7 @@ dépôt, ses worktrees et leurs robots partagent le même, et chaque robot du pr
 y lit et y écrit (deux robots qui écrivent le même nom écrivent le même fichier) ;
 un dossier hors git est son propre projet. Le
 bouton *Artefacts* de l'en-tête ouvre leur panneau à la place du fil d'Ariane
-et de l'étape : la liste à gauche, au centre celui que vous choisissez. Image,
+et de l'étape : l'arborescence à gauche, au centre le fichier que vous choisissez. Image,
 PDF, son, vidéo, page HTML ou SVG s'affichent tels quels (une page sans
 script ni réseau) ; le reste en texte, un binaire compris, coupé au-delà de
 10 Mo (`artifactTextMax`) — *Ouvrir dans l'éditeur* montre la suite. *Copier
@@ -512,11 +512,28 @@ dans le projet* le copie dans le dossier que vous choisissez (un fichier du
 même nom n'est remplacé que si vous l'acceptez). La conversation reste à
 droite : demandez-y une retouche, l'artefact se met à jour.
 
-Vous pouvez aussi **ajouter les vôtres** : déposez des fichiers ou un dossier
-sur la zone sous la liste, ou *Ajouter* pour choisir des fichiers. Ils sont
-copiés (l'original ne bouge pas), sans limite de taille ; un nom déjà pris
-reçoit un numéro (`rapport-2.md`), rien n'est jamais écrasé. Un lien, un
-dossier caché (`.git`…) ne sont pas copiés, et la ligne sous le bouton le dit.
+**Ranger les artefacts.** La liste est une **arborescence**, comme l'explorateur
+de VS Code : les dossiers se plient et se déplient (*Tout replier* les referme),
+et vous rangez les artefacts du projet à votre façon. Un **clic droit** sur un
+élément ouvre un menu : *Renommer*, *Supprimer*, *Copier*, *Couper*, *Coller*,
+*Dupliquer* ; sur un dossier ou sur le vide, *Nouveau fichier* et *Nouveau
+dossier*. Au clavier, F2 renomme, Suppr supprime, les flèches parcourent
+l'arborescence, Échap annule un renommage ; Ctrl et Maj choisissent plusieurs
+éléments à la fois (le centre reste alors vide). Le nom se tape sur place : un
+nom impossible (déjà pris, vide, avec un séparateur…) met l'encart en rouge et dit
+pourquoi. *Supprimer* demande confirmation, puis envoie à la **corbeille du
+système** : rien n'est effacé pour de bon. Glissez un élément sur un dossier pour
+le déplacer ; un dossier se déplace, se renomme et se supprime avec tout son
+contenu. Là où un nom est déjà pris, le nouveau reçoit un numéro (`rapport-2.md`),
+rien n'est jamais écrasé. Tout reste dans le dossier d'artefacts du projet.
+
+Vous pouvez aussi **ajouter les vôtres** : déposez des fichiers ou un dossier du
+gestionnaire de fichiers sur l'arborescence, dans le dossier où vous les lâchez
+(à la racine, hors de tout dossier). Ils sont copiés (l'original ne bouge pas),
+sans limite de taille ; un nom déjà pris reçoit un numéro (`rapport-2.md`),
+rien n'est jamais écrasé. Un lien, un dossier caché (`.git`…) ne sont pas copiés,
+et le résultat le dit. Ce qu'on lâche sur l'arborescence n'est pas joint
+à la conversation.
 Retirer un agent, un robot ou un worktree ne touche pas à ce dossier. Au premier
 démarrage, les artefacts d'avant (`vibecoder-out/<agent>/artifacts/`) rejoignent le
 dossier de leur projet, sans rien écraser (un nom pris reçoit un numéro).

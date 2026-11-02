@@ -107,8 +107,10 @@ Vers le principal :
   ou le fichier du projet dans l'éditeur, F-111),
   `conv:vibeRun` (une action par son id et ses arguments — `direct` : par
   l'appli elle-même, F-114 —, avec réponse `{ ok, error }`),
-  `conv:vibeDrop` (des fichiers déposés sur la zone du panneau des artefacts, F-95 :
-  leurs chemins, lus des `File` par le pont ; réponse `{ ok, error }`, I-37),
+  `conv:vibeDrop` (des fichiers déposés sur l'arborescence du panneau des artefacts,
+  F-95 : leurs chemins, lus des `File` par le pont, et le dossier où ils tombent —
+  l'id `d<i>` d'un dossier du dernier relevé, une chaîne ou rien : la racine, jamais
+  un chemin ; réponse `{ ok, error }`, I-37),
   `conv:vibeRunOp` (une course par l'id de son action dans le dernier
   relevé : l'arrêter, la garder ou l'annuler, répondre à sa demande
   d'autorisation ; F-115), `conv:vibeFollow` (le fichier suivi — d'un module, par
@@ -130,8 +132,11 @@ autre fenêtre est ignoré (`technicals/ipc`, cf. I-20). Aucun canal de
 VibeCoder ne transporte un chemin ni un message tout fait : une action, un
 fichier se désignent par leur id dans le dernier relevé (I-37, I-38), sauf
 `conv:vibeDrop`, dont le pont lit les chemins du `File` déposé, que la page
-ne choisit pas (I-37) ; le seul texte de la page qui touche au disque est
-celui de `conv:vibeSave`, écrit tel quel dans le fichier suivi (I-39).
+ne choisit pas (I-37) ; les seuls textes de la page qui touchent au disque
+sont celui de `conv:vibeSave`, écrit tel quel dans le fichier suivi (I-39), et
+le nom tapé d'un artefact (renommer, nouveau fichier ou dossier), un nom seul
+que `conv:vibeRun` porte en argument d'une action directe (F-95, I-37) : aucun
+canal de plus.
 
 ### Fichiers de données (`userData`)
 
@@ -851,16 +856,17 @@ dossier git commun du dépôt, résolu ; un dossier hors git est son propre
 projet). Le dépôt, ses worktrees et leurs robots partagent le même dossier et
 y ont tous accès : tout robot du projet voit, lit et écrit les mêmes artefacts,
 les mêmes pour toutes les branches (jamais mis de côté avec *Créer*). Claude
-Code le reçoit en dossier de travail en plus (F-58). Le panneau *Artefacts*,
-*Ajouter*, *Copier dans le projet* et le skill `artefact` travaillent dans ce
-dossier. Deux robots qui écrivent le même nom écrivent le même fichier : risque
+Code le reçoit en dossier de travail en plus (F-58). Le panneau *Artefacts*
+(son arborescence, son menu, le dépôt), *Copier dans le projet* et le skill
+`artefact` travaillent dans ce dossier. Deux robots qui écrivent le même nom écrivent le même fichier : risque
 accepté, c'est le prix d'un dossier commun (le skill dit de relire le fichier
 avant de l'écrire). Retirer un agent, un robot ou un worktree ne touche pas à ce
 dossier (F-110) ; un dossier caché écrit là y reste, et le panneau ne le liste
 toujours pas. Le **panneau des artefacts** (bouton *Artefacts*,
-F-92) : à gauche la liste (nom, taille ; vide → ce que fait le skill, en
-une ligne) ; au centre celui qu'on choisit (le premier par défaut ; disparu
-→ le premier) :
+F-92) : à gauche l'arborescence des artefacts (voir plus bas ; vide → ce que
+fait le skill, en une ligne) ; au centre le fichier qu'on y choisit (le
+premier par défaut ; disparu → le premier ; plusieurs éléments choisis, ou un
+dossier : le centre reste vide) :
 - ce que Chromium rend — `page` (HTML, SVG) et `media` (image, PDF, son,
   vidéo) — dans un cadre, servi en flux par le principal sous
   `vibe-artifact://<agent>/a<i>`, jamais coupé, rechargé quand il change ;
@@ -881,19 +887,89 @@ En tête de l'artefact : *Ouvrir dans l'éditeur* et *Copier dans le projet*
 (`copy-artifact`, F-114). La conversation reste à droite : on demande à
 l'agent de retoucher l'artefact affiché.
 
-**Ajouter des artefacts** : sous la liste, à gauche, une zone de dépôt et un
-bouton *Ajouter* (`add-artifact`, F-114), puis la dernière ligne du résultat
-(« … » tant que ça tourne). Ce qu'on dépose ou choisit est **copié** dans
-le dossier d'artefacts du projet de l'agent affiché, l'original intact, et paraît dans la liste :
+**Gérer les artefacts** : l'utilisateur range lui-même les artefacts du projet,
+comme dans l'explorateur de VS Code. La liste à gauche est une **arborescence**
+de fichiers et de dossiers (les dossiers d'abord, puis les fichiers, par nom ;
+un dossier vide s'y voit ; un dossier caché, un lien non) : les dossiers se
+plient et se déplient (pliés au départ), *Tout replier* les referme tous. Le
+choix, le pliage et le presse-papiers tiennent par le nom de l'élément (son
+chemin sous le dossier d'artefacts) : ils survivent à un nouveau relevé.
+- **Menu contextuel** (clic droit) : sur un élément (fichier ou dossier),
+  *Renommer* (un seul), *Supprimer*, *Copier*, *Couper*, *Coller* (s'il y a
+  quelque chose à coller), *Dupliquer* (un seul) ; sur un dossier ou sur le
+  vide de la liste, en plus *Nouveau fichier* et *Nouveau dossier* (dans un
+  dossier, un sous-dossier). Clic droit sur un élément hors de la sélection : il
+  devient la sélection.
+- **Clavier** : ↑ ↓ Début Fin parcourent l'arborescence (Maj étend la
+  sélection) ; ← plie le dossier ou remonte au parent, → le déplie ou descend au
+  premier enfant ; F2 renomme ; Suppr supprime ; Échap annule un renommage.
+  Ctrl et Maj au clic choisissent plusieurs éléments (une plage, ou un à un) ; une
+  sélection se supprime, se déplace, se copie, se coupe, se duplique et se copie
+  dans le projet (*Copier dans le projet*, sous la liste).
+- **Nom tapé** : *Renommer*, *Nouveau fichier* et *Nouveau dossier* ouvrent un
+  petit champ de texte à la place du nom (ou sous le dossier), où le nom sans son
+  extension est sélectionné ; Entrée valide, Échap ou la perte du focus annulent.
+  Un nom refusé (vide, `.` ou `..`, avec `/` ou `\`, de plus de 255 octets, déjà pris
+  parmi ses voisins, ou un dossier qui commence par un point : il serait caché)
+  met l'encart en rouge, avec un court message qui dit pourquoi, et Entrée ne
+  valide pas. Le principal revérifie le nom (`plainName`) et décide ; la page ne
+  fait que prévenir. Renommer ne numérote jamais : un nom pris est refusé.
+- **Supprimer** demande toujours confirmation, dans une petite boîte dessinée
+  dans le panneau (une pour toute la sélection, le focus sur *Annuler*, Échap
+  annule) ; confirmé, l'élément part dans la **corbeille du système**
+  (`shell.trashItem`, aucun programme lancé), récupérable : jamais effacé
+  définitivement. La page envoie, avec les ids, les noms confirmés ; le principal
+  compare chacun au nom de son id dans son dernier relevé et, au premier écart (un
+  robot a écrit entre le relevé et le clic, les ids ont glissé), refuse tout : rien
+  ne part à la corbeille.
+- **Déplacer, copier, dupliquer** : un élément se déplace dans un dossier par
+  glisser-déposer (ou *Couper* puis *Coller*) ; *Copier* puis *Coller* et
+  *Dupliquer* le copient, le second dans son propre dossier. Lâcher sur un dossier
+  : ce dossier ; sur un fichier : son dossier ; sur le vide : la racine. Un dossier
+  se renomme, se déplace, se copie et se supprime avec tout son contenu, comme un
+  fichier ; il ne se déplace jamais dans lui-même ni dans un de ses sous-dossiers
+  (refusé). Là où le nom est déjà pris, le nouveau prend le premier numéro libre
+  avant son extension (`rapport-2.md`), comme au dépôt, sans rien écraser ; un
+  dossier n'est jamais mêlé à un dossier du même nom. Déplacer ou renommer :
+  copie exclusive (`COPYFILE_EXCL`) puis effacement de la source une fois
+  arrivée, jamais `rename` (qui écrase un fichier sur Linux) ; un dossier qui garde
+  un lien ou un fichier caché reste en place, et le résultat le dit (en échec, même
+  si le reste est arrivé). Déplacer vers le dossier où l'élément est déjà : rien.
+  La sélection, et donc le fichier du centre, suit le nom attendu après
+  *Renommer*, *Déplacer* ou *Nouveau* ; refusé ou en échec, elle ne l'attend plus.
+- **Le résultat** : sous l'arborescence, la dernière ligne des actions du panneau,
+  dépôt compris (« … » en cours, ✓ ou ✗ et sa ligne, le détail au survol) : ce que
+  le principal a refusé (un nom pris entre le relevé et Entrée…) ou fait à moitié.
+- Chaque élément désigné passe par un chemin **sous le dossier d'artefacts, sans
+  lien** (la racine, chaque segment, le dernier : fichier ou dossier ; un lien
+  n'est jamais suivi). La page n'envoie que des ids `a<i>` (fichier) ou `d<i>`
+  (dossier, dans l'ordre des noms) du dernier relevé, jamais un chemin, que le
+  principal relit dans le relevé de l'agent affiché ; un id inconnu ou en forme de
+  chemin ne désigne rien (I-37). Ces actions (`rename-artifact`,
+  `new-artifact-file`, `new-artifact-folder`, `trash-artifacts`, `move-artifacts`,
+  `copy-artifacts`, `duplicate-artifacts`) sont directes et ne se lancent que par
+  l'appli ; elles ne touchent pas au dépôt (I-39).
+- Glisser une ligne dans l'arborescence ne porte que notre type de glisser, jamais
+  un `File` : rien n'est joint à la conversation, rien n'est copié par
+  `conv:vibeDrop`.
+
+**Ajouter des artefacts** : l'arborescence est elle-même la zone de dépôt, comme
+dans VS Code (il n'y a ni zone séparée ni bouton *Ajouter* : le dépôt et *Nouveau
+fichier* suffisent ; `add-artifact`, F-114). Un fichier ou un dossier glissé depuis le gestionnaire
+de fichiers est **copié** dans le dossier où on le lâche (un dossier : celui
+visé ; un fichier : son dossier ; hors de toute ligne : la racine), l'original
+intact, et paraît dans l'arborescence. Ce dossier d'arrivée passe par
+`conv:vibeDrop` comme l'id `d<i>` du dernier relevé, jamais comme un chemin ; un id
+absent, inconnu ou en forme de chemin : la racine ; le chemin du dossier, sans lien
+(sinon refusé) :
 - un fichier, sans limite de taille (copié sans être chargé en mémoire ; son
   affichage en texte reste coupé à `artifactTextMax`) ;
-- un dossier, avec ses sous-dossiers, par la zone seulement (le bouton choisit
-  des fichiers) ; un dossier du même nom se mêle, fichier par fichier ; un
-  dossier qui contient le dossier d'artefacts du projet, ou l'est, est refusé ;
+- un dossier, avec ses sous-dossiers ; un dossier du même nom ne se mêle pas : le
+  nouveau prend le premier numéro libre (`a-2/`), comme un fichier ; un dossier qui
+  contient le dossier d'artefacts du projet, ou l'est, est refusé ;
 - un nom déjà pris : le nouveau prend le premier numéro libre avant son
   extension, à partir de 2 (`rapport-2.md`), sans rien demander, sans jamais
-  écraser ; un fichier ou un lien du nom d'un dossier à mêler ne s'y mêle pas
-  (le dossier devient `a-2/`) ;
+  écraser ;
 - un lien est refusé, avec un message (l'accepter serait copier sa cible) ; un
   lien dans un dossier déposé est passé, et le message le dit ; un dossier
   caché (`.git`, `.cache`…), seul ou dans un dossier, n'est pas copié, et un
@@ -901,7 +977,9 @@ le dossier d'artefacts du projet de l'agent affiché, l'original intact, et para
 - un fichier sans chemin sur le disque (collé, ou tiré d'une autre appli) ne
   s'ajoute pas : un message le dit (*Déposez-le depuis le gestionnaire de
   fichiers*).
-La zone garde son dépôt : rien n'est joint à la conversation. La copie ne
+L'arborescence garde son dépôt : rien de ce qu'on y lâche (un fichier venu du
+gestionnaire de fichiers, ou un élément glissé dans l'arborescence) n'est joint à
+la conversation. La copie ne
 bloque pas le principal (un fichier à la fois, hors du fil principal) ; le
 disque plein est un échec, dit par le message. La liste, elle, s'arrête à
 1 000 fichiers : un dossier plus gros est copié en entier, la liste ne montre
@@ -1885,11 +1963,14 @@ sauf celles que l'appli fait seule : *Retirer le worktree* (l'agent
 n'emporterait pas le robot), *Mettre de côté*, *Revenir sur la branche
 principale*, les choix d'une nouvelle demande (et *Créer une branche*),
 *Aller sur la branche*, *Pull*, *Rebase*, *Pousser*, *Actualiser*, *Me
-demander en relecture*, *Copier dans le projet* et *Ajouter*. Les
+demander en relecture*, *Copier dans le projet* et la gestion des artefacts (le
+dépôt, le menu). Les
 `id` (`commit`, `publish`, `load-pr`, `base`, `pr-here`, `pr-worktree`,
 `remove-worktree`, `stash`, `unload-pr`, `new-here`, `new-worktree`,
 `switch-branch`, `pull`, `rebase`, `push`, `fetch`, `request-review`,
-`copy-artifact`, `add-artifact`) restent ceux d'`actions.<langue>.json` : leur gabarit est
+`copy-artifact`, `add-artifact`, `rename-artifact`, `new-artifact-file`,
+`new-artifact-folder`, `trash-artifacts`, `move-artifacts`, `copy-artifacts`,
+`duplicate-artifacts`) restent ceux d'`actions.<langue>.json` : leur gabarit est
 le *via* ; une entrée retirée retire les deux boutons.
 - *✓ Commiter* : `git commit -F <sorties>/commit.md` (rien d'ajouté à
   l'index : ce que *Préparer le commit* y a mis), puis `commit.md`
@@ -1952,20 +2033,38 @@ le *via* ; une entrée retirée retire les deux boutons.
   refusé ; l'identifiant lu (`gh api user --jq .login`, en échec : rien de
   lancé), puis `gh pr edit <n> --add-reviewer <identifiant>`, et les trois
   listes relues.
-- *Copier dans le projet* (`copy-artifact`, `{ artifact }`, F-95) :
-  l'artefact affiché, un id du dernier relevé (sinon refusé) ; sans git ni
-  gh : une boîte de dialogue choisit le dossier (ouverte sur celui de
-  l'agent ; ailleurs permis) ; annulée → rien ; un fichier du même nom →
-  *Remplacer* / *Annuler* (*Annuler* par défaut) ; copié sous son nom de
-  base, dans ce dossier seulement, puis un relevé.
-- *Ajouter* (`add-artifact`, F-95), sans argument : une boîte de dialogue du
-  principal choisit des fichiers (ouverte sur le dossier de l'agent ; annulée
-  → rien) ; ou le dépôt sur la zone du panneau (`conv:vibeDrop`), mêmes
-  vérifications que le clic (l'agent affiché, son relevé, l'action proposée,
-  aucune autre action directe en cours) : mêmes « … » en cours et même dernière
-  ligne, au relevé. Copiés dans le dossier d'artefacts du projet de l'agent affiché, sans git ni gh
-  (I-39) ; la ligne dit combien sont ajoutés, les liens, dossiers cachés et
-  fichiers sans chemin passés, les échecs.
+- *Copier dans le projet* (`copy-artifact`, `{ artifacts }`, F-95) :
+  les éléments choisis, des ids (`a<i>` ou `d<i>`) du dernier relevé (sinon
+  refusé) ; sans git ni gh : une boîte de dialogue choisit le dossier (ouverte
+  sur celui de l'agent ; ailleurs permis) ; annulée → rien ; un fichier du
+  même nom → *Remplacer* / *Annuler* (*Annuler* par défaut), fichier par
+  fichier ; copié sous son nom de base, dans ce dossier seulement, puis un
+  relevé. Un dossier est copié avec son contenu, sous le premier numéro libre
+  s'il existe déjà : jamais mêlé ni remplacé.
+- Gérer les artefacts (F-95), seulement par l'appli, au geste de l'utilisateur,
+  sans git ni gh (I-39) : *Renommer* (`rename-artifact`, `{ artifacts: [id],
+  name }`), *Nouveau fichier* et *Nouveau dossier* (`new-artifact-file`,
+  `new-artifact-folder`, `{ folder, name }` : `folder` un id `d<i>`, absent : la
+  racine), *Supprimer* (`trash-artifacts`, `{ artifacts, names }`), *Couper* /
+  *Coller* ou glisser (`move-artifacts`, `{ artifacts, folder }`), *Copier* /
+  *Coller* (`copy-artifacts`, `{ artifacts, folder }`), *Dupliquer*
+  (`duplicate-artifacts`, `{ artifacts }`). Tout vient de l'agent affiché, de
+  son dernier relevé et de son dossier d'artefacts ; `names`, `name` et `folder`
+  sont les seules valeurs lues en plus, `name` un nom seul (jamais un chemin) que
+  le principal revérifie (`plainName`). *Renommer* : le nom pris est refusé (pas
+  de numéro) ; *Nouveau* : un fichier vide ou un dossier, créé au besoin à la
+  racine, le nom pris refusé ; *Supprimer* : tout part à la corbeille ou rien
+  (voir *Gérer les artefacts*) ; *Déplacer*, *Copier*, *Dupliquer* : numérotés.
+  Chaque élément est traité à son tour ; un échec n'arrête pas les suivants, la
+  ligne dit combien sont faits, refusés ou en échec.
+- *Ajouter* (`add-artifact`, F-95) n'est plus un bouton : seul le dépôt sur
+  l'arborescence du panneau le lance (`conv:vibeDrop`, avec le dossier d'arrivée), et
+  `conv:vibeRun` le refuse (il ne porte jamais de chemin, I-37). Mêmes
+  vérifications que le clic d'une action (l'agent affiché, son relevé, l'action
+  proposée, aucune autre action directe en cours) : même « en cours » et même
+  dernier résultat, au relevé. Copiés dans le dossier d'artefacts du projet de
+  l'agent affiché, sans git ni gh (I-39) ; la ligne dit combien sont ajoutés, les
+  liens, dossiers cachés et fichiers sans chemin passés, les échecs.
 
 *Pull* et *Rebase* sont permis avec des modifications en cours :
 `--autostash` les met de côté le temps de la commande et les reprend après,
@@ -2206,7 +2305,7 @@ I-13 à I-17, I-19, I-20, I-21, I-23, I-24, I-27 (et le terminal :
 VibeCoder, I-35 à I-40 : `src/main/core/vibecoder/tests/invariants/`
 (`defaults.test.ts` I-35, `fable.test.ts` I-36, `files.test.ts` I-37,
 `actions.test.ts` I-38), `src/main/technicals/git/tests/invariants/read-only.test.ts`,
-`src/main/technicals/github/tests/invariants/read-only.test.ts`, `src/main/technicals/direct/tests/invariants/direct.test.ts` et `rebase.test.ts` (I-39 ; *Rebase* sur du vrai git), `src/main/app/controllers/tests/invariants/module-code.test.ts` et `note-and-tests-save.test.ts` (I-37, I-39 : *Voir le code*, la note, les tests, sur le vrai principal), `src/main/core/vibecoder/tests/invariants/note-and-tests-files.test.ts` (I-37), `src/renderer/core/vibecoder/tests/invariants/markdown.test.ts`, `src/renderer/app/panel/vibecoder/tests/invariants/code-view.test.ts` et `note-editor.test.ts` (I-40) ; `src/main/app/controllers/tests/invariants/artifacts.test.ts`, `artifact-moves.test.ts`, `artifact-migration.test.ts`, `project-artifacts.test.ts` et `src/renderer/app/panel/vibecoder/tests/invariants/artifacts-view.test.ts` (I-37, I-39 : les artefacts, F-95, F-110) ;
+`src/main/technicals/github/tests/invariants/read-only.test.ts`, `src/main/technicals/direct/tests/invariants/direct.test.ts` et `rebase.test.ts` (I-39 ; *Rebase* sur du vrai git), `src/main/app/controllers/tests/invariants/module-code.test.ts` et `note-and-tests-save.test.ts` (I-37, I-39 : *Voir le code*, la note, les tests, sur le vrai principal), `src/main/core/vibecoder/tests/invariants/note-and-tests-files.test.ts` (I-37), `src/renderer/core/vibecoder/tests/invariants/markdown.test.ts`, `src/renderer/app/panel/vibecoder/tests/invariants/code-view.test.ts` et `note-editor.test.ts` (I-40) ; `src/main/app/controllers/tests/invariants/artifacts.test.ts`, `artifact-moves.test.ts`, `artifact-ops.test.ts`, `artifact-migration.test.ts`, `project-artifacts.test.ts` et `src/renderer/app/panel/vibecoder/tests/invariants/artifacts-view.test.ts` (I-37, I-39 : les artefacts, F-95, F-110) ;
 I-42, I-43 : `src/main/core/runner/tests/invariants/runner.test.ts`,
 `src/main/technicals/process/tests/invariants/process.test.ts` ; I-42 (la
 recette), I-39 (retirer un worktree) : `src/main/core/runner/tests/invariants/recipe.test.ts`,
@@ -2368,14 +2467,26 @@ bancs de comparaison.
   un fichier hors de ce dossier, ni un lien), par son id `a<i>` du dernier
   relevé. Le `@` du champ (F-70) ne fait que mettre dans le texte le chemin
   d'un artefact du relevé (le dossier est dans `VibeView`) : aucun canal de
-  plus, aucun fichier lu d'après un chemin donné par la page. **Seule
-  exception, au geste de l'utilisateur** : `conv:vibeDrop`, le dépôt sur la zone
-  des artefacts, porte des chemins, que le pont lit du `File` déposé
-  (`webUtils.getPathForFile`), jamais donnés par la page (un `File` qu'elle
-  construit n'a pas de chemin) ; le principal les revérifie (absolus, sans NUL
+  plus, aucun fichier lu d'après un chemin donné par la page. Un dossier
+  d'artefacts se désigne comme un fichier, par son id `d<i>` du dernier relevé
+  (`VibeView.artifactDirs`, l'ordre des noms) : un id en forme de chemin, ou inconnu,
+  ne désigne rien ; chaque élément désigné est résolu sous le dossier d'artefacts, la
+  racine et chaque segment sans lien (le dernier : un fichier ordinaire ou un dossier),
+  jamais suivi. **Première exception, au geste de l'utilisateur** : `conv:vibeDrop`,
+  le dépôt sur l'arborescence des artefacts, porte des chemins, que le pont lit du
+  `File` déposé (`webUtils.getPathForFile`), jamais donnés par la page (un `File` qu'elle
+  construit n'a pas de chemin), et le dossier d'arrivée, un id `d<i>` (jamais un
+  chemin ; absent ou inconnu : la racine) ; le principal les revérifie (absolus, sans NUL
   ni segment `..`, `lstat` : un fichier ordinaire ou un dossier, un lien jamais
-  suivi) et ne fait que les **copier** dans le dossier d'artefacts du projet (I-39). `conv:vibeRun`
-  ne prend jamais de chemin. Une
+  suivi) et ne fait que les **copier** dans le dossier d'artefacts du projet (I-39).
+  **Seconde exception, au geste de l'utilisateur** : le nom tapé (*Renommer*,
+  *Nouveau fichier*, *Nouveau dossier*, F-95) passe par `conv:vibeRun`, en argument
+  d'une action directe, avec les noms confirmés d'une suppression, qui ne sont que
+  comparés à ceux du relevé : un nom seul — une chaîne de 1 à 255 octets, ni `.` ni
+  `..`, sans `/`, `\` ni NUL, un dossier sans point en tête, et portable (un artefact peut être copié dans le dépôt) : ni `: * ? " < > |` ni caractère de contrôle, ni espace ou point final, ni nom réservé de Windows (`CON`, `PRN`, `AUX`, `NUL`, `COM1`-`9`, `LPT1`-`9`, avec ou sans extension) —, jamais un chemin,
+  que le principal revérifie (`plainName`) avant d'écrire, sous le dossier
+  d'artefacts du projet de l'agent affiché seulement. `conv:vibeRun` ne prend jamais de chemin, et n'a pas de canal
+  de plus pour ce nom. Une
   page désigne un fichier par son **id dans le dernier relevé**, jamais par un
   chemin : un id en forme de chemin, ou égal au chemin d'un fichier du relevé,
   ne désigne rien (I-34), ni un commit ou un module pas touché pour le
@@ -2462,12 +2573,23 @@ bancs de comparaison.
   n'écrit qu'**au clic** de son bouton, un artefact désigné par son id
   (I-37), sous son nom de base, **dans le seul dossier choisi** dans la
   boîte de dialogue ; un fichier existant n'est **jamais remplacé** sans
-  *Remplacer* (annulé, ou la boîte fermée : rien n'est écrit). *Ajouter* (`add-artifact`, F-114), à côté de lui, n'écrit qu'**au clic** de son
-  bouton ou au dépôt de l'utilisateur sur la zone (I-37), **dans le dossier
-  d'artefacts du projet de l'agent affiché seulement** (un nom en `..` compris) : ce qui est choisi
-  ou déposé est **copié**, l'original intact, **jamais écrasé** (un nom pris
+  *Remplacer* (annulé, ou la boîte fermée : rien n'est écrit). *Ajouter* (`add-artifact`, F-114), à côté de lui, n'écrit qu'**au dépôt** de l'utilisateur sur
+  l'arborescence (I-37), **dans le dossier
+  d'artefacts du projet de l'agent affiché seulement** (un nom en `..` compris), à la racine ou
+  dans un dossier désigné par son id `d<i>` : ce qui est déposé
+  est **copié**, l'original intact, **jamais écrasé** (un nom pris
   reçoit le premier numéro libre, sans demander) ; un lien n'est jamais suivi.
-  Le retrait d'un agent, d'un robot ou d'un worktree (F-110) ne touche pas à ce
+  La gestion des artefacts (F-95 : *Renommer*, *Nouveau fichier* ou *dossier*,
+  *Supprimer*, *Déplacer*, *Copier*, *Dupliquer*) n'écrit qu'**au geste** de
+  l'utilisateur, **dans ce seul dossier** et sur des éléments qu'il désigne par leur
+  id du dernier relevé (I-37), sans lien sur le chemin : **jamais écrasé** (renommer,
+  déplacer, copier, dupliquer : copie exclusive, `COPYFILE_EXCL`, puis effacement de la
+  source une fois arrivée, jamais `rename` ; un nom pris est refusé en renommant, numéroté
+  sinon), un dossier jamais déplacé dans lui-même ni dans un de ses sous-dossiers ;
+  **jamais effacé définitivement** : supprimer passe toujours par la corbeille du
+  système (`shell.trashItem`), après confirmation, et rien ne part si un nom
+  confirmé diffère de celui de son id dans le dernier relevé (les ids glissent quand la
+  liste change). Le retrait d'un agent, d'un robot ou d'un worktree (F-110) ne touche pas à ce
   dossier ; le déplacement des anciens artefacts (F-95) ne fait que les
   **déplacer** vers lui, de même sans rien écraser. Un artefact
   n'exécute aucun script et ne joint pas le réseau (F-95). Un push autre que *Pousser*, un rebase autre que *Rebase*, checkout, ouvrir une PR, et le *via* des actions

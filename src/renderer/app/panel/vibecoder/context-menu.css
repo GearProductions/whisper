@@ -1,0 +1,18 @@
+/* Le menu contextuel (context-menu.tsx) : posé en fixe au point du clic, au-dessus du reste. */
+.vc-ctxmenu {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  padding: 4px;
+  box-sizing: border-box;
+  border: 1px solid var(--vc-line);
+  border-radius: 8px;
+  background: var(--vc-side);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
+  font: 12.5px/1.4 system-ui, sans-serif;
+}
+.vc-ctxmenu button { padding: 5px 10px; border: 0; border-radius: 4px; background: none; color: var(--vc-text); font: inherit; text-align: left; cursor: pointer; }
+.vc-ctxmenu button:hover:not(:disabled), .vc-ctxmenu button:focus-visible { background: var(--vc-control); outline: none; }
+.vc-ctxmenu button:disabled { color: var(--vc-faint); cursor: default; }
