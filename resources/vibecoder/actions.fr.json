@@ -373,9 +373,79 @@
     "step": null,
     "kind": "send",
     "needs": "none",
-    "label": "Ajouter",
-    "hint": "Choisit des fichiers par la fenêtre de l'appli et les copie dans les artefacts du projet ; un fichier du même nom est conservé, le nouveau est numéroté.",
-    "text": "Ajouter : seulement par l'appli (direct), jamais par l'agent."
+    "label": "Déposer",
+    "hint": "Le dépôt de fichiers sur les artefacts (glisser-déposer) ; un fichier du même nom est conservé, le nouveau est numéroté.",
+    "text": "Déposer : seulement par l'appli (direct), jamais par l'agent."
+  },
+  {
+    "id": "rename-artifact",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Renommer",
+    "hint": "Renomme l'élément choisi ; le nom tapé est un nom seul, jamais un chemin.",
+    "text": "Renommer : seulement par l'appli (direct), jamais par l'agent."
+  },
+  {
+    "id": "new-artifact-file",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Nouveau fichier",
+    "hint": "Crée un fichier vide dans le dossier choisi (la racine par défaut) ; un nom déjà pris est refusé.",
+    "text": "Nouveau fichier : seulement par l'appli (direct), jamais par l'agent."
+  },
+  {
+    "id": "new-artifact-folder",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Nouveau dossier",
+    "hint": "Crée un dossier dans le dossier choisi (la racine par défaut) ; un nom déjà pris est refusé.",
+    "text": "Nouveau dossier : seulement par l'appli (direct), jamais par l'agent."
+  },
+  {
+    "id": "trash-artifacts",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Corbeille",
+    "hint": "Met les éléments choisis à la corbeille, après confirmation de leurs noms.",
+    "text": "Corbeille : seulement par l'appli (direct), jamais par l'agent."
+  },
+  {
+    "id": "move-artifacts",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Déplacer",
+    "hint": "Déplace les éléments choisis dans le dossier visé ; rien n'est écrasé.",
+    "text": "Déplacer : seulement par l'appli (direct), jamais par l'agent."
+  },
+  {
+    "id": "copy-artifacts",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Coller",
+    "hint": "Copie les éléments choisis dans le dossier visé ; rien n'est écrasé.",
+    "text": "Coller : seulement par l'appli (direct), jamais par l'agent."
+  },
+  {
+    "id": "duplicate-artifacts",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Dupliquer",
+    "hint": "Duplique les éléments choisis à côté de l'original, sous un nom numéroté.",
+    "text": "Dupliquer : seulement par l'appli (direct), jamais par l'agent."
   },
   {
     "id": "review-note",
