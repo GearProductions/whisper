@@ -1,17 +1,19 @@
-/** draft-view — l'étape Revue (Relire) : le brouillon de revue de la PR (une
+/** draft-view — la suite de l'étape PR pour le relecteur (le corps, sous l'en-tête
+ *  et la PR que rend pr-view) : le brouillon de revue de la PR (une
  *  ligne par remarque : sa cible, son texte ; l'icône edit la modifie sur
  *  place, close la retire), le verdict (Approuver / Commenter / Demander des
  *  changements, Commenter d'abord comme sur GitHub) et Publier la revue
  *  (direct ou via l'agent, F-114) ; publiée (pr-<n>-review.json) : son état
  *  et son lien (icône external). Boutons-icônes : IconButton (icons).
- *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views (vibe-coder). */
+ *  Pas d'en-tête d'étape : pr-view le rend et lui laisse l'action publish
+ *  (own). Ne connaît pas : le pont (rappels passés). Utilisé par : pr-view. */
 import { useState } from 'react';
 import { parseReview } from 'core/vibecoder';
 import type { VibeArgs, VibeLang } from 'technicals/bridge';
 import { CommentBox } from './comment-box';
 import { IconButton } from './icons';
 import { MarkdownView } from './markdown-view';
-import { OutputCard, Run, StepHead } from './step-parts';
+import { OutputCard, Run } from './step-parts';
 import type { StepProps } from './step-views';
 import './draft-view.css';
 
@@ -59,7 +61,6 @@ export function DraftView(p: StepProps) {
   const review = out ? parseReview(out.text) : null;
   return (
     <>
-      <StepHead p={p} own={['publish']} />
       {out ? (
         <OutputCard className="vc-published" title={s.published} file={file} time={out.time} t={t}
           tools={review?.url ? <IconButton icon="external" label={`${s.open}\n${review.url}`} onClick={() => act.openLink(review.url!)} /> : null}>
