@@ -12,9 +12,16 @@ import { which } from 'technicals/paths';
 export type SpawnOptions = { args: string[]; cwd?: string; env: Record<string, string | undefined>; signal: AbortSignal };
 export type Launch = { executable: string; spawn?: (o: SpawnOptions) => ReturnType<typeof spawn> };
 
+// Le chemin réel d'un dossier (liens résolus) ; tel quel s'il n'existe pas.
+const realDir = (dir: string) => { try { return fs.realpathSync.native(dir); } catch { return dir; } };
+
 // { executable, spawn } pour le SDK, ou null si Claude Code est introuvable.
 // Commande personnalisée : le SDK prépare ses arguments, on les passe derrière
-// la commande de l'utilisateur ; stdin et stdout tels quels.
+// la commande de l'utilisateur ; stdin et stdout tels quels. Lancée dans le
+// chemin réel du dossier, PWD compris : un conteneur (distrobox) prend son
+// dossier de travail dans PWD, et Claude Code y range ses transcriptions ; le
+// SDK, lui, les cherche sous le chemin réel (/home → /var/home sous Fedora
+// Atomic). Avec un PWD hérité en /home/…, le fil restait vide.
 export function launcher(command: unknown): Launch | null {
   const argv = splitCommand(command);
   if (!argv.length) {
@@ -25,8 +32,11 @@ export function launcher(command: unknown): Launch | null {
   if (!program) return null;
   return {
     executable: program,
-    spawn: ({ args, cwd, env, signal }) => spawn(program, [...argv.slice(1), ...args],
-      { cwd, env, signal, stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true }),
+    spawn: ({ args, cwd, env, signal }) => {
+      const dir = cwd && realDir(cwd);
+      return spawn(program, [...argv.slice(1), ...args],
+        { cwd: dir, env: dir ? { ...env, PWD: dir } : env, signal, stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true });
+    },
   };
 }
 
