@@ -37,6 +37,7 @@ const fake = vi.hoisted(() => {
     tabs: [] as (string | null)[], steps: [] as { id: string; status: string }[],
     git: (() => null) as (args: string[]) => string | null, calls: [] as unknown[][], noChild: false,
     branches: null as string[] | null, synced: [] as string[], prs: null as unknown, login: 'moi' as string | null,
+    found: null as unknown, people: null as unknown,
     dev: null as 'reload' | 'restart' | null, answer: 0, busy: false, release: (() => {}) as (v?: unknown) => void,
     fork: null as string | null, reads: [] as unknown[][],
   };
@@ -86,7 +87,10 @@ vi.mock('technicals/git', () => ({
 // gh : les PR ouvertes du dépôt, réglées par le cas ; le reste sans réponse.
 vi.mock('technicals/github', async (original) => ({
   ...await original<typeof import('technicals/github')>(),
-  githubReader: () => ({ prForBranch: async () => null, prState: async () => null, openPrs: async () => fake.prs, login: async () => fake.login }),
+  githubReader: () => ({
+    prForBranch: async () => fake.found, prState: async () => null, prPeople: async () => fake.people,
+    openPrs: async () => fake.prs, login: async () => fake.login,
+  }),
 }));
 
 // L'éditeur : relève ce qu'on lui fait ouvrir.
@@ -197,6 +201,8 @@ beforeEach(() => {
   fake.synced = [];
   fake.prs = null;
   fake.login = 'moi';
+  fake.found = null;
+  fake.people = null;
   fake.dev = null;
   fake.answer = 0;
   fake.busy = false;
@@ -418,7 +424,10 @@ describe('followBranch : les sorties de Créer suivent la branche', () => {
 });
 
 // L'agent en Relire, sur la PR 12.
+// Relecteur : la PR 12 de la branche est ouverte, de bob ; je suis moi (le rôle, décidé par l'appli : core/vibecoder role).
 function review() {
+  fake.found = { number: 12, title: '', url: '', state: 'OPEN', base: 'main', head: 'feat/0.8.0-essai' };
+  fake.people = { author: 'bob', assignees: [] };
   write(path.join(fake.userData, 'config.json'), JSON.stringify({
     agentsEnabled: true,
     agents: [{ id: 'a1', dir, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null, view: 'vibecoder',
@@ -786,7 +795,10 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     runVibeAction('new-here', { direct: true });
     await until(() => done('new-here'));
     expect(fake.calls).toEqual([['fetch', 'main'], ['switch', 'feat/0.13.0-bouton', 'origin/main']]);
-    expect(await vibeOf()).toMatchObject({ flow: 'create' });
+    // la nouvelle branche n'a pas de PR : gh relu, le rôle redevient créateur
+    fake.found = null;
+    await refreshVibe({ now: true, fresh: true });
+    await until(async () => (await vibeOf())?.flow === 'create');
     await refreshVibe({ now: true });
     await until(() => fake.messages.length > 1);
     expect(fake.messages[1]).toBe(`/vibecoder:note fr ${out} ajouter un bouton`);
@@ -841,35 +853,58 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     expect([fake.calls, fake.messages]).toEqual([[], []]);
   });
 
-  it('passer en Relire sans PR suivie : la PR ouverte du dernier relevé de Créer suivie, sa fiche écrite (rien de chargé)', async () => {
-    write(path.join(out, 'pr.json'), '{}');
+  // 0.13.0-fusionner-creer-relire : le rôle, décidé par l'appli
+  const PR34 = { number: 34, title: 'Essai', url: 'u', state: 'OPEN', base: 'main', head: 'feat/0.8.0-essai' };
+  const roleOf = async () => { await settle(); return vibeOf(); };
+
+  it('créateur rangé, la PR ouverte de la branche est à bob : relecteur, sa fiche écrite et suivie (rien de chargé)', async () => {
+    fake.found = PR34;
+    fake.people = { author: 'bob', assignees: [] };
     const { view } = await open();
-    const { setVibe } = await import('app/controllers');
-    const pr = { number: 34, title: 'Essai', url: 'u', author: 'moi', base: 'main', head: 'feat/0.8.0-essai', body: '', state: 'OPEN' };
-    const { lastView } = await import('app/controllers');
-    Object.assign(lastView('a1')!, { pr, reviewable: true });   // le relevé de Créer : la PR ouverte de la branche (gh)
-    expect(view()!.flow).toBe('create');
-    setVibe({ flow: 'review' });
-    expect(await vibeOf()).toMatchObject({ flow: 'review', pr: 34 });
-    expect(JSON.parse(fs.readFileSync(path.join(out, 'pr-34.json'), 'utf8'))).toEqual(pr);
     await settle();
+    expect(await vibeOf()).toMatchObject({ flow: 'review', pr: 34 });
+    expect(JSON.parse(fs.readFileSync(path.join(out, 'pr-34.json'), 'utf8'))).toMatchObject({ number: 34, head: 'feat/0.8.0-essai', base: 'main', state: 'OPEN' });
+    expect(view()!.flow).toBe('review');
     expect(fake.calls).toEqual([]);
   });
 
-  it('passer en Relire : refusé sans reviewable au dernier relevé ; sinon, depuis Créer, toujours la PR de la branche suivie', async () => {
+  it('relecteur rangé : assigné, ou auteur, la PR de la branche → créateur ; sans PR ouverte, créateur toujours', async () => {
+    review();
+    fake.people = { author: 'bob', assignees: ['Moi'] };   // les identifiants se comparent sans la casse
+    await open();
+    expect(await roleOf()).toMatchObject({ flow: 'create', pr: 12 });
+    review();
+    fake.found = { ...PR34, number: 12, state: 'MERGED' };
+    const { refreshVibe } = await import('app/controllers');
+    await refreshVibe({ now: true, fresh: true });
+    expect(await roleOf()).toMatchObject({ flow: 'create' });
+  });
+
+  it('les personnes ou mon identifiant inconnus : le rôle rangé reste', async () => {
+    review();
+    fake.people = null;
+    const { view } = await open();
+    expect(await roleOf()).toMatchObject({ flow: 'review', pr: 12 });
+    expect(view()!.flow).toBe('review');
+  });
+
+  it('setVibe({ flow }) : ignoré, le rôle ne se choisit pas', async () => {
     review();
     await open();
-    const { lastView, setVibe } = await import('app/controllers');
+    const { setVibe } = await import('app/controllers');
     setVibe({ flow: 'create' });
-    await settle();
-    Object.assign(lastView('a1')!, { flow: 'create', pr: { number: 34, state: 'MERGED', head: 'h', base: 'main' }, reviewable: false });
-    setVibe({ flow: 'review' });
-    expect(await vibeOf()).toMatchObject({ flow: 'create', pr: 12 });
-    expect(fs.existsSync(path.join(out, 'pr-34.json'))).toBe(false);
-    await settle();
-    Object.assign(lastView('a1')!, { flow: 'create', pr: { number: 34, state: 'OPEN', head: 'h', base: 'main' }, reviewable: true });
-    setVibe({ flow: 'review' });
-    expect(await vibeOf()).toMatchObject({ flow: 'review', pr: 34 });   // la PR 12 suivie avant : celle de la branche la remplace
+    expect(await roleOf()).toMatchObject({ flow: 'review', pr: 12 });
+  });
+
+  it('en relecteur (le dernier relevé), une action create est refusée par startAction, même demandée par l\'orchestrateur', async () => {
+    review();
+    await open();
+    const { startAction, vibeAgent, lastView } = await import('app/controllers');
+    const { vibeActions } = await import('app/settings');
+    const agent = vibeAgent()!;
+    const note = vibeActions('fr').find((a) => a.id === 'note')!;
+    expect(startAction(agent, note, { text: 'réécris' }, lastView('a1')!, (await import('app/settings')).loadConfig())).toMatchObject({ ok: false });
+    expect(fake.messages).toEqual([]);
   });
 
   // 0.12.0-gestion-des-branches

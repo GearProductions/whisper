@@ -95,6 +95,8 @@ beforeEach(() => {
   card = path.join(outA, 'pr-12-worktree.json');
   write(path.join(outA, 'pr-12.json'), JSON.stringify({ number: 12, title: 'Essai', state: 'OPEN' }));
   write(card, JSON.stringify({ dir: worktree, branch: 'pr-12' }));
+  // le robot a la fiche de sa PR (copiée par l'appli) : il la suit, ouverte, et reste relecteur tant que gh n'a pas dit le contraire
+  write(path.join(fake.userData, 'vibecoder-out', 'a2', 'pr-12.json'), JSON.stringify({ number: 12, title: 'Essai', state: 'OPEN' }));
   write(path.join(fake.userData, 'config.json'), JSON.stringify({
     agentsEnabled: true,
     agents: [{ ...AGENT, id: 'a1', dir: repo, vibe: { flow: 'review', autonomy: 'guide', pr: 12 } }, { ...ROBOT, dir: worktree }],
