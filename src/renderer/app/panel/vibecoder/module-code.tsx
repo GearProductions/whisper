@@ -23,7 +23,8 @@
  *  Deux réglages d'affichage, pour la vue IDE (forme-view, modules-view) : noTree
  *  (sans la rangée des fichiers quand il n'y en a qu'un : l'arborescence la remplace)
  *  et first='base' (le diff depuis la base affiché d'abord, comme si on l'avait choisi ;
- *  sans effet tant que depuis la base est grisé).
+ *  sans effet tant que depuis la base est grisé) ; tools, en tête de la rangée du sélecteur (la vue IDE
+ *  de Modules : les boutons du module et le sélecteur sur une seule ligne).
  *  Ne connaît pas : le pont (rappels passés), le disque, les autres modules,
  *  les actions de la barre d'outils.
  *  Utilisé par : modules-view, forme-view. */
@@ -43,12 +44,13 @@ const S: Record<VibeLang, Record<Exclude<Shown, 'file'> | 'deleted', string>> = 
   en: { base: 'Diff since the branch base', head: 'Diff since the last commit', deleted: 'deleted' },
 };
 
-export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, drafts, readOnly, noTree, first }: {
+export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, drafts, readOnly, noTree, first, tools }: {
   m: VibeModule;
   readOnly?: string;               // le motif : le code ne s'édite pas, et son pied (Enregistrer, Abandonner) est masqué
   lang: VibeLang;
   noTree?: boolean;                // sans la rangée des fichiers quand il n'y en a qu'un
   first?: 'base';                  // le diff depuis la base affiché d'abord
+  tools?: ReactNode;               // en tête de la rangée du sélecteur
   open: boolean;
   code: VibeCode | null;
   t: Strings;
@@ -81,6 +83,7 @@ export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, 
   return (
     <>
       <div className="vc-mod-head">
+        {tools}
         {noTree && files.length <= 1 ? null : <div className="vc-mod-tree">
           {filesByDir(files).map((g) => (
             <div key={g.dir}>
