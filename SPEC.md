@@ -1429,8 +1429,11 @@ créateur ; le relecteur, F-101) :
 4. **Modules** — faite : chaque module de la Forme touché par un commit de la
    branche. Montre en tête le commit proposé (`commit.md` : le message tel
    qu'il sera commité, *✓ Commiter*, direct ou *via* l'agent, F-114 ; *Commenter*) et la relecture du dernier diff
-   (`review.md`) ; *Commiter les modules* dans les outils de la carte, s'il
-   y a un module pas commité ; puis une ligne par module, un accordéon (replié ;
+   (`review.md`) ; en tête du corps de la carte des modules, les actions de
+   l'étape, plus dans son en-tête (*✓ Valider → commit → suivant*, *Préparer
+   le commit*, *Générer les modules restants*, puis *Commiter les modules*
+   s'il y a un module pas commité ; la prochaine action mise en avant ; sans
+   module dans la Forme, elles restent dans l'en-tête) ; puis une ligne par module, un accordéon (replié ;
    un seul déplié à la fois ; commité, en cours :
    modifié pas commité, à faire ; son numéro, son rang dans la Forme, l'ordre
    où les générer et les commiter, « Ordre de génération : n sur N » au
@@ -1503,7 +1506,8 @@ créateur ; le relecteur, F-101) :
    c'est le *Générer* de ce module qui est mis en avant, sur sa ligne
    (*Commiter ce module* non plus : le *Commiter* de chaque module) ;
    *Préparer le commit* masqué sans rien à commiter, *✓ Valider → commit →
-   suivant* sans module pas commité ou sans suivant à générer. *Relire le
+   suivant* sans module pas commité ou sans suivant à générer, *Générer les
+   modules restants* sans module pas touché. *Relire le
    diff* (les quatre questions du § 5.1) part seul après *Générer* (voir
    *Générer ce module, puis Relire le diff*) : pas dans l'en-tête non plus,
    *Relancer* sur sa carte, ou sur la ligne d'un module déplié. Aussi

@@ -621,7 +621,9 @@ relire une PR (le relecteur, plus bas) :
    *Commiter les modules* (un commit par module dans l'ordre de la Forme, un fixup
    pour un module déjà commité ; le typage de chaque commit est vérifié sur son
    contenu, hors du dossier de travail, et un commit qui ne compile pas arrête
-   là, sans rattrapage) ; vous pouvez donc retoucher le code entre les deux. Chaque
+   là, sans rattrapage) ; vous pouvez donc retoucher le code entre les deux.
+   Ces boutons de l'étape sont en haut de la carte des modules, et n'y sont
+   que s'ils ont quelque chose à faire. Chaque
    module est un accordéon : *Générer* et *Commiter* (s'il a des
    changements pas commités) sont toujours au bout de sa ligne, le prochain
    à générer mis en avant ; un clic sur la ligne ajoute *Relire le diff*,
