@@ -32,12 +32,12 @@
  *  qui porte elle-même Relire les commits : 'review-commits' est dans own.
  *  Deux vues, un interrupteur dans les outils de la carte (view.modulesView, retenu par le principal :
  *  act.set({ modulesView }), liste par défaut) : la liste, l'accordéon ci-dessus ; la vue IDE (IdeView),
- *  l'arborescence des fichiers des modules (ideFiles(view, 'file')) avec le point d'état de leur module,
+ *  l'arborescence des fichiers des modules (ideFiles(view, 'file')), leur nom coloré comme VS Code (nouveau, modifié, supprimé, à générer),
  *  et à droite, du fichier choisi, les outils de son module (ModuleTools, tous) sur la ligne du sélecteur
  *  de son code (ModuleCode, noTree, tools). Un fichier sans code (module pas touché) : les outils
  *  seuls, et plus aucun fichier suivi. Sans module : les fichiers de la branche, dans les deux vues, sans
  *  interrupteur. Basculer ne suit plus aucun fichier ; chaque vue suit ensuite le sien. Le point d'état
- *  vient de moduleState (core).
+ *  de la liste vient de moduleState (core).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useEffect, useState } from 'react';
 import { fileParts, ideFiles, moduleCommits, moduleState, type IdeFile, type ModuleState } from 'core/vibecoder';

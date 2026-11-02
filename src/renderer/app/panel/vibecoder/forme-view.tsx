@@ -1,5 +1,5 @@
 /** forme-view — l'étape Forme (Créer) en vue IDE, la seule : à gauche l'arborescence des modules de la
- *  rubrique « Forme » de la note (IdeView(ideFiles(view, 'module')), point d'état par module) ; à droite,
+ *  rubrique « Forme » de la note (IdeView(ideFiles(view, 'module')), le nom coloré comme VS Code) ; à droite,
  *  pour le module choisi, sa ligne (chemin : dossier atténué, nom en gras ; état : touché par la branche,
  *  existe, à créer, Icon ok devant « touché » ; commits ; outils : comment le cite dans le champ, 💬 le
  *  commente en relecteur, open l'ouvre s'il existe) et l'interrupteur Structure · Code (tenu ici).

@@ -95,7 +95,7 @@ it('relecteur : ni commit.md, review.md, Générer, Commiter, Enregistrer ; l\'e
   expect(page.querySelectorAll('.vc-commit-list')).toHaveLength(1);
 });
 
-// Deux vues (view.modulesView) : liste par défaut ; IDE : l'arborescence des fichiers des modules, le point d'état de chaque
+// Deux vues (view.modulesView) : liste par défaut ; IDE : l'arborescence des fichiers des modules, la couleur du nom de chaque
 // fichier, à droite les outils du module du fichier choisi ; l'interrupteur envoie act.set({ modulesView }).
 const sets: unknown[] = [];
 const drawView = (extra: Record<string, unknown>, modules: unknown[]) => act(() => {
@@ -116,7 +116,7 @@ it('liste par défaut : l\'accordéon d\'aujourd\'hui, l\'interrupteur sur Vue l
   expect(pressed()).toEqual(['Vue liste']);
 });
 
-it('vue IDE : arborescence avec points d\'état, outils du module du fichier choisi, code ; sans code, plus aucun fichier suivi ; l\'interrupteur demande modulesView', async () => {
+it('vue IDE : arborescence aux noms colorés, outils du module du fichier choisi, code ; sans code, plus aucun fichier suivi ; l\'interrupteur demande modulesView', async () => {
   followed.length = 0;
   await drawView({ modulesView: 'ide' }, two);
   expect(page.querySelector('details.vc-mod-main')).toBeNull();
@@ -124,7 +124,7 @@ it('vue IDE : arborescence avec points d\'état, outils du module du fichier cho
   const side = page.querySelector('.vc-ide-side')!;
   expect(side.textContent).toContain('a.ts');
   expect(side.textContent).toContain('autre');
-  expect(side.querySelectorAll('[data-state="wip"]').length).toBeGreaterThan(0);
+  expect(side.querySelector('[data-mark="todo"]')?.textContent).toContain('autre');   // pas touché : à générer
   expect([...page.querySelectorAll('.vc-ide-main .vc-mod-acts button')].map((b) => b.textContent)).toEqual(['Générer', 'Commiter', 'Relire le diff', 'Ouvrir']);
   expect(page.querySelector('.vc-ide-main .vc-mod-head > .vc-mod-acts')).not.toBeNull();   // sur la ligne du sélecteur
   expect(followed).toEqual(['src/touche/0']);

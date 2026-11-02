@@ -21,9 +21,9 @@ describe('moduleState', () => {
 describe('ideFiles', () => {
   it('module : un par module, son chemin ; code seulement s’il est touché', () => {
     expect(ideFiles({ modules }, 'module')).toEqual([
-      { path: 'a/', rank: 0, state: 'done', code: done },
-      { path: 'b.ts', rank: 1, state: 'wip', code: wip },
-      { path: 'c.ts', rank: 2, state: 'todo', code: null },
+      { path: 'a/', rank: 0, state: 'done', mark: 'modified', code: done },   // un de ses fichiers pas commité (supprimé)
+      { path: 'b.ts', rank: 1, state: 'wip', mark: null, code: wip },
+      { path: 'c.ts', rank: 2, state: 'todo', mark: 'todo', code: null },
     ]);
   });
 
@@ -37,6 +37,17 @@ describe('ideFiles', () => {
     ]);
     expect(rows[2].code).toMatchObject({ path: 'b.ts', locked: 'motif' });
     expect(rows[3].code).toBeNull();
+  });
+
+  it('mark, comme VS Code : nouveau, modifié, supprimé (pas commités), à générer ; null : commité', () => {
+    const g = mod('g/', { touched: true, files: [{ ...f('m0/0', 'g/n.ts'), git: 'new' }, { ...f('m0/1', 'g/m.ts'), git: 'modified' }, f('m0/2', 'g/c.ts'), f('m0/3', 'g/d.ts', true)] });
+    expect(ideFiles({ modules: [g, todo] }, 'file').map((r) => [r.path, r.mark])).toEqual([
+      ['g/n.ts', 'new'], ['g/m.ts', 'modified'], ['g/c.ts', null], ['g/d.ts', 'deleted'], ['c.ts', 'todo'],
+    ]);
+    const one = mod('o.ts', { touched: true, files: [{ ...f('m0/0', 'o.ts'), git: 'new' }] });
+    expect(ideFiles({ modules: [one] }, 'module')[0].mark).toBe('new');   // un module d'un fichier : sa couleur
+    const files = [{ id: 'b0', path: 'x.ts', git: 'new' as const, locked: null }, { id: 'b1', path: 'y.ts', locked: null }];
+    expect(ideFiles({ modules: [], files }, 'file').map((r) => r.mark)).toEqual(['new', null]);
   });
 
   it('file : un module non touché donne le chemin de son fichier (avec src/), pas celui de la Forme', () => {
