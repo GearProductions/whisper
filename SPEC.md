@@ -1506,7 +1506,9 @@ créateur ; le relecteur, F-101) :
    des fichiers de la branche. La vue IDE n'ajoute aucune action : elle montre
    ce que Forme et Modules montrent déjà. Dans les deux étapes, sa carte prend
    toute la hauteur libre de l'étape (au moins 420 px), même avec peu de
-   fichiers, et chaque colonne défile seule ; une poignée entre les deux
+   fichiers ; l'arborescence défile seule, et à droite seul le code (les outils
+   au-dessus et dessous restent en place ; sans code, la structure d'un module
+   de la Forme, toute la colonne) ; une poignée entre les deux
    colonnes (glisser, ou ← / →) règle la largeur de l'arborescence (160 px →
    60 % de la vue), gardée pour les deux étapes tant que la page vit, pas
    enregistrée. Relecteur : voir F-101.
