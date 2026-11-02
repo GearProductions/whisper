@@ -1,0 +1,14 @@
+/* La vue IDE (ide-view) : l'arborescence à gauche, qui défile, le fichier choisi à droite, qui prend le
+   reste. Sous .vc, couleurs de vibecoder.css. */
+.vc-ide { display: flex; align-items: stretch; gap: 12px; min-height: 0; }
+.vc-ide-side {
+  flex: none;
+  width: 240px;
+  max-height: 70vh;
+  overflow: auto;
+  padding: 6px 0;
+  border: 1px solid var(--vc-line);
+  border-radius: var(--vc-radius);
+  background: var(--vc-side);
+}
+.vc-ide-main { flex: 1 1 auto; min-width: 0; }

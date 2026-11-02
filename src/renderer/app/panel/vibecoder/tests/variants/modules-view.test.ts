@@ -92,3 +92,55 @@ it('relecteur : ni commit.md, review.md, Générer, Commiter, Enregistrer ; l\'e
   expect(page.querySelector('.vc-step-head .vc-step-acts')).toBeNull();
   expect(page.querySelectorAll('.vc-commit-list')).toHaveLength(1);
 });
+
+// Deux vues (view.modulesView) : liste par défaut ; IDE : l'arborescence des fichiers des modules, le point d'état de chaque
+// fichier, à droite les outils du module du fichier choisi ; l'interrupteur envoie act.set({ modulesView }).
+const sets: unknown[] = [];
+const drawView = (extra: Record<string, unknown>, modules: unknown[]) => act(() => {
+  const actions = ['module', 'review-diff', 'commit-module'].map((id) => ({ id, hidden: false, who: '', hint: '', label: id }));
+  const view = { lang: 'fr', flow: 'create', actions, commits: [], outputs: {}, modules, ...extra } as unknown as VibeView;
+  const props = { view, step: { id: 'modules', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
+    code: null, drafts: [{}, () => {}], act: { run: async () => true, prefill: () => {}, open: () => {}, openLink: () => {},
+      follow: (id: unknown) => { followed.push(id); }, save: async () => true, set: (x: unknown) => { sets.push(x); } } } as unknown as StepProps;
+  root.render(createElement(ModulesView, props));
+});
+const two = [{ ...module('src/touche', true), uncommitted: true }, module('src/autre', false)];
+const pressed = () => [...page.querySelectorAll('.vc-card-end .vc-seg button')].filter((b) => b.getAttribute('aria-pressed') === 'true').map((b) => b.textContent);
+
+it('liste par défaut : l\'accordéon d\'aujourd\'hui, l\'interrupteur sur Vue liste', async () => {
+  await drawView({}, two);
+  expect(page.querySelector('.vc-ide')).toBeNull();
+  expect(page.querySelectorAll('details.vc-mod-main')).toHaveLength(2);
+  expect(pressed()).toEqual(['Vue liste']);
+});
+
+it('vue IDE : arborescence avec points d\'état, outils du module du fichier choisi, code ; sans code, plus aucun fichier suivi ; l\'interrupteur demande modulesView', async () => {
+  followed.length = 0;
+  await drawView({ modulesView: 'ide' }, two);
+  expect(page.querySelector('details.vc-mod-main')).toBeNull();
+  expect(pressed()).toEqual(['Vue IDE']);
+  const side = page.querySelector('.vc-ide-side')!;
+  expect(side.textContent).toContain('a.ts');
+  expect(side.textContent).toContain('autre');
+  expect(side.querySelectorAll('[data-state="wip"]').length).toBeGreaterThan(0);
+  expect([...page.querySelectorAll('.vc-ide-main .vc-mod-acts button')].map((b) => b.textContent)).toEqual(['Générer', 'Relire le diff', 'Ouvrir', 'Commiter']);
+  expect(followed).toEqual(['src/touche/0']);
+  // le fichier d'un module pas touché : ses outils seuls (Générer, Ouvrir), plus aucun fichier suivi
+  const other = [...side.querySelectorAll<HTMLElement>('button, [role="treeitem"]')].find((b) => b.textContent?.includes('autre'))!;
+  await act(async () => { other.click(); });
+  expect([...page.querySelectorAll('.vc-ide-main .vc-mod-acts button')].map((b) => b.textContent)).toEqual(['Générer', 'Ouvrir']);
+  expect(followed.at(-1)).toBeNull();
+  // l'interrupteur
+  sets.length = 0;
+  await act(async () => { [...page.querySelectorAll<HTMLButtonElement>('.vc-card-end .vc-seg button')].find((b) => b.textContent === 'Vue liste')!.click(); });
+  expect(sets).toEqual([{ modulesView: 'list' }]);
+});
+
+it('sans module : les fichiers de la branche, dans les deux vues, sans interrupteur', async () => {
+  for (const modulesView of ['list', 'ide']) {
+    await drawView({ modulesView, files: [{ id: 'f0', path: 'src/x/b.ts' }] }, []);
+    expect(page.querySelector('.vc-ide-side')!.textContent).toContain('b.ts');
+    expect(page.querySelector('.vc-card-end .vc-seg')).toBeNull();
+    expect(page.querySelector('.vc-ide-main .vc-mod-acts')).toBeNull();
+  }
+});

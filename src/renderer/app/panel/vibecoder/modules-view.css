@@ -76,3 +76,7 @@
 
 /* Le code : un fichier supprimé par la branche, marqué « supprimé ». */
 .vc-mod-tree .vc-mod-gone { margin-left: 6px; color: var(--vc-faint); font-style: italic; }
+
+/* La vue IDE : l'arborescence et le fichier choisi, dans le corps de la carte ; les outils du module au-dessus du code. */
+.vc-mod-ide { padding: var(--vc-pad); }
+.vc-ide-main > .vc-mod-acts { --row: var(--vc-card); margin-bottom: 8px; }

@@ -1,24 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contractParts, groupModules } from 'core/vibecoder';
-import type { VibeModule } from 'technicals/bridge';
-
-const mod = (path: string): VibeModule => ({ path, contract: '', file: null, touched: false, commits: [] });
-
-describe('groupModules', () => {
-  it('par premier dossier, dans l\'ordre d\'apparition ; un src/ de tête ignoré ; la racine : groupe vide', () => {
-    const groups = groupModules(['main/core/vibecoder/', 'shared/bridge/types.ts', 'src/main/app/settings.ts', 'package.json', 'main/technicals/git/']
-      .map(mod));
-    expect(groups.map((g) => [g.folder, g.modules.map((m) => m.path)])).toEqual([
-      ['main/', ['main/core/vibecoder/', 'src/main/app/settings.ts', 'main/technicals/git/']],
-      ['shared/', ['shared/bridge/types.ts']],
-      ['', ['package.json']],
-    ]);
-  });
-
-  it('aucun module : aucun groupe', () => {
-    expect(groupModules([])).toEqual([]);
-  });
-});
+import { contractParts } from 'core/vibecoder';
 
 describe('contractParts', () => {
   it('coupé à ses « · », libellés reconnus (français)', () => {
