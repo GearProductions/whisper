@@ -7,7 +7,8 @@
  *  arguments sont fixes, sauf une branche lue par git (okRef, après `--`) et
  *  un numéro de PR (un entier positif). La PR d'une branche (prForBranch), les
  *  PR ouvertes du dépôt en trois listes (openPrs : les miennes, à relire,
- *  toutes), l'état d'une PR (prState), l'identifiant de l'utilisateur (login).
+ *  toutes), l'état d'une PR (prState), l'identifiant de l'utilisateur (login),
+ *  l'auteur et les assignés d'une PR (prPeople).
  *  Ne connaît pas : VibeCoder, Electron, la configuration.
  *  Utilisé par : app/controllers/vibecoder. */
 import { execFile } from 'node:child_process';
@@ -75,6 +76,15 @@ export function githubReader(run: GhRun) {
     async login(): Promise<string | null> {
       const login = (await run([...GH_LOGIN]))?.trim() ?? '';
       return okLogin(login) ? login : null;
+    },
+    // L'auteur et les assignés d'une PR, ou null ; un
+    // login hors d'okLogin est écarté, comme une équipe (sans login).
+    async prPeople(n: unknown): Promise<{ author: string; assignees: string[] } | null> {
+      if (!okNumber(n)) return null;
+      const p = parse(await run(['pr', 'view', '--json', 'author,assignees', '--', String(n)])) as Record<string, unknown> | null;
+      if (!p || typeof p !== 'object') return null;
+      const logins = (l: unknown): string[] => (Array.isArray(l) ? l : []).map((x) => (x as { login?: unknown } | null)?.login).filter(okLogin);
+      return { author: logins([p.author])[0] ?? '', assignees: logins(p.assignees) };
     },
     // OPEN, CLOSED ou MERGED, ou null.
     async prState(n: unknown): Promise<string | null> {
