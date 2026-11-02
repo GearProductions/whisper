@@ -3,7 +3,7 @@
  *  sélectionné, I-8), commandes de l'agent, de l'éditeur et du terminal,
  *  dossiers favoris et leur couleur, confiance (I-23),
  *  lecture à voix haute, VibeCoder (langue, réglages d'un agent, limite
- *  d'affichage d'un artefact en texte), la place des robots dans l'icône
+ *  d'affichage d'un artefact en texte, vue des modules : IDE ou liste), la place des robots dans l'icône
  *  (familles : core/family).
  *  Ne connaît pas : le fichier (technicals/config-file), Electron, git (le
  *  parent d'un agent, l'enfant qu'on crée : core/family).
@@ -52,6 +52,7 @@ export type Config = {
   // agentCommand, `distrobox enter <box> --`, sinon rien ; core/runner).
   vibeCommandPrefix: string;
   vibeSize?: { width: number; height: number };  // le panneau en VibeCoder (à part de convSize)
+  vibeModulesView?: 'ide' | 'list'; // la vue des Modules, retenue d'une ouverture à l'autre (défaut : liste)
   artifactTextMax: number; // octets : un artefact affiché en texte est coupé au-delà (« fichier tronqué »)
   [key: string]: unknown;
 };
@@ -67,7 +68,7 @@ export const DEFAULTS: Config = {
   speakLang: 'auto',
   speakVoices: { fr: 'estelle', en: 'jane' },
   deviceId: '', deviceLabel: '', size: 64, pos: null,
-  vibeLang: 'fr', vibeCommandPrefix: '',
+  vibeLang: 'fr', vibeCommandPrefix: '', vibeModulesView: 'list',
   artifactTextMax: 10 * 1024 * 1024,
 };
 
@@ -162,6 +163,8 @@ export const needsTrust = (cfg: Config, dir: string) => !favoriteFolders(cfg).so
 
 // config.json se retouche à la main : une valeur inconnue prend le défaut.
 export const vibeLang = (cfg: Config): VibeLang => (cfg.vibeLang === 'en' ? 'en' : 'fr');
+
+export const vibeModulesView = (cfg: Config): 'ide' | 'list' => (cfg.vibeModulesView === 'ide' ? 'ide' : 'list');
 
 // Les réglages VibeCoder d'un agent : le rôle (créateur par défaut, ou relecteur), la PR suivie
 // (un entier positif, sinon aucune). Une `autonomy` d'avant la 0.12.0 : ignorée.
