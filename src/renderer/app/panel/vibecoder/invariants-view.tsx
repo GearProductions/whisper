@@ -7,13 +7,13 @@
  *  depuis (Icon warn et texte), 💬 et Ouvrir (à la ligne du cas) en
  *  IconButton. « Pseudo-code / Code » montre à la place son code (CodeView :
  *  coloré d'après l'extension du fichier, comme « Voir le fichier » ; sans 💬
- *  sur ses lignes). Relire : le code d'origine du cas, en lecture seule.
- *  Créer : Code et Voir le fichier ouvrent le fichier entier modifiable (Code :
+ *  sur ses lignes). Relecteur : le code d'origine du cas, en lecture seule.
+ *  Créateur : Code et Voir le fichier ouvrent le fichier entier modifiable (Code :
  *  défilé à la ligne du cas), un seul à la fois, suivi par son id (act.follow ;
  *  refermé par l'utilisateur : act.follow(null)) ; la modification gardée,
  *  Ctrl+S, Enregistrer, Abandonner : useFileDraft et DraftEditor (file-draft),
  *  grisés si f.locked (le motif en titre). À revoir et 💬 citent le
- *  cas dans le champ (Relire : ils ouvrent sous la carte une zone de
+ *  cas dans le champ (relecteur : ils ouvrent sous la carte une zone de
  *  commentaire, pour le brouillon de revue, le cas en cible). Par fichier : sa
  *  progression ; dans les outils de l'en-tête, alignés : « Tout valider »
  *  (Icon ok et texte) quand aucun cas n'a de point d'attention (lu ou pas,
@@ -25,20 +25,24 @@
  *  facultative), Ouvrir (IconButton). « Voir le fichier » (tout son code,
  *  numéroté ; un test que la branche, ou la PR, modifie, f.base : DiffPicker
  *  Fichier · Diff depuis la base de la branche, le diff ModuleDiffView entier,
- *  en lecture seule, de f.base au texte de l'éditeur en Créer, à f.source en
- *  Relire). Sans test, l'invitation à les écrire, ou « rien à
- *  écrire » si la note n'a aucune ligne « → invariant » ; Créer, la note avec
+ *  en lecture seule, de f.base au texte de l'éditeur en créateur, à f.source en
+ *  relecteur). Sans test, l'invitation à les écrire, ou « rien à
+ *  écrire » si la note n'a aucune ligne « → invariant » ; créateur, la note avec
  *  une ligne « → invariant » : à côté, « ✓ Rien à écrire » (elles sont déjà
  *  observées par des tests existants), validation à la main pour la note telle
  *  qu'elle est (MarkControl, comme « ✓ Valider la note »). En tête : « Tout
  *  relire », le résumé de l'étape, les cas à valider, ce que veut dire
  *  « Attention » (s'il y en a), l'alignement
- *  (align.md, sans Relancer : Créer, « Écrire les invariants » le refait ;
- *  Relire, son bouton est dans la rangée de l'étape).
+ *  (align.md, sans Relancer : créateur, « Écrire les invariants » le refait ;
+ *  relecteur, son bouton est dans la rangée de l'étape).
+ *  Le bloc Attention a son 💬 : créateur, il cite le cas et son point
+ *  d'attention en entier dans le champ (attentionQuote) ; relecteur, il ouvre la
+ *  zone de la carte si elle est fermée et y ajoute le point d'attention
+ *  (withAttention) sans rien effacer : seul « Ajouter » le verse au brouillon.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
-  awaiting, caseLine, caseSource, casesOf, excerpt, fileParts, progress, pseudoLines, remark, type CaseView, type Progress, type Strings,
+  attentionQuote, awaiting, caseLine, caseSource, casesOf, excerpt, fileParts, progress, pseudoLines, remark, withAttention, type CaseView, type Progress, type Strings,
 } from 'core/vibecoder';
 import type { VibeLang, VibeTestFile } from 'technicals/bridge';
 import { CodeView } from './code-view';
@@ -75,6 +79,8 @@ const fr = {
   warningHelp: 'Attention : le relecteur pense que ce test ne vérifie pas vraiment ce qu\'il annonce (mock, boucle, assertion faible…). Ce n\'est pas un échec : une piste pour votre relecture.',
   quote: 'Citer ce cas dans le champ',
   quoteReview: 'Une remarque sur ce cas, au brouillon de revue',
+  quoteAttention: 'Citer ce point d\'attention dans le champ',
+  quoteAttentionReview: 'Reprendre ce point d\'attention dans une remarque, au brouillon de revue',
   noReading: 'Pas de lecture pour ce cas (son titre a pu changer) : « Relire » le fichier.',
   reread: 'Relire',
   rereadAll: 'Tout relire',
@@ -114,6 +120,8 @@ const S: Record<VibeLang, typeof fr> = {
     warningHelp: 'Warning: the reviewer thinks this test does not really check what it claims (mock, loop, weak assertion…). It is not a failure: a lead for your review.',
     quote: 'Quote this case in the field',
     quoteReview: 'A remark on this case, to the review draft',
+    quoteAttention: 'Quote this warning in the field',
+    quoteAttentionReview: 'Take this warning into a remark, to the review draft',
     noReading: 'No reading for this case (its title may have changed): « Read again » the file.',
     reread: 'Read again',
     rereadAll: 'Read all again',
@@ -225,7 +233,8 @@ export function InvariantsView(props: StepProps) {
             ) : null}
             {casesOf(f).map((c, i) => (
               <CaseCard key={c.title} c={c} n={i + 1} code={caseSource(f, i)} from={f.lines[i]} path={f.path} s={s} t={t} lang={view.lang} review={review} onOpenLink={act.openLink}
-                onVerdict={(v) => verdict(f, c.title, v)} onQuote={() => act.prefill('comment', c.title)} onOpen={() => act.open(f.id, caseLine(f, c.title))}
+                onVerdict={(v) => verdict(f, c.title, v)} onQuote={() => act.prefill('comment', c.title)}
+                onQuoteAttention={() => act.prefill('comment', attentionQuote(c.title, c.reading?.warning ?? ''), true)} onOpen={() => act.open(f.id, caseLine(f, c.title))}
                 onComment={(text) => act.draft({ add: remark(target(f, c.title), text) })}
                 edit={review ? undefined : {
                   shown: f === file && shown?.title === c.title,
@@ -286,21 +295,23 @@ function Summary({ p, s }: { p: Progress; s: Labels }) {
 type CardProps = {
   c: CaseView; n: number; s: Labels; t: Strings; lang: VibeLang; review: boolean;
   code: string; from: number; path: string;   // son code d'origine ('' : inconnu), sa première ligne, son fichier
-  onOpenLink(url: string): void; onVerdict(v: Verdict): void; onQuote(): void; onOpen(): void;
-  onComment(text: string): void;   // Relire : la remarque de la zone de commentaire, sur ce cas
-  // Créer : Code ouvre le fichier entier modifiable, un seul à la fois (invariants-view le tient) ; Relire : absent.
+  onOpenLink(url: string): void; onVerdict(v: Verdict): void; onQuote(): void; onQuoteAttention(): void; onOpen(): void;
+  onComment(text: string): void;   // Relecteur : la remarque de la zone de commentaire, sur ce cas
+  // Créateur : Code ouvre le fichier entier modifiable, un seul à la fois (invariants-view le tient) ; relecteur : absent.
   edit?: { shown: boolean; onShow(on: boolean): void; view(): ReactNode };
 };
 
-function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVerdict, onQuote, onOpen, onComment, edit }: CardProps) {
+function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVerdict, onQuote, onQuoteAttention, onOpen, onComment, edit }: CardProps) {
   const r = c.reading;
   const quote = review ? s.quoteReview : s.quote;
   const [writing, setWriting] = useState(false);
+  const [text, setText] = useState('');   // Relecteur : le texte de la zone, tenu ici pour que le point d'attention s'y ajoute
   const [local, setLocal] = useState(false);
   const showCode = edit ? edit.shown : local;
   // Pseudo-code sur une carte déjà fermée ne referme pas le fichier ouvert ailleurs.
   const setShowCode = edit ? (on: boolean) => { if (on !== edit.shown) edit.onShow(on); } : setLocal;
-  // Relire : À revoir et 💬 ouvrent la zone de commentaire ; Créer : 💬 cite le cas dans le champ.
+  // Relecteur : À revoir et 💬 ouvrent la zone de commentaire ; créateur : 💬 cite le cas dans le champ.
+  const close = () => { setWriting(false); setText(''); };
   const verdict = (v: Verdict) => { onVerdict(v); if (review && v === 'ko') setWriting(true); };
   return (
     <article className="vc-case" data-mark={c.mark || undefined} data-warn={r?.warning ? true : undefined}>
@@ -340,11 +351,15 @@ function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVe
             <div className="vc-attention" role="note" title={s.warningHelp}>
               <span className="vc-attention-icon"><Icon name="warn" /></span>
               <p><b>{s.warning}</b><InlineMd text={r.warning} t={t} onOpenLink={onOpenLink} /></p>
+              <span style={{ marginLeft: 'auto' }}>
+                <IconButton icon="comment" label={review ? s.quoteAttentionReview : s.quoteAttention}
+                  onClick={() => { if (!review) return onQuoteAttention(); setWriting(true); setText(withAttention(text, r.warning ?? '')); }} />
+              </span>
             </div>
           ) : null}
         </>
       ) : <p className="vc-case-none">{s.noReading}</p>}
-      {writing ? <CommentBox t={t} onCancel={() => setWriting(false)} onSave={(text) => { onComment(text); setWriting(false); }} /> : null}
+      {writing ? <CommentBox t={t} value={text} onChange={setText} onCancel={close} onSave={(v) => { onComment(v); close(); }} /> : null}
     </article>
   );
 }
