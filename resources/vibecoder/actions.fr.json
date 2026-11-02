@@ -358,6 +358,26 @@
     "text": "Me demander en relecture : seulement par l'appli (direct), jamais par l'agent."
   },
   {
+    "id": "assign-pr",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "S'assigner la PR",
+    "hint": "Vous assigne cette PR sur GitHub (gh pr edit --add-assignee) : vous la modifiez, en créateur.",
+    "text": "S'assigner la PR : seulement par l'appli (direct), jamais par l'agent."
+  },
+  {
+    "id": "unassign-pr",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Me retirer de la PR",
+    "hint": "Vous retire des assignés de cette PR sur GitHub (gh pr edit --remove-assignee).",
+    "text": "Me retirer de la PR : seulement par l'appli (direct), jamais par l'agent."
+  },
+  {
     "id": "copy-artifact",
     "flow": "both",
     "step": null,
@@ -391,7 +411,7 @@
   {
     "id": "review-commits",
     "flow": "review",
-    "step": "commits",
+    "step": "modules",
     "kind": "send",
     "needs": "none",
     "reads": true,
@@ -401,19 +421,19 @@
   },
   {
     "id": "screen",
-    "flow": "review",
-    "step": "ecran",
+    "flow": "both",
+    "step": "revue",
     "kind": "send",
     "needs": "none",
     "reads": true,
     "label": "Plan de test à l'écran",
-    "hint": "Prépare la liste de ce qu'il faut essayer à la main, et comment lancer la PR.",
-    "text": "/vibecoder:ecran {{lang}} {{out}} {{pr}}"
+    "hint": "Prépare la liste de ce qu'il faut essayer à la main, et comment lancer la branche.",
+    "text": "/vibecoder:ecran {{lang}} {{out}} {{ref}}"
   },
   {
     "id": "publish",
     "flow": "review",
-    "step": "revue",
+    "step": "pr",
     "kind": "send",
     "needs": "none",
     "reads": true,

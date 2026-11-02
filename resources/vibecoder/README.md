@@ -29,7 +29,7 @@ Un tableau, dans l'ordre d'affichage. Chaque bouton :
 |---|---|
 | `id` | identifiant unique, le même dans les deux langues ; ceux livrés sont **fixes** (voir plus bas) |
 | `flow` | `create` (*Créer*), `review` (*Relire*) ou `both` |
-| `step` | l'étape où il apparaît : `note`, `forme`, `invariants`, `modules`, `revue`, `pr`, `commits`, `ecran` ; `null` : partout |
+| `step` | l'étape où il apparaît : `note`, `forme`, `invariants`, `modules`, `revue`, `pr` ; `null` : partout |
 | `kind` | `send` : envoyé aussitôt à l'agent ; `prefill` : préparé dans le champ, à compléter puis envoyer |
 | `needs` | `text` : il exige le texte de son champ — celui de son étape, ou celui de la conversation sans étape (vide : le bouton le demande) ; sinon `none` |
 | `reads` | `true` : l'action ne fait que lire (relectures, vérifications…) ; absent : elle modifie la branche (le cas sûr pour un bouton ajouté) |
@@ -269,7 +269,7 @@ sinon.
 | `charger-pr` | sous-contexte | haiku · low | `pr-<n>.json` |
 | `relire-note` | sous-contexte | opus · high | `pr-<n>-note.md` |
 | `relire-commits` | sous-contexte | opus · high | `pr-<n>-commits.md` |
-| `ecran` | sous-contexte | sonnet · medium | `pr-<n>-ecran.md` |
+| `ecran` | sous-contexte | sonnet · medium | `ecran.md` |
 | `publier-revue` | sous-contexte | haiku · low | `pr-<n>-review.json` |
 | `vibe` | conversation | agent ; *Vibe* : reprend à la première étape pas faite et enchaîne les actions | `actions/<id>.start` |
 | `actions` | conversation (l'agent l'appelle de lui-même) | agent | `actions/<id>.start`, `actions/<id>.stop` |
