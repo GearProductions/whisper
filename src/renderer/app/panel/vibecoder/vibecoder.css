@@ -228,8 +228,8 @@
   font-size: 13px;
 }
 .vc-error b { color: var(--vc-warn); font-weight: 600; }
-.vc-step { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 18px 27px 27px; }
-.vc-step-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; margin-bottom: 15px; }
+.vc-step { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 20px 20px; }
+.vc-step-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin-bottom: 10px; }
 .vc-step-head h2 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
 .vc-badge { padding: 0 8px; border-radius: 9px; border: 1px solid var(--vc-edge); color: var(--vc-muted); font-size: 11px; line-height: 18px; }
 .vc-badge[data-status="done"] { color: var(--vc-ok); border-color: color-mix(in srgb, var(--vc-ok) 50%, transparent); }

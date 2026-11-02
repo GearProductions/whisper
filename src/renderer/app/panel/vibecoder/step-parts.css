@@ -117,8 +117,10 @@ button.vc-chip:hover { border-color: var(--accent); color: var(--vc-text); }
 .vc-pr-head:last-child { padding-bottom: 9px; }
 .vc-pr .vc-pr-body { border-top: 1px solid var(--vc-line); }
 
-/* ---- La rangée des actions de l'étape, sous son titre ----------------------- */
-.vc-step-acts { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 5px 6px; margin-top: 4px; }
+/* ---- Les actions de l'étape, sur la ligne de son titre (elles passent à la ligne s'il en manque) ---- */
+.vc-step-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 6px; }
+/* Les actions d'une carte, à côté de son titre. */
+.vc-card-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
 
 /* ---- Le robot d'une PR dans un worktree : son badge dans l'en-tête ---------- */
 .vc-wt-badge {
