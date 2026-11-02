@@ -58,7 +58,7 @@
  *  l'appelant).
  *  Utilisé par : app/controllers/vibecoder (refreshVibe). */
 import type {
-  VibeAction, VibeCheck, VibeComment, VibeFlow, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePr,
+  VibeAction, VibeCheck, VibeComment, VibeFlow, VibeGit, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePr,
   VibePrItem, VibeRecipe, VibeRun, VibeStepId, VibeTestFile, VibeView, VibeWorktree,
 } from 'shared/bridge';
 import { DIRECT_ACTIONS, DIRECT_ONLY, EFFORT_LEVELS, prNumber, SKILL_MODELS, templateVars, type ActionDef } from './actions';
@@ -83,7 +83,7 @@ export type JourneyInput = {
   // Les courses qui retiennent (runs : LOCKING), par id d'action, avec le module qu'elles génèrent (Run.module).
   running: { id: string; reads: boolean; module?: string | null }[];
   runs: VibeRun[];                                  // les courses à l'écran (runViews)
-  repo: { branch: string; base: string; changed: string[]; dirty?: string[]; commits: { hash: string; subject: string; files: string[] }[] } | null;
+  repo: { branch: string; base: string; changed: string[]; dirty?: string[]; added?: string[]; commits: { hash: string; subject: string; files: string[] }[] } | null;
   error: string | null;                             // pourquoi le dépôt manque
   note: { path: string; text: string; before: string | null } | null;
   // Les tests de la branche ; base : leur texte à la base de la branche (null : ajouté, au-delà de 200 Ko, pas
@@ -214,6 +214,8 @@ export function vibeView(input: JourneyInput): VibeView {
   const commits = repo?.commits ?? [];
   const changed = repo?.changed ?? [];
   const dirty = repo?.dirty ?? [];   // pas commités : hors de tout commit, ou retouchés depuis
+  // L'état git d'un fichier, comme VS Code : nouveau (pas suivi, ajouté) ou modifié, pas commité ; rien : commité.
+  const gitOf = (path: string): { git?: VibeGit } => (!dirty.includes(path) ? {} : { git: repo?.added?.includes(path) ? 'new' : 'modified' });
 
   // La note, ses validations, les modules de sa Forme.
   const facts = input.note && parseNote(input.note.text);
@@ -233,7 +235,7 @@ export function vibeView(input: JourneyInput): VibeView {
     // Les fichiers que la branche change sous son chemin (changed : la copie de travail comprise), dans son dossier
     // seulement (real) ; sans dossier (supprimé), sous tout chemin qui le contient ; absent : supprimé.
     const files = !touched ? [] : changed.filter((f) => (real ? within(f, bares[i]) === real : within(f, bares[i]) !== null)).sort()
-      .map((path, j) => (input.exists(path) ? { id: `m${i}/${j}`, path } : { id: `m${i}/${j}`, path, deleted: true }));
+      .map((path, j) => (input.exists(path) ? { id: `m${i}/${j}`, path, ...gitOf(path) } : { id: `m${i}/${j}`, path, deleted: true }));
     return {
       path: m.path, contract: m.contract, file: real ? { id: `m${i}`, path: real } : null,
       touched, commits: by.map((c) => c.hash), files, locked: codeLock(m.path, input.busy, input.running, lang), uncommitted,
@@ -486,7 +488,7 @@ export function vibeView(input: JourneyInput): VibeView {
     error: input.error,
     steps: ORDER.map((id) => ({ id, status: done[id] ? 'done' : id === current ? 'current' : 'todo', facts: stepFacts[id] ?? '' })),
     files: [...changed].sort().map((path, i) => ({
-      id: `b${i}`, path, ...(input.exists(path) ? {} : { deleted: true }), locked: codeLock(null, input.busy, input.running, lang),
+      id: `b${i}`, path, ...(input.exists(path) ? gitOf(path) : { deleted: true }), locked: codeLock(null, input.busy, input.running, lang),
     })),
     modulesView: input.modulesView,
     note, questions, modules, invariants, variants, commits: viewCommits, outputs, checklist, screen, actions,
