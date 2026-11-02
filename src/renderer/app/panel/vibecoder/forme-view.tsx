@@ -85,7 +85,7 @@ export function FormeView(p: StepProps) {
   const files = ideFiles(view, 'module');
   const code = (m: VibeModule) => (
     <ModuleCode key={m.path} m={m} readOnly={review ? s.readOnly : undefined} code={p.code} t={t} lang={view.lang} open onFollow={act.follow} onSave={act.save}
-      onQuote={(block, id) => act.prefill(id, block, true)} drafts={p.drafts} noTree first="base" />
+      onQuote={(block, id) => act.prefill(id, block, true)} drafts={p.drafts} noTree />
   );
   return (
     <>

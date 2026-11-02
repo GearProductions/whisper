@@ -19,12 +19,14 @@
  *  dernier commit ; un diff → ModuleDiffView(at.base | at.head ?? '', le
  *  texte affiché, file.path, mode), en texte (I-40) ; avec un diff, En ligne
  *  · Côte à côte (mode, en ligne d'abord) ; depuis la base grisé si at.base
- *  est null et at.head non (trop gros, pas de base : tout serait ajouté).
+ *  est null et at.head non (trop gros, pas de base : tout serait ajouté ; le
+ *  fichier est alors montré). Le choix (sélecteur, En ligne · Côte à côte) est
+ *  commun à tous les fichiers, de toutes les étapes, tant que la page vit
+ *  (choice), pas enregistré : le diff depuis la base d'abord.
  *  Deux réglages d'affichage, pour la vue IDE (forme-view, modules-view) : noTree
  *  (sans la rangée des fichiers quand il n'y en a qu'un : l'arborescence la remplace)
- *  et first='base' (le diff depuis la base affiché d'abord, comme si on l'avait choisi ;
- *  sans effet tant que depuis la base est grisé) ; tools, en tête de la rangée du sélecteur (la vue IDE
- *  de Modules : les boutons du module et le sélecteur sur une seule ligne).
+ *  et tools, en tête de la rangée du sélecteur (la vue IDE de Modules : les boutons
+ *  du module et le sélecteur sur une seule ligne).
  *  Ne connaît pas : le pont (rappels passés), le disque, les autres modules,
  *  les actions de la barre d'outils.
  *  Utilisé par : modules-view, forme-view. */
@@ -44,12 +46,14 @@ const S: Record<VibeLang, Record<Exclude<Shown, 'file'> | 'deleted', string>> = 
   en: { base: 'Diff since the branch base', head: 'Diff since the last commit', deleted: 'deleted' },
 };
 
-export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, drafts, readOnly, noTree, first, tools }: {
+// Le choix d'affichage, commun à tous les fichiers tant que la page vit : ce qu'on change vaut pour les suivants.
+const choice: { shown: Shown; mode: Mode } = { shown: 'base', mode: 'inline' };
+
+export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, drafts, readOnly, noTree, tools }: {
   m: VibeModule;
   readOnly?: string;               // le motif : le code ne s'édite pas, et son pied (Enregistrer, Abandonner) est masqué
   lang: VibeLang;
   noTree?: boolean;                // sans la rangée des fichiers quand il n'y en a qu'un
-  first?: 'base';                  // le diff depuis la base affiché d'abord
   tools?: ReactNode;               // en tête de la rangée du sélecteur
   open: boolean;
   code: VibeCode | null;
@@ -70,8 +74,10 @@ export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, 
   useEffect(() => { if (id) onFollow(id); }, [id]);
 
   const d = useFileDraft(file ?? null, code, locked, onSave, drafts);
-  const [shown, setShown] = useState<Shown>(first ?? 'file');
-  const [mode, setMode] = useState<Mode>('inline');
+  const [shown, setShownState] = useState<Shown>(choice.shown);
+  const [mode, setModeState] = useState<Mode>(choice.mode);
+  const setShown = (k: Shown) => { choice.shown = k; setShownState(k); };
+  const setMode = (k: Mode) => { choice.mode = k; setModeState(k); };
   const at = file && code?.id === file.id ? code.at : undefined; // note et tests : pas de at
   // Pas de version à la base alors qu'il y en a une au dernier commit (trop grosse, pas de base) : pas de diff
   // depuis la base, il montrerait tout ajouté ; absent des deux (vraiment nouveau) : tout ajouté.

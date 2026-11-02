@@ -2,7 +2,8 @@
 // ModuleCode (module-code.tsx) : l'arbre marque un fichier supprimé ; choisi, son diff depuis la base
 // tout en retraits, sans sélecteur, ni éditeur modifiable, ni Enregistrer ; un fichier changé : le
 // sélecteur (DiffPicker) et l'éditeur avec Enregistrer ; readOnly : lecture seule, sans pied ;
-// noTree : sans la rangée des fichiers quand il n'y en a qu'un ; first 'base' : le diff depuis la base d'abord.
+// noTree : sans la rangée des fichiers quand il n'y en a qu'un ; le diff depuis la base d'abord, et le choix
+// d'affichage commun à tous les fichiers (d'un fichier à l'autre, d'un ModuleCode à l'autre).
 import { act, createElement, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EditorView } from '@codemirror/view';
@@ -87,16 +88,23 @@ it('noTree : sans la rangée des fichiers quand il n\'y en a qu\'un, gardée qua
   expect(many.page.querySelector('.vc-mod-tree')).not.toBeNull();
 });
 
-it('first base : s\'ouvre sur le diff depuis la base ; grisé (pas de base), le fichier', async () => {
-  const v = mount({ first: 'base' }, one);
+// Le choix est commun à tout le fichier de test (comme à la page) : ce test est le dernier à le changer.
+it('s\'ouvre sur le diff depuis la base (grisé, pas de base : le fichier) ; le choix vaut pour les fichiers suivants', async () => {
+  const shown = (v: ReturnType<typeof mount>) => (v.page.querySelector('select.vc-mod-shown') as HTMLSelectElement).value;
+  const v = mount({}, one);
   await v.render({ id: 'm1/1', text: 'a', time: 1, at: { base: 'b', head: 'a' } });
-  expect((v.page.querySelector('select.vc-mod-shown') as HTMLSelectElement).value).toBe('base');
+  expect(shown(v)).toBe('base');
   expect(v.page.querySelector('.vc-mdiff')).not.toBeNull();
-  const noBase = mount({ first: 'base' }, one);
+  const noBase = mount({}, one);
   await noBase.render({ id: 'm1/1', text: 'a', time: 1, at: { base: null, head: 'a' } });
-  expect((noBase.page.querySelector('select.vc-mod-shown') as HTMLSelectElement).value).toBe('file');
+  expect(shown(noBase)).toBe('file');
   expect(noBase.page.querySelector('.vc-mdiff')).toBeNull();
-  const plain = mount({}, one);
-  await plain.render({ id: 'm1/1', text: 'a', time: 1, at: { base: 'b', head: 'a' } });
-  expect((plain.page.querySelector('select.vc-mod-shown') as HTMLSelectElement).value).toBe('file');
+  // changé ici (le dernier commit, côte à côte) : un autre ModuleCode, un autre fichier, s'ouvre dessus
+  const select = v.page.querySelector('select.vc-mod-shown') as HTMLSelectElement;
+  await act(() => { select.value = 'head'; select.dispatchEvent(new Event('change', { bubbles: true })); });
+  await act(() => { [...v.page.querySelectorAll<HTMLButtonElement>('.vc-seg button')].find((b) => b.textContent === 'Côte à côte')!.click(); });
+  const next = mount({}, { ...one, files: [{ id: 'm2/0', path: 'src/y/other.ts' }] });
+  await next.render({ id: 'm2/0', text: 'a', time: 1, at: { base: 'b', head: 'c' } });
+  expect(shown(next)).toBe('head');
+  expect(next.page.querySelector('.vc-mdiff')!.getAttribute('data-mode')).toBe('split');
 });
