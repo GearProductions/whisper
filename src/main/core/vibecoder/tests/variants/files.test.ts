@@ -41,6 +41,14 @@ describe('codeFile : m<rang>/<i>, un fichier d\'un module touché', () => {
   });
 });
 
+describe('codeFile : b<i>, un fichier de la branche', () => {
+  it('module null et branch, quel que soit le rôle', () => {
+    const v = { ...view, files: [{ id: 'b0', path: 'x/a.ts', locked: null }] };
+    expect([codeFile({ ...v, flow: 'create' } as VibeView, 'b0'), codeFile({ ...v, flow: 'review' } as VibeView, 'b0')])
+      .toEqual(Array(2).fill({ path: 'x/a.ts', module: null, branch: true }));
+  });
+});
+
 describe('codeFile : n, t<i> en Créer', () => {
   it('sans note dans le relevé : n ne mène à rien', () => {
     expect(codeFile({ ...view, flow: 'create' } as VibeView, 'n')).toBeNull();
