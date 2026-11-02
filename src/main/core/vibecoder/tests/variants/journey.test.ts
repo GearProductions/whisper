@@ -215,6 +215,13 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
     expect(primary(vibeView(ready({ repo: repo(['src/core/hello.ts'], [FIRST]) })))).toBe('next');
   });
 
+  it('Préparer le commit, masqué sans rien à commiter ; Valider → commit → suivant, masqué sans module pas commité ou sans suivant', () => {
+    const hidden = (v: VibeView) => ['commit-prepare', 'next'].map((id) => v.actions.find((a) => a.id === id)!.hidden);
+    expect(hidden(vibeView(ready()))).toEqual([true, true]);                                                       // rien de changé
+    expect(hidden(vibeView(ready({ repo: repo(['src/core/hello.ts'], [FIRST]) })))).toEqual([false, false]);
+    expect(hidden(vibeView(ready({ repo: repo(['src/app/button.tsx'], [FIRST, HELLO]) })))).toEqual([false, true]); // plus de suivant
+  });
+
   it('le dernier module modifié, pas commité : Commiter les modules', () => {
     expect(primary(vibeView(ready({ repo: repo(['src/app/button.tsx'], [FIRST, HELLO]) })))).toBe('commit-modules');
   });
