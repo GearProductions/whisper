@@ -19,6 +19,9 @@
 // tests/invariants/vibe-drop.test.ts ; le déplacement des anciens artefacts :
 // artifact-migration.test.ts ; le partage entre les robots d'un projet :
 // project-artifacts.test.ts.
+// Le bouton Ajouter et sa boîte de dialogue (pickArtifacts) partent, add-artifact n'est plus
+// lancé par conv:vibeRun (note docs/tickets/feat/0.13.0-gestion-artefacts.md) : leurs cas
+// retirés ou changés, le reste gardé ; le dépôt dans un dossier : artifact-ops.test.ts.
 // Protégé : si un test échoue, corriger le code.
 //
 // Sur le vrai principal (contrôleurs, réglages et fichiers sur disque, vrais liens
@@ -474,57 +477,19 @@ posix('à l’ajout : un lien n’est jamais suivi', () => {
   });
 });
 
-describe('Ajouter : la boîte de dialogue du principal', () => {
-  it('témoin : un fichier choisi arrive dans le dossier du projet, l’original reste', async () => {
-    const file = path.join(drops, 'rapport.md');
-    write(file, 'CHOISI');
-    fake.pick = { canceled: false, filePaths: [file] };
-    const { pickArtifacts } = await import('app/controllers');
-
-    await pickArtifacts(await agentOf('a1'));
-
-    // il y est
-    expect(read(path.join(arts('a1'), 'rapport.md'))).toBe('CHOISI');
-    // l'original n'a pas changé
-    expect(read(file)).toBe('CHOISI');
-  });
-
-  it('annulée : rien n’est copié', async () => {
-    const { pickArtifacts } = await import('app/controllers');
-
-    await pickArtifacts(await agentOf('a1'));
-
-    // rien dans le dossier du projet
-    expect(contents(arts('a1'))).toEqual([]);
-  });
-});
-
-posix('Ajouter : un lien choisi n’est jamais suivi', () => {
-  it('un lien choisi : sa cible n’est pas copiée', async () => {
-    fs.symlinkSync(secret, path.join(drops, 'lien.md'));
-    fake.pick = { canceled: false, filePaths: [path.join(drops, 'lien.md')] };
-    const { pickArtifacts } = await import('app/controllers');
-
-    const r = await pickArtifacts(await agentOf('a1'));
-
-    // refusé
-    expect(r.ok).toBe(false);
-    // la cible n'est pas dans le dossier du projet
-    expect(contents(arts('a1'))).not.toContain(SECRET);
-  });
-});
-
 describe('une page ne désigne aucun fichier (I-37)', () => {
-  // conv:vibeRun ne prend jamais de chemin : Ajouter n'a que sa boîte de dialogue.
-  it('le clic sur Ajouter, avec un chemin glissé dans les arguments : seule la boîte de dialogue décide', async () => {
+  // conv:vibeRun ne prend jamais de chemin ; add-artifact n'y passe plus (le dépôt seul).
+  it('add-artifact par conv:vibeRun, avec un chemin glissé dans les arguments : rien n’est copié', async () => {
     await open();
     const { runVibeAction } = await import('app/controllers');
 
     runVibeAction('add-artifact', { direct: true, dropped: [secret], paths: [secret], path: secret, file: secret });
     await settle();
 
-    // la boîte de dialogue s'est ouverte
-    expect(fake.picks.length).toBeGreaterThan(0);
+    // témoin : le relevé montre bien cette action
+    expect(shownActions()).toContain('add-artifact');
+    // aucune boîte de dialogue
+    expect(fake.picks).toEqual([]);
     // le chemin glissé n'a pas été copié
     expect(contents(arts('a1'))).not.toContain(SECRET);
   });
