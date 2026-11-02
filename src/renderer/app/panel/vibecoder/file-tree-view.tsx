@@ -1,7 +1,8 @@
 /** file-tree-view — l'arborescence des fichiers de la vue IDE : les lignes visibles (rows), indentées
  *  selon leur profondeur, un chevron aux dossiers (clic → onToggle), la ligne choisie (selected) marquée,
  *  un clic sur une ligne → onSelect(key). Si `dot` est donné, un point d'état (vc-mod-dot, coloré par le
- *  data-state de la ligne) précède le nom des fichiers que `dot` connaît. Les noms sont du texte.
+ *  data-state de la ligne) précède le nom des fichiers que `dot` connaît ; si `rank` est donné, le numéro
+ *  qu'il rend (vc-tree-rank, l'ordre de génération du module) le précède aussi. Les noms sont du texte.
  *  Les classes sont celles de l'arborescence des artefacts (artifact-tree-view.css) : ni renommer, ni
  *  glisser, ni menu.
  *  Ne connaît pas : le pont, les modules, les artefacts.
@@ -15,16 +16,18 @@ export type FileTreeViewProps = {
   open: ReadonlySet<string>;
   selected: string | null;
   dot?(key: string): ModuleState | null;
+  rank?(key: string): number | null;
   onToggle(key: string): void;
   onSelect(key: string): void;
 };
 
-export function FileTreeView({ rows, open, selected, dot, onToggle, onSelect }: FileTreeViewProps) {
+export function FileTreeView({ rows, open, selected, dot, rank, onToggle, onSelect }: FileTreeViewProps) {
   return (
     <div className="vc-tree" role="tree">
       {rows.map((n) => {
         const isOpen = n.folder && open.has(n.key);
         const state = n.folder ? null : dot?.(n.key) ?? null;
+        const num = n.folder ? null : rank?.(n.key) ?? null;
         return (
           <div key={n.key} className="vc-tree-row" role="treeitem" data-key={n.key} data-state={state ?? undefined}
             aria-selected={n.key === selected} aria-expanded={n.folder ? isOpen : undefined}
@@ -32,6 +35,7 @@ export function FileTreeView({ rows, open, selected, dot, onToggle, onSelect }: 
             onClick={() => (n.folder ? onToggle(n.key) : onSelect(n.key))}>
             <span className="vc-tree-chevron" data-open={isOpen || undefined} aria-hidden="true">{n.folder ? '›' : ''}</span>
             {state && <span className="vc-mod-dot" aria-hidden="true" />}
+            {num !== null && <span className="vc-tree-rank">{num}</span>}
             <span className="vc-tree-label">{n.label}</span>
           </div>
         );
