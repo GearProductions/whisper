@@ -1,4 +1,5 @@
-/** commits-view — l'étape Commits (Relire) : les commits de la PR, sans IA,
+/** commits-view — la section Commits de l'étape Modules, pour le relecteur
+ *  seul (view.flow === 'review', sinon rien) : les commits de la PR, sans IA,
  *  une carte chacun (hash, sujet ; Voir le diff dans l'éditeur, c<rang> ;
  *  GitHub, gh:c<rang> — des IconButton ; ses fichiers, une liste compacte,
  *  une ligne par fichier, sans cadre ni titre, leur nombre en aria-label) ; s'il y a une relecture
@@ -12,8 +13,12 @@
  *  act.follow(null)) ; 💬 sur ses lignes : une zone de commentaire
  *  sous lui, la remarque (quoteRemark : son chemin, les lignes citées) va au
  *  brouillon sur la cible du commit, comptée sur sa carte. Relire les
- *  commits (IA, puis Relancer) reste un bouton de l'en-tête.
- *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
+ *  commits (IA, puis Relancer) est un bouton de l'en-tête de la section, qui
+ *  ne montre rien d'autre qui édite, génère ou commite (lecture seule).
+ *  Ce n'est plus une étape : un titre de section dans Modules, dont la
+ *  vue (modules-view) doit laisser 'review-commits' à cette section (own de
+ *  StepHead).
+ *  Ne connaît pas : le pont (rappels passés). Utilisé par : modules-view. */
 import { useEffect, useState, type ReactNode } from 'react';
 import { commitReviews, quoteRemark, remark, type Strings } from 'core/vibecoder';
 import type { VibeComment, VibeLang } from 'technicals/bridge';
@@ -21,11 +26,12 @@ import { CommentBox } from './comment-box';
 import { CommitFile } from './commit-file';
 import { IconButton } from './icons';
 import { MarkdownView } from './markdown-view';
-import { OutputCard, Run, StepHead } from './step-parts';
+import { OutputCard, Run } from './step-parts';
 import type { StepProps, VibeActs } from './step-views';
 import './commits-view.css';
 
 const fr = {
+  title: 'Commits',
   general: 'Ensemble des commits',
   toDraft: 'Une remarque sur ce commit, au brouillon de revue',
   inDraft: (n: number) => (n > 1 ? `${n} remarques au brouillon` : '1 remarque au brouillon'),
@@ -34,6 +40,7 @@ const fr = {
 const S: Record<VibeLang, typeof fr> = {
   fr,
   en: {
+    title: 'Commits',
     general: 'All commits',
     toDraft: 'A remark on this commit, to the review draft',
     inDraft: (n) => (n > 1 ? `${n} remarks in the draft` : '1 remark in the draft'),
@@ -41,7 +48,7 @@ const S: Record<VibeLang, typeof fr> = {
   },
 };
 
-export function CommitsView(p: StepProps) {
+export function CommitsSection(p: StepProps) {
   const { view, t, act, busy } = p;
   const s = S[view.lang];
   const action = view.actions.find((a) => a.id === 'review-commits');
@@ -56,17 +63,21 @@ export function CommitsView(p: StepProps) {
   const c0 = opened && view.commits[opened.i];
   const shown = c0 && c0.hash === opened.hash && c0.files[opened.k] === opened.path ? opened : null;
   useEffect(() => { if (opened && !shown) follow(null); }, [opened, shown]);
+  if (view.flow !== 'review') return null;
   return (
-    <>
-      <StepHead p={p} own={['review-commits']}>
-        {out ? (
-          <span className="vc-out-meta">
-            <span className="vc-mono">{file}</span>
-            <span title={new Date(out.time).toLocaleString(t.locale)}>{t.ago(Date.now() - out.time)}</span>
-          </span>
-        ) : null}
-        <Run a={action} busy={busy} tone={out ? 'ghost' : 'plain'} label={out ? t.rerun : undefined} onRun={() => act.run('review-commits')} />
-      </StepHead>
+    <section className="vc-commit-list" aria-label={s.title}>
+      <div className="vc-q-head">
+        <span className="vc-q-title">{s.title}</span>
+        <div className="vc-step-tools">
+          {out ? (
+            <span className="vc-out-meta">
+              <span className="vc-mono">{file}</span>
+              <span title={new Date(out.time).toLocaleString(t.locale)}>{t.ago(Date.now() - out.time)}</span>
+            </span>
+          ) : null}
+          <Run a={action} busy={busy} tone={out ? 'ghost' : 'plain'} label={out ? t.rerun : undefined} onRun={() => act.run('review-commits')} />
+        </div>
+      </div>
       {others.map((sec, i) => (
         <Commented key={`o${i}`} target={sec.title || s.general} title={sec.title || s.general} s={s} t={t} act={act} draft={view.draft}>
           {sec.body ? <MarkdownView md={sec.body} t={t} onOpenLink={act.openLink} /> : null}
@@ -112,7 +123,7 @@ export function CommitsView(p: StepProps) {
         );
       })}
       {view.commits.length ? null : <div className="vc-empty">{s.none}</div>}
-    </>
+    </section>
   );
 }
 

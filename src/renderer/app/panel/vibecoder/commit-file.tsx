@@ -1,4 +1,4 @@
-/** commit-file — un fichier d'un commit (étape Commits, Relire), ouvert sous
+/** commit-file — un fichier d'un commit (section Commits de Modules), ouvert sous
  *  sa carte : le texte poussé pour file.id seulement (un autre : rien encore) ;
  *  un sélecteur (DiffPicker, si code.at) Fichier · Diff de ce commit
  *  (at.commit.before ?? '' → after ?? '') · Diff depuis
