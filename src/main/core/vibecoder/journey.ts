@@ -1,49 +1,56 @@
 /** journey — le parcours de l'écran VibeCoder, calculé sans modèle à partir du
- *  relevé (dépôt, note, tests, sorties des skills, validations) : les étapes
- *  (faite, en cours, à venir), leurs faits en une ligne et celles qu'un clic
- *  ouvre (open : Créer, faite ou en cours, Vibe ou pas ; Relire, toutes), la
- *  prochaine action (celle de l'étape en cours, Vibe ou pas), les actions possibles, pourquoi une
- *  autre est grisée et celles qui n'ont pas encore de sens (hidden : masquées,
- *  leur raison d'être grisée gardée ; l'étape PR d'après l'état de la PR, qui
- *  ne fait que masquer) — Créer ou Relire, le mode Vibe en cours ou pas
- *  (vibe : les validations tenues pour données ; note 0.12.0-mode-vibe), les choix de lieu (charger la PR
- *  suivie, aller sur une branche, en créer une, revenir sur la base, mettre de côté), montrés et grisés par
- *  core/vibecoder place d'après le dossier (checkout, onBase, les deux parcours), Pull grisé par core/vibecoder
- *  sync, Pousser montré après un rebase réussi pas encore poussé (d'après direct), Nouvelle demande
- *  masquée hors de la base, et le retrait du worktree d'un enfant (sur un enfant seulement, grisé pendant une
- *  recette) ; la PR suivie et sa fiche (loaded), les PR ouvertes du dépôt (prs : les miennes, à relire, toutes ;
- *  false : gh en échec),
- *  les branches locales et l'état distant (sync), les deux parcours (la vue des branches) ; Relire possible
- *  (reviewable) : en Relire, la PR suivie ouverte et le dossier sur sa tête, en Créer la PR de la branche ouverte ; Relire commence à la Note, ses étapes
- *  grisées le dossier hors de la tête de la PR suivie (ou de son robot ; elsewhere ; notes
- *  0.12.0-creer-relire-meme-dossier, 0.12.0-gestion-des-branches), ce que l'appli fait aussi elle-même (F-114 : en cours, dernier
- *  résultat ; les règles : la note du ticket 0.8.0), les courses (une action
- *  d'étape court à part : grisée par blockedBy de runs, pas par la
- *  conversation qui travaille ; note 0.9.0 des actions indépendantes ; le
- *  parcours guidé : note 0.9.0-parcours-guide) ; une action de ELSEWHERE (place : elle travaille dans un autre
- *  dossier) n'est pas grisée par la conversation qui travaille, et sa directe porte elsewhere (la page ne
- *  grise que son « via »), une commande directe en cours la grise toujours ; efforts : ceux de EFFORT_LEVELS pour
- *  une action dont le skill fixe son modèle (note 0.13.0-fix-and-improvements) ; un checks.json antérieur au
- *  départ de la dernière course checks ignoré partout, sorties comprises
- *  (I-46 ; note 0.9.0-vibecoder-pr-verifications-courses) ; l'étape
- *  Invariants faite seulement si la Note et la Forme le sont (note 0.12.0-vibe-sans-rc-diff-en-fond),
- *  puis sans ligne « → invariant » (Écrire les invariants masquée sans griser,
- *  comme l'étape PR), sinon chaque cas validé (Créer) ou jugé (Relire), lu ou pas ; en Créer, sans test d'invariant de la branche (la ligne
- *  déjà observée par un test existant) : la dernière course invariants ou align
- *  finie, ou ✓ Rien à écrire validé à la main, Vibe compris (nothingMark, pour le texte de la note ;
- *  note 0.11.0-vibecoder-invariants-existants-et-courses) ; Lire en pseudo-code jamais mise en avant, Vibe
- *  compris (à la main ; note 0.11.0-stabiliser-vibecoder). Vibe masquée tant que la note n'est pas
- *  rédigée, a des questions ouvertes ou n'a pas son ✓ (unvalidated), pendant Vibe, un tour de la conversation ou
- *  une course qui retient (started) ; un module aux fichiers changés pas
- *  commités (uncommitted : hors des commits de la branche, ou modifiés depuis) : Commiter les modules, s'il n'en reste pas à faire (note
- *  0.11.0-stabiliser-vibecoder), l'étape Modules pas faite tant qu'il en reste un ; les fichiers d'un module touché
- *  (files : ceux que la branche change sous son chemin, la copie de travail comprise, ids `m<rang>/<i>`,
- *  triés, deleted : absents du disque ; note 0.13.0-ameliorations-interface) et pourquoi son code, la note ou un test
- *  ne s'édite pas (locked : codeLock de runs ; notes 0.11.0-code-des-modules et
- *  0.11.0-editer-invariants-et-note) ; la lecture d'un test (readingOf), celle
- *  d'une version précédente montrée périmée (stale), jamais comptée comme lue ; le texte d'un test à la base
+ *  relevé (dépôt, note, tests, sorties des skills, validations) : un seul parcours
+ *  (Note, Forme, Invariants, Modules, Revue, PR) pour les deux rôles (view.flow : créateur
+ *  'create', relecteur 'review', décidé par l'appli, passé en entrée). Les étapes (faite,
+ *  en cours, à venir), leurs faits en une ligne et celles qu'un clic ouvre (open : créateur,
+ *  faite ou en cours, Vibe ou pas ; relecteur, toutes), la prochaine action (celle de
+ *  l'étape en cours), les actions possibles, pourquoi une autre est grisée et celles qui n'ont
+ *  pas encore de sens (hidden : masquées, leur raison d'être grisée gardée).
+ *  Faite, en relecteur : la Note jugée ; la Forme avec elle (rien à juger) ; les Invariants,
+ *  chaque cas jugé ; les Modules, les commits relus ; la Revue, le plan à l'écran écrit et toutes
+ *  ses cases cochées ; la PR, la revue publiée. En créateur, la Revue attend en plus chaque case
+ *  du plan à l'écran, s'il y en a un (screen : ecran.md, une sortie de branche, marques
+ *  check:<rang>). Le relecteur ne voit aucune action qui édite, génère ou commite (les actions
+ *  create ne sont pas au relevé ; rebase, push, copy-artifact masquées) ; S'assigner la PR lui
+ *  est montrée si canAssign, Me retirer de la PR au créateur si unassignable (people, login :
+ *  lus par gh, absents : null).
+ *  Le mode Vibe en cours ou pas (vibe : les validations tenues pour données ; note
+ *  0.12.0-mode-vibe), les choix de lieu (charger la PR suivie, aller sur une branche, en créer
+ *  une, revenir sur la base, mettre de côté), montrés et grisés par core/vibecoder place
+ *  d'après le dossier (checkout, onBase), Pull grisé par core/vibecoder sync, Pousser montré
+ *  après un rebase réussi pas encore poussé (d'après direct), Nouvelle demande masquée hors de
+ *  la base, et le retrait du worktree d'un enfant (sur un enfant seulement, grisé pendant une
+ *  recette) ; la PR suivie et sa fiche (loaded), les PR ouvertes du dépôt (prs : les miennes, à
+ *  relire, toutes ; false : gh en échec), les branches locales et l'état distant (sync) ; le
+ *  dossier hors de la tête de la PR suivie (ou de son robot ; elsewhere ; notes
+ *  0.12.0-creer-relire-meme-dossier, 0.12.0-gestion-des-branches) grise les étapes du
+ *  relecteur ; ce que l'appli fait aussi elle-même (F-114 : en cours, dernier résultat ; les
+ *  règles : la note du ticket 0.8.0), les courses (une action d'étape court à part : grisée par
+ *  blockedBy de runs, pas par la conversation qui travaille ; note 0.9.0 des actions
+ *  indépendantes) ; une action de ELSEWHERE (place : elle travaille dans un autre dossier)
+ *  n'est pas grisée par la conversation qui travaille, et sa directe porte elsewhere (la page ne
+ *  grise que son « via »), une commande directe en cours la grise toujours ; efforts : ceux de
+ *  EFFORT_LEVELS pour une action dont le skill fixe son modèle (note 0.13.0-fix-and-improvements) ;
+ *  un checks.json antérieur au départ de la dernière course checks ignoré partout, sorties
+ *  comprises (I-46 ; note 0.9.0-vibecoder-pr-verifications-courses) ; l'étape Invariants faite
+ *  seulement si la Note et la Forme le sont (note 0.12.0-vibe-sans-rc-diff-en-fond), puis sans
+ *  ligne « → invariant » (Écrire les invariants masquée sans griser), sinon chaque cas validé
+ *  (créateur) ou jugé (relecteur), lu ou pas ; en créateur, sans test d'invariant de la branche
+ *  (la ligne déjà observée par un test existant) : la dernière course invariants ou align
+ *  finie, ou ✓ Rien à écrire validé à la main, Vibe compris (nothingMark ; note
+ *  0.11.0-vibecoder-invariants-existants-et-courses) ; Lire en pseudo-code jamais mise en
+ *  avant, Vibe compris (note 0.11.0-stabiliser-vibecoder). Vibe masquée tant que la note n'est
+ *  pas rédigée, a des questions ouvertes ou n'a pas son ✓ (unvalidated), pendant Vibe, un tour
+ *  de la conversation ou une course qui retient (started) ; un module aux fichiers changés pas
+ *  commités (uncommitted) : Commiter les modules, s'il n'en reste pas à faire, l'étape Modules
+ *  pas faite tant qu'il en reste un ; les fichiers d'un module touché (files : ceux que la
+ *  branche change sous son chemin, la copie de travail comprise, ids `m<rang>/<i>`, triés,
+ *  deleted : absents du disque ; note 0.13.0-ameliorations-interface) et pourquoi son code, la
+ *  note ou un test ne s'édite pas (locked : codeLock de runs ; notes 0.11.0-code-des-modules et
+ *  0.11.0-editer-invariants-et-note) ; la lecture d'un test (readingOf), celle d'une version
+ *  précédente montrée périmée (stale), jamais comptée comme lue ; le texte d'un test à la base
  *  (base, passé ; au-delà de SOURCE_MAX : null).
- *  Ne connaît pas : Electron, le disque, git (tout est passé ; `exists` dit si
+ *  Ne connaît pas : Electron, le disque, git, gh (tout est passé ; `exists` dit si
  *  un chemin du dossier de l'agent existe ; les textes des tests, à la tête et à la base, sont lus par
  *  l'appelant).
  *  Utilisé par : app/controllers/vibecoder (refreshVibe). */
@@ -56,6 +63,7 @@ import { markState, type Marks } from './marks';
 import { parseNote } from './note';
 import { json, parseChecklist, parseQuestions, parseReading } from './outputs';
 import { ELSEWHERE, onBase, onPr, placeReason, placeShown, type PlaceState } from './place';
+import { canAssign, unassignable, type PrPeople } from './role';
 import { blockedBy, codeLock, ownRun } from './runs';
 import { syncReason } from './sync';
 import { blobSha, caseLines, caseTitles, isInvariantTest, readingOf } from './test-files';
@@ -64,7 +72,7 @@ export type JourneyInput = {
   agentId: string;
   lang: VibeLang;
   flow: VibeFlow;
-  pr: number | null;            // la PR suivie (vibeSet({ pr }), load-pr), les deux parcours
+  pr: number | null;            // la PR suivie (vibeSet({ pr }), load-pr), les deux rôles
   autonomy?: 'guide' | 'vibe';  // d'avant la 0.12.0, ignorée (plus rendue) : vibe la remplace
   vibe?: boolean;               // le mode Vibe en cours (F-103) ; absent : non
   agent: { model: string; effort: string; mode: string };
@@ -83,14 +91,18 @@ export type JourneyInput = {
   outputs: Record<string, { text: string; time: number }>; // par nom connu (OUTPUTS)
   marks: Marks;
   draft: VibeComment[];
-  worktree?: VibeWorktree | null;                   // Relire : la PR suivie dans un worktree (F-110)
+  worktree?: VibeWorktree | null;                   // Relecteur : la PR suivie dans un worktree (F-110)
   child?: boolean;                                  // l'agent est l'enfant d'un worktree (agent.parent)
   recipe?: VibeRecipe | null;                       // la recette de la famille ; en cours : les actions de worktree grisées
   // Le dossier (les deux parcours) : sa branche et s'il a des modifications (git status), pour les choix de lieu.
   checkout?: { branch: string; dirty: boolean } | null;
   request?: string | null;                          // la branche de la nouvelle demande retenue, qui attend son choix
-  // Lu par gh, sans agent (technicals/github) : Créer, la PR de la branche ; l'état de la PR suivie ; les PR
-  // ouvertes du dépôt (les deux parcours). Absent ou null : les sorties des skills (pr.json, pr-<n>.json).
+  // Lu par gh, sans agent (technicals/github) : créateur, la PR de la branche ; l'état de la PR suivie ; les PR
+  // ouvertes du dépôt (les deux rôles). Absent ou null : les sorties des skills (pr.json, pr-<n>.json).
+  // Lus par gh, en fond : les personnes de la PR et l'identifiant de l'utilisateur (S'assigner la PR, Me retirer) ;
+  // absents : null (les fixtures des invariants protégés d'avant la 0.13.0).
+  people?: PrPeople | null;
+  login?: string | null;
   github?: { pr?: Record<string, unknown> | null; prs?: { mine: unknown[]; review: unknown[]; all: unknown[] } | false | null; state?: string | null };
   // Lus par git (les deux parcours) : les branches locales ; les commits de @{u} et de origin/<base> absents de
   // HEAD. Absents : null (les fixtures des invariants protégés d'avant la 0.12.0).
@@ -109,10 +121,7 @@ export type JourneyInput = {
 // son texte à la base, au-delà : null.
 const SOURCE_MAX = 200_000;
 
-const ORDER: Record<VibeFlow, VibeStepId[]> = {
-  create: ['note', 'forme', 'invariants', 'modules', 'revue', 'pr'],
-  review: ['note', 'invariants', 'commits', 'ecran', 'revue'],   // la PR de la branche active (0.12.0-gestion-des-branches)
-};
+const ORDER: VibeStepId[] = ['note', 'forme', 'invariants', 'modules', 'revue', 'pr'];
 
 const TEXT = {
   fr: {
@@ -129,7 +138,6 @@ const TEXT = {
     openQuestions: 'Répondre d\'abord aux questions de la note', unvalidated: 'Valider d\'abord la note', started: 'Déjà en cours',
     noFixup: 'Aucun commit fixup!', dirty: 'Des modifications en cours', preparing: 'Une recette du projet est en cours',
     elsewhere: 'Passer d\'abord sur la branche de la PR', noUpstream: 'Pas de branche distante suivie', upToDate: 'Déjà à jour',
-    merged: 'PR déjà fusionnée : rien à relire', closed: 'PR fermée : rien à relire',
     checklist: ['La note est à jour', 'Les invariants passent', 'Chaque diff a été relu', 'Un commit par module, fixups repliés',
       'AGENTS.md à jour si une convention a changé'],
   },
@@ -147,7 +155,6 @@ const TEXT = {
     openQuestions: 'Answer the note\'s questions first', unvalidated: 'Approve the note first', started: 'Already running',
     noFixup: 'No fixup! commit', dirty: 'Uncommitted changes', preparing: 'A project recipe is running',
     elsewhere: 'Switch to the PR branch first', noUpstream: 'No upstream branch', upToDate: 'Already up to date',
-    merged: 'PR already merged: nothing to review', closed: 'PR closed: nothing to review',
     checklist: ['The note is up to date', 'The invariants pass', 'Every diff has been reviewed', 'One commit per module, fixups folded',
       'AGENTS.md updated if a convention changed'],
   },
@@ -262,8 +269,8 @@ export function vibeView(input: JourneyInput): VibeView {
   const warnings = checks?.filter((c) => c?.level === 'warning').length ?? 0;
   const ponytail = out('ponytail.md') !== null;
   const commitMd = out('commit.md') !== null;
-  // La PR suivie (les deux parcours) et sa fiche, chargée : son état d'après gh s'il a répondu ; elle ouvre
-  // ses choix de lieu. Créer : la PR de la branche (gh, sinon pr.json) ; Relire : la PR suivie.
+  // La PR suivie (les deux rôles) et sa fiche, chargée : son état d'après gh s'il a répondu ; elle ouvre
+  // ses choix de lieu. Créateur : la PR de la branche (gh, sinon pr.json) ; relecteur : la PR suivie.
   const gh = input.github ?? {};
   const fiche = json(n ? out(`pr-${n}.json`) : null);
   const followed = fiche && gh.state ? { ...fiche, state: gh.state } : fiche;
@@ -276,15 +283,21 @@ export function vibeView(input: JourneyInput): VibeView {
     head: loaded?.head ?? null, branch, onBase: onBase(branch, repo?.base ?? null), dirty: !!input.checkout?.dirty,
     child: !!input.child, robot: !!input.worktree?.temp, prWorktree: !!input.worktree, recipe: !!input.recipe?.running,
   };
-  const here = !!loaded && onPr(place);   // Relire : le dossier sur la tête de la PR suivie (ou son robot)
+  const here = !!loaded && onPr(place);   // relecteur : le dossier sur la tête de la PR suivie (ou son robot)
   const prs = gh.prs ? { mine: toItems(gh.prs.mine), review: toItems(gh.prs.review), all: toItems(gh.prs.all) } : gh.prs === false ? false : null;
   // Pull, Rebase, Pousser : Pousser après un rebase réussi, tant qu'aucun push n'a réussi depuis.
   const rebased = input.direct?.rebase?.last, pushed = input.direct?.push?.last;
   const sync = { behind: input.sync?.behind ?? null, rebased: !!rebased?.ok && !(pushed?.ok && pushed.time >= rebased.time) };
-  // Relire : le plan de test, chaque case validée (pour ce plan-là), ou cochée dans le fichier et pas refusée ;
-  // Créer : la liste du § A.3, cochée d'après le dépôt quand c'est possible ; sinon à la main (manual) :
-  // cochée si la case `a3:<rang>` est validée pour le commit de tête de la branche (un commit de plus la décoche).
-  const plan = n ? out(`pr-${n}-ecran.md`) : null;
+  // Le plan à l'écran (ecran.md, les deux rôles) : chaque case validée (pour ce plan-là), ou cochée dans le
+  // fichier et pas refusée. Créateur : la liste du § A.3, cochée d'après le dépôt quand c'est possible ; sinon à la
+  // main (manual) : cochée si la case `a3:<rang>` est validée pour le commit de tête de la branche (un commit de
+  // plus la décoche). Relecteur : pas de liste A.3.
+  const plan = out('ecran.md');
+  const screen: VibeCheck[] = parseChecklist(plan ?? '').map((c, i) => {
+    const m = markState(marks, `check:${i}`, blobSha(plan!));
+    return { text: c.text, done: m === 'ok' || (!!c.done && m !== 'ko') };
+  });
+  const boxes = screen.filter((c) => c.done).length;
   const head = commits.at(-1)?.hash;
   const a3 = [
     !!note && commits.some((c) => c.files.includes(note.path)),
@@ -295,11 +308,7 @@ export function vibeView(input: JourneyInput): VibeView {
     !fixups && modules.length > 0 && modules.every((m) => m.commits.length > 0),
     null,
   ];
-  const checklist: VibeCheck[] = flow === 'review'
-    ? parseChecklist(plan ?? '').map((c, i) => {
-      const m = markState(marks, `check:${n}:${i}`, blobSha(plan!));
-      return { text: c.text, done: m === 'ok' || (!!c.done && m !== 'ko') };
-    })
+  const checklist: VibeCheck[] = flow === 'review' ? []
     : T.checklist.map((text, i) => (a3[i] !== null ? { text, done: a3[i] }
       : { text, done: (!!head && markState(marks, `a3:${i}`, head) === 'ok') || null, manual: true }));
 
@@ -326,7 +335,7 @@ export function vibeView(input: JourneyInput): VibeView {
         ? input.runs.find((r) => r.id === 'invariants' || r.id === 'align')?.state === 'done' || note.nothingMark === 'ok'
         : (vibe || casesOk) && !dirty.some((f) => f === note.path || invariants.some((t) => t.path === f)))),
       modules: modules.length > 0 && modules.every((m) => m.commits.length > 0) && !modules.some((m) => m.uncommitted),
-      revue: checksOk && ponytail && !fixups,
+      revue: checksOk && ponytail && !fixups && boxes === screen.length,   // le plan à l'écran, s'il y en a un
       pr: !!pr,
     };
     next = {
@@ -346,34 +355,37 @@ export function vibeView(input: JourneyInput): VibeView {
       invariants: invFacts,
       modules: `${modules.filter((m) => m.commits.length).length} / ${count(modules.length, T.module)}`,
       revue: line(!checks ? T.unchecked : checksOk ? T.checksOk : T.checksKo, warnings > 0 && count(warnings, T.warning),
-        ponytail && T.ponytail, fixups > 0 && count(fixups, T.fixup)),
+        ponytail && T.ponytail, fixups > 0 && count(fixups, T.fixup), screen.length > 0 && `${boxes} / ${count(screen.length, T.box)}`),
       pr: pr ? `PR #${pr.number}` : T.noPr,
     };
   } else {
-    const boxes = checklist.filter((c) => c.done).length;
+    const noteDone = here && (!note || judged(note.mark));
     done = {
-      note: here && (!note || judged(note.mark)),
+      note: noteDone,
+      forme: noteDone,   // rien à juger : avec la Note
       invariants: here && invariants.every((f) => f.cases.every((c) => judged(f.marks[c]))),
-      commits: !!n && out(`pr-${n}-commits.md`) !== null,
-      ecran: checklist.length > 0 && boxes === checklist.length,
-      revue: !!n && out(`pr-${n}-review.json`) !== null,
+      modules: !!n && out(`pr-${n}-commits.md`) !== null,
+      revue: screen.length > 0 && boxes === screen.length,
+      pr: !!n && out(`pr-${n}-review.json`) !== null,
     };
     next = {
       note: note && n && out(`pr-${n}-note.md`) === null ? 'review-note' : null,
+      forme: null,
       invariants: null,   // les cas attendent leur verdict, lus ou pas
-      commits: 'review-commits',
-      ecran: n && plan === null ? 'screen' : null,
-      revue: 'publish',
+      modules: 'review-commits',
+      revue: n && plan === null ? 'screen' : null,
+      pr: 'publish',
     };
     stepFacts = {
       note: noteFacts,
+      forme: note ? count(modules.length, T.module) : T.noNote,
       invariants: invFacts,
-      commits: line(count(commits.length, T.commit), done.commits && T.reviewed),
-      ecran: plan === null ? T.noPlan : `${boxes} / ${count(checklist.length, T.box)}`,
-      revue: line(count(input.draft.length, T.remark), done.revue && T.published),
+      modules: line(count(commits.length, T.commit), done.modules && T.reviewed),
+      revue: plan === null ? T.noPlan : `${boxes} / ${count(screen.length, T.box)}`,
+      pr: line(count(input.draft.length, T.remark), done.pr && T.published),
     };
   }
-  const current = ORDER[flow].find((s) => !done[s]) ?? null;
+  const current = ORDER.find((s) => !done[s]) ?? null;
   const primary = current && next[current];
   const open = (id: VibeStepId) => flow === 'review' || !!done[id] || id === current;
 
@@ -390,10 +402,6 @@ export function vibeView(input: JourneyInput): VibeView {
     (ownRun(d) ? blockedBy(d, locks, lang) : input.busy && !ELSEWHERE.includes(d.id) ? T.busy : null)
     ?? (DIRECT_ACTIONS.includes(d.id) && running ? T.directRunning : null);
   const sense = (d: ActionDef): Reason | null => {
-    // Relire une PR fusionnée ou fermée : elle se charge (la vue des branches, sans étape), mais ne se relit pas.
-    if (flow === 'review' && d.step !== null && (pr?.state === 'MERGED' || pr?.state === 'CLOSED')) {
-      return pr.state === 'MERGED' ? 'merged' : 'closed';
-    }
     const v = new Set(templateVars(d.text));
     if ((v.has('branch') || v.has('base')) && !repo) return 'noRepo';
     // La Forme et les invariants s'écrivent d'après la note.
@@ -407,7 +415,7 @@ export function vibeView(input: JourneyInput): VibeView {
       if (vibe || input.busy || input.running.length) return 'started';
     }
     if (v.has('files') && !invariants.length) return 'nothingToRead';   // tout lu : on peut relire (args.file)
-    // Relire : les étapes qui lisent la PR attendent qu'elle soit chargée (charger la PR, ses choix de lieu : la
+    // Relecteur : les étapes qui lisent la PR attendent qu'elle soit chargée (charger la PR, ses choix de lieu : la
     // vue des branches, sans étape, prennent son numéro de la page).
     if (flow === 'review' && !loaded && d.step !== null && (v.has('pr') || v.has('ref'))) return pr ? 'loadFirst' : 'noPrChosen';
     // Chargée, le dossier ailleurs que sur sa tête : les étapes lisent la copie de travail.
@@ -419,7 +427,7 @@ export function vibeView(input: JourneyInput): VibeView {
     if (d.id === 'remove-worktree' && place.recipe) return 'preparing';
     return placeReason(d.id, place) ?? syncReason(d.id, sync);
   };
-  // Pas encore de sens : masquée (sa raison reste). L'étape PR (Créer) d'après l'état de la PR, sans griser :
+  // Pas encore de sens : masquée (sa raison reste). L'étape PR (créateur) d'après l'état de la PR, sans griser :
   // une demande juste après pr ne doit pas tomber sur un relevé en retard.
   const notYet = new Set<Reason>(['noNoteYet', 'nothingToRead', 'noCommitMd', 'noQuestion', 'noFixup',
     'openQuestions', 'unvalidated', 'started']);
@@ -430,12 +438,15 @@ export function vibeView(input: JourneyInput): VibeView {
     pr: !prState, ci: prState === 'OPEN', rc: prState === 'OPEN', base: prState === 'MERGED' && !child, release: prState === 'MERGED',
   };
   // Les choix de lieu (core/vibecoder place), Pousser (après un rebase pas encore poussé), sans griser ; Rebase hors
-  // de la base ; Nouvelle demande sur la base seulement. Retirer le worktree : sur un enfant, sa PR fusionnée (Créer) ou sur le robot d'une PR (Relire).
+  // de la base ; Nouvelle demande sur la base seulement. Retirer le worktree : sur un enfant, sa PR fusionnée (Créer) ou sur le robot d'une PR (relecteur).
   const shown: Record<string, boolean> = {
     ...placeShown(place),
-    rebase: !place.onBase,
+    rebase: !place.onBase && flow === 'create',   // le relecteur n'édite ni ne pousse : rien à rebaser, à pousser, à copier
     'load-pr': !place.child,   // un worktree reste sur sa branche (place : BRANCH_CHANGES)
-    push: sync.rebased,
+    push: sync.rebased && flow === 'create',
+    'copy-artifact': flow === 'create',
+    'assign-pr': flow === 'review' && canAssign(input.people ?? null, input.login ?? null),
+    'unassign-pr': flow === 'create' && unassignable(input.people ?? null, input.login ?? null),
     'new-request': place.onBase,
     'remove-worktree': child && (flow === 'create' ? prState === 'MERGED' : place.robot),
   };
@@ -465,9 +476,9 @@ export function vibeView(input: JourneyInput): VibeView {
     agentId: input.agentId, lang, flow, vibe: input.vibe, agent: input.agent,
     repo: repo && { branch: repo.branch, base: repo.base, changed: changed.length },
     error: input.error,
-    steps: ORDER[flow].map((id) => ({ id, status: done[id] ? 'done' : id === current ? 'current' : 'todo', facts: stepFacts[id] ?? '', open: open(id) })),
-    note, questions, modules, invariants, variants, commits: viewCommits, outputs, checklist, actions,
-    skills: input.skills, pr, prs, loaded, reviewable: prState === 'OPEN' && (flow === 'create' || here), child, branches: input.branches ?? null,
+    steps: ORDER.map((id) => ({ id, status: done[id] ? 'done' : id === current ? 'current' : 'todo', facts: stepFacts[id] ?? '', open: open(id) })),
+    note, questions, modules, invariants, variants, commits: viewCommits, outputs, checklist, screen, actions,
+    skills: input.skills, pr, prs, loaded, child, branches: input.branches ?? null,
     sync: input.sync ?? null, draft: input.draft, worktree: input.worktree ?? null, runs: input.runs,
     request: input.request ? { branch: input.request } : null, time: input.now,
   };
