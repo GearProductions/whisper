@@ -622,9 +622,10 @@ relire une PR (le relecteur, plus bas) :
    contenu, hors du dossier de travail, et un commit qui ne compile pas arrête
    là, sans rattrapage) ; vous pouvez donc retoucher le code entre les deux. Chaque
    module est un accordéon : un clic sur sa ligne montre ses boutons, sur la
-   même ligne, et son contrat. Un interrupteur *IDE* · *liste* (retenu d'une
+   même ligne, et son contrat. Chaque module porte un numéro, son rang dans la
+   Forme : l'ordre où le générer (un module attend ceux qu'il utilise). Un interrupteur *IDE* · *liste* (retenu d'une
    ouverture à l'autre) remplace l'accordéon par une arborescence des
-   fichiers des modules, avec le point d'état de chacun, et le fichier choisi
+   fichiers des modules, avec le point d'état et le numéro de chacun, et le fichier choisi
    à droite, avec les boutons de son module ; aucune action de plus.
    Dessous, pour un module touché, son code : ses fichiers que la branche
    change (modifiés, ajoutés, ou « supprimé » : son diff, tout en retraits,

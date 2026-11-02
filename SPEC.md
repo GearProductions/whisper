@@ -1350,7 +1350,8 @@ créateur ; le relecteur, F-101) :
    ne propose jamais de nouvelle branche.
 2. **Forme** — faite : au moins un module dans la rubrique « Forme », validée.
    Montre, en **vue IDE** (la seule), l'arborescence des modules à gauche,
-   par dossier (`src/` de tête ignoré), et le module choisi à droite : chemin,
+   par dossier (`src/` de tête ignoré), chacun avec son numéro (son rang dans
+   la Forme, l'ordre où les générer), et le module choisi à droite : chemin,
    état (touché par la branche, existe, à créer), commits ; *Commenter*,
    *Ouvrir*. Un interrupteur *Structure* · *Code* : *Structure*, son contrat
    en rubriques (expose, ne connaît pas, utilisé par), en texte ; *Code*, son
@@ -1425,7 +1426,9 @@ créateur ; le relecteur, F-101) :
    (`review.md`) ; *Commiter les modules* dans les outils de la carte, s'il
    y a un module pas commité ; puis une ligne par module, un accordéon (replié ;
    un seul déplié à la fois ; commité, en cours :
-   modifié pas commité, à faire ; nom, dossier, « à créer », ses
+   modifié pas commité, à faire ; son numéro, son rang dans la Forme, l'ordre
+   où les générer et les commiter, « Ordre de génération : n sur N » au
+   survol ; nom, dossier, « à créer », ses
    commits). Déplié : sur sa ligne, sa barre d'outils — *Générer* (ce module), *Relire le diff*
    (du dernier commit qui le touche, sinon des changements en cours),
    *Ouvrir*, *Commiter* (des fichiers changés hors de tout commit de la
@@ -1493,7 +1496,8 @@ créateur ; le relecteur, F-101) :
    choisit entre l'accordéon ci-dessus (*liste*, inchangée) et une
    arborescence à gauche, des fichiers des modules rangés par dossier (un
    module de plusieurs fichiers n'y fait pas un nœud), chacun avec le point
-   d'état de son module (commité, en cours, à faire), et le fichier choisi à
+   d'état et le numéro de son module (commité, en cours, à faire ; aucun pour
+   un fichier de la branche, sans Forme), et le fichier choisi à
    droite, avec les outils de son module (*Générer*, *Relire le diff*,
    *Ouvrir*, *Commiter*) et son code en diff git (*Fichier* ou diff, *En ligne*
    ou *Côte à côte*, comme *Voir le code*). La vue choisie est retenue d'une
