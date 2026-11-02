@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-// CommitsView (commits-view.tsx) : un fichier d'un commit, cliqué → act.follow(c<rang>/<i>) et ouvert sous sa
+// CommitsSection (commits-view.tsx) : un fichier d'un commit, cliqué → act.follow(c<rang>/<i>) et ouvert sous sa
 // carte, un seul à la fois ; recliqué, fermé ou décalé par un relevé → act.follow(null) ; 💬 d'une ligne → une zone de commentaire,
 // la remarque au brouillon sur la cible du commit, le chemin et les lignes citées (quoteRemark). Finitions : Voir le diff,
 // GitHub, 💬, fermer → des IconButton (libellé en aria-label) ; les fichiers, une liste sans <details> ni titre.
@@ -9,7 +9,7 @@ import { EditorView } from '@codemirror/view';
 import { expect, it } from 'vitest';
 import { quoteRemark, t } from 'core/vibecoder';
 import type { VibeCode, VibeView } from 'technicals/bridge';
-import { CommitsView } from '../../commits-view';
+import { CommitsSection } from '../../commits-view';
 import type { StepProps } from '../../step-views';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -25,10 +25,10 @@ const commits = [
 ];
 const draw = (code: VibeCode | null, cs = commits) => act(() => {
   const view = { lang: 'fr', flow: 'review', actions: [], outputs: {}, pr: null, commits: cs, draft: [] } as unknown as VibeView;
-  const props = { view, step: { id: 'commits', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
+  const props = { view, step: { id: 'modules', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
     code, drafts: [{}, () => {}], act: { run: async () => true, follow: (id: string | null) => { follows.push(id); }, mark: () => {}, prefill: () => {},
       draft: (op: unknown) => { drafts.push(op); }, open: () => {}, openLink: () => {}, save: async () => true } } as unknown as StepProps;
-  root.render(createElement(CommitsView, props));
+  root.render(createElement(CommitsSection, props));
 });
 // Un bouton par son texte, ou par son libellé (aria-label) pour un IconButton.
 const click = (text: string) => act(() => {
@@ -84,10 +84,10 @@ it('finitions : liens et 💬 en IconButton, les fichiers en liste compacte', as
   const opened: string[] = [];
   await act(() => {
     const view = { lang: 'fr', flow: 'review', actions: [], outputs: {}, pr: null, commits, draft: [] } as unknown as VibeView;
-    const props = { view, step: { id: 'commits', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
+    const props = { view, step: { id: 'modules', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
       code: null, drafts: [{}, () => {}], act: { run: async () => true, follow: () => {}, mark: () => {}, prefill: () => {}, draft: () => {},
         open: (id: string) => { opened.push(id); }, openLink: () => {}, save: async () => true } } as unknown as StepProps;
-    root.render(createElement(CommitsView, props));
+    root.render(createElement(CommitsSection, props));
   });
   const tr = t('fr');
   await click(tr.diffTitle);

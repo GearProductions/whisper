@@ -163,7 +163,7 @@ export const needsTrust = (cfg: Config, dir: string) => !favoriteFolders(cfg).so
 // config.json se retouche à la main : une valeur inconnue prend le défaut.
 export const vibeLang = (cfg: Config): VibeLang => (cfg.vibeLang === 'en' ? 'en' : 'fr');
 
-// Les réglages VibeCoder d'un agent : Créer (défaut) ou Relire, la PR suivie
+// Les réglages VibeCoder d'un agent : le rôle (créateur par défaut, ou relecteur), la PR suivie
 // (un entier positif, sinon aucune). Une `autonomy` d'avant la 0.12.0 : ignorée.
 export function agentVibe(agent: AgentConfig): { flow: VibeFlow; pr: number | null } {
   const v: Partial<Record<string, unknown>> = agent.vibe && typeof agent.vibe === 'object' ? agent.vibe : {};

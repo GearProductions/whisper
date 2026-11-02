@@ -1,10 +1,17 @@
-/** pr-view — l'étape PR (Créer) : la PR de la branche (lue par gh, sinon
- *  pr.json : numéro, titre,
+/** pr-view — l'étape PR, pour les deux rôles (view.flow).
+ *  Créateur : la PR de la branche (lue par gh, sinon pr.json : numéro, titre,
  *  branche et base du dépôt, lien ouvert dans le navigateur) ou l'invitation
- *  à Valider la feature ;
- *  l'état de la CI (ci.md, 💬 par bloc, Relancer) ou Diagnostiquer la CI.
+ *  à Valider la feature ; l'état de la CI (ci.md, 💬 par bloc, Relancer) ou
+ *  Diagnostiquer la CI ; Me retirer de la PR (unassign-pr) si le relevé la montre.
+ *  Relecteur : la carte de la PR suivie, S'assigner la PR (assign-pr) si le
+ *  relevé la montre, puis le brouillon de revue (draft-view) — aucune action
+ *  qui édite, génère ou commite. S'assigner et s'en retirer : actions directes
+ *  seulement (F-114), au clic ; le principal prend le numéro et le login de son
+ *  relevé, rien n'est envoyé. L'en-tête est rendu ici (Publier, au relecteur,
+ *  est dans draft-view : `own`).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import type { VibeLang } from 'technicals/bridge';
+import { DraftView } from './draft-view';
 import { MarkdownView } from './markdown-view';
 import { Invite, OutputCard, PrCard, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
@@ -35,6 +42,21 @@ export function PrView(p: StepProps) {
   const pr = view.pr && {
     ...view.pr, head: view.pr.head || view.repo?.branch || '', base: view.pr.base || view.repo?.base.replace(/^origin\//, '') || '',
   };
+  // S'assigner la PR / Me retirer de la PR : un clic, direct, sans argument (le principal lit son relevé).
+  const assigns = ['assign-pr', 'unassign-pr'].flatMap((id) => { const a = action(id); return a && !a.hidden ? [a] : []; });
+  const assignBar = assigns.length ? (
+    <div className="vc-step-acts">{assigns.map((a) => <Run key={a.id} a={a} busy={busy} onRun={(x) => act.run(a.id, x)} />)}</div>
+  ) : null;
+  if (view.flow === 'review') {
+    return (
+      <>
+        <StepHead p={p} own={['publish']} />
+        {view.pr ? <PrCard pr={view.pr} lang={view.lang} onOpenLink={act.openLink} /> : null}
+        {assignBar}
+        <DraftView {...p} />
+      </>
+    );
+  }
   return (
     <>
       <StepHead p={p} own={[...(pr ? [] : ['pr']), ...(ci || pr ? ['ci'] : [])]} />
@@ -49,6 +71,7 @@ export function PrView(p: StepProps) {
       ) : pr ? (
         <Invite title={s.noCi} text={s.noCiHint}><Run a={action('ci')} busy={busy} onRun={() => act.run('ci')} /></Invite>
       ) : null}
+      {assignBar}
     </>
   );
 }

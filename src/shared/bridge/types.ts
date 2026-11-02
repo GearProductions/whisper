@@ -198,9 +198,9 @@ export interface ConvApi {
   /** Une action (son id dans VibeView.actions) → un message à l'agent affiché. */
   vibeRun(action: string, args: VibeArgs): Promise<SendResult>;
   vibeSet(patch: VibePatch): void;
-  /** Valider ('ok'), refuser ('ko') ou oublier (null) : 'note', 'forme', 'case:<chemin du fichier>:<titre du cas>', 'check:<pr>:<rang>'. */
+  /** Valider ('ok'), refuser ('ko') ou oublier (null) : 'note', 'forme', 'case:<chemin du fichier>:<titre du cas>', 'check:<rang>' (une case du plan à l'écran). */
   vibeMark(target: string, verdict: 'ok' | 'ko' | null): void;
-  /** Relire : ajouter au brouillon de revue de la PR (le texte du champ), ou en retirer une remarque. */
+  /** Relecteur : ajouter au brouillon de revue de la PR (le texte du champ), ou en retirer une remarque. */
   vibeDraft(op: { add?: { target: string; text: string }; edit?: { id: number; text: string }; remove?: number }): void;
   /** Un fichier du relevé (son id), dans l'éditeur : jamais un chemin. */
   vibeOpen(id: string, line?: number): void;
@@ -212,7 +212,7 @@ export interface ConvApi {
    *  répondre à sa demande d'autorisation — jamais un chemin ni un texte. */
   vibeRunOp(id: string, op: VibeRunOp): void;
   /** Voir le code : suivre un fichier du relevé — module (`m<rang>/<i>`), note (`n`), test d'invariant (`t<i>`),
-   *  fichier d'un commit (`c<rang>/<i>`) — par son id, en Créer seulement pour la note et les tests, en Relire
+   *  fichier d'un commit (`c<rang>/<i>`) — par son id, en créateur seulement pour la note et les tests, en relecteur
    *  seulement pour un fichier d'un commit ; null : ne plus suivre ; son texte arrive par onVibeCode, à chaque
    *  changement sur le disque (un fichier d'un commit : lu par git, une fois). */
   vibeFollow(id: string | null): void;
@@ -227,10 +227,11 @@ export interface ConvApi {
 /* ---- VibeCoder (dans le panneau) ------------------------------------------------ */
 
 export type VibeLang = 'fr' | 'en';
-export type VibeFlow = 'create' | 'review';      // Créer une feature, Relire une PR
-// Créer : note → forme → invariants → modules → revue → pr ; Relire : pr → note → invariants → commits → ecran → revue.
-export type VibeStepId = 'note' | 'forme' | 'invariants' | 'modules' | 'revue' | 'pr' | 'commits' | 'ecran';
-// open : un clic (ou Ctrl+1…6) l'ouvre — Créer, faite ou en cours ; Relire, toutes.
+// Le rôle, décidé par l'appli d'après la PR (jamais choisi) : créateur, relecteur.
+export type VibeFlow = 'create' | 'review';
+// Un seul parcours, les deux rôles : note → forme → invariants → modules → revue → pr.
+export type VibeStepId = 'note' | 'forme' | 'invariants' | 'modules' | 'revue' | 'pr';
+// open : un clic (ou Ctrl+1…6) l'ouvre — créateur, faite ou en cours ; relecteur, toutes.
 export type VibeStep = { id: VibeStepId; status: 'done' | 'current' | 'todo'; facts: string; open: boolean };
 
 // Une validation : validé, refusé, validé mais changé depuis, rien.
@@ -247,7 +248,7 @@ export type VibeNote = VibeFile & {
   mustNot: { text: string; mark: MustNotMark }[];
   mark: VibeMarkState;         // la note
   formeMark: VibeMarkState;    // sa rubrique « Forme »
-  nothingMark?: VibeMarkState; // ✓ Rien à écrire (Invariants, Créer) ; absent = null
+  nothingMark?: VibeMarkState; // ✓ Rien à écrire (Invariants, créateur) ; absent = null
   locked?: string | null;      // pourquoi elle ne s'édite pas (codeLock) ; absent = null : éditable
 };
 
@@ -403,24 +404,24 @@ export type VibeView = {
   variants: (VibeFile & { cases: number })[];
   commits: VibeCommit[];
   outputs: Record<string, VibeOutput>;   // par nom connu (main/core/vibecoder : OUTPUTS)
-  checklist: VibeCheck[];                // Créer : la liste du § A.3 ; Relire : le plan de test
+  checklist: VibeCheck[];                // créateur : la liste du § A.3 ; relecteur : vide
   actions: VibeAction[];
   skills: string[];                      // skills du projet et de l'utilisateur
-  pr: VibePr | null;                     // Créer : la PR ouverte ; Relire : la PR chargée
+  pr: VibePr | null;                     // la PR du rôle (créateur : la PR ouverte de la branche ; relecteur : la PR suivie)
   // Les PR ouvertes du dépôt (les deux parcours) : les miennes, celles à relire, toutes ; null : pas encore
   // de réponse de gh ; false : gh en échec.
   prs: { mine: VibePrItem[]; review: VibePrItem[]; all: VibePrItem[] } | false | null;
   // Toujours remplis par le relevé (optionnels pour les vues écrites à la main, comme les tests) :
+  screen?: VibeCheck[];                  // le plan à l'écran (ecran.md), les deux rôles ; vide : pas de plan
   loaded?: VibePr | null;                // la PR suivie et sa fiche pr-<n>.json (les deux parcours : la vue des branches)
-  reviewable?: boolean;                  // la branche a sa PR ouverte : Relire possible ; absent : non
   child?: boolean;                       // l'agent est un worktree (enfant ou robot) : il reste sur sa branche
   dev?: 'reload' | 'restart' | null;     // depuis les sources : les pages reconstruites (recharger) ou le principal (redémarrer)
   branches?: string[] | null;            // les branches locales
   // behind : commits de @{u} absents de HEAD (null : pas de branche distante suivie) ;
   // baseAhead : commits de origin/<base> absents de HEAD.
   sync?: { behind: number | null; baseAhead: number | null } | null;
-  draft: VibeComment[];                  // Relire : le brouillon de revue de la PR
-  // Relire : la PR suivie dans un worktree (F-110) — sur l'agent du dépôt, en
+  draft: VibeComment[];                  // relecteur : le brouillon de revue de la PR
+  // relecteur : la PR suivie dans un worktree (F-110) — sur l'agent du dépôt, en
   // création, ouvert sans robot, ou son robot temporaire là ; temp : ce robot-ci.
   worktree?: VibeWorktree | null;
   // Processus : les commandes du fichier du projet (toujours remplis par le relevé) ; projectFile : il existe.
@@ -429,7 +430,7 @@ export type VibeView = {
   setup?: boolean;                       // le fichier du projet a un setup (*Préparer le projet*)
   recipe?: VibeRecipe | null;            // la recette de la famille, en cours ou la dernière
   runs?: VibeRun[];                      // les courses, la plus récente d'abord (toujours rempli par le relevé)
-  request?: { branch: string } | null;   // Créer : la branche nommée pour la nouvelle demande retenue, qui attend son choix
+  request?: { branch: string } | null;   // créateur : la branche nommée pour la nouvelle demande retenue, qui attend son choix
   artifacts?: VibeArtifact[];            // les artefacts de l'agent (toujours rempli par le relevé)
   artifactsDir?: string;                 // le dossier du projet qui les contient (pour le `@`)
   artifactDirs?: VibeArtifactDir[];      // ses dossiers, même vides (toujours rempli par le relevé)
@@ -458,10 +459,9 @@ export type VibeArgs = {
 };
 
 export type VibePatch = {
-  flow?: VibeFlow;
   vibe?: false;                // la bannière : arrêter le mode Vibe (la course en cours finit)
   lang?: VibeLang;
-  pr?: number | null;          // Relire : la PR suivie
+  pr?: number | null;          // la PR suivie
   seen?: boolean;              // « Vu » : la note de référence devient l'actuelle
   view?: 'conversation';       // revenir à la conversation
   model?: string;              // le modèle de l'agent, comme son menu

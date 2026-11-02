@@ -7,7 +7,8 @@
  *  onFollow(null) quand on replie ou que le module déplié n'a pas de fichier ;
  *  un module déplié qui en a envoie le sien (son id). Le texte suivi et la modification gardée par fichier (drafts,
  *  tenues par vibe-coder), Ctrl+S, Enregistrer et Abandonner : useFileDraft
- *  et DraftEditor (file-draft), grisés si m.locked (le motif en titre). Sans
+ *  et DraftEditor (file-draft), grisés si m.locked (le motif en titre) ; readOnly
+ *  (le motif) : lecture seule, sans Enregistrer ni Abandonner. Sans
  *  texte du disque : « fichier trop gros ».
  *  Un fichier supprimé, choisi : son diff depuis la base, tout en retraits
  *  (ModuleDiffView(at.base ?? '', ''), en ligne), sans sélecteur, ni éditeur,
@@ -38,8 +39,9 @@ const S: Record<VibeLang, Record<Exclude<Shown, 'file'> | 'deleted', string>> = 
   en: { base: 'Diff since the branch base', head: 'Diff since the last commit', deleted: 'deleted' },
 };
 
-export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, drafts }: {
+export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, drafts, readOnly }: {
   m: VibeModule;
+  readOnly?: string;               // le motif : le code ne s'édite pas, et son pied (Enregistrer, Abandonner) est masqué
   lang: VibeLang;
   open: boolean;
   code: VibeCode | null;
@@ -50,7 +52,7 @@ export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, 
   drafts: StepProps['drafts'];
 }): ReactNode {
   const files = m.files ?? [];
-  const locked = m.locked ?? null;
+  const locked = readOnly ?? m.locked ?? null;
   // Le choix par son chemin : un id (m<rang>/<i>) change de fichier quand la liste change.
   const [chosen, setChosen] = useState<string | null>(null);
   const file = files.find((f) => f.path === chosen) ?? files[0];
@@ -96,7 +98,7 @@ export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, 
       </div>
       {file?.deleted ? (at ? <ModuleDiffView before={at.base ?? ''} after="" path={file.path} mode="inline" lang={lang} /> : null)
         : before != null && file ? <ModuleDiffView before={before} after={d.text ?? ''} path={file.path} mode={mode} lang={lang} />
-        : file ? <DraftEditor d={d} file={file} locked={locked} t={t} onQuote={onQuote} footInTools /> : null}
+        : file ? <DraftEditor d={d} file={file} locked={locked} t={t} onQuote={onQuote} footInTools noFoot={!!readOnly} /> : null}
     </>
   );
 }

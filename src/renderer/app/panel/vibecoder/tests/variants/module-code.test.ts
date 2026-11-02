@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 // ModuleCode (module-code.tsx) : l'arbre marque un fichier supprimé ; choisi, son diff depuis la base
 // tout en retraits, sans sélecteur, ni éditeur modifiable, ni Enregistrer ; un fichier changé : le
-// sélecteur (DiffPicker) et l'éditeur avec Enregistrer.
+// sélecteur (DiffPicker) et l'éditeur avec Enregistrer ; readOnly : lecture seule, sans pied.
 import { act, createElement, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EditorView } from '@codemirror/view';
@@ -23,11 +23,11 @@ function mount() {
   document.body.append(page);
   const root = createRoot(page);
   const followed: (string | null)[] = [];
-  const Probe = ({ code }: { code: VibeCode | null }) => createElement(ModuleCode, {
+  const Probe = ({ code, readOnly }: { code: VibeCode | null; readOnly?: string }) => createElement(ModuleCode, {
     m, code, t: t('fr'), lang: 'fr', open: true, onFollow: (id) => { followed.push(id); },
-    onSave: async () => true, drafts: useState<Drafts>({}),
+    onSave: async () => true, drafts: useState<Drafts>({}), readOnly,
   });
-  const render = (code: VibeCode | null) => act(() => { root.render(createElement(Probe, { code })); });
+  const render = (code: VibeCode | null, readOnly?: string) => act(() => { root.render(createElement(Probe, { code, readOnly })); });
   const saveButton = () => [...page.querySelectorAll('button')].find((b) => b.textContent === 'Enregistrer');
   return { page, render, followed, saveButton };
 }
@@ -61,4 +61,14 @@ it('un fichier changé : pas marqué, le sélecteur et l\'éditeur avec Enregist
   const editor = EditorView.findFromDOM(v.page.querySelector('.cm-editor') as HTMLElement)!;
   expect(editor.state.readOnly).toBe(false);
   expect(v.saveButton()!.closest('.vc-src-tools .vc-mod-code-foot')).not.toBeNull(); // le pied dans la rangée d'outils
+});
+
+it('readOnly : l\'éditeur en lecture seule, ni Enregistrer ni Abandonner', async () => {
+  const v = mount();
+  await v.render(null, 'Lecture seule');
+  await act(() => { ([...v.page.querySelectorAll('.vc-mod-tree button')][1] as HTMLButtonElement).click(); });
+  await v.render({ id: 'm1/1', text: 'a', time: 1, at: { base: null, head: 'a' } }, 'Lecture seule');
+  expect(EditorView.findFromDOM(v.page.querySelector('.cm-editor') as HTMLElement)!.state.readOnly).toBe(true);
+  expect(v.saveButton()).toBeUndefined();
+  expect(v.page.querySelector('.vc-mod-code-foot')).toBeNull();
 });

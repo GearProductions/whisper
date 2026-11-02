@@ -10,7 +10,9 @@
  *  suivie (git pull --ff-only --autostash), Rebase (git rebase --autostash
  *  <onto> ; un échec → git rebase --abort aussitôt), Pousser (git push
  *  --force-with-lease, jamais --force), Actualiser (git fetch origin), Me
- *  demander en relecture (gh pr edit <n> --add-reviewer <identifiant>).
+ *  demander en relecture (gh pr edit <n> --add-reviewer <identifiant>),
+ *  S'assigner la PR et Me retirer de la PR (gh pr edit <n> --add-assignee
+ *  / --remove-assignee <identifiant>).
  *  Une liste fermée de commandes (DIRECT_GIT, DIRECT_GH), aux arguments fixes ou
  *  vérifiés : une PR est un entier positif, un verdict l'un des trois, un
  *  identifiant GitHub ses seuls caractères (okLogin), une
@@ -86,6 +88,14 @@ export function directRunner({ dir, out, prefix, launch = launchFile }: { dir: s
   // La première ligne utile d'une sortie (en échec : d'abord l'erreur), sinon `fallback`.
   const first = (r: { exit: number | null; stdout: string; stderr: string }, fallback: string) =>
     (r.exit === 0 ? `${r.stdout}\n${r.stderr}` : `${r.stderr}\n${r.stdout}`).split('\n').map((l) => l.trim()).find(Boolean) ?? fallback;
+
+  // gh pr edit <n> <flag> <identifiant> : le même refus et la même panne pour requestReview, assign et unassign.
+  const editPr = async (n: unknown, login: unknown, flag: string, done: string): Promise<DirectResult> => {
+    if (!okNumber(n) || !okLogin(login)) return result(false, 'Refused: PR or GitHub login missing.');
+    const r = await run('gh', ['pr', 'edit', String(n), flag, login]);
+    if (r.exit !== 0) return result(false, first(r, 'gh pr edit failed.'));
+    return result(true, done);
+  };
 
   return {
     // git commit -F <out>/commit.md (rien d'ajouté à l'index), puis commit.md supprimé.
@@ -212,15 +222,14 @@ export function directRunner({ dir, out, prefix, launch = launchFile }: { dir: s
       return result(true, 'Pushed.');
     },
 
-    // git fetch origin : tout le distant (Actualiser, au clic seulement).
     // gh pr edit <n> --add-reviewer <identifiant> : s'ajouter en relecteur.
-    async requestReview(n: unknown, login: unknown): Promise<DirectResult> {
-      if (!okNumber(n) || !okLogin(login)) return result(false, 'Refused: PR or GitHub login missing.');
-      const r = await run('gh', ['pr', 'edit', String(n), '--add-reviewer', login]);
-      if (r.exit !== 0) return result(false, first(r, 'gh pr edit failed.'));
-      return result(true, `Review requested from ${login} on #${n}.`);
-    },
+    requestReview: (n: unknown, login: unknown) => editPr(n, login, '--add-reviewer', `Review requested from ${login} on #${n}.`),
 
+    // gh pr edit <n> --add-assignee / --remove-assignee <identifiant> : s'assigner la PR, s'en retirer
+    assign: (n: unknown, login: unknown) => editPr(n, login, '--add-assignee', `${login} assigned to #${n}.`),
+    unassign: (n: unknown, login: unknown) => editPr(n, login, '--remove-assignee', `${login} removed from #${n}.`),
+
+    // git fetch origin : tout le distant (Actualiser, au clic seulement).
     async fetchAll(): Promise<DirectResult> {
       const r = await run('git', ['fetch', 'origin']);
       if (r.exit !== 0) return result(false, first(r, 'git fetch failed.'));

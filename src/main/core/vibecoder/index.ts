@@ -12,6 +12,7 @@ export * from './marks';
 export * from './note';
 export * from './outputs';
 export * from './place';
+export * from './role';
 export * from './runs';
 export * from './sync';
 export * from './signal';

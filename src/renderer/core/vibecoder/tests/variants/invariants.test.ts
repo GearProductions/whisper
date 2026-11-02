@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { caseLine, caseSource, casesOf, progress, pseudoLines } from 'core/vibecoder';
+import { attentionQuote, caseLine, caseSource, casesOf, withAttention, progress, pseudoLines } from 'core/vibecoder';
 import type { ReadingCase, VibeTestFile } from 'technicals/bridge';
 
 const reading = (title: string, warning: string | null = null): ReadingCase => ({ title, pseudo: 'it("x")', edges: [], guarantees: 'g', warning });
@@ -158,5 +158,28 @@ describe('progress, un fichier pas lu', () => {
 
     // Pas lu n'empêche pas de tout valider.
     expect(progress([unread]).all).toBe(true);
+  });
+});
+
+describe('attentionQuote', () => {
+  it('le cas, puis son point d\'attention, à la ligne', () => {
+    expect(attentionQuote('refuse', 'ne couvre pas le vide')).toBe('refuse\nne couvre pas le vide');
+  });
+});
+
+describe('withAttention', () => {
+  it('texte vide ou blanc : l\'attention seule', () => {
+    expect(withAttention('', 'a')).toBe('a');
+    expect(withAttention('  \n', 'a')).toBe('a');
+  });
+
+  it('sinon le texte, une ligne vide, l\'attention ; rien d\'effacé', () => {
+    expect(withAttention('mon avis\n', 'a')).toBe('mon avis\n\na');
+  });
+
+  it('déjà au bout : inchangé (un second clic n\'ajoute rien)', () => {
+    const once = withAttention('mon avis', 'a');
+    expect(withAttention(once, 'a')).toBe(once);
+    expect(withAttention(`${once}\n`, 'a')).toBe(`${once}\n`);
   });
 });

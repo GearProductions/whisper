@@ -63,3 +63,30 @@ describe('l’identifiant de l’utilisateur', () => {
     expect(await githubReader(answering('a b')).login()).toBeNull();
   });
 });
+
+describe('les personnes d’une PR', () => {
+  it('l’auteur et les assignés ; un login douteux est écarté', async () => {
+    const calls: string[][] = [];
+    const gh = githubReader(async (args) => {
+      calls.push(args);
+      return JSON.stringify({
+        author: { login: 'bob' }, assignees: [{ login: 'kb' }, { login: '-x' }],
+      });
+    });
+    expect(await gh.prPeople(7)).toEqual({ author: 'bob', assignees: ['kb'] });
+    expect(calls).toEqual([['pr', 'view', '--json', 'author,assignees', '--', '7']]);
+  });
+
+  it('un numéro qui n’est pas un entier positif : null, sans lancer gh', async () => {
+    let ran = 0;
+    const gh = githubReader(async () => { ran++; return '{}'; });
+    for (const n of [0, -1, 1.5, '7', null, undefined]) expect(await gh.prPeople(n)).toBeNull();
+    expect(ran).toBe(0);
+  });
+
+  it('gh en échec, ou une réponse illisible : null', async () => {
+    expect(await githubReader(answering(null)).prPeople(7)).toBeNull();
+    expect(await githubReader(answering('pas du json')).prPeople(7)).toBeNull();
+    expect(await githubReader(answering('null')).prPeople(7)).toBeNull();
+  });
+});

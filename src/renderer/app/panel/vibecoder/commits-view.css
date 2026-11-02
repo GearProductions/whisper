@@ -1,4 +1,4 @@
-/* L'étape Commits de Relire (commits-view) : la relecture et son âge dans
+/* La section Commits de Modules (commits-view) : la relecture et son âge dans
    l'en-tête, une carte par commit (ses fichiers : une liste compacte, une
    ligne par fichier ; ses liens, des IconButton ; la relecture s'il y en a
    une ; le fichier ouvert sous elle). Sous .vc, couleurs de vibecoder.css. */

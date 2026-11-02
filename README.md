@@ -388,8 +388,10 @@ lui redire à chaque étape (« fais la note », « c'est bon, commit et passe a
 suivant », « replie les fixups et sors la PR ») : VibeCoder remplace la
 conversation d'un agent par un écran de développement, qui montre où en est
 le travail et propose, à chaque étape, les boutons qui envoient à l'agent le
-bon message, avec le bon skill et le bon modèle. Deux usages : **Créer** une
-feature sur la branche du dossier de l'agent, ou **Relire** une PR du dépôt.
+bon message, avec le bon skill et le bon modèle. Un seul parcours, pour **créer**
+une feature sur la branche du dossier de l'agent comme pour **relire** une PR
+du dépôt : vous n'avez pas à choisir, l'appli décide de votre rôle (créateur ou
+relecteur, plus bas).
 
 **Ouvrir.** Clic droit sur un robot → *Ouvrir VibeCoder* ; pour revenir,
 *Ouvrir la conversation* (même menu, ou *Revenir à la conversation* en haut de l'écran) : les deux
@@ -405,7 +407,8 @@ conversation reste utilisable.
 
 - en haut : l'agent et sa branche — un bouton, qui ouvre (et referme) la
   **vue des branches**, plus bas — avec *Pull* et *Rebase* à côté ;
-  *Créer* / *Relire* ; **Artefacts**, à part (plus bas) ; *FR* / *EN* ; en
+  le badge *Relecteur* quand vous relisez la PR d'un autre ; **Artefacts**, à
+  part (plus bas) ; *FR* / *EN* ; en
   icônes, *Relever maintenant* (relire le dépôt tout de suite), *Revenir à la
   conversation*, *Fermer* ;
 - au centre, en tête, le **fil d'Ariane** : les étapes en une ligne (point
@@ -413,11 +416,11 @@ conversation reste utilisable.
   au survol ; au bout, « N commits » déplie les commits de la branche. Il
   mène : un clic (ou Ctrl+1…6) ouvre une étape faite, pour revenir en
   arrière, ou celle en cours ; une étape à venir reste visible, sans clic
-  (en *Relire*, toutes s'ouvrent) ;
+  (relecteur : toutes s'ouvrent) ;
 - dessous, sur toute la largeur, l'étape choisie — la note du ticket, ce
   que les skills ont produit —, sous son titre son **champ** (quand une de
   ses actions prend un texte) et ses actions (à l'étape en cours, en tête :
-  *Vibe* en *Créer*, puis celle qui fait avancer l'étape, discrètement mise
+  *Vibe* (créateur), puis celle qui fait avancer l'étape, discrètement mise
   en avant) ; pendant *Vibe*, une bannière au-dessus ; chaque carte produite par
   un skill a son *Relancer* ;
 - à droite, quatre onglets : la **conversation** de l'agent, comme d'habitude
@@ -447,7 +450,7 @@ bouton qui a besoin d'un texte — la demande de feature, du pseudo-code —
 prend celui du **champ de son étape** : dictez-y (ou écrivez), puis
 cliquez ; le champ se vide une fois l'action partie. La dictée va à la
 zone de texte qui a le clavier — le champ d'une étape, un commentaire de
-*Relire*, la réponse libre d'une question ; pas un éditeur de code ni un
+relecteur, la réponse libre d'une question ; pas un éditeur de code ni un
 champ d'une ligne —, à la place de la sélection, sans dépasser sa longueur
 (pleine : rien n'est ajouté) ; sinon, au champ de la conversation. Le champ de la
 conversation ne sert plus qu'à elle (et à *Demander sans modifier*, *Où
@@ -550,7 +553,8 @@ ligne du cas : zed, VS Code, Cursor, VSCodium). Un commit : *Voir le diff*
 (écrit en lecture seule sous `vibecoder-out/<agent>/files/`, puis ouvert)
 ou *GitHub* (sa page, dans le navigateur).
 
-**Créer** — les étapes du guide :
+**Le parcours** — les étapes du guide, les mêmes pour créer une feature et pour
+relire une PR (le relecteur, plus bas) :
 
 1. **Note** : *Rédiger la note* d'après la demande du champ de l'étape (sur la branche
    principale, c'est une nouvelle demande : l'agent propose d'abord un nom
@@ -637,7 +641,12 @@ ou *GitHub* (sa page, dans le navigateur).
    *Appliquer* une remarque (en fixups ; une remarque appliquée est marquée
    ✓, toutes : « Appliquée »), *Replier les fixups* ; la liste du
    guide avant une PR, cochée quand le dépôt le dit — « chaque diff relu » et
-   « AGENTS.md à jour » se cochent à la main, jusqu'au prochain commit.
+   « AGENTS.md à jour » se cochent à la main, jusqu'au prochain commit. Puis
+   **Relire à l'écran**, pour vous comme pour un relecteur (utile aussi en
+   créant) : *Plan de test à l'écran* prépare comment lancer la branche, puis
+   la liste de ce qu'il faut essayer, une case chacun ; *Tout cocher* les coche
+   d'un clic, pour aller vite. Toutes les cases cochées comptent pour que la
+   Revue soit faite.
 6. **PR** : sans PR, *Valider la feature (ouvrir la PR)* ; la PR ouverte,
    *Diagnostiquer la CI* et *Release candidate* ; fusionnée, *PR mergée →
    revenir sur la base* (refusé s'il y a des modifications en cours ; sur
@@ -645,13 +654,14 @@ ou *GitHub* (sa page, dans le navigateur).
    à la place) et *Release
    officielle*. L'étape est faite dès qu'une PR existe pour la branche :
    l'appli la demande elle-même à `gh` (sans IA, en lecture seule ; toutes
-   les 60 s au plus, ↻ pour tout de suite).
+   les 60 s au plus, ↻ pour tout de suite). Assigné à la PR d'un autre,
+   *Me retirer de la PR* vous refait relecteur.
 
 **Sans IA** : *✓ Commiter*, *Charger* (une PR), *Publier la revue*, *PR
 mergée → revenir sur la base*, *Changer de branche*, *Aller sur la
 branche*, *Créer ici*, *Dans un nouveau worktree*, *Mettre de côté*,
 *Revenir sur la branche principale*, *Retirer le worktree*, *Pull*,
-*Rebase*, *Pousser* et *Actualiser* ne sont
+*Rebase*, *Pousser*, *Actualiser*, *S'assigner la PR* et *Me retirer de la PR* ne sont
 que des commandes connues : l'appli les lance elle-même (bouton « direct »,
 aucun jeton) — `git commit -F` du message affiché ; `gh pr view` puis `git
 fetch origin` de la branche de la PR et de sa base ; `gh pr review` du brouillon ; seulement
@@ -660,7 +670,7 @@ si la PR est fusionnée, `git switch`, `git pull --ff-only`, `git branch -d`
 suivi pour celle d'une PR de `git pull --ff-only origin <branche>` ;
 `git stash push -u`, et rien d'autre ; `git pull --ff-only --autostash`,
 `git rebase --autostash` (un conflit : `git rebase --abort` aussitôt),
-`git push --force-with-lease`, `git fetch origin` ; la recette du projet (plus bas) pour
+`git push --force-with-lease`, `git fetch origin`, `gh pr edit --add-assignee` / `--remove-assignee` ; la recette du projet (plus bas) pour
 créer ou retirer un worktree. Le résultat s'affiche sous le bouton (✓ ou ✗,
 le détail à déplier), chaque commande dans `direct.log` des sorties de
 l'agent ; git et `gh` passent par le préfixe des commandes (la box : les
@@ -675,28 +685,39 @@ votre validation, l'étape vous le dit (*Valider la note*, « N cas à valider �
 l'agent vient de changer sont surlignées (*Voir les modifications* : le
 diff ; *Vu* : ne plus surligner).
 
-**Relire** — la PR de la branche du dossier : sur une branche qui a sa PR
-ouverte (la vôtre, avant le relecteur, ou celle d'un autre chargée dans la
-vue des branches, ci-dessous), *Relire* la suit d'emblée et commence à la
-note ; sur une branche sans PR (la branche principale comprise), *Relire*
-est grisé. *Créer* et *Relire* travaillent sur le même dossier : la PR se
-charge **dans le dossier de l'agent** (`gh pr view`, puis `git fetch
-origin` de la branche de la PR et de sa base ; une PR venue d'un fork, dont
-la branche n'est pas sur `origin`, est refusée), et on la relit sur sa
-branche. Puis la note (*Relire la note* : les décisions à discuter), les
-invariants (les mêmes cartes en pseudo-code), les commits (*Relire les
-commits* — ou, sans IA, la liste des commits, leurs fichiers, leur diff —,
-une carte par commit ; un clic sur un fichier d'un commit l'ouvre sous sa
-carte, tel qu'il est dans la PR, en lecture seule, ou son diff dans ce
-commit, ou depuis la base de la PR ; *Commenter* sur des lignes les cite dans une
-remarque), le plan de test (*Plan de test à l'écran* : des cases
-à cocher pendant l'essai). *À revoir* et *Commenter* ajoutent une remarque au **brouillon de
-revue** (un par PR) : le texte du champ, sinon ce qu'on cite ; elle se
-modifie sur place, × la retire. Une PR déjà fusionnée ou fermée se charge,
-mais il n'y a rien à relire : l'écran le dit (son état est redemandé à `gh`
-toutes les 60 s au plus). Enfin le verdict (*Commenter* par défaut, *Approuver*, *Demander
-des changements*) et *Publier la revue*, qui l'envoie sur GitHub telle
-quelle.
+**Relecteur** — la PR de la branche du dossier. Pas de bouton à choisir :
+l'appli décide d'après la PR. Vous êtes **relecteur**, par défaut, sur une PR
+ouverte dont vous n'êtes pas l'auteur (celle d'un autre chargée dans la vue des
+branches, ci-dessous, ou la sienne si vous êtes sur sa branche), qu'on vous ait
+demandé de la relire ou non ; **créateur** sur votre propre PR, sur une PR que
+vous vous êtes assignée (*S'assigner la PR*, étape PR : vous la modifiez alors
+en créateur ; *Me retirer de la PR* vous refait relecteur) et sur une branche
+sans PR ouverte — la branche principale comprise : sans PR, rien à relire. Une
+PR fusionnée ou fermée se charge, mais on y est créateur. Le badge *Relecteur*,
+en haut, dit que rien ne s'édite ici : en relecteur, tout est en lecture seule
+— ni le code d'un module, ni la note, ni un test ne s'écrivent, rien ne se
+génère ni ne se commite, et les actions qui modifient sont masquées.
+
+La PR se charge **dans le dossier de l'agent** (`gh pr view`, puis `git fetch
+origin` de la branche de la PR et de sa base ; une PR venue d'un fork, dont la
+branche n'est pas sur `origin`, est refusée), et on la relit sur sa branche,
+dans les mêmes étapes que le créateur : la note (*Relire la note* : les
+décisions à discuter), les invariants (les mêmes cartes en pseudo-code), les
+modules, en lecture, puis les commits de la PR (*Relire les commits* — ou, sans
+IA, la liste des commits, leurs fichiers, leur diff —, une carte par commit ; un
+clic sur un fichier d'un commit l'ouvre sous sa carte, tel qu'il est dans la
+PR, en lecture seule, ou son diff dans ce commit, ou depuis la base de la PR ;
+*Commenter* sur des lignes les cite dans une remarque), le plan de test à
+l'écran (étape Revue, *Plan de test à l'écran* : des cases à cocher pendant
+l'essai) et, à l'étape PR, la publication. *À revoir* et *Commenter* ajoutent
+une remarque au **brouillon de revue** (un par PR) : le texte du champ, sinon ce
+qu'on cite ; elle se modifie sur place, × la retire. Le 💬 du bloc *Attention*
+d'un cas ajoute son point d'attention à la zone de commentaire de la carte
+(ouverte au besoin, ce que vous y aviez écrit gardé) : vous précisez, puis
+*Ajouter* le verse au brouillon (pour un créateur, le même 💬 cite le cas dans
+le champ de la conversation). Enfin, à l'étape PR, le verdict (*Commenter* par
+défaut, *Approuver*, *Demander des changements*) et *Publier la revue*, qui
+l'envoie sur GitHub telle quelle.
 
 **La vue des branches.** Tout ce qui change de branche passe par un seul
 endroit : un clic sur la branche, en haut à gauche, ouvre la vue des
@@ -726,16 +747,16 @@ La PR chargée, l'appli vous demande toujours quoi faire de votre dossier :
 
 - *Changer de branche* : le dossier passe sur la branche de la PR (`git
   switch`) ; grisé s'il y a des modifications en cours (et refusé si vous en
-  faites une juste avant de cliquer) ; ce que *Créer* avait produit pour
-  votre branche revient avec elle ;
+  faites une juste avant de cliquer) ; ce que votre branche avait produit
+  revient avec elle ;
 - *Dans un nouveau worktree*, le dossier propre ou pas : l'appli crée un
   worktree de la PR avec la recette du projet (plus bas ; sans `worktree`
   réglé, `git worktree add` à côté du dépôt, `<dépôt>-worktrees/pr-<n>`) et
   le prépare (`setup`), sans toucher à votre dossier. Elle vous demande
   alors si vous faites confiance à ce dossier — à chaque fois : les
   réglages `.claude` de la PR, écrits par son auteur, se chargeront —, puis
-  ajoute un robot « PR #n » sur ce dossier, sous celui du dépôt, déjà en
-  *Relire* : *Aller au robot PR #n*. Sur ce robot, *Retirer le worktree* le
+  ajoute un robot « PR #n » sur ce dossier, sous celui du dépôt, déjà
+  relecteur : *Aller au robot PR #n*. Sur ce robot, *Retirer le worktree* le
   retire (refusé s'il reste des modifications) ; le robot part avec lui, et
   votre brouillon de revue revient à l'agent du dépôt ;
 - avec des modifications en cours, en plus, *Mettre de côté* : `git stash
@@ -775,7 +796,7 @@ met de côté le temps de l'opération et les reprend après. Leur état se lit
 sans rien modifier (`git log`) ; il suit le distant tel que le dernier
 *Actualiser* l'a laissé : l'appli ne fait jamais de `git fetch` d'elle-même.
 
-**Une nouvelle demande.** Sur la branche principale, en *Créer*, dictez la
+**Une nouvelle demande.** Sur la branche principale, dictez la
 demande dans le champ de l'étape Note, puis *Rédiger la note* : l'agent
 propose un nom de branche (Haiku, selon la convention du projet, sinon
 `<type>/<ticket>-<intitulé>` ou `<type>/<version>-<intitulé>`), et l'appli
@@ -787,7 +808,7 @@ modifiable. Rien n'est créé sans votre clic :
   demande ; grisé s'il y a des modifications en cours ;
 - *Dans un nouveau worktree*, le dossier propre ou pas (l'appli crée le
   worktree sur cette branche, vous demande si vous lui faites confiance,
-  puis un robot enfant s'y ouvre en *Créer* et rédige la note ; votre robot
+  puis un robot enfant s'y ouvre et rédige la note ; votre robot
   reste sur sa branche, avec ses modifications s'il en a) ;
 - avec des modifications en cours, en plus : *Mettre de côté*, puis
   *Créer ici* d'un deuxième clic.
@@ -850,7 +871,7 @@ le journal : `recipe.log` des sorties de l'agent. Un worktree n'est jamais
 retiré s'il a des modifications.
 
 **Vibe.** D'ordinaire, vous validez la note, la forme et chaque
-invariant ; l'étape en cours attend vos validations. *Vibe* (*Créer* seulement) :
+invariant ; l'étape en cours attend vos validations. *Vibe* (créateur seulement) :
 vous donnez la main à l'agent, vous testez et approuvez à la fin. Même
 écran, une bannière en tête dit que *Vibe* est en cours ; plus rien
 n'attend vos validations, et les étapes qu'il passe les gardent. En deux temps :

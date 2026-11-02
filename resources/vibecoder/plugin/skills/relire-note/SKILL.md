@@ -1,6 +1,6 @@
 ---
 name: relire-note
-description: "Review the ticket note of pull request <n> — debatable decisions, gaps, misclassified invariants — into <out>/pr-<n>-note.md, the first step of the guide's review."
+description: "Review the ticket note of pull request <n> — debatable decisions, gaps, misclassified invariants — into <out>/pr-<n>-note.md. The reviewer's read of the Note step (guide §5.4, first step)."
 argument-hint: "<lang> <out> <n>"
 disable-model-invocation: true
 context: fork

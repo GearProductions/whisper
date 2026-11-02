@@ -22,7 +22,7 @@ const view: VibeView = {
     { id: 't1', path: 'src/core/tests/invariants/b.test.ts', blob: 'b'.repeat(40), cases: ['y'], lines: [1], source: '', reading: [], marks: {} },
   ],
   variants: [], commits: [{ hash: C1, subject: 'Note, forme, invariants', fixup: false, files: [] }],
-  outputs: {}, checklist: [], actions: [], skills: [], pr: null, prs: null,
+  outputs: {}, checklist: [], screen: [], actions: [], skills: [], pr: null, prs: null,
   draft: [{ id: 1, target: 'note', text: 'Trop vague' }, { id: 2, target: 'commit 9fceb02', text: 'Hors périmètre' }], time: 0,
 };
 const ctx: MessageContext = { view, out: '/u/vibecoder-out/a1', lang: 'fr', prefix: '' };
@@ -508,4 +508,26 @@ describe('ignoredText : le texte du champ qu’un gabarit laisse tomber', () => 
     expect(ignoredText(def, { text: '  \n' })).toBe(false);
     expect(ignoredText(def, { text: 42 as never })).toBe(false);
   });
+});
+
+describe('les actions de resources/vibecoder (fr et en)', () => {
+  const ROOT = path.resolve(__dirname, '../../../../../../resources/vibecoder');
+  for (const lang of ['fr', 'en']) {
+    const all = parseActions(JSON.parse(fs.readFileSync(path.join(ROOT, `actions.${lang}.json`), 'utf8')));
+    const byId = (id: string) => all.find((a) => a.id === id);
+
+    it(`${lang} : S'assigner la PR et Me retirer de la PR sont directes, seulement par l'appli, sans étape`, () => {
+      for (const id of ['assign-pr', 'unassign-pr']) {
+        expect(byId(id)).toMatchObject({ flow: 'both', step: null });
+        expect(DIRECT_ACTIONS).toContain(id);
+        expect(DIRECT_ONLY).toContain(id);
+      }
+    });
+
+    it(`${lang} : Relire les commits, le plan de test et Publier la revue changent d'étape`, () => {
+      expect(byId('review-commits')?.step).toBe('modules');
+      expect(byId('screen')?.step).toBe('revue');
+      expect(byId('publish')?.step).toBe('pr');
+    });
+  }
 });

@@ -67,12 +67,12 @@ des processus.
 | `core/conversation` | actions et demandes d'autorisation écrites, pièces jointes, tâches de fond vues par le volet |
 | `core/guards` | permissions des pages, liens, fichiers montrés |
 | `core/repo` | page GitHub d'un dossier, d'après son remote `origin` |
-| `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier ou un commit désigné par son id (`safePath`, `itemPath`, `itemCommit`, `codeFile` : un fichier d'un module touché), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`, `skillModel`), le parcours (`vibeView`), les choix de lieu d'après l'état du dossier (`place` : `placeShown`, `placeReason`, `onBase`, F-110), *Pull*, *Rebase*, *Pousser* (`sync` : `syncReason`, F-114), les sorties des skills, les fichiers par défaut (`syncDefaults`) et les variantes des skills (`skillVariants`), les validations et brouillons de revue, les courses (`runs` : `ownRun`, `runKey`, la règle `blockedBy`, le module qu'une course génère et le verrou de son code (`runModule`, `codeLock`), `actions.json`, l'avis de fin, `parseRequest`, l'avis d'une demande refusée ou aux arguments ignorés `requestNotice`, F-115), les ✓ des étapes passées en Vibe (`vibeMarks`) |
+| `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier ou un commit désigné par son id (`safePath`, `itemPath`, `itemCommit`, `codeFile` : un fichier d'un module touché), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`, `skillModel`), le parcours (`vibeView`), le rôle (`role` : `vibeRole`, `canAssign`, `unassignable`, F-101), les choix de lieu d'après l'état du dossier (`place` : `placeShown`, `placeReason`, `onBase`, F-110), *Pull*, *Rebase*, *Pousser* (`sync` : `syncReason`, F-114), les sorties des skills, les fichiers par défaut (`syncDefaults`) et les variantes des skills (`skillVariants`), les validations et brouillons de revue, les courses (`runs` : `ownRun`, `runKey`, la règle `blockedBy`, le module qu'une course génère et le verrou de son code (`runModule`, `codeLock`), `actions.json`, l'avis de fin, `parseRequest`, l'avis d'une demande refusée ou aux arguments ignorés `requestNotice`, F-115), les ✓ des étapes passées en Vibe (`vibeMarks`) |
 | `core/runner` | les commandes du projet (F-111) : le fichier du projet, `<dossier du parent>/.vibecoder/project.json` (`projectPath`, la ligne de `.git/info/exclude` : `withExclude`), lu (`parseProject`), une proposition fusionnée dans le fichier existant (`mergeProject`), une commande par son rang (`commandAt` : shell du fichier, préfixe `commandPrefix` — celui du fichier, du réglage, ou la box de l'agent, le même pour `gh`), les demandes de l'agent (`requestsOf`), la fin d'un journal, la recette en étapes (`setupSteps`, `createSteps`, `removeSteps` ; la branche et la base par l'environnement, `recipeEnv` ; le dossier d'un worktree, `worktreeDir`) (I-42) |
 | `technicals/process` | les processus lancés pour l'utilisateur : détachés, marqués dans leur environnement, arrêtés avec ce qu'ils ont lancé (SIGTERM, SIGKILL après 5 s), leur journal ; `writeNew` (I-43) ; une étape de la recette attendue jusqu'à sa fin (`runOnce` : l'entrée fermée, un délai, la dernière ligne utile) |
 | `technicals/git` | git en lecture seule (`gitRun`, `gitReader`, `GIT_READ`, plus `worktree list`) : les faits d'une branche ou d'une PR chargée, un fichier à un ref, un commit et son diff, le commit où la branche part de sa base (`forkPoint`), les branches locales (`branches`), le retard sur `@{u}` et sur `origin/<base>` (`sync`) (I-39) |
-| `technicals/github` | gh en lecture seule, derrière le préfixe (`ghRun`, `githubReader`, `GH_READ`, `GH_LOGIN`) : la PR d'une branche, les PR ouvertes du dépôt en trois listes (`openPrs`), l'état d'une PR, l'identifiant de l'utilisateur (`login`, `okLogin`) (F-112, I-39) |
-| `technicals/direct` | les actions directes (F-114, I-39) : `directRunner` → `commit`, `publish`, `sameRepo`, `loadPr`, `toBase`, `fetchBranch`, `pullBranch`, `switchTo`, `stash`, `pull`, `rebase`, `push`, `fetchAll`, `requestReview`, le texte de `pr-<n>.json` (`prCardText`), une liste fermée de commandes (`DIRECT_GIT`, `DIRECT_GH`), 60 s, `direct.log` |
+| `technicals/github` | gh en lecture seule, derrière le préfixe (`ghRun`, `githubReader`, `GH_READ`, `GH_LOGIN`) : la PR d'une branche, les PR ouvertes du dépôt en trois listes (`openPrs`), l'état d'une PR, ses personnes (`prPeople` : auteur, assignés), l'identifiant de l'utilisateur (`login`, `okLogin`) (F-112, I-39) |
+| `technicals/direct` | les actions directes (F-114, I-39) : `directRunner` → `commit`, `publish`, `sameRepo`, `loadPr`, `toBase`, `fetchBranch`, `pullBranch`, `switchTo`, `stash`, `pull`, `rebase`, `push`, `fetchAll`, `requestReview`, `assign`, `unassign`, le texte de `pr-<n>.json` (`prCardText`), une liste fermée de commandes (`DIRECT_GIT`, `DIRECT_GH`), 60 s, `direct.log` |
 | `technicals/file-tree` | les artefacts copiés ou déplacés (F-95, I-37, I-39) : `copyInto`, `moveContents`, `hasFiles` ; `fs.promises` seulement, un fichier à la fois, jamais écraser (`COPYFILE_EXCL`), un lien jamais suivi, sans limite de nombre ni de taille |
 | `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `paste`, `windows-helper`, `pipewire`, `clipboard`, `selection`, `pocket-tts`, `claude`, `editor` (un dossier, ou un fichier de VibeCoder, à une ligne ; le terminal d'un dossier, `findTerminal`), `journal`, `images`, `paths`, `config-file` |
 | `helpers` | découper une commande, français ou anglais, une ligne, `async-queue` (l'entrée d'un processus d'agent), `numbered-name` (`rapport-2.md`) |
@@ -97,7 +97,7 @@ Vers le principal :
   `conv:hide`, `conv:send`, `conv:attach`, `conv:answer`, `conv:speak`,
   `conv:probe`, `conv:history`, `conv:open`, `conv:current`, `conv:resume`,
   `conv:copy`, `conv:openLink`, `conv:showFile` ; VibeCoder : `conv:vibeSet`
-  (Créer / Relire, arrêter Vibe, PR suivie, langue, *Vu*, retour à la
+  (arrêter Vibe, PR suivie, langue, *Vu*, retour à la
   conversation, modèle, effort, mode, arrêter l'agent, le robot d'une PR dans
   son worktree), `conv:vibeMark` (✓, ✗
   ou oublier une cible), `conv:vibeDraft` (brouillon de revue : ajouter,
@@ -114,7 +114,7 @@ Vers le principal :
   `conv:vibeRunOp` (une course par l'id de son action dans le dernier
   relevé : l'arrêter, la garder ou l'annuler, répondre à sa demande
   d'autorisation ; F-115), `conv:vibeFollow` (le fichier suivi — d'un module, par
-  *Voir le code* ; la note ou un test d'invariant, en *Créer* ; un artefact
+  *Voir le code* ; la note ou un test d'invariant, en créateur ; un artefact
   en texte, F-95 —, par son id, ou `null` : plus aucun ; F-100),
   `conv:vibeSave` (l'enregistrer : son id et son texte, avec réponse `{ ok,
   error }` ; F-100, I-39).
@@ -148,7 +148,7 @@ canal de plus.
 | `consigne-agents.md` | consigne ajoutée au prompt système des agents |
 | `agents.log` (`.old`) | journal des agents, 1 Mo puis rotation |
 | `vibecoder/` | ce que VibeCoder fait dire, à retoucher (F-107) : `actions.fr.json`, `actions.en.json`, `plugin/` (le plugin `vibecoder` : skills, agents ; `skills/<nom>--<modèle>/` et `--<modèle>--<effort>/`, les variantes générées, F-106), `README.md` ; `.defaults.json`, le manifeste de ce que l'appli y a écrit ; `projets/<dossier>.json`, l'ancien fichier du projet d'un dossier, d'avant la 0.12.0 (repris dans `.vibecoder/` du dossier, gardé ; F-111) |
-| `vibecoder-out/<agent>/` | les sorties des skills pour l'écran (F-95) ; `branches/<branche>/`, celles de *Créer* d'une branche quittée, et `.branche`, la dernière branche vue ; `files/`, ce que l'appli écrit pour l'ouvrir dans l'éditeur, en lecture seule (`<hash>.diff`, F-101) ; `run/<nom>.log` (`.old`), les journaux des commandes du projet, et `run/<nom>.stop`, `.restart`, les demandes de l'agent ; `artifacts/`, les anciens artefacts de l'agent, d'avant le dossier du projet : déplacés vers lui à chaque démarrage, le dossier vidé part (F-95) ; `recipe.log`, celui de la recette (F-111) ; `direct.log`, une ligne par commande d'une action directe, et `pr-<n>-review-body.md`, le brouillon publié (F-114) ; `actions.json`, les courses pour l'orchestrateur, et `actions/<id>.start`, `.stop`, ses demandes (F-115) ; dossier de travail en plus de Claude Code (F-58) |
+| `vibecoder-out/<agent>/` | les sorties des skills pour l'écran (F-95) ; `branches/<branche>/`, celles d'une branche quittée, et `.branche`, la dernière branche vue ; `files/`, ce que l'appli écrit pour l'ouvrir dans l'éditeur, en lecture seule (`<hash>.diff`, F-101) ; `run/<nom>.log` (`.old`), les journaux des commandes du projet, et `run/<nom>.stop`, `.restart`, les demandes de l'agent ; `artifacts/`, les anciens artefacts de l'agent, d'avant le dossier du projet : déplacés vers lui à chaque démarrage, le dossier vidé part (F-95) ; `recipe.log`, celui de la recette (F-111) ; `direct.log`, une ligne par commande d'une action directe, et `pr-<n>-review-body.md`, le brouillon publié (F-114) ; `actions.json`, les courses pour l'orchestrateur, et `actions/<id>.start`, `.stop`, ses demandes (F-115) ; dossier de travail en plus de Claude Code (F-58) |
 | `vibecoder-artifacts/<clé>/` | les artefacts d'un projet, partagés par le dépôt, ses worktrees et leurs robots (F-95) : la clé est le début (16 hexa) du sha1 du dossier git commun résolu, ou du dossier résolu hors git ; Claude Code le reçoit en dossier de travail en plus (F-58) ; retirer un agent, un robot ou un worktree n'y touche pas |
 | `vibecoder-state.json` | validations (par agent) et brouillons de revue (par agent et par PR) |
 
@@ -594,16 +594,18 @@ liens vers le navigateur seulement, jamais de navigation.
 Notes des tickets : `docs/tickets/feat/0.8.0-vibecoder.md`,
 `0.9.0-actions-independantes.md` (les courses), `0.9.0-parcours-guide.md`
 (le parcours guidé), `0.12.0-mode-vibe.md` (le mode *Vibe*),
-`0.12.0-gestion-des-branches.md` (la vue des branches, *Pull*, *Rebase*) ;
+`0.12.0-gestion-des-branches.md` (la vue des branches, *Pull*, *Rebase*),
+`0.13.0-fusionner-creer-relire.md` (un seul parcours, le relecteur) ;
 le guide :
 `docs/dev_guide/guide-travail-dev-ia.html`.
 
 ### Ouvrir, l'écran
 
 **F-90 VibeCoder** : un mode IDE par agent, qui rend graphique le flow du
-guide « Développer avec l'IA » : *Créer* une feature sur la branche du dossier
-de l'agent (note, forme, invariants, un commit par module, revue, PR, release
-candidate) ou *Relire* une PR du dépôt. Chaque étape a ses boutons, qui
+guide « Développer avec l'IA » : un seul parcours (note, forme, invariants, un
+commit par module, revue, PR, release candidate) pour créer une feature sur la
+branche du dossier de l'agent et pour relire une PR du dépôt ; l'appli décide
+du rôle, créateur ou relecteur (F-101). Chaque étape a ses boutons, qui
 envoient à l'agent le message du guide, avec le skill et le modèle qu'il faut
 (F-96, F-106).
 
@@ -626,16 +628,17 @@ conversation des agents qui ne sont pas en VibeCoder ne change pas.
   au survol), la **branche** (`⎇ <branche>`, sa base au survol), un bouton
   (enfoncé tant que la vue est ouverte) : un clic ouvre la **vue des
   branches** (F-110), qui prend le centre à la place de l'étape ; un nouveau
-  clic la ferme (retour à *Créer* / *Relire*) ; à côté, *Pull*, *Rebase* (masqué
+  clic la ferme (retour à l'étape) ; à côté, *Pull*, *Rebase* (masqué
   sur la branche principale) et,
   après un rebase réussi, *Pousser* (boutons à icône, F-114 ; *Pull* grisé
   sans branche distante suivie ou à jour avec elle ; une pastille sur
   *Rebase* quand `origin/<base>` a des commits absents de la branche ; le
   dernier échec en infobulle) ; le badge d'un worktree, sans action ;
-  *Créer* / *Relire* (*Relire* grisé sur une branche sans PR ouverte, la
-  base comprise, F-101) ; à côté, hors d'eux, **Artefacts** (*Artifacts* en
-  anglais), un bouton à part (enfoncé tant que le panneau est ouvert) : un
-  autre contexte, ni le parcours de *Créer* ni celui de *Relire* ; un clic
+  le badge **Relecteur** (*Reviewer*), sans action, quand l'appli décide qu'on
+  relit la PR d'un autre (F-101) : rien ne s'y édite, l'infobulle le dit ; plus
+  de *Créer* / *Relire* à choisir : un seul parcours ; à côté, **Artefacts**
+  (*Artifacts* en anglais), un bouton à part (enfoncé tant que le panneau est
+  ouvert) : un autre contexte que le parcours ; un clic
   ouvre le **panneau des artefacts** (F-95), qui prend le centre à la place
   du fil d'Ariane et de l'étape (ou de la vue des branches), la colonne de
   droite gardée ; un nouveau clic, ou le choix d'une étape, le
@@ -651,7 +654,7 @@ conversation des agents qui ne sont pas en VibeCoder ne change pas.
   clic sur l'un : *Voir le diff*, *GitHub* et ses fichiers) ; un nouveau
   clic les replie ; « aucun commit » : sans clic. Le fil d'Ariane mène :
   un clic (ou Ctrl+1…6) ouvre une étape faite ou celle en cours, pas une
-  étape à venir, visible mais sans clic (son état au survol) ; en *Relire*,
+  étape à venir, visible mais sans clic (son état au survol) ; relecteur,
   toutes s'ouvrent ;
 - dessous, sur toute la largeur à gauche de la conversation, l'étape
   choisie — sinon celle en cours, que l'écran suit ; une étape choisie qui
@@ -715,7 +718,7 @@ de l'écran et le brouillon tiennent (I-29).
   pourquoi elle est grisée ; sans celles qui n'ont pas encore de sens
   (masquées, F-99), ni celles que la vue montre déjà ailleurs
   (une invitation, une carte, une ligne : jamais deux fois). À l'étape en
-  cours, en tête : *Vibe* (*Créer*, F-103), avec son propre accent, puis
+  cours, en tête : *Vibe* (créateur, F-103), avec son propre accent, puis
   l'action qui fait avancer l'étape (F-100, F-101), Vibe ou pas,
   discrètement mise en avant, même si elle appartient à une autre étape
   (*Préparer le commit* à l'étape Invariants). Ce qu'attend une validation
@@ -735,7 +738,7 @@ de l'écran et le brouillon tiennent (I-29).
   tours au plus, puis dit les écarts qui restent) ; *Lancer les
   vérifications et la ponytail review* demande la ponytail review
   (`<sorties>/actions/ponytail.start`, F-115) : deux lectures, qui courent
-  ensemble. En *Créer*, plus de bouton *Vérifier l'alignement* ni *Ponytail
+  ensemble. Plus de bouton *Vérifier l'alignement* ni *Ponytail
   review* ; leurs cartes restent. Un document demandé hors du projet (PDF,
   présentation, wireframe, document externe, fichier de conception) :
   l'agent le crée en artefact (F-95) par le skill `artefact`, qu'il prend
@@ -748,10 +751,10 @@ de l'écran et le brouillon tiennent (I-29).
   `checks`) ; *Lire en pseudo-code* se refait par fichier (*Relire*, même lu) ou pour tous (*Tout
   relire*, F-100). L'alignement et la ponytail review n'ont pas de
   *Relancer* : on relance *Écrire les invariants* ou *Lancer les
-  vérifications* (en *Relire*, *Vérifier l'alignement* reste dans la rangée
+  vérifications* (relecteur : *Vérifier l'alignement* reste dans la rangée
   de l'étape).
 - La **barre des skills**, au-dessus du champ : deux liens, *Demander sans
-  modifier* et *Retour → fixup* (*Créer*) ; les skills se trouvent par « / »
+  modifier* et *Retour → fixup* (créateur) ; les skills se trouvent par « / »
   dans le champ.
 
 ### Le relevé, les actions
@@ -761,12 +764,14 @@ principal pour l'agent affiché en VibeCoder :
 - le **dépôt**, par git en lecture seule (I-39), dans le dossier de l'agent :
   la branche, sa base (`origin/HEAD`, sinon `main`, sinon `master`), les
   fichiers changés (depuis la base, et la copie de travail, non suivis
-  compris), les commits de la branche et leurs fichiers. *Relire* : la copie
+  compris), les commits de la branche et leurs fichiers. Relecteur : la copie
   de travail, le dossier sur la branche de la PR (F-110), comparée à
   `origin/<base>` de sa fiche (`pr-<n>.json`) ;
+- le **rôle**, créateur ou relecteur, recalculé à chaque relevé d'après la PR
+  du dossier et ses personnes (F-101, F-112) ;
 - la **note du ticket** : sa clé d'après la branche — un ticket (`G2-6675`),
   sinon une version (`0.8.0`) : la branche doit porter l'un ou l'autre — ; le
-  `.md` de `docs/tickets/` que change la branche (*Relire* : la PR) nommé
+  `.md` de `docs/tickets/` que change la branche (relecteur : la PR) nommé
   comme elle (`feat/0.8.0-vibecoder` → `0.8.0-vibecoder.md`), sinon le
   premier dont le nom contient la clé en mot entier (une branche qui change
   aussi la note d'un autre ticket de la même version garde la sienne). Lue par ses
@@ -807,7 +812,7 @@ principal pour l'agent affiché en VibeCoder :
   s'il est tronqué (du texte au-delà d'`artifactTextMax`, § 9) ; sans leur
   texte.
 
-Les deux parcours lisent le disque (un fichier de 1 Mo au plus). **Rythme** : à chaque
+Les deux rôles lisent le disque (un fichier de 1 Mo au plus). **Rythme** : à chaque
 conversation envoyée au panneau visible (ouverture, changement d'état d'un
 agent, au fil d'un tour), toutes les 4 s tant que le panneau est visible, aussitôt
 après une action, une validation, un réglage ou ↻ ; un relevé à la fois, au
@@ -819,25 +824,25 @@ illisible : le relevé part quand même, sans bloquer le fil ni l'agent
 **F-95 Les sorties des skills** : ce qu'un skill produit pour l'écran, écrit
 dans le dossier de sorties de l'agent (`{{out}}` :
 `userData/vibecoder-out/<agent>/`, le même pour toutes ses branches ; Claude
-Code le reçoit en dossier de travail, F-58). En *Créer*, elles suivent la
-branche — celles d'une feature passée ne font pas croire qu'une étape est
+Code le reçoit en dossier de travail, F-58). Elles suivent la
+branche, dans les deux rôles — celles d'une feature passée ne font pas croire qu'une étape est
 faite : la dernière branche vue est retenue (`.branche`) ; quand elle change,
-les sorties de *Créer* (`questions.md` à `ci.md` ci-dessous, ni les lectures
-`invariants/`, ni celles de *Relire*) de la branche quittée vont dans
+les sorties de la branche (`questions.md` à `ecran.md` ci-dessous, ni les lectures
+`invariants/`, ni celles d'une PR) de la branche quittée vont dans
 `branches/<branche>/` (caractères hors de `[A-Za-z0-9._-]` → `-` ; remplacé),
 sauf si c'est la base — une feature lancée depuis la base (*Rédiger la note*)
 crée sa branche et garde ce que ses skills ont écrit — ; puis
 celles de la branche retrouvée, si elle en a de côté, reviennent ; de même
 quand le dossier change de branche pour relire une PR ou pour une nouvelle
-demande (F-110) : l'état de *Créer* revient avec sa branche. Une erreur
+demande (F-110) : l'état de la branche revient avec elle. Une erreur
 ne bloque pas le relevé (I-29). Seuls ces noms sont lus (I-37) : `questions.md` (questions ouvertes), `align.md`
 (alignement), `review.md` (relecture d'un diff), `commit.md` (message
 proposé), `checks.json` (vérifications : par élément `name`, `ok`,
 `level` — `ok`, `warning` (des avertissements seulement : `ok` vrai, la
 vérification passe) ou `error` ; sans `level`, d'après `ok` —, `detail`), `ponytail.md`, `pr.json` (la PR
-ouverte, si gh ne l'a pas dite, F-112), `ci.md` ; par PR `pr-<n>.json` (sa
-fiche), `pr-<n>-note.md`, `pr-<n>-commits.md`, `pr-<n>-ecran.md` (plan de
-test), `pr-<n>-review.json` (revue publiée), `pr-<n>-worktree.json` (son
+ouverte, si gh ne l'a pas dite, F-112), `ci.md`, `ecran.md` (le plan de test à
+l'écran, les deux rôles : une sortie de branche) ; par PR `pr-<n>.json` (sa
+fiche), `pr-<n>-note.md`, `pr-<n>-commits.md`, `pr-<n>-review.json` (revue publiée), `pr-<n>-worktree.json` (son
 worktree, écrit par l'appli, F-110) ; `new-request.json` (`{ branch }` : la
 branche d'une nouvelle demande, skill `nouvelle-demande`, F-110) ; les lectures
 `invariants/<empreinte>.md` (toutes : celle d'un test qui a changé depuis
@@ -855,7 +860,7 @@ sorties de l'agent (`userData/vibecoder-artifacts/<clé>/`, la clé étant le
 dossier git commun du dépôt, résolu ; un dossier hors git est son propre
 projet). Le dépôt, ses worktrees et leurs robots partagent le même dossier et
 y ont tous accès : tout robot du projet voit, lit et écrit les mêmes artefacts,
-les mêmes pour toutes les branches (jamais mis de côté avec *Créer*). Claude
+les mêmes pour toutes les branches (jamais mis de côté avec une branche). Claude
 Code le reçoit en dossier de travail en plus (F-58). Le panneau *Artefacts*
 (son arborescence, son menu, le dépôt), *Copier dans le projet* et le skill
 `artefact` travaillent dans ce dossier. Deux robots qui écrivent le même nom écrivent le même fichier : risque
@@ -1031,7 +1036,7 @@ refusée.
 de son étape — celui de la conversation pour un message sans étape, F-98 —,
 sans ses blancs autour, 20 000 caractères au plus) ; `{{out}}` (F-95) ;
 `{{lang}}` (`fr`, `en`) ; `{{branch}}`, `{{base}}` ; `{{note}}` (le chemin de
-la note) ; `{{ref}}` (`WORKTREE` en *Créer*, `HEAD` en *Relire* : la PR est la
+la note) ; `{{ref}}` (`WORKTREE` en créateur, `HEAD` en relecteur : la PR est la
 branche du dossier, F-101) ; `{{files}}` (les tests d'invariants pas encore lus,
 `chemin@empreinte` ; un test désigné par son id dans le relevé, `t<rang>`,
 lu ou non : *Relire* ; `*` : tous, *Tout relire* ; un id absent refuse
@@ -1085,17 +1090,22 @@ s'affiche sous le champ de la conversation. Une action `prefill`
 ajoute son texte au champ de la conversation (à la ligne s'il n'est pas vide), `{{quote}}`
 remplacé par ce qu'on cite (une ligne, 300 caractères au plus ; des lignes de
 *Voir le code*, F-100 : entières, gardées, sans limite, à la suite du texte
-si le gabarit n'a pas `{{quote}}`) : en *Créer*,
+si le gabarit n'a pas `{{quote}}`) : en créateur,
 *Commenter* sur un bloc, un module ou un cas (« À propos de « … » : »), *À revoir* sur un cas
 de test (« Invariant « … » : à revoir — »), *Retour → fixup* ; possible
-pendant que l'agent travaille. On complète, puis on envoie. En *Relire*, *Commenter*
+pendant que l'agent travaille. On complète, puis on envoie. En relecteur, *Commenter*
 et *À revoir* vont au brouillon de revue (F-101), pas au champ ; le *Commenter* d'une ligne
 ou d'une sélection d'un fichier d'un commit aussi : une zone de commentaire,
 puis une remarque pour ce commit, son chemin et ses lignes entières citées
-en bloc de code.
+en bloc de code. Le 💬 du bloc *Attention* d'une carte d'invariant (le point
+d'attention d'un cas) suit la même règle : créateur, il cite le cas et son
+point d'attention dans le champ de la conversation ; relecteur, il ajoute ce
+point d'attention à la zone de commentaire de la carte (ouverte si elle était
+fermée), à la suite de ce qui y est déjà écrit, rien d'effacé — le relecteur
+précise, et seul *Ajouter* le verse au brouillon.
 
 **La dictée**, panneau ouvert, va à la zone de texte qui a le clavier : le
-champ d'une étape, la zone de commentaire de *Relire* (*Commenter*, *À revoir*, une remarque
+champ d'une étape, la zone de commentaire du relecteur (*Commenter*, *À revoir*, une remarque
 du brouillon), la réponse libre d'une question ouverte ; à la place de la
 sélection, précédée d'une espace si le texte avant le curseur ne finit pas
 par un blanc, coupée à la longueur de la zone (un commentaire : 5 000
@@ -1121,15 +1131,13 @@ cours dans la famille (les choix de lieu de F-110 et *Retirer le worktree* :
 *Revenir sur la branche principale*, *Aller sur la branche* et *Créer ici*
 sur un dossier qui a des modifications (« Des modifications en
 cours », F-110) ; *Pull* sans branche distante suivie ou à jour avec elle
-(F-92) ; pas de dépôt git ; *Relire* (le parcours) sur une branche sans PR
-ouverte (F-101) ; ses étapes, le dossier
+(F-92) ; pas de dépôt git ; en relecteur, ses étapes, le dossier
 pas sur la branche de la PR ni sur son robot (« Passer d'abord sur la
-branche de la PR ») ; brouillon de revue vide ;
-*Relire* une PR fusionnée ou fermée (F-101).
+branche de la PR ») ; brouillon de revue vide.
 Une action qui **n'a pas encore de sens** n'est pas affichée (`hidden`), au
 lieu d'être grisée ; elle garde sa raison (`disabled`) : le principal la
 refuse de même. Ce sont : pas encore de note (aussi la Forme et les
-invariants en *Créer*) ; aucun test d'invariant ; *✓
+invariants en créateur) ; aucun test d'invariant ; *✓
 Commiter* sans commit préparé ; *Envoyer les réponses* sans question
 ouverte ; *Replier les fixups* sans commit `fixup!` ; les choix de F-110
 (ceux d'une PR avant qu'elle soit chargée, et sur sa branche ou sur son
@@ -1142,7 +1150,12 @@ depuis le dernier push ; la nouvelle demande hors de la base) ; *Vibe*
 tant que la note n'est pas rédigée (« Pas encore de note »), a des
 questions ouvertes (« Répondre d'abord aux questions de la note ») ou n'est
 pas validée (« Valider d'abord la note ») ; masquée aussi pendant le mode
-*Vibe*, un tour de la conversation ou une course en cours (« Déjà en cours »). En *Créer*, l'étape PR suit l'état de la PR, qui ne
+*Vibe*, un tour de la conversation ou une course en cours (« Déjà en cours ») ;
+*S'assigner la PR* (relecteur) tant qu'on est l'auteur ou déjà assigné, *Me
+retirer de la PR* (créateur) tant qu'on n'est pas assigné ou qu'on est
+l'auteur ; en relecteur, *Rebase*, *Pousser* et *Copier dans le projet*, et
+toute action qui édite, génère ou commite (elles ne sont pas au relevé du
+relecteur, F-101). En créateur, l'étape PR suit l'état de la PR, qui ne
 fait que masquer (une demande juste après *Valider la feature* ne tombe pas
 sur un relevé en retard) : sans PR, *Valider la feature (ouvrir la PR)*
 seule ; ouverte (ou son état pas encore connu), *Diagnostiquer la CI* et
@@ -1283,10 +1296,12 @@ conversation ; note `0.9.0-actions-independantes.md`).
   *Nouvelle session*, *Retirer* l'agent ou retirer le robot d'un worktree
   (F-110) ferment et oublient ses courses.
 
-### Créer, Relire
+### Le parcours, le relecteur
 
-**F-100 Créer** (la branche du dossier de l'agent ; les étapes du guide,
-§ 4.1). L'étape en cours est la première qui n'est pas faite :
+**F-100 Le parcours** (la branche du dossier de l'agent ; les étapes du guide,
+§ 4.1 ; le même écran pour créer une feature et pour relire une PR, F-101).
+L'étape en cours est la première qui n'est pas faite (ci-dessous, pour le
+créateur ; le relecteur, F-101) :
 1. **Note** — faite : « Ce que ça fait » rédigée, aucune question ouverte
    (`questions.md` vide), la note validée (F-102). Le questionnaire suit
    `questions.md` seul, quel que soit le chemin des réponses (*Envoyer les
@@ -1456,12 +1471,14 @@ conversation ; note `0.9.0-actions-independantes.md`).
    *Générer ce module* (le premier qu'aucun commit ne touche ; avec
    `ponytail`, tests lancés, sans commit) ; aussi *Relire le diff* (les
    quatre questions du § 5.1), *Générer les modules restants* (confiés à des
-   agents Sonnet en parallèle, chaque diff relu, sans commit).
+   agents Sonnet en parallèle, chaque diff relu, sans commit). Relecteur : voir
+   F-101.
 5. **Revue** — faite : vérifications toutes passées (`checks.json` ; des
    avertissements seulement passent ; un ancien ne compte pas, I-46),
    ponytail review faite (`ponytail.md`),
-   aucun commit `fixup!`. Montre la
-   liste du § A.3, cochée d'après le dépôt quand c'est possible (la note dans
+   aucun commit `fixup!`, et, s'il y a un plan à l'écran, chacune de ses cases
+   cochée. Montre la
+   liste du § A.3 (créateur ; le relecteur n'a pas la liste), cochée d'après le dépôt quand c'est possible (la note dans
    un commit de la branche ; tous les contrôles dont le nom contient
    « invariant » passés, quelle que soit la partie : `invariants (backend)`… ;
    aucun `fixup!` et chaque module de la Forme dans au moins un commit) ; « chaque diff relu » (avec
@@ -1483,7 +1500,15 @@ conversation ; note `0.9.0-actions-independantes.md`).
    bouton : elle part avec les vérifications). Une remarque appliquée
    (`ponytail-applied.json`, F-95, d'après le `<fichier>:L<ligne>` en tête)
    est marquée ✓ et grisée, sans *Appliquer* ; toutes : « Appliquée » sur la
-   carte, à la place de *Tout appliquer*. Prochaine action : *Lancer les vérifications et la
+   carte, à la place de *Tout appliquer*. Pour les deux rôles, une catégorie
+   **Relire à l'écran**, après elles : le plan de test (`ecran.md`, skill
+   `ecran`, *Plan de test à l'écran* : comment lancer la branche, `{{ref}}`,
+   puis quoi essayer — utile aussi en créant), une case par chose à essayer,
+   cochée dans le fichier, ou cochée à l'écran (validée pour ce plan-là, F-102,
+   `check:<rang>` ; décocher la refuse, même cochée dans le fichier) ;
+   *Tout cocher* coche d'un clic celles qui ne le sont pas, pour aller vite ;
+   sans plan, une invitation ; *Relancer*. Toutes les cases cochées comptent
+   pour que la Revue soit faite, pour l'un comme pour l'autre. Prochaine action : *Lancer les vérifications et la
    ponytail review* (tant que `checks.json` ou `ponytail.md` manque, ou
    qu'une vérification échoue), puis *Replier les fixups*.
 6. **PR** — faite : une PR pour la branche, lue par gh (F-112 ; sinon
@@ -1493,7 +1518,8 @@ conversation ; note `0.9.0-actions-independantes.md`).
    PR)* ; ouverte, *Diagnostiquer la CI* et *Release candidate* ; fusionnée,
    *PR mergée → revenir sur la base* (F-114 ; sur un enfant, *Retirer le
    worktree* à sa place, dans la vue des branches, F-110) et *Release
-   officielle*.
+   officielle*. Créateur assigné à une PR qui n'est pas la sienne : *Me retirer
+   de la PR* (F-101). Relecteur : F-101.
 
 Une nouvelle demande commence sur la base par *Rédiger la note* (ci-dessus,
 F-110) : sur une branche neuve du dossier, ou dans un worktree. Une branche
@@ -1503,62 +1529,94 @@ sans demande : *Créer une branche*, dans la vue des branches (F-110).
 pastille *✦ Fable · élevé* (« plus cher ») l'y passe d'un clic, comme son
 menu (F-109).
 
-**F-101 Relire** (la PR de la branche active ; la review du guide, § 5.4).
-*Relire* suit la PR ouverte de la branche du dossier ; sur une branche sans
-PR ouverte (la base comprise), *Relire* est grisé. Ce n'est plus à *Relire*
-de charger ou de décharger une PR : ça se fait dans la vue des branches
-(F-110), d'un clic dans l'une de ses listes (*Mes PR*, *À relire* — celles
-où l'on est demandé en relecture —, *Toutes les PR*, F-112) : la suivre
-(`agents[].vibe.pr`), puis la charger ; son nom apparaît aussitôt dans le
-bouton de la branche (F-92). *Créer* et *Relire* travaillent sur le **même
-dossier**, celui de l'agent : *Charger la PR* la récupère dans ce dossier, sa fiche
-`pr-<n>.json` (titre, auteur, base, branche, description, état) puis sa
+**F-101 Le relecteur** (la PR de la branche active ; la review du guide, § 5.4).
+Même écran et même parcours que le créateur (F-100) : le rôle ne se choisit
+pas, l'appli le décide, et il n'y a plus de *Créer* / *Relire* (F-92). Il est
+recalculé à chaque relevé d'après la PR du dossier — la PR suivie si le dossier
+est sur sa tête (ou sur son robot), sinon la PR ouverte de la branche — et ses
+personnes, auteur, assignés, et mon identifiant, lus par
+gh (F-112) :
+- **créateur** : sur une branche sans PR ouverte (la base comprise : sans PR,
+  rien à relire ; une PR fusionnée ou fermée aussi, sans bandeau ni raison
+  grisée), sur sa propre PR, ou sur une PR qu'on s'est assignée ;
+- **relecteur**, par défaut : sur une PR ouverte dont on n'est pas l'auteur,
+  qu'on nous ait demandé de la relire ou non, tant qu'on ne se l'est pas
+  assignée.
+
+Tant que les personnes ou l'identifiant manquent (gh en fond, pas encore de
+réponse, en échec), le rôle d'avant reste. Charger ou décharger une PR ne se
+fait pas ici mais dans la vue des branches (F-110), d'un clic dans l'une de ses
+listes (*Mes PR*, *À relire* — celles où l'on est demandé en relecture —,
+*Toutes les PR*, F-112) : la suivre (`agents[].vibe.pr`), puis la charger ; son
+nom apparaît aussitôt dans le bouton de la branche (F-92). Le parcours et le
+dossier de l'agent sont les mêmes : *Charger la PR* la récupère dans ce dossier,
+sa fiche `pr-<n>.json` (titre, auteur, base, branche, description, état) puis sa
 branche et celle de sa base (`git fetch origin <tête>`, puis `<base>`, par
 l'appli, F-114 ; *via* : le skill, dans la conversation) ; une PR venue d'un
-fork (sa branche n'est pas sur `origin`) est refusée au chargement. Rien n'est récupéré à part (ni
-`refs/vibecoder/pr/<n>`, ni fichiers écrits pour l'éditeur). Le dossier ne
-change pas encore de branche : l'appli demande toujours d'abord (F-110).
-Le parcours se lit alors dans la copie de travail, sur la branche de la PR ;
-ce qui la lit attend qu'elle soit chargée, puis que le dossier soit sur sa
-branche (ou sur son robot). On passe de *Créer* à *Relire* à tout moment
-sur une branche qui a sa PR ouverte (le dernier relevé) : *Relire* la suit
-d'emblée, sa fiche écrite d'après ce relevé, sans rien charger — on relit
-sa propre PR avant le relecteur. Une PR **fusionnée ou fermée** (`state` de sa fiche ;
-une fiche d'avant la 0.8.0-rc.2 n'en a pas : ouverte) se charge mais ne se
-relit pas (l'état que gh donne l'emporte sur la fiche, F-112) : un bandeau le dit, et les actions des autres étapes sont grisées
-avec cette raison (« PR déjà fusionnée : rien à relire », « PR fermée : rien
-à relire »). Plus d'étape PR : le parcours commence à **Note**. Les
-étapes, faites quand :
-1. **Note** — absente de la PR, ou jugée : *Valider*, ou *À revoir* (« La note est à revoir. »
-   au brouillon). Montre la note de la PR (comme en *Créer*)
-   et sa relecture par l'agent (`pr-<n>-note.md`). *Relire la note*
+fork (sa branche n'est pas sur `origin`) est refusée au chargement. Rien n'est
+récupéré à part (ni `refs/vibecoder/pr/<n>`, ni fichiers écrits pour l'éditeur).
+Le dossier ne change pas encore de branche : l'appli demande toujours d'abord
+(F-110). Le parcours se lit alors dans la copie de travail, sur la branche de la
+PR ; ce qui la lit attend qu'elle soit chargée, puis que le dossier soit sur sa
+branche (ou sur son robot). Sur une branche qui a sa PR ouverte, devenu
+relecteur (le dernier relevé), la PR est suivie d'emblée, sa fiche écrite d'après
+ce relevé, sans rien charger.
+
+**En relecteur, tout est en lecture seule** : rien ne s'édite (ni le code d'un
+module, ni la note, ni un test), rien ne se génère ni ne se commite. Les actions
+qui modifient ne sont pas au relevé — ne restent que celles qui lisent : *Relire
+la note*, *Relire les commits*, *Lire en pseudo-code*, *Vérifier l'alignement*,
+*Plan de test à l'écran*, *Publier la revue* — et le principal les refuse de
+même, quoi que dise la page, ainsi qu'*Enregistrer*, d'après le rôle de son
+dernier relevé (I-37, I-39). Le badge *Relecteur* de l'en-tête le dit (F-92).
+On y retrouve toutes les fonctions de l'ancien *Relire* : juger la note et les
+cas, et ajouter au brouillon de revue une remarque sur des lignes de la note ou
+sur tout ce que *Commenter* cible (la relecture de la note, l'alignement, un
+cas, un commit, les lignes d'un fichier d'un commit). Les étapes, faites quand :
+1. **Note** — absente de la PR, ou jugée : *Valider*, ou *À revoir* (« La note
+   est à revoir. » au brouillon). Montre la note de la PR (comme pour le
+   créateur) et sa relecture par l'agent (`pr-<n>-note.md`). *Relire la note*
    (décisions à discuter, manques, invariants mal classés).
-2. **Invariants** — chaque cas jugé (*Validé* ou *À revoir*), lu ou pas. Les mêmes
-   cartes qu'en *Créer* (*Voir le fichier* et son diff depuis la base de la
-   PR en lecture seule) ; *Lire en pseudo-code* (facultative), *Vérifier
-   l'alignement*.
-3. **Commits** — relus (`pr-<n>-commits.md`). Sans IA, les commits de la PR
+2. **Forme** — faite avec la Note : rien à juger, donc pas de *Valider la
+   forme*. Les modules et leur contrat ; *Commenter* d'une ligne au brouillon.
+3. **Invariants** — chaque cas jugé (*Validé* ou *À revoir*), lu ou pas. Les
+   mêmes cartes que pour le créateur (*Voir le fichier* et son diff depuis la
+   base de la PR en lecture seule) ; *Lire en pseudo-code* (facultative),
+   *Vérifier l'alignement*. Le 💬 du point d'attention d'un cas verse dans la
+   zone de commentaire de la carte (F-98).
+4. **Modules** — les commits relus (`pr-<n>-commits.md`). Les modules en
+   lecture seule (ni commit proposé, ni relecture du diff, ni outil qui génère
+   ou commite ; *Voir le code* sans *Enregistrer* ni Ctrl+S), puis les **commits
+   de la PR** (l'ancienne étape Commits), en lecture seule : sans IA, leur liste
    (hash, sujet, fichiers touchés), chacun avec *Voir le diff*, *GitHub*
    (ci-dessous) et ses fichiers ; relus, une carte par commit (hash, sujet,
-   remarques). Un clic sur un fichier d'un commit l'ouvre dans le panneau,
-   sous sa carte (un seul à la fois ; recliqué : fermé) : sa version à la
-   tête de la PR, comme le code de *Voir le code* (F-113), en lecture seule
-   (ni édition, ni *Enregistrer*, ni Ctrl+S) ; absent là ou trop gros, « absent
-   à la tête de la PR, ou trop gros ». Un sélecteur : *Fichier* · *Diff de ce
-   commit* (depuis son parent) · *Diff depuis la base de la PR* ; un diff
-   *En ligne* ou *Côte à côte*. Lu par git seul, relu à chaque ouverture
-   (pas suivi sur le disque). *Commenter* sur une ligne ou une sélection : une zone de
+   remarques). Un clic sur un fichier d'un commit l'ouvre dans le panneau, sous
+   sa carte (un seul à la fois ; recliqué : fermé) : sa version à la tête de la
+   PR, comme le code de *Voir le code* (F-113), en lecture seule (ni édition,
+   ni *Enregistrer*, ni Ctrl+S) ; absent là ou trop gros, « absent à la tête de
+   la PR, ou trop gros ». Un sélecteur : *Fichier* · *Diff de ce commit*
+   (depuis son parent) · *Diff depuis la base de la PR* ; un diff *En ligne* ou
+   *Côte à côte*. Lu par git seul, relu à chaque ouverture (pas suivi sur le
+   disque). *Commenter* sur une ligne ou une sélection : une zone de
    commentaire, la remarque au brouillon pour ce commit, ses lignes citées
-   (F-98). *Relire les commits* (un par un : les quatre questions,
-   la duplication, les en-têtes, l'histoire des commits).
-4. **À l'écran** — chaque case du plan de test cochée (dans le fichier, ou
-   cochée à l'écran : validée pour ce plan-là, F-102 ; décocher la refuse,
-   même cochée dans le fichier).
-   *Plan de test à l'écran* (comment lancer la PR, puis quoi essayer).
-5. **Revue** — publiée (`pr-<n>-review.json` : son état, son lien). Montre
-   le **brouillon de revue**, le verdict (*Approuver*, *Commenter* par
-   défaut, *Demander des changements*) et *Publier la revue*, qui l'envoie
-   sur GitHub, tel quel, avec ce verdict (F-114).
+   (F-98). *Relire les commits* (un par un : les quatre questions, la
+   duplication, les en-têtes, l'histoire des commits).
+5. **Revue** — le plan à l'écran écrit et toutes ses cases cochées : la seule
+   catégorie du relecteur, *Relire à l'écran* (F-100).
+6. **PR** — la revue publiée (`pr-<n>-review.json` : son état, son lien).
+   Montre la carte de la PR, *S'assigner la PR*, puis le **brouillon de
+   revue**, le verdict (*Approuver*, *Commenter* par défaut, *Demander des
+   changements*) et *Publier la revue*, qui l'envoie sur GitHub, tel quel, avec
+   ce verdict (F-114). Le brouillon, le verdict et *Publier la revue* sont
+   réservés au relecteur : le créateur corrige lui-même (*Commenter* cite dans
+   la conversation, *Retour → fixup*) et GitHub refuse d'approuver sa propre PR.
+
+**S'assigner la PR** (`assign-pr`, direct, F-114), dans l'étape PR : un
+relecteur peut s'assigner une PR dont il n'est pas l'auteur, pour la modifier ;
+au relevé suivant il y travaille en créateur. **Me retirer de la PR**
+(`unassign-pr`), dans l'étape PR d'un créateur assigné qui n'est pas l'auteur,
+le refait relecteur. Aucun des deux ne part autrement qu'au clic (jamais par
+l'agent, ni à la suite d'une autre action).
 
 Le brouillon, gardé par PR : une remarque = sa cible (une ligne, 300
 caractères au plus) et son texte (5 000 au plus) — le texte du champ s'il y
@@ -1568,12 +1626,12 @@ l'alignement, un cas, un commit ou les lignes d'un fichier d'un commit y
 ajoutent une remarque ; elle se modifie
 sur place (même cible, mêmes limites) ou se retire (×).
 
-**Ouvrir**, en *Créer* comme en *Relire*, ce que désigne un id du dernier
+**Ouvrir**, ce que désigne un id du dernier
 relevé (I-37), dans l'éditeur (`editorCommand`, sinon le premier trouvé,
 F-56) :
 - un fichier (la note, un test, un variant, un module), à une ligne si
   l'écran la donne (un cas de test : zed `fichier:ligne`, code, cursor, codium `-g fichier:ligne`, un
-  autre éditeur : le fichier seul), celui de la copie de travail, en *Relire*
+  autre éditeur : le fichier seul), celui de la copie de travail, en relecteur
   aussi (le dossier sur la branche de la PR ; un dossier ne s'ouvre pas) ;
 - `c<rang>` : le diff d'un commit (`git show`, sans programme externe, I-39),
   écrit dans `<sorties>/files/<hash>.diff`, en lecture seule ;
@@ -1586,10 +1644,8 @@ dans le dossier de sorties (un lien qui en sort : rien n'est écrit).
 
 **F-110 La vue des branches : changer de branche, un nouveau worktree,
 mettre de côté.** Où relire une PR, sur quelle branche aller, où créer une
-branche, et la fin d'un worktree, dans le dossier de l'agent, que *Créer* et
-*Relire* partagent. Tout ce qui change de branche est dans la **vue des
-branches**, qu'ouvre le bouton de la branche (F-92), en *Créer* comme en
-*Relire* ; seuls les choix d'une nouvelle demande s'affichent aussi au-dessus
+branche, et la fin d'un worktree, dans le dossier de l'agent. Tout ce qui change de branche est dans la **vue des
+branches**, qu'ouvre le bouton de la branche (F-92), quel que soit le rôle ; seuls les choix d'une nouvelle demande s'affichent aussi au-dessus
 du champ de la conversation (ci-dessous). La vue montre :
 - quatre onglets : *Mes PR*, *À relire*, *Toutes les PR* (les PR ouvertes
   du dépôt, demandées à gh à l'ouverture, F-112) — un clic sur une PR la
@@ -1629,8 +1685,8 @@ une ligne, ou pas de réponse → refusé, rien ne bouge.
     conversation) : `git fetch origin <tête>`, `git switch <tête>` (la
     tête de `pr-<n>.json`), puis `git pull --ff-only origin <tête>` (une
     branche locale d'avant mise à jour ; pas en avance rapide : l'échec) ; grisé avec des modifications (« Des
-    modifications en cours »). L'état de *Créer* reste rangé par branche
-    (F-95) et revient avec elle. Masqué sur la branche de la PR et sur le
+    modifications en cours »). Les sorties de la branche restent rangées par branche
+    (F-95) et reviennent avec elle. Masqué sur la branche de la PR et sur le
     robot d'une PR ;
   - *Dans un nouveau worktree*, le dossier propre ou pas
     (`pr-worktree` ; *via* : l'agent) : `git fetch origin <tête>`
@@ -1643,7 +1699,7 @@ une ligne, ou pas de réponse → refusé, rien ne bouge.
     (`{ dir, branch }`) dans les sorties de l'agent du dépôt et ajoute un
     **robot temporaire** « PR #n » sur ce dossier, un enfant de l'agent du
     dépôt (F-51) avec sa PR (`agents[].parent` `{ id, pr }`, § 9 : le
-    modèle, l'effort et le mode de l'agent du dépôt, en VibeCoder, *Relire*,
+    modèle, l'effort et le mode de l'agent du dépôt, en VibeCoder, relecteur,
     la PR suivie, sa fiche et son brouillon de revue repris) — seulement
     après la question de confiance, **toujours posée** pour le worktree
     d'une PR (ses réglages `.claude` sont ceux de la PR et se chargeront ;
@@ -1663,7 +1719,7 @@ une ligne, ou pas de réponse → refusé, rien ne bouge.
 - **Aller sur la branche** (`switch-branch`, un clic dans *Branches
   locales*) : `git switch <branche>` (une branche du dernier relevé) ; grisé
   avec des modifications (*Mettre de côté* à côté), comme tout `git switch`.
-- **Une nouvelle demande.** Sur la base, en *Créer*, *Rédiger la note*
+- **Une nouvelle demande.** Sur la base, *Rédiger la note*
   (F-100 ; la demande du champ de l'étape, exigée) part comme une nouvelle
   demande (`new-request`) : le message part à l'agent (skill
   `nouvelle-demande`, sous-contexte, haiku · faible), qui propose un nom de
@@ -1693,7 +1749,7 @@ une ligne, ou pas de réponse → refusé, rien ne bouge.
     quand la conversation travaille (F-115) ;
   - avec des modifications, en plus, *Mettre de côté*.
 
-  Ensuite le dossier (ou l'enfant) est en VibeCoder, *Créer* ; à son premier
+  Ensuite le dossier (ou l'enfant) est en VibeCoder, créateur ; à son premier
   relevé, *Rédiger la note* part avec la demande. Un échec (pas de base, la
   recette, l'enfant pas ouvert) : ✗ et sa ligne à côté du choix. Une fiche
   sans demande (l'appli relancée entre-temps) : supprimée, rien d'autre.
@@ -1704,7 +1760,7 @@ une ligne, ou pas de réponse → refusé, rien ne bouge.
   des modifications) ou *Dans un nouveau worktree* (`new-worktree`, pas sur
   un enfant : la recette, depuis ce départ, puis l'enfant). Les mêmes
   actions que pour une demande, un seul chemin ; sans demande retenue, rien
-  ne suit (ni *Créer* forcé, ni note).
+  ne suit (ni rôle imposé, ni note).
 - **Mettre de côté** (`stash`) : une seule action, montrée avec des
   modifications partout où un changement de branche est proposé (PR
   chargée, *Revenir sur la branche principale*, *Aller sur la branche*,
@@ -1735,22 +1791,22 @@ une ligne, ou pas de réponse → refusé, rien ne bouge.
   sur ce dossier les retrouve. Le reste des sorties garde son sort.
 
 **F-102 Validations** : valider, refuser (*À revoir*) ou oublier, sur la note, sa Forme, un cas de
-test, une case du plan de test (*Relire*), une case du § A.3 que le dépôt ne
-peut pas cocher (*Créer*, `a3:<rang>` : cocher la valide, décocher l'oublie). La note et la forme : *Valider*
-(*Relire* : *Valider* ou *À revoir*), puis « validée » et *Annuler* ; un cas : *Validé* ou
+test, une case du plan de test à l'écran (`check:<rang>`, les deux rôles), une case du § A.3 que le dépôt ne
+peut pas cocher (créateur, `a3:<rang>` : cocher la valide, décocher l'oublie). La note et la forme : *Valider*
+(relecteur : la note *Valider* ou *À revoir* ; la forme, rien à juger), puis « validée » et *Annuler* ; un cas : *Validé* ou
 *À revoir* (deux badges écrits, *Validé* et *À revoir*, gris ; celui donné allumé de sa couleur,
 « Validé » ou « Refusé — Cliquer de nouveau pour annuler » en infobulle), un second clic l'annule. Chacune vaut pour l'empreinte du contenu validé (le
 texte de la note, la rubrique « Forme », le fichier du test, le plan, le
 commit de tête de la branche pour une case du § A.3) : le
 contenu change → « modifiée depuis » (*Revalider*), et l'étape attend une
 nouvelle validation. Une cible absente du dernier relevé est ignorée.
-Pendant le mode *Vibe* (F-103), à chaque relevé, chaque étape faite de
-*Créer* — la note, la forme, chaque cas des invariants — reçoit un ✓ pour
+Pendant le mode *Vibe* (F-103), à chaque relevé, chaque étape faite
+— la note, la forme, chaque cas des invariants — reçoit un ✓ pour
 son contenu d'aujourd'hui, comme un clic ; un ✓ ou ✗ déjà donné pour ce
 contenu reste. *Vibe* arrêté, fini ou l'appli relancée, elles le gardent.
 Gardées par agent (`vibecoder-state.json`) ; aucune n'envoie de message.
 
-**F-103 Le mode Vibe** (*Créer* seulement ; par agent, **en mémoire** :
+**F-103 Le mode Vibe** (créateur seulement ; par agent, **en mémoire** :
 l'appli relancée repart sans lui, on relance *Vibe* pour reprendre), sur la
 même mécanique, les courses (F-115). Hors *Vibe* : le développeur valide la
 note, la forme et chaque cas des invariants ; l'étape en cours attend ses
@@ -1803,8 +1859,8 @@ version officielle, supprimer une version, un tag ou une branche.
 cases à cocher, citations, code, tableaux, filets ; en ligne : code, gras,
 italique, liens. Jamais de HTML : une balise reste du texte ; un lien n'est
 un lien qu'en `http(s)`, ouvert dans le navigateur (I-40, I-21). Un *Commenter* au
-survol de chaque bloc et de chaque élément de liste le cite (F-98 ; *Relire* :
-au brouillon, F-101). En *Créer*, après *Modifier*, la note se modifie
+survol de chaque bloc et de chaque élément de liste le cite (F-98 ; relecteur :
+au brouillon, F-101). En créateur, après *Modifier*, la note se modifie
 rendue ou en *Brut* (F-100) ; une balise tapée ou écrite dans le fichier reste du texte. Un
 JSON écrit par un skill est lu sans s'y fier :
 illisible, l'écran le dit ou le montre tel quel.
@@ -1922,16 +1978,20 @@ la fin ; dépliable ; *Journal complet* l'ouvre dans l'éditeur).
 derrière le préfixe de F-111 (l'appli tourne sur l'hôte, gh souvent dans la
 box), au dossier de l'agent, 15 s au plus ; un échec n'est qu'une réponse
 absente (I-29).
-- *Créer*, étape **PR** : la PR de la branche (`gh pr view <branche>`, sauf
+- Étape **PR** (créateur) : la PR de la branche (`gh pr view <branche>`, sauf
   sur la base) — numéro, titre, lien, état, base, branche ; une PR existe :
   l'étape est faite. Sans réponse, `pr.json` (le skill `pr`) est encore lu.
-- La vue des branches (F-110), dans les deux parcours : les PR **ouvertes**
+- La vue des branches (F-110) : les PR **ouvertes**
   du dépôt, en trois listes — *Mes PR* (`gh pr list --author @me`), *À
   relire* (`--search review-requested:@me`), *Toutes les PR* (sans filtre,
   `--limit 100`) —, `--json number,title,author,url`, à l'ouverture de la
   vue ; une liste qui échoue : pas de réponse pour les trois ;
   l'état de la PR chargée (`gh pr view <n> --json state`), qui l'emporte sur
   sa fiche.
+- Le **rôle** (F-101) : les personnes de la PR du dossier (`gh pr view
+  --json author,assignees -- <n>` : auteur, assignés ; un identifiant hors des caractères d'un identifiant GitHub
+  écarté, un numéro qui n'est pas un entier positif : rien de lancé) et mon
+  identifiant (`gh api user --jq .login`), en lecture seule comme le reste.
 - Une réponse vaut 60 s (par branche, par PR) ; elle est demandée en fond,
   le relevé ne l'attend pas et repart quand elle change ; ↻ les redemande.
 - Le skill `verifier` reçoit ce préfixe **vu de l'agent** (`{{prefix}}`,
@@ -1940,10 +2000,10 @@ absente (I-29).
   celle à relancer seule (`{{check}}`).
 
 **F-113 Coloration du code** (F-100, étape Invariants : *Code*, *Voir le
-fichier*, sans citer, éditables en *Créer* ; étape Modules : *Voir le code*,
+fichier*, sans citer, éditables en créateur ; étape Modules : *Voir le code*,
 éditable, un clic ou une sélection cite ses lignes, F-98 ; ses diffs, eux,
 en texte sans coloration, ajouts en vert, retraits barrés ; étape Note :
-*Brut*, éditable après *Modifier* ; *Relire*, étape Commits : un fichier
+*Brut*, éditable après *Modifier* ; relecteur, étape Modules : un fichier
 d'un commit, en lecture seule, un clic ou une sélection cite ses lignes,
 F-101) : CodeMirror 6, en lecture quand l'édition est grisée ;
 d'après l'extension — `ts`, `tsx`, `js`, `jsx`, `mjs`, `cjs`, `mts`, `cts`,
@@ -1954,7 +2014,7 @@ Le pseudo-code des lectures garde sa coloration écrite à la main
 (`highlight`) : ses étapes `given` / `when` / `then` ne sont pas un
 langage de CodeMirror.
 
-**F-114 Actions directes** (sans IA, au clic) : dix-neuf actions ne sont que
+**F-114 Actions directes** (sans IA, au clic) : vingt et une actions ne sont que
 des commandes connues d'avance ; l'appli les lance elle-même, sans agent, ni
 modèle, ni jeton, au clic de leur bouton (« direct » à la place du modèle).
 À côté, un petit *via* (et le choix du modèle, F-99) garde le chemin
@@ -1963,12 +2023,12 @@ sauf celles que l'appli fait seule : *Retirer le worktree* (l'agent
 n'emporterait pas le robot), *Mettre de côté*, *Revenir sur la branche
 principale*, les choix d'une nouvelle demande (et *Créer une branche*),
 *Aller sur la branche*, *Pull*, *Rebase*, *Pousser*, *Actualiser*, *Me
-demander en relecture*, *Copier dans le projet* et la gestion des artefacts (le
+demander en relecture*, *S'assigner la PR*, *Me retirer de la PR*, *Copier dans le projet* et la gestion des artefacts (le
 dépôt, le menu). Les
 `id` (`commit`, `publish`, `load-pr`, `base`, `pr-here`, `pr-worktree`,
 `remove-worktree`, `stash`, `unload-pr`, `new-here`, `new-worktree`,
 `switch-branch`, `pull`, `rebase`, `push`, `fetch`, `request-review`,
-`copy-artifact`, `add-artifact`, `rename-artifact`, `new-artifact-file`,
+`assign-pr`, `unassign-pr`, `copy-artifact`, `add-artifact`, `rename-artifact`, `new-artifact-file`,
 `new-artifact-folder`, `trash-artifacts`, `move-artifacts`, `copy-artifacts`,
 `duplicate-artifacts`) restent ceux d'`actions.<langue>.json` : leur gabarit est
 le *via* ; une entrée retirée retire les deux boutons.
@@ -2033,6 +2093,15 @@ le *via* ; une entrée retirée retire les deux boutons.
   refusé ; l'identifiant lu (`gh api user --jq .login`, en échec : rien de
   lancé), puis `gh pr edit <n> --add-reviewer <identifiant>`, et les trois
   listes relues.
+- *S'assigner la PR* (`assign-pr`) et *Me retirer de la PR* (`unassign-pr`),
+  sans argument, dans l'étape PR (F-101) : la PR du dernier relevé, jamais un
+  numéro de la page ; l'identifiant lu (`gh api user --jq .login`, en échec :
+  rien de lancé), puis `gh pr edit <n> --add-assignee <identifiant>` ou
+  `--remove-assignee <identifiant>`, arguments fixes, et les personnes de la PR
+  redemandées (le rôle relu). Au clic seulement : jamais par l'agent (sans
+  *via*), ni à la suite d'une autre action. Montrée au relecteur si la PR a un
+  autre auteur et qu'il n'y est pas assigné ; *Me retirer de la PR* au
+  créateur assigné qui n'est pas l'auteur.
 - *Copier dans le projet* (`copy-artifact`, `{ artifacts }`, F-95) :
   les éléments choisis, des ids (`a<i>` ou `d<i>`) du dernier relevé (sinon
   refusé) ; sans git ni gh : une boîte de dialogue choisit le dossier (ouverte
@@ -2205,7 +2274,7 @@ restent en français.
 (I-36) : aucune action ni aucun skill livré ne le nomme ni ne change de
 modèle, et le choix du modèle d'une étape (F-99) ne le propose pas ; seul un clic de l'utilisateur y passe l'agent (menu du robot, barre
 d'état : « Fable (plus cher) », pastille *✦ Fable · élevé* des étapes Note et
-Forme en *Créer* : modèle Fable, effort élevé).
+Forme, en créateur : modèle Fable, effort élevé).
 
 ## 8. Menu du clic droit (icône, bouton de lecture)
 
@@ -2454,8 +2523,8 @@ bancs de comparaison.
   l'utilisateur y passe l'agent (coût).
 - **I-37** Le principal ne lit pour VibeCoder que la note et les tests que git
   lui donne, et le seul fichier suivi (F-100) — celui de *Voir le code*, d'un
-  module touché par la branche (`m<rang>/<i>`), ou, en *Créer* seulement, la
-  note (`n`) ou un test d'invariant de la branche (`t<i>`), ou, en *Relire*
+  module touché par la branche (`m<rang>/<i>`), ou, en créateur seulement, la
+  note (`n`) ou un test d'invariant de la branche (`t<i>`), ou, en relecteur
   seulement, un fichier d'un commit (`c<rang>/<i>`, lu par git seul, jamais
   enregistré) —, **dans le dossier de l'agent** (`..` et liens résolus ; ni
   chemin absolu, ni NUL), et les sorties de cet agent **sous leurs noms
@@ -2490,8 +2559,8 @@ bancs de comparaison.
   page désigne un fichier par son **id dans le dernier relevé**, jamais par un
   chemin : un id en forme de chemin, ou égal au chemin d'un fichier du relevé,
   ne désigne rien (I-34), ni un commit ou un module pas touché pour le
-  fichier suivi, ni la note ou un test en *Relire*, ni un fichier d'un commit
-  en *Créer* ; un commit, par son rang (`c<rang>`, `gh:c<rang>`,
+  fichier suivi, ni la note ou un test en relecteur, ni un fichier d'un commit
+  en créateur ; un commit, par son rang (`c<rang>`, `gh:c<rang>`,
   `c<rang>/<i>`, F-101), jamais par une URL. Les autres versions d'un
   fichier — à la base, au parent d'un commit, à un commit, à `HEAD`, celles
   d'un fichier supprimé, le texte d'un test à la base — ne se lisent que par
@@ -2526,7 +2595,10 @@ bancs de comparaison.
   `DIRECT_GH` : `pr review <n>
   --<verdict> --body-file <fichier>`, `pr edit <n> --add-reviewer
   <identifiant>` (au seul clic de *Me demander en relecture*, l'identifiant
-  aux seuls caractères d'un identifiant GitHub), et `pr view` pour lire), sans shell,
+  aux seuls caractères d'un identifiant GitHub), `pr edit <n> --add-assignee
+  <identifiant>` et `--remove-assignee <identifiant>` (aux seuls clics de
+  *S'assigner la PR* et *Me retirer de la PR*, l'identifiant lu par gh, de même
+  jamais par l'agent ni à la suite d'une autre action), et `pr view` pour lire), sans shell,
   git et gh derrière le préfixe, 60 s au plus ; leurs valeurs : une PR **entier
   positif**, un verdict des trois, une branche et une base refs sûrs
   (ci-dessous) pris du relevé (la base d'une PR à charger : celle que gh
@@ -2569,7 +2641,11 @@ bancs de comparaison.
   l'agent, le texte une chaîne d'1 Mo au plus ; jamais pendant un tour de
   la conversation, ni une course qui génère ce module, ni, pour la note et
   les tests, une course de l'agent qui retient (verrou recalculé par le
-  principal, sans se fier à la page). *Copier dans le projet* (F-114)
+  principal, sans se fier à la page), **ni en relecteur** (F-101). **Le
+  relecteur n'écrit rien** : le principal recalcule le rôle d'après le dernier
+  relevé, sans se fier à la page, et refuse alors *Enregistrer* (le code d'un
+  module, la note, un test) et toute action qui édite, génère ou commite,
+  même demandée par une page ou l'orchestrateur. *Copier dans le projet* (F-114)
   n'écrit qu'**au clic** de son bouton, un artefact désigné par son id
   (I-37), sous son nom de base, **dans le seul dossier choisi** dans la
   boîte de dialogue ; un fichier existant n'est **jamais remplacé** sans
@@ -2802,7 +2878,7 @@ Copier, erreurs ; mêmes relevés).
   échange, pas en haut ; on remonte, un message arrive : la lecture reste.
 
 **VibeCoder** (un agent dans un dépôt d'essai qui a `docs/tickets/` ; pour
-*Relire*, une PR d'essai sur GitHub)
+relire, une PR d'essai sur GitHub)
 - **S-50** Clic droit sur un robot → *◧ Ouvrir VibeCoder* : panneau agrandi
   (1280×820 la première fois), en-tête (nom, `⎇` branche), au centre le
   fil d'Ariane au-dessus de l'étape en cours, conversation à droite. Redimensionner :
@@ -2829,16 +2905,23 @@ Copier, erreurs ; mêmes relevés).
   dans le champ). Modifier l'un des tests : ses cas passent « modifié
   depuis », *Lire en pseudo-code* ne relit que lui. *Relire* sur un fichier
   lu : sa lecture est refaite (et remplacée) ; *Tout relire* : tous.
-- **S-54** Sur la base, *Relire* grisé. Le bouton de la branche → la vue
-  des branches, *À relire* → la liste ; un clic sur la PR d'essai : branche
-  courante, copie de travail et `git status` inchangés, `origin/<tête>`
-  récupérée, son nom dans le bouton ; *Changer de branche* → le dossier sur
-  la branche de la PR ; *Relire* commence à Note, le parcours se lit dans la copie de travail (note,
-  invariants, commits). *Relire la note*, *Relire les commits*, *Plan de test
-  à l'écran* : leurs sorties dans les étapes. Un *À revoir* et un *Commenter* complété par le
-  champ → deux remarques au brouillon ; en retirer une. Brouillon vide :
-  *Publier la revue* grisé. *Publier la revue* (commenter) : la revue paraît
-  sur la PR d'essai, telle quelle ; l'étape Revue est faite.
+- **S-54** Sur la base, pas de badge *Relecteur*. Le bouton de la branche → la vue
+  des branches, *À relire* → la liste ; un clic sur la PR d'essai (d'un autre
+  auteur) : branche courante, copie de travail et `git status` inchangés,
+  `origin/<tête>` récupérée, son nom dans le bouton ; *Changer de branche* → le
+  dossier sur la branche de la PR, le badge *Relecteur* dans l'en-tête, rien
+  qui édite, génère ou commite (ni *Modifier*, ni *Enregistrer*, ni *Générer*) ;
+  le parcours commence à Note et se lit dans la copie de travail (note,
+  invariants, modules et commits). *Relire la note*, *Relire les commits*, *Plan
+  de test à l'écran* (étape Revue, *Relire à l'écran*) : leurs sorties dans les
+  étapes. Un *À revoir* et un *Commenter* complété par le
+  champ → deux remarques au brouillon ; en retirer une ; le 💬 du bloc
+  *Attention* d'un cas → son texte dans la zone de commentaire de la carte,
+  ouverte, ce qu'on y avait écrit gardé, rien au brouillon avant *Ajouter*.
+  Étape PR : brouillon vide, *Publier la revue* grisé. *Publier la revue*
+  (commenter) : la revue paraît sur la PR d'essai, telle quelle ; l'étape PR
+  est faite. *S'assigner la PR* → le badge disparaît au relevé suivant, les
+  actions de création reviennent ; *Me retirer de la PR* → relecteur de nouveau.
 - **S-55** *EN* : l'écran, les boutons, les faits des étapes en anglais ;
   une action part en anglais (`/vibecoder:… en …`), l'agent répond en
   anglais ; le fil et le champ restent en français ; un autre agent en
@@ -2856,11 +2939,9 @@ Copier, erreurs ; mêmes relevés).
   d'autorisation, le panneau se rouvre agrandi sur VibeCoder, **sans prendre
   le clavier** (I-18), la demande dans la colonne de la conversation, le
   bouton principal disant « L'agent attend votre autorisation… ».
-- **S-59** *Relire* une PR déjà fusionnée : *Charger la PR* → sa fiche, son
-  état ; le bandeau « rien à relire », *Relire la note*, *Lire en
-  pseudo-code*, *Relire les commits*, *Plan de test*, *Publier* grisés avec
-  cette raison. Une PR ouverte : rien de grisé pour cette raison.
-- **S-60** *Relire* : étape Commits → *Voir le diff* d'un commit : son diff
+- **S-59** Une PR déjà fusionnée : *Charger la PR* → sa fiche, son état ; pas
+  de badge *Relecteur* ni de bandeau (sans PR ouverte, on est créateur).
+- **S-60** Relecteur : étape Modules, les commits de la PR → *Voir le diff* d'un commit : son diff
   s'ouvre dans l'éditeur (`files/<hash>.diff`, en lecture seule) ; *GitHub* :
   la page du commit dans le navigateur ; un clic sur un fichier du commit :
   il s'ouvre sous sa carte, sa version à la tête de la PR, en lecture seule
@@ -2880,10 +2961,10 @@ Copier, erreurs ; mêmes relevés).
   sous son titre, celle qui fait avancer en tête. Une carte de sortie
   (relecture du diff, vérifications…) : *Relancer* la refait ; l'alignement
   et la ponytail review n'en ont pas. La vue des branches, *Revenir sur la
-  branche principale* → le dossier sur la base, *Relire* grisé. Une commande en
+  branche principale* → le dossier sur la base, plus de badge *Relecteur*. Une commande en
   arrière-plan : *⚙ Tâches* → l'onglet *Tâches (1)* à droite ;
   *Conversation* → le fil, à sa place.
-- **S-64** *Relire* sur gt-plugins (`.vibecoder/project.json` avec son
+- **S-64** Relecteur sur gt-plugins (`.vibecoder/project.json` avec son
   `worktree`), une PR chargée : *Changer de branche* et *Dans un nouveau
   worktree* ; un fichier modifié dans le dossier → *Changer de branche*
   grisé « Des modifications en cours », *Mettre de côté* en plus ; *Mettre
@@ -2893,14 +2974,14 @@ Copier, erreurs ; mêmes relevés).
   `gt-plugins-worktrees/pr-<n>`, `yarn install` fait (`recipe.log`) ; la
   question de confiance (« PR #n dans un worktree », ses réglages
   `.claude`) ; *Annuler* → pas de robot, *Ajouter le robot PR #n* ; accepter
-  → le robot « PR #n », *Aller au robot PR #n* → son VibeCoder en *Relire*,
+  → le robot « PR #n », *Aller au robot PR #n* → son VibeCoder en relecteur,
   la PR chargée, le badge « PR #n · worktree ». Un fichier modifié dans le
   worktree : *Retirer le worktree* → refusé, la raison sous le bouton, le
   robot reste ; sans modification → le worktree retiré, le robot parti, le
   panneau sur l'agent du dépôt, le brouillon de revue là. *Nouvelle
   demande*, une demande dans le champ, un fichier modifié → la branche
   nommée (haiku) et ses choix ; *Dans un nouveau worktree* → le worktree
-  créé, la question de confiance, l'enfant en *Créer* qui rédige la note ;
+  créé, la question de confiance, l'enfant en créateur qui rédige la note ;
   le parent reste sur sa branche. Clic droit → *Ouvrir un terminal
   ici* → konsole dans le dossier de l'agent.
 - **S-65** gt-plugins en VibeCoder, appli sur l'hôte, `agentCommand`
@@ -2915,20 +2996,19 @@ Copier, erreurs ; mêmes relevés).
   sur l'hôte ni dans la box. Un `sleep 1000` lancé à la main dans la box
   survit à *Arrêter* et à la sortie. *Modifier les commandes* → le fichier dans
   l'éditeur ; une commande renommée → l'ancienne, si elle tournait, arrêtée.
-- **S-66** Même appli sur l'hôte (sans gh), gh dans la box : *Créer* sur une
+- **S-66** Même appli sur l'hôte (sans gh), gh dans la box : Créateur sur une
   branche qui a sa PR, sans `pr.json` → l'étape **PR** faite en quelques
   secondes, la carte de la PR (numéro, titre, base ← branche) ; une PR
   ouverte entre-temps sur GitHub → visible dans la minute, ou aussitôt par ↻.
   La vue des branches : ses trois listes de PR, sans message à l'agent ; la PR
-  chargée fusionnée sur GitHub → le bandeau « PR déjà fusionnée » dans la
-  minute. `vibeCommandPrefix` faux (`nexiste-pas`) → rien ne s'affiche de
+  chargée fusionnée sur GitHub → son état fusionné dans la minute, créateur. `vibeCommandPrefix` faux (`nexiste-pas`) → rien ne s'affiche de
   GitHub, rien ne bloque. *Code* sur un test Rust et un test TypeScript →
   colorés (attributs, macros, chaînes brutes ; mots-clés, chaînes…).
 - **S-67** Actions directes (F-114), appli sur l'hôte, gh dans la box :
   *Préparer le commit*, puis *✓ Commiter* « direct » → « … », puis ✓ et
   « [branche abc1234] sujet » sous le bouton, le commit dans `git log`,
   `commit.md` parti, aucun message à l'agent ; rien d'indexé → ✗ et la raison,
-  `commit.md` reste ; *via* → le skill dans le fil. *Relire* : un numéro,
+  `commit.md` reste ; *via* → le skill dans le fil. Relecteur : un numéro,
   *Charger* → `pr-<n>.json` et `origin/<tête>`, copie de travail
   inchangée ; *Publier la revue* → la revue sur la PR d'essai. *PR mergée →
   revenir sur la base* sur une PR ouverte → ✗ « … OPEN, not merged: nothing
@@ -2972,8 +3052,8 @@ Copier, erreurs ; mêmes relevés).
   ne part pas (« VibeCoder : demande … refusée — le mode Vibe a été
   arrêté… ») ; les étapes passées gardent leur ✓. Relancer l'appli pendant
   *Vibe* → elle repart sans lui.
-- **S-70** Le parcours guidé, *Créer*, une branche sans note : en-tête sans
-  bascule de mode, pas de *Vibe* dans la rangée (ni en *Relire*) ; pas
+- **S-70** Le parcours guidé, une branche sans note : en-tête sans
+  bascule de mode, pas de *Vibe* dans la rangée (ni en relecteur) ; pas
   d'onglets d'étapes ; le fil d'Ariane n'ouvre que la Note, les autres étapes
   visibles sans clic, Ctrl+3 ne fait rien. Plus loin : ni *Vérifier
   l'alignement* ni *Ponytail review* ; *✓ Commiter* seulement un commit
@@ -3013,7 +3093,7 @@ Copier, erreurs ; mêmes relevés).
 - VibeCoder suppose le dossier de l'agent à la racine de son dépôt : dans un
   sous-dossier, git donne les chemins depuis la racine, lus depuis le
   dossier de l'agent — note et tests introuvables.
-- VibeCoder : les sorties de *Créer* suivent la branche au relevé (F-95) : ce
+- VibeCoder : les sorties suivent la branche au relevé (F-95) : ce
   qu'un skill écrit juste après avoir quitté une feature pour une autre, avant
   que le relevé le voie, est mis de côté avec la feature quittée. La note
   n'est trouvée que si la branche porte le ticket ou la version et change la
@@ -3031,7 +3111,7 @@ Copier, erreurs ; mêmes relevés).
   qualité (`lire-invariants` sur Haiku a été écarté par le banc, F-106).
 - VibeCoder : les fichiers écrits pour être ouverts
   (`vibecoder-out/<agent>/files/`) restent jusqu'au suivant du même nom ; un
-  fichier d'un commit s'ouvre, en *Relire*, dans sa version à la tête de la
+  fichier d'un commit s'ouvre, en relecteur, dans sa version à la tête de la
   PR (supprimé depuis : rien ne s'ouvre).
 - VibeCoder : le relevé lance quelques git en lecture toutes les 4 s
   (panneau visible) et jusqu'à une fois par seconde pendant un tour
@@ -3099,7 +3179,7 @@ Copier, erreurs ; mêmes relevés).
   relevé).
 - VibeCoder, GitHub sans IA (F-112), coloration (F-113) : un échec de gh (pas connecté, pas
   d'origine GitHub, box absente) ne se dit pas ; les listes de PR de la vue
-  des branches restent vides. Un extrait (*Code*, en *Relire*) commencé dans un commentaire ou une
+  des branches restent vides. Un extrait (*Code*, en relecteur) commencé dans un commentaire ou une
   chaîne se colore mal — le texte, lui, reste exact.
 
 ## 15. Décisions en attente

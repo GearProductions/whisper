@@ -14,10 +14,18 @@
  *  (ou plus) de fichier (un module qui en a envoie lui-même le sien). Dans les
  *  outils de la carte, Commiter les modules (commit-modules), s'il y a un
  *  module pas commité.
+ *  Relecteur (view.flow 'review') : les modules en lecture seule — ni commit.md,
+ *  ni review.md ; les actions qui modifient (Générer, Relire le diff, Commiter,
+ *  commit-modules) ne sont pas dans son relevé, donc ne s'affichent pas ; le code
+ *  de ModuleCode en lecture seule (readOnly : motif en titre, ni Enregistrer ni
+ *  Abandonner) ;
+ *  les puces de commit et Ouvrir restent. Puis CommitsSection (commits-view),
+ *  qui porte elle-même Relire les commits : 'review-commits' est dans own.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useEffect, useState } from 'react';
 import { fileParts, moduleCommits } from 'core/vibecoder';
 import type { VibeLang, VibeModule } from 'technicals/bridge';
+import { CommitsSection } from './commits-view';
 import { Contract } from './forme-view';
 import { IconButton } from './icons';
 import { MarkdownView } from './markdown-view';
@@ -42,6 +50,7 @@ const fr = {
   commit: 'Commiter',
   commitTitle: 'Commiter les changements de ce module',
   toCreate: 'à créer',
+  readOnly: 'Lecture seule : vous relisez cette PR.',
   noModule: 'La Forme ne liste aucun module',
   noModuleHint: 'Les modules viennent de la rubrique « Forme » de la note : étape Forme, Poser la forme.',
 };
@@ -61,6 +70,7 @@ const S: Record<VibeLang, typeof fr> = {
     commit: 'Commit',
     commitTitle: 'Commit the changes of this module',
     toCreate: 'to create',
+    readOnly: 'Read only: you are reviewing this PR.',
     noModule: 'The Shape lists no module',
     noModuleHint: 'Modules come from the “Forme” section of the note: Shape step, Set the shape.',
   },
@@ -74,8 +84,9 @@ export function ModulesView(p: StepProps) {
   const s = S[view.lang];
   const action = (id: string) => view.actions.find((a) => a.id === id);
   const quote = action('comment') ? (text: string) => act.prefill('comment', text) : undefined;
-  const commit = view.outputs['commit.md'];
-  const review = view.outputs['review.md'];
+  const reviewer = view.flow === 'review';
+  const commit = reviewer ? undefined : view.outputs['commit.md'];
+  const review = reviewer ? undefined : view.outputs['review.md'];
   const counts = view.modules.reduce((n, m) => ({ ...n, [stateOf(m)]: n[stateOf(m)] + 1 }), { done: 0, wip: 0, todo: 0 } as Record<State, number>);
   const generate = action('module');
   const reviewDiff = action('review-diff');
@@ -85,7 +96,9 @@ export function ModulesView(p: StepProps) {
   useEffect(() => { if (opened && !openedFiles) act.follow(null); }, [opened, openedFiles]);
   return (
     <>
-      <StepHead p={p} own={[...(commit ? ['commit', 'commit-prepare'] : []), ...(review ? ['review-diff'] : []), 'commit-modules']} />
+      <StepHead p={p} own={reviewer
+        ? ['review-commits']
+        : [...(commit ? ['commit', 'commit-prepare'] : []), ...(review ? ['review-diff'] : []), 'commit-modules']} />
       {commit ? (
         <OutputCard className="vc-proposed" title={t.outputs['commit.md']} file="commit.md" time={commit.time} t={t}
           tools={(
@@ -172,7 +185,7 @@ export function ModulesView(p: StepProps) {
                     </summary>
                     <Contract text={m.contract} t={t} onOpenLink={act.openLink} />
                     {m.touched ? (
-                      <ModuleCode m={m} code={p.code} t={t} lang={view.lang} open={open} onFollow={act.follow} onSave={act.save}
+                      <ModuleCode m={m} readOnly={reviewer ? s.readOnly : undefined} code={p.code} t={t} lang={view.lang} open={open} onFollow={act.follow} onSave={act.save}
                         onQuote={(block, id) => act.prefill(id, block, true)} drafts={p.drafts} />
                     ) : null}
                   </details>
@@ -182,6 +195,7 @@ export function ModulesView(p: StepProps) {
           </ul>
         </OutputCard>
       ) : <Invite title={s.noModule} text={s.noModuleHint} />}
+      <CommitsSection {...p} />
     </>
   );
 }

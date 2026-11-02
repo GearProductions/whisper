@@ -1,5 +1,6 @@
 /** i18n — les libellés de l'écran VibeCoder, en français et en anglais
- *  (vibeLang) : en-tête (dont le bouton de la branche, Relire grisé), le fil
+ *  (vibeLang) : en-tête (dont le bouton de la branche, le badge Relecteur et son
+ *  infobulle : plus de mode Créer / Relire, l'appli décide du rôle), le fil
  *  d'Ariane des étapes (son aria-label journey, « N commits » à son bout),
  *  étapes (une étape pas encore ouverte), Relancer, Arrêter, onglets Conversation /
  *  Actions / Tâches / Processus, la bannière du mode Vibe (en cours,
@@ -16,7 +17,7 @@
  *  une taille de fichier en clair. Ceux des boutons viennent des
  *  actions (actions.<langue>.json).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
-import type { VibeFlow, VibeLang, VibeRun, VibeRunProgress, VibeStepId } from 'technicals/bridge';
+import type { VibeLang, VibeRun, VibeRunProgress, VibeStepId } from 'technicals/bridge';
 import type { MenuEntry } from './artifact-clipboard';
 import type { NameProblem } from './artifact-tree';
 
@@ -36,13 +37,13 @@ const progressParts = (p: VibeRunProgress, l: { wave: string; modules: string; f
 const fr = {
   locale: 'fr-FR',
   steps: {
-    note: 'Note', forme: 'Forme', invariants: 'Invariants', modules: 'Modules', revue: 'Revue', pr: 'PR', commits: 'Commits',
-    ecran: 'À l\'écran',
+    note: 'Note', forme: 'Forme', invariants: 'Invariants', modules: 'Modules', revue: 'Revue', pr: 'PR',
   } as Record<VibeStepId, string>,
   stepStatus: { done: 'faite', current: 'en cours', todo: 'à venir' },
   notOpen: 'pas encore ouverte : elle suit l\'étape en cours',
-  flow: { create: 'Créer', review: 'Relire' } as Record<VibeFlow, string>,
-  flowTitle: 'Créer une feature sur la branche, ou relire une PR',
+  reviewer: 'Relecteur',
+  reviewerTitle: 'Vous relisez la PR d\'un autre : rien ne s\'édite ici. S\'assigner la PR, dans l\'étape PR, pour la modifier.',
+  screenTitle: 'Relire à l\'écran',
   langTitle: 'Langue de l\'écran et des messages envoyés à l\'agent',
   refresh: 'Relever maintenant (dépôt, note, sorties)',
   reloadUi: 'Recharger l\'interface',
@@ -54,7 +55,6 @@ const fr = {
   branch: (branch: string, base: string) => `Branche ${branch}, comparée à ${base}`,
   branchesOpen: 'Ouvrir la vue des branches : PR, branches locales, créer une branche',
   branchesClose: 'Fermer la vue des branches',
-  notReviewable: 'Pas de PR ouverte sur cette branche : chargez-en une depuis la branche (⎇)',
   journey: 'Parcours',
   commitsOf: (n: number) => (n > 1 ? `${n} commits` : n ? '1 commit' : 'aucun commit'),
   conversation: 'Conversation',
@@ -79,7 +79,7 @@ const fr = {
     'questions.md': 'Questions ouvertes', 'align.md': 'Alignement note · forme · invariants', 'review.md': 'Relecture du diff',
     'commit.md': 'Commit proposé', 'checks.json': 'Vérifications', 'ponytail.md': 'Ponytail review', 'pr.json': 'PR ouverte',
     'ci.md': 'CI', 'pr-#.json': 'PR chargée', 'pr-#-note.md': 'Relecture de la note',
-    'pr-#-commits.md': 'Relecture des commits', 'pr-#-ecran.md': 'Plan de test', 'pr-#-review.json': 'Revue publiée',
+    'pr-#-commits.md': 'Relecture des commits', 'pr-#-review.json': 'Revue publiée',
   } as Record<string, string>,
   needText: 'Dictez ou écrivez d\'abord votre demande dans le champ, puis cliquez.',
   sendFailed: 'L\'action n\'est pas partie.',
@@ -90,7 +90,6 @@ const fr = {
   convResize: 'Largeur de la conversation (glisser, ou flèches gauche et droite)',
   recommended: (m: string) => `${m} · conseillé`,
   pickTitle: 'Le modèle qui fait cette étape : le conseillé par défaut, un plus léger coûte moins',
-  prClosed: { MERGED: 'PR déjà fusionnée : rien à relire.', CLOSED: 'PR fermée : rien à relire.' } as Record<string, string>,
   diffTitle: 'Ouvrir le diff de ce commit dans l\'éditeur',
   githubTitle: 'Ouvrir la page de ce commit sur GitHub',
   files: (n: number) => (n > 1 ? `${n} fichiers` : n ? '1 fichier' : 'aucun fichier'),
@@ -170,13 +169,13 @@ export type Strings = typeof fr;
 const en: Strings = {
   locale: 'en-GB',
   steps: {
-    note: 'Note', forme: 'Shape', invariants: 'Invariants', modules: 'Modules', revue: 'Review', pr: 'PR', commits: 'Commits',
-    ecran: 'On screen',
+    note: 'Note', forme: 'Shape', invariants: 'Invariants', modules: 'Modules', revue: 'Review', pr: 'PR',
   },
   stepStatus: { done: 'done', current: 'in progress', todo: 'to do' },
   notOpen: 'not open yet: it follows the current step',
-  flow: { create: 'Create', review: 'Review' },
-  flowTitle: 'Create a feature on the branch, or review a PR',
+  reviewer: 'Reviewer',
+  reviewerTitle: 'You are reviewing someone else\'s PR: nothing is editable here. Assign the PR to yourself, in the PR step, to change it.',
+  screenTitle: 'Review on screen',
   langTitle: 'Language of the screen and of the messages sent to the agent',
   refresh: 'Refresh now (repository, note, outputs)',
   reloadUi: 'Reload the interface',
@@ -188,7 +187,6 @@ const en: Strings = {
   branch: (branch, base) => `Branch ${branch}, compared with ${base}`,
   branchesOpen: 'Open the branch view: PRs, local branches, create a branch',
   branchesClose: 'Close the branch view',
-  notReviewable: 'No open PR on this branch: load one from the branch (⎇)',
   journey: 'Journey',
   commitsOf: (n) => (n > 1 ? `${n} commits` : n ? '1 commit' : 'no commit'),
   conversation: 'Conversation',
@@ -213,7 +211,7 @@ const en: Strings = {
     'questions.md': 'Open questions', 'align.md': 'Alignment note · shape · invariants', 'review.md': 'Diff review',
     'commit.md': 'Proposed commit', 'checks.json': 'Checks', 'ponytail.md': 'Ponytail review', 'pr.json': 'Opened PR',
     'ci.md': 'CI', 'pr-#.json': 'Loaded PR', 'pr-#-note.md': 'Note review',
-    'pr-#-commits.md': 'Commits review', 'pr-#-ecran.md': 'Test plan', 'pr-#-review.json': 'Published review',
+    'pr-#-commits.md': 'Commits review', 'pr-#-review.json': 'Published review',
   },
   needText: 'First dictate or write your request in the field, then click.',
   sendFailed: 'The action was not sent.',
@@ -224,7 +222,6 @@ const en: Strings = {
   convResize: 'Width of the conversation (drag, or left and right arrows)',
   recommended: (m) => `${m} · recommended`,
   pickTitle: 'The model doing this step: the recommended one by default, a lighter one costs less',
-  prClosed: { MERGED: 'PR already merged: nothing to review.', CLOSED: 'PR closed: nothing to review.' },
   diffTitle: 'Open this commit\'s diff in the editor',
   githubTitle: 'Open this commit\'s page on GitHub',
   files: (n) => (n > 1 ? `${n} files` : n ? '1 file' : 'no file'),

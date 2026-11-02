@@ -358,6 +358,26 @@
     "text": "Request my review: only by the app (direct), never by the agent."
   },
   {
+    "id": "assign-pr",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Assign me to the PR",
+    "hint": "Assigns you to this PR on GitHub (gh pr edit --add-assignee): you work on it as its creator.",
+    "text": "Assign me to the PR: only by the app (direct), never by the agent."
+  },
+  {
+    "id": "unassign-pr",
+    "flow": "both",
+    "step": null,
+    "kind": "send",
+    "needs": "none",
+    "label": "Remove me from the PR",
+    "hint": "Removes you from this PR's assignees on GitHub (gh pr edit --remove-assignee).",
+    "text": "Remove me from the PR: only by the app (direct), never by the agent."
+  },
+  {
     "id": "copy-artifact",
     "flow": "both",
     "step": null,
@@ -461,7 +481,7 @@
   {
     "id": "review-commits",
     "flow": "review",
-    "step": "commits",
+    "step": "modules",
     "kind": "send",
     "needs": "none",
     "reads": true,
@@ -471,19 +491,19 @@
   },
   {
     "id": "screen",
-    "flow": "review",
-    "step": "ecran",
+    "flow": "both",
+    "step": "revue",
     "kind": "send",
     "needs": "none",
     "reads": true,
     "label": "On-screen test plan",
-    "hint": "Prepares the list of what to try by hand, and how to run the PR.",
-    "text": "/vibecoder:ecran {{lang}} {{out}} {{pr}}"
+    "hint": "Prepares the list of what to try by hand, and how to run the branch.",
+    "text": "/vibecoder:ecran {{lang}} {{out}} {{ref}}"
   },
   {
     "id": "publish",
     "flow": "review",
-    "step": "revue",
+    "step": "pr",
     "kind": "send",
     "needs": "none",
     "reads": true,

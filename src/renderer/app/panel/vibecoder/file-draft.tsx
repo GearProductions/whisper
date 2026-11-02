@@ -14,8 +14,8 @@
  *  (égale, supprimée ; sinon gardée, avec son heure pour base). text null :
  *  rien à montrer ; tooBig : le disque a répondu sans texte (trop gros).
  *  DraftEditor : le fichier dans CodeView (edit) et son pied (footInTools : le
- *  pied passé à CodeView, au bout de sa rangée d'outils, au lieu d'en dessous),
- *  ou « fichier trop gros ».
+ *  pied passé à CodeView, au bout de sa rangée d'outils, au lieu d'en dessous ;
+ *  noFoot : sans pied), ou « fichier trop gros ».
  *  Ne connaît pas : le pont (rappels passés), le disque, le relevé.
  *  Utilisé par : module-code, invariants-view, note-view ; vibe-coder et
  *  step-views (Drafts). */
@@ -85,17 +85,18 @@ export function DraftFoot({ d, locked, t }: { d: FileDraft; locked: string | nul
 }
 
 /** L'éditeur d'un fichier suivi (CodeView, modifiable) et son pied ; le disque a répondu sans texte : « fichier trop gros ». */
-export function DraftEditor({ d, file, locked, t, at, onQuote, footInTools }: {
+export function DraftEditor({ d, file, locked, t, at, onQuote, footInTools, noFoot }: {
   d: FileDraft; file: VibeFile; locked: string | null; t: Strings;
   at?: number;                                 // défilé à cette ligne (CodeView)
   onQuote?(block: string, id: 'comment' | 'fix'): void;
   footInTools?: boolean;                       // le pied dans la rangée d'outils de CodeView, pas dessous
+  noFoot?: boolean;                            // pas de pied (lecture seule : rien à enregistrer ni à abandonner)
 }): ReactNode {
-  const foot = <DraftFoot d={d} locked={locked} t={t} />;
+  const foot = noFoot ? null : <DraftFoot d={d} locked={locked} t={t} />;
   return d.text != null ? (
     <>
       <CodeView key={file.path} code={d.text} path={file.path} at={at} t={t} onQuote={onQuote}
-        edit={{ locked, onChange: d.change, onSave: d.save }} tools={footInTools ? foot : undefined} />
+        edit={{ locked, onChange: d.change, onSave: d.save }} tools={footInTools && foot ? foot : undefined} />
       {footInTools ? null : foot}
     </>
   ) : d.tooBig ? <div className="vc-empty">{t.tooBig}</div> : null;
