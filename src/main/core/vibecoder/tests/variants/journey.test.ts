@@ -17,6 +17,7 @@ const ACTIONS: ActionDef[] = [
   A('commit-modules', 'create', 'modules', '/vibecoder:commiter-modules {{lang}} {{out}}'),
   A('module', 'create', 'modules', '/vibecoder:module {{lang}} {{out}} {{module}}'),
   A('next', 'create', 'modules', '/vibecoder:suivant {{lang}} {{out}} {{module}}'),
+  A('modules', 'create', 'modules', '/vibecoder:modules {{lang}} {{out}}'),
   { ...A('checks', 'create', 'revue', '/vibecoder:verifier {{lang}} {{out}}'), reads: true },
   { ...A('ponytail', 'create', 'revue', '/vibecoder:ponytail {{lang}} {{out}}'), reads: true },
   A('fixups', 'create', 'revue', '/vibecoder:fixups {{lang}} {{out}}'),
@@ -215,11 +216,11 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
     expect(primary(vibeView(ready({ repo: repo(['src/core/hello.ts'], [FIRST]) })))).toBe('next');
   });
 
-  it('Préparer le commit, masqué sans rien à commiter ; Valider → commit → suivant, masqué sans module pas commité ou sans suivant', () => {
-    const hidden = (v: VibeView) => ['commit-prepare', 'next'].map((id) => v.actions.find((a) => a.id === id)!.hidden);
-    expect(hidden(vibeView(ready()))).toEqual([true, true]);                                                       // rien de changé
-    expect(hidden(vibeView(ready({ repo: repo(['src/core/hello.ts'], [FIRST]) })))).toEqual([false, false]);
-    expect(hidden(vibeView(ready({ repo: repo(['src/app/button.tsx'], [FIRST, HELLO]) })))).toEqual([false, true]); // plus de suivant
+  it('Préparer le commit, masqué sans rien à commiter ; Valider → commit → suivant, sans module pas commité ou sans suivant ; Générer les modules restants, sans module pas touché', () => {
+    const hidden = (v: VibeView) => ['commit-prepare', 'next', 'modules'].map((id) => v.actions.find((a) => a.id === id)!.hidden);
+    expect(hidden(vibeView(ready()))).toEqual([true, true, false]);                                                       // rien de changé
+    expect(hidden(vibeView(ready({ repo: repo(['src/core/hello.ts'], [FIRST]) })))).toEqual([false, false, false]);
+    expect(hidden(vibeView(ready({ repo: repo(['src/app/button.tsx'], [FIRST, HELLO]) })))).toEqual([false, true, true]); // plus de suivant
   });
 
   it('le dernier module modifié, pas commité : Commiter les modules', () => {

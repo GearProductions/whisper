@@ -443,7 +443,7 @@ export function vibeView(input: JourneyInput): VibeView {
   // Les choix de lieu (core/vibecoder place), Pousser (après un rebase pas encore poussé), sans griser ; Rebase hors
   // de la base ; Nouvelle demande sur la base seulement. Retirer le worktree : sur un enfant, sa PR fusionnée (Créer) ou sur le robot d'une PR (relecteur).
   // Préparer le commit, seulement s'il y a quelque chose à commiter ; Valider → commit → suivant, seulement s'il y a un
-  // module pas commité et un suivant à générer.
+  // module pas commité et un suivant à générer ; Générer les modules restants, seulement s'il en reste un pas touché.
   const shown: Record<string, boolean> = {
     ...placeShown(place),
     rebase: !place.onBase && flow === 'create',   // le relecteur n'édite ni ne pousse : rien à rebaser, à pousser, à copier
@@ -456,6 +456,7 @@ export function vibeView(input: JourneyInput): VibeView {
     'remove-worktree': child && (flow === 'create' ? prState === 'MERGED' : place.robot),
     'commit-prepare': dirty.length > 0,
     next: modules.some((m) => m.uncommitted) && untouched,
+    modules: untouched,
   };
   // Écrire les invariants, sans ligne « → invariant » dans la note : masquée sans griser, elle aussi (un clic
   // reste possible si le relevé retarde sur une ligne ajoutée ; runs.test.ts, invariant, le clique ainsi).
