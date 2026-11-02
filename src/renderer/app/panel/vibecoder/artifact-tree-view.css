@@ -9,7 +9,7 @@
   display: flex;
   align-items: baseline;
   gap: 4px;
-  padding-block: 3px;
+  padding-block: 1px;
   padding-right: 6px;
   border-radius: var(--vc-radius);
   color: var(--vc-soft);

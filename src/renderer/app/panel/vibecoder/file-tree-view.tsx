@@ -28,7 +28,7 @@ export function FileTreeView({ rows, open, selected, dot, onToggle, onSelect }: 
         return (
           <div key={n.key} className="vc-tree-row" role="treeitem" data-key={n.key} data-state={state ?? undefined}
             aria-selected={n.key === selected} aria-expanded={n.folder ? isOpen : undefined}
-            style={{ paddingLeft: 6 + n.depth * 14 }} title={n.key}
+            style={{ paddingLeft: 6 + n.depth * 10 }} title={n.key}
             onClick={() => (n.folder ? onToggle(n.key) : onSelect(n.key))}>
             <span className="vc-tree-chevron" data-open={isOpen || undefined} aria-hidden="true">{n.folder ? '›' : ''}</span>
             {state && <span className="vc-mod-dot" aria-hidden="true" />}

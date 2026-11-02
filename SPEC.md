@@ -741,7 +741,7 @@ de l'écran et le brouillon tiennent (I-29).
   vérifications et la ponytail review* demande la ponytail review
   (`<sorties>/actions/ponytail.start`, F-115) : deux lectures, qui courent
   ensemble. Plus de bouton *Vérifier l'alignement* ni *Ponytail
-  review* ; leurs cartes restent. Un document demandé hors du projet (PDF,
+  review* dans la rangée de l'étape (créateur) ; leurs cartes restent. Un document demandé hors du projet (PDF,
   présentation, wireframe, document externe, fichier de conception) :
   l'agent le crée en artefact (F-95) par le skill `artefact`, qu'il prend
   seul — ni bouton ni lien ; il se trouve aussi par « / » dans le champ.
@@ -751,10 +751,11 @@ de l'écran et le brouillon tiennent (I-29).
   vérification a aussi le sien, qui ne relance qu'elle (`{{check}}`, F-97 :
   les autres gardées, sans ponytail review ; pas pendant une course
   `checks`) ; *Lire en pseudo-code* se refait par fichier (*Relire*, même lu) ou pour tous (*Tout
-  relire*, F-100). L'alignement et la ponytail review n'ont pas de
-  *Relancer* : on relance *Écrire les invariants* ou *Lancer les
-  vérifications* (relecteur : *Vérifier l'alignement* reste dans la rangée
-  de l'étape).
+  relire*, F-100). La carte de l'alignement a son *Relancer* (créateur) :
+  *Vérifier l'alignement* seule, pour revérifier après avoir corrigé les
+  tests, sans les réécrire (relecteur : *Vérifier l'alignement* reste dans
+  la rangée de l'étape). La ponytail review n'a pas de *Relancer* : on
+  relance *Lancer les vérifications*.
 - La **barre des skills**, au-dessus du champ : deux liens, *Demander sans
   modifier* et *Retour → fixup* (créateur) ; les skills se trouvent par « / »
   dans le champ.
@@ -1376,7 +1377,7 @@ créateur ; le relecteur, F-101) :
    d'automatique : la course finie ou la validation. *Lire en pseudo-code*
    n'est qu'une aide à la lecture, facultative. Montre le
    résumé (cas, validés, refusés, modifiés depuis, avec un point d'attention,
-   à lire), l'alignement (`align.md`, sans *Relancer*, F-93), puis chaque fichier : sa progression,
+   à lire), l'alignement (`align.md`, avec *Relancer* en créateur, F-93), puis chaque fichier : sa progression,
    *Ouvrir*, *Relire* (lu : refaire sa lecture) ; lu, une carte par cas —
    titre, pseudo-code en étapes `test "…":` / `given` / `when` / `then` /
    `and`, quel que soit le langage du test (coloré ; chaque `then` est une
@@ -1499,7 +1500,12 @@ créateur ; le relecteur, F-101) :
    ouverture à l'autre (`vibeModulesView`, § 9 ; `conv:vibeSet`) ; défaut :
    *liste*. Sans module (sans Forme), les deux vues montrent l'arborescence
    des fichiers de la branche. La vue IDE n'ajoute aucune action : elle montre
-   ce que Forme et Modules montrent déjà. Relecteur : voir F-101.
+   ce que Forme et Modules montrent déjà. Dans les deux étapes, sa carte prend
+   toute la hauteur libre de l'étape (au moins 420 px), même avec peu de
+   fichiers, et chaque colonne défile seule ; une poignée entre les deux
+   colonnes (glisser, ou ← / →) règle la largeur de l'arborescence (160 px →
+   60 % de la vue), gardée pour les deux étapes tant que la page vit, pas
+   enregistrée. Relecteur : voir F-101.
 5. **Revue** — faite : vérifications toutes passées (`checks.json` ; des
    avertissements seulement passent ; un ancien ne compte pas, I-46),
    ponytail review faite (`ponytail.md`),

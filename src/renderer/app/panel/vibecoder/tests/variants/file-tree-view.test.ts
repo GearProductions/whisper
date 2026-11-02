@@ -36,7 +36,7 @@ it('un dossier se déplie au clic, un fichier se choisit ; indentation et chevro
   expect(log).toEqual(['toggle a', 'select a/b.ts']);
   expect(row('a').getAttribute('aria-expanded')).toBe('true');
   expect(row('a/b.ts').getAttribute('aria-expanded')).toBeNull();
-  expect(row('a/b.ts').style.paddingLeft).toBe('20px');
+  expect(row('a/b.ts').style.paddingLeft).toBe('16px');
   expect(row('a').querySelector('.vc-tree-chevron')!.textContent).toBe('›');
 });
 

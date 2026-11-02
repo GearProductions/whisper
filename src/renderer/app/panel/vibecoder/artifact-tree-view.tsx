@@ -87,7 +87,7 @@ export function ArtifactTreeView({ rows, open, selected, focus, editing, problem
         return (
           <div key={fresh ? '\0new' : n.key} className="vc-tree-row" role="treeitem" data-key={n.key} aria-selected={selected.includes(n.key)}
             aria-expanded={n.folder ? isOpen : undefined} data-focus={n.key === focus || undefined} data-over={(n.folder && n.key === over) || undefined}
-            style={{ paddingLeft: 6 + n.depth * 14 }} title={n.key} draggable={!edited}
+            style={{ paddingLeft: 6 + n.depth * 10 }} title={n.key} draggable={!edited}
             onClick={(e) => onSelect(n.key, { ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey })}
             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onMenu(e.clientX, e.clientY, n.key); }}
             onDragStart={(e) => {
