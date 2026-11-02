@@ -69,3 +69,26 @@ it('un module : replié, sans outils ni fichiers ; déplié, outils sur sa ligne
   await toggle(1, false);
   expect(followed).toEqual(['src/touche/0', null, null]);
 });
+
+// Relecteur : les modules en lecture, sans commit.md ni review.md ; son relevé n'a que 'review-commits' (laissé à CommitsSection),
+// donc ni Générer ni Commiter ; le code en lecture seule, sans Enregistrer.
+it('relecteur : ni commit.md, review.md, Générer, Commiter, Enregistrer ; l\'en-tête ne répète pas Relire les commits', async () => {
+  const actions = ['review-commits'].map((id) => ({ id, step: 'modules', hidden: false, who: '', hint: '', label: id }));
+  await act(() => {
+    const view = { lang: 'fr', flow: 'review', actions, commits: [], pr: { number: 7 },
+      outputs: { 'commit.md': { text: 'x', time: 0 }, 'review.md': { text: 'y', time: 0 } },
+      modules: [{ ...module('src/touche', true), uncommitted: true }] } as unknown as VibeView;
+    const props = { view, step: { id: 'modules', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
+      code: null, drafts: [{}, () => {}], act: { run: async () => true, prefill: () => {}, open: () => {}, openLink: () => {},
+        follow: () => {}, save: async () => true } } as unknown as StepProps;
+    root.render(createElement(ModulesView, props));
+  });
+  await toggle(0, true);
+  expect(page.querySelector('.vc-proposed, .vc-diff-review')).toBeNull();
+  expect([...page.querySelectorAll('.vc-mod-acts button')].map((b) => b.textContent)).toEqual(['Ouvrir']);
+  const labels = [...page.querySelectorAll('button')].map((b) => b.textContent);
+  expect(labels).not.toContain('Commiter');
+  expect(labels).not.toContain('Enregistrer');
+  expect(page.querySelector('.vc-step-head .vc-step-acts')).toBeNull();
+  expect(page.querySelectorAll('.vc-commit-list')).toHaveLength(1);
+});
