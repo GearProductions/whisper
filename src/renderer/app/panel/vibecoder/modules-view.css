@@ -25,6 +25,8 @@
 
 /* ---- Les modules -------------------------------------------------------------- */
 .vc-modules > .vc-card-body { padding: 4px 0; }
+/* Les actions de l'étape, en tête du corps de la carte des modules. */
+.vc-mod-run { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 4px var(--vc-pad) 8px; }
 .vc-mod-list { list-style: none; margin: 0; padding: 0; }
 .vc-mod {
   --row: var(--vc-card);

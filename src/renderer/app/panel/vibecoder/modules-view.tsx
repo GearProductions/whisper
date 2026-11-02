@@ -17,8 +17,12 @@
  *  Un seul déplié à la fois, le chemin du module déplié tenu ici ; ici aussi
  *  plus aucun fichier suivi quand on replie, ou que le module déplié n'a pas
  *  (ou plus) de fichier (un module qui en a envoie lui-même le sien). Dans les
- *  outils de la carte, Commiter les modules (commit-modules), s'il y a un
- *  module pas commité.
+ *  outils de la carte, l'interrupteur et la légende ; en tête de son corps,
+ *  une rangée (vc-mod-run) des actions de l'étape (CARD_ACTS : Valider →
+ *  commit → suivant, Préparer le commit, Générer les modules restants, puis
+ *  Commiter les modules s'il y a un module pas commité ; la prochaine action
+ *  mise en avant), qui ne sont donc plus dans l'en-tête ; sans module, elles
+ *  y restent.
  *  Relecteur (view.flow 'review') : les modules en lecture seule — ni commit.md,
  *  ni review.md ; les actions qui modifient (Générer, Relire le diff, Commiter,
  *  commit-modules) ne sont pas dans son relevé, donc ne s'affichent pas ; le code
@@ -145,6 +149,10 @@ function IdeBody({ p, file }: { p: StepProps; file: IdeFile | null }) {
   );
 }
 
+// Les actions de l'étape dans la carte des modules, pas dans l'en-tête (Commiter les modules les suit, s'il y a un
+// module pas commité) ; sans module, elles restent dans l'en-tête.
+const CARD_ACTS = ['next', 'commit-prepare', 'modules'];
+
 export function ModulesView(p: StepProps) {
   const { view, t, act, busy } = p;
   const [opened, setOpened] = useState<string | null>(null); // le module déplié
@@ -167,7 +175,7 @@ export function ModulesView(p: StepProps) {
     <>
       <StepHead p={p} own={reviewer
         ? ['review-commits']
-        : [...(commit ? ['commit', 'commit-prepare'] : []), 'review-diff', 'commit-modules', 'module', 'commit-module']} />
+        : [...(commit ? ['commit', 'commit-prepare'] : []), 'review-diff', 'commit-modules', 'module', 'commit-module', ...(hasModules ? CARD_ACTS : [])]} />
       {commit ? (
         <OutputCard className="vc-proposed" title={t.outputs['commit.md']} file="commit.md" time={commit.time} t={t}
           tools={(
@@ -206,10 +214,16 @@ export function ModulesView(p: StepProps) {
                 </span>
               </>
             ) : null}
-            {view.modules.some((m) => m.uncommitted)
-              ? <Run a={action('commit-modules')} busy={busy} tone="ghost" onRun={(x) => act.run('commit-modules', x)} /> : null}
           </>
         )}>
+          {hasModules && !reviewer ? (
+            <div className="vc-mod-run">
+              {[...CARD_ACTS.filter((id) => !(commit && id === 'commit-prepare')), ...(view.modules.some((m) => m.uncommitted) ? ['commit-modules'] : [])].map((id) => {
+                const a = action(id);
+                return <Run key={id} a={a} busy={busy} tone={a?.primary ? 'accent' : 'plain'} onRun={(x) => act.run(id, x)} />;
+              })}
+            </div>
+          ) : null}
           {ide ? (
             <div className="vc-mod-ide">
               <IdeView files={files}>{(file) => <IdeBody p={p} file={file} />}</IdeView>
