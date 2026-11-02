@@ -898,6 +898,22 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     expect(await roleOf()).toMatchObject({ flow: 'review', pr: 12 });
   });
 
+  it('setVibe({ modulesView }) : ide ou list rangé et rendu au relevé ; toute autre valeur ignorée', async () => {
+    const { view } = await open();
+    const { setVibe } = await import('app/controllers');
+    const { loadConfig } = await import('app/settings');
+    expect(view()).toMatchObject({ modulesView: 'list' });
+    setVibe({ modulesView: 'ide' });
+    expect(loadConfig().vibeModulesView).toBe('ide');
+    await settle();
+    expect(view()).toMatchObject({ modulesView: 'ide' });
+    setVibe({ modulesView: 'grille' });
+    setVibe({ modulesView: 3 });
+    expect(loadConfig().vibeModulesView).toBe('ide');
+    setVibe({ modulesView: 'list' });
+    expect(loadConfig().vibeModulesView).toBe('list');
+  });
+
   it('en relecteur (le dernier relevé), une action create est refusée par startAction, même demandée par l\'orchestrateur', async () => {
     review();
     await open();

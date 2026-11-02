@@ -2,7 +2,8 @@
 // changement (écriture directe ou par renommage), trop gros → text null, un
 // seul suivi à la fois, Enregistrer refusé pour un texte invalide ; un fichier
 // supprimé (par la branche, sans veilleur, ou pendant qu'il est suivi) et, en Relire, un fichier
-// d'un commit (note 0.13.0) : lus par git.
+// d'un commit (note 0.13.0) : lus par git ; un fichier que change la branche (`b<i>`), lu
+// avec at comme un fichier de module, supprimé : text null et at, sans veilleur.
 // Sur le vrai principal et un vrai dépôt git ; faux : Electron (fenêtres qui
 // relèvent ce qu'on leur envoie) et le SDK de Claude Code (aucun tour).
 import { execFileSync } from 'node:child_process';
@@ -206,4 +207,66 @@ it('en Relire, un fichier ajouté par un commit : avant null, après et tête pa
   write(path.join(dir, NEW), 'NEW_DISQUE_2');
   await settle();
   expect(JSON.stringify(codes())).not.toContain('NEW_DISQUE');
+});
+
+// L'id `b<i>` du fichier que change la branche, dans le dernier relevé.
+const branchId = (rel: string) => {
+  const view = panel().sent.filter(([ch]) => ch === 'conv:vibe').at(-1)![1] as { files: { id: string; path: string }[] };
+  return view.files.find((f) => f.path === rel)!.id;
+};
+
+it('un fichier b<i> de la branche : lu avec at (base, tête), enregistrable en créateur', async () => {
+  const { followCode, saveCode } = await import('app/controllers');
+  const OTHER = 'src/other/x.ts';
+  write(path.join(dir, OTHER), 'X_BRANCHE');
+  git(dir, 'add', '.');
+  git(dir, 'commit', '-q', '-m', 'other');
+  await resurvey();
+  const id = branchId(OTHER);
+  followCode(id);
+  await pushedFor(id);
+  expect(codes().at(-1)).toMatchObject({ id, text: 'X_BRANCHE', at: { base: null, head: 'X_BRANCHE' } });
+  expect(saveCode(id, 'X_OK')).toEqual({ ok: true });
+  expect(fs.readFileSync(path.join(dir, OTHER), 'utf8')).toBe('X_OK');
+});
+
+it('un fichier b<i> supprimé par la branche : text null, ses versions par git, pas de veilleur', async () => {
+  const { followCode } = await import('app/controllers');
+  const OTHER = 'src/other/y.ts';
+  git(dir, 'checkout', '-q', 'main');
+  write(path.join(dir, OTHER), 'Y_MAIN');
+  git(dir, 'add', '.');
+  git(dir, 'commit', '-q', '-m', 'y');
+  git(dir, 'checkout', '-q', 'feat/0.11.0-essai');
+  git(dir, 'rebase', '-q', 'main');
+  git(dir, 'rm', '-q', OTHER);
+  git(dir, 'commit', '-q', '-m', 'sans y');
+  await resurvey();
+  const id = branchId(OTHER);
+  followCode(id);
+  await pushedFor(id);
+  expect(codes().at(-1)).toMatchObject({ id, text: null, at: { base: 'Y_MAIN', head: null } });
+  const n = codes().length;
+  write(path.join(dir, OTHER), 'Y_REVENU');
+  await settle();
+  expect(codes().length).toBe(n);
+});
+
+it('en Relire, un fichier b<i> se lit mais saveCode le refuse', async () => {
+  const { followCode, saveCode } = await import('app/controllers');
+  git(dir, 'update-ref', 'refs/remotes/origin/main', 'main');
+  write(path.join(fake.userData, 'vibecoder-out', 'a1', 'pr-7.json'),
+    JSON.stringify({ number: 7, title: 'Essai', base: 'main', head: 'feat/0.11.0-essai', state: 'OPEN' }));
+  write(path.join(fake.userData, 'config.json'), JSON.stringify({
+    agentsEnabled: true,
+    agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
+      vibe: { flow: 'review', autonomy: 'guide', pr: 7 } }],
+  }));
+  await resurvey();
+  const id = branchId(HELLO);
+  followCode(id);
+  await pushedFor(id);
+  expect(codes().at(-1)).toMatchObject({ id, text: 'HELLO_TEXTE', at: { base: 'HELLO_MAIN', head: 'HELLO_TEXTE' } });
+  expect(saveCode(id, 'HELLO_REVIEW').ok).toBe(false);
+  expect(fs.readFileSync(path.join(dir, HELLO), 'utf8')).toBe('HELLO_TEXTE');
 });
