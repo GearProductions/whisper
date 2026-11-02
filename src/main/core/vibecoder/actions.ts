@@ -11,8 +11,9 @@
  *  l'action (l'agent lance des commandes avec ces valeurs, I-38). Et les
  *  actions que l'appli fait aussi elle-même (DIRECT_ACTIONS, F-114), dont
  *  celles qu'elle seule fait (DIRECT_ONLY : changer de branche, pull, rebase,
- *  pousser, fetch, les lieux, copier un artefact dans le projet, en ajouter un). {{ref}} : WORKTREE en Créer,
- *  HEAD en Relire (la PR se charge dans le dossier de l'agent). Si une
+ *  pousser, fetch, les lieux, s'assigner la PR ou s'en retirer, copier un artefact dans le projet, en ajouter un).
+ *  {{ref}} : WORKTREE pour le créateur, HEAD pour le relecteur (la PR se charge dans le dossier de l'agent) ;
+ *  le rôle (view.flow) est décidé par l'appli, jamais choisi. Si une
  *  action lit seulement (reads) ou modifie la branche : la règle des courses
  *  (runs, blockedBy). Un argument qu'aucune variable du gabarit ne lit (hors text), ou un
  *  modèle hors des choix de l'action, ne fait pas refuser l'action : il est
@@ -47,7 +48,7 @@ export type MessageContext = { view: VibeView; out: string; lang: VibeLang; pref
 // La variable qui manque ou ne va pas ; 'variable' : une variable inconnue.
 export type MessageError = 'text' | 'module' | 'commit' | 'pr' | 'answers' | 'verdict' | 'draft' | 'files' | 'note' | 'repo' | 'variable' | 'check';
 
-const STEPS = ['note', 'forme', 'invariants', 'modules', 'revue', 'pr', 'commits', 'ecran'];
+const STEPS = ['note', 'forme', 'invariants', 'modules', 'revue', 'pr'];
 const VERDICTS = ['approve', 'comment', 'request-changes'];
 const VAR = /\{\{([^{}]*)\}\}/g;
 const FREE = ['text', 'answers', 'draft'];   // écrits par l'utilisateur : libres
@@ -65,18 +66,19 @@ const READ_BY: Partial<Record<keyof VibeArgs, string>> = {
 // leur gabarit reste la voie « via » l'agent. Ici, Dans un worktree, Retirer le worktree : la recette du
 // projet ou git, lancés par l'appli (note 0.12.0-worktrees) ; Mettre de côté, Décharger, Créer ici ou dans
 // un worktree (note 0.12.0-creer-relire-meme-dossier) ; Aller sur la branche, Pull, Rebase, Pousser,
-// Actualiser, Me demander en relecture (note 0.12.0-gestion-des-branches) ; Copier dans le projet (note
+// Actualiser, Me demander en relecture (note 0.12.0-gestion-des-branches) ; S'assigner la PR, Me retirer de la PR
+// (note 0.13.0-fusionner-creer-relire : gh pr edit --add-assignee / --remove-assignee, l'identifiant lu par gh) ; Copier dans le projet (note
 // 0.13.0-panneau-artifacts) ; Ajouter un artefact (note 0.13.0-ameliorer-artefacts : un fichier choisi par
 // l'utilisateur dans une boîte système, jamais un chemin venu de la page, I-37).
 export const DIRECT_ACTIONS = ['commit', 'publish', 'load-pr', 'base', 'pr-here', 'pr-worktree', 'remove-worktree',
   'stash', 'unload-pr', 'new-here', 'new-worktree', 'switch-branch', 'pull', 'rebase', 'push', 'fetch', 'request-review',
-  'copy-artifact', 'add-artifact'];
+  'assign-pr', 'unassign-pr', 'copy-artifact', 'add-artifact'];
 // Celles que seule l'appli fait : pas de « via » (leur gabarit n'est jamais envoyé). Retirer le worktree :
 // l'agent ne retirerait pas son robot ; mettre de côté, changer de branche, ouvrir un worktree pour une
-// demande, pull, rebase, pousser, fetch, se demander en relecture, copier un artefact dans le projet,
+// demande, pull, rebase, pousser, fetch, se demander en relecture, s'assigner la PR ou s'en retirer, copier un artefact dans le projet,
 // ajouter un artefact : l'appli seule, au clic.
 export const DIRECT_ONLY = ['remove-worktree', 'stash', 'unload-pr', 'new-here', 'new-worktree',
-  'switch-branch', 'pull', 'rebase', 'push', 'fetch', 'request-review', 'copy-artifact', 'add-artifact'];
+  'switch-branch', 'pull', 'rebase', 'push', 'fetch', 'request-review', 'assign-pr', 'unassign-pr', 'copy-artifact', 'add-artifact'];
 
 // Le brouillon de revue en texte : une ligne « - [cible] texte » par remarque.
 export const draftText = (draft: VibeView['draft']) => draft.map((c) => `- [${c.target}] ${c.text}`).join('\n');
@@ -124,7 +126,7 @@ const NO_ANSWER: Record<VibeLang, string> = { fr: '(pas de réponse)', en: '(no 
 //   {{prefix}}         le préfixe des commandes du projet vu de l'agent, vide permis ; absent : vide (F-112)
 //   {{branch}} {{base}}  du relevé → 'repo' sans dépôt
 //   {{note}}           le chemin de la note → 'note' sans note
-//   {{ref}}            WORKTREE (Créer) ou HEAD (Relire : la PR est chargée dans le dossier) → 'pr' sans PR
+//   {{ref}}            WORKTREE (le créateur) ou HEAD (le relecteur : la PR est chargée dans le dossier) → 'pr' sans PR
 //   {{files}}          les tests d'invariants pas encore lus, « chemin@blob » séparés par des espaces ; args.file :
 //                      celui de cet id dans view.invariants, lu ou non (relire), '*' : tous → 'files' si aucun
 //   {{module}}         args.module (rang dans view.modules), sinon le premier non touché : « chemin — contrat » → 'module'
