@@ -219,8 +219,9 @@ export interface ConvApi {
   onVibeCode(fn: (code: VibeCode | null) => void): void;
   /** Enregistrer le fichier suivi (son id : module, note, test) : le principal refuse un autre id, un fichier sorti du relevé ou grisé. */
   vibeSave(id: string, text: string): Promise<SendResult>;
-  /** Fichiers déposés sur le panneau Artefacts : le pont lit leurs chemins du File, la page n'en donne aucun. */
-  vibeDrop(files: File[]): Promise<SendResult>;
+  /** Fichiers déposés sur l'arborescence Artefacts : le pont lit leurs chemins du File, la page n'en donne aucun ;
+   *  folder : l'id d'un dossier du relevé (d<i>), jamais un chemin ; absent ou inconnu : la racine. */
+  vibeDrop(files: File[], folder?: string): Promise<SendResult>;
 }
 
 /* ---- VibeCoder (dans le panneau) ------------------------------------------------ */
@@ -284,6 +285,13 @@ export type VibeArtifact = {
   time: number;
   url: string | null;
   truncated: boolean;          // du texte au-delà de la limite configurée
+};
+
+// Un dossier sous le dossier du projet (ni caché ni lien), tel que le relevé le donne : la page ne le désigne
+// que par son id (I-37), comme un artefact.
+export type VibeArtifactDir = {
+  id: string;                  // d<i>, dans l'ordre des noms
+  name: string;                // son chemin sous le dossier du projet
 };
 
 // Un cas d'un test d'invariant, lu en pseudo-code.
@@ -424,6 +432,7 @@ export type VibeView = {
   request?: { branch: string } | null;   // Créer : la branche nommée pour la nouvelle demande retenue, qui attend son choix
   artifacts?: VibeArtifact[];            // les artefacts de l'agent (toujours rempli par le relevé)
   artifactsDir?: string;                 // le dossier du projet qui les contient (pour le `@`)
+  artifactDirs?: VibeArtifactDir[];      // ses dossiers, même vides (toujours rempli par le relevé)
   time: number;                        // heure du relevé
 };
 
@@ -441,7 +450,11 @@ export type VibeArgs = {
   branch?: string;             // switch-branch : une branche de VibeView.branches ; new-here, new-worktree : le nom saisi
   start?: string;              // le départ d'une branche créée
   onto?: string;               // rebase : sur quoi rebaser
-  artifact?: string;           // copy-artifact : l'id d'un artefact de VibeView.artifacts
+  artifact?: string;           // copy-artifact d'avant le panneau en arborescence : l'id d'un artefact
+  artifacts?: string[];        // les actions sur les artefacts : des ids a<i> ou d<i> du dernier relevé, jamais un chemin
+  folder?: string;             // le dossier visé : un id d<i> du dernier relevé ; absent : la racine
+  name?: string;               // rename-artifact, new-artifact-* : le nom tapé, un nom seul, revérifié par le principal
+  names?: string[];            // trash-artifacts : les noms confirmés, comparés au relevé, jamais lus comme des chemins
   effort?: string;             // un skill dont on choisit l'effort : un autre que celui du skill, parmi VibeAction.efforts
 };
 
