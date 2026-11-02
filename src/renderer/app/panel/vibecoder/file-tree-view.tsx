@@ -3,7 +3,8 @@
  *  un clic sur une ligne → onSelect(key). Si `mark` est donné, le nom d'un fichier prend la couleur qu'il
  *  rend (data-mark, comme VS Code : nouveau vert, modifié jaune, supprimé rouge barré, à générer
  *  atténué ; null : commité, la couleur ordinaire) ; si `rank` est donné, le numéro
- *  qu'il rend (vc-tree-rank, l'ordre de génération du module) le précède aussi. Les noms sont du texte.
+ *  qu'il rend (vc-tree-rank, l'ordre de génération du module) prend la place du chevron, vide pour un
+ *  fichier : le nom reste aligné sur ceux des dossiers voisins. Les noms sont du texte.
  *  Les classes sont celles de l'arborescence des artefacts (artifact-tree-view.css) : ni renommer, ni
  *  glisser, ni menu.
  *  Ne connaît pas : le pont, les modules, les artefacts.
@@ -34,8 +35,9 @@ export function FileTreeView({ rows, open, selected, mark, rank, onToggle, onSel
             aria-selected={n.key === selected} aria-expanded={n.folder ? isOpen : undefined}
             style={{ paddingLeft: 6 + n.depth * 10 }} title={n.key}
             onClick={() => (n.folder ? onToggle(n.key) : onSelect(n.key))}>
-            <span className="vc-tree-chevron" data-open={isOpen || undefined} aria-hidden="true">{n.folder ? '›' : ''}</span>
-            {num !== null && <span className="vc-tree-rank">{num}</span>}
+            <span className="vc-tree-chevron" data-open={isOpen || undefined} aria-hidden="true">
+              {n.folder ? '›' : num !== null ? <span className="vc-tree-rank">{num}</span> : ''}
+            </span>
             <span className="vc-tree-label">{n.label}</span>
           </div>
         );
