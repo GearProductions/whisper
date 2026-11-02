@@ -1,18 +1,15 @@
 /** step-views — l'aiguillage des étapes : la vue de chaque étape du parcours,
  *  et ce qu'elle reçoit (StepProps : le relevé, l'étape, les libellés, les
  *  rappels de l'écran, le texte du champ de l'étape, le fichier de module
- *  suivi, les modifications gardées des fichiers suivis ; StepHead y prend les actions de l'étape et ce champ). Chaque étape a sa vue ; Revue en a
- *  une pour Créer et une pour Relire ; PR n'est que de Créer (Relire commence
- *  à Note : la PR se charge depuis la vue des branches) ; Note et Invariants
- *  servent aux deux (en lecture seule pour Relire).
+ *  suivi, les modifications gardées des fichiers suivis ; StepHead y prend les actions de l'étape et ce champ). Un seul
+ *  parcours, une vue par étape, pour les deux rôles (view.flow, décidé par
+ *  l'appli) : chaque vue montre en lecture seule ce que le relecteur ne fait
+ *  pas (Revue : Relire à l'écran ; Modules : les commits ; PR : le brouillon).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder, panel-app (VibeActs). */
 import type { ComponentType, Dispatch, SetStateAction } from 'react';
 import type { Answer, Answers, Strings } from 'core/vibecoder';
 import type { VibeArgs, VibeCode, VibePatch, VibeProcessOp, VibeRunOp, VibeStep, VibeStepId, VibeView } from 'technicals/bridge';
-import { CommitsView } from './commits-view';
-import { DraftView } from './draft-view';
 import type { Drafts } from './file-draft';
-import { EcranView } from './ecran-view';
 import { FormeView } from './forme-view';
 import { InvariantsView } from './invariants-view';
 import { ModulesView } from './modules-view';
@@ -25,12 +22,12 @@ export type VibeActs = {
   // Une action du relevé : envoyée (avec le texte de son champ, fieldOf), ou préparée ; true : partie.
   run(id: string, args?: VibeArgs): Promise<boolean>;
   prefill(id: string, quote: string, block?: boolean): void; // une action 'prefill' : {{quote}}, ce qu'on cite (block : en entier, F-98)
-  follow(id: string | null): void;             // suivre un fichier du relevé par son id : module (m<rang>/<i>), note (n), test (t<i>), en Relire fichier d'un commit (c<rang>/<i>) ; null : plus aucun
+  follow(id: string | null): void;             // suivre un fichier du relevé par son id : module (m<rang>/<i>), note (n), test (t<i>), en relecteur fichier d'un commit (c<rang>/<i>) ; null : plus aucun
   save(id: string, text: string): Promise<boolean>; // Enregistrer le fichier suivi ; true : enregistré (refusé : le motif en barre d'état)
   drop(files: File[]): void;                   // Artefacts : des fichiers déposés dans la zone, copiés dans le dossier de l'agent (refusé : le motif en barre d'état)
   set(patch: VibePatch): void;
   mark(target: string, verdict: 'ok' | 'ko' | null): void;
-  draft(op: { add?: { target: string; text: string }; edit?: { id: number; text: string }; remove?: number }): void; // Relire : le brouillon de revue
+  draft(op: { add?: { target: string; text: string }; edit?: { id: number; text: string }; remove?: number }): void; // relecteur : le brouillon de revue
   open(id: string, line?: number): void;       // par son id : un fichier du relevé (à la ligne), un commit (c<rang>, son diff ;
                                                // gh:c<rang>, sa page sur GitHub)
   openLink(url: string): void;
@@ -43,7 +40,7 @@ export type StepProps = {
   view: VibeView; step: VibeStep; t: Strings; act: VibeActs; busy: boolean;
   answers: Answers;                            // les réponses en cours aux questions ouvertes (vibe-coder les tient)
   onAnswer(question: string, a: Answer): void;
-  verdict: NonNullable<VibeArgs['verdict']>;   // Relire : le verdict choisi pour la revue (vibe-coder le tient)
+  verdict: NonNullable<VibeArgs['verdict']>;   // relecteur : le verdict choisi pour la revue (vibe-coder le tient)
   onVerdict(v: NonNullable<VibeArgs['verdict']>): void;
   text: string;                                // le champ de l'étape (vibe-coder le tient, par étape, tant que l'écran vit)
   setText(text: string): void;
@@ -51,17 +48,9 @@ export type StepProps = {
   drafts: readonly [Drafts, Dispatch<SetStateAction<Drafts>>]; // les modifications gardées, par chemin (vibe-coder les tient, par agent : useFileDraft)
 };
 
-// Revue : une vue pour Créer, une autre pour Relire.
-const byFlow = (create: ComponentType<StepProps>, review: ComponentType<StepProps>) => function ByFlow(p: StepProps) {
-  const View = p.view.flow === 'review' ? review : create;
-  return <View {...p} />;
-};
-
 export const STEP_VIEWS: Record<VibeStepId, ComponentType<StepProps>> = {
   note: NoteView, forme: FormeView, invariants: InvariantsView,
   modules: ModulesView,
-  revue: byFlow(ReviewView, DraftView),
+  revue: ReviewView,
   pr: PrView,
-  commits: CommitsView,
-  ecran: EcranView,
 };
