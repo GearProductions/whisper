@@ -20,9 +20,10 @@ const action = (id: string) => ({ id, label: id, hint: '', kind: 'run', step: 'r
 const checks = JSON.stringify({ items: [{ name: 'tsc', ok: false, detail: 'erreur\nligne 2' }, { name: 'lint', ok: true }] });
 const out = (text: string, time = 1) => ({ text, time });
 const runs: unknown[][] = [];
-const draw = (ponytail: string, applied: string[], busy = false) => act(() => {
-  const view = { lang: 'fr', flow: 'create', actions: [action('checks'), action('apply')], checklist: [], commits: [], steps: [], draft: [],
-    outputs: { 'checks.json': out(checks), 'ponytail.md': out(ponytail), 'ponytail-applied.json': out(JSON.stringify({ applied }), 2) } } as unknown as VibeView;
+const draw = (ponytail: string, applied: string[], busy = false, flow = 'create') => act(() => {
+  const view = { lang: 'fr', flow, actions: [action('checks'), action('apply'), action('screen')], checklist: [], commits: [], steps: [], draft: [],
+    screen: [{ text: 'cliquer', done: false }],
+    outputs: { 'ecran.md': out('- [ ] cliquer'), 'checks.json': out(checks), 'ponytail.md': out(ponytail), 'ponytail-applied.json': out(JSON.stringify({ applied }), 2) } } as unknown as VibeView;
   const props = { view, step: { id: 'revue', status: 'current', facts: '', open: true }, t: t('fr'), busy, text: '', setText: () => {},
     code: null, drafts: [{}, () => {}], act: { run: (...a: unknown[]) => runs.push(a), follow: () => {}, mark: () => {}, prefill: () => {},
       draft: () => {}, open: () => {}, openLink: () => {}, save: async () => true } } as unknown as StepProps;
@@ -60,4 +61,16 @@ it('une remarque appliquée : Icon ok nommée ; Appliquer garde son texte ; tout
   const banner = page.querySelector('.vc-applied-banner')!;
   expect(banner.querySelector('svg')).not.toBeNull();
   expect(banner.textContent).toBe('Appliquée');
+});
+
+it('Relire à l\'écran : sous la Revue du créateur ; seule chez le relecteur, sans vérification ni Appliquer', async () => {
+  await draw('- une remarque', []);
+  expect(page.querySelector('.vc-plan')).not.toBeNull();
+  expect(page.querySelector('.vc-checks')).not.toBeNull();
+  expect(page.querySelectorAll('.vc-step-acts button')).toHaveLength(0);   // screen est montrée par sa carte, pas par l'en-tête
+  await draw('- une remarque', [], false, 'review');
+  expect(page.querySelector('.vc-plan')).not.toBeNull();
+  for (const sel of ['.vc-checks', '.vc-a3', '.vc-apply-one', '.vc-check-again']) expect(page.querySelector(sel)).toBeNull();
+  expect(page.textContent).not.toContain('Pas encore de ponytail review');
+  expect(page.textContent).not.toContain('Pas encore de vérification');
 });

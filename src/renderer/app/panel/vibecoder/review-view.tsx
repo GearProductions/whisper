@@ -1,4 +1,4 @@
-/** review-view — l'étape Revue (Créer) : la liste du § A.3 (cochée par le
+/** review-view — l'étape Revue, pour les deux rôles. Créateur : la liste du § A.3 (cochée par le
  *  relevé : ✓, ✗ ; ce que le dépôt ne dit pas, une case à cocher à la main,
  *  validée pour le commit de tête : `a3:<rang>`) ; les vérifications de
  *  checks.json, une ligne chacune (✓, avertissements en orange, ✗ ; son détail
@@ -12,6 +12,8 @@
  *  Tout appliquer. Les vérifications :
  *  Relancer ; sans sortie, leur action. La ponytail review, lancée avec les
  *  vérifications (F-115) : ni Relancer ni bouton, sans sortie l'invitation le dit.
+ *  Puis, pour le créateur comme pour le relecteur (qui ne voit qu'elle), « Relire à
+ *  l'écran » (EcranSection) ; l'en-tête n'y répète pas l'action screen.
  *  Ne connaît pas : le pont (rappels passés ; l'état des courses par StopRun).
  *  Utilisé par : step-views. */
 import { useContext } from 'react';
@@ -20,6 +22,7 @@ import type { VibeLang } from 'technicals/bridge';
 import { Icon, IconButton } from './icons';
 import { MarkdownView } from './markdown-view';
 import { Invite, OutputCard, Run, StepHead, StopRun } from './step-parts';
+import { EcranSection } from './ecran-view';
 import type { StepProps } from './step-views';
 import './review-view.css';
 
@@ -84,7 +87,8 @@ const S: Record<VibeLang, typeof fr> = {
 const STATE = { true: 'ok', false: 'ko', null: 'manual' } as const;
 const REVIEWED = 2;   // « Chaque diff a été relu » : son rang dans la liste du § A.3 (core/vibecoder, journey)
 
-export function ReviewView(p: StepProps) {
+// Ce que seul le créateur voit : A.3, vérifications, ponytail review.
+function CreatorParts(p: StepProps) {
   const { view, t, act, busy } = p;
   const runState = useContext(StopRun).state;
   const s = S[view.lang];
@@ -121,7 +125,6 @@ export function ReviewView(p: StepProps) {
   const noHead = !view.commits.length;
   return (
     <>
-      <StepHead p={p} own={['checks', 'ponytail', 'apply']} />
       {view.checklist.length ? (
         <OutputCard className="vc-a3" title={s.a3} file={s.a3File} t={t}
           tools={<span className="vc-count">{s.a3Count(view.checklist.filter((c) => c.done === true).length, view.checklist.length)}</span>}>
@@ -197,6 +200,17 @@ export function ReviewView(p: StepProps) {
           <MarkdownView md={ponytail.text} t={t} onOpenLink={act.openLink} onQuote={quote} itemEnd={remarkEnd} />
         </OutputCard>
       ) : <Invite title={s.noPonytail} text={`${t.ponytailWithChecks} ${s.noPonytailHint}`} />}
+    </>
+  );
+}
+
+// La Revue des deux rôles ; le relecteur n'a que « Relire à l'écran » (ni vérification, ni ponytail, ni Appliquer).
+export function ReviewView(p: StepProps) {
+  return (
+    <>
+      <StepHead p={p} own={['checks', 'ponytail', 'apply', 'screen']} />
+      {p.view.flow === 'create' ? <CreatorParts {...p} /> : null}
+      <EcranSection {...p} />
     </>
   );
 }
