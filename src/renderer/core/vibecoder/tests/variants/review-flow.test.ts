@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allApplied, quoteRemark, remark, remarkMark } from 'core/vibecoder';
+import { allApplied, applySelection, quoteRemark, remark, remarkId, remarkMark } from 'core/vibecoder';
 
 describe('remark', () => {
   it('la cible et le texte, tels quels', () => {
@@ -82,5 +82,27 @@ describe('allApplied', () => {
 
   it('aucune remarque (Lean already. Ship.) : faux', () => {
     expect(allApplied('Lean already. Ship.', new Set(['src/a.ts:L12']))).toBe(false);
+  });
+});
+
+describe('applySelection', () => {
+  const md = '- a.ts:L1 — delete: x\n- b.ts:L2 — edge: y\n- c.ts:L3 — dead: z\n\nnet: -3 lines possible.';
+  const applied = new Set(['a.ts:L1']);
+
+  it('toutes les remarques pas appliquées cochées : all, texte vide (toutes)', () => {
+    expect(applySelection(md, applied, new Set())).toEqual({ all: true, text: '', count: 2 });
+  });
+
+  it('une décochée : les cochées, une par ligne de liste ; une appliquée n\'est jamais envoyée', () => {
+    expect(applySelection(md, applied, new Set(['c.ts:L3']))).toEqual({ all: false, text: '- b.ts:L2 — edge: y', count: 1 });
+    expect(applySelection(md, new Set(), new Set(['b.ts:L2']))).toEqual({ all: false, text: '- a.ts:L1 — delete: x\n- c.ts:L3 — dead: z', count: 2 });
+  });
+
+  it('toutes décochées : rien à envoyer', () => {
+    expect(applySelection(md, applied, new Set(['b.ts:L2', 'c.ts:L3']))).toMatchObject({ all: false, count: 0 });
+  });
+
+  it('remarkId : l\'adresse, sinon le texte', () => {
+    expect([remarkId('`a.ts:L4` — x'), remarkId(' sans adresse ')]).toEqual(['a.ts:L4', 'sans adresse']);
   });
 });
