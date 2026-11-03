@@ -207,6 +207,21 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
     expect(status(vibeView(ready({ marks: NOTE_OK }))).invariants).toBe('current');
   });
 
+  it('la note commitée puis modifiée : la Forme n\'est plus faite, Préparer le commit (puis ✓ Commiter) la fait avancer, dit pourquoi', () => {
+    const changed = { ...repo([], [FIRST, HELLO]), dirty: [NOTE_PATH] };
+    const v = vibeView(ready({ repo: changed }));
+    expect([status(v).forme, primary(v)]).toEqual(['current', 'commit-prepare']);
+    expect(v.steps.find((st) => st.id === 'forme')?.facts).toContain('note modifiée depuis son commit');
+    expect(primary(vibeView(ready({ repo: changed, outputs: { 'commit.md': out('fixup! x') } })))).toBe('commit');
+    // la note revalidée d'abord : sans sa validation, la Note est l'étape en cours, sans action
+    expect(status(vibeView(ready({ repo: changed, marks: CASES_OK }))).note).toBe('current');
+  });
+
+  it('la note jamais commitée, modifiée : rien ne change (elle part avec le premier commit)', () => {
+    const v = vibeView(ready({ repo: { ...repo([NOTE_PATH]), dirty: [NOTE_PATH] } }));
+    expect(status(v).forme).toBe('done');
+  });
+
   it('invariants validés et commités, aucun module touché : Générer ce module', () => {
     const v = vibeView(ready());
     expect([status(v).modules, primary(v)]).toEqual(['current', 'module']);

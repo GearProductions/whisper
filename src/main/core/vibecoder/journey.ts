@@ -131,7 +131,7 @@ const TEXT = {
   fr: {
     plural: (n: number) => n > 1,
     mark: { ok: 'validée', ko: 'refusée', changed: 'modifiée depuis' },
-    noNote: 'pas de note', filled: 'rédigée', unfilled: 'à rédiger', question: ['question', 'questions'],
+    noNote: 'pas de note', filled: 'rédigée', unfilled: 'à rédiger', question: ['question', 'questions'], noteChanged: 'note modifiée depuis son commit',
     module: ['module', 'modules'], file: ['fichier', 'fichiers'], kase: ['cas', 'cas'], read: ['lu', 'lus'],
     checksOk: 'vérifications ok', checksKo: 'vérifications en échec', warning: ['avertissement', 'avertissements'], unchecked: 'pas vérifiée', ponytail: 'ponytail faite',
     fixup: ['fixup', 'fixups'], noPr: 'pas de PR', commit: ['commit', 'commits'], reviewed: 'relus',
@@ -148,7 +148,7 @@ const TEXT = {
   en: {
     plural: (n: number) => n !== 1,
     mark: { ok: 'approved', ko: 'rejected', changed: 'changed since' },
-    noNote: 'no note', filled: 'written', unfilled: 'to write', question: ['question', 'questions'],
+    noNote: 'no note', filled: 'written', unfilled: 'to write', question: ['question', 'questions'], noteChanged: 'note changed since its commit',
     module: ['module', 'modules'], file: ['file', 'files'], kase: ['case', 'cases'], read: ['read', 'read'],
     checksOk: 'checks pass', checksKo: 'checks fail', warning: ['warning', 'warnings'], unchecked: 'not checked', ponytail: 'ponytail done',
     fixup: ['fixup', 'fixups'], noPr: 'no PR', commit: ['commit', 'commits'], reviewed: 'reviewed',
@@ -330,9 +330,12 @@ export function vibeView(input: JourneyInput): VibeView {
   if (flow === 'create') {
     const noteDone = !!note?.filled && !questions.length && validated(note.mark);
     const formeDone = !!note && modules.length > 0 && validated(note.formeMark);
+    // La note (sa Forme comprise) commitée puis modifiée : la Forme n'est faite qu'une fois ce changement commité
+    // (Préparer le commit : un fixup de son commit, un nouveau commit une fois la PR ouverte), note et Forme revalidées.
+    const noteChanged = !!note && dirty.includes(note.path) && commits.some((c) => c.files.includes(note.path));
     done = {
       note: noteDone,
-      forme: formeDone,
+      forme: formeDone && !noteChanged,
       // Seulement si la Note et la Forme le sont (note 0.12.0-vibe-sans-rc-diff-en-fond), puis : sans ligne « → invariant »,
       // rien à écrire ni à commiter. Avec, sans test de la branche (déjà observée par un test existant) : la
       // dernière course Écrire les invariants ou Vérifier l'alignement finie, ou ✓ Rien à écrire. Avec des
@@ -346,7 +349,7 @@ export function vibeView(input: JourneyInput): VibeView {
     };
     next = {
       note: !note?.filled ? 'note' : questions.length ? 'answers' : null,
-      forme: modules.length ? null : 'forme',
+      forme: !modules.length ? 'forme' : noteChanged && noteDone && formeDone ? (commitMd ? 'commit' : 'commit-prepare') : null,
       // Hors Vibe : les cas attendent leurs ✓, lus ou pas ; Vibe : sans lecture (Écrire les invariants vérifie l'alignement).
       invariants: !invariants.length ? 'invariants' : !vibe && !casesOk ? null
         : commitMd ? 'commit' : dirty.length ? 'commit-prepare' : null,
@@ -357,7 +360,7 @@ export function vibeView(input: JourneyInput): VibeView {
     };
     stepFacts = {
       note: noteFacts,
-      forme: note ? line(count(modules.length, T.module), note.formeMark && T.mark[note.formeMark]) : T.noNote,
+      forme: note ? line(count(modules.length, T.module), note.formeMark && T.mark[note.formeMark], noteChanged && T.noteChanged) : T.noNote,
       invariants: invFacts,
       modules: `${modules.filter((m) => m.commits.length).length} / ${count(modules.length, T.module)}`,
       revue: line(!checks ? T.unchecked : checksOk ? T.checksOk : T.checksKo, warnings > 0 && count(warnings, T.warning),
