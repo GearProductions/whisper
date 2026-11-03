@@ -172,7 +172,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Apply the review",
-    "hint": "The agent applies the review remarks it judges right (all of them, or the one of Apply), each as a fixup of the commit concerned, and says which ones it discards.",
+    "hint": "The agent applies the review remarks it judges right (all of them, the ticked ones, or the one of Apply), each as a fixup of the commit concerned, and says which ones it discards.",
     "text": "/vibecoder:appliquer-revue {{lang}} {{out}} {{text}}"
   },
   {

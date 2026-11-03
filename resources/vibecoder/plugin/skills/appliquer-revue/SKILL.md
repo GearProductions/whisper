@@ -9,7 +9,7 @@ effort: high
 
 # Apply the review
 
-`$ARGUMENTS` = `<lang> <out> [remark…]`. `lang`: the user's language, of your answer. `out`: absolute path of the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces: quote it). `remark…`: everything after `out`, optional — only this remark (or these); empty: all of `<out>/ponytail.md`.
+`$ARGUMENTS` = `<lang> <out> [remark…]`. `lang`: the user's language, of your answer. `out`: absolute path of the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces: quote it). `remark…`: everything after `out`, optional — only this remark, or these (the ones the user kept ticked, one per list line `- …`); empty: all of `<out>/ponytail.md`.
 
 1. Apply the remarks of `<out>/ponytail.md` that you judge right, each as a fixup of the commit that owns the code (`/gear-fix-up` if it exists), adding nothing else.
 2. Write `<out>/ponytail-applied.json`: `{"applied":["<file>:L<line>", …]}`, the address heading each applied remark, plus those it already holds if it is newer than `ponytail.md`. Valid JSON.
