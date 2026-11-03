@@ -1,9 +1,9 @@
 /** speech — la lecture à voix haute côté appli : l'état du bouton (relevé
  *  régulièrement), l'installation de Pocket TTS au premier usage, la lecture.
  *  Comme pour le collage, le texte ne vient jamais de la page : on relit la
- *  sélection (ou le presse-papiers) au moment du clic, ou le résumé retenu
- *  pour une réponse d'agent (I-3). L'audio suit par morceaux (`tts:chunk`),
- *  puis `tts:end`.
+ *  sélection (ou le presse-papiers) au moment du clic (à l'icône), ou le résumé
+ *  retenu pour la réponse d'agent de ce rang (au panneau, I-3). L'audio suit
+ *  par morceaux (`tts:chunk`), puis `tts:end`.
  *  Ne connaît pas : les agents (seulement le résumé retenu).
  *  Utilisé par : app/ipc, app/lifecycle, app/menus. */
 import { speakMode, speakVolume, type Config } from 'core/config';
@@ -67,25 +67,48 @@ const SPEAK_MESSAGES: Record<string, string> = {
   failed: 'La synthèse vocale a échoué.',
 };
 
-// `source` : rien, ou 'reply' pour le résumé audio de la réponse choisie dans
-// le panneau des conversations (retenu ici à ce moment-là).
-export async function speak(source: unknown) {
-  const cfg = loadConfig();
-  const mode = currentSpeakMode(cfg);
-  const reply = source === 'reply';
-  if (!reply && mode === 'off') return { ok: false, error: SPEAK_MESSAGES.empty };
+type Send = (channel: string, ...args: unknown[]) => void;
+
+// Lit `read()` à voix haute (Pocket TTS installé au besoin) : l'audio part par
+// morceaux vers `send` (`tts:chunk`), puis `tts:end`.
+async function play(read: () => string | Promise<string>, cfg: Config, send: Send) {
   if (!tts.isInstalled() && tts.canInstall() && !(await installPocket())) {
     return { ok: false, error: SPEAK_MESSAGES.failed };
   }
   try {
-    const text = reply ? state.convSpeech : await readText(mode as 'selection' | 'clipboard');
-    const id: number = tts.speak(text, speakOptions(cfg),
-      (pcm, rate) => sendToIcon('tts:chunk', id, pcm, rate),
-      (code) => sendToIcon('tts:end', id, code ? SPEAK_MESSAGES[code] || SPEAK_MESSAGES.failed : null));
+    const id: number = tts.speak(await read(), speakOptions(cfg),
+      (pcm, rate) => send('tts:chunk', id, pcm, rate),
+      (code) => send('tts:end', id, code ? SPEAK_MESSAGES[code] || SPEAK_MESSAGES.failed : null));
     return { ok: true, id };
   } catch (err) {
     return { ok: false, error: SPEAK_MESSAGES[err instanceof Error ? err.message : ''] || SPEAK_MESSAGES.failed };
   }
+}
+
+// La sélection (ou le presse-papiers), relue au moment du clic sur l'icône.
+export async function speak() {
+  const cfg = loadConfig();
+  const mode = currentSpeakMode(cfg);
+  if (mode === 'off') return { ok: false, error: SPEAK_MESSAGES.empty };
+  return play(() => readText(mode), cfg, sendToIcon);
+}
+
+// Écouter la réponse de ce rang dans le fil affiché : le résumé audio retenu
+// ici, jamais un texte de la page (I-3). Le son va au panneau.
+export async function speakReply(index: unknown) {
+  const entry = Number.isInteger(index) ? state.convThread[index as number] : undefined;
+  const audio = entry && 'audio' in entry ? entry.audio : '';
+  if (!audio || !state.panel) return { ok: false, error: SPEAK_MESSAGES.empty };
+  const cfg = loadConfig();
+  const volume = speakVolume(cfg);
+  // Le lecteur du panneau joue à plein gain : le volume réglé s'applique ici, au PCM 16 bits.
+  const scaled = (pcm: Buffer) => {
+    if (volume === 1) return pcm;
+    const out = Buffer.from(pcm);
+    for (let i = 0; i + 1 < out.length; i += 2) out.writeInt16LE(Math.round(out.readInt16LE(i) * volume), i);
+    return out;
+  };
+  return play(() => audio, cfg, (ch, ...a) => state.panel?.webContents.send(ch, ...(ch === 'tts:chunk' ? [a[0], scaled(a[1] as Buffer), a[2]] : a)));
 }
 
 export const cancelSpeak = (id: unknown) => tts.cancel(id);

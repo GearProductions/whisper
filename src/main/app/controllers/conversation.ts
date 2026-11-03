@@ -1,6 +1,6 @@
 /** conversation — ce que montre le panneau : la conversation de l'agent
  *  affiché (son fil, sa demande d'autorisation, sa jauge), ou le contexte
- *  « Dictée » ; et ce qu'il demande (envoyer, joindre, répondre, écouter,
+ *  « Dictée » ; et ce qu'il demande (envoyer, joindre, répondre,
  *  sonder, l'historique, reprendre, copier, ouvrir un lien, montrer un
  *  fichier). Ce qui est copié est le dernier texte dicté, jamais un texte de la
  *  page (I-3) ; une ancienne conversation se lit, ne reçoit rien, et seules
@@ -21,7 +21,7 @@ import { prepareImage, thumbnail } from 'technicals/images';
 import * as clipboard from 'technicals/clipboard';
 import { loadConfig, updateAgent } from 'app/settings';
 import { state } from 'app/state';
-import { conversationShown, deliverPending, hideConversation, openConversation, sendToIcon } from 'app/windows';
+import { conversationShown, deliverPending, hideConversation, openConversation } from 'app/windows';
 import { agents, CLAUDE_MISSING, isBusy, launchOptions, liveViewAgent, pushAgents, sendToAgent, sessions, viewAgent } from './agents';
 import { refreshVibe } from './vibecoder';
 
@@ -174,14 +174,6 @@ export function answerPermission(decision: unknown, key: unknown) {
   if (!agent || (decision !== 'allow' && decision !== 'always' && decision !== 'deny') || !Number.isInteger(key)) return;
   agents.answer(agent.id, decision, key as number);
   pushAgents();
-}
-
-// Écouter une réponse : son résumé audio, par le lecteur de l'icône.
-export function speakReply(index: unknown) {
-  const entry = typeof index === 'number' ? state.convThread[index] : undefined;
-  if (!state.icon || !entry || !('audio' in entry) || !entry.audio) return;
-  state.convSpeech = entry.audio;
-  sendToIcon('tts:speakReply');
 }
 
 // La jauge du contexte, cliquée (ou « / » tapé dans le champ) : le détail du

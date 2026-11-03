@@ -30,7 +30,6 @@ export const state = {
   convResizeTimer: undefined as Timer,
   convView: null as { agentId: string | null; sessionId: string | null } | null, // sessionId null : la session en cours ; agentId null : la dictée
   convThread: [] as Thread,   // fil affiché
-  convSpeech: '',             // résumé audio de la réponse choisie par ▶ (cf. tts:speak)
   convSeq: 0,                 // rafraîchissements qui se chevauchent : seul le dernier s'affiche
   convInput: '',              // dictée arrivée avant que la page soit prête
   convFocusInput: false,

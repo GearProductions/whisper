@@ -1,17 +1,16 @@
 /** dictation — la dictée côté appli : coupures du son pendant l'enregistrement
- *  (micro Discord, autres applications), transcription, puis le texte au champ
- *  d'un agent, à l'agent, ou collé au curseur ; le modèle téléchargé au
- *  premier lancement. Ce qui est collé ou envoyé est TOUJOURS ce que whisper
- *  vient de rendre, jamais un texte fourni par la page (I-2).
+ *  (micro Discord, autres applications), transcription rendue à la page qui l'a
+ *  demandée (le panneau), le modèle téléchargé au premier lancement. Le texte
+ *  rendu est TOUJOURS ce que whisper vient de rendre, jamais un texte fourni
+ *  par la page (I-2) ; il n'est ni collé ni envoyé à un agent ici. Un
+ *  enregistrement muet ou trop court n'atteint pas whisper (I-10).
  *  Ne connaît pas : les pages (seulement leurs messages). Utilisé par : app/ipc,
  *  app/lifecycle, app/menus. */
 import fs from 'node:fs';
 import path from 'node:path';
 import { app } from 'electron';
-import { selectedAgent } from 'core/config';
-import { checkAudio, cleanTranscript, destination, pasteText, TRANSCRIBE_MESSAGES } from 'core/dictation';
+import { checkAudio, cleanTranscript, TRANSCRIBE_MESSAGES } from 'core/dictation';
 import { createMuter, createStreamMuter, isWanted, streamKey, type MutePlatform } from 'core/sound';
-import * as clipboard from 'technicals/clipboard';
 import { readJson, writeJson } from 'technicals/config-file';
 import * as paste from 'technicals/paste';
 import * as pipewire from 'technicals/pipewire';
@@ -19,8 +18,8 @@ import * as windows from 'technicals/windows-helper';
 import { locateWhisper, runWhisper } from 'technicals/whisper-cli';
 import { loadConfig, ownWhisperDir, whisperDirs } from 'app/settings';
 import { state } from 'app/state';
-import { conversationInput, conversationNotice, hideBubble, openConversation, openDictation, showBubble } from 'app/windows';
-import { sendToAgent } from './agents';
+import { conversationNotice, hideBubble, showBubble } from 'app/windows';
+import type { TranscribeResult } from 'shared/bridge';
 
 /* ---- Coupures du son ------------------------------------------------------ */
 
@@ -96,14 +95,11 @@ export function setRecording(on: unknown) {
 
 /* ---- Transcription -------------------------------------------------------- */
 
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 // `pcm` = PCM 16 bits mono 16 kHz, de la page.
-export async function transcribe(pcm: unknown) {
+export async function transcribe(pcm: unknown): Promise<TranscribeResult> {
   const cfg = loadConfig();
-  let text: string;
   try {
-    text = cleanTranscript(await runWhisper(whisperDirs(), checkAudio(pcm), { lang: cfg.lang, prompt: cfg.vocabulary }));
+    return { ok: true, text: cleanTranscript(await runWhisper(whisperDirs(), checkAudio(pcm), { lang: cfg.lang, prompt: cfg.vocabulary })) };
   } catch (err) {
     const message = err instanceof Error ? err.message : '';
     const code = TRANSCRIBE_MESSAGES[message] ? message : 'failed';
@@ -112,27 +108,6 @@ export async function transcribe(pcm: unknown) {
     }
     return { ok: false, code, error: TRANSCRIBE_MESSAGES[code] };
   }
-  if (!text) return { ok: true, text: '', pasted: false };
-  // Un agent est sélectionné : la dictée lui est destinée, rien n'est collé.
-  // Elle arrive dans le champ de saisie de son panneau (ouvert au besoin, en
-  // réduit), à relire et compléter ; sans relecture, elle part aussitôt.
-  const agent = selectedAgent(cfg);
-  const to = destination(cfg, agent);
-  if (to === 'review') {
-    openConversation(agent!.id);
-    conversationInput(text);
-    return { ok: true, text, agent: agent!.name, panel: true };
-  }
-  if (to === 'send') {
-    const res = sendToAgent(agent!, { text }, cfg);
-    if (!res.ok) clipboard.writeText(text);
-    return res.ok ? { ok: true, text, agent: agent!.name }
-      : { ok: false, error: `${res.error} Le message est dans le presse-papiers.` };
-  }
-  const autoPaste = cfg.autoPaste !== false;
-  const pasted = await pasteText(text, autoPaste, { clipboard, paste: paste.sendPaste, wait: delay });
-  if (cfg.showText !== false) openDictation(text); // après le Ctrl+V : rien ne doit le détourner (I-18)
-  return { ok: true, text, pasted, autoPaste };
 }
 
 /* ---- Modèle whisper : téléchargé au premier lancement --------------------- */

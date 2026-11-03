@@ -44,7 +44,7 @@ const fake = vi.hoisted(() => {
 });
 
 vi.mock('electron', () => ({
-  app: { getPath: () => fake.userData },
+  app: { getPath: () => fake.userData, quit: () => {} },
   BrowserWindow: class extends fake.Win { constructor() { super(); fake.windows.push(this); } },
   screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) },
   shell: { openExternal: (url: string) => { fake.opened.push(url); } }, clipboard: {}, nativeImage: {},
