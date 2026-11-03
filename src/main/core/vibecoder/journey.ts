@@ -353,7 +353,8 @@ export function vibeView(input: JourneyInput): VibeView {
       // Hors Vibe : les cas attendent leurs ✓, lus ou pas ; Vibe : sans lecture (Écrire les invariants vérifie l'alignement).
       invariants: !invariants.length ? 'invariants' : !vibe && !casesOk ? null
         : commitMd ? 'commit' : dirty.length ? 'commit-prepare' : null,
-      modules: commitMd ? 'commit' : modules.some((m) => m.uncommitted) ? (untouched ? 'next' : 'commit-modules') : 'module',
+      // Générer les modules tant qu'il en reste un pas touché (un à un sur sa ligne, au choix), puis Commiter les modules.
+      modules: commitMd ? 'commit' : untouched ? 'modules' : modules.some((m) => m.uncommitted) ? 'commit-modules' : null,
       // Lancer les vérifications demande aussi la ponytail review (F-115) : elle n'a plus son bouton.
       revue: !checksOk || !ponytail ? 'checks' : fixups ? 'fixups' : null,
       pr: 'pr',
@@ -447,8 +448,8 @@ export function vibeView(input: JourneyInput): VibeView {
   };
   // Les choix de lieu (core/vibecoder place), Pousser (après un rebase pas encore poussé), sans griser ; Rebase hors
   // de la base ; Nouvelle demande sur la base seulement. Retirer le worktree : sur un enfant, sa PR fusionnée (Créer) ou sur le robot d'une PR (relecteur).
-  // Préparer le commit, seulement s'il y a quelque chose à commiter ; Valider → commit → suivant, seulement s'il y a un
-  // module pas commité et un suivant à générer ; Générer les modules restants, seulement s'il en reste un pas touché.
+  // Préparer le commit, seulement s'il y a quelque chose à commiter ; Générer les modules, seulement s'il en reste un
+  // pas touché.
   const shown: Record<string, boolean> = {
     ...placeShown(place),
     rebase: !place.onBase && flow === 'create',   // le relecteur n'édite ni ne pousse : rien à rebaser, à pousser, à copier
@@ -460,7 +461,6 @@ export function vibeView(input: JourneyInput): VibeView {
     'new-request': place.onBase,
     'remove-worktree': child && (flow === 'create' ? prState === 'MERGED' : place.robot),
     'commit-prepare': dirty.length > 0,
-    next: modules.some((m) => m.uncommitted) && untouched,
     modules: untouched,
   };
   // Écrire les invariants, sans ligne « → invariant » dans la note : masquée sans griser, elle aussi (un clic

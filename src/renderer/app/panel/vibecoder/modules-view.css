@@ -57,7 +57,6 @@
   transition: background-color 0.12s, border-color 0.12s;
 }
 .vc-mod-acts button:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--vc-control)); }
-.vc-mod-acts button[data-next]:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 28%, var(--vc-control)); color: var(--vc-text); }
 .vc-mod-acts button:disabled { border-style: dashed; background: var(--row); color: var(--vc-faint); cursor: default; }
 
 /* La légende, dans l'en-tête de la carte : combien de modules dans chaque état. */
