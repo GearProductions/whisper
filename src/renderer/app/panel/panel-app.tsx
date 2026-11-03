@@ -31,6 +31,12 @@
  *  l'arborescence (aucun File), lâché où que ce soit, ne joint rien.
  *  Le « @ » du champ : le Composer reçoit les artefacts du seul agent affiché
  *  (vibeShown : même clé que le relevé) ; sans relevé, pas de liste.
+ *  Les agents (`conv:agents`, onAgents) : l'agent affiché au sélecteur de VibeCoder, les raccourcis de
+ *  core/switcher (Ctrl+K la palette, Ctrl+Tab l'agent d'avant, Ctrl+N un nouvel agent, Ctrl+Maj+B les
+ *  branches), la palette et ses mouvements (afficher, lancer une action par son id, branches, ajouter),
+ *  les notices des autres agents (retenues jusqu'à leur ×, ou jusqu'à ce que l'agent soit affiché),
+ *  l'historique à la place du fil dans la colonne de VibeCoder (🕘), ⚙ Réglages (les micros énumérés
+ *  ici, le menu au principal) ; aucun agent : l'accueil (NoAgent) à la place de l'écran.
  *  Ne connaît pas : l'icône, la bulle. Utilisé par : main.tsx. */
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import {
@@ -38,16 +44,17 @@ import {
   withAttached, withFile, type Draft, type Piece,
 } from 'core/conversation';
 import { createDictation, type Phase } from 'core/dictation';
+import { lastShown, recent, shortcut, type PaletteMove, type Scope } from 'core/switcher';
 import { createSpeechPlayer } from 'core/speech';
 import { createKept, t as vibeStrings, withPrefill } from 'core/vibecoder';
-import type { Command, ConvApi, Notice, ProbeResult, SendResult, Session, Thread, VibeArgs, VibeCode, VibeView } from 'technicals/bridge';
-import { beep, openMic, record } from 'technicals/audio';
+import type { AgentEvent, AgentsState, Command, ConvApi, Notice, ProbeResult, SendResult, Session, Thread, VibeArgs, VibeCode, VibeView } from 'technicals/bridge';
+import { beep, listInputs, openMic, record } from 'technicals/audio';
 import { compactHeight, dictationField, dictationText } from 'technicals/dom';
 import {
   ArchivedBar, Composer, ContextDetail, Header, HistoryList, Lightbox, NoticeBar, showsWorking, TasksPane, ThreadContent,
   type ThreadActions,
 } from './components';
-import { SkillsBar, VibeCoder, type Side, type VibeActs } from './vibecoder';
+import { AgentNotices, NoAgent, Palette, SkillsBar, VibeCoder, type Side, type VibeActs } from './vibecoder';
 
 const STATUS_MS = 10000; // un message de l'appli (téléchargement…) s'efface seul
 const AT_END_PX = 40;
@@ -69,6 +76,11 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   const [vibe, setVibe] = useState<VibeView | null>(null);
   const [vibeSide, setVibeSide] = useState<Side>({ open: true, width: 400 });
   const [vibeCode, setVibeCode] = useState<VibeCode | null>(null);
+  const [agents, setAgents] = useState<AgentsState | null>(null);  // null jusqu'au premier conv:agents
+  const [events, setEvents] = useState<AgentEvent[]>([]);           // les notices en attente
+  const [palette, setPalette] = useState<Scope | null>(null);        // ouverte : sa portée
+  const [branchesAsk, setBranchesAsk] = useState(0);                // +1 : VibeCoder ouvre ses branches
+  const [historyOpen, setHistoryOpen] = useState(false);            // l'historique dans la colonne de VibeCoder
 
   const [drafts] = useState(createDrafts);
   const [kept] = useState(createKept); // la saisie de VibeCoder, par agent
@@ -76,6 +88,8 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   const commands = useRef(new Map<string, Command[]>()).current;
   const current = useRef<Thread | null>(null);  // la conversation affichée, pour les écoutes
   const overlayRef = useRef<Overlay>('none');
+  const recents = useRef<string[]>([]);         // les agents affichés, du dernier au plus ancien (Ctrl+Tab)
+  const shownRef = useRef<string | null>(null);
   const toEnd = useRef(false);                  // descendre le fil après ce rendu
   const focusEnd = useRef(false);               // dictée reçue : focus, curseur à la fin
   const noticeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -113,8 +127,10 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   const setOverlay = (o: Overlay) => { overlayRef.current = o; setOverlayState(o); };
   const setZoom = (src: string | null) => { zoomRef.current = src; setZoomState(src); };
   const live = !!data && data.live;
-  // VibeCoder : le relevé de l'agent affiché, sur sa conversation en cours (sinon, la vue habituelle).
-  const vibeShown = vibe && data && data.live && data.key === vibe.agentId ? vibe : null;
+  // VibeCoder : le relevé de l'agent affiché, que le fil montre sa conversation en cours ou une ancienne
+  // (clé `<agent>:<session>`, ouverte par l'historique : l'écran reste) ; sinon, la vue habituelle.
+  const vibeShown = vibe && data && (data.key === vibe.agentId || data.key.startsWith(`${vibe.agentId}:`)) ? vibe : null;
+  const archived = <ArchivedBar data={data} onCurrent={() => conv.current()} onResume={() => conv.resume()} ref={el.archived} />;
 
   // Réduit (comme avant la première conversation) : la hauteur de son contenu,
   // que le principal donne au panneau.
@@ -159,6 +175,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
         setDraft((cur) => drafts.switchTo(from, cur, d.key));
         setStatus('');
         setOverlay('none');
+        setHistoryOpen(false);
       } else if (d.mode === 'compact' && overlayRef.current === 'history') setOverlay('none');
       guard.show(d.permission ? d.permission.key : null);
       toEnd.current = followsEnd(before, d, { atEnd, working: showsWorking(d) });
@@ -173,6 +190,13 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     conv.onFocusInput(() => el.input.current!.focus());
     conv.onVibe(setVibe);
     conv.onVibeCode(setVibeCode);
+    conv.onAgents((s) => {
+      shownRef.current = s.shown;
+      if (s.shown) recents.current = recent(recents.current, s.shown);
+      recents.current = recents.current.filter((id) => s.agents.some((a) => a.id === id));
+      setAgents(s);
+      setEvents((es) => [...es, ...s.events].filter((ev) => ev.agentId !== s.shown));
+    });
     conv.onAttached((what) => {
       setDraft((d) => ({ ...d, pieces: withAttached(d.pieces, what) }));
       el.input.current!.focus();
@@ -196,6 +220,15 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
       if (files.length && !own) addFiles(files);
     });
     document.addEventListener('keydown', (e) => {
+      const short = shortcut({ key: e.key, ctrl: e.ctrlKey, shift: e.shiftKey });
+      if (short) {
+        e.preventDefault();
+        if (short === 'palette') setPalette('all');
+        else if (short === 'last') { const id = lastShown(recents.current, shownRef.current); if (id) conv.showAgent(id); }
+        else if (short === 'new-agent') conv.addAgent();
+        else setBranchesAsk((n) => n + 1);
+        return;
+      }
       if (e.key !== 'Escape') return;
       if (zoomRef.current) setZoom(null);
       else if (overlayRef.current !== 'none') setOverlay('none');
@@ -228,6 +261,23 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     setSessions(null);
     const list = await conv.history();
     if (overlayRef.current === 'history') setSessions(list);
+  }
+
+  // 🕘 dans la colonne de VibeCoder : la liste des conversations du dossier à la place du fil.
+  async function toggleHistory() {
+    if (historyOpen) { setHistoryOpen(false); return; }
+    setHistoryOpen(true);
+    setSessions(null);
+    setSessions(await conv.history());
+  }
+
+  // Un mouvement de la palette (elle est fermée ici) : jamais de texte libre, des ids d'action et leurs arguments.
+  function paletteMove(m: PaletteMove) {
+    setPalette(null);
+    if ('show' in m) conv.showAgent(m.show);
+    else if ('run' in m) vibeRun(m.run, m.args);
+    else if ('open' in m) setBranchesAsk((n) => n + 1);
+    else conv.addAgent();
   }
 
   async function showContext() {
@@ -362,15 +412,24 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
       ref={el.composer} input={el.input} />
   );
 
+  const noAgent = !!agents && !agents.agents.length;
+  const tr = vibeStrings(vibe?.lang ?? 'fr');
   return (
     <div id="app" data-view={data ? (data.dictation ? 'dictation' : 'agent') : undefined} data-mode={data?.mode}
       className={dragging ? 'dragging' : undefined} style={data ? { '--accent': data.color } as CSSProperties : undefined}>
+      {noAgent ? <NoAgent t={tr} onAdd={conv.addAgent} /> : null}
+      <div style={{ display: noAgent ? 'none' : 'contents' }}>
       {vibeShown && data ? (
         <VibeCoder key={vibeShown.agentId} view={vibeShown} thread={data} act={vibeAct} tasksOpen={tasksOpen} code={vibeCode}
           tasks={<TasksPane tasks={data.tasks ?? []} onOpenLink={conv.openLink} onShowFile={conv.showFile} />}
-          contextOpen={overlay === 'context'} onGauge={toggleContext} onTasks={toggleTasks} onHide={() => conv.hide()}
+          contextOpen={overlay === 'context'} onGauge={toggleContext} onTasks={toggleTasks}
+          agent={agents?.agents.find((a) => a.id === agents.shown) ?? null} onPalette={setPalette} onAgentMenu={conv.agentMenu}
+          onSettings={async () => conv.openSettings(await listInputs())} branchesAsk={branchesAsk}
+          historyOpen={historyOpen} onHistory={toggleHistory}
+          history={<HistoryList open inline sessions={sessions} onOpen={(id) => { setHistoryOpen(false); conv.open(id); }} />}
           side={vibeSide} onSide={setVibeSide} kept={kept}>
           {noticeBar}
+          {archived}
           {body}
           <SkillsBar view={vibeShown} busy={isBusy(data.status)} onRun={vibeRun} />
           {composer}
@@ -384,11 +443,16 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
             onMode={() => conv.setMode(data?.mode === 'compact' ? 'full' : 'compact')}
             onHide={() => conv.hide()} ref={el.header} />
           {noticeBar}
-          <ArchivedBar data={data} onCurrent={() => conv.current()} onResume={() => conv.resume()} ref={el.archived} />
+          {archived}
           {body}
           {composer}
         </>
       )}
+      </div>
+      {palette ? <Palette agents={agents?.agents ?? []} view={vibe} scope={palette} t={tr} onPick={paletteMove} onClose={() => setPalette(null)} /> : null}
+      <AgentNotices events={events} agents={agents?.agents ?? []} t={tr}
+        onShow={(id) => { conv.showAgent(id); setEvents((es) => es.filter((ev) => ev.agentId !== id)); }}
+        onDismiss={(i) => setEvents((es) => es.filter((_, j) => j !== i))} />
       <Lightbox src={zoom} onClose={() => setZoom(null)} />
     </div>
   );

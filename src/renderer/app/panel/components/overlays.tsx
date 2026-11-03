@@ -7,11 +7,14 @@ import type { ProbeResult, SendResult, Session } from 'technicals/bridge';
 
 const Hint = ({ text }: { text: string }) => <div className="hint">{text}</div>;
 
-type HistoryProps = { open: boolean; sessions: Session[] | null; onOpen(sessionId: string): void };
+// inline : dans le flux (la colonne de VibeCoder), pas posé en panneau sur le fil.
+type HistoryProps = { open: boolean; inline?: boolean; sessions: Session[] | null; onOpen(sessionId: string): void };
 
-export function HistoryList({ open, sessions, onOpen }: HistoryProps) {
+const IN_FLOW = { position: 'static', width: 'auto', padding: 0, border: 0, boxShadow: 'none', background: 'none' } as const;
+
+export function HistoryList({ open, inline, sessions, onOpen }: HistoryProps) {
   return (
-    <aside id="history" className="scroll" hidden={!open}>
+    <aside id="history" className="scroll" hidden={!open} style={inline ? IN_FLOW : undefined}>
       {!sessions ? <Hint text="Chargement…" />
         : !sessions.length ? <Hint text="Aucune conversation dans ce dossier." />
           : sessions.map((s) => (

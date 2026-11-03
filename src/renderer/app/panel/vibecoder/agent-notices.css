@@ -1,0 +1,10 @@
+/* Structure du bandeau des agents (en haut du panneau, par-dessus) ; le thème de la vue C vient au temps 4. */
+.vc-notices { position: fixed; top: 8px; right: 8px; z-index: 40; display: flex; flex-direction: column; gap: 6px; width: min(440px, calc(100% - 16px)); }
+.vc-notice { display: flex; align-items: center; gap: 8px; padding: 8px var(--vc-pad); border: 1px solid var(--vc-edge); border-radius: var(--vc-radius); background: var(--vc-card); color: var(--vc-text); }
+.vc-notice-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; }
+.vc-notice-body { flex: 1; min-width: 0; }
+.vc-notice-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vc-notice-meta { display: flex; flex-wrap: wrap; gap: 8px; color: var(--vc-muted); font-size: 12px; }
+.vc-notice-pill { padding: 0 8px; border-radius: 10px; background: var(--vc-control); color: var(--vc-soft); }
+.vc-notice-detail { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vc-notice-x { flex: none; border: 0; background: transparent; color: var(--vc-muted); font-size: 16px; cursor: pointer; }

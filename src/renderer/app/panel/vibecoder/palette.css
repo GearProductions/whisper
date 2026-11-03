@@ -1,0 +1,17 @@
+/* Structure de la palette Ctrl+K (position, mise en ligne, défilement) ; le thème de la vue C vient au temps 4. */
+.vc-pal-back { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-start; justify-content: center; padding-top: 10vh; background: rgba(0, 0, 0, .45); }
+.vc-pal { box-sizing: border-box; display: flex; flex-direction: column; width: min(640px, calc(100% - 24px)); max-height: 70vh; border: 1px solid var(--vc-edge); border-radius: var(--vc-radius); background: var(--vc-card); color: var(--vc-text); }
+.vc-pal-input { flex: none; padding: var(--vc-pad); border: 0; border-bottom: 1px solid var(--vc-line); background: transparent; color: inherit; font: inherit; outline: none; }
+.vc-pal-scopes { flex: none; display: flex; gap: 4px; padding: 6px var(--vc-pad); border-bottom: 1px solid var(--vc-line); }
+.vc-pal-scopes button { padding: 2px 8px; border: 0; border-radius: var(--vc-radius); background: transparent; color: var(--vc-muted); font: inherit; cursor: pointer; }
+.vc-pal-scopes button[data-on] { background: var(--vc-control); color: var(--vc-text); }
+.vc-pal-list { flex: 1; min-height: 0; overflow-y: auto; }
+.vc-pal-group { padding: 6px var(--vc-pad) 2px; color: var(--vc-faint); font-size: 11px; text-transform: uppercase; }
+.vc-pal-row { display: flex; align-items: center; gap: 8px; padding: 5px var(--vc-pad); cursor: pointer; }
+.vc-pal-row[aria-selected=true] { background: var(--vc-control); }
+.vc-pal-dot { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; color: #fff; font-size: 9px; font-weight: 600; }
+.vc-pal-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vc-pal-meta, .vc-pal-branch, .vc-pal-end { flex: none; color: var(--vc-muted); font-size: 12px; }
+.vc-pal-end { margin-left: auto; }
+.vc-pal-empty { margin: 0; padding: var(--vc-pad); color: var(--vc-muted); }
+.vc-pal-keys { flex: none; padding: 6px var(--vc-pad); border-top: 1px solid var(--vc-line); color: var(--vc-faint); font-size: 11px; }

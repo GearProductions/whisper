@@ -6,7 +6,7 @@
  *  branche principale) et, avec des modifications (stash et unload-pr
  *  montrés) et une PR suivie, « Rester sur la branche » (ne plus la suivre,
  *  set({ pr: null }), sans git) ; son worktree s'il existe (en création,
- *  ouvert → aller à son robot, ou le proposer à nouveau). Sans PR chargée, les
+ *  ouvert → aller à son agent, ou le proposer à nouveau). Sans PR chargée, les
  *  mêmes choix de lieu (revenir sur la base, mettre de côté). Quatre onglets :
  *  Mes PR, À relire, Toutes les PR (view.prs, demandées à gh à l'ouverture :
  *  set({ prs: true }) ; false : gh en échec) — un clic suit la PR et la charge (set({ pr }),
@@ -18,7 +18,10 @@
  *  navigateur (icône external, l'adresse en infobulle). Dans un worktree (view.child), Actualiser et Retirer le
  *  worktree seulement : il reste sur sa branche. Créer une branche : son nom, son
  *  départ (origin/<base>, par défaut : sans start, ou une branche locale), Créer ici
- *  (new-here) ou Dans un nouveau worktree (new-worktree), { branch, start? }.
+ *  (new-here) ou Nouveau worktree → nouvel agent (new-worktree), { branch, start? }.
+ *  Intitulés de la vue C : Basculer ici (pr-here), + Agent dans un worktree
+ *  (pr-worktree), Aller à l'agent → (le worktree ouvert), Créer ici ; les
+ *  actions, elles, ne changent pas.
  *  Toutes ces actions sont directes (F-114, { direct: true }), grisées avec
  *  leur raison, absentes si le relevé les masque ; le principal revérifie.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
@@ -52,7 +55,10 @@ const fr = {
   stayTitle: 'Ne plus suivre cette PR sans changer de branche : le dossier garde ses modifications',
   wtCreating: 'Création du worktree en cours…',
   wtOpen: 'Ouverte dans un worktree',
-  goRobot: (n: number) => `Aller au robot PR #${n}`,
+  goRobot: 'Aller à l\'agent →',
+  placeLabels: { 'pr-here': 'Basculer ici', 'pr-worktree': '+ Agent dans un worktree' } as Record<string, string>,
+  newHere: 'Créer ici',
+  newWorktree: 'Nouveau worktree → nouvel agent',
   addRobot: (n: number) => `Ajouter le robot PR #${n}`,
   addRobotTitle: 'Le worktree est là sans son robot : le proposer à nouveau (question de confiance)',
   create: 'Créer une branche',
@@ -80,7 +86,10 @@ const S: Record<VibeLang, typeof fr> = {
     stayTitle: 'Stop following this PR without switching branch: the folder keeps its changes',
     wtCreating: 'Creating the worktree…',
     wtOpen: 'Open in a worktree',
-    goRobot: (n) => `Go to the PR #${n} robot`,
+    goRobot: 'Go to the agent →',
+    placeLabels: { 'pr-here': 'Switch here', 'pr-worktree': '+ Agent in a worktree' },
+    newHere: 'Create here',
+    newWorktree: 'New worktree → new agent',
     addRobot: (n) => `Add the PR #${n} robot`,
     addRobotTitle: 'The worktree is there without its robot: offer it again (trust question)',
     create: 'Create a branch',
@@ -141,13 +150,13 @@ export function BranchesView({ view, t, act, busy }: Props) {
       ) : null}
       {!wt?.temp && (places.length || (pr && wt)) ? (
         <div className="vc-pr-worktree">
-          {places.map((a) => <Run key={a.id} a={a} busy={busy} onRun={() => run(a.id)} />)}
+          {places.map((a) => <Run key={a.id} a={a} label={s.placeLabels[a.id]} busy={busy} onRun={() => run(a.id)} />)}
           {pr && shown('unload-pr') && shown('stash') ? <button type="button" className="vc-mini" title={s.stayTitle} onClick={() => act.set({ pr: null })}>{s.stay}</button> : null}
           {!pr || !wt ? null : wt.state === 'creating' ? <span className="vc-pr-hint">{s.wtCreating}</span> : (
             <>
               <span className="vc-pr-hint" title={wt.dir}>{s.wtOpen}</span>
               <button type="button" className="vc-mini" title={wt.state === 'robot' ? wt.dir : s.addRobotTitle}
-                onClick={() => act.set({ worktree: true })}>{wt.state === 'robot' ? s.goRobot(pr.number) : s.addRobot(pr.number)}</button>
+                onClick={() => act.set({ worktree: true })}>{wt.state === 'robot' ? s.goRobot : s.addRobot(pr.number)}</button>
             </>
           )}
         </div>
@@ -218,8 +227,8 @@ export function BranchesView({ view, t, act, busy }: Props) {
           <option value="">{origin || '—'}</option>
           {branches.map((b) => <option key={b} value={b}>{b}</option>)}
         </select>
-        <Run a={named('new-here')} busy={busy} onRun={() => create('new-here')} />
-        <Run a={named('new-worktree')} busy={busy} onRun={() => create('new-worktree')} />
+        <Run a={named('new-here')} label={s.newHere} busy={busy} onRun={() => create('new-here')} />
+        <Run a={named('new-worktree')} label={s.newWorktree} busy={busy} onRun={() => create('new-worktree')} />
       </div>
     </>
   );
