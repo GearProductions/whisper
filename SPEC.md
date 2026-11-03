@@ -1354,7 +1354,17 @@ créateur ; le relecteur, F-101) :
    n'est créé sans ce clic (l'agent ne crée plus la branche) ; validée, la
    branche est créée, puis la note s'écrit. Sur une autre branche, la note
    ne propose jamais de nouvelle branche.
-2. **Forme** — faite : au moins un module dans la rubrique « Forme », validée.
+2. **Forme** — faite : au moins un module dans la rubrique « Forme », validée,
+   et la note sans changement pas commité depuis qu'un commit de la branche la
+   porte. Commitée puis modifiée (la note ou sa Forme, à la main ou par
+   l'agent) : l'étape n'est plus faite (« note modifiée depuis son commit »
+   dans ses faits) ; note et forme revalidées, sa prochaine action est
+   *Préparer le commit* (le skill `commit-preparer` : avant la PR, un fixup
+   du commit qui porte la note, le premier, message `fixup! <son sujet>`
+   seul ; la PR ouverte, un nouveau commit qui dit pourquoi), puis *✓
+   Commiter* ; la carte du commit proposé (commit.md) est aussi dans cette
+   étape, ses actions hors de l'en-tête. Une note jamais commitée qui change :
+   rien (elle part avec le premier commit).
    Montre, en **vue IDE** (la seule), l'arborescence des modules à gauche,
    par dossier (`src/` de tête ignoré), chacun avec son numéro (son rang dans
    la Forme, l'ordre où les générer) et le nom coloré comme dans la vue IDE de

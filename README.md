@@ -574,7 +574,13 @@ relire une PR (le relecteur, plus bas) :
    l'arborescence des modules, à droite le module choisi, son contrat
    (*Structure*) ou son code en diff depuis la base de la branche (*Code* :
    tout en vert pour un module neuf). Sans Forme, l'arborescence montre les
-   fichiers que change la branche.
+   fichiers que change la branche. La note (ou sa Forme) modifiée après avoir
+   été commitée, par vous ou par l'agent : l'étape revient « en cours », avec
+   « note modifiée depuis son commit » ; une fois la note et la forme
+   revalidées, *Préparer le commit* en fait un fixup du premier commit
+   (`fixup! <son sujet>`, affiché dans la carte du commit proposé), puis
+   *✓ Commiter* ; *Replier les fixups*, à la Revue, le fond dans son commit.
+   La PR déjà ouverte : un nouveau commit qui dit pourquoi, pas de fixup.
 3. **Invariants** : *Écrire les invariants (rouges), puis vérifier
    l'alignement*, d'après la note ou d'après le pseudo-code écrit dans le
    champ de l'étape — dans la même action, l'agent vérifie que note, forme
