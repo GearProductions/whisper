@@ -1,19 +1,8 @@
 // Invariants des réglages. Protégés : si un test échoue, corriger le code.
-//   I-8  : aucun agent sélectionné au lancement (une dictée ne part pas chez
-//          Claude parce qu'un robot l'était la veille).
+// (I-8 retiré en 0.14.0 avec l'icône : l'agent sélectionné est l'agent affiché.)
 //   I-23 : un dossier jamais choisi passe par la question de confiance.
 import { describe, expect, it } from 'vitest';
-import { needsTrust, startupPatch, withDefaults } from 'core/config';
-
-describe('au lancement (I-8)', () => {
-  it('l’agent sélectionné la veille est oublié', () => {
-    const cfg = withDefaults({ agentsEnabled: true, agentSelected: 'a1', agents: [{ id: 'a1', dir: '/p' }] });
-    expect({ ...cfg, ...startupPatch(cfg) }.agentSelected).toBeNull();
-  });
-  it('rien à changer sans agent sélectionné', () => {
-    expect(startupPatch(withDefaults({}))).toBeNull();
-  });
-});
+import { needsTrust, withDefaults } from 'core/config';
 
 describe('confiance d’un dossier (I-23)', () => {
   const cfg = withDefaults({ agentFolders: [{ dir: '/connu', color: '#22c55e' }, '/ancien-format'], agents: [{ id: 'a', dir: '/avec-agent' }] });

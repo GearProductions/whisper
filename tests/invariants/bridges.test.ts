@@ -1,5 +1,8 @@
-// Invariants des ponts (SPEC I-3, I-20) : chaque page n'a que ses canaux, et le
-// principal n'écoute une fenêtre que sur les siens, en contrôlant l'expéditeur.
+// Invariants des ponts (SPEC I-20) : la page n'a que ses canaux, et le
+// principal n'écoute la fenêtre que sur les siens, en contrôlant l'expéditeur.
+// 0.14.0 : une seule fenêtre, le panneau de VibeCoder (l'icône, la bulle et
+// leurs ponts retirés) ; Copier et conv:copy partis avec le contexte Dictée,
+// I-3 réduit gardé par src/main/app/controllers/tests/invariants/page-text.test.ts.
 // Protégé : si ce test échoue, corriger le code. Un canal ajouté se décide
 // (SPEC.md, note du ticket) avant d'entrer dans ces listes.
 //
@@ -8,7 +11,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { BUBBLE_CHANNELS, ICON_CHANNELS, PANEL_CHANNELS } from '../../src/shared/bridge/channels';
+import { PANEL_CHANNELS } from '../../src/shared/bridge/channels';
 
 // Un faux `electron` pour les ponts : relève le nom exposé et les canaux empruntés.
 const fake = vi.hoisted(() => ({
@@ -38,26 +41,16 @@ async function bridge(file: string) {
 }
 const sorted = (l: readonly string[]) => [...l].sort();
 
-describe('ponts des pages', () => {
-  it.each([
-    ['icon', 'api', ICON_CHANNELS, /^(win|config|dictation|menu|tts|agent|agents):/],
-    ['bubble', 'bubble', BUBBLE_CHANNELS, /^bubble:/],
-    ['panel', 'conv', PANEL_CHANNELS, /^conv:/],
-  ] as const)('%s : ses canaux, et seulement eux', async (file, name, channels, prefix) => {
-    const b = await bridge(file);
-    expect(b.name).toBe(name);
-    expect(b.send).toEqual(sorted(channels.send));
-    expect(b.invoke).toEqual(sorted(channels.invoke));
-    expect(b.events).toEqual(sorted(channels.events));
-    for (const ch of [...b.send, ...b.invoke, ...b.events]) expect(ch).toMatch(prefix);
-  });
+describe('pont du panneau', () => {
+  it('le panneau : ses canaux, et seulement eux', async () => {
+    const b = await bridge('panel');
 
-  it('Copier ne transporte aucun texte : le principal copie le sien (I-3)', async () => {
-    vi.resetModules();
-    await import('../../src/preload/panel');
-    fake.used = [];
-    fake.exposed.conv.copy('texte de la page');
-    expect(fake.used).toEqual([['invoke', 'conv:copy', []]]);
+    // Le pont s'expose sous le nom attendu par la page.
+    expect(b.name).toBe('conv');
+    // Il n'emprunte que les canaux du panneau, et tous.
+    expect(b.send).toEqual(sorted(PANEL_CHANNELS.send));
+    expect(b.invoke).toEqual(sorted(PANEL_CHANNELS.invoke));
+    expect(b.events).toEqual(sorted(PANEL_CHANNELS.events));
   });
 });
 
@@ -77,9 +70,12 @@ describe('principal : contrôle de l’expéditeur', () => {
     expect(outside.map(([p]) => p)).toEqual([]);
   });
 
-  it('chaque fenêtre est écoutée sur ses propres canaux', () => {
+  it('seul le panneau est écouté, sur ses propres canaux', () => {
     const listen = sources(MAIN).map(([, s]) => s).join('\n');
+
     const calls = [...listen.matchAll(/listenFrom\(\s*\w+,\s*\(\)\s*=>\s*state\.(\w+),\s*(\w+_CHANNELS)/g)].map((m) => `${m[1]}:${m[2]}`).sort();
-    expect(calls).toEqual(['bubble:BUBBLE_CHANNELS', 'icon:ICON_CHANNELS', 'panel:PANEL_CHANNELS']);
+
+    // Une seule écoute : la fenêtre du panneau, sur les canaux du panneau.
+    expect(calls).toEqual(['panel:PANEL_CHANNELS']);
   });
 });
