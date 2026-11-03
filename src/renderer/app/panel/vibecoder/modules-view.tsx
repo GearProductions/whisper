@@ -1,6 +1,5 @@
 /** modules-view — l'étape Modules (Créer). En tête, le commit proposé
- *  (commit.md : le message tel qu'il sera commité ; ✓ Commiter, direct ou
- *  via l'agent, F-114 ; IconButton comment le cite, Relancer)
+ *  (ProposedCommit : commit.md, ✓ Commiter, Relancer ; ses actions hors de l'en-tête)
  *  et la relecture du dernier diff (review.md, citer par bloc, Relancer). Puis une ligne par
  *  module de la Forme, un accordéon : point plein s'il est touché (vert :
  *  commité ; accent : modifié, pas encore commité), anneau sinon ; son numéro
@@ -44,17 +43,15 @@ import { fileParts, ideFiles, moduleCommits, moduleState, type IdeFile, type Mod
 import type { VibeLang, VibeModule } from 'technicals/bridge';
 import { CommitsSection } from './commits-view';
 import { Contract } from './forme-view';
-import { IconButton } from './icons';
 import { IdeView } from './ide-view';
 import { MarkdownView } from './markdown-view';
 import { ModuleCode } from './module-code';
+import { PROPOSED_ACTS, ProposedCommit } from './proposed-commit';
 import { Invite, OutputCard, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
 import './modules-view.css';
 
 const fr = {
-  commitHint: 'Les fichiers indexés, avec ce message, mot pour mot.',
-  quoteCommit: 'Citer le message dans le champ',
   modules: 'Modules de la Forme',
   state: { done: 'commité', wip: 'en cours', todo: 'à faire' } as Record<ModuleState, string>,
   stateTitle: { done: 'Commité sur la branche', wip: 'Modifié, pas encore commité', todo: 'Pas encore touché par la branche' } as Record<ModuleState, string>,
@@ -74,8 +71,6 @@ const fr = {
 const S: Record<VibeLang, typeof fr> = {
   fr,
   en: {
-    commitHint: 'The staged files, with this message, word for word.',
-    quoteCommit: 'Quote the message in the field',
     modules: 'Modules of the Shape',
     state: { done: 'committed', wip: 'in progress', todo: 'to do' },
     stateTitle: { done: 'Committed on the branch', wip: 'Changed, not committed yet', todo: 'Not touched by the branch yet' },
@@ -175,22 +170,8 @@ export function ModulesView(p: StepProps) {
     <>
       <StepHead p={p} own={reviewer
         ? ['review-commits']
-        : [...(commit ? ['commit', 'commit-prepare'] : []), 'review-diff', 'commit-modules', 'module', 'commit-module', ...(hasModules ? CARD_ACTS : [])]} />
-      {commit ? (
-        <OutputCard className="vc-proposed" title={t.outputs['commit.md']} file="commit.md" time={commit.time} t={t}
-          tools={(
-            <>
-              {quote ? <IconButton icon="comment" label={s.quoteCommit} onClick={() => quote(commit.text.trim().split('\n')[0])} /> : null}
-              <Run a={action('commit-prepare')} busy={busy} tone="ghost" label={t.rerun} onRun={() => act.run('commit-prepare')} />
-            </>
-          )}>
-          <pre className="vc-commit-msg">{commit.text.trim()}</pre>
-          <div className="vc-commit-foot">
-            <Run a={action('commit')} busy={busy} tone="accent" onRun={(x) => act.run('commit', x)} />
-            <span>{s.commitHint}</span>
-          </div>
-        </OutputCard>
-      ) : null}
+        : [...(commit ? PROPOSED_ACTS : []), 'review-diff', 'commit-modules', 'module', 'commit-module', ...(hasModules ? CARD_ACTS : [])]} />
+      <ProposedCommit p={p} />
       {review ? (
         <OutputCard className="vc-diff-review" title={t.outputs['review.md']} file="review.md" time={review.time} t={t}
           tools={<Run a={reviewDiff} busy={busy} tone="ghost" label={t.rerun} onRun={() => act.run('review-diff')} />}>
