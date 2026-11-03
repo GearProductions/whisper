@@ -69,7 +69,7 @@
     "needs": "none",
     "reads": true,
     "label": "Préparer le commit",
-    "hint": "Choisit et indexe les fichiers du prochain commit et propose son message, affiché ici avant de commiter.",
+    "hint": "Choisit et indexe les fichiers du prochain commit et propose son message, affiché ici avant de commiter ; avant la PR, un fichier déjà commité (la note, la forme, un module) fait un fixup de son commit.",
     "text": "/vibecoder:commit-preparer {{lang}} {{out}}"
   },
   {
@@ -93,33 +93,13 @@
     "text": "/vibecoder:module {{lang}} {{out}} {{module}}"
   },
   {
-    "id": "commit-module",
-    "flow": "create",
-    "step": "modules",
-    "kind": "send",
-    "needs": "none",
-    "label": "Commiter ce module",
-    "hint": "Commite les changements du module choisi : un commit selon la convention du projet, ou un fixup s'il est déjà commité.",
-    "text": "/vibecoder:commiter-modules {{lang}} {{out}} {{module}}"
-  },
-  {
-    "id": "next",
-    "flow": "create",
-    "step": "modules",
-    "kind": "send",
-    "needs": "none",
-    "label": "✓ Valider → commit → suivant",
-    "hint": "Commite le module relu, puis lance Générer ce module sur le suivant, dans une seconde course.",
-    "text": "/vibecoder:suivant {{lang}} {{out}}"
-  },
-  {
     "id": "modules",
     "flow": "create",
     "step": "modules",
     "kind": "send",
     "needs": "none",
-    "label": "Générer les modules restants",
-    "hint": "L'agent confie les modules restants à des agents Sonnet en parallèle et relit chaque diff ; ne commite pas ; long et coûteux.",
+    "label": "Générer les modules",
+    "hint": "L'agent confie les modules pas encore générés à des agents Sonnet en parallèle, dans l'ordre de la Forme, et relit chaque diff ; ne commite pas : Commiter les modules ensuite ; long et coûteux.",
     "text": "/vibecoder:modules {{lang}} {{out}}"
   },
   {

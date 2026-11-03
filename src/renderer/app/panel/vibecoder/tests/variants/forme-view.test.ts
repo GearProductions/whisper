@@ -2,7 +2,7 @@
 // FormeView (forme-view.tsx), en vue IDE : l'arborescence liste les modules ; Structure montre le contrat,
 // Code montre ModuleCode ou « ne change pas ce module » ; les outils en IconButton (comment → act.prefill,
 // open → act.open), l'état « touché » avec Icon ok ; hors du code act.follow(null) ; sans note : l'Invite,
-// puis les fichiers de la branche.
+// puis les fichiers de la branche ; le commit proposé (ProposedCommit) sous l'en-tête.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it } from 'vitest';
@@ -95,4 +95,15 @@ it('sans note : l\'Invite, puis les fichiers de la branche et leur code', async 
   expect(calls).toContainEqual(['follow', 'f0']);
   await draw({ note: null, modules: [], files: [] } as never);
   expect(page.querySelector('.vc-ide')).toBeNull();
+});
+
+it('le commit proposé (un fixup de la note) : sa carte sous l\'en-tête, ✓ Commiter dans la carte, pas dans l\'en-tête ; aucune carte sans commit.md', async () => {
+  const actions = [{ id: 'commit', label: '✓ Commiter' }, { id: 'commit-prepare', label: 'Préparer le commit' }]
+    .map((a) => ({ hidden: false, who: '', hint: '', primary: false, step: 'modules', models: [], kind: 'send', ...a }));
+  await draw({ actions, outputs: { 'commit.md': { text: 'fixup! 0.13.0 : note\n', time: 1 } } } as unknown as Partial<VibeView>);
+  expect(page.querySelector('.vc-proposed .vc-commit-msg')?.textContent).toBe('fixup! 0.13.0 : note');
+  expect(page.querySelector('.vc-proposed .vc-commit-foot .vc-run-label')?.textContent).toBe('✓ Commiter');
+  expect(page.querySelector('.vc-step-acts')).toBeNull();
+  await draw({ actions } as unknown as Partial<VibeView>);
+  expect(page.querySelector('.vc-proposed')).toBeNull();
 });

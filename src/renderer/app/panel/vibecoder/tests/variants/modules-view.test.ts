@@ -99,7 +99,7 @@ it('relecteur : ni commit.md, review.md, Générer, Commiter, Enregistrer ; l\'e
 // fichier, à droite les outils du module du fichier choisi ; l'interrupteur envoie act.set({ modulesView }).
 const sets: unknown[] = [];
 const drawView = (extra: Record<string, unknown>, modules: unknown[]) => act(() => {
-  const actions = ['module', 'review-diff', 'commit-module'].map((id) => ({ id, hidden: false, who: '', hint: '', label: id }));
+  const actions = ['module', 'review-diff'].map((id) => ({ id, hidden: false, who: '', hint: '', label: id }));
   const view = { lang: 'fr', flow: 'create', actions, commits: [], outputs: {}, modules, ...extra } as unknown as VibeView;
   const props = { view, step: { id: 'modules', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
     code: null, drafts: [{}, () => {}], act: { run: async () => true, prefill: () => {}, open: () => {}, openLink: () => {},
@@ -125,7 +125,7 @@ it('vue IDE : arborescence aux noms colorés, outils du module du fichier choisi
   expect(side.textContent).toContain('a.ts');
   expect(side.textContent).toContain('autre');
   expect(side.querySelector('[data-mark="todo"]')?.textContent).toContain('autre');   // pas touché : à générer
-  expect([...page.querySelectorAll('.vc-ide-main .vc-mod-acts button')].map((b) => b.textContent)).toEqual(['Générer', 'Commiter', 'Relire le diff', 'Ouvrir']);
+  expect([...page.querySelectorAll('.vc-ide-main .vc-mod-acts button')].map((b) => b.textContent)).toEqual(['Générer', 'Relire le diff', 'Ouvrir']);
   expect(page.querySelector('.vc-ide-main .vc-mod-head > .vc-mod-acts')).not.toBeNull();   // sur la ligne du sélecteur
   expect(followed).toEqual(['src/touche/0']);
   // le fichier d'un module pas touché : ses outils seuls (Générer, Ouvrir), plus aucun fichier suivi
@@ -161,9 +161,9 @@ it('le numéro d\'ordre de chaque module, celui de la Forme, en liste comme en v
   expect(page.querySelector('.vc-tree-rank')).toBeNull();
 });
 
-it('créateur : l\'en-tête vide, les actions de l\'étape dans la carte des modules ; Générer ce module, Commiter ce module et Relire le diff sur les lignes ; Générer, mis en avant sur le premier module pas touché quand c\'est la prochaine action ; Commiter sur la ligne d\'un module pas commité', async () => {
-  const actions = [{ id: 'module', primary: true, label: 'Générer ce module' }, { id: 'commit-module', label: 'Commiter ce module' }, { id: 'commit-modules', label: 'Commiter les modules' }, { id: 'review-diff', label: 'Relire le diff' },
-    { id: 'next', label: 'Valider → commit → suivant' }, { id: 'commit-prepare', label: 'Préparer le commit' }, { id: 'modules', label: 'Générer les modules restants' }]
+it('créateur : l\'en-tête vide ; dans la carte, Générer les modules et Commiter les modules (un module pas commité) ; sur chaque ligne, Générer seul, sans Commiter', async () => {
+  const actions = [{ id: 'module', label: 'Générer ce module' }, { id: 'commit-modules', label: 'Commiter les modules' }, { id: 'review-diff', label: 'Relire le diff' },
+    { id: 'commit-prepare', label: 'Préparer le commit' }, { id: 'modules', primary: true, label: 'Générer les modules' }]
     .map((a) => ({ hidden: false, who: '', hint: '', primary: false, step: 'modules', ...a }));
   await act(() => root.render(null));   // tout replié
   await act(() => {
@@ -172,14 +172,9 @@ it('créateur : l\'en-tête vide, les actions de l\'étape dans la carte des mod
       code: null, drafts: [{}, () => {}], act: { run: async () => true, prefill: () => {}, open: () => {}, openLink: () => {}, follow: () => {}, save: async () => true } } as unknown as StepProps;
     root.render(createElement(ModulesView, props));
   });
-  expect([...page.querySelectorAll('.vc-step-acts button')].map((b) => b.textContent)).not.toContain('Générer ce module');
-  expect([...page.querySelectorAll('.vc-step-acts button')].map((b) => b.textContent)).not.toContain('Commiter ce module');
-  expect(page.querySelectorAll('.vc-step-acts button')).toHaveLength(0);   // tout est dans la carte
-  expect([...page.querySelectorAll('.vc-card-acts .vc-run-label')].map((b) => b.textContent))
-    .toEqual(['Valider → commit → suivant', 'Préparer le commit', 'Générer les modules restants', 'Commiter les modules']);
-  const line = (i: number) => [...page.querySelectorAll('.vc-mod')[i].querySelectorAll('summary .vc-mod-acts button')];
-  expect(line(0).map((b) => b.textContent)).toEqual(['Générer', 'Commiter']);
-  expect(line(1).map((b) => b.textContent)).toEqual(['Générer']);
-  expect(line(0)[0].hasAttribute('data-next')).toBe(false);
-  expect(line(1)[0].hasAttribute('data-next')).toBe(true);
+  expect(page.querySelectorAll('.vc-step-acts button')).toHaveLength(0);   // ni Générer ce module, ni Préparer le commit, ni Relire le diff
+  expect([...page.querySelectorAll('.vc-card-acts .vc-run-label')].map((b) => b.textContent)).toEqual(['Générer les modules', 'Commiter les modules']);
+  expect(page.querySelector('.vc-card-acts .vc-run')!.getAttribute('data-tone')).toBe('accent');   // la prochaine action
+  const line = (i: number) => [...page.querySelectorAll('.vc-mod')[i].querySelectorAll('summary .vc-mod-acts button')].map((b) => b.textContent);
+  expect([line(0), line(1)]).toEqual([['Générer'], ['Générer']]);   // pas de Commiter, même pas commité
 });

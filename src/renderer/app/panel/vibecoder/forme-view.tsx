@@ -8,7 +8,8 @@
  *  pour un module nouveau, seulement ce que la branche ajoute ou change pour un existant ; readOnly en
  *  relecteur), ou « la branche ne change pas ce module » s'il n'a pas de code. Hors du code (Structure,
  *  ou rien à montrer), act.follow(null) : le principal cesse de suivre un fichier.
- *  En tête : la validation de la forme, la pastille Fable. Sans note, ou sans Forme : l'Invite de ce qu'il
+ *  En tête : la validation de la forme, la pastille Fable ; dessous, le commit proposé s'il y en a un
+ *  (ProposedCommit : la note ou la Forme changée depuis son commit, Préparer le commit en fait un fixup). Sans note, ou sans Forme : l'Invite de ce qu'il
  *  faut faire, puis, s'il y en a, les fichiers que la branche change (chacun un module d'un seul fichier,
  *  son code à droite).
  *  Relecteur (view.flow === 'review') : rien à juger ni à générer — ni validation, ni Fable, ni « Poser la
@@ -23,6 +24,7 @@ import { CommentBox } from './comment-box';
 import { InlineMd } from './markdown-view';
 import { IdeView } from './ide-view';
 import { ModuleCode } from './module-code';
+import { PROPOSED_ACTS, ProposedCommit } from './proposed-commit';
 import { Invite, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
 import { FablePill, MarkControl } from './validation';
@@ -89,9 +91,10 @@ export function FormeView(p: StepProps) {
   );
   return (
     <>
-      <StepHead p={p} own={note && !modules.length ? ['forme'] : []}>
+      <StepHead p={p} own={[...(note && !modules.length ? ['forme'] : []), ...(view.outputs['commit.md'] ? PROPOSED_ACTS : [])]}>
         {!review && view.agent.model !== 'fable' ? <FablePill lang={view.lang} onPick={() => act.set({ model: 'fable', effort: 'high' })} /> : null}
       </StepHead>
+      <ProposedCommit p={p} />
       {!note || !modules.length ? (
         <>
           <Invite title={note ? (review ? s.noFormeReview : s.noForme) : s.noNote} text={note ? (review ? s.noFormeReviewText : s.noFormeText) : s.noNoteText}>

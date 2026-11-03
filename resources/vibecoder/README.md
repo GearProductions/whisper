@@ -250,8 +250,7 @@ sinon.
 | `invariants` | sous-contexte | opus · high | `align.md` (suit `aligner`) |
 | `lire-invariants` | sous-contexte | sonnet · medium | `invariants/<blob>.md` |
 | `aligner` | sous-contexte | opus · high | `align.md` |
-| `module` | sous-contexte | sonnet · high | — |
-| `suivant` | sous-contexte | sonnet · medium | `actions/module.start` (commite comme `commiter-modules`, puis, le commit fait, demande *Générer ce module* dans une seconde course) |
+| `module` | sous-contexte | sonnet · high | `actions/review-diff.start` (le module écrit, sauf lancé par `modules`) |
 | `modules` | conversation | opus · high, sous-agents `developpeur` sonnet · high (opus au second échec) | — (ne commite pas) |
 | `commiter-modules` | sous-contexte | sonnet · medium | — (un module, ou tous ceux qui ont des changements : un commit chacun, un fixup pour un module déjà commité) |
 | `relire` | sous-contexte | opus · high | `review.md` |

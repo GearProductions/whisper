@@ -16,7 +16,6 @@ const ACTIONS: ActionDef[] = [
   A('commit', 'create', 'modules', '/vibecoder:commit {{lang}} {{out}}'),
   A('commit-modules', 'create', 'modules', '/vibecoder:commiter-modules {{lang}} {{out}}'),
   A('module', 'create', 'modules', '/vibecoder:module {{lang}} {{out}} {{module}}'),
-  A('next', 'create', 'modules', '/vibecoder:suivant {{lang}} {{out}} {{module}}'),
   A('modules', 'create', 'modules', '/vibecoder:modules {{lang}} {{out}}'),
   { ...A('checks', 'create', 'revue', '/vibecoder:verifier {{lang}} {{out}}'), reads: true },
   { ...A('ponytail', 'create', 'revue', '/vibecoder:ponytail {{lang}} {{out}}'), reads: true },
@@ -207,20 +206,35 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
     expect(status(vibeView(ready({ marks: NOTE_OK }))).invariants).toBe('current');
   });
 
-  it('invariants validés et commités, aucun module touché : Générer ce module', () => {
+  it('la note commitée puis modifiée : la Forme n\'est plus faite, Préparer le commit (puis ✓ Commiter) la fait avancer, dit pourquoi', () => {
+    const changed = { ...repo([], [FIRST, HELLO]), dirty: [NOTE_PATH] };
+    const v = vibeView(ready({ repo: changed }));
+    expect([status(v).forme, primary(v)]).toEqual(['current', 'commit-prepare']);
+    expect(v.steps.find((st) => st.id === 'forme')?.facts).toContain('note modifiée depuis son commit');
+    expect(primary(vibeView(ready({ repo: changed, outputs: { 'commit.md': out('fixup! x') } })))).toBe('commit');
+    // la note revalidée d'abord : sans sa validation, la Note est l'étape en cours, sans action
+    expect(status(vibeView(ready({ repo: changed, marks: CASES_OK }))).note).toBe('current');
+  });
+
+  it('la note jamais commitée, modifiée : rien ne change (elle part avec le premier commit)', () => {
+    const v = vibeView(ready({ repo: { ...repo([NOTE_PATH]), dirty: [NOTE_PATH] } }));
+    expect(status(v).forme).toBe('done');
+  });
+
+  it('invariants validés et commités, aucun module touché : Générer les modules', () => {
     const v = vibeView(ready());
-    expect([status(v).modules, primary(v)]).toEqual(['current', 'module']);
+    expect([status(v).modules, primary(v)]).toEqual(['current', 'modules']);
   });
 
-  it('un module modifié, pas commité, un autre reste : Valider → commit → suivant', () => {
-    expect(primary(vibeView(ready({ repo: repo(['src/core/hello.ts'], [FIRST]) })))).toBe('next');
+  it('un module généré (un à un), pas commité, un autre reste : toujours Générer les modules ; on commite à la fin', () => {
+    expect(primary(vibeView(ready({ repo: repo(['src/core/hello.ts'], [FIRST]) })))).toBe('modules');
   });
 
-  it('Préparer le commit, masqué sans rien à commiter ; Valider → commit → suivant, sans module pas commité ou sans suivant ; Générer les modules restants, sans module pas touché', () => {
-    const hidden = (v: VibeView) => ['commit-prepare', 'next', 'modules'].map((id) => v.actions.find((a) => a.id === id)!.hidden);
-    expect(hidden(vibeView(ready()))).toEqual([true, true, false]);                                                       // rien de changé
-    expect(hidden(vibeView(ready({ repo: repo(['src/core/hello.ts'], [FIRST]) })))).toEqual([false, false, false]);
-    expect(hidden(vibeView(ready({ repo: repo(['src/app/button.tsx'], [FIRST, HELLO]) })))).toEqual([false, true, true]); // plus de suivant
+  it('Préparer le commit, masqué sans rien à commiter ; Générer les modules, sans module pas touché', () => {
+    const hidden = (v: VibeView) => ['commit-prepare', 'modules'].map((id) => v.actions.find((a) => a.id === id)!.hidden);
+    expect(hidden(vibeView(ready()))).toEqual([true, false]);                                                       // rien de changé
+    expect(hidden(vibeView(ready({ repo: repo(['src/core/hello.ts'], [FIRST]) })))).toEqual([false, false]);
+    expect(hidden(vibeView(ready({ repo: repo(['src/app/button.tsx'], [FIRST, HELLO]) })))).toEqual([false, true]); // tous générés
   });
 
   it('le dernier module modifié, pas commité : Commiter les modules', () => {
@@ -426,7 +440,7 @@ describe('Relecteur : rien de ce qui édite, génère ou commite ; tout ce que f
     outputs: { 'pr-12.json': out(CARD) }, ...over,
   }));
   const shown = (v: VibeView) => v.actions.filter((a) => !a.hidden).map((a) => a.id);
-  const CREATE_ONLY = ['note', 'answers', 'forme', 'invariants', 'commit-prepare', 'commit', 'commit-modules', 'module', 'next', 'checks',
+  const CREATE_ONLY = ['note', 'answers', 'forme', 'invariants', 'commit-prepare', 'commit', 'commit-modules', 'module', 'checks',
     'ponytail', 'fixups', 'pr', 'ci', 'rc', 'base', 'release', 'vibe'];
 
   it('aucune action create au relevé ; rebase, push et copier dans le projet masquées', () => {

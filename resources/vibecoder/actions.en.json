@@ -69,7 +69,7 @@
     "needs": "none",
     "reads": true,
     "label": "Prepare the commit",
-    "hint": "Picks and stages the files of the next commit and proposes its message, shown here before committing.",
+    "hint": "Picks and stages the files of the next commit and proposes its message, shown here before committing; before the PR, a file already committed (the note, the forme, a module) makes a fixup of its commit.",
     "text": "/vibecoder:commit-preparer {{lang}} {{out}}"
   },
   {
@@ -93,33 +93,13 @@
     "text": "/vibecoder:module {{lang}} {{out}} {{module}}"
   },
   {
-    "id": "commit-module",
-    "flow": "create",
-    "step": "modules",
-    "kind": "send",
-    "needs": "none",
-    "label": "Commit this module",
-    "hint": "Commits the chosen module's changes: one commit following the project's convention, or a fixup if it is already committed.",
-    "text": "/vibecoder:commiter-modules {{lang}} {{out}} {{module}}"
-  },
-  {
-    "id": "next",
-    "flow": "create",
-    "step": "modules",
-    "kind": "send",
-    "needs": "none",
-    "label": "✓ Approve → commit → next",
-    "hint": "Commits the reviewed module, then starts Generate this module on the next one, in a second run.",
-    "text": "/vibecoder:suivant {{lang}} {{out}}"
-  },
-  {
     "id": "modules",
     "flow": "create",
     "step": "modules",
     "kind": "send",
     "needs": "none",
-    "label": "Generate the remaining modules",
-    "hint": "The agent hands the remaining modules to Sonnet agents in parallel and reviews each diff; does not commit; long and costly.",
+    "label": "Generate the modules",
+    "hint": "The agent hands the modules not generated yet to parallel Sonnet agents, in the Forme's order, and reviews each diff; does not commit: Commit the modules afterwards; long and costly.",
     "text": "/vibecoder:modules {{lang}} {{out}}"
   },
   {
