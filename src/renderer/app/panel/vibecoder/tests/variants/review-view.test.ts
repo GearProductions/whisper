@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 // ReviewView (review-view.tsx), finitions : Relancer une vérification → IconButton refresh (libellé en title et
 // aria-label), même action (checks, son rang), même état grisé, son clic ne replie pas le détail ; une remarque
-// appliquée et le bandeau « Appliquée » → Icon ok (plus de ✓ en texte) ; Appliquer garde son texte.
+// appliquée et le bandeau « Appliquée » → Icon ok (plus de ✓ en texte) ; Appliquer garde son texte ; les cases des
+// remarques et Appliquer la sélection.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it } from 'vitest';
@@ -61,6 +62,27 @@ it('une remarque appliquée : Icon ok nommée ; Appliquer garde son texte ; tout
   const banner = page.querySelector('.vc-applied-banner')!;
   expect(banner.querySelector('svg')).not.toBeNull();
   expect(banner.textContent).toBe('Appliquée');
+});
+
+it('les cases : cochées par défaut (Tout appliquer, sans texte) ; une décochée → Appliquer la sélection (n), les cochées seules ; aucune → grisé ; pas de case sur une appliquée', async () => {
+  const md = '- a.ts:L1 faite\n- b.ts:L2 deux\n- c.ts:L3 trois';
+  await draw(md, ['a.ts:L1']);
+  const boxes = () => [...page.querySelectorAll<HTMLInputElement>('.vc-remark-pick')];
+  const applyBtn = () => [...page.querySelectorAll<HTMLButtonElement>('.vc-card-end button.vc-run')].find((b) => /appliquer/i.test(b.textContent ?? ''))!;
+  expect(boxes().map((b) => b.checked)).toEqual([true, true]);   // la remarque appliquée n'a pas de case
+  expect(applyBtn().textContent).toContain('Tout appliquer');
+  await act(() => { applyBtn().click(); });
+  expect(runs.at(-1)).toEqual(['apply', { text: '' }]);
+  await act(() => { boxes()[1].click(); });
+  expect(applyBtn().textContent).toContain('Appliquer la sélection (1)');
+  await act(() => { applyBtn().click(); });
+  expect(runs.at(-1)).toEqual(['apply', { text: '- b.ts:L2 deux' }]);
+  await act(() => { boxes()[0].click(); });
+  expect(applyBtn().disabled).toBe(true);
+  // une nouvelle review : tout recoché
+  await act(() => { root.render(null); });
+  await draw(md, []);
+  expect(boxes().every((b) => b.checked)).toBe(true);
 });
 
 it('Relire à l\'écran : sous la Revue du créateur ; seule chez le relecteur, sans vérification ni Appliquer', async () => {
