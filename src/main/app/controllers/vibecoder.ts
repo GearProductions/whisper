@@ -445,7 +445,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const branches = gitState?.branches ?? null;
   const sync = facts ? gitState?.sync ?? null : null;
   const github = { pr: found, state, prs: prsFound.get(agent.id) ?? null };
-  const repo = facts && { branch: (role === 'review' && followed && branchName(card?.head)) || facts.branch, base: facts.base, changed: facts.changed, dirty: facts.dirty, commits: facts.commits };
+  const repo = facts && { branch: (role === 'review' && followed && branchName(card?.head)) || facts.branch, base: facts.base, changed: facts.changed, dirty: facts.dirty, added: facts.added, commits: facts.commits };
   // La note du ticket : sa clé d'après la branche (ticket, sinon version), parmi
   // les .md de docs/tickets/ que change la branche (ou la PR).
   const key = repo && noteKey(repo.branch, null);

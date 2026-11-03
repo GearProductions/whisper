@@ -25,6 +25,7 @@
 
 /* ---- Les modules -------------------------------------------------------------- */
 .vc-modules > .vc-card-body { padding: 4px 0; }
+.vc-modules > .vc-card-head { flex-wrap: wrap; row-gap: 4px; padding-top: 4px; }
 .vc-mod-list { list-style: none; margin: 0; padding: 0; }
 .vc-mod {
   --row: var(--vc-card);
@@ -46,6 +47,11 @@
 .vc-mod-line::-webkit-details-marker { display: none; }
 .vc-mod-line::before { content: "▸"; flex: none; color: var(--vc-muted); font-size: 11px; transition: transform 0.12s; }
 .vc-mod-main[open] > .vc-mod-line::before { transform: rotate(90deg); }
+/* Le numéro d'un module : son ordre de génération, celui de la Forme (liste et arborescence de la vue IDE). */
+.vc-mod-rank, .vc-tree-rank { flex: none; min-width: 1.4em; color: var(--vc-muted); font-size: 11px; font-variant-numeric: tabular-nums; text-align: right; }
+/* Dans l'arborescence, à la place du chevron (vide pour un fichier) : pas de retrait en plus. */
+.vc-tree-rank { min-width: 0; }
+.vc-tree-chevron:has(.vc-tree-rank) { width: auto; min-width: 12px; }
 .vc-mod-name { flex: none; color: var(--vc-text); font-size: 13px; font-weight: 600; }
 .vc-mod[data-state="todo"] .vc-mod-name { color: var(--vc-soft); }
 .vc-mod-dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--vc-faint); font-size: 12px; }
@@ -67,6 +73,7 @@
   transition: background-color 0.12s, border-color 0.12s;
 }
 .vc-mod-acts button:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--vc-control)); }
+.vc-mod-acts button[data-next]:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 28%, var(--vc-control)); color: var(--vc-text); }
 .vc-mod-acts button:disabled { border-style: dashed; background: var(--row); color: var(--vc-faint); cursor: default; }
 
 /* La légende, dans l'en-tête de la carte : combien de modules dans chaque état. */
@@ -78,5 +85,8 @@
 .vc-mod-tree .vc-mod-gone { margin-left: 6px; color: var(--vc-faint); font-style: italic; }
 
 /* La vue IDE : l'arborescence et le fichier choisi, dans le corps de la carte ; les outils du module au-dessus du code. */
-.vc-mod-ide { padding: var(--vc-pad); }
-.vc-ide-main > .vc-mod-acts { --row: var(--vc-card); margin-bottom: 8px; }
+.vc-mod-ide { padding: 4px 8px 8px; }
+.vc-ide-main .vc-mod-acts { --row: var(--vc-card); }
+.vc-ide-main > .vc-mod-acts { margin-bottom: 8px; }
+/* Avec du code : les boutons du module en tête de la rangée du sélecteur (Fichier / diff), sur la même ligne. */
+.vc-mod-head > .vc-mod-acts { margin-left: 0; }

@@ -89,7 +89,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Générer ce module",
-    "hint": "Implémente le module choisi selon la note et sa forme, avec ponytail, et lance les tests ; ne commite pas.",
+    "hint": "Implémente le module choisi selon la note et sa forme, avec ponytail, et lance les tests ; puis Relire le diff part seul, dans une seconde course ; ne commite pas.",
     "text": "/vibecoder:module {{lang}} {{out}} {{module}}"
   },
   {

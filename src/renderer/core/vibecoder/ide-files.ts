@@ -1,12 +1,17 @@
 /** ide-files — les lignes de la vue IDE des étapes Forme et Modules, sans le DOM : un fichier ou un module
- *  par ligne, son rang dans view.modules, l'état de son module (commité : done, touché : wip, sinon todo) et
- *  ce que ModuleCode en montre (un module, réduit à un fichier pour Modules ; null : rien à montrer).
+ *  par ligne, son rang dans view.modules, l'état de son module (commité : done, touché : wip, sinon todo), la
+ *  couleur de son nom comme VS Code (mark : nouveau, modifié, supprimé, pas commités ; todo : à générer ;
+ *  null : commité) et ce que ModuleCode en montre (un module, réduit à un fichier pour Modules ; null : rien à montrer).
  *  Sans module (la Forme n'est pas écrite), les lignes sont les fichiers de la branche, chacun un module
  *  d'un seul fichier (rank et state null).
  *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (forme-view, modules-view, ide-view). */
-import type { VibeModule, VibeView } from 'technicals/bridge';
+import type { VibeGit, VibeModule, VibeView } from 'technicals/bridge';
 
 export type ModuleState = 'done' | 'wip' | 'todo';
+export type FileMark = VibeGit | 'deleted' | 'todo';
+
+// La couleur d'un fichier de la branche : supprimé, sinon son état git (rien : commité).
+const markOf = (f: { deleted?: boolean; git?: VibeGit }): FileMark | null => (f.deleted ? 'deleted' : f.git ?? null);
 
 export const moduleState = (m: VibeModule): ModuleState => (m.commits.length ? 'done' : m.touched ? 'wip' : 'todo');
 
@@ -14,6 +19,7 @@ export type IdeFile = {
   path: string;
   rank: number | null;          // le rang dans view.modules ; null : un fichier de la branche
   state: ModuleState | null;
+  mark: FileMark | null;        // la couleur de son nom (FileMark) ; null : commité, comme le reste
   code: VibeModule | null;      // ce que ModuleCode montre ; null : rien à montrer
 };
 
@@ -26,13 +32,18 @@ export function ideFiles(view: Pick<VibeView, 'modules' | 'files'>, by: 'module'
       path: file.path,
       rank: null,
       state: null,
+      mark: markOf({ deleted, git: file.git }),
       code: { path: file.path, contract: '', file, touched: true, commits: [], files: [{ ...file, ...(deleted && { deleted }) }], locked },
     }));
   }
   const seen = new Set<string>();
   return view.modules.flatMap((m, rank): IdeFile[] => {
     const state = moduleState(m);
-    if (by === 'module' || !m.touched || !m.files?.length) return [{ path: by === 'module' ? m.path : m.file?.path ?? m.path, rank, state, code: m.touched ? m : null }];
-    return m.files.map((f) => ({ path: f.path, rank, state, code: { ...m, files: [f] } }));
+    // Un module ligne à ligne (Forme, ou pas encore de fichier) : à générer s'il n'est pas touché ; la couleur de
+    // son fichier s'il n'en a qu'un ; un dossier de plusieurs fichiers : modifié si l'un n'est pas commité.
+    const path = by === 'module' ? m.path : m.file?.path ?? m.path;
+    const own = m.files?.length === 1 ? m.files[0] : undefined;
+    if (by === 'module' || !m.touched || !m.files?.length) return [{ path, rank, state, mark: !m.touched ? 'todo' : own ? markOf(own) : m.files?.some((f) => markOf(f)) ? 'modified' : null, code: m.touched ? m : null }];
+    return m.files.map((f) => ({ path: f.path, rank, state, mark: markOf(f), code: { ...m, files: [f] } }));
   }).filter((r) => !seen.has(r.path) && seen.add(r.path));
 }

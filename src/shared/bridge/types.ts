@@ -239,6 +239,8 @@ export type MustNotMark = 'invariant' | 'variant' | 'review' | 'structure' | nul
 
 // Un fichier du relevé, désigné par son id ; le chemin (relatif au dossier) ne sert qu'à l'affichage.
 export type VibeFile = { id: string; path: string };
+// L'état git d'un fichier de la branche, comme VS Code : nouveau ou modifié hors de tout commit ; absent : commité.
+export type VibeGit = 'new' | 'modified';
 
 export type VibeNote = VibeFile & {
   text: string;
@@ -257,7 +259,7 @@ export type VibeModule = {
   file: VibeFile | null;       // son fichier ou dossier, s'il existe
   touched: boolean;            // la branche le touche
   commits: string[];           // hash des commits qui le touchent
-  files?: (VibeFile & { deleted?: boolean })[];  // touché : ses fichiers que la branche change (ids m<rang>/<i>) ; deleted : supprimé par la branche (absent = false) ; absent = []
+  files?: (VibeFile & { deleted?: boolean; git?: VibeGit })[];  // touché : ses fichiers que la branche change (ids m<rang>/<i>) ; deleted : supprimé par la branche (absent = false) ; git : pas commité (absent : commité) ; absent = []
   locked?: string | null;      // pourquoi Voir le code est grisé (codeLock) ; absent = null : éditable
   uncommitted?: boolean;       // des fichiers changés pas encore commités, ou commités puis retouchés (git status) ; absent = false
 };
@@ -434,8 +436,9 @@ export type VibeView = {
   artifactsDir?: string;                 // le dossier du projet qui les contient (pour le `@`)
   artifactDirs?: VibeArtifactDir[];      // ses dossiers, même vides (toujours rempli par le relevé)
   // Les fichiers que change la branche (ids b<i>, triés ; toujours rempli par le relevé) ; deleted : supprimé
-  // par la branche (absent = false) ; locked : pourquoi il ne s'édite pas (codeLock), null : éditable.
-  files?: (VibeFile & { deleted?: boolean; locked: string | null })[];
+  // par la branche (absent = false) ; git : pas commité, nouveau ou modifié (absent : commité) ; locked : pourquoi
+  // il ne s'édite pas (codeLock), null : éditable.
+  files?: (VibeFile & { deleted?: boolean; git?: VibeGit; locked: string | null })[];
   modulesView?: 'ide' | 'list';          // le réglage de la vue Modules
   time: number;                        // heure du relevé
 };

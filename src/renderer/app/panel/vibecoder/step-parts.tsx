@@ -69,25 +69,26 @@ export function StepHead({ p, own = [], children }: { p: StepProps; own?: string
       <h2>{t.steps[step.id]}</h2>
       <span className="vc-badge" data-status={step.status}>{t.stepStatus[step.status]}</span>
       {step.facts ? <span className="vc-facts">{step.facts}</span> : null}
-      {children ? <div className="vc-step-tools">{children}</div> : null}
-      {field ? <StepField name={step.id} text={p.text} setText={p.setText} hint={t.fieldHint} artifacts={view.artifacts} artifactsDir={view.artifactsDir} /> : null}
       {acts.length ? (
         <div className="vc-step-acts">
           {acts.map(({ a, tone }) => <Run key={a.id} a={a} busy={busy} tone={tone} onRun={(x) => act.run(a.id, x)} />)}
         </div>
       ) : null}
+      {children ? <div className="vc-step-tools">{children}</div> : null}
+      {field ? <StepField name={step.id} text={p.text} setText={p.setText} hint={t.fieldHint} artifacts={view.artifacts} artifactsDir={view.artifactsDir} /> : null}
     </div>
   );
 }
 
-type CardProps = { title: ReactNode; file?: string; time?: number; t: Strings; tools?: ReactNode; className?: string; children?: ReactNode };
+type CardProps = { title: ReactNode; file?: string; time?: number; t: Strings; tools?: ReactNode; acts?: ReactNode; className?: string; children?: ReactNode };
 
-// Une carte : son titre, le fichier qu'elle montre et depuis quand, ses outils à droite.
-export function OutputCard({ title, file, time, t, tools, className, children }: CardProps) {
+// Une carte : son titre, ses actions (acts) à côté, le fichier qu'elle montre et depuis quand, ses outils à droite.
+export function OutputCard({ title, file, time, t, tools, acts, className, children }: CardProps) {
   return (
     <section className={className ? `vc-card ${className}` : 'vc-card'}>
       <div className="vc-card-head">
         <span className="vc-card-title">{title}</span>
+        {acts ? <span className="vc-card-acts">{acts}</span> : null}
         {file ? <span className="vc-card-file vc-mono">{file}</span> : null}
         <span className="vc-card-end">
           {time ? <span className="vc-card-time" title={new Date(time).toLocaleString(t.locale)}>{t.ago(Date.now() - time)}</span> : null}

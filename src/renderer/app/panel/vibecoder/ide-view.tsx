@@ -3,7 +3,8 @@
  *  droite ce que `children` montre du fichier choisi. Entre les deux, une poignée : glisser (ou ← / →)
  *  change la largeur de l'arborescence (160 px → 60 % de la vue), gardée pour toutes les vues IDE tant
  *  que la page vit (sideWidth), pas enregistrée. Le choix est gardé par son chemin tant qu'il est dans
- *  `files`, sinon c'est le premier (null s'il n'y en a aucun). Le point d'état de chaque fichier est son `state`.
+ *  `files`, sinon c'est le premier (null s'il n'y en a aucun). La couleur du nom de chaque fichier est son `mark`,
+ *  son numéro son `rank` + 1 (l'ordre de génération de son module, rien pour un fichier de la branche).
  *  N'ajoute aucune action : on plie, on choisit.
  *  Ne connaît pas : le pont, les étapes, les actions.
  *  Utilisé par : forme-view, modules-view. */
@@ -30,13 +31,15 @@ export function IdeView({ files, children }: IdeViewProps) {
   const nodes = useMemo(() => fileTree(files.map((f) => f.path)), [files]);
   const open = useMemo(() => new Set(nodes.filter((n) => n.folder && !closed.has(n.key)).map((n) => n.key)), [nodes, closed]);
   const file = files.find((f) => f.path === chosen) ?? files[0] ?? null;
+  const at = (key: string) => files.find((f) => f.path === key);
   const toggle = (key: string) => setClosed((c) => { const next = new Set(c); if (!next.delete(key)) next.add(key); return next; });
 
   return (
     <div className="vc-ide" ref={root}>
       <div className="vc-ide-side" style={{ width }}>
         <FileTreeView rows={visibleRows(nodes, open)} open={open} selected={file?.path ?? null}
-          dot={(key) => files.find((f) => f.path === key)?.state ?? null}
+          mark={(key) => at(key)?.mark ?? null}
+          rank={(key) => { const r = at(key)?.rank; return r == null ? null : r + 1; }}
           onToggle={toggle} onSelect={setChosen} />
       </div>
       <div className="vc-ide-resize" role="separator" aria-orientation="vertical" aria-valuenow={width} tabIndex={0}

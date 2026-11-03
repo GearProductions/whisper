@@ -1294,6 +1294,12 @@ conversation ; note `0.9.0-actions-independantes.md`).
   commit ne touche) au lieu de le générer ; la demande attend la fin de
   `next` (« en attente ») et part dans sa course, au modèle de *Générer ce
   module*. Un commit qui échoue (un hook) : pas de demande.
+- ***Générer ce module*, puis *Relire le diff*, deux courses** : `module`,
+  le module écrit, demande *Relire le diff* des changements en cours
+  (`<sorties>/actions/review-diff.start`, `{}`) au lieu de relire lui-même ;
+  elle part dans sa course, au modèle de *Relire le diff* (un autre agent
+  que celui qui a écrit). Pas de demande s'il s'est arrêté sans écrire le
+  module, ni quand `modules` l'a lancé (il relit chaque diff lui-même).
 - **L'avis de fin** : une course finie (*finie*, *en échec*) envoie une
   ligne à la conversation de l'agent (« VibeCoder : « <libellé> » finie —
   <sa réponse, 300 caractères au plus>. État : <sorties>/actions.json ») ;
@@ -1350,7 +1356,10 @@ créateur ; le relecteur, F-101) :
    ne propose jamais de nouvelle branche.
 2. **Forme** — faite : au moins un module dans la rubrique « Forme », validée.
    Montre, en **vue IDE** (la seule), l'arborescence des modules à gauche,
-   par dossier (`src/` de tête ignoré), et le module choisi à droite : chemin,
+   par dossier (`src/` de tête ignoré), chacun avec son numéro (son rang dans
+   la Forme, l'ordre où les générer) et le nom coloré comme dans la vue IDE de
+   Modules (un module d'un seul fichier : sa couleur ; un dossier : modifié si
+   l'un de ses fichiers n'est pas commité), et le module choisi à droite : chemin,
    état (touché par la branche, existe, à créer), commits ; *Commenter*,
    *Ouvrir*. Un interrupteur *Structure* · *Code* : *Structure*, son contrat
    en rubriques (expose, ne connaît pas, utilisé par), en texte ; *Code*, son
@@ -1422,14 +1431,20 @@ créateur ; le relecteur, F-101) :
 4. **Modules** — faite : chaque module de la Forme touché par un commit de la
    branche. Montre en tête le commit proposé (`commit.md` : le message tel
    qu'il sera commité, *✓ Commiter*, direct ou *via* l'agent, F-114 ; *Commenter*) et la relecture du dernier diff
-   (`review.md`) ; *Commiter les modules* dans les outils de la carte, s'il
-   y a un module pas commité ; puis une ligne par module, un accordéon (replié ;
+   (`review.md`) ; à côté du titre de la carte des modules, les actions de
+   l'étape, plus dans son en-tête (*✓ Valider → commit → suivant*, *Préparer
+   le commit*, *Générer les modules restants*, puis *Commiter les modules*
+   s'il y a un module pas commité ; la prochaine action mise en avant ; sans
+   module dans la Forme, elles restent dans l'en-tête) ; puis une ligne par module, un accordéon (replié ;
    un seul déplié à la fois ; commité, en cours :
-   modifié pas commité, à faire ; nom, dossier, « à créer », ses
-   commits). Déplié : sur sa ligne, sa barre d'outils — *Générer* (ce module), *Relire le diff*
-   (du dernier commit qui le touche, sinon des changements en cours),
-   *Ouvrir*, *Commiter* (des fichiers changés hors de tout commit de la
-   branche, ou modifiés depuis : ce module seul) — ; dessous, son contrat par
+   modifié pas commité, à faire ; son numéro, son rang dans la Forme, l'ordre
+   où les générer et les commiter, « Ordre de génération : n sur N » au
+   survol ; nom, dossier, « à créer », ses
+   commits). Sur sa ligne, au bout, replié comme déplié : *Générer* (ce
+   module) et *Commiter* (des fichiers changés hors de tout commit de la
+   branche, ou modifiés depuis : ce module seul ; absent sinon) ; déplié,
+   suivis de *Relire le diff* (du dernier commit qui le touche, sinon des
+   changements en cours) et *Ouvrir* ; dessous, son contrat par
    rubrique et, pour un module touché, son code (*Voir le code*, dans le reste
    de ce document) : sur une rangée, ses fichiers que la branche change (modifiés, ajoutés,
    supprimés, depuis sa base, la copie de travail comprise) par dossier,
@@ -1440,7 +1455,10 @@ créateur ; le relecteur, F-101) :
    version est inconnue — pas de point de départ, trop grosse — alors que le
    fichier est au dernier commit), *Diff depuis le dernier commit* (`HEAD`) :
    le diff du texte affiché comme celui de VS Code (`@codemirror/merge`),
-   *En ligne* ou *Côte à côte* au choix, en lecture seule, numéroté et
+   *En ligne* ou *Côte à côte* au choix (d'abord : le diff depuis la base,
+   en ligne ; le fichier quand ce diff est grisé ; le choix, sélecteur comme
+   *En ligne* · *Côte à côte*, vaut pour tous les fichiers, d'un fichier et
+   d'une étape à l'autre, tant que la page vit, pas enregistré), en lecture seule, numéroté et
    coloré, replié autour des changements (le texte changé dans une ligne
    sur un fond vert ou rouge plus foncé que celui de sa ligne, pas
    souligné), en texte (I-40), seulement pour
@@ -1486,23 +1504,40 @@ créateur ; le relecteur, F-101) :
    *Générer ce module* part sur le suivant, dans une seconde course, F-115),
    *Commiter les modules* (plus de module à faire), sinon
    *Générer ce module* (le premier qu'aucun commit ne touche ; avec
-   `ponytail`, tests lancés, sans commit) ; aussi *Relire le diff* (les
-   quatre questions du § 5.1), *Générer les modules restants* (confiés à des
+   `ponytail`, tests lancés, sans commit) : pas dans l'en-tête de l'étape,
+   c'est le *Générer* de ce module qui est mis en avant, sur sa ligne
+   (*Commiter ce module* non plus : le *Commiter* de chaque module) ;
+   *Préparer le commit* masqué sans rien à commiter, *✓ Valider → commit →
+   suivant* sans module pas commité ou sans suivant à générer, *Générer les
+   modules restants* sans module pas touché. *Relire le
+   diff* (les quatre questions du § 5.1) part seul après *Générer* (voir
+   *Générer ce module, puis Relire le diff*) : pas dans l'en-tête non plus,
+   *Relancer* sur sa carte, ou sur la ligne d'un module déplié. Aussi
+   *Générer les modules restants* (confiés à des
    agents Sonnet en parallèle, chaque diff relu, sans commit).
    **Vue IDE** : un interrupteur *IDE* · *liste*, dans les outils de la carte,
    choisit entre l'accordéon ci-dessus (*liste*, inchangée) et une
    arborescence à gauche, des fichiers des modules rangés par dossier (un
-   module de plusieurs fichiers n'y fait pas un nœud), chacun avec le point
-   d'état de son module (commité, en cours, à faire), et le fichier choisi à
-   droite, avec les outils de son module (*Générer*, *Relire le diff*,
-   *Ouvrir*, *Commiter*) et son code en diff git (*Fichier* ou diff, *En ligne*
-   ou *Côte à côte*, comme *Voir le code*). La vue choisie est retenue d'une
+   module de plusieurs fichiers n'y fait pas un nœud), chacun avec le numéro
+   de son module (aucun pour un fichier de la branche, sans Forme) et son nom
+   coloré comme dans VS Code : vert, nouveau ; jaune, modifié ; rouge barré,
+   supprimé (pas commités, d'après `git status`) ; la couleur ordinaire une
+   fois commité ; atténué en italique, un module pas encore généré. Plus de
+   point d'état dans l'arborescence (il disait l'état du module, pas du
+   fichier : un fichier commité au premier commit puis modifié restait vert).
+   Le fichier choisi à
+   droite, avec les outils de son module (*Générer*, *Commiter*, *Relire le
+   diff*, *Ouvrir*), sur la même ligne que le choix du code (*Fichier* ou
+   diff, *En ligne* ou *Côte à côte*, comme *Voir le code*), et son code en
+   diff git. La vue choisie est retenue d'une
    ouverture à l'autre (`vibeModulesView`, § 9 ; `conv:vibeSet`) ; défaut :
    *liste*. Sans module (sans Forme), les deux vues montrent l'arborescence
    des fichiers de la branche. La vue IDE n'ajoute aucune action : elle montre
    ce que Forme et Modules montrent déjà. Dans les deux étapes, sa carte prend
    toute la hauteur libre de l'étape (au moins 420 px), même avec peu de
-   fichiers, et chaque colonne défile seule ; une poignée entre les deux
+   fichiers ; l'arborescence défile seule, et à droite seul le code (les outils
+   au-dessus et dessous restent en place ; sans code, la structure d'un module
+   de la Forme, toute la colonne) ; une poignée entre les deux
    colonnes (glisser, ou ← / →) règle la largeur de l'arborescence (160 px →
    60 % de la vue), gardée pour les deux étapes tant que la page vit, pas
    enregistrée. Relecteur : voir F-101.
@@ -2215,7 +2250,8 @@ instructions, sinon le guide du dépôt (`docs/dev_guide/`), sinon les leurs.
 fait plus la feature dans un seul tour, il lance les actions par le
 protocole d'`actions`, à partir de la forme. `invariants` suit `aligner`
 dans sa course ; `verifier` demande `ponytail` quand il lance toutes les
-vérifications (F-93). `modules` et `module` ne commitent pas :
+vérifications (F-93) ; `module` demande `relire` (`review-diff`) une fois
+le module écrit, sauf lancé par `modules`. `modules` et `module` ne commitent pas :
 `commiter-modules` commite un module ou tous ceux qui ont des changements,
 un commit chacun ; `suivant` commite comme lui.
 Un agent du plugin, Sonnet à effort élevé : `developpeur` (un module de la
@@ -2994,7 +3030,8 @@ relire, une PR d'essai sur GitHub)
 - **S-62** L'agent travaille sur un skill : *⏹ Arrêter* → le tour s'arrête
   comme par *Interrompre* (« Interrompu. »), les boutons se rallument.
 - **S-63** Pas de carte « Prochaine étape » : les actions de l'étape sont
-  sous son titre, celle qui fait avancer en tête. Une carte de sortie
+  sur la ligne de son titre (elles passent à la ligne s'il manque de la
+  place), celle qui fait avancer en tête ; le champ de l'étape dessous. Une carte de sortie
   (relecture du diff, vérifications…) : *Relancer* la refait ; l'alignement
   et la ponytail review n'en ont pas. La vue des branches, *Revenir sur la
   branche principale* → le dossier sur la base, plus de badge *Relecteur*. Une commande en

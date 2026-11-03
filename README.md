@@ -419,8 +419,8 @@ conversation reste utilisable.
   ouvrir une étape à venir ne lance rien ; seuls les boutons dont l'action
   a besoin d'une étape précédente restent grisés, leur raison au survol ;
 - dessous, sur toute la largeur, l'étape choisie — la note du ticket, ce
-  que les skills ont produit —, sous son titre son **champ** (quand une de
-  ses actions prend un texte) et ses actions (à l'étape en cours, en tête :
+  que les skills ont produit —, sur la ligne de son titre ses actions, et
+  dessous son **champ** (quand une de ses actions prend un texte) (à l'étape en cours, en tête :
   *Vibe* (créateur), puis celle qui fait avancer l'étape, discrètement mise
   en avant) ; pendant *Vibe*, une bannière au-dessus ; chaque carte produite par
   un skill a son *Relancer* ;
@@ -607,7 +607,8 @@ relire une PR (le relecteur, plus bas) :
    a fini, ou par *Rien à écrire* (à revalider si la note change ;
    pendant *Vibe* aussi).
 4. **Modules** : *Générer ce module* (avec `ponytail`, typecheck et tests du
-   module lancés, sans commit), *Relire le diff*, *✓ Valider → commit →
+   module lancés, sans commit ; puis *Relire le diff* part seul, par un autre
+   agent, et sa relecture s'affiche dans une carte), *✓ Valider → commit →
    suivant* (commite le module, puis génère le suivant dans une seconde
    course ; un commit refusé, par un hook par exemple, n'en génère aucun) ;
    ou *Générer les modules restants* (des agents Sonnet en parallèle, chaque
@@ -620,18 +621,27 @@ relire une PR (le relecteur, plus bas) :
    *Commiter les modules* (un commit par module dans l'ordre de la Forme, un fixup
    pour un module déjà commité ; le typage de chaque commit est vérifié sur son
    contenu, hors du dossier de travail, et un commit qui ne compile pas arrête
-   là, sans rattrapage) ; vous pouvez donc retoucher le code entre les deux. Chaque
-   module est un accordéon : un clic sur sa ligne montre ses boutons, sur la
-   même ligne, et son contrat. Un interrupteur *IDE* · *liste* (retenu d'une
+   là, sans rattrapage) ; vous pouvez donc retoucher le code entre les deux.
+   Ces boutons de l'étape sont à côté du titre de la carte des modules, et n'y sont
+   que s'ils ont quelque chose à faire. Chaque
+   module est un accordéon : *Générer* et *Commiter* (s'il a des
+   changements pas commités) sont toujours au bout de sa ligne, le prochain
+   à générer mis en avant ; un clic sur la ligne ajoute *Relire le diff*,
+   *Ouvrir* et son contrat. Chaque module porte un numéro, son rang dans la
+   Forme : l'ordre où le générer (un module attend ceux qu'il utilise). Un interrupteur *IDE* · *liste* (retenu d'une
    ouverture à l'autre) remplace l'accordéon par une arborescence des
-   fichiers des modules, avec le point d'état de chacun, et le fichier choisi
-   à droite, avec les boutons de son module ; aucune action de plus.
+   fichiers des modules, avec le numéro de chacun et son nom coloré comme dans
+   VS Code (vert : nouveau, jaune : modifié, rouge barré : supprimé ; blanc une
+   fois commité ; atténué : à générer), et le fichier choisi
+   à droite, avec les boutons de son module sur la ligne du choix
+   *Fichier* / diff ; aucune action de plus.
    Dessous, pour un module touché, son code : ses fichiers que la branche
    change (modifiés, ajoutés, ou « supprimé » : son diff, tout en retraits,
    rien à modifier) et celui choisi,
    coloré comme sur GitHub, ou son diff depuis la base de la branche (tout
    ce que le ticket a changé) ou depuis le dernier commit (ce qui n'est pas
-   commité), au choix, comme dans VS Code : en ligne ou côte à côte ; il
+   commité), au choix, comme dans VS Code : en ligne ou côte à côte (d'abord
+   le diff depuis la base ; le choix vaut ensuite pour tous les fichiers) ; il
    suit le disque (pendant la génération, on
    voit le code s'écrire ; plus d'1 Mo : « fichier trop gros »). Il se
    modifie sur place, enregistré par Ctrl+S ou *Enregistrer* — grisé pendant

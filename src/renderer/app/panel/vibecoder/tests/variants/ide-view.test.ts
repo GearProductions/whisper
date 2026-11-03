@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 // IdeView (ide-view.tsx) : le premier fichier est choisi d'emblée ; un clic en choisit un autre et children
 // le reçoit ; le choix tient par chemin d'un `files` à l'autre, et retombe sur le premier quand il disparaît ;
-// un dossier se plie (et un dossier nouveau s'ouvre seul) ; le point d'état de chaque fichier, aucun s'il n'a pas d'état.
+// un dossier se plie (et un dossier nouveau s'ouvre seul) ; la couleur du nom de chaque fichier (mark), aucune sans mark ;
+// son numéro, le rang de son module + 1.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, expect, it } from 'vitest';
@@ -10,8 +11,8 @@ import { IdeView } from '../../ide-view';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const f = (path: string, state: IdeFile['state'] = 'todo'): IdeFile => ({ path, rank: 0, state, code: null });
-const files = [f('a/x.ts', 'done'), f('a/y.ts'), f('z.ts', 'wip')];
+const f = (path: string, mark: IdeFile['mark'] = 'todo'): IdeFile => ({ path, rank: 0, state: null, mark, code: null });
+const files = [f('a/x.ts', 'new'), f('a/y.ts'), f('z.ts', 'modified')];
 
 const page = document.createElement('div');
 document.body.append(page);
@@ -60,11 +61,18 @@ it('un dossier se plie ; un dossier nouveau s\'ouvre seul', async () => {
   expect(row('a/x.ts')).toBeDefined();
 });
 
-it('le point d\'état de chaque fichier, aucun sans état', async () => {
-  await draw([{ ...f('n.ts'), rank: null, state: null }]);
-  expect(page.querySelector('.vc-mod-dot')).toBeNull();
+it('la couleur du nom de chaque fichier, aucune sans mark', async () => {
+  await draw([f('n.ts', null)]);
+  expect(page.querySelector('[data-mark]')).toBeNull();
   await draw();
-  expect(row('a/x.ts')!.dataset.state).toBe('done');
-  expect(row('z.ts')!.dataset.state).toBe('wip');
-  expect(row('a')!.querySelector('.vc-mod-dot')).toBeNull();
+  expect(row('a/x.ts')!.dataset.mark).toBe('new');
+  expect(row('z.ts')!.dataset.mark).toBe('modified');
+  expect(row('a')!.dataset.mark).toBeUndefined();
+});
+
+it('le numéro de chaque fichier : le rang de son module + 1, aucun pour un fichier de la branche', async () => {
+  await draw([{ ...f('a/x.ts'), rank: 0 }, { ...f('z.ts'), rank: 2 }, { ...f('b.ts'), rank: null, state: null }]);
+  expect(row('a/x.ts')!.querySelector('.vc-tree-rank')!.textContent).toBe('1');
+  expect(row('z.ts')!.querySelector('.vc-tree-rank')!.textContent).toBe('3');
+  expect(row('b.ts')!.querySelector('.vc-tree-rank')).toBeNull();
 });

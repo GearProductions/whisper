@@ -17,6 +17,7 @@ const ACTIONS: ActionDef[] = [
   A('commit-modules', 'create', 'modules', '/vibecoder:commiter-modules {{lang}} {{out}}'),
   A('module', 'create', 'modules', '/vibecoder:module {{lang}} {{out}} {{module}}'),
   A('next', 'create', 'modules', '/vibecoder:suivant {{lang}} {{out}} {{module}}'),
+  A('modules', 'create', 'modules', '/vibecoder:modules {{lang}} {{out}}'),
   { ...A('checks', 'create', 'revue', '/vibecoder:verifier {{lang}} {{out}}'), reads: true },
   { ...A('ponytail', 'create', 'revue', '/vibecoder:ponytail {{lang}} {{out}}'), reads: true },
   A('fixups', 'create', 'revue', '/vibecoder:fixups {{lang}} {{out}}'),
@@ -215,6 +216,13 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
     expect(primary(vibeView(ready({ repo: repo(['src/core/hello.ts'], [FIRST]) })))).toBe('next');
   });
 
+  it('Préparer le commit, masqué sans rien à commiter ; Valider → commit → suivant, sans module pas commité ou sans suivant ; Générer les modules restants, sans module pas touché', () => {
+    const hidden = (v: VibeView) => ['commit-prepare', 'next', 'modules'].map((id) => v.actions.find((a) => a.id === id)!.hidden);
+    expect(hidden(vibeView(ready()))).toEqual([true, true, false]);                                                       // rien de changé
+    expect(hidden(vibeView(ready({ repo: repo(['src/core/hello.ts'], [FIRST]) })))).toEqual([false, false, false]);
+    expect(hidden(vibeView(ready({ repo: repo(['src/app/button.tsx'], [FIRST, HELLO]) })))).toEqual([false, true, true]); // plus de suivant
+  });
+
   it('le dernier module modifié, pas commité : Commiter les modules', () => {
     expect(primary(vibeView(ready({ repo: repo(['src/app/button.tsx'], [FIRST, HELLO]) })))).toBe('commit-modules');
   });
@@ -226,6 +234,17 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
   it('uncommitted : un module aux fichiers changés hors de tout commit ; commité (pas retouché) ou pas touché, non', () => {
     const v = vibeView(ready({ repo: repo(['src/app/button.tsx'], [FIRST, HELLO]) }));
     expect(v.modules.map((m) => m.uncommitted)).toEqual([false, true]);
+  });
+
+  it('git de chaque fichier, comme VS Code : nouveau (added), modifié (dirty), rien une fois commité ; aussi dans view.files', () => {
+    const v = vibeView(ready({
+      repo: { ...repo(['src/app/button.tsx'], [FIRST, HELLO]), dirty: ['src/app/button.tsx'], added: ['src/app/button.tsx'] }, exists: () => true,
+    }));
+    expect(v.modules.map((m) => m.files?.map((f) => f.git ?? null))).toEqual([[null], ['new']]);
+    const w = vibeView(ready({ repo: { ...repo([], [FIRST, HELLO]), dirty: ['src/core/hello.ts'] }, exists: () => true }));
+    expect(w.modules[0].files?.[0].git).toBe('modified');
+    expect(w.files?.find((f) => f.path === 'src/core/hello.ts')?.git).toBe('modified');
+    expect(w.files?.find((f) => f.path === NOTE_PATH)?.git).toBeUndefined();
   });
 
   it('uncommitted : un module commité puis retouché (dirty), oui', () => {
@@ -1122,13 +1141,13 @@ describe('Voir le code : les fichiers d\'un module et pourquoi il est grisé (0.
 
   it('un module touché : ses fichiers que la branche change, sous son chemin, triés, ids m<rang>/<i> ; pas touché : aucun', () => {
     const [hello, button] = modules();
-    expect(hello.files).toEqual([{ id: 'm0/0', path: 'src/core/hello.ts/a.ts' }, { id: 'm0/1', path: 'src/core/hello.ts/z.ts' }]);
+    expect(hello.files).toEqual([{ id: 'm0/0', path: 'src/core/hello.ts/a.ts', git: 'modified' }, { id: 'm0/1', path: 'src/core/hello.ts/z.ts', git: 'modified' }]);
     expect(button.files).toEqual([]);
   });
 
   it('un fichier changé absent du disque : deleted (le dossier du module supprimé compris)', () => {
     expect(modules({ exists: (p) => p !== 'src/core/hello.ts/z.ts' })[0].files)
-      .toEqual([{ id: 'm0/0', path: 'src/core/hello.ts/a.ts' }, { id: 'm0/1', path: 'src/core/hello.ts/z.ts', deleted: true }]);
+      .toEqual([{ id: 'm0/0', path: 'src/core/hello.ts/a.ts', git: 'modified' }, { id: 'm0/1', path: 'src/core/hello.ts/z.ts', deleted: true }]);
     expect(modules({ exists: () => false })[0].files?.map((f) => f.deleted)).toEqual([true, true]);
   });
 
@@ -1228,9 +1247,9 @@ describe('les fichiers de la branche et le réglage de la vue Modules (0.13.0)',
     const exists = (p: string) => p !== 'src/gone.ts';
     const v = vibeView(input({ repo: repo(['src/z.ts', 'src/gone.ts', 'a.md']), exists }));
     expect(v.files).toEqual([
-      { id: 'b0', path: 'a.md', locked: null },
+      { id: 'b0', path: 'a.md', git: 'modified', locked: null },
       { id: 'b1', path: 'src/gone.ts', deleted: true, locked: null },
-      { id: 'b2', path: 'src/z.ts', locked: null },
+      { id: 'b2', path: 'src/z.ts', git: 'modified', locked: null },
     ]);
     expect(vibeView(input({ repo: null })).files).toEqual([]);
   });

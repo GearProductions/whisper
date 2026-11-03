@@ -3,17 +3,26 @@
  *  via l'agent, F-114 ; IconButton comment le cite, Relancer)
  *  et la relecture du dernier diff (review.md, citer par bloc, Relancer). Puis une ligne par
  *  module de la Forme, un accordéon : point plein s'il est touché (vert :
- *  commité ; accent : modifié, pas encore commité), anneau sinon ; nom en
+ *  commité ; accent : modifié, pas encore commité), anneau sinon ; son numéro
+ *  (l'ordre de génération, celui de la Forme) ; nom en
  *  gras, dossier atténué ; les commits qui le touchent en puces (un clic : son
- *  diff dans l'éditeur). Déplié : sur sa ligne, sa barre d'outils (Générer,
- *  Relire le diff, du dernier commit qui le touche, sinon les changements non
- *  commités, Ouvrir, Commiter, m.uncommitted : commit-module) ; dessous, son
+ *  diff dans l'éditeur) ; au bout de sa ligne, ses outils (ModuleTools) :
+ *  Générer et Commiter (m.uncommitted : commit-module), replié comme déplié ;
+ *  déplié, puis Relire le diff (du dernier commit qui le touche, sinon les
+ *  changements non commités) et Ouvrir. Générer ce module, Commiter ce
+ *  module et Relire le diff (lancé seul après Générer ; Relancer sur sa carte)
+ *  ne sont pas dans l'en-tête de l'étape (own) : le Générer du premier
+ *  module pas touché est mis en avant quand c'est la prochaine action ; dessous, son
  *  contrat par rubrique (Contract) et, s'il est touché, son code (ModuleCode).
  *  Un seul déplié à la fois, le chemin du module déplié tenu ici ; ici aussi
  *  plus aucun fichier suivi quand on replie, ou que le module déplié n'a pas
  *  (ou plus) de fichier (un module qui en a envoie lui-même le sien). Dans les
- *  outils de la carte, Commiter les modules (commit-modules), s'il y a un
- *  module pas commité.
+ *  outils de la carte, l'interrupteur et la légende ; à côté de son titre
+ *  (OutputCard acts), les actions de l'étape (CARD_ACTS : Valider →
+ *  commit → suivant, Préparer le commit, Générer les modules restants, puis
+ *  Commiter les modules s'il y a un module pas commité ; la prochaine action
+ *  mise en avant), qui ne sont donc plus dans l'en-tête ; sans module, elles
+ *  y restent.
  *  Relecteur (view.flow 'review') : les modules en lecture seule — ni commit.md,
  *  ni review.md ; les actions qui modifient (Générer, Relire le diff, Commiter,
  *  commit-modules) ne sont pas dans son relevé, donc ne s'affichent pas ; le code
@@ -23,12 +32,12 @@
  *  qui porte elle-même Relire les commits : 'review-commits' est dans own.
  *  Deux vues, un interrupteur dans les outils de la carte (view.modulesView, retenu par le principal :
  *  act.set({ modulesView }), liste par défaut) : la liste, l'accordéon ci-dessus ; la vue IDE (IdeView),
- *  l'arborescence des fichiers des modules (ideFiles(view, 'file')) avec le point d'état de leur module,
- *  et à droite, du fichier choisi, les outils de son module (ModuleTools, les mêmes boutons que ceux de
- *  l'accordéon) puis son code (ModuleCode, noTree). Un fichier sans code (module pas touché) : les outils
+ *  l'arborescence des fichiers des modules (ideFiles(view, 'file')), leur nom coloré comme VS Code (nouveau, modifié, supprimé, à générer),
+ *  et à droite, du fichier choisi, les outils de son module (ModuleTools, tous) sur la ligne du sélecteur
+ *  de son code (ModuleCode, noTree, tools). Un fichier sans code (module pas touché) : les outils
  *  seuls, et plus aucun fichier suivi. Sans module : les fichiers de la branche, dans les deux vues, sans
  *  interrupteur. Basculer ne suit plus aucun fichier ; chaque vue suit ensuite le sien. Le point d'état
- *  vient de moduleState (core).
+ *  de la liste vient de moduleState (core).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useEffect, useState } from 'react';
 import { fileParts, ideFiles, moduleCommits, moduleState, type IdeFile, type ModuleState } from 'core/vibecoder';
@@ -57,6 +66,7 @@ const fr = {
   commit: 'Commiter',
   commitTitle: 'Commiter les changements de ce module',
   toCreate: 'à créer',
+  rankTitle: (n: number, of: number) => `Ordre de génération : ${n} sur ${of}`,
   readOnly: 'Lecture seule : vous relisez cette PR.',
   noModule: 'La Forme ne liste aucun module',
   noModuleHint: 'Les modules viennent de la rubrique « Forme » de la note : étape Forme, Poser la forme.',
@@ -77,6 +87,7 @@ const S: Record<VibeLang, typeof fr> = {
     commit: 'Commit',
     commitTitle: 'Commit the changes of this module',
     toCreate: 'to create',
+    rankTitle: (n: number, of: number) => `Generation order: ${n} of ${of}`,
     readOnly: 'Read only: you are reviewing this PR.',
     noModule: 'The Shape lists no module',
     noModuleHint: 'Modules come from the “Forme” section of the note: Shape step, Set the shape.',
@@ -84,7 +95,10 @@ const S: Record<VibeLang, typeof fr> = {
 };
 
 // Les outils d'un module (les mêmes dans l'accordéon et dans la vue IDE) ; i : son rang dans view.modules.
-function ModuleTools({ p, m, i }: { p: StepProps; m: VibeModule; i: number }) {
+// Les boutons d'un module : Générer, Commiter (des fichiers changés pas commités), puis, avec all, Relire le
+// diff et Ouvrir. Générer est mis en avant (data-next) sur le module que Générer ce module prendrait (le
+// premier pas touché) quand c'est l'action que le guide fait faire ensuite.
+function ModuleTools({ p, m, i, all }: { p: StepProps; m: VibeModule; i: number; all: boolean }) {
   const { view, t, act, busy } = p;
   const s = S[view.lang];
   const action = (id: string) => view.actions.find((a) => a.id === id);
@@ -93,25 +107,26 @@ function ModuleTools({ p, m, i }: { p: StepProps; m: VibeModule; i: number }) {
   const commitModule = action('commit-module');
   const commits = moduleCommits(m, view.commits);
   const last = commits[commits.length - 1];
+  const next = !!generate?.primary && view.modules.findIndex((x) => !x.touched) === i;
   return (
     <div className="vc-mod-acts" onClick={(e) => e.preventDefault()}>
       {generate ? (
-        <button type="button" disabled={!!generate.disabled || busy}
+        <button type="button" disabled={!!generate.disabled || busy} data-next={next || undefined}
           title={`${generate.hint} (${generate.who})${generate.disabled ? `\n— ${generate.disabled}` : ''}`}
           onClick={() => act.run('module', { module: i })}>{s.generate}</button>
-      ) : null}
-      {reviewDiff && m.touched ? (
-        <button type="button" disabled={!!reviewDiff.disabled || busy}
-          title={`${last ? s.reviewOf(last.hash.slice(0, 7)) : s.reviewWip} (${reviewDiff.who})${reviewDiff.disabled ? `\n— ${reviewDiff.disabled}` : ''}`}
-          onClick={() => act.run('review-diff', last ? { commit: last.hash } : {})}>{s.review}</button>
-      ) : null}
-      {m.file ? (
-        <button type="button" title={`${t.openTitle} : ${m.file.path}`} onClick={() => act.open(m.file!.id)}>{s.open}</button>
       ) : null}
       {commitModule && !commitModule.hidden && m.uncommitted ? (
         <button type="button" disabled={!!commitModule.disabled || busy}
           title={`${s.commitTitle} (${commitModule.who})${commitModule.disabled ? `\n— ${commitModule.disabled}` : ''}`}
           onClick={() => act.run('commit-module', { module: i })}>{s.commit}</button>
+      ) : null}
+      {all && reviewDiff && m.touched ? (
+        <button type="button" disabled={!!reviewDiff.disabled || busy}
+          title={`${last ? s.reviewOf(last.hash.slice(0, 7)) : s.reviewWip} (${reviewDiff.who})${reviewDiff.disabled ? `\n— ${reviewDiff.disabled}` : ''}`}
+          onClick={() => act.run('review-diff', last ? { commit: last.hash } : {})}>{s.review}</button>
+      ) : null}
+      {all && m.file ? (
+        <button type="button" title={`${t.openTitle} : ${m.file.path}`} onClick={() => act.open(m.file!.id)}>{s.open}</button>
       ) : null}
     </div>
   );
@@ -122,16 +137,21 @@ function IdeBody({ p, file }: { p: StepProps; file: IdeFile | null }) {
   const { view, t, act } = p;
   const has = !!file?.code;
   useEffect(() => { if (!has) act.follow(null); }, [file?.path, has]);
+  const tools = file && file.rank != null ? <ModuleTools p={p} m={view.modules[file.rank]} i={file.rank} all /> : null;
   return (
     <>
-      {file && file.rank != null ? <ModuleTools p={p} m={view.modules[file.rank]} i={file.rank} /> : null}
+      {file?.code ? null : tools}
       {file?.code ? (
-        <ModuleCode key={file.path} m={file.code} noTree readOnly={view.flow === 'review' ? S[view.lang].readOnly : undefined} code={p.code} t={t} lang={view.lang} open
+        <ModuleCode key={file.path} m={file.code} tools={tools} noTree readOnly={view.flow === 'review' ? S[view.lang].readOnly : undefined} code={p.code} t={t} lang={view.lang} open
           onFollow={act.follow} onSave={act.save} onQuote={(block, id) => act.prefill(id, block, true)} drafts={p.drafts} />
       ) : null}
     </>
   );
 }
+
+// Les actions de l'étape dans la carte des modules, pas dans l'en-tête (Commiter les modules les suit, s'il y a un
+// module pas commité) ; sans module, elles restent dans l'en-tête.
+const CARD_ACTS = ['next', 'commit-prepare', 'modules'];
 
 export function ModulesView(p: StepProps) {
   const { view, t, act, busy } = p;
@@ -155,7 +175,7 @@ export function ModulesView(p: StepProps) {
     <>
       <StepHead p={p} own={reviewer
         ? ['review-commits']
-        : [...(commit ? ['commit', 'commit-prepare'] : []), ...(review ? ['review-diff'] : []), 'commit-modules']} />
+        : [...(commit ? ['commit', 'commit-prepare'] : []), 'review-diff', 'commit-modules', 'module', 'commit-module', ...(hasModules ? CARD_ACTS : [])]} />
       {commit ? (
         <OutputCard className="vc-proposed" title={t.outputs['commit.md']} file="commit.md" time={commit.time} t={t}
           tools={(
@@ -178,7 +198,12 @@ export function ModulesView(p: StepProps) {
         </OutputCard>
       ) : null}
       {hasModules || files.length ? (
-        <OutputCard className="vc-modules" title={s.modules} t={t} tools={(
+        <OutputCard className="vc-modules" title={s.modules} t={t} acts={hasModules && !reviewer ? (
+          [...CARD_ACTS.filter((id) => !(commit && id === 'commit-prepare')), ...(view.modules.some((m) => m.uncommitted) ? ['commit-modules'] : [])].map((id) => {
+            const a = action(id);
+            return <Run key={id} a={a} busy={busy} tone={a?.primary ? 'accent' : 'plain'} onRun={(x) => act.run(id, x)} />;
+          })
+        ) : undefined} tools={(
           <>
             {hasModules ? (
               <>
@@ -194,8 +219,6 @@ export function ModulesView(p: StepProps) {
                 </span>
               </>
             ) : null}
-            {view.modules.some((m) => m.uncommitted)
-              ? <Run a={action('commit-modules')} busy={busy} tone="ghost" onRun={(x) => act.run('commit-modules', x)} /> : null}
           </>
         )}>
           {ide ? (
@@ -208,7 +231,7 @@ export function ModulesView(p: StepProps) {
               const open = opened === m.path;
               const { dir, name } = fileParts(m.path);
               const commits = moduleCommits(m, view.commits);
-              const tools = <ModuleTools p={p} m={m} i={i} />;
+              const tools = <ModuleTools p={p} m={m} i={i} all={open} />;
               return (
                 <li key={`${i}:${m.path}`} className="vc-mod" data-state={state}>
                   <span className="vc-mod-dot" title={s.stateTitle[state]} />
@@ -220,6 +243,7 @@ export function ModulesView(p: StepProps) {
                     if (!now) act.follow(null);
                   }}>
                     <summary className="vc-mod-line" title={m.file ? m.file.path : m.path}>
+                      <span className="vc-mod-rank" title={s.rankTitle(i + 1, view.modules.length)}>{i + 1}</span>
                       <span className="vc-mod-name vc-mono">{name}</span>
                       <span className="vc-mod-dir vc-mono">{dir}</span>
                       {!m.file && state === 'todo' ? <span className="vc-mod-new">{s.toCreate}</span> : null}
@@ -229,7 +253,7 @@ export function ModulesView(p: StepProps) {
                           {c.hash.slice(0, 7)}
                         </button>
                       ))}
-                      {open ? tools : null}
+                      {tools}
                     </summary>
                     <Contract text={m.contract} t={t} onOpenLink={act.openLink} />
                     {m.touched ? (

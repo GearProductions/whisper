@@ -1,5 +1,5 @@
 /** forme-view — l'étape Forme (Créer) en vue IDE, la seule : à gauche l'arborescence des modules de la
- *  rubrique « Forme » de la note (IdeView(ideFiles(view, 'module')), point d'état par module) ; à droite,
+ *  rubrique « Forme » de la note (IdeView(ideFiles(view, 'module')), le nom coloré comme VS Code) ; à droite,
  *  pour le module choisi, sa ligne (chemin : dossier atténué, nom en gras ; état : touché par la branche,
  *  existe, à créer, Icon ok devant « touché » ; commits ; outils : comment le cite dans le champ, 💬 le
  *  commente en relecteur, open l'ouvre s'il existe) et l'interrupteur Structure · Code (tenu ici).
@@ -85,7 +85,7 @@ export function FormeView(p: StepProps) {
   const files = ideFiles(view, 'module');
   const code = (m: VibeModule) => (
     <ModuleCode key={m.path} m={m} readOnly={review ? s.readOnly : undefined} code={p.code} t={t} lang={view.lang} open onFollow={act.follow} onSave={act.save}
-      onQuote={(block, id) => act.prefill(id, block, true)} drafts={p.drafts} noTree first="base" />
+      onQuote={(block, id) => act.prefill(id, block, true)} drafts={p.drafts} noTree />
   );
   return (
     <>
