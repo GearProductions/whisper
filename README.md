@@ -459,7 +459,7 @@ j'en suis ?*) ; *Commenter* sur un passage (de la note, d'une relecture) l'y cit
 compléter puis envoyer.
 
 L'onglet **Actions** suit chaque action lancée : qui travaille, son état,
-depuis quand, sa réponse ; pour *Générer les modules restants*, son avancement (la
+depuis quand, sa réponse ; pour *Générer les modules*, son avancement (la
 vague en cours, les modules faits sur le total, les corrections renvoyées, une relance
 Opus), lu dans le flux de l'agent : un champ absent ne montre que moins, l'état n'en
 dépend pas ; ses demandes d'autorisation (*Autoriser*,
@@ -612,27 +612,25 @@ relire une PR (le relecteur, plus bas) :
    l'étape passe quand *Écrire les invariants* ou *Vérifier l'alignement*
    a fini, ou par *Rien à écrire* (à revalider si la note change ;
    pendant *Vibe* aussi).
-4. **Modules** : *Générer ce module* (avec `ponytail`, typecheck et tests du
-   module lancés, sans commit ; puis *Relire le diff* part seul, par un autre
-   agent, et sa relecture s'affiche dans une carte), *✓ Valider → commit →
-   suivant* (commite le module, puis génère le suivant dans une seconde
-   course ; un commit refusé, par un hook par exemple, n'en génère aucun) ;
-   ou *Générer les modules restants* (des agents Sonnet en parallèle, chaque
+4. **Modules** : deux boutons, *Générer les modules* puis *Commiter les
+   modules*. On génère tout (ou un module à la fois, avec *Générer* sur sa
+   ligne : `ponytail`, typecheck et tests du module lancés, sans commit ; puis
+   *Relire le diff* part seul, par un autre agent, et sa relecture s'affiche
+   dans une carte), on relit, on ajuste, et l'agent range les commits à la
+   fin. *Générer les modules* (des agents Sonnet en parallèle, chaque
    diff relu : un défaut est corrigé ou renvoyé au même agent, relancé sur
    Opus au second échec ; à chaque vague, le typage et les tests des fichiers
    modifiés (toute la suite si le projet ne sait pas les choisir), rien avant la première ;
    la suite complète une seule fois, à la fin ; sans
    commit). Générer
-   et commiter sont deux gestes : *Commiter* sur un module modifié, ou
-   *Commiter les modules* (un commit par module dans l'ordre de la Forme, un fixup
+   et commiter sont deux gestes : *Commiter les modules* (un commit par module dans l'ordre de la Forme, un fixup
    pour un module déjà commité ; le typage de chaque commit est vérifié sur son
    contenu, hors du dossier de travail, et un commit qui ne compile pas arrête
    là, sans rattrapage) ; vous pouvez donc retoucher le code entre les deux.
    Ces boutons de l'étape sont à côté du titre de la carte des modules, et n'y sont
    que s'ils ont quelque chose à faire. Chaque
-   module est un accordéon : *Générer* et *Commiter* (s'il a des
-   changements pas commités) sont toujours au bout de sa ligne, le prochain
-   à générer mis en avant ; un clic sur la ligne ajoute *Relire le diff*,
+   module est un accordéon : *Générer* (ce module seul) est toujours au bout
+   de sa ligne ; un clic sur la ligne ajoute *Relire le diff*,
    *Ouvrir* et son contrat. Chaque module porte un numéro, son rang dans la
    Forme : l'ordre où le générer (un module attend ceux qu'il utilise). Un interrupteur *IDE* · *liste* (retenu d'une
    ouverture à l'autre) remplace l'accordéon par une arborescence des
@@ -929,20 +927,19 @@ prix ne dépend pas de la longueur de celle-ci (≈ 0,02 $ sur Haiku : lister ou
 charger une PR, lancer les vérifications, commiter, publier une revue,
 nommer la branche d'une nouvelle demande, proposer les commandes).
 Sonnet écrit le code : il génère un module (seul, ou chacun de ceux de
-*Générer les modules restants*), applique la revue, commite le module puis
-lance le suivant (*Valider → commit → suivant*), publie les releases ; il
+*Générer les modules*), applique la revue, publie les releases ; il
 prépare aussi un commit, commite les modules, ouvre la PR, replie les
 fixups, diagnostique la CI, écrit le plan de test, lit les invariants en
 pseudo-code (une lecture n'est refaite que si le test change). Opus, effort
 élevé, juge : il écrit les invariants, relit un diff, une note ou des
 commits, vérifie l'alignement, fait la ponytail review, et orchestre
-*Générer les modules restants* (il relit chaque diff, renvoie une
+*Générer les modules* (il relit chaque diff, renvoie une
 correction au même agent Sonnet, et ne relance un module sur Opus qu'au
 second échec). Sur le modèle de l'agent, chacune dans sa conversation : la
 note, la forme et les réponses aux questions (qui reprennent la
 conversation de la note, et son cache) ; dans la conversation de l'agent :
 *Vibe*, *Demander sans modifier*, *Où j'en suis ?* — *Vibe*, *Générer les
-modules restants* et les releases sont longs et coûteux. Pour une étape qui
+modules* et les releases sont longs et coûteux. Pour une étape qui
 tourne à part, vous pouvez choisir un modèle plus léger (ou plus fort) que
 le conseillé, le temps d'un clic : VibeCoder génère pour cela une variante
 de chaque skill qui fixe son modèle (`<nom>--haiku`, `--sonnet`, `--opus`). Le

@@ -1288,12 +1288,6 @@ conversation ; note `0.9.0-actions-independantes.md`).
   est refusé (« … refusée — le mode Vibe a été arrêté par l'utilisateur :
   ne lance plus rien ») jusqu'à ce que tout soit au repos ; les `.stop`
   sont toujours lus.
-- ***✓ Valider → commit → suivant*, deux courses** : `suivant` commite comme
-  `commiter-modules`, puis, le commit fait, demande *Générer ce module*
-  (`<sorties>/actions/module.start`, vide : le premier module qu'aucun
-  commit ne touche) au lieu de le générer ; la demande attend la fin de
-  `next` (« en attente ») et part dans sa course, au modèle de *Générer ce
-  module*. Un commit qui échoue (un hook) : pas de demande.
 - ***Générer ce module*, puis *Relire le diff*, deux courses** : `module`,
   le module écrit, demande *Relire le diff* des changements en cours
   (`<sorties>/actions/review-diff.start`, `{}`) au lieu de relire lui-même ;
@@ -1442,17 +1436,18 @@ créateur ; le relecteur, F-101) :
    branche. Montre en tête le commit proposé (`commit.md` : le message tel
    qu'il sera commité, *✓ Commiter*, direct ou *via* l'agent, F-114 ; *Commenter*) et la relecture du dernier diff
    (`review.md`) ; à côté du titre de la carte des modules, les actions de
-   l'étape, plus dans son en-tête (*✓ Valider → commit → suivant*, *Préparer
-   le commit*, *Générer les modules restants*, puis *Commiter les modules*
-   s'il y a un module pas commité ; la prochaine action mise en avant ; sans
-   module dans la Forme, elles restent dans l'en-tête) ; puis une ligne par module, un accordéon (replié ;
+   l'étape, plus dans son en-tête (*Générer les modules*, puis *Commiter les
+   modules* s'il y a un module pas commité ; la prochaine action mise en
+   avant ; sans module dans la Forme, elles restent dans l'en-tête ;
+   *Préparer le commit* n'y est pas : il sert au premier commit, étape
+   Invariants, et aux fixups de la note, étape Forme) ; puis une ligne par module, un accordéon (replié ;
    un seul déplié à la fois ; commité, en cours :
    modifié pas commité, à faire ; son numéro, son rang dans la Forme, l'ordre
-   où les générer et les commiter, « Ordre de génération : n sur N » au
+   où les générer, « Ordre de génération : n sur N » au
    survol ; nom, dossier, « à créer », ses
    commits). Sur sa ligne, au bout, replié comme déplié : *Générer* (ce
-   module) et *Commiter* (des fichiers changés hors de tout commit de la
-   branche, ou modifiés depuis : ce module seul ; absent sinon) ; déplié,
+   module seul, au choix : générer un à un, relire, ajuster) ; pas de
+   commit par module : *Commiter les modules*, une fois tout généré ; déplié,
    suivis de *Relire le diff* (du dernier commit qui le touche, sinon des
    changements en cours) et *Ouvrir* ; dessous, son contrat par
    rubrique et, pour un module touché, son code (*Voir le code*, dans le reste
@@ -1487,7 +1482,7 @@ créateur ; le relecteur, F-101) :
    (ni `AGENTS.md`, ni manifeste qui en donne un) : le commit reste et la
    réponse dit qu'il n'a pas été vérifié. Un commit qui ne compile pas :
    elle s'arrête et le dit, les suivants ne sont pas faits ; ni amend, ni
-   rebase, ni `--no-verify` pour le rattraper. `suivant` suit la même règle. Les éditeurs (le code, la note en édition) défilent dans
+   rebase, ni `--no-verify` pour le rattraper. Les éditeurs (le code, la note en édition) défilent dans
    CodeMirror lui-même, hauteur bornée : pas de vide au-dessus du texte. Seul ce
    fichier est lu, à l'ouverture puis à chaque changement sur le disque
    (surveillé et poussé par le principal, pas au rythme du relevé : pendant
@@ -1503,28 +1498,24 @@ créateur ; le relecteur, F-101) :
    disque ») et *Abandonner* remet le texte du disque. Édition grisée (le motif en titre ; la vue suit toujours
    le disque) pendant un tour de la conversation (« La conversation
    travaille » : on ne sait pas quels fichiers il touche) et pendant une
-   course qui génère ce module (*Générer*, *✓ Valider → commit → suivant* :
-   ce module ; *Générer les modules restants* : tous ; « Ce module est en
+   course qui génère ce module (*Générer* : ce module ; *Générer les
+   modules* : tous ; « Ce module est en
    cours de génération ») ; le principal recalcule ce verrou avant d'écrire,
    sans se fier à la page. Un clic sur une ligne, ou une sélection : *Commenter* (une
    question, une vérification) ou *Retour → fixup* (une correction) cite ses
    lignes entières dans le champ de la conversation (F-98). Prochaine action : *✓ Commiter*
-   (un commit préparé), *✓ Valider → commit → suivant* (un module pas
-   commité, un autre reste ; il commite comme `commiter-modules`, puis
-   *Générer ce module* part sur le suivant, dans une seconde course, F-115),
-   *Commiter les modules* (plus de module à faire), sinon
-   *Générer ce module* (le premier qu'aucun commit ne touche ; avec
-   `ponytail`, tests lancés, sans commit) : pas dans l'en-tête de l'étape,
-   c'est le *Générer* de ce module qui est mis en avant, sur sa ligne
-   (*Commiter ce module* non plus : le *Commiter* de chaque module) ;
-   *Préparer le commit* masqué sans rien à commiter, *✓ Valider → commit →
-   suivant* sans module pas commité ou sans suivant à générer, *Générer les
-   modules restants* sans module pas touché. *Relire le
+   (un commit préparé), sinon *Générer les modules* tant qu'un module n'est
+   pas touché (ceux qui restent, confiés à des agents Sonnet en parallèle
+   dans l'ordre de la Forme, chaque diff relu, sans commit ; masqué quand
+   tous le sont), puis *Commiter les modules* (un commit par module, ou un
+   fixup, rangés par l'agent : le dev génère, relit, ajuste, et laisse les
+   commits à la fin). *Générer* sur la ligne d'un module en génère un seul
+   (avec `ponytail`, tests lancés, sans commit), au choix. Plus de
+   *Valider → commit → suivant* ni de *Commiter* par module (0.13.0 :
+   commiter module par module ne se faisait pas en pratique). *Relire le
    diff* (les quatre questions du § 5.1) part seul après *Générer* (voir
-   *Générer ce module, puis Relire le diff*) : pas dans l'en-tête non plus,
-   *Relancer* sur sa carte, ou sur la ligne d'un module déplié. Aussi
-   *Générer les modules restants* (confiés à des
-   agents Sonnet en parallèle, chaque diff relu, sans commit).
+   *Générer ce module, puis Relire le diff*) : pas dans l'en-tête,
+   *Relancer* sur sa carte, ou sur la ligne d'un module déplié.
    **Vue IDE** : un interrupteur *IDE* · *liste*, dans les outils de la carte,
    choisit entre l'accordéon ci-dessus (*liste*, inchangée) et une
    arborescence à gauche, des fichiers des modules rangés par dossier (un
@@ -2262,8 +2253,9 @@ protocole d'`actions`, à partir de la forme. `invariants` suit `aligner`
 dans sa course ; `verifier` demande `ponytail` quand il lance toutes les
 vérifications (F-93) ; `module` demande `relire` (`review-diff`) une fois
 le module écrit, sauf lancé par `modules`. `modules` et `module` ne commitent pas :
-`commiter-modules` commite un module ou tous ceux qui ont des changements,
-un commit chacun ; `suivant` commite comme lui.
+`commiter-modules` commite tous les modules qui ont des changements, un
+commit chacun (un seul, avec son argument `module`, que l'écran ne propose
+plus).
 Un agent du plugin, Sonnet à effort élevé : `developpeur` (un module de la
 Forme, `ponytail` préchargé, le typecheck et les tests de son module
 seulement, rien de commité), lancé par `modules` (Opus · élevé), qui relit
@@ -2284,7 +2276,7 @@ longueur de celle-ci.
   message préparé, tel quel), `base`, `publier-revue` (`charger-pr`, `commit`, `base`, `publier-revue` : le
   *via* des actions directes, F-114), `nouvelle-demande` (F-110), `lancement` ;
 - *sonnet* : `commit-preparer` (faible) ; `pr`, `fixups`, `ci`, `ecran`,
-  `lire-invariants`, `commiter-modules`, `suivant`, `rc`, `release` (moyen) ;
+  `lire-invariants`, `commiter-modules`, `rc`, `release` (moyen) ;
   `module`, `appliquer-revue` (élevé) ;
 - *opus · élevé* : `invariants`, `modules`, `relire`, `aligner`,
   `ponytail`, `relire-note`, `relire-commits`.
@@ -3191,7 +3183,7 @@ relire, une PR d'essai sur GitHub)
   sous-contexte, ≈ 0,02 $ sur Haiku (≈ 25 000 jetons : le prompt de Claude
   Code et le skill ; SDK 0.3.285, Claude Code 2.1.285), quelle que soit la
   longueur de la conversation, bien davantage sur Opus à effort élevé ;
-  *Générer les modules restants*, *Vibe*, les releases : longs et
+  *Générer les modules*, *Vibe*, les releases : longs et
   coûteux. Une lecture d'invariants n'est refaite que si le fichier change.
   Choisir un modèle plus léger pour une étape coûte moins, au prix de la
   qualité (`lire-invariants` sur Haiku a été écarté par le banc, F-106).
