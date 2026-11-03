@@ -69,7 +69,7 @@
     "needs": "none",
     "reads": true,
     "label": "Prepare the commit",
-    "hint": "Picks and stages the files of the next commit and proposes its message, shown here before committing.",
+    "hint": "Picks and stages the files of the next commit and proposes its message, shown here before committing; before the PR, a file already committed (the note, the forme, a module) makes a fixup of its commit.",
     "text": "/vibecoder:commit-preparer {{lang}} {{out}}"
   },
   {

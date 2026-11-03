@@ -1,6 +1,6 @@
 ---
 name: commit-preparer
-description: "Pick and stage the files of the next commit — one module, or note + forme + invariants for the first one — and write its exact message to <out>/commit.md, without committing."
+description: "Pick and stage the files of the next commit — one module, note + forme + invariants for the first one, or a fixup of an earlier commit (the note or the forme changed since, before the PR) — and write its exact message to <out>/commit.md, without committing."
 argument-hint: "<lang> <out>"
 disable-model-invocation: true
 context: fork
@@ -27,15 +27,15 @@ First `gh pr view --json state,number` (before anything about fixups): `OPEN` �
 - Otherwise one module: its files and its tests — the first in the Forme's order (pure → orchestration → UI → doc) among those changed. The rest waits for the next commit: say so.
 - A file already owned by an earlier commit of the branch (`git log --format=%h <base>..HEAD -- <file>`):
   - PR open → never a fixup or an amend. It is a new commit of its own: stage it and write a message that says why the file changes again (the reason, not only the what), in the module's subject style.
-  - No open PR → a fixup of that commit, not part of this one: leave it out and say « fixup » (the project's `gear-fix-up` skill, if present). Only such files → write no message.
+  - No open PR → a fixup of that commit, prepared here like any other commit, and before any module: the next commit is the fixup of the oldest of these owners (each file's owner: the latest commit of the branch that touches it). Stage only the files it owns; the message is exactly `fixup! <that commit's subject>` (what `git commit --fixup` writes), no body. The note (its Forme too) and the invariant tests changed after the first commit thus go to the first commit. Not a fixup: a module's file whose only owner is the first commit (a skeleton) — it goes with that module's own commit. The other changes wait for the next commit: say so. The project's `gear-fix-up` skill, if present (`.claude/skills/gear-fix-up/SKILL.md`, else `~/.claude/skills/gear-fix-up/SKILL.md`), for its routing rules.
 - Docs only (`SPEC.md`, `README.md`, `AGENTS.md`…) → a doc commit.
 
 Stage exactly those: `git add -- <paths>`. Files already staged that don't belong → `git restore --staged -- <paths>`, and say so.
 
 ## 3. The message → `<out>/commit.md`
 
-The project's convention: its `gear-commit-message` skill if present (`.claude/skills/gear-commit-message/SKILL.md`, else `~/.claude/skills/gear-commit-message/SKILL.md`): follow its rules and format, write to the file instead of the clipboard. Otherwise the guide §5.2 (`docs/dev_guide/*.html`) and the style of `git log <base>`: subject `<module> : <what changes>`, a blank line, then the module's contract in a few lines (what it exposes, what it does not know, who uses it); first commit: the note, the forme and the red invariants. End with the attribution trailer your own instructions ask for, if any: the `commit` skill adds nothing. Change after the PR opened: the body starts with why the module changes again.
+The project's convention: its `gear-commit-message` skill if present (`.claude/skills/gear-commit-message/SKILL.md`, else `~/.claude/skills/gear-commit-message/SKILL.md`): follow its rules and format, write to the file instead of the clipboard. Otherwise the guide §5.2 (`docs/dev_guide/*.html`) and the style of `git log <base>`: subject `<module> : <what changes>`, a blank line, then the module's contract in a few lines (what it exposes, what it does not know, who uses it); first commit: the note, the forme and the red invariants. End with the attribution trailer your own instructions ask for, if any: the `commit` skill adds nothing. Change after the PR opened: the body starts with why the module changes again. A fixup: `fixup! <subject>` alone, nothing else (no body, no trailer): the fold keeps its target's message.
 
 The file holds the exact message only — subject, blank line, body — no code fence, no comment.
 
-Answer in English, 1 to 3 lines: the subject, the staged files (count), what was left out.
+Answer in English, 1 to 3 lines: the subject (`fixup! …` for a fixup), the staged files (count), what was left out.

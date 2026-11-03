@@ -69,7 +69,7 @@
     "needs": "none",
     "reads": true,
     "label": "Préparer le commit",
-    "hint": "Choisit et indexe les fichiers du prochain commit et propose son message, affiché ici avant de commiter.",
+    "hint": "Choisit et indexe les fichiers du prochain commit et propose son message, affiché ici avant de commiter ; avant la PR, un fichier déjà commité (la note, la forme, un module) fait un fixup de son commit.",
     "text": "/vibecoder:commit-preparer {{lang}} {{out}}"
   },
   {
