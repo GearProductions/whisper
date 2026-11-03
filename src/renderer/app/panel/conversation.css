@@ -321,6 +321,8 @@ header {
 }
 #composer-row button:hover:not(:disabled) { background: #2a3142; color: #e6e8ee; }
 #send { color: var(--accent) !important; }
+#mic[data-phase="recording"] { color: #f08a8b; }
+#mic[data-phase="transcribing"] { opacity: 0.6; }
 #composer-status { font-size: 12px; color: #f08a8b; }
 #composer-status:not(:empty) { margin-top: 6px; }
 

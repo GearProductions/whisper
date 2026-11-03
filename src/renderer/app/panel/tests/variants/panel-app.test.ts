@@ -5,10 +5,18 @@
 import { EditorView } from '@codemirror/view';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { DRAFT_MAX } from 'core/vibecoder';
 import type { ConvApi } from 'technicals/bridge';
 import { PanelApp } from '../../panel-app';
+
+// Le micro et le bip : un flux et un enregistrement factices, assez longs et forts pour être transcrits.
+vi.mock('technicals/audio', async (orig) => ({
+  ...(await orig<typeof import('technicals/audio')>()),
+  openMic: async () => ({ getTracks: () => [] }),
+  record: () => ({ chunks: [new Float32Array(16000).fill(0.5)], length: 16000, peak: 0.5, release() {} }),
+  beep: () => {},
+}));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -32,7 +40,14 @@ document.execCommand = (_cmd: string, _ui?: boolean, text = '') => {
 const page = document.body.appendChild(document.createElement('div'));
 await act(() => { createRoot(page).render(createElement(PanelApp, { conv })); });
 const input = page.querySelector<HTMLTextAreaElement>('#message')!;
-const dictate = (text: string) => act(() => { on.onDictation(text); });
+// Une dictée de bout en bout : le micro (#mic) maintenu puis relâché, whisper rend `text`.
+const dictate = async (text: string) => {
+  own.getConfig = () => Promise.resolve({});
+  own.transcribe = () => Promise.resolve({ ok: true, text });
+  const mic = page.querySelector('#mic')!;
+  await act(async () => { mic.dispatchEvent(new Event('pointerdown', { bubbles: true })); });
+  await act(async () => { mic.dispatchEvent(new Event('pointerup', { bubbles: true })); });
+};
 const area = (value = '', maxLength?: number) => {
   const f = document.body.appendChild(document.createElement('textarea'));
   f.value = value;

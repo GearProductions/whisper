@@ -1,6 +1,9 @@
 /** panel — le pont du panneau des conversations (window.conv) : il reçoit la
  *  conversation affichée (ou le contexte « Dictée »), demande l'historique, la
- *  lecture d'une réponse par son rang, et envoie à l'agent affiché ce qu'on
+ *  lecture d'une réponse par son rang (et son flux audio : speak, onSpeakChunk,
+ *  onSpeakEnd, cancelSpeak), prend le micro (réglages, enregistrement : le son
+ *  part par transcribe, le texte rendu par whisper revient à la page ; aucun
+ *  canal ne colle ni ne lit un texte donné par la page), et envoie à l'agent affiché ce qu'on
  *  écrit dans son champ (le principal vérifie à qui). Répondre à une demande
  *  d'autorisation ne vaut que pour celle affichée. Copier ne transporte aucun
  *  texte : le principal copie le sien. VibeCoder : le relevé de l'agent
@@ -21,7 +24,14 @@ import type { ConvApi } from 'shared/bridge';
 const conv: ConvApi = {
   onThread: (fn) => { ipcRenderer.on('conv:thread', (_e, data) => fn(data)); },
   ready: () => ipcRenderer.send('conv:ready'),
-  speak: (index) => ipcRenderer.send('conv:speak', index),
+  getConfig: () => ipcRenderer.invoke('config:get'),
+  setDevice: (id, label) => ipcRenderer.send('config:setDevice', id, label),
+  setRecording: (on) => ipcRenderer.send('dictation:recording', !!on),
+  transcribe: (pcm) => ipcRenderer.invoke('dictation:transcribe', pcm),
+  speak: (index) => ipcRenderer.invoke('conv:speak', index),   // la réponse de ce rang : le principal lit son résumé
+  cancelSpeak: (id) => ipcRenderer.send('tts:cancel', id),
+  onSpeakChunk: (fn) => { ipcRenderer.on('tts:chunk', (_e, id, pcm, rate) => fn(id, pcm, rate)); },
+  onSpeakEnd: (fn) => { ipcRenderer.on('tts:end', (_e, id, error) => fn(id, error)); },
   history: () => ipcRenderer.invoke('conv:history'),
   // Détail du contexte et commandes de l'agent : { context, commands } ou { error }.
   probe: () => ipcRenderer.invoke('conv:probe'),
@@ -36,11 +46,11 @@ const conv: ConvApi = {
   copy: () => ipcRenderer.invoke('conv:copy'),
   // Champ de saisie : un message à l'agent affiché, avec ses pièces jointes →
   // { ok, error }. Trombone : menu (fichiers, sélection), le choix revient par
-  // onAttached. La dictée, panneau ouvert, arrive par onDictation.
+  // onAttached. La dictée : la page envoie le son (transcribe) et reçoit ce
+  // que whisper rend, qu'elle insère elle-même.
   send: (draft) => ipcRenderer.invoke('conv:send', draft),
   attach: () => ipcRenderer.send('conv:attach'),
   onAttached: (fn) => { ipcRenderer.on('conv:attached', (_e, what) => fn(what)); },
-  onDictation: (fn) => { ipcRenderer.on('conv:dictation', (_e, text) => fn(text)); },
   onFocusInput: (fn) => { ipcRenderer.on('conv:focusInput', () => fn()); },
   hide: () => ipcRenderer.send('conv:hide'),                  // la croix du panneau
   pathFor: (file) => webUtils.getPathForFile(file),          // chemin d'un fichier déposé ('' : collé)

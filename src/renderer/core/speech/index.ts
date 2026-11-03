@@ -1,2 +1,2 @@
-/** speech — le lecteur de la lecture à voix haute et l'état de son bouton. */
+/** speech — le lecteur d'*Écouter* (une réponse par son rang). */
 export * from './speech-player';

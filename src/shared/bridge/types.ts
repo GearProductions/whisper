@@ -1,5 +1,5 @@
 /** bridge — le contrat entre les pages et le principal : ce que chaque pont
- *  (src/preload.js, bubble-preload.js, conversation-preload.js) expose, et la
+ *  (src/preload : icon, bubble, panel) expose, et la
  *  forme des données échangées. Aucun code.
  *  Ne connaît pas : React, Electron. Utilisé par : les pages (src/renderer), les
  *  ponts (src/preload), le principal (src/main). Un canal ajouté ici l'est
@@ -23,10 +23,6 @@ export type TranscribeResult = {
   text?: string;
   error?: string;
   code?: string;
-  agent?: string;    // envoyé (ou ajouté au champ) de cet agent
-  panel?: boolean;   // dans le champ du panneau, à relire
-  pasted?: boolean;
-  autoPaste?: boolean;
 };
 
 export type MicDevice = { deviceId: string; label: string };
@@ -172,7 +168,16 @@ export type Decision = 'allow' | 'always' | 'deny';
 export interface ConvApi {
   onThread(fn: (data: Thread) => void): void;
   ready(): void;
-  speak(index: number): void;
+  getConfig(): Promise<DictationConfig>;
+  setDevice(id: string, label: string): void;
+  setRecording(on: boolean): void;
+  /** `text` : ce que whisper vient de rendre, inséré par la page dans la zone qui a le clavier. */
+  transcribe(pcm: ArrayBuffer): Promise<TranscribeResult>;
+  /** Lire à voix haute la réponse de rang `index` : le résumé retenu par le principal. */
+  speak(index: number): Promise<SpeakStart>;
+  cancelSpeak(id: number): void;
+  onSpeakChunk(fn: (id: number, pcm: Uint8Array, rate: number) => void): void;
+  onSpeakEnd(fn: (id: number, error: string | null) => void): void;
   history(): Promise<Session[]>;
   probe(): Promise<ProbeResult>;
   open(sessionId: string): void;
@@ -186,7 +191,6 @@ export interface ConvApi {
   send(draft: OutgoingDraft): Promise<SendResult>;
   attach(): void;
   onAttached(fn: (what: Attached) => void): void;
-  onDictation(fn: (text: string) => void): void;
   onFocusInput(fn: () => void): void;
   hide(): void;
   pathFor(file: File): string;

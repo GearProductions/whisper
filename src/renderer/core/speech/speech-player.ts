@@ -1,65 +1,38 @@
-/** speech-player — le lecteur de la lecture à voix haute. Le principal génère l'audio
- *  et l'envoie par morceaux (`tts:chunk`), joués bout à bout ; `tts:end` dit
- *  que la génération est finie. `id` : la lecture en cours, les morceaux
- *  d'une lecture abandonnée sont ignorés. playView : l'état du bouton.
- *  Ne connaît pas : React ; pont et AudioContext sont injectés.
- *  Utilisé par : app/icon (icon-app, play-button). */
-import type { IconApi, SpeakState } from 'technicals/bridge';
+/** speech-player — le lecteur d'*Écouter* : lit la réponse dont on donne le rang.
+ *  Le principal choisit le texte (le résumé retenu), génère l'audio et l'envoie
+ *  par morceaux (`tts:chunk`), joués bout à bout, au volume réglé ; `tts:end`
+ *  dit que la génération est finie. `id` : la lecture en cours, les morceaux
+ *  d'une lecture abandonnée sont ignorés.
+ *  Ne connaît pas : React, le texte lu ; pont et AudioContext sont injectés.
+ *  Utilisé par : app/panel (panel-app). */
+import type { ConvApi } from 'technicals/bridge';
 
-export const ERROR_MS = 4000;
 const LEAD_S = 0.05; // marge avant le premier morceau
 
-// idle | loading (en attente du premier son) | playing | error
+// idle | loading (en attente du premier son) | playing | error (jusqu'à la lecture suivante)
 export type SpeechPhase = 'idle' | 'loading' | 'playing' | 'error';
-export type SpeechView = { state: SpeakState; phase: SpeechPhase; error: string };
-
-export const canSpeak = (s: SpeakState) => s.mode !== 'off' && !!s.ready && !!s.hasText;
-
-// Le bouton : masqué, grisé (aria-disabled, pour garder le clic droit) ou actif, et son infobulle.
-export function playView({ state: s, phase, error }: SpeechView) {
-  const busy = phase === 'loading' || phase === 'playing';
-  const what = s.mode === 'selection' ? 'la sélection' : 'le presse-papiers';
-  let title: string;
-  if (busy) title = phase === 'loading' ? 'Préparation de la lecture… (clic : annuler)' : 'Arrêter la lecture';
-  else if (phase === 'error') title = error;
-  else if (!s.ready) title = 'Pocket TTS introuvable : voir le README (Lecture à voix haute)';
-  else if (!s.hasText) title = s.mode === 'selection' ? 'Sélectionnez du texte à lire' : 'Presse-papiers vide';
-  else title = `Lire ${what} à voix haute`;
-  return { hidden: s.mode === 'off', disabled: !busy && !canSpeak(s), title };
-}
 
 export type SpeechDeps = {
-  api: Pick<IconApi, 'speak' | 'cancelSpeak'>;
+  api: Pick<ConvApi, 'speak' | 'cancelSpeak' | 'onSpeakChunk' | 'onSpeakEnd'>;
   newContext: () => AudioContext;
-  onChange: (view: SpeechView) => void;
+  onChange: (phase: SpeechPhase, message?: string) => void; // message : le motif d'un échec, quand le principal le donne
 };
 
 type Early = [number, 'chunk', Uint8Array, number] | [number, 'end', string | null];
 
 export function createSpeechPlayer({ api, newContext, onChange }: SpeechDeps) {
-  let state: SpeakState = { mode: 'off' };
   let phase: SpeechPhase = 'idle';
-  let error = '';
-  let errorTimer: ReturnType<typeof setTimeout> | undefined;
   let id: number | null = null;
   let token = 0;
   let done = false;
   let ctx: AudioContext | null = null;
-  let gain: GainNode | null = null;
   const sources = new Set<AudioBufferSourceNode>();
   let nextTime = 0;
   let early: Early[] = [];
 
-  const volume = () => (Number.isFinite(state.volume) ? state.volume! : 1);
-  const view = (): SpeechView => ({ state, phase, error });
-  const changed = () => onChange(view());
-
-  function setPhase(p: SpeechPhase, err = '') {
+  function setPhase(p: SpeechPhase, message?: string) {
     phase = p;
-    error = err;
-    clearTimeout(errorTimer);
-    if (p === 'error') errorTimer = setTimeout(() => { if (phase === 'error') setPhase('idle'); }, ERROR_MS);
-    changed();
+    onChange(p, message);
   }
 
   function stop() {
@@ -69,7 +42,6 @@ export function createSpeechPlayer({ api, newContext, onChange }: SpeechDeps) {
     if (ctx) ctx.close().catch(() => {});
     sources.clear();
     ctx = null;
-    gain = null;
     id = null;
     early = [];
     if (phase === 'loading' || phase === 'playing') setPhase('idle');
@@ -89,7 +61,7 @@ export function createSpeechPlayer({ api, newContext, onChange }: SpeechDeps) {
     for (let i = 0; i < ints.length; i++) data[i] = ints[i] / 32768;
     const src = c.createBufferSource();
     src.buffer = buf;
-    src.connect(gain!);
+    src.connect(c.destination);
     const at = Math.max(nextTime, c.currentTime + LEAD_S);
     src.start(at);
     nextTime = at + buf.duration;
@@ -102,7 +74,7 @@ export function createSpeechPlayer({ api, newContext, onChange }: SpeechDeps) {
     if (id === null && phase === 'loading') { early.push(ev); return; }
     if (ev[0] !== id) return;
     if (ev[1] === 'chunk') {
-      try { playChunk(ev[2], ev[3]); } catch { stop(); setPhase('error', 'Lecture audio impossible.'); }
+      try { playChunk(ev[2], ev[3]); } catch { stop(); setPhase('error'); }
       return;
     }
     done = true;
@@ -111,22 +83,20 @@ export function createSpeechPlayer({ api, newContext, onChange }: SpeechDeps) {
     else finishIfDone();
   }
 
-  // `source` : rien (la sélection ou le presse-papiers) ou 'reply'.
-  async function speak(source?: 'reply') {
+  api.onSpeakChunk((chunkId, pcm, rate) => onEvent([chunkId, 'chunk', pcm, rate]));
+  api.onSpeakEnd((endId, err) => onEvent([endId, 'end', err]));
+
+  async function play(index: number) {
+    stop(); // une lecture en cours cède la place
     const own = ++token;
-    // Créés au clic : le volume passe par un gain, le curseur agit en cours de lecture.
-    ctx = newContext();
-    gain = ctx.createGain();
-    gain.gain.value = volume();
-    gain.connect(ctx.destination);
+    ctx = newContext(); // créé au clic : le navigateur l'exige
     nextTime = 0;
     done = false;
-    early = [];
     setPhase('loading');
-    let res: Awaited<ReturnType<IconApi['speak']>> | null;
-    try { res = await api.speak(source); } catch { res = null; }
+    let res: Awaited<ReturnType<ConvApi['speak']>> | null;
+    try { res = await api.speak(index); } catch { res = null; }
     if (own !== token) { if (res && res.ok) api.cancelSpeak(res.id); return; } // annulée entre-temps
-    if (!res || !res.ok) { stop(); setPhase('error', (res && !res.ok && res.error) || 'La synthèse vocale a échoué.'); return; }
+    if (!res || !res.ok) { stop(); setPhase('error', res?.error); return; }
     id = res.id;
     // Morceaux arrivés avant la réponse : rejoués dans l'ordre.
     const pending = early;
@@ -134,29 +104,9 @@ export function createSpeechPlayer({ api, newContext, onChange }: SpeechDeps) {
     for (const ev of pending) onEvent(ev);
   }
 
-  const busy = () => phase === 'loading' || phase === 'playing';
-
   return {
-    view,
+    play: (index: number) => { void play(index); },
     stop,
-    canSpeak: () => canSpeak(state),
-    // Clic sur le bouton : lit, ou arrête la lecture en cours.
-    click() {
-      if (busy()) stop();
-      else if (canSpeak(state)) speak();
-    },
-    // Écouter, dans le panneau : le résumé d'une réponse, par le même lecteur.
-    speakReply() {
-      if (busy()) stop();
-      speak('reply');
-    },
-    setState(s: SpeakState | null) {
-      state = s || { mode: 'off' };
-      if (state.mode === 'off') stop();
-      if (gain) gain.gain.value = volume();
-      changed();
-    },
-    onChunk: (chunkId: number, pcm: Uint8Array, rate: number) => onEvent([chunkId, 'chunk', pcm, rate]),
-    onEnd: (endId: number, err: string | null) => onEvent([endId, 'end', err]),
+    get phase() { return phase; },
   };
 }

@@ -13,9 +13,12 @@
  *  étape, une remarque) ; seul un message de la conversation (Demander sans
  *  modifier, Où j'en suis ?, Proposer les commandes) prend celui du champ de
  *  la conversation (vidé une fois parti), ou y prépare un message. La dictée
- *  va à la zone de texte qui a le clavier (champ d'étape, commentaire,
- *  réponse libre ; pas un éditeur de code ni un champ d'une ligne), sous sa
- *  longueur, sinon au champ de la conversation.
+ *  (le micro du champ, maintenu ; createDictation) rend le texte de whisper à
+ *  la zone de texte qui a le clavier (champ d'étape, commentaire, réponse
+ *  libre ; pas un éditeur de code ni un champ d'une ligne), sous sa longueur,
+ *  sinon au champ de la conversation ; sa phase (erreur, aucune parole) va à
+ *  la ligne d'état du champ. Écouter lit une réponse par son rang
+ *  (createSpeechPlayer), le bip suit le réglage du son.
  *  La colle : seul fichier du panneau qui connaît le pont (window.conv) ; il
  *  tient le brouillon de chaque conversation et la saisie de VibeCoder de
  *  chaque agent (createKept). Voir le code : le fichier de module suivi
@@ -34,8 +37,11 @@ import {
   appendDictation, createDrafts, createPermissionGuard, EMPTY, followsEnd, IMAGE_TYPES, isBusy, revoke, titleOf, toDraft,
   withAttached, withFile, type Draft, type Piece,
 } from 'core/conversation';
+import { createDictation, type Phase } from 'core/dictation';
+import { createSpeechPlayer } from 'core/speech';
 import { createKept, t as vibeStrings, withPrefill } from 'core/vibecoder';
 import type { Command, ConvApi, Notice, ProbeResult, SendResult, Session, Thread, VibeArgs, VibeCode, VibeView } from 'technicals/bridge';
+import { beep, openMic, record } from 'technicals/audio';
 import { compactHeight, dictationField, dictationText } from 'technicals/dom';
 import {
   ArchivedBar, Composer, ContextDetail, Header, HistoryList, Lightbox, NoticeBar, showsWorking, TasksPane, ThreadContent,
@@ -78,6 +84,30 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     thread: useRef<HTMLElement>(null), context: useRef<HTMLElement>(null), composer: useRef<HTMLElement>(null),
     input: useRef<HTMLTextAreaElement>(null),
   };
+
+  // La lecture à voix haute (Écouter) : seule une erreur se dit, dans la ligne d'état.
+  const [player] = useState(() => createSpeechPlayer({
+    api: conv, newContext: () => new AudioContext(), onChange: (p) => { if (p === 'error') setStatus('La lecture a échoué.'); },
+  }));
+  // La dictée (micro du champ, maintenu) : le texte de whisper, ajouté au champ pour être relu.
+  const [micPhase, setMicPhase] = useState<Phase>('idle');
+  const [dictation] = useState(() => createDictation({
+    api: conv,
+    openMic: (cfg) => openMic(cfg, (id, label) => conv.setDevice(id, label)),
+    record,
+    beep: (cfg, freq) => { if (cfg.sound !== false) beep(freq); },
+    stopSpeaking: player.stop,
+    setPhase: (p, message) => { setMicPhase(p); if (message || p === 'starting') setStatus(message ?? ''); },
+    onText: (text) => {
+      // Une autre zone de texte a le clavier (champ d'étape, commentaire, réponse libre) : la dictée
+      // s'y insère à la place de la sélection, sous sa longueur (son onChange suit) ; plus de place : rien.
+      const f = dictationField(document.activeElement, el.input.current);
+      const s = f && dictationText(f, text);
+      if (f && (!s || document.execCommand('insertText', false, s))) return;
+      focusEnd.current = true;
+      setDraft((d) => ({ ...d, text: appendDictation(d.text, text) }));
+    },
+  }));
 
   const zoomRef = useRef<string | null>(null);
   const setOverlay = (o: Overlay) => { overlayRef.current = o; setOverlayState(o); };
@@ -139,16 +169,6 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
       clearTimeout(noticeTimer.current);
       setNotice(n);
       if (n && n.kind === 'status') noticeTimer.current = setTimeout(() => setNotice(null), STATUS_MS);
-    });
-    // La dictée, panneau ouvert sur cet agent : ajoutée au champ, à relire.
-    conv.onDictation((text) => {
-      // Une autre zone de texte a le clavier (champ d'étape, commentaire, réponse libre) : la dictée
-      // s'y insère à la place de la sélection, sous sa longueur (son onChange suit) ; plus de place : rien.
-      const f = dictationField(document.activeElement, el.input.current);
-      const s = f && dictationText(f, text);
-      if (f && (!s || document.execCommand('insertText', false, s))) return;
-      focusEnd.current = true;
-      setDraft((d) => ({ ...d, text: appendDictation(d.text, text) }));
     });
     conv.onFocusInput(() => el.input.current!.focus());
     conv.onVibe(setVibe);
@@ -303,7 +323,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   const act: ThreadActions = {
     openLink: conv.openLink,
     showFile: conv.showFile,
-    listen: conv.speak,
+    listen: player.play,
     copy: conv.copy,
     zoom: setZoom,
     answer: (decision, key) => guard.answer(key, decision, conv.answer),
@@ -337,6 +357,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
       removePiece={(p) => { revoke([p]); setDraft((d) => ({ ...d, pieces: d.pieces.filter((x) => x !== p) })); }}
       artifacts={vibeShown?.artifacts} artifactsDir={vibeShown?.artifactsDir}
       status={status} setStatus={setStatus} dir={data?.dir || ''} commands={commands} probe={conv.probe}
+      onMicDown={dictation.start} onMicUp={dictation.stop} phase={micPhase}
       onSend={send} onAttach={() => conv.attach()} onFiles={addFiles} onLayout={reportHeight}
       ref={el.composer} input={el.input} />
   );

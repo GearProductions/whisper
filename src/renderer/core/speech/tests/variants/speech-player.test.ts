@@ -1,8 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createSpeechPlayer, playView, type SpeechView } from 'core/speech';
-import type { SpeakStart, SpeakState } from 'technicals/bridge';
-
-const ready: SpeakState = { mode: 'selection', ready: true, hasText: true, volume: 1 };
+import { createSpeechPlayer, type SpeechPhase } from 'core/speech';
+import type { SpeakStart } from 'technicals/bridge';
 
 // AudioContext minimal : des sources qu'on termine à la main.
 function fakeContext() {
@@ -10,7 +8,6 @@ function fakeContext() {
   const ctx = {
     currentTime: 0,
     destination: {},
-    createGain: () => ({ gain: { value: 1 }, connect: () => {} }),
     createBuffer: (_c: number, length: number, rate: number) => ({ duration: length / rate, getChannelData: () => new Float32Array(length) }),
     createBufferSource: () => {
       const s = { buffer: null, onended: null as (() => void) | null, connect: () => {}, start: () => {}, stop: () => {} };
@@ -23,79 +20,104 @@ function fakeContext() {
 }
 
 function setup(start: SpeakStart | Promise<SpeakStart> = { ok: true, id: 7 }) {
-  const views: SpeechView[] = [];
+  const phases: SpeechPhase[] = [];
+  const messages: (string | undefined)[] = [];
   const { ctx, sources } = fakeContext();
   const cancelSpeak = vi.fn();
+  const speak = vi.fn(() => Promise.resolve(start));
+  let chunk: (id: number, pcm: Uint8Array, rate: number) => void = () => {};
+  let end: (id: number, error: string | null) => void = () => {};
   const player = createSpeechPlayer({
-    api: { speak: vi.fn(() => Promise.resolve(start)), cancelSpeak },
+    api: { speak, cancelSpeak, onSpeakChunk: (f) => { chunk = f; }, onSpeakEnd: (f) => { end = f; } },
     newContext: () => ctx,
-    onChange: (v) => views.push(v),
+    onChange: (p, m) => { phases.push(p); messages.push(m); },
   });
-  player.setState(ready);
-  return { player, views, sources, cancelSpeak, phase: () => player.view().phase };
+  return { player, phases, messages, sources, speak, cancelSpeak, chunk: (...a: Parameters<typeof chunk>) => chunk(...a), end: (...a: Parameters<typeof end>) => end(...a) };
 }
 const pcm = () => new Uint8Array(4800);
+const tick = async () => { await Promise.resolve(); await Promise.resolve(); };
 
 describe('lecteur', () => {
+  it('ne passe que le rang de la réponse', () => {
+    const { player, speak } = setup();
+    player.play(3);
+    expect(speak).toHaveBeenCalledWith(3);
+  });
+
   it('morceaux joués puis fin', async () => {
-    const { player, sources, phase } = setup();
-    player.click();
-    expect(phase()).toBe('loading');
-    await Promise.resolve(); await Promise.resolve();
-    player.onChunk(7, pcm(), 24000);
-    expect(phase()).toBe('playing');
-    player.onEnd(7, null);
+    const { player, sources, chunk, end } = setup();
+    player.play(0);
+    expect(player.phase).toBe('loading');
+    await tick();
+    chunk(7, pcm(), 24000);
+    expect(player.phase).toBe('playing');
+    end(7, null);
     sources[0].onended!();
-    expect(phase()).toBe('idle');
+    expect(player.phase).toBe('idle');
   });
 
   it('morceaux arrivés avant la réponse : rejoués', async () => {
     let resolve: (s: SpeakStart) => void = () => {};
-    const { player, phase } = setup(new Promise<SpeakStart>((r) => { resolve = r; }));
-    player.click();
-    player.onChunk(7, pcm(), 24000);
-    expect(phase()).toBe('loading');
+    const { player, chunk } = setup(new Promise<SpeakStart>((r) => { resolve = r; }));
+    player.play(0);
+    chunk(7, pcm(), 24000);
+    expect(player.phase).toBe('loading');
     resolve({ ok: true, id: 7 });
-    await vi.waitFor(() => expect(phase()).toBe('playing'));
+    await vi.waitFor(() => expect(player.phase).toBe('playing'));
   });
 
   it('morceaux d’une autre lecture ignorés', async () => {
-    const { player, phase } = setup();
-    player.click();
-    await vi.waitFor(() => expect(player.view().phase).toBe('loading'));
-    await Promise.resolve(); await Promise.resolve();
-    player.onChunk(3, pcm(), 24000);
-    expect(phase()).toBe('loading');
+    const { player, chunk } = setup();
+    player.play(0);
+    await tick();
+    chunk(3, pcm(), 24000);
+    expect(player.phase).toBe('loading');
   });
 
-  it('second clic : arrête et annule la génération', async () => {
-    const { player, cancelSpeak, phase } = setup();
-    player.click();
-    await Promise.resolve(); await Promise.resolve();
-    player.onChunk(7, pcm(), 24000);
-    player.click();
-    expect(phase()).toBe('idle');
+  it('stop : arrête et annule la génération', async () => {
+    const { player, cancelSpeak, chunk } = setup();
+    player.play(0);
+    await tick();
+    chunk(7, pcm(), 24000);
+    player.stop();
+    expect(player.phase).toBe('idle');
     expect(cancelSpeak).toHaveBeenCalledWith(7);
   });
 
-  it('erreur du principal affichée', async () => {
-    const { player } = setup({ ok: false, error: 'Rien à lire.' });
-    player.click();
-    await vi.waitFor(() => expect(player.view()).toMatchObject({ phase: 'error', error: 'Rien à lire.' }));
+  it('stop avant la réponse : la génération annoncée ensuite est annulée', async () => {
+    const { player, cancelSpeak } = setup();
+    player.play(0);
+    player.stop();
+    await tick();
+    expect(cancelSpeak).toHaveBeenCalledWith(7);
+    expect(player.phase).toBe('idle');
   });
-});
 
-describe('bouton de lecture', () => {
-  const view = (state: SpeakState, phase: SpeechView['phase'] = 'idle', error = ''): SpeechView => ({ state, phase, error });
-  it.each([
-    [view({ mode: 'off' }), { hidden: true, disabled: true }],
-    [view({ ...ready, ready: false }), { disabled: true, title: 'Pocket TTS introuvable : voir le README (Lecture à voix haute)' }],
-    [view({ ...ready, hasText: false }), { disabled: true, title: 'Sélectionnez du texte à lire' }],
-    [view({ ...ready, mode: 'clipboard', hasText: false }), { disabled: true, title: 'Presse-papiers vide' }],
-    [view(ready), { hidden: false, disabled: false, title: 'Lire la sélection à voix haute' }],
-    [view({ ...ready, hasText: false }, 'playing'), { disabled: false, title: 'Arrêter la lecture' }],
-    [view(ready, 'error', 'La synthèse vocale a échoué.'), { title: 'La synthèse vocale a échoué.' }],
-  ])('%j', (v, expected) => {
-    expect(playView(v)).toMatchObject(expected);
+  it('jouer une autre réponse en cours de lecture : arrête la première', async () => {
+    const { player, speak, cancelSpeak, chunk } = setup();
+    player.play(0);
+    await tick();
+    chunk(7, pcm(), 24000);
+    player.play(1);
+    expect(cancelSpeak).toHaveBeenCalledWith(7);
+    expect(speak).toHaveBeenLastCalledWith(1);
+    expect(player.phase).toBe('loading');
+  });
+
+  it('erreur du principal : phase error, avec son motif', async () => {
+    const { player, messages } = setup({ ok: false, error: 'Rien à lire.' });
+    player.play(0);
+    await vi.waitFor(() => expect(player.phase).toBe('error'));
+    expect(messages.at(-1)).toBe('Rien à lire.');
+  });
+
+  it('erreur de génération en cours de route : phase error, avec son motif', async () => {
+    const { player, messages, chunk, end } = setup();
+    player.play(0);
+    await tick();
+    chunk(7, pcm(), 24000);
+    end(7, 'boum');
+    expect(player.phase).toBe('error');
+    expect(messages.at(-1)).toBe('boum');
   });
 });

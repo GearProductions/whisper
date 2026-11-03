@@ -1,5 +1,5 @@
 /** beep — bip de début, de fin, de réponse d'un agent : on dicte les yeux sur
- *  une AUTRE application. Ne connaît pas : le pont, React. Utilisé par : app/icon (icon-app). */
+ *  une AUTRE application. Ne connaît pas : le pont, React. Utilisé par : app/panel. */
 
 export function beep(freq: number) {
   try {

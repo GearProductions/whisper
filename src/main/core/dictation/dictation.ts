@@ -1,5 +1,5 @@
-/** dictation — ce que devient une dictée côté principal : l'audio accepté, le
- *  texte nettoyé (une seule ligne, I-4), sa destination (le champ d'un agent,
+/** dictation — ce que devient une dictée côté principal : l'audio accepté (ni
+ *  trop court ni muet, I-10), le texte nettoyé (une seule ligne, I-4), sa destination (le champ d'un agent,
  *  l'agent directement, ou le curseur), et le collage avec le presse-papiers
  *  photographié puis rendu (I-5, I-6).
  *  Ne connaît pas : whisper, le presse-papiers ni l'outil de collage (passés).
@@ -10,11 +10,12 @@ import type { Config } from 'core/config';
 const SAMPLE_RATE = 16000;
 const MIN_BYTES = SAMPLE_RATE * 2 * 0.3;     // < 0,3 s : un clic, pas une phrase
 const MAX_BYTES = SAMPLE_RATE * 2 * 5 * 60;  // 5 min : la page coupe avant
+const MIN_RMS = 0.008;                       // F-4 : en dessous, du silence (même seuil que la page, qui ne se fie pas)
 const RESTORE_DELAY_MS = 400;
 
 export const TRANSCRIBE_MESSAGES: Record<string, string> = {
   notInstalled: 'whisper.cpp introuvable : placez whisper-cli et un modèle ggml-*.bin dans le dossier whisper (clic droit → Ouvrir le dossier whisper).',
-  badAudio: 'Enregistrement trop court ou trop long.',
+  badAudio: 'Enregistrement trop court, trop long ou muet.',
   timeout: 'La transcription a pris trop de temps.',
   failed: 'La transcription a échoué.',
 };
@@ -24,6 +25,10 @@ export function checkAudio(pcm: unknown): Buffer {
   const buf = pcm instanceof ArrayBuffer || ArrayBuffer.isView(pcm)
     ? Buffer.from((pcm as ArrayBufferView).buffer || (pcm as ArrayBuffer)) : null;
   if (!buf || buf.length % 2 || buf.length < MIN_BYTES || buf.length > MAX_BYTES) throw new Error('badAudio');
+  const n = buf.length / 2;
+  let sum = 0;
+  for (let i = 0; i < n; i++) sum += (buf.readInt16LE(i * 2) / 0x8000) ** 2;
+  if (Math.sqrt(sum / n) < MIN_RMS) throw new Error('badAudio');
   return buf;
 }
 

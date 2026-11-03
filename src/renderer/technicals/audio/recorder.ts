@@ -1,7 +1,7 @@
 /** recorder — le micro : l'ouvrir (retrouvé par son nom si son identifiant a
  *  changé), lister les entrées, enregistrer à 16 kHz.
  *  Ne connaît pas : le pont (onRelabel est passé), React.
- *  Utilisé par : app/icon (icon-app), core/dictation (type Recording). */
+ *  Utilisé par : app/panel, core/dictation (type Recording). */
 import type { DictationConfig, MicDevice } from 'technicals/bridge';
 import { RATE, rms } from './pcm';
 

@@ -16,7 +16,7 @@ async function shown(busy: boolean) {
     createRoot(page).render(createElement(Composer, {
       draft: { text: 'salut', pieces: [] }, setText() {}, removePiece() {}, live: true, name: 'Agent', busy, sending: false,
       status: '', setStatus() {}, dir: '/d', commands: new Map(), probe: async () => ({ commands: [] }),
-      onSend: () => calls.push('send'), onAttach: () => calls.push('attach'), onFiles() {}, onLayout() {},
+      onSend: () => calls.push('send'), onAttach: () => calls.push('attach'), onFiles() {}, onLayout() {}, onMicDown() {}, onMicUp() {}, phase: 'idle',
       ref: createRef<HTMLElement>(), input: createRef<HTMLTextAreaElement>(),
     }));
   });
