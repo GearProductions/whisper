@@ -1559,9 +1559,13 @@ créateur ; le relecteur, F-101) :
    déplié en cas d'échec ; *Relancer*, qui ne relance qu'elle, F-93), le compte de la carte « n en échec »
    en rouge, sinon « n avertissements » en orange, sinon « n / n ok » ; les
    faits de l'étape ajoutent « n avertissements » ; la ponytail
-   review rendue, *Commenter* et *Appliquer* par remarque, *Tout appliquer* sur la
-   carte (l'action `apply`, skill `appliquer-revue`, sur Sonnet ; *Appliquer* lui donne
-   la remarque, `{{text}}`, *Tout appliquer* rien : toutes ; ni l'un ni
+   review rendue, *Commenter* et *Appliquer* par remarque, une case devant
+   chaque remarque pas appliquée (cochée par défaut ; les décochées oubliées
+   à une nouvelle review), *Tout appliquer* sur la carte quand toutes sont
+   cochées, sinon *Appliquer la sélection (n)* (grisé sans aucune) (l'action
+   `apply`, skill `appliquer-revue`, sur Sonnet ; *Appliquer* lui donne la
+   remarque, `{{text}}`, *Appliquer la sélection* les cochées, une par ligne
+   de liste, *Tout appliquer* rien : toutes ; ni l'un ni
    l'autre ne prend le champ ; absents sans remarque en liste ; *Appliquer*
    pas proposé pendant une course `apply` — en cours, en attente, arrêtée
    pas tranchée ; pas de *Relancer* ; sans sortie, une invitation sans
@@ -2329,11 +2333,14 @@ skills (F-106), réécrites à chaque fois.
 (libellés, faits des étapes, raisons et erreurs), des actions
 (`actions.<langue>.json` : libellés, aides, messages envoyés) et de ce que
 les skills écrivent pour l'utilisateur (`{{lang}}`) : la note, les questions
-ouvertes, le plan de test à l'écran, la relecture de la note, les releases.
+ouvertes, le plan de test à l'écran, la relecture de la note, la ponytail
+review (relue de près, ses subtilités comprises : son adresse
+`<fichier>:L<ligne>` et ses étiquettes, `delete`, `edge`…, restent telles
+quelles), les releases.
 **Tout ce qui touche au code reste en anglais**, quelle que soit la langue :
 le pseudo-code des invariants (`test "…":`, `given / when / then`) et ses rubriques `Edge cases:`, `Guarantees:`, `Warning:` (le relevé
 lit encore `Cas limites :`, `Garantit :`, `Attention :` des lectures
-d'avant), les relectures de diff et de commits, la ponytail review, la CI,
+d'avant), les relectures de diff et de commits, la CI,
 l'alignement, les vérifications, les réponses des skills techniques ; les
 messages de commit et de PR suivent la convention du projet. Les composants
 de la conversation (fil, champ, volet des tâches, détail du contexte)

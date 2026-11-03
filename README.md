@@ -655,8 +655,9 @@ relire une PR (le relecteur, plus bas) :
    tournent ensemble ; des avertissements seulement : en orange, la
    vérification passe ; *Relancer* sur l'une ne relance qu'elle ; les
    commandes du projet sont vraiment lancées, par le préfixe des commandes,
-   et un résultat d'avant ce lancement ne compte pas), *Tout appliquer* ou
-   *Appliquer* une remarque (en fixups ; une remarque appliquée est marquée
+   et un résultat d'avant ce lancement ne compte pas), *Tout appliquer*,
+   *Appliquer la sélection* (décochez les remarques à écarter : toutes sont
+   cochées par défaut) ou *Appliquer* une remarque (en fixups ; une remarque appliquée est marquée
    ✓, toutes : « Appliquée »), *Replier les fixups* ; la liste du
    guide avant une PR, cochée quand le dépôt le dit — « chaque diff relu » et
    « AGENTS.md à jour » se cochent à la main, jusqu'au prochain commit. Puis
@@ -1002,9 +1003,10 @@ illisible : les boutons d'origine ; vide (`[]`) : aucun bouton.
 
 **FR / EN** (en haut de l'écran ; réglage `vibeLang`) : la langue de l'écran,
 des boutons et des messages envoyés — l'agent écrit dans cette langue la
-note, ses questions, le plan de test, la relecture de la note. Ce qui touche au
+note, ses questions, le plan de test, la relecture de la note, la ponytail
+review. Ce qui touche au
 code reste en anglais : le pseudo-code des invariants, les relectures de diff
-et de commits, la ponytail review, la CI, les vérifications (les messages de
+et de commits, la CI, les vérifications (les messages de
 commit et de PR suivent la convention du projet). Pour tous les agents. La conversation elle-même (fil,
 champ) reste en français.
 
