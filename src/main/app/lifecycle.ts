@@ -11,6 +11,8 @@
  *  avant ready, servi à ready (resolveArtifact). Lancée depuis les sources :
  *  ce qui est reconstruit dans out/ est suivi (app/dev), le relevé de
  *  VibeCoder le montre.
+ *  La fenêtre classique est créée au lancement (createWindow) ; ensureModel
+ *  part après son chargement (le message en tête de la fenêtre).
  *  Ne connaît pas : le détail des fenêtres et des contrôleurs.
  *  Utilisé par : src/main/index.ts. */
 import { app, session } from 'electron';
@@ -30,7 +32,7 @@ import { startDev } from 'app/dev';
 import { registerIpc } from 'app/ipc';
 import { ensureVibeFiles, loadConfig, saveConfig } from 'app/settings';
 import { state } from 'app/state';
-import { createBubble, createIconWindow } from 'app/windows';
+import { createBubble, createIconWindow, createWindow } from 'app/windows';
 
 // Seule permission accordée : le micro, pour nos propres pages.
 function setupPermissions(ses: Electron.Session) {
@@ -54,6 +56,7 @@ export function start() {
     serveFiles(ARTIFACT_SCHEME, resolveArtifact);
     createIconWindow(() => { resetSpeakState(); pushAgents(); });
     createBubble();
+    createWindow();
     ensureFolderColors();
     // Au lancement, la dictée va au curseur : un agent sélectionné la veille ne
     // doit pas recevoir (et envoyer à Claude) ce qu'on croit dicter pour soi.
@@ -74,8 +77,8 @@ export function start() {
     // coupure du micro Discord en début de dictée ; il met ~1 s à démarrer.
     paste.warmUp();
     tts.setDirs({ data: app.getPath('userData'), bin: binDir() });
-    // Après le chargement de la bulle, qui affiche la progression.
-    state.bubble!.webContents.once('did-finish-load', ensureModel);
+    // Après le chargement de la fenêtre, qui affiche la progression en tête.
+    state.panel!.webContents.once('did-finish-load', ensureModel);
   });
   app.on('window-all-closed', () => app.quit());
 
