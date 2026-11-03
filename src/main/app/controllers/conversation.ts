@@ -4,7 +4,10 @@
  *  sonder, l'historique, reprendre, copier, ouvrir un lien, montrer un
  *  fichier). Ce qui est copié est le dernier texte dicté, jamais un texte de la
  *  page (I-3) ; une ancienne conversation se lit, ne reçoit rien, et seules
- *  celles du dossier s'ouvrent (I-22).
+ *  celles du dossier s'ouvrent (I-22). L'historique (history, openSession,
+ *  currentSession, resumeSession) ne quitte pas VibeCoder : l'agent affiché y reste
+ *  (controllers/vibecoder.vibeAgent) et son relevé continue de venir, l'envoi, les
+ *  autorisations et les tâches restant ceux de la session en cours (liveViewAgent).
  *  Les tâches de fond de la conversation en cours, avec la fin de leur sortie,
  *  suivies au rythme du fil tant qu'une tourne et que le panneau est visible.
  *  Chaque conversation envoyée relance le relevé de VibeCoder (controllers/vibecoder).

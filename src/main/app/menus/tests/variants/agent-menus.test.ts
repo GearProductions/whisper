@@ -59,7 +59,7 @@ beforeEach(() => {
 
 async function open(id: string) {
   const { state } = await import('app/state');
-  state.icon = {} as never;
+  state.panel = {} as never;
   const { openAgentMenu } = await import('app/menus');
   await openAgentMenu(id);
 }
@@ -108,7 +108,7 @@ describe('clic droit : Worktrees', () => {
 describe('« + »', () => {
   it('un dossier favori : newAgent puis syncFamilies', async () => {
     const { state } = await import('app/state');
-    state.icon = {} as never;
+    state.panel = {} as never;
     const { openAddAgentMenu } = await import('app/menus');
     openAddAgentMenu();
     items().find((i) => i.label?.includes('libre'))!.click!();

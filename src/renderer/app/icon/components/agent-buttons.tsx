@@ -8,9 +8,9 @@
  *  Ne connaît pas : le pont (onClick est passé), git (badge vient du
  *  principal). Utilisé par : icon-app. */
 import type { CSSProperties } from 'react';
-import type { AgentView, RunSignal } from 'technicals/bridge';
+import type { IconAgentView, RunSignal } from 'technicals/bridge';
 
-const STATUS_TEXT: Partial<Record<AgentView['status'], string>> = {
+const STATUS_TEXT: Partial<Record<IconAgentView['status'], string>> = {
   working: 'au travail…', asking: 'attend une autorisation', error: 'erreur',
 };
 
@@ -21,16 +21,16 @@ const SIGNAL_TEXT: Record<RunSignal, string> = {
 
 // Le signal explique l'état fusionné (robotState du principal) : la conversation ne dit rien.
 // ponytail: ambigu si la conversation dit la même chose (« ? » des deux côtés) — le signal l'emporte ;
-// un état de conversation séparé dans AgentView si ça gêne.
+// un état de conversation séparé dans IconAgentView si ça gêne.
 const SIGNAL_STATUS = { asking: 'asking', failed: 'error', done: 'idle', working: 'working' } as const;
 
-export const agentTitle = (a: AgentView) => `${a.name}${a.badge ? ` (${a.badge})` : ''} — ${
+export const agentTitle = (a: IconAgentView) => `${a.name}${a.badge ? ` (${a.badge})` : ''} — ${
   (a.signal && SIGNAL_STATUS[a.signal] === a.status && SIGNAL_TEXT[a.signal]) || STATUS_TEXT[a.status]
   || (a.status === 'idle' && a.tasks ? `surveille ${a.tasks} tâche${a.tasks > 1 ? 's' : ''} de fond` : '')
   || (a.unread ? 'a répondu : cliquer pour lire' : a.selected ? 'sélectionné' : 'cliquer pour lui parler')}`;
 
-export function AgentButtons({ agents, onClick }: { agents: AgentView[]; onClick: (id: string) => void }) {
-  const robot = (a: AgentView, child = false) => (
+export function AgentButtons({ agents, onClick }: { agents: IconAgentView[]; onClick: (id: string) => void }) {
+  const robot = (a: IconAgentView, child = false) => (
     <button key={a.id} className={child ? 'small agent child' : 'small agent'} type="button" data-id={a.id}
       style={{ '--agent': a.color } as CSSProperties}
       data-status={a.status} data-selected={String(!!a.selected)} data-unread={String(!!a.unread)} data-tasks={a.tasks || 0}

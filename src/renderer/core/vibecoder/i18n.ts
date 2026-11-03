@@ -14,14 +14,20 @@
  *  entrées du menu, Tout replier, motifs d'un nom refusé, confirmation de
  *  suppression ; fichier tronqué, dossier commun au projet) ; l'avancement d'une course
  *  (vague, modules faits, corrections, relance Opus) ; une durée,
- *  une taille de fichier en clair. Ceux des boutons viennent des
+ *  une taille de fichier en clair ; le sélecteur d'agent (titre, infobulles,
+ *  Chercher, Réglages), la palette (placeholder, portées, groupes, états,
+ *  actions, « tenue par », aide des touches), les notifications (a fini,
+ *  pose une question, a échoué, Basculer), l'historique (🕘, Conversation en
+ *  cours) et l'accueil sans agent (son bouton est paletteActions['new-agent'] ;
+ *  Fermer d'une notification : close). Ceux des boutons viennent des
  *  actions (actions.<langue>.json).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
-import type { VibeLang, VibeRun, VibeRunProgress, VibeStepId } from 'technicals/bridge';
+import type { AgentActivity, AgentView, VibeLang, VibeRun, VibeRunProgress, VibeStepId } from 'technicals/bridge';
 import type { MenuEntry } from './artifact-clipboard';
 import type { NameProblem } from './artifact-tree';
 
 type Choices = [string, string][]; // [valeur, libellé]
+export type PaletteAction = 'new-agent' | 'create-branch' | 'branches' | 'stash';
 
 // L'avancement d'une course, partie par partie : une partie à 0 ou fausse est absente.
 const progressParts = (p: VibeRunProgress, l: { wave: string; modules: string; fixes: (n: number) => string; opus: string }) => {
@@ -163,6 +169,39 @@ const fr = {
   artifactConfirmNo: 'Annuler',
   artifactTruncated: 'Fichier tronqué : Ouvrir dans l\'éditeur montre la suite.',
   artifactUnreadable: 'Fichier illisible.',
+  // Le sélecteur d'agent, la palette (Ctrl+K), les notifications, l'historique, l'accueil sans agent.
+  agentTitle: (title: AgentView['title'], pr?: number) => (title === 'pr' ? `PR #${pr}` : title === 'worktree' ? 'worktree' : 'dossier principal'),
+  pickerClick: 'Chercher un agent',
+  pickerMenu: 'Clic droit : le menu de l\'agent',
+  search: 'Chercher',
+  searchKeys: 'Ctrl+K',
+  settings: '⚙ Réglages',
+  paletteHint: 'Un agent, une branche, une PR, une action…',
+  paletteScopes: { all: 'Tout', agents: 'Agents', branches: 'Branches', prs: 'PR' },
+  paletteGroups: { branches: 'Branches', prs: 'PR', actions: 'Actions' },
+  activity: {
+    working: 'travaille', asking: 'attend ta réponse', done: 'vient de finir', paused: 'en pause', idle: 'au repos',
+  } as Record<AgentActivity, string>,
+  paletteActions: {
+    'new-agent': { label: 'Nouvel agent…', keys: 'Ctrl+N' },
+    'create-branch': { label: 'Créer une branche…', keys: '' },
+    branches: { label: 'Gérer les branches et les PR…', keys: 'Ctrl+Maj+B' },
+    stash: { label: 'Mettre de côté les changements', keys: '' },
+  } as Record<PaletteAction, { label: string; keys: string }>,
+  heldBy: (agent: string) => `tenue par ${agent}`,
+  paletteKeys: '↑↓ naviguer · Entrée aller / basculer ici · Maj+Entrée nouveau worktree · Tab portée · Échap fermer',
+  noResult: 'Aucun résultat',
+  // L'étape avec son article (« a fini les Modules », « a fini la Note ») ; inconnue : « a fini ».
+  notifDone: (name: string, step: VibeStepId | null) => `✓ ${name} a fini${step ? ` ${({
+    note: 'la Note', forme: 'la Forme', invariants: 'les Invariants', modules: 'les Modules', revue: 'la Revue', pr: 'la PR',
+  } as Record<VibeStepId, string>)[step]}` : ''}`,
+  notifAsking: (name: string) => `? ${name} te pose une question`,
+  notifError: (name: string) => `✗ ${name} a échoué`,
+  notifSwitch: 'Basculer vers cet agent',
+  history: 'Historique des conversations',
+  historyBack: '← Conversation en cours',
+  welcomeTitle: 'Aucun agent',
+  welcomeText: 'Crée un agent pour commencer à travailler sur un dépôt.',
 };
 
 export type Strings = typeof fr;
@@ -296,6 +335,35 @@ const en: Strings = {
   artifactConfirmNo: 'Cancel',
   artifactTruncated: 'File truncated: Open in the editor shows the rest.',
   artifactUnreadable: 'Unreadable file.',
+  agentTitle: (title, pr) => (title === 'pr' ? `PR #${pr}` : title === 'worktree' ? 'worktree' : 'main folder'),
+  pickerClick: 'Find an agent',
+  pickerMenu: 'Right-click: the agent menu',
+  search: 'Search',
+  searchKeys: 'Ctrl+K',
+  settings: '⚙ Settings',
+  paletteHint: 'An agent, a branch, a PR, an action…',
+  paletteScopes: { all: 'All', agents: 'Agents', branches: 'Branches', prs: 'PRs' },
+  paletteGroups: { branches: 'Branches', prs: 'PRs', actions: 'Actions' },
+  activity: {
+    working: 'working', asking: 'waiting for your answer', done: 'just finished', paused: 'paused', idle: 'idle',
+  },
+  paletteActions: {
+    'new-agent': { label: 'New agent…', keys: 'Ctrl+N' },
+    'create-branch': { label: 'Create a branch…', keys: '' },
+    branches: { label: 'Manage branches and PRs…', keys: 'Ctrl+Shift+B' },
+    stash: { label: 'Stash the changes', keys: '' },
+  },
+  heldBy: (agent) => `held by ${agent}`,
+  paletteKeys: '↑↓ navigate · Enter go / switch here · Shift+Enter new worktree · Tab scope · Esc close',
+  noResult: 'No result',
+  notifDone: (name, step) => `✓ ${name} finished${step ? ` the ${en.steps[step]}` : ''}`,
+  notifAsking: (name) => `? ${name} is asking you a question`,
+  notifError: (name) => `✗ ${name} failed`,
+  notifSwitch: 'Switch to this agent',
+  history: 'Conversation history',
+  historyBack: '← Current conversation',
+  welcomeTitle: 'No agent',
+  welcomeText: 'Create an agent to start working on a repository.',
 };
 
 const STRINGS: Record<VibeLang, Strings> = { fr, en };

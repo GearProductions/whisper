@@ -1,12 +1,15 @@
 /** agents — les agents Claude Code côté appli : un robot par dossier (réglage
- *  `agentsEnabled`). Un robot sélectionné reçoit la dictée au lieu du curseur ;
- *  sa conversation s'affiche dans le panneau. Le robot sélectionné et le robot
- *  affiché vont ensemble. Chaque lancement de Claude Code (tour, sonde) reçoit
+ *  `agentsEnabled`) sur l'icône, et la liste du sélecteur du panneau (core/switcher :
+ *  par dépôt, avec l'étape, la branche, la question). Un robot sélectionné reçoit
+ *  la dictée au lieu du curseur ; sa conversation s'affiche dans le panneau. Le
+ *  robot sélectionné et le robot affiché vont ensemble. Fenêtre sans le focus,
+ *  les questions et les erreurs des autres agents deviennent une notification du
+ *  système ; son clic montre l'agent (showAgent). Chaque lancement de Claude Code (tour, sonde) reçoit
  *  le plugin de VibeCoder, le dossier de sorties de l'agent et le dossier d'artefacts de son projet. À chaque
  *  changement des agents, les courses suivent (controllers/runs : les avis de
  *  fin en attente, envoyés dès que la conversation est libre). L'état d'un robot
  *  est celui de sa conversation, et par-dessus un état au repos le signal de
- *  ses courses (core/vibecoder robotState, F-55) ; le clic suit cet état. Les robots
+ *  ses courses (core/vibecoder robotState, F-55). Un clic sur un robot montre l'agent. Les robots
  *  s'envoient par famille (core/family) : chacun ses enfants, et sa pastille
  *  (la branche de son dossier, lue sur le disque, ou « PR #n »). Retirer un
  *  agent oublie son processus, ses courses et ses commandes ; ses enfants gardent leur parent ;
@@ -16,11 +19,12 @@
  *  Utilisé par : app (fenêtres, menus, gestionnaires). */
 import fs from 'node:fs';
 import path from 'node:path';
-import { dialog } from 'electron';
-import type { AgentView } from 'shared/bridge';
+import { dialog, Notification } from 'electron';
+import type { AgentView, IconAgentView } from 'shared/bridge';
 import { createAgentRuntime, createSessions, type AgentConfig, type OutgoingMessage, type Sdk } from 'core/agents';
 import { agentColor, agentList, agentSlotCount, childRow, folderColors, needsTrust, type Config } from 'core/config';
 import { agentParent, branchOf, familyGroups } from 'core/family';
+import { agentEvents, osNotices, switcherAgents } from 'core/switcher';
 import { questionsRule, robotState } from 'core/vibecoder';
 import { launcher, loadSdk } from 'technicals/claude';
 import { createJournal } from 'technicals/journal';
@@ -31,6 +35,7 @@ import { conversationProgress, refreshConversation } from './conversation';
 import { readFile, stopAgentProcesses } from './processes';
 import { projectArtifactsDir } from './artifacts';
 import { closeRuns, runSignalOf, runsFollow } from './runs';
+import { lastView } from './vibecoder';
 
 const sdk = loadSdk as unknown as () => Promise<Sdk>;
 export const agents = createAgentRuntime({ loadSdk: sdk, launcher, journal: createJournal(() => journalFile()) });
@@ -66,9 +71,30 @@ export function selectAgent(id: string | null) {
   saveConfig({ agentSelected: id });
 }
 
-// État des robots pour la page de l'icône (par famille), et taille de la fenêtre.
+// Ce que l'agent demande : l'autorisation en attente, sinon la première question ouverte de son relevé.
+const questionOf = (id: string) => {
+  const perm = agents.pendingPermission(id);
+  return perm ? `Autorisation : ${perm.tool}` : lastView(id)?.questions[0]?.text ?? null;
+};
+
+// La liste du sélecteur au dernier envoi : les événements sont ses différences
+// (null : rien d'envoyé encore — au lancement, ce qui est déjà là n'est pas un événement).
+let previous: AgentView[] | null = null;
+
+// Notification du système (fenêtre sans le focus) ; un clic montre l'agent.
+function notify(events: ReturnType<typeof agentEvents>, cfg: Config) {
+  const notices = osNotices(events);
+  if (!notices.length || !Notification.isSupported() || state.panel?.isFocused()) return;
+  for (const e of notices) {
+    const name = agentList(cfg).find((a) => a.id === e.agentId)?.name ?? '';
+    const n = new Notification({ title: name, body: e.kind === 'asking' ? e.detail ?? 'te pose une question' : 'a échoué' });
+    n.on('click', () => showAgent(e.agentId));
+    n.show();
+  }
+}
+
+// État des agents : les robots de l'icône (par famille), la taille de la fenêtre, et la liste du panneau.
 export function pushAgents() {
-  if (!state.icon) return;
   const cfg = loadConfig();
   const slots = agentSlotCount(cfg);
   const row = childRow(cfg);
@@ -79,7 +105,7 @@ export function pushAgents() {
   // affiché n'apparaît pas (lue d'office, ci-dessus), sauf signal d'une de ses
   // courses (runs : vu d'office seulement l'onglet Actions ouvert). Le badge : « PR #n » pour
   // le robot d'une PR, sinon la branche de son dossier.
-  const view = (a: AgentConfig, children: AgentConfig[]): AgentView => {
+  const view = (a: AgentConfig, children: AgentConfig[]): IconAgentView => {
     const pr = agentParent(a)?.pr;
     return {
       id: a.id, name: a.name, color: agentColor(a, cfg), selected: a.id === cfg.agentSelected, ...robotOf(a.id),
@@ -87,6 +113,19 @@ export function pushAgents() {
     };
   };
   sendToIcon('agents:state', { enabled, agents: enabled ? familyGroups(agentList(cfg)).map((g) => view(g.agent, g.children)) : [] });
+  const shown = state.convView?.agentId ?? null;
+  const list = switcherAgents(cfg, {
+    state: (id) => { const { status, unread, signal } = robotOf(id); return { status, unread, signal }; },
+    step: (id) => lastView(id)?.steps.find((s) => s.status === 'current')?.id ?? null,
+    branch: (dir) => branchOf(dir, readFile),
+    question: questionOf,
+  });
+  const events = previous ? agentEvents(previous, list, shown) : [];
+  previous = list;
+  if (state.panel && !state.panel.isDestroyed()) {
+    state.panel.webContents.send('agents:state', { agents: list, shown, events });
+    notify(events, cfg);
+  }
   runsFollow(agentList(cfg), cfg); // les avis de fin des courses, conversation libre ; ses demandes, tour fini
   refreshConversation(); // le panneau suit (réponse arrivée, agent au travail…)
 }
@@ -162,23 +201,10 @@ export function sendToAgent(agent: AgentConfig, message: OutgoingMessage, cfg: C
   return { ok: true };
 }
 
-// Clic sur un robot : ce qui l'attend (demande d'autorisation, réponse non
-// lue, ou une course qui attend, a fini ou échoué) s'ouvre dans son panneau (F-54) ; sinon, basculer la sélection.
-export function clickAgent(id: unknown) {
-  const cfg = loadConfig();
-  const agent = agentList(cfg).find((a) => a.id === id);
-  if (!agent) return;
-  const st = robotOf(agent.id);
-  if (conversationShown()) {
-    // Panneau montré : les robots servent d'onglets — cliquer un robot y
-    // affiche sa conversation. Second clic sur le robot affiché et
-    // sélectionné : la dictée retourne au curseur, le panneau passe à la dictée.
-    openConversation(cfg.agentSelected === agent.id && state.convView && state.convView.agentId === agent.id ? null : agent.id);
-    return;
-  }
-  if (st.status === 'asking' || st.unread || (st.signal && st.signal !== 'working')) { openConversation(agent.id); return; }
-  selectAgent(cfg.agentSelected === agent.id ? null : agent.id);
-  pushAgents();
+// Montrer cet agent dans le panneau (son id, vérifié dans la config : un message de page n'est jamais cru).
+export function showAgent(id: unknown) {
+  const agent = agentList(loadConfig()).find((a) => a.id === id);
+  if (agent) openConversation(agent.id);
 }
 
 // Lancé par l'appli, Claude Code ne pose pas sa question « Faire confiance à ce

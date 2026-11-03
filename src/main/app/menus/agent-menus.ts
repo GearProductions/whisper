@@ -1,4 +1,4 @@
-/** agent-menus — les menus des agents : le clic droit sur un robot (écrire,
+/** agent-menus — les menus des agents, posés sur la fenêtre (state.panel) : le menu d'un agent (écrire,
  *  ouvrir sur GitHub, dans l'éditeur, un terminal dans son dossier
  *  (terminalCommand, sinon le premier trouvé ; grisé s'il n'y en a pas), VibeCoder ou la conversation, couleur
  *  (pas pour un enfant dont le parent est là : celle de son parent), modèle, effort, mode,
@@ -39,10 +39,10 @@ const addAgent = (dir: string) => { newAgent(dir); syncFamilies(); };
 // Clic droit sur un robot : ses réglages, comme dans les autres intégrations.
 export async function openAgentMenu(id: unknown) {
   const agent = agentList(loadConfig()).find((a) => a.id === id);
-  if (!agent || !state.icon) return;
+  if (!agent || !state.panel) return;
   // Les worktrees sans agent, relus par git avant d'ouvrir le menu (null : pas de sous-menu).
   const worktrees = agentParent(agent) ? null : (await freeWorktrees(agent))?.free;
-  if (!state.icon) return;
+  if (!state.panel) return;
   const st = agents.state(agent.id);
   const busy = isBusy(agent.id);
   const page = githubPage(agent.dir, readFile); // relu à chaque clic droit
@@ -98,13 +98,13 @@ export async function openAgentMenu(id: unknown) {
     } },
     { type: 'separator' },
     { label: 'Retirer cet agent', click: () => removeAgent(agent.id) },
-  ] as MenuItemConstructorOptions[]).popup({ window: state.icon });
+  ] as MenuItemConstructorOptions[]).popup({ window: state.panel });
 }
 
 // Bouton « + » : un nouvel agent, dans un dossier favori (déjà choisi, sans
 // agent pour l'instant) ou dans un dossier à choisir, qui devient favori.
 export function openAddAgentMenu() {
-  if (!state.icon) return;
+  if (!state.panel) return;
   const cfg = loadConfig();
   const available = agents.isAvailable(cfg.agentCommand);
   const inUse = new Set(agentList(cfg).map((a) => real(a.dir) ?? a.dir)); // dossiers résolus
@@ -128,7 +128,7 @@ export function openAddAgentMenu() {
       })),
     }] : []),
     ...(available ? [] : [{ type: 'separator' as const }, { label: CLAUDE_MISSING, enabled: false }]),
-  ] as MenuItemConstructorOptions[]).popup({ window: state.icon });
+  ] as MenuItemConstructorOptions[]).popup({ window: state.panel });
 }
 
 // Le texte sélectionné, joint au message. Pas de sélection sous Windows : la

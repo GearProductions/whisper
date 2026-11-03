@@ -6,19 +6,19 @@
  *  Ne connaît pas : le panneau, la bulle. Utilisé par : main.tsx. */
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { beep, listInputs } from 'technicals/audio';
-import type { AgentsState, AgentView, IconApi } from 'technicals/bridge';
+import type { IconAgentsState, IconAgentView, IconApi } from 'technicals/bridge';
 import { AgentButtons } from './components';
 import { useGesture } from './hooks';
 
 const HINT = 'Glisser pour déplacer · clic droit : réglages';
 const REPLY_FREQ = 660;
 // Les robots et leurs enfants (worktrees), à plat.
-const withChildren = (agents: AgentView[]) => agents.flatMap((a) => [a, ...a.children]);
+const withChildren = (agents: IconAgentView[]) => agents.flatMap((a) => [a, ...a.children]);
 
 const noop = () => {};
 
 export function IconApp({ api }: { api: IconApi }) {
-  const [agents, setAgents] = useState<AgentsState>({ enabled: false });
+  const [agents, setAgents] = useState<IconAgentsState>({ enabled: false });
   const heardBefore = useRef(new Set<string>());
 
   // Le maintien ne dicte plus (la dictée est au panneau) : il ne fait rien.

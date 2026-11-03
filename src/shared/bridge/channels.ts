@@ -3,7 +3,9 @@
  *  n'emprunte que ceux-là, la table de gestionnaires de sa fenêtre les couvre
  *  tous (vérifié par le typage) et rien d'autre. Le panneau porte aussi le micro
  *  (réglages, enregistrement, transcription) et la lecture d'une réponse par son
- *  rang ; l'icône et la bulle partent au temps 3 de la 0.14.0. Aucun canal ne
+ *  rang, et le choix de l'agent affiché (un agent par son id, jamais un
+ *  chemin), son menu, Nouvel agent…, ⚙ Réglages ; l'icône et la bulle partent
+ *  au temps 3 de la 0.14.0. Aucun canal ne
  *  colle, ne copie ni ne lit un texte fourni par une page (I-2, I-3).
  *  Ne connaît pas : Electron. Utilisé par : src/preload, src/main (app/ipc),
  *  tests/invariants/bridges.test.ts. */
@@ -25,11 +27,12 @@ export const PANEL_CHANNELS = {
   send: ['conv:ready', 'conv:open', 'conv:resume', 'conv:current', 'conv:mode', 'conv:height', 'conv:hide',
     'conv:attach', 'conv:answer', 'conv:openLink', 'conv:showFile',
     'conv:vibeSet', 'conv:vibeMark', 'conv:vibeDraft', 'conv:vibeOpen', 'conv:vibeRefresh', 'conv:vibeProcess',
-    'conv:vibeRunOp', 'conv:vibeFollow', 'dictation:recording', 'config:setDevice', 'tts:cancel'],
+    'conv:vibeRunOp', 'conv:vibeFollow', 'dictation:recording', 'config:setDevice', 'tts:cancel',
+    'agent:show', 'agent:menu', 'agent:add', 'menu:settings'],
   invoke: ['conv:history', 'conv:probe', 'conv:copy', 'conv:send', 'conv:vibeRun', 'conv:vibeSave',
     'conv:vibeDrop', 'config:get', 'dictation:transcribe', 'conv:speak'],
   events: ['conv:thread', 'conv:notice', 'conv:attached', 'conv:focusInput', 'conv:vibe', 'conv:vibeCode',
-    'tts:chunk', 'tts:end'],
+    'tts:chunk', 'tts:end', 'agents:state'],
 } as const;
 
 export type Channels = { send: readonly string[]; invoke: readonly string[]; events: readonly string[] };

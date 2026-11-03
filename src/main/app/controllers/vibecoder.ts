@@ -1,4 +1,8 @@
-/** vibecoder — l'écran VibeCoder de l'agent affiché. Son relevé (le dépôt par
+/** vibecoder — l'écran VibeCoder de l'agent affiché, que son fil montre sa session en cours
+ *  ou une ancienne (l'historique de la Conversation ne ferme pas l'écran) : le relevé et
+ *  tout ce que l'écran demande suivent l'agent affiché, et ce qu'il lui envoie va
+ *  toujours à sa session en cours (sendToAgent : agent.sessionId), jamais à l'ancienne
+ *  lue. Son relevé (le dépôt par
  *  git en lecture, la note, les tests de la branche, les sorties des skills,
  *  les validations → le parcours, core/vibecoder, un seul pour les deux rôles) part au panneau (`conv:vibe`)
  *  à chaque conversation envoyée (refreshConversation), toutes les 4 s tant
@@ -110,8 +114,8 @@
  *  Redémarrer (restartApp, principal reconstruit ; la question d'abord si un
  *  agent travaille).
  *  Ne connaît pas : la page (seulement ses canaux), la fenêtre.
- *  Utilisé par : app/ipc (dropOnArtifacts), app/menus, app/windows (vibeAgent : la taille du
- *  panneau), controllers/conversation, controllers/runs, controllers/module-code
+ *  Utilisé par : app/ipc (dropOnArtifacts), app/menus, controllers/conversation,
+ *  controllers/runs, controllers/agents et controllers/module-code
  *  (lastView), controllers/artifacts et controllers/artifact-ops (lastView, vibeAgent). */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -135,7 +139,7 @@ import { devState, reloadPages, restartApp } from 'app/dev';
 import { loadConfig, saveConfig, saveVibeStore, updateAgent, vibeActions, vibeOutDir, vibeStore } from 'app/settings';
 import { state } from 'app/state';
 import { conversationShown, openConversation } from 'app/windows';
-import { interruptAgent, isBusy, liveViewAgent, sendToAgent, setAgentSetting } from './agents';
+import { interruptAgent, isBusy, sendToAgent, setAgentSetting, viewAgent } from './agents';
 import { agentPrefix, processAction, processView, promptPrefix, readFile, readTimed } from './processes';
 import { addArtifacts, artifactFile, copyArtifact, listArtifacts, projectArtifactsDir } from './artifacts';
 import { copyArtifacts, duplicateArtifacts, moveArtifacts, newArtifact, renameArtifact, trashArtifacts } from './artifact-ops';
@@ -212,9 +216,10 @@ let timer: ReturnType<typeof setInterval> | null = null;
 // Le dernier relevé envoyé au panneau pour cet agent : ce que la page désigne par ses ids.
 export const lastView = (agentId: string): VibeView | null => last.get(agentId) ?? null;
 
-// L'agent affiché, sur sa session en cours, s'il est en VibeCoder.
+// L'agent affiché, s'il est en VibeCoder : sur sa session en cours ou sur une
+// ancienne (lue dans le fil, l'écran reste ; ses envois vont à la session en cours).
 export function vibeAgent(cfg: Config = loadConfig()) {
-  const agent = liveViewAgent(cfg);
+  const agent = viewAgent(cfg);
   return agent && agent.view === 'vibecoder' ? agent : null;
 }
 

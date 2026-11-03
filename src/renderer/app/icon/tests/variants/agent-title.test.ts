@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { agentTitle } from 'app/icon/components';
-import type { AgentView } from 'technicals/bridge';
+import type { IconAgentView } from 'technicals/bridge';
 
-const robot = (o: Partial<AgentView> = {}): AgentView => ({
+const robot = (o: Partial<IconAgentView> = {}): IconAgentView => ({
   id: 'a', name: 'alpha', color: '#22c55e', selected: false, status: 'idle', unread: false, tasks: 0, badge: null, children: [], ...o,
 });
 

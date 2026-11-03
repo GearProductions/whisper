@@ -1229,3 +1229,22 @@ describe('0.13.0 : les artefacts', () => {
     expect(fake.calls).toEqual([['addArtifacts', 'a1', ['/tmp/a.md'], 'd1']]);
   });
 });
+
+describe("l'historique sans quitter VibeCoder", () => {
+  it('une ancienne session affichée : l’agent reste en VibeCoder, son relevé vient, une action part à sa session en cours', async () => {
+    const { vibeAgent, runVibeAction, currentSession } = await import('app/controllers');
+    const { state } = await import('app/state');
+    const { openConversation } = await import('app/windows');
+    const { vibes } = await open();
+    openConversation('a1', { sessionId: 'ancienne', mode: 'full' });
+    expect(state.convView).toEqual({ agentId: 'a1', sessionId: 'ancienne' });
+    expect(vibeAgent()?.id).toBe('a1');                    // l'écran reste
+    expect(runVibeAction('checks', {})).toEqual({ ok: true });
+    await settle();
+    expect(fake.messages[0]).toBe(`/vibecoder:verifier fr ${out}`);   // à la session de l'agent (agent.sessionId)
+    expect(vibes().at(-1)).not.toBeNull();                  // jamais de relevé nul : le panneau garde l'écran
+    currentSession();                     // ← Conversation en cours
+    expect(state.convView).toEqual({ agentId: 'a1', sessionId: null });
+    expect(vibeAgent()?.id).toBe('a1');
+  });
+});

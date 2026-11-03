@@ -70,3 +70,31 @@ describe('l\'arborescence des artefacts', () => {
     expect(t('en').artifactConfirm(2, 'a.md')).toBe('Delete these 2 items?');
   });
 });
+
+describe('le sélecteur, la palette et les notifications des agents', () => {
+  it('le titre d\'un agent : dossier principal, worktree, PR #n', () => {
+    expect((['main', 'worktree'] as const).map((k) => t('fr').agentTitle(k))).toEqual(['dossier principal', 'worktree']);
+    expect(t('fr').agentTitle('pr', 42)).toBe('PR #42');
+    expect(t('en').agentTitle('main')).toBe('main folder');
+  });
+
+  it('une activité par valeur d\'AgentActivity et une entrée par action de la palette, dans les deux langues', () => {
+    for (const lang of ['fr', 'en'] as const) {
+      expect(Object.keys(t(lang).activity).sort()).toEqual(['asking', 'done', 'idle', 'paused', 'working']);
+      expect(Object.keys(t(lang).paletteActions).sort()).toEqual(['branches', 'create-branch', 'new-agent', 'stash']);
+    }
+  });
+
+  it('les notifications : a fini, pose une question, a échoué', () => {
+    expect(t('fr').notifDone('Zoé', 'modules')).toBe('✓ Zoé a fini les Modules');
+    expect(t('fr').notifDone('Zoé', 'note')).toBe('✓ Zoé a fini la Note');
+    expect(t('fr').notifDone('Zoé', null)).toBe('✓ Zoé a fini');
+    expect(t('fr').notifAsking('Zoé')).toBe('? Zoé te pose une question');
+    expect(t('fr').notifError('Zoé')).toBe('✗ Zoé a échoué');
+    expect(t('en').notifDone('Zoé', 'modules')).toBe('✓ Zoé finished the Modules');
+  });
+
+  it('tenue par un agent', () => {
+    expect(t('fr').heldBy('Zoé')).toBe('tenue par Zoé');
+  });
+});

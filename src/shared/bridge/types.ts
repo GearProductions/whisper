@@ -32,7 +32,11 @@ export type SpeakState = { mode: SpeakMode; volume?: number; ready?: boolean; ha
 export type SpeakStart = { ok: true; id: number } | { ok: false; error?: string };
 
 export type AgentStatus = 'idle' | 'working' | 'asking' | 'error';
-export type AgentView = {
+// Ce qu'une course de l'agent signale sur son robot : une question tant qu'elle attend sa réponse,
+// une fin tant que l'utilisateur ne l'a pas vue ; working : une course travaille.
+export type RunSignal = 'asking' | 'done' | 'failed' | 'working';
+// Un robot de l'icône (par famille) ; part avec l'icône au temps 3 de la 0.14.0.
+export type IconAgentView = {
   id: string;
   name: string;
   color: string;
@@ -41,13 +45,10 @@ export type AgentView = {
   unread: boolean;
   tasks: number;        // tâches de fond en cours (commande, surveillance, sous-agent…)
   badge: string | null; // la branche du dossier, ou « PR #n » (robot de PR)
-  children: AgentView[]; // les robots enfants (worktrees du dépôt) ; vide pour un enfant
+  children: IconAgentView[]; // les robots enfants (worktrees du dépôt) ; vide pour un enfant
   signal?: RunSignal | null; // le signal de ses courses (F-55) ; absent = null
 };
-// Ce qu'une course de l'agent signale sur son robot : une question tant qu'elle attend sa réponse,
-// une fin tant que l'utilisateur ne l'a pas vue ; working : une course travaille.
-export type RunSignal = 'asking' | 'done' | 'failed' | 'working';
-export type AgentsState = { enabled: boolean; agents?: AgentView[] };
+export type IconAgentsState = { enabled: boolean; agents?: IconAgentView[] };
 
 export interface IconApi {
   getBounds(): Promise<Bounds | null>;
@@ -67,7 +68,7 @@ export interface IconApi {
   onSpeakChunk(cb: (id: number, pcm: Uint8Array, rate: number) => void): void;
   onSpeakEnd(cb: (id: number, error: string | null) => void): void;
   onSpeakReply(cb: () => void): void;
-  onAgents(cb: (state: AgentsState) => void): void;
+  onAgents(cb: (state: IconAgentsState) => void): void;
   agentClick(id: string): void;
   agentMenu(id: string): void;
   agentAdd(): void;
@@ -165,6 +166,26 @@ export type Attached = { files?: string[]; selection?: { text: string; cut: bool
 
 export type Decision = 'allow' | 'always' | 'deny';
 
+// Un agent tel que le sélecteur, la palette et les notifications le montrent (vue C).
+// activity : travaille, attend ta réponse, vient de finir, en pause (erreur, course échouée), au repos.
+export type AgentActivity = 'working' | 'asking' | 'done' | 'paused' | 'idle';
+export type AgentView = {
+  id: string;
+  name: string;
+  color: string;
+  repo: string;                          // le nom de la famille (le dépôt)
+  title: 'main' | 'worktree' | 'pr';     // dossier principal, worktree, PR #n
+  pr?: number;                           // title 'pr' : son numéro
+  branch: string | null;                 // la branche de son dossier
+  step: VibeStepId | null;               // l'étape courante de son parcours (null : inconnue)
+  activity: AgentActivity;
+  detail: string | null;                 // la question qu'il pose, s'il en pose une
+  parent: string | null;                 // l'id de l'agent du dossier principal (worktree, PR) ; null : lui-même
+};
+// Un autre agent que l'affiché vient de finir, de poser une question, d'échouer.
+export type AgentEvent = { agentId: string; kind: 'done' | 'asking' | 'error'; step: VibeStepId | null; detail: string | null };
+export type AgentsState = { agents: AgentView[]; shown: string | null; events: AgentEvent[] };
+
 export interface ConvApi {
   onThread(fn: (data: Thread) => void): void;
   ready(): void;
@@ -226,6 +247,16 @@ export interface ConvApi {
   /** Fichiers déposés sur l'arborescence Artefacts : le pont lit leurs chemins du File, la page n'en donne aucun ;
    *  folder : l'id d'un dossier du relevé (d<i>), jamais un chemin ; absent ou inconnu : la racine. */
   vibeDrop(files: File[], folder?: string): Promise<SendResult>;
+  /** Les agents (sélecteur, palette, notifications), l'affiché et ce qui vient d'arriver aux autres. */
+  onAgents(fn: (state: AgentsState) => void): void;
+  /** Montrer cet agent (son id, vérifié dans la config par le principal) : jamais un chemin. */
+  showAgent(id: string): void;
+  /** Le menu de cet agent (clic droit sur son sélecteur), par son id. */
+  agentMenu(id: string): void;
+  /** Nouvel agent… : le menu du principal (dossier, worktree). */
+  addAgent(): void;
+  /** ⚙ Réglages, sous son bouton ; `devices` : les micros énumérés par la page. */
+  openSettings(devices: MicDevice[]): void;
 }
 
 /* ---- VibeCoder (dans le panneau) ------------------------------------------------ */

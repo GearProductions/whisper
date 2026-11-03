@@ -2,7 +2,7 @@
  *  gestionnaire par canal de ICON_CHANNELS (vérifié par le typage).
  *  Ne connaît pas : l'écoute elle-même (technicals/ipc). Utilisé par : app/ipc. */
 import { ICON_CHANNELS, type HandlerTable } from 'shared/bridge';
-import { cancelSpeak, clickAgent, setRecording, speak, transcribe, warmUpPaste, warmUpSpeak } from 'app/controllers';
+import { cancelSpeak, setRecording, showAgent, speak, transcribe, warmUpPaste, warmUpSpeak } from 'app/controllers';
 import { openAddAgentMenu, openAgentMenu, openMainMenu } from 'app/menus';
 import { loadConfig, saveConfig } from 'app/settings';
 import { state } from 'app/state';
@@ -23,7 +23,7 @@ export const iconHandlers: HandlerTable<typeof ICON_CHANNELS> = {
     'menu:open': openMainMenu,
     'tts:cancel': cancelSpeak,
     'tts:warmUp': () => { warmUpSpeak(); },
-    'agent:click': clickAgent,
+    'agent:click': showAgent,
     'agent:menu': openAgentMenu,
     'agent:add': openAddAgentMenu,
   },

@@ -1,9 +1,10 @@
-// Variants des familles côté robots (note 0.10.0) : pushAgents envoie chaque
+// Variants des familles côté robots (note 0.10.0) : pushAgents envoie à l'icône chaque
 // parent avec ses enfants et leur pastille (branche lue dans .git, ou « PR #n »),
 // la fenêtre suit la rangée d'enfants ; removeAgent (synchrone) oublie l'agent, le dossier
 // d'un robot de PR, et laisse leur parent aux enfants. Le signal des courses
 // sur le robot (note fix/0.11.0-vibecoder-invariants-existants-et-courses) :
-// l'état du robot par-dessus sa conversation au repos, le clic qui ouvre son panneau.
+// l'état du robot par-dessus sa conversation au repos ; showAgent (id vérifié) ;
+// la liste du sélecteur envoyée au panneau, et la notification du système (0.14.0).
 // Sur le vrai principal (contrôleurs, fenêtres, état, réglages et fichiers sur
 // disque) ; faux : Electron (fenêtres qui relèvent ce qu'on leur envoie), le signal
 // des courses de chaque agent (runSignalOf, variants dans runs.test.ts).
@@ -11,7 +12,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AgentsState } from 'shared/bridge';
+import type { AgentsState, IconAgentsState } from 'shared/bridge';
 
 const fake = vi.hoisted(() => {
   class Win {
@@ -20,16 +21,27 @@ const fake = vi.hoisted(() => {
     webContents = { send: (ch: string, payload?: unknown) => { this.sent.push([ch, payload]); }, on: () => {} };
     on() { return this; } once() { return this; }
     getBounds() { return this.bounds; } setBounds(b: typeof this.bounds) { this.bounds = b; }
+    focused = false;
+    isFocused() { return this.focused; }
     isVisible() { return false; } isDestroyed() { return false; } isMinimized() { return false; }
     setResizable() {} show() {} focus() {} hide() {} showInactive() {}
   }
-  return { Win, userData: '', signals: {} as Record<string, string> };
+  class Notif {
+    static shown: Notif[] = [];
+    handlers: Record<string, () => void> = {};
+    constructor(public opts: { title: string; body: string }) {}
+    static isSupported() { return true; }
+    on(ev: string, fn: () => void) { this.handlers[ev] = fn; }
+    show() { Notif.shown.push(this); }
+  }
+  return { Win, Notif, userData: '', signals: {} as Record<string, string> };
 });
 
 vi.mock('electron', () => ({
   app: { getPath: () => fake.userData },
   BrowserWindow: fake.Win,
   screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) },
+  Notification: fake.Notif,
   shell: {}, dialog: {}, clipboard: {}, nativeImage: {},
 }));
 
@@ -46,6 +58,7 @@ let pr = '';
 beforeEach(() => {
   vi.resetModules();
   fake.signals = {};
+  fake.Notif.shown = [];
   fake.userData = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-agents-'));
   repo = path.join(fake.userData, 'projet');
   wt = path.join(fake.userData, 'wt', 'essai');
@@ -69,7 +82,7 @@ async function icon() {
   const { state } = await import('app/state');
   const win = new fake.Win();
   state.icon = win as never;
-  return { state, win, last: () => win.sent.filter(([ch]) => ch === 'agents:state').at(-1)?.[1] as AgentsState };
+  return { state, win, last: () => win.sent.filter(([ch]) => ch === 'agents:state').at(-1)?.[1] as IconAgentsState };
 }
 
 describe('robots par famille', () => {
@@ -128,22 +141,76 @@ describe('le signal des courses sur le robot', () => {
     ]);
   });
 
-  it.each(['asking', 'done', 'failed'])('clickAgent : une course %s ouvre le panneau du robot, sans basculer la sélection (F-54)', async (signal) => {
+  it.each(['asking', 'done', 'failed'])('showAgent : une course %s, le panneau montre le robot', async (signal) => {
     fake.signals = { a2: signal };
     const { state } = await icon();
     state.panel = new fake.Win() as never;
-    const { clickAgent } = await import('app/controllers');
-    clickAgent('a2');
+    const { showAgent } = await import('app/controllers');
+    showAgent('a2');
     expect(state.convView?.agentId).toBe('a2');
   });
 
-  it('clickAgent : sans signal ni conversation qui attend, la sélection bascule', async () => {
+  it('showAgent : un id inconnu (ou qui n’est pas un id) est ignoré', async () => {
     const { state } = await icon();
-    const { clickAgent } = await import('app/controllers');
-    clickAgent('a2');
-    const { loadConfig } = await import('app/settings');
-    expect(loadConfig().agentSelected).toBe('a2');
+    state.panel = new fake.Win() as never;
+    const { showAgent } = await import('app/controllers');
+    showAgent('inconnu'); showAgent({ dir: '/etc' }); showAgent(undefined);
     expect(state.convView).toBeFalsy();
+  });
+});
+
+describe('la liste du panneau', () => {
+  async function panel() {
+    const { state } = await import('app/state');
+    const win = new fake.Win();
+    state.panel = win as never;
+    const { pushAgents } = await import('app/controllers');
+    return { state, win, pushAgents, last: () => win.sent.filter(([ch]) => ch === 'agents:state').at(-1)?.[1] as AgentsState };
+  }
+
+  it('pushAgents : sans icône, le panneau reçoit la liste (famille), l’affiché et les événements', async () => {
+    const { win, pushAgents, last, state } = await panel();
+    state.convView = { agentId: 'a2', sessionId: null };
+    pushAgents();
+    expect(last().shown).toBe('a2');
+    expect(last().events).toEqual([]);
+    expect(last().agents.map((a) => [a.id, a.title, a.branch, a.parent, a.activity])).toEqual([
+      ['a1', 'main', 'master', null, 'idle'], ['a2', 'worktree', 'feat/essai', 'a1', 'idle'], ['a3', 'pr', null, 'a1', 'idle'],
+    ]);
+    expect(win.sent.some(([ch]) => ch === 'agents:state')).toBe(true);
+  });
+
+  it('un autre agent échoue, fenêtre sans le focus : événement au panneau et notification du système ; le clic le montre', async () => {
+    const { state, pushAgents, last } = await panel();
+    state.convView = { agentId: 'a1', sessionId: null };
+    pushAgents();
+    fake.signals = { a2: 'failed', a1: 'failed' }; // l'affiché ne produit pas d'événement
+    pushAgents();
+    expect(last().events).toMatchObject([{ agentId: 'a2', kind: 'error' }]);
+    expect(fake.Notif.shown.map((n) => n.opts)).toEqual([{ title: 'essai', body: 'a échoué' }]);
+    fake.Notif.shown[0].handlers.click();
+    expect(state.convView?.agentId).toBe('a2');
+  });
+
+  it('fenêtre qui a le focus : l’événement part au panneau, pas de notification', async () => {
+    const { state, win, pushAgents, last } = await panel();
+    state.convView = { agentId: 'a1', sessionId: null };
+    win.focused = true;
+    pushAgents();
+    fake.signals = { a2: 'asking' };
+    pushAgents();
+    expect(last().events).toMatchObject([{ agentId: 'a2', kind: 'asking' }]);
+    expect(fake.Notif.shown).toEqual([]);
+  });
+
+  it('une fin (done) ne vaut pas de notification du système', async () => {
+    const { state, pushAgents, last } = await panel();
+    state.convView = { agentId: 'a1', sessionId: null };
+    pushAgents();
+    fake.signals = { a2: 'done' };
+    pushAgents();
+    expect(last().events).toMatchObject([{ agentId: 'a2', kind: 'done' }]);
+    expect(fake.Notif.shown).toEqual([]);
   });
 });
 

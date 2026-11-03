@@ -13,7 +13,9 @@
  *  webUtils.getPathForFile, jamais donnés par la page (le principal les
  *  revérifie) ; le dossier d'arrivée y est l'id d'un dossier du relevé, une
  *  chaîne ou rien (absent ou inconnu : la racine), jamais un chemin (accord
- *  de l'utilisateur, note 0.13.0-gestion-artefacts). Voir le code : un
+ *  de l'utilisateur, note 0.13.0-gestion-artefacts). Les agents : le
+ *  sélecteur, la palette et les notifications désignent un agent par son id,
+ *  jamais un chemin (accord, note 0.14.0). Voir le code : un
  *  fichier d'un module par son id ; seul texte
  *  envoyé, celui du fichier affiché, à enregistrer (le principal vérifie
  *  qu'il est suivi, dans le relevé, et pas grisé).
@@ -79,6 +81,12 @@ const conv: ConvApi = {
   // Dépôt sur les artefacts : les chemins lus des File (jamais donnés par la page), l'id du dossier s'il est une chaîne.
   vibeDrop: (files, folder) => ipcRenderer.invoke('conv:vibeDrop', Array.from(files, (f) => webUtils.getPathForFile(f)),
     typeof folder === 'string' ? folder : undefined),
+  // Les agents : l'affiché, les autres et ce qui vient de leur arriver (sélecteur, palette, notifications).
+  onAgents: (fn) => { ipcRenderer.on('agents:state', (_e, st) => fn(st)); },
+  showAgent: (id) => ipcRenderer.send('agent:show', id),       // un agent par son id : jamais un chemin
+  agentMenu: (id) => ipcRenderer.send('agent:menu', id),       // le menu de cet agent, par son id
+  addAgent: () => ipcRenderer.send('agent:add'),               // Nouvel agent… : le menu du principal
+  openSettings: (devices) => ipcRenderer.send('menu:settings', devices), // ⚙ Réglages ; les micros énumérés par la page
 };
 
 contextBridge.exposeInMainWorld('conv', conv);
