@@ -6,12 +6,13 @@
  *  sur la cible du commit (quoteRemark).
  *  Et, à l'étape Revue de Créer, ce que montre
  *  chaque remarque de la ponytail review (appliquée, Appliquer ou rien) et si
- *  toutes sont appliquées (remarkMark, allApplied) ; si une course retient
- *  les autres (isLive).
+ *  toutes sont appliquées (remarkMark, allApplied) ; ce qu'Appliquer envoie
+ *  selon les remarques cochées (applySelection) ; si une course retient les
+ *  autres (isLive).
  *  Ne connaît pas : le DOM, React, le pont, les noms des fichiers de sortie.
  *  Utilisé par : app/panel/vibecoder (commits-view, note-view, invariants-view : remark ;
  *  commits-view : quoteRemark ; comment-box : DRAFT_MAX ;
- *  review-view : remarkMark, allApplied ; review-view, step-parts, vibe-coder : isLive). */
+ *  review-view : remarkMark, allApplied, remarkId, applySelection ; review-view, step-parts, vibe-coder : isLive). */
 import type { VibeRun } from 'technicals/bridge';
 import { BULLET, excerpt } from './note';
 import { remarkKey } from './outputs';
@@ -55,4 +56,18 @@ export function remarkMark(text: string, applied: Set<string>, apply: VibeRun['s
 export function allApplied(md: string, applied: Set<string>): boolean {
   const items = md.split(/\r?\n/).filter((l) => BULLET.test(l)).map((l) => l.replace(BULLET, ''));
   return items.length > 0 && items.every((x) => applied.has(remarkKey(x) ?? ''));
+}
+
+// Ce qui désigne une remarque d'une course à l'autre : son adresse (<fichier>:L<ligne>), sinon son texte.
+export const remarkId = (text: string): string => remarkKey(text) ?? text.trim();
+
+// Appliquer, selon les remarques décochées (leur remarkId) parmi celles pas encore appliquées de ponytail.md :
+// toutes cochées → all, le texte vide (toutes) ; sinon les cochées, une par ligne de liste ; count : combien.
+export function applySelection(md: string, applied: Set<string>, unchecked: ReadonlySet<string>): { all: boolean; text: string; count: number } {
+  const pending = md.split(/\r?\n/).filter((l) => BULLET.test(l)).map((l) => l.replace(BULLET, '').trim())
+    .filter((x) => !applied.has(remarkKey(x) ?? ''));
+  const picked = pending.filter((x) => !unchecked.has(remarkId(x)));
+  return picked.length === pending.length
+    ? { all: true, text: '', count: picked.length }
+    : { all: false, text: picked.map((x) => `- ${x}`).join('\n'), count: picked.length };
 }

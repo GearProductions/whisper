@@ -11,7 +11,7 @@
  *  Avec changed (des numéros de ligne du
  *  texte), un liseré sur les blocs et éléments qui en contiennent une ; tag
  *  met une pastille devant le texte d'un élément de liste (par sa ligne),
- *  itemEnd un bouton après lui (par son texte : Appliquer une remarque).
+ *  itemStart une case devant lui et itemEnd un bouton après lui (par son texte : cocher, Appliquer une remarque).
  *  InlineMd : un texte d'une ligne (réponse proposée, cas limite…) en ligne.
  *  Ne connaît pas : le pont (rappels passés).
  *  Utilisé par : les vues d'étape (note-view en Relire, questions-view, forme-view, invariants-view,
@@ -29,6 +29,7 @@ type Ctx = {
   onComment?(quote: string, text: string): void;   // Relire : 💬 ouvre une zone de commentaire sous ce qu'il cite
   changed?: Set<number>;           // lignes ajoutées ou changées (depuis 0)
   tag?(line: number): ReactNode;   // devant le texte de l'élément de liste qui commence à cette ligne
+  itemStart?(text: string): ReactNode;   // devant le texte d'un élément de liste (son texte brut)
   itemEnd?(text: string): ReactNode;   // après le texte d'un élément de liste (son texte brut)
 };
 
@@ -123,6 +124,7 @@ function BlockView({ b, end, ctx }: { b: Block; end: number; ctx: Full }) {
             return (
               <li key={i} className={item.checked === null ? undefined : 'vc-task'} data-changed={touched(ctx, item.line, sub) || undefined}>
                 {item.checked === null ? null : <span className="vc-box" data-checked={item.checked || undefined} aria-hidden="true" />}
+                {ctx.itemStart?.(ctx.quotes.get(item.line) ?? '')}
                 {ctx.tag?.(item.line)}
                 <Inlines inline={item.inline} ctx={ctx} />
                 {ctx.itemEnd?.(ctx.quotes.get(item.line) ?? '')}

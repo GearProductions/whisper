@@ -152,7 +152,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Appliquer la revue",
-    "hint": "L'agent applique les remarques de la revue qu'il juge justes (toutes, ou celle d'Appliquer), chacune en fixup du commit concerné, et dit lesquelles il écarte.",
+    "hint": "L'agent applique les remarques de la revue qu'il juge justes (toutes, celles cochées, ou celle d'Appliquer), chacune en fixup du commit concerné, et dit lesquelles il écarte.",
     "text": "/vibecoder:appliquer-revue {{lang}} {{out}} {{text}}"
   },
   {

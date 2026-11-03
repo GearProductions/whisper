@@ -11,7 +11,7 @@ allowed-tools: "Read, Glob, Grep, Write, Bash(git diff *), Bash(git log *), Bash
 
 # Ponytail review of the branch
 
-`$ARGUMENTS` = `<lang> <out>`. `lang`: the user's language, not used here — code-related work: `ponytail.md` and your answer in English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
+`$ARGUMENTS` = `<lang> <out>`. `lang`: the user's language (`fr`, `en`…): `ponytail.md` and your answer in it — the review is read closely, technical subtleties included. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
 
 Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists. The diff: `git diff <base>...HEAD` (the commits: `git log --format='%h %s' <base>..HEAD`). Read the changed files in full, and the code next to them.
 
@@ -26,8 +26,8 @@ Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), 
    - `dead`: code nothing calls, a flag never set;
    - `leftover`: traces of a concept the branch removed or renamed (names, comments, config keys, docs).
 
-## `<out>/ponytail.md`, in English
+## `<out>/ponytail.md`, in `lang`
 
-One remark per list line, the most useful first: `- <file>:L<line> — <tag>: <what> — <why, or what replaces it>`. Then, out of the list, ponytail-review's score line `net: -<N> lines possible.` Nothing to cut or fix → the single line `Lean already. Ship.` Only what you would really change: no style nits.
+One remark per list line, the most useful first: `- <file>:L<line> — <tag>: <what> — <why, or what replaces it>`. The address `<file>:L<line>` opens the line, as is (the app finds the remark by it), and the tag stays in English (`delete`, `stdlib`, `native`, `yagni`, `shrink`, `note`, `duplicate`, `edge`, `security`, `dead`, `leftover`); the rest in `lang`, code names as they are. Then, out of the list, ponytail-review's score line, in `lang` (`net: -<N> lines possible.` / `net : -<N> lignes possibles.`). Nothing to cut or fix → the single line, in `lang` (`Lean already. Ship.` / `Déjà sobre. On livre.`). Only what you would really change: no style nits.
 
-Modify nothing else. Answer in English, 1 to 3 lines: the number of remarks and the two that matter most.
+Modify nothing else. Answer in `lang`, 1 to 3 lines: the number of remarks and the two that matter most.

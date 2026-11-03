@@ -5,8 +5,11 @@
  *  repliable, déplié en cas d'échec ; Relancer chacune seule, hors d'une
  *  course checks : IconButton refresh, en bout de ligne, aligné que la ligne
  *  ait un détail ou non) ; la ponytail review rendue, 💬 et Appliquer par
- *  remarque (un vc-mini texte), Tout appliquer (l'action apply, avec ou sans
- *  la remarque). Appliquer n'est pas proposé pendant une course apply ; une
+ *  remarque (un vc-mini texte), une case devant chaque remarque pas appliquée,
+ *  cochée par défaut (les décochées tenues ici par leur remarkId, oubliées à
+ *  une nouvelle review) : Tout appliquer quand toutes le sont (l'action apply,
+ *  sans texte), sinon Appliquer la sélection (n) (les cochées, applySelection ;
+ *  grisé sans aucune). Appliquer n'est pas proposé pendant une course apply ; une
  *  remarque appliquée (ponytail-applied.json) est marquée (Icon ok) et
  *  grisée, toutes : le bandeau « Appliquée » (Icon ok) sur l'encart, sans
  *  Tout appliquer. Les vérifications :
@@ -16,8 +19,8 @@
  *  l'écran » (EcranSection) ; l'en-tête n'y répète pas l'action screen.
  *  Ne connaît pas : le pont (rappels passés ; l'état des courses par StopRun).
  *  Utilisé par : step-views. */
-import { useContext } from 'react';
-import { allApplied, appliedRemarks, BULLET, isLive, parseChecks, remarkMark } from 'core/vibecoder';
+import { useContext, useState } from 'react';
+import { allApplied, appliedRemarks, applySelection, BULLET, isLive, parseChecks, remarkId, remarkMark } from 'core/vibecoder';
 import type { VibeLang } from 'technicals/bridge';
 import { Icon, IconButton } from './icons';
 import { MarkdownView } from './markdown-view';
@@ -38,6 +41,8 @@ const fr = {
   warnings: (n: number) => `${n} avertissement${n > 1 ? 's' : ''}`,
   warningPill: 'avertissements',
   applyAll: 'Tout appliquer',
+  applyPicked: (n: number) => `Appliquer la sélection (${n})`,
+  pickTitle: 'Décochez les remarques à ne pas appliquer',
   applyOne: 'Appliquer',
   applyOneTitle: 'L\'agent applique cette remarque seule (en fixup), s\'il la juge juste',
   applied: 'Appliquée',
@@ -67,6 +72,8 @@ const S: Record<VibeLang, typeof fr> = {
     warnings: (n) => `${n} warning${n !== 1 ? 's' : ''}`,
     warningPill: 'warnings',
     applyAll: 'Apply all',
+    applyPicked: (n) => `Apply the selection (${n})`,
+    pickTitle: 'Untick the remarks not to apply',
     applyOne: 'Apply',
     applyOneTitle: 'The agent applies this remark alone (as a fixup), if it judges it right',
     applied: 'Applied',
@@ -114,6 +121,19 @@ function CreatorParts(p: StepProps) {
   const applied = ponytail ? appliedRemarks(view.outputs['ponytail-applied.json'], ponytail.time) : new Set<string>();
   const done = !!ponytail && allApplied(ponytail.text, applied);
   const applyState = runState('apply');
+  // Les remarques décochées, par remarkId, pour cette review-ci (sa date) : une nouvelle review les recoche toutes.
+  const [unchecked, setUnchecked] = useState<{ time: number; ids: ReadonlySet<string> }>({ time: 0, ids: new Set() });
+  const off = ponytail && unchecked.time === ponytail.time ? unchecked.ids : new Set<string>();
+  const pick = ponytail && remarks ? applySelection(ponytail.text, applied, off) : null;
+  const toggle = (id: string) => {
+    const ids = new Set(off);
+    if (!ids.delete(id)) ids.add(id);
+    setUnchecked({ time: ponytail!.time, ids });
+  };
+  const remarkStart = remarks && apply ? (text: string) => (remarkMark(text, applied, applyState) === 'applied' ? null : (
+    <input type="checkbox" className="vc-remark-pick" checked={!off.has(remarkId(text))} disabled={busy || isLive(applyState)}
+      title={s.pickTitle} aria-label={s.pickTitle} onChange={() => toggle(remarkId(text))} />
+  )) : undefined;
   const remarkEnd = remarks ? (text: string) => {
     const mark = remarkMark(text, applied, applyState);
     if (mark === 'applied') return <span className="vc-remark-applied" role="img" title={s.appliedTitle} aria-label={s.applied}><Icon name="ok" /></span>;
@@ -196,8 +216,11 @@ function CreatorParts(p: StepProps) {
       {ponytail ? (
         <OutputCard title={t.outputs['ponytail.md']} file="ponytail.md" time={ponytail.time} t={t}
           tools={done ? <span className="vc-applied-banner"><Icon name="ok" />{s.applied}</span>
-            : remarks ? <Run a={apply} busy={busy} label={s.applyAll} onRun={() => act.run('apply', { text: '' })} /> : null}>
-          <MarkdownView md={ponytail.text} t={t} onOpenLink={act.openLink} onQuote={quote} itemEnd={remarkEnd} />
+            : pick ? (
+              <Run a={apply && !pick.count ? { ...apply, disabled: apply.disabled ?? s.pickTitle } : apply} busy={busy}
+                label={pick.all ? s.applyAll : s.applyPicked(pick.count)} onRun={() => act.run('apply', { text: pick.text })} />
+            ) : null}>
+          <MarkdownView md={ponytail.text} t={t} onOpenLink={act.openLink} onQuote={quote} itemStart={remarkStart} itemEnd={remarkEnd} />
         </OutputCard>
       ) : <Invite title={s.noPonytail} text={`${t.ponytailWithChecks} ${s.noPonytailHint}`} />}
     </>
