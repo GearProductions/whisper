@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { codeBlock, fieldOf, withPrefill } from 'core/vibecoder';
+import { codeBlock, fieldAction, fieldOf, withPrefill } from 'core/vibecoder';
+import type { VibeAction } from 'technicals/bridge';
 
 describe('withPrefill', () => {
   it('champ vide : le texte, {{quote}} remplacé par la citation sur une ligne', () => {
@@ -75,5 +76,15 @@ describe('fieldOf', () => {
     expect(fieldOf(a('case-ko', 'invariants', { kind: 'prefill' }))).toBeNull();
     expect(fieldOf(a('ask', null, { needs: 'text' }))).toBeNull();
     expect(fieldOf(a('guide', null))).toBeNull();
+  });
+});
+
+describe('fieldAction', () => {
+  const a = (id: string, more: Partial<VibeAction> = {}) =>
+    ({ id, step: 'note', kind: 'send', needs: 'none', usesText: true, primary: false, hidden: false, ...more }) as VibeAction;
+  it('la mise en avant parmi celles qui emportent le champ, sinon la première ; les masquées et les autres champs exclus', () => {
+    expect(fieldAction([a('x'), a('y', { primary: true })], 'note')?.id).toBe('y');
+    expect(fieldAction([a('h', { hidden: true, primary: true }), a('x')], 'note')?.id).toBe('x');
+    expect(fieldAction([a('x', { step: 'forme' }), a('v', { usesText: false })], 'note')).toBeNull();
   });
 });
