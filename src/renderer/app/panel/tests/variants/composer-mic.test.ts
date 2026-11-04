@@ -37,7 +37,12 @@ it('sans appui, rien à relâcher', () => {
   expect(onMicUp).not.toHaveBeenCalled();
 });
 
-it('montre sa phase', () => {
-  expect(mount('recording').mic.getAttribute('data-phase')).toBe('recording');
-  expect(mount('transcribing').mic.getAttribute('title')).toBe('Transcrit…');
+it('montre sa phase une fois tenu ; pas tenu, au repos', () => {
+  const recording = mount('recording').mic;
+  expect(recording.getAttribute('data-phase')).toBe('idle');
+  fire(recording, 'pointerdown');
+  expect(recording.getAttribute('data-phase')).toBe('recording');
+  const transcribing = mount('transcribing').mic;
+  fire(transcribing, 'pointerdown');
+  expect(transcribing.getAttribute('title')).toBe('Transcrit…');
 });

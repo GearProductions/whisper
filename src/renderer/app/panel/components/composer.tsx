@@ -1,22 +1,17 @@
 /** composer — le champ de saisie : écrire à l'agent affiché (Entrée envoie,
  *  Maj+Entrée va à la ligne), ses pièces jointes, les commandes « / »
  *  et, après un « @ », les artefacts du projet (useArtifactMention : jamais
- *  ouverts avec les commandes).
- *  #composer-row est le cadre du champ : la pièce jointe (#attach) en icône au
- *  début, #message sans bordure, Dicter (#mic) puis Envoyer (#send) à la fin : la
- *  paire de prompt-tools, chacun nommé (title, aria-label). #mic est celui du
- *  contexte Mic (posé par panel-app) : il dicte tant qu'il est maintenu, sa phase
- *  est dans data-phase et le title. Il n'envoie rien : le texte rendu par whisper
- *  est l'affaire de panel-app. Le brouillon appartient à panel-app (un par
- *  conversation) ; ici, l'édition.
+ *  ouverts avec les commandes). Le cadre (Joindre, pièces, zone, micro et Envoyer) est
+ *  PromptField ; ici, ses menus « / » et « @ » (ses children), ses touches, et le
+ *  message sous le cadre. #mic est celui du contexte Mic (posé par panel-app) : il
+ *  n'envoie rien, le texte rendu par whisper est l'affaire de panel-app. Le brouillon
+ *  et ses pièces appartiennent à panel-app (un par conversation) ; ici, l'édition.
  *  Ne connaît pas : le pont, le micro. Utilisé par : panel-app. */
-import { useLayoutEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent, type RefObject } from 'react';
-import { cycle, matchCommands, pickCommand, pieceLabel, pieceTitle, slashQuery, type Draft, type Piece } from 'core/conversation';
+import { useLayoutEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
+import { cycle, matchCommands, pickCommand, slashQuery, type Draft, type Piece } from 'core/conversation';
 import type { Command, ProbeResult, VibeArtifact } from 'technicals/bridge';
 import { t as strings } from 'core/vibecoder';
-import { Icon, PromptTools, useArtifactMention } from 'app/panel/vibecoder';
-
-const MAX_HEIGHT = 160;
+import { PromptField, useArtifactMention } from 'app/panel/vibecoder';
 
 type Props = {
   draft: Draft;
@@ -42,6 +37,8 @@ type Props = {
 type Slash = { open: boolean; items: Command[]; index: number; hint: string };
 const CLOSED: Slash = { open: false, items: [], index: 0, hint: '' };
 
+const t = strings('fr');
+
 export function Composer(p: Props) {
   const [slash, setSlash] = useState<Slash>(CLOSED);
   const loading = useRef(false);
@@ -49,13 +46,9 @@ export function Composer(p: Props) {
   const caret = useRef<number | null>(null); // curseur à poser après une commande choisie
   const mention = useArtifactMention(p.artifacts ?? [], p.artifactsDir ?? '', p.input, p.setText);
 
-  // Le champ grandit avec le texte, jusqu'à quelques lignes.
+  // Le curseur à poser après une commande choisie (la hauteur du champ : PromptField).
   useLayoutEffect(() => {
-    const el = p.input.current!;
-    el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT)}px`;
-    el.style.overflowY = el.scrollHeight > MAX_HEIGHT ? 'auto' : 'hidden'; // pas de barre pour rien
-    if (caret.current !== null) { el.setSelectionRange(caret.current, caret.current); caret.current = null; }
+    if (caret.current !== null) { p.input.current?.setSelectionRange(caret.current, caret.current); caret.current = null; }
   }, [p.draft.text]);
   useLayoutEffect(() => { list.current?.querySelector('.active')?.scrollIntoView({ block: 'nearest' }); }, [slash]);
 
@@ -110,51 +103,37 @@ export function Composer(p: Props) {
   }
 
 
-  // Du texte collé va dans le champ ; des images ou fichiers, en pièces jointes.
-  function onPaste(e: ClipboardEvent) {
-    const files = [...(e.clipboardData?.files || [])];
-    if (!files.length) return;
-    e.preventDefault();
-    p.onFiles(files);
-  }
+  // La frappe : le texte au brouillon, puis les menus (le DOM a déjà la nouvelle valeur).
+  const type = (text: string) => {
+    p.setText(text);
+    p.setStatus('');
+    update(0);
+    slashQuery(text, p.input.current!.selectionStart) === null ? mention.update() : mention.close();
+  };
 
   return (
     <footer id="composer" hidden={!p.live}>
-      {mention.list}
-      <div id="slash" className="scroll" hidden={!slash.open} ref={list}>
-        {slash.hint ? <div className="hint">{slash.hint}</div> : slash.items.map((c, i) => (
-          <button key={i} type="button" className={`slash-item${i === slash.index ? ' active' : ''}`}
-            onMouseDown={(e) => { e.preventDefault(); pick(i); }}>
-            <span className="slash-name">{`/${c.name}${c.argumentHint ? ` ${c.argumentHint}` : ''}`}</span>
-            <span className="slash-desc">{c.description}</span>
-          </button>
-        ))}
-      </div>
-      <div id="pieces">
-        {p.draft.pieces.map((piece, i) => (
-          <div key={i} className="piece" title={pieceTitle(piece)}>
-            {piece.kind === 'image' ? <img src={piece.url} alt="" /> : null}
-            <span>{pieceLabel(piece)}</span>
-            <button type="button" className="remove" title="Retirer" onClick={() => p.removePiece(piece)}>×</button>
-          </div>
-        ))}
-      </div>
-      <div id="composer-row">
-        <button id="attach" type="button" onClick={p.onAttach} aria-label="Joindre…"
-          title="Joindre des images, des fichiers ou le texte sélectionné (aussi : glisser-déposer, Ctrl+V)"><Icon name="attach" /></button>
-        <textarea id="message" className="scroll" rows={1} ref={p.input} value={p.draft.text}
-          placeholder={p.busy ? `${p.name} travaille : vous pourrez envoyer quand il aura fini.`
-            : `Écrire à ${p.name}… (Entrée : envoyer, Maj+Entrée : à la ligne)`}
-          onChange={(e) => { p.setText(e.target.value); p.setStatus(''); update(0); slashQuery(e.target.value, e.target.selectionStart) === null ? mention.update() : mention.close(); }}
-          onKeyDown={(e) => {
-            if (slashKey(e) || mention.key(e)) return;
-            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); p.onSend(); }
-          }}
-          onPaste={onPaste}
-          onBlur={() => setTimeout(() => { close(); mention.close(); }, 150)} />
-        <PromptTools t={strings('fr')} ids
-          onSend={p.onSend} sendDisabled={p.sending || p.busy} sendTitle="Envoyer (Entrée)" />
-      </div>
+      <PromptField t={t} ids field={p.input} text={p.draft.text} setText={type}
+        pieces={p.draft.pieces} onRemove={p.removePiece} onAttach={p.onAttach} onFiles={p.onFiles}
+        onSend={p.onSend} sendDisabled={p.sending || p.busy} sendTitle="Envoyer (Entrée)"
+        placeholder={p.busy ? `${p.name} travaille : vous pourrez envoyer quand il aura fini.`
+          : `Écrire à ${p.name}… (Entrée : envoyer, Maj+Entrée : à la ligne)`}
+        onKeyDown={(e) => {
+          if (slashKey(e) || mention.key(e)) return;
+          if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); p.onSend(); }
+        }}
+        onBlur={() => setTimeout(() => { close(); mention.close(); }, 150)}>
+        {mention.list}
+        <div id="slash" className="scroll" hidden={!slash.open} ref={list}>
+          {slash.hint ? <div className="hint">{slash.hint}</div> : slash.items.map((c, i) => (
+            <button key={i} type="button" className={`slash-item${i === slash.index ? ' active' : ''}`}
+              onMouseDown={(e) => { e.preventDefault(); pick(i); }}>
+              <span className="slash-name">{`/${c.name}${c.argumentHint ? ` ${c.argumentHint}` : ''}`}</span>
+              <span className="slash-desc">{c.description}</span>
+            </button>
+          ))}
+        </div>
+      </PromptField>
       <div id="composer-status">{p.status}</div>
     </footer>
   );
