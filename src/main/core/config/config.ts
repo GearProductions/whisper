@@ -3,7 +3,10 @@
  *  retrouvé au lancement), commandes de l'agent, de l'éditeur et du
  *  terminal, dossiers favoris et leur couleur, confiance (I-23),
  *  lecture à voix haute, VibeCoder (langue, réglages d'un agent, limite
- *  d'affichage d'un artefact en texte, vue des modules : IDE ou liste).
+ *  d'affichage d'un artefact en texte, vue des modules : IDE ou liste), la
+ *  langue des agents (`agentLang`, le {{lang}} des actions : celle de l'écran,
+ *  `vibeLang`, à défaut) et le modèle et l'effort choisis par action
+ *  (`actionPicks`, jamais Fable : I-36).
  *  Ne connaît pas : le fichier (technicals/config-file), Electron, git (le
  *  parent d'un agent, l'enfant qu'on crée : core/family).
  *  Utilisé par : app. */
@@ -36,7 +39,10 @@ export type Config = {
   speakVoices: Record<string, string>;
   deviceId: string;
   deviceLabel: string;
-  vibeLang: VibeLang;     // VibeCoder : la langue de l'écran et des messages envoyés
+  vibeLang: VibeLang;     // VibeCoder : la langue de l'écran
+  agentLang?: VibeLang;   // ce qu'écrivent les agents ({{lang}} des actions) ; absente : vibeLang
+  actionModels: Record<string, string>;  // par id d'action : le modèle choisi, pour tous les agents
+  actionEfforts: Record<string, string>; // par id d'action : l'effort choisi
   // VibeCoder : ce qui précède les commandes du projet et gh ('' : la box de
   // agentCommand, `distrobox enter <box> --`, sinon rien ; core/runner).
   vibeCommandPrefix: string;
@@ -54,7 +60,7 @@ export const DEFAULTS: Config = {
   speakLang: 'auto',
   speakVoices: { fr: 'estelle', en: 'jane' },
   deviceId: '', deviceLabel: '',
-  vibeLang: 'fr', vibeCommandPrefix: '', vibeModulesView: 'list',
+  vibeLang: 'fr', actionModels: {}, actionEfforts: {}, vibeCommandPrefix: '', vibeModulesView: 'list',
   artifactTextMax: 10 * 1024 * 1024,
 };
 
@@ -130,6 +136,22 @@ export const needsTrust = (cfg: Config, dir: string) => !favoriteFolders(cfg).so
 
 // config.json se retouche à la main : une valeur inconnue prend le défaut.
 export const vibeLang = (cfg: Config): VibeLang => (cfg.vibeLang === 'en' ? 'en' : 'fr');
+
+// Ce qu'écrivent les agents ({{lang}} des actions) : absente ou inconnue, la langue de l'écran.
+export const agentLang = (cfg: Config): VibeLang => (cfg.agentLang === 'en' || cfg.agentLang === 'fr' ? cfg.agentLang : vibeLang(cfg));
+
+// Le choix d'une action : une valeur qui n'est pas une chaîne, ou Fable (écrit à la main : I-36), n'est rien.
+export function actionPicks(cfg: Config, id: string): { model?: string; effort?: string } {
+  const pick = (map: unknown, noFable = false) => {
+    const v = map && typeof map === 'object' ? (map as Record<string, unknown>)[id] : undefined;
+    return typeof v === 'string' && v && !(noFable && /fable/i.test(v)) ? v : undefined;
+  };
+  const out: { model?: string; effort?: string } = {};
+  const model = pick(cfg.actionModels, true), effort = pick(cfg.actionEfforts);
+  if (model) out.model = model;
+  if (effort) out.effort = effort;
+  return out;
+}
 
 export const vibeModulesView = (cfg: Config): 'ide' | 'list' => (cfg.vibeModulesView === 'ide' ? 'ide' : 'list');
 
