@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  appendDictation, createDrafts, cycle, EMPTY, gauge, kindOf, matchCommands, pickCommand, pieceLabel, slashQuery, titleOf, toDraft,
+  appendDictation, createDrafts, cycle, EMPTY, gauge, kindOf, matchCommands, pickCommand, pieceLabel, piecesArg, slashQuery, titleOf, toDraft,
   withAttached, withFile, type Piece,
 } from 'core/conversation';
 import { elapsed, kTokens } from 'helpers';
@@ -97,5 +97,22 @@ describe('commandes « / »', () => {
     expect(pickCommand('/co  la suite', 3, list[0])).toEqual({ value: '/compact la suite', caret: 9 });
     expect(cycle(0, -1, 3)).toBe(2);
     expect(cycle(2, 1, 3)).toBe(0);
+  });
+});
+
+describe('piecesArg', () => {
+  it('aucune pièce : undefined', () => {
+    expect(piecesArg([])).toBeUndefined();
+  });
+
+  it('le brouillon des pièces, sans le texte', () => {
+    const data = new ArrayBuffer(2);
+    const pieces: Piece[] = [
+      { kind: 'image', name: 'a.png', type: 'image/png', data, url: 'blob:x' },
+      { kind: 'file', name: 'b.ts', path: '/p/b.ts' },
+      { kind: 'selection', text: 'un extrait', cut: false },
+    ];
+    expect(piecesArg(pieces)).toEqual({ images: [{ name: 'a.png', type: 'image/png', data }], files: ['/p/b.ts'], selection: 'un extrait' });
+    expect(piecesArg(pieces)).not.toHaveProperty('text');
   });
 });
