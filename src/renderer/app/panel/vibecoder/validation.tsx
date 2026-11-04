@@ -4,7 +4,7 @@
  *  Relire : Valider ou À revoir), chaque libellé derrière son icône (Icon ok /
  *  ko / warn), le verdict d'un cas d'invariant (deux badges écrits, Validé et
  *  À revoir, gris ; celui donné pressé, allumé de sa couleur, un second clic
- *  l'annule), et la pastille Fable des étapes Note et Forme (Créer).
+ *  l'annule).
  *  Ne connaît pas : le pont (rappels passés).
  *  Utilisé par : note-view, forme-view, invariants-view. */
 import type { VibeLang, VibeMarkState } from 'technicals/bridge';
@@ -28,9 +28,6 @@ const fr = {
   undoTitle: 'Oublier cette validation',
   ok: 'Valider', okDone: 'Validé', ko: 'À revoir', koDone: 'Refusé',
   verdictUndo: 'Cliquer de nouveau pour annuler',
-  fable: 'Fable · élevé',
-  pricier: 'plus cher',
-  fableTitle: 'Passer l\'agent sur Fable, effort élevé, pour rédiger la note et la forme : le plus soigneux, mais plus cher. Comme son menu.',
 };
 const S: Record<VibeLang, typeof fr> = {
   fr,
@@ -48,9 +45,6 @@ const S: Record<VibeLang, typeof fr> = {
     undoTitle: 'Forget this approval',
     ok: 'Approve', okDone: 'Approved', ko: 'Needs rework', koDone: 'Rejected',
     verdictUndo: 'Click again to undo',
-    fable: 'Fable · high',
-    pricier: 'pricier',
-    fableTitle: 'Switch the agent to Fable, high effort, to write the note and the shape: the most careful, but pricier. As its menu does.',
   },
 };
 
@@ -91,15 +85,5 @@ export function CaseVerdict({ state, lang, onMark }: { state: VibeMarkState; lan
         </button>
       ))}
     </span>
-  );
-}
-
-// Créer, étapes Note et Forme, agent pas sur Fable : y passer, effort élevé (un clic de l'utilisateur, jamais seul).
-export function FablePill({ lang, onPick }: { lang: VibeLang; onPick(): void }) {
-  const s = S[lang];
-  return (
-    <button type="button" className="vc-fable" title={s.fableTitle} onClick={onPick}>
-      <span aria-hidden="true">✦</span>{s.fable}<span className="vc-fable-cost">{s.pricier}</span>
-    </button>
   );
 }

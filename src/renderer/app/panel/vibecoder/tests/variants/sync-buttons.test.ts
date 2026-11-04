@@ -22,12 +22,12 @@ const buttons = () => [...page.querySelectorAll('button')];
 const button = (id: string) => buttons().find((b) => b.getAttribute('aria-label') === id)!;
 
 it('SyncButtons : Pull en retard actif, Pousser masqué absent, rien sans les actions', async () => {
-  await draw([a('pull'), a('rebase'), a('push', { hidden: true }), a('ask')]);
+  await draw([a('pull'), a('rebase'), a('push', { hidden: true }), a('note')]);
   expect(buttons().map((b) => b.getAttribute('aria-label'))).toEqual(['pull', 'rebase']);
   expect(buttons().map((b) => [b.querySelector('svg') !== null, b.textContent])).toEqual([[true, ''], [true, '']]);   // des icônes, plus de ⇣ ⤴
   button('pull').click();
   expect(runs.at(-1)).toEqual(['pull', { direct: true }]);
-  await draw([a('ask')]);
+  await draw([a('note')]);
   expect(page.innerHTML).toBe('');
 });
 

@@ -3,13 +3,14 @@
  *  en pastille allumée avec son nom (`others`, donné par panel-app :
  *  agent-notices ; tant que le premier relevé des agents manque, à sa place le
  *  nom de l'agent seul), puis le segment branche (⎇ et la branche, une
- *  seule fois : il ouvre et ferme la vue des branches), puis Pull, Rebase,
+ *  seule fois : il ouvre et ferme la vue des branches ; habillé comme les
+ *  boutons de l'en-tête), puis Pull, Rebase,
  *  Pousser (sync-buttons) ; pas
  *  de bouton Créer / Relire : l'app décide du rôle (view.flow), et le badge
  *  Relecteur s'affiche à côté de celui du worktree quand c'est la relecture ;
  *  le robot d'une PR dans un worktree : son badge, sans action ; au milieu
  *  le nom VibeCoder ; à droite Artefacts, Chercher
- *  (Ctrl K : la palette, toutes portées), puis langue, relevé, conversation et ⚙ Réglages ;
+ *  (Ctrl K : la palette, toutes portées), puis conversation et ⚙ Réglages (une icône) ;
  *  l'en-tête sert de barre de titre (fenêtre sans cadre : vibecoder.css) ;
  *  Artefacts (un bouton, F-92 : ouvert,
  *  le panneau artifacts-view prend le centre, à la place du fil d'Ariane et de
@@ -17,13 +18,13 @@
  *  (follow) ; ses actions (copier, créer, renommer, déplacer, supprimer… :
  *  onRun, soit act.run, en direct) et les fichiers déposés (onDrop, soit act.drop, avec
  *  le dossier visé) ; le refermer,
- *  choisir une étape ou la vue des branches le ferme) ; ⚙ Réglages (le menu de
- *  l'application, onSettings) ; langue, relevé (↻ qui tourne), conversation
+ *  choisir une étape ou la vue des branches le ferme) ; ⚙ Réglages (la page des réglages,
+ *  onSettings : panel-app l'ouvre) ; conversation
  *  affichée ou masquée — des icônes (icons), libellé en title et aria-label ;
  *  au centre, en tête, le fil d'Ariane (breadcrumb : il dit où l'on en est ; y
- *  choisir une étape ferme la vue des branches), puis
- *  pendant Vibe (view.vibe) une bannière qui l'arrête (vibe-banner, set vibe
- *  false), l'erreur du relevé, et la vue des branches (branches-view) si elle
+ *  choisir une étape ferme la vue des branches ; il porte Vibe, en créateur
+ *  seulement : l'action `vibe`, et pendant Vibe, Arrêter Vibe, soit set vibe false),
+ *  l'erreur du relevé, et la vue des branches (branches-view) si elle
  *  est ouverte, sinon l'étape choisie (step-views : son en-tête porte ses
  *  actions) ; Vibe ou pas, le
  *  même fil d'Ariane et la même étape ; à droite, en onglets, la conversation (reçue en
@@ -34,19 +35,22 @@
  *  le nombre en cours) ou les processus du projet (processes-view, le nombre
  *  en cours), masquable, sa largeur à la poignée (300 px → 60 %) ; la barre
  *  d'état en bas (son ⚙ Tâches ouvre l'onglet ; ses actions en cours, la
- *  colonne affichée sur l'onglet Actions). Le fil d'Ariane et Ctrl+1…6
+ *  colonne affichée sur l'onglet Actions ; son ↻ relève : act.refresh). Le fil d'Ariane et Ctrl+1…6
  *  ouvrent n'importe quelle étape, à venir comprise (le choix ne change que
  *  l'étape affichée : aucun appel au pont, aucune action) ; sans choix,
  *  c'est l'étape en cours. Une vue
  *  d'étape qui échoue ne fait tomber ni l'écran ni le brouillon (I-29). Il
  *  tient les réponses en cours aux questions ouvertes, le verdict de la revue
- *  (rôle Relecteur), le modèle choisi par action (envoyé s'il n'est pas le
- *  conseillé), son effort (envoyé s'il est des siens), le champ de chaque étape (fieldOf : son texte part en
+ *  (rôle Relecteur), le champ de chaque étape (fieldOf : son texte part en
  *  args.text de l'action ; exigé et vide, le champ prend le clavier ; partie,
- *  il se vide), la vue des branches ouverte ou non, le panneau Artefacts ouvert ou non, les modifications gardées des
+ *  il se vide) et ses pièces jointes (une liste par champ, et une pour le
+ *  questionnaire, 'answers' : elles partent avec l'action de leur champ seule,
+ *  piecesArg, puis sont libérées, revoke ; le 📎 d'un champ passe par act.attach,
+ *  les fichiers déposés ou collés par act.pieces), la vue des branches ouverte ou non, le panneau Artefacts ouvert ou non, les modifications gardées des
  *  fichiers suivis (drafts, par chemin : useFileDraft ; changer d'étape ne
  *  les jette pas) — tout cela gardé par agent
- *  (kept : l'écran est recréé à chaque changement d'agent). Préparer un message dans le champ
+ *  (kept : l'écran est recréé à chaque changement d'agent). Aucun modèle ni effort
+ *  n'est choisi ici (la page des réglages ; le principal les pose). Préparer un message dans le champ
  *  de la conversation, ou un message qui exige son texte, réaffiche la
  *  conversation (colonne masquée, ou onglet Actions, Tâches, Processus ; l'historique
  *  se referme).
@@ -58,22 +62,20 @@
  *  Ne connaît pas : le pont (rappels passés), le contenu de la conversation.
  *  Utilisé par : panel-app. */
 import { Component, useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
-import { isBusy, titleOf } from 'core/conversation';
-import { artifactResult, chosenEffort, convWidth, fieldOf, isLive, modelArg, t as strings, type Answers, type EffortPicks, type Kept, type ModelPicks, type Strings } from 'core/vibecoder';
-import type { Thread, VibeCode, VibeLang, VibeStepId, VibeView } from 'technicals/bridge';
+import { isBusy, piecesArg, revoke, titleOf, withAttached, withPieces, type Piece } from 'core/conversation';
+import { artifactResult, convWidth, fieldOf, isLive, t as strings, type Answers, type Kept, type Strings } from 'core/vibecoder';
+import type { Thread, VibeCode, VibeStepId, VibeView } from 'technicals/bridge';
 import type { Drafts } from './file-draft';
 import { ArtifactsView } from './artifacts-view';
 import { Icon } from './icons';
 import { BranchesView } from './branches-view';
 import { Breadcrumb } from './breadcrumb';
 import { ProcessesView } from './processes-view';
-import { Picks } from './model-pick';
 import { RunsView } from './runs-view';
 import { StatusBar } from './status-bar';
 import { SyncButtons } from './sync-buttons';
-import { ReviewerBadge, StopRun, WorktreeBadge } from './step-parts';
+import { ReviewerBadge, StopRun, WorktreeBadge, type StepPieces } from './step-parts';
 import { STEP_VIEWS, type StepProps, type VibeActs } from './step-views';
-import { VibeBanner } from './vibe-banner';
 import './vibecoder.css';
 
 type Props = {
@@ -131,8 +133,6 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   const pick = (id: VibeStepId) => { setBranchesOpen(false); setArts(false); setPicked(id); };
   const [answers, setAnswers] = useKept<Answers>(kept, view.agentId, 'answers', {});
   const onAnswer: StepProps['onAnswer'] = (q, a) => setAnswers((all) => ({ ...all, [q]: a }));
-  const [picks, setPicks] = useKept<ModelPicks>(kept, view.agentId, 'picks', {});
-  const [efforts, setEfforts] = useKept<EffortPicks>(kept, view.agentId, 'efforts', {});
   const root = useRef<HTMLDivElement>(null);
   // L'onglet Actions ou Processus, choisi par-dessus Conversation | Tâches (que panel-app tient).
   const [pane, setPane] = useState<'runs' | 'procs' | null>(null);
@@ -150,23 +150,37 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   const [texts, setTexts] = useKept<Record<string, string>>(kept, view.agentId, 'texts', {});
   const setText = (key: string) => (text: string) => setTexts((all) => ({ ...all, [key]: text }));
   const drafts = useKept<Drafts>(kept, view.agentId, 'drafts', {});
-  // Les rappels, avec le modèle choisi (s'il n'est pas le conseillé) et le texte du champ de l'action ;
+  // Les pièces jointes de chaque champ (sa clé, comme texts ; 'answers' : le questionnaire), tenues avec son texte.
+  const [held, setHeld] = useKept<Record<string, Piece[]>>(kept, view.agentId, 'pieces', {});
+  const changePieces = (key: string, f: (cur: Piece[]) => Piece[]) => setHeld((all) => ({ ...all, [key]: f(all[key] ?? []) }));
+  const piecesOf = (key: string): StepPieces => ({
+    pieces: held[key] ?? [],
+    onRemove: (p) => { revoke([p]); changePieces(key, (cur) => cur.filter((x) => x !== p)); },
+    onAttach: () => given.attach((what) => changePieces(key, (cur) => withAttached(cur, what))),
+    onFiles: async (files) => {
+      const added = await given.pieces(files);
+      changePieces(key, (cur) => withPieces(cur, added));
+    },
+  });
+  // Les rappels, avec le texte et les pièces du champ de l'action (eux seuls partent avec elle) ;
   // ce qui passe par le champ de la conversation le réaffiche.
   const act: VibeActs = {
     ...given,
     run: async (id, args = {}) => {
       const a = view.actions.find((x) => x.id === id);
-      const model = a && modelArg(a, picks);
-      const effort = a && chosenEffort(a, efforts);
       const key = a && args.text === undefined ? fieldOf(a) : null;
+      const pkey = key ?? (id === 'answers' ? 'answers' : null);
+      const sending = pkey ? held[pkey] ?? [] : [];
+      const pieces = piecesArg(sending);
       const text = key ? (texts[key] ?? '').trim() : undefined;
       if (key && a!.needs === 'text' && !text) {
         root.current?.querySelector<HTMLTextAreaElement>(`[data-field="${key}"]`)?.focus();
         return false;
       }
       if (a && (a.kind === 'prefill' || (a.needs === 'text' && !key && args.text === undefined))) show();
-      const sent = await given.run(id, { ...args, ...(key ? { text } : {}), ...(model ? { model } : {}), ...(effort ? { effort } : {}) });
+      const sent = await given.run(id, { ...args, ...(key ? { text } : {}), ...(pieces ? { pieces } : {}) });
       if (sent && key) setText(key)('');
+      if (sent && pkey && sending.length) { revoke(sending); changePieces(pkey, () => []); }
       return sent;
     },
     prefill: (id, quote, block) => { show(); given.prefill(id, quote, block); },
@@ -199,10 +213,9 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   }, [steps]);
 
   const View = step && STEP_VIEWS[step.id];
+  const vibeAction = view.flow === 'review' ? undefined : view.actions.find((a) => a.id === 'vibe');
   return (
-    <Picks.Provider value={{ picks, lang: view.lang, pick: (id, m) => setPicks((p) => ({ ...p, [id]: m })),
-      efforts, pickEffort: (id, e) => setEfforts((p) => ({ ...p, [id]: e })) }}>
-    <StopRun.Provider value={{ stop: (id) => act.runOp(id, 'stop'), state: (id) => view.runs?.find((r) => r.id === id)?.state ?? null }}>
+    <StopRun.Provider value={{ stop: (id) => act.runOp(id, 'stop'), state: (id) => view.runs?.find((r) => r.id === id)?.state ?? null, lang: view.lang }}>
       <div className="vc" ref={root} data-conv={side.open ? undefined : 'hidden'} style={{ '--vc-conv': `${side.width}px` } as CSSProperties}>
         <Top view={view} thread={thread} busy={busy} t={t} act={act} side={side} onSide={onSide}
           onSearch={onSearch} onSettings={onSettings} others={others}
@@ -218,15 +231,16 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
           </div>
         ) : (
         <section className="vc-center">
-          <Breadcrumb view={view} t={t} selected={branches ? null : step && step.id} onPick={pick} onOpen={act.open} />
-          {view.vibe ? <VibeBanner t={t} onStop={() => act.set({ vibe: false })} /> : null}
+          <Breadcrumb view={view} t={t} selected={branches ? null : step && step.id} onPick={pick} onOpen={act.open}
+            vibe={vibeAction ? { a: vibeAction, on: !!view.vibe } : null} onVibe={() => act.run('vibe')} onStopVibe={() => act.set({ vibe: false })} />
           {view.error ? <div className="vc-error" role="status"><b>{view.error}</b> {t.errorHint}</div> : null}
           {branches ? (
             <div className="vc-step scroll" key="branches"><Guard t={t}><BranchesView view={view} t={t} act={act} busy={busy} /></Guard></div>
           ) : (
             <div className="vc-step scroll" key={step ? step.id : ''}>
               {step && View ? <Guard t={t}><View view={view} step={step} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} verdict={verdict} onVerdict={setVerdict}
-                text={texts[step.id] ?? ''} setText={setText(step.id)} code={code} drafts={drafts} /></Guard> : null}
+                text={texts[step.id] ?? ''} setText={setText(step.id)} code={code} drafts={drafts}
+                {...piecesOf(step.id)} questions={piecesOf('answers')} /></Guard> : null}
             </div>
           )}
         </section>
@@ -261,11 +275,10 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
           {pane === 'procs' ? <div className="vc-tasks-tab" role="tabpanel"><Guard t={t}><ProcessesView view={view} t={t} act={act} busy={busy} /></Guard></div> : null}
         </section>
         <StatusBar view={view} thread={thread} t={t} busy={busy} tasksOpen={tasksOpen && !pane} contextOpen={contextOpen}
-          onSet={act.set} onGauge={onGauge} onTasks={toggleTasks}
+          onSet={act.set} onGauge={onGauge} onTasks={toggleTasks} onRefresh={act.refresh}
           onRuns={() => { if (!side.open) onSide({ ...side, open: true }); setPane('runs'); }} />
       </div>
     </StopRun.Provider>
-    </Picks.Provider>
   );
 }
 
@@ -294,8 +307,6 @@ function Resizer({ t, side, root, onSide }: { t: Strings; side: Side; root: RefO
   );
 }
 
-const LANGS: Record<VibeLang, string> = { fr: 'FR', en: 'EN' };
-
 type TopProps = {
   view: VibeView; thread: Thread; busy: boolean; t: Strings; act: VibeActs; side: Side; onSide(side: Side): void;
   onSearch(): void; onSettings(): void;
@@ -305,7 +316,6 @@ type TopProps = {
 };
 
 function Top({ view, thread, busy, t, act, side, onSide, onSearch, onSettings, others, branches, onBranches, arts, onArts }: TopProps) {
-  const [spins, setSpins] = useState(0); // ⟳ tourne une fois par clic
   return (
     <div className="vc-top">
       <div className="vc-ident">
@@ -316,7 +326,7 @@ function Top({ view, thread, busy, t, act, side, onSide, onSearch, onSettings, o
           </span>
         )}
         {view.repo ? (
-          <button type="button" className="vc-branch" aria-pressed={branches} onClick={onBranches}
+          <button type="button" className="vc-top-btn vc-branch" aria-pressed={branches} onClick={onBranches}
             title={`${t.branch(view.repo.branch, view.repo.base)}\n${branches ? t.branchesClose : t.branchesOpen}`}>
             <Icon name="branch" /><span>{view.repo.branch}</span><Icon name="chevron" />
           </button>
@@ -338,28 +348,12 @@ function Top({ view, thread, busy, t, act, side, onSide, onSearch, onSettings, o
             <span className="vc-dev-dot" aria-hidden="true" />{t.restartApp}
           </button>
         ) : null}
-        <Segmented value={view.lang} labels={LANGS} title={t.langTitle} onPick={(lang) => act.set({ lang })} />
-        <button type="button" className="vc-icon vc-refresh" title={t.refresh} aria-label={t.refresh}
-          onClick={() => { setSpins((n) => n + 1); act.refresh(); }}>
-          <span key={spins} className={spins ? 'vc-spin' : undefined}><Icon name="refresh" /></span>
-        </button>
         <button type="button" className="vc-icon vc-side-toggle" title={side.open ? t.convHide : t.convShow} aria-label={side.open ? t.convHide : t.convShow}
           aria-pressed={side.open} onClick={() => onSide({ ...side, open: !side.open })}>
           <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" /><path d="M10 2.5v11" /></svg>
         </button>
-        <button type="button" className="vc-top-btn" onClick={onSettings}>{t.settings}</button>
+        <button type="button" className="vc-icon" title={t.settingsTitle} aria-label={t.settingsTitle} onClick={onSettings}><Icon name="gear" /></button>
       </div>
-    </div>
-  );
-}
-
-function Segmented<T extends string>({ value, labels, title, onPick }: { value: T; labels: Record<T, string>; title: string; onPick(v: T): void }) {
-  return (
-    <div className="vc-seg" role="group" title={title}>
-      {(Object.keys(labels) as T[]).map((k) => (
-        <button key={k} type="button" aria-pressed={k === value}
-          onClick={() => { if (k !== value) onPick(k); }}>{labels[k]}</button>
-      ))}
     </div>
   );
 }

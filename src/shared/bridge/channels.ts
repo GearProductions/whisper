@@ -4,8 +4,10 @@
  *  tous (vérifié par le typage) et rien d'autre. Le panneau porte aussi le micro
  *  (réglages, enregistrement, transcription) et la lecture d'une réponse par son
  *  rang, et le choix de l'agent affiché (un agent par son id, jamais un
- *  chemin), son menu, Nouvel agent…, ⚙ Réglages (le panneau est le seul pont). Aucun canal ne
- *  colle, ne copie ni ne lit un texte fourni par une page (I-2, I-3).
+ *  chemin), son menu, Nouvel agent…, et la page des réglages : `settings` (invoke) lit la
+ *  page, écrit un réglage ou lance une de ses commandes et rend la page relue
+ *  (accord, note 0.14.0 ; le menu natif `menu:settings` est retiré). Le panneau est le
+ *  seul pont. Aucun canal ne colle, ne copie ni ne lit un texte fourni par une page (I-2, I-3).
  *  Ne connaît pas : Electron. Utilisé par : src/preload, src/main (app/ipc),
  *  tests/invariants/bridges.test.ts. */
 
@@ -14,9 +16,9 @@ export const PANEL_CHANNELS = {
     'conv:attach', 'conv:answer', 'conv:openLink', 'conv:showFile',
     'conv:vibeSet', 'conv:vibeMark', 'conv:vibeDraft', 'conv:vibeOpen', 'conv:vibeRefresh', 'conv:vibeProcess',
     'conv:vibeRunOp', 'conv:vibeFollow', 'dictation:recording', 'config:setDevice', 'tts:cancel',
-    'agent:show', 'agent:menu', 'agent:add', 'menu:settings'],
+    'agent:show', 'agent:menu', 'agent:add'],
   invoke: ['conv:history', 'conv:probe', 'conv:send', 'conv:vibeRun', 'conv:vibeSave',
-    'conv:vibeDrop', 'config:get', 'dictation:transcribe', 'conv:speak'],
+    'conv:vibeDrop', 'config:get', 'dictation:transcribe', 'conv:speak', 'settings'],
   events: ['conv:thread', 'conv:notice', 'conv:attached', 'conv:focusInput', 'conv:vibe', 'conv:vibeCode',
     'tts:chunk', 'tts:end', 'agents:state'],
 } as const;

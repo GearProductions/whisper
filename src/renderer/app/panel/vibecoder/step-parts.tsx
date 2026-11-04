@@ -74,11 +74,9 @@ export function StepField({ name, text, setText, hint, artifacts = [], artifacts
   );
 }
 
-const NOOP = () => {};
-
 // L'en-tête d'une étape ; `own` : les actions que la vue montre elle-même (pas répétées ici) ; les masquées, nulle part.
-// `p` : StepProps, et les pièces de son champ (vibe-coder les passe ; sans elles, aucune).
-export function StepHead({ p, own = [], children }: { p: StepProps & Partial<StepPieces>; own?: string[]; children?: ReactNode }) {
+// `p` : StepProps, avec les pièces de son champ (vibe-coder les tient).
+export function StepHead({ p, own = [], children }: { p: StepProps; own?: string[]; children?: ReactNode }) {
   const { view, step, t, act, busy } = p;
   const field = view.actions.some((a) => fieldOf(a) === step.id);
   const sends = fieldAction(view.actions, step.id);
@@ -95,7 +93,7 @@ export function StepHead({ p, own = [], children }: { p: StepProps & Partial<Ste
       ) : null}
       {children ? <div className="vc-step-tools">{children}</div> : null}
       {field ? <StepField name={step.id} text={p.text} setText={p.setText} hint={t.fieldHint} artifacts={view.artifacts} artifactsDir={view.artifactsDir}
-        t={t} pieces={p.pieces ?? []} onRemove={p.onRemove ?? NOOP} onAttach={p.onAttach ?? NOOP} onFiles={p.onFiles ?? NOOP}
+        t={t} pieces={p.pieces} onRemove={p.onRemove} onAttach={p.onAttach} onFiles={p.onFiles}
         onSend={() => { if (sends) act.run(sends.id); }} sendTitle={sends ? `${t.sendField} : ${sends.label}` : undefined}
         sendDisabled={!sends || !!sends.disabled || (sends.needs === 'text' && !p.text.trim())} /> : null}
     </div>

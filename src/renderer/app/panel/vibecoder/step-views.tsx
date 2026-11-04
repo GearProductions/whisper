@@ -1,14 +1,15 @@
 /** step-views — l'aiguillage des étapes : la vue de chaque étape du parcours,
  *  et ce qu'elle reçoit (StepProps : le relevé, l'étape, les libellés, les
  *  rappels de l'écran, le texte du champ de l'étape, le fichier de module
- *  suivi, les modifications gardées des fichiers suivis ; StepHead y prend les actions de l'étape et ce champ). Un seul
+ *  suivi, les modifications gardées des fichiers suivis, les pièces jointes du champ de l'étape et du questionnaire ; StepHead y prend les actions de l'étape et ce champ). Un seul
  *  parcours, une vue par étape, pour les deux rôles (view.flow, décidé par
  *  l'appli) : chaque vue montre en lecture seule ce que le relecteur ne fait
  *  pas (Revue : Relire à l'écran ; Modules : les commits ; PR : le brouillon).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder, panel-app (VibeActs). */
 import type { ComponentType, Dispatch, SetStateAction } from 'react';
+import type { Piece } from 'core/conversation';
 import type { Answer, Answers, Strings } from 'core/vibecoder';
-import type { VibeArgs, VibeCode, VibePatch, VibeProcessOp, VibeRunOp, VibeStep, VibeStepId, VibeView } from 'technicals/bridge';
+import type { Attached, VibeArgs, VibeCode, VibePatch, VibeProcessOp, VibeRunOp, VibeStep, VibeStepId, VibeView } from 'technicals/bridge';
 import type { Drafts } from './file-draft';
 import { FormeView } from './forme-view';
 import { InvariantsView } from './invariants-view';
@@ -16,6 +17,7 @@ import { ModulesView } from './modules-view';
 import { NoteView } from './note-view';
 import { PrView } from './pr-view';
 import { ReviewView } from './review-view';
+import type { StepPieces } from './step-parts';
 
 // Les rappels de l'écran, que panel-app relie au pont.
 export type VibeActs = {
@@ -32,11 +34,14 @@ export type VibeActs = {
                                                // gh:c<rang>, sa page sur GitHub)
   openLink(url: string): void;
   refresh(): void;
+  attach(into: (what: Attached) => void): void; // le trombone d'un champ : le choix du dialogue va à `into` (le champ qui l'a ouvert)
+  pieces(files: File[]): Promise<Piece[]>;       // des File (collés, déposés) en pièces jointes, comme pour la conversation
   process(op: VibeProcessOp, index?: number): void;  // Processus : une commande par son rang, ou 'edit' (le fichier du projet)
   runOp(id: string, op: VibeRunOp): void;      // Actions : une course par l'id de son action (arrêter, garder, annuler, autoriser…)
 };
 
-export type StepProps = {
+export type StepProps = StepPieces & {         // les pièces du champ de l'étape (vibe-coder les tient, par champ)
+  questions: StepPieces;                       // celles du questionnaire de la note, qui partent avec « Envoyer les réponses »
   view: VibeView; step: VibeStep; t: Strings; act: VibeActs; busy: boolean;
   answers: Answers;                            // les réponses en cours aux questions ouvertes (vibe-coder les tient)
   onAnswer(question: string, a: Answer): void;

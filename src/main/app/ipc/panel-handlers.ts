@@ -2,17 +2,18 @@
  *  par canal de PANEL_CHANNELS (vérifié par le typage), dont ceux du micro
  *  (transcription, enregistrement, réglages) et de la lecture d'une réponse par
  *  son rang, et du choix de l'agent (un agent par son id, vérifié dans la
- *  config), son menu, Nouvel agent…, ⚙ Réglages (les micros énumérés par la
- *  page). Aucun ne reçoit un texte à coller, copier ou lire (I-2, I-3).
+ *  config), son menu, Nouvel agent…, et la page des réglages (`settings` : la
+ *  lire, écrire un réglage, lancer une commande ; toujours la page relue).
+ *  Aucun ne reçoit un texte à coller, copier ou lire (I-2, I-3).
  *  L'expéditeur de chaque message est vérifié en amont, par listenFrom (I-20).
  *  Ne connaît pas : l'écoute elle-même (technicals/ipc). Utilisé par : app/ipc. */
 import { PANEL_CHANNELS, type HandlerTable } from 'shared/bridge';
 import {
   answerPermission, currentSession, draftVibe, dropOnArtifacts, followCode, history, markVibe, openLink, openSession, openVibeItem,
   panelReady, probeAgent, refreshVibe, resumeSession, runVibeAction, saveCode, sendDraft, setVibe, showFile,
-  cancelSpeak, pushAgents, setRecording, showAgent, speakReply, transcribe, vibeProcess, vibeRunOp,
+  cancelSpeak, pushAgents, setRecording, settingsOp, showAgent, speakReply, transcribe, vibeProcess, vibeRunOp,
 } from 'app/controllers';
-import { openAddAgentMenu, openAgentMenu, openAttachMenu, openSettings } from 'app/menus';
+import { openAddAgentMenu, openAgentMenu, openAttachMenu } from 'app/menus';
 import { loadConfig, saveConfig } from 'app/settings';
 
 export const panelHandlers: HandlerTable<typeof PANEL_CHANNELS> = {
@@ -40,7 +41,6 @@ export const panelHandlers: HandlerTable<typeof PANEL_CHANNELS> = {
     'agent:show': showAgent,
     'agent:menu': (id) => { openAgentMenu(id); },
     'agent:add': openAddAgentMenu,
-    'menu:settings': openSettings,
   },
   handle: {
     'conv:history': history,
@@ -55,5 +55,6 @@ export const panelHandlers: HandlerTable<typeof PANEL_CHANNELS> = {
     },
     'dictation:transcribe': transcribe,
     'conv:speak': speakReply,
+    settings: settingsOp,
   },
 };

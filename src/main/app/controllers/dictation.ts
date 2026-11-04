@@ -5,7 +5,7 @@
  *  par la page (I-2) ; il n'est ni collé ni envoyé à un agent ici. Un
  *  enregistrement muet ou trop court n'atteint pas whisper (I-10).
  *  Ne connaît pas : les pages (seulement leurs messages). Utilisé par : app/ipc,
- *  app/lifecycle, app/menus. */
+ *  app/lifecycle, controllers/settings (forceRestoreSound). */
 import fs from 'node:fs';
 import path from 'node:path';
 import { app } from 'electron';

@@ -44,11 +44,9 @@ const S: Record<VibeLang, typeof fr> = {
   },
 };
 
-type Props = { view: VibeView; t: Strings; act: VibeActs; busy: boolean; answers: Answers; onAnswer(question: string, a: Answer): void } & Partial<StepPieces>;
+type Props = { view: VibeView; t: Strings; act: VibeActs; busy: boolean; answers: Answers; onAnswer(question: string, a: Answer): void } & StepPieces;
 
-const NOOP = () => {};
-
-export function QuestionsView({ view, t, act, busy, answers, onAnswer, pieces = [], onRemove = NOOP, onAttach = NOOP, onFiles = NOOP }: Props) {
+export function QuestionsView({ view, t, act, busy, answers, onAnswer, pieces, onRemove, onAttach, onFiles }: Props) {
   const s = S[view.lang];
   const texts = answersOf(view.questions, answers, view.lang);
   const given = texts.filter(Boolean).length;

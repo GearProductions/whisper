@@ -3,10 +3,10 @@
  *  rang (au panneau) : le texte ne vient jamais de la page (I-3). L'audio suit
  *  par morceaux (`tts:chunk`), puis `tts:end`.
  *  Ne connaît pas : les agents (seulement le résumé retenu).
- *  Utilisé par : app/ipc, app/menus. */
+ *  Utilisé par : app/ipc, app/controllers (settings). */
 import { speakVolume, type Config } from 'core/config';
 import * as tts from 'technicals/pocket-tts';
-import { loadConfig, saveConfig } from 'app/settings';
+import { loadConfig } from 'app/settings';
 import { state } from 'app/state';
 import { conversationNotice } from 'app/windows';
 
@@ -57,10 +57,3 @@ export async function speakReply(index: unknown) {
 }
 
 export const cancelSpeak = (id: unknown) => tts.cancel(id);
-
-// Volume (⚙ Réglages) : retenu, appliqué à la prochaine lecture.
-export function setVolume(value: unknown) {
-  const v = Number(value);
-  if (!Number.isFinite(v)) return;
-  saveConfig({ speakVolume: Math.max(0, Math.min(1, v)) });
-}

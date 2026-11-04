@@ -4,7 +4,7 @@
  *  avec le paquet, puis l'installation de Cockpit pour ne pas retélécharger un
  *  modèle de plusieurs centaines de Mo). Rend la sortie brute de whisper.
  *  Ne connaît pas : le nettoyage du texte (core/dictation), la destination.
- *  Utilisé par : app/controllers/dictation, app/menus. */
+ *  Utilisé par : app/controllers/dictation, app/controllers/settings. */
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';

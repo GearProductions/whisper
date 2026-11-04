@@ -1,5 +1,5 @@
 /* Les validations (validation.tsx) : état et boutons de la note et de la
-   forme, verdict d'un cas, pastille Fable, validation proposée par la
+   forme, verdict d'un cas, validation proposée par la
    prochaine étape. Sous .vc ; vert : --vc-ok, ambre : --vc-warn, rouge : celui
    des autres vues (var(--vc-ko), texte var(--vc-ko-text)). Chaque libellé derrière son icône
    (svg 14 px) ; le verdict d'un cas : deux badges écrits, gris, celui donné allumé.
@@ -70,23 +70,3 @@
 .vc-verdict .vc-verdict-ko:hover { border-color: var(--vc-warn-edge); color: var(--vc-warn); }
 .vc-verdict .vc-verdict-ok[aria-pressed="true"] { border-color: var(--vc-ok-edge); background: var(--vc-ok-bg); color: var(--vc-ok-text); }
 .vc-verdict .vc-verdict-ko[aria-pressed="true"] { border-color: var(--vc-warn-edge); background: var(--vc-warn-bg); color: var(--vc-warn); }
-
-/* Pastille Fable : un bouton discret (bord fin), ✦ en bleu clair, le coût dit. */
-.vc-fable {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 4px 0 10px;
-  border-radius: 14px;
-  border: 1px solid var(--vc-line);
-  background: transparent;
-  color: var(--vc-text);
-  font: 500 12px/1 var(--vc-sans);
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background-color 0.12s, border-color 0.12s;
-}
-.vc-fable > span:first-child { color: var(--vc-accent-soft); font-size: 11px; }
-.vc-fable:hover { border-color: var(--vc-edge); background: var(--vc-hover); }
-.vc-fable-cost { padding: 2px 7px; border-radius: 4px; background: var(--vc-hover); color: var(--vc-faint); font-size: 10.5px; }

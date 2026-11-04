@@ -11,16 +11,23 @@
  *  de son bouton ; les écouteurs ne vivent que liste ouverte. Un clic sur un commit le déplie : Voir le diff (dans
  *  l'éditeur, c<rang>), GitHub (sa page, gh:c<rang>) — deux IconButton
  *  (icons), libellé en infobulle — et ses fichiers, en texte simple.
+ *  Vibe, à côté de « N commits » (vibe : l'action et si Vibe tourne ; null, le
+ *  relecteur : rien) : le bouton de l'action (grisé, avec sa raison, si elle
+ *  l'est) ; pendant Vibe, Arrêter Vibe à sa place (onStopVibe), même l'action masquée (« déjà en cours »).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
 import { useEffect, useState } from 'react';
 import type { Strings } from 'core/vibecoder';
-import type { VibeCommit, VibeStepId, VibeView } from 'technicals/bridge';
+import type { VibeAction, VibeCommit, VibeStepId, VibeView } from 'technicals/bridge';
 import { IconButton } from './icons';
 import './breadcrumb.css';
 
-type Props = { view: VibeView; t: Strings; selected: VibeStepId | null; onPick(id: VibeStepId): void; onOpen(id: string): void };
+type Props = {
+  view: VibeView; t: Strings; selected: VibeStepId | null;
+  vibe: { a: VibeAction; on: boolean } | null;
+  onPick(id: VibeStepId): void; onOpen(id: string): void; onVibe(): void; onStopVibe(): void;
+};
 
-export function Breadcrumb({ view, t, selected, onPick, onOpen }: Props) {
+export function Breadcrumb({ view, t, selected, vibe, onPick, onOpen, onVibe, onStopVibe }: Props) {
   const [list, setList] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const n = view.commits.length;
@@ -49,6 +56,12 @@ export function Breadcrumb({ view, t, selected, onPick, onOpen }: Props) {
         {n ? (
           <button type="button" className="vc-ccount" aria-expanded={list} onClick={() => setList(!list)}>{t.commitsOf(n)}</button>
         ) : <span className="vc-ccount">{t.commitsOf(0)}</span>}
+        {vibe && (vibe.on || !vibe.a.hidden) ? (vibe.on ? (
+          <button type="button" className="vc-run" data-tone="ghost" title={t.vibeStopTitle} onClick={onStopVibe}>{t.vibeStop}</button>
+        ) : (
+          <button type="button" className="vc-run" data-tone="vibe" disabled={!!vibe.a.disabled}
+            title={vibe.a.disabled ? `${vibe.a.hint}\n— ${vibe.a.disabled}` : vibe.a.hint} onClick={onVibe}>{vibe.a.label}</button>
+        )) : null}
       </div>
       {list && n ? (
         <ul className="vc-commits">

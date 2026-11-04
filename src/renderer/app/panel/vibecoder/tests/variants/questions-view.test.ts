@@ -34,9 +34,3 @@ it('les pièces du questionnaire apparaissent dans chaque champ ; × et Joindre 
   await act(async () => page.querySelector<HTMLElement>('.vc-q-free .vc-send')!.click());
   expect(calls).toEqual(['remove', 'attach', 'run:answers:{"answers":["oui",""]}']);
 });
-
-it('sans pièces tenues par l\'appelant : aucune pièce, le champ marche', async () => {
-  await act(async () => { root.render(createElement(QuestionsView, { view, t: t('fr'), act: {} as VibeActs, busy: false, answers, onAnswer() {} })); });
-  expect(page.querySelector('.piece')).toBeNull();
-  expect(page.querySelectorAll('.vc-q-free textarea').length).toBe(2);
-});

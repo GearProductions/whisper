@@ -192,8 +192,9 @@ export interface ConvApi {
   agentMenu(id: string): void;
   /** Nouvel agent… : le menu du principal (dossier, worktree). */
   addAgent(): void;
-  /** ⚙ Réglages, sous son bouton ; `devices` : les micros énumérés par la page. */
-  openSettings(devices: MicDevice[]): void;
+  /** La page des réglages : lire (null), écrire un réglage ou lancer une de ses commandes ;
+   *  rend toujours la page relue. Le principal vérifie l'expéditeur et chaque valeur. */
+  settings(op: SettingsOp | null): Promise<SettingsView>;
 }
 
 /* ---- La page des réglages ------------------------------------------------------ */
@@ -461,7 +462,6 @@ export type VibeArgs = {
 
 export type VibePatch = {
   vibe?: false;                // la bannière : arrêter le mode Vibe (la course en cours finit)
-  lang?: VibeLang;
   pr?: number | null;          // la PR suivie
   seen?: boolean;              // « Vu » : la note de référence devient l'actuelle
   modulesView?: 'ide' | 'list'; // le réglage de la vue Modules

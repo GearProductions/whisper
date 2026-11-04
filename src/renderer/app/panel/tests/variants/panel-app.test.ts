@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 // PanelApp (panel-app.tsx), la dictée : insérée dans la zone de texte qui a le clavier (son onChange
 // suit), rien au-delà de sa longueur ; aucune zone, un <input> ou un éditeur CodeMirror : au champ
-// de la conversation.
+// de la conversation (le micro donne le clavier à son champ à l'appui : la zone le reprend avant la fin
+// de la transcription) ; le trombone : son choix va au champ qui l'a ouvert, sinon à la conversation.
 import { EditorView } from '@codemirror/view';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -46,11 +47,12 @@ await act(() => {
 });
 const input = page.querySelector<HTMLTextAreaElement>('#message')!;
 // Une dictée de bout en bout : le micro (#mic) maintenu puis relâché, whisper rend `text`.
-const dictate = async (text: string) => {
+const dictate = async (text: string, keyboard?: HTMLElement) => {
   own.getConfig = () => Promise.resolve({});
   own.transcribe = () => Promise.resolve({ ok: true, text });
   const mic = page.querySelector('#mic')!;
   await act(async () => { mic.dispatchEvent(new Event('pointerdown', { bubbles: true })); });
+  keyboard?.focus();
   await act(async () => { mic.dispatchEvent(new Event('pointerup', { bubbles: true })); });
 };
 const area = (value = '', maxLength?: number) => {
@@ -72,7 +74,7 @@ it('une zone de texte a le clavier : la dictée s\'y insère, son onChange suit'
   const f = area('Salut');
   let changed = '';
   f.addEventListener('input', () => { changed = f.value; });
-  await dictate('toi');
+  await dictate('toi', f);
   expect(f.value).toBe('Salut toi');
   expect(changed).toBe('Salut toi');
   expect(input.value).toBe('bonjour');
@@ -82,13 +84,13 @@ it('une zone de texte a le clavier : la dictée s\'y insère, son onChange suit'
 it('une zone de commentaire à sa limite : rien au-delà de DRAFT_MAX, rien perdu ailleurs', async () => {
   const f = area('x'.repeat(DRAFT_MAX), DRAFT_MAX);
   inserted.length = 0;
-  await dictate('encore');
+  await dictate('encore', f);
   expect(inserted).toEqual([]);
   expect(f.value).toHaveLength(DRAFT_MAX);
   expect(input.value).toBe('bonjour');
   f.value = 'x'.repeat(DRAFT_MAX - 3);
   f.setSelectionRange(f.value.length, f.value.length);
-  await dictate('encore');
+  await dictate('encore', f);
   expect(f.value).toHaveLength(DRAFT_MAX);
   f.remove();
 });
@@ -97,12 +99,12 @@ it('un <input> ou un éditeur CodeMirror a le clavier : la dictée va au champ d
   const one = document.body.appendChild(document.createElement('input'));
   one.focus();
   expect(document.activeElement).toBe(one);
-  await dictate('un');
+  await dictate('un', one);
   expect(one.value).toBe('');
   const cm = new EditorView({ doc: 'note', parent: document.body.appendChild(document.createElement('div')) });
   cm.contentDOM.focus();
   expect(document.activeElement).toBe(cm.contentDOM);
-  await dictate('deux');
+  await dictate('deux', cm.contentDOM);
   expect(cm.state.doc.toString()).toBe('note');
   expect(input.value).toBe('bonjour un deux');
 });
@@ -140,4 +142,27 @@ it('la conversation d\'un autre agent avant son relevé : l\'écran d\'avant res
   await act(() => { on.onThread({ key: 'a2', live: true, name: 'B', color: '#fff', title: 't', status: 'idle', messages: [] }); });
   expect(page.querySelector('.vc')).not.toBeNull();
   await act(() => { (on.onFocusInput as () => void)(); });   // le focus du champ, demandé avant que l'écran soit là
+});
+
+// Le trombone : le choix du dialogue va au champ qui l'a ouvert (le dernier 📎 cliqué), sinon à la conversation.
+it('le trombone d\'un champ d\'étape : son choix va à ce champ, pas à la conversation ; celui de la conversation, à la conversation', async () => {
+  const attached: string[] = [];
+  own.attach = () => { attached.push('attach'); };
+  const act1 = { id: 'note', step: 'note', label: 'Écrire la note', hint: '', who: 'agent', models: [], model: null, kind: 'send', needs: 'text', usesText: true, primary: true, disabled: null, hidden: false };
+  await act(() => {
+    on.onThread({ key: 'a1', live: true, name: 'A', color: '#fff', title: 't', status: 'idle', messages: [] });
+    on.onVibe({ lang: 'fr', agentId: 'a1', steps: [{ id: 'note', status: 'current' }], actions: [act1], runs: [], processes: [], commits: [], agent: {}, time: 0, flow: 'create',
+      outputs: {}, files: [], questions: [], invariants: [], artifacts: [], modules: [], repo: { branch: 'master', base: 'master', changed: 0 } });
+  });
+  const pieces = (sel: string) => [...page.querySelectorAll(`${sel} .piece`)].map((p) => p.textContent ?? '');
+  await act(() => { page.querySelector<HTMLButtonElement>('.vc-step-field .vc-attach')!.click(); });
+  await act(() => { (on.onAttached as (v: unknown) => void)({ files: ['/p/champ.md'] }); });
+  expect(attached).toEqual(['attach']);
+  expect(pieces('.vc-step-field')).toHaveLength(1);
+  expect(pieces('#composer').join()).not.toContain('champ.md');
+  await act(() => { page.querySelector<HTMLButtonElement>('#attach')!.click(); });
+  await act(() => { (on.onAttached as (v: unknown) => void)({ files: ['/p/conv.md'] }); });
+  expect(pieces('.vc-step-field')).toHaveLength(1);
+  expect(pieces('#composer').join()).toContain('conv.md');
+  expect(pieces('.vc-step-field').join()).not.toContain('conv.md');
 });

@@ -46,15 +46,6 @@ const progressParts = (p: VibeRunProgress, l: { wave: string; modules: string; f
 
 const fr = {
   locale: 'fr-FR',
-  // Retirés avec la colle (ceux qui les utilisent encore).
-  langTitle: 'Langue de l\'écran et des messages envoyés à l\'agent',
-  fix: 'Retour → fixup',
-  fixTitle: 'Citer ces lignes dans un retour à corriger en fixup du module',
-  recommended: (m: string) => `${m} · conseillé`,
-  pickTitle: 'Le modèle qui fait cette étape : le conseillé par défaut, un plus léger coûte moins',
-  effortDefault: 'effort par défaut',
-  vibeOn: 'Vibe en cours : l\'agent enchaîne les étapes ; une question qui bloque vous attend à l\'étape Note',
-  settings: '⚙ Réglages',
   steps: {
     note: 'Note', forme: 'Forme', invariants: 'Invariants', modules: 'Modules', revue: 'Revue', pr: 'PR',
   } as Record<VibeStepId, string>,
@@ -212,8 +203,6 @@ const fr = {
     instructions: 'Modifier la consigne des agents (résumé audio)…', journal: 'Ouvrir le journal des agents (tours, autorisations)',
     vibeDir: 'Dossier de VibeCoder', releases: 'À propos : page de la version', quit: 'Quitter',
   } as Record<SettingsCommand, string>,
-  vibe: 'Vibe',
-  vibeTitle: 'Enchaîner les étapes avec l\'agent',
   paletteHint: 'Un agent, une branche, une PR, une action…',
   paletteScopes: { all: 'Tout', agents: 'Agents', branches: 'Branches', prs: 'PR' },
   paletteGroups: { branches: 'Branches', prs: 'Pull requests', actions: 'Actions' },
@@ -256,14 +245,6 @@ export type Strings = typeof fr;
 
 const en: Strings = {
   locale: 'en-GB',
-  langTitle: 'Language of the screen and of the messages sent to the agent',
-  fix: 'Feedback → fixup',
-  fixTitle: 'Quote these lines in a feedback to fix as a fixup of the module',
-  recommended: (m) => `${m} · recommended`,
-  pickTitle: 'The model doing this step: the recommended one by default, a lighter one costs less',
-  effortDefault: 'default effort',
-  vibeOn: 'Vibe in progress: the agent chains the steps; a blocking question waits for you at the Note step',
-  settings: '⚙ Settings',
   steps: {
     note: 'Note', forme: 'Shape', invariants: 'Invariants', modules: 'Modules', revue: 'Review', pr: 'PR',
   },
@@ -420,8 +401,6 @@ const en: Strings = {
     instructions: 'Edit the agents\' instructions (audio summary)…', journal: 'Open the agents\' journal (turns, permissions)',
     vibeDir: 'VibeCoder folder', releases: 'About: the version page', quit: 'Quit',
   },
-  vibe: 'Vibe',
-  vibeTitle: 'Chain the steps with the agent',
   paletteHint: 'An agent, a branch, a PR, an action…',
   paletteScopes: { all: 'All', agents: 'Agents', branches: 'Branches', prs: 'PRs' },
   paletteGroups: { branches: 'Branches', prs: 'Pull requests', actions: 'Actions' },
