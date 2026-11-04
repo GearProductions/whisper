@@ -21,12 +21,13 @@ it('le micro du contexte : le clavier à son champ, down puis up une seule fois 
     createElement('textarea', { ref: field }),
     createElement(PromptTools, { t: t('fr'), field, onSend: () => calls.push('send') }))));
   const mic = page.querySelector('.vc-mic')!;
-  expect(mic.getAttribute('data-phase')).toBe('recording');
+  expect(mic.getAttribute('data-phase')).toBe('idle'); // pas tenu : au repos
   const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
   mic.dispatchEvent(down);
   expect(down.defaultPrevented).toBe(true);
   await fire(mic, 'pointerdown');
   expect(document.activeElement).toBe(field.current);
+  expect(mic.getAttribute('data-phase')).toBe('recording');
   await fire(mic, 'pointerup'); await fire(mic, 'pointerleave');
   await act(async () => (page.querySelector('.vc-send') as HTMLElement).click());
   expect(calls).toEqual(['down', 'up', 'send']);
@@ -36,4 +37,20 @@ it('sans micro : Envoyer seul, grisé par sendDisabled', async () => {
   await act(() => root.render(createElement(PromptTools, { t: t('fr'), onSend: () => {}, sendDisabled: true })));
   expect(page.querySelector('.vc-mic')).toBeNull();
   expect((page.querySelector('.vc-send') as HTMLButtonElement).disabled).toBe(true);
+});
+
+it('deux micros sous un même contexte : seul celui qu\'on tient montre la phase, jusqu\'à idle', async () => {
+  const view = (phase: 'idle' | 'recording' | 'transcribing') => createElement(Mic.Provider, { value: { phase, down: () => {}, up: () => {} } },
+    createElement(PromptTools, { t: t('fr'), onSend: () => {} }), createElement(PromptTools, { t: t('fr'), onSend: () => {} }));
+  const phases = () => [...page.querySelectorAll('.vc-mic')].map((m) => m.getAttribute('data-phase'));
+  await act(() => root.render(view('idle')));
+  await fire(page.querySelectorAll('.vc-mic')[1], 'pointerdown');
+  await act(() => root.render(view('recording')));
+  expect(phases()).toEqual(['idle', 'recording']);
+  expect(page.querySelectorAll('.vc-mic')[0].getAttribute('title')).toBe(t('fr').micHold);
+  await fire(page.querySelectorAll('.vc-mic')[1], 'pointerup');
+  await act(() => root.render(view('transcribing')));
+  expect(phases()).toEqual(['idle', 'transcribing']);
+  await act(() => root.render(view('idle')));
+  expect(phases()).toEqual(['idle', 'idle']);
 });

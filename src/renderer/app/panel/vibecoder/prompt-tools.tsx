@@ -2,11 +2,12 @@
  *  le micro (rose) et Envoyer (bleu). Le micro dicte tant qu'il est maintenu (down à l'appui, up une
  *  seule fois au relâchement, à la sortie ou à l'annulation) ; il ne prend pas le clavier et le donne à
  *  son champ (`field`) : la dictée, qui va à la zone de texte qui a le clavier (panel-app), arrive dans
- *  ce champ. Sa phase (enregistre, transcrit) dans data-phase et le title. Le micro vient du contexte
- *  Mic (posé par panel-app) ; sans lui, Envoyer seul. Envoyer : onSend, grisé par sendDisabled. `ids` : les id #mic et #send (le champ de la conversation).
+ *  ce champ. Sa phase (enregistre, transcrit) dans data-phase et le title, mais seulement pour le micro
+ *  qu'on tient (retenu jusqu'au retour de la phase à idle) : les autres restent au repos. Le micro vient
+ *  du contexte Mic (posé par panel-app) ; sans lui, Envoyer seul. Envoyer : onSend, grisé par sendDisabled. `ids` : les id #mic et #send (le champ de la conversation).
  *  Ne connaît pas : le pont, le micro lui-même (rappels). Utilisé par : step-parts, comment-box,
  *  questions-view ; components (composer). */
-import { createContext, useContext, useRef, type RefObject } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type RefObject } from 'react';
 import type { Phase } from 'core/dictation';
 import type { Strings } from 'core/vibecoder';
 import { Icon } from './icons';
@@ -23,9 +24,13 @@ type Props = {
 export function PromptTools({ t, field, ids, onSend, sendDisabled, sendTitle = t.sendField }: Props) {
   const mic = useContext(Mic);
   const held = useRef(false);
-  const down = () => { field?.current?.focus(); held.current = true; mic?.down(); };
-  const up = () => { if (held.current) { held.current = false; mic?.up(); } };
-  const phase = mic?.phase ?? 'idle';
+  const [mine, setMine] = useState(false); // ce micro est celui qu'on tient, jusqu'au retour à idle
+  const down = () => { field?.current?.focus(); held.current = true; setMine(true); mic?.down(); };
+  const micPhase = mic?.phase ?? 'idle';
+  // Relâché sans que la dictée ait démarré : il n'est plus celui qu'on tient.
+  const up = () => { if (held.current) { held.current = false; if (micPhase === 'idle') setMine(false); mic?.up(); } };
+  useEffect(() => { if (micPhase === 'idle') setMine(false); }, [micPhase]);
+  const phase = mine ? micPhase : 'idle';
   const micTitle = phase === 'recording' ? t.micRecording : phase === 'transcribing' ? t.micTranscribing : t.micHold;
   return (
     <span className="vc-prompt-tools">
