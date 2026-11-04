@@ -41,7 +41,7 @@ export function codeBlock(code: string, start: number, end: number): string {
 const VIEW_TEXT = ['apply'];
 
 /** Le champ dont une action emporte le texte : celui de son étape (son id) ; null : elle n'en prend
- *  pas (vibe), la vue le donne (apply), ou c'est un message de la conversation sans étape (ask, guide,
+ *  pas (vibe), la vue le donne (apply), ou c'est un message de la conversation sans étape (guide,
  *  propose-run : le champ de la conversation). */
 export function fieldOf(a: Pick<VibeAction, 'id' | 'step' | 'kind' | 'needs' | 'usesText'>): string | null {
   if (a.kind !== 'send' || !(a.usesText || a.needs === 'text') || VIEW_TEXT.includes(a.id)) return null;

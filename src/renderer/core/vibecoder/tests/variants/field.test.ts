@@ -74,7 +74,7 @@ describe('fieldOf', () => {
     expect(fieldOf(a('checks', 'revue', { usesText: false }))).toBeNull();
     expect(fieldOf(a('apply', 'revue'))).toBeNull();
     expect(fieldOf(a('case-ko', 'invariants', { kind: 'prefill' }))).toBeNull();
-    expect(fieldOf(a('ask', null, { needs: 'text' }))).toBeNull();
+    expect(fieldOf(a('new-request', null, { needs: 'text' }))).toBeNull();
     expect(fieldOf(a('guide', null))).toBeNull();
   });
 });
