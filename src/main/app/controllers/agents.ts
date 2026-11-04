@@ -40,7 +40,7 @@ const sdk = loadSdk as unknown as () => Promise<Sdk>;
 export const agents = createAgentRuntime({ loadSdk: sdk, launcher, journal: createJournal(() => journalFile()) });
 export const sessions = createSessions({ loadSdk: sdk, realpath: fs.realpathSync });
 
-export const CLAUDE_MISSING = 'Claude Code introuvable : installez-le, ou réglez la commande de lancement (⚙ Réglages → Agents Claude Code).';
+export const CLAUDE_MISSING = 'Claude Code introuvable : installez-le, ou réglez la commande de lancement (⚙ Réglages → Agents → Commande de lancement).';
 
 export const isBusy = (id: string) => ['working', 'asking'].includes(agents.state(id).status);
 // L'état d'un robot : sa conversation, et le signal de ses courses par-dessus un état au repos.

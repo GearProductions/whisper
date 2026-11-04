@@ -11,7 +11,7 @@
  *  Chaque conversation envoyée relance le relevé de VibeCoder (controllers/vibecoder).
  *  L'agent affiché retiré : le premier qui reste prend sa place, sinon c'est l'accueil.
  *  Ne connaît pas : la fenêtre elle-même (windows/panel-window).
- *  Utilisé par : app/ipc, controllers/agents. */
+ *  Utilisé par : app/ipc, controllers/agents (prepareMessage : controllers/vibecoder). */
 import fs from 'node:fs';
 import { shell } from 'electron';
 import { permissionView, prepareDraft, relativeTo, splitComposed, taskViews, toolSummary, withSent } from 'core/conversation';
@@ -135,14 +135,21 @@ export function showFile(file: unknown) {
   if (showableFile(file, fs.existsSync)) shell.showItemInFolder(file);
 }
 
+// Un brouillon (texte et pièces jointes) lu sur le disque et borné : { message } ou { error } ; aussi pour les
+// pièces d'une action de VibeCoder.
+export function prepareMessage(draft: unknown) {
+  const ready = prepareDraft(draft, { prepareImage, files: { size: (p) => fs.statSync(p).size, read: (p) => fs.readFileSync(p) } });
+  return 'message' in ready ? { message: ready.message } : { error: ready.error };
+}
+
 // Champ de saisie : un message à l'agent affiché (sa session en cours), avec
 // les pièces jointes du champ (glissées, collées, ou choisies par le trombone).
 export function sendDraft(draft: unknown) {
   const cfg = loadConfig();
   const agent = liveViewAgent(cfg);
   if (!agent) return { ok: false, error: 'Ancienne conversation : reprenez-la pour lui écrire.' };
-  const ready = prepareDraft(draft, { prepareImage, files: { size: (p) => fs.statSync(p).size, read: (p) => fs.readFileSync(p) } });
-  return 'error' in ready && ready.error ? { ok: false, error: ready.error } : sendToAgent(agent, (ready as { message: { text: string; images: { mediaType: string; data: string }[] } }).message, cfg);
+  const ready = prepareMessage(draft);
+  return 'error' in ready ? { ok: false, error: ready.error } : sendToAgent(agent, ready.message, cfg);
 }
 
 // Réponse à une demande affichée dans le fil : seulement pour l'agent affiché,

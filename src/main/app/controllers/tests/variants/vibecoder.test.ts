@@ -47,7 +47,9 @@ vi.mock('electron', () => ({
   app: { getPath: () => fake.userData, quit: () => {} },
   BrowserWindow: class extends fake.Win { constructor() { super(); fake.windows.push(this); } },
   screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) },
-  shell: { openExternal: (url: string) => { fake.opened.push(url); } }, clipboard: {}, nativeImage: {},
+  shell: { openExternal: (url: string) => { fake.opened.push(url); } }, clipboard: {},
+  // Le décodeur d'images d'Electron ne lit rien : un GIF part tel quel, un PNG est refusé.
+  nativeImage: { createFromBuffer: () => ({ isEmpty: () => true }) },
   dialog: { showMessageBox: async (o: { message: string }) => { fake.calls.push(['dialog', o.message]); return { response: fake.answer }; } },
 }));
 // L'appli lancée depuis les sources (app/dev) : son état réglé par le cas, ses actions relevées.
@@ -423,20 +425,103 @@ function review() {
 const HASH = 'a'.repeat(40);
 
 describe('rc.2', () => {
-  it('une action sur un autre modèle : la variante de son skill ; un modèle hors des choix : ignoré, rendu dans ignored (0.11.0)', async () => {
+  // checks : /vibecoder:verifier {{lang}} {{out}}, dont le skill fixe son modèle (haiku).
+  async function checks(cfg: Record<string, unknown>, args: Record<string, unknown>) {
     write(path.join(fake.userData, 'vibecoder', 'plugin', 'skills', 'verifier', 'SKILL.md'), '---\ncontext: fork\nmodel: haiku\n---\n');
     await open();
-    const { runVibeAction, startAction, viewAgent, lastView } = await import('app/controllers');
-    const { loadConfig, vibeActions } = await import('app/settings');
-    const agent = viewAgent()!;
-    const def = vibeActions('fr').find((a) => a.id === 'checks')!;
-    expect(startAction(agent, def, { model: 'fable' }, lastView('a1')!, loadConfig())).toEqual({ ok: true, ignored: ['model'] });
+    const { startAction, viewAgent, lastView } = await import('app/controllers');
+    const { loadConfig, saveConfig, vibeActions } = await import('app/settings');
+    saveConfig(cfg);
+    const result = startAction(viewAgent()!, vibeActions('fr').find((a) => a.id === 'checks')!, args, lastView('a1')!, loadConfig());
     await settle();
-    expect(fake.messages[0]).toBe(`/vibecoder:verifier fr ${out}`);
+    return { result, sent: fake.messages[0] };
+  }
+
+  it('le modèle d\u2019une action : celui de la configuration ; sans choix ou égal au conseillé, rien de différent (F-99) ; Fable écrit à la main, rien (I-36)', async () => {
+    expect((await checks({ actionModels: { checks: 'sonnet' } }, {})).sent).toBe(`/vibecoder:verifier--sonnet fr ${out}`);
     fake.messages = [];
-    expect(runVibeAction('checks', { model: 'sonnet' })).toEqual({ ok: true });
-    await settle();
-    expect(fake.messages[0]).toBe(`/vibecoder:verifier--sonnet fr ${out}`);
+    expect((await checks({ actionModels: { checks: 'haiku' } }, {})).sent).toBe(`/vibecoder:verifier fr ${out}`);
+  });
+
+  it('un modèle de la configuration inconnu ou Fable : l\u2019action part avec son skill, rien de plus', async () => {
+    expect((await checks({ actionModels: { checks: 'fable' } }, {})).sent).toBe(`/vibecoder:verifier fr ${out}`);
+  });
+
+  it('le modèle et l\u2019effort que la page envoie sont ignorés (dits dans ignored), la configuration décide', async () => {
+    const r = await checks({ actionModels: { checks: 'sonnet' } }, { model: 'opus', effort: 'max' });
+    expect(r.result).toEqual({ ok: true, ignored: ['model', 'effort'] });
+    expect(r.sent).toBe(`/vibecoder:verifier--sonnet fr ${out}`);
+  });
+
+  it('{{lang}} : la langue des agents (agentLang), l\u2019écran garde la sienne', async () => {
+    const r = await checks({ agentLang: 'en' }, {});
+    expect(r.sent).toBe(`/vibecoder:verifier en ${out}`);
+    const { vibeLang } = await import('core/config');
+    const { loadConfig } = await import('app/settings');
+    expect(vibeLang(loadConfig())).toBe('fr');
+  });
+
+  it('le who d\u2019une action suit le choix de la configuration', async () => {
+    write(path.join(fake.userData, 'vibecoder', 'plugin', 'skills', 'verifier', 'SKILL.md'), '---\ncontext: fork\nmodel: haiku\n---\n');
+    write(path.join(fake.userData, 'config.json'), JSON.stringify({
+      agentsEnabled: true, actionModels: { checks: 'sonnet' }, actionEfforts: { checks: 'high' },
+      agents: [{ id: 'a1', dir, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null }],
+    }));
+    const { view } = await open();
+    expect((view() as { who: Record<string, string> }).who.checks).toBe('sonnet · élevé');
+  });
+
+  describe('les pièces du champ (I-2 élargi)', () => {
+    const GIF = Buffer.from('GIF89a une image jointe au champ');
+    const pieces = { selection: 'la sélection', files: ['/tmp/joint/doc.txt'], images: [{ name: 'i.gif', type: 'image/gif', data: new Uint8Array(GIF).buffer }] };
+    const all = () => JSON.stringify(fake.messages);
+
+    it('lues par un gabarit qui a {{text}} : la sélection et les chemins au texte, les images avec', async () => {
+      await open();
+      const { runVibeAction } = await import('app/controllers');
+      expect(runVibeAction('ask', { text: 'une question', pr: 12, pieces })).toEqual({ ok: true });
+      await settle();
+      expect(all()).toContain('une question (PR 12)');
+      expect(all()).toContain('la sélection');
+      expect(all()).toContain('/tmp/joint/doc.txt');
+      expect(all()).toContain(GIF.toString('base64'));
+    });
+
+    it('une clé inconnue parmi elles n\u2019est jamais lue', async () => {
+      await open();
+      const { runVibeAction } = await import('app/controllers');
+      runVibeAction('ask', { text: 'une question', pr: 12, pieces: { ...pieces, note: 'texte de la page' } });
+      await settle();
+      expect(all()).toContain('une question');
+      expect(all()).not.toContain('texte de la page');
+    });
+
+    it('un gabarit qui ne lit ni {{text}} ni {{answers}} : ni préparées ni envoyées, dites dans ignored', async () => {
+      await open();
+      const { startAction, viewAgent, lastView } = await import('app/controllers');
+      const { loadConfig, vibeActions } = await import('app/settings');
+      const def = vibeActions('fr').find((a) => a.id === 'checks')!;
+      expect(startAction(viewAgent()!, def, { pieces }, lastView('a1')!, loadConfig())).toEqual({ ok: true, ignored: ['pieces'] });
+      await settle();
+      expect(fake.messages[0]).toBe(`/vibecoder:verifier fr ${out}`);
+    });
+
+    it('une pièce refusée : l\u2019erreur, rien d\u2019envoyé', async () => {
+      await open();
+      const { runVibeAction } = await import('app/controllers');
+      const bad = { ...pieces, images: [{ name: 'abimee.png', type: 'image/png', data: new Uint8Array(GIF).buffer }] };
+      expect(runVibeAction('ask', { text: 'une question', pr: 12, pieces: bad })).toMatchObject({ ok: false, error: expect.stringContaining('abimee.png') });
+      await settle();
+      expect(fake.messages).toEqual([]);
+    });
+
+    it('sans pièces : le message part comme avant', async () => {
+      await open();
+      const { runVibeAction } = await import('app/controllers');
+      runVibeAction('ask', { text: 'une question', pr: 12 });
+      await settle();
+      expect(fake.messages).toEqual(['une question (PR 12)']);
+    });
   });
 
   it('un texte que le gabarit ne lit pas : l’action part, text rendu dans ignored (0.13.0, 12) ; vide, rien', async () => {

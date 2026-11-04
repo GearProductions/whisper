@@ -3,6 +3,8 @@
 // base de la branche, le diff entier en lecture seule (Relire : de f.base à f.source ; Créer : au texte de
 // l'éditeur) ; un test ajouté, pas de sélecteur ; Lire en pseudo-code dans les outils de l'en-tête, même action ;
 // 💬 et Ouvrir en IconButton (nommés, 💬 pressé pendant la saisie en Relire), l'état et Tout valider : une icône et leur texte ;
+// vue IDE : les tests à gauche (nom coloré par leur état git), le premier choisi d'emblée, un clic montre ses cartes seules (en-tête et boutons
+// intacts) et referme le fichier ouvert de l'autre ;
 // le verdict d'un cas : deux badges écrits dans son en-tête, celui donné pressé ; À revoir, selon le flux : cite le cas ou ouvre la zone de commentaire.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -26,8 +28,8 @@ let runs: unknown[][] = [];
 let marks: unknown[][] = [];
 let prefills: unknown[][] = [];
 beforeEach(() => { runs = []; marks = []; prefills = []; act(() => root.render(null)); });
-const draw = (f: VibeTestFile, flow: 'create' | 'review') => act(() => {
-  const view = { lang: 'fr', flow, actions: [read], invariants: [f], outputs: {}, note: null, steps: [], modules: [], questions: [], checklist: [], draft: [] } as unknown as VibeView;
+const draw = (f: VibeTestFile | VibeTestFile[], flow: 'create' | 'review', files: unknown[] = []) => act(() => {
+  const view = { lang: 'fr', flow, actions: [read], invariants: [f].flat(), files, outputs: {}, note: null, steps: [], modules: [], questions: [], checklist: [], draft: [] } as unknown as VibeView;
   const props = { view, step: { id: 'invariants', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
     code: null, drafts: [{}, () => {}], act: { run: (...a: unknown[]) => runs.push(a), follow: () => {}, mark: (...a: unknown[]) => marks.push(a), prefill: (...a: unknown[]) => prefills.push(a),
       draft: () => {}, open: (...a: unknown[]) => runs.push(['open', ...a]), openLink: () => {}, save: async () => true } } as unknown as StepProps;
@@ -122,4 +124,41 @@ it('À revoir sur une carte : Créer, marque le cas et le cite dans le champ ; R
   expect(marks).toHaveLength(2);
   expect(prefills).toHaveLength(1);
   expect(page.querySelector('.vc-case textarea')).not.toBeNull();
+});
+
+const two = [test({ id: 't0', path: 'tests/invariants/a.test.ts', cases: ['a1'], lines: [1] }),
+  test({ id: 't1', path: 'tests/invariants/b.test.ts', cases: ['b1', 'b2'], lines: [1, 2], marks: { b1: 'ok' } })];
+const row = (key: string) => [...page.querySelectorAll<HTMLElement>('.vc-tree-row')].find((r) => r.dataset.key === key)!;
+const titles = () => [...page.querySelectorAll('.vc-case-title')].map((e) => e.textContent);
+
+it('vue IDE : les tests à gauche, numérotés et colorés par leur état git ; le premier montre ses cartes seules', async () => {
+  await draw(two, 'create', [{ path: 'tests/invariants/b.test.ts', git: 'new' }]);
+  expect(row('tests/invariants/a.test.ts').getAttribute('aria-selected')).toBe('true');
+  expect(row('tests/invariants/b.test.ts').dataset.mark).toBe('new');
+  expect(row('tests/invariants/a.test.ts').dataset.mark).toBeUndefined();
+  expect(row('tests/invariants/b.test.ts').querySelector('.vc-tree-rank')!.textContent).toBe('2');
+  expect(titles()).toEqual(['a1']);
+  expect(page.querySelectorAll('.vc-ide-main .vc-ifile')).toHaveLength(1);
+});
+
+it('vue IDE : choisir un test montre ses cartes, avec Tout valider, Relire / Lire, Ouvrir, Voir le fichier, verdicts et 💬', async () => {
+  await draw(two, 'create');
+  await act(async () => row('tests/invariants/b.test.ts').click());
+  expect(titles()).toEqual(['b1', 'b2']);
+  const main = page.querySelector('.vc-ide-main')!;
+  expect([...main.querySelectorAll('.vc-ifile-tools button')].map((b) => b.textContent!.slice(0, 19) || b.getAttribute('aria-label')))
+    .toEqual(['Tout valider', 'Lire en pseudo-code', 'Ouvrir dans l\'éditeur']);
+  expect(main.querySelector('details.vc-ifile-src > summary')!.textContent).toBe('Voir le fichier');
+  expect(main.querySelectorAll('.vc-case-head .vc-verdict button')).toHaveLength(4);
+  expect(main.querySelectorAll('.vc-case-head .vc-case-tools .vc-tool')).toHaveLength(4);
+});
+
+it('vue IDE : changer de test referme le fichier ouvert ', async () => {
+  await draw(two, 'create');
+  await act(async () => { src().open = true; src().dispatchEvent(new Event('toggle')); });
+  expect(src().open).toBe(true);
+  await act(async () => row('tests/invariants/b.test.ts').click());
+  expect(src().open).toBe(false);
+  await act(async () => row('tests/invariants/a.test.ts').click());
+  expect(src().open).toBe(false);
 });

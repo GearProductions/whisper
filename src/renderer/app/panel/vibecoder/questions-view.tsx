@@ -1,20 +1,21 @@
 /** questions-view — les questions ouvertes de l'agent, au-dessus de la note
  *  (Créer) : une carte par question, numérotée ; ses réponses proposées en
  *  pastilles (une seule choisie, un second clic la retire), « Conseille-moi »,
- *  « Je te laisse trancher », et une précision libre (son micro et Envoyer, prompt-tools :
+ *  « Je te laisse trancher », et une précision libre (un PromptField : Joindre, le micro et Envoyer :
  *  Envoyer les réponses, comme le bouton). « Envoyer les
  *  réponses » les envoie en une fois, une par question dans leur ordre (une
  *  sans réponse : le principal écrit « (pas de réponse) »). Les réponses en
  *  cours sont tenues par vibe-coder : elles survivent à un changement
- *  d'onglet, et le bouton de la prochaine étape envoie les mêmes.
+ *  d'onglet, et le bouton de la prochaine étape envoie les mêmes. Les pièces jointes sont celles du
+ *  questionnaire entier (StepPieces, tenues par l'appelant) : une seule liste, montrée dans le champ de
+ *  chaque question (Joindre, coller ou déposer partout y ajoute) et envoyée avec « Envoyer les réponses ».
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : note-view. */
-import { useRef } from 'react';
 import { answersOf, type Answer, type Answers, type Strings } from 'core/vibecoder';
 import type { VibeLang, VibeQuestion, VibeView } from 'technicals/bridge';
 import { InlineMd } from './markdown-view';
 import type { VibeActs } from './step-views';
-import { PromptTools } from './prompt-tools';
-import { Run } from './step-parts';
+import { PromptField } from './prompt-field';
+import { Run, type StepPieces } from './step-parts';
 import './questions-view.css';
 
 const fr = {
@@ -43,9 +44,9 @@ const S: Record<VibeLang, typeof fr> = {
   },
 };
 
-type Props = { view: VibeView; t: Strings; act: VibeActs; busy: boolean; answers: Answers; onAnswer(question: string, a: Answer): void };
+type Props = { view: VibeView; t: Strings; act: VibeActs; busy: boolean; answers: Answers; onAnswer(question: string, a: Answer): void } & StepPieces;
 
-export function QuestionsView({ view, t, act, busy, answers, onAnswer }: Props) {
+export function QuestionsView({ view, t, act, busy, answers, onAnswer, pieces, onRemove, onAttach, onFiles }: Props) {
   const s = S[view.lang];
   const texts = answersOf(view.questions, answers, view.lang);
   const given = texts.filter(Boolean).length;
@@ -58,7 +59,7 @@ export function QuestionsView({ view, t, act, busy, answers, onAnswer }: Props) 
       </div>
       {view.questions.map((q) => (
         <Question key={q.text} q={q} a={Object.hasOwn(answers, q.text) ? answers[q.text] : undefined} s={s} t={t} act={act}
-          onChange={(a) => onAnswer(q.text, a)} onSend={() => act.run('answers', { answers: texts })} sendDisabled={!send || !!send.disabled || !given} />
+          pieces={{ pieces, onRemove, onAttach, onFiles }} onChange={(a) => onAnswer(q.text, a)} onSend={() => act.run('answers', { answers: texts })} sendDisabled={!send || !!send.disabled || !given} />
       ))}
       <div className="vc-q-send">
         <span className="vc-q-count" data-all={given === texts.length || undefined}>{s.count(given, texts.length)}</span>
@@ -69,10 +70,9 @@ export function QuestionsView({ view, t, act, busy, answers, onAnswer }: Props) 
   );
 }
 
-type QuestionProps = { q: VibeQuestion; a: Answer | undefined; s: typeof fr; t: Strings; act: VibeActs; onChange(a: Answer): void; onSend(): void; sendDisabled: boolean };
+type QuestionProps = { q: VibeQuestion; a: Answer | undefined; s: typeof fr; t: Strings; act: VibeActs; pieces: StepPieces; onChange(a: Answer): void; onSend(): void; sendDisabled: boolean };
 
-function Question({ q, a, s, t, act, onChange, onSend, sendDisabled }: QuestionProps) {
-  const input = useRef<HTMLTextAreaElement>(null);
+function Question({ q, a, s, t, act, pieces, onChange, onSend, sendDisabled }: QuestionProps) {
   const choice = a?.choice ?? null;
   const free = a?.free ?? '';
   const pick = (c: Answer['choice']) => onChange({ choice: c === choice ? null : c, free });
@@ -92,10 +92,9 @@ function Question({ q, a, s, t, act, onChange, onSend, sendDisabled }: QuestionP
           {s.decide}
         </button>
       </div>
-      <div className="vc-prompt vc-q-free">
-        <textarea ref={input} rows={1} maxLength={1500} placeholder={s.free} aria-label={s.free} value={free}
-          onChange={(e) => onChange({ choice, free: e.target.value })} />
-        <PromptTools t={t} field={input} onSend={onSend} sendDisabled={sendDisabled} />
+      <div className="vc-q-free">
+        <PromptField t={t} text={free} setText={(v) => onChange({ choice, free: v.slice(0, 1500) })} placeholder={s.free} {...pieces}
+          onSend={onSend} sendDisabled={sendDisabled} />
       </div>
     </div>
   );

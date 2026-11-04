@@ -29,8 +29,8 @@ it('les deux icônes : nommées, leurs rappels, Entrée envoie, désactivé pend
   const send = page.querySelector<HTMLButtonElement>('#send')!;
   expect([attach.getAttribute('aria-label'), send.getAttribute('aria-label')]).toEqual(['Joindre…', 'Envoyer']);
   expect(attach.title && send.title).toBeTruthy();
-  expect(page.querySelector('#composer-row')!.firstElementChild).toBe(attach);
-  expect(page.querySelector('#composer-row .vc-prompt-tools')!.lastElementChild).toBe(send); // la paire de prompt-tools, au bout
+  expect(page.querySelector('.vc-prompt')!.firstElementChild).toBe(attach);
+  expect(page.querySelector('.vc-prompt .vc-prompt-tools')!.lastElementChild).toBe(send); // la paire de prompt-tools, au bout
   attach.click();
   send.click();
   page.querySelector('#message')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
@@ -84,4 +84,22 @@ it('« @ » : rien ne correspond, au milieu d\'un mot, sans dossier ou sans prop
 it('« / » : les commandes gardent la main, pas de liste d\'artefacts', async () => {
   const r = await typed('/he', ARTS);
   expect(r.before).toMatchObject({ slashOpen: true, mentionOpen: false });
+});
+
+// Les pièces du brouillon : dans le cadre du champ, leur × et le dépôt de fichiers remontent à panel-app.
+it('les pièces du brouillon : libellé, × qui retire, fichier déposé → onFiles', async () => {
+  const calls: string[] = [];
+  const page = document.body.appendChild(document.createElement('div'));
+  await act(async () => {
+    createRoot(page).render(createElement(Composer, {
+      draft: { text: '', pieces: [{ kind: 'file', name: 'a.ts', path: '/p/a.ts' }] }, setText() {}, removePiece: (p: { kind: string }) => calls.push(`remove:${p.kind}`),
+      live: true, name: 'Agent', busy: false, sending: false, status: '', setStatus() {}, dir: '/d', commands: new Map(), probe: async () => ({ commands: [] }),
+      onSend() {}, onAttach() {}, onFiles: (f: File[]) => calls.push(`files:${f.length}`), input: createRef<HTMLTextAreaElement>(),
+    } as never));
+  });
+  expect(page.querySelector('.vc-prompt .piece span')!.textContent).toContain('a.ts');
+  await act(async () => page.querySelector<HTMLElement>('.piece .remove')!.click());
+  const drop = Object.assign(new Event('drop', { bubbles: true, cancelable: true }), { dataTransfer: { files: [new File(['x'], 'b.png')] } });
+  await act(async () => { page.querySelector('.vc-prompt')!.dispatchEvent(drop); });
+  expect(calls).toEqual(['remove:file', 'files:1']);
 });

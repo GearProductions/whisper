@@ -88,7 +88,7 @@ export function DraftFoot({ d, locked, t }: { d: FileDraft; locked: string | nul
 export function DraftEditor({ d, file, locked, t, at, onQuote, footInTools, noFoot }: {
   d: FileDraft; file: VibeFile; locked: string | null; t: Strings;
   at?: number;                                 // défilé à cette ligne (CodeView)
-  onQuote?(block: string, id: 'comment' | 'fix'): void;
+  onQuote?(block: string): void;
   footInTools?: boolean;                       // le pied dans la rangée d'outils de CodeView, pas dessous
   noFoot?: boolean;                            // pas de pied (lecture seule : rien à enregistrer ni à abandonner)
 }): ReactNode {

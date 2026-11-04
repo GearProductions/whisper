@@ -32,7 +32,7 @@
  *  menu ; arrêter Vibe, la bannière : vibeStop de controllers/runs ;
  *  l'onglet Actions ouvert ou fermé : ses courses vues, runsTab de controllers/runs ;
  *  la vue des Modules, IDE ou liste : `modulesView`, 'ide' ou 'list' seulement, rangée
- *  dans les réglages comme la langue, rendue au relevé : vibeModulesView),
+ *  dans les réglages, rendue au relevé : vibeModulesView ; la langue de l'écran est écrite par la page des réglages, plus ici),
  *  une validation (dont ✓ Rien à écrire, Créer : pour le texte de la note), le brouillon de revue, ouvrir un fichier ou un commit
  *  du relevé (dans l'éditeur, à une ligne ; la page d'un commit dans le
  *  navigateur, d'après l'origine GitHub du dépôt, I-32).
@@ -56,7 +56,13 @@
  *  action : son gabarit, rempli par buildMessage (I-38 ; un argument inutile est
  *  ignoré, texte du champ compris si le gabarit n'a pas {{text}} — ignoredText —, rendu dans
  *  ignored pour l'orchestrateur, F-115), avec le préfixe des
- *  commandes vu de l'agent qui le reçoit ({{prefix}} : processes.promptPrefix). git en lecture seule
+ *  commandes vu de l'agent qui le reçoit ({{prefix}} : processes.promptPrefix) et la langue des agents
+ *  ({{lang}} : agentLang, l'écran gardant vibeLang). Le modèle et l'effort d'une action : ceux de la configuration
+ *  (actionPicks, jamais Fable, I-36), ceux qu'une page ou une demande en dit sont écartés (rendus dans ignored) ; le
+ *  `who` des actions suit ce choix (whoOf). Les pièces du champ de l'action (args.pieces : sélection, fichiers, images) :
+ *  préparées par prepareMessage (controllers/conversation) sur le texte du message et les seules clés connues, les images à part,
+ *  si le gabarit lit {{text}} ou {{answers}} (sinon rendues dans ignored, rien préparé) ; un refus : l'erreur, rien
+ *  n'est envoyé (I-2, élargi). git en lecture seule
  *  (technicals/git, I-39), sauf les actions directes (technicals/direct, la recette) ; gh aussi, sans agent (technicals/github, derrière
  *  le préfixe de l'agent : processes.agentPrefix) : Créer, la PR de la
  *  branche ; l'état de la PR suivie (60 s en cache, demandés en
@@ -123,7 +129,7 @@ import path from 'node:path';
 import { dialog, shell } from 'electron';
 import type { SendResult, VibeAction, VibeArgs, VibeLang, VibeRunOp, VibeView } from 'shared/bridge';
 import { EFFORTS, MODELS, MODES, type AgentConfig } from 'core/agents';
-import { agentList, agentVibe, vibeLang, vibeModulesView, type Config } from 'core/config';
+import { actionPicks, agentLang, agentList, agentVibe, vibeLang, vibeModulesView, type Config } from 'core/config';
 import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
 import {
@@ -143,6 +149,7 @@ import { interruptAgent, isBusy, sendToAgent, setAgentSetting, viewAgent } from 
 import { agentPrefix, processAction, processView, promptPrefix, readFile, readTimed } from './processes';
 import { addArtifacts, artifactFile, copyArtifact, listArtifacts, projectArtifactsDir } from './artifacts';
 import { copyArtifacts, duplicateArtifacts, moveArtifacts, newArtifact, renameArtifact, trashArtifacts } from './artifact-ops';
+import { prepareMessage } from './conversation';
 import { createWorktree } from './recipe';
 import { lockingRuns, runOp, viewLocks, runPending, runRequests, runsOf, runsTab, skillMd, startRun, vibeOn, vibeStart, vibeStop } from './runs';
 import { openChild, prWorktreeReady, removeWorktreeChild, showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
@@ -478,7 +485,11 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const store = vibeStore();
   const actions = vibeActions(lang);
   const skills = Object.fromEntries(actions.map((a) => [a.id, skillMd(a.text)]));
-  const who = Object.fromEntries(actions.map((a) => [a.id, whoOf(skills[a.id], lang)]));
+  // Le modèle d'une action qui court, ou d'un skill en sous-contexte ; envoyé à la conversation, celui de l'agent (null).
+  // Seule une action à modèle fixé se choisit (config : actionPicks) : son who suit le choix.
+  const modelOf = Object.fromEntries(actions.map((a) => [a.id,
+    ownRun(a) || headField(skills[a.id], 'context') === 'fork' ? skillModel(skills[a.id]) : null]));
+  const who = Object.fromEntries(actions.map((a) => [a.id, whoOf(skills[a.id], lang, modelOf[a.id] ? actionPicks(cfg, a.id) : undefined)]));
   const running = lockingRuns(agent.id);
   // Le dossier : d'après facts (même copie de travail) ; sans git, relu à part.
   const checkout = facts ? { branch: facts.branch, dirty: facts.dirty.length > 0 } : await checkoutOf(agent.dir);
@@ -509,9 +520,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     actions,
     direct: directs.get(agent.id),
     who,
-    // Le modèle d'une action qui court, ou d'un skill en sous-contexte ; envoyé à la conversation, celui de l'agent (null).
-    model: Object.fromEntries(actions.map((a) => [a.id,
-      ownRun(a) || headField(skills[a.id], 'context') === 'fork' ? skillModel(skills[a.id]) : null])),
+    model: modelOf,
     skills: skillNames(agent.dir),
     exists: (rel) => { const file = safePath(agent.dir, rel, realpath); return !!file && fs.existsSync(file); },
     now: Date.now(),
@@ -587,9 +596,26 @@ export function startAction(
   const shown = view.actions.find((a) => a.id === def.id);
   const held = ownRun(def) ? blockedBy(def, viewLocks(view, vibeActions(lang)), lang) : null;
   if (shown?.disabled && shown.disabled !== held) return { ok: false, error: shown.disabled };
-  const message = buildMessage(def, args, { view, out: vibeOutDir(agent.id), lang, prefix: promptPrefix(agent, cfg) });
+  // Le modèle et l'effort d'une action : ceux de la configuration (jamais Fable, I-36), ce que la page ou la demande
+  // en dit est écarté ; buildMessage les revoit contre l'action affichée, et ne les rend pas dans ignored (ils ne viennent pas de l'appelant).
+  const { model: _model, effort: _effort, ...given } = args;
+  const message = buildMessage(def, { ...given, ...actionPicks(cfg, def.id) }, {
+    view, out: vibeOutDir(agent.id), lang: agentLang(cfg), prefix: promptPrefix(agent, cfg),
+  });
   if ('error' in message) return { ...fail(lang, message.error), invalid: true };
-  const sent = ownRun(def) ? startRun(agent, def, message.text, cfg, runModule(def.id, args, view.modules)) : sendToAgent(agent, { text: message.text, images: [] }, cfg);
+  // Ignorés : ce que l'appelant a donné et que le gabarit ne lit pas ; model et effort donnés, toujours (la configuration décide).
+  const notGiven = [...(message.ignored ?? []).filter((k) => k !== 'model' && k !== 'effort'),
+    ...(['model', 'effort'] as const).filter((k) => args[k] !== undefined)];
+  // Les pièces du champ (I-2 élargi) : la sélection et les chemins ajoutés au texte, les images à part, les bornes de
+  // prepareMessage ; seulement les clés connues, et seulement si le gabarit les lit (sinon dites dans ignored). Un refus : rien ne part.
+  let outgoing = { text: message.text, images: [] as { mediaType: string; data: string }[] };
+  if (args.pieces !== undefined && !message.ignored?.includes('pieces')) {
+    const { images, files, selection } = (args.pieces && typeof args.pieces === 'object' ? args.pieces : {}) as Partial<NonNullable<VibeArgs['pieces']>>;
+    const ready = prepareMessage({ text: message.text, images, files, selection });
+    if ('error' in ready) return { ok: false, error: ready.error, invalid: true };
+    outgoing = ready.message;
+  }
+  const sent = ownRun(def) ? startRun(agent, def, outgoing, cfg, runModule(def.id, args, view.modules)) : sendToAgent(agent, outgoing, cfg);
   // Dans un worktree, par l'agent : sa fiche pr-<n>-worktree.json attendue (syncWorktrees, la question de confiance).
   if (sent.ok && def.id === 'pr-worktree' && view.pr) wantWorktree(agent.id, view.pr.number);
   // Nouvelle demande : la demande retenue ; une fiche d'avant et les derniers résultats de ses choix, oubliés.
@@ -598,7 +624,7 @@ export function startAction(
     requests.set(agent.id, { text: args.text as string });
     for (const id of ['new-here', 'new-worktree']) delete directs.get(agent.id)?.[id];
   }
-  const ignored = ignoredText(def, args) ? [...(message.ignored ?? []), 'text' as const] : message.ignored;   // un texte que le gabarit ne lit pas : dit aussi (F-115)
+  const ignored = ignoredText(def, args) ? [...notGiven, 'text' as const] : notGiven.length ? notGiven : undefined;   // un texte que le gabarit ne lit pas : dit aussi (F-115)
   return ignored ? { ...sent, ignored } : sent;
 }
 
@@ -875,7 +901,7 @@ async function confirmRestart() {
 
 // Un réglage de l'écran : arrêter Vibe (la bannière : vibeStop,
 // la course en cours finit), la PR suivie (pour
-// l'agent) ; la langue (tout VibeCoder) ; « Vu » (la note de référence devient
+// l'agent) ; « Vu » (la note de référence devient
 // l'actuelle) ; modèle, effort et mode comme son
 // menu (une valeur hors de ses choix est ignorée) ; arrêter son tour, comme
 // Interrompre de son menu ; le robot de la PR dans son worktree (l'afficher,
@@ -893,7 +919,6 @@ export function setVibe(patch: unknown) {
   if (p.vibe === false) vibeStop(agent);
   if (p.pr === null || prNumber(p.pr)) vibe.pr = p.pr as number | null;   // le rôle ne se choisit pas : un `flow` de la page est ignoré
   updateAgent(agent.id, { vibe });
-  if (p.lang === 'fr' || p.lang === 'en') saveConfig({ vibeLang: p.lang });
   if (p.modulesView === 'ide' || p.modulesView === 'list') saveConfig({ vibeModulesView: p.modulesView });   // la vue des Modules, retenue ; autre valeur : ignorée
   if (p.seen === true) {
     const text = last.get(agent.id)?.note?.text;

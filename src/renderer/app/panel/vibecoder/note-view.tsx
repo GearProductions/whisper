@@ -14,7 +14,7 @@
  *  ne doit pas faire » portent leur marque en pastille. 💬 sur un bloc le cite
  *  dans le champ (Relire : il ouvre sous le bloc une zone de commentaire, pour
  *  le brouillon de revue ; ✗ sur la note aussi, sous son en-tête). En tête :
- *  son chemin, Ouvrir (IconButton open), Modifier ou Fermer et Brut (Créer), sa validation, la pastille Fable (Créer).
+ *  son chemin, Ouvrir (IconButton open), Modifier ou Fermer et Brut (Créer), sa validation (Créer).
  *  Au-dessus, Créer : les questions ouvertes (questions-view) ; Relire : la
  *  relecture de la note par l'agent (Relancer). Pas de note : ce qu'il faut
  *  faire pour en avoir une. Styles : note-view.css.
@@ -31,7 +31,7 @@ import { QuestionsView } from './questions-view';
 import { Invite, OutputCard, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
 import { Icon, IconButton } from './icons';
-import { FablePill, MarkControl } from './validation';
+import { MarkControl } from './validation';
 import './note-view.css';
 
 const fr = {
@@ -135,10 +135,8 @@ export function NoteView(p: StepProps) {
 
   return (
     <>
-      <StepHead p={p} own={['answers', ...(note ? [] : ['note']), ...(output ? ['review-note'] : [])]}>
-        {!review && view.agent.model !== 'fable' ? <FablePill lang={view.lang} onPick={() => act.set({ model: 'fable', effort: 'high' })} /> : null}
-      </StepHead>
-      {!review && view.questions.length ? <QuestionsView view={view} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} /> : null}
+      <StepHead p={p} own={['answers', ...(note ? [] : ['note']), ...(output ? ['review-note'] : [])]} />
+      {!review && view.questions.length ? <QuestionsView view={view} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} {...p.questions} /> : null}
       {output ? (
         <OutputCard title={t.outputs['pr-#-note.md']} file={`pr-${view.pr!.number}-note.md`} time={output.time} t={t}
           tools={<Run a={view.actions.find((a) => a.id === 'review-note')} busy={busy} tone="ghost" label={t.rerun} onRun={() => act.run('review-note')} />}>

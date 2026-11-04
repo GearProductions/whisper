@@ -1,8 +1,8 @@
 /** pieces — les pièces jointes du champ de saisie : images (envoyées à
  *  Claude), fichiers (par leur chemin), texte sélectionné ; leur libellé, et
  *  le brouillon envoyé au principal.
- *  Ne connaît pas : le DOM, le pont. Utilisé par : app/panel (panel-app, composer, thread). */
-import type { Attached, OutgoingDraft } from 'technicals/bridge';
+ *  Ne connaît pas : le DOM, le pont. Utilisé par : app/panel (panel-app, composer, thread) ; vibecoder (piecesArg : les pièces d'une action). */
+import type { Attached, OutgoingDraft, VibeArgs } from 'technicals/bridge';
 
 export type Piece =
   | { kind: 'image'; name: string; type: string; data: ArrayBuffer; url: string }
@@ -32,6 +32,10 @@ export const pieceTitle = (p: Piece) => (p.kind === 'selection' ? p.text.slice(0
 export const withFile = (pieces: Piece[], path: string, name = path.split('/').pop() || path): Piece[] => (
   pieces.some((p) => p.kind === 'file' && p.path === path) ? pieces : [...pieces, { kind: 'file', name, path }]);
 
+// Des pièces ajoutées (déposées, collées) : les fichiers une fois, le reste à la suite.
+export const withPieces = (pieces: Piece[], added: Piece[]): Piece[] => (
+  added.reduce((all, p) => (p.kind === 'file' ? withFile(all, p.path, p.name) : [...all, p]), pieces));
+
 // Le choix du trombone : la sélection remplace la précédente, les fichiers s'ajoutent.
 export function withAttached(pieces: Piece[], what: Attached): Piece[] {
   let out = what.selection ? [...pieces.filter((p) => p.kind !== 'selection'), { kind: 'selection' as const, ...what.selection }] : pieces;
@@ -46,6 +50,13 @@ export function toDraft(text: string, pieces: Piece[]): OutgoingDraft {
     files: pieces.flatMap((p) => (p.kind === 'file' ? [p.path] : [])),
     selection: pieces.find((p): p is Extract<Piece, { kind: 'selection' }> => p.kind === 'selection')?.text || '',
   };
+}
+
+// Les pièces d'une action (VibeArgs.pieces) : le brouillon sans le texte ; aucune pièce : undefined.
+export function piecesArg(pieces: Piece[]): VibeArgs['pieces'] | undefined {
+  if (!pieces.length) return undefined;
+  const { text, ...rest } = toDraft('', pieces);
+  return rest;
 }
 
 export function revoke(pieces: Piece[]) {

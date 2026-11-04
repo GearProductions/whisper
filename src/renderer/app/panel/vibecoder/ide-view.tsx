@@ -1,4 +1,4 @@
-/** ide-view — la vue IDE des étapes Forme et Modules : à gauche l'arborescence des fichiers (tout déplié,
+/** ide-view — la vue IDE des étapes Forme, Modules et Invariants : à gauche l'arborescence des fichiers (tout déplié,
  *  le pliage tenu ici : on retient les dossiers fermés, ceux d'un nouveau scan s'ouvrent donc seuls), à
  *  droite ce que `children` montre du fichier choisi. Entre les deux, une poignée : glisser (ou ← / →)
  *  change la largeur de l'arborescence (160 px → 60 % de la vue), gardée pour toutes les vues IDE tant
@@ -7,7 +7,7 @@
  *  son numéro son `rank` + 1 (l'ordre de génération de son module, rien pour un fichier de la branche).
  *  N'ajoute aucune action : on plie, on choisit.
  *  Ne connaît pas : le pont, les étapes, les actions.
- *  Utilisé par : forme-view, modules-view. */
+ *  Utilisé par : forme-view, modules-view, invariants-view. */
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { fileTree, visibleRows, type IdeFile } from 'core/vibecoder';
 import { FileTreeView } from './file-tree-view';
@@ -18,7 +18,7 @@ export type IdeViewProps = {
   children(file: IdeFile | null): ReactNode;
 };
 
-// La largeur de l'arborescence, commune aux vues IDE de la page (Forme, Modules), bornée à la vue.
+// La largeur de l'arborescence, commune aux vues IDE de la page (Forme, Modules, Invariants), bornée à la vue.
 let sideWidth = 240;
 const clampWidth = (w: number, total: number) => Math.round(Math.max(160, Math.min(w, total * 0.6 || w)));
 

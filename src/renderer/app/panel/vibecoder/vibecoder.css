@@ -82,7 +82,7 @@
 }
 .vc-dot[data-busy] { animation: vc-pulse 1.4s ease-in-out infinite; }
 .vc-name { min-width: 0; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Les boutons texte de l'en-tête (Artefacts, ⚙ Réglages) : bord fin, sans fond ; ouvert : --vc-active-bg. */
+/* Les boutons texte de l'en-tête (Artefacts) : bord fin, sans fond ; ouvert : --vc-active-bg. */
 .vc-top-btn {
   flex: none;
   height: 30px;
@@ -117,8 +117,7 @@
 .vc-search svg { width: 13px; height: 13px; }
 .vc-search kbd { padding: 1px 5px; border: 1px solid var(--vc-edge); border-radius: 4px; font: 10px var(--vc-mono); }
 .vc-tools { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
-.vc-tools .vc-seg { margin: 0 4px; }
-/* Un choix segmenté (langue, onglets d'une liste, vues d'un cas) : choisi, le fond --vc-active-bg. */
+/* Un choix segmenté (onglets d'une liste, vues d'un cas) : choisi, le fond --vc-active-bg. */
 .vc-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--vc-radius); border: 1px solid var(--vc-line); background: transparent; }
 .vc-seg button {
   padding: 0 8px;
@@ -157,10 +156,19 @@
 .vc-side-toggle svg { width: 16px; height: 16px; vertical-align: -3px; fill: none; stroke: currentColor; stroke-width: 1.3; }
 .vc-side-toggle[aria-pressed="true"] { color: var(--vc-soft); }
 .vc-spin { animation: vc-spin 0.6s ease-out; }
-/* Le segment branche (vc-branch) : 34 px, bord marqué, fond --vc-control ; ouvert (la vue des
-   branches) : --vc-active-bg ; l'icône, la branche en JetBrains Mono, le chevron. Sans relevé des
-   agents, à la place des robots : le point et le nom de l'agent (vc-picker-static). */
-.vc-top .vc-branch, .vc-picker-static {
+/* Le segment branche (vc-branch, avec .vc-top-btn : 30 px, bord fin, sans fond ; ouvert : --vc-active-bg) :
+   ici seulement sa mise en page — l'icône, la branche en JetBrains Mono, le chevron. Sans relevé des agents,
+   à la place des robots : le point et le nom de l'agent (vc-picker-static). */
+.vc-top .vc-branch {
+  flex: 0 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 340px;
+  padding: 0 10px;
+}
+.vc-picker-static {
   flex: 0 1 auto;
   display: flex;
   align-items: center;
@@ -176,14 +184,10 @@
   color: var(--vc-text);
   font: inherit;
   white-space: nowrap;
-  cursor: pointer;
 }
-.vc-top .vc-branch:hover { background: var(--vc-hover); }
-.vc-top .vc-branch[aria-pressed="true"] { border-color: var(--vc-active-edge); background: var(--vc-active-bg); }
 .vc-top .vc-branch > span { min-width: 0; overflow: hidden; font: 12px var(--vc-mono); text-overflow: ellipsis; }
 .vc-top .vc-branch svg { flex: none; width: 13px; height: 13px; }
 .vc-top .vc-branch svg:last-child { color: var(--vc-soft); }
-.vc-picker-static { cursor: default; }
 .vc-picker-static > .vc-name { font-size: 14px; }
 
 /* L'onglet Conversation : 🕘 au bout de la rangée d'onglets, l'historique à la place du fil. */
@@ -266,23 +270,6 @@
 .vc-badge[data-status="current"] { background: var(--vc-active-bg); color: var(--vc-active); }
 .vc-facts { color: var(--vc-muted); font-size: 12px; }
 
-/* Pendant Vibe, en tête du centre (hors du défilement de l'étape) : vibe-banner, le bandeau bleu de la vue C. */
-.vc-vibe-banner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  flex: none;
-  gap: 10px;
-  margin: 14px 16px 0;
-  padding: 8px 8px 8px 14px;
-  border: 1px solid var(--vc-info-edge);
-  border-radius: 8px;
-  background: var(--vc-info-bg);
-  color: var(--vc-text);
-  font-size: 13px;
-  line-height: 1.4;
-}
-.vc-vibe-banner > span:first-child { color: var(--vc-warn-dot); }
 .vc-card { margin: 0 0 10px; border: 1px solid var(--vc-sep); border-radius: 8px; background: var(--vc-card); overflow: hidden; }
 .vc-card-head {
   display: flex;
@@ -435,28 +422,8 @@
 .vc-cbox-foot { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
 .vc-cbox-hint { margin-left: auto; color: var(--vc-faint); font-size: 11.5px; }
 
-/* Le choix du modèle d'une action dont le skill fixe son modèle : une petite liste à côté de son bouton. */
+/* Une action et sa course en cours (⏹) côte à côte. */
 .vc-run-group { display: inline-flex; align-items: center; gap: 2px; flex: none; }
-.vc-model {
-  position: relative;
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  height: 24px;
-  padding: 0 7px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: var(--vc-muted);
-  font: 500 11.5px/1 var(--vc-mono);
-  cursor: pointer;
-}
-.vc-model > span::after { content: ""; display: inline-block; margin-left: 5px; vertical-align: 1px; border: 3.5px solid transparent; border-top-color: currentColor; border-bottom: 0; }
-.vc-model[data-other] { color: var(--vc-text); }
-.vc-model:hover, .vc-model:has(select:focus-visible) { border-color: var(--vc-edge); background: var(--vc-hover); color: var(--vc-text); }
-.vc-model:has(select:focus-visible) { outline: 2px solid var(--vc-ring); outline-offset: 1px; }
-.vc-model select { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; color-scheme: dark; font: 12px var(--vc-sans); }
-.vc-run-group:has(> button:disabled) .vc-model { opacity: 0.55; }
-.vc-model option { background: var(--vc-card); color: var(--vc-text); }
 
 /* ---- Conversation (colonne de droite, vue C : fond --vc-side) -------------- */
 .vc-conv { position: relative; grid-area: conv; min-width: 0; min-height: 0; display: flex; flex-direction: column; border-left: 1px solid var(--vc-sep); background: var(--vc-side); }

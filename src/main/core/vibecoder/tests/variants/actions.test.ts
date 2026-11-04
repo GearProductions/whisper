@@ -317,6 +317,28 @@ describe('whoOf : qui travaille, d\'après l\'en-tête du skill', () => {
   });
 });
 
+describe('whoOf avec un choix des réglages', () => {
+  const opus = skill('model: opus\neffort: high');
+
+  it('le modèle et l\'effort choisis remplacent ceux du skill', () => {
+    expect(whoOf(opus, 'fr', { model: 'haiku', effort: 'max' })).toBe('haiku · max');
+  });
+
+  it('un seul des deux choisi : l\'autre reste celui du skill', () => {
+    expect(whoOf(opus, 'fr', { model: 'sonnet' })).toBe('sonnet · élevé');
+    expect(whoOf(opus, 'en', { effort: 'medium' })).toBe('opus · medium');
+  });
+
+  it('un choix hors de SKILL_MODELS (Fable, I-36) ou d\'EFFORT_LEVELS est sans effet', () => {
+    expect(whoOf(opus, 'fr', { model: 'fable', effort: 'ultra' })).toBe('opus · élevé');
+  });
+
+  it('sans choix : comme avant', () => {
+    expect(whoOf(opus, 'fr', {})).toBe('opus · élevé');
+    expect(whoOf(opus, 'fr', undefined)).toBe('opus · élevé');
+  });
+});
+
 describe('skillModel : un skill qui fixe son modèle, qu\'on peut changer', () => {
   it('sous-contexte sur opus : opus', () => {
     expect(skillModel(skill('context: fork\nmodel: opus\neffort: high'))).toBe('opus');
@@ -427,6 +449,13 @@ describe('buildMessage : un argument qu\'aucune variable ne lit est ignoré, l\'
   it('commit, file, check, pr, answers, verdict sans leur variable : ignorés, même d\'un autre type', () => {
     const args = { commit: 'x', file: 't9', check: -1, pr: 0, answers: [], verdict: 'merge' as never };
     expect(build('{{lang}}', args)).toEqual({ text: 'fr', ignored: ['commit', 'file', 'check', 'pr', 'answers', 'verdict'] });
+  });
+
+  it('pieces : ignorées sans {{text}} ni {{answers}}, lues avec l\'un des deux (F-115)', () => {
+    const pieces = { selection: 'x', files: [], images: [] };
+    expect(build('{{lang}}', { pieces })).toEqual({ text: 'fr', ignored: ['pieces'] });
+    expect(build('{{text}}', { text: 'a', pieces })).toEqual({ text: 'a' });
+    expect(build('{{answers}}', { answers: ['a'], pieces })).toEqual({ text: '1. a' });
   });
 
   it('text, direct, un argument absent : jamais signalés', () => {

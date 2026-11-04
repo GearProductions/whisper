@@ -17,7 +17,7 @@
  *  langue, détectée (cf. helpers/lang) ou imposée : une voix française dit très
  *  bien les termes techniques anglais.
  *  Ne connaît pas : la sélection, les fenêtres. Utilisé par : app/controllers/speech,
- *  app/menus. */
+ *  app/controllers/settings. */
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';

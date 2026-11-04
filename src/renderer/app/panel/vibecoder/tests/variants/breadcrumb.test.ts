@@ -7,18 +7,20 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it } from 'vitest';
 import { t } from 'core/vibecoder';
-import type { VibeView } from 'technicals/bridge';
+import type { VibeAction, VibeView } from 'technicals/bridge';
 import { Breadcrumb } from '../../breadcrumb';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const s = t('fr');
 
-async function mount(view: VibeView, picked: string[] = [], opened: string[] = []) {
+type Vibe = { a: VibeAction; on: boolean } | null;
+const calls: string[] = [];
+async function mount(view: VibeView, picked: string[] = [], opened: string[] = [], vibe: Vibe = null) {
   const page = document.createElement('div');
   document.body.append(page);
   const root = createRoot(page);
-  await act(() => root.render(createElement(Breadcrumb, { view, t: s, selected: 'note', onPick: (id: string) => { picked.push(id); }, onOpen: (id: string) => { opened.push(id); } })));
+  await act(() => root.render(createElement(Breadcrumb, { view, t: s, selected: 'note', vibe, onVibe: () => { calls.push('vibe'); }, onStopVibe: () => { calls.push('stop'); }, onPick: (id: string) => { picked.push(id); }, onOpen: (id: string) => { opened.push(id); } })));
   return { page, unmount: () => act(() => root.unmount()) };
 }
 
@@ -89,5 +91,48 @@ it('liste ouverte : Échap (n\'atteint pas les autres Échap) ou un clic dehors 
   await esc();
   expect(other).toEqual(['Escape', 'Escape']); // écouteurs retirés
   document.removeEventListener('keydown', spy);
+  await unmount();
+});
+
+const act1 = (over: Partial<VibeAction> = {}) => ({ id: 'vibe', label: 'Vibe', hint: 'enchaîner', disabled: undefined, hidden: false, ...over }) as unknown as VibeAction;
+const empty = { steps: [], commits: [] } as unknown as VibeView;
+
+it('Vibe : un bouton à côté de « N commits », son libellé et son indice ; clic → onVibe', async () => {
+  calls.length = 0;
+  const { page, unmount } = await mount(empty, [], [], { a: act1(), on: false });
+  const b = page.querySelector<HTMLButtonElement>('.vc-run')!;
+  expect([b.textContent, b.title, b.dataset.tone, b.disabled, b.previousElementSibling?.className]).toEqual(['Vibe', 'enchaîner', 'vibe', false, 'vc-ccount']);
+  await act(() => b.click());
+  expect(calls).toEqual(['vibe']);
+  await unmount();
+});
+
+it('Vibe : action grisée → bouton grisé, la raison en title ; masquée ou null (relecteur) → rien', async () => {
+  let m = await mount(empty, [], [], { a: act1({ disabled: 'rien à faire' }), on: false });
+  const b = m.page.querySelector<HTMLButtonElement>('.vc-run')!;
+  expect([b.disabled, b.title]).toEqual([true, 'enchaîner\n— rien à faire']);
+  await m.unmount();
+  m = await mount(empty, [], [], { a: act1({ hidden: true }), on: false });
+  expect(m.page.querySelector('.vc-run')).toBeNull();
+  await m.unmount();
+  m = await mount(empty, [], [], null);
+  expect(m.page.querySelector('.vc-run')).toBeNull();
+  await m.unmount();
+});
+
+it('Vibe en cours : Arrêter Vibe à la place, clic → onStopVibe', async () => {
+  calls.length = 0;
+  const { page, unmount } = await mount(empty, [], [], { a: act1(), on: true });
+  const bs = [...page.querySelectorAll<HTMLButtonElement>('.vc-run')];
+  expect(bs.map((b) => [b.textContent, b.title])).toEqual([[s.vibeStop, s.vibeStopTitle]]);
+  await act(() => bs[0].click());
+  expect(calls).toEqual(['stop']);
+  await unmount();
+});
+
+// Pendant Vibe, le relevé masque l'action (« déjà en cours ») : Arrêter Vibe reste.
+it('Vibe en cours, l’action masquée : Arrêter Vibe quand même', async () => {
+  const { page, unmount } = await mount(empty, [], [], { a: act1({ hidden: true }), on: true });
+  expect([...page.querySelectorAll('.vc-run')].map((b) => b.textContent)).toEqual([s.vibeStop]);
   await unmount();
 });

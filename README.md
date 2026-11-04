@@ -18,9 +18,28 @@ s'écoutent, lues en local par [Pocket TTS](https://github.com/kyutai-labs/pocke
 - **Les agents**, tout à gauche de l'en-tête, en petits robots : un clic en
   affiche un, **+** en crée un ; **Chercher** (Ctrl+K) les retrouve, avec leurs
   branches et leurs PR.
-- **⚙ Réglages** (en haut à droite) : modèle, langue, micro, bip, son des
-  autres applications, micro Discord, lecture à voix haute, agents, dossier
-  whisper, configuration, version (*À propos*), quitter.
+- **⚙ Réglages** (l'engrenage, en haut à droite) : la **page des réglages**,
+  par-dessus l'écran, au centre, comme la palette (Échap ou un clic dehors la
+  ferme). À gauche les catégories, à droite les réglages de celle qu'on
+  choisit, modifiables sur place, sans ouvrir `config.json` : une liste ou une
+  case s'écrit aussitôt, un champ de texte en le quittant ou par Entrée. Une
+  valeur que l'appli ne garderait pas telle quelle n'est pas écrite.
+  - *Dictée* : l'état du modèle whisper, la langue de dictée, le vocabulaire,
+    le micro, le bip de début / fin, la coupure du son des autres applications
+    et du micro Discord, *Rétablir le son et le micro Discord* (dépannage) ;
+  - *Lecture à voix haute* : installer Pocket TTS, la langue du texte, les voix
+    française et anglaise, le volume ;
+  - *Interface* : la **langue de l'interface** (FR / EN : l'écran, les boutons),
+    et à part la **langue de ce qu'écrivent les agents** (la note, les
+    questions, les relectures…), la taille au-delà de laquelle un artefact est
+    tronqué ;
+  - *Actions* : le **modèle** et l'**effort** de chaque action (plus de listes
+    sur les boutons) ;
+  - *Agents* : la commande de lancement de Claude Code, l'éditeur, le terminal,
+    le préfixe des commandes du projet et de `gh`, la consigne des agents, leur
+    journal, le dossier de VibeCoder ;
+  - *Général* : le dossier whisper, le fichier de configuration, la version
+    (*À propos*), quitter.
 
 C'est une fenêtre comme les autres (barre des tâches, redimensionnable, taille
 retenue) mais sans le cadre du système : l'**en-tête de VibeCoder sert de
@@ -49,7 +68,7 @@ paquet, se téléchargent **au premier usage**, une seule fois, dans les donnée
 de l'appli (tableau ci-dessous) :
 
 - **au premier lancement**, le modèle de dictée (548 Mo) ; le message en tête
-  de la fenêtre et le menu *⚙ Réglages* en montrent l'avancement ;
+  de la fenêtre et la page *⚙ Réglages* en montrent l'avancement ;
 - **à la première lecture à voix haute**, Pocket TTS et son Python (~400 Mo à
   télécharger, 1,2 Go sur le disque), puis ses modèles.
 
@@ -75,7 +94,7 @@ npm run test:main-diff -- <tag ou branche>   # appli réelle comparée à une ve
 **Itérer sans attendre une release.** Lancée depuis les sources
 (`app.isPackaged` faux), l'appli compare toutes les 2 s ce qui est construit
 dans `out/` à ce qu'elle a chargé (par empreinte du contenu) et le montre dans
-l'en-tête de VibeCoder, à côté de FR / EN :
+l'en-tête de VibeCoder, à côté de Chercher :
 
 - les pages seules ont changé : **Recharger l'interface** recharge la
   fenêtre ; le principal et les agents continuent ;
@@ -100,7 +119,7 @@ La version publiée n'a rien de tout cela.
 un compilateur C++ et le SDK Vulkan), comme le paquet ; il ne reste que le
 modèle, téléchargé au premier lancement. Sinon, placez `whisper-cli`
 (`whisper-cli.exe` sous Windows) et un modèle `ggml-*.bin` dans le dossier
-whisper (*⚙ Réglages* → *Ouvrir le dossier whisper*) :
+whisper (*⚙ Réglages* → *Général* → *Ouvrir le dossier whisper*) :
 
 | OS      | Dossier                                    |
 |---------|--------------------------------------------|
@@ -120,7 +139,7 @@ audio (le bloc `<audio>` de la réponse, plus bas) ; une autre lecture prend
 la place de celle en cours. Commencer une dictée arrête la lecture (sinon le
 micro la capterait).
 *⚙ Réglages* → *Lecture à voix haute* : langue du texte, voix, **volume**
-(25, 50, 75 ou 100 %, appliqué aussitôt, y compris à une lecture en cours).
+(de 0 à 1, appliqué aussitôt, y compris à une lecture en cours).
 
 La voix est produite en local, sur le processeur, par
 [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) de Kyutai. S'il manque,
@@ -289,12 +308,12 @@ avec le moteur de lecture à voix haute. La consigne n'est ajoutée qu'aux sessi
 créées par l'appli : vos sessions Claude Code habituelles ne changent pas.
 
 Cette consigne est un fichier, `consigne-agents.md`, à côté de `config.json` :
-*⚙ Réglages* → *Agents Claude Code* → *Modifier la consigne des agents*
+*⚙ Réglages* → *Agents* → *Modifier la consigne des agents*
 l'ouvre dans votre éditeur. Relue à chaque message ; supprimée, elle revient
 par défaut ; vidée, plus de consigne (*Écouter* lit alors la réponse entière).
 
-**Commande de lancement** (réglage `agentCommand`, *⚙ Réglages* → *Agents
-Claude Code* → *Changer la commande de lancement…*) : vide, c'est `claude`. À régler
+**Commande de lancement** (réglage `agentCommand`, *⚙ Réglages* → *Agents*
+→ *Commande de lancement*) : vide, c'est `claude`. À régler
 quand les outils du projet vivent ailleurs — l'appli ajoute ses arguments
 derrière :
 
@@ -306,8 +325,8 @@ La commande doit transmettre l'entrée et la sortie standard telles quelles,
 c'est par là que l'appli dialogue avec Claude Code : pas de shell de connexion
 (`bash -lc …`), dont les scripts de profil consomment l'entrée.
 
-**Éditeur** (réglage `editorCommand`, *⚙ Réglages* → *Agents Claude Code* →
-*Changer d'éditeur…*) : vide, c'est le premier trouvé parmi `zed`, `code`,
+**Éditeur** (réglage `editorCommand`, *⚙ Réglages* → *Agents* →
+*Éditeur*) : vide, c'est le premier trouvé parmi `zed`, `code`,
 `cursor`, `codium`, ouvert dans une nouvelle fenêtre (`-n`). Réglé, la
 commande est lancée telle quelle, le dossier en dernier argument (ajouter
 `-n` pour une nouvelle fenêtre) :
@@ -341,7 +360,7 @@ dossier ; jamais de shell. Pour arriver directement dans une box :
   Code continuerait seul dans le conteneur. Il n'est tué qu'en dernier recours,
   s'il n'a pas obéi en 5 s. Quitter l'appli attend de même que les agents
   aient arrêté.
-- *⚙ Réglages* → *Agents Claude Code* → *Ouvrir le journal des agents*
+- *⚙ Réglages* → *Agents* → *Ouvrir le journal des agents*
   (`agents.log`, à côté de `config.json`) : début et fin de chaque tour, chaque
   demande d'autorisation, sa réponse et son délai, les interruptions. Une
   demande qui n'a pas pu aboutir y est notée **ÉCHEC**, et la réponse de
@@ -376,12 +395,14 @@ vide, l'en-tête et les robots ne bougent pas.
   ouvre (et referme) la **vue des branches**, plus bas — avec *Pull* et
   *Rebase* à côté ; le badge *Relecteur* quand vous relisez la PR d'un
   autre ; au milieu, le nom **VibeCoder** ; à droite **Artefacts** (plus
-  bas), **Chercher** (Ctrl+K, la palette), *FR* / *EN*, en icônes *Relever
-  maintenant* (relire le dépôt tout de suite) et la conversation affichée ou
-  masquée, **⚙ Réglages**, puis les boutons de la fenêtre ;
+  bas), **Chercher** (Ctrl+K, la palette), puis en icônes la conversation affichée ou
+  masquée et **⚙ Réglages** (la page des réglages), puis les boutons de la
+  fenêtre ;
 - au centre, en tête, le **fil d'Ariane** : les étapes en une ligne (point
   plein : faite ; anneau qui pulse : en cours ; gris : à venir), leurs faits
-  au survol ; au bout, « N commits » déplie les commits de la branche. Il
+  au survol ; au bout, « N commits » déplie les commits de la branche, et le bouton
+  **Vibe** (créateur seulement, à toutes les étapes ; *Arrêter Vibe* pendant
+  qu'il tourne). Il
   mène : un clic (ou Ctrl+1…6) ouvre n'importe quelle étape, faite, en
   cours ou à venir (une branche créée à la main, sans note, se gère ainsi) ;
   ouvrir une étape à venir ne lance rien ; seuls les boutons dont l'action
@@ -390,19 +411,22 @@ vide, l'en-tête et les robots ne bougent pas.
   que les skills ont produit —, sur la ligne de son titre ses actions, et
   dessous son **champ** (quand une de ses actions prend un texte ; son micro
   et son *Envoyer*, qui lance l'action de l'étape) (à l'étape en cours, en tête :
-  *Vibe* (créateur), puis celle qui fait avancer l'étape, discrètement mise
-  en avant) ; pendant *Vibe*, une bannière au-dessus ; chaque carte produite par
-  un skill a son *Relancer* ;
+  celle qui fait avancer l'étape, discrètement mise en avant) ; chaque carte
+  produite par un skill a son *Relancer* ; les champs où l'on écrit à un agent
+  (celui de l'étape, les réponses aux questions, la conversation) acceptent
+  des **pièces jointes** (le trombone, glisser-déposer, Ctrl+V), qui partent avec
+  l'action de leur champ ; l'étape Invariants se lit comme la Forme et les
+  Modules : les tests à gauche, les cas du test choisi au centre ;
 - à droite, quatre onglets : la **conversation** de l'agent (fil,
   autorisations, champ et son micro, commandes « / », l'🕘 Historique au bout
-  de la rangée des onglets ; au-dessus du champ,
-  *Demander sans modifier* : il répond sans rien toucher), les **Actions**
+  de la rangée des onglets), les **Actions**
   lancées, ses **Tâches** de fond et les **Processus** du projet (le nombre
   en cours dans l'onglet) ;
 - en bas : modèle, effort et mode de l'agent (comme dans son menu), jauge du
   contexte, *⚙ Tâches* (l'onglet), l'action en cours ou « N actions en
   cours » (un clic : l'onglet *Actions*), *⏹ Arrêter* quand la conversation
-  travaille, fichiers modifiés, heure du dernier relevé.
+  travaille, fichiers modifiés, heure du dernier relevé et, à côté, ↻
+  (relire le dépôt tout de suite).
 
 L'écran se lit sur le dépôt, sans modèle : la branche, ses commits et ses
 fichiers changés, la note du ticket (trouvée parmi ces fichiers : celle nommée comme la
@@ -424,8 +448,7 @@ et la dictée y arrive — le champ d'une étape, un commentaire de relecteur,
 la réponse libre d'une question —, à la place de la sélection, sans dépasser
 sa longueur (pleine : rien n'est ajouté) ; une autre zone qui n'en a pas (un
 éditeur de code, un champ d'une ligne) : au champ de la conversation. Le champ de la
-conversation ne sert plus qu'à elle (et à *Demander sans modifier*, *Où
-j'en suis ?*) ; *Commenter* sur un passage (de la note, d'une relecture) l'y cite, à
+conversation ne sert plus qu'à elle (et à *Où j'en suis ?*) ; *Commenter* sur un passage (de la note, d'une relecture) l'y cite, à
 compléter puis envoyer.
 
 L'onglet **Actions** suit chaque action lancée : qui travaille, son état,
@@ -623,7 +646,7 @@ relire une PR (le relecteur, plus bas) :
    fichier a changé sur le disque depuis la modification (*Abandonner* remet
    alors le texte du disque). Un clic
    sur une ligne, ou un bloc sélectionné : *Commenter* le cite dans le champ de la
-   conversation pour une question, *Retour → fixup* pour une correction (les
+   conversation pour une question ou une correction (les
    lignes entières, sans limite).
 5. **Revue** : *Lancer les vérifications et la ponytail review* (les deux
    tournent ensemble ; des avertissements seulement : en orange, la
@@ -866,7 +889,7 @@ retiré s'il a des modifications.
 **Vibe.** D'ordinaire, vous validez la note, la forme et chaque
 invariant ; l'étape en cours attend vos validations. *Vibe* (créateur seulement) :
 vous donnez la main à l'agent, vous testez et approuvez à la fin. Même
-écran, une bannière en tête dit que *Vibe* est en cours ; plus rien
+écran, sans bannière (le bouton *Vibe* devient *Arrêter Vibe*) ; plus rien
 n'attend vos validations, et les étapes qu'il passe les gardent. En deux temps :
 
 1. la demande dans le champ, *Rédiger la note* ; l'agent vous pose
@@ -874,7 +897,7 @@ n'attend vos validations, et les étapes qu'il passe les gardent. En deux temps 
    réponses dans la conversation : le questionnaire suit) — il n'en
    tranche aucune ; puis vous lisez la note et la validez (*Valider la
    note*) ;
-2. *Vibe*, en tête des actions de l'étape en cours (proposé une fois la
+2. *Vibe*, à côté de « N commits » dans le fil d'Ariane (proposé une fois la
    note validée, à n'importe quelle étape ensuite : écrivez vos invariants
    à la main, puis *Vibe* pour le reste) : l'agent reprend à la première
    étape pas faite et tient le rôle du développeur du guide jusqu'à la PR
@@ -887,7 +910,7 @@ n'attend vos validations, et les étapes qu'il passe les gardent. En deux temps 
    vos réponses envoyées, il reprend seul. Il ne fusionne pas la PR et ne
    publie pas de version officielle.
 
-*Arrêter Vibe* (la bannière) : l'action en cours finit, la suivante ne part
+*Arrêter Vibe* (le même bouton) : l'action en cours finit, la suivante ne part
 pas. *Vibe* ne survit pas à un redémarrage de l'appli : relancez-le pour
 reprendre.
 
@@ -909,20 +932,22 @@ correction au même agent Sonnet, et ne relance un module sur Opus qu'au
 second échec). Sur le modèle de l'agent, chacune dans sa conversation : la
 note, la forme et les réponses aux questions (qui reprennent la
 conversation de la note, et son cache) ; dans la conversation de l'agent :
-*Vibe*, *Demander sans modifier*, *Où j'en suis ?* — *Vibe*, *Générer les
-modules* et les releases sont longs et coûteux. Pour une étape qui
+*Vibe*, *Où j'en suis ?* — *Vibe*, *Générer les
+modules* et les releases sont longs et coûteux. Pour une action qui
 tourne à part, vous pouvez choisir un modèle plus léger (ou plus fort) que
-le conseillé, le temps d'un clic : VibeCoder génère pour cela une variante
-de chaque skill qui fixe son modèle (`<nom>--haiku`, `--sonnet`, `--opus`). Le
-bouton propose aussi l'**effort**, à côté du modèle : sans choix, celui du skill
-(ou de la variante du modèle choisi) ; le choix vaut pour cette action tant qu'on
-reste sur cet agent (variantes `<nom>--<modèle>--<effort>`, cachées des commandes « / »).
+le conseillé : *⚙ Réglages* → *Actions*, une rubrique par action. VibeCoder génère pour cela une variante
+de chaque skill qui fixe son modèle (`<nom>--haiku`, `--sonnet`, `--opus`). La
+rubrique propose aussi l'**effort**, à côté du modèle : sans choix, celui du skill
+(ou de la variante du modèle choisi) ; le choix est enregistré dans `config.json` :
+il vaut pour tous les agents et tient après un redémarrage (variantes
+`<nom>--<modèle>--<effort>`, cachées des commandes « / »). Le bouton de l'action
+dit qui travaille d'après ce choix.
 *Vibe* tourne dans la conversation de l'agent : pour le passer sur Sonnet,
 passez l'agent sur Sonnet (menu du robot ou barre d'état) avant de lancer
 *Vibe*. VibeCoder ne passe jamais un
-agent sur Fable de lui-même : vous seul le faites (menu du robot, barre
-d'état, ou la pastille *✦ Fable · élevé* des étapes Note et Forme, pour les
-rédiger avec le plus de soin — plus cher).
+agent sur Fable de lui-même : vous seul le faites (menu du robot ou barre
+d'état — plus cher) ; le choix d'une action ne propose jamais Fable, même
+écrit à la main dans `config.json`.
 
 **Mesurer le coût d'un ticket.** Claude Code journalise chaque session dans
 `~/.claude/projects/<dossier>/<session>.jsonl` (`<dossier>` : le chemin du
@@ -962,7 +987,7 @@ produisent pour l'écran va dans `vibecoder-out/`, à côté de `config.json` :
 un dossier par agent ; quand l'agent change de branche, ce qui a été produit
 pour l'ancienne est mis de côté (`branches/`) et revient avec elle.
 
-**Personnaliser.** *⚙ Réglages* → *Agents Claude Code* → *Dossier
+**Personnaliser.** *⚙ Réglages* → *Agents* → *Dossier
 de VibeCoder* (`vibecoder/`, à côté de `config.json`) : `actions.fr.json` et
 `actions.en.json` (les boutons : libellé, aide, message envoyé ; à modifier,
 retirer, ajouter — mais pas l'`id` d'un bouton livré, sur lequel l'écran
@@ -974,8 +999,10 @@ revenir à l'origine, supprimez le fichier** : il revient au prochain
 lancement (ou en rouvrant le dossier par le menu). Un fichier d'actions
 illisible : les boutons d'origine ; vide (`[]`) : aucun bouton.
 
-**FR / EN** (en haut de l'écran ; réglage `vibeLang`) : la langue de l'écran,
-des boutons et des messages envoyés — l'agent écrit dans cette langue la
+**FR / EN** (*⚙ Réglages* → *Interface*) : deux réglages. La **langue de
+l'interface** (`vibeLang`) : l'écran, les boutons, les messages envoyés. La
+**langue de ce qu'écrivent les agents** (`agentLang`, par défaut celle de
+l'interface) : l'agent écrit dans cette langue la
 note, ses questions, le plan de test, la relecture de la note, la ponytail
 review. Ce qui touche au
 code reste en anglais : le pseudo-code des invariants, les relectures de diff
@@ -994,21 +1021,21 @@ sous Windows.
 ### Son des autres applications
 
 Sur haut-parleurs, une vidéo ou un appel seraient captés par le micro et
-transcrits avec la dictée. *⚙ Réglages* → *Couper le son des autres applications
+transcrits avec la dictée. *⚙ Réglages* → *Dictée* → *Couper le son des autres applications
 pendant la dictée* (désactivé par défaut) : leur son est coupé le temps de
 l'enregistrement, puis rétabli. Les bips de l'appli restent audibles ; une
 application déjà muette le reste. Même mécanisme que pour le micro Discord
 ci-dessous (PipeWire sous Linux, Core Audio sous Windows).
 
 Un son ou le micro Discord resté coupé (par exemple après un arrêt brutal de
-l'appli) : *⚙ Réglages* → *Rétablir le son et le micro Discord (dépannage)*.
+l'appli) : *⚙ Réglages* → *Dictée* → *Rétablir le son et le micro Discord (dépannage)*.
 Sous Linux, une application dont le son s'est arrêté pendant la dictée
 retrouve d'elle-même le son quand elle rejoue (WirePlumber retient la
 coupure de chaque application ; l'appli la lève).
 
 ### Micro Discord
 
-*⚙ Réglages* → *Autoriser la coupure du micro Discord* (désactivé par défaut) :
+*⚙ Réglages* → *Dictée* → *Autoriser la coupure du micro Discord* (désactivé par défaut) :
 en appel Discord, le micro est coupé le temps de l'enregistrement, puis
 rétabli. Un micro déjà coupé le reste.
 
@@ -1024,7 +1051,7 @@ confirmée.
 
 ## Configuration
 
-`config.json`, à côté du dossier whisper (*⚙ Réglages* → *Modifier la configuration*) :
+`config.json`, à côté du dossier whisper (*⚙ Réglages* → *Général* → *Modifier la configuration*) ; la plupart de ces réglages se changent dans la page (*⚙ Réglages*), sans l'ouvrir :
 
 | Clé          | Rôle                                                              |
 |--------------|-------------------------------------------------------------------|
@@ -1037,7 +1064,9 @@ confirmée.
 | `agents`     | Les agents : dossier, nom, modèle, effort, mode, session, parent d'un robot enfant (`parent`), réglages VibeCoder (`vibe`) (gérés par l'appli ; `name` se modifie ici) |
 | `agentFolders` | Dossiers favoris proposés par « + », chacun avec sa couleur    |
 | `agentSelected` | L'agent affiché, retrouvé au lancement (géré par l'appli)     |
-| `vibeLang`   | VibeCoder : langue de l'écran et des messages envoyés, `fr` ou `en` |
+| `vibeLang`   | VibeCoder : langue de l'interface, `fr` ou `en`                  |
+| `agentLang`  | Langue de ce qu'écrivent les agents, `fr` ou `en` (absente : celle de l'interface) |
+| `actionModels`, `actionEfforts` | Le modèle et l'effort choisis par action, `{ "<id de l'action>": "sonnet" }` (jamais Fable) |
 | `vibeSize`   | Taille de la fenêtre (retenue au redimensionnement)             |
 | `vibeCommandPrefix` | VibeCoder : ce qui précède les commandes du projet et `gh` (vide : `distrobox enter <box> --` tiré de `agentCommand`, sinon rien) ; ex. `toolbox run -c dev` |
 | `artifactTextMax` | VibeCoder : taille (octets) au-delà de laquelle un artefact affiché en texte est coupé (10 Mo par défaut) |

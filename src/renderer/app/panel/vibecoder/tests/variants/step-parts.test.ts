@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 // step-parts (step-parts.tsx) : les icônes à la place des caractères — ⏹ d'une course (IconButton stop, même
 // rappel StopRun), la conversation qui travaille (direct.elsewhere : le bouton direct reste actif, « via » grisé), le « @ » du champ
-// d'une étape, le dernier résultat d'une action directe (Icon ok / ko), Ouvrir la PR (IconButton external).
+// d'une étape et ses pièces jointes, un bouton sans choix de modèle, le dernier résultat d'une action directe (Icon ok / ko), Ouvrir la PR (IconButton external).
 import { act, createElement, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
@@ -69,7 +69,7 @@ it('le champ d\'une étape : « @ » propose les artefacts, Entrée met le chemi
   const art = { id: 'a0', name: 'plan.md', kind: 'markdown', size: 1, time: 1, url: null, truncated: false } as VibeArtifact;
   function Host() {
     const [text, setText] = useState('');
-    return createElement(StepField, { name: 'note', text, setText, hint: 'h', artifacts: [art], artifactsDir: '/p/artifacts', t: t('fr'), onSend: () => {}, sendDisabled: false });
+    return createElement(StepField, { name: 'note', text, setText, hint: 'h', artifacts: [art], artifactsDir: '/p/artifacts', t: t('fr'), onSend: () => {}, sendDisabled: false, pieces: [], onRemove: () => {}, onAttach: () => {}, onFiles: () => {} });
   }
   await render(createElement(Host));
   const ta = page.querySelector('textarea')!;
@@ -105,4 +105,25 @@ it('le champ d\'une étape : Envoyer lance l\'action mise en avant qui emporte l
   await draw('fais-le');
   await act(async () => send().click());
   expect(runs).toEqual(['b']);
+});
+
+it('le champ d\'une étape : ses pièces, leur ×, Joindre et les fichiers déposés remontent à l\'appelant', async () => {
+  const calls: string[] = [];
+  const pieces = [{ kind: 'file' as const, name: 'a.ts', path: '/p/a.ts' }];
+  await render(createElement(StepField, {
+    name: 'note', text: '', setText: () => {}, hint: 'h', t: t('fr'), onSend: () => {}, sendDisabled: false, pieces,
+    onRemove: (p: { kind: string }) => calls.push(`remove:${p.kind}`), onAttach: () => calls.push('attach'), onFiles: (f: File[]) => calls.push(`files:${f.length}`),
+  }));
+  expect(page.querySelector('.vc-step-field .piece span')!.textContent).toContain('a.ts');
+  await act(async () => page.querySelector<HTMLElement>('.piece .remove')!.click());
+  await act(async () => page.querySelector<HTMLElement>('.vc-attach')!.click());
+  const drop = Object.assign(new Event('drop', { bubbles: true, cancelable: true }), { dataTransfer: { files: [new File(['x'], 'b.png')] } });
+  await act(async () => { page.querySelector('.vc-prompt')!.dispatchEvent(drop); });
+  expect(calls).toEqual(['remove:file', 'attach', 'files:1']);
+});
+
+it('une action d\'envoi montre qui travaille, sans liste de modèle ni d\'effort', async () => {
+  await render(createElement(Run, { a: action({ who: 'agent', models: ['opus', 'sonnet'], model: 'opus', efforts: ['low'] }), busy: false, onRun: () => {} }));
+  expect(page.querySelector('.vc-run-who')!.textContent).toBe('agent');
+  expect(page.querySelector('select')).toBeNull();
 });

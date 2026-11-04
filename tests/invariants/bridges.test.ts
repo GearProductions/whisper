@@ -3,6 +3,10 @@
 // 0.14.0 : une seule fenêtre, le panneau de VibeCoder (l'icône, la bulle et
 // leurs ponts retirés) ; Copier et conv:copy partis avec le contexte Dictée,
 // I-3 réduit gardé par src/main/app/controllers/tests/invariants/page-text.test.ts.
+// 0.14.0, la page des réglages (docs/tickets/feat/0.14.0-allegement-interface-settings.md,
+// accord donné dans la note) : le canal `settings` (invoke) entre, `menu:settings`
+// sort avec le menu natif ; son expéditeur contrôlé sur le vrai principal :
+// src/main/app/controllers/tests/invariants/settings-sender.test.ts.
 // Protégé : si ce test échoue, corriger le code. Un canal ajouté se décide
 // (SPEC.md, note du ticket) avant d'entrer dans ces listes.
 //
@@ -51,6 +55,20 @@ describe('pont du panneau', () => {
     expect(b.send).toEqual(sorted(PANEL_CHANNELS.send));
     expect(b.invoke).toEqual(sorted(PANEL_CHANNELS.invoke));
     expect(b.events).toEqual(sorted(PANEL_CHANNELS.events));
+  });
+
+  it('la page des réglages a son canal, settings, avec réponse', () => {
+    const invoke: readonly string[] = PANEL_CHANNELS.invoke;
+
+    // settings est un canal invoke du panneau : écouté par listenFrom avec les autres.
+    expect(invoke).toContain('settings');
+  });
+
+  it('le menu natif des réglages n’a plus de canal', () => {
+    const send: readonly string[] = PANEL_CHANNELS.send;
+
+    // menu:settings n'est plus un canal du panneau.
+    expect(send).not.toContain('menu:settings');
   });
 });
 

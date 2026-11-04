@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  agentColor, agentList, agentVibe, favoriteFolders, folderColors, randomColor,
+  actionPicks, agentColor, agentLang, agentList, agentVibe, favoriteFolders, folderColors, randomColor,
   speakVolume, vibeLang, vibeModulesView, withDefaults,
 } from 'core/config';
 
@@ -56,6 +56,22 @@ describe('VibeCoder', () => {
     expect(vibeLang(withDefaults({}))).toBe('fr');
     expect(vibeLang(withDefaults({ vibeLang: 'en' }))).toBe('en');
     expect(vibeLang(withDefaults({ vibeLang: 'de' }))).toBe('fr');
+  });
+  it('langue des agents : celle de l’écran à défaut ; les deux langues ne se mélangent pas', () => {
+    expect(agentLang(withDefaults({}))).toBe('fr');
+    expect(agentLang(withDefaults({ vibeLang: 'en' }))).toBe('en');
+    expect(agentLang(withDefaults({ vibeLang: 'en', agentLang: 'fr' }))).toBe('fr');
+    expect(vibeLang(withDefaults({ vibeLang: 'en', agentLang: 'fr' }))).toBe('en');
+    expect(agentLang(withDefaults({ vibeLang: 'en', agentLang: 'de' }))).toBe('en');
+  });
+  it('choix d’une action : rien par défaut, une chaîne gardée, ni Fable ni autre chose', () => {
+    expect(actionPicks(withDefaults({}), 'forme')).toEqual({});
+    const cfg = withDefaults({ actionModels: { forme: 'sonnet', a: 'Fable', b: 3, c: '' }, actionEfforts: { forme: 'high', a: 'low', b: null } });
+    expect(actionPicks(cfg, 'forme')).toEqual({ model: 'sonnet', effort: 'high' });
+    expect(actionPicks(cfg, 'a')).toEqual({ effort: 'low' });
+    expect(actionPicks(cfg, 'b')).toEqual({});
+    expect(actionPicks(cfg, 'c')).toEqual({});
+    expect(actionPicks(withDefaults({ actionModels: 'cassé', actionEfforts: null }), 'forme')).toEqual({});
   });
   it('vue des modules : liste par défaut, ide si demandé, une valeur inconnue prend le défaut', () => {
     expect(vibeModulesView(withDefaults({}))).toBe('list');

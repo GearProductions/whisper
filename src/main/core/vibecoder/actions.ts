@@ -18,7 +18,8 @@
  *  action lit seulement (reads) ou modifie la branche : la règle des courses
  *  (runs, blockedBy). Un argument qu'aucune variable du gabarit ne lit (hors text), ou un
  *  modèle hors des choix de l'action, ne fait pas refuser l'action : il est
- *  ignoré, et rendu (ignored) pour que l'appelant prévienne l'agent (F-115) ; le texte du champ qu'un
+ *  ignoré, et rendu (ignored) pour que l'appelant prévienne l'agent (F-115) ; les pièces du champ (pieces :
+ *  sélection, fichiers, images) sont lues par un gabarit qui a {{text}} ou {{answers}}, sinon ignorées de même ; le texte du champ qu'un
  *  gabarit sans {{text}} laisse tomber, lui, se demande à ignoredText (buildMessage ne le rend pas). L'effort se choisit
  *  comme le modèle, parmi EFFORT_LEVELS : le skill devient <skill>--<modèle>--<effort> (note
  *  0.13.0-fix-and-improvements).
@@ -155,8 +156,8 @@ export const targetModule = (args: VibeArgs, modules: VibeModule[]): VibeModule 
 // Le gabarit est lu une fois : une valeur insérée n'est jamais relue comme un gabarit.
 // Hors {{text}}, {{answers}} et {{draft}}, une valeur qui contient un caractère de
 // contrôle (saut de ligne…) fait refuser l'action → 'variable'.
-// ignored : les arguments donnés qu'aucune variable du gabarit ne lit (READ_BY), et model hors des choix de
-// l'action ; absent s'il n'y en a pas.
+// ignored : les arguments donnés qu'aucune variable du gabarit ne lit (READ_BY, pieces sans {{text}} ni
+// {{answers}}), et model hors des choix de l'action ; absent s'il n'y en a pas.
 export function buildMessage(def: ActionDef, args: VibeArgs, ctx: MessageContext):
   { text: string; ignored?: (keyof VibeArgs)[] } | { error: MessageError } {
   const { view } = ctx;
@@ -212,6 +213,9 @@ export function buildMessage(def: ActionDef, args: VibeArgs, ctx: MessageContext
     .filter((k) => Object.hasOwn(args, k) && args[k] !== undefined && !vars.includes(READ_BY[k]!));
   const shown = view.actions.find((a) => a.id === def.id);
   const skill = /^\/vibecoder:([\w-]+)/.exec(template);
+  // Les pièces du champ (sélection, fichiers, images) : lues par un gabarit qui a {{text}} ou {{answers}}, sinon
+  // ignorées (F-115). Ce n'est pas ici qu'on les prépare ni les insère : l'appelant le fait, seulement si le gabarit les lit.
+  if (args.pieces !== undefined && !vars.includes('text') && !vars.includes('answers')) ignored.push('pieces');
   let model = shown?.model ?? null;
   if (args.model !== undefined) {
     if (!shown || !shown.models.includes(args.model as string) || (args.model !== shown.model && !skill)) ignored.push('model');
@@ -236,9 +240,10 @@ export function buildMessage(def: ActionDef, args: VibeArgs, ctx: MessageContext
   return error ? { error } : ignored.length ? { text, ignored } : { text };
 }
 
-const EFFORT: Record<VibeLang, Record<string, string>> = {
-  fr: { medium: 'moyen', high: 'élevé', xhigh: 'très élevé', max: 'max' },
-  en: { medium: 'medium', high: 'high', xhigh: 'extra high', max: 'max' },
+// Les efforts, dans la langue ; la page des réglages les reprend.
+export const EFFORT: Record<VibeLang, Record<string, string>> = {
+  fr: { low: 'faible', medium: 'moyen', high: 'élevé', xhigh: 'très élevé', max: 'max' },
+  en: { low: 'low', medium: 'medium', high: 'high', xhigh: 'extra high', max: 'max' },
 };
 
 // Les modèles qu'on peut choisir pour un skill qui fixe le sien (jamais Fable, I-36).
@@ -260,12 +265,15 @@ export function skillModel(skillMd: string | null): string | null {
   return SKILL_MODELS.includes(model) ? model : null;
 }
 
-// Qui travaille pour un skill, d'après son en-tête (frontmatter) : son modèle,
+// Qui travaille pour un skill, d'après son en-tête (frontmatter) ou le choix des réglages : son modèle,
 // et son effort s'il dépasse « low » (« opus · élevé », « haiku ») ; sans
 // modèle (ou sans skill) : « agent », le modèle de l'agent.
-export function whoOf(skillMd: string | null, lang: VibeLang): string {
-  const model = headField(skillMd, 'model');
+// pick : le modèle et l'effort choisis dans les réglages (SKILL_MODELS, EFFORT_LEVELS : jamais Fable, I-36)
+// remplacent ceux du skill ; une autre valeur est sans effet.
+export function whoOf(skillMd: string | null, lang: VibeLang, pick?: { model?: string; effort?: string }): string {
+  const model = (SKILL_MODELS.includes(pick?.model as string) ? pick!.model : headField(skillMd, 'model'))!;
   if (!model || model === 'inherit') return 'agent';
-  const effort = EFFORT[lang][headField(skillMd, 'effort')];
+  const level = EFFORT_LEVELS.includes(pick?.effort as string) ? pick!.effort! : headField(skillMd, 'effort');
+  const effort = level === 'low' ? undefined : EFFORT[lang][level];
   return effort ? `${model} · ${effort}` : model;
 }

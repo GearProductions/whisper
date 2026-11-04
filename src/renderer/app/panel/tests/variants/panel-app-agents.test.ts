@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 // PanelApp (panel-app.tsx), les agents : leurs robots d'après onAgents (clic, clic droit), le bip d'un signal qui
 // apparaît, les raccourcis (Ctrl+K, Ctrl+Tab, Ctrl+N), les mouvements de la palette, l'accueil sans agent,
-// l'historique dans la colonne.
+// l'historique dans la colonne, ⚙ Réglages (la page, ses réglages, ses commandes, ses micros).
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it } from 'vitest';
@@ -12,12 +12,13 @@ import { PanelApp } from '../../panel-app';
 
 const on: Record<string, (v: unknown) => void> = {};
 const calls: string[] = [];
+let shown = {};   // la page des réglages que le principal rend
 const conv = new Proxy({}, {
   get: (_, k: string) => (...args: unknown[]) => {
     if (k.startsWith('on')) { on[k] = args[0] as (v: unknown) => void; return undefined; }
-    calls.push(`${k}${args.length ? `:${args.map(String).join(',')}` : ''}`);
+    calls.push(`${k}${args.length ? `:${args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(',')}` : ''}`);
     return k === 'history' ? Promise.resolve([{ sessionId: 's1', title: 'Hier', lastModified: 0, current: false }])
-      : k === 'getConfig' ? Promise.resolve({ sound: false }) : Promise.resolve(null);
+      : k === 'getConfig' ? Promise.resolve({ sound: false }) : k === 'settings' ? Promise.resolve(shown) : Promise.resolve(null);
   },
 }) as unknown as ConvApi;
 
@@ -115,10 +116,31 @@ it('🕘 : l\'historique à la place du fil ; choisir une conversation l\'ouvre 
   expect(page.querySelector('.vc-history-view')).toBeNull();
 });
 
-it('⚙ Réglages : les micros énumérés vont au principal', async () => {
+it('⚙ Réglages : la page s\'ouvre (relue, micros énumérés) ; un réglage ou une commande par conv.settings(op), la page rendue remplace l\'affichée ; un micro par setDevice', async () => {
+  const page1 = (lang: string) => ({ categories: [{ id: 'dictation', items: [
+    { kind: 'choice', key: 'lang', value: lang, choices: [['fr', 'Français'], ['en', 'English']] },
+    { kind: 'mic', value: '' },
+    { kind: 'run', key: 'whisperDir', disabled: false },
+  ] }] });
+  shown = page1('fr');
   calls.length = 0;
   Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { enumerateDevices: async () => [{ kind: 'audioinput', deviceId: 'm1', label: 'Micro' }] } });
-  const gear = [...page.querySelectorAll('button')].find((b) => b.textContent?.includes('Réglages'))!;
-  await act(async () => { gear.click(); });
-  expect(calls).toEqual(['openSettings:[object Object]']);
+  await act(async () => { page.querySelector<HTMLButtonElement>('.vc-top [aria-label="Réglages"]')!.click(); });
+  expect(calls).toEqual(['settings:null']);
+  const select = (i: number) => page.querySelectorAll<HTMLSelectElement>('.vc-set select')[i];
+  const change = (el: HTMLSelectElement, v: string) => act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')!.set!.call(el, v);
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  expect([...select(1).options].map((o) => o.value)).toEqual(['', 'm1']);
+  shown = page1('en');
+  await change(select(0), 'en');
+  expect(calls).toEqual(['settings:null', 'settings:{"set":"lang","value":"en"}']);
+  expect(select(0).value).toBe('en');
+  await act(async () => { page.querySelector<HTMLButtonElement>('.vc-set-run')!.click(); });
+  expect(calls[2]).toBe('settings:{"run":"whisperDir"}');
+  await change(select(1), 'm1');
+  expect(calls.slice(3)).toEqual(['setDevice:m1,Micro', 'settings:null']);
+  await act(async () => { page.querySelector<HTMLButtonElement>('.vc-set-close')!.click(); });
+  expect(page.querySelector('.vc-set')).toBeNull();
 });

@@ -14,7 +14,8 @@
  *  chaîne ou rien (absent ou inconnu : la racine), jamais un chemin (accord
  *  de l'utilisateur, note 0.13.0-gestion-artefacts). Les agents : le
  *  sélecteur, la palette et les notifications désignent un agent par son id,
- *  jamais un chemin (accord, note 0.14.0). Voir le code : un
+ *  jamais un chemin (accord, note 0.14.0). La page des réglages : un seul
+ *  canal, settings, l'op telle quelle (accord, note 0.14.0). Voir le code : un
  *  fichier d'un module par son id ; seul texte
  *  envoyé, celui du fichier affiché, à enregistrer (le principal vérifie
  *  qu'il est suivi, dans le relevé, et pas grisé).
@@ -80,7 +81,7 @@ const conv: ConvApi = {
   showAgent: (id) => ipcRenderer.send('agent:show', id),       // un agent par son id : jamais un chemin
   agentMenu: (id) => ipcRenderer.send('agent:menu', id),       // le menu de cet agent, par son id
   addAgent: () => ipcRenderer.send('agent:add'),               // Nouvel agent… : le menu du principal
-  openSettings: (devices) => ipcRenderer.send('menu:settings', devices), // ⚙ Réglages ; les micros énumérés par la page
+  settings: (op) => ipcRenderer.invoke('settings', op),        // la page des réglages : lire (null), écrire, lancer → la page relue
 };
 
 contextBridge.exposeInMainWorld('conv', conv);

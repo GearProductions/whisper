@@ -192,9 +192,32 @@ export interface ConvApi {
   agentMenu(id: string): void;
   /** Nouvel agent… : le menu du principal (dossier, worktree). */
   addAgent(): void;
-  /** ⚙ Réglages, sous son bouton ; `devices` : les micros énumérés par la page. */
-  openSettings(devices: MicDevice[]): void;
+  /** La page des réglages : lire (null), écrire un réglage ou lancer une de ses commandes ;
+   *  rend toujours la page relue. Le principal vérifie l'expéditeur et chaque valeur. */
+  settings(op: SettingsOp | null): Promise<SettingsView>;
 }
+
+/* ---- La page des réglages ------------------------------------------------------ */
+
+export type SettingsCategory = 'dictation' | 'speech' | 'interface' | 'actions' | 'agents' | 'general';
+// Un réglage de la page ; `effort:<id>` et `model:<id>` : ceux d'une action (son id).
+export type SettingKey = 'lang' | 'vocabulary' | 'sound' | 'muteOthers' | 'discordMute' | 'speakLang'
+  | 'speakVoice:fr' | 'speakVoice:en' | 'speakVolume' | 'vibeLang' | 'agentLang' | 'artifactTextMax'
+  | 'agentCommand' | 'editorCommand' | 'terminalCommand' | 'vibeCommandPrefix'
+  | `model:${string}` | `effort:${string}`;
+export type SettingsInfo = 'whisperModel' | 'agentFound' | 'editor' | 'version';
+export type SettingsCommand = 'installTts' | 'restoreSound' | 'whisperDir' | 'configFile' | 'instructions'
+  | 'journal' | 'vibeDir' | 'releases' | 'quit';
+export type SettingItem =
+  | { kind: 'choice'; key: SettingKey; value: string; choices: [string, string][]; label?: string }  // label : une action, son libellé
+  | { kind: 'toggle'; key: SettingKey; value: boolean }
+  | { kind: 'text' | 'command'; key: SettingKey; value: string; max: number }
+  | { kind: 'number'; key: SettingKey; value: number }
+  | { kind: 'mic'; value: string }
+  | { kind: 'info'; key: SettingsInfo; value: string }
+  | { kind: 'run'; key: SettingsCommand; disabled: boolean };
+export type SettingsView = { categories: { id: SettingsCategory; items: SettingItem[] }[] };
+export type SettingsOp = { set: SettingKey; value: unknown } | { run: SettingsCommand };
 
 /* ---- VibeCoder (dans le panneau) ------------------------------------------------ */
 
@@ -424,7 +447,7 @@ export type VibeArgs = {
   pr?: number;
   answers?: string[];          // réponses aux questions, dans leur ordre
   verdict?: 'approve' | 'comment' | 'request-changes';
-  model?: string;              // un skill qui fixe son modèle : un autre modèle que le conseillé, parmi VibeAction.models
+  model?: string;              // posé par le principal d'après la configuration : ce que la page envoie est ignoré
   direct?: boolean;            // VibeAction.direct : l'appli la fait elle-même, sans agent (F-114)
   branch?: string;             // switch-branch : une branche de VibeView.branches ; new-here, new-worktree : le nom saisi
   start?: string;              // le départ d'une branche créée
@@ -433,12 +456,12 @@ export type VibeArgs = {
   folder?: string;             // le dossier visé : un id d<i> du dernier relevé ; absent : la racine
   name?: string;               // rename-artifact, new-artifact-* : le nom tapé, un nom seul, revérifié par le principal
   names?: string[];            // trash-artifacts : les noms confirmés, comparés au relevé, jamais lus comme des chemins
-  effort?: string;             // un skill dont on choisit l'effort : un autre que celui du skill, parmi VibeAction.efforts
+  effort?: string;             // posé par le principal d'après la configuration : ce que la page envoie est ignoré
+  pieces?: Omit<OutgoingDraft, 'text'>;  // les pièces jointes du champ de l'action (images, fichiers, sélection)
 };
 
 export type VibePatch = {
   vibe?: false;                // la bannière : arrêter le mode Vibe (la course en cours finit)
-  lang?: VibeLang;
   pr?: number | null;          // la PR suivie
   seen?: boolean;              // « Vu » : la note de référence devient l'actuelle
   modulesView?: 'ide' | 'list'; // le réglage de la vue Modules

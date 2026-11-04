@@ -40,10 +40,14 @@
  *  d'attention en entier dans le champ (attentionQuote) ; relecteur, il ouvre la
  *  zone de la carte si elle est fermée et y ajoute le point d'attention
  *  (withAttention) sans rien effacer : seul « Ajouter » le verse au brouillon.
+ *  Vue IDE, la seule : sous l'en-tête de l'étape, une carte (IdeView(invariantFiles(view.invariants, view.files))) ;
+ *  à gauche les tests, leur nom coloré comme VS Code (état git, rang + 1) ; au centre, du test choisi, son
+ *  en-tête et ses cartes, comme avant (le premier d'emblée). Choisir un autre test referme son fichier
+ *  ouvert (OnLeave : act.follow(null)). Sans test : l'invitation, pas de carte.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
-  attentionQuote, awaiting, caseLine, caseSource, casesOf, excerpt, fileParts, progress, pseudoLines, remark, withAttention, type CaseView, type Progress, type Strings,
+  attentionQuote, awaiting, caseLine, caseSource, casesOf, excerpt, fileParts, invariantFiles, progress, pseudoLines, remark, withAttention, type CaseView, type Progress, type Strings,
 } from 'core/vibecoder';
 import type { VibeLang, VibeTestFile } from 'technicals/bridge';
 import { CodeView } from './code-view';
@@ -51,6 +55,7 @@ import { CommentBox } from './comment-box';
 import { DiffPicker } from './diff-picker';
 import { DraftEditor, useFileDraft } from './file-draft';
 import { Icon, IconButton } from './icons';
+import { IdeView } from './ide-view';
 import { InlineMd, MarkdownView } from './markdown-view';
 import { ModuleDiffView } from './module-diff-view';
 import { Invite, Run, StepHead } from './step-parts';
@@ -171,6 +176,61 @@ export function InvariantsView(props: StepProps) {
   const locked = file?.locked ?? null;
   const d = useFileDraft(file ?? null, props.code, locked, act.save, props.drafts);
   const editor = (at?: number): ReactNode => (file ? <DraftEditor d={d} file={file} locked={locked} t={t} at={at} /> : null);
+  // Le fichier choisi : son en-tête (chemin, lecture, progression, outils), Voir le fichier, une carte par cas.
+  const fileBlock = (f: VibeTestFile) => {
+    const p = progress([f]);
+    const { dir, name } = fileParts(f.path);
+    return (
+      <section key={f.path} className="vc-ifile" aria-label={f.path}>
+        {review ? null : <OnLeave fn={() => show(null)} />}
+        <div className="vc-ifile-head">
+          <span className="vc-ifile-path vc-mono" title={f.path}><span className="vc-ifile-dir">{dir}</span><b>{name}</b></span>
+          <span className="vc-ifile-read" data-read={(!!f.reading && !f.stale) || undefined} title={f.stale ? s.staleTitle : undefined}>
+            {f.stale ? s.stale : f.reading ? s.read : s.toRead}
+          </span>
+          <span className="vc-ifile-progress">
+            <Bar p={p} />
+            <span>{s.validated(p.ok, p.total)}</span>
+          </span>
+          <span className="vc-ifile-tools">
+            {p.all ? (
+              <button type="button" className="vc-vbtn" title={s.allTitle}
+                onClick={() => casesOf(f).forEach((c) => { if (c.mark !== 'ok' && c.mark !== 'ko') act.mark(target(f, c.title), 'ok'); })}>
+                <Icon name="ok" />{s.all}
+              </button>
+            ) : null}
+            {f.reading ? <Run a={read} busy={busy} tone={f.stale ? 'accent' : 'ghost'} label={s.reread} onRun={() => act.run('read-invariants', { file: f.id })} />
+              : <Run a={read} busy={busy} tone={read?.primary ? 'accent' : 'plain'} onRun={() => act.run('read-invariants')} />}
+            <IconButton icon="open" label={t.openTitle} onClick={() => act.open(f.id)} />
+          </span>
+        </div>
+        {f.source ? review ? (
+          <details className="vc-ifile-src">
+            <summary>{s.wholeFile}</summary>
+            <FileOrDiff f={f} after={f.source} s={s} lang={view.lang}><CodeView code={f.source} path={f.path} t={t} /></FileOrDiff>
+          </details>
+        ) : (
+          // onToggle part aussi quand open change par les props : seul l'écart est un geste.
+          <details className="vc-ifile-src" open={f === file && shown?.title === null}
+            onToggle={(e) => { const now = e.currentTarget.open; if (now !== (f === file && shown?.title === null)) show(now ? { path: f.path, title: null } : null); }}>
+            <summary>{s.wholeFile}</summary>
+            {f === file && shown?.title === null ? <FileOrDiff f={f} after={d.text ?? f.source} s={s} lang={view.lang}>{editor()}</FileOrDiff> : null}
+          </details>
+        ) : null}
+        {casesOf(f).map((c, i) => (
+          <CaseCard key={c.title} c={c} n={i + 1} code={caseSource(f, i)} from={f.lines[i]} path={f.path} s={s} t={t} lang={view.lang} review={review} onOpenLink={act.openLink}
+            onVerdict={(v) => verdict(f, c.title, v)} onQuote={() => act.prefill('comment', c.title)}
+            onQuoteAttention={() => act.prefill('comment', attentionQuote(c.title, c.reading?.warning ?? ''), true)} onOpen={() => act.open(f.id, caseLine(f, c.title))}
+            onComment={(text) => act.draft({ add: remark(target(f, c.title), text) })}
+            edit={review ? undefined : {
+              shown: f === file && shown?.title === c.title,
+              onShow: (on) => show(on ? { path: f.path, title: c.title } : null),
+              view: () => editor(f.lines[i]),
+            }} />
+        ))}
+      </section>
+    );
+  };
   return (
     <>
       <StepHead p={props} own={['read-invariants', ...(review ? [] : ['align']), ...(view.invariants.length ? [] : ['invariants'])]}>
@@ -199,59 +259,11 @@ export function InvariantsView(props: StepProps) {
           <div className="vc-card-body"><MarkdownView md={align.text} t={t} onOpenLink={act.openLink} onQuote={quoteAlign} onComment={commentAlign} /></div>
         </details>
       ) : null}
-      {view.invariants.map((f) => {
-        const p = progress([f]);
-        const { dir, name } = fileParts(f.path);
-        return (
-          <section key={f.id} className="vc-ifile" aria-label={f.path}>
-            <div className="vc-ifile-head">
-              <span className="vc-ifile-path vc-mono" title={f.path}><span className="vc-ifile-dir">{dir}</span><b>{name}</b></span>
-              <span className="vc-ifile-read" data-read={(!!f.reading && !f.stale) || undefined} title={f.stale ? s.staleTitle : undefined}>
-                {f.stale ? s.stale : f.reading ? s.read : s.toRead}
-              </span>
-              <span className="vc-ifile-progress">
-                <Bar p={p} />
-                <span>{s.validated(p.ok, p.total)}</span>
-              </span>
-              <span className="vc-ifile-tools">
-                {p.all ? (
-                  <button type="button" className="vc-vbtn" title={s.allTitle}
-                    onClick={() => casesOf(f).forEach((c) => { if (c.mark !== 'ok' && c.mark !== 'ko') act.mark(target(f, c.title), 'ok'); })}>
-                    <Icon name="ok" />{s.all}
-                  </button>
-                ) : null}
-                {f.reading ? <Run a={read} busy={busy} tone={f.stale ? 'accent' : 'ghost'} label={s.reread} onRun={() => act.run('read-invariants', { file: f.id })} />
-                  : <Run a={read} busy={busy} tone={read?.primary ? 'accent' : 'plain'} onRun={() => act.run('read-invariants')} />}
-                <IconButton icon="open" label={t.openTitle} onClick={() => act.open(f.id)} />
-              </span>
-            </div>
-            {f.source ? review ? (
-              <details className="vc-ifile-src">
-                <summary>{s.wholeFile}</summary>
-                <FileOrDiff f={f} after={f.source} s={s} lang={view.lang}><CodeView code={f.source} path={f.path} t={t} /></FileOrDiff>
-              </details>
-            ) : (
-              // onToggle part aussi quand open change par les props : seul l'écart est un geste.
-              <details className="vc-ifile-src" open={f === file && shown?.title === null}
-                onToggle={(e) => { const now = e.currentTarget.open; if (now !== (f === file && shown?.title === null)) show(now ? { path: f.path, title: null } : null); }}>
-                <summary>{s.wholeFile}</summary>
-                {f === file && shown?.title === null ? <FileOrDiff f={f} after={d.text ?? f.source} s={s} lang={view.lang}>{editor()}</FileOrDiff> : null}
-              </details>
-            ) : null}
-            {casesOf(f).map((c, i) => (
-              <CaseCard key={c.title} c={c} n={i + 1} code={caseSource(f, i)} from={f.lines[i]} path={f.path} s={s} t={t} lang={view.lang} review={review} onOpenLink={act.openLink}
-                onVerdict={(v) => verdict(f, c.title, v)} onQuote={() => act.prefill('comment', c.title)}
-                onQuoteAttention={() => act.prefill('comment', attentionQuote(c.title, c.reading?.warning ?? ''), true)} onOpen={() => act.open(f.id, caseLine(f, c.title))}
-                onComment={(text) => act.draft({ add: remark(target(f, c.title), text) })}
-                edit={review ? undefined : {
-                  shown: f === file && shown?.title === c.title,
-                  onShow: (on) => show(on ? { path: f.path, title: c.title } : null),
-                  view: () => editor(f.lines[i]),
-                }} />
-            ))}
-          </section>
-        );
-      })}
+      {view.invariants.length ? (
+        <section className="vc-card vc-iide">
+          <IdeView files={invariantFiles(view.invariants, view.files)}>{(ide) => (ide?.rank != null && view.invariants[ide.rank] ? fileBlock(view.invariants[ide.rank]) : null)}</IdeView>
+        </section>
+      ) : null}
       {view.invariants.length ? null : (
         <Invite title={review ? s.noTestsReview : s.noTests} text={review ? s.noTestsReviewText : write?.hidden ? s.noInvLines : s.noTestsText}>
           {review ? null : <Run a={write} busy={busy} tone="accent" onRun={() => act.run('invariants')} />}
@@ -260,6 +272,12 @@ export function InvariantsView(props: StepProps) {
       )}
     </>
   );
+}
+
+// Quitter le fichier choisi (un autre est choisi) referme ce qu'il avait ouvert, et cesse de le suivre.
+function OnLeave({ fn }: { fn(): void }) {
+  useEffect(() => fn, []);
+  return null;
 }
 
 // Voir le fichier : un test que la branche modifie (f.base, son texte à la base), Fichier (children) · son diff

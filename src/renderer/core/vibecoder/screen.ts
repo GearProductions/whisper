@@ -1,38 +1,12 @@
 /** screen — les choix de l'écran VibeCoder qui ne sont pas des validations :
  *  la rangée des actions d'une étape (stepActions : les siennes, et à l'étape
- *  en cours Vibe en Créer puis celle mise en avant ; sans les masquées, celles
- *  que la vue montre elle-même ni celles qui citent) ; le modèle d'une
- *  action en sous-contexte (le conseillé par défaut ; un autre
- *  seulement s'il est des siens, et envoyé seulement s'il diffère du
- *  conseillé) ; l'effort d'un skill, de même (un des siens, sinon celui du
- *  skill) ; la largeur de la colonne de la conversation (300 px au moins,
+ *  en cours celle mise en avant d'abord ; sans Vibe (son bouton est au fil d'Ariane), les masquées,
+ *  celles que la vue montre elle-même ni celles qui citent) ; la largeur de la colonne de la conversation (300 px au moins,
  *  60 % de l'écran au plus) ; les actions qui tournent (isRunning, runningRuns : en
  *  cours ou en attente d'autorisation, ni arrêtées ni finies).
- *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (vibe-coder, model-pick, step-parts, status-bar ;
+ *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (vibe-coder, step-parts, status-bar ;
  *  runs-view : isRunning). */
 import type { VibeAction, VibeRun, VibeStep, VibeView } from 'technicals/bridge';
-
-export type ModelPicks = Record<string, string>;   // par id d'action, le modèle choisi
-
-// Le modèle affiché pour une action : celui choisi s'il est des siens, sinon le conseillé ('' : celui de l'agent).
-export function chosenModel(a: VibeAction, picks: ModelPicks): string {
-  const m = Object.hasOwn(picks, a.id) ? picks[a.id] : '';
-  return a.models.includes(m) ? m : a.model ?? '';
-}
-
-// args.model d'une action : le modèle choisi, seulement s'il n'est pas le conseillé.
-export function modelArg(a: VibeAction, picks: ModelPicks): string | undefined {
-  const m = chosenModel(a, picks);
-  return m && m !== a.model ? m : undefined;
-}
-
-export type EffortPicks = Record<string, string>;   // par id d'action, l'effort choisi
-
-// L'effort affiché pour une action : celui choisi s'il est des siens, sinon '' (celui du skill).
-export function chosenEffort(a: VibeAction, picks: EffortPicks): string {
-  const e = Object.hasOwn(picks, a.id) ? picks[a.id] : '';
-  return a.efforts?.includes(e) ? e : '';
-}
 
 export const CONV_MIN = 300;
 const CONV_MAX = 0.6;
@@ -42,21 +16,18 @@ export function convWidth(wanted: number, total: number): number {
   return Math.round(Math.max(CONV_MIN, Math.min(wanted, total * CONV_MAX)));
 }
 
-type StepAction = { a: VibeAction; tone: 'vibe' | 'accent' | 'plain' };
+type StepAction = { a: VibeAction; tone: 'accent' | 'plain' };
 
 // Une action qui cite ({{quote}}) part d'un bloc ou d'un cas, pas d'un bouton à elle.
 const cites = (a: VibeAction) => a.kind === 'prefill' && !!a.text?.includes('{{quote}}');
 
-// La rangée d'une étape : ses actions ; à l'étape en cours, Vibe (Créer) d'abord, puis celle mise en avant.
+// La rangée d'une étape : ses actions ; à l'étape en cours, celle mise en avant d'abord. Jamais Vibe.
 export function stepActions(view: VibeView, step: VibeStep, own: string[]): StepAction[] {
-  const current = step.status === 'current';
-  const tone = (a: VibeAction): StepAction['tone'] =>
-    !current ? 'plain' : a.id === 'vibe' && view.flow === 'create' ? 'vibe' : a.primary ? 'accent' : 'plain';
-  const rank = { vibe: 0, accent: 1, plain: 2 };
+  const tone = (a: VibeAction): StepAction['tone'] => (step.status === 'current' && a.primary ? 'accent' : 'plain');
   return view.actions
-    .filter((a) => !a.hidden && !cites(a) && !own.includes(a.id) && (a.step === step.id || tone(a) !== 'plain'))
+    .filter((a) => a.id !== 'vibe' && !a.hidden && !cites(a) && !own.includes(a.id) && (a.step === step.id || tone(a) !== 'plain'))
     .map((a) => ({ a, tone: tone(a) }))
-    .sort((x, y) => rank[x.tone] - rank[y.tone]);
+    .sort((x, y) => +(x.tone === 'plain') - +(y.tone === 'plain'));
 }
 
 // Une action qui tourne : en cours ou qui attend une autorisation.

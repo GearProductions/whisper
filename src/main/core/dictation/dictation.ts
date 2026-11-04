@@ -12,7 +12,7 @@ const MIN_RMS = 0.008;                       // F-4 : en dessous, du silence (m�
 const BLOCK = 4096;                          // échantillons par bloc : ceux du recorder de la page
 
 export const TRANSCRIBE_MESSAGES: Record<string, string> = {
-  notInstalled: 'whisper.cpp introuvable : placez whisper-cli et un modèle ggml-*.bin dans le dossier whisper (⚙ Réglages → Ouvrir le dossier whisper).',
+  notInstalled: 'whisper.cpp introuvable : placez whisper-cli et un modèle ggml-*.bin dans le dossier whisper (⚙ Réglages → Général → Ouvrir le dossier whisper).',
   badAudio: 'Enregistrement trop court, trop long ou muet.',
   timeout: 'La transcription a pris trop de temps.',
   failed: 'La transcription a échoué.',

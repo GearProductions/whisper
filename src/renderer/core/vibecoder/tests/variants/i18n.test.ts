@@ -95,3 +95,17 @@ describe('le sélecteur, la palette et les robots des agents', () => {
     expect(t('en').paletteKeys).toHaveLength(t('fr').paletteKeys.length);
   });
 });
+
+describe('la page des réglages', () => {
+  it('mêmes catégories, réglages, informations et commandes dans les deux langues', () => {
+    for (const key of ['settingsCategory', 'settingLabel', 'settingInfo', 'settingRun', 'settingInfoValue'] as const) {
+      expect(Object.keys(t('en')[key]).sort()).toEqual(Object.keys(t('fr')[key]).sort());
+    }
+    expect(Object.keys(t('fr').settingsCategory)).toHaveLength(6);
+  });
+
+  it('le téléchargement du modèle', () => {
+    expect(t('fr').settingInfoValue.downloading(42)).toBe('téléchargement 42 %');
+    expect(t('en').settingInfoValue.downloading(42)).toBe('downloading 42 %');
+  });
+});

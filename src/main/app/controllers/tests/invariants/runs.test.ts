@@ -272,8 +272,8 @@ describe('Annuler, depuis l’écran, ne ramène que l’action annulée', () =>
   it('la conversation travaille, une lecture a été gardée : Annuler la Forme ne ramène que la Forme', async () => {
     const { vibeRunOp } = await import('app/controllers');
     await open();
-    // la conversation travaille (une question, sans étape : elle reste dans la conversation)
-    await click('ask', { text: 'où en est la forme ?' });
+    // la conversation travaille (une nouvelle demande, sans étape : elle reste dans la conversation)
+    await click('new-request', { text: 'une page des réglages' });
     // une lecture, arrêtée et gardée
     await click('ponytail');
     await settle();

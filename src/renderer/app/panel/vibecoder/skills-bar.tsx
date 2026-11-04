@@ -1,20 +1,16 @@
-/** skills-bar — au-dessus du champ, en VibeCoder : de petits liens discrets,
- *  Demander sans modifier et Retour → fixup (s'ils sont au relevé, ni
- *  masqués) ; Nouvelle demande ne s'y montre plus (Rédiger la note la
- *  remplace). Une nouvelle demande retenue (view.request) : « Voulez-vous
- *  créer la branche … ? », son nom prérempli et modifiable (état local, remis
- *  à view.request.branch quand elle change), ses choix du relevé (new-here,
- *  new-worktree avec { direct: true, branch: le nom saisi } ; stash avec
- *  { direct: true }, F-114), grisés avec leur raison, absents si masqués ; le
- *  dernier échec de chaque lien à côté (icône ko). Les skills, eux, se trouvent par « / »
- *  dans le champ. Une action prend le texte du champ s'il lui en faut un
- *  (panel-app).
+/** skills-bar — au-dessus du champ, en VibeCoder : la nouvelle demande seule,
+ *  et seulement retenue (view.request) ; plus de lien Demander sans modifier
+ *  ni Retour → fixup. « Voulez-vous créer la branche … ? », son nom
+ *  prérempli et modifiable (état local, remis à view.request.branch quand elle
+ *  change), ses choix du relevé (new-here, new-worktree avec { direct: true,
+ *  branch: le nom saisi } ; stash avec { direct: true }, F-114), grisés avec
+ *  leur raison, absents si masqués ; le dernier échec de chaque lien à côté
+ *  (icône ko). Les skills se trouvent par « / » dans le champ.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : panel-app. */
 import { Fragment, useState, type ReactElement } from 'react';
 import type { VibeAction, VibeArgs, VibeView } from 'technicals/bridge';
 import { Icon } from './icons';
 
-const SHOWN = ['ask', 'fix'];
 // Les choix d'une nouvelle demande retenue, faits par l'appli elle-même.
 const CHOICES = ['new-here', 'new-worktree', 'stash'];
 const NAMED = ['new-here', 'new-worktree'];
@@ -24,8 +20,7 @@ type Link = (a: VibeAction, args?: VibeArgs, off?: boolean) => ReactElement;
 
 export function SkillsBar({ view, busy, onRun }: Props) {
   const pick = (ids: string[]) => view.actions.filter((a) => ids.includes(a.id) && !a.hidden);
-  const actions = pick(SHOWN);
-  if (!actions.length && !view.request) return null;
+  if (!view.request) return null;
   const link: Link = (a, args, off) => {
     const failed = a.direct?.last && !a.direct.last.ok ? a.direct.last.line : null;
     return (
@@ -38,8 +33,7 @@ export function SkillsBar({ view, busy, onRun }: Props) {
   };
   return (
     <div className="vc-skills">
-      {actions.map((a) => link(a))}
-      {view.request ? <Request key={view.request.branch} branch={view.request.branch} en={view.lang === 'en'} choices={pick(CHOICES)} link={link} /> : null}
+      <Request key={view.request.branch} branch={view.request.branch} en={view.lang === 'en'} choices={pick(CHOICES)} link={link} />
     </div>
   );
 }

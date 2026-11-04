@@ -243,18 +243,6 @@ body {
    micro (rond rose) et Envoyer (rond bleu) à droite. */
 #composer { flex: none; padding: 12px; border-top: 1px solid var(--vc-sep); background: var(--vc-side); }
 #composer[hidden] { display: none; }
-#composer-row {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  grid-template-areas: "msg msg msg" "attach . tools";
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--vc-edge);
-  background: var(--vc-bg);
-}
-#composer-row:focus-within { border-color: var(--vc-active-edge); }
 #message {
   grid-area: msg;
   min-height: 44px;
@@ -284,17 +272,12 @@ body {
   cursor: pointer;
 }
 #attach:hover { background: var(--vc-hover); color: var(--vc-text); }
-#composer-row .vc-prompt-tools { grid-area: tools; }
-#composer-row :is(.vc-mic, .vc-send) { width: 36px; height: 36px; }
-#composer-row :is(.vc-mic, .vc-send) svg { width: 16px; height: 16px; }
 #composer-status { font-size: 12px; color: var(--vc-ko-text); }
 #composer-status:not(:empty) { margin-top: 6px; }
 
 body { box-sizing: border-box; }
 
 /* Pièces jointes du champ de saisie ; le panneau s'allume au glisser. */
-#pieces { display: flex; flex-wrap: wrap; gap: 6px; }
-#pieces:not(:empty) { margin-bottom: 8px; }
 .piece {
   position: relative;
   display: flex;

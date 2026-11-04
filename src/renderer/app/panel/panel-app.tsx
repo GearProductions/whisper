@@ -36,26 +36,31 @@
  *  les robots des agents dans l'en-tête de VibeCoder (agent-notices : clic, l'afficher ; l'affiché, la
  *  palette ; clic droit, son menu) et le bip de la réponse (660 Hz, réglage Bip) quand un autre agent se met
  *  à attendre, finit ou échoue (signalKeys, F-55),
- *  l'historique à la place du fil dans la colonne de VibeCoder (🕘), ⚙ Réglages (les micros énumérés
- *  ici, le menu au principal).
+ *  l'historique à la place du fil dans la colonne de VibeCoder (🕘), ⚙ Réglages : la page des réglages
+ *  (SettingsPage, par-dessus l'écran) ouverte par conv.settings(null), les micros énumérés ici (listInputs) ;
+ *  un réglage ou une commande (onSet, onRun) passe par conv.settings(op), qui rend la page relue, montrée à
+ *  la place de l'affichée ; un micro choisi (onMic) par conv.setDevice.
+ *  Les pièces jointes des champs de VibeCoder : leurs File passent par la même lecture que celle de la
+ *  conversation (piecesOf) ; le trombone d'un champ (vibeAct.attach) retient ce champ, le choix du
+ *  dialogue (onAttached) va à lui seul, sinon (le trombone de la conversation) au champ de la conversation.
  *  Ne connaît pas : le principal autrement que par le pont. Utilisé par : main.tsx. */
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import {
   appendDictation, createDrafts, createPermissionGuard, EMPTY, followsEnd, IMAGE_TYPES, isBusy, revoke, titleOf, toDraft,
-  withAttached, withFile, type Draft, type Piece,
+  withAttached, withPieces, type Draft, type Piece,
 } from 'core/conversation';
 import { createDictation, type Phase } from 'core/dictation';
 import { lastShown, recent, shortcut, signalKeys, type PaletteMove, type Scope } from 'core/switcher';
 import { createSpeechPlayer } from 'core/speech';
 import { createKept, t as vibeStrings, withPrefill } from 'core/vibecoder';
-import type { AgentsState, Command, ConvApi, Notice, ProbeResult, SendResult, Session, Thread, VibeArgs, VibeCode, VibeView } from 'technicals/bridge';
+import type { AgentsState, Attached, Command, ConvApi, MicDevice, Notice, ProbeResult, SendResult, SettingsOp, SettingsView, Session, Thread, VibeArgs, VibeCode, VibeView } from 'technicals/bridge';
 import { beep, listInputs, openMic, record } from 'technicals/audio';
 import { dictationField, dictationText } from 'technicals/dom';
 import {
   ArchivedBar, Composer, ContextDetail, HistoryList, Lightbox, NoticeBar, showsWorking, TasksPane, ThreadContent,
   type ThreadActions,
 } from './components';
-import { AgentNotices, Mic, NoAgent, Palette, SkillsBar, VibeCoder, type Side, type VibeActs } from './vibecoder';
+import { AgentNotices, Mic, NoAgent, Palette, SettingsPage, SkillsBar, VibeCoder, type Side, type VibeActs } from './vibecoder';
 
 const REPLY_FREQ = 660; // le bip d'une réponse (F-55), celui de l'ancienne icône
 const STATUS_MS = 10000; // un message de l'appli (téléchargement…) s'efface seul
@@ -83,6 +88,8 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   const [palette, setPalette] = useState<Scope | null>(null);        // ouverte : sa portée
   const [branchesAsk, setBranchesAsk] = useState(0);                // +1 : VibeCoder ouvre ses branches
   const [historyOpen, setHistoryOpen] = useState(false);            // l'historique dans la colonne de VibeCoder
+  const [settings, setSettings] = useState<{ view: SettingsView; mics: MicDevice[] } | null>(null); // la page des réglages, ouverte
+  const attachTo = useRef<((what: Attached) => void) | null>(null);  // le champ qui a ouvert le trombone ; null : la conversation
 
   const [drafts] = useState(createDrafts);
   const [kept] = useState(createKept); // la saisie de VibeCoder, par agent
@@ -135,22 +142,27 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   const screen = held.current;
   const archived = <ArchivedBar data={data} onCurrent={() => conv.current()} onResume={() => conv.resume()} />;
 
-  async function addFiles(files: File[]) {
-    if (!current.current?.live) return; // ancienne conversation : rien à envoyer
+  // Des File en pièces jointes (pour la conversation comme pour chaque champ de VibeCoder) : une image
+  // collée n'a pas de chemin et part en image ; un autre fichier sans chemin ne peut pas être joint.
+  async function piecesOf(files: File[]): Promise<Piece[]> {
     setStatus('');
-    const added: (Piece | { kind: 'path'; name: string; path: string })[] = [];
+    const added: Piece[] = [];
     for (const file of files) {
-      // Une image collée n'a pas de chemin : elle part en image ; un autre
-      // fichier sans chemin ne peut pas être joint.
       if (IMAGE_TYPES.includes(file.type)) {
         added.push({ kind: 'image', name: file.name || 'image collée', type: file.type, data: await file.arrayBuffer(), url: URL.createObjectURL(file) });
         continue;
       }
       const path = conv.pathFor(file);
       if (!path) setStatus(`${file.name || 'Fichier'} : impossible à joindre ici, déposez-le depuis le gestionnaire de fichiers.`);
-      else added.push({ kind: 'path', name: file.name, path });
+      else added.push({ kind: 'file', name: file.name, path });
     }
-    setDraft((d) => ({ ...d, pieces: added.reduce<Piece[]>((all, p) => (p.kind === 'path' ? withFile(all, p.path, p.name) : [...all, p]), d.pieces) }));
+    return added;
+  }
+
+  async function addFiles(files: File[]) {
+    if (!current.current?.live) return; // ancienne conversation : rien à envoyer
+    const added = await piecesOf(files);
+    setDraft((d) => ({ ...d, pieces: withPieces(d.pieces, added) }));
   }
 
   // Les écoutes du pont : posées pendant le premier rendu (synchrone, cf.
@@ -193,6 +205,9 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
       heard.current = new Set(keys);
     });
     conv.onAttached((what) => {
+      const into = attachTo.current;
+      attachTo.current = null;
+      if (into) return into(what);
       setDraft((d) => ({ ...d, pieces: withAttached(d.pieces, what) }));
       el.input.current?.focus();
     });
@@ -354,7 +369,8 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   const vibeAct: VibeActs = {
     run: vibeRun, prefill: vibePrefill, set: conv.vibeSet, mark: conv.vibeMark, draft: conv.vibeDraft, open: conv.vibeOpen,
     follow: (id) => { setVibeCode(null); conv.vibeFollow(id); }, save: vibeSave, drop: vibeDrop,
-    openLink: conv.openLink, refresh: conv.vibeRefresh, process: conv.vibeProcess, runOp: conv.vibeRunOp,
+    openLink: conv.openLink, refresh: conv.vibeRefresh, pieces: piecesOf,
+    attach: (into) => { attachTo.current = into; conv.attach(); }, process: conv.vibeProcess, runOp: conv.vibeRunOp,
   };
 
   const act: ThreadActions = {
@@ -364,6 +380,10 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     zoom: setZoom,
     answer: (decision, key) => guard.answer(key, decision, conv.answer),
   };
+
+  // ⚙ Réglages : la page, relue ; un réglage ou une commande la remplace par la page rendue.
+  const openSettings = async () => setSettings({ view: await conv.settings(null), mics: await listInputs() });
+  const changeSettings = async (op: SettingsOp | null) => { const view = await conv.settings(op); setSettings((s) => s && { ...s, view }); };
 
   const toggleContext = () => { if (overlay === 'context') setOverlay('none'); else showContext(); };
   const toggleTasks = () => setTasksOpen((o) => !o);
@@ -390,7 +410,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
       removePiece={(p) => { revoke([p]); setDraft((d) => ({ ...d, pieces: d.pieces.filter((x) => x !== p) })); }}
       artifacts={vibeShown?.artifacts} artifactsDir={vibeShown?.artifactsDir}
       status={status} setStatus={setStatus} dir={data?.dir || ''} commands={commands} probe={conv.probe}
-      onSend={send} onAttach={() => conv.attach()} onFiles={addFiles} input={el.input} />
+      onSend={send} onAttach={() => { attachTo.current = null; conv.attach(); }} onFiles={addFiles} input={el.input} />
   );
 
   const noAgent = !!agents && !agents.agents.length;
@@ -406,7 +426,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
           tasks={<TasksPane tasks={screen.thread.tasks ?? []} onOpenLink={conv.openLink} onShowFile={conv.showFile} />}
           contextOpen={overlay === 'context'} onGauge={toggleContext} onTasks={toggleTasks}
           onSearch={() => setPalette('all')}
-          onSettings={async () => conv.openSettings(await listInputs())} branchesAsk={branchesAsk}
+          onSettings={openSettings} branchesAsk={branchesAsk}
           others={agents ? <AgentNotices agents={agents.agents} shown={agents.shown} t={tr}
             onShow={conv.showAgent} onOpen={() => setPalette('agents')} onMenu={conv.agentMenu} onAdd={conv.addAgent} /> : undefined}
           historyOpen={historyOpen} onHistory={toggleHistory}
@@ -421,6 +441,9 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
         </Mic.Provider>
       ) : noticeBar /* avant le relevé : le message de l'appli seul */}
       </div>
+      {settings ? <SettingsPage view={settings.view} mics={settings.mics} t={tr} onClose={() => setSettings(null)}
+        onSet={(set, value) => changeSettings({ set, value })} onRun={(run) => changeSettings({ run })}
+        onMic={async (id, label) => { conv.setDevice(id, label); await changeSettings(null); }} /> : null}
       {palette ? <Palette agents={agents?.agents ?? []} view={vibe} scope={palette} t={tr} onPick={paletteMove} onClose={() => setPalette(null)} /> : null}
       <Lightbox src={zoom} onClose={() => setZoom(null)} />
     </div>

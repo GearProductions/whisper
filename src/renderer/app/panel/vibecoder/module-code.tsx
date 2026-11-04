@@ -60,7 +60,7 @@ export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, 
   t: Strings;
   onFollow(id: string | null): void;
   onSave(id: string, text: string): Promise<boolean>;
-  onQuote?(block: string, id: 'comment' | 'fix'): void;
+  onQuote?(block: string): void;
   drafts: StepProps['drafts'];
 }): ReactNode {
   const files = m.files ?? [];
