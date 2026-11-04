@@ -47,15 +47,15 @@
 .vc-q-opt[aria-pressed="true"] {
   border-color: var(--vc-accent);
   background: var(--vc-active-bg);
-  color: var(--vc-ink);
+  color: var(--vc-active);
 }
 .vc-q-opt[aria-pressed="true"]::before { content: "✓ "; }
 .vc-q-alt { border-style: dashed; background: transparent; color: var(--vc-soft); font-size: 12px; }
 .vc-q-opt:not(.vc-q-alt) + .vc-q-alt { margin-left: 6px; }
 
-/* La précision libre : un cadre .vc-prompt (prompt-tools.css) décalé sous le numéro ; la zone suit son texte. */
-.vc-q-free { display: flex; width: calc(100% - 32px); margin: 5px 0 0 32px; padding: 4px 4px 4px 10px; box-sizing: border-box; }
-.vc-q-free textarea { min-height: 24px; max-height: 120px; color: var(--vc-text); font: 12.5px/1.5 var(--vc-sans); resize: none; field-sizing: content; }
+/* La précision libre : un PromptField (prompt-field.css) décalé sous le numéro ; la zone suit son texte. */
+.vc-q-free { margin: 5px 0 0 32px; }
+.vc-q-free textarea { color: var(--vc-text); font: 12.5px/1.5 var(--vc-sans); }
 .vc-q-free textarea::placeholder { color: var(--vc-faint); }
 .vc-q-free .vc-mic, .vc-q-free .vc-send { width: 26px; height: 26px; }
 
