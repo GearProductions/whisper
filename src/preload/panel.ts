@@ -1,16 +1,20 @@
 /** panel — le pont du panneau des conversations (window.conv) : il reçoit la
- *  conversation affichée (ou le contexte « Dictée »), demande l'historique, la
- *  lecture d'une réponse par son rang, et envoie à l'agent affiché ce qu'on
+ *  conversation affichée, demande l'historique, la
+ *  lecture d'une réponse par son rang (et son flux audio : speak, onSpeakChunk,
+ *  onSpeakEnd, cancelSpeak), prend le micro (réglages, enregistrement : le son
+ *  part par transcribe, le texte rendu par whisper revient à la page ; aucun
+ *  canal ne colle ni ne lit un texte donné par la page), et envoie à l'agent affiché ce qu'on
  *  écrit dans son champ (le principal vérifie à qui). Répondre à une demande
- *  d'autorisation ne vaut que pour celle affichée. Copier ne transporte aucun
- *  texte : le principal copie le sien. VibeCoder : le relevé de l'agent
+ *  d'autorisation ne vaut que pour celle affichée. VibeCoder : le relevé de l'agent
  *  affiché, ses actions désignées par leur id, ses fichiers par leur id dans
  *  le relevé, ses courses par l'id de leur action — aucun pont ne transporte
  *  un chemin, sauf vibeDrop : les chemins des File déposés, lus par
  *  webUtils.getPathForFile, jamais donnés par la page (le principal les
  *  revérifie) ; le dossier d'arrivée y est l'id d'un dossier du relevé, une
  *  chaîne ou rien (absent ou inconnu : la racine), jamais un chemin (accord
- *  de l'utilisateur, note 0.13.0-gestion-artefacts). Voir le code : un
+ *  de l'utilisateur, note 0.13.0-gestion-artefacts). Les agents : le
+ *  sélecteur, la palette et les notifications désignent un agent par son id,
+ *  jamais un chemin (accord, note 0.14.0). Voir le code : un
  *  fichier d'un module par son id ; seul texte
  *  envoyé, celui du fichier affiché, à enregistrer (le principal vérifie
  *  qu'il est suivi, dans le relevé, et pas grisé).
@@ -21,28 +25,30 @@ import type { ConvApi } from 'shared/bridge';
 const conv: ConvApi = {
   onThread: (fn) => { ipcRenderer.on('conv:thread', (_e, data) => fn(data)); },
   ready: () => ipcRenderer.send('conv:ready'),
-  speak: (index) => ipcRenderer.send('conv:speak', index),
+  getConfig: () => ipcRenderer.invoke('config:get'),
+  setDevice: (id, label) => ipcRenderer.send('config:setDevice', id, label),
+  setRecording: (on) => ipcRenderer.send('dictation:recording', !!on),
+  transcribe: (pcm) => ipcRenderer.invoke('dictation:transcribe', pcm),
+  speak: (index) => ipcRenderer.invoke('conv:speak', index),   // la réponse de ce rang : le principal lit son résumé
+  cancelSpeak: (id) => ipcRenderer.send('tts:cancel', id),
+  onSpeakChunk: (fn) => { ipcRenderer.on('tts:chunk', (_e, id, pcm, rate) => fn(id, pcm, rate)); },
+  onSpeakEnd: (fn) => { ipcRenderer.on('tts:end', (_e, id, error) => fn(id, error)); },
   history: () => ipcRenderer.invoke('conv:history'),
   // Détail du contexte et commandes de l'agent : { context, commands } ou { error }.
   probe: () => ipcRenderer.invoke('conv:probe'),
   open: (sessionId) => ipcRenderer.send('conv:open', sessionId),
   resume: () => ipcRenderer.send('conv:resume'),
   current: () => ipcRenderer.send('conv:current'),            // ancienne conversation → celle en cours
-  setMode: (mode) => ipcRenderer.send('conv:mode', mode),     // 'compact' (⤡) ou 'full' (⤢)
-  height: (h) => ipcRenderer.send('conv:height', h),          // réduit : la hauteur de son contenu
-  // Message de l'appli, à la place de la bulle.
+  // Message de l'appli, en tête de la fenêtre.
   onNotice: (fn) => { ipcRenderer.on('conv:notice', (_e, notice) => fn(notice)); },
-  // Contexte « Dictée » : copie le dernier texte dicté, connu du principal.
-  copy: () => ipcRenderer.invoke('conv:copy'),
   // Champ de saisie : un message à l'agent affiché, avec ses pièces jointes →
   // { ok, error }. Trombone : menu (fichiers, sélection), le choix revient par
-  // onAttached. La dictée, panneau ouvert, arrive par onDictation.
+  // onAttached. La dictée : la page envoie le son (transcribe) et reçoit ce
+  // que whisper rend, qu'elle insère elle-même.
   send: (draft) => ipcRenderer.invoke('conv:send', draft),
   attach: () => ipcRenderer.send('conv:attach'),
   onAttached: (fn) => { ipcRenderer.on('conv:attached', (_e, what) => fn(what)); },
-  onDictation: (fn) => { ipcRenderer.on('conv:dictation', (_e, text) => fn(text)); },
   onFocusInput: (fn) => { ipcRenderer.on('conv:focusInput', () => fn()); },
-  hide: () => ipcRenderer.send('conv:hide'),                  // la croix du panneau
   pathFor: (file) => webUtils.getPathForFile(file),          // chemin d'un fichier déposé ('' : collé)
   // Demande d'autorisation affichée dans le fil : 'allow', 'always' ou 'deny',
   // pour la demande `key` (celle que l'utilisateur a sous les yeux).
@@ -69,6 +75,12 @@ const conv: ConvApi = {
   // Dépôt sur les artefacts : les chemins lus des File (jamais donnés par la page), l'id du dossier s'il est une chaîne.
   vibeDrop: (files, folder) => ipcRenderer.invoke('conv:vibeDrop', Array.from(files, (f) => webUtils.getPathForFile(f)),
     typeof folder === 'string' ? folder : undefined),
+  // Les agents : l'affiché, les autres et ce qui vient de leur arriver (sélecteur, palette, notifications).
+  onAgents: (fn) => { ipcRenderer.on('agents:state', (_e, st) => fn(st)); },
+  showAgent: (id) => ipcRenderer.send('agent:show', id),       // un agent par son id : jamais un chemin
+  agentMenu: (id) => ipcRenderer.send('agent:menu', id),       // le menu de cet agent, par son id
+  addAgent: () => ipcRenderer.send('agent:add'),               // Nouvel agent… : le menu du principal
+  openSettings: (devices) => ipcRenderer.send('menu:settings', devices), // ⚙ Réglages ; les micros énumérés par la page
 };
 
 contextBridge.exposeInMainWorld('conv', conv);

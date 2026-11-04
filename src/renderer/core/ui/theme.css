@@ -1,0 +1,94 @@
+/* theme — les couleurs, les ombres et les polices de la vue C (maquette « Vibecoder —
+   switch d'agents », artefacts maquettes/vue-c/), en variables pour toute la
+   fenêtre : chaque feuille les lit, aucune couleur en dur ailleurs (sauf la
+   coloration du code, le fond blanc d'un artefact HTML). Polices servies avec
+   la page (fonts/, licence OFL) : rien du réseau (I-7 ; la page autorise
+   font-src 'self').
+   Ne connaît pas : les écrans (leurs feuilles lisent ces variables).
+   Utilisé par : app/panel (main.tsx).
+   Essai : fonds et traits éclaircis d'un demi-cran (la version sombre :
+   artefacts maquettes/theme-sombre.css). */
+
+@font-face {
+  font-family: 'Inter';
+  src: url('./fonts/inter.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('./fonts/jetbrains-mono.woff2') format('woff2');
+  font-weight: 100 800;
+  font-display: swap;
+}
+
+:root {
+  /* Fonds, du plus profond au plus haut. */
+  --vc-deep: #171a20;    /* barre d'état, code */
+  --vc-bg: #1c1f25;      /* la fenêtre, les champs */
+  --vc-editor: #1c1f25;
+  --vc-code: #171a20;
+  --vc-side: #21252c;    /* en-tête, colonne de la conversation */
+  --vc-card: #23272f;    /* cartes, palette, listes */
+  --vc-control: #262b34; /* fond d'un segment, d'un contrôle */
+  --vc-hover: #2c313b;   /* survol d'une ligne, d'un bouton sans cadre */
+  --vc-pop: #2b303a;     /* aperçu d'un agent, menus, confirmations */
+  /* Traits. */
+  --vc-sep-soft: #292c34; /* entre deux lignes d'une liste */
+  --vc-sep: #2f343f;     /* bords des zones et des cartes */
+  --vc-line: #343a47;    /* bords des boutons et des champs */
+  --vc-edge: #3f4654;    /* bords marqués : segment, palette, champ de la conversation */
+  --vc-dim: #515767;     /* l'arbre des worktrees, un trait éteint */
+  /* Texte. */
+  --vc-text: #d7dae0;
+  --vc-soft: #a3a9b5;
+  --vc-muted: #8b919d;
+  --vc-faint: #8b919d;
+  --vc-ink: #111318;     /* sur un aplat clair : initiales d'une pastille, Envoyer */
+  /* L'accent bleu et l'état « choisi » (onglet, portée, bouton principal). */
+  --vc-accent: #7aa2f7;
+  --vc-link: #7aa2f7;
+  --vc-accent-soft: #a9c1fb;
+  --vc-active-bg: #303b59;
+  --vc-active-hover: #394774;
+  --vc-active: #c8d6ff;
+  --vc-active-edge: #5b74b8;
+  --vc-user: #dfe7ff;    /* texte d'un message envoyé */
+  --vc-hi: #242b3e;      /* la ligne « ici », un bandeau d'info */
+  --vc-info-bg: #22293c;
+  --vc-info-edge: #3f4b68;
+  /* États : fait (vert), attente (ambre), erreur (rouge), au repos (gris). */
+  --vc-ok: #4fbf7a;
+  --vc-ok-text: #6fd396;
+  --vc-ok-bg: #223c2d;
+  --vc-ok-edge: #336245;
+  --vc-warn: #e8b36a;
+  --vc-warn-dot: #e0a050;
+  --vc-warn-bg: #443721;
+  --vc-warn-deep: #332a1b;
+  --vc-warn-edge: #74592b;
+  --vc-ko: #ef6b6b;
+  --vc-ko-text: #ef8a8a;
+  --vc-ko-bg: #432427;
+  --vc-ko-edge: #623238;
+  --vc-idle: #6b7280;
+  --vc-violet: #c792ea;  /* une quatrième famille (marque Structure d'une note, modèle Fable) */
+  /* Le micro. */
+  --vc-mic: #ef7ac0;
+  --vc-mic-bg: #32232f;
+  --vc-mic-edge: #623a57;
+  /* Couches. */
+  --vc-backdrop: rgba(8, 9, 12, 0.62);
+  --vc-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  --vc-shadow-pop: 0 16px 40px rgba(0, 0, 0, 0.5);
+  --vc-radius: 6px;
+  --vc-sans: 'Inter', system-ui, sans-serif;
+  --vc-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+body {
+  background: var(--vc-bg);
+  color: var(--vc-text);
+  font-family: var(--vc-sans);
+}
+button, input, select, textarea { font-family: inherit; }

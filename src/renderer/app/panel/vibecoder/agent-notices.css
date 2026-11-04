@@ -1,0 +1,39 @@
+/* Les robots des agents dans l'en-tête (agent-notices) : un groupe sans cadre (34 px) ; chaque robot à la
+   couleur de l'agent éclaircie (65 % avec du blanc), 20 px (16 px pour un worktree ou une PR), qui
+   clignote au travail ; sa pastille en haut à droite (ancienne icône, F-55) : « ? » ambre (attend), point
+   vert (a fini), « ! » rouge (a échoué). L'agent affiché : une pastille allumée (--vc-active-bg et son
+   bord), le robot et son nom. Puis + (Nouvel agent). */
+.vc-agents { flex: none; display: flex; align-items: center; gap: 2px; height: 34px; }
+.vc-agent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  min-width: 30px;
+  padding: 0 5px;
+  border: 1px solid transparent;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--vc-text);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.vc-agent:hover { background: var(--vc-hover); }
+.vc-agent[aria-pressed="true"] { padding: 0 12px 0 6px; border-color: var(--vc-active-edge); background: var(--vc-active-bg); }
+.vc-agent-robot { position: relative; display: flex; color: color-mix(in srgb, var(--vc-agent, var(--vc-idle)) 65%, #fff); }
+.vc-agent .vc-robot { width: 20px; height: 20px; }
+.vc-agent[data-child] .vc-robot { width: 16px; height: 16px; }
+.vc-agent[data-activity="working"] .vc-agent-robot { animation: vc-agent-blink 0.8s ease-in-out infinite alternate; }
+.vc-agent-name { max-width: 220px; overflow: hidden; color: var(--vc-active); font-size: 14px; font-weight: 700; text-overflow: ellipsis; }
+.vc-agent-title { flex: none; padding: 1px 5px; border: 1px solid var(--vc-active-edge); border-radius: 4px; color: var(--vc-active); font-size: 11px; }
+/* La pastille d'état (jamais sur l'agent affiché : elle n'est pas rendue). */
+.vc-agent-badge { display: none; position: absolute; top: -4px; right: -5px; min-width: 10px; height: 10px; padding: 0 1px; box-sizing: border-box; border: 1.5px solid var(--vc-side); border-radius: 7px; color: var(--vc-ink); font: 800 9px/11px var(--vc-sans); text-align: center; }
+.vc-agent[data-activity="done"] .vc-agent-badge { display: block; background: var(--vc-ok); }
+.vc-agent[data-activity="asking"] .vc-agent-badge { display: block; min-width: 14px; height: 14px; background: var(--vc-warn-dot); }
+.vc-agent[data-activity="asking"] .vc-agent-badge::after { content: "?"; }
+.vc-agent[data-activity="paused"] .vc-agent-badge { display: block; min-width: 14px; height: 14px; background: var(--vc-ko); }
+.vc-agent[data-activity="paused"] .vc-agent-badge::after { content: "!"; }
+@keyframes vc-agent-blink { to { opacity: 0.55; } }
+.vc-agent-add { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin-left: 4px; padding: 0; border: 1px solid var(--vc-line); border-radius: 50%; background: transparent; color: var(--vc-soft); font: 16px/1 var(--vc-sans); cursor: pointer; }
+.vc-agent-add:hover { border-color: var(--vc-edge); background: var(--vc-hover); color: var(--vc-text); }

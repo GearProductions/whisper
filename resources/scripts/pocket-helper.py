@@ -7,7 +7,6 @@ fil de la génération.
 Commandes sur stdin, une ligne JSON chacune :
   {"id": 1, "text": "…", "model": "french_24l", "voice": "estelle"}
   {"cancel": 1}
-  {"warm": "french_24l", "voice": "estelle"}   charger d'avance, sans réponse
 Réponses sur stdout, une ligne JSON d'en-tête, suivie d'octets s'il y en a :
   {"id": 1, "rate": 24000, "bytes": N}   puis N octets PCM 16 bits mono
   {"id": 1, "done": true}  ou  {"id": 1, "error": "…"}
@@ -51,8 +50,6 @@ def read_commands():
             stop = stops.get(cmd["cancel"])
             if stop:
                 stop.set()
-        elif "warm" in cmd:
-            jobs.put(cmd)
         elif "id" in cmd:
             stops[cmd["id"]] = threading.Event()
             jobs.put(cmd)
@@ -76,12 +73,6 @@ def load(name, voice):
 
 
 while (cmd := jobs.get()) is not None:
-    if "warm" in cmd:
-        try:
-            load(cmd["warm"], cmd["voice"])
-        except Exception as err:  # noqa: BLE001 — la vraie lecture dira l'erreur
-            print(f"préchargement : {err}", file=sys.stderr)
-        continue
     job, stop = cmd["id"], stops[cmd["id"]]
     try:
         if not stop.is_set():

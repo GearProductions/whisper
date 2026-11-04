@@ -8,15 +8,15 @@
  *  Un processus Python permanent (pocket-helper.py, lancé avec le Python de
  *  cette installation) garde modèles et voix en mémoire et renvoie l'audio par
  *  morceaux au fil de la génération : la lecture commence ~0,1 s après le clic.
- *  Il démarre au survol du bouton (warmUp : chargement ~3 s, ~1,5 Go par
- *  langue) et s'arrête après IDLE_MS sans lecture, pour rendre la mémoire.
+ *  Il démarre à la première lecture (chargement ~3 s, ~1,5 Go par langue) et
+ *  s'arrête après IDLE_MS sans lecture, pour rendre la mémoire.
  *
  *  Un modèle par langue, la voix au choix parmi quelques-unes : celles que
  *  Kyutai fournit toutes prêtes (le clonage à partir d'un enregistrement
  *  demande des poids à accès restreint). Le texte entier est lu dans une seule
  *  langue, détectée (cf. helpers/lang) ou imposée : une voix française dit très
  *  bien les termes techniques anglais.
- *  Ne connaît pas : la sélection, le bouton. Utilisé par : app/controllers/speech,
+ *  Ne connaît pas : la sélection, les fenêtres. Utilisé par : app/controllers/speech,
  *  app/menus. */
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
@@ -249,16 +249,4 @@ export function speak(text: unknown, { lang = 'auto', voices }: SpeakOptions, on
 
 export function cancel(id: unknown) {
   send({ cancel: id });
-}
-
-// Charge d'avance le modèle et la voix qui liront `text`, pour que le clic qui
-// suit n'attende pas.
-export function warmUp(text: unknown, { lang = 'auto', voices }: SpeakOptions = {}) {
-  const python = findPython();
-  if (!python) return;
-  const l = langOf(lang, cleanText(text));
-  clearTimeout(idleTimer);
-  if (!helper) helper = startHelper(python);
-  if (!helper.jobs.size) idleTimer = setTimeout(stop, IDLE_MS);
-  send({ warm: LANGS[l].model, voice: pickVoice(l, voices).id });
 }

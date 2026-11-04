@@ -1,31 +1,30 @@
 /** conversation — ce que montre le panneau : la conversation de l'agent
- *  affiché (son fil, sa demande d'autorisation, sa jauge), ou le contexte
- *  « Dictée » ; et ce qu'il demande (envoyer, joindre, répondre, écouter,
- *  sonder, l'historique, reprendre, copier, ouvrir un lien, montrer un
- *  fichier). Ce qui est copié est le dernier texte dicté, jamais un texte de la
- *  page (I-3) ; une ancienne conversation se lit, ne reçoit rien, et seules
- *  celles du dossier s'ouvrent (I-22).
+ *  affiché (son fil, sa demande d'autorisation, sa jauge) ; et ce qu'il
+ *  demande (envoyer, joindre, répondre, sonder, l'historique, reprendre,
+ *  ouvrir un lien, montrer un fichier). Une ancienne conversation se lit, ne
+ *  reçoit rien, et seules celles du dossier s'ouvrent (I-22). L'historique
+ *  (history, openSession, currentSession, resumeSession) ne quitte pas VibeCoder : l'agent affiché y reste
+ *  (controllers/agents.viewAgent) et son relevé continue de venir, l'envoi, les
+ *  autorisations et les tâches restant ceux de la session en cours (liveViewAgent).
  *  Les tâches de fond de la conversation en cours, avec la fin de leur sortie,
  *  suivies au rythme du fil tant qu'une tourne et que le panneau est visible.
  *  Chaque conversation envoyée relance le relevé de VibeCoder (controllers/vibecoder).
+ *  L'agent affiché retiré : le premier qui reste prend sa place, sinon c'est l'accueil.
  *  Ne connaît pas : la fenêtre elle-même (windows/panel-window).
  *  Utilisé par : app/ipc, controllers/agents. */
 import fs from 'node:fs';
 import { shell } from 'electron';
-import type { ConvMode } from 'shared/bridge';
 import { permissionView, prepareDraft, relativeTo, splitComposed, taskViews, toolSummary, withSent } from 'core/conversation';
-import { agentColor } from 'core/config';
+import { agentColor, agentList } from 'core/config';
 import { showableFile, webUrl } from 'core/guards';
 import { tail } from 'helpers';
 import { prepareImage, thumbnail } from 'technicals/images';
-import * as clipboard from 'technicals/clipboard';
 import { loadConfig, updateAgent } from 'app/settings';
 import { state } from 'app/state';
-import { conversationShown, deliverPending, hideConversation, openConversation, sendToIcon } from 'app/windows';
+import { conversationShown, deliverPending, openConversation } from 'app/windows';
 import { agents, CLAUDE_MISSING, isBusy, launchOptions, liveViewAgent, pushAgents, sendToAgent, sessions, viewAgent } from './agents';
 import { refreshVibe } from './vibecoder';
 
-const DICTATION_COLOR = '#3b6fe0';
 const CONV_PROGRESS_MS = 800;
 let progressTimer: ReturnType<typeof setTimeout> | null = null;
 const TAIL_BYTES = 16384;
@@ -44,26 +43,19 @@ function readTail(file: string) {
   } catch { return null; }
 }
 
-// Le contexte « Dictée » : le dernier texte dicté, sans champ ni historique.
-function showDictation() {
-  state.convThread = [];
-  state.panel!.webContents.send('conv:thread', {
-    dictation: true, mode: 'compact', key: 'dictation', live: false, name: 'Dictée', title: 'Dictée',
-    color: DICTATION_COLOR, status: 'idle',
-    messages: state.dictation ? [{ role: 'user', text: state.dictation.text, time: state.dictation.time }] : [],
-  });
-  deliverPending();
-}
-
 // Relit la conversation affichée et l'envoie au panneau (à son ouverture, puis
 // à chaque changement d'état d'un agent).
 export async function refreshConversation() {
   if (!state.panel || !state.convView) return;
   const seq = ++state.convSeq;
-  if (!state.convView.agentId) { showDictation(); return; }
   const cfg = loadConfig();
   const agent = viewAgent(cfg);
-  if (!agent) { hideConversation(); return; } // agent retiré
+  if (!agent) { // agent retiré : le premier qui reste, sinon l'accueil
+    const next = agentList(cfg)[0];
+    if (next) openConversation(next.id);
+    else { state.convView = null; state.convThread = []; pushAgents(); }
+    return;
+  }
   const view = { ...state.convView };
   const sid = view.sessionId || agent.sessionId;
   const st = agents.state(agent.id);
@@ -90,7 +82,7 @@ export async function refreshConversation() {
   const tasks = view.sessionId ? undefined : taskViews(agents.tasks(agent.id), agent.dir, readTail);
   state.panel.webContents.send('conv:thread', {
     context: { used: Number.isFinite(contextUsed) ? contextUsed : null, max: st.contextWindow || agent.contextWindow || 200000 },
-    mode: state.convMode, key: view.sessionId ? `${agent.id}:${view.sessionId}` : agent.id, live: !view.sessionId,
+    key: view.sessionId ? `${agent.id}:${view.sessionId}` : agent.id, live: !view.sessionId,
     name: agent.name, color: agentColor(agent, cfg), dir: agent.dir, title, status: st.status, since: st.since,
     // La demande d'autorisation de l'agent, à valider dans le fil.
     permission: pending ? permissionView(agent.name, pending) : null,
@@ -120,29 +112,15 @@ export function conversationProgress() {
 /* ---- Ce que demande le panneau ------------------------------------------- */
 
 // La page est prête : sa conversation (et, un agent en VibeCoder, son premier
-// relevé : un clic n'arrive jamais avant lui), puis ce qui l'attendait (dictée,
-// focus du champ), puis le message. Ce qui attend n'est remis qu'avec une
-// conversation envoyée (refreshConversation) : devancé par un rafraîchissement
-// plus récent, celui-ci n'envoie rien, et la dictée arriverait avant le fil.
+// relevé : un clic n'arrive jamais avant lui), puis ce qui l'attendait (le
+// focus du champ). Ce qui attend n'est remis qu'avec une conversation envoyée
+// (refreshConversation) : devancé par un rafraîchissement plus récent, celui-ci
+// n'envoie rien, et le focus arriverait avant le fil.
 export async function panelReady() {
   state.convReady = true;
   await refreshConversation();
   await refreshVibe({ now: true });   // l'agent en VibeCoder : prêt quand son premier relevé est là
   if (state.convNotice) state.panel!.webContents.send('conv:notice', state.convNotice);
-}
-
-// ⤢ / ⤡ : agrandi (tout le fil) ou réduit (le dernier échange). Réduire une
-// ancienne conversation ramène à celle en cours.
-export function setPanelMode(mode: unknown) {
-  if (!state.convView || (mode !== 'compact' && mode !== 'full')) return;
-  openConversation(state.convView.agentId, { sessionId: mode === 'full' ? state.convView.sessionId : null, mode: mode as ConvMode });
-}
-
-// Copier du contexte « Dictée » : le dernier texte dicté, connu du principal.
-export function copyDictation() {
-  if (!state.dictation) return false;
-  clipboard.writeText(state.dictation.text);
-  return true;
 }
 
 // Un lien d'un message s'ouvre dans le navigateur — et seulement une adresse web.
@@ -174,14 +152,6 @@ export function answerPermission(decision: unknown, key: unknown) {
   if (!agent || (decision !== 'allow' && decision !== 'always' && decision !== 'deny') || !Number.isInteger(key)) return;
   agents.answer(agent.id, decision, key as number);
   pushAgents();
-}
-
-// Écouter une réponse : son résumé audio, par le lecteur de l'icône.
-export function speakReply(index: unknown) {
-  const entry = typeof index === 'number' ? state.convThread[index] : undefined;
-  if (!state.icon || !entry || !('audio' in entry) || !entry.audio) return;
-  state.convSpeech = entry.audio;
-  sendToIcon('tts:speakReply');
 }
 
 // La jauge du contexte, cliquée (ou « / » tapé dans le champ) : le détail du
@@ -218,13 +188,13 @@ export async function history() {
 export async function openSession(sessionId: unknown) {
   const agent = viewAgent();
   if (!agent || typeof sessionId !== 'string' || !(await sessions.sessions(agent)).some((s) => s.sessionId === sessionId)) return;
-  openConversation(agent.id, { sessionId, mode: 'full' });
+  openConversation(agent.id, { sessionId });
 }
 
 // Ancienne conversation affichée : revenir à la conversation en cours…
 export function currentSession() {
   const agent = viewAgent();
-  if (agent) openConversation(agent.id, { mode: 'full' });
+  if (agent) openConversation(agent.id);
 }
 
 // … ou la reprendre : elle redevient la session en cours de l'agent (la
@@ -235,5 +205,5 @@ export function resumeSession() {
   updateAgent(agent.id, { sessionId: state.convView!.sessionId });
   agents.forgetReply(agent.id); // sa « dernière réponse » était celle de l'autre session
   agents.close(agent.id); // son processus portait l'autre session : le prochain message en relance un
-  openConversation(agent.id, { mode: 'full' });
+  openConversation(agent.id);
 }

@@ -2,7 +2,6 @@
 # Processus PERMANENT piloté par windows.js : démarrer PowerShell et compiler
 # les types ci-dessous coûte ~1 s, qu'on ne veut pas payer à chaque action.
 # Une commande par ligne sur stdin, une ligne de réponse sur stdout :
-#   paste            Ctrl+V dans l'application au premier plan   -> ok
 #   copy             Ctrl+C (lire la sélection)                  -> ok
 #   discord-mute     coupe les flux de capture de Discord        -> nombre coupé et confirmé
 #   discord-restore  rétablit ceux qu'on a coupés                -> ok
@@ -29,7 +28,6 @@ public static class WhisperKeys {
     keybd_event(key, 0, KEYUP, UIntPtr.Zero);
     keybd_event(CTRL, 0, KEYUP, UIntPtr.Zero);
   }
-  public static void Paste() { CtrlPlus(0x56); }  // V
   public static void Copy() { CtrlPlus(0x43); }   // C
 }
 
@@ -191,7 +189,6 @@ while ($true) {
     $parts = $line.Trim() -split '\s+', 2
     $arg = if ($parts.Count -gt 1) { $parts[1] } else { '' }
     switch ($parts[0]) {
-      'paste'           { [WhisperKeys]::Paste(); Reply 'ok' }
       'copy'            { [WhisperKeys]::Copy(); Reply 'ok' }
       'discord-mute'    { Reply ([WhisperAudio]::MuteDiscord()) }
       'discord-restore' { [WhisperAudio]::Restore('discord'); Reply 'ok' }

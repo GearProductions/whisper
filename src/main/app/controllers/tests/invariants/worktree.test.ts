@@ -332,10 +332,8 @@ describe('le robot d’une PR dans un worktree', () => {
   });
 
   it('une page ne donne jamais le dossier : un chemin dans un réglage ou dans les arguments d’une action est ignoré', async () => {
-    const { state } = await import('app/state');
     const { openConversation } = await import('app/windows');
     const { panelReady, runVibeAction, setVibe, syncWorktrees } = await import('app/controllers');
-    state.icon = new fake.Win() as never;
     openConversation('a1');
     const panel = fake.windows.at(-1)!;
     panel.emit('ready-to-show');

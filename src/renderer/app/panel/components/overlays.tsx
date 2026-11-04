@@ -1,17 +1,20 @@
 /** overlays — ce qui se pose sur le fil : l'historique du dossier, le détail
  *  du contexte (et Compacter), l'image en grand.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : panel-app. */
-import { useState, type CSSProperties, type RefObject } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { kTokens, when } from 'helpers';
 import type { ProbeResult, SendResult, Session } from 'technicals/bridge';
 
 const Hint = ({ text }: { text: string }) => <div className="hint">{text}</div>;
 
-type HistoryProps = { open: boolean; sessions: Session[] | null; onOpen(sessionId: string): void };
+// inline : dans le flux (la colonne de VibeCoder), pas posé en panneau sur le fil.
+type HistoryProps = { open: boolean; inline?: boolean; sessions: Session[] | null; onOpen(sessionId: string): void };
 
-export function HistoryList({ open, sessions, onOpen }: HistoryProps) {
+const IN_FLOW = { position: 'static', width: 'auto', padding: 0, border: 0, boxShadow: 'none', background: 'none' } as const;
+
+export function HistoryList({ open, inline, sessions, onOpen }: HistoryProps) {
   return (
-    <aside id="history" className="scroll" hidden={!open}>
+    <aside id="history" className="scroll" hidden={!open} style={inline ? IN_FLOW : undefined}>
       {!sessions ? <Hint text="Chargement…" />
         : !sessions.length ? <Hint text="Aucune conversation dans ce dossier." />
           : sessions.map((s) => (
@@ -29,13 +32,12 @@ type ContextProps = {
   probe: ProbeResult | null;   // null : mesure en cours
   canCompact: boolean;          // agent inactif, conversation en cours
   onCompact(): Promise<SendResult | null>;
-  ref: RefObject<HTMLElement | null>;
 };
 
 // Le détail : par catégorie (instructions, outils, mémoire, messages…), et de quoi le réduire.
-export function ContextDetail({ open, probe, canCompact, onCompact, ref }: ContextProps) {
+export function ContextDetail({ open, probe, canCompact, onCompact }: ContextProps) {
   return (
-    <aside id="context-panel" className="scroll" hidden={!open} ref={ref}>
+    <aside id="context-panel" className="scroll" hidden={!open}>
       {!probe ? <Hint text="Mesure du contexte…" />
         : !probe.context ? <Hint text={probe.error || 'Mesure impossible.'} />
           : <Detail probe={probe} canCompact={canCompact} onCompact={onCompact} />}

@@ -10,15 +10,17 @@ function run(rec: Recording, result: TranscribeResult) {
   const phases: [Phase, string | undefined][] = [];
   const transcribe = vi.fn(async () => result);
   const beep = vi.fn();
+  const onText = vi.fn();
   const d = createDictation({
-    api: { getConfig: async () => cfg, setRecording: () => {}, warmUp: async () => true, transcribe },
+    api: { getConfig: async () => cfg, setRecording: () => {}, transcribe },
     openMic: async () => stream(),
     record: () => rec,
     beep,
     stopSpeaking: () => {},
     setPhase: (p, m) => { phases.push([p, m]); },
+    onText,
   });
-  return { d, phases, transcribe, beep };
+  return { d, phases, transcribe, beep, onText };
 }
 const voice = (seconds = 1): Recording => ({ chunks: [new Float32Array(RATE * seconds).fill(0.3)], length: RATE * seconds, peak: 0.3, release: vi.fn() });
 
@@ -44,7 +46,7 @@ describe('dictée', () => {
   });
 
   it('bip aigu au micro ouvert, grave au relâché', async () => {
-    const { d, beep } = run(voice(), { ok: true, text: 'x', pasted: true });
+    const { d, beep } = run(voice(), { ok: true, text: 'x' });
     await d.start();
     expect(beep).toHaveBeenLastCalledWith(cfg, 880);
     await d.stop();
@@ -52,22 +54,19 @@ describe('dictée', () => {
   });
 
   it.each([
-    [{ ok: true, text: 'x', pasted: true }, ['idle', '']],
-    [{ ok: true, text: 'x', pasted: false, autoPaste: false }, ['idle', 'Texte dans le presse-papiers : Ctrl+V pour le coller.']],
-    [{ ok: true, text: 'x', pasted: false, autoPaste: true }, ['idle', 'Collage impossible : le texte est dans le presse-papiers.']],
-    [{ ok: true, text: 'x', agent: 'alpha', panel: true }, ['idle', 'Ajouté au message pour alpha.']],
-    [{ ok: true, text: 'x', agent: 'alpha' }, ['idle', 'Envoyé à alpha.']],
-    [{ ok: true, text: '' }, ['idle', 'Aucune parole détectée.']],
-    [{ ok: false, error: 'La transcription a pris trop de temps.' }, ['error', 'La transcription a pris trop de temps.']],
-  ] as [TranscribeResult, [Phase, string]][])('résultat %j → infobulle', async (result, expected) => {
-    const { d, phases } = run(voice(), result);
+    [{ ok: true, text: 'x' }, ['idle', undefined], ['x']],
+    [{ ok: true, text: '' }, ['idle', 'Aucune parole détectée.'], []],
+    [{ ok: false, error: 'La transcription a pris trop de temps.' }, ['error', 'La transcription a pris trop de temps.'], []],
+  ] as [TranscribeResult, [Phase, string | undefined], string[]][])('résultat %j → infobulle et texte', async (result, expected, texts) => {
+    const { d, phases, onText } = run(voice(), result);
     await d.start();
     await d.stop();
     expect(phases.at(-1)).toEqual(expected);
+    expect(onText.mock.calls.map((c) => c[0])).toEqual(texts);
   });
 
   it('PCM 16 bits envoyé à whisper', async () => {
-    const { d, transcribe } = run(voice(2), { ok: true, text: 'x', pasted: true });
+    const { d, transcribe } = run(voice(2), { ok: true, text: 'x' });
     await d.start();
     await d.stop();
     const buf = (transcribe.mock.calls[0] as unknown as [ArrayBuffer])[0];

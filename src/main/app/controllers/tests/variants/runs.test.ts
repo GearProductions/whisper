@@ -131,7 +131,7 @@ beforeEach(() => {
   out = path.join(fake.userData, 'vibecoder-out', 'a1');
   write(path.join(fake.userData, 'config.json'), JSON.stringify({
     agentsEnabled: true,
-    agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
+    agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null,
       vibe: { flow: 'create', autonomy: 'guide', pr: null } }],
   }));
 });
@@ -141,10 +141,8 @@ beforeEach(() => {
 afterEach(async () => { vi.useRealTimers(); await new Promise((r) => realSetTimeout(r, 1100)); });
 
 async function open() {
-  const { state } = await import('app/state');
   const { openConversation } = await import('app/windows');
   const { panelReady } = await import('app/controllers');
-  state.icon = new fake.Win() as never;
   openConversation('a1');
   fake.windows.at(-1)!.emit('ready-to-show');
   await panelReady();

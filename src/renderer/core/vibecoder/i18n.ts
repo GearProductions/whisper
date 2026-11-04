@@ -14,14 +14,20 @@
  *  entrées du menu, Tout replier, motifs d'un nom refusé, confirmation de
  *  suppression ; fichier tronqué, dossier commun au projet) ; l'avancement d'une course
  *  (vague, modules faits, corrections, relance Opus) ; une durée,
- *  une taille de fichier en clair. Ceux des boutons viennent des
+ *  une taille de fichier en clair ; le sélecteur d'agent (titre, infobulles,
+ *  Chercher, Réglages), la palette (placeholder, portées, groupes, états,
+ *  actions, « tenue par », indications de fin de ligne, aide des touches),
+ *  le groupe des robots des agents, « Étape … · état », + Nouvel agent ;
+ *  le micro et Envoyer d'un champ, l'historique (🕘, Conversation en
+ *  cours) et l'accueil sans agent (son bouton est paletteActions['new-agent']). Ceux des boutons viennent des
  *  actions (actions.<langue>.json).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
-import type { VibeLang, VibeRun, VibeRunProgress, VibeStepId } from 'technicals/bridge';
+import type { AgentActivity, AgentView, VibeLang, VibeRun, VibeRunProgress, VibeStepId } from 'technicals/bridge';
 import type { MenuEntry } from './artifact-clipboard';
 import type { NameProblem } from './artifact-tree';
 
 type Choices = [string, string][]; // [valeur, libellé]
+export type PaletteAction = 'new-agent' | 'create-branch' | 'branches' | 'stash';
 
 // L'avancement d'une course, partie par partie : une partie à 0 ou fausse est absente.
 const progressParts = (p: VibeRunProgress, l: { wave: string; modules: string; fixes: (n: number) => string; opus: string }) => {
@@ -48,10 +54,9 @@ const fr = {
   langTitle: 'Langue de l\'écran et des messages envoyés à l\'agent',
   refresh: 'Relever maintenant (dépôt, note, sorties)',
   reloadUi: 'Recharger l\'interface',
-  reloadUiTitle: 'Les pages ont été reconstruites : recharger les fenêtres avec elles. Le principal et les agents continuent.',
+  reloadUiTitle: 'Les pages ont été reconstruites : recharger la fenêtre avec elles. Le principal et les agents continuent.',
   restartApp: 'Redémarrer',
   restartAppTitle: 'Le principal a été reconstruit : relancer l\'appli (les pages seules ne suffiraient pas). Si des agents travaillent, l\'appli le demande d\'abord.',
-  back: 'Revenir à la conversation',
   close: 'Fermer',
   branch: (branch: string, base: string) => `Branche ${branch}, comparée à ${base}`,
   branchesOpen: 'Ouvrir la vue des branches : PR, branches locales, créer une branche',
@@ -163,6 +168,49 @@ const fr = {
   artifactConfirmNo: 'Annuler',
   artifactTruncated: 'Fichier tronqué : Ouvrir dans l\'éditeur montre la suite.',
   artifactUnreadable: 'Fichier illisible.',
+  // Le sélecteur d'agent, la palette (Ctrl+K), l'historique, l'accueil sans agent.
+  agentTitle: (title: AgentView['title'], pr?: number) => (title === 'pr' ? `PR #${pr}` : title === 'worktree' ? 'worktree' : 'dossier principal'),
+  pickerClick: 'Chercher un agent',
+  pickerMenu: 'Clic droit : le menu de l\'agent',
+  search: 'Chercher',
+  searchKeys: 'Ctrl K',
+  settings: '⚙ Réglages',
+  paletteHint: 'Un agent, une branche, une PR, une action…',
+  paletteScopes: { all: 'Tout', agents: 'Agents', branches: 'Branches', prs: 'PR' },
+  paletteGroups: { branches: 'Branches', prs: 'Pull requests', actions: 'Actions' },
+  activity: {
+    working: 'travaille', asking: 'attend ta réponse', done: 'vient de finir', paused: 'en pause', idle: 'au repos',
+  } as Record<AgentActivity, string>,
+  paletteActions: {
+    'new-agent': { label: 'Nouvel agent…', keys: 'Ctrl+N' },
+    'create-branch': { label: 'Créer une branche…', keys: '' },
+    branches: { label: 'Gérer les branches et les PR…', keys: 'Ctrl+Maj+B' },
+    stash: { label: 'Mettre de côté les changements', keys: '' },
+  } as Record<PaletteAction, { label: string; keys: string }>,
+  heldBy: (agent: string) => `tenue par ${agent}`,
+  // Les indications au bout d'une ligne de la palette (vue C).
+  paletteHere: 'actuel',
+  branchHere: 'branche actuelle',
+  branchHeld: 'ouverte dans un worktree → aller à l\'agent',
+  branchFree: 'Entrée : basculer ici · ⇧ Entrée : vue des branches',
+  prHeld: 'ouverte dans un agent → aller',
+  // L'aide des touches au pied de la palette : [touche, ce qu'elle fait] ; la dernière, à droite.
+  paletteKeys: [['Entrée', 'aller / basculer ici'], ['⇧ Entrée', 'branche libre : vue des branches'], ['Tab', 'portée suivante'], ['Échap', 'fermer']] as [string, string][],
+  noResult: 'Aucun résultat',
+  // Les robots des agents dans l'en-tête (agent-notices), + Nouvel agent.
+  agentsLabel: 'Agents',
+  addAgent: 'Nouvel agent (Ctrl+N)',
+  // Le micro et Envoyer d'un champ (prompt-tools) : maintenu, on dicte dans ce champ.
+  micHold: 'Dicter (maintenir appuyé)',
+  micRecording: 'Enregistre…',
+  micTranscribing: 'Transcrit…',
+  sendField: 'Envoyer',
+  // « Étape … · état » d'un agent (palette).
+  agentStatus: (step: string | null, activity: string) => (step ? `Étape ${step} · ${activity}` : activity),
+  history: 'Historique des conversations',
+  historyBack: '← Conversation en cours',
+  welcomeTitle: 'Aucun agent',
+  welcomeText: 'Crée un agent pour commencer à travailler sur un dépôt.',
 };
 
 export type Strings = typeof fr;
@@ -181,10 +229,9 @@ const en: Strings = {
   langTitle: 'Language of the screen and of the messages sent to the agent',
   refresh: 'Refresh now (repository, note, outputs)',
   reloadUi: 'Reload the interface',
-  reloadUiTitle: 'The pages were rebuilt: reload the windows with them. The main process and the agents keep going.',
+  reloadUiTitle: 'The pages were rebuilt: reload the window with them. The main process and the agents keep going.',
   restartApp: 'Restart',
   restartAppTitle: 'The main process was rebuilt: relaunch the app (the pages alone would not do). If agents are working, the app asks first.',
-  back: 'Back to the conversation',
   close: 'Close',
   branch: (branch, base) => `Branch ${branch}, compared with ${base}`,
   branchesOpen: 'Open the branch view: PRs, local branches, create a branch',
@@ -296,6 +343,43 @@ const en: Strings = {
   artifactConfirmNo: 'Cancel',
   artifactTruncated: 'File truncated: Open in the editor shows the rest.',
   artifactUnreadable: 'Unreadable file.',
+  agentTitle: (title, pr) => (title === 'pr' ? `PR #${pr}` : title === 'worktree' ? 'worktree' : 'main folder'),
+  pickerClick: 'Find an agent',
+  pickerMenu: 'Right-click: the agent menu',
+  search: 'Search',
+  searchKeys: 'Ctrl K',
+  settings: '⚙ Settings',
+  paletteHint: 'An agent, a branch, a PR, an action…',
+  paletteScopes: { all: 'All', agents: 'Agents', branches: 'Branches', prs: 'PRs' },
+  paletteGroups: { branches: 'Branches', prs: 'Pull requests', actions: 'Actions' },
+  activity: {
+    working: 'working', asking: 'waiting for your answer', done: 'just finished', paused: 'paused', idle: 'idle',
+  },
+  paletteActions: {
+    'new-agent': { label: 'New agent…', keys: 'Ctrl+N' },
+    'create-branch': { label: 'Create a branch…', keys: '' },
+    branches: { label: 'Manage branches and PRs…', keys: 'Ctrl+Shift+B' },
+    stash: { label: 'Stash the changes', keys: '' },
+  },
+  heldBy: (agent) => `held by ${agent}`,
+  paletteHere: 'current',
+  branchHere: 'current branch',
+  branchHeld: 'open in a worktree → go to the agent',
+  branchFree: 'Enter: switch here · ⇧ Enter: branches view',
+  prHeld: 'open in an agent → go',
+  paletteKeys: [['Enter', 'go / switch here'], ['⇧ Enter', 'free branch: branches view'], ['Tab', 'next scope'], ['Esc', 'close']],
+  noResult: 'No result',
+  agentsLabel: 'Agents',
+  addAgent: 'New agent (Ctrl+N)',
+  micHold: 'Dictate (hold)',
+  micRecording: 'Recording…',
+  micTranscribing: 'Transcribing…',
+  sendField: 'Send',
+  agentStatus: (step, activity) => (step ? `Step ${step} · ${activity}` : activity),
+  history: 'Conversation history',
+  historyBack: '← Current conversation',
+  welcomeTitle: 'No agent',
+  welcomeText: 'Create an agent to start working on a repository.',
 };
 
 const STRINGS: Record<VibeLang, Strings> = { fr, en };

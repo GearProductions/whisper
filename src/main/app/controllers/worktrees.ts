@@ -105,7 +105,7 @@ export function showWorktree(agent: AgentConfig) {
   const { pr } = agentVibe(agent);
   if (!pr) return;
   const robot = robotOf(agentList(loadConfig()), agent.id, pr);
-  if (robot) { openConversation(robot.id, { mode: 'full' }); return; }
+  if (robot) { openConversation(robot.id); return; }
   if (readCard(agent.id, pr)) { wantWorktree(agent.id, pr); syncWorktrees(); }
 }
 
@@ -155,7 +155,7 @@ async function removeChild(child: AgentConfig, parent: AgentConfig | null) {
   delete store.drafts[child.id];
   delete store.marks[child.id];
   saveVibeStore(store);
-  if (parent && state.convView?.agentId === child.id) openConversation(parent.id, { mode: 'full' });
+  if (parent && state.convView?.agentId === child.id) openConversation(parent.id);
   removeAgent(child.id);   // d'abord : l'agent est parti de la config
   saveConfig({ agentFolders: ensureFolderColors().filter((f) => f.dir !== child.dir) });
   await eraseOutputs(child.id);

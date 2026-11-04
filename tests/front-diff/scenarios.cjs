@@ -1,8 +1,11 @@
-/* Scénarios du banc de comparaison (cf. main.cjs) : une page, une taille de
-   fenêtre, des étapes. Étapes : emit (message du principal), click, menu (clic
-   droit), type (saisie dans un champ), range, key, mouse (vraie souris),
-   wait, eval (valeur relevée), shot (capture). Les réponses aux appels
-   `invoke` viennent de `answers`, sinon de DEFAULT_ANSWERS. */
+/* Scénarios du banc de comparaison (cf. main.cjs) : la page de l'appli (la
+   fenêtre de VibeCoder), une taille de fenêtre, des étapes. Chacun commence par
+   `open` : les agents (agents:state), le relevé de l'agent affiché (conv:vibe)
+   et son fil (conv:thread) — sans relevé, l'écran attend. Étapes : emit
+   (message du principal), click, menu (clic droit), type (saisie dans un
+   champ), key, pointer (appui, relâché), mouse (vraie souris), wait, eval
+   (valeur relevée), shot (capture). Les réponses aux appels `invoke` viennent
+   de `answers`, sinon de DEFAULT_ANSWERS. */
 
 const T0 = Date.parse('2026-09-30T09:30:00');
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==';
@@ -13,7 +16,7 @@ const user = (text, extra = {}) => ({ role: 'user', kind: null, text, context: '
 const reply = (text, extra = {}) => ({ role: 'assistant', kind: null, text, context: '', files: [], images: [], time: T0 + 60000, tools: [], audio: true, ...extra });
 
 const thread = (over = {}) => ({
-  mode: 'compact', key: 'a1', live: true, name: 'alpha', color: '#22c55e', dir: '/home/u/projet', title: 'Refonte du panneau',
+  key: 'a1', live: true, name: 'alpha', color: '#22c55e', dir: '/home/u/projet', title: 'Refonte du panneau',
   status: 'idle', since: null, context: { used: 120000, max: 200000 }, permission: null,
   messages: [
     user('Ancienne question', { time: T0 - 3600000 }),
@@ -25,9 +28,6 @@ const thread = (over = {}) => ({
   ],
   ...over,
 });
-const dictation = (messages = []) => ({
-  dictation: true, mode: 'compact', key: 'dictation', live: false, name: 'Dictée', title: 'Dictée', color: '#3b6fe0', status: 'idle', messages,
-});
 const PERMISSION = { key: 3, title: 'alpha demande l\'autorisation (1 autre en attente)', text: 'Exécuter la commande :\nnpm test -- --run\n/home/u/projet/script.sh', always: ['Bash(npm test:*)'] };
 const CONTEXT = {
   total: 170000, max: 200000, percentage: 85, model: 'claude-opus-5-5',
@@ -37,134 +37,105 @@ const CONTEXT = {
 };
 const COMMANDS = [{ name: 'compact', description: 'Résumer la conversation', argumentHint: '[consigne]' },
   { name: 'context', description: 'Contexte utilisé' }, { name: 'recompile', description: 'x' }];
-const AGENTS = { enabled: true, agents: [
-  { id: 'a1', name: 'alpha', color: '#22c55e', selected: true, status: 'working', unread: false, badge: null, children: [] },
-  { id: 'a2', name: 'beta', color: '#3b82f6', selected: false, status: 'idle', unread: true, badge: null, children: [] },
-  { id: 'a3', name: 'gamma', color: '#ec4899', selected: false, status: 'asking', unread: false, badge: null, children: [] },
+// Les agents de l'en-tête (AgentView) : alpha affiché, beta qui a fini, gamma qui attend.
+const agent = (id, name, color, activity, over = {}) => ({
+  id, name, color, repo: 'projet', title: 'main', branch: 'feat/essai', step: 'note', activity, detail: null, parent: null, ...over,
+});
+const AGENTS = { shown: 'a1', agents: [
+  agent('a1', 'alpha', '#22c55e', 'working'),
+  agent('a2', 'beta', '#3b82f6', 'done'),
+  agent('a3', 'gamma', '#ec4899', 'asking', { detail: 'Quelle base ?' }),
 ] };
-const TTS = { mode: 'selection', volume: 1, ready: true, hasText: true };
+// Le relevé le plus court qui montre l'écran (pas de dépôt : le bandeau le dit).
+const vibe = (agentId = 'a1') => ({
+  agentId, lang: 'fr', flow: 'create', agent: { model: '', effort: '', mode: 'default' }, repo: null, error: 'Pas un dépôt git.',
+  steps: [], note: null, questions: [], modules: [], invariants: [], variants: [], commits: [], outputs: {}, checklist: [],
+  actions: [], skills: [], pr: null, prs: null, draft: [], runs: [], processes: [], artifacts: [], artifactDirs: [], files: [], time: T0,
+});
+// Ouvrir l'écran sur un agent : la liste des agents, son relevé, son fil.
+const open = (t = thread(), agentId = 'a1') => [
+  ['emit', 'agents:state', { ...AGENTS, shown: agentId }], ['emit', 'conv:vibe', vibe(agentId)], ['emit', 'conv:thread', t],
+];
 const value = (sel) => `document.querySelector(${JSON.stringify(sel)}).value`;
 
-const COMPACT = [560, 420];
-const FULL = [720, 700];
-const ICON = { page: 'icon', size: [244, 64], query: { size: '64' } };
+const SIZE = [1280, 820]; // la fenêtre par défaut (vibeSize)
 
 module.exports = [
-  /* ---- Panneau --------------------------------------------------------------- */
-  { name: 'panneau-dictee-vide', page: 'panel', size: COMPACT, steps: [['emit', 'conv:thread', dictation()], ['shot', 'vide']] },
-  { name: 'panneau-dictee-copier', page: 'panel', size: COMPACT, steps: [
-    ['emit', 'conv:thread', dictation([user('Bonjour, voici le texte dicté.')])], ['shot', 'texte'],
-    ['click', '.copy'], ['shot', 'copie'],
-    ['emit', 'conv:thread', dictation([user('Une autre dictée.', { time: T0 + 5000 })])], ['shot', 'nouvelle'],
-  ] },
-  { name: 'panneau-reduit', page: 'panel', size: COMPACT, steps: [
-    ['emit', 'conv:thread', thread()], ['shot', 'reduit'],
+  { name: 'fil', steps: [
+    ...open(), ['shot', 'fil'],
     ['click', '.message.assistant .listen'], ['click', '.file'], ['click', '.message.user .body a'], ['click', '.message.assistant .body a'],
     ['click', '.attachments img'], ['shot', 'image'], ['key', 'body', 'Escape'], ['shot', 'sans-image'],
-    ['click', '#mode'], ['click', '#hide'],
   ] },
-  { name: 'panneau-agrandi-historique', page: 'panel', size: FULL,
+  { name: 'historique',
     answers: { 'conv:history': [{ sessionId: 's1', title: 'Session une', lastModified: T0, current: true }, { sessionId: 's2', title: '', lastModified: T0 - 86400000, current: false }] },
     steps: [
-      ['emit', 'conv:thread', thread({ mode: 'full', messages: [...thread().messages, { role: 'system', kind: 'output', text: 'sortie\nde commande', time: T0 + 70000 }, { role: 'system', kind: 'compact', text: 'Résumé long', time: T0 + 80000 }] })],
-      ['shot', 'agrandi'], ['click', '.tools details summary'], ['shot', 'actions'],
-      ['click', '#history-button'], ['wait', 100], ['shot', 'historique'], ['click', '.session:not(.current)'],
-      ['click', '#history-button'], ['wait', 100], ['key', 'body', 'Escape'], ['shot', 'echap'],
+      ...open(thread({ messages: [...thread().messages, { role: 'system', kind: 'output', text: 'sortie\nde commande', time: T0 + 70000 }, { role: 'system', kind: 'compact', text: 'Résumé long', time: T0 + 80000 }] })),
+      ['shot', 'fil'], ['click', '.tools details summary'], ['shot', 'actions'],
+      ['click', '.vc-history'], ['wait', 100], ['shot', 'historique'], ['click', '.session:not(.current)'],
     ] },
-  { name: 'panneau-ancienne-conversation', page: 'panel', size: FULL, steps: [
-    ['emit', 'conv:thread', thread({ mode: 'full', key: 'a1:s2', live: false, title: '' })], ['shot', 'archive'],
+  { name: 'ancienne-conversation', steps: [
+    ...open(thread({ key: 'a1:s2', live: false, title: '' })), ['shot', 'archive'],
     ['click', '#current'], ['click', '#resume'],
-    ['emit', 'conv:thread', thread({ mode: 'full', key: 'a1:s2', live: false, status: 'working' })], ['shot', 'archive-occupe'],
+    ['emit', 'conv:thread', thread({ key: 'a1:s2', live: false, status: 'working' })], ['shot', 'archive-occupe'],
   ] },
-  { name: 'panneau-autorisation', page: 'panel', size: COMPACT, steps: [
-    ['emit', 'conv:thread', thread({ status: 'asking', permission: PERMISSION })],
+  { name: 'autorisation', steps: [
+    ...open(thread({ status: 'asking', permission: PERMISSION })),
     ['click', '.permission [data-act="allow"]'], ['shot', 'demande'], ['wait', 700],
     ['click', '.permission [data-act="always"]'], ['shot', 'repondu'],
     ['emit', 'conv:thread', thread({ status: 'asking', permission: { ...PERMISSION, key: 4, always: [] } })], ['shot', 'suivante'],
     ['click', '.permission [data-act="deny"]'], ['wait', 700], ['click', '.permission [data-act="deny"]'],
   ] },
-  { name: 'panneau-au-travail', page: 'panel', size: COMPACT, steps: [
-    ['emit', 'conv:thread', thread({ status: 'working' })], ['shot', 'travaille'],
+  { name: 'au-travail', steps: [
+    ...open(thread({ status: 'working' })), ['shot', 'travaille'],
     ['type', '#message', 'en attendant'], ['key', '#message', 'Enter'], ['eval', value('#message')], ['shot', 'champ'],
   ] },
-  // Écart voulu : en réduit, le panneau grandit pour montrer l'erreur d'envoi
-  // (en 0.4.0, la ligne d'erreur restait hors du panneau).
-  { name: 'panneau-envoi', page: 'panel', size: COMPACT, newOnly: [['conv:height', 637]], answers: { 'conv:send': (d) => (d.text === 'refus' ? { ok: false, error: 'alpha travaille encore : message non envoyé.' } : { ok: true }) },
+  { name: 'envoi', answers: { 'conv:send': (d) => (d.text === 'refus' ? { ok: false, error: 'alpha travaille encore : message non envoyé.' } : { ok: true }) },
     steps: [
-      ['emit', 'conv:thread', thread()], ['type', '#message', 'bonjour'], ['key', '#message', 'Enter'], ['wait', 50], ['eval', value('#message')],
+      ...open(), ['type', '#message', 'bonjour'], ['key', '#message', 'Enter'], ['wait', 50], ['eval', value('#message')],
       ['type', '#message', 'refus'], ['click', '#send'], ['wait', 50], ['eval', value('#message')], ['shot', 'erreur'],
       ['type', '#message', 'refus\nsur\nplusieurs\nlignes\npour\nvoir\nle\nchamp\ngrandir'], ['shot', 'grand-champ'],
     ] },
-  { name: 'panneau-brouillons', page: 'panel', size: COMPACT, steps: [
-    ['emit', 'conv:thread', thread()], ['type', '#message', 'un'],
-    ['emit', 'conv:thread', thread({ key: 'b2', name: 'beta', color: '#3b82f6', messages: [] })], ['eval', value('#message')],
-    ['emit', 'conv:dictation', 'deux'], ['wait', 50], ['eval', value('#message')], ['shot', 'beta'],
-    ['emit', 'conv:thread', thread()], ['eval', value('#message')],
-    ['emit', 'conv:dictation', 'trois'], ['wait', 50], ['eval', value('#message')],
+  // Le micro du champ, maintenu : enregistrer, transcrire ; le texte de whisper arrive dans le champ.
+  { name: 'dictee', steps: [
+    ...open(), ['type', '#message', 'un'],
+    ['pointer', '#mic', 'pointerdown'], ['wait', 1500], ['shot', 'enregistre'], ['pointer', '#mic', 'pointerup'], ['wait', 600],
+    ['eval', value('#message')], ['shot', 'dicte'],
   ] },
-  { name: 'panneau-commandes', page: 'panel', size: COMPACT, answers: { 'conv:probe': { commands: COMMANDS } }, steps: [
-    ['emit', 'conv:thread', thread()], ['type', '#message', '/co'], ['wait', 100], ['shot', 'liste'],
+  { name: 'brouillons', steps: [
+    ...open(), ['type', '#message', 'un'],
+    ...open(thread({ key: 'a2', name: 'beta', color: '#3b82f6', messages: [] }), 'a2'), ['wait', 50], ['eval', value('#message')], ['shot', 'beta'],
+    ...open(), ['wait', 50], ['eval', value('#message')],
+  ] },
+  { name: 'agents', steps: [
+    ...open(), ['shot', 'robots'],
+    ['click', '.vc-agents .vc-agent:nth-of-type(2)'], ['menu', '.vc-agents .vc-agent:nth-of-type(3)'], ['click', '.vc-search'], ['wait', 100], ['shot', 'palette'],
+    ['key', 'body', 'Escape'],
+  ] },
+  { name: 'commandes', answers: { 'conv:probe': { commands: COMMANDS } }, steps: [
+    ...open(), ['type', '#message', '/co'], ['wait', 100], ['shot', 'liste'],
     ['key', '#message', 'ArrowDown'], ['shot', 'fleche'], ['key', '#message', 'Enter'], ['wait', 50], ['eval', value('#message')],
     ['type', '#message', '/zz'], ['wait', 50], ['shot', 'aucune'], ['key', '#message', 'Escape'], ['shot', 'fermee'],
   ] },
-  { name: 'panneau-contexte', page: 'panel', size: FULL, answers: { 'conv:probe': { context: CONTEXT, commands: COMMANDS } }, steps: [
-    ['emit', 'conv:thread', thread({ mode: 'full', context: { used: 170000, max: 200000 } })], ['shot', 'jauge'],
+  { name: 'contexte', answers: { 'conv:probe': { context: CONTEXT, commands: COMMANDS } }, steps: [
+    ...open(thread({ context: { used: 170000, max: 200000 } })), ['shot', 'jauge'],
     ['click', '#context-button'], ['wait', 100], ['shot', 'detail'], ['click', '.ctx-compact'], ['wait', 50], ['shot', 'compacte'],
-    ['emit', 'conv:thread', thread({ mode: 'full', context: { used: 190000, max: 200000 } })], ['shot', 'rouge'],
+    ['emit', 'conv:thread', thread({ context: { used: 190000, max: 200000 } })], ['shot', 'rouge'],
   ] },
-  { name: 'panneau-message-appli', page: 'panel', size: COMPACT, steps: [
-    ['emit', 'conv:thread', thread()], ['emit', 'conv:notice', { kind: 'notice', text: 'Micro Discord coupé' }], ['shot', 'notice'],
+  { name: 'message-appli', steps: [
+    ...open(), ['emit', 'conv:notice', { kind: 'notice', text: 'Micro Discord coupé' }], ['shot', 'notice'],
     ['click', '#notice-close'], ['shot', 'fermee'], ['emit', 'conv:notice', { kind: 'status', text: 'Téléchargement du modèle…' }], ['shot', 'status'],
     ['emit', 'conv:notice', null], ['shot', 'effacee'],
   ] },
-  { name: 'panneau-pieces-jointes', page: 'panel', size: COMPACT, steps: [
-    ['emit', 'conv:thread', thread()], ['click', '#attach'],
+  { name: 'pieces-jointes', steps: [
+    ...open(), ['click', '#attach'],
     ['emit', 'conv:attached', { files: ['/home/u/b.txt', '/home/u/img.png'], selection: { text: 'abc def', cut: true } }],
     ['emit', 'conv:attached', { files: ['/home/u/b.txt'] }], ['shot', 'pieces'],
     ['click', '.piece .remove'], ['shot', 'retiree'], ['key', '#message', 'Enter'], ['wait', 50], ['shot', 'envoye'],
   ] },
-  { name: 'panneau-focus-champ', page: 'panel', size: COMPACT, steps: [
-    ['emit', 'conv:thread', thread()], ['emit', 'conv:focusInput'], ['eval', 'document.activeElement && document.activeElement.id'],
+  { name: 'focus-champ', steps: [
+    ...open(), ['emit', 'conv:focusInput'], ['eval', 'document.activeElement && document.activeElement.id'],
   ] },
-
-  /* ---- Bulle ----------------------------------------------------------------- */
-  { name: 'bulle-message', page: 'bubble', size: [340, 240], steps: [
-    ['emit', 'bubble:show', 'Téléchargement du modèle de dictée (548 Mo)… Une seule fois.', 'status', { width: 340, maxHeight: 240 }], ['shot', 'status'],
-    ['emit', 'bubble:show', 'Micro Discord coupé', 'notice', { width: 340, maxHeight: 240 }], ['shot', 'notice'],
-    ['emit', 'bubble:show', 'Un très long message '.repeat(40), 'status', { width: 340, maxHeight: 240 }], ['shot', 'long'],
-    ['mouse', 'mouseMove', 100, 30], ['mouse', 'mouseLeave', 400, 300], ['click', '#close'],
+  { name: 'sans-agent', steps: [
+    ['emit', 'agents:state', { shown: null, agents: [] }], ['shot', 'accueil'], ['click', '.vc-noagent button'],
   ] },
-  { name: 'bulle-volume', page: 'bubble', size: [340, 240], steps: [
-    ['emit', 'bubble:show', 0.6, 'volume', { width: 340, maxHeight: 240 }], ['shot', 'volume'],
-    ['range', '#volume-range', '80'], ['shot', 'change'],
-    ['emit', 'bubble:show', 'Lecture à voix haute installée.', 'status', { width: 340, maxHeight: 240 }], ['shot', 'apres'],
-  ] },
-
-  /* ---- Icône ----------------------------------------------------------------- */
-  { name: 'icone-repos', ...ICON, steps: [['shot', 'vide'], ['eval', 'document.querySelector("#icon").title']] },
-  { name: 'icone-robots-lecture', ...ICON, steps: [
-    ['emit', 'tts:state', TTS], ['emit', 'agents:state', AGENTS], ['shot', 'robots'],
-    ['eval', '[...document.querySelectorAll(".agent")].map((b) => b.title).join(" | ")'],
-    ['eval', 'document.querySelector("#icon").title'], ['eval', 'document.querySelector("#play").title'],
-    ['click', '.agent[data-id="a2"]'], ['menu', '.agent[data-id="a3"]'], ['menu', '#icon'], ['wait', 100], ['click', '#add'],
-    ['emit', 'tts:state', { ...TTS, hasText: false }], ['emit', 'agents:state', { enabled: false, agents: [] }], ['shot', 'gris'],
-    ['emit', 'tts:state', { mode: 'off' }], ['shot', 'sans-lecture'],
-  ] },
-  { name: 'icone-lecture', ...ICON, steps: [
-    ['emit', 'tts:state', TTS], ['click', '#play'], ['wait', 50], ['eval', 'document.querySelector("#play").dataset.phase'],
-    ['emit', 'tts:chunk', 1, new Uint8Array(4800), 24000], ['eval', 'document.querySelector("#play").dataset.phase'], ['shot', 'lecture'],
-    ['click', '#play'], ['eval', 'document.querySelector("#play").dataset.phase'],
-    ['emit', 'tts:speakReply'], ['wait', 50], ['emit', 'tts:end', 1, 'La synthèse vocale a échoué.'], ['wait', 50],
-    ['eval', 'document.querySelector("#play").dataset.phase + " " + document.querySelector("#play").title'],
-  ] },
-  { name: 'icone-glisser', ...ICON, steps: [
-    ['mouse', 'mouseDown', 32, 32], ['mouse', 'mouseMove', 34, 33], ['mouse', 'mouseMove', 60, 40], ['mouse', 'mouseMove', 80, 50],
-    ['mouse', 'mouseUp', 80, 50], ['wait', 400],
-  ] },
-  { name: 'icone-clic-bref', ...ICON, steps: [['mouse', 'mouseDown', 32, 32], ['wait', 100], ['mouse', 'mouseUp', 32, 32], ['wait', 400]] },
-  { name: 'icone-dictee', ...ICON, tolerance: 0, steps: [
-    ['emit', 'agents:state', AGENTS],
-    ['mouse', 'mouseDown', 32, 32], ['wait', 1500], ['shot', 'enregistre'], ['mouse', 'mouseUp', 32, 32], ['wait', 400],
-    ['eval', 'document.querySelector("#icon").dataset.phase + " " + document.querySelector("#icon").title'],
-  ] },
-];
+].map((sc) => ({ size: SIZE, ...sc }));

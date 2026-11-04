@@ -6,7 +6,6 @@
 import type { VibeFlow } from 'shared/bridge';
 
 // Un agent = un dossier : { id, dir, name, model, effort, mode, sessionId, contextWindow }.
-// `view` : VibeCoder à la place de sa conversation (absent : la conversation) ;
 // `vibe` : ses réglages VibeCoder (lus par core/config : agentVibe ; `autonomy`,
 // d'avant la 0.12.0, ignorée) ;
 // `parent` : un robot enfant, l'agent `id` du même dépôt (sa copie principale),
@@ -21,6 +20,8 @@ export type AgentConfig = {
   mode: string;
   sessionId: string | null;
   contextWindow?: number | null;
+  // Plus lu (tout agent est en VibeCoder) ; encore écrit sur l'agent d'une PR
+  // parce que l'invariant protégé worktree.test.ts l'attend (core/family).
   view?: 'vibecoder';
   vibe?: { flow: VibeFlow; pr: number | null; autonomy?: 'guide' | 'vibe' };
   parent?: { id: string; pr?: number };

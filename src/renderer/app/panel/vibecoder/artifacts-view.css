@@ -9,7 +9,7 @@
 .vc-art { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 15px 27px 18px; }
 .vc-art-head { flex: none; align-items: center; margin-bottom: 10px; }
 .vc-art-head h2 { min-width: 0; overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
-.vc-art-size { margin-right: auto; color: var(--vc-muted); font-size: 12px; }
+.vc-art-size { margin-right: auto; color: var(--vc-faint); font-size: 12px; }
 .vc-art-cut { flex: none; margin-bottom: 6px; color: var(--vc-warn); font-size: 12.5px; }
 .vc-art-md { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .vc-art-frame { flex: 1 1 auto; min-height: 0; width: 100%; border: 1px solid var(--vc-line); border-radius: var(--vc-radius); background: #fff; }

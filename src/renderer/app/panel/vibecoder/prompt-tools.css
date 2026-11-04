@@ -1,0 +1,16 @@
+/* Le micro et Envoyer d'un champ (prompt-tools, vue C) : deux ronds de 32 px ; le micro rose (fond et
+   bord rosés ; plein pendant l'enregistrement), Envoyer bleu plein, texte --vc-ink. Le cadre du champ
+   (.vc-prompt) : la zone sans bord, la paire en bas à droite. */
+.vc-prompt-tools { flex: none; display: inline-flex; align-items: center; gap: 8px; }
+.vc-mic, .vc-send { flex: none; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border-radius: 50%; cursor: pointer; transition: background-color 0.12s, border-color 0.12s; }
+.vc-mic svg, .vc-send svg { width: 15px; height: 15px; }
+.vc-mic { border: 1px solid var(--vc-mic-edge); background: var(--vc-mic-bg); color: var(--vc-mic); }
+.vc-mic:hover { border-color: var(--vc-mic); }
+.vc-mic[data-phase="recording"] { border-color: var(--vc-mic); background: var(--vc-mic); color: var(--vc-ink); }
+.vc-mic[data-phase="transcribing"] { opacity: 0.6; }
+.vc-send { border: 0; background: var(--vc-accent); color: var(--vc-ink); }
+.vc-send:hover:not(:disabled) { background: var(--vc-accent-soft); }
+.vc-send:disabled { opacity: 0.4; cursor: default; }
+.vc-prompt { display: flex; align-items: flex-end; gap: 8px; padding: 8px 8px 8px 12px; border: 1px solid var(--vc-edge); border-radius: 10px; background: var(--vc-bg); }
+.vc-prompt:focus-within { border-color: var(--vc-active-edge); }
+.vc-prompt > textarea { flex: 1; min-width: 0; margin: 0; padding: 4px 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; outline: none; }

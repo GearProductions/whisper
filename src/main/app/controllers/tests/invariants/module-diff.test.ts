@@ -157,10 +157,8 @@ afterEach(() => { vi.useRealTimers(); });
 
 // Le panneau ouvert sur l'agent, en VibeCoder, son premier relevé reçu.
 async function open() {
-  const { state } = await import('app/state');
   const { openConversation } = await import('app/windows');
   const { panelReady } = await import('app/controllers');
-  state.icon = new fake.Win() as never;
   openConversation('a1');
   fake.windows.at(-1)!.emit('ready-to-show');
   await panelReady();

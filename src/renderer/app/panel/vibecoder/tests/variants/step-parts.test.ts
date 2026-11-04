@@ -7,7 +7,8 @@ import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
 import { t } from 'core/vibecoder';
 import type { VibeAction, VibeArtifact, VibePr } from 'technicals/bridge';
-import { PrCard, Run, StepField, StopRun } from '../../step-parts';
+import { PrCard, Run, StepField, StepHead, StopRun } from '../../step-parts';
+import type { StepProps } from '../../step-views';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -68,7 +69,7 @@ it('le champ d\'une étape : « @ » propose les artefacts, Entrée met le chemi
   const art = { id: 'a0', name: 'plan.md', kind: 'markdown', size: 1, time: 1, url: null, truncated: false } as VibeArtifact;
   function Host() {
     const [text, setText] = useState('');
-    return createElement(StepField, { name: 'note', text, setText, hint: 'h', artifacts: [art], artifactsDir: '/p/artifacts' });
+    return createElement(StepField, { name: 'note', text, setText, hint: 'h', artifacts: [art], artifactsDir: '/p/artifacts', t: t('fr'), onSend: () => {}, sendDisabled: false });
   }
   await render(createElement(Host));
   const ta = page.querySelector('textarea')!;
@@ -89,4 +90,19 @@ it('le champ d\'une étape : « @ » propose les artefacts, Entrée met le chemi
   await type('@types/node');
   expect(page.querySelector('.mention')).toBeNull();
   expect(await enter()).toBe(false);
+});
+
+it('le champ d\'une étape : Envoyer lance l\'action mise en avant qui emporte le champ ; grisé si elle exige un texte vide', async () => {
+  const runs: string[] = [];
+  const acts = [action({ id: 'a', step: 'note', usesText: true }), action({ id: 'b', step: 'note', usesText: true, primary: true, needs: 'text' })];
+  const draw = (text: string) => render(createElement(StepHead, { p: {
+    view: { lang: 'fr', actions: acts }, step: { id: 'note', status: 'current', facts: '' }, t: t('fr'), busy: false, text, setText: () => {},
+    act: { run: (id: string) => { runs.push(id); } },
+  } as unknown as StepProps }));
+  await draw('');
+  const send = () => page.querySelector<HTMLButtonElement>('.vc-step-field .vc-send')!;
+  expect(send().disabled).toBe(true);
+  await draw('fais-le');
+  await act(async () => send().click());
+  expect(runs).toEqual(['b']);
 });

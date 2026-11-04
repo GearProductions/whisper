@@ -4,12 +4,12 @@
   width: 100%;
   box-sizing: border-box;
   padding: 1px 4px;
-  border: 1px solid var(--vc-edge);
+  border: 1px solid var(--vc-line);
   border-radius: var(--vc-radius);
-  background: var(--vc-code);
+  background: var(--vc-deep);
   color: var(--vc-text);
   font: inherit;
 }
 .vc-rename-input:focus { outline: 1px solid var(--vc-accent); outline-offset: 0; }
-.vc-rename-input[aria-invalid] { border-color: #f85149; outline-color: #f85149; background: color-mix(in srgb, #f85149 12%, var(--vc-code)); }
-.vc-rename-problem { margin-top: 2px; color: #f85149; font-size: 11px; line-height: 1.3; }
+.vc-rename-input[aria-invalid] { border-color: var(--vc-ko-text); outline-color: var(--vc-ko-text); background: color-mix(in srgb, var(--vc-ko-text) 12%, var(--vc-deep)); }
+.vc-rename-problem { margin-top: 2px; color: var(--vc-ko-text); font-size: 11px; line-height: 1.3; }

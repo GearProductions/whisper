@@ -1,27 +1,35 @@
-/** vibe-coder — l'écran VibeCoder d'un agent, à la place de l'en-tête et du
- *  corps du panneau : en-tête (agent — sa couleur ne teinte que sa
- *  pastille —, la branche ⎇, un bouton qui ouvre et ferme la vue des
- *  branches, et à côté Pull, Rebase, Pousser (sync-buttons) ; pas de bouton
- *  Créer / Relire : l'app décide du rôle (view.flow), et le badge Relecteur
- *  s'affiche à côté de celui du worktree quand c'est la relecture) ; Artefacts
- *  (un bouton, F-92 : ouvert, le panneau
- *  artifacts-view prend le centre, à la place du fil d'Ariane et de
+/** vibe-coder — l'écran VibeCoder d'un agent, seul écran du panneau :
+ *  en-tête de la vue C (48 px) — tout à gauche les robots des agents, l'affiché
+ *  en pastille allumée avec son nom (`others`, donné par panel-app :
+ *  agent-notices ; tant que le premier relevé des agents manque, à sa place le
+ *  nom de l'agent seul), puis le segment branche (⎇ et la branche, une
+ *  seule fois : il ouvre et ferme la vue des branches), puis Pull, Rebase,
+ *  Pousser (sync-buttons) ; pas
+ *  de bouton Créer / Relire : l'app décide du rôle (view.flow), et le badge
+ *  Relecteur s'affiche à côté de celui du worktree quand c'est la relecture ;
+ *  le robot d'une PR dans un worktree : son badge, sans action ; au milieu
+ *  le nom VibeCoder ; à droite Artefacts, Chercher
+ *  (Ctrl K : la palette, toutes portées), puis langue, relevé, conversation et ⚙ Réglages ;
+ *  l'en-tête sert de barre de titre (fenêtre sans cadre : vibecoder.css) ;
+ *  Artefacts (un bouton, F-92 : ouvert,
+ *  le panneau artifacts-view prend le centre, à la place du fil d'Ariane et de
  *  l'étape ou de la vue des branches ; l'artefact choisi est suivi
  *  (follow) ; ses actions (copier, créer, renommer, déplacer, supprimer… :
  *  onRun, soit act.run, en direct) et les fichiers déposés (onDrop, soit act.drop, avec
  *  le dossier visé) ; le refermer,
- *  choisir une étape ou la vue des branches le ferme) ; langue,
- *  relevé (↻ qui tourne), conversation affichée ou masquée, retour à la
- *  conversation, fermer — des icônes (icons), libellé en title et
- *  aria-label ; le robot d'une PR dans un worktree : son badge, sans action) ; au
- *  centre, en tête, le fil d'Ariane (breadcrumb : il dit où l'on en est ; y
+ *  choisir une étape ou la vue des branches le ferme) ; ⚙ Réglages (le menu de
+ *  l'application, onSettings) ; langue, relevé (↻ qui tourne), conversation
+ *  affichée ou masquée — des icônes (icons), libellé en title et aria-label ;
+ *  au centre, en tête, le fil d'Ariane (breadcrumb : il dit où l'on en est ; y
  *  choisir une étape ferme la vue des branches), puis
  *  pendant Vibe (view.vibe) une bannière qui l'arrête (vibe-banner, set vibe
  *  false), l'erreur du relevé, et la vue des branches (branches-view) si elle
  *  est ouverte, sinon l'étape choisie (step-views : son en-tête porte ses
  *  actions) ; Vibe ou pas, le
  *  même fil d'Ariane et la même étape ; à droite, en onglets, la conversation (reçue en
- *  children), les actions lancées (runs-view, le nombre en cours, en attente
+ *  children) avec, au bout de la rangée, 🕘 : l'historique (`history`, donné
+ *  par panel-app) prend la place du fil, avec « ← Conversation en cours » pour
+ *  y revenir ; les actions lancées (runs-view, le nombre en cours, en attente
  *  d'une autorisation ou arrêtées à trancher), les tâches de fond (`tasks`,
  *  le nombre en cours) ou les processus du projet (processes-view, le nombre
  *  en cours), masquable, sa largeur à la poignée (300 px → 60 %) ; la barre
@@ -40,7 +48,8 @@
  *  les jette pas) — tout cela gardé par agent
  *  (kept : l'écran est recréé à chaque changement d'agent). Préparer un message dans le champ
  *  de la conversation, ou un message qui exige son texte, réaffiche la
- *  conversation (colonne masquée, ou onglet Actions, Tâches, Processus).
+ *  conversation (colonne masquée, ou onglet Actions, Tâches, Processus ; l'historique
+ *  se referme).
  *  Le fichier de module suivi (`code`, Voir le code) passe à la vue d'étape ;
  *  l'étape change, la vue des branches ou les Artefacts s'ouvrent ou se ferment, ou l'écran se ferme (dont un changement d'agent) : plus
  *  aucun fichier suivi. L'onglet Actions ouvert le dit au principal
@@ -76,7 +85,13 @@ type Props = {
   contextOpen: boolean;
   onGauge(): void;             // le détail du contexte, sur la conversation
   onTasks(): void;             // Conversation ↔ Tâches
-  onHide(): void;
+  onSearch(): void;            // Chercher : la palette
+  onSettings(): void;          // ⚙ Réglages
+  others?: ReactNode;          // les robots des agents et leurs notices (agent-notices, panel-app), tout à gauche ; absent jusqu'au premier agents:state
+  branchesAsk?: number;        // +1 : ouvre la vue des branches (Ctrl+Maj+B, la palette) et ferme les Artefacts
+  historyOpen: boolean;        // l'historique prend la place du fil
+  onHistory(): void;           // 🕘 : l'ouvre / le ferme
+  history: ReactNode;          // la liste de l'historique (panel-app)
   side: Side;                  // la colonne de la conversation : affichée, sa largeur (panel-app la retient)
   onSide(side: Side): void;
   children: ReactNode;         // la colonne de la conversation
@@ -93,7 +108,7 @@ function useKept<T>(kept: Kept, agent: string, key: string, initial: T) {
   return [value, set] as const;
 }
 
-export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextOpen, onGauge, onTasks, onHide, side, onSide, children, kept, code }: Props) {
+export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextOpen, onGauge, onTasks, onSearch, onSettings, others, branchesAsk = 0, historyOpen, onHistory, history, side, onSide, children, kept, code }: Props) {
   const t = strings(view.lang);
   const [picked, setPicked] = useKept<VibeStepId | null>(kept, view.agentId, 'picked', null);
   const { steps } = view;
@@ -106,6 +121,13 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   const branches = branchesOpen && !!view.repo;
   // Le panneau Artefacts : ouvert, il prend le centre ; il ne change pas le rôle (flow).
   const [arts, setArts] = useKept(kept, view.agentId, 'artifacts', false);
+  const asked = useRef(branchesAsk);
+  useEffect(() => {
+    if (asked.current === branchesAsk) return;
+    asked.current = branchesAsk;
+    setArts(false);
+    setBranchesOpen(true);
+  }, [branchesAsk]);
   const pick = (id: VibeStepId) => { setBranchesOpen(false); setArts(false); setPicked(id); };
   const [answers, setAnswers] = useKept<Answers>(kept, view.agentId, 'answers', {});
   const onAnswer: StepProps['onAnswer'] = (q, a) => setAnswers((all) => ({ ...all, [q]: a }));
@@ -114,7 +136,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   const root = useRef<HTMLDivElement>(null);
   // L'onglet Actions ou Processus, choisi par-dessus Conversation | Tâches (que panel-app tient).
   const [pane, setPane] = useState<'runs' | 'procs' | null>(null);
-  const show = () => { if (!side.open) onSide({ ...side, open: true }); setPane(null); if (tasksOpen) onTasks(); };
+  const show = () => { if (!side.open) onSide({ ...side, open: true }); setPane(null); if (tasksOpen) onTasks(); if (historyOpen) onHistory(); };
   // ⚙ Tâches (barre d'état) : la colonne masquée, ou l'onglet Actions, Processus, s'affiche sur l'onglet Tâches ; sinon, l'onglet bascule.
   const toggleTasks = () => {
     if (!side.open) onSide({ ...side, open: true });
@@ -182,7 +204,8 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
       efforts, pickEffort: (id, e) => setEfforts((p) => ({ ...p, [id]: e })) }}>
     <StopRun.Provider value={{ stop: (id) => act.runOp(id, 'stop'), state: (id) => view.runs?.find((r) => r.id === id)?.state ?? null }}>
       <div className="vc" ref={root} data-conv={side.open ? undefined : 'hidden'} style={{ '--vc-conv': `${side.width}px` } as CSSProperties}>
-        <Top view={view} thread={thread} busy={busy} t={t} act={act} side={side} onSide={onSide} onHide={onHide}
+        <Top view={view} thread={thread} busy={busy} t={t} act={act} side={side} onSide={onSide}
+          onSearch={onSearch} onSettings={onSettings} others={others}
           branches={branches} onBranches={() => { setArts(false); setBranchesOpen(!branches); }}
           arts={arts} onArts={() => setArts(!arts)} />
         {arts ? (
@@ -225,8 +248,14 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
             <button type="button" role="tab" className="vc-tab" aria-selected={pane === 'procs'} title={t.procsTitle} onClick={() => setPane('procs')}>
               {t.procsOf(up)}
             </button>
+            <button type="button" className="vc-icon vc-history" title={t.history} aria-label={t.history} aria-pressed={historyOpen} onClick={onHistory}><Icon name="history" /></button>
           </div>
-          {children}
+          {historyOpen && !tasksOpen && !pane ? (
+            <div className="vc-history-view">
+              <button type="button" className="vc-mini" onClick={onHistory}>{t.historyBack}</button>
+              {history}
+            </div>
+          ) : children}
           {tasksOpen && !pane ? <div className="vc-tasks-tab" role="tabpanel">{tasks}</div> : null}
           {pane === 'runs' ? <div className="vc-tasks-tab" role="tabpanel"><Guard t={t}><RunsView runs={runs} t={t} onRunOp={act.runOp} onOpenLink={act.openLink} /></Guard></div> : null}
           {pane === 'procs' ? <div className="vc-tasks-tab" role="tabpanel"><Guard t={t}><ProcessesView view={view} t={t} act={act} busy={busy} /></Guard></div> : null}
@@ -268,34 +297,40 @@ function Resizer({ t, side, root, onSide }: { t: Strings; side: Side; root: RefO
 const LANGS: Record<VibeLang, string> = { fr: 'FR', en: 'EN' };
 
 type TopProps = {
-  view: VibeView; thread: Thread; busy: boolean; t: Strings; act: VibeActs; side: Side; onSide(side: Side): void; onHide(): void;
+  view: VibeView; thread: Thread; busy: boolean; t: Strings; act: VibeActs; side: Side; onSide(side: Side): void;
+  onSearch(): void; onSettings(): void;
+  others?: ReactNode;                                      // les autres agents (agent-notices), tout à gauche, avant le sélecteur
   branches: boolean; onBranches(): void;                   // la vue des branches ouverte ; le bouton ⎇
   arts: boolean; onArts(): void;                           // le panneau Artefacts ouvert ; son bouton
 };
 
-function Top({ view, thread, busy, t, act, side, onSide, onHide, branches, onBranches, arts, onArts }: TopProps) {
+function Top({ view, thread, busy, t, act, side, onSide, onSearch, onSettings, others, branches, onBranches, arts, onArts }: TopProps) {
   const [spins, setSpins] = useState(0); // ⟳ tourne une fois par clic
   return (
     <div className="vc-top">
       <div className="vc-ident">
-        <span className="vc-dot" data-busy={busy || undefined} />
-        <span className="vc-name" title={thread.dir}>{thread.name}</span>
+        {others ?? (
+          <span className="vc-picker-static">
+            <span className="vc-dot" data-busy={busy || undefined} />
+            <span className="vc-name" title={thread.dir}>{thread.name}</span>
+          </span>
+        )}
         {view.repo ? (
           <button type="button" className="vc-branch" aria-pressed={branches} onClick={onBranches}
             title={`${t.branch(view.repo.branch, view.repo.base)}\n${branches ? t.branchesClose : t.branchesOpen}`}>
-            {`⎇ ${view.repo.branch}`}
+            <Icon name="branch" /><span>{view.repo.branch}</span><Icon name="chevron" />
           </button>
         ) : null}
         {view.repo ? <SyncButtons view={view} onRun={act.run} /> : null}
         <WorktreeBadge view={view} />
         <ReviewerBadge view={view} t={t} />
       </div>
-      <div className="vc-modes">
-        <div className="vc-seg">
-          <button type="button" aria-pressed={arts} title={t.artifactsTitle} onClick={onArts}>{t.artifacts}</button>
-        </div>
-      </div>
+      <span className="vc-appname">VibeCoder</span>
       <div className="vc-tools">
+        <button type="button" className="vc-top-btn" aria-pressed={arts} title={t.artifactsTitle} onClick={onArts}>{t.artifacts}</button>
+        <button type="button" className="vc-search" title={`${t.search} (${t.searchKeys})`} onClick={onSearch}>
+          <Icon name="search" /><span>{t.search}</span><kbd>{t.searchKeys}</kbd>
+        </button>
         {view.dev === 'reload' ? (
           <button type="button" className="vc-mini vc-dev" title={t.reloadUiTitle} onClick={() => act.set({ reloadUi: true })}>{t.reloadUi}</button>
         ) : view.dev === 'restart' ? (
@@ -312,8 +347,7 @@ function Top({ view, thread, busy, t, act, side, onSide, onHide, branches, onBra
           aria-pressed={side.open} onClick={() => onSide({ ...side, open: !side.open })}>
           <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" /><path d="M10 2.5v11" /></svg>
         </button>
-        <button type="button" className="vc-icon" title={t.back} aria-label={t.back} onClick={() => act.set({ view: 'conversation' })}><Icon name="comment" /></button>
-        <button type="button" className="vc-icon vc-close" title={t.close} aria-label={t.close} onClick={onHide}><Icon name="close" /></button>
+        <button type="button" className="vc-top-btn" onClick={onSettings}>{t.settings}</button>
       </div>
     </div>
   );

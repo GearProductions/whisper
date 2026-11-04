@@ -4,7 +4,7 @@
 /* Elle prend toute la hauteur de la colonne : le vide sous les lignes est la racine (clic droit, lâcher). */
 .vc-art-side > .vc-tree { flex: 1 0 auto; }
 .vc-tree { min-height: 48px; padding: 0 6px; outline: none; }
-.vc-tree[data-over] { box-shadow: inset 0 0 0 1px var(--accent); border-radius: var(--vc-radius); }
+.vc-tree[data-over] { box-shadow: inset 0 0 0 1px var(--vc-accent); border-radius: var(--vc-radius); }
 .vc-tree-row {
   display: flex;
   align-items: baseline;
@@ -13,20 +13,20 @@
   padding-right: 6px;
   border-radius: var(--vc-radius);
   color: var(--vc-soft);
-  font: 12.5px/1.5 system-ui, sans-serif;
+  font: 12.5px/1.5 var(--vc-sans);
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
 }
-.vc-tree-row:hover { background: #222838; color: var(--vc-text); }
-.vc-tree-row[aria-selected="true"] { background: #262d3d; color: var(--vc-text); box-shadow: inset 2px 0 0 var(--accent); }
-.vc-tree:focus-visible .vc-tree-row[data-focus] { outline: 1px solid var(--accent); outline-offset: -1px; }
-.vc-tree-row[data-over] { background: color-mix(in srgb, var(--accent) 18%, transparent); box-shadow: inset 0 0 0 1px var(--accent); }
+.vc-tree-row:hover { background: var(--vc-hover); color: var(--vc-text); }
+.vc-tree-row[aria-selected="true"] { background: var(--vc-active-bg); color: var(--vc-active); }
+.vc-tree:focus-visible .vc-tree-row[data-focus] { outline: 1px solid var(--vc-accent); outline-offset: -1px; }
+.vc-tree-row[data-over] { background: var(--vc-active-bg); box-shadow: inset 0 0 0 1px var(--vc-accent); }
 .vc-tree-chevron { flex: none; width: 12px; color: var(--vc-faint); text-align: center; transition: transform 0.1s; }
 .vc-tree-chevron[data-open] { transform: rotate(90deg); }
 .vc-tree-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* La vue IDE (file-tree-view) : la couleur du nom d'un fichier, comme VS Code ; commité : la couleur ordinaire. */
-.vc-tree-row[data-mark="new"] .vc-tree-label { color: #73c991; }
-.vc-tree-row[data-mark="modified"] .vc-tree-label { color: #e2c08d; }
-.vc-tree-row[data-mark="deleted"] .vc-tree-label { color: #c74e39; text-decoration: line-through; }
+.vc-tree-row[data-mark="new"] .vc-tree-label { color: var(--vc-ok-text); }
+.vc-tree-row[data-mark="modified"] .vc-tree-label { color: var(--vc-warn); }
+.vc-tree-row[data-mark="deleted"] .vc-tree-label { color: var(--vc-ko); text-decoration: line-through; }
 .vc-tree-row[data-mark="todo"] .vc-tree-label { color: var(--vc-faint); font-style: italic; }

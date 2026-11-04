@@ -4,14 +4,14 @@
 
 .vc-questions {
   margin: 0 0 15px;
-  padding: 10px var(--vc-pad) 9px;
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--vc-line));
+  padding: 10px var(--vc-pad, 12px) 9px;
+  border: 1px solid var(--vc-active-edge);
   border-radius: var(--vc-radius);
-  background: color-mix(in srgb, var(--accent) 4%, var(--vc-card));
+  background: var(--vc-info-bg);
 }
 .vc-q-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 9px; margin-bottom: 8px; }
 .vc-q-title { color: var(--vc-text); font-size: 14px; font-weight: 600; }
-.vc-q-help { color: var(--vc-muted); font-size: 12px; }
+.vc-q-help { color: var(--vc-faint); font-size: 12px; }
 
 .vc-q { padding: 8px 0 9px; border-top: 1px solid var(--vc-line); }
 .vc-q-head + .vc-q { border-top: 0; padding-top: 0; }
@@ -22,57 +22,43 @@
   height: 22px;
   margin-top: -1px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--accent) 22%, var(--vc-control));
-  color: #fff;
-  font: 600 11.5px/22px system-ui, sans-serif;
+  background: var(--vc-active-bg);
+  color: var(--vc-ink);
+  font: 600 11.5px/22px var(--vc-sans);
   text-align: center;
 }
-.vc-q[data-answered] .vc-q-n { background: var(--vc-ok); color: #0e1117; }
-.vc-q :is(.vc-q-text, .vc-q-opt) code { padding: 0 4px; border-radius: 4px; background: var(--vc-code); font: 12px/1.5 var(--vc-mono); }
+.vc-q[data-answered] .vc-q-n { background: var(--vc-ok); color: var(--vc-deep); }
+.vc-q :is(.vc-q-text, .vc-q-opt) code { padding: 0 4px; border-radius: 4px; background: var(--vc-deep); font: 12px/1.5 var(--vc-mono); }
 
 .vc-q-options { display: flex; flex-wrap: wrap; gap: 4px; margin: 5px 0 0 32px; }
 .vc-q-opt {
   max-width: 100%;
   padding: 2px 8px;
-  border-radius: 14px;
-  border: 1px solid var(--vc-edge);
-  background: var(--vc-control);
+  border-radius: 6px;
+  border: 1px solid var(--vc-line);
+  background: var(--vc-hover);
   color: var(--vc-text);
-  font: 12.5px/1.4 system-ui, sans-serif;
+  font: 12.5px/1.4 var(--vc-sans);
   text-align: left;
   cursor: pointer;
   transition: background-color 0.12s, border-color 0.12s, color 0.12s;
 }
-.vc-q-opt:hover { border-color: var(--accent); }
+.vc-q-opt:hover { border-color: var(--vc-accent); }
 .vc-q-opt[aria-pressed="true"] {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 30%, var(--vc-control));
-  color: #fff;
+  border-color: var(--vc-accent);
+  background: var(--vc-active-bg);
+  color: var(--vc-ink);
 }
 .vc-q-opt[aria-pressed="true"]::before { content: "✓ "; }
 .vc-q-alt { border-style: dashed; background: transparent; color: var(--vc-soft); font-size: 12px; }
 .vc-q-opt:not(.vc-q-alt) + .vc-q-alt { margin-left: 6px; }
 
-.vc-q-free {
-  display: block;
-  width: calc(100% - 32px);
-  min-height: 28px;
-  max-height: 120px;
-  margin: 5px 0 0 32px;
-  padding: 3px 8px;
-  box-sizing: border-box;
-  border: 1px solid var(--vc-line);
-  border-radius: var(--vc-radius);
-  background: var(--vc-code);
-  color: var(--vc-text);
-  font: 12.5px/1.5 system-ui, sans-serif;
-  resize: none;
-  field-sizing: content;
-  outline: none;
-}
-.vc-q-free::placeholder { color: var(--vc-faint); }
-.vc-q-free:focus { border-color: color-mix(in srgb, var(--accent) 70%, transparent); }
+/* La précision libre : un cadre .vc-prompt (prompt-tools.css) décalé sous le numéro ; la zone suit son texte. */
+.vc-q-free { display: flex; width: calc(100% - 32px); margin: 5px 0 0 32px; padding: 4px 4px 4px 10px; box-sizing: border-box; }
+.vc-q-free textarea { min-height: 24px; max-height: 120px; color: var(--vc-text); font: 12.5px/1.5 var(--vc-sans); resize: none; field-sizing: content; }
+.vc-q-free textarea::placeholder { color: var(--vc-faint); }
+.vc-q-free .vc-mic, .vc-q-free .vc-send { width: 26px; height: 26px; }
 
 .vc-q-send { display: flex; align-items: center; justify-content: flex-end; gap: 9px; padding-top: 9px; border-top: 1px solid var(--vc-line); }
-.vc-q-count { color: var(--vc-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-.vc-q-count[data-all] { color: #6fdd85; }
+.vc-q-count { color: var(--vc-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+.vc-q-count[data-all] { color: var(--vc-ok-text); }

@@ -1,4 +1,4 @@
-// Construit les trois pages (src/renderer) dans out/renderer, chargées par le
+// Construit la page (src/renderer) dans out/renderer, chargées par le
 // principal en file:// : chemins relatifs (base './'), sans serveur. Le
 // principal et les ponts : vite.main.config.mts. Les tests : vitest.config.mts.
 import { resolve } from 'node:path';
@@ -20,8 +20,6 @@ export default defineConfig({
     modulePreload: { polyfill: false },
     rollupOptions: {
       input: {
-        icon: resolve(root, 'app/icon/index.html'),
-        bubble: resolve(root, 'app/bubble/bubble.html'),
         panel: resolve(root, 'app/panel/conversation.html'),
       },
     },

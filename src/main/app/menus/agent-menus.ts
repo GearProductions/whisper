@@ -1,12 +1,12 @@
-/** agent-menus — les menus des agents : le clic droit sur un robot (écrire,
+/** agent-menus — les menus des agents, posés sur la fenêtre (state.panel) : le menu d'un agent (écrire,
  *  ouvrir sur GitHub, dans l'éditeur, un terminal dans son dossier
- *  (terminalCommand, sinon le premier trouvé ; grisé s'il n'y en a pas), VibeCoder ou la conversation, couleur
+ *  (terminalCommand, sinon le premier trouvé ; grisé s'il n'y en a pas), couleur
  *  (pas pour un enfant dont le parent est là : celle de son parent), modèle, effort, mode,
- *  conversations, interrompre, nouvelle session, retirer : ces deux-là
+ *  interrompre, nouvelle session, retirer : ces deux-là
  *  ferment aussi ses courses ; pour un agent sans parent à la racine d'un
  *  dépôt, le sous-menu Worktrees : ses worktrees sans agent, chacun avec
- *  *Ouvrir un agent ici* ; pas de sous-menu si git n'a pas répondu), le « + »
- *  (nouvel agent dans un dossier favori ou un autre dossier, avec la question
+ *  *Ouvrir un agent ici* ; pas de sous-menu si git n'a pas répondu), « Nouvel
+ *  agent… » (dans un dossier favori ou un autre dossier, avec la question
  *  de confiance, I-23, puis le rattachement à sa famille), et le trombone du
  *  panneau (fichiers, texte sélectionné).
  *  Ne connaît pas : les pages, git (app/controllers : freeWorktrees, openHere,
@@ -24,7 +24,7 @@ import { loadConfig, saveConfig, updateAgent } from 'app/settings';
 import { state } from 'app/state';
 import {
   agents, CLAUDE_MISSING, closeRuns, ensureFolderColors, freeWorktrees, interruptAgent, isBusy, newAgent, openHere, pushAgents, readFile, real,
-  removeAgent, setAgentSetting, setAgentView, syncFamilies, trustFolder, worktreeParent,
+  removeAgent, setAgentSetting, syncFamilies, trustFolder, worktreeParent,
 } from 'app/controllers';
 import { conversationFocusInput, openConversation } from 'app/windows';
 
@@ -36,14 +36,13 @@ const short = (d: string) => {
 // Un nouvel agent, puis sa famille (il peut être le worktree d'un autre).
 const addAgent = (dir: string) => { newAgent(dir); syncFamilies(); };
 
-// Clic droit sur un robot : ses réglages, comme dans les autres intégrations.
+// Le menu d'un agent (le sélecteur) : ses réglages.
 export async function openAgentMenu(id: unknown) {
   const agent = agentList(loadConfig()).find((a) => a.id === id);
-  if (!agent || !state.icon) return;
+  if (!agent || !state.panel) return;
   // Les worktrees sans agent, relus par git avant d'ouvrir le menu (null : pas de sous-menu).
   const worktrees = agentParent(agent) ? null : (await freeWorktrees(agent))?.free;
-  if (!state.icon) return;
-  const st = agents.state(agent.id);
+  if (!state.panel) return;
   const busy = isBusy(agent.id);
   const page = githubPage(agent.dir, readFile); // relu à chaque clic droit
   const cfg = loadConfig();
@@ -64,9 +63,6 @@ export async function openAgentMenu(id: unknown) {
       enabled: !!editor, click: () => editor?.open(agent.dir) },
     { label: terminal ? `Ouvrir un terminal ici (${terminal.name})` : 'Ouvrir un terminal ici',
       enabled: !!terminal, click: () => terminal?.open(agent.dir) },
-    // L'une ou l'autre vue, directement (retenue ensuite pour cet agent), quelle que soit celle affichée.
-    { label: '◧ Ouvrir VibeCoder', click: () => setAgentView(agent.id, 'vibecoder') },
-    { label: '💬 Ouvrir la conversation', click: () => setAgentView(agent.id, null) },
     { type: 'separator' },
     // Sans parler (micro indisponible, lieu calme) : le champ de son panneau.
     { label: '✎ Écrire un message…', click: () => { openConversation(agent.id); conversationFocusInput(); } },
@@ -87,8 +83,6 @@ export async function openAgentMenu(id: unknown) {
         submenu: [{ label: 'Ouvrir un agent ici', click: () => openHere(agent, w.dir) }] }))
       : [{ label: 'Aucun worktree sans agent', enabled: false }] }] : []),
     { type: 'separator' },
-    { label: 'Dernier échange', enabled: st.hasReply || !!agent.sessionId, click: () => openConversation(agent.id, { mode: 'compact' }) },
-    { label: '⤢ Conversation complète (et historique)', click: () => openConversation(agent.id, { mode: 'full' }) },
     { label: 'Interrompre', enabled: busy, click: () => interruptAgent(agent.id) },
     { label: 'Nouvelle session (effacer le contexte)', click: () => {
       agents.forget(agent.id);
@@ -98,13 +92,13 @@ export async function openAgentMenu(id: unknown) {
     } },
     { type: 'separator' },
     { label: 'Retirer cet agent', click: () => removeAgent(agent.id) },
-  ] as MenuItemConstructorOptions[]).popup({ window: state.icon });
+  ] as MenuItemConstructorOptions[]).popup({ window: state.panel });
 }
 
-// Bouton « + » : un nouvel agent, dans un dossier favori (déjà choisi, sans
+// « Nouvel agent… » : un nouvel agent, dans un dossier favori (déjà choisi, sans
 // agent pour l'instant) ou dans un dossier à choisir, qui devient favori.
 export function openAddAgentMenu() {
-  if (!state.icon) return;
+  if (!state.panel) return;
   const cfg = loadConfig();
   const available = agents.isAvailable(cfg.agentCommand);
   const inUse = new Set(agentList(cfg).map((a) => real(a.dir) ?? a.dir)); // dossiers résolus
@@ -128,7 +122,7 @@ export function openAddAgentMenu() {
       })),
     }] : []),
     ...(available ? [] : [{ type: 'separator' as const }, { label: CLAUDE_MISSING, enabled: false }]),
-  ] as MenuItemConstructorOptions[]).popup({ window: state.icon });
+  ] as MenuItemConstructorOptions[]).popup({ window: state.panel });
 }
 
 // Le texte sélectionné, joint au message. Pas de sélection sous Windows : la

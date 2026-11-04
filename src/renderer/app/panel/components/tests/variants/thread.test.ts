@@ -10,10 +10,10 @@ import type { Message, Thread } from 'technicals/bridge';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const noop: ThreadActions = { openLink() {}, showFile() {}, listen() {}, copy: async () => true, zoom() {}, answer: () => true };
+const noop: ThreadActions = { openLink() {}, showFile() {}, listen() {}, zoom() {}, answer: () => true };
 
 async function shown(role: Message['role']) {
-  const data: Thread = { mode: 'full', key: 'k', live: false, name: 'Agent', color: '#888', title: 'T', status: 'idle',
+  const data: Thread = { key: 'k', live: false, name: 'Agent', color: '#888', title: 'T', status: 'idle',
     messages: [{ role, text: 'du **gras**', time: 0 }] };
   const page = document.createElement('div');
   const root = createRoot(page);

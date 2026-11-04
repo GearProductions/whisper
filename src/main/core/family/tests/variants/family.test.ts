@@ -29,7 +29,7 @@ describe('childAgent', () => {
     const robot = childAgent(parent, '/w/pr-12', 'b', { name: 'pr-12', pr: 12 });
     expect(robot).toEqual({
       id: 'b', dir: '/w/pr-12', name: 'PR #12', model: 'opus', effort: 'high', mode: 'plan', sessionId: null,
-      view: 'vibecoder', vibe: { flow: 'review', autonomy: 'vibe', pr: 12 }, parent: { id: 'a', pr: 12 },
+      vibe: { flow: 'review', autonomy: 'vibe', pr: 12 }, parent: { id: 'a', pr: 12 }, view: 'vibecoder',
     });
     expect(agentParent(robot)).toEqual({ id: 'a', pr: 12 });
     expect(childAgent(agent('a'), '/w', 'b', { name: 'w', pr: 3 }).vibe?.autonomy).toBe('guide');
@@ -37,7 +37,7 @@ describe('childAgent', () => {
   it('avec create : la nouvelle demande, en VibeCoder, Créer', () => {
     expect(childAgent(parent, '/w/feat', 'b', { name: 'feat', create: true })).toEqual({
       id: 'b', dir: '/w/feat', name: 'feat', model: 'opus', effort: 'high', mode: 'plan', sessionId: null,
-      view: 'vibecoder', vibe: { flow: 'create', pr: null }, parent: { id: 'a' },
+      vibe: { flow: 'create', pr: null }, parent: { id: 'a' },
     });
   });
 });

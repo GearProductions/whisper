@@ -29,7 +29,7 @@ afterEach(() => {
 
 // Une ancienne conversation, en entier, faite d'un seul message de l'agent.
 const agentSays = (text: string): Thread => ({
-  mode: 'full', key: 'k', live: false, name: 'Agent', color: '#888888', title: 'Conversation', status: 'idle',
+  key: 'k', live: false, name: 'Agent', color: '#888888', title: 'Conversation', status: 'idle',
   messages: [{ role: 'assistant', text, time: 0 }],
 });
 
@@ -38,7 +38,7 @@ async function shown(data: Thread) {
   const opened: string[] = [];
   const actions: ThreadActions = {
     openLink: (url) => { opened.push(url); }, showFile: () => {}, listen: () => {},
-    copy: async () => true, zoom: () => {}, answer: () => true,
+    zoom: () => {}, answer: () => true,
   };
   const page = document.createElement('div');
   // La page de test ne suit aucun lien : on n'observe que ce que le fil demande d'ouvrir.

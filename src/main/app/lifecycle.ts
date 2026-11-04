@@ -1,5 +1,6 @@
 /** lifecycle — démarrage et sortie de l'appli. Une seule instance ; au
- *  lancement, aucun agent sélectionné (I-8) ; le micro, seule permission
+ *  lancement, l'agent affiché la dernière fois l'est de nouveau (sinon le premier ;
+ *  aucun : l'accueil) ; le micro, seule permission
  *  accordée, et à nos pages seulement (I-9). Quittée en pleine dictée ou
  *  pendant un tour d'agent : on rend d'abord le son et le micro Discord, on
  *  interrompt les agents et on attend la fin de leurs tours (I-11, I-19) ;
@@ -11,26 +12,27 @@
  *  avant ready, servi à ready (resolveArtifact). Lancée depuis les sources :
  *  ce qui est reconstruit dans out/ est suivi (app/dev), le relevé de
  *  VibeCoder le montre.
+ *  La fenêtre classique est créée au lancement (createWindow) ; ensureModel
+ *  part après son chargement (le message en tête de la fenêtre).
  *  Ne connaît pas : le détail des fenêtres et des contrôleurs.
  *  Utilisé par : src/main/index.ts. */
 import { app, session } from 'electron';
-import { startupPatch } from 'core/config';
 import { ARTIFACT_SCHEME } from 'core/vibecoder';
+import { agentList } from 'core/config';
 import { allowPermission, allowPermissionCheck } from 'core/guards';
 import { registerScheme, serveFiles } from 'technicals/file-scheme';
 import { binDir } from 'technicals/paths';
-import * as paste from 'technicals/paste';
 import * as tts from 'technicals/pocket-tts';
 import * as windows from 'technicals/windows-helper';
 import {
-  agents, ensureFolderColors, ensureModel, moveLegacyArtifacts, muter, pollSpeak, processesRunning, pushAgents, refreshVibe, resetSpeakState, resolveArtifact, SPEAK_POLL_MS,
+  agents, ensureFolderColors, ensureModel, moveLegacyArtifacts, muter, processesRunning, refreshVibe, resolveArtifact,
   startHealing, stopProcesses, syncFamilies,
 } from 'app/controllers';
 import { startDev } from 'app/dev';
 import { registerIpc } from 'app/ipc';
-import { ensureVibeFiles, loadConfig, saveConfig } from 'app/settings';
+import { ensureVibeFiles, loadConfig } from 'app/settings';
 import { state } from 'app/state';
-import { createBubble, createIconWindow } from 'app/windows';
+import { createWindow, openConversation } from 'app/windows';
 
 // Seule permission accordée : le micro, pour nos propres pages.
 function setupPermissions(ses: Electron.Session) {
@@ -43,8 +45,6 @@ function setupPermissions(ses: Electron.Session) {
 }
 
 export function start() {
-  // Fenêtre transparente sous Linux (X11) : sans ce drapeau, fond noir.
-  if (process.platform === 'linux') app.commandLine.appendSwitch('enable-transparent-visuals');
   if (!app.requestSingleInstanceLock()) app.quit();
   registerIpc();
   registerScheme(ARTIFACT_SCHEME);
@@ -52,30 +52,26 @@ export function start() {
   app.whenReady().then(() => {
     setupPermissions(session.defaultSession);
     serveFiles(ARTIFACT_SCHEME, resolveArtifact);
-    createIconWindow(() => { resetSpeakState(); pushAgents(); });
-    createBubble();
+    createWindow();
     ensureFolderColors();
-    // Au lancement, la dictée va au curseur : un agent sélectionné la veille ne
-    // doit pas recevoir (et envoyer à Claude) ce qu'on croit dicter pour soi.
-    const patch = startupPatch(loadConfig());
-    if (patch) saveConfig(patch);
+    // L'agent affiché la dernière fois, sinon le premier ; aucun agent : l'accueil.
+    const cfg = loadConfig();
+    const list = agentList(cfg);
+    const first = list.find((a) => a.id === cfg.agentSelected) ?? list[0];
+    if (first) openConversation(first.id);
     // Les familles d'agents (un dépôt, ses worktrees), relues par git.
     syncFamilies();
     // VibeCoder : ses fichiers par défaut, sans écraser une retouche ; un échec ne bloque rien (I-29).
     ensureVibeFiles();
     // Les anciens artefacts rejoignent le dossier de leur projet (ne rejette jamais), puis la vue est relue ; le démarrage n'attend pas.
     void moveLegacyArtifacts().then(() => refreshVibe());
-    setInterval(pollSpeak, SPEAK_POLL_MS);
     // Depuis les sources : recharger ou redémarrer, d'après ce qui est reconstruit (rien en version empaquetée).
     startDev(() => { void refreshVibe({ now: true }); });
     // Une application restée muette après une dictée passée : rétablie dès qu'elle rejoue.
     startHealing();
-    // Windows : l'assistant PowerShell sert au premier collage comme à la
-    // coupure du micro Discord en début de dictée ; il met ~1 s à démarrer.
-    paste.warmUp();
     tts.setDirs({ data: app.getPath('userData'), bin: binDir() });
-    // Après le chargement de la bulle, qui affiche la progression.
-    state.bubble!.webContents.once('did-finish-load', ensureModel);
+    // Après le chargement de la fenêtre, qui affiche la progression en tête.
+    state.panel!.webContents.once('did-finish-load', ensureModel);
   });
   app.on('window-all-closed', () => app.quit());
 

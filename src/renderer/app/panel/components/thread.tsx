@@ -1,10 +1,10 @@
 /** thread — le fil : messages (heure, texte — celui de l'agent rendu en
  *  Markdown par MarkdownView, sans 💬 ; les autres tels quels, avec liens et
- *  blocs de code —, actions de l'agent, pièces jointes, Écouter, Copier),
+ *  blocs de code —, actions de l'agent, pièces jointes, Écouter),
  *  demande d'autorisation, agent au travail.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : panel-app. */
 import { useEffect, useState } from 'react';
-import { baseName, isBusy, kindOf, visibleFrom } from 'core/conversation';
+import { baseName, isBusy, kindOf } from 'core/conversation';
 import { Linkified } from 'core/ui';
 import { t as strings } from 'core/vibecoder';
 import { clock, elapsed, fullDate } from 'helpers';
@@ -16,7 +16,6 @@ export type ThreadActions = {
   openLink(url: string): void;
   showFile(file: string): void;
   listen(index: number): void;
-  copy(): Promise<boolean>;
   zoom(src: string): void;
   answer(decision: Decision, key: number): boolean;
 };
@@ -56,15 +55,12 @@ function Tools({ tools }: { tools: string[] }) {
 }
 
 function who(m: Message, data: ThreadData) {
-  if (data.dictation) return 'Texte dicté';
   if (m.role === 'user') return 'Vous';
   if (m.role === 'system') return m.kind === 'compact' ? 'Contexte compacté' : 'Sortie de la commande';
   return data.name;
 }
 
 function MessageView({ m, index, data, act }: { m: Message; index: number; data: ThreadData; act: ThreadActions }) {
-  const [copied, setCopied] = useState(false);
-  useEffect(() => setCopied(false), [m.text, m.time]); // une nouvelle dictée : à copier
   const body = <Body text={m.text} role={m.role} openLink={act.openLink} />;
   return (
     <article className={`message ${m.role}`}>
@@ -91,8 +87,6 @@ function MessageView({ m, index, data, act }: { m: Message; index: number; data:
         ))}
       </div>
       <button className="listen" type="button" hidden={m.role !== 'assistant' || !m.audio} onClick={() => act.listen(index)}>▶ Écouter</button>
-      <button className="copy" type="button" title="Copier ce texte (pour le coller dans le champ d'un agent, par exemple)"
-        onClick={async () => { if (await act.copy()) setCopied(true); }}>{copied ? 'Copié ✓' : 'Copier'}</button>
     </article>
   );
 }
@@ -119,12 +113,9 @@ export const showsWorking = (data: ThreadData) => data.live && !data.permission 
 // Les enfants de #thread, pour une conversation. Monté de nouveau quand elle change
 // (clé) : ses <details> repartent fermés.
 export function ThreadContent({ data, act }: { data: ThreadData; act: ThreadActions }) {
-  const from = visibleFrom(data.messages, data.mode);
   return (
     <>
-      {data.messages.map((m, index) => (index >= from ? <MessageView key={index} m={m} index={index} data={data} act={act} /> : null))}
-      {data.dictation && !data.messages.length
-        ? <div className="hint">Maintenez l'icône pour dicter : le texte s'affichera ici.</div> : null}
+      {data.messages.map((m, index) => <MessageView key={index} m={m} index={index} data={data} act={act} />)}
       {/* L'agent demande une autorisation : elle se valide ici, au bas du fil. */}
       {data.permission ? <PermissionCard key={data.permission.key} permission={data.permission}
         onAnswer={(d) => act.answer(d, data.permission!.key)} /> : null}

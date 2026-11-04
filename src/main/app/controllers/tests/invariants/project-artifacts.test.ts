@@ -185,10 +185,8 @@ const ids = async () => (await import('app/settings')).loadConfig().agents.map((
 
 // Le panneau ouvert sur cet agent, en VibeCoder, son premier relevé reçu.
 async function open(id: string) {
-  const { state } = await import('app/state');
   const { openConversation } = await import('app/windows');
   const { panelReady } = await import('app/controllers');
-  state.icon = new fake.Win() as never;
   openConversation(id);
   fake.windows.at(-1)!.emit('ready-to-show');
   await panelReady();

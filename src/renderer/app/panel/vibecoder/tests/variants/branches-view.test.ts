@@ -59,8 +59,8 @@ it('BranchesView : Branches locales, l\'active marquée et pas cliquable, une au
 it('BranchesView : dossier propre, Changer de branche et Revenir, rien de masqué ni Rester', async () => {
   await draw([a('load-pr'), a('pr-here'), a('pr-worktree', true), a('stash', true), a('unload-pr')]);
   const l = labels();
-  expect(l.some((x) => x.startsWith('pr-here'))).toBe(true);
-  expect(l.some((x) => x.startsWith('pr-worktree') || x.startsWith('stash'))).toBe(false);
+  expect(l.some((x) => x.startsWith('Basculer ici'))).toBe(true);
+  expect(l.some((x) => x.startsWith('+ Agent dans un worktree') || x.startsWith('stash'))).toBe(false);
   expect(l).not.toContain('Rester sur la branche');
   button('unload-pr').click();
   expect(runs.at(-1)).toEqual(['unload-pr', { direct: true }]);
@@ -68,7 +68,7 @@ it('BranchesView : dossier propre, Changer de branche et Revenir, rien de masqu�
 
 it('BranchesView : des modifications, Changer de branche grisé, stash, Rester sur la branche', async () => {
   await draw([a('pr-here', false, 'Des modifications en cours'), a('pr-worktree'), a('stash'), a('unload-pr', false, 'Des modifications en cours')]);
-  expect(button('pr-here').disabled).toBe(true);
+  expect(button('Basculer ici').disabled).toBe(true);
   button('stash').click();
   expect(runs.at(-1)).toEqual(['stash', { direct: true }]);
   button('Rester sur la branche').click();
@@ -83,9 +83,9 @@ it('BranchesView : sans PR chargée, Revenir sur la branche principale sans Rest
 
 it('BranchesView : Créer une branche, grisé sans nom, puis { branch } (origin/<base>, le défaut du principal) ou { branch, start } (une locale)', async () => {
   await draw([a('new-here'), a('new-worktree')], null);
-  expect(button('new-here').disabled).toBe(true);
+  expect(button('Créer ici').disabled).toBe(true);
   await type(page.querySelector('.vc-br-new input')!, ' feat/x ');
-  button('new-here').click();
+  button('Créer ici').click();
   expect(runs.at(-1)).toEqual(['new-here', { direct: true, branch: 'feat/x' }]);
   await type(page.querySelector('.vc-br-new input')!, 'feat/y');
   await act(() => {
@@ -93,7 +93,7 @@ it('BranchesView : Créer une branche, grisé sans nom, puis { branch } (origin/
     sel.value = 'feat';
     sel.dispatchEvent(new Event('change', { bubbles: true }));
   });
-  button('new-worktree').click();
+  button('Nouveau worktree → nouvel agent').click();
   expect(runs.at(-1)).toEqual(['new-worktree', { direct: true, branch: 'feat/y', start: 'feat' }]);
 });
 
@@ -154,4 +154,18 @@ it('BranchesView : dans un worktree (view.child), Actualiser et Retirer le workt
   expect(labels().filter((l) => !l.startsWith('fetch') && !l.startsWith('remove-worktree'))).toEqual([]);
   expect([page.querySelector('.vc-seg'), page.querySelector('.vc-br-new'), page.querySelector('.vc-br-search')]).toEqual([null, null, null]);
   expect(page.textContent).toContain('Un worktree reste sur sa branche');
+});
+
+it('BranchesView : les intitulés de la vue C — + Agent dans un worktree, Aller à l\'agent → (worktree ouvert)', async () => {
+  await act(() => {
+    const view = {
+      lang: 'fr', flow: 'create', loaded: pr, worktree: { state: 'robot', dir: '/w' }, actions: [a('pr-worktree')],
+      repo: { branch: 'feat', base: 'master', changed: 0 }, prs: { mine: [], review: [], all: [] }, branches: [],
+    } as unknown as VibeView;
+    const acts = { set: (p: unknown) => sets.push(p), run: async () => true, openLink: () => {} };
+    root.render(createElement(BranchesView, { view, t: t('fr'), act: acts, busy: false }));
+  });
+  expect(labels().some((x) => x.startsWith('+ Agent dans un worktree'))).toBe(true);
+  button('Aller à l\'agent →').click();
+  expect(sets.at(-1)).toEqual({ worktree: true });
 });

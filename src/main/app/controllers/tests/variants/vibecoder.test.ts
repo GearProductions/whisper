@@ -44,7 +44,7 @@ const fake = vi.hoisted(() => {
 });
 
 vi.mock('electron', () => ({
-  app: { getPath: () => fake.userData },
+  app: { getPath: () => fake.userData, quit: () => {} },
   BrowserWindow: class extends fake.Win { constructor() { super(); fake.windows.push(this); } },
   screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) },
   shell: { openExternal: (url: string) => { fake.opened.push(url); } }, clipboard: {}, nativeImage: {},
@@ -155,7 +155,7 @@ vi.mock('app/controllers/worktrees', async (original) => ({
     if (fake.noChild) return null;   // la question de confiance refusée
     const { loadConfig, saveConfig } = await import('app/settings');
     const child = { id: 'c1', dir, name: 'enfant', model: '', effort: '', mode: 'default', sessionId: null, parent: { id: parent.id },
-      view: 'vibecoder' as const, vibe: { flow: 'create' as const, pr: null } };
+      vibe: { flow: 'create' as const, pr: null } };
     saveConfig({ agents: [...loadConfig().agents, child] });
     return child;
   },
@@ -225,17 +225,15 @@ beforeEach(() => {
   ]));
   write(path.join(fake.userData, 'config.json'), JSON.stringify({
     agentsEnabled: true,
-    agents: [{ id: 'a1', dir, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null, view: 'vibecoder' }],
+    agents: [{ id: 'a1', dir, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null }],
   }));
 });
 afterEach(() => { vi.useRealTimers(); });
 
 // Le panneau ouvert sur l'agent, la page prête : ses relevés reçus.
 async function open() {
-  const { state } = await import('app/state');
   const { openConversation } = await import('app/windows');
   const { panelReady } = await import('app/controllers');
-  state.icon = new fake.Win() as never;
   openConversation('a1');
   const panel = fake.windows.at(-1)!;
   panel.emit('ready-to-show');
@@ -334,20 +332,6 @@ describe('le relevé', () => {
     await settle();
   });
 
-  it('revenu à la conversation : null, une fois', async () => {
-    const { vibes } = await open();
-    const { pushAgents, setVibe } = await import('app/controllers');
-    setVibe({ view: 'conversation' });
-    pushAgents();
-    await settle();
-    expect(vibes().filter((v) => v === null)).toHaveLength(1);
-    expect(vibes().at(-1)).toBeNull();
-    const { loadConfig } = await import('app/settings');
-    expect(loadConfig().agents[0]).not.toHaveProperty('view');
-  });
-});
-
-describe('une action', () => {
   it('refusée si la page passe autre chose que ses arguments, ou une action inconnue', async () => {
     await open();
     const { runVibeAction } = await import('app/controllers');
@@ -432,7 +416,7 @@ function review() {
   fake.people = { author: 'bob', assignees: [] };
   write(path.join(fake.userData, 'config.json'), JSON.stringify({
     agentsEnabled: true,
-    agents: [{ id: 'a1', dir, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null, view: 'vibecoder',
+    agents: [{ id: 'a1', dir, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null,
       vibe: { flow: 'review', autonomy: 'guide', pr: 12 } }],
   }));
 }
@@ -442,9 +426,9 @@ describe('rc.2', () => {
   it('une action sur un autre modèle : la variante de son skill ; un modèle hors des choix : ignoré, rendu dans ignored (0.11.0)', async () => {
     write(path.join(fake.userData, 'vibecoder', 'plugin', 'skills', 'verifier', 'SKILL.md'), '---\ncontext: fork\nmodel: haiku\n---\n');
     await open();
-    const { runVibeAction, startAction, vibeAgent, lastView } = await import('app/controllers');
+    const { runVibeAction, startAction, viewAgent, lastView } = await import('app/controllers');
     const { loadConfig, vibeActions } = await import('app/settings');
-    const agent = vibeAgent()!;
+    const agent = viewAgent()!;
     const def = vibeActions('fr').find((a) => a.id === 'checks')!;
     expect(startAction(agent, def, { model: 'fable' }, lastView('a1')!, loadConfig())).toEqual({ ok: true, ignored: ['model'] });
     await settle();
@@ -457,9 +441,9 @@ describe('rc.2', () => {
 
   it('un texte que le gabarit ne lit pas : l’action part, text rendu dans ignored (0.13.0, 12) ; vide, rien', async () => {
     await open();
-    const { startAction, vibeAgent, lastView } = await import('app/controllers');
+    const { startAction, viewAgent, lastView } = await import('app/controllers');
     const { loadConfig, vibeActions } = await import('app/settings');
-    const agent = vibeAgent()!;
+    const agent = viewAgent()!;
     const def = vibeActions('fr').find((a) => a.id === 'checks')!;
     expect(startAction(agent, def, { text: 'une consigne' }, lastView('a1')!, loadConfig())).toEqual({ ok: true, ignored: ['text'] });
     await settle();
@@ -539,15 +523,6 @@ describe('0.11.0 : invariants existants et courses', () => {
     setVibe({ runsSeen: true });
     setVibe({ runsSeen: false });
     setVibe({ runsSeen: 'a2' });
-    expect(fake.tabs).toEqual(['a1', null]);
-  });
-
-  it('runsSeen false après avoir quitté VibeCoder : l’onglet Actions fermé quand même', async () => {
-    await open();
-    const { setVibe } = await import('app/controllers');
-    setVibe({ runsSeen: true });
-    setVibe({ view: 'conversation' });
-    setVibe({ runsSeen: false });
     expect(fake.tabs).toEqual(['a1', null]);
   });
 
@@ -645,7 +620,7 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     expect([v.child, v.recipe, v.checkout, v.request]).toEqual([false, null, { branch: 'main', dirty: true }, null]);
     expect(v).not.toHaveProperty('place');
     vi.resetModules();
-    write(path.join(fake.userData, 'config.json'), JSON.stringify({ agentsEnabled: true, agents: [{ id: 'a1', dir, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null, view: 'vibecoder' }] }));
+    write(path.join(fake.userData, 'config.json'), JSON.stringify({ agentsEnabled: true, agents: [{ id: 'a1', dir, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null }] }));
     v = (await open()).view()!;
     expect(v.checkout).toEqual({ branch: 'main', dirty: true });
   });
@@ -813,9 +788,9 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     gitWith('');
     await open();
     await requestPending();
-    const { refreshVibe, runVibeAction, vibeAgent } = await import('app/controllers');
+    const { refreshVibe, runVibeAction, viewAgent } = await import('app/controllers');
     runVibeAction('new-worktree', { direct: true });
-    await until(() => vibeAgent()?.id === 'c1');
+    await until(() => viewAgent()?.id === 'c1');
     await refreshVibe({ now: true });
     await until(() => fake.messages.length > 1);
     expect(fake.calls).toEqual([
@@ -917,9 +892,9 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
   it('en relecteur (le dernier relevé), une action create est refusée par startAction, même demandée par l\'orchestrateur', async () => {
     review();
     await open();
-    const { startAction, vibeAgent, lastView } = await import('app/controllers');
+    const { startAction, viewAgent, lastView } = await import('app/controllers');
     const { vibeActions } = await import('app/settings');
-    const agent = vibeAgent()!;
+    const agent = viewAgent()!;
     const note = vibeActions('fr').find((a) => a.id === 'note')!;
     expect(startAction(agent, note, { text: 'réécris' }, lastView('a1')!, (await import('app/settings')).loadConfig())).toMatchObject({ ok: false });
     expect(fake.messages).toEqual([]);
@@ -1076,9 +1051,9 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
   it('Créer une branche dans un worktree (new-worktree, sans demande) : depuis origin/<base>, l’enfant ouvert, pas de note', async () => {
     gitWith('');
     await open();
-    const { refreshVibe, runVibeAction, vibeAgent } = await import('app/controllers');
+    const { refreshVibe, runVibeAction, viewAgent } = await import('app/controllers');
     runVibeAction('new-worktree', { direct: true, branch: 'feat/y' });
-    await until(() => vibeAgent()?.id === 'c1');
+    await until(() => viewAgent()?.id === 'c1');
     await refreshVibe({ now: true });
     await settle();
     expect(fake.calls).toEqual([
@@ -1093,11 +1068,11 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
   it('Créer une branche dans un worktree pendant une action qui modifie la branche : le worktree est créé', async () => {
     gitWith('');
     await open();
-    const { lockingRuns, runVibeAction, vibeAgent } = await import('app/controllers');
+    const { lockingRuns, runVibeAction, viewAgent } = await import('app/controllers');
     expect(runVibeAction('note', { text: 'une demande' })).toEqual({ ok: true });
     expect(lockingRuns('a1')).toEqual([expect.objectContaining({ id: 'note', reads: false })]);
     expect(runVibeAction('new-worktree', { direct: true, branch: 'feat/y' })).toEqual({ ok: true });
-    await until(() => vibeAgent()?.id === 'c1');
+    await until(() => viewAgent()?.id === 'c1');
     expect(fake.calls).toContainEqual(['createWorktree', 'a1', { branch: 'feat/y', base: 'main', start: 'origin/main' }]);
   });
 
@@ -1227,5 +1202,24 @@ describe('0.13.0 : les artefacts', () => {
     expect(dropOnArtifacts(['/tmp/a.md'], 'd1')).toEqual({ ok: true });
     for (let i = 0; i < 60 && (await directOf('add-artifact'))?.running !== false; i++) await settle();
     expect(fake.calls).toEqual([['addArtifacts', 'a1', ['/tmp/a.md'], 'd1']]);
+  });
+});
+
+describe("l'historique sans quitter VibeCoder", () => {
+  it('une ancienne session affichée : l’agent reste en VibeCoder, son relevé vient, une action part à sa session en cours', async () => {
+    const { viewAgent, runVibeAction, currentSession } = await import('app/controllers');
+    const { state } = await import('app/state');
+    const { openConversation } = await import('app/windows');
+    const { vibes } = await open();
+    openConversation('a1', { sessionId: 'ancienne' });
+    expect(state.convView).toEqual({ agentId: 'a1', sessionId: 'ancienne' });
+    expect(viewAgent()?.id).toBe('a1');                    // l'écran reste
+    expect(runVibeAction('checks', {})).toEqual({ ok: true });
+    await settle();
+    expect(fake.messages[0]).toBe(`/vibecoder:verifier fr ${out}`);   // à la session de l'agent (agent.sessionId)
+    expect(vibes().at(-1)).not.toBeNull();                  // jamais de relevé nul : le panneau garde l'écran
+    currentSession();                     // ← Conversation en cours
+    expect(state.convView).toEqual({ agentId: 'a1', sessionId: null });
+    expect(viewAgent()?.id).toBe('a1');
   });
 });

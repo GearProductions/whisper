@@ -2,6 +2,8 @@
 // (`setRecording(true)`, qui coupe le son et le micro Discord) se termine par
 // `setRecording(false)`, quel que soit le chemin de sortie. Sinon le principal
 // ne rétablit rien. Protégé : si ce test échoue, corriger le code.
+// 0.14.0 : la dictée du champ de VibeCoder, sans collage (warmUp retiré, le
+// texte rendu par onText).
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDictation, MAX_MS, type Recording } from 'core/dictation';
 import type { DictationConfig, TranscribeResult } from 'technicals/bridge';
@@ -17,14 +19,14 @@ function setup(opts: { mic?: () => Promise<MediaStream>; rec?: () => Recording; 
     api: {
       getConfig: async () => cfg,
       setRecording: (on) => { calls.push(on); },
-      warmUp: async () => true,
-      transcribe: opts.transcribe || (async () => ({ ok: true, text: 'bonjour', pasted: true })),
+      transcribe: opts.transcribe || (async () => ({ ok: true, text: 'bonjour' })),
     },
     openMic: opts.mic || (async () => stream()),
     record: opts.rec || speech,
     beep: () => {},
     stopSpeaking: () => {},
     setPhase: () => {},
+    onText: () => {},
   });
   return { d, calls };
 }

@@ -13,8 +13,8 @@ import { artifactDirs, artifactList } from 'core/vibecoder';
 
 const fake = vi.hoisted(() => ({ userData: '', dir: '', shown: 'a1' as string | null, view: null as unknown }));
 vi.mock('electron', () => ({ app: { getPath: () => fake.userData }, shell: { trashItem: async () => {} } }));
+vi.mock('app/controllers/agents', () => ({ viewAgent: () => (fake.shown ? { id: fake.shown, dir: fake.dir } : null) }));
 vi.mock('app/controllers/vibecoder', () => ({
-  vibeAgent: () => (fake.shown ? { id: fake.shown, dir: fake.dir } : null),
   lastView: (id: string) => (id === fake.shown ? fake.view : null),
 }));
 

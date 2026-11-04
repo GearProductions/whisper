@@ -42,10 +42,10 @@ import { artifactFile } from './artifacts';
 import { gitReader, gitRun } from 'technicals/git';
 import { loadConfig } from 'app/settings';
 import { state } from 'app/state';
-import { isBusy } from './agents';
+import { isBusy, viewAgent } from './agents';
 import { lockingRuns } from './runs';
 import { READ_MAX, readTimed } from './processes';
-import { lastView, refreshVibe, vibeAgent } from './vibecoder';
+import { lastView, refreshVibe } from './vibecoder';
 
 const ERRORS: Record<VibeLang, Record<'file' | 'text' | 'write', string>> = {
   fr: { file: 'Ce fichier n’est plus affiché.', text: 'Texte invalide ou trop gros.', write: 'Enregistrement impossible.' },
@@ -129,7 +129,7 @@ export function followCode(id: unknown): void {
   followed?.watcher?.close();
   followed = null;
   if (id === null) return;
-  const agent = vibeAgent();
+  const agent = viewAgent();
   if (!agent || typeof id !== 'string') { push(null); return; }
   const view = lastView(agent.id);
   const found = codeFile(view, id);
@@ -158,7 +158,7 @@ export function saveCode(id: unknown, text: unknown): SendResult {
   const cfg = loadConfig();
   const lang = vibeLang(cfg);
   const T = ERRORS[lang];
-  const agent = vibeAgent(cfg);
+  const agent = viewAgent(cfg);
   if (!agent || !followed || followed.agentId !== agent.id || id !== followed.id) return { ok: false, error: T.file };
   const view = lastView(agent.id);
   if (view?.flow === 'review') return { ok: false, error: T.file };   // le relecteur n'écrit rien

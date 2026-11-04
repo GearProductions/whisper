@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   appendDictation, createDrafts, cycle, EMPTY, gauge, kindOf, matchCommands, pickCommand, pieceLabel, slashQuery, titleOf, toDraft,
-  visibleFrom, withAttached, withFile, type Piece,
+  withAttached, withFile, type Piece,
 } from 'core/conversation';
 import { elapsed, kTokens } from 'helpers';
-import type { Message } from 'technicals/bridge';
 
 describe('brouillons (S-22)', () => {
   it('un brouillon par conversation, rendu au retour', () => {
@@ -52,15 +51,6 @@ describe('format', () => {
     expect(titleOf({ title: 'T', live: true })).toBe('T');
     expect(titleOf({ title: '', live: true })).toBe('Nouvelle conversation');
     expect(titleOf({ title: '', live: false })).toBe('Conversation sans titre');
-  });
-
-  it('réduit : depuis votre dernier message', () => {
-    const m = (role: Message['role']): Message => ({ role, text: '' });
-    const list = [m('user'), m('assistant'), m('user'), m('assistant'), m('system')];
-    expect(visibleFrom(list, 'compact')).toBe(2);
-    expect(visibleFrom(list, 'full')).toBe(0);
-    expect(visibleFrom([m('assistant'), m('assistant')], 'compact')).toBe(1);
-    expect(visibleFrom([], 'compact')).toBe(0);
   });
 });
 

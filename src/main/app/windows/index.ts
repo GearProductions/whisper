@@ -1,4 +1,2 @@
-/** windows — les trois fenêtres : l'icône, la bulle, le panneau. */
-export * from './bubble-window';
-export * from './icon-window';
+/** windows — la fenêtre : le panneau. */
 export * from './panel-window';

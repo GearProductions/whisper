@@ -129,4 +129,4 @@ export const saveVibeStore = (s: VibeStore) => writeJson(vibeStoreFile(), s);
 
 // Les pages (construites par Vite dans out/renderer) et les ponts (out/main).
 export const page = (name: string) => path.join(__dirname, '..', 'renderer', name);
-export const preload = (name: 'icon' | 'bubble' | 'panel') => path.join(__dirname, `preload-${name}.js`);
+export const preload = (name: 'panel') => path.join(__dirname, `preload-${name}.js`);

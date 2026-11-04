@@ -1,7 +1,7 @@
 /** artifact-migration — le déplacement des anciens artefacts
  *  (vibecoder-out/<agent>/artifacts/) vers le dossier de leur projet, à chaque
  *  démarrage : ce qui reste part, sans drapeau. Ne rejette jamais ; un échec : au
- *  journal et showBubble(failedLine), le fichier reste et repart au démarrage suivant.
+ *  journal et conversationNotice(failedLine), le fichier reste et repart au démarrage suivant.
  *  Un id sans dossier : au journal, rien ne bouge. artifacts-left.json est lu ici, et
  *  supprimé quand plus aucune de ses entrées n'a de fichier (illisible, vide : comme sans
  *  entrée, le déplacement va au bout). Les dossiers vidés partent.
@@ -15,7 +15,7 @@ import { agentList, vibeLang } from 'core/config';
 import { failedLine, leftEntries, legacyOwner } from 'core/vibecoder';
 import { hasFiles, moveContents } from 'technicals/file-tree';
 import { loadConfig, vibeOutPath } from 'app/settings';
-import { showBubble } from 'app/windows';
+import { conversationNotice } from 'app/windows';
 import { readFile } from './processes';
 import { legacyArtifactsPath, projectArtifactsPath, vibeOutRoot } from './artifacts';
 
@@ -40,7 +40,7 @@ export async function moveLegacyArtifacts(): Promise<void> {
         await fsp.rmdir(vibeOutPath(id)).catch(() => {});
       }
     }
-    if (failed) showBubble(failedLine(failed, vibeLang(cfg)), 'notice');
+    if (failed) conversationNotice(failedLine(failed, vibeLang(cfg)), 'notice');
     const kept = await Promise.all(Object.keys(left).map((id) => hasFiles(legacyArtifactsPath(id))));
     if (!kept.some(Boolean)) fs.rmSync(leftFile, { force: true });
   } catch (err) {
