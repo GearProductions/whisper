@@ -3,30 +3,30 @@
    limites, garantie, attention ; verdict et outils dans son en-tête). Sobre et dense (0.13.0) : marges
    un cran en dessous (--vc-pad), coins --vc-radius ; les outils de l'en-tête
    d'un fichier alignés sur 22 px ; les icônes (Icon) de l'état et de « Tout
-   valider » à la taille du texte. Un cas validé, discret : ni cadre, ni fond,
-   la fine bordure verte à gauche et le badge allumé. Sous .vc.
+   valider » à la taille du texte. Un cas validé garde sa carte (fond et
+   cadre), la fine bordure verte à gauche et le badge allumé. Sous .vc.
    Ne connaît pas : les composants (seulement leurs classes).
    Utilisé par : invariants-view (importé). */
 
 /* ---- Résumé de l'étape ----------------------------------------------------- */
-.vc-isum { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; margin: -3px 0 12px; color: var(--vc-muted); font-size: 12.5px; }
+.vc-isum { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; margin: -3px 0 12px; color: var(--vc-faint); font-size: 12.5px; }
 .vc-isum-stat { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
 .vc-isum-stat b { color: var(--vc-text); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.vc-isum-stat[data-tone="ok"] b { color: #6fdd85; }
-.vc-isum-stat[data-tone="ko"] b { color: #f08a8b; }
+.vc-isum-stat[data-tone="ok"] b { color: var(--vc-ok-text); }
+.vc-isum-stat[data-tone="ko"] b { color: var(--vc-ko-text); }
 .vc-isum-stat[data-tone="warn"] b { color: var(--vc-warn); }
 .vc-isum > .vc-ibar { flex: 1 0 100%; width: auto; height: 4px; }
 
 /* La barre : validés, refusés, le reste. */
-.vc-ibar { display: inline-flex; flex: none; width: 64px; height: 5px; border-radius: 3px; background: var(--vc-control); overflow: hidden; }
+.vc-ibar { display: inline-flex; flex: none; width: 64px; height: 5px; border-radius: 3px; background: var(--vc-hover); overflow: hidden; }
 .vc-ibar i { flex-basis: 0; }
 .vc-ibar i[data-k="ok"] { background: var(--vc-ok); }
-.vc-ibar i[data-k="ko"] { background: #d9383a; }
+.vc-ibar i[data-k="ko"] { background: var(--vc-ko); }
 
 /* ---- Alignement ------------------------------------------------------------- */
 .vc-ialign > summary { cursor: pointer; list-style: none; }
 .vc-ialign > summary::-webkit-details-marker { display: none; }
-.vc-ialign > summary::before { content: "▸"; flex: none; color: var(--vc-muted); font-size: 11px; transition: transform 0.12s; }
+.vc-ialign > summary::before { content: "▸"; flex: none; color: var(--vc-faint); font-size: 11px; transition: transform 0.12s; }
 .vc-ialign[open] > summary::before { transform: rotate(90deg); }
 .vc-ialign:not([open]) > summary { border-bottom: 0; }
 .vc-ialign > .vc-card-body { max-height: 320px; overflow-y: auto; }
@@ -44,15 +44,15 @@
   margin: 0 -4px 8px;
   padding: 0 4px;
   border-bottom: 1px solid var(--vc-line);
-  background: var(--vc-editor);
+  background: var(--vc-bg);
 }
 /* Trop long : le dossier se coupe, jamais le nom du fichier. */
 .vc-ifile-path { display: flex; min-width: 0; white-space: nowrap; font-size: 12.5px; }
-.vc-ifile-dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--vc-muted); }
+.vc-ifile-dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--vc-faint); }
 .vc-ifile-path b { flex: none; color: var(--vc-text); font-weight: 600; }
-.vc-ifile-read { flex: none; padding: 0 8px; border-radius: 9px; background: color-mix(in srgb, var(--vc-warn) 14%, transparent); color: var(--vc-warn); font: 500 11px/18px system-ui, sans-serif; }
-.vc-ifile-read[data-read] { background: rgba(255, 255, 255, 0.06); color: var(--vc-soft); }
-.vc-ifile-progress { flex: none; display: inline-flex; align-items: center; gap: 8px; color: var(--vc-muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vc-ifile-read { flex: none; padding: 0 8px; border-radius: 4px; background: var(--vc-warn-bg); color: var(--vc-warn); font: 500 11px/18px var(--vc-sans); }
+.vc-ifile-read[data-read] { background: var(--vc-hover); color: var(--vc-soft); }
+.vc-ifile-progress { flex: none; display: inline-flex; align-items: center; gap: 8px; color: var(--vc-faint); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .vc-ifile-tools { margin-left: auto; display: flex; align-items: center; gap: 4px; }
 /* Alignés : Tout valider, Relire / Lire en pseudo-code et Ouvrir, à la hauteur des boutons (22 px). */
 .vc-ifile-tools > :is(.vc-run, .vc-vbtn) { height: 22px; border-radius: var(--vc-radius); }
@@ -61,7 +61,7 @@
 
 /* Voir le fichier : tout son code, replié ; un test modifié, le sélecteur Fichier · Diff. */
 .vc-ifile-src { margin: -3px 0 9px; }
-.vc-ifile-src > summary { width: max-content; color: var(--vc-muted); font-size: 12px; cursor: pointer; }
+.vc-ifile-src > summary { width: max-content; color: var(--vc-faint); font-size: 12px; cursor: pointer; }
 .vc-ifile-src > summary:hover { color: var(--vc-text); }
 .vc-ifile-src > :is(.vc-src, .vc-mod-bar) { margin-top: 8px; }
 .vc-ifile-src > .vc-src .cm-editor { max-height: 420px; }
@@ -70,16 +70,16 @@
 .vc-case {
   position: relative;
   margin: 0 0 16px;
-  padding: 9px 10px 9px var(--vc-pad);
+  padding: 9px 10px 9px var(--vc-pad, 12px);
   border: 1px solid var(--vc-line);
   border-radius: var(--vc-radius);
   background: var(--vc-card);
-  box-shadow: inset 3px 0 0 var(--vc-edge);
+  box-shadow: inset 3px 0 0 var(--vc-line);
   scroll-margin-top: 40px;  /* sous l'en-tête collant du fichier */
 }
-/* Validé, discret : ni cadre ni fond, la seule fine bordure verte à gauche. */
-.vc-case[data-mark="ok"] { border-color: transparent; background: transparent; box-shadow: inset 3px 0 0 var(--vc-ok); }
-.vc-case[data-mark="ko"] { border-color: color-mix(in srgb, #d9383a 40%, var(--vc-line)); box-shadow: inset 3px 0 0 #d9383a; }
+/* Validé : la carte garde son fond et son cadre, une fine bordure verte à gauche. */
+.vc-case[data-mark="ok"] { box-shadow: inset 3px 0 0 var(--vc-ok); }
+.vc-case[data-mark="ko"] { border-color: var(--vc-ko-edge); box-shadow: inset 3px 0 0 var(--vc-ko); }
 .vc-case[data-mark="changed"] { box-shadow: inset 3px 0 0 var(--vc-warn); }
 .vc-case > :last-child { margin-bottom: 0; }
 /* L'en-tête : le titre, puis tout ce qu'on fait du cas, aligné ; trop étroit, ce reste passe à la ligne. */
@@ -92,34 +92,34 @@
   padding: 0 5px;
   box-sizing: border-box;
   border-radius: 10px;
-  background: var(--vc-control);
+  background: var(--vc-hover);
   color: var(--vc-soft);
-  font: 600 11px/20px system-ui, sans-serif;
+  font: 600 11px/20px var(--vc-sans);
   text-align: center;
 }
-.vc-case[data-mark="ko"] .vc-case-n { background: #d9383a; color: #fff; }
+.vc-case[data-mark="ko"] .vc-case-n { background: var(--vc-ko); color: var(--vc-ink); }
 .vc-case-title { flex: 1 1 240px; min-width: 0; margin: 0; color: var(--vc-text); font-size: 14px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
 .vc-case-view { flex: none; margin-top: -1px; }
 .vc-case-view button { padding: 0 9px; font-size: 11.5px; line-height: 20px; }
-.vc-case-state { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: var(--vc-radius); background: color-mix(in srgb, var(--vc-warn) 15%, transparent); color: var(--vc-warn); font: 500 11.5px/1.5 system-ui, sans-serif; white-space: nowrap; }
-.vc-case-none { margin: 0 0 8px; color: var(--vc-muted); font-size: 12.5px; }
+.vc-case-state { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: var(--vc-radius); background: var(--vc-warn-bg); color: var(--vc-warn); font: 500 11.5px/1.5 var(--vc-sans); white-space: nowrap; }
+.vc-case-none { margin: 0 0 8px; color: var(--vc-faint); font-size: 12.5px; }
 
 /* Le pseudo-code : lignes, assertions repérées, couleurs sobres. */
 .vc-pseudo {
   margin: 0 0 9px;
   padding: 8px 0;
-  border: 1px solid #1c2130;
+  border: 1px solid var(--vc-sep);
   border-radius: var(--vc-radius);
-  background: var(--vc-code);
-  color: #c9d1e3;
+  background: var(--vc-deep);
+  color: var(--vc-text);
   font: 12.5px/1.6 var(--vc-mono);
   overflow-x: auto;
 }
 .vc-pseudo code { display: block; font: inherit; }
 /* Une ligne trop longue passe à la ligne, en retrait sous son début. */
 .vc-pl { display: block; min-height: 1.6em; padding: 0 14px 0 calc(14px + 2ch); text-indent: -2ch; white-space: pre-wrap; overflow-wrap: anywhere; }
-.vc-pl[data-assert] { background: color-mix(in srgb, #7aa2f7 9%, transparent); box-shadow: inset 2px 0 0 #7aa2f7; }
-.vc-tk-keyword { color: #c4a7ff; }
+.vc-pl[data-assert] { background: var(--vc-info-bg); box-shadow: inset 2px 0 0 var(--vc-accent); }
+.vc-tk-keyword { color: var(--vc-violet); }
 .vc-tk-string { color: #9ece6a; }
 .vc-tk-number { color: #ff9e64; }
 .vc-tk-comment { color: #8792ad; }
@@ -131,10 +131,10 @@
 .vc-case-edges { margin: 0; padding-left: 16px; color: var(--vc-soft); }
 .vc-case-edges li + li { margin-top: 2px; }
 .vc-case-row p { margin: 0; color: var(--vc-soft); }
-.vc-case-guarantee .vc-case-label { color: #5fc977; }
+.vc-case-guarantee .vc-case-label { color: var(--vc-ok-text); }
 .vc-case-guarantee .vc-case-label::before { content: "✓ "; }
-.vc-case-guarantee p { color: #d5d9e1; }
-.vc-case :is(.vc-case-row, .vc-attention) code { padding: 0 4px; border-radius: 4px; background: var(--vc-code); color: var(--vc-text); font: 11.8px/1.5 var(--vc-mono); }
+.vc-case-guarantee p { color: var(--vc-text); }
+.vc-case :is(.vc-case-row, .vc-attention) code { padding: 0 4px; border-radius: 4px; background: var(--vc-deep); color: var(--vc-text); font: 11.8px/1.5 var(--vc-mono); }
 
 /* Attention : l'encart ambre. */
 .vc-attention {
@@ -142,15 +142,15 @@
   gap: 8px;
   margin: 8px 0 6px;
   padding: 7px 9px;
-  border: 1px solid color-mix(in srgb, var(--vc-warn) 50%, transparent);
+  border: 1px solid var(--vc-warn-edge);
   border-radius: var(--vc-radius);
-  background: color-mix(in srgb, var(--vc-warn) 10%, var(--vc-card));
-  color: #f1dcb4;
+  background: var(--vc-warn-bg);
+  color: var(--vc-warn);
   font-size: 12.8px;
   line-height: 1.5;
 }
 /* En tête de l'étape : ce que veut dire « Attention », discret. */
-.vc-ihelp { display: flex; gap: 8px; margin: -4px 0 14px; color: var(--vc-muted); font-size: 12.5px; line-height: 1.5; }
+.vc-ihelp { display: flex; gap: 8px; margin: -4px 0 14px; color: var(--vc-faint); font-size: 12.5px; line-height: 1.5; }
 .vc-ihelp > span { flex: none; color: var(--vc-warn); }
 .vc-attention { cursor: help; }
 .vc-attention-icon { flex: none; color: var(--vc-warn); font-size: 14px; line-height: 1.35; }

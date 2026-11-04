@@ -1,42 +1,29 @@
-/* Panneau de conversation d'un agent (réduit ou agrandi), aux couleurs de
-   l'appli. --accent : la couleur du dossier de l'agent affiché (posée sur
-   #app). #root et #app ne comptent pas dans la mise en page : body reste la
-   colonne. */
-:root { --accent: #8b5cf6; }
+/* La conversation d'un agent (colonne de droite de VibeCoder) et ce qui
+   l'entoure (historique, ancienne conversation, message de l'appli, champ),
+   à l'allure de la vue C : couleurs et polices de core/ui/theme.css. --accent
+   (la couleur de l'agent affiché, posée sur #app) n'y sert pas : l'accent
+   est le bleu neutre --vc-accent. #root et #app ne comptent pas dans la mise
+   en page : body reste la colonne. */
 #root, #app { display: contents; }
 html, body { height: 100%; margin: 0; }
 body {
   display: flex;
   flex-direction: column;
-  background: #171b24;
-  color: #e6e8ee;
-  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Ubuntu, sans-serif;
+  background: var(--vc-bg);
+  color: var(--vc-text);
+  font: 14px/1.5 var(--vc-sans);
 }
-header {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  border-bottom: 1px solid #2a3142;
-  background: #1f2430;
-}
-#dot { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); }
-#heading { flex: 1; min-width: 0; }
-#title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#sub { font-size: 11px; color: #8a91a0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-#history-button, #tasks-button, #resume {
+#resume {
   flex: none;
   padding: 4px 10px;
   border-radius: 6px;
-  border: 1px solid #3a4150;
-  background: #2a3142;
-  color: #e6e8ee;
-  font: 12px/1.4 system-ui, sans-serif;
+  border: 1px solid var(--vc-line);
+  background: transparent;
+  color: var(--vc-text);
+  font: 12px/1.4 var(--vc-sans);
   cursor: pointer;
 }
-#history-button:hover, #tasks-button:hover, #tasks-button[aria-pressed="true"], #resume:hover:not(:disabled) { border-color: var(--accent); }
+#resume:hover:not(:disabled) { border-color: var(--vc-edge); }
 #resume:disabled { opacity: 0.5; cursor: default; }
 
 /* Ancienne conversation : un bandeau, et de quoi la reprendre. */
@@ -46,38 +33,37 @@ header {
   align-items: center;
   gap: 10px;
   padding: 6px 16px;
-  border-bottom: 1px solid #2a3142;
-  background: #22283a;
+  border-bottom: 1px solid var(--vc-sep);
+  background: var(--vc-hi);
   font-size: 12px;
-  color: #b8bdc8;
+  color: var(--vc-accent-soft);
 }
 #archived span { flex: 1; min-width: 0; }
-#current { flex: none; padding: 4px 10px; border-radius: 6px; border: 1px solid #3a4150; background: #2a3142; color: #e6e8ee; font: 12px/1.4 system-ui, sans-serif; cursor: pointer; }
-#current:hover { border-color: var(--accent); }
+#current { flex: none; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--vc-line); background: transparent; color: var(--vc-text); font: 12px/1.4 var(--vc-sans); cursor: pointer; }
+#current:hover { border-color: var(--vc-edge); }
 #archived[hidden], #history[hidden] { display: none; }
 
 #body { position: relative; flex: 1 1 auto; min-height: 0; display: flex; }
 #thread { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 16px; }
 
-/* Tâches de fond : un volet à droite du fil, qui défile seul (la hauteur
-   réduite ne se mesure que sur le fil). */
-#tasks { flex: 0 0 42%; min-width: 220px; max-width: 360px; overflow-y: auto; border-left: 1px solid #2a3142; padding: 10px 12px; font-size: 12px; }
-#tasks .hint { color: #8a91a0; }
-.task { margin: 0 0 12px; padding: 0 0 10px; border-bottom: 1px solid #2a3142; overflow-wrap: anywhere; }
+/* Tâches de fond : un volet à droite du fil, qui défile seul. */
+#tasks { flex: 0 0 42%; min-width: 220px; max-width: 360px; overflow-y: auto; border-left: 1px solid var(--vc-sep); padding: 10px 12px; font-size: 12px; }
+#tasks .hint { color: var(--vc-muted); }
+.task { margin: 0 0 12px; padding: 0 0 10px; border-bottom: 1px solid var(--vc-sep); overflow-wrap: anywhere; }
 .task-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-weight: 600; }
-.task .mark { flex: none; color: #8a91a0; }
-.task[data-status="running"] .mark { color: var(--accent); animation: pulse 0.8s ease-in-out infinite alternate; }
-.task[data-status="completed"] .mark { color: #3fb950; }
-.task[data-status="failed"] .mark { color: #d9383a; }
+.task .mark { flex: none; color: var(--vc-muted); }
+.task[data-status="running"] .mark { color: var(--vc-accent); animation: pulse 0.8s ease-in-out infinite alternate; }
+.task[data-status="completed"] .mark { color: var(--vc-ok); }
+.task[data-status="failed"] .mark { color: var(--vc-ko); }
 .task .kind { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.task .elapsed { flex: none; margin-left: auto; font-weight: 400; color: #6b7282; font-variant-numeric: tabular-nums; }
-.task code { display: block; margin: 4px 0; color: #b8bdc8; font: 11.5px/1.4 ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace; }
-.task-line { margin: 4px 0; color: #b8bdc8; }
-.task a { color: #7fb0ff; text-decoration: underline; cursor: pointer; }
-.task summary { margin-top: 4px; color: #8a91a0; cursor: pointer; }
+.task .elapsed { flex: none; margin-left: auto; font-weight: 400; color: var(--vc-faint); font-variant-numeric: tabular-nums; }
+.task code { display: block; margin: 4px 0; color: var(--vc-soft); font: 11.5px/1.4 var(--vc-mono); }
+.task-line { margin: 4px 0; color: var(--vc-soft); }
+.task a { color: var(--vc-link); text-decoration: underline; cursor: pointer; }
+.task summary { margin-top: 4px; color: var(--vc-muted); cursor: pointer; }
 .task pre { max-height: 160px; overflow: auto; margin: 4px 0; font-size: 11.5px; }
-.task button { margin-top: 4px; padding: 2px 8px; border-radius: 6px; border: 1px solid #3a4150; background: #2a3142; color: #e6e8ee; font: 11px/1.4 system-ui, sans-serif; cursor: pointer; }
-.task button:hover { border-color: var(--accent); }
+.task button { margin-top: 4px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--vc-line); background: transparent; color: var(--vc-text); font: 11px/1.4 var(--vc-sans); cursor: pointer; }
+.task button:hover { border-color: var(--vc-edge); }
 
 /* Historique du dossier : un panneau posé sur le fil, à droite. */
 #history {
@@ -88,11 +74,11 @@ header {
   width: min(360px, 90%);
   overflow-y: auto;
   padding: 8px;
-  border-left: 1px solid #2a3142;
-  background: #1a1e28;
+  border-left: 1px solid var(--vc-sep);
+  background: var(--vc-side);
   box-shadow: -8px 0 24px rgba(0, 0, 0, 0.35);
 }
-#history .hint { padding: 8px; color: #8a91a0; font-size: 12px; }
+#history .hint { padding: 8px; color: var(--vc-muted); font-size: 12px; }
 .session {
   display: block;
   width: 100%;
@@ -101,75 +87,60 @@ header {
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
-  color: #e6e8ee;
+  color: var(--vc-text);
   text-align: left;
-  font: 13px/1.4 system-ui, sans-serif;
+  font: 13px/1.4 var(--vc-sans);
   cursor: pointer;
 }
-.session:hover { background: #252c3b; border-color: #3a4150; }
-.session.current { border-color: var(--accent); }
+.session:hover { background: var(--vc-hover); border-color: var(--vc-edge); }
+.session.current { border-color: transparent; background: var(--vc-active-bg); color: var(--vc-active); }
 .session-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.session-date { font-size: 11px; color: #8a91a0; }
-#thread:empty::before { content: "Aucun échange pour l'instant : sélectionnez l'agent puis dictez."; color: #8a91a0; }
+.session-date { font-size: 11px; color: var(--vc-muted); }
+#thread:empty::before { content: "Aucun échange pour l'instant : sélectionnez l'agent puis dictez."; color: var(--vc-muted); }
 
-.message { max-width: 85%; min-width: 0; overflow-wrap: anywhere; margin: 0 0 14px; padding: 10px 12px; border-radius: 10px; background: #1f2430; border: 1px solid #2a3142; }
-.message.user { margin-left: auto; background: #252c3b; }
-.message.assistant { border-left: 3px solid var(--accent); }
-.who { margin-bottom: 4px; font-size: 11px; font-weight: 600; color: #8a91a0; }
-.message.assistant .who { color: var(--accent); }
+/* Vue C : le message envoyé, une bulle bleue à droite ; la réponse, à même la colonne, sous un liseré. */
+.message { min-width: 0; overflow-wrap: anywhere; margin: 0 0 14px; }
+.message.user { max-width: 85%; margin-left: auto; padding: 10px 12px; border-radius: 10px 10px 2px 10px; background: var(--vc-active-bg); color: var(--vc-user); }
+.message.user .who { color: var(--vc-active); }
+.message.assistant { padding: 2px 0 2px 12px; border-left: 2px solid var(--vc-sep); }
+.who { margin-bottom: 4px; font-size: 11px; font-weight: 600; color: var(--vc-muted); }
 .body { white-space: pre-wrap; overflow-wrap: anywhere; }
 .body pre, .task pre {
   margin: 8px 0;
   padding: 8px 10px;
   border-radius: 6px;
-  background: #11141b;
-  font: 12.5px/1.45 ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace;
+  background: var(--vc-code);
+  font: 12.5px/1.45 var(--vc-mono);
   white-space: pre;
   overflow-x: auto;
 }
 /* Ce que l'agent a fait pendant le tour (fichiers, commandes). */
-.tools { margin-bottom: 6px; font-size: 12px; color: #8a91a0; }
+.tools { margin-bottom: 6px; font-size: 12px; color: var(--vc-muted); }
 .tools:empty, .message.user .tools, .message.user .listen { display: none; }
 .tools div { white-space: pre-wrap; overflow-wrap: anywhere; }
 .tools div::before { content: "→ "; }
 /* Beaucoup d'actions : les dernières, le reste à déplier. */
-.tools details summary { cursor: pointer; color: #6b7282; }
-.listen, .copy {
+.tools details summary { cursor: pointer; color: var(--vc-faint); }
+.listen {
   margin-top: 8px;
   padding: 3px 10px;
   border-radius: 6px;
-  border: 1px solid #3a4150;
-  background: #2a3142;
-  color: #e6e8ee;
-  font: 12px/1.4 system-ui, sans-serif;
+  border: 1px solid var(--vc-line);
+  background: transparent;
+  color: var(--vc-text);
+  font: 12px/1.4 var(--vc-sans);
   cursor: pointer;
 }
-.listen:hover, .copy:hover { border-color: var(--accent); }
-/* Contexte « Dictée » : le texte dicté et Copier ; ni jauge, ni historique, ni taille. */
-.copy { display: none; }
-#app[data-view="dictation"] .copy { display: inline-block; }
-#app[data-view="dictation"] :is(#context-button, #history-button, #mode) { display: none; }
-#thread .hint { color: #8a91a0; font-size: 13px; }
+.listen:hover { border-color: var(--vc-edge); }
+#thread .hint { color: var(--vc-muted); font-size: 13px; }
 
 /* Heure du message, à côté de l'auteur. */
-.who time { margin-left: 8px; font-weight: 400; color: #6b7282; }
+.who time { margin-left: 8px; font-weight: 400; color: var(--vc-faint); }
 .body[hidden], .context[hidden] { display: none; }
-.body a { color: #7fb0ff; text-decoration: underline; cursor: pointer; }
-.body a:hover { color: #a9c8ff; }
+.body a { color: var(--vc-link); text-decoration: underline; cursor: pointer; }
+.body a:hover { color: var(--vc-accent-soft); }
 /* Un message de l'agent en Markdown (thread → MarkdownView, règles .vc-md de
-   vibecoder.css). Hors de .vc (mode conversation), les variables dont il a
-   besoin, aux valeurs de .vc ; partout, le texte replié normalement et sans la
-   place du 💬 (le fil n'en a pas). */
-.body .vc-md:not(.vc *) {
-  --vc-text: #e6e8ee;
-  --vc-soft: #b8bdc8;
-  --vc-line: #2a3142;
-  --vc-edge: #3a4150;
-  --vc-code: #11141b;
-  --vc-link: #7fb0ff;
-  --vc-ok: #3fb950;
-  --vc-mono: ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace;
-}
+   vibecoder.css) : le texte replié normalement et sans la place du 💬. */
 .body .vc-md { white-space: normal; }
 .body .vc-md :is(.vc-block, li) { padding-right: 0; }
 
@@ -180,7 +151,7 @@ header {
   max-width: 220px;
   max-height: 160px;
   border-radius: 6px;
-  border: 1px solid #3a4150;
+  border: 1px solid var(--vc-edge);
   cursor: zoom-in;
 }
 .file {
@@ -190,15 +161,15 @@ header {
   max-width: 240px;
   padding: 4px 10px;
   border-radius: 6px;
-  border: 1px solid #3a4150;
-  background: #1f2430;
-  color: #e6e8ee;
-  font: 12px/1.4 system-ui, sans-serif;
+  border: 1px solid var(--vc-edge);
+  background: var(--vc-editor);
+  color: var(--vc-text);
+  font: 12px/1.4 var(--vc-sans);
   cursor: pointer;
 }
-.file:hover { border-color: var(--accent); }
+.file:hover { border-color: var(--vc-edge); }
 .file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.context { margin-top: 8px; font-size: 12px; color: #b8bdc8; }
+.context { margin-top: 8px; font-size: 12px; color: var(--vc-soft); }
 .context summary { cursor: pointer; }
 .context pre {
   max-height: 240px;
@@ -206,8 +177,8 @@ header {
   margin: 6px 0 0;
   padding: 6px 10px;
   border-radius: 6px;
-  background: #11141b;
-  font: 12px/1.45 ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace;
+  background: var(--vc-code);
+  font: 12px/1.45 var(--vc-mono);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -220,7 +191,7 @@ header {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(10, 12, 18, 0.85);
+  background: var(--vc-backdrop);
   cursor: zoom-out;
   z-index: 10;
 }
@@ -228,119 +199,98 @@ header {
 #lightbox img { max-width: 100%; max-height: 100%; border-radius: 6px; box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6); }
 
 /* L'agent au travail : trois points qui sautillent, et le temps écoulé. */
-.working { display: flex; align-items: center; gap: 10px; margin: 4px 0 14px; font-size: 13px; color: #b8bdc8; }
-.working .elapsed { color: #6b7282; font-variant-numeric: tabular-nums; }
-.dots { display: inline-flex; gap: 4px; padding: 8px 10px; border-radius: 10px; background: #1f2430; border: 1px solid #2a3142; }
-.dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: hop 1.2s ease-in-out infinite; }
+.working { display: flex; align-items: center; gap: 10px; margin: 4px 0 14px; font-size: 13px; color: var(--vc-soft); }
+.working .elapsed { color: var(--vc-faint); font-variant-numeric: tabular-nums; }
+.dots { display: inline-flex; gap: 4px; padding: 4px 0; }
+.dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--vc-accent); animation: hop 1.2s ease-in-out infinite; }
 .dots i:nth-child(2) { animation-delay: 0.15s; }
 .dots i:nth-child(3) { animation-delay: 0.3s; }
 @keyframes hop { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-5px); opacity: 1; } }
 /* En attente d'autorisation : plus d'agitation, une pulsation orange. */
-.working[data-status="asking"] .dots i { background: #e0a23b; animation: pulse 1.4s ease-in-out infinite alternate; }
+.working[data-status="asking"] .dots i { background: var(--vc-warn); animation: pulse 1.4s ease-in-out infinite alternate; }
 
 /* Demande d'autorisation dans le fil. */
-.permission { margin: 4px 0 14px; padding: 10px 12px; border-radius: 10px; background: #1f2430; border: 1px solid #e0a23b; }
-.permission-title { margin-bottom: 6px; font-size: 12px; font-weight: 600; color: #e0a23b; }
+.permission { margin: 4px 0 14px; padding: 10px 12px; border-radius: 10px; background: var(--vc-warn-deep); border: 1px solid var(--vc-warn-edge); }
+.permission-title { margin-bottom: 6px; font-size: 12px; font-weight: 600; color: var(--vc-warn); }
 .permission-text {
   max-height: 320px;
   overflow: auto;
   margin: 0;
   padding: 8px 10px;
   border-radius: 6px;
-  background: #11141b;
-  font: 12.5px/1.45 ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace;
+  background: var(--vc-code);
+  font: 12.5px/1.45 var(--vc-mono);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.permission-always { margin-top: 6px; font-size: 11px; color: #8a91a0; overflow-wrap: anywhere; }
+.permission-always { margin-top: 6px; font-size: 11px; color: var(--vc-muted); overflow-wrap: anywhere; }
 .permission-always[hidden], .permission-actions button[hidden] { display: none; }
 .permission-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .permission-actions button {
   padding: 4px 12px;
   border-radius: 6px;
-  border: 1px solid #3a4150;
-  background: #2a3142;
-  color: #e6e8ee;
-  font: 12px/1.4 system-ui, sans-serif;
+  border: 1px solid var(--vc-line);
+  background: transparent;
+  color: var(--vc-text);
+  font: 12px/1.4 var(--vc-sans);
   cursor: pointer;
 }
-.permission-actions .allow { border-color: #2fa36b; }
-.permission-actions .deny { border-color: #d9383a; }
+.permission-actions .allow { border-color: var(--vc-ok-edge); color: var(--vc-ok); }
+.permission-actions .deny { border-color: var(--vc-ko-edge); color: var(--vc-ko-text); }
 .permission-actions button:disabled { opacity: 0.5; cursor: default; }
 
-/* Champ de saisie : écrire à l'agent affiché. */
-#composer { flex: none; padding: 10px 16px; border-top: 1px solid #2a3142; background: #1f2430; }
+/* Champ de saisie (vue C) : un cadre arrondi, le texte en haut ; dessous, Joindre à gauche, puis le
+   micro (rond rose) et Envoyer (rond bleu) à droite. */
+#composer { flex: none; padding: 12px; border-top: 1px solid var(--vc-sep); background: var(--vc-side); }
 #composer[hidden] { display: none; }
-/* La rangée est le cadre du champ : la pièce jointe, le texte sans bordure, Envoyer. */
 #composer-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  padding: 6px 8px;
-  border-radius: 8px;
-  border: 1px solid #3a4150;
-  background: #171b24;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas: "msg msg msg" "attach . tools";
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--vc-edge);
+  background: var(--vc-bg);
 }
-#composer-row:focus-within { border-color: var(--accent); }
+#composer-row:focus-within { border-color: var(--vc-active-edge); }
 #message {
-  flex: 1;
-  min-height: 22px;
+  grid-area: msg;
+  min-height: 44px;
   max-height: 160px;
   resize: none;
-  padding: 1px 2px;
-  border: 0;
-  background: transparent;
-  color: #e6e8ee;
-  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Ubuntu, sans-serif;
-  box-sizing: border-box;
-}
-#message:focus { outline: none; }
-#composer button {
-  flex: none;
-  height: 36px;
-  padding: 0 12px;
-  border-radius: 8px;
-  border: 1px solid #3a4150;
-  background: #2a3142;
-  color: #e6e8ee;
-  font: 13px/1 system-ui, sans-serif;
-  cursor: pointer;
-}
-#composer button:hover:not(:disabled) { border-color: var(--accent); }
-#composer button:disabled { opacity: 0.5; cursor: default; }
-#composer-row button {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
   padding: 0;
   border: 0;
-  border-radius: 4px;
   background: transparent;
-  color: #8a91a0;
+  color: var(--vc-text);
+  font: 13px/1.5 var(--vc-sans);
+  box-sizing: border-box;
 }
-#composer-row button:hover:not(:disabled) { background: #2a3142; color: #e6e8ee; }
-#send { color: var(--accent) !important; }
-#mic[data-phase="recording"] { color: #f08a8b; }
-#mic[data-phase="transcribing"] { opacity: 0.6; }
-#composer-status { font-size: 12px; color: #f08a8b; }
-#composer-status:not(:empty) { margin-top: 6px; }
-
-/* Panneau sans cadre : une bordure, et sa croix dans l'en-tête. */
-body { box-sizing: border-box; border: 1px solid #3a4150; }
-#hide {
-  flex: none;
+#message::placeholder { color: var(--vc-muted); }
+#message:focus { outline: none; }
+/* Joindre : un bouton-icône sans cadre ; le micro et Envoyer : la paire de prompt-tools, en 36 px. */
+#attach {
+  grid-area: attach;
+  display: grid;
+  place-items: center;
   width: 28px;
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 50%;
+  border-radius: 6px;
   background: transparent;
-  color: #8a91a0;
-  font: 18px/28px system-ui, sans-serif;
+  color: var(--vc-muted);
   cursor: pointer;
 }
-#hide:hover { background: #3a4150; color: #e6e8ee; }
+#attach:hover { background: var(--vc-hover); color: var(--vc-text); }
+#composer-row .vc-prompt-tools { grid-area: tools; }
+#composer-row :is(.vc-mic, .vc-send) { width: 36px; height: 36px; }
+#composer-row :is(.vc-mic, .vc-send) svg { width: 16px; height: 16px; }
+#composer-status { font-size: 12px; color: var(--vc-ko-text); }
+#composer-status:not(:empty) { margin-top: 6px; }
+
+body { box-sizing: border-box; }
 
 /* Pièces jointes du champ de saisie ; le panneau s'allume au glisser. */
 #pieces { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -353,8 +303,8 @@ body { box-sizing: border-box; border: 1px solid #3a4150; }
   max-width: 240px;
   padding: 3px 24px 3px 6px;
   border-radius: 6px;
-  border: 1px solid #3a4150;
-  background: #171b24;
+  border: 1px solid var(--vc-edge);
+  background: var(--vc-bg);
   font-size: 12px;
 }
 .piece img { width: 36px; height: 36px; object-fit: cover; border-radius: 4px; }
@@ -369,45 +319,27 @@ body { box-sizing: border-box; border: 1px solid #3a4150; }
   border: 0 !important;
   border-radius: 50%;
   background: transparent !important;
-  color: #8a91a0;
-  font: 14px/18px system-ui, sans-serif !important;
+  color: var(--vc-muted);
+  font: 14px/18px var(--vc-sans) !important;
 }
-.piece .remove:hover { background: #3a4150 !important; color: #e6e8ee; }
-#app.dragging #composer { background: #252c3b; box-shadow: inset 0 0 0 2px var(--accent); }
+.piece .remove:hover { background: var(--vc-edge) !important; color: var(--vc-text); }
+#app.dragging #composer { background: var(--vc-hi); box-shadow: inset 0 0 0 2px var(--vc-accent); }
 @keyframes pulse { to { opacity: 0.25; } }
 
-/* Réduit : le dernier échange, sans l'historique. */
-#history-button[hidden], #tasks-button[hidden] { display: none; }
-#mode {
-  flex: none;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: #8a91a0;
-  font: 16px/28px system-ui, sans-serif;
-  cursor: pointer;
-}
-#mode:hover { background: #3a4150; color: #e6e8ee; }
-#app[data-mode="compact"] header { padding: 8px 12px; }
-#app[data-mode="compact"] #thread { padding: 12px; }
-
-/* À la place de la bulle : un message de l'appli. */
+/* Un message de l'appli. */
 #notice {
   flex: none;
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-bottom: 1px solid #2a3142;
-  background: #22283a;
+  border-bottom: 1px solid var(--vc-sep);
+  background: var(--vc-hi);
   font-size: 13px;
 }
 #notice[hidden] { display: none; }
 #notice-text { flex: 1; min-width: 0; max-height: 80px; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
-#notice[data-kind="notice"] { border-left: 3px solid #5865f2; }
+#notice[data-kind="notice"] { border-left: 3px solid var(--vc-accent); }
 #notice-close {
   flex: none;
   width: 22px;
@@ -416,11 +348,11 @@ body { box-sizing: border-box; border: 1px solid #3a4150; }
   border: 0;
   border-radius: 50%;
   background: transparent;
-  color: #8a91a0;
-  font: 15px/22px system-ui, sans-serif;
+  color: var(--vc-muted);
+  font: 15px/22px var(--vc-sans);
   cursor: pointer;
 }
-#notice-close:hover { background: #3a4150; color: #e6e8ee; }
+#notice-close:hover { background: var(--vc-edge); color: var(--vc-text); }
 
 /* Jauge du contexte : un anneau et son pourcentage. */
 #context-button {
@@ -430,23 +362,22 @@ body { box-sizing: border-box; border: 1px solid #3a4150; }
   gap: 6px;
   padding: 3px 10px 3px 6px;
   border-radius: 14px;
-  border: 1px solid #3a4150;
-  background: #2a3142;
-  color: #b8bdc8;
-  font: 12px/1.4 system-ui, sans-serif;
+  border: 1px solid var(--vc-edge);
+  background: var(--vc-line);
+  color: var(--vc-soft);
+  font: 12px/1.4 var(--vc-sans);
   cursor: pointer;
   --pct: 0;
-  --ring: var(--accent);
+  --ring: var(--vc-accent);
 }
-#context-button:hover { border-color: var(--accent); color: #e6e8ee; }
-#context-button[data-level="warn"] { --ring: #e0a23b; }
-#context-button[data-level="high"] { --ring: #d9383a; }
+#context-button:hover { border-color: var(--vc-accent); color: var(--vc-text); }
+#context-button[data-level="warn"] { --ring: var(--vc-warn); }
+#context-button[data-level="high"] { --ring: var(--vc-ko); }
 #context-button svg { width: 20px; height: 20px; transform: rotate(-90deg); }
 #context-button circle { fill: none; stroke-width: 5; }
-#context-button .ring-bg { stroke: #3a4150; }
+#context-button .ring-bg { stroke: var(--vc-edge); }
 #context-button .ring { stroke: var(--ring); stroke-dasharray: 94.25; stroke-dashoffset: calc(94.25 * (1 - var(--pct) / 100)); stroke-linecap: round; }
 #context-button[data-level="unknown"] .ring { stroke-dashoffset: 94.25; }
-#app[data-mode="compact"] #context-label { display: none; }
 
 /* Détail du contexte : un panneau posé sur le fil, comme l'historique. */
 #context-panel {
@@ -457,36 +388,36 @@ body { box-sizing: border-box; border: 1px solid #3a4150; }
   width: min(380px, 94%);
   overflow-y: auto;
   padding: 12px;
-  border-left: 1px solid #2a3142;
-  background: #1a1e28;
+  border-left: 1px solid var(--vc-sep);
+  background: var(--vc-side);
   box-shadow: -8px 0 24px rgba(0, 0, 0, 0.35);
   font-size: 12px;
   z-index: 2;
 }
 #context-panel[hidden] { display: none; }
-#context-panel .hint { color: #8a91a0; }
+#context-panel .hint { color: var(--vc-muted); }
 .ctx-total { font-size: 14px; font-weight: 600; }
-.ctx-model { margin-bottom: 10px; color: #8a91a0; }
+.ctx-model { margin-bottom: 10px; color: var(--vc-muted); }
 .ctx-row { display: grid; grid-template-columns: 1fr 90px 52px; align-items: center; gap: 8px; margin: 4px 0; }
 .ctx-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ctx-bar { height: 6px; border-radius: 3px; background: #2a3142; position: relative; overflow: hidden; }
-.ctx-bar::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--w); background: var(--accent); }
-.ctx-row.free .ctx-bar::after { background: #3a4150; }
-.ctx-row.buffer .ctx-bar::after { background: #6b7282; }
-.ctx-row.deferred { color: #6b7282; }
-.ctx-row.deferred .ctx-bar::after { background: #3a4150; }
-.ctx-tokens { text-align: right; font-variant-numeric: tabular-nums; color: #b8bdc8; }
-.ctx-section { margin: 10px 0 4px; font-weight: 600; color: #b8bdc8; }
-.ctx-file { color: #8a91a0; overflow-wrap: anywhere; }
+.ctx-bar { height: 6px; border-radius: 3px; background: var(--vc-line); position: relative; overflow: hidden; }
+.ctx-bar::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--w); background: var(--vc-accent); }
+.ctx-row.free .ctx-bar::after { background: var(--vc-edge); }
+.ctx-row.buffer .ctx-bar::after { background: var(--vc-faint); }
+.ctx-row.deferred { color: var(--vc-faint); }
+.ctx-row.deferred .ctx-bar::after { background: var(--vc-edge); }
+.ctx-tokens { text-align: right; font-variant-numeric: tabular-nums; color: var(--vc-soft); }
+.ctx-section { margin: 10px 0 4px; font-weight: 600; color: var(--vc-soft); }
+.ctx-file { color: var(--vc-muted); overflow-wrap: anywhere; }
 .ctx-compact {
   margin-top: 12px;
   width: 100%;
   padding: 6px 10px;
   border-radius: 6px;
-  border: 1px solid var(--accent);
-  background: color-mix(in srgb, var(--accent) 25%, #2a3142);
-  color: #e6e8ee;
-  font: 12px/1.4 system-ui, sans-serif;
+  border: 1px solid var(--vc-accent);
+  background: var(--vc-active-bg);
+  color: var(--vc-text);
+  font: 12px/1.4 var(--vc-sans);
   cursor: pointer;
 }
 .ctx-compact:disabled { opacity: 0.5; cursor: default; }
@@ -496,12 +427,12 @@ body { box-sizing: border-box; border: 1px solid #3a4150; }
   max-height: 220px;
   overflow-y: auto;
   margin-bottom: 8px;
-  border: 1px solid #3a4150;
+  border: 1px solid var(--vc-edge);
   border-radius: 8px;
-  background: #171b24;
+  background: var(--vc-bg);
 }
 #slash[hidden] { display: none; }
-#slash .hint { padding: 8px 10px; color: #8a91a0; font-size: 12px; }
+#slash .hint { padding: 8px 10px; color: var(--vc-muted); font-size: 12px; }
 .slash-item {
   display: flex !important;
   flex-direction: column;
@@ -515,12 +446,12 @@ body { box-sizing: border-box; border: 1px solid #3a4150; }
   text-align: left;
   cursor: pointer;
 }
-.slash-item.active, .slash-item:hover { background: #252c3b !important; }
-.slash-name { font: 600 12.5px/1.4 ui-monospace, "JetBrains Mono", Menlo, monospace; color: #e6e8ee; }
-.slash-desc { font-size: 11.5px; color: #8a91a0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.slash-item.active, .slash-item:hover { background: var(--vc-active-bg) !important; }
+.slash-name { font: 600 12.5px/1.4 var(--vc-mono); color: var(--vc-text); }
+.slash-desc { font-size: 11.5px; color: var(--vc-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
 /* Messages « système » : sortie d'une commande, résumé d'une compaction. */
-.message.system { max-width: 100%; background: #1a1e28; border-style: dashed; }
-.message.system .who { color: #8a91a0; }
-.message.system .body { font: 12px/1.45 ui-monospace, "JetBrains Mono", Menlo, monospace; color: #b8bdc8; }
-.message.system details summary { cursor: pointer; font-size: 12px; color: #8a91a0; }
+.message.system { max-width: 100%; background: var(--vc-side); border-style: dashed; }
+.message.system .who { color: var(--vc-muted); }
+.message.system .body { font: 12px/1.45 var(--vc-mono); color: var(--vc-soft); }
+.message.system details summary { cursor: pointer; font-size: 12px; color: var(--vc-muted); }

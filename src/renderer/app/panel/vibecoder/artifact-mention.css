@@ -4,7 +4,7 @@
   max-height: 220px;
   overflow-y: auto;
   margin-bottom: 8px;
-  border: 1px solid #3a4150;
+  border: 1px solid var(--vc-edge);
   border-radius: 8px;
-  background: #171b24;
+  background: var(--vc-bg);
 }

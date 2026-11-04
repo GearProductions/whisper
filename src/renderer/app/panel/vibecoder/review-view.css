@@ -13,7 +13,7 @@
   height: 16px;
   box-sizing: border-box;
   border-radius: 50%;
-  border: 1.5px dashed #5a6273;
+  border: 1.5px dashed var(--vc-dim);
 }
 [data-state="ok"] .vc-mark { border: 0; background: var(--vc-ok); }
 [data-state="ok"] .vc-mark::after {
@@ -23,11 +23,11 @@
   top: 3px;
   width: 3px;
   height: 7px;
-  border: solid #0e1117;
+  border: solid var(--vc-deep);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
-[data-state="ko"] .vc-mark { border: 0; background: #d9383a; }
+[data-state="ko"] .vc-mark { border: 0; background: var(--vc-ko); }
 [data-state="ko"] .vc-mark::before, [data-state="ko"] .vc-mark::after {
   content: "";
   position: absolute;
@@ -36,7 +36,7 @@
   width: 8px;
   height: 2px;
   border-radius: 1px;
-  background: #fff;
+  background: var(--vc-ink);
   transform: rotate(45deg);
 }
 [data-state="ko"] .vc-mark::after { transform: rotate(-45deg); }
@@ -46,8 +46,8 @@
   content: "!";
   position: absolute;
   inset: 0;
-  color: #0e1117;
-  font: 700 11px/16px system-ui, sans-serif;
+  color: var(--vc-deep);
+  font: 700 11px/16px var(--vc-sans);
   text-align: center;
 }
 
@@ -55,20 +55,20 @@
 .vc-a3-list, .vc-check-list { list-style: none; margin: 0; padding: 0; }
 .vc-a3-list { margin: -4px 0; }
 .vc-a3-list li { display: flex; align-items: center; gap: 8px; padding: 4px 0; color: var(--vc-text); font-size: 13px; line-height: 1.4; }
-.vc-a3-list li + li, .vc-check-list li + li { border-top: 1px solid rgba(255, 255, 255, 0.04); }
+.vc-a3-list li + li, .vc-check-list li + li { border-top: 1px solid var(--vc-sep-soft); }
 .vc-a3-list li[data-state="ko"] .vc-a3-text { color: var(--vc-soft); }
 .vc-a3-text { min-width: 0; }
 /* Une case que l'on coche à la main (relecture, AGENTS.md) ; dessous, son aide. */
 .vc-a3-check { display: flex; align-items: center; gap: 8px; min-width: 0; cursor: pointer; }
 .vc-a3-check input { flex: none; width: 16px; height: 16px; margin: 0; accent-color: var(--vc-ok); cursor: pointer; }
 .vc-a3-check input:disabled { cursor: default; }
-.vc-a3-help { display: block; color: var(--vc-muted); font-size: 11.5px; }
+.vc-a3-help { display: block; color: var(--vc-faint); font-size: 11.5px; }
 .vc-a3-manual {
   flex: none;
   margin-left: auto;
   padding: 0 8px;
-  border: 1px dashed color-mix(in srgb, var(--vc-warn) 55%, transparent);
-  border-radius: 9px;
+  border: 1px dashed var(--vc-warn-edge);
+  border-radius: 4px;
   color: var(--vc-warn);
   font-size: 11px;
   line-height: 18px;
@@ -76,11 +76,11 @@
 
 /* ---- Vérifications ----------------------------------------------------------- */
 /* Hors du padding de la carte (--vc-pad, 5 px dessus, 11 px dessous : vibecoder.css). */
-.vc-check-list { margin: -5px calc(-1 * var(--vc-pad)) -11px; }
-.vc-check-list summary, .vc-check-row { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 22px; padding: 4px var(--vc-pad); font-size: 13px; }
+.vc-check-list { margin: -5px calc(-1 * var(--vc-pad, 12px)) -11px; }
+.vc-check-list summary, .vc-check-row { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 22px; padding: 4px var(--vc-pad, 12px); font-size: 13px; }
 .vc-check-list summary { list-style: none; cursor: pointer; transition: background-color 0.12s; }
 .vc-check-list summary::-webkit-details-marker { display: none; }
-.vc-check-list summary:hover { background: rgba(255, 255, 255, 0.03); }
+.vc-check-list summary:hover { background: var(--vc-hover); }
 /* Le chevron ; une ligne sans détail en garde la place (transparent) : Relancer aligné d'une ligne à l'autre. */
 .vc-check-list summary::after, .vc-check-row::after {
   content: "";
@@ -96,42 +96,42 @@
 .vc-check-row::after { border-color: transparent; }
 .vc-check-list details[open] > summary::after { transform: rotate(45deg); }
 .vc-check-name { flex: none; color: var(--vc-text); font: 600 12.5px/1.4 var(--vc-mono); }
-.vc-check-line { min-width: 0; overflow: hidden; color: var(--vc-muted); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+.vc-check-line { min-width: 0; overflow: hidden; color: var(--vc-faint); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
 .vc-check-list details[open] .vc-check-line { visibility: hidden; }
 .vc-check-detail {
-  margin: 0 var(--vc-pad) 8px calc(var(--vc-pad) + 24px);
+  margin: 0 var(--vc-pad, 12px) 8px calc(var(--vc-pad, 12px) + 24px);
   padding: 6px 8px;
   border-left: 2px solid transparent;
   border-radius: var(--vc-radius);
-  background: var(--vc-code);
+  background: var(--vc-deep);
   color: var(--vc-soft);
   font: 12px/1.55 var(--vc-mono);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-[data-state="ko"] .vc-check-detail { border-left-color: #d9383a; color: #f3b9ba; }
+[data-state="ko"] .vc-check-detail { border-left-color: var(--vc-ko); color: var(--vc-ko-text); }
 .vc-check-warn {
   flex: none;
   padding: 0 8px;
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--vc-warn) 15%, transparent);
+  border-radius: 4px;
+  background: var(--vc-warn-bg);
   color: var(--vc-warn);
-  font: 500 11px/18px system-ui, sans-serif;
+  font: 500 11px/18px var(--vc-sans);
 }
 [data-state="warn"] .vc-check-detail { border-left-color: var(--vc-warn); }
-.vc-count[data-warn] { background: color-mix(in srgb, var(--vc-warn) 18%, transparent); color: var(--vc-warn); }
+.vc-count[data-warn] { background: var(--vc-warn-bg); color: var(--vc-warn); }
 /* Appliquer une remarque de la ponytail review : discret, net au survol. */
 .vc-md li > .vc-apply-one { height: 20px; margin-left: 8px; padding: 0 8px; font-size: 11px; vertical-align: 1px; opacity: 0.6; }
 .vc-md li:hover:not(:has(li:hover)) > .vc-apply-one, .vc-apply-one:focus-visible { opacity: 1; }
 .vc-apply-one:disabled { cursor: default; opacity: 0.35; }
-.vc-checks-note { margin-bottom: 8px; color: var(--vc-muted); font-size: 12.5px; }
+.vc-checks-note { margin-bottom: 8px; color: var(--vc-faint); font-size: 12.5px; }
 .vc-checks-note:last-child { margin-bottom: 0; }
 /* Relancer une vérification seule (IconButton refresh, gris : .vc-tool) : en bout de ligne, avant le chevron. */
 .vc-check-again { margin-left: auto; }
 .vc-check-list :is(summary, .vc-check-row):has(.vc-check-again)::after { margin-left: 0; }
 /* Une remarque appliquée : ✓ vert, son texte grisé ; toutes, le bandeau « Appliquée » de l'encart. */
 /* La case d'une remarque pas appliquée : décochée, elle n'est pas dans Appliquer la sélection. */
-.vc-md li > .vc-remark-pick { margin: 0 7px 0 0; vertical-align: -2px; accent-color: var(--accent); cursor: pointer; }
+.vc-md li > .vc-remark-pick { margin: 0 7px 0 0; vertical-align: -2px; accent-color: var(--vc-accent); cursor: pointer; }
 .vc-md li:has(> .vc-remark-pick:not(:checked)) { opacity: 0.6; }
 .vc-md li:has(> .vc-remark-applied) { opacity: 0.55; }
 .vc-remark-applied { margin-left: 6px; color: var(--vc-ok); }
@@ -142,10 +142,10 @@
   align-items: center;
   gap: 4px;
   padding: 0 8px;
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--vc-ok) 15%, transparent);
+  border-radius: 4px;
+  background: var(--vc-ok-bg);
   color: var(--vc-ok);
-  font: 600 11px/18px system-ui, sans-serif;
+  font: 600 11px/18px var(--vc-sans);
   white-space: nowrap;
 }
 .vc-applied-banner svg { width: 12px; height: 12px; }

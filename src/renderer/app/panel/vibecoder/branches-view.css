@@ -1,27 +1,30 @@
-/* La vue des branches (branches-view) : ses outils, la PR chargée, les onglets
-   des PR et des branches locales, Créer une branche. Sous .vc, couleurs de vibecoder.css ;
-   coins --vc-radius, marges un cran en dessous (0.13.0). */
+/* La vue des branches (branches-view), à l'allure de la vue C : ses outils, la PR chargée, les
+   onglets des PR et des branches locales (un segmenté), les listes en un seul cadre (lignes de
+   48 px, la ligne « ici » sur --vc-hi), Créer une branche (champs de 36 px). Sous .vc, couleurs
+   de core/ui/theme.css. */
 
-.vc-br-tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-bottom: 8px; }
+.vc-br-tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-bottom: 10px; }
 
-.vc-br-new { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.vc-br-new { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .vc-br-new :is(input, select) {
-  width: 200px;
-  height: 24px;
+  width: 280px;
+  height: 36px;
   box-sizing: border-box;
-  padding: 0 7px;
-  border: 1px solid var(--vc-edge);
-  border-radius: var(--vc-radius);
+  padding: 0 10px;
+  border: 1px solid var(--vc-line);
+  border-radius: 8px;
   outline: none;
-  background: var(--vc-code);
+  background: var(--vc-bg);
   color: var(--vc-text);
-  font-size: 12.5px;
-  transition: border-color 0.12s, box-shadow 0.12s;
+  font-size: 12px;
+  transition: border-color 0.12s;
 }
-.vc-br-new input::placeholder { color: var(--vc-faint); }
-.vc-br-new :is(input, select):focus { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent); }
+.vc-br-new select { width: auto; max-width: 240px; color-scheme: dark; }
+.vc-br-new input::placeholder { color: var(--vc-muted); }
+.vc-br-new :is(input, select):focus { border-color: var(--vc-active-edge); }
+.vc-br-new .vc-run { height: 36px; border-radius: 8px; }
 
-.vc-pr-worktree { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; }
+.vc-pr-worktree { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
 
 .vc-pr-nobody { color: var(--vc-faint); font-size: 12.5px; font-style: italic; }
 
@@ -31,66 +34,69 @@
   align-items: center;
   gap: 8px;
   min-height: 24px;
-  margin: 16px 0 6px;
+  margin: 16px 0 10px;
   color: var(--vc-muted);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 .vc-pr-list-head .vc-count { letter-spacing: 0; }
-.vc-pr-list-head .vc-seg { letter-spacing: 0; text-transform: none; }
-.vc-pr-list-head .vc-seg .vc-count { margin-left: 6px; }
+.vc-pr-list-head .vc-seg { gap: 2px; padding: 3px; border-radius: 8px; letter-spacing: 0; text-transform: none; }
+.vc-pr-list-head .vc-seg button { padding: 0 10px; border-radius: 5px; color: var(--vc-soft); font: 13px/30px var(--vc-sans); }
+.vc-pr-list-head .vc-seg .vc-count { margin-left: 6px; padding: 0; background: none; color: inherit; font-size: 12px; }
 .vc-br-search {
-  width: 180px;
-  height: 24px;
+  width: 200px;
+  height: 30px;
   box-sizing: border-box;
   margin-left: auto;
-  padding: 0 7px;
-  border: 1px solid var(--vc-edge);
-  border-radius: var(--vc-radius);
+  padding: 0 10px;
+  border: 1px solid var(--vc-line);
+  border-radius: 8px;
   outline: none;
-  background: var(--vc-code);
+  background: var(--vc-bg);
   color: var(--vc-text);
-  font: 12.5px system-ui, sans-serif;
+  font: 12.5px var(--vc-sans);
   letter-spacing: 0;
   text-transform: none;
 }
-.vc-br-search::placeholder { color: var(--vc-faint); }
-.vc-br-search:focus { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent); }
-.vc-pr-hint[data-state="ko"] { color: #f85149; }
+.vc-br-search::placeholder { color: var(--vc-muted); }
+.vc-br-search:focus { border-color: var(--vc-active-edge); }
+.vc-pr-hint[data-state="ko"] { color: var(--vc-ko-text); }
 .vc-pr-hint svg { width: 12px; height: 12px; vertical-align: -2px; }
-.vc-pr-list .vc-mini { flex: none; margin-right: 6px; }
-.vc-pr-hint { padding: 2px 0; color: var(--vc-faint); font-size: 12.5px; }
-.vc-pr-list { display: grid; gap: 5px; list-style: none; margin: 0; padding: 0; }
+.vc-pr-list .vc-mini { flex: none; margin-right: 8px; }
+.vc-pr-hint { padding: 2px 0; color: var(--vc-muted); font-size: 12.5px; }
+.vc-pr-list { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; border: 1px solid var(--vc-sep); border-radius: 10px; overflow: hidden; }
 .vc-pr-list li {
   display: flex;
   align-items: center;
-  border: 1px solid var(--vc-line);
-  border-radius: var(--vc-radius);
+  min-height: 48px;
   background: var(--vc-card);
-  transition: border-color 0.12s, background-color 0.12s;
+  transition: background-color 0.12s;
 }
-.vc-pr-list li:hover { border-color: var(--vc-edge); background: #272d3d; }
-.vc-pr-list li[aria-current] { border-color: color-mix(in srgb, var(--accent) 55%, transparent); box-shadow: inset 3px 0 0 var(--accent); }
+.vc-pr-list li + li { border-top: 1px solid var(--vc-sep-soft); }
+.vc-pr-list li:hover { background: var(--vc-hover); }
+.vc-pr-list li[aria-current] { background: var(--vc-hi); }
 .vc-pr-item {
   flex: 1;
   min-width: 0;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: baseline;
-  gap: 8px;
-  padding: 7px 6px 7px 10px;
+  gap: 12px;
+  padding: 6px 14px;
   border: 0;
-  border-radius: var(--vc-radius);
   background: transparent;
   color: var(--vc-text);
-  font: 13px/1.4 system-ui, sans-serif;
+  font: 13px/1.4 var(--vc-sans);
   text-align: left;
   cursor: pointer;
 }
-.vc-pr-item:disabled { color: var(--vc-soft); cursor: default; }
-.vc-pr-item-number { color: var(--vc-muted); font-size: 12.5px; font-weight: 600; }
-.vc-pr-item-title { overflow: hidden; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.vc-pr-item:disabled { color: var(--vc-text); cursor: default; }
+.vc-pr-item-number { color: var(--vc-soft); font-size: 12px; }
+.vc-pr-item-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vc-pr-item-title.vc-mono { font-size: 12px; }
 .vc-pr-item-author { color: var(--vc-muted); font-size: 12px; }
-.vc-pr-list .vc-tool { margin-right: 6px; }
+/* La branche active : l'étiquette « Ici » de la vue C. */
+li[aria-current] .vc-pr-item-title.vc-mono + .vc-pr-item-author { padding: 4px 8px; border-radius: 4px; background: var(--vc-active-bg); color: var(--vc-active); }
+.vc-pr-list .vc-tool { margin-right: 8px; }

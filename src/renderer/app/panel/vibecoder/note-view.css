@@ -9,7 +9,7 @@
 .vc-note-file { flex: none; font-size: 13px; opacity: 0.75; }
 /* Trop long : le dossier se coupe, jamais le nom de la note. */
 .vc-note-path { display: flex; min-width: 0; white-space: nowrap; font-size: 12px; }
-.vc-note-path > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--vc-muted); }
+.vc-note-path > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--vc-faint); }
 .vc-note-path > b { flex: none; color: var(--vc-text); font-weight: 600; }
 .vc-note .vc-note-open { margin-left: 2px; }
 .vc-note-mark { margin-left: auto; display: flex; padding-left: 8px; }
@@ -23,17 +23,17 @@
   gap: 10px;
   padding: 7px 10px 7px 14px;
   border-bottom: 1px solid var(--vc-line);
-  background: color-mix(in srgb, var(--vc-ok) 8%, var(--vc-card));
+  background: var(--vc-ok-bg);
   color: var(--vc-soft);
   font-size: 12.5px;
 }
 .vc-note-pulse { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--vc-ok); }
 .vc-note-what { flex: 1; min-width: 0; }
 .vc-note-n { margin-left: 6px; padding: 0 6px; border-radius: 8px; font: 600 11.5px/17px var(--vc-mono); white-space: nowrap; }
-.vc-note-n[data-kind="added"] { background: color-mix(in srgb, var(--vc-ok) 18%, transparent); color: #7ee08f; }
-.vc-note-n[data-kind="removed"] { background: color-mix(in srgb, #d9383a 18%, transparent); color: #f08a8b; }
+.vc-note-n[data-kind="added"] { background: var(--vc-ok-bg); color: var(--vc-ok-text); }
+.vc-note-n[data-kind="removed"] { background: var(--vc-ko-bg); color: var(--vc-ko-text); }
 .vc-note-changes .vc-mini svg { width: 12px; height: 12px; margin-right: 4px; vertical-align: -2px; }
-.vc-note-changes .vc-mini[aria-pressed="true"] { border-color: var(--vc-ok); color: #7ee08f; }
+.vc-note-changes .vc-mini[aria-pressed="true"] { border-color: var(--vc-ok); color: var(--vc-ok-text); }
 
 /* Liseré vert à gauche d'un bloc ou d'un élément changé, dans la marge de la carte. */
 .vc-note .vc-md [data-changed] { position: relative; }
@@ -50,7 +50,7 @@
 .vc-note .vc-md li[data-changed]::before { left: -34px; }
 .vc-note .vc-md li li[data-changed]::before { left: -56px; }
 .vc-note .vc-md li li li[data-changed]::before { left: -78px; }
-.vc-note .vc-md :is(.vc-block, li)[data-changed] { background: color-mix(in srgb, var(--vc-ok) 6%, transparent); border-radius: 0 var(--vc-radius) var(--vc-radius) 0; }
+.vc-note .vc-md :is(.vc-block, li)[data-changed] { background: var(--vc-ok-bg); border-radius: 0 var(--vc-radius) var(--vc-radius) 0; }
 
 /* La marque d'une ligne de « Ce que ça ne doit pas faire ». */
 .vc-mn {
@@ -59,18 +59,18 @@
   margin-right: 8px;
   padding: 0 7px;
   box-sizing: border-box;
-  border-radius: 9px;
+  border-radius: 4px;
   border: 1px solid transparent;
   font: 600 10.5px/17px var(--vc-mono);
   text-align: center;
   vertical-align: 1px;
   white-space: nowrap;
 }
-.vc-mn:is([data-mark="invariant"], .vc-mn-invariant) { border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: color-mix(in srgb, var(--accent) 22%, transparent); color: color-mix(in srgb, var(--accent) 45%, #fff); }
-.vc-mn:is([data-mark="variant"], .vc-mn-variant) { border-color: color-mix(in srgb, #7fb0ff 50%, transparent); background: color-mix(in srgb, #7fb0ff 16%, transparent); color: #a9c8ff; }
-.vc-mn:is([data-mark="review"], .vc-mn-review) { border-color: var(--vc-edge); background: rgba(255, 255, 255, 0.05); color: var(--vc-soft); }
-.vc-mn:is([data-mark="structure"], .vc-mn-structure) { border-color: color-mix(in srgb, #a78bfa 50%, transparent); background: color-mix(in srgb, #a78bfa 16%, transparent); color: #c9b8fc; }
-.vc-mn:is([data-mark="none"], .vc-mn-none) { border: 1px dashed color-mix(in srgb, var(--vc-warn) 60%, transparent); color: var(--vc-warn); font-weight: 500; }
+.vc-mn:is([data-mark="invariant"], .vc-mn-invariant) { border-color: var(--vc-active-edge); background: var(--vc-active-bg); color: var(--vc-active); }
+.vc-mn:is([data-mark="variant"], .vc-mn-variant) { border-color: var(--vc-active-edge); background: var(--vc-active-bg); color: var(--vc-accent-soft); }
+.vc-mn:is([data-mark="review"], .vc-mn-review) { border-color: var(--vc-line); background: var(--vc-hover); color: var(--vc-soft); }
+.vc-mn:is([data-mark="structure"], .vc-mn-structure) { border-color: color-mix(in srgb, var(--vc-violet) 50%, transparent); background: color-mix(in srgb, var(--vc-violet) 16%, transparent); color: var(--vc-violet); }
+.vc-mn:is([data-mark="none"], .vc-mn-none) { border: 1px dashed var(--vc-warn-edge); color: var(--vc-warn); font-weight: 500; }
 
 /* La note éditable (NoteEditor, Créer) : le texte comme le rendu (.vc-md),
    les marques Markdown masquées hors du curseur, liseré, pastilles et
@@ -78,7 +78,7 @@
    des gouttières à droite. Le défilement porté par l'éditeur, comme CodeView :
    hauteur bornée sur .cm-editor, .cm-scroller défile ; .vc-note-editor
    n'est qu'un cadre. */
-.vc-note-editor { margin-left: -10px; color: #d5d9e1; font-size: 13.5px; line-height: 1.6; }
+.vc-note-editor { margin-left: -10px; color: var(--vc-text); font-size: 13.5px; line-height: 1.6; }
 .vc-note-editor[data-locked] { opacity: 0.6; }
 .vc-note-editor[data-locked] .cm-content { cursor: not-allowed; }
 .vc-note-editor .cm-editor { max-height: 70vh; background: transparent; }
@@ -89,7 +89,7 @@
 .vc-note-editor .cm-gutters { border: 0; background: transparent; }
 .vc-note-editor .cm-line.vc-changed {
   box-shadow: inset 3px 0 var(--vc-ok);
-  background: color-mix(in srgb, var(--vc-ok) 6%, transparent);
+  background: var(--vc-ok-bg);
 }
 .vc-note-editor :is(.cm-md-h1, .cm-md-h2, .cm-md-h3, .cm-md-h4, .cm-md-h5, .cm-md-h6) { padding-top: 10px; padding-bottom: 4px; color: var(--vc-text); font-weight: 600; line-height: 1.3; }
 .vc-note-editor .cm-content > .cm-line:first-child { padding-top: 0; } /* pas d'espace au-dessus de la note, comme le rendu */
@@ -99,9 +99,9 @@
 .vc-note-editor :is(.cm-md-h4, .cm-md-h5, .cm-md-h6) { color: var(--vc-soft); }
 .vc-note-editor .cm-md-strong { color: var(--vc-text); font-weight: 600; }
 .vc-note-editor .cm-md-em { font-style: italic; }
-.vc-note-editor .cm-md-code { padding: 1px 5px; border-radius: 4px; background: var(--vc-code); color: var(--vc-text); font: 12.5px/1.5 var(--vc-mono); }
-.vc-note-editor .cm-md-codeblock { background: var(--vc-code); color: var(--vc-text); font: 12.5px/1.5 var(--vc-mono); }
-.vc-note-editor .cm-md-link { color: var(--vc-link); text-decoration: underline; text-underline-offset: 2px; }
+.vc-note-editor .cm-md-code { padding: 1px 5px; border-radius: 4px; background: var(--vc-deep); color: var(--vc-text); font: 12.5px/1.5 var(--vc-mono); }
+.vc-note-editor .cm-md-codeblock { background: var(--vc-deep); color: var(--vc-text); font: 12.5px/1.5 var(--vc-mono); }
+.vc-note-editor .cm-md-link { color: var(--vc-accent); text-decoration: underline; text-underline-offset: 2px; }
 .vc-note-editor .cm-md-badges .cm-gutterElement { padding-left: 8px; }
 .vc-note-editor .cm-md-badges .vc-mn { margin-right: 0; }
 .vc-note-editor .cm-md-buttons .cm-gutterElement { padding-left: 4px; }
@@ -117,13 +117,13 @@
   border: 0;
   border-radius: var(--vc-radius);
   background: transparent;
-  color: var(--vc-muted);
+  color: var(--vc-faint);
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.12s, background-color 0.12s, color 0.12s;
 }
 .vc-note-editor .cm-md-button svg { width: 14px; height: 14px; }
 .vc-note-editor:hover .cm-md-button { opacity: 0.5; }
-.vc-note-editor .cm-gutterElement:hover .cm-md-button, .vc-note-editor .cm-md-button:focus-visible { opacity: 1; background: var(--vc-control); color: var(--vc-text); }
+.vc-note-editor .cm-gutterElement:hover .cm-md-button, .vc-note-editor .cm-md-button:focus-visible { opacity: 1; background: var(--vc-hover); color: var(--vc-text); }
 
 .vc-note-refuse { padding: 4px 16px 0; }

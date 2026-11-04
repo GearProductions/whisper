@@ -1,5 +1,6 @@
-.vc-confirm-back { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .45); }
-.vc-confirm { box-sizing: border-box; width: min(360px, calc(100% - 24px)); padding: var(--vc-pad); border: 1px solid var(--vc-edge); border-radius: var(--vc-radius); background: var(--vc-card); color: var(--vc-text); }
+/* La confirmation (confirm-box) : une boîte de la vue C (fond --vc-pop, bord marqué, coins de 12, ombre) sur le voile. */
+.vc-confirm-back { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: var(--vc-backdrop); }
+.vc-confirm { box-sizing: border-box; width: min(380px, calc(100% - 24px)); padding: 14px; border: 1px solid var(--vc-edge); border-radius: 12px; background: var(--vc-pop); box-shadow: var(--vc-shadow-pop); color: var(--vc-text); }
 .vc-confirm-msg { margin: 0 0 8px; font-size: 13px; }
 .vc-confirm-items { margin: 0 0 8px; padding-left: 18px; color: var(--vc-soft); font-size: 12.5px; overflow-wrap: anywhere; }
-.vc-confirm-foot { display: flex; justify-content: flex-end; gap: 6px; }
+.vc-confirm-foot { display: flex; justify-content: flex-end; gap: 8px; }

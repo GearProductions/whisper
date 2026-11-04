@@ -1,17 +1,17 @@
 /* La carte du commit proposé (proposed-commit). Sous .vc, couleurs de vibecoder.css. */
 
 /* Le commit proposé : liseré d'accent, le message tel qu'il sera commité (sujet en gras). */
-.vc-proposed { border-color: color-mix(in srgb, var(--accent) 45%, var(--vc-line)); }
-.vc-proposed > .vc-card-head { background: color-mix(in srgb, var(--accent) 7%, var(--vc-card)); }
+.vc-proposed { border-color: var(--vc-active-edge); }
+.vc-proposed > .vc-card-head { background: var(--vc-info-bg); }
 .vc-commit-msg {
   margin: 0;
   padding: 10px 12px;
   border-radius: var(--vc-radius);
-  background: var(--vc-code);
+  background: var(--vc-deep);
   color: var(--vc-soft);
   font: 12.5px/1.6 var(--vc-mono);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 .vc-commit-msg::first-line { color: var(--vc-text); font-weight: 600; }
-.vc-commit-foot { display: flex; align-items: center; gap: 12px; margin-top: 12px; color: var(--vc-muted); font-size: 12px; }
+.vc-commit-foot { display: flex; align-items: center; gap: 12px; margin-top: 12px; color: var(--vc-faint); font-size: 12px; }

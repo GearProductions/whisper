@@ -7,12 +7,12 @@
   min-width: 160px;
   padding: 4px;
   box-sizing: border-box;
-  border: 1px solid var(--vc-line);
+  border: 1px solid var(--vc-edge);
   border-radius: 8px;
-  background: var(--vc-side);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
-  font: 12.5px/1.4 system-ui, sans-serif;
+  background: var(--vc-pop);
+  box-shadow: var(--vc-shadow-pop);
+  font: 12.5px/1.4 var(--vc-sans);
 }
 .vc-ctxmenu button { padding: 5px 10px; border: 0; border-radius: 4px; background: none; color: var(--vc-text); font: inherit; text-align: left; cursor: pointer; }
-.vc-ctxmenu button:hover:not(:disabled), .vc-ctxmenu button:focus-visible { background: var(--vc-control); outline: none; }
+.vc-ctxmenu button:hover:not(:disabled), .vc-ctxmenu button:focus-visible { background: var(--vc-active-bg); color: var(--vc-active); outline: none; }
 .vc-ctxmenu button:disabled { color: var(--vc-faint); cursor: default; }

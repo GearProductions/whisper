@@ -3,28 +3,28 @@
    (.vc-seg), contrat en rubriques. Sous .vc, couleurs et .vc-tool de vibecoder.css. */
 
 .vc-forme .vc-card-head { min-height: 42px; }
-.vc-forme-sum { color: var(--vc-muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vc-forme-sum { color: var(--vc-faint); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vc-forme-mark { margin-left: auto; display: flex; padding-left: 8px; }
 
-.vc-fmain { min-width: 0; padding: 8px var(--vc-pad); }
+.vc-fmain { min-width: 0; padding: 8px var(--vc-pad, 12px); }
 .vc-fline { display: flex; align-items: center; gap: 8px; min-height: 20px; }
 .vc-fpath { display: flex; min-width: 0; white-space: nowrap; font-size: 12.5px; }
-.vc-fdir { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--vc-muted); }
+.vc-fdir { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--vc-faint); }
 .vc-fpath b { flex: none; color: var(--vc-text); font-weight: 600; }
 .vc-fmain[data-state="missing"] .vc-fpath b { color: var(--vc-soft); }
-.vc-fstate { flex: none; display: inline-flex; align-items: center; gap: 3px; padding: 0 7px; border-radius: 8px; font: 500 11px/17px system-ui, sans-serif; white-space: nowrap; }
+.vc-fstate { flex: none; display: inline-flex; align-items: center; gap: 3px; padding: 0 7px; border-radius: 8px; font: 500 11px/17px var(--vc-sans); white-space: nowrap; }
 .vc-fstate svg { width: 11px; height: 11px; }
-.vc-fstate[data-state="touched"] { background: color-mix(in srgb, var(--vc-ok) 16%, transparent); color: #6fdd85; }
-.vc-fstate[data-state="exists"] { background: rgba(255, 255, 255, 0.06); color: var(--vc-soft); }
-.vc-fstate[data-state="missing"] { border: 1px dashed var(--vc-edge); color: var(--vc-muted); line-height: 15px; }
+.vc-fstate[data-state="touched"] { background: var(--vc-ok-bg); color: var(--vc-ok-text); }
+.vc-fstate[data-state="exists"] { background: var(--vc-hover); color: var(--vc-soft); }
+.vc-fstate[data-state="missing"] { border: 1px dashed var(--vc-line); color: var(--vc-faint); line-height: 15px; }
 .vc-fcommits { flex: none; color: var(--vc-faint); font-size: 11px; }
 .vc-ftools { margin-left: auto; display: flex; align-items: center; gap: 2px; }
-.vc-fnone { margin: 8px 0 0; color: var(--vc-muted); font-size: 12.5px; }
+.vc-fnone { margin: 8px 0 0; color: var(--vc-faint); font-size: 12.5px; }
 
 /* Le contrat : la première rubrique en texte, les autres avec leur libellé. */
 .vc-fcontract { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 10px; margin: 5px 0 0; font-size: 12.5px; line-height: 1.5; }
 .vc-fcontract > div { display: contents; }
-.vc-fcontract > [data-label="main"] > dd { grid-column: 1 / -1; color: #d5d9e1; }
+.vc-fcontract > [data-label="main"] > dd { grid-column: 1 / -1; color: var(--vc-text); }
 .vc-fcontract dt { padding-top: 2px; color: var(--vc-faint); font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; }
 .vc-fcontract dd { margin: 0; color: var(--vc-soft); overflow-wrap: anywhere; }
-.vc-fcontract code { padding: 0 4px; border-radius: 4px; background: var(--vc-code); font: 11.5px/1.5 var(--vc-mono); }
+.vc-fcontract code { padding: 0 4px; border-radius: 4px; background: var(--vc-deep); font: 11.5px/1.5 var(--vc-mono); }
