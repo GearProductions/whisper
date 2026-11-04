@@ -4,18 +4,25 @@
 //   I-2 (réduit) : n'envoyer à un agent que le texte du champ ou ce que
 //         whisper vient de rendre ; la transcription est rendue à la page
 //         qui l'a demandée, jamais envoyée d'elle-même à un agent.
+//         Élargi en 0.14.0 (docs/tickets/feat/0.14.0-allegement-interface-settings.md,
+//         accord donné dans la note) : ce qui part pour une action, c'est le
+//         texte et les pièces jointes de son champ, plus son gabarit ; une
+//         pièce refusée, rien ne part.
 //   I-3 (réduit) : aucun canal « lis ce texte » : Écouter désigne une réponse
 //         par son rang, le principal lit le résumé qu'il a retenu (F-46).
 //   I-10 : pas de whisper sur du silence (F-4).
 //
-// Sur le vrai principal (contrôleurs, fenêtres, état, réglages sur disque) ;
-// faux : Electron (fenêtres qui relèvent ce qu'on leur envoie), le SDK de
+// Sur le vrai principal (contrôleurs, fenêtres, état, réglages sur disque ;
+// pour les actions, git réel sur un dépôt d'essai et les actions livrées dans
+// resources/) ; faux : Electron (fenêtres qui relèvent ce qu'on leur envoie ;
+// le décodeur d'images ne lit rien, un GIF passe tel quel), le SDK de
 // Claude Code (chaque message reçu par un agent est relevé), whisper-cli et
 // Pocket TTS (les modèles : ce qu'on leur donne est relevé).
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { slow } from '../slow';
 
 const fake = vi.hoisted(() => {
@@ -66,7 +73,9 @@ vi.mock('electron', () => ({
   // Un menu s'ouvre sans rien faire ; une notification du système ne montre rien.
   Menu: { buildFromTemplate: () => ({ popup: () => {} }), setApplicationMenu: () => {} },
   Notification: class { static isSupported() { return false; } on() {} show() {} },
-  shell: {}, dialog: {}, nativeImage: {},
+  shell: {}, dialog: {},
+  // Le décodeur d'images d'Electron ne lit rien : un GIF part tel quel, un PNG est refusé.
+  nativeImage: { createFromBuffer: () => ({ isEmpty: () => true }) },
 }));
 
 // Claude Code : chaque message reçu par un agent est relevé.
@@ -98,6 +107,12 @@ vi.mock('technicals/pocket-tts', async (original) => ({
   speak: (text: unknown) => { fake.spoken.push(text); return 1; },
   warmUp: () => {},
   cancel: () => {},
+}));
+
+// Les actions livrées.
+vi.mock('technicals/paths', async (original) => ({
+  ...await original<typeof import('technicals/paths')>(),
+  resourcePath: (name: string) => `${process.cwd()}/resources/${name}`,
 }));
 
 const settle = () => new Promise((r) => setTimeout(r, slow(200)));
@@ -207,5 +222,132 @@ describe('aucun canal « lis ce texte » ou « copie ce texte » (I-3)', () => {
 
     // Rien de ce que Pocket TTS a reçu ne contient le texte de la page.
     expect(JSON.stringify(fake.spoken)).not.toContain(PAGE_TEXT);
+  });
+});
+
+describe('ce qui part pour une action : le texte et les pièces jointes de son champ, plus son gabarit (I-2 élargi)', () => {
+  const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' });
+  // Le texte du champ, et ses pièces jointes : une sélection, un fichier par son chemin, une image (un GIF).
+  const FIELD = 'le texte du champ';
+  const SELECTION = 'la sélection jointe au champ';
+  const FILE = path.join(os.tmpdir(), 'joint', 'document-joint.txt');
+  const GIF = Buffer.from('GIF89a une image jointe au champ');
+  const pieces = () => ({ selection: SELECTION, files: [FILE], images: [{ name: 'image.gif', type: 'image/gif', data: new Uint8Array(GIF).buffer }] });
+  // Ce que les agents ont reçu, en un texte.
+  const received = () => JSON.stringify(fake.prompts);
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] }); // le relevé des 4 s ne tourne pas
+    // Un dépôt sur une branche dont la note est écrite : la Forme et la ponytail review sont proposées.
+    const dir = path.join(fake.userData, 'projet');
+    fs.mkdirSync(path.join(dir, 'docs/tickets/feat'), { recursive: true });
+    git(dir, 'init', '-q', '-b', 'main');
+    git(dir, 'commit', '-q', '--allow-empty', '-m', 'init');
+    git(dir, 'checkout', '-q', '-b', 'feat/0.14.0-essai');
+    fs.writeFileSync(path.join(dir, 'docs/tickets/feat/0.14.0-essai.md'), '# 0.14.0 — essai\n\n## Ce que ça fait\n\n- un essai\n');
+    git(dir, 'add', '.');
+    git(dir, 'commit', '-q', '-m', 'note');
+    fs.writeFileSync(path.join(fake.userData, 'config.json'), JSON.stringify({
+      agentsEnabled: true, agentSelected: 'a1',
+      agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
+        vibe: { flow: 'create', pr: null } }],
+    }));
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  // Le panneau ouvert sur l'agent, en VibeCoder, son premier relevé reçu.
+  async function open() {
+    const { openConversation } = await import('app/windows');
+    const { panelReady } = await import('app/controllers');
+    openConversation('a1');
+    fake.windows.at(-1)!.emit('ready-to-show');
+    await panelReady();
+    await settle();
+  }
+
+  it('le texte et chaque pièce jointe du champ partent avec son action', async () => {
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+
+    runVibeAction('forme', { text: FIELD, pieces: pieces() });
+    await settle();
+
+    // Le texte du champ est parti.
+    expect(received()).toContain(FIELD);
+    // La sélection jointe est partie.
+    expect(received()).toContain(SELECTION);
+    // Le chemin du fichier joint est parti.
+    expect(received()).toContain(JSON.stringify(FILE).slice(1, -1));
+    // L'image jointe est partie.
+    expect(received()).toContain(GIF.toString('base64'));
+  });
+
+  // Envoyer les réponses : son gabarit lit {{answers}}, pas {{text}}.
+  it('les pièces jointes des réponses partent avec Envoyer les réponses', async () => {
+    // Une question ouverte laissée par la note : Envoyer les réponses est proposé.
+    const out = path.join(fake.userData, 'vibecoder-out', 'a1');
+    fs.mkdirSync(out, { recursive: true });
+    fs.writeFileSync(path.join(out, 'questions.md'), '## 1. Une question ?\n');
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+    const ANSWER = 'la réponse à la question ouverte';
+
+    runVibeAction('answers', { answers: [ANSWER], pieces: pieces() });
+    await settle();
+
+    // La réponse est partie.
+    expect(received()).toContain(ANSWER);
+    // La sélection jointe est partie.
+    expect(received()).toContain(SELECTION);
+    // Le chemin du fichier joint est parti.
+    expect(received()).toContain(JSON.stringify(FILE).slice(1, -1));
+    // L'image jointe est partie.
+    expect(received()).toContain(GIF.toString('base64'));
+  });
+
+  it('ce que la page ajoute aux pièces jointes, hors du champ, ne part pas', async () => {
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+
+    // Une clé inconnue glissée parmi les pièces jointes, porteuse d'un texte de la page.
+    runVibeAction('forme', { text: FIELD, pieces: { ...pieces(), note: PAGE_TEXT } });
+    await settle();
+
+    // L'action est bien partie (l'absence qui suit porte sur un envoi).
+    expect(received()).toContain(FIELD);
+    // Le texte glissé par la page n'est pas parti.
+    expect(received()).not.toContain(PAGE_TEXT);
+  });
+
+  it('une action dont le gabarit ne lit pas le champ n’envoie ni son texte ni ses pièces jointes', async () => {
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+
+    // La ponytail review : son gabarit n'a pas de {{text}}.
+    runVibeAction('ponytail', { text: FIELD, pieces: pieces() });
+    await settle();
+
+    // L'action est bien partie : son gabarit a été reçu.
+    expect(received()).toContain('/vibecoder:ponytail');
+    // Le texte du champ n'est pas parti.
+    expect(received()).not.toContain(FIELD);
+    // La sélection jointe n'est pas partie.
+    expect(received()).not.toContain(SELECTION);
+    // L'image jointe n'est pas partie.
+    expect(received()).not.toContain(GIF.toString('base64'));
+  });
+
+  it('une pièce jointe refusée : rien ne part, ni le texte du champ', async () => {
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+
+    // Une image illisible (un PNG que le décodeur ne lit pas).
+    const result = runVibeAction('forme', { text: FIELD, pieces: { ...pieces(), images: [{ name: 'abimee.png', type: 'image/png', data: new Uint8Array(GIF).buffer }] } });
+    await settle();
+
+    // L'action est refusée.
+    expect(result.ok).toBe(false);
+    // Aucun agent n'a rien reçu.
+    expect(fake.prompts).toEqual([]);
   });
 });
