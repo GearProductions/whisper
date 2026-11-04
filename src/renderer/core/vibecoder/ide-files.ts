@@ -3,9 +3,11 @@
  *  couleur de son nom comme VS Code (mark : nouveau, modifié, supprimé, pas commités ; todo : à générer ;
  *  null : commité) et ce que ModuleCode en montre (un module, réduit à un fichier pour Modules ; null : rien à montrer).
  *  Sans module (la Forme n'est pas écrite), les lignes sont les fichiers de la branche, chacun un module
- *  d'un seul fichier (rank et state null).
- *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (forme-view, modules-view, ide-view). */
-import type { VibeGit, VibeModule, VibeView } from 'technicals/bridge';
+ *  d'un seul fichier (rank et state null). Les tests d'invariants (invariantFiles) : une ligne par test, son rang
+ *  dans view.invariants, son état (cas validés : tous done, aucun todo, sinon wip), son état git (lu dans view.files) ; rien à montrer (code null).
+ *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (forme-view, modules-view, ide-view,
+ *  invariants-view). */
+import type { VibeGit, VibeModule, VibeTestFile, VibeView } from 'technicals/bridge';
 
 export type ModuleState = 'done' | 'wip' | 'todo';
 export type FileMark = VibeGit | 'deleted' | 'todo';
@@ -47,3 +49,16 @@ export function ideFiles(view: Pick<VibeView, 'modules' | 'files'>, by: 'module'
     return m.files.map((f) => ({ path: f.path, rank, state, mark: markOf(f), code: { ...m, files: [f] } }));
   }).filter((r) => !seen.has(r.path) && seen.add(r.path));
 }
+
+// Une ligne par test d'invariant : done si tous ses cas sont validés (ok), todo si aucun n'a de verdict, sinon wip.
+// mark : son état git, lu dans les fichiers de la branche (view.files ; absent : commité).
+export const invariantFiles = (tests: VibeTestFile[], files: VibeView['files'] = []): IdeFile[] => tests.map((t, rank) => {
+  const marks = t.cases.map((c) => t.marks[c]);
+  return {
+    path: t.path,
+    rank,
+    state: marks.length && marks.every((m) => m === 'ok') ? 'done' : marks.some(Boolean) ? 'wip' : 'todo',
+    mark: markOf({ git: files.find((f) => f.path === t.path)?.git }),
+    code: null,
+  };
+});
