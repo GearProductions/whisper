@@ -498,7 +498,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Vibe",
-    "hint": "L'agent reprend à la première étape pas faite et enchaîne jusqu'à la PR et sa CI au vert ; une question qui bloque l'attend sans l'arrêter ; la bannière l'arrête ; long et coûteux.",
+    "hint": "L'agent reprend à la première étape pas faite et enchaîne jusqu'à la PR et sa CI au vert ; une question qui bloque l'attend sans l'arrêter ; long et coûteux.",
     "text": "/vibecoder:vibe {{lang}} {{out}}"
   },
   {
@@ -510,16 +510,6 @@
     "label": "Où j'en suis ?",
     "hint": "Demande au skill gear-guide la prochaine étape, d'après l'état du dépôt et la question du champ.",
     "text": "/gear-guide {{text}}"
-  },
-  {
-    "id": "ask",
-    "flow": "both",
-    "step": null,
-    "kind": "send",
-    "needs": "text",
-    "label": "Demander sans modifier",
-    "hint": "Envoie la question du champ en demandant à l'agent de ne rien modifier.",
-    "text": "{{text}}\n\n(Réponds seulement : ne modifie aucun fichier et ne lance rien qui modifie quoi que ce soit.)"
   },
   {
     "id": "new-request",
@@ -571,16 +561,6 @@
     "label": "✗ À revoir",
     "hint": "Cite le cas dans le champ, pour dire ce qu'il faut changer.",
     "text": "Invariant « {{quote}} » : à revoir — "
-  },
-  {
-    "id": "fix",
-    "flow": "create",
-    "step": null,
-    "kind": "prefill",
-    "needs": "none",
-    "label": "Retour → fixup",
-    "hint": "Prépare dans le champ un retour à corriger en fixup du module concerné.",
-    "text": "Retour à corriger, en fixup du module concerné : "
   },
   {
     "id": "propose-run",
