@@ -93,15 +93,12 @@ describe('clic droit : Worktrees', () => {
     expect(worktreesMenu()).toBeUndefined();
   });
 
-  it('VibeCoder et la conversation toujours proposés, quelle que soit la vue retenue', async () => {
-    const cfg = path.join(fake.userData, 'config.json');
-    const c = JSON.parse(fs.readFileSync(cfg, 'utf8'));
-    c.agents[0].view = 'vibecoder';
-    fs.writeFileSync(cfg, JSON.stringify(c));
-    for (const id of ['a1', 'a3']) {
-      await open(id);
-      expect(items().map((i) => i.label)).toEqual(expect.arrayContaining(['◧ Ouvrir VibeCoder', '💬 Ouvrir la conversation']));
-    }
+  it('plus de choix entre VibeCoder et la conversation, ni de dernier échange', async () => {
+    await open('a1');
+    const labels = items().map((i) => i.label);
+    expect(labels).not.toContain('◧ Ouvrir VibeCoder');
+    expect(labels).not.toContain('💬 Ouvrir la conversation');
+    expect(labels).not.toContain('Dernier échange');
   });
 });
 

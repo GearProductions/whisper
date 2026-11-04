@@ -1,14 +1,12 @@
 /** bridge — le contrat entre les pages et le principal : ce que chaque pont
- *  (src/preload : icon, bubble, panel) expose, et la
- *  forme des données échangées. Aucun code.
+ *  (src/preload : panel) expose, et la forme des données échangées.
+ *  Aucun code.
  *  Ne connaît pas : React, Electron. Utilisé par : les pages (src/renderer), les
  *  ponts (src/preload), le principal (src/main). Un canal ajouté ici l'est
  *  aussi dans le pont, dans la table de gestionnaires de sa fenêtre et dans
  *  tests/invariants/bridges.test.ts. */
 
-/* ---- Icône (window.api) ---------------------------------------------------- */
-
-export type Bounds = { x: number; y: number; width: number; height: number };
+/* ---- Le micro (dictée et transcription) ------------------------------------ */
 
 export type DictationConfig = {
   lang: string;
@@ -27,70 +25,14 @@ export type TranscribeResult = {
 
 export type MicDevice = { deviceId: string; label: string };
 
-export type SpeakMode = 'off' | 'selection' | 'clipboard';
-export type SpeakState = { mode: SpeakMode; volume?: number; ready?: boolean; hasText?: boolean };
 export type SpeakStart = { ok: true; id: number } | { ok: false; error?: string };
 
 export type AgentStatus = 'idle' | 'working' | 'asking' | 'error';
 // Ce qu'une course de l'agent signale sur son robot : une question tant qu'elle attend sa réponse,
 // une fin tant que l'utilisateur ne l'a pas vue ; working : une course travaille.
 export type RunSignal = 'asking' | 'done' | 'failed' | 'working';
-// Un robot de l'icône (par famille) ; part avec l'icône au temps 3 de la 0.14.0.
-export type IconAgentView = {
-  id: string;
-  name: string;
-  color: string;
-  selected: boolean;
-  status: AgentStatus;
-  unread: boolean;
-  tasks: number;        // tâches de fond en cours (commande, surveillance, sous-agent…)
-  badge: string | null; // la branche du dossier, ou « PR #n » (robot de PR)
-  children: IconAgentView[]; // les robots enfants (worktrees du dépôt) ; vide pour un enfant
-  signal?: RunSignal | null; // le signal de ses courses (F-55) ; absent = null
-};
-export type IconAgentsState = { enabled: boolean; agents?: IconAgentView[] };
-
-export interface IconApi {
-  getBounds(): Promise<Bounds | null>;
-  setPosition(x: number, y: number): void;
-  savePosition(x: number, y: number): void;
-  getConfig(): Promise<DictationConfig>;
-  setDevice(id: string, label: string): void;
-  warmUp(): Promise<boolean>;
-  setRecording(on: boolean): void;
-  transcribe(pcm: ArrayBuffer): Promise<TranscribeResult>;
-  openMenu(devices: MicDevice[]): void;
-  /** Rien : la sélection (ou le presse-papiers). 'reply' : le résumé retenu par le principal. */
-  speak(source?: 'reply'): Promise<SpeakStart>;
-  cancelSpeak(id: number): void;
-  warmUpSpeak(): void;
-  onSpeakState(cb: (state: SpeakState | null) => void): void;
-  onSpeakChunk(cb: (id: number, pcm: Uint8Array, rate: number) => void): void;
-  onSpeakEnd(cb: (id: number, error: string | null) => void): void;
-  onSpeakReply(cb: () => void): void;
-  onAgents(cb: (state: IconAgentsState) => void): void;
-  agentClick(id: string): void;
-  agentMenu(id: string): void;
-  agentAdd(): void;
-}
-
-/* ---- Bulle (window.bubble) ---------------------------------------------------- */
-
-export type BubbleKind = 'notice' | 'status' | 'volume';
-export type BubbleSize = { width: number; maxHeight: number };
-
-export interface BubbleApi {
-  /** `value` : le texte, ou le volume (0 à 1) pour 'volume'. */
-  onShow(fn: (value: string | number, kind: BubbleKind, size: BubbleSize) => void): void;
-  ready(height: number): void;
-  hover(inside: boolean): void;
-  close(): void;
-  setVolume(value: number): void;
-}
 
 /* ---- Panneau (window.conv) ---------------------------------------------------- */
-
-export type ConvMode = 'compact' | 'full';
 
 export type Permission = { key: number; title: string; text: string; always: string[] };
 
@@ -125,10 +67,8 @@ export type TaskView = {
 };
 
 export type Thread = {
-  dictation?: boolean;  // contexte « Dictée »
-  mode: ConvMode;
   key: string;          // la conversation : un brouillon par clé
-  live: boolean;        // session en cours (false : ancienne, ou la dictée)
+  live: boolean;        // session en cours (false : une ancienne)
   name: string;
   color: string;
   dir?: string;
@@ -141,7 +81,9 @@ export type Thread = {
   messages: Message[];
 };
 
-export type Notice = { kind: BubbleKind; text: string };
+// Un message de l'appli en tête du panneau : 'notice' (le temps d'un enregistrement) ou 'status'.
+export type NoticeKind = 'notice' | 'status';
+export type Notice = { kind: NoticeKind; text: string };
 
 export type Session = { sessionId: string; title?: string; lastModified: number; current: boolean };
 
@@ -182,9 +124,9 @@ export type AgentView = {
   detail: string | null;                 // la question qu'il pose, s'il en pose une
   parent: string | null;                 // l'id de l'agent du dossier principal (worktree, PR) ; null : lui-même
 };
-// Un autre agent que l'affiché vient de finir, de poser une question, d'échouer.
-export type AgentEvent = { agentId: string; kind: 'done' | 'asking' | 'error'; step: VibeStepId | null; detail: string | null };
-export type AgentsState = { agents: AgentView[]; shown: string | null; events: AgentEvent[] };
+// Un autre agent que l'affiché vient de poser une question ou d'échouer : une notification du système (principal seul).
+export type AgentEvent = { agentId: string; kind: 'asking' | 'error'; detail: string | null };
+export type AgentsState = { agents: AgentView[]; shown: string | null };
 
 export interface ConvApi {
   onThread(fn: (data: Thread) => void): void;
@@ -204,16 +146,11 @@ export interface ConvApi {
   open(sessionId: string): void;
   resume(): void;
   current(): void;
-  setMode(mode: ConvMode): void;
-  height(h: number): void;
   onNotice(fn: (notice: Notice | null) => void): void;
-  /** Copie le dernier texte dicté, connu du principal (aucun texte ne part d'ici). */
-  copy(): Promise<boolean>;
   send(draft: OutgoingDraft): Promise<SendResult>;
   attach(): void;
   onAttached(fn: (what: Attached) => void): void;
   onFocusInput(fn: () => void): void;
-  hide(): void;
   pathFor(file: File): string;
   answer(decision: Decision, key: number): void;
   openLink(url: string): void;
@@ -504,7 +441,6 @@ export type VibePatch = {
   lang?: VibeLang;
   pr?: number | null;          // la PR suivie
   seen?: boolean;              // « Vu » : la note de référence devient l'actuelle
-  view?: 'conversation';       // revenir à la conversation
   modulesView?: 'ide' | 'list'; // le réglage de la vue Modules
   model?: string;              // le modèle de l'agent, comme son menu
   effort?: string;

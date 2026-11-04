@@ -16,8 +16,8 @@ async function shown(busy: boolean) {
     createRoot(page).render(createElement(Composer, {
       draft: { text: 'salut', pieces: [] }, setText() {}, removePiece() {}, live: true, name: 'Agent', busy, sending: false,
       status: '', setStatus() {}, dir: '/d', commands: new Map(), probe: async () => ({ commands: [] }),
-      onSend: () => calls.push('send'), onAttach: () => calls.push('attach'), onFiles() {}, onLayout() {}, onMicDown() {}, onMicUp() {}, phase: 'idle',
-      ref: createRef<HTMLElement>(), input: createRef<HTMLTextAreaElement>(),
+      onSend: () => calls.push('send'), onAttach: () => calls.push('attach'), onFiles() {},
+      input: createRef<HTMLTextAreaElement>(),
     }));
   });
   return { page, calls };
@@ -30,7 +30,7 @@ it('les deux icônes : nommées, leurs rappels, Entrée envoie, désactivé pend
   expect([attach.getAttribute('aria-label'), send.getAttribute('aria-label')]).toEqual(['Joindre…', 'Envoyer']);
   expect(attach.title && send.title).toBeTruthy();
   expect(page.querySelector('#composer-row')!.firstElementChild).toBe(attach);
-  expect(page.querySelector('#composer-row')!.lastElementChild).toBe(send);
+  expect(page.querySelector('#composer-row .vc-prompt-tools')!.lastElementChild).toBe(send); // la paire de prompt-tools, au bout
   attach.click();
   send.click();
   page.querySelector('#message')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
@@ -51,8 +51,8 @@ async function typed(text: string, artifacts?: { id: string; name: string }[], a
     createRoot(page).render(createElement(Composer, {
       draft: { text: text.slice(0, -1), pieces: [] }, setText: (t: string) => texts.push(t), removePiece() {}, live: true, name: 'Agent', busy: false, sending: false,
       status: '', setStatus() {}, dir: '/d', commands: new Map([['/d', [{ name: 'help', description: '' }]]]), probe: async () => ({ commands: [] }),
-      onSend: () => calls.push('send'), onAttach() {}, onFiles() {}, onLayout() {},
-      ref: createRef<HTMLElement>(), input, artifacts, artifactsDir,
+      onSend: () => calls.push('send'), onAttach() {}, onFiles() {},
+      input, artifacts, artifactsDir,
     } as never));
   });
   const el = input.current!;

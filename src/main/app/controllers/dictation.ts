@@ -12,13 +12,12 @@ import { app } from 'electron';
 import { checkAudio, cleanTranscript, TRANSCRIBE_MESSAGES } from 'core/dictation';
 import { createMuter, createStreamMuter, isWanted, streamKey, type MutePlatform } from 'core/sound';
 import { readJson, writeJson } from 'technicals/config-file';
-import * as paste from 'technicals/paste';
 import * as pipewire from 'technicals/pipewire';
 import * as windows from 'technicals/windows-helper';
 import { locateWhisper, runWhisper } from 'technicals/whisper-cli';
 import { loadConfig, ownWhisperDir, whisperDirs } from 'app/settings';
 import { state } from 'app/state';
-import { conversationNotice, hideBubble, showBubble } from 'app/windows';
+import { conversationNotice } from 'app/windows';
 import type { TranscribeResult } from 'shared/bridge';
 
 /* ---- Coupures du son ------------------------------------------------------ */
@@ -64,14 +63,14 @@ export function startHealing() {
 export async function forceRestoreSound() {
   const own = ownPids();
   const n = (await muter.force('others', own)) + (await muter.force('discord', own));
-  showBubble(n ? `Son rétabli : ${n} flux remis en marche.` : 'Rien n\'était coupé : le son et le micro Discord sont déjà rétablis.', 'status');
+  conversationNotice(n ? `Son rétabli : ${n} flux remis en marche.` : 'Rien n\'était coupé : le son et le micro Discord sont déjà rétablis.', 'status');
 }
 
 // Les processus de l'appli : leurs flux audio (les bips) ne sont jamais coupés.
 const ownPids = () => [process.pid, ...app.getAppMetrics().map((m) => m.pid)];
 
 // Début (dès le seuil de maintien, avant l'ouverture du micro) et fin de
-// l'enregistrement. Au début, la bulle (message de l'appli) s'efface ; le
+// l'enregistrement. Au début, le
 // son des autres applications et le micro Discord sont coupés si c'est
 // autorisé, et « Micro Discord coupé » s'affiche une fois la coupure confirmée
 // (celle du son s'entend, elle). La fin rétablit toujours : réglage décoché en
@@ -80,13 +79,11 @@ export function setRecording(on: unknown) {
   state.recording = !!on;
   if (on) {
     const cfg = loadConfig();
-    hideBubble(); // le panneau, lui, reste : on y relit la conversation en dictant
     if (cfg.muteOthers === true) muter.mute('others', ownPids());
     if (cfg.discordMute === true) {
-      muter.mute('discord', []).then((n) => { if (n > 0 && state.recording) showBubble('Micro Discord coupé', 'notice'); });
+      muter.mute('discord', []).then((n) => { if (n > 0 && state.recording) conversationNotice('Micro Discord coupé', 'notice'); });
     }
   } else {
-    if (state.bubbleKind === 'notice') hideBubble();
     if (state.convNotice && state.convNotice.kind === 'notice') conversationNotice(null); // elle n'a plus lieu d'être
     muter.restore('others');
     muter.restore('discord');
@@ -123,7 +120,7 @@ export async function ensureModel() {
   const part = `${dest}.part`;
   const download = { percent: 0 };
   state.modelDownload = download;
-  showBubble('Téléchargement du modèle de dictée (548 Mo)… Une seule fois.', 'status');
+  conversationNotice('Téléchargement du modèle de dictée (548 Mo)… Une seule fois.', 'status');
   try {
     const res = await fetch(MODEL_URL);
     if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
@@ -138,15 +135,12 @@ export async function ensureModel() {
     }
     await new Promise<void>((resolve, reject) => out.end((err?: Error | null) => (err ? reject(err) : resolve())));
     fs.renameSync(part, dest);
-    showBubble('Modèle de dictée prêt : maintenir l\'icône pour dicter.', 'status');
+    conversationNotice('Modèle de dictée prêt : maintenir le micro pour dicter.', 'status');
   } catch (err) {
     console.error(`Téléchargement du modèle whisper : ${err instanceof Error ? err.message : err}`);
     fs.rmSync(part, { force: true });
-    showBubble('Téléchargement du modèle de dictée impossible : il sera retenté au prochain lancement.', 'status');
+    conversationNotice('Téléchargement du modèle de dictée impossible : il sera retenté au prochain lancement.', 'status');
   } finally {
     state.modelDownload = null;
   }
 }
-
-// Appelé quand le micro est ouvert : on prépare le collage.
-export function warmUpPaste() { paste.warmUp(); return true; }

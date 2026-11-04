@@ -1,7 +1,7 @@
-// Construit le processus principal (src/main) et les trois ponts (src/preload)
+// Construit le processus principal (src/main) et le pont (src/preload)
 // dans out/main, en CommonJS pour Node. Electron, les modules de Node et le SDK
 // Claude restent dehors : le SDK, module ES, se charge par import() dynamique,
-// conservé tel quel. Chaque pont est autonome (un pont « sandbox » ne charge
+// conservé tel quel. Le pont est autonome (un pont « sandbox » ne charge
 // que electron).
 import { builtinModules } from 'node:module';
 import { resolve } from 'node:path';
@@ -21,8 +21,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: src('main/index.ts'),
-        'preload-icon': src('preload/icon.ts'),
-        'preload-bubble': src('preload/bubble.ts'),
         'preload-panel': src('preload/panel.ts'),
       },
       external: ['electron', '@anthropic-ai/claude-agent-sdk', ...builtinModules, ...builtinModules.map((m) => `node:${m}`)],

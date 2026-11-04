@@ -10,14 +10,13 @@ const fake = vi.hoisted(() => ({
 }));
 
 vi.mock('technicals/pocket-tts', () => ({
-  isInstalled: () => true, canInstall: () => false, cancel: () => {}, warmUp: () => {},
+  isInstalled: () => true, canInstall: () => false, cancel: () => {},
   speak: (text: string, _o: unknown, onChunk: typeof fake.onChunk, onEnd: typeof fake.onEnd) => {
     fake.spoken.push(text); fake.onChunk = onChunk; fake.onEnd = onEnd; return 7;
   },
 }));
-vi.mock('technicals/selection', () => ({ hasText: async () => true, peekText: async () => '', readText: async () => '' }));
 vi.mock('app/settings', () => ({ loadConfig: () => fake.cfg, saveConfig: () => {} }));
-vi.mock('app/windows', () => ({ applySize: () => {}, canReadSelection: false, sendToIcon: () => {}, showBubble: () => {} }));
+vi.mock('app/windows', () => ({ conversationNotice: () => {} }));
 
 const thread = (...audio: (string | undefined)[]) => audio.map((a) => ({ role: 'assistant', text: 'x', ...(a ? { audio: a } : {}) }));
 

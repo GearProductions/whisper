@@ -20,7 +20,8 @@ import { plainName } from 'helpers';
 import { copyInto, moveInto, renameItem } from 'technicals/file-tree';
 import type { TreeReport } from 'technicals/file-tree';
 import { projectArtifactsDir, projectArtifactsPath } from './artifacts';
-import { lastView, vibeAgent } from './vibecoder';
+import { viewAgent } from './agents';
+import { lastView } from './vibecoder';
 
 // La forme de DirectResult (technicals/direct, que seul controllers/vibecoder importe) : il la passe telle quelle.
 type DirectResult = { ok: boolean; line: string; detail: string };
@@ -38,7 +39,7 @@ const parentOf = (name: string) => path.posix.dirname(name).replace(/^\.$/, '');
 // L'agent affiché, son dossier d'artefacts et son dernier relevé ; null pour un autre agent.
 // create : le dossier créé au besoin (un premier fichier à la racine), seulement pour l'agent affiché.
 function scope(agent: AgentConfig, create = false) {
-  if (vibeAgent()?.id !== agent.id) return null;
+  if (viewAgent()?.id !== agent.id) return null;
   return { root: create ? projectArtifactsDir(agent.dir) : projectArtifactsPath(agent.dir), view: lastView(agent.id) };
 }
 

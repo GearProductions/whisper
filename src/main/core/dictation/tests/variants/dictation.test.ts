@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkAudio, destination } from 'core/dictation';
-import { withDefaults } from 'core/config';
+import { checkAudio } from 'core/dictation';
 
 describe('audio reçu', () => {
   const voice = (samples: number, amp = 0.2) => new Int16Array(samples).fill(amp * 0x7fff);
@@ -17,13 +16,9 @@ describe('audio reçu', () => {
     expect(() => checkAudio(voice(16000, 0.007))).toThrow('badAudio');
     expect(checkAudio(voice(16000, 0.009)).length).toBe(32000);
   });
-});
-
-describe('destination', () => {
-  const agent = { id: 'a', dir: '/p', name: 'a', model: '', effort: '', mode: 'default', sessionId: null };
-  it('agent et relecture : le champ ; sans relecture : envoyé ; sans agent : collé', () => {
-    expect(destination(withDefaults({}), agent)).toBe('review');
-    expect(destination(withDefaults({ agentReview: false }), agent)).toBe('send');
-    expect(destination(withDefaults({}), null)).toBe('paste');
+  it('parole courte + long silence : jugée sur le bloc le plus fort, comme la page', () => {
+    const pcm = new Int16Array(16000 * 10);
+    pcm.fill(0.03 * 0x7fff, 0, 8192); // 0,5 s à 0,03 RMS : ≈ 0,0067 sur les 10 s
+    expect(checkAudio(pcm).length).toBe(pcm.length * 2);
   });
 });

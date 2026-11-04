@@ -1,10 +1,7 @@
-/** main-menu — les menus de réglages : celui du clic droit sur l'icône
- *  (openMainMenu : modèle, langue, micro, bip, coupures, collage, premier plan,
- *  texte transcrit, lecture à voix haute, agents, dossiers, configuration,
- *  version, quitter) et celui du bouton ⚙ Réglages de la fenêtre
- *  (openSettings : la même liste sans collage, premier plan, texte transcrit,
- *  mode de lecture ni bascules des agents, avec le volume en 25/50/75/100 %).
- *  Les entrées communes sont construites une fois, par les mêmes fonctions.
+/** main-menu — le menu de réglages du bouton ⚙ Réglages de la fenêtre
+ *  (openSettings : modèle, langue, micro, bip, coupures, lecture à voix haute
+ *  avec son volume en 25/50/75/100 %, agents, dossiers, configuration,
+ *  version, quitter). Les entrées sont construites par de petites fonctions.
  *  Ne connaît pas : les pages. Utilisé par : app/ipc. */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -17,8 +14,7 @@ import {
   agentInstructions, configFile, ensureVibeFiles, instructionsFile, journalFile, loadConfig, ownWhisperDir, saveConfig, vibeDir, whisperDirs,
 } from 'app/settings';
 import { state } from 'app/state';
-import { agents, currentSpeakMode, forceRestoreSound, installPocket, pollSpeak, pushAgents, setVolume } from 'app/controllers';
-import { applyOnTop, canReadSelection, showBubble } from 'app/windows';
+import { agents, forceRestoreSound, installPocket, setVolume } from 'app/controllers';
 
 // Langues de lecture (cf. technicals/pocket-tts), dans l'ordre du menu.
 const SPEAK_LANGS = {
@@ -127,57 +123,7 @@ const footerItems = (): Item[] => [
   { label: 'Quitter', click: () => app.quit() },
 ];
 
-export function openMainMenu(devices: unknown) {
-  if (!state.icon) return;
-  const cfg = loadConfig();
-  const speak = currentSpeakMode(cfg);
-  const setSpeak = (value: string) => { saveConfig({ speak: value }); pollSpeak(); };
-  const template: Item[] = [
-    modelItem(),
-    { type: 'separator' },
-    langItem(cfg),
-    micItem(cfg, devices),
-    soundItem(cfg),
-    ...muteOthersItems(cfg),
-    { label: 'Coller automatiquement là où est le curseur', type: 'checkbox', checked: cfg.autoPaste !== false,
-      click: (i) => saveConfig({ autoPaste: i.checked }) },
-    { label: 'Toujours au premier plan (icône, bulles, conversations)', type: 'checkbox', checked: cfg.onTop !== false,
-      click: (i) => { saveConfig({ onTop: i.checked }); applyOnTop(); } },
-    { label: 'Afficher le texte transcrit', type: 'checkbox', checked: cfg.showText !== false,
-      click: (i) => saveConfig({ showText: i.checked }) },
-    ...discordItems(cfg),
-    {
-      label: 'Lecture à voix haute',
-      submenu: [
-        ...speakInstallItems(),
-        ...(canReadSelection ? [
-          { label: 'Texte sélectionné', type: 'radio' as const, checked: speak === 'selection', click: () => setSpeak('selection') },
-        ] : []),
-        { label: 'Presse-papiers', type: 'radio', checked: speak === 'clipboard', click: () => setSpeak('clipboard') },
-        { label: 'Désactivée', type: 'radio', checked: speak === 'off', click: () => setSpeak('off') },
-        { type: 'separator' },
-        ...speakLangVoiceItems(cfg),
-        { type: 'separator' },
-        { label: `Volume : ${Math.round(speakVolume(cfg) * 100)} %…`, click: () => showBubble(speakVolume(cfg), 'volume') },
-      ],
-    },
-    {
-      label: 'Agents Claude Code',
-      submenu: [
-        { label: 'Afficher les agents', type: 'checkbox', checked: cfg.agentsEnabled === true,
-          click: (i) => { saveConfig({ agentsEnabled: i.checked }); pushAgents(); } },
-        { label: 'Relire avant d\'envoyer (la dictée va dans le champ du panneau)', type: 'checkbox', checked: cfg.agentReview !== false,
-          click: (i) => saveConfig({ agentReview: i.checked }) },
-        ...agentFileItems(cfg),
-      ],
-    },
-    { type: 'separator' },
-    ...footerItems(),
-  ];
-  Menu.buildFromTemplate(template).popup({ window: state.icon });
-}
-
-// Le bouton ⚙ Réglages de la fenêtre : le menu s'ouvre sous le curseur, donc sous le bouton.
+// Le menu s'ouvre sous le curseur, donc sous le bouton.
 export function openSettings(devices: unknown) {
   if (!state.panel) return;
   const cfg = loadConfig();

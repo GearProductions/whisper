@@ -1,39 +1,46 @@
-/** agent-notices — le bandeau des autres agents : une notice par événement (le plus récent en haut), le
- *  texte « ✓ a fini / ? te pose une question / ✗ a échoué », une pastille (étape, état, la question
- *  posée), Basculer vers cet agent et ×. `events` est dans l'ordre d'arrivée ; onDismiss reçoit
- *  l'indice de l'événement dans `events`. Un événement dont l'agent n'existe plus n'est pas montré.
- *  Ne connaît pas : le pont (que des rappels). Utilisé par : panel-app. */
+/** agent-notices — les robots des agents, tout à gauche de l'en-tête de VibeCoder (ceux de l'ancienne icône,
+ *  F-55) : tous les agents, dans l'ordre du relevé (la configuration, chaque enfant après son parent) — en
+ *  montrer un autre ne les déplace pas. Chacun son robot à sa couleur éclaircie, plus petit pour un worktree
+ *  ou une PR ; il clignote au travail ; une pastille dit ce qui attend l'utilisateur : « ? » (il attend une
+ *  réponse, jusqu'à ce qu'elle parte), un point vert (il a fini, une réponse non lue), « ! » (il a échoué).
+ *  L'agent affiché, à sa place, en pastille allumée : son robot et son nom (le titre d'un worktree ou
+ *  d'une PR en étiquette), jamais de pastille d'état (sa réponse est lue d'office) ; clic : onOpen (la
+ *  palette, portée Agents). Un autre : clic → onShow (il est affiché). Clic droit sur n'importe lequel :
+ *  onMenu (son menu, F-56). Infobulle : l'agent, son titre s'il est un enfant, son état, sa question.
+ *  Puis + : Nouvel agent (onAdd).
+ *  Ne connaît pas : le pont (que des rappels), le bip (panel-app). Utilisé par : panel-app (dans l'en-tête de vibe-coder). */
+import type { CSSProperties } from 'react';
+import { agentWhere } from 'core/switcher';
 import type { Strings } from 'core/vibecoder';
-import type { AgentEvent, AgentView } from 'technicals/bridge';
+import type { AgentView } from 'technicals/bridge';
+import { Robot } from './icons';
 import './agent-notices.css';
 
-type Props = { events: AgentEvent[]; agents: AgentView[]; t: Strings; onShow(agentId: string): void; onDismiss(index: number): void };
+type Props = {
+  agents: AgentView[]; shown: string | null; t: Strings;
+  onShow(agentId: string): void; onOpen(): void; onMenu(agentId: string): void; onAdd(): void;
+};
 
-export function AgentNotices({ events, agents, t, onShow, onDismiss }: Props) {
-  const notices = events.flatMap((ev, index) => {
-    const agent = agents.find((a) => a.id === ev.agentId);
-    return agent ? [{ ev, index, agent }] : [];
-  }).reverse();
-  if (!notices.length) return null;
+export function AgentNotices({ agents, shown, t, onShow, onOpen, onMenu, onAdd }: Props) {
+  const tip = (a: AgentView) => [
+    `${agentWhere(a)}${a.parent ? ` (${t.agentTitle(a.title, a.pr)})` : ''} — ${t.activity[a.activity]}`,
+    a.detail, a.id === shown ? t.pickerClick : null, t.pickerMenu,
+  ].filter(Boolean).join('\n');
   return (
-    <div className="vc-notices" role="status">
-      {notices.map(({ ev, index, agent }) => (
-        <div key={index} className="vc-notice" data-kind={ev.kind}>
-          <span className="vc-notice-dot" style={{ background: agent.color }} />
-          <div className="vc-notice-body">
-            <div className="vc-notice-text">
-              {ev.kind === 'done' ? t.notifDone(agent.name, ev.step) : ev.kind === 'asking' ? t.notifAsking(agent.name) : t.notifError(agent.name)}
-            </div>
-            <div className="vc-notice-meta">
-              {ev.step && <span className="vc-notice-pill">{t.steps[ev.step]}</span>}
-              <span>{t.activity[agent.activity]}</span>
-              {ev.detail && <span className="vc-notice-detail">{ev.detail}</span>}
-            </div>
-          </div>
-          <button type="button" className="vc-run" data-tone="accent" onClick={() => onShow(agent.id)}>{t.notifSwitch}</button>
-          <button type="button" className="vc-notice-x" aria-label={t.close} title={t.close} onClick={() => onDismiss(index)}>×</button>
-        </div>
-      ))}
+    <div className="vc-agents" role="group" aria-label={t.agentsLabel}>
+      {agents.map((a) => {
+        const here = a.id === shown;
+        return (
+          <button key={a.id} type="button" className="vc-agent" data-activity={a.activity} data-child={a.parent ? true : undefined}
+            aria-pressed={here} aria-label={tip(a)} title={tip(a)} style={{ '--vc-agent': a.color } as CSSProperties}
+            onClick={() => (here ? onOpen() : onShow(a.id))} onContextMenu={(e) => { e.preventDefault(); onMenu(a.id); }}>
+            <span className="vc-agent-robot" aria-hidden="true"><Robot />{here ? null : <span className="vc-agent-badge" />}</span>
+            {here ? <span className="vc-agent-name">{a.repo}</span> : null}
+            {here && a.parent ? <span className="vc-agent-title">{t.agentTitle(a.title, a.pr)}</span> : null}
+          </button>
+        );
+      })}
+      <button type="button" className="vc-agent-add" aria-label={t.addAgent} title={t.addAgent} onClick={onAdd}>+</button>
     </div>
   );
 }

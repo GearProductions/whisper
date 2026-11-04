@@ -13,8 +13,8 @@ import type { VibeView } from 'shared/bridge';
 
 const fake = vi.hoisted(() => ({ userData: '', view: null as unknown, sent: [] as unknown[] }));
 vi.mock('electron', () => ({ app: { getPath: () => fake.userData }, dialog: {}, shell: {}, clipboard: {}, nativeImage: {} }));
+vi.mock('app/controllers/agents', async (orig) => ({ ...(await orig<object>()), viewAgent: () => ({ id: 'a1', dir: fake.userData }) }));
 vi.mock('app/controllers/vibecoder', () => ({
-  vibeAgent: () => ({ id: 'a1', dir: fake.userData }),
   lastView: (id: string) => (id === 'a1' ? fake.view : null),
   refreshVibe: () => {},
 }));

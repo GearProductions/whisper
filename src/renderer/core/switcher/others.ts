@@ -2,7 +2,7 @@
  *  la marque d'arbre d'un worktree ou d'une PR sous son dossier principal (treeMark : ├ └), et les signaux qui
  *  méritent le bip de la réponse (signalKeys, F-55 : un autre agent que l'affiché qui attend, a fini ou a échoué ;
  *  une clé par agent et par signal, pour ne biper que ce qui vient d'apparaître).
- *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (palette), app/panel (panel-app). */
+ *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (palette, agent-notices), app/panel (panel-app). */
 import type { AgentActivity, AgentView } from 'technicals/bridge';
 
 export const agentWhere = (a: AgentView): string => (a.branch ? `${a.repo} · ${a.branch}` : a.repo);

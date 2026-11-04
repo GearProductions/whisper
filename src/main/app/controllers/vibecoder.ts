@@ -116,7 +116,7 @@
  *  Ne connaît pas : la page (seulement ses canaux), la fenêtre.
  *  Utilisé par : app/ipc (dropOnArtifacts), app/menus, controllers/conversation,
  *  controllers/runs, controllers/agents et controllers/module-code
- *  (lastView), controllers/artifacts et controllers/artifact-ops (lastView, vibeAgent). */
+ *  (lastView), controllers/artifacts et controllers/artifact-ops (lastView). */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -216,13 +216,6 @@ let timer: ReturnType<typeof setInterval> | null = null;
 // Le dernier relevé envoyé au panneau pour cet agent : ce que la page désigne par ses ids.
 export const lastView = (agentId: string): VibeView | null => last.get(agentId) ?? null;
 
-// L'agent affiché, s'il est en VibeCoder : sur sa session en cours ou sur une
-// ancienne (lue dans le fil, l'écran reste ; ses envois vont à la session en cours).
-export function vibeAgent(cfg: Config = loadConfig()) {
-  const agent = viewAgent(cfg);
-  return agent && agent.view === 'vibecoder' ? agent : null;
-}
-
 // gh : la dernière réponse à cette question (null : pas encore, ou échec) ;
 // plus vieille que 60 s, ou jamais posée : redemandée en fond, et un relevé
 // de plus si la réponse change. Le relevé n'attend jamais gh (I-29).
@@ -273,7 +266,7 @@ export async function refreshVibe({ now = false, fresh = false }: { now?: boolea
   if (fresh) for (const entry of [...ghCache.values(), ...gitCache.values()]) entry.at = 0;
   syncWorktrees(); // Relire dans un worktree : le robot temporaire arrive ou part (F-110)
   const cfg = loadConfig();
-  const agent = vibeAgent(cfg);
+  const agent = viewAgent(cfg);
   const panel = state.panel && !state.panel.isDestroyed() ? state.panel : null;
   if (!agent || !panel) {
     if (timer) { clearInterval(timer); timer = null; }
@@ -281,9 +274,9 @@ export async function refreshVibe({ now = false, fresh = false }: { now?: boolea
     shown = null;
     return;
   }
-  // Toutes les 4 s, seulement panneau visible ; arrêté quand l'agent n'est plus en VibeCoder.
-  timer ??= setInterval(() => { if (conversationShown() || !vibeAgent()) refreshVibe(); }, VIBE_MS);
-  // Panneau caché (réduit) : aucun relevé ; il reprend à sa réapparition.
+  // Toutes les 4 s, seulement panneau visible.
+  timer ??= setInterval(() => { if (conversationShown()) refreshVibe(); }, VIBE_MS);
+  // Panneau caché : aucun relevé ; il reprend à sa réapparition.
   // (sauf le premier relevé d'un agent qu'on vient d'afficher : le panneau peut ne pas être encore montré)
   if (!now && !conversationShown() && agent.id === shown) return;
   if (running) { again = true; againNow ||= now; return running; }
@@ -295,7 +288,7 @@ export async function refreshVibe({ now = false, fresh = false }: { now?: boolea
     try {
       const view = await survey(agent, cfg);
       // Pendant le relevé, l'agent a pu changer de vue, ou le panneau d'agent.
-      if (state.panel && !state.panel.isDestroyed() && vibeAgent()?.id === agent.id) {
+      if (state.panel && !state.panel.isDestroyed() && viewAgent()?.id === agent.id) {
         last.set(agent.id, view);
         state.panel.webContents.send('conv:vibe', view);
         if (view.flow === 'review') dropCreateRequests(agent.id, vibeActions(view.lang));
@@ -544,7 +537,7 @@ const fail = (lang: VibeLang, key: keyof typeof ERRORS.fr): SendResult => ({ ok:
 // cette fonction rend la main aussitôt. folder : l'id d'un dossier du relevé, revérifié par addArtifacts.
 export function dropOnArtifacts(paths: unknown, folder?: unknown): SendResult {
   const lang = vibeLang(loadConfig());
-  const agent = vibeAgent();
+  const agent = viewAgent();
   const view = agent && last.get(agent.id);
   if (!agent || !view) return fail(lang, 'agent');
   if (!view.actions.some((a) => a.id === 'add-artifact')) return fail(lang, 'action');
@@ -561,7 +554,7 @@ export function dropOnArtifacts(paths: unknown, folder?: unknown): SendResult {
 export function runVibeAction(id: unknown, args: unknown): SendResult {
   const cfg = loadConfig();
   const lang = vibeLang(cfg);
-  const agent = vibeAgent(cfg);
+  const agent = viewAgent(cfg);
   const view = agent && last.get(agent.id);
   if (!agent || !view) return fail(lang, 'agent');
   const shownAction = view.actions.find((a) => a.id === id);
@@ -619,7 +612,7 @@ const RUN_OPS: VibeRunOp[] = ['stop', 'keep', 'undo', 'allow', 'always', 'deny']
 // Une course de l'agent affiché (l'id de son action, jamais un chemin ni un texte) :
 // l'arrêter, la garder ou l'annuler, répondre à sa demande d'autorisation (controllers/runs).
 export function vibeRunOp(id: unknown, op: unknown) {
-  const agent = vibeAgent();
+  const agent = viewAgent();
   if (!agent || typeof id !== 'string' || !RUN_OPS.includes(op as VibeRunOp)) return;
   void runOp(agent, id, op as VibeRunOp);
 }
@@ -821,7 +814,7 @@ function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, view: Vib
         requests.delete(agent.id);
         firstNotes.set(child.id, asked.text);
       }
-      setAgentView(child.id, 'vibecoder');
+      openConversation(child.id);
       return { ok: true, line: r.line, detail: f.detail };
     };
   } else if (id === 'remove-worktree') {
@@ -862,13 +855,6 @@ async function track(mine: Record<string, NonNullable<VibeAction['direct']>>, id
   refreshVibe({ now: true });
 }
 
-// La vue d'un agent, retenue (VibeCoder, ou null : sa conversation), et le
-// panneau ouvert sur lui, agrandi.
-export function setAgentView(id: string, view: 'vibecoder' | null) {
-  updateAgent(id, { view: view ?? undefined });
-  openConversation(id, { mode: 'full' });
-}
-
 // Redémarrer depuis les sources : si un agent travaille (son tour, une course), la question d'abord, une à la
 // fois ; Non : rien.
 let asking = false;
@@ -890,7 +876,7 @@ async function confirmRestart() {
 // Un réglage de l'écran : arrêter Vibe (la bannière : vibeStop,
 // la course en cours finit), la PR suivie (pour
 // l'agent) ; la langue (tout VibeCoder) ; « Vu » (la note de référence devient
-// l'actuelle) ; revenir à la conversation ; modèle, effort et mode comme son
+// l'actuelle) ; modèle, effort et mode comme son
 // menu (une valeur hors de ses choix est ignorée) ; arrêter son tour, comme
 // Interrompre de son menu ; le robot de la PR dans son worktree (l'afficher,
 // ou le proposer à nouveau : jamais un chemin, F-110) ; les PR ouvertes du dépôt (gh,
@@ -901,7 +887,7 @@ export function setVibe(patch: unknown) {
   if (!patch || typeof patch !== 'object') return;
   const p = patch as Record<string, unknown>;
   if (p.runsSeen === false) runsTab(null);
-  const agent = vibeAgent();
+  const agent = viewAgent();
   if (!agent) return;
   const vibe = agentVibe(agent);
   if (p.vibe === false) vibeStop(agent);
@@ -929,13 +915,12 @@ export function setVibe(patch: unknown) {
       refreshVibe({ now: true });
     });
   }
-  if (p.view === 'conversation') setAgentView(agent.id, null);
-  else refreshVibe({ now: true });
+  refreshVibe({ now: true });
 }
 
 // ✓, ✗ ou oublier (null), pour le contenu que l'utilisateur a sous les yeux.
 export function markVibe(target: unknown, verdict: unknown) {
-  const agent = vibeAgent();
+  const agent = viewAgent();
   const view = agent && last.get(agent.id);
   if (!agent || !view || typeof target !== 'string' || (verdict !== 'ok' && verdict !== 'ko' && verdict !== null)) return;
   const hash = targetHash(view, target);
@@ -950,7 +935,7 @@ export function markVibe(target: unknown, verdict: unknown) {
 // cible, sur une ligne de 300 caractères au plus ; le texte du champ, 5 000),
 // en changer le texte (mêmes limites) ou en retirer une.
 export function draftVibe(op: unknown) {
-  const agent = vibeAgent();
+  const agent = viewAgent();
   const { flow, pr } = agent ? agentVibe(agent) : { flow: null, pr: null };
   if (!agent || flow !== 'review' || !pr || !op || typeof op !== 'object') return;
   const { add, edit, remove } = op as {
@@ -993,7 +978,7 @@ function writeForEditor(out: string, rel: string, text: string) {
 // dans l'éditeur ; jamais un texte ni un chemin (controllers/processes).
 export async function vibeProcess(op: unknown, index?: unknown) {
   const cfg = loadConfig();
-  const agent = vibeAgent(cfg);
+  const agent = viewAgent(cfg);
   const view = agent && last.get(agent.id);
   if (!agent || !view) return;
   await processAction(agent, cfg, op, index, view.processes ?? []);
@@ -1009,7 +994,7 @@ export async function vibeProcess(op: unknown, index?: unknown) {
 // - `a<i>` : un artefact du projet de l'agent, dans l'éditeur (artifactFile : dans son dossier, sans lien).
 export async function openVibeItem(id: unknown, line?: unknown) {
   const cfg = loadConfig();
-  const agent = vibeAgent(cfg);
+  const agent = viewAgent(cfg);
   const view = agent && last.get(agent.id);
   if (!agent || !view || typeof id !== 'string') return;
   const at = Number.isInteger(line) && (line as number) > 0 ? line as number : undefined;

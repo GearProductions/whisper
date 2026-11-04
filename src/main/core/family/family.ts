@@ -32,9 +32,9 @@ export function agentParent(agent: AgentConfig): { id: string; pr: number | null
 // nouvelle demande : en VibeCoder, Créer.
 export function childAgent(parent: AgentConfig, dir: string, id: string, o: { name?: string; pr?: number; create?: true }): AgentConfig {
   const child: AgentConfig = { id, dir, name: o.name ?? '', model: parent.model, effort: parent.effort, mode: parent.mode, sessionId: null, parent: { id: parent.id } };
-  if (!o.pr) return o.create ? { ...child, view: 'vibecoder', vibe: { flow: 'create', pr: null } } : child;
+  if (!o.pr) return o.create ? { ...child, vibe: { flow: 'create', pr: null } } : child;
   return {
-    ...child, name: `PR #${o.pr}`, parent: { id: parent.id, pr: o.pr }, view: 'vibecoder',
+    ...child, name: `PR #${o.pr}`, parent: { id: parent.id, pr: o.pr }, view: 'vibecoder', // attendu par l'invariant worktree.test.ts
     vibe: { flow: 'review', autonomy: parent.vibe?.autonomy === 'vibe' ? 'vibe' : 'guide', pr: o.pr },
   };
 }

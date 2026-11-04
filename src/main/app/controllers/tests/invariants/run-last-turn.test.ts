@@ -144,10 +144,8 @@ afterEach(async () => { vi.useRealTimers(); await new Promise((r) => realSetTime
 
 // La Forme lancée au clic : son processus, au travail sur son premier tour.
 async function runForme() {
-  const { state: appState } = await import('app/state');
   const { openConversation } = await import('app/windows');
   const { panelReady, runVibeAction } = await import('app/controllers');
-  appState.icon = new fake.Win() as never;
   openConversation('a1');
   fake.windows.at(-1)!.emit('ready-to-show');
   await panelReady();

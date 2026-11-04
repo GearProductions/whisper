@@ -71,7 +71,7 @@ describe('l\'arborescence des artefacts', () => {
   });
 });
 
-describe('le sélecteur, la palette et les notifications des agents', () => {
+describe('le sélecteur, la palette et les robots des agents', () => {
   it('le titre d\'un agent : dossier principal, worktree, PR #n', () => {
     expect((['main', 'worktree'] as const).map((k) => t('fr').agentTitle(k))).toEqual(['dossier principal', 'worktree']);
     expect(t('fr').agentTitle('pr', 42)).toBe('PR #42');
@@ -85,16 +85,13 @@ describe('le sélecteur, la palette et les notifications des agents', () => {
     }
   });
 
-  it('les notifications : a fini, pose une question, a échoué', () => {
-    expect(t('fr').notifDone('Zoé', 'modules')).toBe('✓ Zoé a fini les Modules');
-    expect(t('fr').notifDone('Zoé', 'note')).toBe('✓ Zoé a fini la Note');
-    expect(t('fr').notifDone('Zoé', null)).toBe('✓ Zoé a fini');
-    expect(t('fr').notifAsking('Zoé')).toBe('? Zoé te pose une question');
-    expect(t('fr').notifError('Zoé')).toBe('✗ Zoé a échoué');
-    expect(t('en').notifDone('Zoé', 'modules')).toBe('✓ Zoé finished the Modules');
-  });
-
   it('tenue par un agent', () => {
     expect(t('fr').heldBy('Zoé')).toBe('tenue par Zoé');
+  });
+
+  it('l\'état d\'un agent : « Étape … · état », l\'état seul sans étape ; l\'aide de la palette, même nombre de touches', () => {
+    expect(t('fr').agentStatus('Modules', 'travaille')).toBe('Étape Modules · travaille');
+    expect(t('fr').agentStatus(null, 'au repos')).toBe('au repos');
+    expect(t('en').paletteKeys).toHaveLength(t('fr').paletteKeys.length);
   });
 });

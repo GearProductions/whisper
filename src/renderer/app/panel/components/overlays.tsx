@@ -1,7 +1,7 @@
 /** overlays — ce qui se pose sur le fil : l'historique du dossier, le détail
  *  du contexte (et Compacter), l'image en grand.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : panel-app. */
-import { useState, type CSSProperties, type RefObject } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { kTokens, when } from 'helpers';
 import type { ProbeResult, SendResult, Session } from 'technicals/bridge';
 
@@ -32,13 +32,12 @@ type ContextProps = {
   probe: ProbeResult | null;   // null : mesure en cours
   canCompact: boolean;          // agent inactif, conversation en cours
   onCompact(): Promise<SendResult | null>;
-  ref: RefObject<HTMLElement | null>;
 };
 
 // Le détail : par catégorie (instructions, outils, mémoire, messages…), et de quoi le réduire.
-export function ContextDetail({ open, probe, canCompact, onCompact, ref }: ContextProps) {
+export function ContextDetail({ open, probe, canCompact, onCompact }: ContextProps) {
   return (
-    <aside id="context-panel" className="scroll" hidden={!open} ref={ref}>
+    <aside id="context-panel" className="scroll" hidden={!open}>
       {!probe ? <Hint text="Mesure du contexte…" />
         : !probe.context ? <Hint text={probe.error || 'Mesure impossible.'} />
           : <Detail probe={probe} canCompact={canCompact} onCompact={onCompact} />}

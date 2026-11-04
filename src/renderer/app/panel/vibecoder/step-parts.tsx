@@ -15,16 +15,18 @@
  *  le badge du robot d'une PR ouverte dans un worktree (le badge seul :
  *  Retirer le worktree est dans la vue des branches).
  *  Le champ d'une étape cite les artefacts du projet par « @ » (useArtifactMention, d'après
- *  VibeView.artifacts et artifactsDir).
+ *  VibeView.artifacts et artifactsDir) ; dans son cadre, le micro et Envoyer (prompt-tools : l'action
+ *  du champ, fieldAction).
  *  Ne connaît pas : le pont (rappels passés ; ⏹ par le contexte StopRun).
  *  Utilisé par : les vues d'étape ; vibe-coder (badge Relecteur,
  *  badge du worktree). */
 import { createContext, useContext, useRef, type ReactNode } from 'react';
-import { fieldOf, isLive, stepActions, t as strings, webUrl, type Strings } from 'core/vibecoder';
+import { fieldAction, fieldOf, isLive, stepActions, t as strings, webUrl, type Strings } from 'core/vibecoder';
 import type { VibeAction, VibeArgs, VibeArtifact, VibeLang, VibePr, VibeRun, VibeView } from 'technicals/bridge';
 import { useArtifactMention } from './artifact-mention';
 import { Icon, IconButton } from './icons';
 import { ModelPick, Picks } from './model-pick';
+import { PromptTools } from './prompt-tools';
 import type { StepProps } from './step-views';
 import './step-parts.css';
 
@@ -46,15 +48,22 @@ const S: Record<VibeLang, typeof fr> = {
 export const StopRun = createContext<{ stop(id: string): void; state(id: string): VibeRun['state'] | null }>({ stop: () => {}, state: () => null });
 
 // Le champ d'une étape : son texte part avec l'action qui le prend (fieldOf) ; « @ » cite un artefact du projet.
-type FieldProps = { name: string; text: string; setText(text: string): void; hint: string; artifacts?: VibeArtifact[]; artifactsDir?: string };
-export function StepField({ name, text, setText, hint, artifacts = [], artifactsDir = '' }: FieldProps) {
+// Dans son cadre, le micro (dicter dans ce champ) et Envoyer (onSend : l'action du champ, fieldAction ; grisé sans elle).
+type FieldProps = {
+  name: string; text: string; setText(text: string): void; hint: string; artifacts?: VibeArtifact[]; artifactsDir?: string;
+  t: Strings; onSend(): void; sendDisabled: boolean; sendTitle?: string;
+};
+export function StepField({ name, text, setText, hint, artifacts = [], artifactsDir = '', t, onSend, sendDisabled, sendTitle }: FieldProps) {
   const input = useRef<HTMLTextAreaElement>(null);
   const mention = useArtifactMention(artifacts, artifactsDir, input, setText);
   return (
     <div className="vc-cbox vc-step-field">
       {mention.list}
-      <textarea ref={input} data-field={name} value={text} rows={3} placeholder={hint} aria-label={hint}
-        onChange={(e) => { setText(e.target.value); mention.update(); }} onKeyDown={mention.key} onBlur={() => setTimeout(mention.close, 150)} />
+      <div className="vc-prompt">
+        <textarea ref={input} data-field={name} value={text} rows={3} placeholder={hint} aria-label={hint}
+          onChange={(e) => { setText(e.target.value); mention.update(); }} onKeyDown={mention.key} onBlur={() => setTimeout(mention.close, 150)} />
+        <PromptTools t={t} field={input} onSend={onSend} sendDisabled={sendDisabled} sendTitle={sendTitle} />
+      </div>
     </div>
   );
 }
@@ -63,6 +72,7 @@ export function StepField({ name, text, setText, hint, artifacts = [], artifacts
 export function StepHead({ p, own = [], children }: { p: StepProps; own?: string[]; children?: ReactNode }) {
   const { view, step, t, act, busy } = p;
   const field = view.actions.some((a) => fieldOf(a) === step.id);
+  const sends = fieldAction(view.actions, step.id);
   const acts = stepActions(view, step, own);
   return (
     <div className="vc-step-head">
@@ -75,7 +85,9 @@ export function StepHead({ p, own = [], children }: { p: StepProps; own?: string
         </div>
       ) : null}
       {children ? <div className="vc-step-tools">{children}</div> : null}
-      {field ? <StepField name={step.id} text={p.text} setText={p.setText} hint={t.fieldHint} artifacts={view.artifacts} artifactsDir={view.artifactsDir} /> : null}
+      {field ? <StepField name={step.id} text={p.text} setText={p.setText} hint={t.fieldHint} artifacts={view.artifacts} artifactsDir={view.artifactsDir}
+        t={t} onSend={() => { if (sends) act.run(sends.id); }} sendTitle={sends ? `${t.sendField} : ${sends.label}` : undefined}
+        sendDisabled={!sends || !!sends.disabled || (sends.needs === 'text' && !p.text.trim())} /> : null}
     </div>
   );
 }

@@ -200,10 +200,8 @@ afterEach(() => { vi.useRealTimers(); process.chdir(fake.cwd); });
 
 // Le panneau de a1 ouvert, puis relevé après relevé jusqu'à ce que le rôle soit `role` (gh lu en fond), 8 s au plus.
 async function openUntil(role: 'create' | 'review') {
-  const { state } = await import('app/state');
   const { openConversation } = await import('app/windows');
   const { panelReady, refreshVibe } = await import('app/controllers');
-  state.icon = new fake.Win() as never;
   openConversation('a1');
   panel().emit('ready-to-show');
   await panelReady();

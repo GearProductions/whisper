@@ -1,13 +1,17 @@
-/** vibe-coder — l'écran VibeCoder d'un agent, à la place de l'en-tête et du
- *  corps du panneau : en-tête (le sélecteur d'agent — agent-picker : sa pastille
- *  à sa couleur, le dépôt, le titre, la branche ; clic : la palette sur les
- *  Agents, clic droit : le menu de l'agent ; tant que le premier relevé des
- *  agents manque, seul son nom —, la branche ⎇, un bouton qui ouvre et ferme
- *  la vue des branches, et à côté Pull, Rebase, Pousser (sync-buttons) ; pas
+/** vibe-coder — l'écran VibeCoder d'un agent, seul écran du panneau :
+ *  en-tête de la vue C (48 px) — tout à gauche les robots des agents, l'affiché
+ *  en pastille allumée avec son nom (`others`, donné par panel-app :
+ *  agent-notices ; tant que le premier relevé des agents manque, à sa place le
+ *  nom de l'agent seul), puis le segment branche (⎇ et la branche, une
+ *  seule fois : il ouvre et ferme la vue des branches), puis Pull, Rebase,
+ *  Pousser (sync-buttons) ; pas
  *  de bouton Créer / Relire : l'app décide du rôle (view.flow), et le badge
  *  Relecteur s'affiche à côté de celui du worktree quand c'est la relecture ;
- *  le robot d'une PR dans un worktree : son badge, sans action) ; Chercher
- *  (Ctrl+K : la palette, toutes portées) ; Artefacts (un bouton, F-92 : ouvert,
+ *  le robot d'une PR dans un worktree : son badge, sans action ; au milieu
+ *  le nom VibeCoder ; à droite Artefacts, Chercher
+ *  (Ctrl K : la palette, toutes portées), puis langue, relevé, conversation et ⚙ Réglages ;
+ *  l'en-tête sert de barre de titre (fenêtre sans cadre : vibecoder.css) ;
+ *  Artefacts (un bouton, F-92 : ouvert,
  *  le panneau artifacts-view prend le centre, à la place du fil d'Ariane et de
  *  l'étape ou de la vue des branches ; l'artefact choisi est suivi
  *  (follow) ; ses actions (copier, créer, renommer, déplacer, supprimer… :
@@ -56,10 +60,8 @@
 import { Component, useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { isBusy, titleOf } from 'core/conversation';
 import { artifactResult, chosenEffort, convWidth, fieldOf, isLive, modelArg, t as strings, type Answers, type EffortPicks, type Kept, type ModelPicks, type Strings } from 'core/vibecoder';
-import type { Scope } from 'core/switcher';
-import type { AgentView, Thread, VibeCode, VibeLang, VibeStepId, VibeView } from 'technicals/bridge';
+import type { Thread, VibeCode, VibeLang, VibeStepId, VibeView } from 'technicals/bridge';
 import type { Drafts } from './file-draft';
-import { AgentPicker } from './agent-picker';
 import { ArtifactsView } from './artifacts-view';
 import { Icon } from './icons';
 import { BranchesView } from './branches-view';
@@ -83,10 +85,9 @@ type Props = {
   contextOpen: boolean;
   onGauge(): void;             // le détail du contexte, sur la conversation
   onTasks(): void;             // Conversation ↔ Tâches
-  agent: AgentView | null;     // l'agent affiché, tel que le sélecteur le montre ; null jusqu'au premier agents:state
-  onPalette(scope: Scope): void;   // le sélecteur : 'agents' ; Chercher : 'all'
-  onAgentMenu(id: string): void;   // clic droit sur le sélecteur
+  onSearch(): void;            // Chercher : la palette
   onSettings(): void;          // ⚙ Réglages
+  others?: ReactNode;          // les robots des agents et leurs notices (agent-notices, panel-app), tout à gauche ; absent jusqu'au premier agents:state
   branchesAsk?: number;        // +1 : ouvre la vue des branches (Ctrl+Maj+B, la palette) et ferme les Artefacts
   historyOpen: boolean;        // l'historique prend la place du fil
   onHistory(): void;           // 🕘 : l'ouvre / le ferme
@@ -107,7 +108,7 @@ function useKept<T>(kept: Kept, agent: string, key: string, initial: T) {
   return [value, set] as const;
 }
 
-export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextOpen, onGauge, onTasks, agent, onPalette, onAgentMenu, onSettings, branchesAsk = 0, historyOpen, onHistory, history, side, onSide, children, kept, code }: Props) {
+export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextOpen, onGauge, onTasks, onSearch, onSettings, others, branchesAsk = 0, historyOpen, onHistory, history, side, onSide, children, kept, code }: Props) {
   const t = strings(view.lang);
   const [picked, setPicked] = useKept<VibeStepId | null>(kept, view.agentId, 'picked', null);
   const { steps } = view;
@@ -204,7 +205,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
     <StopRun.Provider value={{ stop: (id) => act.runOp(id, 'stop'), state: (id) => view.runs?.find((r) => r.id === id)?.state ?? null }}>
       <div className="vc" ref={root} data-conv={side.open ? undefined : 'hidden'} style={{ '--vc-conv': `${side.width}px` } as CSSProperties}>
         <Top view={view} thread={thread} busy={busy} t={t} act={act} side={side} onSide={onSide}
-          agent={agent} onPalette={onPalette} onAgentMenu={onAgentMenu} onSettings={onSettings}
+          onSearch={onSearch} onSettings={onSettings} others={others}
           branches={branches} onBranches={() => { setArts(false); setBranchesOpen(!branches); }}
           arts={arts} onArts={() => setArts(!arts)} />
         {arts ? (
@@ -247,7 +248,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
             <button type="button" role="tab" className="vc-tab" aria-selected={pane === 'procs'} title={t.procsTitle} onClick={() => setPane('procs')}>
               {t.procsOf(up)}
             </button>
-            <button type="button" className="vc-icon vc-history" title={t.history} aria-label={t.history} aria-pressed={historyOpen} onClick={onHistory}>🕘</button>
+            <button type="button" className="vc-icon vc-history" title={t.history} aria-label={t.history} aria-pressed={historyOpen} onClick={onHistory}><Icon name="history" /></button>
           </div>
           {historyOpen && !tasksOpen && !pane ? (
             <div className="vc-history-view">
@@ -297,39 +298,39 @@ const LANGS: Record<VibeLang, string> = { fr: 'FR', en: 'EN' };
 
 type TopProps = {
   view: VibeView; thread: Thread; busy: boolean; t: Strings; act: VibeActs; side: Side; onSide(side: Side): void;
-  agent: AgentView | null; onPalette(scope: Scope): void; onAgentMenu(id: string): void; onSettings(): void;
+  onSearch(): void; onSettings(): void;
+  others?: ReactNode;                                      // les autres agents (agent-notices), tout à gauche, avant le sélecteur
   branches: boolean; onBranches(): void;                   // la vue des branches ouverte ; le bouton ⎇
   arts: boolean; onArts(): void;                           // le panneau Artefacts ouvert ; son bouton
 };
 
-function Top({ view, thread, busy, t, act, side, onSide, agent, onPalette, onAgentMenu, onSettings, branches, onBranches, arts, onArts }: TopProps) {
+function Top({ view, thread, busy, t, act, side, onSide, onSearch, onSettings, others, branches, onBranches, arts, onArts }: TopProps) {
   const [spins, setSpins] = useState(0); // ⟳ tourne une fois par clic
   return (
     <div className="vc-top">
       <div className="vc-ident">
-        {agent ? <AgentPicker agent={agent} t={t} onOpen={() => onPalette('agents')} onMenu={() => onAgentMenu(agent.id)} /> : (
-          <>
+        {others ?? (
+          <span className="vc-picker-static">
             <span className="vc-dot" data-busy={busy || undefined} />
             <span className="vc-name" title={thread.dir}>{thread.name}</span>
-          </>
+          </span>
         )}
         {view.repo ? (
           <button type="button" className="vc-branch" aria-pressed={branches} onClick={onBranches}
             title={`${t.branch(view.repo.branch, view.repo.base)}\n${branches ? t.branchesClose : t.branchesOpen}`}>
-            {`⎇ ${view.repo.branch}`}
+            <Icon name="branch" /><span>{view.repo.branch}</span><Icon name="chevron" />
           </button>
         ) : null}
         {view.repo ? <SyncButtons view={view} onRun={act.run} /> : null}
         <WorktreeBadge view={view} />
         <ReviewerBadge view={view} t={t} />
       </div>
-      <div className="vc-modes">
-        <div className="vc-seg">
-          <button type="button" title={`${t.search} (${t.searchKeys})`} onClick={() => onPalette('all')}>{`${t.search} ${t.searchKeys}`}</button>
-          <button type="button" aria-pressed={arts} title={t.artifactsTitle} onClick={onArts}>{t.artifacts}</button>
-        </div>
-      </div>
+      <span className="vc-appname">VibeCoder</span>
       <div className="vc-tools">
+        <button type="button" className="vc-top-btn" aria-pressed={arts} title={t.artifactsTitle} onClick={onArts}>{t.artifacts}</button>
+        <button type="button" className="vc-search" title={`${t.search} (${t.searchKeys})`} onClick={onSearch}>
+          <Icon name="search" /><span>{t.search}</span><kbd>{t.searchKeys}</kbd>
+        </button>
         {view.dev === 'reload' ? (
           <button type="button" className="vc-mini vc-dev" title={t.reloadUiTitle} onClick={() => act.set({ reloadUi: true })}>{t.reloadUi}</button>
         ) : view.dev === 'restart' ? (
@@ -346,7 +347,7 @@ function Top({ view, thread, busy, t, act, side, onSide, agent, onPalette, onAge
           aria-pressed={side.open} onClick={() => onSide({ ...side, open: !side.open })}>
           <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" /><path d="M10 2.5v11" /></svg>
         </button>
-        <button type="button" className="vc-mini" onClick={onSettings}>{t.settings}</button>
+        <button type="button" className="vc-top-btn" onClick={onSettings}>{t.settings}</button>
       </div>
     </div>
   );

@@ -1,13 +1,12 @@
 /** clipboard — le presse-papiers du système : le photographier (texte, HTML,
- *  RTF, image) pour le rendre tel quel, y écrire un texte.
- *  Ne connaît pas : le collage, la dictée. Utilisé par : technicals/selection,
- *  app (collage, Copier). */
+ *  RTF, image) pour le rendre tel quel.
+ *  Ne connaît pas : la dictée ; aucun collage ne passe plus par lui.
+ *  Utilisé par : technicals/selection (lecture de la sélection). */
 import { clipboard, type NativeImage } from 'electron';
 
 export type ClipboardSnapshot = { text?: string; html?: string; rtf?: string; image?: NativeImage };
 
-// Ce que l'utilisateur avait copié, pour le lui rendre après un collage ou un
-// Ctrl+C simulé.
+// Ce que l'utilisateur avait copié, pour le lui rendre après un Ctrl+C simulé.
 export function snapshot(): ClipboardSnapshot {
   const snap: ClipboardSnapshot = {};
   try {
@@ -28,8 +27,6 @@ export function restore(snap: ClipboardSnapshot) {
     if (Object.keys(snap).length) clipboard.write(snap); else clipboard.clear();
   } catch { /* tant pis */ }
 }
-
-export const writeText = (text: string) => clipboard.writeText(text);
 
 // `type` : 'selection' pour la sélection primaire (X11).
 export function readText(type?: 'selection' | 'clipboard') {

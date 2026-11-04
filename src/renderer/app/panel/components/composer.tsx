@@ -3,19 +3,18 @@
  *  et, après un « @ », les artefacts du projet (useArtifactMention : jamais
  *  ouverts avec les commandes).
  *  #composer-row est le cadre du champ : la pièce jointe (#attach) en icône au
- *  début, #message sans bordure, Dicter (#mic) puis Envoyer (#send) en icône à la
- *  fin, chacune nommée (title, aria-label). #mic dicte tant qu'il est maintenu
- *  (onMicDown à l'appui, onMicUp au relâchement, à la sortie ou à l'annulation) ;
- *  sa phase (enregistre, transcrit) est dans data-phase et le title ; il ne
- *  prend pas le clavier (la dictée va à la zone qui l'a). Il
- *  n'envoie rien : le texte rendu par whisper est l'affaire de ses rappels. Le brouillon appartient à panel-app (un par
+ *  début, #message sans bordure, Dicter (#mic) puis Envoyer (#send) à la fin : la
+ *  paire de prompt-tools, chacun nommé (title, aria-label). #mic est celui du
+ *  contexte Mic (posé par panel-app) : il dicte tant qu'il est maintenu, sa phase
+ *  est dans data-phase et le title. Il n'envoie rien : le texte rendu par whisper
+ *  est l'affaire de panel-app. Le brouillon appartient à panel-app (un par
  *  conversation) ; ici, l'édition.
- *  Ne connaît pas : le pont, le micro (rappels passés). Utilisé par : panel-app. */
+ *  Ne connaît pas : le pont, le micro. Utilisé par : panel-app. */
 import { useLayoutEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent, type RefObject } from 'react';
-import { type Phase } from 'core/dictation';
 import { cycle, matchCommands, pickCommand, pieceLabel, pieceTitle, slashQuery, type Draft, type Piece } from 'core/conversation';
 import type { Command, ProbeResult, VibeArtifact } from 'technicals/bridge';
-import { Icon, useArtifactMention } from 'app/panel/vibecoder';
+import { t as strings } from 'core/vibecoder';
+import { Icon, PromptTools, useArtifactMention } from 'app/panel/vibecoder';
 
 const MAX_HEIGHT = 160;
 
@@ -35,11 +34,6 @@ type Props = {
   onSend(): void;
   onAttach(): void;
   onFiles(files: File[]): void;
-  onLayout(): void;        // la hauteur a pu changer (réduit)
-  onMicDown(): void;       // dictée : maintenu = on dicte
-  onMicUp(): void;
-  phase: Phase;            // la dictée en cours
-  ref: RefObject<HTMLElement | null>;
   input: RefObject<HTMLTextAreaElement | null>;
   artifacts?: VibeArtifact[]; // pour le « @ » ; sans eux ou sans dossier, pas de liste
   artifactsDir?: string;
@@ -53,7 +47,6 @@ export function Composer(p: Props) {
   const loading = useRef(false);
   const list = useRef<HTMLDivElement>(null);
   const caret = useRef<number | null>(null); // curseur à poser après une commande choisie
-  const held = useRef(false); // #mic est enfoncé : onMicUp une seule fois
   const mention = useArtifactMention(p.artifacts ?? [], p.artifactsDir ?? '', p.input, p.setText);
 
   // Le champ grandit avec le texte, jusqu'à quelques lignes.
@@ -64,7 +57,6 @@ export function Composer(p: Props) {
     el.style.overflowY = el.scrollHeight > MAX_HEIGHT ? 'auto' : 'hidden'; // pas de barre pour rien
     if (caret.current !== null) { el.setSelectionRange(caret.current, caret.current); caret.current = null; }
   }, [p.draft.text]);
-  useLayoutEffect(() => { p.onLayout(); });
   useLayoutEffect(() => { list.current?.querySelector('.active')?.scrollIntoView({ block: 'nearest' }); }, [slash]);
 
   const close = () => setSlash((s) => (s.open ? CLOSED : s));
@@ -117,10 +109,6 @@ export function Composer(p: Props) {
     return true;
   }
 
-  const micDown = () => { held.current = true; p.onMicDown(); };
-  const micUp = () => { if (held.current) { held.current = false; p.onMicUp(); } };
-  const phase = p.phase;
-  const micTitle = phase === 'recording' ? 'Enregistre…' : phase === 'transcribing' ? 'Transcrit…' : 'Dicter (maintenir appuyé)';
 
   // Du texte collé va dans le champ ; des images ou fichiers, en pièces jointes.
   function onPaste(e: ClipboardEvent) {
@@ -131,7 +119,7 @@ export function Composer(p: Props) {
   }
 
   return (
-    <footer id="composer" hidden={!p.live} ref={p.ref}>
+    <footer id="composer" hidden={!p.live}>
       {mention.list}
       <div id="slash" className="scroll" hidden={!slash.open} ref={list}>
         {slash.hint ? <div className="hint">{slash.hint}</div> : slash.items.map((c, i) => (
@@ -164,14 +152,8 @@ export function Composer(p: Props) {
           }}
           onPaste={onPaste}
           onBlur={() => setTimeout(() => { close(); mention.close(); }, 150)} />
-        <button id="mic" type="button" aria-label="Dicter" title={micTitle} data-phase={phase}
-          onMouseDown={(e) => e.preventDefault()} onPointerDown={micDown} onPointerUp={micUp} onPointerLeave={micUp} onPointerCancel={micUp}>
-          <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M8 2a2 2 0 0 0-2 2v4a2 2 0 0 0 4 0V4a2 2 0 0 0-2-2z" /><path d="M3.5 8a4.5 4.5 0 0 0 9 0" /><path d="M8 12.5V14" />
-          </svg>
-        </button>
-        <button id="send" type="button" title="Envoyer (Entrée)" aria-label="Envoyer" disabled={p.sending || p.busy}
-          onClick={p.onSend}><Icon name="send" /></button>
+        <PromptTools t={strings('fr')} ids
+          onSend={p.onSend} sendDisabled={p.sending || p.busy} sendTitle="Envoyer (Entrée)" />
       </div>
       <div id="composer-status">{p.status}</div>
     </footer>

@@ -1,3 +1,2 @@
-/** dom — mesures dans la page, la zone qui reçoit une dictée. */
-export * from './compact-height';
+/** dom — la zone de la page qui reçoit une dictée. */
 export * from './dictation-field';

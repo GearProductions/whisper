@@ -1,0 +1,8 @@
+/* L'accueil sans agent (no-agent) : au centre de la fenêtre, le titre, la phrase en gris, Nouvel agent…
+   (le bouton principal, .vc-run accent de step-parts) et sa touche. */
+/* Sans en-tête : tout l'écran déplace la fenêtre (sans cadre), sauf le bouton. */
+.vc-noagent { -webkit-app-region: drag; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; height: 100%; padding: 24px; text-align: center; }
+.vc-noagent h2 { margin: 0; font-size: 15px; font-weight: 700; }
+.vc-noagent p { margin: 0 0 6px; color: var(--vc-soft); }
+.vc-noagent kbd { margin-left: 4px; padding: 1px 5px; border: 1px solid var(--vc-active-edge); border-radius: 4px; font: 10px var(--vc-mono); }
+.vc-noagent button { -webkit-app-region: no-drag; }

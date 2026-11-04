@@ -35,7 +35,8 @@ import { copyInto } from 'technicals/file-tree';
 import type { Served } from 'technicals/file-scheme';
 import { loadConfig, vibeOutPath } from 'app/settings';
 import { readFile } from './processes';
-import { lastView, vibeAgent } from './vibecoder';
+import { viewAgent } from './agents';
+import { lastView } from './vibecoder';
 
 // La forme de DirectResult (technicals/direct, que seul controllers/vibecoder importe) : il la passe telle quelle.
 type DirectResult = { ok: boolean; line: string; detail: string };
@@ -99,7 +100,7 @@ export function listArtifacts(agentId: string, root: string, max: number): { art
 // Le fichier de l'artefact `a` (artifactOf du dernier relevé) de l'agent affiché en VibeCoder, dans le dossier de son projet ;
 // null pour un autre agent, aucun artefact, un lien (la racine ou le fichier), ou un chemin qui sort du dossier.
 export function artifactFile(agentId: string, a: VibeArtifact | null): string | null {
-  const agent = vibeAgent();
+  const agent = viewAgent();
   if (!a || agent?.id !== agentId) return null;
   const root = projectArtifactsPath(agent.dir);
   try { if (!fs.lstatSync(root).isDirectory() || !fs.lstatSync(path.join(root, a.name)).isFile()) return null; } catch { return null; }
@@ -119,7 +120,7 @@ export function resolveArtifact(url: URL): Served | null {
 // (fichier ou dossier) et sans lien sur son chemin ; null sinon.
 function itemFile(agent: AgentConfig, id: unknown): string | null {
   const item = artifactItem(lastView(agent.id), id);
-  if (!item || vibeAgent()?.id !== agent.id) return null;
+  if (!item || viewAgent()?.id !== agent.id) return null;
   const file = noLinkPath(projectArtifactsPath(agent.dir), item.name, lstat);
   const st = file && lstat(file);
   return st && (item.folder ? st.isDirectory() : st.isFile()) ? file : null;

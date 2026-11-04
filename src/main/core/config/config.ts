@@ -1,73 +1,59 @@
 /** config — les réglages (config.json) : défauts, lecture tolérante (une
- *  retouche à la main, d'anciens formats), état au lancement (aucun agent
- *  sélectionné, I-8), commandes de l'agent, de l'éditeur et du terminal,
- *  dossiers favoris et leur couleur, confiance (I-23),
+ *  retouche à la main, d'anciens formats), l'agent affiché (`agentSelected`,
+ *  retrouvé au lancement), commandes de l'agent, de l'éditeur et du
+ *  terminal, dossiers favoris et leur couleur, confiance (I-23),
  *  lecture à voix haute, VibeCoder (langue, réglages d'un agent, limite
- *  d'affichage d'un artefact en texte, vue des modules : IDE ou liste), la place des robots dans l'icône
- *  (familles : core/family).
+ *  d'affichage d'un artefact en texte, vue des modules : IDE ou liste).
  *  Ne connaît pas : le fichier (technicals/config-file), Electron, git (le
  *  parent d'un agent, l'enfant qu'on crée : core/family).
  *  Utilisé par : app. */
 import type { VibeFlow, VibeLang } from 'shared/bridge';
 import type { AgentConfig } from 'core/agents';
-import { familyGroups } from 'core/family';
 
 export type Folder = { dir: string; color: string | null };
 export type Config = {
   lang: string;
   vocabulary: string;
   sound: boolean;
-  showText: boolean;
   discordMute: boolean;
   // Agents Claude Code : un par dossier. `agentFolders` : les dossiers déjà
-  // choisis ({ dir, color }), proposés par le bouton « + » ; la couleur
+  // choisis ({ dir, color }), proposés par « Nouvel agent… » ; la couleur
   // appartient au DOSSIER, l'agent qu'on y crée la porte. `agentCommand` : la
   // commande qui lance Claude Code ('' : `claude` ; ex. « distrobox enter dev
   // -- mise exec -- claude ») ; `editorCommand` : celle qui ouvre un dossier
   // dans l'éditeur de code ('' : le premier trouvé parmi zed, code, cursor, codium) ;
   // `terminalCommand` : celle qui ouvre un terminal dans le dossier d'un agent,
   // `{dir}` pour le dossier ('' : le premier terminal trouvé du système).
-  agentsEnabled: boolean;
   agentCommand: string;
   editorCommand: string;
   terminalCommand: string;
   agents: AgentConfig[];
   agentFolders: (Folder | string)[];
   agentSelected: string | null;
-  agentReview: boolean;   // dictée vers un agent : dans le champ du panneau, à relire ; false : envoyée aussitôt
-  onTop: boolean;         // icône, bulles et panneau au-dessus de toutes les fenêtres
   muteOthers: boolean;    // couper le son des autres applications pendant la dictée
-  autoPaste: boolean;     // coller là où est le curseur ; sinon le texte reste dans le presse-papiers
-  speak: string;
   speakVolume: unknown;
   speakLang: string;      // 'auto' : français ou anglais, détecté sur le texte entier
   speakVoices: Record<string, string>;
   deviceId: string;
   deviceLabel: string;
-  size: number;
-  pos: { x: number; y: number } | null;
-  convSize?: { width: number; height: number };
   vibeLang: VibeLang;     // VibeCoder : la langue de l'écran et des messages envoyés
   // VibeCoder : ce qui précède les commandes du projet et gh ('' : la box de
   // agentCommand, `distrobox enter <box> --`, sinon rien ; core/runner).
   vibeCommandPrefix: string;
-  vibeSize?: { width: number; height: number };  // le panneau en VibeCoder (à part de convSize)
+  vibeSize?: { width: number; height: number };  // la taille de la fenêtre, retenue
   vibeModulesView?: 'ide' | 'list'; // la vue des Modules, retenue d'une ouverture à l'autre (défaut : liste)
   artifactTextMax: number; // octets : un artefact affiché en texte est coupé au-delà (« fichier tronqué »)
   [key: string]: unknown;
 };
 
 export const DEFAULTS: Config = {
-  lang: 'fr', vocabulary: '', sound: true, showText: true, discordMute: false,
-  agentsEnabled: false, agentCommand: '', editorCommand: '', terminalCommand: '', agents: [], agentFolders: [], agentSelected: null,
-  agentReview: true,
-  onTop: true,
+  lang: 'fr', vocabulary: '', sound: true, discordMute: false,
+  agentCommand: '', editorCommand: '', terminalCommand: '', agents: [], agentFolders: [], agentSelected: null,
   muteOthers: false,
-  autoPaste: true,
-  speak: 'selection', speakVolume: 1,
+  speakVolume: 1,
   speakLang: 'auto',
   speakVoices: { fr: 'estelle', en: 'jane' },
-  deviceId: '', deviceLabel: '', size: 64, pos: null,
+  deviceId: '', deviceLabel: '',
   vibeLang: 'fr', vibeCommandPrefix: '', vibeModulesView: 'list',
   artifactTextMax: 10 * 1024 * 1024,
 };
@@ -83,11 +69,6 @@ export function withDefaults(raw: Record<string, unknown>): Config {
   if (!Number.isInteger(cfg.artifactTextMax) || cfg.artifactTextMax <= 0) cfg.artifactTextMax = DEFAULTS.artifactTextMax;
   return cfg;
 }
-
-// Au lancement, la dictée va au curseur : un agent sélectionné la veille ne
-// doit pas recevoir (et envoyer à Claude) ce qu'on croit dicter pour soi.
-// Le changement à enregistrer, ou null.
-export const startupPatch = (cfg: Config): Partial<Config> | null => (cfg.agentSelected ? { agentSelected: null } : null);
 
 /* ---- Agents et dossiers ------------------------------------------------- */
 
@@ -111,15 +92,6 @@ export function randomColor(folders: Folder[], random = Math.random) {
 }
 
 export const agentList = (cfg: Config): AgentConfig[] => (Array.isArray(cfg.agents) ? cfg.agents.filter((a) => a && a.id && a.dir) : []);
-
-// La largeur en places de robot : un groupe (familyGroups) prend une place, ou
-// une par enfant s'il en a plusieurs (de la taille d'un robot, sous lui) ;
-// plus le « + ».
-export const agentSlotCount = (cfg: Config) => (cfg.agentsEnabled === true
-  ? familyGroups(agentList(cfg)).reduce((n, g) => n + Math.max(1, g.children.length), 1) : 0);
-
-// Une rangée d'enfants sous les robots : au moins un enfant affiché sous son parent.
-export const childRow = (cfg: Config) => cfg.agentsEnabled === true && familyGroups(agentList(cfg)).some((g) => g.children.length > 0);
 
 // Dossiers favoris [{ dir, color }] : ceux déjà choisis, qu'ils aient encore un
 // agent ou non. Tolère les anciens formats (chemins seuls, couleur sur l'agent).
@@ -149,11 +121,6 @@ export function folderColors(cfg: Config, random = Math.random) {
 export const agentColor = (agent: AgentConfig, cfg: Config) => (
   (favoriteFolders(cfg).find((f) => f.dir === agent.dir) || { color: null }).color || AGENT_COLORS[0][0]);
 
-export function selectedAgent(cfg: Config) {
-  if (cfg.agentsEnabled !== true || !cfg.agentSelected) return null;
-  return agentList(cfg).find((a) => a.id === cfg.agentSelected) || null;
-}
-
 // Lancé par l'appli, Claude Code ne pose pas sa question « Faire confiance à ce
 // dossier ? » : elle est posée par l'appli, une fois, pour un dossier jamais
 // choisi. Les réglages d'un projet (.claude/) peuvent lancer des commandes.
@@ -177,15 +144,6 @@ export function agentVibe(agent: AgentConfig): { flow: VibeFlow; pr: number | nu
 }
 
 /* ---- Lecture à voix haute ------------------------------------------------- */
-
-export type SpeakMode = 'off' | 'selection' | 'clipboard';
-
-// Ce que lit le bouton. La sélection se lit sous Linux et Windows ; ailleurs,
-// le presse-papiers.
-export function speakMode(cfg: Config, canReadSelection: boolean): SpeakMode {
-  if (cfg.speak === 'off') return 'off';
-  return cfg.speak === 'clipboard' || !canReadSelection ? 'clipboard' : 'selection';
-}
 
 // 0 à 1 : au-delà, la voix saturerait.
 export function speakVolume(cfg: Config) {

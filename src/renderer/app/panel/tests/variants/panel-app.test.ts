@@ -39,6 +39,11 @@ document.execCommand = (_cmd: string, _ui?: boolean, text = '') => {
 
 const page = document.body.appendChild(document.createElement('div'));
 await act(() => { createRoot(page).render(createElement(PanelApp, { conv })); });
+// VibeCoder, seul écran : la conversation de a1 et son relevé arrivent, le champ est monté.
+await act(() => {
+  on.onThread({ key: 'a1', live: true, name: 'A', color: '#fff', title: 't', status: 'idle', messages: [] });
+  on.onVibe({ lang: 'fr', agentId: 'a1', steps: [], actions: [], runs: [], processes: [], commits: [], agent: {}, time: 0, flow: 'create', repo: { branch: 'master', base: 'master', changed: 0 } });
+});
 const input = page.querySelector<HTMLTextAreaElement>('#message')!;
 // Une dictée de bout en bout : le micro (#mic) maintenu puis relâché, whisper rend `text`.
 const dictate = async (text: string) => {
@@ -114,7 +119,7 @@ it('un fichier lâché hors de l\'arborescence est joint ; sous [data-own-drop] 
   const asked: File[] = [];
   own.pathFor = (f: File) => { asked.push(f); return `/tmp/${f.name}`; };
   await act(() => {
-    on.onThread({ mode: 'full', key: 'k', live: true, name: 'A', color: '#fff', title: 't', status: 'idle', messages: [] });
+    on.onThread({ key: 'a1', live: true, name: 'A', color: '#fff', title: 't', status: 'idle', messages: [] });
   });
   const tree = page.appendChild(document.createElement('div'));
   tree.setAttribute('data-own-drop', '');
@@ -129,4 +134,10 @@ it('un fichier lâché hors de l\'arborescence est joint ; sous [data-own-drop] 
   await dropOn(document.body, [file]);
   expect(asked).toEqual([file]);
   tree.remove();
+});
+
+it('la conversation d\'un autre agent avant son relevé : l\'écran d\'avant reste (pas de page vide), rien ne plante', async () => {
+  await act(() => { on.onThread({ key: 'a2', live: true, name: 'B', color: '#fff', title: 't', status: 'idle', messages: [] }); });
+  expect(page.querySelector('.vc')).not.toBeNull();
+  await act(() => { (on.onFocusInput as () => void)(); });   // le focus du champ, demandé avant que l'écran soit là
 });

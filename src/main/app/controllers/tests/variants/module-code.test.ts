@@ -83,13 +83,11 @@ beforeEach(async () => {
   git(dir, 'commit', '-q', '-m', 'hello');
   write(path.join(fake.userData, 'config.json'), JSON.stringify({
     agentsEnabled: true,
-    agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
+    agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null,
       vibe: { flow: 'create', autonomy: 'guide', pr: null } }],
   }));
-  const { state } = await import('app/state');
   const { openConversation } = await import('app/windows');
   const { panelReady } = await import('app/controllers');
-  state.icon = new fake.Win() as never;
   openConversation('a1');
   fake.windows.at(-1)!.emit('ready-to-show');
   await panelReady();
@@ -191,7 +189,7 @@ it('en Relire, un fichier ajouté par un commit : avant null, après et tête pa
     JSON.stringify({ number: 7, title: 'Essai', base: 'main', head: 'feat/0.11.0-essai', state: 'OPEN' }));
   write(path.join(fake.userData, 'config.json'), JSON.stringify({
     agentsEnabled: true,
-    agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
+    agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null,
       vibe: { flow: 'review', autonomy: 'guide', pr: 7 } }],
   }));
   await resurvey();
@@ -259,7 +257,7 @@ it('en Relire, un fichier b<i> se lit mais saveCode le refuse', async () => {
     JSON.stringify({ number: 7, title: 'Essai', base: 'main', head: 'feat/0.11.0-essai', state: 'OPEN' }));
   write(path.join(fake.userData, 'config.json'), JSON.stringify({
     agentsEnabled: true,
-    agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
+    agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null,
       vibe: { flow: 'review', autonomy: 'guide', pr: 7 } }],
   }));
   await resurvey();

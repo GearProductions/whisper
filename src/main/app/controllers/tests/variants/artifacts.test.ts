@@ -24,9 +24,9 @@ vi.mock('electron', () => ({
     showMessageBox: async (o: Box) => { fake.asked.push(o); return { response: fake.answer(o) }; },
   },
 }));
-vi.mock('app/windows', () => ({ showBubble: () => {} }));
+vi.mock('app/windows', () => ({ conversationNotice: () => {} }));
+vi.mock('app/controllers/agents', () => ({ viewAgent: () => (fake.shown ? { id: fake.shown, dir: fake.dir } : null) }));
 vi.mock('app/controllers/vibecoder', () => ({
-  vibeAgent: () => (fake.shown ? { id: fake.shown, dir: fake.dir } : null),
   lastView: (id: string) => (id === fake.shown ? fake.view : null),
 }));
 

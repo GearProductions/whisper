@@ -1,15 +1,11 @@
-/** panel-app — le panneau des conversations, attaché à l'icône : une
- *  conversation à la fois, celle du robot sélectionné (les robots servent
- *  d'onglets) ; aucun robot sélectionné : le contexte « Dictée », le dernier
- *  texte dicté et Copier. Le volet des tâches de fond, à droite du fil.
- *  Réduit : le dernier échange, à la hauteur de son contenu ; agrandi : tout
- *  le fil et l'historique. Le principal envoie la conversation (`conv:thread`)
- *  à l'ouverture, à chaque changement et au fil d'un tour. Un agent en
- *  VibeCoder (son relevé, `conv:vibe`, sur sa conversation en cours) :
- *  l'écran VibeCoder à la place de l'en-tête et du corps, la même
- *  conversation dans sa colonne de droite (affichée ou masquée, sa largeur :
- *  retenues ici, pour tous les agents), le volet des tâches dans son onglet
- *  Tâches ; une action prend le texte que l'écran lui donne (le champ de son
+/** panel-app — l'écran de l'appli : VibeCoder, pour l'agent affiché (son relevé,
+ *  `conv:vibe`, sur sa conversation en cours), ou l'accueil (NoAgent) quand il
+ *  n'y a aucun agent. La conversation de l'agent (`conv:thread`, envoyée par le
+ *  principal à l'ouverture, à chaque changement et au fil d'un tour) est la
+ *  colonne de droite de VibeCoder (affichée ou masquée, sa largeur : retenues
+ *  ici, pour tous les agents) ; le volet des tâches de fond est son onglet
+ *  Tâches. Tant que le relevé de l'agent affiché n'est pas là, rien n'est
+ *  montré. Une action prend le texte que l'écran lui donne (le champ de son
  *  étape, une remarque) ; seul un message de la conversation (Demander sans
  *  modifier, Où j'en suis ?, Proposer les commandes) prend celui du champ de
  *  la conversation (vidé une fois parti), ou y prépare un message. La dictée
@@ -17,7 +13,8 @@
  *  la zone de texte qui a le clavier (champ d'étape, commentaire, réponse
  *  libre ; pas un éditeur de code ni un champ d'une ligne), sous sa longueur,
  *  sinon au champ de la conversation ; sa phase (erreur, aucune parole) va à
- *  la ligne d'état du champ. Écouter lit une réponse par son rang
+ *  la ligne d'état du champ ; le micro de chaque champ d'agent de VibeCoder (contexte Mic,
+ *  prompt-tools) est celui-là, et il donne le clavier à son champ. Écouter lit une réponse par son rang
  *  (createSpeechPlayer), le bip suit le réglage du son.
  *  La colle : seul fichier du panneau qui connaît le pont (window.conv) ; il
  *  tient le brouillon de chaque conversation et la saisie de VibeCoder de
@@ -30,36 +27,41 @@
  *  au pont et l'id du dossier d'arrivée, jamais un chemin) ; un glisser interne de
  *  l'arborescence (aucun File), lâché où que ce soit, ne joint rien.
  *  Le « @ » du champ : le Composer reçoit les artefacts du seul agent affiché
- *  (vibeShown : même clé que le relevé) ; sans relevé, pas de liste.
- *  Les agents (`conv:agents`, onAgents) : l'agent affiché au sélecteur de VibeCoder, les raccourcis de
+ *  (vibeShown : même clé que le relevé).
+ *  Changement d'agent : l'écran garde la dernière paire fil + relevé cohérente
+ *  jusqu'à l'arrivée des deux du nouvel agent (held) : jamais de page vide.
+ *  Les agents (`agents:state`, onAgents) : l'agent affiché au sélecteur de VibeCoder, les raccourcis de
  *  core/switcher (Ctrl+K la palette, Ctrl+Tab l'agent d'avant, Ctrl+N un nouvel agent, Ctrl+Maj+B les
  *  branches), la palette et ses mouvements (afficher, lancer une action par son id, branches, ajouter),
- *  les notices des autres agents (retenues jusqu'à leur ×, ou jusqu'à ce que l'agent soit affiché),
+ *  les robots des agents dans l'en-tête de VibeCoder (agent-notices : clic, l'afficher ; l'affiché, la
+ *  palette ; clic droit, son menu) et le bip de la réponse (660 Hz, réglage Bip) quand un autre agent se met
+ *  à attendre, finit ou échoue (signalKeys, F-55),
  *  l'historique à la place du fil dans la colonne de VibeCoder (🕘), ⚙ Réglages (les micros énumérés
- *  ici, le menu au principal) ; aucun agent : l'accueil (NoAgent) à la place de l'écran.
- *  Ne connaît pas : l'icône, la bulle. Utilisé par : main.tsx. */
+ *  ici, le menu au principal).
+ *  Ne connaît pas : le principal autrement que par le pont. Utilisé par : main.tsx. */
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import {
   appendDictation, createDrafts, createPermissionGuard, EMPTY, followsEnd, IMAGE_TYPES, isBusy, revoke, titleOf, toDraft,
   withAttached, withFile, type Draft, type Piece,
 } from 'core/conversation';
 import { createDictation, type Phase } from 'core/dictation';
-import { lastShown, recent, shortcut, type PaletteMove, type Scope } from 'core/switcher';
+import { lastShown, recent, shortcut, signalKeys, type PaletteMove, type Scope } from 'core/switcher';
 import { createSpeechPlayer } from 'core/speech';
 import { createKept, t as vibeStrings, withPrefill } from 'core/vibecoder';
-import type { AgentEvent, AgentsState, Command, ConvApi, Notice, ProbeResult, SendResult, Session, Thread, VibeArgs, VibeCode, VibeView } from 'technicals/bridge';
+import type { AgentsState, Command, ConvApi, Notice, ProbeResult, SendResult, Session, Thread, VibeArgs, VibeCode, VibeView } from 'technicals/bridge';
 import { beep, listInputs, openMic, record } from 'technicals/audio';
-import { compactHeight, dictationField, dictationText } from 'technicals/dom';
+import { dictationField, dictationText } from 'technicals/dom';
 import {
-  ArchivedBar, Composer, ContextDetail, Header, HistoryList, Lightbox, NoticeBar, showsWorking, TasksPane, ThreadContent,
+  ArchivedBar, Composer, ContextDetail, HistoryList, Lightbox, NoticeBar, showsWorking, TasksPane, ThreadContent,
   type ThreadActions,
 } from './components';
-import { AgentNotices, NoAgent, Palette, SkillsBar, VibeCoder, type Side, type VibeActs } from './vibecoder';
+import { AgentNotices, Mic, NoAgent, Palette, SkillsBar, VibeCoder, type Side, type VibeActs } from './vibecoder';
 
+const REPLY_FREQ = 660; // le bip d'une réponse (F-55), celui de l'ancienne icône
 const STATUS_MS = 10000; // un message de l'appli (téléchargement…) s'efface seul
 const AT_END_PX = 40;
 
-type Overlay = 'none' | 'history' | 'context';
+type Overlay = 'none' | 'context';
 
 export function PanelApp({ conv }: { conv: ConvApi }) {
   const [data, setData] = useState<Thread | null>(null);
@@ -77,7 +79,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   const [vibeSide, setVibeSide] = useState<Side>({ open: true, width: 400 });
   const [vibeCode, setVibeCode] = useState<VibeCode | null>(null);
   const [agents, setAgents] = useState<AgentsState | null>(null);  // null jusqu'au premier conv:agents
-  const [events, setEvents] = useState<AgentEvent[]>([]);           // les notices en attente
+  const heard = useRef(new Set<string>());                          // les signaux des agents déjà bipés (signalKeys)
   const [palette, setPalette] = useState<Scope | null>(null);        // ouverte : sa portée
   const [branchesAsk, setBranchesAsk] = useState(0);                // +1 : VibeCoder ouvre ses branches
   const [historyOpen, setHistoryOpen] = useState(false);            // l'historique dans la colonne de VibeCoder
@@ -93,15 +95,11 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   const toEnd = useRef(false);                  // descendre le fil après ce rendu
   const focusEnd = useRef(false);               // dictée reçue : focus, curseur à la fin
   const noticeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const el = {
-    header: useRef<HTMLElement>(null), notice: useRef<HTMLDivElement>(null), archived: useRef<HTMLDivElement>(null),
-    thread: useRef<HTMLElement>(null), context: useRef<HTMLElement>(null), composer: useRef<HTMLElement>(null),
-    input: useRef<HTMLTextAreaElement>(null),
-  };
+  const el = { thread: useRef<HTMLElement>(null), input: useRef<HTMLTextAreaElement>(null) };
 
   // La lecture à voix haute (Écouter) : seule une erreur se dit, dans la ligne d'état.
   const [player] = useState(() => createSpeechPlayer({
-    api: conv, newContext: () => new AudioContext(), onChange: (p) => { if (p === 'error') setStatus('La lecture a échoué.'); },
+    api: conv, newContext: () => new AudioContext(), onChange: (p, message) => { if (p === 'error') setStatus(message || 'La lecture a échoué.'); },
   }));
   // La dictée (micro du champ, maintenu) : le texte de whisper, ajouté au champ pour être relu.
   const [micPhase, setMicPhase] = useState<Phase>('idle');
@@ -130,19 +128,12 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   // VibeCoder : le relevé de l'agent affiché, que le fil montre sa conversation en cours ou une ancienne
   // (clé `<agent>:<session>`, ouverte par l'historique : l'écran reste) ; sinon, la vue habituelle.
   const vibeShown = vibe && data && (data.key === vibe.agentId || data.key.startsWith(`${vibe.agentId}:`)) ? vibe : null;
-  const archived = <ArchivedBar data={data} onCurrent={() => conv.current()} onResume={() => conv.resume()} ref={el.archived} />;
-
-  // Réduit (comme avant la première conversation) : la hauteur de son contenu,
-  // que le principal donne au panneau.
-  const reportHeight = () => {
-    if (vibeShown || (current.current?.mode || 'compact') !== 'compact') return;
-    setTimeout(() => {
-      conv.height(compactHeight({
-        fixed: [el.header.current, el.notice.current, el.archived.current, el.composer.current],
-        contextPanel: el.context.current, thread: el.thread.current!,
-      }));
-    }, 0);
-  };
+  // En changeant d'agent, le fil et le relevé du nouveau n'arrivent pas ensemble : d'ici là, l'écran
+  // garde la dernière paire cohérente (pas de page vide entre les deux : en-tête et agents restent).
+  const held = useRef<{ view: VibeView; thread: Thread } | null>(null);
+  if (vibeShown && data) held.current = { view: vibeShown, thread: data };
+  const screen = held.current;
+  const archived = <ArchivedBar data={data} onCurrent={() => conv.current()} onResume={() => conv.resume()} />;
 
   async function addFiles(files: File[]) {
     if (!current.current?.live) return; // ancienne conversation : rien à envoyer
@@ -166,9 +157,9 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   // main.tsx), avant de dire au principal que la page est prête.
   useLayoutEffect(() => {
     conv.onThread((d) => {
-      const thread = el.thread.current!;
+      const thread = el.thread.current;   // null tant que le relevé de l'agent n'est pas là
       const before = current.current;
-      const atEnd = thread.scrollHeight - thread.scrollTop - thread.clientHeight < AT_END_PX;
+      const atEnd = !!thread && thread.scrollHeight - thread.scrollTop - thread.clientHeight < AT_END_PX;
       const switched = d.key !== (before && before.key);
       if (switched) {
         const from = before && before.key;
@@ -176,7 +167,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
         setStatus('');
         setOverlay('none');
         setHistoryOpen(false);
-      } else if (d.mode === 'compact' && overlayRef.current === 'history') setOverlay('none');
+      }
       guard.show(d.permission ? d.permission.key : null);
       toEnd.current = followsEnd(before, d, { atEnd, working: showsWorking(d) });
       current.current = d;
@@ -187,7 +178,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
       setNotice(n);
       if (n && n.kind === 'status') noticeTimer.current = setTimeout(() => setNotice(null), STATUS_MS);
     });
-    conv.onFocusInput(() => el.input.current!.focus());
+    conv.onFocusInput(() => el.input.current?.focus());
     conv.onVibe(setVibe);
     conv.onVibeCode(setVibeCode);
     conv.onAgents((s) => {
@@ -195,11 +186,15 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
       if (s.shown) recents.current = recent(recents.current, s.shown);
       recents.current = recents.current.filter((id) => s.agents.some((a) => a.id === id));
       setAgents(s);
-      setEvents((es) => [...es, ...s.events].filter((ev) => ev.agentId !== s.shown));
+      // Un autre agent vient d'attendre, de finir ou d'échouer (F-55) : le bip de la réponse, comme l'ancienne icône
+      // (réglage Bip) ; seul ce qui vient d'apparaître bipe.
+      const keys = signalKeys(s.agents, s.shown);
+      if (keys.some((k) => !heard.current.has(k))) conv.getConfig().then((cfg) => { if (cfg.sound !== false) beep(REPLY_FREQ); });
+      heard.current = new Set(keys);
     });
     conv.onAttached((what) => {
       setDraft((d) => ({ ...d, pieces: withAttached(d.pieces, what) }));
-      el.input.current!.focus();
+      el.input.current?.focus();
     });
 
     // Tout le panneau accepte le dépôt (le champ s'allume). Sans preventDefault,
@@ -239,29 +234,21 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   useLayoutEffect(() => {
     if (!data) return;
     document.title = `${titleOf(data)} — ${data.name}`;
-    if (toEnd.current) { el.thread.current!.scrollTop = el.thread.current!.scrollHeight; toEnd.current = false; }
+    if (toEnd.current && el.thread.current) { el.thread.current.scrollTop = el.thread.current.scrollHeight; toEnd.current = false; }
   }, [data]);
 
   useLayoutEffect(() => {
     if (!focusEnd.current) return;
     focusEnd.current = false;
-    const input = el.input.current!;
+    const input = el.input.current;
+    if (!input) return;
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
   }, [draft]);
 
-  useLayoutEffect(reportHeight);
-
-  // VibeCoder ouvert ou refermé : le fil, monté de nouveau, repart du bas.
+  // VibeCoder monté : le fil, monté avec lui, repart du bas.
   const vibeOn = !!vibeShown;
-  useLayoutEffect(() => { el.thread.current!.scrollTop = el.thread.current!.scrollHeight; }, [vibeOn]);
-
-  async function showHistory() {
-    setOverlay('history');
-    setSessions(null);
-    const list = await conv.history();
-    if (overlayRef.current === 'history') setSessions(list);
-  }
+  useLayoutEffect(() => { if (el.thread.current) el.thread.current.scrollTop = el.thread.current.scrollHeight; }, [vibeOn]);
 
   // 🕘 dans la colonne de VibeCoder : la liste des conversations du dossier à la place du fil.
   async function toggleHistory() {
@@ -302,7 +289,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
       setDraft(EMPTY);
       drafts.drop(current.current && current.current.key);
       setStatus('');
-      el.thread.current!.scrollTop = el.thread.current!.scrollHeight;
+      if (el.thread.current) el.thread.current.scrollTop = el.thread.current.scrollHeight;
     } else {
       setStatus((res && res.error) || 'L\'envoi a échoué.');
     }
@@ -321,7 +308,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     const field = args.text === undefined && (a.needs === 'text' || a.usesText) ? draft.text.trim() : '';
     if (a.needs === 'text' && !field && !args.text?.trim()) {
       setStatus(vibeStrings(vibe.lang).needText);
-      if (args.text === undefined) el.input.current!.focus();
+      if (args.text === undefined) el.input.current?.focus();
       return false;
     }
     setStatus('');
@@ -331,7 +318,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     setSending(false);
     if (res && res.ok) {
       if (field) setDraft((d) => ({ ...d, text: '' }));
-      el.thread.current!.scrollTop = el.thread.current!.scrollHeight;
+      if (el.thread.current) el.thread.current.scrollTop = el.thread.current.scrollHeight;
       return true;
     }
     setStatus((res && res.error) || vibeStrings(vibe.lang).sendFailed);
@@ -374,7 +361,6 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     openLink: conv.openLink,
     showFile: conv.showFile,
     listen: player.play,
-    copy: conv.copy,
     zoom: setZoom,
     answer: (decision, key) => guard.answer(key, decision, conv.answer),
   };
@@ -382,17 +368,14 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   const toggleContext = () => { if (overlay === 'context') setOverlay('none'); else showContext(); };
   const toggleTasks = () => setTasksOpen((o) => !o);
 
-  // Le message de l'appli, le fil (et ses volets), le champ : à leur place dans
-  // la vue habituelle, ou dans la colonne de la conversation de VibeCoder.
-  const noticeBar = <NoticeBar notice={notice} onClose={() => setNotice(null)} ref={el.notice} />;
+  // Le message de l'appli, le fil (et ses volets), le champ : la colonne de la conversation de VibeCoder.
+  const noticeBar = <NoticeBar notice={notice} onClose={() => setNotice(null)} />;
   const body = (
     <div id="body">
       <main id="thread" className="scroll" ref={el.thread}>
         {data ? <ThreadContent key={data.key} data={data} act={act} /> : null}
       </main>
-      {tasksOpen && data?.tasks && !vibeShown ? <TasksPane tasks={data.tasks} onOpenLink={conv.openLink} onShowFile={conv.showFile} /> : null}
-      <HistoryList open={overlay === 'history'} sessions={sessions} onOpen={(id) => { setOverlay('none'); conv.open(id); }} />
-      <ContextDetail open={overlay === 'context'} probe={probe} ref={el.context}
+      <ContextDetail open={overlay === 'context'} probe={probe}
         canCompact={live && !isBusy(data!.status)}
         onCompact={async () => {
           const sent = await conv.send({ text: '/compact', images: [], files: [], selection: '' });
@@ -407,52 +390,38 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
       removePiece={(p) => { revoke([p]); setDraft((d) => ({ ...d, pieces: d.pieces.filter((x) => x !== p) })); }}
       artifacts={vibeShown?.artifacts} artifactsDir={vibeShown?.artifactsDir}
       status={status} setStatus={setStatus} dir={data?.dir || ''} commands={commands} probe={conv.probe}
-      onMicDown={dictation.start} onMicUp={dictation.stop} phase={micPhase}
-      onSend={send} onAttach={() => conv.attach()} onFiles={addFiles} onLayout={reportHeight}
-      ref={el.composer} input={el.input} />
+      onSend={send} onAttach={() => conv.attach()} onFiles={addFiles} input={el.input} />
   );
 
   const noAgent = !!agents && !agents.agents.length;
   const tr = vibeStrings(vibe?.lang ?? 'fr');
   return (
-    <div id="app" data-view={data ? (data.dictation ? 'dictation' : 'agent') : undefined} data-mode={data?.mode}
+    <div id="app"
       className={dragging ? 'dragging' : undefined} style={data ? { '--accent': data.color } as CSSProperties : undefined}>
-      {noAgent ? <NoAgent t={tr} onAdd={conv.addAgent} /> : null}
+      {noAgent ? <>{noticeBar}<NoAgent t={tr} onAdd={conv.addAgent} /></> : null}
       <div style={{ display: noAgent ? 'none' : 'contents' }}>
-      {vibeShown && data ? (
-        <VibeCoder key={vibeShown.agentId} view={vibeShown} thread={data} act={vibeAct} tasksOpen={tasksOpen} code={vibeCode}
-          tasks={<TasksPane tasks={data.tasks ?? []} onOpenLink={conv.openLink} onShowFile={conv.showFile} />}
+      {screen ? (
+        <Mic.Provider value={{ phase: micPhase, down: dictation.start, up: dictation.stop }}>
+        <VibeCoder key={screen.view.agentId} view={screen.view} thread={screen.thread} act={vibeAct} tasksOpen={tasksOpen} code={vibeCode}
+          tasks={<TasksPane tasks={screen.thread.tasks ?? []} onOpenLink={conv.openLink} onShowFile={conv.showFile} />}
           contextOpen={overlay === 'context'} onGauge={toggleContext} onTasks={toggleTasks}
-          agent={agents?.agents.find((a) => a.id === agents.shown) ?? null} onPalette={setPalette} onAgentMenu={conv.agentMenu}
+          onSearch={() => setPalette('all')}
           onSettings={async () => conv.openSettings(await listInputs())} branchesAsk={branchesAsk}
+          others={agents ? <AgentNotices agents={agents.agents} shown={agents.shown} t={tr}
+            onShow={conv.showAgent} onOpen={() => setPalette('agents')} onMenu={conv.agentMenu} onAdd={conv.addAgent} /> : undefined}
           historyOpen={historyOpen} onHistory={toggleHistory}
           history={<HistoryList open inline sessions={sessions} onOpen={(id) => { setHistoryOpen(false); conv.open(id); }} />}
           side={vibeSide} onSide={setVibeSide} kept={kept}>
           {noticeBar}
           {archived}
           {body}
-          <SkillsBar view={vibeShown} busy={isBusy(data.status)} onRun={vibeRun} />
+          <SkillsBar view={screen.view} busy={isBusy(screen.thread.status)} onRun={vibeRun} />
           {composer}
         </VibeCoder>
-      ) : (
-        <>
-          <Header data={data}
-            onGauge={toggleContext}
-            onHistory={() => { if (overlay === 'history') setOverlay('none'); else showHistory(); }}
-            tasksOpen={tasksOpen} onTasks={toggleTasks}
-            onMode={() => conv.setMode(data?.mode === 'compact' ? 'full' : 'compact')}
-            onHide={() => conv.hide()} ref={el.header} />
-          {noticeBar}
-          {archived}
-          {body}
-          {composer}
-        </>
-      )}
+        </Mic.Provider>
+      ) : noticeBar /* avant le relevé : le message de l'appli seul */}
       </div>
       {palette ? <Palette agents={agents?.agents ?? []} view={vibe} scope={palette} t={tr} onPick={paletteMove} onClose={() => setPalette(null)} /> : null}
-      <AgentNotices events={events} agents={agents?.agents ?? []} t={tr}
-        onShow={(id) => { conv.showAgent(id); setEvents((es) => es.filter((ev) => ev.agentId !== id)); }}
-        onDismiss={(i) => setEvents((es) => es.filter((_, j) => j !== i))} />
       <Lightbox src={zoom} onClose={() => setZoom(null)} />
     </div>
   );

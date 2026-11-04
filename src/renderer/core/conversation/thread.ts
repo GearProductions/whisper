@@ -1,8 +1,8 @@
-/** thread — une conversation : agent occupé, intitulé, jauge du contexte, début
- *  du fil en réduit, descente du fil.
+/** thread — une conversation : agent occupé, intitulé, jauge du contexte,
+ *  descente du fil.
  *  Ne connaît pas : le DOM, le pont. Utilisé par : app/panel. */
 import { kTokens } from 'helpers';
-import type { AgentStatus, ContextUse, ConvMode, Message, Thread } from 'technicals/bridge';
+import type { AgentStatus, ContextUse, Thread } from 'technicals/bridge';
 
 export const isBusy = (status: AgentStatus) => status === 'working' || status === 'asking';
 
@@ -22,17 +22,9 @@ export function gauge(c: ContextUse | undefined) {
   };
 }
 
-// Réduit : le dernier échange — votre dernier message et ce qui l'a suivi.
-export function visibleFrom(messages: Message[], mode: ConvMode) {
-  if (mode !== 'compact') return 0;
-  const lastUser = messages.map((m) => m.role).lastIndexOf('user');
-  return Math.max(0, lastUser >= 0 ? lastUser : messages.length - 1);
-}
-
-// Descendre le fil après ce rendu : autre conversation, réduit, changement de
-// taille (⤢ s'ouvre sur le dernier échange), demande d'autorisation. Sinon, rester
+// Descendre le fil après ce rendu : autre conversation, demande d'autorisation. Sinon, rester
 // en bas quand un message arrive, sans arracher la lecture d'un message plus ancien.
 export function followsEnd(before: Thread | null, next: Thread, { atEnd, working }: { atEnd: boolean; working: boolean }) {
-  if (!before || next.key !== before.key || next.mode === 'compact' || next.mode !== before.mode || next.permission) return true;
+  if (!before || next.key !== before.key || next.permission) return true;
   return atEnd && (working || next.messages.length !== before.messages.length);
 }

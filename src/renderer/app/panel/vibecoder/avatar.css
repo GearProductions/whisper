@@ -1,0 +1,4 @@
+/* La pastille d'un agent (avatar) : un rond à sa couleur (--vc-agent), ses initiales en --vc-ink. */
+.vc-avatar { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: var(--vc-agent, var(--vc-idle)); color: var(--vc-ink); font: 700 11px/1 var(--vc-sans); }
+.vc-avatar[data-size="s"] { width: 24px; height: 24px; font-size: 9px; }
+.vc-avatar[data-size="xs"] { width: 20px; height: 20px; font-size: 9px; }

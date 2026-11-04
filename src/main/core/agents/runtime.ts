@@ -183,7 +183,7 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
       for await (const m of proc.query) {
         const before = runningTasks(r.tasks);
         r.tasks = applyTaskEvent(r.tasks, m, Date.now());
-        if (runningTasks(r.tasks) !== before) changed(r); // l'icône suit
+        if (runningTasks(r.tasks) !== before) changed(r); // les robots suivent
         if (m.type === 'system' && m.subtype === 'init' && m.session_id) r.hooks!.onSession(m.session_id);
         // L'agent repart sans message de notre part (une tâche de fond l'a notifié).
         if (m.type === 'assistant' && !r.turn) begin(r, id, '', () => {});
@@ -409,7 +409,7 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     lastReply: (id: string) => rt(id).last,
     // Les tâches de fond de l'agent, finies comprises.
     tasks: (id: string) => rt(id).tasks,
-    // Le message du tour en cours, null hors tour (à part de state : pas d'images vers l'icône).
+    // Le message du tour en cours, null hors tour (à part de state : pas d'images dans l'état des robots).
     sent: (id: string) => rt(id).sent || null,
     markRead: (id: string) => { rt(id).unread = false; },
     // Session changée : la dernière réponse connue, et les tâches, étaient celles de l'autre.

@@ -18,7 +18,7 @@
  *  navigateur (icône external, l'adresse en infobulle). Dans un worktree (view.child), Actualiser et Retirer le
  *  worktree seulement : il reste sur sa branche. Créer une branche : son nom, son
  *  départ (origin/<base>, par défaut : sans start, ou une branche locale), Créer ici
- *  (new-here) ou Nouveau worktree → nouvel agent (new-worktree), { branch, start? }.
+ *  (new-here) ou Nouveau worktree → nouvel agent (new-worktree, le bouton principal), { branch, start? }.
  *  Intitulés de la vue C : Basculer ici (pr-here), + Agent dans un worktree
  *  (pr-worktree), Aller à l'agent → (le worktree ouvert), Créer ici ; les
  *  actions, elles, ne changent pas.
@@ -228,7 +228,7 @@ export function BranchesView({ view, t, act, busy }: Props) {
           {branches.map((b) => <option key={b} value={b}>{b}</option>)}
         </select>
         <Run a={named('new-here')} label={s.newHere} busy={busy} onRun={() => create('new-here')} />
-        <Run a={named('new-worktree')} label={s.newWorktree} busy={busy} onRun={() => create('new-worktree')} />
+        <Run a={named('new-worktree')} label={s.newWorktree} busy={busy} tone="accent" onRun={() => create('new-worktree')} />
       </div>
     </>
   );

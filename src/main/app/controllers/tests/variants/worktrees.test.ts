@@ -76,7 +76,7 @@ let worktree = '';
 let outA = '';
 let card = '';
 
-const AGENT = { name: 'projet', model: '', effort: '', mode: 'default', sessionId: null, view: 'vibecoder' };
+const AGENT = { name: 'projet', model: '', effort: '', mode: 'default', sessionId: null };
 const ROBOT = { ...AGENT, id: 'a2', name: 'PR #12', vibe: { flow: 'review', autonomy: 'guide', pr: 12 }, temp: { parent: 'a1', pr: 12 } };
 
 beforeEach(() => {
@@ -107,10 +107,8 @@ afterEach(() => { vi.useRealTimers(); });
 
 // Le panneau ouvert sur un agent, la page prête : ses relevés reçus.
 async function open(id: string) {
-  const { state } = await import('app/state');
   const { openConversation } = await import('app/windows');
   const { panelReady } = await import('app/controllers');
-  state.icon = new fake.Win() as never;
   openConversation(id);
   const panel = fake.windows.at(-1)!;
   panel.emit('ready-to-show');
@@ -319,7 +317,7 @@ describe('les familles par git', () => {
     const { openChild } = await import('app/controllers');
     const { loadConfig } = await import('app/settings');
     const child = await openChild(loadConfig().agents[0], path.join(link, 'projet-wt'), { name: 'feat/y', create: true });
-    expect(child).toMatchObject({ dir: wt, name: 'feat/y', parent: { id: 'a1' }, view: 'vibecoder', vibe: { flow: 'create', pr: null } });
+    expect(child).toMatchObject({ dir: wt, name: 'feat/y', parent: { id: 'a1' }, vibe: { flow: 'create', pr: null } });
     expect(loadConfig().agents[1]).toEqual(child);
     expect(loadConfig().agentFolders).toContainEqual({ dir: wt, color: '#ef4444' });
   });

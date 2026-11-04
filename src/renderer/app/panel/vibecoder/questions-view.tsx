@@ -1,16 +1,19 @@
 /** questions-view — les questions ouvertes de l'agent, au-dessus de la note
  *  (Créer) : une carte par question, numérotée ; ses réponses proposées en
  *  pastilles (une seule choisie, un second clic la retire), « Conseille-moi »,
- *  « Je te laisse trancher », et une précision libre. « Envoyer les
+ *  « Je te laisse trancher », et une précision libre (son micro et Envoyer, prompt-tools :
+ *  Envoyer les réponses, comme le bouton). « Envoyer les
  *  réponses » les envoie en une fois, une par question dans leur ordre (une
  *  sans réponse : le principal écrit « (pas de réponse) »). Les réponses en
  *  cours sont tenues par vibe-coder : elles survivent à un changement
  *  d'onglet, et le bouton de la prochaine étape envoie les mêmes.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : note-view. */
+import { useRef } from 'react';
 import { answersOf, type Answer, type Answers, type Strings } from 'core/vibecoder';
 import type { VibeLang, VibeQuestion, VibeView } from 'technicals/bridge';
 import { InlineMd } from './markdown-view';
 import type { VibeActs } from './step-views';
+import { PromptTools } from './prompt-tools';
 import { Run } from './step-parts';
 import './questions-view.css';
 
@@ -55,7 +58,7 @@ export function QuestionsView({ view, t, act, busy, answers, onAnswer }: Props) 
       </div>
       {view.questions.map((q) => (
         <Question key={q.text} q={q} a={Object.hasOwn(answers, q.text) ? answers[q.text] : undefined} s={s} t={t} act={act}
-          onChange={(a) => onAnswer(q.text, a)} />
+          onChange={(a) => onAnswer(q.text, a)} onSend={() => act.run('answers', { answers: texts })} sendDisabled={!send || !!send.disabled || !given} />
       ))}
       <div className="vc-q-send">
         <span className="vc-q-count" data-all={given === texts.length || undefined}>{s.count(given, texts.length)}</span>
@@ -66,9 +69,10 @@ export function QuestionsView({ view, t, act, busy, answers, onAnswer }: Props) 
   );
 }
 
-type QuestionProps = { q: VibeQuestion; a: Answer | undefined; s: typeof fr; t: Strings; act: VibeActs; onChange(a: Answer): void };
+type QuestionProps = { q: VibeQuestion; a: Answer | undefined; s: typeof fr; t: Strings; act: VibeActs; onChange(a: Answer): void; onSend(): void; sendDisabled: boolean };
 
-function Question({ q, a, s, t, act, onChange }: QuestionProps) {
+function Question({ q, a, s, t, act, onChange, onSend, sendDisabled }: QuestionProps) {
+  const input = useRef<HTMLTextAreaElement>(null);
   const choice = a?.choice ?? null;
   const free = a?.free ?? '';
   const pick = (c: Answer['choice']) => onChange({ choice: c === choice ? null : c, free });
@@ -88,8 +92,11 @@ function Question({ q, a, s, t, act, onChange }: QuestionProps) {
           {s.decide}
         </button>
       </div>
-      <textarea className="vc-q-free" rows={1} maxLength={1500} placeholder={s.free} aria-label={s.free} value={free}
-        onChange={(e) => onChange({ choice, free: e.target.value })} />
+      <div className="vc-prompt vc-q-free">
+        <textarea ref={input} rows={1} maxLength={1500} placeholder={s.free} aria-label={s.free} value={free}
+          onChange={(e) => onChange({ choice, free: e.target.value })} />
+        <PromptTools t={t} field={input} onSend={onSend} sendDisabled={sendDisabled} />
+      </div>
     </div>
   );
 }

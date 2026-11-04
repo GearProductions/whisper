@@ -125,10 +125,8 @@ afterEach(() => { vi.useRealTimers(); process.chdir(fake.cwd); });
 
 // Le panneau de a1 ouvert, son premier relevé envoyé.
 async function openPanel() {
-  const { state } = await import('app/state');
   const { openConversation } = await import('app/windows');
   const { panelReady } = await import('app/controllers');
-  state.icon = new fake.Win() as never;
   openConversation('a1');
   fake.windows.at(-1)!.emit('ready-to-show');
   await panelReady();

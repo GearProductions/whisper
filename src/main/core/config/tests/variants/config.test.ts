@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  agentColor, agentList, agentSlotCount, agentVibe, childRow, favoriteFolders, folderColors, randomColor, selectedAgent, speakMode,
+  agentColor, agentList, agentVibe, favoriteFolders, folderColors, randomColor,
   speakVolume, vibeLang, vibeModulesView, withDefaults,
 } from 'core/config';
 
@@ -36,35 +36,13 @@ describe('dossiers favoris', () => {
 });
 
 describe('agents', () => {
-  it('liste filtrée, boutons, agent sélectionné', () => {
-    const cfg = withDefaults({ agentsEnabled: true, agents: [agent('a', '/p'), { id: 'b' }, null], agentSelected: 'a' });
+  it('liste filtrée', () => {
+    const cfg = withDefaults({ agents: [agent('a', '/p'), { id: 'b' }, null] });
     expect(agentList(cfg).map((a) => a.id)).toEqual(['a']);
-    expect(agentSlotCount(cfg)).toBe(2);
-    expect(selectedAgent(cfg)?.id).toBe('a');
-    expect(selectedAgent({ ...cfg, agentsEnabled: false })).toBeNull();
-    expect(agentSlotCount({ ...cfg, agentsEnabled: false })).toBe(0);
-  });
-  it('familles : un groupe par place (deux enfants par place), plus le « + » ; la rangée d’enfants', () => {
-    const child = (id: string, parent: string) => ({ ...agent(id, `/${id}`), parent: { id: parent } });
-    const alone = withDefaults({ agentsEnabled: true, agents: [agent('a', '/a'), agent('b', '/b')] });
-    expect(agentSlotCount(alone)).toBe(3);
-    expect(childRow(alone)).toBe(false);
-    const fam = withDefaults({ agentsEnabled: true, agents: [agent('a', '/a'), child('c1', 'a'), child('c2', 'a'), child('c3', 'a'), agent('b', '/b'), child('d', 'b'), child('o', 'absent')] });
-    expect(agentSlotCount(fam)).toBe(3 + 1 + 1 + 1); // a : 3 enfants → 3 ; b : 1 ; o (parent absent) : 1 ; « + »
-    expect(childRow(fam)).toBe(true);
-    expect(childRow(withDefaults({ agentsEnabled: true, agents: [child('o', 'absent')] }))).toBe(false);
-    expect(childRow({ ...fam, agentsEnabled: false })).toBe(false);
-    expect(agentSlotCount({ ...fam, agentsEnabled: false })).toBe(0);
   });
 });
 
 describe('lecture à voix haute', () => {
-  it('source', () => {
-    expect(speakMode(withDefaults({}), true)).toBe('selection');
-    expect(speakMode(withDefaults({}), false)).toBe('clipboard');
-    expect(speakMode(withDefaults({ speak: 'off' }), true)).toBe('off');
-    expect(speakMode(withDefaults({ speak: 'clipboard' }), true)).toBe('clipboard');
-  });
   it('volume borné', () => {
     expect(speakVolume(withDefaults({ speakVolume: 2 }))).toBe(1);
     expect(speakVolume(withDefaults({ speakVolume: -1 }))).toBe(0);
