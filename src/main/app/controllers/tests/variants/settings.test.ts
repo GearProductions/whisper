@@ -80,8 +80,8 @@ describe('settingsOp', () => {
   it.each([
     ['installTts', 'installPocket'],
     ['restoreSound', 'restoreSound'],
-    ['whisperDir', '/whisper'],
-    ['configFile', '/config.json'],
+    ['whisperDir', `${path.sep}whisper`],
+    ['configFile', `${path.sep}config.json`],
     ['instructions', 'openPath '],
     ['journal', 'openPath '],
     ['vibeDir', 'openPath '],
