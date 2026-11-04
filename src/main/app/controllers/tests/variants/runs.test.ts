@@ -110,6 +110,8 @@ const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(fil
 const realSetTimeout = globalThis.setTimeout;
 const settle = () => new Promise((r) => realSetTimeout(r, slow(300)));
 const turn = (start: string) => fake.turns.find((t) => t.text.startsWith(start));
+// Le tour d'une nouvelle demande (une action de la conversation qui lit {{text}}, sans étape) : son gabarit finit par le texte.
+const request = (text: string) => fake.turns.find((t) => t.text.startsWith('/vibecoder:nouvelle-demande') && t.text.endsWith(` ${text}`));
 const actionsJson = () => JSON.parse(fs.readFileSync(path.join(out, 'actions.json'), 'utf8'));
 let out = '';
 
@@ -160,7 +162,7 @@ async function orchestratorAsks(name: string, text = '{}') {
 describe('la fin d’une course', () => {
   it('l’avis part à la conversation, gardé tant qu’elle travaille ; la course fermée, dans actions.json', async () => {
     const { runVibeAction } = await open();
-    runVibeAction('ask', { text: 'une question' });
+    runVibeAction('new-request', { text: 'une question' });
     runVibeAction('forme', {});
     await settle();
 
@@ -170,7 +172,7 @@ describe('la fin d’une course', () => {
     expect(fake.turns.filter((t) => t.text.startsWith('VibeCoder'))).toEqual([]);
     expect(actionsJson().runs).toMatchObject([{ id: 'forme', state: 'done', reply: 'Forme posée', reads: false }]);
 
-    turn('une question')!.finish('réponse');
+    request('une question')!.finish('réponse');
     await settle();
     // libre : l'avis part, dans sa conversation (pas de suivi des fichiers : ce n'est pas une course)
     const notice = turn('VibeCoder');
@@ -185,7 +187,7 @@ describe('la fin d’une course', () => {
     const cfg = loadConfig();
     const defs = vibeActions(vibeLang(cfg));
     const agent = agentList(cfg)[0];
-    for (const id of ['ponytail', 'ci']) startRun(agent, defs.find((d) => d.id === id)!, `/vibecoder:${id}`, cfg);
+    for (const id of ['ponytail', 'ci']) startRun(agent, defs.find((d) => d.id === id)!, { text: `/vibecoder:${id}`, images: [] }, cfg);
     await settle();
     turn('/vibecoder:ponytail')!.finish('a');
     turn('/vibecoder:ci')!.finish('b');
@@ -213,7 +215,7 @@ describe('la fin d’une course', () => {
     const cfg = loadConfig();
     const defs = vibeActions(vibeLang(cfg));
     const agent = agentList(cfg)[0];
-    expect(startRun(agent, defs.find((d) => d.id === 'module')!, '/vibecoder:module src/a.ts', cfg, 'src/a.ts')).toEqual({ ok: true });
+    expect(startRun(agent, defs.find((d) => d.id === 'module')!, { text: '/vibecoder:module src/a.ts', images: [] }, cfg, 'src/a.ts')).toEqual({ ok: true });
     expect(lockingRuns('a1')).toEqual([{ id: 'module', reads: false, module: 'src/a.ts' }]);
   });
 
@@ -223,7 +225,7 @@ describe('la fin d’une course', () => {
     const { agentList, vibeLang } = await import('core/config');
     const cfg = loadConfig();
     const def = vibeActions(vibeLang(cfg)).find((d) => d.id === 'forme')!;
-    expect(startRun(agentList(cfg)[0], def, '/vibecoder:forme', cfg)).toEqual({ ok: true });
+    expect(startRun(agentList(cfg)[0], def, { text: '/vibecoder:forme', images: [] }, cfg)).toEqual({ ok: true });
     expect(lockingRuns('a1')).toEqual([{ id: 'forme', reads: false, module: null }]);
   });
 });
@@ -237,7 +239,7 @@ describe('une course dont le skill a context: fork', () => {
     write(path.join(vibePluginDir(), 'skills', id, 'SKILL.md'), `---\nname: ${id}\n${head}---\n`);
     const cfg = loadConfig();
     const def = vibeActions(vibeLang(cfg)).find((d) => d.id === id)!;
-    expect(startRun(agentList(cfg)[0], def, `/vibecoder:${id}`, cfg)).toEqual({ ok: true });
+    expect(startRun(agentList(cfg)[0], def, { text: `/vibecoder:${id}`, images: [] }, cfg)).toEqual({ ok: true });
     await settle();
     return turn(`/vibecoder:${id}`)!;
   };
@@ -398,7 +400,7 @@ describe('l’avancement d’une course (note 0.13.0)', () => {
     const cfg = loadConfig();
     const defs = vibeActions(vibeLang(cfg));
     const agent = agentList(cfg)[0];
-    expect(startRun(agent, defs.find((d) => d.id === 'modules')!, '/vibecoder:modules', cfg)).toEqual({ ok: true });
+    expect(startRun(agent, defs.find((d) => d.id === 'modules')!, { text: '/vibecoder:modules', images: [] }, cfg)).toEqual({ ok: true });
     await settle();
     const modules = turn('/vibecoder:modules')!;
 
@@ -415,7 +417,7 @@ describe('l’avancement d’une course (note 0.13.0)', () => {
 
     expect(runsOf(agent)).toMatchObject([{ id: 'modules', state: 'done', total: 0, progress: { wave: 1, done: 1, total: 0, fixes: 0, opus: true } }]);
 
-    expect(startRun(agent, defs.find((d) => d.id === 'forme')!, '/vibecoder:forme', cfg)).toEqual({ ok: true });
+    expect(startRun(agent, defs.find((d) => d.id === 'forme')!, { text: '/vibecoder:forme', images: [] }, cfg)).toEqual({ ok: true });
     expect(runsOf(agent).find((r) => r.id === 'forme')?.progress).toBeUndefined();
   });
 
@@ -426,7 +428,7 @@ describe('l’avancement d’une course (note 0.13.0)', () => {
     const { agentList, vibeLang } = await import('core/config');
     const cfg = loadConfig();
     const agent = agentList(cfg)[0];
-    expect(startRun(agent, vibeActions(vibeLang(cfg)).find((d) => d.id === 'modules')!, '/vibecoder:modules', cfg)).toEqual({ ok: true });
+    expect(startRun(agent, vibeActions(vibeLang(cfg)).find((d) => d.id === 'modules')!, { text: '/vibecoder:modules', images: [] }, cfg)).toEqual({ ok: true });
     await settle();
     const modules = turn('/vibecoder:modules')!;
     modules.emit({ type: 'assistant', message: { id: 'm1', content: [{ type: 'tool_use', id: 't1', name: 'Agent', input: {} }] } });
@@ -445,7 +447,7 @@ describe('l’avancement d’une course (note 0.13.0)', () => {
 describe('arrêter une course', () => {
   it('la demande d’arrêt part à son processus, pas à la conversation ; arrêtée, elle retient encore', async () => {
     const { runVibeAction, vibeRunOp } = await open();
-    runVibeAction('ask', { text: 'une question' });
+    runVibeAction('new-request', { text: 'une question' });
     runVibeAction('forme', {});
     await settle();
 
@@ -453,7 +455,7 @@ describe('arrêter une course', () => {
     await settle();
 
     expect(turn('/vibecoder:forme')!.interrupted).toBe(true);
-    expect(turn('une question')!.done).toBe(false);
+    expect(request('une question')!.done).toBe(false);
     expect(actionsJson().runs).toMatchObject([{ id: 'forme', state: 'stopped' }]);
     expect(runVibeAction('invariants', {})).toMatchObject({ ok: false });
     expect(turn('VibeCoder')).toBeUndefined();   // arrêtée par l'utilisateur : pas une fin
@@ -617,21 +619,21 @@ describe('le mode Vibe', () => {
 
   it('en cours : une question ouverte le garde, fini seul quand la conversation finit son tour sans rien d’ouvert', async () => {
     const { refreshVibe, runVibeAction, vibeOn, vibeStart } = await open();
-    runVibeAction('ask', { text: 'une question' });
+    runVibeAction('new-request', { text: 'une question' });
     vibeStart({ id: 'a1' });
     await settle();
     // écrite pendant le tour qui finit, sans relevé entre-temps : lue quand même
     write(path.join(out, 'questions.md'), '## 1. Une question ?\n');
-    turn('une question')!.finish('ok');
+    request('une question')!.finish('ok');
     await settle();
     expect(vibeOn('a1')).toBe(true);
 
     fs.rmSync(path.join(out, 'questions.md'));
     await refreshVibe({ now: true });
-    runVibeAction('ask', { text: 'encore' });
+    runVibeAction('new-request', { text: 'encore' });
     await settle();
     expect(vibeOn('a1')).toBe(true);   // la conversation travaille
-    turn('encore')!.finish('ok');
+    request('encore')!.finish('ok');
     // fini au relevé qui suit le tour (ses lectures git, lentes sur un runner Windows)
     for (let i = 0; i < 30 && vibeOn('a1'); i++) await settle();
     expect(vibeOn('a1')).toBe(false);
@@ -641,11 +643,11 @@ describe('le mode Vibe', () => {
     const { runVibeAction, vibeOn, vibeStart } = await open();
     const { state } = await import('app/state');
     const { vibeStore } = await import('app/settings');
-    runVibeAction('ask', { text: 'une question' });
+    runVibeAction('new-request', { text: 'une question' });
     await settle();
     state.panel!.hide();
     vibeStart({ id: 'a1' });
-    turn('une question')!.finish('ok');
+    request('une question')!.finish('ok');
     // fini au relevé forcé qui suit le tour (ses lectures git, lentes sur un runner Windows)
     for (let i = 0; i < 30 && vibeOn('a1'); i++) await settle();
     expect(vibeOn('a1')).toBe(false);

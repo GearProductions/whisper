@@ -3,7 +3,8 @@
  *  Lancer (startRun : si aucune course vivante ni action directe en cours ne
  *  la retient, blockedBy ; elle retient le module qu'elle génère, Run.module,
  *  pour codeLock ; le robot suit dès le départ ; un processus neuf, suivi des fichiers écrits ;
- *  modèle et effort du skill que son message appelle, sinon ceux de l'agent ; answers reprend la session de la course de la note),
+ *  le message part avec ses images ({ text, images }) ;
+ *  modèle et effort du skill que son texte appelle, sinon ceux de l'agent ; answers reprend la session de la course de la note),
  *  suivre (son état d'après runPhase : en cours tant que son processus travaille ou que le runtime lui voit des
  *  tâches de fond — hors repos, le plus haut des comptes, runTasks —, aucune limite de temps ; son avancement,
  *  Run.progress d'après les tâches du runtime et le total de modules restants au départ (action modules), gardé
@@ -39,6 +40,7 @@ import path from 'node:path';
 import type { RunSignal, SendResult, VibeRunOp, VibeView } from 'shared/bridge';
 import { EMPTY_LOG, runProgress, shortTarget, type AgentConfig } from 'core/agents';
 import { agentList, vibeLang, type Config } from 'core/config';
+import type { PreparedImage } from 'core/conversation';
 import {
   blockedBy, cutCommands, cutLine, endNotice, GRACE_MS, headField, LOCKING, nextVibeMode, ownRun, parseQuestions, parseRequest, requestNotice, runKey, skillModel,
   remainingModules, runPhase, runsFile, runSignal, runTasks, type ActionDef, type Run, type RunState, type VibeMode,
@@ -114,11 +116,13 @@ function save(agentId: string) {
   } catch (err) { console.error(`VibeCoder : actions.json (${err instanceof Error ? err.message : err})`); }
 }
 
-// Lance l'action `def` (son message déjà rempli) dans sa course, si aucune course vivante ni action directe
-// en cours de l'agent ne la retient. Modèle et effort : ceux du skill que le message appelle (la variante
-// du modèle choisi à l'écran, /vibecoder:<nom>--<modèle>), sinon ceux de l'agent. `module` : celui qu'elle
-// génère (runModule), retenu tant qu'elle court.
-export function startRun(agent: AgentConfig, def: ActionDef, message: string, cfg: Config, module: string | null = null): SendResult {
+// Lance l'action `def` (son message déjà rempli : le texte, et les images qui partent avec lui) dans sa course,
+// si aucune course vivante ni action directe en cours de l'agent ne la retient. Modèle et effort : ceux du skill
+// que le texte appelle (la variante du modèle choisi, /vibecoder:<nom>--<modèle>), sinon ceux de l'agent.
+// `module` : celui qu'elle génère (runModule), retenu tant qu'elle court.
+export function startRun(
+  agent: AgentConfig, def: ActionDef, message: { text: string; images: PreparedImage[] }, cfg: Config, module: string | null = null,
+): SendResult {
   const lang = vibeLang(cfg);
   const held = blockedBy(def, [...lockingRuns(agent.id), ...directLocks(agent.id, vibeActions(lang))], lang);
   if (held) return { ok: false, error: held };
@@ -126,7 +130,7 @@ export function startRun(agent: AgentConfig, def: ActionDef, message: string, cf
   const key = runKey(def.id);
   const runs = all.get(agent.id) ?? new Map<string, Live>();
   all.set(agent.id, runs);
-  const md = skillMd(message);
+  const md = skillMd(message.text);
   const forked = headField(md, 'context') === 'fork';
   const run: Live = {
     id: def.id, key, since: Date.now(), end: null, state: 'running', reply: '', reads: !!def.reads, seen: false, forked, tasks: 0, noticed: null, module,
@@ -141,7 +145,7 @@ export function startRun(agent: AgentConfig, def: ActionDef, message: string, cf
   };
   // Un processus neuf par course : rewind ramène au premier message de CELLE-CI.
   // Ses tâches de fond oubliées : celles d'une course précédente, tuée en route, la tiendraient en cours.
-  agents.close(entry.id).then(() => agents.forgetReply(entry.id)).then(() => agents.send(entry, { text: message, images: [] }, {
+  agents.close(entry.id).then(() => agents.forgetReply(entry.id)).then(() => agents.send(entry, message, {
     ...launchOptions(agent, cfg), checkpoint: true,
     // Un fork qui lance une commande de fond la verrait tuée à sa réponse : il l'attend au premier plan.
     // env remplace celui du processus (le SDK ne fusionne pas) : process.env recopié.
