@@ -1,6 +1,6 @@
 {
   "name": "whisper-dictation",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "VibeCoder dans une fenêtre : des agents Claude Code qui suivent le guide du dépôt, la dictée locale (whisper.cpp) dans chaque champ et la lecture à voix haute des réponses",
   "main": "out/main/index.js",
   "scripts": {
