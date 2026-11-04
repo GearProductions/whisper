@@ -31,6 +31,10 @@
 .vc-ialign:not([open]) > summary { border-bottom: 0; }
 .vc-ialign > .vc-card-body { max-height: 320px; overflow-y: auto; }
 
+/* ---- La vue IDE : les tests à gauche (ide-view), le fichier choisi au centre ---------------- */
+.vc-iide .vc-ifile { margin: 0; padding: 0 var(--vc-pad, 12px) 12px; }
+.vc-iide .vc-ifile-head { top: 0; margin: 0 calc(-1 * var(--vc-pad, 12px)) 8px; padding: 0 var(--vc-pad, 12px); background: var(--vc-card); }
+
 /* ---- Un fichier --------------------------------------------------------------- */
 .vc-ifile { margin: 0 0 15px; }
 .vc-ifile-head {
