@@ -1,0 +1,9 @@
+/* Le champ de saisie (prompt-field) : dans le cadre .vc-prompt (prompt-tools.css), Joindre sans cadre au
+   début, puis une colonne (les pièces au-dessus de la zone de texte), la paire de prompt-tools à la fin.
+   Les pièces (.piece) sont celles de conversation.css. */
+.vc-attach { flex: none; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--vc-muted); cursor: pointer; }
+.vc-attach:hover { background: var(--vc-hover); color: var(--vc-text); }
+.vc-attach svg { width: 16px; height: 16px; }
+.vc-prompt-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.vc-prompt-body > textarea { width: 100%; box-sizing: border-box; margin: 0; padding: 4px 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; outline: none; resize: none; }
+.vc-pieces { display: flex; flex-wrap: wrap; gap: 6px; }
