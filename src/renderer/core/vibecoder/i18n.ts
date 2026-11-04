@@ -3,11 +3,10 @@
  *  infobulle : plus de mode Créer / Relire, l'appli décide du rôle), le fil
  *  d'Ariane des étapes (son aria-label journey, « N commits » à son bout),
  *  étapes (toutes s'ouvrent), l'interrupteur IDE / liste de Modules et Structure / Code de Forme, Relancer, Arrêter, onglets Conversation /
- *  Actions / Tâches / Processus, la bannière du mode Vibe (en cours,
- *  Arrêter Vibe), le champ d'une étape, la ponytail review lancée avec les
+ *  Actions / Tâches / Processus, Arrêter Vibe (le fil d'Ariane), le champ d'une étape, la ponytail review lancée avec les
  *  vérifications,
  *  l'onglet Actions (états d'une course, Garder / Annuler, Autoriser /
- *  Toujours / Refuser), choix du modèle, zone de commentaire, barre d'état
+ *  Toujours / Refuser), zone de commentaire, barre d'état
  *  (« N actions en cours »),
  *  titres des sorties ; le code d'un module (Enregistrer, fichier trop gros) ; le panneau
  *  Artefacts (son bouton, la liste vide, Copier dans le projet, l'arborescence :
@@ -19,14 +18,19 @@
  *  actions, « tenue par », indications de fin de ligne, aide des touches),
  *  le groupe des robots des agents, « Étape … · état », + Nouvel agent ;
  *  le micro et Envoyer d'un champ, l'historique (🕘, Conversation en
- *  cours) et l'accueil sans agent (son bouton est paletteActions['new-agent']). Ceux des boutons viennent des
+ *  cours) et l'accueil sans agent (son bouton est paletteActions['new-agent']) ;
+ *  la page des réglages (titre de l'engrenage, catégories, chaque réglage, information et commande). Ceux des boutons viennent des
  *  actions (actions.<langue>.json).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
-import type { AgentActivity, AgentView, VibeLang, VibeRun, VibeRunProgress, VibeStepId } from 'technicals/bridge';
+import type {
+  AgentActivity, AgentView, SettingKey, SettingsCategory, SettingsCommand, SettingsInfo, VibeLang, VibeRun, VibeRunProgress, VibeStepId,
+} from 'technicals/bridge';
 import type { MenuEntry } from './artifact-clipboard';
 import type { NameProblem } from './artifact-tree';
 
 type Choices = [string, string][]; // [valeur, libellé]
+// Un réglage de la page ; `model:<id>` et `effort:<id>` (une action) prennent le libellé de l'élément.
+export type FixedSettingKey = Exclude<SettingKey, `model:${string}` | `effort:${string}`>;
 export type PaletteAction = 'new-agent' | 'create-branch' | 'branches' | 'stash';
 
 // L'avancement d'une course, partie par partie : une partie à 0 ou fausse est absente.
@@ -42,6 +46,15 @@ const progressParts = (p: VibeRunProgress, l: { wave: string; modules: string; f
 
 const fr = {
   locale: 'fr-FR',
+  // Retirés avec la colle (ceux qui les utilisent encore).
+  langTitle: 'Langue de l\'écran et des messages envoyés à l\'agent',
+  fix: 'Retour → fixup',
+  fixTitle: 'Citer ces lignes dans un retour à corriger en fixup du module',
+  recommended: (m: string) => `${m} · conseillé`,
+  pickTitle: 'Le modèle qui fait cette étape : le conseillé par défaut, un plus léger coûte moins',
+  effortDefault: 'effort par défaut',
+  vibeOn: 'Vibe en cours : l\'agent enchaîne les étapes ; une question qui bloque vous attend à l\'étape Note',
+  settings: '⚙ Réglages',
   steps: {
     note: 'Note', forme: 'Forme', invariants: 'Invariants', modules: 'Modules', revue: 'Revue', pr: 'PR',
   } as Record<VibeStepId, string>,
@@ -51,7 +64,6 @@ const fr = {
   reviewer: 'Relecteur',
   reviewerTitle: 'Vous relisez la PR d\'un autre : rien ne s\'édite ici. S\'assigner la PR, dans l\'étape PR, pour la modifier.',
   screenTitle: 'Relire à l\'écran',
-  langTitle: 'Langue de l\'écran et des messages envoyés à l\'agent',
   refresh: 'Relever maintenant (dépôt, note, sorties)',
   reloadUi: 'Recharger l\'interface',
   reloadUiTitle: 'Les pages ont été reconstruites : recharger la fenêtre avec elles. Le principal et les agents continuent.',
@@ -71,8 +83,6 @@ const fr = {
   retry: 'Réessayer',
   openTitle: 'Ouvrir dans l\'éditeur',
   quote: 'Citer dans le champ',
-  fix: 'Retour → fixup',
-  fixTitle: 'Citer ces lignes dans un retour à corriger en fixup du module',
   save: 'Enregistrer',
   saveTitle: 'Enregistrer sur le disque (Ctrl+S)',
   changedOnDisk: 'Le fichier a changé sur le disque',
@@ -94,8 +104,6 @@ const fr = {
   convShow: 'Afficher la conversation',
   convHide: 'Masquer la conversation',
   convResize: 'Largeur de la conversation (glisser, ou flèches gauche et droite)',
-  recommended: (m: string) => `${m} · conseillé`,
-  pickTitle: 'Le modèle qui fait cette étape : le conseillé par défaut, un plus léger coûte moins',
   diffTitle: 'Ouvrir le diff de ce commit dans l\'éditeur',
   githubTitle: 'Ouvrir la page de ce commit sur GitHub',
   files: (n: number) => (n > 1 ? `${n} fichiers` : n ? '1 fichier' : 'aucun fichier'),
@@ -109,7 +117,6 @@ const fr = {
   mode: 'Mode',
   modelTitle: 'Le modèle de l\'agent, comme dans son menu',
   effortTitle: 'L\'effort de l\'agent, comme dans son menu',
-  effortDefault: 'effort par défaut',
   runProgress: (p: VibeRunProgress) => progressParts(p, {
     wave: 'vague', modules: 'modules', fixes: (n) => `${n} correction${n > 1 ? 's' : ''}`, opus: 'relance Opus',
   }),
@@ -142,7 +149,6 @@ const fr = {
   undo: 'Annuler', undoTitle: 'Remettre les fichiers qu\'elle a écrits dans leur état d\'avant (et eux seuls)',
   fieldHint: 'Dictez ou écrivez ici la demande, puis cliquez sur l\'action : elle part avec.',
   ponytailWithChecks: 'Lancée avec les vérifications.',
-  vibeOn: 'Vibe en cours : l\'agent enchaîne les étapes ; une question qui bloque vous attend à l\'étape Note',
   vibeStop: 'Arrêter Vibe',
   vibeStopTitle: 'La course en cours finit, la suivante ne part pas',
   changed: (n: number) => (n > 1 ? `${n} fichiers modifiés` : `${n} fichier modifié`),
@@ -174,7 +180,40 @@ const fr = {
   pickerMenu: 'Clic droit : le menu de l\'agent',
   search: 'Chercher',
   searchKeys: 'Ctrl K',
-  settings: '⚙ Réglages',
+  attach: 'Joindre…',
+  attachTitle: 'Joindre des images, des fichiers ou le texte sélectionné (aussi : glisser-déposer, Ctrl+V)',
+  removePiece: 'Retirer',
+  settingsTitle: 'Réglages',
+  settingsCategories: 'Catégories',
+  settingsCategory: {
+    dictation: 'Dictée', speech: 'Lecture à voix haute', interface: 'Interface', actions: 'Actions', agents: 'Agents', general: 'Général',
+  } as Record<SettingsCategory, string>,
+  settingLabel: {
+    lang: 'Langue de dictée', vocabulary: 'Vocabulaire', sound: 'Bip de début / fin',
+    muteOthers: 'Couper le son des autres applications pendant la dictée',
+    discordMute: 'Autoriser la coupure du micro Discord',
+    speakLang: 'Langue du texte', 'speakVoice:fr': 'Voix française', 'speakVoice:en': 'Voix anglaise', speakVolume: 'Volume',
+    vibeLang: 'Langue de l\'interface', agentLang: 'Langue de ce qu\'écrivent les agents',
+    artifactTextMax: 'Taille au-delà de laquelle un artefact est tronqué (octets)',
+    agentCommand: 'Commande de lancement', editorCommand: 'Éditeur', terminalCommand: 'Terminal',
+    vibeCommandPrefix: 'Préfixe des commandes du projet et de gh',
+  } as Record<FixedSettingKey, string>,
+  settingMic: 'Micro',
+  settingMicDefault: 'Micro par défaut du système',
+  settingMicUnnamed: 'Micro sans nom',
+  settingInfo: { whisperModel: 'Modèle whisper', agentFound: 'Claude Code', editor: 'Éditeur', version: 'Version' } as Record<SettingsInfo, string>,
+  settingInfoValue: {
+    agentMissing: 'Claude Code introuvable', editorMissing: 'Aucun éditeur trouvé', whisperMissing: 'whisper non installé',
+    downloading: (percent: number) => `téléchargement ${percent} %`,
+  },
+  settingRun: {
+    installTts: 'Installer Pocket TTS (~400 Mo)', restoreSound: 'Rétablir le son et le micro Discord (dépannage)',
+    whisperDir: 'Ouvrir le dossier whisper', configFile: 'Modifier la configuration (vocabulaire…)',
+    instructions: 'Modifier la consigne des agents (résumé audio)…', journal: 'Ouvrir le journal des agents (tours, autorisations)',
+    vibeDir: 'Dossier de VibeCoder', releases: 'À propos : page de la version', quit: 'Quitter',
+  } as Record<SettingsCommand, string>,
+  vibe: 'Vibe',
+  vibeTitle: 'Enchaîner les étapes avec l\'agent',
   paletteHint: 'Un agent, une branche, une PR, une action…',
   paletteScopes: { all: 'Tout', agents: 'Agents', branches: 'Branches', prs: 'PR' },
   paletteGroups: { branches: 'Branches', prs: 'Pull requests', actions: 'Actions' },
@@ -217,6 +256,14 @@ export type Strings = typeof fr;
 
 const en: Strings = {
   locale: 'en-GB',
+  langTitle: 'Language of the screen and of the messages sent to the agent',
+  fix: 'Feedback → fixup',
+  fixTitle: 'Quote these lines in a feedback to fix as a fixup of the module',
+  recommended: (m) => `${m} · recommended`,
+  pickTitle: 'The model doing this step: the recommended one by default, a lighter one costs less',
+  effortDefault: 'default effort',
+  vibeOn: 'Vibe in progress: the agent chains the steps; a blocking question waits for you at the Note step',
+  settings: '⚙ Settings',
   steps: {
     note: 'Note', forme: 'Shape', invariants: 'Invariants', modules: 'Modules', revue: 'Review', pr: 'PR',
   },
@@ -226,7 +273,6 @@ const en: Strings = {
   reviewer: 'Reviewer',
   reviewerTitle: 'You are reviewing someone else\'s PR: nothing is editable here. Assign the PR to yourself, in the PR step, to change it.',
   screenTitle: 'Review on screen',
-  langTitle: 'Language of the screen and of the messages sent to the agent',
   refresh: 'Refresh now (repository, note, outputs)',
   reloadUi: 'Reload the interface',
   reloadUiTitle: 'The pages were rebuilt: reload the window with them. The main process and the agents keep going.',
@@ -246,8 +292,6 @@ const en: Strings = {
   retry: 'Retry',
   openTitle: 'Open in the editor',
   quote: 'Quote in the field',
-  fix: 'Feedback → fixup',
-  fixTitle: 'Quote these lines in a feedback to fix as a fixup of the module',
   save: 'Save',
   saveTitle: 'Save to disk (Ctrl+S)',
   changedOnDisk: 'The file changed on disk',
@@ -269,8 +313,6 @@ const en: Strings = {
   convShow: 'Show the conversation',
   convHide: 'Hide the conversation',
   convResize: 'Width of the conversation (drag, or left and right arrows)',
-  recommended: (m) => `${m} · recommended`,
-  pickTitle: 'The model doing this step: the recommended one by default, a lighter one costs less',
   diffTitle: 'Open this commit\'s diff in the editor',
   githubTitle: 'Open this commit\'s page on GitHub',
   files: (n) => (n > 1 ? `${n} files` : n ? '1 file' : 'no file'),
@@ -284,7 +326,6 @@ const en: Strings = {
   mode: 'Mode',
   modelTitle: 'The agent\'s model, as in its menu',
   effortTitle: 'The agent\'s effort, as in its menu',
-  effortDefault: 'default effort',
   runProgress: (p) => progressParts(p, {
     wave: 'wave', modules: 'modules', fixes: (n) => `${n} fix${n > 1 ? 'es' : ''}`, opus: 'Opus retry',
   }),
@@ -317,7 +358,6 @@ const en: Strings = {
   undo: 'Undo', undoTitle: 'Put the files it wrote back as they were (and only those)',
   fieldHint: 'Dictate or type the request here, then click the action: it goes with it.',
   ponytailWithChecks: 'Started with the checks.',
-  vibeOn: 'Vibe in progress: the agent chains the steps; a blocking question waits for you at the Note step',
   vibeStop: 'Stop Vibe',
   vibeStopTitle: 'The running action finishes, the next one does not start',
   changed: (n) => `${n} file${n === 1 ? '' : 's'} changed`,
@@ -348,7 +388,40 @@ const en: Strings = {
   pickerMenu: 'Right-click: the agent menu',
   search: 'Search',
   searchKeys: 'Ctrl K',
-  settings: '⚙ Settings',
+  attach: 'Attach…',
+  attachTitle: 'Attach images, files or the selected text (also: drag and drop, Ctrl+V)',
+  removePiece: 'Remove',
+  settingsTitle: 'Settings',
+  settingsCategories: 'Categories',
+  settingsCategory: {
+    dictation: 'Dictation', speech: 'Read aloud', interface: 'Interface', actions: 'Actions', agents: 'Agents', general: 'General',
+  },
+  settingLabel: {
+    lang: 'Dictation language', vocabulary: 'Vocabulary', sound: 'Start / end beep',
+    muteOthers: 'Mute other applications while dictating',
+    discordMute: 'Allow muting the Discord microphone',
+    speakLang: 'Text language', 'speakVoice:fr': 'French voice', 'speakVoice:en': 'English voice', speakVolume: 'Volume',
+    vibeLang: 'Interface language', agentLang: 'Language of what the agents write',
+    artifactTextMax: 'Size beyond which an artifact is truncated (bytes)',
+    agentCommand: 'Launch command', editorCommand: 'Editor', terminalCommand: 'Terminal',
+    vibeCommandPrefix: 'Prefix of the project commands and gh',
+  },
+  settingMic: 'Microphone',
+  settingMicDefault: 'System default microphone',
+  settingMicUnnamed: 'Unnamed microphone',
+  settingInfo: { whisperModel: 'Whisper model', agentFound: 'Claude Code', editor: 'Editor', version: 'Version' },
+  settingInfoValue: {
+    agentMissing: 'Claude Code not found', editorMissing: 'No editor found', whisperMissing: 'whisper not installed',
+    downloading: (percent) => `downloading ${percent} %`,
+  },
+  settingRun: {
+    installTts: 'Install Pocket TTS (~400 MB)', restoreSound: 'Restore the sound and the Discord microphone (troubleshooting)',
+    whisperDir: 'Open the whisper folder', configFile: 'Edit the configuration (vocabulary…)',
+    instructions: 'Edit the agents\' instructions (audio summary)…', journal: 'Open the agents\' journal (turns, permissions)',
+    vibeDir: 'VibeCoder folder', releases: 'About: the version page', quit: 'Quit',
+  },
+  vibe: 'Vibe',
+  vibeTitle: 'Chain the steps with the agent',
   paletteHint: 'An agent, a branch, a PR, an action…',
   paletteScopes: { all: 'All', agents: 'Agents', branches: 'Branches', prs: 'PRs' },
   paletteGroups: { branches: 'Branches', prs: 'Pull requests', actions: 'Actions' },
