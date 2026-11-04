@@ -5,10 +5,8 @@
  *  Ctrl+S → onSave (editorBase) ; en lecture seule sans `edit` ou si `locked` (le motif, en
  *  titre). Un code changé par les props remplace le document. Avec `onQuote` :
  *  un clic sur une ligne ou une sélection, puis le bouton-icône commentaire
- *  (IconButton, icons.tsx ; libellé t.quote) ou le bouton texte Retour → fixup
- *  (vc-mini) citent ses lignes entières (codeBlock), grisés sans sélection ;
- *  `fix` à false (un fichier d'un commit) : commentaire seul, sans Retour →
- *  fixup. Libellés : `t` (français par défaut).
+ *  (IconButton, icons.tsx ; libellé t.quote) cite ses lignes entières
+ *  (codeBlock), grisé sans sélection. Libellés : `t` (français par défaut).
  *  `tools` : des boutons de plus, à la fin de la rangée vc-src-tools (la rangée est
  *  montrée si onQuote ou tools) ; sans, rendu inchangé.
  *  Le défilement est celui de l'éditeur : .vc-src n'est qu'un cadre, la hauteur
@@ -16,7 +14,7 @@
  *  .cm-scroller qui défile, avec la barre de l'appli (.scroll).
  *  Ne connaît pas : le pont, le relevé, la note.
  *  Utilisé par : invariants-view (Code, Voir le fichier), module-code (Voir le
- *  code), note-view (Brut), commit-file (un fichier d'un commit, fix false). */
+ *  code), note-view (Brut), commit-file (un fichier d'un commit). */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Compartment, EditorState } from '@codemirror/state';
 import { EditorView, lineNumbers } from '@codemirror/view';
@@ -26,14 +24,13 @@ import { IconButton } from './icons';
 
 export type CodeEdit = { locked: string | null; onChange(text: string): void; onSave(): void };
 
-export function CodeView({ code, path, from = 1, at, edit, onQuote, fix = true, tools, t = strings('fr') }: {
+export function CodeView({ code, path, from = 1, at, edit, onQuote, tools, t = strings('fr') }: {
   code: string;
   path: string;
   from?: number;
   at?: number;
   edit?: CodeEdit;
-  onQuote?(block: string, id: 'comment' | 'fix'): void;
-  fix?: boolean;
+  onQuote?(block: string): void;
   tools?: ReactNode;
   t?: Strings;
 }): ReactNode {
@@ -84,11 +81,11 @@ export function CodeView({ code, path, from = 1, at, edit, onQuote, fix = true, 
     v.dispatch({ effects: EditorView.scrollIntoView(line.from, { y: 'start' }) });
   }, [at, from, path]);
 
-  const quote = (id: 'comment' | 'fix') => {
+  const quote = () => {
     const v = view.current;
     if (!v) return;
     const { anchor, head } = v.state.selection.main;
-    onQuote!(codeBlock(v.state.doc.toString(), anchor, head), id);
+    onQuote!(codeBlock(v.state.doc.toString(), anchor, head));
   };
   return (
     <>
@@ -96,8 +93,7 @@ export function CodeView({ code, path, from = 1, at, edit, onQuote, fix = true, 
         aria-label={path} />
       {onQuote || tools ? (
         <div className="vc-src-tools">
-          {onQuote ? <IconButton icon="comment" label={t.quote} disabled={!picked} onClick={() => quote('comment')} /> : null}
-          {onQuote && fix ? <button type="button" className="vc-mini" title={t.fixTitle} disabled={!picked} onClick={() => quote('fix')}>{t.fix}</button> : null}
+          {onQuote ? <IconButton icon="comment" label={t.quote} disabled={!picked} onClick={quote} /> : null}
           {tools}
         </div>
       ) : null}

@@ -125,7 +125,7 @@ function IdeBody({ p, file }: { p: StepProps; file: IdeFile | null }) {
       {file?.code ? null : tools}
       {file?.code ? (
         <ModuleCode key={file.path} m={file.code} tools={tools} noTree readOnly={view.flow === 'review' ? S[view.lang].readOnly : undefined} code={p.code} t={t} lang={view.lang} open
-          onFollow={act.follow} onSave={act.save} onQuote={(block, id) => act.prefill(id, block, true)} drafts={p.drafts} />
+          onFollow={act.follow} onSave={act.save} onQuote={(block) => act.prefill('comment', block, true)} drafts={p.drafts} />
       ) : null}
     </>
   );
@@ -226,7 +226,7 @@ export function ModulesView(p: StepProps) {
                     <Contract text={m.contract} t={t} onOpenLink={act.openLink} />
                     {m.touched ? (
                       <ModuleCode m={m} readOnly={reviewer ? s.readOnly : undefined} code={p.code} t={t} lang={view.lang} open={open} onFollow={act.follow} onSave={act.save}
-                        onQuote={(block, id) => act.prefill(id, block, true)} drafts={p.drafts} />
+                        onQuote={(block) => act.prefill('comment', block, true)} drafts={p.drafts} />
                     ) : null}
                   </details>
                 </li>

@@ -4,7 +4,7 @@
  *  (at.commit.before ?? '' → after ?? '') · Diff depuis
  *  la base de la PR (at.base ?? '' → at.head ?? '') ; avec un diff, En ligne ·
  *  Côte à côte (en ligne d'abord). Fichier : CodeView en lecture seule (sans
- *  edit, ni Enregistrer ni Ctrl+S), fix false, 💬 → onQuote(block) ; un diff :
+ *  edit, ni Enregistrer ni Ctrl+S), 💬 → onQuote(block) ; un diff :
  *  ModuleDiffView ; text null : « absent à la tête de la PR, ou trop gros ».
  *  En texte, jamais en HTML (I-40). Libellés ici, par lang.
  *  Ne connaît pas : le pont, git, le brouillon.
@@ -48,7 +48,7 @@ export function CommitFile({ file, code, lang, t, onQuote }: {
       ) : null}
       {!mine ? null
         : diff ? <ModuleDiffView before={diff[0]} after={diff[1]} path={file.path} mode={mode} lang={lang} />
-        : mine.text != null ? <CodeView code={mine.text} path={file.path} fix={false} t={t} onQuote={(block) => onQuote(block)} />
+        : mine.text != null ? <CodeView code={mine.text} path={file.path} t={t} onQuote={(block) => onQuote(block)} />
         : <div className="vc-empty">{S[lang].none}</div>}
     </>
   );

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 // CodeView (code-view.tsx) : Ctrl+S → onSave, sauf grisé ; le code changé par les props
 // remplace le document ; le bouton-icône commentaire (nommé, svg) cite les lignes entières de la
-// sélection ; fix false : commentaire seul ; .cm-scroller défile, pas .vc-src.
+// sélection (onQuote(block) seul, pas de Retour → fixup) ; .cm-scroller défile, pas .vc-src.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EditorView } from '@codemirror/view';
@@ -71,11 +71,9 @@ it("le défilement est celui de l'éditeur : .cm-scroller porte la barre, .vc-sr
   expect(v.page.querySelector('.vc-src')!.classList.contains('scroll')).toBe(false);
 });
 
-it('fix false : commentaire seul, sans Retour → fixup', async () => {
+it('onQuote : le seul bouton est le commentaire, sans Retour → fixup', async () => {
   const v = mount();
   await v.render({ code: 'a', path: 'src/a.ts', onQuote: () => {} });
-  expect(v.page.querySelector('.vc-mini')).not.toBeNull();
-  await v.render({ code: 'a', path: 'src/a.ts', onQuote: () => {}, fix: false });
   expect(v.page.querySelector('.vc-tool')).not.toBeNull();
   expect(v.page.querySelector('.vc-mini')).toBeNull();
 });
