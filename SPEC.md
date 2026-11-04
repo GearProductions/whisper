@@ -4,7 +4,9 @@ Comportement de l'appli (état de la **0.4.0**, inchangé en **0.5.0**, où les
 pages et le principal passent en TypeScript, les pages en React ; corrections
 de la **0.5.1** ; nouveautés de la **0.6.0** ; processus des agents refait et
 volet des tâches de fond en **0.7.0** ; VibeCoder, le flow du guide en un
-écran, en **0.8.0**) : ce qu'elle fait, ce qu'elle ne doit
+écran, en **0.8.0** ; une fenêtre classique qui ne contient que VibeCoder,
+au design de la vue C, en **0.14.0** : plus d'icône flottante, de bulle ni de
+dictée collée au curseur) : ce qu'elle fait, ce qu'elle ne doit
 jamais faire, et comment le vérifier. C'est la référence de la refonte : une
 migration est réussie quand chaque règle ci-dessous tient encore.
 
@@ -23,45 +25,52 @@ les deux.
 
 ### Processus et fenêtres
 
+Une seule fenêtre, depuis la **0.14.0** (`docs/tickets/feat/0.14.0-refonte-vibecoder.md`) :
+
 | Fenêtre | Page (`src/renderer/`) | Pont | Focus | Rôle |
 |---|---|---|---|---|
-| **Icône** | `app/icon/` (`icon-app.tsx`) | `src/preload/icon.ts` | **jamais** (`focusable: false`) | geste, micro, lecteur audio, robots |
-| **Bulle** | `app/bubble/` (`bubble-app.tsx`) | `src/preload/bubble.ts` | **jamais** | messages de l'appli, curseur du volume |
-| **Panneau** | `app/panel/` (`panel-app.tsx`) | `src/preload/panel.ts` | oui (on y écrit) ; jamais pris quand il s'ouvre de lui-même | conversation de l'agent sélectionné (champ de saisie), ou son écran VibeCoder (§ 7 bis), ou contexte « Dictée » |
+| **Panneau** (la fenêtre de l'appli) | `app/panel/` (`panel-app.tsx`) | `src/preload/panel.ts` | oui ; jamais pris quand elle se montre d'elle-même (I-18) | l'écran VibeCoder de l'agent affiché (§ 7 bis), sa conversation en colonne ; le micro de chaque zone de prompt, *Écouter* ; l'accueil sans agent |
+
+Ce document l'appelle encore **le panneau**, comme le code (`app/panel`,
+`state.panel`) : c'est la fenêtre de l'appli. Plus d'icône flottante ni de
+bulle (retirées en 0.14.0).
 
 Les pages sont en React + TypeScript, construites par Vite dans
-`out/renderer/` et chargées en `file://`, rangées en `app/` (fenêtres),
+`out/renderer/` et chargées en `file://`, rangées en `app/` (la fenêtre),
 `core/` (métier), `helpers/`, `technicals/` (ponts, micro, DOM). Le contrat
-des ponts (types et canaux de chaque fenêtre) est dans `src/shared/bridge` ;
-dans chaque page, seul le fichier `*-app.tsx` connaît son pont. Découpage et
-règles : `AGENTS.md`, `docs/tickets/refactor/0.5.0-front-react.md` et
-`0.5.0-main-typescript.md`.
+du pont (types et canaux) est dans `src/shared/bridge` ; seul `panel-app.tsx`
+connaît le pont. Découpage et règles : `AGENTS.md`,
+`docs/tickets/refactor/0.5.0-front-react.md` et `0.5.0-main-typescript.md`.
 
 VibeCoder dans le panneau (`docs/tickets/feat/0.8.0-vibecoder.md`) :
 
 | Module (`src/renderer/`) | Rôle |
 |---|---|
 | `core/vibecoder` | pur : Markdown en blocs (jamais de HTML, liens `http(s)` seuls, I-40), lignes changées (`lineDiff`), coloration du pseudo-code des lectures (`highlight`), ce que cite le *Commenter* de chaque bloc (`blockQuotes`, F-104), les lignes entières d'une sélection (`codeBlock`, F-98), libellés FR et EN |
-| `app/panel/vibecoder/` | l'écran (en-tête, fil d'Ariane des étapes, vues des étapes, leur champ et leurs actions, bannière du mode *Vibe*, conversation, actions lancées, tâches et processus en onglets, barre des skills, barre d'état ; `code-view` : le code d'un fichier, numéroté, coloré, éditable, F-113 ; `module-code` : *Voir le code* d'un module, F-100 ; `note-editor` : la note éditable, F-104 ; `file-draft` : la modification gardée d'un fichier suivi, *Enregistrer*, *Abandonner*, partagée par les trois) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
+| `app/panel/vibecoder/` | l'écran (en-tête de la vue C : les robots des agents, `agent-notices`, la palette Ctrl+K, `palette`, F-92 ; l'accueil sans agent, `no-agent` ; fil d'Ariane des étapes, vues des étapes, leur champ et leurs actions, bannière du mode *Vibe*, conversation, actions lancées, tâches et processus en onglets, barre des skills, barre d'état ; `prompt-tools` : le micro et *Envoyer* de chaque zone de prompt, F-68 ; `code-view` : le code d'un fichier, numéroté, coloré, éditable, F-113 ; `module-code` : *Voir le code* d'un module, F-100 ; `note-editor` : la note éditable, F-104 ; `file-draft` : la modification gardée d'un fichier suivi, *Enregistrer*, *Abandonner*, partagée par les trois) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
 | `technicals/codemirror` | les réglages de CodeMirror 6, sans métier : le langage d'un fichier et la coloration (`languageFor`, `codeHighlight`, F-113), le Markdown mis en forme au fil de la frappe, liseré, pastilles et boutons en gouttière (`live-markdown`, F-104) |
+| `core/switcher` | pur : la palette Ctrl+K (`paletteItems`, portées, `pick` : ce que fait Entrée ou Maj+Entrée), les raccourcis (`shortcut` : Ctrl+K, Ctrl+Tab, Ctrl+N, Ctrl+Maj+B ; `recent`, `lastShown`), les robots de l'en-tête (`agentWhere`, `treeMark`, `signalKeys` : ce qui vient d'apparaître et bipe, F-55) |
+| `core/ui` | le thème de la vue C (`theme.css` : les couleurs en variables, les ombres, les polices Inter et JetBrains Mono embarquées dans `fonts/`, F-92) |
 
-Toutes : sans cadre, hors de la barre des tâches, `contextIsolation`,
-`sandbox`, préchargement minimal (`contextBridge`). Le principal
-(`src/main/`) est le seul à lire la config, toucher au presse-papiers, lancer
-des processus.
+Sans cadre du système (l'en-tête de VibeCoder sert de barre de titre, les
+boutons de la fenêtre sont ceux d'Electron, F-63), dans la barre des tâches,
+`contextIsolation`, `sandbox`, préchargement minimal (`contextBridge`). Le
+principal (`src/main/`) est le seul à lire la config, lire la sélection (le
+trombone, F-69), lancer des processus.
 
 ### Modules du principal (`src/main/`, construit dans `out/main/`)
 
 | Module | Rôle |
 |---|---|
-| `app/lifecycle` | démarrage (une instance, aucun agent sélectionné, permissions), sortie (dont les processus du projet, F-111) |
-| `app/windows` | les trois fenêtres : créer, placer, montrer (icône, bulle, panneau) |
-| `app/controllers` | dictée (coupures, transcription, destination, modèle), lecture, agents, familles (`worktrees.ts` : le rattachement par git, *Ouvrir un agent ici*, le robot d'une PR, l'enfant d'une nouvelle demande, le retrait d'un worktree et de son robot, F-51, F-110 ; `artifacts.ts` : le dossier d'artefacts du projet, son relevé, ce qu'on y ajoute ou en copie, F-95 ; `artifact-migration.ts` : les anciens artefacts déplacés vers ce dossier au démarrage, F-95), contenu du panneau, VibeCoder (`vibecoder.ts` : relevé, actions, réglages, validations, brouillon de revue, fichier à ouvrir ; `processes.ts` : les commandes du projet, F-111 ; `recipe.ts` : la recette du projet — préparer, créer et retirer un worktree —, lancée par l'appli, F-111 ; `runs.ts` : les courses — lancées, suivies, arrêtées, gardées ou annulées, chacune avec le module qu'elle génère —, leur avis de fin à la conversation, les demandes de l'orchestrateur, `actions.json`, F-115 ; `module-code.ts` : le fichier suivi — celui de *Voir le code*, la note ou un test d'invariant —, lu, surveillé, poussé, enregistré au geste, F-100) |
-| `app/menus` | menus de l'icône, des robots, du « + », du trombone |
-| `app/ipc` | une table de gestionnaires par fenêtre, écoutée par `technicals/ipc` |
-| `core/config` | réglages, démarrage, dossiers favoris et couleurs, confiance |
-| `core/dictation` | transcription d'une ligne, destination, collage et presse-papiers |
+| `app/lifecycle` | démarrage (une instance, la fenêtre, l'agent affiché la dernière fois, permissions), sortie (dont les processus du projet, F-111) |
+| `app/windows` | la fenêtre (`panel-window`) : la créer, la montrer sur un agent, son message en tête |
+| `app/controllers` | dictée (coupures, transcription rendue à la page, modèle), lecture d'une réponse, agents (les robots de l'en-tête, les notifications du système), familles (`worktrees.ts` : le rattachement par git, *Ouvrir un agent ici*, le robot d'une PR, l'enfant d'une nouvelle demande, le retrait d'un worktree et de son robot, F-51, F-110 ; `artifacts.ts` : le dossier d'artefacts du projet, son relevé, ce qu'on y ajoute ou en copie, F-95 ; `artifact-migration.ts` : les anciens artefacts déplacés vers ce dossier au démarrage, F-95), contenu du panneau, VibeCoder (`vibecoder.ts` : relevé, actions, réglages, validations, brouillon de revue, fichier à ouvrir ; `processes.ts` : les commandes du projet, F-111 ; `recipe.ts` : la recette du projet — préparer, créer et retirer un worktree —, lancée par l'appli, F-111 ; `runs.ts` : les courses — lancées, suivies, arrêtées, gardées ou annulées, chacune avec le module qu'elle génère —, leur avis de fin à la conversation, les demandes de l'orchestrateur, `actions.json`, F-115 ; `module-code.ts` : le fichier suivi — celui de *Voir le code*, la note ou un test d'invariant —, lu, surveillé, poussé, enregistré au geste, F-100) |
+| `app/menus` | ⚙ Réglages (`main-menu`), menus des robots, du « + », du trombone |
+| `app/ipc` | la table de gestionnaires du panneau, écoutée par `technicals/ipc` |
+| `core/config` | réglages, l'agent affiché (`agentSelected`), dossiers favoris et couleurs, confiance |
+| `core/dictation` | l'enregistrement reçu vérifié (`checkAudio` : trop court, silence, F-4), la transcription d'une ligne (`cleanTranscript`), ses messages |
 | `core/sound` | couper et rétablir ce qu'on a coupé |
+| `core/switcher` | les agents de l'en-tête et de la palette, sans Electron ni disque : par dépôt, chacun son titre, sa branche, son étape, son état (`switcherAgents`, `activityOf`) ; les questions et échecs d'un autre agent que l'affiché, pour une notification du système (`agentEvents`) |
 | `core/family` | les familles d'agents sans Electron, git ni disque (passés) : le `parent` enregistré (`agentParent`, l'ancien `temp` compris), l'enfant créé (`childAgent`), la tête et les groupes affichés (`familyHead`, `familyGroups`), les rattachements d'après git (`familyLinks`, `childOf`, I-41), les worktrees (`parseWorktrees`, `branchOf`), le fichier du projet — celui du parent présent ; un enfant dont le parent est parti n'en a pas — et où tourne une commande, par le `parent` enregistré (`familyOwner`, `heldBy`, I-47) |
 | `core/agents` | processus (un par entrée : l'agent, et chaque course `<agent>~<clé>`, F-115), tours, retour en arrière des fichiers d'une entrée (`rewind`, I-45), tâches de fond, file d'autorisations, interruption, sonde, transcriptions, sessions |
 | `core/conversation` | actions et demandes d'autorisation écrites, pièces jointes, tâches de fond vues par le volet |
@@ -74,7 +83,7 @@ des processus.
 | `technicals/github` | gh en lecture seule, derrière le préfixe (`ghRun`, `githubReader`, `GH_READ`, `GH_LOGIN`) : la PR d'une branche, les PR ouvertes du dépôt en trois listes (`openPrs`), l'état d'une PR, ses personnes (`prPeople` : auteur, assignés), l'identifiant de l'utilisateur (`login`, `okLogin`) (F-112, I-39) |
 | `technicals/direct` | les actions directes (F-114, I-39) : `directRunner` → `commit`, `publish`, `sameRepo`, `loadPr`, `toBase`, `fetchBranch`, `pullBranch`, `switchTo`, `stash`, `pull`, `rebase`, `push`, `fetchAll`, `requestReview`, `assign`, `unassign`, le texte de `pr-<n>.json` (`prCardText`), une liste fermée de commandes (`DIRECT_GIT`, `DIRECT_GH`), 60 s, `direct.log` |
 | `technicals/file-tree` | les artefacts copiés ou déplacés (F-95, I-37, I-39) : `copyInto`, `moveContents`, `hasFiles` ; `fs.promises` seulement, un fichier à la fois, jamais écraser (`COPYFILE_EXCL`), un lien jamais suivi, sans limite de nombre ni de taille |
-| `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `paste`, `windows-helper`, `pipewire`, `clipboard`, `selection`, `pocket-tts`, `claude`, `editor` (un dossier, ou un fichier de VibeCoder, à une ligne ; le terminal d'un dossier, `findTerminal`), `journal`, `images`, `paths`, `config-file` |
+| `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `windows-helper`, `pipewire`, `clipboard` et `selection` (le texte sélectionné du trombone, F-69), `pocket-tts`, `claude`, `editor` (un dossier, ou un fichier de VibeCoder, à une ligne ; le terminal d'un dossier, `findTerminal`), `journal`, `images`, `paths`, `config-file` |
 | `helpers` | découper une commande, français ou anglais, une ligne, `async-queue` (l'entrée d'un processus d'agent), `numbered-name` (`rapport-2.md`) |
 
 Scripts lancés par l'appli : `resources/scripts/` (`windows-helper.ps1`,
@@ -86,20 +95,23 @@ recopiés dans `userData/vibecoder/` (F-107).
 
 ### Canaux IPC
 
+Un seul pont, celui du panneau (`PANEL_CHANNELS`, `src/shared/bridge/channels.ts`).
 Vers le principal :
 
-- icône : `win:getBounds`, `win:setPosition`, `win:savePosition`, `config:get`,
-  `config:setDevice`, `dictation:warmUp`, `dictation:recording`,
-  `dictation:transcribe`, `tts:speak`, `tts:cancel`, `tts:warmUp`,
-  `menu:open`, `agent:click`, `agent:menu`, `agent:add` ;
-- bulle : `bubble:ready`, `bubble:hover`, `bubble:close`, `bubble:volume` ;
-- panneau : `conv:ready`, `conv:thread`←, `conv:mode`, `conv:height`,
-  `conv:hide`, `conv:send`, `conv:attach`, `conv:answer`, `conv:speak`,
-  `conv:probe`, `conv:history`, `conv:open`, `conv:current`, `conv:resume`,
-  `conv:copy`, `conv:openLink`, `conv:showFile` ; VibeCoder : `conv:vibeSet`
-  (arrêter Vibe, PR suivie, langue, vue Modules, *Vu*, retour à la
-  conversation, modèle, effort, mode, arrêter l'agent, le robot d'une PR dans
-  son worktree), `conv:vibeMark` (✓, ✗
+- le micro : `config:get`←, `config:setDevice`, `dictation:recording`,
+  `dictation:transcribe`← (le PCM enregistré par la page ; réponse : le texte
+  que whisper vient de rendre, que la page insère dans le champ, F-68) ;
+- *Écouter* : `conv:speak`← (une réponse par son rang dans le fil ; le texte
+  lu est le résumé retenu par le principal, I-3), `tts:cancel` ;
+- les agents : `agent:show` (un agent par son id, jamais un chemin),
+  `agent:menu` (son menu, F-56), `agent:add` (« + », F-52), `menu:settings`
+  (⚙ Réglages, avec les micros énumérés par la page, § 8) ;
+- la conversation : `conv:ready`, `conv:send`←, `conv:attach`,
+  `conv:answer`, `conv:probe`←, `conv:history`←, `conv:open`,
+  `conv:current`, `conv:resume`, `conv:openLink`, `conv:showFile` ;
+- VibeCoder : `conv:vibeSet`
+  (arrêter Vibe, PR suivie, langue, vue Modules, *Vu*, modèle, effort, mode,
+  arrêter l'agent, le robot d'une PR dans son worktree), `conv:vibeMark` (✓, ✗
   ou oublier une cible), `conv:vibeDraft` (brouillon de revue : ajouter,
   modifier, retirer), `conv:vibeOpen` (un fichier ou un commit du relevé, par
   son id, et une ligne), `conv:vibeRefresh`, `conv:vibeProcess` (une
@@ -119,16 +131,17 @@ Vers le principal :
   `conv:vibeSave` (l'enregistrer : son id et son texte, avec réponse `{ ok,
   error }` ; F-100, I-39).
 
-Vers les pages : `tts:state`, `tts:chunk`, `tts:end`, `tts:speakReply`,
-`agents:state` (icône) ; `bubble:show` (bulle) ; `conv:thread`, `conv:notice`,
-`conv:dictation`, `conv:focusInput`, `conv:attached`, `conv:vibe` (le relevé de
-l'agent affiché en VibeCoder, ou `null`), `conv:vibeCode` (le fichier suivi :
+(← : avec réponse.) Vers la page : `tts:chunk`, `tts:end` (l'audio d'*Écouter*),
+`agents:state` (les agents de l'en-tête et de la palette, et l'agent
+affiché), `conv:thread`, `conv:notice`, `conv:focusInput`, `conv:attached`,
+`conv:vibe` (le relevé de l'agent affiché, ou `null`), `conv:vibeCode` (le fichier suivi :
 son id, son texte — `null` : plus d'1 Mo ou illisible ; un artefact, coupé
 à `artifactTextMax`, `truncated` —, l'heure ; à chaque
-changement sur le disque ; ou `null`) (panneau).
+changement sur le disque ; ou `null`).
 
-Chaque fenêtre n'est écoutée que sur ses propres canaux, et un message d'une
-autre fenêtre est ignoré (`technicals/ipc`, cf. I-20). Aucun canal de
+Le panneau n'est écouté que sur ses propres canaux, et un message d'un autre
+expéditeur est ignoré (`technicals/ipc`, cf. I-20). Aucun canal ne colle, ne
+copie ni ne lit un texte fourni par la page (I-2, I-3). Aucun canal de
 VibeCoder ne transporte un chemin ni un message tout fait : une action, un
 fichier se désignent par leur id dans le dernier relevé (I-37, I-38), sauf
 `conv:vibeDrop`, dont le pont lit les chemins du `File` déposé, que la page
@@ -156,102 +169,74 @@ En développement : `--user-data-dir=.data` (cf. LINUX_SETUP.md).
 
 ---
 
-## 2. Icône et dictée
+## 2. Dictée
 
-**F-1 Geste.** Un appui, deux gestes : au-delà de 5 px c'est un **glisser**
-(déplace la fenêtre, position enregistrée au relâché) ; immobile 300 ms c'est
-une **dictée**, qui dure jusqu'au relâché où que soit le curseur (capture du
-pointeur). Un simple clic ne fait rien. Clic droit : le menu (§ 8), ou celui du
-robot cliqué.
+Depuis la **0.14.0**, on dicte dans la fenêtre : chaque zone de prompt a son
+micro (F-68). Plus d'icône flottante, plus de texte collé au curseur.
 
-**F-2 Position.** Retenue (`pos`) ; ignorée si elle tombe hors de tout écran
-(moniteur débranché) : coin bas-droit de l'écran principal. Taille `size`
-(32–200, au démarrage). La fenêtre s'élargit des petits boutons accolés
-(lecture, un par robot, « + »), de moitié plus petits.
+**F-1 Geste** *(retiré en 0.14.0 : le maintien et le glisser de l'icône)*.
+On dicte en **maintenant** le bouton micro *Dicter* d'une zone de prompt
+(F-68) : appuyé, l'enregistrement commence ; relâché, il finit. Le micro ne
+prend pas le clavier : il le donne à son champ, où arrive la dictée.
 
-**F-3 Enregistrement.** Au seuil de maintien : `dictation:recording(true)`
-(coupures, § 4), puis ouverture du micro (`deviceId`, retrouvé par son nom
-s'il a changé, sinon le micro par défaut), 16 kHz mono. **Bip aigu** (880 Hz)
-une fois le micro réellement ouvert, **bip grave** (520 Hz) au relâché
-(réglage `sound`). Relâcher pendant l'ouverture du micro annule proprement.
-Plafond : 5 min moins 5 s, coupé automatiquement.
+**F-2 Position** *(retiré en 0.14.0 : la position et la taille de l'icône)*.
+
+**F-3 Enregistrement.** Au maintien : `dictation:recording(true)`
+(coupures, § 5), puis ouverture du micro (`deviceId`, retrouvé par son nom
+s'il a changé, sinon le micro par défaut), 16 kHz mono, par la page. **Bip
+aigu** (880 Hz) une fois le micro réellement ouvert, **bip grave** (520 Hz)
+au relâché (réglage `sound`). Relâcher pendant l'ouverture du micro annule
+proprement. Plafond : 5 min moins 5 s, coupé automatiquement. Le micro dit
+sa phase (enregistre, transcrit) en infobulle.
 
 **F-4 Silence.** Moins de 0,4 s ou énergie maximale < 0,008 RMS : rien n'est
 envoyé à whisper (« Aucune parole détectée. ») — whisper invente du texte sur
-du silence.
+du silence. Vérifié par la page, puis de nouveau par le principal sur le PCM
+reçu (`checkAudio`), avant whisper (I-10).
 
 **F-5 Transcription.** `whisper-cli` local (langue `lang`, vocabulaire
 `vocabulary` ≤ 300 car. en prompt, threads = cœurs, ≤ 8), délai 120 s. Le
 texte sort sur **une seule ligne**, sans marqueurs `[BLANK_AUDIO]`, `[Musique]`.
 Erreurs : `notInstalled`, `badAudio`, `timeout`, `failed`, chacune avec son
-message dans l'infobulle de l'icône (4 s).
+message dans la ligne d'état du champ de la conversation.
 
-**F-6 Où va le texte.**
-1. Un agent est sélectionné et *Relire avant d'envoyer* (`agentReview`) est
-   coché → le texte arrive dans le **champ de son panneau** (ouvert en réduit
-   au besoin), à la suite du brouillon. Rien n'est collé.
-2. Agent sélectionné, relecture décochée → **envoyé** à l'agent aussitôt ;
-   agent occupé ou Claude introuvable → le texte va au presse-papiers, avec
-   l'erreur.
-3. Aucun agent → **collage** (§ 3), puis, si `showText`, le panneau dans son
-   contexte « Dictée » (F-76), ouvert **après** le Ctrl+V et sans prendre le
-   clavier.
+**F-6 Où va le texte.** `dictation:transcribe` rend le texte à la page, qui
+l'insère dans la zone de texte qui a le clavier (le champ d'une étape, un
+commentaire, la réponse libre d'une question : § 7 bis, *La dictée*), sinon
+dans le **champ de la conversation**, à la suite du brouillon (F-68). Rien
+n'est collé ni envoyé : on relit, puis on envoie.
 
-**F-7 Infobulle de l'icône.** Au repos : à qui va la dictée (« Maintenir pour
-parler à <agent> » ou au curseur). Après une dictée : « Ajouté au message
-pour X. », « Envoyé à X. », « Texte dans le presse-papiers : Ctrl+V… »,
-« Collage impossible… ». Couleur : liseré du micro à la couleur de l'agent
-sélectionné.
+**F-7 Infobulle de l'icône** *(retiré en 0.14.0, avec l'icône)*.
 
 **F-8 Modèle au premier lancement.** Si aucun modèle n'est trouvé (dossier de
 l'appli, puis `resources/bin` du paquet, puis l'installation de Cockpit), le
 modèle `ggml-large-v3-turbo-q5_0.bin` (548 Mo) est téléchargé dans
 `whisper/` (fichier `.part` renommé à la fin, supprimé en cas d'échec).
-Avancement dans la bulle et dans le menu ; dicter pendant le téléchargement
-dit le pourcentage.
+Avancement en tête du panneau (F-74) et dans ⚙ Réglages (§ 8) ; dicter
+pendant le téléchargement dit le pourcentage.
 
 ## 3. Collage et presse-papiers
 
-**F-10 Collage automatique** (`autoPaste`, par défaut) : le presse-papiers est
-photographié (texte, HTML, RTF, image), le texte y est mis, Ctrl+V simulé ; si
-le collage a réussi, l'ancien contenu est **rendu 400 ms après** (l'application
-cible lit le presse-papiers à son rythme).
-
-**F-11 Collage raté** (aucun outil) : le texte **reste** dans le presse-papiers.
-
-**F-12 Collage désactivé** : aucune touche simulée (sous KDE Wayland, chaque
-injection demande une autorisation) ; le texte reste dans le presse-papiers.
-
-**F-13 Linux** : sous Wayland, wtype puis ydotool puis xdotool ; sous X11,
-xdotool. **Windows** : l'assistant PowerShell, démarré avec l'appli (~1 s de
-démarrage payé une fois), relancé s'il meurt, 5 s de délai par commande.
+*(Retiré en 0.14.0 : F-10 à F-13, le collage automatique au curseur, le
+presse-papiers photographié et rendu, les outils de collage — wtype,
+ydotool, xdotool, le Ctrl+V de l'assistant PowerShell (qui reste pour les
+coupures du son, F-32). La dictée va dans les champs de la
+fenêtre, F-6.)*
 
 ## 4. Bulle
 
-**F-20 Placement.** Au-dessus de l'icône, centrée sur le micro (en dessous si
-le haut manque de place), dans la zone de travail de l'écran ; elle suit
-l'icône au glisser. La croix la ferme ; masquée après 10 s, le survol suspend
-le délai. Hauteur mesurée par la page, 40–240 px. Le texte dicté n'y va plus
-(depuis la 0.4.0 : panneau, contexte « Dictée », F-76).
-
-**F-21 Usages** : `notice` (« Micro Discord coupé », bordure Discord, effacée
-dès la fin de l'enregistrement, ignorée si elle arrive après), `status`
-(téléchargement, installation de Pocket TTS), `volume` (curseur 0–100 %,
-appliqué aussitôt, y compris à une lecture en cours). Rien n'y est cliquable
-ni copiable.
-
-**F-22 Effacement.** Le début d'une dictée efface la bulle.
-
-**F-23 Panneau ouvert** : la bulle ne s'affiche pas ; son message (notice,
-status) va **en tête du panneau** (F-74). Seul le curseur du volume garde la
-bulle.
+*(Retiré en 0.14.0 : F-20 à F-23. Les messages de l'appli — « Micro Discord
+coupé », téléchargement, installation de Pocket TTS, dépannage du son — vont
+en tête du panneau, F-74 ; le volume de la lecture se règle dans ⚙ Réglages,
+§ 8.)*
 
 ## 5. Coupure du son pendant la dictée
 
 **F-30 Micro Discord** (`discordMute`, Linux et Windows) : le **flux de
 capture** de Discord (reconnu à son binaire ou à son identifiant Flatpak),
 pas le micro du système ni le bouton muet de Discord. « Micro Discord coupé »
-s'affiche une fois la coupure **confirmée** (relue), si l'on enregistre encore.
+s'affiche en tête du panneau (F-74) une fois la coupure **confirmée**
+(relue), si l'on enregistre encore ; effacé à la fin de l'enregistrement.
 
 **F-31 Autres applications** (`muteOthers`) : leurs **flux de lecture**, sauf
 ceux des processus de l'appli (les bips restent audibles).
@@ -266,36 +251,31 @@ application reste « à rétablir » (`userData/sons-a-retablir.json`, gardé
 d'un lancement à l'autre) et son prochain flux est rétabli dans les 5 s,
 jamais pendant une dictée.
 
-**F-34 Dépannage** (clic droit → *Rétablir le son et le micro Discord*,
+**F-34 Dépannage** (⚙ Réglages → *Rétablir le son et le micro Discord*, § 8,
 Linux et Windows, grisé pendant une dictée) : rétablit ce que l'appli a
 coupé, les applications « à rétablir », et tout flux encore coupé parmi la
-lecture des autres applications et la capture de Discord. La bulle dit combien
-de flux ont été remis en marche. Sous Windows : ce que l'assistant a coupé.
+lecture des autres applications et la capture de Discord. Le message en tête du
+panneau dit combien de flux ont été remis en marche. Sous Windows : ce que l'assistant a coupé.
 
 ## 6. Lecture à voix haute
 
-**F-40 Bouton ▶** accolé à l'icône (`speak` : `selection` — Linux, Windows —,
-`clipboard`, ou `off` qui le masque). État relevé toutes les 500 ms et poussé
-à l'icône seulement s'il change : actif, grisé (rien à lire, Pocket TTS
-absent), masqué. Clic : lit ; pendant la lecture (■) : arrête. Le clic droit
-reste possible sur un bouton grisé (`aria-disabled`, pas `disabled`).
+**F-40 Bouton ▶** *(retiré en 0.14.0 : le bouton accolé à l'icône, qui lisait
+la sélection ou le presse-papiers ; on écoute les réponses des agents, F-46)*.
 
-**F-41 Sources.** Linux Wayland : `wl-paste` (celui de l'hôte dans une
-distrobox), sélection primaire ; la sélection de remplissage de Klipper
-(`KLIPPER_REFILL`) compte comme vide. Windows : Ctrl+C simulé à la lecture,
-presse-papiers rendu ensuite ; le bouton ne peut savoir d'avance s'il y a une
-sélection (toujours actif). Ailleurs : presse-papiers d'Electron. ≤ 1 Mo lu,
-≤ 20 000 caractères lus.
+**F-41 Sources** *(retiré en 0.14.0, avec F-40 : seul le résumé retenu d'une
+réponse est lu, F-46)*.
 
-**F-42 Pocket TTS.** Absent : installé au premier clic (ou par le menu) dans
-`userData/pocket-tts` par `uv` (Python 3.12 géré, PyTorch processeur,
-`pocket-tts==3.3.0`), cache supprimé après ; message dans la bulle. Une
-installation de l'utilisateur (`uv tool install`) sert aussi.
+**F-42 Pocket TTS.** Absent : installé au premier *Écouter* (ou par ⚙ Réglages,
+§ 8) dans `userData/pocket-tts` par `uv` (Python 3.12 géré, PyTorch
+processeur, `pocket-tts==3.3.0`), cache supprimé après ; message en tête du
+panneau (F-74). Une installation de l'utilisateur (`uv tool install`) sert
+aussi.
 
-**F-43 Processus Python permanent** : démarré au **survol** du bouton
-(préchargement du modèle de la langue du texte), arrêté après 10 min sans
-lecture. L'audio arrive par morceaux (PCM 16 bits) et se joue bout à bout ;
-une lecture annulée ignore ses morceaux tardifs.
+**F-43 Processus Python permanent** : démarré à la **première lecture**
+(chargement du modèle de la langue du texte, ~3 s), arrêté après 10 min sans
+lecture. L'audio arrive par morceaux (PCM 16 bits, au volume réglé :
+`speakVolume`, appliqué à la lecture suivante) et se joue bout à bout ; une
+lecture annulée ignore ses morceaux tardifs.
 
 **F-44 Langue** : `speakLang` `auto` (français ou anglais, compté sur le
 texte entier ; indécis → français), `fr`, `en`. Voix par langue
@@ -303,20 +283,24 @@ texte entier ; indécis → français), `fr`, `en`. Voix par langue
 
 **F-45** Commencer une dictée **arrête** la lecture (sinon le micro la capte).
 
-**F-46 Réponse d'un agent** : ▶ *Écouter* d'une réponse du panneau lit son
-résumé audio par le même lecteur (le principal retient le texte, l'icône ne
-reçoit que l'ordre `tts:speakReply`).
+**F-46 Réponse d'un agent** : ▶ *Écouter* d'une réponse du fil lit son
+résumé audio (F-60). La page ne donne que le **rang** de la réponse
+(`conv:speak`) : le principal lit le résumé qu'il a retenu, jamais un texte
+de la page (I-3), et renvoie l'audio par `tts:chunk`, `tts:end`. Un nouvel
+*Écouter* remplace la lecture en cours ; une erreur se dit dans la ligne
+d'état du champ.
 
 ## 7. Agents Claude Code
 
-### Robots, sélection, dossiers
+### Robots, agent affiché, dossiers
 
-**F-50 Activation** : *Afficher les agents* (`agentsEnabled`, désactivé par
-défaut). Un robot par agent à droite de l'icône, puis « + ».
+**F-50 Activation** *(retiré en 0.14.0 : `agentsEnabled`)*. Les agents sont
+toujours là : tous en robots tout à gauche de l'en-tête de VibeCoder, puis
+« + » (F-92).
 
 **F-51 Un agent = un dossier** (un seul agent par dossier) : `{ id, dir, name,
 model, effort, mode, sessionId, contextWindow }`, `parent` (ci-dessous), et
-pour VibeCoder `view`, `vibe` (§ 9). Nom = nom du dossier, modifiable dans
+pour VibeCoder `vibe` (§ 9). Nom = nom du dossier, modifiable dans
 `config.json`.
 
 **Familles** : les agents d'un même dépôt git. Le **parent** est l'agent à la
@@ -327,11 +311,10 @@ après « + » et à *Ouvrir un agent ici* (F-56) — pas le robot d'une PR, li�
 à sa fiche, ni l'enfant d'une nouvelle demande, né de sa recette (F-110) ; il est retenu dans
 `agents[].parent` (§ 9), qui survit au redémarrage : l'affichage, le menu et
 les commandes du projet (F-111) ne lisent que lui. Un enfant est un agent
-ordinaire (conversation, éditeur, VibeCoder) ; il s'affiche **sous** son
-parent, de la même taille qu'un robot, avec une pastille : la branche de son
-dossier (lue dans `.git`), ou « PR #n » (F-110) ; un enfant par place, la
-fenêtre de l'icône s'allonge d'une rangée dès qu'un enfant s'affiche.
-Il s'affiche de la couleur du parent ; né d'*Ouvrir un agent ici* ou d'une
+ordinaire (conversation, éditeur, VibeCoder) ; son robot s'affiche
+**juste après** celui de son parent, plus petit ; affiché, son badge porte
+« worktree » ou « PR #n » (F-110), et la palette le range sous son parent
+(F-92). Il s'affiche de la couleur du parent ; né d'*Ouvrir un agent ici* ou d'une
 PR, son dossier la prend aussi. Un
 enfant sans PR ne part qu'à *Retirer*, ou avec son worktree (*Retirer le
 worktree*, F-110) ; retirer le parent garde ses enfants
@@ -343,38 +326,40 @@ worktrees et à leurs robots (F-95).
 **F-52 « + »** : *Nouvel agent dans un dossier favori* (dossiers déjà choisis
 sans agent), *Choisir un autre dossier…*, *Oublier un dossier favori* ;
 entrées grisées si Claude Code est introuvable. Un dossier **jamais choisi**
-passe par la confirmation de confiance (I-31). Le nouvel agent est
-sélectionné ; panneau ouvert, il y affiche sa conversation. Un agent né sur un
+passe par la confirmation de confiance (I-23). Le nouvel agent est
+affiché. Aussi *Nouvel agent…* de la palette et Ctrl+N (F-92). Un agent né sur un
 dossier retrouve les artefacts de son projet (F-95).
 
 **F-53 Couleur par dossier** : tirée au hasard parmi 8 (de préférence une
 couleur libre), enregistrée, gardée si l'agent est retiré puis recréé ;
-modifiable au clic droit. Robot, liseré du micro, panneau la portent.
+modifiable au clic droit. Son robot la porte, éclaircie (F-92).
 
-**F-54 Clic sur un robot**, panneau fermé : réponse non lue ou demande
-d'autorisation → son panneau s'ouvre ; sinon la sélection bascule (second
-clic : la dictée revient au curseur). Panneau ouvert : le robot affiche sa
-conversation dans le panneau, ou son écran VibeCoder (F-91) (les robots
-servent d'onglets) ; second clic sur
-le robot affiché et sélectionné → désélection, le panneau passe au contexte
-« Dictée ».
+**F-54 Clic sur un robot** (en-tête, F-92) : l'agent **s'affiche** aussitôt
+— son écran VibeCoder et sa conversation —, sans aperçu ; il devient l'agent
+sélectionné (`agentSelected`, retrouvé au lancement, F-80). Clic sur le
+badge de l'agent affiché : la palette, portée *Agents*. Ctrl+Tab : l'agent
+affiché juste avant. L'agent affiché retiré : le premier qui reste prend sa
+place, sinon l'accueil (*Nouvel agent…*).
 
-**F-55 État d'un robot** : clignote au travail ; pulse lentement au repos
-tant qu'une tâche de fond tourne (titre « surveille N tâche(s) de fond »,
-F-77) ; « ? » demande d'autorisation ;
-pastille verte = réponse non lue (bip 660 Hz à l'arrivée) ; erreur. La réponse
-de l'agent affiché dans le panneau est **lue d'office** (jamais de pastille).
-Ses **courses** (F-115) aussi, par-dessus une conversation au repos (l'état
-de la conversation d'abord), dans cet ordre (ce qui attend l'utilisateur
-prime sur ce qui travaille seul) : *attend une autorisation* → « ? », *en
-échec* → erreur, *finie* → pastille verte, chacune avec le bip de la réponse
-(660 Hz, réglage *Bip*) ; *en cours* → le clignotement d'un tour, sans bip ;
-titre « une action attend une autorisation », « … a échoué », « … est
-finie », « une action travaille » ; une course *arrêtée* ne se signale pas.
-Le clic ouvre sa conversation (F-54) ; l'onglet *Actions (n)* de l'agent
-efface *finie* et *en échec* (F-92) ; le « ? » reste jusqu'à la réponse.
+**F-55 État d'un robot** : clignote au travail ; « ? » quand il attend une
+réponse (demande d'autorisation, question ; jusqu'à la réponse) ; pastille
+verte quand il a fini (réponse non lue) ; « ! » en échec (erreur). Chacun,
+quand il apparaît, avec le **bip** de la réponse (660 Hz, réglage *Bip*),
+joué par la fenêtre. Jamais pour l'agent affiché, dont la réponse est **lue
+d'office** (ni pastille ni bip). Ses **courses** (F-115) aussi, par-dessus
+une conversation au repos (l'état de la conversation d'abord), dans cet
+ordre (ce qui attend l'utilisateur prime sur ce qui travaille seul) :
+*attend une autorisation* → « ? », *en cours* → le clignotement d'un tour,
+sans bip, *en échec* → « ! », *finie* → pastille verte ; une course
+*arrêtée* ne se signale pas. Infobulle : « dépôt · branche », le titre d'un
+enfant, l'état (*travaille*, *attend ta réponse*, *vient de finir*, *en
+pause* — l'échec —, *au repos*), la question. L'onglet *Actions (n)* de
+l'agent efface *finie* et *en échec* (F-92) ; le « ? » reste jusqu'à la
+réponse. Pas de bandeau ni d'étiquette de notification dans l'en-tête ;
+fenêtre sans le focus : une **notification du système** pour la question ou
+l'échec d'un autre agent que l'affiché (un clic l'affiche).
 
-**F-56 Clic droit sur un robot** : nom, dossier ; *Ouvrir sur GitHub —
+**F-56 Clic droit sur un robot** (en-tête, F-92 ; *◧ Ouvrir VibeCoder*, *💬 Ouvrir la conversation*, *Dernier échange* et *⤢ Conversation complète* retirés en 0.14.0) : nom, dossier ; *Ouvrir sur GitHub —
 propriétaire/dépôt* (remote `origin` du `.git` du dossier, lu à chaque clic
 droit ; grisé sans origine GitHub) ; *Ouvrir dans l'éditeur (zed)*
 (`editorCommand`, sinon le premier trouvé parmi zed, code, cursor, codium,
@@ -386,12 +371,11 @@ respectés, `{dir}` remplacé par le dossier comme un argument entier — ex.
 `wt.exe -d {dir}` ; vide : le premier trouvé, Linux konsole, gnome-terminal,
 kitty, alacritty, wezterm, xterm, Windows `wt` (`-d <dossier>`), sinon
 `cmd`), lancé dans le dossier, détaché, jamais par un shell (I-27) ; grisé
-sans terminal ; *◧ Ouvrir VibeCoder* et
-*💬 Ouvrir la conversation*, toujours tous deux, panneau ouvert ou non (F-91) ; *✎ Écrire un message…*
-(panneau + focus du champ) ; couleur du dossier (pas pour un enfant : celle
+sans terminal ; *✎ Écrire un message…*
+(l'agent affiché, le clavier au champ de la conversation) ; couleur du dossier (pas pour un enfant : celle
 de son parent) ; modèle (défaut, fable, opus,
 sonnet, haiku) ; effort (défaut, low → max) ; mode (manuel, accepter les
-modifications, auto, plan) ; *Dernier échange* ; *⤢ Conversation complète* ;
+modifications, auto, plan) ;
 *Interrompre* (au travail) ; *Nouvelle session* (oublie la session) ; *Retirer*
 (ses commandes lancées s'arrêtent, I-47 ; le dossier reste favori). Pour un
 agent sans parent à la racine d'un dépôt,
@@ -421,8 +405,7 @@ les skills de VibeCoder ne s'y chargent jamais d'eux-mêmes) ; le plugin `vibeco
 (`userData/vibecoder/plugin`, s'il existe : F-105) et le dossier de sorties de
 l'agent (`userData/vibecoder-out/<agent>`) et le dossier d'artefacts de son
 projet (`userData/vibecoder-artifacts/<clé>`, F-95) en dossiers de travail en
-plus (`additionalDirectories`). Pour tous les agents de l'appli, en VibeCoder ou
-non, à chaque tour comme à la sonde ; jamais aux sessions Claude Code
+plus (`additionalDirectories`). Pour tous les agents de l'appli, à chaque tour comme à la sonde ; jamais aux sessions Claude Code
 habituelles.
 
 **F-59 Un processus Claude Code par agent** (un `query()`), lancé au premier
@@ -453,42 +436,33 @@ d'exécution…) ; demandes d'autorisation en échec comptées et signalées par
 demande d'autorisation, sa réponse et son délai, annulations, interruptions
 (forcées ou non), « processus lancé », « processus terminé ».
 
-### Panneau de conversation
+### La fenêtre, la conversation
 
-**F-63 Un seul panneau**, attaché à l'icône (centré sur le micro, au-dessus ou
-en dessous selon la place, toujours à l'écran), qui **suit l'icône** au
-glisser. Un contenu à la fois : la conversation de l'agent sélectionné (ou
-son écran VibeCoder), ou, aucun ne l'étant, le contexte « Dictée » (F-76) —
-jamais deux panneaux.
-- **Réduit** (par défaut) : 560 px de large, à la hauteur de son contenu
-  (160–560 px) — le dernier échange : votre dernier message et ce qui suit.
-- **Agrandi** (⤢ ; ⤡ pour revenir) : tout le fil, ouvert en bas (sur le
-  dernier échange), l'🕘 Historique ;
-  redimensionnable par ses bords, taille retenue (`convSize`, défaut 720×700,
-  au moins 380 px de large et 160 px de haut).
-- **VibeCoder** (un agent en VibeCoder, F-91) : toujours agrandi, y compris
-  ouvert de lui-même (dictée, demande d'autorisation) ; à sa taille à lui,
-  retenue à part (`vibeSize`, défaut 1280×820, au moins 960×600 dans la place
-  de l'écran).
+**F-63 Une fenêtre classique** (depuis la 0.14.0 ; plus d'attache à l'icône,
+de réduit ni d'agrandi) : dans la barre des tâches, redimensionnable, ni au
+premier plan ni sur tous les bureaux ; taille retenue (`vibeSize`, défaut
+1280×820, au moins 960×600). **Sans cadre du système** : l'en-tête de
+VibeCoder (48 px) sert de barre de titre — on le glisse pour déplacer la
+fenêtre, sauf ses contrôles ; l'accueil sans agent aussi, sauf son bouton —,
+et les boutons réduire / agrandir / fermer sont ceux d'Electron, tout à
+droite de l'en-tête, à ses couleurs (Window Controls Overlay : aucun canal).
+Fond `--vc-bg` dès le chargement (pas d'éclair blanc). Un contenu : l'écran
+VibeCoder de l'agent affiché (§ 7 bis), sa conversation dans la colonne de
+droite ; aucun agent : l'accueil (*Nouvel agent…*, Ctrl+N).
 
-**F-64 Croix** : le panneau est **réduit au sens du système** (minimize), pas
-masqué — rouvert par un clic (`restore`, avec le clavier), il garde « sur
-tous les bureaux » (Alt+F3 sous KDE). Rouvert **de lui-même** (dictée,
-demande d'autorisation), il est masqué puis montré sans activation : il ne
-prend pas le clavier (`restore` le prendrait, vérifié sous X11), revient sur
-le bureau courant et oublie ce réglage. Réduit, il ne compte plus comme
-ouvert : les notifications repassent par les robots et la bulle.
+**F-64 Fermer** quitte l'appli (F-81). Une ouverture que l'utilisateur n'a
+pas demandée (demande d'autorisation) ne lui prend pas le clavier (I-18) :
+fenêtre masquée, elle est montrée sans activation.
 
-**F-65 En-tête** : pastille de couleur, intitulé de la conversation (celui de
-Claude Code ; « Nouvelle conversation » sinon), nom et dossier, jauge du
-contexte, *⚙ Tâches (n)* (n en cours ; caché si la conversation n'a jamais
-eu de tâche, F-77), Historique (agrandi), ⤢/⤡, ×.
+**F-65 En-tête de la conversation** : l'onglet *Conversation* et l'intitulé
+de la conversation (celui de Claude Code ; « Nouvelle conversation »
+sinon) ; à droite de la rangée des onglets, 🕘 (l'historique, F-67). La
+jauge du contexte et *⚙ Tâches (n)* sont dans la barre d'état (F-92).
 
 **F-66 Fil** : messages avec leur heure (date complète au survol) ; ceux de
 l'agent rendus en Markdown (titres, gras, italique, listes, code, liens
 `http(s)` : le Markdown de VibeCoder, F-104, sans *Commenter* ; jamais de
-HTML, I-40), en VibeCoder comme en conversation ; les autres (les vôtres, la
-dictée, sorties de commandes, résumé d'une compaction) en texte tel quel,
+HTML, I-40) ; les autres (les vôtres, sorties de commandes, résumé d'une compaction) en texte tel quel,
 liens cliquables, blocs ``` en blocs de code ; pièces jointes de vos
 messages (aperçus d'images ≤ 800 px, clic : en grand ; fichiers, clic : montrés
 dans le gestionnaire de fichiers ; sélection jointe, à déplier) ; actions de
@@ -500,23 +474,30 @@ compaction en messages « système » ; les messages que Claude Code s'envoie
 écoulé au bas du fil. Le fil reste en bas quand un message arrive, sauf si
 l'on lit plus haut. Mis à jour au plus toutes les 800 ms pendant un tour.
 
-**F-67 Historique** (agrandi) : sessions Claude Code du dossier (de l'appli et
+**F-67 Historique** (🕘, à droite de l'onglet Conversation, F-92 ; dans
+VibeCoder depuis la 0.14.0) : il prend la place du fil dans la colonne, l'écran
+VibeCoder reste ; sessions Claude Code du dossier (de l'appli et
 d'un terminal ; pas des worktrees), par date ; une ancienne conversation
 s'ouvre **en lecture seule** (pas de champ) ; *← Conversation en cours* ;
 *Reprendre cette conversation* (impossible pendant un tour) en fait la session
 de l'agent. Sessions retrouvées sous `/home/…` comme sous `/var/home/…`.
 
-**F-68 Champ de saisie** (réduit et agrandi, conversation en cours seulement) :
+**F-68 Champ de saisie** (conversation en cours seulement) :
 Entrée envoie (le message s'affiche aussitôt dans le fil, avant que
 Claude Code ne l'écrive dans sa transcription), Maj+Entrée va à la ligne ;
 il grandit jusqu'à 160 px.
 **Brouillon par conversation**, pièces jointes comprises, gardé quand on
 change d'agent. Agent au travail : on écrit, on n'envoie pas (bouton grisé).
-Dans le cadre du champ, deux petites icônes : la pièce jointe (un trombone,
-F-69) au début, *Envoyer* (une flèche) à la fin, leur libellé en infobulle ;
-*Envoyer* à la couleur de l'agent, sauf en VibeCoder (F-92).
-La dictée vers l'agent s'y ajoute (espace de séparation) et y met le focus,
-sauf quand une autre zone de texte du panneau a le clavier (F-98).
+Dans le cadre du champ, des petites icônes : la pièce jointe (un trombone,
+F-69) au début ; en bas à droite, le micro *Dicter* puis *Envoyer* (une
+flèche), leur libellé en infobulle ; *Envoyer* à la couleur neutre des
+autres boutons (F-92). **Chaque zone de prompt** a la même paire micro +
+envoi : le champ d'une étape (*Envoyer* lance son action, F-93), la zone d'un
+commentaire « à revoir » ou 💬 (*Envoyer* l'ajoute), la réponse libre d'une
+question ouverte (*Envoyer* envoie les réponses). Le micro, maintenu, dicte
+(F-1, F-3) : le texte de whisper va à la zone de texte qui a le clavier,
+sinon à ce champ, à la suite du brouillon (espace de séparation), et y met
+le focus (F-98, *La dictée*).
 
 **F-69 Pièces jointes** : glisser-déposer et Ctrl+V (images PNG, JPEG, GIF,
 WebP envoyées en image ; autres fichiers par leur **chemin**, l'agent les lit
@@ -557,23 +538,20 @@ Code est lancé sans message (30 s au plus) le temps de répondre, sans toucher
 **F-73 Autorisations (mode manuel)** : en file, la plus ancienne affichée au
 bas du fil : ce qui va s'exécuter **en entier**, *Autoriser*, *Toujours
 autoriser* (seulement s'il y a une règle, qu'il nomme), *Refuser*, « N autres
-en attente ». Rien d'affiché à l'écran (ni panneau ni bulle) → le panneau
-s'ouvre **en réduit, sans prendre le clavier** ; on lit autre chose → le « ? »
-du robot attend.
+en attente ». La fenêtre masquée → elle se montre sur l'agent, **sans
+prendre le clavier** (F-64) ; un autre agent affiché → le « ? » de son robot
+attend (F-55).
 
-**F-74 Message en tête du panneau** (panneau ouvert) : notices et messages
-de l'appli (ceux-ci effacés après 10 s), croix pour fermer.
+**F-74 Message en tête du panneau** : notices (« Micro Discord coupé »,
+F-30) et messages de l'appli (téléchargement du modèle, F-8 ; installation de
+Pocket TTS, F-42 ; dépannage du son, F-34 — ceux-ci effacés après 10 s),
+croix pour fermer.
 
-**F-76 Contexte « Dictée »** (aucun robot sélectionné) : le panneau, réduit,
-titré « Dictée », montre le **dernier** texte dicté pour ailleurs, son heure
-et **Copier** (le principal copie son propre texte, cf. I-3). Ni champ de
-saisie, ni jauge, ni historique, ni ⤢. Pas de redirection vers un agent :
-pour un robot oublié, on copie, on sélectionne le robot, on colle dans son
-champ. Sans dictée encore : une indication. Il reste ouvert jusqu'à la croix
-(la bulle disparaissait seule après 10 s).
+**F-76 Contexte « Dictée »** *(retiré en 0.14.0 : le dernier texte dicté pour
+ailleurs et *Copier* ; la dictée va dans les champs, F-6)*.
 
-**F-77 Volet des tâches** (*⚙ Tâches*, à droite du fil, conversation en
-cours ; en VibeCoder, l'onglet Tâches de la colonne de droite, F-92) : les tâches de fond de l'agent comme Claude Code les montre
+**F-77 Volet des tâches** (l'onglet Tâches de la colonne de droite, et
+*⚙ Tâches* de la barre d'état, F-92) : les tâches de fond de l'agent comme Claude Code les montre
 (`/tasks`) — commande en arrière-plan, surveillance, sous-agent, flux
 d'agents —, les plus récentes en tête. Chacune : type, état (en cours,
 terminée, en échec, arrêtée), temps écoulé ; la description de l'agent,
@@ -586,8 +564,9 @@ processus de l'agent, pas la transcription. Finies, les tâches restent
 jusqu'à la sortie de l'appli ; *Nouvelle session* et *Retirer* vident le
 volet. Il n'agit sur rien (ni arrêt, ni relance : on le demande à l'agent).
 
-**F-75 Fenêtre** : au-dessus des autres (`onTop`), hors barre des tâches,
-liens vers le navigateur seulement, jamais de navigation.
+**F-75 Fenêtre** : ni au premier plan ni hors de la barre des tâches depuis la
+0.14.0 (F-63 ; `onTop` retiré) ; liens vers le navigateur seulement, jamais
+de navigation (I-21).
 
 ## 7 bis. VibeCoder
 
@@ -595,11 +574,12 @@ Notes des tickets : `docs/tickets/feat/0.8.0-vibecoder.md`,
 `0.9.0-actions-independantes.md` (les courses), `0.9.0-parcours-guide.md`
 (le parcours guidé), `0.12.0-mode-vibe.md` (le mode *Vibe*),
 `0.12.0-gestion-des-branches.md` (la vue des branches, *Pull*, *Rebase*),
-`0.13.0-fusionner-creer-relire.md` (un seul parcours, le relecteur) ;
-le guide :
+`0.13.0-fusionner-creer-relire.md` (un seul parcours, le relecteur),
+`0.14.0-refonte-vibecoder.md` (la fenêtre classique, VibeCoder seul, le
+design de la vue C) ; le guide :
 `docs/dev_guide/guide-travail-dev-ia.html`.
 
-### Ouvrir, l'écran
+### L'agent affiché, l'écran
 
 **F-90 VibeCoder** : un mode IDE par agent, qui rend graphique le flow du
 guide « Développer avec l'IA » : un seul parcours (note, forme, invariants, un
@@ -609,25 +589,34 @@ du rôle, créateur ou relecteur (F-101). Chaque étape a ses boutons, qui
 envoient à l'agent le message du guide, avec le skill et le modèle qu'il faut
 (F-96, F-106).
 
-**F-91 Ouvrir, revenir** : clic droit sur un robot → *◧ Ouvrir VibeCoder* ou
-*💬 Ouvrir la conversation* (même menu, les deux toujours proposés ; ou
-*Revenir à la conversation*, dans l'en-tête). La vue est
-retenue par agent (`agents[].view`), d'un lancement à l'autre : un agent en
-conversation, un autre en VibeCoder ; cliquer un robot montre la vue de cet
-agent (F-54). Ce qu'on a commencé sur l'écran d'un agent (réponses aux
-questions, champ de chaque étape, modèle choisi, verdict de la revue, étape
-choisie) l'attend quand on revient sur lui, le temps que l'appli tourne.
-Le choix ouvre le panneau sur l'agent, agrandi, avec le
-clavier. VibeCoder montre la conversation **en cours** de l'agent (pas
-d'🕘 Historique : on revient à la conversation pour le consulter). La vue
-conversation des agents qui ne sont pas en VibeCoder ne change pas.
+**F-91 Changer d'agent** (le choix entre VibeCoder et la conversation seule —
+*◧ Ouvrir VibeCoder*, *💬 Ouvrir la conversation*, *Revenir à la
+conversation*, `agents[].view` — est retiré en 0.14.0 : VibeCoder est la
+seule vue, pour chaque agent). On change d'agent par son robot (F-54), la
+palette (Ctrl+K) ou Ctrl+Tab (F-92). En changeant d'agent, l'écran garde
+l'affichage d'avant jusqu'à ce que la conversation **et** le relevé du nouvel
+agent soient là : jamais de page vide, l'en-tête et les robots ne bougent
+pas. Ce qu'on a commencé sur l'écran d'un agent (réponses aux questions,
+champ de chaque étape, modèle choisi, verdict de la revue, étape choisie)
+l'attend quand on revient sur lui, le temps que l'appli tourne. La colonne
+de droite montre la conversation **en cours** de l'agent, ou une ancienne
+par l'🕘 Historique (F-67).
 
-**F-92 L'écran** (le panneau agrandi, F-63 ; couleurs de Whisper, fond
-`#171b24`, la couleur de l'agent en accent) :
-- **en-tête** : pastille (animée au travail) et nom de l'agent (son dossier
-  au survol), la **branche** (`⎇ <branche>`, sa base au survol), un bouton
-  (enfoncé tant que la vue est ouverte) : un clic ouvre la **vue des
-  branches** (F-110), qui prend le centre à la place de l'étape ; un nouveau
+**F-92 L'écran** (toute la fenêtre, F-63 ; le design de la **vue C**, cf.
+*L'apparence* ci-dessous) :
+- **en-tête** (48 px, la barre de titre de la fenêtre, F-63), de gauche à
+  droite : **tous les agents** en petits robots, à leur couleur éclaircie,
+  dans un **ordre fixe** (celui de la configuration, chaque worktree ou PR
+  plus petit juste après son parent : afficher un agent ne déplace
+  personne), leur état sur le robot (F-55) ; l'agent affiché, à sa place, en
+  **badge éclairé** — son robot, son dépôt, le titre d'un worktree ou d'une
+  PR —, sans état ; clic : la palette sur *Agents* ; clic sur un autre robot :
+  il s'affiche aussitôt (F-54) ; clic droit sur un robot : son menu (F-56) ;
+  avant le premier relevé des agents, le nom de l'agent seul. Puis **+**
+  (*Nouvel agent…*, Ctrl+N : le menu de F-52). Puis le segment de la
+  **branche** (une icône, `<branche>`, un chevron ; sa base au survol), une
+  seule fois, un bouton (enfoncé tant que la vue est ouverte) : un clic
+  ouvre la **vue des branches** (F-110), qui prend le centre à la place de l'étape ; un nouveau
   clic la ferme (retour à l'étape) ; à côté, *Pull*, *Rebase* (masqué
   sur la branche principale) et,
   après un rebase réussi, *Pousser* (boutons à icône, F-114 ; *Pull* grisé
@@ -636,14 +625,38 @@ conversation des agents qui ne sont pas en VibeCoder ne change pas.
   dernier échec en infobulle) ; le badge d'un worktree, sans action ;
   le badge **Relecteur** (*Reviewer*), sans action, quand l'appli décide qu'on
   relit la PR d'un autre (F-101) : rien ne s'y édite, l'infobulle le dit ; plus
-  de *Créer* / *Relire* à choisir : un seul parcours ; à côté, **Artefacts**
-  (*Artifacts* en anglais), un bouton à part (enfoncé tant que le panneau est
-  ouvert) : un autre contexte que le parcours ; un clic
+  de *Créer* / *Relire* à choisir : un seul parcours. Au milieu, le nom
+  **VibeCoder**. À droite : **Artefacts** (*Artifacts* en anglais), un
+  bouton à part (enfoncé tant que le panneau est ouvert) : un autre contexte
+  que le parcours ; un clic
   ouvre le **panneau des artefacts** (F-95), qui prend le centre à la place
   du fil d'Ariane et de l'étape (ou de la vue des branches), la colonne de
   droite gardée ; un nouveau clic, ou le choix d'une étape, le
-  referme ; *FR* / *EN* ; en icônes, *Relever maintenant*, *Revenir
-  à la conversation*, *Fermer* (la croix du panneau, F-64) ;
+  referme ; puis **Chercher** (`Ctrl K` en touche), la palette (ci-dessous) ;
+  *FR* / *EN* ; en icônes, *Relever maintenant*, la colonne de droite
+  affichée ou masquée ; **⚙ Réglages** (le menu de l'appli, § 8) ; tout à
+  droite, les boutons de la fenêtre (F-63). Plus de *Revenir à la
+  conversation* ni de *Fermer* (retirés en 0.14.0) ;
+- la **palette** (Chercher, Ctrl+K ; le badge de l'agent affiché l'ouvre sur
+  *Agents*), par-dessus l'écran : un champ de recherche (chaque mot, sans
+  casse), des **portées** (*Tout*, *Agents*, *Branches*, *PR* ; Tab : la
+  suivante) et des groupes : les **agents** par dépôt, avec leurs worktrees
+  et leurs PR plus petits sous leur parent, chacun sa pastille, « Étape … ·
+  état » (*travaille*, *attend ta réponse*, *vient de finir*, *en pause*, *au
+  repos*) ; les **branches** du dépôt de l'agent affiché, chacune son icône et
+  la pastille de l'agent qui la tient ; les **PR** ; les **actions** (*Nouvel
+  agent…* Ctrl+N, *Créer une branche…*, *Gérer les branches et les PR…*
+  Ctrl+Maj+B, *Mettre de côté les changements*). Au bout de chaque ligne, ce
+  que fait Entrée ; au pied, l'aide des touches : « Entrée : aller /
+  basculer ici », « ⇧ Entrée : branche libre → vue des branches », « Tab :
+  portée suivante », « Échap : fermer ». Entrée : aller à l'agent (ou à
+  celui qui tient la branche, la PR), ou basculer ici sur une branche que
+  personne ne tient (en direct, comme la vue des branches, F-110) ; une PR
+  que personne ne tient, *Créer une branche…*, *Gérer les branches…* : la
+  vue des branches ; *Mettre de côté* : en direct (F-114) ; flèches pour
+  choisir.
+  Raccourcis de la fenêtre : Ctrl+K la palette, Ctrl+Tab l'agent affiché
+  juste avant, Ctrl+N *Nouvel agent…*, Ctrl+Maj+B la vue des branches ;
 - au centre, en tête, le **fil d'Ariane** : les étapes en une ligne,
   reliées par un trait (point plein : faite ; anneau à la couleur de
   l'agent, qui pulse : en cours, la première non faite ; gris : à venir),
@@ -666,7 +679,8 @@ conversation des agents qui ne sont pas en VibeCoder ne change pas.
 - à droite, des onglets : **Conversation** (son intitulé ; le message en tête,
   F-74, le fil et ses demandes d'autorisation, le détail du contexte, la
   barre des skills, F-93, le champ, F-68 à F-70 : dictée, brouillon, pièces
-  jointes, commandes « / ») : on lui parle toujours, même pendant qu'une
+  jointes, commandes « / », le micro et *Envoyer*), à droite de la rangée 🕘
+  (l'historique, F-67) : on lui parle toujours, même pendant qu'une
   action tourne ; **Actions (n)** (n en cours, en attente d'une
   autorisation ou arrêtées à trancher) : les courses (F-115) ; l'ouvrir
   efface sur le robot les courses *finies* ou *en échec* (F-55), et tant
@@ -687,7 +701,21 @@ conversation des agents qui ne sont pas en VibeCoder ne change pas.
   seulement, pas les courses), fichiers modifiés, heure
   du dernier relevé.
 
-**L'apparence**, sobre et dense : boutons de 22 px de haut, coins peu
+**L'apparence** : celle de la **vue C** de la maquette « Vibecoder — switch
+d'agents » (artefacts du projet : `maquettes/vibecoder-switch-agents.html`,
+le balisage lisible dans `maquettes/vue-c/`), disposition, couleurs et
+apparence, sur tous les écrans, y compris ceux que la maquette ne montre pas
+(un cas d'invariant validé garde sa carte, seule sa bordure verte le
+distingue). Les couleurs de la maquette, fonds et traits **éclaircis d'un
+demi-cran** : fond `#1c1f25`, en-tête `#21252c`, cartes `#23272f`, bordures
+`#343a47` ; texte `#d7dae0`, gris `#a3a9b5` et `#8b919d`, accent bleu
+`#7aa2f7`, vert `#4fbf7a`, ambre `#e8b36a` ; la couleur de l'agent sur son
+robot. Toutes en variables (`src/renderer/core/ui/theme.css` : `--vc-bg`,
+`--vc-side`, `--vc-card`, `--vc-line`, `--vc-text`, `--vc-accent`…), aucune
+couleur en dur ailleurs, sauf la coloration du code. Polices **Inter** et
+**JetBrains Mono**, embarquées dans l'appli (`core/ui/fonts/`, licence OFL) :
+même rendu partout, rien chargé du réseau — la page n'autorise que
+`font-src 'self'` (I-7). Sobre et dense : boutons de 22 px de haut, coins peu
 arrondis, bordures fines, ni dégradés ni halos ; le texte garde sa taille
 (12 à 13,5 px). Une action dont l'icône est claire (fermer, ouvrir dans
 l'éditeur, GitHub, diff, commenter, valider, à revoir, arrêter, lancer,
@@ -763,7 +791,7 @@ de l'écran et le brouillon tiennent (I-29).
 ### Le relevé, les actions
 
 **F-94 Le relevé** (sans modèle) : ce que l'écran montre, calculé par le
-principal pour l'agent affiché en VibeCoder :
+principal pour l'agent affiché :
 - le **dépôt**, par git en lecture seule (I-39), dans le dossier de l'agent :
   la branche, sa base (`origin/HEAD`, sinon `main`, sinon `master`), les
   fichiers changés (depuis la base, et la copie de travail, non suivis
@@ -823,7 +851,7 @@ Les deux rôles lisent le disque (un fichier de 1 Mo au plus). **Rythme** : à c
 conversation envoyée au panneau visible (ouverture, changement d'état d'un
 agent, au fil d'un tour), toutes les 4 s tant que le panneau est visible, aussitôt
 après une action, une validation, un réglage ou ↻ ; un relevé à la fois, au
-plus un par seconde. L'agent affiché n'est plus en VibeCoder : `null`, une
+plus un par seconde. Plus d'agent affiché (aucun agent) : `null`, une
 fois, et le relevé régulier s'arrête. git manquant, pas de dépôt, fichier
 illisible : le relevé part quand même, sans bloquer le fil ni l'agent
 (I-29).
@@ -1111,7 +1139,8 @@ point d'attention à la zone de commentaire de la carte (ouverte si elle était
 fermée), à la suite de ce qui y est déjà écrit, rien d'effacé — le relecteur
 précise, et seul *Ajouter* le verse au brouillon.
 
-**La dictée**, panneau ouvert, va à la zone de texte qui a le clavier : le
+**La dictée** (le micro de chaque zone de prompt, maintenu, F-68 : il donne
+le clavier à son champ) va à la zone de texte qui a le clavier : le
 champ d'une étape, la zone de commentaire du relecteur (*Commenter*, *À revoir*, une remarque
 du brouillon), la réponse libre d'une question ouverte ; à la place de la
 sélection, précédée d'une espace si le texte avant le curseur ne finit pas
@@ -1772,7 +1801,7 @@ une ligne, ou pas de réponse → refusé, rien ne bouge.
     (`{ dir, branch }`) dans les sorties de l'agent du dépôt et ajoute un
     **robot temporaire** « PR #n » sur ce dossier, un enfant de l'agent du
     dépôt (F-51) avec sa PR (`agents[].parent` `{ id, pr }`, § 9 : le
-    modèle, l'effort et le mode de l'agent du dépôt, en VibeCoder, relecteur,
+    modèle, l'effort et le mode de l'agent du dépôt, relecteur,
     la PR suivie, sa fiche et son brouillon de revue repris) — seulement
     après la question de confiance, **toujours posée** pour le worktree
     d'une PR (ses réglages `.claude` sont ceux de la PR et se chargeront ;
@@ -1822,7 +1851,7 @@ une ligne, ou pas de réponse → refusé, rien ne bouge.
     quand la conversation travaille (F-115) ;
   - avec des modifications, en plus, *Mettre de côté*.
 
-  Ensuite le dossier (ou l'enfant) est en VibeCoder, créateur ; à son premier
+  Ensuite le dossier (ou l'enfant) est affiché, créateur ; à son premier
   relevé, *Rédiger la note* part avec la demande. Un échec (pas de base, la
   recette, l'enfant pas ouvert) : ✗ et sa ligne à côté du choix. Une fiche
   sans demande (l'appli relancée entre-temps) : supprimée, rien d'autre.
@@ -1961,8 +1990,8 @@ unique (40 caractères au plus : lettres, chiffres, `.`, `_`, `-`, et des
 espaces au milieu ; il nomme le journal), `run` tel
 que tapé dans un terminal, `cwd` relatif au dossier de l'agent ; une entrée
 mal formée est ignorée. Le fichier est relu à chaque relevé : une commande
-ajoutée et enregistrée apparaît sans relancer l'appli. Chaque commande a son nom (entier, coupé s'il est vraiment long ; la
-bulle donne nom et commande), sa commande en petit dessous, *Lancer*, *Arrêter*,
+ajoutée et enregistrée apparaît sans relancer l'appli. Chaque commande a son nom (entier, coupé s'il est vraiment long ; l'infobulle
+donne nom et commande), sa commande en petit dessous, *Lancer*, *Arrêter*,
 *Relancer* (icônes), son état (en cours, arrêtée, en échec et son code), depuis
 quand, et la fin de son journal (200 lignes au plus, sans couleurs, qui suit
 la fin ; dépliable ; *Journal complet* l'ouvre dans l'éditeur).
@@ -2311,7 +2340,7 @@ les mêmes arguments. Ce sont des fichiers générés, pas des défauts : hors d
 manifeste, réécrits à chaque fois (les noms en `--haiku`, `--sonnet`,
 `--opus`, suivis ou non d'un `--<effort>`, leur sont réservés). Jamais Fable (I-36).
 
-**F-107 Le dossier de VibeCoder** (`userData/vibecoder/` ; menu de l'icône,
+**F-107 Le dossier de VibeCoder** (`userData/vibecoder/` ; ⚙ Réglages,
 *Agents Claude Code → Dossier de VibeCoder*, § 8) : `actions.fr.json`,
 `actions.en.json` (les boutons : en modifier, en retirer, en ajouter),
 `plugin/` (`.claude-plugin/plugin.json`, `skills/<nom>/SKILL.md` avec son
@@ -2354,19 +2383,25 @@ modèle, et le choix du modèle d'une étape (F-99) ne le propose pas ; seul un 
 d'état : « Fable (plus cher) », pastille *✦ Fable · élevé* des étapes Note et
 Forme, en créateur : modèle Fable, effort élevé).
 
-## 8. Menu du clic droit (icône, bouton de lecture)
+## 8. ⚙ Réglages
 
-État du modèle ; Langue ; Micro (défaut du système + micros énumérés) ; Bip ;
-Couper le son des autres applications (Linux, Windows) ; Coller
-automatiquement ; Toujours au premier plan (icône, bulles, panneau ;
-appliqué aussitôt) ; Afficher le texte transcrit ; Autoriser la coupure du
-micro Discord (Linux, Windows) ; Rétablir le son et le micro Discord
-(dépannage, F-34) ; Lecture à voix haute (installer, source,
-désactivée, langue, voix, volume) ; Agents Claude Code (afficher, relire
-avant d'envoyer, commande, changer la commande, éditeur, changer d'éditeur,
-consigne, journal, *Dossier de VibeCoder* : ses fichiers par défaut écrits,
-puis le dossier ouvert, F-107) ; Ouvrir le dossier whisper ; Modifier la configuration ;
-À propos (page de la version) ; Quitter.
+Le bouton **⚙ Réglages** de l'en-tête de VibeCoder (F-92) ouvre, sous lui, le
+menu de l'appli (`menu:settings`, avec les micros énumérés par la page,
+seule à y avoir accès) — les options de l'ancien menu de l'icône qui
+restent : État du modèle (F-8) ; Langue ; Micro (défaut du système + micros
+énumérés) ; Bip de début / fin ; Couper le son des autres applications
+pendant la dictée (Linux, Windows) ; Autoriser la coupure du micro Discord
+(Linux, Windows) ; Rétablir le son et le micro Discord (dépannage, F-34 ;
+grisé pendant une dictée) ; Lecture à voix haute (installer Pocket TTS,
+langue du texte, voix française, voix anglaise, volume 25, 50, 75, 100 %) ;
+Agents Claude Code (commande, changer la commande, éditeur, changer
+d'éditeur, consigne, journal, *Dossier de VibeCoder* : ses fichiers par
+défaut écrits, puis le dossier ouvert, F-107) ; Ouvrir le dossier whisper ;
+Modifier la configuration ; À propos (page de la version) ; Quitter.
+Retirés en 0.14.0 avec l'icône, le collage et le bouton ▶ : *Coller
+automatiquement*, *Toujours au premier plan*, *Afficher le texte transcrit*,
+la source de la lecture et *désactivée*, *Afficher les agents*, *Relire
+avant d'envoyer*.
 
 ## 9. Réglages (`config.json`)
 
@@ -2375,32 +2410,23 @@ puis le dossier ouvert, F-107) ; Ouvrir le dossier whisper ; Modifier la configu
 | `lang` | `fr` | fr, en, auto, es, de, it, pt, nl |
 | `vocabulary` | `''` | prompt whisper, 300 car. |
 | `sound` | `true` | bips |
-| `showText` | `true` | panneau « Dictée » après une dictée |
-| `autoPaste` | `true` | collage automatique |
-| `onTop` | `true` | premier plan |
 | `discordMute`, `muteOthers` | `false` | coupures |
-| `speak` | `selection` | selection, clipboard, off |
 | `speakVolume` | `1` | borné à 0–1 |
 | `speakLang` | `auto` | auto, fr, en |
 | `speakVoices` | `{ fr: estelle, en: jane }` | |
 | `deviceId`, `deviceLabel` | `''` | micro |
-| `size`, `pos` | `64`, `null` | icône |
-| `agentsEnabled` | `false` | |
 | `agentCommand` | `''` | → `claude` |
 | `editorCommand` | `''` | → le premier éditeur trouvé |
 | `terminalCommand` | `''` | *Ouvrir un terminal ici* (F-56) : la commande du terminal, découpée comme `agentCommand`, `{dir}` remplacé par le dossier de l'agent (un argument entier) ; ex. `konsole --workdir {dir}`, `konsole --workdir {dir} -e distrobox enter dev`, `wt.exe -d {dir}` ; `''` → le premier terminal trouvé |
 | `agents`, `agentFolders` | `[]` | |
-| `agentSelected` | `null` | remis à `null` au lancement |
-| `agentReview` | `true` | dictée dans le champ |
-| `convSize` | — | taille du panneau agrandi |
+| `agentSelected` | `null` | l'agent affiché, retrouvé au lancement (F-80) |
 | `vibeLang` | `fr` | VibeCoder : fr, en (F-108) ; autre valeur → fr |
 | `vibeModulesView` | `list` | VibeCoder : la vue de l'étape Modules, `ide` ou `list` (F-100) ; autre valeur → `list` |
-| `vibeSize` | — | taille du panneau en VibeCoder (défaut 1280×820) |
+| `vibeSize` | — | taille de la fenêtre (défaut 1280×820, F-63) |
 | `vibeCommandPrefix` | `''` | VibeCoder : ce qui précède les commandes du projet et gh (F-111, F-112) ; `''` → `distrobox enter <box> --` d'après `agentCommand`, sinon rien |
 | `artifactTextMax` | `10485760` (10 Mo) | VibeCoder : octets d'un artefact affiché en texte, au-delà « fichier tronqué » (F-95) ; un entier positif, sinon le défaut |
 
-Dans `agents`, pour VibeCoder : `view` (`vibecoder` ; absent : la
-conversation) et `vibe` `{ flow, pr }` — `flow` `create` (défaut)
+Dans `agents`, pour VibeCoder : `vibe` `{ flow, pr }` — `flow` `create` (défaut)
 ou `review`, `pr` la PR suivie (un
 entier positif, sinon `null`) ; une valeur inconnue prend le défaut ; un
 `autonomy` d'avant la 0.12.0 est ignoré (le mode *Vibe* n'est qu'en mémoire,
@@ -2410,17 +2436,22 @@ robot d'une PR ouverte dans un worktree, la PR (F-110) ; mal formé, c'est un
 agent ordinaire. L'ancien `temp` `{ parent, pr }` se lit comme `parent`, et
 devient `parent` au lancement.
 
-Relue à chaque usage (une retouche à la main prend effet sans relancer, sauf
-`size`). Clés inconnues ignorées (ex. l'ancien `speakEngine`). Anciens formats
+Relue à chaque usage (une retouche à la main prend effet sans relancer).
+Clés inconnues ignorées (ex. l'ancien `speakEngine` ; celles retirées en
+0.14.0 : `size`, `pos`, `onTop`, `agentsEnabled`, `autoPaste`, `showText`,
+`speak`, `speakMode`, `agentReview`, `convSize`, `startupPatch`, et `view` d'un
+agent, encore écrit sur l'agent d'une PR, plus lu). Anciens formats
 tolérés : `agentFolders` en chemins seuls, couleur portée par l'agent,
 `temp` (ci-dessus).
 
 ## 10. Cycle de vie
 
-**F-80** Une seule instance. Au lancement : fenêtres créées (bulle cachée,
-prête), couleurs des dossiers complétées, **aucun agent sélectionné**,
-assistant Windows démarré, modèle whisper vérifié après le chargement de la
-bulle.
+**F-80** Une seule instance. Au lancement : la fenêtre créée (F-63),
+couleurs des dossiers complétées, l'agent affiché la dernière fois
+(`agentSelected`) l'est de nouveau, sinon le premier ; aucun : l'accueil
+(I-8 retiré en 0.14.0). L'assistant Windows (coupures du son, F-32) démarre
+à sa première commande (plus au lancement : le collage est retiré) ;
+modèle whisper vérifié après le chargement de la fenêtre (F-8).
 
 **F-81 Quitter** pendant une dictée ou un tour d'agent : on rend d'abord le son
 et le micro Discord, on interrompt les agents et on attend la fin de leurs
@@ -2446,10 +2477,13 @@ agents arrêtés. Les processus lancés par l'onglet *Processus* (F-111) : arrê
 ## 12. Invariants — ce que l'appli ne doit jamais faire
 
 Testés automatiquement (`npm run test:invariants`, dossiers
-`tests/invariants/` protégés) : I-2 à I-6 (texte collé, une ligne,
-presse-papiers, collage désactivé), I-8, I-9, I-11 (page et principal), I-12,
-I-13 à I-17, I-19, I-20, I-21, I-23, I-24, I-27 (et le terminal :
-`src/main/technicals/editor/tests/invariants/terminal.test.ts`), I-29, I-30, I-32 à I-34 ;
+`tests/invariants/` protégés) : I-2, I-3 et I-10 (réduits en 0.14.0 pour I-2
+et I-3 : `src/main/app/controllers/tests/invariants/page-text.test.ts`, sur le
+vrai principal, et `src/renderer/core/dictation/tests/invariants/whisper-text.test.ts`),
+I-9, I-11 (page et principal), I-12,
+I-13 à I-17, I-19, I-20 (et les ponts : `tests/invariants/bridges.test.ts`),
+I-21, I-23, I-24, I-27 (et le terminal :
+`src/main/technicals/editor/tests/invariants/terminal.test.ts`), I-29, I-32 à I-34 ;
 VibeCoder, I-35 à I-40 : `src/main/core/vibecoder/tests/invariants/`
 (`defaults.test.ts` I-35, `fable.test.ts` I-36, `files.test.ts` I-37,
 `actions.test.ts` I-38), `src/main/technicals/git/tests/invariants/read-only.test.ts`,
@@ -2472,38 +2506,42 @@ demande à Claude Code) et le dernier cas de `runs.test.ts` ; I-46 :
 `src/main/core/vibecoder/tests/invariants/checks.test.ts` ; I-41, I-47 :
 `src/main/app/controllers/tests/invariants/worktree.test.ts`,
 `family-commands.test.ts` (sur le vrai principal, git réel).
-Les autres (focus, fenêtres, I-1, I-18, I-22, I-28) : scénarios du § 13 et
-bancs de comparaison.
+Les autres (focus, fenêtre, I-18, I-22, I-28) : scénarios du § 13 et
+bancs de comparaison. Retirés en 0.14.0, avec le comportement qu'ils
+gardaient et leurs tests : I-1, I-4 à I-6, I-8, I-30 (leur numéro reste
+réservé : on ne renumérote pas).
 
-### Focus et collage
+### Les ponts et le texte des pages
 
-- **I-1** L'icône et la bulle ne prennent **jamais** le focus : le texte doit
-  arriver dans l'application où est le curseur.
-- **I-2** Ce qui est collé ou envoyé à un agent par la dictée est **toujours**
-  ce que whisper vient de rendre, jamais un texte fourni par une page. Seule
-  exception : le texte du champ du panneau, écrit ou relu par l'utilisateur.
-  Une action de VibeCoder n'y ajoute que son gabarit et des valeurs du
-  dernier relevé (I-38).
-- **I-3** Aucun canal « colle ce texte », « lis ce texte » ou « copie ce
-  texte » : Copier (contexte « Dictée ») demande au principal de copier
-  **son** dernier texte ; le lecteur lit la sélection, ou le résumé retenu par
-  le principal.
-- **I-4** Jamais de retour à la ligne dans une transcription (collé dans un
-  terminal, il **exécute** la commande).
-- **I-5** Le presse-papiers de l'utilisateur est rendu après un collage
-  réussi ; il n'est **pas** rendu si le collage a échoué ou est désactivé (le
-  texte doit y rester).
-- **I-6** Collage automatique désactivé : **aucune** touche simulée.
-- **I-30** Une dictée destinée à un agent n'est **jamais perdue** : elle est
-  remise au panneau **après** le fil de cet agent (sinon le premier fil reçu
-  bascule le brouillon et l'efface), y compris quand le panneau est à créer.
+*(« Focus et collage » jusqu'à la 0.13.0 : l'icône, la bulle et le collage
+sont retirés en 0.14.0.)*
+
+- **I-1** *(retiré en 0.14.0 : l'icône et la bulle ne prenaient jamais le
+  focus ; elles n'existent plus.)*
+- **I-2** Ce qui est envoyé à un agent est **toujours** le texte du champ
+  (écrit, ou dicté puis relu par l'utilisateur) ou ce que whisper vient de
+  rendre, jamais un autre texte fourni par une page ; une action de VibeCoder
+  n'y ajoute que son gabarit et des valeurs du dernier relevé (I-38). La
+  transcription est rendue à la page qui l'a demandée, jamais envoyée
+  d'elle-même à un agent.
+- **I-3** Aucun canal « lis ce texte » ou « copie ce texte » : *Écouter* lit
+  le résumé retenu par le principal (F-46), la page ne désigne qu'une réponse
+  par son rang.
+- **I-4** *(retiré en 0.14.0 : une transcription sans retour à la ligne, pour
+  un collage dans un terminal ; rien n'est plus collé. Le texte sort toujours
+  sur une ligne, F-5.)*
+- **I-5** *(retiré en 0.14.0 : le presse-papiers rendu après un collage.)*
+- **I-6** *(retiré en 0.14.0 : aucune touche simulée, collage désactivé.)*
+- **I-30** *(retiré en 0.14.0 : la dictée remise au panneau après le fil de
+  son agent ; la dictée rend son texte à la page qui l'a demandée, F-6.)*
 
 ### Vie privée
 
 - **I-7** Rien ne quitte la machine, sauf ce qui est envoyé à un agent (et le
   téléchargement des modèles). Transcription et synthèse vocale : locales.
-- **I-8** **Aucun agent sélectionné au lancement** : une dictée ne part pas
-  chez Claude parce qu'un robot l'était la veille.
+- **I-8** *(retiré en 0.14.0 : aucun agent sélectionné au lancement ; l'agent
+  sélectionné est l'agent affiché, retrouvé au lancement, F-80, et une dictée
+  ne part jamais d'elle-même chez un agent, I-2.)*
 - **I-9** Le micro n'est autorisé qu'à nos propres pages (`file://`), en audio
   seul ; aucune autre permission.
 - **I-10** Pas de whisper sur du silence (F-4).
@@ -2536,10 +2574,9 @@ bancs de comparaison.
   demande annulée par Claude Code quitte la file et la suivante s'affiche ;
   en fin de tour ou à l'interruption, celles qui restent sont refusées.
   (Une demande sans réponse bloque Claude Code indéfiniment.)
-- **I-18** Une ouverture du panneau que l'utilisateur n'a pas demandée
-  (dictée pour ailleurs, demande d'autorisation) ne lui prend **pas** le
-  clavier — y compris quand il avait été fermé par × (jamais `restore()` dans
-  ce cas). Le texte dicté est collé **avant** que le panneau s'ouvre.
+- **I-18** Une fenêtre qui se montre sans que l'utilisateur l'ait demandé
+  (demande d'autorisation, F-73) ne lui prend **pas** le clavier (montrée
+  sans activation, jamais `restore()` dans ce cas, F-64).
 
 ### Agents : processus et confiance
 
@@ -2549,8 +2586,9 @@ bancs de comparaison.
   processus = fermer son entrée (Claude Code sort de lui-même), le tuer
   seulement après le même délai.
 - **I-20** Un message IPC n'est accepté que de la fenêtre qui a le droit de
-  l'envoyer : chaque fenêtre sur ses propres canaux (`agent:*` de l'icône,
-  `conv:*` du panneau, `bubble:*` de la bulle…).
+  l'envoyer : le panneau, sur ses propres canaux (`PANEL_CHANNELS` : `conv:*`,
+  `agent:*`, `dictation:*`, `config:*`, `tts:cancel`, `menu:settings`) ; un
+  autre expéditeur est ignoré.
 - **I-21** Le panneau ne navigue jamais ; un lien ne s'ouvre que s'il est en
   `http(s)`, dans le navigateur ; un fichier joint est **montré** dans le
   gestionnaire de fichiers, jamais **ouvert** (un script se lancerait), et
@@ -2564,7 +2602,7 @@ bancs de comparaison.
 - **I-24** La consigne `<audio>` ne s'applique qu'aux sessions créées par
   l'appli, jamais aux sessions Claude Code habituelles.
 - **I-25** Un message n'est jamais envoyé à un agent au travail (le texte est
-  gardé : brouillon, ou presse-papiers). Une course de VibeCoder n'est pas
+  gardé dans le brouillon). Une course de VibeCoder n'est pas
   un message à l'agent : elle part dans sa propre conversation (F-115) ; son
   avis de fin attend que la conversation de l'agent soit libre.
 - **I-33** Le processus d'un agent survit à la fin d'un tour, et ce qu'il a
@@ -2612,7 +2650,7 @@ bancs de comparaison.
   connus** (F-95 ; ni `..`, ni autre dossier qu'`invariants/`, ni un lien) ;
   un artefact (F-95), pour l'afficher (son texte
   suivi, ou servi sous `vibe-artifact://<agent>/a<i>`, seulement pour
-  l'agent affiché en VibeCoder), l'ouvrir ou le copier, **dans le dossier
+  l'agent affiché), l'ouvrir ou le copier, **dans le dossier
   d'artefacts de son projet seulement** (ni un artefact d'un autre projet, ni
   un fichier hors de ce dossier, ni un lien), par son id `a<i>` du dernier
   relevé. Le `@` du champ (F-70) ne fait que mettre dans le texte le chemin
@@ -2753,7 +2791,7 @@ bancs de comparaison.
   directes passent par l'agent, dans la conversation, avec ses autorisations.
 - **I-40** Aucun HTML rendu depuis un texte (note, rendue ou en édition,
   sortie d'un skill, message de l'agent dans le fil de la conversation,
-  F-66, en VibeCoder comme en conversation, code d'un fichier, F-113, éditable ou non, son diff en
+  F-66, code d'un fichier, F-113, éditable ou non, son diff en
   ligne ou côte à côte : une balise
   tapée ou écrite dans le fichier reste du texte) : le
   Markdown de VibeCoder ne produit que du texte, du code et des liens
@@ -2858,53 +2896,60 @@ bancs de comparaison.
 À rejouer avant chaque fusion (et après chaque étape de la migration).
 « Banc » : appli lancée avec `--user-data-dir` sur un dossier temporaire,
 transcription simulée en remplaçant `whisper.transcribe` (cf. les essais de la
-revue de la 0.4.0). Les pages seules se comparent automatiquement à une
-version publiée : `npm run test:front-diff -- v0.4.0` (`tests/front-diff/`,
-mêmes scénarios, mêmes messages vers le principal, mêmes captures). Le
-principal, sur l'appli réelle : `npm run test:main-diff -- <version>`
-(`tests/main-diff/` : démarrage, dictée vers un agent et vers le curseur,
-Copier, erreurs ; mêmes relevés).
+revue de la 0.4.0). La page seule se compare automatiquement à une
+version : `npm run test:front-diff -- <tag ou branche>` (`tests/front-diff/`,
+la fenêtre de VibeCoder seule : mêmes scénarios, mêmes messages vers le
+principal, mêmes captures ; une référence d'avant la 0.14.0 n'a pas cette
+fenêtre). Le principal, sur l'appli réelle : `npm run test:main-diff --
+<tag ou branche>` (`tests/main-diff/` : démarrage, les robots, dictée rendue
+au champ, un enregistrement trop court, *Écouter*, liens et agents refusés,
+erreurs ; mêmes relevés).
 
 **Dictée**
-- **S-1** Maintenir, parler, relâcher dans un éditeur : bips, texte collé, le
-  presse-papiers d'avant revient.
-- **S-2** Clic bref, glisser : ni micro ni bip ; la position est retenue.
+- **S-1** Maintenir le micro du champ de la conversation, parler, relâcher :
+  bip aigu puis grave, le texte dans le champ, à la suite du brouillon, le
+  clavier au champ ; rien n'est envoyé ni collé.
+- **S-2** *(retiré en 0.14.0 : clic bref et glisser de l'icône.)*
 - **S-3** Relâcher aussitôt (< 0,4 s) ou dicter du silence : « Aucune parole
   détectée », whisper non appelé.
-- **S-4** *Coller automatiquement* décoché : rien de simulé, texte dans le
-  presse-papiers.
-- **S-5** Dicter dans un terminal : une seule ligne, rien d'exécuté.
-- **S-6** Sans robot sélectionné, l'éditeur au premier plan : texte collé
-  dans l'éditeur, panneau « Dictée » ouvert à côté, l'éditeur **garde le
-  clavier** ; Copier ; ×, nouvelle dictée → le panneau revient, toujours sans
-  le clavier. Bulle (téléchargement, volume) : croix, survol qui retient,
-  suit l'icône.
-- **S-7** Discord en appel, coupure autorisée : « Micro Discord coupé »,
-  rétabli au relâché ; micro déjà coupé avant → toujours coupé après.
+- **S-4** *(retiré en 0.14.0 : collage automatique décoché.)*
+- **S-5** *(retiré en 0.14.0 : dicter dans un terminal.)* Une dictée longue :
+  une seule ligne dans le champ.
+- **S-6** Le champ d'une étape a le clavier, maintenir le micro de la
+  conversation → le texte va au champ de l'étape ; le micro du champ d'une
+  étape, d'un commentaire, de la réponse libre d'une question → le texte dans
+  ce champ ; *Envoyer* de chacun fait ce que fait son bouton (lancer l'action
+  de l'étape, ajouter le commentaire, envoyer les réponses).
+- **S-7** Discord en appel, coupure autorisée : « Micro Discord coupé » en
+  tête de la fenêtre, rétabli au relâché ; micro déjà coupé avant → toujours
+  coupé après.
 - **S-8** Son des autres applications : une vidéo se tait pendant la dictée,
   les bips restent. Vidéo arrêtée pendant la dictée, puis relancée : le son
-  revient dans les 5 s. Clic droit → *Rétablir le son et le micro Discord* :
+  revient dans les 5 s. ⚙ Réglages → *Rétablir le son et le micro Discord* :
   un flux resté coupé reprend.
 
 **Lecture**
-- **S-10** Sélection → ▶ lit ; second clic arrête ; rien de sélectionné →
-  grisé ; dicter pendant une lecture l'arrête.
-- **S-11** Volume changé pendant une lecture : appliqué aussitôt.
+- **S-10** ▶ *Écouter* sur une réponse : son résumé lu (la première fois,
+  Pocket TTS s'installe, le message en tête de la fenêtre) ; dicter pendant
+  une lecture l'arrête.
+- **S-11** Volume changé dans ⚙ Réglages : appliqué à la lecture suivante.
 
 **Agents**
-- **S-20** Robot sélectionné, dicter : panneau réduit, texte dans le champ,
-  Entrée → la réponse arrive dans le panneau, ▶ lit le résumé. Aussi à la
-  première dictée après le lancement (panneau jamais ouvert, longue session).
-- **S-21** *Relire avant d'envoyer* décoché : envoi direct ; agent occupé →
-  texte au presse-papiers avec l'erreur.
-- **S-22** **Dictée vers un autre agent** : panneau sur alpha, ×, clic sur le
-  robot beta, dicter « deux » → le champ de **beta** contient « deux », le
-  brouillon d'alpha est intact (bug corrigé en revue de la 0.4.0).
+- **S-20** Un agent affiché, dicter dans le champ de la conversation, Entrée
+  → la réponse arrive dans le fil, ▶ *Écouter* lit le résumé. Aussi à la
+  première dictée après le lancement (longue session).
+- **S-21** *(retiré en 0.14.0 : *Relire avant d'envoyer* décoché, envoi
+  direct.)*
+- **S-22** **Brouillons par agent** : alpha affiché, dicter « un » dans son
+  champ, clic sur le robot beta, dicter « deux » → le champ de **beta**
+  contient « deux » ; retour sur alpha : « un », intact.
 - **S-23** Mode manuel, deux lectures de fichiers en parallèle : les deux
   demandes passent l'une après l'autre, l'agent ne reste pas bloqué.
-- **S-24** Demande d'autorisation, rien d'affiché : panneau réduit ouvert,
-  **sans focus** (aussi après une fermeture par ×), demande visible dans le
-  fil ; le texte affiché est complet.
+- **S-24** Demande d'autorisation, fenêtre masquée : elle se montre sur
+  l'agent, **sans focus**, la demande visible dans le fil ; le texte
+  affiché est complet. Un autre agent affiché : « ? » sur le robot, le bip ;
+  fenêtre sans le focus : une notification du système, un clic affiche
+  l'agent.
 - **S-25** *Toujours autoriser* : seule la règle annoncée, pour la session.
 - **S-26** *Interrompre* pendant une longue commande (lancement par
   `distrobox enter`) : arrêt en moins d'une seconde, plus rien ne tourne
@@ -2916,20 +2961,21 @@ Copier, erreurs ; mêmes relevés).
 - **S-29** « /comp » → /compact proposé, Entrée le choisit, le message part ;
   la jauge attend une nouvelle mesure. Deux agents de même nom dans deux
   dossiers : chacun ses commandes.
-- **S-30** Panneau ouvert sur un agent, second clic sur son robot : contexte
-  « Dictée » ; dicter → texte collé au curseur et montré dans le panneau,
-  avec *Copier* ; clic sur le robot → retour à sa conversation, brouillon
-  intact.
-- **S-31** × puis robot qui répond : pastille sur le robot (panneau réduit =
-  fermé).
+- **S-30** *(retiré en 0.14.0 : le contexte « Dictée » et *Copier*.)* Les
+  robots : afficher beta ne déplace aucun robot ; clic sur le badge de
+  l'agent affiché → la palette sur *Agents* ; Ctrl+Tab → l'agent d'avant ;
+  en changeant d'agent, jamais de page vide.
+- **S-31** alpha affiché, beta qui répond : pastille verte et bip sur le
+  robot de beta ; alpha qui répond : ni pastille ni bip (lue d'office).
 - **S-32** Nouveau dossier : question de confiance ; *Annuler* → rien
   d'ajouté.
 - **S-33** Quitter pendant un tour : l'appli attend l'arrêt de l'agent. Agent
   au repos : elle quitte aussitôt (son processus sort de lui-même).
-- **S-34** Relancer l'appli : aucun robot sélectionné.
-- **S-35** Panneau ouvert sur alpha, « + » → nouvel agent beta (dossier
-  favori, puis dossier choisi) : le panneau montre beta, beta est sélectionné,
-  dicter → le champ de beta. Panneau fermé : beta sélectionné, rien ne s'ouvre.
+- **S-34** Relancer l'appli : l'agent affiché la dernière fois l'est de
+  nouveau (I-8 retiré) ; aucun agent : l'accueil, *Nouvel agent…*.
+- **S-35** alpha affiché, « + » (ou Ctrl+N) → nouvel agent beta (dossier
+  favori, puis dossier choisi) : beta affiché, son robot juste après les
+  autres ; dicter → le champ de beta.
 - **S-36** Agent dans un dossier cloné de GitHub : clic droit → *Ouvrir sur
   GitHub — o/d*, la page s'ouvre dans le navigateur. Dossier sans `.git`, ou
   origine hors GitHub : entrée grisée. `git remote set-url origin …` puis clic
@@ -2937,41 +2983,42 @@ Copier, erreurs ; mêmes relevés).
 - **S-37** Clic droit → *Ouvrir dans l'éditeur (zed)* : le dossier s'ouvre
   dans une **nouvelle** fenêtre de Zed (celle déjà ouverte garde son projet).
   `editorCommand` réglé sur un programme absent : entrée grisée,
-  *Aucun éditeur trouvé* dans le menu de l'icône. Quitter l'appli : l'éditeur
+  *Aucun éditeur trouvé* dans ⚙ Réglages. Quitter l'appli : l'éditeur
   reste ouvert.
 - **S-38** « Lance `sleep 30 && echo fini` en arrière-plan et préviens-moi » :
   le tour finit ; ~30 s plus tard, l'agent répond de lui-même (pastille verte,
   bip), ou au plus tard avec le message suivant. *Nouvelle session* puis
   quitter : plus aucun processus `claude` (`pgrep claude`).
 - **S-39** « Lance `for i in 1 2 3 4 5 6; do echo étape $i; sleep 2; done`
-  en arrière-plan » : le tour fini, le robot pulse lentement ; *⚙ Tâches (1)*
-  dans l'en-tête ; le volet montre la commande, sa sortie grandit au fil
+  en arrière-plan » : le tour fini, *⚙ Tâches (1)* dans la barre d'état ; le volet montre la commande, sa sortie grandit au fil
   de l'eau, puis ✓ et le résumé. Un lien dans la description (« surveille
   https://github.com/… ») s'ouvre dans le navigateur. *Nouvelle session* :
   volet vide.
 
-**Fenêtres**
-- **S-40** *Toujours au premier plan* décoché : icône, bulle et panneau
-  passent sous une vidéo en plein écran.
-- **S-41** Panneau agrandi redimensionné : taille retenue au lancement
-  suivant ; panneau qui suit l'icône au glisser.
-- **S-42** Longue conversation en réduit, ⤢ : le fil s'ouvre sur le dernier
-  échange, pas en haut ; on remonte, un message arrive : la lecture reste.
+**Fenêtre**
+- **S-40** *(retiré en 0.14.0 : *Toujours au premier plan*.)* La fenêtre
+  passe sous une autre comme toute fenêtre ; l'en-tête la déplace (pas ses
+  boutons) ; réduire, agrandir, fermer par les boutons de droite ; fermer
+  quitte l'appli.
+- **S-41** Fenêtre redimensionnée : taille retenue au lancement suivant.
+- **S-42** Longue conversation : le fil s'ouvre sur le dernier échange, pas
+  en haut ; on remonte, un message arrive : la lecture reste.
 
 **VibeCoder** (un agent dans un dépôt d'essai qui a `docs/tickets/` ; pour
 relire, une PR d'essai sur GitHub)
-- **S-50** Clic droit sur un robot → *◧ Ouvrir VibeCoder* : panneau agrandi
-  (1280×820 la première fois), en-tête (nom, `⎇` branche), au centre le
-  fil d'Ariane au-dessus de l'étape en cours, conversation à droite. Redimensionner :
-  taille retenue, celle de la conversation (`convSize`) inchangée. Barre
+- **S-50** Premier lancement : la fenêtre (1280×820), l'en-tête de la vue C
+  (les robots, `⎇` branche, VibeCoder au milieu, Artefacts, Chercher Ctrl K,
+  ⚙ Réglages, les boutons de la fenêtre), au centre le fil d'Ariane
+  au-dessus de l'étape en cours, conversation à droite ; les couleurs et les
+  polices du thème, rien chargé du réseau. Barre
   d'état : changer modèle, effort, mode → le menu du robot les montre ;
   pastille *✦ Fable · élevé* de l'étape Note → Fable, effort élevé. Un
   dossier sans `.git` : le bandeau le dit, un message part quand même.
-- **S-51** alpha en VibeCoder, beta en conversation, panneau ouvert : clic
-  sur beta → sa conversation telle qu'avant (réduit ou agrandi, 🕘) ; clic
-  sur alpha → VibeCoder. alpha sélectionné, dicter → le texte dans le champ
-  de VibeCoder. Relancer l'appli : aucun robot sélectionné (I-8), chaque
-  agent retrouve sa vue.
+- **S-51** Ctrl+K : la palette ; Tab → *Agents*, *Branches*, *PR*, *Tout* ;
+  « beta » → beta, Entrée → beta affiché ; une branche que personne ne
+  tient, Entrée → le dossier y passe ; ⇧ Entrée → la vue des branches ;
+  Échap ferme. ⚙ Réglages : langue, micro, bip, coupures, lecture à voix
+  haute, agents, dossier whisper, configuration, version, quitter.
 - **S-52** Sur la base, champ vide, *Rédiger la note* : « Dictez ou écrivez
   d'abord… », rien n'est envoyé. Dicter une demande → dans le champ ;
   *Rédiger la note* : l'agent propose un nom de branche ; « Voulez-vous
@@ -3007,18 +3054,18 @@ relire, une PR d'essai sur GitHub)
   une action part en anglais (`/vibecoder:… en …`), l'agent répond en
   anglais ; le fil et le champ restent en français ; un autre agent en
   VibeCoder aussi en anglais. *FR* : retour.
-- **S-56** Après quelques actions, *Revenir à la conversation* → chaque action est
-  dans le fil, comme un message tapé, avec sa réponse. *◧ Ouvrir VibeCoder* :
-  retour sur l'étape en cours.
-- **S-57** Menu de l'icône → *Agents Claude Code → Dossier de VibeCoder* : le
+- **S-56** Après quelques actions : 🕘 → l'historique à la place du fil,
+  une ancienne session en lecture seule, *← Conversation en cours* → le fil,
+  l'écran VibeCoder resté sur son étape.
+- **S-57** ⚙ Réglages → *Agents Claude Code → Dossier de VibeCoder* : le
   dossier s'ouvre. Changer un libellé de `actions.fr.json` : le bouton
   change au relevé suivant ; `model: haiku` dans un skill : son bouton dit
   « haiku ». Relancer l'appli (ou une nouvelle version) : les retouches
   restent. Supprimer le fichier, relancer : il revient tel que livré.
   `actions.fr.json` cassé : les boutons d'origine.
-- **S-58** Mode manuel : *Lancer les vérifications*, puis × ; à la demande
-  d'autorisation, le panneau se rouvre agrandi sur VibeCoder, **sans prendre
-  le clavier** (I-18), la demande dans la colonne de la conversation, le
+- **S-58** Mode manuel : *Lancer les vérifications*, puis un autre agent
+  affiché ; à la demande d'autorisation, le « ? » sur son robot ; retour sur
+  lui : la demande dans la colonne de la conversation, le
   bouton principal disant « L'agent attend votre autorisation… ».
 - **S-59** Une PR déjà fusionnée : *Charger la PR* → sa fiche, son état ; pas
   de badge *Relecteur* ni de bandeau (sans PR ouverte, on est créateur).
@@ -3162,12 +3209,9 @@ relire, une PR d'essai sur GitHub)
 ## 14. Limites connues
 
 - Windows : agents et VibeCoder non essayés ; pas de sélection jointe (le
-  Ctrl+C simulé interromprait un terminal) ; l'historique du presse-papiers
-  (Win+V) garde le texte lu à voix haute.
+  Ctrl+C simulé interromprait un terminal).
 - Windows : `code` est un `code.cmd`, qu'on ne lance pas sans shell ; régler
   `editorCommand` sur le chemin de `Code.exe`.
-- Le panneau prend le focus : sous KDE, il ne va sur tous les bureaux qu'à la
-  main (Alt+F3), réglage perdu quand il se rouvre de lui-même (F-64).
 - Un processus Claude Code par agent utilisé depuis le lancement (quelques
   centaines de Mo chacun), jusqu'à *Nouvelle session*, *Retirer* ou la sortie ;
   et un par course de VibeCoder en cours ou arrêtée (F-115).
@@ -3207,8 +3251,7 @@ relire, une PR d'essai sur GitHub)
   champ, volet des tâches, détail du contexte), les menus et les messages de
   l'appli restent en français.
 - VibeCoder : les images d'un Markdown (un message de l'agent aussi, F-66) ne sont pas montrées (leur texte
-  reste, en lien s'il est en `http(s)`) ; pas d'🕘 Historique (revenir à la
-  conversation) ; une revue de PR est un commentaire d'ensemble, pas de
+  reste, en lien s'il est en `http(s)`) ; une revue de PR est un commentaire d'ensemble, pas de
   commentaire sur une ligne du diff.
 - Familles (F-51) : une copie principale dont le `.git` est un lien, ou
   créée avec `--separate-git-dir`, n'est pas reconnue comme telle : son
@@ -3269,8 +3312,11 @@ relire, une PR d'essai sur GitHub)
 
 ## 15. Décisions en attente
 
-- **Autorisation qui sélectionne le robot** : aujourd'hui, l'ouverture d'office
-  du panneau pour une demande d'autorisation sélectionne l'agent (le robot
-  affiché et le robot sélectionné vont ensemble) ; la dictée suivante va donc
-  à cet agent (dans son champ, à relire). Laissé tel quel : cohérent avec
-  « le panneau suit le robot sélectionné ».
+- **Autorisation qui affiche l'agent** : la fenêtre masquée, une demande
+  d'autorisation la montre sur son agent, qui devient l'agent affiché (et
+  sélectionné, F-54). Laissé tel quel : l'agent sélectionné est l'agent
+  affiché depuis la 0.14.0.
+- ***Répondre sans basculer*** (vue C) : répondre à un autre agent, ou à sa
+  demande d'autorisation, depuis son robot, sans l'afficher ; demanderait
+  deux canaux nouveaux (`conv:sendTo`, `conv:answer` par id d'agent). Reporté
+  (note de la 0.14.0).

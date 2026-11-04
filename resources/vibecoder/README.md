@@ -1,8 +1,8 @@
 # VibeCoder — les réglages
 
 Ce dossier, `userData/vibecoder/` (`~/.config/whisper-dictation/vibecoder/`
-sous Linux, `%APPDATA%\whisper-dictation\vibecoder\` sous Windows ; menu de
-l'icône : *Agents Claude Code → Dossier de VibeCoder*), contient tout ce que
+sous Linux, `%APPDATA%\whisper-dictation\vibecoder\` sous Windows ; menu
+*⚙ Réglages* de l'en-tête : *Agents Claude Code → Dossier de VibeCoder*), contient tout ce que
 VibeCoder fait dire aux agents : ses boutons et ses skills. L'appli l'écrit au
 premier usage, d'après sa copie d'origine.
 

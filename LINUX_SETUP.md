@@ -35,41 +35,34 @@ Alias de `~/.bashrc`, utilisables depuis l'hôte comme depuis la box :
   whisper-dictation.AppImage` pour en changer).
 
 L'appli part en arrière-plan ; relancé, le lanceur dit « whisper tourne déjà ».
-Les deux versions peuvent tourner ensemble (deux icônes) : mieux vaut n'en
+Les deux versions peuvent tourner ensemble (deux fenêtres) : mieux vaut n'en
 garder qu'une.
 
-Maintenir le clic sur l'icône, parler, relâcher : le texte arrive dans le
-presse-papiers, **Ctrl+V** pour le coller (Ctrl+Maj+V dans un terminal).
+Une fenêtre, celle de VibeCoder. Pour dicter : **maintenir** le micro d'un
+champ (en bas à droite, avant *Envoyer*), parler, relâcher : le texte arrive
+dans ce champ, à relire avant d'envoyer. Rien n'est collé ailleurs.
 
-Le panneau montre aussi le texte à côté de l'icône (contexte *Dictée*, la
-croix le ferme). **Copier** le recopie : pratique si on a copié autre chose
-entre-temps, ou pour le coller dans le champ d'un agent. Désactivable : clic
-droit → *Afficher le texte transcrit*
-(clé `showText` de `.data/config.json`).
+Sur haut-parleurs : ⚙ Réglages → *Couper le son des autres applications
+pendant la dictée*, pour que le micro ne capte pas une vidéo ou un appel (son
+coupé le temps de l'enregistrement, puis rétabli ; les bips restent).
 
-Sur haut-parleurs : clic droit → *Couper le son des autres applications pendant
-la dictée*, pour que le micro ne capte pas une vidéo ou un appel (son coupé le
-temps de l'enregistrement, puis rétabli ; les bips restent).
+En appel Discord : ⚙ Réglages → *Autoriser la coupure du micro Discord* pour
+que le salon n'entende pas la dictée (micro coupé le temps de
+l'enregistrement, puis rétabli ; un micro déjà coupé le reste). Coupure
+invisible côté Discord (ni icône ni son) : le message *Micro Discord coupé*,
+en tête de la fenêtre, la signale. Passe par `wpctl`, déjà présent dans la box
+(paquet `wireplumber`) : rien à installer.
 
-En appel Discord : clic droit → *Autoriser la coupure du micro Discord* pour que
-le salon n'entende pas la dictée (micro coupé le temps de l'enregistrement,
-puis rétabli ; un micro déjà coupé le reste). Coupure invisible côté Discord
-(ni icône ni son) : la bulle *Micro Discord coupé* la signale. Passe par
-`wpctl`, déjà présent dans la box (paquet `wireplumber`) : rien à installer.
+Lecture à voix haute : ▶ *Écouter* sur une réponse d'un agent lit son résumé.
+Pocket TTS (Kyutai), sur le processeur : la voix démarre ~0,1 s après le clic
+(~3 s la première fois, le temps de charger le modèle). Texte lu en français
+ou en anglais selon sa langue. ⚙ Réglages → *Lecture à voix haute* pour
+imposer une langue, changer de voix ou régler le volume.
 
-Lecture à voix haute : sélectionner du texte n'importe où, puis clic sur le
-petit bouton ▶ à droite de l'icône (grisé s'il n'y a rien de sélectionné ;
-■ pendant la lecture, un clic arrête). Pocket TTS (Kyutai), sur le processeur :
-la voix démarre ~0,1 s après le clic. Texte lu en français ou en anglais
-selon sa langue. Clic droit → *Lecture à voix haute* pour lire le
-presse-papiers à la place, masquer le bouton, imposer une langue, changer de
-voix ou régler le volume (curseur).
-
-Agents Claude Code (clic droit → *Agents Claude Code* → *Afficher les agents*) :
-un robot par dossier de projet, à qui la dictée est envoyée une fois
-sélectionné. Version du projet : l'appli tourne dans la box, `claude` y est
-directement. **AppImage sur l'hôte** : les outils (node, yarn…) sont dans la
-box, il faut donc y lancer Claude Code, avec dans
+Agents Claude Code : un robot par dossier de projet, dans l'en-tête de la
+fenêtre (« + » pour en ajouter un). Version du projet : l'appli tourne dans
+la box, `claude` y est directement. **AppImage sur l'hôte** : les outils
+(node, yarn…) sont dans la box, il faut donc y lancer Claude Code, avec dans
 `~/.config/whisper-dictation/config.json` :
 
 ```json
@@ -80,7 +73,7 @@ box, il faut donc y lancer Claude Code, avec dans
 connexion (`bash -lc` avale l'entrée standard, par laquelle l'appli dialogue
 avec Claude Code).
 
-Arrêter : clic droit → *Quitter*.
+Arrêter : fermer la fenêtre, ou ⚙ Réglages → *Quitter*.
 
 ## Mettre à jour
 
@@ -91,7 +84,7 @@ npm install                              # seulement si package.json a changé
 node node_modules/electron/install.js    # idem, si la version d'Electron a changé
 ```
 
-Puis clic droit → *Quitter* et relancer `whisper` (le lanceur reconstruit les
+Puis fermer la fenêtre et relancer `whisper` (le lanceur reconstruit les
 pages, `out/renderer/`) : tant que l'appli tourne, le
 lanceur ne fait rien. `.data/`, exclu de git, ne gêne pas le `pull`.
 
@@ -131,16 +124,6 @@ compilé, lui, n'a besoin que de ce que `dev.ini` fournit déjà (`vulkan-loader
   (un lien symbolique marcherait aussi : l'appli les suit, pour l'exécutable
   comme pour le modèle). Retour au CPU : remplacer `build-vulkan` par `build`
   dedans.
-- **Collage manuel** : l'appli sait envoyer Ctrl+V seule (`xdotool`, `wtype`,
-  `ydotool`). Dans la box, aucun n'est installé : le texte reste dans le
-  presse-papiers. Sur l'hôte (AppImage), `xdotool` est là et colle, mais KDE
-  Wayland demande l'autorisation de contrôler la saisie à chaque fois (ou une
-  fois pour toutes) ; pour ne rien simuler, clic droit → décocher *Coller
-  automatiquement là où est le curseur*. `ydotool` éviterait la demande, mais
-  il faut son démon sur l'hôte. Écarté pour l'instant. Pour y revenir : `ydotoold` est fourni par
-  Bazzite, `/dev/uinput` est déjà accessible sans root → service utilisateur
-  sur l'hôte avec `--socket-path=%t/.ydotool_socket`, paquet `ydotool` dans la
-  box, et `YDOTOOL_SOCKET` exporté par le lanceur.
 - **Pocket TTS par `uv tool`**, pas par `dnf` : il vit dans le home et
   survit à la recréation de la box. Désinstaller : `uv tool uninstall
   pocket-tts`. Installé avec `--index https://download.pytorch.org/whl/cpu`
@@ -154,12 +137,14 @@ compilé, lui, n'a besoin que de ce que `dev.ini` fournit déjà (`vulkan-loader
   de prononciation) et Chatterbox (GPU, conteneur à part : un peu plus naturel,
   mais l'écart ne valait ni le service à installer ni ~4,6 Go de VRAM ; retiré
   en 0.4.0). Pocket TTS l'emporte, sans GPU et sans rien à installer à côté.
-- **Sélection** : l'appli lit la sélection « primaire » de Linux (ce qui est
-  surligné, sans Ctrl+C). Certaines applications la gardent après qu'on a
-  cliqué ailleurs : le bouton reste alors actif sur l'ancienne sélection.
+- **Sélection** (le trombone d'un champ → *Texte sélectionné*) : l'appli lit
+  la sélection « primaire » de Linux (ce qui est surligné, sans Ctrl+C).
+  Certaines applications la gardent après qu'on a cliqué ailleurs : le menu
+  montre alors l'ancienne sélection.
 - **`wl-paste` de l'hôte** : Electron tourne en X11 (XWayland), et KWin ne
-  passe la sélection à une fenêtre X11 que si elle a le focus — l'icône ne le
-  prend jamais. L'appli lit donc la sélection par `wl-paste`, pris sur l'hôte
+  passe la sélection à une fenêtre X11 que si elle a le focus — la fenêtre de
+  l'appli ne l'a pas quand on sélectionne ailleurs. L'appli lit donc la
+  sélection par `wl-paste`, pris sur l'hôte
   (`/run/host/usr/bin/wl-paste`, fourni par Bazzite) : rien à installer dans
   la box. Quand Klipper remplit une sélection vidée, il la marque
   `application/x-kde-onlyReplaceEmpty` : l'appli la tient pour vide.
@@ -205,7 +190,7 @@ Puis le lanceur `~/dev/Gear/tools/whisper.sh` (à rendre exécutable :
 
 ```bash
 #!/bin/bash
-# Lance whisper-dictation (icône de dictée flottante) en arrière-plan.
+# Lance whisper-dictation (VibeCoder, dictée locale) en arrière-plan.
 # Utilisable depuis l'hôte comme depuis la box : l'appli tourne toujours dans `dev`.
 # Journal : ~/.cache/whisper-dictation.log
 set -e

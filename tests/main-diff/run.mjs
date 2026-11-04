@@ -1,27 +1,28 @@
-// Banc du principal : une version publiée (tag, branche) contre la version
-// courante, sur l'appli réelle. Chacune est construite, lancée sur un profil
-// neuf (un agent « essai », collage automatique désactivé, lecture coupée), et
-// pilotée par le même scénario (scenario.mjs) : démarrage, sélection d'un
-// robot, dictée vers l'agent, contexte « Dictée », dictée vers le curseur,
-// Copier, erreurs. Les deux relevés doivent être identiques.
+// Banc du principal : une version publiée (tag, branche ; v0.14.0 par défaut,
+// la première à fenêtre unique) contre la version courante, sur l'appli
+// réelle. Chacune est construite, lancée sur un profil neuf (un agent
+// « essai », affiché la dernière fois), et pilotée par le même scénario
+// (scenario.mjs), par le pont de la fenêtre : démarrage, l'agent affiché, la
+// dictée (enregistrement, transcription rendue à la page, trop court),
+// historique, envoi vide, Écouter sans réponse, lien et agent refusés,
+// erreurs. Les deux relevés doivent être identiques.
 //
-//   npm run test:main-diff -- v0.5.0-rc.1
+//   npm run test:main-diff -- v0.14.0
 //
 // Il faut le modèle de dictée dans .data/whisper (whisper-dev l'y a mis) et
-// build/whisper.cpp/samples/jfk.wav (npm run build:whisper). Des fenêtres
-// s'ouvrent brièvement ; le texte du presse-papiers est sauvé puis rendu.
+// build/whisper.cpp/samples/jfk.wav (npm run build:whisper). Une fenêtre
+// s'ouvre brièvement.
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 const ROOT = path.resolve(import.meta.dirname, '../..');
-const REF = process.argv[2] || 'v0.5.0-rc.1';
+const REF = process.argv[2] || 'v0.14.0';
 const WAV = path.join(ROOT, 'build/whisper.cpp/samples/jfk.wav');
 const MODEL = path.join(ROOT, '.data/whisper');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const run = (cmd, args, cwd) => execFileSync(cmd, args, { cwd, stdio: 'ignore' });
-const tool = (name) => ['/run/host/usr/bin/' + name, name].find((p) => { try { execFileSync(p, ['--version'], { stdio: 'ignore', timeout: 2000 }); return true; } catch { return false; } });
 
 for (const need of [WAV, MODEL]) if (!fs.existsSync(need)) { console.error(`introuvable : ${need}`); process.exit(2); }
 
@@ -30,7 +31,7 @@ async function measure(appDir, name, port) {
   fs.mkdirSync(path.join(data, 'projet'));
   fs.symlinkSync(MODEL, path.join(data, 'whisper'));
   fs.writeFileSync(path.join(data, 'config.json'), JSON.stringify({
-    agentsEnabled: true, autoPaste: false, showText: true, speak: 'off', agentSelected: 'a1',
+    agentSelected: 'a1',
     agents: [{ id: 'a1', dir: path.join(data, 'projet'), name: 'essai', model: '', effort: '', mode: 'default', sessionId: null }],
     agentFolders: [{ dir: path.join(data, 'projet'), color: '#22c55e' }],
   }));
@@ -49,9 +50,6 @@ async function measure(appDir, name, port) {
   return JSON.parse(JSON.stringify(out).replaceAll(data, '<profil>'));
 }
 
-const paste = tool('wl-paste');
-const copy = tool('wl-copy');
-const saved = paste ? (() => { try { return execFileSync(paste, ['--no-newline'], { timeout: 2000 }).toString(); } catch { return ''; } })() : null;
 const old = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-main-diff-ref-'));
 let failed = false;
 try {
@@ -70,8 +68,6 @@ try {
   }
   console.log(failed ? '\nDifférent de la référence.' : `Identique à ${REF} (${Object.keys(after).length} relevés).`);
 } finally {
-  // wl-copy reste en arrière-plan pour servir le presse-papiers : sa sortie n'est pas attendue.
-  if (saved !== null && copy) execFileSync(copy, [], { input: saved, stdio: ['pipe', 'ignore', 'ignore'] });
   run('git', ['worktree', 'remove', '--force', old], ROOT);
 }
 process.exit(failed ? 1 : 0);
