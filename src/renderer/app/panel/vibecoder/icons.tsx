@@ -8,12 +8,12 @@
  *  Robot : le petit robot d'un agent (celui de l'ancienne icône), à currentColor.
  *  Ne connaît pas : le pont, le relevé, le métier ; aucune dépendance.
  *  Utilisé par : les vues de vibecoder (Robot : agent-notices ; l'en-tête et la palette : branch, search,
- *  chevron, history ; prompt-tools : mic, send), note-editor ; components (composer : attach). */
+ *  chevron, history ; prompt-tools : mic, send ; l'en-tête : gear), note-editor ; components (composer : attach). */
 import type { MouseEvent } from 'react';
 
 export type IconName = 'close' | 'open' | 'external' | 'diff' | 'comment' | 'ok' | 'ko' | 'warn'
   | 'stop' | 'play' | 'refresh' | 'edit' | 'pull' | 'push' | 'rebase'
-  | 'attach' | 'send' | 'branch' | 'search' | 'chevron' | 'history' | 'mic';
+  | 'attach' | 'send' | 'branch' | 'search' | 'chevron' | 'history' | 'mic' | 'gear';
 
 const X = ['M4 4l8 8', 'M12 4l-8 8'];
 const PATHS: Record<IconName, string[]> = {
@@ -41,6 +41,8 @@ const PATHS: Record<IconName, string[]> = {
   chevron: ['M4.5 6.5L8 10l3.5-3.5'],
   history: ['M2 8a6 6 0 1 0 12 0a6 6 0 1 0-12 0', 'M8 4.5V8l2.5 1.5'],
   mic: ['M8 2a2 2 0 0 0-2 2v4a2 2 0 0 0 4 0V4a2 2 0 0 0-2-2z', 'M3.5 8a4.5 4.5 0 0 0 9 0', 'M8 12.5V14'],
+  // L'engrenage de ⚙ Réglages : huit dents autour d'un moyeu.
+  gear: ['M12.9 6.9L14.5 7.1L14.5 8.9L12.9 9.1L12.2 10.7L13.2 12.0L12.0 13.2L10.7 12.2L9.1 12.9L8.9 14.5L7.1 14.5L6.9 12.9L5.3 12.2L4.0 13.2L2.8 12.0L3.8 10.7L3.1 9.1L1.5 8.9L1.5 7.1L3.1 6.9L3.8 5.3L2.8 4.0L4.0 2.8L5.3 3.8L6.9 3.1L7.1 1.5L8.9 1.5L9.1 3.1L10.7 3.8L12.0 2.8L13.2 4.0L12.2 5.3z', 'M6 8a2 2 0 1 0 4 0a2 2 0 1 0-4 0'],
 };
 
 export function Icon({ name }: { name: IconName }) {
