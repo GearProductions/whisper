@@ -2,13 +2,14 @@
  *  la conversation, sous sa propre entrée du runtime. Ce qu'est une course
  *  (Run), si une action en est une (ownRun), sous quelle clé (runKey : answers
  *  reprend la course de la note), la règle qui décide si elle peut partir
- *  (blockedBy : une modification attend toute course en cours, arrêtée non
+ *  (lockCode : sans langue, le code same | busy | changing et l'action qui
+ *  retient ; une modification attend toute course en cours, arrêtée non
  *  tranchée comprise ; une lecture n'attend qu'une modification ; la même
- *  action déjà en cours), les courses à l'écran (runViews), le texte de
+ *  action déjà en cours ; blockedBy en est le texte), les courses à l'écran (runViews), le texte de
  *  <sorties>/actions.json pour l'orchestrateur (runsFile), son avis de fin
  *  (endNotice), la lecture d'une demande de l'orchestrateur
  *  (<sorties>/actions/<id>.start | .stop : parseRequest ; REQUEST_ARGS : les clés
- *  qu'un .start garde), l'avis d'une demande
+ *  qu'un .start garde, verdict compris : approve, comment ou request-changes), l'avis d'une demande
  *  refusée — 'halted' : le mode Vibe arrêté — ou partie avec des arguments
  *  ignorés (requestNotice), et où en est une
  *  course d'après son entrée du runtime (runPhase : en cours tant qu'elle
@@ -26,9 +27,9 @@
  *  (cutLine).
  *  Ne connaît pas : Electron, le disque, le runtime des agents (tout est passé).
  *  Utilisé par : core/vibecoder (journey), core/commands (REQUEST_ARGS : le schéma de
- *  run.start), app/controllers (runs : parseRequest, endNotice, requestNotice ; vibecoder, module-code). */
+ *  run.start), app/controllers (runs : lockCode, parseRequest, endNotice, requestNotice ; vibecoder : lockCode ; module-code). */
 import type { VibeArgs, VibeLang, VibeModule, VibeRun, VibeRunProgress } from 'shared/bridge';
-import { targetModule, type ActionDef } from './actions';
+import { targetModule, VERDICTS, type ActionDef } from './actions';
 
 export type RunState = VibeRun['state'];
 export type Run = {
@@ -80,14 +81,25 @@ const TEXT = {
   },
 };
 
-// Pourquoi l'action ne peut pas partir, d'après les courses qui retiennent (états LOCKING) ; null : elle part.
-export function blockedBy(def: Pick<ActionDef, 'id' | 'reads'>, running: { id: string; reads: boolean }[], lang: VibeLang): string | null {
-  const T = TEXT[lang];
-  if (running.some((r) => runKey(r.id) === runKey(def.id))) return T.same;
-  if (!def.reads && running.length) return T.busy;
-  if (running.some((r) => !r.reads)) return T.changing;
-  return null;
+// Pourquoi l'action ne peut pas partir, d'après les courses qui retiennent (états LOCKING), sans langue :
+// le code et l'action qui retient ; null : elle part.
+export function lockCode(def: Pick<ActionDef, 'id' | 'reads'>, running: { id: string; reads: boolean }[]):
+  { code: 'same' | 'busy' | 'changing'; by: string } | null {
+  const same = running.find((r) => runKey(r.id) === runKey(def.id));
+  if (same) return { code: 'same', by: same.id };
+  if (!def.reads && running.length) return { code: 'busy', by: running[0].id };
+  const writer = running.find((r) => !r.reads);
+  return writer ? { code: 'changing', by: writer.id } : null;
 }
+
+// Le texte du code d'une retenue (lockCode) dans la langue de l'appli.
+export const lockText = (lock: { code: 'same' | 'busy' | 'changing' }, lang: VibeLang) => TEXT[lang][lock.code];
+
+// Le texte de lockCode ; null : elle part.
+export const blockedBy = (def: Pick<ActionDef, 'id' | 'reads'>, running: { id: string; reads: boolean }[], lang: VibeLang): string | null => {
+  const lock = lockCode(def, running);
+  return lock && lockText(lock, lang);
+};
 
 // Le module que génère une action : module → celui que vise son message (targetModule) ;
 // modules → '*' (tous) ; une autre, ou un rang inconnu → null.
@@ -181,6 +193,7 @@ const isStr = (v: unknown) => typeof v === 'string';
 const KEEP: Record<string, (v: unknown) => boolean> = {
   text: isStr, module: isInt, commit: isStr, file: isStr, pr: isInt, model: isStr, effort: isStr, check: isInt,
   answers: (v) => Array.isArray(v) && v.every(isStr),
+  verdict: (v) => VERDICTS.includes(v as string),
 };
 
 // Les clés qu'un .start garde, celles de KEEP dans son ordre : jamais d'écart avec parseRequest.

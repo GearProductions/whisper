@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockedBy, codeLock, cutCommands, cutLine, endNotice, ownRun, parseRequest, remainingModules, requestNotice, runKey, runModule, runPhase, runsFile, runTasks, runViews, type ActionDef, type Run } from 'core/vibecoder';
+import { blockedBy, codeLock, lockCode, REQUEST_ARGS, cutCommands, cutLine, endNotice, ownRun, parseRequest, remainingModules, requestNotice, runKey, runModule, runPhase, runsFile, runTasks, runViews, type ActionDef, type Run } from 'core/vibecoder';
 
 const A = (id: string, step: ActionDef['step'], reads = false, kind: ActionDef['kind'] = 'send'): ActionDef =>
   ({ id, flow: 'create', step, kind, needs: 'none', label: `L-${id}`, hint: '', text: `/vibecoder:${id}`, reads });
@@ -37,6 +37,45 @@ describe('blockedBy : la règle', () => {
   it('la même action (ou la même clé) déjà en cours', () => {
     expect([blockedBy(PONYTAIL, [{ id: 'ponytail', reads: true }], 'en'), blockedBy(A('answers', 'note'), [{ id: 'note', reads: false }], 'fr')])
       .toEqual(['This action is already running', 'Cette action est déjà en cours']);
+  });
+});
+
+describe('lockCode : la règle, sans langue', () => {
+  it('same : la même action, ou la même clé (answers retenu par la note) ; by : celle qui retient', () => {
+    expect([lockCode(PONYTAIL, [{ id: 'ponytail', reads: true }]), lockCode(A('answers', 'note'), [{ id: 'note', reads: false }])])
+      .toEqual([{ code: 'same', by: 'ponytail' }, { code: 'same', by: 'note' }]);
+  });
+
+  it('busy : une écriture, quoi que ce soit en cours ; by : la première qui retient', () => {
+    expect([lockCode(FORME, [{ id: 'ponytail', reads: true }]), lockCode(FORME, [{ id: 'checks', reads: true }, { id: 'note', reads: false }])])
+      .toEqual([{ code: 'busy', by: 'ponytail' }, { code: 'busy', by: 'checks' }]);
+  });
+
+  it('changing : une lecture, une écriture en cours ; by : l\'écriture', () => {
+    expect(lockCode(CHECKS, [{ id: 'ponytail', reads: true }, { id: 'forme', reads: false }])).toEqual({ code: 'changing', by: 'forme' });
+  });
+
+  it('null : rien en cours, ou une lecture parmi des lectures', () => {
+    expect([lockCode(FORME, []), lockCode(CHECKS, []), lockCode(CHECKS, [{ id: 'ponytail', reads: true }])]).toEqual([null, null, null]);
+  });
+});
+
+describe('blockedBy : le texte de lockCode, fr et en', () => {
+  it('même texte qu\'avant pour chaque code', () => {
+    const cases: [ActionDef, { id: string; reads: boolean }[]][] = [
+      [PONYTAIL, [{ id: 'ponytail', reads: true }]], [FORME, [{ id: 'checks', reads: true }]], [CHECKS, [{ id: 'forme', reads: false }]],
+    ];
+    expect(cases.map(([d, r]) => blockedBy(d, r, 'fr'))).toEqual(['Cette action est déjà en cours', 'Une autre action est en cours', 'Une action modifie la branche']);
+    expect(cases.map(([d, r]) => blockedBy(d, r, 'en'))).toEqual(['This action is already running', 'Another action is running', 'An action is changing the branch']);
+  });
+});
+
+describe('parseRequest : verdict', () => {
+  it('gardé s\'il est l\'un des trois, écarté sinon ; REQUEST_ARGS le contient', () => {
+    expect(['approve', 'comment', 'request-changes'].map((v) => parseRequest('review.start', JSON.stringify({ verdict: v }))?.args))
+      .toEqual([{ verdict: 'approve' }, { verdict: 'comment' }, { verdict: 'request-changes' }]);
+    expect([JSON.stringify({ verdict: 'merge' }), JSON.stringify({ verdict: 1 })].map((t) => parseRequest('review.start', t)?.args)).toEqual([{}, {}]);
+    expect(REQUEST_ARGS).toContain('verdict');
   });
 });
 
@@ -110,7 +149,7 @@ describe('parseRequest : une demande de l\'orchestrateur', () => {
   });
 
   it('seulement les arguments connus, de leur type ; jamais direct', () => {
-    const args = { text: 't', module: 2, commit: 'abc', file: '*', pr: 7, model: 'sonnet', check: 0, answers: ['a', ''], direct: true, verdict: 'approve' };
+    const args = { text: 't', module: 2, commit: 'abc', file: '*', pr: 7, model: 'sonnet', check: 0, answers: ['a', ''], direct: true };
     expect(parseRequest('module.start', JSON.stringify(args))?.args)
       .toEqual({ text: 't', module: 2, commit: 'abc', file: '*', pr: 7, model: 'sonnet', check: 0, answers: ['a', ''] });
     expect(parseRequest('module.start', JSON.stringify({ module: 1.5, pr: '7', answers: [1], text: 3, check: '2' }))?.args).toEqual({});
