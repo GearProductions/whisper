@@ -492,6 +492,13 @@ pas proposée, déjà en cours…) lui est dite, avec la raison, et un argument
 que l'action ne prend pas est ignoré (l'action part, elle en est prévenue).
 Hors *Vibe*, elle ne lance rien que vous ne lui demandiez.
 
+**Les commandes.** Tout ce que VibeCoder sait faire est décrit dans une table
+versionnée, `resources/vibecoder/commands.json` (nom, arguments, réponse des
+lectures, ouverte ou non aux agents) : le contrat du moteur, pour qui veut monter
+sa propre interface. Les skills `actions` et `processus` en tirent leurs
+arguments. Elle ne sert rien pour l'instant (ni socket, ni CLI) : rien ne change
+dans ce que peut faire un agent.
+
 **Artefacts.** Demandez à l'agent un document qui sort du projet — un PDF,
 une présentation, un wireframe, un document externe, un fichier de
 conception : preuve de concept ou autre — : il le crée en **artefact**, de
