@@ -2,10 +2,12 @@
  *  sa description (anglais, pour un modèle), lecture ou écriture, ouverte aux
  *  agents ou non (fermée : seulement la liste d'exceptions AGENT_CLOSED, sa
  *  raison écrite), le schéma de ses arguments et, pour une lecture, de sa
- *  réponse. parseCommands refuse une table fautive en nommant chaque faute.
+ *  réponse ; et `errors`, la liste des erreurs (code en kebab-case, message et
+ *  todo en anglais, sans langue d'appli ; absente : vide). parseCommands refuse une table
+ *  fautive en nommant chaque faute.
  *  Ne connaît pas : Electron, le disque (le texte est donné), le catalogue des
- *  actions.
- *  Utilisé par : ses tests ; l'exécuteur (étape 2). */
+ *  actions, les codes d'ERROR_CODES (l'exécuteur les compare à la liste).
+ *  Utilisé par : execute, app/settings ; ses tests. */
 import { SCHEMA_KEYS, isObject, type JsonSchema } from './schema';
 
 export type CommandDef = {
@@ -18,13 +20,17 @@ export type CommandDef = {
   response?: JsonSchema;
 };
 
-export type CommandTable = { schemaVersion: 1; target: string; commands: CommandDef[] };
+/** Une erreur : ce qui s'est passé (message) et quoi faire (todo), pour un modèle. */
+export type ErrorDef = { code: string; message: string; todo: string };
+
+export type CommandTable = { schemaVersion: 1; target: string; errors: ErrorDef[]; commands: CommandDef[] };
 
 /** La liste d'exceptions de cette étape : répondre à une demande d'autorisation
  *  d'une course (I-13 à I-18). */
 export const AGENT_CLOSED = ['run.allow', 'run.always', 'run.deny'];
 
 const JSON_TYPES = ['object', 'array', 'string', 'integer', 'number', 'boolean', 'null'];
+const KEBAB = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 const ROBOT_KEYS = ['agentId', 'agent'];
 
 /** Les fautes d'un schéma, à tout niveau (properties, items) : un nœud sans type,
@@ -62,6 +68,24 @@ export function parseCommands(text: string): CommandTable {
   if (table.schemaVersion !== 1) throw new Error(`Table des commandes : schemaVersion ${JSON.stringify(table.schemaVersion)} inconnue (1 attendue)`);
   const faults: string[] = [];
   if (typeof table.target !== 'string' || !table.target.trim()) faults.push('target : texte non vide attendu');
+  table.errors ??= [];   // absente : aucune erreur décrite (une table d'essai) ; la table livrée les a toutes (les tests le vérifient)
+  if (!Array.isArray(table.errors)) faults.push('errors : liste attendue');
+  else {
+    const codes = new Set<string>();
+    for (const [i, e] of table.errors.entries()) {
+      if (!isObject(e) || typeof e.code !== 'string' || !e.code.trim()) {
+        faults.push(`errors[${i}] : code (texte non vide) attendu`);
+        continue;
+      }
+      const at = `erreur ${e.code}`;
+      if (codes.has(e.code)) faults.push(`${at} : code déjà pris`);
+      codes.add(e.code);
+      if (!KEBAB.test(e.code)) faults.push(`${at} : code en kebab-case attendu`);
+      for (const key of ['message', 'todo']) {
+        if (typeof e[key] !== 'string' || !e[key].trim()) faults.push(`${at} : ${key} vide`);
+      }
+    }
+  }
   if (!Array.isArray(table.commands)) throw new Error([...faults, 'commands : liste attendue'].join('\n'));
 
   const seen = new Set<string>();
