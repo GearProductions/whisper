@@ -17,7 +17,7 @@ vi.mock('electron', () => ({
 }));
 vi.mock('technicals/editor', () => ({ findEditor: () => ({ openFile: (file: string) => { fake.edited.push(file); } }) }));
 
-const { processAction, processView, projectFile, promptPrefix, stopProcesses } = await import('app/controllers/processes');
+const { processAction, processOp, processView, projectFile, promptPrefix, stopProcesses } = await import('app/controllers/processes');
 
 const until = async (ok: () => boolean, ms = 8000) => {
   for (const end = Date.now() + ms; !ok() && Date.now() < end;) await new Promise((r) => setTimeout(r, 50));
@@ -239,5 +239,50 @@ describe.skipIf(process.platform === 'win32')('une famille : le fichier de la t�
     expect(fake.asked.at(-1)).toBe('srv tourne dans enfant : l\'arrêter et le lancer ici ?');
     expect(processView(parent, fam).processes[0].status).toBe('stopped');
     await processAction(child, fam, 'stop', 0, processView(child, fam).processes);
+  }, 15000);
+});
+
+// 0.15.0 : processOp, l'opération d'une commande par son nom (l'exécuteur).
+describe.skipIf(process.platform === 'win32')('processOp : arrêter ou relancer une commande par son nom', () => {
+  const marks = () => { try { return fs.readFileSync(path.join(agent.dir, 'marks.txt'), 'utf8').split('\n').filter(Boolean).length; } catch { return 0; } };
+  const status = () => view().processes[0].status;
+  // Chaque lancement laisse une ligne dans marks.txt (le dossier de l'agent).
+  const mark = (name = 'srv') => ({ name, run: 'echo go >> marks.txt; exec sleep 30' });
+
+  it('stop arrête la commande de ce nom ; restart l’arrête puis la relance à son rang', async () => {
+    writeProject([{ name: 'autre', run: 'exec sleep 30' }, mark()]);
+    await processAction(agent, cfg, 'start', 1, view().processes);
+    expect(await until(() => marks() === 1)).toBe(true);
+    expect(await processOp(agent, cfg, 'srv', 'restart')).toBe(true);
+    expect(await until(() => marks() === 2)).toBe(true);
+    expect(view().processes.map((p) => p.status)).toEqual(['stopped', 'running']);
+    expect(await processOp(agent, cfg, 'srv', 'stop')).toBe(true);
+    expect(view().processes.map((p) => p.status)).toEqual(['stopped', 'stopped']);
+    expect(marks()).toBe(2);
+  }, 15000);
+
+  it('un nom absent du fichier : false, rien d’arrêté', async () => {
+    writeProject([mark()]);
+    await processAction(agent, cfg, 'start', 0, view().processes);
+    expect(await processOp(agent, cfg, 'absent', 'stop')).toBe(false);
+    expect(await processOp(agent, cfg, 'absent', 'restart')).toBe(false);
+    expect(status()).toBe('running');
+    await processOp(agent, cfg, 'srv', 'stop');
+  }, 15000);
+
+  it('les demandes <nom>.stop et <nom>.restart de processView : mêmes effets qu’avant', async () => {
+    writeProject([mark()]);
+    await processAction(agent, cfg, 'start', 0, view().processes);
+    expect(await until(() => marks() === 1)).toBe(true);
+    const ask = (op: string) => fs.writeFileSync(path.join(out(), 'run', `srv.${op}`), '');
+    ask('restart');
+    view();
+    expect(fs.existsSync(path.join(out(), 'run', 'srv.restart'))).toBe(false);
+    expect(await until(() => marks() === 2)).toBe(true);
+    ask('stop');
+    view();
+    expect(fs.existsSync(path.join(out(), 'run', 'srv.stop'))).toBe(false);
+    expect(await until(() => status() === 'stopped')).toBe(true);
+    expect(marks()).toBe(2);
   }, 15000);
 });
