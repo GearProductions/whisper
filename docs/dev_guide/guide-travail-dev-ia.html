@@ -141,7 +141,7 @@ L'effort humain n'est plus proportionnel à la quantité de code à écrire. Il 
 <p>Les questions ouvertes ne sont pas une rubrique. On les règle dans un appel entre développeurs, et seule la réponse atterrit dans la note, à sa place. On ne conçoit pas seul.</p>
 
 <h2>La forme : dans la note et en tête des fichiers</h2>
-<p>Pour chaque module créé ou modifié dans sa frontière, trois lignes suffisent : ce qu'il expose, ce qu'il ne connaît pas, qui l'utilise. On les écrit à deux endroits qui se complètent :</p>
+<p>Pour chaque module créé ou modifié dans sa frontière, trois lignes suffisent : ce qu'il expose, ce qu'il ne connaît pas, qui l'utilise. Dans la note, une quatrième les suit : ses variants, le fichier où ils vont et les cas à couvrir (3.4), pour qu'on challenge leur place et leurs cas avec le contrat. On les écrit à deux endroits qui se complètent :</p>
 <ul>
 <li><strong>Dans la note</strong>, rubrique « Forme » : tous les modules du ticket sur une page. C'est la trace de la décision.</li>
 <li><strong>En tête de chaque fichier</strong>, un court commentaire : l'état actuel, lisible en trois secondes par un développeur ou par l'agent, sans fouiller les notes passées. On le met à jour quand la frontière change ; un en-tête faux induit tout le monde en erreur.</li>
@@ -187,7 +187,7 @@ L'effort humain n'est plus proportionnel à la quantité de code à écrire. Il 
 <p><strong>Une intention n'est pas encore un invariant.</strong> « Ne jamais envoyer d'information sensible au LLM » devient testable quand on nomme la liste (mots de passe, hashs, tokens, clés, données d'un autre tenant) et qu'on vérifie la requête réellement envoyée au modèle. On complète par la structure : le contexte est construit à partir d'objets déjà filtrés, de sorte que ce qui n'est pas dans le type ne peut pas partir.</p>
 
 <h2>3.4 Variants et parcours</h2>
-<p>Les <strong>variants</strong> sont les tests ordinaires, générés à partir du code : « 400 si email manquant », « 200 si valide ». Ils détectent les régressions et se régénèrent avec leur module.</p>
+<p>Les <strong>variants</strong> sont les tests ordinaires : « 400 si email manquant », « 200 si valide ». La forme nomme, pour chaque module, le fichier où ils vont et les cas à couvrir. On les écrit <strong>d'abord</strong>, à partir de ces cas, et on les voit échouer pour la bonne raison (le code manque, pas une faute de frappe) ; puis on écrit le code jusqu'à ce qu'ils passent. C'est du TDD à l'échelle d'un module : le test dit ce qu'on attend avant que le code ne dise ce qu'il fait. Ils détectent ensuite les régressions et, contrairement aux invariants, se corrigent et se régénèrent avec leur module.</p>
 <p>Les <strong>parcours</strong> end-to-end sont un bonus. Ils cassent à chaque changement d'écran ; on en garde éventuellement deux ou trois pour tout le produit, sur les chemins où une panne coûte cher (se connecter, lancer un workflow).</p>
 
 <h2>3.5 Écrire un invariant</h2>
@@ -221,9 +221,9 @@ tests/invariants/ ← invariants produit qui traversent plusieurs modules (tenan
 <p>Pour une feature qui touche aux données, à l'argent, ou qui vivra longtemps. Les durées sont des ordres de grandeur.</p>
 <ol>
 <li><strong>Décider</strong> (≈ 30 min) : la note. Les questions ouvertes en appel avec l'équipe.</li>
-<li><strong>Poser la forme</strong> (≈ 30 min) : modules, signatures, frontières, dans la note et en tête des fichiers.</li>
+<li><strong>Poser la forme</strong> (≈ 30 min) : modules, signatures, frontières, et les variants de chacun (leur fichier, leurs cas), dans la note et en tête des fichiers.</li>
 <li><strong>Écrire les invariants</strong>, s'il y en a, rouges.</li>
-<li><strong>Générer un module à la fois</strong>, de l'intérieur vers l'extérieur : fonctions pures, puis orchestration, puis routes, puis UI.</li>
+<li><strong>Générer un module à la fois</strong>, de l'intérieur vers l'extérieur : fonctions pures, puis orchestration, puis routes, puis UI. Pour chacun, ses variants d'abord, rouges, puis le code (3.4).</li>
 <li><strong>Relire chaque diff</strong> (5.1) avant le module suivant.</li>
 <li><strong>Écrire un morceau soi-même</strong> : celui qu'on connaît le moins, ou celui qui porte la logique métier.</li>
 <li><strong>Ajuster la note</strong> au fil de l'eau ; reporter dans « Pistes » ce qu'on découvre et qu'on ne fait pas maintenant.</li>
