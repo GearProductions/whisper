@@ -1,9 +1,10 @@
 /** schema — le sous-ensemble de JSON Schema dont la table a besoin, sans
  *  bibliothèque : le type, la liste de ses mots-clés (SCHEMA_KEYS : un autre
  *  fait refuser la table) et schemaError, qui dit la première faute d'une
- *  valeur et son chemin.
+ *  valeur et son chemin (en anglais), et coerce, la conversion tolérante sans
+ *  ambiguïté des chaînes qu'un modèle écrit pour un nombre ou un booléen.
  *  Ne connaît pas : les commandes, VibeCoder.
- *  Utilisé par : core/commands (table, ses tests). */
+ *  Utilisé par : core/commands (table, execute, ses tests). */
 type JsonType = 'object' | 'array' | 'string' | 'integer' | 'number' | 'boolean' | 'null';
 
 export type JsonSchema = {
@@ -40,24 +41,25 @@ const isType = (type: string, v: unknown): boolean => {
   }
 };
 
-/** La première faute de `value` contre `schema`, avec son chemin (« args.module :
- *  integer attendu »), ou null : conforme. `at` : le chemin de `value` (vide : « (racine) »). */
+/** La première faute de `value` contre `schema`, avec son chemin, en anglais (un modèle la
+ *  lit, la langue de l'appli n'y est pour rien) : « args.module: integer expected » ; null :
+ *  conforme. `at` : le chemin de `value` (vide : « (root) »). */
 export function schemaError(schema: JsonSchema, value: unknown, at = ''): string | null {
-  const here = at || '(racine)';
+  const here = at || '(root)';
   const types = [schema.type].flat();
-  if (!types.some((t) => isType(t, value))) return `${here} : ${types.join(' ou ')} attendu`;
+  if (!types.some((t) => isType(t, value))) return `${here}: ${types.join(' or ')} expected`;
   if (schema.enum && !schema.enum.includes(value as string | number | null)) {
-    return `${here} : l'une de ${schema.enum.join(', ')} attendue`;
+    return `${here}: one of ${schema.enum.join(', ')} expected`;
   }
   if (typeof value === 'number' && schema.minimum !== undefined && value < schema.minimum) {
-    return `${here} : ${schema.minimum} au moins`;
+    return `${here}: minimum is ${schema.minimum}`;
   }
   if (typeof value === 'string') {
-    if (schema.maxLength !== undefined && value.length > schema.maxLength) return `${here} : ${schema.maxLength} caractères au plus`;
-    if (schema.pattern !== undefined && !new RegExp(schema.pattern, 'u').test(value)) return `${here} : ne suit pas ${schema.pattern}`;
+    if (schema.maxLength !== undefined && value.length > schema.maxLength) return `${here}: at most ${schema.maxLength} characters`;
+    if (schema.pattern !== undefined && !new RegExp(schema.pattern, 'u').test(value)) return `${here}: does not match ${schema.pattern}`;
   }
   if (Array.isArray(value)) {
-    if (schema.maxItems !== undefined && value.length > schema.maxItems) return `${here} : ${schema.maxItems} éléments au plus`;
+    if (schema.maxItems !== undefined && value.length > schema.maxItems) return `${here}: at most ${schema.maxItems} items`;
     if (schema.items) {
       for (const [i, item] of value.entries()) {
         const error = schemaError(schema.items, item, `${at}[${i}]`);
@@ -70,7 +72,7 @@ export function schemaError(schema: JsonSchema, value: unknown, at = ''): string
     const has = (o: object, key: string) => Object.hasOwn(o, key);
     const child = (key: string) => (at ? `${at}.${key}` : key);
     for (const key of schema.required ?? []) {
-      if (!has(object, key)) return `${child(key)} : requis`;
+      if (!has(object, key)) return `${child(key)}: required`;
     }
     for (const [key, sub] of Object.entries(schema.properties ?? {})) {
       if (!has(object, key)) continue;
@@ -79,8 +81,35 @@ export function schemaError(schema: JsonSchema, value: unknown, at = ''): string
     }
     if (schema.additionalProperties === false) {
       const unknown = Object.keys(object).find((key) => !has(schema.properties ?? {}, key));
-      if (unknown) return `${child(unknown)} : inconnu`;
+      if (unknown) return `${child(unknown)}: unknown`;
     }
   }
   return null;
+}
+
+const READS: Record<string, (text: string) => unknown> = {
+  integer: (t) => (/^-?\d+$/.test(t) && Number.isSafeInteger(Number(t)) ? Number(t) : t),
+  number: (t) => (/^-?\d+(\.\d+)?$/.test(t) ? Number(t) : t),
+  boolean: (t) => (t === 'true' ? true : t === 'false' ? false : t),
+};
+
+/** `value` converti selon `schema`, sans ambiguïté : une chaîne d'entier (« -3 »), de nombre
+ *  (« 1.5 »), « true » / « false » pour integer, number, boolean, dans properties et items.
+ *  Un type en liste qui admet string, ou une chaîne qui ne se lit pas : laissée (schemaError
+ *  dira la faute). Une clé hors properties est laissée ; `value` n'est jamais modifiée (copie). */
+export function coerce(schema: JsonSchema, value: unknown): unknown {
+  if (typeof value === 'string') {
+    const types = [schema.type].flat();
+    if (types.includes('string')) return value;
+    return types.map((t) => READS[t]?.(value)).find((v) => v !== value && v !== undefined) ?? value;
+  }
+  if (Array.isArray(value) && schema.items) return value.map((item) => coerce(schema.items as JsonSchema, item));
+  if (isObject(value) && schema.properties) {
+    const out = { ...value };
+    for (const [key, sub] of Object.entries(schema.properties)) {
+      if (Object.hasOwn(value, key)) out[key] = coerce(sub, value[key]);
+    }
+    return out;
+  }
+  return value;
 }
