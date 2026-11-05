@@ -12,7 +12,8 @@ const defs = parseActions(JSON.parse(fs.readFileSync(path.join(RES, 'actions.en.
 
 describe('les SKILL.md livrés', () => {
   it.each(['actions', 'processus'] as const)('%s contient la section produite par la table', (skill) => {
-    const md = fs.readFileSync(path.join(RES, 'plugin/skills', skill, 'SKILL.md'), 'utf8');
+    // Sous Windows, git extrait le SKILL.md en CRLF (pas de .gitattributes) : on compare des fins de ligne LF.
+    const md = fs.readFileSync(path.join(RES, 'plugin/skills', skill, 'SKILL.md'), 'utf8').replace(/\r\n/g, '\n');
     expect(md).toContain(skillArgs(table, defs, skill));
   });
 });
