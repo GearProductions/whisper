@@ -1,5 +1,5 @@
 // Variantes de app/settings : ensureVibeFiles (le ménage des fichiers retirés ; le détail
-// des cas est dans tests/invariants/vibe-files-retired.test.ts).
+// des cas est dans tests/invariants/vibe-files-retired.test.ts), vibeCommands (la table livrée).
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -15,6 +15,7 @@ vi.mock('technicals/paths', async (original) => ({
 const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
 const shipped = (rel: string) => path.join(fake.userData, 'livre', 'vibecoder', rel);
 const installed = (rel: string) => path.join(fake.userData, 'vibecoder', rel);
+const settings = async () => import('app/settings');
 const start = async () => (await import('app/settings')).ensureVibeFiles();
 
 beforeEach(() => { vi.resetModules(); fake.userData = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-settings-')); });
@@ -36,5 +37,26 @@ describe('ensureVibeFiles', () => {
     expect(fs.existsSync(installed('plugin/agents'))).toBe(false);
     expect(fs.existsSync(installed('plugin/skills/garde/SKILL.md'))).toBe(false);
     expect(fs.existsSync(installed('plugin/skills/garde/a-moi.md'))).toBe(true);
+  });
+});
+
+describe('vibeCommands', () => {
+  const table = fs.readFileSync(path.resolve('resources/vibecoder/commands.json'), 'utf8');
+
+  it('rend la table livrée, parsée', async () => {
+    write(shipped('commands.json'), table);
+    const { parseCommands } = await import('core/commands');
+    expect((await settings()).vibeCommands()).toEqual(parseCommands(table));
+  });
+
+  it("ignore une copie de l'utilisateur : c'est le contrat, pas un réglage", async () => {
+    write(shipped('commands.json'), table);
+    write(installed('commands.json'), '{ pas une table');
+    expect((await settings()).vibeCommands().commands.length).toBeGreaterThan(0);
+  });
+
+  it('lève devant une table fautive', async () => {
+    write(shipped('commands.json'), '{ pas une table');
+    expect((await settings()).vibeCommands).toThrow(/illisible/);
   });
 });
