@@ -64,7 +64,7 @@ trombone, F-69), lancer des processus.
 |---|---|
 | `app/lifecycle` | démarrage (une instance, la fenêtre, l'agent affiché la dernière fois, permissions), sortie (dont les processus du projet, F-111) |
 | `app/windows` | la fenêtre (`panel-window`) : la créer, la montrer sur un agent, son message en tête |
-| `app/controllers` | dictée (coupures, transcription rendue à la page, modèle), lecture d'une réponse, agents (les robots de l'en-tête, les notifications du système), familles (`worktrees.ts` : le rattachement par git, *Ouvrir un agent ici*, le robot d'une PR, l'enfant d'une nouvelle demande, le retrait d'un worktree et de son robot, F-51, F-110 ; `artifacts.ts` : le dossier d'artefacts du projet, son relevé, ce qu'on y ajoute ou en copie, F-95 ; `artifact-migration.ts` : les anciens artefacts déplacés vers ce dossier au démarrage, F-95), contenu du panneau, VibeCoder (`vibecoder.ts` : relevé, actions, réglages, validations, brouillon de revue, fichier à ouvrir ; `processes.ts` : les commandes du projet, F-111 ; `recipe.ts` : la recette du projet — préparer, créer et retirer un worktree —, lancée par l'appli, F-111 ; `runs.ts` : les courses — lancées, suivies, arrêtées, gardées ou annulées, chacune avec le module qu'elle génère —, leur avis de fin à la conversation, les demandes de l'orchestrateur, `actions.json`, F-115 ; `module-code.ts` : le fichier suivi — celui de *Voir le code*, la note ou un test d'invariant —, lu, surveillé, poussé, enregistré au geste, F-100 ; `settings.ts` : la page des réglages — les faits qu'elle montre lus, une écriture contrôlée par `core/settings`, une de ses commandes lancée —, § 8) |
+| `app/controllers` | dictée (coupures, transcription rendue à la page, modèle), lecture d'une réponse, agents (les robots de l'en-tête, les notifications du système), familles (`worktrees.ts` : le rattachement par git, *Ouvrir un agent ici*, le robot d'une PR, l'enfant d'une nouvelle demande, le retrait d'un worktree et de son robot, F-51, F-110 ; `artifacts.ts` : le dossier d'artefacts du projet, son relevé, ce qu'on y ajoute ou en copie, F-95 ; `artifact-migration.ts` : les anciens artefacts déplacés vers ce dossier au démarrage, F-95), contenu du panneau, VibeCoder (`vibecoder.ts` : relevé, actions, réglages, validations, brouillon de revue, fichier à ouvrir ; `processes.ts` : les commandes du projet, F-111 ; `recipe.ts` : la recette du projet — préparer, créer et retirer un worktree —, lancée par l'appli, F-111 ; `runs.ts` : les courses — lancées, suivies, arrêtées, gardées ou annulées, chacune avec le module qu'elle génère —, leur avis de fin à la conversation, les demandes de l'orchestrateur, `actions.json`, F-115 ; `module-code.ts` : le fichier suivi — celui de *Voir le code*, la note ou un test d'invariant —, lu, surveillé, poussé, enregistré au geste, F-100 ; `commands.ts` : `runCommand`, le mince branchement de l'exécuteur pour un robot — aucune porte ne l'appelle, F-116 ; `settings.ts` : la page des réglages — les faits qu'elle montre lus, une écriture contrôlée par `core/settings`, une de ses commandes lancée —, § 8) |
 | `app/menus` | menus des robots, du « + », du trombone |
 | `app/ipc` | la table de gestionnaires du panneau, écoutée par `technicals/ipc` |
 | `core/config` | réglages, l'agent affiché (`agentSelected`), dossiers favoris et couleurs, confiance, la langue des agents (`agentLang`), le modèle et l'effort choisis par action (`actionPicks`, jamais Fable, I-36) |
@@ -78,7 +78,7 @@ trombone, F-69), lancer des processus.
 | `core/guards` | permissions des pages, liens, fichiers montrés |
 | `core/repo` | page GitHub d'un dossier, d'après son remote `origin` |
 | `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier ou un commit désigné par son id (`safePath`, `itemPath`, `itemCommit`, `codeFile` : un fichier d'un module touché, ou de la branche), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`, `skillModel`), le parcours (`vibeView`), le rôle (`role` : `vibeRole`, `canAssign`, `unassignable`, F-101), les choix de lieu d'après l'état du dossier (`place` : `placeShown`, `placeReason`, `onBase`, F-110), *Pull*, *Rebase*, *Pousser* (`sync` : `syncReason`, F-114), les sorties des skills, les fichiers par défaut (`syncDefaults`) et les variantes des skills (`skillVariants`), les validations et brouillons de revue, les courses (`runs` : `ownRun`, `runKey`, la règle `blockedBy`, le module qu'une course génère et le verrou de son code (`runModule`, `codeLock`), `actions.json`, l'avis de fin, `parseRequest`, l'avis d'une demande refusée ou aux arguments ignorés `requestNotice`, F-115), les ✓ des étapes passées en Vibe (`vibeMarks`) |
-| `core/commands` | la table des commandes de VibeCoder (F-116), pure, sans Electron ni disque (le texte est donné) : `schema` (`JsonSchema`, `SCHEMA_KEYS`, `schemaError` : le sous-ensemble de JSON Schema de la table, sans bibliothèque), `table` (`parseCommands`, `AGENT_CLOSED` : la table lue et vérifiée), `reads` (`statusOf`, `nextOf`, `actionsOf`, `runsOf`, `procsOf`, `logsOf` : les lectures, d'après le relevé), `skill-text` (`skillArgs` : la section des arguments des skills `actions` et `processus`) ; utilisé par ses tests, et par l'exécuteur à l'étape 2 (rien ne la charge à l'exécution aujourd'hui) |
+| `core/commands` | la table des commandes de VibeCoder (F-116), pure, sans Electron ni disque (le texte est donné) : `schema` (`JsonSchema`, `SCHEMA_KEYS`, `schemaError` : le sous-ensemble de JSON Schema de la table, sans bibliothèque), `table` (`parseCommands`, `AGENT_CLOSED` : la table lue et vérifiée), `reads` (`statusOf`, `nextOf`, `actionsOf`, `runsOf`, `procsOf`, `logsOf` : les lectures, d'après le relevé), `skill-text` (`skillArgs` : la section des arguments des skills `actions` et `processus`), `execute` (`execute`, `ERROR_CODES` : l'exécuteur, une seule entrée, qui rend `{ ok, result }` ou `{ ok: false, error }` ; les écritures par des opérations injectées) ; utilisé par `app/controllers` (`commands`) |
 | `core/runner` | les commandes du projet (F-111) : le fichier du projet, `<dossier du parent>/.vibecoder/project.json` (`projectPath`, la ligne de `.git/info/exclude` : `withExclude`), lu (`parseProject`), une proposition fusionnée dans le fichier existant (`mergeProject`), une commande par son rang (`commandAt` : shell du fichier, préfixe `commandPrefix` — celui du fichier, du réglage, ou la box de l'agent, le même pour `gh`), les demandes de l'agent (`requestsOf`), la fin d'un journal, la recette en étapes (`setupSteps`, `createSteps`, `removeSteps` ; la branche et la base par l'environnement, `recipeEnv` ; le dossier d'un worktree, `worktreeDir`) (I-42) |
 | `technicals/process` | les processus lancés pour l'utilisateur : détachés, marqués dans leur environnement, arrêtés avec ce qu'ils ont lancé (SIGTERM, SIGKILL après 5 s), leur journal ; `writeNew` (I-43) ; une étape de la recette attendue jusqu'à sa fin (`runOnce` : l'entrée fermée, un délai, la dernière ligne utile) |
 | `technicals/git` | git en lecture seule (`gitRun`, `gitReader`, `GIT_READ`, plus `worktree list`) : les faits d'une branche ou d'une PR chargée, un fichier à un ref, un commit et son diff, le commit où la branche part de sa base (`forkPoint`), les branches locales (`branches`), le retard sur `@{u}` et sur `origin/<base>` (`sync`) (I-39) |
@@ -1390,7 +1390,7 @@ donnée, indépendante d'Electron et de TypeScript.
   (étapes 2 et 3).
 - **Ce qu'elle reprend** : `run.start` (l'action, parmi celles qui courent à part ;
   ses autres arguments sont ceux que garde un `.start`, F-115 : `REQUEST_ARGS`,
-  sans `verdict`), `run.stop`, `run.keep`, `run.undo`, `proc.stop`,
+  `verdict` compris : `approve`, `comment` ou `request-changes`, lu par `publish`), `run.stop`, `run.keep`, `run.undo`, `proc.stop`,
   `proc.restart` ; une commande par action directe (F-114) et par action ni à part
   ni directe, nommée de son id, avec le schéma complet de ses arguments.
 - **Les lectures**, d'après le relevé : `status` (la branche, l'étape, la note, la
@@ -1405,11 +1405,31 @@ donnée, indépendante d'Electron et de TypeScript.
   « autoriser les agents extérieurs ») et quitter ou redémarrer l'appli. Une
   commande de la liste ouverte, ou une autre fermée, fait refuser la table
   (`AGENT_CLOSED`).
-- **Elle déclare, elle n'exécute rien** : aucune porte ne sert les lectures (ni
-  socket, ni CLI), la table n'est chargée par rien à l'exécution, et ce qu'un
-  agent peut faire ne change pas : la boîte aux lettres (F-115) marche comme
-  avant, un `.start` pour une action directe reste refusé. L'ouverture réelle
-  vient avec l'exécuteur (étape 2).
+- **L'exécuteur existe, aucune porte ne l'appelle** (note
+  `0.15.0-executeur.md`, étape 2) : `execute` (`core/commands`) est l'entrée
+  unique, `runCommand` (`app/controllers/commands.ts`) son branchement pour un
+  robot, qui charge la table livrée (`vibeCommands`), le catalogue et le relevé.
+  Il reçoit la commande, ses arguments et la porte (`screen` ou `agent`) et
+  répond tout de suite, `{ ok: true, result }` ou `{ ok: false, error }`. Les arguments sont convertis sans
+  ambiguïté (`"2"` → `2`, `"true"` → `true`) puis vérifiés par `schemaError`. Il
+  ne refait aucune garde : il appelle `startAction`, `runDirect`, `runOp` et
+  l'opération des processus, et traduit leur refus en code ; une action absente
+  du relevé ou masquée est `not-offered` (pour `run.start`, absente seulement :
+  la règle de la boîte aux lettres), une action grisée, `disabled` (le
+  motif du relevé, tel quel). À la porte `agent`, tout ce que la table ouvre
+  s'exécute, actions directes comprises ; les commandes fermées sont refusées
+  (`closed`). `comment`, `case-ko` et `add-artifact` ne sont pas offertes
+  (`not-offered`) : elles n'ont de sens qu'à l'écran. Mais **aucune porte ne
+  l'appelle** : ni l'écran, ni la boîte aux lettres, ni socket, ni CLI ; ce que
+  peut faire un agent ne change pas, la boîte aux lettres (F-115) marche comme
+  avant, un `.start` pour une action directe reste refusé, et F-115 et I-39 ne
+  changent qu'avec les branchements.
+- **Une erreur est une donnée, sans langue** : `{ code, details, message, todo }`.
+  Le code est l'un de `ERROR_CODES`, la liste que porte la table (`errors`,
+  chacun avec son message et ce qu'il faut faire, en anglais, pour un modèle) ;
+  les `details` nomment l'argument fautif, l'action qui retient, le motif. C'est
+  l'appelant qui l'interprète : l'écran la traduira d'après son code, un agent la
+  lit et la dit à l'utilisateur. Une table sans `errors` se lit comme une liste vide.
 - **Les skills** : la section des arguments de `actions` et de `processus`
   (F-105) est produite d'après la table (`skillArgs`) ; un test la régénère et la
   compare au `SKILL.md` du dépôt. Rien n'est réécrit au démarrage : un skill

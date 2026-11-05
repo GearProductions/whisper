@@ -496,8 +496,28 @@ Hors *Vibe*, elle ne lance rien que vous ne lui demandiez.
 versionnée, `resources/vibecoder/commands.json` (nom, arguments, réponse des
 lectures, ouverte ou non aux agents) : le contrat du moteur, pour qui veut monter
 sa propre interface. Les skills `actions` et `processus` en tirent leurs
-arguments. Elle ne sert rien pour l'instant (ni socket, ni CLI) : rien ne change
-dans ce que peut faire un agent.
+arguments. Un exécuteur la lit et lance la commande demandée, avec les mêmes règles
+que l'écran, mais aucune porte ne l'appelle encore (ni l'écran, ni la boîte aux
+lettres, ni socket, ni CLI) : rien ne change dans ce que peut faire un agent.
+
+Une erreur est une donnée sans langue : un code, des détails, un message et ce qu'il
+faut faire, en anglais ; c'est l'appelant qui l'interprète. Les codes (`errors`
+dans la table) :
+
+- `unknown-command` : aucune commande de ce nom ;
+- `closed` : fermée aux agents, l'utilisateur seul la fait ;
+- `invalid-args` : un argument manque, est inconnu ou mal typé ;
+- `no-survey` : pas encore de relevé pour ce dossier ;
+- `not-offered` : l'action n'existe pas, ou n'est pas proposée à cette étape ;
+- `disabled` : proposée mais grisée, le motif est dans les détails ;
+- `same` : la même action court déjà ;
+- `busy` : une autre course retient le dossier, et cette action y écrit ;
+- `changing` : une course écrit dans le dossier, une action qui le lit attend ;
+- `worktree` : un worktree reste sur sa branche, le changement de branche est refusé ;
+- `unknown-process` : aucun processus du projet de ce nom ;
+- `no-run` : aucune course de cette action dans l'état voulu ;
+- `refused` : l'appli a refusé, le motif est dans les détails ;
+- `failed` : l'opération a démarré et échoué, le message est dans les détails.
 
 **Artefacts.** Demandez à l'agent un document qui sort du projet — un PDF,
 une présentation, un wireframe, un document externe, un fichier de
