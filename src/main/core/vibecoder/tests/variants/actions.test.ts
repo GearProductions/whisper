@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { VibeView } from 'shared/bridge';
-import { buildMessage, DIRECT_ACTIONS, ignoredText, EFFORT_LEVELS, DIRECT_ONLY, parseActions, skillModel, SKILL_MODELS, whoOf, type ActionDef, type MessageContext } from 'core/vibecoder';
+import { buildMessage, DIRECT_ACTIONS, ignoredText, EFFORT_LEVELS, DIRECT_ONLY, parseActions, readArgs, skillModel, SKILL_MODELS, whoOf, type ActionDef, type MessageContext } from 'core/vibecoder';
 
 const C1 = '9fceb02d0ae598e95dc970b74767f19372d61af8';
 const BLOB = '3b18e512dba79e4c8300dd08aeb37f8e728b8dad';
@@ -559,4 +559,19 @@ describe('les actions de resources/vibecoder (fr et en)', () => {
       expect(byId('publish')?.step).toBe('pr');
     });
   }
+});
+
+describe('readArgs : les arguments que lit un gabarit', () => {
+  it('ceux de READ_BY dont la variable est dans le gabarit, et text si {{text}}', () => {
+    expect(readArgs({ text: '/x {{module}} {{ commit }} {{files}} {{text}}' })).toEqual(['module', 'commit', 'file', 'text']);
+    expect(readArgs({ text: '{{pr}} {{answers}} {{verdict}} {{check}}' })).toEqual(['check', 'pr', 'answers', 'verdict']);
+  });
+
+  it('rien d’autre : model, effort, pieces, direct ne sont lus par aucune variable', () => {
+    expect(readArgs({ text: '/x {{lang}} {{out}} {{ref}}' })).toEqual([]);
+  });
+
+  it('{{text}} seul : text', () => {
+    expect(readArgs({ text: '{{text}}' })).toEqual(['text']);
+  });
 });

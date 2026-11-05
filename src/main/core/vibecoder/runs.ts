@@ -7,7 +7,8 @@
  *  action déjà en cours), les courses à l'écran (runViews), le texte de
  *  <sorties>/actions.json pour l'orchestrateur (runsFile), son avis de fin
  *  (endNotice), la lecture d'une demande de l'orchestrateur
- *  (<sorties>/actions/<id>.start | .stop : parseRequest), l'avis d'une demande
+ *  (<sorties>/actions/<id>.start | .stop : parseRequest ; REQUEST_ARGS : les clés
+ *  qu'un .start garde), l'avis d'une demande
  *  refusée — 'halted' : le mode Vibe arrêté — ou partie avec des arguments
  *  ignorés (requestNotice), et où en est une
  *  course d'après son entrée du runtime (runPhase : en cours tant qu'elle
@@ -24,8 +25,8 @@
  *  local_bash `stopped` de ses tâches) et la ligne qui le dit en tête de sa réponse
  *  (cutLine).
  *  Ne connaît pas : Electron, le disque, le runtime des agents (tout est passé).
- *  Utilisé par : core/vibecoder (journey), app/controllers (runs : parseRequest,
- *  endNotice, requestNotice ; vibecoder, module-code). */
+ *  Utilisé par : core/vibecoder (journey), core/commands (REQUEST_ARGS : le schéma de
+ *  run.start), app/controllers (runs : parseRequest, endNotice, requestNotice ; vibecoder, module-code). */
 import type { VibeArgs, VibeLang, VibeModule, VibeRun, VibeRunProgress } from 'shared/bridge';
 import { targetModule, type ActionDef } from './actions';
 
@@ -181,6 +182,9 @@ const KEEP: Record<string, (v: unknown) => boolean> = {
   text: isStr, module: isInt, commit: isStr, file: isStr, pr: isInt, model: isStr, effort: isStr, check: isInt,
   answers: (v) => Array.isArray(v) && v.every(isStr),
 };
+
+// Les clés qu'un .start garde, celles de KEEP dans son ordre : jamais d'écart avec parseRequest.
+export const REQUEST_ARGS: readonly string[] = Object.keys(KEEP);
 
 // Une demande de l'orchestrateur (<sorties>/actions/<nom>) : <id>.start (son texte : les arguments en JSON,
 // vide : aucun) ou <id>.stop ; un autre nom, un JSON illisible ou qui n'est pas un objet : null. Les
