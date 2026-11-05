@@ -3,14 +3,16 @@
  *  relevé (lastView), puis appelle execute de core/commands avec les
  *  opérations existantes : start → startAction (vibe parti → vibeStart ; parti
  *  → refreshVibe, comme runVibeAction), direct → runDirect, run → runOp, proc
- *  → processOp. Aucune porte ne l'appelle.
- *  Ne connaît pas : la page, les portes (ni socket, ni boîte aux lettres), le
- *  choix du robot d'un dossier.
- *  Utilisé par : ses tests (le ticket suivant : les portes). */
+ *  → processOp. commandFromSocket : la porte « écran » par le socket, le robot
+ *  de la cible de l'enveloppe (le robot affiché s'il est sur ce dossier, sinon
+ *  le premier, chemins réels comparés).
+ *  Ne connaît pas : la page, le socket lui-même, la boîte aux lettres.
+ *  Utilisé par : lifecycle (le socket). */
 import type { VibeView } from 'shared/bridge';
 import type { AgentConfig } from 'core/agents';
 import { vibeLang } from 'core/config';
 import { execute, type CommandOps, type CommandRequest, type CommandResponse, type OpOutcome } from 'core/commands';
+import type { Envelope } from 'technicals/socket';
 import { loadConfig, vibeActions, vibeCommands } from 'app/settings';
 import { processOp } from './processes';
 import { runOp, vibeStart } from './runs';
@@ -39,4 +41,8 @@ export async function runCommand(agent: AgentConfig, req: CommandRequest): Promi
     proc: (name, op) => processOp(agent, cfg, name, op),
   };
   return execute(vibeCommands(), req, { view, defs }, ops);
+}
+
+export async function commandFromSocket(_env: Envelope): Promise<CommandResponse> {
+  throw new Error('not implemented');
 }

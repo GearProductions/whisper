@@ -16,6 +16,9 @@
  *  un lien est resté (la source reste) → 'left'. Jamais `rename` (il écrase).
  *  Changer la seule casse sur un disque insensible à la casse : le nom visé « pris »
  *  par soi-même (absent du relevé du dossier) passe par un nom provisoire visible.
+ *  `writeInto` : écrit des octets reçus (pas un fichier du disque) sous la
+ *  racine, jamais d'écrasement (le premier numéro libre, écriture exclusive),
+ *  racine lien refusée, une erreur dans `failed`.
  *  Ne connaît pas : les artefacts, les agents, Electron.
  *  Utilisé par : controllers (artifacts, artifact-ops, artifact-migration, worktrees). */
 import { constants } from 'node:fs';
@@ -212,4 +215,8 @@ export async function hasFiles(dir: string): Promise<boolean> {
     }
     return false;
   } catch (e) { return code(e) !== 'ENOENT'; }
+}
+
+export async function writeInto(_root: string, _name: string, _bytes: Buffer, _report?: TreeReport): Promise<TreeReport> {
+  throw new Error('not implemented');
 }
