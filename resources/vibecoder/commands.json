@@ -589,6 +589,15 @@
               "maxLength": 2000
             },
             "maxItems": 50
+          },
+          "verdict": {
+            "type": "string",
+            "description": "approve, comment or request-changes: the verdict of a review, for the action that publishes it (publish); ignored otherwise.",
+            "enum": [
+              "approve",
+              "comment",
+              "request-changes"
+            ]
           }
         },
         "required": [
@@ -599,7 +608,7 @@
     },
     {
       "name": "run.stop",
-      "description": "Stops a run in progress (running or asking); it then waits for the user's keep or undo. Answers nothing. Does nothing when no run of this action is in progress.",
+      "description": "Stops a run in progress (running or asking); it then waits for the user's keep or undo. Answers nothing. Fails with no-run when no run of this action is in progress.",
       "kind": "write",
       "agent": true,
       "args": {
@@ -618,7 +627,7 @@
     },
     {
       "name": "run.keep",
-      "description": "Keeps the changes of a stopped run. Answers nothing. Does nothing unless the run is stopped.",
+      "description": "Keeps the changes of a stopped run. Answers nothing. Fails with no-run when no run of this action is stopped.",
       "kind": "write",
       "agent": true,
       "args": {
@@ -637,7 +646,7 @@
     },
     {
       "name": "run.undo",
-      "description": "Undoes the changes of a stopped run (rewinds its conversation and files). Answers nothing; the run ends undone, or failed when the rewind fails. Does nothing unless the run is stopped.",
+      "description": "Undoes the changes of a stopped run (rewinds its conversation and files). Answers nothing; the run ends undone, or failed when the rewind fails. Fails with no-run when no run of this action is stopped.",
       "kind": "write",
       "agent": true,
       "args": {
@@ -1308,6 +1317,78 @@
         },
         "additionalProperties": false
       }
+    }
+  ],
+  "errors": [
+    {
+      "code": "unknown-command",
+      "message": "No command has this name.",
+      "todo": "Call status or next to see what is possible, and use a command name from the table."
+    },
+    {
+      "code": "closed",
+      "message": "This command is closed to agents: only the user can use it.",
+      "todo": "Do not retry. Tell the user that they have to do it on the screen."
+    },
+    {
+      "code": "invalid-args",
+      "message": "An argument is missing, unknown or of the wrong type or value; the details name the fault.",
+      "todo": "Fix the argument the details name and send the command again."
+    },
+    {
+      "code": "no-survey",
+      "message": "There is no state for this folder yet: it is not a git repository or no VibeCoder agent covers it.",
+      "todo": "Check the folder, or wait for the app to read it, then try again."
+    },
+    {
+      "code": "not-offered",
+      "message": "The action does not exist or is not offered at the current step of the journey.",
+      "todo": "Call actions or next to see which actions are offered now, and pick one of them."
+    },
+    {
+      "code": "disabled",
+      "message": "The action is offered but cannot run now; the details give the reason.",
+      "todo": "Do what the reason says, then send the command again."
+    },
+    {
+      "code": "same",
+      "message": "The same action is already running.",
+      "todo": "Wait for it to end (call runs), or stop it with run.stop."
+    },
+    {
+      "code": "busy",
+      "message": "Another run holds the folder and this action writes to it; the details name the action.",
+      "todo": "Wait for that run to end (call runs), then send the command again."
+    },
+    {
+      "code": "changing",
+      "message": "A run is writing to the folder, so an action that reads it cannot start; the details name the action.",
+      "todo": "Wait for that run to end (call runs), then send the command again."
+    },
+    {
+      "code": "worktree",
+      "message": "This folder is a worktree, which stays on its own branch: an action that changes the branch is refused.",
+      "todo": "Do not retry here. Run it from the main folder, or tell the user."
+    },
+    {
+      "code": "unknown-process",
+      "message": "No process of the project has this name.",
+      "todo": "Call procs to list the names of the project's processes, and use one of them."
+    },
+    {
+      "code": "no-run",
+      "message": "There is no run of this action in the state this command needs.",
+      "todo": "Call runs to see the state of each run, then use the command that matches."
+    },
+    {
+      "code": "refused",
+      "message": "The app refused the request; the details give the reason.",
+      "todo": "Read the reason and change the request, or tell the user."
+    },
+    {
+      "code": "failed",
+      "message": "The operation started but failed; the details give the message.",
+      "todo": "Do not retry blindly. Read the message, and tell the user if you cannot fix the cause."
     }
   ]
 }
