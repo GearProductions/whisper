@@ -3,7 +3,9 @@
  *  couleur de son nom comme VS Code (mark : nouveau, modifié, supprimé, pas commités ; todo : à générer ;
  *  null : commité) et ce que ModuleCode en montre (un module, réduit à un fichier pour Modules ; null : rien à montrer).
  *  Sans module (la Forme n'est pas écrite), les lignes sont les fichiers de la branche, chacun un module
- *  d'un seul fichier (rank et state null). Les tests d'invariants (invariantFiles) : une ligne par test, son rang
+ *  d'un seul fichier (rank et state null). Avec des modules, l'étape Modules (by 'file') montre aussi les
+ *  variants que change la branche (view.variants, lus dans view.files), après eux, comme ces fichiers-là :
+ *  on voit où ils sont écrits (note 0.15.0-variants-tdd). Les tests d'invariants (invariantFiles) : une ligne par test, son rang
  *  dans view.invariants, son état (cas validés : tous done, aucun todo, sinon wip), son état git (lu dans view.files) ; rien à montrer (code null).
  *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (forme-view, modules-view, ide-view,
  *  invariants-view). */
@@ -25,21 +27,24 @@ export type IdeFile = {
   code: VibeModule | null;      // ce que ModuleCode montre ; null : rien à montrer
 };
 
+// Un fichier de la branche, un module d'un seul fichier (rank et state null).
+const branchRow = ({ deleted, locked, ...file }: NonNullable<VibeView['files']>[number]): IdeFile => ({
+  path: file.path,
+  rank: null,
+  state: null,
+  mark: markOf({ deleted, git: file.git }),
+  code: { path: file.path, contract: '', file, touched: true, commits: [], files: [{ ...file, ...(deleted && { deleted }) }], locked },
+});
+
 // by 'module' (Forme) : un par module, son chemin de la Forme. by 'file' (Modules) : un par fichier changé
 // des modules touchés, le chemin de leur fichier des autres (un module touché sans fichier compris). Un chemin
-// n'a qu'une ligne : si des modules se chevauchent, le premier de la Forme le garde.
-export function ideFiles(view: Pick<VibeView, 'modules' | 'files'>, by: 'module' | 'file'): IdeFile[] {
-  if (!view.modules.length) {
-    return (view.files ?? []).map(({ deleted, locked, ...file }) => ({
-      path: file.path,
-      rank: null,
-      state: null,
-      mark: markOf({ deleted, git: file.git }),
-      code: { path: file.path, contract: '', file, touched: true, commits: [], files: [{ ...file, ...(deleted && { deleted }) }], locked },
-    }));
-  }
+// n'a qu'une ligne : si des modules se chevauchent, le premier de la Forme le garde. Puis, by 'file',
+// les variants de la branche (view.variants) qu'aucun module ne liste, chacun comme un fichier de la branche.
+export function ideFiles(view: Pick<VibeView, 'modules' | 'files'> & { variants?: VibeView['variants'] }, by: 'module' | 'file'): IdeFile[] {
+  if (!view.modules.length) return (view.files ?? []).map(branchRow);
+  const variants = by === 'file' ? (view.files ?? []).filter((f) => view.variants?.some((v) => v.path === f.path)) : [];
   const seen = new Set<string>();
-  return view.modules.flatMap((m, rank): IdeFile[] => {
+  return [...view.modules.flatMap((m, rank): IdeFile[] => {
     const state = moduleState(m);
     // Un module ligne à ligne (Forme, ou pas encore de fichier) : à générer s'il n'est pas touché ; la couleur de
     // son fichier s'il n'en a qu'un ; un dossier de plusieurs fichiers : modifié si l'un n'est pas commité.
@@ -47,7 +52,7 @@ export function ideFiles(view: Pick<VibeView, 'modules' | 'files'>, by: 'module'
     const own = m.files?.length === 1 ? m.files[0] : undefined;
     if (by === 'module' || !m.touched || !m.files?.length) return [{ path, rank, state, mark: !m.touched ? 'todo' : own ? markOf(own) : m.files?.some((f) => markOf(f)) ? 'modified' : null, code: m.touched ? m : null }];
     return m.files.map((f) => ({ path: f.path, rank, state, mark: markOf(f), code: { ...m, files: [f] } }));
-  }).filter((r) => !seen.has(r.path) && seen.add(r.path));
+  }), ...variants.map(branchRow)].filter((r) => !seen.has(r.path) && seen.add(r.path));
 }
 
 // Une ligne par test d'invariant : done si tous ses cas sont validés (ok), todo si aucun n'a de verdict, sinon wip.

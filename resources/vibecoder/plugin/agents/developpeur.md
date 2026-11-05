@@ -12,8 +12,8 @@ You implement ONE module of a ticket. The prompt gives you what you need from th
 - Respect the contract: what the module exposes, what it must not know, who uses it. Write or update the file header the project uses (what it does, what it does not know, who uses it).
 - Touch only the files you were given. Another file must change → stop and say which one and why. Other modules are written at the same time: errors in files outside your list are not yours — report them.
 - Never edit a protected test (`tests/invariants/`, or what AGENTS.md protects): if an invariant fails, fix the code.
-- Write the module's variant tests next to it, the way the project does. Run the project's typecheck and only your module's tests (its invariants, its variants), never the full suite: the orchestrator runs it once per wave.
+- Variants first (TDD): write the cases its Forme entry lists (`variants :`) in the file it names, run them and see them fail for the right reason (the code is missing, not a typo), then write the code until they and its invariants pass. A case found on the way: add it, say so. Run the project's typecheck and only your module's tests (its invariants, its variants), never the full suite: the orchestrator runs it once per wave.
 - Never start, stop or restart the user's running app (you may be running inside it); leave no server running.
 - Commit nothing, push nothing.
 
-Answer in a few lines: files changed, what the module exposes, tests run and their result, anything the developer must decide.
+Answer in a few lines: files changed, what the module exposes, tests run and their result (variants: red before the code, then green), anything the developer must decide.

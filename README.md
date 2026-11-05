@@ -563,7 +563,8 @@ relire une PR (le relecteur, plus bas) :
    *Enregistrer*, avec les garde-fous du code d'un module (étape Modules) ;
    grisée pendant un tour de la conversation ou une action de l'agent.
 2. **Forme** : *Poser la forme* (les modules et leurs contrats, dans la note,
-   sans code) ; *Valider la forme*. La vue est celle d'un IDE : à gauche
+   sans code ; sous chacun, ses variants : le fichier de tests et les cas à
+   couvrir, à challenger avant le code) ; *Valider la forme*. La vue est celle d'un IDE : à gauche
    l'arborescence des modules, à droite le module choisi, son contrat
    (*Structure*) ou son code en diff depuis la base de la branche (*Code* :
    tout en vert pour un module neuf). Sans Forme, l'arborescence montre les
@@ -607,7 +608,8 @@ relire une PR (le relecteur, plus bas) :
    pendant *Vibe* aussi).
 4. **Modules** : deux boutons, *Générer les modules* puis *Commiter les
    modules*. On génère tout (ou un module à la fois, avec *Générer* sur sa
-   ligne : `ponytail`, typecheck et tests du module lancés, sans commit ; puis
+   ligne : ses variants écrits d'abord et vus rouges, puis le code (TDD),
+   `ponytail`, typecheck et tests du module lancés, sans commit ; puis
    *Relire le diff* part seul, par un autre agent, et sa relecture s'affiche
    dans une carte), on relit, on ajuste, et l'agent range les commits à la
    fin. *Générer les modules* (des agents Sonnet en parallèle, chaque
@@ -627,7 +629,8 @@ relire une PR (le relecteur, plus bas) :
    *Ouvrir* et son contrat. Chaque module porte un numéro, son rang dans la
    Forme : l'ordre où le générer (un module attend ceux qu'il utilise). Un interrupteur *IDE* · *liste* (retenu d'une
    ouverture à l'autre) remplace l'accordéon par une arborescence des
-   fichiers des modules, avec le numéro de chacun et son nom coloré comme dans
+   fichiers des modules, puis des variants que la branche écrit (à leur
+   place : on voit où ils vont), avec le numéro de chacun et son nom coloré comme dans
    VS Code (vert : nouveau, jaune : modifié, rouge barré : supprimé ; blanc une
    fois commité ; atténué : à générer), et le fichier choisi
    à droite, avec les boutons de son module sur la ligne du choix

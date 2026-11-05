@@ -16,7 +16,7 @@ effort: high
 - Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists. Then `git log --format='%h %s' --name-only <base>..HEAD` and `git status --short`.
 - The note's « Forme » (under `docs/tickets/`, named like the branch, or the one the branch adds or changes): the modules no commit of the branch touches and with no uncommitted changes, in its order. None → say so and stop.
 - Uncommitted changes of a module → it is written: review it with the first wave (step 3), don't generate it again.
-- For each module, from the note: its « Forme » entry, the lines of « Ce que ça ne doit pas faire » that concern it, and the paths of its invariant tests. They go into its subagent's prompt.
+- For each module, from the note: its « Forme » entry (its `variants :` line and cases included), the lines of « Ce que ça ne doit pas faire » that concern it, and the paths of its invariant tests. They go into its subagent's prompt.
 
 ## 2. Generate, in waves
 
@@ -25,11 +25,12 @@ A module waits until the modules it uses are written: pure functions → orchest
 - « Module (Forme entry): <the entry, verbatim>. "Ne doit pas" lines: <each one, with its invariant / variant / review tag>. Its invariants (protected, must turn green): <paths>. »
 - « Files you may create or change: <list>. Any other file must change → stop and say which one and why. »
 - « Other modules are being written at the same time: errors in files outside your list are not yours — report them, don't fix them. »
+- « Write its variants first, red, then the code (TDD): say how many were red before the code. »
 - « Apply the ponytail skill. Commit nothing. Don't request a review (`<out>/actions/review-diff.start`): I review your diff. »
 
 ## 3. Review each diff yourself
 
-Before the next wave, for each module (`git diff -- <files>`, new files read in full): the four questions of §5.1 — out of the planned scope? a dependency added? I/O in a loop, an N+1, a blocking call? a read or write without the right scoping? — plus duplication with existing code, the file header true to the contract, its « ne doit pas » lines respected, its invariants green and untouched, its variants present, under ~400 lines.
+Before the next wave, for each module (`git diff -- <files>`, new files read in full): the four questions of §5.1 — out of the planned scope? a dependency added? I/O in a loop, an N+1, a blocking call? a read or write without the right scoping? — plus duplication with existing code, the file header true to the contract, its « ne doit pas » lines respected, its invariants green and untouched, its variants in the file its Forme entry names, covering its cases, and seen red before the code (its answer says so; otherwise send it back like any defect), under ~400 lines.
 - Small defect → fix it yourself.
 - Otherwise → `SendMessage` to the same subagent (its agent id) with the precise correction: it keeps its context, nothing to reread. Review its new diff.
 - Second failure → a new Agent call, same `subagent_type`, with `model: "opus"` (it overrides the agent's header), the same prompt plus what went wrong twice.

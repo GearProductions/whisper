@@ -23,7 +23,7 @@ effort: high
 ## Do
 
 - This module only, as its contract says: same names, signatures and boundaries. Its file header (guide A.2: what the file does, what it does not know, who uses it), true.
-- Its variants (ordinary tests) where and as the project keeps them (e.g. `tests/variants/`).
+- **Its variants first (TDD, guide §3.4)**: the cases of its Forme entry (`variants :`), in the file it names (none named → where and as the project keeps them, e.g. `tests/variants/`, and say so). Run them before writing the code: they must fail for the right reason — the code is missing or wrong, not a typo or a broken import; one that already passes tests nothing new: fix it. Then write the code until they pass, with its invariants. A case found on the way: add it, and say so.
 - A signature of the Forme turns out wrong, or another module must change → don't redesign: stop and say what and why. The developer decides.
 - Never touch an invariant test to make it pass (they are protected): fix the code. An invariant that looks wrong → stop and say so.
 - Run the project's typecheck and the tests of this module only — its invariants and its variants — never the whole suite (commands from `AGENTS.md`, `package.json`, `Cargo.toml`…). Failures in files you did not touch: report them, don't fix them.
@@ -38,4 +38,4 @@ Not when: the `modules` skill started you (your prompt says other modules are be
 
 ## Answer
 
-In English, 1 to 3 lines: the files written, the results (typecheck, invariants, variants), whether the review was requested, what you skipped or question.
+In English, 1 to 3 lines: the files written, the variants red before the code (how many) then green, the results (typecheck, invariants, variants), whether the review was requested, what you skipped or question.

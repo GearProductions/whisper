@@ -1583,8 +1583,12 @@ créateur ; le relecteur, F-101) :
    **Vue IDE** : un interrupteur *IDE* · *liste*, dans les outils de la carte,
    choisit entre l'accordéon ci-dessus (*liste*, inchangée) et une
    arborescence à gauche, des fichiers des modules rangés par dossier (un
-   module de plusieurs fichiers n'y fait pas un nœud), chacun avec le numéro
-   de son module (aucun pour un fichier de la branche, sans Forme) et son nom
+   module de plusieurs fichiers n'y fait pas un nœud), puis les variants que
+   change la branche (`VibeView.variants`) qu'aucun module ne liste, à leur
+   place dans les dossiers, comme un fichier de la branche (on voit où ils
+   sont écrits, pendant et après la génération ; note
+   0.15.0-variants-tdd), chacun avec le numéro
+   de son module (aucun pour un fichier de la branche : sans Forme, ou un variant) et son nom
    coloré comme dans VS Code : vert, nouveau ; jaune, modifié ; rouge barré,
    supprimé (pas commités, d'après `git status`) ; la couleur ordinaire une
    fois commité ; atténué en italique, un module pas encore généré. Plus de
@@ -1597,7 +1601,8 @@ créateur ; le relecteur, F-101) :
    diff git. La vue choisie est retenue d'une
    ouverture à l'autre (`vibeModulesView`, § 9 ; `conv:vibeSet`) ; défaut :
    *liste*. Sans module (sans Forme), les deux vues montrent l'arborescence
-   des fichiers de la branche. La vue IDE n'ajoute aucune action : elle montre
+   des fichiers de la branche ; la Forme, elle, n'ajoute pas les variants
+   (elle les nomme dans le contrat de chaque module, skill `forme`). La vue IDE n'ajoute aucune action : elle montre
    ce que Forme et Modules montrent déjà. Dans les deux étapes, sa carte prend
    toute la hauteur libre de l'étape (au moins 420 px), même avec peu de
    fichiers ; l'arborescence défile seule, et à droite seul le code (les outils
@@ -2320,8 +2325,18 @@ le module écrit, sauf lancé par `modules`. `modules` et `module` ne commitent 
 `commiter-modules` commite tous les modules qui ont des changements, un
 commit chacun (un seul, avec son argument `module`, que l'écran ne propose
 plus).
+`forme` nomme, sous le contrat de chaque module, ses variants : une ligne
+`variants :` (le fichier de tests ordinaires, existant ou « à créer », ou
+`aucun` et pourquoi), puis les cas à couvrir, chacun commençant par un mot
+(jamais par un chemin : sous un dossier, il serait lu comme un module) ;
+l'écran les lit comme le reste du contrat. `module` et `developpeur` les
+écrivent d'abord, les lancent et les voient échouer pour la bonne raison,
+puis écrivent le code jusqu'à ce qu'ils passent (TDD, guide § 3.4), et le
+disent dans leur réponse (rouges, puis verts) ; `modules` vérifie à la
+relecture qu'ils sont dans le fichier nommé, couvrent ses cas et ont été vus
+rouges (note 0.15.0-variants-tdd).
 Un agent du plugin, Sonnet à effort élevé : `developpeur` (un module de la
-Forme, `ponytail` préchargé, le typecheck et les tests de son module
+Forme, `ponytail` préchargé, ses variants d'abord, le typecheck et les tests de son module
 seulement, rien de commité), lancé par `modules` (Opus · élevé), qui relit
 chaque diff : un petit défaut corrigé lui-même, sinon la correction renvoyée
 au même sous-agent, au second échec le module relancé sur Opus ; la suite
