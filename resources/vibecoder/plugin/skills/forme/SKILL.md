@@ -1,6 +1,6 @@
 ---
 name: forme
-description: "Lay down the « Forme » section of the ticket note — modules, signatures, what each exposes, does not know and is used by — without writing any code."
+description: "Lay down the « Forme » section of the ticket note — modules, signatures, what each exposes, does not know and is used by, and its variants (test file and cases) — without writing any code."
 argument-hint: "<lang> <out> [details…]"
 disable-model-invocation: true
 ---
@@ -17,6 +17,7 @@ Read first: the note; `AGENTS.md` if present (layers, module layout, naming, bar
 
 - One entry per module created or whose boundary changes: its path, then its contract — what it exposes (names and typed signatures), what it does not know, who uses it. This contract is also the header the file will carry (A.2); an existing file whose boundary changes → say its header changes.
 - The layout of the previous notes, else a fenced block, one module per entry: the path at the start of the line (relative to the repo root, or as previous notes write it), two spaces or more, the contract; continuation lines indented under the contract. The screen reads the modules from this layout.
+- Under each contract, its variants (guide §3.4), the first thing its developer writes, red, before the code: a continuation line `variants : <path>` — its ordinary test file, existing or `(à créer)`, where and as the project keeps them (e.g. `tests/variants/<name>.test.ts` beside the module) — then the cases to cover, one per line, `- <case>`, each starting with a word, never with a path (under a folder entry, a line starting with a path is read as a module). Nothing to test (docs, a skill's text, data a test of another module checks) → `variants : aucun`, and why in a few words. The user challenges their place and their cases with the contract.
 - Each path checked: it exists, or the entry says `(à créer)`.
 - Order = generation and commit order: pure functions → orchestration → routes / IPC → UI → glue and doc (§4.1). Small modules: a few hundred lines each, one commit each.
 - The project's architecture rules hold; a module that would break one → say so in your answer instead.

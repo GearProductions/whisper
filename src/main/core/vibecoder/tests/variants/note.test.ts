@@ -126,6 +126,31 @@ Expose : \`SaveGLB\`
 Rien d'autre.
 `;
 
+// Une Forme dont les modules nomment leurs variants (skill forme, note 0.15.0-variants-tdd).
+const WITH_VARIANTS = `# x
+
+## Forme
+
+\`\`\`
+main/core/a.ts              a(x) → y
+                            variants : main/core/tests/variants/a.test.ts
+                              - un cas, puis un autre
+main/core/b/                le dossier b
+  c.ts                      c() → z
+                            variants : main/core/b/tests/variants/c.test.ts (à créer)
+                              - c rend z
+\`\`\`
+`;
+
+describe('parseNote : la ligne variants d’un module (Forme)', () => {
+  it('une ligne variants : et ses cas restent dans le contrat du module, sous un fichier comme sous un dossier', () => {
+    expect(parseNote(WITH_VARIANTS).modules).toEqual([
+      { path: 'main/core/a.ts', contract: 'a(x) → y variants : main/core/tests/variants/a.test.ts un cas, puis un autre' },
+      { path: 'main/core/b/c.ts', contract: 'c() → z variants : main/core/b/tests/variants/c.test.ts (à créer) c rend z' },
+    ]);
+  });
+});
+
 describe('parseNote : modules en titres ### (style G2-6752)', () => {
   const { modules } = parseNote(HEADINGS);
 
