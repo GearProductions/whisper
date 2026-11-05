@@ -74,6 +74,36 @@ describe('ideFiles', () => {
   });
 });
 
+describe('ideFiles : les variants de la branche (Modules)', () => {
+  const branch = [
+    { id: 'b0', path: 'b.ts', locked: null },
+    { id: 'b1', path: 'tests/variants/b.test.ts', git: 'new' as const, locked: 'motif' },
+    { id: 'b2', path: 'README.md', git: 'modified' as const, locked: null },
+  ];
+  const variants = [{ id: 'v0', path: 'tests/variants/b.test.ts', cases: 3 }];
+
+  it('un variant de la branche s’ajoute après les fichiers des modules, rank null, sa couleur git', () => {
+    const rows = ideFiles({ modules, files: branch, variants }, 'file');
+    expect(rows.map((r) => [r.path, r.rank, r.mark])).toEqual([
+      ['a/x.ts', 0, null], ['a/y.ts', 0, 'deleted'], ['b.ts', 1, null], ['c.ts', 2, 'todo'], ['tests/variants/b.test.ts', null, 'new'],
+    ]);
+    expect(rows[4]).toMatchObject({ state: null, code: { files: [{ id: 'b1', path: 'tests/variants/b.test.ts' }], locked: 'motif' } });
+  });
+
+  it('un variant déjà fichier d’un module n’a qu’une ligne', () => {
+    const t = mod('tests/', { touched: true, files: [f('m0/0', 'tests/variants/b.test.ts')] });
+    expect(ideFiles({ modules: [t], files: branch, variants }, 'file').map((r) => [r.path, r.rank])).toEqual([['tests/variants/b.test.ts', 0]]);
+  });
+
+  it('un fichier de la branche qui n’est pas un variant ne s’ajoute pas', () => {
+    expect(ideFiles({ modules, files: branch, variants }, 'file').map((r) => r.path)).not.toContain('README.md');
+  });
+
+  it('by module (Forme) : aucun variant ajouté', () => {
+    expect(ideFiles({ modules, files: branch, variants }, 'module').map((r) => r.path)).toEqual(['a/', 'b.ts', 'c.ts']);
+  });
+});
+
 describe('invariantFiles', () => {
   const test = (path: string, marks: VibeTestFile['marks']) =>
     ({ id: path, path, blob: '', cases: Object.keys(marks), lines: [], source: '', reading: null, marks }) as VibeTestFile;
