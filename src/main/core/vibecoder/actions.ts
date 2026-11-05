@@ -23,9 +23,10 @@
  *  gabarit sans {{text}} laisse tomber, lui, se demande à ignoredText (buildMessage ne le rend pas). L'effort se choisit
  *  comme le modèle, parmi EFFORT_LEVELS : le skill devient <skill>--<modèle>--<effort> (note
  *  0.13.0-fix-and-improvements).
+ *  readArgs : les arguments que lit vraiment un gabarit (buildMessage en tire ses ignored).
  *  Ne connaît pas : Electron, le disque, l'agent (le message est rendu, pas envoyé),
  *  le calcul du préfixe (core/runner, fait par l'appelant).
- *  Utilisé par : core/vibecoder (journey, runs, defaults), app/controllers (vibecoder, runs), app/settings. */
+ *  Utilisé par : core/vibecoder (journey, runs, defaults), core/commands (readArgs), app/controllers (vibecoder, runs), app/settings. */
 import { EFFORTS } from 'core/agents';
 import type { VibeAction, VibeArgs, VibeLang, VibeModule, VibeStepId, VibeView } from 'shared/bridge';
 import { json } from './outputs';
@@ -95,6 +96,13 @@ export const prNumber = (v: unknown) => (Number.isInteger(v) && (v as number) > 
 
 // Les variables d'un gabarit ({{ x }} : x).
 export const templateVars = (text: string) => [...text.matchAll(VAR)].map((m) => m[1].trim());
+
+// Les arguments que le gabarit lit vraiment : ceux de READ_BY dont la variable y est, et text si {{text}}.
+export const readArgs = (def: Pick<ActionDef, 'text'>): (keyof VibeArgs)[] => {
+  const vars = templateVars(def.text);
+  return [...(Object.keys(READ_BY) as (keyof VibeArgs)[]).filter((k) => vars.includes(READ_BY[k]!)),
+    ...(vars.includes('text') ? ['text' as const] : [])];
+};
 
 // Le texte du champ est-il perdu ? Un text non vide, et un gabarit sans {{text}} : buildMessage ne le signale pas
 // (READ_BY, invariant « un gabarit sans {{text}} »), l'appelant le met dans l'avis « arguments ignorés » (F-115).
@@ -209,8 +217,9 @@ export function buildMessage(def: ActionDef, args: VibeArgs, ctx: MessageContext
   };
   let template = def.text;
   const vars = templateVars(template);
+  const read = readArgs(def);
   const ignored = (Object.keys(READ_BY) as (keyof VibeArgs)[])
-    .filter((k) => Object.hasOwn(args, k) && args[k] !== undefined && !vars.includes(READ_BY[k]!));
+    .filter((k) => Object.hasOwn(args, k) && args[k] !== undefined && !read.includes(k));
   const shown = view.actions.find((a) => a.id === def.id);
   const skill = /^\/vibecoder:([\w-]+)/.exec(template);
   // Les pièces du champ (sélection, fichiers, images) : lues par un gabarit qui a {{text}} ou {{answers}}, sinon

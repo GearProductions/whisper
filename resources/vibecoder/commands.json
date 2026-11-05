@@ -1,0 +1,1313 @@
+{
+  "schemaVersion": 1,
+  "target": "The target of every command is the repository folder (its real path), carried by the door's envelope, never an argument and never an app robot id.",
+  "commands": [
+    {
+      "name": "status",
+      "kind": "read",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "description": "Where the project stands: the branch and its base, the journey (flow) and the current step, the ticket note path, the followed pull request, whether Vibe mode is on, and the actions running now. Answers one object. Fails when the folder has no survey (not a git repository, no VibeCoder agent for it).",
+      "response": {
+        "type": "object",
+        "description": "The folder's state.",
+        "properties": {
+          "branch": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Current branch; null when there is no git repository."
+          },
+          "base": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The repository's base branch; null when unknown."
+          },
+          "flow": {
+            "type": "string",
+            "description": "The journey the folder is on: create (writing the change) or review (reading a pull request).",
+            "enum": [
+              "create",
+              "review"
+            ]
+          },
+          "step": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The current step of the journey; null when none.",
+            "enum": [
+              "note",
+              "forme",
+              "invariants",
+              "modules",
+              "revue",
+              "pr",
+              null
+            ]
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Path of the ticket note, relative to the repository folder; null when there is none yet."
+          },
+          "pr": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "The followed pull request.",
+            "properties": {
+              "number": {
+                "type": "integer",
+                "description": "Its number."
+              },
+              "title": {
+                "type": "string",
+                "description": "Its title."
+              },
+              "url": {
+                "type": "string",
+                "description": "Its web address."
+              },
+              "state": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "OPEN, CLOSED or MERGED; null when unknown.",
+                "enum": [
+                  "OPEN",
+                  "CLOSED",
+                  "MERGED",
+                  null
+                ]
+              }
+            },
+            "required": [
+              "number",
+              "title",
+              "url",
+              "state"
+            ],
+            "additionalProperties": false
+          },
+          "vibe": {
+            "type": "boolean",
+            "description": "Vibe mode (the orchestrator chains the actions itself) is on."
+          },
+          "running": {
+            "type": "array",
+            "description": "The runs in progress (running, asking or stopped).",
+            "items": {
+              "type": "object",
+              "description": "A run that holds the folder.",
+              "properties": {
+                "action": {
+                  "type": "string",
+                  "description": "The action id."
+                },
+                "state": {
+                  "type": "string",
+                  "description": "Run state: running, asking (waits for the user to answer a permission request), stopped (waits for the user's keep or undo), done, failed, kept, undone.",
+                  "enum": [
+                    "running",
+                    "asking",
+                    "stopped",
+                    "done",
+                    "failed",
+                    "kept",
+                    "undone"
+                  ]
+                },
+                "since": {
+                  "type": "integer",
+                  "description": "When it started, in milliseconds since the epoch."
+                }
+              },
+              "required": [
+                "action",
+                "state",
+                "since"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "branch",
+          "base",
+          "flow",
+          "step",
+          "note",
+          "pr",
+          "vibe",
+          "running"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "next",
+      "kind": "read",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "description": "What to do next: the actions proposed at this step (primary: the one the guide recommends) and, for the others, why they are greyed out. Answers one object. Fails when the folder has no survey.",
+      "response": {
+        "type": "object",
+        "description": "The proposed and the disabled actions.",
+        "properties": {
+          "proposed": {
+            "type": "array",
+            "description": "Actions that can start now.",
+            "items": {
+              "type": "object",
+              "description": "A proposed action.",
+              "properties": {
+                "action": {
+                  "type": "string",
+                  "description": "The action id."
+                },
+                "primary": {
+                  "type": "boolean",
+                  "description": "The guide's recommended action at this step."
+                }
+              },
+              "required": [
+                "action",
+                "primary"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "disabled": {
+            "type": "array",
+            "description": "Actions refused now, each with its reason.",
+            "items": {
+              "type": "object",
+              "description": "A greyed-out action.",
+              "properties": {
+                "action": {
+                  "type": "string",
+                  "description": "The action id."
+                },
+                "reason": {
+                  "type": "string",
+                  "description": "Why it cannot start now."
+                }
+              },
+              "required": [
+                "action",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "proposed",
+          "disabled"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "actions",
+      "kind": "read",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "description": "Every action the screen knows, with its step, whether it runs on its own (run.start starts it), whether the app also does it itself (direct: only = never through an agent, also = both ways, null = agent only) and the arguments its template really reads. Answers a list. Fails when the folder has no survey.",
+      "response": {
+        "type": "array",
+        "description": "The actions, in the catalogue order.",
+        "items": {
+          "type": "object",
+          "description": "One action.",
+          "properties": {
+            "action": {
+              "type": "string",
+              "description": "The action id."
+            },
+            "step": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "The step it belongs to; null: available at every step.",
+              "enum": [
+                "note",
+                "forme",
+                "invariants",
+                "modules",
+                "revue",
+                "pr",
+                null
+              ]
+            },
+            "run": {
+              "type": "boolean",
+              "description": "It runs on its own: run.start accepts it."
+            },
+            "direct": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "only: the app alone does it; also: the app or an agent; null: an agent only.",
+              "enum": [
+                "only",
+                "also",
+                null
+              ]
+            },
+            "args": {
+              "type": "array",
+              "description": "The arguments the action reads; any other argument is ignored.",
+              "items": {
+                "type": "string",
+                "description": "An argument name."
+              }
+            }
+          },
+          "required": [
+            "action",
+            "step",
+            "run",
+            "direct",
+            "args"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "name": "runs",
+      "kind": "read",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "description": "The runs (actions that run on their own) of this folder, running or ended, with their last reply and any pending permission request. Answers a list. Fails when the folder has no survey.",
+      "response": {
+        "type": "array",
+        "description": "The runs, oldest first.",
+        "items": {
+          "type": "object",
+          "description": "One run.",
+          "properties": {
+            "action": {
+              "type": "string",
+              "description": "The action id."
+            },
+            "label": {
+              "type": "string",
+              "description": "Its label on screen."
+            },
+            "who": {
+              "type": "string",
+              "description": "Who works: a model name, possibly with its effort, or agent."
+            },
+            "state": {
+              "type": "string",
+              "description": "Run state: running, asking (waits for the user to answer a permission request), stopped (waits for the user's keep or undo), done, failed, kept, undone.",
+              "enum": [
+                "running",
+                "asking",
+                "stopped",
+                "done",
+                "failed",
+                "kept",
+                "undone"
+              ]
+            },
+            "since": {
+              "type": "integer",
+              "description": "When it started, in milliseconds since the epoch."
+            },
+            "end": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "When it ended or was stopped; null while it runs."
+            },
+            "reply": {
+              "type": "string",
+              "description": "Its last answer (Markdown); empty until it has said something."
+            },
+            "permission": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "description": "A pending permission request.",
+              "properties": {
+                "tool": {
+                  "type": "string",
+                  "description": "The tool it asks to use."
+                },
+                "target": {
+                  "type": "string",
+                  "description": "What the tool would act on."
+                }
+              },
+              "required": [
+                "tool",
+                "target"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "action",
+            "label",
+            "who",
+            "state",
+            "since",
+            "end",
+            "reply",
+            "permission"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "name": "procs",
+      "kind": "read",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "description": "The project's commands (dev server, front, services) and their state. Answers a list; empty when the project has no commands file. Fails when the folder has no survey.",
+      "response": {
+        "type": "array",
+        "description": "The commands, in the commands file order.",
+        "items": {
+          "type": "object",
+          "description": "One command of the project.",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Its name in the project's commands file."
+            },
+            "run": {
+              "type": "string",
+              "description": "The command line it runs."
+            },
+            "status": {
+              "type": "string",
+              "description": "running, stopped or failed.",
+              "enum": [
+                "running",
+                "stopped",
+                "failed"
+              ]
+            },
+            "since": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "When it started (running) or ended, in milliseconds since the epoch; null if never started."
+            },
+            "exit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "The exit code of its last end; null when killed by a signal or not ended."
+            }
+          },
+          "required": [
+            "name",
+            "run",
+            "status",
+            "since",
+            "exit"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "name": "logs",
+      "kind": "read",
+      "agent": true,
+      "description": "The end of a project command's log (the last 32 KB, colors removed), as the app's survey shows it. Answers { name, log }, or null when no command of the project has this name.",
+      "args": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of one of the project's commands, as procs gives it."
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "response": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "description": "The log of one command.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The command name."
+          },
+          "log": {
+            "type": "string",
+            "description": "The end of its log, 32 KB at most."
+          }
+        },
+        "required": [
+          "name",
+          "log"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "run.start",
+      "description": "Starts an action on its own, as a run, with its skill, model and effort from the settings. Answers nothing but starts the run; follow it with runs. Fails (the request is refused) when the action is unknown, not offered at this step, already running, a direct-only one, an argument is invalid or the app halted Vibe mode; it waits when another run holds the folder. An argument the action does not read is ignored, and the notice says so.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "The id of an action that runs on its own, one of the listed ones.",
+            "enum": [
+              "note",
+              "answers",
+              "forme",
+              "invariants",
+              "read-invariants",
+              "align",
+              "commit-prepare",
+              "commit",
+              "module",
+              "modules",
+              "commit-modules",
+              "review-diff",
+              "checks",
+              "ponytail",
+              "apply",
+              "fixups",
+              "pr",
+              "ci",
+              "rc",
+              "base",
+              "release",
+              "review-note",
+              "review-commits",
+              "screen",
+              "publish"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "description": "The request or precision the action takes, 20,000 characters at most.",
+            "maxLength": 20000
+          },
+          "module": {
+            "type": "integer",
+            "description": "0-based rank of the module in the note's « Forme »; none: the first one no commit touches.",
+            "minimum": 0
+          },
+          "commit": {
+            "type": "string",
+            "description": "A hash of a commit of the branch."
+          },
+          "file": {
+            "type": "string",
+            "description": "The id of an invariant test, or * for all of them."
+          },
+          "pr": {
+            "type": "integer",
+            "description": "A pull request number.",
+            "minimum": 1
+          },
+          "check": {
+            "type": "integer",
+            "description": "0-based rank of an item of checks.json: that check alone, run again; none: all of them.",
+            "minimum": 0
+          },
+          "model": {
+            "type": "string",
+            "description": "haiku, sonnet or opus, for an action whose skill sets its model; ignored otherwise.",
+            "enum": [
+              "haiku",
+              "sonnet",
+              "opus"
+            ]
+          },
+          "effort": {
+            "type": "string",
+            "description": "low, medium, high, xhigh or max, same condition as model.",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ]
+          },
+          "answers": {
+            "type": "array",
+            "description": "The answers to the note's open questions, an array of strings in their order, not numbered; at most 50 of 2,000 characters.",
+            "items": {
+              "type": "string",
+              "description": "One answer, 2,000 characters at most.",
+              "maxLength": 2000
+            },
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "run.stop",
+      "description": "Stops a run in progress (running or asking); it then waits for the user's keep or undo. Answers nothing. Does nothing when no run of this action is in progress.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "The id of the action whose run to stop."
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "run.keep",
+      "description": "Keeps the changes of a stopped run. Answers nothing. Does nothing unless the run is stopped.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "The id of the action whose stopped run to keep."
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "run.undo",
+      "description": "Undoes the changes of a stopped run (rewinds its conversation and files). Answers nothing; the run ends undone, or failed when the rewind fails. Does nothing unless the run is stopped.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "The id of the action whose stopped run to undo."
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "run.allow",
+      "description": "Allows the tool a run asked permission for, this time only. Answers nothing. Fails when the run has no pending permission request.",
+      "kind": "write",
+      "agent": false,
+      "args": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "The id of the action whose permission request to answer."
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "additionalProperties": false
+      },
+      "reason": "An agent never grants itself rights: only the user answers a permission request (I-13 to I-18)."
+    },
+    {
+      "name": "run.always",
+      "description": "Allows the tool a run asked permission for, and stops asking for it. Answers nothing. Fails when the run has no pending permission request.",
+      "kind": "write",
+      "agent": false,
+      "args": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "The id of the action whose permission request to answer."
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "additionalProperties": false
+      },
+      "reason": "An agent never grants itself rights: only the user answers a permission request (I-13 to I-18)."
+    },
+    {
+      "name": "run.deny",
+      "description": "Refuses the tool a run asked permission for. Answers nothing. Fails when the run has no pending permission request.",
+      "kind": "write",
+      "agent": false,
+      "args": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "The id of the action whose permission request to answer."
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "additionalProperties": false
+      },
+      "reason": "An agent never grants itself rights: only the user answers a permission request (I-13 to I-18)."
+    },
+    {
+      "name": "proc.stop",
+      "description": "Stops a command of the project (dev server, front, service). Answers nothing. Does nothing when it is not running.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of one of the project's commands, as in its commands file: only the names of the project's commands count."
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "proc.restart",
+      "description": "Restarts a command of the project, or starts it when it is stopped. Answers nothing. Does nothing for a name the project does not have.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of one of the project's commands, as in its commands file: only the names of the project's commands count."
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "pull",
+      "description": "Pulls the current branch (git pull) from its upstream. Run by the app itself, without an agent. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "push",
+      "description": "Pushes the current branch to its upstream, never forcing. Run by the app itself, without an agent. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch",
+      "description": "Refreshes the remote state of the repository (git fetch), the survey follows. Run by the app itself, without an agent. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "switch-branch",
+      "description": "Switches the folder to a local branch of the survey. Run by the app itself, without an agent. Refused when the folder has uncommitted changes. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available. Fails in a worktree, which stays on its branch.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "branch": {
+            "type": "string",
+            "description": "A local branch of the last survey; a safe git ref name.",
+            "pattern": "^(?!-)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+          }
+        },
+        "required": [
+          "branch"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "rebase",
+      "description": "Rebases the current branch, after fetching the base. A failed rebase is aborted at once. Run by the app itself, without an agent. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available. Fails in a worktree, which stays on its branch.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "onto": {
+            "type": "string",
+            "description": "A local branch of the last survey to rebase onto; none: origin/<the repository's base>.",
+            "pattern": "^(?!-)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "request-review",
+      "description": "Asks for the user's review on a pull request: adds the user's GitHub login (read from gh) as reviewer. Run by the app itself, without an agent. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available. Refused when the pull request is not one of all open pull requests of the survey, or is already the user's or already to review.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "pr": {
+            "type": "integer",
+            "description": "The pull request number.",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "pr"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "assign-pr",
+      "description": "Assigns the followed pull request to the user (gh pr edit --add-assignee, the login read by gh). Run by the app itself, without an agent. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available. Refused when no pull request is followed.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "unassign-pr",
+      "description": "Removes the user from the followed pull request's assignees (gh pr edit --remove-assignee). Run by the app itself, without an agent. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available. Refused when no pull request is followed.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "stash",
+      "description": "Sets aside the uncommitted changes, untracked files included (git stash push -u); it fails if the folder still has changes afterwards. Run by the app itself, without an agent. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "unload-pr",
+      "description": "Goes back to the repository's base branch and stops following the pull request. Run by the app itself, without an agent. Refused when the folder has uncommitted changes. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "remove-worktree",
+      "description": "Removes this worktree; the worktree of a pull request takes its pr-<n> branch with it, in the parent folder. Run by the app itself, without an agent. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "new-here",
+      "description": "Creates a branch in this folder, from a start point, and switches to it; if a new request is held, its text becomes the first note. Run by the app itself, without an agent. Refused when the folder has uncommitted changes. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available. Fails in a worktree, which stays on its branch. Refused when the typed name is an existing local branch, or when there is neither a typed name nor a held request.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "branch": {
+            "type": "string",
+            "description": "The new branch name, a safe git ref name that is not already a local branch; none: the name of the held request.",
+            "pattern": "^(?!-)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+          },
+          "start": {
+            "type": "string",
+            "description": "A local branch of the last survey to start from; none: origin/<the repository's base>.",
+            "pattern": "^(?!-)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "new-worktree",
+      "description": "Creates a worktree on a new branch from a start point, opens an agent there and, if a new request is held, hands it its text. Run by the app itself, without an agent. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available. Refused when the typed name is an existing local branch, or when there is neither a typed name nor a held request.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "branch": {
+            "type": "string",
+            "description": "The new branch name, a safe git ref name that is not already a local branch; none: the name of the held request.",
+            "pattern": "^(?!-)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+          },
+          "start": {
+            "type": "string",
+            "description": "A local branch of the last survey to start from; none: origin/<the repository's base>.",
+            "pattern": "^(?!-)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "copy-artifact",
+      "description": "Copies artifacts of the project into the repository, in a folder the user picks in a dialog. Run by the app itself, without an agent. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available. Refused when an id is not in the last survey.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "artifacts": {
+            "type": "array",
+            "description": "The artifacts to copy.",
+            "items": {
+              "type": "string",
+              "description": "An artifact id (a<i> for a file, d<i> for a folder) from the last survey, never a path."
+            }
+          }
+        },
+        "required": [
+          "artifacts"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "add-artifact",
+      "description": "Adds files the user dropped on the Artifacts panel to the artifacts folder, in a folder of the survey or at its root; never overwrites. Run by the app itself, without an agent. Fails when the folder id is unknown or another direct action is running.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "folder": {
+            "type": "string",
+            "description": "The id (d<i>) of a folder from the last survey; none: the root."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "rename-artifact",
+      "description": "Renames one artifact in place; never overwrites. Run by the app itself, without an agent. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available. Refused when the id is unknown, the name is not a portable plain file name (1 to 255 bytes, no / \\ or control character, no Windows reserved name, a folder not starting with a dot) or is taken.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "artifacts": {
+            "type": "array",
+            "description": "Exactly one artifact.",
+            "items": {
+              "type": "string",
+              "description": "The artifact id (a<i> or d<i>) from the last survey, never a path."
+            },
+            "maxItems": 1
+          },
+          "name": {
+            "type": "string",
+            "description": "The new name, alone, not a path; 255 bytes at most.",
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "artifacts",
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "new-artifact-file",
+      "description": "Creates an empty file in the artifacts folder. Run by the app itself, without an agent. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available. Refused when the folder id is unknown, the name is not a portable plain file name or is taken.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "folder": {
+            "type": "string",
+            "description": "The id (d<i>) of a folder from the last survey; none: the root."
+          },
+          "name": {
+            "type": "string",
+            "description": "The file name, alone, not a path; 255 bytes at most.",
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "new-artifact-folder",
+      "description": "Creates a folder in the artifacts folder. Run by the app itself, without an agent. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available. Refused when the folder id is unknown, the name is not a portable plain name (not starting with a dot) or is taken.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "folder": {
+            "type": "string",
+            "description": "The id (d<i>) of the parent folder from the last survey; none: the root."
+          },
+          "name": {
+            "type": "string",
+            "description": "The folder name, alone, not a path; 255 bytes at most.",
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "trash-artifacts",
+      "description": "Moves artifacts to the system trash, never deleting them. Run by the app itself, without an agent. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available. Nothing is trashed unless the confirmed names match, one by one and in order, those of the ids in the last survey.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "artifacts": {
+            "type": "array",
+            "description": "The artifacts to trash.",
+            "items": {
+              "type": "string",
+              "description": "An artifact id (a<i> for a file, d<i> for a folder) from the last survey, never a path."
+            }
+          },
+          "names": {
+            "type": "array",
+            "description": "The confirmed names, same length and order as artifacts.",
+            "items": {
+              "type": "string",
+              "description": "The name of the artifact at the same rank, as the survey shows it."
+            }
+          }
+        },
+        "required": [
+          "artifacts",
+          "names"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "move-artifacts",
+      "description": "Moves artifacts to a folder; a taken name takes the first free number; a folder cannot move into itself. Run by the app itself, without an agent. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available. Refused when an id or the destination is unknown.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "artifacts": {
+            "type": "array",
+            "description": "The artifacts to move.",
+            "items": {
+              "type": "string",
+              "description": "An artifact id (a<i> for a file, d<i> for a folder) from the last survey, never a path."
+            }
+          },
+          "folder": {
+            "type": "string",
+            "description": "The id (d<i>) of the destination folder from the last survey; none: the root."
+          }
+        },
+        "required": [
+          "artifacts"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "copy-artifacts",
+      "description": "Pastes copies of artifacts into a folder; a taken name takes the first free number. Run by the app itself, without an agent. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available. Refused when an id or the destination is unknown.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "artifacts": {
+            "type": "array",
+            "description": "The artifacts to copy.",
+            "items": {
+              "type": "string",
+              "description": "An artifact id (a<i> for a file, d<i> for a folder) from the last survey, never a path."
+            }
+          },
+          "folder": {
+            "type": "string",
+            "description": "The id (d<i>) of the destination folder from the last survey; none: the root."
+          }
+        },
+        "required": [
+          "artifacts"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "duplicate-artifacts",
+      "description": "Duplicates each artifact in its own folder, under the first free number. Run by the app itself, without an agent. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available. Refused when an id is unknown.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "artifacts": {
+            "type": "array",
+            "description": "The artifacts to duplicate.",
+            "items": {
+              "type": "string",
+              "description": "An artifact id (a<i> for a file, d<i> for a folder) from the last survey, never a path."
+            }
+          }
+        },
+        "required": [
+          "artifacts"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "load-pr",
+      "description": "Loads a pull request of this repository (a fork's is refused): fetches its head and base, records its card and follows it. The app does it itself, or an agent does it from the same template. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available. Fails when no pull request is given and none is followed, and in a worktree.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "pr": {
+            "type": "integer",
+            "description": "The pull request number; none: the followed one.",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "pr-here",
+      "description": "Puts this folder on the followed pull request's head branch: fetches it, switches (clean folder) and pulls it fast-forward only. The app does it itself, or an agent does it from the same template. Refused when the folder has uncommitted changes. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available. Fails in a worktree, which stays on its branch. Fails when no pull request is followed.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "pr-worktree",
+      "description": "Creates a worktree for the followed pull request on branch pr-<n> from origin/<its head>, without touching this folder, and opens an agent there. The app does it itself, or an agent does it from the same template. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available. Fails when no pull request is followed.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "vibe",
+      "description": "Starts Vibe mode: the orchestrator chains the actions itself, step after step, until the user stops it. Answers nothing; status tells whether it is on. Fails when an action is greyed out for another reason (no git repository).",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "guide",
+      "description": "Asks the guide coach (/gear-guide) a question about what to do next. The text is sent to the orchestrator conversation as a message. Fails when the conversation is busy.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The question, 20,000 characters at most.",
+            "maxLength": 20000
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "new-request",
+      "description": "Sends a new request to the orchestrator, whose skill names the branch for the user to validate. Fails when the text is empty or too long, or when the conversation is busy.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The request, required, 20,000 characters at most.",
+            "maxLength": 20000
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "comment",
+      "description": "Prepares the message field with a comment on a quoted passage (« À propos de « <quote> » : »), for the user to finish; nothing is sent.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "quote": {
+            "type": "string",
+            "description": "The passage the comment is about."
+          }
+        },
+        "required": [
+          "quote"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "case-ko",
+      "description": "Prepares the message field with a rejection of a quoted invariant case (« Invariant « <quote> » : à revoir — »), for the user to finish; nothing is sent.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "quote": {
+            "type": "string",
+            "description": "The invariant case being rejected."
+          }
+        },
+        "required": [
+          "quote"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "propose-run",
+      "description": "Asks the orchestrator to propose how to run the project's commands (the /vibecoder:lancement skill); the proposal lands in the project's commands file. Fails when the conversation is busy.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "A precision for the proposal, 20,000 characters at most.",
+            "maxLength": 20000
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  ]
+}

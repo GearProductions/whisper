@@ -78,6 +78,7 @@ trombone, F-69), lancer des processus.
 | `core/guards` | permissions des pages, liens, fichiers montrés |
 | `core/repo` | page GitHub d'un dossier, d'après son remote `origin` |
 | `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier ou un commit désigné par son id (`safePath`, `itemPath`, `itemCommit`, `codeFile` : un fichier d'un module touché, ou de la branche), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`, `skillModel`), le parcours (`vibeView`), le rôle (`role` : `vibeRole`, `canAssign`, `unassignable`, F-101), les choix de lieu d'après l'état du dossier (`place` : `placeShown`, `placeReason`, `onBase`, F-110), *Pull*, *Rebase*, *Pousser* (`sync` : `syncReason`, F-114), les sorties des skills, les fichiers par défaut (`syncDefaults`) et les variantes des skills (`skillVariants`), les validations et brouillons de revue, les courses (`runs` : `ownRun`, `runKey`, la règle `blockedBy`, le module qu'une course génère et le verrou de son code (`runModule`, `codeLock`), `actions.json`, l'avis de fin, `parseRequest`, l'avis d'une demande refusée ou aux arguments ignorés `requestNotice`, F-115), les ✓ des étapes passées en Vibe (`vibeMarks`) |
+| `core/commands` | la table des commandes de VibeCoder (F-116), pure, sans Electron ni disque (le texte est donné) : `schema` (`JsonSchema`, `SCHEMA_KEYS`, `schemaError` : le sous-ensemble de JSON Schema de la table, sans bibliothèque), `table` (`parseCommands`, `AGENT_CLOSED` : la table lue et vérifiée), `reads` (`statusOf`, `nextOf`, `actionsOf`, `runsOf`, `procsOf`, `logsOf` : les lectures, d'après le relevé), `skill-text` (`skillArgs` : la section des arguments des skills `actions` et `processus`) ; utilisé par ses tests, et par l'exécuteur à l'étape 2 (rien ne la charge à l'exécution aujourd'hui) |
 | `core/runner` | les commandes du projet (F-111) : le fichier du projet, `<dossier du parent>/.vibecoder/project.json` (`projectPath`, la ligne de `.git/info/exclude` : `withExclude`), lu (`parseProject`), une proposition fusionnée dans le fichier existant (`mergeProject`), une commande par son rang (`commandAt` : shell du fichier, préfixe `commandPrefix` — celui du fichier, du réglage, ou la box de l'agent, le même pour `gh`), les demandes de l'agent (`requestsOf`), la fin d'un journal, la recette en étapes (`setupSteps`, `createSteps`, `removeSteps` ; la branche et la base par l'environnement, `recipeEnv` ; le dossier d'un worktree, `worktreeDir`) (I-42) |
 | `technicals/process` | les processus lancés pour l'utilisateur : détachés, marqués dans leur environnement, arrêtés avec ce qu'ils ont lancé (SIGTERM, SIGKILL après 5 s), leur journal ; `writeNew` (I-43) ; une étape de la recette attendue jusqu'à sa fin (`runOnce` : l'entrée fermée, un délai, la dernière ligne utile) |
 | `technicals/git` | git en lecture seule (`gitRun`, `gitReader`, `GIT_READ`, plus `worktree list`) : les faits d'une branche ou d'une PR chargée, un fichier à un ref, un commit et son diff, le commit où la branche part de sa base (`forkPoint`), les branches locales (`branches`), le retard sur `@{u}` et sur `origin/<base>` (`sync`) (I-39) |
@@ -1124,7 +1125,9 @@ qu'aucune variable du gabarit ne lit (`module`, `commit`, `file`, `pr`,
 `modules`, `commit-modules`, `commit-prepare`, `checks`…, sauf un `text` vide),
 ou un modèle ou un effort que l'action ne propose pas, ne refuse pas l'action :
 il est ignoré, et l'orchestrateur en est prévenu (F-115) ; le texte, lui, reste
-absent du message.
+absent du message. Ce que lit un gabarit se calcule (`readArgs`, d'après les
+variables du gabarit) : `buildMessage` en tire les arguments ignorés, et la
+table des commandes (F-116) les cite pour chaque action.
 
 **F-98 Les champs** : une action dont le gabarit prend `{{text}}` emporte le
 texte de **son champ** s'il y en a, ou l'exige (`needs: text` ; vide →
@@ -1330,7 +1333,8 @@ conversation ; note `0.9.0-actions-independantes.md`).
   réponse ; `waiting` : les demandes retenues et pourquoi), quand on le lui
   demande. Il demande un lancement par `<sorties>/actions/<id>.start` (un
   objet JSON de ses arguments : `text`, `module`, `commit`, `file`, `pr`,
-  `check`, `model`, `effort`, `answers` ; jamais `direct`) ou un arrêt par `<id>.stop` (vide) ;
+  `check`, `model`, `effort`, `answers` — `REQUEST_ARGS`, aussi les arguments de
+  `run.start` dans la table, F-116 ; jamais `direct`) ou un arrêt par `<id>.stop` (vide) ;
   l'appli les lit au relevé, à la fin de chaque tour de la conversation et à
   la fin de chaque course, les `.stop` d'abord. Un lancement suit la même
   règle et les mêmes vérifications qu'un clic (`buildMessage`, I-38) ; parti,
@@ -1363,6 +1367,53 @@ conversation ; note `0.9.0-actions-independantes.md`).
 - Les courses, les avis, les demandes retenues et le mode *Vibe* sont **en mémoire** ;
   *Nouvelle session*, *Retirer* l'agent ou retirer le robot d'un worktree
   (F-110) ferment et oublient ses courses.
+
+**F-116 La table des commandes** (note `0.15.0-registre-commandes.md` ; étape 1
+du pilotage par des agents). Le principe : tout ce que fait l'interface, un
+agent peut le faire, avec les mêmes règles, par n'importe quelle porte, à une
+courte liste d'exceptions près. La table est le contrat public de ce moteur : une
+donnée, indépendante d'Electron et de TypeScript.
+- **Le fichier** : `resources/vibecoder/commands.json`, `schemaVersion` 1,
+  chargé et vérifié par `core/commands` (`parseCommands` : JSON illisible,
+  version inconnue, nom en double, description vide, argument sans schéma ou
+  mot-clé hors `SCHEMA_KEYS`, lecture sans réponse, commande de la liste
+  d'exceptions ouverte, commande fermée hors d'elle ou sans raison, argument ou réponse qui nomme un robot : il lève, et
+  nomme chaque faute). Chaque commande : son `name` (`run.start`, `proc.restart`,
+  `status`…) ; sa `description`, en anglais, pour un modèle (ce qu'elle fait, ce
+  qu'elle répond, ce qui la fait échouer ; les libellés pour l'humain restent
+  dans `actions.<langue>.json`) ; `kind`, `read` ou `write` ; `agent`, ouverte
+  aux agents (par défaut) ou non ; ses `args`, un schéma JSON ; sa `response`, un
+  schéma, pour les lectures.
+- **La cible** : un dossier, le dépôt, son chemin réel ; jamais l'id d'un robot
+  de l'appli. Elle n'est dans les arguments d'aucune commande : elle est dite une
+  fois (`target`, en tête de la table) et portée par l'enveloppe des portes
+  (étapes 2 et 3).
+- **Ce qu'elle reprend** : `run.start` (l'action, parmi celles qui courent à part ;
+  ses autres arguments sont ceux que garde un `.start`, F-115 : `REQUEST_ARGS`,
+  sans `verdict`), `run.stop`, `run.keep`, `run.undo`, `proc.stop`,
+  `proc.restart` ; une commande par action directe (F-114) et par action ni à part
+  ni directe, nommée de son id, avec le schéma complet de ses arguments.
+- **Les lectures**, d'après le relevé : `status` (la branche, l'étape, la note, la
+  PR, ce qui court), `next` (les actions proposées, et pourquoi les autres sont
+  grisées), `actions` (pour chacune, les arguments qu'elle lit vraiment),
+  `runs`, `procs`, `logs` (le nom d'un processus ; la fin de son journal, 32 Ko).
+- **Les exceptions, fermées aux agents** (`agent: false`, avec sa `reason`) : un
+  agent ne s'accorde pas de droits et ne quitte pas l'appli. Aujourd'hui :
+  `run.allow`, `run.always`, `run.deny` (répondre à la demande d'autorisation
+  d'une course, I-13 à I-18). À venir avec les réglages, fermées de même :
+  ce qui accorde des droits (faire confiance au dossier `.claude` d'un projet,
+  « autoriser les agents extérieurs ») et quitter ou redémarrer l'appli. Une
+  commande de la liste ouverte, ou une autre fermée, fait refuser la table
+  (`AGENT_CLOSED`).
+- **Elle déclare, elle n'exécute rien** : aucune porte ne sert les lectures (ni
+  socket, ni CLI), la table n'est chargée par rien à l'exécution, et ce qu'un
+  agent peut faire ne change pas : la boîte aux lettres (F-115) marche comme
+  avant, un `.start` pour une action directe reste refusé. L'ouverture réelle
+  vient avec l'exécuteur (étape 2).
+- **Les skills** : la section des arguments de `actions` et de `processus`
+  (F-105) est produite d'après la table (`skillArgs`) ; un test la régénère et la
+  compare au `SKILL.md` du dépôt. Rien n'est réécrit au démarrage : un skill
+  retouché n'est jamais remplacé (I-35).
 
 ### Le parcours, le relecteur
 
