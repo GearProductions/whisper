@@ -19,7 +19,8 @@
  *  setup, son worktree si le fichier n'en a pas, s'y ajoutent (core/runner
  *  mergeProject ; rien de nouveau : pas réécrit) ; la
  *  proposition supprimée dans les deux cas ; les demandes de l'agent
- *  (<sorties>/run/<nom>.stop, .restart, pour un nom du fichier) sont faites,
+ *  (<sorties>/run/<nom>.stop, .restart, pour un nom du fichier) sont faites
+ *  (applyOp, aussi processOp : l'opération par nom, sans question),
  *  une commande retirée du fichier est arrêtée ; l'état et la fin du journal
  *  de chaque commande ; si le fichier a un setup ; la recette de la famille
  *  (controllers/recipe recipeView). Ce que demande la page : une commande par son rang
@@ -37,7 +38,7 @@
  *  Utilisé par : controllers/vibecoder (et projectAt, readTimed, readFile), controllers/agents
  *  (et readFile), controllers/module-code (readTimed, READ_MAX),
  *  controllers/recipe (projectAt, homeOf, readFile), app/menus (readFile),
- *  app/lifecycle. */
+ *  app/lifecycle, controllers/commands (processOp). */
 import fs from 'node:fs';
 import path from 'node:path';
 import type { VibeProcess, VibeRecipe } from 'shared/bridge';
@@ -101,6 +102,16 @@ function launch(agent: AgentConfig, cfg: Config, p: Project | null, index: numbe
   if (c && !holderOf(agent, cfg, c.name)) procs.start(key(agent.id, c.name), { argv: c.argv, cwd: path.resolve(agent.dir, c.cwd ?? '.'), log: logOf(agent.id, c.name) });
 }
 
+// Arrête la commande `name` du projet `p`, puis, pour 'restart', la relance à
+// son rang (launch : pas si tenue ailleurs) ; false : aucune de ce nom, rien d'arrêté.
+async function applyOp(agent: AgentConfig, cfg: Config, p: Project | null, name: string, op: 'stop' | 'restart') {
+  const index = p?.commands.findIndex((c) => c.name === name) ?? -1;
+  if (index < 0) return false;
+  await procs.stop(key(agent.id, name));
+  if (op === 'restart') launch(agent, cfg, p, index);
+  return true;
+}
+
 // Le fichier du projet d'un agent : celui du dossier du parent ; null sans parent présent.
 const familyFile = (agent: AgentConfig, cfg: Config) => {
   const home = homeOf(agent, cfg);
@@ -151,8 +162,7 @@ export function processView(agent: AgentConfig, cfg: Config): { processes: VibeP
     try { files = fs.readdirSync(path.join(out, 'run')); } catch { /* rien de lancé */ }
     for (const r of requestsOf(files, p)) {
       fs.rmSync(path.join(out, 'run', r.file), { force: true });
-      const stopped = procs.stop(key(agent.id, r.name));
-      if (r.op === 'restart') stopped.then(() => launch(agent, cfg, p, p!.commands.findIndex((c) => c.name === r.name)));
+      void applyOp(agent, cfg, p, r.name, r.op);
     }
     const names = new Set(p?.commands.map((c) => c.name));
     for (const k of procs.keys()) {
@@ -210,6 +220,11 @@ export async function processAction(agent: AgentConfig, cfg: Config, op: unknown
   if (op === 'stop' || op === 'restart') await procs.stop(k);
   if (op === 'start' || op === 'restart') launch(agent, cfg, p, index as number);
 }
+
+// L'opération d'une commande du fichier par son nom (l'exécuteur, controllers/commands) :
+// celle des demandes de l'agent au relevé, sans la boîte de dialogue de processAction.
+export const processOp = (agent: AgentConfig, cfg: Config, name: string, op: 'stop' | 'restart') =>
+  applyOp(agent, cfg, projectOf(agent, cfg), name, op);
 
 // À la sortie : tout ce qui a été lancé, arrêté (SIGKILL après 5 s).
 export const stopProcesses = () => procs.stopAll();

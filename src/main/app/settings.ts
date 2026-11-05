@@ -2,14 +2,16 @@
  *  config.json relu à chaque usage (une retouche à la main prend effet à
  *  l'usage suivant, sans relancer), la consigne des agents, le journal, le
  *  dossier whisper, les fichiers de VibeCoder (actions, skills, sorties des
- *  agents, validations). Les pages construites (out/renderer) et les ponts.
- *  Ne connaît pas : les fenêtres. Utilisé par : app. */
+ *  agents, validations) et la table livrée de ses commandes (vibeCommands). Les pages construites
+ *  (out/renderer) et les ponts.
+ *  Ne connaît pas : les fenêtres. Utilisé par : app, controllers/commands. */
 import fs from 'node:fs';
 import path from 'node:path';
 import { app } from 'electron';
 import type { VibeLang } from 'shared/bridge';
 import { agentList, withDefaults, type Config } from 'core/config';
 import { AUDIO_RULES, type AgentConfig } from 'core/agents';
+import { parseCommands, type CommandTable } from 'core/commands';
 import { parseActions, removeRetired, skillVariants, syncDefaults, type ActionDef, type Drafts, type Marks } from 'core/vibecoder';
 import { readJson, writeJson } from 'technicals/config-file';
 import { binDir, resourcePath } from 'technicals/paths';
@@ -116,6 +118,10 @@ export function vibeActions(lang: VibeLang): ActionDef[] {
   };
   return parse(vibeDir()) || parse(resourcePath('vibecoder')) || [];
 }
+
+// La table des commandes : celle livrée, jamais une copie de l'utilisateur (le
+// contrat, pas un réglage), relue à chaque appel et vérifiée : une table fautive lève.
+export const vibeCommands = (): CommandTable => parseCommands(fs.readFileSync(path.join(resourcePath('vibecoder'), 'commands.json'), 'utf8'));
 
 // Validations et brouillons de revue, par agent (vibecoder-state.json).
 export type VibeStore = { marks: Record<string, Marks>; drafts: Record<string, Drafts> };

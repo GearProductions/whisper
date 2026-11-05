@@ -8,7 +8,7 @@ const cmd = (name: string, props: Record<string, string>): CommandDef => ({
   args: { type: 'object', properties: Object.fromEntries(Object.entries(props).map(([k, description]) => [k, { type: 'string', description }])) },
 });
 const table: CommandTable = {
-  schemaVersion: 1, target: 'x',
+  schemaVersion: 1, target: 'x', errors: [],
   commands: [
     cmd('run.start', { action: 'an action id.', text: 'the request.', module: '0-based rank.', model: 'a model' }),
     cmd('run.stop', { action: 'the id of a run' }),

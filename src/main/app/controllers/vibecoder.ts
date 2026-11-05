@@ -119,10 +119,16 @@
  *  pages seules reconstruites, pas pendant une dictée : reloadPages) ;
  *  Redémarrer (restartApp, principal reconstruit ; la question d'abord si un
  *  agent travaille).
+ *  Un refus de startAction ou de runDirect rend, à côté de son texte, sa clé (Refusal.reason :
+ *  celle d'ERRORS, 'disabled' pour le grisé du relevé — runDirect refuse aussi une action grisée —,
+ *  'same' | 'busy' | 'changing' avec by pour une course ou une action directe qui retient : lockCode ;
+ *  runDirect exportée pour controllers/commands) ; runVibeAction, la page et la boîte aux lettres
+ *  n'en voient que le texte, inchangé.
  *  Ne connaît pas : la page (seulement ses canaux), la fenêtre.
  *  Utilisé par : app/ipc (dropOnArtifacts), app/menus, controllers/conversation,
  *  controllers/runs, controllers/agents et controllers/module-code
- *  (lastView), controllers/artifacts et controllers/artifact-ops (lastView). */
+ *  (lastView), controllers/artifacts et controllers/artifact-ops (lastView),
+ *  controllers/commands (startAction, runDirect). */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -134,7 +140,7 @@ import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
 import {
   addComment, artifactOf, blobSha, buildMessage, vibeMarks, DIRECT_ACTIONS, DIRECT_ONLY, draftText, editComment, findNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath,
-  blockedBy, BRANCH_CHANGES, ELSEWHERE, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeRole, vibeView, whoOf, type ActionDef, type MessageError,
+  blockedBy, BRANCH_CHANGES, lockCode, lockText, ELSEWHERE, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeRole, vibeView, whoOf, type ActionDef, type MessageError,
 } from 'core/vibecoder';
 import { findEditor } from 'technicals/editor';
 import { directRunner, prCardText, VERDICTS, type DirectResult } from 'technicals/direct';
@@ -538,7 +544,12 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
 
 /* ---- Ce que demande l'écran ------------------------------------------------ */
 
-const fail = (lang: VibeLang, key: keyof typeof ERRORS.fr): SendResult => ({ ok: false, error: ERRORS[lang][key] });
+// Un refus : son texte, et sa clé (reason : celle d'ERRORS ; 'disabled', le grisé du relevé ; 'same' | 'busy' | 'changing' avec by,
+// la course ou l'action directe qui retient). Les portes qui ne lisent que le texte (l'écran, la boîte aux lettres) ne la voient pas.
+export type Refusal = SendResult & { reason?: string; by?: string };
+// L'écran et la boîte aux lettres ne voient que le texte du refus, pas sa clé.
+const bare = ({ ok, error }: SendResult): SendResult => ({ ok, error });
+const fail = (lang: VibeLang, key: keyof typeof ERRORS.fr): Refusal => ({ ok: false, error: ERRORS[lang][key], reason: key });
 
 // Un dépôt sur la zone du panneau : les chemins lus du File par le pont.
 // Mêmes vérifications que runVibeAction (l'agent affiché, son relevé, l'action affichée), sans lire aucun
@@ -548,10 +559,10 @@ export function dropOnArtifacts(paths: unknown, folder?: unknown): SendResult {
   const lang = vibeLang(loadConfig());
   const agent = viewAgent();
   const view = agent && last.get(agent.id);
-  if (!agent || !view) return fail(lang, 'agent');
-  if (!view.actions.some((a) => a.id === 'add-artifact')) return fail(lang, 'action');
+  if (!agent || !view) return bare(fail(lang, 'agent'));
+  if (!view.actions.some((a) => a.id === 'add-artifact')) return bare(fail(lang, 'action'));
   const mine = directs.get(agent.id) ?? {};
-  if (Object.values(mine).some((x) => x.running)) return fail(lang, 'action');
+  if (Object.values(mine).some((x) => x.running)) return bare(fail(lang, 'action'));
   directs.set(agent.id, mine);
   void track(mine, 'add-artifact', () => addArtifacts(agent, paths, folder));
   return { ok: true };
@@ -565,17 +576,24 @@ export function runVibeAction(id: unknown, args: unknown): SendResult {
   const lang = vibeLang(cfg);
   const agent = viewAgent(cfg);
   const view = agent && last.get(agent.id);
-  if (!agent || !view) return fail(lang, 'agent');
+  if (!agent || !view) return bare(fail(lang, 'agent'));
   const shownAction = view.actions.find((a) => a.id === id);
   const def = vibeActions(lang).find((a) => a.id === id);
-  if (!shownAction || !def || def.kind !== 'send') return fail(lang, 'action');
-  if (!args || typeof args !== 'object' || Array.isArray(args)) return fail(lang, 'args');
-  if ((args as VibeArgs).direct === true && DIRECT_ACTIONS.includes(def.id)) return runDirect(agent, def, args as VibeArgs, view, cfg);
+  if (!shownAction || !def || def.kind !== 'send') return bare(fail(lang, 'action'));
+  if (!args || typeof args !== 'object' || Array.isArray(args)) return bare(fail(lang, 'args'));
+  if ((args as VibeArgs).direct === true && DIRECT_ACTIONS.includes(def.id)) return bare(runDirect(agent, def, args as VibeArgs, view, cfg));
   const sent = startAction(agent, def, args as VibeArgs, view, cfg);
   if (sent.ok && def.id === 'vibe') vibeStart(agent);   // son message parti : le mode Vibe en cours (controllers/runs)
   if (sent.ok) refreshVibe({ now: true });
   return { ok: sent.ok, error: sent.error };
 }
+
+// Le grisé que le relevé met d'une course : une action d'étape, le texte de blockedBy d'après les courses et actions
+// directes du relevé ; une autre n'est jamais grisée par une course (le relevé la grise par « L'agent travaille » ou
+// « une commande directe est en cours »), null. Partagée par startAction et runDirect : un grisé de course est revu sur
+// l'état vivant (startRun, lockCode), les autres refusent.
+export const greyed = (def: ActionDef, view: VibeView, lang: VibeLang) =>
+  ownRun(def) ? blockedBy(def, viewLocks(view, vibeActions(lang)), lang) : null;
 
 // Une action envoyée, au clic comme à la demande de l'orchestrateur (runs : runRequests) : grisée au
 // relevé pour une autre raison qu'une course, refusée (une course, startRun la revoit sur l'état vivant :
@@ -584,7 +602,7 @@ export function runVibeAction(id: unknown, args: unknown): SendResult {
 // ignored : les arguments donnés qui ne servent pas à l'action, ignorés (buildMessage).
 export function startAction(
   agent: AgentConfig, def: ActionDef, args: VibeArgs, view: VibeView, cfg: Config,
-): SendResult & { invalid?: true; ignored?: (keyof VibeArgs)[] } {
+): Refusal & { invalid?: true; ignored?: (keyof VibeArgs)[] } {
   const lang = vibeLang(cfg);
   if (DIRECT_ONLY.includes(def.id)) return fail(lang, 'action');   // seulement par l'appli (runDirect), jamais via l'agent
   if (def.flow === 'create' && view.flow === 'review') return fail(lang, 'action');   // le relecteur (le dernier relevé, pas la page) n'édite, ne génère ni ne commite
@@ -594,8 +612,7 @@ export function startAction(
     def = vibeActions(lang).find((a) => a.id === 'new-request') ?? def;
   }
   const shown = view.actions.find((a) => a.id === def.id);
-  const held = ownRun(def) ? blockedBy(def, viewLocks(view, vibeActions(lang)), lang) : null;
-  if (shown?.disabled && shown.disabled !== held) return { ok: false, error: shown.disabled };
+  if (shown?.disabled && shown.disabled !== greyed(def, view, lang)) return { ok: false, error: shown.disabled, reason: 'disabled' };
   // Le modèle et l'effort d'une action : ceux de la configuration (jamais Fable, I-36), ce que la page ou la demande
   // en dit est écarté ; buildMessage les revoit contre l'action affichée, et ne les rend pas dans ignored (ils ne viennent pas de l'appelant).
   const { model: _model, effort: _effort, ...given } = args;
@@ -652,16 +669,21 @@ export function vibeRunOp(id: unknown, op: unknown) {
 // agent : « en cours » puis son résultat partent au relevé. Rien ne suit une
 // action (load-pr charge et suit la PR, seulement). Avant tout git switch : git status relu ;
 // une ligne, ou pas de réponse → refusé.
-function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, view: VibeView, cfg: Config): SendResult {
+export function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, view: VibeView, cfg: Config): Refusal {
   const { id } = def;
   const lang = vibeLang(cfg);
   const mine = directs.get(agent.id) ?? {};
   // Un worktree (enfant ou robot) reste sur sa branche, quel que soit l'écran (note 0.12.0-gestion-des-branches).
   if (agentParent(agent) && BRANCH_CHANGES.includes(id)) return fail(lang, 'worktree');
-  if (Object.values(mine).some((x) => x.running)) return fail(lang, 'action');
+  const other = Object.entries(mine).find(([, x]) => x.running);
+  if (other) return { ...fail(lang, 'action'), reason: 'busy', by: other[0] };
   // Une course vivante la retient comme une autre course (la règle de runs) ; pas un nouveau worktree (ailleurs).
-  const held = ELSEWHERE.includes(id) ? null : blockedBy(def, lockingRuns(agent.id), lang);
-  if (held) return { ok: false, error: held };
+  const running = lockingRuns(agent.id);
+  const lock = ELSEWHERE.includes(id) ? null : lockCode(def, running);
+  if (lock) return { ok: false, error: lockText(lock, lang), reason: lock.code, by: lock.by };
+  // Grisée au relevé pour une autre raison qu'une course (comme startAction ; une course : la règle vivante ci-dessus l'a vue).
+  const shown = view.actions.find((a) => a.id === id);
+  if (shown?.disabled && shown.disabled !== greyed(def, view, lang)) return { ok: false, error: shown.disabled, reason: 'disabled' };
   const out = vibeOutDir(agent.id);
   const run = directRunner({ dir: agent.dir, out, prefix: agentPrefix(agent, cfg) });
   const n = prNumber((view.loaded ?? view.pr)?.number);   // la PR suivie et chargée (les deux rôles), sinon celle du relevé

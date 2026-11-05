@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { parseCommands, type JsonSchema } from 'core/commands';
+import { ERROR_CODES, parseCommands, type JsonSchema } from 'core/commands';
 import { okRef } from 'helpers';
 import { DIRECT_ONLY, EFFORT_LEVELS, SKILL_MODELS, ownRun, parseActions, readArgs, REQUEST_ARGS } from 'core/vibecoder';
 
@@ -51,10 +51,16 @@ describe('la table livrée', () => {
 describe('run.start', () => {
   const props = start.args.properties!;
 
-  it('garde exactement les arguments de parseRequest, plus action, jamais verdict', () => {
+  it('garde exactement les arguments de parseRequest, plus action, verdict compris ; verdict : l\'enum des trois', () => {
     expect(Object.keys(props).filter((k) => k !== 'action').sort()).toEqual([...REQUEST_ARGS].sort());
-    expect(props).not.toHaveProperty('verdict');
+    expect(props.verdict).toMatchObject({ type: 'string', enum: ['approve', 'comment', 'request-changes'] });
     expect(start.args.required).toEqual(['action']);
+  });
+
+  it('run.stop, run.keep, run.undo : leur description dit no-run', () => {
+    for (const name of ['run.stop', 'run.keep', 'run.undo']) {
+      expect(table.commands.find((c) => c.name === name)!.description, name).toMatch(/no-run/);
+    }
   });
 
   it('chaque argument est lu par une action ownRun (son gabarit) ou par l\'action elle-même (model, effort)', () => {
@@ -76,6 +82,21 @@ describe('run.start', () => {
     expect(props.model.enum).toEqual(SKILL_MODELS);
     expect(props.effort.enum).toEqual(EFFORT_LEVELS);
     expect(props.answers).toMatchObject({ type: 'array', maxItems: 50, items: { type: 'string', maxLength: 2000 } });
+  });
+});
+
+describe('errors', () => {
+  const errors = (JSON.parse(text) as { errors?: { code: string; message: string; todo: string }[] }).errors ?? [];
+
+  it('les codes sont ceux d\'ERROR_CODES, ni plus ni moins, dans l\'ordre', () => {
+    expect(errors.map((e) => e.code)).toEqual([...ERROR_CODES]);
+  });
+
+  it('chaque code a un message et un todo non vides', () => {
+    for (const e of errors) {
+      expect(e.message?.trim(), `${e.code} message`).toBeTruthy();
+      expect(e.todo?.trim(), `${e.code} todo`).toBeTruthy();
+    }
   });
 });
 

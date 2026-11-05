@@ -230,6 +230,37 @@ describe('la fin d’une course', () => {
   });
 });
 
+// Une course refusée par une autre rend la clé de son refus (note 0.15.0) : reason (lockCode) et by, à côté de son texte.
+describe('startRun retenue : reason et by', () => {
+  const refused = async (first: string, second: string) => {
+    const { startRun } = await open();
+    const { loadConfig, vibeActions } = await import('app/settings');
+    const { agentList, vibeLang } = await import('core/config');
+    const cfg = loadConfig();
+    const defs = vibeActions(vibeLang(cfg));
+    const agent = agentList(cfg)[0];
+    const go = (id: string) => startRun(agent, defs.find((d) => d.id === id)!, { text: `/vibecoder:${id}`, images: [] }, cfg);
+    expect(go(first)).toEqual({ ok: true });
+    return go(second);
+  };
+
+  it('same : la même action ; by, elle', async () => {
+    expect(await refused('forme', 'forme')).toEqual({ ok: false, error: 'Cette action est déjà en cours', reason: 'same', by: 'forme' });
+  });
+
+  it('busy : une modification devant une course ; by, celle qui court', async () => {
+    expect(await refused('ponytail', 'forme')).toEqual({ ok: false, error: 'Une autre action est en cours', reason: 'busy', by: 'ponytail' });
+  });
+
+  it('changing : une lecture devant une modification ; by, la modification', async () => {
+    expect(await refused('forme', 'checks')).toEqual({ ok: false, error: 'Une action modifie la branche', reason: 'changing', by: 'forme' });
+  });
+
+  it('partie : ni reason ni by', async () => {
+    expect(await refused('ponytail', 'checks')).toEqual({ ok: true });
+  });
+});
+
 // Une course en sous-contexte (note fix/0.13.0-fix-and-improvements, sujet 11) : rien en arrière-plan, et le dire si ça arrive.
 describe('une course dont le skill a context: fork', () => {
   const start = async (id: string, head: string) => {

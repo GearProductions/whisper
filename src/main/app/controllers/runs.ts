@@ -1,7 +1,7 @@
 /** runs — les courses : une action d'étape qui court à part de la conversation,
  *  sous sa propre entrée du runtime des agents, `<agent>~<clé>` (runKey).
  *  Lancer (startRun : si aucune course vivante ni action directe en cours ne
- *  la retient, blockedBy ; elle retient le module qu'elle génère, Run.module,
+ *  la retient, blockedBy ; retenue, elle rend aussi sa clé, reason (lockCode : same, busy, changing) et by (qui retient) ; elle retient le module qu'elle génère, Run.module,
  *  pour codeLock ; le robot suit dès le départ ; un processus neuf, suivi des fichiers écrits ;
  *  le message part avec ses images ({ text, images }) ;
  *  modèle et effort du skill que son texte appelle, sinon ceux de l'agent ; answers reprend la session de la course de la note),
@@ -34,7 +34,7 @@
  *  sa réponse le dit en tête (cutCommands, cutLine).
  *  Ne connaît pas : la page, les fenêtres.
  *  Utilisé par : controllers/vibecoder, controllers/agents,
- *  controllers/module-code, menus/agent-menus. */
+ *  controllers/module-code, controllers/commands (runOp), menus/agent-menus. */
 import fs from 'node:fs';
 import path from 'node:path';
 import type { RunSignal, SendResult, VibeRunOp, VibeView } from 'shared/bridge';
@@ -42,7 +42,7 @@ import { EMPTY_LOG, runProgress, shortTarget, type AgentConfig } from 'core/agen
 import { agentList, vibeLang, type Config } from 'core/config';
 import type { PreparedImage } from 'core/conversation';
 import {
-  blockedBy, cutCommands, cutLine, endNotice, GRACE_MS, headField, LOCKING, nextVibeMode, ownRun, parseQuestions, parseRequest, requestNotice, runKey, skillModel,
+  cutCommands, cutLine, endNotice, GRACE_MS, headField, LOCKING, lockCode, lockText, nextVibeMode, ownRun, parseQuestions, parseRequest, requestNotice, runKey, skillModel,
   remainingModules, runPhase, runsFile, runSignal, runTasks, type ActionDef, type Run, type RunState, type VibeMode,
 } from 'core/vibecoder';
 import { loadConfig, vibeActions, vibeOutDir, vibePluginDir } from 'app/settings';
@@ -120,12 +120,14 @@ function save(agentId: string) {
 // si aucune course vivante ni action directe en cours de l'agent ne la retient. Modèle et effort : ceux du skill
 // que le texte appelle (la variante du modèle choisi, /vibecoder:<nom>--<modèle>), sinon ceux de l'agent.
 // `module` : celui qu'elle génère (runModule), retenu tant qu'elle court.
+// Retenue par une course ou une action directe : son texte (error) et sa clé (reason : lockCode, by : celle qui retient).
 export function startRun(
   agent: AgentConfig, def: ActionDef, message: { text: string; images: PreparedImage[] }, cfg: Config, module: string | null = null,
-): SendResult {
+): SendResult & { reason?: 'same' | 'busy' | 'changing'; by?: string } {
   const lang = vibeLang(cfg);
-  const held = blockedBy(def, [...lockingRuns(agent.id), ...directLocks(agent.id, vibeActions(lang))], lang);
-  if (held) return { ok: false, error: held };
+  const locks = [...lockingRuns(agent.id), ...directLocks(agent.id, vibeActions(lang))];
+  const lock = lockCode(def, locks);
+  if (lock) return { ok: false, error: lockText(lock, lang), reason: lock.code, by: lock.by };
   if (!agents.isAvailable(cfg.agentCommand)) return { ok: false, error: CLAUDE_MISSING };
   const key = runKey(def.id);
   const runs = all.get(agent.id) ?? new Map<string, Live>();

@@ -52,7 +52,7 @@ export type MessageContext = { view: VibeView; out: string; lang: VibeLang; pref
 export type MessageError = 'text' | 'module' | 'commit' | 'pr' | 'answers' | 'verdict' | 'draft' | 'files' | 'note' | 'repo' | 'variable' | 'check';
 
 const STEPS = ['note', 'forme', 'invariants', 'modules', 'revue', 'pr'];
-const VERDICTS = ['approve', 'comment', 'request-changes'];
+export const VERDICTS = ['approve', 'comment', 'request-changes'];
 const VAR = /\{\{([^{}]*)\}\}/g;
 const FREE = ['text', 'answers', 'draft'];   // écrits par l'utilisateur : libres
 const TEXT_MAX = 20000;

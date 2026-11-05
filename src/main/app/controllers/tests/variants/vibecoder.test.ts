@@ -1308,3 +1308,124 @@ describe("l'historique sans quitter VibeCoder", () => {
     expect(viewAgent()?.id).toBe('a1');
   });
 });
+
+// 0.15.0-executeur : startAction et runDirect rendent la clé de leur refus (reason) à côté du texte d'avant.
+describe('0.15.0 : la clé du refus (reason)', () => {
+  const ACTIONS = [
+    { id: 'checks', flow: 'create', step: 'revue', kind: 'send', needs: 'none', label: 'Lancer les vérifications', text: '/vibecoder:verifier {{lang}} {{out}}' },
+    { id: 'ask', flow: 'both', step: null, kind: 'send', needs: 'text', label: 'Demander', text: '{{text}}' },
+    { id: 'answers', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Réponses', text: '{{answers}}' },
+    { id: 'stash', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Mettre de côté', text: 'de côté' },
+    { id: 'load-pr', flow: 'both', step: 'pr', kind: 'send', needs: 'none', reads: true, label: 'Charger', text: 'charger' },
+    { id: 'switch-branch', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Aller', text: 'aller' },
+    { id: 'add-artifact', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Ajouter', text: 'ajouter' },
+    { id: 'fetch', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Actualiser', text: 'actualiser' },
+    { id: 'pull', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Tirer', text: 'tirer' },
+  ];
+  const ERR = {
+    text: 'Dictez ou écrivez d\'abord dans le champ (20 000 caractères au plus).',
+    answers: 'Aucune réponse à envoyer (50 réponses de 2 000 caractères au plus).',
+    worktree: 'Un worktree reste sur sa branche : ni changer de branche, ni charger une autre PR.',
+  };
+  beforeEach(() => { write(path.join(fake.userData, 'vibecoder', 'actions.fr.json'), JSON.stringify(ACTIONS)); });
+
+  // Tout ce qu'il faut pour appeler startAction / runDirect comme runs ou l'entrée : l'agent, le relevé, la configuration.
+  async function ctx(asView?: (view: JourneyInput) => unknown) {
+    await open();
+    const ctrl = await import('app/controllers');
+    const { loadConfig, vibeActions } = await import('app/settings');
+    const cfg = loadConfig();
+    const view = ctrl.lastView('a1') as unknown as JourneyInput;
+    const defOf = (id: string) => vibeActions('fr').find((a) => a.id === id)!;
+    return { ...ctrl, cfg, defOf, agent: ctrl.viewAgent()!, view: (asView ? asView(view) : view) as never };
+  }
+  // Le relevé, une action grisée par le texte donné.
+  const grey = (id: string, text: string) => (v: JourneyInput) => ({ ...v, actions: v.actions.map((a) => (a.id === id ? { ...a, disabled: text } : a)) });
+
+  it('startAction grisée au relevé : reason disabled, le texte du relevé', async () => {
+    const c = await ctx(grey('checks', 'Grisée : la note n’est pas validée.'));
+    expect(c.startAction(c.agent, c.defOf('checks'), {}, c.view, c.cfg)).toEqual({ ok: false, error: 'Grisée : la note n’est pas validée.', reason: 'disabled' });
+    await settle();
+    expect(fake.messages).toEqual([]);
+  });
+
+  it('startAction, un worktree : reason worktree ; une erreur de buildMessage : reason sa clé', async () => {
+    const c = await ctx();
+    const child = { ...c.agent, parent: { id: 'a0' } };
+    expect(c.startAction(child, c.defOf('load-pr'), {}, c.view, c.cfg)).toEqual({ ok: false, error: ERR.worktree, reason: 'worktree', invalid: true });
+    expect(c.startAction(c.agent, c.defOf('ask'), {}, c.view, c.cfg)).toEqual({ ok: false, error: ERR.text, reason: 'text', invalid: true });
+    expect(c.startAction(c.agent, c.defOf('answers'), {}, c.view, c.cfg)).toMatchObject({ ok: false, error: ERR.answers, reason: 'answers' });
+  });
+
+  it('startAction : un refus de DIRECT_ONLY ou d’une action inconnue du relevé : reason action', async () => {
+    const c = await ctx();
+    expect(c.startAction(c.agent, c.defOf('stash'), {}, c.view, c.cfg)).toMatchObject({ ok: false, reason: 'action' });
+  });
+
+  it('runDirect (exportée) : une autre action directe en cours → busy, by elle ; son texte d’avant', async () => {
+    const c = await ctx();
+    fake.busy = true;   // le dépôt tient jusqu’à fake.release : add-artifact reste « en cours »
+    expect(c.dropOnArtifacts(['/tmp/a.md'])).toEqual({ ok: true });
+    await settle();
+    const refused = c.runDirect(c.agent, c.defOf('fetch'), { direct: true }, c.view, c.cfg);
+    expect(refused).toEqual({ ok: false, error: 'Action inconnue ou indisponible.', reason: 'busy', by: 'add-artifact' });
+    fake.busy = false;
+    fake.release();
+  });
+
+  it('runDirect : une course qui retient → son lockCode et by ; son texte d’avant', async () => {
+    const c = await ctx();
+    fake.busy = true;   // la course tient son tour
+    expect(c.runVibeAction('checks', {})).toEqual({ ok: true });
+    await settle();
+    // checks écrit : stash (écrit) → busy ; load-pr (lit) → changing ; le texte, celui de blockedBy
+    const { blockedBy } = await import('core/vibecoder');
+    const lock = [{ id: 'checks', reads: false }];
+    expect(c.runDirect(c.agent, c.defOf('stash'), { direct: true }, c.view, c.cfg))
+      .toEqual({ ok: false, error: blockedBy(c.defOf('stash'), lock, 'fr'), reason: 'busy', by: 'checks' });
+    expect(c.runDirect(c.agent, c.defOf('load-pr'), { direct: true }, c.view, c.cfg))
+      .toEqual({ ok: false, error: blockedBy(c.defOf('load-pr'), lock, 'fr'), reason: 'changing', by: 'checks' });
+    fake.busy = false;
+    fake.release();
+  });
+
+  it('runDirect : un worktree → reason worktree ; une action grisée au relevé → reason disabled, rien lancé', async () => {
+    const c = await ctx(grey('fetch', 'Grisée : rien à actualiser.'));
+    expect(c.runDirect({ ...c.agent, parent: { id: 'a0' } }, c.defOf('switch-branch'), { direct: true }, c.view, c.cfg))
+      .toEqual({ ok: false, error: ERR.worktree, reason: 'worktree' });
+    expect(c.runDirect(c.agent, c.defOf('fetch'), { direct: true }, c.view, c.cfg))
+      .toEqual({ ok: false, error: 'Grisée : rien à actualiser.', reason: 'disabled' });
+    await settle();
+    expect(fake.calls).toEqual([]);
+  });
+
+  // Le grisé attendu : une seule règle pour startAction et runDirect (une action d'étape : la course qui retient au relevé ; une autre, rien :
+  // le relevé la grise par « L'agent travaille » ou « commande directe en cours », jamais par une course).
+  it('greyed : une action d’étape, la course du relevé qui la retient ; une action sans étape, rien', async () => {
+    const c = await ctx((v) => ({ ...v, actions: v.actions.map((a) => (a.id === 'fetch' ? { ...a, direct: { running: true, last: null } } : a)) }));
+    const { blockedBy } = await import('core/vibecoder');
+    const lock = [{ id: 'fetch', reads: false }];
+    expect(c.greyed(c.defOf('checks'), c.view, 'fr')).toBe(blockedBy(c.defOf('checks'), lock, 'fr'));
+    expect(c.greyed(c.defOf('pull'), c.view, 'fr')).toBeNull();
+  });
+
+  it('runDirect : pull demandé pendant que la conversation travaille, ou sur un relevé en retard après une action directe → disabled, le texte du relevé', async () => {
+    const busy = await ctx(grey('pull', 'L\'agent travaille'));
+    expect(busy.runDirect(busy.agent, busy.defOf('pull'), { direct: true }, busy.view, busy.cfg))
+      .toEqual({ ok: false, error: 'L\'agent travaille', reason: 'disabled' });
+    const late = await ctx((v) => ({ ...grey('pull', 'Une commande directe est en cours')(v),
+      actions: grey('pull', 'Une commande directe est en cours')(v).actions.map((a) => (a.id === 'fetch' ? { ...a, direct: { running: true, last: null } } : a)) }));
+    expect(late.runDirect(late.agent, late.defOf('pull'), { direct: true }, late.view, late.cfg))
+      .toEqual({ ok: false, error: 'Une commande directe est en cours', reason: 'disabled' });
+    await settle();
+    expect(fake.calls).toEqual([]);
+  });
+
+  it('runVibeAction : les mêmes textes qu’avant, sans clé ajoutée', async () => {
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+    expect(runVibeAction('ask', {})).toEqual({ ok: false, error: ERR.text });
+    expect(runVibeAction('inconnue', {})).toEqual({ ok: false, error: 'Action inconnue ou indisponible.' });
+    expect(runVibeAction('checks', 'pas un objet')).toEqual({ ok: false, error: 'Action refusée : arguments mal formés.' });
+  });
+});
