@@ -5,9 +5,10 @@
  *  transforme les File en pièces (onFiles), gère les touches (onKeyDown) et ses menus. `field` : la zone
  *  de texte du caller (sinon la sienne) ; `ids` : les id #attach, #message, #mic, #send (le champ de la
  *  conversation). Le dépôt est pris ici (data-own-drop : panel-app ne le joint pas aussi). La zone grandit avec son texte, jusqu'à MAX_HEIGHT.
+ *  Une image jointe s'agrandit d'un clic (Zoom, fourni par la page).
  *  Ne connaît pas : le pont, le micro, l'agent. Utilisé par : components (composer), step-parts (StepField),
  *  comment-box, questions-view. */
-import { useLayoutEffect, useRef, type ClipboardEvent, type DragEvent, type FocusEventHandler, type KeyboardEventHandler, type ReactNode, type RefObject } from 'react';
+import { createContext, useContext, useLayoutEffect, useRef, type ClipboardEvent, type DragEvent, type FocusEventHandler, type KeyboardEventHandler, type ReactNode, type RefObject } from 'react';
 import { pieceLabel, pieceTitle, type Piece } from 'core/conversation';
 import type { Strings } from 'core/vibecoder';
 import { Icon } from './icons';
@@ -15,6 +16,10 @@ import { PromptTools } from './prompt-tools';
 import './prompt-field.css';
 
 const MAX_HEIGHT = 160;
+
+// Agrandir une image jointe pas encore envoyée, comme une image d'un message (la page la montre en grand) ;
+// sans fournisseur, l'image ne se clique pas.
+export const Zoom = createContext<((src: string) => void) | null>(null);
 
 type Props = {
   t: Strings; text: string; setText(text: string): void;
@@ -34,6 +39,7 @@ export function PromptField({
   t, text, setText, pieces = [], onRemove, onAttach, onFiles, onSend, sendDisabled, sendTitle, field, ids, onKeyDown, children,
   placeholder, rows = 1, onBlur, name,
 }: Props) {
+  const zoom = useContext(Zoom);
   const own = useRef<HTMLTextAreaElement>(null);
   const area = field ?? own;
   useLayoutEffect(() => {
@@ -66,7 +72,7 @@ export function PromptField({
             <div className="vc-pieces">
               {pieces.map((piece, i) => (
                 <div key={i} className="piece" title={pieceTitle(piece)}>
-                  {piece.kind === 'image' ? <img src={piece.url} alt="" /> : null}
+                  {piece.kind === 'image' ? <img src={piece.url} alt="" data-zoom={zoom ? '' : undefined} title={zoom ? t.zoom : undefined} onClick={zoom ? () => zoom(piece.url) : undefined} /> : null}
                   <span>{pieceLabel(piece)}</span>
                   <button type="button" className="remove" title={t.removePiece} aria-label={t.removePiece} onClick={() => onRemove?.(piece)}>×</button>
                 </div>

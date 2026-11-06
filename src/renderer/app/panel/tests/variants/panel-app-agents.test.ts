@@ -105,6 +105,26 @@ it('le bip : quand un autre agent se met à attendre ou finit, une fois par sign
   await push('a1', [A, B]);
 });
 
+it('le bip : quitter un agent qui avait un signal ne bipe pas', async () => {
+  const asking = { ...A, activity: 'asking' as const };
+  await push('a2', [A, B]);
+  calls.length = 0;
+  await push('a2', [asking, B]);
+  expect(calls.filter((c) => c === 'getConfig')).toHaveLength(1);
+  await push('a1', [asking, B]);
+  await push('a2', [asking, B]);
+  expect(calls.filter((c) => c === 'getConfig')).toHaveLength(1);
+  await push('a2', [A, B]);
+});
+
+it('le bip : un autre agent qui finit pendant qu\'on en regarde un bipe une fois', async () => {
+  await push('a1', [A, B]);
+  calls.length = 0;
+  await push('a1', [A, { ...B, activity: 'done' }]);
+  expect(calls.filter((c) => c === 'getConfig')).toHaveLength(1);
+  await push('a1', [A, B]);
+});
+
 it('🕘 : l\'historique à la place du fil ; choisir une conversation l\'ouvre et ferme l\'historique', async () => {
   calls.length = 0;
   await act(() => { page.querySelector<HTMLElement>('.vc-history')!.click(); });

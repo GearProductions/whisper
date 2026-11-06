@@ -78,3 +78,14 @@ it('Envoyer → onSend', async () => {
   await act(async () => (page.querySelector('.vc-send') as HTMLElement).click());
   expect(calls).toEqual(['send']);
 });
+
+it('une image jointe, pas encore envoyée : un clic l’agrandit (Zoom), comme une image d’un message envoyé', async () => {
+  const { Zoom } = await import('../../prompt-field');
+  const zoomed: string[] = [];
+  const image: Piece = { kind: 'image', name: 'capture.png', type: 'image/png', data: new ArrayBuffer(1), url: 'blob:capture' };
+  const view = createElement(Zoom.Provider, { value: (src: string) => zoomed.push(src) },
+    createElement(PromptField, { t: t('fr'), text: '', setText: () => {}, pieces: [image], onRemove: () => {}, onSend: () => {} }));
+  await act(() => root.render(view));
+  page.querySelector<HTMLImageElement>('.vc-pieces img')!.click();
+  expect(zoomed).toEqual(['blob:capture']);
+});
