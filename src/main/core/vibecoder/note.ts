@@ -2,9 +2,10 @@
  *  « Ce que ça fait » est rédigée, ses rubriques, les lignes de « Ce que ça ne
  *  doit pas faire » et leur marque (→ invariant, variant…), les modules de la
  *  « Forme » (si elle a un bloc de code et pas de titre ###, seules les lignes de
- *  ses blocs comptent) et leur contrat. Et où la trouver : la clé que porte la branche
- *  (ticket ou version), le fichier de docs/tickets/ qui la nomme parmi ceux
- *  que la branche change.
+ *  ses blocs comptent) et leur contrat ; une entrée peut avoir plusieurs chemins
+ *  (« a.ts + b.ts  contrat » : des fichiers qui ne compilent qu'ensemble).
+ *  Et où la trouver : la clé que porte la branche (ticket ou version), le
+ *  fichier de docs/tickets/ qui la nomme parmi ceux que la branche change.
  *  Les questions ouvertes ne sont pas dans la note (<sorties>/questions.md).
  *  Ne connaît pas : Electron, le disque, git (texte et chemins passés).
  *  Utilisé par : core/vibecoder (journey : parseNote), app/controllers/vibecoder
@@ -17,7 +18,8 @@ export type NoteFacts = {
   filled: boolean;                                      // « Ce que ça fait » est rédigée
   sections: { name: string; text: string }[];
   mustNot: { text: string; mark: MustNotMark }[];       // « Ce que ça ne doit pas faire »
-  modules: { path: string; contract: string }[];        // la Forme : chemin, expose · ne connaît pas · utilisé par
+  // la Forme : chemin (la ligne des chemins telle quelle), chacun d'eux, expose · ne connaît pas · utilisé par
+  modules: { path: string; paths: string[]; contract: string }[];
   forme: string;
 };
 
@@ -77,10 +79,22 @@ function markOf(text: string): MustNotMark {
 const isPath = (t: string) => /\w/.test(t) && !/[<>]/.test(t) && (t.includes('/') || /\.\w+$/.test(t));
 // Une ligne qui commence par un chemin (puce et accents graves ôtés), suivi d'un blanc ou de la fin : chemin, blanc, reste.
 const LINE = /^\s*(?:[-*+]\s+)?`?([^\s`]*[\w/])`?(?=\s|$)(\s*)(.*)$/;
+// Le chemin suivant d'une entrée : « + », une espace, son chemin.
+const NEXT = /^\+ `?([^\s`]*[\w/])`?(?=\s|$)(\s*)(.*)$/;
 // Un titre de module : son premier mot, ponctuation finale ôtée ; le reste du titre ouvre le contrat.
 const HEADING = /^`?([^\s`]*[\w/])`?[,;:]?(\s*)(.*)$/;
 
-type Mod = { path: string; parts: string[]; sep: string; col: number };
+// Une ligne d'entrée : ses chemins (« a.ts + b.ts », une espace de chaque côté du +), le blanc qui les suit, le reste.
+function entry(line: string): { paths: string[]; ws: string; rest: string } | null {
+  const m = LINE.exec(line);
+  if (!m || !isPath(m[1])) return null;
+  const paths = [m[1]];
+  let [ws, rest] = [m[2], m[3]];
+  for (let n; ws === ' ' && (n = NEXT.exec(rest)) && isPath(n[1]); [ws, rest] = [n[2], n[3]]) paths.push(n[1]);
+  return { paths, ws, rest };
+}
+
+type Mod = { paths: string[]; parts: string[]; sep: string; col: number };
 
 // Les modules de la Forme, sous deux formes :
 //  - `### chemin` puis ses lignes (Expose, Ne connaît pas, Utilisé par), jointes par « · » ; un `###`
@@ -93,7 +107,7 @@ type Mod = { path: string; parts: string[]; sep: string; col: number };
 // Un dossier qui a des modules n'en est plus un lui-même.
 // Une Forme sans titre ### dont un bloc de code ouvre un module : seules les lignes de ses blocs sont
 // lues (« `journey.ts` porte 7 et 10 » avant le bloc n'est pas un module) ; toute autre Forme, comme avant.
-function modulesOf(forme: string): { path: string; contract: string }[] {
+function modulesOf(forme: string): NoteFacts['modules'] {
   const lines = forme.split('\n');
   if (!lines.some((l) => /^#{3,4}\s/.test(l))) {
     let fenced = false;
@@ -108,7 +122,7 @@ function modulesOf(forme: string): { path: string; contract: string }[] {
   return readModules(lines);
 }
 
-function readModules(lines: string[]): { path: string; contract: string }[] {
+function readModules(lines: string[]): NoteFacts['modules'] {
   const mods: Mod[] = [];
   let cur: Mod | null = null;
   let group: Mod | null = null;      // le dossier dont les lignes suivantes peuvent être des modules
@@ -116,9 +130,9 @@ function readModules(lines: string[]): { path: string; contract: string }[] {
   let prose = false;                 // hors bloc de code, la ligne d'avant, non indentée, est du texte : la suivante, non indentée, le continue
   let fenced = false;                // dans un bloc de code (```) : chaque ligne non indentée peut ouvrir un module
   // Un module (dans `dir`, qui cesse alors d'en être un) ; son contrat commence par `first`, à la colonne `col`.
-  const add = (dir: Mod | null, path: string, first: string, sep: string, col = Infinity): Mod => {
+  const add = (dir: Mod | null, paths: string[], first: string, sep: string, col = Infinity): Mod => {
     if (dir && mods.includes(dir)) mods.splice(mods.indexOf(dir), 1);
-    const mod = { path: (dir?.path ?? '') + path, parts: [first.replace(/^[:—–-]\s*/, '')].filter(Boolean), sep, col };
+    const mod = { paths: paths.map((p) => (dir?.paths[0] ?? '') + p), parts: [first.replace(/^[:—–-]\s*/, '')].filter(Boolean), sep, col };
     mods.push(mod);
     return mod;
   };
@@ -131,27 +145,27 @@ function readModules(lines: string[]): { path: string; contract: string }[] {
       const m = HEADING.exec(h[2].trim());
       // Sous un dossier, un #### nomme un module même sans `/` ni extension (save-glb).
       const path: string | null = m && (isPath(m[1]) || (!top && group)) ? m[1] : null;
-      cur = path ? add(top ? null : group, path, m![3], ' · ') : null;
+      cur = path ? add(top ? null : group, [path], m![3], ' · ') : null;
       if (top) group = path?.endsWith('/') ? cur : null;
       heading = !!cur;
       prose = false;
       continue;
     }
-    const text = line.trim().replace(/^[-*+]\s+/, '');
-    const m = LINE.exec(line);
-    const path = m && isPath(m[1]) ? m[1] : null;
+    const text = fenced ? line.trim() : line.trim().replace(/^[-*+]\s+/, '');   // dans un bloc, « - un cas » garde sa puce
+    const e = entry(line);
     const indent = line.length - line.trimStart().length;
     if (indent) prose = false;
     if (heading) cur?.parts.push(text);
     else if (!indent) {
       // Un chemin en tête de la suite d'un paragraphe (texte replié) n'ouvre pas de module.
-      cur = path && !prose ? add(null, path, m![3], ' ', m![3] ? line.length - m![3].length : Infinity) : null;
-      group = path?.endsWith('/') ? cur : null;
+      // Dans un bloc de code, les lignes de suite restent des lignes (une Forme aérée, lue ligne à ligne par le panneau).
+      cur = e && !prose ? add(null, e.paths, e.rest, fenced ? '\n' : ' ', e.rest ? line.length - e.rest.length : Infinity) : null;
+      group = cur?.paths.length === 1 && cur.paths[0].endsWith('/') ? cur : null;
       prose = !cur && !fenced;
-    } else if (group && path && indent < group.col && (m![2].length >= 2 || !m![3])) cur = add(group, path, m![3], ' ');
+    } else if (group && e && indent < group.col && (e.ws.length >= 2 || !e.rest)) cur = add(group, e.paths, e.rest, fenced ? '\n' : ' ');
     else cur?.parts.push(text);
   }
-  return mods.map((m) => ({ path: m.path, contract: m.parts.join(m.sep) }));
+  return mods.map((m) => ({ path: m.paths.join(' + '), paths: m.paths, contract: m.parts.join(m.sep) }));
 }
 
 // La clé de la note d'après la branche : un ticket (G2-6675, WT-14), sinon une
