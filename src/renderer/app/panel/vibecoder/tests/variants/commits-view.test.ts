@@ -109,3 +109,59 @@ it('finitions : liens et 💬 en IconButton, les fichiers en liste compacte', as
   expect(card.querySelector('button[aria-label="Une remarque sur ce commit, au brouillon de revue"]')!.getAttribute('aria-pressed')).toBe('true');
   expect(card.querySelector('textarea')).not.toBeNull();
 });
+
+// T-21 à T-23 : verdict, remarques sous la carte, question à l'agent (relecteur).
+const calls: { marks: unknown[]; prefills: unknown[]; runs: unknown[] } = { marks: [], prefills: [], runs: [] };
+const drawReview = (patch: Record<string, unknown>) => act(() => {
+  const view = { lang: 'fr', flow: 'review', actions: [{ id: 'comment', kind: 'prefill' }], outputs: {}, pr: null, commits, draft: [], ...patch } as unknown as VibeView;
+  const props = { view, step: { id: 'modules', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
+    code: null, drafts: [{}, () => {}], act: { run: async (...a: unknown[]) => { calls.runs.push(a); return true; }, follow: () => {},
+      mark: (...a: unknown[]) => { calls.marks.push(a); }, prefill: (...a: unknown[]) => { calls.prefills.push(a); },
+      draft: (op: unknown) => { drafts.push(op); }, open: () => {}, openLink: () => {}, save: async () => true } } as unknown as StepProps;
+  root.render(createElement(CommitsSection, props));
+});
+const firstCard = () => page.querySelector('.vc-commit-review')!;
+const fresh = () => act(() => { root.render(null); });   // état d'une carte d'un test précédent oublié
+
+it('À revoir sur un commit : act.mark(commit:<hash>, ko) ; le bouton de remarque ouvre la zone, n\'ajoute rien', async () => {
+  await fresh();
+  await drawReview({});
+  await act(() => { (firstCard().querySelector('.vc-verdict-ko') as HTMLButtonElement).click(); });
+  expect(calls.marks).toEqual([['commit:aaaaaaa1', 'ko']]);
+  expect(firstCard().querySelector('.vc-verdict button:not([class])')).toBeNull();   // pas de bouton tant que ce n'est pas « À revoir »
+  await drawReview({ commits: [{ ...commits[0], mark: 'ko' }, commits[1]] });
+  const before = drafts.length;
+  expect(firstCard().querySelector('textarea')).toBeNull();
+  await act(() => { ([...firstCard().querySelectorAll('button')].find((b) => b.textContent === 'Ajouter une remarque au brouillon') as HTMLButtonElement).click(); });
+  expect(firstCard().querySelector('textarea')).not.toBeNull();
+  expect(drafts.length).toBe(before);
+});
+
+it('ses remarques sous sa carte, grisées ; le crayon modifie, la croix retire', async () => {
+  await drawReview({ draft: [{ id: 7, target: 'aaaaaaa un', text: 'trop long' }, { id: 8, target: 'bbbbbbb deux', text: 'ailleurs' }] });
+  const first = firstCard();
+  expect(first.querySelector('.vc-remarks-muted')!.textContent).toContain('trop long');
+  expect(first.textContent).not.toContain('ailleurs');
+  await act(() => { (first.querySelector('button[aria-label="Retirer du brouillon"]') as HTMLButtonElement).click(); });
+  expect(drafts.at(-1)).toEqual({ remove: 7 });
+  await act(() => { (first.querySelector('button[aria-label="Modifier cette remarque"]') as HTMLButtonElement).click(); });
+  const box = first.querySelector('textarea') as HTMLTextAreaElement;
+  await act(() => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(box, 'plus court');
+    box.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await click(t('fr').commentSave);
+  expect(drafts.at(-1)).toEqual({ edit: { id: 7, text: 'plus court' } });
+});
+
+it('Poser une question : le commit cité dans le champ, rien d\'envoyé', async () => {
+  await drawReview({});
+  await click(t('fr').askAgent);
+  expect(calls.prefills).toEqual([['comment', 'aaaaaaa un']]);
+  expect(calls.runs).toEqual([]);
+});
+
+it('hors relecteur : rien (ni verdict ni question)', async () => {
+  await drawReview({ flow: 'create' });
+  expect(page.textContent).toBe('');
+});
