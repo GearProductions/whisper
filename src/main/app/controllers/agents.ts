@@ -102,8 +102,8 @@ export function pushAgents() {
   const shown = state.convView?.agentId ?? null;
   for (const a of agentList(cfg)) {
     if (agents.state(a.id).unread && inConversation(a.id)) agents.markRead(a.id); // déjà sous les yeux
-    if (a.id === shown) runsShown(a.id); // affiché, ou sa conversation lue : ses courses finies sont vues (T-18)
   }
+  if (shown) runsShown(shown); // affiché, ou sa conversation lue : ses courses finies sont vues (T-18)
   const list = switcherAgents(cfg, {
     state: (id) => { const { status, unread, signal, tasks } = robotOf(id); return { status, unread, signal, tasks }; },
     step: (id) => lastView(id)?.steps.find((s) => s.status === 'current')?.id ?? null,

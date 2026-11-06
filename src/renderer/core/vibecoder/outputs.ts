@@ -9,10 +9,8 @@
  *  Ne connaît pas : le DOM, React, les noms des fichiers.
  *  Utilisé par : app/panel/vibecoder (review-view, branches-view, commits-view, draft-view, step-parts). */
 
-import type { VibeArgs, VibeCommit, VibeOutput } from 'technicals/bridge';
-
-export type Verdict = NonNullable<VibeArgs['verdict']>;
-export const VERDICTS: Verdict[] = ['approve', 'comment', 'request-changes'];
+import { VERDICTS, type Verdict } from 'shared/review';
+import type { VibeCommit, VibeOutput } from 'technicals/bridge';
 
 export type Check = { name: string; ok: boolean; level: 'ok' | 'warning' | 'error'; detail: string };
 

@@ -29,6 +29,7 @@
  *  Utilisé par : core/vibecoder (journey, runs, defaults), core/commands (readArgs), app/controllers (vibecoder, runs), app/settings. */
 import { EFFORTS } from 'core/agents';
 import { oneLine } from 'helpers';
+import { draftText, isVerdict } from 'shared/review';
 import type { VibeAction, VibeArgs, VibeLang, VibeModule, VibeStepId, VibeView } from 'shared/bridge';
 import { json } from './outputs';
 
@@ -53,7 +54,6 @@ export type MessageContext = { view: VibeView; out: string; lang: VibeLang; pref
 export type MessageError = 'text' | 'module' | 'commit' | 'pr' | 'answers' | 'verdict' | 'draft' | 'files' | 'note' | 'repo' | 'variable' | 'check';
 
 const STEPS = ['note', 'forme', 'invariants', 'modules', 'revue', 'pr'];
-export const VERDICTS = ['approve', 'comment', 'request-changes'];
 const VAR = /\{\{([^{}]*)\}\}/g;
 const FREE = ['text', 'answers', 'draft'];   // écrits par l'utilisateur : libres
 const TEXT_MAX = 20000;
@@ -88,9 +88,6 @@ export const DIRECT_ACTIONS = ['commit', 'publish', 'load-pr', 'base', 'pr-here'
 export const DIRECT_ONLY = ['remove-worktree', 'stash', 'unload-pr', 'new-here', 'new-worktree',
   'switch-branch', 'pull', 'rebase', 'push', 'fetch', 'request-review', 'assign-pr', 'unassign-pr',
   'copy-artifact', 'add-artifact', ...ARTIFACT_OPS];
-
-// Le brouillon de revue en texte : une ligne « - [cible] texte » par remarque.
-export const draftText = (draft: VibeView['draft']) => draft.map((c) => `- [${c.target}] ${c.text}`).join('\n');
 
 // Un numéro de PR : un entier positif, sinon null.
 export const prNumber = (v: unknown) => (Number.isInteger(v) && (v as number) > 0 ? v as number : null);
@@ -207,7 +204,7 @@ export function buildMessage(def: ActionDef, args: VibeArgs, ctx: MessageContext
         || a.some((x) => typeof x !== 'string' || x.length > ANSWER_MAX)) return fail('answers');
       return a.map((x, i) => `${i + 1}. ${x.trim() || NO_ANSWER[ctx.lang]}`).join('\n');
     },
-    verdict: () => (VERDICTS.includes(args.verdict as string) ? args.verdict as string : fail('verdict')),
+    verdict: () => (isVerdict(args.verdict) ? args.verdict : fail('verdict')),
     draft: () => (view.draft.length ? draftText(view.draft) : fail('draft')),
     check: () => {
       if (args.check === undefined) return '*';

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { allApplied, applySelection, draftBody, proposedVerdict, quoteRemark, remark, remarkId, remarkMark, remarksAt, reviewSent } from 'core/vibecoder';
+import { allApplied, applySelection, proposedVerdict, quoteRemark, remark, remarkId, remarkMark, remarksAt, reviewSent } from 'core/vibecoder';
+import { draftText } from 'shared/review';
 import type { VibeCommit, VibeMarkState, VibeView } from 'technicals/bridge';
 
 describe('remark', () => {
@@ -120,11 +121,10 @@ describe('remarksAt', () => {
   });
 });
 
-describe('draftBody', () => {
-  it('le même texte que draftText du principal : « - [cible] texte » par ligne', () => {
-    // Le principal (main/core/vibecoder/actions : draftText) n'est pas importable depuis la page : texte attendu littéral.
-    expect(draftBody(comments)).toBe('- [Commit 1] a\n- [La note] b\n- [Commit 1] c');
-    expect(draftBody([])).toBe('');
+describe('draftText', () => {
+  it('« - [cible] texte » par ligne ; la même fonction pour le principal et la page', () => {
+    expect(draftText(comments)).toBe('- [Commit 1] a\n- [La note] b\n- [Commit 1] c');
+    expect(draftText([])).toBe('');
   });
 });
 
@@ -160,6 +160,14 @@ describe('reviewSent', () => {
     expect(reviewSent(sent, comments, 'request-changes')).toBe(true);
     expect(reviewSent(sent, comments, 'approve')).toBe(false);
     expect(reviewSent(sent, [...comments, { id: 4, target: 'x', text: 'y' }], 'request-changes')).toBe(false);
+  });
+
+  it('publiée par l\'agent : un saut de ligne final ou des fins de ligne \\r\\n ne changent rien', () => {
+    expect(reviewSent({ ...sent, body: `${body}\n` }, comments, 'request-changes')).toBe(true);
+    expect(reviewSent({ ...sent, body: `${body}\r\n` }, comments, 'request-changes')).toBe(true);
+    expect(reviewSent({ ...sent, body: body.replaceAll('\n', '\r\n') }, comments, 'request-changes')).toBe(true);
+    expect(reviewSent({ ...sent, body: `${body}\n` }, comments, 'approve')).toBe(false);
+    expect(reviewSent({ ...sent, body: `${body}\n` }, [...comments, { id: 4, target: 'x', text: 'y' }], 'request-changes')).toBe(false);
   });
 
   it('une revue d\'avant (sans verdict ni texte), ou aucune → false', () => {

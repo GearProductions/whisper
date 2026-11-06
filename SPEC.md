@@ -368,7 +368,7 @@ ordre (ce qui attend l'utilisateur prime sur ce qui travaille seul) :
 sans bip, *en échec* → « ! », *finie* → pastille verte ; une course
 *arrêtée* ne se signale pas. Infobulle : « dépôt · branche », le titre d'un
 enfant, l'état (*travaille*, *attend ta réponse*, *vient de finir*, *en
-échec*, *au repos*), la question. Au repos ou venant de finir, un agent qui a
+échec*, *au repos*), la question. Au repos, un agent qui a
 des **tâches de fond** — celles de sa conversation et celles de ses courses
 vivantes (F-77, F-115) — pulse lentement (2 s) ; l'infobulle dit « surveille n
 tâche(s) de fond », la palette aussi à la place de « au repos ». Un sous-agent ou une commande lancés en fond ne font pas *travailler* l'agent : son tour fini, il reste joignable, seul un message de l'agent lui-même (une notification qui le réveille) ouvre un nouveau tour, pas ceux d'un sous-agent (note 0.15.0-stabilisation). L'onglet *Actions (n)* de

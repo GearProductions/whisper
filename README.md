@@ -207,7 +207,7 @@ l'en-tête de la fenêtre :
   réglage *Bip*), seulement pour ce qui vient d'apparaître chez un autre agent :
   le quitter ne fait pas sonner ce que vous aviez sous les yeux. Afficher un
   agent, ou lire sa conversation, efface sa pastille verte ; un « ! » reste
-  jusqu'à l'ouverture de son onglet *Actions*. Au repos ou à peine fini, un
+  jusqu'à l'ouverture de son onglet *Actions*. Au repos, un
   robot qui surveille des **tâches de fond** (celles de sa conversation et de
   ses actions) pulse lentement, et son infobulle le dit (« surveille n tâches
   de fond »). Fenêtre en arrière-plan : une notification du système pour

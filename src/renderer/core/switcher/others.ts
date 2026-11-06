@@ -2,7 +2,8 @@
  *  la marque d'arbre d'un worktree ou d'une PR sous son dossier principal (treeMark : ├ └), et les signaux qui
  *  méritent le bip de la réponse (signalKeys, F-55 : un autre agent que l'affiché qui attend, a fini ou a échoué ;
  *  une clé par agent et par signal), et beepFor : le bip lui-même, pour ne biper que ce qui vient d'apparaître (les
- *  signaux déjà entendus, ceux de l'affiché compris : le quitter ne fait pas sonner ce qu'on a sous les yeux).
+ *  signaux déjà entendus, ceux de l'affiché compris : le quitter ne fait pas sonner ce qu'on a sous les yeux),
+ *  et tasksShown : quand montrer les tâches de fond (au repos seulement).
  *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (palette, agent-notices), app/panel (panel-app). */
 import type { AgentActivity, AgentView } from 'technicals/bridge';
 
@@ -15,6 +16,10 @@ export const treeMark = (list: AgentView[], i: number): '' | '├' | '└' => {
   if (!a?.parent) return '';
   return list[i + 1]?.parent === a.parent ? '├' : '└';
 };
+
+// Les tâches de fond qu'on montre (le robot qui pulse, l'infobulle, la palette) : seulement au repos ; au travail le
+// robot clignote déjà, et un agent qui a fini ou échoué montre sa pastille (la règle de la note, point 1, T-13).
+export const tasksShown = (a: AgentView): number => (a.activity === 'idle' ? a.tasks ?? 0 : 0);
 
 const SIGNALS: AgentActivity[] = ['asking', 'done', 'failed'];
 

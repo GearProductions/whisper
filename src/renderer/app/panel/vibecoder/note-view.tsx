@@ -125,7 +125,7 @@ export function NoteView(p: StepProps) {
   // Relire, le bouton de remarque d'un « À revoir » : la zone de commentaire sous l'en-tête de la note.
   const [refusing, setRefusing] = useState(false);
   // Relire : les remarques du brouillon sur la note (sous l'en-tête), sur un bloc ou un élément de liste (sous lui).
-  const onRemarks = { onEdit: (id: number, text: string) => act.draft({ edit: { id, text } }), onRemove: (id: number) => act.draft({ remove: id }), onOpenLink: act.openLink };
+  const onRemarks = { onDraft: act.draft, onOpenLink: act.openLink };
   const noteRemarks = review && note ? remarksAt(view.draft, 'note') : [];
   const remarksUnder = !review ? undefined : (q: string) => {
     const at = remarksAt(view.draft, itemTarget(q));

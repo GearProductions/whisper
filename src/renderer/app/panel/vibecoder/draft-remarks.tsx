@@ -1,6 +1,6 @@
 /** draft-remarks — des remarques du brouillon de revue, empilées : leur texte
  *  (Markdown), un crayon (la zone de commentaire sur place ; Enregistrer →
- *  onEdit) et une croix (onRemove). Grisées sous un élément (note, cas, commit) ;
+ *  onDraft({ edit })) et une croix (onDraft({ remove })). Grisées sous un élément (note, cas, commit) ;
  *  avec `target` (la liste du brouillon), la cible de chacune au-dessus, sans grisé.
  *  Ne connaît pas : le pont, le brouillon entier (les remarques qu'on lui passe).
  *  Utilisé par : draft-view, note-view, forme-view, invariants-view, commits-view. */
@@ -19,11 +19,11 @@ const S = {
 
 type Props = {
   remarks: VibeComment[]; t: Strings; target?: boolean;
-  onEdit(id: number, text: string): void; onRemove(id: number): void;
+  onDraft(op: { edit?: { id: number; text: string }; remove?: number }): void;   // act.draft
   onOpenLink?(url: string): void;
 };
 
-export function DraftRemarks({ remarks, t, target, onEdit, onRemove, onOpenLink = () => {} }: Props) {
+export function DraftRemarks({ remarks, t, target, onDraft, onOpenLink = () => {} }: Props) {
   const s = S[t.locale.startsWith('fr') ? 'fr' : 'en'];
   const [editing, setEditing] = useState<number | null>(null);
   return (
@@ -33,13 +33,13 @@ export function DraftRemarks({ remarks, t, target, onEdit, onRemove, onOpenLink 
           {target ? <div className="vc-draft-target" title={c.target}>{c.target}</div> : null}
           {editing === c.id ? (
             <CommentBox t={t} initial={c.text} save={t.commentSave} onCancel={() => setEditing(null)}
-              onSave={(text) => { onEdit(c.id, text); setEditing(null); }} />
+              onSave={(text) => { onDraft({ edit: { id: c.id, text } }); setEditing(null); }} />
           ) : (
             <>
               <MarkdownView md={c.text} t={t} onOpenLink={onOpenLink} />
               <span className="vc-draft-tools">
                 <IconButton icon="edit" label={s.edit} onClick={() => setEditing(c.id)} />
-                <IconButton icon="close" label={s.remove} className="vc-draft-remove" onClick={() => onRemove(c.id)} />
+                <IconButton icon="close" label={s.remove} className="vc-draft-remove" onClick={() => onDraft({ remove: c.id })} />
               </span>
             </>
           )}

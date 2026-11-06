@@ -229,7 +229,7 @@ export function InvariantsView(props: StepProps) {
             onQuoteAttention={() => act.prefill('comment', attentionQuote(c.title, c.reading?.warning ?? ''), true)} onOpen={() => act.open(f.id, caseLine(f, c.title))}
             onComment={(text) => act.draft({ add: remark(target(f, c.title), text) })}
             remarks={review ? remarksAt(view.draft, target(f, c.title)) : []}
-            onEditRemark={(rid, text) => act.draft({ edit: { id: rid, text } })} onRemoveRemark={(rid) => act.draft({ remove: rid })}
+            onDraft={act.draft}
             edit={review ? undefined : {
               shown: f === file && shown?.title === c.title,
               onShow: (on) => show(on ? { path: f.path, title: c.title } : null),
@@ -330,12 +330,12 @@ type CardProps = {
   code: string; from: number; path: string;   // son code d'origine ('' : inconnu), sa première ligne, son fichier
   onOpenLink(url: string): void; onVerdict(v: Verdict): void; onQuote(): void; onQuoteAttention(): void; onOpen(): void;
   onComment(text: string): void;   // Relecteur : la remarque de la zone de commentaire, sur ce cas
-  remarks: VibeComment[]; onEditRemark(id: number, text: string): void; onRemoveRemark(id: number): void;   // Relecteur : celles du brouillon sur ce cas
+  remarks: VibeComment[]; onDraft: StepProps['act']['draft'];   // Relecteur : celles du brouillon sur ce cas
   // Créateur : Code ouvre le fichier entier modifiable, un seul à la fois (invariants-view le tient) ; relecteur : absent.
   edit?: { shown: boolean; onShow(on: boolean): void; view(): ReactNode };
 };
 
-function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVerdict, onQuote, onQuoteAttention, onOpen, onComment, remarks, onEditRemark, onRemoveRemark, edit }: CardProps) {
+function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVerdict, onQuote, onQuoteAttention, onOpen, onComment, remarks, onDraft, edit }: CardProps) {
   const r = c.reading;
   const quote = review ? s.quoteReview : s.quote;
   const [writing, setWriting] = useState(false);
@@ -393,7 +393,7 @@ function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVe
           ) : null}
         </>
       ) : <p className="vc-case-none">{s.noReading}</p>}
-      {remarks.length ? <DraftRemarks remarks={remarks} t={t} onEdit={onEditRemark} onRemove={onRemoveRemark} onOpenLink={onOpenLink} /> : null}
+      {remarks.length ? <DraftRemarks remarks={remarks} t={t} onDraft={onDraft} onOpenLink={onOpenLink} /> : null}
       {writing ? <CommentBox t={t} value={text} onChange={setText} onCancel={close} onSave={(v) => { onComment(v); close(); }} /> : null}
     </article>
   );

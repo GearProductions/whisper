@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { agentWhere, beepFor, signalKeys, treeMark } from 'core/switcher';
+import { agentWhere, beepFor, signalKeys, tasksShown, treeMark } from 'core/switcher';
 import type { AgentView } from 'technicals/bridge';
 
 const agent = (id: string, o: Partial<AgentView> = {}): AgentView => ({
@@ -19,6 +19,12 @@ it('signalKeys : attend, a fini, a échoué ; ni l\'affiché, ni qui travaille o
   const list = [agent('a', { activity: 'asking' }), agent('b', { activity: 'done' }), agent('c', { activity: 'failed' }),
     agent('d', { activity: 'working' }), agent('e'), agent('f', { activity: 'done' })];
   expect(signalKeys(list, 'f')).toEqual(['a~asking', 'b~done', 'c~failed']);
+});
+
+it('tasksShown : les tâches de fond ne se montrent qu\'au repos (au travail, fini, en échec : 0)', () => {
+  expect(tasksShown(agent('a', { tasks: 2 }))).toBe(2);
+  expect(tasksShown(agent('a'))).toBe(0);
+  expect(['working', 'done', 'asking', 'failed'].map((activity) => tasksShown(agent('a', { activity: activity as AgentView['activity'], tasks: 2 })))).toEqual([0, 0, 0, 0]);
 });
 
 describe('beepFor : le bip des autres agents', () => {

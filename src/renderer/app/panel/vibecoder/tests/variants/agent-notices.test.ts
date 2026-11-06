@@ -59,12 +59,12 @@ it('un agent failed : data-activity « failed » (le « ! »), l\'infobulle « e
   expect(robots()[0].title).toContain('— en échec');
 });
 
-it('un agent au repos avec deux tâches de fond : data-tasks, l\'infobulle les compte ; fini : de même', async () => {
+it('un agent au repos avec deux tâches de fond : data-tasks, l\'infobulle les compte ; fini : rien (la règle de la note)', async () => {
   await drawOne(agent('x', { activity: 'idle', tasks: 2 }));
   expect(robots()[0].getAttribute('data-tasks')).toBe('2');
   expect(robots()[0].title).toContain('surveille 2 tâches de fond');
   await drawOne(agent('x', { activity: 'done', tasks: 1 }));
-  expect(robots()[0].getAttribute('data-tasks')).toBe('1');
+  expect(robots()[0].hasAttribute('data-tasks')).toBe(false);
   await drawOne(agent('x', { activity: 'idle' }));
   expect(robots()[0].hasAttribute('data-tasks')).toBe(false);
   expect(robots()[0].title).not.toContain('surveille');

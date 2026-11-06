@@ -162,8 +162,7 @@ function Commented({ target, title, links, verdict, ask, s, t, act, draft, child
       {children || writing || drafted ? (
         <>
           {children}
-          {drafted ? <DraftRemarks remarks={here} t={t} onOpenLink={act.openLink}
-            onEdit={(id, text) => act.draft({ edit: { id, text } })} onRemove={(id) => act.draft({ remove: id })} /> : null}
+          {drafted ? <DraftRemarks remarks={here} t={t} onOpenLink={act.openLink} onDraft={act.draft} /> : null}
           {writing ? (
             <CommentBox t={t} onCancel={() => setWriting(false)}
               onSave={(text) => { act.draft({ add: remark(target, text) }); setWriting(false); }} />

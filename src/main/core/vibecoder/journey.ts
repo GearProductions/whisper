@@ -351,11 +351,11 @@ export function vibeView(input: JourneyInput): VibeView {
     // (Préparer le commit : un fixup de son commit, un nouveau commit une fois la PR ouverte), note et Forme revalidées.
     // Une fois un module touché, le parcours ne recule plus : une retouche de la note ou d'un test d'invariant fait
     // partie du travail en cours, que Commiter les modules range (note 0.15.0-stabilisation) ; les faits le disent.
-    const generating = begun;
     const noteChanged = !!note && dirty.includes(note.path) && commits.some((c) => c.files.includes(note.path));
-    const reopens = noteChanged && !generating;
-    // la retouche en attente une fois les modules commencés : la note ou un test d'invariant de la branche, modifiés
-    const pending = generating && !!note && dirty.some((f) => f === note.path || invariants.some((t) => t.path === f));
+    const reopens = noteChanged && !begun;
+    // la retouche : la note ou un test d'invariant de la branche, modifiés ; en attente une fois les modules commencés
+    const retouched = !!note && dirty.some((f) => f === note.path || invariants.some((t) => t.path === f));
+    const pending = begun && retouched;
     done = {
       note: noteDone,
       forme: formeDone && !reopens,
@@ -365,7 +365,7 @@ export function vibeView(input: JourneyInput): VibeView {
       // tests : chaque cas validé, lu ou pas, et le premier commit (note, forme, invariants) fait.
       invariants: noteDone && formeDone && (!invLines || (!invariants.length
         ? input.runs.find((r) => r.id === 'invariants' || r.id === 'align')?.state === 'done' || note.nothingMark === 'ok'
-        : (vibe || casesOk) && (generating || !dirty.some((f) => f === note.path || invariants.some((t) => t.path === f))))),
+        : (vibe || casesOk) && (begun || !retouched))),
       modules: modules.length > 0 && modules.every((m) => m.commits.length > 0) && !modules.some((m) => m.uncommitted) && !pending,
       revue: checksOk && ponytail && !fixups && boxes === screen.length,   // le plan à l'écran, s'il y en a un
       pr: !!pr,

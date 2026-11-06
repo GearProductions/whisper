@@ -11,7 +11,8 @@
  *  rend et lui laisse l'action publish (own).
  *  Ne connaît pas : le pont (rappels passés), le choix du verdict (vibe-coder).
  *  Utilisé par : pr-view. */
-import { parseReview, reviewSent, VERDICTS, type Verdict } from 'core/vibecoder';
+import { parseReview, reviewSent } from 'core/vibecoder';
+import { VERDICTS, type Verdict } from 'shared/review';
 import type { VibeLang } from 'technicals/bridge';
 import { DraftRemarks } from './draft-remarks';
 import { IconButton } from './icons';
@@ -70,8 +71,7 @@ export function DraftView(p: StepProps) {
       ) : null}
       <OutputCard className="vc-draft" title={s.draft} t={t} tools={<span className="vc-count">{s.count(view.draft.length)}</span>}>
         {view.draft.length ? (
-          <DraftRemarks remarks={view.draft} t={t} target onOpenLink={act.openLink}
-            onEdit={(id, text) => act.draft({ edit: { id, text } })} onRemove={(id) => act.draft({ remove: id })} />
+          <DraftRemarks remarks={view.draft} t={t} target onOpenLink={act.openLink} onDraft={act.draft} />
         ) : <div className="vc-draft-empty">{s.empty}</div>}
       </OutputCard>
       <div className="vc-publish">

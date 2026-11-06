@@ -9,17 +9,19 @@
  *  toutes sont appliquées (remarkMark, allApplied) ; ce qu'Appliquer envoie
  *  selon les remarques cochées (applySelection) ; si une course retient les
  *  autres (isLive).
- *  Et, en relecteur : les remarques d'un élément (remarksAt), le texte que publie
- *  le principal (draftBody), le verdict que les marques proposent (proposedVerdict : il ne
- *  fait que proposer) et si la revue affichée est celle qu'on publierait (reviewSent).
+ *  Et, en relecteur : les remarques d'un élément (remarksAt), le verdict que les marques
+ *  proposent (proposedVerdict : il ne fait que proposer) et si la revue affichée est celle qu'on
+ *  publierait (reviewSent : le texte du brouillon est draftText, de shared/review, celui du principal ;
+ *  les blancs de fin et les \r\n ne comptent pas).
  *  Ne connaît pas : le DOM, React, le pont, les noms des fichiers de sortie.
  *  Utilisé par : app/panel/vibecoder (commits-view, note-view, invariants-view : remark ;
  *  commits-view : quoteRemark ; comment-box : DRAFT_MAX ;
  *  review-view : remarkMark, allApplied, remarkId, applySelection ; review-view, step-parts, vibe-coder : isLive ;
- *  vues du relecteur : remarksAt, proposedVerdict, reviewSent, draftBody). */
+ *  vues du relecteur : remarksAt, proposedVerdict, reviewSent). */
+import { draftText, type Verdict } from 'shared/review';
 import type { VibeComment, VibeRun, VibeView } from 'technicals/bridge';
 import { BULLET, excerpt } from './note';
-import { type Verdict, type parseReview, remarkKey } from './outputs';
+import { type parseReview, remarkKey } from './outputs';
 
 // Les bornes du principal (draftVibe) : la cible d'une remarque, son texte.
 const TARGET_MAX = 300;
@@ -82,9 +84,6 @@ export const remarksAt = (draft: VibeComment[], target: string): VibeComment[] =
   return draft.filter((c) => c.target === t);
 };
 
-// Le texte que publie le principal (draftText) : « - [cible] texte » par ligne.
-export const draftBody = (draft: VibeComment[]): string => draft.map((c) => `- [${c.target}] ${c.text}`).join('\n');
-
 // Le verdict que proposent les marques (il ne publie rien) : un À revoir sur la note, un cas d'invariant ou un
 // commit → request-changes ; tout validé → approve ; sinon (pas jugé, modifié depuis, rien) null.
 export function proposedVerdict(view: VibeView): Verdict | null {
@@ -94,6 +93,9 @@ export function proposedVerdict(view: VibeView): Verdict | null {
   return marks.length && marks.every((m) => m === 'ok') ? 'approve' : null;
 }
 
-// La revue affichée est celle qu'on publierait (même verdict, même texte) ; une revue d'avant (sans verdict ni texte) : non.
+// Le texte comparé : les fins de ligne en \n, sans blancs de fin (l'agent qui publie recopie le brouillon : un saut de ligne final, \r\n).
+const trimmed = (s: string) => s.replace(/\r\n/g, '\n').trimEnd();
+
+// La revue affichée est celle qu'on publierait (même verdict, même texte à ces blancs près) ; une revue d'avant (sans verdict ni texte) : non.
 export const reviewSent = (review: ReturnType<typeof parseReview>, draft: VibeComment[], verdict: Verdict | null): boolean =>
-  !!review && review.verdict !== null && review.body !== null && review.verdict === verdict && review.body === draftBody(draft);
+  !!review && review.verdict !== null && review.body !== null && review.verdict === verdict && trimmed(review.body) === trimmed(draftText(draft));

@@ -153,11 +153,12 @@ import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
 import { START, type CommandError } from 'core/commands';
 import {
-  addComment, artifactOf, blobSha, buildMessage, vibeMarks, DIRECT_ACTIONS, DIRECT_ONLY, draftText, editComment, findNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath,
+  addComment, artifactOf, blobSha, buildMessage, vibeMarks, DIRECT_ACTIONS, DIRECT_ONLY, editComment, findNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath,
   blockedBy, BRANCH_CHANGES, lockCode, lockText, ELSEWHERE, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeRole, vibeView, whoOf, type ActionDef, type MessageError,
 } from 'core/vibecoder';
+import { draftText, isVerdict } from 'shared/review';
 import { findEditor } from 'technicals/editor';
-import { directRunner, prCardText, VERDICTS, type DirectResult } from 'technicals/direct';
+import { directRunner, prCardText, type DirectResult } from 'technicals/direct';
 import { gitReader, gitRun, okRef } from 'technicals/git';
 import { ghRun, githubReader } from 'technicals/github';
 import { which } from 'technicals/paths';
@@ -857,7 +858,7 @@ export function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, vi
     };
   } else if (id === 'publish') {
     if (!n) return fail(lang, 'pr');
-    if (!(VERDICTS as readonly unknown[]).includes(args.verdict)) return fail(lang, 'verdict');
+    if (!isVerdict(args.verdict)) return fail(lang, 'verdict');
     if (!view.draft.length) return fail(lang, 'draft');
     job = () => run.publish(n, args.verdict, draftText(view.draft), view.pr?.url ?? '');
   } else if (id === 'pr-here') {

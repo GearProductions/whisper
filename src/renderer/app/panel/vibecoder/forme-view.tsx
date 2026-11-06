@@ -163,8 +163,7 @@ function Chosen({ f, m, s, p, shown, onShown, code }: ChosenProps) {
       </div>
       {shown === 'structure' ? <Contract text={m.contract} t={t} onOpenLink={act.openLink} />
         : f.code ? code(f.code) : <p className="vc-fnone">{t.noChange}</p>}
-      {review ? <DraftRemarks remarks={remarksAt(view.draft, target)} t={t} onOpenLink={act.openLink}
-        onEdit={(id, text) => act.draft({ edit: { id, text } })} onRemove={(id) => act.draft({ remove: id })} /> : null}
+      {review ? <DraftRemarks remarks={remarksAt(view.draft, target)} t={t} onOpenLink={act.openLink} onDraft={act.draft} /> : null}
       {commenting && review ? (
         <CommentBox t={t} onCancel={() => setCommenting(false)} onSave={(text) => { act.draft({ add: remark(target, text) }); setCommenting(false); }} />
       ) : null}
