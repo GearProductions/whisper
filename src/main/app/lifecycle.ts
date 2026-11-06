@@ -14,6 +14,9 @@
  *  VibeCoder le montre.
  *  La fenêtre classique est créée au lancement (createWindow) ; ensureModel
  *  part après son chargement (le message en tête de la fenêtre).
+ *  Le socket (la porte de l'écran, controllers/socket) s'ouvre à ready, avant
+ *  la fenêtre et sans l'attendre, sur commandFromSocket ; fermé, live.json
+ *  supprimé, à will-quit (I-43).
  *  Ne connaît pas : le détail des fenêtres et des contrôleurs.
  *  Utilisé par : src/main/index.ts. */
 import { app, session } from 'electron';
@@ -25,8 +28,8 @@ import { binDir } from 'technicals/paths';
 import * as tts from 'technicals/pocket-tts';
 import * as windows from 'technicals/windows-helper';
 import {
-  agents, ensureFolderColors, ensureModel, moveLegacyArtifacts, muter, processesRunning, refreshVibe, resolveArtifact,
-  startHealing, stopProcesses, syncFamilies,
+  agents, closeSocket, commandFromSocket, ensureFolderColors, ensureModel, moveLegacyArtifacts, muter, openSocket, processesRunning,
+  refreshVibe, resolveArtifact, startHealing, stopProcesses, syncFamilies,
 } from 'app/controllers';
 import { startDev } from 'app/dev';
 import { registerIpc } from 'app/ipc';
@@ -52,6 +55,8 @@ export function start() {
   app.whenReady().then(() => {
     setupPermissions(session.defaultSession);
     serveFiles(ARTIFACT_SCHEME, resolveArtifact);
+    // Le socket : mes boutons passent par lui ; un échec est journalisé, l'appli reste ouverte (openSocket ne rejette pas).
+    void openSocket(commandFromSocket);
     createWindow();
     ensureFolderColors();
     // L'agent affiché la dernière fois, sinon le premier ; aucun agent : l'accueil.
@@ -88,5 +93,5 @@ export function start() {
     quitting = true;
     Promise.all([muter.restore('others'), muter.restore('discord'), agents.stop(), stopProcesses()]).finally(() => app.quit());
   });
-  app.on('will-quit', () => { windows.stop(); tts.stop(); agents.stop(); stopProcesses(); });
+  app.on('will-quit', () => { closeSocket(); windows.stop(); tts.stop(); agents.stop(); stopProcesses(); });
 }
