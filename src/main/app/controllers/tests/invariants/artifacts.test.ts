@@ -233,7 +233,7 @@ async function openInEditor(id: unknown) {
 // Une action envoyée par la page : { direct: true } est le clic de son bouton.
 async function run(id: string, args: object) {
   const { runVibeAction } = await import('app/controllers');
-  runVibeAction(id, args);
+  await runVibeAction(id, args);   // 0.15.0 : la commande passe par le socket et relit l'état avant d'écrire, attendre sa réponse
   await settle();
 }
 // Le clic sur Copier dans le projet.
