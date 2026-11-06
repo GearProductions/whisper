@@ -250,7 +250,8 @@ export type VibeNote = VibeFile & {
 };
 
 export type VibeModule = {
-  path: string;                // tel que dans la Forme
+  path: string;                // tel que dans la Forme (« a + b » : une entrée à plusieurs chemins)
+  paths?: string[];            // ses chemins, un par « + » de l'entrée (journey) ; absent (vue écrite à la main) = [path]
   contract: string;            // expose · ne connaît pas · utilisé par
   file: VibeFile | null;       // son fichier ou dossier, s'il existe
   touched: boolean;            // la branche le touche
