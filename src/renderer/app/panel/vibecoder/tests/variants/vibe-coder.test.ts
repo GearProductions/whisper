@@ -16,7 +16,7 @@ import { VibeCoder } from '../../vibe-coder';
 const page = document.createElement('div');
 const root = createRoot(page);
 const fr = t('fr');
-const view = { lang: 'fr', agentId: 'a1', steps: [], actions: [], runs: [], processes: [], commits: [], agent: {}, time: 0, flow: 'create' } as unknown as VibeView;
+const view = { lang: 'fr', agentId: 'a1', steps: [], actions: [], runs: [], processes: [], commits: [], invariants: [], agent: {}, time: 0, flow: 'create' } as unknown as VibeView;
 const thread = { name: 'whisper', status: 'idle', tasks: [] } as unknown as Thread;
 const noop = () => {};
 const acts = { follow: noop, set: noop, refresh: noop } as never;
@@ -174,4 +174,59 @@ it('le questionnaire a ses pièces, qui partent avec « Envoyer les réponses »
   expect(sent).toEqual([['answers', { answers: ['a'], pieces: { images: [], files: ['/p/reponse.md'], selection: '' } }]]);
   expect(page.querySelectorAll('.vc-q .piece')).toHaveLength(0);
   expect(pieces()).toHaveLength(1);   // le champ de la note garde les siennes
+});
+
+// ---- L'état retenu, par agent et par étape (T-20) ; le verdict proposé (T-23) ----
+const two = (agentId: string) => noteView({ agentId, steps: [{ id: 'note', status: 'current' }, { id: 'forme', status: 'upcoming' }] });
+const stepBox = () => page.querySelector<HTMLElement>('.vc-step')!;
+const scrollTo = (top: number) => act(() => { stepBox().scrollTop = top; stepBox().dispatchEvent(new Event('scroll')); });
+const crumb = (i: number) => page.querySelectorAll<HTMLButtonElement>('.vc-jstep')[i];
+const leave = () => act(() => root.render(null)); // le panneau recrée l'écran à chaque changement d'agent
+
+it('l\'état d\'un agent n\'apparaît pas chez un autre (étape choisie, défilement) et revient avec lui', async () => {
+  await draw({ view: two('iso1') });
+  await act(() => crumb(1).click());
+  await scrollTo(120);
+  await leave();
+  await draw({ view: two('iso2') });
+  expect(stepBox().scrollTop).toBe(0);
+  expect(crumb(0).getAttribute('aria-current')).toBe('step');   // l'étape en cours, pas la forme choisie chez iso1
+  await leave();
+  await draw({ view: two('iso1') });
+  expect(crumb(1).getAttribute('aria-current')).toBe('step');
+  expect(stepBox().scrollTop).toBe(120);
+});
+
+it('même agent, deux étapes : chacune son défilement', async () => {
+  await leave();
+  await draw({ view: two('steps1') });
+  await scrollTo(80);
+  await act(() => crumb(1).click());
+  expect(stepBox().scrollTop).toBe(0);
+  await scrollTo(30);
+  await act(() => crumb(0).click());
+  expect(stepBox().scrollTop).toBe(80);
+  await act(() => crumb(1).click());
+  expect(stepBox().scrollTop).toBe(30);
+});
+
+it('un verdict choisi l\'emporte sur le verdict proposé ; proposé, il est pressé sans rien publier ; sans marque, Commenter', async () => {
+  const run = vi.fn(async () => true);
+  const review = (agentId: string, mark: string | null) => ({
+    ...view, agentId, flow: 'review', steps: [{ id: 'pr', status: 'current' }], outputs: {}, files: [], questions: [], invariants: [], artifacts: [], modules: [], draft: [],
+    note: mark ? { mark } : undefined, actions: [act1({ id: 'publish', step: 'revue', label: 'Publier' })],
+  }) as unknown as VibeView;
+  const pressed = () => page.querySelector('.vc-verdicts [aria-pressed="true"]')?.getAttribute('data-verdict');
+  const a = { follow: noop, set: noop, refresh: noop, run };
+  await leave();
+  await draw({ view: review('v1', 'ko'), acts: a });
+  expect(pressed()).toBe('request-changes');
+  expect(run).not.toHaveBeenCalled();
+  await act(() => { page.querySelector<HTMLButtonElement>('[data-verdict="approve"]')!.click(); });
+  expect(pressed()).toBe('approve');
+  await draw({ view: review('v1', 'ko'), acts: a });
+  expect(pressed()).toBe('approve');            // le choix tient quand le relevé change
+  await leave();
+  await draw({ view: review('v2', null), acts: a });
+  expect(pressed()).toBe('comment');
 });

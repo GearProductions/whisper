@@ -49,7 +49,11 @@
  *  les fichiers déposés ou collés par act.pieces), la vue des branches ouverte ou non, le panneau Artefacts ouvert ou non, les modifications gardées des
  *  fichiers suivis (drafts, par chemin : useFileDraft ; changer d'étape ne
  *  les jette pas) — tout cela gardé par agent
- *  (kept : l'écran est recréé à chaque changement d'agent). Aucun modèle ni effort
+ *  (kept : l'écran est recréé à chaque changement d'agent), par useKept de kept-scope sous un
+ *  KeptScope « screen » de l'agent. L'étape affichée a le sien (agent, étape : ses vues y gardent
+ *  fichier, pliage, onglet, vue) et c'est ici que se garde son défilement (scrollTop du conteneur,
+ *  écrit au défilement, rendu à l'affichage). Le verdict : celui choisi, sinon celui que proposent les
+ *  marques (proposedVerdict), sinon Commenter ; le proposé ne publie rien. Aucun modèle ni effort
  *  n'est choisi ici (la page des réglages ; le principal les pose). Préparer un message dans le champ
  *  de la conversation, ou un message qui exige son texte, réaffiche la
  *  conversation (colonne masquée, ou onglet Actions, Tâches, Processus ; l'historique
@@ -61,13 +65,14 @@
  *  (dont un changement d'agent) : runsSeen false.
  *  Ne connaît pas : le pont (rappels passés), le contenu de la conversation.
  *  Utilisé par : panel-app. */
-import { Component, useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
+import { Component, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { isBusy, piecesArg, revoke, titleOf, withAttached, withPieces, type Piece } from 'core/conversation';
-import { artifactResult, convWidth, fieldOf, isLive, t as strings, type Answers, type Kept, type Strings } from 'core/vibecoder';
+import { artifactResult, convWidth, fieldOf, isLive, proposedVerdict, scoped, t as strings, type Answers, type Kept, type Strings } from 'core/vibecoder';
 import type { Thread, VibeCode, VibeStepId, VibeView } from 'technicals/bridge';
 import type { Drafts } from './file-draft';
 import { ArtifactsView } from './artifacts-view';
 import { Icon } from './icons';
+import { KeptScope, useKept } from './kept-scope';
 import { BranchesView } from './branches-view';
 import { Breadcrumb } from './breadcrumb';
 import { ProcessesView } from './processes-view';
@@ -103,26 +108,26 @@ type Props = {
 
 export type Side = { open: boolean; width: number };
 
-// Un état de l'écran, gardé pour l'agent : rendu quand on revient sur lui.
-function useKept<T>(kept: Kept, agent: string, key: string, initial: T) {
-  const [value, set] = useState<T>(() => kept.get(agent, key, initial));
-  useEffect(() => { kept.set(agent, key, value); }, [kept, agent, key, value]);
-  return [value, set] as const;
+// L'écran d'un agent : ce qu'il garde (étape choisie, champs, réponses, verdict…) va dans le scope « screen »
+// de l'agent, ce que garde l'étape affichée dans le scope de l'étape (kept-scope).
+export function VibeCoder(props: Props) {
+  const screen = useMemo(() => scoped(props.kept, props.view.agentId, 'screen'), [props.kept, props.view.agentId]);
+  return <KeptScope.Provider value={screen}><Screen {...props} /></KeptScope.Provider>;
 }
 
-export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextOpen, onGauge, onTasks, onSearch, onSettings, others, branchesAsk = 0, historyOpen, onHistory, history, side, onSide, children, kept, code }: Props) {
+function Screen({ view, thread, act: given, tasks, tasksOpen, contextOpen, onGauge, onTasks, onSearch, onSettings, others, branchesAsk = 0, historyOpen, onHistory, history, side, onSide, children, kept, code }: Props) {
   const t = strings(view.lang);
-  const [picked, setPicked] = useKept<VibeStepId | null>(kept, view.agentId, 'picked', null);
+  const [picked, setPicked] = useKept<VibeStepId | null>('picked', null);
   const { steps } = view;
   // L'étape choisie, sinon celle en cours (elle suit le fil d'Ariane tant qu'on n'a rien choisi).
   const step = steps.find((s) => s.id === picked)
     || steps.find((s) => s.status === 'current') || steps[0] || null;
   const busy = isBusy(thread.status);
   // La vue des branches (le bouton ⎇) : ouverte, elle prend le centre à la place de l'étape.
-  const [branchesOpen, setBranchesOpen] = useKept(kept, view.agentId, 'branches', false);
+  const [branchesOpen, setBranchesOpen] = useKept('branches', false);
   const branches = branchesOpen && !!view.repo;
   // Le panneau Artefacts : ouvert, il prend le centre ; il ne change pas le rôle (flow).
-  const [arts, setArts] = useKept(kept, view.agentId, 'artifacts', false);
+  const [arts, setArts] = useKept('artifacts', false);
   const asked = useRef(branchesAsk);
   useEffect(() => {
     if (asked.current === branchesAsk) return;
@@ -131,7 +136,7 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
     setBranchesOpen(true);
   }, [branchesAsk]);
   const pick = (id: VibeStepId) => { setBranchesOpen(false); setArts(false); setPicked(id); };
-  const [answers, setAnswers] = useKept<Answers>(kept, view.agentId, 'answers', {});
+  const [answers, setAnswers] = useKept<Answers>('answers', {});
   const onAnswer: StepProps['onAnswer'] = (q, a) => setAnswers((all) => ({ ...all, [q]: a }));
   const root = useRef<HTMLDivElement>(null);
   // L'onglet Actions ou Processus, choisi par-dessus Conversation | Tâches (que panel-app tient).
@@ -147,11 +152,11 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
   const runs = view.runs ?? [];
   const live = runs.filter((r) => isLive(r.state)).length;
   // Le champ de chaque étape : par fieldOf.
-  const [texts, setTexts] = useKept<Record<string, string>>(kept, view.agentId, 'texts', {});
+  const [texts, setTexts] = useKept<Record<string, string>>('texts', {});
   const setText = (key: string) => (text: string) => setTexts((all) => ({ ...all, [key]: text }));
-  const drafts = useKept<Drafts>(kept, view.agentId, 'drafts', {});
+  const drafts = useKept<Drafts>('drafts', {});
   // Les pièces jointes de chaque champ (sa clé, comme texts ; 'answers' : le questionnaire), tenues avec son texte.
-  const [held, setHeld] = useKept<Record<string, Piece[]>>(kept, view.agentId, 'pieces', {});
+  const [held, setHeld] = useKept<Record<string, Piece[]>>('pieces', {});
   const changePieces = (key: string, f: (cur: Piece[]) => Piece[]) => setHeld((all) => ({ ...all, [key]: f(all[key] ?? []) }));
   const piecesOf = (key: string): StepPieces => ({
     pieces: held[key] ?? [],
@@ -197,7 +202,13 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
     return () => given.set({ runsSeen: false });
   }, [runsOpen]);
   // Le verdict de la revue (Relire), tenu ici comme les réponses : il survit à un changement d'onglet.
-  const [verdict, setVerdict] = useKept<StepProps['verdict']>(kept, view.agentId, 'verdict', 'comment');
+  // Choisi, il l'emporte ; sinon celui que proposent les marques ; sinon Commenter. Rien ne part sans le clic Publier.
+  const [chosen, setVerdict] = useKept<StepProps['verdict'] | null>('verdict', null);
+  const verdict = chosen ?? (view.flow === 'review' ? proposedVerdict(view) : null) ?? 'comment';   // relecteur seulement
+  // Ce que garde l'étape affichée (kept-scope), dont le défilement : écrit tel quel dans le scope, sans état React.
+  const stepScope = useMemo(() => scoped(kept, view.agentId, step ? step.id : ''), [kept, view.agentId, step && step.id]);
+  const stepBox = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => { if (stepBox.current) stepBox.current.scrollTop = stepScope.get('top', 0); }, [center, stepScope]);
 
   // Ctrl+1…6 : par la touche (sur un clavier AZERTY, le chiffre est sous Maj).
   useEffect(() => {
@@ -237,10 +248,10 @@ export function VibeCoder({ view, thread, act: given, tasks, tasksOpen, contextO
           {branches ? (
             <div className="vc-step scroll" key="branches"><Guard t={t}><BranchesView view={view} t={t} act={act} busy={busy} /></Guard></div>
           ) : (
-            <div className="vc-step scroll" key={step ? step.id : ''}>
-              {step && View ? <Guard t={t}><View view={view} step={step} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} verdict={verdict} onVerdict={setVerdict}
+            <div className="vc-step scroll" key={step ? step.id : ''} ref={stepBox} onScroll={(e) => stepScope.set('top', e.currentTarget.scrollTop)}>
+              {step && View ? <KeptScope.Provider value={stepScope}><Guard t={t}><View view={view} step={step} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} verdict={verdict} onVerdict={setVerdict}
                 text={texts[step.id] ?? ''} setText={setText(step.id)} code={code} drafts={drafts}
-                {...piecesOf(step.id)} questions={piecesOf('answers')} /></Guard> : null}
+                {...piecesOf(step.id)} questions={piecesOf('answers')} /></Guard></KeptScope.Provider> : null}
             </div>
           )}
         </section>
