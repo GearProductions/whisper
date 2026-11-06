@@ -153,7 +153,6 @@ beforeEach(() => {
   git(dir, 'add', '.');
   git(dir, 'commit', '-q', '-m', 'note, invariants');
   write(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agentsEnabled: true,
     agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
       vibe: { flow: 'create', autonomy: 'guide', pr: null } }],
   }));

@@ -104,7 +104,6 @@ const tracked = () => fs.readFileSync(path.join(repo, 'a.txt'), 'utf8');
 const untracked = () => fs.existsSync(path.join(repo, 'c.txt'));
 // Les réglages : a1 sur le dépôt, en `vibe`, derrière le faux préfixe.
 const configure = (vibe: object) => write(path.join(root, 'config.json'), JSON.stringify({
-  agentsEnabled: true,
   vibeCommandPrefix: `"${process.execPath}" "${path.join(root, 'faux-prefixe.cjs')}"`,
   agents: [{ id: 'a1', dir: repo, name: 'projet', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder', vibe }],
 }));

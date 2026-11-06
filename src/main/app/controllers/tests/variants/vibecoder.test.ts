@@ -246,7 +246,6 @@ beforeEach(() => {
     { id: 'guide', flow: 'both', step: null, kind: 'send', needs: 'text', label: 'Demander', text: '{{text}}' },
   ]));
   write(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agentsEnabled: true,
     agents: [{ id: 'a1', dir, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null }],
   }));
 });
@@ -437,7 +436,6 @@ function review() {
   fake.found = { number: 12, title: '', url: '', state: 'OPEN', base: 'main', head: 'feat/0.8.0-essai' };
   fake.people = { author: 'bob', assignees: [] };
   write(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agentsEnabled: true,
     agents: [{ id: 'a1', dir, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null,
       vibe: { flow: 'review', autonomy: 'guide', pr: 12 } }],
   }));
@@ -484,7 +482,7 @@ describe('rc.2', () => {
   it('le who d\u2019une action suit le choix de la configuration', async () => {
     write(path.join(fake.userData, 'vibecoder', 'plugin', 'skills', 'verifier', 'SKILL.md'), '---\ncontext: fork\nmodel: haiku\n---\n');
     write(path.join(fake.userData, 'config.json'), JSON.stringify({
-      agentsEnabled: true, actionModels: { checks: 'sonnet' }, actionEfforts: { checks: 'high' },
+      actionModels: { checks: 'sonnet' }, actionEfforts: { checks: 'high' },
       agents: [{ id: 'a1', dir, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null }],
     }));
     const { view } = await open();
@@ -726,7 +724,7 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     expect([v.child, v.recipe, v.checkout, v.request]).toEqual([false, null, { branch: 'main', dirty: true }, null]);
     expect(v).not.toHaveProperty('place');
     vi.resetModules();
-    write(path.join(fake.userData, 'config.json'), JSON.stringify({ agentsEnabled: true, agents: [{ id: 'a1', dir, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null }] }));
+    write(path.join(fake.userData, 'config.json'), JSON.stringify({ agents: [{ id: 'a1', dir, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null }] }));
     v = (await open()).view()!;
     expect(v.checkout).toEqual({ branch: 'main', dirty: true });
   });

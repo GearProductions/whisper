@@ -148,7 +148,6 @@ beforeEach(() => {
   write(path.join(dir, HELLO), 'HELLO_DISQUE');
   write(path.join(dir, INV), "it('INV_DISQUE', () => {});\n");
   write(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agentsEnabled: true,
     agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
       vibe: { flow: 'create', autonomy: 'guide', pr: null } }],
   }));
