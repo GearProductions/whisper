@@ -1,6 +1,6 @@
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { addedLine, artifactDirs, artifactItem, artifactKind, artifactList, artifactOf, artifactType, droppedPaths, failedLine, folderKey, folderOf, leftEntries, legacyOwner, projectFolder, within, ARTIFACTS_ROOT } from 'core/vibecoder';
+import { describe, expect, it, vi } from 'vitest';
+import { ADD_FILE_MAX, ADD_TOTAL_MAX, addedLine, artifactDirs, artifactItem, artifactKind, artifactList, artifactOf, artifactType, droppedFiles, droppedPaths, failedLine, folderKey, folderOf, leftEntries, legacyOwner, projectFolder, within, ARTIFACTS_ROOT } from 'core/vibecoder';
 import type { VibeView } from 'shared/bridge';
 
 describe('artifactKind, artifactType', () => {
@@ -95,6 +95,65 @@ describe.skipIf(process.platform === 'win32')('folderKey', () => {
 describe('droppedPaths', () => {
   it('un chemin refusé (relatif, NUL, `..`, la racine, pas un texte) est compté, sans chemin', () => {
     expect(droppedPaths(['/a/b', 'a/b', '/a\0b', '/a/../b', '/', 3, ''])).toEqual({ paths: [path.resolve('/a/b')], noPath: 6 });
+  });
+});
+
+describe('droppedFiles', () => {
+  const b64 = (t: string) => Buffer.from(t).toString('base64');
+  const of = (n: number) => 'A'.repeat(Math.ceil(n / 3) * 4); // décode en ~n octets (le dernier groupe plein)
+
+  it('un { path } : comme droppedPaths', () => {
+    const list = [{ path: '/a/b' }, { path: 'a/b' }, { path: '/a/../b' }, '/c/d', 3, null];
+    const r = droppedFiles(list);
+    expect({ paths: r.paths, noPath: r.noPath }).toEqual(droppedPaths(['/a/b', 'a/b', '/a/../b', '/c/d', 3, null]));
+    expect(r.contents).toEqual([]);
+    expect(r.refused).toEqual([]);
+  });
+
+  it('un { name, content } est décodé', () => {
+    const r = droppedFiles([{ name: 'notes.md', content: b64('héllo') }, { name: 'vide.txt', content: '' }]);
+    expect(r.contents.map((c) => [c.name, c.bytes.toString()])).toEqual([['notes.md', 'héllo'], ['vide.txt', '']]);
+    expect(r.paths).toEqual([]);
+    expect(r.refused).toEqual([]);
+  });
+
+  it('un nom qui est un chemin, vide, réservé : refusé avec son nom et sa raison', () => {
+    const bad = ['a/b', 'a\\b', '..', '.', '', 'CON', 'nul.txt', 'a:b', 'fin.', 'x'.repeat(256)];
+    const r = droppedFiles([...bad.map((name) => ({ name, content: b64('x') })), { content: b64('x') }, { name: 3, content: b64('x') }]);
+    expect(r.contents).toEqual([]);
+    expect(r.refused).toHaveLength(bad.length + 2);
+    expect(r.refused[0]).toEqual({ path: 'a/b', error: 'nom' });
+  });
+
+  it('base64 invalide : refusé', () => {
+    const r = droppedFiles([{ name: 'a', content: '***' }, { name: 'b', content: 'abc' }, { name: 'c', content: 'a=bc' }, { name: 'd', content: 12 }, { name: 'e', content: b64('ok') }]);
+    expect(r.contents.map((c) => c.name)).toEqual(['e']);
+    expect(r.refused).toEqual(['a', 'b', 'c', 'd'].map((path) => ({ path, error: 'base64' })));
+  });
+
+  it('au-delà d’ADD_FILE_MAX : refusé sans rien décoder', () => {
+    const from = vi.spyOn(Buffer, 'from');
+    const r = droppedFiles([{ name: 'gros', content: of(ADD_FILE_MAX + 3) }, { name: 'juste', content: of(ADD_FILE_MAX - 2) }]);
+    const decoded = from.mock.calls.filter((c) => (c as unknown[])[1] === 'base64');
+    from.mockRestore();
+    expect(r.refused).toEqual([{ path: 'gros', error: 'taille' }]);
+    expect(r.contents.map((c) => c.name)).toEqual(['juste']);
+    expect(decoded).toHaveLength(1);
+  });
+
+  it('au-delà d’ADD_TOTAL_MAX pour la demande : celui qui dépasse est refusé, rien de décodé de trop', () => {
+    const n = Math.floor(ADD_TOTAL_MAX / 3) + 3; // chacun sous ADD_FILE_MAX, trois au-dessus d'ADD_TOTAL_MAX
+    const from = vi.spyOn(Buffer, 'from');
+    const r = droppedFiles([{ name: 'a', content: of(n) }, { name: 'b', content: of(n) }, { name: 'c', content: of(n) }]);
+    const decoded = from.mock.calls.filter((c) => (c as unknown[])[1] === 'base64');
+    from.mockRestore();
+    expect(r.contents.map((c) => c.name)).toEqual(['a', 'b']);
+    expect(r.refused).toEqual([{ path: 'c', error: 'demande' }]);
+    expect(decoded).toHaveLength(2);
+  });
+
+  it('les bornes : 10 Mio par fichier, 25 Mio par demande', () => {
+    expect([ADD_FILE_MAX, ADD_TOTAL_MAX]).toEqual([10 * 2 ** 20, 25 * 2 ** 20]);
   });
 });
 

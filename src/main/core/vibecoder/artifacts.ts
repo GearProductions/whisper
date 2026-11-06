@@ -6,7 +6,9 @@
  *  ne donne qu'un id, jamais un chemin : I-37 ; artifactItem : a<i> ou d<i>,
  *  folderOf : le dossier d'un d<i>, '' pour la racine, within : un nom est-il
  *  dans un dossier), les chemins d'un dépôt
- *  (droppedPaths : lus du File par le pont, revérifiés ici), la clé d'un
+ *  (droppedPaths : lus du File par le pont, revérifiés ici ; droppedFiles : ces
+ *  chemins, plus les contenus reçus en base64 par le socket, nom sûr et bornes
+ *  ADD_FILE_MAX / ADD_TOTAL_MAX vérifiés avant de décoder), la clé d'un
  *  dossier (folderKey : le même dossier, même parti ou derrière un lien), les
  *  deux libellés du dépôt et du déplacement en échec (addedLine, failedLine : fr et en), et
  *  l'emplacement par projet : la racine (ARTIFACTS_ROOT), la clé d'un projet
@@ -19,6 +21,7 @@
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { commonDirOf } from 'core/family';
+import { plainName } from 'helpers';
 import type { VibeArtifact, VibeArtifactDir, VibeLang, VibeView } from 'shared/bridge';
 import type { TreeReport } from 'technicals/file-tree';
 
@@ -110,6 +113,40 @@ export function droppedPaths(list: unknown): { paths: string[]; noPath: number }
     else noPath++;
   }
   return { paths, noPath };
+}
+
+// Les bornes d'un dépôt par contenu, en octets décodés : par fichier, par demande.
+export const ADD_FILE_MAX = 10 * 2 ** 20;
+export const ADD_TOTAL_MAX = 25 * 2 ** 20;
+
+const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/; // plat : un groupe répété ferait déborder la pile sur des Mio
+
+// Les chemins comme droppedPaths ({ path } ou le chemin seul), les contenus { name, content en base64 } décodés ;
+// un contenu refusé (nom pas sûr, base64 invalide, trop gros) est listé { path: son nom, error: la raison } (nom, base64, taille, demande).
+// La taille décodée est tirée de la longueur avant de décoder : un refus ne décode rien.
+export function droppedFiles(list: unknown): {
+  paths: string[]; contents: { name: string; bytes: Buffer }[]; noPath: number; refused: { path: string; error: string }[];
+} {
+  const contents: { name: string; bytes: Buffer }[] = [];
+  const refused: { path: string; error: string }[] = [];
+  const rest: unknown[] = [];
+  let total = 0;
+  for (const item of Array.isArray(list) ? list : []) {
+    const f = item && typeof item === 'object' ? (item as Record<string, unknown>) : null;
+    if (!f || !('content' in f)) { rest.push(f ? f.path : item); continue; }
+    const { content } = f;
+    const name = plainName(f.name, false);
+    const fail = (error: string) => refused.push({ path: String(f.name), error });
+    if (name === null) { fail('nom'); continue; }
+    if (typeof content !== 'string' || content.length % 4 !== 0) { fail('base64'); continue; }
+    const size = (content.length / 4) * 3 - (content.endsWith('==') ? 2 : content.endsWith('=') ? 1 : 0);
+    if (size > ADD_FILE_MAX) { fail('taille'); continue; }
+    if (!BASE64.test(content)) { fail('base64'); continue; }
+    if (total + size > ADD_TOTAL_MAX) { fail('demande'); continue; }
+    total += size;
+    contents.push({ name, bytes: Buffer.from(content, 'base64') });
+  }
+  return { ...droppedPaths(rest), contents, refused };
 }
 
 // Le dossier tel qu'on le compare une fois parti : le plus long début qui existe, résolu, plus la suite.
