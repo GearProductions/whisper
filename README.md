@@ -203,14 +203,20 @@ l'en-tête de la fenêtre :
   lue d'office) : il **clignote** pendant qu'il travaille ; **« ? »** : il
   attend votre réponse (une demande d'autorisation, une question), jusqu'à ce
   qu'elle parte ; **pastille verte** : il a fini (une réponse non lue) ;
-  **« ! »** : il a échoué. Chacun avec le **bip** de la réponse (660 Hz,
-  réglage *Bip*). Fenêtre en arrière-plan : une notification du système pour
+  **« ! »** : il a échoué (*en échec*). Chacun avec le **bip** de la réponse (660 Hz,
+  réglage *Bip*), seulement pour ce qui vient d'apparaître chez un autre agent :
+  le quitter ne fait pas sonner ce que vous aviez sous les yeux. Afficher un
+  agent, ou lire sa conversation, efface sa pastille verte ; un « ! » reste
+  jusqu'à l'ouverture de son onglet *Actions*. Au repos ou à peine fini, un
+  robot qui surveille des **tâches de fond** (celles de sa conversation et de
+  ses actions) pulse lentement, et son infobulle le dit (« surveille n tâches
+  de fond »). Fenêtre en arrière-plan : une notification du système pour
   une question ou un échec ; un clic dessus affiche l'agent.
 - **Chercher** (en haut à droite, **Ctrl+K**) : la **palette**, par portées
   (*Tout*, *Agents*, *Branches*, *PR* ; **Tab** : la portée suivante). Les
   agents par dépôt, avec leurs worktrees et leurs PR, chacun son étape et son
-  état (*travaille*, *attend ta réponse*, *vient de finir*, *en pause*, *au
-  repos*) ; les branches du dépôt, chacune avec l'agent qui la tient ; les
+  état (*travaille*, *attend ta réponse*, *vient de finir*, *en échec*, *au
+  repos* ou « surveille n tâches de fond ») ; les branches du dépôt, chacune avec l'agent qui la tient ; les
   PR ; les actions (*Nouvel agent…*, *Créer une branche…*, *Gérer les
   branches et les PR…* — Ctrl+Maj+B —, *Mettre de côté les changements*).
   Chaque mot tapé filtre, sans casse. **Entrée** : aller à l'agent, ou
@@ -383,8 +389,9 @@ relecteur, plus bas).
 de ticket sous `docs/tickets/` ; sans dépôt, l'écran le dit et la
 conversation reste utilisable. Ce qu'on a commencé sur l'écran d'un agent
 (réponses aux questions, champ de chaque étape, modèle choisi, verdict de la
-revue, étape choisie) l'attend quand on revient sur lui, le temps que l'appli
-tourne. En changeant d'agent, l'écran garde l'affichage d'avant jusqu'à ce
+revue, étape choisie, et par étape : le fichier choisi, les dossiers pliés,
+l'onglet, le défilement, la vue IDE ou liste) l'attend quand on revient sur lui,
+le temps que l'appli tourne (un redémarrage l'oublie). En changeant d'agent, l'écran garde l'affichage d'avant jusqu'à ce
 que la conversation et le relevé du nouvel agent soient là : jamais de page
 vide, l'en-tête et les robots ne bougent pas.
 
@@ -480,7 +487,8 @@ que le tour de la conversation. Quand sa conversation est au repos, le robot
 de l'agent montre ses actions : il clignote pendant qu'une action travaille ;
 « ? » quand l'une attend une autorisation, jusqu'à votre réponse ; « ! » ou
 pastille verte quand l'une échoue ou finit, jusqu'à ce que vous ouvriez son
-onglet *Actions* (avec le bip, sauf pour le clignotement) ; une action que
+onglet *Actions* (la pastille verte s'efface aussi quand vous affichez l'agent ;
+avec le bip, sauf pour le clignotement) ; une action que
 vous avez arrêtée, non.
 
 La conversation est l'**orchestrateur** : elle est prévenue de la fin de
@@ -600,7 +608,9 @@ relire une PR (le relecteur, plus bas) :
 1. **Note** : *Rédiger la note* d'après la demande du champ de l'étape (sur la branche
    principale, c'est une nouvelle demande : l'agent propose d'abord un nom
    de branche, plus bas) ; ses questions
-   ouvertes s'affichent à part, avec des réponses proposées : *Envoyer les
+   ouvertes s'affichent à part, chacune avec un peu de contexte en langage simple
+   (ce qui se passe, pourquoi choisir), des réponses proposées, la conseillée
+   marquée « (recommandé) » avec sa raison : *Envoyer les
    réponses* (à l'action qui a rédigé la note : elle garde son contexte) ;
    puis *Valider la note*. La note s'affiche tout de suite ;
    *Modifier* la rend modifiable sur place (*Fermer* garde la modification),
@@ -611,7 +621,8 @@ relire une PR (le relecteur, plus bas) :
    grisée pendant un tour de la conversation ou une action de l'agent.
 2. **Forme** : *Poser la forme* (les modules et leurs contrats, dans la note,
    sans code ; sous chacun, ses variants : le fichier de tests et les cas à
-   couvrir, à challenger avant le code) ; *Valider la forme*. La vue est celle d'un IDE : à gauche
+   couvrir, à challenger avant le code ; des modules qui ne compilent
+   qu'ensemble : une seule entrée, leurs chemins séparés par « + ») ; *Valider la forme*. La vue est celle d'un IDE : à gauche
    l'arborescence des modules, à droite le module choisi, son contrat
    (*Structure*) ou son code en diff depuis la base de la branche (*Code* :
    tout en vert pour un module neuf). Sans Forme, l'arborescence montre les
@@ -667,15 +678,17 @@ relire une PR (le relecteur, plus bas) :
    commit). Générer
    et commiter sont deux gestes : *Commiter les modules* (un commit par module dans l'ordre de la Forme, un fixup
    pour un module déjà commité ; le typage de chaque commit est vérifié sur son
-   contenu, hors du dossier de travail, et un commit qui ne compile pas arrête
-   là, sans rattrapage) ; vous pouvez donc retoucher le code entre les deux.
+   contenu, hors du dossier de travail ; des modules qui ne compilent
+   qu'ensemble, notés sur une seule entrée de la Forme (« a.ts + b.ts »), font un seul
+   commit, et un module suivant que l'erreur de typage nomme les rejoint ; une
+   autre erreur arrête là, sans rattrapage) ; vous pouvez donc retoucher le code entre les deux.
    Ces boutons de l'étape sont à côté du titre de la carte des modules, et n'y sont
    que s'ils ont quelque chose à faire. Chaque
    module est un accordéon : *Générer* (ce module seul) est toujours au bout
    de sa ligne ; un clic sur la ligne ajoute *Relire le diff*,
    *Ouvrir* et son contrat. Chaque module porte un numéro, son rang dans la
    Forme : l'ordre où le générer (un module attend ceux qu'il utilise). Un interrupteur *IDE* · *liste* (retenu d'une
-   ouverture à l'autre) remplace l'accordéon par une arborescence des
+   ouverture à l'autre, et par agent) remplace l'accordéon par une arborescence des
    fichiers des modules, puis des variants que la branche écrit (à leur
    place : on voit où ils vont), avec le numéro de chacun et son nom coloré comme dans
    VS Code (vert : nouveau, jaune : modifié, rouge barré : supprimé ; blanc une
@@ -738,10 +751,13 @@ suivi pour celle d'une PR de `git pull --ff-only origin <branche>` ;
 `git rebase --autostash` (un conflit : `git rebase --abort` aussitôt),
 `git push --force-with-lease`, `git fetch origin`, `gh pr edit --add-assignee` / `--remove-assignee` ; la recette du projet (plus bas) pour
 créer ou retirer un worktree. Le résultat s'affiche sous le bouton (✓ ou ✗,
-le détail à déplier), chaque commande dans `direct.log` des sorties de
+le détail à déplier ; sa place est réservée, rien ne se décale), chaque commande dans `direct.log` des sorties de
 l'agent ; git et `gh` passent par le préfixe des commandes (la box : les
 hooks de commit y trouvent Node). En cas de souci, le petit *via* à côté
-passe par l'agent, comme avant. *Créer une branche dans un nouveau
+passe par l'agent, comme avant. Une action faite et dont rien n'a changé ne se
+relance pas d'un clic par erreur : *PR mergée → revenir sur la base*, une fois
+fait, est grisé (« Déjà sur la base ») ; *Mettre de côté*, *Actualiser*, *Pull*
+et *Rebase* restent relançables. *Créer une branche dans un nouveau
 worktree* reste possible pendant une action : il travaille dans un autre
 dossier.
 
@@ -775,15 +791,26 @@ clic sur un fichier d'un commit l'ouvre sous sa carte, tel qu'il est dans la
 PR, en lecture seule, ou son diff dans ce commit, ou depuis la base de la PR ;
 *Commenter* sur des lignes les cite dans une remarque), le plan de test à
 l'écran (étape Revue, *Plan de test à l'écran* : des cases à cocher pendant
-l'essai) et, à l'étape PR, la publication. *À revoir* et *Commenter* ajoutent
+l'essai) et, à l'étape PR, la publication. *Commenter* ajoute
 une remarque au **brouillon de revue** (un par PR) : le texte du champ, sinon ce
-qu'on cite ; elle se modifie sur place, × la retire. Le 💬 du bloc *Attention*
+qu'on cite ; elle reste sous l'élément commenté (un passage de la note, un module,
+un cas, un commit), grisée, avec un crayon pour la modifier sur place et une ×
+pour la retirer, et s'empile quand il y en a plusieurs. *À revoir* (sur la note, un
+cas, ou un commit : chacun a *Validé* / *À revoir*) ne met rien au brouillon :
+il montre « Ajouter une remarque au brouillon », qui ouvre la zone. *Poser une
+question à l'agent* (à côté de *Commenter*) cite l'élément dans le champ de la
+conversation, comme le *Commenter* du créateur : rien n'est envoyé avant *Envoyer*. Le 💬 du bloc *Attention*
 d'un cas ajoute son point d'attention à la zone de commentaire de la carte
 (ouverte au besoin, ce que vous y aviez écrit gardé) : vous précisez, puis
 *Ajouter* le verse au brouillon (pour un créateur, le même 💬 cite le cas dans
 le champ de la conversation). Enfin, à l'étape PR, le verdict (*Commenter* par
 défaut, *Approuver*, *Demander des changements*) et *Publier la revue*, qui
-l'envoie sur GitHub telle quelle.
+l'envoie sur GitHub telle quelle. Un *À revoir* quelque part propose *Demander
+des changements*, tout validé propose *Approuver* ; votre choix l'emporte, et
+rien ne part sans votre clic. Une fois publiée, la revue est marquée envoyée
+(grisée : le verdict, le nombre de remarques, la date, le lien) et *Publier la
+revue* est grisé (« déjà publiée ») tant que ni le brouillon ni le verdict n'ont
+changé.
 
 **La vue des branches.** Tout ce qui change de branche passe par un seul
 endroit : un clic sur la branche, en haut à gauche, ouvre la vue des

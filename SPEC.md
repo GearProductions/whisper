@@ -355,15 +355,23 @@ place, sinon l'accueil (*Nouvel agent…*).
 réponse (demande d'autorisation, question ; jusqu'à la réponse) ; pastille
 verte quand il a fini (réponse non lue) ; « ! » en échec (erreur). Chacun,
 quand il apparaît, avec le **bip** de la réponse (660 Hz, réglage *Bip*),
-joué par la fenêtre. Jamais pour l'agent affiché, dont la réponse est **lue
-d'office** (ni pastille ni bip). Ses **courses** (F-115) aussi, par-dessus
+joué par la fenêtre, seulement pour ce qui vient d'apparaître chez un autre
+agent : quitter un agent ne fait jamais sonner ce qu'on avait sous les yeux
+(`beepFor` retient les signaux de tous les agents, l'affiché compris).
+Jamais pour l'agent affiché, dont la réponse est **lue d'office** (ni pastille
+ni bip) : l'afficher, ou lire sa conversation, marque aussi ses courses
+*finies* comme vues (la pastille verte s'efface) ; une course *en échec* garde
+son « ! » jusqu'à l'ouverture de l'onglet *Actions*. Ses **courses** (F-115) aussi, par-dessus
 une conversation au repos (l'état de la conversation d'abord), dans cet
 ordre (ce qui attend l'utilisateur prime sur ce qui travaille seul) :
 *attend une autorisation* → « ? », *en cours* → le clignotement d'un tour,
 sans bip, *en échec* → « ! », *finie* → pastille verte ; une course
 *arrêtée* ne se signale pas. Infobulle : « dépôt · branche », le titre d'un
 enfant, l'état (*travaille*, *attend ta réponse*, *vient de finir*, *en
-pause* — l'échec —, *au repos*), la question. L'onglet *Actions (n)* de
+échec*, *au repos*), la question. Au repos ou venant de finir, un agent qui a
+des **tâches de fond** — celles de sa conversation et celles de ses courses
+vivantes (F-77, F-115) — pulse lentement (2 s) ; l'infobulle dit « surveille n
+tâche(s) de fond », la palette aussi à la place de « au repos ». Un sous-agent ou une commande lancés en fond ne font pas *travailler* l'agent : son tour fini, il reste joignable, seul un message de l'agent lui-même (une notification qui le réveille) ouvre un nouveau tour, pas ceux d'un sous-agent (note 0.15.0-stabilisation). L'onglet *Actions (n)* de
 l'agent efface *finie* et *en échec* (F-92) ; le « ? » reste jusqu'à la
 réponse. Pas de bandeau ni d'étiquette de notification dans l'en-tête ;
 fenêtre sans le focus : une **notification du système** pour la question ou
@@ -620,8 +628,13 @@ palette (Ctrl+K) ou Ctrl+Tab (F-92). En changeant d'agent, l'écran garde
 l'affichage d'avant jusqu'à ce que la conversation **et** le relevé du nouvel
 agent soient là : jamais de page vide, l'en-tête et les robots ne bougent
 pas. Ce qu'on a commencé sur l'écran d'un agent (réponses aux questions,
-champ de chaque étape, modèle choisi, verdict de la revue, étape choisie)
-l'attend quand on revient sur lui, le temps que l'appli tourne. La colonne
+champ de chaque étape, modèle choisi, verdict de la revue, étape choisie) et
+ce que chaque étape retient (par agent **et** par étape : le fichier choisi,
+les dossiers pliés et le défilement des vues IDE, l'onglet *Structure* ·
+*Code* de la Forme, le module déplié et la vue *IDE* · *liste* de Modules, le
+mode *Brut* de la note, le fichier ouvert des Invariants, le défilement de
+l'étape) l'attend quand on revient sur lui, le temps que l'appli tourne
+(en mémoire : un redémarrage l'oublie). La colonne
 de droite montre la conversation **en cours** de l'agent, ou une ancienne
 par l'🕘 Historique (F-67).
 
@@ -666,8 +679,8 @@ par l'🕘 Historique (F-67).
   casse), des **portées** (*Tout*, *Agents*, *Branches*, *PR* ; Tab : la
   suivante) et des groupes : les **agents** par dépôt, avec leurs worktrees
   et leurs PR plus petits sous leur parent, chacun sa pastille, « Étape … ·
-  état » (*travaille*, *attend ta réponse*, *vient de finir*, *en pause*, *au
-  repos*) ; les **branches** du dépôt de l'agent affiché, chacune son icône et
+  état » (*travaille*, *attend ta réponse*, *vient de finir*, *en échec*, *au
+  repos* — ou « surveille n tâches de fond », F-55) ; les **branches** du dépôt de l'agent affiché, chacune son icône et
   la pastille de l'agent qui la tient ; les **PR** ; les **actions** (*Nouvel
   agent…* Ctrl+N, *Créer une branche…*, *Gérer les branches et les PR…*
   Ctrl+Maj+B, *Mettre de côté les changements*). Au bout de chaque ligne, ce
@@ -841,8 +854,10 @@ principal pour l'agent affiché :
   ou `What it does`, `What it must not do`, `Shape`) : rédigée ou non, les
   lignes « ne doit pas » et leur marque (le premier mot connu après la
   dernière flèche : *invariant*, *variant*, *review*, *structure*), les
-  modules de la Forme et leur contrat (un chemin en tête de ligne, ou un
-  titre `###` ; hors bloc de code, pas la suite d'un paragraphe qui
+  modules de la Forme et leur contrat (un chemin en tête de ligne, ou
+  plusieurs — « a.ts + b.ts  contrat », une espace de chaque côté du « + », le
+  contrat après deux espaces ou plus : des fichiers qui ne compilent
+  qu'ensemble, un module et un commit ; ou un titre `###` ; hors bloc de code, pas la suite d'un paragraphe qui
   commence par un chemin ; une Forme sans titre `###` dont un bloc de code
   ouvre un module : seules les lignes de ses blocs sont lues, la prose qui
   commence par un nom de fichier n'est pas un module ; sans bloc de code,
@@ -852,8 +867,9 @@ principal pour l'agent affiché :
   `test`, fonctions `#[test]`, `def test_…`) et leur empreinte git ; ceux
   rangés sous `tests/invariants/` sont les invariants (et pourquoi ils ne
   s'éditent pas, `locked`). Un fichier sans cas n'est pas montré ;
-- les **modules** de la Forme : touchés par la branche ou non, les commits qui
-  les touchent, leur fichier s'il existe (tel quel ou sous `src/`) ; un module
+- les **modules** de la Forme (un module à plusieurs chemins : ses fichiers sont
+  ceux sous l'un d'eux, il est touché si l'un l'est) : touchés par la branche ou
+  non, les commits qui les touchent, leur fichier s'il existe (tel quel ou sous `src/`) ; un module
   touché, ses fichiers (`files`, ids `m<rang>/<i>`, triés : son dossier et ses
   sous-dossiers, sans lien ni fichier ou dossier caché ni dossier
   `node_modules`, `target`, `dist`, `build`, chacun dans le dossier de
@@ -1162,7 +1178,10 @@ si le gabarit n'a pas `{{quote}}`) : en créateur,
 *Commenter* sur un bloc, un module ou un cas (« À propos de « … » : »), *À revoir* sur un cas
 de test (« Invariant « … » : à revoir — ») ; possible
 pendant que l'agent travaille. On complète, puis on envoie. En relecteur, *Commenter*
-et *À revoir* vont au brouillon de revue (F-101), pas au champ ; le *Commenter* d'une ligne
+va au brouillon de revue (F-101), pas au champ, et *À revoir* ne fait que marquer
+(F-101) ; pour demander quelque chose à l'agent, *Poser une question à l'agent*
+(icône « ask », à côté de *Commenter*) cite l'élément dans le champ, comme le
+*Commenter* du créateur, et n'envoie rien ; le *Commenter* d'une ligne
 ou d'une sélection d'un fichier d'un commit aussi : une zone de commentaire,
 puis une remarque pour ce commit, son chemin et ses lignes entières citées
 en bloc de code. Le 💬 du bloc *Attention* d'une carte d'invariant (le point
@@ -1174,8 +1193,8 @@ précise, et seul *Ajouter* le verse au brouillon.
 
 **La dictée** (le micro de chaque zone de prompt, maintenu, F-68 : il donne
 le clavier à son champ) va à la zone de texte qui a le clavier : le
-champ d'une étape, la zone de commentaire du relecteur (*Commenter*, *À revoir*, une remarque
-du brouillon), la réponse libre d'une question ouverte ; à la place de la
+champ d'une étape, la zone de commentaire du relecteur (*Commenter*, le bouton de remarque d'un
+*À revoir*, une remarque du brouillon), la réponse libre d'une question ouverte ; à la place de la
 sélection, précédée d'une espace si le texte avant le curseur ne finit pas
 par un blanc, coupée à la longueur de la zone (un commentaire : 5 000
 caractères ; plus de place : rien n'est inséré). Les éditeurs de code (la
@@ -1323,8 +1342,10 @@ conversation ; note `0.9.0-actions-independantes.md`).
 - **Le signal** : une course qui attend une autorisation, finit ou échoue se
   signale sur le robot de son agent, avec le bip (F-55) ; finie ou en échec,
   jusqu'à ce qu'on ouvre son onglet *Actions (n)* (F-92 ; chaque course
-  retient l'état où elle a été vue) ; une autorisation, jusqu'à sa réponse,
-  vue ou pas. Une course en cours fait clignoter le robot dès son départ,
+  retient l'état où elle a été vue) — *finie*, aussi quand son agent est
+  affiché ou que sa conversation est lue, *en échec* non : son « ! » reste
+  jusqu'à l'onglet — ; une autorisation, jusqu'à sa réponse, vue ou pas. Ses
+  tâches de fond (celles des courses vivantes) comptent pour le robot (F-55). Une course en cours fait clignoter le robot dès son départ,
   sans bip, quand rien d'autre ne se signale. Pas de signal pour une course
   arrêtée.
 - **Arrêter, puis Garder ou Annuler** : *Arrêter* (onglet *Actions*, ou à côté du
@@ -1567,7 +1588,13 @@ créateur ; le relecteur, F-101) :
    seul ; la PR ouverte, un nouveau commit qui dit pourquoi), puis *✓
    Commiter* ; la carte du commit proposé (commit.md) est aussi dans cette
    étape, ses actions hors de l'en-tête. Une note jamais commitée qui change :
-   rien (elle part avec le premier commit).
+   rien (elle part avec le premier commit). Une fois un module touché, le
+   parcours ne recule plus : une retouche de la note ou d'un test d'invariant
+   de la branche (une passe, un harnais) laisse la Forme et les Invariants
+   faits, ses faits disent toujours « note modifiée depuis son commit », et
+   c'est l'étape Modules qui l'attend : elle n'est faite qu'une fois la
+   retouche commitée (*Commiter les modules*, ou *Préparer le commit* quand
+   tous les modules le sont déjà ; note 0.15.0-stabilisation). De même, une validation faite puis dépassée par une retouche (« modifiée depuis la validation » : la note, sa Forme, un cas d'invariant) compte encore une fois un module touché : l'écran la dit changée, *Revalider* reste possible, rien ne recule.
    Montre, en **vue IDE** (la seule), l'arborescence des modules à gauche,
    par dossier (`src/` de tête ignoré), chacun avec son numéro (son rang dans
    la Forme, l'ordre où les générer) et le nom coloré comme dans la vue IDE de
@@ -1686,14 +1713,18 @@ créateur ; le relecteur, F-101) :
    déjà commité — jamais du premier commit de la branche, qui ne porte que la
    note, la forme, les invariants rouges et leurs squelettes —, un nouveau
    commit une fois la PR ouverte) sont des gestes à
-   part. *Commiter les modules* suit l'ordre de la Forme et vérifie, après
-   chaque commit, qu'il compile : le typage du projet sur le contenu du
-   commit (`git archive` dans un dossier temporaire, `node_modules` lié),
-   jamais sur le dossier de travail, que l'appli peut faire tourner et qui
-   contient les modules pas encore commités. Un projet sans typage connu
+   part. *Commiter les modules* suit l'ordre de la Forme et vérifie, avant
+   chaque commit, qu'il compile : le typage du projet sur ce que le commit
+   contiendra (l'arbre d'un index temporaire, extrait par `git archive` dans un
+   dossier temporaire, `node_modules` lié), jamais sur le dossier de travail
+   (que l'appli peut faire tourner) ni sur l'index réel, qui contiennent les
+   modules pas encore commités. Un module de plusieurs chemins (« a + b ») ne
+   fait qu'un commit ; si l'erreur de typage nomme les fichiers d'un module
+   suivant de la Forme qui a des changements, ce module rejoint le même commit
+   au lieu que tout s'arrête. Un projet sans typage connu
    (ni `AGENTS.md`, ni manifeste qui en donne un) : le commit reste et la
-   réponse dit qu'il n'a pas été vérifié. Un commit qui ne compile pas :
-   elle s'arrête et le dit, les suivants ne sont pas faits ; ni amend, ni
+   réponse dit qu'il n'a pas été vérifié. Une erreur que ce rattrapage n'explique pas :
+   elle s'arrête et le dit, ce commit et les suivants ne sont pas faits ; ni amend, ni
    rebase, ni `--no-verify` pour le rattraper. Les éditeurs (le code, la note en édition) défilent dans
    CodeMirror lui-même, hauteur bornée : pas de vide au-dessus du texte. Seul ce
    fichier est lu, à l'ouverture puis à chaque changement sur le disque
@@ -1748,7 +1779,8 @@ créateur ; le relecteur, F-101) :
    diff, *En ligne* ou *Côte à côte*, comme *Voir le code*), et son code en
    diff git. La vue choisie est retenue d'une
    ouverture à l'autre (`vibeModulesView`, § 9 ; `conv:vibeSet`) ; défaut :
-   *liste*. Sans module (sans Forme), les deux vues montrent l'arborescence
+   *liste* ; chaque agent la garde en plus pour lui (F-91 : un autre agent
+   part du dernier choix enregistré, qui reste enregistré). Sans module (sans Forme), les deux vues montrent l'arborescence
    des fichiers de la branche ; la Forme, elle, n'ajoute pas les variants
    (elle les nomme dans le contrat de chaque module, skill `forme`). La vue IDE n'ajoute aucune action : elle montre
    ce que Forme et Modules montrent déjà. Dans les deux étapes, sa carte prend
@@ -1855,12 +1887,31 @@ la note*, *Relire les commits*, *Lire en pseudo-code*, *Vérifier l'alignement*,
 *Plan de test à l'écran*, *Publier la revue* — et le principal les refuse de
 même, quoi que dise la page, ainsi qu'*Enregistrer*, d'après le rôle de son
 dernier relevé (I-37, I-39). Le badge *Relecteur* de l'en-tête le dit (F-92).
-On y retrouve toutes les fonctions de l'ancien *Relire* : juger la note et les
-cas, et ajouter au brouillon de revue une remarque sur des lignes de la note ou
+On y retrouve toutes les fonctions de l'ancien *Relire* : juger la note, les
+cas et les commits, et ajouter au brouillon de revue une remarque sur des lignes de la note ou
 sur tout ce que *Commenter* cible (la relecture de la note, l'alignement, un
-cas, un commit, les lignes d'un fichier d'un commit). Les étapes, faites quand :
-1. **Note** — absente de la PR, ou jugée : *Valider*, ou *À revoir* (« La note
-   est à revoir. » au brouillon). Montre la note de la PR (comme pour le
+cas, un commit, les lignes d'un fichier d'un commit).
+- **Les remarques restent sur place** : celles du brouillon sont sous l'élément
+  commenté (un passage ou un bloc de la note, un module de la Forme, un cas
+  d'invariant, un commit), grisées et empilées quand il y en a plusieurs, avec un
+  crayon (la zone de commentaire sur place, même cible, mêmes limites) et une
+  croix (la retirer), comme dans le brouillon de l'étape PR.
+- **Poser une question à l'agent** (icône « ask », à côté de *Commenter*, sur
+  la note, un module, un cas, un commit) : cite l'élément dans le champ de la
+  conversation, comme le *Commenter* du créateur ; rien n'est envoyé avant
+  *Envoyer* (I-2). *Commenter* reste la remarque de revue.
+- **Les verdicts proposent** : chaque commit a *Validé* / *À revoir* comme un cas
+  (cible `commit:<hash>`, F-102 : la marque suit le hash du commit). Un *À revoir* sur la note, un cas ou un commit
+  propose *Demander des changements* à la publication ; tout validé (la note,
+  chaque cas, chaque commit) propose *Approuver* ; sinon *Commenter*. Le choix de
+  l'utilisateur l'emporte, et rien ne part avant son clic sur *Publier la revue*.
+  *À revoir* n'ouvre plus la zone de commentaire de lui-même : il montre
+  « Ajouter une remarque au brouillon », qui l'ouvre ; sans ce clic, rien n'est
+  ajouté.
+
+Les étapes, faites quand :
+1. **Note** — absente de la PR, ou jugée : *Valider*, ou *À revoir* (rien au
+   brouillon de lui-même). Montre la note de la PR (comme pour le
    créateur) et sa relecture par l'agent (`pr-<n>-note.md`). *Relire la note*
    (décisions à discuter, manques, invariants mal classés).
 2. **Forme** — faite avec la Note : rien à juger, donc pas de *Valider la
@@ -1876,7 +1927,7 @@ cas, un commit, les lignes d'un fichier d'un commit). Les étapes, faites quand 
    de la PR** (l'ancienne étape Commits), en lecture seule : sans IA, leur liste
    (hash, sujet, fichiers touchés), chacun avec *Voir le diff*, *GitHub*
    (ci-dessous) et ses fichiers ; relus, une carte par commit (hash, sujet,
-   remarques). Un clic sur un fichier d'un commit l'ouvre dans le panneau, sous
+   remarques, *Validé* / *À revoir*). Un clic sur un fichier d'un commit l'ouvre dans le panneau, sous
    sa carte (un seul à la fois ; recliqué : fermé) : sa version à la tête de la
    PR, comme le code de *Voir le code* (F-113), en lecture seule (ni édition,
    ni *Enregistrer*, ni Ctrl+S) ; absent là ou trop gros, « absent à la tête de
@@ -1889,11 +1940,17 @@ cas, un commit, les lignes d'un fichier d'un commit). Les étapes, faites quand 
    duplication, les en-têtes, l'histoire des commits).
 5. **Revue** — le plan à l'écran écrit et toutes ses cases cochées : la seule
    catégorie du relecteur, *Relire à l'écran* (F-100).
-6. **PR** — la revue publiée (`pr-<n>-review.json` : son état, son lien).
-   Montre la carte de la PR, *S'assigner la PR*, puis le **brouillon de
-   revue**, le verdict (*Approuver*, *Commenter* par défaut, *Demander des
-   changements*) et *Publier la revue*, qui l'envoie sur GitHub, tel quel, avec
-   ce verdict (F-114). Le brouillon, le verdict et *Publier la revue* sont
+6. **PR** — la revue publiée (`pr-<n>-review.json` : son état, son lien, le
+   verdict donné, le texte publié et sa date ; une revue d'avant n'a que les
+   deux premiers). Montre la carte de la PR, *S'assigner la PR*, puis le **brouillon de
+   revue**, le verdict (*Approuver*, *Commenter* par défaut — ou celui que
+   proposent les verdicts, ci-dessus —, *Demander des changements*) et *Publier la revue*, qui l'envoie sur GitHub, tel quel, avec
+   ce verdict (F-114). Une fois publiée, la revue affichée est marquée envoyée :
+   grisée, avec son résumé sur sa ligne d'état (le verdict, le nombre de
+   remarques, la date, le lien), et *Publier la revue* est grisé (« déjà
+   publiée ») tant que ni le brouillon ni le verdict n'ont changé — une remarque
+   de plus, ou un autre verdict seul, en fait une nouvelle revue ; une revue
+   d'avant (sans verdict ni texte) laisse *Publier la revue* possible. Le brouillon, le verdict et *Publier la revue* sont
    réservés au relecteur : le créateur corrige lui-même (*Commenter* cite dans
    la conversation) et GitHub refuse d'approuver sa propre PR.
 
@@ -1907,10 +1964,11 @@ l'agent, ni à la suite d'une autre action).
 Le brouillon, gardé par PR : une remarque = sa cible (une ligne, 300
 caractères au plus) et son texte (5 000 au plus) — le texte du champ s'il y
 en a (le champ se vide ; trop long, il reste et l'écran le dit), sinon ce
-qu'on cite. *À revoir* sur la note ou un cas, *Commenter* sur la note, sa relecture,
-l'alignement, un cas, un commit ou les lignes d'un fichier d'un commit y
-ajoutent une remarque ; elle se modifie
-sur place (même cible, mêmes limites) ou se retire (×).
+qu'on cite. *Commenter* sur la note, sa relecture, l'alignement, un cas, un
+commit ou les lignes d'un fichier d'un commit, ou le bouton « Ajouter une
+remarque au brouillon » d'un *À revoir* (la note, un cas, un commit), ouvrent la
+zone de commentaire : la remarque s'ajoute à *Ajouter* ; elle se modifie
+sur place (même cible, mêmes limites) ou se retire (×), sous l'élément comme ici.
 
 **Ouvrir**, ce que désigne un id du dernier
 relevé (I-37), dans l'éditeur (`editorCommand`, sinon le premier trouvé,
@@ -2324,7 +2382,9 @@ le *via* ; une entrée retirée retire les deux boutons.
 - *Publier la revue* : le brouillon (« - [cible] texte » par remarque) écrit
   par l'appli dans `<sorties>/pr-<n>-review-body.md`, puis `gh pr review <n>
   --approve|--comment|--request-changes --body-file <ce fichier>` ; publiée,
-  `pr-<n>-review.json` (`state` d'après le verdict, `url` : la PR).
+  `pr-<n>-review.json` (`state` d'après le verdict, `url` : la PR, `verdict`,
+  `body` : le texte publié, `at` : la date ISO ; le skill `publier-revue` écrit
+  les mêmes champs).
 - *Charger la PR* (un clic sur une PR de la vue des branches, F-110) : `gh pr
   view <n> --json number,title,url,author,baseRefName,headRefName,body,state`
   → `pr-<n>.json` (avant : `gh pr view <n> --json isCrossRepository`, une
@@ -2444,8 +2504,14 @@ commande, code de sortie, sortie courte). En fond, une à la fois par agent :
 pendant ce temps « … » sous le bouton et les actions directes grisées (« Une commande
 directe est en cours ») ; puis le dernier résultat, ✓ ou ✗ et une ligne (en
 anglais, comme les skills techniques, F-108), le détail (chaque commande et
-sa sortie) à déplier. Gardé en mémoire, par agent, jusqu'à la sortie de
-l'appli (I-39, I-29). La recette (*Dans un nouveau worktree*, *Retirer le
+sa sortie) à déplier ; sa place est réservée sous le bouton (rien ne se
+décale quand il apparaît). Gardé en mémoire, par agent, jusqu'à la sortie de
+l'appli (I-39, I-29). Une action **faite et dont rien n'a changé depuis** ne se
+relance pas d'un clic par erreur : seul *PR mergée → revenir sur la base*,
+une fois fait et le dossier sur la base, est grisé (« Déjà sur la base ») ;
+*Mettre de côté*, *Actualiser*, *Pull* et *Rebase* restent relançables, et les
+autres sont déjà grisées ou masquées d'après le relevé (*✓ Commiter*, *Pousser*,
+*S'assigner la PR*…). La recette (*Dans un nouveau worktree*, *Retirer le
 worktree*) suit ses propres règles (F-111 : 15 min par étape,
 `recipe.log`).
 
@@ -2477,12 +2543,23 @@ plus).
 `variants :` (le fichier de tests ordinaires, existant ou « à créer », ou
 `aucun` et pourquoi), puis les cas à couvrir, chacun commençant par un mot
 (jamais par un chemin : sous un dossier, il serait lu comme un module) ;
-l'écran les lit comme le reste du contrat. `module` et `developpeur` les
+l'écran les lit comme le reste du contrat. Des modules qui ne compilent
+qu'ensemble (l'un importe une constante de l'autre) : une seule entrée, leurs chemins
+en tête séparés par « + ». `module` et `developpeur` les
 écrivent d'abord, les lancent et les voient échouer pour la bonne raison,
 puis écrivent le code jusqu'à ce qu'ils passent (TDD, guide § 3.4), et le
 disent dans leur réponse (rouges, puis verts) ; `modules` vérifie à la
 relecture qu'ils sont dans le fichier nommé, couvrent ses cas et ont été vus
 rouges (note 0.15.0-variants-tdd).
+**Les questions** (`note` et `vibe`, dans `<sorties>/questions.md` ; `forme`, dans
+sa réponse) se comprennent sans connaître le code : une clarté vaut mieux qu'une
+brièveté. Chacune commence par une ou deux phrases de contexte, en langage simple,
+sous le titre et avant les options (le questionnaire les lit comme le texte de la
+question) ; elle reprend les mots de l'utilisateur et dit ce qu'il voit ou fait
+(un bouton, une étape, un message) ; un numéro (`I-xx`, `T-xx`), un nom de
+fonction ou de fichier n'est jamais seul, il vient avec ce qu'il désigne ; les
+options se comprennent sans relire le code, la recommandée marquée
+« (recommandé) » avec sa raison en quelques mots.
 Un agent du plugin, Sonnet à effort élevé : `developpeur` (un module de la
 Forme, `ponytail` préchargé, ses variants d'abord, le typecheck et les tests de son module
 seulement, rien de commité), lancé par `modules` (Opus · élevé), qui relit
@@ -3348,13 +3425,16 @@ relire, une PR d'essai sur GitHub)
   le parcours commence à Note et se lit dans la copie de travail (note,
   invariants, modules et commits). *Relire la note*, *Relire les commits*, *Plan
   de test à l'écran* (étape Revue, *Relire à l'écran*) : leurs sorties dans les
-  étapes. Un *À revoir* et un *Commenter* complété par le
-  champ → deux remarques au brouillon ; en retirer une ; le 💬 du bloc
+  étapes. Un *À revoir* → rien au brouillon, mais « Ajouter une remarque au
+  brouillon » et un verdict proposé (*Demander des changements*) ; un *Commenter*
+  complété par le champ → une remarque, visible sous l'élément ; en retirer une ;
+  *Poser une question à l'agent* → l'élément cité dans le champ, rien d'envoyé ; le 💬 du bloc
   *Attention* d'un cas → son texte dans la zone de commentaire de la carte,
   ouverte, ce qu'on y avait écrit gardé, rien au brouillon avant *Ajouter*.
   Étape PR : brouillon vide, *Publier la revue* grisé. *Publier la revue*
   (commenter) : la revue paraît sur la PR d'essai, telle quelle ; l'étape PR
-  est faite. *S'assigner la PR* → le badge disparaît au relevé suivant, les
+  est faite ; la revue est marquée envoyée et *Publier la revue* grisé jusqu'à
+  une remarque de plus ou un autre verdict. *S'assigner la PR* → le badge disparaît au relevé suivant, les
   actions de création reviennent ; *Me retirer de la PR* → relecteur de nouveau.
 - **S-55** ⚙ → *Interface* → *Langue de l'interface* : *English* : l'écran, les
   boutons, les faits des étapes en anglais ; une action part en anglais
