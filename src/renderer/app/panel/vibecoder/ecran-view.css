@@ -42,7 +42,7 @@
   transform: rotate(45deg);
 }
 .vc-plan-list input:focus-visible { outline: 2px solid var(--vc-accent); outline-offset: 2px; }
-.vc-plan-text { flex: 1; min-width: 0; color: var(--vc-text); font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+.vc-plan-text { flex: 1; min-width: 0; color: var(--vc-text); font-size: 13px; line-height: 1.55; overflow-wrap: break-word; text-wrap: pretty; }
 .vc-plan-text code { padding: 1px 5px; border-radius: 4px; background: var(--vc-deep); color: var(--vc-text); font: 12px/1.5 var(--vc-mono); }
 .vc-plan-text a { color: var(--vc-accent); text-decoration: underline; text-underline-offset: 2px; }
 .vc-plan-list label[data-done] .vc-plan-text, .vc-plan-list label[data-done] .vc-plan-text code { color: var(--vc-faint); }

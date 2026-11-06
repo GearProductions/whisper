@@ -13,4 +13,4 @@
 .vc-send:disabled { opacity: 0.4; cursor: default; }
 .vc-prompt { display: flex; align-items: flex-end; gap: 8px; padding: 8px 8px 8px 12px; border: 1px solid var(--vc-edge); border-radius: 10px; background: var(--vc-bg); }
 .vc-prompt:focus-within { border-color: var(--vc-active-edge); }
-.vc-prompt > textarea { flex: 1; min-width: 0; margin: 0; padding: 4px 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; outline: none; }
+.vc-prompt > textarea { flex: 1; min-width: 0; margin: 0; padding: 4px 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; outline: none; color: var(--vc-text); }
