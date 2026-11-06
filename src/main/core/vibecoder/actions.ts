@@ -28,6 +28,7 @@
  *  le calcul du préfixe (core/runner, fait par l'appelant).
  *  Utilisé par : core/vibecoder (journey, runs, defaults), core/commands (readArgs), app/controllers (vibecoder, runs), app/settings. */
 import { EFFORTS } from 'core/agents';
+import { oneLine } from 'helpers';
 import type { VibeAction, VibeArgs, VibeLang, VibeModule, VibeStepId, VibeView } from 'shared/bridge';
 import { json } from './outputs';
 
@@ -190,7 +191,7 @@ export function buildMessage(def: ActionDef, args: VibeArgs, ctx: MessageContext
     },
     module: () => {
       const m = targetModule(args, view.modules);
-      return !m ? fail('module') : m.contract ? `${m.path} — ${m.contract}` : m.path;
+      return !m ? fail('module') : m.contract ? `${m.path} — ${oneLine(m.contract)}` : m.path;   // un contrat sur plusieurs lignes : sur une
     },
     commit: () => {
       if (args.commit === undefined) return 'WORKTREE';
