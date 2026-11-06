@@ -494,6 +494,217 @@
       }
     },
     {
+      "name": "artifacts",
+      "kind": "read",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "description": "The project's artifacts folder: its real path on this machine (only the app knows the project's key) and what it holds, files and folders, by id. Answers one object; dir is empty when the folder has no survey of it. Fails when the folder has no survey.",
+      "response": {
+        "type": "object",
+        "description": "The artifacts folder.",
+        "properties": {
+          "dir": {
+            "type": "string",
+            "description": "The real path of the artifacts folder."
+          },
+          "files": {
+            "type": "array",
+            "description": "The files, in name order.",
+            "items": {
+              "type": "object",
+              "description": "One artifact.",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Its id (a<i>), to give to artifact and to the other artifact commands."
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Its path under the folder, subfolders included."
+                },
+                "kind": {
+                  "type": "string",
+                  "description": "markdown, text, page (HTML or SVG) or media (image, PDF, sound, video).",
+                  "enum": [
+                    "markdown",
+                    "text",
+                    "page",
+                    "media"
+                  ]
+                },
+                "size": {
+                  "type": "integer",
+                  "description": "Its size in bytes."
+                },
+                "time": {
+                  "type": "integer",
+                  "description": "Its last change, in milliseconds since the epoch."
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "kind",
+                "size",
+                "time"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "folders": {
+            "type": "array",
+            "description": "The folders.",
+            "items": {
+              "type": "object",
+              "description": "One folder.",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Its id (d<i>)."
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Its path under the folder."
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "dir",
+          "files",
+          "folders"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "artifact",
+      "kind": "read",
+      "agent": true,
+      "description": "The content of one artifact, for a client that cannot read the disk: text for a markdown, text or page, base64 for a media; cut when it is too long (truncated). Answers { name, kind, text or base64, truncated }, or null when the id is not in the last survey or is a link.",
+      "args": {
+        "type": "object",
+        "properties": {
+          "artifact": {
+            "type": "string",
+            "description": "An artifact id (a<i>) from artifacts, never a path."
+          }
+        },
+        "required": [
+          "artifact"
+        ],
+        "additionalProperties": false
+      },
+      "response": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "description": "The artifact and its content.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Its path under the artifacts folder."
+          },
+          "kind": {
+            "type": "string",
+            "description": "markdown, text, page (HTML or SVG) or media (image, PDF, sound, video).",
+            "enum": [
+              "markdown",
+              "text",
+              "page",
+              "media"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "description": "Its text, for a markdown, a text or a page."
+          },
+          "base64": {
+            "type": "string",
+            "description": "Its bytes in base64, for a media."
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "The content is cut at the maximum size."
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "truncated"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "draft",
+      "kind": "read",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "description": "The review draft of the followed pull request (never an argument: the one loaded in the survey): its remarks, kept until the review is published. Answers { pr, remarks }; pr is null and remarks empty when no pull request is followed.",
+      "response": {
+        "type": "object",
+        "description": "The draft.",
+        "properties": {
+          "pr": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "The number of the followed pull request; null when none."
+          },
+          "remarks": {
+            "type": "array",
+            "description": "The remarks, in the order they were added.",
+            "items": {
+              "type": "object",
+              "description": "One remark.",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "description": "Its id, to give to draft.edit and draft.remove."
+                },
+                "target": {
+                  "type": "string",
+                  "description": "What it is about, such as src/a.ts:3."
+                },
+                "text": {
+                  "type": "string",
+                  "description": "The remark."
+                }
+              },
+              "required": [
+                "id",
+                "target",
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "pr",
+          "remarks"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
       "name": "run.start",
       "description": "Starts an action on its own, as a run, with its skill, model and effort from the settings. Answers nothing but starts the run; follow it with runs. Fails (the request is refused) when the action is unknown, not offered at this step, already running, a direct-only one, an argument is invalid or the app halted Vibe mode; it waits when another run holds the folder. An argument the action does not read is ignored, and the notice says so.",
       "kind": "write",
@@ -598,6 +809,56 @@
               "comment",
               "request-changes"
             ]
+          },
+          "pieces": {
+            "type": "object",
+            "description": "The attachments of the message field, read by the action's template as the user's text: images, files and a selected text. Optional; each part optional.",
+            "properties": {
+              "images": {
+                "type": "array",
+                "description": "Images to send with the text, 20 at most.",
+                "maxItems": 20,
+                "items": {
+                  "type": "object",
+                  "description": "One image, its bytes in base64 (50 MiB at most once decoded).",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "Its file name."
+                    },
+                    "type": {
+                      "type": "string",
+                      "description": "Its media type, such as image/png."
+                    },
+                    "data": {
+                      "type": "string",
+                      "description": "Its bytes, in base64.",
+                      "maxLength": 69905068
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "files": {
+                "type": "array",
+                "description": "Absolute paths of files on this machine to point the agent at, 50 at most.",
+                "maxItems": 50,
+                "items": {
+                  "type": "string",
+                  "description": "An absolute file path."
+                }
+              },
+              "selection": {
+                "type": "string",
+                "description": "A selected text to quote, 100,000 characters at most.",
+                "maxLength": 100000
+              }
+            },
+            "additionalProperties": false
           }
         },
         "required": [
@@ -722,6 +983,25 @@
         "additionalProperties": false
       },
       "reason": "An agent never grants itself rights: only the user answers a permission request (I-13 to I-18)."
+    },
+    {
+      "name": "proc.start",
+      "description": "Starts a command of the project. Answers nothing. Does nothing for a name the project does not have, or for a command that is already running.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of one of the project's commands, as in its commands file: only the names of the project's commands count."
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
     },
     {
       "name": "proc.stop",
@@ -975,17 +1255,45 @@
     },
     {
       "name": "add-artifact",
-      "description": "Adds files the user dropped on the Artifacts panel to the artifacts folder, in a folder of the survey or at its root; never overwrites. Run by the app itself, without an agent. Fails when the folder id is unknown or another direct action is running.",
+      "description": "Adds files to the artifacts folder, in a folder of the survey or at its root; never overwrites. Each file is either a path on this machine, or a name and its content in base64 for a client without access to the disk. Run by the app itself, without an agent. Fails when the folder id is unknown or another direct action is running; a file that is refused (unsafe name, invalid base64, too big, request too big) is reported, the others are added.",
       "kind": "write",
       "agent": true,
       "args": {
         "type": "object",
         "properties": {
+          "files": {
+            "type": "array",
+            "description": "The files to add, each either { path } (an absolute path on this machine) or { name, content } (a plain file name and its content in base64, 10 MiB at most once decoded, 25 MiB at most for the whole request): path, or name and content, never both.",
+            "maxItems": 1000,
+            "items": {
+              "type": "object",
+              "description": "One file: path, or name and content.",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "description": "An absolute path of a file or a folder on this machine."
+                },
+                "name": {
+                  "type": "string",
+                  "description": "A plain file name, without folder; with content."
+                },
+                "content": {
+                  "type": "string",
+                  "description": "The content, in base64; with name.",
+                  "maxLength": 13981016
+                }
+              },
+              "additionalProperties": false
+            }
+          },
           "folder": {
             "type": "string",
             "description": "The id (d<i>) of a folder from the last survey; none: the root."
           }
         },
+        "required": [
+          "files"
+        ],
         "additionalProperties": false
       }
     },
@@ -1177,6 +1485,52 @@
       }
     },
     {
+      "name": "commit",
+      "description": "Commits with the message prepared by commit-prepare (git commit -F commit.md; nothing is added to the index). Run by the app itself, without an agent. Fails when there is no prepared message, or when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "publish",
+      "description": "Publishes the review draft of the followed pull request as a GitHub review (gh pr review) with the given verdict. Run by the app itself, without an agent. Refused when no pull request is followed, when the verdict is not one of the three, or when the draft is empty. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "description": "approve, comment or request-changes: the verdict of the review.",
+            "enum": [
+              "approve",
+              "comment",
+              "request-changes"
+            ]
+          }
+        },
+        "required": [
+          "verdict"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "base",
+      "description": "Goes back to the base branch after the pull request is merged: switches to the base, pulls it fast-forward only and deletes the local branch. Run by the app itself, without an agent. Refused when the folder has uncommitted changes, or when the pull request is not merged. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
       "name": "load-pr",
       "description": "Loads a pull request of this repository (a fork's is refused): fetches its head and base, records its card and follows it. The app does it itself, or an agent does it from the same template. Fails when another direct action of this folder is running, when a run holds the folder, or when no survey of the folder is available. Fails when no pull request is given and none is followed, and in a worktree.",
       "kind": "write",
@@ -1238,6 +1592,56 @@
             "type": "string",
             "description": "The question, 20,000 characters at most.",
             "maxLength": 20000
+          },
+          "pieces": {
+            "type": "object",
+            "description": "The attachments of the message field, read by the action's template as the user's text: images, files and a selected text. Optional; each part optional.",
+            "properties": {
+              "images": {
+                "type": "array",
+                "description": "Images to send with the text, 20 at most.",
+                "maxItems": 20,
+                "items": {
+                  "type": "object",
+                  "description": "One image, its bytes in base64 (50 MiB at most once decoded).",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "Its file name."
+                    },
+                    "type": {
+                      "type": "string",
+                      "description": "Its media type, such as image/png."
+                    },
+                    "data": {
+                      "type": "string",
+                      "description": "Its bytes, in base64.",
+                      "maxLength": 69905068
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "files": {
+                "type": "array",
+                "description": "Absolute paths of files on this machine to point the agent at, 50 at most.",
+                "maxItems": 50,
+                "items": {
+                  "type": "string",
+                  "description": "An absolute file path."
+                }
+              },
+              "selection": {
+                "type": "string",
+                "description": "A selected text to quote, 100,000 characters at most.",
+                "maxLength": 100000
+              }
+            },
+            "additionalProperties": false
           }
         },
         "additionalProperties": false
@@ -1255,48 +1659,60 @@
             "type": "string",
             "description": "The request, required, 20,000 characters at most.",
             "maxLength": 20000
+          },
+          "pieces": {
+            "type": "object",
+            "description": "The attachments of the message field, read by the action's template as the user's text: images, files and a selected text. Optional; each part optional.",
+            "properties": {
+              "images": {
+                "type": "array",
+                "description": "Images to send with the text, 20 at most.",
+                "maxItems": 20,
+                "items": {
+                  "type": "object",
+                  "description": "One image, its bytes in base64 (50 MiB at most once decoded).",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "Its file name."
+                    },
+                    "type": {
+                      "type": "string",
+                      "description": "Its media type, such as image/png."
+                    },
+                    "data": {
+                      "type": "string",
+                      "description": "Its bytes, in base64.",
+                      "maxLength": 69905068
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "files": {
+                "type": "array",
+                "description": "Absolute paths of files on this machine to point the agent at, 50 at most.",
+                "maxItems": 50,
+                "items": {
+                  "type": "string",
+                  "description": "An absolute file path."
+                }
+              },
+              "selection": {
+                "type": "string",
+                "description": "A selected text to quote, 100,000 characters at most.",
+                "maxLength": 100000
+              }
+            },
+            "additionalProperties": false
           }
         },
         "required": [
           "text"
-        ],
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "comment",
-      "description": "Prepares the message field with a comment on a quoted passage (« À propos de « <quote> » : »), for the user to finish; nothing is sent.",
-      "kind": "write",
-      "agent": true,
-      "args": {
-        "type": "object",
-        "properties": {
-          "quote": {
-            "type": "string",
-            "description": "The passage the comment is about."
-          }
-        },
-        "required": [
-          "quote"
-        ],
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "case-ko",
-      "description": "Prepares the message field with a rejection of a quoted invariant case (« Invariant « <quote> » : à revoir — »), for the user to finish; nothing is sent.",
-      "kind": "write",
-      "agent": true,
-      "args": {
-        "type": "object",
-        "properties": {
-          "quote": {
-            "type": "string",
-            "description": "The invariant case being rejected."
-          }
-        },
-        "required": [
-          "quote"
         ],
         "additionalProperties": false
       }
@@ -1313,8 +1729,129 @@
             "type": "string",
             "description": "A precision for the proposal, 20,000 characters at most.",
             "maxLength": 20000
+          },
+          "pieces": {
+            "type": "object",
+            "description": "The attachments of the message field, read by the action's template as the user's text: images, files and a selected text. Optional; each part optional.",
+            "properties": {
+              "images": {
+                "type": "array",
+                "description": "Images to send with the text, 20 at most.",
+                "maxItems": 20,
+                "items": {
+                  "type": "object",
+                  "description": "One image, its bytes in base64 (50 MiB at most once decoded).",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "Its file name."
+                    },
+                    "type": {
+                      "type": "string",
+                      "description": "Its media type, such as image/png."
+                    },
+                    "data": {
+                      "type": "string",
+                      "description": "Its bytes, in base64.",
+                      "maxLength": 69905068
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "files": {
+                "type": "array",
+                "description": "Absolute paths of files on this machine to point the agent at, 50 at most.",
+                "maxItems": 50,
+                "items": {
+                  "type": "string",
+                  "description": "An absolute file path."
+                }
+              },
+              "selection": {
+                "type": "string",
+                "description": "A selected text to quote, 100,000 characters at most.",
+                "maxLength": 100000
+              }
+            },
+            "additionalProperties": false
           }
         },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "draft.add",
+      "description": "Adds a remark to the review draft of the followed pull request, to be published with the review. The pull request is the followed one, loaded in the survey, never an argument; refused when none is followed.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string",
+            "description": "What the remark is about, such as src/a.ts:3: 300 characters at most, on one line.",
+            "maxLength": 300,
+            "pattern": "^[^\\r\\n]+$"
+          },
+          "text": {
+            "type": "string",
+            "description": "The remark, 5,000 characters at most.",
+            "maxLength": 5000
+          }
+        },
+        "required": [
+          "target",
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "draft.edit",
+      "description": "Changes the text of a remark of the review draft of the followed pull request. The pull request is the followed one, loaded in the survey, never an argument; refused when none is followed. Refused when the id is not a remark of the draft.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "The id of the remark, from draft."
+          },
+          "text": {
+            "type": "string",
+            "description": "The new text, 5,000 characters at most.",
+            "maxLength": 5000
+          }
+        },
+        "required": [
+          "id",
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "draft.remove",
+      "description": "Removes a remark from the review draft of the followed pull request. The pull request is the followed one, loaded in the survey, never an argument; refused when none is followed. Refused when the id is not a remark of the draft.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "The id of the remark, from draft."
+          }
+        },
+        "required": [
+          "id"
+        ],
         "additionalProperties": false
       }
     }
@@ -1389,6 +1926,21 @@
       "code": "failed",
       "message": "The operation started but failed; the details give the message.",
       "todo": "Do not retry blindly. Read the message, and tell the user if you cannot fix the cause."
+    },
+    {
+      "code": "no-pr",
+      "message": "No pull request is followed in this folder, so there is no review draft to change.",
+      "todo": "Do not retry. Ask the user to load a pull request on the screen first."
+    },
+    {
+      "code": "unknown-artifact",
+      "message": "No artifact has this id in the last survey, or it is a link.",
+      "todo": "Call artifacts to list the ids (a<i>), and use one of them."
+    },
+    {
+      "code": "bad-token",
+      "message": "The token is missing or wrong.",
+      "todo": "Send the token of the running app (its socket answers only to the token it gave this session)."
     }
   ]
 }
