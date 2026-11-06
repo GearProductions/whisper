@@ -5,7 +5,7 @@
  *  Utilisé par : app/controllers/agents. */
 import type { AgentEvent, AgentView } from 'shared/bridge';
 
-const KIND = { asking: 'asking', paused: 'error' } as const;
+const KIND = { asking: 'asking', failed: 'error' } as const;
 
 export function agentEvents(before: AgentView[], after: AgentView[], shown: string | null): AgentEvent[] {
   const events: AgentEvent[] = [];

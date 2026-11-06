@@ -40,7 +40,6 @@ beforeEach(() => {
   project = path.join(fake.userData, 'seul');
   fs.mkdirSync(project, { recursive: true });
   write(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agentsEnabled: true,
     agents: [{ id: 'a1', dir: project, name: 'seul', model: 'opus', effort: 'high', mode: 'default', sessionId: null }],
   }));
 });

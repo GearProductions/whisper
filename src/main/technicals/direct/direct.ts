@@ -22,19 +22,21 @@
  *  trouvent Node), sans shell (execFile, I-27), 60 s au plus chacun ; chaque commande, une ligne de <out>/direct.log ; un échec
  *  s'arrête là et se rend (ok faux, la sortie), sans rien bloquer (I-29).
  *  Les réponses sont en anglais, comme celles des skills techniques (F-108).
+ *  pr-<n>-review.json (revue publiée) : l'état, le lien, le verdict donné, le texte
+ *  publié et la date ISO ; la page s'en sert pour ne pas republier le même brouillon.
  *  Le texte de pr-<n>.json (prCardText), le même pour l'appelant qui l'écrit.
  *  Ne connaît pas : VibeCoder (sa vue, ses actions), Electron, la configuration.
  *  Utilisé par : app/controllers/vibecoder (runDirect, depuis runVibeAction sur args.direct). */
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { isVerdict } from 'shared/review';
 import { okRef } from 'technicals/git';
 import { okLogin } from 'technicals/github';
 
 // Les seules commandes lancées : git <sous-commande>, gh pr review et gh pr edit (écrivent), gh pr view (lit).
 export const DIRECT_GIT = ['commit', 'fetch', 'switch', 'pull', 'branch', 'stash', 'rebase', 'push'] as const;
 export const DIRECT_GH = [['pr', 'review'], ['pr', 'view'], ['pr', 'edit']] as const;
-export const VERDICTS = ['approve', 'comment', 'request-changes'] as const;
 
 // Lance argv (sans shell) au dossier `cwd` → son code de sortie (null : pas lancé, tué, trop long) et ses sorties.
 export type Launch = (argv: string[], cwd: string) => Promise<{ exit: number | null; stdout: string; stderr: string }>;
@@ -110,16 +112,16 @@ export function directRunner({ dir, out, prefix, launch = launchFile }: { dir: s
       return result(true, first(r, 'Committed.'));
     },
 
-    // gh pr review <n> --<verdict> --body-file <le brouillon, écrit ici>, puis <out>/pr-<n>-review.json.
+    // gh pr review <n> --<verdict> --body-file <le brouillon, écrit ici>, puis <out>/pr-<n>-review.json : { state, url, verdict, body (le texte publié), at (date ISO) } ; en échec, rien d'écrit.
     async publish(n: unknown, verdict: unknown, body: string, url: string): Promise<DirectResult> {
-      if (!okNumber(n) || !(VERDICTS as readonly unknown[]).includes(verdict) || !body.trim()) return result(false, 'Refused: PR, verdict or draft missing.');
+      if (!okNumber(n) || !isVerdict(verdict) || !body.trim()) return result(false, 'Refused: PR, verdict or draft missing.');
       const file = path.join(out, `pr-${n}-review-body.md`);
       fs.mkdirSync(out, { recursive: true });
       fs.writeFileSync(file, body);
       const r = await run('gh', ['pr', 'review', String(n), `--${verdict}`, '--body-file', file]);
       if (r.exit !== 0) return result(false, first(r, 'gh pr review failed.'));
       const state = STATE[verdict as keyof typeof STATE];
-      fs.writeFileSync(path.join(out, `pr-${n}-review.json`), `${JSON.stringify({ state, url })}\n`);
+      fs.writeFileSync(path.join(out, `pr-${n}-review.json`), `${JSON.stringify({ state, url, verdict, body, at: new Date().toISOString() })}\n`);
       return result(true, `${state} ${url}`.trim());
     },
 

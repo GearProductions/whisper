@@ -180,6 +180,26 @@ describe('tours', () => {
     expect(rt.state('a1')).toMatchObject({ status: 'idle', unread: true });
   });
 
+  it('un sous-agent en fond qui travaille après la fin du tour : l’agent principal reste au repos, joignable', async () => {
+    let more = () => {};
+    const working = new Promise<void>((go) => { more = go; });
+    let streamed = () => {};
+    const done = new Promise<void>((go) => { streamed = go; });
+    const { rt, hooks } = runtime(async function* t() {
+      yield ok;   // l'agent principal a lancé son sous-agent et fini son tour
+      await working;
+      // les messages du sous-agent, que le flux transmet avec leur parent
+      yield { type: 'assistant', parent_tool_use_id: 'tu-agent', message: { content: [{ type: 'text', text: 'je lis les fichiers' }] } };
+      yield { type: 'user', parent_tool_use_id: 'tu-agent', message: { content: [{ type: 'tool_result', content: 'ok' }] } };
+      streamed();
+    });
+    await rt.send(agent, { text: 'lance un sous-agent' }, hooks);
+    more();
+    await done;
+    await vi.waitFor(() => expect(rt.state('a1').status).toBe('idle'));
+    expect(rt.state('a1').status).toBe('idle');
+  });
+
   it('tâches de fond suivies d’après le flux : en cours, puis finies', async () => {
     let notify = () => {};
     const notified = new Promise<void>((go) => { notify = go; });

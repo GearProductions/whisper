@@ -4,8 +4,9 @@
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it } from 'vitest';
-import { t } from 'core/vibecoder';
+import { createKept, scoped, t } from 'core/vibecoder';
 import type { VibeView } from 'technicals/bridge';
+import { KeptScope } from '../../kept-scope';
 import { ModulesView } from '../../modules-view';
 import type { StepProps } from '../../step-views';
 
@@ -98,14 +99,17 @@ it('relecteur : ni commit.md, review.md, Générer, Commiter, Enregistrer ; l\'e
 // Deux vues (view.modulesView) : liste par défaut ; IDE : l'arborescence des fichiers des modules, la couleur du nom de chaque
 // fichier, à droite les outils du module du fichier choisi ; l'interrupteur envoie act.set({ modulesView }).
 const sets: unknown[] = [];
-const drawView = (extra: Record<string, unknown>, modules: unknown[]) => act(() => {
+const drawView = async (extra: Record<string, unknown>, modules: unknown[]) => {
+  await act(() => root.render(null));   // la vue et le module déplié sont tenus par le composant : chaque tracé repart de la vue de départ
+  await act(() => {
   const actions = ['module', 'review-diff'].map((id) => ({ id, hidden: false, who: '', hint: '', label: id }));
   const view = { lang: 'fr', flow: 'create', actions, commits: [], outputs: {}, modules, ...extra } as unknown as VibeView;
   const props = { view, step: { id: 'modules', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
     code: null, drafts: [{}, () => {}], act: { run: async () => true, prefill: () => {}, open: () => {}, openLink: () => {},
       follow: (id: unknown) => { followed.push(id); }, save: async () => true, set: (x: unknown) => { sets.push(x); } } } as unknown as StepProps;
   root.render(createElement(ModulesView, props));
-});
+  });
+};
 const two = [{ ...module('src/touche', true), uncommitted: true }, module('src/autre', false)];
 const pressed = () => [...page.querySelectorAll('.vc-card-end .vc-seg button')].filter((b) => b.getAttribute('aria-pressed') === 'true').map((b) => b.textContent);
 
@@ -177,4 +181,41 @@ it('créateur : l\'en-tête vide ; dans la carte, Générer les modules et Commi
   expect(page.querySelector('.vc-card-acts .vc-run')!.getAttribute('data-tone')).toBe('accent');   // la prochaine action
   const line = (i: number) => [...page.querySelectorAll('.vc-mod')[i].querySelectorAll('summary .vc-mod-acts button')].map((b) => b.textContent);
   expect([line(0), line(1)]).toEqual([['Générer'], ['Générer']]);   // pas de Commiter, même pas commité
+});
+
+// T-20 : la vue IDE ou liste et le module déplié, gardés par agent (KeptScope) ; au départ, le dernier choix enregistré (view.modulesView).
+const kept = createKept();
+const drawAs = async (agent: string, modulesView: 'ide' | 'list') => {
+  await act(() => root.render(null));   // le panneau recrée l'écran à chaque changement d'agent
+  await act(() => {
+    const view = { lang: 'fr', flow: 'create', actions: [], commits: [], outputs: {}, modules: two, modulesView } as unknown as VibeView;
+    const props = { view, step: { id: 'modules', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
+      code: null, drafts: [{}, () => {}], act: { run: async () => true, prefill: () => {}, open: () => {}, openLink: () => {},
+        follow: () => {}, save: async () => true, set: () => {} } } as unknown as StepProps;
+    root.render(createElement(KeptScope.Provider, { value: scoped(kept, agent, 'modules') }, createElement(ModulesView, props)));
+  });
+};
+const press = (label: string) => act(async () => { [...page.querySelectorAll<HTMLButtonElement>('.vc-card-end .vc-seg button')].find((b) => b.textContent === label)!.click(); });
+
+it('la vue IDE choisie, un autre agent jamais vu : la vue de départ', async () => {
+  await drawAs('a', 'list');
+  await press('Vue IDE');
+  expect(page.querySelector('.vc-ide')).not.toBeNull();
+  await drawAs('b', 'list');
+  expect(page.querySelector('.vc-ide')).toBeNull();
+  expect(pressed()).toEqual(['Vue liste']);
+});
+
+it('revenu au premier agent : sa vue IDE et son module déplié', async () => {
+  await drawAs('c', 'list');
+  await toggle(0, true);
+  await press('Vue IDE');
+  await drawAs('d', 'list');
+  await toggle(1, true);
+  await drawAs('c', 'list');
+  expect(page.querySelector('.vc-ide')).not.toBeNull();
+  await press('Vue liste');
+  expect([row(0).open, row(1).open]).toEqual([true, false]);
+  await drawAs('d', 'list');
+  expect([row(0).open, row(1).open]).toEqual([false, true]);
 });

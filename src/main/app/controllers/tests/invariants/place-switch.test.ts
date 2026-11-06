@@ -90,7 +90,6 @@ let out = '';
 const branch = () => git(repo, 'rev-parse', '--abbrev-ref', 'HEAD');
 // Les réglages : a1 sur le dépôt, en `vibe`, derrière le faux préfixe.
 const configure = (vibe: object) => write(path.join(root, 'config.json'), JSON.stringify({
-  agentsEnabled: true,
   vibeCommandPrefix: `"${process.execPath}" "${path.join(root, 'faux-prefixe.cjs')}"`,
   agents: [{ id: 'a1', dir: repo, name: 'projet', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder', vibe }],
 }));
@@ -307,7 +306,6 @@ describe.skipIf(process.platform === 'win32')('Un worktree (enfant ou robot) ne 
   // a0 : le dépôt ; a1 : son enfant, dans un vrai worktree (git worktree add).
   let wt = '';
   const asChild = (vibe: object, pr?: number) => write(path.join(root, 'config.json'), JSON.stringify({
-    agentsEnabled: true,
     vibeCommandPrefix: `"${process.execPath}" "${path.join(root, 'faux-prefixe.cjs')}"`,
     agents: [
       { id: 'a0', dir: repo, name: 'projet', model: 'opus', effort: 'high', mode: 'default', sessionId: null },

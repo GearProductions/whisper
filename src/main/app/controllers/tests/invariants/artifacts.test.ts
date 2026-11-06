@@ -193,7 +193,6 @@ beforeEach(async () => {
   fs.mkdirSync(chosen, { recursive: true });
   fake.pick = { canceled: false, filePaths: [chosen] };
   write(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agentsEnabled: true,
     agents: [
       { id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
         vibe: { flow: 'create', autonomy: 'guide', pr: null } },

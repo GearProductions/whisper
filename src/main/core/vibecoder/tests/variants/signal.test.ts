@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { robotState, runSignal } from 'core/vibecoder';
+import { noticedOnShow, robotState, runSignal } from 'core/vibecoder';
 
 describe('runSignal : les courses pas vues dans leur état', () => {
   it('sans course, ou rien à signaler : null', () => {
@@ -47,5 +47,27 @@ describe('robotState : la conversation d\'abord', () => {
 
   it('sans signal : la conversation telle quelle', () => {
     expect(robotState({ status: 'idle', unread: true }, null)).toEqual({ status: 'idle', unread: true });
+  });
+});
+
+describe('noticedOnShow : afficher l\'agent ne vide que « fini »', () => {
+  it('une course finie pas vue : vue, runSignal ne signale plus done', () => {
+    const run = { state: 'done' as const, noticed: null };
+    const noticed = noticedOnShow(run);
+    expect(noticed).toBe('done');
+    expect(runSignal([{ ...run, noticed }])).toBeNull();
+  });
+
+  it('une course en échec pas vue : inchangée, runSignal garde failed', () => {
+    const run = { state: 'failed' as const, noticed: null };
+    const noticed = noticedOnShow(run);
+    expect(noticed).toBeNull();
+    expect(runSignal([{ ...run, noticed }])).toBe('failed');
+  });
+
+  it('une course qui attend ou travaille : inchangée', () => {
+    expect(noticedOnShow({ state: 'asking', noticed: null })).toBeNull();
+    expect(noticedOnShow({ state: 'asking', noticed: 'asking' })).toBe('asking');
+    expect(noticedOnShow({ state: 'running', noticed: null })).toBeNull();
   });
 });

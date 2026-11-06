@@ -21,7 +21,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { slow } from '../slow';
 
 const fake = vi.hoisted(() => ({ userData: '', yes: false, asked: [] as unknown[] }));
 
@@ -44,7 +43,6 @@ const { processAction, processOp, processView, projectFile, stopProcesses } = aw
 const { openSocket, closeSocket } = await import('app/controllers');
 
 const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' });
-const settle = () => new Promise((r) => setTimeout(r, slow(800)));
 const until = async (ok: () => boolean, ms = 8000) => {
   for (const end = Date.now() + ms; !ok() && Date.now() < end;) await new Promise((r) => setTimeout(r, 50));
   return ok();
@@ -97,7 +95,6 @@ beforeEach(async () => {
   // Une famille : a1 sur la copie principale, a2 et a3 ses enfants sur deux worktrees.
   const agent = (id: string, dir: string) => ({ id, dir, name: id, model: 'opus', effort: 'high', mode: 'default', sessionId: null });
   fs.writeFileSync(path.join(root, 'config.json'), JSON.stringify({
-    agentsEnabled: true,
     agents: [agent('a1', repo), { ...agent('a2', worktree), parent: { id: 'a1' } }, { ...agent('a3', sibling), parent: { id: 'a1' } }],
   }));
   // Le fichier du projet de la famille : celui de la copie principale.
@@ -205,15 +202,34 @@ describe.skipIf(process.platform === 'win32')('une même commande ne tourne qu�
     expect(alive()).toBe(1);
   }, 20000);
 
+  it('le parent la fait tourner, l’enfant la relance depuis la page, Oui : arrêtée là-bas, puis lancée ici, une seule instance', async () => {
+    await runningIn('a1');
+    // l'enfant propose bien la commande de la famille
+    expect(names('a2')).toContain('serveur');
+    fake.yes = true;
+
+    await fromPage('a2', 'restart');
+    await until(() => seen().length === 2);
+
+    // un lancement de plus
+    expect(seen()).toHaveLength(2);
+    // le dernier lancement est celui de l'enfant, dans son dossier
+    expect(seen().at(-1)?.dir).toBe(worktree);
+    // une seule instance vivante
+    expect(alive()).toBe(1);
+  }, 20000);
+
   it('le parent la fait tourner, l’agent enfant demande .restart : pas lancée', async () => {
     await runningIn('a1');
     // l'enfant propose bien la commande de la famille
     expect(names('a2')).toContain('serveur');
-    fs.mkdirSync(path.join(root, 'vibecoder-out', 'a2', 'run'), { recursive: true });
-    fs.writeFileSync(path.join(root, 'vibecoder-out', 'a2', 'run', 'serveur.restart'), '');
+    const request = path.join(root, 'vibecoder-out', 'a2', 'run', 'serveur.restart');
+    fs.mkdirSync(path.dirname(request), { recursive: true });
+    fs.writeFileSync(request, '');
 
     processView(agentOf('a2'), loadConfig());
-    await settle();
+    // la demande est lue (le fichier consommé), sans délai fixe
+    await until(() => !fs.existsSync(request));
 
     // lancée une seule fois
     expect(seen()).toHaveLength(1);

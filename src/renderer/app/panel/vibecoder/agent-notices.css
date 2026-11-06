@@ -32,8 +32,10 @@
 .vc-agent[data-activity="done"] .vc-agent-badge { display: block; background: var(--vc-ok); }
 .vc-agent[data-activity="asking"] .vc-agent-badge { display: block; min-width: 14px; height: 14px; background: var(--vc-warn-dot); }
 .vc-agent[data-activity="asking"] .vc-agent-badge::after { content: "?"; }
-.vc-agent[data-activity="paused"] .vc-agent-badge { display: block; min-width: 14px; height: 14px; background: var(--vc-ko); }
-.vc-agent[data-activity="paused"] .vc-agent-badge::after { content: "!"; }
+.vc-agent[data-activity="failed"] .vc-agent-badge { display: block; min-width: 14px; height: 14px; background: var(--vc-ko); }
+.vc-agent[data-activity="failed"] .vc-agent-badge::after { content: "!"; }
+/* Au repos (ou fini), des tâches de fond tournent pour lui : la pulsation lente d'avant la 0.14.0 (2 s). */
+.vc-agent[data-tasks] .vc-agent-robot { animation: vc-agent-blink 2s ease-in-out infinite alternate; }
 @keyframes vc-agent-blink { to { opacity: 0.55; } }
 .vc-agent-add { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin-left: 4px; padding: 0; border: 1px solid var(--vc-line); border-radius: 50%; background: transparent; color: var(--vc-soft); font: 16px/1 var(--vc-sans); cursor: pointer; }
 .vc-agent-add:hover { border-color: var(--vc-edge); background: var(--vc-hover); color: var(--vc-text); }

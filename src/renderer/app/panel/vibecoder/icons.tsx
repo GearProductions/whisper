@@ -8,10 +8,10 @@
  *  Robot : le petit robot d'un agent (celui de l'ancienne icône), à currentColor.
  *  Ne connaît pas : le pont, le relevé, le métier ; aucune dépendance.
  *  Utilisé par : les vues de vibecoder (Robot : agent-notices ; l'en-tête et la palette : branch, search,
- *  chevron, history ; prompt-tools : mic, send ; l'en-tête : gear), note-editor ; components (composer : attach). */
+ *  chevron, history ; ask : Poser une question à l'agent (relecteur) ; prompt-tools : mic, send ; l'en-tête : gear), note-editor ; components (composer : attach). */
 import type { MouseEvent } from 'react';
 
-export type IconName = 'close' | 'open' | 'external' | 'diff' | 'comment' | 'ok' | 'ko' | 'warn'
+export type IconName = 'close' | 'open' | 'external' | 'diff' | 'comment' | 'ask' | 'ok' | 'ko' | 'warn'
   | 'stop' | 'play' | 'refresh' | 'edit' | 'pull' | 'push' | 'rebase'
   | 'attach' | 'send' | 'branch' | 'search' | 'chevron' | 'history' | 'mic' | 'gear';
 
@@ -23,6 +23,7 @@ const PATHS: Record<IconName, string[]> = {
   external: ['M9 3h4v4', 'M13 3L7 9', 'M11 9v4H3V5h4'],
   diff: ['M5 2.5v5', 'M2.5 5h5', 'M8.5 12h5'],
   comment: ['M2.5 3h11v7.5h-6l-3 2.5v-2.5h-2z'],
+  ask: ['M2.5 3h11v7.5h-6l-3 2.5v-2.5h-2z', 'M6.6 5.4a1.4 1.4 0 1 1 1.9 1.3c-.35.15-.5.4-.5.8', 'M8 9.1v.01'],
   ok: ['M3 8.5l3 3 7-7'],
   warn: ['M8 2l6.5 11.5h-13z', 'M8 6.5v3', 'M8 11.5v.5'],
   stop: ['M4 4h8v8H4z'],

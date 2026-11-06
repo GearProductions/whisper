@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  addComment, blobSha, editComment, markState, parseNote, removeComment, setMark, vibeMarks, vibeView,
+  addComment, blobSha, editComment, markState, parseNote, removeComment, setMark, targetHash, vibeMarks, vibeView,
   type Drafts, type JourneyInput, type Marks,
 } from 'core/vibecoder';
 
@@ -126,5 +126,17 @@ describe('vibeMarks : le ✓ des étapes faites pendant Vibe', () => {
 
   it('Relire : rien', () => {
     expect(vibeMarks({}, vibeView(input({ flow: 'review' })))).toEqual({});
+  });
+});
+
+describe('targetHash : commit:<hash>', () => {
+  const view = { flow: 'review', note: null, invariants: [], commits: [{ hash: 'abc123' }, { hash: 'def456' }] } as unknown as Parameters<typeof targetHash>[0];
+
+  it('commit:<hash> d\'un commit du relevé : son hash', () => {
+    expect(targetHash(view, 'commit:def456')).toBe('def456');
+  });
+
+  it('un hash absent du relevé : null, la marque refusée', () => {
+    expect(targetHash(view, 'commit:zzz')).toBeNull();
   });
 });

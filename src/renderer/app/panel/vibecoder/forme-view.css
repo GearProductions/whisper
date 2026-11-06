@@ -22,9 +22,13 @@
 .vc-fnone { margin: 8px 0 0; color: var(--vc-faint); font-size: 12.5px; }
 
 /* Le contrat : la première rubrique en texte, les autres avec leur libellé. */
-.vc-fcontract { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 10px; margin: 5px 0 0; font-size: 12.5px; line-height: 1.5; }
+/* Le contrat se lit comme la note : la largeur d'une page A4 (210mm), centrée, avec de l'air ; une rubrique par
+   ligne, les cas des variants en liste. */
+.vc-fcontract { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 14px; box-sizing: border-box; max-width: 210mm; margin: 10px auto 0; padding-inline: 8px; font-size: 13.5px; line-height: 1.7; }
 .vc-fcontract > div { display: contents; }
 .vc-fcontract > [data-label="main"] > dd { grid-column: 1 / -1; color: var(--vc-text); }
+.vc-fcontract > [data-label="item"] > dd { grid-column: 2; position: relative; margin-top: -4px; padding-left: 14px; }
+.vc-fcontract > [data-label="item"] > dd::before { content: '•'; position: absolute; left: 0; color: var(--vc-faint); }
 .vc-fcontract dt { padding-top: 2px; color: var(--vc-faint); font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; }
-.vc-fcontract dd { margin: 0; color: var(--vc-soft); overflow-wrap: anywhere; }
-.vc-fcontract code { padding: 0 4px; border-radius: 4px; background: var(--vc-deep); font: 11.5px/1.5 var(--vc-mono); }
+.vc-fcontract dd { margin: 0; color: var(--vc-soft); overflow-wrap: break-word; text-wrap: pretty; }
+.vc-fcontract code { padding: 1px 6px; border-radius: 4px; background: var(--vc-deep); color: var(--vc-accent-soft); font: 12.5px/1.6 var(--vc-mono); }

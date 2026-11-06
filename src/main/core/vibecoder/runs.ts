@@ -29,7 +29,8 @@
  *  Utilisé par : core/vibecoder (journey), core/commands (REQUEST_ARGS : le schéma de
  *  run.start), app/controllers (runs : lockCode, parseRequest, endNotice, requestNotice ; vibecoder : lockCode ; module-code). */
 import type { VibeArgs, VibeLang, VibeModule, VibeRun, VibeRunProgress } from 'shared/bridge';
-import { targetModule, VERDICTS, type ActionDef } from './actions';
+import { isVerdict } from 'shared/review';
+import { targetModule, type ActionDef } from './actions';
 
 export type RunState = VibeRun['state'];
 export type Run = {
@@ -193,7 +194,7 @@ const isStr = (v: unknown) => typeof v === 'string';
 const KEEP: Record<string, (v: unknown) => boolean> = {
   text: isStr, module: isInt, commit: isStr, file: isStr, pr: isInt, model: isStr, effort: isStr, check: isInt,
   answers: (v) => Array.isArray(v) && v.every(isStr),
-  verdict: (v) => VERDICTS.includes(v as string),
+  verdict: isVerdict,
 };
 
 // Les clés qu'un .start garde, celles de KEEP dans son ordre : jamais d'écart avec parseRequest.

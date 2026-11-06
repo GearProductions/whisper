@@ -41,10 +41,10 @@ describe('parseNote sur une vraie note (0.7.0)', () => {
     expect(real.modules.find((m) => m.path === 'main/helpers/text.ts')?.contract).toBe('tail(text, lines, maxChars) (pur)');
   });
 
-  it('le contrat d\'un module réunit ses lignes de suite, plus indentées', () => {
+  it('le contrat d\'un module réunit ses lignes de suite, plus indentées, une par ligne (contractParts recolle les phrases)', () => {
     expect(real.modules.find((m) => m.path === 'main/core/agents/tasks.ts')?.contract).toBe(
-      'Task, TaskLog { tasks, tools } ; EMPTY_LOG ; applyTaskEvent(log, m, now) → log (pur, même référence si rien ne change) ;'
-      + ' runningTasks(log) · ne connaît pas : le runtime, le disque · utilisé par : core/agents (runtime), core/conversation');
+      'Task, TaskLog { tasks, tools } ; EMPTY_LOG ;\napplyTaskEvent(log, m, now) → log (pur, même\nréférence si rien ne change) ; runningTasks(log)'
+      + '\n· ne connaît pas : le runtime, le disque\n· utilisé par : core/agents (runtime),\ncore/conversation');
   });
 
   it('la Forme est aussi rendue telle quelle', () => {
@@ -82,15 +82,15 @@ describe('parseNote : modules en dossiers (style 0.8.0)', () => {
   });
 
   it('le contrat d\'un fichier du dossier réunit ses lignes de suite', () => {
-    expect(modules.find((m) => m.path === 'main/core/vibecoder/note.ts')?.contract).toBe('parseNote(md) → NoteFacts ; noteKey(branch, version)');
+    expect(modules.find((m) => m.path === 'main/core/vibecoder/note.ts')?.contract).toBe('parseNote(md) → NoteFacts ;\nnoteKey(branch, version)');
   });
 
   it('un dossier sans fichiers indentés reste un module, avec son contrat', () => {
-    expect(modules.find((m) => m.path === 'main/technicals/git/')?.contract).toBe('gitRun(dir) : git en execFile · ne connaît pas : VibeCoder');
+    expect(modules.find((m) => m.path === 'main/technicals/git/')?.contract).toBe('gitRun(dir) : git en execFile\n· ne connaît pas : VibeCoder');
   });
 
   it('un chemin aligné sur le contrat du dossier en est la suite, pas un fichier', () => {
-    expect(modules.find((m) => m.path === 'resources/vibecoder/')?.contract).toBe('README.md, actions.fr.json, plugin/.claude-plugin/plugin.json');
+    expect(modules.find((m) => m.path === 'resources/vibecoder/')?.contract).toBe('README.md, actions.fr.json,\nplugin/.claude-plugin/plugin.json');
   });
 
   it('un fichier sans dossier (package.json) est un module', () => {
@@ -144,10 +144,22 @@ main/core/b/                le dossier b
 
 describe('parseNote : la ligne variants d’un module (Forme)', () => {
   it('une ligne variants : et ses cas restent dans le contrat du module, sous un fichier comme sous un dossier', () => {
-    expect(parseNote(WITH_VARIANTS).modules).toEqual([
-      { path: 'main/core/a.ts', contract: 'a(x) → y variants : main/core/tests/variants/a.test.ts un cas, puis un autre' },
-      { path: 'main/core/b/c.ts', contract: 'c() → z variants : main/core/b/tests/variants/c.test.ts (à créer) c rend z' },
+    expect(parseNote(WITH_VARIANTS).modules).toMatchObject([
+      { path: 'main/core/a.ts', contract: 'a(x) → y\nvariants : main/core/tests/variants/a.test.ts\n- un cas, puis un autre' },
+      { path: 'main/core/b/c.ts', contract: 'c() → z\nvariants : main/core/b/tests/variants/c.test.ts (à créer)\n- c rend z' },
     ]);
+  });
+});
+
+describe('parseNote : une Forme aérée en bloc de code', () => {
+  it('les lignes de suite d’une entrée restent des lignes (le panneau Forme les montre une à une)', () => {
+    const md = '# x\n\n## Forme\n\n```\nmain/core/a.ts  a(x) → y\n    ne connaît pas : Electron\n    variants : main/core/tests/variants/a.test.ts\n      - un cas\n```\n';
+    expect(parseNote(md).modules[0].contract).toBe('a(x) → y\nne connaît pas : Electron\nvariants : main/core/tests/variants/a.test.ts\n- un cas');
+  });
+
+  it('une phrase coupée sur deux lignes reste deux lignes : seul contractParts (le panneau) dit laquelle continue', () => {
+    const md = '# x\n\n## Forme\n\n```\nmain/core/a.ts  a(x) → y ;\n    b() → z\n    ne connaît pas : Electron\n```\n';
+    expect(parseNote(md).modules[0].contract).toBe('a(x) → y ;\nb() → z\nne connaît pas : Electron');
   });
 });
 
@@ -163,13 +175,13 @@ describe('parseNote : modules en titres ### (style G2-6752)', () => {
   });
 
   it('un titre qui nomme deux fichiers : le premier est le chemin, le reste ouvre le contrat', () => {
-    expect(modules[1]).toEqual({
+    expect(modules[1]).toMatchObject({
       path: 'core/ui/components/model-viewer-3d/helpers/convert-to-glb.ts', contract: 'load-model.ts · Expose : `convertToGlb(file)`, `loadModel(file)`',
     });
   });
 
   it('un ### qui finit par / est un dossier : ses #### sont ses modules', () => {
-    expect(modules[2]).toEqual({ path: 'core/parser/node-components/save-glb', contract: 'Expose : `SaveGLB`' });
+    expect(modules[2]).toMatchObject({ path: 'core/parser/node-components/save-glb', contract: 'Expose : `SaveGLB`' });
   });
 
   it('un titre qui n\'est pas un chemin clôt le module précédent', () => {
@@ -179,42 +191,42 @@ describe('parseNote : modules en titres ### (style G2-6752)', () => {
 
 describe('parseNote : modules en liste ou en texte', () => {
   it('une puce « `chemin` : contrat » donne le chemin et le contrat', () => {
-    expect(parseNote('## Forme\n- `core/x.ts` : expose a\n').modules).toEqual([{ path: 'core/x.ts', contract: 'expose a' }]);
+    expect(parseNote('## Forme\n- `core/x.ts` : expose a\n').modules).toMatchObject([{ path: 'core/x.ts', contract: 'expose a' }]);
   });
 
   it('le gabarit <chemin> n\'est pas un module', () => {
-    expect(parseNote('## Forme\n<chemin>   expose … · ne connaît pas …\n').modules).toEqual([]);
+    expect(parseNote('## Forme\n<chemin>   expose … · ne connaît pas …\n').modules).toMatchObject([]);
   });
 
   it('une phrase qui commence par un chemin suivi d\'une virgule n\'est pas un module', () => {
-    expect(parseNote('## Forme\n`main/core/x.ts`, `main/core/y.ts` sont à part.\n').modules).toEqual([]);
+    expect(parseNote('## Forme\n`main/core/x.ts`, `main/core/y.ts` sont à part.\n').modules).toMatchObject([]);
   });
 
   it('une ligne de texte non indentée clôt le contrat du module précédent', () => {
-    expect(parseNote('## Forme\nlib/a.ts  pur\nLe reste est de la colle.\n').modules).toEqual([{ path: 'lib/a.ts', contract: 'pur' }]);
+    expect(parseNote('## Forme\nlib/a.ts  pur\nLe reste est de la colle.\n').modules).toMatchObject([{ path: 'lib/a.ts', contract: 'pur' }]);
   });
 
   it('la suite d\'un paragraphe qui commence par un chemin n\'est pas un module', () => {
     const forme = '## Forme\n**Relire.** Les fixtures de a.test.ts et\nmodule-code.test.ts qui écrivent une référence restent.\n\n**Canaux.** `src/preload/` et\n`shared/bridge/channels.ts` inchangés.\n\n```\nlib/a.ts  pur\n```\n';
-    expect(parseNote(forme).modules).toEqual([{ path: 'lib/a.ts', contract: 'pur' }]);
+    expect(parseNote(forme).modules).toMatchObject([{ path: 'lib/a.ts', contract: 'pur' }]);
   });
 
   it('avec un bloc de code et sans titre ###, une ligne de prose avant le bloc n\'est pas un module', () => {
     const forme = '## Forme\n- Le fichier `journey.ts` porte 7 et 10, donc `actions.ts` le précède.\n\njourney.ts porte 7 et 10.\n\n```\nlib/a.ts  pur\n```\n';
-    expect(parseNote(forme).modules).toEqual([{ path: 'lib/a.ts', contract: 'pur' }]);
+    expect(parseNote(forme).modules).toMatchObject([{ path: 'lib/a.ts', contract: 'pur' }]);
   });
 
   it('sans bloc de code, la Forme garde ses modules (ancienne note)', () => {
-    expect(parseNote('## Forme\nLe fichier x.\n\njourney.ts porte 7 et 10.\n').modules).toEqual([{ path: 'journey.ts', contract: 'porte 7 et 10.' }]);
+    expect(parseNote('## Forme\nLe fichier x.\n\njourney.ts porte 7 et 10.\n').modules).toMatchObject([{ path: 'journey.ts', contract: 'porte 7 et 10.' }]);
   });
 
   it('un titre ### avec un exemple de code dans son contrat garde ses modules', () => {
     const forme = '## Forme\n### lib/a.ts\nExpose : a\n```\nlib/b.ts  exemple\n```\n### lib/c.ts\nExpose : c\n';
-    expect(parseNote(forme).modules.map((m) => m.path)).toEqual(['lib/a.ts', 'lib/c.ts']);
+    expect(parseNote(forme).modules.map((m) => m.path)).toMatchObject(['lib/a.ts', 'lib/c.ts']);
   });
 
   it('une rubrique « Shape » (anglais) est la Forme', () => {
-    expect(parseNote('## Shape\nlib/a.ts  pure\n').modules).toEqual([{ path: 'lib/a.ts', contract: 'pure' }]);
+    expect(parseNote('## Shape\nlib/a.ts  pure\n').modules).toMatchObject([{ path: 'lib/a.ts', contract: 'pure' }]);
   });
 });
 
@@ -348,5 +360,45 @@ describe('findNote : le .md de docs/tickets/ qui nomme la clé', () => {
     const paths = ['docs/tickets/feat/0.12.0-worktrees.md', 'docs/tickets/refactor/0.12.0-creer-relire.md'];
     expect(findNote(paths, '0.12.0', 'refactor/0.12.0-creer-relire')).toBe('docs/tickets/refactor/0.12.0-creer-relire.md');
     expect(findNote(paths, '0.12.0', 'refactor/0.12.0-autre')).toBe('docs/tickets/feat/0.12.0-worktrees.md');
+  });
+});
+
+// Une entrée à plusieurs chemins (T-15) : des fichiers qui ne compilent qu'ensemble, un seul module.
+const MULTI = `# x
+
+## Forme
+
+\`\`\`
+main/core/a.ts + main/core/b.ts + main/helpers/  expose a, b
+                            · ne connaît pas : le disque
+  main/core/c.ts            ne doit pas être un module du dossier
+main/core/reads.ts  + artifactsOf(x) → liste
+SPEC.md + README.md  doc
+main/core/solo.ts           un seul chemin
+\`\`\`
+`;
+
+describe('parseNote : une entrée à plusieurs chemins (T-15)', () => {
+  const { modules } = parseNote(MULTI);
+
+  it('deux chemins et un dossier sur une ligne : un module, ses trois chemins, son contrat', () => {
+    expect(modules[0]).toEqual({
+      path: 'main/core/a.ts + main/core/b.ts + main/helpers/',
+      paths: ['main/core/a.ts', 'main/core/b.ts', 'main/helpers/'],
+      contract: 'expose a, b\n· ne connaît pas : le disque\nmain/core/c.ts            ne doit pas être un module du dossier',
+    });
+    expect(modules).toHaveLength(4);
+  });
+
+  it('un contrat qui commence par « + » après deux espaces : pas de chemin de plus', () => {
+    expect(modules[1]).toEqual({ path: 'main/core/reads.ts', paths: ['main/core/reads.ts'], contract: '+ artifactsOf(x) → liste' });
+  });
+
+  it('« SPEC.md + README.md  doc » : un module, deux chemins', () => {
+    expect(modules[2]).toEqual({ path: 'SPEC.md + README.md', paths: ['SPEC.md', 'README.md'], contract: 'doc' });
+  });
+
+  it('une entrée à un chemin : inchangée, paths d\'un élément', () => {
+    expect(modules[3]).toEqual({ path: 'main/core/solo.ts', paths: ['main/core/solo.ts'], contract: 'un seul chemin' });
   });
 });

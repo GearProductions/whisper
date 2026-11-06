@@ -119,7 +119,6 @@ beforeEach(() => {
   write(path.join(root, 'vibecoder-out', 'a1', 'pr-7.json'), JSON.stringify({ number: 7, title: 'Essai', url: 'u', author: 'bob', base: 'main', head: 'feat/x', body: '', state: 'OPEN' }));
   prDir = path.join(root, 'projet-worktrees', 'pr-7');
   write(path.join(root, 'config.json'), JSON.stringify({
-    agentsEnabled: true,
     agents: [{ id: 'a1', dir: repo, name: 'projet', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
       vibe: { flow: 'review', autonomy: 'guide', pr: 7 } }],
   }));
@@ -212,7 +211,6 @@ describe.skipIf(process.platform === 'win32')('PR mergée → revenir sur la bas
 }
 process.stdout.write(process.argv.includes('list') ? '[]' : ${JSON.stringify(JSON.stringify({ number: 7, title: 'Essai', url: 'u', state: 'MERGED', baseRefName: 'main', headRefName: 'feat/x' }))});\n`);
     write(path.join(root, 'config.json'), JSON.stringify({
-      agentsEnabled: true,
       vibeCommandPrefix: `"${process.execPath}" "${prefix}"`,
       agents: [{ id: 'a1', dir: repo, name: 'projet', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
         vibe: { flow: 'create', autonomy: 'guide' } }],

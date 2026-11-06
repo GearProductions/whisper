@@ -6,9 +6,10 @@
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it } from 'vitest';
-import { t } from 'core/vibecoder';
+import { createKept, scoped, t } from 'core/vibecoder';
 import type { VibeView } from 'technicals/bridge';
 import { FormeView } from '../../forme-view';
+import { KeptScope } from '../../kept-scope';
 import type { StepProps } from '../../step-views';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -17,20 +18,21 @@ const page = document.createElement('div');
 document.body.append(page);
 const root = createRoot(page);
 const calls: unknown[][] = [];
+let scope: ReturnType<typeof scoped> | null = null; // l'état retenu de l'agent affiché (aucun : un état ordinaire)
 const modules = [
   { path: 'src/a.ts', contract: 'le contrat de a', file: { id: 'm0', path: 'src/a.ts' }, touched: true, commits: [],
     files: [{ id: 'm0/0', path: 'src/a.ts' }] },
   { path: 'src/b.ts', contract: 'le contrat de b', file: null, touched: false, commits: [] },
 ];
 const draw = (over: Partial<VibeView> & { actions?: { id: string }[] } = {}) => act(() => {
-  const view = { lang: 'fr', flow: 'create', actions: [], outputs: {}, modules, commits: [], note: { formeMark: null },
+  const view = { lang: 'fr', flow: 'create', actions: [], outputs: {}, modules, commits: [], draft: [], note: { formeMark: null },
     agent: { model: 'fable' }, ...over } as unknown as VibeView;
   const props = { view, step: { id: 'forme', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
     code: null, drafts: [{}, () => {}],
-    act: { run: async () => true, mark: () => {}, set: () => {}, prefill: (...a: unknown[]) => { calls.push(['prefill', ...a]); },
+    act: { run: async (...a: unknown[]) => { calls.push(['run', ...a]); return true; }, mark: () => {}, set: () => {}, prefill: (...a: unknown[]) => { calls.push(['prefill', ...a]); },
       open: (id: string) => { calls.push(['open', id]); }, openLink: () => {}, follow: (id: unknown) => { calls.push(['follow', id]); },
-      save: async () => true, draft: () => {} } } as unknown as StepProps;
-  root.render(createElement(FormeView, props));
+      save: async () => true, draft: (op: unknown) => { calls.push(['draft', op]); } } } as unknown as StepProps;
+  root.render(createElement(KeptScope.Provider, { value: scope }, createElement(FormeView, props)));
 });
 const tool = (label: string) => page.querySelectorAll<HTMLButtonElement>(`.vc-ftools button[aria-label="${label}"]`);
 const rows = () => [...page.querySelectorAll('.vc-ide-side [role="treeitem"], .vc-ide-side li')].map((e) => e.textContent);
@@ -106,4 +108,56 @@ it('le commit proposé (un fixup de la note) : sa carte sous l\'en-tête, ✓ Co
   expect(page.querySelector('.vc-step-acts')).toBeNull();
   await draw({ actions } as unknown as Partial<VibeView>);
   expect(page.querySelector('.vc-proposed')).toBeNull();
+});
+
+const remarks = [{ id: 7, target: 'forme: src/a.ts', text: 'ce contrat est flou' }, { id: 8, target: 'forme: src/b.ts', text: 'pour b' }];
+
+it('une remarque sur un module : sous lui, grisée, modifiable sur place ; pas en créateur', async () => {
+  calls.length = 0;
+  await draw({ flow: 'review', draft: remarks } as never);
+  await choose('a.ts');
+  await swap('Structure');
+  const list = page.querySelector('.vc-fmain .vc-draft-list')!;
+  expect(list.classList.contains('vc-remarks-muted')).toBe(true);
+  expect([...list.querySelectorAll('li')].map((li) => li.textContent)).toEqual(['ce contrat est flou']);
+  expect(page.querySelector('.vc-fcontract')!.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  await act(() => page.querySelector<HTMLButtonElement>('.vc-draft-list button[aria-label="Modifier cette remarque"]')!.click());
+  const ta = page.querySelector<HTMLTextAreaElement>('.vc-fmain textarea')!;
+  Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(ta, 'plus net');
+  await act(async () => { ta.dispatchEvent(new Event('input', { bubbles: true })); });
+  await act(() => [...page.querySelectorAll<HTMLButtonElement>('button.vc-run')].find((b) => b.textContent === 'Enregistrer')!.click());
+  expect(calls).toContainEqual(['draft', { edit: { id: 7, text: 'plus net' } }]);
+  await act(() => page.querySelector<HTMLButtonElement>('.vc-draft-list button[aria-label="Retirer du brouillon"]')!.click());
+  expect(calls).toContainEqual(['draft', { remove: 7 }]);
+  await draw({ draft: remarks } as never);
+  expect(page.querySelector('.vc-draft-list')).toBeNull();
+});
+
+it('Poser une question sur un module : son chemin cité dans le champ, rien d\'envoyé ; absent en créateur', async () => {
+  calls.length = 0;
+  await draw({ flow: 'review' } as never);
+  const ask = tool('Poser une question à l\'agent');
+  expect(ask).toHaveLength(1);
+  await act(() => ask[0].click());
+  expect(calls).toEqual([['prefill', 'comment', 'src/a.ts']]);
+  expect(tool('Commenter ce module (brouillon de revue)')).toHaveLength(1);
+  await draw();
+  expect(tool('Poser une question à l\'agent')).toHaveLength(0);
+});
+
+it('l\'onglet choisi, la vue recréée sous le même agent : le même ; un autre agent : Structure', async () => {
+  const kept = createKept();
+  const pressed = () => page.querySelector('.vc-seg [aria-pressed="true"]')!.textContent;
+  scope = scoped(kept, 'a1', 'forme');
+  await act(() => root.render(null));
+  await draw();
+  await swap('Code');
+  await act(() => root.render(null));
+  await draw();
+  expect(pressed()).toBe('Code');
+  scope = scoped(kept, 'a2', 'forme');
+  await act(() => root.render(null));
+  await draw();
+  expect(pressed()).toBe('Structure');
+  scope = null;
 });

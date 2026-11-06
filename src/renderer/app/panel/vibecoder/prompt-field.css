@@ -5,5 +5,9 @@
 .vc-attach:hover { background: var(--vc-hover); color: var(--vc-text); }
 .vc-attach svg { width: 16px; height: 16px; }
 .vc-prompt-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.vc-prompt-body > textarea { width: 100%; box-sizing: border-box; margin: 0; padding: 4px 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; outline: none; resize: none; }
+.vc-prompt-body > textarea { width: 100%; box-sizing: border-box; margin: 0; padding: 4px 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; outline: none; resize: none; color: var(--vc-text); }
+/* Un champ de texte n'hérite pas la couleur de son parent : sans elle, celle du système (sombre sur ce fond). */
+.vc-prompt-body > textarea::placeholder { color: var(--vc-faint); }
 .vc-pieces { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Une image jointe qui s'agrandit d'un clic (Zoom). */
+.vc-pieces .piece img[data-zoom] { cursor: zoom-in; }

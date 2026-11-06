@@ -4,13 +4,13 @@
  *  qu'elle liste et ce que fait Entrée viennent de core/switcher (paletteItems, pick).
  *  Échap ou un clic à côté : onClose. Entrée ou un clic sur une ligne : onPick(le déplacement),
  *  l'appelant ferme la palette. L'allure de la vue C : chaque agent sa pastille (initiales, couleur ;
- *  un worktree ou une PR plus petit, sous son dossier principal : ├ └) avec « étape · état » ; chaque
+ *  un worktree ou une PR plus petit, sous son dossier principal : ├ └) avec « étape · état » (« en échec » ; au repos, ses tâches de fond) ; chaque
  *  branche son icône, et la pastille de l'agent qui la tient s'il n'est pas l'affiché, avec ce que
  *  fait Entrée au bout (branche actuelle, aller à l'agent, basculer ici) ; une PR tenue, la pastille
  *  de son agent ; l'aide des touches au pied.
  *  Ne connaît pas : le pont (que des rappels). Utilisé par : panel-app. */
 import { useState } from 'react';
-import { nextScope, paletteItems, pick, SCOPES, treeMark, type PaletteItem, type PaletteMove, type Scope } from 'core/switcher';
+import { nextScope, paletteItems, pick, SCOPES, tasksShown, treeMark, type PaletteItem, type PaletteMove, type Scope } from 'core/switcher';
 import type { PaletteAction, Strings } from 'core/vibecoder';
 import type { AgentView, VibeView } from 'technicals/bridge';
 import { Avatar } from './avatar';
@@ -98,7 +98,7 @@ function Row({ item, t, here, selected, mark }: RowProps) {
         <span className="vc-pal-main">
           <span className="vc-pal-name"><strong>{a.parent ? t.agentTitle(a.title, a.pr) : a.repo}</strong>
             {a.branch ? <span className="vc-pal-branch">{a.branch}</span> : null}</span>
-          <span className="vc-pal-sub" data-activity={a.activity}>{t.agentStatus(a.step && t.steps[a.step], t.activity[a.activity])}</span>
+          <span className="vc-pal-sub" data-activity={a.activity}>{t.agentStatus(a.step && t.steps[a.step], tasksShown(a) ? t.tasksWatch(tasksShown(a)) : t.activity[a.activity])}</span>
         </span>
         <span className="vc-pal-end">{a.id === here ? t.paletteHere : ''}</span>
       </>);

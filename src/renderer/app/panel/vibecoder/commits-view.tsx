@@ -15,19 +15,26 @@
  *  brouillon sur la cible du commit, comptée sur sa carte. Relire les
  *  commits (IA, puis Relancer) est un bouton de l'en-tête de la section, qui
  *  ne montre rien d'autre qui édite, génère ou commite (lecture seule).
+ *  Chaque commit : Validé / À revoir (CaseVerdict, act.mark('commit:<hash>') ;
+ *  sur À revoir, « Ajouter une remarque au brouillon » ouvre sa zone de
+ *  commentaire, sans rien ajouter), ses remarques du brouillon dessous,
+ *  grisées (DraftRemarks : crayon, croix), et *Poser une question à l'agent* :
+ *  le cite dans le champ (act.prefill('comment')), l'utilisateur envoie.
  *  Ce n'est plus une étape : un titre de section dans Modules, dont la
  *  vue (modules-view) doit laisser 'review-commits' à cette section (own de
  *  StepHead).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : modules-view. */
 import { useEffect, useState, type ReactNode } from 'react';
-import { commitReviews, quoteRemark, remark, type Strings } from 'core/vibecoder';
-import type { VibeComment, VibeLang } from 'technicals/bridge';
+import { commitReviews, quoteRemark, remark, remarksAt, type Strings } from 'core/vibecoder';
+import type { VibeComment, VibeLang, VibeMarkState } from 'technicals/bridge';
 import { CommentBox } from './comment-box';
 import { CommitFile } from './commit-file';
+import { DraftRemarks } from './draft-remarks';
 import { IconButton } from './icons';
 import { MarkdownView } from './markdown-view';
 import { OutputCard, Run } from './step-parts';
 import type { StepProps, VibeActs } from './step-views';
+import { CaseVerdict } from './validation';
 import './commits-view.css';
 
 const fr = {
@@ -90,6 +97,8 @@ export function CommitsSection(p: StepProps) {
         const path = c.files[j] ?? null;
         return (
           <Commented key={c.hash} target={target} s={s} t={t} act={act} draft={view.draft}
+            verdict={{ state: c.mark ?? null, lang: view.lang, onMark: (v) => act.mark(`commit:${c.hash}`, v) }}
+            ask={view.actions.some((a) => a.id === 'comment') ? () => act.prefill('comment', target) : undefined}
             title={<><code className="vc-chip" data-fixup={c.fixup || undefined}>{c.hash.slice(0, 7)}</code><span className="vc-commit-subject">{c.subject}</span></>}
             links={(
               <>
@@ -129,26 +138,31 @@ export function CommitsSection(p: StepProps) {
 
 type CommentedProps = {
   target: string; title: ReactNode; links?: ReactNode; s: typeof fr; t: Strings; act: VibeActs; draft: VibeComment[];
+  verdict?: { state: VibeMarkState; lang: VibeLang; onMark(v: 'ok' | 'ko' | null): void }; // un commit : Validé / À revoir
+  ask?(): void; // un commit : Poser une question à l'agent (le cite dans le champ, n'envoie rien)
   children?: ReactNode;
 };
 
-// Une carte de commit (ou de rubrique) : 💬 ouvre sous elle la zone de commentaire, pour cette cible.
-function Commented({ target, title, links, s, t, act, draft, children }: CommentedProps) {
+// Une carte de commit (ou de rubrique) : 💬 ouvre sous elle la zone de commentaire, pour cette cible ; ses remarques déjà au brouillon dessous, grisées.
+function Commented({ target, title, links, verdict, ask, s, t, act, draft, children }: CommentedProps) {
   const [writing, setWriting] = useState(false);
-  const item = remark(target, '');
-  const drafted = draft.filter((d) => d.target === item.target).length;
+  const here = remarksAt(draft, target);
+  const drafted = here.length;
   return (
     <OutputCard className="vc-commit-review" t={t} title={title}
       tools={(
         <>
           {drafted ? <span className="vc-count">{s.inDraft(drafted)}</span> : null}
+          {verdict ? <CaseVerdict {...verdict} onRemark={() => setWriting(true)} /> : null}
+          {ask ? <IconButton icon="ask" label={t.askAgent} onClick={ask} /> : null}
           {links}
           <IconButton icon="comment" label={s.toDraft} pressed={writing} onClick={() => setWriting(!writing)} />
         </>
       )}>
-      {children || writing ? (
+      {children || writing || drafted ? (
         <>
           {children}
+          {drafted ? <DraftRemarks remarks={here} t={t} onOpenLink={act.openLink} onDraft={act.draft} /> : null}
           {writing ? (
             <CommentBox t={t} onCancel={() => setWriting(false)}
               onSave={(text) => { act.draft({ add: remark(target, text) }); setWriting(false); }} />

@@ -138,7 +138,7 @@ describe('commandFromSocket : le robot de la cible, porte écran', () => {
   const env = (target: string) => ({ cmd: 'run.start', args: { action: 'forme' }, token: 't', target });
   const robots = (dirs: string[]) => {
     const list = dirs.map((dir, i) => ({ ...agent, id: `r${i}`, dir }));
-    fs.writeFileSync(path.join(fake.userData, 'config.json'), JSON.stringify({ agentsEnabled: true, agents: list }));
+    fs.writeFileSync(path.join(fake.userData, 'config.json'), JSON.stringify({ agents: list }));
     return list;
   };
   const dir = () => fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-target-')));

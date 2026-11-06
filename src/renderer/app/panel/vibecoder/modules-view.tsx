@@ -12,7 +12,7 @@
  *  fin. Générer ce module et Relire le diff (lancé seul après Générer ;
  *  Relancer sur sa carte) ne sont pas dans l'en-tête de l'étape (own) ; dessous, son
  *  contrat par rubrique (Contract) et, s'il est touché, son code (ModuleCode).
- *  Un seul déplié à la fois, le chemin du module déplié tenu ici ; ici aussi
+ *  Un seul déplié à la fois, le chemin du module déplié tenu ici (gardé par agent et par étape, useKept) ; ici aussi
  *  plus aucun fichier suivi quand on replie, ou que le module déplié n'a pas
  *  (ou plus) de fichier (un module qui en a envoie lui-même le sien). Dans les
  *  outils de la carte, l'interrupteur et la légende ; à côté de son titre
@@ -29,8 +29,9 @@
  *  Abandonner) ;
  *  les puces de commit et Ouvrir restent. Puis CommitsSection (commits-view),
  *  qui porte elle-même Relire les commits : 'review-commits' est dans own.
- *  Deux vues, un interrupteur dans les outils de la carte (view.modulesView, retenu par le principal :
- *  act.set({ modulesView }), liste par défaut) : la liste, l'accordéon ci-dessus ; la vue IDE (IdeView),
+ *  Deux vues, un interrupteur dans les outils de la carte (gardée par agent et par étape, useKept ; au départ,
+ *  view.modulesView, le dernier choix enregistré par le principal : act.set({ modulesView }), toujours envoyé ;
+ *  liste par défaut) : la liste, l'accordéon ci-dessus ; la vue IDE (IdeView),
  *  l'arborescence des fichiers des modules, puis des variants de la branche (ideFiles(view, 'file')), leur nom coloré comme VS Code (nouveau, modifié, supprimé, à générer),
  *  et à droite, du fichier choisi, les outils de son module (ModuleTools, tous) sur la ligne du sélecteur
  *  de son code (ModuleCode, noTree, tools). Un fichier sans code (module pas touché) : les outils
@@ -38,12 +39,13 @@
  *  interrupteur. Basculer ne suit plus aucun fichier ; chaque vue suit ensuite le sien. Le point d'état
  *  de la liste vient de moduleState (core).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { fileParts, ideFiles, moduleCommits, moduleState, type IdeFile, type ModuleState } from 'core/vibecoder';
 import type { VibeLang, VibeModule } from 'technicals/bridge';
 import { CommitsSection } from './commits-view';
 import { Contract } from './forme-view';
 import { IdeView } from './ide-view';
+import { useKept } from './kept-scope';
 import { MarkdownView } from './markdown-view';
 import { ModuleCode } from './module-code';
 import { PROPOSED_ACTS, ProposedCommit } from './proposed-commit';
@@ -137,7 +139,9 @@ const CARD_ACTS = ['modules'];
 
 export function ModulesView(p: StepProps) {
   const { view, t, act, busy } = p;
-  const [opened, setOpened] = useState<string | null>(null); // le module déplié
+  // Le module déplié et la vue, gardés par agent et par étape (KeptScope) ; la vue part du dernier choix enregistré (view.modulesView).
+  const [opened, setOpened] = useKept<string | null>('opened', null);
+  const [mode, setMode] = useKept<'ide' | 'list'>('modulesView', view.modulesView === 'ide' ? 'ide' : 'list');
   const s = S[view.lang];
   const action = (id: string) => view.actions.find((a) => a.id === id);
   const quote = action('comment') ? (text: string) => act.prefill('comment', text) : undefined;
@@ -148,8 +152,8 @@ export function ModulesView(p: StepProps) {
   const reviewDiff = action('review-diff');
   const files = ideFiles(view, 'file');
   const hasModules = view.modules.length > 0;
-  const ide = view.modulesView === 'ide' || !hasModules;   // sans module : les fichiers de la branche, dans les deux vues
-  const switchTo = (k: 'ide' | 'list') => { act.follow(null); act.set({ modulesView: k }); };
+  const ide = mode === 'ide' || !hasModules;   // sans module : les fichiers de la branche, dans les deux vues
+  const switchTo = (k: 'ide' | 'list') => { act.follow(null); setMode(k); act.set({ modulesView: k }); };
   // Un seul effet pour replier-sans-fichier : le module déplié n'a pas de fichier, ou n'existe plus.
   const openedFiles = view.modules.find((m) => m.path === opened)?.files?.length ?? 0;
   useEffect(() => { if (!ide && opened && !openedFiles) act.follow(null); }, [ide, opened, openedFiles]);

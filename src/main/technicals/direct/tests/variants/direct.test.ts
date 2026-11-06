@@ -168,14 +168,20 @@ describe('charger une PR', () => {
 });
 
 describe('publier la revue', () => {
-  it('gh pr review reçoit le fichier du brouillon ; pr-<n>-review.json : l’état et le lien', async () => {
+  it('gh pr review reçoit le fichier du brouillon ; pr-<n>-review.json : l’état, le lien, le verdict, le texte, la date', async () => {
     const { out, runner } = setup();
     answer({});
+    const before = Date.now();
     const r = await runner.publish(7, 'approve', '- [note] ok', 'https://github.com/o/d/pull/7');
     expect(r.ok).toBe(true);
     expect(ghCalls()).toEqual([['gh', 'pr', 'review', '7', '--approve', '--body-file', path.join(out, 'pr-7-review-body.md')]]);
     expect(fs.readFileSync(path.join(out, 'pr-7-review-body.md'), 'utf8')).toBe('- [note] ok');
-    expect(JSON.parse(fs.readFileSync(path.join(out, 'pr-7-review.json'), 'utf8'))).toEqual({ state: 'APPROVED', url: 'https://github.com/o/d/pull/7' });
+    expect(JSON.parse(fs.readFileSync(path.join(out, 'pr-7-review.json'), 'utf8'))).toEqual({
+      state: 'APPROVED', url: 'https://github.com/o/d/pull/7', verdict: 'approve', body: '- [note] ok', at: expect.any(String) });
+    const { at } = JSON.parse(fs.readFileSync(path.join(out, 'pr-7-review.json'), 'utf8'));
+    expect(new Date(at).toISOString()).toBe(at);
+    expect(Date.parse(at)).toBeGreaterThanOrEqual(before);
+    expect(Date.parse(at)).toBeLessThanOrEqual(Date.now());
   });
 
   it('gh échoue (sa propre PR) : rien d’écrit dans pr-<n>-review.json, l’erreur rendue', async () => {

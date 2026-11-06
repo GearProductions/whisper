@@ -46,7 +46,6 @@ beforeEach(() => {
   fs.mkdirSync(path.join(repo, '.git'), { recursive: true });
   fs.mkdirSync(plain, { recursive: true });
   fs.writeFileSync(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agentsEnabled: true,
     agentCommand: process.execPath,
     agents: [
       { ...AGENT, id: 'a1', name: 'projet', dir: repo },

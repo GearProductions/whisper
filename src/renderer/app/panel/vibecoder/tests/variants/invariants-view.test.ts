@@ -10,9 +10,10 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EditorView } from '@codemirror/view';
 import { beforeEach, expect, it } from 'vitest';
-import { t } from 'core/vibecoder';
+import { createKept, scoped, t } from 'core/vibecoder';
 import type { VibeAction, VibeTestFile, VibeView } from 'technicals/bridge';
 import { InvariantsView } from '../../invariants-view';
+import { KeptScope } from '../../kept-scope';
 import type { StepProps } from '../../step-views';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -27,13 +28,14 @@ const test = (more: Partial<VibeTestFile> = {}): VibeTestFile => ({ id: 't0', pa
 let runs: unknown[][] = [];
 let marks: unknown[][] = [];
 let prefills: unknown[][] = [];
-beforeEach(() => { runs = []; marks = []; prefills = []; act(() => root.render(null)); });
-const draw = (f: VibeTestFile | VibeTestFile[], flow: 'create' | 'review', files: unknown[] = []) => act(() => {
-  const view = { lang: 'fr', flow, actions: [read], invariants: [f].flat(), files, outputs: {}, note: null, steps: [], modules: [], questions: [], checklist: [], draft: [] } as unknown as VibeView;
+let drafts: unknown[][] = [];
+beforeEach(() => { runs = []; marks = []; prefills = []; drafts = []; act(() => root.render(null)); });
+const draw = (f: VibeTestFile | VibeTestFile[], flow: 'create' | 'review', files: unknown[] = [], draft: unknown[] = [], kept?: ReturnType<typeof scoped>) => act(() => {
+  const view = { lang: 'fr', flow, actions: [read], invariants: [f].flat(), files, outputs: {}, note: null, steps: [], modules: [], questions: [], checklist: [], draft } as unknown as VibeView;
   const props = { view, step: { id: 'invariants', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
     code: null, drafts: [{}, () => {}], act: { run: (...a: unknown[]) => runs.push(a), follow: () => {}, mark: (...a: unknown[]) => marks.push(a), prefill: (...a: unknown[]) => prefills.push(a),
-      draft: () => {}, open: (...a: unknown[]) => runs.push(['open', ...a]), openLink: () => {}, save: async () => true } } as unknown as StepProps;
-  root.render(createElement(InvariantsView, props));
+      draft: (...a: unknown[]) => drafts.push(a), open: (...a: unknown[]) => runs.push(['open', ...a]), openLink: () => {}, save: async () => true } } as unknown as StepProps;
+  root.render(kept ? createElement(KeptScope.Provider, { value: kept }, createElement(InvariantsView, props)) : createElement(InvariantsView, props));
 });
 const src = () => page.querySelector('details.vc-ifile-src') as HTMLDetailsElement;
 const pick = (v: string) => act(() => {
@@ -104,14 +106,14 @@ it('icônes : 💬 et Ouvrir nommés, mêmes actions ; l\'état et Tout valider,
 
 it('le verdict et les deux outils d\'un cas sont dans son en-tête ; le badge donné est pressé, le pied a disparu', async () => {
   await draw(test({ cases: ['a', 'b', 'c'], lines: [1, 2, 3], marks: { a: 'ok', b: 'ko' } }), 'review');
-  const pressed = [...page.querySelectorAll('.vc-case')].map((c) => [...c.querySelectorAll('.vc-case-head .vc-verdict button')].map((b) => b.getAttribute('aria-pressed')));
+  const pressed = [...page.querySelectorAll('.vc-case')].map((c) => [...c.querySelectorAll('.vc-case-head .vc-verdict button[aria-pressed]')].map((b) => b.getAttribute('aria-pressed')));
   expect(pressed).toEqual([['true', 'false'], ['false', 'true'], ['false', 'false']]);
-  expect(page.querySelectorAll('.vc-case-head .vc-case-tools .vc-tool')).toHaveLength(6);
+  expect(page.querySelectorAll('.vc-case-head .vc-case-tools .vc-tool')).toHaveLength(9);   // 💬, Poser une question, Ouvrir
   expect(page.querySelector('.vc-case-foot')).toBeNull();
   expect(page.querySelector('.vc-case-state')).toBeNull();
 });
 
-it('À revoir sur une carte : Créer, marque le cas et le cite dans le champ ; Relire, ouvre la zone de commentaire', async () => {
+it('À revoir sur une carte : Créer, marque le cas et le cite dans le champ ; Relire, marque seulement (le bouton de remarque ouvre la zone)', async () => {
   const f = test({ cases: ['a'], lines: [1] });
   const ko = () => page.querySelector<HTMLButtonElement>('.vc-case-head .vc-verdict button:last-child')!;
   await draw(f, 'create');
@@ -123,7 +125,7 @@ it('À revoir sur une carte : Créer, marque le cas et le cite dans le champ ; R
   await act(async () => ko().click());
   expect(marks).toHaveLength(2);
   expect(prefills).toHaveLength(1);
-  expect(page.querySelector('.vc-case textarea')).not.toBeNull();
+  expect(page.querySelector('.vc-case textarea')).toBeNull();
 });
 
 const two = [test({ id: 't0', path: 'tests/invariants/a.test.ts', cases: ['a1'], lines: [1] }),
@@ -160,5 +162,57 @@ it('vue IDE : changer de test referme le fichier ouvert ', async () => {
   await act(async () => row('tests/invariants/b.test.ts').click());
   expect(src().open).toBe(false);
   await act(async () => row('tests/invariants/a.test.ts').click());
+  expect(src().open).toBe(false);
+});
+
+const key = 'case:tests/invariants/a.test.ts:a';
+const noted = test({ cases: ['a', 'b'], lines: [1, 2] });
+const ask = () => page.querySelector<HTMLButtonElement>('.vc-case-tools button[aria-label="Poser une question à l\'agent"]');
+const remarkBtn = (i = 0) => [...page.querySelectorAll('.vc-case')][i].querySelector<HTMLButtonElement>('.vc-verdict button:nth-child(3)');
+
+it('Relire : deux remarques sur un cas, empilées sous lui ; l\'autre cas n\'en a pas ; croix → le brouillon', async () => {
+  await draw(noted, 'review', [], [{ id: 1, target: key, text: 'un' }, { id: 2, target: key, text: 'deux' }, { id: 3, target: 'note', text: 'ailleurs' }]);
+  const cards = [...page.querySelectorAll('.vc-case')];
+  expect([...cards[0].querySelectorAll('.vc-draft-list li')].map((li) => li.textContent)).toEqual(['un', 'deux']);
+  expect(cards[1].querySelector('.vc-draft-list')).toBeNull();
+  await act(async () => cards[0].querySelectorAll<HTMLButtonElement>('.vc-draft-remove')[1].click());
+  expect(drafts).toEqual([[{ remove: 2 }]]);
+});
+
+it('Créer : les remarques du brouillon ne sont pas sous les cas', async () => {
+  await draw(noted, 'create', [], [{ id: 1, target: key, text: 'un' }]);
+  expect(page.querySelector('.vc-draft-list')).toBeNull();
+});
+
+it('Poser une question sur un cas : son titre cité dans le champ, rien d\'envoyé ni ajouté ; absent en Créer', async () => {
+  await draw(noted, 'review');
+  await act(async () => ask()!.click());
+  expect(prefills).toEqual([['comment', 'a']]);
+  expect(drafts).toEqual([]);
+  expect(runs).toEqual([]);
+  await draw(noted, 'create');
+  expect(ask()).toBeNull();
+});
+
+it('un cas À revoir : le bouton de remarque, qui ouvre la zone sans rien ajouter ; Validé : aucun ; Créer : aucun', async () => {
+  await draw(test({ cases: ['a', 'b', 'c'], lines: [1, 2, 3], marks: { a: 'ko', b: 'ok' } }), 'review');
+  expect([0, 1, 2].map((i) => remarkBtn(i)?.textContent ?? null)).toEqual(['Ajouter une remarque au brouillon', null, null]);
+  expect(page.querySelector('.vc-case textarea')).toBeNull();
+  await act(async () => remarkBtn(0)!.click());
+  expect(page.querySelector('.vc-case textarea')).not.toBeNull();
+  expect(drafts).toEqual([]);
+  await draw(test({ cases: ['a'], lines: [1], marks: { a: 'ko' } }), 'create');
+  expect(remarkBtn(0)).toBeNull();
+});
+
+it('le fichier ouvert gardé : la vue recréée sous le même agent le montre encore ouvert, un autre agent non', async () => {
+  const kept = createKept();
+  await draw(test(), 'create', [], [], scoped(kept, 'a1', 'invariants'));
+  await act(async () => { src().open = true; src().dispatchEvent(new Event('toggle')); });
+  await act(async () => root.render(null));
+  await draw(test(), 'create', [], [], scoped(kept, 'a1', 'invariants'));
+  expect(src().open).toBe(true);
+  await act(async () => root.render(null));
+  await draw(test(), 'create', [], [], scoped(kept, 'a2', 'invariants'));
   expect(src().open).toBe(false);
 });

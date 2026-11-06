@@ -8,6 +8,9 @@
  *  chaque élément de liste cite son texte (blockQuotes) ; avec onComment
  *  (Relire), ce 💬 ouvre
  *  sous lui une zone de commentaire, et la remarque part avec ce qu'il cite.
+ *  Avec onAsk (Relire), un bouton « Poser une question » (t.askAgent) à côté du 💬 cite de même
+ *  le texte (onAsk(texte)) ; blockEnd rend quelque chose après chaque bloc qui a un 💬 (ses
+ *  remarques), comme itemEnd après un élément de liste.
  *  Avec changed (des numéros de ligne du
  *  texte), un liseré sur les blocs et éléments qui en contiennent une ; tag
  *  met une pastille devant le texte d'un élément de liste (par sa ligne),
@@ -26,6 +29,8 @@ type Ctx = {
   t: Strings;
   onOpenLink(url: string): void;
   onQuote?(text: string): void;
+  onAsk?(text: string): void;                      // Relire : un bouton à côté du 💬, qui cite ce que le 💬 cite
+  blockEnd?(text: string): ReactNode;              // après le bloc qui a un 💬 (son texte brut), comme itemEnd
   onComment?(quote: string, text: string): void;   // Relire : 💬 ouvre une zone de commentaire sous ce qu'il cite
   changed?: Set<number>;           // lignes ajoutées ou changées (depuis 0)
   tag?(line: number): ReactNode;   // devant le texte de l'élément de liste qui commence à cette ligne
@@ -52,6 +57,7 @@ export function MarkdownView({ md, ...given }: Ctx & { md: string }) {
         return b.kind === 'list' || b.kind === 'rule' ? <BlockView key={i} b={b} end={end} ctx={ctx} /> : (
           <div key={i} className="vc-block" data-changed={touched(ctx, b.line, end) || undefined}>
             <BlockView b={b} end={end} ctx={ctx} /><Quote line={b.line} ctx={ctx} />
+            {ctx.quotes.has(b.line) ? ctx.blockEnd?.(ctx.quotes.get(b.line)!) : null}
           </div>
         );
       })}
@@ -72,7 +78,7 @@ type Full = Ctx & { open: Open; quotes: Quotes };
 
 // 💬 : cite (onQuote) ; Relire (onComment) : ouvre ou ferme la zone de commentaire, rendue juste après.
 function Quote({ line, ctx }: { line: number; ctx: Full }) {
-  const { onQuote, onComment, open, t } = ctx;
+  const { onQuote, onComment, onAsk, open, t } = ctx;
   const text = ctx.quotes.get(line);
   if ((!onQuote && !onComment) || !text) return null;
   const here = open.at === line;
@@ -81,6 +87,7 @@ function Quote({ line, ctx }: { line: number; ctx: Full }) {
     <>
       <button type="button" className="vc-quote" title={title} aria-label={title} aria-pressed={onComment ? here : undefined}
         onClick={() => (onComment ? open.set(here ? null : line) : onQuote!(text))}><Icon name="comment" /></button>
+      {onAsk ? <button type="button" className="vc-quote vc-ask" title={t.askAgent} aria-label={t.askAgent} onClick={() => onAsk(text)}><Icon name="ask" /></button> : null}
       {onComment && here ? (
         <CommentBox t={t} onCancel={() => open.set(null)} onSave={(said) => { onComment(text, said); open.set(null); }} />
       ) : null}

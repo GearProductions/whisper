@@ -15,7 +15,7 @@ allowed-tools: "Write, Bash(mktemp *), Bash(gh pr review *), Bash(gh api *)"
 
 1. Write the draft exactly as given — no rewording, no addition, no summary — to a temporary file: `mktemp -t vibecoder-review.XXXXXX`, then the Write tool on that path.
 2. `gh pr review <n> --<verdict> --body-file <that file>` (`--approve`, `--comment` or `--request-changes`). It fails (e.g. one cannot approve one's own PR) → report the error, write nothing, stop.
-3. The review just published: your login (`gh api user --jq .login`), then `gh api --paginate repos/{owner}/{repo}/pulls/<n>/reviews --jq '.[] | {state, url: .html_url, user: .user.login}'` — the last entry whose `user` is you.
-4. Write `<out>/pr-<n>-review.json`: `{"state":"APPROVED"|"COMMENTED"|"CHANGES_REQUESTED","url":"…"}`, valid JSON.
+3. The review just published: your login (`gh api user --jq .login`), then `gh api --paginate repos/{owner}/{repo}/pulls/<n>/reviews --jq '.[] | {state, url: .html_url, at: .submitted_at, user: .user.login}'` — the last entry whose `user` is you.
+4. Write `<out>/pr-<n>-review.json`: `{"state":"APPROVED"|"COMMENTED"|"CHANGES_REQUESTED","url":"…","verdict":"<the verdict given>","body":"<the draft, exactly as published>","at":"<that entry's at>"}`, valid JSON (escape the draft: quotes, backslashes, newlines).
 
 Change nothing else. Answer in English, one line: the verdict and the link.
