@@ -7,7 +7,12 @@
  *  (drafts : *Fermer* ne la jette pas), Ctrl+S, Enregistrer, Abandonner :
  *  useFileDraft, DraftFoot et DraftEditor (file-draft), grisés si note.locked
  *  (le motif en titre) ; avant le premier texte poussé, rendue en lecture.
- *  Relire : rendue, en lecture. Ce que l'agent a
+ *  Relire : rendue, en lecture ; les remarques du brouillon sur la note sont
+ *  sous son en-tête, celles d'un passage sous lui, grisées (DraftRemarks,
+ *  remarksAt : crayon, croix), de même celles d'un bloc ; *Poser une question
+ *  à l'agent*, à côté du 💬 (onAsk), cite le passage dans le champ (prefill, rien
+ *  n'est envoyé) ; sur « À revoir », le bouton de
+ *  remarque ouvre la zone, qui ne s'ouvre pas d'elle-même. Ce que l'agent a
  *  changé depuis le début de son dernier tour a un liseré vert ; « Voir les
  *  modifications » montre le diff brut, retraits compris, replié autour des
  *  changements (DiffView) ; « Vu » (Icon ok + texte) repart de la note actuelle. Les lignes de « Ce que ça
@@ -20,9 +25,10 @@
  *  faire pour en avoir une. Styles : note-view.css.
  *  Ne connaît pas : le pont (rappels passés), le disque. Utilisé par : step-views. */
 import { useEffect, useMemo, useState } from 'react';
-import { changedLines, excerpt, fileParts, lineDiff, mustNotTags, remark } from 'core/vibecoder';
+import { changedLines, excerpt, fileParts, lineDiff, mustNotTags, remark, remarksAt } from 'core/vibecoder';
 import type { MustNotMark, VibeLang } from 'technicals/bridge';
 import { CommentBox } from './comment-box';
+import { DraftRemarks } from './draft-remarks';
 import { DiffView } from './diff-view';
 import { DraftEditor, DraftFoot, useFileDraft } from './file-draft';
 import { MarkdownView } from './markdown-view';
@@ -31,6 +37,7 @@ import { QuestionsView } from './questions-view';
 import { Invite, OutputCard, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
 import { Icon, IconButton } from './icons';
+import { useKept } from './kept-scope';
 import { MarkControl } from './validation';
 import './note-view.css';
 
@@ -94,7 +101,7 @@ export function NoteView(p: StepProps) {
   const { note } = view;
   const review = view.flow === 'review';
   const [raw, setRaw] = useState(false);
-  const [brut, setBrut] = useState(false);
+  const [brut, setBrut] = useKept('brut', false); // gardé par agent et par étape (T-20)
   const before = note?.before ?? null, text = note?.text ?? '';
   const diff = useMemo(() => (before === null ? null : lineDiff(before, text)), [before, text]);
 
@@ -113,13 +120,18 @@ export function NoteView(p: StepProps) {
 
   // 💬 : Créer, cité dans le champ ; Relire, une zone de commentaire sous le bloc, pour le brouillon de revue.
   const quote = !review && view.actions.some((a) => a.id === 'comment') ? (q: string) => act.prefill('comment', q) : undefined;
-  const comment = review ? (q: string, text: string) => act.draft({ add: remark(`note: ${excerpt(q, 80)}`, text) }) : undefined;
-  // Relire, ✗ : la zone de commentaire sous l'en-tête de la note.
+  const itemTarget = (q: string) => `note: ${excerpt(q, 80)}`;
+  const comment = review ? (q: string, text: string) => act.draft({ add: remark(itemTarget(q), text) }) : undefined;
+  // Relire, le bouton de remarque d'un « À revoir » : la zone de commentaire sous l'en-tête de la note.
   const [refusing, setRefusing] = useState(false);
-  const mark = (v: 'ok' | 'ko' | null) => {
-    act.mark('note', v);
-    setRefusing(review && v === 'ko');
+  // Relire : les remarques du brouillon sur la note (sous l'en-tête), sur un bloc ou un élément de liste (sous lui).
+  const onRemarks = { onEdit: (id: number, text: string) => act.draft({ edit: { id, text } }), onRemove: (id: number) => act.draft({ remove: id }), onOpenLink: act.openLink };
+  const noteRemarks = review && note ? remarksAt(view.draft, 'note') : [];
+  const remarksUnder = !review ? undefined : (q: string) => {
+    const at = remarksAt(view.draft, itemTarget(q));
+    return at.length ? <DraftRemarks remarks={at} t={t} {...onRemarks} /> : null;
   };
+  const ask = review && view.actions.some((a) => a.id === 'comment') ? (q: string) => act.prefill('comment', q) : undefined;
   const tag = (line: number) => {
     if (!tags.has(line)) return null;
     const [label, title] = s.marks[tags.get(line) ?? 'none'];
@@ -155,7 +167,7 @@ export function NoteView(p: StepProps) {
             {editing ? (
               <button type="button" className="vc-mini" aria-pressed={brut} title={s.rawTitle} onClick={() => setBrut(!brut)}>{brut ? s.rendered : s.raw}</button>
             ) : null}
-            <span className="vc-note-mark"><MarkControl what="note" state={note.mark} review={review} lang={view.lang} onMark={mark} /></span>
+            <span className="vc-note-mark"><MarkControl what="note" state={note.mark} review={review} lang={view.lang} onMark={(v) => act.mark('note', v)} onRemark={review ? () => setRefusing(true) : undefined} /></span>
           </div>
           {refusing ? (
             <div className="vc-note-refuse">
@@ -163,6 +175,7 @@ export function NoteView(p: StepProps) {
                 onSave={(text) => { act.draft({ add: remark('note', text) }); setRefusing(false); }} />
             </div>
           ) : null}
+          {noteRemarks.length ? <div className="vc-note-refuse"><DraftRemarks remarks={noteRemarks} t={t} {...onRemarks} /></div> : null}
           {diff && (added || removed) ? (
             <div className="vc-note-changes" role="status">
               <span className="vc-note-pulse" aria-hidden="true" />
@@ -186,7 +199,7 @@ export function NoteView(p: StepProps) {
                 </>
               )
               : editable && d.tooBig ? <div className="vc-empty">{t.tooBig}</div>
-              : <MarkdownView md={note.text} t={t} onOpenLink={act.openLink} onQuote={quote} onComment={comment} changed={changed} tag={tag} />}
+              : <MarkdownView md={note.text} t={t} onOpenLink={act.openLink} onQuote={quote} onComment={comment} changed={changed} tag={tag} onAsk={ask} blockEnd={remarksUnder} itemEnd={remarksUnder} />}
           </div>
         </section>
       ) : (

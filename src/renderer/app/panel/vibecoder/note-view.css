@@ -127,3 +127,8 @@
 .vc-note-editor .cm-gutterElement:hover .cm-md-button, .vc-note-editor .cm-md-button:focus-visible { opacity: 1; background: var(--vc-hover); color: var(--vc-text); }
 
 .vc-note-refuse { padding: 4px 16px 0; }
+
+/* Relire : le bouton « Poser une question » (vc-quote vc-ask) à côté du 💬 ; les remarques d'un passage dans son fil. */
+.vc-quote.vc-ask { right: 24px; }
+.vc-md li > .vc-draft-list, .vc-block > .vc-draft-list { margin: 4px 0; }
+.vc-note > .vc-draft-list { margin: 0; border-top: 1px solid var(--vc-line); }
