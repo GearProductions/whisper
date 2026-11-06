@@ -1,5 +1,5 @@
 /* L'étape Revue de Relire (draft-view) : la revue publiée (son état, un
-   point sans halo), le brouillon (ses icônes vc-tool, × rouge au survol), le
+   point sans halo), le brouillon (draft-remarks.css), le
    verdict et Publier. Sous .vc, couleurs de vibecoder.css (rouge : celui de
    Whisper). Ne connaît pas : le pont. Utilisé par : draft-view. */
 
@@ -11,33 +11,11 @@
 .vc-review-state[data-state="COMMENTED"]::before { background: var(--vc-accent); }
 .vc-review-state[data-state="CHANGES_REQUESTED"] { color: var(--vc-ko-text); }
 .vc-review-state[data-state="CHANGES_REQUESTED"]::before { background: var(--vc-ko); }
+/* Revue déjà publiée (reviewSent) : grisée ; son résumé tient sur la ligne d'état, qui existe déjà : rien ne bouge. */
+.vc-sent { opacity: 0.6; }
+.vc-sent .vc-review-state { white-space: nowrap; }
 
-/* ---- Le brouillon -------------------------------------------------------------- */
-.vc-draft-list { list-style: none; margin: -6px -16px -14px; padding: 0; }
-.vc-draft-list > li { position: relative; padding: 10px 72px 10px 16px; transition: background-color 0.12s; }
-.vc-draft-list > li + li { box-shadow: inset 0 1px 0 var(--vc-sep-soft); }
-.vc-draft-list > li:hover { background: var(--vc-hover); }
-.vc-draft-target {
-  display: inline-block;
-  max-width: 100%;
-  box-sizing: border-box;
-  margin-bottom: 5px;
-  padding: 0 8px;
-  overflow: hidden;
-  border-radius: 4px;
-  background: var(--vc-active-bg);
-  color: var(--vc-soft);
-  font-size: 11.5px;
-  line-height: 19px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  vertical-align: top;
-}
-.vc-draft-list .vc-md { font-size: 13px; }
-.vc-draft-list .vc-md ul { list-style: disc; }
-.vc-draft-tools { position: absolute; top: 9px; right: 10px; display: flex; gap: 2px; opacity: 0.5; }
-.vc-draft-list > li:hover .vc-draft-tools, .vc-draft-tools:focus-within { opacity: 1; }
-.vc-draft-remove:hover { background: var(--vc-ko-bg); color: var(--vc-ko-text); }
+/* ---- Le brouillon (ses remarques : draft-remarks.css) -------------------------- */
 .vc-draft-empty { color: var(--vc-faint); font-size: 12.5px; line-height: 1.6; }
 
 /* ---- Verdict et Publier -------------------------------------------------------- */
