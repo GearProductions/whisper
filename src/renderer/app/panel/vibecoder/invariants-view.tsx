@@ -13,7 +13,7 @@
  *  refermé par l'utilisateur : act.follow(null)) ; la modification gardée,
  *  Ctrl+S, Enregistrer, Abandonner : useFileDraft et DraftEditor (file-draft),
  *  grisés si f.locked (le motif en titre). À revoir et 💬 citent le
- *  cas dans le champ (relecteur : ils ouvrent sous la carte une zone de
+ *  cas dans le champ (relecteur : 💬 ouvre sous la carte une zone de
  *  commentaire, pour le brouillon de revue, le cas en cible). Par fichier : sa
  *  progression ; dans les outils de l'en-tête, alignés : « Tout valider »
  *  (Icon ok et texte) quand aucun cas n'a de point d'attention (lu ou pas,
@@ -40,22 +40,28 @@
  *  d'attention en entier dans le champ (attentionQuote) ; relecteur, il ouvre la
  *  zone de la carte si elle est fermée et y ajoute le point d'attention
  *  (withAttention) sans rien effacer : seul « Ajouter » le verse au brouillon.
+ *  Relecteur : sous chaque cas, les remarques du brouillon qui le visent (DraftRemarks, remarksAt), grisées,
+ *  empilées, modifiables sur place ; à côté de 💬, « Poser une question à l'agent » (cite le titre dans le champ,
+ *  ne l'envoie pas) ; un cas À revoir : le bouton de remarque (CaseVerdict.onRemark) ouvre la zone, sans rien
+ *  ajouter ; À revoir ne l'ouvre plus d'office. Le fichier ouvert est gardé par agent (useKept).
  *  Vue IDE, la seule : sous l'en-tête de l'étape, une carte (IdeView(invariantFiles(view.invariants, view.files))) ;
  *  à gauche les tests, leur nom coloré comme VS Code (état git, rang + 1) ; au centre, du test choisi, son
  *  en-tête et ses cartes, comme avant (le premier d'emblée). Choisir un autre test referme son fichier
  *  ouvert (OnLeave : act.follow(null)). Sans test : l'invitation, pas de carte.
- *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
+ *  Ne connaît pas : le pont (rappels passés), le brouillon (ses remarques, par cible). Utilisé par : step-views. */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
-  attentionQuote, awaiting, caseLine, caseSource, casesOf, excerpt, fileParts, invariantFiles, progress, pseudoLines, remark, withAttention, type CaseView, type Progress, type Strings,
+  attentionQuote, awaiting, caseLine, caseSource, casesOf, excerpt, fileParts, invariantFiles, progress, pseudoLines, remark, remarksAt, withAttention, type CaseView, type Progress, type Strings,
 } from 'core/vibecoder';
-import type { VibeLang, VibeTestFile } from 'technicals/bridge';
+import type { VibeComment, VibeLang, VibeTestFile } from 'technicals/bridge';
 import { CodeView } from './code-view';
 import { CommentBox } from './comment-box';
 import { DiffPicker } from './diff-picker';
+import { DraftRemarks } from './draft-remarks';
 import { DraftEditor, useFileDraft } from './file-draft';
 import { Icon, IconButton } from './icons';
 import { IdeView } from './ide-view';
+import { useKept } from './kept-scope';
 import { InlineMd, MarkdownView } from './markdown-view';
 import { ModuleDiffView } from './module-diff-view';
 import { Invite, Run, StepHead } from './step-parts';
@@ -157,7 +163,7 @@ export function InvariantsView(props: StepProps) {
   const total = progress(view.invariants);
   const align = view.outputs['align.md'];
   const target = (f: VibeTestFile, title: string) => `case:${f.path}:${title}`;
-  // À revoir et 💬 : Créer, le cas cité dans le champ ; Relire, la zone de commentaire de la carte (CaseCard), au brouillon de revue.
+  // À revoir : Créer, le cas cité dans le champ ; Relire, marque seulement (son bouton de remarque ouvre la zone de la carte).
   const verdict = (f: VibeTestFile, title: string, v: Verdict) => {
     act.mark(target(f, title), v);
     if (v === 'ko' && !review) act.prefill('case-ko', title);
@@ -167,7 +173,7 @@ export function InvariantsView(props: StepProps) {
 
   // Créer : le fichier ouvert, par son chemin (un id t<i> change de fichier quand la liste change),
   // et où (le titre d'un cas, Code ; null, Voir le fichier). Un seul à la fois.
-  const [shown, setShown] = useState<{ path: string; title: string | null } | null>(null);
+  const [shown, setShown] = useKept<{ path: string; title: string | null } | null>('shown', null);
   const file = review || !shown ? undefined : view.invariants.find((f) => f.path === shown.path);
   const id = file?.id ?? null;
   // null n'est pas envoyé ici : refermé par l'utilisateur, show(null) l'envoie.
@@ -222,6 +228,8 @@ export function InvariantsView(props: StepProps) {
             onVerdict={(v) => verdict(f, c.title, v)} onQuote={() => act.prefill('comment', c.title)}
             onQuoteAttention={() => act.prefill('comment', attentionQuote(c.title, c.reading?.warning ?? ''), true)} onOpen={() => act.open(f.id, caseLine(f, c.title))}
             onComment={(text) => act.draft({ add: remark(target(f, c.title), text) })}
+            remarks={review ? remarksAt(view.draft, target(f, c.title)) : []}
+            onEditRemark={(rid, text) => act.draft({ edit: { id: rid, text } })} onRemoveRemark={(rid) => act.draft({ remove: rid })}
             edit={review ? undefined : {
               shown: f === file && shown?.title === c.title,
               onShow: (on) => show(on ? { path: f.path, title: c.title } : null),
@@ -322,11 +330,12 @@ type CardProps = {
   code: string; from: number; path: string;   // son code d'origine ('' : inconnu), sa première ligne, son fichier
   onOpenLink(url: string): void; onVerdict(v: Verdict): void; onQuote(): void; onQuoteAttention(): void; onOpen(): void;
   onComment(text: string): void;   // Relecteur : la remarque de la zone de commentaire, sur ce cas
+  remarks: VibeComment[]; onEditRemark(id: number, text: string): void; onRemoveRemark(id: number): void;   // Relecteur : celles du brouillon sur ce cas
   // Créateur : Code ouvre le fichier entier modifiable, un seul à la fois (invariants-view le tient) ; relecteur : absent.
   edit?: { shown: boolean; onShow(on: boolean): void; view(): ReactNode };
 };
 
-function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVerdict, onQuote, onQuoteAttention, onOpen, onComment, edit }: CardProps) {
+function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVerdict, onQuote, onQuoteAttention, onOpen, onComment, remarks, onEditRemark, onRemoveRemark, edit }: CardProps) {
   const r = c.reading;
   const quote = review ? s.quoteReview : s.quote;
   const [writing, setWriting] = useState(false);
@@ -335,9 +344,8 @@ function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVe
   const showCode = edit ? edit.shown : local;
   // Pseudo-code sur une carte déjà fermée ne referme pas le fichier ouvert ailleurs.
   const setShowCode = edit ? (on: boolean) => { if (on !== edit.shown) edit.onShow(on); } : setLocal;
-  // Relecteur : À revoir et 💬 ouvrent la zone de commentaire ; créateur : 💬 cite le cas dans le champ.
+  // Relecteur : 💬 et le bouton de remarque d'un À revoir ouvrent la zone de commentaire ; créateur : 💬 cite le cas dans le champ.
   const close = () => { setWriting(false); setText(''); };
-  const verdict = (v: Verdict) => { onVerdict(v); if (review && v === 'ko') setWriting(true); };
   return (
     <article className="vc-case" data-mark={c.mark || undefined} data-warn={r?.warning ? true : undefined}>
       <div className="vc-case-head">
@@ -350,9 +358,10 @@ function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVe
             <button type="button" aria-pressed={showCode} onClick={() => setShowCode(true)}>{s.code}</button>
           </span>
         ) : null}
-        <CaseVerdict state={c.mark} lang={lang} onMark={verdict} />
+        <CaseVerdict state={c.mark} lang={lang} onMark={onVerdict} onRemark={review ? () => setWriting(true) : undefined} />
         <span className="vc-case-tools">
           <IconButton icon="comment" label={quote} pressed={review ? writing : undefined} onClick={() => (review ? setWriting(!writing) : onQuote())} />
+          {review ? <IconButton icon="ask" label={t.askAgent} onClick={onQuote} /> : null}
           <IconButton icon="open" label={t.openTitle} onClick={onOpen} />
         </span>
       </div>
@@ -384,6 +393,7 @@ function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVe
           ) : null}
         </>
       ) : <p className="vc-case-none">{s.noReading}</p>}
+      {remarks.length ? <DraftRemarks remarks={remarks} t={t} onEdit={onEditRemark} onRemove={onRemoveRemark} onOpenLink={onOpenLink} /> : null}
       {writing ? <CommentBox t={t} value={text} onChange={setText} onCancel={close} onSave={(v) => { onComment(v); close(); }} /> : null}
     </article>
   );
