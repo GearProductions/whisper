@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import fsp from 'node:fs/promises';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { copyInto, moveContents, moveInto, renameItem } from 'technicals/file-tree';
+import { copyInto, moveContents, moveInto, renameItem, writeInto } from 'technicals/file-tree';
 
 let tmp = '';
 let root = '';
@@ -332,5 +332,81 @@ describe('renameItem, la casse seule', () => {
     expect(read(path.join(tmp, 'Rapport.md'))).toBe('R');
     expect(read(path.join(tmp, 'rapport.md'))).toBe('r');
     expect(fs.readdirSync(tmp).sort()).toEqual(['Rapport.md', 'rapport.md']);
+  });
+});
+
+describe('sameBytes (la comparaison d’un nom pris, au déplacement)', () => {
+  // Le second fichier ne s'ouvre pas : le premier, déjà ouvert, doit être refermé (sinon la poignée fuit jusqu'au ramasse-miettes).
+  it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)('le second fichier illisible : le premier est refermé, le déplacé prend le numéro libre', async () => {
+    write(path.join(tmp, 'from', 'a.md'), 'SAME');
+    write(path.join(root, 'a.md'), 'SAME');
+    fs.chmodSync(path.join(root, 'a.md'), 0o000);
+    const open = fsp.open;
+    const handles: Awaited<ReturnType<typeof fsp.open>>[] = [];
+    vi.spyOn(fsp, 'open').mockImplementation(async (...args: Parameters<typeof fsp.open>) => { const h = await open(...args); handles.push(h); return h; });
+
+    await moveContents(path.join(tmp, 'from'), root);
+    fs.chmodSync(path.join(root, 'a.md'), 0o644);
+
+    expect(handles).toHaveLength(1);
+    expect(handles[0].fd).toBe(-1);
+    expect(read(path.join(root, 'a-2.md'))).toBe('SAME');
+  });
+});
+
+describe('writeInto', () => {
+  it('un nom libre : écrit, dans copied', async () => {
+    const report = await writeInto(root, 'rapport.md', Buffer.from('X'));
+
+    expect(report.copied).toEqual([path.join(root, 'rapport.md')]);
+    expect(read(path.join(root, 'rapport.md'))).toBe('X');
+    expect(report.failed).toEqual([]);
+  });
+
+  it('un nom pris : le premier numéro libre, l’ancien intact', async () => {
+    write(path.join(root, 'rapport.md'), 'ANCIEN');
+    write(path.join(root, 'rapport-2.md'), 'ANCIEN2');
+
+    const report = await writeInto(root, 'rapport.md', Buffer.from('NEUF'));
+
+    expect(report.copied).toEqual([path.join(root, 'rapport-3.md')]);
+    expect(read(path.join(root, 'rapport-3.md'))).toBe('NEUF');
+    expect(read(path.join(root, 'rapport.md'))).toBe('ANCIEN');
+    expect(read(path.join(root, 'rapport-2.md'))).toBe('ANCIEN2');
+  });
+
+  it.skipIf(process.platform === 'win32')('une racine lien : failed, rien d’écrit', async () => {
+    write(path.join(tmp, 'cible', 'x'), 'X');
+    fs.symlinkSync(path.join(tmp, 'cible'), path.join(tmp, 'lien'));
+
+    const report = await writeInto(path.join(tmp, 'lien'), 'rapport.md', Buffer.from('NEUF'));
+
+    expect(report.failed).toHaveLength(1);
+    expect(report.copied).toEqual([]);
+    expect(fs.readdirSync(path.join(tmp, 'cible'))).toEqual(['x']);
+  });
+
+  it('le rapport reçu est complété (un seul pour plusieurs écritures)', async () => {
+    const first = await writeInto(root, 'a.md', Buffer.from('A'));
+    const second = await writeInto(root, 'b.md', Buffer.from('B'), first);
+
+    expect(second).toBe(first);
+    expect(first.copied).toEqual([path.join(root, 'a.md'), path.join(root, 'b.md')]);
+  });
+
+  it('un nom que les artefacts refusent (réservé de Windows, caractère interdit) : failed, rien d’écrit', async () => {
+    const report = await writeInto(root, 'CON.txt', Buffer.from('A'));
+    await writeInto(root, 'a:b.txt', Buffer.from('A'), report);
+
+    expect(report.failed).toHaveLength(2);
+    expect(report.copied).toEqual([]);
+    expect(fs.existsSync(root)).toBe(false);
+  });
+
+  it('un nom qui n’est pas un nom simple : failed, rien d’écrit', async () => {
+    const report = await writeInto(root, path.join('sous', 'a.md'), Buffer.from('A'));
+
+    expect(report.failed).toHaveLength(1);
+    expect(fs.existsSync(path.join(root, 'sous'))).toBe(false);
   });
 });
