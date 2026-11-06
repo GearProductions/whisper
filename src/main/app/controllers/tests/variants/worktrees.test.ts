@@ -103,12 +103,16 @@ beforeEach(() => {
     agentFolders: [{ dir: repo, color: '#22c55e' }, { dir: worktree, color: '#22c55e' }],
   }));
 });
-afterEach(() => { vi.useRealTimers(); });
+afterEach(() => { closeSocket(); closeSocket = () => {}; vi.useRealTimers(); });
 
-// Le panneau ouvert sur un agent, la page prête : ses relevés reçus.
+// Le panneau ouvert sur un agent, la page prête : ses relevés reçus. Les boutons de l'écran passent par le socket
+// (0.15.0) : ouvert comme au lancement, sur la vraie porte de l'écran.
+let closeSocket = () => {};
 async function open(id: string) {
   const { openConversation } = await import('app/windows');
-  const { panelReady } = await import('app/controllers');
+  const { panelReady, openSocket, commandFromSocket, closeSocket: close } = await import('app/controllers');
+  await openSocket(commandFromSocket);
+  closeSocket = close;
   openConversation(id);
   const panel = fake.windows.at(-1)!;
   panel.emit('ready-to-show');
@@ -136,7 +140,7 @@ describe('Relire dans un worktree', () => {
     await open('a2');
     const { draftVibe, removeWorktreeChild } = await import('app/controllers');
     const { loadConfig, vibeStore } = await import('app/settings');
-    draftVibe({ add: { target: 'note', text: 'à revoir' } });
+    await draftVibe({ add: { target: 'note', text: 'à revoir' } });
     expect(await removeWorktreeChild(loadConfig().agents[1])).toEqual({ ok: true, line: '' });
     expect(fs.existsSync(card)).toBe(false);
     expect(loadConfig().agents.map((a) => a.id)).toEqual(['a1']);
@@ -162,7 +166,7 @@ describe('Relire dans un worktree', () => {
   it('la fiche partie : le robot part, son dossier quitte les favoris, son brouillon revient, le panneau passe à l’agent du dépôt', async () => {
     await open('a2');
     const { draftVibe, syncWorktrees } = await import('app/controllers');
-    draftVibe({ add: { target: 'note', text: 'à revoir' } });
+    await draftVibe({ add: { target: 'note', text: 'à revoir' } });
     fs.rmSync(card);
     await syncWorktrees();
     const { loadConfig, vibeStore } = await import('app/settings');

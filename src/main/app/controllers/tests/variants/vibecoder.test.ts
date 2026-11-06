@@ -40,6 +40,9 @@ const fake = vi.hoisted(() => {
     found: null as unknown, people: null as unknown,
     dev: null as 'reload' | 'restart' | null, answer: 0, busy: false, release: (() => {}) as (v?: unknown) => void,
     fork: null as string | null, reads: [] as unknown[][],
+    // Le socket de l'écran : les commandes envoyées [commande, arguments] ; la réponse du cas (null : celle de l'exécuteur, 'down' : socket indisponible).
+    sent: [] as [string, unknown][], reply: null as null | 'down' | ((command: string, args: unknown) => unknown),
+    exec: (async () => null) as (agent: unknown, command: string, args: unknown) => Promise<unknown>,
   };
 });
 
@@ -133,7 +136,7 @@ vi.mock('technicals/direct', async (original) => ({
     switchTo: async (...b: string[]) => { fake.calls.push(['switch', ...b]); return OK; },
     stash: async () => { fake.calls.push(['stash']); return OK; },
     toBase: async (b: string, base: string) => { fake.calls.push(['toBase', b, base]); return OK; },
-    fetchAll: async () => { fake.calls.push(['fetchAll']); return OK; },
+    fetchAll: async () => { fake.calls.push(['fetchAll']); if (fake.busy) await new Promise((r) => { fake.release = r; }); return OK; },
     pull: async () => { fake.calls.push(['pull']); return OK; },
     rebase: async (onto: string) => { fake.calls.push(['rebase', onto]); return OK; },
     push: async () => { fake.calls.push(['push']); return OK; },
@@ -171,6 +174,19 @@ vi.mock('app/controllers/artifacts', async (original) => ({
 }));
 
 // Les courses : vraies ; runsTab relevé au passage.
+// Le socket de l'écran : chaque commande est relevée après un aller-retour JSON (comme sur le fil), puis la réponse du cas
+// (fake.reply) ; sans elle, celle de l'exécuteur, ce que le serveur appellera (runCommand, porte écran) ; 'down' : null, socket indisponible.
+vi.mock('app/controllers/socket', async (original) => ({
+  ...await original<typeof import('app/controllers/socket')>(),
+  screenSend: async (agent: never, command: string, args?: unknown) => {
+    const wire = args === undefined ? undefined : JSON.parse(JSON.stringify(args));
+    fake.sent.push([command, wire]);
+    if (fake.reply === 'down') return null;
+    if (fake.reply) return fake.reply(command, wire);
+    return JSON.parse(JSON.stringify(await fake.exec(agent, command, wire)));
+  },
+}));
+
 vi.mock('app/controllers/artifact-ops', () => Object.fromEntries(
   ['renameArtifact', 'newArtifact', 'trashArtifacts', 'moveArtifacts', 'copyArtifacts', 'duplicateArtifacts'].map((fn) =>
     [fn, async (a: { id: string }, ...rest: unknown[]) => { fake.calls.push([fn, a.id, ...rest]); return { ok: true, line: `${fn} done.`, detail: '' }; }])));
@@ -201,6 +217,10 @@ beforeEach(() => {
   fake.steps = [];
   fake.git = () => null;
   fake.calls = [];
+  fake.sent = [];
+  fake.reply = null;
+  // L'exécuteur du graphe de modules courant (resetModules : un import dans le mock lirait l'ancien).
+  fake.exec = async (agent, command, args) => (await import('app/controllers/commands')).runCommand(agent as never, { command, args, door: 'screen' });
   fake.branches = ['main', 'feat/x'];
   fake.synced = [];
   fake.prs = null;
@@ -223,7 +243,7 @@ beforeEach(() => {
   write(path.join(out, 'secret.txt'), 'pas une sortie');
   write(path.join(fake.userData, 'vibecoder', 'actions.fr.json'), JSON.stringify([
     { id: 'checks', flow: 'create', step: 'revue', kind: 'send', label: 'Lancer les vérifications', text: '/vibecoder:verifier {{lang}} {{out}}' },
-    { id: 'ask', flow: 'both', step: null, kind: 'send', needs: 'text', label: 'Demander', text: '{{text}} (PR {{pr}})' },
+    { id: 'guide', flow: 'both', step: null, kind: 'send', needs: 'text', label: 'Demander', text: '{{text}}' },
   ]));
   write(path.join(fake.userData, 'config.json'), JSON.stringify({
     agentsEnabled: true,
@@ -329,7 +349,7 @@ describe('le relevé', () => {
     ]));
     await open();
     const { runVibeAction, lockingRuns } = await import('app/controllers');
-    expect(runVibeAction('modules', {})).toEqual({ ok: true });
+    expect(await runVibeAction('modules', {})).toEqual({ ok: true });
     expect(lockingRuns('a1')).toEqual([expect.objectContaining({ id: 'modules', module: '*' })]);
     await settle();
   });
@@ -337,10 +357,10 @@ describe('le relevé', () => {
   it('refusée si la page passe autre chose que ses arguments, ou une action inconnue', async () => {
     await open();
     const { runVibeAction } = await import('app/controllers');
-    expect(runVibeAction('ask', { text: 'une question', pr: '12; rm -rf ~' })).toMatchObject({ ok: false });
-    expect(runVibeAction('ask', { text: 'x'.repeat(20001), pr: 12 })).toMatchObject({ ok: false });
-    expect(runVibeAction('checks', 'pas un objet')).toMatchObject({ ok: false });
-    expect(runVibeAction('inconnue', {})).toMatchObject({ ok: false });
+    expect(await runVibeAction('checks', { pr: '12; rm -rf ~' })).toMatchObject({ ok: false });
+    expect(await runVibeAction('guide', { text: 'x'.repeat(20001) })).toMatchObject({ ok: false });
+    expect(await runVibeAction('checks', 'pas un objet')).toMatchObject({ ok: false });
+    expect(await runVibeAction('inconnue', {})).toMatchObject({ ok: false });
     await settle();
     expect(fake.messages).toEqual([]);
   });
@@ -348,7 +368,7 @@ describe('le relevé', () => {
   it('une action d’étape court à part : son gabarit rempli, rien d’autre ; à sa fin, l’avis à la conversation', async () => {
     await open();
     const { runVibeAction } = await import('app/controllers');
-    expect(runVibeAction('checks', {})).toEqual({ ok: true });
+    expect(await runVibeAction('checks', {})).toEqual({ ok: true });
     await settle();
     expect(fake.messages).toEqual([`/vibecoder:verifier fr ${out}`, expect.stringMatching(/^VibeCoder : « Lancer les vérifications » terminée — ok\. /)]);
   });
@@ -361,7 +381,7 @@ describe('le relevé', () => {
     write(cfgFile, JSON.stringify({ ...JSON.parse(fs.readFileSync(cfgFile, 'utf8')), vibeCommandPrefix: 'distrobox enter dev --' }));
     await open();
     const { runVibeAction } = await import('app/controllers');
-    expect(runVibeAction('checks', {})).toEqual({ ok: true });
+    expect(await runVibeAction('checks', {})).toEqual({ ok: true });
     await settle();
     expect(fake.messages[0]).toBe(`/vibecoder:verifier fr ${out} distrobox enter dev --`);
   });
@@ -479,21 +499,21 @@ describe('rc.2', () => {
     it('lues par un gabarit qui a {{text}} : la sélection et les chemins au texte, les images avec', async () => {
       await open();
       const { runVibeAction } = await import('app/controllers');
-      expect(runVibeAction('ask', { text: 'une question', pr: 12, pieces })).toEqual({ ok: true });
+      expect(await runVibeAction('guide', { text: 'une question', pieces })).toEqual({ ok: true });
       await settle();
-      expect(all()).toContain('une question (PR 12)');
+      expect(all()).toContain('une question');
       expect(all()).toContain('la sélection');
       expect(all()).toContain('/tmp/joint/doc.txt');
       expect(all()).toContain(GIF.toString('base64'));
     });
 
-    it('une clé inconnue parmi elles n\u2019est jamais lue', async () => {
+    it('une clé inconnue parmi elles : retirée par l’adaptateur, l’action part sans elle, jamais lue (comme avant, I-2)', async () => {
       await open();
       const { runVibeAction } = await import('app/controllers');
-      runVibeAction('ask', { text: 'une question', pr: 12, pieces: { ...pieces, note: 'texte de la page' } });
+      expect(await runVibeAction('guide', { text: 'une question', pieces: { ...pieces, note: 'texte de la page' } })).toMatchObject({ ok: true });
       await settle();
-      expect(all()).toContain('une question');
-      expect(all()).not.toContain('texte de la page');
+      expect(fake.messages).toHaveLength(1);
+      expect(JSON.stringify(fake.messages)).not.toContain('texte de la page');
     });
 
     it('un gabarit qui ne lit ni {{text}} ni {{answers}} : ni préparées ni envoyées, dites dans ignored', async () => {
@@ -510,7 +530,7 @@ describe('rc.2', () => {
       await open();
       const { runVibeAction } = await import('app/controllers');
       const bad = { ...pieces, images: [{ name: 'abimee.png', type: 'image/png', data: new Uint8Array(GIF).buffer }] };
-      expect(runVibeAction('ask', { text: 'une question', pr: 12, pieces: bad })).toMatchObject({ ok: false, error: expect.stringContaining('abimee.png') });
+      expect(await runVibeAction('guide', { text: 'une question', pieces: bad })).toMatchObject({ ok: false, error: expect.stringContaining('abimee.png') });
       await settle();
       expect(fake.messages).toEqual([]);
     });
@@ -518,9 +538,9 @@ describe('rc.2', () => {
     it('sans pièces : le message part comme avant', async () => {
       await open();
       const { runVibeAction } = await import('app/controllers');
-      runVibeAction('ask', { text: 'une question', pr: 12 });
+      await runVibeAction('guide', { text: 'une question' });
       await settle();
-      expect(fake.messages).toEqual(['une question (PR 12)']);
+      expect(fake.messages).toEqual(['une question']);
     });
   });
 
@@ -551,11 +571,12 @@ describe('rc.2', () => {
   it('le brouillon de revue : une remarque modifiée sur place ; un texte vide ne la change pas', async () => {
     review();
     await open();
-    const { draftVibe } = await import('app/controllers');
+    const { editDraft, viewAgent } = await import('app/controllers');
     const { vibeStore } = await import('app/settings');
-    draftVibe({ add: { target: 'note', text: 'trop vague' } });
-    draftVibe({ edit: { id: 1, text: 'la forme est trop vague' } });
-    draftVibe({ edit: { id: 1, text: '  ' } });
+    const agent = viewAgent()!;
+    expect(editDraft(agent, { add: { target: 'note', text: 'trop vague' } })).toEqual({ ok: true });
+    expect(editDraft(agent, { edit: { id: 1, text: 'la forme est trop vague' } })).toEqual({ ok: true });
+    expect(editDraft(agent, { edit: { id: 1, text: '  ' } })).toMatchObject({ ok: false, reason: 'args' });
     expect(vibeStore().drafts.a1[12]).toEqual([{ id: 1, target: 'note', text: 'la forme est trop vague' }]);
   });
 
@@ -630,7 +651,7 @@ describe('0.11.0 : invariants existants et courses', () => {
     const { blobSha } = await import('core/vibecoder');
     expect(vibes().at(-1)).toMatchObject({ vibe: false });
     expect(vibeStore().marks.a1 ?? {}).toEqual({});   // hors Vibe : aucun ✓ donné
-    expect(runVibeAction('vibe', {})).toEqual({ ok: true });
+    expect(await runVibeAction('vibe', {})).toEqual({ ok: true });
     await settle();
     expect(fake.messages[0]).toBe(`/vibecoder:vibe fr ${out}`);
     expect(vibes().some((v) => v?.vibe === true)).toBe(true);
@@ -688,7 +709,7 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
   // Une nouvelle demande retenue, sa fiche relevée : request au relevé.
   async function requestPending() {
     const { refreshVibe, runVibeAction } = await import('app/controllers');
-    expect(runVibeAction('new-request', { text: 'ajouter un bouton' })).toEqual({ ok: true });
+    expect(await runVibeAction('new-request', { text: 'ajouter un bouton' })).toEqual({ ok: true });
     await until(() => fake.messages.length > 0);
     write(path.join(out, 'new-request.json'), JSON.stringify({ branch: 'feat/0.13.0-bouton' }));
     await refreshVibe({ now: true });
@@ -724,7 +745,7 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     gitWith('');
     await open();
     const { runVibeAction } = await import('app/controllers');
-    expect(runVibeAction('pr-here', { direct: true })).toEqual({ ok: true });
+    expect(await runVibeAction('pr-here', { direct: true })).toEqual({ ok: true });
     await until(() => done('pr-here'));
     expect(fake.calls).toEqual([['fetch', 'feat/x'], ['switch', 'feat/x'], ['pull', 'feat/x']]);
     expect((await directOf('pr-here'))?.last).toMatchObject({ ok: true });
@@ -741,7 +762,7 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
         await open();
         if (id === 'new-here') await requestPending();
         const { runVibeAction } = await import('app/controllers');
-        expect(runVibeAction(id, { direct: true })).toEqual({ ok: true });
+        expect(await runVibeAction(id, { direct: true })).toEqual({ ok: true });
         await until(() => done(id));
         expect(fake.calls.filter(([c]) => c === 'switch')).toEqual([]);
         expect((await directOf(id))?.last).toMatchObject({ ok: false, line: expect.stringMatching(/^Refused/) });
@@ -750,24 +771,66 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     expect(await vibeOf()).toMatchObject({ flow: 'review', pr: 12 });   // rien n'a changé
   });
 
+  // L'opération (runDirect) : le bouton direct de base, commit et publish passe par le socket depuis runVibeAction.
   it('base : des modifications au clic → refusé, rien lancé ; propre → toBase', async () => {
     gitWith(' M a.txt\n');
     await open();
-    const { runVibeAction } = await import('app/controllers');
-    runVibeAction('base', { direct: true });
+    const { runDirect, lastView, viewAgent } = await import('app/controllers');
+    const { loadConfig, vibeActions } = await import('app/settings');
+    const def = vibeActions('fr').find((a) => a.id === 'base')!;
+    const base = () => runDirect(viewAgent()!, def, { direct: true }, lastView('a1')!, loadConfig());
+    expect(base()).toEqual({ ok: true });
     await until(() => done('base'));
     expect(fake.calls).toEqual([]);
     gitWith('');
-    runVibeAction('base', { direct: true });
+    expect(base()).toEqual({ ok: true });
     await until(async () => fake.calls.length > 0);
     expect(fake.calls).toEqual([['toBase', 'feat/0.8.0-essai', 'main']]);
+  });
+  // Leur forme directe a sa commande du contrat (commit, publish, base) : par le socket, plus d'appel direct d'ici.
+  it('base, commit, publish en direct, au clic : la commande par screenSend (direct retiré), runDirect n\'est pas appelé ici', async () => {
+    gitWith('');
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+    fake.reply = () => ({ ok: true, result: null });
+    expect(await runVibeAction('base', { direct: true })).toEqual({ ok: true });
+    expect(await runVibeAction('commit', { direct: true })).toEqual({ ok: true });
+    expect(await runVibeAction('publish', { direct: true, verdict: 'approve' })).toEqual({ ok: true });
+    expect(await runVibeAction('base', { direct: false })).toEqual({ ok: true });   // pas « direct » : run.start
+    await settle();
+    expect(fake.sent).toEqual([['base', {}], ['commit', {}], ['publish', { verdict: 'approve' }], ['run.start', { action: 'base' }]]);
+    expect(fake.calls).toEqual([]);   // le vrai exécuteur n'a rien lancé : la réponse était réglée
+  });
+
+  it('pièces jointes : une clé que la page ajoute hors de images, files, selection est retirée avant le socket (comme avant)', async () => {
+    gitWith('');
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+    fake.reply = () => ({ ok: true, result: null });
+    await runVibeAction('forme', { text: 'x', pieces: { selection: 's', note: 'hors du champ' } as never });
+    expect(fake.sent).toEqual([['run.start', { action: 'forme', text: 'x', pieces: { selection: 's' } }]]);
+  });
+
+  it('base en direct par le vrai exécuteur : toBase comme avant ; publish : verdict absent, ou action hors du relevé : les textes d\'avant', async () => {
+    gitWith('');
+    review();
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+    expect(await runVibeAction('publish', { direct: true })).toEqual({ ok: false, error: 'Choisissez : approuver, commenter ou demander des changements.' });
+    expect(await runVibeAction('publish', { direct: true, verdict: 'approve' })).toEqual({ ok: false, error: 'Action inconnue ou indisponible.' });   // pas au relevé de cette étape
+    expect(fake.sent.map(([c]) => c)).toEqual(['publish', 'publish']);
+    fake.sent = [];
+    expect(await runVibeAction('base', { direct: true })).toEqual({ ok: true });
+    await until(async () => fake.calls.length > 0);
+    expect(fake.calls).toEqual([['toBase', 'feat/0.8.0-essai', 'main']]);
+    expect(fake.sent).toEqual([['base', {}]]);
   });
 
   it('Dans un nouveau worktree : la tête rapatriée, la recette (pr-12, base la tête, départ origin/<tête>), puis le robot', async () => {
     review();
     await open();
     const { runVibeAction } = await import('app/controllers');
-    runVibeAction('pr-worktree', { direct: true });
+    await runVibeAction('pr-worktree', { direct: true });
     await until(() => done('pr-worktree'));
     expect(fake.calls).toEqual([
       ['fetch', 'feat/x'],
@@ -783,7 +846,7 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     write(path.join(dir, '.vibecoder', 'project.json'), JSON.stringify({ commands: [], prWorktree: 'here' }));
     await open();
     const { runVibeAction } = await import('app/controllers');
-    runVibeAction('load-pr', { direct: true, pr: 12 });
+    await runVibeAction('load-pr', { direct: true, pr: 12 });
     await until(async () => fake.calls.length > 0 && await done('load-pr'));
     await settle();
     expect(fake.calls).toEqual([['sameRepo', 12], ['loadPr', 12], ['fetch', 'main']]);
@@ -796,11 +859,11 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     await open();
     const { runVibeAction } = await import('app/controllers');
     status = '';
-    runVibeAction('stash', { direct: true });
+    await runVibeAction('stash', { direct: true });
     await until(() => done('stash'));
     expect((await directOf('stash'))?.last).toMatchObject({ ok: true });
     status = '?? reste.txt\n';
-    runVibeAction('stash', { direct: true });
+    await runVibeAction('stash', { direct: true });
     await until(async () => (await directOf('stash'))?.last?.ok === false);
     expect((await directOf('stash'))?.last).toMatchObject({ ok: false, line: expect.stringMatching(/still has changes/) });
     expect(fake.calls).toEqual([['stash'], ['stash']]);
@@ -811,7 +874,7 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     gitWith(' M a.txt\n');
     await open();
     const { runVibeAction } = await import('app/controllers');
-    expect(runVibeAction('stash', {})).toMatchObject({ ok: false });
+    expect(await runVibeAction('stash', {})).toMatchObject({ ok: false });
     await settle();
     expect([fake.calls, fake.messages]).toEqual([[], []]);
   });
@@ -821,7 +884,7 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     gitWith('', 'feat/x');
     await open();
     const { runVibeAction } = await import('app/controllers');
-    runVibeAction('unload-pr', { direct: true });
+    await runVibeAction('unload-pr', { direct: true });
     await until(() => done('unload-pr'));
     expect(fake.calls).toEqual([['switch', 'main']]);
     expect(await vibeOf()).toMatchObject({ flow: 'review', pr: null });
@@ -830,7 +893,7 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
   it('Retirer le worktree (direct) : removeWorktreeChild ; plus de message au parent', async () => {
     await open();
     const { runVibeAction } = await import('app/controllers');
-    runVibeAction('remove-worktree', { direct: true });
+    await runVibeAction('remove-worktree', { direct: true });
     await until(() => done('remove-worktree'));
     expect(fake.calls).toEqual([['removeWorktreeChild', 'a1']]);
     expect(fake.messages).toEqual([]);
@@ -854,7 +917,7 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     await open();
     await requestPending();
     const { refreshVibe, runVibeAction } = await import('app/controllers');
-    runVibeAction('new-here', { direct: true });
+    await runVibeAction('new-here', { direct: true });
     await until(() => done('new-here'));
     expect(fake.calls).toEqual([['fetch', 'main'], ['switch', 'feat/0.13.0-bouton', 'origin/main']]);
     // la nouvelle branche n'a pas de PR : gh relu, le rôle redevient créateur
@@ -874,7 +937,7 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     await open();
     await requestPending();
     const { refreshVibe, runVibeAction, viewAgent } = await import('app/controllers');
-    runVibeAction('new-worktree', { direct: true });
+    await runVibeAction('new-worktree', { direct: true });
     await until(() => viewAgent()?.id === 'c1');
     await refreshVibe({ now: true });
     await until(() => fake.messages.length > 1);
@@ -893,7 +956,7 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     fake.noChild = true;
     try {
       const { lastView, refreshVibe, runVibeAction } = await import('app/controllers');
-      runVibeAction('new-worktree', { direct: true });
+      await runVibeAction('new-worktree', { direct: true });
       await until(() => done('new-worktree'));
       expect((await directOf('new-worktree'))?.last).toMatchObject({ ok: false, line: expect.stringMatching(/request stays here/) });
       await refreshVibe({ now: true });
@@ -910,8 +973,8 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     expect(fs.existsSync(path.join(out, 'new-request.json'))).toBe(false);
     expect(v.request).toBeNull();
     const { runVibeAction } = await import('app/controllers');
-    expect(runVibeAction('new-here', { direct: true })).toMatchObject({ ok: false });
-    expect(runVibeAction('new-worktree', { direct: true })).toMatchObject({ ok: false });
+    expect(await runVibeAction('new-here', { direct: true })).toMatchObject({ ok: false });
+    expect(await runVibeAction('new-worktree', { direct: true })).toMatchObject({ ok: false });
     expect([fake.calls, fake.messages]).toEqual([[], []]);
   });
 
@@ -1054,7 +1117,7 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     await open();
     const { runVibeAction } = await import('app/controllers');
     for (const id of ['fetch', 'pull', 'push']) {
-      expect(runVibeAction(id, { direct: true })).toEqual({ ok: true });
+      expect(await runVibeAction(id, { direct: true })).toEqual({ ok: true });
       await until(() => done(id));
     }
     expect(fake.calls).toEqual([['fetchAll'], ['pull'], ['push']]);
@@ -1067,10 +1130,10 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     setVibe({ prs: true });
     await until(() => !!view()?.github?.prs);
     // la mienne, une déjà à relire, une hors de la liste, pas un numéro : refusées, rien de lancé
-    for (const pr of [1, 2, 9, '3']) expect(runVibeAction('request-review', { direct: true, pr: pr as number })).toMatchObject({ ok: false });
+    for (const pr of [1, 2, 9, 'trois']) expect(await runVibeAction('request-review', { direct: true, pr: pr as number })).toMatchObject({ ok: false });
     expect(fake.calls).toEqual([]);
     fake.prs = { mine: [{ number: 1 }], review: [{ number: 2 }, { number: 3 }], all: [{ number: 1 }, { number: 2 }, { number: 3 }] };
-    expect(runVibeAction('request-review', { direct: true, pr: 3 })).toEqual({ ok: true });
+    expect(await runVibeAction('request-review', { direct: true, pr: 3 })).toEqual({ ok: true });
     await until(() => done('request-review'));
     expect(fake.calls).toEqual([['requestReview', 3, 'moi']]);
     await until(() => (view()?.github?.prs as { review: unknown[] } | undefined)?.review.length === 2);   // la PR passe dans À relire
@@ -1083,7 +1146,7 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     const { runVibeAction, setVibe } = await import('app/controllers');
     setVibe({ prs: true });
     await until(() => !!view()?.github?.prs);
-    runVibeAction('request-review', { direct: true, pr: 3 });
+    await runVibeAction('request-review', { direct: true, pr: 3 });
     await until(() => done('request-review'));
     expect(fake.calls).toEqual([]);
   });
@@ -1092,10 +1155,10 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     gitWith('');
     await open();
     const { runVibeAction } = await import('app/controllers');
-    expect(runVibeAction('rebase', { direct: true, onto: 'origin/feat/x' })).toMatchObject({ ok: false });
-    runVibeAction('rebase', { direct: true });
+    expect(await runVibeAction('rebase', { direct: true, onto: 'origin/feat/x' })).toMatchObject({ ok: false });
+    await runVibeAction('rebase', { direct: true });
     await until(() => done('rebase'));
-    runVibeAction('rebase', { direct: true, onto: 'feat/x' });
+    await runVibeAction('rebase', { direct: true, onto: 'feat/x' });
     await until(() => fake.calls.length === 4 && done('rebase'));
     expect(fake.calls).toEqual([['fetch', 'main'], ['rebase', 'origin/main'], ['fetch', 'main'], ['rebase', 'feat/x']]);
   });
@@ -1104,13 +1167,13 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     gitWith('');
     await open();
     const { runVibeAction } = await import('app/controllers');
-    expect(runVibeAction('switch-branch', { direct: true, branch: 'feat/inconnue' })).toMatchObject({ ok: false });
-    expect(runVibeAction('switch-branch', { direct: true })).toMatchObject({ ok: false });
-    runVibeAction('rebase', { direct: true });
+    expect(await runVibeAction('switch-branch', { direct: true, branch: 'feat/inconnue' })).toMatchObject({ ok: false });
+    expect(await runVibeAction('switch-branch', { direct: true })).toMatchObject({ ok: false });
+    await runVibeAction('rebase', { direct: true });
     await until(() => done('rebase'));
-    runVibeAction('push', { direct: true });
+    await runVibeAction('push', { direct: true });
     await until(() => done('push'));
-    runVibeAction('switch-branch', { direct: true, branch: 'feat/x' });
+    await runVibeAction('switch-branch', { direct: true, branch: 'feat/x' });
     await until(() => done('switch-branch'));
     expect(fake.calls.at(-1)).toEqual(['switch', 'feat/x']);
     expect([await directOf('rebase'), await directOf('push')]).toEqual([undefined, undefined]);
@@ -1121,10 +1184,10 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     gitWith('');
     await open();
     const { refreshVibe, runVibeAction } = await import('app/controllers');
-    expect(runVibeAction('new-here', { direct: true, branch: 'feat/x' })).toMatchObject({ ok: false });       // déjà une branche locale
-    expect(runVibeAction('new-here', { direct: true, branch: '-x' })).toMatchObject({ ok: false });           // pas un ref sûr
-    expect(runVibeAction('new-here', { direct: true, branch: 'feat/y', start: 'origin/x' })).toMatchObject({ ok: false });
-    runVibeAction('new-here', { direct: true, branch: 'feat/y', start: 'feat/x' });
+    expect(await runVibeAction('new-here', { direct: true, branch: 'feat/x' })).toMatchObject({ ok: false });       // déjà une branche locale
+    expect(await runVibeAction('new-here', { direct: true, branch: '-x' })).toMatchObject({ ok: false });           // pas un ref sûr
+    expect(await runVibeAction('new-here', { direct: true, branch: 'feat/y', start: 'origin/x' })).toMatchObject({ ok: false });
+    await runVibeAction('new-here', { direct: true, branch: 'feat/y', start: 'feat/x' });
     await until(() => done('new-here'));
     expect(fake.calls).toEqual([['fetch', 'main'], ['switch', 'feat/y', 'feat/x']]);
     await refreshVibe({ now: true });
@@ -1137,7 +1200,7 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     gitWith('');
     await open();
     const { refreshVibe, runVibeAction, viewAgent } = await import('app/controllers');
-    runVibeAction('new-worktree', { direct: true, branch: 'feat/y' });
+    await runVibeAction('new-worktree', { direct: true, branch: 'feat/y' });
     await until(() => viewAgent()?.id === 'c1');
     await refreshVibe({ now: true });
     await settle();
@@ -1154,26 +1217,32 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     gitWith('');
     await open();
     const { lockingRuns, runVibeAction, viewAgent } = await import('app/controllers');
-    expect(runVibeAction('note', { text: 'une demande' })).toEqual({ ok: true });
+    fake.busy = true;   // la course tient son tour
+    expect(await runVibeAction('note', { text: 'une demande' })).toEqual({ ok: true });
     expect(lockingRuns('a1')).toEqual([expect.objectContaining({ id: 'note', reads: false })]);
-    expect(runVibeAction('new-worktree', { direct: true, branch: 'feat/y' })).toEqual({ ok: true });
+    expect(await runVibeAction('new-worktree', { direct: true, branch: 'feat/y' })).toEqual({ ok: true });
     await until(() => viewAgent()?.id === 'c1');
     expect(fake.calls).toContainEqual(['createWorktree', 'a1', { branch: 'feat/y', base: 'main', start: 'origin/main' }]);
+    fake.busy = false;
+    fake.release();
   });
 
   it('Changer de branche (new-here) pendant une action qui modifie la branche : refusé', async () => {
     gitWith('');
     await open();
     const { runVibeAction } = await import('app/controllers');
-    expect(runVibeAction('note', { text: 'une demande' })).toEqual({ ok: true });
-    expect(runVibeAction('new-here', { direct: true, branch: 'feat/y' })).toMatchObject({ ok: false });
+    fake.busy = true;   // la course tient son tour : elle retient encore quand l'autre part
+    expect(await runVibeAction('note', { text: 'une demande' })).toEqual({ ok: true });
+    expect(await runVibeAction('new-here', { direct: true, branch: 'feat/y' })).toMatchObject({ ok: false });
+    fake.busy = false;
+    fake.release();
   });
 
   it('load-pr réussi, en Créer : la PR suivie', async () => {
     gitWith('');
     await open();
     const { runVibeAction } = await import('app/controllers');
-    runVibeAction('load-pr', { direct: true, pr: 12 });
+    await runVibeAction('load-pr', { direct: true, pr: 12 });
     await until(() => done('load-pr'));
     expect(await vibeOf()).toMatchObject({ pr: 12 });
   });
@@ -1182,7 +1251,7 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     fake.facts = { ...fake.facts as object, branch: 'main' };
     await open();
     const { refreshVibe, runVibeAction, lastView } = await import('app/controllers');
-    expect(runVibeAction('note', { text: 'ajouter un bouton' })).toEqual({ ok: true });
+    expect(await runVibeAction('note', { text: 'ajouter un bouton' })).toEqual({ ok: true });
     await until(() => fake.messages.length > 0);
     expect(fake.messages[0]).toBe(`/vibecoder:nouvelle-demande fr ${out} ajouter un bouton`);
     write(path.join(out, 'new-request.json'), JSON.stringify({ branch: 'feat/0.13.0-bouton' }));
@@ -1206,21 +1275,22 @@ describe('0.13.0 : les artefacts', () => {
     const { view } = await open();
     const { runVibeAction } = await import('app/controllers');
     const id = (view() as unknown as { artifacts: { id: string; name: string }[] }).artifacts.find((a) => a.name === 'notes.md')!.id;
-    expect(runVibeAction('copy-artifact', { artifacts: [id] })).toMatchObject({ ok: false });
-    expect(runVibeAction('copy-artifact', { direct: true })).toMatchObject({ ok: false });
-    expect(runVibeAction('copy-artifact', { direct: true, artifacts: [id] })).toEqual({ ok: true });
+    expect(await runVibeAction('copy-artifact', { artifacts: [id] })).toMatchObject({ ok: false });
+    expect(await runVibeAction('copy-artifact', { direct: true })).toMatchObject({ ok: false });
+    expect(await runVibeAction('copy-artifact', { direct: true, artifacts: [id] })).toEqual({ ok: true });
     for (let i = 0; i < 60 && (await directOf())?.running !== false; i++) await settle();
     expect((await directOf())?.last).toMatchObject({ ok: false, line: 'EACCES: permission denied' });
     expect([fake.calls, fake.messages]).toEqual([[['copyArtifact', 'a1', [id]]], []]);
   });
 
-  it('add-artifact : refusé par vibeRun, avec ou sans le clic, avec un chemin ou non : le dépôt seul', async () => {
+  it('add-artifact : refusé par vibeRun, avec ou sans le clic, avec un chemin ou non, rien d’envoyé : le dépôt seul', async () => {
     await open();
     const { runVibeAction } = await import('app/controllers');
-    expect(runVibeAction('add-artifact', { paths: ['/etc/passwd'] })).toMatchObject({ ok: false });
-    expect(runVibeAction('add-artifact', { direct: true, paths: ['/etc/passwd'], dropped: ['/etc/passwd'] })).toMatchObject({ ok: false });
+    expect(await runVibeAction('add-artifact', { paths: ['/etc/passwd'] })).toMatchObject({ ok: false });
+    expect(await runVibeAction('add-artifact', { direct: true, files: [{ path: '/etc/passwd' }] })).toMatchObject({ ok: false, error: 'Action inconnue ou indisponible.' });
+    expect(await runVibeAction('add-artifact', { direct: true, paths: ['/etc/passwd'], dropped: ['/etc/passwd'] })).toMatchObject({ ok: false });
     await settle();
-    expect([fake.calls, fake.messages]).toEqual([[], []]);
+    expect([fake.sent, fake.calls, fake.messages]).toEqual([[], [], []]);
   });
 
   it('les six actions sur les artefacts : jamais à l’agent ; au clic, args.artifacts, folder, name et names passés tels quels', async () => {
@@ -1230,19 +1300,19 @@ describe('0.13.0 : les artefacts', () => {
     await open();
     const { runVibeAction } = await import('app/controllers');
     const go = async (id: string, args: object) => {
-      const r = runVibeAction(id, { direct: true, ...args });
+      const r = await runVibeAction(id, { direct: true, ...args });
       for (let i = 0; r.ok && i < 60 && (await directOf(id))?.running !== false; i++) await settle();
       return r;
     };
-    expect(runVibeAction('trash-artifacts', { artifacts: ['a0'], names: ['x'] })).toMatchObject({ ok: false });
+    expect(await runVibeAction('trash-artifacts', { artifacts: ['a0'], names: ['x'] })).toMatchObject({ ok: false });
     expect(await go('rename-artifact', { artifacts: ['a0', 'a1'], name: 'n' })).toMatchObject({ ok: false });   // un seul id
-    expect(await go('rename-artifact', { artifacts: ['a0'], name: 'n', folder: 'd0' })).toEqual({ ok: true });
-    expect(await go('new-artifact-file', { folder: 'd0', name: 'f.md', artifacts: ['a0'] })).toEqual({ ok: true });
+    expect(await go('rename-artifact', { artifacts: ['a0'], name: 'n' })).toEqual({ ok: true });
+    expect(await go('new-artifact-file', { folder: 'd0', name: 'f.md' })).toEqual({ ok: true });
     expect(await go('new-artifact-folder', { name: 'sous' })).toEqual({ ok: true });
     expect(await go('trash-artifacts', { artifacts: ['a0', 'd1'], names: ['x', 'y'] })).toEqual({ ok: true });
     expect(await go('move-artifacts', { artifacts: ['a0'], folder: 'd1' })).toEqual({ ok: true });
     expect(await go('copy-artifacts', { artifacts: ['a0'] })).toEqual({ ok: true });
-    expect(await go('duplicate-artifacts', { artifacts: ['a0'], folder: 'd1' })).toEqual({ ok: true });
+    expect(await go('duplicate-artifacts', { artifacts: ['a0'] })).toEqual({ ok: true });
     expect(fake.calls).toEqual([
       ['renameArtifact', 'a1', 'a0', 'n'],
       ['newArtifact', 'a1', 'd0', 'f.md', false],
@@ -1255,38 +1325,53 @@ describe('0.13.0 : les artefacts', () => {
     expect(fake.messages).toEqual([]);
   });
 
-  it('un dépôt : refusé sans agent affiché ou si l’action n’est pas au relevé, sans lire de chemin', async () => {
-    const { dropOnArtifacts } = await import('app/controllers');
-    expect(dropOnArtifacts(['/etc/passwd'])).toMatchObject({ ok: false });
-    await open();
-    write(path.join(fake.userData, 'vibecoder', 'actions.fr.json'), '[]');
-    await (await import('app/controllers')).refreshVibe({ now: true });
-    expect(dropOnArtifacts(['/etc/passwd'])).toMatchObject({ ok: false });
-    expect(fake.calls).toEqual([]);
-  });
+  // L'opération du dépôt (ce que l'exécuteur appelle) : runDirect add-artifact, en fond, sans la règle des courses.
+  const drop = async (files: unknown = [{ path: '/tmp/a.md' }], folder?: string) => {
+    const { lastView, viewAgent, runDirect } = await import('app/controllers');
+    const { loadConfig, vibeActions } = await import('app/settings');
+    const def = vibeActions('fr').find((a) => a.id === 'add-artifact')!;
+    return runDirect(viewAgent()!, def, { files, folder } as never, lastView('a1')!, loadConfig());
+  };
 
-  it('un dépôt : la même action directe que le bouton, son résultat au relevé ; un second pendant le premier refusé', async () => {
+  it('un dépôt : l’action directe add-artifact, son résultat au relevé ; une seconde pendant la première refusée', async () => {
     await open();
-    const { dropOnArtifacts } = await import('app/controllers');
-    const paths = ['/tmp/a.md'];
+    const files = [{ path: '/tmp/a.md' }];
     fake.busy = true;   // la copie tient jusqu'à fake.release : l'ajout reste « en cours »
-    expect(dropOnArtifacts(paths)).toEqual({ ok: true });
+    expect(await drop(files)).toEqual({ ok: true });
     await settle();
     expect((await directOf('add-artifact'))?.running).toBe(true);
-    expect(dropOnArtifacts(paths)).toMatchObject({ ok: false });
+    expect(await drop(files)).toMatchObject({ ok: false, reason: 'busy', by: 'add-artifact' });
     fake.busy = false;
     fake.release();
     for (let i = 0; i < 60 && (await directOf('add-artifact'))?.running !== false; i++) await settle();
     expect((await directOf('add-artifact'))?.last).toMatchObject({ ok: true, line: 'Added by drop.' });
-    expect(fake.calls).toEqual([['addArtifacts', 'a1', paths, undefined]]);
+    expect(fake.calls).toEqual([['addArtifacts', 'a1', files, undefined]]);
   });
 
   it('un dépôt : le dossier d’arrivée (un id) suit jusqu’à addArtifacts', async () => {
     await open();
-    const { dropOnArtifacts } = await import('app/controllers');
-    expect(dropOnArtifacts(['/tmp/a.md'], 'd1')).toEqual({ ok: true });
+    expect(await drop([{ path: '/tmp/a.md' }], 'd1')).toEqual({ ok: true });
     for (let i = 0; i < 60 && (await directOf('add-artifact'))?.running !== false; i++) await settle();
-    expect(fake.calls).toEqual([['addArtifacts', 'a1', ['/tmp/a.md'], 'd1']]);
+    expect(fake.calls).toEqual([['addArtifacts', 'a1', [{ path: '/tmp/a.md' }], 'd1']]);
+  });
+
+  it('un dépôt pendant une course : accepté comme aujourd’hui (pas la règle des courses)', async () => {
+    write(path.join(fake.userData, 'vibecoder', 'actions.fr.json'), JSON.stringify([
+      { id: 'checks', flow: 'create', step: 'revue', kind: 'send', label: 'Lancer les vérifications', text: '/vibecoder:verifier {{lang}} {{out}}' },
+      { id: 'add-artifact', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Ajouter', text: 'ajouter' },
+    ]));
+    await open();
+    const { runVibeAction, lockingRuns } = await import('app/controllers');
+    fake.busy = true;   // la course tient son tour
+    expect(await runVibeAction('checks', {})).toEqual({ ok: true });
+    await settle();
+    expect(lockingRuns('a1')).toHaveLength(1);
+    fake.busy = false;
+    expect(await drop()).toEqual({ ok: true });
+    for (let i = 0; i < 60 && (await directOf('add-artifact'))?.running !== false; i++) await settle();
+    expect(fake.calls).toEqual([['addArtifacts', 'a1', [{ path: '/tmp/a.md' }], undefined]]);
+    fake.release();
+    await settle();
   });
 });
 
@@ -1299,7 +1384,7 @@ describe("l'historique sans quitter VibeCoder", () => {
     openConversation('a1', { sessionId: 'ancienne' });
     expect(state.convView).toEqual({ agentId: 'a1', sessionId: 'ancienne' });
     expect(viewAgent()?.id).toBe('a1');                    // l'écran reste
-    expect(runVibeAction('checks', {})).toEqual({ ok: true });
+    expect(await runVibeAction('checks', {})).toEqual({ ok: true });
     await settle();
     expect(fake.messages[0]).toBe(`/vibecoder:verifier fr ${out}`);   // à la session de l'agent (agent.sessionId)
     expect(vibes().at(-1)).not.toBeNull();                  // jamais de relevé nul : le panneau garde l'écran
@@ -1313,7 +1398,7 @@ describe("l'historique sans quitter VibeCoder", () => {
 describe('0.15.0 : la clé du refus (reason)', () => {
   const ACTIONS = [
     { id: 'checks', flow: 'create', step: 'revue', kind: 'send', needs: 'none', label: 'Lancer les vérifications', text: '/vibecoder:verifier {{lang}} {{out}}' },
-    { id: 'ask', flow: 'both', step: null, kind: 'send', needs: 'text', label: 'Demander', text: '{{text}}' },
+    { id: 'guide', flow: 'both', step: null, kind: 'send', needs: 'text', label: 'Demander', text: '{{text}}' },
     { id: 'answers', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Réponses', text: '{{answers}}' },
     { id: 'stash', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Mettre de côté', text: 'de côté' },
     { id: 'load-pr', flow: 'both', step: 'pr', kind: 'send', needs: 'none', reads: true, label: 'Charger', text: 'charger' },
@@ -1353,7 +1438,7 @@ describe('0.15.0 : la clé du refus (reason)', () => {
     const c = await ctx();
     const child = { ...c.agent, parent: { id: 'a0' } };
     expect(c.startAction(child, c.defOf('load-pr'), {}, c.view, c.cfg)).toEqual({ ok: false, error: ERR.worktree, reason: 'worktree', invalid: true });
-    expect(c.startAction(c.agent, c.defOf('ask'), {}, c.view, c.cfg)).toEqual({ ok: false, error: ERR.text, reason: 'text', invalid: true });
+    expect(c.startAction(c.agent, c.defOf('guide'), {}, c.view, c.cfg)).toEqual({ ok: false, error: ERR.text, reason: 'text', invalid: true });
     expect(c.startAction(c.agent, c.defOf('answers'), {}, c.view, c.cfg)).toMatchObject({ ok: false, error: ERR.answers, reason: 'answers' });
   });
 
@@ -1365,7 +1450,7 @@ describe('0.15.0 : la clé du refus (reason)', () => {
   it('runDirect (exportée) : une autre action directe en cours → busy, by elle ; son texte d’avant', async () => {
     const c = await ctx();
     fake.busy = true;   // le dépôt tient jusqu’à fake.release : add-artifact reste « en cours »
-    expect(c.dropOnArtifacts(['/tmp/a.md'])).toEqual({ ok: true });
+    expect(c.runDirect(c.agent, c.defOf('add-artifact'), { files: [{ path: '/tmp/a.md' }] } as never, c.view, c.cfg)).toEqual({ ok: true });
     await settle();
     const refused = c.runDirect(c.agent, c.defOf('fetch'), { direct: true }, c.view, c.cfg);
     expect(refused).toEqual({ ok: false, error: 'Action inconnue ou indisponible.', reason: 'busy', by: 'add-artifact' });
@@ -1376,7 +1461,7 @@ describe('0.15.0 : la clé du refus (reason)', () => {
   it('runDirect : une course qui retient → son lockCode et by ; son texte d’avant', async () => {
     const c = await ctx();
     fake.busy = true;   // la course tient son tour
-    expect(c.runVibeAction('checks', {})).toEqual({ ok: true });
+    expect(await c.runVibeAction('checks', {})).toEqual({ ok: true });
     await settle();
     // checks écrit : stash (écrit) → busy ; load-pr (lit) → changing ; le texte, celui de blockedBy
     const { blockedBy } = await import('core/vibecoder');
@@ -1424,8 +1509,390 @@ describe('0.15.0 : la clé du refus (reason)', () => {
   it('runVibeAction : les mêmes textes qu’avant, sans clé ajoutée', async () => {
     await open();
     const { runVibeAction } = await import('app/controllers');
-    expect(runVibeAction('ask', {})).toEqual({ ok: false, error: ERR.text });
-    expect(runVibeAction('inconnue', {})).toEqual({ ok: false, error: 'Action inconnue ou indisponible.' });
-    expect(runVibeAction('checks', 'pas un objet')).toEqual({ ok: false, error: 'Action refusée : arguments mal formés.' });
+    expect(await runVibeAction('guide', {})).toEqual({ ok: false, error: ERR.text });
+    expect(await runVibeAction('inconnue', {})).toEqual({ ok: false, error: 'Action inconnue ou indisponible.' });
+    expect(await runVibeAction('checks', 'pas un objet')).toEqual({ ok: false, error: 'Action refusée : arguments mal formés.' });
+  });
+});
+
+// 0.15.0 : l'écran passe par le socket. Les adaptateurs (runVibeAction, vibeRunOp, draftVibe, dropOnArtifacts) envoient une
+// commande du contrat par screenSend (mocké : fake.sent, une réponse au cas) et traduisent la réponse ; les gardes restent à
+// l'exécuteur : sa réponse est celle du vrai runCommand (fake.reply null) ou une réponse de sa forme, réglée par le cas.
+describe('0.15.0 : l’écran par le socket (les adaptateurs)', () => {
+  const ACTIONS = [
+    { id: 'checks', flow: 'create', step: 'revue', kind: 'send', needs: 'none', label: 'Lancer les vérifications', text: '/vibecoder:verifier {{lang}} {{out}}' },
+    { id: 'guide', flow: 'both', step: null, kind: 'send', needs: 'text', label: 'Demander', text: '{{text}}' },
+    { id: 'stash', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Mettre de côté', text: 'de côté' },
+    { id: 'fetch', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Actualiser', text: 'actualiser' },
+    { id: 'pull', flow: 'both', step: null, kind: 'send', needs: 'none', label: 'Tirer', text: 'tirer' },
+  ];
+  const ERR = {
+    agent: 'Aucun agent en VibeCoder dans le panneau.',
+    action: 'Action inconnue ou indisponible.',
+    args: 'Action refusée : arguments mal formés.',
+    text: 'Dictez ou écrivez d\'abord dans le champ (20 000 caractères au plus).',
+    worktree: 'Un worktree reste sur sa branche : ni changer de branche, ni charger une autre PR.',
+    socket: 'Socket indisponible : l\'action n\'est pas partie. Relancez l\'appli.',
+    heavyPieces: 'Pièces jointes trop lourdes (64 Mio d\'images au plus).',
+  };
+  const answer = (value: unknown = null) => ({ ok: true, result: value });
+  const refuse = (code: string, details: Record<string, unknown> = {}) => ({ ok: false, error: { code, details, message: `msg ${code}`, todo: '' } });
+  // Toutes les commandes reçoivent cette réponse : rien de réel ne part.
+  const only = (reply: unknown) => { fake.reply = () => reply; };
+  beforeEach(() => { write(path.join(fake.userData, 'vibecoder', 'actions.fr.json'), JSON.stringify(ACTIONS)); });
+
+  describe('runVibeAction', () => {
+    it('sans agent affiché, ou des arguments qui ne sont pas un objet : le texte d’avant, rien d’envoyé', async () => {
+      const { runVibeAction } = await import('app/controllers');
+      expect(await runVibeAction('checks', {})).toEqual({ ok: false, error: ERR.agent });
+      await open();
+      expect(await runVibeAction('checks', 'pas un objet')).toEqual({ ok: false, error: ERR.args });
+      expect(await runVibeAction('checks', [])).toEqual({ ok: false, error: ERR.args });
+      expect(fake.sent).toEqual([]);
+    });
+
+    it('les refus que l’exécuteur rend (le vrai) : action inconnue, texte manquant ou trop long, argument mal formé', async () => {
+      await open();
+      const { runVibeAction } = await import('app/controllers');
+      expect(await runVibeAction('inconnue', {})).toEqual({ ok: false, error: ERR.action });
+      expect(await runVibeAction('guide', {})).toEqual({ ok: false, error: ERR.text });
+      expect(await runVibeAction('guide', { text: 'x'.repeat(20001) })).toEqual({ ok: false, error: ERR.text });
+      expect(await runVibeAction('checks', { pr: '12; rm -rf ~' })).toEqual({ ok: false, error: expect.any(String) });
+      expect(await runVibeAction('copy-artifact', { artifacts: ['a0'] })).toEqual({ ok: false, error: ERR.action });   // jamais à l'agent
+      await settle();
+      expect(fake.messages).toEqual([]);
+    });
+
+    it('chaque refus d’avant, le même texte : l’erreur de l’exécuteur traduite', async () => {
+      await open();
+      const { runVibeAction } = await import('app/controllers');
+      const { lockText } = await import('core/vibecoder');
+      const cases: [unknown, string][] = [
+        [refuse('no-survey'), ERR.agent],
+        [refuse('not-offered', { action: 'checks' }), ERR.action],
+        [refuse('invalid-args', { arg: 'text' }), ERR.text],
+        [refuse('invalid-args', { fault: 'text: at most 20000 characters' }), ERR.text],
+        [refuse('invalid-args', { fault: '(root): object expected' }), ERR.args],
+        [refuse('invalid-args'), ERR.args],
+        [refuse('disabled', { reason: 'Grisée : la note n’est pas validée.' }), 'Grisée : la note n’est pas validée.'],
+        [refuse('refused', { reason: 'Image illisible ou trop lourde : abimee.png.' }), 'Image illisible ou trop lourde : abimee.png.'],
+        [refuse('worktree'), ERR.worktree],
+        [refuse('same', { by: 'checks' }), lockText({ code: 'same' }, 'fr')],
+        [refuse('changing', { by: 'checks' }), lockText({ code: 'changing' }, 'fr')],
+        [refuse('busy', { by: 'checks' }), lockText({ code: 'busy' }, 'fr')],
+        [refuse('failed', { message: 'ENOENT' }), 'ENOENT'],
+      ];
+      for (const [reply, error] of cases) {
+        only(reply);
+        expect(await runVibeAction('checks', {})).toEqual({ ok: false, error });
+      }
+    });
+
+    it('une course qui retient : le texte de blockedBy, comme avant (le vrai exécuteur)', async () => {
+      await open();
+      const { runVibeAction } = await import('app/controllers');
+      const { lockText } = await import('core/vibecoder');
+      fake.busy = true;   // la course tient son tour
+      expect(await runVibeAction('checks', {})).toEqual({ ok: true });
+      await settle();
+      expect(await runVibeAction('checks', {})).toEqual({ ok: false, error: lockText({ code: 'same' }, 'fr') });
+      expect(await runVibeAction('stash', { direct: true })).toEqual({ ok: false, error: lockText({ code: 'busy' }, 'fr') });
+      fake.busy = false;
+      fake.release();
+      await settle();
+    });
+
+    it('une action directe en cours : ERRORS.action pour l’autre action directe ; une action à course, le texte de la course', async () => {
+      await open();
+      const { runVibeAction } = await import('app/controllers');
+      const { lockText } = await import('core/vibecoder');
+      fake.busy = true;   // Actualiser tient jusqu'à fake.release
+      expect(await runVibeAction('fetch', { direct: true })).toEqual({ ok: true });
+      await settle();
+      expect(await runVibeAction('pull', { direct: true })).toEqual({ ok: false, error: ERR.action });   // le vrai exécuteur
+      only(refuse('busy', { by: 'fetch' }));   // la même retenue, vue par une action à course : son texte
+      expect(await runVibeAction('pull', { direct: true })).toEqual({ ok: false, error: ERR.action });
+      expect(await runVibeAction('checks', {})).toEqual({ ok: false, error: lockText({ code: 'busy' }, 'fr') });
+      fake.busy = false;
+      fake.release();
+      await settle();
+    });
+
+    it('direct : la commande de l’action directe par screenSend, sans direct ni rien lancé ici', async () => {
+      await open();
+      const { runVibeAction, lockingRuns } = await import('app/controllers');
+      only(answer());
+      expect(await runVibeAction('stash', { direct: true })).toEqual({ ok: true });
+      expect(await runVibeAction('rebase', { direct: true, onto: 'feat/x' })).toEqual({ ok: true });
+      expect(await runVibeAction('load-pr', { direct: false, pr: 12 })).toEqual({ ok: true });   // pas « direct » : load-pr part par run.start
+      expect(await runVibeAction('checks', { direct: true })).toEqual({ ok: true });             // pas une action directe : la course
+      expect(fake.sent).toEqual([
+        ['stash', {}], ['rebase', { onto: 'feat/x' }], ['run.start', { action: 'load-pr', pr: 12 }], ['run.start', { action: 'checks' }],
+      ]);
+      await settle();
+      expect([fake.messages, fake.calls, lockingRuns('a1')]).toEqual([[], [], []]);   // ni startAction, ni runDirect appelés ici
+    });
+
+    it('à course : run.start et l’action ; vibe, guide, new-request, propose-run : leur commande', async () => {
+      await open();
+      const { runVibeAction } = await import('app/controllers');
+      only(answer());
+      await runVibeAction('checks', { model: 'haiku' });
+      await runVibeAction('note', { text: 'une demande' });
+      await runVibeAction('vibe', {});
+      await runVibeAction('guide', { text: 'une question' });
+      await runVibeAction('new-request', { text: 'un bouton' });
+      await runVibeAction('propose-run', { text: 'une idée' });
+      expect(fake.sent).toEqual([
+        ['run.start', { action: 'checks', model: 'haiku' }], ['run.start', { action: 'note', text: 'une demande' }], ['vibe', {}],
+        ['guide', { text: 'une question' }], ['new-request', { text: 'un bouton' }], ['propose-run', { text: 'une idée' }],
+      ]);
+    });
+
+    it('les images des pièces : en base64 sur le fil (JSON), l’agent les reçoit', async () => {
+      await open();
+      const { runVibeAction } = await import('app/controllers');
+      const GIF = Buffer.from('GIF89a une image jointe au champ');
+      const pieces = { selection: 'la sélection', files: [], images: [{ name: 'i.gif', type: 'image/gif', data: new Uint8Array(GIF).buffer }] };
+      expect(await runVibeAction('guide', { text: 'une question', pieces })).toEqual({ ok: true });   // le vrai exécuteur
+      expect(fake.sent[0][1]).toMatchObject({ pieces: { images: [{ name: 'i.gif', type: 'image/gif', data: GIF.toString('base64') }] } });
+      await settle();
+      expect(JSON.stringify(fake.messages)).toContain(GIF.toString('base64'));
+    });
+
+    it('les images des pièces au-delà de 64 Mio au total : un vrai refus de l’écran (fr, en), rien ne part ; 64 Mio pile : part', async () => {
+      await open();
+      const { runVibeAction } = await import('app/controllers');
+      only(answer());
+      const image = (mio: number) => ({ name: 'i.png', type: 'image/png', data: new ArrayBuffer(mio * 2 ** 20) });
+      expect(await runVibeAction('guide', { text: 'une question', pieces: { images: [image(33), image(33)] } })).toEqual({ ok: false, error: ERR.heavyPieces });
+      expect(fake.sent).toEqual([]);
+      const cfgFile = path.join(fake.userData, 'config.json');
+      write(cfgFile, JSON.stringify({ ...JSON.parse(fs.readFileSync(cfgFile, 'utf8')), vibeLang: 'en' }));
+      expect(await runVibeAction('guide', { text: 'une question', pieces: { images: [image(65)] } })).toEqual({ ok: false, error: 'Attachments too heavy (64 MiB of images at most).' });
+      expect(fake.sent).toEqual([]);
+      expect(await runVibeAction('guide', { text: 'une question', pieces: { images: [image(32), image(32)] } })).toEqual({ ok: true });
+      expect(fake.sent).toHaveLength(1);
+    });
+
+    it('socket indisponible : ERRORS.socket (fr, en), rien lancé', async () => {
+      await open();
+      const { runVibeAction } = await import('app/controllers');
+      fake.reply = 'down';
+      expect(await runVibeAction('checks', {})).toEqual({ ok: false, error: ERR.socket });
+      expect(await runVibeAction('stash', { direct: true })).toEqual({ ok: false, error: ERR.socket });
+      await settle();
+      expect(fake.messages).toEqual([]);
+      const cfgFile = path.join(fake.userData, 'config.json');
+      write(cfgFile, JSON.stringify({ ...JSON.parse(fs.readFileSync(cfgFile, 'utf8')), vibeLang: 'en' }));
+      expect(await runVibeAction('checks', {})).toEqual({ ok: false, error: 'Socket unavailable: nothing was sent. Restart the app.' });
+    });
+  });
+
+  describe('vibeRunOp', () => {
+    it('chaque opération : run.<op> et l’id de l’action ; rien de réel hors de la réponse (runOp jamais appelé ici)', async () => {
+      await open();
+      const { runVibeAction, vibeRunOp, lockingRuns } = await import('app/controllers');
+      fake.busy = true;   // une course vivante : runOp l'arrêterait
+      expect(await runVibeAction('checks', {})).toEqual({ ok: true });
+      await settle();
+      fake.sent = [];
+      only(answer());
+      for (const op of ['stop', 'keep', 'undo', 'allow', 'always', 'deny']) await vibeRunOp('checks', op);
+      expect(fake.sent.map(([c]) => c)).toEqual(['run.stop', 'run.keep', 'run.undo', 'run.allow', 'run.always', 'run.deny']);
+      expect(fake.sent.every(([, a]) => JSON.stringify(a) === '{"action":"checks"}')).toBe(true);
+      await settle();
+      expect(lockingRuns('a1')).toHaveLength(1);   // jamais arrêtée : seul l'exécuteur le ferait
+      fake.busy = false;
+      fake.release();
+      await settle();
+    });
+
+    it('une opération inconnue, un id qui n’est pas un texte, sans agent : rien d’envoyé', async () => {
+      const { vibeRunOp } = await import('app/controllers');
+      await vibeRunOp('checks', 'stop');
+      await open();
+      await vibeRunOp('checks', 'tout casser');
+      await vibeRunOp(12, 'stop');
+      expect(fake.sent).toEqual([]);
+    });
+
+    it('un refus : muet, comme avant ; socket indisponible : la boîte de message du principal', async () => {
+      await open();
+      const { vibeRunOp } = await import('app/controllers');
+      only(refuse('no-run', { action: 'checks' }));
+      expect(await vibeRunOp('checks', 'stop')).toBeUndefined();
+      expect(fake.calls).toEqual([]);
+      fake.reply = 'down';
+      expect(await vibeRunOp('checks', 'stop')).toBeUndefined();
+      expect(fake.calls).toEqual([['dialog', ERR.socket]]);
+    });
+  });
+
+  describe('draftVibe', () => {
+    it('add, edit, remove : draft.add, draft.edit, draft.remove ; le brouillon intact ici (editDraft est celui de l’exécuteur)', async () => {
+      review();
+      await open();
+      const { draftVibe } = await import('app/controllers');
+      const { vibeStore } = await import('app/settings');
+      only(answer());
+      await draftVibe({ add: { target: 'note', text: 'trop vague' } });
+      await draftVibe({ edit: { id: 1, text: 'la forme est trop vague' } });
+      await draftVibe({ remove: 1 });
+      expect(fake.sent).toEqual([
+        ['draft.add', { target: 'note', text: 'trop vague' }], ['draft.edit', { id: 1, text: 'la forme est trop vague' }], ['draft.remove', { id: 1 }],
+      ]);
+      expect(vibeStore().drafts.a1?.[12]).toBeUndefined();
+    });
+
+    it('rien d’exploitable ou sans agent : rien d’envoyé ; un refus : muet ; socket indisponible : la boîte', async () => {
+      const { draftVibe } = await import('app/controllers');
+      await draftVibe({ add: { target: 'a', text: 'b' } });
+      await open();
+      await draftVibe(null);
+      await draftVibe({});
+      expect(fake.sent).toEqual([]);
+      only(refuse('no-pr'));
+      expect(await draftVibe({ remove: 2 })).toBeUndefined();
+      expect(fake.calls).toEqual([]);
+      fake.reply = 'down';
+      await draftVibe({ remove: 2 });
+      expect(fake.calls).toEqual([['dialog', ERR.socket]]);
+    });
+  });
+
+  describe('dropOnArtifacts', () => {
+    it('add-artifact : les chemins lus par le pont (un { path } chacun) et le dossier ; ni addArtifacts ni runDirect appelés ici', async () => {
+      await open();
+      const { dropOnArtifacts } = await import('app/controllers');
+      only(answer());
+      expect(await dropOnArtifacts(['/tmp/a.md', '/tmp/b.md'], 'd1')).toEqual({ ok: true });
+      expect(await dropOnArtifacts([''])).toEqual({ ok: true });   // un File sans chemin : l'exécuteur le dit
+      expect(fake.sent).toEqual([
+        ['add-artifact', { files: [{ path: '/tmp/a.md' }, { path: '/tmp/b.md' }], folder: 'd1' }],
+        ['add-artifact', { files: [{ path: '' }] }],
+      ]);
+      await settle();
+      expect(fake.calls).toEqual([]);
+    });
+
+    it('sans agent affiché : ERRORS.agent, rien d’envoyé ; les refus de l’exécuteur : leur texte d’avant', async () => {
+      const { dropOnArtifacts } = await import('app/controllers');
+      expect(await dropOnArtifacts(['/etc/passwd'])).toEqual({ ok: false, error: ERR.agent });
+      await open();
+      for (const [reply, error] of [[refuse('not-offered', { action: 'add-artifact' }), ERR.action], [refuse('no-survey'), ERR.agent]] as const) {
+        only(reply);
+        expect(await dropOnArtifacts(['/etc/passwd'])).toEqual({ ok: false, error });
+      }
+      expect(fake.calls).toEqual([]);
+    });
+
+    it('socket indisponible : ERRORS.socket', async () => {
+      await open();
+      const { dropOnArtifacts } = await import('app/controllers');
+      fake.reply = 'down';
+      expect(await dropOnArtifacts(['/tmp/a.md'])).toEqual({ ok: false, error: ERR.socket });
+      expect(fake.calls).toEqual([]);
+    });
+  });
+
+  describe('editDraft : le brouillon de la PR suivie (relecteur)', () => {
+    const draft = async () => (await import('app/settings')).vibeStore().drafts.a1?.[12];
+    it('add, edit, remove sur la PR suivie', async () => {
+      review();
+      await open();
+      const { editDraft, viewAgent } = await import('app/controllers');
+      const agent = viewAgent()!;
+      expect(editDraft(agent, { add: { target: 'src/x.ts:3', text: 'ne gère pas le cas vide' } })).toEqual({ ok: true });
+      expect(editDraft(agent, { add: { target: 'note', text: 'trop vague' } })).toEqual({ ok: true });
+      expect(editDraft(agent, { edit: { id: 2, text: 'la forme est trop vague' } })).toEqual({ ok: true });
+      expect(await draft()).toEqual([{ id: 1, target: 'src/x.ts:3', text: 'ne gère pas le cas vide' }, { id: 2, target: 'note', text: 'la forme est trop vague' }]);
+      expect(editDraft(agent, { remove: 1 })).toEqual({ ok: true });
+      expect(await draft()).toEqual([{ id: 2, target: 'note', text: 'la forme est trop vague' }]);
+    });
+
+    it('sans PR suivie, ou en créateur : no-pr, rien d’écrit', async () => {
+      await open();   // créateur, sans PR
+      const { editDraft, viewAgent } = await import('app/controllers');
+      expect(editDraft(viewAgent()!, { add: { target: 'note', text: 'x' } })).toMatchObject({ ok: false, reason: 'no-pr' });
+      review();
+      const { loadConfig } = await import('app/settings');
+      const reviewer = { ...viewAgent()!, vibe: { flow: 'review' as const, pr: null } };
+      expect(editDraft(reviewer, { remove: 1 })).toMatchObject({ ok: false, reason: 'no-pr' });
+      expect(loadConfig().agents).toHaveLength(1);
+      expect(await draft()).toBeUndefined();
+    });
+
+    it('un texte ou une cible fautifs : args, rien d’écrit', async () => {
+      review();
+      await open();
+      const { editDraft, viewAgent } = await import('app/controllers');
+      const agent = viewAgent()!;
+      const bad = [
+        { add: { target: 'a\nb', text: 'x' } }, { add: { target: 'a\r', text: 'x' } }, { add: { target: 'a'.repeat(301), text: 'x' } },
+        { add: { target: 'a', text: '  ' } }, { add: { target: 'a', text: 'x'.repeat(5001) } }, { add: { target: 7, text: 'x' } },
+        { edit: { id: 1.5, text: 'x' } }, { edit: { id: 1, text: '' } }, { remove: 'un' }, { remove: 1.5 },
+      ];
+      for (const op of bad) expect(editDraft(agent, op as never)).toMatchObject({ ok: false, reason: 'args' });
+      expect(await draft()).toBeUndefined();
+    });
+  });
+
+  describe('refusalText : chaque code, fr et en', () => {
+    const err = (code: string, details: Record<string, unknown> = {}) => ({ code, details, message: `msg ${code}`, todo: '' }) as never;
+    it('les codes de l’exécuteur → le texte d’avant', async () => {
+      const { refusalText } = await import('app/controllers');
+      const { lockText } = await import('core/vibecoder');
+      const EN = {
+        agent: 'No agent in VibeCoder in the panel.', action: 'Unknown or unavailable action.', args: 'Action refused: malformed arguments.',
+        text: 'Dictate or type in the field first (20,000 characters at most).', verdict: 'Choose: approve, comment or request changes.',
+        worktree: 'A worktree stays on its branch: no branch switch, no other PR loaded.',
+      };
+      for (const [lang, T] of [['fr', { ...ERR, verdict: 'Choisissez : approuver, commenter ou demander des changements.' }], ['en', EN]] as const) {
+        expect(refusalText(err('no-survey'), lang)).toBe(T.agent);
+        expect(refusalText(err('not-offered'), lang)).toBe(T.action);
+        expect(refusalText(err('unknown-command'), lang)).toBe(T.action);
+        expect(refusalText(err('invalid-args', { arg: 'verdict' }), lang)).toBe(T.verdict);
+        expect(refusalText(err('invalid-args', { fault: 'text: at most 20000 characters' }), lang)).toBe(T.text);
+        expect(refusalText(err('invalid-args', { fault: 'args.text: at most 20000 characters' }), lang)).toBe(T.text);
+        expect(refusalText(err('invalid-args', { fault: 'pieces.images[0].data: string expected' }), lang)).toBe(T.args);
+        expect(refusalText(err('invalid-args'), lang)).toBe(T.args);
+        expect(refusalText(err('disabled', { reason: 'grisée' }), lang)).toBe('grisée');
+        expect(refusalText(err('refused', { reason: 'le refus' }), lang)).toBe('le refus');
+        expect(refusalText(err('same', { by: 'checks' }), lang)).toBe(lockText({ code: 'same' }, lang));
+        expect(refusalText(err('changing'), lang)).toBe(lockText({ code: 'changing' }, lang));
+        expect(refusalText(err('busy', { by: 'checks' }), lang)).toBe(lockText({ code: 'busy' }, lang));
+        expect(refusalText(err('worktree'), lang)).toBe(T.worktree);
+        expect(refusalText(err('failed', { message: 'ENOENT' }), lang)).toBe('ENOENT');
+      }
+    });
+
+    it('busy d’une action directe en cours : ERRORS.action ; en cours finie, le texte de la course', async () => {
+      const { refusalText } = await import('app/controllers');
+      const { lockText } = await import('core/vibecoder');
+      const busy = err('busy', { by: 'fetch' });
+      expect(refusalText(busy, 'fr', { fetch: { running: true } })).toBe(ERR.action);
+      expect(refusalText(busy, 'fr', { fetch: { running: false } })).toBe(lockText({ code: 'busy' }, 'fr'));
+      expect(refusalText(busy, 'fr')).toBe(lockText({ code: 'busy' }, 'fr'));
+    });
+
+    it('les autres codes (no-pr, closed, no-run…) : un texte, jamais vide', async () => {
+      const { refusalText } = await import('app/controllers');
+      for (const code of ['no-pr', 'closed', 'unknown-process', 'no-run', 'unknown-artifact', 'bad-token']) {
+        expect(refusalText(err(code), 'fr').length).toBeGreaterThan(0);
+      }
+    });
+  });
+
+  it('la boîte aux lettres : mêmes effets qu’avant, sans passer par le socket', async () => {
+    await open();
+    const { refreshVibe, lockingRuns } = await import('app/controllers');
+    write(path.join(out, 'actions', 'checks.start'), '{}');
+    await refreshVibe({ now: true });
+    await settle();
+    expect(fake.messages[0]).toBe(`/vibecoder:verifier fr ${out}`);
+    expect(fs.existsSync(path.join(out, 'actions', 'checks.start'))).toBe(false);
+    expect(lockingRuns('a1')).toEqual([]);   // finie : l'avis part à la conversation
+    expect(fake.sent).toEqual([]);
   });
 });

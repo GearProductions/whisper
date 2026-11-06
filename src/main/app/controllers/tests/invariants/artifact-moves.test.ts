@@ -33,6 +33,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Les boutons de l'écran passent par le socket (0.15.0) : ouvert comme au lancement, fermé après chaque cas.
+let closeSocket = () => {};
 import { slow } from '../slow';
 
 const fake = vi.hoisted(() => {
@@ -171,7 +174,7 @@ beforeEach(async () => {
   const { projectArtifactsPath } = await import('app/controllers');
   projects = { a1: projectArtifactsPath(repo), a2: projectArtifactsPath(worktree), a3: projectArtifactsPath(solo), a4: projectArtifactsPath(other) };
 });
-afterEach(() => { vi.useRealTimers(); process.chdir(fake.cwd); });
+afterEach(() => { closeSocket(); closeSocket = () => {}; vi.useRealTimers(); process.chdir(fake.cwd); });
 
 const agentOf = async (id: string) => {
   const { loadConfig } = await import('app/settings');
@@ -191,7 +194,9 @@ function addAgent(agent: object) {
 // Le panneau ouvert sur a1, en VibeCoder, son premier relevé reçu.
 async function open() {
   const { openConversation } = await import('app/windows');
-  const { panelReady } = await import('app/controllers');
+  const { panelReady, openSocket, commandFromSocket, closeSocket: close } = await import('app/controllers');
+  await openSocket(commandFromSocket);
+  closeSocket = close;
   openConversation('a1');
   fake.windows.at(-1)!.emit('ready-to-show');
   await panelReady();
@@ -527,7 +532,7 @@ describe('une page ne désigne aucun fichier (I-37)', () => {
   it('un dépôt, aucun agent affiché : rien n’est lu', async () => {
     const { dropOnArtifacts } = await import('app/controllers');
 
-    const r = dropOnArtifacts([secret]);
+    const r = await dropOnArtifacts([secret]);
     await settle();
 
     // refusé

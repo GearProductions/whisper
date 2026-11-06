@@ -26,6 +26,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Les boutons de l'écran passent par le socket (0.15.0) : ouvert comme au lancement, fermé après chaque cas.
+let closeSocket = () => {};
 import { slow } from '../slow';
 
 const fake = vi.hoisted(() => {
@@ -196,12 +199,14 @@ else if (args[1] === 'list') process.stdout.write(JSON.stringify([pr]));
 else if (args[1] === 'view') process.stdout.write(JSON.stringify(pr));
 `);
 });
-afterEach(() => { vi.useRealTimers(); process.chdir(fake.cwd); });
+afterEach(() => { closeSocket(); closeSocket = () => {}; vi.useRealTimers(); process.chdir(fake.cwd); });
 
 // Le panneau de a1 ouvert, puis relevé après relevé jusqu'à ce que le rôle soit `role` (gh lu en fond), 8 s au plus.
 async function openUntil(role: 'create' | 'review') {
   const { openConversation } = await import('app/windows');
-  const { panelReady, refreshVibe } = await import('app/controllers');
+  const { panelReady, refreshVibe, openSocket, commandFromSocket, closeSocket: close } = await import('app/controllers');
+  await openSocket(commandFromSocket);
+  closeSocket = close;
   openConversation('a1');
   panel().emit('ready-to-show');
   await panelReady();

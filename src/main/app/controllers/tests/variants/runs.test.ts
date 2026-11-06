@@ -140,11 +140,15 @@ beforeEach(() => {
 // Chaque cas recharge les modules, mais le relevé retardé (THROTTLE_MS) des anciens reste armé : il lirait la
 // config du cas suivant (même fake.userData) et traiterait ses demandes, ses avis perdus dans l'ancienne
 // conversation. Il tombe ici, dans son cas.
-afterEach(async () => { vi.useRealTimers(); await new Promise((r) => realSetTimeout(r, 1100)); });
+afterEach(async () => { closeSocket(); closeSocket = () => {}; vi.useRealTimers(); await new Promise((r) => realSetTimeout(r, 1100)); });
 
+// Les boutons de l'écran passent par le socket (0.15.0) : ouvert comme au lancement, sur la vraie porte de l'écran.
+let closeSocket = () => {};
 async function open() {
   const { openConversation } = await import('app/windows');
-  const { panelReady } = await import('app/controllers');
+  const { panelReady, openSocket, commandFromSocket, closeSocket: close } = await import('app/controllers');
+  await openSocket(commandFromSocket);
+  closeSocket = close;
   openConversation('a1');
   fake.windows.at(-1)!.emit('ready-to-show');
   await panelReady();
@@ -339,7 +343,7 @@ describe('une course n’est finie que quand son travail l’est', () => {
     expect(actionsJson().runs).toMatchObject([{ id: 'forme', state: 'running', end: null }]);
     expect(turn('VibeCoder')).toBeUndefined();
     // elle retient encore
-    expect(runVibeAction('invariants', {})).toMatchObject({ ok: false });
+    expect(await runVibeAction('invariants', {})).toMatchObject({ ok: false });
   });
 
   it('ses tâches de fond finies sans tour qui suive : en cours pendant le délai de grâce, finie après avec la réponse de son tour', async () => {
@@ -488,7 +492,7 @@ describe('arrêter une course', () => {
     expect(turn('/vibecoder:forme')!.interrupted).toBe(true);
     expect(request('une question')!.done).toBe(false);
     expect(actionsJson().runs).toMatchObject([{ id: 'forme', state: 'stopped' }]);
-    expect(runVibeAction('invariants', {})).toMatchObject({ ok: false });
+    expect(await runVibeAction('invariants', {})).toMatchObject({ ok: false });
     expect(turn('VibeCoder')).toBeUndefined();   // arrêtée par l'utilisateur : pas une fin
   });
 
@@ -575,7 +579,7 @@ it('answers reprend la session de la course de la note', async () => {
 
   const { refreshVibe } = await import('app/controllers');
   await refreshVibe({ now: true });
-  expect(runVibeAction('answers', { answers: ['oui'] })).toEqual({ ok: true });
+  expect(await runVibeAction('answers', { answers: ['oui'] })).toEqual({ ok: true });
   await settle();
   expect(turn('Réponses')?.options.resume).toBe(session);
 });

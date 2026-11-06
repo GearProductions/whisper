@@ -367,14 +367,18 @@ describe('rien sans un clic', () => {
     expect(importers).toEqual([path.join('app', 'controllers', 'vibecoder.ts')]);
   });
 
-  it('le contrôleur ne lance le lanceur que depuis runVibeAction, sur args.direct === true (jamais au relevé)', () => {
-    const text = fs.readFileSync(path.join(SRC, 'app', 'controllers', 'vibecoder.ts'), 'utf8');
-    // ses fonctions de premier niveau, par nom
-    const fns = Object.fromEntries(text.split(/\n(?=(?:export )?(?:async )?function )/).map((chunk) => [/function (\w+)/.exec(chunk)?.[1] ?? '', chunk]));
-    const using = (needle: string) => Object.keys(fns).filter((name) => name && fns[name].includes(needle));
-    expect(using('directRunner(')).toEqual(['runDirect']);
-    expect(using('runDirect(').filter((n) => n !== 'runDirect')).toEqual(['runVibeAction']);
-    expect(fns.runVibeAction).toMatch(/\.direct === true[^\n]*runDirect\(/);
+  // Note 0.15.0-socket-interface (décidé) : les boutons passent par le socket ; une action directe n'est lancée que
+  // par l'exécuteur, une commande de la table (controllers/commands : runCommand), jamais au relevé.
+  it('le contrôleur ne lance le lanceur que par l\'exécuteur, une commande de la table (jamais au relevé)', () => {
+    // les fonctions de premier niveau d'un fichier du contrôleur, par nom
+    const fnsOf = (file: string) => Object.fromEntries(fs.readFileSync(path.join(SRC, 'app', 'controllers', file), 'utf8')
+      .split(/\n(?=(?:export )?(?:async )?function )/).map((chunk) => [/function (\w+)/.exec(chunk)?.[1] ?? '', chunk]));
+    const using = (fns: Record<string, string>, needle: string) => Object.keys(fns).filter((name) => name && fns[name].includes(needle));
+    const vibecoder = fnsOf('vibecoder.ts');
+    const commands = fnsOf('commands.ts');
+    expect(using(vibecoder, 'directRunner(')).toEqual(['runDirect']);
+    expect(using(vibecoder, 'runDirect(').filter((n) => n !== 'runDirect')).toEqual([]);
+    expect(using(commands, 'runDirect(')).toEqual(['runCommand']);
   });
 });
 

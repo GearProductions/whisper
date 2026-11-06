@@ -39,6 +39,8 @@ function recordingOps() {
     direct: (action) => { calls.push(`direct ${action}`); return { ok: true }; },
     run: async (action, op) => { calls.push(`run ${action} ${op}`); return true; },
     proc: async (name, op) => { calls.push(`proc ${name} ${op}`); return true; },
+    artifact: async (id) => { calls.push(`artifact ${id}`); return null; },
+    draft: (op) => { calls.push(`draft ${JSON.stringify(op)}`); return { ok: true }; },
   };
   return { calls, ops };
 }
