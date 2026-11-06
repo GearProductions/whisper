@@ -14,14 +14,19 @@
  *  — des ids a<i> ou d<i> du dernier relevé, sans lien sur leur chemin —, dans le
  *  dossier choisi dans la boîte de dialogue ; un fichier du même nom remplacé
  *  seulement après Remplacer, Annuler par défaut, fichier par fichier ; un dossier
- *  copié par copyInto, numéroté, jamais remplacé — I-39) et addArtifacts (les chemins
- *  reçus, droppedPaths, copiés un à un par copyInto dans le dossier visé — l'id d<i>
- *  du dernier relevé, absent ou inconnu : la racine —, sans rien écraser ni suivre de
- *  lien, noLinkPath ; le rapport cumulé en addedLine). Ses réponses (la forme de
+ *  copié par copyInto, numéroté, jamais remplacé — I-39), addArtifacts (les chemins
+ *  reçus, droppedFiles, copiés un à un par copyInto, les contenus reçus en base64 écrits
+ *  par writeInto, dans le dossier visé — l'id d<i> du dernier relevé, absent ou
+ *  inconnu : la racine —, sans rien écraser ni suivre de lien, noLinkPath ; un contenu
+ *  refusé par droppedFiles est un échec ; le rapport cumulé en addedLine) et
+ *  readArtifact (le contenu d'un id a<i> du dernier relevé, par itemFile — l'agent
+ *  affiché, sans lien —, texte ou base64, au plus READ_MAX octets lus :
+ *  truncated au-delà ; null sinon). Ses réponses (la forme de
  *  DirectResult) sont en anglais, comme celles de technicals/direct (F-108), qu'il
  *  n'importe pas ; ses boîtes de dialogue dans la langue de VibeCoder (vibeLang).
  *  Ne connaît pas : la page (ses canaux), les libellés de l'écran.
- *  Utilisé par : controllers/vibecoder (survey, openVibeItem, runDirect, dropOnArtifacts), agents,
+ *  Utilisé par : controllers/vibecoder (survey, openVibeItem, runDirect, dropOnArtifacts), commands
+ *  (readArtifact), agents,
  *  artifact-migration, module-code, app/lifecycle. */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -29,12 +34,12 @@ import { app, dialog } from 'electron';
 import type { VibeArtifact, VibeArtifactDir } from 'shared/bridge';
 import type { AgentConfig } from 'core/agents';
 import { vibeLang } from 'core/config';
-import { ARTIFACTS, ARTIFACTS_ROOT, addedLine, artifactDirs, artifactItem, artifactList, artifactOf, artifactType, droppedPaths, folderOf, noLinkPath, projectFolder, projectKey, safePath } from 'core/vibecoder';
+import { ARTIFACTS, ARTIFACTS_ROOT, addedLine, artifactDirs, artifactItem, artifactList, artifactOf, artifactType, droppedFiles, folderOf, noLinkPath, projectFolder, projectKey, safePath } from 'core/vibecoder';
 import type { ArtifactsReport } from 'core/vibecoder';
-import { copyInto } from 'technicals/file-tree';
+import { copyInto, writeInto } from 'technicals/file-tree';
 import type { Served } from 'technicals/file-scheme';
 import { loadConfig, vibeOutPath } from 'app/settings';
-import { readFile } from './processes';
+import { READ_MAX, readFile } from './processes';
 import { viewAgent } from './agents';
 import { lastView } from './vibecoder';
 
@@ -165,18 +170,45 @@ export async function copyArtifact(agent: AgentConfig, ids: string[]): Promise<D
   return done(ok, lines.join(' '));
 }
 
-// Ajouter : copie les chemins reçus (droppedPaths) un à un dans le dossier visé (folderOf du dernier relevé : absent ou
-// inconnu, la racine) du dossier du projet de l'agent ; ok s'il n'y a aucun échec et au moins un copié.
+// Ajouter : copie les chemins reçus (droppedFiles : un chemin ou { path }) un à un par copyInto, et écrit les
+// contenus ({ name, content en base64 }) par writeInto, dans le dossier visé (folderOf du dernier relevé : absent ou
+// inconnu, la racine) du dossier du projet de l'agent ; un contenu refusé (droppedFiles) est un échec ; ok s'il n'y a
+// aucun échec et au moins un copié.
 // Un dossier visé disparu ou devenu un lien, ou la racine devenue un lien : rien n'est copié, chaque chemin en échec.
-export async function addArtifacts(agent: AgentConfig, paths: unknown, folder?: unknown): Promise<DirectResult> {
-  const { paths: list, noPath } = droppedPaths(paths);
-  // projectArtifactsDir crée le dossier : pas pour un envoi sans chemin valide
-  const root = list.length ? projectArtifactsDir(agent.dir) : '';
-  const to = list.length ? noLinkPath(root, folderOf(lastView(agent.id), folder) ?? '', lstat) : '';
+export async function addArtifacts(agent: AgentConfig, files: unknown, folder?: unknown): Promise<DirectResult> {
+  const { paths, contents, noPath, refused } = droppedFiles(files);
+  // projectArtifactsDir crée le dossier : pas pour un envoi sans chemin ni contenu valide
+  const some = paths.length > 0 || contents.length > 0;
+  const root = some ? projectArtifactsDir(agent.dir) : '';
+  const to = some ? noLinkPath(root, folderOf(lastView(agent.id), folder) ?? '', lstat) : '';
   const report: ArtifactsReport = { copied: [], links: [], hidden: [], failed: [], noPath };
-  for (const p of list) {
-    if (to === null) report.failed.push({ path: p, error: 'the target folder is gone or is a link' });
+  report.failed.push(...refused);
+  const gone = 'the target folder is gone or is a link';
+  for (const p of paths) {
+    if (to === null) report.failed.push({ path: p, error: gone });
     else await copyInto(p, to, report);
   }
+  for (const c of contents) {
+    if (to === null) report.failed.push({ path: c.name, error: gone });
+    else await writeInto(to, c.name, c.bytes, report);
+  }
   return { ok: !report.failed.length && report.copied.length > 0, line: addedLine(report, vibeLang(loadConfig())), detail: '' };
+}
+
+// Le contenu de l'artefact a<i> du dernier relevé (itemFile : l'agent affiché, aucun lien sur le chemin, un fichier) :
+// le texte d'un markdown, d'un texte ou d'une page, le base64 d'un media ; au plus READ_MAX octets lus,
+// truncated s'il y en avait plus. Un id inconnu (un d<i> ou un chemin compris), un lien : null.
+export async function readArtifact(agent: AgentConfig, id: unknown): Promise<{ name: string; kind: VibeArtifact['kind']; text?: string; base64?: string; truncated: boolean } | null> {
+  const a = typeof id === 'string' ? artifactOf(lastView(agent.id), id) : null;
+  const file = a && itemFile(agent, id);
+  if (!a || !file) return null;
+  let fh: fs.promises.FileHandle | undefined;
+  try {
+    fh = await fs.promises.open(file, 'r');
+    const buf = Buffer.alloc(READ_MAX + 1);
+    const { bytesRead } = await fh.read(buf, 0, buf.length, 0);
+    const bytes = buf.subarray(0, Math.min(bytesRead, READ_MAX));
+    const out = { name: a.name, kind: a.kind, truncated: bytesRead > READ_MAX };
+    return a.kind === 'media' ? { ...out, base64: bytes.toString('base64') } : { ...out, text: bytes.toString('utf8') };
+  } catch { return null; } finally { await fh?.close(); }
 }
