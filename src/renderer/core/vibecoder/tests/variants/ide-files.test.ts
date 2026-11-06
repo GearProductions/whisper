@@ -74,6 +74,26 @@ describe('ideFiles', () => {
   });
 });
 
+describe('ideFiles : une entrée de la Forme à plusieurs chemins (« a + b »)', () => {
+  const paths = ['docs/icone.png', 'docs/dictee.png'];
+  const multi = mod(paths.join(' + '), { paths });
+
+  it('by module (Forme) : une ligne par chemin, au rang de l’entrée, jamais un chemin qui contient « + »', () => {
+    expect(ideFiles({ modules: [multi, todo] }, 'module').map((r) => [r.path, r.rank])).toEqual([
+      ['docs/icone.png', 0], ['docs/dictee.png', 0], ['c.ts', 1],
+    ]);
+  });
+
+  it('by file (Modules), pas encore touchée : une ligne par chemin aussi', () => {
+    expect(ideFiles({ modules: [multi] }, 'file').map((r) => r.path)).toEqual(['docs/icone.png', 'docs/dictee.png']);
+  });
+
+  it('by file, pas encore touchée mais un de ses chemins existe déjà (file : le premier trouvé) : tous ses chemins, pas ce seul fichier', () => {
+    const real = mod(paths.join(' + '), { paths, file: { id: 'm0', path: 'docs/icone.png' } });
+    expect(ideFiles({ modules: [real] }, 'file').map((r) => [r.path, r.rank])).toEqual([['docs/icone.png', 0], ['docs/dictee.png', 0]]);
+  });
+});
+
 describe('ideFiles : les variants de la branche (Modules)', () => {
   const branch = [
     { id: 'b0', path: 'b.ts', locked: null },

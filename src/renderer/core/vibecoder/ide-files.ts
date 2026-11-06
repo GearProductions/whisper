@@ -48,9 +48,12 @@ export function ideFiles(view: Pick<VibeView, 'modules' | 'files'> & { variants?
     const state = moduleState(m);
     // Un module ligne à ligne (Forme, ou pas encore de fichier) : à générer s'il n'est pas touché ; la couleur de
     // son fichier s'il n'en a qu'un ; un dossier de plusieurs fichiers : modifié si l'un n'est pas commité.
-    const path = by === 'module' ? m.path : m.file?.path ?? m.path;
+    const paths = m.paths ?? [m.path];
+    const lines = by === 'module' || paths.length > 1 ? paths : [m.file?.path ?? m.path];
     const own = m.files?.length === 1 ? m.files[0] : undefined;
-    if (by === 'module' || !m.touched || !m.files?.length) return [{ path, rank, state, mark: !m.touched ? 'todo' : own ? markOf(own) : m.files?.some((f) => markOf(f)) ? 'modified' : null, code: m.touched ? m : null }];
+    // Une entrée de la Forme à plusieurs chemins (« a + b », T-15) : une ligne par chemin, au rang de l'entrée.
+    const row = { rank, state, mark: !m.touched ? 'todo' as const : own ? markOf(own) : m.files?.some((f) => markOf(f)) ? 'modified' as const : null, code: m.touched ? m : null };
+    if (by === 'module' || !m.touched || !m.files?.length) return lines.map((path) => ({ path, ...row }));
     return m.files.map((f) => ({ path: f.path, rank, state, mark: markOf(f), code: { ...m, files: [f] } }));
   }), ...variants.map(branchRow)].filter((r) => !seen.has(r.path) && seen.add(r.path));
 }
