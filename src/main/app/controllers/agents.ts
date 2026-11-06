@@ -6,9 +6,11 @@
  *  système ; son clic montre l'agent (showAgent). Chaque lancement de Claude Code (tour, sonde) reçoit
  *  le plugin de VibeCoder, le dossier de sorties de l'agent et le dossier d'artefacts de son projet. À chaque
  *  changement des agents, les courses suivent (controllers/runs : les avis de
- *  fin en attente, envoyés dès que la conversation est libre). L'état d'un agent
+ *  fin en attente, envoyés dès que la conversation est libre) ; l'agent affiché, ou dont la conversation est lue,
+ *  a ses courses finies vues (runsShown : la pastille verte s'efface, T-18). L'état d'un agent
  *  est celui de sa conversation, et par-dessus un état au repos le signal de
- *  ses courses (core/vibecoder robotState, F-55). Les agents se rangent par
+ *  ses courses (core/vibecoder robotState, F-55) ; ses tâches de fond sont celles de sa conversation et de ses courses
+ *  (runTasksOf, T-13). Les agents se rangent par
  *  famille (core/family) : chacun ses enfants, et sa branche (celle de son
  *  dossier, lue sur le disque, ou « PR #n »). Retirer un
  *  agent oublie son processus, ses courses et ses commandes ; ses enfants gardent leur parent ;
@@ -33,7 +35,7 @@ import { conversationShown, inConversation, openConversation } from 'app/windows
 import { conversationProgress, refreshConversation } from './conversation';
 import { readFile, stopAgentProcesses } from './processes';
 import { projectArtifactsDir } from './artifacts';
-import { closeRuns, runSignalOf, runsFollow } from './runs';
+import { closeRuns, runSignalOf, runsFollow, runsShown, runTasksOf } from './runs';
 import { lastView } from './vibecoder';
 
 const sdk = loadSdk as unknown as () => Promise<Sdk>;
@@ -43,11 +45,12 @@ export const sessions = createSessions({ loadSdk: sdk, realpath: fs.realpathSync
 export const CLAUDE_MISSING = 'Claude Code introuvable : installez-le, ou réglez la commande de lancement (⚙ Réglages → Agents → Commande de lancement).';
 
 export const isBusy = (id: string) => ['working', 'asking'].includes(agents.state(id).status);
-// L'état d'un robot : sa conversation, et le signal de ses courses par-dessus un état au repos.
+// L'état d'un robot : sa conversation, et le signal de ses courses par-dessus un état au repos ; ses tâches de
+// fond : celles de sa conversation et celles de ses courses.
 const robotOf = (id: string) => {
   const conv = agents.state(id);
   const signal = runSignalOf(id);
-  return { ...conv, ...robotState(conv, signal), signal };
+  return { ...conv, ...robotState(conv, signal), signal, tasks: conv.tasks + runTasksOf(id) };
 };
 export const newId = () => `a${Date.now().toString(36)}`;
 // Un chemin résolu (liens symboliques : /home → /var/home) ; null s'il n'existe pas.
@@ -96,10 +99,13 @@ function notify(events: ReturnType<typeof agentEvents>, cfg: Config) {
 // État des agents : la liste du panneau (sélecteur, notifications).
 export function pushAgents() {
   const cfg = loadConfig();
-  for (const a of agentList(cfg)) if (agents.state(a.id).unread && inConversation(a.id)) agents.markRead(a.id); // déjà sous les yeux
   const shown = state.convView?.agentId ?? null;
+  for (const a of agentList(cfg)) {
+    if (agents.state(a.id).unread && inConversation(a.id)) agents.markRead(a.id); // déjà sous les yeux
+    if (a.id === shown) runsShown(a.id); // affiché, ou sa conversation lue : ses courses finies sont vues (T-18)
+  }
   const list = switcherAgents(cfg, {
-    state: (id) => { const { status, unread, signal } = robotOf(id); return { status, unread, signal }; },
+    state: (id) => { const { status, unread, signal, tasks } = robotOf(id); return { status, unread, signal, tasks }; },
     step: (id) => lastView(id)?.steps.find((s) => s.status === 'current')?.id ?? null,
     branch: (dir) => branchOf(dir, readFile),
     question: questionOf,

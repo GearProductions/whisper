@@ -80,9 +80,19 @@ describe('le sélecteur, la palette et les robots des agents', () => {
 
   it('une activité par valeur d\'AgentActivity et une entrée par action de la palette, dans les deux langues', () => {
     for (const lang of ['fr', 'en'] as const) {
-      expect(Object.keys(t(lang).activity).sort()).toEqual(['asking', 'done', 'idle', 'paused', 'working']);
+      expect(Object.keys(t(lang).activity).sort()).toEqual(['asking', 'done', 'failed', 'idle', 'working']);
       expect(Object.keys(t(lang).paletteActions).sort()).toEqual(['branches', 'create-branch', 'new-agent', 'stash']);
     }
+  });
+
+  it('le libellé de failed : « en échec », en français et en anglais', () => {
+    expect([t('fr').activity.failed, t('en').activity.failed]).toEqual(['en échec', 'failed']);
+  });
+
+  it('tasksWatch : une tâche, plusieurs ; askAgent', () => {
+    expect([1, 3].map(t('fr').tasksWatch)).toEqual(['surveille 1 tâche de fond', 'surveille 3 tâches de fond']);
+    expect([1, 3].map(t('en').tasksWatch)).toEqual(['watching 1 background task', 'watching 3 background tasks']);
+    expect([t('fr').askAgent, t('en').askAgent]).toEqual(['Poser une question à l\'agent', 'Ask the agent']);
   });
 
   it('tenue par un agent', () => {

@@ -34,7 +34,7 @@ const fake = vi.hoisted(() => {
     on(ev: string, fn: () => void) { this.handlers[ev] = fn; }
     show() { Notif.shown.push(this); }
   }
-  return { Win, Notif, userData: '', signals: {} as Record<string, string> };
+  return { Win, Notif, userData: '', signals: {} as Record<string, string>, shown: [] as string[], tasks: {} as Record<string, number> };
 });
 
 vi.mock('electron', () => ({
@@ -47,6 +47,7 @@ vi.mock('electron', () => ({
 
 vi.mock('app/controllers/runs', async (orig) => ({
   ...(await orig<object>()), runSignalOf: (id: string) => fake.signals[id] ?? null,
+  runsShown: (id: string) => { fake.shown.push(id); }, runTasksOf: (id: string) => fake.tasks[id] ?? 0,
 }));
 
 const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
@@ -58,6 +59,8 @@ let pr = '';
 beforeEach(() => {
   vi.resetModules();
   fake.signals = {};
+  fake.shown = [];
+  fake.tasks = {};
   fake.Notif.shown = [];
   fake.userData = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-agents-'));
   repo = path.join(fake.userData, 'projet');
@@ -179,6 +182,32 @@ describe('la liste du panneau', () => {
     fake.signals = { a2: 'asking' };
     pushAgents();
     expect(fake.Notif.shown).toEqual([]);
+  });
+
+  it('l’agent affiché : ses courses passent par runsShown, pas celles des autres', async () => {
+    const { state, pushAgents } = await panel();
+    state.convView = { agentId: 'a2', sessionId: null };
+    pushAgents();
+    expect(new Set(fake.shown)).toEqual(new Set(['a2']));
+  });
+
+  it('sa conversation lue (une ancienne session aussi) : ses courses passent par runsShown ; rien d’affiché : aucune', async () => {
+    const { state, pushAgents } = await panel();
+    state.convView = { agentId: 'a1', sessionId: 's-ancienne' };
+    pushAgents();
+    expect(fake.shown).toContain('a1');
+    fake.shown = [];
+    state.convView = null;
+    pushAgents();
+    expect(fake.shown).toEqual([]);
+  });
+
+  it('tasks : celles de la conversation plus celles des courses (runTasksOf)', async () => {
+    const { state, pushAgents, last } = await panel();
+    state.convView = { agentId: 'a1', sessionId: null };
+    fake.tasks = { a2: 2 };
+    pushAgents();
+    expect(last().agents.map((a) => [a.id, a.tasks ?? 0])).toEqual([['a1', 0], ['a2', 2], ['a3', 0]]);
   });
 
   it('une fin (done) ne vaut pas de notification du système', async () => {
