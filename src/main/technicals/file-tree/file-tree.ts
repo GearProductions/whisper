@@ -16,12 +16,16 @@
  *  un lien est resté (la source reste) → 'left'. Jamais `rename` (il écrase).
  *  Changer la seule casse sur un disque insensible à la casse : le nom visé « pris »
  *  par soi-même (absent du relevé du dossier) passe par un nom provisoire visible.
+ *  `writeInto` : écrit des octets reçus (pas un fichier du disque) sous la
+ *  racine, jamais d'écrasement (le premier numéro libre, écriture exclusive),
+ *  racine lien refusée, une erreur dans `failed` ; le nom est un nom simple,
+ *  jamais un chemin, et un nom d'artefact valable (helpers plainName : portable, 255 octets).
  *  Ne connaît pas : les artefacts, les agents, Electron.
  *  Utilisé par : controllers (artifacts, artifact-ops, artifact-migration, worktrees). */
 import { constants } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { numberedName } from 'helpers';
+import { numberedName, plainName } from 'helpers';
 
 export type TreeReport = {
   copied: string[];                          // chemins sous root
@@ -56,7 +60,8 @@ async function sameBytes(a: string, b: string) {
   try {
     const [sa, sb] = await Promise.all([fs.lstat(a), fs.lstat(b)]);
     if (!sa.isFile() || !sb.isFile() || sa.size !== sb.size) return false;
-    [fa, fb] = [await fs.open(a), await fs.open(b)];
+    fa = await fs.open(a);   // l'un puis l'autre, chacun gardé aussitôt : si le second ne s'ouvre pas, le finally ferme le premier
+    fb = await fs.open(b);
     const [x, y] = [Buffer.alloc(65536), Buffer.alloc(65536)];
     for (let left = sa.size; left > 0;) {
       const [ra, rb] = await Promise.all([fa.read(x, 0, x.length, null), fb.read(y, 0, y.length, null)]);
@@ -114,15 +119,19 @@ async function walk(from: string, to: string, report: TreeReport, remove: boolea
   }
 }
 
-// Un dossier neuf, jamais mêlé à un existant (fichier, dossier ou lien) : le premier numéro libre.
-async function newDir(dir: string, name: string) {
+// Prend le premier numéro libre de `name` sous `dir` : `make` crée le chemin de façon exclusive (mkdir, ou écriture
+// 'wx' : aucun des deux ne suit un lien), un nom pris (même par un lien, même cassé) fait passer au numéro suivant.
+async function claimFree(dir: string, name: string, make: (target: string) => Promise<unknown>) {
   for (let n = 1; ; n++) {
     const target = path.join(dir, numberedName(name, n));
-    try { await fs.mkdir(target); return target; } catch (e) {
+    try { await make(target); return target; } catch (e) {
       if (code(e) !== 'EEXIST' && !await fs.lstat(target).catch(() => null)) throw e;
     }
   }
 }
+
+// Un dossier neuf, jamais mêlé à un existant (fichier, dossier ou lien) : le premier numéro libre.
+const newDir = (dir: string, name: string) => claimFree(dir, name, (target) => fs.mkdir(target));
 
 // Copie (ou, avec `remove`, déplace) `src` sous `root` ; la source n'est effacée qu'une fois arrivée.
 async function place(src: string, root: string, report: TreeReport, remove: boolean) {
@@ -212,4 +221,15 @@ export async function hasFiles(dir: string): Promise<boolean> {
     }
     return false;
   } catch (e) { return code(e) !== 'ENOENT'; }
+}
+
+// `name` : un nom simple, jamais un chemin (un « .. » écrirait hors de la racine).
+export async function writeInto(root: string, name: string, bytes: Buffer, report: TreeReport = newReport()): Promise<TreeReport> {
+  try {
+    if (plainName(name, false) === null) throw new Error(`nom invalide : ${name}`);
+    await ensureRoot(root);
+    // Écrit sans écraser : 'wx' est exclusif et ne suit aucun lien.
+    report.copied.push(await claimFree(root, name, (target) => fs.writeFile(target, bytes, { flag: 'wx' })));
+  } catch (e) { fail(report, path.join(root, name), e); }
+  return report;
 }

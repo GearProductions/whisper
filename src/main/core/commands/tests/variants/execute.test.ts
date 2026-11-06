@@ -1,13 +1,14 @@
 // Variantes de l'exécuteur (execute), sur la vraie table livrée (resources/vibecoder/commands.json) : la commande
 // inconnue, la porte, la conversion des arguments, le relevé absent, les lectures (schéma, jamais l'id du robot), les
 // écritures vers les opérations injectées (chacune relève ses appels), les refus traduits, une opération qui lève, les
-// codes et textes des erreurs, les codes de la table livrée.
+// codes et textes des erreurs, les codes de la table livrée (et le texte de bad-token, celui du protocole).
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { VibeAction, VibeRun, VibeView } from 'shared/bridge';
 import { ERROR_CODES, execute, parseCommands, schemaError, type CommandContext, type CommandOps, type CommandRequest, type CommandResponse, type OpOutcome } from 'core/commands';
 import { parseActions } from 'core/vibecoder';
+import { BAD_TOKEN } from 'technicals/socket';
 
 const RES = path.resolve(__dirname, '../../../../../../resources/vibecoder');
 const table = parseCommands(fs.readFileSync(path.join(RES, 'commands.json'), 'utf8'));
@@ -45,6 +46,8 @@ function ops(outcome: OpOutcome = { ok: true }, over: Partial<CommandOps> = {}) 
     direct: (...a) => { calls.push(['direct', ...a]); return outcome; },
     run: async (...a) => { calls.push(['run', ...a]); return true; },
     proc: async (...a) => { calls.push(['proc', ...a]); return true; },
+    artifact: async (...a) => { calls.push(['artifact', ...a]); return { name: 'a.md', kind: 'markdown', text: 'x', truncated: false }; },
+    draft: (...a) => { calls.push(['draft', ...a]); return outcome; },
     ...over,
   };
   return { calls, ops: o };
@@ -111,7 +114,8 @@ describe('execute : les arguments', () => {
 describe('execute : le relevé', () => {
   it('no-survey : relevé null, toute commande', async () => {
     const sent: [string, unknown][] = [['status', {}], ['logs', { name: 'dev' }], ['run.start', { action: 'module' }],
-      ['run.stop', { action: 'modules' }], ['proc.stop', { name: 'dev' }], ['pull', {}], ['vibe', {}]];
+      ['run.stop', { action: 'modules' }], ['proc.stop', { name: 'dev' }], ['pull', {}], ['vibe', {}],
+      ['artifacts', {}], ['artifact', { artifact: 'a1' }], ['draft', {}], ['draft.remove', { id: 1 }], ['proc.start', { name: 'dev' }]];
     for (const [command, args] of sent) {
       const o = ops();
       const r = await go({ command, args }, o, { view: null, defs });
@@ -133,6 +137,21 @@ describe('execute : les lectures', () => {
     }
     expect(JSON.stringify(all)).not.toContain('robot-42');
     expect(JSON.stringify(all)).not.toMatch(/"agentId?"/);
+  });
+
+  it('artifacts : artifactsOf ; draft : draftOf ; artifact : ops.artifact, null : unknown-artifact', async () => {
+    const v = { ...view, artifactsDir: '/p/artifacts', artifacts: [{ id: 'a1', name: 'a.md', kind: 'markdown', size: 3, time: 5, url: 'x' }], artifactDirs: [{ id: 'd1', name: 'sub' }],
+      pr: { number: 7 }, draft: [{ id: 1, target: 'a:1', text: 'rm' }] } as unknown as VibeView;
+    const c = { view: v, defs };
+    const o = ops();
+    const list = await go({ command: 'artifacts' }, o, c);
+    expect(list).toEqual({ ok: true, result: { dir: '/p/artifacts', files: [{ id: 'a1', name: 'a.md', kind: 'markdown', size: 3, time: 5 }], folders: [{ id: 'd1', name: 'sub' }] } });
+    expect(await go({ command: 'draft' }, o, c)).toEqual({ ok: true, result: { pr: 7, remarks: [{ id: 1, target: 'a:1', text: 'rm' }] } });
+    expect(await go({ command: 'artifact', args: { artifact: 'a1' } }, o, c)).toMatchObject({ ok: true, result: { name: 'a.md' } });
+    expect(o.calls).toEqual([['artifact', 'a1']]);
+    const none = ops({ ok: true }, { artifact: async () => null });
+    const r = await go({ command: 'artifact', args: { artifact: 'a9' } }, none, c);
+    expect([code(r), details(r)]).toEqual(['unknown-artifact', { artifact: 'a9' }]);
   });
 
   it('logs d\'un nom inconnu : unknown-process', async () => {
@@ -173,28 +192,73 @@ describe('execute : les écritures', () => {
     expect(o.calls).toEqual([['direct', 'pull', {}], ['direct', 'load-pr', { pr: 7 }], ['start', 'vibe', {}], ['start', 'guide', { text: 'a' }]]);
   });
 
-  it('vibe, guide, new-request, propose-run : absente ou masquée au relevé, not-offered sans appel', async () => {
+  it('commit, publish (verdict), base : ops.direct avec leurs arguments ; un verdict hors des trois : invalid-args', async () => {
+    const o = ops();
+    const withAll = { ...view, actions: [...view.actions, act('publish'), act('base')] };
+    const goAll = (req: Partial<CommandRequest> & { command: string }) => go(req, o, { view: withAll, defs });
+    expect((await goAll({ command: 'commit' })).ok).toBe(true);
+    expect((await goAll({ command: 'publish', args: { verdict: 'request-changes' } })).ok).toBe(true);
+    expect((await goAll({ command: 'base' })).ok).toBe(true);
+    expect(o.calls).toEqual([['direct', 'commit', {}], ['direct', 'publish', { verdict: 'request-changes' }], ['direct', 'base', {}]]);
+    expect(code(await goAll({ command: 'publish', args: { verdict: 'ok' } }))).toBe('invalid-args');
+    expect(code(await goAll({ command: 'publish' }))).toBe('invalid-args');
+    expect(code(await go({ command: 'base' }, o))).toBe('not-offered');   // absente du relevé de ce fichier
+    expect(o.calls).toHaveLength(3);
+  });
+
+  it('vibe, guide, new-request, propose-run : absente ou masquée au relevé, not-offered sans appel (porte agent)', async () => {
     const o = ops();
     const hidden = { ...view, actions: view.actions.map((a) => (a.id === 'guide' ? { ...a, hidden: true } : a)) };
-    expect(code(await go({ command: 'new-request', args: { text: 'a' } }, o))).toBe('not-offered');
-    expect(code(await go({ command: 'propose-run' }, o))).toBe('not-offered');
-    expect(code(await go({ command: 'guide' }, o, { view: hidden, defs }))).toBe('not-offered');
+    expect(code(await go({ command: 'new-request', args: { text: 'a' }, door: 'agent' }, o))).toBe('not-offered');
+    expect(code(await go({ command: 'propose-run', door: 'agent' }, o))).toBe('not-offered');
+    expect(code(await go({ command: 'guide', door: 'agent' }, o, { view: hidden, defs }))).toBe('not-offered');
     expect(o.calls).toEqual([]);
   });
 
-  it('une direct masquée ou absente du relevé : not-offered, rien d\'appelé', async () => {
+  it('une direct absente du relevé : not-offered, rien d\'appelé (les deux portes)', async () => {
     const o = ops();
-    expect(code(await go({ command: 'push' }, o))).toBe('not-offered');
     expect(code(await go({ command: 'fetch' }, o))).toBe('not-offered');
+    expect(code(await go({ command: 'fetch', door: 'agent' }, o))).toBe('not-offered');
     expect(o.calls).toEqual([]);
   });
 
-  it('comment, case-ko, add-artifact : not-offered', async () => {
+  it('comment, case-ko : unknown-command, rien d\'appelé ; add-artifact : ops.direct avec files et folder', async () => {
     const o = ops();
-    for (const [command, args] of [['comment', { quote: 'q' }], ['case-ko', { quote: 'q' }], ['add-artifact', {}]] as const) {
-      expect(code(await go({ command, args }, o)), command).toBe('not-offered');
+    for (const [command, args] of [['comment', { quote: 'q' }], ['case-ko', { quote: 'q' }]] as const) {
+      expect(code(await go({ command, args }, o)), command).toBe('unknown-command');
     }
     expect(o.calls).toEqual([]);
+    const files = [{ path: '/tmp/a.png' }, { name: 'b.txt', content: 'aGk=' }];
+    expect((await go({ command: 'add-artifact', args: { files, folder: 'd1' } }, o)).ok).toBe(true);
+    expect(o.calls).toEqual([['direct', 'add-artifact', { files, folder: 'd1' }]]);
+  });
+
+  it('porte écran : une action directe masquée présente au relevé, ops.direct ; porte agent : la même, not-offered', async () => {
+    const o = ops();
+    expect((await go({ command: 'push' }, o)).ok).toBe(true);
+    expect(o.calls).toEqual([['direct', 'push', {}]]);
+    const a = ops();
+    expect(code(await go({ command: 'push', door: 'agent' }, a))).toBe('not-offered');
+    expect(a.calls).toEqual([]);
+  });
+
+  it('draft.add, draft.edit, draft.remove : ops.draft ; reason no-pr : no-pr ; args : invalid-args', async () => {
+    const o = ops();
+    await go({ command: 'draft.add', args: { target: 'src/a.ts:3', text: 'rm' } }, o);
+    await go({ command: 'draft.edit', args: { id: 2, text: 'rm2' } }, o);
+    await go({ command: 'draft.remove', args: { id: 2 } }, o);
+    expect(o.calls).toEqual([['draft', { add: { target: 'src/a.ts:3', text: 'rm' } }], ['draft', { edit: { id: 2, text: 'rm2' } }], ['draft', { remove: 2 }]]);
+    const add = { command: 'draft.add', args: { target: 't', text: 'x' } };
+    expect(code(await go(add, ops({ ok: false, reason: 'no-pr', error: 'Aucune PR' })))).toBe('no-pr');
+    expect(code(await go(add, ops({ ok: false, reason: 'args', error: 'x' })))).toBe('invalid-args');
+  });
+
+  it('proc.start : ops.proc start ; un nom hors du relevé : unknown-process', async () => {
+    const o = ops();
+    expect(code(await go({ command: 'proc.start', args: { name: 'nope' } }, o))).toBe('unknown-process');
+    expect(o.calls).toEqual([]);
+    expect(await go({ command: 'proc.start', args: { name: 'dev' } }, o)).toEqual({ ok: true, result: null });
+    expect(o.calls).toEqual([['proc', 'dev', 'start']]);
   });
 
   it('run.stop : ops.run ; false : no-run', async () => {
@@ -278,5 +342,13 @@ describe('execute : les erreurs', () => {
       expect(ERROR_CODES).toContain(r.error.code);
       expect([r.error.message, r.error.todo]).toEqual([def.message, def.todo]);
     }
+  });
+});
+
+describe('execute : la table livrée', () => {
+  it('ses codes sont ceux d\'ERROR_CODES ; le texte de bad-token est celui du protocole (que le protocole seul rend)', () => {
+    expect(table.errors.map((e) => e.code)).toEqual([...ERROR_CODES]);
+    const bad = table.errors.find((e) => e.code === 'bad-token')!;
+    expect({ message: bad.message, todo: bad.todo }).toEqual({ message: BAD_TOKEN.error.message, todo: BAD_TOKEN.error.todo });
   });
 });

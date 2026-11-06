@@ -32,6 +32,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+// Les boutons de l'écran passent par le socket (0.15.0) : ouvert comme au lancement, fermé après chaque cas.
+let closeSocket = () => {};
+
 const fake = vi.hoisted(() => {
   type Handler = (...a: unknown[]) => void;
   class Win {
@@ -141,12 +144,14 @@ process.stdout.write(process.argv.includes('list') ? '[]' : ${JSON.stringify(JSO
   write(path.join(out, 'pr-7.json'), JSON.stringify({ number: 7, title: 'Essai', url: 'u', author: 'bob', base: 'main', head: 'feat/x', body: '', state: 'OPEN' }));
   configure({ flow: 'review', autonomy: 'guide', pr: 7 });
 });
-afterEach(() => { vi.useRealTimers(); process.chdir(fake.cwd); });
+afterEach(() => { closeSocket(); closeSocket = () => {}; vi.useRealTimers(); process.chdir(fake.cwd); });
 
 // Le panneau de a1 ouvert, son premier relevé envoyé.
 async function openPanel() {
   const { openConversation } = await import('app/windows');
-  const { panelReady } = await import('app/controllers');
+  const { panelReady, openSocket, commandFromSocket, closeSocket: close } = await import('app/controllers');
+  await openSocket(commandFromSocket);
+  closeSocket = close;
   openConversation('a1');
   fake.windows.at(-1)!.emit('ready-to-show');
   await panelReady();

@@ -40,7 +40,8 @@ vi.mock('electron', () => ({
 }));
 
 const { loadConfig } = await import('app/settings');
-const { processAction, processView, projectFile, stopProcesses } = await import('app/controllers/processes');
+const { processAction, processOp, processView, projectFile, stopProcesses } = await import('app/controllers/processes');
+const { openSocket, closeSocket } = await import('app/controllers');
 
 const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' });
 const settle = () => new Promise((r) => setTimeout(r, slow(800)));
@@ -79,7 +80,7 @@ async function runningIn(id: string) {
   await until(() => seen().length > before);
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   fake.yes = false;
   fake.asked = [];
   fake.userData = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-famille-')));
@@ -104,8 +105,16 @@ beforeEach(() => {
   fs.writeFileSync(projectFile(repo), JSON.stringify({
     commands: [{ name: 'serveur', run: `echo "$(pgrep -fc '${MARK}') $PWD" >> '${seenFile}'; exec sleep 9871.${process.pid}` }],
   }));
+  // Les boutons de l'écran passent par le socket (0.15.0). Ici sans panneau ni relevé : la porte
+  // est celle de l'écran, mais l'exécuteur est remplacé par processOp, l'opération qu'il appelle (proc.<op>).
+  await openSocket(async (env) => {
+    const agent = loadConfig().agents.find((a) => fs.realpathSync.native(a.dir) === env.target)!;
+    await processOp(agent, loadConfig(), (env.args as { name: string }).name, env.cmd.slice('proc.'.length) as 'start' | 'stop' | 'restart');
+    return { ok: true, result: null };
+  });
 });
 afterEach(async () => {
+  closeSocket();
   await stopProcesses();
   spawnSync('pkill', ['-f', MARK]);
 });

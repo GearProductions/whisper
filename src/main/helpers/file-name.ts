@@ -5,7 +5,7 @@
  *  de nom réservé de Windows (CON, PRN, AUX, NUL, COM1-9, LPT1-9, avec ou sans extension, casse
  *  quelconque). Rend le nom, ou null.
  *  Ne connaît pas : le disque, les artefacts, la page (ses règles sont répétées dans nameProblem).
- *  Utilisé par : controllers/artifact-ops. */
+ *  Utilisé par : controllers/artifact-ops, core/vibecoder/artifacts (droppedFiles), technicals/file-tree (writeInto). */
 
 const WINDOWS = /[:*?"<>|\x00-\x1f]|[ .]$|^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
 

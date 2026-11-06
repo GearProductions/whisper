@@ -60,3 +60,9 @@ describe('vibeCommands', () => {
     expect((await settings()).vibeCommands).toThrow(/illisible/);
   });
 });
+
+describe('liveFile', () => {
+  it("live.json, dans le dossier de l'appli", async () => {
+    expect((await settings()).liveFile()).toBe(path.join(fake.userData, 'live.json'));
+  });
+});

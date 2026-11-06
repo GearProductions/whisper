@@ -16,6 +16,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Les boutons de l'écran passent par le socket (0.15.0) : ouvert comme au lancement, fermé après chaque cas.
+let closeSocket = () => {};
 import { slow } from '../slow';
 
 const fake = vi.hoisted(() => {
@@ -117,12 +120,14 @@ beforeEach(() => {
       vibe: { flow: 'create', autonomy: 'guide', pr: null } }],
   }));
 });
-afterEach(() => { vi.useRealTimers(); });
+afterEach(() => { closeSocket(); closeSocket = () => {}; vi.useRealTimers(); });
 
 // Le panneau ouvert sur l'agent, en VibeCoder, son premier relevé reçu.
 async function open() {
   const { openConversation } = await import('app/windows');
-  const { panelReady } = await import('app/controllers');
+  const { panelReady, openSocket, commandFromSocket, closeSocket: close } = await import('app/controllers');
+  await openSocket(commandFromSocket);
+  closeSocket = close;
   openConversation('a1');
   fake.windows.at(-1)!.emit('ready-to-show');
   await panelReady();

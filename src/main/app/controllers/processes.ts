@@ -20,37 +20,41 @@
  *  mergeProject ; rien de nouveau : pas réécrit) ; la
  *  proposition supprimée dans les deux cas ; les demandes de l'agent
  *  (<sorties>/run/<nom>.stop, .restart, pour un nom du fichier) sont faites
- *  (applyOp, aussi processOp : l'opération par nom, sans question),
+ *  (applyOp, aussi processOp : start, stop, restart par nom, sans question),
  *  une commande retirée du fichier est arrêtée ; l'état et la fin du journal
  *  de chaque commande ; si le fichier a un setup ; la recette de la famille
  *  (controllers/recipe recipeView). Ce que demande la page : une commande par son rang
- *  dans le dernier relevé (lancer, arrêter, relancer, son journal dans
+ *  dans le dernier relevé (lancer, arrêter, relancer : par le socket,
+ *  proc.<op> et son nom, screenSend — jamais directement, null : la boîte
+ *  « socket indisponible » de controllers/socket, un refus du socket : silence ; son journal dans
  *  l'éditeur), le fichier du projet dans l'éditeur (créé d'un exemple s'il
  *  manque), 'setup' : préparer le projet (controllers/recipe prepare, sans
  *  l'attendre ; un fichier sans setup : rien). Une commande ne tourne qu'à un endroit par famille (core/family
  *  heldBy) : depuis la page, la boîte de dialogue « <nom> tourne dans
  *  <branche> : l'arrêter et le lancer ici ? » (Oui : arrêtée là-bas, puis
- *  lancée ici ; Non : rien) ; une demande .restart de l'agent retenue
+ *  envoyée ; Non : rien d'envoyé) ; une demande .restart de l'agent retenue
  *  ailleurs : pas lancée. Quitter arrête tout ce qui a été lancé
  *  (app/lifecycle) ; retirer un agent, ses commandes (I-47). Un échec ne bloque pas le relevé (I-29).
  *  Ne connaît pas : la page (seulement ses demandes), les fenêtres (la boîte
- *  de dialogue sans parent), git (la branche lue sur le disque).
+ *  de dialogue sans parent), git (la branche lue sur le disque), le socket
+ *  (seulement screenSend, socketDown).
  *  Utilisé par : controllers/vibecoder (et projectAt, readTimed, readFile), controllers/agents
  *  (et readFile), controllers/module-code (readTimed, READ_MAX),
  *  controllers/recipe (projectAt, homeOf, readFile), app/menus (readFile),
- *  app/lifecycle, controllers/commands (processOp). */
+ *  app/lifecycle, controllers/commands (processOp : start, stop, restart). */
 import fs from 'node:fs';
 import path from 'node:path';
 import type { VibeProcess, VibeRecipe } from 'shared/bridge';
 import { dialog } from 'electron';
 import type { AgentConfig } from 'core/agents';
-import { agentList, type Config } from 'core/config';
+import { agentList, vibeLang, type Config } from 'core/config';
 import { branchOf, familyOwner, heldBy } from 'core/family';
 import { agentSidePrefix, commandAt, commandPrefix, logTail, mergeProject, parseProject, projectPath, projectSlug, projectText, requestsOf, withExclude, type Project } from 'core/runner';
 import { findEditor } from 'technicals/editor';
 import { createProcesses, readTail, writeNew } from 'technicals/process';
 import { vibeDir, vibeOutDir } from 'app/settings';
 import { prepare, recipeView } from './recipe';
+import { screenSend, socketDown } from './socket';
 
 const LOG_BYTES = 32 * 1024;   // la fin du journal lue à chaque relevé…
 const LOG_LINES = 200;         // … et ses dernières lignes, à l'écran
@@ -102,13 +106,14 @@ function launch(agent: AgentConfig, cfg: Config, p: Project | null, index: numbe
   if (c && !holderOf(agent, cfg, c.name)) procs.start(key(agent.id, c.name), { argv: c.argv, cwd: path.resolve(agent.dir, c.cwd ?? '.'), log: logOf(agent.id, c.name) });
 }
 
-// Arrête la commande `name` du projet `p`, puis, pour 'restart', la relance à
-// son rang (launch : pas si tenue ailleurs) ; false : aucune de ce nom, rien d'arrêté.
-async function applyOp(agent: AgentConfig, cfg: Config, p: Project | null, name: string, op: 'stop' | 'restart') {
+// 'start' lance la commande `name` du projet `p` (rien si elle tourne), 'stop'
+// l'arrête, 'restart' l'arrête puis la relance à son rang (launch : pas si
+// tenue ailleurs) ; false : aucune de ce nom, rien fait.
+async function applyOp(agent: AgentConfig, cfg: Config, p: Project | null, name: string, op: 'start' | 'stop' | 'restart') {
   const index = p?.commands.findIndex((c) => c.name === name) ?? -1;
   if (index < 0) return false;
-  await procs.stop(key(agent.id, name));
-  if (op === 'restart') launch(agent, cfg, p, index);
+  if (op !== 'start') await procs.stop(key(agent.id, name));
+  if (op !== 'stop') launch(agent, cfg, p, index);
   return true;
 }
 
@@ -206,8 +211,8 @@ export async function processAction(agent: AgentConfig, cfg: Config, op: unknown
   }
   const c = commandAt(p, index, cfg.agentCommand, cfg.vibeCommandPrefix);
   if (!c || shown[index as number]?.name !== c.name) return;
-  const k = key(agent.id, c.name);
   if (op === 'log') return open(logOf(agent.id, c.name));
+  if (op !== 'start' && op !== 'stop' && op !== 'restart') return;
   const holder = op === 'start' || op === 'restart' ? holderOf(agent, cfg, c.name) : null;
   if (holder) {
     const { response } = await dialog.showMessageBox({
@@ -217,13 +222,13 @@ export async function processAction(agent: AgentConfig, cfg: Config, op: unknown
     if (response !== 1) return;
     await procs.stop(key(holder.id, c.name));
   }
-  if (op === 'stop' || op === 'restart') await procs.stop(k);
-  if (op === 'start' || op === 'restart') launch(agent, cfg, p, index as number);
+  // Le socket fait le reste (proc.<op>, l'exécuteur) ; un refus de sa part : silence ; sans lui : la boîte.
+  if (!await screenSend(agent, `proc.${op}`, { name: c.name })) await socketDown(vibeLang(cfg));
 }
 
 // L'opération d'une commande du fichier par son nom (l'exécuteur, controllers/commands) :
 // celle des demandes de l'agent au relevé, sans la boîte de dialogue de processAction.
-export const processOp = (agent: AgentConfig, cfg: Config, name: string, op: 'stop' | 'restart') =>
+export const processOp = (agent: AgentConfig, cfg: Config, name: string, op: 'start' | 'stop' | 'restart') =>
   applyOp(agent, cfg, projectOf(agent, cfg), name, op);
 
 // À la sortie : tout ce qui a été lancé, arrêté (SIGKILL après 5 s).

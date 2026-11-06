@@ -17,6 +17,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Les boutons de l'écran passent par le socket (0.15.0) : ouvert comme au lancement, fermé après chaque cas.
+let closeSocket = () => {};
 import { slow } from '../slow';
 
 const fake = vi.hoisted(() => {
@@ -140,12 +143,14 @@ beforeEach(() => {
   }));
 });
 // Le relevé retardé d'un cas ne doit pas lire la config du suivant.
-afterEach(async () => { vi.useRealTimers(); await new Promise((r) => realSetTimeout(r, 1100)); });
+afterEach(async () => { closeSocket(); closeSocket = () => {}; vi.useRealTimers(); await new Promise((r) => realSetTimeout(r, 1100)); });
 
 // La Forme lancée au clic : son processus, au travail sur son premier tour.
 async function runForme() {
   const { openConversation } = await import('app/windows');
-  const { panelReady, runVibeAction } = await import('app/controllers');
+  const { panelReady, runVibeAction, openSocket, commandFromSocket, closeSocket: close } = await import('app/controllers');
+  await openSocket(commandFromSocket);
+  closeSocket = close;
   openConversation('a1');
   fake.windows.at(-1)!.emit('ready-to-show');
   await panelReady();

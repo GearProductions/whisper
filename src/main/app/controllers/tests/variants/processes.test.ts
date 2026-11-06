@@ -1,7 +1,9 @@
 // Variants de l'onglet Processus (note 0.8.0, « Lancer le projet ») : sur le
 // vrai contrôleur, de vrais processus (bash -ic), un userData temporaire ;
 // faux : Electron (le dossier userData, la boîte de dialogue : relève ses
-// questions, répond Non), l'éditeur (relève ce qu'on ouvre).
+// questions, répond Non sauf `answer`), l'éditeur (relève ce qu'on ouvre), le
+// socket (screenSend : relève ce qui part ; par défaut l'exécuteur fait
+// processOp, `reply` le remplace : null = socket indisponible).
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -10,10 +12,22 @@ import type { AgentConfig } from 'core/agents';
 import { withDefaults } from 'core/config';
 import { projectSlug } from 'core/runner';
 
-const fake = vi.hoisted(() => ({ userData: '', edited: [] as string[], asked: [] as string[] }));
+type Reply = ((agent: AgentConfig, command: string, args: { name: string }) => Promise<unknown>) | undefined;
+const fake = vi.hoisted(() => ({
+  userData: '', edited: [] as string[], asked: [] as string[], answer: 0,
+  sent: [] as [string, unknown][], reply: undefined as Reply | null,
+  exec: (async () => ({ ok: true })) as NonNullable<Reply>,
+}));
 vi.mock('electron', () => ({
   app: { getPath: () => fake.userData },
-  dialog: { showMessageBox: async (o: { message: string }) => { fake.asked.push(o.message); return { response: 0 }; } },
+  dialog: { showMessageBox: async (o: { message: string }) => { fake.asked.push(o.message); return { response: fake.answer }; } },
+}));
+vi.mock('app/controllers/socket', async (original) => ({
+  ...await original<typeof import('app/controllers/socket')>(),
+  screenSend: async (agent: AgentConfig, command: string, args: { name: string }) => {
+    fake.sent.push([command, args]);
+    return fake.reply === null ? null : (fake.reply ?? fake.exec)(agent, command, args);
+  },
 }));
 vi.mock('technicals/editor', () => ({ findEditor: () => ({ openFile: (file: string) => { fake.edited.push(file); } }) }));
 
@@ -26,11 +40,17 @@ const until = async (ok: () => boolean, ms = 8000) => {
 const cfg = withDefaults({});
 let agent: AgentConfig;
 let n = 0;
+let cfgNow = cfg;   // la configuration que voit l'exécuteur (celle de la famille, dans ses cas)
+fake.exec = async (a, command, args) => ({ ok: await processOp(a, cfgNow, args.name, command.slice(5) as 'start'), result: null });
 
 beforeEach(() => {
   fake.userData = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-processus-'));
   fake.edited = [];
   fake.asked = [];
+  fake.sent = [];
+  fake.answer = 0;
+  fake.reply = undefined;
+  cfgNow = cfg;
   const dir = path.join(fake.userData, 'projet');
   fs.mkdirSync(dir);
   agent = { id: `a${n++}`, dir, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null };
@@ -64,6 +84,7 @@ describe.skipIf(process.platform === 'win32')('lancer, lire, arrêter', () => {
     writeProject([{ name: 'b', run: 'sleep 30' }]);
     await processAction(agent, cfg, 'start', 0, shown);
     expect(view().processes[0]).toMatchObject({ name: 'b', status: 'stopped' });
+    expect(fake.sent).toEqual([]);
   });
 
   it('l’agent demande l’arrêt par <nom>.stop : fait au relevé, la demande retirée', async () => {
@@ -200,7 +221,8 @@ describe.skipIf(process.platform === 'win32')('une famille : le fichier de la t�
     fs.writeFileSync(path.join(dir, '.git'), `gitdir: ${gitDir}\n`);
     fs.writeFileSync(path.join(gitDir, 'HEAD'), 'ref: refs/heads/feat/a\n');
     const child: AgentConfig = { ...parent, id: `${parent.id}-enfant`, dir, name: 'enfant', parent: { id: parent.id } };
-    return { parent, child, fam: withDefaults({ agents: [parent, child] }) };
+    cfgNow = withDefaults({ agents: [parent, child] });
+    return { parent, child, fam: cfgNow };
   };
 
   it('l’enfant : les commandes du parent, lancées dans son dossier ; sa proposition et Modifier vont au fichier du parent', async () => {
@@ -233,12 +255,24 @@ describe.skipIf(process.platform === 'win32')('une famille : le fichier de la t�
     await processAction(child, fam, 'start', 0, processView(child, fam).processes);
     await processAction(parent, fam, 'start', 0, processView(parent, fam).processes);
     expect(fake.asked).toEqual(['srv tourne dans feat/a : l\'arrêter et le lancer ici ?']);
+    expect(fake.sent).toEqual([['proc.start', { name: 'srv' }]]);   // celui du fils seulement : Non, rien d'envoyé
     expect(processView(parent, fam).processes[0].status).toBe('stopped');
     fs.rmSync(path.join(child.dir, '.git'));
     await processAction(parent, fam, 'restart', 0, processView(parent, fam).processes);
     expect(fake.asked.at(-1)).toBe('srv tourne dans enfant : l\'arrêter et le lancer ici ?');
     expect(processView(parent, fam).processes[0].status).toBe('stopped');
     await processAction(child, fam, 'stop', 0, processView(child, fam).processes);
+  }, 15000);
+
+  it('tenue ailleurs, Oui : l’autre arrêtée d’abord, puis la commande envoyée', async () => {
+    writeProject([{ name: 'srv', run: 'exec sleep 30' }]);
+    const { parent, child, fam } = family();
+    await processAction(child, fam, 'start', 0, processView(child, fam).processes);
+    fake.sent = [];
+    fake.answer = 1;
+    await processAction(parent, fam, 'start', 0, processView(parent, fam).processes);
+    expect(fake.sent).toEqual([['proc.start', { name: 'srv' }]]);
+    expect(await until(() => processView(child, fam).processes[0].status === 'stopped')).toBe(true);
   }, 15000);
 });
 
@@ -259,6 +293,18 @@ describe.skipIf(process.platform === 'win32')('processOp : arrêter ou relancer 
     expect(await processOp(agent, cfg, 'srv', 'stop')).toBe(true);
     expect(view().processes.map((p) => p.status)).toEqual(['stopped', 'stopped']);
     expect(marks()).toBe(2);
+  }, 15000);
+
+  it('start lance la commande de ce nom ; qui tourne déjà : rien de relancé', async () => {
+    writeProject([mark()]);
+    expect(await processOp(agent, cfg, 'srv', 'start')).toBe(true);
+    expect(await until(() => marks() === 1)).toBe(true);
+    expect(status()).toBe('running');
+    expect(await processOp(agent, cfg, 'srv', 'start')).toBe(true);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(marks()).toBe(1);
+    expect(await processOp(agent, cfg, 'absent', 'start')).toBe(false);
+    await processOp(agent, cfg, 'srv', 'stop');
   }, 15000);
 
   it('un nom absent du fichier : false, rien d’arrêté', async () => {
@@ -285,4 +331,55 @@ describe.skipIf(process.platform === 'win32')('processOp : arrêter ou relancer 
     expect(await until(() => status() === 'stopped')).toBe(true);
     expect(marks()).toBe(2);
   }, 15000);
+});
+
+// 0.15.0 : les boutons passent par le socket (proc.<op>, le nom), jamais par processOp.
+describe.skipIf(process.platform === 'win32')('processAction : par le socket', () => {
+  const status = () => view().processes[0].status;
+
+  it('start, stop, restart : la commande envoyée par screenSend, son nom ; processOp jamais appelé directement', async () => {
+    writeProject([{ name: 'autre', run: 'exec sleep 30' }, { name: 'srv', run: 'exec sleep 30' }]);
+    fake.reply = async () => ({ ok: true, result: null });   // le socket répond sans rien lancer
+    for (const op of ['start', 'stop', 'restart']) await processAction(agent, cfg, op, 1, view().processes);
+    expect(fake.sent).toEqual([['proc.start', { name: 'srv' }], ['proc.stop', { name: 'srv' }], ['proc.restart', { name: 'srv' }]]);
+    expect(view().processes.map((p) => p.status)).toEqual(['stopped', 'stopped']);
+  });
+
+  it('une opération inconnue : rien d’envoyé', async () => {
+    writeProject([{ name: 'srv', run: 'exec sleep 30' }]);
+    await processAction(agent, cfg, 'kill', 0, view().processes);
+    expect(fake.sent).toEqual([]);
+  });
+
+  it('le socket refuse (ok:false) : silence, pas de boîte', async () => {
+    writeProject([{ name: 'srv', run: 'exec sleep 30' }]);
+    fake.reply = async () => ({ ok: false, error: { code: 'x' } });
+    await processAction(agent, cfg, 'start', 0, view().processes);
+    expect(fake.asked).toEqual([]);
+    expect(status()).toBe('stopped');
+  });
+
+  it('screenSend null : la boîte « socket indisponible » (langue de l’écran), rien de lancé', async () => {
+    writeProject([{ name: 'srv', run: 'echo go >> marks.txt; exec sleep 30' }]);
+    fake.reply = null;
+    await processAction(agent, cfg, 'start', 0, view().processes);
+    expect(fake.asked).toEqual(['Socket indisponible : l\'action n\'est pas partie. Relancez l\'appli.']);
+    await processAction({ ...agent }, withDefaults({ vibeLang: 'en' }), 'restart', 0, view().processes);
+    expect(fake.asked.at(-1)).toBe('Socket unavailable: nothing was sent. Restart the app.');
+    expect(status()).toBe('stopped');
+    expect(fs.existsSync(path.join(agent.dir, 'marks.txt'))).toBe(false);
+  });
+
+  it('log, edit, setup : comme avant, sans socket', async () => {
+    writeProject([{ name: 'srv', run: 'exec sleep 30' }]);
+    fake.reply = null;
+    await processAction(agent, cfg, 'edit', undefined, []);
+    await processAction(agent, cfg, 'setup', undefined, []);
+    fs.mkdirSync(path.join(out(), 'run'), { recursive: true });
+    fs.writeFileSync(path.join(out(), 'run', 'srv.log'), '');
+    await processAction(agent, cfg, 'log', 0, view().processes);
+    expect(fake.edited).toEqual([projectFile(agent.dir), path.join(out(), 'run', 'srv.log')]);
+    expect(fake.sent).toEqual([]);
+    expect(fake.asked).toEqual([]);
+  });
 });

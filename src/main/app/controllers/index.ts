@@ -10,6 +10,7 @@ export * from './module-code';
 export * from './processes';
 export * from './runs';
 export * from './settings';
+export * from './socket';
 export * from './speech';
 export * from './vibecoder';
 export * from './worktrees';

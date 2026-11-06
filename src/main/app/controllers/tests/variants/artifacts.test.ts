@@ -1,6 +1,8 @@
 // Variants des artefacts du projet (note 0.13.0, le panneau Artefacts, le dossier du projet) : le
 // dossier (partagé par un dépôt et son worktree, créé ou non), la liste du relevé (sous-dossiers, ni dossier caché ni lien, au plus 1 000) et la copie
-// dans le dossier choisi (annulée, un fichier du même nom, le nom de base).
+// dans le dossier choisi (annulée, un fichier du même nom, le nom de base), le dépôt par chemins ou par
+// contenus (socket : écrits dans le dossier visé, jamais écrasés, leurs refus dans l'échec) et la lecture d'un
+// artefact par son id (texte, base64, coupé à READ_MAX).
 // Sur le vrai contrôleur et de vrais fichiers (userData temporaire) ; faux :
 // Electron (les boîtes de dialogue répondent ce que le cas règle) et
 // controllers/vibecoder (l'agent affiché et son dernier relevé, réglés par le cas).
@@ -30,7 +32,9 @@ vi.mock('app/controllers/vibecoder', () => ({
   lastView: (id: string) => (id === fake.shown ? fake.view : null),
 }));
 
-const { addArtifacts, copyArtifact, listArtifacts, projectArtifactsDir, projectArtifactsPath, resolveArtifact } = await import('app/controllers/artifacts');
+const { addArtifacts, copyArtifact, listArtifacts, projectArtifactsDir, projectArtifactsPath, readArtifact, resolveArtifact } = await import('app/controllers/artifacts');
+
+const { READ_MAX } = await import('app/controllers/processes');
 
 const write = (file: string, text: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, text); };
 let arts = '';   // le dossier du projet de l'agent
@@ -346,5 +350,99 @@ describe('addArtifacts', () => {
     const r = await addArtifacts(agent, [dropped()]);
     expect(r.ok).toBe(false);
     expect(fs.readdirSync(path.join(fake.userData, 'dehors'))).toEqual([]);
+  });
+});
+
+describe('addArtifacts, par contenus', () => {
+  const b64 = (t: string) => Buffer.from(t).toString('base64');
+
+  it('des chemins, seuls ou { path } : le même résultat et la même ligne', async () => {
+    const f = path.join(fake.userData, 'depot', 'rapport.md');
+    write(f, 'R');
+    const plain = await addArtifacts(agent, [f]);
+    const wrapped = await addArtifacts(agent, [{ path: f }]);
+    expect(wrapped).toEqual({ ...plain, line: plain.line });
+    expect(fs.readdirSync(arts).sort()).toEqual(['rapport-2.md', 'rapport.md']);
+  });
+
+  it('un contenu : écrit dans le dossier visé, un nom pris numéroté, jamais écrasé', async () => {
+    write(path.join(arts, 'maquettes', 'note.md'), 'ANCIEN');
+    survey();
+    const r = await addArtifacts(agent, [{ name: 'note.md', content: b64('NEUF') }], dirOf('maquettes'));
+    expect(r.ok).toBe(true);
+    expect(r.line).toBe('1 ajouté.');
+    expect(fs.readFileSync(path.join(arts, 'maquettes', 'note.md'), 'utf8')).toBe('ANCIEN');
+    expect(fs.readFileSync(path.join(arts, 'maquettes', 'note-2.md'), 'utf8')).toBe('NEUF');
+  });
+
+  it('un contenu refusé : dans failed (la ligne), les autres copiés', async () => {
+    const f = path.join(fake.userData, 'depot', 'rapport.md');
+    write(f, 'R');
+    const r = await addArtifacts(agent, [f, { name: 'ok.md', content: b64('OK') }, { name: '../evil.md', content: b64('X') }, { name: 'b.md', content: '***' }]);
+    expect(r.ok).toBe(false);
+    expect(r.line).toMatch(/2 échecs/);
+    expect(r.line).toContain('Première erreur : nom');
+    expect(fs.readdirSync(arts).sort()).toEqual(['ok.md', 'rapport.md']);
+    expect(fs.existsSync(path.join(arts, '..', 'evil.md'))).toBe(false);
+  });
+
+  it('que des contenus refusés : le dossier du projet n’est pas créé', async () => {
+    const r = await addArtifacts(agent, [{ name: 'b.md', content: '***' }]);
+    expect(r.ok).toBe(false);
+    expect(fs.existsSync(arts)).toBe(false);
+  });
+
+  it('le dossier visé devenu un lien : le contenu n’arrive pas dans sa cible', async () => {
+    write(path.join(arts, 'maquettes', 'x.md'), 'x');
+    fs.mkdirSync(path.join(fake.userData, 'dehors'));
+    survey();
+    const id = dirOf('maquettes');
+    fs.rmSync(path.join(arts, 'maquettes'), { recursive: true });
+    fs.symlinkSync(path.join(fake.userData, 'dehors'), path.join(arts, 'maquettes'));
+    const r = await addArtifacts(agent, [{ name: 'n.md', content: b64('N') }], id);
+    expect(r.ok).toBe(false);
+    expect(fs.readdirSync(path.join(fake.userData, 'dehors'))).toEqual([]);
+  });
+});
+
+describe('readArtifact', () => {
+  it('le texte d’un markdown, le base64 d’une image', async () => {
+    write(path.join(arts, 'notes.md'), 'é NOTES');
+    fs.writeFileSync(path.join(arts, 'b.png'), Buffer.from([137, 80, 78, 71, 0, 255]));
+    survey();
+    expect(await readArtifact(agent, idOf('notes.md'))).toEqual({ name: 'notes.md', kind: 'markdown', text: 'é NOTES', truncated: false });
+    expect(await readArtifact(agent, idOf('b.png'))).toEqual({ name: 'b.png', kind: 'media', base64: 'iVBORwD/', truncated: false });
+  });
+
+  it('coupé au-delà de READ_MAX : truncated, la borne exacte non', async () => {
+    write(path.join(arts, 'juste.txt'), 'x'.repeat(READ_MAX));
+    write(path.join(arts, 'long.txt'), 'x'.repeat(READ_MAX + 1));
+    fs.writeFileSync(path.join(arts, 'long.png'), Buffer.alloc(READ_MAX + 5, 1));
+    survey();
+    const juste = await readArtifact(agent, idOf('juste.txt'));
+    const long = await readArtifact(agent, idOf('long.txt'));
+    const png = await readArtifact(agent, idOf('long.png'));
+    expect(juste).toMatchObject({ truncated: false });
+    expect(long).toMatchObject({ kind: 'text', truncated: true });
+    expect(long!.text).toHaveLength(READ_MAX);
+    expect(png).toMatchObject({ truncated: true });
+    expect(Buffer.from(png!.base64!, 'base64')).toHaveLength(READ_MAX);
+  });
+
+  it('un id inconnu, un chemin, un dossier, un autre agent : null', async () => {
+    write(path.join(arts, 'maquettes', 'a.md'), 'A');
+    survey();
+    for (const id of ['a99', '../x', 'notes.md', dirOf('maquettes'), 7, undefined]) expect(await readArtifact(agent, id)).toBeNull();
+    fake.shown = 'autre';
+    expect(await readArtifact(agent, 'a0')).toBeNull();
+  });
+
+  it('un artefact devenu lien après le relevé : null, la cible n’est pas lue', async () => {
+    write(path.join(arts, 'notes.md'), 'NOTES');
+    write(path.join(fake.userData, 'dehors', 'secret.md'), 'S');
+    survey();
+    fs.rmSync(path.join(arts, 'notes.md'));
+    fs.symlinkSync(path.join(fake.userData, 'dehors', 'secret.md'), path.join(arts, 'notes.md'));
+    expect(await readArtifact(agent, idOf('notes.md'))).toBeNull();
   });
 });

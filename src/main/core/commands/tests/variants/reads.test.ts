@@ -4,8 +4,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { VibeAction, VibeRun, VibeView } from 'shared/bridge';
-import { actionsOf, logsOf, nextOf, parseCommands, procsOf, runsOf, schemaError, statusOf } from 'core/commands';
+import type { VibeAction, VibeArtifact, VibeRun, VibeView } from 'shared/bridge';
+import { actionsOf, artifactsOf, draftOf, logsOf, nextOf, parseCommands, procsOf, runsOf, schemaError, statusOf } from 'core/commands';
 import { parseActions } from 'core/vibecoder';
 
 const RES = path.resolve(__dirname, '../../../../../../resources/vibecoder');
@@ -40,7 +40,12 @@ const view: VibeView = {
     act('push', { step: null, direct: { running: false, last: null, only: true } }),
   ],
   skills: [], pr: { number: 7, title: 'Un bouton', url: 'https://x/7', author: 'me', base: 'master', head: 'feat/x', body: '', state: 'OPEN' },
-  prs: null, draft: [],
+  prs: null, draft: [{ id: 1, target: 'src/a.ts:3', text: 'Renomme ça' }, { id: 2, target: 'src/b.ts', text: 'Un test ?' }],
+  artifacts: [
+    { id: 'a0', name: 'doc/spec.md', kind: 'markdown', size: 120, time: 5, url: null, truncated: false },
+    { id: 'a1', name: 'maquette.png', kind: 'media', size: 9000, time: 6, url: 'vibe-artifact://robot-42/a1?t=6', truncated: false },
+  ] as VibeArtifact[],
+  artifactsDir: '/home/u/.config/app/vibecoder-artifacts/k1', artifactDirs: [{ id: 'd0', name: 'doc' }, { id: 'd1', name: 'vide' }],
   processes: [
     { name: 'dev', run: 'npm start', status: 'running', since: 1000, exit: null, log: 'ready\n' },
     { name: 'front', run: 'vite', status: 'failed', since: 900, exit: 1, log: '' },
@@ -53,7 +58,7 @@ const view: VibeView = {
     run('note', 'kept', 1000, { end: 1200 }),
   ],
 };
-const empty: VibeView = { ...view, repo: null, error: 'pas un dépôt', steps: [], note: null, pr: null, vibe: undefined, actions: [], processes: undefined, runs: undefined };
+const empty: VibeView = { ...view, repo: null, error: 'pas un dépôt', steps: [], note: null, pr: null, vibe: undefined, actions: [], processes: undefined, runs: undefined, draft: [], artifacts: [], artifactsDir: undefined, artifactDirs: [] };
 
 describe('les lectures suivent le schéma de leur commande', () => {
   it('chaque réponse, sur un relevé plein puis sur un relevé vide', () => {
@@ -65,11 +70,12 @@ describe('les lectures suivent le schéma de leur commande', () => {
       conforms('procs', procsOf(v));
       conforms('logs', logsOf(v, 'dev'));
       conforms('logs', logsOf(v, 'inconnu'));
+      // ponytail: le schéma de `artifacts` et de `draft` n'est pas encore dans la table : leur forme est vérifiée plus bas
     }
   });
 
   it("n'expose jamais l'id du robot, ni son nom en clé", () => {
-    const all = JSON.stringify([statusOf(view), nextOf(view), actionsOf(view, defs), runsOf(view), procsOf(view), logsOf(view, 'dev')]);
+    const all = JSON.stringify([statusOf(view), nextOf(view), actionsOf(view, defs), runsOf(view), procsOf(view), logsOf(view, 'dev'), artifactsOf(view), draftOf(view)]);
     expect(all).not.toContain('robot-42');
     expect(all).not.toMatch(/"agentId?"/);
   });
@@ -120,5 +126,29 @@ describe('actions, runs, procs, logs', () => {
     expect(logsOf(view, 'dev')).toEqual({ name: 'dev', log: 'ready\n' });
     expect(logsOf(view, 'nope')).toBeNull();
     expect(logsOf(empty, 'dev')).toBeNull();
+  });
+});
+
+describe('artifacts, draft', () => {
+  it("artifacts : le dossier, fichiers et dossiers par id, sans url ni id du robot", () => {
+    expect(artifactsOf(view)).toEqual({
+      dir: '/home/u/.config/app/vibecoder-artifacts/k1',
+      files: [{ id: 'a0', name: 'doc/spec.md', kind: 'markdown', size: 120, time: 5 }, { id: 'a1', name: 'maquette.png', kind: 'media', size: 9000, time: 6 }],
+      folders: [{ id: 'd0', name: 'doc' }, { id: 'd1', name: 'vide' }],
+    });
+    expect(JSON.stringify(artifactsOf(view))).not.toMatch(/url|truncated|robot-42/);
+  });
+
+  it('artifacts : relevé vide, un dossier sans chemin et des listes vides', () => {
+    expect(artifactsOf(empty)).toEqual({ dir: '', files: [], folders: [] });
+  });
+
+  it('draft : la PR suivie et ses remarques', () => {
+    expect(draftOf(view)).toEqual({ pr: 7, remarks: [{ id: 1, target: 'src/a.ts:3', text: 'Renomme ça' }, { id: 2, target: 'src/b.ts', text: 'Un test ?' }] });
+  });
+
+  it('draft : sans PR, pr null et remarques vides (même si le relevé en garde)', () => {
+    expect(draftOf({ ...view, pr: null })).toEqual({ pr: null, remarks: [] });
+    expect(draftOf(empty)).toEqual({ pr: null, remarks: [] });
   });
 });
