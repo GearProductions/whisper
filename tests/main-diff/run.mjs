@@ -5,7 +5,10 @@
 // (scenario.mjs), par le pont de la fenêtre : démarrage, l'agent affiché, la
 // dictée (enregistrement, transcription rendue à la page, trop court),
 // historique, envoi vide, Écouter sans réponse, lien et agent refusés,
-// erreurs. Les deux relevés doivent être identiques.
+// erreurs ; puis les boutons du contrat (VibeCoder) sur un projet git
+// (un commit, une branche, une commande « sleep 30 », deux artefacts), sans
+// agent lancé : refus, actions directes, processus, explorateur des
+// artefacts, dépôt de fichiers. Les deux relevés doivent être identiques.
 //
 //   npm run test:main-diff -- v0.14.0
 //
@@ -23,12 +26,21 @@ const WAV = path.join(ROOT, 'build/whisper.cpp/samples/jfk.wav');
 const MODEL = path.join(ROOT, '.data/whisper');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const run = (cmd, args, cwd) => execFileSync(cmd, args, { cwd, stdio: 'ignore' });
+const git = (cwd, ...args) => run('git', ['-c', 'user.name=banc', '-c', 'user.email=banc@example.invalid', '-c', 'commit.gpgsign=false', ...args], cwd);
 
 for (const need of [WAV, MODEL]) if (!fs.existsSync(need)) { console.error(`introuvable : ${need}`); process.exit(2); }
 
 async function measure(appDir, name, port) {
   const data = fs.mkdtempSync(path.join(os.tmpdir(), `whisper-main-diff-${name}-`));
-  fs.mkdirSync(path.join(data, 'projet'));
+  // Le projet : un dépôt git (un commit, une branche) et une commande inoffensive.
+  const projet = path.join(data, 'projet');
+  fs.mkdirSync(path.join(projet, '.vibecoder'), { recursive: true });
+  fs.writeFileSync(path.join(projet, '.vibecoder/project.json'), JSON.stringify({ commands: [{ name: 'dormir', run: 'sleep 30' }] }));
+  fs.writeFileSync(path.join(projet, 'README.md'), 'essai\n');
+  git(projet, 'init', '-q', '-b', 'main');
+  git(projet, 'add', 'README.md');
+  git(projet, 'commit', '-q', '-m', 'initial');
+  git(projet, 'branch', 'autre');
   fs.symlinkSync(MODEL, path.join(data, 'whisper'));
   fs.writeFileSync(path.join(data, 'config.json'), JSON.stringify({
     agentSelected: 'a1',
