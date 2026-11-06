@@ -240,6 +240,14 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
     expect(status(vibeView(ready({ marks: stale }))).note).toBe('current');
   });
 
+  it('modules commités, des tests d\'invariants retouchés par les modules (un harnais), aucun cas validé, hors Vibe : l\'étape Invariants est faite', () => {
+    // le premier commit ne porte que la note ; le test protégé n'est modifié que par un commit de module
+    const first = commit('a', 'Note, forme', [NOTE_PATH]);
+    const harness = commit('d', 'core/hello et son harnais', ['src/core/hello.ts', TEST_PATH]);
+    const v = vibeView(ready({ marks: NOTE_OK, repo: repo([], [first, harness, BUTTON]) }));
+    expect([status(v).invariants, status(v).modules]).toEqual(['done', 'done']);
+  });
+
   it('la note jamais commitée, modifiée : rien ne change (elle part avec le premier commit)', () => {
     const v = vibeView(ready({ repo: { ...repo([NOTE_PATH]), dirty: [NOTE_PATH] } }));
     expect(status(v).forme).toBe('done');

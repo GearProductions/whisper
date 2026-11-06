@@ -1594,7 +1594,7 @@ créateur ; le relecteur, F-101) :
    faits, ses faits disent toujours « note modifiée depuis son commit », et
    c'est l'étape Modules qui l'attend : elle n'est faite qu'une fois la
    retouche commitée (*Commiter les modules*, ou *Préparer le commit* quand
-   tous les modules le sont déjà ; note 0.15.0-stabilisation). De même, une validation faite puis dépassée par une retouche (« modifiée depuis la validation » : la note, sa Forme, un cas d'invariant) compte encore une fois un module touché : l'écran la dit changée, *Revalider* reste possible, rien ne recule.
+   tous les modules le sont déjà ; note 0.15.0-stabilisation). De même, une validation faite puis dépassée par une retouche (« modifiée depuis la validation » : la note, sa Forme, un cas d'invariant) compte encore une fois un module touché : l'écran la dit changée, *Revalider* reste possible, rien ne recule. L'étape Invariants, une fois un module touché, ne compte que les tests écrits pour elle (portés par le commit de la note) : un test d'invariant retouché par un module n'est pas à revalider.
    Montre, en **vue IDE** (la seule), l'arborescence des modules à gauche,
    par dossier (`src/` de tête ignoré), chacun avec son numéro (son rang dans
    la Forme, l'ordre où les générer) et le nom coloré comme dans la vue IDE de

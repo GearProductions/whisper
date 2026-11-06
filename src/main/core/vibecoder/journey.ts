@@ -272,6 +272,8 @@ export function vibeView(input: JourneyInput): VibeView {
   const begun = modules.some((m) => m.touched);
   const stillOk = (s: VibeMarkState) => s === 'ok' || (begun && s === 'changed');
   const casesOk = invariants.every((f) => f.cases.every((c) => stillOk(f.marks[c])));
+  // Les tests de l'étape Invariants : ceux qu'un commit porte avec la note (le premier, ses fixups repliés).
+  const stepTests = invariants.filter((f) => !!note && commits.some((c) => c.files.includes(note.path) && c.files.includes(f.path)));
   const caseCount = invariants.reduce((s, f) => s + f.cases.length, 0);
   const readCount = invariants.reduce((s, f) => s + (isRead(f) ? f.cases.length : 0), 0);
 
@@ -363,9 +365,13 @@ export function vibeView(input: JourneyInput): VibeView {
       // rien à écrire ni à commiter. Avec, sans test de la branche (déjà observée par un test existant) : la
       // dernière course Écrire les invariants ou Vérifier l'alignement finie, ou ✓ Rien à écrire. Avec des
       // tests : chaque cas validé, lu ou pas, et le premier commit (note, forme, invariants) fait.
-      invariants: noteDone && formeDone && (!invLines || (!invariants.length
-        ? input.runs.find((r) => r.id === 'invariants' || r.id === 'align')?.state === 'done' || note.nothingMark === 'ok'
-        : (vibe || casesOk) && (begun || !retouched))),
+      // Une fois un module touché, seuls comptent les tests écrits pour l'étape (portés par le commit de la note) :
+      // un test protégé retouché ensuite par un module (un harnais) est du travail des modules, pas à revalider.
+      invariants: noteDone && formeDone && (!invLines || (begun
+        ? vibe || stepTests.every((f) => f.cases.every((c) => stillOk(f.marks[c])))
+        : !invariants.length
+          ? input.runs.find((r) => r.id === 'invariants' || r.id === 'align')?.state === 'done' || note.nothingMark === 'ok'
+          : (vibe || casesOk) && !retouched)),
       modules: modules.length > 0 && modules.every((m) => m.commits.length > 0) && !modules.some((m) => m.uncommitted) && !pending,
       revue: checksOk && ponytail && !fixups && boxes === screen.length,   // le plan à l'écran, s'il y en a un
       pr: !!pr,
