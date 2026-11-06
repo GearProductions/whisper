@@ -1,6 +1,6 @@
 /** marks — les validations de l'utilisateur (la note, la forme, « rien à écrire »
  *  de l'étape Invariants, un cas de test, une case du plan de test, une case du
- *  § A.3 cochée à la main), chacune pour l'empreinte du contenu
+ *  § A.3 cochée à la main, un commit du relevé), chacune pour l'empreinte du contenu
  *  validé (targetHash) : « modifié depuis » si le contenu a changé. Le ✓ des
  *  étapes faites pendant Vibe (vibeMarks). Et le brouillon de
  *  revue de chaque PR (relecteur) : ajouter, modifier, retirer une remarque. Rend
@@ -11,7 +11,7 @@ import type { VibeComment, VibeMarkState, VibeView } from 'shared/bridge';
 import { parseNote } from './note';
 import { blobSha } from './test-files';
 
-// Par cible ('note', 'forme', 'nothing' (pour le texte de la note), 'case:<chemin du fichier>:<titre du cas>', 'check:<rang>' (une case du plan à l'écran, ecran.md), 'a3:<rang>').
+// Par cible ('note', 'forme', 'nothing' (pour le texte de la note), 'case:<chemin du fichier>:<titre du cas>', 'check:<rang>' (une case du plan à l'écran, ecran.md), 'a3:<rang>', 'commit:<hash>').
 export type Marks = Record<string, { hash: string; verdict: 'ok' | 'ko' }>;
 // Par numéro de PR.
 export type Drafts = Record<string, VibeComment[]>;
@@ -31,9 +31,10 @@ export function setMark(marks: Marks, target: string, hash: string, verdict: 'ok
 // L'empreinte du contenu d'une cible dans le relevé : la note (son texte), la
 // forme (sa rubrique), « rien à écrire » de l'étape Invariants (créateur : le texte de la note), un cas de test (le fichier), une case du plan à
 // l'écran (ecran.md), une case du § A.3 à cocher à la main (le commit de tête de la
-// branche) ; null si la cible n'y est pas.
+// branche), un commit (« commit:<hash> » : son hash) ; null si la cible n'y est pas.
 export function targetHash(view: VibeView, target: string): string | null {
   const { note } = view;
+  if (target.startsWith('commit:')) return view.commits.find((c) => `commit:${c.hash}` === target)?.hash ?? null;
   const a3 = /^a3:(\d+)$/.exec(target);
   if (a3) return view.flow === 'create' && view.checklist[Number(a3[1])]?.manual ? view.commits.at(-1)?.hash ?? null : null;
   if (target === 'nothing' && view.flow !== 'create') return null;
