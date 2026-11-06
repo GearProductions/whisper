@@ -3,8 +3,9 @@
  *  l'usage suivant, sans relancer), la consigne des agents, le journal, le
  *  dossier whisper, les fichiers de VibeCoder (actions, skills, sorties des
  *  agents, validations) et la table livrée de ses commandes (vibeCommands). Les pages construites
- *  (out/renderer) et les ponts.
- *  Ne connaît pas : les fenêtres. Utilisé par : app, controllers/commands. */
+ *  (out/renderer) et les ponts. Le fichier de découverte du socket (liveFile).
+ *  Ne connaît pas : les fenêtres. Utilisé par : app, controllers/commands,
+ *  controllers/socket. */
 import fs from 'node:fs';
 import path from 'node:path';
 import { app } from 'electron';
@@ -17,6 +18,8 @@ import { readJson, writeJson } from 'technicals/config-file';
 import { binDir, resourcePath } from 'technicals/paths';
 
 export const configFile = () => path.join(app.getPath('userData'), 'config.json');
+/** Le fichier de découverte du socket : live.json, le port seul. */
+export const liveFile = () => path.join(app.getPath('userData'), 'live.json');
 export const loadConfig = (): Config => withDefaults(readJson(configFile()));
 export function saveConfig(patch: Partial<Config>) {
   const cfg = { ...loadConfig(), ...patch };
