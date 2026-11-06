@@ -495,10 +495,27 @@ Hors *Vibe*, elle ne lance rien que vous ne lui demandiez.
 **Les commandes.** Tout ce que VibeCoder sait faire est décrit dans une table
 versionnée, `resources/vibecoder/commands.json` (nom, arguments, réponse des
 lectures, ouverte ou non aux agents) : le contrat du moteur, pour qui veut monter
-sa propre interface. Les skills `actions` et `processus` en tirent leurs
-arguments. Un exécuteur la lit et lance la commande demandée, avec les mêmes règles
-que l'écran, mais aucune porte ne l'appelle encore (ni l'écran, ni la boîte aux
-lettres, ni socket, ni CLI) : rien ne change dans ce que peut faire un agent.
+sa propre interface. Elle ne liste pas tout ce que fait l'interface : les gestes de
+la page (*Commenter*, *À revoir*), l'éditeur, l'ouverture d'un fichier ou d'un lien,
+la dictée et les réglages restent à l'écran. Les skills `actions` et `processus` en
+tirent leurs arguments. Un exécuteur la lit et lance la commande demandée, avec les
+mêmes règles pour tous : y compris les pièces jointes du champ (`pieces`) et le
+brouillon de revue (`draft`, `draft.add`, `draft.edit`, `draft.remove`, sur la PR
+suivie), et la lecture des artefacts (`artifacts`, `artifact`), `add-artifact`
+acceptant un chemin ou un nom avec son contenu en base64.
+
+**Le socket.** Au lancement, l'appli ouvre un socket TCP sur `127.0.0.1`, un port
+libre, un objet JSON par ligne : `{ "cmd", "args", "token", "target" }` en entrée
+(`target` : le chemin réel du dossier), `{ ok: true, result }` ou `{ ok: false, error }`
+en sortie. Le jeton est tiré à chaque lancement et reste en mémoire : une commande
+sans lui est refusée (`bad-token`), et une ligne qui n'est pas une commande — une
+requête d'un navigateur, par exemple — ferme la connexion. **Les boutons de l'écran
+passent par ce socket** : l'appli est le client de sa propre porte, et un bouton
+refuse (« Socket indisponible ») plutôt que de passer outre. Les agents n'y ont pas
+encore accès ; la boîte aux lettres de l'agent principal ne change pas.
+`~/.config/whisper-dictation/live.json` dit le port (`{ "port": … }`, jamais le jeton),
+il est supprimé à la sortie ; la version de dev et l'AppImage, qui ne tournent pas
+en même temps, s'y retrouvent.
 
 Une erreur est une donnée sans langue : un code, des détails, un message et ce qu'il
 faut faire, en anglais ; c'est l'appelant qui l'interprète. Les codes (`errors`
@@ -517,7 +534,10 @@ dans la table) :
 - `unknown-process` : aucun processus du projet de ce nom ;
 - `no-run` : aucune course de cette action dans l'état voulu ;
 - `refused` : l'appli a refusé, le motif est dans les détails ;
-- `failed` : l'opération a démarré et échoué, le message est dans les détails.
+- `failed` : l'opération a démarré et échoué, le message est dans les détails ;
+- `no-pr` : aucune PR suivie, donc pas de brouillon de revue à changer ;
+- `unknown-artifact` : cet id n'est pas dans le dernier relevé, ou c'est un lien ;
+- `bad-token` : le jeton du socket est absent ou faux (rendu par le socket, jamais par l'exécuteur).
 
 **Artefacts.** Demandez à l'agent un document qui sort du projet — un PDF,
 une présentation, un wireframe, un document externe, un fichier de
