@@ -81,7 +81,10 @@ button.vc-chip:hover { border-color: var(--vc-edge); color: var(--vc-text); }
 .vc-direct-mark svg { width: 12px; height: 12px; vertical-align: -2px; }
 .vc-direct-res[data-state="ok"] .vc-direct-mark { color: var(--vc-ok); }
 .vc-direct-res[data-state="ko"] .vc-direct-mark { color: var(--vc-ko-text); }
-.vc-direct-res summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.vc-direct-res summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 18px; cursor: pointer; }
+/* La place du résultat réservée (T-24) : rien ne se décale quand il apparaît. */
+.vc-direct-res[data-state="running"] { line-height: 18px; }
+.vc-direct:not(:has(> .vc-direct-res))::after { content: ""; height: 18px; }
 .vc-direct-res pre { max-height: 220px; margin: 5px 0 0; padding: 6px 8px; overflow: auto; border-radius: var(--vc-radius); background: var(--vc-deep); font-size: 11.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* ---- Invitation : rien encore, et ce qui le produit -------------------------- */
