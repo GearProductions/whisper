@@ -1,8 +1,8 @@
-/** reads — les lectures des commandes (status, next, actions, runs, procs, logs),
+/** reads — les lectures des commandes (status, next, actions, runs, procs, logs, artifacts, draft),
  *  chacune une fonction pure du relevé (VibeView) : les courses, les processus,
  *  les actions grisées ou masquées y sont déjà calculés, on les remet en forme
  *  pour le schéma de la commande (resources/vibecoder/commands.json). Jamais
- *  l'id du robot de l'agent (view.agentId).
+ *  l'id du robot de l'agent (view.agentId), ni l'url d'un artefact.
  *  Ne connaît pas : Electron, le disque, les portes.
  *  Utilisé par : ses tests ; l'exécuteur (étape 2). */
 import type { VibeFlow, VibeStepId, VibeView } from 'shared/bridge';
@@ -60,3 +60,13 @@ export const logsOf = (view: VibeView, name: string) => {
   const p = view.processes?.find((q) => q.name === name);
   return p ? { name: p.name, log: p.log } : null;
 };
+
+/** Le dossier d'artefacts (son chemin réel) et ce qu'il contient, par id : ni url ni état de troncature. */
+export const artifactsOf = (view: VibeView) => ({
+  dir: view.artifactsDir ?? '',
+  files: (view.artifacts ?? []).map((a) => ({ id: a.id, name: a.name, kind: a.kind, size: a.size, time: a.time })),
+  folders: (view.artifactDirs ?? []).map((d) => ({ id: d.id, name: d.name })),
+});
+
+/** Le brouillon de revue de la PR suivie ; sans PR, pas de remarques. */
+export const draftOf = (view: VibeView) => ({ pr: view.pr?.number ?? null, remarks: view.pr ? view.draft : [] });
