@@ -46,3 +46,31 @@ it('clic : un autre → onShow, l\'affiché → onOpen ; clic droit → onMenu ;
   expect(calls).toEqual(['show:b', 'open', 'menu:wt', 'add']);
   expect(menu.defaultPrevented).toBe(true);
 });
+
+// T-13, T-14 : l'échec (« ! », « en échec ») et les tâches de fond (data-tasks, l'infobulle les compte).
+const drawOne = (a: AgentView) => act(() => root.render(createElement(AgentNotices, {
+  agents: [a], shown: 'other', t: t('fr'), onShow: () => {}, onOpen: () => {}, onMenu: () => {}, onAdd: () => {},
+})));
+
+it('un agent failed : data-activity « failed » (le « ! »), l\'infobulle « en échec »', async () => {
+  await drawOne(agent('x', { activity: 'failed' }));
+  expect(robots()[0].getAttribute('data-activity')).toBe('failed');
+  expect(robots()[0].querySelector('.vc-agent-badge')).not.toBeNull();
+  expect(robots()[0].title).toContain('— en échec');
+});
+
+it('un agent au repos avec deux tâches de fond : data-tasks, l\'infobulle les compte ; fini : de même', async () => {
+  await drawOne(agent('x', { activity: 'idle', tasks: 2 }));
+  expect(robots()[0].getAttribute('data-tasks')).toBe('2');
+  expect(robots()[0].title).toContain('surveille 2 tâches de fond');
+  await drawOne(agent('x', { activity: 'done', tasks: 1 }));
+  expect(robots()[0].getAttribute('data-tasks')).toBe('1');
+  await drawOne(agent('x', { activity: 'idle' }));
+  expect(robots()[0].hasAttribute('data-tasks')).toBe(false);
+  expect(robots()[0].title).not.toContain('surveille');
+});
+
+it('un agent qui travaille : pas de data-tasks', async () => {
+  await drawOne(agent('x', { activity: 'working', tasks: 2 }));
+  expect(robots()[0].hasAttribute('data-tasks')).toBe(false);
+});
