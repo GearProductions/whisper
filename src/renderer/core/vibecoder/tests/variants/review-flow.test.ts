@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { allApplied, applySelection, quoteRemark, remark, remarkId, remarkMark } from 'core/vibecoder';
+import { allApplied, applySelection, draftBody, proposedVerdict, quoteRemark, remark, remarkId, remarkMark, remarksAt, reviewSent } from 'core/vibecoder';
+import type { VibeCommit, VibeMarkState, VibeView } from 'technicals/bridge';
 
 describe('remark', () => {
   it('la cible et le texte, tels quels', () => {
@@ -104,5 +105,65 @@ describe('applySelection', () => {
 
   it('remarkId : l\'adresse, sinon le texte', () => {
     expect([remarkId('`a.ts:L4` — x'), remarkId(' sans adresse ')]).toEqual(['a.ts:L4', 'sans adresse']);
+  });
+});
+
+const comments = [{ id: 1, target: 'Commit 1', text: 'a' }, { id: 2, target: 'La note', text: 'b' }, { id: 3, target: 'Commit 1', text: 'c' }];
+
+describe('remarksAt', () => {
+  it('les remarques de la cible, dans l\'ordre du brouillon ; une cible longue comparée coupée', () => {
+    expect(remarksAt(comments, 'Commit 1').map((c) => c.id)).toEqual([1, 3]);
+    expect(remarksAt(comments, 'Autre')).toEqual([]);
+    const long = 'x'.repeat(400);
+    const cut = [{ id: 9, target: remark(long, '').target, text: 't' }];
+    expect(remarksAt(cut, long)).toEqual(cut);
+  });
+});
+
+describe('draftBody', () => {
+  it('le même texte que draftText du principal : « - [cible] texte » par ligne', () => {
+    // Le principal (main/core/vibecoder/actions : draftText) n'est pas importable depuis la page : texte attendu littéral.
+    expect(draftBody(comments)).toBe('- [Commit 1] a\n- [La note] b\n- [Commit 1] c');
+    expect(draftBody([])).toBe('');
+  });
+});
+
+const commit = (mark?: VibeMarkState): VibeCommit => ({ hash: 'h', subject: 's', fixup: false, files: [], mark });
+const verdictView = (note: VibeMarkState, cases: VibeMarkState[], commits: VibeMarkState[]) => ({
+  note: { mark: note },
+  invariants: [{ cases: cases.map((_, i) => `c${i}`), marks: Object.fromEntries(cases.map((m, i) => [`c${i}`, m])) }],
+  commits: commits.map(commit),
+}) as unknown as VibeView;
+
+describe('proposedVerdict', () => {
+  it('un À revoir parmi des validés → request-changes', () => {
+    expect(proposedVerdict(verdictView('ok', ['ok', 'ko'], ['ok']))).toBe('request-changes');
+    expect(proposedVerdict(verdictView('ko', ['ok'], ['ok']))).toBe('request-changes');
+    expect(proposedVerdict(verdictView('ok', ['ok'], ['ko']))).toBe('request-changes');
+    expect(proposedVerdict(verdictView('ok', [null], ['ko']))).toBe('request-changes');
+  });
+
+  it('tout validé → approve ; un élément pas jugé ou modifié depuis → null', () => {
+    expect(proposedVerdict(verdictView('ok', ['ok', 'ok'], ['ok']))).toBe('approve');
+    expect(proposedVerdict(verdictView('ok', ['ok', null], ['ok']))).toBeNull();
+    expect(proposedVerdict(verdictView('changed', ['ok'], ['ok']))).toBeNull();
+    expect(proposedVerdict(verdictView('ok', ['ok'], [undefined as unknown as VibeMarkState]))).toBeNull();
+    expect(proposedVerdict(verdictView(null, [], []))).toBeNull();
+  });
+});
+
+describe('reviewSent', () => {
+  const body = '- [Commit 1] a\n- [La note] b\n- [Commit 1] c';
+  const sent = { state: 'CHANGES_REQUESTED', url: null, verdict: 'request-changes' as const, body, at: 1 };
+
+  it('même verdict et même brouillon → true ; un autre verdict seul → false ; une remarque de plus → false', () => {
+    expect(reviewSent(sent, comments, 'request-changes')).toBe(true);
+    expect(reviewSent(sent, comments, 'approve')).toBe(false);
+    expect(reviewSent(sent, [...comments, { id: 4, target: 'x', text: 'y' }], 'request-changes')).toBe(false);
+  });
+
+  it('une revue d\'avant (sans verdict ni texte), ou aucune → false', () => {
+    expect(reviewSent({ ...sent, verdict: null, body: null, at: null }, [], 'comment')).toBe(false);
+    expect(reviewSent(null, comments, 'request-changes')).toBe(false);
   });
 });
