@@ -49,3 +49,37 @@ it('MarkControl : l\'icône devant le texte, même texte, mêmes actions', async
   expect(marks).toEqual(['ok', 'ko', null]);
   expect(page.textContent).not.toMatch(/[✓✗⚠]/);
 });
+
+it('onRemark : sur un « À revoir », le bouton, cliqué → onRemark, rien d\'autre (CaseVerdict et MarkControl)', async () => {
+  const log: unknown[] = [];
+  const onRemark = () => { log.push('remark'); };
+  const onMark = (v: unknown) => { log.push(v); };
+  const remark = () => buttons().filter((b) => b.textContent === 'Ajouter une remarque au brouillon');
+  await act(() => root.render(createElement(CaseVerdict, { state: 'ko', lang: 'fr', onMark, onRemark })));
+  expect(remark()).toHaveLength(1);
+  remark()[0].click();
+  await act(() => root.render(createElement(MarkControl, { what: 'note', state: 'ko', review: true, lang: 'fr', onMark, onRemark })));
+  expect(remark()).toHaveLength(1);
+  remark()[0].click();
+  expect(log).toEqual(['remark', 'remark']);
+  await act(() => root.render(createElement(MarkControl, { what: 'note', state: 'ko', review: true, lang: 'en', onMark, onRemark })));
+  expect(buttons().map((b) => b.textContent)).toContain('Add a remark to the draft');
+});
+
+it('Validé, ou sans onRemark : pas de bouton', async () => {
+  const onRemark = () => {};
+  const none = () => buttons().filter((b) => b.textContent === 'Ajouter une remarque au brouillon');
+  for (const state of ['ok', null, 'changed'] as const) {
+    await act(() => root.render(createElement(MarkControl, { what: 'note', state, review: true, lang: 'fr', onMark: () => {}, onRemark })));
+    expect(none()).toHaveLength(0);
+  }
+  await act(() => root.render(createElement(MarkControl, { what: 'note', state: 'ko', review: true, lang: 'fr', onMark: () => {} })));
+  expect(none()).toHaveLength(0);
+  for (const state of ['ok', null] as const) {
+    await act(() => root.render(createElement(CaseVerdict, { state, lang: 'fr', onMark: () => {}, onRemark })));
+    expect(none()).toHaveLength(0);
+  }
+  await act(() => root.render(createElement(CaseVerdict, { state: 'ko', lang: 'fr', onMark: () => {} })));
+  expect(none()).toHaveLength(0);
+  expect(buttons()).toHaveLength(2);
+});

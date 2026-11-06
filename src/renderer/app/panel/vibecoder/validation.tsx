@@ -4,9 +4,11 @@
  *  Relire : Valider ou À revoir), chaque libellé derrière son icône (Icon ok /
  *  ko / warn), le verdict d'un cas d'invariant (deux badges écrits, Validé et
  *  À revoir, gris ; celui donné pressé, allumé de sa couleur, un second clic
- *  l'annule).
- *  Ne connaît pas : le pont (rappels passés).
- *  Utilisé par : note-view, forme-view, invariants-view. */
+ *  l'annule) ; CaseVerdict sert à tout cas ou commit (il ne sait rien d'un
+ *  invariant). Sur un « À revoir », onRemark (facultatif) ajoute le bouton
+ *  « Ajouter une remarque au brouillon » : il ne fait qu'appeler onRemark.
+ *  Ne connaît pas : le pont (rappels passés), le brouillon, ce que porte le cas.
+ *  Utilisé par : note-view, forme-view, invariants-view, commits-view. */
 import type { VibeLang, VibeMarkState } from 'technicals/bridge';
 import { Icon } from './icons';
 import './validation.css';
@@ -28,6 +30,7 @@ const fr = {
   undoTitle: 'Oublier cette validation',
   ok: 'Valider', okDone: 'Validé', ko: 'À revoir', koDone: 'Refusé',
   verdictUndo: 'Cliquer de nouveau pour annuler',
+  remark: 'Ajouter une remarque au brouillon',
 };
 const S: Record<VibeLang, typeof fr> = {
   fr,
@@ -45,19 +48,21 @@ const S: Record<VibeLang, typeof fr> = {
     undoTitle: 'Forget this approval',
     ok: 'Approve', okDone: 'Approved', ko: 'Needs rework', koDone: 'Rejected',
     verdictUndo: 'Click again to undo',
+    remark: 'Add a remark to the draft',
   },
 };
 
-type MarkProps = { what: What; state: VibeMarkState; review: boolean; lang: VibeLang; onMark(v: Verdict): void };
+type MarkProps = { what: What; state: VibeMarkState; review: boolean; lang: VibeLang; onMark(v: Verdict): void; onRemark?(): void };
 
 // La validation de la note, de la forme ou de « Rien à écrire ». Relire : un verdict, Valider ou À revoir.
-export function MarkControl({ what, state, review, lang, onMark }: MarkProps) {
+export function MarkControl({ what, state, review, lang, onMark, onRemark }: MarkProps) {
   const s = S[lang];
   const refuse = review ? <button type="button" className="vc-vbtn" data-v="ko" title={s.refuseTitle} onClick={() => onMark('ko')}><Icon name="ko" />{s.refuse}</button> : null;
   if (state === 'ok' || state === 'ko') {
     return (
       <span className="vc-vmark">
         <span className="vc-vstate" data-state={state}><Icon name={state} />{state === 'ok' ? s.done[what] : s.refused[what]}</span>
+        {state === 'ko' && onRemark ? <button type="button" className="vc-vundo" onClick={onRemark}>{s.remark}</button> : null}
         <button type="button" className="vc-vundo" title={s.undoTitle} onClick={() => onMark(null)}>{s.undo}</button>
       </span>
     );
@@ -74,7 +79,7 @@ export function MarkControl({ what, state, review, lang, onMark }: MarkProps) {
 }
 
 // Le verdict d'un cas : deux badges gris, celui donné allumé (pressé) ; un second clic l'annule.
-export function CaseVerdict({ state, lang, onMark }: { state: VibeMarkState; lang: VibeLang; onMark(v: Verdict): void }) {
+export function CaseVerdict({ state, lang, onMark, onRemark }: { state: VibeMarkState; lang: VibeLang; onMark(v: Verdict): void; onRemark?(): void }) {
   const s = S[lang];
   return (
     <span className="vc-verdict" role="group">
@@ -84,6 +89,7 @@ export function CaseVerdict({ state, lang, onMark }: { state: VibeMarkState; lan
           {v === 'ok' ? s.okDone : s.ko}
         </button>
       ))}
+      {state === 'ko' && onRemark ? <button type="button" onClick={onRemark}>{s.remark}</button> : null}
     </span>
   );
 }
