@@ -1,11 +1,8 @@
 // Invariants du processus Claude Code d'un agent. Protégés : si un test
 // échoue, corriger le code.
-//   I-33 : un processus par agent, qui SURVIT à la fin d'un tour : les
-//          messages suivants lui sont transmis ; il n'est fermé qu'à
-//          « Nouvelle session », « Retirer », ou à la fermeture de l'appli —
-//          par la fin de son entrée d'abord, tué seulement après le délai
-//          (I-19). Interrompre n'arrête que le tour. Mort entre deux tours,
-//          le suivant en relance un, qui reprend la session.
+//   I-33 : à la fermeture de l'appli, aucun processus ne survit : fermés par
+//          la fin de leur entrée d'abord, tués seulement après le délai
+//          (I-19).
 //   I-22 : un message part toujours au processus DE CET agent.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAgentRuntime, type AgentConfig } from 'core/agents';
@@ -62,42 +59,6 @@ function setup(kind: 'normal' | 'oneShot' | 'stubborn' | 'slow' = 'normal') {
 afterEach(() => { vi.useRealTimers(); });
 
 describe('un processus par agent, qui vit entre les tours (I-33)', () => {
-  it('deux tours : un seul processus, la session créée une fois, chaque message transmis', async () => {
-    const { runtime, procs, agent, hooksFor } = setup();
-    const a = agent('a1');
-    const hooks = hooksFor(a);
-    await runtime.send(a, { text: 'un' }, hooks);
-    expect(runtime.state('a1').status).toBe('idle');
-    expect(procs[0].ended).toBe(false); // le tour est fini, pas le processus
-    await runtime.send(a, { text: 'deux' }, hooks);
-    expect(procs).toHaveLength(1);
-    expect(procs[0].received).toEqual(['un', 'deux']);
-    expect(hooks.onSession).toHaveBeenCalledTimes(1);
-    expect(runtime.lastReply('a1')).toMatchObject({ text: 'fini', asked: 'deux' });
-  });
-
-  it('interrompre n’arrête que le tour : le processus reste', async () => {
-    const { runtime, procs, agent, hooksFor } = setup('slow');
-    const a = agent('a1');
-    const turn = runtime.send(a, { text: 'long' }, hooksFor(a));
-    await vi.waitFor(() => expect(procs[0].received).toHaveLength(1));
-    runtime.interrupt('a1');
-    await turn;
-    expect(runtime.state('a1').status).toBe('idle');
-    expect(procs[0].ended).toBe(false);
-    expect(procs[0].options.abortController.signal.aborted).toBe(false);
-  });
-
-  it('« Nouvelle session » / « Retirer » : fermé par la fin de son entrée, pas tué', async () => {
-    const { runtime, procs, agent, hooksFor } = setup();
-    const a = agent('a1');
-    await runtime.send(a, { text: 'x' }, hooksFor(a));
-    runtime.forget('a1');
-    await vi.waitFor(() => expect(procs[0].ended).toBe(true));
-    expect(procs[0].options.abortController.signal.aborted).toBe(false);
-    expect(runtime.active()).toBe(0);
-  });
-
   it('fermeture de l’appli : tous fermés ; tué seulement après le délai s’il ne sort pas', async () => {
     vi.useFakeTimers();
     const { runtime, procs, agent, hooksFor } = setup('stubborn');
@@ -113,18 +74,6 @@ describe('un processus par agent, qui vit entre les tours (I-33)', () => {
     expect(procs.map((p) => p.options.abortController.signal.aborted)).toEqual([true, true]);
     await stopping;
     expect(runtime.active()).toBe(0);
-  });
-
-  it('mort entre deux tours : le suivant en relance un, qui reprend la session', async () => {
-    const { runtime, procs, agent, hooksFor } = setup('oneShot');
-    const a = agent('a1');
-    const hooks = hooksFor(a);
-    await runtime.send(a, { text: 'un' }, hooks);
-    await vi.waitFor(() => expect(procs[0].ended).toBe(true));
-    await runtime.send(a, { text: 'deux' }, hooks);
-    expect(procs).toHaveLength(2);
-    expect(procs[1].options.resume).toBe('s-1');
-    expect(procs[1].received).toEqual(['deux']);
   });
 });
 

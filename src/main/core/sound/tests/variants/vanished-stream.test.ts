@@ -1,9 +1,3 @@
-// Invariant (SPEC I-11) : rien de ce que l'appli a coupé ne reste coupé, même
-// un flux disparu pendant la dictée. WirePlumber retient la coupure d'une
-// application (sa « mémoire » des flux) : un flux coupé qui disparaît avant
-// d'être rétabli laisse l'application muette pour ses flux suivants. Bug vu
-// en 0.5.0-rc.2 (Brave et Chromium muets après une dictée). Protégé : si ce
-// test échoue, corriger le code.
 import { describe, expect, it } from 'vitest';
 import { createMuter, createStreamMuter, type PendingStore, type StreamTools } from 'core/sound';
 
