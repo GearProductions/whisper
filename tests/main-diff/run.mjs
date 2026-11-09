@@ -12,52 +12,32 @@
 //
 //   npm run test:main-diff -- v0.14.0
 //
+// Le lancement de l'appli (profil neuf, projet git, Electron) : launch.mjs.
 // Il faut le modèle de dictée dans .data/whisper (whisper-dev l'y a mis) et
 // build/whisper.cpp/samples/jfk.wav (npm run build:whisper). Une fenêtre
 // s'ouvre brièvement.
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { launch, run } from './launch.mjs';
 
 const ROOT = path.resolve(import.meta.dirname, '../..');
 const REF = process.argv[2] || 'v0.14.0';
 const WAV = path.join(ROOT, 'build/whisper.cpp/samples/jfk.wav');
 const MODEL = path.join(ROOT, '.data/whisper');
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const run = (cmd, args, cwd) => execFileSync(cmd, args, { cwd, stdio: 'ignore' });
-const git = (cwd, ...args) => run('git', ['-c', 'user.name=banc', '-c', 'user.email=banc@example.invalid', '-c', 'commit.gpgsign=false', ...args], cwd);
 
 for (const need of [WAV, MODEL]) if (!fs.existsSync(need)) { console.error(`introuvable : ${need}`); process.exit(2); }
 
 async function measure(appDir, name, port) {
-  const data = fs.mkdtempSync(path.join(os.tmpdir(), `whisper-main-diff-${name}-`));
-  // Le projet : un dépôt git (un commit, une branche) et une commande inoffensive.
-  const projet = path.join(data, 'projet');
-  fs.mkdirSync(path.join(projet, '.vibecoder'), { recursive: true });
-  fs.writeFileSync(path.join(projet, '.vibecoder/project.json'), JSON.stringify({ commands: [{ name: 'dormir', run: 'sleep 30' }] }));
-  fs.writeFileSync(path.join(projet, 'README.md'), 'essai\n');
-  git(projet, 'init', '-q', '-b', 'main');
-  git(projet, 'add', 'README.md');
-  git(projet, 'commit', '-q', '-m', 'initial');
-  git(projet, 'branch', 'autre');
-  fs.symlinkSync(MODEL, path.join(data, 'whisper'));
-  fs.writeFileSync(path.join(data, 'config.json'), JSON.stringify({
-    agentSelected: 'a1',
-    agents: [{ id: 'a1', dir: path.join(data, 'projet'), name: 'essai', model: '', effort: '', mode: 'default', sessionId: null }],
-    agentFolders: [{ dir: path.join(data, 'projet'), color: '#22c55e' }],
-  }));
-  const app = spawn(path.join(ROOT, 'node_modules/.bin/electron'), ['.', `--user-data-dir=${data}`, `--remote-debugging-port=${port}`], { cwd: appDir, stdio: 'ignore' });
-  await sleep(4000);
+  const { data, stop, dispose } = await launch({ appDir, name, port });
   let out;
   try {
     out = JSON.parse(execFileSync(process.execPath, [path.join(import.meta.dirname, 'scenario.mjs'), String(port), WAV], { timeout: 120000 }).toString());
-    app.kill();
-    await new Promise((r) => app.once('exit', r));
+    await stop();
     out.agentSelectionneEnregistre = JSON.parse(fs.readFileSync(path.join(data, 'config.json'), 'utf8')).agentSelected;
   } finally {
-    if (app.exitCode === null && app.signalCode === null) { app.kill(); await new Promise((r) => app.once('exit', r)); }
-    fs.rmSync(data, { recursive: true, force: true });
+    await dispose();
   }
   // Le dossier temporaire diffère d'un profil à l'autre : retiré du relevé.
   return JSON.parse(JSON.stringify(out).replaceAll(data, '<profil>'));
