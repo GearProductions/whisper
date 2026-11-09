@@ -1,5 +1,5 @@
-// Invariants de la dictée côté page (note 0.14.0, « Ce que ça ne doit pas
-// faire »). Protégés : si un test échoue, corriger le code.
+// Variants de la dictée côté page (note 0.14.0, « Ce que ça ne doit pas
+// faire »). Venus de tests/invariants (0.15.0, assainissement).
 //   I-2 (réduit) : ce que la dictée met dans le champ est ce que whisper vient
 //         de rendre, tel quel.
 //   I-10 : pas de whisper sur du silence (F-4) : un enregistrement muet ou

@@ -1,7 +1,7 @@
-// Invariant (SPEC I-11, côté page) : tout enregistrement commencé
+// Variant (SPEC I-11, côté page) : tout enregistrement commencé
 // (`setRecording(true)`, qui coupe le son et le micro Discord) se termine par
 // `setRecording(false)`, quel que soit le chemin de sortie. Sinon le principal
-// ne rétablit rien. Protégé : si ce test échoue, corriger le code.
+// ne rétablit rien. Venu de tests/invariants (0.15.0, assainissement).
 // 0.14.0 : la dictée du champ de VibeCoder, sans collage (warmUp retiré, le
 // texte rendu par onText).
 import { afterEach, describe, expect, it, vi } from 'vitest';
