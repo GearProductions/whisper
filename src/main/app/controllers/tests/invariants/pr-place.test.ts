@@ -11,72 +11,38 @@
 //     de la PR est créé par l'appli, plus par le skill worktree-pr ; les cas
 //     de la fiche et d'*Ouvrir un agent ici* restent dans worktree.test.ts).
 // Sur le vrai principal (contrôleurs, réglages et fichiers sur disque, git réel
-// sur un dépôt d'essai et son origin, un dépôt nu local) ; faux : Electron
-// (fenêtres, et la boîte de dialogue, qui relève ses questions, laisse un cas
-// agir pendant qu'elle est ouverte, et répond ce que le cas règle), le SDK de
-// Claude Code (le tour finit aussitôt, sans rien écrire) et, pour *base*, gh
-// (un faux préfixe : git passe au vrai git, gh répond une PR fusionnée).
-import { execFileSync } from 'node:child_process';
+// sur un dépôt d'essai et son origin, un dépôt nu local), sur le décor commun
+// (app/tests/harness : le faux d'Electron, dont la boîte de dialogue relève ses
+// questions, laisse un cas agir pendant qu'elle est ouverte et répond ce que le
+// cas règle ; le faux SDK dont le tour finit aussitôt, le profil, le socket,
+// l'attente) ; local : le dépôt d'essai et son origin, et, pour *base*, gh (un
+// faux préfixe : git passe au vrai git, gh répond une PR fusionnée).
+// Chaque chemin garde ici son témoin « propre » et un refus ; les refus de Ici
+// après une modification indexée et avec des modifications déjà au relevé :
+// variants/pr-place.test.ts.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  click as press, closeAll, fakeClaude, fakeElectron, git as rawGit, openPanel, profile, remote, repoResources, settle, write,
+  writeConfig,
+} from 'app/tests/harness';
 
-// Les boutons de l'écran passent par le socket (0.15.0) : ouvert comme au lancement, fermé après chaque cas.
-let closeSocket = () => {};
+const electron = fakeElectron();
+const claude = fakeClaude({ finish: true });
+vi.mock('electron', () => electron.module);
+vi.mock('technicals/claude', () => claude.module);
+vi.mock('technicals/paths', () => repoResources());
 
-const fake = vi.hoisted(() => {
-  type Handler = (...a: unknown[]) => void;
-  class Win {
-    sent: [string, unknown][] = [];
-    handlers = new Map<string, Handler[]>();
-    visible = false;
-    webContents = {
-      send: (ch: string, payload?: unknown) => { this.sent.push([ch, payload]); },
-      on: () => {}, setWindowOpenHandler: () => {},
-    };
-    on(ev: string, fn: Handler) { this.handlers.set(ev, [...(this.handlers.get(ev) || []), fn]); return this; }
-    once(ev: string, fn: Handler) { return this.on(ev, fn); }
-    emit(ev: string) { for (const fn of this.handlers.get(ev) || []) fn(); }
-    loadFile() {} setAlwaysOnTop() {} setVisibleOnAllWorkspaces() {} setResizable() {} setBounds() {}
-    getBounds() { return { x: 500, y: 500, width: 64, height: 64 }; }
-    isVisible() { return this.visible; } isDestroyed() { return false; } isMinimized() { return false; }
-    show() { this.visible = true; } showInactive() { this.visible = true; } hide() { this.visible = false; }
-    focus() { this.emit('focus'); } restore() {} minimize() { this.visible = false; }
-  }
-  // cwd : le dossier du projet, retenu avant qu'un cas change de dossier courant.
-  return { Win, cwd: process.cwd(), userData: '', windows: [] as InstanceType<typeof Win>[], answer: 0, asked: [] as { title: string; detail: string }[], whileAsked: () => {} };
-});
-
-vi.mock('electron', () => ({
-  app: { getPath: () => fake.userData },
-  BrowserWindow: class extends fake.Win { constructor() { super(); fake.windows.push(this); } },
-  screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) },
-  shell: {}, clipboard: {}, nativeImage: {},
-  dialog: { showMessageBox: async (o: { title: string; detail: string }) => { fake.asked.push(o); fake.whileAsked(); return { response: fake.answer }; } },
-}));
-
-vi.mock('technicals/claude', () => ({
-  launcher: () => ({ executable: 'claude' }),
-  loadSdk: async () => ({
-    getSessionInfo: async () => null,
-    getSessionMessages: async () => [],
-    query: ({ prompt }: { prompt: AsyncIterable<unknown> }) => Object.assign((async function* run() {
-      for await (const _ of prompt) yield { type: 'result', subtype: 'success', is_error: false, result: 'ok' };
-    }()), { setPermissionMode: async () => {}, setModel: async () => {}, interrupt: async () => {} }),
-  }),
-}));
-
-vi.mock('technicals/paths', async (original) => ({
-  ...await original<typeof import('technicals/paths')>(),
-  resourcePath: (name: string) => `${fake.cwd}/resources/${name}`,
-}));
-
-const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' }).toString().trim();
-const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// La boîte de dialogue : ses questions relevées, la réponse du cas (Confirmer par défaut), ce qui se passe pendant qu'elle est ouverte.
+const fake = {
+  answer: 1, whileAsked: () => {},
+  get asked() { return electron.dialog.asked as { title: string; detail: string }[]; },
+};
+// git rend ici sa sortie rognée.
+const git = (cwd: string, ...args: string[]) => rawGit(cwd, ...args).trim();
 const until = async (ok: () => boolean, ms = 10000) => {
-  for (const end = Date.now() + ms; !ok() && Date.now() < end;) await wait(50);
+  for (const end = Date.now() + ms; !ok() && Date.now() < end;) await settle(50);
   return ok();
 };
 let root = '';
@@ -90,60 +56,43 @@ const agents = async () => (await import('app/settings')).loadConfig().agents;
 beforeEach(() => {
   vi.resetModules();
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
-  fake.windows = [];
-  fake.asked = [];
+  root = profile('whisper-pr-place-');
   fake.answer = 1;
   fake.whileAsked = () => {};
-  fake.userData = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-pr-place-')));
-  root = fake.userData;
-  // origin : un dépôt nu, avec main et la branche de la PR (feat/x).
-  const origin = path.join(root, 'origin.git');
-  fs.mkdirSync(origin);
-  git(origin, 'init', '-q', '--bare', '-b', 'main');
+  electron.dialog.answer = () => { fake.whileAsked(); return fake.answer; };
+  // Le dépôt sur main, la branche de la PR (feat/x) poussée dans origin (un dépôt nu), puis supprimée ici.
   repo = path.join(root, 'projet');
-  git(root, 'clone', '-q', origin, repo);
-  git(repo, 'symbolic-ref', 'HEAD', 'refs/heads/main');
+  fs.mkdirSync(repo);
+  git(repo, 'init', '-q', '-b', 'main');
   write(path.join(repo, 'a.txt'), 'a\n');
   git(repo, 'add', 'a.txt');
   git(repo, 'commit', '-q', '-m', 'init');
-  git(repo, 'push', '-q', 'origin', 'main');
   git(repo, 'switch', '-q', '-c', 'feat/x');
   write(path.join(repo, 'b.txt'), 'b\n');
   git(repo, 'add', 'b.txt');
   git(repo, 'commit', '-q', '-m', 'la PR');
-  git(repo, 'push', '-q', 'origin', 'feat/x');
+  remote(repo);
   git(repo, 'switch', '-q', 'main');
   git(repo, 'branch', '-q', '-D', 'feat/x');
   // La PR 7 chargée (load-pr) : sa fiche dans les sorties, sa référence.
   git(repo, 'update-ref', 'refs/vibecoder/pr/7', 'origin/feat/x');
   write(path.join(root, 'vibecoder-out', 'a1', 'pr-7.json'), JSON.stringify({ number: 7, title: 'Essai', url: 'u', author: 'bob', base: 'main', head: 'feat/x', body: '', state: 'OPEN' }));
   prDir = path.join(root, 'projet-worktrees', 'pr-7');
-  write(path.join(root, 'config.json'), JSON.stringify({
-    agents: [{ id: 'a1', dir: repo, name: 'projet', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
-      vibe: { flow: 'review', autonomy: 'guide', pr: 7 } }],
-  }));
+  writeConfig(root, [
+    { id: 'a1', dir: repo, name: 'projet', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
+      vibe: { flow: 'review', autonomy: 'guide', pr: 7 } },
+  ]);
 });
-afterEach(() => { closeSocket(); closeSocket = () => {}; vi.useRealTimers(); process.chdir(fake.cwd); });
+afterEach(closeAll);
 
-// Le panneau de a1 ouvert, son premier relevé envoyé.
-async function openPanel() {
-  const { openConversation } = await import('app/windows');
-  const { panelReady, openSocket, commandFromSocket, closeSocket: close } = await import('app/controllers');
-  await openSocket(commandFromSocket);
-  closeSocket = close;
-  openConversation('a1');
-  fake.windows.at(-1)!.emit('ready-to-show');
-  await panelReady();
-  await wait(150);
-}
 // L'action `id` dans le dernier relevé de a1.
 const shown = async (id: string) => (await import('app/controllers')).lastView('a1')?.actions.find((a) => a.id === id);
 // Le clic sur une action directe de l'étape PR.
-const click = async (id: string) => (await import('app/controllers')).runVibeAction(id, { direct: true });
+const click = (id: string) => press(id, { direct: true });
 
 describe.skipIf(process.platform === 'win32')('Ici : jamais de changement de branche dans un dossier qui a des modifications', () => {
   it('propre : Ici passe sur la branche de la PR (le clic agit bien)', async () => {
-    await openPanel();
+    await openPanel('a1');
 
     await click('pr-here');
     await until(() => branch() === 'feat/x');
@@ -153,44 +102,13 @@ describe.skipIf(process.platform === 'win32')('Ici : jamais de changement de bra
   }, 20000);
 
   it('un fichier modifié après le relevé : refusé, la branche et la modification restent', async () => {
-    await openPanel();
+    await openPanel('a1');
     // le relevé propose Ici, actif : le dossier y était propre
     expect(await shown('pr-here')).toMatchObject({ disabled: null });
     write(path.join(repo, 'a.txt'), 'modifié\n');
 
     await click('pr-here');
-    await wait(2000);
-
-    // toujours sur main
-    expect(branch()).toBe('main');
-    // la modification est toujours là
-    expect(fs.readFileSync(path.join(repo, 'a.txt'), 'utf8')).toBe('modifié\n');
-  }, 20000);
-
-  it('une modification indexée après le relevé : refusé, la branche et la modification restent', async () => {
-    await openPanel();
-    // le relevé propose Ici, actif : le dossier y était propre
-    expect(await shown('pr-here')).toMatchObject({ disabled: null });
-    write(path.join(repo, 'a.txt'), 'indexé\n');
-    git(repo, 'add', 'a.txt');
-
-    await click('pr-here');
-    await wait(2000);
-
-    // toujours sur main
-    expect(branch()).toBe('main');
-    // la modification est toujours indexée
-    expect(git(repo, 'diff', '--cached', '--name-only')).toBe('a.txt');
-  }, 20000);
-
-  it('des modifications déjà au relevé : refusé, la branche et la modification restent', async () => {
-    write(path.join(repo, 'a.txt'), 'modifié\n');
-    await openPanel();
-    // le relevé montre bien Ici (grisé)
-    expect(await shown('pr-here')).toBeDefined();
-
-    await click('pr-here');
-    await wait(2000);
+    await settle(2000);
 
     // toujours sur main
     expect(branch()).toBe('main');
@@ -210,16 +128,15 @@ describe.skipIf(process.platform === 'win32')('PR mergée → revenir sur la bas
   process.exit(r.status ?? 1);
 }
 process.stdout.write(process.argv.includes('list') ? '[]' : ${JSON.stringify(JSON.stringify({ number: 7, title: 'Essai', url: 'u', state: 'MERGED', baseRefName: 'main', headRefName: 'feat/x' }))});\n`);
-    write(path.join(root, 'config.json'), JSON.stringify({
-      vibeCommandPrefix: `"${process.execPath}" "${prefix}"`,
-      agents: [{ id: 'a1', dir: repo, name: 'projet', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
-        vibe: { flow: 'create', autonomy: 'guide' } }],
-    }));
+    writeConfig(root, [
+      { id: 'a1', dir: repo, name: 'projet', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
+        vibe: { flow: 'create', autonomy: 'guide' } as never },
+    ], { vibeCommandPrefix: `"${process.execPath}" "${prefix}"` });
   });
   // Le panneau ouvert, jusqu'à ce que le relevé propose base (la PR lue par gh, en fond).
   async function openOnMerged() {
-    await openPanel();
-    for (const end = Date.now() + 10000; !await shown('base') && Date.now() < end;) await wait(100);
+    await openPanel('a1');
+    for (const end = Date.now() + 10000; !await shown('base') && Date.now() < end;) await settle(100);
   }
 
   it('propre : base passe sur la base (le clic agit bien)', async () => {
@@ -239,7 +156,7 @@ process.stdout.write(process.argv.includes('list') ? '[]' : ${JSON.stringify(JSO
     write(path.join(repo, 'a.txt'), 'modifié\n');
 
     await click('base');
-    await wait(2000);
+    await settle(2000);
 
     // toujours sur la branche de la PR
     expect(branch()).toBe('feat/x');
@@ -251,11 +168,11 @@ process.stdout.write(process.argv.includes('list') ? '[]' : ${JSON.stringify(JSO
 describe.skipIf(process.platform === 'win32')('Dans un worktree : jamais de robot de PR sans la question de confiance', () => {
   it('Annuler : la question posée sur le worktree créé, en disant que les réglages de la PR se chargeront ; aucun robot', async () => {
     fake.answer = 0;
-    await openPanel();
+    await openPanel('a1');
 
     await click('pr-worktree');
     await until(() => fake.asked.length > 0);
-    await wait(300);
+    await settle(300);
 
     // la question a été posée une fois…
     expect(fake.asked).toHaveLength(1);
@@ -270,7 +187,7 @@ describe.skipIf(process.platform === 'win32')('Dans un worktree : jamais de robo
   it('confiance accordée : le robot « PR #7 » naît après la question, sur le worktree, enfant de l’agent du dépôt', async () => {
     let atQuestion = -1;
     fake.whileAsked = () => { atQuestion = savedAgents().length; };
-    await openPanel();
+    await openPanel('a1');
 
     await click('pr-worktree');
     await until(() => savedAgents().length > 1);

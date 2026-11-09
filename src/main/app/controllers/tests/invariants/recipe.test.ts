@@ -15,30 +15,22 @@
 //     refusé, quelle que soit la commande du fichier.
 // Sur le vrai principal (contrôleurs des processus et de la recette, réglages
 // et fichiers sur disque, git réel sur un dépôt d'essai et ses worktrees, de
-// vrais processus) ; faux : Electron (le dossier userData, la boîte de
-// dialogue). Les commandes écrivent ce qu'elles font dans des fichiers : c'est
-// le système lui-même qu'on observe.
-import { execFileSync, spawnSync } from 'node:child_process';
+// vrais processus), sur le décor commun (app/tests/harness : le faux d'Electron,
+// le profil, le dépôt d'essai). Les commandes écrivent ce qu'elles font dans des
+// fichiers : c'est le système lui-même qu'on observe.
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fakeElectron, git, profile, repo as newRepo, write } from 'app/tests/harness';
 
-const fake = vi.hoisted(() => ({ userData: '' }));
-
-vi.mock('electron', () => ({
-  app: { getPath: () => fake.userData },
-  BrowserWindow: class {},
-  screen: {}, shell: {}, clipboard: {}, nativeImage: {},
-  dialog: { showMessageBox: async () => ({ response: 0 }) },
-}));
+const electron = fakeElectron();
+vi.mock('electron', () => electron.module);
 
 const { loadConfig } = await import('app/settings');
 const { processView, stopProcesses } = await import('app/controllers/processes');
 const { createWorktree, prepare, removeWorktree } = await import('app/controllers/recipe');
 
-const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' });
-const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
 const lines = (file: string) => (fs.existsSync(file) ? fs.readFileSync(file, 'utf8').trim().split('\n') : []);
 let root = '';
 let repo = '';
@@ -56,13 +48,11 @@ const names = (id: string) => processView(agentOf(id), loadConfig()).processes.m
 const projectAt = (dir: string, project: object) => write(path.join(dir, '.vibecoder', 'project.json'), JSON.stringify(project));
 
 beforeEach(() => {
-  fake.userData = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-recette-')));
-  root = fake.userData;
+  root = profile('whisper-recette-');
   seenFile = path.join(root, 'seen.txt');
   pirate = path.join(root, 'PIRATE');
   repo = path.join(root, 'projet');
-  fs.mkdirSync(repo);
-  git(repo, 'init', '-q', '-b', 'main');
+  newRepo(repo);
   write(path.join(repo, 'a.txt'), 'a\n');
   git(repo, 'add', 'a.txt');
   git(repo, 'commit', '-q', '-m', 'init');
