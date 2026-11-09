@@ -9,8 +9,8 @@ const servers: { close(): Promise<void> }[] = [];
 const pause = (ms: number) => new Promise((done) => setTimeout(done, ms));
 
 // Un serveur dont le gestionnaire répond { echo: cmd } ; la commande « slow » répond en retard.
-async function serve(handle = vi.fn(async (env: { cmd: string }) => { if (env.cmd === 'slow') await pause(60); return { echo: env.cmd }; })) {
-  const server = await listen(handle);
+async function serve(handle = vi.fn(async (env: { cmd: string }, _caller?: string) => { if (env.cmd === 'slow') await pause(60); return { echo: env.cmd }; }), tokens?: () => ReadonlyMap<string, string>) {
+  const server = await listen(handle, tokens);
   servers.push(server);
   return { ...server, handle };
 }
@@ -54,7 +54,7 @@ describe('listen', () => {
     const { lines } = await talk(port, [command(token, 'status')], 1);
 
     // handle a reçu l'enveloppe
-    expect(handle).toHaveBeenCalledWith({ cmd: 'status', args: {}, token, target: '/p' });
+    expect(handle).toHaveBeenCalledWith({ cmd: 'status', args: {}, token, target: '/p' }, 'screen');
     // sa réponse revient en une ligne
     expect(lines.map((l) => JSON.parse(l))).toEqual([{ echo: 'status' }]);
   });
@@ -137,5 +137,66 @@ describe('listen', () => {
 
     expect(lines).toEqual([]);
     expect(closed).toBe(true);
+  });
+
+  it('listen(handle) seul : le jeton de l\'écran, caller \'screen\'', async () => {
+    const { port, token, handle } = await serve();
+
+    await talk(port, [command(token)], 1);
+
+    expect(handle).toHaveBeenCalledWith(expect.anything(), 'screen');
+  });
+
+  it('un jeton de robot ajouté à la table : accepté, caller son nom ; retiré : BAD_TOKEN à la ligne suivante', async () => {
+    const table = new Map<string, string>();
+    const { port, handle } = await serve(undefined, () => table);
+    const robot = 'r'.repeat(64);
+    table.set('robot-1', robot);
+
+    const first = await talk(port, [command(robot)], 1);
+    table.delete('robot-1');
+    const second = await talk(port, [command(robot)]);
+
+    expect(first.lines.map((l) => JSON.parse(l))).toEqual([{ echo: 'status' }]);
+    expect(handle).toHaveBeenCalledWith(expect.anything(), 'robot-1');
+    expect(second.lines.map((l) => JSON.parse(l))).toEqual([BAD_TOKEN]);
+  });
+
+  it('un robot nommé \'screen\' ne prend pas la place du jeton de l\'écran (cas trouvé en chemin)', async () => {
+    const { port, token } = await serve(undefined, () => new Map([['screen', 'x'.repeat(64)]]));
+
+    expect((await talk(port, [command(token)], 1)).lines.map((l) => JSON.parse(l))).toEqual([{ echo: 'status' }]);
+  });
+
+  it('une réponse qui tarde : la connexion reste ouverte, la réponse arrive ; le client parti avant : le serveur ne tombe pas', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((done) => { release = done; });
+    const { port, token } = await serve(vi.fn(async (env: { cmd: string }) => { await gate; return { echo: env.cmd }; }));
+
+    const waiting = talk(port, [command(token, 'wait')], 1);
+    await pause(300); // aucun délai ne ferme la connexion
+    release();
+    expect((await waiting).lines.map((l) => JSON.parse(l))).toEqual([{ echo: 'wait' }]);
+
+    // un client parti avant la réponse : rien d'écrit, pas d'erreur
+    let release2!: () => void;
+    const gate2 = new Promise<void>((done) => { release2 = done; });
+    const b = await serve(vi.fn(async () => { await gate2; return { late: true }; }) as never);
+    const sock = net.connect(b.port, '127.0.0.1', () => { sock.write(command(b.token)); setTimeout(() => sock.destroy(), 30); });
+    sock.on('error', () => {});
+    await pause(100);
+    release2();
+    await pause(50);
+    expect((await talk(port, [command(token, 'again')], 1)).lines.length).toBe(1); // le serveur répond encore
+  });
+
+  it('close() pendant une attente : la connexion fermée', async () => {
+    const { port, token, close } = await serve(vi.fn(() => new Promise<unknown>(() => {})) as never);
+    const waiting = talk(port, [command(token)]);
+    await pause(100);
+
+    await close();
+
+    expect(await waiting).toEqual({ lines: [], closed: true });
   });
 });
