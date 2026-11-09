@@ -16,7 +16,7 @@ import { ModuleCode } from '../../module-code';
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const m: VibeModule = {
-  path: 'src/x', contract: '', file: null, touched: true, commits: [],
+  path: 'src/x', paths: ['src/x'], contract: '', file: null, touched: true, commits: [],
   files: [{ id: 'm1/0', path: 'src/x/gone.ts', deleted: true }, { id: 'm1/1', path: 'src/x/kept.ts' }],
 };
 

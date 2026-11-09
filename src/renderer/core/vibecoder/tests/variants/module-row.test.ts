@@ -19,7 +19,7 @@ describe('fileParts', () => {
 });
 
 const commit = (hash: string, subject = hash): VibeCommit => ({ hash, subject, fixup: subject.startsWith('fixup!'), files: [] });
-const mod = (commits: string[]): VibeModule => ({ path: 'main/core/x.ts', contract: '', file: null, touched: commits.length > 0, commits });
+const mod = (commits: string[]): VibeModule => ({ path: 'main/core/x.ts', paths: ['main/core/x.ts'], contract: '', file: null, touched: commits.length > 0, commits });
 // Le relevé : le plus ancien d'abord.
 const branch = [
   commit('99b3089ceb6f0000'), commit('34349c1aaaa00000'), commit('239aa40bbbb00000'), commit('9fc3151cccc00000', 'fixup! x'),

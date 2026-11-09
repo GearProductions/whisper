@@ -20,9 +20,9 @@ const root = createRoot(page);
 const calls: unknown[][] = [];
 let scope: ReturnType<typeof scoped> | null = null; // l'état retenu de l'agent affiché (aucun : un état ordinaire)
 const modules = [
-  { path: 'src/a.ts', contract: 'le contrat de a', file: { id: 'm0', path: 'src/a.ts' }, touched: true, commits: [],
+  { path: 'src/a.ts', paths: ['src/a.ts'], contract: 'le contrat de a', file: { id: 'm0', path: 'src/a.ts' }, touched: true, commits: [],
     files: [{ id: 'm0/0', path: 'src/a.ts' }] },
-  { path: 'src/b.ts', contract: 'le contrat de b', file: null, touched: false, commits: [] },
+  { path: 'src/b.ts', paths: ['src/b.ts'], contract: 'le contrat de b', file: null, touched: false, commits: [] },
 ];
 const draw = (over: Partial<VibeView> & { actions?: { id: string }[] } = {}) => act(() => {
   const view = { lang: 'fr', flow: 'create', actions: [], outputs: {}, modules, commits: [], draft: [], note: { formeMark: null },
