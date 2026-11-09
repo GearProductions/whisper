@@ -1,11 +1,12 @@
 // @vitest-environment happy-dom
 // ModuleDiffView (module-diff-view.tsx) : en lecture seule dans les deux modes ; recréé
 // quand une prop change ; replié autour des changements, « N lignes inchangées » d'après lang,
-// sauf avec whole.
+// sauf avec whole ; une balise écrite dans une ligne (ajoutée, retirée, gardée, d'un fichier absent à
+// la référence) reste du texte, dans les deux modes.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EditorView } from '@codemirror/view';
-import { expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { ModuleDiffView } from '../../module-diff-view';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -56,3 +57,55 @@ it('whole : rien de replié, en ligne comme côte à côte', async () => {
   expect(v.page.querySelector('.cm-collapsedLines')).toBeNull();
   expect(v.views()).toHaveLength(2);
 });
+
+const SCRIPT = "const s = '<script>alert(1)</script>';";
+const IMG = 'const v = <img src=x onerror=alert(1) />;';
+
+// La page où ModuleDiffView est monté sur le diff de `before` à `after` d'un .ts, dans `mode`, une fois affiché.
+async function shown(before: string, after: string, mode: 'inline' | 'split') {
+  const v = mount();
+  await v.render({ before, after, path: 'src/a.ts', mode, lang: 'fr' });
+  return v.page;
+}
+
+for (const [mode, label] of [['inline', 'en ligne'], ['split', 'côte à côte']] as const) {
+  describe(`${label} : une balise écrite dans une ligne du diff reste du texte`, () => {
+    it('<script> dans une ligne ajoutée', async () => {
+      const page = await shown('const a = 1;', `const a = 1;\n${SCRIPT}`, mode);
+
+      // aucun élément script produit
+      expect(page.querySelector('script')).toBeNull();
+      // témoin : la ligne ajoutée est bien affichée, en texte
+      expect(page.textContent).toContain(SCRIPT);
+    });
+
+    it('<img onerror> dans une ligne retirée', async () => {
+      const page = await shown(`const a = 1;\n${IMG}`, 'const a = 1;', mode);
+
+      // aucun élément img produit
+      expect(page.querySelector('img')).toBeNull();
+      // témoin : la ligne retirée est bien affichée, en texte
+      expect(page.textContent).toContain(IMG);
+    });
+
+    // Une ligne inchangée, gardée autour d'un changement.
+    it('<script> dans une ligne gardée autour d’un changement', async () => {
+      const page = await shown(`${SCRIPT}\nconst a = 1;`, `${SCRIPT}\nconst a = 2;`, mode);
+
+      // aucun élément script produit
+      expect(page.querySelector('script')).toBeNull();
+      // témoin : la ligne gardée est bien affichée, en texte
+      expect(page.textContent).toContain(SCRIPT);
+    });
+
+    // Un fichier absent à la référence (at.base ou at.head null, passé '') : tout le texte est ajouté.
+    it('<img onerror> dans un fichier absent à la référence', async () => {
+      const page = await shown('', IMG, mode);
+
+      // aucun élément img produit
+      expect(page.querySelector('img')).toBeNull();
+      // témoin : la ligne est bien affichée, en texte
+      expect(page.textContent).toContain(IMG);
+    });
+  });
+}

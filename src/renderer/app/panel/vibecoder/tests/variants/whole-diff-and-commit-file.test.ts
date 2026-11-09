@@ -1,37 +1,22 @@
 // @vitest-environment happy-dom
-// Invariant de l'affichage du texte d'un fichier ou d'un test, et de son diff
-// (note 0.13.0, docs/tickets/feat/0.13.0-ameliorations-interface.md, « Ce que
-// ça ne doit pas faire ») : rendre en HTML le texte d'un fichier ou d'un test,
-// ni dans son diff (I-40) — le diff entier d'un test d'invariant (ModuleDiffView
-// whole, sans repli autour des changements) et le fichier d'un commit en Relire
-// (CommitFile : Fichier, Diff de ce commit, Diff depuis la base de la PR). Le
-// diff replié : module-diff-view.test.ts ; CodeView : code-view.test.ts.
-// Protégé : si un test échoue, corriger le code.
-//
-// Les vrais composants, montés par React (createRoot) dans une page happy-dom :
-// une balise écrite dans une ligne n'y devient aucun élément, elle reste du
-// texte.
+// Le diff entier d'un test (ModuleDiffView whole, sans repli autour des changements) et le fichier
+// d'un commit en Relire (CommitFile : Fichier, Diff de ce commit, Diff depuis la base de la PR) :
+// une balise écrite dans une ligne n'y devient aucun élément, elle reste du texte. Le diff replié :
+// module-diff-view.test.ts ; CodeView (I-40) : tests/invariants/code-view.test.ts.
 import { act, createElement } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { createRoot } from 'react-dom/client';
+import { expect, it, describe } from 'vitest';
 import { t } from 'core/vibecoder';
-import { CommitFile, ModuleDiffView } from 'app/panel/vibecoder';
+import { CommitFile } from '../../commit-file';
+import { ModuleDiffView } from '../../module-diff-view';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
-const roots: Root[] = [];
-afterEach(() => {
-  act(() => { for (const r of roots.splice(0)) r.unmount(); });
-  document.body.replaceChildren();
-});
 
 // La page où `element` est monté, une fois affiché.
 async function shown(element: ReturnType<typeof createElement>) {
   const container = document.createElement('div');
   document.body.append(container);
-  const root = createRoot(container);
-  roots.push(root);
-  await act(async () => { root.render(element); });
+  await act(async () => { createRoot(container).render(element); });
   return container;
 }
 
