@@ -36,12 +36,9 @@ export const withFile = (pieces: Piece[], path: string, name = path.split('/').p
 export const withPieces = (pieces: Piece[], added: Piece[]): Piece[] => (
   added.reduce((all, p) => (p.kind === 'file' ? withFile(all, p.path, p.name) : [...all, p]), pieces));
 
-// Le choix du trombone : la sélection remplace la précédente, les fichiers s'ajoutent.
-export function withAttached(pieces: Piece[], what: Attached): Piece[] {
-  let out = what.selection ? [...pieces.filter((p) => p.kind !== 'selection'), { kind: 'selection' as const, ...what.selection }] : pieces;
-  for (const f of what.files || []) out = withFile(out, f);
-  return out;
-}
+// Le choix du trombone : les fichiers s'ajoutent.
+export const withAttached = (pieces: Piece[], what: Attached): Piece[] => (
+  (what.files || []).reduce((all, f) => withFile(all, f), pieces));
 
 export function toDraft(text: string, pieces: Piece[]): OutgoingDraft {
   return {

@@ -1,11 +1,11 @@
 /** windows-helper — l'assistant Windows (resources/scripts/windows-helper.ps1) :
  *  un PowerShell PERMANENT. Le lancer et compiler ses types coûte ~1 s, qu'on
- *  ne veut payer ni à chaque copie ni au début de chaque dictée (coupure du
- *  micro Discord). Démarré à sa première commande, relancé s'il meurt.
- *  Une commande par ligne, une ligne de réponse, dans l'ordre : copy,
+ *  ne veut pas payer au début de chaque dictée (coupure du micro Discord).
+ *  Démarré à sa première commande, relancé s'il meurt.
+ *  Une commande par ligne, une ligne de réponse, dans l'ordre :
  *  discord-mute, discord-restore, others-mute, others-restore (cf. le script).
- *  Ne connaît pas : ce que font les commandes. Utilisé par : technicals
- *  (selection), app (coupures, cycle de vie). */
+ *  Ne connaît pas : ce que font les commandes.
+ *  Utilisé par : app (coupures, cycle de vie). */
 import { spawn, type ChildProcess } from 'node:child_process';
 import { scriptPath } from 'technicals/paths';
 

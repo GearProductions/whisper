@@ -104,7 +104,7 @@ export type DraftImage = { name: string; type: string; data: ArrayBuffer };
 export type OutgoingDraft = { text: string; images: DraftImage[]; files: string[]; selection: string };
 export type SendResult = { ok: boolean; error?: string };
 
-export type Attached = { files?: string[]; selection?: { text: string; cut: boolean } };
+export type Attached = { files?: string[] };
 
 export type Decision = 'allow' | 'always' | 'deny';
 

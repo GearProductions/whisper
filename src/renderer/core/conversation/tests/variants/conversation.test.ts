@@ -62,12 +62,12 @@ describe('pièces jointes', () => {
     expect(kindOf('/a/b.xyz')).toBe('📎');
   });
 
-  it('un fichier une fois ; la sélection remplace la précédente', () => {
+  it('un fichier une fois', () => {
     let p = withFile([], '/a/b.txt');
     p = withFile(p, '/a/b.txt');
     expect(p).toHaveLength(1);
-    p = withAttached([...p, sel], { selection: { text: 'xyz', cut: true }, files: ['/a/b.txt', '/c'] });
-    expect(p.map(pieceLabel)).toEqual(['📄 b.txt', '❝ Sélection (3 car., coupée)', '📁 c']);
+    p = withAttached(p, { files: ['/a/b.txt', '/c'] });
+    expect(p.map(pieceLabel)).toEqual(['📄 b.txt', '📁 c']);
   });
 
   it('brouillon envoyé', () => {

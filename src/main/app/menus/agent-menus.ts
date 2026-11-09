@@ -8,18 +8,16 @@
  *  *Ouvrir un agent ici* ; pas de sous-menu si git n'a pas répondu), « Nouvel
  *  agent… » (dans un dossier favori ou un autre dossier, avec la question
  *  de confiance, I-23, puis le rattachement à sa famille), et le trombone du
- *  panneau (fichiers, texte sélectionné).
+ *  panneau (images ou fichiers).
  *  Ne connaît pas : les pages, git (app/controllers : freeWorktrees, openHere,
  *  syncFamilies). Utilisé par : app/ipc. */
 import path from 'node:path';
 import { app, dialog, Menu, shell, type MenuItemConstructorOptions } from 'electron';
 import { EFFORTS, MODELS, MODES, type AgentConfig } from 'core/agents';
 import { AGENT_COLORS, agentColor, agentList, colorDot, favoriteFolders } from 'core/config';
-import { SELECTION_MAX } from 'core/conversation';
 import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
 import { findEditor, findTerminal } from 'technicals/editor';
-import { readText } from 'technicals/selection';
 import { loadConfig, saveConfig, updateAgent } from 'app/settings';
 import { state } from 'app/state';
 import {
@@ -125,34 +123,11 @@ export function openAddAgentMenu() {
   ] as MenuItemConstructorOptions[]).popup({ window: state.panel });
 }
 
-// Le texte sélectionné, joint au message. Pas de sélection sous Windows : la
-// lire y demande un Ctrl+C simulé dans l'application au premier plan — dans un
-// terminal, il interromprait le programme. Le presse-papiers, lui, se colle
-// dans le champ.
-const canAttachSelection = process.platform === 'linux';
-async function readSelection() {
-  if (!canAttachSelection) return { text: '', cut: false };
-  const text = (await readText('selection')).trim();
-  return { text: text.slice(0, SELECTION_MAX), cut: text.length > SELECTION_MAX };
-}
-
-// Trombone du champ : choisir des images ou fichiers, ou joindre le texte
-// sélectionné (relu à ce moment, montré dans le menu). Le choix revient par
+// Trombone du champ : choisir des images ou fichiers. Le choix revient par
 // conv:attached.
 export async function openAttachMenu() {
   const conv = state.panel;
   if (!conv) return;
-  const sel = canAttachSelection ? await readSelection() : null;
-  const preview = sel && sel.text ? sel.text.replace(/\s+/g, ' ').slice(0, 60) : '';
-  Menu.buildFromTemplate([
-    { label: 'Images ou fichiers…', click: async () => {
-      const res = await dialog.showOpenDialog(conv, { title: 'Joindre au message', properties: ['openFile', 'multiSelections'] });
-      if (!res.canceled && state.panel) state.panel.webContents.send('conv:attached', { files: res.filePaths });
-    } },
-    ...(sel ? [{
-      label: sel.text ? `Texte sélectionné (${sel.text.length.toLocaleString('fr-FR')} car.) : « ${preview}${sel.text.length > 60 ? '…' : ''} »`
-        : 'Aucun texte sélectionné', enabled: !!sel.text,
-      click: () => { if (state.panel) state.panel.webContents.send('conv:attached', { selection: sel }); },
-    }] : []),
-  ]).popup({ window: conv });
+  const res = await dialog.showOpenDialog(conv, { title: 'Joindre au message', properties: ['openFile', 'multiSelections'] });
+  if (!res.canceled && state.panel) state.panel.webContents.send('conv:attached', { files: res.filePaths });
 }
