@@ -16,4 +16,11 @@ describe('les SKILL.md livrés', () => {
     const md = fs.readFileSync(path.join(RES, 'plugin/skills', skill, 'SKILL.md'), 'utf8').replace(/\r\n/g, '\n');
     expect(md).toContain(skillArgs(table, defs, skill));
   });
+
+  it('aucun skill livré ne cite la boîte aux lettres : actions.json, .start, .stop, .restart', () => {
+    const dir = path.join(RES, 'plugin/skills');
+    const cited = fs.readdirSync(dir).filter((name) =>
+      /actions\.json|\.(start|stop|restart)\b/.test(fs.readFileSync(path.join(dir, name, 'SKILL.md'), 'utf8')));
+    expect(cited).toEqual([]);
+  });
 });

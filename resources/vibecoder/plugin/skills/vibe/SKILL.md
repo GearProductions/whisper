@@ -13,10 +13,10 @@ disable-model-invocation: true
 
 ## How to chain
 
-Read `${CLAUDE_SKILL_DIR}/../actions/SKILL.md` first: it is the protocol — `<out>/actions.json`, the `<out>/actions/<id>.start` and `.stop` requests, their arguments. You are in *Vibe* mode: start the actions yourself.
+Read `${CLAUDE_SKILL_DIR}/../actions/SKILL.md` first: it is the protocol — the `vibecoder` command: `status`, `run list`, `run start`, `run stop`, `run wait`, their arguments. You are in *Vibe* mode: start the actions yourself.
 
-- One request, then end your turn; the end notice wakes you. Read the action's `reply` in `actions.json` and the files it wrote in `out` (`align.md`, `commit.md`, `checks.json`, `ponytail.md`, `pr.json`, `ci.md`…), then decide the next one.
-- An action that depends on another starts after its end notice. Reads (`reads: true`) can start together when that saves time; the app holds any request that must wait and starts it by itself.
+- One request, then end your turn (or `run wait` in the background); the end wakes you. Read the action's `reply` (`vibecoder run list`) and the files it wrote in `out` (`align.md`, `commit.md`, `checks.json`, `ponytail.md`, `pr.json`, `ci.md`…), then decide the next one.
+- An action that depends on another starts after its end. Reads (reviews, checks…) can start together when that saves time; the app holds any request that must wait (the answer says `queued`) and starts it by itself.
 - `failed` → read its `reply`, fix the cause or start it again once; twice → blocking question.
 - A request refused because Vibe was stopped (« le mode Vibe a été arrêté par l'utilisateur : ne lance plus rien » / "Vibe was stopped by the user: start nothing more") → stop: request nothing more, and answer in `lang` where you stand.
 - While an action modifies the branch, touch nothing. Small fixes of your own (a red check, a CI failure) only when nothing runs.
@@ -28,7 +28,7 @@ Read `${CLAUDE_SKILL_DIR}/../actions/SKILL.md` first: it is the protocol — `<o
 3. **Invariants** — `invariants`: it writes the red tests, then checks the alignment and fixes the tests itself (3 rounds at most); no `read-invariants`, its pseudo-code is for the user. Gaps left in `align.md`, or an assertion that does not truly observe its property → `invariants` again with `text` saying what to fix; a gap only the note can close → blocking question.
 4. **First commit** — `commit-prepare`, check `<out>/commit.md` (note, forme, red invariants), then `commit`.
 5. **Modules** — `modules`: parallel Sonnet subagents, each diff reviewed; it commits nothing. Then `commit-modules`: one commit per module (a fixup for a module already committed).
-6. **Review** — `checks`: it requests the ponytail review itself, both run together; wait for both end notices (`checks.json`, `ponytail.md`). Then `apply` (`text`: the remarks you keep; empty: all) and say which ones you discard and why. A red check → fix it as a fixup of the commit that owns the code, then `checks` again with `check`: its rank in `checks.json` (that check alone).
+6. **Review** — `checks`: it requests the ponytail review itself, both run together; wait for both ends (`run wait` on each, or the end notices; then `checks.json`, `ponytail.md`). Then `apply` (`text`: the remarks you keep; empty: all) and say which ones you discard and why. A red check → fix it as a fixup of the commit that owns the code, then `checks` again with `check`: its rank in `checks.json` (that check alone).
 7. **Docs** — the note matches what is delivered (A.3); `SPEC.md`, `README.md`, `AGENTS.md`… follow where a behaviour or a convention changed: a doc commit, or fixups.
 8. **Fold** — `fixups`.
 9. **PR** — `pr` (→ `pr.json`), then `ci`, followed until green. Red → fix the cause from `ci.md` in a new commit (the PR is open: no rewrite), push, `ci` again. Green → stop: no further action.
