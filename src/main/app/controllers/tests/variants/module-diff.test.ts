@@ -1,86 +1,26 @@
-// Invariant du diff d'un fichier de module (note 0.11.0,
-// docs/tickets/feat/0.11.0-stabiliser-vibecoder.md, « Ce que ça ne doit pas
-// faire ») : le diff ne lit que les fichiers des modules touchés par la
-// branche, désignés par leur id, jamais par un chemin venu de la page (I-37).
-// Le principal pousse, avec le texte du fichier suivi, son texte à la base de
-// la branche et au dernier commit (VibeCode.at) — pour ce seul fichier, d'un
-// module touché (m<rang>/<i>), jamais la note ni un test. Le reste d'I-37
-// (Voir le code, la note, les tests) : module-code.test.ts,
-// note-and-tests-save.test.ts.
-// Protégé : si un test échoue, corriger le code.
+// Variants du diff d'un fichier de module (note 0.11.0,
+// docs/tickets/feat/0.11.0-stabiliser-vibecoder.md) : le diff ne lit que les fichiers des
+// modules touchés par la branche, désignés par leur id, jamais par un chemin venu de la
+// page. Le principal pousse, avec le texte du fichier suivi, son texte à la base de la
+// branche et au dernier commit (VibeCode.at) — pour ce seul fichier, d'un module touché
+// (m<rang>/<i>), jamais la note ni un test. Déplacés tels quels de
+// invariants/module-diff.test.ts (0.15.0) : les chemins restent gardés par Voir le code
+// (invariants/module-code.test.ts, note-and-tests-save.test.ts).
 //
-// Sur le vrai principal (contrôleurs, fenêtres, état, réglages et fichiers sur
-// disque, git réel sur un dépôt d'essai) ; faux : Electron (fenêtres qui
-// relèvent ce qu'on leur envoie) et le SDK de Claude Code (chaque message reçu
-// ouvre un tour, sans rien écrire, qui dure jusqu'à interrupt()). Ce que la
-// page voit d'un fichier et de ses versions : les conv:vibeCode poussés au
-// panneau, tous leurs champs. Même banc que module-code.test.ts.
-import { execFileSync } from 'node:child_process';
+// Sur le vrai principal, par le décor commun (app/tests/harness : Electron et le SDK de
+// Claude Code factices, git réel sur un dépôt d'essai). Ce que la page voit d'un fichier et
+// de ses versions : les conv:vibeCode poussés au panneau, tous leurs champs.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { slow } from '../slow';
+import { closeAll, fakeClaude, fakeElectron, git, openPanel, profile, repo, repoResources, settle, write, writeConfig } from 'app/tests/harness';
 
-const fake = vi.hoisted(() => {
-  type Handler = (...a: unknown[]) => void;
-  class Win {
-    sent: [string, unknown][] = [];
-    handlers = new Map<string, Handler[]>();
-    visible = false;
-    webContents = {
-      send: (ch: string, payload?: unknown) => { this.sent.push([ch, payload]); },
-      on: () => {}, setWindowOpenHandler: () => {},
-    };
-    on(ev: string, fn: Handler) { this.handlers.set(ev, [...(this.handlers.get(ev) || []), fn]); return this; }
-    once(ev: string, fn: Handler) { return this.on(ev, fn); }
-    emit(ev: string) { for (const fn of this.handlers.get(ev) || []) fn(); }
-    loadFile() {} setAlwaysOnTop() {} setVisibleOnAllWorkspaces() {} setResizable() {} setBounds() {}
-    getBounds() { return { x: 500, y: 500, width: 64, height: 64 }; }
-    isVisible() { return this.visible; } isDestroyed() { return false; } isMinimized() { return false; }
-    show() { this.visible = true; } showInactive() { this.visible = true; } hide() { this.visible = false; }
-    focus() { this.emit('focus'); } restore() {} minimize() { this.visible = false; }
-  }
-  // Chaque tour reçu par Claude Code : le skill appelé (ou le premier mot du message), et s'il est fini.
-  return { Win, userData: '', windows: [] as InstanceType<typeof Win>[], turns: [] as { skill: string; done: boolean }[] };
-});
+const electron = fakeElectron();
+const claude = fakeClaude();
+vi.mock('electron', () => electron.module);
+vi.mock('technicals/claude', () => claude.module);
+vi.mock('technicals/paths', () => repoResources());
 
-vi.mock('electron', () => ({
-  app: { getPath: () => fake.userData },
-  BrowserWindow: class extends fake.Win { constructor() { super(); fake.windows.push(this); } },
-  screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) },
-  shell: {}, dialog: {}, clipboard: {}, nativeImage: {},
-}));
-
-// Claude Code : un tour par message reçu, relevé, qui ne finit qu'à interrupt().
-vi.mock('technicals/claude', () => ({
-  launcher: () => ({ executable: 'claude' }),
-  loadSdk: async () => ({
-    getSessionInfo: async () => null,
-    getSessionMessages: async () => [],
-    query: ({ prompt }: { prompt: AsyncIterable<{ message: { content: unknown } }> }) => {
-      let stop = () => {};
-      return Object.assign((async function* run() {
-        for await (const m of prompt) {
-          const turn = { skill: String(m.message.content).split(' ')[0], done: false };
-          fake.turns.push(turn);
-          await new Promise<void>((ok) => { stop = ok; });
-          turn.done = true;
-          yield { type: 'result', subtype: 'error_during_execution', is_error: true };
-        }
-      }()), { setPermissionMode: async () => {}, setModel: async () => {}, interrupt: async () => { stop(); } });
-    },
-  }),
-}));
-
-vi.mock('technicals/paths', async (original) => ({
-  ...await original<typeof import('technicals/paths')>(),
-  resourcePath: (name: string) => `${process.cwd()}/resources/${name}`,
-}));
-
-const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' });
-const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
-const settle = () => new Promise((r) => setTimeout(r, slow(300)));
 let dir = '';
 
 // Ce que la page reçoit : le relevé (conv:vibe) et un fichier suivi, avec ses versions (conv:vibeCode).
@@ -90,7 +30,7 @@ type Survey = {
   modules: { path: string; file: { id: string } | null; files: { id: string; path: string }[] }[];
 };
 type Code = { id: string; text: string | null; at?: { base: string | null; head: string | null } };
-const panel = () => fake.windows.at(-1)!;
+const panel = () => electron.windows.at(-1)!;
 const survey = () => panel().sent.filter(([ch]) => ch === 'conv:vibe').at(-1)![1] as Survey;
 const codes = () => panel().sent.filter(([ch]) => ch === 'conv:vibeCode').map(([, c]) => c as Code | null);
 // Tout ce que la page a reçu des fichiers suivis : textes et versions.
@@ -110,13 +50,14 @@ function testId(rel: string) {
   return f.id;
 }
 // Le texte d'un fichier du dépôt à un commit, d'après git.
-const gitText = (ref: string, rel: string) => git(dir, 'show', `${ref}:${rel}`).toString();
+const gitText = (ref: string, rel: string) => git(dir, 'show', `${ref}:${rel}`);
 // Le commit où la branche part de main.
-const forkPoint = () => git(dir, 'merge-base', 'main', 'HEAD').toString().trim();
+const forkPoint = () => git(dir, 'merge-base', 'main', 'HEAD').trim();
 
 const HELLO = 'src/core/hello/index.ts';
 const GREET = 'src/core/hello/greet.ts';
-const NOTE = 'docs/tickets/feat/0.11.0-essai.md';
+const BRANCH = 'feat/0.11.0-essai';
+const NOTE = `docs/tickets/${BRANCH}.md`;
 const INV = 'src/core/hello/tests/invariants/hello.test.ts';
 const note = (mark: string) => ['# 0.11.0 — essai', '', '## Ce que ça fait', '', `- un essai ${mark}`, '',
   '## Forme', '', '```', 'src/core/hello    hello() · ne connaît pas : le DOM', 'src/core/autre    autre() · ne connaît pas : le DOM', '```', ''].join('\n');
@@ -124,20 +65,18 @@ const note = (mark: string) => ['# 0.11.0 — essai', '', '## Ce que ça fait', 
 beforeEach(() => {
   vi.resetModules();
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] }); // le relevé des 4 s ne tourne pas
-  fake.windows = [];
-  fake.turns = [];
-  fake.userData = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-module-diff-')));
+  const root = profile('whisper-module-diff-');
   // Le dépôt : deux modules sur main ; la branche, sa note (sa Forme les nomme) et un test d'invariant, touche le premier seulement.
-  dir = path.join(fake.userData, 'projet');
-  fs.mkdirSync(dir, { recursive: true });
-  git(dir, 'init', '-q', '-b', 'main');
+  dir = path.join(root, 'projet');
+  repo(dir, { branch: BRANCH, note: note('NOTE_COMMIT') });
+  git(dir, 'checkout', '-q', 'main');
   write(path.join(dir, HELLO), 'HELLO_MAIN');
   write(path.join(dir, GREET), 'GREET_MAIN');
   write(path.join(dir, 'src/core/autre/index.ts'), 'AUTRE_TEXTE');
   git(dir, 'add', '.');
-  git(dir, 'commit', '-q', '-m', 'init');
-  git(dir, 'checkout', '-q', '-b', 'feat/0.11.0-essai');
-  write(path.join(dir, NOTE), note('NOTE_COMMIT'));
+  git(dir, 'commit', '-q', '-m', 'main');
+  git(dir, 'checkout', '-q', BRANCH);
+  git(dir, 'rebase', '-q', 'main');
   write(path.join(dir, HELLO), 'HELLO_COMMIT');
   write(path.join(dir, GREET), 'GREET_COMMIT');
   write(path.join(dir, INV), "it('INV_COMMIT', () => {});\n");
@@ -147,22 +86,13 @@ beforeEach(() => {
   write(path.join(dir, NOTE), note('NOTE_DISQUE'));
   write(path.join(dir, HELLO), 'HELLO_DISQUE');
   write(path.join(dir, INV), "it('INV_DISQUE', () => {});\n");
-  write(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
-      vibe: { flow: 'create', autonomy: 'guide', pr: null } }],
-  }));
+  writeConfig(root, [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
+    vibe: { flow: 'create', autonomy: 'guide', pr: null } }]);
 });
-afterEach(() => { vi.useRealTimers(); });
+afterEach(closeAll);
 
 // Le panneau ouvert sur l'agent, en VibeCoder, son premier relevé reçu.
-async function open() {
-  const { openConversation } = await import('app/windows');
-  const { panelReady } = await import('app/controllers');
-  openConversation('a1');
-  fake.windows.at(-1)!.emit('ready-to-show');
-  await panelReady();
-  await settle();
-}
+const open = () => openPanel('a1');
 
 // La page suit un fichier (l'accordéon déplié sur lui, la note ou un test affichés ; null : replié).
 async function follow(id: unknown) {
