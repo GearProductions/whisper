@@ -1,17 +1,11 @@
-// Invariant (SPEC I-27) : aucun programme n'est lancé par un shell. Chemins,
-// texte dicté, commande d'un agent ne sont jamais interprétés : execFile et
-// spawn, avec des arguments. Protégé : si ce test échoue, corriger le code.
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+// Règle de structure (SPEC I-27) : aucun programme n'est lancé par un shell.
+// Elle lit le code au lieu d'observer un comportement ; une retouche se signale
+// dans la PR. Chemins, texte dicté, commande d'un agent ne sont jamais
+// interprétés : execFile et spawn, avec des arguments. Ne connaît pas le
+// comportement de l'appli. Utilisée par npm test.
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-
-function sources(dir: string): [string, string][] {
-  return readdirSync(dir).flatMap((n) => {
-    const p = join(dir, n);
-    if (statSync(p).isDirectory()) return n === 'tests' ? [] : sources(p);
-    return /\.tsx?$/.test(n) ? [[p, readFileSync(p, 'utf8')] as [string, string]] : [];
-  });
-}
+import { sources } from './sources';
 
 describe('pas de shell', () => {
   const all = [...sources(resolve(__dirname, '../../src/main')), ...sources(resolve(__dirname, '../../src/preload'))];
