@@ -89,6 +89,7 @@ npm run typecheck                    # TypeScript des pages et du principal
 npm test                             # tests (npm run test:invariants : les invariants seuls)
 npm run test:front-diff -- <tag ou branche>  # la page comparée à une version (0.14.0 ou plus) : mêmes écrans, mêmes messages
 npm run test:main-diff -- <tag ou branche>   # appli réelle comparée à une version (0.14.0 ou plus) : mêmes résultats
+npm run test:contract                        # appli réelle (profil neuf, faux claude) appelée par la commande vibecoder ; à la main, comme le banc
 ```
 
 **Itérer sans attendre une release.** Lancée depuis les sources
@@ -492,10 +493,12 @@ vous avez arrêtée, non.
 La conversation est l'**orchestrateur** : elle est prévenue de la fin de
 chaque action (une ligne dans le fil, pas pour une action que vous avez
 arrêtée) ; demandez-lui « où en sont les actions ? », ou de lancer ou
-d'arrêter l'une d'elles. Une action qu'elle lance et qui doit attendre part
-d'elle-même dès que la voie est libre ; une demande refusée (action inconnue,
-pas proposée, déjà en cours…) lui est dite, avec la raison, et un argument
-que l'action ne prend pas est ignoré (l'action part, elle en est prévenue).
+d'arrêter l'une d'elles. Elle agit par la commande `vibecoder` (ci-dessous), pas
+par des fichiers. Une action qu'elle lance et qui doit attendre est mise en
+attente (la commande le répond aussitôt) et part d'elle-même dès que la voie est
+libre ; une demande refusée (action inconnue, pas proposée, déjà en cours…) lui
+est dite tout de suite, avec la raison, et un argument que l'action ne prend pas
+est ignoré (l'action part, la réponse le dit).
 Hors *Vibe*, elle ne lance rien que vous ne lui demandiez.
 
 **Les commandes.** Tout ce que VibeCoder sait faire est décrit dans une table
@@ -513,15 +516,58 @@ acceptant un chemin ou un nom avec son contenu en base64.
 **Le socket.** Au lancement, l'appli ouvre un socket TCP sur `127.0.0.1`, un port
 libre, un objet JSON par ligne : `{ "cmd", "args", "token", "target" }` en entrée
 (`target` : le chemin réel du dossier), `{ ok: true, result }` ou `{ ok: false, error }`
-en sortie. Le jeton est tiré à chaque lancement et reste en mémoire : une commande
-sans lui est refusée (`bad-token`), et une ligne qui n'est pas une commande — une
-requête d'un navigateur, par exemple — ferme la connexion. **Les boutons de l'écran
+en sortie. Le jeton de l'écran est tiré à chaque lancement et reste en mémoire : une
+commande sans un jeton connu est refusée (`bad-token`), et une ligne qui n'est pas
+une commande — une requête d'un navigateur, par exemple — ferme la connexion. **Les boutons de l'écran
 passent par ce socket** : l'appli est le client de sa propre porte, et un bouton
-refuse (« Socket indisponible ») plutôt que de passer outre. Les agents n'y ont pas
-encore accès ; la boîte aux lettres de l'agent principal ne change pas.
-`~/.config/whisper-dictation/live.json` dit le port (`{ "port": … }`, jamais le jeton),
-il est supprimé à la sortie ; la version de dev et l'AppImage, qui ne tournent pas
-en même temps, s'y retrouvent.
+refuse (« Socket indisponible ») plutôt que de passer outre. Les agents y passent
+aussi, par la commande `vibecoder` (ci-dessous), avec leur propre jeton.
+`~/.config/whisper-dictation/live.json` dit le port et le pid (`{ "port": …, "pid": … }`),
+jamais le jeton de l'écran, plus le jeton des agents extérieurs tant que ce réglage est
+activé (ci-dessous) ; il est supprimé à la sortie ; la version de dev et l'AppImage, qui
+ne tournent pas en même temps, s'y retrouvent.
+
+**La commande `vibecoder`.** Le client du socket pour les agents, un script node livré
+avec le plugin : l'agent principal et ses courses l'appellent d'eux-mêmes (le robot a
+son port et son jeton dans son environnement), et un Claude Code lancé dans un terminal
+peut l'appeler aussi, depuis le dossier de son projet.
+
+```bash
+vibecoder status                       # où j'en suis : la branche, l'étape, ce qui court
+vibecoder next                         # les actions proposées, et pourquoi les autres sont grisées
+vibecoder run start forme              # lancer une action ; en attente si une autre tient le dossier
+vibecoder run wait forme               # rend la main à la fin de la course
+vibecoder run list | run stop <action>
+vibecoder proc list | proc logs <nom> | proc restart <nom> | proc stop <nom>
+vibecoder draft.add target=… text=…    # toute commande de la table : <commande> [clé=valeur…]
+vibecoder commands | schema <commande> # la table, sans l'appli ; --json : une ligne
+```
+
+Code de sortie : 0 si tout va bien (une demande mise en attente aussi, et le texte le
+dit), 1 un refus (le code, le message et ce qu'il faut faire) ou l'appli injoignable,
+2 un usage faux ; jamais de question.
+
+Pour l'appeler depuis un terminal sans écrire son chemin, un lien dans `~/.local/bin`
+(`ln -s` crée un raccourci : taper `vibecoder` lance alors le script, de n'importe quel
+dossier ; il faut `node` dans le `PATH`) :
+
+```bash
+mkdir -p ~/.local/bin
+ln -s ~/.config/whisper-dictation/vibecoder/plugin/bin/vibecoder.mjs ~/.local/bin/vibecoder
+```
+
+C'est le même chemin pour l'AppImage et pour la version de dev (les données de l'appli,
+`userData`) ; il existe après le premier lancement de l'appli, qui rend aussi le script
+exécutable. Sous Windows, pas de lien : `node %APPDATA%\whisper-dictation\vibecoder\plugin\bin\vibecoder.mjs status`.
+
+**Les agents extérieurs** (un Claude Code lancé dans un terminal, hors de l'appli) sont
+**désactivés par défaut** : *⚙ Réglages* → *Agents* → *Autoriser les agents
+extérieurs*. Activé, `live.json` porte un jeton « extérieur » (écrit seulement tant que le
+réglage est activé) et la commande agit sur le robot du dossier où on la lance (le robot
+affiché s'il est sur ce dossier, sinon le premier ; un sous-dossier compte ; aucun robot
+dans ce dossier : refusé) : tout ce que fait l'écran, sauf répondre aux demandes
+d'autorisation, changer les réglages et faire confiance à un projet. Un robot, lui, n'agit
+que sur lui-même et ne lit jamais `live.json`.
 
 Une erreur est une donnée sans langue : un code, des détails, un message et ce qu'il
 faut faire, en anglais ; c'est l'appelant qui l'interprète. Les codes (`errors`
@@ -1144,6 +1190,7 @@ confirmée.
 | `actionModels`, `actionEfforts` | Le modèle et l'effort choisis par action, `{ "<id de l'action>": "sonnet" }` (jamais Fable) |
 | `vibeSize`   | Taille de la fenêtre (retenue au redimensionnement)             |
 | `vibeCommandPrefix` | VibeCoder : ce qui précède les commandes du projet et `gh` (vide : `distrobox enter <box> --` tiré de `agentCommand`, sinon rien) ; ex. `toolbox run -c dev` |
+| `outsideAgents` | VibeCoder : autoriser un Claude Code lancé dans un terminal à piloter le robot de son dossier par la commande `vibecoder` (`false` par défaut) |
 | `artifactTextMax` | VibeCoder : taille (octets) au-delà de laquelle un artefact affiché en texte est coupé (10 Mo par défaut) |
 | `muteOthers` | Couper le son des autres applications pendant l'enregistrement   |
 | `discordMute`| Couper le micro Discord pendant l'enregistrement                 |

@@ -15,7 +15,9 @@ l'appli.
 | Fichier | Rôle |
 |---|---|
 | `actions.fr.json`, `actions.en.json` | les boutons, dans l'ordre d'affichage, pour chaque langue de l'écran (*FR* / *EN*) |
+| `commands.json` | la table des commandes de VibeCoder (nom, arguments, réponse, ouverte ou non aux agents) : ce que lit la commande `vibecoder` pour `commands` et `schema` |
 | `plugin/.claude-plugin/plugin.json` | le plugin `vibecoder` que l'appli donne à Claude Code |
+| `plugin/bin/vibecoder.mjs`, `plugin/bin/cli.mjs` | la commande `vibecoder`, que les skills appellent (`node "${CLAUDE_SKILL_DIR}/../../bin/vibecoder.mjs" …`) : un client du socket de l'appli, en JS lancé par node, sans construction ; `cli.mjs` en est le pur (la ligne de commande, la réponse). Lien dans `~/.local/bin` : voir le README du dépôt |
 | `plugin/skills/<nom>/SKILL.md` | un skill : son modèle, son effort, ses instructions |
 | `plugin/skills/<nom>--<modèle>/SKILL.md` | une variante générée d'un skill, sur un autre modèle (voir plus bas) : réécrite à chaque démarrage |
 | `projets/<dossier>.json` | l'ancien fichier du projet d'un dossier, d'avant la 0.12.0 : recopié dans `.vibecoder/project.json` du dossier (voir plus bas), gardé, sans effet ensuite |
@@ -51,25 +53,27 @@ n'a pas encore de sens (pas de note, pas de commit préparé, pas de PR…)
 n'est pas affiché.
 
 La conversation (l'orchestrateur, skill `actions`) suit et commande les
-actions par des fichiers de `{{out}}` :
+actions par la commande `vibecoder` (`plugin/bin/`), qui parle à l'appli par son
+socket : plus de fichier de `{{out}}`.
 
-| Fichier | Rôle |
+| Commande | Rôle |
 |---|---|
-| `actions.json` | l'état, réécrit par l'appli : `{ actions: [{id, label, reads}], runs: [{id, label, state, reads, since, end, reply}], waiting: [{id, reason}] }` ; `state` : `running`, `asking`, `stopped` (arrêtée, à garder ou annuler), `done` (son tour fini et plus de tâche de fond, sans limite de temps), `failed`, `kept`, `undone` |
-| `actions/<id>.start` | demande de lancement : un objet JSON de ses arguments (`text`, `module`, `commit`, `file`, `pr`, `check`, `model`, `effort`, `answers`), `{}` sans argument |
-| `actions/<id>.stop` | vide : demande d'arrêt |
+| `vibecoder status`, `run list` | l'état : l'étape, ce qui court ; les courses (`state` : `running`, `asking`, `stopped` — arrêtée, à garder ou annuler —, `done` — son tour fini et plus de tâche de fond, sans limite de temps —, `failed`, `kept`, `undone`), puis les demandes en attente (`queued`, avec `by`) |
+| `vibecoder run start <id> [clé=valeur…]` | demande de lancement, avec ses arguments (`text`, `module`, `commit`, `file`, `pr`, `check`, `model`, `effort`, `answers`) |
+| `vibecoder run stop <id>` | demande d'arrêt |
+| `vibecoder run wait <id>` | garde la connexion jusqu'à la fin de la course (lancé en tâche de fond, il réveille l'agent) |
 
-L'appli supprime une demande une fois appliquée ; un lancement qui doit
-attendre reste en place, en attente (`waiting`), et part de lui-même dès que la
-voie est libre. À la fin de chaque action, la conversation reçoit une ligne
-« VibeCoder : « <libellé> » … État : `{{out}}`/actions.json » (pas pour une
-action arrêtée). Une demande que l'appli ne lance ni ne met en attente
-(illisible, inconnue, pas proposée, déjà en cours, argument invalide, ou
-*Vibe* arrêté par l'utilisateur : tout lancement, jusqu'au repos) est
-supprimée, et la conversation reçoit « VibeCoder : demande <id> refusée —
-<raison> » ; un argument que l'action ne lit pas (ou un modèle ou un effort
-qu'elle ne propose pas) ne la fait pas refuser : elle part, avec l'avis « … partie,
-arguments ignorés : <noms> ».
+Un lancement qui doit attendre une autre action est mis en attente : la commande
+répond aussitôt `{ queued: true, by }` (code de sortie 0), et l'appli le lance
+d'elle-même dès que la voie est libre. À la fin de chaque action, la conversation
+reçoit une ligne « VibeCoder : « <libellé> » … » (pas pour une action arrêtée). Une
+demande que l'appli ne lance ni ne met en attente (inconnue, pas proposée, déjà
+en cours, argument invalide, ou *Vibe* arrêté par l'utilisateur : tout lancement,
+jusqu'au repos) est refusée tout de suite : la commande sort en 1 avec la raison ;
+un argument que l'action ne lit pas (ou un modèle ou un effort qu'elle ne propose
+pas) ne la fait pas refuser : elle part, et la réponse dit « arguments ignorés :
+<noms> ». (Les fichiers `actions.json`, `actions/<id>.start`, `.stop` et
+`run/<nom>.stop`, `.restart` de l'ancienne boîte aux lettres ne sont plus lus.)
 
 **Ce qui se personnalise : `label`, `hint` et `text`** (le libellé, l'aide, le
 message). Les `id` livrés sont un contrat : l'écran et le parcours s'appuient
@@ -250,13 +254,13 @@ sinon.
 | `invariants` | sous-contexte | opus · high | `align.md` (suit `aligner`) |
 | `lire-invariants` | sous-contexte | sonnet · medium | `invariants/<blob>.md` |
 | `aligner` | sous-contexte | opus · high | `align.md` |
-| `module` | sous-contexte | sonnet · high | `actions/review-diff.start` (le module écrit, sauf lancé par `modules`) |
+| `module` | sous-contexte | sonnet · high | `vibecoder run start review-diff` (le module écrit, sauf lancé par `modules`) |
 | `modules` | conversation | opus · high, sous-agents `developpeur` sonnet · high (opus au second échec) | — (ne commite pas) |
 | `commiter-modules` | sous-contexte | sonnet · medium | — (un module, ou tous ceux qui ont des changements : un commit chacun, un fixup pour un module déjà commité) |
 | `relire` | sous-contexte | opus · high | `review.md` |
 | `commit-preparer` | sous-contexte | sonnet · low | `commit.md` |
 | `commit` | sous-contexte | haiku · low | (supprime `commit.md`) |
-| `verifier` | sous-contexte | haiku · low | `actions/ponytail.start` (toutes les vérifications seulement), `checks.json` |
+| `verifier` | sous-contexte | haiku · low | `vibecoder run start ponytail` (toutes les vérifications seulement), `checks.json` |
 | `ponytail` | sous-contexte | opus · high | `ponytail.md` |
 | `appliquer-revue` | conversation | sonnet · high | `ponytail-applied.json` |
 | `fixups` | sous-contexte | sonnet · medium | — |
@@ -270,11 +274,11 @@ sinon.
 | `relire-commits` | sous-contexte | opus · high | `pr-<n>-commits.md` |
 | `ecran` | sous-contexte | sonnet · medium | `ecran.md` |
 | `publier-revue` | sous-contexte | haiku · low | `pr-<n>-review.json` |
-| `vibe` | conversation | agent ; *Vibe* : reprend à la première étape pas faite et enchaîne les actions | `actions/<id>.start` |
-| `actions` | conversation (l'agent l'appelle de lui-même) | agent | `actions/<id>.start`, `actions/<id>.stop` |
+| `vibe` | conversation | agent ; *Vibe* : reprend à la première étape pas faite et enchaîne les actions | `vibecoder run start <id>` |
+| `actions` | conversation (l'agent l'appelle de lui-même) | agent | `vibecoder run start`, `run stop`, `run wait`, `run list` |
 | `nouvelle-demande` | sous-contexte | haiku · low | `new-request.json` (`{ "branch" }` : le nom proposé pour la branche d'une nouvelle demande, ou de *Rédiger la note* sur la branche principale ; l'appli le montre prérempli, l'utilisateur le valide ou le change, puis la crée ici ou dans un worktree ; la demande n'y est pas) |
 | `lancement` | sous-contexte | haiku · low | `lancement.json` (les commandes ; `setup` et `worktree`, une seule fois par projet) |
-| `processus` | conversation (l'agent l'appelle de lui-même) | agent | `run/<nom>.stop`, `run/<nom>.restart` |
+| `processus` | conversation (l'agent l'appelle de lui-même) | agent | `vibecoder proc list`, `proc logs`, `proc stop`, `proc restart` |
 | `artefact` | conversation (l'agent l'appelle de lui-même, sans bouton ; aussi par « / ») | agent | `<artefacts>/<nom>` (un fichier par artefact, montré dans le panneau *Artefacts* ; jamais le projet) |
 
 `<artefacts>` : `userData/vibecoder-artifacts/<projet>/`, **un seul dossier par
