@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockedBy, codeLock, lockCode, REQUEST_ARGS, cutCommands, cutLine, endNotice, ownRun, parseRequest, remainingModules, requestNotice, runKey, runModule, runPhase, runsFile, runTasks, runViews, type ActionDef, type Run } from 'core/vibecoder';
+import { blockedBy, codeLock, lockCode, REQUEST_ARGS, cutCommands, cutLine, endNotice, ownRun, remainingModules, runKey, runModule, runPhase, runTasks, runViews, type ActionDef, type Run } from 'core/vibecoder';
 
 const A = (id: string, step: ActionDef['step'], reads = false, kind: ActionDef['kind'] = 'send'): ActionDef =>
   ({ id, flow: 'create', step, kind, needs: 'none', label: `L-${id}`, hint: '', text: `/vibecoder:${id}`, reads });
@@ -70,12 +70,10 @@ describe('blockedBy : le texte de lockCode, fr et en', () => {
   });
 });
 
-describe('parseRequest : verdict', () => {
-  it('gardé s\'il est l\'un des trois, écarté sinon ; REQUEST_ARGS le contient', () => {
-    expect(['approve', 'comment', 'request-changes'].map((v) => parseRequest('review.start', JSON.stringify({ verdict: v }))?.args))
-      .toEqual([{ verdict: 'approve' }, { verdict: 'comment' }, { verdict: 'request-changes' }]);
-    expect([JSON.stringify({ verdict: 'merge' }), JSON.stringify({ verdict: 1 })].map((t) => parseRequest('review.start', t)?.args)).toEqual([{}, {}]);
+describe('REQUEST_ARGS : le schéma de run.start', () => {
+  it('les clés qu\'un run.start garde, verdict compris ; jamais direct', () => {
     expect(REQUEST_ARGS).toContain('verdict');
+    expect(REQUEST_ARGS).not.toContain('direct');
   });
 });
 
@@ -98,79 +96,20 @@ describe('runViews : progress', () => {
   });
 });
 
-describe('parseRequest : effort', () => {
-  it('l\'effort (texte) est gardé, un autre type ignoré', () => {
-    expect(parseRequest('forme.start', '{"effort":"high"}')?.args).toEqual({ effort: 'high' });
-    expect(parseRequest('forme.start', '{"effort":3}')?.args).toEqual({});
-  });
-});
-
-describe('runsFile : actions.json', () => {
-  it('les actions qui courent à part, les courses, les demandes retenues', () => {
-    const file = JSON.parse(runsFile([run('forme', { reply: 'fait' })], DEFS, [{ id: 'ponytail', reason: 'Une action modifie la branche' }]));
-    expect(file).toEqual({
-      actions: [{ id: 'forme', label: 'L-forme', reads: false }, { id: 'ponytail', label: 'L-ponytail', reads: true },
-        { id: 'checks', label: 'L-checks', reads: true }],
-      runs: [{ id: 'forme', label: 'L-forme', state: 'running', reads: false, since: 1, end: null, reply: 'fait' }],
-      waiting: [{ id: 'ponytail', reason: 'Une action modifie la branche' }],
-    });
-  });
-});
-
 describe('endNotice : l\'avis de fin', () => {
-  it('terminée, sa réponse sur une ligne (sans point doublé), où lire l\'état', () => {
-    expect(endNotice(run('forme', { state: 'done', reply: 'Forme posée.\n\nTrois modules.' }), FORME, 'fr', '/o'))
-      .toBe('VibeCoder : « L-forme » terminée — Forme posée. Trois modules. État : /o/actions.json');
+  it('terminée, sa réponse sur une ligne (sans point doublé), rien d\'un fichier à lire', () => {
+    expect(endNotice(run('forme', { state: 'done', reply: 'Forme posée.\n\nTrois modules.' }), FORME, 'fr'))
+      .toBe('VibeCoder : « L-forme » terminée — Forme posée. Trois modules.');
   });
 
   it('en échec ; en anglais ; sans réponse', () => {
-    expect([endNotice(run('forme', { state: 'failed' }), FORME, 'fr', '/o'), endNotice(run('forme', { state: 'done' }), FORME, 'en', '/o')])
-      .toEqual(['VibeCoder : « L-forme » en échec. État : /o/actions.json', 'VibeCoder: “L-forme” finished. State: /o/actions.json']);
+    expect([endNotice(run('forme', { state: 'failed' }), FORME, 'fr'), endNotice(run('forme', { state: 'done' }), FORME, 'en')])
+      .toEqual(['VibeCoder : « L-forme » en échec.', 'VibeCoder: “L-forme” finished.']);
   });
 
   it('une longue réponse : 300 caractères au plus', () => {
-    const notice = endNotice(run('forme', { state: 'done', reply: 'x'.repeat(1000) }), FORME, 'fr', '/o');
-    expect(notice).toContain(` — ${'x'.repeat(299)}… État`);
-  });
-});
-
-describe('parseRequest : une demande de l\'orchestrateur', () => {
-  it('<id>.start et <id>.stop ; texte vide : aucun argument', () => {
-    expect([parseRequest('forme.start', ''), parseRequest('forme.stop', 'n\'importe quoi')])
-      .toEqual([{ id: 'forme', op: 'start', args: {} }, { id: 'forme', op: 'stop', args: {} }]);
-  });
-
-  it('un autre nom : null', () => {
-    expect(['forme', 'forme.restart', '../x.start', 'Forme.start', 'a/b.stop'].map((n) => parseRequest(n, ''))).toEqual([null, null, null, null, null]);
-  });
-
-  it('JSON illisible ou pas un objet : null', () => {
-    expect(['{', '[]', 'null', '"x"'].map((t) => parseRequest('forme.start', t))).toEqual([null, null, null, null]);
-  });
-
-  it('seulement les arguments connus, de leur type ; jamais direct', () => {
-    const args = { text: 't', module: 2, commit: 'abc', file: '*', pr: 7, model: 'sonnet', check: 0, answers: ['a', ''], direct: true };
-    expect(parseRequest('module.start', JSON.stringify(args))?.args)
-      .toEqual({ text: 't', module: 2, commit: 'abc', file: '*', pr: 7, model: 'sonnet', check: 0, answers: ['a', ''] });
-    expect(parseRequest('module.start', JSON.stringify({ module: 1.5, pr: '7', answers: [1], text: 3, check: '2' }))?.args).toEqual({});
-  });
-});
-
-describe('requestNotice : l\'avis d\'une demande', () => {
-  it('refusée, sa raison ; partie, les arguments ignorés ; en anglais', () => {
-    expect([
-      requestNotice('forme', { refused: 'Une autre action est en cours' }, 'fr'),
-      requestNotice('modules', { ignored: ['model'] }, 'fr'),
-      requestNotice('modules', { ignored: ['model', 'pr'] }, 'en'),
-      requestNotice('forme', { refused: 'same' }, 'en'),
-      requestNotice('modules', { refused: 'halted' }, 'fr'),
-    ]).toEqual([
-      'VibeCoder : demande forme refusée — Une autre action est en cours',
-      'VibeCoder : demande modules partie, arguments ignorés : model',
-      'VibeCoder: request modules started, ignored arguments: model, pr',
-      'VibeCoder: request forme refused — This action is already running',
-      'VibeCoder : demande modules refusée — le mode Vibe a été arrêté par l’utilisateur : ne lance plus rien',
-    ]);
+    const notice = endNotice(run('forme', { state: 'done', reply: 'x'.repeat(1000) }), FORME, 'fr');
+    expect(notice).toBe(`VibeCoder : « L-forme » terminée — ${'x'.repeat(299)}…`);
   });
 });
 

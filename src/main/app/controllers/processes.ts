@@ -18,9 +18,8 @@
  *  n'existe pas ; s'il existe, seules ses commandes de nom nouveau, et son
  *  setup, son worktree si le fichier n'en a pas, s'y ajoutent (core/runner
  *  mergeProject ; rien de nouveau : pas réécrit) ; la
- *  proposition supprimée dans les deux cas ; les demandes de l'agent
- *  (<sorties>/run/<nom>.stop, .restart, pour un nom du fichier) sont faites
- *  (applyOp, aussi processOp : start, stop, restart par nom, sans question),
+ *  proposition supprimée dans les deux cas ; processOp (start, stop, restart par
+ *  nom, sans question : applyOp, pour l'exécuteur) ; plus de demande par fichier (<sorties>/run/<nom>.stop, .restart : 0.15.0),
  *  une commande retirée du fichier est arrêtée ; l'état et la fin du journal
  *  de chaque commande ; si le fichier a un setup ; la recette de la famille
  *  (controllers/recipe recipeView). Ce que demande la page : une commande par son rang
@@ -32,8 +31,8 @@
  *  l'attendre ; un fichier sans setup : rien). Une commande ne tourne qu'à un endroit par famille (core/family
  *  heldBy) : depuis la page, la boîte de dialogue « <nom> tourne dans
  *  <branche> : l'arrêter et le lancer ici ? » (Oui : arrêtée là-bas, puis
- *  envoyée ; Non : rien d'envoyé) ; une demande .restart de l'agent retenue
- *  ailleurs : pas lancée. Quitter arrête tout ce qui a été lancé
+ *  envoyée ; Non : rien d'envoyé) ; un proc.restart de l'agent retenu
+ *  ailleurs : pas lancé. Quitter arrête tout ce qui a été lancé
  *  (app/lifecycle) ; retirer un agent, ses commandes (I-47). Un échec ne bloque pas le relevé (I-29).
  *  Ne connaît pas : la page (seulement ses demandes), les fenêtres (la boîte
  *  de dialogue sans parent), git (la branche lue sur le disque), le socket
@@ -49,7 +48,7 @@ import { dialog } from 'electron';
 import type { AgentConfig } from 'core/agents';
 import { agentList, vibeLang, type Config } from 'core/config';
 import { branchOf, familyOwner, heldBy } from 'core/family';
-import { agentSidePrefix, commandAt, commandPrefix, logTail, mergeProject, parseProject, projectPath, projectSlug, projectText, requestsOf, withExclude, type Project } from 'core/runner';
+import { agentSidePrefix, commandAt, commandPrefix, logTail, mergeProject, parseProject, projectPath, projectSlug, projectText, withExclude, type Project } from 'core/runner';
 import { findEditor } from 'technicals/editor';
 import { createProcesses, readTail, writeNew } from 'technicals/process';
 import { vibeDir, vibeOutDir } from 'app/settings';
@@ -149,7 +148,7 @@ export const agentPrefix = (agent: AgentConfig, cfg: Config) =>
 export const promptPrefix = (agent: AgentConfig, cfg: Config) =>
   agentSidePrefix(projectOf(agent, cfg), cfg.vibeCommandPrefix, cfg.agentCommand).join(' ');
 
-// Au relevé : la proposition adoptée (ou fusionnée), les demandes de l'agent, l'état de chaque commande.
+// Au relevé : la proposition adoptée (ou fusionnée), l'état de chaque commande.
 // Sans dossier du parent : aucune commande (celles qui tournaient, arrêtées).
 export function processView(agent: AgentConfig, cfg: Config): { processes: VibeProcess[]; projectFile: boolean; setup: boolean; recipe: VibeRecipe | null } {
   try {
@@ -163,12 +162,6 @@ export function processView(agent: AgentConfig, cfg: Config): { processes: VibeP
       fs.rmSync(path.join(out, 'lancement.json'), { force: true });
     }
     const p = readProject(file);
-    let files: string[] = [];
-    try { files = fs.readdirSync(path.join(out, 'run')); } catch { /* rien de lancé */ }
-    for (const r of requestsOf(files, p)) {
-      fs.rmSync(path.join(out, 'run', r.file), { force: true });
-      void applyOp(agent, cfg, p, r.name, r.op);
-    }
     const names = new Set(p?.commands.map((c) => c.name));
     for (const k of procs.keys()) {
       if (k.startsWith(`${agent.id}/`) && !names.has(k.slice(agent.id.length + 1)) && procs.state(k)?.status === 'running') procs.stop(k);

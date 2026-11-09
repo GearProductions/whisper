@@ -1,12 +1,10 @@
-// Le principal réel démarré sans fenêtre : le socket ouvert comme au lancement, le panneau ouvert, un
-// bouton de l'écran, la boîte aux lettres de l'orchestrateur, l'attente du relevé, la fermeture.
+// Le principal réel démarré sans fenêtre : les canaux de la page et le socket ouverts comme au lancement, le panneau ouvert, un
+// bouton de l'écran, les demandes de l'orchestrateur (par la porte de son robot), l'attente du relevé, la fermeture.
 // Ne connaît pas : ce que vérifient les tests (aucun expect, aucun témoin).
 // Utilisé par : le barrel (harness). Les imports de l'appli sont dynamiques : après vi.resetModules() du cas.
-import path from 'node:path';
 import { vi } from 'vitest';
 import { slow } from 'app/controllers/tests/slow';
 import { windows, type FakeWin } from './electron';
-import { write } from './profile';
 
 let closeSocket = () => {};
 
@@ -17,6 +15,7 @@ export const settle = (ms = 300): Promise<void> => new Promise((r) => setTimeout
 export async function openPanel(agentId: string): Promise<FakeWin> {
   const { openConversation } = await import('app/windows');
   const { panelReady, openSocket, commandFromSocket, closeSocket: close } = await import('app/controllers');
+  (await import('app/ipc')).registerIpc();   // les canaux de la page, comme au lancement (les réglages changés par la page)
   await openSocket(commandFromSocket);
   closeSocket = close;
   openConversation(agentId);
@@ -33,11 +32,16 @@ export async function click(id: string, args: object = {}): Promise<void> {
   runVibeAction(id, args);
 }
 
-// La boîte aux lettres : l'orchestrateur demande des actions (son skill écrit <sorties>/actions/<id>.start),
-// puis un relevé les lit. Le seul endroit que la CLI retouchera.
+// L'orchestrateur demande des actions comme le fait sa CLI : run.start par la porte du robot dont <out> est le dossier de
+// sorties (le jeton d'un robot : l'appelant, commandFromSocket), une demande après l'autre ; puis un relevé. Le seul endroit
+// que la CLI retouche.
 export async function orchestratorAsks(out: string, ...ids: string[]): Promise<void> {
-  const { refreshVibe } = await import('app/controllers');
-  for (const id of ids) write(path.join(out, 'actions', `${id}.start`), '{}');
+  const { commandFromSocket, refreshVibe } = await import('app/controllers');
+  const { agentList } = await import('core/config');
+  const { loadConfig, vibeOutDir } = await import('app/settings');
+  const robot = agentList(loadConfig()).find((a) => vibeOutDir(a.id) === out);
+  if (!robot) throw new Error(`aucun robot ne sort dans ${out}`);
+  for (const id of ids) await commandFromSocket({ cmd: 'run.start', args: { action: id }, token: '', target: '' }, robot.id);
   await refreshVibe({ now: true });
   await settle();
 }

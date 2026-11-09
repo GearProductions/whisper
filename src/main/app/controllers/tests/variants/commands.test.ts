@@ -14,8 +14,9 @@ import type { VibeView } from 'shared/bridge';
 const fake = vi.hoisted(() => ({
   userData: '',
   view: null as unknown,
-  start: vi.fn(), direct: vi.fn(), refresh: vi.fn(), run: vi.fn(), vibeStart: vi.fn(), proc: vi.fn(), artifact: vi.fn(), draft: vi.fn(),
+  start: vi.fn(), survey: vi.fn(), queue: vi.fn(), direct: vi.fn(), refresh: vi.fn(), run: vi.fn(), vibeStart: vi.fn(), proc: vi.fn(), artifact: vi.fn(), draft: vi.fn(),
   shown: null as unknown,   // le robot affiché (viewAgent)
+  halted: false,            // le mode Vibe du robot est arrêté (vibeHalted)
 }));
 vi.mock('electron', () => ({ app: { getPath: () => fake.userData } }));
 vi.mock('technicals/paths', async (original) => ({
@@ -23,11 +24,11 @@ vi.mock('technicals/paths', async (original) => ({
   resourcePath: (name: string) => `${process.cwd()}/resources/${name}`,
 }));
 vi.mock('app/controllers/vibecoder', () => ({
-  lastView: () => fake.view, startAction: fake.start, runDirect: fake.direct, refreshVibe: fake.refresh, editDraft: fake.draft,
+  lastView: () => fake.view, surveyAgent: fake.survey, startAction: fake.start, runDirect: fake.direct, refreshVibe: fake.refresh, editDraft: fake.draft,
 }));
 vi.mock('app/controllers/artifacts', () => ({ readArtifact: fake.artifact }));
 vi.mock('app/controllers/agents', () => ({ viewAgent: () => fake.shown, real: (d: string) => { try { return fs.realpathSync.native(d); } catch { return null; } } }));
-vi.mock('app/controllers/runs', () => ({ runOp: fake.run, vibeStart: fake.vibeStart }));
+vi.mock('app/controllers/runs', () => ({ runOp: fake.run, afterStart: (a: unknown, id: string) => { if (id === 'vibe') fake.vibeStart(a); fake.refresh({ now: true }); }, queueStart: fake.queue, queuedOf: () => [], runEnd: async () => null, vibeHalted: () => fake.halted }));
 vi.mock('app/controllers/processes', () => ({ processOp: fake.proc }));
 
 const { runCommand, commandFromSocket } = await import('app/controllers/commands');
@@ -42,7 +43,8 @@ beforeEach(() => {
   fake.userData = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-commands-'));
   fake.view = view;
   fake.shown = null;
-  for (const f of [fake.start, fake.direct, fake.refresh, fake.run, fake.vibeStart, fake.proc, fake.artifact, fake.draft]) f.mockReset();
+  fake.halted = false;
+  for (const f of [fake.start, fake.survey, fake.queue, fake.direct, fake.refresh, fake.run, fake.vibeStart, fake.proc, fake.artifact, fake.draft]) f.mockReset();
   fake.artifact.mockResolvedValue({ name: 'a.md', kind: 'markdown', text: 'x', truncated: false });
   fake.draft.mockReturnValue({ ok: true });
   fake.start.mockReturnValue({ ok: true });
@@ -106,12 +108,12 @@ describe('runCommand', () => {
 });
 
 describe('runCommand : l\'état relu, le robot absent, les opérations nouvelles', () => {
-  it('une écriture : refreshVibe fresh attendu avant execute ; une lecture : sans', async () => {
+  it('une écriture : le robot relevé (surveyAgent) attendu avant execute ; une lecture : sans', async () => {
     let order: string[] = [];
-    fake.refresh.mockImplementation(async (o: object) => { order.push(`refresh ${JSON.stringify(o)}`); });
+    fake.survey.mockImplementation(async () => { order.push('survey'); });
     fake.start.mockImplementation(() => { order.push('start'); return { ok: true }; });
     await runCommand(agent, { command: 'run.start', args: { action: 'forme' }, door: 'agent' });
-    expect(order.slice(0, 2)).toEqual(['refresh {"fresh":true}', 'start']);
+    expect(order.slice(0, 2)).toEqual(['survey', 'start']);
     order = [];
     await runCommand(agent, { command: 'status', door: 'agent' });
     expect(order).toEqual([]);
@@ -176,5 +178,144 @@ describe('commandFromSocket : le robot de la cible, porte écran', () => {
     robots([d]);
     await commandFromSocket({ cmd: 'run.allow', args: { action: 'forme' }, token: 't', target: d });
     expect(fake.run).toHaveBeenCalledWith(expect.objectContaining({ dir: d }), 'forme', 'allow');
+  });
+});
+
+describe('commandFromSocket : les portes, robot et extérieur', () => {
+  const env = (target: string, cmd = 'run.start') => ({ cmd, args: cmd === 'run.start' ? { action: 'forme' } : {}, token: 't', target });
+  const dir = () => fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-door-')));
+  const config = (dirs: string[], extra: object = {}) => {
+    const list = dirs.map((d, i) => ({ ...agent, id: `r${i}`, dir: d }));
+    fs.writeFileSync(path.join(fake.userData, 'config.json'), JSON.stringify({ agents: list, ...extra }));
+    return list;
+  };
+
+  it('jeton d’un robot depuis le dossier d’un autre : agit sur le sien, relevé d’abord', async () => {
+    const [d0, d1] = [dir(), dir()];
+    config([d0, d1]);
+
+    await commandFromSocket(env(d0), 'r1');
+
+    expect(fake.survey.mock.calls.map((c) => c[0].id)).toEqual(['r1']);
+    expect(fake.start.mock.calls[0][0]).toMatchObject({ id: 'r1' });
+  });
+
+  it('extérieur dans un sous-dossier d’un robot non affiché : son relevé, sa réponse ; dans un dossier sans robot : no-survey', async () => {
+    const d = dir();
+    fs.mkdirSync(path.join(d, 'sous'));
+    config([d, dir()], { outsideAgents: true });
+    fake.shown = { ...agent, id: 'r1', dir: '/ailleurs' };
+
+    const res = await commandFromSocket(env(path.join(d, 'sous'), 'status'), 'outside');
+    const none = await commandFromSocket(env(dir(), 'status'), 'outside');
+
+    expect(fake.survey.mock.calls.map((c) => c[0].id)).toEqual(['r0']);
+    expect(res).toMatchObject({ ok: true, result: { flow: 'create' } });
+    expect(none).toMatchObject({ ok: false, error: { code: 'no-survey' } });
+  });
+
+  it('extérieur, réglage désactivé : bad-token, rien d’appelé', async () => {
+    const d = dir();
+    config([d]);
+
+    const res = await commandFromSocket(env(d), 'outside');
+
+    expect(res).toMatchObject({ ok: false, error: { code: 'bad-token' } });
+    expect(fake.survey).not.toHaveBeenCalled();
+    expect(fake.start).not.toHaveBeenCalled();
+  });
+
+  it('un jeton de robot inconnu de la config : bad-token', async () => {
+    const d = dir();
+    config([d]);
+
+    expect(await commandFromSocket(env(d), 'fantome')).toMatchObject({ ok: false, error: { code: 'bad-token' } });
+  });
+
+  it('écran : un seul relevé, celui de l\'écriture (run.allow passe)', async () => {
+    const d = dir();
+    config([d]);
+
+    await commandFromSocket({ cmd: 'run.allow', args: { action: 'forme' }, token: 't', target: d }, 'screen');
+
+    expect(fake.survey).toHaveBeenCalledTimes(1);
+    expect(fake.run).toHaveBeenCalledWith(expect.objectContaining({ id: 'r0' }), 'forme', 'allow');
+  });
+
+  it('deux run.start par la porte agent : la seconde en attente (queued, by) ; par l’écran : refusée busy', async () => {
+    const d = dir();
+    config([d]);
+    fake.start.mockReturnValueOnce({ ok: true }).mockReturnValue({ ok: false, error: 'non', reason: 'busy', by: 'forme' });
+
+    const first = await commandFromSocket(env(d), 'r0');
+    const second = await commandFromSocket(env(d), 'r0');
+    const screen = await commandFromSocket(env(d), 'screen');
+
+    expect(first.ok).toBe(true);
+    expect(second).toEqual({ ok: true, result: { queued: true, by: 'forme' } });
+    expect(fake.queue).toHaveBeenCalledTimes(1);
+    expect(fake.queue).toHaveBeenCalledWith(expect.objectContaining({ id: 'r0' }), 'forme', {}, 'forme');
+    expect(screen).toMatchObject({ ok: false, error: { code: 'busy' } });
+  });
+
+  it('changing et une commande de départ (vibe) à la porte agent : en attente aussi', async () => {
+    const d = dir();
+    config([d]);
+    fake.start.mockReturnValue({ ok: false, error: 'non', reason: 'changing', by: 'ponytail' });
+
+    const res = await commandFromSocket(env(d, 'vibe'), 'r0');
+
+    expect(res).toEqual({ ok: true, result: { queued: true, by: 'ponytail' } });
+    expect(fake.queue).toHaveBeenCalledWith(expect.objectContaining({ id: 'r0' }), 'vibe', expect.anything(), 'ponytail');
+  });
+
+  it.each([
+    ['same', { ok: false, error: 'x', reason: 'same', by: 'forme' }, 'same'],
+    ['disabled', { ok: false, error: 'x', reason: 'disabled' }, 'disabled'],
+    ['invalid-args', { ok: false, error: 'x', reason: 'args' }, 'invalid-args'],
+  ])('%s à la porte agent : refusé tout de suite, rien en attente', async (_n, outcome, code) => {
+    const d = dir();
+    config([d]);
+    fake.start.mockReturnValue(outcome);
+
+    const res = await commandFromSocket(env(d), 'r0');
+
+    expect(res).toMatchObject({ ok: false, error: { code } });
+    expect(fake.queue).not.toHaveBeenCalled();
+  });
+
+  it('mode Vibe arrêté (halted) : run.start et une commande de départ refusés tout de suite, rien lancé ni en attente', async () => {
+    const d = dir();
+    config([d]);
+    fake.halted = true;
+
+    const first = await commandFromSocket(env(d), 'r0');
+    const second = await commandFromSocket(env(d, 'vibe'), 'r0');
+
+    expect(first).toMatchObject({ ok: false, error: { code: 'halted' } });
+    expect(second).toMatchObject({ ok: false, error: { code: 'halted' } });
+    expect(fake.start).not.toHaveBeenCalled();
+    expect(fake.queue).not.toHaveBeenCalled();
+  });
+
+  it('porte agent : un seul relevé du robot, pour une écriture (run.start) comme pour une lecture (status)', async () => {
+    const d = dir();
+    config([d]);
+
+    await commandFromSocket(env(d), 'r0');
+    expect(fake.survey).toHaveBeenCalledTimes(1);
+    fake.survey.mockClear();
+    await commandFromSocket(env(d, 'status'), 'r0');
+    expect(fake.survey).toHaveBeenCalledTimes(1);
+  });
+
+  it('mode Vibe arrêté : la porte écran n’est pas touchée, ni une lecture par la porte agent', async () => {
+    const d = dir();
+    config([d]);
+    fake.halted = true;
+
+    expect((await commandFromSocket(env(d), 'screen')).ok).toBe(true);
+    expect((await commandFromSocket(env(d, 'status'), 'r0')).ok).toBe(true);
+    expect(fake.start).toHaveBeenCalledTimes(1);
   });
 });

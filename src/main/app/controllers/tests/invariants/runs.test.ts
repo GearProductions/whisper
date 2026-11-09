@@ -9,8 +9,8 @@
 // disque, git réel sur un dépôt d'essai, les actions livrées dans resources/),
 // dans le décor commun (app/tests/harness) : faux Electron et faux SDK de
 // Claude Code (chaque message reçu ouvre un tour, qui dure jusqu'à interrupt()).
-// L'orchestrateur demande une action comme le fait son skill : un fichier
-// <sorties>/actions/<id>.start, lu au relevé (orchestratorAsks du décor).
+// L'orchestrateur demande une action comme le fait son skill : run.start à la
+// porte de son robot, par le socket (orchestratorAsks du décor).
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { click, closeAll, fakeClaude, fakeElectron, openPanel, orchestratorAsks, profile, repo, repoResources, settle, writeConfig } from 'app/tests/harness';

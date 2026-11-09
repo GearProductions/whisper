@@ -8,8 +8,8 @@
  *  à chaque conversation envoyée (refreshConversation), toutes les 4 s tant
  *  que le panneau est visible, aussitôt après une action, une validation, un
  *  réglage — au plus un par seconde ; null, une fois, quand l'agent affiché
- *  n'est plus en VibeCoder ; chaque relevé passe les demandes de l'orchestrateur
- *  (runRequests de controllers/runs). Le mode Vibe en cours (vibeOn de
+ *  n'est plus en VibeCoder ; chaque relevé retente la file d'attente
+ *  (releaseWaits de controllers/runs). Le mode Vibe en cours (vibeOn de
  *  controllers/runs) part au parcours ; pendant Vibe, chaque relevé donne
  *  leur ✓ aux étapes faites (vibeMarks), qu'elles gardent après (F-102) ;
  *  l'action vibe partie le lance (vibeStart). Et ce que l'écran demande : une action (celle d'une
@@ -129,19 +129,20 @@
  *  ERRORS : la langue de l'appli). Les gardes (l'action au relevé, grisée, ce qui retient, un worktree, les
  *  arguments) restent à l'exécuteur et à startAction, runDirect. Sans socket : ERRORS.socket (runVibeAction,
  *  dropOnArtifacts), une boîte de message (vibeRunOp, draftVibe : muets sur un refus, rien n'est rendu à la
- *  page) ; jamais d'appel direct en repli. La boîte aux lettres de l'agent (runs) appelle
- *  startAction et runOp directement, inchangée. Le brouillon de revue : editDraft, l'opération de
+ *  page) ; jamais d'appel direct en repli. La file d'attente de l'agent (runs :
+ *  releaseWaits) appelle startAction directement. Le brouillon de revue : editDraft, l'opération de
  *  l'exécuteur (relecteur, la PR suivie ; no-pr, args).
  *  Un refus de startAction ou de runDirect rend, à côté de son texte, sa clé (Refusal.reason :
  *  celle d'ERRORS, 'disabled' pour le grisé du relevé — runDirect refuse aussi une action grisée —,
  *  'same' | 'busy' | 'changing' avec by pour une course ou une action directe qui retient : lockCode ;
- *  runDirect exportée pour controllers/commands) ; runVibeAction, la page et la boîte aux lettres
+ *  runDirect exportée pour controllers/commands) ; runVibeAction et la page
  *  n'en voient que le texte, inchangé.
+ *  surveyAgent : le relevé d'un robot quelconque (affiché : comme refreshVibe ; sinon retenu par lastView, rien envoyé à la page).
  *  Ne connaît pas : la page (seulement ses canaux), la fenêtre, le jeton du socket.
  *  Utilisé par : app/ipc (runVibeAction, vibeRunOp, draftVibe, dropOnArtifacts), app/menus, controllers/conversation,
  *  controllers/runs, controllers/agents et controllers/module-code
  *  (lastView), controllers/artifacts et controllers/artifact-ops (lastView),
- *  controllers/commands (startAction, runDirect, editDraft). */
+ *  controllers/commands (startAction, runDirect, editDraft, surveyAgent). */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -173,7 +174,7 @@ import { copyArtifacts, duplicateArtifacts, moveArtifacts, newArtifact, renameAr
 import { prepareMessage } from './conversation';
 import { createWorktree } from './recipe';
 import { SOCKET_DOWN, screenSend, socketDown } from './socket';
-import { lockingRuns, viewLocks, runPending, runRequests, runsOf, runsTab, skillMd, startRun, vibeOn, vibeStop } from './runs';
+import { lockingRuns, viewLocks, releaseWaits, runPending, runsOf, runsTab, skillMd, startRun, vibeOn, vibeStop } from './runs';
 import { openChild, prWorktreeReady, removeWorktreeChild, showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
 
 const VIBE_MS = 4000;          // le relevé régulier, panneau visible
@@ -284,11 +285,8 @@ function fromGit(agentId: string, key: string, ask: () => Promise<GitState>): Gi
   return hit?.value ?? null;
 }
 
-// Relecteur (le rôle de ce relevé) : une demande de l'orchestrateur pour une action create
-// (<sorties>/actions/<id>.start) est effacée sans avis — rien n'est envoyé à Claude Code.
-function dropCreateRequests(agentId: string, defs: { id: string; flow: string }[]) {
-  for (const d of defs) if (d.flow === 'create') fs.rmSync(path.join(vibeOutDir(agentId), 'actions', `${d.id}.start`), { force: true });
-}
+// Les réponses de gh et de git redemandées au prochain relevé (↻).
+const askAgain = () => { for (const entry of [...ghCache.values(), ...gitCache.values()]) entry.at = 0; };
 
 // Relève l'agent affiché en VibeCoder et envoie son parcours au panneau ;
 // sinon null, une fois. Un relevé à la fois, au plus un par seconde (sauf
@@ -296,7 +294,7 @@ function dropCreateRequests(agentId: string, defs: { id: string; flow: string }[
 // se résout à sa fin (panelReady attend ainsi le premier). `fresh` (↻) : les
 // réponses de gh sont redemandées.
 export async function refreshVibe({ now = false, fresh = false }: { now?: boolean; fresh?: boolean } = {}) {
-  if (fresh) for (const entry of [...ghCache.values(), ...gitCache.values()]) entry.at = 0;
+  if (fresh) askAgain();
   syncWorktrees(); // Relire dans un worktree : le robot temporaire arrive ou part (F-110)
   const cfg = loadConfig();
   const agent = viewAgent(cfg);
@@ -324,8 +322,7 @@ export async function refreshVibe({ now = false, fresh = false }: { now?: boolea
       if (state.panel && !state.panel.isDestroyed() && viewAgent()?.id === agent.id) {
         last.set(agent.id, view);
         state.panel.webContents.send('conv:vibe', view);
-        if (view.flow === 'review') dropCreateRequests(agent.id, vibeActions(view.lang));
-        runRequests(agent, view);   // les demandes de l'orchestrateur, d'après ce relevé
+        releaseWaits(agent, view);   // la file d'attente, d'après ce relevé
         firstNote(agent, view, cfg);
       }
     } catch (err) {
@@ -335,6 +332,25 @@ export async function refreshVibe({ now = false, fresh = false }: { now?: boolea
   await running;
   running = null;
   if (again) { const n = againNow; again = againNow = false; refreshVibe({ now: n }); }
+}
+
+// Le relevé de ce robot, affiché ou non, gh redemandé, retenu par lastView. Affiché : refreshVibe, la page suit ; sinon la
+// page n'en reçoit rien (le relevé ne porte aucun jeton, et rien n'est envoyé : releaseWaits, firstNote restent à l'affiché).
+// null : le relevé a échoué, ou la page n'est pas là.
+export async function surveyAgent(agent: AgentConfig): Promise<VibeView | null> {
+  if (viewAgent()?.id === agent.id) {
+    await refreshVibe({ now: true, fresh: true });
+    return lastView(agent.id);
+  }
+  askAgain();
+  try {
+    const view = await survey(agent, loadConfig());
+    last.set(agent.id, view);
+    return view;
+  } catch (err) {
+    console.error(`VibeCoder : relevé impossible (${err instanceof Error ? err.message : err})`);
+    return null;
+  }
 }
 
 /* ---- Le relevé ------------------------------------------------------------ */
@@ -565,9 +581,9 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
 /* ---- Ce que demande l'écran ------------------------------------------------ */
 
 // Un refus : son texte, et sa clé (reason : celle d'ERRORS ; 'disabled', le grisé du relevé ; 'same' | 'busy' | 'changing' avec by,
-// la course ou l'action directe qui retient). Les portes qui ne lisent que le texte (l'écran, la boîte aux lettres) ne la voient pas.
+// la course ou l'action directe qui retient). Les portes qui ne lisent que le texte (l'écran) ne la voient pas.
 export type Refusal = SendResult & { reason?: string; by?: string };
-// L'écran et la boîte aux lettres ne voient que le texte du refus, pas sa clé.
+// L'écran ne voit que le texte du refus, pas sa clé.
 const bare = ({ ok, error }: SendResult): SendResult => ({ ok, error });
 const fail = (lang: VibeLang, key: keyof typeof ERRORS.fr): Refusal => ({ ok: false, error: ERRORS[lang][key], reason: key });
 
@@ -659,7 +675,7 @@ export async function runVibeAction(id: unknown, args: unknown): Promise<SendRes
 export const greyed = (def: ActionDef, view: VibeView, lang: VibeLang) =>
   ownRun(def) ? blockedBy(def, viewLocks(view, vibeActions(lang)), lang) : null;
 
-// Une action envoyée, au clic comme à la demande de l'orchestrateur (runs : runRequests) : grisée au
+// Une action envoyée, au clic comme à la demande de l'orchestrateur (runs : releaseWaits) : grisée au
 // relevé pour une autre raison qu'une course, refusée (une course, startRun la revoit sur l'état vivant :
 // le relevé peut avoir un temps de retard) ; son gabarit rempli (I-38) ; une action d'étape court à
 // part, les autres vont à la conversation. invalid : ses arguments ne vont pas, rien à retenter ;

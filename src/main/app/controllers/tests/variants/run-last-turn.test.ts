@@ -13,7 +13,6 @@
 // le SDK de Claude Code, ici celui du fichier, qui fait sortir de son flux ce que le cas
 // lui dit (tâches, début et fin de tour, comme le SDK les émet) et relève quand son entrée
 // se ferme : c'est la fermeture du processus de la course.
-import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { click, closeAll, fakeElectron, openPanel, profile, repo, repoResources, slow, writeConfig } from 'app/tests/harness';
@@ -75,12 +74,11 @@ vi.mock('technicals/claude', () => ({
 const realSetTimeout = globalThis.setTimeout;
 const settle = () => new Promise((r) => realSetTimeout(r, slow(300)));
 const proc = (start: string) => procs.find((p) => p.text.startsWith(start));
-const actionsJson = () => JSON.parse(fs.readFileSync(path.join(out, 'actions.json'), 'utf8'));
-// L'état de la course de la Forme, tel que l'orchestrateur le lit.
-const state = () => actionsJson().runs.find((r: { id: string }) => r.id === 'forme').state as string;
+// Les courses de l'agent, et l'état de celle de la Forme, comme le relevé les montre (runsOf).
+const runsNow = async () => (await import('app/controllers')).runsOf({ id: 'a1' });
+const state = async () => (await runsNow()).find((r) => r.id === 'forme')!.state as string;
 // L'avis de fin : une conversation à part, qui reçoit « VibeCoder : … terminée ».
 const notice = () => proc('VibeCoder');
-let out = '';
 
 // Le flux d'une tâche de fond, et d'un tour qui commence, comme le SDK les émet.
 const started = (id: string) => ({ type: 'system', subtype: 'task_started', task_id: id, task_type: 'local_agent', description: 'sous-agent' });
@@ -94,7 +92,6 @@ beforeEach(() => {
   session = 0;
   const root = profile('whisper-last-turn-');
   repo(path.join(root, 'projet'), { branch: 'feat/0.13.0-essai', note: '# 0.13.0 — essai\n\n## Ce que ça fait\n\n- un essai\n' });
-  out = path.join(root, 'vibecoder-out', 'a1');
   writeConfig(root, [{ id: 'a1', dir: path.join(root, 'projet'), name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
     vibe: { flow: 'create', autonomy: 'guide', pr: null } }]);
 });
@@ -123,8 +120,8 @@ describe('le rapport du dernier sous-agent est en file quand le tour finit', () 
 
     // son processus n'est pas fermé
     expect(forme.closed).toBe(false);
-    // l'orchestrateur la voit encore en cours
-    expect(state()).toBe('running');
+    // le relevé la voit encore en cours
+    expect(await state()).toBe('running');
     // aucun avis de fin n'est parti
     expect(notice()).toBeUndefined();
   });
@@ -147,8 +144,8 @@ describe('le rapport du dernier sous-agent est en file quand le tour finit', () 
     expect(forme.closed).toBe(false);
     // son tour n'est pas interrompu
     expect(forme.interrupted).toBe(false);
-    // l'orchestrateur la voit encore en cours
-    expect(state()).toBe('running');
+    // le relevé la voit encore en cours
+    expect(await state()).toBe('running');
   });
 
   // Il dépasse le délai de grâce et les 5 s de la fermeture forcée : c'est ce qui le tuait.
@@ -169,8 +166,8 @@ describe('le rapport du dernier sous-agent est en file quand le tour finit', () 
     expect(forme.closed).toBe(false);
     // son tour n'est pas interrompu
     expect(forme.interrupted).toBe(false);
-    // l'orchestrateur la voit encore en cours
-    expect(state()).toBe('running');
+    // le relevé la voit encore en cours
+    expect(await state()).toBe('running');
     // aucun avis de fin n'est parti
     expect(notice()).toBeUndefined();
   });
@@ -189,8 +186,8 @@ describe('le rapport du dernier sous-agent est en file quand le tour finit', () 
 
     // témoin : c'est ce tour-ci qui ferme le processus (le harnais voit bien une fermeture)
     expect(forme.closed).toBe(true);
-    // l'orchestrateur la voit finie, avec la réponse de ce tour
-    expect(actionsJson().runs).toMatchObject([{ id: 'forme', state: 'done', reply: 'Tous les modules sont faits' }]);
+    // le relevé la voit finie, avec la réponse de ce tour
+    expect(await runsNow()).toMatchObject([{ id: 'forme', state: 'done', reply: 'Tous les modules sont faits' }]);
     // l'avis de fin porte cette réponse
     expect(notice()?.text).toContain('Tous les modules sont faits');
     // l'avis de fin ne porte pas la réponse du tour d'avant
@@ -245,8 +242,8 @@ describe('les vagues s’enchaînent : chaque tour réveillé peut en réveiller
     expect(forme.closed).toBe(false);
     // son tour n'est pas interrompu
     expect(forme.interrupted).toBe(false);
-    // l'orchestrateur la voit encore en cours
-    expect(state()).toBe('running');
+    // le relevé la voit encore en cours
+    expect(await state()).toBe('running');
   });
 
   it('le tour réveillé lance et voit finir un autre sous-agent : le tour d’après n’est pas coupé', async () => {
@@ -272,7 +269,7 @@ describe('les vagues s’enchaînent : chaque tour réveillé peut en réveiller
     expect(forme.closed).toBe(false);
     // son tour n'est pas interrompu
     expect(forme.interrupted).toBe(false);
-    // l'orchestrateur la voit encore en cours
-    expect(state()).toBe('running');
+    // le relevé la voit encore en cours
+    expect(await state()).toBe('running');
   });
 });

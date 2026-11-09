@@ -4,7 +4,8 @@
  *  au lancement ; la dictée y va, dans son champ. Fenêtre sans le focus,
  *  les questions et les erreurs des autres agents deviennent une notification du
  *  système ; son clic montre l'agent (showAgent). Chaque lancement de Claude Code (tour, sonde) reçoit
- *  le plugin de VibeCoder, le dossier de sorties de l'agent et le dossier d'artefacts de son projet. À chaque
+ *  le plugin de VibeCoder, le dossier de sorties de l'agent, le dossier d'artefacts de son projet et son
+ *  environnement (le port du socket et le jeton du robot, en mémoire : jamais sur le disque ni vers la page ; socket fermé, aucun). À chaque
  *  changement des agents, les courses suivent (controllers/runs : les avis de
  *  fin en attente, envoyés dès que la conversation est libre) ; l'agent affiché, ou dont la conversation est lue,
  *  a ses courses finies vues (runsShown : la pastille verte s'efface, T-18). L'état d'un agent
@@ -13,7 +14,7 @@
  *  (runTasksOf, T-13). Les agents se rangent par
  *  famille (core/family) : chacun ses enfants, et sa branche (celle de son
  *  dossier, lue sur le disque, ou « PR #n »). Retirer un
- *  agent oublie son processus, ses courses et ses commandes ; ses enfants gardent leur parent ;
+ *  agent oublie son processus, ses courses, ses commandes et son jeton ; ses enfants gardent leur parent ;
  *  le dossier d'artefacts du projet n'est pas touché (controllers/artifacts).
  *  Ne connaît pas : le contenu du panneau (controllers/conversation), git
  *  (la branche se lit dans .git).
@@ -23,10 +24,10 @@ import path from 'node:path';
 import { dialog, Notification } from 'electron';
 import type { AgentView } from 'shared/bridge';
 import { createAgentRuntime, createSessions, type AgentConfig, type OutgoingMessage, type Sdk } from 'core/agents';
-import { agentList, folderColors, needsTrust, type Config } from 'core/config';
+import { agentList, agentVibe, folderColors, needsTrust, type Config } from 'core/config';
 import { agentParent, branchOf } from 'core/family';
 import { agentEvents, switcherAgents } from 'core/switcher';
-import { questionsRule, robotState } from 'core/vibecoder';
+import { questionsRule, robotState, roleRule } from 'core/vibecoder';
 import { launcher, loadSdk } from 'technicals/claude';
 import { createJournal } from 'technicals/journal';
 import { agentInstructions, journalFile, loadConfig, saveConfig, updateAgent, vibeOutDir, vibePluginDir } from 'app/settings';
@@ -35,7 +36,9 @@ import { conversationShown, inConversation, openConversation } from 'app/windows
 import { conversationProgress, refreshConversation } from './conversation';
 import { readFile, stopAgentProcesses } from './processes';
 import { projectArtifactsDir } from './artifacts';
+import { robotEnv } from 'core/commands';
 import { closeRuns, runSignalOf, runsFollow, runsShown, runTasksOf } from './runs';
+import { forgetRobot, robotAccess } from './socket';
 import { lastView } from './vibecoder';
 
 const sdk = loadSdk as unknown as () => Promise<Sdk>;
@@ -130,6 +133,7 @@ export function removeAgent(id: string): void {
   if (!agent) return;
   agents.forget(id);
   closeRuns(agent);
+  forgetRobot(id);
   stopAgentProcesses(id);
   const cfg = loadConfig();
   const pr = agentParent(agent)?.pr;
@@ -148,15 +152,22 @@ export function interruptAgent(id: string) {
 }
 
 // Ce que reçoit Claude Code pour cet agent, à chaque tour comme à la sonde : la
-// commande, la consigne (la consigne audio, puis la ligne du questionnaire,
-// questionsRule : fixe pour un agent, elle ne relance pas son processus), le
+// commande, la consigne (la consigne audio, la ligne du questionnaire, questionsRule,
+// puis celle du rôle, roleRule : celui du dernier relevé, sinon celui de la config ;
+// il change, la consigne aussi, donc launchKey : le processus est relancé au tour suivant), le
 // plugin de VibeCoder (seulement s'il est là : ensureVibeFiles a pu échouer), le
-// dossier de sorties de l'agent et le dossier d'artefacts de son projet.
+// dossier de sorties de l'agent et le dossier d'artefacts de son projet, et son
+// environnement : celui de l'appli plus le port du socket et le jeton du robot
+// (robotEnv ; socket fermé : pas d'env, le processus hérite du sien). L'env
+// n'entre dans launchKey que par sa présence : le jeton tiré une fois, aucun
+// relancement de plus tant que le socket reste ouvert.
 export function launchOptions(agent: AgentConfig, cfg: Config) {
   const plugin = vibePluginDir();
   const audio = agentInstructions();
-  const rule = questionsRule(vibeOutDir(agent.id));
+  const rule = `${questionsRule(vibeOutDir(agent.id))}\n\n${roleRule(lastView(agent.id)?.flow ?? agentVibe(agent).flow)}`;
+  const access = robotAccess(agent.id);
   return {
+    ...(access && { env: robotEnv(process.env, access.port, access.token) }),
     command: cfg.agentCommand, instructions: audio ? `${audio}\n\n${rule}` : rule,
     plugins: fs.existsSync(plugin) ? [plugin] : [], dirs: [vibeOutDir(agent.id), projectArtifactsDir(agent.dir)],
   };

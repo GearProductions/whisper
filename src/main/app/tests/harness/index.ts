@@ -1,8 +1,8 @@
 // Le décor commun des tests qui démarrent le principal réel sans fenêtre (contrôleurs, fenêtres, état,
 // réglages et fichiers sur disque, git réel sur un dépôt d'essai) : le faux d'Electron et celui du SDK de
 // Claude Code, les ressources livrées, le profil et le dépôt d'essai, le socket ouvert comme au lancement,
-// le clic d'un bouton, la boîte aux lettres de l'orchestrateur (<sorties>/actions/<id>.start : le seul
-// endroit que la CLI retouchera), l'attente du relevé. Hors des dossiers protégés : une retouche se
+// le clic d'un bouton, les demandes de l'orchestrateur (run.start par la porte de son robot : orchestratorAsks, le seul
+// endroit que la CLI retouche), l'attente du relevé. Hors des dossiers protégés : une retouche se
 // signale dans la PR.
 // Ne connaît pas : ce que vérifient les tests (aucun expect, aucun témoin : ils restent dans les fichiers
 // protégés, et échouent si ce décor ne fait plus rien).

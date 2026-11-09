@@ -10,8 +10,7 @@
  *  sinon le réglage vibeCommandPrefix, sinon la box de l'agent si sa commande
  *  passe par `distrobox enter <box> --` ; le même pour gh), puis le shell du
  *  fichier (`bash -ic` par défaut : alias et fonctions de l'utilisateur ;
- *  seule exception à I-27, limitée à ces commandes et à la recette). Les demandes de l'agent (<nom>.stop,
- *  <nom>.restart) ne valent que pour les noms du fichier. La fin d'un journal,
+ *  seule exception à I-27, limitée à ces commandes et à la recette). La fin d'un journal,
  *  sans couleurs. Le préfixe vu de l'agent (agentSidePrefix) : le même, sans
  *  la box où il tourne déjà.
  *  Ne connaît pas : le disque, les processus, Electron.
@@ -23,7 +22,6 @@ export type Project = {
   commands: ProjectCommand[]; shell: string[]; prefix?: string;
   setup?: string[]; worktree?: { create?: string; remove?: string; dir?: string };
 };
-export type Request = { name: string; op: 'stop' | 'restart'; file: string };
 
 export const DEFAULT_SHELL = ['bash', '-ic'];
 const NAME = /^[A-Za-z0-9](?:[\w. -]{0,38}[\w.-])?$/;   // il nomme un fichier : <nom>.log ; des espaces au milieu
@@ -121,16 +119,6 @@ export function agentSidePrefix(project: Project | null, setting: unknown, agent
 export function commandAt(project: Project | null, index: unknown, agentCommand: unknown, setting: unknown = '') {
   const c = project && Number.isInteger(index) ? project.commands[index as number] : undefined;
   return c ? { name: c.name, argv: [...commandPrefix(project, setting, agentCommand), ...project!.shell, c.run], cwd: c.cwd } : null;
-}
-
-// Les demandes de l'agent parmi les fichiers de <out>/run/ : <nom>.stop,
-// <nom>.restart, pour un nom du fichier du projet ; le reste est ignoré.
-export function requestsOf(files: string[], project: Project | null): Request[] {
-  const names = new Set(project?.commands.map((c) => c.name));
-  return files.flatMap((file): Request[] => {
-    const m = /^(.+)\.(stop|restart)$/.exec(file);
-    return m && names.has(m[1]) ? [{ name: m[1], op: m[2] as Request['op'], file }] : [];
-  });
 }
 
 // Les `lines` dernières lignes d'un journal, sans séquences ANSI (couleurs) ;

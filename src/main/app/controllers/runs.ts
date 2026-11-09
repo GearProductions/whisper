@@ -12,47 +12,49 @@
  *  qu'elles réveillent ; sa fin, revenue au repos après avoir travaillé, ou son échec avant
  *  même son tour : fermée, et un avis à la conversation de l'agent, gardé tant qu'elle travaille, I-25), agir sur une course (runOp : l'arrêter — son
  *  processus et son verrou restent —, la garder ou l'annuler — rewind, puis
- *  fermée —, répondre à sa demande d'autorisation), les demandes de
- *  l'orchestrateur (runRequests : <sorties>/actions/<id>.start | .stop ; un
- *  .start retenu reste, « en attente » ; il part comme un clic, par
- *  startAction de controllers/vibecoder, I-38 ; une demande illisible, inconnue,
- *  pas proposée, pas une course, déjà en cours ou invalide est supprimée, et
- *  l'agent prévenu (requestNotice, comme un avis de fin) ; partie avec des
- *  arguments ignorés, prévenu aussi), et <sorties>/actions.json, réécrit à chaque changement.
+ *  fermée —, répondre à sa demande d'autorisation). Plus de boîte aux lettres (0.15.0) : ni <sorties>/actions/ lu, ni
+ *  <sorties>/actions.json écrit, ni avis de demande refusée ; l'orchestrateur passe par la CLI (controllers/commands).
  *  Le signal des courses sur le robot (F-55, runSignal) : chacune retient l'état où on l'a vue (noticed) ; runsTab :
  *  l'agent dont l'onglet Actions est ouvert, ses courses vues d'office (une question reste jusqu'à sa
  *  réponse) ; runSignalOf (pour pushAgents) ; à chaque changement d'une course, le robot suit si son signal a changé.
  *  runsShown : l'agent est affiché, ou sa conversation lue (controllers/agents) : ses courses finies sont vues
  *  (noticedOnShow), pas celles en échec, qui gardent leur « ! » jusqu'à l'onglet Actions (T-18) ; runTasksOf : les
  *  tâches de fond de ses courses vivantes (le robot, T-13).
- *  Le mode Vibe de chaque agent (F-103 ; vibe-mode) : vibeStart (on), vibeStop (halted : les demandes
- *  retenues et leurs .start jetés, rien d'interrompu), vibeOn (on seulement) ; arrêté, chaque .start est
- *  refusé ('halted'), les .stop toujours lus ; au repos (une conversation qui finit son tour, après ses
- *  demandes et ses avis ; vibeStop ; une course arrêtée) : nextVibeMode, avec les questions ouvertes de
+ *  Le mode Vibe de chaque agent (F-103 ; vibe-mode) : vibeStart (on), vibeStop (halted : la file d'attente jetée,
+ *  rien d'interrompu), vibeOn (on seulement) ; au repos (une conversation qui finit son tour, après ses
+ *  avis ; vibeStop ; une course arrêtée) : nextVibeMode, avec les questions ouvertes de
  *  <sorties>/questions.md (parseQuestions, comme le parcours) ; quitter on : un relevé forcé d'abord (ses ✓).
- *  Courses, avis, demandes retenues et mode Vibe : en mémoire. closeRuns : l'agent oublié.
+ *  La file d'attente (0.15.0 ; waits) : queueStart met une demande en file derrière l'action qui retient (by), queuedOf la
+ *  rend (action, by), releaseWaits la relit au relevé du panneau (refreshVibe), retryWaits relève le robot à neuf (surveyAgent) puis la
+ *  relit, à la fin d'une course ou d'un tour de la conversation, et quand garder ou annuler libère le dossier, sans dépendre de l'affichage
+ *  (panneau caché, écran verrouillé : T-31) : ce qui peut partir part seul (startAction, comme un clic), ce que la course ou l'action
+ *  directe retient reste (busy, changing), tout autre refus (grisée, same, invalide…) quitte la file ; vibeStop la vide, et arrêté (halted), rien ne part de la file ni par la porte agent (vibeHalted). runEnd (run.wait) : la fin d'une course en cours, ou en attente puis partie (état done,
+ *  failed ou stopped, sa réponse) ; null : ni l'une ni l'autre, ou la demande n'a plus de course (file vidée, invalide, agent oublié).
+ *  Courses, avis, file et mode Vibe : en mémoire. closeRuns : l'agent oublié.
  *  Une course dont le skill a `context: fork` part sans tâches de fond (forked :
  *  CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1, le fork attend ses commandes) ; si une
  *  commande d'arrière-plan a quand même été coupée à sa fin, elle finit en échec et
- *  sa réponse le dit en tête (cutCommands, cutLine).
+ *  sa réponse le dit en tête (cutCommands, cutLine). Une course part avec l'environnement
+ *  de son robot (launchOptions : son jeton, jamais un autre), le fork y ajoutant sa variable.
  *  Ne connaît pas : la page, les fenêtres.
- *  Utilisé par : controllers/vibecoder, controllers/agents,
- *  controllers/module-code, controllers/commands (runOp), menus/agent-menus. */
+ *  Utilisé par : controllers/vibecoder (releaseWaits), controllers/agents,
+ *  controllers/module-code, controllers/commands (runOp, runEnd, queuedOf), menus/agent-menus. */
 import fs from 'node:fs';
 import path from 'node:path';
-import type { RunSignal, SendResult, VibeRunOp, VibeView } from 'shared/bridge';
+import type { RunSignal, SendResult, VibeArgs, VibeRunOp, VibeView } from 'shared/bridge';
 import { EMPTY_LOG, runProgress, shortTarget, type AgentConfig } from 'core/agents';
 import { agentList, vibeLang, type Config } from 'core/config';
 import type { PreparedImage } from 'core/conversation';
 import {
-  cutCommands, cutLine, endNotice, GRACE_MS, headField, LOCKING, lockCode, lockText, nextVibeMode, ownRun, parseQuestions, parseRequest, requestNotice, runKey, skillModel,
-  noticedOnShow, remainingModules, runPhase, runsFile, runSignal, runTasks, type ActionDef, type Run, type RunState, type VibeMode,
+  cutCommands, cutLine, endNotice, GRACE_MS, headField, LOCKING, lockCode, lockText, nextVibeMode, ownRun, parseQuestions, runKey, skillModel,
+  noticedOnShow, remainingModules, runPhase, runSignal, runTasks, type ActionDef, type Run, type RunState, type VibeMode,
 } from 'core/vibecoder';
 import { loadConfig, vibeActions, vibeOutDir, vibePluginDir } from 'app/settings';
 import { agents, CLAUDE_MISSING, isBusy, launchOptions, pushAgents, sendToAgent } from './agents';
-import { directLocks, lastView, refreshVibe, startAction } from './vibecoder';
+import { directLocks, lastView, refreshVibe, startAction, surveyAgent } from './vibecoder';
 
-const REQUEST_MAX = 64 * 1024;   // une demande plus grosse n'est pas lue
+/** La fin d'une course, ce que rend run.wait. */
+export type RunEnd = { action: string; state: 'done' | 'failed' | 'stopped'; reply: string };
 
 // Une course, et ce que la règle et sa fin en retiennent : `reads` (elle lit seulement), `seen` (son tour a commencé),
 // `tasks` (ses tâches de fond comptées au dernier changement, runTasks), `forked` (son skill est en sous-contexte), `grace` (le minuteur du délai de grâce, s'il court),
@@ -62,9 +64,9 @@ type Live = Run & { reads: boolean; seen: boolean; forked: boolean; tasks: numbe
 const stopGrace = (run: Live) => { clearTimeout(run.grace); run.grace = undefined; };
 
 const all = new Map<string, Map<string, Live>>();                       // par agent, par clé : la dernière course
-const waits = new Map<string, { id: string; reason: string }[]>();      // par agent : les .start retenus
+const waits = new Map<string, { id: string; args: VibeArgs; by: string }[]>();   // par agent : la file d'attente, dans l'ordre (queueStart)
+const ends = new Map<string, { action: string; resolve: (end: RunEnd | null) => void }[]>();   // par agent : ceux qui attendent une fin (runEnd)
 const notices = new Map<string, string[]>();                            // par agent : les avis pas encore envoyés
-const views = new Map<string, VibeView>();                              // par agent : le dernier relevé (runRequests)
 const wasBusy = new Set<string>();                                      // les conversations au travail au dernier changement
 const signals = new Map<string, RunSignal>();                           // par agent : le signal montré au dernier changement
 const modes = new Map<string, VibeMode>();                              // par agent : le mode Vibe (absent : off)
@@ -121,12 +123,66 @@ export function skillMd(template: string) {
   try { return name ? fs.readFileSync(path.join(vibePluginDir(), 'skills', name, 'SKILL.md'), 'utf8') : null; } catch { return null; }
 }
 
-// <sorties>/actions.json, pour l'orchestrateur.
-function save(agentId: string) {
-  try {
-    fs.writeFileSync(path.join(vibeOutDir(agentId), 'actions.json'),
-      runsFile(mine(agentId), vibeActions(vibeLang(loadConfig())), waits.get(agentId) ?? []));
-  } catch (err) { console.error(`VibeCoder : actions.json (${err instanceof Error ? err.message : err})`); }
+// Ceux qui attendent la fin de `action` (runEnd) : résolus avec `end` (null : la demande n'aura pas de course).
+function settle(agentId: string, action: string, end: RunEnd | null) {
+  const list = ends.get(agentId) ?? [];
+  for (const w of list.filter((x) => x.action === action)) w.resolve(end);
+  ends.set(agentId, list.filter((x) => x.action !== action));
+}
+
+// run.wait : la fin de la course de l'action, en cours ou en attente (puis partie) ; null : ni l'une ni l'autre.
+export function runEnd(agentId: string, action: string): Promise<RunEnd | null> {
+  const live = mine(agentId).some((r) => r.id === action && (r.state === 'running' || r.state === 'asking'));
+  if (!live && !waits.get(agentId)?.some((w) => w.id === action)) return Promise.resolve(null);
+  return new Promise((resolve) => { ends.set(agentId, [...(ends.get(agentId) ?? []), { action, resolve }]); });
+}
+
+// Une demande qui doit attendre : en file derrière `by` (l'action qui retient) ; elle part seule (retryWaits).
+export function queueStart(agent: Pick<AgentConfig, 'id'>, id: string, args: VibeArgs, by: string) {
+  if (waits.get(agent.id)?.some((w) => w.id === id)) return;   // déjà en file : une seule fois
+  waits.set(agent.id, [...(waits.get(agent.id) ?? []), { id, args, by }]);
+}
+
+// La file de l'agent, pour runs.
+export const queuedOf = (agentId: string) => (waits.get(agentId) ?? []).map((w) => ({ action: w.id, by: w.by }));
+
+// Une action partie à la demande de l'orchestrateur, comme au clic : vibe lance le mode, le relevé suit.
+export function afterStart(agent: AgentConfig, id: string) {
+  if (id === 'vibe') vibeStart(agent);
+  void refreshVibe({ now: true });
+}
+
+// La file, dans l'ordre, contre l'état vivant et le relevé `view` : ce qui part (startAction, comme un clic) quitte la file, et ce
+// qu'une course ou une action directe retient (busy, changing) y reste ; tout autre refus (grisée au relevé : PR fusionnée, étape
+// passée ; same ; relecteur ; invalide, hors du catalogue) la quitte aussi, rien ne la retiendrait plus.
+// Appelée par le relevé du panneau (refreshVibe) ; retryWaits en donne un neuf.
+export function releaseWaits(agent: AgentConfig, view: VibeView) {
+  const queue = waits.get(agent.id);
+  if (!queue?.length) return;
+  if (vibeHalted(agent.id)) { for (const w of queue) settle(agent.id, w.id, null); waits.delete(agent.id); return; }   // arrêté : rien ne part
+  const cfg = loadConfig();
+  const defs = vibeActions(vibeLang(cfg));
+  const left = queue.filter((w) => {
+    const def = defs.find((d) => d.id === w.id);
+    const sent = def && startAction(agent, def, w.args, view, cfg);
+    if (sent && sent.ok) {
+      afterStart(agent, w.id);
+      if (!ownRun(def)) settle(agent.id, w.id, null);   // pas une course : rien à attendre
+      return false;
+    }
+    if (sent && (sent.reason === 'busy' || sent.reason === 'changing')) return true;   // retenue : elle reste
+    settle(agent.id, w.id, null);   // refusée pour une autre raison : plus de course à attendre
+    return false;
+  });
+  waits.set(agent.id, left);
+}
+
+// À la fin d'une course ou d'un tour, quand garder ou annuler libère le dossier : le robot relevé à neuf (affiché ou non, le panneau
+// caché ou l'écran verrouillé n'y change rien), puis la file relue d'après ce relevé.
+export async function retryWaits(agent: AgentConfig) {
+  if (!waits.get(agent.id)?.length) return;
+  const view = await surveyAgent(agent);
+  if (view) releaseWaits(agent, view);
 }
 
 // Lance l'action `def` (son message déjà rempli : le texte, et les images qui partent avec lui) dans sa course,
@@ -160,11 +216,12 @@ export function startRun(
   };
   // Un processus neuf par course : rewind ramène au premier message de CELLE-CI.
   // Ses tâches de fond oubliées : celles d'une course précédente, tuée en route, la tiendraient en cours.
+  const launch = launchOptions(agent, cfg);   // le jeton est celui du robot, pas de la course
   agents.close(entry.id).then(() => agents.forgetReply(entry.id)).then(() => agents.send(entry, message, {
-    ...launchOptions(agent, cfg), checkpoint: true,
+    ...launch, checkpoint: true,
     // Un fork qui lance une commande de fond la verrait tuée à sa réponse : il l'attend au premier plan.
-    // env remplace celui du processus (le SDK ne fusionne pas) : process.env recopié.
-    ...(forked && { env: { ...process.env, CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1' } }),
+    // env remplace celui du processus (le SDK ne fusionne pas) : celui du robot, sinon process.env recopié.
+    ...(forked && { env: { ...(launch.env ?? process.env), CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1' } }),
     onChange: () => changed(agent.id, run),
     onSession: (id) => { run.sessionId = id; },
     onPermission: () => { refreshVibe(); },
@@ -172,10 +229,8 @@ export function startRun(
     // Partie en échec avant son tour : une fin comme une autre, l'orchestrateur en est prévenu.
     if (run.state !== 'running') return;
     finish(agent.id, run, err instanceof Error ? err.message : String(err));
-    save(agent.id);
     refreshVibe();
   });
-  save(agent.id);
   return { ok: true };
 }
 
@@ -198,7 +253,6 @@ function changed(agentId: string, run: Live) {
   }
   signalFollow(agentId);
   if (run.tasks !== before) pushAgents();   // le robot compte ses tâches de fond (runTasksOf)
-  save(agentId);
   refreshVibe();
 }
 
@@ -215,15 +269,16 @@ function finish(agentId: string, run: Live, failure?: string) {
   Object.assign(run, { state: cut || last?.error ? 'failed' : 'done', reply: (cut ? `${cutLine(cut, lang)}\n` : '') + (last?.text ?? ''), end: Date.now() });
   void agents.close(entry);
   signalFollow(agentId);
+  settle(agentId, run.id, { action: run.id, state: run.state as 'done' | 'failed', reply: run.reply });
   const def = vibeActions(lang).find((d) => d.id === run.id);
-  notify(agentId, endNotice(run, def, lang, vibeOutDir(agentId)));
+  notify(agentId, endNotice(run, def, lang));
   const agent = agentList(cfg).find((a) => a.id === agentId);
   if (!agent) return;
   deliver(agent, cfg);
-  runRequests(agent);
+  void retryWaits(agent);
 }
 
-// Un avis à l'orchestrateur (fin de course, demande refusée ou aux arguments ignorés), envoyé par deliver.
+// Un avis à l'orchestrateur (fin de course), envoyé par deliver.
 const notify = (agentId: string, notice: string) => notices.set(agentId, [...(notices.get(agentId) ?? []), notice]);
 
 // Les avis en attente, d'un message, si la conversation est libre (I-25) et qu'aucun avis n'est en envoi.
@@ -238,17 +293,19 @@ function deliver(agent: AgentConfig, cfg: Config) {
 // Le mode Vibe de l'agent est en cours (le relevé, la bannière) ; arrêté (halted) : non.
 export const vibeOn = (agentId: string) => modes.get(agentId) === 'on';
 
+// Le mode Vibe de l'agent est arrêté (halted) : rien de nouveau ne part, ni de la file ni par sa porte (controllers/commands).
+export const vibeHalted = (agentId: string) => modes.get(agentId) === 'halted';
+
 // Vibe lancé (l'action vibe partie).
 export const vibeStart = (agent: Pick<AgentConfig, 'id'>) => { modes.set(agent.id, 'on'); };
 
-// La bannière : Vibe arrêté ; les demandes retenues et leurs .start jetés, la course en cours finit ; déjà au repos : off.
+// La bannière : Vibe arrêté ; la file d'attente jetée, la course en cours finit ; déjà au repos : off.
 export function vibeStop(agent: Pick<AgentConfig, 'id'>) {
   const mode = modes.get(agent.id);
   if (!mode) return;
   modes.set(agent.id, nextVibeMode(mode, 'stop'));
-  for (const w of waits.get(agent.id) ?? []) fs.rmSync(path.join(vibeOutDir(agent.id), 'actions', `${w.id}.start`), { force: true });
+  for (const w of waits.get(agent.id) ?? []) settle(agent.id, w.id, null);
   waits.delete(agent.id);
-  save(agent.id);
   void rest(agent);
 }
 
@@ -281,13 +338,13 @@ async function rest(agent: Pick<AgentConfig, 'id'>) {
   refreshVibe();
 }
 
-// À chaque changement des agents (pushAgents) : un tour de conversation fini → les demandes revues ; une
+// À chaque changement des agents (pushAgents) : un tour de conversation fini → la file revue ; une
 // conversation libre → ses avis de fin ; puis, tour fini, le mode Vibe au repos (rest).
 export function runsFollow(list: AgentConfig[], cfg: Config) {
   for (const agent of list) {
     const busy = isBusy(agent.id);
     const ended = !busy && wasBusy.delete(agent.id);
-    if (ended) runRequests(agent);
+    if (ended) void retryWaits(agent);
     if (busy) { wasBusy.add(agent.id); sending.delete(agent.id); }
     deliver(agent, cfg);
     if (ended) void rest(agent);
@@ -304,6 +361,7 @@ export async function runOp(agent: AgentConfig, id: string, op: VibeRunOp): Prom
     stopGrace(run);
     Object.assign(run, { state: 'stopped', end: Date.now() });   // avant interrupt : sa fin n'en est pas une
     agents.interrupt(entry);
+    settle(agent.id, run.id, { action: run.id, state: 'stopped', reply: run.reply });
   } else if ((op === 'keep' || op === 'undo') && run.state === 'stopped') {
     if (op === 'undo') {
       const back = await agents.rewind(entry);   // retient encore (stopped) pendant l'attente
@@ -314,9 +372,9 @@ export async function runOp(agent: AgentConfig, id: string, op: VibeRunOp): Prom
     if (!agents.answer(entry, op)) return false;
   } else return false;
   signalFollow(agent.id);
-  save(agent.id);
   refreshVibe({ now: true });
   if (op === 'stop') void rest(agent);   // arrêtée : ni avis ni tour, le repos est ici
+  else if (op === 'keep' || op === 'undo') void retryWaits(agent);   // le dossier est libéré
   return true;
 }
 
@@ -326,71 +384,11 @@ export const viewLocks = (view: VibeView, defs: ActionDef[]) => [
   ...view.actions.filter((a) => a.direct?.running).map((a) => a.id),
 ].map((id) => ({ id, reads: !!defs.find((d) => d.id === id)?.reads }));
 
-// Un fichier ordinaire, petit : son texte ; null sinon (parti entre-temps, dossier, lien…).
-function readRequest(file: string) {
-  try {
-    const st = fs.lstatSync(file);
-    return st.isFile() && st.size <= REQUEST_MAX ? fs.readFileSync(file, 'utf8') : null;
-  } catch { return null; }
-}
-
-// Les demandes de l'orchestrateur, une à une contre l'état vivant (les .stop d'abord) : un .stop arrête la
-// course et retire le .start de la même action ; un .start part comme un clic (startAction), ou reste en
-// attente si quelque chose le retient (une course, une raison de l'écran : PR fusionnée…) ; illisible,
-// invalide, ou pour une action déjà en cours (elle repartirait à sa fin) : supprimé, et l'agent prévenu ;
-// partie avec des arguments ignorés : prévenu aussi (deliver ici si aucune course ne vit ; sinon au prochain
-// passage où la conversation est libre, runsFollow ou la fin d'une course). `view` : le relevé (retenu pour
-// les passages sans relevé). true : une course est partie.
-export function runRequests(agent: AgentConfig, view = views.get(agent.id)): boolean {
-  if (!view) return false;
-  views.set(agent.id, view);
-  const dir = path.join(vibeOutDir(agent.id), 'actions');
-  let names: string[];
-  try { names = fs.readdirSync(dir); } catch { return false; }
-  const cfg = loadConfig();
-  const lang = vibeLang(cfg);
-  const defs = vibeActions(lang);
-  const waiting: { id: string; reason: string }[] = [];
-  let started = false;
-  for (const name of names.sort((a, b) => Number(b.endsWith('.stop')) - Number(a.endsWith('.stop')))) {
-    const file = path.join(dir, name);
-    const drop = () => fs.rmSync(file, { force: true, recursive: true });   // un dossier aussi
-    const refuse = (id: string, why: string) => { drop(); notify(agent.id, requestNotice(id, { refused: why }, lang)); };
-    const text = readRequest(file);
-    if (text === null) { if (fs.lstatSync(file, { throwIfNoEntry: false })) refuse(name, 'unreadable'); continue; }   // disparu : rien à dire
-    const req = parseRequest(name, text);
-    if (!req) { refuse(name, 'unreadable'); continue; }
-    if (req.op === 'stop') {
-      void runOp(agent, req.id, 'stop');
-      fs.rmSync(path.join(dir, `${req.id}.start`), { force: true });
-      drop();
-      continue;
-    }
-    const def = defs.find((d) => d.id === req.id);
-    const shown = view.actions.find((a) => a.id === req.id);
-    const live = lockingRuns(agent.id);
-    if (modes.get(agent.id) === 'halted') { refuse(req.id, 'halted'); continue; }
-    if (!def) { refuse(req.id, 'unknown'); continue; }
-    const why = !shown ? 'hidden' : !ownRun(def) ? 'direct' : live.some((r) => runKey(r.id) === runKey(def.id)) ? 'same' : null;
-    if (why) { refuse(req.id, why); continue; }
-    const sent = startAction(agent, def, req.args, view, cfg);
-    if (!sent.ok && 'invalid' in sent) { refuse(req.id, sent.error ?? ''); continue; }
-    if (!sent.ok) { waiting.push({ id: req.id, reason: sent.error ?? '' }); continue; }
-    started = true;
-    drop();
-    if (sent.ignored?.length) notify(agent.id, requestNotice(req.id, { ignored: sent.ignored }, lang));
-  }
-  waits.set(agent.id, waiting);
-  save(agent.id);
-  if (!lockingRuns(agent.id).length) deliver(agent, cfg);   // une course vit : l'avis attend runsFollow ou sa fin
-  return started;
-}
-
 // L'agent oublié (retiré, nouvelle session, robot d'un worktree retiré) : ses courses fermées et oubliées.
 export function closeRuns(agent: Pick<AgentConfig, 'id'>) {
   for (const r of mine(agent.id)) { stopGrace(r); agents.forget(entryId(agent.id, r.key)); }
-  for (const m of [all, waits, notices, views, signals, modes]) m.delete(agent.id);
+  for (const w of ends.get(agent.id) ?? []) w.resolve(null);
+  for (const m of [all, waits, ends, notices, signals, modes]) m.delete(agent.id);
   wasBusy.delete(agent.id);
   sending.delete(agent.id);
-  save(agent.id);
 }

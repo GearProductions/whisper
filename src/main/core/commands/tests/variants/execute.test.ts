@@ -48,6 +48,7 @@ function ops(outcome: OpOutcome = { ok: true }, over: Partial<CommandOps> = {}) 
     proc: async (...a) => { calls.push(['proc', ...a]); return true; },
     artifact: async (...a) => { calls.push(['artifact', ...a]); return { name: 'a.md', kind: 'markdown', text: 'x', truncated: false }; },
     draft: (...a) => { calls.push(['draft', ...a]); return outcome; },
+    wait: async (...a) => { calls.push(['wait', ...a]); return { action: 'modules', state: 'done', reply: 'fini' }; },
     ...over,
   };
   return { calls, ops: o };
@@ -137,6 +138,18 @@ describe('execute : les lectures', () => {
     }
     expect(JSON.stringify(all)).not.toContain('robot-42');
     expect(JSON.stringify(all)).not.toMatch(/"agentId?"/);
+  });
+
+  it('runs : les courses, puis celles en attente (state queued, by), conformes au schéma', async () => {
+    const queued = [{ action: 'forme', by: 'modules' }, { action: 'ponytail', by: 'modules' }];
+    const r = await go({ command: 'runs' }, ops(), { view, defs, queued });
+    if (!r.ok) throw new Error(r.error.code);
+    expect(r.result).toEqual([
+      expect.objectContaining({ action: 'modules', state: 'running' }),
+      { action: 'forme', state: 'queued', by: 'modules' },
+      { action: 'ponytail', state: 'queued', by: 'modules' },
+    ]);
+    expect(schemaError(table.commands.find((c) => c.name === 'runs')!.response!, r.result)).toBeNull();
   });
 
   it('artifacts : artifactsOf ; draft : draftOf ; artifact : ops.artifact, null : unknown-artifact', async () => {
@@ -269,6 +282,21 @@ describe('execute : les écritures', () => {
     expect(code(await go({ command: 'run.undo', args: { action: 'modules' } }, none))).toBe('no-run');
   });
 
+  it('run.wait : la réponse de ops.wait ; null : no-run ; action absente : invalid-args ; porte agent, même retenue', async () => {
+    const o = ops();
+    expect(await go({ command: 'run.wait', args: { action: 'modules' } }, o)).toEqual({ ok: true, result: { action: 'modules', state: 'done', reply: 'fini' } });
+    expect(o.calls).toEqual([['wait', 'modules']]);
+    const agent = ops();
+    expect((await go({ command: 'run.wait', args: { action: 'modules' }, door: 'agent' }, agent)).ok).toBe(true);
+    expect(agent.calls).toEqual([['wait', 'modules']]);
+    const none = ops({ ok: true }, { wait: async () => null });
+    const r = await go({ command: 'run.wait', args: { action: 'forme' } }, none);
+    expect([code(r), details(r)]).toEqual(['no-run', { action: 'forme' }]);
+    const missing = ops();
+    expect(code(await go({ command: 'run.wait', args: {} }, missing))).toBe('invalid-args');
+    expect(missing.calls).toEqual([]);
+  });
+
   it('proc.restart : nom hors du relevé, unknown-process ; sinon ops.proc', async () => {
     const o = ops();
     expect(code(await go({ command: 'proc.restart', args: { name: 'nope' } }, o))).toBe('unknown-process');
@@ -325,6 +353,17 @@ describe('execute : ne lève jamais', () => {
       const r = await go({ command, args }, ops({ ok: true }, over));
       expect([code(r), details(r)], command).toEqual(['failed', { message: 'git a planté' }]);
     }
+  });
+});
+
+describe('execute : le mode Vibe arrêté (ctx.halted)', () => {
+  it('run.start et une commande de départ : halted, aucune opération appelée ; une lecture passe', async () => {
+    const o = ops();
+    const halted = { ...ctx, halted: true };
+    expect(code(await go({ command: 'run.start', args: { action: 'forme' }, door: 'agent' }, o, halted))).toBe('halted');
+    expect(code(await go({ command: 'vibe', door: 'agent' }, o, halted))).toBe('halted');
+    expect(o.calls).toEqual([]);
+    expect((await go({ command: 'status', door: 'agent' }, o, halted)).ok).toBe(true);
   });
 });
 

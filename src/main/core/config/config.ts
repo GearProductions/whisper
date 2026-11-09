@@ -6,7 +6,8 @@
  *  d'affichage d'un artefact en texte, vue des modules : IDE ou liste), la
  *  langue des agents (`agentLang`, le {{lang}} des actions : celle de l'écran,
  *  `vibeLang`, à défaut) et le modèle et l'effort choisis par action
- *  (`actionPicks`, jamais Fable : I-36).
+ *  (`actionPicks`, jamais Fable : I-36), le réglage `outsideAgents` (agents
+ *  extérieurs au socket, désactivé par défaut).
  *  Ne connaît pas : le fichier (technicals/config-file), Electron, git (le
  *  parent d'un agent, l'enfant qu'on crée : core/family).
  *  Utilisé par : app. */
@@ -34,6 +35,7 @@ export type Config = {
   agentFolders: (Folder | string)[];
   agentSelected: string | null;
   muteOthers: boolean;    // couper le son des autres applications pendant la dictée
+  outsideAgents: boolean; // « Autoriser les agents extérieurs » : un agent qui n'est pas un robot de l'appli peut parler au socket (jeton dans live.json)
   speakVolume: unknown;
   speakLang: string;      // 'auto' : français ou anglais, détecté sur le texte entier
   speakVoices: Record<string, string>;
@@ -55,7 +57,7 @@ export type Config = {
 export const DEFAULTS: Config = {
   lang: 'fr', vocabulary: '', sound: true, discordMute: false,
   agentCommand: '', editorCommand: '', terminalCommand: '', agents: [], agentFolders: [], agentSelected: null,
-  muteOthers: false,
+  muteOthers: false, outsideAgents: false,
   speakVolume: 1,
   speakLang: 'auto',
   speakVoices: { fr: 'estelle', en: 'jane' },

@@ -5,13 +5,9 @@
  *  (lockCode : sans langue, le code same | busy | changing et l'action qui
  *  retient ; une modification attend toute course en cours, arrêtée non
  *  tranchée comprise ; une lecture n'attend qu'une modification ; la même
- *  action déjà en cours ; blockedBy en est le texte), les courses à l'écran (runViews), le texte de
- *  <sorties>/actions.json pour l'orchestrateur (runsFile), son avis de fin
- *  (endNotice), la lecture d'une demande de l'orchestrateur
- *  (<sorties>/actions/<id>.start | .stop : parseRequest ; REQUEST_ARGS : les clés
- *  qu'un .start garde, verdict compris : approve, comment ou request-changes), l'avis d'une demande
- *  refusée — 'halted' : le mode Vibe arrêté — ou partie avec des arguments
- *  ignorés (requestNotice), et où en est une
+ *  action déjà en cours ; blockedBy en est le texte), les courses à l'écran (runViews), l'avis de fin
+ *  pour l'orchestrateur (endNotice : une ligne, l'action, sa fin, sa réponse en bref ; aucun fichier à lire),
+ *  REQUEST_ARGS (les clés qu'un run.start garde, verdict compris : approve, comment ou request-changes), et où en est une
  *  course d'après son entrée du runtime (runPhase : en cours tant qu'elle
  *  travaille ou que des tâches de fond tournent ; pas de limite de temps ;
  *  grace quand ses tâches de fond viennent de tomber à 0 hors tour, le délai
@@ -27,9 +23,8 @@
  *  (cutLine).
  *  Ne connaît pas : Electron, le disque, le runtime des agents (tout est passé).
  *  Utilisé par : core/vibecoder (journey), core/commands (REQUEST_ARGS : le schéma de
- *  run.start), app/controllers (runs : lockCode, parseRequest, endNotice, requestNotice ; vibecoder : lockCode ; module-code). */
+ *  run.start), app/controllers (runs : lockCode, endNotice ; vibecoder : lockCode ; module-code). */
 import type { VibeArgs, VibeLang, VibeModule, VibeRun, VibeRunProgress } from 'shared/bridge';
-import { isVerdict } from 'shared/review';
 import { targetModule, type ActionDef } from './actions';
 
 export type RunState = VibeRun['state'];
@@ -58,26 +53,18 @@ export const runKey = (actionId: string) => (actionId === 'answers' ? 'note' : a
 const TEXT = {
   fr: {
     same: 'Cette action est déjà en cours', busy: 'Une autre action est en cours', changing: 'Une action modifie la branche',
-    end: { done: 'terminée', failed: 'en échec' }, notice: 'VibeCoder :', state: 'État :',
+    end: { done: 'terminée', failed: 'en échec' }, notice: 'VibeCoder :',
     quote: (s: string) => `« ${s} »`,
     talking: 'La conversation travaille', generating: 'Ce module est en cours de génération',
     running: 'Une action de l’agent est en cours',
-    request: 'demande', refused: 'refusée', ignored: 'partie, arguments ignorés :',
-    unreadable: 'nom ou JSON illisible', unknown: 'action inconnue', hidden: 'action pas proposée à l’écran',
-    direct: 'action qui ne court pas à part',
-    halted: 'le mode Vibe a été arrêté par l’utilisateur : ne lance plus rien',
     cut: (n: number) => `${n} commande${n > 1 ? 's' : ''} en arrière-plan coupée${n > 1 ? 's' : ''} à la fin de l’action : le travail est peut-être incomplet.`,
   },
   en: {
     same: 'This action is already running', busy: 'Another action is running', changing: 'An action is changing the branch',
-    end: { done: 'finished', failed: 'failed' }, notice: 'VibeCoder:', state: 'State:',
+    end: { done: 'finished', failed: 'failed' }, notice: 'VibeCoder:',
     quote: (s: string) => `“${s}”`,
     talking: 'The conversation is working', generating: 'This module is being generated',
     running: 'An action of the agent is running',
-    request: 'request', refused: 'refused', ignored: 'started, ignored arguments:',
-    unreadable: 'unreadable name or JSON', unknown: 'unknown action', hidden: 'action not offered on screen',
-    direct: 'action that does not run on its own',
-    halted: 'Vibe was stopped by the user: start nothing more',
     cut: (n: number) => `${n} background command${n > 1 ? 's' : ''} cut when the action ended: the work may be incomplete.`,
   },
 };
@@ -135,18 +122,6 @@ export function runViews(runs: Run[], defs: Shown[],
   });
 }
 
-// Le texte de <sorties>/actions.json : les actions qui courent à part, les courses, les demandes retenues.
-export function runsFile(runs: Run[], defs: ActionDef[], waiting: { id: string; reason: string }[]): string {
-  const def = (id: string) => defs.find((d) => d.id === id);
-  return JSON.stringify({
-    actions: defs.filter(ownRun).map((d) => ({ id: d.id, label: d.label, reads: !!d.reads })),
-    runs: runs.map((r) => ({
-      id: r.id, label: def(r.id)?.label ?? r.id, state: r.state, reads: !!def(r.id)?.reads, since: r.since, end: r.end, reply: r.reply,
-    })),
-    waiting,
-  }, null, 2);
-}
-
 // Le délai de grâce d'une course dont les tâches de fond viennent de tomber à 0 hors tour.
 export const GRACE_MS = 10_000;
 
@@ -177,51 +152,16 @@ export const cutLine = (n: number, lang: VibeLang) => TEXT[lang].cut(n);
 
 const REPLY_MAX = 300;
 
-// L'avis de fin pour l'orchestrateur, une ligne : l'action, comment elle a fini, sa réponse en bref, où lire l'état.
-export function endNotice(run: Run, def: Pick<ActionDef, 'label'> | undefined, lang: VibeLang, out: string): string {
+// L'avis de fin pour l'orchestrateur, une ligne : l'action, comment elle a fini, sa réponse en bref.
+export function endNotice(run: Run, def: Pick<ActionDef, 'label'> | undefined, lang: VibeLang): string {
   const T = TEXT[lang];
   const how = run.state === 'done' ? T.end.done : T.end.failed;
   const flat = run.reply.replace(/\s+/g, ' ').trim();
   const reply = flat.length > REPLY_MAX ? `${flat.slice(0, REPLY_MAX - 1)}…` : flat;
   const said = `${T.notice} ${T.quote(def?.label ?? run.id)} ${how}${reply ? ` — ${reply}` : ''}`;
-  return `${said}${/[.!?…]$/.test(said) ? '' : '.'} ${T.state} ${out}/actions.json`;
+  return `${said}${/[.!?…]$/.test(said) ? '' : '.'}`;
 }
 
-const REQUEST = /^([a-z0-9-]+)\.(start|stop)$/;
-const isInt = (v: unknown) => Number.isInteger(v);
-const isStr = (v: unknown) => typeof v === 'string';
-// Les arguments qu'une demande peut porter, chacun avec son type ; jamais direct (F-114 : un clic seulement).
-const KEEP: Record<string, (v: unknown) => boolean> = {
-  text: isStr, module: isInt, commit: isStr, file: isStr, pr: isInt, model: isStr, effort: isStr, check: isInt,
-  answers: (v) => Array.isArray(v) && v.every(isStr),
-  verdict: isVerdict,
-};
-
-// Les clés qu'un .start garde, celles de KEEP dans son ordre : jamais d'écart avec parseRequest.
-export const REQUEST_ARGS: readonly string[] = Object.keys(KEEP);
-
-// Une demande de l'orchestrateur (<sorties>/actions/<nom>) : <id>.start (son texte : les arguments en JSON,
-// vide : aucun) ou <id>.stop ; un autre nom, un JSON illisible ou qui n'est pas un objet : null. Les
-// arguments inconnus ou d'un autre type sont ignorés ; buildMessage vérifie encore chacun.
-export function parseRequest(name: string, text: string): { id: string; op: 'start' | 'stop'; args: VibeArgs } | null {
-  const m = REQUEST.exec(name);
-  if (!m) return null;
-  const op = m[2] as 'start' | 'stop';
-  if (op === 'stop' || !text.trim()) return { id: m[1], op, args: {} };
-  let raw: unknown;
-  try { raw = JSON.parse(text); } catch { return null; }
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  const args = Object.fromEntries(Object.entries(raw).filter(([k, v]) => Object.hasOwn(KEEP, k) && KEEP[k](v)));
-  return { id: m[1], op, args };
-}
-
-// Pourquoi une demande est refusée, par clé ; une autre raison (invalide : l'erreur de startAction) est rendue telle quelle.
-const REFUSALS = ['unreadable', 'unknown', 'hidden', 'direct', 'same', 'halted'] as const;
-
-// L'avis d'une ligne à l'orchestrateur pour une demande refusée (sa raison) ou partie avec des arguments ignorés.
-export function requestNotice(id: string, what: { refused: string } | { ignored: string[] }, lang: VibeLang): string {
-  const T = TEXT[lang];
-  const why = (r: string) => ((REFUSALS as readonly string[]).includes(r) ? T[r as (typeof REFUSALS)[number]] : r);
-  const how = 'refused' in what ? `${T.refused} — ${why(what.refused)}` : `${T.ignored} ${what.ignored.join(', ')}`;
-  return `${T.notice} ${T.request} ${id} ${how}`;
-}
+// Les arguments qu'un run.start garde (le schéma de run.start) ; jamais direct (F-114 : un clic seulement) ;
+// buildMessage vérifie encore chacun.
+export const REQUEST_ARGS: readonly string[] = ['text', 'module', 'commit', 'file', 'pr', 'model', 'effort', 'check', 'answers', 'verdict'];
