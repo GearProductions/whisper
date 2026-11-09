@@ -6,7 +6,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { applyTaskEvent, EMPTY_LOG } from 'core/agents';
 import { taskViews } from 'core/conversation';
-import { PANEL_CHANNELS } from 'shared/bridge';
 
 const started = (id: string, extra: Record<string, unknown> = {}) => ({ type: 'system', subtype: 'task_started', task_id: id, description: `tâche ${id}`, task_type: 'local_bash', is_backgrounded: true, ...extra });
 const notified = (id: string, output_file: string) => ({ type: 'system', subtype: 'task_notification', task_id: id, status: 'completed', output_file, summary: 'fini' });
@@ -33,10 +32,5 @@ describe('fichiers de sortie lus (I-34)', () => {
     const [v] = taskViews(log, '/tmp/projet', readTail);
     expect(v).toMatchObject({ id: 't1', command: 'sleep 9', description: 'Attend', status: 'running', outputFile: '/tmp/claude-1000/x/tasks/t1.output', output: 'en cours' });
     expect(readTail).toHaveBeenCalledTimes(1);
-  });
-
-  it('une page ne peut pas demander la lecture d’un fichier : aucun canal pour ça', () => {
-    const all = [...PANEL_CHANNELS.send, ...PANEL_CHANNELS.invoke];
-    expect(all.filter((c) => /output|tail|file/i.test(c))).toEqual(['conv:showFile']); // montré dans le gestionnaire, jamais lu ni ouvert (I-21)
   });
 });

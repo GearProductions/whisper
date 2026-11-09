@@ -4,7 +4,8 @@
 // Forme : un nom pris par un fichier ordinaire de mêmes taille et octets efface la
 // source sans rien copier ; tout le reste garde les deux. Effacer une source que
 // l'arrivée ne contient pas vraiment, c'est la perdre.
-// Les cas de noms différents : file-tree.test.ts, qui ne change pas.
+// Les cas de noms différents : file-tree.test.ts, qui ne change pas. Les cas de
+// la source effacée sans copie : ../variants/move-same-bytes.test.ts.
 // Protégé : si un test échoue, corriger le code.
 //
 // Sur le vrai disque : dossiers temporaires, vrais liens symboliques, vrais droits.
@@ -43,45 +44,6 @@ beforeEach(() => {
 afterEach(unlock);
 
 describe('un même nom et les mêmes octets : la coupure entre la copie et l’effacement', () => {
-  it('la source est effacée, et aucun rapport-2.md n’apparaît', async () => {
-    write(path.join(root, 'rapport.md'), 'RAPPORT');
-    write(path.join(from, 'rapport.md'), 'RAPPORT');
-
-    await moveContents(from, root);
-
-    // la source n'est plus là
-    expect(fs.existsSync(path.join(from, 'rapport.md'))).toBe(false);
-    // à l'arrivée, un seul fichier
-    expect(names(root)).toEqual(['rapport.md']);
-    // il a gardé son texte
-    expect(read(path.join(root, 'rapport.md'))).toBe('RAPPORT');
-  });
-
-  it('dans un sous-dossier : pareil', async () => {
-    write(path.join(root, 'sous', 'rapport.md'), 'RAPPORT');
-    write(path.join(from, 'sous', 'rapport.md'), 'RAPPORT');
-
-    await moveContents(from, root);
-
-    // la source n'est plus là
-    expect(fs.existsSync(path.join(from, 'sous', 'rapport.md'))).toBe(false);
-    // à l'arrivée, rien de plus
-    expect(names(root)).toEqual(['sous', path.join('sous', 'rapport.md')]);
-  });
-
-  // Rien à comparer : deux fichiers vides sont bien les mêmes.
-  it('deux fichiers vides : la source est effacée, aucun numéro', async () => {
-    write(path.join(root, 'vide.md'), '');
-    write(path.join(from, 'vide.md'), '');
-
-    await moveContents(from, root);
-
-    // la source n'est plus là
-    expect(fs.existsSync(path.join(from, 'vide.md'))).toBe(false);
-    // à l'arrivée, un seul fichier
-    expect(names(root)).toEqual(['vide.md']);
-  });
-
   it('deux déplacements en même temps, mêmes nom et octets : le fichier reste à l’arrivée', async () => {
     const other = path.join(tmp, 'autre');
     write(path.join(from, 'rapport.md'), 'RAPPORT');

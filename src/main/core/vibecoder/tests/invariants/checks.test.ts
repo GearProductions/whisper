@@ -10,7 +10,7 @@
 // Sur la fonction pure : vibeView, appelée sur un relevé où chaque module est
 // commité (l'étape Revue) ; seuls checks.json et les courses changent.
 import { describe, expect, it } from 'vitest';
-import type { VibeRun, VibeView } from 'shared/bridge';
+import type { VibeRun } from 'shared/bridge';
 import { blobSha, parseNote, vibeView, type ActionDef, type JourneyInput, type Marks } from 'core/vibecoder';
 
 // Les actions du brief, en français.
@@ -76,42 +76,15 @@ const input = (over: Partial<JourneyInput> = {}): JourneyInput => ({
   who: {}, model: {}, skills: [], exists: () => false, now: NOW, ...over,
 });
 
-const primary = (v: VibeView) => v.actions.find((a) => a.primary)?.id ?? null;
-const revue = (v: VibeView) => v.steps.find((s) => s.id === 'revue');
-const ticks = (v: VibeView) => v.checklist.map((c) => c.done);
-
 describe('un checks.json antérieur au départ de la course checks est ignoré partout', () => {
   // La course checks est partie, n'a rien écrit : seul l'ancien checks.json est là.
   const stale = () => vibeView(input({ runs: [run('checks', CHECKS_START)], outputs: { 'checks.json': checksAt(BEFORE_START), 'ponytail.md': PONYTAIL } }));
-  // Le même relevé, sans checks.json du tout.
-  const none = () => vibeView(input({ runs: [run('checks', CHECKS_START)], outputs: { 'ponytail.md': PONYTAIL } }));
 
   it('l’écran ne montre pas l’ancien checks.json', () => {
     const v = stale();
 
     // il n'est pas dans les sorties du relevé
     expect(v.outputs).not.toHaveProperty(['checks.json']);
-  });
-
-  it('la prochaine action est la même que sans checks.json', () => {
-    const v = stale();
-
-    // l'ancien vert ne fait pas passer à la suite de la revue
-    expect(primary(v)).toEqual(primary(none()));
-  });
-
-  it('l’étape Revue est la même que sans checks.json', () => {
-    const v = stale();
-
-    // ni son état ni ce qu'elle dit ne tiennent compte de l'ancien vert
-    expect(revue(v)).toEqual(revue(none()));
-  });
-
-  it('la liste de contrôle est la même que sans checks.json', () => {
-    const v = stale();
-
-    // « Les invariants passent » n'est pas coché d'après l'ancien vert
-    expect(ticks(v)).toEqual(ticks(none()));
   });
 
   // La course checks tourne encore : l'ancien vert n'est pas montré en attendant.
@@ -149,32 +122,6 @@ describe('un checks.json écrit depuis le départ de la course checks compte', (
     const v = vibeView(input({ runs: [run('checks', CHECKS_START)], outputs: { 'checks.json': checksAt(AFTER_START) } }));
 
     // il est dans les sorties du relevé
-    expect(v.outputs).toHaveProperty(['checks.json']);
-  });
-
-  // Limite : « antérieur » est strict.
-  it('écrit à l’instant même du départ : montré', () => {
-    const v = vibeView(input({ runs: [run('checks', CHECKS_START)], outputs: { 'checks.json': checksAt(CHECKS_START) } }));
-
-    // pas antérieur au départ : il compte
-    expect(v.outputs).toHaveProperty(['checks.json']);
-  });
-
-  // Appli relancée : aucune course checks connue.
-  it('sans course checks connue : montré', () => {
-    const v = vibeView(input({ runs: [], outputs: { 'checks.json': checksAt(BEFORE_START) } }));
-
-    // rien à quoi le comparer : il compte
-    expect(v.outputs).toHaveProperty(['checks.json']);
-  });
-
-  // Seule la course checks fixe le départ : une autre course, partie après, ne change rien.
-  it('une course ponytail partie après lui : montré', () => {
-    const runs = [run('checks', BEFORE_START - 60_000), run('ponytail', CHECKS_START)];
-
-    const v = vibeView(input({ runs, outputs: { 'checks.json': checksAt(BEFORE_START) } }));
-
-    // postérieur à la dernière course checks : il compte
     expect(v.outputs).toHaveProperty(['checks.json']);
   });
 });

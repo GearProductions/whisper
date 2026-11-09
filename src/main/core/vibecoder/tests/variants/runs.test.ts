@@ -212,13 +212,13 @@ describe('cutCommands et cutLine', () => {
 
 describe('remainingModules', () => {
   it('ni commit ni modification', () => {
-    const m = (touched: boolean, uncommitted?: boolean) => ({ path: 'p', contract: '', file: null, touched, commits: [], uncommitted });
+    const m = (touched: boolean, uncommitted?: boolean) => ({ path: 'p', paths: ['p'], contract: '', file: null, touched, commits: [], uncommitted });
     expect(remainingModules([m(false), m(true), m(false, true), m(false, false), m(true, true)])).toBe(2);
   });
 });
 
 describe('runModule : le module que génère une course', () => {
-  const mod = (path: string, touched: boolean) => ({ path, contract: '', file: null, touched, commits: [] });
+  const mod = (path: string, touched: boolean) => ({ path, paths: [path], contract: '', file: null, touched, commits: [] });
   const MODS = [mod('a', true), mod('b', false), mod('c', false)];
 
   it('module : le rang donné, sinon le premier pas touché ; un rang inconnu → null', () => {

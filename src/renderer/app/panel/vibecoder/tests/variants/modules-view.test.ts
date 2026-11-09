@@ -40,7 +40,7 @@ it('commit proposé : IconButton comment, cite le sujet ; absent sans l\'action'
 
 // Le module : un accordéon ; replié, sa ligne et Générer (Commiter s'il a des fichiers pas commités) ; déplié, tous ses
 // outils sur sa ligne et son contrat par rubrique.
-const module = (path: string, touched: boolean) => ({ path, contract: 'Fait `x` · ne connaît pas : y', file: { id: path, path }, touched, commits: [],
+const module = (path: string, touched: boolean) => ({ path, paths: [path], contract: 'Fait `x` · ne connaît pas : y', file: { id: path, path }, touched, commits: [],
   ...(touched ? { files: [{ id: `${path}/0`, path: `${path}/a.ts` }] } : {}) });
 const followed: unknown[] = [];
 const drawModules = () => act(() => {

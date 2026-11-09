@@ -9,7 +9,8 @@
 //   commandes avec ces valeurs). Et : faire travailler l'agent sans que le fil
 //   le montre — le message est le gabarit, ses variables remplies, rien d'autre.
 //   0.8.0-rc.4 : un test à relire est désigné par son id dans le relevé (ou
-//   « * », tous), jamais par un chemin (I-37, I-38).
+//   « * », tous), jamais par un chemin (I-37, I-38). Ici les témoins ; les cas
+//   qui disent quoi part (un test lu, « * ») : tests/variants/actions.test.ts.
 import { describe, expect, it } from 'vitest';
 import type { VibeView } from 'shared/bridge';
 import { buildMessage, type ActionDef, type MessageContext } from 'core/vibecoder';
@@ -23,8 +24,8 @@ const view: VibeView = {
   repo: { branch: 'feat/x', base: 'main', changed: 1 }, error: null, steps: [],
   note: null, questions: [],
   modules: [
-    { path: 'src/main/core/x', contract: 'expose x', file: null, touched: false, commits: [] },
-    { path: 'src/main/core/y', contract: 'expose y', file: null, touched: true, commits: ['e83c516'] },
+    { path: 'src/main/core/x', paths: ['src/main/core/x'], contract: 'expose x', file: null, touched: false, commits: [] },
+    { path: 'src/main/core/y', paths: ['src/main/core/y'], contract: 'expose y', file: null, touched: true, commits: ['e83c516'] },
   ],
   invariants: [], variants: [],
   commits: [{ hash: C1, subject: 'Note, forme, invariants', fixup: false, files: [] }, { hash: C2, subject: 'core/y', fixup: false, files: [] }],
@@ -121,23 +122,6 @@ describe('un test à relire est pris dans le dernier relevé, par son id', () =>
   it('un id qu’une page ferait passer pour autre chose qu’un texte : refusé', () => {
     // les arguments viennent d'une page : leur type n'est pas garanti
     expect(buildMessage(LIRE, { file: ['t0'] as unknown as string }, lus)).toEqual({ error: 'files' });
-  });
-
-  it('un test déjà lu, par son id : lui seul, relu', () => {
-    // relire : le test choisi, même lu, et aucun autre
-    expect(buildMessage(LIRE, { file: 't0' }, lus)).toEqual({ text: `/vibecoder:lire-invariants fr ${ctx.out} WORKTREE src/x/tests/invariants/a.test.ts@${B1}` });
-  });
-
-  it('« * » : tous les tests du relevé, lus ou non', () => {
-    // tout relire : chaque test du relevé, dans son ordre
-    expect(buildMessage(LIRE, { file: '*' }, lus)).toEqual({
-      text: `/vibecoder:lire-invariants fr ${ctx.out} WORKTREE src/x/tests/invariants/a.test.ts@${B1} src/x/tests/invariants/b.test.ts@${B2}`,
-    });
-  });
-
-  it('« * » sans test d’invariant au relevé : refusé', () => {
-    // rien à relire
-    expect(buildMessage(LIRE, { file: '*' }, ctx)).toEqual({ error: 'files' });
   });
 });
 

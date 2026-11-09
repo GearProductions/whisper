@@ -1,7 +1,8 @@
 // Variants du clic droit d'un robot et du « + » (note 0.10.0) : le sous-menu
 // Worktrees d'un agent sans parent à la racine d'un dépôt (branche, sinon le
 // nom du dossier ; vide : une ligne grisée), absent pour un enfant ou hors
-// dépôt ; Ouvrir un agent ici → openHere ; « + » → newAgent puis syncFamilies.
+// dépôt ; Ouvrir un agent ici → openHere ; « + » → newAgent puis syncFamilies ;
+// le trombone : le choix de fichiers s'ouvre aussitôt, conv:attached ne porte que files.
 // Sur la vraie config (fichiers sur disque) ; faux : Electron (le menu relève
 // son modèle) et les contrôleurs qui lancent git ou créent un agent.
 import fs from 'node:fs';
@@ -20,7 +21,7 @@ const fake = vi.hoisted(() => ({
 vi.mock('electron', () => ({
   app: { getPath: () => fake.userData },
   Menu: { buildFromTemplate: (t: unknown[]) => { fake.template = t; return { popup: () => {} }; } },
-  BrowserWindow: class {}, shell: {}, dialog: {}, clipboard: {}, nativeImage: {},
+  BrowserWindow: class {}, shell: {}, dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: ['/tmp/a.png', '/tmp/b.txt'] }) }, clipboard: {}, nativeImage: {},
   screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) },
 }));
 vi.mock('app/controllers', async (orig) => ({
@@ -109,5 +110,16 @@ describe('« + »', () => {
     openAddAgentMenu();
     items().find((i) => i.label?.includes('libre'))!.click!();
     expect(fake.calls).toEqual([['newAgent', path.join(fake.userData, 'libre')], ['syncFamilies']]);
+  });
+});
+
+describe('le trombone', () => {
+  it('des fichiers choisis : conv:attached ne porte que files', async () => {
+    const { state } = await import('app/state');
+    const sent: unknown[][] = [];
+    state.panel = { webContents: { send: (...a: unknown[]) => sent.push(a) } } as never;
+    const { openAttachMenu } = await import('app/menus');
+    await openAttachMenu();
+    expect(sent).toEqual([['conv:attached', { files: ['/tmp/a.png', '/tmp/b.txt'] }]]);
   });
 });

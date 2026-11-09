@@ -104,7 +104,7 @@ export type DraftImage = { name: string; type: string; data: ArrayBuffer };
 export type OutgoingDraft = { text: string; images: DraftImage[]; files: string[]; selection: string };
 export type SendResult = { ok: boolean; error?: string };
 
-export type Attached = { files?: string[]; selection?: { text: string; cut: boolean } };
+export type Attached = { files?: string[] };
 
 export type Decision = 'allow' | 'always' | 'deny';
 
@@ -251,7 +251,7 @@ export type VibeNote = VibeFile & {
 
 export type VibeModule = {
   path: string;                // tel que dans la Forme (« a + b » : une entrée à plusieurs chemins)
-  paths?: string[];            // ses chemins, un par « + » de l'entrée (journey) ; absent (vue écrite à la main) = [path]
+  paths: string[];             // ses chemins, un par « + » de l'entrée (journey, d'après NoteFacts) : un seul sans « + »
   contract: string;            // expose · ne connaît pas · utilisé par
   file: VibeFile | null;       // son fichier ou dossier, s'il existe
   touched: boolean;            // la branche le touche

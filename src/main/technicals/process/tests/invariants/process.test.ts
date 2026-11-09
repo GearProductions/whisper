@@ -86,17 +86,6 @@ describe.skipIf(process.platform === 'win32')('arrêter ce que l’appli a lanc�
     await procs.stop('a');
     expect(await until(() => !alive(pid), 2000)).toBe(true);
   });
-
-  it('une commande qui tourne n’est pas lancée une deuxième fois', async () => {
-    const dir = fresh();
-    const procs = createProcesses({ killAfter: 1000 });
-    procs.start('a', run(dir, 'echo $$ >> pids; sleep 30'));
-    await pidIn(dir, 'pids');
-    expect(procs.start('a', run(dir, 'echo $$ >> pids; sleep 30'))).toBe(false);
-    await new Promise((r) => setTimeout(r, 300));
-    expect(fs.readFileSync(path.join(dir, 'pids'), 'utf8').trim().split('\n')).toHaveLength(1);
-    await procs.stopAll();
-  });
 });
 
 describe('le fichier du projet n’est jamais remplacé', () => {

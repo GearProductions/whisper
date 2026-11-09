@@ -33,7 +33,7 @@ const branchRow = ({ deleted, locked, ...file }: NonNullable<VibeView['files']>[
   rank: null,
   state: null,
   mark: markOf({ deleted, git: file.git }),
-  code: { path: file.path, contract: '', file, touched: true, commits: [], files: [{ ...file, ...(deleted && { deleted }) }], locked },
+  code: { path: file.path, paths: [file.path], contract: '', file, touched: true, commits: [], files: [{ ...file, ...(deleted && { deleted }) }], locked },
 });
 
 // by 'module' (Forme) : un par module, son chemin de la Forme. by 'file' (Modules) : un par fichier changé
@@ -48,7 +48,7 @@ export function ideFiles(view: Pick<VibeView, 'modules' | 'files'> & { variants?
     const state = moduleState(m);
     // Un module ligne à ligne (Forme, ou pas encore de fichier) : à générer s'il n'est pas touché ; la couleur de
     // son fichier s'il n'en a qu'un ; un dossier de plusieurs fichiers : modifié si l'un n'est pas commité.
-    const paths = m.paths ?? [m.path];
+    const { paths } = m;
     const lines = by === 'module' || paths.length > 1 ? paths : [m.file?.path ?? m.path];
     const own = m.files?.length === 1 ? m.files[0] : undefined;
     // Une entrée de la Forme à plusieurs chemins (« a + b », T-15) : une ligne par chemin, au rang de l'entrée.

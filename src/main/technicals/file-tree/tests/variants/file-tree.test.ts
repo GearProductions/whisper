@@ -4,18 +4,32 @@ import os from 'node:os';
 import path from 'node:path';
 import fsp from 'node:fs/promises';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { copyInto, moveContents, moveInto, renameItem, writeInto } from 'technicals/file-tree';
+import { copyInto, hasFiles, moveContents, moveInto, renameItem, writeInto } from 'technicals/file-tree';
 
 let tmp = '';
 let root = '';
+let src = '';   // ce qu'on dépose, repris des invariants
+let from = '';  // ce qu'on déplace
+let out = '';   // un dossier hors de tout
 const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
 const read = (file: string) => fs.readFileSync(file, 'utf8');
+const posix = describe.skipIf(process.platform === 'win32');
+const snapshot = (dir: string) => Object.fromEntries(fs.readdirSync(dir, { recursive: true }).map(String).map((n) => [n, fs.lstatSync(path.join(dir, n)).isDirectory() ? 'dossier' : read(path.join(dir, n))]));
+const contents = (dir: string) => (fs.existsSync(dir) ? Object.values(snapshot(dir)) : []);
+// Les droits retirés sont rendus, pour que le dossier temporaire s'efface.
+const locked: string[] = [];
+const lock = (p: string, mode = 0o555) => { fs.chmodSync(p, mode); locked.push(p); };
+const unlock = () => { for (const p of locked.splice(0)) fs.chmodSync(p, fs.lstatSync(p).isDirectory() ? 0o755 : 0o644); };
+const dirs = () => [src, from, out].forEach((d) => fs.mkdirSync(d, { recursive: true }));
 
 beforeEach(() => {
   tmp = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-file-tree-var-')));
   root = path.join(tmp, 'parent', 'artifacts');
+  src = path.join(tmp, 'depose');
+  from = path.join(tmp, 'sorties', 'enfant');
+  out = path.join(tmp, 'dehors');
 });
-afterEach(() => { vi.restoreAllMocks(); fs.rmSync(tmp, { recursive: true, force: true }); });
+afterEach(() => { unlock(); vi.restoreAllMocks(); fs.rmSync(tmp, { recursive: true, force: true }); });
 
 describe('copyInto', () => {
   it('rapporte les fichiers copiés, sous la racine', async () => {
@@ -408,5 +422,126 @@ describe('writeInto', () => {
 
     expect(report.failed).toHaveLength(1);
     expect(fs.existsSync(path.join(root, 'sous'))).toBe(false);
+  });
+});
+
+// Repris des invariants : rapport, complétude, ce qui n'est pas un lien.
+describe('moveContents : rien de perdu', () => {
+  beforeEach(dirs);
+
+  // Le 1 001ᵉ passe le plafond de la liste des artefacts (LIST_MAX) : le déplacement n'en a pas.
+  it('plus de 1 000 fichiers : tous arrivent', async () => {
+    const count = 1001;
+    for (let i = 0; i < count; i++) write(path.join(from, `f${i}.md`), `F${i}`);
+
+    await moveContents(from, root);
+
+    // autant de fichiers à l'arrivée qu'au départ
+    expect(Object.keys(snapshot(root))).toHaveLength(count);
+  });
+
+  // Un fichier caché est un artefact comme les autres : il n'est pas laissé derrière.
+  it('un fichier caché arrive comme les autres', async () => {
+    write(path.join(from, '.env'), 'CACHE');
+
+    await moveContents(from, root);
+
+    // il est sous la racine
+    expect(contents(root)).toContain('CACHE');
+  });
+});
+
+posix('moveContents : une copie qui échoue en route ne perd rien', () => {
+  beforeEach(dirs);
+
+  it('l’échec est dans le rapport, la promesse ne rejette pas', async () => {
+    write(path.join(from, 'sous', 'x.md'), 'BLOQUE');
+    fs.mkdirSync(path.join(root, 'sous'), { recursive: true });
+    lock(path.join(root, 'sous'));
+
+    const report = await moveContents(from, root);
+
+    // au moins un échec rapporté
+    expect(report.failed.length).toBeGreaterThan(0);
+  });
+
+  it('les fichiers suivants arrivent quand même', async () => {
+    write(path.join(from, 'a.md'), 'AVANT');
+    write(path.join(from, 'sous', 'x.md'), 'BLOQUE');
+    write(path.join(from, 'z.md'), 'APRES');
+    fs.mkdirSync(path.join(root, 'sous'), { recursive: true });
+    lock(path.join(root, 'sous'));
+
+    await moveContents(from, root);
+
+    // celui d'avant est arrivé
+    expect(contents(root)).toContain('AVANT');
+    // celui d'après aussi
+    expect(contents(root)).toContain('APRES');
+  });
+});
+
+posix('copyInto : une copie qui échoue en route ne perd rien', () => {
+  beforeEach(dirs);
+
+  it('un dossier dont un fichier échoue : les suivants arrivent', async () => {
+    write(path.join(src, 'lot', 'a.md'), 'AVANT');
+    write(path.join(src, 'lot', 'm.md'), 'ILLISIBLE');
+    write(path.join(src, 'lot', 'z.md'), 'APRES');
+    lock(path.join(src, 'lot', 'm.md'), 0o000);
+
+    const report = await copyInto(path.join(src, 'lot'), root);
+
+    // l'échec est rapporté
+    expect(report.failed.length).toBeGreaterThan(0);
+    // celui d'avant est arrivé
+    expect(contents(root)).toContain('AVANT');
+    // celui d'après aussi
+    expect(contents(root)).toContain('APRES');
+  });
+});
+
+describe('hasFiles : ne dit « plus rien » que s’il ne reste rien', () => {
+  beforeEach(dirs);
+
+  it('un fichier dans un sous-dossier : il en reste', async () => {
+    write(path.join(from, 'a', 'b', 'x.md'), 'X');
+
+    const has = await hasFiles(from);
+
+    // il est vu
+    expect(has).toBe(true);
+  });
+
+  it('un fichier caché : il en reste', async () => {
+    write(path.join(from, '.env'), 'X');
+
+    const has = await hasFiles(from);
+
+    // il est vu
+    expect(has).toBe(true);
+  });
+});
+
+posix('hasFiles : un lien n’est pas suivi', () => {
+  beforeEach(() => { dirs(); write(path.join(out, 'secret.md'), 'SECRET'); });
+
+  it('un dossier qui est un lien vers des fichiers : rien', async () => {
+    const linked = path.join(tmp, 'sorties', 'lien');
+    fs.symlinkSync(out, linked);
+
+    const has = await hasFiles(linked);
+
+    // sa cible ne compte pas
+    expect(has).toBe(false);
+  });
+
+  it('un dossier qui ne contient qu’un lien vers un dossier : rien', async () => {
+    fs.symlinkSync(out, path.join(from, 'lien'));
+
+    const has = await hasFiles(from);
+
+    // sa cible ne compte pas
+    expect(has).toBe(false);
   });
 });

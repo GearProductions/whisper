@@ -9,6 +9,7 @@
 //   - écrire ailleurs que sous la racine (un nom en `..` compris) ;
 //   - suivre un lien : ni un lien sous la source, ni une source ou une racine qui
 //     serait un lien, seul ou dans un dossier.
+// Les cas de rapport, de complétude et de hasFiles : ../variants/file-tree.test.ts.
 // Le côté des agents (parent, retour, ajout) : app/controllers/tests/invariants/artifact-moves.test.ts.
 // Protégé : si un test échoue, corriger le code.
 //
@@ -18,7 +19,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { copyInto, hasFiles, moveContents } from 'technicals/file-tree';
+import { copyInto, moveContents } from 'technicals/file-tree';
 
 const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
 const read = (file: string) => fs.readFileSync(file, 'utf8');
@@ -207,27 +208,6 @@ describe('moveContents : jamais d’écrasement', () => {
 });
 
 describe('moveContents : rien de perdu', () => {
-  // Le 1 001ᵉ passe le plafond de la liste des artefacts (LIST_MAX) : le déplacement n'en a pas.
-  it('plus de 1 000 fichiers : tous arrivent', async () => {
-    const count = 1001;
-    for (let i = 0; i < count; i++) write(path.join(from, `f${i}.md`), `F${i}`);
-
-    await moveContents(from, root);
-
-    // autant de fichiers à l'arrivée qu'au départ
-    expect(Object.keys(snapshot(root))).toHaveLength(count);
-  });
-
-  // Un fichier caché est un artefact comme les autres : il n'est pas laissé derrière.
-  it('un fichier caché arrive comme les autres', async () => {
-    write(path.join(from, '.env'), 'CACHE');
-
-    await moveContents(from, root);
-
-    // il est sous la racine
-    expect(contents(root)).toContain('CACHE');
-  });
-
   // Il n'est pas transféré : il n'est pas non plus effacé avec le dossier vidé.
   it('un dossier caché, pas transféré, n’est pas effacé', async () => {
     write(path.join(from, '.cache', 'x'), 'CACHE');
@@ -252,32 +232,6 @@ posix('moveContents : une copie qui échoue en route ne perd rien', () => {
 
     // le fichier est toujours là, avec son texte
     expect(read(path.join(from, 'sous', 'x.md'))).toBe('BLOQUE');
-  });
-
-  it('l’échec est dans le rapport, la promesse ne rejette pas', async () => {
-    write(path.join(from, 'sous', 'x.md'), 'BLOQUE');
-    fs.mkdirSync(path.join(root, 'sous'), { recursive: true });
-    lock(path.join(root, 'sous'));
-
-    const report = await moveContents(from, root);
-
-    // au moins un échec rapporté
-    expect(report.failed.length).toBeGreaterThan(0);
-  });
-
-  it('les fichiers suivants arrivent quand même', async () => {
-    write(path.join(from, 'a.md'), 'AVANT');
-    write(path.join(from, 'sous', 'x.md'), 'BLOQUE');
-    write(path.join(from, 'z.md'), 'APRES');
-    fs.mkdirSync(path.join(root, 'sous'), { recursive: true });
-    lock(path.join(root, 'sous'));
-
-    await moveContents(from, root);
-
-    // celui d'avant est arrivé
-    expect(contents(root)).toContain('AVANT');
-    // celui d'après aussi
-    expect(contents(root)).toContain('APRES');
   });
 
   // La source ne se lit pas : la copie échoue, et rien n'efface le fichier.
@@ -381,22 +335,6 @@ posix('copyInto : une copie qui échoue en route ne perd rien', () => {
     expect(read(file)).toBe('ORIGINAL');
     // l'échec est rapporté
     expect(report.failed.length).toBeGreaterThan(0);
-  });
-
-  it('un dossier dont un fichier échoue : les suivants arrivent', async () => {
-    write(path.join(src, 'lot', 'a.md'), 'AVANT');
-    write(path.join(src, 'lot', 'm.md'), 'ILLISIBLE');
-    write(path.join(src, 'lot', 'z.md'), 'APRES');
-    lock(path.join(src, 'lot', 'm.md'), 0o000);
-
-    const report = await copyInto(path.join(src, 'lot'), root);
-
-    // l'échec est rapporté
-    expect(report.failed.length).toBeGreaterThan(0);
-    // celui d'avant est arrivé
-    expect(contents(root)).toContain('AVANT');
-    // celui d'après aussi
-    expect(contents(root)).toContain('APRES');
   });
 });
 
@@ -644,49 +582,5 @@ posix('moveContents : un lien n’est jamais suivi', () => {
     expect(snapshot(out)).toEqual(before);
     // le fichier est quelque part
     expect([...contents(root), ...contents(from)]).toContain('NOUVEAU');
-  });
-});
-
-// Le retrait s'en sert pour oublier un dossier : un faux « plus rien » y perdrait des artefacts.
-describe('hasFiles : ne dit « plus rien » que s’il ne reste rien', () => {
-  it('un fichier dans un sous-dossier : il en reste', async () => {
-    write(path.join(from, 'a', 'b', 'x.md'), 'X');
-
-    const has = await hasFiles(from);
-
-    // il est vu
-    expect(has).toBe(true);
-  });
-
-  it('un fichier caché : il en reste', async () => {
-    write(path.join(from, '.env'), 'X');
-
-    const has = await hasFiles(from);
-
-    // il est vu
-    expect(has).toBe(true);
-  });
-});
-
-posix('hasFiles : un lien n’est pas suivi', () => {
-  beforeEach(() => { write(path.join(out, 'secret.md'), 'SECRET'); });
-
-  it('un dossier qui est un lien vers des fichiers : rien', async () => {
-    const linked = path.join(tmp, 'sorties', 'lien');
-    fs.symlinkSync(out, linked);
-
-    const has = await hasFiles(linked);
-
-    // sa cible ne compte pas
-    expect(has).toBe(false);
-  });
-
-  it('un dossier qui ne contient qu’un lien vers un dossier : rien', async () => {
-    fs.symlinkSync(out, path.join(from, 'lien'));
-
-    const has = await hasFiles(from);
-
-    // sa cible ne compte pas
-    expect(has).toBe(false);
   });
 });

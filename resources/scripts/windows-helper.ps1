@@ -1,8 +1,7 @@
-# Whisper — assistant Windows : clavier simulé, coupures audio pendant la dictée.
+# Whisper — assistant Windows : coupures audio pendant la dictée.
 # Processus PERMANENT piloté par windows.js : démarrer PowerShell et compiler
 # les types ci-dessous coûte ~1 s, qu'on ne veut pas payer à chaque action.
 # Une commande par ligne sur stdin, une ligne de réponse sur stdout :
-#   copy             Ctrl+C (lire la sélection)                  -> ok
 #   discord-mute     coupe les flux de capture de Discord        -> nombre coupé et confirmé
 #   discord-restore  rétablit ceux qu'on a coupés                -> ok
 #   others-mute P    coupe la lecture des autres applications    -> nombre coupé et confirmé
@@ -17,19 +16,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-
-public static class WhisperKeys {
-  [DllImport("user32.dll")] static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
-  const uint KEYUP = 2;
-  const byte CTRL = 0x11;
-  static void CtrlPlus(byte key) {
-    keybd_event(CTRL, 0, 0, UIntPtr.Zero);
-    keybd_event(key, 0, 0, UIntPtr.Zero);
-    keybd_event(key, 0, KEYUP, UIntPtr.Zero);
-    keybd_event(CTRL, 0, KEYUP, UIntPtr.Zero);
-  }
-  public static void Copy() { CtrlPlus(0x43); }   // C
-}
 
 // ---- Core Audio : sessions de capture par application ----------------------
 // Seules les méthodes appelées sont déclarées, dans l'ordre de leur table
@@ -189,7 +175,6 @@ while ($true) {
     $parts = $line.Trim() -split '\s+', 2
     $arg = if ($parts.Count -gt 1) { $parts[1] } else { '' }
     switch ($parts[0]) {
-      'copy'            { [WhisperKeys]::Copy(); Reply 'ok' }
       'discord-mute'    { Reply ([WhisperAudio]::MuteDiscord()) }
       'discord-restore' { [WhisperAudio]::Restore('discord'); Reply 'ok' }
       'others-mute'     { Reply ([WhisperAudio]::MuteOthers($arg)) }

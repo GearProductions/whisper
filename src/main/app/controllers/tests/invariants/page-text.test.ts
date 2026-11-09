@@ -10,76 +10,32 @@
 //         pièce refusée, rien ne part.
 //   I-3 (réduit) : aucun canal « lis ce texte » : Écouter désigne une réponse
 //         par son rang, le principal lit le résumé qu'il a retenu (F-46).
-//   I-10 : pas de whisper sur du silence (F-4).
+// Le silence non transcrit (I-10), le texte rendu à la page et les pièces
+// jointes des réponses : app/controllers/tests/variants/page-text.test.ts.
 //
 // Sur le vrai principal (contrôleurs, fenêtres, état, réglages sur disque ;
 // pour les actions, git réel sur un dépôt d'essai et les actions livrées dans
-// resources/) ; faux : Electron (fenêtres qui relèvent ce qu'on leur envoie ;
-// le décodeur d'images ne lit rien, un GIF passe tel quel), le SDK de
+// resources/), par le décor commun (app/tests/harness) ; faux : Electron
+// (fenêtres qui relèvent ce qu'on leur envoie ; le presse-papiers relève tout
+// appel ; le décodeur d'images ne lit rien, un GIF passe tel quel), le SDK de
 // Claude Code (chaque message reçu par un agent est relevé), whisper-cli et
 // Pocket TTS (les modèles : ce qu'on leur donne est relevé).
-import { execFileSync } from 'node:child_process';
-import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { closeAll, fakeElectron, FakeWin, openPanel, profile, repoResources, repo, settle as wait, writeConfig } from 'app/tests/harness';
 
-// Les boutons de l'écran passent par le socket (0.15.0) : ouvert comme au lancement, fermé après chaque cas.
-let closeSocket = () => {};
-import { slow } from '../slow';
+// Ce que whisper rend ; chaque texte que Pocket TTS a reçu à lire ; chaque message reçu par un agent ;
+// chaque appel au presse-papiers (la méthode et ses arguments).
+const fake = { whisperSays: '', spoken: [] as unknown[], prompts: [] as unknown[], copied: [] as [string, unknown[]][] };
 
-const fake = vi.hoisted(() => {
-  type Handler = (...a: unknown[]) => void;
-  class Win {
-    sent: [string, unknown][] = [];
-    handlers = new Map<string, Handler[]>();
-    visible = false;
-    webContents = {
-      send: (ch: string, payload?: unknown) => { this.sent.push([ch, payload]); },
-      on: () => {}, setWindowOpenHandler: () => {},
-    };
-    on(ev: string, fn: Handler) { this.handlers.set(ev, [...(this.handlers.get(ev) || []), fn]); return this; }
-    once(ev: string, fn: Handler) { return this.on(ev, fn); }
-    emit(ev: string) { for (const fn of this.handlers.get(ev) || []) fn(); }
-    loadFile() {} setAlwaysOnTop() {} setVisibleOnAllWorkspaces() {} setResizable() {} setBounds() {}
-    getBounds() { return { x: 500, y: 500, width: 900, height: 700 }; }
-    isVisible() { return this.visible; } isDestroyed() { return false; } isMinimized() { return false; }
-    isFocused() { return this.visible; }
-    show() { this.visible = true; } showInactive() { this.visible = true; } hide() { this.visible = false; }
-    focus() { this.emit('focus'); } restore() {} minimize() { this.visible = false; }
-  }
-  return {
-    Win, userData: '', windows: [] as InstanceType<typeof Win>[],
-    // Ce que whisper rend, et la taille de chaque audio qu'il a reçu.
-    whisperSays: '', whisperRuns: [] as number[],
-    // Chaque texte que Pocket TTS a reçu à lire.
-    spoken: [] as unknown[],
-    // Chaque message reçu par un agent.
-    prompts: [] as unknown[],
-    // Chaque appel au presse-papiers : la méthode et ses arguments.
-    copied: [] as [string, unknown[]][],
-    // Les gestionnaires posés sur ipcMain, par canal.
-    ipc: new Map<string, (e: { sender: unknown }, ...a: unknown[]) => unknown>(),
-  };
-});
-
-vi.mock('electron', () => ({
-  app: { getPath: () => fake.userData, getAppMetrics: () => [], getVersion: () => '0.0.0' },
-  BrowserWindow: class extends fake.Win { constructor() { super(); fake.windows.push(this); } },
-  screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) },
-  ipcMain: {
-    on: (ch: string, fn: (e: { sender: unknown }, ...a: unknown[]) => unknown) => { fake.ipc.set(ch, fn); },
-    handle: (ch: string, fn: (e: { sender: unknown }, ...a: unknown[]) => unknown) => { fake.ipc.set(ch, fn); },
-  },
+const electron = fakeElectron({
   // Le presse-papiers relève tout appel ; il ne rend que du vide.
   clipboard: new Proxy({}, { get: (_t, name) => (...a: unknown[]) => { fake.copied.push([String(name), a]); return ''; } }),
-  // Un menu s'ouvre sans rien faire ; une notification du système ne montre rien.
-  Menu: { buildFromTemplate: () => ({ popup: () => {} }), setApplicationMenu: () => {} },
-  Notification: class { static isSupported() { return false; } on() {} show() {} },
-  shell: {}, dialog: {},
   // Le décodeur d'images d'Electron ne lit rien : un GIF part tel quel, un PNG est refusé.
   nativeImage: { createFromBuffer: () => ({ isEmpty: () => true }) },
-}));
+});
+vi.mock('electron', () => electron.module);
 
 // Claude Code : chaque message reçu par un agent est relevé.
 vi.mock('technicals/claude', () => ({
@@ -96,11 +52,11 @@ vi.mock('technicals/claude', () => ({
   }),
 }));
 
-// whisper : installé, il rend `whisperSays` et relève l'audio reçu.
+// whisper : installé, il rend `whisperSays`.
 vi.mock('technicals/whisper-cli', async (original) => ({
   ...await original<typeof import('technicals/whisper-cli')>(),
   locateWhisper: () => ({ cli: '/whisper/whisper-cli', model: '/whisper/ggml-base.bin' }),
-  runWhisper: async (_dirs: string[], pcm: Buffer) => { fake.whisperRuns.push(pcm.length); return fake.whisperSays; },
+  runWhisper: async () => fake.whisperSays,
 }));
 
 // Pocket TTS : installé, il relève le texte qu'on lui donne à lire.
@@ -113,52 +69,32 @@ vi.mock('technicals/pocket-tts', async (original) => ({
 }));
 
 // Les actions livrées.
-vi.mock('technicals/paths', async (original) => ({
-  ...await original<typeof import('technicals/paths')>(),
-  resourcePath: (name: string) => `${process.cwd()}/resources/${name}`,
-}));
+vi.mock('technicals/paths', () => repoResources());
 
-const settle = () => new Promise((r) => setTimeout(r, slow(200)));
+const settle = () => wait(200);
 const RATE = 16000;
 // Une seconde de parole : un signal franc, bien au-dessus du seuil du silence.
 const speech = () => new Int16Array(RATE).fill(0.2 * 0x7fff).buffer;
-// Une seconde muette.
-const mute = () => new Int16Array(RATE).buffer;
-// Une parole trop courte : un dixième de seconde.
-const tooShort = () => new Int16Array(RATE / 10).fill(0.2 * 0x7fff).buffer;
 // Un texte que la page voudrait faire lire.
 const PAGE_TEXT = 'texte fourni par la page';
 
+let root = '';
+
 beforeEach(() => {
   vi.resetModules();
-  fake.windows = [];
   fake.whisperSays = '';
-  fake.whisperRuns = [];
-  fake.spoken = [];
-  fake.prompts = [];
-  fake.copied = [];
-  fake.ipc = new Map();
-  fake.userData = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-page-text-')));
+  fake.spoken.length = 0;
+  fake.prompts.length = 0;
+  fake.copied.length = 0;
+  root = profile('whisper-page-text-');
   // Un agent affiché : une dictée aurait à qui partir. agentReview: false, le
   // pire cas d'avant (la dictée partait aussitôt chez l'agent), une clé
   // ignorée une fois le réglage retiré.
-  fs.writeFileSync(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agentSelected: 'a1', autoPaste: false, agentReview: false,
-    agents: [{ id: 'a1', dir: fake.userData, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null }],
-  }));
+  writeConfig(root, [{ id: 'a1', dir: root, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null }],
+    { agentSelected: 'a1', autoPaste: false, agentReview: false });
 });
 
 describe('la transcription est rendue à la page, telle que whisper l’a rendue (I-2)', () => {
-  it('le texte rendu à la page est celui que whisper vient de rendre', async () => {
-    fake.whisperSays = 'bonjour le monde';
-    const { transcribe } = await import('app/controllers');
-
-    const result = await transcribe(speech());
-
-    // Le texte rendu est exactement la sortie de whisper.
-    expect(result.text).toBe(fake.whisperSays);
-  });
-
   it('une transcription ne part chez aucun agent, même quand un agent est affiché', async () => {
     fake.whisperSays = 'bonjour le monde';
     const { transcribe } = await import('app/controllers');
@@ -171,41 +107,34 @@ describe('la transcription est rendue à la page, telle que whisper l’a rendue
   });
 });
 
-describe('pas de whisper sur du silence (I-10)', () => {
-  it('un enregistrement muet n’est pas donné à whisper', async () => {
-    fake.whisperSays = 'texte inventé sur du silence';
-    const { transcribe } = await import('app/controllers');
-
-    await transcribe(mute());
-
-    // whisper n'a reçu aucun audio.
-    expect(fake.whisperRuns).toEqual([]);
-  });
-
-  it('un enregistrement trop court n’est pas donné à whisper', async () => {
-    fake.whisperSays = 'texte inventé sur du silence';
-    const { transcribe } = await import('app/controllers');
-
-    await transcribe(tooShort());
-
-    // whisper n'a reçu aucun audio.
-    expect(fake.whisperRuns).toEqual([]);
-  });
-});
-
 describe('aucun canal « lis ce texte » ou « copie ce texte » (I-3)', () => {
+  // Le balayage qui suit reste vert si aucun gestionnaire n'est branché : ce témoin échoue alors.
+  it('témoin : chaque canal du panneau est écouté, et un canal connu répond', async () => {
+    const { registerIpc } = await import('app/ipc');
+    const { state } = await import('app/state');
+    const { PANEL_CHANNELS } = await import('shared/bridge');
+    const panel = new FakeWin();
+    state.panel = panel as never;
+    registerIpc();
+
+    // chaque canal d'envoi et d'appel du panneau a un gestionnaire
+    expect([...PANEL_CHANNELS.send, ...PANEL_CHANNELS.invoke].filter((ch) => !electron.ipc.has(ch))).toEqual([]);
+    // un canal connu répond à la fenêtre du panneau
+    expect(await electron.ipc.get('config:get')!({ sender: panel.webContents })).toMatchObject({ lang: expect.any(String) });
+  });
+
   // Un balayage, pas une table de cas : la propriété porte sur tous les canaux du
   // panneau à la fois, ceux d'aujourd'hui comme ceux qu'on ajoutera.
   it('un texte donné à chaque canal du panneau n’arrive ni au presse-papiers ni à la lecture', async () => {
     const { registerIpc } = await import('app/ipc');
     const { state } = await import('app/state');
     const { PANEL_CHANNELS } = await import('shared/bridge');
-    const panel = new fake.Win();
+    const panel = new FakeWin();
     state.panel = panel as never;
     registerIpc();
 
     for (const ch of [...PANEL_CHANNELS.send, ...PANEL_CHANNELS.invoke]) {
-      const handler = fake.ipc.get(ch)!;
+      const handler = electron.ipc.get(ch)!;
       // Chaque argument est le texte de la page, envoyé par la fenêtre du panneau ; un refus est permis.
       try { await Promise.race([handler({ sender: panel.webContents }, PAGE_TEXT, PAGE_TEXT, PAGE_TEXT), settle()]); } catch { /* refusé */ }
     }
@@ -229,7 +158,6 @@ describe('aucun canal « lis ce texte » ou « copie ce texte » (I-3)', () => {
 });
 
 describe('ce qui part pour une action : le texte et les pièces jointes de son champ, plus son gabarit (I-2 élargi)', () => {
-  const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' });
   // Le texte du champ, et ses pièces jointes : une sélection, un fichier par son chemin, une image (un GIF).
   const FIELD = 'le texte du champ';
   const SELECTION = 'la sélection jointe au champ';
@@ -242,33 +170,15 @@ describe('ce qui part pour une action : le texte et les pièces jointes de son c
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] }); // le relevé des 4 s ne tourne pas
     // Un dépôt sur une branche dont la note est écrite : la Forme et la ponytail review sont proposées.
-    const dir = path.join(fake.userData, 'projet');
-    fs.mkdirSync(path.join(dir, 'docs/tickets/feat'), { recursive: true });
-    git(dir, 'init', '-q', '-b', 'main');
-    git(dir, 'commit', '-q', '--allow-empty', '-m', 'init');
-    git(dir, 'checkout', '-q', '-b', 'feat/0.14.0-essai');
-    fs.writeFileSync(path.join(dir, 'docs/tickets/feat/0.14.0-essai.md'), '# 0.14.0 — essai\n\n## Ce que ça fait\n\n- un essai\n');
-    git(dir, 'add', '.');
-    git(dir, 'commit', '-q', '-m', 'note');
-    fs.writeFileSync(path.join(fake.userData, 'config.json'), JSON.stringify({
-      agentSelected: 'a1',
-      agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
-        vibe: { flow: 'create', pr: null } }],
-    }));
+    const dir = path.join(root, 'projet');
+    repo(dir, { branch: 'feat/0.14.0-essai', note: '# 0.14.0 — essai\n\n## Ce que ça fait\n\n- un essai\n' });
+    writeConfig(root, [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
+      vibe: { flow: 'create', pr: null } }], { agentSelected: 'a1' });
   });
-  afterEach(() => { closeSocket(); closeSocket = () => {}; vi.useRealTimers(); });
+  afterEach(closeAll);
 
   // Le panneau ouvert sur l'agent, en VibeCoder, son premier relevé reçu.
-  async function open() {
-    const { openConversation } = await import('app/windows');
-    const { panelReady, openSocket, commandFromSocket, closeSocket: close } = await import('app/controllers');
-    await openSocket(commandFromSocket);
-    closeSocket = close;
-    openConversation('a1');
-    fake.windows.at(-1)!.emit('ready-to-show');
-    await panelReady();
-    await settle();
-  }
+  const open = () => openPanel('a1');
 
   it('le texte et chaque pièce jointe du champ partent avec son action', async () => {
     await open();
@@ -279,29 +189,6 @@ describe('ce qui part pour une action : le texte et les pièces jointes de son c
 
     // Le texte du champ est parti.
     expect(received()).toContain(FIELD);
-    // La sélection jointe est partie.
-    expect(received()).toContain(SELECTION);
-    // Le chemin du fichier joint est parti.
-    expect(received()).toContain(JSON.stringify(FILE).slice(1, -1));
-    // L'image jointe est partie.
-    expect(received()).toContain(GIF.toString('base64'));
-  });
-
-  // Envoyer les réponses : son gabarit lit {{answers}}, pas {{text}}.
-  it('les pièces jointes des réponses partent avec Envoyer les réponses', async () => {
-    // Une question ouverte laissée par la note : Envoyer les réponses est proposé.
-    const out = path.join(fake.userData, 'vibecoder-out', 'a1');
-    fs.mkdirSync(out, { recursive: true });
-    fs.writeFileSync(path.join(out, 'questions.md'), '## 1. Une question ?\n');
-    await open();
-    const { runVibeAction } = await import('app/controllers');
-    const ANSWER = 'la réponse à la question ouverte';
-
-    runVibeAction('answers', { answers: [ANSWER], pieces: pieces() });
-    await settle();
-
-    // La réponse est partie.
-    expect(received()).toContain(ANSWER);
     // La sélection jointe est partie.
     expect(received()).toContain(SELECTION);
     // Le chemin du fichier joint est parti.

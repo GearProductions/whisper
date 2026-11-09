@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ideFiles, invariantFiles, moduleState } from 'core/vibecoder';
 import type { VibeModule, VibeTestFile } from 'technicals/bridge';
 
-const mod = (path: string, o: Partial<VibeModule> = {}): VibeModule => ({ path, contract: '', file: null, touched: false, commits: [], ...o });
+const mod = (path: string, o: Partial<VibeModule> = {}): VibeModule => ({ path, paths: [path], contract: '', file: null, touched: false, commits: [], ...o });
 const f = (id: string, path: string, deleted?: true) => ({ id, path, ...(deleted && { deleted }) });
 
 const done = mod('a/', { touched: true, commits: ['h1'], files: [f('m0/0', 'a/x.ts'), f('m0/1', 'a/y.ts', true)] });

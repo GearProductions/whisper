@@ -7,87 +7,40 @@
 // Le dépôt, ses worktrees et leurs robots partagent le même dossier ; un dossier hors git
 // est son propre projet. Les règles générales du panneau, du schéma et de l'ajout :
 // artifacts.test.ts et artifact-moves.test.ts ; le déplacement des anciens artefacts :
-// artifact-migration.test.ts.
+// tests/variants/artifact-migration.test.ts ; ce que le panneau montre du dossier (un dossier caché, un
+// ancien artefact, le robot du worktree, le dossier donné à la page) : tests/variants/project-artifacts.test.ts.
 // Copier dans le projet prend la sélection, args.artifacts (note
 // docs/tickets/feat/0.13.0-gestion-artefacts.md, Forme) : seul l'appel change, ces règles gardées.
 // Protégé : si un test échoue, corriger le code.
 //
 // Sur le vrai principal (contrôleurs, fenêtres, état, réglages et fichiers sur disque,
 // vrais liens symboliques, git réel sur un dépôt d'essai et son worktree, le vrai serveur
-// du schéma) ; faux : Electron (fenêtres qui relèvent ce qu'on leur envoie ;
-// protocol.handle qui garde le gestionnaire du schéma ; boîtes de dialogue), l'éditeur
-// (relève ce qu'on lui fait ouvrir) et le SDK de Claude Code (aucun tour ne commence ici).
-import { execFileSync } from 'node:child_process';
+// du schéma), par le décor commun (app/tests/harness) ; faux : Electron (fenêtres qui
+// relèvent ce qu'on leur envoie ; protocol.handle qui garde le gestionnaire du schéma ;
+// boîtes de dialogue), l'éditeur (relève ce qu'on lui fait ouvrir) et le SDK de Claude Code
+// (aucun tour ne commence ici).
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { click, closeAll, fakeClaude, fakeElectron, git, openPanel, profile, repo as initRepo, repoResources, settle, write, writeConfig } from 'app/tests/harness';
 
-const fake = vi.hoisted(() => {
-  type Handler = (...a: unknown[]) => void;
-  class Win {
-    sent: [string, unknown][] = [];
-    handlers = new Map<string, Handler[]>();
-    visible = false;
-    webContents = {
-      send: (ch: string, payload?: unknown) => { this.sent.push([ch, payload]); },
-      on: () => {}, setWindowOpenHandler: () => {},
-    };
-    on(ev: string, fn: Handler) { this.handlers.set(ev, [...(this.handlers.get(ev) || []), fn]); return this; }
-    once(ev: string, fn: Handler) { return this.on(ev, fn); }
-    emit(ev: string) { for (const fn of this.handlers.get(ev) || []) fn(); }
-    loadFile() {} setAlwaysOnTop() {} setVisibleOnAllWorkspaces() {} setResizable() {} setBounds() {}
-    getBounds() { return { x: 500, y: 500, width: 64, height: 64 }; }
-    isVisible() { return this.visible; } isDestroyed() { return false; } isMinimized() { return false; }
-    show() { this.visible = true; } showInactive() { this.visible = true; } hide() { this.visible = false; }
-    focus() { this.emit('focus'); } restore() {} minimize() { this.visible = false; }
-  }
-  return {
-    Win, userData: '', windows: [] as InstanceType<typeof Win>[],
-    schemes: new Map<string, (req: Request) => Response | Promise<Response>>(),
-    // Le dossier que l'utilisateur choisit à Copier dans le projet.
-    pick: { canceled: true, filePaths: [] as string[] },
-    edited: [] as string[],
-  };
-});
+const electron = fakeElectron();
+const claude = fakeClaude();   // aucun tour ici ; un message reçu ne fait rien
+vi.mock('electron', () => electron.module);
+vi.mock('technicals/claude', () => claude.module);
+vi.mock('technicals/paths', () => repoResources());
 
-vi.mock('electron', () => ({
-  app: { getPath: () => fake.userData },
-  BrowserWindow: class extends fake.Win { constructor() { super(); fake.windows.push(this); } },
-  screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) },
-  protocol: {
-    registerSchemesAsPrivileged: () => {},
-    handle: (scheme: string, fn: (req: Request) => Response | Promise<Response>) => { fake.schemes.set(scheme, fn); },
-  },
-  dialog: { showOpenDialog: async () => fake.pick, showMessageBox: async () => ({ response: 0 }) },
-  shell: {}, clipboard: {}, nativeImage: {},
-}));
-
-vi.mock('technicals/claude', () => ({
-  launcher: () => ({ executable: 'claude' }),
-  loadSdk: async () => ({
-    getSessionInfo: async () => null,
-    getSessionMessages: async () => [],
-    query: () => Object.assign((async function* run() {}()), { setPermissionMode: async () => {}, setModel: async () => {}, interrupt: async () => {} }),
-  }),
-}));
-
+// L'éditeur : relève ce qu'on lui fait ouvrir.
+const fake = { edited: [] as string[] };
 vi.mock('technicals/editor', () => ({
   findEditor: () => ({ name: 'éditeur', open: () => {}, openFile: (file: string) => { fake.edited.push(file); } }),
 }));
 
-vi.mock('technicals/paths', async (original) => ({
-  ...await original<typeof import('technicals/paths')>(),
-  resourcePath: (name: string) => `${process.cwd()}/resources/${name}`,
-}));
-
-const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' });
-const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
 const read = (file: string) => fs.readFileSync(file, 'utf8');
-const settle = () => new Promise((r) => setTimeout(r, 300));
 // Liens de fichier : sans équivalent simple sous Windows.
 const posix = describe.skipIf(process.platform === 'win32');
 
+let userData = '';  // le profil d'essai
 let repo = '';      // le dossier de a1, un dépôt git
 let worktree = '';  // le dossier de a2, un worktree de ce dépôt
 let solo = '';      // le dossier de a3, hors git
@@ -106,7 +59,7 @@ const THEIRS = 'TEXTE_DE_L_AUTRE_PROJET';
 // Ce que la page reçoit : le dernier relevé, et les textes de fichier poussés.
 type Artifact = { id: string; name: string; url: string | null };
 type View = { artifacts?: Artifact[]; artifactsDir?: string };
-const panel = () => fake.windows.at(-1)!;
+const panel = () => electron.windows.at(-1)!;
 const survey = () => panel().sent.filter(([ch]) => ch === 'conv:vibe').at(-1)![1] as View;
 const names = () => (survey().artifacts ?? []).map((a) => a.name);
 const texts = () => panel().sent.filter(([ch]) => ch === 'conv:vibeCode').map(([, c]) => c as { text: string | null } | null).flatMap((c) => (c && c.text !== null ? [c.text] : []));
@@ -127,43 +80,33 @@ function snapshot(dir: string) {
   return found;
 }
 
-const AGENT = { model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder', vibe: { flow: 'create', autonomy: 'guide', pr: null } };
+const AGENT = { model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder' as const, vibe: { flow: 'create' as const, autonomy: 'guide' as const, pr: null } };
 
 beforeEach(async () => {
   vi.resetModules();
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] }); // le relevé des 4 s ne tourne pas
-  fake.windows = [];
-  fake.schemes = new Map();
   fake.edited = [];
-  fake.userData = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-project-artifacts-')));
-  repo = path.join(fake.userData, 'projet');
-  worktree = path.join(fake.userData, 'projet-worktrees', 'enfant');
-  solo = path.join(fake.userData, 'seul');
-  other = path.join(fake.userData, 'autre');
-  lone = path.join(fake.userData, 'isole');
-  chosen = path.join(fake.userData, 'choisi');
-  outside = path.join(fake.userData, 'dehors');
+  userData = profile('whisper-project-artifacts-');
+  repo = path.join(userData, 'projet');
+  worktree = path.join(userData, 'projet-worktrees', 'enfant');
+  solo = path.join(userData, 'seul');
+  other = path.join(userData, 'autre');
+  lone = path.join(userData, 'isole');
+  chosen = path.join(userData, 'choisi');
+  outside = path.join(userData, 'dehors');
   secret = path.join(outside, 'secret.md');
-  for (const d of [repo, solo, other, lone, chosen]) fs.mkdirSync(d, { recursive: true });
-  fake.pick = { canceled: false, filePaths: [chosen] };
+  for (const d of [solo, lone, chosen]) fs.mkdirSync(d, { recursive: true });
+  electron.dialog.pick = { canceled: false, filePaths: [chosen] };
   write(secret, SECRET);
-  for (const d of [repo, other]) {
-    git(d, 'init', '-q', '-b', 'main');
-    write(path.join(d, 'README.md'), 'projet');
-    git(d, 'add', '.');
-    git(d, 'commit', '-q', '-m', 'init');
-    git(d, 'checkout', '-q', '-b', 'feat/0.13.0-essai');
-  }
+  for (const d of [repo, other]) initRepo(d);
   git(repo, 'worktree', 'add', '-q', '-b', 'feat/0.13.0-enfant', worktree);
-  write(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agents: [
-      { ...AGENT, id: 'a1', dir: repo, name: 'parent' },
-      { ...AGENT, id: 'a2', dir: worktree, name: 'enfant', parent: { id: 'a1' } },
-      { ...AGENT, id: 'a3', dir: solo, name: 'seul' },
-      { ...AGENT, id: 'a4', dir: other, name: 'autre' },
-      { ...AGENT, id: 'a6', dir: lone, name: 'isolé' },
-    ],
-  }));
+  writeConfig(userData, [
+    { ...AGENT, id: 'a1', dir: repo, name: 'parent' },
+    { ...AGENT, id: 'a2', dir: worktree, name: 'enfant', parent: { id: 'a1' } },
+    { ...AGENT, id: 'a3', dir: solo, name: 'seul' },
+    { ...AGENT, id: 'a4', dir: other, name: 'autre' },
+    { ...AGENT, id: 'a6', dir: lone, name: 'isolé' },
+  ]);
   const { projectArtifactsPath } = await import('app/controllers');
   project = projectArtifactsPath(repo);
   foreign = projectArtifactsPath(other);
@@ -172,7 +115,7 @@ beforeEach(async () => {
   write(path.join(foreign, 'notes.md'), THEIRS);
   write(path.join(foreign, 'plan.md'), THEIRS);
 });
-afterEach(() => { vi.useRealTimers(); });
+afterEach(closeAll);
 
 const agentOf = async (id: string) => {
   const { loadConfig } = await import('app/settings');
@@ -183,14 +126,7 @@ const agentOf = async (id: string) => {
 const ids = async () => (await import('app/settings')).loadConfig().agents.map((a) => a.id);
 
 // Le panneau ouvert sur cet agent, en VibeCoder, son premier relevé reçu.
-async function open(id: string) {
-  const { openConversation } = await import('app/windows');
-  const { panelReady } = await import('app/controllers');
-  openConversation(id);
-  fake.windows.at(-1)!.emit('ready-to-show');
-  await panelReady();
-  await settle();
-}
+const open = (id: string) => openPanel(id);
 async function follow(id: unknown) {
   const { followCode } = await import('app/controllers');
   followCode(id);
@@ -202,8 +138,7 @@ async function openInEditor(id: unknown) {
   await settle();
 }
 async function copy(artifactId: unknown) {
-  const { runVibeAction } = await import('app/controllers');
-  runVibeAction('copy-artifact', { direct: true, artifacts: [artifactId] });
+  await click('copy-artifact', { direct: true, artifacts: [artifactId] });
   await settle();
 }
 // Une requête au schéma, branché comme au démarrage.
@@ -211,7 +146,7 @@ async function request(url: string) {
   const { serveFiles } = await import('technicals/file-scheme');
   const { resolveArtifact } = await import('app/controllers');
   serveFiles('vibe-artifact', resolveArtifact);
-  return await fake.schemes.get('vibe-artifact')!(new Request(url));
+  return await electron.schemes.get('vibe-artifact')!(new Request(url));
 }
 
 describe('retirer ne touche pas au dossier du projet', () => {
@@ -268,20 +203,9 @@ describe('retirer ne touche pas au dossier du projet', () => {
     expect(read(path.join(project, '.robot', 'interne.md'))).toBe('CACHE');
   });
 
-  it('un dossier caché écrit là : le panneau ne le liste pas', async () => {
-    write(path.join(project, '.robot', 'interne.md'), 'CACHE');
-
-    await open('a1');
-
-    // témoin : le relevé liste bien les artefacts
-    expect(names()).toContain('notes.md');
-    // aucun de ses fichiers n'y est
-    expect(names().join()).not.toContain('interne.md');
-  });
-
   // Il n'a pas encore pu partir vers le dossier du projet : effacer les sorties ne l'emporte pas.
   it('Retirer le worktree : un ancien artefact pas encore parti reste, le reste des sorties part', async () => {
-    const outOf = path.join(fake.userData, 'vibecoder-out', 'a2');
+    const outOf = path.join(userData, 'vibecoder-out', 'a2');
     write(path.join(outOf, 'artifacts', 'sous', 'x.md'), 'BLOQUE');
     write(path.join(outOf, 'commit.md'), 'SORTIE');
     const { removeWorktreeChild } = await import('app/controllers');
@@ -297,7 +221,7 @@ describe('retirer ne touche pas au dossier du projet', () => {
 
 posix('retirer : un lien n’est jamais suivi', () => {
   it('Retirer le worktree, ses anciens artifacts/ sont un lien : le dehors reste intact', async () => {
-    const outOf = path.join(fake.userData, 'vibecoder-out', 'a2');
+    const outOf = path.join(userData, 'vibecoder-out', 'a2');
     fs.mkdirSync(outOf, { recursive: true });
     fs.symlinkSync(outside, path.join(outOf, 'artifacts'));
     const before = snapshot(outside);
@@ -313,17 +237,8 @@ posix('retirer : un lien n’est jamais suivi', () => {
 });
 
 describe('le dépôt, ses worktrees et leurs robots partagent le même dossier', () => {
-  it('le robot du worktree voit l’artefact du dépôt', async () => {
-    await open('a2');
-
-    await follow(artifact('notes.md').id);
-
-    // la page reçoit le texte de l'artefact du projet
-    expect(texts()).toContain(MINE);
-  });
-
   it('un artefact ajouté par le robot du worktree : l’agent du dépôt le voit, le worktree n’a rien reçu', async () => {
-    const dropped = path.join(fake.userData, 'depose.md');
+    const dropped = path.join(userData, 'depose.md');
     write(dropped, 'DEPOSE');
     const { addArtifacts } = await import('app/controllers');
 
@@ -349,19 +264,9 @@ describe('le dépôt, ses worktrees et leurs robots partagent le même dossier',
     expect(dirs).not.toContain(foreign);
   });
 
-  // Le @ écrit ce chemin : il doit être celui du projet de l'agent affiché.
-  it('le relevé donne à la page le dossier du projet de l’agent affiché', async () => {
-    await open('a2');
-
-    // le dossier du projet
-    expect(survey().artifactsDir).toBe(project);
-    // pas celui d'un autre projet
-    expect(survey().artifactsDir).not.toBe(foreign);
-  });
-
   it('le dossier du projet n’est ni dans le dépôt ni dans ses sorties', () => {
     const fromRepo = path.relative(repo, project);
-    const fromOutputs = path.relative(path.join(fake.userData, 'vibecoder-out'), project);
+    const fromOutputs = path.relative(path.join(userData, 'vibecoder-out'), project);
 
     // hors du dépôt
     expect(fromRepo.startsWith('..')).toBe(true);
@@ -485,16 +390,6 @@ describe('jamais un artefact d’un autre projet (I-37)', () => {
     expect(texts()).toEqual([]);
   });
 
-  it('un ancien artefact pas encore parti n’est pas dans le dossier du projet : il n’est pas montré', async () => {
-    write(path.join(fake.userData, 'vibecoder-out', 'a1', 'artifacts', 'ancien.md'), 'ANCIEN');
-
-    await open('a1');
-
-    // témoin : l'artefact du projet est listé
-    expect(names()).toContain('notes.md');
-    // l'ancien n'y est pas
-    expect(names()).not.toContain('ancien.md');
-  });
 });
 
 posix('le dossier du projet remplacé par un lien : rien du dehors', () => {
@@ -548,6 +443,16 @@ posix('le dossier du projet remplacé par un lien : rien du dehors', () => {
 
     // l'éditeur n'ouvre rien
     expect(fake.edited).toEqual([]);
+  });
+
+  it('témoin : Copier dans le projet, l’artefact du projet arrive dans le dossier choisi', async () => {
+    await open('a1');
+    const { id } = artifact('notes.md');
+
+    await copy(id);
+
+    // le dossier choisi reçoit l'artefact du projet, avec son texte
+    expect(read(path.join(chosen, 'notes.md'))).toBe(MINE);
   });
 
   it('remplacé après le relevé : rien du dehors n’est copié', async () => {

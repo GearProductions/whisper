@@ -9,84 +9,28 @@
 //     d'invariants) ;
 //   - pas d'enregistrement pendant une course de l'agent ni pendant un tour de
 //     la conversation (le principal recalcule le verrou avant d'écrire, sans
-//     se fier à la page).
+//     se fier à la page : un cas par sorte de course).
+// Les cas de l'id d'un variant et du verrou d'un test (Ponytail review, un tour) :
+// variants/note-and-tests-save.test.ts (0.15.0).
 // Protégé : si un test échoue, corriger le code.
 //
-// Sur le vrai principal (contrôleurs, fenêtres, état, réglages et fichiers sur
-// disque, git réel sur un dépôt d'essai, un lien réel qui sort du dossier de
-// l'agent) ; faux : Electron (fenêtres qui relèvent ce qu'on leur envoie) et le
-// SDK de Claude Code (chaque message reçu ouvre un tour, sans rien écrire, qui
-// dure jusqu'à interrupt()). Ce que la page voit d'un fichier : les
-// conv:vibeCode poussés au panneau. Même banc que module-code.test.ts.
-import { execFileSync } from 'node:child_process';
+// Sur le vrai principal, par le décor commun (app/tests/harness : Electron et le
+// SDK de Claude Code factices, git réel sur un dépôt d'essai, un lien réel qui
+// sort du dossier de l'agent). Ce que la page voit d'un fichier : les
+// conv:vibeCode poussés au panneau.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  click as press, closeAll, fakeClaude, fakeElectron, git, openPanel, profile, repo, repoResources, settle, write, writeConfig,
+} from 'app/tests/harness';
 
-// Les boutons de l'écran passent par le socket (0.15.0) : ouvert comme au lancement, fermé après chaque cas.
-let closeSocket = () => {};
-import { slow } from '../slow';
+const electron = fakeElectron();
+const claude = fakeClaude();
+vi.mock('electron', () => electron.module);
+vi.mock('technicals/claude', () => claude.module);
+vi.mock('technicals/paths', () => repoResources());
 
-const fake = vi.hoisted(() => {
-  type Handler = (...a: unknown[]) => void;
-  class Win {
-    sent: [string, unknown][] = [];
-    handlers = new Map<string, Handler[]>();
-    visible = false;
-    webContents = {
-      send: (ch: string, payload?: unknown) => { this.sent.push([ch, payload]); },
-      on: () => {}, setWindowOpenHandler: () => {},
-    };
-    on(ev: string, fn: Handler) { this.handlers.set(ev, [...(this.handlers.get(ev) || []), fn]); return this; }
-    once(ev: string, fn: Handler) { return this.on(ev, fn); }
-    emit(ev: string) { for (const fn of this.handlers.get(ev) || []) fn(); }
-    loadFile() {} setAlwaysOnTop() {} setVisibleOnAllWorkspaces() {} setResizable() {} setBounds() {}
-    getBounds() { return { x: 500, y: 500, width: 64, height: 64 }; }
-    isVisible() { return this.visible; } isDestroyed() { return false; } isMinimized() { return false; }
-    show() { this.visible = true; } showInactive() { this.visible = true; } hide() { this.visible = false; }
-    focus() { this.emit('focus'); } restore() {} minimize() { this.visible = false; }
-  }
-  // Chaque tour reçu par Claude Code : le skill appelé (ou le premier mot du message), et s'il est fini.
-  return { Win, userData: '', windows: [] as InstanceType<typeof Win>[], turns: [] as { skill: string; done: boolean }[] };
-});
-
-vi.mock('electron', () => ({
-  app: { getPath: () => fake.userData },
-  BrowserWindow: class extends fake.Win { constructor() { super(); fake.windows.push(this); } },
-  screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) },
-  shell: {}, dialog: {}, clipboard: {}, nativeImage: {},
-}));
-
-// Claude Code : un tour par message reçu, relevé, qui ne finit qu'à interrupt().
-vi.mock('technicals/claude', () => ({
-  launcher: () => ({ executable: 'claude' }),
-  loadSdk: async () => ({
-    getSessionInfo: async () => null,
-    getSessionMessages: async () => [],
-    query: ({ prompt }: { prompt: AsyncIterable<{ message: { content: unknown } }> }) => {
-      let stop = () => {};
-      return Object.assign((async function* run() {
-        for await (const m of prompt) {
-          const turn = { skill: String(m.message.content).split(' ')[0], done: false };
-          fake.turns.push(turn);
-          await new Promise<void>((ok) => { stop = ok; });
-          turn.done = true;
-          yield { type: 'result', subtype: 'error_during_execution', is_error: true };
-        }
-      }()), { setPermissionMode: async () => {}, setModel: async () => {}, interrupt: async () => { stop(); } });
-    },
-  }),
-}));
-
-vi.mock('technicals/paths', async (original) => ({
-  ...await original<typeof import('technicals/paths')>(),
-  resourcePath: (name: string) => `${process.cwd()}/resources/${name}`,
-}));
-
-const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' });
-const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
-const settle = () => new Promise((r) => setTimeout(r, slow(300)));
 let dir = '';
 let secret = '';
 
@@ -94,9 +38,8 @@ let secret = '';
 type Survey = {
   note: { id: string; path: string } | null;
   invariants: { id: string; path: string }[];
-  variants: { id: string; path: string }[];
 };
-const panel = () => fake.windows.at(-1)!;
+const panel = () => electron.windows.at(-1)!;
 const survey = () => panel().sent.filter(([ch]) => ch === 'conv:vibe').at(-1)![1] as Survey;
 const codes = () => panel().sent.filter(([ch]) => ch === 'conv:vibeCode').map(([, c]) => c as { id: string; text: string | null } | null);
 // Les textes de fichier poussés à la page (null : trop gros ou illisible, pas un texte).
@@ -107,69 +50,54 @@ function noteId() {
   if (!n) throw new Error('le relevé ne donne aucune note');
   return n.id;
 }
-// L'id que le dernier relevé donne à ce test d'invariant, ou à ce variant.
+// L'id que le dernier relevé donne à ce test d'invariant.
 function testId(rel: string) {
-  const f = [...survey().invariants, ...survey().variants].find((x) => x.path === rel);
+  const f = survey().invariants.find((x) => x.path === rel);
   if (!f) throw new Error(`le relevé ne donne aucun id à ${rel}`);
   return f.id;
 }
 // Les skills (ou premiers mots) des tours en cours.
-const inProgress = () => fake.turns.filter((t) => !t.done).map((t) => t.skill);
+const inProgress = () => claude.turns.filter((t) => !t.done).map((t) => t.skill);
 // Ce que git voit changé dans le dépôt de l'agent.
-const changed = () => git(dir, 'status', '--porcelain').toString();
+const changed = () => git(dir, 'status', '--porcelain');
 // Le texte d'un fichier du dépôt.
 const onDisk = (rel: string) => fs.readFileSync(path.join(dir, rel), 'utf8');
 // Un fichier remplacé par un lien qui mène hors du dossier de l'agent.
 const linkOut = (rel: string) => { fs.rmSync(path.join(dir, rel)); fs.symlinkSync(secret, path.join(dir, rel)); };
 
-const NOTE = 'docs/tickets/feat/0.11.0-essai.md';
+const BRANCH = 'feat/0.11.0-essai';
+const NOTE = `docs/tickets/${BRANCH}.md`;
 const NOTE_TEXT = ['# 0.11.0 — essai', '', '## Ce que ça fait', '', '- un essai', '',
   '## Forme', '', '```', 'src/core/hello    hello() · ne connaît pas : le DOM', '```', ''].join('\n');
 const INV = 'src/core/hello/tests/invariants/hello.test.ts';
 const INV_TEXT = "import { it } from 'vitest';\nit('hello ne ment jamais', () => {});\n";
-const VAR = 'src/core/hello/tests/variants/hello.test.ts';
-const VAR_TEXT = "import { it } from 'vitest';\nit('hello dit bonjour', () => {});\n";
 
 beforeEach(() => {
   vi.resetModules();
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] }); // le relevé des 4 s ne tourne pas
-  fake.windows = [];
-  fake.turns = [];
-  fake.userData = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-note-tests-')));
+  const root = profile('whisper-note-tests-');
   // Hors du dossier de l'agent : un secret.
-  secret = path.join(fake.userData, 'secret.md');
+  secret = path.join(root, 'secret.md');
   write(secret, 'SECRET_DEHORS');
-  // Le dépôt : un module sur main ; la branche ajoute sa note, un test d'invariant et un variant.
-  dir = path.join(fake.userData, 'projet');
-  fs.mkdirSync(dir, { recursive: true });
-  git(dir, 'init', '-q', '-b', 'main');
+  // Le dépôt : un module sur main ; la branche ajoute sa note et un test d'invariant.
+  dir = path.join(root, 'projet');
+  repo(dir, { branch: BRANCH, note: NOTE_TEXT });
+  git(dir, 'checkout', '-q', 'main');
   write(path.join(dir, 'src/core/hello/index.ts'), 'HELLO_MAIN');
   git(dir, 'add', '.');
-  git(dir, 'commit', '-q', '-m', 'init');
-  git(dir, 'checkout', '-q', '-b', 'feat/0.11.0-essai');
-  write(path.join(dir, NOTE), NOTE_TEXT);
+  git(dir, 'commit', '-q', '-m', 'main');
+  git(dir, 'checkout', '-q', BRANCH);
+  git(dir, 'rebase', '-q', 'main');
   write(path.join(dir, INV), INV_TEXT);
-  write(path.join(dir, VAR), VAR_TEXT);
   git(dir, 'add', '.');
-  git(dir, 'commit', '-q', '-m', 'note, invariants');
-  write(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
-      vibe: { flow: 'create', autonomy: 'guide', pr: null } }],
-  }));
+  git(dir, 'commit', '-q', '-m', 'invariants');
+  writeConfig(root, [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
+    vibe: { flow: 'create', autonomy: 'guide', pr: null } }]);
 });
-afterEach(() => { closeSocket(); closeSocket = () => {}; vi.useRealTimers(); });
+afterEach(closeAll);
 
 // Le panneau ouvert sur l'agent, en VibeCoder, son premier relevé reçu.
-async function open() {
-  const { openConversation } = await import('app/windows');
-  const { panelReady, openSocket, commandFromSocket, closeSocket: close } = await import('app/controllers');
-  await openSocket(commandFromSocket);
-  closeSocket = close;
-  openConversation('a1');
-  fake.windows.at(-1)!.emit('ready-to-show');
-  await panelReady();
-  await settle();
-}
+const open = () => openPanel('a1');
 
 // La page suit un fichier (affiché, modifiable ; null : plus rien d'affiché).
 async function follow(id: unknown) {
@@ -180,8 +108,7 @@ async function follow(id: unknown) {
 
 // Un clic sur une action de l'écran (Écrire les invariants, Ponytail review…).
 async function click(id: string, args: object = {}) {
-  const { runVibeAction } = await import('app/controllers');
-  runVibeAction(id, args);
+  await press(id, args);
   await settle();
 }
 
@@ -232,16 +159,6 @@ describe('la note et les tests d’invariants ne sont lus que par leur id dans l
     await open();
 
     await follow(INV);
-
-    // aucun texte de fichier poussé
-    expect(texts()).toEqual([]);
-  });
-
-  // Un variant est un test de la branche, mais ni la note ni un test d'invariant.
-  it('l’id d’un variant de la branche : rien n’est lu', async () => {
-    await open();
-
-    await follow(testId(VAR));
 
     // aucun texte de fichier poussé
     expect(texts()).toEqual([]);
@@ -398,21 +315,6 @@ describe('Enregistrer n’écrit que la note ou le test affiché, par son id, da
     expect(fs.existsSync(path.join(dir, INV))).toBe(false);
   });
 
-  // La note est affichée (un fichier qui se suit) : seul l'id du variant est refusé.
-  it('la note affichée, l’id d’un variant : Enregistrer n’écrit rien', async () => {
-    await open();
-    await follow(noteId());
-
-    await save(testId(VAR), 'VARIANT_ENREGISTRE');
-
-    // témoin : la note est bien affichée
-    expect(texts()).toContain(NOTE_TEXT);
-    // le variant sur le disque est inchangé
-    expect(onDisk(VAR)).toBe(VAR_TEXT);
-    // la note sur le disque est inchangée
-    expect(onDisk(NOTE)).toBe(NOTE_TEXT);
-  });
-
   it('sans geste : suivre la note, relever, la voir changer sur le disque n’écrit rien', async () => {
     const { refreshVibe } = await import('app/controllers');
     await open();
@@ -520,40 +422,6 @@ describe('pas d’enregistrement de la note ni d’un test pendant une course de
     expect(texts()).toContain(INV_TEXT);
     // témoin : l'écriture des invariants travaille
     expect(inProgress()).toContain('/vibecoder:invariants');
-    // le test sur le disque est inchangé
-    expect(onDisk(INV)).toBe(INV_TEXT);
-    // la page apprend que rien n'a été enregistré
-    expect(result.ok).toBe(false);
-  });
-
-  it('un test, pendant Ponytail review (une lecture) : rien n’est écrit, Enregistrer est refusé', async () => {
-    await open();
-    await follow(testId(INV));
-    await click('ponytail');
-
-    const result = await save(testId(INV), 'TEST_ENREGISTRE');
-
-    // témoin : le test est bien affiché
-    expect(texts()).toContain(INV_TEXT);
-    // témoin : la revue travaille
-    expect(inProgress()).toContain('/vibecoder:ponytail');
-    // le test sur le disque est inchangé
-    expect(onDisk(INV)).toBe(INV_TEXT);
-    // la page apprend que rien n'a été enregistré
-    expect(result.ok).toBe(false);
-  });
-
-  it('un test, pendant un tour de la conversation : rien n’est écrit, Enregistrer est refusé', async () => {
-    await open();
-    await follow(testId(INV));
-    await ask('corrige le test');
-
-    const result = await save(testId(INV), 'TEST_ENREGISTRE');
-
-    // témoin : le test est bien affiché
-    expect(texts()).toContain(INV_TEXT);
-    // témoin : le tour de la conversation travaille
-    expect(inProgress()).toContain('corrige');
     // le test sur le disque est inchangé
     expect(onDisk(INV)).toBe(INV_TEXT);
     // la page apprend que rien n'a été enregistré

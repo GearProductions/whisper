@@ -15,72 +15,31 @@
 //   sur une branche, charger une PR, revenir sur la base, créer une branche
 //   ici. Le principal le refuse, quel que soit l'écran. »
 // Sur le vrai principal (contrôleurs, réglages et fichiers sur disque, git réel
-// sur un dépôt d'essai et son origin, un dépôt nu local) ; faux : Electron
-// (fenêtres, boîte de dialogue), le SDK de Claude Code (le tour finit aussitôt,
-// sans rien écrire) et gh (un faux préfixe : git passe au vrai git, gh répond
-// la PR 7 ouverte).
-import { execFileSync } from 'node:child_process';
+// sur un dépôt d'essai et son origin, un dépôt nu local), sur le décor commun
+// (app/tests/harness : le faux d'Electron, le faux SDK dont le tour finit
+// aussitôt, le profil, le socket, l'attente) ; local : le dépôt d'essai et son
+// origin, et gh (un faux préfixe : git passe au vrai git, gh répond la PR 7
+// ouverte). Le clic reste local : les cas du worktree lisent sa réponse.
+// Chaque chemin qui change de branche garde ici son témoin « propre » et un refus ; le refus des
+// modifications déjà au relevé de new-here et de switch-branch : variants/place-switch.test.ts.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  click as press, closeAll, fakeClaude, fakeElectron, git as rawGit, openPanel, profile, remote, repoResources, settle, write,
+  writeConfig,
+} from 'app/tests/harness';
 
-// Les boutons de l'écran passent par le socket (0.15.0) : ouvert comme au lancement, fermé après chaque cas.
-let closeSocket = () => {};
+const electron = fakeElectron();
+const claude = fakeClaude({ finish: true });
+vi.mock('electron', () => electron.module);
+vi.mock('technicals/claude', () => claude.module);
+vi.mock('technicals/paths', () => repoResources());
 
-const fake = vi.hoisted(() => {
-  type Handler = (...a: unknown[]) => void;
-  class Win {
-    sent: [string, unknown][] = [];
-    handlers = new Map<string, Handler[]>();
-    visible = false;
-    webContents = {
-      send: (ch: string, payload?: unknown) => { this.sent.push([ch, payload]); },
-      on: () => {}, setWindowOpenHandler: () => {},
-    };
-    on(ev: string, fn: Handler) { this.handlers.set(ev, [...(this.handlers.get(ev) || []), fn]); return this; }
-    once(ev: string, fn: Handler) { return this.on(ev, fn); }
-    emit(ev: string) { for (const fn of this.handlers.get(ev) || []) fn(); }
-    loadFile() {} setAlwaysOnTop() {} setVisibleOnAllWorkspaces() {} setResizable() {} setBounds() {}
-    getBounds() { return { x: 500, y: 500, width: 64, height: 64 }; }
-    isVisible() { return this.visible; } isDestroyed() { return false; } isMinimized() { return false; }
-    show() { this.visible = true; } showInactive() { this.visible = true; } hide() { this.visible = false; }
-    focus() { this.emit('focus'); } restore() {} minimize() { this.visible = false; }
-  }
-  // cwd : le dossier du projet, retenu avant qu'un cas change de dossier courant.
-  return { Win, cwd: process.cwd(), userData: '', windows: [] as InstanceType<typeof Win>[] };
-});
-
-vi.mock('electron', () => ({
-  app: { getPath: () => fake.userData },
-  BrowserWindow: class extends fake.Win { constructor() { super(); fake.windows.push(this); } },
-  screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) },
-  shell: {}, clipboard: {}, nativeImage: {},
-  // Annuler, toujours : aucun robot ne naît ici.
-  dialog: { showMessageBox: async () => ({ response: 0 }) },
-}));
-
-vi.mock('technicals/claude', () => ({
-  launcher: () => ({ executable: 'claude' }),
-  loadSdk: async () => ({
-    getSessionInfo: async () => null,
-    getSessionMessages: async () => [],
-    query: ({ prompt }: { prompt: AsyncIterable<unknown> }) => Object.assign((async function* run() {
-      for await (const _ of prompt) yield { type: 'result', subtype: 'success', is_error: false, result: 'ok' };
-    }()), { setPermissionMode: async () => {}, setModel: async () => {}, interrupt: async () => {} }),
-  }),
-}));
-
-vi.mock('technicals/paths', async (original) => ({
-  ...await original<typeof import('technicals/paths')>(),
-  resourcePath: (name: string) => `${fake.cwd}/resources/${name}`,
-}));
-
-const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' }).toString().trim();
-const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// git rend ici sa sortie rognée.
+const git = (cwd: string, ...args: string[]) => rawGit(cwd, ...args).trim();
 const until = async (ok: () => boolean, ms = 10000) => {
-  for (const end = Date.now() + ms; !ok() && Date.now() < end;) await wait(50);
+  for (const end = Date.now() + ms; !ok() && Date.now() < end;) await settle(50);
   return ok();
 };
 let root = '';
@@ -89,33 +48,26 @@ let out = '';
 
 const branch = () => git(repo, 'rev-parse', '--abbrev-ref', 'HEAD');
 // Les réglages : a1 sur le dépôt, en `vibe`, derrière le faux préfixe.
-const configure = (vibe: object) => write(path.join(root, 'config.json'), JSON.stringify({
-  vibeCommandPrefix: `"${process.execPath}" "${path.join(root, 'faux-prefixe.cjs')}"`,
-  agents: [{ id: 'a1', dir: repo, name: 'projet', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder', vibe }],
-}));
+const configure = (vibe: object) => writeConfig(root, [
+  { id: 'a1', dir: repo, name: 'projet', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder', vibe: vibe as never },
+], { vibeCommandPrefix: `"${process.execPath}" "${path.join(root, 'faux-prefixe.cjs')}"` });
 
 beforeEach(() => {
   vi.resetModules();
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
-  fake.windows = [];
-  fake.userData = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-place-switch-')));
-  root = fake.userData;
-  // origin : un dépôt nu, avec main et la branche de la PR (feat/x).
-  const origin = path.join(root, 'origin.git');
-  fs.mkdirSync(origin);
-  git(origin, 'init', '-q', '--bare', '-b', 'main');
+  root = profile('whisper-place-switch-');
+  // Le dépôt sur main, la branche de la PR (feat/x) poussée dans origin (un dépôt nu), puis supprimée ici.
   repo = path.join(root, 'projet');
-  git(root, 'clone', '-q', origin, repo);
-  git(repo, 'symbolic-ref', 'HEAD', 'refs/heads/main');
+  fs.mkdirSync(repo);
+  git(repo, 'init', '-q', '-b', 'main');
   write(path.join(repo, 'a.txt'), 'a\n');
   git(repo, 'add', 'a.txt');
   git(repo, 'commit', '-q', '-m', 'init');
-  git(repo, 'push', '-q', 'origin', 'main');
   git(repo, 'switch', '-q', '-c', 'feat/x');
   write(path.join(repo, 'b.txt'), 'b\n');
   git(repo, 'add', 'b.txt');
   git(repo, 'commit', '-q', '-m', 'la PR');
-  git(repo, 'push', '-q', 'origin', 'feat/x');
+  remote(repo);
   git(repo, 'switch', '-q', 'main');
   git(repo, 'branch', '-q', '-D', 'feat/x');
   // Le faux préfixe : git passe au vrai git ; gh répond la PR 7 ouverte (pr list : aucune).
@@ -126,19 +78,8 @@ beforeEach(() => {
 process.stdout.write(process.argv.includes('list') ? '[]' : ${JSON.stringify(JSON.stringify({ number: 7, title: 'Essai', url: 'u', author: { login: 'bob' }, baseRefName: 'main', headRefName: 'feat/x', body: '', state: 'OPEN' }))});\n`);
   out = path.join(root, 'vibecoder-out', 'a1');
 });
-afterEach(() => { closeSocket(); closeSocket = () => {}; vi.useRealTimers(); process.chdir(fake.cwd); });
+afterEach(closeAll);
 
-// Le panneau de a1 ouvert, son premier relevé envoyé.
-async function openPanel() {
-  const { openConversation } = await import('app/windows');
-  const { panelReady, openSocket, commandFromSocket, closeSocket: close } = await import('app/controllers');
-  await openSocket(commandFromSocket);
-  closeSocket = close;
-  openConversation('a1');
-  fake.windows.at(-1)!.emit('ready-to-show');
-  await panelReady();
-  await wait(150);
-}
 // L'action `id` dans le dernier relevé de a1.
 const shown = async (id: string) => (await import('app/controllers')).lastView('a1')?.actions.find((a) => a.id === id);
 // Le clic sur une action directe.
@@ -153,7 +94,7 @@ describe.skipIf(process.platform === 'win32')('Décharger (unload-pr) : jamais d
   });
 
   it('propre : unload-pr revient sur la base du dépôt (le clic agit bien)', async () => {
-    await openPanel();
+    await openPanel('a1');
 
     await click('unload-pr');
     await until(() => branch() === 'main');
@@ -163,13 +104,13 @@ describe.skipIf(process.platform === 'win32')('Décharger (unload-pr) : jamais d
   }, 20000);
 
   it('un fichier modifié après le relevé : refusé, la branche et la modification restent', async () => {
-    await openPanel();
+    await openPanel('a1');
     // le relevé propose unload-pr, actif : le dossier y était propre
     expect(await shown('unload-pr')).toMatchObject({ disabled: null });
     write(path.join(repo, 'a.txt'), 'modifié\n');
 
     await click('unload-pr');
-    await wait(2000);
+    await settle(2000);
 
     // toujours sur la branche de la PR
     expect(branch()).toBe('feat/x');
@@ -179,12 +120,12 @@ describe.skipIf(process.platform === 'win32')('Décharger (unload-pr) : jamais d
 
   it('des modifications déjà au relevé : refusé, la branche et la modification restent', async () => {
     write(path.join(repo, 'a.txt'), 'modifié\n');
-    await openPanel();
+    await openPanel('a1');
     // le relevé montre bien unload-pr (grisé)
     expect(await shown('unload-pr')).toBeDefined();
 
     await click('unload-pr');
-    await wait(2000);
+    await settle(2000);
 
     // toujours sur la branche de la PR
     expect(branch()).toBe('feat/x');
@@ -201,13 +142,13 @@ describe.skipIf(process.platform === 'win32')('Nouvelle demande ici (new-here) :
   // Une nouvelle demande retenue : le texte envoyé, la fiche du skill
   // nouvelle-demande écrite, puis le relevé qui la lit, jusqu'à ce qu'il propose new-here.
   async function requestPending() {
-    await openPanel();
-    const { refreshVibe, runVibeAction } = await import('app/controllers');
-    runVibeAction('new-request', { text: 'ajouter un bouton' });
-    await wait(300);
+    await openPanel('a1');
+    const { refreshVibe } = await import('app/controllers');
+    await press('new-request', { text: 'ajouter un bouton' });
+    await settle(300);
     write(path.join(out, 'new-request.json'), JSON.stringify({ branch: 'feat/0.13.0-bouton' }));
     await refreshVibe({ now: true });
-    for (const end = Date.now() + 5000; !await shown('new-here') && Date.now() < end;) await wait(100);
+    for (const end = Date.now() + 5000; !await shown('new-here') && Date.now() < end;) await settle(100);
   }
 
   it('propre : new-here passe sur la branche de la demande (le clic agit bien)', async () => {
@@ -227,22 +168,7 @@ describe.skipIf(process.platform === 'win32')('Nouvelle demande ici (new-here) :
     write(path.join(repo, 'a.txt'), 'modifié\n');
 
     await click('new-here');
-    await wait(2000);
-
-    // toujours sur main
-    expect(branch()).toBe('main');
-    // la modification est toujours là
-    expect(fs.readFileSync(path.join(repo, 'a.txt'), 'utf8')).toBe('modifié\n');
-  }, 20000);
-
-  it('des modifications déjà au relevé : refusé, la branche et la modification restent', async () => {
-    write(path.join(repo, 'a.txt'), 'modifié\n');
-    await requestPending();
-    // le relevé montre bien new-here (grisé)
-    expect(await shown('new-here')).toBeDefined();
-
-    await click('new-here');
-    await wait(2000);
+    await settle(2000);
 
     // toujours sur main
     expect(branch()).toBe('main');
@@ -259,7 +185,7 @@ describe.skipIf(process.platform === 'win32')('Aller sur une branche (switch-bra
   });
 
   it('propre : switch-branch passe sur la branche choisie (le clic agit bien)', async () => {
-    await openPanel();
+    await openPanel('a1');
 
     await click('switch-branch', { branch: 'feat/x' });
     await until(() => branch() === 'feat/x');
@@ -269,28 +195,13 @@ describe.skipIf(process.platform === 'win32')('Aller sur une branche (switch-bra
   }, 20000);
 
   it('un fichier modifié après le relevé : refusé, la branche et la modification restent', async () => {
-    await openPanel();
+    await openPanel('a1');
     // le relevé propose switch-branch, actif : le dossier y était propre
     expect(await shown('switch-branch')).toMatchObject({ disabled: null });
     write(path.join(repo, 'a.txt'), 'modifié\n');
 
     await click('switch-branch', { branch: 'feat/x' });
-    await wait(2000);
-
-    // toujours sur main
-    expect(branch()).toBe('main');
-    // la modification est toujours là
-    expect(fs.readFileSync(path.join(repo, 'a.txt'), 'utf8')).toBe('modifié\n');
-  }, 20000);
-
-  it('des modifications déjà au relevé : refusé, la branche et la modification restent', async () => {
-    write(path.join(repo, 'a.txt'), 'modifié\n');
-    await openPanel();
-    // le relevé montre bien switch-branch (grisé)
-    expect(await shown('switch-branch')).toBeDefined();
-
-    await click('switch-branch', { branch: 'feat/x' });
-    await wait(2000);
+    await settle(2000);
 
     // toujours sur main
     expect(branch()).toBe('main');
@@ -305,14 +216,11 @@ describe.skipIf(process.platform === 'win32')('Un worktree (enfant ou robot) ne 
   // sur la base, créer une branche ici. Le principal le refuse, quel que soit l'écran. »
   // a0 : le dépôt ; a1 : son enfant, dans un vrai worktree (git worktree add).
   let wt = '';
-  const asChild = (vibe: object, pr?: number) => write(path.join(root, 'config.json'), JSON.stringify({
-    vibeCommandPrefix: `"${process.execPath}" "${path.join(root, 'faux-prefixe.cjs')}"`,
-    agents: [
-      { id: 'a0', dir: repo, name: 'projet', model: 'opus', effort: 'high', mode: 'default', sessionId: null },
-      { id: 'a1', dir: wt, name: pr ? `PR #${pr}` : 'enfant', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder', vibe,
-        parent: pr ? { id: 'a0', pr } : { id: 'a0' } },
-    ],
-  }));
+  const asChild = (vibe: object, pr?: number) => writeConfig(root, [
+    { id: 'a0', dir: repo, name: 'projet', model: 'opus', effort: 'high', mode: 'default', sessionId: null },
+    { id: 'a1', dir: wt, name: pr ? `PR #${pr}` : 'enfant', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder', vibe: vibe as never,
+      parent: pr ? { id: 'a0', pr } : { id: 'a0' } },
+  ], { vibeCommandPrefix: `"${process.execPath}" "${path.join(root, 'faux-prefixe.cjs')}"` });
   const wtBranch = () => git(wt, 'rev-parse', '--abbrev-ref', 'HEAD');
   const heads = () => git(repo, 'for-each-ref', '--format=%(refname:short)', 'refs/heads/');
   // Le relevé connaît les branches locales (lues en fond) : un refus vient du worktree, pas d'une branche inconnue.
@@ -325,7 +233,7 @@ describe.skipIf(process.platform === 'win32')('Un worktree (enfant ou robot) ne 
   const clickDone = async (id: string, args: object = {}) => {
     const r = await click(id, args);
     const { lastView } = await import('app/controllers');
-    await wait(300);
+    await settle(300);
     await until(() => !lastView('a1')?.actions.some((a) => a.direct?.running));
     return r;
   };
@@ -337,7 +245,7 @@ describe.skipIf(process.platform === 'win32')('Un worktree (enfant ou robot) ne 
   it('l’enfant d’une demande : aller sur une branche, créer une branche ici ou dans un worktree, charger une PR, revenir sur la base → refusés, rien ne bouge', async () => {
     git(repo, 'worktree', 'add', '-q', '-b', 'feat/enfant', wt, 'main');
     asChild({ flow: 'create', autonomy: 'guide' });
-    await openPanel();
+    await openPanel('a1');
     await branchesRead();
     const before = heads();
 
@@ -348,7 +256,7 @@ describe.skipIf(process.platform === 'win32')('Un worktree (enfant ou robot) ne 
       await clickDone('load-pr', { pr: 7 }),
       await clickDone('unload-pr'),
     ];
-    await wait(2000);
+    await settle(2000);
 
     // chaque clic refusé
     expect(answers.map((a) => a.ok)).toEqual([false, false, false, false, false]);
@@ -363,7 +271,7 @@ describe.skipIf(process.platform === 'win32')('Un worktree (enfant ou robot) ne 
     write(path.join(root, 'vibecoder-out', 'a0', 'pr-7-worktree.json'), JSON.stringify({ dir: wt, branch: 'pr-7' }));
     write(path.join(root, 'vibecoder-out', 'a1', 'pr-7.json'), JSON.stringify({ number: 7, title: 'Essai', url: 'u', author: 'bob', base: 'main', head: 'feat/x', body: '', state: 'OPEN' }));
     asChild({ flow: 'review', autonomy: 'guide', pr: 7 }, 7);
-    await openPanel();
+    await openPanel('a1');
     await branchesRead();
     const before = heads();
 
@@ -373,7 +281,7 @@ describe.skipIf(process.platform === 'win32')('Un worktree (enfant ou robot) ne 
       await clickDone('pr-here'),
       await clickDone('unload-pr'),
     ];
-    await wait(2000);
+    await settle(2000);
 
     // chaque clic refusé
     expect(answers.map((a) => a.ok)).toEqual([false, false, false, false]);

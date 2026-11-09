@@ -33,7 +33,7 @@
     injectés ;
   - `helpers/` : fonctions pures ;
   - `technicals/` : ce que fournit le système (`ipc`, `whisper-cli`,
-    `pipewire`, `clipboard`, `selection`, `pocket-tts`, `claude`…).
+    `pipewire`, `pocket-tts`, `claude`…).
 - Un module = un dossier avec son `index.ts` (barrel) ; on importe le module,
   jamais un de ses fichiers (`import … from 'core/conversation'`). Imports
   absolus depuis la racine de son processus (`src/renderer/` ou `src/main/`),
@@ -52,10 +52,30 @@
   message (`sentBy`, I-20).
 - Logique dans des fonctions pures (`*.ts`), testées ; composants sans logique
   métier.
-- Pas de code propre à un bureau (KDE, KWin…), pas de shell pour lancer un
-  programme (I-27, I-28).
+- Pas de code propre à un bureau (KDE, KWin…) : une limite d'un gestionnaire
+  de fenêtres se contourne à la main et se documente (I-28, devenu règle de
+  structure) ; rien d'installé dans le système : Pocket TTS et son Python vont
+  dans les données de l'appli, aucun paquet système requis (I-26, idem) ; pas
+  de shell pour lancer un programme (I-27, `tests/structure/no-shell.test.ts`).
 - En-tête de chaque fichier : ce qu'il fait, ce qu'il ne connaît pas, qui
   l'utilise. À tenir à jour.
+
+## Tests
+
+- `**/tests/invariants/` : ce qu'une refonte ne doit jamais changer (disque,
+  permissions, fuites, bornes, processus, vie privée, travail en cours,
+  isolement, frontière de la page, argent, irréversible) ; le reste est un
+  variant (`tests/variants/`).
+- `tests/structure/` : les règles de structure, des tests qui lisent le code
+  source (pas de shell, un seul module écoute la page, qui lance les actions
+  directes, aucun canal `file`/`tail`/`output`, aucune insertion de HTML).
+  Pas protégé.
+- `src/main/app/tests/harness/` : le décor commun des tests qui démarrent le
+  principal réel sans fenêtre (faux d'Electron et du SDK, dépôt git d'essai,
+  `config.json`, socket, boîte aux lettres de l'orchestrateur) ; import
+  `app/tests/harness`. Pas protégé, sans aucune vérification : les témoins
+  restent dans les fichiers protégés.
+- Une retouche de `tests/structure/` ou du décor se signale dans la PR.
 
 ## Ne pas modifier sans demander
 

@@ -39,7 +39,6 @@ afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
 const DIR = path.join(tmp, 'depot');
 const OUT = path.join(tmp, 'sorties');
 const PREFIX = ['distrobox', 'enter', 'dev', '--'];
-const SRC = path.resolve(__dirname, '../../../..');   // src/main
 
 // Ce qu'on aurait lancé, et la réponse de chaque commande (gh pr view :
 // `answer` ; le code de sortie : `exit`, 0 par défaut).
@@ -356,44 +355,11 @@ describe('rien sans un clic', () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(calls).toEqual([]);
   });
-
-  it('seul app/controllers/vibecoder importe technicals/direct', () => {
-    const files = (dir: string): string[] => fs.readdirSync(dir).flatMap((n) => {
-      const p = path.join(dir, n);
-      return fs.statSync(p).isDirectory() ? (n === 'tests' ? [] : files(p)) : /\.tsx?$/.test(n) ? [p] : [];
-    });
-    const importers = files(SRC).filter((f) => /from ['"](technicals\/direct|\.\/direct)['"]/.test(fs.readFileSync(f, 'utf8')))
-      .map((f) => path.relative(SRC, f)).filter((f) => !f.startsWith(path.join('technicals', 'direct')));
-    expect(importers).toEqual([path.join('app', 'controllers', 'vibecoder.ts')]);
-  });
-
-  // Note 0.15.0-socket-interface (décidé) : les boutons passent par le socket ; une action directe n'est lancée que
-  // par l'exécuteur, une commande de la table (controllers/commands : runCommand), jamais au relevé.
-  it('le contrôleur ne lance le lanceur que par l\'exécuteur, une commande de la table (jamais au relevé)', () => {
-    // les fonctions de premier niveau d'un fichier du contrôleur, par nom
-    const fnsOf = (file: string) => Object.fromEntries(fs.readFileSync(path.join(SRC, 'app', 'controllers', file), 'utf8')
-      .split(/\n(?=(?:export )?(?:async )?function )/).map((chunk) => [/function (\w+)/.exec(chunk)?.[1] ?? '', chunk]));
-    const using = (fns: Record<string, string>, needle: string) => Object.keys(fns).filter((name) => name && fns[name].includes(needle));
-    const vibecoder = fnsOf('vibecoder.ts');
-    const commands = fnsOf('commands.ts');
-    expect(using(vibecoder, 'directRunner(')).toEqual(['runDirect']);
-    expect(using(vibecoder, 'runDirect(').filter((n) => n !== 'runDirect')).toEqual([]);
-    expect(using(commands, 'runDirect(')).toEqual(['runCommand']);
-  });
 });
 
 describe('les modules en lecture restent en lecture', () => {
   it('GIT_READ n’a gagné que for-each-ref (les branches locales), GH_READ rien', () => {
     expect([...GIT_READ]).toEqual(['rev-parse', 'status', 'diff', 'log', 'show', 'for-each-ref']);
     expect(GH_READ.map((c) => c.join(' '))).toEqual(['pr view', 'pr list']);
-  });
-
-  it('technicals/git et technicals/github n’importent pas technicals/direct', () => {
-    for (const m of ['git', 'github']) {
-      const dir = path.join(SRC, 'technicals', m);
-      for (const f of fs.readdirSync(dir).filter((n) => n.endsWith('.ts'))) {
-        expect(fs.readFileSync(path.join(dir, f), 'utf8')).not.toMatch(/technicals\/direct/);
-      }
-    }
   });
 });

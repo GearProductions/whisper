@@ -10,10 +10,11 @@
 // Protégé : si ce test échoue, corriger le code. Un canal ajouté se décide
 // (SPEC.md, note du ticket) avant d'entrer dans ces listes.
 //
+// Les règles de structure (qui écoute les pages, sur quels canaux : lecture du
+// code) sont dans tests/structure/bridges.test.ts.
+//
 // Le reste du contrat est vérifié par le typage : la table de gestionnaires de
 // chaque fenêtre (HandlerTable) couvre exactement ses canaux.
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PANEL_CHANNELS } from '../../src/shared/bridge/channels';
 
@@ -69,31 +70,5 @@ describe('pont du panneau', () => {
 
     // menu:settings n'est plus un canal du panneau.
     expect(send).not.toContain('menu:settings');
-  });
-});
-
-// Tout le code du principal, sauf le module qui contrôle l'expéditeur.
-function sources(dir: string): [string, string][] {
-  return readdirSync(dir).flatMap((n) => {
-    const p = join(dir, n);
-    if (statSync(p).isDirectory()) return n === 'tests' ? [] : sources(p);
-    return /\.ts$/.test(n) ? [[p, readFileSync(p, 'utf8')] as [string, string]] : [];
-  });
-}
-const MAIN = resolve(__dirname, '../../src/main');
-
-describe('principal : contrôle de l’expéditeur', () => {
-  it('seul technicals/ipc écoute les pages', () => {
-    const outside = sources(MAIN).filter(([p, s]) => !p.includes(join('technicals', 'ipc')) && /ipcMain\s*\.\s*(on|handle|once)\b/.test(s));
-    expect(outside.map(([p]) => p)).toEqual([]);
-  });
-
-  it('seul le panneau est écouté, sur ses propres canaux', () => {
-    const listen = sources(MAIN).map(([, s]) => s).join('\n');
-
-    const calls = [...listen.matchAll(/listenFrom\(\s*\w+,\s*\(\)\s*=>\s*state\.(\w+),\s*(\w+_CHANNELS)/g)].map((m) => `${m[1]}:${m[2]}`).sort();
-
-    // Une seule écoute : la fenêtre du panneau, sur les canaux du panneau.
-    expect(calls).toEqual(['panel:PANEL_CHANNELS']);
   });
 });

@@ -17,6 +17,8 @@
 //   son id dans le dernier relevé, jamais par un chemin (I-37, I-39 élargis) —
 //   ici codeFile : en Créer, la note et un test se lisent par leur id ; en
 //   Relire, rien (adapté avec accord).
+// Ici les témoins, un par sorte de numéro ; les autres cas (isOutputName, id d'un
+// test, de la note ou d'un commit, Créer et Relire) : tests/variants/files.test.ts.
 // Sur du réel : un dossier temporaire, un lien qui en sort, fs.realpathSync.native.
 import fs from 'node:fs';
 import os from 'node:os';
@@ -81,7 +83,7 @@ const view: VibeView = {
   repo: { branch: 'feat/x', base: 'main', changed: 0 }, error: null, steps: [],
   note: { ...file('n1', 'docs/tickets/feat/x.md'), text: '# x', before: null, filled: true, mustNot: [], mark: null, formeMark: null },
   questions: [],
-  modules: [{ path: 'src/main/core/x', contract: 'expose x', file: file('m1', 'src/main/core/x'), touched: false, commits: [] }],
+  modules: [{ path: 'src/main/core/x', paths: ['src/main/core/x'], contract: 'expose x', file: file('m1', 'src/main/core/x'), touched: false, commits: [] }],
   invariants: [{ ...file('t1', 'src/main/core/x/tests/invariants/x.test.ts'), blob: '3b18e512dba79e4c8300dd08aeb37f8e728b8dad', cases: ['cas'], lines: [1], source: '', reading: null, marks: {} }],
   variants: [{ ...file('v1', 'src/main/core/x/tests/variants/x.test.ts'), cases: 2 }],
   commits: [], outputs: {}, checklist: [], actions: [], skills: [], pr: null, prs: null, draft: [], time: 0,
@@ -91,21 +93,6 @@ describe('itemPath : un id du dernier relevé, jamais un chemin', () => {
   it('la note : son chemin dans le relevé', () => {
     // l'id de la note mène à son chemin
     expect(itemPath(view, 'n1')).toBe(view.note!.path);
-  });
-
-  it('un test d’invariant : son chemin dans le relevé', () => {
-    // l'id du test mène à son chemin
-    expect(itemPath(view, 't1')).toBe(view.invariants[0].path);
-  });
-
-  it('un variant : son chemin dans le relevé', () => {
-    // l'id du variant mène à son chemin
-    expect(itemPath(view, 'v1')).toBe(view.variants[0].path);
-  });
-
-  it('un module : le chemin de son fichier dans le relevé', () => {
-    // l'id du fichier du module mène à son chemin
-    expect(itemPath(view, 'm1')).toBe(view.modules[0].file!.path);
   });
 
   it('un id inconnu : rien', () => {
@@ -135,21 +122,6 @@ describe('itemPath : un id du dernier relevé, jamais un chemin', () => {
 });
 
 describe('isOutputName : les noms connus des sorties, rien d’autre', () => {
-  it('ponytail.md : lu', () => {
-    // un nom fixe
-    expect(isOutputName('ponytail.md')).toBe(true);
-  });
-
-  it('pr-12-note.md : lu', () => {
-    // une sortie d'une PR
-    expect(isOutputName('pr-12-note.md')).toBe(true);
-  });
-
-  it('invariants/<empreinte de 40 caractères hexadécimaux>.md : lu', () => {
-    // une lecture d'un test, nommée par son empreinte
-    expect(isOutputName('invariants/3b18e512dba79e4c8300dd08aeb37f8e728b8dad.md')).toBe(true);
-  });
-
   it('../x : refusé', () => {
     // rien hors du dossier de sorties
     expect(isOutputName('../x')).toBe(false);
@@ -178,63 +150,14 @@ const coded = {
   ...view,
   modules: [
     { ...view.modules[0], touched: true, files: [file('m0/0', 'src/main/core/x/index.ts'), file('m0/1', 'src/main/core/x/tests/x.test.ts')], locked: null },
-    { path: 'src/main/core/y', contract: 'expose y', file: file('m1', 'src/main/core/y'), touched: false, commits: [], files: [file('m1/0', 'src/main/core/y/index.ts')], locked: null },
+    { path: 'src/main/core/y', paths: ['src/main/core/y'], contract: 'expose y', file: file('m1', 'src/main/core/y'), touched: false, commits: [], files: [file('m1/0', 'src/main/core/y/index.ts')], locked: null },
   ],
   commits: [{ hash: 'e83c516', subject: 'x', fixup: false, files: ['src/main/core/x/index.ts'] }],
 };
-// Le même relevé, en Relire.
-const reviewed = { ...coded, flow: 'review' as const };
-
 describe('codeFile : le fichier d’un module touché, ou en Créer la note et un test, par son id dans le dernier relevé, jamais par un chemin', () => {
   it('m0/0, d’un module touché : son chemin dans le relevé', () => {
     // l'id mène au chemin que le relevé donne à ce fichier
     expect(codeFile(coded, 'm0/0')?.path).toBe(coded.modules[0].files[0].path);
-  });
-
-  it('m0/0, d’un module touché : son module dans le relevé', () => {
-    // l'id mène au module qui porte ce fichier
-    expect(codeFile(coded, 'm0/0')?.module?.path).toBe(coded.modules[0].path);
-  });
-
-  it('le fichier d’un module que la branche ne touche pas : rien', () => {
-    // même porté par le relevé, un module pas touché ne donne aucun fichier
-    expect(codeFile(coded, 'm1/0')).toBeNull();
-  });
-
-  it('l’id du dossier d’un module (son fichier dans le relevé) : rien', () => {
-    // un module n'est pas un de ses fichiers
-    expect(codeFile(coded, 'm1')).toBeNull();
-  });
-
-  it('l’id de la note, en Créer : son chemin dans le relevé', () => {
-    // l'id de la note mène au chemin que le relevé lui donne
-    expect(codeFile(coded, coded.note!.id)?.path).toBe(coded.note!.path);
-  });
-
-  it('l’id d’un test d’invariant, en Créer : son chemin dans le relevé', () => {
-    // l'id du test mène au chemin que le relevé lui donne
-    expect(codeFile(coded, coded.invariants[0].id)?.path).toBe(coded.invariants[0].path);
-  });
-
-  // Relire : la PR d'un autre, ni sa note ni ses tests ne se lisent pour être modifiés.
-  it('l’id de la note, en Relire : rien', () => {
-    // la note d'une PR relue n'est pas un fichier à suivre
-    expect(codeFile(reviewed, reviewed.note!.id)).toBeNull();
-  });
-
-  it('l’id d’un test d’invariant, en Relire : rien', () => {
-    // un test d'une PR relue n'est pas un fichier à suivre
-    expect(codeFile(reviewed, reviewed.invariants[0].id)).toBeNull();
-  });
-
-  it('l’id du fichier d’un commit (c0/0) : rien', () => {
-    // le fichier d'un commit n'est pas un fichier de module, même s'il en a le chemin
-    expect(codeFile(coded, 'c0/0')).toBeNull();
-  });
-
-  it('un id inconnu (m0/9) : rien', () => {
-    // le module n'a pas de dixième fichier
-    expect(codeFile(coded, 'm0/9')).toBeNull();
   });
 
   it('un id en forme de chemin relatif (../../etc/passwd) : rien', () => {

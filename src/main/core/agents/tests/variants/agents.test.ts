@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAgentRuntime, createSessions, parseThread, queryOptions, sessionDirs, splitReply, type AgentConfig } from 'core/agents';
 
 const agent: AgentConfig = { id: 'a1', name: 'alpha', dir: '/home/u/p', mode: 'default', model: '', effort: '', sessionId: null };
@@ -303,5 +303,68 @@ describe('tours', () => {
     expect(queries).toHaveLength(1);
     expect(q.getContextUsage).toHaveBeenCalled();
     expect(rt.state('a1').contextUsed).toBe(1234);
+  });
+});
+
+// Un SDK factice : chaque tour joue `script`, avec les options reçues.
+type Options = Record<string, unknown> & { abortController: AbortController };
+function setup(script: (o: Options) => AsyncGenerator<Record<string, unknown>>) {
+  const queries: { options: Options; interrupt: ReturnType<typeof vi.fn> }[] = [];
+  const sdk = {
+    query: ({ options }: { options: Options }) => {
+      const gen = script(options);
+      const q = Object.assign(gen, {
+        interrupt: vi.fn(async () => {}),
+        setPermissionMode: vi.fn(async () => {}),
+        setModel: vi.fn(async () => {}),
+      });
+      queries.push({ options, interrupt: q.interrupt });
+      return q;
+    },
+  };
+  const runtime = createAgentRuntime({ loadSdk: async () => sdk as never, launcher: () => ({ executable: '/bin/claude' }), journal: () => {} });
+  const agent: AgentConfig = { id: 'a1', name: 'alpha', dir: '/tmp/projet', mode: 'default', model: '', effort: '', sessionId: null };
+  const hooks = { command: '', instructions: 'CONSIGNE-AUDIO', onChange: () => {}, onSession: () => {}, onPermission: vi.fn() };
+  return { runtime, agent, hooks, queries };
+}
+const done = { type: 'result', subtype: 'success', result: 'fini <audio>Fini.</audio>', is_error: false };
+
+afterEach(() => { vi.useRealTimers(); });
+
+describe('interrompre (I-19)', () => {
+  it('on demande d’abord à Claude Code d’arrêter ; tué seulement après le délai', async () => {
+    vi.useFakeTimers();
+    const { runtime, agent, hooks, queries } = setup(async function* turn(o) {
+      yield { type: 'system', subtype: 'init', session_id: 's1' };
+      await new Promise((_ok, ko) => o.abortController.signal.addEventListener('abort', () => ko(new Error('aborted'))));
+    });
+    const turn = runtime.send(agent, { text: 'x' }, hooks);
+    await vi.waitFor(() => expect(queries).toHaveLength(1));
+    runtime.interrupt('a1');
+    expect(queries[0].interrupt).toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(4900);
+    expect(queries[0].options.abortController.signal.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(200);
+    expect(queries[0].options.abortController.signal.aborted).toBe(true);
+    await turn;
+    expect(runtime.state('a1').status).toBe('idle');
+  });
+});
+
+describe('la consigne <audio> (I-24)', () => {
+  const agent: AgentConfig = { id: 'a1', name: 'alpha', dir: '/tmp/p', mode: 'default', model: '', effort: '', sessionId: null };
+  it('dans le prompt système de la session, et nulle part ailleurs', () => {
+    const o = queryOptions(agent, { executable: '/bin/claude' }, 'CONSIGNE-AUDIO');
+    expect(o.systemPrompt).toEqual({ type: 'preset', preset: 'claude_code', append: 'CONSIGNE-AUDIO' });
+    expect(JSON.stringify(o).split('CONSIGNE-AUDIO')).toHaveLength(2);
+    expect(o.settingSources).toEqual(['user', 'project', 'local']);
+  });
+  it('vide : aucune consigne', () => {
+    expect(queryOptions(agent, { executable: '/bin/claude' }, '').systemPrompt).toEqual({ type: 'preset', preset: 'claude_code' });
+  });
+  it('un tour la passe telle quelle au SDK', async () => {
+    const { runtime, agent: a, hooks, queries } = setup(async function* turn() { yield done; });
+    await runtime.send(a, { text: 'x' }, hooks);
+    expect(queries[0].options.systemPrompt).toEqual({ type: 'preset', preset: 'claude_code', append: 'CONSIGNE-AUDIO' });
   });
 });

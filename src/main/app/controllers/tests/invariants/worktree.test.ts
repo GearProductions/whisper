@@ -14,100 +14,56 @@
 // Protégé : si ce test échoue, corriger le code.
 //
 // Sur le vrai principal (contrôleurs, réglages et fichiers sur disque, git
-// réel sur des dépôts d'essai) ; faux : Electron (fenêtres, et la boîte de
-// dialogue, qui relève ses questions, laisse un cas agir pendant qu'elle est
-// ouverte, et répond ce que le cas règle) et le SDK de Claude Code (le tour
-// finit aussitôt, sans rien écrire).
-import { execFileSync } from 'node:child_process';
+// réel sur des dépôts d'essai), sur le décor commun (app/tests/harness : le
+// faux d'Electron, dont la boîte de dialogue relève ses questions, laisse un cas
+// agir pendant qu'elle est ouverte et répond ce que le cas règle ; le faux SDK
+// dont le tour finit aussitôt, le profil, l'attente). Restent ici la question de
+// confiance, la page qui ne donne jamais un dossier, un autre dépôt, le chemin
+// relatif et le lien symbolique, les courses pendant la question ; les dossiers
+// qui ne sont pas la racine d'un worktree et le rattachement par git :
+// variants/worktrees.test.ts.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { slow } from '../slow';
+import { closeAll, fakeClaude, fakeElectron, git, profile, repo as newRepo, repoResources, settle, write, writeConfig } from 'app/tests/harness';
 
-const fake = vi.hoisted(() => {
-  type Handler = (...a: unknown[]) => void;
-  class Win {
-    sent: [string, unknown][] = [];
-    handlers = new Map<string, Handler[]>();
-    visible = false;
-    webContents = {
-      send: (ch: string, payload?: unknown) => { this.sent.push([ch, payload]); },
-      on: () => {}, setWindowOpenHandler: () => {},
-    };
-    on(ev: string, fn: Handler) { this.handlers.set(ev, [...(this.handlers.get(ev) || []), fn]); return this; }
-    once(ev: string, fn: Handler) { return this.on(ev, fn); }
-    emit(ev: string) { for (const fn of this.handlers.get(ev) || []) fn(); }
-    loadFile() {} setAlwaysOnTop() {} setVisibleOnAllWorkspaces() {} setResizable() {} setBounds() {}
-    getBounds() { return { x: 500, y: 500, width: 64, height: 64 }; }
-    isVisible() { return this.visible; } isDestroyed() { return false; } isMinimized() { return false; }
-    show() { this.visible = true; } showInactive() { this.visible = true; } hide() { this.visible = false; }
-    focus() { this.emit('focus'); } restore() {} minimize() { this.visible = false; }
-  }
-  // cwd : le dossier du projet, retenu avant qu'un cas change de dossier courant.
-  return { Win, cwd: process.cwd(), userData: '', windows: [] as InstanceType<typeof Win>[], answer: 0, asked: [] as { title: string; detail: string }[], whileAsked: () => {} };
-});
+const electron = fakeElectron();
+const claude = fakeClaude({ finish: true });
+vi.mock('electron', () => electron.module);
+vi.mock('technicals/claude', () => claude.module);
+vi.mock('technicals/paths', () => repoResources());
 
-vi.mock('electron', () => ({
-  app: { getPath: () => fake.userData },
-  BrowserWindow: class extends fake.Win { constructor() { super(); fake.windows.push(this); } },
-  screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) },
-  shell: {}, clipboard: {}, nativeImage: {},
-  dialog: { showMessageBox: async (o: { title: string; detail: string }) => { fake.asked.push(o); fake.whileAsked(); return { response: fake.answer }; } },
-}));
-
-vi.mock('technicals/claude', () => ({
-  launcher: () => ({ executable: 'claude' }),
-  loadSdk: async () => ({
-    getSessionInfo: async () => null,
-    getSessionMessages: async () => [],
-    query: ({ prompt }: { prompt: AsyncIterable<unknown> }) => Object.assign((async function* run() {
-      for await (const _ of prompt) yield { type: 'result', subtype: 'success', is_error: false, result: 'ok' };
-    }()), { setPermissionMode: async () => {}, setModel: async () => {}, interrupt: async () => {} }),
-  }),
-}));
-
-vi.mock('technicals/paths', async (original) => ({
-  ...await original<typeof import('technicals/paths')>(),
-  resourcePath: (name: string) => `${fake.cwd}/resources/${name}`,
-}));
-
-const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' });
-const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
-const settle = () => new Promise((r) => setTimeout(r, slow(150)));
+// La boîte de dialogue : ses questions relevées, la réponse du cas (Confirmer par défaut), ce qui se passe pendant qu'elle est ouverte.
+const fake = {
+  answer: 1, whileAsked: () => {},
+  get asked() { return electron.dialog.asked as { title: string; detail: string }[]; },
+};
+// Le dossier du projet, retenu avant qu'un cas change de dossier courant.
+const cwd = process.cwd();
 let root = '';
 let repo = '';
 let worktree = '';
 let out = '';
 
-function newRepo(dir: string) {
-  fs.mkdirSync(dir, { recursive: true });
-  git(dir, 'init', '-q');
-  git(dir, 'commit', '-q', '--allow-empty', '-m', 'init');
-}
-
 beforeEach(() => {
   vi.resetModules();
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
-  fake.windows = [];
-  fake.asked = [];
+  root = profile('whisper-worktree-');
   fake.answer = 1;
   fake.whileAsked = () => {};
-  fake.userData = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-worktree-')));
-  root = fake.userData;
+  electron.dialog.answer = () => { fake.whileAsked(); return fake.answer; };
   repo = path.join(root, 'projet');
   newRepo(repo);
   worktree = path.join(root, 'projet-worktrees', 'pr-7');
   git(repo, 'worktree', 'add', '-q', '-b', 'pr-7', worktree);
   out = path.join(root, 'vibecoder-out', 'a1');
   write(path.join(out, 'pr-7.json'), JSON.stringify({ number: 7, title: 'Essai', base: 'main', head: 'feat/x', state: 'OPEN' }));
-  write(path.join(root, 'config.json'), JSON.stringify({
-    agents: [{ id: 'a1', dir: repo, name: 'projet', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
-      vibe: { flow: 'review', autonomy: 'guide', pr: 7 } }],
-  }));
+  writeConfig(root, [
+    { id: 'a1', dir: repo, name: 'projet', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
+      vibe: { flow: 'review', autonomy: 'guide', pr: 7 } },
+  ]);
 });
-afterEach(() => { vi.useRealTimers(); process.chdir(fake.cwd); });
-
+afterEach(() => { closeAll(); process.chdir(cwd); });
 
 const card = (dir: string, where = out) => write(path.join(where, 'pr-7-worktree.json'), JSON.stringify({ dir, branch: 'pr-7' }));
 const agents = async () => (await import('app/settings')).loadConfig().agents;
@@ -198,80 +154,10 @@ describe('le robot d’une PR dans un worktree', () => {
     });
   });
 
-  it('un dossier qui n’existe pas : ni question, ni robot', async () => {
-    card(path.join(root, 'nulle-part'));
-
-    await sync();
-
-    // aucune question
-    expect(fake.asked).toEqual([]);
-    // aucun agent de plus
-    expect(await agents()).toHaveLength(1);
-  });
-
   it('un autre dépôt : ni question, ni robot', async () => {
     const other = path.join(root, 'autre');
     newRepo(other);
     card(other);
-
-    await sync();
-
-    // aucune question
-    expect(fake.asked).toEqual([]);
-    // aucun agent de plus
-    expect(await agents()).toHaveLength(1);
-  });
-
-  it('le dossier de l’agent du dépôt : ni question, ni robot', async () => {
-    card(repo);
-
-    await sync();
-
-    // aucune question
-    expect(fake.asked).toEqual([]);
-    // aucun agent de plus
-    expect(await agents()).toHaveLength(1);
-  });
-
-  it('un sous-dossier du dépôt : ni question, ni robot', async () => {
-    fs.mkdirSync(path.join(repo, 'src'));
-    card(path.join(repo, 'src'));
-
-    await sync();
-
-    // aucune question
-    expect(fake.asked).toEqual([]);
-    // aucun agent de plus
-    expect(await agents()).toHaveLength(1);
-  });
-
-  it('un sous-dossier du worktree : ni question, ni robot', async () => {
-    fs.mkdirSync(path.join(worktree, 'src'));
-    card(path.join(worktree, 'src'));
-
-    await sync();
-
-    // aucune question
-    expect(fake.asked).toEqual([]);
-    // aucun agent de plus
-    expect(await agents()).toHaveLength(1);
-  });
-
-  it('un fichier du worktree : ni question, ni robot', async () => {
-    write(path.join(worktree, 'a.txt'), 'a');
-    card(path.join(worktree, 'a.txt'));
-
-    await sync();
-
-    // aucune question
-    expect(fake.asked).toEqual([]);
-    // aucun agent de plus
-    expect(await agents()).toHaveLength(1);
-  });
-
-  it('un dossier hors de tout dépôt : ni question, ni robot', async () => {
-    fs.mkdirSync(path.join(root, 'vide'));
-    card(path.join(root, 'vide'));
 
     await sync();
 
@@ -334,15 +220,15 @@ describe('le robot d’une PR dans un worktree', () => {
     const { openConversation } = await import('app/windows');
     const { panelReady, runVibeAction, setVibe, syncWorktrees } = await import('app/controllers');
     openConversation('a1');
-    const panel = fake.windows.at(-1)!;
+    const panel = electron.windows.at(-1)!;
     panel.emit('ready-to-show');
     await panelReady();
-    await settle();
+    await settle(150);
 
     setVibe({ worktree: worktree });
     setVibe({ worktree: true, dir: worktree });
     runVibeAction('open-worktree', { dir: worktree, pr: 7 });
-    await settle();
+    await settle(150);
     await syncWorktrees();
 
     // aucune question
@@ -378,15 +264,6 @@ describe('Ouvrir un agent ici : l’enfant d’un worktree', () => {
     expect(list[1]).toMatchObject({ dir: worktree, parent: { id: 'a1' } });
   });
 
-  it('un dossier qui n’existe pas : ni question, ni enfant', async () => {
-    await openHere(path.join(root, 'nulle-part'));
-
-    // aucune question
-    expect(fake.asked).toEqual([]);
-    // aucun agent de plus
-    expect(await agents()).toHaveLength(1);
-  });
-
   it('un autre dépôt : ni question, ni enfant', async () => {
     const other = path.join(root, 'autre');
     newRepo(other);
@@ -410,59 +287,6 @@ describe('Ouvrir un agent ici : l’enfant d’un worktree', () => {
     expect(await agents()).toHaveLength(1);
   });
 
-  it('la copie du parent : ni question, ni enfant', async () => {
-    await openHere(repo);
-
-    // aucune question
-    expect(fake.asked).toEqual([]);
-    // aucun agent de plus
-    expect(await agents()).toHaveLength(1);
-  });
-
-  it('un sous-dossier du dépôt : ni question, ni enfant', async () => {
-    fs.mkdirSync(path.join(repo, 'src'));
-
-    await openHere(path.join(repo, 'src'));
-
-    // aucune question
-    expect(fake.asked).toEqual([]);
-    // aucun agent de plus
-    expect(await agents()).toHaveLength(1);
-  });
-
-  it('un sous-dossier du worktree : ni question, ni enfant', async () => {
-    fs.mkdirSync(path.join(worktree, 'src'));
-
-    await openHere(path.join(worktree, 'src'));
-
-    // aucune question
-    expect(fake.asked).toEqual([]);
-    // aucun agent de plus
-    expect(await agents()).toHaveLength(1);
-  });
-
-  it('un fichier du worktree : ni question, ni enfant', async () => {
-    write(path.join(worktree, 'a.txt'), 'a');
-
-    await openHere(path.join(worktree, 'a.txt'));
-
-    // aucune question
-    expect(fake.asked).toEqual([]);
-    // aucun agent de plus
-    expect(await agents()).toHaveLength(1);
-  });
-
-  it('un dossier hors de tout dépôt : ni question, ni enfant', async () => {
-    fs.mkdirSync(path.join(root, 'vide'));
-
-    await openHere(path.join(root, 'vide'));
-
-    // aucune question
-    expect(fake.asked).toEqual([]);
-    // aucun agent de plus
-    expect(await agents()).toHaveLength(1);
-  });
-
   it('un chemin relatif, même s’il désigne le worktree depuis le dossier courant : ni question, ni enfant', async () => {
     process.chdir(root);
     // depuis le dossier courant, ce chemin relatif désigne bien le worktree
@@ -474,17 +298,6 @@ describe('Ouvrir un agent ici : l’enfant d’un worktree', () => {
     expect(fake.asked).toEqual([]);
     // aucun agent de plus
     expect(await agents()).toHaveLength(1);
-  });
-
-  it('un worktree qui a déjà un agent : ni question, ni second agent', async () => {
-    addAgent('a2', worktree);
-
-    await openHere(worktree);
-
-    // aucune question
-    expect(fake.asked).toEqual([]);
-    // toujours un seul agent sur ce worktree
-    expect((await agents()).filter((a) => a.dir === worktree)).toHaveLength(1);
   });
 
   it('le worktree retiré pendant la question : aucun enfant, même accordée', async () => {
@@ -513,37 +326,9 @@ describe('Ouvrir un agent ici : l’enfant d’un worktree', () => {
 });
 
 describe('le rattachement par git : un agent existant ne devient enfant que sur la racine d’un worktree du dépôt', () => {
-  it('un agent à la racine d’un worktree du dépôt : enfant de l’agent du dépôt', async () => {
-    addAgent('a2', worktree);
-
-    const a2 = await familiesSynced();
-
-    // rattaché à a1
-    expect(a2.parent).toMatchObject({ id: 'a1' });
-  });
-
-  it('un agent sur un sous-dossier d’un worktree du dépôt : jamais enfant', async () => {
-    fs.mkdirSync(path.join(worktree, 'src'));
-    addAgent('a2', path.join(worktree, 'src'));
-
-    const a2 = await familiesSynced();
-
-    // aucun parent
-    expect(a2.parent ?? null).toBeNull();
-  });
 
   it('un agent sur un worktree d’un autre dépôt : jamais enfant de l’agent du dépôt', async () => {
     addAgent('a2', otherWorktree());
-
-    const a2 = await familiesSynced();
-
-    // aucun parent
-    expect(a2.parent ?? null).toBeNull();
-  });
-
-  it('un agent sur un sous-dossier de la copie principale : jamais enfant', async () => {
-    fs.mkdirSync(path.join(repo, 'src'));
-    addAgent('a2', path.join(repo, 'src'));
 
     const a2 = await familiesSynced();
 

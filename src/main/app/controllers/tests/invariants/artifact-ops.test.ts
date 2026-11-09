@@ -19,79 +19,32 @@
 // Protégé : si un test échoue, corriger le code.
 //
 // Sur le vrai principal (contrôleurs, fenêtres, état, réglages et fichiers sur disque,
-// vrais liens symboliques, git réel sur un dépôt d'essai) ; faux : Electron (fenêtres
-// qui relèvent ce qu'on leur envoie ; la corbeille du système, shell.trashItem, qui
-// range ce qu'on lui donne dans un dossier à part et relève les chemins reçus) et le
-// SDK de Claude Code (aucun tour ne commence ici).
-import { execFileSync } from 'node:child_process';
+// vrais liens symboliques, git réel sur un dépôt d'essai), par le décor commun
+// (app/tests/harness) ; faux : Electron (fenêtres qui relèvent ce qu'on leur envoie ; la
+// corbeille du système, shell.trashItem, qui range ce qu'on lui donne dans un dossier à part
+// et relève les chemins reçus) et le SDK de Claude Code (aucun tour ne commence ici).
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { click, closeAll, fakeClaude, fakeElectron, openPanel, profile, repo, repoResources, settle, slow, write, writeConfig } from 'app/tests/harness';
 
-// Les boutons de l'écran passent par le socket (0.15.0) : ouvert comme au lancement, fermé après chaque cas.
-let closeSocket = () => {};
-import { slow } from '../slow';
+// La corbeille du système (shell.trashItem) : le reste du faux d'Electron est celui du décor commun.
+const fake = {
+  // Les chemins donnés à la corbeille du système, et ce qu'elle en fait.
+  trashed: [] as string[],
+  trash: async (_file: string) => {},
+};
+const electron = fakeElectron({ shell: { trashItem: (file: string) => { fake.trashed.push(file); return fake.trash(file); } } });
+const claude = fakeClaude();   // aucun tour ici ; un message reçu ne fait rien
+vi.mock('electron', () => electron.module);
+vi.mock('technicals/claude', () => claude.module);
+vi.mock('technicals/paths', () => repoResources());
 
-const fake = vi.hoisted(() => {
-  type Handler = (...a: unknown[]) => void;
-  class Win {
-    sent: [string, unknown][] = [];
-    handlers = new Map<string, Handler[]>();
-    visible = false;
-    webContents = {
-      send: (ch: string, payload?: unknown) => { this.sent.push([ch, payload]); },
-      on: () => {}, setWindowOpenHandler: () => {},
-    };
-    on(ev: string, fn: Handler) { this.handlers.set(ev, [...(this.handlers.get(ev) || []), fn]); return this; }
-    once(ev: string, fn: Handler) { return this.on(ev, fn); }
-    emit(ev: string) { for (const fn of this.handlers.get(ev) || []) fn(); }
-    loadFile() {} setAlwaysOnTop() {} setVisibleOnAllWorkspaces() {} setResizable() {} setBounds() {}
-    getBounds() { return { x: 500, y: 500, width: 64, height: 64 }; }
-    isVisible() { return this.visible; } isDestroyed() { return false; } isMinimized() { return false; }
-    show() { this.visible = true; } showInactive() { this.visible = true; } hide() { this.visible = false; }
-    focus() { this.emit('focus'); } restore() {} minimize() { this.visible = false; }
-  }
-  return {
-    Win, userData: '', windows: [] as InstanceType<typeof Win>[],
-    // Les chemins donnés à la corbeille du système, et ce qu'elle en fait.
-    trashed: [] as string[],
-    trash: async (_file: string) => {},
-  };
-});
-
-vi.mock('electron', () => ({
-  app: { getPath: () => fake.userData },
-  BrowserWindow: class extends fake.Win { constructor() { super(); fake.windows.push(this); } },
-  screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) },
-  protocol: { registerSchemesAsPrivileged: () => {}, handle: () => {} },
-  dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }), showMessageBox: async () => ({ response: 0 }) },
-  shell: { trashItem: (file: string) => { fake.trashed.push(file); return fake.trash(file); } },
-  clipboard: {}, nativeImage: {},
-}));
-
-// Claude Code : aucun tour ici ; un message reçu ne fait rien.
-vi.mock('technicals/claude', () => ({
-  launcher: () => ({ executable: 'claude' }),
-  loadSdk: async () => ({
-    getSessionInfo: async () => null,
-    getSessionMessages: async () => [],
-    query: () => Object.assign((async function* run() {}()), { setPermissionMode: async () => {}, setModel: async () => {}, interrupt: async () => {} }),
-  }),
-}));
-
-vi.mock('technicals/paths', async (original) => ({
-  ...await original<typeof import('technicals/paths')>(),
-  resourcePath: (name: string) => `${process.cwd()}/resources/${name}`,
-}));
-
-const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' });
-const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
 const read = (file: string) => fs.readFileSync(file, 'utf8');
-const settle = () => new Promise((r) => setTimeout(r, slow(300)));
 // Liens de fichier : sans équivalent simple sous Windows.
 const posix = describe.skipIf(process.platform === 'win32');
 
+let userData = '';  // le profil d'essai
 let dir = '';       // le dépôt de l'agent affiché
 let arts = '';      // le dossier d'artefacts de son projet
 let outside = '';   // un dossier hors de tout, à ne pas toucher
@@ -128,9 +81,9 @@ const copiesOf = (root: string, text: string) => contents(root).filter((c) => c 
 // Tout le profil hors du dossier d'artefacts, sauf ce que l'appli y tient pour elle (réglages,
 // sorties des agents) et la corbeille factice.
 function aroundArts() {
-  const under = path.relative(fake.userData, arts);
-  const skipped = [under, 'vibecoder-out', path.relative(fake.userData, bin)];
-  return Object.entries(snapshot(fake.userData))
+  const under = path.relative(userData, arts);
+  const skipped = [under, 'vibecoder-out', path.relative(userData, bin)];
+  return Object.entries(snapshot(userData))
     .filter(([name]) => name !== 'config.json' && !skipped.some((s) => name === s || name.startsWith(s + path.sep)));
 }
 // Un élément du dossier d'artefacts remplacé par un lien vers la cible.
@@ -142,7 +95,7 @@ function linkInArts(name: string, target: string) {
 // Ce que la page reçoit : le dernier relevé.
 type Item = { id: string; name: string };
 type View = { artifacts?: Item[]; artifactDirs?: Item[]; actions?: { id: string }[] };
-const panel = () => fake.windows.at(-1)!;
+const panel = () => electron.windows.at(-1)!;
 const survey = () => panel().sent.filter(([ch]) => ch === 'conv:vibe').at(-1)![1] as View;
 const shownActions = () => (survey().actions ?? []).map((a) => a.id);
 // L'id que le dernier relevé donne à cet artefact ; sans lui, le cas ne peut pas commencer.
@@ -161,33 +114,25 @@ function dirOf(name: string) {
 beforeEach(async () => {
   vi.resetModules();
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] }); // le relevé des 4 s ne tourne pas
-  fake.windows = [];
   fake.trashed = [];
-  fake.userData = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-artifact-ops-')));
-  dir = path.join(fake.userData, 'projet');
-  outside = path.join(fake.userData, 'dehors');
+  userData = profile('whisper-artifact-ops-');
+  dir = path.join(userData, 'projet');
+  outside = path.join(userData, 'dehors');
   secret = path.join(outside, 'secret.md');
-  elsewhere = path.join(fake.userData, 'ailleurs');
-  drops = path.join(fake.userData, 'depose');
-  bin = path.join(fake.userData, 'corbeille');
+  elsewhere = path.join(userData, 'ailleurs');
+  drops = path.join(userData, 'depose');
+  bin = path.join(userData, 'corbeille');
   // La corbeille factice : elle range ce qu'on lui donne (le lien lui-même, s'il en est un).
   fs.mkdirSync(bin, { recursive: true });
   fake.trash = async (file: string) => { fs.renameSync(file, path.join(bin, `${fake.trashed.length}-${path.basename(file)}`)); };
   write(secret, SECRET);
   write(path.join(elsewhere, 'accueil.html'), AILLEURS);
   write(path.join(drops, 'rapport.md'), DEPOSE);
-  fs.mkdirSync(dir, { recursive: true });
-  git(dir, 'init', '-q', '-b', 'main');
-  write(path.join(dir, 'README.md'), 'projet');
-  git(dir, 'add', '.');
-  git(dir, 'commit', '-q', '-m', 'init');
-  git(dir, 'checkout', '-q', '-b', 'feat/0.13.0-essai');
-  write(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agents: [
-      { id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
-        vibe: { flow: 'create', autonomy: 'guide', pr: null } },
-    ],
-  }));
+  repo(dir);
+  writeConfig(userData, [
+    { id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
+      vibe: { flow: 'create', autonomy: 'guide', pr: null } },
+  ]);
   const { projectArtifactsPath } = await import('app/controllers');
   arts = projectArtifactsPath(dir);
   // Les artefacts : deux fichiers à la racine, un dossier, un dossier qui a déjà un notes.md et un
@@ -199,19 +144,10 @@ beforeEach(async () => {
   write(path.join(arts, 'archives', 'maquettes', 'vieux.html'), VIEUX);
   write(path.join(arts, '..', 'commit.md'), COMMIT);
 });
-afterEach(() => { closeSocket(); closeSocket = () => {}; vi.useRealTimers(); });
+afterEach(closeAll);
 
 // Le panneau ouvert sur l'agent a1, en VibeCoder, son premier relevé reçu.
-async function open() {
-  const { openConversation } = await import('app/windows');
-  const { panelReady, openSocket, commandFromSocket, closeSocket: close } = await import('app/controllers');
-  await openSocket(commandFromSocket);
-  closeSocket = close;
-  openConversation('a1');
-  fake.windows.at(-1)!.emit('ready-to-show');
-  await panelReady();
-  await settle();
-}
+const open = () => openPanel('a1');
 // Un nouveau relevé, comme celui des 4 s.
 async function resurvey() {
   const { refreshVibe } = await import('app/controllers');
@@ -221,8 +157,7 @@ async function resurvey() {
 
 // Une action envoyée par la page au clic (conv:vibeRun, { direct: true }).
 async function run(action: string, args: object) {
-  const { runVibeAction } = await import('app/controllers');
-  runVibeAction(action, { direct: true, ...args });
+  await click(action, { direct: true, ...args });
   await settle();
 }
 const rename = (id: unknown, name: unknown) => run('rename-artifact', { artifacts: [id], name });

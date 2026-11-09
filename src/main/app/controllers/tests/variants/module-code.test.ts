@@ -4,95 +4,66 @@
 // supprimé (par la branche, sans veilleur, ou pendant qu'il est suivi) et, en Relire, un fichier
 // d'un commit (note 0.13.0) : lus par git ; un fichier que change la branche (`b<i>`), lu
 // avec at comme un fichier de module, supprimé : text null et at, sans veilleur.
-// Sur le vrai principal et un vrai dépôt git ; faux : Electron (fenêtres qui
-// relèvent ce qu'on leur envoie) et le SDK de Claude Code (aucun tour).
-import { execFileSync } from 'node:child_process';
+// Puis (0.15.0), déplacés de invariants/module-code.test.ts : la forme du relevé, l'id de la
+// note (Créer, Relire), l'id du dossier d'un module, un autre fichier ou l'accordéon replié,
+// et le refus d'Enregistrer renvoyé à la page par sorte de course.
+// Sur le vrai principal, par le décor commun (app/tests/harness : Electron et le SDK de Claude Code
+// factices, git réel sur un dépôt d'essai).
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { slow } from '../slow';
+import {
+  click as press, closeAll, fakeClaude, fakeElectron, git, openPanel, profile, repo, repoResources, settle, write, writeConfig,
+} from 'app/tests/harness';
 
-const fake = vi.hoisted(() => {
-  type Handler = (...a: unknown[]) => void;
-  class Win {
-    sent: [string, unknown][] = [];
-    handlers = new Map<string, Handler[]>();
-    visible = false;
-    webContents = { send: (ch: string, payload?: unknown) => { this.sent.push([ch, payload]); }, on: () => {}, setWindowOpenHandler: () => {} };
-    on(ev: string, fn: Handler) { this.handlers.set(ev, [...(this.handlers.get(ev) || []), fn]); return this; }
-    once(ev: string, fn: Handler) { return this.on(ev, fn); }
-    emit(ev: string) { for (const fn of this.handlers.get(ev) || []) fn(); }
-    loadFile() {} setAlwaysOnTop() {} setVisibleOnAllWorkspaces() {} setResizable() {} setBounds() {}
-    getBounds() { return { x: 500, y: 500, width: 64, height: 64 }; }
-    isVisible() { return this.visible; } isDestroyed() { return false; } isMinimized() { return false; }
-    show() { this.visible = true; } showInactive() { this.visible = true; } hide() { this.visible = false; }
-    focus() { this.emit('focus'); } restore() {} minimize() { this.visible = false; }
-  }
-  return { Win, userData: '', windows: [] as InstanceType<typeof Win>[] };
-});
+const electron = fakeElectron();
+const claude = fakeClaude();
+vi.mock('electron', () => electron.module);
+vi.mock('technicals/claude', () => claude.module);
+vi.mock('technicals/paths', () => repoResources());
 
-vi.mock('electron', () => ({
-  app: { getPath: () => fake.userData },
-  BrowserWindow: class extends fake.Win { constructor() { super(); fake.windows.push(this); } },
-  screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) },
-  shell: {}, dialog: {}, clipboard: {}, nativeImage: {},
-}));
-vi.mock('technicals/claude', () => ({
-  launcher: () => ({ executable: 'claude' }),
-  loadSdk: async () => ({ getSessionInfo: async () => null, getSessionMessages: async () => [], query: () => Object.assign((async function* run() {}()), {}) }),
-}));
-vi.mock('technicals/paths', async (original) => ({
-  ...await original<typeof import('technicals/paths')>(),
-  resourcePath: (name: string) => `${process.cwd()}/resources/${name}`,
-}));
-
-const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' });
-const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
-const settle = () => new Promise((r) => setTimeout(r, slow(300)));
 // un poussé de ce fichier arrivé (ses lectures git, lentes sur un runner Windows)
 const pushedFor = (id: string) => vi.waitFor(() => expect(codes().at(-1)).toMatchObject({ id }), { timeout: 10_000 });
 const HELLO = 'src/core/hello/index.ts';
 const GREET = 'src/core/hello/greet.ts';
+const BRANCH = 'feat/0.11.0-essai';
+const NOTE = `docs/tickets/${BRANCH}.md`;
+const NOTE_TEXT = '# 0.11.0 — essai\n\n## Forme\n\n```\nsrc/core/hello    hello() · ne connaît pas : le DOM\nsrc/core/autre    autre() · ne connaît pas : le DOM\n```\n';
+let root = '';
 let dir = '';
 
-const panel = () => fake.windows.at(-1)!;
-const codes = () => panel().sent.filter(([ch]) => ch === 'conv:vibeCode').map(([, c]) => c as { id: string; text: string | null } | null);
-const idOf = (rel: string) => {
-  const view = panel().sent.filter(([ch]) => ch === 'conv:vibe').at(-1)![1] as { modules: { files?: { id: string; path: string }[] }[] };
-  return view.modules.flatMap((m) => m.files ?? []).find((f) => f.path === rel)!.id;
+type Survey = {
+  note: { id: string } | null;
+  modules: { path: string; file: { id: string } | null; files: { id: string; path: string }[] }[];
 };
+const panel = () => electron.windows.at(-1)!;
+const survey = () => panel().sent.filter(([ch]) => ch === 'conv:vibe').at(-1)![1] as Survey;
+const codes = () => panel().sent.filter(([ch]) => ch === 'conv:vibeCode').map(([, c]) => c as { id: string; text: string | null } | null);
+const idOf = (rel: string) => survey().modules.flatMap((m) => m.files ?? []).find((f) => f.path === rel)!.id;
 
 beforeEach(async () => {
   vi.resetModules();
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
-  fake.windows = [];
-  fake.userData = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-module-code-v-')));
-  dir = path.join(fake.userData, 'projet');
-  fs.mkdirSync(dir, { recursive: true });
-  git(dir, 'init', '-q', '-b', 'main');
+  root = profile('whisper-module-code-v-');
+  dir = path.join(root, 'projet');
+  repo(dir, { branch: BRANCH, note: NOTE_TEXT });
+  git(dir, 'checkout', '-q', 'main');
   write(path.join(dir, HELLO), 'HELLO_MAIN');
   write(path.join(dir, GREET), 'GREET_MAIN');
+  write(path.join(dir, 'src/core/autre/index.ts'), 'AUTRE_TEXTE');
   git(dir, 'add', '.');
-  git(dir, 'commit', '-q', '-m', 'init');
-  git(dir, 'checkout', '-q', '-b', 'feat/0.11.0-essai');
-  write(path.join(dir, 'docs/tickets/feat/0.11.0-essai.md'), '# 0.11.0 — essai\n\n## Forme\n\n```\nsrc/core/hello    hello() · ne connaît pas : le DOM\n```\n');
+  git(dir, 'commit', '-q', '-m', 'main');
+  git(dir, 'checkout', '-q', BRANCH);
+  git(dir, 'rebase', '-q', 'main');
   write(path.join(dir, HELLO), 'HELLO_TEXTE');
   write(path.join(dir, GREET), 'GREET_TEXTE');
   git(dir, 'add', '.');
   git(dir, 'commit', '-q', '-m', 'hello');
-  write(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null,
-      vibe: { flow: 'create', autonomy: 'guide', pr: null } }],
-  }));
-  const { openConversation } = await import('app/windows');
-  const { panelReady } = await import('app/controllers');
-  openConversation('a1');
-  fake.windows.at(-1)!.emit('ready-to-show');
-  await panelReady();
-  await settle();
+  writeConfig(root, [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null,
+    vibe: { flow: 'create', autonomy: 'guide', pr: null } }]);
+  await openPanel('a1');
 });
-afterEach(async () => { (await import('app/controllers')).followCode(null); vi.useRealTimers(); });
+afterEach(async () => { (await import('app/controllers')).followCode(null); closeAll(); });
 
 it('le fichier suivi est poussé à chaque changement, écrit directement ou par renommage', async () => {
   const { followCode } = await import('app/controllers');
@@ -184,12 +155,10 @@ it('en Relire, un fichier ajouté par un commit : avant null, après et tête pa
   git(dir, 'add', '.');
   git(dir, 'commit', '-q', '-m', 'new');
   git(dir, 'update-ref', 'refs/remotes/origin/main', 'main');
-  write(path.join(fake.userData, 'vibecoder-out', 'a1', 'pr-7.json'),
+  write(path.join(root, 'vibecoder-out', 'a1', 'pr-7.json'),
     JSON.stringify({ number: 7, title: 'Essai', base: 'main', head: 'feat/0.11.0-essai', state: 'OPEN' }));
-  write(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null,
-      vibe: { flow: 'review', autonomy: 'guide', pr: 7 } }],
-  }));
+  writeConfig(root, [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null,
+    vibe: { flow: 'review', autonomy: 'guide', pr: 7 } }]);
   await resurvey();
   const view = panel().sent.filter(([ch]) => ch === 'conv:vibe').at(-1)![1] as { commits: { subject: string; files: string[] }[] };
   const rank = view.commits.findIndex((c) => c.subject === 'new');
@@ -251,12 +220,10 @@ it('un fichier b<i> supprimé par la branche : text null, ses versions par git, 
 it('en Relire, un fichier b<i> se lit mais saveCode le refuse', async () => {
   const { followCode, saveCode } = await import('app/controllers');
   git(dir, 'update-ref', 'refs/remotes/origin/main', 'main');
-  write(path.join(fake.userData, 'vibecoder-out', 'a1', 'pr-7.json'),
+  write(path.join(root, 'vibecoder-out', 'a1', 'pr-7.json'),
     JSON.stringify({ number: 7, title: 'Essai', base: 'main', head: 'feat/0.11.0-essai', state: 'OPEN' }));
-  write(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null,
-      vibe: { flow: 'review', autonomy: 'guide', pr: 7 } }],
-  }));
+  writeConfig(root, [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null,
+    vibe: { flow: 'review', autonomy: 'guide', pr: 7 } }]);
   await resurvey();
   const id = branchId(HELLO);
   followCode(id);
@@ -264,4 +231,152 @@ it('en Relire, un fichier b<i> se lit mais saveCode le refuse', async () => {
   expect(codes().at(-1)).toMatchObject({ id, text: 'HELLO_TEXTE', at: { base: 'HELLO_MAIN', head: 'HELLO_TEXTE' } });
   expect(saveCode(id, 'HELLO_REVIEW').ok).toBe(false);
   expect(fs.readFileSync(path.join(dir, HELLO), 'utf8')).toBe('HELLO_TEXTE');
+});
+
+// ── Déplacés de invariants/module-code.test.ts (0.15.0) ──
+// Le panneau est déjà ouvert (beforeEach) : `resurvey` relit le relevé après un changement de réglages.
+
+// L'id que le dernier relevé donne à la note ; sans id, le cas ne peut pas commencer.
+function noteId() {
+  const n = survey().note;
+  if (!n) throw new Error('le relevé ne donne aucune note');
+  return n.id;
+}
+// Les textes de fichier poussés à la page (null : trop gros ou illisible, pas un texte).
+const texts = () => codes().flatMap((c) => (c && c.text !== null ? [c.text] : []));
+// Le rang d'un module dans le dernier relevé (VibeArgs.module).
+const rankOf = (modulePath: string) => survey().modules.findIndex((m) => m.path === modulePath);
+
+// L'agent en Relire, sur la PR 7 : la branche d'essai, chargée à sa référence
+// locale (comme par le skill charger-pr), sa fiche dans les sorties de l'agent.
+function review() {
+  git(dir, 'update-ref', 'refs/vibecoder/pr/7', 'HEAD');
+  git(dir, 'update-ref', 'refs/remotes/origin/main', 'main');
+  write(path.join(root, 'vibecoder-out', 'a1', 'pr-7.json'),
+    JSON.stringify({ number: 7, title: 'Essai', base: 'main', head: BRANCH, state: 'OPEN' }));
+  writeConfig(root, [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null,
+    vibe: { flow: 'review', autonomy: 'guide', pr: 7 } }]);
+}
+
+// La page suit un fichier (l'accordéon déplié sur lui ; null : replié).
+async function follow(id: unknown) {
+  const { followCode } = await import('app/controllers');
+  followCode(id);
+  await settle();
+}
+
+// Un clic sur une action de l'écran (Générer ce module, Générer les modules restants…).
+async function click(id: string, args: object = {}) {
+  await press(id, args);
+  await settle();
+}
+
+// Un message envoyé à la conversation par le champ : un tour commence.
+async function ask(text: string) {
+  const { sendDraft } = await import('app/controllers');
+  sendDraft({ text });
+  await settle();
+}
+
+it('le relevé ne donne aucun fichier à un module que la branche ne touche pas', async () => {
+
+  const autre = survey().modules.find((m) => m.path === 'src/core/autre')!;
+
+  // aucun id à suivre pour ce module
+  expect(autre.files).toEqual([]);
+});
+
+it('le relevé liste les fichiers d’un module touché, sans leur texte', async () => {
+
+  const sent = JSON.stringify(survey());
+
+  // témoin : le fichier touché est bien listé, par son chemin
+  expect(survey().modules.flatMap((m) => m.files ?? []).map((f) => f.path)).toContain(HELLO);
+  // son texte n'y est pas
+  expect(sent).not.toContain('HELLO_TEXTE');
+  // celui de l'autre fichier touché non plus
+  expect(sent).not.toContain('GREET_TEXTE');
+});
+
+it('l’id de la note, en Créer : son texte est poussé à la page', async () => {
+
+  await follow(survey().note!.id);
+
+  // la page reçoit la note telle qu'elle est sur le disque
+  expect(texts()).toContain(fs.readFileSync(path.join(dir, NOTE), 'utf8'));
+});
+
+// Relire : la PR d'un autre, sa note ne se lit pas pour être modifiée.
+it('l’id de la note, en Relire : rien n’est lu', async () => {
+  review();
+  await resurvey();
+
+  await follow(noteId());
+
+  // aucun texte de fichier poussé
+  expect(texts()).toEqual([]);
+});
+
+it('l’id du dossier d’un module que la branche ne touche pas : rien n’est lu', async () => {
+
+  await follow(survey().modules.find((m) => m.path === 'src/core/autre')!.file!.id);
+
+  // aucun texte de fichier poussé
+  expect(texts()).toEqual([]);
+});
+
+it('un autre fichier du module, changé sur le disque, n’est pas lu : seul l’ouvert l’est', async () => {
+  await follow(idOf(HELLO));
+
+  write(path.join(dir, GREET), 'GREET_CHANGE');
+  await settle();
+
+  // le nouveau texte de l'autre fichier n'est jamais poussé
+  expect(JSON.stringify(codes())).not.toContain('GREET_CHANGE');
+  // son ancien texte non plus
+  expect(JSON.stringify(codes())).not.toContain('GREET_TEXTE');
+});
+
+it('l’accordéon replié (null) : le fichier changé sur le disque n’est plus lu', async () => {
+  await follow(idOf(HELLO));
+  await follow(null);
+
+  write(path.join(dir, HELLO), 'HELLO_CHANGE');
+  await settle();
+
+  // le nouveau texte n'est jamais poussé
+  expect(JSON.stringify(codes())).not.toContain('HELLO_CHANGE');
+});
+
+it('une course qui génère ce module : Enregistrer est refusé', async () => {
+  const { saveCode } = await import('app/controllers');
+  await follow(idOf(HELLO));
+  await click('module', { module: rankOf('src/core/hello') });
+
+  const result = await saveCode(idOf(HELLO), 'HELLO_ENREGISTRE');
+
+  // la page apprend que rien n'a été enregistré
+  expect(result.ok).toBe(false);
+});
+
+it('une course qui génère les modules restants : Enregistrer est refusé', async () => {
+  const { saveCode } = await import('app/controllers');
+  await follow(idOf(HELLO));
+  await click('modules');
+
+  const result = await saveCode(idOf(HELLO), 'HELLO_ENREGISTRE');
+
+  // la page apprend que rien n'a été enregistré
+  expect(result.ok).toBe(false);
+});
+
+it('un tour de la conversation en cours : Enregistrer est refusé', async () => {
+  const { saveCode } = await import('app/controllers');
+  await follow(idOf(HELLO));
+  await ask('corrige hello');
+
+  const result = await saveCode(idOf(HELLO), 'HELLO_ENREGISTRE');
+
+  // la page apprend que rien n'a été enregistré
+  expect(result.ok).toBe(false);
 });

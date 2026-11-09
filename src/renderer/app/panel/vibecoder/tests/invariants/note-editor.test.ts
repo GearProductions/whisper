@@ -2,10 +2,11 @@
 // Invariant de la note et du code modifiables (note 0.11.0,
 // docs/tickets/feat/0.11.0-editer-invariants-et-note.md, « Ce que ça ne doit
 // pas faire ») : la note en édition et le code se mettent en forme sans HTML ;
-// une balise tapée ou écrite dans le fichier reste du texte (I-40) — la note
-// (NoteEditor, ses pastilles), son Brut et les tests d'invariants modifiables
-// (CodeView en edit). Ce qui est écrit dans le fichier, sans frappe :
-// code-view.test.ts.
+// une balise tapée reste du texte (I-40) — la note (NoteEditor), son Brut et
+// les tests d'invariants modifiables (CodeView en edit) — et la pastille de la
+// note, dessinée à part. Une balise écrite dans le fichier, sans frappe (note,
+// Brut, test modifiable) : tests/variants/note-editor.test.ts, et la règle de
+// structure « aucune fonction qui insère du HTML » ; CodeView : code-view.test.ts.
 // Protégé : si un test échoue, corriger le code.
 //
 // Les vrais composants, montés par React (createRoot) dans une page happy-dom ;
@@ -73,70 +74,6 @@ const SCRIPT = '<script>alert(1)</script>';
 const IMG = '<img src=x onerror=alert(1)>';
 
 describe('la note éditable : une balise écrite dans le fichier reste du texte', () => {
-  it('<script> dans un paragraphe', async () => {
-    const page = await shown(note(`# Titre\n\nUn paragraphe ${SCRIPT} fin.\n`));
-
-    // aucun élément script produit
-    expect(page.querySelector('script')).toBeNull();
-    // témoin : la balise est affichée, en texte
-    expect(page.textContent).toContain(SCRIPT);
-  });
-
-  it('<img onerror> dans un titre', async () => {
-    const page = await shown(note(`## Titre ${IMG}\n`));
-
-    // aucun élément img produit
-    expect(page.querySelector('img')).toBeNull();
-    // témoin : la balise est affichée, en texte
-    expect(page.textContent).toContain(IMG);
-  });
-
-  it('<img onerror> dans un élément de liste', async () => {
-    const page = await shown(note(`- un élément ${IMG}\n- un autre\n`));
-
-    // aucun élément img produit
-    expect(page.querySelector('img')).toBeNull();
-    // témoin : la balise est affichée, en texte
-    expect(page.textContent).toContain(IMG);
-  });
-
-  it('<script> dans du code en ligne', async () => {
-    const page = await shown(note(`Du code \`${SCRIPT}\` en ligne.\n`));
-
-    // aucun élément script produit
-    expect(page.querySelector('script')).toBeNull();
-    // témoin : la balise est affichée, en texte
-    expect(page.textContent).toContain(SCRIPT);
-  });
-
-  it('<img onerror> dans un bloc de code', async () => {
-    const page = await shown(note(`\`\`\`html\n${IMG}\n\`\`\`\n`));
-
-    // aucun élément img produit
-    expect(page.querySelector('img')).toBeNull();
-    // témoin : la balise est affichée, en texte
-    expect(page.textContent).toContain(IMG);
-  });
-
-  // Markdown reconnaît un bloc HTML : il n'est pas rendu pour autant.
-  it('un bloc HTML seul sur sa ligne', async () => {
-    const page = await shown(note(`Avant.\n\n<div>${IMG}</div>\n\nAprès.\n`));
-
-    // aucun élément img produit
-    expect(page.querySelector('img')).toBeNull();
-    // témoin : la balise est affichée, en texte
-    expect(page.textContent).toContain(IMG);
-  });
-
-  it('<img onerror> dans le texte d’un lien', async () => {
-    const page = await shown(note(`Voir [${IMG}](https://exemple.fr).\n`));
-
-    // aucun élément img produit
-    expect(page.querySelector('img')).toBeNull();
-    // témoin : la balise est affichée, en texte
-    expect(page.textContent).toContain(IMG);
-  });
-
   // Une pastille porte un texte venu de la note (une marque de « Ce que ça ne doit pas faire »).
   it('<img onerror> dans le texte d’une pastille', async () => {
     const page = await shown(note('## Ce que ça ne doit pas faire\n\n- rien\n', {
@@ -147,15 +84,6 @@ describe('la note éditable : une balise écrite dans le fichier reste du texte'
     expect(page.querySelector('img')).toBeNull();
     // témoin : le texte de la pastille est affiché, en texte
     expect(page.textContent).toContain(IMG);
-  });
-
-  it('grisée (un tour en cours) : <script> reste du texte', async () => {
-    const page = await shown(note(`Un paragraphe ${SCRIPT}.\n`, { locked: 'Un tour de la conversation est en cours' }));
-
-    // aucun élément script produit
-    expect(page.querySelector('script')).toBeNull();
-    // témoin : la balise est affichée, en texte
-    expect(page.textContent).toContain(SCRIPT);
   });
 });
 
@@ -190,17 +118,6 @@ describe('la note éditable : une balise tapée reste du texte', () => {
 });
 
 describe('le Markdown de la note (Brut) et les tests modifiables : une balise reste du texte', () => {
-  it('Brut : <script> écrit dans la note', async () => {
-    const page = await shown(createElement(CodeView, {
-      code: `# Titre\n\n${SCRIPT}\n`, path: 'docs/tickets/feat/x.md', edit: { locked: null, onChange: () => {}, onSave: () => {} },
-    }));
-
-    // aucun élément script produit
-    expect(page.querySelector('script')).toBeNull();
-    // témoin : la balise est affichée, en texte
-    expect(page.textContent).toContain(SCRIPT);
-  });
-
   it('Brut : <img onerror> tapé dans la note', async () => {
     const typed: string[] = [];
     const page = await shown(createElement(CodeHost, { initial: '# Titre\n\nfin', path: 'docs/tickets/feat/x.md', typed }));
@@ -227,19 +144,5 @@ describe('le Markdown de la note (Brut) et les tests modifiables : une balise re
     expect(page.querySelector('img')).toBeNull();
     // témoin : la balise tapée est affichée, en texte
     expect(page.textContent).toContain(IMG);
-  });
-
-  it('un test d’invariant modifiable : <script> tapé dans une chaîne', async () => {
-    const typed: string[] = [];
-    const page = await shown(createElement(CodeHost, { initial: "it('cas', () => {});\nconst v = 1;", path: 'src/a/tests/invariants/a.test.ts', typed }));
-
-    await type(page, ` const s = '${SCRIPT}';`);
-
-    // témoin : l'éditeur a bien reçu la frappe
-    expect(typed.at(-1)).toContain(SCRIPT);
-    // aucun élément script produit
-    expect(page.querySelector('script')).toBeNull();
-    // témoin : la balise tapée est affichée, en texte
-    expect(page.textContent).toContain(SCRIPT);
   });
 });

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { createJournal } from 'technicals/journal';
 
 it('une ligne par évènement ; au-delà de 1 Mo, l’ancien passe en .old', () => {
@@ -15,4 +15,15 @@ it('une ligne par évènement ; au-delà de 1 Mo, l’ancien passe en .old', () 
   expect(fs.statSync(`${file}.old`).size).toBe(1024 * 1024 + 1);
   expect(fs.readFileSync(file, 'utf8')).toMatch(/ {2}a1 {2}tour fini\n$/);
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+// Un journal impossible à écrire n'arrête jamais un agent (SPEC I-29).
+describe('journal des agents', () => {
+  it('fichier inaccessible : aucune erreur', () => {
+    const journal = createJournal(() => '/proc/interdit/agents.log');
+    expect(() => journal({ id: 'a1', name: 'alpha' }, 'tour commencé', 'détail')).not.toThrow();
+  });
+  it('sans fichier : rien', () => {
+    expect(() => createJournal(() => null)({ id: 'a1' }, 'x')).not.toThrow();
+  });
 });

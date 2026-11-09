@@ -3,10 +3,14 @@
 // remplace le document sans revenir à onChange ; le bouton de citation (icône comment, quoteLabel en
 // title et aria-label) cite son bloc, et suit les blocs tapés.
 // Le défilement porté par .cm-scroller (la barre de l'appli sur lui), pas par le cadre.
-import { act, createElement } from 'react';
+// Une balise écrite dans la note (paragraphe, titre, liste, code, bloc HTML, lien, note grisée), dans
+// son Brut ou tapée dans un test d'invariant modifiable, reste du texte (I-40 : la règle de structure
+// interdit toute insertion de HTML ; la pastille et la frappe dans la note restent protégées).
+import { act, createElement, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EditorView } from '@codemirror/view';
-import { expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import { CodeView } from '../../code-view';
 import { NoteEditor } from '../../note-editor';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -85,4 +89,155 @@ it('le défilement est celui de l\'éditeur (.cm-scroller), pas de son cadre', a
   await v.render({ text: 'a' });
   expect(v.view().scrollDOM.classList.contains('scroll')).toBe(true);
   expect(v.page.querySelector('.vc-note-editor')!.classList.contains('scroll')).toBe(false);
+});
+
+// La page où l'élément est monté, une fois affiché.
+async function shown(el: ReturnType<typeof createElement>) {
+  const container = document.createElement('div');
+  document.body.append(container);
+  await act(async () => { createRoot(container).render(el); });
+  return container;
+}
+
+// Un test d'invariant modifiable tel que invariants-view le tient (CodeView en edit).
+function CodeHost({ initial, path, typed }: { initial: string; path: string; typed: string[] }) {
+  const [code, setCode] = useState(initial);
+  return createElement(CodeView, { code, path, edit: { locked: null, onChange: (t) => { typed.push(t); setCode(t); }, onSave: () => {} } });
+}
+
+// Une frappe à la fin de la dernière ligne affichée par l'éditeur (CodeMirror relève le changement du DOM),
+// dans son texte, pas dans un widget (contenteditable=false).
+async function type(page: HTMLElement, text: string) {
+  const line = [...page.querySelectorAll('.cm-line')].at(-1);
+  const walker = line && document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
+  let last: Text | null = null;
+  while (walker?.nextNode()) {
+    if (!walker.currentNode.parentElement?.closest('[contenteditable="false"]')) last = walker.currentNode as Text;
+  }
+  if (!last) throw new Error('aucune ligne de l’éditeur où taper');
+  await act(async () => {
+    last!.data += text;
+    await new Promise((r) => setTimeout(r, 100));
+  });
+}
+
+const SCRIPT = '<script>alert(1)</script>';
+const IMG = '<img src=x onerror=alert(1)>';
+
+describe('la note éditable : une balise écrite dans le fichier reste du texte', () => {
+  it('<script> dans un paragraphe', async () => {
+    const v = mount();
+    await v.render({ text: `# Titre\n\nUn paragraphe ${SCRIPT} fin.\n` });
+    const page = v.page;
+
+    // aucun élément script produit
+    expect(page.querySelector('script')).toBeNull();
+    // témoin : la balise est affichée, en texte
+    expect(page.textContent).toContain(SCRIPT);
+  });
+
+  it('<img onerror> dans un titre', async () => {
+    const v = mount();
+    await v.render({ text: `## Titre ${IMG}\n` });
+    const page = v.page;
+
+    // aucun élément img produit
+    expect(page.querySelector('img')).toBeNull();
+    // témoin : la balise est affichée, en texte
+    expect(page.textContent).toContain(IMG);
+  });
+
+  it('<img onerror> dans un élément de liste', async () => {
+    const v = mount();
+    await v.render({ text: `- un élément ${IMG}\n- un autre\n` });
+    const page = v.page;
+
+    // aucun élément img produit
+    expect(page.querySelector('img')).toBeNull();
+    // témoin : la balise est affichée, en texte
+    expect(page.textContent).toContain(IMG);
+  });
+
+  it('<script> dans du code en ligne', async () => {
+    const v = mount();
+    await v.render({ text: `Du code \`${SCRIPT}\` en ligne.\n` });
+    const page = v.page;
+
+    // aucun élément script produit
+    expect(page.querySelector('script')).toBeNull();
+    // témoin : la balise est affichée, en texte
+    expect(page.textContent).toContain(SCRIPT);
+  });
+
+  it('<img onerror> dans un bloc de code', async () => {
+    const v = mount();
+    await v.render({ text: `\`\`\`html\n${IMG}\n\`\`\`\n` });
+    const page = v.page;
+
+    // aucun élément img produit
+    expect(page.querySelector('img')).toBeNull();
+    // témoin : la balise est affichée, en texte
+    expect(page.textContent).toContain(IMG);
+  });
+
+  // Markdown reconnaît un bloc HTML : il n'est pas rendu pour autant.
+  it('un bloc HTML seul sur sa ligne', async () => {
+    const v = mount();
+    await v.render({ text: `Avant.\n\n<div>${IMG}</div>\n\nAprès.\n` });
+    const page = v.page;
+
+    // aucun élément img produit
+    expect(page.querySelector('img')).toBeNull();
+    // témoin : la balise est affichée, en texte
+    expect(page.textContent).toContain(IMG);
+  });
+
+  it('<img onerror> dans le texte d’un lien', async () => {
+    const v = mount();
+    await v.render({ text: `Voir [${IMG}](https://exemple.fr).\n` });
+    const page = v.page;
+
+    // aucun élément img produit
+    expect(page.querySelector('img')).toBeNull();
+    // témoin : la balise est affichée, en texte
+    expect(page.textContent).toContain(IMG);
+  });
+
+  it('grisée (un tour en cours) : <script> reste du texte', async () => {
+    const v = mount();
+    await v.render({ text: `Un paragraphe ${SCRIPT}.\n`, locked: 'Un tour de la conversation est en cours' });
+    const page = v.page;
+
+    // aucun élément script produit
+    expect(page.querySelector('script')).toBeNull();
+    // témoin : la balise est affichée, en texte
+    expect(page.textContent).toContain(SCRIPT);
+  });
+});
+
+describe('le Markdown de la note (Brut) et les tests modifiables : une balise reste du texte', () => {
+  it('Brut : <script> écrit dans la note', async () => {
+    const page = await shown(createElement(CodeView, {
+      code: `# Titre\n\n${SCRIPT}\n`, path: 'docs/tickets/feat/x.md', edit: { locked: null, onChange: () => {}, onSave: () => {} },
+    }));
+
+    // aucun élément script produit
+    expect(page.querySelector('script')).toBeNull();
+    // témoin : la balise est affichée, en texte
+    expect(page.textContent).toContain(SCRIPT);
+  });
+
+  it('un test d’invariant modifiable : <script> tapé dans une chaîne', async () => {
+    const typed: string[] = [];
+    const page = await shown(createElement(CodeHost, { initial: "it('cas', () => {});\nconst v = 1;", path: 'src/a/tests/invariants/a.test.ts', typed }));
+
+    await type(page, ` const s = '${SCRIPT}';`);
+
+    // témoin : l'éditeur a bien reçu la frappe
+    expect(typed.at(-1)).toContain(SCRIPT);
+    // aucun élément script produit
+    expect(page.querySelector('script')).toBeNull();
+    // témoin : la balise tapée est affichée, en texte
+    expect(page.textContent).toContain(SCRIPT);
+  });
 });

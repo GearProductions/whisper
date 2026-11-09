@@ -1,16 +1,16 @@
 /** paths — où trouver un programme, un script, un binaire ou un dossier livré avec l'appli.
  *  Ne connaît pas : Electron, le métier.
- *  Utilisé par : technicals (claude, selection, pocket-tts, windows-helper), app. */
+ *  Utilisé par : technicals (claude, pocket-tts, windows-helper), app. */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 // Chemin d'un programme : dans PATH, dans ~/.local/bin (uv, pipx, l'installeur
-// de Claude Code : absent du PATH d'une appli lancée hors d'un terminal), puis
-// dans `extraDirs`. null s'il est introuvable.
-export function which(name: string, extraDirs: string[] = []): string | null {
+// de Claude Code : absent du PATH d'une appli lancée hors d'un terminal).
+// null s'il est introuvable.
+export function which(name: string): string | null {
   const names = process.platform === 'win32' && !path.extname(name) ? [`${name}.exe`, `${name}.cmd`, name] : [name];
-  const dirs = [...String(process.env.PATH || '').split(path.delimiter), path.join(os.homedir(), '.local', 'bin'), ...extraDirs];
+  const dirs = [...String(process.env.PATH || '').split(path.delimiter), path.join(os.homedir(), '.local', 'bin')];
   for (const dir of dirs.filter(Boolean)) {
     for (const n of names) {
       const file = path.join(dir, n);
