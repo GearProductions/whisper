@@ -1,56 +1,35 @@
-// Invariant « une commande par famille » (note 0.10.0
-// docs/tickets/feat/0.10.0-familles-d-agents.md, « Ce que ça ne doit pas
-// faire » : « Lancer deux fois la même commande du projet dans une même
-// famille » ; SPEC : l'invariant à inscrire avec ce ticket). Les agents d'un
-// même dépôt (le parent, ses enfants) partagent ports et base : une même
-// commande du fichier du projet ne tourne jamais à deux endroits à la fois,
-// qu'elle soit demandée par la page (la question « l'arrêter et le lancer
-// ici ? ») ou par l'agent (<sorties>/run/<nom>.restart).
-// Protégé : si ce test échoue, corriger le code. Seule retouche acceptée (note
-// docs/tickets/fix/0.13.0-fix-and-improvements.md, sujet 3) : la marque propre au
-// lancement ; toujours une seule instance par famille.
+// Variants « une commande par famille » (note 0.10.0 docs/tickets/feat/0.10.0-familles-d-agents.md ;
+// SPEC I-47 : une même commande ne tourne qu'à un endroit dans une famille) : les 7 cas de la page (la
+// question « l'arrêter et le lancer ici ? », Oui ou Non) et de l'agent (<sorties>/run/<nom>.restart).
+// Les agents d'un même dépôt (le parent, ses enfants) partagent ports et base : une même commande du
+// fichier du projet ne tourne jamais à deux endroits à la fois. La marque propre au lancement : toujours
+// une seule instance par famille (note docs/tickets/fix/0.13.0-fix-and-improvements.md, sujet 3).
 //
-// Sur le vrai principal (contrôleur des processus, réglages et fichiers sur
-// disque, git réel sur un dépôt d'essai et ses worktrees, de vrais processus) ;
-// faux : Electron (le dossier userData, et la boîte de dialogue, qui relève
-// ses questions et répond Oui ou Non selon le cas). Chaque lancement de la
-// commande note, avant de devenir `sleep`, combien d'instances tournent déjà
-// et dans quel dossier : c'est le système lui-même qu'on observe.
-import { execFileSync, spawnSync } from 'node:child_process';
+// Sur le vrai principal (contrôleur des processus, réglages et fichiers sur disque, git réel sur un dépôt
+// d'essai et ses worktrees, de vrais processus), dans le décor commun (app/tests/harness) : faux Electron,
+// dont la boîte de dialogue relève ses questions et répond Oui ou Non selon le cas. Chaque lancement de la
+// commande note, avant de devenir `sleep`, combien d'instances tournent déjà et dans quel dossier : c'est
+// le système lui-même qu'on observe.
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fakeElectron, git, profile, repo, writeConfig, write } from 'app/tests/harness';
 
-const fake = vi.hoisted(() => ({ userData: '', yes: false, asked: [] as unknown[] }));
-
-vi.mock('electron', () => ({
-  app: { getPath: () => fake.userData },
-  BrowserWindow: class {},
-  screen: {}, shell: {}, clipboard: {}, nativeImage: {},
-  // Oui : le bouton qui n'est pas celui d'annulation ; Non : celui d'annulation.
-  dialog: {
-    showMessageBox: async (o: { buttons: string[]; cancelId?: number }) => {
-      fake.asked.push(o);
-      const no = o.cancelId ?? 0;
-      return { response: fake.yes ? o.buttons.findIndex((_, i) => i !== no) : no };
-    },
-  },
-}));
+const electron = fakeElectron();
+vi.mock('electron', () => electron.module);
 
 const { loadConfig } = await import('app/settings');
 const { processAction, processOp, processView, projectFile, stopProcesses } = await import('app/controllers/processes');
 const { openSocket, closeSocket } = await import('app/controllers');
 
-const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, stdio: 'pipe' });
+let yes = false;
 const until = async (ok: () => boolean, ms = 8000) => {
   for (const end = Date.now() + ms; !ok() && Date.now() < end;) await new Promise((r) => setTimeout(r, 50));
   return ok();
 };
 let root = '';
-let repo = '';
 let worktree = '';
-let sibling = '';
 let seenFile = '';
 
 // La commande devient `sleep 9871.<pid de ce lancement>` : ses instances vivantes, comptées par le
@@ -79,27 +58,25 @@ async function runningIn(id: string) {
 }
 
 beforeEach(async () => {
-  fake.yes = false;
-  fake.asked = [];
-  fake.userData = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-famille-')));
-  root = fake.userData;
+  yes = false;
+  root = profile('whisper-famille-');
   seenFile = path.join(root, 'seen.txt');
-  repo = path.join(root, 'projet');
-  fs.mkdirSync(repo);
-  git(repo, 'init', '-q');
-  git(repo, 'commit', '-q', '--allow-empty', '-m', 'init');
+  const repoDir = path.join(root, 'projet');
+  repo(repoDir);
   worktree = path.join(root, 'projet-worktrees', 'feat-a');
-  git(repo, 'worktree', 'add', '-q', '-b', 'feat/a', worktree);
-  sibling = path.join(root, 'projet-worktrees', 'feat-b');
-  git(repo, 'worktree', 'add', '-q', '-b', 'feat/b', sibling);
+  git(repoDir, 'worktree', 'add', '-q', '-b', 'feat/a', worktree);
+  const sibling = path.join(root, 'projet-worktrees', 'feat-b');
+  git(repoDir, 'worktree', 'add', '-q', '-b', 'feat/b', sibling);
   // Une famille : a1 sur la copie principale, a2 et a3 ses enfants sur deux worktrees.
-  const agent = (id: string, dir: string) => ({ id, dir, name: id, model: 'opus', effort: 'high', mode: 'default', sessionId: null });
-  fs.writeFileSync(path.join(root, 'config.json'), JSON.stringify({
-    agents: [agent('a1', repo), { ...agent('a2', worktree), parent: { id: 'a1' } }, { ...agent('a3', sibling), parent: { id: 'a1' } }],
-  }));
+  const agent = (id: string, dir: string) => ({ id, dir, name: id, model: 'opus', effort: 'high', mode: 'default' as const, sessionId: null });
+  writeConfig(root, [agent('a1', repoDir), { ...agent('a2', worktree), parent: { id: 'a1' } }, { ...agent('a3', sibling), parent: { id: 'a1' } }]);
+  // Oui : le bouton qui n'est pas celui d'annulation ; Non : celui d'annulation.
+  electron.dialog.answer = (o: { buttons: string[]; cancelId?: number }) => {
+    const no = o.cancelId ?? 0;
+    return yes ? o.buttons.findIndex((_, i) => i !== no) : no;
+  };
   // Le fichier du projet de la famille : celui de la copie principale.
-  fs.mkdirSync(path.dirname(projectFile(repo)), { recursive: true });
-  fs.writeFileSync(projectFile(repo), JSON.stringify({
+  write(projectFile(repoDir), JSON.stringify({
     commands: [{ name: 'serveur', run: `echo "$(pgrep -fc '${MARK}') $PWD" >> '${seenFile}'; exec sleep 9871.${process.pid}` }],
   }));
   // Les boutons de l'écran passent par le socket (0.15.0). Ici sans panneau ni relevé : la porte
@@ -138,7 +115,7 @@ describe.skipIf(process.platform === 'win32')('une même commande ne tourne qu�
     await runningIn('a1');
     // l'enfant propose bien la commande de la famille
     expect(names('a2')).toContain('serveur');
-    fake.yes = true;
+    yes = true;
 
     await fromPage('a2', 'start');
     await until(() => seen().length === 2);
@@ -206,7 +183,7 @@ describe.skipIf(process.platform === 'win32')('une même commande ne tourne qu�
     await runningIn('a1');
     // l'enfant propose bien la commande de la famille
     expect(names('a2')).toContain('serveur');
-    fake.yes = true;
+    yes = true;
 
     await fromPage('a2', 'restart');
     await until(() => seen().length === 2);
