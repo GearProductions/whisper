@@ -34,6 +34,11 @@ export async function openSocket(handle: (env: Envelope) => Promise<CommandRespo
   }
 }
 
+// Le jeton d'un robot : tiré à sa première demande, en mémoire seulement. Squelette (invariants rouges).
+export function robotToken(_agentId: string): string {
+  throw new Error('not implemented');
+}
+
 export function closeSocket(): void {
   fs.rmSync(liveFile(), { force: true });
   void server?.close(); // ponytail: la fermeture n'est pas attendue (sortie synchrone) ; l'appli s'arrête de toute façon
