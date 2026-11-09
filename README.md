@@ -230,7 +230,8 @@ l'en-tête de la fenêtre :
   que l'agent travaille, le fil le suit et l'anime (avec le temps écoulé).
   Les **liens** s'ouvrent dans le navigateur. Les **pièces jointes** de vos
   messages se voient : aperçu des images (clic : en grand), fichiers (clic :
-  montrés dans le gestionnaire de fichiers), texte sélectionné (à déplier).
+  montrés dans le gestionnaire de fichiers), texte sélectionné d'un message venu du
+  socket (à déplier).
 - **L'🕘 Historique**, une icône à droite de l'onglet *Conversation* : les
   conversations passées du dossier (de l'appli comme celles lancées dans un
   terminal), par intitulé et date, à la place du fil. Une ancienne
@@ -245,10 +246,7 @@ l'en-tête de la fenêtre :
   jointes** : glisser-déposer ou **Ctrl+V** (images envoyées à Claude —
   réduites au-delà de 1568 px —, autres fichiers par leur chemin, que l'agent
   lit lui-même) ; le **trombone**, au début du champ : choisir des images ou
-  fichiers, ou joindre le **texte sélectionné** dans une autre application
-  (Linux, aperçu dans le menu ; sous Wayland, il faut `wl-paste`, paquet
-  `wl-clipboard` — dans une distrobox, celui de l'hôte ; sous Windows,
-  collez-le dans le champ). Pendant que l'agent travaille, on écrit mais on
+  fichiers. Pendant que l'agent travaille, on écrit mais on
   n'envoie pas.
 - **Commandes de Claude Code** : un champ qui commence par **« / »** propose les
   commandes de l'agent — celles de Claude Code (`/compact`, `/context`…), ses
@@ -294,7 +292,7 @@ pour arrêter une tâche, demandez-le à l'agent.
 
 - La transcription reste locale : le texte dicté arrive dans le champ, et
   rien ne part chez Claude avant que vous l'envoyiez, comme tout message tapé
-  dans Claude Code. Les pièces jointes (images, texte sélectionné) partent
+  dans Claude Code. Les pièces jointes (images, fichiers) partent
   avec le message. Rien de l'interface ne se charge depuis le réseau (les
   polices sont livrées avec l'appli).
 - Choisir un **nouveau dossier** demande confirmation : Claude Code y est lancé

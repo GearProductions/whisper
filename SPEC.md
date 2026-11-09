@@ -29,7 +29,7 @@ Une seule fenêtre, depuis la **0.14.0** (`docs/tickets/feat/0.14.0-refonte-vibe
 
 | Fenêtre | Page (`src/renderer/`) | Pont | Focus | Rôle |
 |---|---|---|---|---|
-| **Panneau** (la fenêtre de l'appli) | `app/panel/` (`panel-app.tsx`) | `src/preload/panel.ts` | oui ; jamais pris quand elle se montre d'elle-même (I-18) | l'écran VibeCoder de l'agent affiché (§ 7 bis), sa conversation en colonne ; le micro de chaque zone de prompt, *Écouter* ; l'accueil sans agent |
+| **Panneau** (la fenêtre de l'appli) | `app/panel/` (`panel-app.tsx`) | `src/preload/panel.ts` | oui ; jamais pris quand elle se montre d'elle-même (F-64) | l'écran VibeCoder de l'agent affiché (§ 7 bis), sa conversation en colonne ; le micro de chaque zone de prompt, *Écouter* ; l'accueil sans agent |
 
 Ce document l'appelle encore **le panneau**, comme le code (`app/panel`,
 `state.panel`) : c'est la fenêtre de l'appli. Plus d'icône flottante ni de
@@ -55,14 +55,13 @@ VibeCoder dans le panneau (`docs/tickets/feat/0.8.0-vibecoder.md`) :
 Sans cadre du système (l'en-tête de VibeCoder sert de barre de titre, les
 boutons de la fenêtre sont ceux d'Electron, F-63), dans la barre des tâches,
 `contextIsolation`, `sandbox`, préchargement minimal (`contextBridge`). Le
-principal (`src/main/`) est le seul à lire la config, lire la sélection (le
-trombone, F-69), lancer des processus.
+principal (`src/main/`) est le seul à lire la config, lancer des processus.
 
 ### Modules du principal (`src/main/`, construit dans `out/main/`)
 
 | Module | Rôle |
 |---|---|
-| `app/lifecycle` | démarrage (une instance, le socket, la fenêtre, l'agent affiché la dernière fois, permissions), sortie (dont les processus du projet, F-111, et le socket : `live.json` supprimé, I-43) |
+| `app/lifecycle` | démarrage (une instance, le socket, la fenêtre, l'agent affiché la dernière fois, permissions), sortie (dont les processus du projet, F-111, et le socket : `live.json` supprimé, F-116) |
 | `app/windows` | la fenêtre (`panel-window`) : la créer, la montrer sur un agent, son message en tête |
 | `app/controllers` | dictée (coupures, transcription rendue à la page, modèle), lecture d'une réponse, agents (les robots de l'en-tête, les notifications du système), familles (`worktrees.ts` : le rattachement par git, *Ouvrir un agent ici*, le robot d'une PR, l'enfant d'une nouvelle demande, le retrait d'un worktree et de son robot, F-51, F-110 ; `artifacts.ts` : le dossier d'artefacts du projet, son relevé, ce qu'on y ajoute ou en copie, F-95 ; `artifact-migration.ts` : les anciens artefacts déplacés vers ce dossier au démarrage, F-95), contenu du panneau, VibeCoder (`vibecoder.ts` : relevé, actions, réglages, validations, brouillon de revue, fichier à ouvrir ; `processes.ts` : les commandes du projet, F-111 ; `recipe.ts` : la recette du projet — préparer, créer et retirer un worktree —, lancée par l'appli, F-111 ; `runs.ts` : les courses — lancées, suivies, arrêtées, gardées ou annulées, chacune avec le module qu'elle génère —, leur avis de fin à la conversation, les demandes de l'orchestrateur, `actions.json`, F-115 ; `module-code.ts` : le fichier suivi — celui de *Voir le code*, la note ou un test d'invariant —, lu, surveillé, poussé, enregistré au geste, F-100 ; `commands.ts` : `runCommand`, le mince branchement de l'exécuteur pour un robot, et `commandFromSocket`, le robot de la cible d'une enveloppe, porte « écran », F-116 ; `socket.ts` : la porte de l'écran — `openSocket` (écoute, écrit `live.json`), `closeSocket`, `screenSend` (une commande du contrat par le client TCP ; le jeton ne sort pas d'ici), F-116, I-49, I-50 ; `settings.ts` : la page des réglages — les faits qu'elle montre lus, une écriture contrôlée par `core/settings`, une de ses commandes lancée —, § 8) |
 | `app/menus` | menus des robots, du « + », du trombone |
@@ -72,7 +71,7 @@ trombone, F-69), lancer des processus.
 | `core/dictation` | l'enregistrement reçu vérifié (`checkAudio` : trop court, silence, F-4), la transcription d'une ligne (`cleanTranscript`), ses messages |
 | `core/sound` | couper et rétablir ce qu'on a coupé |
 | `core/switcher` | les agents de l'en-tête et de la palette, sans Electron ni disque : par dépôt, chacun son titre, sa branche, son étape, son état (`switcherAgents`, `activityOf`) ; les questions et échecs d'un autre agent que l'affiché, pour une notification du système (`agentEvents`) |
-| `core/family` | les familles d'agents sans Electron, git ni disque (passés) : le `parent` enregistré (`agentParent`, l'ancien `temp` compris), l'enfant créé (`childAgent`), la tête et les groupes affichés (`familyHead`, `familyGroups`), les rattachements d'après git (`familyLinks`, `childOf`, I-41), les worktrees (`parseWorktrees`, `branchOf`), le fichier du projet — celui du parent présent ; un enfant dont le parent est parti n'en a pas — et où tourne une commande, par le `parent` enregistré (`familyOwner`, `heldBy`, I-47) |
+| `core/family` | les familles d'agents sans Electron, git ni disque (passés) : le `parent` enregistré (`agentParent`, l'ancien `temp` compris), l'enfant créé (`childAgent`), la tête et les groupes affichés (`familyHead`, `familyGroups`), les rattachements d'après git (`familyLinks`, `childOf`, I-41), les worktrees (`parseWorktrees`, `branchOf`), le fichier du projet — celui du parent présent ; un enfant dont le parent est parti n'en a pas — et où tourne une commande, par le `parent` enregistré (`familyOwner`, `heldBy`, F-111) |
 | `core/agents` | processus (un par entrée : l'agent, et chaque course `<agent>~<clé>`, F-115), tours, retour en arrière des fichiers d'une entrée (`rewind`, I-45), tâches de fond, file d'autorisations, interruption, sonde, transcriptions, sessions |
 | `core/conversation` | actions et demandes d'autorisation écrites, pièces jointes, tâches de fond vues par le volet |
 | `core/guards` | permissions des pages, liens, fichiers montrés |
@@ -86,7 +85,7 @@ trombone, F-69), lancer des processus.
 | `technicals/direct` | les actions directes (F-114, I-39) : `directRunner` → `commit`, `publish`, `sameRepo`, `loadPr`, `toBase`, `fetchBranch`, `pullBranch`, `switchTo`, `stash`, `pull`, `rebase`, `push`, `fetchAll`, `requestReview`, `assign`, `unassign`, le texte de `pr-<n>.json` (`prCardText`), une liste fermée de commandes (`DIRECT_GIT`, `DIRECT_GH`), 60 s, `direct.log` |
 | `technicals/file-tree` | les artefacts copiés, écrits ou déplacés (F-95, I-37, I-39) : `copyInto`, `writeInto` (un contenu reçu), `moveContents`, `hasFiles` ; `fs.promises` seulement, un fichier à la fois, jamais écraser (`COPYFILE_EXCL`), un lien jamais suivi, sans limite de nombre ni de taille |
 | `technicals/socket` | le socket TCP de l'écran (F-116, I-49, I-50), qui ne connaît que `node:net`, `node:crypto` et son protocole : `protocol` (une enveloppe `{ cmd, args, token, target }` par ligne : `readLine`, `writeLine`, `LINE_MAX`, `BAD_TOKEN`), `server` (`listen` : `127.0.0.1` seulement, un port libre, un jeton tiré à chaque appel), `client` (`send` : une connexion, une ligne, la réponse) ; ni la table ni l'exécuteur |
-| `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `windows-helper`, `pipewire`, `clipboard` et `selection` (le texte sélectionné du trombone, F-69), `pocket-tts`, `claude`, `editor` (un dossier, ou un fichier de VibeCoder, à une ligne ; le terminal d'un dossier, `findTerminal`), `journal`, `images`, `paths`, `config-file` |
+| `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `windows-helper`, `pipewire`, `pocket-tts`, `claude`, `editor` (un dossier, ou un fichier de VibeCoder, à une ligne ; le terminal d'un dossier, `findTerminal`), `journal`, `images`, `paths`, `config-file` |
 | `helpers` | découper une commande, français ou anglais, une ligne, `async-queue` (l'entrée d'un processus d'agent), `numbered-name` (`rapport-2.md`) |
 
 Scripts lancés par l'appli : `resources/scripts/` (`windows-helper.ps1`,
@@ -173,7 +172,7 @@ canal de plus.
 | `vibecoder-out/<agent>/` | les sorties des skills pour l'écran (F-95) ; `branches/<branche>/`, celles d'une branche quittée, et `.branche`, la dernière branche vue ; `files/`, ce que l'appli écrit pour l'ouvrir dans l'éditeur, en lecture seule (`<hash>.diff`, F-101) ; `run/<nom>.log` (`.old`), les journaux des commandes du projet, et `run/<nom>.stop`, `.restart`, les demandes de l'agent ; `artifacts/`, les anciens artefacts de l'agent, d'avant le dossier du projet : déplacés vers lui à chaque démarrage, le dossier vidé part (F-95) ; `recipe.log`, celui de la recette (F-111) ; `direct.log`, une ligne par commande d'une action directe, et `pr-<n>-review-body.md`, le brouillon publié (F-114) ; `actions.json`, les courses pour l'orchestrateur, et `actions/<id>.start`, `.stop`, ses demandes (F-115) ; dossier de travail en plus de Claude Code (F-58) |
 | `vibecoder-artifacts/<clé>/` | les artefacts d'un projet, partagés par le dépôt, ses worktrees et leurs robots (F-95) : la clé est le début (16 hexa) du sha1 du dossier git commun résolu, ou du dossier résolu hors git ; Claude Code le reçoit en dossier de travail en plus (F-58) ; retirer un agent, un robot ou un worktree n'y touche pas |
 | `vibecoder-state.json` | validations (par agent) et brouillons de revue (par agent et par PR) |
-| `live.json` | le fichier de découverte du socket (F-116) : `{ "port": … }`, jamais le jeton (I-50) ; écrit au lancement, supprimé à la sortie (I-43) ; la version de dev et l'AppImage, qui ne tournent pas ensemble, s'y retrouvent |
+| `live.json` | le fichier de découverte du socket (F-116) : `{ "port": … }`, jamais le jeton (I-50) ; écrit au lancement, supprimé à la sortie (F-116) ; la version de dev et l'AppImage, qui ne tournent pas ensemble, s'y retrouvent |
 
 En développement : `--user-data-dir=.data` (cf. LINUX_SETUP.md).
 
@@ -202,7 +201,7 @@ sa phase (enregistre, transcrit) en infobulle.
 **F-4 Silence.** Moins de 0,4 s ou énergie maximale < 0,008 RMS : rien n'est
 envoyé à whisper (« Aucune parole détectée. ») — whisper invente du texte sur
 du silence. Vérifié par la page, puis de nouveau par le principal sur le PCM
-reçu (`checkAudio`), avant whisper (I-10).
+reçu (`checkAudio`), avant whisper : jamais de whisper sur du silence (S-3).
 
 **F-5 Transcription.** `whisper-cli` local (langue `lang`, vocabulaire
 `vocabulary` ≤ 300 car. en prompt, threads = cœurs, ≤ 8), délai 120 s. Le
@@ -395,7 +394,7 @@ de son parent) ; modèle (défaut, fable, opus,
 sonnet, haiku) ; effort (défaut, low → max) ; mode (manuel, accepter les
 modifications, auto, plan) ;
 *Interrompre* (au travail) ; *Nouvelle session* (oublie la session) ; *Retirer*
-(ses commandes lancées s'arrêtent, I-47 ; le dossier reste favori). Pour un
+(ses commandes lancées s'arrêtent ; le dossier reste favori). Pour un
 agent sans parent à la racine d'un dépôt,
 le sous-menu *Worktrees* : les worktrees du dépôt sans agent (`git worktree
 list`, relu à chaque clic droit ; git sans réponse en 1 s : pas de
@@ -431,7 +430,10 @@ message et **gardé entre les tours** : les messages suivants passent par son
 entrée. Le premier tour crée la session (retenue dans `sessionId`). Relancé,
 session reprise, s'il est mort ou si le dossier, l'effort, la consigne,
 `agentCommand`, les plugins ou les dossiers en plus ont changé (`launchKey`). Fermé à *Nouvelle session*, *Retirer*, *Reprendre*
-une autre session et à la sortie (I-19, I-33). Une course de VibeCoder
+une autre session et à la sortie (I-33), par la fin de son entrée (Claude Code sort de lui-même), tué
+seulement après 5 s. *Interrompre* demande à Claude Code d'arrêter son tour ; le processus n'est tué
+qu'en dernier recours, après 5 s (lancé par une commande enveloppe, seule
+l'enveloppe mourrait) ; quitter attend de même (F-81, S-26). Une course de VibeCoder
 (F-115) a son propre processus, sous l'entrée `<agent>~<clé>` : ce n'est
 pas la conversation de l'agent. Une tâche lancée en
 arrière-plan (commande, surveillance) survit au tour ; à sa fin, Claude Code
@@ -443,7 +445,9 @@ le texte seul (forme sous laquelle Claude Code reconnaît une commande
 **F-60 Réponse et audio** : la réponse se termine par `<audio>…</audio>`
 (consigne). Le panneau montre la réponse **sans** ce bloc ; ▶ ne lit que lui.
 Sans bloc : la réponse dépouillée de son formatage. Consigne : fichier relu à
-chaque message ; absent → recréé par défaut ; vide → aucune consigne.
+chaque message ; absent → recréé par défaut ; vide → aucune consigne. Elle
+n'est passée qu'aux sessions créées par l'appli (F-58), jamais aux sessions
+Claude Code habituelles.
 
 **F-61 Fin de tour** : demandes restées en attente refusées (« Tour
 terminé ») ; erreurs traduites (« Interrompu. », trop d'étapes, erreur
@@ -469,8 +473,9 @@ VibeCoder de l'agent affiché (§ 7 bis), sa conversation dans la colonne de
 droite ; aucun agent : l'accueil (*Nouvel agent…*, Ctrl+N).
 
 **F-64 Fermer** quitte l'appli (F-81). Une ouverture que l'utilisateur n'a
-pas demandée (demande d'autorisation) ne lui prend pas le clavier (I-18) :
-fenêtre masquée, elle est montrée sans activation.
+pas demandée (demande d'autorisation, F-73) ne lui prend pas le clavier :
+fenêtre masquée, elle est montrée sans activation, jamais `restore()` dans ce
+cas (S-24).
 
 **F-65 En-tête de la conversation** : l'onglet *Conversation* et l'intitulé
 de la conversation (celui de Claude Code ; « Nouvelle conversation »
@@ -521,10 +526,11 @@ l'écran restent au repos.
 
 **F-69 Pièces jointes** : glisser-déposer et Ctrl+V (images PNG, JPEG, GIF,
 WebP envoyées en image ; autres fichiers par leur **chemin**, l'agent les lit
-lui-même ; un fichier sans chemin est refusé) ; le trombone du champ → *Images ou fichiers…*
-(une image choisie part en image) et *Texte sélectionné* (Linux, aperçu dans
-le menu). Images réduites à 1568 px, ≤ 3,75 Mo (PNG, sinon JPEG 85) ;
-≤ 20 images (et, depuis l'écran, 64 Mio décodés au total : au-delà, le refus « Pièces jointes trop lourdes », avant le socket), ≤ 50 fichiers, sélection ≤ 100 000 caractères. Le message
+lui-même ; un fichier sans chemin est refusé) ; le trombone du champ ouvre directement le choix
+d'images ou de fichiers (une image choisie part en image). Images réduites à 1568 px, ≤ 3,75 Mo (PNG, sinon JPEG 85) ;
+≤ 20 images (et, depuis l'écran, 64 Mio décodés au total : au-delà, le refus « Pièces jointes trop lourdes », avant le socket), ≤ 50 fichiers, sélection ≤ 100 000 caractères (la pièce
+`selection`, qu'une commande du socket peut encore donner : le trombone ne la
+lit plus). Le message
 envoyé : le texte, puis la sélection balisée `<selection>`, puis la liste des
 fichiers — le panneau les retrouve dans la transcription pour les afficher.
 Les pièces jointes se joignent **partout où l'on écrit à un agent** : le champ de
@@ -774,7 +780,7 @@ dépôt : un bandeau le dit au-dessus de l'étape, la conversation reste
 utilisable. Une étape sans sortie dit ce qui manque et montre l'action qui le
 produit. Une vue d'étape qui échoue sur un texte
 inattendu : « Cette étape ne peut pas s'afficher. » et *Réessayer* ; le reste
-de l'écran et le brouillon tiennent (I-29).
+de l'écran et le brouillon tiennent (S-72).
 
 **F-93 Les actions d'une étape, Relancer, barre des skills.**
 - Une action d'étape **court à part** de la conversation, dans sa propre
@@ -901,7 +907,7 @@ après une action, une validation, un réglage ou ↻ ; un relevé à la fois, a
 plus un par seconde. Plus d'agent affiché (aucun agent) : `null`, une
 fois, et le relevé régulier s'arrête. git manquant, pas de dépôt, fichier
 illisible : le relevé part quand même, sans bloquer le fil ni l'agent
-(I-29).
+(S-72).
 
 **F-95 Les sorties des skills** : ce qu'un skill produit pour l'écran, écrit
 dans le dossier de sorties de l'agent (`{{out}}` :
@@ -917,7 +923,7 @@ crée sa branche et garde ce que ses skills ont écrit — ; puis
 celles de la branche retrouvée, si elle en a de côté, reviennent ; de même
 quand le dossier change de branche pour relire une PR ou pour une nouvelle
 demande (F-110) : l'état de la branche revient avec elle. Une erreur
-ne bloque pas le relevé (I-29). Seuls ces noms sont lus (I-37) : `questions.md` (questions ouvertes), `align.md`
+ne bloque pas le relevé (S-72). Seuls ces noms sont lus (I-37) : `questions.md` (questions ouvertes), `align.md`
 (alignement), `review.md` (relecture d'un diff), `commit.md` (message
 proposé), `checks.json` (vérifications : par élément `name`, `ok`,
 `level` — `ok`, `warning` (des avertissements seulement : `ok` vrai, la
@@ -1280,7 +1286,7 @@ conversation ; note `0.9.0-actions-independantes.md`).
   (la clé : l'id de l'action ; *Envoyer les réponses* reprend celle de la
   note, `note`, et sa session : l'agent qui a rédigé la note garde son
   contexte). Mêmes dossier, consigne, plugin, dossiers en plus, mode et
-  autorisations que l'agent (F-58), interruption comme lui (I-19) ; le modèle
+  autorisations que l'agent (F-58), interruption comme lui (F-59) ; le modèle
   et l'effort de l'en-tête de son skill, en sous-contexte ou non (ou le
   modèle choisi, F-99), sinon ceux de l'agent ; le suivi des fichiers écrits de Claude Code
   (`enableFileCheckpointing`). Pas de limite au nombre de courses ; la
@@ -1349,7 +1355,7 @@ conversation ; note `0.9.0-actions-independantes.md`).
   sans bip, quand rien d'autre ne se signale. Pas de signal pour une course
   arrêtée.
 - **Arrêter, puis Garder ou Annuler** : *Arrêter* (onglet *Actions*, ou à côté du
-  bouton) interrompt son tour (I-19) ; son processus reste, et elle retient
+  bouton) interrompt son tour (F-59) ; son processus reste, et elle retient
   les autres, jusqu'au choix de l'utilisateur : *Garder* ce qu'elle a déjà
   écrit, ou *Annuler* — les fichiers que **ses** outils d'édition ont écrits
   reviennent à leur état d'avant son premier message (`rewindFiles` du SDK,
@@ -1459,7 +1465,7 @@ TypeScript.
 - **Les exceptions, fermées aux agents** (`agent: false`, avec sa `reason`) : un
   agent ne s'accorde pas de droits et ne quitte pas l'appli. Aujourd'hui :
   `run.allow`, `run.always`, `run.deny` (répondre à la demande d'autorisation
-  d'une course, I-13 à I-18). À venir avec les réglages, fermées de même :
+  d'une course, I-13 à I-17). À venir avec les réglages, fermées de même :
   ce qui accorde des droits (faire confiance au dossier `.claude` d'un projet,
   « autoriser les agents extérieurs ») et quitter ou redémarrer l'appli. Une
   commande de la liste ouverte, ou une autre fermée, fait refuser la table
@@ -1497,8 +1503,9 @@ TypeScript.
   (le robot affiché s'il est sur ce dossier, sinon le premier, chemins réels
   comparés : `/home` et `/var/home`) et appelle `runCommand` à la porte `screen`.
   Un seul jeton : celui de l'écran ; la porte `agent` n'est pas encore branchée.
-  `live.json` (`userData`) porte le port seul, jamais le jeton, supprimé à la
-  sortie (I-43, I-50).
+  `live.json` (`userData`) porte le port seul, jamais le jeton (I-50) ; il est
+  écrit au lancement et, à la sortie, le socket est fermé et `live.json`, qui
+  désignerait un port que plus rien n'écoute, **supprimé** (F-81).
 - **L'écran passe par lui** : les commandes de ses boutons qui sont dans le
   contrat partent du principal, client de son propre socket (`screenSend`, une
   connexion par commande), vers l'exécuteur : lancer, arrêter, garder, annuler une
@@ -2309,19 +2316,22 @@ la fin ; dépliable ; *Journal complet* l'ouvre dans l'éditeur).
   lance ses commandes dans **son** dossier (`cwd` relatif à lui) ; jamais le
   fichier d'un worktree (une PR pourrait y apporter ses propres commandes) :
   le parent retiré, ses enfants n'ont plus de fichier du projet (ni
-  commandes, ni recette ; ce qui tournait s'arrête au relevé). Une commande ne tourne qu'à un
-  endroit de la famille (ports et base partagés, I-47) : *Lancer* ou
+  commandes, ni recette ; ce qui tournait s'arrête au relevé). Une commande ne tourne **jamais à deux
+  endroits** de la famille (ports et base partagés) : *Lancer* ou
   *Relancer* là où elle tourne ailleurs demande « <nom> tourne dans
   <branche> : l'arrêter et le lancer ici ? » (*Arrêter et lancer ici* :
   arrêtée là-bas, puis lancée ici ; *Non* : rien) ; un `.restart` de l'agent
-  pour une commande qui tourne ailleurs : pas lancée.
+  pour une commande qui tourne ailleurs : pas lancée. Des agents qui font déjà
+  tourner la même commande et qu'un rattachement réunit ensuite (un agent
+  ajouté sur la copie principale) la gardent chacun : rien n'est arrêté
+  d'office.
 - **Quitter l'appli** arrête tout ce qu'elle a lancé (F-81, I-43).
 
 **F-112 GitHub sans IA** : l'appli lit elle-même des faits de GitHub par
 `gh`, sans agent ni modèle, en lecture seule (I-39) : `gh` lancé sans shell
 derrière le préfixe de F-111 (l'appli tourne sur l'hôte, gh souvent dans la
 box), au dossier de l'agent, 15 s au plus ; un échec n'est qu'une réponse
-absente (I-29).
+absente (S-72).
 - Étape **PR** (créateur) : la PR de la branche (`gh pr view <branche>`, sauf
   sur la base) — numéro, titre, lien, état, base, branche ; une PR existe :
   l'étape est faite. Sans réponse, `pr.json` (le skill `pr`) est encore lu.
@@ -2506,7 +2516,7 @@ directe est en cours ») ; puis le dernier résultat, ✓ ou ✗ et une ligne (e
 anglais, comme les skills techniques, F-108), le détail (chaque commande et
 sa sortie) à déplier ; sa place est réservée sous le bouton (rien ne se
 décale quand il apparaît). Gardé en mémoire, par agent, jusqu'à la sortie de
-l'appli (I-39, I-29). Une action **faite et dont rien n'a changé depuis** ne se
+l'appli (I-39, S-72). Une action **faite et dont rien n'a changé depuis** ne se
 relance pas d'un clic par erreur : seul *PR mergée → revenir sur la base*,
 une fois fait et le dossier sur la base, est grisé (« Déjà sur la base ») ;
 *Mettre de côté*, *Actualiser*, *Pull* et *Rebase* restent relançables, et les
@@ -2627,7 +2637,7 @@ s'il n'a pas été retouché ; retouché, il reste, et l'appli ne le suit plus.
 Le manifeste `.defaults.json` retient
 l'empreinte de ce que l'appli a écrit ; illisible, plus rien n'est remplacé
 ni supprimé.
-Un échec ne bloque rien (I-29). Les actions et l'en-tête des skills (qui
+Un échec ne bloque rien (S-72). Les actions et l'en-tête des skills (qui
 travaille) sont relus à chaque relevé. S'y ajoutent les variantes générées des
 skills (F-106), réécrites à chaque fois.
 
@@ -2774,7 +2784,7 @@ modèle whisper vérifié après le chargement de la fenêtre (F-8).
 
 **F-81 Quitter** pendant une dictée ou un tour d'agent : on rend d'abord le son
 et le micro Discord, on interrompt les agents et on attend la fin de leurs
-tours (≤ 6 s), puis on quitte. À la sortie : le socket fermé et `live.json` supprimé (I-43),
+tours (≤ 6 s), puis on quitte. À la sortie : le socket fermé et `live.json` supprimé (F-116),
 assistant Windows, Pocket TTS et agents arrêtés. Les processus lancés par l'onglet *Processus* (F-111) : arrêtés
 (SIGTERM, SIGKILL après 5 s), la sortie les attend.
 
@@ -2796,20 +2806,27 @@ assistant Windows, Pocket TTS et agents arrêtés. Les processus lancés par l'o
 ## 12. Invariants — ce que l'appli ne doit jamais faire
 
 Testés automatiquement (`npm run test:invariants`, dossiers
-`tests/invariants/` protégés) : I-2, I-3 et I-10 (réduits en 0.14.0 pour I-2
-et I-3 : `src/main/app/controllers/tests/invariants/page-text.test.ts`, sur le
-vrai principal, et `src/renderer/core/dictation/tests/invariants/whisper-text.test.ts` ; `page-text.test.ts` garde aussi
-I-2 élargi en 0.14.0 : le texte et les pièces jointes du champ de l'action, plus son gabarit),
-I-9, I-11 (page et principal), I-12,
-I-13 à I-17, I-19, I-20 (et les ponts : `tests/invariants/bridges.test.ts`, dont le canal `settings` ; la page des réglages
+`tests/invariants/` protégés) : un invariant ne garde que ce qu'une refonte ne
+doit jamais changer (le disque, les permissions, les fuites, les bornes, les
+processus, la vie privée, le travail en cours dans le dépôt, l'isolement, la
+frontière de la page, l'argent, l'irréversible) ; le reste est un variant
+(`tests/variants/`), une règle de structure ou un contrôle de revue. Quel test
+garde quelle règle : I-2 et I-3 (réduits en 0.14.0 :
+`src/main/app/controllers/tests/invariants/page-text.test.ts`, sur le vrai
+principal, qui garde aussi I-2 élargi en 0.14.0 : le texte et les pièces jointes
+du champ de l'action, plus son gabarit), I-9, I-11 (page et principal), I-12,
+I-13 à I-17, I-20 (et les ponts : `tests/invariants/bridges.test.ts`, dont le canal `settings` ; la page des réglages
 écoutée par `listenFrom`, l'expéditeur vérifié :
 `src/main/app/controllers/tests/invariants/settings-sender.test.ts`),
-I-21, I-23, I-24, I-27 (et le terminal :
-`src/main/technicals/editor/tests/invariants/terminal.test.ts`), I-29, I-32 à I-34 ;
+I-21 (et la frontière de la page, 0.15.0 :
+`src/main/app/windows/tests/invariants/panel-window.test.ts`, sur la vraie
+création de la fenêtre : `contextIsolation` et `sandbox`, la navigation bloquée,
+aucune fenêtre ouverte), I-23, I-27 (et le terminal :
+`src/main/technicals/editor/tests/invariants/terminal.test.ts`), I-32 à I-34 ;
 VibeCoder, I-35 à I-40 : `src/main/core/vibecoder/tests/invariants/`
 (`defaults.test.ts` I-35, `fable.test.ts` I-36, `files.test.ts` I-37,
 `actions.test.ts` I-38), `src/main/technicals/git/tests/invariants/read-only.test.ts`,
-`src/main/technicals/github/tests/invariants/read-only.test.ts`, `src/main/technicals/direct/tests/invariants/direct.test.ts` et `rebase.test.ts` (I-39 ; *Rebase* sur du vrai git), `src/main/app/controllers/tests/invariants/module-code.test.ts` et `note-and-tests-save.test.ts` (I-37, I-39 : *Voir le code*, la note, les tests, sur le vrai principal), `src/main/core/vibecoder/tests/invariants/note-and-tests-files.test.ts` (I-37), `src/renderer/core/vibecoder/tests/invariants/markdown.test.ts`, `src/renderer/app/panel/vibecoder/tests/invariants/code-view.test.ts` et `note-editor.test.ts` (I-40) ; `src/main/app/controllers/tests/invariants/artifacts.test.ts`, `artifact-moves.test.ts`, `artifact-ops.test.ts`, `artifact-migration.test.ts`, `project-artifacts.test.ts` et `src/renderer/app/panel/vibecoder/tests/invariants/artifacts-view.test.ts` (I-37, I-39 : les artefacts, F-95, F-110) ;
+`src/main/technicals/github/tests/invariants/read-only.test.ts`, `src/main/technicals/direct/tests/invariants/direct.test.ts` et `rebase.test.ts` (I-39 ; *Rebase* sur du vrai git), `src/main/app/controllers/tests/invariants/module-code.test.ts` et `note-and-tests-save.test.ts` (I-37, I-39 : *Voir le code*, la note, les tests, sur le vrai principal), `src/renderer/core/vibecoder/tests/invariants/markdown.test.ts`, `src/renderer/app/panel/vibecoder/tests/invariants/code-view.test.ts` et `note-editor.test.ts` (I-40) ; `src/main/app/controllers/tests/invariants/artifacts.test.ts`, `artifact-moves.test.ts`, `artifact-ops.test.ts`, `project-artifacts.test.ts` et `src/renderer/app/panel/vibecoder/tests/invariants/artifacts-view.test.ts` (I-37, I-39 : les artefacts, F-95, F-110 ; la copie sans écraser, `src/main/technicals/file-tree/tests/invariants/`) ;
 I-42, I-43 : `src/main/core/runner/tests/invariants/runner.test.ts`,
 `src/main/technicals/process/tests/invariants/process.test.ts` ; I-42 (la
 recette), I-39 (retirer un worktree) : `src/main/core/runner/tests/invariants/recipe.test.ts`,
@@ -2822,12 +2839,13 @@ sur la branche* et *Créer ici* refusés avec des modifications ; rien de mis
 de côté sans un clic sur *Mettre de côté*, *Pull* ou *Rebase*) : `place-switch.test.ts`, `stash.test.ts` (même
 dossier, sur le vrai principal, git réel) ; I-44 :
 `src/main/app/controllers/tests/invariants/runs.test.ts` (sur le vrai
-principal, git réel, SDK factice) ; I-45 :
+principal, git réel, SDK factice), et, à la porte des commandes,
+`commands-guards.test.ts` (même dossier) ; I-45 :
 `src/main/core/agents/tests/invariants/rewind.test.ts` (ce que l'appli
 demande à Claude Code) et le dernier cas de `runs.test.ts` ; I-46 :
-`src/main/core/vibecoder/tests/invariants/checks.test.ts` ; I-41, I-47 :
-`src/main/app/controllers/tests/invariants/worktree.test.ts`,
-`family-commands.test.ts` (sur le vrai principal, git réel) ; la page des réglages et
+`src/main/core/vibecoder/tests/invariants/checks.test.ts` ; I-41 :
+`src/main/app/controllers/tests/invariants/worktree.test.ts` (sur le vrai
+principal, git réel) ; la page des réglages et
 le coût des actions, 0.14.0 : I-48 et I-36 (jamais Fable pour une action) :
 `src/main/core/settings/tests/invariants/settings-patch.test.ts` (la fonction pure
 `settingsPatch` : une clé que la page ne montre pas, une valeur que la lecture
@@ -2835,17 +2853,31 @@ refuserait, une commande à caractère de contrôle, Fable ; rien n'est écrit),
 I-49 : `src/main/technicals/socket/tests/invariants/server.test.ts` (le vrai serveur
 et ses sockets : `127.0.0.1`, le jeton, la connexion fermée) ; I-50 :
 `src/main/app/controllers/tests/invariants/socket-token.test.ts` (sur le vrai principal,
-git réel, le vrai socket : ni la page ni un fichier ne portent le jeton) ; I-43
-(`live.json` supprimé à la sortie) :
-`src/main/app/tests/invariants/live-file.test.ts` (le vrai démarrage et la vraie
-sortie) ;
-I-20 : `src/main/app/controllers/tests/invariants/settings-sender.test.ts` (sur le
-vrai principal : un message du canal `settings` qui ne vient pas de la fenêtre du
-panneau n'écrit rien), I-36 :
-`src/main/app/controllers/tests/invariants/action-fable.test.ts` (sur le vrai
+git réel, le vrai socket : ni la page ni un fichier ne portent le jeton) ;
+I-36 : `src/main/app/controllers/tests/invariants/action-fable.test.ts` (sur le vrai
 principal, SDK factice : un « fable » glissé à la main dans `actionModels` ne
 part pas chez l'agent).
-Les autres (focus, fenêtre, I-18, I-22, I-28) : scénarios du § 13 et
+Les règles de structure (`tests/structure/`, des tests qui lisent le code
+source, hors des dossiers protégés ; AGENTS.md) : I-27 (`no-shell.test.ts` : pas
+de shell pour lancer un programme), I-20 (`bridges.test.ts` : seul
+`technicals/ipc` écoute les pages, une seule écoute, sur les canaux du panneau),
+I-34 (`tasks-view.test.ts` : aucun canal de la page dont le nom dit `file`,
+`tail` ou `output`), I-39 (`direct.test.ts` : qui importe le lanceur des
+actions directes, quelle fonction l'appelle), I-40 (`no-html.test.ts` : aucune
+fonction de la page n'insère du HTML).
+Devenus en 0.15.0 des fonctionnalités ou des scénarios, avec leurs variants
+(`tests/variants/`) : I-10 (F-4, S-3 :
+`src/renderer/core/dictation/tests/variants/whisper-text.test.ts` et
+`src/main/app/controllers/tests/variants/page-text.test.ts`), I-18 (F-64, S-24),
+I-19 (F-59, S-26) et I-24 (F-60) : `src/main/core/agents/tests/variants/agents.test.ts`,
+I-29 (S-72 : `src/main/technicals/editor/tests/variants/editor.test.ts`,
+`src/main/core/sound/tests/variants/muter.test.ts`,
+`src/main/technicals/journal/tests/variants/journal.test.ts`), I-47 (F-111 :
+`src/main/app/controllers/tests/variants/family-commands.test.ts`), la clause
+de I-43 sur `live.json` (F-116 : `src/main/app/tests/variants/live-file.test.ts`).
+Devenus des règles de structure, écrites dans AGENTS.md et sans test : I-26 (rien
+d'installé dans le système) et I-28 (pas de code propre à un bureau). Le reste
+(focus, fenêtre, I-22) : scénarios du § 13 et
 bancs de comparaison. Retirés en 0.14.0, avec le comportement qu'ils
 gardaient et leurs tests : I-1, I-4 à I-6, I-8, I-30 (leur numéro reste
 réservé : on ne renumérote pas).
@@ -2888,7 +2920,7 @@ sont retirés en 0.14.0.)*
   ne part jamais d'elle-même chez un agent, I-2.)*
 - **I-9** Le micro n'est autorisé qu'à nos propres pages (`file://`), en audio
   seul ; aucune autre permission.
-- **I-10** Pas de whisper sur du silence (F-4).
+- **I-10** *(devenu en 0.15.0 la fonctionnalité F-4 : jamais de whisper sur du silence ; scénario S-3.)*
 
 ### Son
 
@@ -2918,22 +2950,17 @@ sont retirés en 0.14.0.)*
   demande annulée par Claude Code quitte la file et la suivante s'affiche ;
   en fin de tour ou à l'interruption, celles qui restent sont refusées.
   (Une demande sans réponse bloque Claude Code indéfiniment.)
-- **I-18** Une fenêtre qui se montre sans que l'utilisateur l'ait demandé
-  (demande d'autorisation, F-73) ne lui prend **pas** le clavier (montrée
-  sans activation, jamais `restore()` dans ce cas, F-64).
+- **I-18** *(devenu en 0.15.0 la fonctionnalité F-64 : une fenêtre qui se montre sans que l'utilisateur l'ait demandé ne prend pas le clavier ; scénario S-24.)*
 
 ### Agents : processus et confiance
 
-- **I-19** Interrompre = demander à Claude Code d'arrêter son tour ; tuer le
-  processus seulement en dernier recours, après 5 s (lancé par une commande
-  enveloppe, seule l'enveloppe mourrait). Quitter attend de même. Fermer un
-  processus = fermer son entrée (Claude Code sort de lui-même), le tuer
-  seulement après le même délai.
+- **I-19** *(devenu en 0.15.0 la fonctionnalité F-59 : interrompre demande à Claude Code d'arrêter son tour, le tuer en dernier recours, après 5 s ; scénario S-26.)*
 - **I-20** Un message IPC n'est accepté que de la fenêtre qui a le droit de
   l'envoyer : le panneau, sur ses propres canaux (`PANEL_CHANNELS` : `conv:*`,
   `agent:*`, `dictation:*`, `config:*`, `tts:cancel`, `settings`) ; un
   autre expéditeur est ignoré.
-- **I-21** Le panneau ne navigue jamais ; un lien ne s'ouvre que s'il est en
+- **I-21** Le panneau n'a pas accès à Node (`contextIsolation`, `sandbox`), ne
+  navigue jamais et n'ouvre aucune fenêtre ; un lien ne s'ouvre que s'il est en
   `http(s)`, dans le navigateur ; un fichier joint est **montré** dans le
   gestionnaire de fichiers, jamais **ouvert** (un script se lancerait), et
   seulement un chemin absolu existant.
@@ -2943,8 +2970,7 @@ sont retirés en 0.14.0.)*
   dossier ? » (Claude Code lancé par le SDK ne la pose pas, alors que hooks et
   serveurs MCP du projet se chargent) ; le worktree d'une PR, à chaque fois
   (I-41).
-- **I-24** La consigne `<audio>` ne s'applique qu'aux sessions créées par
-  l'appli, jamais aux sessions Claude Code habituelles.
+- **I-24** *(devenu en 0.15.0 la fonctionnalité F-60 : la consigne `<audio>` ne s'applique qu'aux sessions créées par l'appli.)*
 - **I-25** Un message n'est jamais envoyé à un agent au travail (le texte est
   gardé dans le brouillon). Une course de VibeCoder n'est pas
   un message à l'agent : elle part dans sa propre conversation (F-115) ; son
@@ -2952,7 +2978,7 @@ sont retirés en 0.14.0.)*
 - **I-33** Le processus d'un agent survit à la fin d'un tour, et ce qu'il a
   lancé en arrière-plan aussi ; il n'est fermé qu'à *Nouvelle session*,
   *Retirer*, *Reprendre*, à la sortie ou pour être relancé (F-59), par la fin
-  de son entrée d'abord (I-19). Un message part toujours au processus **de
+  de son entrée d'abord (F-59). Un message part toujours au processus **de
   son agent** (une course, à celui de son entrée `<agent>~<clé>`, F-115).
 - **I-34** Le principal ne lit que les fichiers de sortie que Claude Code a
   nommés dans le flux de la session (notification de tâche, résultat d'une
@@ -2983,54 +3009,24 @@ sont retirés en 0.14.0.)*
   ces modèles ; le choix d'une action (`actionModels`, F-99) ne le peut pas non
   plus, écrit par la page ou à la main dans `config.json`. Seul un clic de
   l'utilisateur y passe l'agent (coût).
-- **I-37** Le principal ne lit pour VibeCoder que la note et les tests que git
-  lui donne, et le seul fichier suivi (F-100) — celui de *Voir le code*, d'un
-  module touché par la branche (`m<rang>/<i>`), ou un fichier que change la
-  branche (`b<i>`, les deux rôles, lu et enregistré comme un module sans
-  module), ou, en créateur seulement, la
-  note (`n`) ou un test d'invariant de la branche (`t<i>`), ou, en relecteur
-  seulement, un fichier d'un commit (`c<rang>/<i>`, lu par git seul, jamais
-  enregistré) —, **dans le dossier de l'agent** (`..` et liens résolus ; ni
-  chemin absolu, ni NUL), et les sorties de cet agent **sous leurs noms
-  connus** (F-95 ; ni `..`, ni autre dossier qu'`invariants/`, ni un lien) ;
-  un artefact (F-95), pour l'afficher (son texte
-  suivi, ou servi sous `vibe-artifact://<agent>/a<i>`, seulement pour
-  l'agent affiché), l'ouvrir ou le copier, **dans le dossier
-  d'artefacts de son projet seulement** (ni un artefact d'un autre projet, ni
-  un fichier hors de ce dossier, ni un lien), par son id `a<i>` du dernier
-  relevé. Le `@` du champ (F-70) ne fait que mettre dans le texte le chemin
-  d'un artefact du relevé (le dossier est dans `VibeView`) : aucun canal de
-  plus, aucun fichier lu d'après un chemin donné par la page. Un dossier
-  d'artefacts se désigne comme un fichier, par son id `d<i>` du dernier relevé
-  (`VibeView.artifactDirs`, l'ordre des noms) : un id en forme de chemin, ou inconnu,
-  ne désigne rien ; chaque élément désigné est résolu sous le dossier d'artefacts, la
-  racine et chaque segment sans lien (le dernier : un fichier ordinaire ou un dossier),
-  jamais suivi. **Première exception, au geste de l'utilisateur** : `conv:vibeDrop`,
-  le dépôt sur l'arborescence des artefacts, porte des chemins, que le pont lit du
-  `File` déposé (`webUtils.getPathForFile`), jamais donnés par la page (un `File` qu'elle
-  construit n'a pas de chemin), et le dossier d'arrivée, un id `d<i>` (jamais un
-  chemin ; absent ou inconnu : la racine) ; le principal les revérifie (absolus, sans NUL
-  ni segment `..`, `lstat` : un fichier ordinaire ou un dossier, un lien jamais
-  suivi) et ne fait que les **copier** dans le dossier d'artefacts du projet (I-39).
-  **Seconde exception, au geste de l'utilisateur** : le nom tapé (*Renommer*,
-  *Nouveau fichier*, *Nouveau dossier*, F-95) passe par `conv:vibeRun`, en argument
-  d'une action directe, avec les noms confirmés d'une suppression, qui ne sont que
-  comparés à ceux du relevé : un nom seul — une chaîne de 1 à 255 octets, ni `.` ni
-  `..`, sans `/`, `\` ni NUL, un dossier sans point en tête, et portable (un artefact peut être copié dans le dépôt) : ni `: * ? " < > |` ni caractère de contrôle, ni espace ou point final, ni nom réservé de Windows (`CON`, `PRN`, `AUX`, `NUL`, `COM1`-`9`, `LPT1`-`9`, avec ou sans extension) —, jamais un chemin,
-  que le principal revérifie (`plainName`) avant d'écrire, sous le dossier
-  d'artefacts du projet de l'agent affiché seulement. `conv:vibeRun` ne prend jamais de chemin, et n'a pas de canal
-  de plus pour ce nom. Une
-  page désigne un fichier par son **id dans le dernier relevé**, jamais par un
-  chemin : un id en forme de chemin, ou égal au chemin d'un fichier du relevé,
-  ne désigne rien (I-34), ni un commit ou un module pas touché pour le
-  fichier suivi, ni la note ou un test en relecteur, ni un fichier d'un commit
-  en créateur ; un commit, par son rang (`c<rang>`, `gh:c<rang>`,
-  `c<rang>/<i>`, F-101), jamais par une URL. Les autres versions d'un
-  fichier — à la base, au parent d'un commit, à un commit, à `HEAD`, celles
-  d'un fichier supprimé, le texte d'un test à la base — ne se lisent que par
-  git (`show`), au chemin du relevé, jamais à un chemin donné par une page. Ce que le principal écrit pour
-  ouvrir (une version de la PR, un diff) va sous `files/` du dossier de
-  sorties de l'agent, en lecture seule, et n'est jamais relu.
+- **I-37** Une page désigne un fichier par son **id dans le dernier relevé**
+  (`m<rang>/<i>`, `b<i>`, `n`, `t<i>`, `c<rang>/<i>`, `a<i>`, `d<i>`…), **jamais
+  par un chemin** : un id en forme de chemin, ou égal au chemin d'un fichier du
+  relevé, ne désigne rien (I-34), et le rôle décide de ce qu'on peut désigner
+  (F-100, F-101). **Rien n'est lu hors du dossier prévu** — le dossier de
+  l'agent (`..` et liens résolus ; ni chemin absolu, ni NUL), ses sorties sous
+  leurs noms connus (F-95), le dossier d'artefacts de **son** projet (jamais
+  celui d'un autre) — et **aucun lien n'est suivi** ; les autres versions d'un
+  fichier ne se lisent que par git (`show`), au chemin du relevé. Deux
+  exceptions, au geste de l'utilisateur, revérifiées par le principal : le dépôt
+  sur l'arborescence des artefacts (`conv:vibeDrop`, des chemins que le pont lit
+  du `File` déposé, jamais donnés par la page, seulement **copiés**, I-39) et le
+  nom tapé (*Renommer*, *Nouveau fichier*…, F-95), un nom seul, jamais un chemin
+  (`plainName`). Ce que le principal écrit pour ouvrir (une version de la PR, un
+  diff) va sous `files/` du dossier de sorties de l'agent et n'est jamais relu.
+  Le `@` du champ (F-70) ne met dans le texte que le chemin d'un artefact du
+  relevé : aucun canal de plus. Le détail (les sortes d'ids, les formes de noms
+  refusées) vit dans le code et dans F-95, F-100.
 - **I-38** Dans le message d'une action, seuls `{{text}}`, les réponses aux
   questions et les remarques du brouillon, écrits par l'utilisateur (le champ,
   I-2), sont libres : insérés une fois, tels quels, jamais relus comme un
@@ -3040,102 +3036,48 @@ sont retirés en 0.14.0.)*
   test à saut de ligne) ; une variable inconnue **fait refuser l'action**
   (l'agent lance des commandes avec ces valeurs). Le message est le gabarit,
   ses variables remplies, rien d'autre.
-- **I-39** Le principal ne **modifie jamais le dépôt**, ni rien sur GitHub,
-  **hors des actions directes** (F-114), de la recette du projet (F-111,
-  I-42) et d'*Enregistrer* (ci-dessous), et celles-ci seulement au
-  **clic de leur bouton** (jamais au relevé, ni d'elles-mêmes), par une
-  **liste fermée** de commandes (`DIRECT_GIT` : `commit -F <sorties>/commit.md`,
-  `switch <base>`, `pull --ff-only`, `branch -d <branche>`, `fetch origin
-  <tête>` (ou `<base>`), `switch <tête>` (la tête d'une PR), `pull
-  --ff-only origin <tête>` (après lui), `switch -c
-  <branche> <départ>` (une nouvelle branche : `origin/<base>` ou une branche
-  locale), `switch <branche>` (une branche locale du relevé), `stash push -u`
-  (seule forme de `stash`), `pull --ff-only --autostash` (*Pull*, aucun
-  argument donné), `rebase --autostash <sur>` (`origin/<base>` ou une
-  branche locale) et, en échec, `rebase --abort` aussitôt (jamais de rebase
-  laissé en cours), `push --force-with-lease` (jamais `--force` seul, au
-  seul clic de *Pousser*, jamais à la suite d'un rebase), `fetch origin`
-  (au seul clic d'*Actualiser* : jamais au relevé ni à intervalles) ;
-  `DIRECT_GH` : `pr review <n>
-  --<verdict> --body-file <fichier>`, `pr edit <n> --add-reviewer
-  <identifiant>` (au seul clic de *Me demander en relecture*, l'identifiant
-  aux seuls caractères d'un identifiant GitHub), `pr edit <n> --add-assignee
-  <identifiant>` et `--remove-assignee <identifiant>` (aux seuls clics de
-  *S'assigner la PR* et *Me retirer de la PR*, l'identifiant lu par gh, de même
-  jamais par l'agent ni à la suite d'une autre action), et `pr view` pour lire), sans shell,
-  git et gh derrière le préfixe, 60 s au plus ; leurs valeurs : une PR **entier
-  positif**, un verdict des trois, une branche et une base refs sûrs
-  (ci-dessous) pris du relevé (la base d'une PR à charger : celle que gh
-  donne), un fichier écrit par l'appli dans ses sorties — aucun texte d'une
-  page n'en devient un argument. **Jamais de changement de branche dans un
-  dossier qui a des modifications** : *Changer de branche*, *Revenir sur la
-  branche principale*, *Aller sur la branche*, *Créer ici* et *PR mergée →
-  revenir sur la base* relisent `git status` au clic (pas le
-  relevé) ; une ligne, ou pas de réponse → refusé, rien ne bouge. **Rien
-  n'est mis de côté sans le clic de *Mettre de côté*** : jamais à la suite
-  d'un chargement ou d'un changement de branche ; `git stash push -u`
-  seulement, et il ne change pas de branche ; seule autre forme,
-  `--autostash` de *Pull* et *Rebase*, à leur seul clic, les modifications
-  reprises après. **Jamais le retrait d'un worktree qui a des
-  modifications** : `git status --porcelain` dans le worktree d'abord ; une
-  ligne, ou pas de réponse → refusé, quelle que soit la commande du fichier ;
-  le repli git, sans `--force`. Hors de là, en lecture seule :
-  gh lancé sans shell (I-27), derrière le préfixe (F-111), seulement pour
-  `pr view` et `pr list` (`GH_READ` ; `pr list --author @me`, `--search
-  review-requested:@me`, sans filtre), aux autres arguments fixes, et une
-  seule commande `gh api`, exacte (`GH_LOGIN` : `api user --jq .login`,
-  l'identifiant de l'utilisateur ; aucune autre forme, `-X PATCH` écrirait) ; une
-  branche (lue par git) passe après `--` et doit être un ref sûr (ci-dessous),
-  une PR est un **entier positif** ; aucun texte d'une page n'en devient un
-  argument. Et git lancé sans shell
-  (I-27), seulement pour une liste fermée de sous-commandes en lecture
-  (`GIT_READ` : `rev-parse`, `status`, `diff`, `log`, `show`,
-  `for-each-ref` (les branches locales) ; et `worktree list`, seul de ses
-  sous-commandes ; l'état de *Pull* et de *Rebase* : `log HEAD..@{u}`, `log
-  HEAD..origin/<base>`), sans verrou
-  (`--no-optional-locks` : `status` ne réécrit pas l'index), sans programme
-  externe (`--no-ext-diff`, `--no-textconv`). Un ref ou un chemin venu
-  d'ailleurs ne devient **jamais une option** : refusé sans lancer git s'il
-  commence par « - » ou contient un NUL, et pour un ref, « .. » ou un
-  caractère hors de `[A-Za-z0-9._/-]` ; `--end-of-options` là où git le
-  permet. Seule autre exception, validée par l'équipe : *Enregistrer* de
-  *Voir le code*, de la note ou d'un test d'invariant (F-100), **au
-  geste** de l'utilisateur (Ctrl+S ou le bouton), n'écrit que le fichier
-  suivi, désigné par son id (I-37), un fichier existant du dossier de
-  l'agent, le texte une chaîne d'1 Mo au plus ; jamais pendant un tour de
-  la conversation, ni une course qui génère ce module, ni, pour la note et
-  les tests, une course de l'agent qui retient (verrou recalculé par le
-  principal, sans se fier à la page), **ni en relecteur** (F-101). **Le
-  relecteur n'écrit rien** : le principal recalcule le rôle d'après le dernier
-  relevé, sans se fier à la page, et refuse alors *Enregistrer* (le code d'un
-  module, la note, un test) et toute action qui édite, génère ou commite,
-  même demandée par une page ou l'orchestrateur. *Copier dans le projet* (F-114)
-  n'écrit qu'**au clic** de son bouton, un artefact désigné par son id
-  (I-37), sous son nom de base, **dans le seul dossier choisi** dans la
-  boîte de dialogue ; un fichier existant n'est **jamais remplacé** sans
-  *Remplacer* (annulé, ou la boîte fermée : rien n'est écrit). *Ajouter* (`add-artifact`, F-114), à côté de lui, n'écrit qu'**au dépôt** de l'utilisateur sur
-  l'arborescence (I-37) ou **par la commande** `add-artifact` (F-116 : un chemin, ou un
-  nom sûr et un contenu en base64, 10 Mio par fichier et 25 Mio par demande ; un
-  contenu refusé n'empêche pas les autres), **dans le dossier
-  d'artefacts du projet de l'agent affiché seulement** (un nom en `..` compris), à la racine ou
-  dans un dossier désigné par son id `d<i>` : ce qui est déposé
-  est **copié**, l'original intact, **jamais écrasé** (un nom pris
-  reçoit le premier numéro libre, sans demander) ; un lien n'est jamais suivi.
-  La gestion des artefacts (F-95 : *Renommer*, *Nouveau fichier* ou *dossier*,
-  *Supprimer*, *Déplacer*, *Copier*, *Dupliquer*) n'écrit qu'**au geste** de
-  l'utilisateur, **dans ce seul dossier** et sur des éléments qu'il désigne par leur
-  id du dernier relevé (I-37), sans lien sur le chemin : **jamais écrasé** (renommer,
-  déplacer, copier, dupliquer : copie exclusive, `COPYFILE_EXCL`, puis effacement de la
-  source une fois arrivée, jamais `rename` ; un nom pris est refusé en renommant, numéroté
-  sinon), un dossier jamais déplacé dans lui-même ni dans un de ses sous-dossiers ;
-  **jamais effacé définitivement** : supprimer passe toujours par la corbeille du
-  système (`shell.trashItem`), après confirmation, et rien ne part si un nom
-  confirmé diffère de celui de son id dans le dernier relevé (les ids glissent quand la
-  liste change). Le retrait d'un agent, d'un robot ou d'un worktree (F-110) ne touche pas à ce
-  dossier ; le déplacement des anciens artefacts (F-95) ne fait que les
-  **déplacer** vers lui, de même sans rien écraser. Un artefact
-  n'exécute aucun script et ne joint pas le réseau (F-95). Un push autre que *Pousser*, un rebase autre que *Rebase*, checkout, ouvrir une PR, et le *via* des actions
-  directes passent par l'agent, dans la conversation, avec ses autorisations.
+- **I-39** Le principal ne **modifie le dépôt, ni rien sur GitHub, que par une
+  liste fermée de commandes** : les actions directes (F-114 : `DIRECT_GIT`,
+  `DIRECT_GH`), la recette du projet (F-111, I-42), *Enregistrer* et la
+  gestion des artefacts (ci-dessous) — au **clic** de leur bouton, jamais au
+  relevé ni d'elles-mêmes, ou par la commande du registre qui leur correspond
+  (F-116 : la même porte pour l'écran et, plus tard, la CLI), sans shell (I-27),
+  60 s au plus. La liste exacte vit dans le code (`DIRECT_GIT`, `DIRECT_GH` ;
+  pour lire, `GIT_READ`, `GH_READ`, `GH_LOGIN`), que les tests lisent ; hors de
+  là, git et gh ne sont lancés qu'en lecture, sans verrou ni programme externe.
+  Ce qui ne change jamais :
+  - **aucun texte d'une page n'est un argument** : un ref ou un chemin venu
+    d'ailleurs ne devient jamais une option — refusé sans lancer git s'il
+    commence par « - » ou contient un NUL, et, pour un ref, « .. » ou un
+    caractère hors de `[A-Za-z0-9._/-]` (un **ref sûr**) ; une PR est un entier
+    positif ;
+  - **jamais de changement de branche, ni de retrait de worktree, dans un
+    dossier qui a des modifications** : `git status` relu au clic (pas le
+    relevé) ; une ligne, ou pas de réponse → refusé, rien ne bouge. **Rien
+    n'est mis de côté sans le clic** de *Mettre de côté* (`--autostash` : *Pull*
+    et *Rebase* seulement, à leur clic) ; un rebase en échec est **annulé
+    aussitôt** ;
+  - **jamais `--force` seul** (*Pousser* : `--force-with-lease`, à son seul clic) ;
+    aucune commande de la liste ne fusionne une PR ni ne supprime une branche
+    distante, un tag ou une release ;
+  - **le relecteur n'écrit rien** : le principal recalcule le rôle d'après le
+    dernier relevé, sans se fier à la page ;
+  - **les écritures au geste** : *Enregistrer* (Ctrl+S ou le bouton) n'écrit que
+    le fichier suivi, désigné par son id (I-37), un fichier existant du dossier de
+    l'agent, 1 Mio au plus, jamais pendant un tour de la conversation ni une
+    course qui génère ce module ; *Copier dans le projet* n'écrit que dans le
+    dossier choisi, sans remplacer un fichier sans *Remplacer* ;
+  - **les artefacts** (F-95) : gérés (ajouter, renommer, déplacer, copier,
+    dupliquer, supprimer) au geste de l'utilisateur ou par leur commande, **dans
+    le seul dossier d'artefacts du projet de l'agent affiché**, sur des
+    éléments désignés par leur id (I-37), un lien jamais suivi ; **jamais
+    écrasés** (copie exclusive, `COPYFILE_EXCL`, puis effacement de la source ;
+    un nom pris est numéroté, ou refusé en renommant) et **jamais effacés
+    définitivement** (supprimer passe par la corbeille du système, après
+    confirmation) ; retirer un agent, un robot ou un worktree n'y touche pas.
+  Un push autre que *Pousser*, un rebase autre que *Rebase*, un checkout,
+  l'ouverture d'une PR passent par l'agent, dans la conversation, avec ses
+  autorisations.
 - **I-40** Aucun HTML rendu depuis un texte (note, rendue ou en édition,
   sortie d'un skill, message de l'agent dans le fil de la conversation,
   F-66, code d'un fichier, F-113, éditable ou non, son diff en
@@ -3192,9 +3134,7 @@ sont retirés en 0.14.0.)*
   n'arrête **que ce qu'elle a lancé** : arrêter vise le groupe du processus
   et les processus marqués de **son** jeton (dans leur environnement), rien
   d'autre ; une clé inconnue n'arrête rien ; quitter arrête tout, même un
-  descendant sorti du groupe. SIGTERM, puis SIGKILL après 5 s (comme I-19).
-  Le socket (F-116) aussi : à la sortie il est fermé et `live.json`, qui
-  désignerait un port que plus rien n'écoute, est **supprimé**.
+  descendant sorti du groupe. SIGTERM, puis SIGKILL après 5 s (comme F-59).
 - **I-44** Jamais **deux courses qui modifient la branche** en cours en même
   temps, ni **une lecture pendant une modification** (F-115), qu'elles
   viennent d'un clic ou de l'orchestrateur (`actions/<id>.start`), de deux
@@ -3212,14 +3152,7 @@ sont retirés en 0.14.0.)*
   dernière course `checks`** (ou sans `time`) ne compte pas : ignoré partout
   (sorties à l'écran, prochaine action, étape Revue, liste de contrôle),
   comme absent. Sans course `checks` connue (appli relancée), il compte.
-- **I-47** Une même commande du fichier du projet ne tourne **jamais à deux
-  endroits d'une famille** (F-51 : le parent, ses enfants, ports et base
-  partagés) : demandée par la page là où elle tourne ailleurs, elle n'est
-  lancée qu'une fois arrêtée là-bas, sur *Arrêter et lancer ici* ; *Non* ne
-  lance rien ; une demande de l'agent (`run/<nom>.restart`) ne la lance pas.
-  La règle garde les lancements : des agents qui font déjà tourner la même
-  commande et qu'un rattachement réunit ensuite (un agent ajouté sur la
-  copie principale) la gardent chacun, rien n'est arrêté d'office.
+- **I-47** *(devenu en 0.15.0 la fonctionnalité F-111, *Famille* : une même commande du fichier du projet ne tourne jamais à deux endroits d'une famille.)*
 - **I-48** La page des réglages n'écrit dans `config.json` que **ce qu'elle
   montre** (une clé de § 8, un modèle ou un effort d'une action qu'elle liste),
   avec **une valeur que la lecture garde telle quelle** (§ 9) : une valeur hors
@@ -3242,25 +3175,20 @@ sont retirés en 0.14.0.)*
   dans le relevé, ni dans un message ou une réponse) et **jamais écrit sur le
   disque**, `live.json` compris, qui ne porte que le port : il ouvre la porte
   « écran », qui répond aux autorisations (`run.allow`, `run.always`, `run.deny`,
-  I-13 à I-18) ; un agent qui le lirait pourrait répondre lui-même à ses demandes.
+  I-13 à I-17) ; un agent qui le lirait pourrait répondre lui-même à ses demandes.
   Il naît dans le serveur et reste en mémoire dans `controllers/socket`.
 
 ### Système et code
 
-- **I-26** Rien n'est installé dans le système : Pocket TTS et son Python vont
-  dans les données de l'appli ; aucun paquet système requis par l'appli.
+- **I-26** *(devenu en 0.15.0 une règle de structure, écrite dans AGENTS.md : rien n'est installé dans le système ; Pocket TTS et son Python vont dans les données de l'appli, aucun paquet système requis.)*
 - **I-27** Jamais de shell pour lancer un programme (`execFile` / `spawn` avec
   arguments) : chemins et texte ne sont jamais interprétés ; le terminal
   d'*Ouvrir un terminal ici* (F-56) aussi, le dossier un argument entier.
   Seule exception : les commandes du fichier du projet (F-111, I-42), recette
   comprise, écrites par l'utilisateur, passent par le shell de ce fichier
   (`bash -ic`) pour trouver ses alias et fonctions.
-- **I-28** **Pas de code propre à un bureau** (KDE, KWin…) dans le produit :
-  une limite d'un gestionnaire de fenêtres se contourne à la main et se
-  documente (ex. Alt+F3 → *Sur tous les bureaux*).
-- **I-29** Un échec d'un service annexe (journal, wpctl, wl-paste, Pocket TTS,
-  éditeur ; git, le relevé et les fichiers de VibeCoder) ne bloque jamais la
-  dictée ni un agent.
+- **I-28** *(devenu en 0.15.0 une règle de structure, écrite dans AGENTS.md : pas de code propre à un bureau (KDE, KWin…) dans le produit ; une limite d'un gestionnaire de fenêtres se contourne à la main et se documente, ex. Alt+F3 → *Sur tous les bureaux*.)*
+- **I-29** *(devenu en 0.15.0 le scénario S-72 : un échec d'un service annexe ne bloque jamais la dictée ni un agent.)*
 
 ---
 
@@ -3331,7 +3259,7 @@ erreurs ; mêmes relevés).
 - **S-27** Historique : ouvrir une ancienne conversation (lecture seule, pas de
   champ), *Reprendre*, *← Conversation en cours*.
 - **S-28** Pièces jointes : capture collée, image et fichier déposés, image
-  choisie par le trombone du champ, texte sélectionné ; l'agent les reçoit ; le fil les montre. Les mêmes
+  choisie par le trombone du champ ; l'agent les reçoit ; le fil les montre. Les mêmes
   dans le champ d'une étape (*Rédiger la note*) et dans les réponses du questionnaire
   (*Envoyer les réponses*) : elles partent avec cette action seule, la course les reçoit ;
   une action dont le gabarit n'a ni `{{text}}` ni `{{answers}}` les ignore et le dit.
@@ -3598,13 +3526,16 @@ relire, une PR d'essai sur GitHub)
   (`--force-with-lease`). Un rebase en conflit → ✗, `git status` : pas de
   rebase en cours, la branche et ses modifications intactes, pas de
   *Pousser*.
+- **S-72** Un service annexe en panne ne bloque rien : le journal inaccessible,
+  `wpctl` ou l'éditeur introuvables ou en échec, Pocket TTS absent, git, `gh`
+  ou un fichier de VibeCoder illisibles → l'erreur est dite ou journalisée, la
+  dictée et les agents continuent, le relevé part quand même.
 
 ---
 
 ## 14. Limites connues
 
-- Windows : agents et VibeCoder non essayés ; pas de sélection jointe (le
-  Ctrl+C simulé interromprait un terminal).
+- Windows : agents et VibeCoder non essayés.
 - Windows : `code` est un `code.cmd`, qu'on ne lance pas sans shell ; régler
   `editorCommand` sur le chemin de `Code.exe`.
 - Un processus Claude Code par agent utilisé depuis le lancement (quelques
@@ -3693,7 +3624,7 @@ relire, une PR d'essai sur GitHub)
   --`), il faut qu'elle traverse jusqu'à lui, sinon *Annuler* échoue (la
   course passe *en échec*, avec la raison). *Annuler* a besoin du processus
   de la course : si Claude Code n'a pas obéi à l'arrêt en 5 s, il est tué
-  (I-19) et *Annuler* échoue de même. Les courses, et la
+  (F-59) et *Annuler* échoue de même. Les courses, et la
   session de la note que reprend *Envoyer les réponses*, sont en mémoire :
   après un redémarrage de l'appli, l'onglet *Actions* est vide et les
   réponses partent dans une nouvelle conversation. Les demandes de
