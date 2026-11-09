@@ -13,7 +13,7 @@
  *  la zone de texte qui a le clavier (champ d'étape, commentaire, réponse
  *  libre ; pas un éditeur de code ni un champ d'une ligne), sous sa longueur,
  *  sinon au champ de la conversation ; sa phase (erreur, aucune parole) va à
- *  la ligne d'état du champ ; le micro de chaque champ d'agent de VibeCoder (contexte Mic,
+ *  la ligne d'état du champ ; le micro de chaque champ d'agent de VibeCoder (contexte Mic ; une image jointe s'agrandit par le contexte Zoom,
  *  prompt-tools) est celui-là, et il donne le clavier à son champ. Écouter lit une réponse par son rang
  *  (createSpeechPlayer), le bip suit le réglage du son.
  *  La colle : seul fichier du panneau qui connaît le pont (window.conv) ; il
@@ -35,7 +35,7 @@
  *  branches), la palette et ses mouvements (afficher, lancer une action par son id, branches, ajouter),
  *  les robots des agents dans l'en-tête de VibeCoder (agent-notices : clic, l'afficher ; l'affiché, la
  *  palette ; clic droit, son menu) et le bip de la réponse (660 Hz, réglage Bip) quand un autre agent se met
- *  à attendre, finit ou échoue (signalKeys, F-55),
+ *  à attendre, finit ou échoue (beepFor, F-55 : seul ce qui vient d'apparaître, quitter un agent ne bipe pas),
  *  l'historique à la place du fil dans la colonne de VibeCoder (🕘), ⚙ Réglages : la page des réglages
  *  (SettingsPage, par-dessus l'écran) ouverte par conv.settings(null), les micros énumérés ici (listInputs) ;
  *  un réglage ou une commande (onSet, onRun) passe par conv.settings(op), qui rend la page relue, montrée à
@@ -50,17 +50,17 @@ import {
   withAttached, withPieces, type Draft, type Piece,
 } from 'core/conversation';
 import { createDictation, type Phase } from 'core/dictation';
-import { lastShown, recent, shortcut, signalKeys, type PaletteMove, type Scope } from 'core/switcher';
+import { beepFor, lastShown, recent, shortcut, type PaletteMove, type Scope } from 'core/switcher';
 import { createSpeechPlayer } from 'core/speech';
 import { createKept, t as vibeStrings, withPrefill } from 'core/vibecoder';
 import type { AgentsState, Attached, Command, ConvApi, MicDevice, Notice, ProbeResult, SendResult, SettingsOp, SettingsView, Session, Thread, VibeArgs, VibeCode, VibeView } from 'technicals/bridge';
 import { beep, listInputs, openMic, record } from 'technicals/audio';
-import { dictationField, dictationText } from 'technicals/dom';
+import { dictationField, dictationText, imagePng } from 'technicals/dom';
 import {
   ArchivedBar, Composer, ContextDetail, HistoryList, Lightbox, NoticeBar, showsWorking, TasksPane, ThreadContent,
   type ThreadActions,
 } from './components';
-import { AgentNotices, Mic, NoAgent, Palette, SettingsPage, SkillsBar, VibeCoder, type Side, type VibeActs } from './vibecoder';
+import { AgentNotices, Mic, NoAgent, Zoom, Palette, SettingsPage, SkillsBar, VibeCoder, type Side, type VibeActs } from './vibecoder';
 
 const REPLY_FREQ = 660; // le bip d'une réponse (F-55), celui de l'ancienne icône
 const STATUS_MS = 10000; // un message de l'appli (téléchargement…) s'efface seul
@@ -84,7 +84,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   const [vibeSide, setVibeSide] = useState<Side>({ open: true, width: 400 });
   const [vibeCode, setVibeCode] = useState<VibeCode | null>(null);
   const [agents, setAgents] = useState<AgentsState | null>(null);  // null jusqu'au premier conv:agents
-  const heard = useRef(new Set<string>());                          // les signaux des agents déjà bipés (signalKeys)
+  const heard = useRef(new Set<string>());                          // les signaux déjà entendus, de tous les agents (beepFor)
   const [palette, setPalette] = useState<Scope | null>(null);        // ouverte : sa portée
   const [branchesAsk, setBranchesAsk] = useState(0);                // +1 : VibeCoder ouvre ses branches
   const [historyOpen, setHistoryOpen] = useState(false);            // l'historique dans la colonne de VibeCoder
@@ -149,7 +149,8 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     const added: Piece[] = [];
     for (const file of files) {
       if (IMAGE_TYPES.includes(file.type)) {
-        added.push({ kind: 'image', name: file.name || 'image collée', type: file.type, data: await file.arrayBuffer(), url: URL.createObjectURL(file) });
+        const { type, data } = await imagePng(file);   // redessinée par le navigateur : le principal la lira
+        added.push({ kind: 'image', name: file.name || 'image collée', type, data, url: URL.createObjectURL(file) });
         continue;
       }
       const path = conv.pathFor(file);
@@ -199,10 +200,10 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
       recents.current = recents.current.filter((id) => s.agents.some((a) => a.id === id));
       setAgents(s);
       // Un autre agent vient d'attendre, de finir ou d'échouer (F-55) : le bip de la réponse, comme l'ancienne icône
-      // (réglage Bip) ; seul ce qui vient d'apparaître bipe.
-      const keys = signalKeys(s.agents, s.shown);
-      if (keys.some((k) => !heard.current.has(k))) conv.getConfig().then((cfg) => { if (cfg.sound !== false) beep(REPLY_FREQ); });
-      heard.current = new Set(keys);
+      // (réglage Bip) ; seul ce qui vient d'apparaître bipe (beepFor : quitter un agent ne fait pas sonner son signal).
+      const heardNow = beepFor(heard.current, s.agents, s.shown);
+      if (heardNow.beep) conv.getConfig().then((cfg) => { if (cfg.sound !== false) beep(REPLY_FREQ); });
+      heard.current = heardNow.heard;
     });
     conv.onAttached((what) => {
       const into = attachTo.current;
@@ -422,6 +423,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
       <div style={{ display: noAgent ? 'none' : 'contents' }}>
       {screen ? (
         <Mic.Provider value={{ phase: micPhase, down: dictation.start, up: dictation.stop }}>
+        <Zoom.Provider value={setZoom}>
         <VibeCoder key={screen.view.agentId} view={screen.view} thread={screen.thread} act={vibeAct} tasksOpen={tasksOpen} code={vibeCode}
           tasks={<TasksPane tasks={screen.thread.tasks ?? []} onOpenLink={conv.openLink} onShowFile={conv.showFile} />}
           contextOpen={overlay === 'context'} onGauge={toggleContext} onTasks={toggleTasks}
@@ -438,6 +440,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
           <SkillsBar view={screen.view} busy={isBusy(screen.thread.status)} onRun={vibeRun} />
           {composer}
         </VibeCoder>
+        </Zoom.Provider>
         </Mic.Provider>
       ) : noticeBar /* avant le relevé : le message de l'appli seul */}
       </div>

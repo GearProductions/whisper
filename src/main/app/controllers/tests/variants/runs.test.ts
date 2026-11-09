@@ -132,7 +132,6 @@ beforeEach(() => {
   git(dir, 'commit', '-q', '-m', 'note');
   out = path.join(fake.userData, 'vibecoder-out', 'a1');
   write(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agentsEnabled: true,
     agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null,
       vibe: { flow: 'create', autonomy: 'guide', pr: null } }],
   }));
@@ -584,12 +583,16 @@ it('answers reprend la session de la course de la note', async () => {
   expect(turn('Réponses')?.options.resume).toBe(session);
 });
 
+// L'utilisateur est parti sur un autre écran : l'agent n'est plus l'affiché (ses courses finies ne sont plus vues d'office).
+const away = async () => { (await import('app/state')).state.convView = null; };
+
 describe('le signal des courses', () => {
-  it('finie onglet fermé : signale, jusqu’à l’ouverture de l’onglet Actions', async () => {
+  it('finie onglet fermé, agent pas affiché : signale, jusqu’à l’ouverture de l’onglet Actions', async () => {
     const { runVibeAction, runSignalOf, runsTab } = await open();
     runVibeAction('forme', {});
     await settle();
     expect(runSignalOf('a1')).toBe('working');   // en cours : travaille
+    await away();
     turn('/vibecoder:forme')!.finish('ok');
     await settle();
     expect(runSignalOf('a1')).toBe('done');
@@ -612,6 +615,90 @@ describe('le signal des courses', () => {
     vibeRunOp('invariants', 'stop');
     await settle();
     expect(runSignalOf('a1')).toBeNull();
+  });
+});
+
+describe('le signal des courses : T-18, une pastille que rien à l’écran n’efface', () => {
+  it('l’agent affiché : une course qui finit sous ses yeux ne laisse pas de pastille verte, l’onglet Actions jamais ouvert', async () => {
+    const { runVibeAction, runSignalOf } = await open();   // a1 est l'agent affiché
+    runVibeAction('forme', {});
+    await settle();
+    turn('/vibecoder:forme')!.finish('ok');
+    await settle();
+    expect(runSignalOf('a1')).toBeNull();
+  });
+
+  it('garde de non-régression : une course oubliée (closeRuns) puis finie : aucun signal, ni de course', async () => {
+    const { runVibeAction, runSignalOf, runsOf, closeRuns } = await open();
+    runVibeAction('forme', {});
+    await settle();
+    closeRuns({ id: 'a1' });
+    turn('/vibecoder:forme')!.finish('ok');
+    await settle();
+    expect(runsOf({ id: 'a1' })).toEqual([]);
+    expect(runSignalOf('a1')).toBeNull();
+  });
+});
+
+describe('afficher l’agent, lire sa conversation (runsShown)', () => {
+  it('ses courses finies vues : la pastille verte s’efface ; une course en échec garde son signal', async () => {
+    const { runVibeAction, runSignalOf, runsShown } = await open();
+    runVibeAction('forme', {});
+    await settle();
+    await away();
+    turn('/vibecoder:forme')!.finish('ok');
+    await settle();
+    expect(runSignalOf('a1')).toBe('done');
+    runsShown('a1');
+    expect(runSignalOf('a1')).toBeNull();
+
+    (await import('app/state')).state.convView = { agentId: 'a1', sessionId: null };   // de retour : l'action part de l'agent affiché
+    runVibeAction('forme', {});
+    await settle();
+    await away();
+    const forme = fake.turns.filter((x) => x.text.startsWith('/vibecoder:forme')).at(-1)!;
+    forme.emit({ type: 'result', subtype: 'error_during_execution', is_error: true });   // son tour échoue
+    await settle();
+    expect(runSignalOf('a1')).toBe('failed');
+    runsShown('a1');
+    expect(runSignalOf('a1')).toBe('failed');
+  });
+
+  it('une course qui attend ou qui travaille : inchangée', async () => {
+    const { runVibeAction, runSignalOf, runsShown } = await open();
+    runVibeAction('forme', {});
+    await settle();
+    runsShown('a1');
+    expect(runSignalOf('a1')).toBe('working');
+  });
+
+  it('runsShown d’un agent sans course : rien', async () => {
+    const { runsShown, runSignalOf } = await open();
+    runsShown('inconnu');
+    expect(runSignalOf('inconnu')).toBeNull();
+  });
+});
+
+describe('runTasksOf : les tâches de fond de ses courses vivantes', () => {
+  it('une course dont une tâche de fond court : 1 ; finie : 0 ; sans course : 0', async () => {
+    const { runVibeAction, runTasksOf } = await open();
+    expect(runTasksOf('a1')).toBe(0);
+    runVibeAction('forme', {});
+    await settle();
+    const forme = turn('/vibecoder:forme')!;
+    expect(runTasksOf('a1')).toBe(0);
+    forme.emit(taskStarted);
+    await settle();
+    expect(runTasksOf('a1')).toBe(1);
+    forme.emit(taskDone);
+    forme.finish('ok');
+    await settle();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    const { GRACE_MS } = await import('core/vibecoder');
+    vi.advanceTimersByTime(GRACE_MS + 1);
+    vi.useRealTimers();
+    await settle();
+    expect(runTasksOf('a1')).toBe(0);
   });
 });
 

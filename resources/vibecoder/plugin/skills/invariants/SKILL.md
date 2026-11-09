@@ -41,7 +41,7 @@ Run the project's invariant command (else its test command on your files). Every
 
 Read `${CLAUDE_SKILL_DIR}/../aligner/SKILL.md` and follow it with `<lang> <out> WORKTREE`: it writes `<out>/align.md`. The modules come at a later step: a Forme module not written yet is not a gap here.
 
-- « Aligned. » → done.
+- « Aligned. » or « Aligné. » (the line in `lang`) → done.
 - Gaps → fix the invariant tests (same rules as above; still red), then follow the aligner again: it rewrites `align.md`. **3 rounds of fixes at most.** Gaps still there after the third → stop: no more fixes.
 - A gap only the note or the forme can close (a missing line, a module that doesn't match): not yours — leave it in `align.md`, don't spend a round on it.
 

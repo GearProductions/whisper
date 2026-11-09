@@ -86,7 +86,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] }); // le relevé et la guérison du son ne tournent pas
   fake.events = new Map();
   fake.userData = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-live-file-')));
-  fs.writeFileSync(path.join(fake.userData, 'config.json'), JSON.stringify({ agentsEnabled: true, agents: [] }));
+  fs.writeFileSync(path.join(fake.userData, 'config.json'), JSON.stringify({ agents: [] }));
 });
 afterEach(() => { vi.useRealTimers(); });
 

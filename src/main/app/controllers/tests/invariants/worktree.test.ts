@@ -102,7 +102,6 @@ beforeEach(() => {
   out = path.join(root, 'vibecoder-out', 'a1');
   write(path.join(out, 'pr-7.json'), JSON.stringify({ number: 7, title: 'Essai', base: 'main', head: 'feat/x', state: 'OPEN' }));
   write(path.join(root, 'config.json'), JSON.stringify({
-    agentsEnabled: true,
     agents: [{ id: 'a1', dir: repo, name: 'projet', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
       vibe: { flow: 'review', autonomy: 'guide', pr: 7 } }],
   }));

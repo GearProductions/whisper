@@ -1,6 +1,6 @@
 /** outputs — ce que les skills écrivent pour l'écran, lu sans se fier au
  *  format : les vérifications (checks.json), la revue publiée
- *  (pr-<n>-review.json), un Markdown coupé en rubriques `##` (une par commit
+ *  (pr-<n>-review.json : état, lien, verdict, texte, date), un Markdown coupé en rubriques `##` (une par commit
  *  dans pr-<n>-commits.md), le titre d'une rubrique de commit et les
  *  rubriques rangées par commit du relevé ; la clé « <fichier>:L<ligne> »
  *  d'une remarque de la ponytail review et celles que la course apply a
@@ -9,6 +9,7 @@
  *  Ne connaît pas : le DOM, React, les noms des fichiers.
  *  Utilisé par : app/panel/vibecoder (review-view, branches-view, commits-view, draft-view, step-parts). */
 
+import { VERDICTS, type Verdict } from 'shared/review';
 import type { VibeCommit, VibeOutput } from 'technicals/bridge';
 
 export type Check = { name: string; ok: boolean; level: 'ok' | 'warning' | 'error'; detail: string };
@@ -36,14 +37,23 @@ export function parseChecks(text: string): Check[] | null {
   });
 }
 
-// pr-<n>-review.json : {"state","url"} → l'état (APPROVED, COMMENTED,
-// CHANGES_REQUESTED… tel quel, en majuscules ; '' s'il manque) et le lien ;
-// pas un objet : null.
-export function parseReview(text: string): { state: string; url: string | null } | null {
+// pr-<n>-review.json : {"state","url","verdict","body","at"} → l'état
+// (APPROVED, COMMENTED, CHANGES_REQUESTED… tel quel, en majuscules ; '' s'il
+// manque), le lien, le verdict, le texte publié et sa date (ISO → ms) ; ces
+// trois-là null quand le fichier ne les a pas (une revue d'avant) ou qu'ils
+// sont inconnus ; pas un objet : null.
+export function parseReview(text: string): { state: string; url: string | null; verdict: Verdict | null; body: string | null; at: number | null } | null {
   const v = json(text);
   if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
-  const { state, url } = v as Record<string, unknown>;
-  return { state: typeof state === 'string' ? state.trim().toUpperCase() : '', url: webUrl(url) };
+  const { state, url, verdict, body, at } = v as Record<string, unknown>;
+  const ms = typeof at === 'string' ? Date.parse(at) : NaN;
+  return {
+    state: typeof state === 'string' ? state.trim().toUpperCase() : '',
+    url: webUrl(url),
+    verdict: VERDICTS.find((v) => v === verdict) ?? null,
+    body: typeof body === 'string' ? body : null,
+    at: Number.isNaN(ms) ? null : ms,
+  };
 }
 
 export type Section = { title: string; body: string };

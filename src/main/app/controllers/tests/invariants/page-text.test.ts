@@ -143,7 +143,7 @@ beforeEach(() => {
   // pire cas d'avant (la dictée partait aussitôt chez l'agent), une clé
   // ignorée une fois le réglage retiré.
   fs.writeFileSync(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agentsEnabled: true, agentSelected: 'a1', autoPaste: false, agentReview: false,
+    agentSelected: 'a1', autoPaste: false, agentReview: false,
     agents: [{ id: 'a1', dir: fake.userData, name: 'essai', model: '', effort: '', mode: 'default', sessionId: null }],
   }));
 });
@@ -251,7 +251,7 @@ describe('ce qui part pour une action : le texte et les pièces jointes de son c
     git(dir, 'add', '.');
     git(dir, 'commit', '-q', '-m', 'note');
     fs.writeFileSync(path.join(fake.userData, 'config.json'), JSON.stringify({
-      agentsEnabled: true, agentSelected: 'a1',
+      agentSelected: 'a1',
       agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
         vibe: { flow: 'create', pr: null } }],
     }));

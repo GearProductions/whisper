@@ -52,12 +52,13 @@ async function measure(appDir, name, port) {
   let out;
   try {
     out = JSON.parse(execFileSync(process.execPath, [path.join(import.meta.dirname, 'scenario.mjs'), String(port), WAV], { timeout: 120000 }).toString());
-  } finally {
     app.kill();
     await new Promise((r) => app.once('exit', r));
+    out.agentSelectionneEnregistre = JSON.parse(fs.readFileSync(path.join(data, 'config.json'), 'utf8')).agentSelected;
+  } finally {
+    if (app.exitCode === null && app.signalCode === null) { app.kill(); await new Promise((r) => app.once('exit', r)); }
+    fs.rmSync(data, { recursive: true, force: true });
   }
-  out.agentSelectionneEnregistre = JSON.parse(fs.readFileSync(path.join(data, 'config.json'), 'utf8')).agentSelected;
-  fs.rmSync(data, { recursive: true, force: true });
   // Le dossier temporaire diffère d'un profil à l'autre : retiré du relevé.
   return JSON.parse(JSON.stringify(out).replaceAll(data, '<profil>'));
 }

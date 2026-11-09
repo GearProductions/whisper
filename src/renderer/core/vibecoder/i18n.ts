@@ -16,7 +16,8 @@
  *  une taille de fichier en clair ; le sélecteur d'agent (titre, infobulles,
  *  Chercher, Réglages), la palette (placeholder, portées, groupes, états,
  *  actions, « tenue par », indications de fin de ligne, aide des touches),
- *  le groupe des robots des agents, « Étape … · état », + Nouvel agent ;
+ *  le groupe des robots des agents, « Étape … · état » (en échec, pas « en pause »), « surveille n tâches de fond »,
+ *  + Nouvel agent, Poser une question à l'agent (le relecteur) ;
  *  le micro et Envoyer d'un champ, l'historique (🕘, Conversation en
  *  cours) et l'accueil sans agent (son bouton est paletteActions['new-agent']) ;
  *  la page des réglages (titre de l'engrenage, catégories, chaque réglage, information et commande). Ceux des boutons viennent des
@@ -174,6 +175,7 @@ const fr = {
   attach: 'Joindre…',
   attachTitle: 'Joindre des images, des fichiers ou le texte sélectionné (aussi : glisser-déposer, Ctrl+V)',
   removePiece: 'Retirer',
+  zoom: 'Agrandir',
   settingsTitle: 'Réglages',
   settingsCategories: 'Catégories',
   settingsCategory: {
@@ -207,7 +209,7 @@ const fr = {
   paletteScopes: { all: 'Tout', agents: 'Agents', branches: 'Branches', prs: 'PR' },
   paletteGroups: { branches: 'Branches', prs: 'Pull requests', actions: 'Actions' },
   activity: {
-    working: 'travaille', asking: 'attend ta réponse', done: 'vient de finir', paused: 'en pause', idle: 'au repos',
+    working: 'travaille', asking: 'attend ta réponse', done: 'vient de finir', failed: 'en échec', idle: 'au repos',
   } as Record<AgentActivity, string>,
   paletteActions: {
     'new-agent': { label: 'Nouvel agent…', keys: 'Ctrl+N' },
@@ -235,6 +237,9 @@ const fr = {
   sendField: 'Envoyer',
   // « Étape … · état » d'un agent (palette).
   agentStatus: (step: string | null, activity: string) => (step ? `Étape ${step} · ${activity}` : activity),
+  // Les tâches de fond d'un agent au repos (infobulle du robot, palette), et le bouton qui cite un élément à l'agent (relecteur, T-22).
+  tasksWatch: (n: number) => `surveille ${n} tâche${n > 1 ? 's' : ''} de fond`,
+  askAgent: 'Poser une question à l\'agent',
   history: 'Historique des conversations',
   historyBack: '← Conversation en cours',
   welcomeTitle: 'Aucun agent',
@@ -372,6 +377,7 @@ const en: Strings = {
   attach: 'Attach…',
   attachTitle: 'Attach images, files or the selected text (also: drag and drop, Ctrl+V)',
   removePiece: 'Remove',
+  zoom: 'Enlarge',
   settingsTitle: 'Settings',
   settingsCategories: 'Categories',
   settingsCategory: {
@@ -405,7 +411,7 @@ const en: Strings = {
   paletteScopes: { all: 'All', agents: 'Agents', branches: 'Branches', prs: 'PRs' },
   paletteGroups: { branches: 'Branches', prs: 'Pull requests', actions: 'Actions' },
   activity: {
-    working: 'working', asking: 'waiting for your answer', done: 'just finished', paused: 'paused', idle: 'idle',
+    working: 'working', asking: 'waiting for your answer', done: 'just finished', failed: 'failed', idle: 'idle',
   },
   paletteActions: {
     'new-agent': { label: 'New agent…', keys: 'Ctrl+N' },
@@ -428,6 +434,8 @@ const en: Strings = {
   micTranscribing: 'Transcribing…',
   sendField: 'Send',
   agentStatus: (step, activity) => (step ? `Step ${step} · ${activity}` : activity),
+  tasksWatch: (n) => `watching ${n} background task${n > 1 ? 's' : ''}`,
+  askAgent: 'Ask the agent',
   history: 'Conversation history',
   historyBack: '← Current conversation',
   welcomeTitle: 'No agent',

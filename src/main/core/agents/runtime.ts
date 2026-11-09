@@ -22,7 +22,8 @@
  *  envoyé porte un uuid ; le premier de chaque processus est retenu, un
  *  nouveau processus repart de zéro). Jamais sur une autre entrée.
  *  Ses tâches de fond sont tenues à jour d'après chaque message du flux (tasks) ;
- *  elles meurent avec lui.
+ *  elles meurent avec lui. Un message d'un sous-agent (parent_tool_use_id) n'ouvre
+ *  jamais de tour : l'agent qui a fini le sien reste au repos, joignable.
  *  Les demandes d'autorisation en échec sont comptées d'après les tool_result en
  *  erreur dont le texte commence par « Tool permission request failed ».
  *  Ne connaît pas : Electron, les fenêtres ; SDK, lancement et journal injectés.
@@ -185,8 +186,9 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
         r.tasks = applyTaskEvent(r.tasks, m, Date.now());
         if (runningTasks(r.tasks) !== before) changed(r); // les robots suivent
         if (m.type === 'system' && m.subtype === 'init' && m.session_id) r.hooks!.onSession(m.session_id);
-        // L'agent repart sans message de notre part (une tâche de fond l'a notifié).
-        if (m.type === 'assistant' && !r.turn) begin(r, id, '', () => {});
+        // L'agent repart sans message de notre part (une tâche de fond l'a notifié). Un message d'un sous-agent
+        // (parent_tool_use_id) n'est pas l'agent : il travaille en fond, l'agent reste joignable (note 0.15.0-stabilisation).
+        if (m.type === 'assistant' && !r.turn && !m.parent_tool_use_id) begin(r, id, '', () => {});
         if (m.type === 'assistant' || m.type === 'user') r.hooks!.onProgress?.();
         // Un outil refusé faute d'avoir pu demander l'autorisation (Claude Code ne
         // reçoit plus les réponses) : à signaler, c'est le symptôme d'un blocage.

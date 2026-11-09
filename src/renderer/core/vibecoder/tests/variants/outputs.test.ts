@@ -45,7 +45,22 @@ describe('parseChecks', () => {
 describe('parseReview', () => {
   it('l\'état et le lien', () => {
     expect(parseReview('{"state":"APPROVED","url":"https://github.com/o/r/pull/3#pullrequestreview-1"}'))
-      .toEqual({ state: 'APPROVED', url: 'https://github.com/o/r/pull/3#pullrequestreview-1' });
+      .toMatchObject({ state: 'APPROVED', url: 'https://github.com/o/r/pull/3#pullrequestreview-1' });
+  });
+
+  it('un fichier complet : verdict, texte, date', () => {
+    expect(parseReview('{"state":"CHANGES_REQUESTED","url":"https://github.com/o/r/pull/3#r1","verdict":"request-changes","body":"A revoir","at":"2026-11-06T10:00:00.000Z"}'))
+      .toEqual({ state: 'CHANGES_REQUESTED', url: 'https://github.com/o/r/pull/3#r1', verdict: 'request-changes', body: 'A revoir', at: Date.parse('2026-11-06T10:00:00.000Z') });
+  });
+
+  it('un fichier d\'avant (state et url seuls) : verdict, texte et date null', () => {
+    expect(parseReview('{"state":"APPROVED","url":"https://github.com/o/r/pull/3#r1"}'))
+      .toEqual({ state: 'APPROVED', url: 'https://github.com/o/r/pull/3#r1', verdict: null, body: null, at: null });
+  });
+
+  it('un verdict inconnu : null', () => {
+    expect(parseReview('{"state":"APPROVED","verdict":"merge","body":"x","at":"pas une date"}'))
+      .toEqual({ state: 'APPROVED', url: null, verdict: null, body: 'x', at: null });
   });
 
   it('état en minuscules : en majuscules ; inconnu : tel quel', () => {
@@ -54,8 +69,8 @@ describe('parseReview', () => {
   });
 
   it('état manquant : vide ; lien manquant ou pas en http(s) : null', () => {
-    expect(parseReview('{}')).toEqual({ state: '', url: null });
-    expect(parseReview('{"state":3,"url":"javascript:alert(1)"}')).toEqual({ state: '', url: null });
+    expect(parseReview('{}')).toMatchObject({ state: '', url: null });
+    expect(parseReview('{"state":3,"url":"javascript:alert(1)"}')).toMatchObject({ state: '', url: null });
     expect(parseReview('{"url":"file:///etc/passwd"}')?.url).toBeNull();
   });
 

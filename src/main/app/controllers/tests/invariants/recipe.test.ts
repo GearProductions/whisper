@@ -49,7 +49,7 @@ let pirate = '';
 
 const agent = (id: string, dir: string, parent?: string) =>
   ({ id, dir, name: id, model: 'opus', effort: 'high', mode: 'default', sessionId: null, ...(parent ? { parent: { id: parent } } : {}) });
-const saveAgents = (list: object[]) => write(path.join(root, 'config.json'), JSON.stringify({ agentsEnabled: true, agents: list }));
+const saveAgents = (list: object[]) => write(path.join(root, 'config.json'), JSON.stringify({ agents: list }));
 const agentOf = (id: string) => loadConfig().agents.find((a) => a.id === id)!;
 const names = (id: string) => processView(agentOf(id), loadConfig()).processes.map((p) => p.name);
 // Le fichier du projet d'un dossier : <dossier>/.vibecoder/project.json.

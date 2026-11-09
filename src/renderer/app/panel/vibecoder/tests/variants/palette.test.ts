@@ -59,3 +59,18 @@ it('Échap et le fond ferment', async () => {
   await act(async () => { page.querySelector('.vc-pal-back')!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); });
   expect(calls).toEqual(['close', 'close']);
 });
+
+const sub = (a: Partial<AgentView>) => {
+  act(() => root.render(createElement(Palette, { agents: [{ ...agent('a', 'Alice', 'gear'), ...a }], view: null, scope: 'all', t: t('fr'), onPick: () => {}, onClose: () => {} })));
+  return text('.vc-pal-sub');
+};
+
+it('un agent failed : « en échec », jamais « en pause »', () => {
+  expect(sub({ activity: 'failed' })).toEqual(['en échec']);
+});
+
+it('un agent au repos avec des tâches de fond : le dit', () => {
+  expect(sub({ activity: 'idle', tasks: 2 })).toEqual(['surveille 2 tâches de fond']);
+  expect(sub({ activity: 'idle' })).toEqual(['au repos']);
+  expect(sub({ activity: 'working', tasks: 2 })).toEqual(['travaille']);
+});

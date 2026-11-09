@@ -64,6 +64,11 @@ describe('buildMessage : chaque variable', () => {
     expect(build('{{module}}')).toEqual({ text: 'src/core/b.ts — b() · ne connaît pas : a' });
   });
 
+  it('{{module}} : un contrat sur plusieurs lignes part sur une seule (aucun caractère de contrôle dans le message)', () => {
+    const multi = { ...view, modules: [{ path: 'src/core/c.ts', contract: 'c()\nne connaît pas : a\n- un cas', file: null, touched: false, commits: [] }] };
+    expect(build('{{module}}', {}, { ...ctx, view: multi })).toEqual({ text: 'src/core/c.ts — c() ne connaît pas : a - un cas' });
+  });
+
   it('{{module}} avec un rang : ce module du relevé', () => {
     expect(build('{{module}}', { module: 0 })).toEqual({ text: 'src/core/a.ts — a()' });
   });

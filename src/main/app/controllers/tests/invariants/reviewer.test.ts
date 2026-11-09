@@ -147,7 +147,6 @@ const people = (p: { login: string; author: string; assignees?: string[]; review
   write(path.join(root, 'gh.json'), JSON.stringify({ assignees: [], reviewers: [], ...p }));
 // Les réglages : a1 sur le dépôt, en VibeCoder, derrière le faux préfixe ; `stored` : le rôle rangé.
 const configure = (stored: 'create' | 'review') => write(path.join(root, 'config.json'), JSON.stringify({
-  agentsEnabled: true,
   vibeCommandPrefix: `"${process.execPath}" "${path.join(root, 'faux-prefixe.cjs')}"`,
   agents: [{ id: 'a1', dir: repo, name: 'projet', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
     vibe: { flow: stored, autonomy: 'guide', pr: null } }],

@@ -16,7 +16,8 @@ Read first: the note; `AGENTS.md` if present (layers, module layout, naming, bar
 ## Write the « Forme » section — in the note only
 
 - One entry per module created or whose boundary changes: its path, then its contract — what it exposes (names and typed signatures), what it does not know, who uses it. This contract is also the header the file will carry (A.2); an existing file whose boundary changes → say its header changes.
-- The layout of the previous notes, else a fenced block, one module per entry: the path at the start of the line (relative to the repo root, or as previous notes write it), two spaces or more, the contract; continuation lines indented under the contract. The screen reads the modules from this layout.
+- A fenced block, one module per entry, written to be read by a person, not packed: the path at the start of the line (relative to the repo root, or as previous notes write it), two spaces, the start of the contract; the rest on continuation lines indented by 4 spaces (not aligned under the contract, so lines stay short: about 80 characters, never a column of text pushed to the right), one idea per line (what it exposes, each signature on its own line; « ne connaît pas : … »; « utilisé par : … »); **a blank line between two entries**. A continuation line never starts with a path (under a folder entry it would be read as a module). The screen reads the modules from this layout.
+- Modules that only compile together (one imports a constant of the other, a screen needs its executor): one entry, their paths at the head of the line separated by ` + ` (one space each side), then the contract after two spaces or more; one commit.
 - Under each contract, its variants (guide §3.4), the first thing its developer writes, red, before the code: a continuation line `variants : <path>` — its ordinary test file, existing or `(à créer)`, where and as the project keeps them (e.g. `tests/variants/<name>.test.ts` beside the module) — then the cases to cover, one per line, `- <case>`, each starting with a word, never with a path (under a folder entry, a line starting with a path is read as a module). Nothing to test (docs, a skill's text, data a test of another module checks) → `variants : aucun`, and why in a few words. The user challenges their place and their cases with the contract.
 - Each path checked: it exists, or the entry says `(à créer)`.
 - Order = generation and commit order: pure functions → orchestration → routes / IPC → UI → glue and doc (§4.1). Small modules: a few hundred lines each, one commit each.
@@ -26,3 +27,5 @@ Read first: the note; `AGENTS.md` if present (layers, module layout, naming, bar
 ## Answer
 
 In `lang`, 1 to 3 lines: the modules (count, in order), then your questions if any.
+
+Each question: one or two sentences of plain context first; the user's words, what they see or do; a number (I-xx, T-xx, F-xx), a function or a file name never alone, always with what it designates; options understandable without the code, the recommended one marked « (recommandé) » with its reason in a few words.

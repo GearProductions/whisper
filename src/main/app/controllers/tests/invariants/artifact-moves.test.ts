@@ -163,7 +163,6 @@ beforeEach(async () => {
   git(repo, 'checkout', '-q', '-b', 'feat/0.13.0-essai');
   git(repo, 'worktree', 'add', '-q', '-b', 'feat/0.13.0-enfant', worktree);
   write(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agentsEnabled: true,
     agents: [
       { ...AGENT, id: 'a1', dir: repo, name: 'parent', view: 'vibecoder', vibe: { flow: 'create', autonomy: 'guide', pr: null } },
       { ...AGENT, id: 'a2', dir: worktree, name: 'enfant', parent: { id: 'a1' } },

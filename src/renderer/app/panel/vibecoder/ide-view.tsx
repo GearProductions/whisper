@@ -5,12 +5,16 @@
  *  que la page vit (sideWidth), pas enregistrée. Le choix est gardé par son chemin tant qu'il est dans
  *  `files`, sinon c'est le premier (null s'il n'y en a aucun). La couleur du nom de chaque fichier est son `mark`,
  *  son numéro son `rank` + 1 (l'ordre de génération de son module, rien pour un fichier de la branche).
+ *  Le fichier choisi, les dossiers fermés et le défilement (arborescence, fichier) sont gardés par useKept
+ *  (par agent et par étape, T-20) : la vue recréée les retrouve ; une seule vue IDE par étape, les clés
+ *  ne se heurtent donc pas.
  *  N'ajoute aucune action : on plie, on choisit.
  *  Ne connaît pas : le pont, les étapes, les actions.
  *  Utilisé par : forme-view, modules-view, invariants-view. */
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useContext, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { fileTree, visibleRows, type IdeFile } from 'core/vibecoder';
 import { FileTreeView } from './file-tree-view';
+import { KeptScope, useKept } from './kept-scope';
 import './ide-view.css';
 
 export type IdeViewProps = {
@@ -26,8 +30,13 @@ export function IdeView({ files, children }: IdeViewProps) {
   const root = useRef<HTMLDivElement>(null);
   const [width, setWidthState] = useState(sideWidth);
   const setWidth = (w: number) => { sideWidth = clampWidth(w, root.current?.getBoundingClientRect().width ?? 0); setWidthState(sideWidth); };
-  const [closed, setClosed] = useState<ReadonlySet<string>>(new Set());
-  const [chosen, setChosen] = useState<string | null>(null);
+  const side = useRef<HTMLDivElement>(null);
+  const main = useRef<HTMLDivElement>(null);
+  const [closed, setClosed] = useKept<ReadonlySet<string>>('ide-closed', new Set());
+  const [chosen, setChosen] = useKept<string | null>('ide-file', null);
+  // Le défilement, écrit tel quel dans ce que garde l'agent (aucun rendu par événement), rendu au montage.
+  const scope = useContext(KeptScope);
+  useLayoutEffect(() => { side.current!.scrollTop = scope?.get('ide-side-top', 0) ?? 0; main.current!.scrollTop = scope?.get('ide-main-top', 0) ?? 0; }, []);
   const nodes = useMemo(() => fileTree(files.map((f) => f.path)), [files]);
   const open = useMemo(() => new Set(nodes.filter((n) => n.folder && !closed.has(n.key)).map((n) => n.key)), [nodes, closed]);
   const file = files.find((f) => f.path === chosen) ?? files[0] ?? null;
@@ -36,7 +45,7 @@ export function IdeView({ files, children }: IdeViewProps) {
 
   return (
     <div className="vc-ide" ref={root}>
-      <div className="vc-ide-side" style={{ width }}>
+      <div className="vc-ide-side" style={{ width }} ref={side} onScroll={(e) => scope?.set('ide-side-top', e.currentTarget.scrollTop)}>
         <FileTreeView rows={visibleRows(nodes, open)} open={open} selected={file?.path ?? null}
           mark={(key) => at(key)?.mark ?? null}
           rank={(key) => { const r = at(key)?.rank; return r == null ? null : r + 1; }}
@@ -56,7 +65,7 @@ export function IdeView({ files, children }: IdeViewProps) {
           e.preventDefault();
           setWidth(width + step);
         }} />
-      <div className="vc-ide-main">{children(file)}</div>
+      <div className="vc-ide-main" ref={main} onScroll={(e) => scope?.set('ide-main-top', e.currentTarget.scrollTop)}>{children(file)}</div>
     </div>
   );
 }

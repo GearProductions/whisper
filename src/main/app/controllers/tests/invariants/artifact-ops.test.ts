@@ -183,7 +183,6 @@ beforeEach(async () => {
   git(dir, 'commit', '-q', '-m', 'init');
   git(dir, 'checkout', '-q', '-b', 'feat/0.13.0-essai');
   write(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agentsEnabled: true,
     agents: [
       { id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
         vibe: { flow: 'create', autonomy: 'guide', pr: null } },

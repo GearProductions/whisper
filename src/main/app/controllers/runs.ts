@@ -22,6 +22,9 @@
  *  Le signal des courses sur le robot (F-55, runSignal) : chacune retient l'état où on l'a vue (noticed) ; runsTab :
  *  l'agent dont l'onglet Actions est ouvert, ses courses vues d'office (une question reste jusqu'à sa
  *  réponse) ; runSignalOf (pour pushAgents) ; à chaque changement d'une course, le robot suit si son signal a changé.
+ *  runsShown : l'agent est affiché, ou sa conversation lue (controllers/agents) : ses courses finies sont vues
+ *  (noticedOnShow), pas celles en échec, qui gardent leur « ! » jusqu'à l'onglet Actions (T-18) ; runTasksOf : les
+ *  tâches de fond de ses courses vivantes (le robot, T-13).
  *  Le mode Vibe de chaque agent (F-103 ; vibe-mode) : vibeStart (on), vibeStop (halted : les demandes
  *  retenues et leurs .start jetés, rien d'interrompu), vibeOn (on seulement) ; arrêté, chaque .start est
  *  refusé ('halted'), les .stop toujours lus ; au repos (une conversation qui finit son tour, après ses
@@ -43,7 +46,7 @@ import { agentList, vibeLang, type Config } from 'core/config';
 import type { PreparedImage } from 'core/conversation';
 import {
   cutCommands, cutLine, endNotice, GRACE_MS, headField, LOCKING, lockCode, lockText, nextVibeMode, ownRun, parseQuestions, parseRequest, requestNotice, runKey, skillModel,
-  remainingModules, runPhase, runsFile, runSignal, runTasks, type ActionDef, type Run, type RunState, type VibeMode,
+  noticedOnShow, remainingModules, runPhase, runsFile, runSignal, runTasks, type ActionDef, type Run, type RunState, type VibeMode,
 } from 'core/vibecoder';
 import { loadConfig, vibeActions, vibeOutDir, vibePluginDir } from 'app/settings';
 import { agents, CLAUDE_MISSING, isBusy, launchOptions, pushAgents, sendToAgent } from './agents';
@@ -82,6 +85,16 @@ function signalFollow(agentId: string) {
   if (signal) signals.set(agentId, signal); else signals.delete(agentId);
   pushAgents();
 }
+
+// L'agent est affiché, ou sa conversation lue : ses courses finies sont vues (noticedOnShow), le robot suit.
+export function runsShown(agentId: string) {
+  for (const r of mine(agentId)) r.noticed = noticedOnShow(r);
+  signalFollow(agentId);
+}
+
+// Les tâches de fond des courses vivantes de l'agent (runTasks, au dernier changement de chacune).
+export const runTasksOf = (agentId: string) =>
+  mine(agentId).filter((r) => r.state === 'running' || r.state === 'asking').reduce((n, r) => n + r.tasks, 0);
 
 // L'onglet Actions ouvert sur cet agent (null : fermé) : ses courses vues aussitôt.
 export function runsTab(agentId: string | null) {
@@ -172,6 +185,7 @@ export function startRun(
 // réveillent ; un tour qui commence annule le minuteur, au bout son état relu (ce même chemin) la finit au repos.
 // Un processus mort emporte ses tâches de fond (core/agents) : la course revient au repos.
 function changed(agentId: string, run: Live) {
+  const before = run.tasks;
   if (run.state === 'running' || run.state === 'asking') {
     const { status, tasks } = agents.state(entryId(agentId, run.key));
     const phase = runPhase(status, tasks, run.tasks);
@@ -183,6 +197,7 @@ function changed(agentId: string, run: Live) {
     else if (run.seen && !run.grace) finish(agentId, run);
   }
   signalFollow(agentId);
+  if (run.tasks !== before) pushAgents();   // le robot compte ses tâches de fond (runTasksOf)
   save(agentId);
   refreshVibe();
 }

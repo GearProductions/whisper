@@ -11,7 +11,7 @@ import { Icon, IconButton, iconElement, type IconName } from '../../icons';
 const page = document.createElement('div');
 document.body.append(page);
 const root = createRoot(page);
-const NAMES: IconName[] = ['close', 'open', 'external', 'diff', 'comment', 'ok', 'ko', 'warn', 'stop', 'play', 'refresh',
+const NAMES: IconName[] = ['close', 'open', 'external', 'diff', 'comment', 'ask', 'ok', 'ko', 'warn', 'stop', 'play', 'refresh',
   'edit', 'pull', 'push', 'rebase', 'attach', 'send', 'branch', 'search', 'chevron', 'history', 'mic', 'gear'];
 const paths = (svg: Element) => [...svg.querySelectorAll('path')].map((p) => p.getAttribute('d'));
 

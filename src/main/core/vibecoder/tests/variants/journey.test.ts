@@ -206,14 +206,46 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
     expect(status(vibeView(ready({ marks: NOTE_OK }))).invariants).toBe('current');
   });
 
-  it('la note commitée puis modifiée : la Forme n\'est plus faite, Préparer le commit (puis ✓ Commiter) la fait avancer, dit pourquoi', () => {
-    const changed = { ...repo([], [FIRST, HELLO]), dirty: [NOTE_PATH] };
+  it('la note commitée puis modifiée, aucun module touché : la Forme n\'est plus faite, Préparer le commit (puis ✓ Commiter) la fait avancer, dit pourquoi', () => {
+    const changed = { ...repo([], [FIRST]), dirty: [NOTE_PATH] };
     const v = vibeView(ready({ repo: changed }));
     expect([status(v).forme, primary(v)]).toEqual(['current', 'commit-prepare']);
     expect(v.steps.find((st) => st.id === 'forme')?.facts).toContain('note modifiée depuis son commit');
     expect(primary(vibeView(ready({ repo: changed, outputs: { 'commit.md': out('fixup! x') } })))).toBe('commit');
     // la note revalidée d'abord : sans sa validation, la Note est l'étape en cours, sans action
     expect(status(vibeView(ready({ repo: changed, marks: CASES_OK }))).note).toBe('current');
+  });
+
+  it('modules générés, puis la note et un test d\'invariant retouchés (une passe, des harnais) : le parcours ne recule pas, Commiter les modules les range', () => {
+    // la génération a touché les deux modules ; la note et le test, déjà commités, sont modifiés à côté
+    const modules = ['src/core/hello.ts', 'src/app/button.tsx'];
+    const v = vibeView(ready({ repo: { ...repo(modules, [FIRST]), dirty: [...modules, NOTE_PATH, TEST_PATH] } }));
+    expect([status(v).forme, status(v).invariants, status(v).modules, primary(v)]).toEqual(['done', 'done', 'current', 'commit-modules']);
+    expect(v.steps.find((st) => st.id === 'forme')?.facts).toContain('note modifiée depuis son commit');   // dit, sans faire reculer
+    // un module commité, l'autre pas encore généré : on continue de générer, la note attend
+    expect(primary(vibeView(ready({ repo: { ...repo([], [FIRST, HELLO]), dirty: [NOTE_PATH] } })))).toBe('modules');
+    // tous les modules commités, la note encore modifiée : l'étape Modules n'est pas faite, Préparer le commit (son fixup)
+    const all = vibeView(ready({ repo: { ...repo([], [FIRST, HELLO, BUTTON]), dirty: [NOTE_PATH] } }));
+    expect([status(all).forme, status(all).modules, primary(all)]).toEqual(['done', 'current', 'commit-prepare']);
+  });
+
+  it('modules commités, puis la note et un test retouchés après leur validation (validations « changed ») : le parcours ne recule pas, Vibe reste possible', () => {
+    // les validations portent sur l'ancien contenu : la note, sa Forme et un cas ont changé depuis
+    const stale: Marks = { note: { hash: 'x', verdict: 'ok' }, forme: { hash: 'y', verdict: 'ok' },
+      [`case:${TEST_PATH}:dit bonjour`]: { hash: 'z', verdict: 'ok' }, [`case:${TEST_PATH}:ne lit rien d'autre`]: { hash: BLOB, verdict: 'ok' } };
+    const v = vibeView(ready({ marks: stale, repo: repo([], [FIRST, HELLO, BUTTON]) }));
+    expect([status(v).note, status(v).forme, status(v).invariants, status(v).modules]).toEqual(['done', 'done', 'done', 'done']);
+    expect(v.actions.find((a) => a.id === 'vibe')?.disabled ?? null).toBeNull();
+    // aucun module touché : une validation « changed » ne compte pas (on revalide avant de générer)
+    expect(status(vibeView(ready({ marks: stale }))).note).toBe('current');
+  });
+
+  it('modules commités, des tests d\'invariants retouchés par les modules (un harnais), aucun cas validé, hors Vibe : l\'étape Invariants est faite', () => {
+    // le premier commit ne porte que la note ; le test protégé n'est modifié que par un commit de module
+    const first = commit('a', 'Note, forme', [NOTE_PATH]);
+    const harness = commit('d', 'core/hello et son harnais', ['src/core/hello.ts', TEST_PATH]);
+    const v = vibeView(ready({ marks: NOTE_OK, repo: repo([], [first, harness, BUTTON]) }));
+    expect([status(v).invariants, status(v).modules]).toEqual(['done', 'done']);
   });
 
   it('la note jamais commitée, modifiée : rien ne change (elle part avec le premier commit)', () => {
@@ -690,7 +722,7 @@ describe('le relevé : modules, tests, faits', () => {
     const text = '# x\n\n## Ce que ça fait\nx\n\n## Forme\nmain/core/x/   pur\n';
     const v = vibeView(input({ note: { ...note, text }, repo: repo([], [commit('e', 'core/x', ['src/main/core/x/a.ts'])]),
       exists: (p) => p.startsWith('src/main/core/x') }));
-    expect(v.modules[0]).toEqual({ path: 'main/core/x/', contract: 'pur', file: { id: 'm0', path: 'src/main/core/x' }, touched: true, commits: ['e'.repeat(40)],
+    expect(v.modules[0]).toEqual({ path: 'main/core/x/', paths: ['main/core/x/'], contract: 'pur', file: { id: 'm0', path: 'src/main/core/x' }, touched: true, commits: ['e'.repeat(40)],
       files: [{ id: 'm0/0', path: 'src/main/core/x/a.ts' }], locked: null, uncommitted: false });
   });
 
@@ -1277,5 +1309,48 @@ describe('les fichiers de la branche et le réglage de la vue Modules (0.13.0)',
   it('modulesView : recopié de l\'entrée', () => {
     expect(vibeView(input({ modulesView: 'ide' })).modulesView).toBe('ide');
     expect(vibeView(input({ modulesView: 'list' })).modulesView).toBe('list');
+  });
+});
+
+describe('la stabilisation 0.15.0 : les modules à plusieurs chemins, la marque d\'un commit, les actions directes faites (T-15, T-23, T-24)', () => {
+  // Un module à deux chemins : « a + b  contrat » (T-15).
+  const TWO = NOTE.replace('src/core/hello.ts    hello()', 'src/core/hello.ts + src/app/other.ts   hello()');
+  const two = (changed: string[], commits: ReturnType<typeof commit>[] = []) =>
+    vibeView(input({ note: { ...note, text: TWO }, repo: repo(changed, commits), exists: () => true })).modules;
+
+  it('un module à deux chemins : ses fichiers sous l\'un et l\'autre, touché si l\'un l\'est', () => {
+    expect(two([]).map((m) => m.touched)).toEqual([false, false]);
+    const [only] = two(['src/app/other.ts/b.ts']);
+    expect([only.touched, only.files?.map((f) => f.path)]).toEqual([true, ['src/app/other.ts/b.ts']]);
+    const [both] = two(['src/core/hello.ts/a.ts', 'src/app/other.ts/b.ts', 'src/app/button.tsx']);
+    expect(both.files?.map((f) => [f.id, f.path])).toEqual([['m0/0', 'src/app/other.ts/b.ts'], ['m0/1', 'src/core/hello.ts/a.ts']]);
+    expect(two([], [commit('d', 'hello', ['src/app/other.ts/b.ts'])])[0].commits).toEqual(['d'.repeat(40)]);
+  });
+
+  it('un module à deux chemins expose paths (le panneau ne découpe pas « a + b ») ; un seul chemin : un seul', () => {
+    const [m, other] = two([]);
+    expect([m.path, m.paths, other.paths]).toEqual(['src/core/hello.ts + src/app/other.ts', ['src/core/hello.ts', 'src/app/other.ts'], ['src/app/button.tsx']]);
+  });
+
+  it('un commit marqué À revoir : sa marque dans le relevé ; sans marque, absente', () => {
+    const v = vibeView(input({ repo: repo([], [HELLO, BUTTON]), marks: { [`commit:${HELLO.hash}`]: { hash: HELLO.hash, verdict: 'ko' } } }));
+    expect(v.commits.map((c) => c.mark)).toEqual(['ko', undefined]);
+  });
+
+  it('une action directe faite et inchangée : grisée, sa raison ; relançable dès que l\'état a changé', () => {
+    const base = (over: Partial<JourneyInput>) => action(vibeView(input(over)), 'base')?.disabled;
+    const done = { base: { running: false, last: { ok: true, line: '', detail: '', time: 5 } } };
+    const onMain = { branch: 'main', dirty: false };
+    expect([base({ direct: done, checkout: onMain }), base({ direct: done, checkout: onMain, lang: 'en' })])
+      .toEqual(['Déjà sur la base', 'Already on the base']);
+    // Pas faite, en échec, ou le dossier a quitté la base depuis : un second clic fait quelque chose.
+    expect([base({ checkout: onMain }), base({ direct: { base: { running: false, last: { ok: false, line: '', detail: '', time: 5 } } }, checkout: onMain }),
+      base({ direct: done, checkout: { branch: 'feat/x', dirty: false } })]).toEqual([null, null, null]);
+  });
+
+  it('Mettre de côté et Actualiser faits : toujours relançables', () => {
+    const last = { ok: true, line: '', detail: '', time: 5 };
+    const v = vibeView(input({ direct: { stash: { running: false, last }, fetch: { running: false, last } }, checkout: { branch: 'main', dirty: true } }));
+    expect(['stash', 'fetch'].map((id) => action(v, id)?.disabled)).toEqual([null, null]);
   });
 });

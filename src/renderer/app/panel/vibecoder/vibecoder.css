@@ -320,35 +320,42 @@
 .vc-empty { padding: 21px 18px; border: 1px dashed var(--vc-edge); border-radius: var(--vc-radius); color: var(--vc-muted); font-size: 13px; line-height: 1.6; text-align: center; }
 
 /* ---- Markdown (note, sorties) -------------------------------------------- */
-.vc-md { color: var(--vc-text); font-size: 13.5px; line-height: 1.6; overflow-wrap: anywhere; }
+/* Le Markdown se lit comme une feuille : une colonne centrée, de la largeur d'une page A4 (210mm, soit 794 px
+   à 96 ppp), avec très peu de marge intérieure, et une couleur par niveau de titre, prise dans le thème.
+   Les bulles de la conversation, les remarques du brouillon et la relecture d'un diff gardent leur largeur. */
+.vc-md { box-sizing: border-box; max-width: 210mm; margin-inline: auto; padding-inline: 8px; color: var(--vc-text); font-size: 13.5px; line-height: 1.7; overflow-wrap: break-word; text-wrap: pretty; }
+/* break-word : un mot (un nom de classe, un chemin) passe entier à la ligne, il n'est coupé que s'il est plus long
+   que la ligne elle-même ; text-wrap: pretty évite un mot seul en fin de paragraphe. */
+.vc-md .vc-md, .body .vc-md, .vc-draft-list .vc-md, .vc-diff-review .vc-md { max-width: none; margin-inline: 0; padding-inline: 0; }
 .vc-md > :first-child, .vc-md > :first-child > :first-child { margin-top: 0; }
 .vc-md > :last-child, .vc-md > :last-child > :first-child { margin-bottom: 0; }
-.vc-md :is(h1, h2, h3, h4, h5, h6) { margin: 18px 0 8px; color: var(--vc-text); font-weight: 600; line-height: 1.3; }
-.vc-md h1 { font-size: 18px; }
-.vc-md h2 { padding-bottom: 4px; border-bottom: 1px solid var(--vc-line); font-size: 15.5px; }
-.vc-md h3 { font-size: 14.5px; }
-.vc-md :is(h4, h5, h6) { color: var(--vc-soft); font-size: 13.5px; }
-.vc-md p { margin: 0 0 10px; }
-.vc-md :is(ul, ol) { margin: 0 0 10px; padding-left: 22px; }
-.vc-md li { position: relative; margin: 3px 0; padding-right: 28px; }
+.vc-md :is(h1, h2, h3, h4, h5, h6) { margin: 26px 0 10px; color: var(--vc-text); font-weight: 600; line-height: 1.3; }
+.vc-md h1 { color: var(--vc-ko-text); font-size: 18px; }
+.vc-md h2 { padding-bottom: 4px; border-bottom: 1px solid var(--vc-line); color: var(--vc-warn); font-size: 15.5px; }
+.vc-md h3 { color: var(--vc-ok-text); font-size: 14.5px; }
+.vc-md :is(h4, h5, h6) { color: var(--vc-accent-soft); font-size: 13.5px; }
+.vc-md p { margin: 0 0 12px; }
+.vc-md :is(ul, ol) { margin: 0 0 14px; padding-left: 22px; }
+.vc-md li { position: relative; margin: 6px 0; padding-right: 28px; }
 .vc-md li > :is(ul, ol) { margin: 4px 0 0; }
 .vc-md li.vc-task { list-style: none; }
-.vc-md code { padding: 1px 5px; border-radius: 4px; background: var(--vc-code); color: var(--vc-text); font: 12.5px/1.5 var(--vc-mono); }
+/* Le code dans le texte (souvent un chemin, un nom) : une teinte à part, pour le repérer d'un coup d'œil. */
+.vc-md code { padding: 1px 6px; border-radius: 4px; background: var(--vc-code); color: var(--vc-accent-soft); font: 12.5px/1.6 var(--vc-mono); box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 .vc-code {
-  margin: 0 0 10px;
-  padding: 10px 12px;
+  margin: 0 0 14px;
+  padding: 14px 16px;
   border-radius: 6px;
   background: var(--vc-code);
   color: var(--vc-text);
-  font: 12.5px/1.5 var(--vc-mono);
+  font: 12.5px/1.7 var(--vc-mono);
   white-space: pre;
   overflow-x: auto;
 }
-.vc-md .vc-code code { padding: 0; background: none; }
+.vc-md .vc-code code { padding: 0; background: none; color: inherit; }
 .vc-md blockquote { margin: 0 0 10px; padding: 2px 12px; border-left: 3px solid var(--vc-edge); color: var(--vc-soft); }
 .vc-table { margin: 0 0 10px; overflow-x: auto; }
 .vc-md table { border-collapse: collapse; font-size: 12.5px; }
-.vc-md :is(th, td) { padding: 5px 10px; border: 1px solid var(--vc-line); text-align: left; vertical-align: top; }
+.vc-md :is(th, td) { padding: 7px 12px; border: 1px solid var(--vc-line); text-align: left; vertical-align: top; }
 .vc-md th { background: var(--vc-card); color: var(--vc-text); font-weight: 600; }
 .vc-md hr { margin: 14px 0; border: 0; border-top: 1px solid var(--vc-line); }
 .vc-md a { color: var(--vc-link); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }

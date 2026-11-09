@@ -5,7 +5,10 @@
  *  prime sur ce qui travaille seul) ; une course arrêtée, gardée ou annulée ne
  *  signale rien. robotState : l'état du robot qui en découle, la conversation
  *  d'abord, le signal seulement par-dessus un état au repos (working → le
- *  clignotement d'un tour).
+ *  clignotement d'un tour). noticedOnShow : ce qu'une course devient quand on
+ *  affiche son agent ou qu'on lit sa conversation — finie : vue ; en échec,
+ *  qui attend, qui travaille : inchangée (le « ! » reste jusqu'à l'onglet
+ *  Actions, T-18).
  *  Ne connaît pas : Electron, le runtime (états passés), la page.
  *  Utilisé par : app/controllers (runs, agents). */
 import type { AgentStatus, RunSignal } from 'shared/bridge';
@@ -17,6 +20,10 @@ export function runSignal(runs: { state: RunState; noticed: RunState | null }[])
   if (unseen('failed')) return 'failed';
   if (unseen('done')) return 'done';
   return runs.some((r) => r.state === 'running') ? 'working' : null;
+}
+
+export function noticedOnShow(run: { state: RunState; noticed: RunState | null }): RunState | null {
+  return run.state === 'done' ? 'done' : run.noticed;
 }
 
 export function robotState(conv: { status: AgentStatus; unread: boolean }, signal: RunSignal | null): { status: AgentStatus; unread: boolean } {

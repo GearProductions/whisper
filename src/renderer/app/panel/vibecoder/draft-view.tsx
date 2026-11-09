@@ -1,31 +1,30 @@
 /** draft-view — la suite de l'étape PR pour le relecteur (le corps, sous l'en-tête
- *  et la PR que rend pr-view) : le brouillon de revue de la PR (une
- *  ligne par remarque : sa cible, son texte ; l'icône edit la modifie sur
- *  place, close la retire), le verdict (Approuver / Commenter / Demander des
- *  changements, Commenter d'abord comme sur GitHub) et Publier la revue
- *  (direct ou via l'agent, F-114) ; publiée (pr-<n>-review.json) : son état
- *  et son lien (icône external). Boutons-icônes : IconButton (icons).
- *  Pas d'en-tête d'étape : pr-view le rend et lui laisse l'action publish
- *  (own). Ne connaît pas : le pont (rappels passés). Utilisé par : pr-view. */
-import { useState } from 'react';
-import { parseReview } from 'core/vibecoder';
-import type { VibeArgs, VibeLang } from 'technicals/bridge';
-import { CommentBox } from './comment-box';
+ *  et la PR que rend pr-view) : le brouillon de revue de la PR (ses remarques
+ *  par DraftRemarks, avec leur cible), le verdict (Approuver / Commenter /
+ *  Demander des changements, celui que vibe-coder passe : le choix de
+ *  l'utilisateur, sinon celui que proposent les marques ; jamais publié sans
+ *  son clic) et Publier la revue (direct ou via l'agent, F-114) ; publiée
+ *  (pr-<n>-review.json) : son état et son lien (icône external) ; quand elle
+ *  est celle du brouillon et du verdict (reviewSent), la carte est grisée et
+ *  résumée sur sa ligne d'état (verdict, remarques, date : rien ne bouge) et
+ *  Publier est grisé (« déjà publiée »). Pas d'en-tête d'étape : pr-view le
+ *  rend et lui laisse l'action publish (own).
+ *  Ne connaît pas : le pont (rappels passés), le choix du verdict (vibe-coder).
+ *  Utilisé par : pr-view. */
+import { parseReview, reviewSent } from 'core/vibecoder';
+import { VERDICTS, type Verdict } from 'shared/review';
+import type { VibeLang } from 'technicals/bridge';
+import { DraftRemarks } from './draft-remarks';
 import { IconButton } from './icons';
-import { MarkdownView } from './markdown-view';
 import { OutputCard, Run } from './step-parts';
 import type { StepProps } from './step-views';
 import './draft-view.css';
-
-type Verdict = NonNullable<VibeArgs['verdict']>;
-const VERDICTS: Verdict[] = ['approve', 'comment', 'request-changes'];
 
 const fr = {
   draft: 'Brouillon de revue',
   count: (n: number) => (n > 1 ? `${n} remarques` : n ? '1 remarque' : 'vide'),
   empty: 'Pas encore de remarque. Commenter ou À revoir sur la note, un cas d\'invariant ou un commit ouvrent une zone de commentaire : la remarque vient ici.',
-  remove: 'Retirer du brouillon',
-  edit: 'Modifier cette remarque',
+  already: 'déjà publiée',
   verdict: 'Verdict',
   verdicts: { approve: 'Approuver', comment: 'Commenter', 'request-changes': 'Demander des changements' } as Record<Verdict, string>,
   published: 'Revue publiée',
@@ -40,8 +39,7 @@ const S: Record<VibeLang, typeof fr> = {
     draft: 'Review draft',
     count: (n) => (n > 1 ? `${n} remarks` : n ? '1 remark' : 'empty'),
     empty: 'No remark yet. Comment or Needs rework on the note, an invariant case or a commit open a comment box: the remark comes here.',
-    remove: 'Remove from the draft',
-    edit: 'Edit this remark',
+    already: 'already published',
     verdict: 'Verdict',
     verdicts: { approve: 'Approve', comment: 'Comment', 'request-changes': 'Request changes' },
     published: 'Review published',
@@ -55,41 +53,25 @@ const S: Record<VibeLang, typeof fr> = {
 export function DraftView(p: StepProps) {
   const { view, t, act, busy, verdict, onVerdict: setVerdict } = p;
   const s = S[view.lang];
-  const [editing, setEditing] = useState<number | null>(null);
   const file = view.pr ? `pr-${view.pr.number}-review.json` : '';
   const out = view.outputs[file];
   const review = out ? parseReview(out.text) : null;
+  const sent = reviewSent(review, view.draft, verdict);
+  const publish = view.actions.find((a) => a.id === 'publish');
   return (
     <>
       {out ? (
-        <OutputCard className="vc-published" title={s.published} file={file} time={out.time} t={t}
+        <OutputCard className={sent ? 'vc-published vc-sent' : 'vc-published'} title={s.published} file={file} time={out.time} t={t}
           tools={review?.url ? <IconButton icon="external" label={`${s.open}\n${review.url}`} onClick={() => act.openLink(review.url!)} /> : null}>
           <span className="vc-review-state" data-state={review?.state || undefined}>
             {review ? s.states[review.state] || review.state || s.unknown : s.unreadable}
+            {sent ? ` · ${s.count(view.draft.length)} · ${new Date(review!.at ?? out.time).toLocaleString(t.locale)}` : null}
           </span>
         </OutputCard>
       ) : null}
       <OutputCard className="vc-draft" title={s.draft} t={t} tools={<span className="vc-count">{s.count(view.draft.length)}</span>}>
         {view.draft.length ? (
-          <ul className="vc-draft-list">
-            {view.draft.map((c) => (
-              <li key={c.id}>
-                <div className="vc-draft-target" title={c.target}>{c.target}</div>
-                {editing === c.id ? (
-                  <CommentBox t={t} initial={c.text} save={t.commentSave} onCancel={() => setEditing(null)}
-                    onSave={(text) => { act.draft({ edit: { id: c.id, text } }); setEditing(null); }} />
-                ) : (
-                  <>
-                    <MarkdownView md={c.text} t={t} onOpenLink={act.openLink} />
-                    <span className="vc-draft-tools">
-                      <IconButton icon="edit" label={s.edit} onClick={() => setEditing(c.id)} />
-                      <IconButton icon="close" label={s.remove} className="vc-draft-remove" onClick={() => act.draft({ remove: c.id })} />
-                    </span>
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
+          <DraftRemarks remarks={view.draft} t={t} target onOpenLink={act.openLink} onDraft={act.draft} />
         ) : <div className="vc-draft-empty">{s.empty}</div>}
       </OutputCard>
       <div className="vc-publish">
@@ -98,7 +80,7 @@ export function DraftView(p: StepProps) {
             <button key={v} type="button" aria-pressed={v === verdict} data-verdict={v} onClick={() => setVerdict(v)}>{s.verdicts[v]}</button>
           ))}
         </div>
-        <Run a={view.actions.find((a) => a.id === 'publish')} busy={busy} tone="accent" onRun={(x) => act.run('publish', { verdict, ...x })} />
+        <Run a={sent && publish ? { ...publish, disabled: publish.disabled || s.already } : publish} busy={busy} tone="accent" onRun={(x) => act.run('publish', { verdict, ...x })} />
       </div>
     </>
   );

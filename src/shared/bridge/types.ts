@@ -109,8 +109,8 @@ export type Attached = { files?: string[]; selection?: { text: string; cut: bool
 export type Decision = 'allow' | 'always' | 'deny';
 
 // Un agent tel que le sélecteur, la palette et les notifications le montrent (vue C).
-// activity : travaille, attend ta réponse, vient de finir, en pause (erreur, course échouée), au repos.
-export type AgentActivity = 'working' | 'asking' | 'done' | 'paused' | 'idle';
+// activity : travaille, attend ta réponse, vient de finir, en échec (erreur, course échouée), au repos.
+export type AgentActivity = 'working' | 'asking' | 'done' | 'failed' | 'idle';
 export type AgentView = {
   id: string;
   name: string;
@@ -123,6 +123,7 @@ export type AgentView = {
   activity: AgentActivity;
   detail: string | null;                 // la question qu'il pose, s'il en pose une
   parent: string | null;                 // l'id de l'agent du dossier principal (worktree, PR) ; null : lui-même
+  tasks?: number;                        // ses tâches de fond (conversation et courses) ; absent = 0
 };
 // Un autre agent que l'affiché vient de poser une question ou d'échouer : une notification du système (principal seul).
 export type AgentEvent = { agentId: string; kind: 'asking' | 'error'; detail: string | null };
@@ -249,7 +250,8 @@ export type VibeNote = VibeFile & {
 };
 
 export type VibeModule = {
-  path: string;                // tel que dans la Forme
+  path: string;                // tel que dans la Forme (« a + b » : une entrée à plusieurs chemins)
+  paths?: string[];            // ses chemins, un par « + » de l'entrée (journey) ; absent (vue écrite à la main) = [path]
   contract: string;            // expose · ne connaît pas · utilisé par
   file: VibeFile | null;       // son fichier ou dossier, s'il existe
   touched: boolean;            // la branche le touche
@@ -315,7 +317,8 @@ export type VibeTestFile = VibeFile & {
 export type VibeQuestion = { n: number; text: string; options: string[] };
 // done null : à vérifier à la main ; manual : une case du § A.3 que l'on coche à la main (`a3:<rang>`, F-102).
 export type VibeCheck = { text: string; done: boolean | null; manual?: boolean };
-export type VibeCommit = { hash: string; subject: string; fixup: boolean; files: string[] };
+// mark : le verdict du relecteur sur ce commit (« commit:<hash> », T-23) ; absent = null.
+export type VibeCommit = { hash: string; subject: string; fixup: boolean; files: string[]; mark?: VibeMarkState };
 // Ce qu'un skill a écrit pour l'écran (Markdown), et quand.
 export type VibeOutput = { text: string; time: number };
 

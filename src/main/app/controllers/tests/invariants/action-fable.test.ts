@@ -95,7 +95,7 @@ function project(actionModels: Record<string, string>) {
   git(dir, 'add', '.');
   git(dir, 'commit', '-q', '-m', 'note');
   fs.writeFileSync(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agentsEnabled: true, agentSelected: 'a1', actionModels,
+    agentSelected: 'a1', actionModels,
     agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
       vibe: { flow: 'create', pr: null } }],
   }));

@@ -156,7 +156,6 @@ beforeEach(() => {
   git(dir, 'add', '.');
   git(dir, 'commit', '-q', '-m', 'hello');
   write(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agentsEnabled: true,
     agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
       vibe: { flow: 'create', autonomy: 'guide', pr: null } }],
   }));
@@ -171,7 +170,6 @@ function review() {
   write(path.join(fake.userData, 'vibecoder-out', 'a1', 'pr-7.json'),
     JSON.stringify({ number: 7, title: 'Essai', base: 'main', head: 'feat/0.11.0-essai', state: 'OPEN' }));
   write(path.join(fake.userData, 'config.json'), JSON.stringify({
-    agentsEnabled: true,
     agents: [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
       vibe: { flow: 'review', autonomy: 'guide', pr: 7 } }],
   }));

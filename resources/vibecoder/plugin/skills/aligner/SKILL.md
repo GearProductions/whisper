@@ -11,7 +11,7 @@ allowed-tools: "Read, Glob, Grep, Write, Bash(git show *), Bash(git diff *), Bas
 
 # Align — note ↔ forme ↔ invariants (↔ code)
 
-`$ARGUMENTS` = `<lang> <out> <ref>`. `lang`: the user's language, not used here — code-related work: `align.md` and your answer in English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `ref`:
+`$ARGUMENTS` = `<lang> <out> <ref>`. `lang`: the user's language (`fr`, `en`…): `align.md` in it — the user reads it closely (note 0.15.0-stabilisation, as `ponytail.md`); your answer in English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `ref`:
 - `WORKTREE`: the current branch, uncommitted and untracked files included. Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists; range `<base>...HEAD`.
 - `HEAD`: a pull request, checked out in this folder — read its files in the folder; base = `base` of the `<out>/pr-<n>.json` whose `head` is the current branch (`git rev-parse --abbrev-ref HEAD`; on a `pr-<n>` branch, that `<n>`); none → as for `WORKTREE`; range `origin/<base>...HEAD`.
 
@@ -25,8 +25,8 @@ Read: the note (under `docs/tickets/`, named like the branch, or the one the ran
 - Forme ↔ files: each module's path exists or is created by the range; a file the range adds belongs to a module; each file header agrees with its contract (exposes, does not know, used by); no import breaks a « ne connaît pas ».
 - The code, if any, does what « Ce que ça fait » says, and nothing the note excludes.
 
-## `<out>/align.md`
+## `<out>/align.md`, in `lang`
 
-One `##` per gap, its title naming the item (the note line, the test, the module); under it, 1 to 3 lines: what is off, where (`file:line`), what to change. Most serious first. Nothing off → a single line without a title, « Aligned. », followed by what you checked (counts). Write nothing else, anywhere.
+One `##` per gap, its title naming the item (the note line, the test, the module); under it, 1 to 3 lines: what is off, where (`file:line`), what to change. Most serious first. Code names, paths and test titles stay as they are; the rest in `lang`, in plain words a developer who does not know the invariants by heart understands (say what a rule means, never a bare number). Nothing off → a single line without a title, « Aligned. » (`en`) or « Aligné. » (`fr`), followed by what you checked (counts), in `lang`. Write nothing else, anywhere.
 
 Answer in English, 1 to 3 lines: the number of gaps and the most serious one.
