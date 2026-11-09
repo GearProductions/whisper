@@ -1,4 +1,4 @@
-// Aide des règles de structure : les fichiers .ts / .tsx d'un dossier, hors
+// Aide des règles de structure : les fichiers .ts / .tsx / .mjs d'un dossier, hors
 // des dossiers `tests`, avec leur texte. Ne connaît rien du comportement de
 // l'appli. Utilisée par no-shell, bridges, no-html et direct.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -8,7 +8,7 @@ export function sources(dir: string): [string, string][] {
   return readdirSync(dir).flatMap((n) => {
     const p = join(dir, n);
     if (statSync(p).isDirectory()) return n === 'tests' ? [] : sources(p);
-    return /\.tsx?$/.test(n) ? [[p, readFileSync(p, 'utf8')] as [string, string]] : [];
+    return /\.(tsx?|mjs)$/.test(n) ? [[p, readFileSync(p, 'utf8')] as [string, string]] : [];
   });
 }
 

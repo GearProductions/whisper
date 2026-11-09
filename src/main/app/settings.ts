@@ -80,7 +80,7 @@ const read = (file: string) => {
 // Les fichiers livrés (resources/vibecoder) suivis dans vibeDir sans jamais
 // toucher une retouche (core/vibecoder) : d'abord ceux qui ne sont plus livrés
 // retirés (removeRetired, avec leur dossier devenu vide), puis les autres écrits
-// (syncDefaults), puis les variantes des skills (skillVariants). Au démarrage et
+// (syncDefaults), plugin/bin/vibecoder.mjs rendu exécutable, puis les variantes des skills (skillVariants). Au démarrage et
 // avant d'ouvrir le dossier ; un échec ne bloque rien (I-29).
 export function ensureVibeFiles() {
   try {
@@ -96,6 +96,8 @@ export function ensureVibeFiles() {
     };
     removeRetired(vibeDir(), files, { read, write, remove });
     syncDefaults(vibeDir(), files, { read, write });
+    // La commande vibecoder : le lien de ~/.local/bin la lance telle quelle (writeFileSync crée en 0o644).
+    if (process.platform !== 'win32') try { fs.chmodSync(path.join(vibePluginDir(), 'bin', 'vibecoder.mjs'), 0o755); } catch { /* pas livrée */ }
     // Les variantes des skills qui fixent leur modèle (un autre, choisi à
     // l'écran) : générées d'après les skills de l'utilisateur, hors manifeste,
     // réécrites à chaque fois.
