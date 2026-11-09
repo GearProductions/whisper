@@ -5,31 +5,26 @@
 // se suivent ; le détail des cas : core/vibecoder/tests/invariants/defaults-retired.test.ts.
 // Protégé : si un test échoue, corriger le code.
 //
-// Sur le vrai principal et le vrai disque : le profil et des fichiers livrés d'essai dans
-// un dossier temporaire ; faux : Electron (le dossier du profil) et l'emplacement des
-// fichiers livrés.
+// Sur le vrai principal et le vrai disque, par le décor commun (app/tests/harness) : le
+// profil et des fichiers livrés d'essai dans un dossier temporaire ; faux : Electron (le
+// dossier du profil) et l'emplacement des fichiers livrés.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fakeElectron, profile, repoResources, write } from 'app/tests/harness';
 
-const fake = vi.hoisted(() => ({ userData: '', resources: '' }));
+let userData = '';
+let resources = '';
 
-vi.mock('electron', () => ({
-  app: { getPath: () => fake.userData },
-  BrowserWindow: class {}, screen: {}, shell: {}, dialog: {}, clipboard: {}, nativeImage: {},
-}));
+const electron = fakeElectron();
+vi.mock('electron', () => electron.module);
 
-vi.mock('technicals/paths', async (original) => ({
-  ...await original<typeof import('technicals/paths')>(),
-  resourcePath: (name: string) => `${fake.resources}/${name}`,
-}));
+vi.mock('technicals/paths', () => repoResources(() => resources));
 
-const write = (file: string, content: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content); };
 const SKILL = '---\nname: note\nmodel: opus\neffort: high\n---\nle skill\n';
 // Un fichier des fichiers livrés, et le même chez l'utilisateur.
-const shipped = (rel: string) => path.join(fake.resources, 'vibecoder', rel);
-const installed = (rel: string) => path.join(fake.userData, 'vibecoder', rel);
+const shipped = (rel: string) => path.join(resources, 'vibecoder', rel);
+const installed = (rel: string) => path.join(userData, 'vibecoder', rel);
 const FILE = 'plugin/skills/note/SKILL.md';
 const VARIANT = 'plugin/skills/note--sonnet/SKILL.md';
 const AGENT = 'plugin/agents/relecteur.md';
@@ -39,8 +34,8 @@ const retire = (...rels: string[]) => { for (const rel of rels) fs.rmSync(shippe
 
 beforeEach(async () => {
   vi.resetModules();
-  fake.userData = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-retires-')));
-  fake.resources = path.join(fake.userData, 'livre');
+  userData = profile('whisper-retires-');
+  resources = path.join(userData, 'livre');
   write(shipped(FILE), SKILL);
   write(shipped(AGENT), 'un agent\n');
   write(shipped('plugin/skills/garde/SKILL.md'), '---\nname: garde\n---\ngardé\n');
