@@ -14,8 +14,8 @@ const view: VibeView = {
   note: { id: 'n', path: 'docs/tickets/feat/G2-1-x.md', text: '# x', before: null, filled: true, mustNot: [], mark: null, formeMark: null },
   questions: [],
   modules: [
-    { path: 'src/core/a.ts', contract: 'a()', file: null, touched: true, commits: [C1] },
-    { path: 'src/core/b.ts', contract: 'b() · ne connaît pas : a', file: null, touched: false, commits: [] },
+    { path: 'src/core/a.ts', paths: ['src/core/a.ts'], contract: 'a()', file: null, touched: true, commits: [C1] },
+    { path: 'src/core/b.ts', paths: ['src/core/b.ts'], contract: 'b() · ne connaît pas : a', file: null, touched: false, commits: [] },
   ],
   invariants: [
     { id: 't0', path: 'src/core/tests/invariants/a.test.ts', blob: BLOB, cases: ['x'], lines: [1], source: '', reading: null, marks: {} },
@@ -65,7 +65,7 @@ describe('buildMessage : chaque variable', () => {
   });
 
   it('{{module}} : un contrat sur plusieurs lignes part sur une seule (aucun caractère de contrôle dans le message)', () => {
-    const multi = { ...view, modules: [{ path: 'src/core/c.ts', contract: 'c()\nne connaît pas : a\n- un cas', file: null, touched: false, commits: [] }] };
+    const multi = { ...view, modules: [{ path: 'src/core/c.ts', paths: ['src/core/c.ts'], contract: 'c()\nne connaît pas : a\n- un cas', file: null, touched: false, commits: [] }] };
     expect(build('{{module}}', {}, { ...ctx, view: multi })).toEqual({ text: 'src/core/c.ts — c() ne connaît pas : a - un cas' });
   });
 
@@ -578,5 +578,35 @@ describe('readArgs : les arguments que lit un gabarit', () => {
 
   it('{{text}} seul : text', () => {
     expect(readArgs({ text: '{{text}}' })).toEqual(['text']);
+  });
+});
+
+describe('un test à relire est pris dans le dernier relevé, par son id', () => {
+  // Le relevé de invariants/actions.test.ts : pas de test d'invariant ; `ctx` y est le sien.
+  const ctx: MessageContext = { view: { ...view, invariants: [] }, out: '/u/vibecoder-out/a1', lang: 'fr', prefix: '' };
+  const LIRE = action('/vibecoder:lire-invariants {{lang}} {{out}} {{ref}} {{files}}');
+  // Deux tests d'invariants : le premier déjà lu, le second pas encore.
+  const B1 = '3b18e512dba79e4c8300dd08aeb37f8e728b8dad';
+  const B2 = 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3';
+  const lus = { ...ctx, view: { ...view, invariants: [
+    { id: 't0', path: 'src/x/tests/invariants/a.test.ts', blob: B1, cases: ['cas a'], lines: [1], source: '', reading: [], marks: {} },
+    { id: 't1', path: 'src/x/tests/invariants/b.test.ts', blob: B2, cases: ['cas b'], lines: [1], source: '', reading: null, marks: {} },
+  ] } };
+
+  it('un test déjà lu, par son id : lui seul, relu', () => {
+    // relire : le test choisi, même lu, et aucun autre
+    expect(buildMessage(LIRE, { file: 't0' }, lus)).toEqual({ text: `/vibecoder:lire-invariants fr ${ctx.out} WORKTREE src/x/tests/invariants/a.test.ts@${B1}` });
+  });
+
+  it('« * » : tous les tests du relevé, lus ou non', () => {
+    // tout relire : chaque test du relevé, dans son ordre
+    expect(buildMessage(LIRE, { file: '*' }, lus)).toEqual({
+      text: `/vibecoder:lire-invariants fr ${ctx.out} WORKTREE src/x/tests/invariants/a.test.ts@${B1} src/x/tests/invariants/b.test.ts@${B2}`,
+    });
+  });
+
+  it('« * » sans test d’invariant au relevé : refusé', () => {
+    // rien à relire
+    expect(buildMessage(LIRE, { file: '*' }, ctx)).toEqual({ error: 'files' });
   });
 });

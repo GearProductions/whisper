@@ -5,7 +5,9 @@
 // son id `b<i>` dans `view.files` du dernier relevé ; un id hors de
 // `view.files`, un chemin ou un `b<i>` forgé ne donne aucun fichier, en Créer
 // comme en Relire (I-37 étendu aux fichiers de la branche) — ici codeFile.
-// Protégé : si un test échoue, corriger le code.
+// Protégé : si un test échoue, corriger le code. Ici les témoins (Créer et
+// Relire) ; les formes d'id forgées (b-1, b01) et le reste du rôle Relire :
+// tests/variants/files-branch.test.ts.
 //
 // Une fonction pure, appelée sur un relevé écrit à la main.
 import { describe, expect, it } from 'vitest';
@@ -59,52 +61,11 @@ describe('codeFile, en Créer : un fichier de la branche par son id b<i> dans le
     // un id forgé n'est jamais lu comme un chemin absolu
     expect(codeFile(created, 'b/etc/passwd')).toBeNull();
   });
-
-  it('b-1 : rien', () => {
-    // un rang négatif ne compte pas depuis la fin de la liste
-    expect(codeFile(created, 'b-1')).toBeNull();
-  });
-
-  it('b01 : rien', () => {
-    // un zéro devant ne fait pas de b01 l'id b1
-    expect(codeFile(created, 'b01')).toBeNull();
-  });
 });
 
 describe('codeFile, en Relire : un fichier de la branche par son id b<i> dans le dernier relevé, jamais par un chemin', () => {
   it('b0, un fichier de la branche : son chemin dans le relevé', () => {
     // l'id mène au chemin que le relevé donne à ce fichier, en Relire aussi
     expect(codeFile(reviewed, 'b0')?.path).toBe(reviewed.files[0].path);
-  });
-
-  it('b9, hors des fichiers de la branche : rien', () => {
-    // la branche ne change pas de dixième fichier
-    expect(codeFile(reviewed, 'b9')).toBeNull();
-  });
-
-  it('le chemin d’un fichier de la branche : rien', () => {
-    // même le chemin d'un fichier du relevé n'est pas un id
-    expect(codeFile(reviewed, reviewed.files[0].path)).toBeNull();
-  });
-
-  // Un id qui commence par b sans être b<i> exact.
-  it('b../../etc/passwd : rien', () => {
-    // un id forgé n'est jamais lu comme un chemin relatif
-    expect(codeFile(reviewed, 'b../../etc/passwd')).toBeNull();
-  });
-
-  it('b/etc/passwd : rien', () => {
-    // un id forgé n'est jamais lu comme un chemin absolu
-    expect(codeFile(reviewed, 'b/etc/passwd')).toBeNull();
-  });
-
-  it('b-1 : rien', () => {
-    // un rang négatif ne compte pas depuis la fin de la liste
-    expect(codeFile(reviewed, 'b-1')).toBeNull();
-  });
-
-  it('b01 : rien', () => {
-    // un zéro devant ne fait pas de b01 l'id b1
-    expect(codeFile(reviewed, 'b01')).toBeNull();
   });
 });
