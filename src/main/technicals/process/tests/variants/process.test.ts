@@ -15,6 +15,12 @@ const until = async (ok: () => boolean, ms = 5000) => {
   for (const end = Date.now() + ms; !ok() && Date.now() < end;) await new Promise((r) => setTimeout(r, 25));
   return ok();
 };
+// Le pid qu'un script a écrit dans <dir>/<name>, une fois écrit.
+async function pidIn(dir: string, name: string) {
+  const file = path.join(dir, name);
+  await until(() => fs.existsSync(file) && fs.readFileSync(file, 'utf8').endsWith('\n'));
+  return Number(fs.readFileSync(file, 'utf8'));
+}
 const sh = (dir: string, script: string) => ({ argv: ['bash', '-c', script], cwd: dir, log: path.join(dir, 'run', 'x.log') });
 
 describe.skipIf(process.platform === 'win32')('une commande lancée', () => {
@@ -43,6 +49,17 @@ describe.skipIf(process.platform === 'win32')('une commande lancée', () => {
     await until(() => procs.state('a')?.status !== 'running');
     expect(procs.state('a')?.status).toBe('stopped');
     expect(procs.running()).toBe(false);
+  });
+
+  it('une commande qui tourne n’est pas lancée une deuxième fois', async () => {
+    const dir = fresh();
+    const procs = createProcesses({ killAfter: 1000 });
+    procs.start('a', sh(dir, 'echo $$ >> pids; sleep 30'));
+    await pidIn(dir, 'pids');
+    expect(procs.start('a', sh(dir, 'echo $$ >> pids; sleep 30'))).toBe(false);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(fs.readFileSync(path.join(dir, 'pids'), 'utf8').trim().split('\n')).toHaveLength(1);
+    await procs.stopAll();
   });
 
   it('un dossier qui n’existe pas : en échec, la raison dans le journal', async () => {

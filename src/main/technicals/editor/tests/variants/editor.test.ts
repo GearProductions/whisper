@@ -1,4 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import { findEditor } from 'technicals/editor';
 
 // `which` ne trouve que les programmes de `found`.
@@ -7,7 +10,12 @@ vi.mock('technicals/paths', () => ({ which: (name: string) => (found.has(name) ?
 const only = (...names: string[]) => { found.clear(); names.forEach((n) => found.add(n)); };
 // spawn relève ses arguments, ne lance rien.
 const spawned: unknown[][] = [];
-vi.mock('node:child_process', () => ({ spawn: (...a: unknown[]) => { spawned.push(a); return { on() { return this; }, unref() {} }; } }));
+// `real` : les cas d'échec lancent pour de bon (I-29).
+let real = false;
+vi.mock('node:child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:child_process')>();
+  return { ...actual, spawn: (...a: unknown[]) => { if (real) return (actual.spawn as (...b: unknown[]) => unknown)(...a); spawned.push(a); return { on() { return this; }, unref() {} }; } };
+});
 const argsOf = (command: string) => { findEditor(command)!.open('/projet'); return spawned.at(-1)?.[1]; };
 
 describe('findEditor', () => {
@@ -59,5 +67,33 @@ describe('findEditor', () => {
     only('zed');
     expect(findEditor('/nulle/part/zed')).toBeNull();
     expect(findEditor('code')).toBeNull();
+  });
+});
+
+// Un échec ne fait pas tomber l'appli (I-29) : de vrais fichiers, lancés pour de bon.
+describe('un échec ne fait pas tomber l\'appli (I-29)', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'editeur-'));
+  afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
+
+  it('programme introuvable : pas d\'éditeur', () => {
+    expect(findEditor(path.join(tmp, 'absent'))).toBeNull();
+  });
+
+  it.skipIf(process.platform === 'win32')('fichier non exécutable : rien ne tombe', async () => {
+    real = true;
+    const file = path.join(tmp, 'pas-executable');
+    fs.writeFileSync(file, 'rien', { mode: 0o644 });
+    expect(() => findEditor(file)!.open(tmp)).not.toThrow();
+    await new Promise((r) => setTimeout(r, 200)); // l'erreur de spawn arrive après
+    real = false;
+  });
+
+  it.skipIf(process.platform === 'win32')('éditeur qui échoue : rien ne tombe', async () => {
+    real = true;
+    const file = path.join(tmp, 'echoue');
+    fs.writeFileSync(file, '#!/bin/sh\nexit 3\n', { mode: 0o755 });
+    expect(() => findEditor(file)!.open(tmp)).not.toThrow();
+    await new Promise((r) => setTimeout(r, 200));
+    real = false;
   });
 });
