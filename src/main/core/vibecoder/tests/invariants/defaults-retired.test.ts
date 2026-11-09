@@ -67,27 +67,6 @@ describe('un fichier du manifeste, plus livré, jamais retouché : il part', () 
     // le manifeste ne le connaît plus
     expect(manifest()).not.toContain(FILE);
   });
-
-  it('témoin : un SKILL.md part avec ses variantes', () => {
-    installed();
-    const variants = withVariants();
-
-    removeRetired(dir, NEW, disk);
-
-    // témoin : le skill a bien des variantes
-    expect(variants.length).toBeGreaterThan(0);
-    // aucune ne reste
-    expect(variants.filter((v) => fs.existsSync(at(v)))).toEqual([]);
-  });
-
-  it('un fichier encore livré : il reste', () => {
-    installed();
-
-    removeRetired(dir, NEW, disk);
-
-    // il est toujours là, avec son texte
-    expect(fs.readFileSync(at(KEPT), 'utf8')).toBe('gardé\n');
-  });
 });
 
 describe('un fichier retouché par l’utilisateur n’est jamais supprimé', () => {

@@ -33,22 +33,6 @@ const read = (dir: string) => fs.readFileSync(path.join(dir, FILE), 'utf8');
 const edit = (dir: string, content: string) => fs.writeFileSync(path.join(dir, FILE), content);
 
 describe('fichiers par défaut de VibeCoder', () => {
-  it('un fichier absent est écrit', () => {
-    const dir = freshDir();
-    syncDefaults(dir, v1, disk);
-    // il existe désormais, tel que livré
-    expect(read(dir)).toBe(v1[0].content);
-  });
-
-  it('un fichier supprimé revient par défaut', () => {
-    const dir = freshDir();
-    syncDefaults(dir, v1, disk);
-    fs.rmSync(path.join(dir, FILE));
-    syncDefaults(dir, v1, disk);
-    // supprimé par l'utilisateur, il est réécrit tel que livré
-    expect(read(dir)).toBe(v1[0].content);
-  });
-
   it('un fichier jamais modifié suit le nouveau défaut', () => {
     const dir = freshDir();
     syncDefaults(dir, v1, disk);

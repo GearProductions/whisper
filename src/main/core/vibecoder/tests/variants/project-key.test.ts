@@ -1,10 +1,10 @@
-// Invariant de la clé d'un projet (note 0.13.0,
+// La clé d'un projet (note 0.13.0,
 // docs/tickets/fix/0.13.0-fix-and-improvements.md, sujet 8, « Ce que ça ne doit pas
 // faire » : montrer ou servir un artefact d'un autre projet ; « Forme » : la clé est lue
 // sur le disque, sans lancer git, et vaut le dossier git commun résolu que donne repoOf ;
 // un dossier hors git est son propre projet). La clé décide quel dossier d'artefacts un
 // robot voit : une clé fausse enverrait un robot dans un autre dossier sans rien dire.
-// Protégé : si un test échoue, corriger le code.
+// Sa conséquence (jamais l'artefact d'un autre projet) reste gardée par project-artifacts (invariants).
 //
 // Sur le vrai disque et le vrai git : un dépôt, son worktree, un sous-module, un lien
 // réel ; repoOf (qui lance git) sert de référence.

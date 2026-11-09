@@ -1,9 +1,10 @@
 // Les fichiers par défaut quand le disque résiste : un disque en mémoire, dont
 // la lecture d'un fichier échoue (EACCES).
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { removeRetired, skillVariants, syncDefaults, type Disk } from 'core/vibecoder';
+import { afterAll, describe, expect, it } from 'vitest';
+import { removeRetired, skillVariants, syncDefaults, type DefaultFile, type Disk } from 'core/vibecoder';
 
 const FILE = 'plugin/skills/note/SKILL.md';
 
@@ -111,5 +112,40 @@ describe.skipIf(process.platform === 'win32')('removeRetired : un disque en mém
     files['/u/plugin/skills/note--perso/SKILL.md'] = 'à moi';
     removeRetired('/u', [], disk);
     expect(Object.keys(files).filter((p) => p.includes('/note')).sort()).toEqual(['/u/plugin/skills/note--perso/SKILL.md']);
+  });
+});
+
+// Sur du réel : un dossier temporaire, un disque sur node:fs. Le reste : tests/invariants/defaults.
+describe('fichiers par défaut de VibeCoder : un fichier absent', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vibecoder-defauts-'));
+  afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
+
+  // Le disque de l'appli : lire (null si absent), écrire (dossiers créés).
+  const disk: Disk = {
+    read: (p) => { try { return fs.readFileSync(p, 'utf8'); } catch { return null; } },
+    write: (p, content) => { fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, content); },
+  };
+
+  // Un dossier neuf par cas.
+  let n = 0;
+  const freshDir = () => path.join(tmp, `cas-${n++}`);
+
+  const v1: DefaultFile[] = [{ path: FILE, content: '---\nname: note\n---\nversion 1\n' }];
+  const read = (dir: string) => fs.readFileSync(path.join(dir, FILE), 'utf8');
+
+  it('un fichier absent est écrit', () => {
+    const dir = freshDir();
+    syncDefaults(dir, v1, disk);
+    // il existe désormais, tel que livré
+    expect(read(dir)).toBe(v1[0].content);
+  });
+
+  it('un fichier supprimé revient par défaut', () => {
+    const dir = freshDir();
+    syncDefaults(dir, v1, disk);
+    fs.rmSync(path.join(dir, FILE));
+    syncDefaults(dir, v1, disk);
+    // supprimé par l'utilisateur, il est réécrit tel que livré
+    expect(read(dir)).toBe(v1[0].content);
   });
 });
