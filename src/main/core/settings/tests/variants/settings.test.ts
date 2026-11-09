@@ -23,9 +23,16 @@ describe('settingsView', () => {
       'installTts', 'speakLang', 'speakVoice:fr', 'speakVoice:en', 'speakVolume',
       'vibeLang', 'agentLang', 'artifactTextMax',
       'model:forme', 'effort:forme',
-      'agentFound', 'agentCommand', 'editor', 'editorCommand', 'terminalCommand', 'vibeCommandPrefix', 'instructions', 'journal', 'vibeDir',
+      'agentFound', 'agentCommand', 'editor', 'editorCommand', 'terminalCommand', 'vibeCommandPrefix', 'outsideAgents', 'instructions', 'journal', 'vibeDir',
       'whisperDir', 'configFile', 'version', 'releases', 'quit',
     ]);
+  });
+
+  it('les agents extérieurs : un toggle de la catégorie agents, désactivé par défaut, activé si la configuration le dit', () => {
+    const agents = settingsView(cfg(), FACTS).categories.find((c) => c.id === 'agents')!.items;
+    expect(agents).toContainEqual({ kind: 'toggle', key: 'outsideAgents', value: false });
+    expect(settingsView(cfg({ outsideAgents: true }), FACTS).categories.find((c) => c.id === 'agents')!.items)
+      .toContainEqual({ kind: 'toggle', key: 'outsideAgents', value: true });
   });
 
   it('sans coupures : ni coupure ni dépannage ; TTS installé : pas d’installation', () => {
@@ -96,6 +103,8 @@ describe('settingsPatch', () => {
     expect(p('artifactTextMax', 1024)).toEqual({ artifactTextMax: 1024 });
     expect(p('agentCommand', 'distrobox enter dev -- "claude"')).toEqual({ agentCommand: 'distrobox enter dev -- "claude"' });
     expect(p('terminalCommand', '')).toEqual({ terminalCommand: '' });
+    expect(p('outsideAgents', true)).toEqual({ outsideAgents: true });
+    expect(p('outsideAgents', false, cfg({ outsideAgents: true }))).toEqual({ outsideAgents: false });
   });
 
   it('refuse ce que la lecture refuserait', () => {
@@ -112,6 +121,8 @@ describe('settingsPatch', () => {
     expect(p('editorCommand', 'zed\t--new')).toBeNull();
     expect(p('vibeCommandPrefix', '   ')).toBeNull();
     expect(p('agentCommand', 42)).toBeNull();
+    expect(p('outsideAgents', 'true')).toBeNull();
+    expect(p('outsideAgents', 1)).toBeNull();
   });
 
   it('une clé non montrée, une info, une commande, une coupure sans coupures : rien', () => {

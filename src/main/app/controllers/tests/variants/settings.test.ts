@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { send } from 'technicals/socket';
 
 const fake = vi.hoisted(() => ({ userData: '', calls: [] as string[] }));
 const call = (name: string) => (...a: unknown[]) => { fake.calls.push([name, ...a.map((x) => typeof x === 'string' ? x : JSON.stringify(x))].join(' ')); };
@@ -44,6 +45,26 @@ async function op(arg: unknown, recording = false) {
 }
 
 describe('settingsOp', () => {
+  it('les agents extérieurs : activé par la page, live.json porte un jeton ; désactivé, plus de jeton et l\'ancien refusé', async () => {
+    const socket = await import('app/controllers/socket');
+    const ok = { ok: true as const, result: 'fait' };
+    await socket.openSocket(async () => ok);
+    const live = () => JSON.parse(fs.readFileSync(path.join(fake.userData, 'live.json'), 'utf8')) as { port: number; token?: string };
+    const ask = async (token: string) => (await send(live().port, { cmd: 'status', token, target: fake.userData }) as { ok: boolean }).ok;
+
+    expect(live().token).toBeUndefined();
+    const view = await op({ set: 'outsideAgents', value: true });
+    const outside = live().token!;
+    expect(outside).toBeTruthy();
+    expect(JSON.stringify(view)).not.toContain(outside);
+    expect(await ask(outside)).toBe(true);
+
+    await op({ set: 'outsideAgents', value: false });
+    expect(live().token).toBeUndefined();
+    expect(await ask(outside)).toBe(false);
+    socket.closeSocket();
+  });
+
   it('null : la page, avec les faits lus', async () => {
     const view = await op(null);
     expect(item(view, 'whisperModel')?.value).toBe('ggml-base.bin');
