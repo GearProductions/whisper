@@ -20,6 +20,17 @@
     "text": "Réponses aux questions ouvertes :\n{{answers}}\n\nMets la note à jour, puis réécris {{out}}/questions.md avec les questions qui restent (vide s'il n'y en a plus)."
   },
   {
+    "id": "design-check",
+    "flow": "create",
+    "step": "note",
+    "kind": "send",
+    "needs": "none",
+    "reads": true,
+    "label": "Vérifier la conception",
+    "hint": "Vérifie la conception de la note, en une seule passe : cas oubliés, contradictions, cas limites des règles chiffrées, comportement inatteignable, ligne plutôt invariant ou variant ; ne modifie jamais la note, ses suggestions vont au questionnaire.",
+    "text": "/vibecoder:conception {{lang}} {{out}}"
+  },
+  {
     "id": "forme",
     "flow": "create",
     "step": "forme",
@@ -35,8 +46,8 @@
     "step": "invariants",
     "kind": "send",
     "needs": "none",
-    "label": "Écrire les invariants (rouges), puis vérifier l'alignement",
-    "hint": "Écrit les tests d'invariants, rouges, d'après la note ou d'après le pseudo-code du champ, puis vérifie l'alignement (align.md) : s'il y a des écarts, retouche les tests et revérifie, 3 tours au plus ; ne commite pas.",
+    "label": "Écrire les invariants (rouges)",
+    "hint": "Écrit les tests d'invariants, rouges, d'après la note ou d'après le pseudo-code du champ ; l'alignement les vérifie et les corrige (align.md), 3 tours au plus ; ne commite pas.",
     "text": "/vibecoder:invariants {{lang}} {{out}} {{text}}"
   },
   {
@@ -56,9 +67,8 @@
     "step": "invariants",
     "kind": "send",
     "needs": "none",
-    "reads": true,
     "label": "Vérifier l'alignement",
-    "hint": "Vérifie que chaque ligne « → invariant » a un test qui l'observe vraiment, que chaque test a sa ligne et que la forme correspond aux fichiers.",
+    "hint": "Vérifie les invariants seuls : chaque ligne « → invariant » a un test qui l'observe vraiment, chaque test a sa ligne ; corrige les tests, 3 tours au plus ; chez le relecteur, une liste, sans rien corriger.",
     "text": "/vibecoder:aligner {{lang}} {{out}} {{ref}}"
   },
   {
@@ -89,7 +99,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Générer ce module",
-    "hint": "Implémente le module choisi selon la note et sa forme, avec ponytail, et lance les tests ; puis Relire le diff part seul, dans une seconde course ; ne commite pas.",
+    "hint": "Implémente le module choisi selon la note et sa forme, avec ponytail, avec la boucle de Générer les modules pour un seul : son diff relu, les défauts corrigés, le typage et ses tests relancés jusqu'au vert, dans la même course ; ne commite pas.",
     "text": "/vibecoder:module {{lang}} {{out}} {{module}}"
   },
   {

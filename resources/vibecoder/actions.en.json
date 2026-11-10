@@ -20,6 +20,17 @@
     "text": "Answers to the open questions:\n{{answers}}\n\nUpdate the note, then rewrite {{out}}/questions.md with the questions that remain (empty if none are left)."
   },
   {
+    "id": "design-check",
+    "flow": "create",
+    "step": "note",
+    "kind": "send",
+    "needs": "none",
+    "reads": true,
+    "label": "Check the design",
+    "hint": "Checks the note's design in a single pass: forgotten cases, contradictions, edge cases of numbered rules, unreachable behavior, a line that is rather an invariant or a variant; never changes the note, its suggestions go to the questionnaire.",
+    "text": "/vibecoder:conception {{lang}} {{out}}"
+  },
+  {
     "id": "forme",
     "flow": "create",
     "step": "forme",
@@ -35,8 +46,8 @@
     "step": "invariants",
     "kind": "send",
     "needs": "none",
-    "label": "Write the invariants (red), then check the alignment",
-    "hint": "Writes the invariant tests, red, from the note or from the pseudo-code in the field, then checks the alignment (align.md): on gaps, fixes the tests and checks again, 3 rounds at most; doesn't commit.",
+    "label": "Write the invariants (red)",
+    "hint": "Writes the invariant tests, red, from the note or from the pseudo-code in the field; the alignment checks and fixes them (align.md), 3 rounds at most; doesn't commit.",
     "text": "/vibecoder:invariants {{lang}} {{out}} {{text}}"
   },
   {
@@ -56,9 +67,8 @@
     "step": "invariants",
     "kind": "send",
     "needs": "none",
-    "reads": true,
     "label": "Check the alignment",
-    "hint": "Checks that each “→ invariant” line has a test that truly observes it, that each test has its line, and that the shape matches the files.",
+    "hint": "Checks the invariants only: each “→ invariant” line has a test that truly observes it, each test has its line; fixes the tests, 3 rounds at most; for the reviewer, a list, nothing fixed.",
     "text": "/vibecoder:aligner {{lang}} {{out}} {{ref}}"
   },
   {
@@ -89,7 +99,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Generate this module",
-    "hint": "Implements the chosen module from the note and its shape, with ponytail, and runs the tests; then Review the diff starts on its own, in a second run; does not commit.",
+    "hint": "Implements the chosen module from the note and its shape, with ponytail, with the loop of Generate the modules for a single one: its diff reviewed, the defects fixed, the typecheck and its tests rerun until green, in the same run; does not commit.",
     "text": "/vibecoder:module {{lang}} {{out}} {{module}}"
   },
   {
