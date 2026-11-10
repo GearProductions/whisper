@@ -5,8 +5,8 @@
  *  Utilisé par : markdown-view (tagged), review-view (checks.json). */
 import type { ReactNode } from 'react';
 import type { Strings, Tag } from 'core/vibecoder';
+import './tag-badge.css';
 
 export function TagBadge({ tag, t }: { tag: Tag; t: Strings }): ReactNode {
-  void tag; void t;
-  throw new Error('not implemented');
+  return <span className="vc-tag-badge" data-tag={tag}>{t.tags[tag]}</span>;
 }
