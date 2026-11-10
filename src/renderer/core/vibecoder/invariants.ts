@@ -116,6 +116,20 @@ export function withAttention(text: string, attention: string): string {
 export type CaseLink = { kind: 'note'; lines: string[] } | { kind: 'spec'; ids: string[] } | { kind: 'none' };
 
 export function caseLink(reading: ReadingCase | null, mustNot: VibeNote['mustNot']): CaseLink {
-  void reading; void mustNot;
-  throw new Error('not implemented');
+  const said = reading ? norm(reading.guarantees) : '';
+  const cited = mustNot
+    .filter((l) => l.mark === 'invariant')
+    .map((l) => {
+      const arrow = Math.max(l.text.lastIndexOf('→'), l.text.lastIndexOf('->'));
+      // avant la dernière flèche ; sans flèche, après le préfixe de la marque (« [invariant] … », comme parseNote)
+      return { text: l.text, key: norm(arrow >= 0 ? l.text.slice(0, arrow) : l.text.replace(/^[[(][^\])]*[\])]/, '')) };
+    })
+    .filter((l) => l.key && said.includes(l.key));
+  const lines = cited.filter((l) => !cited.some((o) => o.key.length > l.key.length && o.key.includes(l.key))).map((l) => l.text);
+  if (lines.length) return { kind: 'note', lines };
+  const ids = [...new Set(reading?.guarantees.match(/\bI-\d+\b/g))];
+  return ids.length ? { kind: 'spec', ids } : { kind: 'none' };
 }
+
+// Blancs réduits à une espace, guillemets (« », “ ”, „) ramenés à ", apostrophes (’ ‘) à '.
+const norm = (s: string) => s.replace(/«\s*/g, '"').replace(/\s*»/g, '"').replace(/[“”„]/g, '"').replace(/[’‘]/g, "'").replace(/\s+/g, ' ').trim();

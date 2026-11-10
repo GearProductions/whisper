@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { attentionQuote, caseLine, caseSource, casesOf, withAttention, progress, pseudoLines } from 'core/vibecoder';
-import type { ReadingCase, VibeTestFile } from 'technicals/bridge';
+import { attentionQuote, caseLine, caseLink, caseSource, casesOf, withAttention, progress, pseudoLines } from 'core/vibecoder';
+import type { MustNotMark, ReadingCase, VibeNote, VibeTestFile } from 'technicals/bridge';
 
 const reading = (title: string, warning: string | null = null): ReadingCase => ({ title, pseudo: 'it("x")', edges: [], guarantees: 'g', warning });
 const file = (over: Partial<VibeTestFile> = {}): VibeTestFile => ({
@@ -181,5 +181,78 @@ describe('withAttention', () => {
     const once = withAttention('mon avis', 'a');
     expect(withAttention(once, 'a')).toBe(once);
     expect(withAttention(`${once}\n`, 'a')).toBe(`${once}\n`);
+  });
+});
+
+describe('caseLink', () => {
+  const line = (text: string, mark: MustNotMark = 'invariant') => ({ text: `${text} → ${mark}`, mark });
+  const read = (guarantees: string): ReadingCase => ({ ...reading('t'), guarantees });
+  const notes = (...texts: string[]): VibeNote['mustNot'] => texts.map((t) => line(t));
+  const A = 'ne jamais effacer le disque';
+
+  it('Garantit cite une ligne → invariant entre « » : note, cette ligne (texte tel que dans mustNot)', () => {
+    const mustNot = [line(A), line('autre chose', 'variant')];
+    expect(caseLink(read(`Garantit « ${A} » (ligne de la note)`), mustNot)).toEqual({ kind: 'note', lines: [mustNot[0].text] });
+  });
+
+  it('blancs, guillemets et apostrophes typographiques différents : rattaché quand même', () => {
+    const mustNot = notes('n\'écrit "jamais"   rien\nsur le  disque');
+    expect(caseLink(read('il garde "n’écrit “jamais” rien sur le disque"'), mustNot)).toEqual({ kind: 'note', lines: [mustNot[0].text] });
+    expect(caseLink(read('« n’écrit « jamais » rien sur le disque »'), mustNot).kind).toBe('note');
+    expect(caseLink(read('n\'écrit "jamais"\u00a0rien\u202fsur le disque'), mustNot).kind).toBe('note');
+  });
+
+  it('deux lignes citées : les deux, dans l\'ordre de la note', () => {
+    const mustNot = notes('première ligne', 'seconde ligne', 'jamais citée');
+    expect(caseLink(read('seconde ligne, puis première ligne'), mustNot)).toEqual({ kind: 'note', lines: [mustNot[0].text, mustNot[1].text] });
+  });
+
+  it('une ligne à la marque en préfixe (« [invariant] … ») : rattachée par son texte, sans le préfixe', () => {
+    const mustNot: VibeNote['mustNot'] = [{ text: `[invariant] ${A}`, mark: 'invariant' }];
+    expect(caseLink(read(`garde « ${A} »`), mustNot)).toEqual({ kind: 'note', lines: [mustNot[0].text] });
+  });
+
+  it('une citée contenue dans une autre citée : la plus longue seule', () => {
+    const mustNot = notes('pas de fuite', 'pas de fuite vers la page');
+    expect(caseLink(read('pas de fuite vers la page'), mustNot)).toEqual({ kind: 'note', lines: [mustNot[1].text] });
+    // la plus courte seule citée (la longue n'y est pas) : elle reste
+    expect(caseLink(read('pas de fuite'), notes('pas de fuite vers la page', 'pas de fuite')).kind).toBe('note');
+  });
+
+  it('une ligne → variant (ou sans marque) citée : pas rattachée', () => {
+    expect(caseLink(read('texte du variant'), [line('texte du variant', 'variant'), line('texte du variant', null)])).toEqual({ kind: 'none' });
+  });
+
+  it('« garde I-12, comme I-3 et I-12 » : spec [I-12, I-3]', () => {
+    expect(caseLink(read('garde I-12, comme I-3 et I-12'), [])).toEqual({ kind: 'spec', ids: ['I-12', 'I-3'] });
+  });
+
+  it('I-1 n\'est pas I-12, et pas de numéro collé à un mot', () => {
+    expect(caseLink(read('garde I-12'), [])).toEqual({ kind: 'spec', ids: ['I-12'] });
+    expect(caseLink(read('garde I-1 et I-12 et I-123'), [])).toEqual({ kind: 'spec', ids: ['I-1', 'I-12', 'I-123'] });
+    expect(caseLink(read('PI-3, I-x, I-'), [])).toEqual({ kind: 'none' });
+  });
+
+  it('une ligne de la note et un I-… : note seule', () => {
+    const mustNot = notes(A);
+    expect(caseLink(read(`« ${A} », I-4`), mustNot)).toEqual({ kind: 'note', lines: [mustNot[0].text] });
+  });
+
+  it('pas de lecture, Garantit vide, citation introuvable : none', () => {
+    expect(caseLink(null, notes(A))).toEqual({ kind: 'none' });
+    expect(caseLink(read(''), notes(A))).toEqual({ kind: 'none' });
+    expect(caseLink(read('une phrase qui ne cite rien'), notes(A))).toEqual({ kind: 'none' });
+  });
+
+  it('texte vide avant la flèche : jamais cité ; sans flèche : le texte entier', () => {
+    expect(caseLink(read('n\'importe quoi'), [{ text: ' → invariant', mark: 'invariant' }, { text: '', mark: 'invariant' }])).toEqual({ kind: 'none' });
+    const bare = [{ text: 'ligne sans flèche', mark: 'invariant' as const }];
+    expect(caseLink(read('ligne sans flèche'), bare)).toEqual({ kind: 'note', lines: ['ligne sans flèche'] });
+  });
+
+  it('la dernière flèche borne le texte (une flèche dans la ligne reste dedans) ; -> aussi', () => {
+    const mustNot = [{ text: 'a → b ne change pas -> invariant', mark: 'invariant' as const }];
+    expect(caseLink(read('a → b ne change pas'), mustNot).kind).toBe('note');
+    expect(caseLink(read('invariant'), mustNot)).toEqual({ kind: 'none' });
   });
 });
