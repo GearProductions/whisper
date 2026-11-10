@@ -89,3 +89,9 @@ it('une image jointe, pas encore envoyée : un clic l’agrandit (Zoom), comme u
   page.querySelector<HTMLImageElement>('.vc-pieces img')!.click();
   expect(zoomed).toEqual(['blob:capture']);
 });
+
+it('sans onSend : pas d\'Envoyer, Joindre gardé', async () => {
+  await show({ onSend: undefined }).render();
+  expect(page.querySelector('.vc-send')).toBeNull();
+  expect(page.querySelector('.vc-attach')).not.toBeNull();
+});

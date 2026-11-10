@@ -41,8 +41,10 @@ export function PromptTools({ t, field, ids, onSend, sendDisabled, sendTitle = t
           <Icon name="mic" />
         </button>
       ) : null}
-      <button id={ids ? 'send' : undefined} type="button" className="vc-send" title={sendTitle} aria-label={t.sendField}
-        disabled={sendDisabled} onClick={onSend}><Icon name="send" /></button>
+      {onSend ? (
+        <button id={ids ? 'send' : undefined} type="button" className="vc-send" title={sendTitle} aria-label={t.sendField}
+          disabled={sendDisabled} onClick={onSend}><Icon name="send" /></button>
+      ) : null}
     </span>
   );
 }
