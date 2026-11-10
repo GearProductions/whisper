@@ -219,3 +219,19 @@ it('revenu au premier agent : sa vue IDE et son module déplié', async () => {
   await drawAs('d', 'list');
   expect([row(0).open, row(1).open]).toEqual([false, true]);
 });
+
+it('review.md étiquetée : ses badges, data-tag sur la ligne ; sans étiquette, comme avant', async () => {
+  await act(() => root.render(null));
+  await act(() => {
+    const view = { lang: 'fr', flow: 'create', actions: [], modules: [], commits: [],
+      outputs: { 'review.md': { text: '- [agent] un point\n- [toi] un autre\n- sans', time: 0 } } } as unknown as VibeView;
+    const props = { view, step: { id: 'modules', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
+      code: null, drafts: [{}, () => {}], act: { run: async () => true, prefill: () => {}, open: () => {}, openLink: () => {},
+        follow: () => {}, save: async () => true } } as unknown as StepProps;
+    root.render(createElement(ModulesView, props));
+  });
+  const items = [...page.querySelectorAll<HTMLElement>('.vc-diff-review li')];
+  expect(items.map((li) => li.getAttribute('data-tag'))).toEqual(['agent', 'toi', null]);
+  expect([...page.querySelectorAll('.vc-diff-review .vc-tag-badge')].map((b) => b.textContent)).toEqual(['pour l\'agent', 'pour toi']);
+  expect(page.querySelector('.vc-diff-review')!.textContent).not.toContain('[');
+});

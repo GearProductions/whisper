@@ -67,7 +67,7 @@ export function PrView(p: StepProps) {
       {ci ? (
         <OutputCard title={t.outputs['ci.md']} file="ci.md" time={ci.time} t={t}
           tools={<Run a={action('ci')} busy={busy} tone="ghost" label={t.rerun} onRun={() => act.run('ci')} />}>
-          <MarkdownView md={ci.text} t={t} onOpenLink={act.openLink} onQuote={quote} />
+          <MarkdownView md={ci.text} t={t} tagged onOpenLink={act.openLink} onQuote={quote} />
         </OutputCard>
       ) : pr ? (
         <Invite title={s.noCi} text={s.noCiHint}><Run a={action('ci')} busy={busy} onRun={() => act.run('ci')} /></Invite>

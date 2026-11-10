@@ -22,10 +22,11 @@
  *  Ne connaît pas : le pont (rappels passés ; l'état des courses par StopRun).
  *  Utilisé par : step-views. */
 import { useContext, useState } from 'react';
-import { allApplied, appliedRemarks, applySelection, BULLET, isLive, parseChecks, remarkId, remarkMark } from 'core/vibecoder';
+import { allApplied, appliedRemarks, applySelection, BULLET, isLive, parseChecks, remarkId, remarkMark, tagOf } from 'core/vibecoder';
 import type { VibeLang } from 'technicals/bridge';
 import { Icon, IconButton } from './icons';
 import { MarkdownView } from './markdown-view';
+import { TagBadge } from './tag-badge';
 import { Invite, OutputCard, Run, StepHead, StopRun } from './step-parts';
 import { EcranSection } from './ecran-view';
 import type { StepProps } from './step-views';
@@ -190,27 +191,34 @@ function CreatorParts(p: StepProps) {
             <><div className="vc-checks-note">{s.unreadable}</div><pre className="vc-code">{checksOut.text}</pre></>
           ) : !checks.length ? <div className="vc-checks-note">{s.noCommand}</div> : (
             <ul className="vc-check-list">
-              {checks.map((c, i) => (
-                <li key={i} data-state={c.level === 'warning' ? 'warn' : c.ok ? 'ok' : 'ko'}>
-                  {c.detail ? (
-                    <details open={!c.ok}>
-                      <summary>
+              {checks.map((c, i) => {
+                // L'étiquette en tête du detail : son badge, le detail sans elle, data-tag sur la ligne (le grisé).
+                const { tag, text: detail } = tagOf(c.detail);
+                const badge = tag ? <TagBadge tag={tag} t={t} /> : null;
+                return (
+                  <li key={i} data-state={c.level === 'warning' ? 'warn' : c.ok ? 'ok' : 'ko'} data-tag={tag ?? undefined}>
+                    {detail ? (
+                      <details open={!c.ok}>
+                        <summary>
+                          <span className="vc-mark" aria-hidden="true" /><span className="vc-check-name">{c.name}</span>
+                          {c.level === 'warning' ? <span className="vc-check-warn">{s.warningPill}</span> : null}
+                          {badge}
+                          <span className="vc-check-line">{detail.split('\n')[0]}</span>
+                          {againOne(i)}
+                        </summary>
+                        <pre className="vc-check-detail">{detail}</pre>
+                      </details>
+                    ) : (
+                      <div className="vc-check-row">
                         <span className="vc-mark" aria-hidden="true" /><span className="vc-check-name">{c.name}</span>
                         {c.level === 'warning' ? <span className="vc-check-warn">{s.warningPill}</span> : null}
-                        <span className="vc-check-line">{c.detail.split('\n')[0]}</span>
+                        {badge}
                         {againOne(i)}
-                      </summary>
-                      <pre className="vc-check-detail">{c.detail}</pre>
-                    </details>
-                  ) : (
-                    <div className="vc-check-row">
-                      <span className="vc-mark" aria-hidden="true" /><span className="vc-check-name">{c.name}</span>
-                      {c.level === 'warning' ? <span className="vc-check-warn">{s.warningPill}</span> : null}
-                      {againOne(i)}
-                    </div>
-                  )}
-                </li>
-              ))}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </OutputCard>
@@ -222,7 +230,7 @@ function CreatorParts(p: StepProps) {
               <Run a={apply && !pick.count ? { ...apply, disabled: apply.disabled ?? s.pickTitle } : apply} busy={busy}
                 label={pick.all ? s.applyAll : s.applyPicked(pick.count)} onRun={() => act.run('apply', { text: pick.text })} />
             ) : null}>
-          <MarkdownView md={ponytail.text} t={t} onOpenLink={act.openLink} onQuote={quote} itemStart={remarkStart} itemEnd={remarkEnd} />
+          <MarkdownView md={ponytail.text} t={t} onOpenLink={act.openLink} onQuote={quote} tagged itemStart={remarkStart} itemEnd={remarkEnd} />
         </OutputCard>
       ) : <Invite title={s.noPonytail} text={`${t.ponytailWithChecks} ${s.noPonytailHint}`} />}
     </>

@@ -167,7 +167,7 @@ export function ModulesView(p: StepProps) {
       {review ? (
         <OutputCard className="vc-diff-review" title={t.outputs['review.md']} file="review.md" time={review.time} t={t}
           tools={<Run a={reviewDiff} busy={busy} tone="ghost" label={t.rerun} onRun={() => act.run('review-diff')} />}>
-          <MarkdownView md={review.text} t={t} onOpenLink={act.openLink} onQuote={quote} />
+          <MarkdownView md={review.text} t={t} tagged onOpenLink={act.openLink} onQuote={quote} />
         </OutputCard>
       ) : null}
       {hasModules || files.length ? (
