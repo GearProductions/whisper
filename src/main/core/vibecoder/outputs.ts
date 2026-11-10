@@ -97,9 +97,11 @@ export function parseQuestions(md: string): VibeQuestion[] {
   for (const line of md.split(/\r?\n/)) {
     const h = /^##\s+(?:(\d+)[.)]\s*)?(.*?)\s*$/.exec(line);
     const q = out[out.length - 1];
-    if (h) out.push({ n: h[1] ? Number(h[1]) : out.length + 1, text: h[2], options: [] });
-    else if (q && BULLET.test(line)) q.options.push(line.replace(BULLET, '').trim());
-    else if (q && line.trim() && !q.options.length) q.text += ` ${line.trim()}`;
+    if (h) {
+      const level = /^\[(important|secondaire)\](?:\s+|$)/.exec(h[2]);
+      out.push({ n: h[1] ? Number(h[1]) : out.length + 1, text: level ? h[2].slice(level[0].length) : h[2], options: [], ...(level && { level: level[1] === 'important' ? 'important' : 'secondary' }) });
+    } else if (q && BULLET.test(line)) q.options.push(line.replace(BULLET, '').trim());
+    else if (q && line.trim() && !q.options.length) q.text = `${q.text} ${line.trim()}`.trim();
   }
   return out;
 }

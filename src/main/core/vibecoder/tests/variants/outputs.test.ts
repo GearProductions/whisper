@@ -85,6 +85,40 @@ describe('parseQuestions : questions.md', () => {
   it('fichier vide : plus de question', () => {
     expect(parseQuestions('')).toEqual([]);
   });
+
+  it('`## 1. [important] Quoi ?` : n 1, level important, text sans le crochet', () => {
+    expect(parseQuestions('## 1. [important] Quoi ?\n- Ça\n')).toEqual([
+      { n: 1, text: 'Quoi ?', options: ['Ça'], level: 'important' },
+    ]);
+  });
+
+  it('`## 2. [secondaire] …` : level secondary', () => {
+    const [q] = parseQuestions('## 2. [secondaire] Quel nom ?\n');
+    expect([q.n, q.level, q.text]).toEqual([2, 'secondary', 'Quel nom ?']);
+  });
+
+  it('sans niveau, `[toi]` ou `[x]` en tête : pas de level, text entier', () => {
+    const qs = parseQuestions('## 1. Quoi ?\n## 2. [toi] Quoi ?\n## 3. [x] Quoi ?\n');
+    expect(qs.map((q) => [q.text, 'level' in q])).toEqual([['Quoi ?', false], ['[toi] Quoi ?', false], ['[x] Quoi ?', false]]);
+  });
+
+  it('le niveau plus loin dans le titre : pas de level', () => {
+    const [q] = parseQuestions('## 1. Quoi [important] ?\n');
+    expect([q.text, 'level' in q]).toEqual(['Quoi [important] ?', false]);
+  });
+
+  it('un questionnaire d\'avant : numéros, ordre et réponses inchangés, mêlé à des niveaux', () => {
+    const qs = parseQuestions('## 3. Trois ?\n- a\n- b\n## [secondaire] Sans numéro ?\n## 7) [important] Sept ?\n1. oui\n');
+    expect(qs.map((q) => [q.n, q.text, q.options, q.level])).toEqual([
+      [3, 'Trois ?', ['a', 'b'], undefined],
+      [2, 'Sans numéro ?', [], 'secondary'],
+      [7, 'Sept ?', ['oui'], 'important'],
+    ]);
+  });
+
+  it('le niveau seul, sans question : text vide, level posé ; la ligne suivante complète le texte', () => {
+    expect(parseQuestions('## 1. [important]\nQuoi ?\n')[0]).toEqual({ n: 1, text: 'Quoi ?', options: [], level: 'important' });
+  });
 });
 
 describe('parseChecklist : les cases d\'une liste', () => {
