@@ -126,7 +126,7 @@ describe('le jeton d’un robot n’est jamais écrit sur le disque', () => {
     await agentSends(robot, 'runs');
     await agentSends(robot, 'run.stop', { action: 'forme' });
 
-    const found = holding(os.tmpdir(), robot);
+    const found = holding(fs.realpathSync.native(os.tmpdir()), robot);
 
     // témoin : le jeton du robot ouvre le socket
     expect(status.ok).toBe(true);
@@ -147,7 +147,7 @@ describe('le jeton extérieur n’est écrit que dans live.json, et seulement r�
     await agentSends(outside, 'run.start', { action: 'forme' });
     await agentSends(outside, 'runs');
 
-    const found = holding(os.tmpdir(), outside!);
+    const found = holding(fs.realpathSync.native(os.tmpdir()), outside!);
 
     // témoin : le jeton extérieur ouvre le socket
     expect(status.ok).toBe(true);
@@ -186,7 +186,7 @@ describe('le jeton extérieur n’est écrit que dans live.json, et seulement r�
     expect(outside).toBeTruthy();
 
     await fromPage('settings', { set: 'outsideAgents', value: false });
-    const found = holding(os.tmpdir(), outside!);
+    const found = holding(fs.realpathSync.native(os.tmpdir()), outside!);
 
     // témoin : live.json est toujours là (l'appli tourne)
     expect(fs.existsSync(liveJson())).toBe(true);
@@ -203,7 +203,7 @@ describe('le jeton extérieur n’est écrit que dans live.json, et seulement r�
     // témoin : le réglage activé, live.json porte un jeton
     expect(outside).toBeTruthy();
     // le seul fichier qui le porte est live.json
-    expect(holding(os.tmpdir(), outside!)).toEqual([liveJson()]);
+    expect(holding(fs.realpathSync.native(os.tmpdir()), outside!)).toEqual([liveJson()]);
   });
 });
 
