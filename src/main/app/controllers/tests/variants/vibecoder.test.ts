@@ -39,7 +39,7 @@ const fake = vi.hoisted(() => {
     branches: null as string[] | null, synced: [] as string[], prs: null as unknown, login: 'moi' as string | null,
     found: null as unknown, people: null as unknown,
     dev: null as 'reload' | 'restart' | null, answer: 0, busy: false, release: (() => {}) as (v?: unknown) => void,
-    fork: null as string | null, reads: [] as unknown[][],
+    fork: null as string | null, reads: [] as unknown[][], onFork: null as null | (() => Promise<void>),
     // Le socket de l'écran : les commandes envoyées [commande, arguments] ; la réponse du cas (null : celle de l'exécuteur, 'down' : socket indisponible).
     sent: [] as [string, unknown][], reply: null as null | 'down' | ((command: string, args: unknown) => unknown),
     exec: (async () => null) as (agent: unknown, command: string, args: unknown) => Promise<unknown>,
@@ -83,7 +83,7 @@ vi.mock('technicals/git', () => ({
   gitReader: () => ({
     facts: async () => fake.facts, commit: async () => fake.diff,
     show: async (ref: string, p: string) => { fake.reads.push(['show', ref, p]); return fake.shown; },
-    forkPoint: async (base: string) => { fake.reads.push(['forkPoint', base]); return fake.fork; },
+    forkPoint: async (base: string) => { fake.reads.push(['forkPoint', base]); await fake.onFork?.(); return fake.fork; },
     branches: async () => fake.branches, sync: async (base: string) => { fake.synced.push(base); return { behind: 1, baseAhead: 2 }; },
   }),
   okRef: (ref: string) => /^(?!-)(?!.*\.\.)[A-Za-z0-9._/-]+$/.test(ref),
@@ -210,6 +210,7 @@ beforeEach(() => {
   fake.edited = [];
   fake.shown = null;
   fake.fork = null;
+  fake.onFork = null;
   fake.reads = [];
   fake.diff = null;
   fake.opened = [];
@@ -1907,5 +1908,145 @@ describe('0.15.0 : l’écran par le socket (les adaptateurs)', () => {
         expect(refusalText(err(code), 'fr').length).toBeGreaterThan(0);
       }
     });
+  });
+});
+
+// Valider la note (0.15.0-skills-humain-ia) : le premier clic du créateur lance la vérification de conception au lieu de
+// valider ; sa fin sans question valide la note du clic, avec une question la laisse à valider ; Revérifier ne valide jamais.
+describe('0.15.0 : Valider la note, la course à la vérification de conception', () => {
+  const ACTIONS = [
+    { id: 'design-check', flow: 'create', step: 'note', kind: 'send', needs: 'none', reads: true, label: 'Vérifier la conception', text: '/vibecoder:conception {{lang}} {{out}}' },
+    { id: 'forme', flow: 'create', step: 'forme', kind: 'send', needs: 'none', label: 'Forme', text: '/vibecoder:forme {{lang}} {{out}}' },
+  ];
+  const QUESTION = '## 1. Une question ?\n';
+  beforeEach(() => {
+    write(path.join(fake.userData, 'vibecoder', 'actions.fr.json'), JSON.stringify(ACTIONS));
+    // Les courses de ce bloc sont celles de chaque cas : le faux de controllers/runs du haut du fichier garde les siennes d'un cas
+    // à l'autre (vi.resetModules ne le refait pas). Ce bloc est le dernier du fichier.
+    vi.doUnmock('app/controllers/runs');
+  });
+
+  const checks = () => fake.messages.filter((m) => JSON.stringify(m).includes('/vibecoder:conception')).length;
+  const marks = async () => (await import('app/settings')).vibeStore().marks.a1 ?? {};
+  const noteState = async (text: string) => {
+    const { markState, blobSha } = await import('core/vibecoder');
+    return markState(await marks(), 'note', blobSha(text));
+  };
+  // Un relevé : la fin de la course est lue à chaque relevé.
+  const survey = async () => { await (await import('app/controllers')).refreshVibe({ now: true }); await settle(); };
+  const click = async () => { (await import('app/controllers')).markVibe('note', 'ok'); await settle(); };
+
+  it('le premier Valider la note : le faux claude reçoit /vibecoder:conception, la note pas validée', async () => {
+    await open();
+    await click();
+    expect(checks()).toBe(1);
+    expect(await noteState(NOTE)).toBeNull();
+  });
+
+  it('sa fin sans question : la note validée', async () => {
+    await open();
+    await click();
+    await survey();
+    expect(checks()).toBe(1);
+    expect(await noteState(NOTE)).toBe('ok');
+  });
+
+  it('sa fin sans question, la note réécrite pendant la course : validée pour le texte du clic, « modifiée depuis »', async () => {
+    const NEW = `${NOTE}\n- une ligne de plus\n`;
+    fake.busy = true;
+    await open();
+    await click();
+    write(path.join(dir, 'docs/tickets/feat/0.8.0-essai.md'), NEW);
+    fake.busy = false;
+    fake.release();
+    await settle();
+    await survey();
+    expect(checks()).toBe(1);
+    expect(await noteState(NOTE)).toBe('ok');
+    expect(await noteState(NEW)).toBe('changed');
+  });
+
+  it('sa fin pendant le relevé : les questions de questions.md à sa fin, pas celles lues au début du relevé', async () => {
+    fake.busy = true;
+    await open();
+    await click();
+    // Le relevé a lu les sorties (sans question) ; pendant qu'il attend git, la vérification écrit sa question et finit.
+    fake.onFork = async () => {
+      fake.onFork = null;
+      write(path.join(out, 'questions.md'), QUESTION);
+      fake.busy = false;
+      fake.release();
+      await settle();
+    };
+    await survey();
+    await survey();
+    expect(checks()).toBe(1);
+    expect(await noteState(NOTE)).toBeNull();
+  });
+
+  it('un second Valider et vérifier pendant la vérification : la note validée à sa fin, pour le texte du clic', async () => {
+    fake.busy = true;
+    await open();
+    await click();
+    await click();   // refusé (same) : la vérification court déjà
+    fake.busy = false;
+    fake.release();
+    await settle();
+    await survey();
+    expect(checks()).toBe(1);
+    expect(await noteState(NOTE)).toBe('ok');
+  });
+
+  it('sa fin avec une question : pas validée ; Valider ensuite : validée, aucune course', async () => {
+    write(path.join(out, 'questions.md'), QUESTION);
+    await open();
+    await click();
+    await survey();
+    expect(await noteState(NOTE)).toBeNull();
+    await click();
+    expect(await noteState(NOTE)).toBe('ok');
+    expect(checks()).toBe(1);
+  });
+
+  it('Revérifier : une course, ses questions, aucune validation', async () => {
+    write(path.join(out, 'questions.md'), QUESTION);
+    await open();
+    await click();
+    await survey();
+    fs.rmSync(path.join(out, 'questions.md'));   // sans question, cette fois
+    const { runVibeAction } = await import('app/controllers');
+    expect(await runVibeAction('design-check', {})).toEqual({ ok: true });
+    await settle();
+    await survey();
+    expect(checks()).toBe(2);
+    expect(await noteState(NOTE)).toBeNull();
+  });
+
+  it('une course qui modifie la branche en cours : le clic attend en file, puis part', async () => {
+    fake.busy = true;
+    await open();
+    const { runVibeAction, markVibe } = await import('app/controllers');
+    const { queuedOf } = await import('app/controllers/runs');
+    await runVibeAction('forme', {});
+    await settle();
+    markVibe('note', 'ok');
+    await settle();
+    expect(checks()).toBe(0);
+    expect(queuedOf('a1')).toEqual([{ action: 'design-check', by: 'forme' }]);
+    fake.busy = false;
+    fake.release();
+    await settle();
+    await survey();
+    expect(checks()).toBe(1);
+    expect(queuedOf('a1')).toEqual([]);
+  });
+
+  it('relecteur : Valider la note, son verdict aussitôt, aucune course', async () => {
+    review();
+    await open();
+    await survey();   // le rôle, d'après gh
+    await click();
+    expect(checks()).toBe(0);
+    expect(await noteState(NOTE)).toBe('ok');
   });
 });
