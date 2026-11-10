@@ -83,3 +83,40 @@ it('Validé, ou sans onRemark : pas de bouton', async () => {
   expect(none()).toHaveLength(0);
   expect(buttons()).toHaveLength(2);
 });
+
+it('note, créateur (onRecheck) : pas vérifiée → « Valider et vérifier », un clic → onMark(\'ok\') ; en anglais aussi', async () => {
+  const log: unknown[] = [];
+  const draw = (state: 'ok' | 'ko' | 'changed' | null, checked: boolean, lang: 'fr' | 'en' = 'fr') => act(() => root.render(createElement(MarkControl,
+    { what: 'note', state, review: false, lang, checked, onMark: (v) => { log.push(v); }, onRecheck: () => { log.push('recheck'); } })));
+  await draw(null, false);
+  expect(buttons().map((b) => b.textContent)).toEqual(['Valider et vérifier']);
+  buttons()[0].click();
+  expect(log).toEqual(['ok']);
+  await draw(null, false, 'en');
+  expect(buttons().map((b) => b.textContent)).toEqual(['Approve and check']);
+});
+
+it('note vérifiée, pas validée ou modifiée depuis : « Revalider » et « Revérifier » ; Revérifier → onRecheck, jamais onMark', async () => {
+  const log: unknown[] = [];
+  for (const state of [null, 'changed'] as const) {
+    await act(() => root.render(createElement(MarkControl,
+      { what: 'note', state, review: false, lang: 'fr', checked: true, onMark: (v) => { log.push(v); }, onRecheck: () => { log.push('recheck'); } })));
+    expect(buttons().map((b) => b.textContent)).toEqual(['Revalider', 'Revérifier']);
+    buttons()[1].click();
+    expect(log).toEqual(['recheck']);
+    log.length = 0;
+  }
+  await act(() => root.render(createElement(MarkControl,
+    { what: 'note', state: null, review: false, lang: 'en', checked: true, onMark: () => {}, onRecheck: () => {} })));
+  expect(buttons().map((b) => b.textContent)).toEqual(['Approve again', 'Check again']);
+});
+
+it('note validée : inchangé (pas de Revérifier) ; forme, relecteur : leurs libellés inchangés', async () => {
+  await act(() => root.render(createElement(MarkControl,
+    { what: 'note', state: 'ok', review: false, lang: 'fr', checked: true, onMark: () => {}, onRecheck: () => {} })));
+  expect(page.textContent).toBe('Note validéeAnnuler');
+  await act(() => root.render(createElement(MarkControl, { what: 'forme', state: null, review: false, lang: 'fr', onMark: () => {} })));
+  expect(buttons().map((b) => b.textContent)).toEqual(['Valider la forme']);
+  await act(() => root.render(createElement(MarkControl, { what: 'note', state: null, review: true, lang: 'fr', checked: true, onMark: () => {} })));
+  expect(buttons().map((b) => b.textContent)).toEqual(['Valider la note', 'À revoir']);
+});
