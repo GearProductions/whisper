@@ -14,24 +14,24 @@ effort: high
 ## 1. What remains
 
 - Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists. Then `git log --format='%h %s' --name-only <base>..HEAD` and `git status --short`.
-- The note's « Forme » (under `docs/tickets/`, named like the branch, or the one the branch adds or changes): the modules no commit of the branch touches and with no uncommitted changes, in its order. None → say so and stop.
-- Uncommitted changes of a module → it is written: review it with the first wave (step 3), don't generate it again.
+- The note's « Forme » (under `docs/tickets/`, named like the branch, or the one the branch adds or changes): the modules not started, in its order. None → say so and stop.
+- A module is started when a commit without the note touches one of its files, or, the note committed, when one of its files changed without being committed. Its skeleton alone (the files as *Poser la forme* wrote them: carried by the note's commit, or uncommitted before any commit) is not started: it is still to generate, even if `git status` lists its files.
+- A started module with uncommitted changes → it is written: review it with the first wave (step 3), don't generate it again.
 - For each module, from the note: its « Forme » entry (its `variants :` line and cases included), the lines of « Ce que ça ne doit pas faire » that concern it, and the paths of its invariant tests. They go into its subagent's prompt.
 
 ## 2. Generate, in waves
 
 A module waits until the modules it uses are written: pure functions → orchestration → routes / IPC → UI → glue. Within a wave: one subagent per module, all started in the same message so they run in parallel, each on files no other subagent touches. Each one is an Agent call with `subagent_type: "vibecoder:developpeur"` (Sonnet, high effort, ponytail preloaded; if that type is unknown, `model: "sonnet"`) and a prompt that says:
-- « Read `${CLAUDE_SKILL_DIR}/../module/SKILL.md` and follow it with the arguments `<lang> <out> <path — contract>`. »
-- « Module (Forme entry): <the entry, verbatim>. "Ne doit pas" lines: <each one, with its invariant / variant / review tag>. Its invariants (protected, must turn green): <paths>. »
+- « Fill the module's skeleton (don't recreate it). Module (Forme entry): <the entry, verbatim>. "Ne doit pas" lines: <each one, with its invariant / variant / review tag>. Its invariants (protected, must turn green): <paths>. »
 - « Files you may create or change: <list>. Any other file must change → stop and say which one and why. »
 - « Other modules are being written at the same time: errors in files outside your list are not yours — report them, don't fix them. »
-- « Write its variants first, red, then the code (TDD): say how many were red before the code. »
+- « Write its variants first, red, then the code (TDD): say how many were red before the code. Test its complex functions and technical code too (edge cases, bounds, errors, concurrency…), beyond the note's variants. »
 - « Apply the ponytail skill. Commit nothing. Don't request a review (`vibecoder run start review-diff`): I review your diff. »
 
 ## 3. Review each diff yourself
 
 Before the next wave, for each module (`git diff -- <files>`, new files read in full): the four questions of §5.1 — out of the planned scope? a dependency added? I/O in a loop, an N+1, a blocking call? a read or write without the right scoping? — plus duplication with existing code, the file header true to the contract, its « ne doit pas » lines respected, its invariants green and untouched, its variants in the file its Forme entry names, covering its cases, and seen red before the code (its answer says so; otherwise send it back like any defect), under ~400 lines.
-- Small defect → fix it yourself.
+- Every remark of this review is applied, none left over: a small defect → fix it yourself. Code outside the note's contract (not a defect to fix: a contract decision) → tag `[toi]`, in the answer.
 - Otherwise → `SendMessage` to the same subagent (its agent id) with the precise correction: it keeps its context, nothing to reread. Review its new diff.
 - Second failure → a new Agent call, same `subagent_type`, with `model: "opus"` (it overrides the agent's header), the same prompt plus what went wrong twice.
 
@@ -45,4 +45,4 @@ Never: commit or push; edit a protected test to make it pass; close, kill or res
 
 ## Answer
 
-In English: one line per module generated (its files, its tests, who wrote it: Sonnet, or Opus after two failures), then the result of the full suite, then what is left or what you had to decide. Nothing is committed.
+In English: one line per module generated (its files, its tests, who wrote it: Sonnet, or Opus after two failures), then the result of the full suite, then the `[toi]` remarks (code outside the note's contract), then what is left or what you had to decide. Nothing is committed.
