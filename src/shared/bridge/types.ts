@@ -245,6 +245,7 @@ export type VibeNote = VibeFile & {
   mustNot: { text: string; mark: MustNotMark }[];
   mark: VibeMarkState;         // la note
   formeMark: VibeMarkState;    // sa rubrique « Forme »
+  checked?: boolean;           // la vérification de conception faite une fois pour cette note (marque 'design') ; absent = false
   nothingMark?: VibeMarkState; // ✓ Rien à écrire (Invariants, créateur) ; absent = null
   locked?: string | null;      // pourquoi elle ne s'édite pas (codeLock) ; absent = null : éditable
 };
@@ -254,7 +255,8 @@ export type VibeModule = {
   paths: string[];             // ses chemins, un par « + » de l'entrée (journey, d'après NoteFacts) : un seul sans « + »
   contract: string;            // expose · ne connaît pas · utilisé par
   file: VibeFile | null;       // son fichier ou dossier, s'il existe
-  touched: boolean;            // la branche le touche
+  touched: boolean;            // la branche le touche (un squelette compris)
+  started?: boolean;           // un fichier a changé depuis son squelette : un commit sans la note le touche, ou, la note commitée, un fichier pas commité ; absent = comme touched
   commits: string[];           // hash des commits qui le touchent
   files?: (VibeFile & { deleted?: boolean; git?: VibeGit })[];  // touché : ses fichiers que la branche change (ids m<rang>/<i>) ; deleted : supprimé par la branche (absent = false) ; git : pas commité (absent : commité) ; absent = []
   locked?: string | null;      // pourquoi Voir le code est grisé (codeLock) ; absent = null : éditable

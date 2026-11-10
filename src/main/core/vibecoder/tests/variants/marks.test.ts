@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  addComment, blobSha, editComment, markState, parseNote, removeComment, setMark, targetHash, vibeMarks, vibeView,
+  addComment, blobSha, designChecked, designEnd, editComment, markState, noteClick, parseNote, removeComment, setMark, targetHash, vibeMarks, vibeView,
   type Drafts, type JourneyInput, type Marks,
 } from 'core/vibecoder';
 
@@ -138,5 +138,62 @@ describe('targetHash : commit:<hash>', () => {
 
   it('un hash absent du relevé : null, la marque refusée', () => {
     expect(targetHash(view, 'commit:zzz')).toBeNull();
+  });
+});
+
+describe('la vérification de conception de la note', () => {
+  const path = '/p/note.md';
+  const checked: Marks = { design: { hash: path, verdict: 'ok' } };
+  const done = { path, state: 'done' as const, questions: 0, clicked: 'h1' };
+
+  it('noteClick : créateur, pas vérifiée, ok → check ; vérifiée → mark', () => {
+    expect(noteClick({}, path, 'ok', 'create')).toBe('check');
+    expect(noteClick({ design: { hash: '/autre.md', verdict: 'ok' } }, path, 'ok', 'create')).toBe('check');
+    expect(noteClick(checked, path, 'ok', 'create')).toBe('mark');
+  });
+
+  it('noteClick : relecteur ; ko ; null (Annuler) → mark', () => {
+    expect(noteClick({}, path, 'ok', 'review')).toBe('mark');
+    expect(noteClick({}, path, 'ko', 'create')).toBe('mark');
+    expect(noteClick({}, path, null, 'create')).toBe('mark');
+  });
+
+  it('designChecked : la marque design sur ce chemin, vrai ; sur un autre ou sans, faux', () => {
+    expect(designChecked(checked, path)).toBe(true);
+    expect(designChecked(checked, '/autre.md')).toBe(false);
+    expect(designChecked({}, path)).toBe(false);
+  });
+
+  it('designEnd done, sans question, clicked : validée pour clicked, même si la note a changé depuis', () => {
+    const marks = designEnd({}, done);
+    expect(designChecked(marks, path)).toBe(true);
+    expect(markState(marks, 'note', 'h1')).toBe('ok');
+    expect(markState(marks, 'note', 'h2')).toBe('changed');
+  });
+
+  it('designEnd done avec une question : vérifiée, pas validée', () => {
+    const marks = designEnd({}, { ...done, questions: 1 });
+    expect(designChecked(marks, path)).toBe(true);
+    expect(markState(marks, 'note', 'h1')).toBeNull();
+  });
+
+  it('designEnd sans clicked (Revérifier) : vérifiée, jamais validée', () => {
+    const marks = designEnd({}, { ...done, clicked: null });
+    expect(designChecked(marks, path)).toBe(true);
+    expect(markState(marks, 'note', 'h1')).toBeNull();
+  });
+
+  it('designEnd failed ou stopped : rien de changé, le clic suivant revérifie', () => {
+    for (const state of ['failed', 'stopped'] as const) {
+      const marks = designEnd({}, { ...done, state });
+      expect(marks).toEqual({});
+      expect(noteClick(marks, path, 'ok', 'create')).toBe('check');
+    }
+  });
+
+  it('rend un nouvel état, sans toucher à l\'ancien', () => {
+    const before: Marks = {};
+    designEnd(before, done);
+    expect(before).toEqual({});
   });
 });

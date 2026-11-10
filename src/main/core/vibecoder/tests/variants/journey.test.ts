@@ -8,6 +8,7 @@ const A = (id: string, flow: ActionDef['flow'], step: ActionDef['step'], text: s
 const ACTIONS: ActionDef[] = [
   A('note', 'create', 'note', '/vibecoder:note {{lang}} {{out}} {{text}}', 'text'),
   A('answers', 'create', 'note', 'Réponses :\n{{answers}}'),
+  { ...A('design-check', 'create', 'note', '/vibecoder:conception {{lang}} {{out}}'), reads: true },
   A('forme', 'create', 'forme', '/vibecoder:forme {{lang}} {{out}} {{text}}'),
   A('invariants', 'create', 'invariants', '/vibecoder:invariants {{lang}} {{out}} {{text}}'),
   A('read-invariants', 'both', 'invariants', '/vibecoder:lire-invariants {{lang}} {{out}} {{ref}} {{files}}'),
@@ -722,7 +723,7 @@ describe('le relevé : modules, tests, faits', () => {
     const text = '# x\n\n## Ce que ça fait\nx\n\n## Forme\nmain/core/x/   pur\n';
     const v = vibeView(input({ note: { ...note, text }, repo: repo([], [commit('e', 'core/x', ['src/main/core/x/a.ts'])]),
       exists: (p) => p.startsWith('src/main/core/x') }));
-    expect(v.modules[0]).toEqual({ path: 'main/core/x/', paths: ['main/core/x/'], contract: 'pur', file: { id: 'm0', path: 'src/main/core/x' }, touched: true, commits: ['e'.repeat(40)],
+    expect(v.modules[0]).toEqual({ path: 'main/core/x/', paths: ['main/core/x/'], contract: 'pur', file: { id: 'm0', path: 'src/main/core/x' }, touched: true, started: true, commits: ['e'.repeat(40)],
       files: [{ id: 'm0/0', path: 'src/main/core/x/a.ts' }], locked: null, uncommitted: false });
   });
 
@@ -1352,5 +1353,59 @@ describe('la stabilisation 0.15.0 : les modules à plusieurs chemins, la marque 
     const last = { ok: true, line: '', detail: '', time: 5 };
     const v = vibeView(input({ direct: { stash: { running: false, last }, fetch: { running: false, last } }, checkout: { branch: 'main', dirty: true } }));
     expect(['stash', 'fetch'].map((id) => action(v, id)?.disabled)).toEqual([null, null]);
+  });
+});
+
+describe('un module n\'est commencé que si un fichier a changé depuis son squelette (0.15.0-skills-humain-ia)', () => {
+  const HELLO_PATH = 'src/core/hello.ts', BUTTON_PATH = 'src/app/button.tsx';
+  // Les squelettes : les fichiers des deux modules, créés vides avec la note.
+  const WITH_SKELETONS = commit('a', 'Note, forme, invariants', [NOTE_PATH, TEST_PATH, HELLO_PATH, BUTTON_PATH]);
+  const view = (over: Partial<JourneyInput> = {}) => vibeView(ready({ repo: repo([], [WITH_SKELETONS]), exists: () => true, ...over }));
+  // Un fichier commité puis retouché : dans changed et dans dirty (git status).
+  const retouched = (files: string[], commits: ReturnType<typeof commit>[]) => ({ ...repo([], commits), dirty: files });
+  const started = (v: VibeView) => v.modules.map((m) => m.started);
+
+  it('squelettes pas commités, aucun commit : aucun module commencé, Générer les modules montrée, Invariants pas faite d\'office', () => {
+    const v = vibeView(input({ note, marks: NOTE_OK, repo: repo([HELLO_PATH, BUTTON_PATH]), exists: () => true }));
+    expect(started(v)).toEqual([false, false]);
+    expect([action(v, 'modules')?.hidden, status(v).invariants]).toEqual([false, 'current']);
+  });
+
+  it('squelettes portés par le commit de la note : pas commencés, commits vides, l\'étape Modules pas faite', () => {
+    const v = view();
+    expect([started(v), v.modules.map((m) => m.commits), status(v).modules]).toEqual([[false, false], [[], []], 'current']);
+    expect(action(v, 'modules')?.hidden).toBe(false);
+  });
+
+  it('la note commitée, un fichier d\'un module modifié : commencé', () => {
+    expect(started(view({ repo: retouched([HELLO_PATH], [WITH_SKELETONS]) }))).toEqual([true, false]);
+  });
+
+  it('un commit de module : commencé, ce commit seul dans commits', () => {
+    const v = view({ repo: repo([], [WITH_SKELETONS, HELLO]) });
+    expect([started(v), v.modules.map((m) => m.commits)]).toEqual([[true, false], [[HELLO.hash], []]]);
+  });
+
+  it('un module à plusieurs chemins : commencé si l\'un l\'est', () => {
+    const TWO = NOTE.replace('src/core/hello.ts    hello()', 'src/core/hello.ts + src/app/other.ts   hello()');
+    const skeletons = commit('a', 'Note', [NOTE_PATH, HELLO_PATH, 'src/app/other.ts']);
+    const two = (changed: string[]) => started(vibeView(input({ note: { ...note, text: TWO }, repo: retouched(changed, [skeletons]), exists: () => true })));
+    expect([two([]), two(['src/app/other.ts'])]).toEqual([[false, false], [true, false]]);
+  });
+
+  it('un squelette : touched vrai, ses fichiers listés', () => {
+    const [hello] = view().modules;
+    expect([hello.touched, hello.files?.map((f) => f.path)]).toEqual([true, [HELLO_PATH]]);
+  });
+
+  it('checked : la marque design sur ce chemin, vrai ; sur un autre, faux', () => {
+    const design = (path: string): Marks => ({ ...NOTE_OK, design: { hash: path, verdict: 'ok' } });
+    expect([design(NOTE_PATH), design('docs/tickets/autre.md'), NOTE_OK].map((marks) => vibeView(input({ note, marks })).note?.checked))
+      .toEqual([true, false, false]);
+  });
+
+  it('design-check masquée avant la vérification, montrée après', () => {
+    const hidden = (marks: Marks) => action(vibeView(input({ note, marks })), 'design-check')?.hidden;
+    expect([hidden(NOTE_OK), hidden({ ...NOTE_OK, design: { hash: NOTE_PATH, verdict: 'ok' } })]).toEqual([true, false]);
   });
 });
