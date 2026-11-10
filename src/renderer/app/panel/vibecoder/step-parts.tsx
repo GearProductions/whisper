@@ -6,7 +6,7 @@
  *  la carte d'une sortie de skill (titre, fichier, depuis quand), le bouton
  *  d'une action du relevé (son libellé ou un plus court, qui travaille,
  *  pourquoi c'est grisé ; ton plain, accent, vibe ou ghost ;
- *  sa course en cours : « en cours » et IconButton stop ;
+ *  sa course en cours : « en cours » et IconButton stop (RunOn, aussi la course de la vérification de la note) ;
  *  absent si l'action n'existe pas ou que le relevé la masque (hidden) ; une
  *  action que l'appli fait elle-même : « direct », à côté « via » l'agent, et
  *  dessous son dernier résultat, Icon ok / ko, F-114), l'invitation (rien encore, et ce qui
@@ -123,6 +123,17 @@ export function OutputCard({ title, file, time, t, tools, acts, className, child
 // onRun : sans argument, par l'agent ; { direct: true } : par l'appli elle-même (VibeAction.direct).
 type RunProps = { a: VibeAction | undefined; busy: boolean; label?: ReactNode; tone?: 'vibe' | 'accent' | 'plain' | 'ghost'; onRun(extra?: VibeArgs): void };
 
+// La course d'une action ou d'une vérification : « en cours » (libellé de runState) et IconButton stop, sauf
+// arrêtée ; sans onStop, aucun ⏹.
+export function RunOn({ state, t, onStop }: { state: VibeRun['state']; t: Strings; onStop?(): void }) {
+  return (
+    <span className="vc-run-on">
+      {t.runState[state]}
+      {state !== 'stopped' && onStop ? <IconButton icon="stop" label={t.runStopTitle} onClick={onStop} /> : null}
+    </span>
+  );
+}
+
 // Une action du relevé (masquée, hidden : rien) : envoyée ou préparée dans le champ ; un message de la conversation (sans
 // étape) est grisé tant qu'elle travaille, une action d'étape court à part (sa course en cours :
 // « en cours » et ⏹). Une action
@@ -140,12 +151,7 @@ export function Run({ a, busy, label, tone = 'plain', onRun }: RunProps) {
   const offDirect = !!a.disabled || (waits && !direct?.elsewhere);   // elsewhere : un autre dossier que celui de l'agent, « via » reste grisé (I-25)
   const state = run.state(a.id);
   const live = isLive(state);   // sa course retient les autres
-  const running = live && state ? (
-    <span className="vc-run-on">
-      {t.runState[state]}
-      {state !== 'stopped' ? <IconButton icon="stop" label={t.runStopTitle} onClick={() => run.stop(a.id)} /> : null}
-    </span>
-  ) : null;
+  const running = live && state ? <RunOn state={state} t={t} onStop={() => run.stop(a.id)} /> : null;
   const button = (
     <button type="button" className="vc-run" data-tone={tone} disabled={offDirect}
       title={a.disabled ? `${a.hint}\n— ${a.disabled}` : a.hint} onClick={() => (direct ? onRun({ direct: true }) : onRun())}>

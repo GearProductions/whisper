@@ -52,6 +52,10 @@
 .vc-vbtn[data-v="ko"] { border-color: var(--vc-warn-edge); background: transparent; color: var(--vc-warn); }
 .vc-vbtn[data-v="ko"]:hover { border-color: var(--vc-warn); background: var(--vc-warn-bg); }
 
+/* Revérifier : neutre, ni le vert ni la coche (il ne valide rien). */
+.vc-vbtn.vc-vbtn-plain { border-color: var(--vc-line); color: var(--vc-soft); }
+.vc-vbtn.vc-vbtn-plain:hover { border-color: var(--vc-soft); background: transparent; color: var(--vc-text); }
+
 /* Verdict d'un cas : deux badges gris ; au survol, un avant-goût de leur couleur ; celui donné allumé. */
 .vc-verdict { display: inline-flex; flex: none; gap: 4px; }
 .vc-verdict button {
