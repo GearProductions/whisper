@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { changedLines, excerpt, foldDiff, lineDiff, mustNotTags, type DiffLine } from 'core/vibecoder';
+import { changedLines, excerpt, foldDiff, lineDiff, mustNotLine, mustNotTags, type DiffLine } from 'core/vibecoder';
 
 const same = (text: string): DiffLine => ({ kind: 'same', text });
 const added = (text: string): DiffLine => ({ kind: 'added', text });
@@ -89,6 +89,57 @@ describe('mustNotTags', () => {
   it('une puce absente du relevé (gabarit) : rien, la suivante garde la sienne', () => {
     expect([...mustNotTags('## Ce que ça ne doit pas faire\n- (rien)\n- X → invariant', [{ text: 'X → invariant', mark: 'invariant' }])])
       .toEqual([[2, 'invariant']]);
+  });
+});
+
+describe('mustNotLine', () => {
+  const md = [
+    '## Ce que ça fait',                                   // 0
+    '- Lire un fichier',                                   // 1
+    '```',                                                 // 2
+    '- Lire un fichier qu\'une page désigne → invariant',  // 3
+    '```',                                                 // 4
+    '## Ce que ça ne doit pas faire',                      // 5
+    '- Lire un fichier',                                   // 6
+    '- Lire un fichier qu\'une page',                      // 7
+    '  désigne → invariant',                               // 8
+    '',                                                    // 9
+    '- Doublon',                                           // 10
+    '- Doublon',                                           // 11
+    '## Forme',                                            // 12
+    '- Hors rubrique',                                     // 13
+  ].join('\n');
+
+  it('une puce sur deux lignes : la ligne de sa puce', () => {
+    expect(mustNotLine(md, 'Lire un fichier qu\'une page désigne → invariant')).toBe(7);
+    expect(mustNotLine(md, 'Lire un fichier')).toBe(6);
+  });
+
+  it('une puce de même début, d\'un autre texte : null', () => {
+    expect(mustNotLine(md, 'Lire un fichier qu\'une page')).toBeNull();
+    expect(mustNotLine(md, 'Lire un fichier qu\'une page désigne')).toBeNull();
+  });
+
+  it('la même phrase hors de la rubrique, ou dans un bloc de code : ignorée', () => {
+    expect(mustNotLine(md, 'Hors rubrique')).toBeNull();
+    expect(mustNotLine(md.replace(/## Ce que ça ne doit pas faire[^]*?## Forme/, '## Forme'), 'Lire un fichier qu\'une page désigne → invariant')).toBeNull();
+  });
+
+  it('deux puces identiques : la première', () => {
+    expect(mustNotLine(md, 'Doublon')).toBe(10);
+  });
+
+  it('fins de ligne CRLF, titre anglais, puce numérotée : lues comme le principal', () => {
+    expect(mustNotLine('## What it must not do\r\n1. Leak a\r\n   path\r\n', 'Leak a path')).toBe(1);
+  });
+
+  it('rubrique absente, puce retirée, texte vide : null', () => {
+    expect(mustNotLine('## Forme\n- X', 'X')).toBeNull();
+    expect(mustNotLine('', 'X')).toBeNull();
+  });
+
+  it('une rubrique qui suit un autre titre ## : la suite de la dernière puce ne la franchit pas', () => {
+    expect(mustNotLine('## Ce que ça ne doit pas faire\n- A\n## Forme\ntexte', 'A texte')).toBeNull();
   });
 });
 

@@ -5,6 +5,7 @@
    d'un fichier alignés sur 22 px ; les icônes (Icon) de l'état et de « Tout
    valider » à la taille du texte. Un cas validé garde sa carte (fond et
    cadre), la fine bordure verte à gauche et le badge allumé. Sous .vc.
+   Ce que le cas garde (.vc-case-keeps, case-link) : liens vers la note, grisés si la lecture est périmée.
    Ne connaît pas : les composants (seulement leurs classes).
    Utilisé par : invariants-view (importé). */
 
@@ -138,6 +139,11 @@
 .vc-case-guarantee .vc-case-label { color: var(--vc-ok-text); }
 .vc-case-guarantee .vc-case-label::before { content: "✓ "; }
 .vc-case-guarantee p { color: var(--vc-text); }
+/* Ce que le cas garde (case-link) : les lignes de la note, en liens ; périmé, grisé comme la lecture. */
+.vc-case-keeps ul { margin: 0; padding: 0; list-style: none; color: var(--vc-soft); }
+.vc-case-keeps .vc-case-none { color: var(--vc-faint); }
+.vc-case-go { padding: 0; border: 0; background: none; color: var(--vc-link); font: inherit; text-align: left; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.vc-case-keeps[data-stale] { opacity: 0.55; }
 .vc-case :is(.vc-case-row, .vc-attention) code { padding: 0 4px; border-radius: 4px; background: var(--vc-deep); color: var(--vc-text); font: 11.8px/1.5 var(--vc-mono); }
 
 /* Attention : l'encart ambre. */

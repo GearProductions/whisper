@@ -71,3 +71,15 @@ it('le numéro d\'ordre : sans rank, aucun ; avec rank, sur les fichiers qu\'il 
   expect(row('c.ts').querySelector('.vc-tree-rank')).toBeNull();
   expect(row('a').querySelector('.vc-tree-rank')).toBeNull();
 });
+
+it('dim : data-dim sur les fichiers qu\'il grise, la couleur (data-mark) gardée, cliquables ; jamais un dossier', async () => {
+  await draw();
+  expect(page.querySelector('[data-dim]')).toBeNull();
+  await draw({ mark: (k) => (k === 'a/b.ts' ? 'new' : null), dim: (k) => k === 'a/b.ts' || k === 'a' });
+  expect(row('a/b.ts').hasAttribute('data-dim')).toBe(true);
+  expect(row('a/b.ts').dataset.mark).toBe('new');
+  expect(row('c.ts').hasAttribute('data-dim')).toBe(false);
+  expect(row('a').hasAttribute('data-dim')).toBe(false);
+  await act(() => row('a/b.ts').click());
+  expect(log).toEqual(['select a/b.ts']);
+});

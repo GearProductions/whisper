@@ -6,9 +6,11 @@
  *  (`test "…":`, la forme des lectures) ou en commentaire (`it(…)`, l'ancienne) ;
  *  le point d'attention d'un cas, versé en un clic : cité dans le champ de la
  *  conversation (attentionQuote, comme on cite la note : du texte, sans `>`),
- *  ou ajouté à la zone de commentaire sans rien effacer (withAttention).
- *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder (invariants-view). */
-import type { ReadingCase, VibeMarkState, VibeTestFile } from 'technicals/bridge';
+ *  ou ajouté à la zone de commentaire sans rien effacer (withAttention) ; la ligne « → invariant » de
+ *  la note que garde un cas, d'après la seule phrase Garantit de sa lecture (caseLink).
+ *  Ne connaît pas : le DOM, React, la spécification du projet (un I-… n'est qu'un numéro).
+ *  Utilisé par : app/panel/vibecoder (invariants-view). */
+import type { ReadingCase, VibeMarkState, VibeNote, VibeTestFile } from 'technicals/bridge';
 import { tokens, type Token } from './highlight';
 
 export type CaseView = { title: string; reading: ReadingCase | null; mark: VibeMarkState };
@@ -105,3 +107,29 @@ export function withAttention(text: string, attention: string): string {
   if (!text.trim()) return attention;
   return text.trimEnd().endsWith(attention.trim()) ? text : `${text.trimEnd()}\n\n${attention}`;
 }
+
+// Ce qu'un cas garde : note, les lignes « → invariant » de la note (mark 'invariant', leur texte tel que dans
+// mustNot) que sa phrase Garantit cite mot pour mot (leur texte avant « → », blancs, guillemets et apostrophes
+// typographiques confondus), dans l'ordre de la note ; une ligne citée contenue dans une autre aussi citée ne
+// compte que par la plus longue. spec, sans ligne de la note citée : les I-<n> de la phrase (dans leur ordre,
+// sans doublon). none : pas de lecture, pas de phrase, rien de cité. La lecture périmée garde le sien.
+export type CaseLink = { kind: 'note'; lines: string[] } | { kind: 'spec'; ids: string[] } | { kind: 'none' };
+
+export function caseLink(reading: ReadingCase | null, mustNot: VibeNote['mustNot']): CaseLink {
+  const said = reading ? norm(reading.guarantees) : '';
+  const cited = mustNot
+    .filter((l) => l.mark === 'invariant')
+    .map((l) => {
+      const arrow = Math.max(l.text.lastIndexOf('→'), l.text.lastIndexOf('->'));
+      // avant la dernière flèche ; sans flèche, après le préfixe de la marque (« [invariant] … », comme parseNote)
+      return { text: l.text, key: norm(arrow >= 0 ? l.text.slice(0, arrow) : l.text.replace(/^[[(][^\])]*[\])]/, '')) };
+    })
+    .filter((l) => l.key && said.includes(l.key));
+  const lines = cited.filter((l) => !cited.some((o) => o.key.length > l.key.length && o.key.includes(l.key))).map((l) => l.text);
+  if (lines.length) return { kind: 'note', lines };
+  const ids = [...new Set(reading?.guarantees.match(/\bI-\d+\b/g))];
+  return ids.length ? { kind: 'spec', ids } : { kind: 'none' };
+}
+
+// Blancs réduits à une espace, guillemets (« », “ ”, „) ramenés à ", apostrophes (’ ‘) à '.
+const norm = (s: string) => s.replace(/«\s*/g, '"').replace(/\s*»/g, '"').replace(/[“”„]/g, '"').replace(/[’‘]/g, "'").replace(/\s+/g, ' ').trim();

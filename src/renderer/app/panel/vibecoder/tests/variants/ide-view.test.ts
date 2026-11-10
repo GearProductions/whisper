@@ -136,3 +136,18 @@ it('le défilement de l\'arborescence et du fichier, la vue recréée : restaur�
   const other = await visit(kept, 'b');
   expect([other.q('.vc-ide-side').scrollTop, other.q('.vc-ide-main').scrollTop]).toEqual([0, 0]);
 });
+
+it('un fichier dim : data-dim, son clic le choisit ; sans dim, rien', async () => {
+  await draw([{ ...f('a/x.ts'), dim: true }, f('z.ts')]);
+  expect(row('a/x.ts')!.hasAttribute('data-dim')).toBe(true);
+  expect(row('z.ts')!.hasAttribute('data-dim')).toBe(false);
+  await act(() => row('z.ts')!.click());
+  await act(() => row('a/x.ts')!.click());
+  expect(shown()).toBe('[a/x.ts]');
+});
+
+it('un test (rank null) : pas de numéro, même avec un rang de test', async () => {
+  await draw([{ ...f('t.test.ts'), rank: null, test: 3 }, { ...f('b.ts'), rank: 1 }]);
+  expect(row('t.test.ts')!.querySelector('.vc-tree-rank')).toBeNull();
+  expect(row('b.ts')!.querySelector('.vc-tree-rank')!.textContent).toBe('2');
+});

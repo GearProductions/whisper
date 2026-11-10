@@ -652,9 +652,13 @@ relire une PR (le relecteur, plus bas) :
 1. **Note** : *Rédiger la note* d'après la demande du champ de l'étape (sur la branche
    principale, c'est une nouvelle demande : l'agent propose d'abord un nom
    de branche, plus bas) ; ses questions
-   ouvertes s'affichent à part, chacune avec un peu de contexte en langage simple
-   (ce qui se passe, pourquoi choisir), des réponses proposées, la conseillée
-   marquée « (recommandé) » avec sa raison : *Envoyer les
+   ouvertes s'affichent à part, chacune avec un badge *important* ou *secondaire*,
+   un peu de contexte en langage simple
+   (ce qui se passe, pourquoi choisir), des réponses proposées (une suggestion de
+   la vérification de conception montre son choix en gras, l'endroit grisé, le
+   texte à ajouter en vert), la conseillée
+   marquée « (recommandé) » avec sa raison, une précision libre (micro, sans
+   *Envoyer* propre) : *Envoyer les
    réponses* (à l'action qui a rédigé la note : elle garde son contexte) ;
    puis *Valider la note*. Le premier clic s'appelle *Valider et vérifier* et ne
    valide pas tout de suite : une vérification de conception (une seule passe,
@@ -664,8 +668,9 @@ relire une PR (le relecteur, plus bas) :
    trouvailles sont des suggestions au questionnaire, à accepter ou refuser
    (*Envoyer les réponses* les écrit dans la note). Sans suggestion, la note est
    validée à la fin ; avec, elle ne l'est pas, et le bouton devient *Revalider*
-   (il valide aussitôt, sans revérifier), avec *Revérifier* à côté, qui relance la
-   vérification seule sans jamais valider. Une note changée pendant la
+   (il valide aussitôt, sans revérifier), avec *Revérifier* avant lui, en couleur
+   neutre, qui relance la vérification seule sans jamais valider. La vérification
+   montre sa course à côté du bouton (*en cours*, ⏹, ou *en attente*). Une note changée pendant la
    vérification est validée pour le texte que vous aviez sous les yeux : elle
    s'affiche « modifiée depuis ». Une fois la note validée, aucune étape de l'IA
    ne change ce qu'elle fait, ce qu'elle ne doit pas faire, où ça casse, ni ses
@@ -700,7 +705,12 @@ relire une PR (le relecteur, plus bas) :
    test observe vraiment sa ligne « → invariant », chaque test a sa ligne),
    corrige seul les tests (3 tours au plus, même hors *Vibe*) et ne vous remonte,
    dans la carte de l'alignement, qu'un changement de contrat ou une note qui rend
-   un test impossible à écrire (*Relancer* le refait) ; puis, dans l'en-tête de chaque
+   un test impossible à écrire (*Relancer* le refait) ; la vue est celle d'un IDE :
+   à gauche les fichiers de la Forme (grisés, en lecture seule) et les tests
+   d'invariants (en vert : ajouté par la branche, en jaune : modifié) ; sous
+   « Garantit » de chaque cas, la ligne « → invariant » de la note qu'il garde, en
+   lien qui ouvre la note à cette ligne (un invariant `I-…` du projet : son
+   numéro ; sinon « non rattaché ») ; puis, dans l'en-tête de chaque
    cas, le badge *Validé* ou *À revoir*, qui s'allume au clic (*À revoir* le cite dans le champ, pour dire quoi changer), *Tout valider* pour
    un fichier. *Lire en pseudo-code* (dans les outils en haut du fichier)
    aide à lire, sans être obligatoire (à
@@ -794,8 +804,9 @@ relire une PR (le relecteur, plus bas) :
    validés. Chaque ligne des retours du créateur (alignement, ponytail review,
    relecture du diff, vérifications, CI) porte une étiquette : `[toi]` pour ce qui
    demande votre décision (un changement de contrat), `[agent]` pour le reste, que
-   l'agent règle seul ; l'écran les affiche telles quelles, le grisé des `[agent]`
-   viendra ensuite. Le relecteur d'une PR n'a pas d'étiquettes : il lit tout.
+   l'agent règle seul ; l'écran remplace l'étiquette par un badge (*pour toi*, en
+   accent ; *pour l'agent*, grisé) et grise le texte d'une `[agent]`, qui reste
+   lisible. Le relecteur d'une PR n'a pas d'étiquettes : il lit tout.
 6. **PR** : sans PR, *Valider la feature (ouvrir la PR)* ; la PR ouverte,
    *Diagnostiquer la CI* et *Release candidate* ; fusionnée, *PR mergée →
    revenir sur la base* (refusé s'il y a des modifications en cours ; sur
@@ -834,8 +845,10 @@ dossier.
 Une validation vaut pour le contenu validé : une note modifiée ensuite
 repasse « modifiée depuis », à revalider. Quand l'étape n'attend plus que
 votre validation, l'étape vous le dit (*Valider la note*, « N cas à valider »). Les lignes de la note que
-l'agent vient de changer sont surlignées (*Voir les modifications* : le
-diff ; *Vu* : ne plus surligner).
+l'agent vient de changer sont surlignées depuis votre dernière relecture (*Voir les
+modifications* : le diff ; *Vu* ou la validation de la note : ne plus surligner ; un
+nouveau tour ne l'efface pas, les modifications s'accumulent). Le badge *variant* de
+la note est d'un bleu plus clair que *invariant*.
 
 **Relecteur** — la PR de la branche du dossier. Pas de bouton à choisir :
 l'appli décide d'après la PR. Vous êtes **relecteur**, par défaut, sur une PR

@@ -96,3 +96,50 @@ it('Relire à l\'écran : sous la Revue du créateur ; seule chez le relecteur, 
   expect(page.textContent).not.toContain('Pas encore de ponytail review');
   expect(page.textContent).not.toContain('Pas encore de vérification');
 });
+
+// Les étiquettes [toi] / [agent] (tagged) : checks.json (en tête du detail) et ponytail.md (après l'adresse).
+const drawTagged = (items: unknown[], ponytail = '- une remarque') => act(() => {
+  const view = { lang: 'fr', flow: 'create', actions: [action('checks'), action('apply')], checklist: [], commits: [], steps: [], draft: [], screen: [],
+    outputs: { 'checks.json': out(JSON.stringify({ items })), 'ponytail.md': out(ponytail) } } as unknown as VibeView;
+  const props = { view, step: { id: 'revue', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
+    code: null, drafts: [{}, () => {}], act: { run: (...a: unknown[]) => runs.push(a), follow: () => {}, mark: () => {}, prefill: () => {},
+      draft: () => {}, open: () => {}, openLink: () => {}, save: async () => true } } as unknown as StepProps;
+  root.render(createElement(ReviewView, props));
+});
+
+it('un check en échec `[agent] …` : son badge, data-tag agent, sa marque ko gardée, le détail sans l\'étiquette ; sans étiquette : comme avant', async () => {
+  await drawTagged([{ name: 'tsc', ok: false, detail: '[agent] erreur\nligne 2' }, { name: 'lint', ok: false, detail: 'boom' }, { name: 'ok', ok: true }]);
+  const [tsc, lint, fine] = [...page.querySelectorAll<HTMLElement>('.vc-check-list > li')];
+  expect(tsc.getAttribute('data-tag')).toBe('agent');
+  expect(tsc.getAttribute('data-state')).toBe('ko');   // la marque ko (rouge, sa propre couleur) reste
+  expect(tsc.querySelector('.vc-mark')).not.toBeNull();
+  expect(tsc.querySelector('.vc-tag-badge')!.textContent).toBe('pour l\'agent');
+  expect(tsc.querySelector('.vc-check-detail')!.textContent).toBe('erreur\nligne 2');
+  expect(tsc.querySelector('.vc-check-line')!.textContent).toBe('erreur');
+  expect(tsc.textContent).not.toContain('[agent]');
+  for (const li of [lint, fine]) {
+    expect(li.hasAttribute('data-tag')).toBe(false);
+    expect(li.querySelector('.vc-tag-badge')).toBeNull();
+  }
+  expect(lint.querySelector('.vc-check-detail')!.textContent).toBe('boom');
+});
+
+it('un check `[toi]` sans autre détail : le badge sur sa ligne, data-tag toi, aucune zone de détail', async () => {
+  await drawTagged([{ name: 'inv', ok: false, detail: '[toi]' }]);
+  const li = page.querySelector<HTMLElement>('.vc-check-list > li')!;
+  expect(li.getAttribute('data-tag')).toBe('toi');
+  expect(li.querySelector('.vc-tag-badge')!.textContent).toBe('pour toi');
+  expect(li.querySelector('.vc-check-detail')).toBeNull();
+});
+
+it('une remarque ponytail étiquetée : son badge ; Appliquer et sa case d\'après son adresse, sur le texte brut', async () => {
+  await drawTagged([], '- `a.ts:L1` [agent] — trop long\n- b.ts:L2 [toi] — contrat');
+  const [one, two] = [...page.querySelectorAll<HTMLElement>('.vc-md li')];
+  expect(one.getAttribute('data-tag')).toBe('agent');
+  expect(one.querySelector('.vc-tag-badge')!.textContent).toBe('pour l\'agent');
+  expect(two.querySelector('.vc-tag-badge')!.textContent).toBe('pour toi');
+  expect(page.textContent).not.toContain('[agent]');
+  expect(page.querySelectorAll('.vc-remark-pick')).toHaveLength(2);
+  await act(() => { one.querySelector<HTMLButtonElement>('.vc-apply-one')!.click(); });
+  expect(runs.at(-1)).toEqual(['apply', { text: 'a.ts:L1 [agent] — trop long' }]);
+});

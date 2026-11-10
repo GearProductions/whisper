@@ -84,6 +84,57 @@ it('sans onQuote, pas de bouton de citation ; pastilles et liseré sur leurs lig
   expect(v.page.querySelector('.vc-tag')?.textContent).toBe('inv');
 });
 
+// Les lignes l0…l(n-1), une par ligne.
+const lines = (n: number) => Array.from({ length: n }, (_, i) => `l${i}`).join('\n');
+
+describe('focus : la ligne défilée et mise en évidence', () => {
+  const marked = (page: HTMLElement) => [...page.querySelectorAll('.cm-line.vc-focus')].map((l) => l.textContent);
+
+  it('focus 12 : la ligne 12 marquée et dans la vue ; sans focus : en haut, rien de marqué', async () => {
+    const v = mount();
+    await v.render({ text: lines(500) });
+    expect(marked(v.page)).toEqual([]);
+    expect(v.view().viewport.from).toBe(0);
+    await v.render({ text: lines(500), focus: 12 });
+    expect(marked(v.page)).toEqual(['l12']);
+    const at = v.view().state.doc.line(13).from;
+    expect(v.view().viewport.from <= at && at <= v.view().viewport.to).toBe(true);
+  });
+
+  it('une ligne lointaine est défilée dans la vue', async () => {
+    const v = mount();
+    await v.render({ text: lines(500), focus: 400 });
+    const at = v.view().state.doc.line(401).from;
+    expect(v.view().viewport.from <= at && at <= v.view().viewport.to).toBe(true);
+    expect(marked(v.page)).toEqual(['l400']);
+  });
+
+  it('focus au-delà de la dernière ligne : rien de marqué, rien ne casse', async () => {
+    const v = mount();
+    await v.render({ text: lines(5), focus: 99 });
+    expect(marked(v.page)).toEqual([]);
+    await v.render({ text: lines(5), focus: -1 });
+    expect(marked(v.page)).toEqual([]);
+  });
+
+  it('focus changé pendant que la note est montée : la marque suit, puis disparaît', async () => {
+    const v = mount();
+    await v.render({ text: lines(500), focus: 3 });
+    expect(marked(v.page)).toEqual(['l3']);
+    await v.render({ text: lines(500), focus: 450 });
+    expect(marked(v.page)).toEqual(['l450']);
+    await v.render({ text: lines(500) });
+    expect(marked(v.page)).toEqual([]);
+  });
+
+  it('ne retire pas le liseré des changements', async () => {
+    const v = mount();
+    await v.render({ text: lines(5), changed: new Set([1]), focus: 2 });
+    expect(v.page.querySelector('.cm-line.vc-changed')?.textContent).toBe('l1');
+    expect(marked(v.page)).toEqual(['l2']);
+  });
+});
+
 it('le défilement est celui de l\'éditeur (.cm-scroller), pas de son cadre', async () => {
   const v = mount();
   await v.render({ text: 'a' });

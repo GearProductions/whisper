@@ -24,13 +24,13 @@ disable-model-invocation: true
 Anything unclear, contradictory or missing is an open question. Write them all to `<out>/questions.md`, in `lang`, with 2 to 4 short options each when possible:
 
 ```markdown
-## 1. <question>
+## 1. [important] <question>
 <one or two sentences of context>
 - <option>
 - <option> (recommandé: <reason>)
 ```
 
-The screen reads the lines under the title, before the options, as the question's text: put the context there. A clear question beats a short one. The context is plain language: what is going on, what is at stake, why a choice is needed; the user's own words when the question comes from their request, and what they see or do (a button, a step, a message). A number (`I-xx`, `T-xx`), a function or a file never stands alone: it comes with what it is, in plain words. Options must make sense without reading the code; mark the recommended one « (recommandé) » (`lang`) with its reason in a few words. Same for the questions in your answer.
+After the number, the level: `[important]` (a design decision, a write to disk, a gap that would make the feature useless) or `[secondaire]` (a precision the user accepts or refuses by reading quickly); never none. The screen reads the lines under the title, before the options, as the question's text: put the context there. A clear question beats a short one. The context is plain language: what is going on, what is at stake, why a choice is needed; the user's own words when the question comes from their request, and what they see or do (a button, a step, a message). A number (`I-xx`, `T-xx`), a function or a file never stands alone: it comes with what it is, in plain words. Options must make sense without reading the code; mark the recommended one « (recommandé) » (`lang`) with its reason in a few words. Same for the questions in your answer.
 
 No question → write the file empty: it means « no more questions ». Any answer, whatever its path — the screen's message (« Réponses aux questions ouvertes… » / « Answers to the open questions… ») or the user answering in the conversation: write each decision in the note, at its place; an answer asking for your advice → give it in your reply and keep the question; an answer leaving it to you → decide, and say what you chose. Then rewrite `questions.md` with what remains (empty: no more questions) — the screen shows the questionnaire as long as the file has a question.
 

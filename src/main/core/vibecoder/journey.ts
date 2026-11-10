@@ -52,7 +52,8 @@
  *  sans module ; note 0.13.0-forme-modules-ide) et le réglage de la vue Modules (modulesView,
  *  recopié) ; la lecture d'un test (readingOf), celle d'une version
  *  précédente montrée périmée (stale), jamais comptée comme lue ; le texte d'un test à la base
- *  (base, passé ; au-delà de SOURCE_MAX : null).
+ *  (base, passé ; au-delà de SOURCE_MAX : null) ; les actions en file d'attente (queued, recopiées : la page
+ *  montre « en attente » à côté de leur bouton, design-check comprise).
  *  Un module de la Forme a un chemin ou plusieurs (parseNote : paths) : ses fichiers sont ceux sous l'un d'eux,
  *  il est touché si l'un l'est (note 0.15.0-stabilisation, T-15) ; commencé (started) seulement si un fichier a
  *  changé depuis son squelette : un commit sans la note le touche, ou, la note commitée, un fichier sous ses chemins
@@ -95,11 +96,12 @@ export type JourneyInput = {
   // Les courses qui retiennent (runs : LOCKING), par id d'action, avec le module qu'elles génèrent (Run.module).
   running: { id: string; reads: boolean; module?: string | null }[];
   runs: VibeRun[];                                  // les courses à l'écran (runViews)
+  queued?: string[];                                // les actions en file d'attente (queuedOf de controllers/runs), dans l'ordre ; absent : aucune
   repo: { branch: string; base: string; changed: string[]; dirty?: string[]; added?: string[]; commits: { hash: string; subject: string; files: string[] }[] } | null;
   error: string | null;                             // pourquoi le dépôt manque
   note: { path: string; text: string; before: string | null } | null;
-  // Les tests de la branche ; base : leur texte à la base de la branche (null : ajouté, au-delà de 200 Ko, pas
-  // de base ; absent : null, les fixtures des invariants protégés d'avant la 0.13.0).
+  // Les tests de la branche ; base : leur texte à la base de la branche (null : absent à la base, ajouté ; absent :
+  // inconnu, pas de base, ou au-delà de 200 Ko, aussi les fixtures des invariants protégés d'avant la 0.13.0).
   tests: { path: string; blob: string; text: string; base?: string | null }[];
   // Toutes les lectures (<sorties>/invariants/<blob>.md) ; par blob : d'avant la 0.11.0 (fixtures protégées), heure 0.
   readings: { blob: string; text: string; time: number }[] | Record<string, string>;
@@ -272,7 +274,7 @@ export function vibeView(input: JourneyInput): VibeView {
     const r = readingOf(t, readings);
     return {
       id: `t${i}`, path: t.path, blob: t.blob, cases: t.cases, lines: t.lines, source: t.text.length > SOURCE_MAX ? '' : t.text,
-      base: t.base != null && t.base.length <= SOURCE_MAX ? t.base : null,
+      base: t.base != null && t.base.length > SOURCE_MAX ? undefined : t.base,
       reading: r && parseReading(r.text), stale: !!r?.stale, locked: codeLock(null, input.busy, input.running, lang),
       marks: Object.fromEntries(t.cases.map((c) => [c, markState(marks, `case:${t.path}:${c}`, t.blob)])),
     };
@@ -541,6 +543,6 @@ export function vibeView(input: JourneyInput): VibeView {
     note, questions, modules, invariants, variants, commits: viewCommits, outputs, checklist, screen, actions,
     skills: input.skills, pr, prs, loaded, child, branches: input.branches ?? null,
     sync: input.sync ?? null, draft: input.draft, worktree: input.worktree ?? null, runs: input.runs,
-    request: input.request ? { branch: input.request } : null, time: input.now,
+    queued: input.queued ?? [], request: input.request ? { branch: input.request } : null, time: input.now,
   };
 }

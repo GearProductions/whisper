@@ -2,7 +2,7 @@
  *  artefacts et des fichiers (nœuds, lignes visibles, dossiers, ids, noms, touches, presse-papiers et menu), le Markdown
  *  (jamais de HTML), les lignes changées, la coloration du
  *  pseudo-code, les libellés ; les
- *  sorties des skills lues sans s'y fier, les lignes de l'étape Modules, ce
+ *  sorties des skills lues sans s'y fier et leurs étiquettes [toi] / [agent], les lignes de l'étape Modules, ce
  *  que Relire prend de l'utilisateur ; la note (ses changements, ses marques),
  *  les réponses aux questions, la Forme par dossier, les cas d'invariants et
  *  leur pseudo-code, la validation qu'attend l'étape en cours ; ce qui s'écrit
@@ -30,5 +30,6 @@ export * from './questions';
 export * from './review-flow';
 export * from './screen';
 export * from './search';
+export * from './tags';
 export * from './tree-keys';
 export * from './validation';

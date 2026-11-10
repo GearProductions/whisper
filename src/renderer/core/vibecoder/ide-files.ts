@@ -1,12 +1,15 @@
-/** ide-files — les lignes de la vue IDE des étapes Forme et Modules, sans le DOM : un fichier ou un module
+/** ide-files — les lignes de la vue IDE des étapes Forme, Modules et Invariants, sans le DOM : un fichier ou un module
  *  par ligne, son rang dans view.modules, l'état de son module (commité : done, touché : wip, sinon todo), la
  *  couleur de son nom comme VS Code (mark : nouveau, modifié, supprimé, pas commités ; todo : à générer ;
  *  null : commité) et ce que ModuleCode en montre (un module, réduit à un fichier pour Modules ; null : rien à montrer).
  *  Sans module (la Forme n'est pas écrite), les lignes sont les fichiers de la branche, chacun un module
  *  d'un seul fichier (rank et state null). Avec des modules, l'étape Modules (by 'file') montre aussi les
  *  variants que change la branche (view.variants, lus dans view.files), après eux, comme ces fichiers-là :
- *  on voit où ils sont écrits (note 0.15.0-variants-tdd). Les tests d'invariants (invariantFiles) : une ligne par test, son rang
- *  dans view.invariants, son état (cas validés : tous done, aucun todo, sinon wip), son état git (lu dans view.files) ; rien à montrer (code null).
+ *  on voit où ils sont écrits (note 0.15.0-variants-tdd).
+ *  L'étape Invariants (invariantTree) : les fichiers de la Forme (comme by 'module', en retrait : dim) et les
+ *  tests d'invariants ensemble ; un test : test (son rang dans view.invariants), sans rang (pas de numéro), son
+ *  état (cas validés : tous done, aucun todo, sinon wip), sa couleur d'après son texte à la base de la branche
+ *  (base absente : nouveau ; différente : modifié ; la même ou inconnue : aucune), code null. Sans Forme : les tests seuls.
  *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (forme-view, modules-view, ide-view,
  *  invariants-view). */
 import type { VibeGit, VibeModule, VibeTestFile, VibeView } from 'technicals/bridge';
@@ -25,6 +28,8 @@ export type IdeFile = {
   state: ModuleState | null;
   mark: FileMark | null;        // la couleur de son nom (FileMark) ; null : commité, comme le reste
   code: VibeModule | null;      // ce que ModuleCode montre ; null : rien à montrer
+  test?: number;                // Invariants : un test, son rang dans view.invariants ; absent : pas un test
+  dim?: boolean;                // Invariants : un fichier de la Forme, en retrait ; absent = false
 };
 
 // Un fichier de la branche, un module d'un seul fichier (rank et state null).
@@ -58,15 +63,26 @@ export function ideFiles(view: Pick<VibeView, 'modules' | 'files'> & { variants?
   }), ...variants.map(branchRow)].filter((r) => !seen.has(r.path) && seen.add(r.path));
 }
 
-// Une ligne par test d'invariant : done si tous ses cas sont validés (ok), todo si aucun n'a de verdict, sinon wip.
-// mark : son état git, lu dans les fichiers de la branche (view.files ; absent : commité).
-export const invariantFiles = (tests: VibeTestFile[], files: VibeView['files'] = []): IdeFile[] => tests.map((t, rank) => {
+// L'état d'un test : done si tous ses cas sont validés (ok), todo si aucun n'a de verdict, sinon wip.
+const testState = (t: VibeTestFile): ModuleState => {
   const marks = t.cases.map((c) => t.marks[c]);
-  return {
+  return marks.length && marks.every((m) => m === 'ok') ? 'done' : marks.some(Boolean) ? 'wip' : 'todo';
+};
+
+// L'étape Invariants : les fichiers de la Forme (ideFiles by 'module', dim) et les tests (test, rank null,
+// couleur d'après base), une ligne par chemin, celle du test s'il est aussi un chemin de la Forme ; sans
+// module, les tests seuls (jamais les autres fichiers de la branche).
+export function invariantTree(view: Pick<VibeView, 'modules' | 'invariants' | 'files'>): IdeFile[] {
+  const tests = view.invariants.map((t, test): IdeFile => ({
     path: t.path,
-    rank,
-    state: marks.length && marks.every((m) => m === 'ok') ? 'done' : marks.some(Boolean) ? 'wip' : 'todo',
-    mark: markOf({ git: files.find((f) => f.path === t.path)?.git }),
+    rank: null,
+    state: testState(t),
+    // base null : absente à la base, ajouté par la branche ; absente (undefined) : inconnue, aucune couleur
+    mark: t.base === undefined ? null : t.base === null ? 'new' : t.base === t.source ? null : 'modified',
     code: null,
-  };
-});
+    test,
+  }));
+  const paths = new Set(tests.map((t) => t.path));
+  const forme = view.modules.length ? ideFiles(view, 'module').filter((r) => !paths.has(r.path)).map((r) => ({ ...r, dim: true })) : [];
+  return [...forme, ...tests];
+}

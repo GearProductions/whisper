@@ -1,7 +1,8 @@
 /** note — ce que la vue de la note calcule : les lignes que l'agent a
  *  ajoutées ou changées (leurs blocs sont surlignés), le diff brut replié
  *  autour des changements, la marque de chaque ligne de « Ce que ça ne doit
- *  pas faire », un extrait d'une ligne (la cible d'une remarque).
+ *  pas faire », la ligne d'une de ces puces (pour y aller depuis un cas d'invariant), un extrait
+ *  d'une ligne (la cible d'une remarque).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder (note-view, invariants-view). */
 import type { MustNotMark } from 'technicals/bridge';
 import type { DiffLine } from './diff';
@@ -43,23 +44,42 @@ export const BULLET = /^\s*(?:[-*+]|\d+[.)])\s+/;   // une ligne de liste (revie
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/[’`]/g, '\'');
 const oneLine = (s: string) => s.replace(/\s+/g, ' ').trim();
 
+// Les puces de la rubrique, dans l'ordre : leur ligne (depuis 0), le texte de la première ligne, et le texte
+// entier (lignes de suite non vides jointes, comme mustNot).
+function mustNotBullets(md: string): { line: number; first: string; text: string }[] {
+  const out: { line: number; first: string; text: string }[] = [];
+  let inside = false, fence = false, cur: (typeof out)[number] | null = null;
+  md.split(/\r?\n/).forEach((line, i) => {
+    if (/^\s*(```|~~~)/.test(line)) fence = !fence;
+    const h = fence ? null : /^##\s+(.*?)\s*$/.exec(line);
+    if (h) { inside = MUST_NOT.test(norm(h[1])); cur = null; return; }
+    if (!inside) return;
+    if (BULLET.test(line)) out.push(cur = { line: i, first: oneLine(line.replace(BULLET, '')), text: line.replace(BULLET, '') });
+    else if (cur && line.trim()) cur.text += ` ${line.trim()}`;
+  });
+  return out.map((b) => ({ ...b, text: oneLine(b.text) }));
+}
+
 // La marque de chaque ligne de « Ce que ça ne doit pas faire », par numéro de
 // ligne (depuis 0) de sa puce : la ligne de `mustNot` (dans l'ordre) dont le
 // texte commence par celui de la puce (la marque est souvent sur une ligne de suite).
 export function mustNotTags(md: string, mustNot: { text: string; mark: MustNotMark }[]): Map<number, MustNotMark> {
   const tags = new Map<number, MustNotMark>();
-  let inside = false, fence = false, k = 0;
-  md.split(/\r?\n/).forEach((line, i) => {
-    if (/^\s*(```|~~~)/.test(line)) fence = !fence;
-    const h = fence ? null : /^##\s+(.*?)\s*$/.exec(line);
-    if (h) inside = MUST_NOT.test(norm(h[1]));
-    const text = inside && !h && BULLET.test(line) ? oneLine(line.replace(BULLET, '')) : '';
-    const at = text ? mustNot.findIndex((m, j) => j >= k && m.text.startsWith(text)) : -1;
-    if (at < 0) return;
-    tags.set(i, mustNot[at].mark);
+  let k = 0;
+  for (const { line, first } of mustNotBullets(md)) {
+    const at = mustNot.findIndex((m, j) => j >= k && m.text.startsWith(first));
+    if (at < 0) continue;
+    tags.set(line, mustNot[at].mark);
     k = at + 1;
-  });
+  }
   return tags;
+}
+
+// La ligne (depuis 0) de la puce de « Ce que ça ne doit pas faire » dont le texte (ses lignes de suite
+// jointes, comme mustNot) est `text` ; plus dans la note (modifiée depuis), ou rubrique absente : null.
+// Deux puces identiques : la première.
+export function mustNotLine(md: string, text: string): number | null {
+  return mustNotBullets(md).find((b) => b.text === text)?.line ?? null;
 }
 
 // Un texte sur une ligne, coupé à `max` caractères (« … » compris).

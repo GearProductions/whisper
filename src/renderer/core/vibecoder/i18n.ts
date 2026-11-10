@@ -20,7 +20,8 @@
  *  + Nouvel agent, Poser une question à l'agent (le relecteur) ;
  *  le micro et Envoyer d'un champ, l'historique (🕘, Conversation en
  *  cours) et l'accueil sans agent (son bouton est paletteActions['new-agent']) ;
- *  la page des réglages (titre de l'engrenage, catégories, chaque réglage, information et commande). Ceux des boutons viennent des
+ *  la page des réglages (titre de l'engrenage, catégories, chaque réglage, information et commande) ;
+ *  le badge d'une étiquette des fichiers de retour (tags : « pour toi », « pour l'agent »). Ceux des boutons viennent des
  *  actions (actions.<langue>.json).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
 import type {
@@ -28,6 +29,7 @@ import type {
 } from 'technicals/bridge';
 import type { MenuEntry } from './artifact-clipboard';
 import type { NameProblem } from './artifact-tree';
+import type { Tag } from './tags';
 
 type Choices = [string, string][]; // [valeur, libellé]
 // Un réglage de la page ; `model:<id>` et `effort:<id>` (une action) prennent le libellé de l'élément.
@@ -206,6 +208,8 @@ const fr = {
     instructions: 'Modifier la consigne des agents (résumé audio)…', journal: 'Ouvrir le journal des agents (tours, autorisations)',
     vibeDir: 'Dossier de VibeCoder', releases: 'À propos : page de la version', quit: 'Quitter',
   } as Record<SettingsCommand, string>,
+  tags: { toi: 'pour toi', agent: 'pour l\'agent' } as Record<Tag, string>,
+  levels: { important: 'important', secondary: 'secondaire' },
   paletteHint: 'Un agent, une branche, une PR, une action…',
   paletteScopes: { all: 'Tout', agents: 'Agents', branches: 'Branches', prs: 'PR' },
   paletteGroups: { branches: 'Branches', prs: 'Pull requests', actions: 'Actions' },
@@ -409,6 +413,8 @@ const en: Strings = {
     instructions: 'Edit the agents\' instructions (audio summary)…', journal: 'Open the agents\' journal (turns, permissions)',
     vibeDir: 'VibeCoder folder', releases: 'About: the version page', quit: 'Quit',
   },
+  tags: { toi: 'for you', agent: 'for the agent' },
+  levels: { important: 'important', secondary: 'secondary' },
   paletteHint: 'An agent, a branch, a PR, an action…',
   paletteScopes: { all: 'All', agents: 'Agents', branches: 'Branches', prs: 'PRs' },
   paletteGroups: { branches: 'Branches', prs: 'Pull requests', actions: 'Actions' },

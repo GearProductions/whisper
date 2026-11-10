@@ -12,21 +12,27 @@
  *  remarksAt : crayon, croix), de même celles d'un bloc ; *Poser une question
  *  à l'agent*, à côté du 💬 (onAsk), cite le passage dans le champ (prefill, rien
  *  n'est envoyé) ; sur « À revoir », le bouton de
- *  remarque ouvre la zone, qui ne s'ouvre pas d'elle-même. Ce que l'agent a
- *  changé depuis le début de son dernier tour a un liseré vert ; « Voir les
+ *  remarque ouvre la zone, qui ne s'ouvre pas d'elle-même. Ce qui a changé
+ *  depuis la note de référence (note.before : posée par le principal, changée par Vu ou la validation)
+ *  a un liseré vert, « Changée depuis votre dernière relecture » ; « Voir les
  *  modifications » montre le diff brut, retraits compris, replié autour des
  *  changements (DiffView) ; « Vu » (Icon ok + texte) repart de la note actuelle. Les lignes de « Ce que ça
- *  ne doit pas faire » portent leur marque en pastille. 💬 sur un bloc le cite
+ *  ne doit pas faire » portent leur marque en pastille (variant : un bleu plus clair que invariant, même
+ *  famille, dans les deux thèmes). Venue d'un cas d'invariant (noteFocus) : dans son affichage courant
+ *  (rendue : MarkdownView focus ; Modifier : NoteEditor focus ; Brut : DraftEditor at), défilée à cette
+ *  ligne (mustNotLine) et mise en évidence ; plus dans la note, ou le diff affiché : en haut, rien de mis
+ *  en évidence ; puis goToNote(null). 💬 sur un bloc le cite
  *  dans le champ (Relire : il ouvre sous le bloc une zone de commentaire, pour
  *  le brouillon de revue ; ✗ sur la note aussi, sous son en-tête). En tête :
- *  son chemin, Ouvrir (IconButton open), Modifier ou Fermer et Brut (Créer), sa validation (Créer : Valider et vérifier, puis Revalider et Revérifier, qui
- *  lance act.run('design-check') ; Relire : Valider ou À revoir).
+ *  son chemin, Ouvrir (IconButton open), Modifier ou Fermer et Brut (Créer), sa validation (Créer : Valider et vérifier, puis Revérifier, qui
+ *  lance act.run('design-check'), et Revalider ; la course design-check en cours ou en attente à côté :
+ *  d'après view.runs et view.queued, son ⏹ par act.runOp ; Relire : Valider ou À revoir).
  *  Au-dessus, Créer : les questions ouvertes (questions-view) ; Relire : la
  *  relecture de la note par l'agent (Relancer). Pas de note : ce qu'il faut
  *  faire pour en avoir une. Styles : note-view.css.
  *  Ne connaît pas : le pont (rappels passés), le disque. Utilisé par : step-views. */
 import { useEffect, useMemo, useState } from 'react';
-import { changedLines, excerpt, fileParts, lineDiff, mustNotTags, remark, remarksAt } from 'core/vibecoder';
+import { changedLines, excerpt, fileParts, isLive, lineDiff, mustNotLine, mustNotTags, remark, remarksAt } from 'core/vibecoder';
 import type { MustNotMark, VibeLang } from 'technicals/bridge';
 import { CommentBox } from './comment-box';
 import { DraftRemarks } from './draft-remarks';
@@ -43,7 +49,7 @@ import { MarkControl } from './validation';
 import './note-view.css';
 
 const fr = {
-  changes: 'Changée par l\'agent depuis votre dernier message',
+  changes: 'Changée depuis votre dernière relecture',
   added: 'lignes ajoutées ou changées',
   removed: 'lignes retirées',
   showDiff: 'Voir les modifications',
@@ -70,7 +76,7 @@ const fr = {
 const S: Record<VibeLang, typeof fr> = {
   fr,
   en: {
-    changes: 'Changed by the agent since your last message',
+    changes: 'Changed since your last review',
     added: 'lines added or changed',
     removed: 'lines removed',
     showDiff: 'Show the changes',
@@ -143,6 +149,15 @@ export function NoteView(p: StepProps) {
     const [label, title] = s.marks[m ?? 'none'];
     return { line, text: label, title, cls: `vc-mn vc-mn-${m ?? 'none'}` };
   });
+  // Venue d'un cas : la ligne, dans l'affichage courant (le diff : aucune) ; gardée après goToNote(null), qui n'attend que l'arrivée.
+  const [kept, setKept] = useState<string | null>(null);
+  useEffect(() => { if (p.noteFocus != null) { setKept(p.noteFocus); p.goToNote?.(null); } }, [p.noteFocus]);
+  const target = p.noteFocus ?? kept;
+  const focus = (raw && diff) || target == null ? undefined : mustNotLine(shown, target) ?? undefined;
+  // La vérification de conception : sa course en cours (isLive), ou en file.
+  const dc = view.runs?.find((r) => r.id === 'design-check')?.state;
+  const designRun = dc && isLive(dc) ? { state: dc as 'running' | 'asking' | 'stopped', onStop: () => act.runOp('design-check', 'stop') }
+    : view.queued?.includes('design-check') ? { state: 'queued' as const } : undefined;
   const added = diff ? changedLines(diff).size : 0;
   const removed = diff ? diff.filter((l) => l.kind === 'removed').length : 0;
 
@@ -169,7 +184,7 @@ export function NoteView(p: StepProps) {
               <button type="button" className="vc-mini" aria-pressed={brut} title={s.rawTitle} onClick={() => setBrut(!brut)}>{brut ? s.rendered : s.raw}</button>
             ) : null}
             <span className="vc-note-mark"><MarkControl what="note" state={note.mark} review={review} lang={view.lang} onMark={(v) => act.mark('note', v)} onRemark={review ? () => setRefusing(true) : undefined}
-              checked={note.checked} onRecheck={review ? undefined : () => act.run('design-check')} /></span>
+              checked={note.checked} onRecheck={review ? undefined : () => act.run('design-check')} run={designRun} /></span>
           </div>
           {refusing ? (
             <div className="vc-note-refuse">
@@ -192,16 +207,16 @@ export function NoteView(p: StepProps) {
           ) : null}
           <div className="vc-card-body">
             {raw && diff ? <DiffView diff={diff} lang={view.lang} />
-              : editing && brut ? <DraftEditor d={d} file={note} locked={locked} t={t} />
+              : editing && brut ? <DraftEditor d={d} file={note} locked={locked} t={t} at={focus === undefined ? undefined : focus + 1} />
               : editing ? (
                 <>
-                  <NoteEditor text={d.text!} locked={locked} changed={changed} tags={editorTags}
+                  <NoteEditor text={d.text!} locked={locked} changed={changed} tags={editorTags} focus={focus}
                     onChange={d.change} onSave={d.save} onQuote={quote} quoteLabel={t.quote} onOpenLink={act.openLink} />
                   <DraftFoot d={d} locked={locked} t={t} />
                 </>
               )
               : editable && d.tooBig ? <div className="vc-empty">{t.tooBig}</div>
-              : <MarkdownView md={note.text} t={t} onOpenLink={act.openLink} onQuote={quote} onComment={comment} changed={changed} tag={tag} onAsk={ask} blockEnd={remarksUnder} itemEnd={remarksUnder} />}
+              : <MarkdownView md={note.text} t={t} onOpenLink={act.openLink} onQuote={quote} onComment={comment} changed={changed} tag={tag} focus={focus} onAsk={ask} blockEnd={remarksUnder} itemEnd={remarksUnder} />}
           </div>
         </section>
       ) : (

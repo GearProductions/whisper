@@ -1,0 +1,14 @@
+/* Le badge d'une étiquette (tag-badge) et le grisé de la ligne qu'elle ouvre.
+   Un seul thème (core/ui/theme.css) : les variables --vc-* suffisent.
+   Le grisé de la ligne : markdown-view et review-view posent data-tag="toi" | "agent" sur la ligne (ou
+   l'élément) que l'étiquette couvre, le badge compris. Le texte d'une ligne agent passe en --vc-soft
+   (lisible, jamais une opacité : elle éteindrait aussi les marques) ; un data-tag="toi" imbriqué dans
+   un agent retrouve --vc-text. Seule `color` change, le fond et les marques gardent leur couleur.
+   Les règles posent `color` sur la ligne, qui descend par héritage : une marque d'échec (review-view,
+   checks.json) garde sa couleur si elle a la sienne (`.vc-check-mark { color: var(--vc-ko) }`, jamais
+   héritée) ; son texte, lui, passe en retrait. */
+.vc-tag-badge { display: inline-block; padding: 0 6px; border-radius: 8px; font: 600 11px/16px var(--vc-sans); white-space: nowrap; }
+.vc-tag-badge[data-tag="toi"] { color: var(--vc-accent); background: var(--vc-active-bg); }
+.vc-tag-badge[data-tag="agent"] { color: var(--vc-muted); background: var(--vc-control); }
+[data-tag="agent"]:not(.vc-tag-badge) { color: var(--vc-soft); }
+[data-tag="agent"] [data-tag="toi"]:not(.vc-tag-badge) { color: var(--vc-text); }

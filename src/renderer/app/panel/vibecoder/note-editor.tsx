@@ -7,7 +7,8 @@
  *  Ctrl+clic sur un lien → onOpenLink ; Ctrl+S → onSave (editorBase) ; locked : lecture
  *  seule, le motif en titre. Un texte changé par les props (le disque,
  *  Abandonner) remplace le document sans revenir à onChange. En texte, jamais
- *  en HTML (I-40). Lignes de changed et tags numérotées depuis 0.
+ *  en HTML (I-40). Lignes de changed, tags et focus numérotées depuis 0 ; focus : défilée à cette ligne,
+ *  mise en évidence (Invariants → la ligne d'un cas).
  *  Défile en lui-même (hauteur bornée sur .cm-editor, .cm-scroller défile),
  *  pas avec la colonne : CodeMirror ne dessine que ce qu'il voit.
  *  Les styles (cm-md-*, vc-note-editor, vc-changed) : note-view.css.
@@ -25,7 +26,7 @@ type Tag = { line: number; text: string; title: string; cls: string };
 // Stable : une fonction neuve à chaque rendu reconstruirait les boutons de la gouttière.
 const commentIcon = () => iconElement('comment');
 
-export function NoteEditor({ text, locked, changed, tags, onChange, onSave, onQuote, quoteLabel = '', onOpenLink }: {
+export function NoteEditor({ text, locked, changed, tags, onChange, onSave, onQuote, quoteLabel = '', onOpenLink, focus }: {
   text: string;
   locked: string | null;
   changed?: Set<number>;
@@ -35,11 +36,12 @@ export function NoteEditor({ text, locked, changed, tags, onChange, onSave, onQu
   onQuote?(text: string): void;
   quoteLabel?: string;   // le libellé du bouton de citation (title, aria-label)
   onOpenLink(url: string): void;
+  focus?: number;
 }): ReactNode {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   // Un compartiment par décor : reconfigurer l'un ne remet pas les autres aux lignes des props.
-  const [readOnly, marks, badges, buttons] = useRef([0, 1, 2, 3].map(() => new Compartment())).current;
+  const [readOnly, marks, badges, buttons, focused] = useRef([0, 1, 2, 3, 4].map(() => new Compartment())).current;
   // Les dernières props, lues par l'éditeur sans le recréer.
   const latest = useRef({ text, locked, onChange, onSave, onQuote, onOpenLink });
   latest.current = { text, locked, onChange, onSave, onQuote, onOpenLink };
@@ -54,7 +56,7 @@ export function NoteEditor({ text, locked, changed, tags, onChange, onSave, onQu
           liveMarkdown({ onLink: (url) => latest.current.onOpenLink(url) }),
           EditorView.lineWrapping,
           EditorView.darkTheme.of(true),
-          readOnly.of([]), marks.of([]), badges.of([]), buttons.of([]),
+          readOnly.of([]), marks.of([]), badges.of([]), buttons.of([]), focused.of([]),
         ],
       }),
     });
@@ -76,6 +78,17 @@ export function NoteEditor({ text, locked, changed, tags, onChange, onSave, onQu
   useEffect(() => configure(marks, changed ? lineMarks(changed, 'vc-changed') : []), [changedKey]);
   const tagsKey = JSON.stringify(tags);
   useEffect(() => configure(badges, lineBadges(tags)), [tagsKey]);
+
+  // La ligne de focus : marquée et défilée dans la vue (hors du document : rien).
+  useEffect(() => {
+    const v = view.current;
+    if (!v) return;
+    const ok = focus !== undefined && focus >= 0 && focus < v.state.doc.lines;
+    v.dispatch({
+      effects: [focused.reconfigure(ok ? lineMarks(new Set([focus]), 'vc-focus') : []),
+        ...(ok ? [EditorView.scrollIntoView(v.state.doc.line(focus + 1).from, { y: 'center' })] : [])],
+    });
+  }, [focus]);
 
   const quoteKey = useMemo(() => blockQuotes(text).map((q) => q.line).join(','), [text]);
   const quoting = !!onQuote;

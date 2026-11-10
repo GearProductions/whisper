@@ -30,3 +30,5 @@
 .vc-tree-row[data-mark="modified"] .vc-tree-label { color: var(--vc-warn); }
 .vc-tree-row[data-mark="deleted"] .vc-tree-label { color: var(--vc-ko); text-decoration: line-through; }
 .vc-tree-row[data-mark="todo"] .vc-tree-label { color: var(--vc-faint); font-style: italic; }
+/* Invariants : un fichier de la Forme, en retrait (grisé, lisible, sa couleur gardée). */
+.vc-tree-row[data-dim] { opacity: 0.65; }

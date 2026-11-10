@@ -38,7 +38,9 @@
  *  colonne affichée sur l'onglet Actions ; son ↻ relève : act.refresh). Le fil d'Ariane et Ctrl+1…6
  *  ouvrent n'importe quelle étape, à venir comprise (le choix ne change que
  *  l'étape affichée : aucun appel au pont, aucune action) ; sans choix,
- *  c'est l'étape en cours. Une vue
+ *  c'est l'étape en cours. Un cas d'invariant mène à sa ligne de la note (goToNote : l'étape Note choisie,
+ *  noteFocus tenu ici, en mémoire, jusqu'à ce que NoteView l'ait atteinte ; la note s'ouvre en haut si la
+ *  ligne n'y est plus, son défilement gardé n'est alors pas rendu). Une vue
  *  d'étape qui échoue ne fait tomber ni l'écran ni le brouillon (I-29). Il
  *  tient les réponses en cours aux questions ouvertes, le verdict de la revue
  *  (rôle Relecteur), le champ de chaque étape (fieldOf : son texte part en
@@ -135,7 +137,11 @@ function Screen({ view, thread, act: given, tasks, tasksOpen, contextOpen, onGau
     setArts(false);
     setBranchesOpen(true);
   }, [branchesAsk]);
-  const pick = (id: VibeStepId) => { setBranchesOpen(false); setArts(false); setPicked(id); };
+  // La ligne de la note où aller (son texte, mustNot) : en mémoire, jusqu'à ce que NoteView l'ait atteinte (goToNote(null))
+  // ou qu'une autre étape soit choisie.
+  const [noteFocus, setNoteFocus] = useState<string | null>(null);
+  const pick = (id: VibeStepId) => { setBranchesOpen(false); setArts(false); setPicked(id); setNoteFocus(null); };
+  const goToNote: StepProps['goToNote'] = (line) => { if (line !== null) pick('note'); setNoteFocus(line); };
   const [answers, setAnswers] = useKept<Answers>('answers', {});
   const onAnswer: StepProps['onAnswer'] = (q, a) => setAnswers((all) => ({ ...all, [q]: a }));
   const root = useRef<HTMLDivElement>(null);
@@ -208,7 +214,8 @@ function Screen({ view, thread, act: given, tasks, tasksOpen, contextOpen, onGau
   // Ce que garde l'étape affichée (kept-scope), dont le défilement : écrit tel quel dans le scope, sans état React.
   const stepScope = useMemo(() => scoped(kept, view.agentId, step ? step.id : ''), [kept, view.agentId, step && step.id]);
   const stepBox = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => { if (stepBox.current) stepBox.current.scrollTop = stepScope.get('top', 0); }, [center, stepScope]);
+  // Venue d'un cas (noteFocus) : le défilement gardé n'est pas rendu, NoteView défile à la ligne ; introuvable, la note reste en haut.
+  useLayoutEffect(() => { if (stepBox.current && noteFocus === null) stepBox.current.scrollTop = stepScope.get('top', 0); }, [center, stepScope]);
 
   // Ctrl+1…6 : par la touche (sur un clavier AZERTY, le chiffre est sous Maj).
   useEffect(() => {
@@ -250,7 +257,7 @@ function Screen({ view, thread, act: given, tasks, tasksOpen, contextOpen, onGau
           ) : (
             <div className="vc-step scroll" key={step ? step.id : ''} ref={stepBox} onScroll={(e) => stepScope.set('top', e.currentTarget.scrollTop)}>
               {step && View ? <KeptScope.Provider value={stepScope}><Guard t={t}><View view={view} step={step} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} verdict={verdict} onVerdict={setVerdict}
-                text={texts[step.id] ?? ''} setText={setText(step.id)} code={code} drafts={drafts}
+                text={texts[step.id] ?? ''} setText={setText(step.id)} code={code} drafts={drafts} noteFocus={noteFocus} goToNote={goToNote}
                 {...piecesOf(step.id)} questions={piecesOf('answers')} /></Guard></KeptScope.Provider> : null}
             </div>
           )}

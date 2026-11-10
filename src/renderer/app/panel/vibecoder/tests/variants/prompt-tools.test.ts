@@ -54,3 +54,14 @@ it('deux micros sous un même contexte : seul celui qu\'on tient montre la phase
   await act(() => root.render(view('idle')));
   expect(phases()).toEqual(['idle', 'idle']);
 });
+
+it('sans onSend : le micro, pas d\'Envoyer ; avec onSend : les deux', async () => {
+  const view = (onSend?: () => void) => createElement(Mic.Provider, { value: { phase: 'idle', down: () => {}, up: () => {} } },
+    createElement(PromptTools, { t: t('fr'), onSend }));
+  await act(() => root.render(view()));
+  expect(page.querySelector('.vc-mic')).not.toBeNull();
+  expect(page.querySelector('.vc-send')).toBeNull();
+  await act(() => root.render(view(() => {})));
+  expect(page.querySelector('.vc-mic')).not.toBeNull();
+  expect(page.querySelector('.vc-send')).not.toBeNull();
+});

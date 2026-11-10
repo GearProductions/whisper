@@ -44,25 +44,36 @@
  *  empilées, modifiables sur place ; à côté de 💬, « Poser une question à l'agent » (cite le titre dans le champ,
  *  ne l'envoie pas) ; un cas À revoir : le bouton de remarque (CaseVerdict.onRemark) ouvre la zone, sans rien
  *  ajouter ; À revoir ne l'ouvre plus d'office. Le fichier ouvert est gardé par agent (useKept).
- *  Vue IDE, la seule : sous l'en-tête de l'étape, une carte (IdeView(invariantFiles(view.invariants, view.files))) ;
- *  à gauche les tests, leur nom coloré comme VS Code (état git, rang + 1) ; au centre, du test choisi, son
- *  en-tête et ses cartes, comme avant (le premier d'emblée). Choisir un autre test referme son fichier
- *  ouvert (OnLeave : act.follow(null)). Sans test : l'invitation, pas de carte.
+ *  Vue IDE, la seule : sous l'en-tête de l'étape, une carte (IdeView(invariantTree(view))) ; à gauche la
+ *  même arborescence que la Forme : les tests (vert : ajoutés par la branche, jaune : modifiés, d'après leur
+ *  base ; sans numéro) et les fichiers de la Forme, en retrait, numérotés (sans Forme : les tests seuls) ; à
+ *  droite, d'un test choisi, son en-tête et ses cartes, comme avant (le premier d'emblée) ; d'un fichier de la
+ *  Forme, son code en lecture seule (ModuleCode readOnly, comme à l'étape Forme ; suivi par son id, act.follow(null) en le quittant) s'il est touché, sinon son
+ *  contrat (Contract de forme-view). Aucune analyse des imports. Choisir un autre fichier referme le fichier
+ *  ouvert d'un test (OnLeave : act.follow(null)). Sans test : l'invitation, pas de carte ; son texte cite
+ *  le bouton tel qu'il est (« Écrire les invariants (rouges) »).
+ *  Sous Garantit, ce que le cas garde (caseLink) : chaque ligne de la note citée, un lien qui passe à
+ *  l'étape Note sur elle (goToNote) ; un I-… : son numéro, sans lien ; rien : « non rattaché » ; la lecture
+ *  périmée : marqué périmé, comme elle.
+ *  L'alignement (align.md) : MarkdownView tagged (badges pour toi / pour l'agent, le grisé).
  *  Ne connaît pas : le pont (rappels passés), le brouillon (ses remarques, par cible). Utilisé par : step-views. */
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
-  attentionQuote, awaiting, caseLine, caseSource, casesOf, excerpt, fileParts, invariantFiles, progress, pseudoLines, remark, remarksAt, withAttention, type CaseView, type Progress, type Strings,
+  attentionQuote, awaiting, caseLine, caseLink, caseSource, casesOf, excerpt, fileParts, invariantTree, progress, pseudoLines, remark, remarksAt, withAttention, type CaseLink, type CaseView, type Progress, type Strings,
 } from 'core/vibecoder';
-import type { VibeComment, VibeLang, VibeTestFile } from 'technicals/bridge';
+import type { VibeComment, VibeLang, VibeModule, VibeTestFile } from 'technicals/bridge';
+import { CaseLinks } from './case-link';
 import { CodeView } from './code-view';
 import { CommentBox } from './comment-box';
 import { DiffPicker } from './diff-picker';
 import { DraftRemarks } from './draft-remarks';
 import { DraftEditor, useFileDraft } from './file-draft';
+import { Contract } from './forme-view';
 import { Icon, IconButton } from './icons';
 import { IdeView } from './ide-view';
 import { useKept } from './kept-scope';
 import { InlineMd, MarkdownView } from './markdown-view';
+import { ModuleCode } from './module-code';
 import { ModuleDiffView } from './module-diff-view';
 import { Invite, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
@@ -93,12 +104,13 @@ const fr = {
   quoteReview: 'Une remarque sur ce cas, au brouillon de revue',
   quoteAttention: 'Citer ce point d\'attention dans le champ',
   quoteAttentionReview: 'Reprendre ce point d\'attention dans une remarque, au brouillon de revue',
+  formeReadOnly: 'Lecture seule : la Forme se modifie à l\'étape Forme.',
   noReading: 'Pas de lecture pour ce cas (son titre a pu changer) : « Relire » le fichier.',
   reread: 'Relire',
   rereadAll: 'Tout relire',
   casesHere: (n: number) => `${n} cas à valider : Validé ou À revoir sur chaque carte, ou « Tout valider » sur un fichier sans point d'attention.`,
   noTests: 'Aucun test d\'invariant sur la branche',
-  noTestsText: ' « Écrire les invariants (rouges), puis vérifier l\'alignement » les écrit d\'après les lignes « → invariant » de la note ; ou dictez du pseudo-code dans le champ, il est traduit dans le langage du projet.',
+  noTestsText: ' « Écrire les invariants (rouges) » les écrit d\'après les lignes « → invariant » de la note ; ou dictez du pseudo-code dans le champ, il est traduit dans le langage du projet.',
   noInvLines: ' La note ne demande aucun invariant : rien à écrire.',
   noTestsReview: 'Aucun test d\'invariant dans cette PR',
   noTestsReviewText: ' Les tests d\'invariants sont rangés sous tests/invariants/.',
@@ -134,12 +146,13 @@ const S: Record<VibeLang, typeof fr> = {
     quoteReview: 'A remark on this case, to the review draft',
     quoteAttention: 'Quote this warning in the field',
     quoteAttentionReview: 'Take this warning into a remark, to the review draft',
+    formeReadOnly: 'Read only: the shape is changed in the Forme step.',
     noReading: 'No reading for this case (its title may have changed): « Read again » the file.',
     reread: 'Read again',
     rereadAll: 'Read all again',
     casesHere: (n) => `${n} case${n > 1 ? 's' : ''} to approve: Approved or Needs rework on each card, or « Approve all » on a file with no warning.`,
     noTests: 'No invariant test on the branch',
-    noTestsText: ' « Write the invariants (red), then check the alignment » writes them from the note\'s « → invariant » lines; or dictate pseudo-code in the field, it is translated into the project\'s language.',
+    noTestsText: ' « Write the invariants (red) » writes them from the note\'s « → invariant » lines; or dictate pseudo-code in the field, it is translated into the project\'s language.',
     noInvLines: ' The note asks for no invariant: nothing to write.',
     noTestsReview: 'No invariant test in this PR',
     noTestsReviewText: ' Invariant tests live under tests/invariants/.',
@@ -224,7 +237,7 @@ export function InvariantsView(props: StepProps) {
           </details>
         ) : null}
         {casesOf(f).map((c, i) => (
-          <CaseCard key={c.title} c={c} n={i + 1} code={caseSource(f, i)} from={f.lines[i]} path={f.path} s={s} t={t} lang={view.lang} review={review} onOpenLink={act.openLink}
+          <CaseCard key={c.title} c={c} n={i + 1} link={caseLink(c.reading, view.note?.mustNot ?? [])} stale={!!f.stale} onGo={props.goToNote} code={caseSource(f, i)} from={f.lines[i]} path={f.path} s={s} t={t} lang={view.lang} review={review} onOpenLink={act.openLink}
             onVerdict={(v) => verdict(f, c.title, v)} onQuote={() => act.prefill('comment', c.title)}
             onQuoteAttention={() => act.prefill('comment', attentionQuote(c.title, c.reading?.warning ?? ''), true)} onOpen={() => act.open(f.id, caseLine(f, c.title))}
             onComment={(text) => act.draft({ add: remark(target(f, c.title), text) })}
@@ -239,6 +252,16 @@ export function InvariantsView(props: StepProps) {
       </section>
     );
   };
+  // Un fichier de la Forme : son code en lecture seule s'il est touché (suivi pour que le principal pousse son texte,
+  // et cessé en le quittant, comme un test), sinon son contrat.
+  const formeBlock = (rank: number, m: VibeModule | null) => (m
+    ? (
+      <Fragment key={m.path}>
+        <OnLeave fn={() => act.follow(null)} />
+        <ModuleCode m={m} readOnly={s.formeReadOnly} code={props.code} t={t} lang={view.lang} open onFollow={act.follow} onSave={act.save} drafts={props.drafts} noTree />
+      </Fragment>
+    )
+    : <div className="vc-ifile"><Contract text={view.modules[rank].contract} t={t} onOpenLink={act.openLink} /></div>);
   return (
     <>
       <StepHead p={props} own={['read-invariants', ...(review ? [] : ['align']), ...(view.invariants.length ? [] : ['invariants'])]}>
@@ -264,12 +287,12 @@ export function InvariantsView(props: StepProps) {
               )}
             </span>
           </summary>
-          <div className="vc-card-body"><MarkdownView md={align.text} t={t} onOpenLink={act.openLink} onQuote={quoteAlign} onComment={commentAlign} /></div>
+          <div className="vc-card-body"><MarkdownView md={align.text} tagged t={t} onOpenLink={act.openLink} onQuote={quoteAlign} onComment={commentAlign} /></div>
         </details>
       ) : null}
       {view.invariants.length ? (
         <section className="vc-card vc-iide">
-          <IdeView files={invariantFiles(view.invariants, view.files)}>{(ide) => (ide?.rank != null && view.invariants[ide.rank] ? fileBlock(view.invariants[ide.rank]) : null)}</IdeView>
+          <IdeView files={invariantTree(view)}>{(ide) => (ide?.test != null ? fileBlock(view.invariants[ide.test]) : ide?.rank != null ? formeBlock(ide.rank, ide.code) : null)}</IdeView>
         </section>
       ) : null}
       {view.invariants.length ? null : (
@@ -326,7 +349,9 @@ function Summary({ p, s }: { p: Progress; s: Labels }) {
 }
 
 type CardProps = {
-  c: CaseView; n: number; s: Labels; t: Strings; lang: VibeLang; review: boolean;
+  c: CaseView; n: number; s: Labels;
+  link: CaseLink; stale: boolean; onGo?(line: string): void;   // ce que le cas garde (caseLink) ; la lecture périmée ; passer à la ligne de la note
+  t: Strings; lang: VibeLang; review: boolean;
   code: string; from: number; path: string;   // son code d'origine ('' : inconnu), sa première ligne, son fichier
   onOpenLink(url: string): void; onVerdict(v: Verdict): void; onQuote(): void; onQuoteAttention(): void; onOpen(): void;
   onComment(text: string): void;   // Relecteur : la remarque de la zone de commentaire, sur ce cas
@@ -335,7 +360,7 @@ type CardProps = {
   edit?: { shown: boolean; onShow(on: boolean): void; view(): ReactNode };
 };
 
-function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVerdict, onQuote, onQuoteAttention, onOpen, onComment, remarks, onDraft, edit }: CardProps) {
+function CaseCard({ c, n, link, stale, onGo, code, from, path, s, t, lang, review, onOpenLink, onVerdict, onQuote, onQuoteAttention, onOpen, onComment, remarks, onDraft, edit }: CardProps) {
   const r = c.reading;
   const quote = review ? s.quoteReview : s.quote;
   const [writing, setWriting] = useState(false);
@@ -393,6 +418,7 @@ function CaseCard({ c, n, code, from, path, s, t, lang, review, onOpenLink, onVe
           ) : null}
         </>
       ) : <p className="vc-case-none">{s.noReading}</p>}
+      <CaseLinks link={link} stale={stale} lang={lang} onGo={onGo} />
       {remarks.length ? <DraftRemarks remarks={remarks} t={t} onDraft={onDraft} onOpenLink={onOpenLink} /> : null}
       {writing ? <CommentBox t={t} value={text} onChange={setText} onCancel={close} onSave={(v) => { onComment(v); close(); }} /> : null}
     </article>

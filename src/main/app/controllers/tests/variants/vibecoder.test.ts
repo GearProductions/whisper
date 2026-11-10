@@ -273,7 +273,7 @@ describe('le relevé', () => {
     write(path.join(out, 'invariants', 'notes.md'), 'pas une lecture');                        // pas un nom connu
     const v = (await open()).view()!;
     expect(v.note).toMatchObject({ path: 'docs/tickets/feat/0.8.0-essai.md', text: NOTE, before: null });
-    expect(v.tests).toEqual([{ path: 'src/x/tests/invariants/x.test.ts', blob: blobSha(TEST), text: TEST, base: null }]);
+    expect(v.tests).toEqual([{ path: 'src/x/tests/invariants/x.test.ts', blob: blobSha(TEST), text: TEST, base: undefined }]);
     expect(v.readings).toHaveLength(2);
     expect(v.readings).toEqual(expect.arrayContaining([
       { blob: blobSha(TEST), text: '# lecture\n', time: expect.any(Number) },
@@ -320,14 +320,14 @@ describe('le relevé', () => {
     expect(v).not.toHaveProperty('list');
   });
 
-  it('le texte d’un test à la base : null absent à la base, ou sans base ; sans test, aucun git', async () => {
+  it('le texte d’un test à la base : null absent à la base, inconnu (absent) sans base ; sans test, aucun git', async () => {
     fake.fork = 'f0';
     fake.shown = null;   // absent à la base
     expect((await open()).view()!.tests[0].base).toBeNull();
     vi.resetModules();
     fake.fork = null;    // pas de base
     fake.reads = [];
-    expect((await open()).view()!.tests[0].base).toBeNull();
+    expect((await open()).view()!.tests[0].base).toBeUndefined();
     expect(fake.reads.filter(([c]) => c === 'show')).toEqual([]);
     vi.resetModules();
     fake.facts = { ...fake.facts as object, changed: ['docs/tickets/feat/0.8.0-essai.md'] };
@@ -2048,5 +2048,223 @@ describe('0.15.0 : Valider la note, la course à la vérification de conception'
     await click();
     expect(checks()).toBe(0);
     expect(await noteState(NOTE)).toBe('ok');
+  });
+});
+
+// 0.15.0 (ecran-humain-ia) : la note de référence du surlignage — posée au premier tour (ou course qui modifie la branche),
+// remplacée par le seul geste de l'utilisateur (Vu, Valider la note) ; les actions en file au relevé (queued).
+describe('0.15.0 : la note de référence du surlignage', () => {
+  const ACTIONS = [
+    { id: 'design-check', flow: 'create', step: 'note', kind: 'send', needs: 'none', reads: true, label: 'Vérifier la conception', text: '/vibecoder:conception {{lang}} {{out}}' },
+    { id: 'forme', flow: 'create', step: 'forme', kind: 'send', needs: 'none', label: 'Forme', text: '/vibecoder:forme {{lang}} {{out}}' },
+    { id: 'guide', flow: 'both', step: null, kind: 'send', needs: 'text', label: 'Demander', text: '{{text}}' },
+  ];
+  const NOTE_FILE = 'docs/tickets/feat/0.8.0-essai.md';
+  const V2 = `${NOTE}\n- deux\n`;
+  const V3 = `${V2}\n- trois\n`;
+  beforeEach(() => {
+    write(path.join(fake.userData, 'vibecoder', 'actions.fr.json'), JSON.stringify(ACTIONS));
+    vi.doUnmock('app/controllers/runs');
+  });
+
+  const survey = async () => { await (await import('app/controllers')).refreshVibe({ now: true }); await settle(); };
+  const rewrite = (text: string) => write(path.join(dir, NOTE_FILE), text);
+  // Un tour qui dure : le message part, l'agent travaille jusqu'à finish().
+  const startTurn = async () => {
+    fake.busy = true;
+    const { runVibeAction } = await import('app/controllers');
+    expect(await runVibeAction('guide', { text: 'va' })).toEqual({ ok: true });
+    await settle();
+  };
+  const finish = async () => { fake.busy = false; fake.release(); await settle(); };
+  const before = (view: () => JourneyInput | null | undefined) => (view()!.note as { before: string | null }).before;
+
+  it('au lancement, un tour qui change la note : before est la note du début', async () => {
+    const { view } = await open();
+    await startTurn();
+    await survey();
+    expect(before(view)).toBeNull();
+    rewrite(V2);
+    await survey();
+    expect(before(view)).toBe(NOTE);
+  });
+
+  it('un message envoyé, un 2e tour qui change encore : before inchangé, les modifications s’accumulent', async () => {
+    const { view } = await open();
+    await startTurn();
+    await survey();
+    rewrite(V2);
+    await survey();
+    await finish();
+    await startTurn();   // un autre tour : ne remplace plus la référence
+    rewrite(V3);
+    await survey();
+    expect(before(view)).toBe(NOTE);
+    await finish();
+    await survey();
+    expect(before(view)).toBe(NOTE);
+  });
+
+  it('Vu : before null, puis seulement les suivantes', async () => {
+    const { view } = await open();
+    await startTurn();
+    await survey();
+    rewrite(V2);
+    await survey();
+    await finish();
+    (await import('app/controllers')).setVibe({ seen: true });
+    await settle();
+    expect(before(view)).toBeNull();
+    await startTurn();
+    rewrite(V3);
+    await survey();
+    expect(before(view)).toBe(V2);
+  });
+
+  it('Valider et vérifier : la ref devient la note au clic, la vérification finie sans question', async () => {
+    const { view } = await open();
+    await startTurn();
+    await survey();
+    rewrite(V2);
+    await survey();
+    await finish();
+    expect(before(view)).toBe(NOTE);
+    (await import('app/controllers')).markVibe('note', 'ok');
+    await settle();
+    await survey();   // la fin de la vérification est rangée
+    expect(before(view)).toBeNull();
+    await startTurn();
+    rewrite(V3);
+    await survey();
+    expect(before(view)).toBe(V2);
+  });
+
+  it('Valider et vérifier, la vérification finie avec une question : la ref devient la note au clic', async () => {
+    write(path.join(out, 'questions.md'), '## 1. Une question ?\n');
+    const { view } = await open();
+    await startTurn();
+    await survey();
+    rewrite(V2);
+    await survey();
+    await finish();
+    (await import('app/controllers')).markVibe('note', 'ok');
+    await settle();
+    await survey();
+    expect(before(view)).toBeNull();
+  });
+
+  it('Valider et vérifier qui attend en file : la ref devient la note au clic, aussi', async () => {
+    const { view } = await open();
+    const { runVibeAction, markVibe } = await import('app/controllers');
+    fake.busy = true;
+    await runVibeAction('forme', {});   // une course qui modifie la branche, l'agent au repos
+    await settle();
+    await survey();
+    rewrite(V2);
+    await survey();
+    expect(before(view)).toBe(NOTE);
+    markVibe('note', 'ok');
+    await settle();
+    expect(before(view)).toBeNull();
+    expect((view() as unknown as { queued: string[] }).queued).toEqual(['design-check']);
+  });
+
+  it('Revalider : la ref devient la note de l’instant', async () => {
+    const { view } = await open();
+    const { markVibe } = await import('app/controllers');
+    markVibe('note', 'ok');   // la vérification, puis validée
+    await settle();
+    await survey();
+    await startTurn();
+    await survey();
+    rewrite(V2);
+    await survey();
+    await finish();
+    expect(before(view)).toBe(NOTE);
+    markVibe('note', 'ok');   // la note est déjà vérifiée : un Valider comme les autres
+    await settle();
+    expect(before(view)).toBeNull();
+  });
+
+  it('À revoir, Annuler, Valider la forme : la ref ne change pas', async () => {
+    const { view } = await open();
+    const { markVibe } = await import('app/controllers');
+    await startTurn();
+    await survey();
+    rewrite(V2);
+    await survey();
+    await finish();
+    markVibe('note', 'ko');
+    await settle();
+    markVibe('note', null);
+    await settle();
+    markVibe('forme', 'ok');
+    await settle();
+    expect(before(view)).toBe(NOTE);
+  });
+
+  it('une course qui modifie la branche, l’agent au repos : la note de ce moment est la référence', async () => {
+    const { view } = await open();
+    const { runVibeAction } = await import('app/controllers');
+    fake.busy = true;
+    await runVibeAction('forme', {});
+    await settle();
+    await survey();
+    rewrite(V2);
+    await survey();
+    expect(before(view)).toBe(NOTE);
+  });
+
+  it('une autre branche, une autre note : rien de surligné jusqu’au premier tour', async () => {
+    const { view } = await open();
+    await startTurn();
+    await survey();
+    rewrite(V2);
+    await survey();
+    await finish();
+    expect(before(view)).toBe(NOTE);
+    const OTHER = '# 0.9.0 — autre\n';
+    write(path.join(dir, 'docs/tickets/feat/0.9.0-autre.md'), OTHER);
+    fake.facts = { ...(fake.facts as object), branch: 'feat/0.9.0-autre', changed: ['docs/tickets/feat/0.9.0-autre.md'] };
+    await survey();
+    expect((view()!.note as { path: string }).path).toBe('docs/tickets/feat/0.9.0-autre.md');
+    expect(before(view)).toBeNull();
+    write(path.join(dir, 'docs/tickets/feat/0.9.0-autre.md'), `${OTHER}\nplus\n`);
+    await survey();
+    expect(before(view)).toBeNull();   // personne n'a travaillé : rien de surligné
+    await startTurn();
+    await survey();   // le premier relevé du tour pose la référence
+    write(path.join(dir, 'docs/tickets/feat/0.9.0-autre.md'), `${OTHER}\nplus\nencore\n`);
+    await survey();
+    expect(before(view)).toBe(`${OTHER}\nplus\n`);
+  });
+
+  it('la note qui disparaît du relevé puis revient : la référence est gardée', async () => {
+    const { view } = await open();
+    await startTurn();
+    await survey();
+    await finish();
+    const facts = fake.facts as { changed: string[] };
+    fake.facts = { ...facts, changed: ['src/x/tests/invariants/x.test.ts'] };
+    await survey();
+    expect(view()!.note).toBeNull();
+    rewrite(V2);
+    fake.facts = facts;
+    await survey();
+    expect(before(view)).toBe(NOTE);
+  });
+
+  it('design-check en file derrière une course : queued [design-check] ; partie : plus en file', async () => {
+    const { view } = await open();
+    const { runVibeAction, markVibe } = await import('app/controllers');
+    fake.busy = true;
+    await runVibeAction('forme', {});
+    await settle();
+    markVibe('note', 'ok');
+    await settle();
+    expect((view() as unknown as { queued: string[] }).queued).toEqual(['design-check']);
+    await finish();
+    await survey();
+    expect((view() as unknown as { queued: string[] }).queued).toEqual([]);
   });
 });

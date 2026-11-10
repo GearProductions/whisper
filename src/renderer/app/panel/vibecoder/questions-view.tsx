@@ -1,8 +1,11 @@
 /** questions-view — les questions ouvertes de l'agent, au-dessus de la note
- *  (Créer) : une carte par question, numérotée ; ses réponses proposées en
- *  pastilles (une seule choisie, un second clic la retire), « Conseille-moi »,
- *  « Je te laisse trancher », et une précision libre (un PromptField : Joindre, le micro et Envoyer :
- *  Envoyer les réponses, comme le bouton). « Envoyer les
+ *  (Créer) : une carte par question, numérotée, son badge d'importance à côté (q.level : important en
+ *  couleur d'accent, secondaire en retrait ; sans niveau, aucun) ; ses réponses proposées en
+ *  pastilles (une seule choisie, un second clic la retire ; écrite en trois parties, optionParts : le
+ *  choix en tête, en gras, l'endroit en retrait, le texte cité dans sa couleur — sinon comme avant, en
+ *  InlineMd, jamais en HTML), « Conseille-moi »,
+ *  « Je te laisse trancher », et une précision libre (un PromptField : Joindre et le micro, sans
+ *  Envoyer). « Envoyer les
  *  réponses » les envoie en une fois, une par question dans leur ordre (une
  *  sans réponse : le principal écrit « (pas de réponse) »). Les réponses en
  *  cours sont tenues par vibe-coder : elles survivent à un changement
@@ -10,7 +13,7 @@
  *  questionnaire entier (StepPieces, tenues par l'appelant) : une seule liste, montrée dans le champ de
  *  chaque question (Joindre, coller ou déposer partout y ajoute) et envoyée avec « Envoyer les réponses ».
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : note-view. */
-import { answersOf, type Answer, type Answers, type Strings } from 'core/vibecoder';
+import { answersOf, optionParts, type Answer, type Answers, type Strings } from 'core/vibecoder';
 import type { VibeLang, VibeQuestion, VibeView } from 'technicals/bridge';
 import { InlineMd } from './markdown-view';
 import type { VibeActs } from './step-views';
@@ -59,7 +62,7 @@ export function QuestionsView({ view, t, act, busy, answers, onAnswer, pieces, o
       </div>
       {view.questions.map((q) => (
         <Question key={q.text} q={q} a={Object.hasOwn(answers, q.text) ? answers[q.text] : undefined} s={s} t={t} act={act}
-          pieces={{ pieces, onRemove, onAttach, onFiles }} onChange={(a) => onAnswer(q.text, a)} onSend={() => act.run('answers', { answers: texts })} sendDisabled={!send || !!send.disabled || !given} />
+          pieces={{ pieces, onRemove, onAttach, onFiles }} onChange={(a) => onAnswer(q.text, a)} />
       ))}
       <div className="vc-q-send">
         <span className="vc-q-count" data-all={given === texts.length || undefined}>{s.count(given, texts.length)}</span>
@@ -70,21 +73,26 @@ export function QuestionsView({ view, t, act, busy, answers, onAnswer, pieces, o
   );
 }
 
-type QuestionProps = { q: VibeQuestion; a: Answer | undefined; s: typeof fr; t: Strings; act: VibeActs; pieces: StepPieces; onChange(a: Answer): void; onSend(): void; sendDisabled: boolean };
+type QuestionProps = { q: VibeQuestion; a: Answer | undefined; s: typeof fr; t: Strings; act: VibeActs; pieces: StepPieces; onChange(a: Answer): void };
 
-function Question({ q, a, s, t, act, pieces, onChange, onSend, sendDisabled }: QuestionProps) {
+function Question({ q, a, s, t, act, pieces, onChange }: QuestionProps) {
   const choice = a?.choice ?? null;
   const free = a?.free ?? '';
   const pick = (c: Answer['choice']) => onChange({ choice: c === choice ? null : c, free });
   return (
     <div className="vc-q" data-answered={choice !== null || !!free.trim() || undefined}>
-      <div className="vc-q-text"><span className="vc-q-n">{q.n}</span><span><InlineMd text={q.text} t={t} onOpenLink={act.openLink} /></span></div>
+      <div className="vc-q-text"><span className="vc-q-n">{q.n}</span>
+        {q.level && <span className="vc-q-level" data-level={q.level}>{t.levels[q.level]}</span>}<span><InlineMd text={q.text} t={t} onOpenLink={act.openLink} /></span></div>
       <div className="vc-q-options" role="group" aria-label={q.text}>
-        {q.options.map((o, i) => (
-          <button key={i} type="button" className="vc-q-opt" aria-pressed={choice === i} onClick={() => pick(i)}>
-            <InlineMd text={o} t={t} onOpenLink={act.openLink} />
-          </button>
-        ))}
+        {q.options.map((o, i) => {
+          const md = (text: string) => <InlineMd text={text} t={t} onOpenLink={act.openLink} />;
+          const p = optionParts(o);
+          return (
+            <button key={i} type="button" className="vc-q-opt" aria-pressed={choice === i} onClick={() => pick(i)}>
+              {p ? <><strong>{md(p.choice)}</strong> <span className="vc-q-where">{md(p.where)}</span> <span className="vc-q-quote">{md(p.quote)}</span></> : md(o)}
+            </button>
+          );
+        })}
         <button type="button" className="vc-q-opt vc-q-alt" aria-pressed={choice === 'advise'} title={s.adviseTitle} onClick={() => pick('advise')}>
           {s.advise}
         </button>
@@ -93,8 +101,7 @@ function Question({ q, a, s, t, act, pieces, onChange, onSend, sendDisabled }: Q
         </button>
       </div>
       <div className="vc-q-free">
-        <PromptField t={t} text={free} setText={(v) => onChange({ choice, free: v.slice(0, 1500) })} placeholder={s.free} {...pieces}
-          onSend={onSend} sendDisabled={sendDisabled} />
+        <PromptField t={t} text={free} setText={(v) => onChange({ choice, free: v.slice(0, 1500) })} placeholder={s.free} {...pieces} />
       </div>
     </div>
   );

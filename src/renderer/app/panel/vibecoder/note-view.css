@@ -67,7 +67,7 @@
   white-space: nowrap;
 }
 .vc-mn:is([data-mark="invariant"], .vc-mn-invariant) { border-color: var(--vc-active-edge); background: var(--vc-active-bg); color: var(--vc-active); }
-.vc-mn:is([data-mark="variant"], .vc-mn-variant) { border-color: var(--vc-active-edge); background: var(--vc-active-bg); color: var(--vc-accent-soft); }
+.vc-mn:is([data-mark="variant"], .vc-mn-variant) { border-color: color-mix(in srgb, var(--vc-accent) 60%, transparent); background: color-mix(in srgb, var(--vc-accent) 14%, transparent); color: var(--vc-accent-soft); } /* un bleu plus clair que invariant ; un seul thème (core/ui/theme.css) */
 .vc-mn:is([data-mark="review"], .vc-mn-review) { border-color: var(--vc-line); background: var(--vc-hover); color: var(--vc-soft); }
 .vc-mn:is([data-mark="structure"], .vc-mn-structure) { border-color: color-mix(in srgb, var(--vc-violet) 50%, transparent); background: color-mix(in srgb, var(--vc-violet) 16%, transparent); color: var(--vc-violet); }
 .vc-mn:is([data-mark="none"], .vc-mn-none) { border: 1px dashed var(--vc-warn-edge); color: var(--vc-warn); font-weight: 500; }
@@ -91,6 +91,7 @@
   box-shadow: inset 3px 0 var(--vc-ok);
   background: var(--vc-ok-bg);
 }
+.vc-note-editor .cm-line.vc-focus, .vc-md [data-focus] { box-shadow: inset 3px 0 var(--vc-accent); background: var(--vc-active-bg); }
 .vc-note-editor :is(.cm-md-h1, .cm-md-h2, .cm-md-h3, .cm-md-h4, .cm-md-h5, .cm-md-h6) { padding-top: 10px; padding-bottom: 4px; color: var(--vc-text); font-weight: 600; line-height: 1.3; }
 .vc-note-editor .cm-content > .cm-line:first-child { padding-top: 0; } /* pas d'espace au-dessus de la note, comme le rendu */
 .vc-note-editor .cm-md-h1 { font-size: 18px; }

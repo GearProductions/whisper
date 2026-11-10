@@ -2,17 +2,21 @@
  *  boutons de celle de la note, de la forme ou de « Rien à écrire » (étape
  *  Invariants) (Valider ; validée et Annuler ; modifiée depuis et Revalider ;
  *  Relire : Valider ou À revoir ; la note en créateur (onRecheck) : pas vérifiée,
- *  Valider et vérifier ; vérifiée, Revalider et, à côté, Revérifier, qui ne fait
- *  qu'appeler onRecheck), chaque libellé derrière son icône (Icon ok /
+ *  Valider et vérifier ; vérifiée, Revérifier d'abord, en couleur neutre, sans coche (il ne fait
+ *  qu'appeler onRecheck), puis Revalider ; `run` : la course de la vérification, à côté du bouton,
+ *  comme celle d'un bouton d'action (RunOn, step-parts : « en cours » et ⏹ → run.onStop ; « en attente » tant
+ *  qu'elle est en file)), chaque libellé derrière son icône (Icon ok /
  *  ko / warn), le verdict d'un cas d'invariant (deux badges écrits, Validé et
  *  À revoir, gris ; celui donné pressé, allumé de sa couleur, un second clic
  *  l'annule) ; CaseVerdict sert à tout cas ou commit (il ne sait rien d'un
  *  invariant). Sur un « À revoir », onRemark (facultatif) ajoute le bouton
  *  « Ajouter une remarque au brouillon » : il ne fait qu'appeler onRemark.
- *  Ne connaît pas : le pont (rappels passés), le brouillon, ce que porte le cas.
+ *  Ne connaît pas : le pont (rappels passés), le brouillon, ce que porte le cas ; de step-parts, que RunOn.
  *  Utilisé par : note-view, forme-view, invariants-view, commits-view. */
+import { t } from 'core/vibecoder';
 import type { VibeLang, VibeMarkState } from 'technicals/bridge';
 import { Icon } from './icons';
+import { RunOn } from './step-parts';
 import './validation.css';
 
 type Verdict = 'ok' | 'ko' | null;
@@ -36,6 +40,7 @@ const fr = {
   ok: 'Valider', okDone: 'Validé', ko: 'À revoir', koDone: 'Refusé',
   verdictUndo: 'Cliquer de nouveau pour annuler',
   remark: 'Ajouter une remarque au brouillon',
+  queued: 'en attente',
 };
 const S: Record<VibeLang, typeof fr> = {
   fr,
@@ -57,13 +62,22 @@ const S: Record<VibeLang, typeof fr> = {
     ok: 'Approve', okDone: 'Approved', ko: 'Needs rework', koDone: 'Rejected',
     verdictUndo: 'Click again to undo',
     remark: 'Add a remark to the draft',
+    queued: 'queued',
   },
 };
 
-type MarkProps = { what: What; state: VibeMarkState; review: boolean; lang: VibeLang; onMark(v: Verdict): void; onRemark?(): void; checked?: boolean; onRecheck?(): void };
+// run : la course design-check de la note (en cours, attend une autorisation, arrêtée ; queued : en file) ; absent : aucune.
+type DesignRun = { state: 'running' | 'asking' | 'stopped' | 'queued'; onStop?(): void };
+type MarkProps = { what: What; state: VibeMarkState; review: boolean; lang: VibeLang; onMark(v: Verdict): void; onRemark?(): void; checked?: boolean; onRecheck?(): void; run?: DesignRun };
+
+// La course de la vérification, comme celle d'une action (step-parts) ; « en attente » : pas encore partie, rien à arrêter.
+function Course({ run, lang }: { run?: DesignRun; lang: VibeLang }) {
+  if (!run) return null;
+  return run.state === 'queued' ? <span className="vc-run-on">{S[lang].queued}</span> : <RunOn state={run.state} t={t(lang)} onStop={run.onStop} />;
+}
 
 // La validation de la note, de la forme ou de « Rien à écrire ». Relire : un verdict, Valider ou À revoir.
-export function MarkControl({ what, state, review, lang, onMark, onRemark, checked, onRecheck }: MarkProps) {
+export function MarkControl({ what, state, review, lang, onMark, onRemark, checked, onRecheck, run }: MarkProps) {
   const s = S[lang];
   const check = what === 'note' && !!onRecheck; // la note, en créateur : sa vérification de conception
   const label = check && !checked ? s.validateCheck : state === 'changed' || check ? s.revalidate : s.validate[what];
@@ -80,10 +94,11 @@ export function MarkControl({ what, state, review, lang, onMark, onRemark, check
   return (
     <span className="vc-vmark">
       {state === 'changed' ? <span className="vc-vstate" data-state="changed" title={s.changedTitle}><Icon name="warn" />{s.changed}</span> : null}
+      {check && checked ? <><button type="button" className="vc-vbtn vc-vbtn-plain" title={s.recheckTitle} onClick={onRecheck}>{s.recheck}</button><Course run={run} lang={lang} /></> : null}
       <button type="button" className="vc-vbtn" data-v="ok" title={s.validateTitle} onClick={() => onMark('ok')}>
         <Icon name="ok" />{label}
       </button>
-      {check && checked ? <button type="button" className="vc-vbtn" title={s.recheckTitle} onClick={onRecheck}><Icon name="ok" />{s.recheck}</button> : null}
+      {check && !checked ? <Course run={run} lang={lang} /> : null}
       {refuse}
     </span>
   );

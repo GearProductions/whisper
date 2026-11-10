@@ -1,7 +1,7 @@
 /** outputs — ce que les skills écrivent pour l'écran dans le dossier de
  *  sorties de l'agent : les seuls noms que le principal y lit, et leur
- *  lecture (cas d'un test lus en pseudo-code, questions ouvertes, cases à
- *  cocher, un JSON, le worktree d'une PR, la branche d'une nouvelle demande
+ *  lecture (cas d'un test lus en pseudo-code, questions ouvertes et leur
+ *  niveau, cases à cocher, un JSON, le worktree d'une PR, la branche d'une nouvelle demande
  *  (new-request.json), les remarques ponytail appliquées) ;
  *  la ligne de la consigne qui fait vider questions.md par la conversation.
  *  Ne connaît pas : le disque (textes passés), git, les skills.
@@ -90,14 +90,18 @@ function add(c: ReadingCase, field: 'edges' | 'guarantees' | 'warning', text: st
 }
 
 // questions.md : `## <n>. <question>` puis ses réponses proposées en liste ; vide : plus de question.
+// Le niveau en tête du titre, après le numéro (`## 1. [important] …`, `## 1. [secondaire] …`) : dans level
+// ('important', 'secondary'), retiré de text ; un autre crochet, ou aucun : pas de level, le titre tel quel.
 export function parseQuestions(md: string): VibeQuestion[] {
   const out: VibeQuestion[] = [];
   for (const line of md.split(/\r?\n/)) {
     const h = /^##\s+(?:(\d+)[.)]\s*)?(.*?)\s*$/.exec(line);
     const q = out[out.length - 1];
-    if (h) out.push({ n: h[1] ? Number(h[1]) : out.length + 1, text: h[2], options: [] });
-    else if (q && BULLET.test(line)) q.options.push(line.replace(BULLET, '').trim());
-    else if (q && line.trim() && !q.options.length) q.text += ` ${line.trim()}`;
+    if (h) {
+      const level = /^\[(important|secondaire)\](?:\s+|$)/.exec(h[2]);
+      out.push({ n: h[1] ? Number(h[1]) : out.length + 1, text: level ? h[2].slice(level[0].length) : h[2], options: [], ...(level && { level: level[1] === 'important' ? 'important' : 'secondary' }) });
+    } else if (q && BULLET.test(line)) q.options.push(line.replace(BULLET, '').trim());
+    else if (q && line.trim() && !q.options.length) q.text = `${q.text} ${line.trim()}`.trim();
   }
   return out;
 }

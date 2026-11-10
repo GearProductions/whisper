@@ -149,3 +149,5 @@
   white-space: nowrap;
 }
 .vc-applied-banner svg { width: 12px; height: 12px; }
+/* Une vérification [agent] : son nom passe en retrait aussi (--vc-soft, lisible) ; la marque a sa propre couleur (fond et traits), elle garde la sienne. */
+.vc-check-list [data-tag="agent"] .vc-check-name { color: inherit; }
