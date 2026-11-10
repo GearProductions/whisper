@@ -1,6 +1,6 @@
 // Variants « une commande par famille » (note 0.10.0 docs/tickets/feat/0.10.0-familles-d-agents.md ;
 // SPEC I-47 : une même commande ne tourne qu'à un endroit dans une famille) : les 7 cas de la page (la
-// question « l'arrêter et le lancer ici ? », Oui ou Non) et de l'agent (<sorties>/run/<nom>.restart).
+// question « l'arrêter et le lancer ici ? », Oui ou Non) et de l'agent (proc.restart, processOp).
 // Les agents d'un même dépôt (le parent, ses enfants) partagent ports et base : une même commande du
 // fichier du projet ne tourne jamais à deux endroits à la fois. La marque propre au lancement : toujours
 // une seule instance par famille (note docs/tickets/fix/0.13.0-fix-and-improvements.md, sujet 3).
@@ -196,17 +196,14 @@ describe.skipIf(process.platform === 'win32')('une même commande ne tourne qu�
     expect(alive()).toBe(1);
   }, 20000);
 
-  it('le parent la fait tourner, l’agent enfant demande .restart : pas lancée', async () => {
+  it('le parent la fait tourner, l’agent enfant la relance (proc.restart) : pas lancée', async () => {
     await runningIn('a1');
     // l'enfant propose bien la commande de la famille
     expect(names('a2')).toContain('serveur');
-    const request = path.join(root, 'vibecoder-out', 'a2', 'run', 'serveur.restart');
-    fs.mkdirSync(path.dirname(request), { recursive: true });
-    fs.writeFileSync(request, '');
 
-    processView(agentOf('a2'), loadConfig());
-    // la demande est lue (le fichier consommé), sans délai fixe
-    await until(() => !fs.existsSync(request));
+    expect(await processOp(agentOf('a2'), loadConfig(), 'serveur', 'restart')).toBe(true);
+    // un lancement de plus aurait eu le temps d'apparaître
+    await new Promise((r) => setTimeout(r, 1000));
 
     // lancée une seule fois
     expect(seen()).toHaveLength(1);

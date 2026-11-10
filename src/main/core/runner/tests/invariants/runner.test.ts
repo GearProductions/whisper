@@ -4,10 +4,8 @@
 //   commandes du fichier du projet — une page désigne une commande par son
 //   rang, jamais par un texte ; le fichier n'est écrit par l'appli que s'il
 //   n'existe pas. Exception à I-27, limitée à ces commandes : `bash -ic`.
-//   Et : les demandes de l'agent (<out>/run/<nom>.stop, .restart) n'agissent
-//   que sur les noms du fichier.
 import { describe, expect, it } from 'vitest';
-import { commandAt, parseProject, requestsOf, type Project } from 'core/runner';
+import { commandAt, parseProject, type Project } from 'core/runner';
 
 const project = parseProject(JSON.stringify({
   commands: [{ name: 'serveur', run: 'npm run dev' }, { name: 'front', run: 'gear front', cwd: 'web' }],
@@ -44,30 +42,5 @@ describe('une commande se désigne par son rang dans le fichier du projet', () =
 
   it('sans fichier du projet : rien', () => {
     expect(commandAt(null, 0, '')).toBeNull();
-  });
-});
-
-describe('les demandes de l’agent', () => {
-  it('<nom>.stop et <nom>.restart d’un nom du fichier : la demande', () => {
-    expect(requestsOf(['serveur.stop', 'front.restart'], project)).toEqual([
-      { name: 'serveur', op: 'stop', file: 'serveur.stop' },
-      { name: 'front', op: 'restart', file: 'front.restart' },
-    ]);
-  });
-
-  it('un nom absent du fichier : ignoré', () => {
-    expect(requestsOf(['inconnu.stop', 'inconnu.restart'], project)).toEqual([]);
-  });
-
-  it('un autre suffixe : ignoré', () => {
-    expect(requestsOf(['serveur.start', 'serveur.log', 'serveur.kill'], project)).toEqual([]);
-  });
-
-  it('un chemin : ignoré', () => {
-    expect(requestsOf(['../serveur.stop', 'x/serveur.stop'], project)).toEqual([]);
-  });
-
-  it('sans fichier du projet : aucune demande', () => {
-    expect(requestsOf(['serveur.stop'], null)).toEqual([]);
   });
 });

@@ -1,6 +1,6 @@
 ---
 name: verifier
-description: "Run the project's own verification commands — typecheck, tests, invariants, lint — and write the results to <out>/checks.json, asking the app for the ponytail review (<out>/actions/ponytail.start) when all run; or run one check again, the others kept."
+description: "Run the project's own verification commands — typecheck, tests, invariants, lint — and write the results to <out>/checks.json, asking the app for the ponytail review (`vibecoder run start ponytail`) when all run; or run one check again, the others kept."
 argument-hint: "<lang> <out> <check> [prefix…]"
 disable-model-invocation: true
 context: fork
@@ -15,7 +15,7 @@ allowed-tools: "Read, Glob, Grep, Write, Bash"
 
 ## First, the ponytail review
 
-Only when `check` is `*` (one check run again: no ponytail review). Before any command, write `<out>/actions/ponytail.start` containing `{}` (the orchestrator's request, `${CLAUDE_SKILL_DIR}/../actions/SKILL.md`): the app starts the ponytail review in its own run, and both reads run together. Nothing else to do for it: don't wait for it, don't read `ponytail.md`.
+Only when `check` is `*` (one check run again: no ponytail review). Before any command, run `node "${CLAUDE_SKILL_DIR}/../../bin/vibecoder.mjs" run start ponytail` (the orchestrator's request, `${CLAUDE_SKILL_DIR}/../actions/SKILL.md`): the app starts the ponytail review in its own run, and both reads run together. Nothing else to do for it: don't wait for it, don't read `ponytail.md`.
 
 ## Which commands
 
@@ -48,4 +48,4 @@ Run every command yourself, now, with Bash: `<prefix> <command>`, the prefix exa
 - `time`: when the checks finished, in milliseconds since the epoch: run `date +%s%3N` (no prefix) after the last command and use its output; never a guessed or old value.
 - No command found → `{"items":[],"time":…}`, and say so.
 
-Valid JSON only. Change nothing else (`actions/ponytail.start` aside). Answer in English, one line: all green, the warnings, or the failures.
+Valid JSON only. Change nothing else. Answer in English, one line: all green, the warnings, or the failures.

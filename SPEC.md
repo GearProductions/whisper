@@ -63,7 +63,7 @@ principal (`src/main/`) est le seul à lire la config, lancer des processus.
 |---|---|
 | `app/lifecycle` | démarrage (une instance, le socket, la fenêtre, l'agent affiché la dernière fois, permissions), sortie (dont les processus du projet, F-111, et le socket : `live.json` supprimé, F-116) |
 | `app/windows` | la fenêtre (`panel-window`) : la créer, la montrer sur un agent, son message en tête |
-| `app/controllers` | dictée (coupures, transcription rendue à la page, modèle), lecture d'une réponse, agents (les robots de l'en-tête, les notifications du système), familles (`worktrees.ts` : le rattachement par git, *Ouvrir un agent ici*, le robot d'une PR, l'enfant d'une nouvelle demande, le retrait d'un worktree et de son robot, F-51, F-110 ; `artifacts.ts` : le dossier d'artefacts du projet, son relevé, ce qu'on y ajoute ou en copie, F-95 ; `artifact-migration.ts` : les anciens artefacts déplacés vers ce dossier au démarrage, F-95), contenu du panneau, VibeCoder (`vibecoder.ts` : relevé, actions, réglages, validations, brouillon de revue, fichier à ouvrir ; `processes.ts` : les commandes du projet, F-111 ; `recipe.ts` : la recette du projet — préparer, créer et retirer un worktree —, lancée par l'appli, F-111 ; `runs.ts` : les courses — lancées, suivies, arrêtées, gardées ou annulées, chacune avec le module qu'elle génère —, leur avis de fin à la conversation, les demandes de l'orchestrateur, `actions.json`, F-115 ; `module-code.ts` : le fichier suivi — celui de *Voir le code*, la note ou un test d'invariant —, lu, surveillé, poussé, enregistré au geste, F-100 ; `commands.ts` : `runCommand`, le mince branchement de l'exécuteur pour un robot, et `commandFromSocket`, le robot de la cible d'une enveloppe, porte « écran », F-116 ; `socket.ts` : la porte de l'écran — `openSocket` (écoute, écrit `live.json`), `closeSocket`, `screenSend` (une commande du contrat par le client TCP ; le jeton ne sort pas d'ici), F-116, I-49, I-50 ; `settings.ts` : la page des réglages — les faits qu'elle montre lus, une écriture contrôlée par `core/settings`, une de ses commandes lancée —, § 8) |
+| `app/controllers` | dictée (coupures, transcription rendue à la page, modèle), lecture d'une réponse, agents (les robots de l'en-tête, les notifications du système), familles (`worktrees.ts` : le rattachement par git, *Ouvrir un agent ici*, le robot d'une PR, l'enfant d'une nouvelle demande, le retrait d'un worktree et de son robot, F-51, F-110 ; `artifacts.ts` : le dossier d'artefacts du projet, son relevé, ce qu'on y ajoute ou en copie, F-95 ; `artifact-migration.ts` : les anciens artefacts déplacés vers ce dossier au démarrage, F-95), contenu du panneau, VibeCoder (`vibecoder.ts` : relevé, actions, réglages, validations, brouillon de revue, fichier à ouvrir ; `processes.ts` : les commandes du projet, F-111 ; `recipe.ts` : la recette du projet — préparer, créer et retirer un worktree —, lancée par l'appli, F-111 ; `runs.ts` : les courses — lancées, suivies, arrêtées, gardées ou annulées, chacune avec le module qu'elle génère —, leur avis de fin à la conversation, la file d'attente des demandes des agents, la fin d'une course attendue (`run.wait`), F-115 ; `module-code.ts` : le fichier suivi — celui de *Voir le code*, la note ou un test d'invariant —, lu, surveillé, poussé, enregistré au geste, F-100 ; `commands.ts` : `runCommand`, le mince branchement de l'exécuteur pour un robot, et `commandFromSocket`, qui appelle (l'écran, un robot, un agent extérieur), sur quel robot et par quelle porte, la file d'attente, F-116 ; `socket.ts` : les portes — `openSocket` (écoute avec la table des jetons, écrit `live.json`), `closeSocket`, `robotToken`, `robotAccess`, `forgetRobot` (le jeton d'un robot, en mémoire), `writeLive` (`live.json`, le jeton extérieur), `screenSend` (une commande du contrat par le client TCP ; le jeton de l'écran ne sort pas d'ici), F-116, I-49 à I-56 ; `settings.ts` : la page des réglages — les faits qu'elle montre lus, une écriture contrôlée par `core/settings`, une de ses commandes lancée —, § 8) |
 | `app/menus` | menus des robots, du « + », du trombone |
 | `app/ipc` | la table de gestionnaires du panneau, écoutée par `technicals/ipc` |
 | `core/config` | réglages, l'agent affiché (`agentSelected`), dossiers favoris et couleurs, confiance, la langue des agents (`agentLang`), le modèle et l'effort choisis par action (`actionPicks`, jamais Fable, I-36) |
@@ -76,15 +76,15 @@ principal (`src/main/`) est le seul à lire la config, lancer des processus.
 | `core/conversation` | actions et demandes d'autorisation écrites, pièces jointes, tâches de fond vues par le volet |
 | `core/guards` | permissions des pages, liens, fichiers montrés |
 | `core/repo` | page GitHub d'un dossier, d'après son remote `origin` |
-| `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier ou un commit désigné par son id (`safePath`, `itemPath`, `itemCommit`, `codeFile` : un fichier d'un module touché, ou de la branche), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`, `skillModel`), le parcours (`vibeView`), le rôle (`role` : `vibeRole`, `canAssign`, `unassignable`, F-101), les choix de lieu d'après l'état du dossier (`place` : `placeShown`, `placeReason`, `onBase`, F-110), *Pull*, *Rebase*, *Pousser* (`sync` : `syncReason`, F-114), les sorties des skills, les fichiers par défaut (`syncDefaults`) et les variantes des skills (`skillVariants`), les validations et brouillons de revue, les courses (`runs` : `ownRun`, `runKey`, la règle `blockedBy`, le module qu'une course génère et le verrou de son code (`runModule`, `codeLock`), `actions.json`, l'avis de fin, `parseRequest`, l'avis d'une demande refusée ou aux arguments ignorés `requestNotice`, F-115), les ✓ des étapes passées en Vibe (`vibeMarks`) |
-| `core/commands` | la table des commandes de VibeCoder (F-116), pure, sans Electron ni disque (le texte est donné) : `schema` (`JsonSchema`, `SCHEMA_KEYS`, `schemaError` : le sous-ensemble de JSON Schema de la table, sans bibliothèque), `table` (`parseCommands`, `AGENT_CLOSED` : la table lue et vérifiée), `reads` (`statusOf`, `nextOf`, `actionsOf`, `runsOf`, `procsOf`, `logsOf`, `artifactsOf`, `draftOf` : les lectures, d'après le relevé), `skill-text` (`skillArgs` : la section des arguments des skills `actions` et `processus`), `execute` (`execute`, `ERROR_CODES` : l'exécuteur, une seule entrée, qui rend `{ ok, result }` ou `{ ok: false, error }` ; les écritures par des opérations injectées) ; utilisé par `app/controllers` (`commands`) |
-| `core/runner` | les commandes du projet (F-111) : le fichier du projet, `<dossier du parent>/.vibecoder/project.json` (`projectPath`, la ligne de `.git/info/exclude` : `withExclude`), lu (`parseProject`), une proposition fusionnée dans le fichier existant (`mergeProject`), une commande par son rang (`commandAt` : shell du fichier, préfixe `commandPrefix` — celui du fichier, du réglage, ou la box de l'agent, le même pour `gh`), les demandes de l'agent (`requestsOf`), la fin d'un journal, la recette en étapes (`setupSteps`, `createSteps`, `removeSteps` ; la branche et la base par l'environnement, `recipeEnv` ; le dossier d'un worktree, `worktreeDir`) (I-42) |
+| `core/vibecoder` | VibeCoder sans Electron ni disque (passés) : la note lue par ses titres, les tests et leurs cas, un fichier ou un commit désigné par son id (`safePath`, `itemPath`, `itemCommit`, `codeFile` : un fichier d'un module touché, ou de la branche), les actions et leurs messages (`parseActions`, `buildMessage`, `whoOf`, `skillModel`), le parcours (`vibeView`), le rôle (`role` : `vibeRole`, `canAssign`, `unassignable`, F-101), les choix de lieu d'après l'état du dossier (`place` : `placeShown`, `placeReason`, `onBase`, F-110), *Pull*, *Rebase*, *Pousser* (`sync` : `syncReason`, F-114), les sorties des skills, les fichiers par défaut (`syncDefaults`) et les variantes des skills (`skillVariants`), les validations et brouillons de revue, les courses (`runs` : `ownRun`, `runKey`, la règle `blockedBy`, le module qu'une course génère et le verrou de son code (`runModule`, `codeLock`), l'avis de fin, F-115), les ✓ des étapes passées en Vibe (`vibeMarks`) |
+| `core/commands` | la table des commandes de VibeCoder (F-116), pure, sans Electron ni disque (le texte est donné) : `schema` (`JsonSchema`, `SCHEMA_KEYS`, `schemaError` : le sous-ensemble de JSON Schema de la table, sans bibliothèque), `table` (`parseCommands`, `AGENT_CLOSED` : la table lue et vérifiée), `reads` (`statusOf`, `nextOf`, `actionsOf`, `runsOf`, `procsOf`, `logsOf`, `artifactsOf`, `draftOf` : les lectures, d'après le relevé), `caller` (`robotAt`, `callerRobot`, `robotEnv` : qui appelle et sur quel robot, et l'environnement d'un robot ; les jetons, le serveur les a reconnus), `skill-text` (`skillArgs` : les lignes de la commande `vibecoder` des skills `actions` et `processus`), `execute` (`execute`, `ERROR_CODES` : l'exécuteur, une seule entrée, qui rend `{ ok, result }` ou `{ ok: false, error }` ; les écritures par des opérations injectées) ; utilisé par `app/controllers` (`commands`) |
+| `core/runner` | les commandes du projet (F-111) : le fichier du projet, `<dossier du parent>/.vibecoder/project.json` (`projectPath`, la ligne de `.git/info/exclude` : `withExclude`), lu (`parseProject`), une proposition fusionnée dans le fichier existant (`mergeProject`), une commande par son rang (`commandAt` : shell du fichier, préfixe `commandPrefix` — celui du fichier, du réglage, ou la box de l'agent, le même pour `gh`), la fin d'un journal, la recette en étapes (`setupSteps`, `createSteps`, `removeSteps` ; la branche et la base par l'environnement, `recipeEnv` ; le dossier d'un worktree, `worktreeDir`) (I-42) |
 | `technicals/process` | les processus lancés pour l'utilisateur : détachés, marqués dans leur environnement, arrêtés avec ce qu'ils ont lancé (SIGTERM, SIGKILL après 5 s), leur journal ; `writeNew` (I-43) ; une étape de la recette attendue jusqu'à sa fin (`runOnce` : l'entrée fermée, un délai, la dernière ligne utile) |
 | `technicals/git` | git en lecture seule (`gitRun`, `gitReader`, `GIT_READ`, plus `worktree list`) : les faits d'une branche ou d'une PR chargée, un fichier à un ref, un commit et son diff, le commit où la branche part de sa base (`forkPoint`), les branches locales (`branches`), le retard sur `@{u}` et sur `origin/<base>` (`sync`) (I-39) |
 | `technicals/github` | gh en lecture seule, derrière le préfixe (`ghRun`, `githubReader`, `GH_READ`, `GH_LOGIN`) : la PR d'une branche, les PR ouvertes du dépôt en trois listes (`openPrs`), l'état d'une PR, ses personnes (`prPeople` : auteur, assignés), l'identifiant de l'utilisateur (`login`, `okLogin`) (F-112, I-39) |
 | `technicals/direct` | les actions directes (F-114, I-39) : `directRunner` → `commit`, `publish`, `sameRepo`, `loadPr`, `toBase`, `fetchBranch`, `pullBranch`, `switchTo`, `stash`, `pull`, `rebase`, `push`, `fetchAll`, `requestReview`, `assign`, `unassign`, le texte de `pr-<n>.json` (`prCardText`), une liste fermée de commandes (`DIRECT_GIT`, `DIRECT_GH`), 60 s, `direct.log` |
 | `technicals/file-tree` | les artefacts copiés, écrits ou déplacés (F-95, I-37, I-39) : `copyInto`, `writeInto` (un contenu reçu), `moveContents`, `hasFiles` ; `fs.promises` seulement, un fichier à la fois, jamais écraser (`COPYFILE_EXCL`), un lien jamais suivi, sans limite de nombre ni de taille |
-| `technicals/socket` | le socket TCP de l'écran (F-116, I-49, I-50), qui ne connaît que `node:net`, `node:crypto` et son protocole : `protocol` (une enveloppe `{ cmd, args, token, target }` par ligne : `readLine`, `writeLine`, `LINE_MAX`, `BAD_TOKEN`), `server` (`listen` : `127.0.0.1` seulement, un port libre, un jeton tiré à chaque appel), `client` (`send` : une connexion, une ligne, la réponse) ; ni la table ni l'exécuteur |
+| `technicals/socket` | le socket TCP des portes : l'écran, les robots, un agent extérieur (F-116, I-49, I-50), qui ne connaît que `node:net`, `node:crypto` et son protocole : `protocol` (une enveloppe `{ cmd, args, token, target }` par ligne : `readLine` : le jeton cherché dans une table, rendu avec le nom de l'appelant, `writeLine`, `LINE_MAX`, `BAD_TOKEN`), `server` (`listen` : `127.0.0.1` seulement, un port libre, le jeton de l'écran tiré à chaque appel, les autres relus à chaque ligne — `drawToken` ; une réponse qui tarde, `run.wait`, garde la connexion ouverte), `client` (`send` : une connexion, une ligne, la réponse) ; ni la table ni l'exécuteur |
 | `technicals/*` | `ipc` (expéditeur contrôlé), `whisper-cli`, `windows-helper`, `pipewire`, `pocket-tts`, `claude`, `editor` (un dossier, ou un fichier de VibeCoder, à une ligne ; le terminal d'un dossier, `findTerminal`), `journal`, `images`, `paths`, `config-file` |
 | `helpers` | découper une commande, français ou anglais, une ligne, `async-queue` (l'entrée d'un processus d'agent), `numbered-name` (`rapport-2.md`) |
 
@@ -137,7 +137,7 @@ Vers le principal :
 Depuis la 0.15.0, les gestionnaires de `conv:vibeRun`, `conv:vibeRunOp`, `conv:vibeProcess`, `conv:vibeDrop` et
 `conv:vibeDraft` sont les adaptateurs de l'écran : ils envoient la commande du
 contrat par le socket (F-116) ; le pont, ses canaux et ce que la page reçoit ne
-changent pas, et la page ne détient jamais le jeton (I-50).
+changent pas, et la page ne détient jamais un jeton (I-50, I-53).
 
 (← : avec réponse.) Vers la page : `tts:chunk`, `tts:end` (l'audio d'*Écouter*),
 `agents:state` (les agents de l'en-tête et de la palette, et l'agent
@@ -168,11 +168,11 @@ canal de plus.
 | `pocket-tts/` | Python, Pocket TTS, PyTorch installés par uv |
 | `consigne-agents.md` | consigne ajoutée au prompt système des agents |
 | `agents.log` (`.old`) | journal des agents, 1 Mo puis rotation |
-| `vibecoder/` | ce que VibeCoder fait dire, à retoucher (F-107) : `actions.fr.json`, `actions.en.json`, `plugin/` (le plugin `vibecoder` : skills, agents ; `skills/<nom>--<modèle>/` et `--<modèle>--<effort>/`, les variantes générées, F-106), `README.md` ; `.defaults.json`, le manifeste de ce que l'appli y a écrit ; `projets/<dossier>.json`, l'ancien fichier du projet d'un dossier, d'avant la 0.12.0 (repris dans `.vibecoder/` du dossier, gardé ; F-111) |
-| `vibecoder-out/<agent>/` | les sorties des skills pour l'écran (F-95) ; `branches/<branche>/`, celles d'une branche quittée, et `.branche`, la dernière branche vue ; `files/`, ce que l'appli écrit pour l'ouvrir dans l'éditeur, en lecture seule (`<hash>.diff`, F-101) ; `run/<nom>.log` (`.old`), les journaux des commandes du projet, et `run/<nom>.stop`, `.restart`, les demandes de l'agent ; `artifacts/`, les anciens artefacts de l'agent, d'avant le dossier du projet : déplacés vers lui à chaque démarrage, le dossier vidé part (F-95) ; `recipe.log`, celui de la recette (F-111) ; `direct.log`, une ligne par commande d'une action directe, et `pr-<n>-review-body.md`, le brouillon publié (F-114) ; `actions.json`, les courses pour l'orchestrateur, et `actions/<id>.start`, `.stop`, ses demandes (F-115) ; dossier de travail en plus de Claude Code (F-58) |
+| `vibecoder/` | ce que VibeCoder fait dire, à retoucher (F-107) : `actions.fr.json`, `actions.en.json`, `commands.json` (la table, que lit la commande `vibecoder`), `plugin/` (le plugin `vibecoder` : skills, agents, `bin/vibecoder.mjs` — la commande, F-116 — ; `skills/<nom>--<modèle>/` et `--<modèle>--<effort>/`, les variantes générées, F-106), `README.md` ; `.defaults.json`, le manifeste de ce que l'appli y a écrit ; `projets/<dossier>.json`, l'ancien fichier du projet d'un dossier, d'avant la 0.12.0 (repris dans `.vibecoder/` du dossier, gardé ; F-111) |
+| `vibecoder-out/<agent>/` | les sorties des skills pour l'écran (F-95) ; `branches/<branche>/`, celles d'une branche quittée, et `.branche`, la dernière branche vue ; `files/`, ce que l'appli écrit pour l'ouvrir dans l'éditeur, en lecture seule (`<hash>.diff`, F-101) ; `run/<nom>.log` (`.old`), les journaux des commandes du projet ; `artifacts/`, les anciens artefacts de l'agent, d'avant le dossier du projet : déplacés vers lui à chaque démarrage, le dossier vidé part (F-95) ; `recipe.log`, celui de la recette (F-111) ; `direct.log`, une ligne par commande d'une action directe, et `pr-<n>-review-body.md`, le brouillon publié (F-114) ; ni `actions.json` ni demandes `.start`, `.stop`, `.restart` depuis la 0.15.0 : la commande `vibecoder` les remplace (F-115) ; dossier de travail en plus de Claude Code (F-58) |
 | `vibecoder-artifacts/<clé>/` | les artefacts d'un projet, partagés par le dépôt, ses worktrees et leurs robots (F-95) : la clé est le début (16 hexa) du sha1 du dossier git commun résolu, ou du dossier résolu hors git ; Claude Code le reçoit en dossier de travail en plus (F-58) ; retirer un agent, un robot ou un worktree n'y touche pas |
 | `vibecoder-state.json` | validations (par agent) et brouillons de revue (par agent et par PR) |
-| `live.json` | le fichier de découverte du socket (F-116) : `{ "port": … }`, jamais le jeton (I-50) ; écrit au lancement, supprimé à la sortie (F-116) ; la version de dev et l'AppImage, qui ne tournent pas ensemble, s'y retrouvent |
+| `live.json` | le fichier de découverte du socket (F-116) : `{ "port": …, "pid": … }`, plus `"token"` — le jeton extérieur — tant que le réglage *Autoriser les agents extérieurs* est activé (I-52) ; jamais le jeton de l'écran (I-50) ni celui d'un robot (I-51) ; droits 0600 ; écrit au lancement et à chaque changement du réglage, supprimé à la sortie (F-116) ; la version de dev et l'AppImage, qui ne tournent pas ensemble, s'y retrouvent |
 
 En développement : `--user-data-dir=.data` (cf. LINUX_SETUP.md).
 
@@ -816,7 +816,7 @@ de l'écran et le brouillon tiennent (S-72).
   `align.md` ; un écart → l'agent retouche les invariants et revérifie, 3
   tours au plus, puis dit les écarts qui restent) ; *Lancer les
   vérifications et la ponytail review* demande la ponytail review
-  (`<sorties>/actions/ponytail.start`, F-115) : deux lectures, qui courent
+  (`vibecoder run start ponytail`, F-115) : deux lectures, qui courent
   ensemble. Plus de bouton *Vérifier l'alignement* ni *Ponytail
   review* dans la rangée de l'étape (créateur) ; leurs cartes restent. Un document demandé hors du projet (PDF,
   présentation, wireframe, document externe, fichier de conception) :
@@ -1303,7 +1303,7 @@ conversation ; note `0.9.0-actions-independantes.md`).
   la fin de son tour, sans tâche de fond et sans qu'aucune soit tombée
   pendant ce tour, elle finit aussitôt. Limite : un agent qui repart plus de
   10 s après la fin de sa tâche trouve sa course déjà finie. Finie, la
-  course est fermée (son processus aussi), puis `actions.json` et l'avis de
+  course est fermée (son processus aussi), puis l'avis de
   fin.
   **Sans arrière-plan en sous-contexte** : une course dont le skill a
   `context: fork` part avec `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` (le
@@ -1361,50 +1361,63 @@ conversation ; note `0.9.0-actions-independantes.md`).
   reviennent à leur état d'avant son premier message (`rewindFiles` du SDK,
   sur son processus, I-45) ; puis elle est fermée. Un retour impossible :
   *en échec*, et la raison.
-- **L'orchestrateur** (la conversation de l'agent, skill `actions`) : il lit
-  `<sorties>/actions.json`, réécrit à chaque changement (`actions` : celles
-  qui courent à part, et `reads` ; `runs` : chaque course, son état, sa
-  réponse ; `waiting` : les demandes retenues et pourquoi), quand on le lui
-  demande. Il demande un lancement par `<sorties>/actions/<id>.start` (un
-  objet JSON de ses arguments : `text`, `module`, `commit`, `file`, `pr`,
-  `check`, `model`, `effort`, `answers` — `REQUEST_ARGS`, aussi les arguments de
-  `run.start` dans la table, F-116 ; jamais `direct`) ou un arrêt par `<id>.stop` (vide) ;
-  l'appli les lit au relevé, à la fin de chaque tour de la conversation et à
-  la fin de chaque course, les `.stop` d'abord. Un lancement suit la même
-  règle et les mêmes vérifications qu'un clic (`buildMessage`, I-38) ; parti,
-  ou refusé, le fichier est supprimé ; retenu, il reste « en attente »
-  (`waiting`) et **part de lui-même** au premier passage où plus rien ne le
-  retient. **Jamais refusée en silence** : une demande illisible, d'une
-  action inconnue, pas proposée à l'écran, qui ne court pas à part, déjà en
-  cours ou invalide envoie à l'agent « VibeCoder : demande <id> refusée —
-  <raison> » ; partie avec des arguments ignorés (F-97), « VibeCoder :
-  demande <id> partie, arguments ignorés : <noms> » — par le chemin de
-  l'avis de fin. Hors *Vibe*, il ne lance ou n'arrête une action qu'à la demande de
-  l'utilisateur ; pendant *Vibe*, il les enchaîne (F-103). *Vibe* arrêté
-  (*Arrêter Vibe*) : les demandes retenues sont jetées, et chaque lancement
-  est refusé (« … refusée — le mode Vibe a été arrêté par l'utilisateur :
-  ne lance plus rien ») jusqu'à ce que tout soit au repos ; les `.stop`
-  sont toujours lus.
+- **L'orchestrateur** (la conversation de l'agent, skill `actions`) : il agit
+  par la commande `vibecoder` (F-116), jamais par des fichiers. Il lit l'état
+  par `vibecoder status` et `vibecoder run list` (les courses : leur état, leur
+  réponse ; puis les demandes en attente, état `queued`, avec `by`), quand on le
+  lui demande. Il demande un lancement par `vibecoder run start <id>
+  [clé=valeur…]` (`text`, `module`, `commit`, `file`, `pr`, `check`, `model`,
+  `effort`, `answers`, `verdict`, `pieces` — `REQUEST_ARGS`, les arguments de
+  `run.start` dans la table, F-116 ; jamais `direct`) ou un arrêt par `run stop
+  <id>` ; `run wait <id>`, lancé en tâche de fond, garde la connexion ouverte
+  jusqu'à la fin de la course et le réveille (l'appli ne possède pas l'avis de
+  fin d'un agent extérieur). Un lancement suit la même règle et les mêmes
+  vérifications qu'un clic (`buildMessage`, I-38). **Les refus arrivent tout de
+  suite**, par le code de sortie 1, le code d'erreur, le message et ce qu'il
+  faut faire : une action inconnue, pas proposée à l'écran, qui ne court pas à
+  part, déjà en cours, un argument invalide, ou *Vibe* arrêté ; une demande
+  dont des arguments sont ignorés (F-97) part, et la réponse les nomme. **Seul
+  « occupé » devient « en attente »** : à la porte des agents, un lancement
+  refusé parce qu'une autre action retient le dossier (`busy`, `changing` ; F-116)
+  est mis en file, la CLI répond aussitôt `{ queued: true, by }` (`by` : l'action
+  qui retient ; code de sortie 0) ; la file, **en mémoire**, est montrée par `run
+  list` et **part de elle-même**, dans l'ordre, au premier passage où plus rien
+  ne la retient (une course qui finit ou qu'on garde ou annule, un tour qui
+  finit), d'après un **relevé neuf du robot**, fait sur place : panneau caché ou
+  écran verrouillé, elle part quand même (T-31). Une même action n'est en file
+  qu'une fois ; refusée pour une autre raison qu'« occupé » (grisée entre-temps),
+  elle quitte la file et son `run wait` revient. Une demande de
+  l'écran, elle, est refusée comme avant. Hors *Vibe*, il ne lance ou n'arrête
+  une action qu'à la demande de l'utilisateur ; pendant *Vibe*, il les enchaîne
+  (F-103). *Vibe* arrêté (*Arrêter Vibe*) : la file est jetée (un `run wait` sur
+  une demande en attente rend `no-run`), et chaque lancement est refusé
+  (« … le mode Vibe a été arrêté par l'utilisateur : ne lance plus rien »)
+  jusqu'à ce que tout soit au repos ; l'arrêt d'une course reste permis.
+  *Retiré en 0.15.0* : la boîte aux lettres, c'est-à-dire `<sorties>/actions.json`,
+  `<sorties>/actions/<id>.start` et `.stop`, `<sorties>/run/<nom>.stop` et
+  `.restart`, et les avis « demande refusée » et « arguments ignorés » : un
+  fichier posé n'est plus lu, `actions.json` n'est plus écrit.
 - ***Générer ce module*, puis *Relire le diff*, deux courses** : `module`,
   le module écrit, demande *Relire le diff* des changements en cours
-  (`<sorties>/actions/review-diff.start`, `{}`) au lieu de relire lui-même ;
+  (`vibecoder run start review-diff`) au lieu de relire lui-même ;
   elle part dans sa course, au modèle de *Relire le diff* (un autre agent
   que celui qui a écrit). Pas de demande s'il s'est arrêté sans écrire le
   module, ni quand `modules` l'a lancé (il relit chaque diff lui-même).
 - **L'avis de fin** : une course finie (*finie*, *en échec*) envoie une
   ligne à la conversation de l'agent (« VibeCoder : « <libellé> » finie —
-  <sa réponse, 300 caractères au plus>. État : <sorties>/actions.json ») ;
+  <sa réponse, 300 caractères au plus>.» ; l'état se lit par
+  `vibecoder run list`) ;
   gardée tant que la conversation travaille (I-25), envoyée dès qu'elle est
   libre, plusieurs en un message. Pas d'avis pour une course arrêtée :
   l'utilisateur (ou l'orchestrateur) le sait, et son état est dans
-  `actions.json`.
+  `vibecoder run list`.
 - Les courses, les avis, les demandes retenues et le mode *Vibe* sont **en mémoire** ;
   *Nouvelle session*, *Retirer* l'agent ou retirer le robot d'un worktree
   (F-110) ferment et oublient ses courses.
 
 **F-116 La table des commandes** (notes `0.15.0-registre-commandes.md`,
-`0.15.0-executeur.md`, `0.15.0-socket-interface.md` ; étapes 1 à 3a du pilotage
-par des agents). Le principe : tout ce que fait le moteur, un agent peut le
+`0.15.0-executeur.md`, `0.15.0-socket-interface.md`, `0.15.0-cli.md` ; étapes 1 à 3b
+du pilotage par des agents). Le principe : tout ce que fait le moteur, un agent peut le
 faire, avec les mêmes règles, par n'importe quelle porte, à une courte liste
 d'exceptions près. La table est le contrat public de ce moteur, pas la liste de
 tout ce que fait l'interface : une fonction y entre si le moteur possède ce
@@ -1427,7 +1440,7 @@ TypeScript.
   fois (`target`, en tête de la table) et portée par l'enveloppe des portes
   (le socket, ci-dessous).
 - **Ce qu'elle reprend** : `run.start` (l'action, parmi celles qui courent à part ;
-  ses autres arguments sont ceux que garde un `.start`, F-115 : `REQUEST_ARGS`,
+  ses autres arguments sont ceux d'une demande de lancement, F-115 : `REQUEST_ARGS`,
   `verdict` compris : `approve`, `comment` ou `request-changes`, lu par `publish`), `run.stop`, `run.keep`, `run.undo`, `proc.start`,
   `proc.stop`, `proc.restart` ; une commande par action directe (F-114, dont
   `add-artifact` et la gestion des artefacts, F-95) et par action ni à part
@@ -1442,7 +1455,7 @@ TypeScript.
 - **Les lectures**, d'après le relevé : `status` (la branche, l'étape, la note, la
   PR, ce qui court), `next` (les actions proposées, et pourquoi les autres sont
   grisées), `actions` (pour chacune, les arguments qu'elle lit vraiment),
-  `runs`, `procs`, `logs` (le nom d'un processus ; la fin de son journal, 32 Ko),
+  `runs` (les courses, puis les demandes en attente, état `queued`), `run.wait` (ouverte aux agents : la connexion reste ouverte jusqu'à la fin de la course d'une action, en cours ou en attente, puis `{ action, state, reply }` ; `no-run` si aucune), `procs`, `logs` (le nom d'un processus ; la fin de son journal, 32 Ko),
   `artifacts` (le dossier des artefacts du projet, son chemin réel — seul le moteur
   connaît la clé du projet —, ses fichiers et dossiers par id), `artifact` (le
   contenu d'un artefact par son id `a<i>`, pour un client sans disque : `text` pour
@@ -1465,9 +1478,11 @@ TypeScript.
 - **Les exceptions, fermées aux agents** (`agent: false`, avec sa `reason`) : un
   agent ne s'accorde pas de droits et ne quitte pas l'appli. Aujourd'hui :
   `run.allow`, `run.always`, `run.deny` (répondre à la demande d'autorisation
-  d'une course, I-13 à I-17). À venir avec les réglages, fermées de même :
-  ce qui accorde des droits (faire confiance au dossier `.claude` d'un projet,
-  « autoriser les agents extérieurs ») et quitter ou redémarrer l'appli. Une
+  d'une course, I-13 à I-17). À venir, fermées de même : quitter ou
+  redémarrer l'appli. Ce qui accorde des droits — les réglages (dont le modèle,
+  l'effort et « Autoriser les agents extérieurs »), la confiance au dossier
+  `.claude` d'un projet — n'est pas dans la table et n'y entre pas (décidé en
+  0.15.0) : l'utilisateur seul, par l'écran. Une
   commande de la liste ouverte, ou une autre fermée, fait refuser la table
   (`AGENT_CLOSED`).
 - **L'exécuteur** (note `0.15.0-executeur.md`) : `execute` (`core/commands`) est
@@ -1481,31 +1496,37 @@ TypeScript.
   et `editDraft`, et traduit leur refus en code ; une action absente du relevé
   est `not-offered` (pour une action directe ou une autre : aussi masquée, sauf à
   la porte `screen`, comme l'écran d'avant ; pour `run.start`, absente seulement :
-  la règle de la boîte aux lettres), une action grisée, `disabled` (le motif du
+  la règle de l'orchestrateur, F-115), une action grisée, `disabled` (le motif du
   relevé, tel quel). Avant une commande qui écrit, `runCommand` relit l'état du
   dépôt (`refreshVibe({ fresh: true })`) : il ne juge pas sur un relevé qui date.
   À la porte `agent`, tout ce que la table ouvre s'exécute ; les commandes
-  fermées sont refusées (`closed`). Une commande pour un dossier où aucun robot
+  fermées sont refusées (`closed`). `runCommand` et l'exécuteur refusent toujours
+  `busy` et `changing` (I-44) : c'est `commandFromSocket` qui, à la porte `agent`,
+  met la demande en file (ci-dessous). Une commande pour un dossier où aucun robot
   n'est : `no-survey`.
 - **Le socket** (note `0.15.0-socket-interface.md`, étape 3a) : le principal ouvre
   au lancement un socket TCP (`technicals/socket`, `app/controllers/socket.ts`),
   sur `127.0.0.1` seulement et sur un port libre ; un objet JSON par ligne.
   L'enveloppe est celle de Gear Render : `{ cmd, args, token, target }` en
   entrée (`target` : le chemin réel du dossier visé), la réponse de l'exécuteur
-  en sortie, en une ligne. Le jeton, 32 octets aléatoires, est tiré à chaque
-  lancement, comparé à temps constant, gardé **en mémoire** dans le contrôleur du
-  socket. Une commande sans le bon jeton est refusée (`bad-token`, une réponse
+  en sortie, en une ligne. Les jetons, 32 octets aléatoires chacun, sont
+  comparés à temps constant dans une table relue à chaque ligne (un jeton retiré
+  n'ouvre plus rien) ; celui de l'écran est tiré à chaque lancement, gardé **en
+  mémoire** dans le contrôleur du socket. Une commande sans un jeton de la table
+  est refusée (`bad-token`, une réponse
   puis la connexion fermée) ; une ligne qui n'est pas une commande — pas du JSON,
   pas un objet, `cmd` ou `target` absent, une clé de trop, au-delà de `LINE_MAX`
   (128 Mio de caractères) — ferme la connexion sans réponse : cela bloque les
   requêtes d'un navigateur vers `localhost` (I-49). Les lignes d'une connexion
-  sont traitées dans l'ordre. `commandFromSocket` retrouve le robot de la cible
-  (le robot affiché s'il est sur ce dossier, sinon le premier, chemins réels
-  comparés : `/home` et `/var/home`) et appelle `runCommand` à la porte `screen`.
-  Un seul jeton : celui de l'écran ; la porte `agent` n'est pas encore branchée.
-  `live.json` (`userData`) porte le port seul, jamais le jeton (I-50) ; il est
-  écrit au lancement et, à la sortie, le socket est fermé et `live.json`, qui
-  désignerait un port que plus rien n'écoute, **supprimé** (F-81).
+  sont traitées dans l'ordre ; une réponse qui tarde (`run.wait`) garde la
+  connexion ouverte, sans délai, et un client parti avant elle n'est pas une
+  erreur. `commandFromSocket` retrouve qui appelle, le robot et la porte (ci-dessous)
+  et appelle `runCommand`. `live.json` (`userData`, droits 0600) porte `{ port,
+  pid }`, plus le jeton extérieur tant que le réglage est activé — jamais le
+  jeton de l'écran (I-50) ni celui d'un robot (I-51) ; il est écrit au lancement
+  et à chaque changement du réglage et, à la sortie, le socket est fermé et
+  `live.json`, qui désignerait un port que plus rien n'écoute, **supprimé**
+  (F-81), le jeton extérieur avec lui.
 - **L'écran passe par lui** : les commandes de ses boutons qui sont dans le
   contrat partent du principal, client de son propre socket (`screenSend`, une
   connexion par commande), vers l'exécuteur : lancer, arrêter, garder, annuler une
@@ -1523,9 +1544,61 @@ TypeScript.
   ne répond pas : le bouton refuse (« Socket indisponible »), l'appli reste
   ouverte, jamais d'appel direct en repli ; les canaux qui ne rendent rien à la page
   (`conv:vibeRunOp`, `conv:vibeProcess`, `conv:vibeDraft`) l'annoncent par une
-  boîte de message. La boîte aux lettres de l'agent principal (F-115) ne change
-  pas : elle appelle `startAction` et `runOp` directement ; un `.start` pour une
-  action directe reste refusé.
+  boîte de message. Les agents passent par le même socket (ci-dessous) ; une
+  action directe leur reste refusée (`run.start` ne la lance pas).
+- **Les agents : la commande `vibecoder`** (note `0.15.0-cli.md`, étape 3b ;
+  `plugin/bin/`, copiée avec le plugin dans `userData/vibecoder/plugin/bin/`, rendue
+  exécutable par `ensureVibeFiles` hors Windows). Un script node sans construction
+  (`vibecoder.mjs`, le pur dans `cli.mjs` : aucun import de `src/`, aucun shell,
+  I-27), client du socket : une enveloppe avec, pour `target`, le chemin réel du
+  dossier courant, et la première ligne rendue. Une forme générale pour toute
+  commande de la table : `vibecoder <commande> [clé=valeur…]` (une valeur qui
+  commence par `{` ou `[` est lue en JSON, l'exécuteur convertit le reste) ; des
+  raccourcis : `status`, `next` ; `run start <action> [clé=valeur…]`, `run stop`,
+  `run wait`, `run list` ; `proc list`, `proc restart` et `proc stop <nom>`, `proc
+  logs <nom>` ; `commands` et `schema <commande>` se lisent dans la table copiée
+  avec le plugin, sans l'appli. `--json` : la réponse sur une ligne. Code de
+  sortie : 0 si tout va bien (une demande mise en attente aussi, et le texte le
+  dit), 1 un refus (son code, son message, ce qu'il faut faire) ou l'appli
+  injoignable, 2 un usage faux. Jamais de question interactive. Où se connecter :
+  un **robot** a `VIBECODER_PORT` et `VIBECODER_TOKEN` dans son environnement et
+  ne lit **jamais** `live.json` (I-54) ; un **agent extérieur** lit `live.json`
+  (`~/.config/whisper-dictation/`, ou sous `XDG_CONFIG_HOME` ; `%APPDATA%` sous
+  Windows), son port et son jeton extérieur ; sans jeton, la commande dit
+  d'activer le réglage.
+- **Les jetons des agents** : une table relue à chaque ligne, trois sortes de
+  noms. `screen` : le jeton de l'écran, inchangé (I-49, I-50). **Un jeton par
+  robot**, tiré à sa première demande, **en mémoire seulement** (`robotToken`), donné
+  par l'environnement à ce que l'appli lance pour lui — l'agent principal et ses
+  courses (`launchOptions`) — et jamais écrit (I-51) : il dit quel robot appelle ;
+  un robot retiré (`forgetRobot`) ou qui n'est plus dans la config n'ouvre plus
+  rien. `outside` : le jeton **extérieur**, écrit dans `live.json` seulement tant
+  que le réglage *Autoriser les agents extérieurs* est activé (I-52 ; tiré à
+  l'activation, oublié à la désactivation, un nouveau la fois suivante) ; il ne
+  désigne aucun robot, il dit seulement « un agent extérieur, permis ». Aucun jeton
+  d'agent ne va à la page (I-53).
+- **Les portes des agents** : `callerRobot` (pur, `core/commands/caller`) tire du
+  nom de l'appelant le robot et la porte. `screen` : le robot de la cible (le robot
+  affiché s'il est sur ce dossier ou en dessous, sinon le premier, chemins réels
+  comparés : `/home` et `/var/home`), porte `screen`. Un robot : **le sien seul**,
+  la cible ignorée, porte `agent` (I-56). Un agent extérieur (un Claude Code lancé
+  dans un terminal, hors de l'appli) : le robot de son dossier courant, par la même
+  règle ; réglage désactivé : refusé (`bad-token`, I-55) ; aucun robot dans son
+  dossier : `no-survey` (il change de projet en changeant de dossier). Un robot et
+  un agent extérieur passent tous deux par la porte `agent` de l'exécuteur : ce que
+  la table ferme leur reste fermé. Un agent extérieur a ainsi les capacités de
+  l'écran sur le projet de son dossier, sauf ce qui est une décision de
+  l'utilisateur. Le relevé du robot d'un agent est refait à chaque commande
+  (`surveyAgent`), affiché ou non : on travaille sans toucher au panneau. **En
+  attente** : à la porte `agent` seulement, un `run.start` (ou `vibe`, `guide`,
+  `new-request`, `propose-run`) refusé `busy` ou `changing` est mis en file
+  (`waits` de `controllers/runs`, F-115) et la réponse est `{ ok: true, result: {
+  queued: true, by } }` ; les autres refus arrivent tout de suite.
+- **Le réglage *Autoriser les agents extérieurs*** (`outsideAgents`, § 8 et § 9,
+  **désactivé par défaut**) : activé, `live.json` porte le jeton extérieur ;
+  désactivé, il ne porte plus rien de tel et l'ancien est refusé. Il se change par
+  la page des réglages seulement (canal `settings`) : ce n'est pas une commande de
+  la table. Le lien de la commande dans `~/.local/bin` : README.
 - **Une erreur est une donnée, sans langue** : `{ code, details, message, todo }`.
   Le code est l'un de `ERROR_CODES`, la liste que porte la table (`errors`,
   chacun avec son message et ce qu'il faut faire, en anglais, pour un modèle) ;
@@ -1536,7 +1609,7 @@ TypeScript.
   rendu par le protocole du socket, jamais par l'exécuteur. Une table sans `errors`
   se lit comme une liste vide.
 - **Les skills** : la section des arguments de `actions` et de `processus`
-  (F-105) est produite d'après la table (`skillArgs`) ; un test la régénère et la
+  (F-105) est produite d'après la table (`skillArgs` : les lignes de la commande `vibecoder`) ; un test la régénère et la
   compare au `SKILL.md` du dépôt. Rien n'est réécrit au démarrage : un skill
   retouché n'est jamais remplacé (I-35).
 
@@ -2279,9 +2352,10 @@ la fin ; dépliable ; *Journal complet* l'ouvre dans l'éditeur).
   qui ne désigne plus la même commande que le dernier relevé (fichier changé
   entre-temps) : rien.
 - **L'agent** lit les mêmes journaux (skill `processus`, dans la conversation,
-  qu'il appelle de lui-même) et demande l'arrêt ou la relance par un fichier
-  vide, `<sorties>/run/<nom>.stop` ou `.restart`, que l'appli exécute puis
-  retire au relevé — pour un nom du fichier seulement (I-42).
+  qu'il appelle de lui-même) et demande l'arrêt ou la relance par la commande
+  `vibecoder proc stop <nom>` ou `proc restart <nom>` (F-116, tout de suite, la
+  réponse dit le refus), et lit un journal par `proc logs <nom>` — pour un nom
+  du fichier seulement (I-42).
 - **La recette** (sans IA) : `setup` (une liste ordonnée de commandes qui
   préparent le projet, ex. `yarn install` ; mal formée, ignorée en entier),
   `worktree` `{ create, remove, dir }` (pour gt-plugins : `yarn
@@ -2320,7 +2394,7 @@ la fin ; dépliable ; *Journal complet* l'ouvre dans l'éditeur).
   endroits** de la famille (ports et base partagés) : *Lancer* ou
   *Relancer* là où elle tourne ailleurs demande « <nom> tourne dans
   <branche> : l'arrêter et le lancer ici ? » (*Arrêter et lancer ici* :
-  arrêtée là-bas, puis lancée ici ; *Non* : rien) ; un `.restart` de l'agent
+  arrêtée là-bas, puis lancée ici ; *Non* : rien) ; un `proc restart` de l'agent
   pour une commande qui tourne ailleurs : pas lancée. Des agents qui font déjà
   tourner la même commande et qu'un rattachement réunit ensuite (un agent
   ajouté sur la copie principale) la gardent chacun : rien n'est arrêté
@@ -2707,7 +2781,10 @@ n'est écrit. Un réglage écrit refait le relevé de VibeCoder (l'écran et
 - **Agents** : Claude Code (la commande trouvée, ou « introuvable ») et
   *Commande de lancement* (`agentCommand`) ; l'éditeur trouvé et *Éditeur*
   (`editorCommand`) ; *Terminal* (`terminalCommand`, F-56) ; *Préfixe des
-  commandes du projet et de gh* (`vibeCommandPrefix`, F-111, F-112) ; *Modifier
+  commandes du projet et de gh* (`vibeCommandPrefix`, F-111, F-112) ; *Autoriser
+  les agents extérieurs* (`outsideAgents`, F-116 : une case, désactivée par défaut ;
+  un Claude Code lancé dans un terminal pilote alors le robot de son dossier, I-52,
+  I-55) ; *Modifier
   la consigne des agents* (résumé audio) ; *Ouvrir le journal des agents*
   (tours, autorisations) ; *Dossier de VibeCoder* (ses fichiers par défaut
   écrits, puis le dossier ouvert, F-107).
@@ -2747,10 +2824,11 @@ d'effort des boutons d'action sont passés dans cette page.
 | `vibeModulesView` | `list` | VibeCoder : la vue de l'étape Modules, `ide` ou `list` (F-100) ; autre valeur → `list` |
 | `vibeSize` | — | taille de la fenêtre (défaut 1280×820, F-63) |
 | `vibeCommandPrefix` | `''` | VibeCoder : ce qui précède les commandes du projet et gh (F-111, F-112) ; `''` → `distrobox enter <box> --` d'après `agentCommand`, sinon rien |
+| `outsideAgents` | `false` | VibeCoder : « Autoriser les agents extérieurs » (F-116) ; seul `true` l'active, toute autre valeur est lue comme désactivé ; activé, `live.json` porte le jeton extérieur (I-52) |
 | `artifactTextMax` | `10485760` (10 Mo) | VibeCoder : octets d'un artefact affiché en texte, au-delà « fichier tronqué » (F-95) ; un entier positif, sinon le défaut |
 
 Ces réglages, dont `vocabulary`, `agentCommand`, `editorCommand`,
-`terminalCommand`, `vibeCommandPrefix` et `artifactTextMax`, se changent dans
+`terminalCommand`, `vibeCommandPrefix`, `outsideAgents` et `artifactTextMax`, se changent dans
 la page des réglages (§ 8), sans ouvrir le fichier.
 
 Dans `agents`, pour VibeCoder : `vibe` `{ flow, pr }` — `flow` `create` (défaut)
@@ -2854,6 +2932,14 @@ I-49 : `src/main/technicals/socket/tests/invariants/server.test.ts` (le vrai ser
 et ses sockets : `127.0.0.1`, le jeton, la connexion fermée) ; I-50 :
 `src/main/app/controllers/tests/invariants/socket-token.test.ts` (sur le vrai principal,
 git réel, le vrai socket : ni la page ni un fichier ne portent le jeton) ;
+I-51 à I-53 : `src/main/app/controllers/tests/invariants/agent-tokens.test.ts` ;
+I-54 : `tests/invariants/cli-robot-env.test.ts` (la fonction pure de `cli.mjs`
+et le vrai script `vibecoder.mjs`, deux serveurs d'essai) ; I-55, I-56 :
+`src/main/app/controllers/tests/invariants/agent-doors.test.ts` (sur le vrai
+principal, git réel sur deux dépôts, le vrai socket) ; la clause de I-43 sur
+`live.json`, le jeton extérieur compris :
+`src/main/app/tests/invariants/live-file.test.ts` (le même comportement,
+réglage désactivé : variant `src/main/app/tests/variants/live-file.test.ts`) ;
 I-36 : `src/main/app/controllers/tests/invariants/action-fable.test.ts` (sur le vrai
 principal, SDK factice : un « fable » glissé à la main dans `actionModels` ne
 part pas chez l'agent).
@@ -2873,8 +2959,7 @@ I-19 (F-59, S-26) et I-24 (F-60) : `src/main/core/agents/tests/variants/agents.t
 I-29 (S-72 : `src/main/technicals/editor/tests/variants/editor.test.ts`,
 `src/main/core/sound/tests/variants/muter.test.ts`,
 `src/main/technicals/journal/tests/variants/journal.test.ts`), I-47 (F-111 :
-`src/main/app/controllers/tests/variants/family-commands.test.ts`), la clause
-de I-43 sur `live.json` (F-116 : `src/main/app/tests/variants/live-file.test.ts`).
+`src/main/app/controllers/tests/variants/family-commands.test.ts`).
 Devenus des règles de structure, écrites dans AGENTS.md et sans test : I-26 (rien
 d'installé dans le système) et I-28 (pas de code propre à un bureau). Le reste
 (focus, fenêtre, I-22) : scénarios du § 13 et
@@ -3041,7 +3126,7 @@ sont retirés en 0.14.0.)*
   `DIRECT_GH`), la recette du projet (F-111, I-42), *Enregistrer* et la
   gestion des artefacts (ci-dessous) — au **clic** de leur bouton, jamais au
   relevé ni d'elles-mêmes, ou par la commande du registre qui leur correspond
-  (F-116 : la même porte pour l'écran et, plus tard, la CLI), sans shell (I-27),
+  (F-116 : la même porte pour l'écran et pour les agents, par la CLI), sans shell (I-27),
   60 s au plus. La liste exacte vit dans le code (`DIRECT_GIT`, `DIRECT_GH` ;
   pour lire, `GIT_READ`, `GH_READ`, `GH_LOGIN`), que les tests lisent ; hors de
   là, git et gh ne sont lancés qu'en lecture, sans verrou ni programme externe.
@@ -3127,7 +3212,7 @@ sont retirés en 0.14.0.)*
   les commandes de nom nouveau d'une proposition, et son `setup`, son
   `worktree` si le fichier n'a pas la clé — **jamais par-dessus** —, sans
   modifier ni retirer ce qui y est. Les demandes de l'agent
-  (`run/<nom>.stop`, `.restart`) ne valent que pour un nom du fichier.
+  (`proc.stop`, `proc.restart`) ne valent que pour un nom du fichier.
   Exception à I-27, limitée à ces commandes, écrites par l'utilisateur : le
   shell du fichier (`bash -ic`).
 - **I-43** Rien de ce que l'appli a lancé ne **survit à sa sortie**, et elle
@@ -3135,9 +3220,11 @@ sont retirés en 0.14.0.)*
   et les processus marqués de **son** jeton (dans leur environnement), rien
   d'autre ; une clé inconnue n'arrête rien ; quitter arrête tout, même un
   descendant sorti du groupe. SIGTERM, puis SIGKILL après 5 s (comme F-59).
+  `live.json` ne survit pas non plus à la sortie, ni le jeton extérieur qu'il
+  porte (F-116).
 - **I-44** Jamais **deux courses qui modifient la branche** en cours en même
   temps, ni **une lecture pendant une modification** (F-115), qu'elles
-  viennent d'un clic ou de l'orchestrateur (`actions/<id>.start`), de deux
+  viennent d'un clic ou de l'orchestrateur (`vibecoder run start`), de deux
   clics sans relevé entre eux ou de deux demandes lues au même passage. Une
   course arrêtée dont l'utilisateur n'a pas encore choisi *Garder* ou
   *Annuler* compte comme en cours (retour en arrière compris).
@@ -3163,20 +3250,51 @@ sont retirés en 0.14.0.)*
   (I-36) : rien n'est écrit. Les
   arguments de la page sont vérifiés par le principal, pas par la page ; le canal
   `settings` n'est écouté que de la fenêtre du panneau (I-20).
-- **I-49** Le socket de l'écran (F-116) n'écoute **que sur `127.0.0.1`** (jamais
-  `::1` ni une autre interface) et n'exécute **aucune commande sans le jeton de
-  son lancement** : un jeton faux, absent, vide, tronqué, ou celui d'un autre
+- **I-49** Le socket (F-116) n'écoute **que sur `127.0.0.1`** (jamais
+  `::1` ni une autre interface) et n'exécute **aucune commande sans un jeton de
+  sa table** (celui de l'écran, tiré à son lancement ; ceux des agents, I-51 et
+  I-52) : un jeton faux, absent, vide, tronqué, ou celui d'un autre
   lancement est refusé (`bad-token`), le gestionnaire jamais appelé ; une ligne qui
   **n'est pas une commande** (une requête HTTP, pas du JSON, un tableau, `cmd`
   ou `target` absent, une clé de trop, plus longue que `LINE_MAX`) **ferme la
   connexion**, rien de ce qui suit n'est traité : une page de navigateur ne peut
   pas lui parler.
-- **I-50** Le jeton du socket n'est **jamais donné à la page** (ni par un canal, ni
+- **I-50** Le jeton de l'écran n'est **jamais donné à la page** (ni par un canal, ni
   dans le relevé, ni dans un message ou une réponse) et **jamais écrit sur le
-  disque**, `live.json` compris, qui ne porte que le port : il ouvre la porte
+  disque**, `live.json` compris, qui ne porte que le port, le pid et, réglage
+  activé, le jeton extérieur (I-52) : il ouvre la porte
   « écran », qui répond aux autorisations (`run.allow`, `run.always`, `run.deny`,
   I-13 à I-17) ; un agent qui le lirait pourrait répondre lui-même à ses demandes.
   Il naît dans le serveur et reste en mémoire dans `controllers/socket`.
+- **I-51** Le jeton d'un **robot** (F-116) n'est **jamais écrit sur le disque**,
+  `live.json` compris : il naît dans `controllers/socket`, reste en mémoire, et ne
+  sort que par l'environnement de ce que l'appli lance pour ce robot
+  (`VIBECODER_TOKEN`). Il dit quel robot appelle : lisible par tout programme de la
+  machine, il laisserait un agent extérieur se faire passer pour n'importe quel
+  robot, même désactivé. Il est distinct du jeton extérieur (I-52).
+- **I-52** Le jeton **extérieur** n'est écrit **que dans `live.json`**, et
+  **seulement tant que « Autoriser les agents extérieurs » est activé** : réglage
+  désactivé, ou absent de la config (le défaut), `live.json` n'en porte pas ;
+  désactivé après coup, il est retiré du fichier et refusé ensuite ; à la sortie de
+  l'appli, `live.json` est supprimé (I-43). Aucun autre fichier ne le porte.
+- **I-53** Aucun jeton d'**agent** — d'un robot ou extérieur — n'est donné à la
+  **page** (ni par un canal, ni dans un relevé, un message ou une réponse), comme
+  celui de l'écran (I-50).
+- **I-54** Un **robot ne trouve jamais l'appli par `live.json`** : son port et son
+  jeton viennent de son environnement (`VIBECODER_PORT`, `VIBECODER_TOKEN`). La
+  commande ne lit pas `live.json` quand elle les a, et n'associe jamais le jeton
+  d'un robot au port de `live.json` : un programme qui y réécrirait le port, que
+  tout programme de la machine peut lire et écrire, recevrait sinon le jeton du
+  robot.
+- **I-55** Un agent **extérieur n'est pas accepté quand le réglage est désactivé**
+  (le défaut) : son jeton, même celui d'un lancement ou d'une activation
+  précédents, est refusé (`bad-token`) et rien ne part.
+- **I-56** Un agent n'agit que **sur son propre robot** : un robot, celui de son
+  jeton, d'où qu'il appelle ; un agent extérieur, celui de son dossier courant (le
+  robot affiché s'il est sur ce dossier, sinon le premier ; un sous-dossier compte,
+  `/p2` n'est pas sous `/p`). Un robot retiré de la config, ou un dossier sans
+  robot : refusé, rien ne part. Et il passe par la porte `agent` : ce qu'elle
+  ferme (répondre aux demandes d'autorisation, I-13 à I-17) lui reste fermé.
 
 ### Système et code
 
@@ -3442,7 +3560,7 @@ relire, une PR d'essai sur GitHub)
   `.bashrc`), `setup` et `worktree` dans `.vibecoder/project.json`,
   `.vibecoder/` dans `.git/info/exclude` (`git status` n'en dit rien). ▶ → point vert, « depuis 5 s »,
   le journal de process-compose défile ; *Processus (1)* dans l'onglet.
-  L'agent, prié de relancer le serveur, écrit `run/gear.restart` → le journal
+  L'agent, prié de relancer le serveur, lance `vibecoder proc restart gear` → le journal
   repart. *Arrêter* → arrêtée, plus aucun processus de process-compose dans la box
   (`pgrep -f process-compose`). *Lancer* puis quitter l'appli → rien ne reste, ni
   sur l'hôte ni dans la box. Un `sleep 1000` lancé à la main dans la box
@@ -3486,12 +3604,13 @@ relire, une PR d'essai sur GitHub)
   *Actions*, *Autoriser* → elle reprend. *Nouvelle session* → l'onglet se
   vide.
 - **S-69** L'orchestrateur (F-115, F-103) : « Lance la relecture du diff »
-  → `actions/review-diff.start`, la course part (onglet *Actions*), l'avis
-  de fin arrive ; « où en sont les actions ? » → il lit `actions.json` et répond.
-  Pendant *Poser la forme* (clic), « lance les vérifications » → *en
-  attente* dans `actions.json` (`waiting`, avec la raison), puis part
-  d'elle-même à la fin de la forme, sans qu'on redemande. « Arrête-la » →
-  `.stop`, *arrêtée*, pas d'avis de fin. Hors *Vibe*, sans rien demander :
+  → `vibecoder run start review-diff`, la course part (onglet *Actions*), l'avis
+  de fin arrive ; « où en sont les actions ? » → il lit `vibecoder run list` et répond.
+  Pendant *Poser la forme* (clic), « lance les vérifications » → la CLI répond
+  *en attente* (`queued`, l'action qui retient ; `run list` : état `queued`), puis
+  la demande part d'elle-même à la fin de la forme, sans qu'on redemande ; un refus
+  (action inconnue) arrive tout de suite, code de sortie 1. « Arrête-la » →
+  `run stop`, *arrêtée*, pas d'avis de fin. Hors *Vibe*, sans rien demander :
   il ne lance rien. Une petite demande, *Rédiger la note* → la note et ses
   questions, sans orchestrateur, pas de *Vibe* tant qu'une question est
   ouverte ni avant *Valider la note* ; validée, *Vibe* (fil d'Ariane)
@@ -3570,6 +3689,12 @@ relire, une PR d'essai sur GitHub)
 - VibeCoder : le relevé lance quelques git en lecture toutes les 4 s
   (panneau visible) et jusqu'à une fois par seconde pendant un tour
   (`git status` : 63 ms sur GT-2020, 1 761 fichiers suivis).
+- VibeCoder, agents extérieurs (F-116) : `live.json` est lisible par tout
+  programme de la machine, et le jeton extérieur y est tant que le réglage est
+  activé : activer, c'est permettre à tout programme de l'utilisateur de piloter
+  le robot du dossier d'où il appelle (pas les réglages ni les autorisations). Un
+  dossier sans robot est refusé (« aucun robot ici ») : la CLI n'ouvre pas de
+  robot.
 - VibeCoder : la note se lit par ses titres (guide, A.1) ; une note qui ne
   les suit pas laisse ses étapes vides.
 - VibeCoder : seuls ses libellés passent en anglais ; la conversation (fil,
@@ -3604,9 +3729,9 @@ relire, une PR d'essai sur GitHub)
   `terminalCommand` (`konsole --workdir {dir} -e distrobox enter dev`).
   Windows : `wt`, sinon `cmd`, non essayés ; un terminal hors de la liste
   (Flatpak…) : par `terminalCommand`.
-- VibeCoder, *Processus* (F-111) : les demandes de l'agent (`.stop`,
-  `.restart`) et l'adoption d'une proposition se font au relevé, donc VibeCoder
-  affiché ; l'appli tuée net (crash, `kill -9`) laisse tourner ce qu'elle a
+- VibeCoder, *Processus* (F-111) : l'adoption d'une proposition se fait
+  au relevé, donc VibeCoder affiché (les demandes de l'agent, `vibecoder proc`, sont
+  immédiates) ; l'appli tuée net (crash, `kill -9`) laisse tourner ce qu'elle a
   lancé ; `bash -i` ignore SIGTERM : une boucle (`while :; do …; done`)
   n'est arrêtée que par le SIGKILL, après 5 s. Ailleurs que sous Linux, pas
   de jeton (pas de `/proc`) : seul le groupe est arrêté ; Windows :

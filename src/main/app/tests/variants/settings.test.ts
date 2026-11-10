@@ -1,4 +1,4 @@
-// Variantes de app/settings : ensureVibeFiles (le ménage des fichiers retirés ; le détail
+// Variantes de app/settings : ensureVibeFiles (le script vibecoder exécutable ; le ménage des fichiers retirés ; le détail
 // des cas est dans tests/invariants/vibe-files-retired.test.ts), vibeCommands (la table livrée).
 import fs from 'node:fs';
 import os from 'node:os';
@@ -37,6 +37,18 @@ describe('ensureVibeFiles', () => {
     expect(fs.existsSync(installed('plugin/agents'))).toBe(false);
     expect(fs.existsSync(installed('plugin/skills/garde/SKILL.md'))).toBe(false);
     expect(fs.existsSync(installed('plugin/skills/garde/a-moi.md'))).toBe(true);
+  });
+});
+
+describe('ensureVibeFiles : la commande', () => {
+  // Windows n'a pas de bit d'exécution : le lien de ~/.local/bin n'y existe pas.
+  it.skipIf(process.platform === 'win32')('plugin/bin/vibecoder.mjs est exécutable une fois posé', async () => {
+    write(shipped('plugin/bin/vibecoder.mjs'), '#!/usr/bin/env node\n');
+    fs.chmodSync(shipped('plugin/bin/vibecoder.mjs'), 0o644);
+
+    await start();
+
+    expect(fs.statSync(installed('plugin/bin/vibecoder.mjs')).mode & 0o111).toBe(0o111);
   });
 });
 

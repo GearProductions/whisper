@@ -38,7 +38,7 @@ describe('la table livrée', () => {
   });
 
   it('chaque lecture a sa réponse, et logs son nom en argument', () => {
-    expect(table.commands.filter((c) => c.kind === 'read').map((c) => c.name)).toEqual(['status', 'next', 'actions', 'runs', 'procs', 'logs', 'artifacts', 'artifact', 'draft']);
+    expect(table.commands.filter((c) => c.kind === 'read').map((c) => c.name)).toEqual(['status', 'next', 'actions', 'runs', 'run.wait', 'procs', 'logs', 'artifacts', 'artifact', 'draft']);
     expect(Object.keys(table.commands.find((c) => c.name === 'logs')!.args.properties!)).toEqual(['name']);
   });
 
@@ -66,6 +66,15 @@ describe('run.start', () => {
     }
   });
 
+  it('run.start dit la réponse en attente ; runs, l\'état queued', () => {
+    expect(start.description).toMatch(/queued: true/);
+    expect(start.description).toMatch(/\bby\b/);
+    const runs = get('runs');
+    expect(runs.description).toMatch(/queued/);
+    expect(runs.response!.items!.properties!.state.enum).toContain('queued');
+    expect(runs.response!.items!.properties!.by).toBeDefined();
+  });
+
   it('chaque argument est lu par une action ownRun (son gabarit) ou par l\'action elle-même (model, effort)', () => {
     const read = new Set(catalogue('fr').filter(ownRun).flatMap((d) => readArgs(d)));
     for (const key of REQUEST_ARGS) expect(read.has(key as never) || ['model', 'effort'].includes(key), key).toBe(true);
@@ -85,6 +94,20 @@ describe('run.start', () => {
     expect(props.model.enum).toEqual(SKILL_MODELS);
     expect(props.effort.enum).toEqual(EFFORT_LEVELS);
     expect(props.answers).toMatchObject({ type: 'array', maxItems: 50, items: { type: 'string', maxLength: 2000 } });
+  });
+});
+
+describe('run.wait', () => {
+  const wait = get('run.wait');
+
+  it('une lecture ouverte aux agents, l\'action en argument, la course en réponse', () => {
+    expect([wait.kind, wait.agent, wait.args.required]).toEqual(['read', true, ['action']]);
+    expect(Object.keys(argsOf('run.wait'))).toEqual(['action']);
+    expect(wait.description).toMatch(/connection/);
+    expect(wait.description).toMatch(/no-run/);
+    expect(Object.keys(wait.response!.properties!)).toEqual(['action', 'state', 'reply']);
+    expect(wait.response!.properties!.state.enum).toEqual(['done', 'failed', 'stopped']);
+    expect(schemaError(wait.response!, { action: 'forme', state: 'done', reply: 'ok' })).toBeNull();
   });
 });
 

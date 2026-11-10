@@ -4,7 +4,8 @@
  *  core/settings accepte (settingsPatch), lance une commande (installer Pocket
  *  TTS, rétablir le son, ouvrir un dossier ou un fichier, quitter), et rend
  *  toujours la page relue. Un réglage de la langue ou d'une action refait le
- *  relevé de VibeCoder (l'écran et `who` suivent). Une commande que la page
+ *  relevé de VibeCoder (l'écran et `who` suivent) ; celui des agents extérieurs
+ *  refait live.json (writeLive : le jeton extérieur tiré ou oublié). Une commande que la page
  *  ne montre pas (ou grisée : rétablir le son pendant une dictée) ne fait rien.
  *  Ne connaît pas : les pages (leurs arguments sont vérifiés par core/settings),
  *  l'écoute (app/ipc).
@@ -26,6 +27,7 @@ import { state } from 'app/state';
 import { agents } from './agents';
 import { forceRestoreSound } from './dictation';
 import { skillMd } from './runs';
+import { writeLive } from './socket';
 import { installPocket } from './speech';
 import { refreshVibe } from './vibecoder';
 
@@ -75,7 +77,7 @@ export async function settingsOp(op: unknown): Promise<SettingsView> {
   const o = (op && typeof op === 'object' ? op : {}) as { set?: unknown; value?: unknown; run?: unknown };
   if ('set' in o) {
     const patch = settingsPatch(o.set, o.value, loadConfig(), facts());
-    if (patch) { saveConfig(patch); refreshVibe({ now: true }); }
+    if (patch) { saveConfig(patch); if ('outsideAgents' in patch) writeLive(loadConfig()); refreshVibe({ now: true }); }
   } else if (isSettingsCommand(o.run)) {
     const run = o.run;
     const active = settingsView(loadConfig(), facts()).categories.some((c) => c.items.some((i) => i.kind === 'run' && i.key === run && !i.disabled));

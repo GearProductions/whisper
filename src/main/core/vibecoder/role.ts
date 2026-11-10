@@ -2,7 +2,8 @@
  *  relecteur (tous les autres, demandés en relecture ou non), d'après le dernier
  *  relevé de gh. Les identifiants GitHub se comparent sans tenir compte de la casse.
  *  Ne connaît pas : gh, git, Electron, le disque.
- *  Utilisé par : core/vibecoder (journey), app/controllers/vibecoder. */
+ *  `roleRule` : la ligne de la consigne d'un agent qui dit le rôle affiché.
+ *  Utilisé par : core/vibecoder (journey), app/controllers/vibecoder, app/controllers/agents. */
 import type { VibeFlow } from 'shared/bridge';
 
 export type PrPeople = { author: string; assignees: string[] };
@@ -25,4 +26,12 @@ export function canAssign(people: PrPeople | null, login: string | null): boolea
 // Se retirer : assigné, et pas l'auteur.
 export function unassignable(people: PrPeople | null, login: string | null): boolean {
   return !!people && !!login && !same(people.author, login) && isAssigned(people, login);
+}
+
+// La ligne de la consigne d'un agent qui dit le rôle affiché (T-19) : le créateur
+// ne se voit rien interdire, le relecteur remarque au brouillon sans toucher la branche.
+export function roleRule(flow: VibeFlow): string {
+  return flow === 'create'
+    ? 'VibeCoder: the user is the creator of this branch (author or assignee of its pull request).'
+    : 'VibeCoder: the user is a reviewer of this pull request: do not modify the branch; propose remarks to the review draft instead, with `vibecoder draft` (read it), `vibecoder draft.add target=… text=…`, `vibecoder draft.edit id=… text=…` and `vibecoder draft.remove id=…`.';
 }

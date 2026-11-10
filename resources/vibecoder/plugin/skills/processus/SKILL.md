@@ -7,12 +7,12 @@ description: "Read the logs of the project's processes started by VibeCoder (dev
 
 The app (not you) starts the project's commands, listed in its Processes tab. Never start them yourself in the background: ask the app.
 
-Your VibeCoder output folder is the additional working directory ending with `vibecoder-out/<agent id>` (call it `<out>`).
+Use the `vibecoder` command (it talks to the app):
 
-- **Logs**: `<out>/run/<name>.log`, one per command started at least once (stdout and stderr; the previous run in `<name>.log.old`, also when the log passed 5 MB). Read the end of it (`Read` with an offset, or `tail -n 100`). The names: the `.log` files there.
-- **Stop**: create the empty file `<out>/run/<name>.stop` (`<name>`: the name of one of the project's commands, as in its commands file: only the names of the project's commands count).
-- **Restart** (or start a stopped one): create the empty file `<out>/run/<name>.restart` (`<name>`: the name of one of the project's commands, as in its commands file: only the names of the project's commands count).
-- The app does either at its next survey (every 4 s while VibeCoder is shown) and deletes the file.
-- To check: the log again a few seconds later (a restart starts a new log).
+- **List**: `node "${CLAUDE_SKILL_DIR}/../../bin/vibecoder.mjs" proc list`.
+- **Logs**: `node "${CLAUDE_SKILL_DIR}/../../bin/vibecoder.mjs" proc logs <name>`: the end of its log (`<name>`: the name of one of the project's commands, as in its commands file: only the names of the project's commands count).
+- **Stop**: `node "${CLAUDE_SKILL_DIR}/../../bin/vibecoder.mjs" proc stop <name>`.
+- **Restart** (or start a stopped one): `node "${CLAUDE_SKILL_DIR}/../../bin/vibecoder.mjs" proc restart <name>` (`<name>`: the name of one of the project's commands, as in its commands file: only the names of the project's commands count).
+- To check a restart: the logs again a few seconds later (a restart starts a new log).
 
 A command the user has not set up is not yours to add: tell the user (« Modify the commands » in the Processes tab).

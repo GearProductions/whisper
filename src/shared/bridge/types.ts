@@ -204,7 +204,7 @@ export type SettingsCategory = 'dictation' | 'speech' | 'interface' | 'actions' 
 // Un réglage de la page ; `effort:<id>` et `model:<id>` : ceux d'une action (son id).
 export type SettingKey = 'lang' | 'vocabulary' | 'sound' | 'muteOthers' | 'discordMute' | 'speakLang'
   | 'speakVoice:fr' | 'speakVoice:en' | 'speakVolume' | 'vibeLang' | 'agentLang' | 'artifactTextMax'
-  | 'agentCommand' | 'editorCommand' | 'terminalCommand' | 'vibeCommandPrefix'
+  | 'agentCommand' | 'editorCommand' | 'terminalCommand' | 'vibeCommandPrefix' | 'outsideAgents'
   | `model:${string}` | `effort:${string}`;
 export type SettingsInfo = 'whisperModel' | 'agentFound' | 'editor' | 'version';
 export type SettingsCommand = 'installTts' | 'restoreSound' | 'whisperDir' | 'configFile' | 'instructions'

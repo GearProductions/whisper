@@ -26,7 +26,7 @@ A module waits until the modules it uses are written: pure functions → orchest
 - « Files you may create or change: <list>. Any other file must change → stop and say which one and why. »
 - « Other modules are being written at the same time: errors in files outside your list are not yours — report them, don't fix them. »
 - « Write its variants first, red, then the code (TDD): say how many were red before the code. »
-- « Apply the ponytail skill. Commit nothing. Don't request a review (`<out>/actions/review-diff.start`): I review your diff. »
+- « Apply the ponytail skill. Commit nothing. Don't request a review (`vibecoder run start review-diff`): I review your diff. »
 
 ## 3. Review each diff yourself
 

@@ -14,7 +14,8 @@
     "fetch:uv": "bash scripts/fetch-uv.sh",
     "dist:win": "npm run build && electron-builder --win portable --publish never",
     "dist:linux": "npm run build && electron-builder --linux AppImage --publish never",
-    "test:main-diff": "node tests/main-diff/run.mjs"
+    "test:main-diff": "node tests/main-diff/run.mjs",
+    "test:contract": "node tests/contract/run.mjs"
   },
   "license": "MIT",
   "devDependencies": {

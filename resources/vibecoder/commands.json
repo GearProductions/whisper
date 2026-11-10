@@ -307,13 +307,13 @@
         "properties": {},
         "additionalProperties": false
       },
-      "description": "The runs (actions that run on their own) of this folder, running or ended, with their last reply and any pending permission request. Answers a list. Fails when the folder has no survey.",
+      "description": "The runs (actions that run on their own) of this folder, running or ended, with their last reply and any pending permission request, then the requests waiting for another run to end (state queued, with by: the action that holds them). Answers a list. Fails when the folder has no survey.",
       "response": {
         "type": "array",
-        "description": "The runs, oldest first.",
+        "description": "The runs, oldest first, then the queued requests in their order.",
         "items": {
           "type": "object",
-          "description": "One run.",
+          "description": "One run, or one queued request (then only action, state and by).",
           "properties": {
             "action": {
               "type": "string",
@@ -329,7 +329,7 @@
             },
             "state": {
               "type": "string",
-              "description": "Run state: running, asking (waits for the user to answer a permission request), stopped (waits for the user's keep or undo), done, failed, kept, undone.",
+              "description": "Run state: running, asking (waits for the user to answer a permission request), stopped (waits for the user's keep or undo), done, failed, kept, undone; queued: the request waits for another run to end, and starts alone.",
               "enum": [
                 "running",
                 "asking",
@@ -337,7 +337,8 @@
                 "done",
                 "failed",
                 "kept",
-                "undone"
+                "undone",
+                "queued"
               ]
             },
             "since": {
@@ -376,20 +377,66 @@
                 "target"
               ],
               "additionalProperties": false
+            },
+            "by": {
+              "type": "string",
+              "description": "Only when queued: the action that holds the folder and that the request waits for."
             }
           },
           "required": [
             "action",
-            "label",
-            "who",
-            "state",
-            "since",
-            "end",
-            "reply",
-            "permission"
+            "state"
           ],
           "additionalProperties": false
         }
+      }
+    },
+    {
+      "name": "run.wait",
+      "kind": "read",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "The id of the action whose run to wait for."
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "additionalProperties": false
+      },
+      "description": "Waits for the end of the run of an action, running or queued (then until the run it starts ends); the connection stays open until then. Answers the action, its end state and its last reply. Fails with no-run when no run of this action is running or queued.",
+      "response": {
+        "type": "object",
+        "description": "The end of the run.",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "The action id."
+          },
+          "state": {
+            "type": "string",
+            "description": "How it ended: done, failed, or stopped (waits for the user's keep or undo).",
+            "enum": [
+              "done",
+              "failed",
+              "stopped"
+            ]
+          },
+          "reply": {
+            "type": "string",
+            "description": "Its last answer (Markdown); empty when it said nothing."
+          }
+        },
+        "required": [
+          "action",
+          "state",
+          "reply"
+        ],
+        "additionalProperties": false
       }
     },
     {
@@ -706,7 +753,7 @@
     },
     {
       "name": "run.start",
-      "description": "Starts an action on its own, as a run, with its skill, model and effort from the settings. Answers nothing but starts the run; follow it with runs. Fails (the request is refused) when the action is unknown, not offered at this step, already running, a direct-only one, an argument is invalid or the app halted Vibe mode; it waits when another run holds the folder. An argument the action does not read is ignored, and the notice says so.",
+      "description": "Starts an action on its own, as a run, with its skill, model and effort from the settings. Answers nothing but starts the run; follow it with runs. Fails (the request is refused) when the action is unknown, not offered at this step, already running, a direct-only one, an argument is invalid or the app halted Vibe mode; when another run holds the folder, the request is queued: it answers { queued: true, by } (by: the action that holds it), starts alone when the way is free, and runs lists it with the state queued; follow its end with run.wait. An argument the action does not read is ignored, and the notice says so.",
       "kind": "write",
       "agent": true,
       "args": {
@@ -1903,6 +1950,11 @@
       "todo": "Wait for that run to end (call runs), then send the command again."
     },
     {
+      "code": "halted",
+      "message": "Vibe was stopped by the user: start nothing more.",
+      "todo": "Do not retry and do not start anything else. Tell the user, who stopped Vibe, that you are waiting for them."
+    },
+    {
       "code": "worktree",
       "message": "This folder is a worktree, which stays on its own branch: an action that changes the branch is refused.",
       "todo": "Do not retry here. Run it from the main folder, or tell the user."
@@ -1940,7 +1992,7 @@
     {
       "code": "bad-token",
       "message": "The token is missing or wrong.",
-      "todo": "Send the token of the running app (its socket answers only to the token it gave this session)."
+      "todo": "Read live.json again (the app may have restarted, or the setting \"Allow outside agents\" been turned off), or turn that setting on."
     }
   ]
 }

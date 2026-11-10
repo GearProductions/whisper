@@ -4,8 +4,10 @@
  *  lectures par core/commands, les écritures par les opérations injectées
  *  (ops), dont il traduit le refus en un code d'ERROR_CODES. Ne lève jamais :
  *  une erreur est une donnée, sans langue (message et todo de table.errors).
- *  Jamais d'id de robot dans une réponse. run.start : l'action au relevé, masquée
- *  ou non (la règle de la boîte aux lettres) ; les autres : au relevé et pas
+ *  Jamais d'id de robot dans une réponse. run.wait : une lecture, la fin de la course par ops.wait (null : no-run) ;
+ *  runs montre aussi les demandes en attente (ctx.queued). run.start : l'action au relevé, masquée
+ *  ou non (l'écran n'en montre pas toujours le bouton) ; ctx.halted (le mode Vibe arrêté, porte agent) : run.start et les
+ *  commandes de départ rendent halted, rien n'est appelé ; les autres : au relevé et pas
  *  masquée, sauf à la porte 'screen' (au relevé suffit, comme l'écran d'avant). Les
  *  artefacts, le brouillon de revue et le démarrage d'un processus passent par leurs
  *  opérations (artifact, draft, proc). bad-token est un code du protocole du socket,
@@ -23,13 +25,14 @@ import { coerce, schemaError } from './schema';
 import type { CommandTable } from './table';
 
 export const ERROR_CODES = ['unknown-command', 'closed', 'invalid-args', 'no-survey', 'not-offered',
-  'disabled', 'same', 'busy', 'changing', 'worktree', 'unknown-process', 'no-run', 'refused', 'failed',
+  'disabled', 'same', 'busy', 'changing', 'halted', 'worktree', 'unknown-process', 'no-run', 'refused', 'failed',
   'no-pr', 'unknown-artifact', 'bad-token'] as const;   // bad-token : rendu par le protocole du socket, jamais par execute
 export type ErrorCode = typeof ERROR_CODES[number];
 
 export type CommandRequest = { command: string; args?: unknown; door: 'screen' | 'agent' };
-/** view : le relevé du dossier visé (null : pas encore de relevé). */
-export type CommandContext = { view: VibeView | null; defs: ActionDef[] };
+/** view : le relevé du dossier visé (null : pas encore de relevé) ; queued : les demandes en attente d'une course (runs) ;
+ *  halted : le mode Vibe du robot est arrêté, à la porte agent : run.start et les commandes de départ sont refusés. */
+export type CommandContext = { view: VibeView | null; defs: ActionDef[]; queued?: { action: string; by: string }[]; halted?: boolean };
 /** reason : la clé du refus ; by : l'action qui retient ; ignored : les arguments qui ne servent pas. */
 export type OpOutcome = { ok: boolean; error?: string; reason?: string; by?: string; ignored?: string[] };
 /** L'opération sur le brouillon de revue de la PR suivie : ajouter, changer le texte d'une remarque, la retirer. */
@@ -42,6 +45,8 @@ export type CommandOps = {
   /** Le contenu d'un artefact du dernier relevé ; null : id inconnu, ou un lien. */
   artifact(id: string): Promise<object | null>;
   draft(op: DraftOp): OpOutcome;
+  /** run.wait : la fin de la course de l'action, en cours ou en attente ; null : ni l'un ni l'autre. Optionnelle : absente, no-run. */
+  wait?(action: string): Promise<object | null>;
 };
 /** message, todo : ceux de table.errors, en anglais, pour un modèle. */
 export type CommandError = { code: ErrorCode; details: Record<string, unknown>; message: string; todo: string };
@@ -85,12 +90,17 @@ export async function execute(
     if (!view) return fail('no-survey');
     const a = args as Record<string, unknown>;
     const props = Object.keys(def.args.properties ?? {});
+    if (ctx.halted && (def.name === 'run.start' || START.includes(def.name))) return fail('halted');
 
     switch (def.name) {
       case 'status': return ok(statusOf(view));
       case 'next': return ok(nextOf(view));
       case 'actions': return ok(actionsOf(view, ctx.defs));
-      case 'runs': return ok(runsOf(view));
+      case 'runs': return ok(runsOf(view, ctx.queued));
+      case 'run.wait': {
+        const ended = await ops.wait?.(a.action as string);
+        return ended ? ok(ended) : fail('no-run', { action: a.action });
+      }
       case 'procs': return ok(procsOf(view));
       case 'artifacts': return ok(artifactsOf(view));
       case 'draft': return ok(draftOf(view));
@@ -104,7 +114,7 @@ export async function execute(
       }
       case 'run.start': {
         const { action, ...rest } = a;
-        // Au relevé, masquée ou non : la règle de la boîte aux lettres et de l'écran (une masquée sans griser reste
+        // Au relevé, masquée ou non : la règle de l'écran (une masquée sans griser reste
         // possible, Écrire les invariants ; une grisée, startAction la refuse).
         return view.actions.some((x) => x.id === action) ? refusal(ops.start(action as string, rest as VibeArgs), props) : fail('not-offered', { action });
       }
@@ -112,7 +122,7 @@ export async function execute(
     if (START.includes(def.name)) {
       return shown(view, def.name) ? refusal(ops.start(def.name, a as VibeArgs), props) : fail('not-offered', { action: def.name });
     }
-    // run.start est traité plus haut : les autres run.* sont les opérations d'une course (stop, keep, undo, allow, always, deny).
+    // run.start et run.wait sont traités plus haut : les autres run.* sont les opérations d'une course (stop, keep, undo, allow, always, deny).
     if (def.name.startsWith('run.')) return (await ops.run(a.action as string, def.name.slice(4) as VibeRunOp)) ? ok() : fail('no-run', { action: a.action });
     if (def.name.startsWith('draft.')) {
       const op: DraftOp = def.name === 'draft.add' ? { add: { target: a.target as string, text: a.text as string } }

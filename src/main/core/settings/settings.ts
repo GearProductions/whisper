@@ -44,7 +44,7 @@ export const SETTINGS: { id: SettingsCategory; items: [Kind, string][] }[] = [
   { id: 'interface', items: [['choice', 'vibeLang'], ['choice', 'agentLang'], ['number', 'artifactTextMax']] },
   { id: 'actions', items: [] },
   { id: 'agents', items: [['info', 'agentFound'], ['command', 'agentCommand'], ['info', 'editor'], ['command', 'editorCommand'],
-    ['command', 'terminalCommand'], ['command', 'vibeCommandPrefix'], ['run', 'instructions'], ['run', 'journal'], ['run', 'vibeDir']] },
+    ['command', 'terminalCommand'], ['command', 'vibeCommandPrefix'], ['toggle', 'outsideAgents'], ['run', 'instructions'], ['run', 'journal'], ['run', 'vibeDir']] },
   { id: 'general', items: [['run', 'whisperDir'], ['run', 'configFile'], ['info', 'version'], ['run', 'releases'], ['run', 'quit']] },
 ];
 

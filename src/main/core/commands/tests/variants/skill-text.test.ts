@@ -25,17 +25,27 @@ const defs = [
   def('guide', '{{text}}', 'prefill'),
 ];
 
+const BIN = 'node "${CLAUDE_SKILL_DIR}/../../bin/vibecoder.mjs"';
+
 describe('skillArgs', () => {
-  it('actions : les clés dans l\'ordre du schéma, les descriptions de la table, text pour les actions qui le lisent', () => {
+  it('actions : run start avec les clés dans l\'ordre du schéma, les descriptions de la table, text pour les actions qui le lisent', () => {
     const out = skillArgs(table, defs, 'actions');
-    expect(out).toContain('`<out>/actions/<id>.start`');
-    expect(out).toContain('`<out>/actions/<id>.stop`');
+    expect(out).toContain(`${BIN} run start <id> [key=value…]`);
     expect(out).toContain('`text` (the request; only `note` read it');
     expect(out.indexOf('`text`')).toBeLessThan(out.indexOf('`module`'));
     expect(out.indexOf('`module`')).toBeLessThan(out.indexOf('`model`'));
     expect(out).toContain('`model` (a model)');
     expect(out).toContain('`<id>`: an action id)');
+  });
+
+  it('actions : run stop, run wait (en tâche de fond), run list ; aucune boîte aux lettres', () => {
+    const out = skillArgs(table, defs, 'actions');
+    expect(out).toContain(`${BIN} run stop <id>\``);
     expect(out).toContain('`<id>`: the id of a run)');
+    expect(out).toContain(`${BIN} run wait <id>\``);
+    expect(out).toContain('background');
+    expect(out).toContain(`${BIN} run list\``);
+    expect(out).not.toMatch(/<out>\/actions|\.start|\.stop/);
   });
 
   it('actions : ni ask (pas de course), ni guide (prefill), ni la clé action', () => {
@@ -45,11 +55,11 @@ describe('skillArgs', () => {
     expect(out).not.toContain('`action` (');
   });
 
-  it('processus : arrêt et redémarrage, la description de name', () => {
-    expect(skillArgs(table, defs, 'processus')).toBe([
-      '- **Stop**: create the empty file `<out>/run/<name>.stop` (`<name>`: a command name).',
-      '- **Restart** (or start a stopped one): create the empty file `<out>/run/<name>.restart` (`<name>`: a command name).',
-    ].join('\n'));
+  it('processus : proc list, stop, restart, logs, la description de name ; aucun run/<nom>', () => {
+    const out = skillArgs(table, defs, 'processus');
+    for (const verb of ['list', 'stop <name>', 'restart <name>', 'logs <name>']) expect(out).toContain(`${BIN} proc ${verb}\``);
+    expect(out).toContain('`<name>`: a command name');
+    expect(out).not.toMatch(/run\/<name>|\.stop|\.restart/);
   });
 
   it('une description absente de la table est une faute', () => {

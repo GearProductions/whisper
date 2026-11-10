@@ -342,6 +342,32 @@ describe('le relevé', () => {
     expect(lastView('inconnu')).toBeNull();
   });
 
+  it('surveyAgent : un robot non affiché est relevé, lastView le rend, rien n’est envoyé à la page', async () => {
+    const { loadConfig, saveConfig } = await import('app/settings');
+    saveConfig({ agents: [...loadConfig().agents, { id: 'a2', dir, name: 'robot', model: '', effort: '', mode: 'default', sessionId: null }] });
+    const { vibes } = await open();
+    const sent = vibes().length;
+    const { surveyAgent, lastView } = await import('app/controllers');
+    const view = await surveyAgent(loadConfig().agents.find((a) => a.id === 'a2')!);
+    expect(view).toMatchObject({ agentId: 'a2' });
+    expect(lastView('a2')).toBe(view);
+    expect(lastView('a1')).toMatchObject({ agentId: 'a1' });
+    expect(vibes()).toHaveLength(sent);
+    expect(vibes().filter((v) => v?.agentId === 'a2')).toEqual([]);
+  });
+
+  it('surveyAgent : le robot affiché est relevé, la page suit comme avec refreshVibe', async () => {
+    const { vibes } = await open();
+    const sent = vibes().length;
+    const { surveyAgent, lastView } = await import('app/controllers');
+    const { loadConfig } = await import('app/settings');
+    const view = await surveyAgent(loadConfig().agents[0]);
+    expect(view).toMatchObject({ agentId: 'a1' });
+    expect(lastView('a1')).toBe(view);
+    expect(vibes().length).toBeGreaterThan(sent);
+    expect(vibes().at(-1)).toBe(view);
+  });
+
   it('une action qui génère des modules : sa course retient le module (runModule → startRun)', async () => {
     write(path.join(fake.userData, 'vibecoder', 'actions.fr.json'), JSON.stringify([
       { id: 'modules', flow: 'create', step: 'modules', kind: 'send', label: 'Générer les modules restants', text: '/vibecoder:modules {{lang}} {{out}}' },
@@ -369,7 +395,7 @@ describe('le relevé', () => {
     const { runVibeAction } = await import('app/controllers');
     expect(await runVibeAction('checks', {})).toEqual({ ok: true });
     await settle();
-    expect(fake.messages).toEqual([`/vibecoder:verifier fr ${out}`, expect.stringMatching(/^VibeCoder : « Lancer les vérifications » terminée — ok\. /)]);
+    expect(fake.messages).toEqual([`/vibecoder:verifier fr ${out}`, expect.stringMatching(/^VibeCoder : « Lancer les vérifications » terminée — ok\.$/)]);
   });
 
   it('{{prefix}} : le préfixe des commandes vu de l’agent qui reçoit le message (0.9.0)', async () => {
@@ -652,7 +678,8 @@ describe('0.11.0 : invariants existants et courses', () => {
     expect(await runVibeAction('vibe', {})).toEqual({ ok: true });
     await settle();
     expect(fake.messages[0]).toBe(`/vibecoder:vibe fr ${out}`);
-    expect(vibes().some((v) => v?.vibe === true)).toBe(true);
+    // Un relevé neuf précède le départ (surveyAgent) : celui qui porte le mode Vibe arrive un peu après.
+    await vi.waitFor(() => expect(vibes().some((v) => v?.vibe === true)).toBe(true), { timeout: slow(3000), interval: 50 });
     expect(vibeStore().marks.a1).toEqual({ note: { hash: blobSha(NOTE), verdict: 'ok' } });
     setVibe({ vibe: false });
     fake.steps = [{ id: 'note', status: 'done' }, { id: 'forme', status: 'done' }];
@@ -1880,17 +1907,5 @@ describe('0.15.0 : l’écran par le socket (les adaptateurs)', () => {
         expect(refusalText(err(code), 'fr').length).toBeGreaterThan(0);
       }
     });
-  });
-
-  it('la boîte aux lettres : mêmes effets qu’avant, sans passer par le socket', async () => {
-    await open();
-    const { refreshVibe, lockingRuns } = await import('app/controllers');
-    write(path.join(out, 'actions', 'checks.start'), '{}');
-    await refreshVibe({ now: true });
-    await settle();
-    expect(fake.messages[0]).toBe(`/vibecoder:verifier fr ${out}`);
-    expect(fs.existsSync(path.join(out, 'actions', 'checks.start'))).toBe(false);
-    expect(lockingRuns('a1')).toEqual([]);   // finie : l'avis part à la conversation
-    expect(fake.sent).toEqual([]);
   });
 });

@@ -87,14 +87,17 @@ describe.skipIf(process.platform === 'win32')('lancer, lire, arrêter', () => {
     expect(fake.sent).toEqual([]);
   });
 
-  it('l’agent demande l’arrêt par <nom>.stop : fait au relevé, la demande retirée', async () => {
+  it('un <out>/run/<nom>.restart posé : rien relancé, le fichier reste', async () => {
     writeProject([{ name: 'srv', run: 'sleep 30' }]);
     await processAction(agent, cfg, 'start', 0, view().processes);
-    fs.writeFileSync(path.join(out(), 'run', 'srv.stop'), '');
+    for (const op of ['stop', 'restart']) fs.writeFileSync(path.join(out(), 'run', `srv.${op}`), '');
     view();
-    expect(fs.existsSync(path.join(out(), 'run', 'srv.stop'))).toBe(false);
-    expect(await until(() => view().processes[0].status === 'stopped')).toBe(true);
-  }, 15000); // arrêt réel (SIGTERM, puis SIGKILL après 5 s) : lent sur une machine chargée
+    await new Promise((r) => setTimeout(r, 300));
+    expect(fs.existsSync(path.join(out(), 'run', 'srv.stop'))).toBe(true);
+    expect(fs.existsSync(path.join(out(), 'run', 'srv.restart'))).toBe(true);
+    expect(view().processes[0].status).toBe('running');
+    await processOp(agent, cfg, 'srv', 'stop');
+  }, 15000);
 });
 
 describe('le fichier du projet', () => {
@@ -314,22 +317,6 @@ describe.skipIf(process.platform === 'win32')('processOp : arrêter ou relancer 
     expect(await processOp(agent, cfg, 'absent', 'restart')).toBe(false);
     expect(status()).toBe('running');
     await processOp(agent, cfg, 'srv', 'stop');
-  }, 15000);
-
-  it('les demandes <nom>.stop et <nom>.restart de processView : mêmes effets qu’avant', async () => {
-    writeProject([mark()]);
-    await processAction(agent, cfg, 'start', 0, view().processes);
-    expect(await until(() => marks() === 1)).toBe(true);
-    const ask = (op: string) => fs.writeFileSync(path.join(out(), 'run', `srv.${op}`), '');
-    ask('restart');
-    view();
-    expect(fs.existsSync(path.join(out(), 'run', 'srv.restart'))).toBe(false);
-    expect(await until(() => marks() === 2)).toBe(true);
-    ask('stop');
-    view();
-    expect(fs.existsSync(path.join(out(), 'run', 'srv.stop'))).toBe(false);
-    expect(await until(() => status() === 'stopped')).toBe(true);
-    expect(marks()).toBe(2);
   }, 15000);
 });
 

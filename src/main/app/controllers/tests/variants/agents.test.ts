@@ -5,11 +5,13 @@
 // la liste du sélecteur envoyée au panneau, et la notification du système (0.14.0).
 // Sur le vrai principal (contrôleurs, fenêtres, état, réglages et fichiers sur
 // disque) ; faux : Electron (fenêtres qui relèvent ce qu'on leur envoie), le signal
-// des courses de chaque agent (runSignalOf, variants dans runs.test.ts).
+// des courses de chaque agent (runSignalOf, variants dans runs.test.ts), le SDK (chaque processus lancé
+// relève la consigne et l'env reçus, et finit chaque tour aussitôt), le dernier relevé de chaque agent (lastView) ;
+// le socket est le vrai (port 0), son serveur relevé pour comparer le jeton de l'écran.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentsState } from 'shared/bridge';
 
 const fake = vi.hoisted(() => {
@@ -34,7 +36,9 @@ const fake = vi.hoisted(() => {
     on(ev: string, fn: () => void) { this.handlers[ev] = fn; }
     show() { Notif.shown.push(this); }
   }
-  return { Win, Notif, userData: '', signals: {} as Record<string, string>, shown: [] as string[], tasks: {} as Record<string, number> };
+  return { Win, Notif, userData: '', signals: {} as Record<string, string>, shown: [] as string[], tasks: {} as Record<string, number>,
+    views: {} as Record<string, { flow: string; steps: never[]; questions: never[] }>, launched: [] as string[],
+    turnEnvs: [] as (Record<string, string | undefined> | undefined)[], servers: [] as { port: number; token: string }[] };
 });
 
 vi.mock('electron', () => ({
@@ -44,6 +48,33 @@ vi.mock('electron', () => ({
   Notification: fake.Notif,
   shell: {}, dialog: {}, clipboard: {}, nativeImage: {},
 }));
+
+// Le SDK : un processus lancé relève la consigne ajoutée au prompt système, chaque message finit son tour.
+vi.mock('technicals/socket', async (original) => {
+  const real = await original<typeof import('technicals/socket')>();
+  return { ...real, listen: async (...a: Parameters<typeof real.listen>) => { const s = await real.listen(...a); fake.servers.push(s); return s; } };
+});
+
+vi.mock('technicals/paths', async (original) => ({
+  ...await original<typeof import('technicals/paths')>(),
+  resourcePath: (name: string) => `${process.cwd()}/resources/${name}`,
+}));
+
+vi.mock('technicals/claude', () => ({
+  launcher: () => ({ executable: 'claude' }),
+  loadSdk: async () => ({
+    getSessionInfo: async () => null, getSessionMessages: async () => [],
+    query: ({ prompt, options }: { prompt: AsyncIterable<unknown>; options: { systemPrompt: { append?: string }; env?: Record<string, string | undefined> } }) => {
+      fake.launched.push(options.systemPrompt.append ?? '');
+      fake.turnEnvs.push(options.env);   // la sonde (/context) n'a jamais d'env : le tour est le premier
+      return Object.assign((async function* run() {
+        for await (const _ of prompt) yield { type: 'result', subtype: 'success', is_error: false, result: 'ok' };
+      }()), { setPermissionMode: async () => {}, setModel: async () => {}, interrupt: async () => {}, rewindFiles: async () => ({}) });
+    },
+  }),
+}));
+
+vi.mock('app/controllers/vibecoder', async (orig) => ({ ...(await orig<object>()), lastView: (id: string) => fake.views[id] ?? null }));
 
 vi.mock('app/controllers/runs', async (orig) => ({
   ...(await orig<object>()), runSignalOf: (id: string) => fake.signals[id] ?? null,
@@ -61,6 +92,10 @@ beforeEach(() => {
   fake.signals = {};
   fake.shown = [];
   fake.tasks = {};
+  fake.views = {};
+  fake.launched = [];
+  fake.turnEnvs = [];
+  fake.servers = [];
   fake.Notif.shown = [];
   fake.userData = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-agents-'));
   repo = path.join(fake.userData, 'projet');
@@ -236,5 +271,94 @@ describe('la consigne de la conversation', () => {
     const { loadConfig, vibeOutDir } = await import('app/settings');
     const cfg = loadConfig();
     expect(launchOptions(cfg.agents![1] as never, cfg).dirs).toEqual([vibeOutDir('a2'), projectArtifactsPath(wt)]);
+  });
+});
+
+describe('la consigne dit le rôle (T-19)', () => {
+  const view = (flow: string) => ({ flow, steps: [], questions: [] });
+  const REVIEWER = 'the user is a reviewer of this pull request';
+  const CREATOR = 'the user is the creator of this branch';
+  const turn = async () => {
+    const { sendToAgent } = await import('app/controllers');
+    const { loadConfig } = await import('app/settings');
+    const cfg = loadConfig();
+    sendToAgent(cfg.agents![0] as never, { text: 'bonjour' }, cfg);
+    await vi.waitFor(async () => {
+      const { agents } = await import('app/controllers');
+      expect(agents.state('a1').status).not.toBe('working');
+      expect(agents.state('a1').status).not.toBe('starting');
+    });
+  };
+
+  it('relecteur au relevé : la consigne reçue par le faux claude le dit', async () => {
+    fake.views = { a1: view('review') };   // la config, elle, ne dit rien : créateur
+    await turn();
+    expect(fake.launched).toHaveLength(1);
+    expect(fake.launched[0]).toContain(REVIEWER);
+    expect(fake.launched[0]).toContain('<audio>');
+  });
+
+  it('sans relevé : le rôle de la config', async () => {
+    const { saveConfig, loadConfig } = await import('app/settings');
+    saveConfig({ agents: loadConfig().agents!.map((a) => (a.id === 'a1' ? { ...a, vibe: { flow: 'review', pr: 7 } } : a)) });
+    await turn();
+    expect(fake.launched[0]).toContain(REVIEWER);
+  });
+
+  it('le rôle change entre deux tours : le second part sur un processus neuf, avec la nouvelle consigne', async () => {
+    fake.views = { a1: view('create') };
+    await turn();
+    fake.views = { a1: view('review') };
+    await turn();
+    expect(fake.launched).toHaveLength(2);
+    expect(fake.launched[0]).toContain(CREATOR);
+    expect(fake.launched[0]).not.toContain(REVIEWER);
+    expect(fake.launched[1]).toContain(REVIEWER);
+    expect(fake.launched[1]).not.toContain(CREATOR);
+  });
+});
+
+afterEach(async () => { (await import('app/controllers')).closeSocket(); });
+
+// L'environnement des robots (note 0.15.0, « Les jetons ») : le port et le jeton du robot, jamais ceux de l'écran ni de l'extérieur.
+describe('l’environnement des robots', () => {
+  const open = async () => {
+    const c = await import('app/controllers');
+    await c.openSocket(async () => ({ ok: true, result: '' }));
+    return c;
+  };
+  const turn = async (c: Awaited<ReturnType<typeof open>>) => {
+    const { loadConfig } = await import('app/settings');
+    const cfg = loadConfig();
+    c.sendToAgent(cfg.agents![0] as never, { text: 'bonjour' }, cfg);
+    await vi.waitFor(() => expect(fake.turnEnvs.length).toBeGreaterThan(0));
+    return fake.turnEnvs[0];
+  };
+
+  it('le faux claude reçoit VIBECODER_PORT et VIBECODER_TOKEN : ceux du socket et du robot, ni l’écran ni l’extérieur ; PATH hérité', async () => {
+    const c = await open();
+    c.writeLive({ outsideAgents: true } as never);
+    const outside = JSON.parse(fs.readFileSync(path.join(fake.userData, 'live.json'), 'utf8')).token as string;
+
+    const env = (await turn(c))!;
+
+    expect(env.VIBECODER_PORT).toBe(String(fake.servers[0].port));
+    expect(env.VIBECODER_TOKEN).toBe(c.robotToken('a1'));
+    expect([fake.servers[0].token, outside]).not.toContain(env.VIBECODER_TOKEN);
+    expect(env.PATH).toBe(process.env.PATH);
+  });
+
+  it('socket fermé : aucune des deux variables', async () => {
+    const c = await import('app/controllers');
+    const env = await turn(c as never);
+    expect(env?.VIBECODER_PORT).toBeUndefined();
+    expect(env?.VIBECODER_TOKEN).toBeUndefined();
+  });
+
+  it('removeAgent : le jeton du robot est oublié', async () => {
+    const c = await open();
+    const token = c.robotToken('a2');
+    c.removeAgent('a2');
+    expect(c.robotToken('a2')).not.toBe(token);
   });
 });

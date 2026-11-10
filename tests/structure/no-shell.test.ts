@@ -2,13 +2,13 @@
 // Elle lit le code au lieu d'observer un comportement ; une retouche se signale
 // dans la PR. Chemins, texte dicté, commande d'un agent ne sont jamais
 // interprétés : execFile et spawn, avec des arguments. Ne connaît pas le
-// comportement de l'appli. Utilisée par npm test.
+// comportement de l'appli. Lit aussi la commande vibecoder (plugin/bin, .mjs). Utilisée par npm test.
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { sources } from './sources';
 
 describe('pas de shell', () => {
-  const all = [...sources(resolve(__dirname, '../../src/main')), ...sources(resolve(__dirname, '../../src/preload'))];
+  const all = ['src/main', 'src/preload', 'resources/vibecoder/plugin/bin'].flatMap((dir) => sources(resolve(__dirname, '../..', dir)));
 
   it('trouve le code', () => expect(all.length).toBeGreaterThan(10));
 

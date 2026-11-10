@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAssign, unassignable, vibeRole, type PrPeople } from 'core/vibecoder';
+import { canAssign, roleRule, unassignable, vibeRole, type PrPeople } from 'core/vibecoder';
 
 const people = (p: Partial<PrPeople> = {}): PrPeople => ({ author: 'bob', assignees: [], ...p });
 const role = (o: { open?: boolean; people?: PrPeople | null; login?: string | null; was?: 'create' | 'review' }) =>
@@ -35,5 +35,20 @@ describe('canAssign / unassignable', () => {
     expect(unassignable(people({ author: 'kb', assignees: ['kb'] }), 'kb')).toBe(false);
     expect(unassignable(people(), 'kb')).toBe(false);
     expect(unassignable(null, 'kb')).toBe(false);
+  });
+});
+
+describe('roleRule', () => {
+  it('create : dit créateur, n’interdit rien', () => {
+    const line = roleRule('create');
+    expect(line).toMatch(/creator/i);
+    expect(line).not.toMatch(/reviewer|do not|don't|never/i);
+  });
+  it('review : dit relecteur, interdit de modifier la branche, nomme draft et ses commandes', () => {
+    const line = roleRule('review');
+    expect(line).toMatch(/reviewer/i);
+    expect(line).not.toMatch(/creator/i);
+    expect(line).toMatch(/do not modify the branch/i);
+    for (const name of ['vibecoder draft', 'draft.add', 'draft.edit', 'draft.remove']) expect(line).toContain(name);
   });
 });

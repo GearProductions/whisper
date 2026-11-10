@@ -1,4 +1,4 @@
-/** reads — les lectures des commandes (status, next, actions, runs, procs, logs, artifacts, draft),
+/** reads — les lectures des commandes (status, next, actions, runs, procs, logs, artifacts, draft ; run.wait est dans l'exécuteur),
  *  chacune une fonction pure du relevé (VibeView) : les courses, les processus,
  *  les actions grisées ou masquées y sont déjà calculés, on les remet en forme
  *  pour le schéma de la commande (resources/vibecoder/commands.json). Jamais
@@ -46,10 +46,13 @@ export const actionsOf = (view: VibeView, defs: ActionDef[]) => {
   }));
 };
 
-/** Les plus anciennes d'abord (le relevé donne la plus récente d'abord). */
-export const runsOf = (view: VibeView) => [...(view.runs ?? [])].reverse().map((r) => ({
-  action: r.id, label: r.label, who: r.who, state: r.state, since: r.since, end: r.end, reply: r.reply, permission: r.permission,
-}));
+/** Les plus anciennes d'abord (le relevé donne la plus récente d'abord), puis les demandes en attente (state 'queued', by). */
+export const runsOf = (view: VibeView, queued: { action: string; by: string }[] = []) => [
+  ...[...(view.runs ?? [])].reverse().map((r) => ({
+    action: r.id, label: r.label, who: r.who, state: r.state, since: r.since, end: r.end, reply: r.reply, permission: r.permission,
+  })),
+  ...queued.map((q) => ({ action: q.action, state: 'queued', by: q.by })),
+];
 
 export const procsOf = (view: VibeView) => (view.processes ?? []).map((p) => ({
   name: p.name, run: p.run, status: p.status, since: p.since, exit: p.exit,
