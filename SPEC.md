@@ -953,8 +953,11 @@ l'adresse `<fichier>:L<ligne>`, qui reste en tête : la page la cherche là),
 qui sort du contrat de la note) ; `[agent]`, le reste, que l'agent règle seul
 (presque toutes les remarques ponytail). Pas celles du relecteur d'une PR, qui
 lit tout (`pr-<n>-note.md`, `pr-<n>-commits.md`, et `align.md` : une liste sans
-étiquette). La page affiche les lignes telles quelles (le grisé des `[agent]` viendra
-avec l'écran du ticket suivant).
+étiquette). La page remplace l'étiquette par un badge, *pour toi* (accent) ou *pour
+l'agent* (grisé), et grise le texte de ce qu'une `[agent]` couvre (la rubrique sous
+son titre dans `align.md`, un point et ses sous-points ailleurs), lisible tout de
+même ; une `[toi]` imbriquée garde un texte normal et son badge, une ligne sans
+étiquette reste comme avant, une vérification en échec garde sa marque colorée.
 
 **Les artefacts** : les documents que l'agent produit hors du projet (PDF,
 présentations, wireframes, documents externes, fichiers de conception :
@@ -1643,12 +1646,17 @@ créateur ; le relecteur, F-101) :
    `questions.md` seul, quel que soit le chemin des réponses (*Envoyer les
    réponses*, ou la conversation : skill `vibe`, ou la ligne de la consigne
    hors d'un skill). Montre la note rendue
-   (F-104), à jour pendant que l'agent l'écrit : ce qui a changé depuis le
-   début du dernier tour (de la conversation, ou d'une course qui modifie la
-   branche) porte un liseré, *Voir les modifications* montre le
-   diff brut (retraits compris, replié autour des changements), *Vu* en
-   repart ; les lignes « ne doit pas » portent leur marque en pastille
-   (*invariant*, *variant*, *review*, *structure*, sinon *à classer*) ;
+   (F-104), à jour pendant que l'agent l'écrit : ce qui a changé depuis la
+   dernière relecture (« Changée depuis votre dernière relecture ») porte un
+   liseré, *Voir les modifications* montre le diff brut (retraits compris,
+   replié autour des changements), *Vu* en repart. La référence est posée une
+   seule fois, au premier relevé où l'agent ou une course qui modifie la branche
+   travaille, puis ne change que par *Vu* ou par la validation de la note
+   (*Valider*, *Revalider*, *Valider et vérifier* : la note à l'écran au clic) ;
+   un tour ou une course qui commence ne la change pas, les modifications
+   s'accumulent ; une autre note (autre fichier) la remet à zéro. Les lignes « ne doit
+   pas » portent leur marque en pastille (*invariant*, *variant* d'un bleu plus
+   clair, *review*, *structure*, sinon *à classer*) ;
    *Ouvrir* (dans l'éditeur). Rendue d'emblée, sans attendre le texte
    suivi ; *Modifier* la rend modifiable sur place (*Fermer* y revient, la
    modification gardée), à la manière d'Obsidian (CodeMirror 6) : ce qu'on tape se met en forme au fil de la
@@ -1663,10 +1671,18 @@ créateur ; le relecteur, F-101) :
    la vue suit le disque) pendant un tour de la conversation et pendant
    toute course de l'agent qui retient (« Une action de l'agent est en
    cours »). Au-dessus, les questions ouvertes, une carte
-   numérotée par question : ses réponses proposées (une choisie, lisible
+   numérotée par question, avec le badge de son niveau si son titre en porte un
+   (`## <n>. [important] …` en accent, `[secondaire]` grisé ; le badge remplace le
+   niveau dans le titre affiché, `questions.md` et les réponses envoyées le
+   gardent ; sans niveau : pas de badge ; écrit par les skills `note`,
+   `conception` et `vibe`) : ses réponses proposées (une choisie, lisible
    comme les autres boutons actifs ; un second
-   clic la retire), *Conseille-moi*, *Je te laisse trancher*, une précision
-   libre, avec ses pièces jointes (une liste pour tout le questionnaire,
+   clic la retire ; une réponse de la vérification de conception, écrite
+   `- **Accepter** — *<rubrique>, <puce>* : « <texte> »` (ou **Refuser**), montre
+   le choix en gras, l'endroit grisé, le texte cité en vert, jamais en HTML ; une
+   autre réponse, comme avant), *Conseille-moi*, *Je te laisse trancher*, une précision
+   libre (micro et pièces jointes, sans *Envoyer* propre : seul *Envoyer les
+   réponses* envoie ; une liste de pièces jointes pour tout le questionnaire,
    F-69) ; *Envoyer les réponses* les envoie en une fois, une par question
    (grisé tant qu'aucune n'a de réponse). Prochaine action : *Rédiger la
    note* (la demande du champ de l'étape), puis *Envoyer les réponses*, puis
@@ -1688,8 +1704,10 @@ créateur ; le relecteur, F-101) :
    `vibecoder-state.json`) ; une course en échec ou arrêtée ne marque rien, le
    clic suivant revérifie. Ensuite le bouton devient **« Revalider »** (note pas
    validée, ou « modifiée depuis ») : il valide aussitôt, sans relancer la
-   vérification, et **« Revérifier »** à côté la relance seule, sans jamais
-   valider (ses suggestions vont au questionnaire). Retenue par une course qui
+   vérification, et **« Revérifier »**, avant lui et en couleur neutre, la relance
+   seule, sans jamais valider (ses suggestions vont au questionnaire). Sa course
+   s'affiche à côté de *Valider et vérifier* et de *Revérifier* : « en cours » avec
+   ⏹ tant qu'elle tourne, « en attente » mise en file. Retenue par une course qui
    modifie la branche, la vérification attend en file (F-115) ; masquée dans la
    rangée d'actions tant que la note n'est pas vérifiée (F-99). Relecteur :
    *Valider* ou *À revoir* comme avant, aucune vérification. Une fois la note
@@ -1759,14 +1777,21 @@ créateur ; le relecteur, F-101) :
    résumé (cas, validés, refusés, modifiés depuis, avec un point d'attention,
    à lire), l'alignement (`align.md`, avec *Relancer* en créateur, F-93 : chaque
    écart porte son étiquette, F-95), puis,
-   en **vue IDE** comme la Forme et les Modules (la seule), les tests à gauche, par dossier
-   (leur nom coloré selon leur état git, leur rang), et au centre ceux du test choisi
+   en **vue IDE** comme la Forme et les Modules (la seule), à gauche, par dossier,
+   les fichiers de la Forme (grisés, numérotés, lecture seule : leur code si la
+   branche les touche, sinon leur contrat) et les tests d'invariants (en vert :
+   ajouté par la branche ; en jaune : modifié, d'après son texte à la base ; sans
+   numéro), sans Forme les tests seuls, sans analyse des imports ; et au centre ceux du test choisi
    (le premier d'emblée ; en choisir un autre referme le fichier ouvert), chaque fichier : sa progression,
    *Ouvrir*, *Relire* (lu : refaire sa lecture) ; lu, une carte par cas —
    titre, pseudo-code en étapes `test "…":` / `given` / `when` / `then` /
    `and`, quel que soit le langage du test (coloré ; chaque `then` est une
    assertion, sa valeur attendue après `#` ; les lectures d'avant, proches
-   de Vitest, se lisent encore), cas limites, ce qu'il garantit, un point
+   de Vitest, se lisent encore), cas limites, ce qu'il garantit (sous lui, la ou les lignes « → invariant » de
+   la note qu'il cite, en liens qui ouvrent l'étape Note défilée à la ligne et
+   mise en évidence, dans l'affichage courant ; introuvable : en haut, sans mise en
+   évidence ; un invariant `I-…` du projet : son numéro, sans lien ; sinon
+   « non rattaché » ; lecture périmée : rattachement marqué périmé), un point
    d'attention quand le test n'observe pas vraiment la propriété — avec, dans
    son en-tête, *Pseudo-code / Code* (le
    code d'origine du cas à la place du pseudo-code, de sa ligne à celle du cas
@@ -1791,7 +1816,7 @@ créateur ; le relecteur, F-101) :
    alors montré), et son texte au commit d'où part la branche (par git ;
    aucun : ajouté par la branche, ou au-delà de 200 000 caractères). En tête : *Tout relire* (dès qu'un fichier
    est lu). Prochaine action : *Écrire les invariants
-   (rouges)* (d'après la note, ou le pseudo-code du champ de l'étape, à partir
+   (rouges)* (le texte d'aide de l'étape sans test la cite sous ce nom ; d'après la note, ou le pseudo-code du champ de l'étape, à partir
    des squelettes de la forme) tant qu'il
    n'y a pas de test, puis les cas à valider (dans la vue), *✓ Commiter* (un
    commit préparé), *Préparer le commit* (des fichiers à commiter ; un fichier déjà porté par
@@ -3756,6 +3781,19 @@ relire, une PR d'essai sur GitHub)
   *Relire le diff* en seconde course. `ponytail.md`, `align.md` : chaque ligne
   porte `[toi]` ou `[agent]`, et l'adresse d'une remarque s'ouvre toujours.
 
+- **S-74** L'écran de la part humain / IA (0.15.0) : l'étape Invariants montre
+  l'arborescence de la Forme, ses fichiers grisés, et les tests en avant (vert
+  ajouté, jaune modifié, d'après la base de la branche, commités ou non) ; un
+  fichier de la Forme pas encore écrit montre son contrat, en lecture seule ;
+  un cas lu montre la ligne « → invariant » qu'il garde, un clic va à l'étape
+  Note sur cette ligne, mise en évidence (rendu, éditeur, Brut). `ponytail.md`,
+  `align.md`, `ci.md` : badges *pour toi* / *pour l'agent*, les lignes `[agent]`
+  grisées, un échec gardant sa marque. Le questionnaire : badges *important* /
+  *secondaire*, réponses en trois parties (le texte cité en couleur), pas
+  d'*Envoyer* dans le champ d'une question, le micro gardé. L'étape Note : le
+  badge `variant` plus clair que `invariant` ; *Revérifier* (neutre) avant
+  *Revalider*, *en cours* / *en attente* à côté ; plusieurs messages à l'agent
+  sans *Vu* → le surlignage s'accumule, *Vu* ou *Revalider* le remettent à zéro.
 ---
 
 ## 14. Limites connues
