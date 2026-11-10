@@ -138,6 +138,15 @@
  *  runDirect exportée pour controllers/commands) ; runVibeAction et la page
  *  n'en voient que le texte, inchangé.
  *  surveyAgent : le relevé d'un robot quelconque (affiché : comme refreshVibe ; sinon retenu par lastView, rien envoyé à la page).
+ *  Valider la note (conv:vibeMark, markVibe ; 0.15.0, note skills-humain-ia) : le premier clic du créateur sur une note pas encore
+ *  vérifiée (noteClick, core/vibecoder) ne valide rien : la vérification de conception part, comme un clic sur l'action
+ *  design-check (startAction, masquée au relevé tant que la note n'est pas vérifiée ; retenue par une course ou une action directe,
+ *  busy ou changing : en file, queueStart de controllers/runs), et l'empreinte de la note qu'il avait sous les yeux est gardée en
+ *  mémoire (clicked). À chaque relevé, panneau visible ou non (T-31), la fin de la course design-check — du clic, ou Revérifier,
+ *  par conv:vibeRun, sans clicked — est rangée une fois (designEnd : la note vérifiée ; validée pour l'empreinte du clic si
+ *  questions.md n'a aucune question, « modifiée depuis » si la note a changé pendant la course ; Revérifier ne valide jamais),
+ *  clicked oublié. Revalider, un Valider ensuite, ou le relecteur : le verdict aussitôt, aucune course ; conv:vibeMark ne lit
+ *  jamais un texte de la page.
  *  Ne connaît pas : la page (seulement ses canaux), la fenêtre, le jeton du socket.
  *  Utilisé par : app/ipc (runVibeAction, vibeRunOp, draftVibe, dropOnArtifacts), app/menus, controllers/conversation,
  *  controllers/runs, controllers/agents et controllers/module-code
@@ -154,7 +163,7 @@ import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
 import { START, type CommandError } from 'core/commands';
 import {
-  addComment, artifactOf, blobSha, buildMessage, vibeMarks, DIRECT_ACTIONS, DIRECT_ONLY, editComment, findNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath,
+  addComment, artifactOf, blobSha, buildMessage, designEnd, noteClick, parseQuestions, vibeMarks, DIRECT_ACTIONS, DIRECT_ONLY, editComment, findNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath,
   blockedBy, BRANCH_CHANGES, lockCode, lockText, ELSEWHERE, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeRole, vibeView, whoOf, type ActionDef, type MessageError,
 } from 'core/vibecoder';
 import { draftText, isVerdict } from 'shared/review';
@@ -174,7 +183,7 @@ import { copyArtifacts, duplicateArtifacts, moveArtifacts, newArtifact, renameAr
 import { prepareMessage } from './conversation';
 import { createWorktree } from './recipe';
 import { SOCKET_DOWN, screenSend, socketDown } from './socket';
-import { lockingRuns, viewLocks, releaseWaits, runPending, runsOf, runsTab, skillMd, startRun, vibeOn, vibeStop } from './runs';
+import { lockingRuns, viewLocks, queueStart, releaseWaits, runPending, runsOf, runsTab, skillMd, startRun, vibeOn, vibeStop } from './runs';
 import { openChild, prWorktreeReady, removeWorktreeChild, showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
 
 const VIBE_MS = 4000;          // le relevé régulier, panneau visible
@@ -238,6 +247,8 @@ const gitCache = new Map<string, { key: string; at: number; value: GitState | nu
 const directs = new Map<string, Record<string, NonNullable<VibeAction['direct']>>>();  // par agent : ses actions directes (F-114)
 const prsFound = new Map<string, { mine: unknown[]; review: unknown[]; all: unknown[] } | false>();   // les PR ouvertes, par agent (la dernière réponse de gh ; false : en échec)
 const requests = new Map<string, { text: string; branch?: string }>();  // new-request : la demande partie, par agent (en mémoire), puis sa branche
+const clicked = new Map<string, string>();     // Valider la note a lancé la vérification de conception : par agent, l'empreinte de la note que le clic avait sous les yeux
+const designSeen = new Map<string, number>();  // par agent : le départ de la dernière course design-check dont la fin est rangée
 const firstNotes = new Map<string, string>();   // … puis par agent qui la prend (lui, ou l'enfant né d'elle) : sa note à rédiger, à son premier relevé
 let shown: string | null = null;           // l'agent dont le panneau a le relevé (null : aucun, ou null envoyé)
 let lastAt = 0;
@@ -452,6 +463,8 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const here = await git.facts();
   const out = vibeOutDir(agent.id);
   if (here) followBranch(out, here.branch, here.base);
+  // L'état de la vérification de conception lu avant les sorties (voir check plus bas).
+  const check = runsOf(agent).find((r) => r.id === 'design-check' && ['done', 'failed', 'stopped'].includes(r.state));
   const outputs = readOutputs(out);
   if (outputs['new-request.json']) takeRequest(agent, outputs['new-request.json'].text);
   const card = pr ? json(outputs[`pr-${pr}.json`]?.text) : null;
@@ -525,6 +538,17 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   else if (turn) turn.busy = writing;
   const before = turnNote.get(agent.id)?.text ?? null;
   const store = vibeStore();
+  // La vérification de conception finie (la première, du clic Valider la note, ou Revérifier) : sa fin rangée une fois (designEnd),
+  // à chaque relevé, panneau visible ou non (T-31) ; ses questions : celles de questions.md, lues avec les sorties après
+  // l'état de la course (check) : la course écrit ses questions avant de finir, finie elle a donc les siennes.
+  if (check && notePath && check.since !== designSeen.get(agent.id)) {
+    designSeen.set(agent.id, check.since);
+    const marks = store.marks[agent.id] || {};
+    const questions = parseQuestions(outputs['questions.md']?.text ?? '').length;
+    store.marks[agent.id] = designEnd(marks, { path: notePath, state: check.state as 'done' | 'failed' | 'stopped', questions, clicked: clicked.get(agent.id) ?? null });
+    clicked.delete(agent.id);
+    saveVibeStore(store);
+  }
   const actions = vibeActions(lang);
   const skills = Object.fromEntries(actions.map((a) => [a.id, skillMd(a.text)]));
   // Le modèle d'une action qui court, ou d'un skill en sous-contexte ; envoyé à la conversation, celui de l'agent (null).
@@ -1058,6 +1082,21 @@ export function markVibe(target: unknown, verdict: unknown) {
   const hash = targetHash(view, target);
   if (!hash) return;
   const store = vibeStore();
+  // Le premier Valider la note du créateur : la vérification de conception part (comme un clic, en file si une course
+  // retient), rien n'est validé ; sa fin le fera pour ce texte (designEnd). Sans l'action : un Valider comme les autres.
+  if (target === 'note' && view.note && noteClick(store.marks[agent.id] || {}, view.note.path, verdict, view.flow) === 'check') {
+    const cfg = loadConfig();
+    const def = vibeActions(vibeLang(cfg)).find((a) => a.id === 'design-check');
+    if (def) {
+      clicked.set(agent.id, hash);
+      const sent = startAction(agent, def, {}, view, cfg);
+      const held = (sent.reason === 'busy' || sent.reason === 'changing') && sent.by;
+      if (held) queueStart(agent, def.id, {}, held);
+      // Partie, en file, ou déjà en cours (same : le second clic garde l'empreinte, la sienne) : sa fin validera ; refusée autrement, un Valider comme les autres.
+      if (sent.ok || held || sent.reason === 'same') { refreshVibe({ now: true }); return; }
+      clicked.delete(agent.id);
+    }
+  }
   store.marks[agent.id] = setMark(store.marks[agent.id] || {}, target, hash, verdict);
   saveVibeStore(store);
   refreshVibe({ now: true });

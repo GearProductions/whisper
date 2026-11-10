@@ -150,9 +150,13 @@ describe('cutCommands et cutLine', () => {
 });
 
 describe('remainingModules', () => {
-  it('ni commit ni modification', () => {
-    const m = (touched: boolean, uncommitted?: boolean) => ({ path: 'p', paths: ['p'], contract: '', file: null, touched, commits: [], uncommitted });
-    expect(remainingModules([m(false), m(true), m(false, true), m(false, false), m(true, true)])).toBe(2);
+  const m = (touched: boolean, started?: boolean, uncommitted?: boolean) => ({ path: 'p', paths: ['p'], contract: '', file: null, touched, started, commits: [], uncommitted });
+  it('ni commit ni modification (started absent : comme touched)', () => {
+    expect(remainingModules([m(false), m(true), m(false, undefined, false), m(true, undefined, true)])).toBe(2);
+  });
+
+  it('un module au squelette seul compte encore, commité ou non', () => {
+    expect(remainingModules([m(true, false), m(false, false, true), m(true, true), m(false, true, true)])).toBe(2);
   });
 });
 

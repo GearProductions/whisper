@@ -19,7 +19,8 @@
  *  ne doit pas faire » portent leur marque en pastille. 💬 sur un bloc le cite
  *  dans le champ (Relire : il ouvre sous le bloc une zone de commentaire, pour
  *  le brouillon de revue ; ✗ sur la note aussi, sous son en-tête). En tête :
- *  son chemin, Ouvrir (IconButton open), Modifier ou Fermer et Brut (Créer), sa validation (Créer).
+ *  son chemin, Ouvrir (IconButton open), Modifier ou Fermer et Brut (Créer), sa validation (Créer : Valider et vérifier, puis Revalider et Revérifier, qui
+ *  lance act.run('design-check') ; Relire : Valider ou À revoir).
  *  Au-dessus, Créer : les questions ouvertes (questions-view) ; Relire : la
  *  relecture de la note par l'agent (Relancer). Pas de note : ce qu'il faut
  *  faire pour en avoir une. Styles : note-view.css.
@@ -167,7 +168,8 @@ export function NoteView(p: StepProps) {
             {editing ? (
               <button type="button" className="vc-mini" aria-pressed={brut} title={s.rawTitle} onClick={() => setBrut(!brut)}>{brut ? s.rendered : s.raw}</button>
             ) : null}
-            <span className="vc-note-mark"><MarkControl what="note" state={note.mark} review={review} lang={view.lang} onMark={(v) => act.mark('note', v)} onRemark={review ? () => setRefusing(true) : undefined} /></span>
+            <span className="vc-note-mark"><MarkControl what="note" state={note.mark} review={review} lang={view.lang} onMark={(v) => act.mark('note', v)} onRemark={review ? () => setRefusing(true) : undefined}
+              checked={note.checked} onRecheck={review ? undefined : () => act.run('design-check')} /></span>
           </div>
           {refusing ? (
             <div className="vc-note-refuse">

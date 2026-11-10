@@ -54,7 +54,12 @@
  *  précédente montrée périmée (stale), jamais comptée comme lue ; le texte d'un test à la base
  *  (base, passé ; au-delà de SOURCE_MAX : null).
  *  Un module de la Forme a un chemin ou plusieurs (parseNote : paths) : ses fichiers sont ceux sous l'un d'eux,
- *  il est touché si l'un l'est (note 0.15.0-stabilisation, T-15) ; un commit porte sa marque « commit:<hash> »
+ *  il est touché si l'un l'est (note 0.15.0-stabilisation, T-15) ; commencé (started) seulement si un fichier a
+ *  changé depuis son squelette : un commit sans la note le touche, ou, la note commitée, un fichier sous ses chemins
+ *  n'est pas commité (le commit de la note : le plus ancien de la branche qui la porte, il porte les squelettes ;
+ *  ses commits sont ceux hors de lui) : begun, Générer les modules, stillOk en dépendent, pas touched (note
+ *  0.15.0-skills-humain-ia) ; la note vérifiée (checked : la marque design de sa note, designChecked), Vérifier la
+ *  conception masquée tant qu'elle ne l'est pas (la première part de Valider la note) ; un commit porte sa marque « commit:<hash> »
  *  (mark, absente : aucune ; T-23). Une action directe faite et dont rien n'a changé depuis ne ferait rien de
  *  plus : grisée avec sa raison (T-24 ; la passe sur F-114 : seul Revenir sur la base, une fois dessus, se
  *  décide d'après le relevé ; les autres sont déjà grisées ou masquées (Commiter, Pull, Pousser, S'assigner,
@@ -69,7 +74,7 @@ import type {
   VibePrItem, VibeRecipe, VibeRun, VibeStepId, VibeTestFile, VibeView, VibeWorktree,
 } from 'shared/bridge';
 import { DIRECT_ACTIONS, DIRECT_ONLY, EFFORT_LEVELS, prNumber, SKILL_MODELS, templateVars, type ActionDef } from './actions';
-import { markState, type Marks } from './marks';
+import { designChecked, markState, type Marks } from './marks';
 import { parseNote } from './note';
 import { json, parseChecklist, parseQuestions, parseReading } from './outputs';
 import { ELSEWHERE, onBase, onPr, placeReason, placeShown, type PlaceState } from './place';
@@ -229,28 +234,35 @@ export function vibeView(input: JourneyInput): VibeView {
   const note: VibeNote | null = input.note && facts && {
     id: 'n', path: input.note.path, text: input.note.text, before: input.note.before, filled: facts.filled, mustNot: facts.mustNot,
     mark: markState(marks, 'note', blobSha(input.note.text)), formeMark: markState(marks, 'forme', blobSha(facts.forme)),
-    nothingMark: markState(marks, 'nothing', blobSha(input.note.text)), locked: codeLock(null, input.busy, input.running, lang),
+    nothingMark: markState(marks, 'nothing', blobSha(input.note.text)), checked: designChecked(marks, input.note.path), locked: codeLock(null, input.busy, input.running, lang),
   };
+  // Le commit de la note : le plus ancien de la branche qui la porte (les commits vont du plus ancien au plus récent) ;
+  // il porte aussi les squelettes des modules, qui ne sont pas un module fait.
+  const noteCommit = note && commits.find((c) => c.files.includes(note.path));
   const modules: VibeModule[] = (facts?.modules ?? []).map((m, i) => {
     const bares = m.paths.map((p) => p.replace(/\/+$/, ''));   // un module a un chemin ou plusieurs (T-15)
     const per = bares.map((b) => changed.flatMap((f) => within(f, b) ?? []));   // les fichiers changés sous chaque chemin
     const hits = per.flat();
-    const by = commits.filter((c) => c.files.some((f) => bares.some((b) => within(f, b) !== null)));
+    const on = commits.filter((c) => c.files.some((f) => bares.some((b) => within(f, b) !== null)));
+    const by = on.filter((c) => c !== noteCommit);   // ceux du module : hors du commit de la note
     // ponytail: un chemin jamais touché n'est cherché qu'à la racine et sous src/ (la Forme omet souvent src/).
     const roots = bares.map((b, k) => [...new Set([...per[k], b, `src/${b}`])].find((p) => input.exists(p)));
     const real = roots.find(Boolean);
-    const touched = hits.length > 0 || by.length > 0;
     const uncommitted = hits.some((f) => dirty.includes(f));
+    // Touché : la branche change un fichier sous ses chemins (le squelette compris) ; commencé : un commit sans la note
+    // en touche un, ou, la note commitée, un fichier n'est pas commité (un squelette commité n'est pas un module fait).
+    const touched = hits.length > 0 || on.length > 0;
+    const started = by.length > 0 || (!!noteCommit && uncommitted);
     // Les fichiers que la branche change sous l'un de ses chemins (changed : la copie de travail comprise), dans son dossier
     // seulement (roots) ; sans dossier (supprimé), sous tout chemin qui le contient ; absent : supprimé.
     const files = !touched ? [] : changed.filter((f) => bares.some((b, k) => (roots[k] ? within(f, b) === roots[k] : within(f, b) !== null))).sort()
       .map((path, j) => (input.exists(path) ? { id: `m${i}/${j}`, path, ...gitOf(path) } : { id: `m${i}/${j}`, path, deleted: true }));
     return {
       path: m.path, paths: m.paths, contract: m.contract, file: real ? { id: `m${i}`, path: real } : null,
-      touched, commits: by.map((c) => c.hash), files, locked: codeLock(m.path, input.busy, input.running, lang), uncommitted,
+      touched, started, commits: by.map((c) => c.hash), files, locked: codeLock(m.path, input.busy, input.running, lang), uncommitted,
     };
   });
-  const untouched = modules.some((m) => !m.touched);
+  const unstarted = modules.some((m) => !m.started);
   const invLines = !!facts?.mustNot.some((l) => l.mark === 'invariant');
 
   // Les tests de la branche (ceux qui ont des cas) : invariants et variants.
@@ -267,9 +279,9 @@ export function vibeView(input: JourneyInput): VibeView {
   });
   const variants = tests.filter((t) => !isInvariantTest(t.path)).map((t, i) => ({ id: `v${i}`, path: t.path, cases: t.cases.length }));
   const isRead = (f: VibeTestFile) => f.reading !== null && !f.stale;   // une lecture périmée n'est pas lue
-  // Une fois un module touché, le parcours ne recule plus (note 0.15.0-stabilisation) : une validation faite puis
+  // Une fois un module commencé, le parcours ne recule plus (note 0.15.0-stabilisation) : une validation faite puis
   // dépassée par une retouche (« changed », la note, sa Forme, un cas) compte encore ; l'écran la dit changée.
-  const begun = modules.some((m) => m.touched);
+  const begun = modules.some((m) => m.started);
   const stillOk = (s: VibeMarkState) => s === 'ok' || (begun && s === 'changed');
   const casesOk = invariants.every((f) => f.cases.every((c) => stillOk(f.marks[c])));
   // Les tests de l'étape Invariants : ceux qu'un commit porte avec la note (le premier, ses fixups repliés).
@@ -351,7 +363,7 @@ export function vibeView(input: JourneyInput): VibeView {
     const formeDone = !!note && modules.length > 0 && validated(note.formeMark);
     // La note (sa Forme comprise) commitée puis modifiée : la Forme n'est faite qu'une fois ce changement commité
     // (Préparer le commit : un fixup de son commit, un nouveau commit une fois la PR ouverte), note et Forme revalidées.
-    // Une fois un module touché, le parcours ne recule plus : une retouche de la note ou d'un test d'invariant fait
+    // Une fois un module commencé, le parcours ne recule plus : une retouche de la note ou d'un test d'invariant fait
     // partie du travail en cours, que Commiter les modules range (note 0.15.0-stabilisation) ; les faits le disent.
     const noteChanged = !!note && dirty.includes(note.path) && commits.some((c) => c.files.includes(note.path));
     const reopens = noteChanged && !begun;
@@ -365,7 +377,7 @@ export function vibeView(input: JourneyInput): VibeView {
       // rien à écrire ni à commiter. Avec, sans test de la branche (déjà observée par un test existant) : la
       // dernière course Écrire les invariants ou Vérifier l'alignement finie, ou ✓ Rien à écrire. Avec des
       // tests : chaque cas validé, lu ou pas, et le premier commit (note, forme, invariants) fait.
-      // Une fois un module touché, seuls comptent les tests écrits pour l'étape (portés par le commit de la note) :
+      // Une fois un module commencé, seuls comptent les tests écrits pour l'étape (portés par le commit de la note) :
       // un test protégé retouché ensuite par un module (un harnais) est du travail des modules, pas à revalider.
       invariants: noteDone && formeDone && (!invLines || (begun
         ? vibe || stepTests.every((f) => f.cases.every((c) => stillOk(f.marks[c])))
@@ -382,8 +394,8 @@ export function vibeView(input: JourneyInput): VibeView {
       // Hors Vibe : les cas attendent leurs ✓, lus ou pas ; Vibe : sans lecture (Écrire les invariants vérifie l'alignement).
       invariants: !invariants.length ? 'invariants' : !vibe && !casesOk ? null
         : commitMd ? 'commit' : dirty.length ? 'commit-prepare' : null,
-      // Générer les modules tant qu'il en reste un pas touché (un à un sur sa ligne, au choix), puis Commiter les modules.
-      modules: commitMd ? 'commit' : untouched ? 'modules' : modules.some((m) => m.uncommitted) ? 'commit-modules' : pending ? 'commit-prepare' : null,
+      // Générer les modules tant qu'il en reste un pas commencé (un à un sur sa ligne, au choix), puis Commiter les modules.
+      modules: commitMd ? 'commit' : unstarted ? 'modules' : modules.some((m) => m.uncommitted) ? 'commit-modules' : pending ? 'commit-prepare' : null,
       // Lancer les vérifications demande aussi la ponytail review (F-115) : elle n'a plus son bouton.
       revue: !checksOk || !ponytail ? 'checks' : fixups ? 'fixups' : null,
       pr: 'pr',
@@ -480,7 +492,7 @@ export function vibeView(input: JourneyInput): VibeView {
   // Les choix de lieu (core/vibecoder place), Pousser (après un rebase pas encore poussé), sans griser ; Rebase hors
   // de la base ; Nouvelle demande sur la base seulement. Retirer le worktree : sur un enfant, sa PR fusionnée (Créer) ou sur le robot d'une PR (relecteur).
   // Préparer le commit, seulement s'il y a quelque chose à commiter ; Générer les modules, seulement s'il en reste un
-  // pas touché.
+  // pas commencé.
   const shown: Record<string, boolean> = {
     ...placeShown(place),
     rebase: !place.onBase && flow === 'create',   // le relecteur n'édite ni ne pousse : rien à rebaser, à pousser, à copier
@@ -492,7 +504,8 @@ export function vibeView(input: JourneyInput): VibeView {
     'new-request': place.onBase,
     'remove-worktree': child && (flow === 'create' ? prState === 'MERGED' : place.robot),
     'commit-prepare': dirty.length > 0,
-    modules: untouched,
+    modules: unstarted,
+    'design-check': !!note?.checked,   // la première vérification est la part de Valider la note
   };
   // Écrire les invariants, sans ligne « → invariant » dans la note : masquée sans griser, elle aussi (un clic
   // reste possible si le relevé retarde sur une ligne ajoutée ; runs.test.ts, invariant, le clique ainsi).

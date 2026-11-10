@@ -140,8 +140,9 @@ export function runPhase(status: string, tasks: number, before = 0): 'running' |
 export const runTasks = (status: string, tasks: number, before: number) =>
   status === 'working' || status === 'asking' ? Math.max(tasks, before) : tasks;
 
-// Les modules qu'il reste à générer : ni commit ni modification (la règle du skill modules).
-export const remainingModules = (modules: VibeModule[]) => modules.filter((m) => !m.touched && !m.uncommitted).length;
+// Les modules qu'il reste à générer : pas commencés (started : un module au squelette seul compte encore ;
+// absent, comme touched).
+export const remainingModules = (modules: VibeModule[]) => modules.filter((m) => !(m.started ?? m.touched)).length;
 
 // Les commandes d'arrière-plan qu'a coupées la fin d'une course : les local_bash arrêtés de ses tâches.
 export const cutCommands = (tasks: { type: string; status: string }[]) =>

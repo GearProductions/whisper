@@ -38,13 +38,13 @@ Run every command yourself, now, with Bash: `<prefix> <command>`, the prefix exa
 `check` `N`: read `<out>/checks.json`; run only the command of item `N` (the one its `name` designates, found as above), replace that item with its new result, keep every other item exactly as it is, in the same order, and set a new `time`. The file unreadable or without item `N` → run every check, as for `*`, without the ponytail review.
 
 ```json
-{"items":[{"name":"typecheck","ok":true,"level":"ok","detail":"…"},{"name":"lint","ok":true,"level":"warning","detail":"…"}],"time":1760000000000}
+{"items":[{"name":"typecheck","ok":true,"level":"ok","detail":"[agent] …"},{"name":"lint","ok":true,"level":"warning","detail":"[agent] …"}],"time":1760000000000}
 ```
 
 - One item per command, in the order above.
 - `level`: `error` — at least one error (a failing test, a type error, a lint *error*), or the command could not run; `warning` — no error, but warnings in its output (lint warnings, deprecations…), even if the command exited non-zero because of them (e.g. `--max-warnings 0`); `ok` — neither.
 - `ok`: `false` for `error`, `true` for `ok` and `warning` (kept for older readers).
-- `detail`: one short line in English — ok: the counts (« 212 tests passed »); warning: how many and the first one, with `file:line` (« 3 warnings — src/a.ts:12 no-unused-vars »); error: the first failing test or error, with `file:line` and its message.
+- `detail`: one short line in English, starting with a tag — `[toi]` when only a change of the note's contract would make the check pass (an invariant failing because the code must do what the note forbids, or the note makes a test impossible), else `[agent]` (every `ok` and `warning`, and any other failure) — ok: the counts (« [agent] 212 tests passed »); warning: how many and the first one, with `file:line` (« [agent] 3 warnings — src/a.ts:12 no-unused-vars »); error: the first failing test or error, with `file:line` and its message.
 - `time`: when the checks finished, in milliseconds since the epoch: run `date +%s%3N` (no prefix) after the last command and use its output; never a guessed or old value.
 - No command found → `{"items":[],"time":…}`, and say so.
 

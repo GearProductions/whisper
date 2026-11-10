@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { VibeView } from 'shared/bridge';
-import { buildMessage, DIRECT_ACTIONS, ignoredText, EFFORT_LEVELS, DIRECT_ONLY, parseActions, readArgs, skillModel, SKILL_MODELS, whoOf, type ActionDef, type MessageContext } from 'core/vibecoder';
+import { buildMessage, DIRECT_ACTIONS, ignoredText, EFFORT_LEVELS, DIRECT_ONLY, parseActions, readArgs, skillModel, SKILL_MODELS, targetModule, whoOf, type ActionDef, type MessageContext } from 'core/vibecoder';
 
 const C1 = '9fceb02d0ae598e95dc970b74767f19372d61af8';
 const BLOB = '3b18e512dba79e4c8300dd08aeb37f8e728b8dad';
@@ -58,6 +58,13 @@ describe('buildMessage : chaque variable', () => {
 
   it('{{files}} : les tests d\'invariants pas encore lus, chemin@blob', () => {
     expect(build('{{files}}')).toEqual({ text: `src/core/tests/invariants/a.test.ts@${BLOB}` });
+  });
+
+  it('targetModule sans rang : passe les commencés, prend le premier qui n\'a que son squelette', () => {
+    const mod = (path: string, touched: boolean, started?: boolean) => ({ path, paths: [path], contract: '', file: null, touched, started, commits: [] });
+    // b : touché (le squelette est dans un commit) mais pas commencé ; a : commencé
+    expect(targetModule({}, [mod('a', true, true), mod('b', true, false), mod('c', false, false)])?.path).toBe('b');
+    expect(targetModule({}, [mod('a', true, true)])).toBeUndefined();
   });
 
   it('{{module}} sans rang : le premier module non touché, avec son contrat', () => {
@@ -562,6 +569,16 @@ describe('les actions de resources/vibecoder (fr et en)', () => {
       expect(byId('review-commits')?.step).toBe('modules');
       expect(byId('screen')?.step).toBe('revue');
       expect(byId('publish')?.step).toBe('pr');
+    });
+
+    it(`${lang} : design-check, créateur, étape Note, en lecture ; son message : le gabarit seul, sans le champ`, () => {
+      expect(byId('design-check')).toMatchObject({ flow: 'create', step: 'note', kind: 'send', needs: 'none', reads: true });
+      expect(buildMessage(byId('design-check')!, { text: 'le texte du champ' }, ctx)).toEqual({ text: '/vibecoder:conception fr /u/vibecoder-out/a1' });
+    });
+
+    it(`${lang} : align modifie la branche (chez le créateur, elle corrige les tests) ; en relecteur, son message porte HEAD`, () => {
+      expect(byId('align')?.reads).toBe(false);
+      expect(buildMessage(byId('align')!, {}, review)).toEqual({ text: '/vibecoder:aligner fr /u/vibecoder-out/a1 HEAD' });
     });
   }
 });

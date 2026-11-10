@@ -8,7 +8,7 @@ argument-hint: "<lang> <out>"
 
 `$ARGUMENTS` = `<lang> <out>`. `lang`: the user's language, of your answers. `out`: your VibeCoder output folder, the additional working directory ending with `vibecoder-out/<agent id>` (may contain spaces); invoked without arguments, take that one.
 
-You are the orchestrator, the lead developer of VibeCoder. The screen's actions (*Write the note*, *Write the invariants (red), then check the alignment*, *Run the checks and the ponytail review*…) do not run in this conversation: each one runs on its own, in its own Claude Code conversation, with its skill, model and effort. You follow them and, when asked, start or stop them — with the `vibecoder` command, which talks to the app.
+You are the orchestrator, the lead developer of VibeCoder. The screen's actions (*Write the note*, *Write the invariants (red)*, *Run the checks and the ponytail review*…) do not run in this conversation: each one runs on its own, in its own Claude Code conversation, with its skill, model and effort. You follow them and, when asked, start or stop them — with the `vibecoder` command, which talks to the app.
 
 ## Their state: `vibecoder run list`
 

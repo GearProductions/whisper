@@ -142,7 +142,7 @@ const NO_ANSWER: Record<VibeLang, string> = { fr: '(pas de réponse)', en: '(no 
 //   {{ref}}            WORKTREE (le créateur) ou HEAD (le relecteur : la PR est chargée dans le dossier) → 'pr' sans PR
 //   {{files}}          les tests d'invariants pas encore lus, « chemin@blob » séparés par des espaces ; args.file :
 //                      celui de cet id dans view.invariants, lu ou non (relire), '*' : tous → 'files' si aucun
-//   {{module}}         args.module (rang dans view.modules), sinon le premier non touché : « chemin — contrat » → 'module'
+//   {{module}}         args.module (rang dans view.modules), sinon le premier pas commencé : « chemin — contrat » → 'module'
 //   {{commit}}         args.commit, un hash de view.commits ; absent : WORKTREE → sinon 'commit'
 //   {{pr}}             args.pr (entier > 0), sinon view.pr.number → sinon 'pr'
 //   {{answers}}        args.answers en « 1. …\n2. … » (une vide : « (pas de réponse) ») ; 50 de 2 000 caractères
@@ -154,9 +154,9 @@ const NO_ANSWER: Record<VibeLang, string> = { fr: '(pas de réponse)', en: '(no 
 // args.model : un autre modèle que le conseillé, parmi ceux que le relevé
 // propose pour cette action (VibeAction.models) → /vibecoder:<nom>--<modèle>,
 // sa variante (skillVariants) ; sinon il est ignoré.
-// Le module que vise une action ({{module}}) : modules[args.module] ; sans rang, le premier pas touché.
+// Le module que vise une action ({{module}}) : modules[args.module] ; sans rang, le premier pas commencé (started : un squelette seul ne compte pas ; absent, comme touched).
 export const targetModule = (args: VibeArgs, modules: VibeModule[]): VibeModule | undefined =>
-  args.module === undefined ? modules.find((x) => !x.touched) : Number.isInteger(args.module) ? modules[args.module] : undefined;
+  args.module === undefined ? modules.find((x) => !(x.started ?? x.touched)) : Number.isInteger(args.module) ? modules[args.module] : undefined;
 
 // Les arguments viennent d'une page : le type de chacun est vérifié ici.
 // Le gabarit est lu une fois : une valeur insérée n'est jamais relue comme un gabarit.

@@ -197,3 +197,22 @@ describe('appliedRemarks', () => {
     expect(appliedRemarks(out('null', 10), 1).size).toBe(0);
   });
 });
+
+describe('fichiers de retour étiquetés [toi] / [agent] : la lecture de la page tient', () => {
+  it('remarkKey d\'une remarque ponytail étiquetée : son adresse', () => {
+    expect(remarkKey('`src/a.ts:L12` [agent] — yagni: x')).toBe('src/a.ts:L12');
+    expect(remarkKey('src/a.ts:L12-38 [toi] — shrink: x')).toBe('src/a.ts:L12');
+  });
+
+  it('parseChecks d\'un detail étiqueté : l\'item lu, son detail tel quel', () => {
+    expect(parseChecks('{"items":[{"name":"tests","ok":false,"detail":"[toi] a.test.ts:3 attendu 2"}]}'))
+      .toEqual([{ name: 'tests', ok: false, level: 'error', detail: '[toi] a.test.ts:3 attendu 2' }]);
+  });
+
+  it('sections d\'un align.md aux titres étiquetés : une rubrique par titre', () => {
+    expect(sections('## [toi] le contrat\ntexte\n\n## [agent] un détail\nautre')).toEqual([
+      { title: '[toi] le contrat', body: 'texte' },
+      { title: '[agent] un détail', body: 'autre' },
+    ]);
+  });
+});

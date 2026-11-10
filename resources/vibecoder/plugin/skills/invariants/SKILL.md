@@ -1,6 +1,6 @@
 ---
 name: invariants
-description: "Write the red invariant tests of the ticket from the note's « → invariant » lines, or from the pseudo-code given, in the project's language and test framework, then check the alignment (aligner, <out>/align.md) and fix the tests, 3 rounds at most, without committing."
+description: "Write the red invariant tests of the ticket from the note's « → invariant » lines, or from the pseudo-code given, in the project's language and test framework, then follow aligner once (WORKTREE: it fixes the tests itself and loops, 3 rounds at most), without committing."
 argument-hint: "<lang> <out> [pseudo-code…]"
 disable-model-invocation: true
 context: fork
@@ -14,7 +14,7 @@ effort: high
 
 ## Read first
 
-- The note: under `docs/tickets/`, the file named like the branch (`<type>/<name>` → `docs/tickets/<type>/<name>.md`), else the one the branch adds or changes. Its « Ce que ça ne doit pas faire » lines marked `→ invariant` are the tests to write (one already covered by an existing test → skip it, say so). Its « Forme »: the names and signatures to call.
+- The note: under `docs/tickets/`, the file named like the branch (`<type>/<name>` → `docs/tickets/<type>/<name>.md`), else the one the branch adds or changes. Its « Ce que ça ne doit pas faire » lines marked `→ invariant` are the tests to write (one already covered by an existing test → skip it, say so). Its « Forme »: the names and signatures to call, already posed as skeletons in the code by *Poser la forme*.
 - `AGENTS.md`, if present: where invariants live, how they are written (e.g. an « Écrire un invariant » section), the language of code and comments, the test commands, the protected folders.
 - The guide (`docs/dev_guide/*.html`) §3.1 to §3.6, if present.
 - Two or three existing invariant tests: their style, harness and helpers — reuse them.
@@ -28,7 +28,7 @@ effort: high
 - A relation, an absence or a bound rather than a value: `toEqual(other)`, `not.toContain(secret)`, `toBeLessThan(limit)`. The number lives in config; the test runs with a small limit (§3.3).
 - Titles are sentences (an `it` title; a Rust fn name such as `a_token_is_never_logged`). Setup, action and checks separated by a blank line; explicit names; one assertion per fact.
 - Where: the module's `tests/invariants/` folder, or what `AGENTS.md` says; cross-module ones in the root `tests/invariants/`. File header: what it guards (the note line, the project's invariant id such as `I-12`), and that it is protected: if it fails, fix the code.
-- The code does not exist yet → only the skeleton the test needs to compile: the Forme's signatures with their file header, bodies that fail (`throw new Error('not implemented')`, `todo!()`, `raise NotImplementedError`). No implementation. In a compiled language, never leave the test suite uncompilable.
+- Call the signatures of the skeletons that *Poser la forme* posed. A skeleton missing: pose it as the Forme says — path, file header, signature, a body that fails (`throw new Error('not implemented')`, `todo!()`, `raise NotImplementedError`). No implementation. In a compiled language, never leave the test suite uncompilable.
 - Apply the `ponytail` skill (`.claude/skills/ponytail/SKILL.md`, else `~/.claude/skills/ponytail/SKILL.md`) to helpers and harness — reuse, no new dependency — never to the cases.
 - Existing invariant files are protected: change one only if the note changes that invariant, and say so.
 - Nothing in the background: this run ends when you answer, and a command still running is lost. Never set `run_in_background`, never end the `Bash` command with `&`, never answer « still running ». A long command (the mutants, a full test run) runs in the foreground, in batches that each fit under Bash's maximum timeout (600000 ms): split by file or by mutant, run the batches one after the other. What did not run (batches left, mutants not tried) is named in the answer, never implied.
@@ -39,10 +39,8 @@ Run the project's invariant command (else its test command on your files). Every
 
 ## Then, the alignment — in this same run
 
-Read `${CLAUDE_SKILL_DIR}/../aligner/SKILL.md` and follow it with `<lang> <out> WORKTREE`: it writes `<out>/align.md`. The modules come at a later step: a Forme module not written yet is not a gap here.
+Read `${CLAUDE_SKILL_DIR}/../aligner/SKILL.md` and follow it once with `<lang> <out> WORKTREE`: it checks the invariants only, fixes the tests itself, loops (3 rounds at most) and writes `<out>/align.md`. No more rounds here, no fix of your own after it. The modules come at a later step: a Forme module not written yet is not a gap.
 
-- « Aligned. » or « Aligné. » (the line in `lang`) → done.
-- Gaps → fix the invariant tests (same rules as above; still red), then follow the aligner again: it rewrites `align.md`. **3 rounds of fixes at most.** Gaps still there after the third → stop: no more fixes.
-- A gap only the note or the forme can close (a missing line, a module that doesn't match): not yours — leave it in `align.md`, don't spend a round on it.
+Never touch « Ce que ça fait », « Ce que ça ne doit pas faire », « Où ça casse » or a label of the note. What remains in `align.md` is only what the aligner raises: a change of contract, or a note that makes a test impossible to write — the developer decides.
 
-Answer in English, 1 to 3 lines: the files, the number of cases, red confirmed (or what passes and why), the alignment — « Aligned. » after how many rounds, or the gaps that remain — and what did not run, if anything (rule « Nothing in the background »).
+Answer in English, 1 to 3 lines: the files, the number of cases, red confirmed (or what passes and why), the alignment — « Aligned. » or what `align.md` raises — and what did not run, if anything (rule « Nothing in the background »).

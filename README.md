@@ -656,15 +656,29 @@ relire une PR (le relecteur, plus bas) :
    (ce qui se passe, pourquoi choisir), des réponses proposées, la conseillée
    marquée « (recommandé) » avec sa raison : *Envoyer les
    réponses* (à l'action qui a rédigé la note : elle garde son contexte) ;
-   puis *Valider la note*. La note s'affiche tout de suite ;
+   puis *Valider la note*. Le premier clic s'appelle *Valider et vérifier* et ne
+   valide pas tout de suite : une vérification de conception (une seule passe,
+   Opus) cherche les cas oubliés, les contradictions, les cas limites des règles
+   chiffrées, un comportement qu'on ne peut pas atteindre à l'écran, une ligne qui
+   serait plutôt un invariant ou un variant. Elle ne modifie jamais la note : ses
+   trouvailles sont des suggestions au questionnaire, à accepter ou refuser
+   (*Envoyer les réponses* les écrit dans la note). Sans suggestion, la note est
+   validée à la fin ; avec, elle ne l'est pas, et le bouton devient *Revalider*
+   (il valide aussitôt, sans revérifier), avec *Revérifier* à côté, qui relance la
+   vérification seule sans jamais valider. Une note changée pendant la
+   vérification est validée pour le texte que vous aviez sous les yeux : elle
+   s'affiche « modifiée depuis ». Une fois la note validée, aucune étape de l'IA
+   ne change ce qu'elle fait, ce qu'elle ne doit pas faire, où ça casse, ni ses
+   étiquettes (sauf pour écrire une de vos réponses). La note s'affiche tout de suite ;
    *Modifier* la rend modifiable sur place (*Fermer* garde la modification),
    comme dans Obsidian : ce qu'on tape se met en forme au fil de la frappe (un titre
    apparaît en titre, pas en `#`) ; *Brut* montre le Markdown tel qu'il est
    dans le fichier, modifiable aussi. Enregistrée par Ctrl+S ou
    *Enregistrer*, avec les garde-fous du code d'un module (étape Modules) ;
    grisée pendant un tour de la conversation ou une action de l'agent.
-2. **Forme** : *Poser la forme* (les modules et leurs contrats, dans la note,
-   sans code ; sous chacun, ses variants : le fichier de tests et les cas à
+2. **Forme** : *Poser la forme* écrit d'un seul passage les squelettes dans le code
+   (chemins, en-têtes = les contrats, signatures, corps qui échouent ; le typage
+   passe), puis recopie la forme dans la note (les modules et leurs contrats ; sous chacun, ses variants : le fichier de tests et les cas à
    couvrir, à challenger avant le code ; des modules qui ne compilent
    qu'ensemble : une seule entrée, leurs chemins séparés par « + ») ; *Valider la forme*. La vue est celle d'un IDE : à gauche
    l'arborescence des modules, à droite le module choisi, son contrat
@@ -677,11 +691,16 @@ relire une PR (le relecteur, plus bas) :
    (`fixup! <son sujet>`, affiché dans la carte du commit proposé), puis
    *✓ Commiter* ; *Replier les fixups*, à la Revue, le fond dans son commit.
    La PR déjà ouverte : un nouveau commit qui dit pourquoi, pas de fixup.
-3. **Invariants** : *Écrire les invariants (rouges), puis vérifier
-   l'alignement*, d'après la note ou d'après le pseudo-code écrit dans le
-   champ de l'étape — dans la même action, l'agent vérifie que note, forme
-   et tests concordent, retouche les tests s'il y a des écarts (3 tours au
-   plus) et dit ce qui reste (la carte de l'alignement) ; puis, dans l'en-tête de chaque
+   Une retouche de la forme, à n'importe quelle étape, change la note et les
+   squelettes ensemble (on modifie, on ne régénère pas) ; l'étape attend toujours
+   votre *Valider la forme* (en *Vibe*, comme avant, sans clic).
+3. **Invariants** : *Écrire les invariants (rouges)*, d'après la note ou
+   d'après le pseudo-code écrit dans le champ de l'étape, à partir des squelettes
+   — dans la même action, l'alignement ne regarde que les invariants (chaque
+   test observe vraiment sa ligne « → invariant », chaque test a sa ligne),
+   corrige seul les tests (3 tours au plus, même hors *Vibe*) et ne vous remonte,
+   dans la carte de l'alignement, qu'un changement de contrat ou une note qui rend
+   un test impossible à écrire (*Relancer* le refait) ; puis, dans l'en-tête de chaque
    cas, le badge *Validé* ou *À revoir*, qui s'allume au clic (*À revoir* le cite dans le champ, pour dire quoi changer), *Tout valider* pour
    un fichier. *Lire en pseudo-code* (dans les outils en haut du fichier)
    aide à lire, sans être obligatoire (à
@@ -711,9 +730,10 @@ relire une PR (le relecteur, plus bas) :
 4. **Modules** : deux boutons, *Générer les modules* puis *Commiter les
    modules*. On génère tout (ou un module à la fois, avec *Générer* sur sa
    ligne : ses variants écrits d'abord et vus rouges, puis le code (TDD),
-   `ponytail`, typecheck et tests du module lancés, sans commit ; puis
-   *Relire le diff* part seul, par un autre agent, et sa relecture s'affiche
-   dans une carte), on relit, on ajuste, et l'agent range les commits à la
+   `ponytail`, typecheck et tests du module lancés, sans commit, avec la boucle de
+   *Générer les modules* pour un seul : son diff relu, les défauts corrigés, les
+   tests relancés jusqu'au vert, dans la même course ; seules les remarques
+   `[toi]` remontent), on relit, on ajuste, et l'agent range les commits à la
    fin. *Générer les modules* (des agents Sonnet en parallèle, chaque
    diff relu : un défaut est corrigé ou renvoyé au même agent, relancé sur
    Opus au second échec ; à chaque vague, le typage et les tests des fichiers
@@ -769,7 +789,13 @@ relire une PR (le relecteur, plus bas) :
    créant) : *Plan de test à l'écran* prépare comment lancer la branche, puis
    la liste de ce qu'il faut essayer, une case chacun ; *Tout cocher* les coche
    d'un clic, pour aller vite. Toutes les cases cochées comptent pour que la
-   Revue soit faite.
+   Revue soit faite. La ponytail review porte sur la technique (le code, ce
+   qui n'a pas pu être anticipé), pas sur la structure ni le contrat déjà
+   validés. Chaque ligne des retours du créateur (alignement, ponytail review,
+   relecture du diff, vérifications, CI) porte une étiquette : `[toi]` pour ce qui
+   demande votre décision (un changement de contrat), `[agent]` pour le reste, que
+   l'agent règle seul ; l'écran les affiche telles quelles, le grisé des `[agent]`
+   viendra ensuite. Le relecteur d'une PR n'a pas d'étiquettes : il lit tout.
 6. **PR** : sans PR, *Valider la feature (ouvrir la PR)* ; la PR ouverte,
    *Diagnostiquer la CI* et *Release candidate* ; fusionnée, *PR mergée →
    revenir sur la base* (refusé s'il y a des modifications en cours ; sur
@@ -1028,7 +1054,9 @@ n'attend vos validations, et les étapes qu'il passe les gardent. En deux temps 
    l'onglet *Actions* (modules confiés à des agents Sonnet en parallèle, puis
    commités) —, ne choisit jamais *Garder* / *Annuler* à votre place. Une
    question qui bloque vous attend à l'étape Note, sans arrêter *Vibe* :
-   vos réponses envoyées, il reprend seul. Il ne fusionne pas la PR et ne
+   vos réponses envoyées, il reprend seul. Il ne s'arrête que sur une ligne
+   `[toi]` d'un retour ou une question de la note ; une ligne `[agent]` n'est
+   jamais une raison de s'arrêter. Il ne fusionne pas la PR et ne
    publie pas de version officielle.
 
 *Arrêter Vibe* (le même bouton) : l'action en cours finit, la suivante ne part
@@ -1041,12 +1069,13 @@ Ce qui se suffit à soi-même tourne à part, sans relire la conversation : son
 prix ne dépend pas de la longueur de celle-ci (≈ 0,02 $ sur Haiku : lister ou
 charger une PR, lancer les vérifications, commiter, publier une revue,
 nommer la branche d'une nouvelle demande, proposer les commandes).
-Sonnet écrit le code : il génère un module (seul, ou chacun de ceux de
-*Générer les modules*), applique la revue, publie les releases ; il
+Sonnet écrit le code : il génère chacun des modules de *Générer les modules*
+(*Générer* sur un module est mené par Opus, qui relit et corrige, avec un
+agent Sonnet pour l'écrire), applique la revue, publie les releases ; il
 prépare aussi un commit, commite les modules, ouvre la PR, replie les
 fixups, diagnostique la CI, écrit le plan de test, lit les invariants en
 pseudo-code (une lecture n'est refaite que si le test change). Opus, effort
-élevé, juge : il écrit les invariants, relit un diff, une note ou des
+élevé, juge : il vérifie la conception de la note, écrit les invariants, relit un diff, une note ou des
 commits, vérifie l'alignement, fait la ponytail review, et orchestre
 *Générer les modules* (il relit chaque diff, renvoie une
 correction au même agent Sonnet, et ne relance un module sur Opus qu'au

@@ -27,8 +27,10 @@ The four questions, each answered « No. » or with what and where (`file:line`)
 ## I/O in a loop, an N+1, a blocking operation?
 ## A read or write without the right scoping?
 ## Remarks
-- <file:line> — <what> — <why>
+- [toi|agent] <file:line> — <what> — <why>
 ```
+
+- Tags: each point (a remark, or an answer to a question that is not « No. ») is a list line that starts with its tag, right after the `- `: `[toi]` when only the user can settle it (the code leaves the contract of the note: a signature, a boundary, a behaviour it did not decide), else `[agent]` (the agent can fix it itself: duplication, a header, a missing test, dead code…). « No. » and `- Nothing.` stay bare.
 
 - Scope: compare with the module's contract and the note; name anything else the diff changes.
 - Scoping: data of another tenant, user, agent or folder; a path or an id from outside used without a check.

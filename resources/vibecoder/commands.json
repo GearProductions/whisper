@@ -765,6 +765,7 @@
             "enum": [
               "note",
               "answers",
+              "design-check",
               "forme",
               "invariants",
               "read-invariants",

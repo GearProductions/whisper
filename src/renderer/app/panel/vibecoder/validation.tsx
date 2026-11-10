@@ -1,7 +1,9 @@
 /** validation — les validations de l'utilisateur à l'écran : l'état et les
  *  boutons de celle de la note, de la forme ou de « Rien à écrire » (étape
  *  Invariants) (Valider ; validée et Annuler ; modifiée depuis et Revalider ;
- *  Relire : Valider ou À revoir), chaque libellé derrière son icône (Icon ok /
+ *  Relire : Valider ou À revoir ; la note en créateur (onRecheck) : pas vérifiée,
+ *  Valider et vérifier ; vérifiée, Revalider et, à côté, Revérifier, qui ne fait
+ *  qu'appeler onRecheck), chaque libellé derrière son icône (Icon ok /
  *  ko / warn), le verdict d'un cas d'invariant (deux badges écrits, Validé et
  *  À revoir, gris ; celui donné pressé, allumé de sa couleur, un second clic
  *  l'annule) ; CaseVerdict sert à tout cas ou commit (il ne sait rien d'un
@@ -24,6 +26,9 @@ const fr = {
   changed: 'Modifiée depuis la validation',
   changedTitle: 'Le contenu a changé depuis la validation : relisez-le, puis revalidez-le',
   revalidate: 'Revalider',
+  validateCheck: 'Valider et vérifier',
+  recheck: 'Revérifier',
+  recheckTitle: 'Relancer la vérification de conception de la note, sans la valider',
   refuse: 'À revoir',
   refuseTitle: 'Refuser : une zone de commentaire s\'ouvre, la remarque va au brouillon de revue',
   undo: 'Annuler',
@@ -42,6 +47,9 @@ const S: Record<VibeLang, typeof fr> = {
     changed: 'Changed since the approval',
     changedTitle: 'The content changed since the approval: read it again, then approve it again',
     revalidate: 'Approve again',
+    validateCheck: 'Approve and check',
+    recheck: 'Check again',
+    recheckTitle: 'Run the note\'s design check again, without approving it',
     refuse: 'Needs rework',
     refuseTitle: 'Reject: a comment box opens, the remark goes to the review draft',
     undo: 'Undo',
@@ -52,11 +60,13 @@ const S: Record<VibeLang, typeof fr> = {
   },
 };
 
-type MarkProps = { what: What; state: VibeMarkState; review: boolean; lang: VibeLang; onMark(v: Verdict): void; onRemark?(): void };
+type MarkProps = { what: What; state: VibeMarkState; review: boolean; lang: VibeLang; onMark(v: Verdict): void; onRemark?(): void; checked?: boolean; onRecheck?(): void };
 
 // La validation de la note, de la forme ou de « Rien à écrire ». Relire : un verdict, Valider ou À revoir.
-export function MarkControl({ what, state, review, lang, onMark, onRemark }: MarkProps) {
+export function MarkControl({ what, state, review, lang, onMark, onRemark, checked, onRecheck }: MarkProps) {
   const s = S[lang];
+  const check = what === 'note' && !!onRecheck; // la note, en créateur : sa vérification de conception
+  const label = check && !checked ? s.validateCheck : state === 'changed' || check ? s.revalidate : s.validate[what];
   const refuse = review ? <button type="button" className="vc-vbtn" data-v="ko" title={s.refuseTitle} onClick={() => onMark('ko')}><Icon name="ko" />{s.refuse}</button> : null;
   if (state === 'ok' || state === 'ko') {
     return (
@@ -71,8 +81,9 @@ export function MarkControl({ what, state, review, lang, onMark, onRemark }: Mar
     <span className="vc-vmark">
       {state === 'changed' ? <span className="vc-vstate" data-state="changed" title={s.changedTitle}><Icon name="warn" />{s.changed}</span> : null}
       <button type="button" className="vc-vbtn" data-v="ok" title={s.validateTitle} onClick={() => onMark('ok')}>
-        <Icon name="ok" />{state === 'changed' ? s.revalidate : s.validate[what]}
+        <Icon name="ok" />{label}
       </button>
+      {check && checked ? <button type="button" className="vc-vbtn" title={s.recheckTitle} onClick={onRecheck}><Icon name="ok" />{s.recheck}</button> : null}
       {refuse}
     </span>
   );

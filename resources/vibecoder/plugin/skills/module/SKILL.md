@@ -1,41 +1,25 @@
 ---
 name: module
-description: "Implement one module of the ticket's forme, and only it, with its file header and variants, the ponytail way, then run the project's typecheck and this module's tests, without committing; then ask the app to review the diff in its own run (`vibecoder run start review-diff`), unless started by the modules skill."
+description: "Generate one module of the ticket's forme, with the loop of the modules skill for a single one: written by the developpeur agent, its diff reviewed, the defects fixed in the same run, the typecheck and its tests rerun until green, without committing. Reports only the [toi] remarks."
 argument-hint: "<lang> <out> <path — contract>"
 disable-model-invocation: true
-context: fork
-model: sonnet
+model: opus
 effort: high
 ---
 
-# Module — one module, by its contract (guide §4.1)
+# Module — the modules loop, for one module
 
-`$ARGUMENTS` = `<lang> <out> <module>`. `lang`: the user's language, not used here — code-related work: your answer in English. The code itself follows the project's convention (`AGENTS.md`), else English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces): not used here, the review request goes through the `vibecoder` command. `module`: `<path> — <contract>`, an entry of the note's « Forme ».
+`$ARGUMENTS` = `<lang> <out> <module>`. `lang`, `out`: as in the `modules` skill. `module`: `<path> — <contract>`, an entry of the note's « Forme ».
 
-## Read first
+Follow `${CLAUDE_SKILL_DIR}/../modules/SKILL.md` for this one module:
 
-- `AGENTS.md` and `CLAUDE.md`, if present: commands, architecture rules, protected files, language of code and comments.
-- The note (under `docs/tickets/`, named like the branch, or the one the branch adds or changes): « Ce que ça fait », « Ce que ça ne doit pas faire », the « Forme » entry of this module and of its neighbours. Skip it if the prompt already gave you the Forme entry and its « ne doit pas » lines.
-- The invariant tests that concern this module: they must turn green.
-- The code around: what already exists (reuse it), the modules this one uses, its callers.
-- The `ponytail` skill — already preloaded (the `developpeur` agent): don't reread it; otherwise read `.claude/skills/ponytail/SKILL.md`, else `~/.claude/skills/ponytail/SKILL.md` — and apply it: the simplest code that works, no new dependency, nothing for later.
+- Step 1: no list of what remains. Your module is the one in `module`: its Forme entry, its « ne doit pas » lines and its invariant tests are read from the note (the entry of the argument, verbatim). A started module with uncommitted changes → review it, don't generate it again; its skeleton alone (see « What remains » of the `modules` skill) is not started: generate it.
+- Step 2: one wave of one, one `vibecoder:developpeur` agent.
+- Step 3: its diff reviewed by you, every remark applied (`[toi]` for what leaves the note's contract), then the typecheck and the tests of the files it modified, until green.
+- Step 4 is skipped: no full suite, the developer runs it. Don't request *Relire le diff* (`vibecoder run start review-diff`) either: your review replaces it.
 
-## Do
-
-- This module only, as its contract says: same names, signatures and boundaries. Its file header (guide A.2: what the file does, what it does not know, who uses it), true.
-- **Its variants first (TDD, guide §3.4)**: the cases of its Forme entry (`variants :`), in the file it names (none named → where and as the project keeps them, e.g. `tests/variants/`, and say so). Run them before writing the code: they must fail for the right reason — the code is missing or wrong, not a typo or a broken import; one that already passes tests nothing new: fix it. Then write the code until they pass, with its invariants. A case found on the way: add it, and say so.
-- A signature of the Forme turns out wrong, or another module must change → don't redesign: stop and say what and why. The developer decides.
-- Never touch an invariant test to make it pass (they are protected): fix the code. An invariant that looks wrong → stop and say so.
-- Run the project's typecheck and the tests of this module only — its invariants and its variants — never the whole suite (commands from `AGENTS.md`, `package.json`, `Cargo.toml`…). Failures in files you did not touch: report them, don't fix them.
-- Never start, stop, kill or restart the user's running app (you may be running inside it); leave no server running.
-- Commit nothing.
-
-## Then: ask for the review
-
-Module written (even with failing tests: the review says so too) → run `node "${CLAUDE_SKILL_DIR}/../../bin/vibecoder.mjs" run start review-diff` (`${CLAUDE_SKILL_DIR}/../actions/SKILL.md`): once this run ends, the app reviews the uncommitted changes in its own run (*Relire le diff*, another agent: the guide's four questions, duplication, headers, into `<out>/review.md`). Don't review the diff yourself.
-
-Not when: the `modules` skill started you (your prompt says other modules are being written at the same time: it reviews your diff itself), or you stopped without writing the module (a wrong signature, an invariant that looks wrong, a question).
+Commit nothing.
 
 ## Answer
 
-In English, 1 to 3 lines: the files written, the variants red before the code (how many) then green, the results (typecheck, invariants, variants), whether the review was requested, what you skipped or question.
+In English: the files written, who wrote them (Sonnet, or Opus after two failures), the typecheck and tests run and their result, then only the `[toi]` remarks (code outside the note's contract). No `[agent]` remark left unapplied.

@@ -3,11 +3,13 @@
  *  § A.3 cochée à la main, un commit du relevé), chacune pour l'empreinte du contenu
  *  validé (targetHash) : « modifié depuis » si le contenu a changé. Le ✓ des
  *  étapes faites pendant Vibe (vibeMarks). Et le brouillon de
- *  revue de chaque PR (relecteur) : ajouter, modifier, retirer une remarque. Rend
- *  un nouvel état, ne touche pas à l'ancien.
- *  Ne connaît pas : Electron, le disque (l'état est rangé par app/settings).
- *  Utilisé par : core/vibecoder (journey), app/controllers/vibecoder, app/settings. */
-import type { VibeComment, VibeMarkState, VibeView } from 'shared/bridge';
+ *  revue de chaque PR (relecteur) : ajouter, modifier, retirer une remarque. Et la
+ *  vérification de conception de la note, gardée avec les validations (la cible
+ *  'design'). Rend un nouvel état, ne touche pas à l'ancien.
+ *  Ne connaît pas : Electron, le disque (l'état est rangé par app/settings), la
+ *  course design-check (le contrôleur lui dit comment elle a fini).
+ *  Utilisé par : core/vibecoder (journey : checked), app/controllers/vibecoder, app/settings. */
+import type { VibeComment, VibeFlow, VibeMarkState, VibeView } from 'shared/bridge';
 import { parseNote } from './note';
 import { blobSha } from './test-files';
 
@@ -26,6 +28,28 @@ export function markState(marks: Marks, target: string, hash: string): VibeMarkS
 export function setMark(marks: Marks, target: string, hash: string, verdict: 'ok' | 'ko' | null): Marks {
   const { [target]: _, ...rest } = marks;
   return verdict ? { ...rest, [target]: { hash, verdict } } : rest;
+}
+
+// La vérification de conception de la note : la cible 'design' porte le chemin de la note (pas une empreinte :
+// la page ne l'envoie jamais, targetHash ne la connaît pas).
+export function designChecked(marks: Marks, notePath: string): boolean {
+  return Object.hasOwn(marks, 'design') && marks.design.hash === notePath;
+}
+
+// 'check' : le Valider du créateur sur une note pas encore vérifiée lance la vérification au lieu de valider ; tout le reste : 'mark'.
+export function noteClick(marks: Marks, notePath: string, verdict: 'ok' | 'ko' | null, flow: VibeFlow): 'check' | 'mark' {
+  return flow === 'create' && verdict === 'ok' && !designChecked(marks, notePath) ? 'check' : 'mark';
+}
+
+// La fin de la course design-check : finie, la note est vérifiée ; sans question et avec l'empreinte au clic (clicked),
+// elle est aussi validée pour cette empreinte (changée depuis : « modifiée depuis »). Échouée ou arrêtée : rien.
+export function designEnd(
+  marks: Marks,
+  end: { path: string; state: 'done' | 'failed' | 'stopped'; questions: number; clicked: string | null },
+): Marks {
+  if (end.state !== 'done') return marks;
+  const checked = setMark(marks, 'design', end.path, 'ok');
+  return end.clicked && !end.questions ? setMark(checked, 'note', end.clicked, 'ok') : checked;
 }
 
 // L'empreinte du contenu d'une cible dans le relevé : la note (son texte), la
