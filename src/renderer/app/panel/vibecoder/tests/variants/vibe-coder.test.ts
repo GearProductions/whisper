@@ -3,13 +3,26 @@
 // plus de retour à la conversation ni de fermer), l'onglet Conversation (🕘 : l'historique à la place du fil),
 // Vibe dans le fil d'Ariane (créateur seulement), ↻ dans la barre d'état, et les pièces jointes d'un champ : tenues
 // avec lui, parties avec son action seule (rien d'autre : ni modèle ni effort), libérées ensuite ; le trombone
-// donne son choix au champ qui l'a ouvert.
+// donne son choix au champ qui l'a ouvert ; goToNote (un cas d'Invariants mène à l'étape Note, noteFocus tenu ici).
 import { act, createElement, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
 import { createKept, t } from 'core/vibecoder';
 import type { Thread, VibeView } from 'technicals/bridge';
 import { VibeCoder } from '../../vibe-coder';
+
+// Des sondes aux deux bouts de goToNote : Invariants (un bouton qui l'appelle) et Note (ce qu'elle reçoit, la vraie vue gardée, sans
+// noteFocus : elle atteindrait la ligne et l'oublierait aussitôt, note-view.test).
+vi.mock('../../step-views', async (original) => {
+  const real = await original<typeof import('../../step-views')>();
+  const { createElement: h, Fragment } = await import('react');
+  const Invariants = (p: { goToNote?(line: string | null): void }) => h('button', { className: 'probe-go', onClick: () => p.goToNote?.('L1') }, 'go');
+  const Note = (p: { noteFocus?: string | null; goToNote?(line: string | null): void }) => h(Fragment, null,
+    h('i', { className: 'probe-note', 'data-focus': String(p.noteFocus) }),
+    h('button', { className: 'probe-clear', onClick: () => p.goToNote?.(null) }, 'clear'),
+    h(real.STEP_VIEWS.note, { ...p, noteFocus: null } as never));
+  return { ...real, STEP_VIEWS: { ...real.STEP_VIEWS, invariants: Invariants, note: Note } };
+});
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -229,4 +242,35 @@ it('un verdict choisi l\'emporte sur le verdict proposé ; proposé, il est pres
   await leave();
   await draw({ view: review('v2', null), acts: a });
   expect(pressed()).toBe('comment');
+});
+
+// ---- goToNote : d'un cas d'Invariants à la ligne de la note ----
+const toNote = (agentId: string) => noteView({ agentId, steps: [{ id: 'invariants', status: 'current' }, { id: 'note', status: 'done' }] });
+const focus = () => page.querySelector('.probe-note')?.getAttribute('data-focus');
+
+it('goToNote depuis Invariants : l\'étape Note affichée, noteFocus donné ; goToNote(null) l\'oublie, l\'étape gardée', async () => {
+  await leave();
+  await draw({ view: toNote('go1') });
+  expect(page.querySelector('.probe-note')).toBeNull();
+  await act(() => { page.querySelector<HTMLButtonElement>('.probe-go')!.click(); });
+  expect(crumb(1).getAttribute('aria-current')).toBe('step');
+  expect(focus()).toBe('L1');
+  await act(() => { page.querySelector<HTMLButtonElement>('.probe-clear')!.click(); });
+  expect(focus()).toBe('null');
+  expect(crumb(1).getAttribute('aria-current')).toBe('step');
+});
+
+it('goToNote : le défilement gardé de l\'étape Note n\'est pas rendu (en haut) ; par le fil d\'Ariane, il l\'est', async () => {
+  await leave();
+  await draw({ view: toNote('go2') });
+  await act(() => crumb(1).click());
+  await scrollTo(80);
+  await act(() => crumb(0).click());
+  await act(() => { page.querySelector<HTMLButtonElement>('.probe-go')!.click(); });
+  expect(focus()).toBe('L1');
+  expect(stepBox().scrollTop).toBe(0);
+  await act(() => { page.querySelector<HTMLButtonElement>('.probe-clear')!.click(); });   // NoteView a atteint la ligne
+  await act(() => crumb(0).click());
+  await act(() => crumb(1).click());
+  expect(stepBox().scrollTop).toBe(80);
 });
