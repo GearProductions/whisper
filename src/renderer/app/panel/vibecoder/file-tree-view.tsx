@@ -4,7 +4,9 @@
  *  rend (data-mark, comme VS Code : nouveau vert, modifié jaune, supprimé rouge barré, à générer
  *  atténué ; null : commité, la couleur ordinaire) ; si `rank` est donné, le numéro
  *  qu'il rend (vc-tree-rank, l'ordre de génération du module) prend la place du chevron, vide pour un
- *  fichier : le nom reste aligné sur ceux des dossiers voisins. Les noms sont du texte.
+ *  fichier : le nom reste aligné sur ceux des dossiers voisins. Si `dim` est donné, un fichier pour
+ *  lequel il rend vrai est en retrait (data-dim : grisé, toujours lisible et cliquable ; sa couleur gardée).
+ *  Les noms sont du texte.
  *  Les classes sont celles de l'arborescence des artefacts (artifact-tree-view.css) : ni renommer, ni
  *  glisser, ni menu.
  *  Ne connaît pas : le pont, les modules, les artefacts.
@@ -19,6 +21,7 @@ export type FileTreeViewProps = {
   selected: string | null;
   mark?(key: string): FileMark | null;
   rank?(key: string): number | null;
+  dim?(key: string): boolean;
   onToggle(key: string): void;
   onSelect(key: string): void;
 };

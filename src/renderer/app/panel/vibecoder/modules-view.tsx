@@ -1,6 +1,7 @@
 /** modules-view — l'étape Modules (Créer). En tête, le commit proposé
  *  (ProposedCommit : commit.md, ✓ Commiter, Relancer ; ses actions hors de l'en-tête)
- *  et la relecture du dernier diff (review.md, citer par bloc, Relancer). Puis une ligne par
+ *  et la relecture du dernier diff (review.md, citer par bloc, Relancer ; MarkdownView tagged : badges
+ *  pour toi / pour l'agent, le grisé). Puis une ligne par
  *  module de la Forme, un accordéon : point plein s'il est touché (vert :
  *  commité ; accent : modifié, pas encore commité), anneau sinon ; son numéro
  *  (l'ordre de génération, celui de la Forme) ; nom en

@@ -1,6 +1,7 @@
 /** questions — la réponse à une question ouverte de l'agent, telle qu'elle
  *  part avec « Envoyer les réponses » : une réponse proposée choisie,
- *  « Conseille-moi » ou « Je te laisse trancher », puis la précision libre.
+ *  « Conseille-moi » ou « Je te laisse trancher », puis la précision libre ; une réponse proposée de la
+ *  vérification de conception coupée en ses trois parties (optionParts).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder (questions-view, vibe-coder). */
 import type { VibeLang, VibeQuestion } from 'technicals/bridge';
 
@@ -25,3 +26,11 @@ export function answerText(q: VibeQuestion, a: Answer | undefined, lang: VibeLan
 // Une réponse par question, dans leur ordre (VibeArgs.answers).
 export const answersOf = (questions: VibeQuestion[], answers: Answers, lang: VibeLang) =>
   questions.map((q) => answerText(q, Object.hasOwn(answers, q.text) ? answers[q.text] : undefined, lang));
+
+// Une réponse proposée écrite en trois parties (skill conception) : `**<choix>**`, puis `*<où>*`, puis le texte
+// cité (le reste, « … » compris), séparés par des blancs et au plus un « — », « : » ou « · » ; chaque partie
+// rendue telle quelle (du Markdown en ligne, sans ses ** ni ses *). Écrite autrement : null (affichée comme avant).
+export function optionParts(option: string): { choice: string; where: string; quote: string } | null {
+  void option;
+  throw new Error('not implemented');
+}

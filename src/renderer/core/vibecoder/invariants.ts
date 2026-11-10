@@ -6,9 +6,11 @@
  *  (`test "…":`, la forme des lectures) ou en commentaire (`it(…)`, l'ancienne) ;
  *  le point d'attention d'un cas, versé en un clic : cité dans le champ de la
  *  conversation (attentionQuote, comme on cite la note : du texte, sans `>`),
- *  ou ajouté à la zone de commentaire sans rien effacer (withAttention).
- *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder (invariants-view). */
-import type { ReadingCase, VibeMarkState, VibeTestFile } from 'technicals/bridge';
+ *  ou ajouté à la zone de commentaire sans rien effacer (withAttention) ; la ligne « → invariant » de
+ *  la note que garde un cas, d'après la seule phrase Garantit de sa lecture (caseLink).
+ *  Ne connaît pas : le DOM, React, la spécification du projet (un I-… n'est qu'un numéro).
+ *  Utilisé par : app/panel/vibecoder (invariants-view). */
+import type { ReadingCase, VibeMarkState, VibeNote, VibeTestFile } from 'technicals/bridge';
 import { tokens, type Token } from './highlight';
 
 export type CaseView = { title: string; reading: ReadingCase | null; mark: VibeMarkState };
@@ -104,4 +106,16 @@ export const attentionQuote = (title: string, attention: string): string => `${t
 export function withAttention(text: string, attention: string): string {
   if (!text.trim()) return attention;
   return text.trimEnd().endsWith(attention.trim()) ? text : `${text.trimEnd()}\n\n${attention}`;
+}
+
+// Ce qu'un cas garde : note, les lignes « → invariant » de la note (mark 'invariant', leur texte tel que dans
+// mustNot) que sa phrase Garantit cite mot pour mot (leur texte avant « → », blancs, guillemets et apostrophes
+// typographiques confondus), dans l'ordre de la note ; une ligne citée contenue dans une autre aussi citée ne
+// compte que par la plus longue. spec, sans ligne de la note citée : les I-<n> de la phrase (dans leur ordre,
+// sans doublon). none : pas de lecture, pas de phrase, rien de cité. La lecture périmée garde le sien.
+export type CaseLink = { kind: 'note'; lines: string[] } | { kind: 'spec'; ids: string[] } | { kind: 'none' };
+
+export function caseLink(reading: ReadingCase | null, mustNot: VibeNote['mustNot']): CaseLink {
+  void reading; void mustNot;
+  throw new Error('not implemented');
 }

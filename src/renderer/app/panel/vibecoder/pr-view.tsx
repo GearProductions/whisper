@@ -1,7 +1,8 @@
 /** pr-view — l'étape PR, pour les deux rôles (view.flow).
  *  Créateur : la PR de la branche (lue par gh, sinon pr.json : numéro, titre,
  *  branche et base du dépôt, lien ouvert dans le navigateur) ou l'invitation
- *  à Valider la feature ; l'état de la CI (ci.md, 💬 par bloc, Relancer) ou
+ *  à Valider la feature ; l'état de la CI (ci.md, 💬 par bloc, Relancer ; MarkdownView tagged : badges
+ *  pour toi / pour l'agent, le grisé) ou
  *  Diagnostiquer la CI ; Me retirer de la PR (unassign-pr) si le relevé la montre.
  *  Relecteur : la carte de la PR suivie, S'assigner la PR (assign-pr) si le
  *  relevé la montre, puis le brouillon de revue (draft-view) — aucune action

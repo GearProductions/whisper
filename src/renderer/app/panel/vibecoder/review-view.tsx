@@ -4,7 +4,9 @@
  *  checks.json, une ligne chacune (✓, avertissements en orange, ✗ ; son détail
  *  repliable, déplié en cas d'échec ; Relancer chacune seule, hors d'une
  *  course checks : IconButton refresh, en bout de ligne, aligné que la ligne
- *  ait un détail ou non) ; la ponytail review rendue, 💬 et Appliquer par
+ *  ait un détail ou non ; l'étiquette en tête du détail (tagOf) : son badge, et le texte d'une ligne
+ *  [agent] en retrait, sa marque d'échec gardée en couleur) ; la ponytail review rendue (MarkdownView
+ *  tagged : le badge après l'adresse, le grisé ; l'adresse reste lue en tête), 💬 et Appliquer par
  *  remarque (un vc-mini texte), une case devant chaque remarque pas appliquée,
  *  cochée par défaut (les décochées tenues ici par leur remarkId, oubliées à
  *  une nouvelle review) : Tout appliquer quand toutes le sont (l'action apply,

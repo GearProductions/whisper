@@ -2,8 +2,10 @@
  *  boutons de celle de la note, de la forme ou de « Rien à écrire » (étape
  *  Invariants) (Valider ; validée et Annuler ; modifiée depuis et Revalider ;
  *  Relire : Valider ou À revoir ; la note en créateur (onRecheck) : pas vérifiée,
- *  Valider et vérifier ; vérifiée, Revalider et, à côté, Revérifier, qui ne fait
- *  qu'appeler onRecheck), chaque libellé derrière son icône (Icon ok /
+ *  Valider et vérifier ; vérifiée, Revérifier d'abord, en couleur neutre, sans coche (il ne fait
+ *  qu'appeler onRecheck), puis Revalider ; `run` : la course de la vérification, à côté du bouton,
+ *  comme celle d'un bouton d'action (vc-run-on : « en cours » et ⏹ → run.onStop ; « en attente » tant
+ *  qu'elle est en file)), chaque libellé derrière son icône (Icon ok /
  *  ko / warn), le verdict d'un cas d'invariant (deux badges écrits, Validé et
  *  À revoir, gris ; celui donné pressé, allumé de sa couleur, un second clic
  *  l'annule) ; CaseVerdict sert à tout cas ou commit (il ne sait rien d'un
@@ -60,7 +62,9 @@ const S: Record<VibeLang, typeof fr> = {
   },
 };
 
-type MarkProps = { what: What; state: VibeMarkState; review: boolean; lang: VibeLang; onMark(v: Verdict): void; onRemark?(): void; checked?: boolean; onRecheck?(): void };
+// run : la course design-check de la note (en cours, attend une autorisation, arrêtée ; queued : en file) ; absent : aucune.
+type DesignRun = { state: 'running' | 'asking' | 'stopped' | 'queued'; onStop(): void };
+type MarkProps = { what: What; state: VibeMarkState; review: boolean; lang: VibeLang; onMark(v: Verdict): void; onRemark?(): void; checked?: boolean; onRecheck?(): void; run?: DesignRun };
 
 // La validation de la note, de la forme ou de « Rien à écrire ». Relire : un verdict, Valider ou À revoir.
 export function MarkControl({ what, state, review, lang, onMark, onRemark, checked, onRecheck }: MarkProps) {

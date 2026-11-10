@@ -7,7 +7,8 @@
  *  Ctrl+clic sur un lien → onOpenLink ; Ctrl+S → onSave (editorBase) ; locked : lecture
  *  seule, le motif en titre. Un texte changé par les props (le disque,
  *  Abandonner) remplace le document sans revenir à onChange. En texte, jamais
- *  en HTML (I-40). Lignes de changed et tags numérotées depuis 0.
+ *  en HTML (I-40). Lignes de changed, tags et focus numérotées depuis 0 ; focus : défilée à cette ligne,
+ *  mise en évidence (Invariants → la ligne d'un cas).
  *  Défile en lui-même (hauteur bornée sur .cm-editor, .cm-scroller défile),
  *  pas avec la colonne : CodeMirror ne dessine que ce qu'il voit.
  *  Les styles (cm-md-*, vc-note-editor, vc-changed) : note-view.css.
@@ -35,6 +36,7 @@ export function NoteEditor({ text, locked, changed, tags, onChange, onSave, onQu
   onQuote?(text: string): void;
   quoteLabel?: string;   // le libellé du bouton de citation (title, aria-label)
   onOpenLink(url: string): void;
+  focus?: number;
 }): ReactNode {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);

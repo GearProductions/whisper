@@ -15,6 +15,12 @@
  *  texte), un liseré sur les blocs et éléments qui en contiennent une ; tag
  *  met une pastille devant le texte d'un élément de liste (par sa ligne),
  *  itemStart une case devant lui et itemEnd un bouton après lui (par son texte : cocher, Appliquer une remarque).
+ *  Avec focus (une ligne du texte), le bloc ou l'élément de liste qui y commence défile dans la vue et
+ *  est mis en évidence (data-focus). Avec tagged (les fichiers de retour du créateur), l'étiquette
+ *  [toi] / [agent] d'un titre ou d'un élément de liste est remplacée par son badge (TagBadge, à sa place :
+ *  après l'adresse d'une remarque ponytail) ; ce qu'elle couvre (tagCover, l'imbrication des listes)
+ *  porte data-tag : [agent] grisé, toujours lisible ; une ligne [toi] sous lui reste normale ; sans
+ *  étiquette : comme avant.
  *  InlineMd : un texte d'une ligne (réponse proposée, cas limite…) en ligne.
  *  Ne connaît pas : le pont (rappels passés).
  *  Utilisé par : les vues d'étape (note-view en Relire, questions-view, forme-view, invariants-view,
@@ -36,6 +42,8 @@ type Ctx = {
   tag?(line: number): ReactNode;   // devant le texte de l'élément de liste qui commence à cette ligne
   itemStart?(text: string): ReactNode;   // devant le texte d'un élément de liste (son texte brut)
   itemEnd?(text: string): ReactNode;   // après le texte d'un élément de liste (son texte brut)
+  focus?: number;                  // la ligne (depuis 0) du bloc ou de l'élément à faire défiler et mettre en évidence
+  tagged?: boolean;                // les étiquettes [toi] / [agent] en badges, et leur grisé
 };
 
 // La zone de commentaire ouverte : la ligne de ce qu'elle cite.

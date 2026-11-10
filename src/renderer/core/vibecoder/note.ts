@@ -1,7 +1,8 @@
 /** note — ce que la vue de la note calcule : les lignes que l'agent a
  *  ajoutées ou changées (leurs blocs sont surlignés), le diff brut replié
  *  autour des changements, la marque de chaque ligne de « Ce que ça ne doit
- *  pas faire », un extrait d'une ligne (la cible d'une remarque).
+ *  pas faire », la ligne d'une de ces puces (pour y aller depuis un cas d'invariant), un extrait
+ *  d'une ligne (la cible d'une remarque).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder (note-view, invariants-view). */
 import type { MustNotMark } from 'technicals/bridge';
 import type { DiffLine } from './diff';
@@ -60,6 +61,13 @@ export function mustNotTags(md: string, mustNot: { text: string; mark: MustNotMa
     k = at + 1;
   });
   return tags;
+}
+
+// La ligne (depuis 0) de la puce de « Ce que ça ne doit pas faire » dont le texte (ses lignes de suite
+// jointes, comme mustNot) est `text` ; plus dans la note (modifiée depuis), ou rubrique absente : null.
+export function mustNotLine(md: string, text: string): number | null {
+  void md; void text;
+  throw new Error('not implemented');
 }
 
 // Un texte sur une ligne, coupé à `max` caractères (« … » compris).

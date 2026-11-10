@@ -1,6 +1,6 @@
 /** prompt-field — le seul composant de saisie d'un champ où l'on écrit à un agent : le cadre .vc-prompt,
  *  Joindre (📎) au début, les pièces jointes (libellé, ×), la zone de texte (coller ou déposer des images
- *  ou fichiers → onFiles), la paire de prompt-tools à la fin. `children` : au-dessus du cadre, les menus
+ *  ou fichiers → onFiles), la paire de prompt-tools à la fin (sans onSend : le micro seul, pas d'Envoyer). `children` : au-dessus du cadre, les menus
  *  « / » et « @ » du caller. Il montre et rapporte : le texte et les pièces viennent du caller, qui
  *  transforme les File en pièces (onFiles), gère les touches (onKeyDown) et ses menus. `field` : la zone
  *  de texte du caller (sinon la sienne) ; `ids` : les id #attach, #message, #mic, #send (le champ de la
@@ -25,7 +25,7 @@ type Props = {
   t: Strings; text: string; setText(text: string): void;
   // Les pièces jointes : seulement si l'appelant en tient (sans onAttach, pas de 📎 ; sans onFiles, coller et déposer restent du texte).
   pieces?: Piece[]; onRemove?(p: Piece): void; onAttach?(): void; onFiles?(files: File[]): void;
-  onSend(): void; sendDisabled?: boolean; sendTitle?: string;
+  onSend?(): void; sendDisabled?: boolean; sendTitle?: string;
   field?: RefObject<HTMLTextAreaElement | null>; ids?: boolean;
   onKeyDown?: KeyboardEventHandler<HTMLTextAreaElement>;
   children?: ReactNode;

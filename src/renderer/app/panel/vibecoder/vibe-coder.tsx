@@ -38,7 +38,9 @@
  *  colonne affichée sur l'onglet Actions ; son ↻ relève : act.refresh). Le fil d'Ariane et Ctrl+1…6
  *  ouvrent n'importe quelle étape, à venir comprise (le choix ne change que
  *  l'étape affichée : aucun appel au pont, aucune action) ; sans choix,
- *  c'est l'étape en cours. Une vue
+ *  c'est l'étape en cours. Un cas d'invariant mène à sa ligne de la note (goToNote : l'étape Note choisie,
+ *  noteFocus tenu ici, en mémoire, jusqu'à ce que NoteView l'ait atteinte ; la note s'ouvre en haut si la
+ *  ligne n'y est plus, son défilement gardé n'est alors pas rendu). Une vue
  *  d'étape qui échoue ne fait tomber ni l'écran ni le brouillon (I-29). Il
  *  tient les réponses en cours aux questions ouvertes, le verdict de la revue
  *  (rôle Relecteur), le champ de chaque étape (fieldOf : son texte part en

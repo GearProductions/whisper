@@ -147,6 +147,13 @@
  *  questions.md n'a aucune question, « modifiée depuis » si la note a changé pendant la course ; Revérifier ne valide jamais),
  *  clicked oublié. Revalider, un Valider ensuite, ou le relecteur : le verdict aussitôt, aucune course ; conv:vibeMark ne lit
  *  jamais un texte de la page.
+ *  La note de référence du surlignage (0.15.0, note ecran-humain-ia ; core/vibecoder note-ref, en mémoire par agent) :
+ *  posée une fois, au premier relevé où l'agent ou une course qui modifie la branche travaille (nextRef) ; ensuite
+ *  remplacée seulement par Vu (setVibe seen) et la validation de la note (markVibe 'note' 'ok' : Valider, Revalider,
+ *  Valider et vérifier — la note du dernier relevé, celle que l'utilisateur avait sous les yeux au clic, que la
+ *  vérification la valide ou non) ; repartie quand la note change de fichier. Un message envoyé, un tour ou une course
+ *  qui commence ne la changent plus. Les actions en file d'attente (queuedOf de controllers/runs) partent au relevé
+ *  (queued) : la page montre « en attente » à côté du bouton, design-check comprise.
  *  Ne connaît pas : la page (seulement ses canaux), la fenêtre, le jeton du socket.
  *  Utilisé par : app/ipc (runVibeAction, vibeRunOp, draftVibe, dropOnArtifacts), app/menus, controllers/conversation,
  *  controllers/runs, controllers/agents et controllers/module-code

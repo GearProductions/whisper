@@ -1,7 +1,8 @@
 /** step-views — l'aiguillage des étapes : la vue de chaque étape du parcours,
  *  et ce qu'elle reçoit (StepProps : le relevé, l'étape, les libellés, les
  *  rappels de l'écran, le texte du champ de l'étape, le fichier de module
- *  suivi, les modifications gardées des fichiers suivis, les pièces jointes du champ de l'étape et du questionnaire ; StepHead y prend les actions de l'étape et ce champ). Un seul
+ *  suivi, les modifications gardées des fichiers suivis, les pièces jointes du champ de l'étape et du questionnaire,
+ *  la ligne de la note où aller et le rappel qui y mène ; StepHead y prend les actions de l'étape et ce champ). Un seul
  *  parcours, une vue par étape, pour les deux rôles (view.flow, décidé par
  *  l'appli) : chaque vue montre en lecture seule ce que le relecteur ne fait
  *  pas (Revue : Relire à l'écran ; Modules : les commits ; PR : le brouillon).
@@ -51,6 +52,8 @@ export type StepProps = StepPieces & {         // les pièces du champ de l'éta
   setText(text: string): void;
   code: VibeCode | null;                       // le fichier suivi (act.follow : module, note, test), tel que le principal le pousse
   drafts: readonly [Drafts, Dispatch<SetStateAction<Drafts>>]; // les modifications gardées, par chemin (vibe-coder les tient, par agent : useFileDraft)
+  noteFocus?: string | null;                   // la ligne de « Ce que ça ne doit pas faire » où aller (son texte, mustNot), à l'étape Note ; null : aucune
+  goToNote?(line: string | null): void;        // passer à l'étape Note sur cette ligne (Invariants : un cas) ; null : la ligne atteinte, oubliée (NoteView)
 };
 
 export const STEP_VIEWS: Record<VibeStepId, ComponentType<StepProps>> = {

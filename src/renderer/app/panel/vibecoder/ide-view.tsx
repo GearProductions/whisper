@@ -4,7 +4,8 @@
  *  change la largeur de l'arborescence (160 px → 60 % de la vue), gardée pour toutes les vues IDE tant
  *  que la page vit (sideWidth), pas enregistrée. Le choix est gardé par son chemin tant qu'il est dans
  *  `files`, sinon c'est le premier (null s'il n'y en a aucun). La couleur du nom de chaque fichier est son `mark`,
- *  son numéro son `rank` + 1 (l'ordre de génération de son module, rien pour un fichier de la branche).
+ *  son numéro son `rank` + 1 (l'ordre de génération de son module, rien pour un fichier de la branche
+ *  ni pour un test), en retrait s'il est `dim` (Invariants : un fichier de la Forme, à côté des tests).
  *  Le fichier choisi, les dossiers fermés et le défilement (arborescence, fichier) sont gardés par useKept
  *  (par agent et par étape, T-20) : la vue recréée les retrouve ; une seule vue IDE par étape, les clés
  *  ne se heurtent donc pas.

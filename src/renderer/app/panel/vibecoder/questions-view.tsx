@@ -1,8 +1,11 @@
 /** questions-view — les questions ouvertes de l'agent, au-dessus de la note
- *  (Créer) : une carte par question, numérotée ; ses réponses proposées en
- *  pastilles (une seule choisie, un second clic la retire), « Conseille-moi »,
- *  « Je te laisse trancher », et une précision libre (un PromptField : Joindre, le micro et Envoyer :
- *  Envoyer les réponses, comme le bouton). « Envoyer les
+ *  (Créer) : une carte par question, numérotée, son badge d'importance à côté (q.level : important en
+ *  couleur d'accent, secondaire en retrait ; sans niveau, aucun) ; ses réponses proposées en
+ *  pastilles (une seule choisie, un second clic la retire ; écrite en trois parties, optionParts : le
+ *  choix en tête, en gras, l'endroit en retrait, le texte cité dans sa couleur — sinon comme avant, en
+ *  InlineMd, jamais en HTML), « Conseille-moi »,
+ *  « Je te laisse trancher », et une précision libre (un PromptField : Joindre et le micro, sans
+ *  Envoyer). « Envoyer les
  *  réponses » les envoie en une fois, une par question dans leur ordre (une
  *  sans réponse : le principal écrit « (pas de réponse) »). Les réponses en
  *  cours sont tenues par vibe-coder : elles survivent à un changement

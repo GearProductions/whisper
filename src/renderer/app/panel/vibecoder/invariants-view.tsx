@@ -44,10 +44,18 @@
  *  empilées, modifiables sur place ; à côté de 💬, « Poser une question à l'agent » (cite le titre dans le champ,
  *  ne l'envoie pas) ; un cas À revoir : le bouton de remarque (CaseVerdict.onRemark) ouvre la zone, sans rien
  *  ajouter ; À revoir ne l'ouvre plus d'office. Le fichier ouvert est gardé par agent (useKept).
- *  Vue IDE, la seule : sous l'en-tête de l'étape, une carte (IdeView(invariantFiles(view.invariants, view.files))) ;
- *  à gauche les tests, leur nom coloré comme VS Code (état git, rang + 1) ; au centre, du test choisi, son
- *  en-tête et ses cartes, comme avant (le premier d'emblée). Choisir un autre test referme son fichier
- *  ouvert (OnLeave : act.follow(null)). Sans test : l'invitation, pas de carte.
+ *  Vue IDE, la seule : sous l'en-tête de l'étape, une carte (IdeView(invariantTree(view))) ; à gauche la
+ *  même arborescence que la Forme : les tests (vert : ajoutés par la branche, jaune : modifiés, d'après leur
+ *  base ; sans numéro) et les fichiers de la Forme, en retrait, numérotés (sans Forme : les tests seuls) ; à
+ *  droite, d'un test choisi, son en-tête et ses cartes, comme avant (le premier d'emblée) ; d'un fichier de la
+ *  Forme, son code en lecture seule (ModuleCode readOnly, comme à l'étape Forme) s'il est touché, sinon son
+ *  contrat (Contract de forme-view). Aucune analyse des imports. Choisir un autre fichier referme le fichier
+ *  ouvert d'un test (OnLeave : act.follow(null)). Sans test : l'invitation, pas de carte ; son texte cite
+ *  le bouton tel qu'il est (« Écrire les invariants (rouges) »).
+ *  Sous Garantit, ce que le cas garde (caseLink) : chaque ligne de la note citée, un lien qui passe à
+ *  l'étape Note sur elle (goToNote) ; un I-… : son numéro, sans lien ; rien : « non rattaché » ; la lecture
+ *  périmée : marqué périmé, comme elle.
+ *  L'alignement (align.md) : MarkdownView tagged (badges pour toi / pour l'agent, le grisé).
  *  Ne connaît pas : le pont (rappels passés), le brouillon (ses remarques, par cible). Utilisé par : step-views. */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {

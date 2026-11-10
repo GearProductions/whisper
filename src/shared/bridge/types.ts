@@ -316,7 +316,8 @@ export type VibeTestFile = VibeFile & {
   locked?: string | null;                // pourquoi il ne s'édite pas (codeLock) ; absent = null : éditable
 };
 
-export type VibeQuestion = { n: number; text: string; options: string[] };
+// level : son importance, lue en tête du titre (`[important]`, `[secondaire]`) et retirée de text ; absent : sans niveau.
+export type VibeQuestion = { n: number; text: string; options: string[]; level?: 'important' | 'secondary' };
 // done null : à vérifier à la main ; manual : une case du § A.3 que l'on coche à la main (`a3:<rang>`, F-102).
 export type VibeCheck = { text: string; done: boolean | null; manual?: boolean };
 // mark : le verdict du relecteur sur ce commit (« commit:<hash> », T-23) ; absent = null.
@@ -431,6 +432,7 @@ export type VibeView = {
   setup?: boolean;                       // le fichier du projet a un setup (*Préparer le projet*)
   recipe?: VibeRecipe | null;            // la recette de la famille, en cours ou la dernière
   runs?: VibeRun[];                      // les courses, la plus récente d'abord (toujours rempli par le relevé)
+  queued?: string[];                     // les actions en file d'attente, par id, dans l'ordre (toujours rempli par le relevé)
   request?: { branch: string } | null;   // créateur : la branche nommée pour la nouvelle demande retenue, qui attend son choix
   artifacts?: VibeArtifact[];            // les artefacts de l'agent (toujours rempli par le relevé)
   artifactsDir?: string;                 // le dossier du projet qui les contient (pour le `@`)

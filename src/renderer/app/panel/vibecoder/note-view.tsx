@@ -12,15 +12,21 @@
  *  remarksAt : crayon, croix), de même celles d'un bloc ; *Poser une question
  *  à l'agent*, à côté du 💬 (onAsk), cite le passage dans le champ (prefill, rien
  *  n'est envoyé) ; sur « À revoir », le bouton de
- *  remarque ouvre la zone, qui ne s'ouvre pas d'elle-même. Ce que l'agent a
- *  changé depuis le début de son dernier tour a un liseré vert ; « Voir les
+ *  remarque ouvre la zone, qui ne s'ouvre pas d'elle-même. Ce qui a changé
+ *  depuis la note de référence (note.before : posée par le principal, changée par Vu ou la validation)
+ *  a un liseré vert, « Changée depuis votre dernière relecture » ; « Voir les
  *  modifications » montre le diff brut, retraits compris, replié autour des
  *  changements (DiffView) ; « Vu » (Icon ok + texte) repart de la note actuelle. Les lignes de « Ce que ça
- *  ne doit pas faire » portent leur marque en pastille. 💬 sur un bloc le cite
+ *  ne doit pas faire » portent leur marque en pastille (variant : un bleu plus clair que invariant, même
+ *  famille, dans les deux thèmes). Venue d'un cas d'invariant (noteFocus) : dans son affichage courant
+ *  (rendue : MarkdownView focus ; Modifier : NoteEditor focus ; Brut : DraftEditor at), défilée à cette
+ *  ligne (mustNotLine) et mise en évidence ; plus dans la note, ou le diff affiché : en haut, rien de mis
+ *  en évidence ; puis goToNote(null). 💬 sur un bloc le cite
  *  dans le champ (Relire : il ouvre sous le bloc une zone de commentaire, pour
  *  le brouillon de revue ; ✗ sur la note aussi, sous son en-tête). En tête :
- *  son chemin, Ouvrir (IconButton open), Modifier ou Fermer et Brut (Créer), sa validation (Créer : Valider et vérifier, puis Revalider et Revérifier, qui
- *  lance act.run('design-check') ; Relire : Valider ou À revoir).
+ *  son chemin, Ouvrir (IconButton open), Modifier ou Fermer et Brut (Créer), sa validation (Créer : Valider et vérifier, puis Revérifier, qui
+ *  lance act.run('design-check'), et Revalider ; la course design-check en cours ou en attente à côté :
+ *  d'après view.runs et view.queued, son ⏹ par act.runOp ; Relire : Valider ou À revoir).
  *  Au-dessus, Créer : les questions ouvertes (questions-view) ; Relire : la
  *  relecture de la note par l'agent (Relancer). Pas de note : ce qu'il faut
  *  faire pour en avoir une. Styles : note-view.css.
