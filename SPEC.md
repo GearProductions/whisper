@@ -811,10 +811,11 @@ de l'écran et le brouillon tiennent (S-72).
   relecteur.
 - **Ce que l'IA fait seule n'a pas de bouton** ; les actions qui vont
   ensemble partent ensemble, *Vibe* ou pas, sans que l'appli
-  enchaîne rien : *Écrire les invariants (rouges), puis vérifier
-  l'alignement* vérifie l'alignement dans sa course (skill `aligner`,
-  `align.md` ; un écart → l'agent retouche les invariants et revérifie, 3
-  tours au plus, puis dit les écarts qui restent) ; *Lancer les
+  enchaîne rien : *Écrire les invariants (rouges)* suit l'alignement dans sa
+  course (skill `aligner`, une fois) : il ne vérifie que les invariants (chaque
+  ligne « → invariant » observée par un test, chaque test rattaché à une
+  ligne), corrige seul les tests et revérifie, 3 tours au plus, *Vibe* ou pas ;
+  `align.md` ne garde que ce qui reste (F-100) ; *Lancer les
   vérifications et la ponytail review* demande la ponytail review
   (`vibecoder run start ponytail`, F-115) : deux lectures, qui courent
   ensemble. Plus de bouton *Vérifier l'alignement* ni *Ponytail
@@ -829,9 +830,9 @@ de l'écran et le brouillon tiennent (S-72).
   les autres gardées, sans ponytail review ; pas pendant une course
   `checks`) ; *Lire en pseudo-code* se refait par fichier (*Relire*, même lu) ou pour tous (*Tout
   relire*, F-100). La carte de l'alignement a son *Relancer* (créateur) :
-  *Vérifier l'alignement* seule, pour revérifier après avoir corrigé les
-  tests, sans les réécrire (relecteur : *Vérifier l'alignement* reste dans
-  la rangée de l'étape). La ponytail review n'a pas de *Relancer* : on
+  *Vérifier l'alignement* seule, qui corrige les tests de même, après une
+  retouche à la main (relecteur : *Vérifier l'alignement* reste dans la
+  rangée de l'étape, une liste, rien de corrigé). La ponytail review n'a pas de *Relancer* : on
   relance *Lancer les vérifications*.
 - La **barre des skills**, au-dessus du champ : la nouvelle demande retenue
   seule (F-110) ; plus de lien *Demander sans modifier* ni *Retour → fixup*
@@ -874,8 +875,11 @@ principal pour l'agent affiché :
   rangés sous `tests/invariants/` sont les invariants (et pourquoi ils ne
   s'éditent pas, `locked`). Un fichier sans cas n'est pas montré ;
 - les **modules** de la Forme (un module à plusieurs chemins : ses fichiers sont
-  ceux sous l'un d'eux, il est touché si l'un l'est) : touchés par la branche ou
-  non, les commits qui les touchent, leur fichier s'il existe (tel quel ou sous `src/`) ; un module
+  ceux sous l'un d'eux, il est touché si l'un l'est) : touchés par la branche
+  (le squelette compris) ou non, commencés (`started`) ou non — un fichier a changé
+  depuis le squelette : un commit sans la note, ou, la note commitée, un
+  changement pas commité ; absent, comme touché —, les commits qui les
+  touchent hors celui de la note (le plus ancien de la branche qui la porte), leur fichier s'il existe (tel quel ou sous `src/`) ; un module
   touché, ses fichiers (`files`, ids `m<rang>/<i>`, triés : son dossier et ses
   sous-dossiers, sans lien ni fichier ou dossier caché ni dossier
   `node_modules`, `target`, `dist`, `build`, chacun dans le dossier de
@@ -939,6 +943,18 @@ reste, périmée, F-100) ; `ponytail-applied.json` (`{ applied:
 la revue* a appliquées ; plus vieux que `ponytail.md`, ou illisible : aucune ;
 suit la branche comme lui). Chaque étape montre les siennes (titre, fichier,
 depuis quand ; un JSON mis en forme, un Markdown rendu, F-104).
+**Les étiquettes `[toi]` / `[agent]`** (0.15.0) : chaque ligne des sorties du
+créateur — `align.md` (en tête de chaque titre `##`), `ponytail.md` (après
+l'adresse `<fichier>:L<ligne>`, qui reste en tête : la page la cherche là),
+`review.md` et `ci.md` (en tête de chaque point), `checks.json` (en tête du
+`detail`) — dit à qui elle s'adresse : `[toi]`, une décision de l'utilisateur
+(un changement de contrat : ce que la note fait ou ne doit pas faire, une
+étiquette d'invariant, une note qui rend un test impossible à écrire, un code
+qui sort du contrat de la note) ; `[agent]`, le reste, que l'agent règle seul
+(presque toutes les remarques ponytail). Pas celles du relecteur d'une PR, qui
+lit tout (`pr-<n>-note.md`, `pr-<n>-commits.md`, et `align.md` : une liste sans
+étiquette). La page affiche les lignes telles quelles (le grisé des `[agent]` viendra
+avec l'écran du ticket suivant).
 
 **Les artefacts** : les documents que l'agent produit hors du projet (PDF,
 présentations, wireframes, documents externes, fichiers de conception :
@@ -1129,7 +1145,7 @@ branche du dossier, F-101) ; `{{files}}` (les tests d'invariants pas encore lus,
 `chemin@empreinte` ; un test désigné par son id dans le relevé, `t<rang>`,
 lu ou non : *Relire* ; `*` : tous, *Tout relire* ; un id absent refuse
 l'action) ; `{{module}}` (le module choisi par son rang, sinon le
-premier qu'aucun commit ne touche : `chemin — contrat`) ; `{{commit}}` (un
+premier pas commencé : `chemin — contrat`) ; `{{commit}}` (un
 commit de la branche, sinon `WORKTREE` : les changements en cours) ; `{{pr}}`
 (le numéro donné, sinon la PR du relevé) ; `{{answers}}` (« 1. … » par ligne,
 une vide : « (pas de réponse) » ; 50 réponses de 2 000 caractères au plus) ; `{{verdict}}` (`approve`, `comment`,
@@ -1235,7 +1251,8 @@ Une action qui **n'a pas encore de sens** n'est pas affichée (`hidden`), au
 lieu d'être grisée ; elle garde sa raison (`disabled`) : le principal la
 refuse de même. Ce sont : aucun test d'invariant ; *✓
 Commiter* sans commit préparé ; *Envoyer les réponses* sans question
-ouverte ; *Replier les fixups* sans commit `fixup!` ; les choix de F-110
+ouverte ; *Vérifier la conception* tant que la note n'est pas vérifiée (la première
+part de *Valider la note*, F-100) ; *Replier les fixups* sans commit `fixup!` ; les choix de F-110
 (ceux d'une PR avant qu'elle soit chargée, et sur sa branche ou sur son
 robot ; ceux d'une nouvelle demande sans demande en attente ; *Dans un
 nouveau worktree* sur un enfant, ou la PR déjà dans un
@@ -1397,12 +1414,14 @@ conversation ; note `0.9.0-actions-independantes.md`).
   `<sorties>/actions/<id>.start` et `.stop`, `<sorties>/run/<nom>.stop` et
   `.restart`, et les avis « demande refusée » et « arguments ignorés » : un
   fichier posé n'est plus lu, `actions.json` n'est plus écrit.
-- ***Générer ce module*, puis *Relire le diff*, deux courses** : `module`,
-  le module écrit, demande *Relire le diff* des changements en cours
-  (`vibecoder run start review-diff`) au lieu de relire lui-même ;
-  elle part dans sa course, au modèle de *Relire le diff* (un autre agent
-  que celui qui a écrit). Pas de demande s'il s'est arrêté sans écrire le
-  module, ni quand `modules` l'a lancé (il relit chaque diff lui-même).
+- ***Générer ce module*, une seule course** (0.15.0) : `module` (*opus · élevé*,
+  dans la conversation de sa course, sans sous-contexte) suit la boucle de `modules`
+  pour un seul module : un agent `developpeur` l'écrit, son diff est relu (les
+  mêmes vérifications que *Générer les modules*), les défauts corrigés dans la même
+  course, le typage et ses tests relancés jusqu'au vert ; seules les remarques
+  `[toi]` (un code qui sort du contrat de la note) remontent. Plus de demande de
+  *Relire le diff* dans une seconde course ; le bouton *Relire le diff* seul reste,
+  une relecture à la demande, en lecture seule.
 - **L'avis de fin** : une course finie (*finie*, *en échec*) envoie une
   ligne à la conversation de l'agent (« VibeCoder : « <libellé> » finie —
   <sa réponse, 300 caractères au plus>.» ; l'état se lit par
@@ -1651,7 +1670,33 @@ créateur ; le relecteur, F-101) :
    F-69) ; *Envoyer les réponses* les envoie en une fois, une par question
    (grisé tant qu'aucune n'a de réponse). Prochaine action : *Rédiger la
    note* (la demande du champ de l'étape), puis *Envoyer les réponses*, puis
-   *Valider la note*. Sur la base seulement, *Rédiger la note* part comme
+   *Valider la note*. Le premier clic du créateur s'appelle **« Valider et
+   vérifier »** et ne valide rien : il lance la **vérification de conception**
+   (l'action `design-check`, le skill `conception`, *opus · élevé*, une seule
+   passe, lecture seule : elle ne modifie jamais la note). Elle cherche les cas
+   oubliés, les contradictions entre lignes, les cas limites des règles chiffrées
+   (une seule option, un groupe vide, un dépassement), un comportement visible
+   inatteignable (le front compris, d'après le code existant), une ligne qui
+   serait plutôt un invariant ou un variant ; ses trouvailles sont des
+   suggestions, ajoutées à `questions.md` (« Accepter : … » / « Refuser »), que
+   l'utilisateur accepte ou refuse, et qui entrent dans la note par *Envoyer les
+   réponses*, comme toute réponse. L'empreinte de la note au clic est gardée en
+   mémoire ; à la fin de la course, sans question dans `questions.md`, la note
+   est validée pour cette empreinte (changée pendant la vérification : « modifiée
+   depuis », F-102), avec des questions elle ne l'est pas. Dans les deux cas
+   la note est marquée **vérifiée** (la marque `design` de sa note, dans
+   `vibecoder-state.json`) ; une course en échec ou arrêtée ne marque rien, le
+   clic suivant revérifie. Ensuite le bouton devient **« Revalider »** (note pas
+   validée, ou « modifiée depuis ») : il valide aussitôt, sans relancer la
+   vérification, et **« Revérifier »** à côté la relance seule, sans jamais
+   valider (ses suggestions vont au questionnaire). Retenue par une course qui
+   modifie la branche, la vérification attend en file (F-115) ; masquée dans la
+   rangée d'actions tant que la note n'est pas vérifiée (F-99). Relecteur :
+   *Valider* ou *À revoir* comme avant, aucune vérification. Une fois la note
+   validée, aucune étape de l'IA ne change « Ce que ça fait », « Ce que ça ne doit
+   pas faire », « Où ça casse » ni une étiquette (`→ invariant`…), sauf pour écrire
+   une décision de l'utilisateur ; sinon la validation tombe (« modifiée depuis »).
+   Sur la base seulement, *Rédiger la note* part comme
    une nouvelle demande (F-110) : l'agent propose un nom de branche (skill
    `nouvelle-demande`, rien de plus), qui attend dans un champ prérempli et
    modifiable, avec « Voulez-vous créer la branche … ? » et ses choix ; rien
@@ -1668,13 +1713,13 @@ créateur ; le relecteur, F-101) :
    seul ; la PR ouverte, un nouveau commit qui dit pourquoi), puis *✓
    Commiter* ; la carte du commit proposé (commit.md) est aussi dans cette
    étape, ses actions hors de l'en-tête. Une note jamais commitée qui change :
-   rien (elle part avec le premier commit). Une fois un module touché, le
+   rien (elle part avec le premier commit). Une fois un module commencé, le
    parcours ne recule plus : une retouche de la note ou d'un test d'invariant
    de la branche (une passe, un harnais) laisse la Forme et les Invariants
    faits, ses faits disent toujours « note modifiée depuis son commit », et
    c'est l'étape Modules qui l'attend : elle n'est faite qu'une fois la
    retouche commitée (*Commiter les modules*, ou *Préparer le commit* quand
-   tous les modules le sont déjà ; note 0.15.0-stabilisation). De même, une validation faite puis dépassée par une retouche (« modifiée depuis la validation » : la note, sa Forme, un cas d'invariant) compte encore une fois un module touché : l'écran la dit changée, *Revalider* reste possible, rien ne recule. L'étape Invariants, une fois un module touché, ne compte que les tests écrits pour elle (portés par le commit de la note) : un test d'invariant retouché par un module n'est pas à revalider.
+   tous les modules le sont déjà ; note 0.15.0-stabilisation). De même, une validation faite puis dépassée par une retouche (« modifiée depuis la validation » : la note, sa Forme, un cas d'invariant) compte encore une fois un module commencé : l'écran la dit changée, *Revalider* reste possible, rien ne recule. L'étape Invariants, une fois un module commencé, ne compte que les tests écrits pour elle (portés par le commit de la note) : un test d'invariant retouché par un module n'est pas à revalider.
    Montre, en **vue IDE** (la seule), l'arborescence des modules à gauche,
    par dossier (`src/` de tête ignoré), chacun avec son numéro (son rang dans
    la Forme, l'ordre où les générer) et le nom coloré comme dans la vue IDE de
@@ -1689,8 +1734,14 @@ créateur ; le relecteur, F-101) :
    sinon). Sans Forme dans la note, ou sans note : l'invitation, puis
    l'arborescence des fichiers que change la branche (`VibeView.files`, ids
    `b<i>`), pour suivre une petite PR qui n'a pas fait toutes les étapes. *Poser
-   la forme* (dans la note, sans code ; le champ de l'étape peut la préciser), puis
-   *Valider la forme*.
+   la forme* (le champ de l'étape peut la préciser) écrit dans le même passage les
+   **squelettes** dans le code — les chemins, les en-têtes (le contrat), les
+   signatures typées, des corps qui échouent, le typage du projet qui passe —,
+   puis recopie la forme dans la note ; une retouche, à n'importe quelle étape,
+   modifie la note et les squelettes ensemble, sans les régénérer ; un écart
+   d'alignement de la forme se corrige sans être remonté. Puis *Valider la forme* :
+   l'étape l'attend toujours (sauf en *Vibe*, où elle n'attend aucun clic, comme avant). Un squelette n'est pas
+   un module commencé (étape Modules).
 3. **Invariants** — faite, seulement si la Note et la Forme le sont : aucune ligne
    « → invariant » dans la note (ni
    test ni commit attendus : la note et la forme se commitent à l'étape
@@ -1706,7 +1757,8 @@ créateur ; le relecteur, F-101) :
    d'automatique : la course finie ou la validation. *Lire en pseudo-code*
    n'est qu'une aide à la lecture, facultative. Montre le
    résumé (cas, validés, refusés, modifiés depuis, avec un point d'attention,
-   à lire), l'alignement (`align.md`, avec *Relancer* en créateur, F-93), puis,
+   à lire), l'alignement (`align.md`, avec *Relancer* en créateur, F-93 : chaque
+   écart porte son étiquette, F-95), puis,
    en **vue IDE** comme la Forme et les Modules (la seule), les tests à gauche, par dossier
    (leur nom coloré selon leur état git, leur rang), et au centre ceux du test choisi
    (le premier d'emblée ; en choisir un autre referme le fichier ouvert), chaque fichier : sa progression,
@@ -1739,8 +1791,8 @@ créateur ; le relecteur, F-101) :
    alors montré), et son texte au commit d'où part la branche (par git ;
    aucun : ajouté par la branche, ou au-delà de 200 000 caractères). En tête : *Tout relire* (dès qu'un fichier
    est lu). Prochaine action : *Écrire les invariants
-   (rouges), puis vérifier l'alignement* (d'après la note, ou le pseudo-code
-   du champ de l'étape ; l'alignement dans la même course, F-93) tant qu'il
+   (rouges)* (d'après la note, ou le pseudo-code du champ de l'étape, à partir
+   des squelettes de la forme) tant qu'il
    n'y a pas de test, puis les cas à valider (dans la vue), *✓ Commiter* (un
    commit préparé), *Préparer le commit* (des fichiers à commiter ; un fichier déjà porté par
    un commit de la branche : un fixup de ce commit tant qu'aucune PR n'est
@@ -1751,8 +1803,21 @@ créateur ; le relecteur, F-101) :
    l'empreinte du fichier, sa première ligne `# <chemin du test>` ; relire
    la remplace) n'est jamais mise en avant, *Vibe* compris (l'orchestrateur
    ne la lance pas) : elle reste dans la rangée de l'étape.
-4. **Modules** — faite : chaque module de la Forme touché par un commit de la
-   branche. Montre en tête le commit proposé (`commit.md` : le message tel
+   **L'alignement** (skill `aligner`, *opus · élevé*, dans la course de *Écrire les
+   invariants (rouges)*, F-93) ne regarde que les invariants : chaque test
+   d'invariant observe vraiment sa ligne « → invariant », chaque test est
+   rattaché à une ligne ou à un invariant existant — ni la forme, ni le
+   classement, ni le code. Un passage exhaustif, piloté par une liste (chaque
+   ligne et son test, chaque test et sa ligne), puis, chez le créateur, il
+   **corrige seul les tests** et revérifie, 3 tours au plus, *Vibe* ou pas ; il
+   ignore ce qui attend un module pas encore généré. Ne remonte (`[toi]`) qu'un
+   changement de contrat ou une note qui rend un test impossible à écrire ; un
+   écart de test que les 3 tours n'ont pas fermé reste `[agent]`. Chez le relecteur,
+   une lecture : il liste, sans étiquette ni correction, la branche de la PR
+   intacte (T-19).
+4. **Modules** — faite : chaque module de la Forme commencé par un commit de la
+   branche (un commit sans la note : celui de la note porte les squelettes, un
+   squelette commité n'est pas un module fait). Montre en tête le commit proposé (`commit.md` : le message tel
    qu'il sera commité, *✓ Commiter*, direct ou *via* l'agent, F-114 ; *Commenter*) et la relecture du dernier diff
    (`review.md`) ; à côté du titre de la carte des modules, les actions de
    l'étape, plus dans son en-tête (*Générer les modules*, puis *Commiter les
@@ -1828,17 +1893,21 @@ créateur ; le relecteur, F-101) :
    question, une vérification, une correction) cite ses
    lignes entières dans le champ de la conversation (F-98). Prochaine action : *✓ Commiter*
    (un commit préparé), sinon *Générer les modules* tant qu'un module n'est
-   pas touché (ceux qui restent, confiés à des agents Sonnet en parallèle
+   pas commencé (un module n'est commencé que si un fichier a changé depuis son
+   squelette : un commit sans la note le touche, ou, la note commitée, un de ses
+   fichiers n'est pas commité ; ceux qui restent, confiés à des agents Sonnet en parallèle
    dans l'ordre de la Forme, chaque diff relu, sans commit ; masqué quand
    tous le sont), puis *Commiter les modules* (un commit par module, ou un
    fixup, rangés par l'agent : le dev génère, relit, ajuste, et laisse les
    commits à la fin). *Générer* sur la ligne d'un module en génère un seul
-   (avec `ponytail`, tests lancés, sans commit), au choix. Plus de
+   (avec `ponytail`, la même boucle que *Générer les modules* pour un seul : son
+   diff relu, les défauts corrigés, le typage et ses tests relancés jusqu'au vert,
+   dans sa course ; sans commit), au choix. Plus de
    *Valider → commit → suivant* ni de *Commiter* par module (0.13.0 :
    commiter module par module ne se faisait pas en pratique). *Relire le
-   diff* (les quatre questions du § 5.1) part seul après *Générer* (voir
-   *Générer ce module, puis Relire le diff*) : pas dans l'en-tête,
-   *Relancer* sur sa carte, ou sur la ligne d'un module déplié.
+   diff* (les quatre questions du § 5.1) ne part plus après *Générer* (sa course
+   relit son diff elle-même, F-115) : pas dans l'en-tête, *Relancer* sur sa
+   carte, ou sur la ligne d'un module déplié, à la demande, en lecture seule.
    **Vue IDE** : un interrupteur *IDE* · *liste*, dans les outils de la carte,
    choisit entre l'accordéon ci-dessus (*liste*, inchangée) et une
    arborescence à gauche, des fichiers des modules rangés par dossier (un
@@ -2224,6 +2293,12 @@ texte de la note, la rubrique « Forme », le fichier du test, le plan, le
 commit de tête de la branche pour une case du § A.3) : le
 contenu change → « modifiée depuis » (*Revalider*), et l'étape attend une
 nouvelle validation. Une cible absente du dernier relevé est ignorée.
+La note est la seule validation qui peut suivre une course : au premier *Valider
+la note* du créateur, la vérification de conception part sans rien valider (F-100) ;
+à sa fin, sans question, la note est validée pour l'empreinte qu'elle avait au
+clic, et si elle a changé pendant la course, elle s'affiche « modifiée depuis »,
+jamais validée pour un autre texte que celui que l'utilisateur avait sous les yeux.
+*Revalider* valide aussitôt, *Revérifier* ne valide jamais.
 Pendant le mode *Vibe* (F-103), à chaque relevé, chaque étape faite
 — la note, la forme, chaque cas des invariants — reçoit un ✓ pour
 son contenu d'aujourd'hui, comme un clic ; un ✓ ou ✗ déjà donné pour ce
@@ -2243,7 +2318,8 @@ tests, faits sans ✓ ni lecture) ; les étapes qu'il passe reçoivent leur ✓
 1. **La note et ses questions**, sans orchestrateur : *Rédiger la note*
    (l'action `note`, sa course) ; ses questions vont **toutes** à
    l'utilisateur (*Envoyer les réponses*) : personne ne les tranche à sa
-   place ; puis *Valider la note* : l'utilisateur a pris connaissance de
+   place ; puis *Valider la note* (*Valider et vérifier*, puis *Revalider* : la
+   vérification de conception, F-100) : l'utilisateur a pris connaissance de
    la note avant de donner la main.
 2. ***Vibe*** (l'action `vibe`, le bouton du fil d'Ariane à côté de « N commits »,
    à toutes les étapes, F-93 ; masquée avant la note validée, F-99) : sans texte, au skill
@@ -2251,7 +2327,8 @@ tests, faits sans ✓ ni lecture) ; les étapes qu'il passe reçoivent leur ✓
    l'agent, l'**orchestrateur**, tient le rôle du développeur du guide,
    reprend à la première étape pas faite et **enchaîne les actions de
    l'écran** par leurs demandes (F-115) — forme, invariants rouges
-   (l'alignement compris, sans *Lire en pseudo-code*), premier commit,
+   (les squelettes compris, F-100 ; l'alignement compris, qui corrige seul,
+   sans *Lire en pseudo-code*), premier commit,
    modules (confiés à des agents Sonnet avec `ponytail`) puis *Commiter les
    modules*, vérifications (la ponytail review comprise ; un échec corrigé :
    cette vérification seule relancée),
@@ -2261,7 +2338,13 @@ tests, faits sans ✓ ni lecture) ; les étapes qu'il passe reçoivent leur ✓
    demande puis la fin de son tour, réveillé par l'avis de fin ; chaque
    action reste visible et arrêtable dans l'onglet *Actions*, et ce qui
    doit attendre part de soi-même. *Vibe* ne valide pas la note ; rien
-   n'est développé avant ce clic.
+   n'est développé avant ce clic. L'étape Forme n'attend pas non plus de clic
+   en *Vibe* (comme avant) ; l'orchestrateur **ne s'arrête que sur une ligne
+   `[toi]`** d'un fichier de retour (F-95) ou une question de la note : une ligne
+   `[agent]` n'est jamais une raison de s'arrêter (*Appliquer la revue* applique
+   les remarques `[agent]`, jamais une `[toi]` non cochée). Il ne change pas non
+   plus « Ce que ça fait », « Ce que ça ne doit pas faire », « Où ça casse » ni
+   une étiquette de la note validée.
 3. ***Arrêter Vibe*** (F-93), le bouton du fil d'Ariane tant que *Vibe* est en
    cours (« La course en cours finit, la suivante ne part pas ») — il redevient
    *Vibe* aussitôt (plus de bannière), la course en cours n'est pas interrompue, les
@@ -2616,14 +2699,19 @@ existent (`gear-prompt-specs-to-feature-note`, `gear-commit-message`,
 instructions, sinon le guide du dépôt (`docs/dev_guide/`), sinon les leurs.
 `vibe` est la consigne d'enchaînement de l'orchestrateur (F-103) : il ne
 fait plus la feature dans un seul tour, il lance les actions par le
-protocole d'`actions`, à partir de la forme. `invariants` suit `aligner`
-dans sa course ; `verifier` demande `ponytail` quand il lance toutes les
-vérifications (F-93) ; `module` demande `relire` (`review-diff`) une fois
-le module écrit, sauf lancé par `modules`. `modules` et `module` ne commitent pas :
+protocole d'`actions`, à partir de la forme ; il ne s'arrête que sur une ligne
+`[toi]` ou une question de la note (F-103). `conception` (*opus · élevé*, une passe,
+la lecture et `Write` pour `questions.md` seul) est la vérification de conception
+de la note (`design-check`, F-100) : elle n'écrit que des suggestions, jamais la
+note. `invariants` suit `aligner` une fois dans sa course (lui corrige les tests et
+boucle, F-100) ; `verifier` demande `ponytail` quand il lance toutes les
+vérifications (F-93) ; `module` suit la boucle de `modules` pour un seul module
+(F-115), sans demander `relire`. `modules` et `module` ne commitent pas :
 `commiter-modules` commite tous les modules qui ont des changements, un
 commit chacun (un seul, avec son argument `module`, que l'écran ne propose
 plus).
-`forme` nomme, sous le contrat de chaque module, ses variants : une ligne
+`forme` pose les squelettes dans le code puis recopie la forme dans la note (F-100) ;
+il nomme, sous le contrat de chaque module, ses variants : une ligne
 `variants :` (le fichier de tests ordinaires, existant ou « à créer », ou
 `aucun` et pourquoi), puis les cas à couvrir, chacun commençant par un mot
 (jamais par un chemin : sous un dossier, il serait lu comme un module) ;
@@ -2645,7 +2733,9 @@ fonction ou de fichier n'est jamais seul, il vient avec ce qu'il désigne ; les
 options se comprennent sans relire le code, la recommandée marquée
 « (recommandé) » avec sa raison en quelques mots.
 Un agent du plugin, Sonnet à effort élevé : `developpeur` (un module de la
-Forme, `ponytail` préchargé, ses variants d'abord, le typecheck et les tests de son module
+Forme, qui part du squelette — il le remplit, ne le recrée pas —, `ponytail` préchargé, ses
+variants d'abord, puis aussi ses fonctions complexes et son code technique — cas
+limites, bornes, erreurs, concurrence —, le typecheck et les tests de son module
 seulement, rien de commité), lancé par `modules` (Opus · élevé), qui relit
 chaque diff : un petit défaut corrigé lui-même, sinon la correction renvoyée
 au même sous-agent, au second échec le module relancé sur Opus ; la suite
@@ -2665,14 +2755,14 @@ longueur de celle-ci.
   *via* des actions directes, F-114), `nouvelle-demande` (F-110), `lancement` ;
 - *sonnet* : `commit-preparer` (faible) ; `pr`, `fixups`, `ci`, `ecran`,
   `lire-invariants`, `commiter-modules`, `rc`, `release` (moyen) ;
-  `module`, `appliquer-revue` (élevé) ;
-- *opus · élevé* : `invariants`, `modules`, `relire`, `aligner`,
-  `ponytail`, `relire-note`, `relire-commits`.
+  `appliquer-revue` (élevé) ;
+- *opus · élevé* : `invariants`, `modules`, `module`, `conception`, `relire`,
+  `aligner`, `ponytail`, `relire-note`, `relire-commits`.
 
 `lire-invariants` : Sonnet à effort moyen, retenu par un banc (tests Rust de
 workflows-tester, tests TypeScript de whisper) : 79/90, contre 84/90 pour
 Opus à effort moyen, 1,8 fois plus cher ; Haiku écarté. Sans sous-contexte,
-chacun dans sa course (F-115) : `modules`, `rc`, `release`,
+chacun dans sa course (F-115) : `modules`, `module`, `rc`, `release`,
 `appliquer-revue` sur leur modèle ; `note`, `forme` et *Envoyer les
 réponses* (un message sans skill, qui reprend la session de la note) sur
 celui de l'agent (F-109) ; dans la conversation (en changer de
@@ -2892,7 +2982,9 @@ frontière de la page, l'argent, l'irréversible) ; le reste est un variant
 garde quelle règle : I-2 et I-3 (réduits en 0.14.0 :
 `src/main/app/controllers/tests/invariants/page-text.test.ts`, sur le vrai
 principal, qui garde aussi I-2 élargi en 0.14.0 : le texte et les pièces jointes
-du champ de l'action, plus son gabarit), I-9, I-11 (page et principal), I-12,
+du champ de l'action, plus son gabarit ; et, 0.15.0, la vérification de conception,
+au *Valider la note* et à *Revérifier* : le message n'est que le gabarit de l'action,
+sans le texte du champ, `src/main/app/controllers/tests/invariants/design-check-text.test.ts`), I-9, I-11 (page et principal), I-12,
 I-13 à I-17, I-20 (et les ponts : `tests/invariants/bridges.test.ts`, dont le canal `settings` ; la page des réglages
 écoutée par `listenFrom`, l'expéditeur vérifié :
 `src/main/app/controllers/tests/invariants/settings-sender.test.ts`),
@@ -3649,6 +3741,20 @@ relire, une PR d'essai sur GitHub)
   `wpctl` ou l'éditeur introuvables ou en échec, Pocket TTS absent, git, `gh`
   ou un fichier de VibeCoder illisibles → l'erreur est dite ou journalisée, la
   dictée et les agents continuent, le relevé part quand même.
+- **S-73** La part du développeur et celle de l'IA (0.15.0) : une note écrite,
+  sans question → *Valider et vérifier* → *Vérifier la conception* tourne, le
+  bouton reste ; sans suggestion → la note est validée à la fin ; avec des
+  suggestions → elles sont dans le questionnaire, la note pas validée ; les
+  réponses envoyées → *Revalider* valide sans relancer la vérification ;
+  *Revérifier* relance la vérification seule et ne valide jamais ; un second
+  clic pendant la vérification n'efface pas le premier. Après la validation,
+  aucune action ne change « Ce que ça fait », « Ce que ça ne doit pas faire »
+  ni une étiquette. *Poser la forme* → les squelettes compilent, *Générer les
+  modules* reste proposé (un squelette n'est pas un module commencé) ;
+  l'alignement des invariants corrige seul, 3 tours au plus, sans être relancé
+  à la main. *Générer ce module* → relu et corrigé dans la même course, plus de
+  *Relire le diff* en seconde course. `ponytail.md`, `align.md` : chaque ligne
+  porte `[toi]` ou `[agent]`, et l'adresse d'une remarque s'ouvre toujours.
 
 ---
 

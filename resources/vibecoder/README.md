@@ -80,8 +80,15 @@ message). Les `id` livrés sont un contrat : l'écran et le parcours s'appuient
 sur eux (l'action mise en avant de l'étape en cours, les boutons propres à une vue : *✓ Commiter*,
 *Relire le diff* d'un module, *Publier la revue*…) ; un `id` changé est un
 bouton retiré suivi d'un bouton ajouté. `ponytail` n'a pas de bouton : `checks`
-(skill `verifier`) la demande ; `align` n'en a qu'en *Relire* : en *Créer*,
-`invariants` vérifie l'alignement. Les skills de VibeCoder reçoivent toujours d'abord
+(skill `verifier`) la demande ; `align` n'a de bouton qu'en *Relire* : en
+*Créer*, `invariants` le suit une fois, et sa carte a *Relancer*. `align` n'a plus
+`reads` : en *Créer* il corrige les tests (la branche change, 3 tours au plus),
+en *Relire* il liste sans rien corriger. `design-check` (flow `create`, étape
+`note`, `reads`, skill `conception`) est la vérification de conception de la note :
+une seule passe, elle n'écrit que des suggestions à la suite de `questions.md`,
+jamais la note. Elle part au premier *Valider la note* (*Valider et vérifier*) et à
+*Revérifier* ; masquée dans la liste tant que la note n'est pas vérifiée, et dans
+l'`enum` de `run.start` de la CLI (`commands.json`). Les skills de VibeCoder reçoivent toujours d'abord
 `{{lang}} {{out}}`. Le bouton `guide` n'apparaît que si le skill `gear-guide`
 existe (dans le projet ou chez l'utilisateur).
 
@@ -132,7 +139,7 @@ l'action.
 | `{{note}}` | le chemin de la note du ticket (il en faut une) |
 | `{{ref}}` | `WORKTREE` (*Créer*) ou `HEAD` (*Relire* : la PR est la branche du dossier) |
 | `{{files}}` | les tests d'invariants pas encore lus : `chemin@blob`, séparés par des espaces (il en faut un) |
-| `{{module}}` | le module choisi, sinon le premier qu'aucun commit ne touche : `chemin — contrat` |
+| `{{module}}` | le module choisi, sinon le premier pas commencé (un fichier a changé depuis son squelette) : `chemin — contrat` |
 | `{{commit}}` | le commit choisi parmi ceux de la branche ; sans choix : `WORKTREE` (les changements en cours) |
 | `{{pr}}` | le numéro de la PR choisie, sinon celui de la PR de la branche |
 | `{{answers}}` | les réponses aux questions ouvertes, une par ligne : « 1. … » |
@@ -241,7 +248,12 @@ note, les questions ouvertes, le plan de test à l'écran, la relecture de la
 note, les releases.
 
 Si vous modifiez ce qu'un skill écrit dans `{{out}}`, gardez le nom et le
-format du fichier : VibeCoder ne lit ses sorties que sous ces noms.
+format du fichier : VibeCoder ne lit ses sorties que sous ces noms. Chaque ligne
+de `align.md` (en tête de chaque titre `##`), `ponytail.md` (après l'adresse
+`<fichier>:L<ligne>`, qui reste en tête), `review.md`, `ci.md` et du `detail` de
+chaque item de `checks.json` (le créateur seulement) porte `[toi]` (une décision de
+l'utilisateur : un changement de contrat) ou `[agent]` (le reste) ; `vibe` ne
+s'arrête que sur `[toi]`.
 
 « conversation » : sans sous-contexte, là où le bouton l'envoie — la
 conversation propre à l'action pour un bouton d'étape, celle de l'agent
@@ -250,11 +262,12 @@ sinon.
 | Skill | Où | Modèle · effort | Écrit dans `{{out}}` |
 |---|---|---|---|
 | `note` | conversation | agent | `questions.md` |
-| `forme` | conversation | agent | — |
-| `invariants` | sous-contexte | opus · high | `align.md` (suit `aligner`) |
+| `conception` | sous-contexte | opus · high | `questions.md` (ses suggestions à la suite ; ne modifie jamais la note ; lecture, `git` en lecture et `Write` pour ce fichier seul) |
+| `forme` | conversation | agent | — (les squelettes dans le code, puis la forme dans la note) |
+| `invariants` | sous-contexte | opus · high | `align.md` (suit `aligner` une fois : il corrige les tests lui-même) |
 | `lire-invariants` | sous-contexte | sonnet · medium | `invariants/<blob>.md` |
-| `aligner` | sous-contexte | opus · high | `align.md` |
-| `module` | sous-contexte | sonnet · high | `vibecoder run start review-diff` (le module écrit, sauf lancé par `modules`) |
+| `aligner` | sous-contexte | opus · high | `align.md` (les invariants seuls : corrige les tests, 3 tours ; relecteur, `HEAD` : une liste, rien de corrigé) |
+| `module` | conversation | opus · high | — (la boucle de `modules` pour un seul module, `developpeur` sonnet · high ; plus de `review-diff` en seconde course) |
 | `modules` | conversation | opus · high, sous-agents `developpeur` sonnet · high (opus au second échec) | — (ne commite pas) |
 | `commiter-modules` | sous-contexte | sonnet · medium | — (un module, ou tous ceux qui ont des changements : un commit chacun, un fixup pour un module déjà commité) |
 | `relire` | sous-contexte | opus · high | `review.md` |
