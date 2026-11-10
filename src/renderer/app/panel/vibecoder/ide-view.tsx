@@ -50,6 +50,7 @@ export function IdeView({ files, children }: IdeViewProps) {
         <FileTreeView rows={visibleRows(nodes, open)} open={open} selected={file?.path ?? null}
           mark={(key) => at(key)?.mark ?? null}
           rank={(key) => { const r = at(key)?.rank; return r == null ? null : r + 1; }}
+          dim={(key) => at(key)?.dim ?? false}
           onToggle={toggle} onSelect={setChosen} />
       </div>
       <div className="vc-ide-resize" role="separator" aria-orientation="vertical" aria-valuenow={width} tabIndex={0}

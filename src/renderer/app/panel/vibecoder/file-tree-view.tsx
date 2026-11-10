@@ -26,7 +26,7 @@ export type FileTreeViewProps = {
   onSelect(key: string): void;
 };
 
-export function FileTreeView({ rows, open, selected, mark, rank, onToggle, onSelect }: FileTreeViewProps) {
+export function FileTreeView({ rows, open, selected, mark, rank, dim, onToggle, onSelect }: FileTreeViewProps) {
   return (
     <div className="vc-tree" role="tree">
       {rows.map((n) => {
@@ -34,7 +34,7 @@ export function FileTreeView({ rows, open, selected, mark, rank, onToggle, onSel
         const tone = n.folder ? null : mark?.(n.key) ?? null;
         const num = n.folder ? null : rank?.(n.key) ?? null;
         return (
-          <div key={n.key} className="vc-tree-row" role="treeitem" data-key={n.key} data-mark={tone ?? undefined}
+          <div key={n.key} className="vc-tree-row" role="treeitem" data-key={n.key} data-mark={tone ?? undefined} data-dim={!n.folder && dim?.(n.key) ? '' : undefined}
             aria-selected={n.key === selected} aria-expanded={n.folder ? isOpen : undefined}
             style={{ paddingLeft: 6 + n.depth * 10 }} title={n.key}
             onClick={() => (n.folder ? onToggle(n.key) : onSelect(n.key))}>
