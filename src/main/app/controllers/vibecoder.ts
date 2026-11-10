@@ -170,8 +170,8 @@ import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
 import { START, type CommandError } from 'core/commands';
 import {
-  addComment, artifactOf, blobSha, buildMessage, designEnd, noteClick, parseQuestions, vibeMarks, DIRECT_ACTIONS, DIRECT_ONLY, editComment, findNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath,
-  blockedBy, BRANCH_CHANGES, lockCode, lockText, ELSEWHERE, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeRole, vibeView, whoOf, type ActionDef, type MessageError,
+  addComment, artifactOf, beforeOf, blobSha, buildMessage, designEnd, noteClick, parseQuestions, vibeMarks, DIRECT_ACTIONS, DIRECT_ONLY, editComment, findNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath, nextRef,
+  blockedBy, BRANCH_CHANGES, lockCode, lockText, ELSEWHERE, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeRole, vibeView, whoOf, type ActionDef, type MessageError, type NoteRef,
 } from 'core/vibecoder';
 import { draftText, isVerdict } from 'shared/review';
 import { findEditor } from 'technicals/editor';
@@ -190,7 +190,7 @@ import { copyArtifacts, duplicateArtifacts, moveArtifacts, newArtifact, renameAr
 import { prepareMessage } from './conversation';
 import { createWorktree } from './recipe';
 import { SOCKET_DOWN, screenSend, socketDown } from './socket';
-import { lockingRuns, viewLocks, queueStart, releaseWaits, runPending, runsOf, runsTab, skillMd, startRun, vibeOn, vibeStop } from './runs';
+import { lockingRuns, viewLocks, queueStart, queuedOf, releaseWaits, runPending, runsOf, runsTab, skillMd, startRun, vibeOn, vibeStop } from './runs';
 import { openChild, prWorktreeReady, removeWorktreeChild, showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
 
 const VIBE_MS = 4000;          // le relevé régulier, panneau visible
@@ -247,7 +247,7 @@ const ERRORS: Record<VibeLang, Record<MessageError | 'agent' | 'action' | 'args'
 };
 
 const last = new Map<string, VibeView>();  // le dernier relevé envoyé, par agent : ce que la page désigne
-const turnNote = new Map<string, { text: string; busy: boolean }>();  // la note au début du tour (surlignage)
+const noteRefs = new Map<string, NoteRef | null>();  // la note de référence du surlignage, par agent (core/vibecoder note-ref)
 const ghCache = new Map<string, { at: number; value: unknown; pending: boolean }>();  // par question à gh
 type GitState = { branches: string[] | null; sync: { behind: number | null; baseAhead: number | null } | null };
 const gitCache = new Map<string, { key: string; at: number; value: GitState | null; pending: boolean }>();  // par agent : branches et sync
@@ -535,15 +535,13 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     const reading = readTimed(path.join(out, 'invariants', n));
     return reading ? [{ blob: n.slice(0, -3), ...reading }] : [];
   });
-  // La note au début du tour (surlignage) : retenue quand l'agent ou une course
-  // qui modifie la branche (la note, ses réponses, la forme…) se met au travail
-  // (pas de note : tout ce qui viendra est nouveau) ; « Vu » la remplace.
+  // La note de référence du surlignage (nextRef) : posée au premier relevé où l'agent ou une course qui modifie la
+  // branche travaille ; ensuite seuls Vu et Valider la note la remplacent (setVibe, markVibe).
   const busy = isBusy(agent.id);
   const writing = busy || lockingRuns(agent.id).some((r) => !r.reads);
-  const turn = turnNote.get(agent.id);
-  if (writing && !turn?.busy) turnNote.set(agent.id, { text: noteText ?? '', busy: writing });
-  else if (turn) turn.busy = writing;
-  const before = turnNote.get(agent.id)?.text ?? null;
+  const note = notePath && noteText !== null ? { path: notePath, text: noteText } : null;
+  const ref = nextRef(noteRefs.get(agent.id) ?? null, note, writing);
+  noteRefs.set(agent.id, ref);
   const store = vibeStore();
   // La vérification de conception finie (la première, du clic Valider la note, ou Revérifier) : sa fin rangée une fois (designEnd),
   // à chaque relevé, panneau visible ou non (T-31) ; ses questions : celles de questions.md, lues avec les sorties après
@@ -576,7 +574,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     runs: runViews(runsOf(agent), actions.map((a) => ({ id: a.id, label: a.label, who: who[a.id] })), runPending(agent.id)),
     repo,
     error: repo ? null : !which('git') ? ERRORS[lang].noGit : role === 'create' ? ERRORS[lang].notRepo : null,
-    note: notePath && noteText !== null ? { path: notePath, text: noteText, before: before !== null && before !== noteText ? before : null } : null,
+    note: note && { ...note, before: beforeOf(ref, note) },
     tests: based,
     readings,
     outputs,
@@ -591,6 +589,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     branches,
     sync,
     actions,
+    queued: queuedOf(agent.id).map((q) => q.action),
     direct: directs.get(agent.id),
     who,
     model: modelOf,
@@ -1059,8 +1058,8 @@ export function setVibe(patch: unknown) {
   updateAgent(agent.id, { vibe });
   if (p.modulesView === 'ide' || p.modulesView === 'list') saveConfig({ vibeModulesView: p.modulesView });   // la vue des Modules, retenue ; autre valeur : ignorée
   if (p.seen === true) {
-    const text = last.get(agent.id)?.note?.text;
-    if (text !== undefined) turnNote.set(agent.id, { text, busy: isBusy(agent.id) });
+    const note = last.get(agent.id)?.note;
+    if (note) noteRefs.set(agent.id, { path: note.path, text: note.text });
   }
   for (const [key, choices] of [['model', MODELS], ['effort', EFFORTS], ['mode', MODES]] as const) {
     if (choices.some(([value]) => value === p[key])) setAgentSetting(agent.id, key, p[key] as string);
@@ -1088,6 +1087,8 @@ export function markVibe(target: unknown, verdict: unknown) {
   if (!agent || !view || typeof target !== 'string' || (verdict !== 'ok' && verdict !== 'ko' && verdict !== null)) return;
   const hash = targetHash(view, target);
   if (!hash) return;
+  // Valider la note (le premier clic, Revalider, un Valider) : la référence du surlignage devient la note du dernier relevé.
+  if (target === 'note' && verdict === 'ok' && view.note) noteRefs.set(agent.id, { path: view.note.path, text: view.note.text });
   const store = vibeStore();
   // Le premier Valider la note du créateur : la vérification de conception part (comme un clic, en file si une course
   // retient), rien n'est validé ; sa fin le fera pour ce texte (designEnd). Sans l'action : un Valider comme les autres.
