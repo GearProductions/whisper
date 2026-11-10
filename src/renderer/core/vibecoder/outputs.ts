@@ -111,11 +111,14 @@ export function commitReviews(md: string, commits: VibeCommit[]): { byHash: Map<
   return { byHash, others };
 }
 
+// L'adresse « <fichier>:L<ligne> » qui ouvre une ligne de ponytail.md (entre accents graves ou non ; plage L12-38 permise) :
+// lue par remarkKey et par untag (tags), qui doivent s'accorder.
+export const ADDRESS = /^\s*`?([^\s`]+):L(\d+)(?:-\d+)?\b/;
+
 // La clé d'une remarque de ponytail.md : « <fichier>:L<ligne> » en tête
-// (entre accents graves ou non ; d'une plage L12-38, la première ligne) ;
-// pas de clé : null.
+// (d'une plage L12-38, la première ligne) ; pas de clé : null.
 export function remarkKey(text: string): string | null {
-  const m = /^\s*`?([^\s`]+):L(\d+)\b/.exec(text);
+  const m = ADDRESS.exec(text);
   return m ? `${m[1]}:L${m[2]}` : null;
 }
 
