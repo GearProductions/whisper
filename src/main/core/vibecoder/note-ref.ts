@@ -13,13 +13,14 @@ export type NoteRef = { path: string | null; text: string };
 // sinon null. Une ref sans chemin et une note : son chemin adopté, son texte gardé. Une ref d'un autre fichier
 // que la note : repartie (null, puis posée si writing). Pas de note : la ref gardée telle quelle.
 export function nextRef(ref: NoteRef | null, note: { path: string; text: string } | null, writing: boolean): NoteRef | null {
-  void ref; void note; void writing;
-  throw new Error('not implemented');
+  if (!ref) return writing ? { path: note?.path ?? null, text: note?.text ?? '' } : null;
+  if (!note) return ref;
+  if (ref.path === null) return { path: note.path, text: ref.text };
+  return ref.path === note.path ? ref : nextRef(null, note, writing);
 }
 
 // Le texte de référence à montrer (VibeNote.before) : celui de ref, si elle est de ce fichier et que la
 // note a changé depuis ; sinon null (rien de surligné).
 export function beforeOf(ref: NoteRef | null, note: { path: string; text: string }): string | null {
-  void ref; void note;
-  throw new Error('not implemented');
+  return ref && ref.path === note.path && ref.text !== note.text ? ref.text : null;
 }
