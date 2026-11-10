@@ -21,4 +21,6 @@ allowed-tools: "Read, Glob, Grep, Write, Bash(gh pr checks *), Bash(gh pr view *
 
 A first line with the overall state (✓, ✗ or ⏳, with counts), then one `##` per failed check: the cause, the evidence (a few log lines in a code block), the fix. All green → the first line only.
 
+Each point starts with a tag, right after its list mark if any: the first line (`[agent] ✗ 2/5 …`) and each `##` (`## [agent] <check>`). `[toi]`: the fix needs the user's decision (a contract change, a note that makes a test impossible). Everything else `[agent]`: a code fix, a flaky test, the CI environment.
+
 Fix nothing, rerun nothing. Answer in English, 1 to 3 lines: the state and the main cause.
