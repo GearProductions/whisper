@@ -1408,4 +1408,8 @@ describe('un module n\'est commencé que si un fichier a changé depuis son sque
     const hidden = (marks: Marks) => action(vibeView(input({ note, marks })), 'design-check')?.hidden;
     expect([hidden(NOTE_OK), hidden({ ...NOTE_OK, design: { hash: NOTE_PATH, verdict: 'ok' } })]).toEqual([true, false]);
   });
+
+  it('queued : recopié dans l\'ordre ; absent : []', () => {
+    expect([vibeView(input({ queued: ['b', 'a'] })).queued, vibeView(input()).queued]).toEqual([['b', 'a'], []]);
+  });
 });

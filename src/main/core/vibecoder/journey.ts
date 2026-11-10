@@ -543,6 +543,6 @@ export function vibeView(input: JourneyInput): VibeView {
     note, questions, modules, invariants, variants, commits: viewCommits, outputs, checklist, screen, actions,
     skills: input.skills, pr, prs, loaded, child, branches: input.branches ?? null,
     sync: input.sync ?? null, draft: input.draft, worktree: input.worktree ?? null, runs: input.runs,
-    request: input.request ? { branch: input.request } : null, time: input.now,
+    queued: input.queued ?? [], request: input.request ? { branch: input.request } : null, time: input.now,
   };
 }
