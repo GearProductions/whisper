@@ -26,10 +26,11 @@
  *  Utilisé par : les vues d'étape (note-view en Relire, questions-view, forme-view, invariants-view,
  *  modules-view, review-view, pr-view, branches-view, commits-view, ecran-view, draft-view, runs-view) ;
  *  components (thread : un message de l'agent, sans onQuote ni onComment). */
-import { useMemo, useState, type ReactNode } from 'react';
-import { blockQuotes, parseInline, parseMarkdown, type Block, type Inline, type Strings } from 'core/vibecoder';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { blockQuotes, parseInline, parseMarkdown, tagCover, untag, type Block, type Inline, type Strings, type Tag } from 'core/vibecoder';
 import { CommentBox } from './comment-box';
 import { Icon } from './icons';
+import { TagBadge } from './tag-badge';
 
 type Ctx = {
   t: Strings;
@@ -57,13 +58,17 @@ export function MarkdownView({ md, ...given }: Ctx & { md: string }) {
   const blocks = useMemo(() => parseMarkdown(md), [md]);
   const quotes = useMemo<Quotes>(() => new Map(blockQuotes(md).map((q) => [q.line, q.text])), [md]);
   const [at, set] = useState<number | null>(null);
+  const covers = useMemo(() => (given.tagged ? tagCover(blocks) : []), [blocks, given.tagged]);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => { ref.current?.querySelector('[data-focus]')?.scrollIntoView?.({ block: 'center' }); }, [given.focus]);
   const ctx: Full = { ...given, open: { at, set }, quotes };
   return (
-    <div className="vc-md">
+    <div className="vc-md" ref={ref}>
       {blocks.map((b, i) => {
         const end = blocks[i + 1]?.line ?? Infinity;
-        return b.kind === 'list' || b.kind === 'rule' ? <BlockView key={i} b={b} end={end} ctx={ctx} /> : (
-          <div key={i} className="vc-block" data-changed={touched(ctx, b.line, end) || undefined}>
+        const tag = covers[i] ?? undefined;
+        return b.kind === 'list' || b.kind === 'rule' ? <BlockView key={i} b={b} end={end} ctx={ctx} tag={tag} /> : (
+          <div key={i} className="vc-block" data-changed={touched(ctx, b.line, end) || undefined} data-tag={tag} data-focus={ctx.focus === b.line || undefined}>
             <BlockView b={b} end={end} ctx={ctx} /><Quote line={b.line} ctx={ctx} />
             {ctx.quotes.has(b.line) ? ctx.blockEnd?.(ctx.quotes.get(b.line)!) : null}
           </div>
@@ -103,6 +108,17 @@ function Quote({ line, ctx }: { line: number; ctx: Full }) {
   );
 }
 
+// Un titre ou un élément de liste : avec tagged, son étiquette devient un badge, entre l'adresse qui
+// l'ouvre (s'il y en a une) et la suite ; sinon, ses inlines tels quels.
+function Lead({ inline, ctx }: { inline: Inline[]; ctx: Full }) {
+  const { tag, head, rest } = ctx.tagged ? untag(inline) : { tag: null, head: [], rest: inline };
+  if (!tag) return <Inlines inline={inline} ctx={ctx} />;
+  return <><Inlines inline={head} ctx={ctx} />{head.length ? ' ' : null}<TagBadge tag={tag} t={ctx.t} />{rest.length ? ' ' : null}<Inlines inline={rest} ctx={ctx} /></>;
+}
+
+// L'étiquette de la ligne elle-même (tagged), à poser en data-tag.
+const own = (inline: Inline[], ctx: Full) => (ctx.tagged ? untag(inline).tag ?? undefined : undefined);
+
 function Inlines({ inline, ctx }: { inline: Inline[]; ctx: Full }) {
   return (
     <>
@@ -121,27 +137,29 @@ function Inlines({ inline, ctx }: { inline: Inline[]; ctx: Full }) {
 
 const HEADINGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const;
 
-// end : la ligne où commence ce qui suit le bloc (la fin de son dernier élément de liste).
-function BlockView({ b, end, ctx }: { b: Block; end: number; ctx: Full }) {
+// end : la ligne où commence ce qui suit le bloc (la fin de son dernier élément de liste) ; tag : ce qui
+// couvre un bloc de premier niveau sans enveloppe (liste, filet).
+function BlockView({ b, end, ctx, tag }: { b: Block; end: number; ctx: Full; tag?: Tag }) {
   switch (b.kind) {
     case 'heading': {
       const H = HEADINGS[Math.min(6, Math.max(1, b.level)) - 1];
-      return <H><Inlines inline={b.inline} ctx={ctx} /></H>;
+      return <H><Lead inline={b.inline} ctx={ctx} /></H>;
     }
     case 'paragraph': return <p><Inlines inline={b.inline} ctx={ctx} /></p>;
     case 'list': {
       const List = b.ordered ? 'ol' : 'ul';
       return (
-        <List>
+        <List data-tag={tag}>
           {b.items.map((item, i) => {
             const next = b.items[i + 1]?.line ?? end;
             const sub = item.children.find((c) => c.kind === 'list')?.line ?? next; // une sous-liste a ses propres liserés
             return (
-              <li key={i} className={item.checked === null ? undefined : 'vc-task'} data-changed={touched(ctx, item.line, sub) || undefined}>
+              <li key={i} className={item.checked === null ? undefined : 'vc-task'} data-changed={touched(ctx, item.line, sub) || undefined}
+                data-tag={own(item.inline, ctx)} data-focus={ctx.focus === item.line || undefined}>
                 {item.checked === null ? null : <span className="vc-box" data-checked={item.checked || undefined} aria-hidden="true" />}
                 {ctx.itemStart?.(ctx.quotes.get(item.line) ?? '')}
                 {ctx.tag?.(item.line)}
-                <Inlines inline={item.inline} ctx={ctx} />
+                <Lead inline={item.inline} ctx={ctx} />
                 {ctx.itemEnd?.(ctx.quotes.get(item.line) ?? '')}
                 <Quote line={item.line} ctx={ctx} />
                 {item.children.map((c, j) => <BlockView key={j} b={c} end={item.children[j + 1]?.line ?? next} ctx={ctx} />)}
@@ -162,6 +180,6 @@ function BlockView({ b, end, ctx }: { b: Block; end: number; ctx: Full }) {
           </table>
         </div>
       );
-    default: return <hr />;
+    default: return <hr data-tag={tag} data-focus={ctx.focus === b.line || undefined} />;
   }
 }
