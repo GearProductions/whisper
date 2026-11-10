@@ -309,7 +309,7 @@ export type VibeTestFile = VibeFile & {
   cases: string[];                       // titres des cas trouvés dans le fichier
   lines: number[];                       // la ligne (1…) de chaque cas, dans l'ordre de cases : Ouvrir à la ligne
   source: string;                        // le texte du fichier, pour le montrer à côté de sa lecture ; '' au-delà de 200 Ko
-  base?: string | null;                  // son texte à la base de la branche ; null ou absent : ajouté par la branche, ou au-delà de 200 Ko
+  base?: string | null;                  // son texte à la base de la branche ; null : absent à la base, ajouté par la branche ; absent : inconnu (pas de base, ou au-delà de 200 Ko)
   reading: ReadingCase[] | null;         // null : pas encore lu
   stale?: boolean;                       // sa lecture est celle d'une version précédente ; absent = false
   marks: Record<string, VibeMarkState>;  // par titre de cas

@@ -273,7 +273,7 @@ describe('le relevé', () => {
     write(path.join(out, 'invariants', 'notes.md'), 'pas une lecture');                        // pas un nom connu
     const v = (await open()).view()!;
     expect(v.note).toMatchObject({ path: 'docs/tickets/feat/0.8.0-essai.md', text: NOTE, before: null });
-    expect(v.tests).toEqual([{ path: 'src/x/tests/invariants/x.test.ts', blob: blobSha(TEST), text: TEST, base: null }]);
+    expect(v.tests).toEqual([{ path: 'src/x/tests/invariants/x.test.ts', blob: blobSha(TEST), text: TEST, base: undefined }]);
     expect(v.readings).toHaveLength(2);
     expect(v.readings).toEqual(expect.arrayContaining([
       { blob: blobSha(TEST), text: '# lecture\n', time: expect.any(Number) },
@@ -320,14 +320,14 @@ describe('le relevé', () => {
     expect(v).not.toHaveProperty('list');
   });
 
-  it('le texte d’un test à la base : null absent à la base, ou sans base ; sans test, aucun git', async () => {
+  it('le texte d’un test à la base : null absent à la base, inconnu (absent) sans base ; sans test, aucun git', async () => {
     fake.fork = 'f0';
     fake.shown = null;   // absent à la base
     expect((await open()).view()!.tests[0].base).toBeNull();
     vi.resetModules();
     fake.fork = null;    // pas de base
     fake.reads = [];
-    expect((await open()).view()!.tests[0].base).toBeNull();
+    expect((await open()).view()!.tests[0].base).toBeUndefined();
     expect(fake.reads.filter(([c]) => c === 'show')).toEqual([]);
     vi.resetModules();
     fake.facts = { ...fake.facts as object, changed: ['docs/tickets/feat/0.8.0-essai.md'] };

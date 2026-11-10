@@ -100,8 +100,8 @@ export type JourneyInput = {
   repo: { branch: string; base: string; changed: string[]; dirty?: string[]; added?: string[]; commits: { hash: string; subject: string; files: string[] }[] } | null;
   error: string | null;                             // pourquoi le dépôt manque
   note: { path: string; text: string; before: string | null } | null;
-  // Les tests de la branche ; base : leur texte à la base de la branche (null : ajouté, au-delà de 200 Ko, pas
-  // de base ; absent : null, les fixtures des invariants protégés d'avant la 0.13.0).
+  // Les tests de la branche ; base : leur texte à la base de la branche (null : absent à la base, ajouté ; absent :
+  // inconnu, pas de base, ou au-delà de 200 Ko, aussi les fixtures des invariants protégés d'avant la 0.13.0).
   tests: { path: string; blob: string; text: string; base?: string | null }[];
   // Toutes les lectures (<sorties>/invariants/<blob>.md) ; par blob : d'avant la 0.11.0 (fixtures protégées), heure 0.
   readings: { blob: string; text: string; time: number }[] | Record<string, string>;
@@ -274,7 +274,7 @@ export function vibeView(input: JourneyInput): VibeView {
     const r = readingOf(t, readings);
     return {
       id: `t${i}`, path: t.path, blob: t.blob, cases: t.cases, lines: t.lines, source: t.text.length > SOURCE_MAX ? '' : t.text,
-      base: t.base != null && t.base.length <= SOURCE_MAX ? t.base : null,
+      base: t.base != null && t.base.length > SOURCE_MAX ? undefined : t.base,
       reading: r && parseReading(r.text), stale: !!r?.stale, locked: codeLock(null, input.busy, input.running, lang),
       marks: Object.fromEntries(t.cases.map((c) => [c, markState(marks, `case:${t.path}:${c}`, t.blob)])),
     };

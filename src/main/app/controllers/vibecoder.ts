@@ -524,9 +524,9 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     return text === null ? [] : [{ path: p, blob: blobSha(text), text }];
   });
   // Le texte d'un test d'invariants à la base (par git seul, I-37) : au commit où la branche part de repo.base (forkPoint,
-  // un par relevé, comme at.base de controllers/module-code) ; null : absent là, pas de base, un variant (au-delà de 200 Ko : core/vibecoder).
+  // un par relevé, comme at.base de controllers/module-code) ; null : absent là, ou un variant ; absent : pas de base, inconnu (au-delà de 200 Ko : core/vibecoder).
   const fork = repo && tests.some((t) => isInvariantTest(t.path)) ? await git.forkPoint(repo.base) : null;
-  const based = await Promise.all(tests.map(async (t) => ({ ...t, base: fork && isInvariantTest(t.path) ? await git.show(fork, t.path) : null })));
+  const based = await Promise.all(tests.map(async (t) => ({ ...t, base: !isInvariantTest(t.path) ? null : fork ? await git.show(fork, t.path) : undefined })));
   // Toutes les lectures d'invariants : un test modifié depuis la sienne reprend la plus récente de son fichier,
   // périmée (readingOf, core/vibecoder).
   let names: string[] = [];

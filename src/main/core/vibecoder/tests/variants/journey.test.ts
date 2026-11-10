@@ -806,10 +806,11 @@ describe('rc.2 : modèle au choix, PR fermée, fichiers des commits', () => {
     expect(vibeView(input({ tests: [big] })).invariants[0]).toMatchObject({ cases: ['dit bonjour', 'ne lit rien d\'autre'], source: '' });
   });
 
-  it('le texte d\'un test à la base, passé tel quel ; absent (ajouté par la branche) ou plus de 200 000 caractères : null', () => {
+  it('le texte d\'un test à la base, passé tel quel ; null (absent à la base, ajouté par la branche) tel quel ; absent, ou plus de 200 000 caractères : inconnu (undefined)', () => {
     expect(vibeView(input({ tests: [{ ...test, base: 'avant' }] })).invariants[0].base).toBe('avant');
-    expect(vibeView(input({ tests: [test] })).invariants[0].base).toBeNull();
-    expect(vibeView(input({ tests: [{ ...test, base: 'x'.repeat(200_001) }] })).invariants[0].base).toBeNull();
+    expect(vibeView(input({ tests: [{ ...test, base: null }] })).invariants[0].base).toBeNull();
+    expect(vibeView(input({ tests: [test] })).invariants[0].base).toBeUndefined();
+    expect(vibeView(input({ tests: [{ ...test, base: 'x'.repeat(200_001) }] })).invariants[0].base).toBeUndefined();
   });
 
   it('chaque commit, avec ses fichiers', () => {
