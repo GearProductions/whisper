@@ -30,7 +30,8 @@ export const answersOf = (questions: VibeQuestion[], answers: Answers, lang: Vib
 // Une réponse proposée écrite en trois parties (skill conception) : `**<choix>**`, puis `*<où>*`, puis le texte
 // cité (le reste, « … » compris), séparés par des blancs et au plus un « — », « : » ou « · » ; chaque partie
 // rendue telle quelle (du Markdown en ligne, sans ses ** ni ses *). Écrite autrement : null (affichée comme avant).
+const PARTS = /^\*\*([^*]*[^*\s][^*]*)\*\*\s*(?:[—:·]\s*)?\*([^*]*[^*\s][^*]*)\*\s*(?:[—:·]\s*)?(?![—:·])(\S.*)$/;
 export function optionParts(option: string): { choice: string; where: string; quote: string } | null {
-  void option;
-  throw new Error('not implemented');
+  const m = PARTS.exec(option.trim());
+  return m && { choice: m[1].trim(), where: m[2].trim(), quote: m[3] };
 }
