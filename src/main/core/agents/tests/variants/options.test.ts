@@ -2,15 +2,15 @@
 // TOOL_RULE, la même pour toutes les courses ; systemAppend la met après la consigne de l'appli quand la
 // session a des droits (une course), jamais pour la conversation ; queryOptions la passe en systemPrompt.append.
 import { describe, expect, it } from 'vitest';
-import { queryOptions, systemAppend, TOOL_RULE, type AgentConfig, type RunRights } from 'core/agents';
+import { launchKey, queryOptions, rightsOptions, systemAppend, TOOL_RULE, type AgentConfig, type RunRights } from 'core/agents';
 
 const agent: AgentConfig = { id: 'a1', name: 'alpha', dir: '/tmp/p', mode: 'default', model: '', effort: '', sessionId: null };
-const rights: RunRights = { allow: ['Read'], check: () => ({ allow: true }) };
+const rights: RunRights = { allow: ['Read'], deny: [], check: () => ({ allow: true }) };
 const claude = { executable: 'claude' };
 
 describe('TOOL_RULE', () => {
-  it('nomme Bash, Read, Glob, Grep et Write', () => {
-    for (const tool of ['Bash', 'Read', 'Glob', 'Grep', 'Write']) expect(TOOL_RULE).toContain(tool);
+  it('nomme Bash, Read, Glob et Grep', () => {
+    for (const tool of ['Bash', 'Read', 'Glob', 'Grep']) expect(TOOL_RULE).toContain(tool);
   });
 
   it('une consigne courte : non vide, quelques lignes', () => {
@@ -18,11 +18,43 @@ describe('TOOL_RULE', () => {
     expect(TOOL_RULE.split('\n').length).toBeLessThanOrEqual(8);
   });
 
-  it('interdit cd, enchaînement, redirection et variable ; la liste, écrite comme elle', () => {
-    expect(TOOL_RULE).toMatch(/\bcd\b/);
-    for (const op of [';', '&&', '||', '|', '>']) expect(TOOL_RULE).toContain(op);
-    expect(TOOL_RULE).toMatch(/variable/i);
-    expect(TOOL_RULE).toMatch(/list/i);
+  it('plus d’« un appel par commande » ni de liste à recopier', () => {
+    expect(TOOL_RULE).not.toMatch(/One Bash call per command/i);
+    expect(TOOL_RULE).not.toMatch(/allowed list/i);
+  });
+
+  it('lire par Read plutôt que par Bash ; une commande refusée se contourne ou se signale, sans la répéter', () => {
+    expect(TOOL_RULE).toMatch(/Read.*rather than.*Bash/is);
+    expect(TOOL_RULE).toMatch(/denied/i);
+    expect(TOOL_RULE).toMatch(/work around/i);
+    expect(TOOL_RULE).toMatch(/report/i);
+    expect(TOOL_RULE).toMatch(/not retry|never retry|don't retry/i);
+  });
+});
+
+describe('rightsOptions', () => {
+  it('dontAsk, allowedTools = rights.allow, disallowedTools = rights.deny', () => {
+    const o = rightsOptions({ allow: ['Read', 'Bash'], deny: ['Bash(git push *)'], check: () => ({ allow: true }) });
+    expect(o).toMatchObject({ permissionMode: 'dontAsk', allowedTools: ['Read', 'Bash'], disallowedTools: ['Bash(git push *)'] });
+  });
+
+  it('queryOptions : les refus passent par-dessus le mode de l’agent', () => {
+    const o = queryOptions({ ...agent, mode: 'auto' }, claude, '', { rights: { ...rights, deny: ['Bash(sudo *)'] } });
+    expect(o).toMatchObject({ permissionMode: 'dontAsk', disallowedTools: ['Bash(sudo *)'] });
+  });
+
+  it('la conversation : aucun disallowedTools', () => {
+    expect(queryOptions(agent, claude, '')).not.toHaveProperty('disallowedTools');
+  });
+});
+
+describe('launchKey', () => {
+  const key = (deny?: string[]) => launchKey(agent, '', '', deny && { rights: { ...rights, deny } });
+
+  it('deux courses aux refus différents : deux clés ; mêmes refus : même clé', () => {
+    expect(key(['Bash(git push *)'])).toBe(key(['Bash(git push *)']));
+    expect(key(['Bash(git push *)'])).not.toBe(key(['Bash(git push *)', 'Bash(sudo *)']));
+    expect(key([])).not.toBe(key());
   });
 });
 

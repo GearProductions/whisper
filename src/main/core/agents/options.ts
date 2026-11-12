@@ -12,8 +12,8 @@
  *  même pour toutes, ajoutée après la consigne de l'appli par systemAppend : une
  *  course la reçoit, la conversation jamais). launchKey retient la présence d'un
  *  env, jamais ses valeurs (secrets), la liste et les refus d'une course.
- *  Pur. Ne connaît pas : process.env (l'appelant le fournit), ce que contient la
- *  liste ni ce que juge le contrôle (core/vibecoder).
+ *  Pur. Ne connaît pas : process.env (l'appelant le fournit), ce que contiennent la
+ *  liste et les refus ni ce que juge le contrôle (core/vibecoder).
  *  Utilisé par : core/agents. */
 import { MODES } from './constants';
 import type { AgentConfig, Launch, OutgoingMessage, RunRights, SdkMessage, TurnHooks } from './types';
@@ -39,16 +39,16 @@ export function rightsOptions(rights: RunRights) {
     }
   };
   const group: { matcher?: string; hooks: (typeof hook)[] } = { hooks: [hook] };   // sans filtre : tout outil
-  return { permissionMode: 'dontAsk' as const, allowedTools: rights.allow, hooks: { PreToolUse: [group] } };
+  return { permissionMode: 'dontAsk' as const, allowedTools: rights.allow, disallowedTools: rights.deny, hooks: { PreToolUse: [group] } };
 }
 
 // La consigne d'outils d'une course, en anglais (comme les textes de la table pour un modèle), allégée : rester
-// dans son travail ; lire avec Read, Glob, Grep plutôt que par Bash quand c'est possible ; une commande refusée se
-// contourne autrement ou se signale, sans la répéter. Plus d'« un appel par commande » ni de liste à recopier.
+// dans son travail ; lire avec Read, Glob, Grep plutôt que par Bash ; une commande refusée se contourne autrement
+// ou se signale, sans la répéter.
 export const TOOL_RULE: string = [
-  'Tool rules: only the commands on your allowed list work, written exactly as listed; anything else is denied.',
-  '- One Bash call per command: no cd, no chaining (; && || |), no redirection (> >> <), no variables or substitutions.',
-  '- Read files with Read, find them with Glob, search them with Grep, write them with Write; never cat, head, tail, sed, awk, grep or find through Bash.',
+  'Tool rules: stay within your task; do what it asks, nothing beyond.',
+  '- Read files with Read, find them with Glob, search them with Grep, rather than through Bash.',
+  '- When a command is denied, work around it another way or report it in your answer; do not retry it.',
 ].join('\n');
 
 // Ce que l'appli ajoute au prompt système (systemPrompt.append) : `instructions`, puis TOOL_RULE pour une course
@@ -74,7 +74,7 @@ export function userMessage({ text, images = [] }: OutgoingMessage, uuid?: strin
 // entre deux tours (dont la liste et les refus d'une course). Mode et modèle, eux, se changent à chaud
 // (setPermissionMode, setModel) ; la session, par close() quand on en reprend une autre.
 export const launchKey = (agent: AgentConfig, command: unknown, instructions: string, { plugins = [], dirs = [], checkpoint = false, env, rights }: Extras = {}) => (
-  JSON.stringify([agent.dir, agent.effort || '', instructions, String(command || ''), plugins, dirs, checkpoint, !!env, rights?.allow ?? null]));
+  JSON.stringify([agent.dir, agent.effort || '', instructions, String(command || ''), plugins, dirs, checkpoint, !!env, rights?.allow ?? null, rights?.deny ?? null]));
 
 export function queryOptions(agent: AgentConfig, launch: Launch, instructions: string, { plugins = [], dirs = [], checkpoint = false, env, rights }: Extras = {}) {
   const append = systemAppend(instructions, rights);

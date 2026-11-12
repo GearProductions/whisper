@@ -1111,16 +1111,36 @@ describe('les droits d’une course', () => {
     { type: 'user', parent_tool_use_id: sub ? 'tu-agent' : null, message: { content: [{ type: 'tool_result', tool_use_id: id, is_error: true, content: `Permission to use ${tool} has been denied.` }] } },
   ];
 
-  it.each(['default', 'auto'])('l’agent en %s : le processus reçoit dontAsk, la liste de son skill et les commandes d’AGENTS.md', async (mode) => {
+  it.each(['default', 'auto'])('l’agent en %s : le processus reçoit dontAsk, les outils de son skill hors Bash(…) et Bash entier ; l’AGENTS.md n’ajoute rien', async (mode) => {
     configure(mode);
     write(path.join(project(), 'AGENTS.md'), '## Commandes\n\n- Tests : `npm test`\n- Lancer : `npm start`\n');
     await skill('ci', 'Read(${CLAUDE_SKILL_DIR}/**), Bash(gh pr view *)');
     const ci = await run('ci');
     expect(ci.options.permissionMode).toBe('dontAsk');
-    expect(ci.options.allowedTools).toEqual([
-      `Read(${path.join(await skillsDir(), 'ci')}/**)`, 'Bash(gh pr view *)',
-      'Bash(distrobox enter dev -- npm test)', 'Bash(distrobox enter dev -- npm test *)',
-    ]);
+    expect(ci.options.allowedTools).toEqual([`Read(${path.join(await skillsDir(), 'ci')}/**)`, 'Bash']);
+    expect(JSON.stringify(ci.options)).not.toContain('npm test');
+  });
+
+  it('une course pr, l’agent en Auto : dontAsk, Bash en liste, git push et les gh du skill ouverts, git commit refusé', async () => {
+    configure('auto');
+    (await import('app/settings')).ensureVibeFiles();   // les skills livrés, tels qu'ils sont
+    const pr = await run('pr');
+    const deny = pr.options.disallowedTools as string[];
+    expect(pr.options.permissionMode).toBe('dontAsk');
+    expect(pr.options.allowedTools).toContain('Bash');
+    expect(deny).not.toContain('Bash(git push *)');
+    expect(deny).not.toContain('Bash(gh pr create *)');
+    expect(deny).toContain('Bash(git commit *)');
+    expect(deny).toContain('Bash(gh pr merge *)');
+  });
+
+  it('une course Forme : git push refusé, seul et derrière le préfixe des actions', async () => {
+    configure('auto');
+    (await import('app/settings')).ensureVibeFiles();
+    const forme = await run('forme');
+    const deny = forme.options.disallowedTools as string[];
+    expect(deny).toContain('Bash(git push *)');
+    expect(deny).toContain('Bash(distrobox enter dev -- git push *)');
   });
 
   it('la consigne d’outils : une course la reçoit en fin de prompt système, la conversation jamais', async () => {
@@ -1137,7 +1157,8 @@ describe('les droits d’une course', () => {
   it('answers : la liste de la note, ${VIBECODER_OUT} remplacé', async () => {
     await skill('note', 'Read, Write(${VIBECODER_OUT}/**)');
     const answers = await run('answers', 'Réponses : oui');
-    expect(answers.options.allowedTools).toEqual(['Read', `Write(${out}/**)`]);
+    expect(answers.options.allowedTools).toEqual(['Read', `Write(${out}/**)`, 'Bash']);
+    expect(answers.options.disallowedTools).toEqual(expect.arrayContaining(['Bash(git push *)', 'Bash(git commit *)']));
   });
 
   it('une action en lecture : écrire dans le projet est refusé par le crochet, ses sorties et le projet en lecture passent', async () => {
@@ -1162,15 +1183,16 @@ describe('les droits d’une course', () => {
     expect(request('une question')!.options.additionalDirectories).toEqual([out, projectArtifactsPath(project())]);
   });
 
-  it('sans AGENTS.md, un skill sans allowed-tools, aucun plugin : liste vide, la course part', async () => {
+  it('un skill sans allowed-tools, aucun plugin : Bash seul, tout refusé sauf lui, la course part', async () => {
     const ci = await run('ci');
     expect(ci.options.permissionMode).toBe('dontAsk');
-    expect(ci.options.allowedTools).toEqual([]);
+    expect(ci.options.allowedTools).toEqual(['Bash']);
+    expect(ci.options.disallowedTools).toContain('Bash(git push *)');
   });
 
-  it('un skill sans allowed-tools, sans AGENTS.md : liste vide', async () => {
+  it('un skill sans allowed-tools : Bash seul', async () => {
     await skill('ci', null);
-    expect((await run('ci')).options.allowedTools).toEqual([]);
+    expect((await run('ci')).options.allowedTools).toEqual(['Bash']);
   });
 
   it('un refus de Bash d’un sous-agent, hors tour : terminée, sa ligne en tête de la réponse', async () => {

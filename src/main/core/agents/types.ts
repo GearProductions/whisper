@@ -76,6 +76,6 @@ export type TurnHooks = {
 // sous-agents (PreToolUse), qui refuse avec une raison.
 export type RunRights = {
   allow: string[];
-  deny?: string[];   // squelette : obligatoire à l'écriture du module (les tests qui posent des droits prennent deny: [])
+  deny: string[];
   check(tool: string, input: unknown): { allow: true } | { allow: false; reason: string };
 };
