@@ -26,7 +26,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { click, closeAll, fakeClaude, fakeElectron, openPanel, profile, repo, repoResources, settle, slow, write, writeConfig } from 'app/tests/harness';
+import { click, closeAll, fakeClaude, fakeElectron, openPanel, profile, repo, repoResources, settle, write, writeConfig } from 'app/tests/harness';
 
 // La corbeille du système (shell.trashItem) : le reste du faux d'Electron est celui du décor commun.
 const fake = {
@@ -171,8 +171,9 @@ const trash = (ids: unknown, names: unknown) => run('trash-artifacts', { artifac
 async function drop(paths: unknown, folder: unknown) {
   const { dropOnArtifacts } = await import('app/controllers');
   const dropOn: (paths: unknown, folder: unknown) => unknown = dropOnArtifacts;
-  dropOn(paths, folder);
+  const result = await dropOn(paths, folder);
   await settle();
+  return result;
 }
 
 describe('rester dans le dossier d’artefacts du projet : renommer (I-37, I-39)', () => {
@@ -495,26 +496,32 @@ describe('rester dans le dossier d’artefacts du projet : déposer dans un doss
     expect(read(path.join(arts, 'maquettes', 'rapport.md'))).toBe(DEPOSE);
   });
 
-  it('un id de dossier qui remonte (../..) : rien n’est écrit hors du dossier d’artefacts', async () => {
+  it('un id de dossier qui remonte (../..) : refusé, rien n’est écrit nulle part', async () => {
     await open();
     const before = aroundArts();
+    const inside = contents(arts);
 
-    await drop([path.join(drops, 'rapport.md')], '../..');
+    const r = await drop([path.join(drops, 'rapport.md')], '../..');
+    await settle();
 
-    // témoin : le dépôt a bien eu lieu, dans le dossier d'artefacts
-    await vi.waitFor(() => expect(contents(arts)).toContain(DEPOSE), { timeout: slow(2000) });
+    // le dossier inconnu est refusé : le refus rendu sert de témoin, rien n'est entré dans le dossier d'artefacts (note 0.15.0-contrat-elargi)
+    expect(r).toMatchObject({ ok: false });
+    expect(contents(arts)).toEqual(inside);
     // rien n'a changé hors du dossier d'artefacts
     expect(aroundArts()).toEqual(before);
   });
 
-  it('un id de dossier en chemin absolu : rien n’est écrit hors du dossier d’artefacts', async () => {
+  it('un id de dossier en chemin absolu : refusé, rien n’est écrit nulle part', async () => {
     await open();
     const before = aroundArts();
+    const inside = contents(arts);
 
-    await drop([path.join(drops, 'rapport.md')], outside);
+    const r = await drop([path.join(drops, 'rapport.md')], outside);
+    await settle();
 
-    // témoin : le dépôt a bien eu lieu, dans le dossier d'artefacts
-    await vi.waitFor(() => expect(contents(arts)).toContain(DEPOSE), { timeout: slow(2000) });
+    // le dossier inconnu est refusé : le refus rendu sert de témoin, rien n'est entré dans le dossier d'artefacts (note 0.15.0-contrat-elargi)
+    expect(r).toMatchObject({ ok: false });
+    expect(contents(arts)).toEqual(inside);
     // rien n'a changé hors du dossier d'artefacts
     expect(aroundArts()).toEqual(before);
   });
