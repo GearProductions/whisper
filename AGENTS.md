@@ -5,9 +5,11 @@
 - Lancer : `npm start` (construit les pages puis lance Electron)
 - Typage : `npm run typecheck` · Tests : `npm test` · invariants seuls :
   `npm run test:invariants`
-- Contrat de la CLI : `npm run test:contract` (l'appli réelle, profil neuf et faux
-  `claude`, appelée par `resources/vibecoder/plugin/bin/vibecoder.mjs` ; lancé à la
-  main, comme `test:main-diff`, hors de `npm test`)
+- Contrat de la CLI : `npm run test:contract` (l'appli réelle, profil neuf, faux
+  `claude` et faux `gh`, appelée par `resources/vibecoder/plugin/bin/vibecoder.mjs` ;
+  une famille de cas par fichier de `tests/contract/cases/`, un résumé qui échoue
+  sur une commande de la table sans cas ; lancé à la main après `npm run build`,
+  comme `test:main-diff`, hors de `npm test`)
 - Comparer à une version (0.14.0 ou plus) : page `npm run test:front-diff -- <tag ou branche>`,
   principal (appli réelle) `npm run test:main-diff -- <tag ou branche>`
 - Paquets : `npm run dist:linux`, `npm run dist:win`

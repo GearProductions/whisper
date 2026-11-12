@@ -89,7 +89,7 @@ npm run typecheck                    # TypeScript des pages et du principal
 npm test                             # tests (npm run test:invariants : les invariants seuls)
 npm run test:front-diff -- <tag ou branche>  # la page comparée à une version (0.14.0 ou plus) : mêmes écrans, mêmes messages
 npm run test:main-diff -- <tag ou branche>   # appli réelle comparée à une version (0.14.0 ou plus) : mêmes résultats
-npm run test:contract                        # appli réelle (profil neuf, faux claude) appelée par la commande vibecoder ; à la main, comme le banc
+npm run test:contract                        # appli réelle (profil neuf, faux claude) appelée par la commande vibecoder, toutes les commandes de la table, un résumé à la fin ; à la main, comme le banc
 ```
 
 **Itérer sans attendre une release.** Lancée depuis les sources
@@ -202,8 +202,9 @@ l'en-tête de la fenêtre :
   nouvelle demande.
 - **L'état d'un robot** (jamais celui de l'agent affiché, dont la réponse est
   lue d'office) : il **clignote** pendant qu'il travaille ; **« ? »** : il
-  attend votre réponse (une demande d'autorisation, une question), jusqu'à ce
-  qu'elle parte ; **pastille verte** : il a fini (une réponse non lue) ;
+  attend votre réponse (une demande d'autorisation, ou une question sans
+  réponse envoyée au questionnaire de l'agent), jusqu'à ce qu'elle parte ; il
+  prime sur le « ! » et sur la pastille verte ; **pastille verte** : il a fini (une réponse non lue) ;
   **« ! »** : il a échoué (*en échec*). Chacun avec le **bip** de la réponse (660 Hz,
   réglage *Bip*), seulement pour ce qui vient d'apparaître chez un autre agent :
   le quitter ne fait pas sonner ce que vous aviez sous les yeux. Afficher un
@@ -480,15 +481,21 @@ incomplet). Un sous-agent qu'une action relance tient aussi l'action en cours ;
 fini sans qu'aucun tour relise sa réponse, l'action finit en échec et le dit.
 **Une action ne demande jamais rien** : elle part toujours en mode « ne pas
 demander », quel que soit le mode de l'agent, et ne peut faire que ce qui est
-dans sa liste (ci-dessous) ; le reste est refusé. Un refus d'écriture ou de
-commande la fait finir en échec, sa réponse le cite en première ligne ; un refus
-de lecture est cité sans l'arrêter. Vos règles `permissions.allow` (réglages de
+dans sa liste (ci-dessous) ; le reste est refusé. Un refus ne la fait pas
+échouer : sa réponse cite chaque appel refusé en première ligne (« Appels
+refusés : … »), et c'est vous, ou l'orchestrateur, qui jugez en la lisant si le
+travail est complet. Vos règles `permissions.allow` (réglages de
 Claude Code) s'ajoutent à sa liste, `permissions.ask` compte comme un refus,
 `permissions.deny` l'emporte. Ses outils de fichiers lisent dans le projet, les
 sorties de l'agent et le plugin de VibeCoder, écrivent dans le projet et les
 sorties (une action en lecture : les sorties seules), jamais `.claude/`, `.git/`,
 `.husky/`, un `AGENTS.md` ni un `package.json` (une dépendance à ajouter, c'est
-vous). Ce qu'une commande autorisée lance n'est pas borné. Un bouton qui doit
+vous). Ce qu'une commande autorisée lance n'est pas borné. L'appli rappelle à
+chaque action, au lancement, la même consigne d'outils (pas à la conversation) :
+un appel `Bash` par commande, sans `cd`, enchaînement (`;` `&&` `||` `|`),
+redirection ni variable ; lire avec `Read`, `Glob`, `Grep`, écrire avec `Write` ;
+seulement les commandes de sa liste, écrites comme elles. Elle ne change pas les
+droits, elle évite les refus. Un bouton qui doit
 attendre est grisé et dit pourquoi ; un bouton qui n'a pas encore de sens
 n'est pas affiché (pas de *✓ Commiter* sans commit préparé, pas de *Diagnostiquer
 la CI* sans PR…) ; une action arrêtée retient les autres
@@ -553,7 +560,9 @@ tirent leurs arguments. Un exécuteur la lit et lance la commande demandée, ave
 mêmes règles pour tous : y compris les pièces jointes du champ (`pieces`) et le
 brouillon de revue (`draft`, `draft.add`, `draft.edit`, `draft.remove`, sur la PR
 suivie), et la lecture des artefacts (`artifacts`, `artifact`), `add-artifact`
-acceptant un chemin ou un nom avec son contenu en base64.
+acceptant un chemin ou un nom avec son contenu en base64. Une commande d'artefact
+ne répond qu'une fois son travail fini : refusé ou échoué, elle rend l'erreur (et
+son code, ci-dessous), jamais « ok ».
 
 **Le socket.** Au lancement, l'appli ouvre un socket TCP sur `127.0.0.1`, un port
 libre, un objet JSON par ligne : `{ "cmd", "args", "token", "target" }` en entrée
@@ -617,7 +626,8 @@ dans la table) :
 
 - `unknown-command` : aucune commande de ce nom ;
 - `closed` : fermée aux agents, l'utilisateur seul la fait ;
-- `invalid-args` : un argument manque, est inconnu ou mal typé ;
+- `invalid-args` : un argument manque, est inconnu ou mal typé, un nom d'artefact
+  est refusé (`arg: name`), ou une remarque du brouillon est inconnue (`arg: id`) ;
 - `no-survey` : pas encore de relevé pour ce dossier ;
 - `not-offered` : l'action n'existe pas, ou n'est pas proposée à cette étape ;
 - `disabled` : proposée mais grisée, le motif est dans les détails ;
@@ -627,10 +637,13 @@ dans la table) :
 - `worktree` : un worktree reste sur sa branche, le changement de branche est refusé ;
 - `unknown-process` : aucun processus du projet de ce nom ;
 - `no-run` : aucune course de cette action dans l'état voulu ;
-- `refused` : l'appli a refusé, le motif est dans les détails ;
-- `failed` : l'opération a démarré et échoué, le message est dans les détails ;
+- `refused` : l'appli a refusé, le motif est dans les détails (un nom pris, une
+  confirmation qui diffère, une partie des fichiers d'une commande d'artefact…) ;
+- `failed` : l'opération a démarré et échoué (le disque, pour un artefact), le
+  message est dans les détails ;
 - `no-pr` : aucune PR suivie, donc pas de brouillon de revue à changer ;
-- `unknown-artifact` : cet id n'est pas dans le dernier relevé, ou c'est un lien ;
+- `unknown-artifact` : cet id n'est pas dans le dernier relevé, ou c'est un lien
+  (aussi pour un dossier d'arrivée inconnu : rien n'est écrit à la racine) ;
 - `bad-token` : le jeton du socket est absent ou faux (rendu par le socket, jamais par l'exécuteur).
 
 **Artefacts.** Demandez à l'agent un document qui sort du projet — un PDF,
