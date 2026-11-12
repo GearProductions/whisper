@@ -5,7 +5,7 @@ argument-hint: "<lang> <out> [remark…]"
 disable-model-invocation: true
 model: sonnet
 effort: high
-allowed-tools: "Read, Glob, Grep, Write, Edit, Bash(git log *), Bash(git add *), Bash(git commit --fixup *)"
+allowed-tools: "Read, Glob, Grep, Write, Edit, Bash(git add *), Bash(git commit --fixup *)"
 ---
 
 # Apply the review

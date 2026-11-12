@@ -6,7 +6,7 @@ disable-model-invocation: true
 context: fork
 model: haiku
 effort: low
-allowed-tools: "Write, Bash(gh pr view *), Bash(git fetch origin *)"
+allowed-tools: "Write, Bash(gh pr view *)"
 ---
 
 # Load a PR for review — its details and its branch, the working copy untouched

@@ -36,5 +36,5 @@ Run it when the user asks (« où en sont les actions ? »): answer in a few lin
 
 - Outside *Vibe*: start or stop an action only when the user asks for it. *Vibe* on: you chain them yourself (skill `vibe`). *Vibe* stopped (a request refused « Vibe was stopped by the user »): start nothing more.
 - Never start an action already running or waiting. Never edit files an action is modifying.
-- `ponytail` (the ponytail review): requested by `checks` (skill `verifier`) when it starts, not by you; `align` likewise runs inside `invariants`.
+- `ponytail` (the ponytail review): started by the app when `checks` starts (all the checks), not by you; `align` likewise runs inside `invariants`.
 - A stopped action waits for the user's *Keep* or *Undo* on the screen: not yours to decide.

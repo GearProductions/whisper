@@ -1,12 +1,12 @@
 ---
 name: ponytail
-description: "Review the whole branch with ponytail-review, plus note/code alignment, duplication, edge cases, security, dead code and leftovers, one remark per line in <out>/ponytail.md, changing nothing. Started by verifier (Run the checks), alongside the checks."
+description: "Review the whole branch with ponytail-review, plus note/code alignment, duplication, edge cases, security, dead code and leftovers, one remark per line in <out>/ponytail.md, changing nothing. Started by the app (Run the checks), alongside the checks."
 argument-hint: "<lang> <out>"
 disable-model-invocation: true
 context: fork
 model: opus
 effort: high
-allowed-tools: "Read, Glob, Grep, Write, Bash(git diff *), Bash(git log *), Bash(git symbolic-ref *), Bash(git rev-parse *)"
+allowed-tools: "Read, Glob, Grep, Write"
 ---
 
 # Ponytail review of the branch

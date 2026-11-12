@@ -6,7 +6,7 @@ disable-model-invocation: true
 context: fork
 model: haiku
 effort: low
-allowed-tools: "Read, Bash(git commit -F *), Bash(git log *)"
+allowed-tools: "Read, Bash(git commit -F *)"
 ---
 
 # Commit — the message the user just read

@@ -6,7 +6,7 @@ disable-model-invocation: true
 context: fork
 model: sonnet
 effort: medium
-allowed-tools: "Read, Glob, Grep, Write, Bash(gh pr checks *), Bash(gh run list *), Bash(gh run view *), Bash(git branch *), Bash(git log *), Bash(git show *)"
+allowed-tools: "Read, Glob, Grep, Write, Bash(gh pr checks *), Bash(gh run list *), Bash(gh run view *)"
 ---
 
 # CI diagnosis

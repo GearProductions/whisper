@@ -6,7 +6,7 @@ disable-model-invocation: true
 context: fork
 model: opus
 effort: high
-allowed-tools: "Read, Glob, Grep, Write, Bash(git show *), Bash(git diff *), Bash(git log *), Bash(git status *), Bash(git ls-files *), Bash(git ls-tree *), Bash(git grep *), Bash(git rev-parse *), Bash(git symbolic-ref *), Bash(git merge-base *)"
+allowed-tools: "Read, Glob, Grep, Write"
 ---
 
 # Design check — the note, before its validation
@@ -26,7 +26,7 @@ Read: the note (under `docs/tickets/`, named like the branch, or the one the bra
 
 At the end, whatever you found, write `<out>/conception/<name>` with the `Write` tool: the note's full current text, as is.
 
-Tools: read files with `Read`, `Glob` and `Grep`, write with `Write`; one command per `Bash` call — no `;`, `&&`, `|`, redirection or variable — and only the commands of your list. Anything else is refused, and the refusal is cited at the head of your answer.
+Tools: read files with `Read`, `Glob` and `Grep`, write with `Write`; `Bash` only to read git (`git show`, `git diff`, `git log`…), one command per call. A command refused is cited at the head of your answer.
 
 ## Step back first
 

@@ -6,7 +6,7 @@ disable-model-invocation: true
 context: fork
 model: haiku
 effort: low
-allowed-tools: "Read, Glob, Grep, Write, Bash(git branch *)"
+allowed-tools: "Read, Glob, Grep, Write"
 ---
 
 # New request — only a suggested branch name

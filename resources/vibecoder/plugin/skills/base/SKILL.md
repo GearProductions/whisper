@@ -6,7 +6,7 @@ disable-model-invocation: true
 context: fork
 model: haiku
 effort: low
-allowed-tools: "Bash(gh pr view *), Bash(git status *), Bash(git branch *), Bash(git switch *), Bash(git pull *), Bash(git log *), Bash(git rev-parse *)"
+allowed-tools: "Bash(gh pr view *), Bash(git switch *), Bash(git pull *), Bash(git branch -D *)"
 ---
 
 # Back to the base, once the PR is merged

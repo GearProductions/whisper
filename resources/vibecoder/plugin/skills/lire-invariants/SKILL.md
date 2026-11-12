@@ -6,7 +6,7 @@ disable-model-invocation: true
 context: fork
 model: sonnet
 effort: medium
-allowed-tools: "Read, Glob, Grep, Write, Bash(git show *)"
+allowed-tools: "Read, Glob, Grep, Write"
 ---
 
 # Read the invariants in pseudo-code
