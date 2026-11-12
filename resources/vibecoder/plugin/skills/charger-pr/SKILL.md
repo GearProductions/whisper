@@ -6,7 +6,7 @@ disable-model-invocation: true
 context: fork
 model: haiku
 effort: low
-allowed-tools: "Read, Bash(gh pr view *), Bash(git fetch origin *)"
+allowed-tools: "Write, Bash(gh pr view *), Bash(git fetch origin *)"
 ---
 
 # Load a PR for review — its details and its branch, the working copy untouched
@@ -18,9 +18,9 @@ allowed-tools: "Read, Bash(gh pr view *), Bash(git fetch origin *)"
    gh pr view <n> --json isCrossRepository --jq .isCrossRepository
    ```
    `true` → say `Refused: PR #<n> comes from a fork; only PRs whose branch is on origin load.`, stop. It fails → report the error, stop.
-2. The details:
+2. The details, printed, then written as printed (no redirection) to `<out>/pr-<n>.json` with the Write tool:
    ```bash
-   gh pr view <n> --json number,title,url,author,baseRefName,headRefName,body,state --jq '{number, title, url, author: .author.login, base: .baseRefName, head: .headRefName, body, state}' > "<out>/pr-<n>.json"
+   gh pr view <n> --json number,title,url,author,baseRefName,headRefName,body,state --jq '{number, title, url, author: .author.login, base: .baseRefName, head: .headRefName, body, state}'
    ```
    It fails → report the error, stop. `state` is `OPEN`, `CLOSED` or `MERGED`: a closed or merged PR still loads, but the screen offers nothing to review.
 3. Its branch and its base, with `<head>` and `<base>` = the `head` and `base` of the file just written (this updates `origin/<head>` and `origin/<base>`):

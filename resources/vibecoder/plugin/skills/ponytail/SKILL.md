@@ -6,7 +6,7 @@ disable-model-invocation: true
 context: fork
 model: opus
 effort: high
-allowed-tools: "Read, Glob, Grep, Write, Bash(git diff *), Bash(git log *), Bash(git show *), Bash(git status *), Bash(git grep *), Bash(git rev-parse *), Bash(git symbolic-ref *), Bash(git merge-base *)"
+allowed-tools: "Read, Glob, Grep, Write, Bash(git diff *), Bash(git log *), Bash(git symbolic-ref *), Bash(git rev-parse *)"
 ---
 
 # Ponytail review of the branch
@@ -15,11 +15,11 @@ The technical review: the code, what could not be foreseen. The structure and th
 
 `$ARGUMENTS` = `<lang> <out>`. `lang`: the user's language (`fr`, `en`…): `ponytail.md` and your answer in it — the review is read closely, technical subtleties included. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
 
-Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists. The diff: `git diff <base>...HEAD` (the commits: `git log --format='%h %s' <base>..HEAD`). Read the changed files in full, and the code next to them.
+Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists (`git rev-parse --verify -q <ref>`). The diff: `git diff <base>...HEAD` (the commits: `git log --format='%h %s' <base>..HEAD`). Read the changed files in full, and the code next to them.
 
 ## What to look for
 
-1. The `ponytail-review` skill: read its `SKILL.md` (`.claude/skills/ponytail-review/` at the repo root, else `~/.claude/skills/ponytail-review/`) and apply it to the diff, with its tags (`delete`, `stdlib`, `native`, `yagni`, `shrink`). Missing → hunt the same: dead flexibility, abstractions with one user, a hand-rolled standard library, a dependency doing what the platform does.
+1. The `ponytail-review` skill: read its `SKILL.md` (`.claude/skills/ponytail-review/` at the repo root) and apply it to the diff, with its tags (`delete`, `stdlib`, `native`, `yagni`, `shrink`). Missing → hunt the same: dead flexibility, abstractions with one user, a hand-rolled standard library, a dependency doing what the platform does.
 2. Then, beyond over-engineering:
    - `note`: the code does not do what the note says (under `docs/tickets/`, named like the branch) — behaviour, Forme, a « ne doit pas » line not held: a defect of the code, not a reason to rewrite the note;
    - `duplicate`: logic that already exists elsewhere in the repo (name it);

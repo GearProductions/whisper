@@ -6,6 +6,7 @@ disable-model-invocation: true
 context: fork
 model: opus
 effort: high
+allowed-tools: "Read, Glob, Grep, Write, Edit, Bash(git branch *), Bash(git diff *), Bash(git symbolic-ref *), Bash(git rev-parse *), Bash(git ls-files *)"
 ---
 
 # Invariants — red, from the note (guide §3)
@@ -14,7 +15,7 @@ effort: high
 
 ## Read first
 
-- The note: under `docs/tickets/`, the file named like the branch (`<type>/<name>` → `docs/tickets/<type>/<name>.md`), else the one the branch adds or changes. Its « Ce que ça ne doit pas faire » lines marked `→ invariant` are the tests to write (one already covered by an existing test → skip it, say so). Its « Forme »: the names and signatures to call, already posed as skeletons in the code by *Poser la forme*.
+- The note: under `docs/tickets/`, the file named like the branch (`git branch --show-current`; `<type>/<name>` → `docs/tickets/<type>/<name>.md`), else the one the branch adds or changes (`git diff --name-only <base>...HEAD -- docs/tickets`, base: `git symbolic-ref --short refs/remotes/origin/HEAD`, else `origin/main`, `origin/master`, `main` or `master`, the first that exists, `git rev-parse --verify -q <ref>`). Its « Ce que ça ne doit pas faire » lines marked `→ invariant` are the tests to write (one already covered by an existing test → skip it, say so). Its « Forme »: the names and signatures to call, already posed as skeletons in the code by *Poser la forme*.
 - `AGENTS.md`, if present: where invariants live, how they are written (e.g. an « Écrire un invariant » section), the language of code and comments, the test commands, the protected folders.
 - The guide (`docs/dev_guide/*.html`) §3.1 to §3.6, if present.
 - Two or three existing invariant tests: their style, harness and helpers — reuse them.
@@ -29,13 +30,13 @@ effort: high
 - Titles are sentences (an `it` title; a Rust fn name such as `a_token_is_never_logged`). Setup, action and checks separated by a blank line; explicit names; one assertion per fact.
 - Where: the module's `tests/invariants/` folder, or what `AGENTS.md` says; cross-module ones in the root `tests/invariants/`. File header: what it guards (the note line, the project's invariant id such as `I-12`), and that it is protected: if it fails, fix the code.
 - Call the signatures of the skeletons that *Poser la forme* posed. A skeleton missing: pose it as the Forme says — path, file header, signature, a body that fails (`throw new Error('not implemented')`, `todo!()`, `raise NotImplementedError`). No implementation. In a compiled language, never leave the test suite uncompilable.
-- Apply the `ponytail` skill (`.claude/skills/ponytail/SKILL.md`, else `~/.claude/skills/ponytail/SKILL.md`) to helpers and harness — reuse, no new dependency — never to the cases.
+- Apply the `ponytail` skill (`.claude/skills/ponytail/SKILL.md` of the project, if present) to helpers and harness — reuse, no new dependency — never to the cases.
 - Existing invariant files are protected: change one only if the note changes that invariant, and say so.
 - Nothing in the background: this run ends when you answer, and a command still running is lost. Never set `run_in_background`, never end the `Bash` command with `&`, never answer « still running ». A long command (the mutants, a full test run) runs in the foreground, in batches that each fit under Bash's maximum timeout (600000 ms): split by file or by mutant, run the batches one after the other. What did not run (batches left, mutants not tried) is named in the answer, never implied.
 
 ## Then
 
-Run the project's invariant command (else its test command on your files). Every new test must fail — on its assertion or on its call to the missing code, never on a mistake of its own (syntax, import path, helper). A test that already passes → check it really observes the property, and say so. Commit nothing.
+Run the project's invariant command (else its test command on your files), exactly as `AGENTS.md` writes it: no `| tail`, no `2>&1`, no `&&`, no composition or redirection (a command outside the allowed ones is denied and fails the run). Read files with Read, Glob and Grep, never `ls`, `cat` or `find`. Every new test must fail — on its assertion or on its call to the missing code, never on a mistake of its own (syntax, import path, helper). A test that already passes → check it really observes the property, and say so. Commit nothing.
 
 ## Then, the alignment — in this same run
 
