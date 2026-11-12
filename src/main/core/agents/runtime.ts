@@ -26,6 +26,10 @@
  *  jamais de tour : l'agent qui a fini le sien reste au repos, joignable.
  *  Les demandes d'autorisation en échec sont comptées d'après les tool_result en
  *  erreur dont le texte commence par « Tool permission request failed ».
+ *  Une course (hooks.rights) : son processus part dans le mode qui ne demande
+ *  jamais, et le garde (setPermissionMode ne lui donne jamais celui de l'agent) ;
+ *  il ne pose aucune demande (canUseTool reste passé : le SDK ne l'appelle pas en
+ *  dontAsk, mesuré). La réponse d'un tour garde l'heure de sa fin (Reply.at).
  *  Ne connaît pas : Electron, les fenêtres ; SDK, lancement et journal injectés.
  *  Utilisé par : app/controllers (agents, conversation), app/lifecycle. */
 import { randomUUID } from 'node:crypto';
@@ -38,7 +42,8 @@ import { applyTaskEvent, EMPTY_LOG, resultText, runningTasks, type TaskLog } fro
 import type { AgentConfig, JournalFn, Launch, OutgoingMessage, Sdk, SdkMessage, SdkQuery, TurnHooks } from './types';
 
 export type AgentStatus = 'idle' | 'working' | 'asking' | 'error';
-export type Reply = { text: string; audio: string; error?: boolean; asked: string };
+// `at` : la fin du tour qui l'a donnée (ms), pour les sous-agents finis après (unreadAgents).
+export type Reply = { text: string; audio: string; error?: boolean; asked: string; at?: number };
 type Response = Record<string, unknown>;
 type Pending = { key: number; tool: string; input: unknown; rules: SessionRule[]; resolve: (r: Response) => void; at: number };
 // Le processus de l'agent : `input` son entrée, `key` sa launchKey, `ended` sa

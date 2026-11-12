@@ -20,11 +20,16 @@
  *  sans module — la note, un test — n'importe quelle course qui retient).
  *  Les commandes d'arrière-plan coupées par la fin d'une course (cutCommands : les
  *  local_bash `stopped` de ses tâches) et la ligne qui le dit en tête de sa réponse
- *  (cutLine).
+ *  (cutLine) ; de même ses refus (denialLine : ce qu'elle n'a pas pu faire, qui la
+ *  fait échouer, et les lectures refusées, citées sans la faire échouer ;
+ *  failingDenials) et ses sous-agents finis sans qu'aucun tour ne relise leur
+ *  réponse (unreadLine). Les courses à l'écran ne portent plus de demande
+ *  d'autorisation : une course ne demande rien (runViews sans pending).
  *  Ne connaît pas : Electron, le disque, le runtime des agents (tout est passé).
  *  Utilisé par : core/vibecoder (journey), core/commands (REQUEST_ARGS : le schéma de
  *  run.start), app/controllers (runs : lockCode, endNotice ; vibecoder : lockCode ; module-code). */
 import type { VibeArgs, VibeLang, VibeModule, VibeRun, VibeRunProgress } from 'shared/bridge';
+import type { Denial } from 'core/agents';
 import { targetModule, type ActionDef } from './actions';
 
 export type RunState = VibeRun['state'];
@@ -150,6 +155,27 @@ export const cutCommands = (tasks: { type: string; status: string }[]) =>
 
 // La ligne en tête de la réponse d'une course coupée (n : cutCommands, au moins 1).
 export const cutLine = (n: number, lang: VibeLang) => TEXT[lang].cut(n);
+
+// Les refus qui font échouer une course : ceux qui ne sont pas une lecture.
+export function failingDenials(denials: Denial[]): Denial[] {
+  void denials;
+  throw new Error('not implemented');
+}
+
+// La ligne en tête de la réponse d'une course qui a essuyé des refus (au moins 1) : ce qu'elle
+// n'a pas pu faire (outil et cible de chaque refus qui la fait échouer), puis les lectures
+// refusées, citées ; seulement des lectures : la ligne les cite, la course n'échoue pas.
+export function denialLine(denials: Denial[], lang: VibeLang): string {
+  void [denials, lang];
+  throw new Error('not implemented');
+}
+
+// La ligne en tête de la réponse d'une course dont n sous-agents (au moins 1) ont fini sans
+// qu'aucun tour relise leur réponse (unreadAgents) : le travail n'a pas été relu.
+export function unreadLine(n: number, lang: VibeLang): string {
+  void [n, lang];
+  throw new Error('not implemented');
+}
 
 const REPLY_MAX = 300;
 

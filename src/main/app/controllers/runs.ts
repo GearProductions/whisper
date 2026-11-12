@@ -3,16 +3,26 @@
  *  Lancer (startRun : si aucune course vivante ni action directe en cours ne
  *  la retient, blockedBy ; retenue, elle rend aussi sa clé, reason (lockCode : same, busy, changing) et by (qui retient) ; elle retient le module qu'elle génère, Run.module,
  *  pour codeLock ; le robot suit dès le départ ; un processus neuf, suivi des fichiers écrits ;
+ *  ses droits (runRights) : le mode qui ne demande jamais, quel que soit celui de l'agent, la liste de son skill
+ *  et des commandes du projet (core/vibecoder rights : le skill de son gabarit, `note` pour answers ; AGENTS.md ;
+ *  le préfixe des actions), le contrôle de ses fichiers (core/vibecoder bounds : le projet, ses sorties, le plugin ;
+ *  une action en lecture n'écrit que dans ses sorties) ; seulement les sorties de l'agent en dossier de travail,
+ *  pas le dossier des artefacts du projet (que la conversation garde) ;
  *  le message part avec ses images ({ text, images }) ;
  *  modèle et effort du skill que son texte appelle, sinon ceux de l'agent ; answers reprend la session de la course de la note),
  *  suivre (son état d'après runPhase : en cours tant que son processus travaille ou que le runtime lui voit des
  *  tâches de fond — hors repos, le plus haut des comptes, runTasks —, aucune limite de temps ; son avancement,
  *  Run.progress d'après les tâches du runtime et le total de modules restants au départ (action modules), gardé
  *  après sa fin, jamais lu pour son état ; ses tâches de fond tombées à 0 hors tour, GRACE_MS laissés au tour
- *  qu'elles réveillent ; sa fin, revenue au repos après avoir travaillé, ou son échec avant
- *  même son tour : fermée, et un avis à la conversation de l'agent, gardé tant qu'elle travaille, I-25), agir sur une course (runOp : l'arrêter — son
+ *  qu'elles réveillent ; un sous-agent relancé par SendMessage la tient en cours (core/agents tasks, T-32) ; sa fin, revenue
+ *  au repos après avoir travaillé, ou son échec avant même son tour : fermée, en échec si elle a essuyé un refus qui n'est
+ *  pas une lecture, d'elle ou d'un sous-agent, pendant ou hors tour (failingDenials), ou si un sous-agent a fini sans
+ *  qu'aucun tour relise sa réponse (unreadAgents) — une ligne en tête de sa réponse le dit (denialLine, unreadLine ;
+ *  des lectures refusées seules : citées, sans échec) —, et un avis à la conversation de l'agent, gardé tant qu'elle
+ *  travaille, I-25), agir sur une course (runOp : l'arrêter — son
  *  processus et son verrou restent —, la garder ou l'annuler — rewind, puis
- *  fermée —, répondre à sa demande d'autorisation). Plus de boîte aux lettres (0.15.0) : ni <sorties>/actions/ lu, ni
+ *  fermée —, répondre à sa demande d'autorisation : la porte de l'écran de la CLI seulement, run.allow ; une course
+ *  n'en pose plus, l'onglet Actions n'en montre aucune, runPending retiré). Plus de boîte aux lettres (0.15.0) : ni <sorties>/actions/ lu, ni
  *  <sorties>/actions.json écrit, ni avis de demande refusée ; l'orchestrateur passe par la CLI (controllers/commands).
  *  Le signal des courses sur le robot (F-55, runSignal) : chacune retient l'état où on l'a vue (noticed) ; runsTab :
  *  l'agent dont l'onglet Actions est ouvert, ses courses vues d'office (une question reste jusqu'à sa
@@ -42,7 +52,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { RunSignal, SendResult, VibeArgs, VibeRunOp, VibeView } from 'shared/bridge';
-import { EMPTY_LOG, runProgress, shortTarget, type AgentConfig } from 'core/agents';
+import { EMPTY_LOG, runProgress, shortTarget, type AgentConfig, type RunRights } from 'core/agents';
 import { agentList, vibeLang, type Config } from 'core/config';
 import type { PreparedImage } from 'core/conversation';
 import {
@@ -183,6 +193,14 @@ export async function retryWaits(agent: AgentConfig) {
   if (!waits.get(agent.id)?.length) return;
   const view = await surveyAgent(agent);
   if (view) releaseWaits(agent, view);
+}
+
+// Les droits de la course de l'action `def` lancée avec le gabarit `template` (rights : listSkill, runRules — le
+// SKILL.md de ce skill, son dossier, l'AGENTS.md du dossier de l'agent, promptPrefix ; bounds : fileDecision sur les
+// chemins réels du dossier de l'agent, de ses sorties et du plugin, def.reads).
+export function runRights(agent: AgentConfig, def: ActionDef, template: string, cfg: Config): RunRights {
+  void [agent, def, template, cfg];
+  throw new Error('not implemented');
 }
 
 // Lance l'action `def` (son message déjà rempli : le texte, et les images qui partent avec lui) dans sa course,

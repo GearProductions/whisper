@@ -2,9 +2,9 @@
  *  action d'étape qui court à part de la conversation), la plus récente
  *  d'abord, telles que le relevé les donne : son libellé, qui travaille, son
  *  état (un point), son avancement (vague, modules…) sous le nom quand le flux
- *  le donne (rien sinon, jamais une condition de l'état), depuis quand ; Arrêter (icône stop) tant qu'elle travaille ; sa demande
- *  d'autorisation (outil, cible) avec Autoriser / Toujours / Refuser ;
- *  arrêtée : Garder / Annuler ; sa réponse (Markdown), repliée, dépliable.
+ *  le donne (rien sinon, jamais une condition de l'état), depuis quand ; Arrêter (icône stop) tant qu'elle travaille ;
+ *  arrêtée : Garder / Annuler ; sa réponse (Markdown), repliée, dépliable (en échec, la ligne
+ *  qui dit pourquoi en tête). Aucune demande d'autorisation : une course ne demande rien.
  *  Une course se désigne par l'id de son action, jamais par un texte.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
 import { duration, isRunning, type Strings } from 'core/vibecoder';

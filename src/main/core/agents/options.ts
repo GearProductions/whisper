@@ -5,16 +5,30 @@
  *  travail : le plugin de VibeCoder, les sorties de l'agent ; le suivi des
  *  fichiers écrits, pour une action qui court à part : checkpoint ; l'environnement
  *  du processus : env, donné par l'appelant, absent : le processus hérite du
- *  sien). launchKey retient la présence d'un env, jamais ses valeurs (secrets).
- *  Pur. Ne connaît pas : process.env (l'appelant le fournit).
+ *  sien ; les droits d'une course : rights, rendus au SDK par rightsOptions —
+ *  le mode qui ne demande jamais, dontAsk, quel que soit celui de l'agent, sa
+ *  liste en allowedTools, son contrôle en crochet PreToolUse qui refuse avec sa
+ *  raison). launchKey retient la présence d'un env, jamais ses valeurs (secrets),
+ *  et la liste d'une course.
+ *  Pur. Ne connaît pas : process.env (l'appelant le fournit), ce que contient la
+ *  liste ni ce que juge le contrôle (core/vibecoder).
  *  Utilisé par : core/agents. */
 import { MODES } from './constants';
-import type { AgentConfig, Launch, OutgoingMessage, SdkMessage, TurnHooks } from './types';
+import type { AgentConfig, Launch, OutgoingMessage, RunRights, SdkMessage, TurnHooks } from './types';
 
 // Ce que l'appli ajoute à Claude Code : des plugins locaux, des dossiers de
 // travail, le suivi des fichiers écrits (checkpoint : rewindFiles possible),
-// l'environnement du processus (env).
-type Extras = Pick<TurnHooks, 'plugins' | 'dirs' | 'checkpoint' | 'env'>;
+// l'environnement du processus (env), les droits d'une course (rights).
+type Extras = Pick<TurnHooks, 'plugins' | 'dirs' | 'checkpoint' | 'env' | 'rights'>;
+
+// Les options du SDK pour les droits d'une course : permissionMode 'dontAsk', allowedTools
+// (rights.allow), hooks.PreToolUse : un crochet sans filtre qui rend, pour un refus de
+// rights.check, { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision:
+// 'deny', permissionDecisionReason } }, et {} sinon (le mode et la liste jugent ensuite).
+export function rightsOptions(rights: RunRights): { permissionMode: 'dontAsk'; allowedTools: string[]; hooks: SdkMessage } {
+  void rights;
+  throw new Error('not implemented');
+}
 
 // Un message pour le SDK : les images ([{ mediaType, data (base64) }]) avant le
 // texte. Sans image, le texte seul : c'est sous cette forme que Claude Code

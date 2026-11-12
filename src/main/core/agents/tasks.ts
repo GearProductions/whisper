@@ -6,11 +6,17 @@
  *  `tool_result` (« Output is being written to: … », le fichier de sortie
  *  d'une commande en cours). Compte aussi les appels du fil principal (vagues
  *  d'`Agent`, corrections `SendMessage`, relance Opus) : `calls`, résumé par
- *  `runProgress`. Tout vient du processus : jamais d'une page (I-34).
- *  Pur. Ne connaît pas : Electron, la Forme, le total.
+ *  `runProgress`. Un `task_started` d'une tâche déjà connue (un sous-agent fini
+ *  que `SendMessage` relance : même task_id, mesuré le 12 novembre) la remet en
+ *  cours (T-32). Les refus de ses outils, de l'agent comme de ses sous-agents,
+ *  pendant un tour ou hors tour (denials, classés par core/agents/denials) ; les
+ *  sous-agents finis après la fin d'un tour, que rien n'a relus (unreadAgents).
+ *  Tout vient du processus : jamais d'une page (I-34).
+ *  Pur. Ne connaît pas : Electron, la Forme, le total, le mode.
  *  Utilisé par : core/agents (runtime), core/conversation (tasks-view),
  *  controllers/runs. */
 import type { TaskStatus } from 'shared/bridge';
+import type { Denial } from './denials';
 import type { SdkMessage } from './types';
 
 export type Task = {
@@ -33,10 +39,11 @@ export type ToolUse = { name: string; input: unknown; outputFile: string | null 
 // comptent pas) ; `waves` : les identifiants de message des `Agent` (un message
 // par bloc, même id : les appels d'une vague partagent le leur).
 export type Calls = { waves: string[]; fixes: number; opus: boolean };
-export type TaskLog = { tasks: Task[]; tools: Record<string, ToolUse>; calls: Calls };
+// `denials` : les refus de ses outils, dans l'ordre, un par tool_use (core/agents/denials).
+export type TaskLog = { tasks: Task[]; tools: Record<string, ToolUse>; calls: Calls; denials: Denial[] };
 
 export const TOOLS_KEPT = 50;
-export const EMPTY_LOG: TaskLog = { tasks: [], tools: {}, calls: { waves: [], fixes: 0, opus: false } };
+export const EMPTY_LOG: TaskLog = { tasks: [], tools: {}, calls: { waves: [], fixes: 0, opus: false }, denials: [] };
 
 const STATUS: Record<string, TaskStatus> = { completed: 'completed', failed: 'failed', killed: 'stopped', stopped: 'stopped' };
 const OUTPUT = /Output is being written to: (\S+?)\.?(?:\s|$)/; // sans le point qui finit la phrase
@@ -129,6 +136,13 @@ export function applyTaskEvent(log: TaskLog, m: SdkMessage, now: number): TaskLo
     default:
       return log;
   }
+}
+
+// Les sous-agents (local_agent) finis après `turnEnd` (la fin du dernier tour, ms) : leur
+// réponse, qu'aucun tour n'a relue ; turnEnd null (aucun tour fini) : 0.
+export function unreadAgents(log: TaskLog, turnEnd: number | null): number {
+  void [log, turnEnd];
+  throw new Error('not implemented');
 }
 
 // Les tâches en cours.
