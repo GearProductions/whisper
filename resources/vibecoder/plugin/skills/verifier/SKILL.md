@@ -6,7 +6,7 @@ disable-model-invocation: true
 context: fork
 model: haiku
 effort: low
-allowed-tools: "Read, Glob, Grep, Write, Bash"
+allowed-tools: Read, Glob, Grep, Write, Bash(node "${CLAUDE_SKILL_DIR}/../../bin/vibecoder.mjs" run start ponytail), Bash(date +%s%3N)
 ---
 
 # Checks — the project's own commands
@@ -19,7 +19,7 @@ Only when `check` is `*` (one check run again: no ponytail review). Before any c
 
 ## Which commands
 
-From `AGENTS.md` (its commands section) first, else the project's manifests: `package.json` scripts, `Cargo.toml` (`cargo check`, `cargo test`, `cargo clippy` if the project uses it), `pyproject.toml` (pytest, ruff, mypy if configured), a `Makefile`. Only these kinds, each one if the project has it:
+From `AGENTS.md` (its commands section), read with `Read`, and nowhere else: no fallback on manifests (`package.json`, `Cargo.toml`…), the app only allows the commands written there. Only these kinds, each one if `AGENTS.md` has it:
 - `typecheck` — the type check (`npm run typecheck`, `tsc`, `cargo check`, `mypy`…);
 - `tests` — the whole test suite;
 - `invariants` — the invariant tests alone, when the project has a command for them;
@@ -29,7 +29,7 @@ A project in several parts (e.g. front and back) → one item per part and kind,
 
 ## Running them
 
-Run every command yourself, now, with Bash: `<prefix> <command>`, the prefix exactly as given, adding none of your own. Empty prefix → the command as is; never add `distrobox`, `toolbox`, `podman` or `mise exec` because `AGENTS.md` or `CLAUDE.md` mentions a box: the app already knows where commands run. A command that could not start (refused, not found, no permission) → its item at `error`, with why in `detail`; never ask for a permission, never retry it another way. Never: install dependencies, build packages, start the app or a server, run end-to-end tests or comparison benches; never close, kill or restart the user's running app. At most 10 minutes per command.
+Run every command yourself, now, with Bash: `<prefix> <command>`, written as in `AGENTS.md`, the prefix exactly as given, adding none of your own. One command per call, bare: never composed or redirected (no `&&`, `;`, `|`, `2>&1`, `> file`, `tee`), never `cd`; its output is in the tool result, read it there. Read and search with `Read`, `Glob` and `Grep`, never `ls`, `cat` or `find`: any other command is denied and fails the run. Empty prefix → the command as is; never add `distrobox`, `toolbox`, `podman` or `mise exec` because `AGENTS.md` or `CLAUDE.md` mentions a box: the app already knows where commands run. A command that could not start (refused, not found, no permission) → its item at `error`, with why in `detail`; never ask for a permission, never retry it another way. Never: install dependencies, build packages, start the app or a server, run end-to-end tests or comparison benches; never close, kill or restart the user's running app. At most 10 minutes per command.
 
 ## `<out>/checks.json`
 
@@ -46,6 +46,6 @@ Run every command yourself, now, with Bash: `<prefix> <command>`, the prefix exa
 - `ok`: `false` for `error`, `true` for `ok` and `warning` (kept for older readers).
 - `detail`: one short line in English, starting with a tag — `[toi]` when only a change of the note's contract would make the check pass (an invariant failing because the code must do what the note forbids, or the note makes a test impossible), else `[agent]` (every `ok` and `warning`, and any other failure) — ok: the counts (« [agent] 212 tests passed »); warning: how many and the first one, with `file:line` (« [agent] 3 warnings — src/a.ts:12 no-unused-vars »); error: the first failing test or error, with `file:line` and its message.
 - `time`: when the checks finished, in milliseconds since the epoch: run `date +%s%3N` (no prefix) after the last command and use its output; never a guessed or old value.
-- No command found → `{"items":[],"time":…}`, and say so.
+- No command found in `AGENTS.md` → `{"items":[],"time":…}`, and say so.
 
 Valid JSON only. Change nothing else. Answer in English, one line: all green, the warnings, or the failures.
