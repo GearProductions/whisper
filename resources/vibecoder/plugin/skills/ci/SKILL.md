@@ -6,15 +6,15 @@ disable-model-invocation: true
 context: fork
 model: sonnet
 effort: medium
-allowed-tools: "Read, Glob, Grep, Write, Bash(gh pr checks *), Bash(gh pr view *), Bash(gh run list *), Bash(gh run view *), Bash(git branch *), Bash(git log *), Bash(git show *), Bash(git rev-parse *)"
+allowed-tools: "Read, Glob, Grep, Write, Bash(gh pr checks *), Bash(gh run list *), Bash(gh run view *), Bash(git branch *), Bash(git log *), Bash(git show *)"
 ---
 
 # CI diagnosis
 
 `$ARGUMENTS` = `<lang> <out>`. `lang`: the user's language, not used here — code-related work: `ci.md` and your answer in English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
 
-1. The branch's checks: `gh pr checks` (its PR), else `gh run list --branch <branch> --limit 5`. Still running → say what is pending.
-2. Each failed run: `gh run view <id> --log-failed` (the error is near the end), then the files it points to, and the workflow file (`.github/workflows/`) for what the failing step runs.
+1. The branch (`git branch --show-current`) and its checks: `gh pr checks` (its PR), else `gh run list --branch <branch> --limit 5`. Still running → say what is pending.
+2. Each failed run: `gh run view <id> --log-failed` (the error is near the end), then the files it points to, and the workflow file (`.github/workflows/`, read with Read, Glob, Grep) for what the failing step runs.
 3. Each failure: the probable cause — the code, a test, or the CI environment (OS, versions, network, a flaky test)? — tied to the branch commit that brought it if there is one (`git log`, `git show`). The proposed fix: which file, what change, and as which commit (a fixup of that commit before the PR is open, a new commit after).
 
 ## `<out>/ci.md`, in English

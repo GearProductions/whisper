@@ -2,9 +2,9 @@
  *  action d'étape qui court à part de la conversation), la plus récente
  *  d'abord, telles que le relevé les donne : son libellé, qui travaille, son
  *  état (un point), son avancement (vague, modules…) sous le nom quand le flux
- *  le donne (rien sinon, jamais une condition de l'état), depuis quand ; Arrêter (icône stop) tant qu'elle travaille ; sa demande
- *  d'autorisation (outil, cible) avec Autoriser / Toujours / Refuser ;
- *  arrêtée : Garder / Annuler ; sa réponse (Markdown), repliée, dépliable.
+ *  le donne (rien sinon, jamais une condition de l'état), depuis quand ; Arrêter (icône stop) tant qu'elle travaille ;
+ *  arrêtée : Garder / Annuler ; sa réponse (Markdown), repliée, dépliable (en échec, la ligne
+ *  qui dit pourquoi en tête). Aucune demande d'autorisation : une course ne demande rien.
  *  Une course se désigne par l'id de son action, jamais par un texte.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
 import { duration, isRunning, type Strings } from 'core/vibecoder';
@@ -28,7 +28,7 @@ function Row({ r, t, onOp, onOpenLink }: { r: VibeRun; t: Strings; onOp(op: Vibe
   const working = isRunning(r);
   const when = working ? t.runFor(duration(Date.now() - r.since)) : t.ago(Date.now() - (r.end ?? r.since));
   const progress = r.progress ? t.runProgress(r.progress) : '';
-  const button = (op: VibeRunOp, label: string, title: string, tone: 'accent' | 'plain' | 'ghost' = 'plain') => (
+  const button = (op: VibeRunOp, label: string, title: string, tone: 'accent' | 'plain' = 'plain') => (
     <button type="button" className="vc-run" data-tone={tone} title={title} onClick={() => onOp(op)}>{label}</button>
   );
   return (
@@ -43,14 +43,6 @@ function Row({ r, t, onOp, onOpenLink }: { r: VibeRun; t: Strings; onOp(op: Vibe
         <span className="vc-card-time" title={new Date(r.since).toLocaleString(t.locale)}>{when}</span>
         {working ? <button type="button" className="vc-icon" title={t.runStopTitle} aria-label={t.runStopTitle} onClick={() => onOp('stop')}><Icon name="stop" /></button> : null}
       </div>
-      {r.permission ? (
-        <div className="vc-run-bar" role="alert">
-          <span className="vc-run-ask">{t.runAsks} <b>{r.permission.tool}</b> <code className="vc-mono" title={r.permission.target}>{r.permission.target}</code></span>
-          {button('allow', t.allow, t.allowTitle, 'accent')}
-          {button('always', t.always, t.alwaysTitle)}
-          {button('deny', t.deny, t.denyTitle, 'ghost')}
-        </div>
-      ) : null}
       {r.state === 'stopped' ? (
         <div className="vc-run-bar">
           {button('keep', t.keep, t.keepTitle, 'accent')}

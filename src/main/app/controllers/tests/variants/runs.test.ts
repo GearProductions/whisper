@@ -236,6 +236,49 @@ describe('la fin d’une course', () => {
   });
 });
 
+// commit.md : effacé par l'appli à la fin d'une course Commit dont le commit est passé (HEAD a bougé), plus par une règle du skill.
+describe('Commit : commit.md effacé par l’appli', () => {
+  async function commitRun() {
+    const { startRun } = await open();
+    const { loadConfig, vibeActions } = await import('app/settings');
+    const { agentList, vibeLang } = await import('core/config');
+    const cfg = loadConfig();
+    const agent = agentList(cfg)[0];
+    write(path.join(out, 'commit.md'), 'feat: x\n');
+    startRun(agent, vibeActions(vibeLang(cfg)).find((d) => d.id === 'commit')!, { text: '/vibecoder:commit fr out', images: [] }, cfg);
+    await settle();
+    return agent.dir;
+  }
+
+  it('le commit est passé : commit.md effacé à la fin de la course', async () => {
+    const dir = await commitRun();
+    write(path.join(dir, 'x.txt'), 'x');
+    git(dir, 'add', '.');
+    git(dir, 'commit', '-q', '-m', 'feat: x');
+    turn('/vibecoder:commit')!.finish('abc feat: x');
+    await settle();
+    expect(fs.existsSync(path.join(out, 'commit.md'))).toBe(false);
+  });
+
+  it('rien commité (un hook a refusé) : commit.md reste', async () => {
+    await commitRun();
+    turn('/vibecoder:commit')!.finish('hook refusé');
+    await settle();
+    expect(fs.readFileSync(path.join(out, 'commit.md'), 'utf8')).toBe('feat: x\n');
+  });
+
+  it('une autre course qui finit : commit.md reste, même si HEAD a bougé', async () => {
+    const { runVibeAction } = await open();
+    write(path.join(out, 'commit.md'), 'feat: x\n');
+    runVibeAction('forme', {});
+    await settle();
+    git(path.join(fake.userData, 'projet'), 'commit', '-q', '--allow-empty', '-m', 'autre');
+    turn('/vibecoder:forme')!.finish('ok');
+    await settle();
+    expect(fs.existsSync(path.join(out, 'commit.md'))).toBe(true);
+  });
+});
+
 // Une course refusée par une autre rend la clé de son refus (note 0.15.0) : reason (lockCode) et by, à côté de son texte.
 describe('startRun retenue : reason et by', () => {
   const refused = async (first: string, second: string) => {
@@ -365,7 +408,7 @@ describe('une course n’est finie que quand son travail l’est', () => {
     runVibeAction('forme', {});
     await settle();
     const forme = turn('/vibecoder:forme')!;
-    forme.emit(taskStarted);
+    forme.emit({ ...taskStarted, task_type: 'local_bash' });   // une commande de fond : un sous-agent fini sans tour qui le relise ferait échouer la course (unreadAgents)
     forme.finish('Wave 1 is running');
     await settle();
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
@@ -423,7 +466,7 @@ describe('une course n’est finie que quand son travail l’est', () => {
     expect(turn('VibeCoder')?.text).toMatch(/terminée — La CI a échoué\./);
   });
 
-  it('une demande d’autorisation, tâches de fond ou non : elle demande', async () => {
+  it('une course ne demande rien, tâches de fond ou non : mode dontAsk, en cours, aucune demande dans le relevé', async () => {
     const { runVibeAction } = await open();
     runVibeAction('forme', {});
     await settle();
@@ -431,11 +474,8 @@ describe('une course n’est finie que quand son travail l’est', () => {
     forme.emit(taskStarted);
     await settle();
 
-    const canUseTool = forme.options.canUseTool as (tool: string, input: unknown, o: object) => Promise<unknown>;
-    void canUseTool('Bash', { command: 'ls' }, {});
-    await settle();
-
-    expect((await runsNow())).toMatchObject([{ id: 'forme', state: 'asking' }]);
+    expect(forme.options.permissionMode).toBe('dontAsk');
+    expect(await runsNow()).toMatchObject([{ id: 'forme', state: 'running' }]);
   });
 });
 
@@ -463,7 +503,8 @@ describe('l’avancement d’une course (note 0.13.0)', () => {
     vi.useRealTimers();
     await settle();
 
-    expect(runsOf(agent)).toMatchObject([{ id: 'modules', state: 'done', total: 0, progress: { wave: 1, done: 1, total: 0, fixes: 0, opus: true } }]);
+    // en échec : son sous-agent a fini sans qu'aucun tour relise sa réponse (unreadAgents)
+    expect(runsOf(agent)).toMatchObject([{ id: 'modules', state: 'failed', total: 0, progress: { wave: 1, done: 1, total: 0, fixes: 0, opus: true } }]);
 
     expect(startRun(agent, defs.find((d) => d.id === 'forme')!, { text: '/vibecoder:forme', images: [] }, cfg)).toEqual({ ok: true });
     expect(runsOf(agent).find((r) => r.id === 'forme')?.progress).toBeUndefined();
@@ -849,6 +890,34 @@ describe('le mode Vibe', () => {
     expect(turn('/vibecoder:invariants')).toBeDefined();
   });
 
+  // La demande d'autorisation de la conversation, comme Claude Code la pose (canUseTool) : accordée sans qu'on réponde ?
+  async function cliAsk(command: string) {
+    const { runVibeAction } = await import('app/controllers');
+    runVibeAction('new-request', { text: 'une question' });
+    await settle();
+    let granted = false;
+    void (request('une question')!.options.canUseTool as (t: string, i: unknown, o: object) => Promise<unknown>)('Bash', { command }, {}).then(() => { granted = true; });
+    await settle();
+    return granted;
+  }
+  const cli = () => `node "${path.join(fake.userData, 'vibecoder', 'plugin')}/skills/vibe/../../bin/vibecoder.mjs" run list`;
+
+  it('en cours : la conversation accepte d’elle-même la CLI de VibeCoder, pas une autre commande', async () => {
+    const { vibeStart } = await open();
+    vibeStart({ id: 'a1' });
+    expect(await cliAsk(cli())).toBe(true);
+    expect(await cliAsk(`${cli()} ; rm -rf x`)).toBe(false);
+    expect(await cliAsk('rm -rf build')).toBe(false);
+  });
+
+  it('arrêté ou jamais lancé : la CLI est demandée comme toute commande', async () => {
+    const { vibeStart, vibeStop } = await open();
+    expect(await cliAsk(cli())).toBe(false);
+    vibeStart({ id: 'a1' });
+    vibeStop({ id: 'a1' });
+    expect(await cliAsk(cli())).toBe(false);
+  });
+
   it('en cours : une question ouverte le garde, fini seul quand la conversation finit son tour sans rien d’ouvert', async () => {
     const { refreshVibe, runVibeAction, vibeOn, vibeStart } = await open();
     runVibeAction('new-request', { text: 'une question' });
@@ -909,5 +978,131 @@ describe('le mode Vibe', () => {
     vibeStart({ id: 'a1' });
     closeRuns({ id: 'a1' });
     expect(vibeOn('a1')).toBe(false);
+  });
+});
+
+// Les droits d'une course (note 0.15.0, docs/tickets/feat/0.15.0-courses-droits.md) : ce que l'appli donne au processus
+// (mode, liste, dossiers, contrôle des fichiers) et comment la course finit quand l'agent essuie des refus.
+describe('les droits d’une course', () => {
+  const project = () => path.join(fake.userData, 'projet');
+  const skillsDir = async () => path.join((await import('app/settings')).vibePluginDir(), 'skills');
+  // L'agent dans ce mode, le préfixe des actions posé : avant l'ouverture de l'appli.
+  const configure = (mode: string) => {
+    const file = path.join(fake.userData, 'config.json');
+    const cfg = JSON.parse(fs.readFileSync(file, 'utf8'));
+    cfg.agents[0].mode = mode;
+    write(file, JSON.stringify({ ...cfg, vibeCommandPrefix: 'distrobox enter dev --' }));
+  };
+  const skill = async (id: string, tools: string | null) =>
+    write(path.join(await skillsDir(), id, 'SKILL.md'), `---\nname: ${id}\n${tools === null ? '' : `allowed-tools: "${tools}"\n`}---\n`);
+  // La course de l'action `id`, lancée avec `text` : son tour.
+  async function run(id: string, text = `/vibecoder:${id}`) {
+    const { startRun } = await open();
+    const { loadConfig, vibeActions } = await import('app/settings');
+    const { agentList, vibeLang } = await import('core/config');
+    const cfg = loadConfig();
+    const def = vibeActions(vibeLang(cfg)).find((d) => d.id === id)!;
+    expect(startRun(agentList(cfg)[0], def, { text, images: [] }, cfg)).toEqual({ ok: true });
+    await settle();
+    return turn(text.split(' ')[0])!;
+  }
+  // Le contrôle des fichiers de la course, appelé comme le SDK l'appelle avant un outil.
+  type Hook = (i: object, id: string, o: { signal: AbortSignal }) => Promise<Record<string, unknown> | undefined>;
+  async function verdict(t: { options: Record<string, unknown> }, tool: string, input: object) {
+    const hooks = (t.options.hooks as { PreToolUse: { hooks: Hook[] }[] }).PreToolUse.flatMap((g) => g.hooks);
+    const out = await Promise.all(hooks.map((h) => h({ hook_event_name: 'PreToolUse', tool_name: tool, tool_input: input, tool_use_id: 't' }, 't', { signal: new AbortController().signal })));
+    return out.some((a) => (a?.hookSpecificOutput as Record<string, unknown> | undefined)?.permissionDecision === 'deny') ? 'deny' : 'pass';
+  }
+  // Le flux d'un refus de `tool` : son appel (par un sous-agent si `sub`), puis son résultat en erreur.
+  const denied = (id: string, tool: string, input: object, sub = false) => [
+    { type: 'assistant', parent_tool_use_id: sub ? 'tu-agent' : null, message: { id: `m-${id}`, content: [{ type: 'tool_use', id, name: tool, input }] } },
+    { type: 'user', parent_tool_use_id: sub ? 'tu-agent' : null, message: { content: [{ type: 'tool_result', tool_use_id: id, is_error: true, content: `Permission to use ${tool} has been denied.` }] } },
+  ];
+
+  it.each(['default', 'auto'])('l’agent en %s : le processus reçoit dontAsk, la liste de son skill et les commandes d’AGENTS.md', async (mode) => {
+    configure(mode);
+    write(path.join(project(), 'AGENTS.md'), '## Commandes\n\n- Tests : `npm test`\n- Lancer : `npm start`\n');
+    await skill('ci', 'Read(${CLAUDE_SKILL_DIR}/**), Bash(gh pr view *)');
+    const ci = await run('ci');
+    expect(ci.options.permissionMode).toBe('dontAsk');
+    expect(ci.options.allowedTools).toEqual([
+      `Read(${path.join(await skillsDir(), 'ci')}/**)`, 'Bash(gh pr view *)',
+      'Bash(distrobox enter dev -- npm test)', 'Bash(distrobox enter dev -- npm test *)',
+    ]);
+  });
+
+  it('answers : la liste de la note, ${VIBECODER_OUT} remplacé', async () => {
+    await skill('note', 'Read, Write(${VIBECODER_OUT}/**)');
+    const answers = await run('answers', 'Réponses : oui');
+    expect(answers.options.allowedTools).toEqual(['Read', `Write(${out}/**)`]);
+  });
+
+  it('une action en lecture : écrire dans le projet est refusé par le crochet, ses sorties et le projet en lecture passent', async () => {
+    const ci = await run('ci');
+    expect(await verdict(ci, 'Write', { file_path: path.join(project(), 'a.ts'), content: 'x' })).toBe('deny');
+    expect(await verdict(ci, 'Write', { file_path: path.join(out, 'a.md'), content: 'x' })).toBe('pass');
+    expect(await verdict(ci, 'Read', { file_path: path.join(project(), 'a.ts') })).toBe('pass');
+  });
+
+  it('une action qui modifie : écrire dans le projet passe, hors du projet et des sorties non', async () => {
+    const forme = await run('forme');
+    expect(await verdict(forme, 'Write', { file_path: path.join(project(), 'a.ts'), content: 'x' })).toBe('pass');
+    expect(await verdict(forme, 'Write', { file_path: path.join(fake.userData, 'dehors.txt'), content: 'x' })).toBe('deny');
+  });
+
+  it('la course n’a que les sorties en dossier de travail ; la conversation garde le dossier des artefacts', async () => {
+    const { runVibeAction, projectArtifactsPath } = await open();
+    const forme = await run('forme');
+    expect(forme.options.additionalDirectories).toEqual([out]);
+    runVibeAction('new-request', { text: 'une question' });
+    await settle();
+    expect(request('une question')!.options.additionalDirectories).toEqual([out, projectArtifactsPath(project())]);
+  });
+
+  it('sans AGENTS.md, un skill sans allowed-tools, aucun plugin : liste vide, la course part', async () => {
+    const ci = await run('ci');
+    expect(ci.options.permissionMode).toBe('dontAsk');
+    expect(ci.options.allowedTools).toEqual([]);
+  });
+
+  it('un skill sans allowed-tools, sans AGENTS.md : liste vide', async () => {
+    await skill('ci', null);
+    expect((await run('ci')).options.allowedTools).toEqual([]);
+  });
+
+  it('un refus de Bash d’un sous-agent, hors tour : en échec, sa ligne en tête de la réponse', async () => {
+    const { denialLine } = await import('core/vibecoder');
+    const forme = await run('forme');
+    forme.emit({ type: 'system', subtype: 'task_started', task_id: 'k1', tool_use_id: 'tu-agent', task_type: 'local_agent', description: 'dev' });
+    forme.finish('Vague lancée');
+    await settle();
+    for (const m of denied('tu-1', 'Bash', { command: 'rm -rf /' }, true)) forme.emit(m);
+    forme.emit({ type: 'system', subtype: 'task_notification', task_id: 'k1', status: 'completed' });
+    forme.emit({ type: 'assistant', parent_tool_use_id: null, message: { id: 'm-tour', content: [{ type: 'text', text: 'Je relis' }] } });
+    await settle();
+    forme.finish('Relu');
+    await settle();
+
+    const line = denialLine([{ toolUseId: 'tu-1', tool: 'Bash', target: 'rm -rf /', read: false }], 'fr');
+    expect(await runsNow()).toMatchObject([{ id: 'forme', state: 'failed', reply: `${line}\nRelu` }]);
+  });
+
+  it('un Read refusé seul : terminée, la lecture citée en tête', async () => {
+    const { denialLine } = await import('core/vibecoder');
+    const forme = await run('forme');
+    for (const m of denied('tu-1', 'Read', { file_path: '/etc/passwd' })) forme.emit(m);
+    forme.finish('Fait');
+    await settle();
+
+    const line = denialLine([{ toolUseId: 'tu-1', tool: 'Read', target: '/etc/passwd', read: true }], 'fr');
+    expect(await runsNow()).toMatchObject([{ id: 'forme', state: 'done', reply: `${line}\nFait` }]);
+  });
+
+  it('une course qui essuie un refus ne demande rien : elle reste en cours', async () => {
+    const forme = await run('forme');
+    for (const m of denied('tu-1', 'Bash', { command: 'ls' })) forme.emit(m);
+    await settle();
+
+    expect(await runsNow()).toMatchObject([{ id: 'forme', state: 'running' }]);
   });
 });

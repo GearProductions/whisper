@@ -1,6 +1,7 @@
 /** types — un agent tel qu'enregistré, ce que le runtime attend du SDK et du
  *  lancement de Claude Code (injectés : le métier ne les connaît pas), et les
- *  réglages d'un tour (TurnHooks, dont l'environnement du processus : `env`).
+ *  réglages d'un tour (TurnHooks, dont l'environnement du processus : `env`, et
+ *  les droits d'une course : `rights`, sa liste et le contrôle de ses fichiers).
  *  Ne connaît pas : le SDK, le lancement (injectés), process.env.
  *  Utilisé par : core/agents, core/config, core/conversation, app. */
 import type { VibeFlow } from 'shared/bridge';
@@ -64,6 +65,15 @@ export type TurnHooks = {
   onChange(): void;
   onSession(sessionId: string): void;
   onPermission(p: { tool: string; input: unknown }): void;
+  autoAllow?(tool: string, input: unknown): boolean;   // un appel accordé sans demande (lu à chaque appel : l'appelant en change la réponse quand son mode change) ; absent : toutes les demandes sont posées
   onProgress?(): void;
   checkpoint?: boolean; // une action qui court à part : ses fichiers suivis, pour l'annuler (rewind)
+  rights?: RunRights;   // une course : le mode qui ne demande jamais, sa liste, le contrôle de ses fichiers ; absent : le mode de l'agent
+};
+
+// Les droits d'une course : `allow` sa liste (allowedTools), `check` le contrôle de ses
+// fichiers et de ceux de ses sous-agents (PreToolUse), qui refuse avec une raison.
+export type RunRights = {
+  allow: string[];
+  check(tool: string, input: unknown): { allow: true } | { allow: false; reason: string };
 };

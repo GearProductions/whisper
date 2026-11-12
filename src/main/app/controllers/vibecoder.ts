@@ -190,7 +190,7 @@ import { copyArtifacts, duplicateArtifacts, moveArtifacts, newArtifact, renameAr
 import { prepareMessage } from './conversation';
 import { createWorktree } from './recipe';
 import { SOCKET_DOWN, screenSend, socketDown } from './socket';
-import { lockingRuns, viewLocks, queueStart, queuedOf, releaseWaits, runPending, runsOf, runsTab, skillMd, startRun, vibeOn, vibeStop } from './runs';
+import { lockingRuns, viewLocks, queueStart, queuedOf, releaseWaits, runsOf, runsTab, skillMd, startRun, vibeOn, vibeStop } from './runs';
 import { openChild, prWorktreeReady, removeWorktreeChild, showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
 
 const VIBE_MS = 4000;          // le relevé régulier, panneau visible
@@ -571,7 +571,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     agent: { model: agent.model || '', effort: agent.effort || '', mode: agent.mode || 'default' },
     busy,
     running,
-    runs: runViews(runsOf(agent), actions.map((a) => ({ id: a.id, label: a.label, who: who[a.id] })), runPending(agent.id)),
+    runs: runViews(runsOf(agent), actions.map((a) => ({ id: a.id, label: a.label, who: who[a.id] }))),
     repo,
     error: repo ? null : !which('git') ? ERRORS[lang].noGit : role === 'create' ? ERRORS[lang].notRepo : null,
     note: note && { ...note, before: beforeOf(ref, note) },

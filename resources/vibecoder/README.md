@@ -203,7 +203,7 @@ allowed-tools: "Read, Glob, Grep, Write, Bash(git show *)"
 | `context: fork` | le skill tourne dans un sous-contexte, sans relire la conversation : son coût ne dépend pas de la longueur de celle-ci ; sans cette ligne, il tourne dans la conversation |
 | `model` | `haiku`, `sonnet` ou `opus` ; sans cette ligne, le modèle de l'agent |
 | `effort` | `low`, `medium`, `high`, `xhigh` ou `max` ; sans cette ligne, celui de l'agent |
-| `allowed-tools` | les outils et les commandes que le skill utilise sans vous demander l'autorisation |
+| `allowed-tools` | la **liste** de l'action : ce qu'elle peut faire, rien d'autre (elle ne demande jamais, tout le reste est refusé et la fait échouer) ; les commandes de test, de typage et de lint d'`AGENTS.md` s'y ajoutent ; elle n'écrit jamais `AGENTS.md`, `package.json`, `.claude/`, `.git/` ni `.husky/` |
 
 ### Changer le modèle ou l'effort d'un skill
 
@@ -245,7 +245,7 @@ les relectures de diff et de commits, la ponytail review, la CI,
 l'alignement, les vérifications, les réponses techniques ; les messages de
 commit et de PR suivent la convention du projet. Dans la langue choisie : la
 note, les questions ouvertes, le plan de test à l'écran, la relecture de la
-note, les releases.
+note.
 
 Si vous modifiez ce qu'un skill écrit dans `{{out}}`, gardez le nom et le
 format du fichier : VibeCoder ne lit ses sorties que sous ces noms. Chaque ligne
@@ -272,7 +272,7 @@ sinon.
 | `commiter-modules` | sous-contexte | sonnet · medium | — (un module, ou tous ceux qui ont des changements : un commit chacun, un fixup pour un module déjà commité) |
 | `relire` | sous-contexte | opus · high | `review.md` |
 | `commit-preparer` | sous-contexte | sonnet · low | `commit.md` |
-| `commit` | sous-contexte | haiku · low | (supprime `commit.md`) |
+| `commit` | sous-contexte | haiku · low | (l'appli efface `commit.md` à la fin de la course si le commit est passé) |
 | `verifier` | sous-contexte | haiku · low | `vibecoder run start ponytail` (toutes les vérifications seulement), `checks.json` |
 | `ponytail` | sous-contexte | opus · high | `ponytail.md` |
 | `appliquer-revue` | conversation | sonnet · high | `ponytail-applied.json` |
@@ -280,8 +280,6 @@ sinon.
 | `pr` | sous-contexte | sonnet · medium | `pr.json` |
 | `ci` | sous-contexte | sonnet · medium | `ci.md` |
 | `base` | sous-contexte | haiku · low | — |
-| `rc` | conversation | sonnet · medium | — |
-| `release` | conversation | sonnet · medium | — |
 | `charger-pr` | sous-contexte | haiku · low | `pr-<n>.json` |
 | `relire-note` | sous-contexte | opus · high | `pr-<n>-note.md` |
 | `relire-commits` | sous-contexte | opus · high | `pr-<n>-commits.md` |
@@ -305,7 +303,7 @@ un worktree n'y touche pas. Un dossier hors git est son propre projet.
 seulement : la vérification passe, en orange à l'écran) ou `error` (`ok` :
 `false` pour `error` seulement). Un fichier sans `level` se lit d'après `ok`.
 `verifier` reçoit `{{lang}} {{out}} {{check}} {{prefix}}` et lance chaque commande
-derrière ce préfixe (vide : telle quelle) ; `{{check}}` un rang : cette
+derrière ce préfixe (vide : telle quelle) ; `modules` et `module` (et leur sous-agent `developpeur`) le reçoivent aussi (`module` : sur la ligne après le module) ; `{{check}}` un rang : cette
 vérification seule, les autres éléments de `checks.json` gardés tels quels,
 sans ponytail review. Un `checks.json` dont le `time`
 précède le départ de la course de vérifications (ou sans `time`) est ignoré ;

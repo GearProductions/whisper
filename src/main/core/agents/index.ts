@@ -1,5 +1,6 @@
 /** agents — les agents Claude Code : un par dossier, piloté par le SDK. */
 export * from './constants';
+export * from './denials';
 export * from './options';
 export * from './permissions';
 export * from './reply';

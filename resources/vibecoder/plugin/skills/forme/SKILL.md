@@ -3,13 +3,14 @@ name: forme
 description: "Lay down the form: the skeletons in the code (paths, file headers = the contract, typed signatures, bodies that fail; the project's typecheck passes), then copy it into the « Forme » section of the ticket note — modules, signatures, what each exposes, does not know and is used by, and its variants (test file and cases). Also for a retouch: the note and the skeletons change together."
 argument-hint: "<lang> <out> [details…]"
 disable-model-invocation: true
+allowed-tools: "Read, Glob, Grep, Write, Edit, Bash(git branch *), Bash(git diff *), Bash(git symbolic-ref *), Bash(git rev-parse *)"
 ---
 
 # Forme — modules, boundaries and skeletons (guide §2, A.2)
 
 `$ARGUMENTS` = `<lang> <out> [details…]`. `lang`: the user's language — of your answer and of the contracts' prose; module names, paths and signatures in English (or the project's convention). `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`): nothing to write there. Details: optional instructions from the user (names, signatures, a split) — they win over your choices.
 
-The note: under `docs/tickets/`, the file named like the branch (`<type>/<name>` → `docs/tickets/<type>/<name>.md`), else the one the branch adds or changes. None → say so and stop.
+The note: under `docs/tickets/`, the file named like the branch (`git branch --show-current`; `<type>/<name>` → `docs/tickets/<type>/<name>.md`), else the one the branch adds or changes (`git diff --name-only <base>...HEAD -- docs/tickets`, base: `git symbolic-ref --short refs/remotes/origin/HEAD`, else `origin/main`, `origin/master`, `main` or `master`, the first that exists, `git rev-parse --verify -q <ref>`). None → say so and stop.
 
 Read first: the note; `AGENTS.md` if present (layers, module layout, naming, barrels, imports); the guide's §2 « La forme : dans la note et en tête des fichiers », §4.1 and A.2 if the repo has it (`docs/dev_guide/*.html`); the « Forme » of the project's previous notes (their layout); the code the note touches (`Grep`, `Glob`): reuse what exists before creating a module.
 

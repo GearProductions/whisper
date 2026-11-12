@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createAgentRuntime, createSessions, parseThread, queryOptions, sessionDirs, splitReply, type AgentConfig } from 'core/agents';
+import { createAgentRuntime, createSessions, launchKey, parseThread, queryOptions, rightsOptions, sessionDirs, splitReply, type AgentConfig, type RunRights } from 'core/agents';
 
 const agent: AgentConfig = { id: 'a1', name: 'alpha', dir: '/home/u/p', mode: 'default', model: '', effort: '', sessionId: null };
 
@@ -84,7 +84,7 @@ describe('tours', () => {
     });
     await rt.send(agent, { text: 'salut' }, hooks);
     expect(hooks.onSession).toHaveBeenCalledWith('s9');
-    expect(rt.lastReply('a1')).toEqual({ text: 'Ok', audio: 'Ok.', asked: 'salut' });
+    expect(rt.lastReply('a1')).toEqual({ text: 'Ok', audio: 'Ok.', asked: 'salut', at: expect.any(Number) });
     expect(rt.state('a1')).toMatchObject({ status: 'idle', unread: true, contextWindow: 200000 });
     rt.markRead('a1');
     expect(rt.state('a1').unread).toBe(false);
@@ -140,6 +140,22 @@ describe('tours', () => {
     expect(answers.map((a) => a.behavior)).toEqual(['allow', 'deny']);
   });
 
+  it('autoAllow : l’appel qu’il accepte est accordé sans demande, les autres attendent', async () => {
+    const answers: Record<string, unknown>[] = [];
+    const { rt, hooks } = runtime(async function* t(o: Record<string, never>) {
+      const can = o.canUseTool as unknown as (t: string, i: unknown) => Promise<Record<string, unknown>>;
+      answers.push(await can('Bash', { command: 'cli status' }));
+      answers.push(await can('Bash', { command: 'rm x' }));
+      yield { type: 'result', subtype: 'success', is_error: false, result: 'ok' };
+    });
+    const turn = rt.send(agent, { text: 'x' }, { ...hooks, autoAllow: (_t: string, i: unknown) => (i as { command: string }).command === 'cli status' });
+    await vi.waitFor(() => expect(rt.pendingPermission('a1')).toMatchObject({ tool: 'Bash', waiting: 0 }));
+    expect(answers).toEqual([{ behavior: 'allow', updatedInput: { command: 'cli status' } }]);
+    expect(hooks.onPermission).toHaveBeenCalledTimes(1);   // seule la seconde a été posée
+    rt.answer('a1', 'deny');
+    await turn;
+  });
+
   it('échec d’autorisation : compté seulement sur un tool_result en erreur qui commence par la phrase', async () => {
     const phrase = 'Tool permission request failed: AbortError: Stream closed';
     const result = (content: unknown, is_error?: boolean) => ({ type: 'user', message: { content: [{ type: 'tool_result', content, ...(is_error === undefined ? {} : { is_error }) }] } });
@@ -176,7 +192,7 @@ describe('tours', () => {
     await rt.send(agent, { text: 'surveille' }, hooks);
     rt.markRead('a1');
     notify();
-    await vi.waitFor(() => expect(rt.lastReply('a1')).toEqual({ text: 'Tâche finie', audio: 'Finie.', asked: '' }));
+    await vi.waitFor(() => expect(rt.lastReply('a1')).toMatchObject({ text: 'Tâche finie', audio: 'Finie.', asked: '' }));
     expect(rt.state('a1')).toMatchObject({ status: 'idle', unread: true });
   });
 
@@ -296,6 +312,26 @@ describe('tours', () => {
     expect(log).toEqual(['un', 'mode:acceptEdits', 'model:opus', 'deux']);
   });
 
+  it('Reply.at : l’heure de la fin du tour', async () => {
+    const { rt, hooks } = runtime(async function* t() { yield ok; });
+    const before = Date.now();
+    await rt.send(agent, { text: 'un' }, hooks);
+    const at = rt.lastReply('a1')!.at!;
+    expect(at).toBeGreaterThanOrEqual(before);
+    expect(at).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('une course vivante à qui l’on change le mode de l’agent : dontAsk gardé', async () => {
+    const { rt, hooks, log, queries } = runtime(async function* t() { yield ok; });
+    const rights = { allow: ['Read'], check: () => ({ allow: true as const }) };
+    await rt.send(agent, { text: 'un' }, { ...hooks, rights });
+    rt.setMode('a1', 'auto');                                                  // à chaud
+    await rt.send({ ...agent, mode: 'acceptEdits' }, { text: 'deux' }, { ...hooks, rights }); // au message suivant
+    expect(queries).toHaveLength(1);
+    expect(queries[0]).toMatchObject({ permissionMode: 'dontAsk', allowedTools: ['Read'] });
+    expect(log.filter((l) => l.startsWith('mode:') && l !== 'mode:dontAsk')).toEqual([]);
+  });
+
   it('la sonde passe par le processus vivant', async () => {
     const { rt, hooks, q, queries } = runtime(async function* t() { yield ok; });
     await rt.send(agent, { text: 'un' }, hooks);
@@ -366,5 +402,57 @@ describe('la consigne <audio> (I-24)', () => {
     const { runtime, agent: a, hooks, queries } = setup(async function* turn() { yield done; });
     await runtime.send(a, { text: 'x' }, hooks);
     expect(queries[0].options.systemPrompt).toEqual({ type: 'preset', preset: 'claude_code', append: 'CONSIGNE-AUDIO' });
+  });
+});
+
+describe('les droits d’une course (rights)', () => {
+  const claude = { executable: 'claude' };
+  const pre = (rights: RunRights) => rightsOptions(rights).hooks.PreToolUse[0];
+  const call = (rights: RunRights, tool_name: string, tool_input: unknown = {}) =>
+    pre(rights).hooks[0]({ hook_event_name: 'PreToolUse', tool_name, tool_input }, 't1', { signal: new AbortController().signal });
+  const rights = (check: RunRights['check'], allow = ['Read', 'Bash(git status)']): RunRights => ({ allow, check });
+
+  it('dontAsk et allowedTools = rights.allow, quel que soit le mode de l’agent', () => {
+    for (const mode of ['default', 'acceptEdits', 'auto', 'plan', 'bypassPermissions']) {
+      const o = queryOptions({ ...agent, mode }, claude, '', { rights: rights(() => ({ allow: true })) });
+      expect(o).toMatchObject({ permissionMode: 'dontAsk', allowedTools: ['Read', 'Bash(git status)'] });
+      expect(o).not.toHaveProperty('allowDangerouslySkipPermissions');
+    }
+  });
+
+  it('un seul crochet PreToolUse, sans filtre', () => {
+    const groups = rightsOptions(rights(() => ({ allow: true }))).hooks.PreToolUse;
+    expect(groups).toHaveLength(1);
+    expect(groups[0].matcher).toBeUndefined();
+    expect(groups[0].hooks).toHaveLength(1);
+  });
+
+  it('le crochet : check refuse → deny et sa raison ; passe → {}', async () => {
+    const r = rights((tool, input) => (tool === 'Read' && (input as { file_path: string }).file_path === '/dehors' ? { allow: false, reason: 'hors du projet' } : { allow: true }));
+    expect(await call(r, 'Read', { file_path: '/dehors' })).toEqual({
+      hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: 'hors du projet' } });
+    expect(await call(r, 'Read', { file_path: '/p/a' })).toEqual({});
+  });
+
+  it('un contrôle qui plante : refus, jamais un passage', async () => {
+    const out = await call(rights(() => { throw new Error('boum'); }), 'Read', {}) as { hookSpecificOutput: { permissionDecision: string } };
+    expect(out.hookSpecificOutput.permissionDecision).toBe('deny');
+  });
+
+  it('sans rights : le mode de l’agent, ni allowedTools ni hooks', () => {
+    for (const mode of ['default', 'acceptEdits', 'auto', 'plan']) {
+      const o = queryOptions({ ...agent, mode }, claude, '');
+      expect(o).toMatchObject({ permissionMode: mode });
+      expect(o).not.toHaveProperty('allowedTools');
+      expect(o).not.toHaveProperty('hooks');
+    }
+  });
+
+  it('launchKey retient la liste : relancé si elle change, pas si seul le contrôle change', () => {
+    const check = () => ({ allow: true as const });
+    const key = (allow?: string[]) => launchKey(agent, '', '', allow && { rights: { allow, check } });
+    expect(key(['Read'])).toBe(key(['Read']));
+    expect(key(['Read'])).not.toBe(key(['Read', 'Write']));
+    expect(key(['Read'])).not.toBe(key());
   });
 });

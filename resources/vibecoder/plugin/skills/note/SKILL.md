@@ -3,6 +3,7 @@ name: note
 description: "Write or update the ticket note from a request, following the project's note skill or the guide, with the open questions written to <out>/questions.md and never into the note."
 argument-hint: "<lang> <out> <request…>"
 disable-model-invocation: true
+allowed-tools: "Read, Glob, Grep, Write, Edit"
 ---
 
 # Note — the ticket note (guide §2)
@@ -11,7 +12,7 @@ disable-model-invocation: true
 
 ## The note
 
-1. The project or user skill `gear-prompt-specs-to-feature-note`: read its `SKILL.md` (`.claude/skills/<name>/` at the repo root, else `~/.claude/skills/<name>/`) and follow it — dictation cleanup, sections, marks, never inventing, file name, living note. Where it puts the questions in chat, do what « Questions » below says.
+1. The project or user skill `gear-prompt-specs-to-feature-note`: read its `SKILL.md` (`.claude/skills/<name>/` at the repo root, if present) and follow it — dictation cleanup, sections, marks, never inventing, file name, living note. Where it puts the questions in chat, do what « Questions » below says.
 2. Without it: the guide (`docs/dev_guide/*.html`: §2, §3.1 to §3.3, A.1; find the sections with `Grep` on `<h[12]>`), else these rules:
    - one file, `docs/tickets/<type>/<ticket or version>-<slug>.md`, `<type>` = `feat`, `fix`, `refactor` or `chore`, named like the project's other notes; a note for this ticket exists → update it in place: final state only, the why of a choice in parentheses;
    - only the sections that serve, titled exactly `## Ce que ça fait`, `## Ce que ça ne doit pas faire`, `## Où ça casse`, `## Ce que ça touche`, `## Forme`, `## Pistes pour plus tard` — whatever `lang`: the screen reads the note by these titles;

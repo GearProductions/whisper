@@ -15,7 +15,7 @@ Do it now, without asking: suggest the branch name, write the file, then answer.
 
 `$ARGUMENTS` = `<lang> <out> <request…>`. `lang`: the user's language, for your answer. `out`: absolute path of the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). The request: everything after, often dictated — read it for its subject, never copy it.
 
-1. **The convention.** The project's branch convention if it has one (`AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, the project or user skill `gear-prompt-specs-to-feature-note`, `git branch -a` for the names already used). Otherwise, like a ticket note (`docs/tickets/<type>/<ticket or version>-<slug>.md`), the branch is `<type>/<ticket>-<slug>`, or without a ticket `<type>/<version>-<slug>`:
+1. **The convention.** The project's branch convention if it has one (`AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, the project skill `gear-prompt-specs-to-feature-note`, `git branch -a` for the names already used). Otherwise, like a ticket note (`docs/tickets/<type>/<ticket or version>-<slug>.md`), the branch is `<type>/<ticket>-<slug>`, or without a ticket `<type>/<version>-<slug>`:
    - `<type>`: `feat`, `fix`, `refactor` or `chore`, after the request;
    - `<ticket>`: the ticket id the request names (e.g. `GT-123`), if any;
    - `<version>`: none named in the request → the next patch of the project's version (`package.json`, `Cargo.toml`, `pyproject.toml`…) for a bug, the next minor for the rest;

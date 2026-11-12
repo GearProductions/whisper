@@ -5,7 +5,8 @@
  *  les questions et les erreurs des autres agents deviennent une notification du
  *  système ; son clic montre l'agent (showAgent). Chaque lancement de Claude Code (tour, sonde) reçoit
  *  le plugin de VibeCoder, le dossier de sorties de l'agent, le dossier d'artefacts de son projet et son
- *  environnement (le port du socket et le jeton du robot, en mémoire : jamais sur le disque ni vers la page ; socket fermé, aucun). À chaque
+ *  environnement (le port du socket et le jeton du robot, en mémoire : jamais sur le disque ni vers la page ; socket fermé, aucun).
+ *  Tant que le mode Vibe de l'agent est en cours, sa conversation accepte d'elle-même la CLI de VibeCoder (autoAllow : vibeCliCall). À chaque
  *  changement des agents, les courses suivent (controllers/runs : les avis de
  *  fin en attente, envoyés dès que la conversation est libre) ; l'agent affiché, ou dont la conversation est lue,
  *  a ses courses finies vues (runsShown : la pastille verte s'efface, T-18). L'état d'un agent
@@ -27,7 +28,7 @@ import { createAgentRuntime, createSessions, type AgentConfig, type OutgoingMess
 import { agentList, agentVibe, folderColors, needsTrust, type Config } from 'core/config';
 import { agentParent, branchOf } from 'core/family';
 import { agentEvents, switcherAgents } from 'core/switcher';
-import { questionsRule, robotState, roleRule } from 'core/vibecoder';
+import { questionsRule, robotState, roleRule, vibeCliCall } from 'core/vibecoder';
 import { launcher, loadSdk } from 'technicals/claude';
 import { createJournal } from 'technicals/journal';
 import { agentInstructions, journalFile, loadConfig, saveConfig, updateAgent, vibeOutDir, vibePluginDir } from 'app/settings';
@@ -37,7 +38,7 @@ import { conversationProgress, refreshConversation } from './conversation';
 import { readFile, stopAgentProcesses } from './processes';
 import { projectArtifactsDir } from './artifacts';
 import { robotEnv } from 'core/commands';
-import { closeRuns, runSignalOf, runsFollow, runsShown, runTasksOf } from './runs';
+import { closeRuns, runSignalOf, runsFollow, runsShown, runTasksOf, vibeOn } from './runs';
 import { forgetRobot, robotAccess } from './socket';
 import { lastView } from './vibecoder';
 
@@ -191,6 +192,8 @@ export function sendToAgent(agent: AgentConfig, message: OutgoingMessage, cfg: C
     onChange: pushAgents,
     onSession: (sessionId) => updateAgent(agent.id, { sessionId }),
     onProgress: conversationProgress,
+    // Le mode Vibe en cours : la CLI de VibeCoder passe sans demande (la liste d'un skill ne vaut que pour son tour) ; sinon, comme avant.
+    autoAllow: (tool, input) => vibeOn(agent.id) && vibeCliCall(tool, input, vibePluginDir()),
     // La demande s'affiche dans le panneau de l'agent : déjà ouvert sur lui,
     // dans son fil ; rien d'ouvert, le panneau s'ouvre sur lui, sans prendre le
     // focus. Sinon (on lit autre chose), le « ? » du robot attend qu'on clique.

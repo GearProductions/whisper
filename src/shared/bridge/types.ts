@@ -354,7 +354,7 @@ export type VibeAction = {
 export type VibeRunProgress = { wave: number; done: number; total: number; fixes: number; opus: boolean };
 
 // Une course : une action d'étape qui court à part de la conversation (onglet Actions). stopped : arrêtée,
-// à garder (kept) ou annuler (undone) ; running, asking (une autorisation attend) et stopped retiennent les autres.
+// à garder (kept) ou annuler (undone) ; running, asking et stopped retiennent les autres.
 export type VibeRun = {
   id: string;                  // l'id de son action
   label: string;
@@ -363,7 +363,7 @@ export type VibeRun = {
   since: number;               // lancée à
   end: number | null;          // finie ou arrêtée à
   reply: string;               // sa réponse (Markdown), '' tant qu'elle n'a rien dit
-  permission: { tool: string; target: string } | null;   // sa demande d'autorisation en attente
+  permission: { tool: string; target: string } | null;   // toujours null : une course ne demande plus rien (0.15.0) ; gardé pour run list (CLI) et les invariants qui le citent
   progress?: VibeRunProgress;  // son avancement, quand le fil de l'agent le donne ; absent : inconnu
 };
 export type VibeRunOp = 'stop' | 'keep' | 'undo' | 'allow' | 'always' | 'deny';

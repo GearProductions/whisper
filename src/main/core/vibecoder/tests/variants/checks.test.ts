@@ -25,9 +25,7 @@ const ACTIONS: ActionDef[] = [
   A('fixups', 'create', 'revue', '/vibecoder:fixups {{lang}} {{out}}'),
   A('pr', 'create', 'pr', '/vibecoder:pr {{lang}} {{out}}'),
   A('ci', 'create', 'pr', '/vibecoder:ci {{lang}} {{out}}'),
-  A('rc', 'create', 'pr', '/vibecoder:rc {{lang}} {{out}}'),
   A('base', 'create', 'pr', '/vibecoder:base {{lang}} {{out}}'),
-  A('release', 'create', 'pr', '/vibecoder:release {{lang}} {{out}}'),
   A('vibe', 'create', null, '/vibecoder:vibe {{lang}} {{out}}'),
 ];
 

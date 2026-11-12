@@ -15,7 +15,7 @@ const ACTIONS: ActionDef[] = [
   A('align', 'both', 'invariants', '/vibecoder:aligner {{lang}} {{out}} {{ref}}'),
   A('commit-prepare', 'create', 'modules', '/vibecoder:commit-preparer {{lang}} {{out}}'),
   A('commit', 'create', 'modules', '/vibecoder:commit {{lang}} {{out}}'),
-  A('commit-modules', 'create', 'modules', '/vibecoder:commiter-modules {{lang}} {{out}}'),
+  A('commit-modules', 'create', 'modules', '/vibecoder:commiter-modules {{lang}} {{out}} {{prefix}}'),
   A('module', 'create', 'modules', '/vibecoder:module {{lang}} {{out}} {{module}}'),
   A('modules', 'create', 'modules', '/vibecoder:modules {{lang}} {{out}}'),
   { ...A('checks', 'create', 'revue', '/vibecoder:verifier {{lang}} {{out}}'), reads: true },
@@ -23,9 +23,7 @@ const ACTIONS: ActionDef[] = [
   A('fixups', 'create', 'revue', '/vibecoder:fixups {{lang}} {{out}}'),
   A('pr', 'create', 'pr', '/vibecoder:pr {{lang}} {{out}}'),
   A('ci', 'create', 'pr', '/vibecoder:ci {{lang}} {{out}}'),
-  A('rc', 'create', 'pr', '/vibecoder:rc {{lang}} {{out}}'),
   A('base', 'create', 'pr', '/vibecoder:base {{lang}} {{out}}'),
-  A('release', 'create', 'pr', '/vibecoder:release {{lang}} {{out}}'),
   // La vue des branches (0.12.0-gestion-des-branches) : les deux parcours, sans étape.
   A('load-pr', 'both', null, '/vibecoder:charger-pr {{lang}} {{out}} {{pr}}'),
   A('pr-here', 'both', null, '/vibecoder:ici {{lang}} {{out}} {{pr}}'),
@@ -474,7 +472,7 @@ describe('Relecteur : rien de ce qui édite, génère ou commite ; tout ce que f
   }));
   const shown = (v: VibeView) => v.actions.filter((a) => !a.hidden).map((a) => a.id);
   const CREATE_ONLY = ['note', 'answers', 'forme', 'invariants', 'commit-prepare', 'commit', 'commit-modules', 'module', 'checks',
-    'ponytail', 'fixups', 'pr', 'ci', 'rc', 'base', 'release', 'vibe'];
+    'ponytail', 'fixups', 'pr', 'ci', 'base', 'vibe'];
 
   it('aucune action create au relevé ; rebase, push et copier dans le projet masquées', () => {
     const direct = { rebase: { running: false, last: { ok: true, line: '', detail: '', time: 5 } } };
@@ -1038,7 +1036,7 @@ describe('les actions qui courent à part (0.9.0)', () => {
 
 describe('le parcours guidé (0.9.0) : étapes ouvertes, actions masquées', () => {
   const shown = (v: VibeView, ids: string[]) => ids.filter((id) => !action(v, id)?.hidden);
-  const PR_STEP = ['pr', 'ci', 'rc', 'base', 'release'];
+  const PR_STEP = ['pr', 'ci', 'base'];
   const reviewed = { 'checks.json': out('{"items":[{"name":"tests","ok":true}]}'), 'ponytail.md': out('- rien') };
   const withPr = (pr: Record<string, unknown> | null, outputs: JourneyInput['outputs'] = reviewed) =>
     vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), outputs, github: { pr } }));
@@ -1053,19 +1051,19 @@ describe('le parcours guidé (0.9.0) : étapes ouvertes, actions masquées', () 
     expect(shown(withPr(null), PR_STEP)).toEqual(['pr']);
   });
 
-  it('PR ouverte : Diagnostiquer la CI et Release candidate ; PR fusionnée : revenir sur la base et Release officielle', () => {
-    expect(shown(withPr({ number: 31, state: 'OPEN' }), PR_STEP)).toEqual(['ci', 'rc']);
-    expect(shown(withPr({ number: 31, state: 'MERGED' }), PR_STEP)).toEqual(['base', 'release']);
+  it('PR ouverte : seulement Diagnostiquer la CI (ni rc ni release) ; PR fusionnée : revenir sur la base seule', () => {
+    expect(shown(withPr({ number: 31, state: 'OPEN' }), PR_STEP)).toEqual(['ci']);
+    expect(shown(withPr({ number: 31, state: 'MERGED' }), PR_STEP)).toEqual(['base']);
     expect(shown(withPr({ number: 31, state: 'CLOSED' }), PR_STEP)).toEqual([]);
   });
 
   it('une PR sans état connu (pr.json, avant gh) : comme ouverte', () => {
-    expect(shown(withPr(null, { ...reviewed, 'pr.json': out('{"number":9}') }), PR_STEP)).toEqual(['ci', 'rc']);
+    expect(shown(withPr(null, { ...reviewed, 'pr.json': out('{"number":9}') }), PR_STEP)).toEqual(['ci']);
   });
 
   it('l\'état de la PR masque sans griser', () => {
     const v = withPr({ number: 31, state: 'OPEN' });
-    expect(PR_STEP.map((id) => action(v, id)?.disabled)).toEqual([null, null, null, null, null]);
+    expect(PR_STEP.map((id) => action(v, id)?.disabled)).toEqual([null, null, null]);
   });
 
   it('pas encore de sens : masquée, sa raison gardée ; sans note : la Forme et les invariants grisés, sa raison au survol', () => {

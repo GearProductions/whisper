@@ -6,7 +6,7 @@ disable-model-invocation: true
 context: fork
 model: opus
 effort: high
-allowed-tools: "Read, Glob, Grep, Write, Bash(git show *), Bash(git diff *), Bash(git log *), Bash(git status *), Bash(git ls-files *), Bash(git grep *), Bash(git rev-parse *)"
+allowed-tools: "Read, Glob, Grep, Write, Bash(git show *), Bash(git diff *), Bash(git ls-files *)"
 ---
 
 # Review a diff (guide §5.1)
