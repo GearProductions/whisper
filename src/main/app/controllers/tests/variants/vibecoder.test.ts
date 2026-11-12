@@ -167,8 +167,10 @@ vi.mock('app/controllers/worktrees', async (original) => ({
 }));
 
 // Copier un artefact : relevé, puis une erreur inattendue (un droit d'écriture manquant…) ; le reste, vrai.
+// artifactFiles (runDirect copy-artifact : un id inconnu refusé avant la boîte) : un id du relevé est de la forme a<i>.
 vi.mock('app/controllers/artifacts', async (original) => ({
   ...await original<typeof import('app/controllers/artifacts')>(),
+  artifactFiles: (_a: unknown, ids: unknown) => (Array.isArray(ids) && ids.length && ids.every((i) => /^a\d+$/.test(String(i))) ? ids.map(String) : null),
   copyArtifact: async (a: { id: string }, ids: string[]) => { fake.calls.push(['copyArtifact', a.id, ids]); throw new Error('EACCES: permission denied'); },
   addArtifacts: async (a: { id: string }, paths: unknown, folder?: unknown) => { fake.calls.push(['addArtifacts', a.id, paths, folder]); if (fake.busy) await new Promise((r) => { fake.release = r; }); return { ok: true, line: 'Added by drop.', detail: '' }; },
 }));
@@ -1363,7 +1365,7 @@ describe('0.13.0 : les artefacts', () => {
     await open();
     const files = [{ path: '/tmp/a.md' }];
     fake.busy = true;   // la copie tient jusqu'à fake.release : l'ajout reste « en cours »
-    expect(await drop(files)).toEqual({ ok: true });
+    expect(await drop(files)).toMatchObject({ ok: true });   // + done : la fin, attendue par la commande
     await settle();
     expect((await directOf('add-artifact'))?.running).toBe(true);
     expect(await drop(files)).toMatchObject({ ok: false, reason: 'busy', by: 'add-artifact' });
@@ -1376,7 +1378,7 @@ describe('0.13.0 : les artefacts', () => {
 
   it('un dépôt : le dossier d’arrivée (un id) suit jusqu’à addArtifacts', async () => {
     await open();
-    expect(await drop([{ path: '/tmp/a.md' }], 'd1')).toEqual({ ok: true });
+    expect(await drop([{ path: '/tmp/a.md' }], 'd1')).toMatchObject({ ok: true });
     for (let i = 0; i < 60 && (await directOf('add-artifact'))?.running !== false; i++) await settle();
     expect(fake.calls).toEqual([['addArtifacts', 'a1', [{ path: '/tmp/a.md' }], 'd1']]);
   });
@@ -1393,7 +1395,7 @@ describe('0.13.0 : les artefacts', () => {
     await settle();
     expect(lockingRuns('a1')).toHaveLength(1);
     fake.busy = false;
-    expect(await drop()).toEqual({ ok: true });
+    expect(await drop()).toMatchObject({ ok: true });
     for (let i = 0; i < 60 && (await directOf('add-artifact'))?.running !== false; i++) await settle();
     expect(fake.calls).toEqual([['addArtifacts', 'a1', [{ path: '/tmp/a.md' }], undefined]]);
     fake.release();
@@ -1476,7 +1478,7 @@ describe('0.15.0 : la clé du refus (reason)', () => {
   it('runDirect (exportée) : une autre action directe en cours → busy, by elle ; son texte d’avant', async () => {
     const c = await ctx();
     fake.busy = true;   // le dépôt tient jusqu’à fake.release : add-artifact reste « en cours »
-    expect(c.runDirect(c.agent, c.defOf('add-artifact'), { files: [{ path: '/tmp/a.md' }] } as never, c.view, c.cfg)).toEqual({ ok: true });
+    expect(c.runDirect(c.agent, c.defOf('add-artifact'), { files: [{ path: '/tmp/a.md' }] } as never, c.view, c.cfg)).toMatchObject({ ok: true });
     await settle();
     const refused = c.runDirect(c.agent, c.defOf('fetch'), { direct: true }, c.view, c.cfg);
     expect(refused).toEqual({ ok: false, error: 'Action inconnue ou indisponible.', reason: 'busy', by: 'add-artifact' });

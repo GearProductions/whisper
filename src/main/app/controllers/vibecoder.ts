@@ -22,12 +22,15 @@
  *  fetch, request-review, assign-pr, unassign-pr, copy-artifact, add-artifact, rename-artifact, new-artifact-file,
  *  new-artifact-folder, trash-artifacts, move-artifacts, copy-artifacts, duplicate-artifacts), au clic de « direct » : leurs
  *  commandes, lancées par l'appli, F-114 ; copy-artifact : des artefacts du
- *  dernier relevé (args.artifacts), copiés par controllers/artifacts, I-39 ; les six autres actions sur
+ *  dernier relevé (args.artifacts), copiés par controllers/artifacts, I-39, un id inconnu refusé
+ *  (unknown-artifact) avant la boîte de dialogue ; les sept autres actions sur
  *  les artefacts (args.artifacts, args.folder, args.name, args.names, rien d'autre lu ; rename-artifact : un seul
  *  id) vont à controllers/artifact-ops, qui revérifie tout ; add-artifact : un dépôt sur le
  *  panneau (dropOnArtifacts(paths, folder), les chemins lus du File par le pont ; le dossier : un id
  *  du relevé ; ou { name, content } d'un client sans disque, par la commande) : mêmes « en cours » et
- *  dernier résultat, sans la règle des courses ; conv:vibeRun ne porte jamais de chemin, I-37, et le
+ *  dernier résultat, sans la règle des courses ; leur fin est attendue (done) et leur refus rendu à
+ *  la commande avec sa clé (refused, unknown-artifact, failed, name : invalid-args), pas seulement
+ *  au relevé ; conv:vibeRun ne porte jamais de chemin, I-37, et le
  *  nom tapé y passe, sans canal de plus), une course (vibeRunOp : l'arrêter, la garder ou l'annuler, répondre
  *  à sa demande d'autorisation), un réglage (dont arrêter l'agent, comme Interrompre de son
  *  menu ; arrêter Vibe, la bannière : vibeStop de controllers/runs ;
@@ -170,7 +173,7 @@ import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
 import { START, type CommandError } from 'core/commands';
 import {
-  addComment, artifactOf, beforeOf, blobSha, buildMessage, designEnd, noteClick, parseQuestions, vibeMarks, DIRECT_ACTIONS, DIRECT_ONLY, editComment, findNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath, nextRef,
+  addComment, artifactOf, beforeOf, blobSha, buildMessage, designEnd, hasComment, noteClick, parseQuestions, vibeMarks, ARTIFACT_OPS, DIRECT_ACTIONS, DIRECT_ONLY, editComment, findNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath, nextRef,
   blockedBy, BRANCH_CHANGES, lockCode, lockText, ELSEWHERE, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeRole, vibeView, whoOf, type ActionDef, type MessageError, type NoteRef,
 } from 'core/vibecoder';
 import { draftText, isVerdict } from 'shared/review';
@@ -185,7 +188,7 @@ import { state } from 'app/state';
 import { conversationShown, openConversation } from 'app/windows';
 import { interruptAgent, isBusy, sendToAgent, setAgentSetting, viewAgent } from './agents';
 import { agentPrefix, processAction, processView, promptPrefix, readFile, readTimed } from './processes';
-import { addArtifacts, artifactFile, copyArtifact, listArtifacts, projectArtifactsDir } from './artifacts';
+import { addArtifacts, artifactFile, artifactFiles, copyArtifact, listArtifacts, projectArtifactsDir } from './artifacts';
 import { copyArtifacts, duplicateArtifacts, moveArtifacts, newArtifact, renameArtifact, trashArtifacts } from './artifact-ops';
 import { prepareMessage } from './conversation';
 import { createWorktree } from './recipe';
@@ -612,7 +615,8 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
 
 // Un refus : son texte, et sa clé (reason : celle d'ERRORS ; 'disabled', le grisé du relevé ; 'same' | 'busy' | 'changing' avec by,
 // la course ou l'action directe qui retient). Les portes qui ne lisent que le texte (l'écran) ne la voient pas.
-export type Refusal = SendResult & { reason?: string; by?: string };
+// done : la fin d'une action d'artefact (runDirect), son refus avec sa clé ; l'exécuteur l'attend avant de répondre.
+export type Refusal = SendResult & { reason?: string; by?: string; done?: Promise<Refusal> };
 // L'écran ne voit que le texte du refus, pas sa clé.
 const bare = ({ ok, error }: SendResult): SendResult => ({ ok, error });
 const fail = (lang: VibeLang, key: keyof typeof ERRORS.fr): Refusal => ({ ok: false, error: ERRORS[lang][key], reason: key });
@@ -653,7 +657,8 @@ async function viaSocket(agent: AgentConfig, command: string, args: unknown, min
 
 // Un dépôt sur la zone du panneau : les chemins lus du File par le pont (jamais donnés par la page), chacun un { path } ;
 // add-artifact par le socket, avec le dossier d'arrivée (un id du relevé, revérifié par addArtifacts). Les gardes (l'agent,
-// l'action au relevé, « en cours ») : celles de l'exécuteur ; en fond (track), la réponse vient aussitôt.
+// l'action au relevé, « en cours ») : celles de l'exécuteur ; en fond (track), la réponse vient à la fin de la copie (done),
+// son refus avec son texte.
 export async function dropOnArtifacts(paths: unknown, folder?: unknown): Promise<SendResult> {
   const agent = viewAgent();
   if (!agent) return bare(fail(vibeLang(loadConfig()), 'agent'));
@@ -781,7 +786,9 @@ export async function vibeRunOp(id: unknown, op: unknown) {
 // numéro de PR entier, un verdict des trois). En fond, une à la fois par
 // agent : « en cours » puis son résultat partent au relevé. Rien ne suit une
 // action (load-pr charge et suit la PR, seulement). Avant tout git switch : git status relu ;
-// une ligne, ou pas de réponse → refusé.
+// une ligne, ou pas de réponse → refusé. Les actions d'artefacts (add-artifact, ARTIFACT_OPS) : leur
+// fin dans done, un refus avec la clé de son DirectResult (reason) ; copy-artifact : un id inconnu
+// (artifactFiles) refusé tout de suite, unknown-artifact, sans boîte de dialogue.
 export function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, view: VibeView, cfg: Config): Refusal {
   const { id } = def;
   const lang = vibeLang(cfg);
@@ -867,6 +874,9 @@ export function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, vi
     // Des ids du dernier relevé ; le dossier choisi dans la boîte de dialogue (controllers/artifacts, qui revérifie).
     if (!Array.isArray(args.artifacts)) return fail(lang, 'args');
     const ids = args.artifacts;
+    // L'agent pas affiché : la copie (sa boîte de dialogue) ne se fait que sur l'écran de cet agent ; des ids valides ne sont pas « inconnus ».
+    if (viewAgent()?.id !== agent.id) return { ok: false, error: 'Refused: the agent is not displayed.' };
+    if (!artifactFiles(agent, ids)) return { ok: false, error: 'Refused: unknown artifact.', reason: 'unknown-artifact' };   // avant la boîte, rien « en cours »
     job = () => copyArtifact(agent, ids);
   } else if (id === 'add-artifact') {
     // Le dépôt (dropOnArtifacts : les chemins lus du File par le pont ; ou { name, content } d'un client sans disque) :
@@ -999,8 +1009,11 @@ export function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, vi
   directs.set(agent.id, mine);
   // Fini, les branches et l'état distant relus (Actualiser, Pull, Rebase… : HEAD ne bouge pas toujours) ;
   // l'ancienne réponse reste affichée d'ici là.
-  void track(mine, id, () => job().finally(() => { const hit = gitCache.get(agent.id); if (hit) hit.key = ''; }));
-  return { ok: true };
+  const finished = track(mine, id, () => job().finally(() => { const hit = gitCache.get(agent.id); if (hit) hit.key = ''; }));
+  // Une action d'artefact : sa fin attendue par la commande (le fichier est là dès la réponse), son refus rendu avec sa clé ;
+  // un échec sans clé (la fin qui lève) : refused. Les autres actions : rendues aussitôt, leur résultat au relevé seulement.
+  if (id !== 'add-artifact' && !ARTIFACT_OPS.includes(id)) return { ok: true };
+  return { ok: true, done: finished.then((r): Refusal => (r.ok ? { ok: true } : { ok: false, error: r.line, reason: r.reason })) };
 }
 
 // Les réglages de l'agent (le rôle calculé, la PR suivie), changés d'après ceux d'à cet instant.
@@ -1010,12 +1023,14 @@ function patchVibe(id: string, patch: Partial<ReturnType<typeof agentVibe>>) {
 }
 
 // Une action directe de l'agent : « en cours », puis son résultat (un échec inattendu : sa ligne), au relevé.
-async function track(mine: Record<string, NonNullable<VibeAction['direct']>>, id: string, job: () => Promise<DirectResult>) {
+// Rend ce résultat (reason : la clé d'un refus d'artefact, que runDirect rend à la commande) ; ne rejette jamais.
+async function track(mine: Record<string, NonNullable<VibeAction['direct']>>, id: string, job: () => Promise<DirectResult & { reason?: string }>) {
   mine[id] = { running: true, last: mine[id]?.last ?? null };
   refreshVibe({ now: true });
-  const r = await job().catch((err): DirectResult => ({ ok: false, line: err instanceof Error ? err.message : String(err), detail: '' }));
+  const r = await job().catch((err): DirectResult & { reason?: string } => ({ ok: false, line: err instanceof Error ? err.message : String(err), detail: '' }));
   mine[id] = { running: false, last: { ...r, time: Date.now() } };
   refreshVibe({ now: true });
+  return r;
 }
 
 // Redémarrer depuis les sources : si un agent travaille (son tour, une course), la question d'abord, une à la
@@ -1112,7 +1127,8 @@ export function markVibe(target: unknown, verdict: unknown) {
 
 // Le brouillon de revue de la PR suivie, du relecteur : ajouter une remarque (sa cible, sur une ligne de 300 caractères
 // au plus ; le texte du champ, 5 000), en changer le texte (mêmes limites) ou en retirer une. Sans PR suivie, ou en
-// créateur : no-pr, rien d'écrit ; une cible ou un texte fautifs : args. L'opération de l'exécuteur (draft.add, draft.edit,
+// créateur : no-pr, rien d'écrit ; une cible ou un texte fautifs : args ; une remarque inconnue du brouillon
+// (hasComment) à changer ou retirer : reason 'id' (invalid-args, arg id), rien d'écrit. L'opération de l'exécuteur (draft.add, draft.edit,
 // draft.remove : controllers/commands) ; l'écran passe par draftVibe.
 export function editDraft(
   agent: AgentConfig, op: { add: { target: unknown; text: unknown } } | { edit: { id: unknown; text: unknown } } | { remove: unknown },
@@ -1126,8 +1142,10 @@ export function editDraft(
   if ('add' in op && typeof op.add?.target === 'string' && op.add.target.length <= TARGET_MAX && !/[\r\n]/.test(op.add.target) && okText(op.add.text)) {
     store.drafts[agent.id] = addComment(drafts, pr, op.add.target, op.add.text);
   } else if ('edit' in op && Number.isInteger(op.edit?.id) && okText(op.edit.text)) {
+    if (!hasComment(drafts, pr, op.edit.id as number)) return { ...fail(lang, 'args'), reason: 'id' };
     store.drafts[agent.id] = editComment(drafts, pr, op.edit.id as number, op.edit.text);
   } else if ('remove' in op && Number.isInteger(op.remove)) {
+    if (!hasComment(drafts, pr, op.remove as number)) return { ...fail(lang, 'args'), reason: 'id' };
     store.drafts[agent.id] = removeComment(drafts, pr, op.remove as number);
   } else return fail(lang, 'args');
   saveVibeStore(store);
