@@ -363,7 +363,7 @@ ni bip) : l'afficher, ou lire sa conversation, marque aussi ses courses
 son « ! » jusqu'à l'ouverture de l'onglet *Actions*. Ses **courses** (F-115) aussi, par-dessus
 une conversation au repos (l'état de la conversation d'abord), dans cet
 ordre (ce qui attend l'utilisateur prime sur ce qui travaille seul) :
-*attend une autorisation* → « ? », *en cours* → le clignotement d'un tour,
+*en cours* → le clignotement d'un tour,
 sans bip, *en échec* → « ! », *finie* → pastille verte ; une course
 *arrêtée* ne se signale pas. Infobulle : « dépôt · branche », le titre d'un
 enfant, l'état (*travaille*, *attend ta réponse*, *vient de finir*, *en
@@ -724,11 +724,11 @@ par l'🕘 Historique (F-67).
   barre des skills, F-93, le champ, F-68 à F-70 : dictée, brouillon, pièces
   jointes, commandes « / », le micro et *Envoyer*), à droite de la rangée 🕘
   (l'historique, F-67) : on lui parle toujours, même pendant qu'une
-  action tourne ; **Actions (n)** (n en cours, en attente d'une
-  autorisation ou arrêtées à trancher) : les courses (F-115) ; l'ouvrir
+  action tourne ; **Actions (n)** (n en cours ou arrêtées à
+  trancher) : les courses (F-115) ; l'ouvrir
   efface sur le robot les courses *finies* ou *en échec* (F-55), et tant
   qu'il est ouvert sur l'agent affiché, celles-là ne s'y signalent pas (une
-  course qui attend une autorisation ou qui travaille, si) ; **Tâches (n)**
+  course qui travaille, si) ; **Tâches (n)**
   (n en cours) : le volet des tâches (F-77) ; **Processus (n)** (F-111) ;
   par-dessus la conversation, qui garde sa place. Préparer un message dans
   le champ de la conversation, ou un message sans étape qui l'exige, revient
@@ -1274,10 +1274,9 @@ toute action qui édite, génère ou commite (elles ne sont pas au relevé du
 relecteur, F-101). En créateur, l'étape PR suit l'état de la PR, qui ne
 fait que masquer (une demande juste après *Valider la feature* ne tombe pas
 sur un relevé en retard) : sans PR, *Valider la feature (ouvrir la PR)*
-seule ; ouverte (ou son état pas encore connu), *Diagnostiquer la CI* et
-*Release candidate* ; fusionnée, *PR mergée → revenir sur la base* (sur un
-enfant, *Retirer le worktree* à sa place) et *Release officielle* ; fermée,
-aucune. De même, *Écrire les invariants*
+seule ; ouverte (ou son état pas encore connu), *Diagnostiquer la CI* ;
+fusionnée, *PR mergée → revenir sur la base* (sur un
+enfant, *Retirer le worktree* à sa place) ; fermée, aucune. De même, *Écrire les invariants*
 d'une note sans ligne « → invariant » est masquée sans être grisée, et
 revient quand la note en gagne une.
 Une action dont le skill fixe son modèle (*haiku*, *sonnet* ou *opus*) et
@@ -1305,8 +1304,10 @@ conversation ; note `0.9.0-actions-independantes.md`).
   processus Claude Code neuf, l'entrée `<agent>~<clé>` du runtime des agents
   (la clé : l'id de l'action ; *Envoyer les réponses* reprend celle de la
   note, `note`, et sa session : l'agent qui a rédigé la note garde son
-  contexte). Mêmes dossier, consigne, plugin, dossiers en plus, mode et
-  autorisations que l'agent (F-58), interruption comme lui (F-59) ; le modèle
+  contexte). Mêmes dossier, consigne et plugin que l'agent (F-58), ses
+  sorties pour seul dossier en plus (le dossier des artefacts du projet reste à
+  la conversation), ses propres droits (ci-dessous), interruption comme lui
+  (F-59) ; le modèle
   et l'effort de l'en-tête de son skill, en sous-contexte ou non (ou le
   modèle choisi, F-99), sinon ceux de l'agent ; le suivi des fichiers écrits de Claude Code
   (`enableFileCheckpointing`). Pas de limite au nombre de courses ; la
@@ -1322,8 +1323,12 @@ conversation ; note `0.9.0-actions-independantes.md`).
   réponse de ce tour ; sinon elle finit au bout des 10 s. Revenue au repos à
   la fin de son tour, sans tâche de fond et sans qu'aucune soit tombée
   pendant ce tour, elle finit aussitôt. Limite : un agent qui repart plus de
-  10 s après la fin de sa tâche trouve sa course déjà finie. Finie, la
-  course est fermée (son processus aussi), puis l'avis de
+  10 s après la fin de sa tâche trouve sa course déjà finie. Un sous-agent
+  que `SendMessage` relance (même tâche, qui repart) tient la course *en cours*
+  comme au premier lancement (T-32, I-44) ; un sous-agent fini après le dernier
+  tour sans qu'aucun tour relise sa réponse : la course finit *en échec*, une
+  ligne en tête de sa réponse le dit (comme une commande de fond coupée).
+  Finie, la course est fermée (son processus aussi), puis l'avis de
   fin.
   **Sans arrière-plan en sous-contexte** : une course dont le skill a
   `context: fork` part avec `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` (le
@@ -1333,6 +1338,49 @@ conversation ; note `0.9.0-actions-independantes.md`).
   *en échec* et sa réponse commence par la ligne qui le dit (« n commande(s)
   en arrière-plan coupée(s) à la fin de l'action : le travail est
   peut-être incomplet »).
+- **Ses droits** (0.15.0, I-57 ; `core/vibecoder/rights`, `runRights` de
+  `controllers/runs`) : une course part en mode `dontAsk`, quel que soit le mode
+  de l'agent principal (que l'action parte d'un clic ou de l'orchestrateur) :
+  ce que sa liste permet passe, le reste est refusé sans question ; la
+  conversation de l'agent, elle, garde son mode. Sa liste (`allowedTools`,
+  donnée au SDK au départ, la même pour ses sous-agents) : le `allowed-tools`
+  de son skill (`note` pour `answers` ; `${CLAUDE_SKILL_DIR}` et
+  `${VIBECODER_OUT}` remplacés) plus les commandes de test, de typage et de lint
+  de la section des commandes d'`AGENTS.md` (un argument `<…>` devient `*`),
+  seules ou suivies d'arguments, jamais composées, derrière le préfixe que
+  l'appli donne aux actions ; pas d'autre source. Les `permissions.allow` des
+  réglages de l'utilisateur s'ajoutent, `ask` vaut un refus, `deny` l'emporte ;
+  ses `additionalDirectories` ne sont pas repris. Un crochet `PreToolUse`
+  (`core/vibecoder/bounds`), que l'appli donne au SDK pour la course et ses
+  sous-agents, borne les outils de fichiers, avant les règles de l'utilisateur :
+  lecture dans le projet, les sorties de l'agent et le plugin de VibeCoder ;
+  écriture dans le projet et les sorties (une action `reads` : les sorties
+  seules) ; jamais `.claude/`, `.git/`, `.husky/`, un `AGENTS.md` ni un
+  `package.json` ; un motif de `Glob` ou un `glob` de `Grep` absolu ou qui monte
+  par `..` est refusé. Ce qu'une commande autorisée lance n'est pas borné.
+  *Les refus* sont lus dans le flux, de l'agent et de ses sous-agents, pendant
+  un tour ou hors tour : un refus d'écriture ou de `Bash` fait finir la course
+  *en échec* (le SDK ne dit pas la nature de la commande refusée), un refus de
+  `Read`, `Glob` ou `Grep` est cité sans la faire échouer ; une ligne en tête de
+  sa réponse cite chaque appel (outil et cible). Une course ne demande donc plus
+  rien : l'onglet *Actions* ne montre aucune demande d'autorisation (les
+  commandes `run.allow`, `run.always` et `run.deny` restent dans la table).
+  *Vibe* tourne dans la conversation : sa liste (la CLI de VibeCoder,
+  `Read`, `Glob`, `Grep`) ne vaut que pour son premier tour (mesuré), le reste
+  suit le mode de l'agent — sauf la CLI : tant que le mode *Vibe* de l'agent
+  est en cours (`vibeOn`), la file d'autorisations de sa conversation (I-17,
+  `autoAllow` de `core/agents`) accepte d'elle-même les seuls appels `Bash`
+  `node <dossier du plugin>/bin/vibecoder.mjs …` (`vibeCliCall` : le script
+  résolu, `..` compris, est celui du plugin ; aucune composition ni
+  redirection hors guillemets — `;` `&` `|` `<` `>` `$`, accent grave,
+  parenthèses, saut de ligne). *Vibe* arrêté, ou jamais lancé : le mode de
+  l'agent s'applique, la demande est posée ; toute autre commande pendant
+  *Vibe* : posée aussi. Une variante de modèle d'un skill (`verifier--haiku`)
+  reçoit aussi les règles du dossier du skill de base, dont elle suit le texte.
+  Les skills `modules` et `module` (et leur sous-agent `developpeur`) lancent
+  les commandes du projet derrière le préfixe de l'agent (`{{prefix}}`, comme
+  `verifier` et `commiter-modules`). *Commit* ne supprime plus `commit.md` : à
+  la fin de la course, si `HEAD` a bougé depuis son départ, l'appli l'efface.
 - **Un ancien résultat ne compte pas** : un `checks.json` dont le `time`
   précède le départ de la dernière course `checks` est ignoré (I-46).
 - **La règle** (`blockedBy`, sans modèle) : une action qui **modifie la
@@ -1349,13 +1397,13 @@ conversation ; note `0.9.0-actions-independantes.md`).
   restent cliquables (par l'appli, `direct`), seul leur *via* est grisé
   (I-25).
 - **L'onglet Actions (n)** : une ligne par course, la plus récente d'abord —
-  son libellé, qui travaille, son état (*en cours*, *attend une
-  autorisation*, *arrêtée — à garder ou annuler*, *finie*, *en échec*,
+  son libellé, qui travaille, son état (*en cours*,
+  *arrêtée — à garder ou annuler*, *finie*, *en échec*,
   *gardée*, *annulée*), depuis quand ; pour *Générer les modules* (`modules`),
   son avancement en plus : la vague en cours, les modules faits sur le
   total, les corrections renvoyées, une relance Opus s'il y en a eu ; *Arrêter* tant qu'elle travaille ; sa
-  demande d'autorisation (outil, cible ; *Autoriser*, *Toujours*,
-  *Refuser*) ; sa réponse, repliée. Une course se désigne par l'id de son
+  réponse, repliée (pas de demande d'autorisation : une course ne demande
+  rien, 0.15.0). Une course se désigne par l'id de son
   action (`conv:vibeRunOp`), jamais par un texte ni un chemin.
   L'avancement se lit dans le flux du SDK que l'appli lit déjà
   (`core/agents/tasks`), sans fichier ni demande au modèle : une vague, les
@@ -1365,12 +1413,12 @@ conversation ; note `0.9.0-actions-independantes.md`).
   `Agent` avec `model: "opus"`. Gardé après la fin de la course. Un champ
   absent du flux : l'onglet en montre moins ; l'avancement ne décide jamais
   de l'état d'une course et ne la bloque pas.
-- **Le signal** : une course qui attend une autorisation, finit ou échoue se
+- **Le signal** : une course qui finit ou échoue se
   signale sur le robot de son agent, avec le bip (F-55) ; finie ou en échec,
   jusqu'à ce qu'on ouvre son onglet *Actions (n)* (F-92 ; chaque course
   retient l'état où elle a été vue) — *finie*, aussi quand son agent est
   affiché ou que sa conversation est lue, *en échec* non : son « ! » reste
-  jusqu'à l'onglet — ; une autorisation, jusqu'à sa réponse, vue ou pas. Ses
+  jusqu'à l'onglet. Ses
   tâches de fond (celles des courses vivantes) comptent pour le robot (F-55). Une course en cours fait clignoter le robot dès son départ,
   sans bip, quand rien d'autre ne se signale. Pas de signal pour une course
   arrêtée.
@@ -2011,10 +2059,11 @@ créateur ; le relecteur, F-101) :
    `pr.json`). Montre la PR (numéro, titre, base ← branche,
    *Ouvrir* dans le navigateur) et l'état de la CI (`ci.md`). Ses actions
    suivent l'état de la PR (F-99) : sans PR, *Valider la feature (ouvrir la
-   PR)* ; ouverte, *Diagnostiquer la CI* et *Release candidate* ; fusionnée,
+   PR)* ; ouverte, *Diagnostiquer la CI* ; fusionnée,
    *PR mergée → revenir sur la base* (F-114 ; sur un enfant, *Retirer le
-   worktree* à sa place, dans la vue des branches, F-110) et *Release
-   officielle*. Créateur assigné à une PR qui n'est pas la sienne : *Me retirer
+   worktree* à sa place, dans la vue des branches, F-110). Retirées en 0.15.0 :
+   *Release candidate* et *Release officielle* (leurs skills `rc` et `release`
+   aussi). Créateur assigné à une PR qui n'est pas la sienne : *Me retirer
    de la PR* (F-101). Relecteur : F-101.
 
 Une nouvelle demande commence sur la base par *Rédiger la note* (ci-dessus,
@@ -2358,8 +2407,7 @@ tests, faits sans ✓ ni lecture) ; les étapes qu'il passe reçoivent leur ✓
    modules*, vérifications (la ponytail review comprise ; un échec corrigé :
    cette vérification seule relancée),
    fixups, PR, CI suivie jusqu'au vert (un échec : un commit de correction
-   poussé, *Diagnostiquer la CI* relancé), puis il s'arrête ; jamais
-   *Release candidate*, laissée à l'utilisateur à l'étape PR —, une
+   poussé, *Diagnostiquer la CI* relancé), puis il s'arrête —, une
    demande puis la fin de son tour, réveillé par l'avis de fin ; chaque
    action reste visible et arrêtable dans l'onglet *Actions*, et ce qui
    doit attendre part de soi-même. *Vibe* ne valide pas la note ; rien
@@ -2530,7 +2578,7 @@ absente (S-72).
   identifiant (`gh api user --jq .login`), en lecture seule comme le reste.
 - Une réponse vaut 60 s (par branche, par PR) ; elle est demandée en fond,
   le relevé ne l'attend pas et repart quand elle change ; ↻ les redemande.
-- Le skill `verifier` reçoit ce préfixe **vu de l'agent** (`{{prefix}}`,
+- Les skills `verifier`, `commiter-modules`, `modules` et `module` reçoivent ce préfixe **vu de l'agent** (`{{prefix}}`,
   F-97) : sans la box où l'agent tourne déjà (vide si `agentCommand` y
   entre) ; il y lance les commandes du projet, sans en ajouter — toutes, ou
   celle à relancer seule (`{{check}}`).
@@ -2768,8 +2816,7 @@ complète une seule fois, à la fin de *Générer les modules*, par Opus (le
 typage et les tests des fichiers modifiés après chaque vague, avec l'outil du
 projet, la suite complète si le projet ne sait pas les choisir ; rien avant
 la première vague). Aucun skill livré ne fait
-`git push --force` ni ne fusionne une PR ; une version, un tag, une release
-candidate ne se suppriment qu'avec l'accord de l'utilisateur.
+`git push --force` ni ne fusionne une PR.
 
 **F-106 Modèles** : chaque skill fixe son modèle et son effort (son
 en-tête). Ce qui se suffit à soi-même tourne dans un sous-contexte
@@ -2779,7 +2826,7 @@ longueur de celle-ci.
   message préparé, tel quel), `base`, `publier-revue` (`charger-pr`, `commit`, `base`, `publier-revue` : le
   *via* des actions directes, F-114), `nouvelle-demande` (F-110), `lancement` ;
 - *sonnet* : `commit-preparer` (faible) ; `pr`, `fixups`, `ci`, `ecran`,
-  `lire-invariants`, `commiter-modules`, `rc`, `release` (moyen) ;
+  `lire-invariants`, `commiter-modules` (moyen) ;
   `appliquer-revue` (élevé) ;
 - *opus · élevé* : `invariants`, `modules`, `module`, `conception`, `relire`,
   `aligner`, `ponytail`, `relire-note`, `relire-commits`.
@@ -2787,7 +2834,7 @@ longueur de celle-ci.
 `lire-invariants` : Sonnet à effort moyen, retenu par un banc (tests Rust de
 workflows-tester, tests TypeScript de whisper) : 79/90, contre 84/90 pour
 Opus à effort moyen, 1,8 fois plus cher ; Haiku écarté. Sans sous-contexte,
-chacun dans sa course (F-115) : `modules`, `module`, `rc`, `release`,
+chacun dans sa course (F-115) : `modules`, `module`,
 `appliquer-revue` sur leur modèle ; `note`, `forme` et *Envoyer les
 réponses* (un message sans skill, qui reprend la session de la note) sur
 celui de l'agent (F-109) ; dans la conversation (en changer de
@@ -3037,7 +3084,10 @@ dossier, sur le vrai principal, git réel) ; I-44 :
 principal, git réel, SDK factice), et, à la porte des commandes,
 `commands-guards.test.ts` (même dossier) ; I-45 :
 `src/main/core/agents/tests/invariants/rewind.test.ts` (ce que l'appli
-demande à Claude Code) et le dernier cas de `runs.test.ts` ; I-46 :
+demande à Claude Code) et le dernier cas de `runs.test.ts` ; I-44 relancé (T-32) :
+`run-relaunched.test.ts` ; I-57 : `run-rights.test.ts` (même dossier, sur le
+vrai principal, SDK factice : le mode, la liste et le contrôle des fichiers que
+l'appli lui donne) ; I-46 :
 `src/main/core/vibecoder/tests/invariants/checks.test.ts` ; I-41 :
 `src/main/app/controllers/tests/invariants/worktree.test.ts` (sur le vrai
 principal, git réel) ; la page des réglages et
@@ -3344,7 +3394,9 @@ sont retirés en 0.14.0.)*
   viennent d'un clic ou de l'orchestrateur (`vibecoder run start`), de deux
   clics sans relevé entre eux ou de deux demandes lues au même passage. Une
   course arrêtée dont l'utilisateur n'a pas encore choisi *Garder* ou
-  *Annuler* compte comme en cours (retour en arrière compris).
+  *Annuler* compte comme en cours (retour en arrière compris). Une course
+  dont un sous-agent travaille encore reste en cours, **relancé compris**
+  (`SendMessage` : T-32) : son verrou ne tombe pas pendant qu'il écrit.
 - **I-45** *Annuler* une course ne ramène **que ce que ses propres outils
   d'édition ont écrit** : `rewindFiles` du SDK sur **son** processus (son
   entrée `<agent>~<clé>`, lancé neuf pour elle, avec le suivi des fichiers),
@@ -3412,6 +3464,14 @@ sont retirés en 0.14.0.)*
   `/p2` n'est pas sous `/p`). Un robot retiré de la config, ou un dossier sans
   robot : refusé, rien ne part. Et il passe par la porte `agent` : ce qu'elle
   ferme (répondre aux demandes d'autorisation, I-13 à I-17) lui reste fermé.
+- **I-57** Une course (F-115) et ses sous-agents n'ont **jamais plus de droits
+  que la liste de leur skill plus les règles d'autorisation de l'utilisateur** :
+  toujours le mode `dontAsk` (jamais le mode de l'agent, *Auto* ni le
+  contournement des autorisations), que l'action parte d'un clic ou de
+  l'orchestrateur ; leurs outils de fichiers ne lisent ni n'écrivent hors du
+  projet et des sorties de l'agent (le plugin en lecture), et jamais `.claude/`,
+  `.git/`, `.husky/`, un `AGENTS.md` ni un `package.json` : une action
+  n'élargit pas ses propres droits.
 
 ### Système et code
 
@@ -3717,8 +3777,9 @@ relire, une PR d'essai sur GitHub)
   course des vérifications). Une course finie → une ligne
   « VibeCoder : « … » finie — … » dans le fil (après le tour en cours de la
   conversation, s'il y en a un) ; une course arrêtée → aucune. Mode
-  *manuel* : la demande d'autorisation d'une course dans l'onglet
-  *Actions*, *Autoriser* → elle reprend. *Nouvelle session* → l'onglet se
+  *manuel* : la course ne demande rien (mode `dontAsk`, I-57) ; ce que sa
+  liste ne permet pas est refusé et la course finit *en échec*, la ligne en tête
+  de sa réponse le dit. *Nouvelle session* → l'onglet se
   vide.
 - **S-69** L'orchestrateur (F-115, F-103) : « Lance la relecture du diff »
   → `vibecoder run start review-diff`, la course part (onglet *Actions*), l'avis
@@ -3749,8 +3810,8 @@ relire, une PR d'essai sur GitHub)
   leur raison. Plus loin : ni *Vérifier
   l'alignement* ni *Ponytail review* ; *✓ Commiter* seulement un commit
   préparé ; l'étape PR sans PR : *Valider la feature* seule ; la PR ouverte :
-  *Diagnostiquer la CI* et *Release candidate* ; fusionnée : *PR mergée →
-  revenir sur la base* et *Release officielle*.
+  *Diagnostiquer la CI* ; fusionnée : *PR mergée →
+  revenir sur la base*.
 - **S-71** La vue des branches : *Branches locales*, un clic sur une autre
   branche → le dossier y passe (une modification en cours : grisé, *Mettre
   de côté* à côté). *Créer une branche* `feat/essai`, départ par défaut,
@@ -3794,6 +3855,18 @@ relire, une PR d'essai sur GitHub)
   badge `variant` plus clair que `invariant` ; *Revérifier* (neutre) avant
   *Revalider*, *en cours* / *en attente* à côté ; plusieurs messages à l'agent
   sans *Vu* → le surlignage s'accumule, *Vu* ou *Revalider* le remettent à zéro.
+- **S-75** Les courses fiables et cantonnées (0.15.0) : l'agent principal en
+  *Manuel* ; *Poser la forme*, *Générer les modules*, *Lancer les vérifications*
+  → aucune demande d'autorisation, l'onglet *Actions* n'en montre plus ;
+  *Vibe* lancé → ses appels de `vibecoder` passent sans demande, Vibe arrêté →
+  ils sont demandés. Une course qui tente d'écrire `AGENTS.md`, `package.json`,
+  `.git/` ou `.husky/`, ou hors du projet et des sorties → refusée, *en échec*,
+  la ligne en tête cite l'appel ; un `Read` refusé est cité sans échec. Pendant
+  *Générer les modules*, un développeur relancé par l'orchestrateur → la course
+  reste *en cours* jusqu'à sa réponse relue. Les commandes de test d'`AGENTS.md`
+  passent derrière le préfixe, avec un fichier en argument. *Release candidate*
+  et *Release officielle* n'apparaissent plus à l'étape PR. *Revérifier* une
+  note sans changement → « rien de bloquant ».
 ---
 
 ## 14. Limites connues

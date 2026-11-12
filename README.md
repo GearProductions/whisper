@@ -461,8 +461,7 @@ L'onglet **Actions** suit chaque action lancée : qui travaille, son état,
 depuis quand, sa réponse ; pour *Générer les modules*, son avancement (la
 vague en cours, les modules faits sur le total, les corrections renvoyées, une relance
 Opus), lu dans le flux de l'agent : un champ absent ne montre que moins, l'état n'en
-dépend pas ; ses demandes d'autorisation (*Autoriser*,
-*Toujours*, *Refuser*). *Arrêter* (là, ou à côté du bouton) l'arrête à tout moment ;
+dépend pas. *Arrêter* (là, ou à côté du bouton) l'arrête à tout moment ;
 vous choisissez ensuite **Garder** ce qu'elle a déjà écrit, ou **Annuler** :
 les fichiers qu'elle a écrits — et eux seuls, pas les vôtres ni ceux d'une
 autre action — reviennent à leur état d'avant (ce qu'elle a changé par une
@@ -477,18 +476,61 @@ trouve l'action déjà finie). Une action dont le skill tourne en sous-contexte
 ne lance rien en arrière-plan : elle attend ses commandes au premier plan (en fond,
 sa réponse les couperait). Si une commande a quand même été coupée à sa fin, l'action
 finit en échec et sa réponse le dit en première ligne (le travail est peut-être
-incomplet). Un bouton qui doit
+incomplet). Un sous-agent qu'une action relance tient aussi l'action en cours ;
+fini sans qu'aucun tour relise sa réponse, l'action finit en échec et le dit.
+**Une action ne demande jamais rien** : elle part toujours en mode « ne pas
+demander », quel que soit le mode de l'agent, et ne peut faire que ce qui est
+dans sa liste (ci-dessous) ; le reste est refusé. Un refus d'écriture ou de
+commande la fait finir en échec, sa réponse le cite en première ligne ; un refus
+de lecture est cité sans l'arrêter. Vos règles `permissions.allow` (réglages de
+Claude Code) s'ajoutent à sa liste, `permissions.ask` compte comme un refus,
+`permissions.deny` l'emporte. Ses outils de fichiers lisent dans le projet, les
+sorties de l'agent et le plugin de VibeCoder, écrivent dans le projet et les
+sorties (une action en lecture : les sorties seules), jamais `.claude/`, `.git/`,
+`.husky/`, un `AGENTS.md` ni un `package.json` (une dépendance à ajouter, c'est
+vous). Ce qu'une commande autorisée lance n'est pas borné. Un bouton qui doit
 attendre est grisé et dit pourquoi ; un bouton qui n'a pas encore de sens
-n'est pas affiché (pas de *✓ Commiter* sans commit préparé, pas de *Release
-candidate* sans PR…) ; une action arrêtée retient les autres
+n'est pas affiché (pas de *✓ Commiter* sans commit préparé, pas de *Diagnostiquer
+la CI* sans PR…) ; une action arrêtée retient les autres
 tant que vous n'avez pas choisi. *⏹ Arrêter* de la barre d'état n'arrête
 que le tour de la conversation. Quand sa conversation est au repos, le robot
 de l'agent montre ses actions : il clignote pendant qu'une action travaille ;
-« ? » quand l'une attend une autorisation, jusqu'à votre réponse ; « ! » ou
+« ! » ou
 pastille verte quand l'une échoue ou finit, jusqu'à ce que vous ouvriez son
 onglet *Actions* (la pastille verte s'efface aussi quand vous affichez l'agent ;
 avec le bip, sauf pour le clignotement) ; une action que
 vous avez arrêtée, non.
+
+**Ce que chaque action peut faire** — sa liste, celle du `allowed-tools` de son
+skill (`resources/vibecoder/plugin/skills/<skill>/SKILL.md`), plus, pour toutes, les commandes de test, de typage et de lint
+de la section « Commandes » de l'`AGENTS.md` du projet (sans elles, une action
+qui en a besoin échoue et le dit). « Lecture seule » : l'action n'écrit que dans
+les sorties de l'agent, jamais dans le projet.
+
+| Action | Sa liste, en bref | Lecture seule |
+|---|---|---|
+| Rédiger la note, Envoyer les réponses | lecture, écriture, édition | non |
+| Vérifier la conception | lecture, écriture des sorties, `git` en lecture (`show`, `diff`, `log`, `status`, `grep`…) | oui |
+| Poser la forme | lecture, écriture, édition, `git branch`, `diff` | non |
+| Écrire les invariants (rouges) | lecture, écriture, édition, `git branch`, `diff`, `ls-files` | non |
+| Lire en pseudo-code | lecture, écriture des sorties, `git show` | oui |
+| Vérifier l'alignement | lecture, écriture, édition, `git diff`, `ls-files` | non |
+| Préparer le commit | lecture, écriture des sorties, `git status`, `diff`, `log`, `add`, `restore --staged`, `gh pr view` | oui |
+| ✓ Commiter | lecture, `git commit -F`, `git log` (l'appli efface `commit.md` une fois le commit passé) | non |
+| Générer ce module, Générer les modules | lecture, écriture, édition, ses sous-agents `developpeur`, `git log`, `status`, `diff` | non |
+| Commiter les modules | lecture, écriture des sorties, `git status`, `log`, `add`, `commit`, `gh pr view` | non |
+| Relire le diff | lecture, écriture des sorties, `git show`, `diff`, `ls-files` | oui |
+| Lancer les vérifications et la ponytail review | lecture, écriture des sorties, lance la ponytail review | oui |
+| Ponytail review | lecture, écriture des sorties, `git diff`, `log` | oui |
+| Appliquer la revue | lecture, écriture, édition, `git log`, `add`, `commit --fixup` | non |
+| Replier les fixups | lecture, `git log`, `merge-base`, `rebase`, `gh pr view` | non |
+| Valider la feature (ouvrir la PR) | lecture, écriture des sorties, `git` en lecture, `git push` de la branche, `gh pr view`, `list`, `create` | non |
+| Diagnostiquer la CI | lecture, écriture des sorties, `gh pr checks`, `gh run list`, `view`, `git log`, `show` | oui |
+| PR mergée → revenir sur la base | `gh pr view`, `git status`, `branch`, `switch`, `pull`, `log` | non |
+| Charger la PR | écriture des sorties, `gh pr view`, `git fetch origin` | oui |
+| Relire la note, Relire les commits | lecture, écriture des sorties, `git diff` (la note), `show`, `log`, `grep` (les commits) | oui |
+| Plan de test à l'écran | lecture, écriture des sorties, `git diff`, `ls-files` | oui |
+| Publier la revue | écriture des sorties, `gh pr review`, `gh api` | oui |
 
 La conversation est l'**orchestrateur** : elle est prévenue de la fin de
 chaque action (une ligne dans le fil, pas pour une action que vous avez
@@ -808,11 +850,10 @@ relire une PR (le relecteur, plus bas) :
    accent ; *pour l'agent*, grisé) et grise le texte d'une `[agent]`, qui reste
    lisible. Le relecteur d'une PR n'a pas d'étiquettes : il lit tout.
 6. **PR** : sans PR, *Valider la feature (ouvrir la PR)* ; la PR ouverte,
-   *Diagnostiquer la CI* et *Release candidate* ; fusionnée, *PR mergée →
+   *Diagnostiquer la CI* ; fusionnée, *PR mergée →
    revenir sur la base* (refusé s'il y a des modifications en cours ; sur
    le robot d'un worktree, *Retirer le worktree*, dans la vue des branches,
-   à la place) et *Release
-   officielle*. L'étape est faite dès qu'une PR existe pour la branche :
+   à la place). L'étape est faite dès qu'une PR existe pour la branche :
    l'appli la demande elle-même à `gh` (sans IA, en lecture seule ; toutes
    les 60 s au plus, ↻ pour tout de suite). Assigné à la PR d'un autre,
    *Me retirer de la PR* vous refait relecteur.
@@ -1061,7 +1102,7 @@ n'attend vos validations, et les étapes qu'il passe les gardent. En deux temps 
    note validée, à n'importe quelle étape ensuite : écrivez vos invariants
    à la main, puis *Vibe* pour le reste) : l'agent reprend à la première
    étape pas faite et tient le rôle du développeur du guide jusqu'à la PR
-   et sa CI au vert (*Release candidate* reste à vous, à l'étape PR) en
+   et sa CI au vert en
    **enchaînant lui-même les actions de
    l'écran** — les mêmes que vous lanceriez, visibles et arrêtables dans
    l'onglet *Actions* (modules confiés à des agents Sonnet en parallèle, puis
