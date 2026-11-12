@@ -40,6 +40,8 @@
  *  (panneau caché, écran verrouillé : T-31) : ce qui peut partir part seul (startAction, comme un clic), ce que la course ou l'action
  *  directe retient reste (busy, changing), tout autre refus (grisée, same, invalide…) quitte la file ; vibeStop la vide, et arrêté (halted), rien ne part de la file ni par la porte agent (vibeHalted). runEnd (run.wait) : la fin d'une course en cours, ou en attente puis partie (état done,
  *  failed ou stopped, sa réponse) ; null : ni l'une ni l'autre, ou la demande n'a plus de course (file vidée, invalide, agent oublié).
+ *  La course Commit (commit) : l'appli efface <sorties>/commit.md à sa fin si le commit est passé (HEAD a bougé depuis son départ ;
+ *  dropCommitMessage) — le skill ne l'efface pas.
  *  Courses, avis, file et mode Vibe : en mémoire. closeRuns : l'agent oublié.
  *  Une course dont le skill a `context: fork` part sans tâches de fond (forked :
  *  CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1, le fork attend ses commandes) ; si une
@@ -52,15 +54,18 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { RunSignal, SendResult, VibeArgs, VibeRunOp, VibeView } from 'shared/bridge';
-import { EMPTY_LOG, runProgress, shortTarget, type AgentConfig, type RunRights } from 'core/agents';
+import { EMPTY_LOG, runProgress, unreadAgents, type AgentConfig, type RunRights } from 'core/agents';
 import { agentList, vibeLang, type Config } from 'core/config';
 import type { PreparedImage } from 'core/conversation';
 import {
-  cutCommands, cutLine, endNotice, GRACE_MS, headField, LOCKING, lockCode, lockText, nextVibeMode, ownRun, parseQuestions, runKey, skillModel,
+  cutCommands, cutLine, denialLine, endNotice, failingDenials, fileDecision, GRACE_MS, headField, listSkill, LOCKING, lockCode, lockText, nextVibeMode,
+  ownRun, parseQuestions, runKey, runRules, skillModel, unreadLine,
   noticedOnShow, remainingModules, runPhase, runSignal, runTasks, type ActionDef, type Run, type RunState, type VibeMode,
 } from 'core/vibecoder';
+import { gitRun } from 'technicals/git';
 import { loadConfig, vibeActions, vibeOutDir, vibePluginDir } from 'app/settings';
 import { agents, CLAUDE_MISSING, isBusy, launchOptions, pushAgents, sendToAgent } from './agents';
+import { promptPrefix } from './processes';
 import { directLocks, lastView, refreshVibe, startAction, surveyAgent } from './vibecoder';
 
 /** La fin d'une course, ce que rend run.wait. */
@@ -69,7 +74,8 @@ export type RunEnd = { action: string; state: 'done' | 'failed' | 'stopped'; rep
 // Une course, et ce que la règle et sa fin en retiennent : `reads` (elle lit seulement), `seen` (son tour a commencé),
 // `tasks` (ses tâches de fond comptées au dernier changement, runTasks), `forked` (son skill est en sous-contexte), `grace` (le minuteur du délai de grâce, s'il court),
 // `noticed` (l'état où l'utilisateur l'a vue, null : jamais).
-type Live = Run & { reads: boolean; seen: boolean; forked: boolean; tasks: number; noticed: RunState | null; grace?: NodeJS.Timeout };
+// `head` (la course Commit) : le dossier de l'agent et son HEAD au départ, d'où se voit que le commit est passé.
+type Live = Run & { reads: boolean; seen: boolean; forked: boolean; tasks: number; noticed: RunState | null; grace?: NodeJS.Timeout; head?: { dir: string; before: Promise<string | null> } };
 
 const stopGrace = (run: Live) => { clearTimeout(run.grace); run.grace = undefined; };
 
@@ -121,15 +127,9 @@ export const runsOf = (agent: Pick<AgentConfig, 'id'>): Run[] => mine(agent.id);
 export const lockingRuns = (agentId: string) => mine(agentId).filter((r) => LOCKING.includes(r.state))
   .map((r) => ({ id: r.id, reads: r.reads, module: r.module }));
 
-// La demande d'autorisation en attente de la course d'une action, pour runViews.
-export const runPending = (agentId: string) => (id: string) => {
-  const p = agents.pendingPermission(entryId(agentId, runKey(id)));
-  return p ? { tool: p.tool, target: shortTarget(p.input) } : null;
-};
-
 // Le SKILL.md du skill qu'appelle un gabarit (« /vibecoder:<nom> … ») ; null pour un autre texte.
 export function skillMd(template: string) {
-  const name = /^\/vibecoder:([\w-]+)/.exec(template)?.[1];
+  const name = listSkill('', template);
   try { return name ? fs.readFileSync(path.join(vibePluginDir(), 'skills', name, 'SKILL.md'), 'utf8') : null; } catch { return null; }
 }
 
@@ -195,12 +195,23 @@ export async function retryWaits(agent: AgentConfig) {
   if (view) releaseWaits(agent, view);
 }
 
-// Les droits de la course de l'action `def` lancée avec le gabarit `template` (rights : listSkill, runRules — le
-// SKILL.md de ce skill, son dossier, l'AGENTS.md du dossier de l'agent, promptPrefix ; bounds : fileDecision sur les
-// chemins réels du dossier de l'agent, de ses sorties et du plugin, def.reads).
-export function runRights(agent: AgentConfig, def: ActionDef, template: string, cfg: Config): RunRights {
-  void [agent, def, template, cfg];
-  throw new Error('not implemented');
+// Les droits de la course de l'action `def` lancée avec le gabarit `template` (rights : listSkill, runRules — `md`, le
+// SKILL.md de ce skill (celui de `note` pour answers) déjà lu, son dossier, l'AGENTS.md du dossier de l'agent, promptPrefix ;
+// bounds : fileDecision sur les chemins réels du dossier de l'agent, de ses sorties et du plugin, def.reads).
+export function runRights(agent: AgentConfig, def: ActionDef, template: string, md: string | null, cfg: Config): RunRights {
+  const read = (file: string) => { try { return fs.readFileSync(file, 'utf8'); } catch { return null; } };
+  const real = (p: string) => { try { return fs.realpathSync(p); } catch { return p; } };   // un dossier absent : tel quel
+  const name = listSkill(def.id, template);
+  const skillDir = path.join(vibePluginDir(), 'skills', name ?? '');
+  const out = vibeOutDir(agent.id);
+  const bounds = { project: real(agent.dir), out: real(out), plugin: real(vibePluginDir()), reads: !!def.reads };
+  return {
+    allow: runRules({
+      skillMd: md, skillDir, out,
+      agentsMd: read(path.join(agent.dir, 'AGENTS.md')), prefix: promptPrefix(agent, cfg),
+    }),
+    check: (tool, input) => fileDecision(tool, input, bounds, fs.realpathSync),
+  };
 }
 
 // Lance l'action `def` (son message déjà rempli : le texte, et les images qui partent avec lui) dans sa course,
@@ -226,6 +237,7 @@ export function startRun(
     total: def.id === 'modules' ? remainingModules(lastView(agent.id)?.modules ?? []) : null,
     sessionId: def.id === 'answers' ? runs.get(key)?.sessionId ?? null : null,
   };
+  if (def.id === 'commit') run.head = { dir: agent.dir, before: gitRun(agent.dir)(['rev-parse', 'HEAD']) };
   runs.set(key, run);   // tout de suite : un second clic la voit (blockedBy)
   signalFollow(agent.id);   // le robot clignote dès le départ
   const entry: AgentConfig = {
@@ -236,13 +248,14 @@ export function startRun(
   // Ses tâches de fond oubliées : celles d'une course précédente, tuée en route, la tiendraient en cours.
   const launch = launchOptions(agent, cfg);   // le jeton est celui du robot, pas de la course
   agents.close(entry.id).then(() => agents.forgetReply(entry.id)).then(() => agents.send(entry, message, {
-    ...launch, checkpoint: true,
+    ...launch, checkpoint: true, rights: runRights(agent, def, message.text, def.id === 'answers' ? skillMd('/vibecoder:note') : md, cfg),
+    dirs: [vibeOutDir(agent.id)],   // les sorties seules : le dossier des artefacts du projet reste à la conversation
     // Un fork qui lance une commande de fond la verrait tuée à sa réponse : il l'attend au premier plan.
     // env remplace celui du processus (le SDK ne fusionne pas) : celui du robot, sinon process.env recopié.
     ...(forked && { env: { ...(launch.env ?? process.env), CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1' } }),
     onChange: () => changed(agent.id, run),
     onSession: (id) => { run.sessionId = id; },
-    onPermission: () => { refreshVibe(); },
+    onPermission: () => {},   // dontAsk : canUseTool ne tombe jamais ; le hook est requis par le runtime
   })).catch((err) => {
     // Partie en échec avant son tour : une fin comme une autre, l'orchestrateur en est prévenu.
     if (run.state !== 'running') return;
@@ -275,17 +288,24 @@ function changed(agentId: string, run: Live) {
 }
 
 // Fin d'une course : sa réponse (ou `failure` : elle n'a pas pu partir), son processus fermé, l'avis à la
-// conversation, les demandes revues. Un fork dont une commande de fond a été coupée (la variable n'a pas agi) :
-// en échec, sa réponse le dit en tête ; les tâches sont lues avant la fermeture, qui les emporte.
+// conversation, les demandes revues. En échec, sa réponse en tête le dit : un fork dont une commande de fond a été
+// coupée (la variable n'a pas agi), un refus qui n'est pas une lecture (une lecture refusée seule : citée, sans échec),
+// un sous-agent fini que rien n'a relu (unreadAgents, d'après la fin de son dernier tour) ; les tâches et les refus
+// sont lus avant la fermeture, qui les emporte.
 function finish(agentId: string, run: Live, failure?: string) {
   stopGrace(run);
   const entry = entryId(agentId, run.key);
   const cfg = loadConfig();
   const lang = vibeLang(cfg);
-  const last = failure === undefined ? agents.lastReply(entry) : { error: true, text: failure };
-  const cut = run.forked && failure === undefined ? cutCommands(agents.tasks(entry).tasks) : 0;
-  Object.assign(run, { state: cut || last?.error ? 'failed' : 'done', reply: (cut ? `${cutLine(cut, lang)}\n` : '') + (last?.text ?? ''), end: Date.now() });
+  const last: { text: string; error?: boolean; at?: number } | null | undefined = failure === undefined ? agents.lastReply(entry) : { error: true, text: failure };
+  const log = failure === undefined ? agents.tasks(entry) : EMPTY_LOG;
+  const cut = run.forked ? cutCommands(log.tasks) : 0;
+  const unread = unreadAgents(log, last?.at ?? null);
+  const head = [cut && cutLine(cut, lang), log.denials.length && denialLine(log.denials, lang), unread && unreadLine(unread, lang)];
+  const failed = cut || failingDenials(log.denials).length || unread || last?.error;
+  Object.assign(run, { state: failed ? 'failed' : 'done', reply: head.filter(Boolean).map((l) => `${l}\n`).join('') + (last?.text ?? ''), end: Date.now() });
   void agents.close(entry);
+  if (run.head) void dropCommitMessage(agentId, run.head);
   signalFollow(agentId);
   settle(agentId, run.id, { action: run.id, state: run.state as 'done' | 'failed', reply: run.reply });
   const def = vibeActions(lang).find((d) => d.id === run.id);
@@ -294,6 +314,15 @@ function finish(agentId: string, run: Live, failure?: string) {
   if (!agent) return;
   deliver(agent, cfg);
   void retryWaits(agent);
+}
+
+// La course Commit finie : si HEAD a bougé depuis son départ, le commit est passé et l'appli efface commit.md (le skill ne
+// l'efface pas) ; HEAD illisible ou inchangé (un hook a refusé) : le message reste.
+async function dropCommitMessage(agentId: string, head: { dir: string; before: Promise<string | null> }) {
+  const [before, after] = [await head.before, await gitRun(head.dir)(['rev-parse', 'HEAD'])];
+  if (!before || !after || before === after) return;
+  fs.rmSync(path.join(vibeOutDir(agentId), 'commit.md'), { force: true });
+  refreshVibe();
 }
 
 // Un avis à l'orchestrateur (fin de course), envoyé par deliver.

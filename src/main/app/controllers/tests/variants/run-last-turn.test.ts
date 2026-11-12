@@ -273,3 +273,53 @@ describe('les vagues s’enchaînent : chaque tour réveillé peut en réveiller
     expect(await state()).toBe('running');
   });
 });
+
+// Un sous-agent relancé par SendMessage (note 0.15.0, courses-droits ; T-32) : l'enchaînement de l'invariant
+// run-relaunched, jusqu'à la fin de la course.
+const toolUse = (id: string, name: string) => ({ type: 'assistant', parent_tool_use_id: null, message: { id: `m-${id}`, content: [{ type: 'tool_use', id, name, input: {} }] } });
+const startedBy = (task: string, toolUseId: string, more: object = {}) =>
+  ({ type: 'system', subtype: 'task_started', task_id: task, tool_use_id: toolUseId, task_type: 'local_agent', description: 'developpeur', ...more });
+
+describe('un sous-agent relancé par SendMessage', () => {
+  // Le sous-agent a fini ; l'agent le relance puis finit son tour sans attendre sa réponse.
+  async function relaunched() {
+    const forme = await runForme();
+    forme.emit(toolUse('tu-agent', 'Agent'));
+    forme.emit(startedBy('k1', 'tu-agent'));
+    forme.emit(ended('k1'));
+    forme.emit(toolUse('tu-send', 'SendMessage'));
+    forme.emit(startedBy('k1', 'tu-send', { is_backgrounded: true }));
+    forme.finish('Correction envoyée');
+    await settle();
+    return forme;
+  }
+
+  it('le tour finit : la course reste en cours ; sa notification, puis un tour : terminée', async () => {
+    const { GRACE_MS } = await import('core/vibecoder');
+    const forme = await relaunched();
+    simulatedClock();
+    await elapse(GRACE_MS * 3);
+    expect(await state()).toBe('running');
+
+    forme.emit(ended('k1'));
+    forme.emit(newTurn('Je relis'));
+    await settle();
+    forme.finish('Correction relue');
+    await settle();
+
+    expect(await runsNow()).toMatchObject([{ id: 'forme', state: 'done', reply: 'Correction relue' }]);
+  });
+
+  it('il finit, aucun tour ne suit : en échec, unreadLine en tête', async () => {
+    const { GRACE_MS, unreadLine } = await import('core/vibecoder');
+    const forme = await relaunched();
+    simulatedClock();
+    await elapse(10);   // sa fin vient après celle du tour (Reply.at)
+
+    forme.emit(ended('k1'));
+    await settle();
+    await elapse(GRACE_MS + 1);
+
+    expect(await runsNow()).toMatchObject([{ id: 'forme', state: 'failed', reply: `${unreadLine(1, 'fr')}\nCorrection envoyée` }]);
+  });
+});
