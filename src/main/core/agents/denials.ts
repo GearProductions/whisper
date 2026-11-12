@@ -12,6 +12,8 @@
  *  les nomme pas), Electron.
  *  Utilisé par : core/agents (tasks : TaskLog.denials). */
 
+import { shortTarget } from './reply';
+
 export type Denial = { toolUseId: string; tool: string; target: string; read: boolean };
 
 // Les débuts de texte d'un tool_result en erreur qui disent un refus.
@@ -24,6 +26,7 @@ export const READ_TOOLS = new Set(['Read', 'Glob', 'Grep']);
 // Le refus que dit un bloc tool_result (son texte `text`, son tool_use `tool`, absent :
 // outil inconnu) ; pas en erreur, ou un autre texte : null.
 export function denialOf(block: { tool_use_id: string; is_error?: boolean }, text: string, tool: { name: string; input: unknown } | undefined): Denial | null {
-  void [block, text, tool];
-  throw new Error('not implemented');
+  if (!block.is_error || !(DENIED.some((d) => text.startsWith(d)) || HOOK_DENIED.test(text))) return null;
+  const name = tool?.name ?? '?';
+  return { toolUseId: block.tool_use_id, tool: name, target: shortTarget(tool?.input), read: READ_TOOLS.has(name) };
 }
