@@ -32,7 +32,7 @@ vi.mock('app/controllers/vibecoder', () => ({
   lastView: (id: string) => (id === fake.shown ? fake.view : null),
 }));
 
-const { addArtifacts, copyArtifact, listArtifacts, projectArtifactsDir, projectArtifactsPath, readArtifact, resolveArtifact } = await import('app/controllers/artifacts');
+const { addArtifacts, artifactFiles, copyArtifact, listArtifacts, projectArtifactsDir, projectArtifactsPath, readArtifact, resolveArtifact } = await import('app/controllers/artifacts');
 
 const { READ_MAX } = await import('app/controllers/processes');
 
@@ -163,6 +163,37 @@ describe('resolveArtifact', () => {
   });
 });
 
+describe('artifactFiles', () => {
+  it('des ids connus (fichiers et dossiers) : leurs chemins, dans l’ordre', () => {
+    write(path.join(arts, 'maquettes', 'a.md'), 'A');
+    write(path.join(arts, 'notes.md'), 'N');
+    survey();
+    expect(artifactFiles(agent, [idOf('notes.md'), dirOf('maquettes'), idOf('maquettes/a.md')])).toEqual([
+      path.join(arts, 'notes.md'), path.join(arts, 'maquettes'), path.join(arts, 'maquettes', 'a.md'),
+    ]);
+  });
+
+  it('une liste vide, un id inconnu (même mêlé aux connus), un chemin, pas un tableau : null', () => {
+    write(path.join(arts, 'notes.md'), 'N');
+    survey();
+    const known = idOf('notes.md');
+    for (const ids of [[], [known, 'a99'], ['../x'], [7], 'a0', undefined, null, { 0: known }]) expect(artifactFiles(agent, ids)).toBeNull();
+  });
+
+  it('un autre agent affiché, ou un lien sur le chemin : null', () => {
+    write(path.join(arts, 'notes.md'), 'N');
+    write(path.join(fake.userData, 'dehors', 's.md'), 'S');
+    survey();
+    const id = idOf('notes.md');
+    fake.shown = 'autre';
+    expect(artifactFiles(agent, [id])).toBeNull();
+    fake.shown = 'a1';
+    fs.rmSync(path.join(arts, 'notes.md'));
+    fs.symlinkSync(path.join(fake.userData, 'dehors', 's.md'), path.join(arts, 'notes.md'));
+    expect(artifactFiles(agent, [id])).toBeNull();
+  });
+});
+
 describe('copyArtifact', () => {
   // Au-delà de 130 000 chemins, un push(...tableau) lève RangeError : le rapport est partagé, sans fusion.
   // Trop long sous Windows (NTFS, antivirus) : le rapport partagé ne dépend pas du système.
@@ -266,6 +297,21 @@ describe('copyArtifact', () => {
     expect(fs.readdirSync(chosen)).toEqual([]);
   });
 
+  it('un id inconnu : unknown-artifact, aucune boîte de dialogue', async () => {
+    write(path.join(arts, 'notes.md'), 'NOTES');
+    survey();
+    expect(await copyArtifact(agent, ['a99'])).toMatchObject({ ok: false, reason: 'unknown-artifact' });
+    expect(await copyArtifact(agent, 'a0' as unknown as string[])).toMatchObject({ ok: false, reason: 'unknown-artifact' });
+    expect(fake.opened).toEqual([]);
+    expect(fake.asked).toEqual([]);
+  });
+
+  it('un copié : pas de reason', async () => {
+    write(path.join(arts, 'notes.md'), 'NOTES');
+    survey();
+    expect((await copyArtifact(agent, [idOf('notes.md')])).reason).toBeUndefined();
+  });
+
   it('un dossier devenu un lien après le relevé : refusé, sa cible n’est pas copiée', async () => {
     write(path.join(arts, 'maquettes', 'a.md'), 'A');
     write(path.join(fake.userData, 'dehors', 'secret.md'), 'S');
@@ -313,13 +359,49 @@ describe('addArtifacts', () => {
     expect(fs.readFileSync(path.join(arts, 'maquettes', 'rapport-2.md'), 'utf8')).toBe('R');
   });
 
-  it('un id absent, inconnu ou en forme de chemin : à la racine', async () => {
+  it('sans dossier : à la racine', async () => {
     write(path.join(arts, 'maquettes', 'x.md'), 'x');
     survey();
-    for (const folder of [undefined, 'd99', '../..', fake.userData, 'a0']) await addArtifacts(agent, [dropped()], folder);
-    expect(fs.readdirSync(arts).sort()).toEqual(['maquettes', 'rapport-2.md', 'rapport-3.md', 'rapport-4.md', 'rapport-5.md', 'rapport.md']);
+    const r = await addArtifacts(agent, [dropped()]);
+    expect(r).toMatchObject({ ok: true });
+    expect(r.reason).toBeUndefined();
+    expect(fs.readdirSync(arts).sort()).toEqual(['maquettes', 'rapport.md']);
+    expect(fs.readdirSync(path.join(arts, 'maquettes'))).toEqual(['x.md']);
+  });
+
+  it('dans un dossier inconnu du relevé (d<i> inconnu, chemin, a<i>, pas une chaîne) : unknown-artifact, rien d’écrit, même pas à la racine', async () => {
+    write(path.join(arts, 'maquettes', 'x.md'), 'x');
+    survey();
+    for (const folder of ['d99', '../..', fake.userData, 'a0', 'maquettes', null, 7]) {
+      const r = await addArtifacts(agent, [dropped(), { name: 'c.md', content: Buffer.from('C').toString('base64') }], folder);
+      expect(r).toMatchObject({ ok: false, reason: 'unknown-artifact' });
+    }
+    expect(fs.readdirSync(arts)).toEqual(['maquettes']);
     expect(fs.readdirSync(path.join(arts, 'maquettes'))).toEqual(['x.md']);
     expect(fs.readdirSync(fake.userData)).not.toContain('rapport.md');
+  });
+
+  it('un dossier inconnu et aucun fichier valide : unknown-artifact, le dossier du projet n’est pas créé', async () => {
+    const r = await addArtifacts(agent, [], 'd99');
+    expect(r).toMatchObject({ ok: false, reason: 'unknown-artifact' });
+    expect(fs.existsSync(arts)).toBe(false);
+  });
+
+  it('le dossier visé devenu un lien : refused', async () => {
+    write(path.join(arts, 'maquettes', 'x.md'), 'x');
+    fs.mkdirSync(path.join(fake.userData, 'dehors'));
+    survey();
+    const id = dirOf('maquettes');
+    fs.rmSync(path.join(arts, 'maquettes'), { recursive: true });
+    fs.symlinkSync(path.join(fake.userData, 'dehors'), path.join(arts, 'maquettes'));
+    expect(await addArtifacts(agent, [dropped()], id)).toMatchObject({ ok: false, reason: 'refused' });
+  });
+
+  it('un échec (un chemin absent) : refused, le bon copié ; tout réussi : pas de reason', async () => {
+    const r = await addArtifacts(agent, [dropped(), path.join(fake.userData, 'absent.md')]);
+    expect(r).toMatchObject({ ok: false, reason: 'refused' });
+    expect(fs.readFileSync(path.join(arts, 'rapport.md'), 'utf8')).toBe('R');
+    expect((await addArtifacts(agent, [dropped()])).reason).toBeUndefined();
   });
 
   it('un dossier déposé : copié sous le dossier visé, numéroté s’il existe', async () => {
@@ -379,7 +461,7 @@ describe('addArtifacts, par contenus', () => {
     const f = path.join(fake.userData, 'depot', 'rapport.md');
     write(f, 'R');
     const r = await addArtifacts(agent, [f, { name: 'ok.md', content: b64('OK') }, { name: '../evil.md', content: b64('X') }, { name: 'b.md', content: '***' }]);
-    expect(r.ok).toBe(false);
+    expect(r).toMatchObject({ ok: false, reason: 'refused' });
     expect(r.line).toMatch(/2 échecs/);
     expect(r.line).toContain('Première erreur : nom');
     expect(fs.readdirSync(arts).sort()).toEqual(['ok.md', 'rapport.md']);
