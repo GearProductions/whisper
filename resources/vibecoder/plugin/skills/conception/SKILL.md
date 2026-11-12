@@ -19,12 +19,14 @@ Read: the note (under `docs/tickets/`, named like the branch, or the one the bra
 
 ## First check or re-check
 
-`<out>/conception-checked.md` holds the note as you last checked it: its first line is the note's path, the rest its text.
+`<out>/conception/<the note's file name>` (e.g. `<out>/conception/0.15.0-cli.md`) holds that note's text as you last checked it.
 
-- Absent, or its first line is another note → **first check**: the whole note; both levels.
-- Same note → **re-check** (the user pressed *Revérifier*): read only what changed, `git diff --no-index -- <out>/conception-checked.md <note>` (the path line aside), and the direct consequences of those changes on the rest of the note. Report **only `[important]`** suggestions; no `[secondaire]` on a re-check. Do not raise again what the earlier check already raised and the user answered (accepted or refused), nor what « Où ça casse » already lists as to be measured.
+- Absent → **first check**: the whole note; both levels.
+- Present → **re-check** (the user pressed *Revérifier*): read only what changed, `git diff --no-index -- <out>/conception/<name> <note>`, and the direct consequences of those changes on the rest of the note. Report **only `[important]`** suggestions; no `[secondaire]` on a re-check. Do not raise again what the earlier check already raised and the user answered (accepted or refused), nor what « Où ça casse » already lists as to be measured.
 
-At the end, whatever you found, write `<out>/conception-checked.md`: the note's path, then its full current text.
+At the end, whatever you found, write `<out>/conception/<name>` with the `Write` tool: the note's full current text, as is.
+
+Tools: read files with `Read`, `Glob` and `Grep`, write with `Write`; one command per `Bash` call — no `;`, `&&`, `|`, redirection or variable — and only the commands of your list. Anything else is refused, and the refusal is cited at the head of your answer.
 
 ## Step back first
 
@@ -63,7 +65,7 @@ The level comes first in the title, `[important]` or `[secondaire]` (these two w
 
 Each answer is one list line in three parts: the choice in bold, `**Accepter**` or `**Refuser**` (`en`: `**Accept**`, `**Reject**`); where, in italics: the note's heading and the bullet (`*Ce que ça fait, puce 3*`); the exact text to add or replace, quoted « … » (for a Forme or other line to rewrite, the whole new line). Separators: ` — ` before the place, ` : ` before the quote. A suggestion accepted is written into the note by the app's *Envoyer les réponses*, as any answer: so the quote is what enters the note, as is. One suggestion per case, the most serious first.
 
-Nothing found → leave `questions.md` as it is (do not create it). Never edit the note; write no other file than `questions.md` and `<out>/conception-checked.md`.
+Nothing found → leave `questions.md` as it is (do not create it). Never edit the note; write no other file than `questions.md` and `<out>/conception/<name>`.
 
 ## Answer
 

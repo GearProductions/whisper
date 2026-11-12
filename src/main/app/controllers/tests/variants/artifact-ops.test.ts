@@ -168,6 +168,121 @@ describe('déplacer', () => {
   });
 });
 
+// Chaque refus ou échec porte sa clé (reason) : runDirect la rend à la commande.
+describe('chaque refus avec sa clé', () => {
+  const unknown = { ok: false, reason: 'unknown-artifact' };
+  const refused = { ok: false, reason: 'refused' };
+
+  it('renommer : id inconnu, nom avec /, nom pris, un lien sous le dossier', async () => {
+    expect(await ops.renameArtifact(agent, 'a99', 'x.md')).toMatchObject(unknown);
+    expect(await ops.renameArtifact(agent, undefined, 'x.md')).toMatchObject(unknown);
+    expect(await ops.renameArtifact(agent, f('notes.md'), 'a/b.md')).toMatchObject({ ok: false, reason: 'name' });
+    expect(await ops.renameArtifact(agent, f('notes.md'), 7)).toMatchObject({ ok: false, reason: 'name' });
+    expect(await ops.renameArtifact(agent, f('notes.md'), 'plan.md')).toMatchObject(refused);
+    // un id inconnu l'emporte sur un mauvais nom
+    expect(await ops.renameArtifact(agent, 'a99', 'a/b')).toMatchObject(unknown);
+    // un autre agent : le relevé de l'agent affiché ne dit rien de ses ids
+    fake.shown = 'a2';
+    expect(await ops.renameArtifact(agent, f('notes.md'), 'n2.md')).toMatchObject(unknown);
+  });
+
+  it('un succès ne porte pas de clé', async () => {
+    expect((await ops.renameArtifact(agent, f('notes.md'), 'n2.md')).reason).toBeUndefined();
+    expect((await ops.renameArtifact(agent, f('plan.md'), 'plan.md')).reason).toBeUndefined();
+    expect((await ops.newArtifact(agent, undefined, 'vide.md', false)).reason).toBeUndefined();
+    expect((await ops.moveArtifacts(agent, [f('plan.md'), f('a/x.md')], d('z'))).reason).toBeUndefined();
+  });
+
+  it('créer : dossier inconnu, nom pris, nom caché', async () => {
+    expect(await ops.newArtifact(agent, 'd99', 'n.md', false)).toMatchObject(unknown);
+    // l'id d'un fichier n'est pas un dossier d'arrivée
+    expect(await ops.newArtifact(agent, f('notes.md'), 'n.md', false)).toMatchObject(unknown);
+    expect(await ops.newArtifact(agent, undefined, 'notes.md', false)).toMatchObject(refused);
+    expect(await ops.newArtifact(agent, undefined, 'a', true)).toMatchObject(refused);
+    expect(await ops.newArtifact(agent, undefined, '.h', true)).toMatchObject({ ok: false, reason: 'name' });
+    expect(await ops.newArtifact(agent, undefined, '../x.md', false)).toMatchObject({ ok: false, reason: 'name' });
+    // un dossier inconnu l'emporte sur un mauvais nom
+    expect(await ops.newArtifact(agent, 'd99', '../x', false)).toMatchObject(unknown);
+  });
+
+  // Un dossier sans droit d'écriture : le disque refuse la création (pas sous Windows, ni en root).
+  it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)('créer : le disque en échec porte failed', async () => {
+    const z = path.join(arts, 'z');
+    fs.chmodSync(z, 0o500);
+    try {
+      expect(await ops.newArtifact(agent, d('z'), 'n.md', false)).toMatchObject({ ok: false, reason: 'failed' });
+      expect(await ops.newArtifact(agent, d('z'), 'sous', true)).toMatchObject({ ok: false, reason: 'failed' });
+    } finally { fs.chmodSync(z, 0o700); }
+  });
+
+  it('déplacer, coller, dupliquer, supprimer : un id inconnu, même derrière un connu', async () => {
+    const before = tree();
+    expect(await ops.moveArtifacts(agent, ['a99'], undefined)).toMatchObject(unknown);
+    expect(await ops.moveArtifacts(agent, [f('notes.md'), 'a99'], d('z'))).toMatchObject(unknown);
+    expect(await ops.copyArtifacts(agent, ['a99'], undefined)).toMatchObject(unknown);
+    expect(await ops.copyArtifacts(agent, [f('notes.md'), 'a99'], d('z'))).toMatchObject(unknown);
+    expect(await ops.duplicateArtifacts(agent, ['a99'])).toMatchObject(unknown);
+    expect(await ops.duplicateArtifacts(agent, [f('notes.md'), 'a99'])).toMatchObject(unknown);
+    expect(await ops.trashArtifacts(agent, ['a99'], ['x'], trash)).toMatchObject(unknown);
+    expect(await ops.trashArtifacts(agent, [f('notes.md'), 'a99'], ['notes.md', 'x'], trash)).toMatchObject(unknown);
+    expect(await ops.duplicateArtifacts(agent, [])).toMatchObject(unknown);
+    expect(await ops.duplicateArtifacts(agent, 'a0')).toMatchObject(unknown);
+    expect(tree()).toEqual(before);
+    expect(trashed).toEqual([]);
+  });
+
+  it('déplacer et coller vers un dossier inconnu : unknown-artifact, rien ne bouge, même à plusieurs', async () => {
+    const before = tree();
+    for (const op of [ops.moveArtifacts, ops.copyArtifacts]) {
+      expect(await op(agent, [f('notes.md'), f('plan.md')], 'd99')).toMatchObject(unknown);
+      // l'id d'un fichier n'est pas un dossier d'arrivée
+      expect(await op(agent, [f('notes.md')], f('plan.md'))).toMatchObject(unknown);
+      // un id qui est un chemin
+      expect(await op(agent, [f('notes.md')], '..')).toMatchObject(unknown);
+    }
+    expect(tree()).toEqual(before);
+  });
+
+  it('déplacer un dossier dans lui-même ou dessous : refused', async () => {
+    const before = tree();
+    expect(await ops.moveArtifacts(agent, [d('a')], d('a'))).toMatchObject(refused);
+    expect(await ops.moveArtifacts(agent, [d('a')], d('a/b'))).toMatchObject(refused);
+    expect(tree()).toEqual(before);
+  });
+
+  it('déplacer : un élément refusé n’arrête pas les autres, le tout est refused', async () => {
+    const r = await ops.moveArtifacts(agent, [d('a'), f('notes.md')], d('a/b'));
+    expect(r).toMatchObject(refused);
+    expect(tree()).toMatchObject({ 'a/b/notes.md': 'N' });
+  });
+
+  it('un élément devenu un lien depuis le relevé : refused', async () => {
+    const id = f('notes.md');
+    fs.rmSync(path.join(arts, 'notes.md'));
+    fs.symlinkSync(path.join(arts, 'plan.md'), path.join(arts, 'notes.md'));
+    expect(await ops.duplicateArtifacts(agent, [id])).toMatchObject(refused);
+    expect(await ops.renameArtifact(agent, id, 'n2.md')).toMatchObject(refused);
+  });
+
+  it('copier un dossier dans lui-même : refused (un échec dans each)', async () => {
+    expect(await ops.copyArtifacts(agent, [d('a')], d('a/b'))).toMatchObject(refused);
+  });
+
+  it('supprimer : des noms qui diffèrent, refused, rien ne part', async () => {
+    expect(await ops.trashArtifacts(agent, [f('notes.md'), f('plan.md')], ['notes.md', 'autre.md'], trash)).toMatchObject(refused);
+    expect(await ops.trashArtifacts(agent, [f('notes.md')], 'notes.md', trash)).toMatchObject(refused);
+    expect(await ops.trashArtifacts(agent, [f('notes.md')], undefined, trash)).toMatchObject(refused);
+    expect(trashed).toEqual([]);
+  });
+
+  it('supprimer : une corbeille qui lève sur un élément, refused, les autres partis', async () => {
+    const r = await ops.trashArtifacts(agent, [f('notes.md'), f('plan.md')], ['notes.md', 'plan.md'],
+      async (file) => { if (file.endsWith('notes.md')) throw new Error('non'); trashed.push(file); });
+    expect(r).toMatchObject(refused);
+    expect(trashed).toEqual([path.join(arts, 'plan.md')]);
+  });
+});
+
 describe('coller, dupliquer', () => {
   it('coller : la copie arrive, l’original reste, un nom pris prend un numéro', async () => {
     expect((await ops.copyArtifacts(agent, [f('notes.md'), f('plan.md')], d('z'))).ok).toBe(true);

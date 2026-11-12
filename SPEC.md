@@ -350,9 +350,12 @@ badge de l'agent affiché : la palette, portée *Agents*. Ctrl+Tab : l'agent
 affiché juste avant. L'agent affiché retiré : le premier qui reste prend sa
 place, sinon l'accueil (*Nouvel agent…*).
 
-**F-55 État d'un robot** : clignote au travail ; « ? » quand il attend une
-réponse (demande d'autorisation, question ; jusqu'à la réponse) ; pastille
-verte quand il a fini (réponse non lue) ; « ! » en échec (erreur). Chacun,
+**F-55 État d'un robot** : clignote au travail ; « ? » : il me faut ta réponse
+(une demande d'autorisation de la conversation, ou le questionnaire de l'agent,
+`<sorties>/questions.md`, qui a une question sans réponse envoyée ; jusqu'à la
+réponse, le questionnaire vide l'éteint) ; il prime sur « ! » et sur la
+pastille verte : une course finie qui a écrit des questions montre le « ? » ;
+pastille verte quand il a fini (réponse non lue) ; « ! » en échec (erreur). Chacun,
 quand il apparaît, avec le **bip** de la réponse (660 Hz, réglage *Bip*),
 joué par la fenêtre, seulement pour ce qui vient d'apparaître chez un autre
 agent : quitter un agent ne fait jamais sonner ce qu'on avait sous les yeux
@@ -1072,8 +1075,9 @@ de fichiers est **copié** dans le dossier où on le lâche (un dossier : celui
 visé ; un fichier : son dossier ; hors de toute ligne : la racine), l'original
 intact, et paraît dans l'arborescence. Ce dossier d'arrivée passe par
 `conv:vibeDrop` comme l'id `d<i>` du dernier relevé, jamais comme un chemin ; un id
-absent, inconnu ou en forme de chemin : la racine ; le chemin du dossier, sans lien
-(sinon refusé) :
+absent : la racine ; un id inconnu, en forme de chemin ou qui n'est pas un dossier :
+refusé (`unknown-artifact`), rien n'est écrit, pas même à la racine ; le chemin du
+dossier, sans lien (sinon refusé) :
 - un fichier, sans limite de taille (copié sans être chargé en mémoire ; son
   affichage en texte reste coupé à `artifactTextMax`) ;
 - un dossier, avec ses sous-dossiers ; un dossier du même nom ne se mêle pas : le
@@ -1359,12 +1363,25 @@ conversation ; note `0.9.0-actions-independantes.md`).
   `package.json` ; un motif de `Glob` ou un `glob` de `Grep` absolu ou qui monte
   par `..` est refusé. Ce qu'une commande autorisée lance n'est pas borné.
   *Les refus* sont lus dans le flux, de l'agent et de ses sous-agents, pendant
-  un tour ou hors tour : un refus d'écriture ou de `Bash` fait finir la course
-  *en échec* (le SDK ne dit pas la nature de la commande refusée), un refus de
-  `Read`, `Glob` ou `Grep` est cité sans la faire échouer ; une ligne en tête de
-  sa réponse cite chaque appel (outil et cible). Une course ne demande donc plus
+  un tour ou hors tour : un refus ne fait plus échouer la course (l'appel reste
+  refusé, seul l'état change) : elle finit comme son travail, *terminée* s'il
+  l'est ; une ligne en tête de sa réponse cite chaque appel refusé (outil et
+  cible), lectures comprises, en une seule liste (« Appels refusés : Bash
+  « git push », Read « … ». »). C'est l'orchestrateur ou l'utilisateur qui juge,
+  en la lisant, si le travail est complet (le skill `vibe` s'arrête si l'agent
+  y dit son travail incomplet). Une course ne demande donc plus
   rien : l'onglet *Actions* ne montre aucune demande d'autorisation (les
   commandes `run.allow`, `run.always` et `run.deny` restent dans la table).
+  *La consigne d'outils* : l'appli ajoute au prompt système de chaque course
+  (`TOOL_RULE`, `systemAppend` de `core/agents/options`, après la consigne de
+  l'appli ; la conversation de l'agent, qui n'a pas de droits, ne la reçoit
+  pas), la même pour toutes et en anglais, trois lignes : seules les commandes de
+  sa liste passent, écrites telles quelles, le reste est refusé ; un appel `Bash`
+  par commande (ni `cd`, ni enchaînement `;` `&&` `||` `|`, ni redirection, ni
+  variable ou substitution) ; lire avec `Read`, chercher avec `Glob` et `Grep`,
+  écrire avec `Write`, jamais `cat`, `head`, `tail`, `sed`, `awk`, `grep` ni
+  `find` par `Bash`. Elle ne remplace pas les droits : un appel qui l'enfreint
+  est refusé comme avant.
   *Vibe* tourne dans la conversation : sa liste (la CLI de VibeCoder,
   `Read`, `Glob`, `Grep`) ne vaut que pour son premier tour (mesuré), le reste
   suit le mode de l'agent — sauf la CLI : tant que le mode *Vibe* de l'agent
@@ -1522,6 +1539,14 @@ TypeScript.
   la machine), soit son nom et son contenu en base64 (un client sans disque) ;
   un nom sûr, 10 Mio au plus par fichier et 25 Mio par demande décodés ; le
   dossier d'arrivée reste dans les artefacts, rien n'est jamais écrasé (I-37).
+  Les commandes d'artefacts (`add-artifact` et la gestion des artefacts) tournent
+  en fond mais ne répondent qu'à la fin de leur travail : un refus ou un échec est
+  la réponse, avec son code (un id inconnu, élément ou dossier d'arrivée :
+  `unknown-artifact` ; un nom refusé : `invalid-args`, `arg: name` ; le disque en
+  échec : `failed` ; tout autre refus, un nom pris par exemple, y compris une
+  partie refusée d'une liste : `refused`, le motif dans les détails) ; elles ne
+  répondent « ok » que si le travail est fait. `copy-artifact` refuse un id
+  inconnu avant d'ouvrir sa fenêtre de choix.
 - **Les lectures**, d'après le relevé : `status` (la branche, l'étape, la note, la
   PR, ce qui court), `next` (les actions proposées, et pourquoi les autres sont
   grisées), `actions` (pour chacune, les arguments qu'elle lit vraiment),
@@ -1537,7 +1562,9 @@ TypeScript.
   ligne, et son texte, 5 000 au plus), `draft.edit` et `draft.remove` (par l'id
   d'une remarque) sont ouvertes aux agents ; aucun numéro de PR en argument :
   c'est la PR suivie au relevé, un agent n'écrit jamais dans le brouillon d'une
-  autre ; sans PR suivie, ou en créateur, `no-pr`.
+  autre ; sans PR suivie, ou en créateur, `no-pr`. `draft.edit` et `draft.remove`
+  d'une remarque que le brouillon ne contient pas : `invalid-args` (`arg: id`),
+  rien n'est changé.
 - **Hors de la table**, appels directs comme avant : les gestes de la page
   (*Commenter*, *À revoir* : ils remplissent le champ ; `comment` et `case-ko`
   n'existent plus dans la table), modifier le code ou la note dans le panneau,
@@ -1675,7 +1702,12 @@ TypeScript.
   les `details` nomment l'argument fautif, l'action qui retient, le motif. C'est
   l'appelant qui l'interprète : l'écran la traduit d'après son code, un agent la
   lit et la dit à l'utilisateur. `no-pr` : pas de PR suivie, donc pas de brouillon ;
-  `unknown-artifact` : un id absent du dernier relevé, ou un lien ; `bad-token` :
+  `unknown-artifact` : un id absent du dernier relevé, ou un lien (`artifact`, et
+  toute commande d'artefact, dossier d'arrivée compris) ; `refused` : le refus
+  d'une opération (le motif dans `details.reason`), celui d'une commande
+  d'artefact compris ; `failed` : une opération qui lève, ou le disque en échec ;
+  `invalid-args` : aussi un nom d'artefact refusé (`arg: name`) ou une remarque
+  inconnue du brouillon (`arg: id`) ; `bad-token` :
   rendu par le protocole du socket, jamais par l'exécuteur. Une table sans `errors`
   se lit comme une liste vide.
 - **Les skills** : la section des arguments de `actions` et de `processus`
@@ -3499,7 +3531,12 @@ principal, mêmes captures ; une référence d'avant la 0.14.0 n'a pas cette
 fenêtre). Le principal, sur l'appli réelle : `npm run test:main-diff --
 <tag ou branche>` (`tests/main-diff/` : démarrage, les robots, dictée rendue
 au champ, un enregistrement trop court, *Écouter*, liens et agents refusés,
-erreurs ; mêmes relevés).
+erreurs ; mêmes relevés). Le contrat de la CLI : `npm run test:contract`
+(`tests/contract/`, à la main, hors de `npm test`) lance l'appli réelle, profil
+temporaire, faux `claude` et faux `gh`, `origin` local, et l'interroge par la
+commande `vibecoder` ; une famille de cas par fichier (`cases/`), et un résumé
+qui dit combien de commandes de la table sont couvertes, nomme celles sans cas
+(le banc échoue alors) et les codes d'erreur jamais rendus (`halted` compris).
 
 **Dictée**
 - **S-1** Maintenir le micro du champ de la conversation, parler, relâcher :
@@ -3778,8 +3815,8 @@ relire, une PR d'essai sur GitHub)
   « VibeCoder : « … » finie — … » dans le fil (après le tour en cours de la
   conversation, s'il y en a un) ; une course arrêtée → aucune. Mode
   *manuel* : la course ne demande rien (mode `dontAsk`, I-57) ; ce que sa
-  liste ne permet pas est refusé et la course finit *en échec*, la ligne en tête
-  de sa réponse le dit. *Nouvelle session* → l'onglet se
+  liste ne permet pas est refusé, la ligne en tête de sa réponse le cite, la
+  course finit *terminée* si son travail l'est. *Nouvelle session* → l'onglet se
   vide.
 - **S-69** L'orchestrateur (F-115, F-103) : « Lance la relecture du diff »
   → `vibecoder run start review-diff`, la course part (onglet *Actions*), l'avis
@@ -3860,8 +3897,9 @@ relire, une PR d'essai sur GitHub)
   → aucune demande d'autorisation, l'onglet *Actions* n'en montre plus ;
   *Vibe* lancé → ses appels de `vibecoder` passent sans demande, Vibe arrêté →
   ils sont demandés. Une course qui tente d'écrire `AGENTS.md`, `package.json`,
-  `.git/` ou `.husky/`, ou hors du projet et des sorties → refusée, *en échec*,
-  la ligne en tête cite l'appel ; un `Read` refusé est cité sans échec. Pendant
+  `.git/` ou `.husky/`, ou hors du projet et des sorties → l'appel est refusé,
+  la ligne en tête de la réponse le cite (un `Read` aussi), la course finit
+  *terminée* si son travail l'est. Pendant
   *Générer les modules*, un développeur relancé par l'orchestrateur → la course
   reste *en cours* jusqu'à sa réponse relue. Les commandes de test d'`AGENTS.md`
   passent derrière le préfixe, avec un fichier en argument. *Release candidate*

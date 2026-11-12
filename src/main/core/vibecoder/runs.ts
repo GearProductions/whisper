@@ -20,9 +20,8 @@
  *  sans module — la note, un test — n'importe quelle course qui retient).
  *  Les commandes d'arrière-plan coupées par la fin d'une course (cutCommands : les
  *  local_bash `stopped` de ses tâches) et la ligne qui le dit en tête de sa réponse
- *  (cutLine) ; de même ses refus (denialLine : ce qu'elle n'a pas pu faire, qui la
- *  fait échouer, et les lectures refusées, citées sans la faire échouer ;
- *  failingDenials) et ses sous-agents finis sans qu'aucun tour ne relise leur
+ *  (cutLine) ; de même ses refus (denialLine : chaque appel refusé, une seule liste ;
+ *  un refus ne fait pas échouer la course) et ses sous-agents finis sans qu'aucun tour ne relise leur
  *  réponse (unreadLine). Les courses à l'écran ne portent plus de demande
  *  d'autorisation : une course ne demande rien (runViews sans pending).
  *  Ne connaît pas : Electron, le disque, le runtime des agents (tout est passé).
@@ -63,7 +62,7 @@ const TEXT = {
     talking: 'La conversation travaille', generating: 'Ce module est en cours de génération',
     running: 'Une action de l’agent est en cours',
     cut: (n: number) => `${n} commande${n > 1 ? 's' : ''} en arrière-plan coupée${n > 1 ? 's' : ''} à la fin de l’action : le travail est peut-être incomplet.`,
-    denied: 'Appels refusés, le travail est incomplet', deniedReads: 'Lectures refusées', colon: ' : ',
+    denied: 'Appels refusés', colon: ' : ',
     unread: (n: number) => `${n} sous-agent${n > 1 ? 's ont' : ' a'} fini sans qu’un tour relise ${n > 1 ? 'leur' : 'sa'} réponse : le travail n’a pas été relu.`,
   },
   en: {
@@ -73,7 +72,7 @@ const TEXT = {
     talking: 'The conversation is working', generating: 'This module is being generated',
     running: 'An action of the agent is running',
     cut: (n: number) => `${n} background command${n > 1 ? 's' : ''} cut when the action ended: the work may be incomplete.`,
-    denied: 'Calls denied, the work is incomplete', deniedReads: 'Reads denied', colon: ': ',
+    denied: 'Calls denied', colon: ': ',
     unread: (n: number) => `${n} subagent${n > 1 ? 's' : ''} finished without a turn reading ${n > 1 ? 'their' : 'its'} reply back: the work was not reviewed.`,
   },
 };
@@ -159,19 +158,14 @@ export const cutCommands = (tasks: { type: string; status: string }[]) =>
 // La ligne en tête de la réponse d'une course coupée (n : cutCommands, au moins 1).
 export const cutLine = (n: number, lang: VibeLang) => TEXT[lang].cut(n);
 
-// Les refus qui font échouer une course : ceux qui ne sont pas une lecture.
-export const failingDenials = (denials: Denial[]): Denial[] => denials.filter((d) => !d.read);
-
-// La ligne en tête de la réponse d'une course qui a essuyé des refus (au moins 1) : ce qu'elle
-// n'a pas pu faire (outil et cible de chaque refus qui la fait échouer), puis les lectures
-// refusées, citées ; seulement des lectures : la ligne les cite, la course n'échoue pas.
+// La ligne en tête de la réponse d'une course qui a essuyé des refus (au moins 1) : chaque appel
+// refusé, outil et cible, en une seule liste ; un refus ne fait pas échouer la course
+// (note 0.15.0-contrat-elargi) : c'est la réponse de l'agent qui dit si son travail est complet.
 export function denialLine(denials: Denial[], lang: VibeLang): string {
   const T = TEXT[lang];
   // Une seule ligne : la cible (une commande peut en avoir plusieurs) est aplatie.
-  const cite = (ds: Denial[]) => ds.map((d) => `${d.tool} ${T.quote(d.target.replace(/\s+/g, ' ').trim())}`).join(', ');
-  const failing = failingDenials(denials), reads = denials.filter((d) => d.read);
-  return [failing.length && `${T.denied}${T.colon}${cite(failing)}.`, reads.length && `${T.deniedReads}${T.colon}${cite(reads)}.`]
-    .filter(Boolean).join(' ');
+  const cite = denials.map((d) => `${d.tool} ${T.quote(d.target.replace(/\s+/g, ' ').trim())}`).join(', ');
+  return `${T.denied}${T.colon}${cite}.`;
 }
 
 // La ligne en tête de la réponse d'une course dont n sous-agents (au moins 1) ont fini sans

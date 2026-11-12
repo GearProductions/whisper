@@ -5,23 +5,23 @@ const err = { tool_use_id: 'tu1', is_error: true };
 const use = (name: string, input: unknown = {}) => ({ name, input });
 
 describe('denialOf', () => {
-  it('mode qui ne demande jamais : refus, pas une lecture', () => {
+  it('mode qui ne demande jamais : refus', () => {
     const text = "Permission to use Bash has been denied because Claude Code is running in don't ask mode.";
-    expect(denialOf(err, text, use('Bash', { command: 'rm x' }))).toEqual({ toolUseId: 'tu1', tool: 'Bash', target: 'rm x', read: false });
+    expect(denialOf(err, text, use('Bash', { command: 'rm x' }))).toEqual({ toolUseId: 'tu1', tool: 'Bash', target: 'rm x' });
   });
 
   it('règle qui refuse une commande : refus', () => {
-    expect(denialOf(err, 'Permission to use Bash with command x has been denied.', use('Bash', { command: 'x' }))).toMatchObject({ tool: 'Bash', target: 'x', read: false });
+    expect(denialOf(err, 'Permission to use Bash with command x has been denied.', use('Bash', { command: 'x' }))).toMatchObject({ tool: 'Bash', target: 'x' });
   });
 
-  it('règle de chemin sur Read : refus, lecture', () => {
+  it('règle de chemin sur Read : refus', () => {
     const text = '<tool_use_error>File is in a directory that is denied by your permission settings.</tool_use_error>';
-    expect(denialOf(err, text, use('Read', { file_path: '/etc/passwd' }))).toEqual({ toolUseId: 'tu1', tool: 'Read', target: '/etc/passwd', read: true });
+    expect(denialOf(err, text, use('Read', { file_path: '/etc/passwd' }))).toEqual({ toolUseId: 'tu1', tool: 'Read', target: '/etc/passwd' });
   });
 
-  it('crochet PreToolUse : refus ; sur Glob, lecture', () => {
-    expect(denialOf(err, 'PreToolUse:Write hook error: hors du projet', use('Write', { file_path: '/x' }))).toMatchObject({ tool: 'Write', read: false });
-    expect(denialOf(err, 'PreToolUse:Glob hook error: hors du projet', use('Glob', { pattern: '*' }))).toMatchObject({ tool: 'Glob', target: '*', read: true });
+  it('crochet PreToolUse : refus', () => {
+    expect(denialOf(err, 'PreToolUse:Write hook error: hors du projet', use('Write', { file_path: '/x' }))).toMatchObject({ tool: 'Write' });
+    expect(denialOf(err, 'PreToolUse:Glob hook error: hors du projet', use('Glob', { pattern: '*' }))).toMatchObject({ tool: 'Glob', target: '*' });
   });
 
   it('une erreur qui n’est pas un refus, un résultat sans is_error : null', () => {
@@ -42,8 +42,8 @@ describe('denialOf', () => {
     expect(denialOf(err, 'PreToolUse:Write hook error:', use('Write'))).toBeNull();
   });
 
-  it('tool_use absent : outil « ? », cible vide, pas une lecture', () => {
-    expect(denialOf(err, 'Permission to use Bash has been denied.', undefined)).toEqual({ toolUseId: 'tu1', tool: '?', target: '', read: false });
+  it('tool_use absent : outil « ? », cible vide', () => {
+    expect(denialOf(err, 'Permission to use Bash has been denied.', undefined)).toEqual({ toolUseId: 'tu1', tool: '?', target: '' });
   });
 
   it('la cible : une seule ligne, courte', () => {

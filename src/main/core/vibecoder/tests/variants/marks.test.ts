@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  addComment, blobSha, designChecked, designEnd, editComment, markState, noteClick, parseNote, removeComment, setMark, targetHash, vibeMarks, vibeView,
+  addComment, blobSha, designChecked, designEnd, editComment, hasComment, markState, noteClick, parseNote, removeComment, setMark, targetHash, vibeMarks, vibeView,
   type Drafts, type JourneyInput, type Marks,
 } from 'core/vibecoder';
 
@@ -76,6 +76,33 @@ describe('editComment : changer le texte d\'une remarque', () => {
   it('un id inconnu : rien ne change', () => {
     const drafts: Drafts = { 12: [{ id: 1, target: 'x', text: 'a' }] };
     expect(editComment(drafts, 12, 9, 'b')).toEqual(drafts);
+  });
+});
+
+describe('hasComment : une remarque du brouillon, connue ou non', () => {
+  const drafts: Drafts = { 12: [{ id: 1, target: 'x', text: 'a' }, { id: 3, target: 'y', text: 'b' }], 13: [{ id: 7, target: 'z', text: 'c' }], 14: [] };
+
+  it('une remarque du brouillon : true', () => {
+    expect(hasComment(drafts, 12, 1)).toBe(true);
+    expect(hasComment(drafts, 12, 3)).toBe(true);
+  });
+
+  it('un id absent, ou une PR sans brouillon : false', () => {
+    expect(hasComment(drafts, 12, 2)).toBe(false);
+    expect(hasComment(drafts, 99, 1)).toBe(false);
+    expect(hasComment(drafts, 14, 1)).toBe(false);
+    expect(hasComment({}, 12, 1)).toBe(false);
+  });
+
+  it('la remarque d\'une autre PR : false', () => {
+    expect(hasComment(drafts, 12, 7)).toBe(false);
+    expect(hasComment(drafts, 13, 1)).toBe(false);
+  });
+
+  it('suit les autres opérations : ajoutée true, retirée false', () => {
+    const added = addComment({}, 5, 'x', 'a');
+    expect(hasComment(added, 5, 1)).toBe(true);
+    expect(hasComment(removeComment(added, 5, 1), 5, 1)).toBe(false);
   });
 });
 

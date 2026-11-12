@@ -3,7 +3,8 @@
  *  § A.3 cochée à la main, un commit du relevé), chacune pour l'empreinte du contenu
  *  validé (targetHash) : « modifié depuis » si le contenu a changé. Le ✓ des
  *  étapes faites pendant Vibe (vibeMarks). Et le brouillon de
- *  revue de chaque PR (relecteur) : ajouter, modifier, retirer une remarque. Et la
+ *  revue de chaque PR (relecteur) : ajouter, modifier, retirer une remarque, savoir
+ *  si une remarque y est (hasComment). Et la
  *  vérification de conception de la note, gardée avec les validations (la cible
  *  'design'). Rend un nouvel état, ne touche pas à l'ancien.
  *  Ne connaît pas : Electron, le disque (l'état est rangé par app/settings), la
@@ -98,4 +99,9 @@ export function removeComment(drafts: Drafts, pr: number, id: number): Drafts {
 // Le texte d'une remarque, changé sur place (même id, même cible).
 export function editComment(drafts: Drafts, pr: number, id: number, text: string): Drafts {
   return { ...drafts, [pr]: (drafts[pr] ?? []).map((c) => (c.id === id ? { ...c, text } : c)) };
+}
+
+// La remarque `id` est-elle au brouillon de la PR `pr` ? (draft.edit, draft.remove : une inconnue est refusée.)
+export function hasComment(drafts: Drafts, pr: number, id: number): boolean {
+  return (drafts[pr] ?? []).some((c) => c.id === id);
 }

@@ -16,17 +16,21 @@
  *  seulement après Remplacer, Annuler par défaut, fichier par fichier ; un dossier
  *  copié par copyInto, numéroté, jamais remplacé — I-39), addArtifacts (les chemins
  *  reçus, droppedFiles, copiés un à un par copyInto, les contenus reçus en base64 écrits
- *  par writeInto, dans le dossier visé — l'id d<i> du dernier relevé, absent ou
- *  inconnu : la racine —, sans rien écraser ni suivre de lien, noLinkPath ; un contenu
- *  refusé par droppedFiles est un échec ; le rapport cumulé en addedLine) et
+ *  par writeInto, dans le dossier visé — l'id d<i> du dernier relevé, absent : la
+ *  racine ; inconnu : refusé, unknown-artifact, rien d'écrit —, sans rien écraser ni
+ *  suivre de lien, noLinkPath ; un contenu refusé par droppedFiles est un échec,
+ *  refused ; le rapport cumulé en addedLine), artifactFiles (les chemins des ids du
+ *  dernier relevé, pour le refus de copy-artifact avant sa boîte de dialogue ; une liste
+ *  vide ou un id inconnu : null, copyArtifact rend alors unknown-artifact) et
  *  readArtifact (le contenu d'un id a<i> du dernier relevé, par itemFile — l'agent
  *  affiché, sans lien —, texte ou base64, au plus READ_MAX octets lus :
  *  truncated au-delà ; null sinon). Ses réponses (la forme de
  *  DirectResult) sont en anglais, comme celles de technicals/direct (F-108), qu'il
- *  n'importe pas ; ses boîtes de dialogue dans la langue de VibeCoder (vibeLang).
+ *  n'importe pas, un refus ou un échec avec sa clé (reason : ArtifactRefusal, aussi
+ *  celle d'artifact-ops) ; ses boîtes de dialogue dans la langue de VibeCoder (vibeLang).
  *  Ne connaît pas : la page (ses canaux), les libellés de l'écran.
  *  Utilisé par : controllers/vibecoder (survey, openVibeItem, runDirect, dropOnArtifacts), commands
- *  (readArtifact), agents,
+ *  (readArtifact), artifact-ops (ArtifactRefusal), agents,
  *  artifact-migration, module-code, app/lifecycle. */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -43,8 +47,18 @@ import { READ_MAX, readFile } from './processes';
 import { viewAgent } from './agents';
 import { lastView } from './vibecoder';
 
-// La forme de DirectResult (technicals/direct, que seul controllers/vibecoder importe) : il la passe telle quelle.
-type DirectResult = { ok: boolean; line: string; detail: string };
+// La forme de DirectResult (technicals/direct, que seul controllers/vibecoder importe) : il la passe telle quelle ;
+// reason : la clé d'un refus ou d'un échec (aussi celle d'artifact-ops), que runDirect rend à la commande.
+type DirectResult = { ok: boolean; line: string; detail: string; reason?: ArtifactRefusal };
+export type ArtifactRefusal = 'unknown-artifact' | 'name' | 'refused' | 'failed';
+
+// Les chemins des ids (a<i> ou d<i>) du dernier relevé, par itemFile ; null si la liste est vide ou un id inconnu.
+// copy-artifact : runDirect refuse un id inconnu avant la boîte de dialogue.
+export function artifactFiles(agent: AgentConfig, ids: unknown): string[] | null {
+  if (!Array.isArray(ids) || !ids.length) return null;
+  const files = ids.map((id) => itemFile(agent, id));
+  return files.includes(null) ? null : (files as string[]);
+}
 
 const LIST_MAX = 1000;   // les premiers fichiers trouvés seulement
 const lstat = (p: string) => fs.lstatSync(p, { throwIfNoEntry: false });
@@ -136,15 +150,15 @@ function itemFile(agent: AgentConfig, id: unknown): string | null {
 // un dossier numéroté s'il existe déjà, jamais mêlé ni remplacé.
 export async function copyArtifact(agent: AgentConfig, ids: string[]): Promise<DirectResult> {
   const done = (ok: boolean, line: string): DirectResult => ({ ok, line, detail: '' });
-  const files = (Array.isArray(ids) ? ids : []).map((id) => itemFile(agent, id));
-  if (!files.length || files.includes(null)) return done(false, 'Refused: unknown artifact.');
+  const files = artifactFiles(agent, ids);
+  if (!files) return { ok: false, line: 'Refused: unknown artifact.', detail: '', reason: 'unknown-artifact' };
   const l = LABELS[vibeLang(loadConfig())];
   const pick = await dialog.showOpenDialog({ title: l.title, defaultPath: agent.dir, properties: ['openDirectory', 'createDirectory'] });
   const chosen = pick.canceled ? undefined : pick.filePaths[0];
   if (!chosen) return done(true, 'Cancelled: nothing copied.');
   const lines: string[] = [];
   let ok = true;
-  for (const file of files as string[]) {
+  for (const file of files) {
     const base = path.basename(file);
     const dest = path.join(chosen, base);
     if (lstat(file)?.isDirectory()) {
@@ -171,16 +185,18 @@ export async function copyArtifact(agent: AgentConfig, ids: string[]): Promise<D
 }
 
 // Ajouter : copie les chemins reçus (droppedFiles : un chemin ou { path }) un à un par copyInto, et écrit les
-// contenus ({ name, content en base64 }) par writeInto, dans le dossier visé (folderOf du dernier relevé : absent ou
-// inconnu, la racine) du dossier du projet de l'agent ; un contenu refusé (droppedFiles) est un échec ; ok s'il n'y a
-// aucun échec et au moins un copié.
+// contenus ({ name, content en base64 }) par writeInto, dans le dossier visé (folderOf du dernier relevé : absent, la
+// racine ; inconnu : refusé, unknown-artifact, rien d'écrit) du dossier du projet de l'agent ; un contenu refusé
+// (droppedFiles) est un échec ; ok s'il n'y a aucun échec et au moins un copié, sinon reason refused.
 // Un dossier visé disparu ou devenu un lien, ou la racine devenue un lien : rien n'est copié, chaque chemin en échec.
 export async function addArtifacts(agent: AgentConfig, files: unknown, folder?: unknown): Promise<DirectResult> {
+  const target = folderOf(lastView(agent.id), folder);
+  if (target === null) return { ok: false, line: 'Refused: unknown folder.', detail: '', reason: 'unknown-artifact' };
   const { paths, contents, noPath, refused } = droppedFiles(files);
   // projectArtifactsDir crée le dossier : pas pour un envoi sans chemin ni contenu valide
   const some = paths.length > 0 || contents.length > 0;
   const root = some ? projectArtifactsDir(agent.dir) : '';
-  const to = some ? noLinkPath(root, folderOf(lastView(agent.id), folder) ?? '', lstat) : '';
+  const to = some ? noLinkPath(root, target, lstat) : '';
   const report: ArtifactsReport = { copied: [], links: [], hidden: [], failed: [], noPath };
   report.failed.push(...refused);
   const gone = 'the target folder is gone or is a link';
@@ -192,7 +208,8 @@ export async function addArtifacts(agent: AgentConfig, files: unknown, folder?: 
     if (to === null) report.failed.push({ path: c.name, error: gone });
     else await writeInto(to, c.name, c.bytes, report);
   }
-  return { ok: !report.failed.length && report.copied.length > 0, line: addedLine(report, vibeLang(loadConfig())), detail: '' };
+  const ok = !report.failed.length && report.copied.length > 0;
+  return { ok, line: addedLine(report, vibeLang(loadConfig())), detail: '', ...(ok ? {} : { reason: 'refused' as const }) };
 }
 
 // Le contenu de l'artefact a<i> du dernier relevé (itemFile : l'agent affiché, aucun lien sur le chemin, un fichier) :

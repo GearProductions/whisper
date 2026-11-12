@@ -8,8 +8,10 @@
  *  sien ; les droits d'une course : rights, rendus au SDK par rightsOptions —
  *  le mode qui ne demande jamais, dontAsk, quel que soit celui de l'agent, sa
  *  liste en allowedTools, son contrôle en crochet PreToolUse qui refuse avec sa
- *  raison). launchKey retient la présence d'un env, jamais ses valeurs (secrets),
- *  et la liste d'une course.
+ *  raison ; et la consigne d'outils, TOOL_RULE, la même pour toutes, ajoutée
+ *  après la consigne de l'appli par systemAppend : une course la reçoit, la
+ *  conversation jamais). launchKey retient la présence d'un env, jamais ses
+ *  valeurs (secrets), et la liste d'une course.
  *  Pur. Ne connaît pas : process.env (l'appelant le fournit), ce que contient la
  *  liste ni ce que juge le contrôle (core/vibecoder).
  *  Utilisé par : core/agents. */
@@ -40,6 +42,21 @@ export function rightsOptions(rights: RunRights) {
   return { permissionMode: 'dontAsk' as const, allowedTools: rights.allow, hooks: { PreToolUse: [group] } };
 }
 
+// La consigne d'outils d'une course, en anglais (comme les textes de la table pour un modèle) : un appel Bash par
+// commande, sans cd, enchaînement, redirection ni variable ; lire avec Read, Glob, Grep, écrire avec Write ;
+// seulement les commandes de sa liste, écrites comme elles.
+export const TOOL_RULE: string = [
+  'Tool rules: only the commands on your allowed list work, written exactly as listed; anything else is denied.',
+  '- One Bash call per command: no cd, no chaining (; && || |), no redirection (> >> <), no variables or substitutions.',
+  '- Read files with Read, find them with Glob, search them with Grep, write them with Write; never cat, head, tail, sed, awk, grep or find through Bash.',
+].join('\n');
+
+// Ce que l'appli ajoute au prompt système (systemPrompt.append) : `instructions`, puis TOOL_RULE pour une course
+// (des droits : rights) ; sans droits (la conversation), `instructions` seules. '' : rien à ajouter.
+export function systemAppend(instructions: string, rights?: RunRights): string {
+  return rights ? [instructions, TOOL_RULE].filter(Boolean).join('\n\n') : instructions;
+}
+
 // Un message pour le SDK : les images ([{ mediaType, data (base64) }]) avant le
 // texte. Sans image, le texte seul : c'est sous cette forme que Claude Code
 // reconnaît une commande (« /compact », « /context », un skill…). Poussé dans
@@ -60,6 +77,7 @@ export const launchKey = (agent: AgentConfig, command: unknown, instructions: st
   JSON.stringify([agent.dir, agent.effort || '', instructions, String(command || ''), plugins, dirs, checkpoint, !!env, rights?.allow ?? null]));
 
 export function queryOptions(agent: AgentConfig, launch: Launch, instructions: string, { plugins = [], dirs = [], checkpoint = false, env, rights }: Extras = {}) {
+  const append = systemAppend(instructions, rights);
   return {
     ...(env ? { env } : {}),
     ...(checkpoint ? { enableFileCheckpointing: true } : {}),
@@ -72,7 +90,7 @@ export function queryOptions(agent: AgentConfig, launch: Launch, instructions: s
     ...(agent.effort ? { effort: agent.effort } : {}),
     ...(agent.sessionId ? { resume: agent.sessionId } : {}),
     settingSources: ['user', 'project', 'local'],
-    systemPrompt: { type: 'preset', preset: 'claude_code', ...(instructions ? { append: instructions } : {}) },
+    systemPrompt: { type: 'preset', preset: 'claude_code', ...(append ? { append } : {}) },
     pathToClaudeCodeExecutable: launch.executable,
     ...(launch.spawn ? { spawnClaudeCodeProcess: launch.spawn } : {}),
   };

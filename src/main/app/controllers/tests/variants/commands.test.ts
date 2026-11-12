@@ -4,12 +4,16 @@
 // faux : Electron (le dossier userData) et les opérations (relevé, startAction, runDirect, refreshVibe,
 // runOp, vibeStart, processOp, readArtifact, editDraft, le robot affiché), qui relèvent leurs appels ; les robots
 // de commandFromSocket sont ceux d'un config.json d'essai. Les gardes sont celles de commands-guards.test.ts.
+// Le dernier bloc (0.15.0-contrat-elargi, les refus rendus à la commande) retire ces faux (doUnmock) et lance le vrai
+// principal sur le décor commun (app/tests/harness : faux d'Electron et du SDK, dépôt d'essai, fichiers sur disque) ; il
+// vient après les autres, qui ont déjà leurs modules.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentConfig } from 'core/agents';
 import type { VibeView } from 'shared/bridge';
+import { closeAll, fakeClaude, fakeElectron, openPanel, profile, repo, repoResources, settle, writeConfig } from 'app/tests/harness';
 
 const fake = vi.hoisted(() => ({
   userData: '',
@@ -317,5 +321,240 @@ describe('commandFromSocket : les portes, robot et extérieur', () => {
     expect((await commandFromSocket(env(d), 'screen')).ok).toBe(true);
     expect((await commandFromSocket(env(d, 'status'), 'r0')).ok).toBe(true);
     expect(fake.start).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('0.15.0 : les refus des artefacts et du brouillon, rendus à la commande (le vrai principal)', () => {
+  const electron = fakeElectron();
+  const claude = fakeClaude();
+  let root = '';
+  let dir = '';
+  let arts = '';
+
+  beforeEach(async () => {
+    vi.resetModules();
+    for (const m of ['vibecoder', 'artifacts', 'artifact-ops', 'agents', 'runs', 'processes']) vi.doUnmock(`app/controllers/${m}`);
+    vi.doMock('electron', () => electron.module);
+    vi.doMock('technicals/claude', () => claude.module);
+    vi.doMock('technicals/paths', () => repoResources());
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });   // le relevé des 4 s ne tourne pas
+    root = profile('whisper-commands-artifacts-');
+    dir = path.join(root, 'projet');
+    repo(dir);
+    writeConfig(root, [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
+      vibe: { flow: 'create', autonomy: 'guide', pr: null } }]);
+    arts = (await import('app/controllers/artifacts')).projectArtifactsPath(dir);
+    fs.mkdirSync(arts, { recursive: true });
+    fs.writeFileSync(path.join(arts, 'notes.md'), 'N');
+  });
+  afterEach(closeAll);
+
+  // Une commande passée à l'entrée pour le robot a1, comme le fera une porte (agent : la porte d'un robot).
+  async function ask(command: string, args: object, door: 'agent' | 'screen' = 'agent') {
+    const { runCommand } = await import('app/controllers');
+    const { loadConfig } = await import('app/settings');
+    const robot = loadConfig().agents.find((a) => a.id === 'a1')!;
+    return runCommand(robot, { command, args, door });
+  }
+  // « en cours » et le dernier résultat d'une action directe, tels que le relevé les porte (sur l'action).
+  const direct = async (id: string) => {
+    const { lastView } = await import('app/controllers');
+    return lastView('a1')?.actions.find((a) => a.id === id)?.direct;
+  };
+  const base64 = (text: string) => Buffer.from(text).toString('base64');
+
+  it('rename-artifact d\'un id inconnu, porte agent : unknown-artifact, rien ne change', async () => {
+    await openPanel('a1');
+
+    const res = await ask('rename-artifact', { artifacts: ['a99'], name: 'autre.md' });
+
+    expect(res).toMatchObject({ ok: false, error: { code: 'unknown-artifact' } });
+    expect(fs.readdirSync(arts)).toEqual(['notes.md']);
+  });
+
+  it('new-artifact-file d\'un nom pris : refused, la raison dans details ; le fichier pris est intact', async () => {
+    await openPanel('a1');
+
+    const res = await ask('new-artifact-file', { name: 'notes.md' });
+
+    expect(res).toMatchObject({ ok: false, error: { code: 'refused', details: { reason: expect.stringContaining('already exists') } } });
+    expect(fs.readFileSync(path.join(arts, 'notes.md'), 'utf8')).toBe('N');
+  });
+
+  it('new-artifact-file d\'un nom refusé par plainName (un chemin) : invalid-args, arg name', async () => {
+    await openPanel('a1');
+
+    const res = await ask('new-artifact-file', { name: 'a/b' });
+
+    expect(res).toMatchObject({ ok: false, error: { code: 'invalid-args', details: { arg: 'name' } } });
+  });
+
+  it('add-artifact dans un dossier inconnu : unknown-artifact, rien d\'écrit', async () => {
+    await openPanel('a1');
+
+    const res = await ask('add-artifact', { files: [{ name: 'x.md', content: base64('X') }], folder: 'd99' });
+
+    expect(res).toMatchObject({ ok: false, error: { code: 'unknown-artifact' } });
+    expect(fs.readdirSync(arts)).toEqual(['notes.md']);
+  });
+
+  it('un artefact créé : ok, et le fichier est là dès la réponse', async () => {
+    await openPanel('a1');
+
+    const res = await ask('new-artifact-file', { name: 'nouveau.md' });
+
+    expect(res).toMatchObject({ ok: true });
+    expect(fs.existsSync(path.join(arts, 'nouveau.md'))).toBe(true);   // aucune attente entre la réponse et le disque
+  });
+
+  it('add-artifact réussi : ok, le contenu écrit dès la réponse', async () => {
+    await openPanel('a1');
+
+    const res = await ask('add-artifact', { files: [{ name: 'x.md', content: base64('X') }] });
+
+    expect(res).toMatchObject({ ok: true });
+    expect(fs.readFileSync(path.join(arts, 'x.md'), 'utf8')).toBe('X');
+  });
+
+  it('add-artifact dont tout est refusé (contenu invalide) : refused, aucun fichier', async () => {
+    await openPanel('a1');
+
+    const res = await ask('add-artifact', { files: [{ name: '../x.md', content: base64('X') }] });
+
+    expect(res).toMatchObject({ ok: false, error: { code: 'refused' } });
+    expect(fs.readdirSync(arts)).toEqual(['notes.md']);
+  });
+
+  it('copy-artifact d\'un id inconnu : unknown-artifact, aucune boîte, rien « en cours » au relevé', async () => {
+    await openPanel('a1');
+
+    const res = await ask('copy-artifact', { artifacts: ['a99'] });
+    await settle();
+
+    expect(res).toMatchObject({ ok: false, error: { code: 'unknown-artifact' } });
+    expect(electron.dialog.picks).toEqual([]);
+    expect(await direct('copy-artifact')).toMatchObject({ running: false, last: null });   // jamais « en cours », aucun résultat
+  });
+
+  it('copy-artifact d\'un id du relevé pendant qu\'un autre robot est affiché : refused (pas unknown-artifact), aucune boîte', async () => {
+    const other = path.join(root, 'autre');
+    repo(other);
+    const file = path.join(root, 'config.json');
+    const cfg = JSON.parse(fs.readFileSync(file, 'utf8'));
+    cfg.agents.push({ ...cfg.agents[0], id: 'a2', dir: other, name: 'autre' });
+    fs.writeFileSync(file, JSON.stringify(cfg));
+    await openPanel('a1');
+    const { lastView } = await import('app/controllers');
+    const { openConversation } = await import('app/windows');
+    const id = lastView('a1')!.artifacts!.find((a) => a.name === 'notes.md')!.id;
+    openConversation('a2');   // l'écran passe à l'autre robot
+    await settle();
+
+    const res = await ask('copy-artifact', { artifacts: [id] });
+    await settle();
+
+    expect(res).toMatchObject({ ok: false, error: { code: 'refused' } });
+    expect(electron.dialog.picks).toEqual([]);
+  });
+
+  it('copy-artifact d\'un id du relevé : accepté tout de suite, la boîte s\'ouvre en fond (annulée : rien copié)', async () => {
+    await openPanel('a1');
+    const { lastView } = await import('app/controllers');
+    const id = lastView('a1')!.artifacts!.find((a) => a.name === 'notes.md')!.id;
+
+    const res = await ask('copy-artifact', { artifacts: [id] });
+    await settle();
+
+    expect(res).toEqual({ ok: true, result: null });
+    expect(electron.dialog.picks).toHaveLength(1);
+    expect((await direct('copy-artifact'))?.last).toMatchObject({ ok: true });
+  });
+
+  it('un refus de la fin : « en cours » levé, le dernier résultat au relevé, et l\'action suivante part (deux de suite)', async () => {
+    await openPanel('a1');
+
+    const first = await ask('new-artifact-file', { name: 'notes.md' });
+    await settle();
+    const state = await direct('new-artifact-file');
+    const second = await ask('new-artifact-file', { name: 'deux.md' });
+
+    expect(first).toMatchObject({ ok: false, error: { code: 'refused' } });
+    expect(state).toMatchObject({ running: false, last: { ok: false } });
+    expect(second).toMatchObject({ ok: true });
+    expect(fs.existsSync(path.join(arts, 'deux.md'))).toBe(true);
+  });
+
+  it('une fin qui lève : refused, la ligne de l\'erreur dans details ; « en cours » levé', async () => {
+    vi.doMock('app/controllers/artifact-ops', async (original) => ({
+      ...await original<typeof import('app/controllers/artifact-ops')>(),
+      renameArtifact: async () => { throw new Error('disque disparu'); },
+    }));
+    vi.resetModules();   // artifacts (importé par le beforeEach) a déjà chargé le vrai artifact-ops
+    await openPanel('a1');
+    const { lastView } = await import('app/controllers');
+    const id = lastView('a1')!.artifacts!.find((a) => a.name === 'notes.md')!.id;
+
+    const res = await ask('rename-artifact', { artifacts: [id], name: 'autre.md' });
+    await settle();
+
+    expect(res).toMatchObject({ ok: false, error: { code: 'refused', details: { reason: 'disque disparu' } } });
+    expect(await direct('rename-artifact')).toMatchObject({ running: false, last: { ok: false, line: 'disque disparu' } });
+  });
+
+  it('l\'écran : le refus d\'une action d\'artefact dans sa ligne d\'état (le texte de la réponse), plus un « ok » muet', async () => {
+    await openPanel('a1');
+    const { runVibeAction } = await import('app/controllers');
+
+    const res = await runVibeAction('rename-artifact', { direct: true, artifacts: ['a99'], name: 'autre.md' });
+
+    expect(res).toMatchObject({ ok: false, error: expect.any(String) });
+    expect((res as { error: string }).error).not.toBe('');
+  });
+
+  // Le brouillon d'un relecteur (editDraft, l'opération de draft.edit et draft.remove) : le robot passé porte le rôle et la PR.
+  describe('le brouillon de revue', () => {
+    const reviewer = (a: AgentConfig) => ({ ...a, vibe: { flow: 'review' as const, autonomy: 'guide' as const, pr: 7 } });
+    async function setup() {
+      await openPanel('a1');
+      const { loadConfig, vibeStore, saveVibeStore } = await import('app/settings');
+      const { editDraft } = await import('app/controllers/vibecoder');
+      const store = vibeStore();
+      store.drafts.a1 = { 7: [{ id: 1, target: 'a.ts:3', text: 'trop long' }] };
+      saveVibeStore(store);
+      const agent = reviewer(loadConfig().agents.find((a) => a.id === 'a1')!);
+      return { agent, editDraft, drafts: () => vibeStore().drafts.a1 };
+    }
+
+    it('draft.edit d\'un id inconnu : reason id (invalid-args, arg id), le brouillon inchangé', async () => {
+      const { agent, editDraft, drafts } = await setup();
+      const before = JSON.stringify(drafts());
+
+      expect(editDraft(agent, { edit: { id: 9, text: 'autre' } })).toMatchObject({ ok: false, reason: 'id' });
+      expect(JSON.stringify(drafts())).toBe(before);
+    });
+
+    it('draft.remove d\'un id inconnu : reason id, le brouillon inchangé', async () => {
+      const { agent, editDraft, drafts } = await setup();
+      const before = JSON.stringify(drafts());
+
+      expect(editDraft(agent, { remove: 9 })).toMatchObject({ ok: false, reason: 'id' });
+      expect(JSON.stringify(drafts())).toBe(before);
+    });
+
+    it('une remarque connue : changée puis retirée (ok)', async () => {
+      const { agent, editDraft, drafts } = await setup();
+
+      expect(editDraft(agent, { edit: { id: 1, text: 'plus court' } })).toEqual({ ok: true });
+      expect(drafts()[7][0].text).toBe('plus court');
+      expect(editDraft(agent, { remove: 1 })).toEqual({ ok: true });
+      expect(drafts()[7]).toEqual([]);
+    });
+
+    it('un texte fautif reste args (avant l\'id) ; sans PR suivie : no-pr', async () => {
+      const { agent, editDraft } = await setup();
+
+      expect(editDraft(agent, { edit: { id: 9, text: ' ' } })).toMatchObject({ ok: false, reason: 'args' });
+      expect(editDraft({ ...agent, vibe: { flow: 'review', autonomy: 'guide', pr: null } }, { remove: 1 })).toMatchObject({ ok: false, reason: 'no-pr' });
+    });
   });
 });

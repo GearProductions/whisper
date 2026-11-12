@@ -15,10 +15,9 @@
  *  Run.progress d'après les tâches du runtime et le total de modules restants au départ (action modules), gardé
  *  après sa fin, jamais lu pour son état ; ses tâches de fond tombées à 0 hors tour, GRACE_MS laissés au tour
  *  qu'elles réveillent ; un sous-agent relancé par SendMessage la tient en cours (core/agents tasks, T-32) ; sa fin, revenue
- *  au repos après avoir travaillé, ou son échec avant même son tour : fermée, en échec si elle a essuyé un refus qui n'est
- *  pas une lecture, d'elle ou d'un sous-agent, pendant ou hors tour (failingDenials), ou si un sous-agent a fini sans
- *  qu'aucun tour relise sa réponse (unreadAgents) — une ligne en tête de sa réponse le dit (denialLine, unreadLine ;
- *  des lectures refusées seules : citées, sans échec) —, et un avis à la conversation de l'agent, gardé tant qu'elle
+ *  au repos après avoir travaillé, ou son échec avant même son tour : fermée, en échec si un sous-agent a fini sans qu'aucun
+ *  tour relise sa réponse (unreadAgents) ; ses refus, d'elle ou d'un sous-agent, pendant ou hors tour, ne la font pas
+ *  échouer — une ligne en tête de sa réponse les cite (denialLine), comme un sous-agent non relu (unreadLine) —, et un avis à la conversation de l'agent, gardé tant qu'elle
  *  travaille, I-25), agir sur une course (runOp : l'arrêter — son
  *  processus et son verrou restent —, la garder ou l'annuler — rewind, puis
  *  fermée —, répondre à sa demande d'autorisation : la porte de l'écran de la CLI seulement, run.allow ; une course
@@ -26,7 +25,10 @@
  *  <sorties>/actions.json écrit, ni avis de demande refusée ; l'orchestrateur passe par la CLI (controllers/commands).
  *  Le signal des courses sur le robot (F-55, runSignal) : chacune retient l'état où on l'a vue (noticed) ; runsTab :
  *  l'agent dont l'onglet Actions est ouvert, ses courses vues d'office (une question reste jusqu'à sa
- *  réponse) ; runSignalOf (pour pushAgents) ; à chaque changement d'une course, le robot suit si son signal a changé.
+ *  réponse) ; runSignalOf (pour pushAgents) : ses courses et le nombre de questions de son questionnaire,
+ *  <sorties>/questions.md (parseQuestions, lu à chaque appel ; absent ou illisible : 0) — le « ? » tant qu'il en reste une ;
+ *  à chaque changement d'une course, le robot suit si son signal a changé, et à chaque changement de la conversation
+ *  (pushAgents relit le questionnaire).
  *  runsShown : l'agent est affiché, ou sa conversation lue (controllers/agents) : ses courses finies sont vues
  *  (noticedOnShow), pas celles en échec, qui gardent leur « ! » jusqu'à l'onglet Actions (T-18) ; runTasksOf : les
  *  tâches de fond de ses courses vivantes (le robot, T-13).
@@ -58,7 +60,7 @@ import { EMPTY_LOG, runProgress, unreadAgents, type AgentConfig, type RunRights 
 import { agentList, vibeLang, type Config } from 'core/config';
 import type { PreparedImage } from 'core/conversation';
 import {
-  cutCommands, cutLine, denialLine, endNotice, failingDenials, fileDecision, GRACE_MS, headField, listSkill, LOCKING, lockCode, lockText, nextVibeMode,
+  cutCommands, cutLine, denialLine, endNotice, fileDecision, GRACE_MS, headField, listSkill, LOCKING, lockCode, lockText, nextVibeMode,
   ownRun, parseQuestions, runKey, runRules, skillModel, unreadLine,
   noticedOnShow, remainingModules, runPhase, runSignal, runTasks, type ActionDef, type Run, type RunState, type VibeMode,
 } from 'core/vibecoder';
@@ -92,8 +94,13 @@ let tab: string | null = null;                                          // l'age
 const entryId = (agentId: string, key: string) => `${agentId}~${key}`;
 const mine = (agentId: string) => [...(all.get(agentId)?.values() ?? [])];
 
-// Le signal des courses de l'agent sur son robot (pushAgents).
-export const runSignalOf = (agentId: string): RunSignal | null => runSignal(mine(agentId));
+// Le nombre de questions de <sorties>/questions.md, lu à chaque appel (absent ou illisible : 0).
+function questionsOf(agentId: string) {
+  try { return parseQuestions(fs.readFileSync(path.join(vibeOutDir(agentId), 'questions.md'), 'utf8')).length; } catch { return 0; }
+}
+
+// Le signal de l'agent sur son robot (pushAgents) : ses courses et son questionnaire.
+export const runSignalOf = (agentId: string): RunSignal | null => runSignal(mine(agentId), questionsOf(agentId));
 
 // Une course de l'agent a changé : vue d'office si son onglet Actions est ouvert ; le robot suit si son signal a changé.
 function signalFollow(agentId: string) {
@@ -302,7 +309,8 @@ function finish(agentId: string, run: Live, failure?: string) {
   const cut = run.forked ? cutCommands(log.tasks) : 0;
   const unread = unreadAgents(log, last?.at ?? null);
   const head = [cut && cutLine(cut, lang), log.denials.length && denialLine(log.denials, lang), unread && unreadLine(unread, lang)];
-  const failed = cut || failingDenials(log.denials).length || unread || last?.error;
+  // Un refus ne fait plus échouer une course (note 0.15.0-contrat-elargi) : l'appel reste refusé, la ligne en tête le cite.
+  const failed = cut || unread || last?.error;
   Object.assign(run, { state: failed ? 'failed' : 'done', reply: head.filter(Boolean).map((l) => `${l}\n`).join('') + (last?.text ?? ''), end: Date.now() });
   void agents.close(entry);
   if (run.head) void dropCommitMessage(agentId, run.head);
@@ -363,11 +371,9 @@ export function vibeStop(agent: Pick<AgentConfig, 'id'>) {
 function restMode(agentId: string) {
   const mode = modes.get(agentId);
   if (!mode) return undefined;
-  let questions = 0;
-  try { questions = parseQuestions(fs.readFileSync(path.join(vibeOutDir(agentId), 'questions.md'), 'utf8')).length; } catch { /* aucune */ }
   return nextVibeMode(mode, {
     busy: isBusy(agentId) || sending.has(agentId), live: mine(agentId).filter((r) => r.state === 'running' || r.state === 'asking').length,
-    waiting: waits.get(agentId)?.length ?? 0, questions,
+    waiting: waits.get(agentId)?.length ?? 0, questions: questionsOf(agentId),
   });
 }
 
