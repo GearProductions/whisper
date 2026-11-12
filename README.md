@@ -479,23 +479,27 @@ sa réponse les couperait). Si une commande a quand même été coupée à sa fi
 finit en échec et sa réponse le dit en première ligne (le travail est peut-être
 incomplet). Un sous-agent qu'une action relance tient aussi l'action en cours ;
 fini sans qu'aucun tour relise sa réponse, l'action finit en échec et le dit.
+Chaque action a son dossier temporaire (sous les sorties de l'agent, `tmp/`),
+effacé à sa fin quelle qu'elle soit ; au-delà de 1 Go (`runTmpMax`), elle est arrêtée
+comme par *⏹ Arrêter* et sa réponse le dit en première ligne.
 **Une action ne demande jamais rien** : elle part toujours en mode « ne pas
-demander », quel que soit le mode de l'agent, et ne peut faire que ce qui est
-dans sa liste (ci-dessous) ; le reste est refusé. Un refus ne la fait pas
+demander », quel que soit le mode de l'agent. Elle a les outils de son skill et
+`Bash` entier : toute commande du projet passe (`cargo build && cargo test`,
+`cd frontend && npm test`, `npx vitest`…), sauf une courte liste de refus
+(ci-dessous), tenue même si l'agent est en mode *Auto*. Un refus ne la fait pas
 échouer : sa réponse cite chaque appel refusé en première ligne (« Appels
 refusés : … »), et c'est vous, ou l'orchestrateur, qui jugez en la lisant si le
 travail est complet. Vos règles `permissions.allow` (réglages de
-Claude Code) s'ajoutent à sa liste, `permissions.ask` compte comme un refus,
+Claude Code) s'ajoutent, `permissions.ask` compte comme un refus,
 `permissions.deny` l'emporte. Ses outils de fichiers lisent dans le projet, les
 sorties de l'agent et le plugin de VibeCoder, écrivent dans le projet et les
 sorties (une action en lecture : les sorties seules), jamais `.claude/`, `.git/`,
 `.husky/`, un `AGENTS.md` ni un `package.json` (une dépendance à ajouter, c'est
-vous). Ce qu'une commande autorisée lance n'est pas borné. L'appli rappelle à
+vous) : c'est le vrai rempart. L'appli rappelle à
 chaque action, au lancement, la même consigne d'outils (pas à la conversation) :
-un appel `Bash` par commande, sans `cd`, enchaînement (`;` `&&` `||` `|`),
-redirection ni variable ; lire avec `Read`, `Glob`, `Grep`, écrire avec `Write` ;
-seulement les commandes de sa liste, écrites comme elles. Elle ne change pas les
-droits, elle évite les refus. Un bouton qui doit
+rester dans son travail ; lire avec `Read`, `Glob`, `Grep` plutôt que par `Bash` ;
+une commande refusée se contourne autrement ou se signale, sans la répéter.
+Elle ne change pas les droits, elle évite les refus. Un bouton qui doit
 attendre est grisé et dit pourquoi ; un bouton qui n'a pas encore de sens
 n'est pas affiché (pas de *✓ Commiter* sans commit préparé, pas de *Diagnostiquer
 la CI* sans PR…) ; une action arrêtée retient les autres
@@ -508,36 +512,43 @@ onglet *Actions* (la pastille verte s'efface aussi quand vous affichez l'agent ;
 avec le bip, sauf pour le clignotement) ; une action que
 vous avez arrêtée, non.
 
-**Ce que chaque action peut faire** — sa liste, celle du `allowed-tools` de son
-skill (`resources/vibecoder/plugin/skills/<skill>/SKILL.md`), plus, pour toutes, les commandes de test, de typage et de lint
-de la section « Commandes » de l'`AGENTS.md` du projet (sans elles, une action
-qui en a besoin échoue et le dit). « Lecture seule » : l'action n'écrit que dans
-les sorties de l'agent, jamais dans le projet.
+**Ce que chaque action peut faire** — `Bash` entier et les outils de son skill
+(`resources/vibecoder/plugin/skills/<skill>/SKILL.md`, son `allowed-tools`), moins
+la **liste de refus** : ce qui part à l'extérieur (`git push`, `curl`, `wget`,
+`gh` par ses commandes qui écrivent : `pr create`, `pr review`, `api`, `issue`… ;
+ses lectures passent), ce qui change les dépendances (`npm install`, `yarn add`,
+`cargo add`, `pip install`…), ce qui détruit (`git reset --hard`, `git restore`,
+`git clean`, `rm -rf` et ses graphies `-fr`, `-Rf`, `-r -f`, `sudo`), les commandes git qui écrivent (`add`, `commit`,
+`rebase`, `checkout`, `switch`, `pull`, `stash`, `merge`, `tag`, `branch -D`,
+`config`), le système (`kill`, `pkill`, `systemctl`, `podman`, `distrobox`
+`create`, `rm`, `stop`, `assemble`, `upgrade` : `distrobox enter <box> --` passe)
+et la CLI de VibeCoder. Chaque refus vaut seul, avec des arguments et derrière le
+préfixe des commandes (git aussi derrière `-C` et `-c`), et chaque morceau d'un enchaînement est jugé. Une action
+rouvre ce que son skill nomme dans son `allowed-tools` (colonne « Rouvre »). Ni
+`gh pr merge`, ni `gh release`, ni `gh repo` ne sont rouverts : fusionner une PR
+ou publier une release reste à vous. Compromis : une forme tordue que Claude Code
+ne découpe pas (`bash -c "…"`) peut passer ; les skills sont les nôtres et les
+bornes de fichiers restent le rempart. « Lecture seule » : l'action n'écrit que
+dans les sorties de l'agent, jamais dans le projet.
 
-| Action | Sa liste, en bref | Lecture seule |
-|---|---|---|
-| Rédiger la note, Envoyer les réponses | lecture, écriture, édition | non |
-| Vérifier la conception | lecture, écriture des sorties, `git` en lecture (`show`, `diff`, `log`, `status`, `grep`…) | oui |
-| Poser la forme | lecture, écriture, édition, `git branch`, `diff` | non |
-| Écrire les invariants (rouges) | lecture, écriture, édition, `git branch`, `diff`, `ls-files` | non |
-| Lire en pseudo-code | lecture, écriture des sorties, `git show` | oui |
-| Vérifier l'alignement | lecture, écriture, édition, `git diff`, `ls-files` | non |
-| Préparer le commit | lecture, écriture des sorties, `git status`, `diff`, `log`, `add`, `restore --staged`, `gh pr view` | oui |
-| ✓ Commiter | lecture, `git commit -F`, `git log` (l'appli efface `commit.md` une fois le commit passé) | non |
-| Générer ce module, Générer les modules | lecture, écriture, édition, ses sous-agents `developpeur`, `git log`, `status`, `diff` | non |
-| Commiter les modules | lecture, écriture des sorties, `git status`, `log`, `add`, `commit`, `gh pr view` | non |
-| Relire le diff | lecture, écriture des sorties, `git show`, `diff`, `ls-files` | oui |
-| Lancer les vérifications et la ponytail review | lecture, écriture des sorties, lance la ponytail review | oui |
-| Ponytail review | lecture, écriture des sorties, `git diff`, `log` | oui |
-| Appliquer la revue | lecture, écriture, édition, `git log`, `add`, `commit --fixup` | non |
-| Replier les fixups | lecture, `git log`, `merge-base`, `rebase`, `gh pr view` | non |
-| Valider la feature (ouvrir la PR) | lecture, écriture des sorties, `git` en lecture, `git push` de la branche, `gh pr view`, `list`, `create` | non |
-| Diagnostiquer la CI | lecture, écriture des sorties, `gh pr checks`, `gh run list`, `view`, `git log`, `show` | oui |
-| PR mergée → revenir sur la base | `gh pr view`, `git status`, `branch`, `switch`, `pull`, `log` | non |
-| Charger la PR | écriture des sorties, `gh pr view`, `git fetch origin` | oui |
-| Relire la note, Relire les commits | lecture, écriture des sorties, `git diff` (la note), `show`, `log`, `grep` (les commits) | oui |
-| Plan de test à l'écran | lecture, écriture des sorties, `git diff`, `ls-files` | oui |
-| Publier la revue | écriture des sorties, `gh pr review`, `gh api` | oui |
+| Action | Ses outils | Rouvre | Lecture seule |
+|---|---|---|---|
+| Rédiger la note, Envoyer les réponses | lecture, écriture, édition | — | non |
+| Vérifier la conception, Lire en pseudo-code | lecture, écriture des sorties | — | oui |
+| Poser la forme, Écrire les invariants (rouges), Vérifier l'alignement | lecture, écriture, édition | — | non |
+| Préparer le commit | lecture, écriture des sorties | `git add` | oui |
+| ✓ Commiter | lecture | `git commit` (l'appli efface `commit.md` une fois le commit passé) | non |
+| Générer ce module, Générer les modules | lecture, écriture, édition, ses sous-agents `developpeur` | — | non |
+| Commiter les modules | lecture, écriture des sorties | `git add`, `git commit`, `rm -rf` de son dossier temporaire | non |
+| Relire le diff, Ponytail review, Plan de test à l'écran, Relire la note, Relire les commits | lecture, écriture des sorties | — | oui |
+| Lancer les vérifications et la ponytail review | lecture, écriture des sorties | — (la ponytail review est lancée par l'appli, en même temps) | oui |
+| Appliquer la revue | lecture, écriture, édition | `git add`, `git commit --fixup` | non |
+| Replier les fixups | lecture | `git rebase` | non |
+| Valider la feature (ouvrir la PR) | lecture, écriture des sorties | `git push` de la branche, `gh pr create` | non |
+| Diagnostiquer la CI | lecture, écriture des sorties | — | oui |
+| PR mergée → revenir sur la base | — | `git switch`, `git pull` | non |
+| Charger la PR | écriture des sorties | — | oui |
+| Publier la revue | écriture des sorties | `gh pr review` | oui |
 
 La conversation est l'**orchestrateur** : elle est prévenue de la fin de
 chaque action (une ligne dans le fil, pas pour une action que vous avez
@@ -1288,6 +1299,7 @@ confirmée.
 | `vibeCommandPrefix` | VibeCoder : ce qui précède les commandes du projet et `gh` (vide : `distrobox enter <box> --` tiré de `agentCommand`, sinon rien) ; ex. `toolbox run -c dev` |
 | `outsideAgents` | VibeCoder : autoriser un Claude Code lancé dans un terminal à piloter le robot de son dossier par la commande `vibecoder` (`false` par défaut) |
 | `artifactTextMax` | VibeCoder : taille (octets) au-delà de laquelle un artefact affiché en texte est coupé (10 Mo par défaut) |
+| `runTmpMax` | VibeCoder : taille (octets) du dossier temporaire d'une action au-delà de laquelle elle est arrêtée (1 Go par défaut ; pas dans la fenêtre des réglages) |
 | `muteOthers` | Couper le son des autres applications pendant l'enregistrement   |
 | `discordMute`| Couper le micro Discord pendant l'enregistrement                 |
 | `speakVolume`| Volume de lecture, de `0` à `1`                                   |
