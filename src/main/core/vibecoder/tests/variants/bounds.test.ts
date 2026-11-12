@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { fileDecision, fileTarget, type Bounds } from 'core/vibecoder';
 
+// Un faux disque POSIX (chemins /…, /home → /var/home) : sous Windows, path.resolve y met une lettre de lecteur.
+// Ces cas tournent hors de Windows ; là, les bornes sont gardées sur le vrai disque par l'invariant run-rights.
+const onPosix = describe.runIf(process.platform !== 'win32');
+
 const P = '/var/home/u/proj';
 const OUT = '/var/home/u/out';
 const PLUGIN = '/opt/plugin';
@@ -21,7 +25,7 @@ const refused = (tool: string, path: string, b: Bounds = B, key = 'file_path') =
   return r.allow ? '' : r.reason;
 };
 
-describe('fileTarget', () => {
+onPosix('fileTarget', () => {
   it('file_path, notebook_path, path ; relatif au projet ; Glob et Grep sans path : le projet', () => {
     expect(fileTarget('Read', { file_path: 'a/b.ts' }, P)).toEqual({ path: `${P}/a/b.ts`, write: false });
     expect(fileTarget('NotebookEdit', { notebook_path: '/x/n.ipynb' }, P)).toEqual({ path: '/x/n.ipynb', write: true });
@@ -39,7 +43,7 @@ describe('fileTarget', () => {
   });
 });
 
-describe('fileDecision : lire', () => {
+onPosix('fileDecision : lire', () => {
   it('dans le projet, les sorties, le plugin : allow', () => {
     for (const p of [`${P}/src/a.ts`, 'src/a.ts', `${OUT}/x.md`, `${PLUGIN}/skills/x/SKILL.md`, P]) expect(d('Read', p)).toEqual({ allow: true });
   });
@@ -61,7 +65,7 @@ describe('fileDecision : lire', () => {
   });
 });
 
-describe('fileDecision : écrire', () => {
+onPosix('fileDecision : écrire', () => {
   it('dans le projet et les sorties : allow ; dans le plugin : refus', () => {
     for (const t of ['Write', 'Edit', 'MultiEdit']) {
       expect(d(t, 'src/a.ts')).toEqual({ allow: true });
@@ -98,7 +102,7 @@ describe('fileDecision : écrire', () => {
   });
 });
 
-describe('fileDecision : chemins', () => {
+onPosix('fileDecision : chemins', () => {
   it('../ qui sort du projet : refus ; ../ qui reste dedans : allow', () => {
     refused('Read', `${P}/../dehors/secret.txt`);
     refused('Write', '../secret.txt');
@@ -123,14 +127,14 @@ describe('fileDecision : chemins', () => {
   });
 });
 
-describe('fileDecision : les autres outils', () => {
+onPosix('fileDecision : les autres outils', () => {
   it('Bash, Agent, WebFetch : allow', () => {
     for (const t of ['Bash', 'Agent', 'WebFetch'])
       expect(fileDecision(t, { command: 'cat /etc/passwd', file_path: '/etc/passwd', url: 'x' }, B, real)).toEqual({ allow: true });
   });
 });
 
-describe('fileDecision : le motif d’un Glob, le filtre d’un Grep', () => {
+onPosix('fileDecision : le motif d’un Glob, le filtre d’un Grep', () => {
   it('un motif absolu ou qui remonte par .. : refus ; un motif du dossier : allow', () => {
     expect(fileDecision('Glob', { pattern: '/etc/*' }, B, real).allow).toBe(false);
     expect(fileDecision('Glob', { pattern: '../../**/secret.txt', path: P }, B, real).allow).toBe(false);
