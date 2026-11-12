@@ -342,6 +342,83 @@ describe('execute : les refus traduits', () => {
   });
 });
 
+describe('execute : la fin du travail (done), la même réponse pour toutes les portes', () => {
+  const withRename = { view: { ...view, actions: [...view.actions, act('rename-artifact', { step: null })] }, defs };
+  const args = { artifacts: ['a1'], name: 'n.md' };
+  // Le départ accepté, puis `done` : ce que rend la fin du travail ; `waited` dit si done a été attendue.
+  const ending = (done: OpOutcome | Promise<OpOutcome>, direct: Omit<OpOutcome, 'ok' | 'done'> = {}) => {
+    const flag = { waited: false };
+    const finished = Promise.resolve(done).then((d) => { flag.waited = true; return d; });
+    return { flag, ops: ops({ ok: true, ...direct, done: finished }) };
+  };
+  const renameWith = (done: OpOutcome | Promise<OpOutcome>, door: 'screen' | 'agent' = 'screen', direct = {}) =>
+    go({ command: 'rename-artifact', args, door }, ending(done, direct).ops, withRename);
+
+  it('done refusé unknown-artifact : unknown-artifact { reason }', async () => {
+    const r = await renameWith({ ok: false, reason: 'unknown-artifact', error: 'Id inconnu' });
+    expect([code(r), details(r)]).toEqual(['unknown-artifact', { reason: 'Id inconnu' }]);
+  });
+
+  it('done refusé par une clé d\'argument (name) : invalid-args { arg }', async () => {
+    const r = await renameWith({ ok: false, reason: 'name', error: 'Nom refusé' });
+    expect([code(r), details(r)]).toEqual(['invalid-args', { arg: 'name' }]);
+  });
+
+  it('done refusé failed : failed { message }', async () => {
+    const r = await renameWith({ ok: false, reason: 'failed', error: 'disque plein' });
+    expect([code(r), details(r)]).toEqual(['failed', { message: 'disque plein' }]);
+  });
+
+  it('done refusé refused, sans clé, ou d\'une clé qui n\'est pas un argument : refused { reason }', async () => {
+    for (const reason of ['refused', undefined, 'note']) {
+      const r = await renameWith({ ok: false, reason, error: 'Nom pris' });
+      expect([code(r), details(r)], String(reason)).toEqual(['refused', { reason: 'Nom pris' }]);
+    }
+  });
+
+  it('done ok : ok ; ignored gardé (celui du départ, ou celui de la fin)', async () => {
+    expect(await renameWith({ ok: true })).toEqual({ ok: true, result: null });
+    expect(await renameWith({ ok: true }, 'screen', { ignored: ['model'] })).toEqual({ ok: true, result: { ignored: ['model'] } });
+    expect(await renameWith({ ok: true, ignored: ['effort'] })).toEqual({ ok: true, result: { ignored: ['effort'] } });
+  });
+
+  it('la même réponse à la porte agent qu\'à l\'écran', async () => {
+    const done = { ok: false, reason: 'unknown-artifact', error: 'Id inconnu' };
+    expect(await renameWith(done, 'agent')).toEqual(await renameWith(done, 'screen'));
+  });
+
+  it('done attendue avant de répondre : la réponse ne vient pas avant la fin', async () => {
+    let end!: (o: OpOutcome) => void;
+    const e = ending(new Promise<OpOutcome>((resolve) => { end = resolve; }));
+    const reply = go({ command: 'rename-artifact', args }, e.ops, withRename);
+    let settled = false;
+    void reply.then(() => { settled = true; });
+    await new Promise((r) => setTimeout(r, 10));
+    expect([e.flag.waited, settled]).toEqual([false, false]);
+    end({ ok: false, reason: 'unknown-artifact' });
+    expect(code(await reply)).toBe('unknown-artifact');
+    expect(e.flag.waited).toBe(true);
+  });
+
+  it('départ refusé tout de suite (busy) : done jamais attendue', async () => {
+    const done = new Promise<OpOutcome>(() => {});   // ne se résout jamais : l'attendre ferait échouer le test par délai
+    const o = ops({ ok: false, reason: 'busy', by: 'modules', done });
+    const r = await go({ command: 'rename-artifact', args }, o, withRename);
+    expect([code(r), details(r)]).toEqual(['busy', { by: 'modules' }]);
+  });
+
+  it('un done qui rejette : failed { message }, sans lever', async () => {
+    const r = await renameWith(Promise.reject(new Error('disque coupé')));
+    expect([code(r), details(r)]).toEqual(['failed', { message: 'disque coupé' }]);
+  });
+
+  it('sans done : le refus du départ traduit comme avant, unknown-artifact et failed compris', async () => {
+    const one = (reason: string) => go({ command: 'rename-artifact', args }, ops({ ok: false, reason, error: 'x' }), withRename);
+    expect([code(await one('unknown-artifact')), details(await one('unknown-artifact'))]).toEqual(['unknown-artifact', { reason: 'x' }]);
+    expect([code(await one('failed')), details(await one('failed'))]).toEqual(['failed', { message: 'x' }]);
+  });
+});
+
 describe('execute : ne lève jamais', () => {
   it('une op qui lève : failed { message }', async () => {
     const boom = (): never => { throw new Error('git a planté'); };
