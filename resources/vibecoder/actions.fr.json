@@ -100,7 +100,7 @@
     "needs": "none",
     "label": "Générer ce module",
     "hint": "Implémente le module choisi selon la note et sa forme, avec ponytail, avec la boucle de Générer les modules pour un seul : son diff relu, les défauts corrigés, le typage et ses tests relancés jusqu'au vert, dans la même course ; ne commite pas.",
-    "text": "/vibecoder:module {{lang}} {{out}} {{module}}"
+    "text": "/vibecoder:module {{lang}} {{out}} {{module}}\n{{prefix}}"
   },
   {
     "id": "modules",
@@ -110,7 +110,7 @@
     "needs": "none",
     "label": "Générer les modules",
     "hint": "L'agent confie les modules pas encore générés à des agents Sonnet en parallèle, dans l'ordre de la Forme, et relit chaque diff ; ne commite pas : Commiter les modules ensuite ; long et coûteux.",
-    "text": "/vibecoder:modules {{lang}} {{out}}"
+    "text": "/vibecoder:modules {{lang}} {{out}} {{prefix}}"
   },
   {
     "id": "commit-modules",
@@ -120,7 +120,7 @@
     "needs": "none",
     "label": "Commiter les modules",
     "hint": "Commite chaque module qui a des changements pas commités, un commit par module dans l'ordre de la forme (un fixup pour un module déjà commité).",
-    "text": "/vibecoder:commiter-modules {{lang}} {{out}}"
+    "text": "/vibecoder:commiter-modules {{lang}} {{out}} {{prefix}}"
   },
   {
     "id": "review-diff",
@@ -197,16 +197,6 @@
     "text": "/vibecoder:ci {{lang}} {{out}}"
   },
   {
-    "id": "rc",
-    "flow": "create",
-    "step": "pr",
-    "kind": "send",
-    "needs": "none",
-    "label": "Release candidate",
-    "hint": "La PR ouverte : publie une release candidate selon la procédure du projet et l'installe chez vous en gardant la précédente ; long, car il attend la CI.",
-    "text": "/vibecoder:rc {{lang}} {{out}}"
-  },
-  {
     "id": "base",
     "flow": "create",
     "step": "pr",
@@ -215,16 +205,6 @@
     "label": "PR mergée → revenir sur la base",
     "hint": "La PR fusionnée : revient sur la base, la met à jour et supprime la branche locale.",
     "text": "/vibecoder:base {{lang}} {{out}}"
-  },
-  {
-    "id": "release",
-    "flow": "create",
-    "step": "pr",
-    "kind": "send",
-    "needs": "none",
-    "label": "Release officielle",
-    "hint": "La PR fusionnée : publie la version officielle selon la procédure du projet ; les pré-versions ne sont supprimées qu'avec votre accord.",
-    "text": "/vibecoder:release {{lang}} {{out}}"
   },
   {
     "id": "load-pr",

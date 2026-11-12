@@ -100,7 +100,7 @@
     "needs": "none",
     "label": "Generate this module",
     "hint": "Implements the chosen module from the note and its shape, with ponytail, with the loop of Generate the modules for a single one: its diff reviewed, the defects fixed, the typecheck and its tests rerun until green, in the same run; does not commit.",
-    "text": "/vibecoder:module {{lang}} {{out}} {{module}}"
+    "text": "/vibecoder:module {{lang}} {{out}} {{module}}\n{{prefix}}"
   },
   {
     "id": "modules",
@@ -110,7 +110,7 @@
     "needs": "none",
     "label": "Generate the modules",
     "hint": "The agent hands the modules not generated yet to parallel Sonnet agents, in the Forme's order, and reviews each diff; does not commit: Commit the modules afterwards; long and costly.",
-    "text": "/vibecoder:modules {{lang}} {{out}}"
+    "text": "/vibecoder:modules {{lang}} {{out}} {{prefix}}"
   },
   {
     "id": "commit-modules",
@@ -120,7 +120,7 @@
     "needs": "none",
     "label": "Commit the modules",
     "hint": "Commits each module with uncommitted changes, one commit per module in the shape's order (a fixup for a module already committed).",
-    "text": "/vibecoder:commiter-modules {{lang}} {{out}}"
+    "text": "/vibecoder:commiter-modules {{lang}} {{out}} {{prefix}}"
   },
   {
     "id": "review-diff",
@@ -197,16 +197,6 @@
     "text": "/vibecoder:ci {{lang}} {{out}}"
   },
   {
-    "id": "rc",
-    "flow": "create",
-    "step": "pr",
-    "kind": "send",
-    "needs": "none",
-    "label": "Release candidate",
-    "hint": "PR open: publishes a release candidate following the project's procedure and installs it for you, keeping the previous one; long, as it waits for the CI.",
-    "text": "/vibecoder:rc {{lang}} {{out}}"
-  },
-  {
     "id": "base",
     "flow": "create",
     "step": "pr",
@@ -215,16 +205,6 @@
     "label": "PR merged → back to the base",
     "hint": "PR merged: goes back to the base, updates it and deletes the local branch.",
     "text": "/vibecoder:base {{lang}} {{out}}"
-  },
-  {
-    "id": "release",
-    "flow": "create",
-    "step": "pr",
-    "kind": "send",
-    "needs": "none",
-    "label": "Official release",
-    "hint": "PR merged: publishes the official release following the project's procedure; pre-releases are deleted only with your agreement.",
-    "text": "/vibecoder:release {{lang}} {{out}}"
   },
   {
     "id": "load-pr",

@@ -489,7 +489,7 @@ export function vibeView(input: JourneyInput): VibeView {
   const prState = pr && (pr.state ?? 'OPEN');
   const child = !!input.child;
   const prShown: Record<string, boolean> = {
-    pr: !prState, ci: prState === 'OPEN', rc: prState === 'OPEN', base: prState === 'MERGED' && !child, release: prState === 'MERGED',
+    pr: !prState, ci: prState === 'OPEN', base: prState === 'MERGED' && !child,
   };
   // Les choix de lieu (core/vibecoder place), Pousser (après un rebase pas encore poussé), sans griser ; Rebase hors
   // de la base ; Nouvelle demande sur la base seulement. Retirer le worktree : sur un enfant, sa PR fusionnée (Créer) ou sur le robot d'une PR (relecteur).
