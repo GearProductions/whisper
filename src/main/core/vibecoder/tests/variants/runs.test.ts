@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockedBy, codeLock, lockCode, REQUEST_ARGS, cutCommands, cutLine, endNotice, ownRun, remainingModules, runKey, runModule, runPhase, runTasks, runViews, type ActionDef, type Run } from 'core/vibecoder';
+import { blockedBy, codeLock, lockCode, REQUEST_ARGS, cutCommands, cutLine, denialLine, failingDenials, unreadLine, endNotice, ownRun, remainingModules, runKey, runModule, runPhase, runTasks, runViews, type ActionDef, type Run } from 'core/vibecoder';
 
 const A = (id: string, step: ActionDef['step'], reads = false, kind: ActionDef['kind'] = 'send'): ActionDef =>
   ({ id, flow: 'create', step, kind, needs: 'none', label: `L-${id}`, hint: '', text: `/vibecoder:${id}`, reads });
@@ -78,11 +78,11 @@ describe('REQUEST_ARGS : le schéma de run.start', () => {
 });
 
 describe('runViews', () => {
-  it('la plus récente d\'abord, libellé et qui d\'après l\'action, sa demande d\'autorisation', () => {
-    const v = runViews([run('forme', { since: 1, state: 'done', end: 5 }), run('ponytail', { since: 3, state: 'asking' })],
-      [{ ...FORME, who: 'opus · élevé' }, PONYTAIL], (id) => (id === 'ponytail' ? { tool: 'Bash', target: 'ls' } : null));
+  it('la plus récente d\'abord, libellé et qui d\'après l\'action, aucune demande d\'autorisation', () => {
+    const v = runViews([run('forme', { since: 1, state: 'done', end: 5 }), run('ponytail', { since: 3, state: 'running' })],
+      [{ ...FORME, who: 'opus · élevé' }, PONYTAIL]);
     expect(v).toEqual([
-      { id: 'ponytail', label: 'L-ponytail', who: 'agent', state: 'asking', since: 3, end: null, reply: '', permission: { tool: 'Bash', target: 'ls' } },
+      { id: 'ponytail', label: 'L-ponytail', who: 'agent', state: 'running', since: 3, end: null, reply: '', permission: null },
       { id: 'forme', label: 'L-forme', who: 'opus · élevé', state: 'done', since: 1, end: 5, reply: '', permission: null },
     ]);
   });
@@ -91,7 +91,7 @@ describe('runViews', () => {
 describe('runViews : progress', () => {
   it('recopie progress quand la course en a un, sinon rien', () => {
     const progress = { wave: 2, done: 3, total: 5, fixes: 1, opus: false };
-    const v = runViews([run('forme', { progress, since: 2 }), run('ponytail', { since: 1 })], DEFS, () => null);
+    const v = runViews([run('forme', { progress, since: 2 }), run('ponytail', { since: 1 })], DEFS);
     expect([v[0].progress, 'progress' in v[1]]).toEqual([progress, false]);
   });
 });
@@ -187,5 +187,59 @@ describe('codeLock : pourquoi le code ne s\'édite pas', () => {
   it('sans module (la note, un test) : un tour, ou n\'importe quelle course qui retient', () => {
     expect([codeLock(null, true, [{ module: 'a' }], 'fr'), codeLock(null, false, [{ module: 'b' }], 'en'), codeLock(null, false, [], 'fr')])
       .toEqual(['La conversation travaille', 'An action of the agent is running', null]);
+  });
+});
+
+const D = (tool: string, target: string, read = false) => ({ toolUseId: `t-${tool}-${target}`, tool, target, read });
+
+describe('failingDenials', () => {
+  it('Bash et Write gardés, Read et Grep retirés ; liste vide : vide', () => {
+    const [bash, write, read, grep] = [D('Bash', 'git push'), D('Write', 'a.ts'), D('Read', 'b.ts', true), D('Grep', 'x', true)];
+    expect(failingDenials([bash, read, write, grep])).toEqual([bash, write]);
+    expect(failingDenials([])).toEqual([]);
+  });
+});
+
+describe('denialLine', () => {
+  it('fr : un Bash refusé, sa commande citée', () => {
+    expect(denialLine([D('Bash', 'git push')], 'fr')).toBe('Appels refusés, le travail est incomplet : Bash « git push ».');
+  });
+
+  it('en : un Bash refusé, sa commande citée', () => {
+    expect(denialLine([D('Bash', 'git push')], 'en')).toBe('Calls denied, the work is incomplete: Bash “git push”.');
+  });
+
+  it('deux refus et une lecture : les trois, la lecture à part', () => {
+    const line = denialLine([D('Bash', 'rm -rf x'), D('Read', '/etc/passwd', true), D('Write', 'a.ts')], 'fr');
+    expect(line).toBe('Appels refusés, le travail est incomplet : Bash « rm -rf x », Write « a.ts ». Lectures refusées : Read « /etc/passwd ».');
+    expect(denialLine([D('Bash', 'ls'), D('Grep', 'foo', true)], 'en'))
+      .toBe('Calls denied, the work is incomplete: Bash “ls”. Reads denied: Grep “foo”.');
+  });
+
+  it('lectures seules : citées, sans échec', () => {
+    const fr = denialLine([D('Read', 'a'), D('Glob', 'b', true)].map((d) => ({ ...d, read: true })), 'fr');
+    expect(fr).toBe('Lectures refusées : Read « a », Glob « b ».');
+    expect(fr).not.toMatch(/échec|incomplet/);
+    expect(denialLine([D('Read', 'a', true)], 'en')).toBe('Reads denied: Read “a”.');
+  });
+
+  it('une seule ligne : la commande multiligne est aplatie', () => {
+    expect(denialLine([D('Bash', 'git commit -m "a\n\nb"\n  && ls')], 'fr')).not.toContain('\n');
+  });
+
+  it('beaucoup de refus : tous cités', () => {
+    const many = Array.from({ length: 30 }, (_, i) => D('Write', `f${i}.ts`));
+    const line = denialLine(many, 'en');
+    expect(many.every((d) => line.includes(`“${d.target}”`))).toBe(true);
+  });
+});
+
+describe('unreadLine', () => {
+  it('1 et 2 : singulier, pluriel', () => {
+    expect(unreadLine(1, 'fr')).toContain('1 sous-agent a fini');
+    expect(unreadLine(2, 'fr')).toContain('2 sous-agents ont fini');
+    expect(unreadLine(1, 'en')).toContain('1 subagent finished');
+    expect(unreadLine(2, 'en')).toContain('2 subagents finished');
+    expect(unreadLine(2, 'fr')).not.toContain('\n');
   });
 });

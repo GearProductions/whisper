@@ -63,6 +63,8 @@ const TEXT = {
     talking: 'La conversation travaille', generating: 'Ce module est en cours de génération',
     running: 'Une action de l’agent est en cours',
     cut: (n: number) => `${n} commande${n > 1 ? 's' : ''} en arrière-plan coupée${n > 1 ? 's' : ''} à la fin de l’action : le travail est peut-être incomplet.`,
+    denied: 'Appels refusés, le travail est incomplet', deniedReads: 'Lectures refusées', colon: ' : ',
+    unread: (n: number) => `${n} sous-agent${n > 1 ? 's ont' : ' a'} fini sans qu’un tour relise ${n > 1 ? 'leur' : 'sa'} réponse : le travail n’a pas été relu.`,
   },
   en: {
     same: 'This action is already running', busy: 'Another action is running', changing: 'An action is changing the branch',
@@ -71,6 +73,8 @@ const TEXT = {
     talking: 'The conversation is working', generating: 'This module is being generated',
     running: 'An action of the agent is running',
     cut: (n: number) => `${n} background command${n > 1 ? 's' : ''} cut when the action ended: the work may be incomplete.`,
+    denied: 'Calls denied, the work is incomplete', deniedReads: 'Reads denied', colon: ': ',
+    unread: (n: number) => `${n} subagent${n > 1 ? 's' : ''} finished without a turn reading ${n > 1 ? 'their' : 'its'} reply back: the work was not reviewed.`,
   },
 };
 
@@ -115,14 +119,13 @@ export function codeLock(module: string | null, busy: boolean, running: { module
 type Shown = Pick<ActionDef, 'id' | 'label'> & { who?: string };
 
 // Les courses à l'écran, la plus récente d'abord ; libellé et qui travaille d'après leur action
-// (sans `who` : 'agent') ; pending : sa demande d'autorisation en attente.
-export function runViews(runs: Run[], defs: Shown[],
-  pending: (id: string) => { tool: string; target: string } | null): VibeRun[] {
+// (sans `who` : 'agent').
+export function runViews(runs: Run[], defs: Shown[]): VibeRun[] {
   return [...runs].sort((a, b) => b.since - a.since).map((r) => {
     const def = defs.find((d) => d.id === r.id);
     return {
       id: r.id, label: def?.label ?? r.id, who: def?.who ?? 'agent', state: r.state, since: r.since, end: r.end,
-      reply: r.reply, permission: pending(r.id), ...(r.progress && { progress: r.progress }),
+      reply: r.reply, permission: null, ...(r.progress && { progress: r.progress }),
     };
   });
 }
@@ -157,25 +160,23 @@ export const cutCommands = (tasks: { type: string; status: string }[]) =>
 export const cutLine = (n: number, lang: VibeLang) => TEXT[lang].cut(n);
 
 // Les refus qui font échouer une course : ceux qui ne sont pas une lecture.
-export function failingDenials(denials: Denial[]): Denial[] {
-  void denials;
-  throw new Error('not implemented');
-}
+export const failingDenials = (denials: Denial[]): Denial[] => denials.filter((d) => !d.read);
 
 // La ligne en tête de la réponse d'une course qui a essuyé des refus (au moins 1) : ce qu'elle
 // n'a pas pu faire (outil et cible de chaque refus qui la fait échouer), puis les lectures
 // refusées, citées ; seulement des lectures : la ligne les cite, la course n'échoue pas.
 export function denialLine(denials: Denial[], lang: VibeLang): string {
-  void [denials, lang];
-  throw new Error('not implemented');
+  const T = TEXT[lang];
+  // Une seule ligne : la cible (une commande peut en avoir plusieurs) est aplatie.
+  const cite = (ds: Denial[]) => ds.map((d) => `${d.tool} ${T.quote(d.target.replace(/\s+/g, ' ').trim())}`).join(', ');
+  const failing = failingDenials(denials), reads = denials.filter((d) => d.read);
+  return [failing.length && `${T.denied}${T.colon}${cite(failing)}.`, reads.length && `${T.deniedReads}${T.colon}${cite(reads)}.`]
+    .filter(Boolean).join(' ');
 }
 
 // La ligne en tête de la réponse d'une course dont n sous-agents (au moins 1) ont fini sans
 // qu'aucun tour relise leur réponse (unreadAgents) : le travail n'a pas été relu.
-export function unreadLine(n: number, lang: VibeLang): string {
-  void [n, lang];
-  throw new Error('not implemented');
-}
+export const unreadLine = (n: number, lang: VibeLang) => TEXT[lang].unread(n);
 
 const REPLY_MAX = 300;
 
