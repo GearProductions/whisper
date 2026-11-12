@@ -16,7 +16,7 @@
  *  Utilisé par : core/agents (runtime), core/conversation (tasks-view),
  *  controllers/runs. */
 import type { TaskStatus } from 'shared/bridge';
-import type { Denial } from './denials';
+import { denialOf, type Denial } from './denials';
 import type { SdkMessage } from './types';
 
 export type Task = {
@@ -89,7 +89,11 @@ export function applyTaskEvent(log: TaskLog, m: SdkMessage, now: number): TaskLo
   }
   if (m.type === 'user') {
     for (const b of blocks(m, 'tool_result')) {
-      const file = OUTPUT.exec(resultText(b.content))?.[1];
+      const text = resultText(b.content);
+      // Un refus, de l'agent ou d'un sous-agent : un par tool_use (l'outil : celui de log.tools, « ? » s'il est oublié).
+      const denial = log.denials.some((d) => d.toolUseId === b.tool_use_id) ? null : denialOf({ tool_use_id: b.tool_use_id, is_error: b.is_error }, text, log.tools[b.tool_use_id]);
+      if (denial) log = { ...log, denials: [...log.denials, denial] };
+      const file = OUTPUT.exec(text)?.[1];
       if (!file) continue;
       const tool = log.tools[b.tool_use_id];
       if (tool && !tool.outputFile) log = { ...log, tools: { ...log.tools, [b.tool_use_id]: { ...tool, outputFile: file } } };
@@ -101,7 +105,12 @@ export function applyTaskEvent(log: TaskLog, m: SdkMessage, now: number): TaskLo
   if (m.type !== 'system') return log;
   switch (m.subtype) {
     case 'task_started': {
-      if (m.ambient || m.skip_transcript || log.tasks.some((t) => t.id === m.task_id)) return log;
+      if (m.ambient || m.skip_transcript) return log;
+      // Une tâche connue : un sous-agent fini que SendMessage relance (même task_id) repart ; en cours, rien à changer.
+      if (log.tasks.some((t) => t.id === m.task_id)) {
+        return log.tasks.some((t) => t.id === m.task_id && t.status === 'running') ? log
+          : patch(log, m.task_id, () => ({ status: 'running', ended: null, toolUseId: m.tool_use_id ?? null }));
+      }
       const tool = m.tool_use_id ? log.tools[m.tool_use_id] : undefined;
       const input = (tool?.input || {}) as Record<string, unknown>;
       // La description que l'agent donne à son outil d'abord : celle du SDK
@@ -141,8 +150,7 @@ export function applyTaskEvent(log: TaskLog, m: SdkMessage, now: number): TaskLo
 // Les sous-agents (local_agent) finis après `turnEnd` (la fin du dernier tour, ms) : leur
 // réponse, qu'aucun tour n'a relue ; turnEnd null (aucun tour fini) : 0.
 export function unreadAgents(log: TaskLog, turnEnd: number | null): number {
-  void [log, turnEnd];
-  throw new Error('not implemented');
+  return turnEnd === null ? 0 : log.tasks.filter((t) => t.type === 'local_agent' && t.ended !== null && t.ended > turnEnd).length;
 }
 
 // Les tâches en cours.
