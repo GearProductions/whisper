@@ -65,6 +65,7 @@ export type TurnHooks = {
   onChange(): void;
   onSession(sessionId: string): void;
   onPermission(p: { tool: string; input: unknown }): void;
+  autoAllow?(tool: string, input: unknown): boolean;   // un appel accordé sans demande (lu à chaque appel : l'appelant en change la réponse quand son mode change) ; absent : toutes les demandes sont posées
   onProgress?(): void;
   checkpoint?: boolean; // une action qui court à part : ses fichiers suivis, pour l'annuler (rewind)
   rights?: RunRights;   // une course : le mode qui ne demande jamais, sa liste, le contrôle de ses fichiers ; absent : le mode de l'agent

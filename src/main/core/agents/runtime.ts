@@ -26,6 +26,7 @@
  *  jamais de tour : l'agent qui a fini le sien reste au repos, joignable.
  *  Les demandes d'autorisation en échec sont comptées d'après les tool_result en
  *  erreur dont le texte commence par « Tool permission request failed ».
+ *  Un appel que l'appelant accorde d'avance (hooks.autoAllow, lu à chaque appel) ne se met pas en file.
  *  Une course (hooks.rights) : son processus part dans le mode qui ne demande
  *  jamais, et le garde (setPermissionMode ne lui donne jamais celui de l'agent) ;
  *  il ne pose aucune demande (canUseTool reste passé : le SDK ne l'appelle pas en
@@ -116,6 +117,7 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
   // (`signal` : outil abandonné, tour interrompu) — elle quitte alors la file.
   // Une par processus ; prévient par les hooks du dernier send.
   const asker = (r: Runtime, id: string) => (tool: string, input: unknown, { suggestions, signal }: { suggestions?: unknown; signal?: AbortSignal } = {}) => new Promise<Response>((resolve) => {
+    if (r.hooks?.autoAllow?.(tool, input)) { resolve({ behavior: 'allow', updatedInput: input }); return; }   // accordé d'avance : ni file ni demande
     const p: Pending = { key: nextKey++, tool, input, rules: sessionRules(suggestions), resolve, at: Date.now() };
     const who = { id, name: r.name };
     r.pending.push(p);
@@ -160,7 +162,7 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     // Une commande sans réponse écrite (/compact…) : on dit qu'elle est faite.
     if (reply === '' && /^\//.test(asked)) reply = `${asked.split(/\s/)[0]} : fait.`;
     if (reply !== null) {
-      r.last = { ...splitReply(reply), asked };
+      r.last = { ...splitReply(reply), asked, at: Date.now() };
       // Dit dans la réponse elle-même qu'une action n'a pas pu être autorisée.
       if (t.permissionFailures) {
         r.last.text += `\n\n⚠ ${t.permissionFailures} demande(s) d'autorisation n'ont pas pu aboutir : l'agent n'a pas pu faire ces actions (détails dans le journal des agents).`;
@@ -241,7 +243,7 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
     const key = launchKey(agent, command, instructions, hooks);
     if (r.process && r.process.key !== key) await close(agent.id);
     if (r.process) {
-      await r.process.query.setPermissionMode(agent.mode || 'default').catch(() => {});
+      await r.process.query.setPermissionMode(hooks.rights ? 'dontAsk' : agent.mode || 'default').catch(() => {});
       await r.process.query.setModel(agent.model || undefined).catch(() => {});
     }
     if (r.turn) throw new Error('busy'); // un autre send est passé pendant l'attente
@@ -294,7 +296,7 @@ export function createAgentRuntime({ loadSdk, launcher, journal }: RuntimeDeps) 
   // fichier, passé en « accepter les modifications ») est accordée.
   function setMode(id: string, mode: string) {
     const r = runtime.get(id);
-    if (!r || !r.process || !MODES.some(([v]) => v === mode)) return;
+    if (!r || !r.process || r.hooks?.rights || !MODES.some(([v]) => v === mode)) return;   // une course garde dontAsk
     r.process.query.setPermissionMode(mode).catch(() => { /* processus fini entre-temps */ });
     if (mode !== 'acceptEdits') return;
     for (const p of r.pending.filter((x) => EDIT_TOOLS.has(x.tool))) settle(r, p, { behavior: 'allow', updatedInput: p.input });
