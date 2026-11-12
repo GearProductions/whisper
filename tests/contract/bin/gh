@@ -1,0 +1,70 @@
+#!/usr/bin/env node
+// Le faux gh du banc de contrat : en tête du PATH de l'appli (tests/contract/
+// bench.mjs), il répond une PR d'essai (#1, sur feat/0.9.0-essai, base main) aux
+// seules sous-commandes que lancent l'appli et ses actions directes : pr view,
+// pr list, pr edit, pr review, api user --jq .login ; toute autre (pr checkout,
+// pr create…) : code 1, un message sur stderr. Il ne joint jamais GitHub et ne
+// lance aucun autre programme ; chaque appel noté, une ligne JSON (ses
+// arguments), dans GH_LOG si l'environnement le donne.
+// Son état (la PR change au fil des cas) : le JSON de GH_STATE_FILE s'il est
+// donné et lisible, sinon les valeurs par défaut ; clés (toutes facultatives) :
+//   state      OPEN (défaut) | MERGED | CLOSED : `base` n'agit que sur MERGED ;
+//   author     le login de l'auteur (défaut : l'utilisateur, rôle créateur ; un
+//              autre : rôle relecteur, request-review et assign-pr s'offrent) ;
+//   assignees  les logins assignés (défaut : aucun) ; pr edit --add-assignee et
+//              --remove-assignee les réécrivent dans ce fichier.
+// Ne connaît pas : l'appli, ce que le banc vérifie.
+// Utilisé par : l'appli lancée par tests/contract/bench.mjs (relevé des PR,
+// actions directes qui passent par gh).
+// CommonJS (require) : un fichier sans extension, sans package.json "type" autour.
+const fs = require('node:fs');
+
+const LOGIN = 'bench-user';   // l'utilisateur de gh (gh api user)
+const args = process.argv.slice(2);
+const { GH_LOG, GH_STATE_FILE } = process.env;
+if (GH_LOG) fs.appendFileSync(GH_LOG, `${JSON.stringify(args)}\n`);
+
+const fail = (message) => { process.stderr.write(`gh (faux du banc) : ${message}\n`); process.exit(1); };
+
+let st = { state: 'OPEN', author: LOGIN, assignees: [] };
+try { st = { ...st, ...JSON.parse(fs.readFileSync(GH_STATE_FILE, 'utf8')) }; } catch { /* pas d'état donné : les défauts */ }
+
+const pr = {
+  number: 1, title: 'Essai du banc', url: 'https://github.com/bench/essai/pull/1', state: st.state,
+  baseRefName: 'main', headRefName: 'feat/0.9.0-essai', body: 'PR d\'essai du faux gh.', isCrossRepository: false,
+  author: { login: st.author }, assignees: st.assignees.map((login) => ({ login })),
+};
+// Les champs demandés par --json, dans leur ordre.
+const fields = () => {
+  const names = (args[args.indexOf('--json') + 1] ?? '').split(',').filter(Boolean);
+  return Object.fromEntries(names.map((f) => f in pr ? [f, pr[f]] : fail(`champ JSON inconnu : ${f}`)));
+};
+const print = (v) => process.stdout.write(`${JSON.stringify(v)}\n`);
+// La PR visée : son numéro ou sa branche (le dernier argument, après --).
+const target = () => { const t = args.at(-1); return t === '1' || t === pr.headRefName ? pr : fail(`no pull requests found for « ${t} »`); };
+
+const [a, b] = args;
+if (a === 'api' && args.join(' ') === 'api user --jq .login') {
+  process.stdout.write(`${LOGIN}\n`);
+} else if (a === 'pr' && b === 'view') {
+  target();
+  print(fields());
+} else if (a === 'pr' && b === 'list') {
+  // Ouvertes seulement : les miennes (--author @me), à relire (--search review-requested:@me : jamais), toutes.
+  const listed = st.state === 'OPEN' && !args.includes('--search') && (!args.includes('--author') || st.author === LOGIN);
+  print(listed ? [fields()] : []);
+} else if (a === 'pr' && b === 'edit') {
+  const flag = args[3], login = args[4];
+  if (args[2] !== '1') fail(`no pull requests found for « ${args[2]} »`);
+  if (!['--add-reviewer', '--add-assignee', '--remove-assignee'].includes(flag) || !login) fail(`arguments inattendus : ${args.slice(2).join(' ')}`);
+  if (flag !== '--add-reviewer' && GH_STATE_FILE) {
+    const rest = st.assignees.filter((l) => l !== login);
+    fs.writeFileSync(GH_STATE_FILE, JSON.stringify({ ...st, assignees: flag === '--add-assignee' ? [...rest, login] : rest }));
+  }
+  process.stdout.write(`${pr.url}\n`);
+} else if (a === 'pr' && b === 'review') {
+  if (args[2] !== '1' || !['--approve', '--comment', '--request-changes'].includes(args[3]) || args[4] !== '--body-file') fail(`arguments inattendus : ${args.slice(2).join(' ')}`);
+  process.stdout.write(`✓ Review submitted on pull request #1\n`);
+} else {
+  fail(`sous-commande non prévue : ${args.join(' ')}`);
+}
