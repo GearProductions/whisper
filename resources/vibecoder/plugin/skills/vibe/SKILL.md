@@ -19,6 +19,7 @@ Read `${CLAUDE_SKILL_DIR}/../actions/SKILL.md` first: it is the protocol — the
 - One request, then end your turn (or `run wait` in the background); the end wakes you. Read the action's `reply` (`vibecoder run list`) and the files it wrote in `out` (`align.md`, `commit.md`, `checks.json`, `ponytail.md`, `pr.json`, `ci.md`…), then decide the next one. Each line of `align.md`, `ponytail.md`, `review.md`, `checks.json` (its `detail`) and `ci.md` carries a tag, `[toi]` or `[agent]`: `[toi]` is for the user (a blocking question), `[agent]` is yours to settle, never a reason to stop.
 - An action that depends on another starts after its end. Reads (reviews, checks…) can start together when that saves time; the app holds any request that must wait (the answer says `queued`) and starts it by itself.
 - `failed` → read its `reply`, fix the cause or start it again once; twice → blocking question.
+- `done` whose `reply` starts with « Appels refusés : … » / "Calls denied: …" (a denial does not fail a run any more): read the whole reply. The agent says there that its work is incomplete → stop and tell the user (what was denied, what is missing), do not chain on; complete → go on.
 - A request refused because Vibe was stopped (« le mode Vibe a été arrêté par l'utilisateur : ne lance plus rien » / "Vibe was stopped by the user: start nothing more") → stop: request nothing more, and answer in `lang` where you stand.
 - While an action modifies the branch, touch nothing. Small fixes of your own (a red check, a CI failure) only when nothing runs.
 
