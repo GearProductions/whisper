@@ -3,6 +3,7 @@ name: vibe
 description: "Vibe: once the note is written, its questions answered and the note validated by the user, take the developer's seat of the guide and, as VibeCoder's orchestrator, chain the screen's actions from the forme — forme and skeletons, red invariants (alignment included), first commit, modules and their commits, checks (ponytail review included), fixups, PR, CI followed until green — stopping only on a blocking question: a `[toi]` line of a return file, or a question of the note."
 argument-hint: "<lang> <out>"
 disable-model-invocation: true
+allowed-tools: Read, Glob, Grep, Bash(node "${CLAUDE_SKILL_DIR}/../../bin/vibecoder.mjs" *)
 ---
 
 # Vibe — the guide from the forme, the orchestrator chaining the actions
@@ -32,7 +33,7 @@ Read `${CLAUDE_SKILL_DIR}/../actions/SKILL.md` first: it is the protocol — the
 7. **Docs** — the note matches what is delivered (A.3); `SPEC.md`, `README.md`, `AGENTS.md`… follow where a behaviour or a convention changed: a doc commit, or fixups.
 8. **Fold** — `fixups`.
 9. **PR** — `pr` (→ `pr.json`), then `ci`, followed until green. Red `[agent]` → fix the cause from `ci.md` in a new commit (the PR is open: no rewrite), push, `ci` again; `[toi]` → blocking question. Green → stop: no further action.
-10. **Answer** — in `lang`: the PR's link, what to try first, the decisions you took alone; *Release candidate* is the user's call, from the PR step.
+10. **Answer** — in `lang`: the PR's link, what to try first, the decisions you took alone.
 
 ## Blocking questions — the only reason to stop
 
@@ -41,7 +42,6 @@ A `[toi]` line of a return file (`align.md`, `ponytail.md`, `review.md`, `checks
 ## Never
 
 - `git push --force`: only `--force-with-lease`, and only after folding fixups.
-- Start `rc` (*Release candidate*): the user starts it from the PR step.
 - Merge the PR, publish an official release, delete a release, a tag or a branch.
 - Change a protected test (`AGENTS.md`) to make it pass: fix the code, or ask.
 - Close, kill or restart the user's running app: you may be running inside it.
