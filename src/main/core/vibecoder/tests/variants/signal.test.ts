@@ -30,6 +30,38 @@ describe('runSignal : les courses pas vues dans leur état', () => {
   });
 });
 
+describe('runSignal : le questionnaire de l\'agent (la pastille « ? »)', () => {
+  it('aucune course, une question : asking', () => {
+    expect(runSignal([], 1)).toBe('asking');
+  });
+
+  it('une course finie ou en échec pas vue et une question : asking, pas done ni failed', () => {
+    expect(runSignal([{ state: 'done', noticed: null }], 1)).toBe('asking');
+    expect(runSignal([{ state: 'failed', noticed: null }], 1)).toBe('asking');
+  });
+
+  it('une course qui travaille et une question : asking', () => {
+    expect(runSignal([{ state: 'running', noticed: null }], 2)).toBe('asking');
+  });
+
+  it('questions 0 (ou omis) : inchangé', () => {
+    expect(runSignal([], 0)).toBeNull();
+    expect(runSignal([{ state: 'done', noticed: null }], 0)).toBe('done');
+    expect(runSignal([{ state: 'failed', noticed: null }], 0)).toBe('failed');
+    expect(runSignal([{ state: 'running', noticed: null }], 0)).toBe('working');
+  });
+
+  it('un nombre négatif ne signale rien', () => {
+    expect(runSignal([], -1)).toBeNull();
+    expect(runSignal([{ state: 'done', noticed: null }], -3)).toBe('done');
+  });
+
+  it('une course qui attend et une question : asking ; des courses sans rien à signaler et une question : asking', () => {
+    expect(runSignal([{ state: 'asking', noticed: null }], 1)).toBe('asking');
+    expect(runSignal(['stopped', 'kept', 'undone'].map((state) => ({ state: state as never, noticed: null })), 1)).toBe('asking');
+  });
+});
+
 describe('robotState : la conversation d\'abord', () => {
   it('conversation active : son état, le signal ignoré', () => {
     expect(robotState({ status: 'working', unread: false }, 'failed')).toEqual({ status: 'working', unread: false });

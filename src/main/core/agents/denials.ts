@@ -6,27 +6,26 @@
  *  permission settings. »), le contrôle de l'appli ou un autre crochet
  *  (« PreToolUse:<outil> hook error: ») —, celui de l'agent comme d'un sous-agent
  *  (parent_tool_use_id), pendant un tour ou hors tour. L'outil vient du tool_use
- *  de même id ; un refus de Read, Glob ou Grep est une lecture (citée), tout autre
- *  fait échouer la course. L'appli ne lit pas la commande refusée : elle la cite.
+ *  de même id ; un refus, quel que soit l'outil, ne fait pas échouer la course.
+ *  L'appli ne lit pas la commande refusée : elle la cite.
  *  Pur. Ne connaît pas : le mode, la liste, les règles qui ont refusé (le SDK ne
  *  les nomme pas), Electron.
  *  Utilisé par : core/agents (tasks : TaskLog.denials). */
 
 import { shortTarget } from './reply';
 
-export type Denial = { toolUseId: string; tool: string; target: string; read: boolean };
+export type Denial = { toolUseId: string; tool: string; target: string };
 
 // Les débuts de texte d'un tool_result en erreur qui disent un refus.
 export const DENIED = ['Permission to use ', '<tool_use_error>File is in a directory that is denied by your permission settings.'] as const;
 export const HOOK_DENIED = /^PreToolUse:\w+ hook error: /;
 
-// Les outils de lecture et d'exploration : leur refus est cité, la course n'échoue pas.
+// Les outils de lecture et d'exploration (utilisés par core/vibecoder/bounds).
 export const READ_TOOLS = new Set(['Read', 'Glob', 'Grep']);
 
 // Le refus que dit un bloc tool_result (son texte `text`, son tool_use `tool`, absent :
 // outil inconnu) ; pas en erreur, ou un autre texte : null.
 export function denialOf(block: { tool_use_id: string; is_error?: boolean }, text: string, tool: { name: string; input: unknown } | undefined): Denial | null {
   if (!block.is_error || !(DENIED.some((d) => text.startsWith(d)) || HOOK_DENIED.test(text))) return null;
-  const name = tool?.name ?? '?';
-  return { toolUseId: block.tool_use_id, tool: name, target: shortTarget(tool?.input), read: READ_TOOLS.has(name) };
+  return { toolUseId: block.tool_use_id, tool: tool?.name ?? '?', target: shortTarget(tool?.input) };
 }

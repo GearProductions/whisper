@@ -1,6 +1,8 @@
 /** signal — ce que les courses d'un agent signalent sur son robot (F-55) :
- *  runSignal, dans cet ordre : asking tant qu'une course attend sa réponse,
- *  vue ou pas ; failed puis done tant que l'utilisateur ne les a pas vues dans
+ *  runSignal, dans cet ordre : asking (« il me faut ta réponse ») tant qu'une
+ *  course attend sa réponse ou que le questionnaire de l'agent a une question
+ *  (questions : le nombre de questions de <sorties>/questions.md, passé ;
+ *  0 : vide), vu ou pas ; failed puis done tant que l'utilisateur ne les a pas vues dans
  *  cet état ; working quand une course travaille (ce qui attend l'utilisateur
  *  prime sur ce qui travaille seul) ; une course arrêtée, gardée ou annulée ne
  *  signale rien. robotState : l'état du robot qui en découle, la conversation
@@ -9,13 +11,14 @@
  *  affiche son agent ou qu'on lit sa conversation — finie : vue ; en échec,
  *  qui attend, qui travaille : inchangée (le « ! » reste jusqu'à l'onglet
  *  Actions, T-18).
- *  Ne connaît pas : Electron, le runtime (états passés), la page.
+ *  Ne connaît pas : Electron, le runtime (états passés), la page, le disque
+ *  (le questionnaire est lu par controllers/runs).
  *  Utilisé par : app/controllers (runs, agents). */
 import type { AgentStatus, RunSignal } from 'shared/bridge';
 import type { RunState } from './runs';
 
-export function runSignal(runs: { state: RunState; noticed: RunState | null }[]): RunSignal | null {
-  if (runs.some((r) => r.state === 'asking')) return 'asking';
+export function runSignal(runs: { state: RunState; noticed: RunState | null }[], questions = 0): RunSignal | null {
+  if (questions > 0 || runs.some((r) => r.state === 'asking')) return 'asking';
   const unseen = (s: RunState) => runs.some((r) => r.state === s && r.noticed !== s);
   if (unseen('failed')) return 'failed';
   if (unseen('done')) return 'done';

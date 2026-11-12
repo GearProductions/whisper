@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockedBy, codeLock, lockCode, REQUEST_ARGS, cutCommands, cutLine, denialLine, failingDenials, unreadLine, endNotice, ownRun, remainingModules, runKey, runModule, runPhase, runTasks, runViews, type ActionDef, type Run } from 'core/vibecoder';
+import { blockedBy, codeLock, lockCode, REQUEST_ARGS, cutCommands, cutLine, denialLine, unreadLine, endNotice, ownRun, remainingModules, runKey, runModule, runPhase, runTasks, runViews, type ActionDef, type Run } from 'core/vibecoder';
 
 const A = (id: string, step: ActionDef['step'], reads = false, kind: ActionDef['kind'] = 'send'): ActionDef =>
   ({ id, flow: 'create', step, kind, needs: 'none', label: `L-${id}`, hint: '', text: `/vibecoder:${id}`, reads });
@@ -190,37 +190,26 @@ describe('codeLock : pourquoi le code ne s\'édite pas', () => {
   });
 });
 
-const D = (tool: string, target: string, read = false) => ({ toolUseId: `t-${tool}-${target}`, tool, target, read });
-
-describe('failingDenials', () => {
-  it('Bash et Write gardés, Read et Grep retirés ; liste vide : vide', () => {
-    const [bash, write, read, grep] = [D('Bash', 'git push'), D('Write', 'a.ts'), D('Read', 'b.ts', true), D('Grep', 'x', true)];
-    expect(failingDenials([bash, read, write, grep])).toEqual([bash, write]);
-    expect(failingDenials([])).toEqual([]);
-  });
-});
+const D = (tool: string, target: string) => ({ toolUseId: `t-${tool}-${target}`, tool, target });
 
 describe('denialLine', () => {
   it('fr : un Bash refusé, sa commande citée', () => {
-    expect(denialLine([D('Bash', 'git push')], 'fr')).toBe('Appels refusés, le travail est incomplet : Bash « git push ».');
+    expect(denialLine([D('Bash', 'git push')], 'fr')).toBe('Appels refusés : Bash « git push ».');
   });
 
   it('en : un Bash refusé, sa commande citée', () => {
-    expect(denialLine([D('Bash', 'git push')], 'en')).toBe('Calls denied, the work is incomplete: Bash “git push”.');
+    expect(denialLine([D('Bash', 'git push')], 'en')).toBe('Calls denied: Bash “git push”.');
   });
 
-  it('deux refus et une lecture : les trois, la lecture à part', () => {
-    const line = denialLine([D('Bash', 'rm -rf x'), D('Read', '/etc/passwd', true), D('Write', 'a.ts')], 'fr');
-    expect(line).toBe('Appels refusés, le travail est incomplet : Bash « rm -rf x », Write « a.ts ». Lectures refusées : Read « /etc/passwd ».');
-    expect(denialLine([D('Bash', 'ls'), D('Grep', 'foo', true)], 'en'))
-      .toBe('Calls denied, the work is incomplete: Bash “ls”. Reads denied: Grep “foo”.');
+  it('deux refus et une lecture : une seule liste, dans l’ordre', () => {
+    const line = denialLine([D('Bash', 'rm -rf x'), D('Read', '/etc/passwd'), D('Write', 'a.ts')], 'fr');
+    expect(line).toBe('Appels refusés : Bash « rm -rf x », Read « /etc/passwd », Write « a.ts ».');
+    expect(denialLine([D('Bash', 'ls'), D('Grep', 'foo')], 'en')).toBe('Calls denied: Bash “ls”, Grep “foo”.');
   });
 
-  it('lectures seules : citées, sans échec', () => {
-    const fr = denialLine([D('Read', 'a'), D('Glob', 'b', true)].map((d) => ({ ...d, read: true })), 'fr');
-    expect(fr).toBe('Lectures refusées : Read « a », Glob « b ».');
-    expect(fr).not.toMatch(/échec|incomplet/);
-    expect(denialLine([D('Read', 'a', true)], 'en')).toBe('Reads denied: Read “a”.');
+  it('la ligne ne dit pas le travail incomplet : c’est la réponse de l’agent qui le dit', () => {
+    expect(denialLine([D('Bash', 'git push')], 'fr')).not.toMatch(/échec|incomplet/);
+    expect(denialLine([D('Bash', 'git push')], 'en')).not.toMatch(/fail|incomplete/);
   });
 
   it('une seule ligne : la commande multiligne est aplatie', () => {

@@ -659,6 +659,98 @@ describe('le signal des courses', () => {
   });
 });
 
+// Le questionnaire sur le signal (note 0.15.0) : <sorties>/questions.md, lu à chaque appel, met le « ? » tant qu'il a une question.
+describe('le signal des courses : le questionnaire', () => {
+  const file = () => path.join(out, 'questions.md');
+
+  it('une question dans questions.md, aucune course : asking', async () => {
+    const { runSignalOf } = await open();
+    expect(runSignalOf('a1')).toBeNull();
+    write(file(), '## 1. Une question ?\n');
+    expect(runSignalOf('a1')).toBe('asking');
+  });
+
+  it('plusieurs questions : asking', async () => {
+    const { runSignalOf } = await open();
+    write(file(), '## 1. Une ?\n- oui\n\n## 2. Deux ?\n');
+    expect(runSignalOf('a1')).toBe('asking');
+  });
+
+  it('une course qui écrit une question et finit terminée : asking, pas done', async () => {
+    const { runVibeAction, runSignalOf } = await open();
+    runVibeAction('forme', {});
+    await settle();
+    await away();
+    write(file(), '## 1. Une question ?\n');
+    turn('/vibecoder:forme')!.finish('ok');
+    await settle();
+    expect(runSignalOf('a1')).toBe('asking');
+  });
+
+  it('questions.md vidé : le signal d’avant, done si la course finie n’est pas vue', async () => {
+    const { runVibeAction, runSignalOf } = await open();
+    runVibeAction('forme', {});
+    await settle();
+    await away();
+    write(file(), '## 1. Une question ?\n');
+    turn('/vibecoder:forme')!.finish('ok');
+    await settle();
+    write(file(), '');
+    expect(runSignalOf('a1')).toBe('done');
+  });
+
+  it('questions.md vidé sans course : rien', async () => {
+    const { runSignalOf } = await open();
+    write(file(), '## 1. Une question ?\n');
+    expect(runSignalOf('a1')).toBe('asking');
+    write(file(), '');
+    expect(runSignalOf('a1')).toBeNull();
+  });
+
+  it('absent, vide, sans titre de question, ou illisible (un dossier) : aucune question', async () => {
+    const { runSignalOf } = await open();
+    expect(runSignalOf('a1')).toBeNull();
+    write(file(), '');
+    expect(runSignalOf('a1')).toBeNull();
+    write(file(), 'du texte sans question\n- une puce\n');
+    expect(runSignalOf('a1')).toBeNull();
+    fs.rmSync(file());
+    fs.mkdirSync(file());
+    expect(runSignalOf('a1')).toBeNull();
+  });
+
+  it('une course qui travaille : le « ? » prime sur elle', async () => {
+    const { runVibeAction, runSignalOf } = await open();
+    runVibeAction('forme', {});
+    await settle();
+    expect(runSignalOf('a1')).toBe('working');
+    write(file(), '## 1. Une question ?\n');
+    expect(runSignalOf('a1')).toBe('asking');
+  });
+
+  it('le robot suit : une question écrite pendant un tour de la conversation, il le dit à la fin du tour, et plus quand elle est vidée', async () => {
+    const { runVibeAction } = await open();
+    const activity = () => {
+      const sent = fake.windows.at(-1)!.sent.filter(([ch]) => ch === 'agents:state');
+      return ((sent.at(-1)![1] as { agents: { id: string; activity: string }[] }).agents.find((a) => a.id === 'a1'))!.activity;
+    };
+    runVibeAction('new-request', { text: 'une question' });
+    await settle();
+    write(file(), '## 1. Une question ?\n');
+    request('une question')!.finish('ok');
+    await settle();
+    expect(activity()).toBe('asking');
+
+    turn('VibeCoder')?.finish('vu');
+    runVibeAction('new-request', { text: 'encore' });
+    await settle();
+    write(file(), '');
+    request('encore')!.finish('ok');
+    await settle();
+    expect(activity()).not.toBe('asking');
+  });
+});
+
 describe('le signal des courses : T-18, une pastille que rien à l’écran n’efface', () => {
   it('l’agent affiché : une course qui finit sous ses yeux ne laisse pas de pastille verte, l’onglet Actions jamais ouvert', async () => {
     const { runVibeAction, runSignalOf } = await open();   // a1 est l'agent affiché
@@ -1031,6 +1123,17 @@ describe('les droits d’une course', () => {
     ]);
   });
 
+  it('la consigne d’outils : une course la reçoit en fin de prompt système, la conversation jamais', async () => {
+    const { TOOL_RULE } = await import('core/agents');
+    const { runVibeAction } = await open();
+    runVibeAction('new-request', { text: 'une question' });
+    runVibeAction('forme', {});
+    await settle();
+    const append = (t: { options: Record<string, unknown> }) => (t.options.systemPrompt as { append?: string }).append ?? '';
+    expect(append(turn('/vibecoder:forme')!).endsWith(TOOL_RULE)).toBe(true);
+    expect(append(request('une question')!)).not.toContain(TOOL_RULE);
+  });
+
   it('answers : la liste de la note, ${VIBECODER_OUT} remplacé', async () => {
     await skill('note', 'Read, Write(${VIBECODER_OUT}/**)');
     const answers = await run('answers', 'Réponses : oui');
@@ -1070,7 +1173,7 @@ describe('les droits d’une course', () => {
     expect((await run('ci')).options.allowedTools).toEqual([]);
   });
 
-  it('un refus de Bash d’un sous-agent, hors tour : en échec, sa ligne en tête de la réponse', async () => {
+  it('un refus de Bash d’un sous-agent, hors tour : terminée, sa ligne en tête de la réponse', async () => {
     const { denialLine } = await import('core/vibecoder');
     const forme = await run('forme');
     forme.emit({ type: 'system', subtype: 'task_started', task_id: 'k1', tool_use_id: 'tu-agent', task_type: 'local_agent', description: 'dev' });
@@ -1083,8 +1186,8 @@ describe('les droits d’une course', () => {
     forme.finish('Relu');
     await settle();
 
-    const line = denialLine([{ toolUseId: 'tu-1', tool: 'Bash', target: 'rm -rf /', read: false }], 'fr');
-    expect(await runsNow()).toMatchObject([{ id: 'forme', state: 'failed', reply: `${line}\nRelu` }]);
+    const line = denialLine([{ toolUseId: 'tu-1', tool: 'Bash', target: 'rm -rf /' }], 'fr');
+    expect(await runsNow()).toMatchObject([{ id: 'forme', state: 'done', reply: `${line}\nRelu` }]);
   });
 
   it('un Read refusé seul : terminée, la lecture citée en tête', async () => {
@@ -1094,7 +1197,7 @@ describe('les droits d’une course', () => {
     forme.finish('Fait');
     await settle();
 
-    const line = denialLine([{ toolUseId: 'tu-1', tool: 'Read', target: '/etc/passwd', read: true }], 'fr');
+    const line = denialLine([{ toolUseId: 'tu-1', tool: 'Read', target: '/etc/passwd' }], 'fr');
     expect(await runsNow()).toMatchObject([{ id: 'forme', state: 'done', reply: `${line}\nFait` }]);
   });
 

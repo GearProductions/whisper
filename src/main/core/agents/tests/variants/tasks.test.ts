@@ -154,8 +154,8 @@ describe('les refus', () => {
       refused('r1', '<tool_use_error>File is in a directory that is denied by your permission settings.', 'ag'),
     );
     expect(log.denials).toEqual([
-      expect.objectContaining({ toolUseId: 'w1', tool: 'Write', read: false }),
-      expect.objectContaining({ toolUseId: 'r1', tool: 'Read', read: true }),
+      expect.objectContaining({ toolUseId: 'w1', tool: 'Write' }),
+      expect.objectContaining({ toolUseId: 'r1', tool: 'Read' }),
     ]);
   });
 
@@ -171,7 +171,7 @@ describe('les refus', () => {
 
   it('un tool_use inconnu ou oublié (TOOLS_KEPT) : le refus est gardé, l’outil est « ? »', () => {
     const unknown = play(refused('zz'));
-    expect(unknown.denials).toEqual([expect.objectContaining({ toolUseId: 'zz', tool: '?', read: false })]);
+    expect(unknown.denials).toEqual([expect.objectContaining({ toolUseId: 'zz', tool: '?' })]);
     const trimmed = play(...Array.from({ length: TOOLS_KEPT + 5 }, (_, i) => use(`tu${i}`, 'Bash', { command: `c${i}` })), refused('tu0'));
     expect(trimmed.denials).toEqual([expect.objectContaining({ toolUseId: 'tu0', tool: '?' })]);
   });
