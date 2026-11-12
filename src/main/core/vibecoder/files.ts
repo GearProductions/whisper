@@ -3,7 +3,8 @@
  *  traduit en chemin sans jamais lire l'id comme un chemin ; et un chemin
  *  n'est retenu que s'il reste, `..` et liens résolus, dans le dossier de
  *  l'agent (safePath). noLinkPath est plus strict, pour écrire dans le dossier
- *  d'artefacts : aucun lien, ni dossier ni fichier, sur tout le chemin.
+ *  d'artefacts : aucun lien, ni dossier ni fichier, sur tout le chemin. inside : un chemin est ou non sous un dossier
+ *  (safePath, bounds).
  *  Ne connaît pas : Electron, le disque (realpath et lstat passés).
  *  Un fichier à suivre et enregistrer (codeFile) : celui d'un module touché
  *  par la branche (`m<rang>/<i>`), un fichier que change la branche (`b<i>`,
@@ -19,6 +20,12 @@ import type { Stats } from 'node:fs';
 import path from 'node:path';
 import type { VibeModule, VibeView } from 'shared/bridge';
 
+// `p` est `dir` ou dessous (`/a/proj2` n'est pas dans `/a/proj`), les deux chemins absolus.
+export function inside(dir: string, p: string): boolean {
+  const r = path.relative(dir, p);
+  return r !== '..' && !r.startsWith(`..${path.sep}`) && !path.isAbsolute(r);
+}
+
 // Le chemin absolu de `rel` dans `dir`, `..` et liens résolus par realpath (le
 // dossier comme la cible) ; null s'il en sort, si `rel` est absolu ou contient
 // un NUL, ou si realpath échoue.
@@ -27,8 +34,7 @@ export function safePath(dir: string, rel: string, realpath: (p: string) => stri
   try {
     const root = realpath(dir);
     const target = realpath(path.resolve(root, rel));
-    const inside = path.relative(root, target);
-    return inside === '..' || inside.startsWith(`..${path.sep}`) || path.isAbsolute(inside) ? null : target;
+    return inside(root, target) ? target : null;
   } catch {
     return null;
   }
