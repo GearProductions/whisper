@@ -1,22 +1,53 @@
-/** rights — la liste d'une course : les règles d'autorisation que l'appli donne
- *  au SDK à son départ (allowedTools), et sur lesquelles porte l'invariant des
- *  droits. Le `allowed-tools` du skill de son action (listSkill : `note` pour
- *  `answers`, qui reprend sa session sans appeler de skill), `${CLAUDE_SKILL_DIR}`
- *  remplacé par le dossier du skill (celui de sa variante de modèle et celui du skill de base) et `${VIBECODER_OUT}` par les sorties de
- *  l'agent (les fichiers temporaires d'un skill y vont) ; plus les commandes du projet : les lignes
- *  de code de la section des commandes d'`AGENTS.md` dont le nom désigne un test,
- *  un typage ou un lint (projectCommands ; un argument entre chevrons devient un
- *  joker), autorisées seules ou suivies d'arguments, derrière le préfixe que
- *  l'appli donne aux actions (commandRules : préfixe compris, et seulement elles
- *  derrière lui). Aucune autre source : sans ces lignes, pas de commandes.
+/** rights — les règles d'une course, que l'appli donne au SDK à son départ et
+ *  sur lesquelles porte l'invariant des droits (I-57) : runRules → { allow, deny }.
+ *  allow (allowedTools) : les outils du `allowed-tools` du skill de son action
+ *  (listSkill : `note` pour `answers`), hors règles Bash, plus `Bash` entier.
+ *  deny (disallowedTools) : la liste de refus, DENIED — ce qui part à
+ *  l'extérieur, change les dépendances, détruit, écrit dans git, touche au
+ *  système, la CLI de VibeCoder —, moins ce que le skill en ouvre (skillOpens :
+ *  une commande du refus que ses règles Bash nomment), chaque commande refusée
+ *  seule ou suivie d'arguments, et aussi derrière le préfixe que l'appli donne
+ *  aux actions (denyRules). Claude Code juge lui-même chaque morceau d'un
+ *  enchaînement. Plus de commandes du projet (projectCommands et commandRules
+ *  retirés avec leurs cas à l'écriture du module).
  *  Et la CLI de VibeCoder dans la conversation (vibeCliCall : le seul appel Bash qu'elle accepte d'elle-même
  *  tant que le mode Vibe est en cours ; la liste d'un skill ne vaut que pour son tour).
  *  Pur. Ne connaît pas : le disque (textes passés), le SDK, le mode de l'agent,
- *  les règles de l'utilisateur (Claude Code les ajoute lui-même).
+ *  les règles de l'utilisateur (Claude Code les ajoute lui-même), le contrôle
+ *  des fichiers (bounds).
  *  Utilisé par : app/controllers (runs : runRights ; agents : sendToAgent). */
 
 import { resolve } from 'node:path';
-import { EFFORT_LEVELS, SKILL_MODELS } from './actions';
+
+/** Les règles d'une course : allowedTools et disallowedTools du SDK. */
+export type RunRules = { allow: string[]; deny: string[] };
+
+// La liste de refus d'une course : chaque commande, refusée seule ou suivie
+// d'arguments (`*` : n'importe quoi), sauf celles que son skill ouvre.
+export const DENIED: readonly string[] = [
+  // ce qui part à l'extérieur ; gh par ses sous-commandes qui écrivent (ses lectures — pr view, pr checks, pr diff,
+  // run view — passent) : un skill qui ouvre `gh pr create` n'ouvre pas `gh pr merge`
+  'git push', 'curl', 'wget',
+  'gh pr create', 'gh pr edit', 'gh pr review', 'gh pr comment', 'gh pr close', 'gh pr reopen', 'gh pr ready',
+  'gh pr checkout', 'gh api', 'gh issue', 'gh workflow', 'gh run rerun', 'gh run cancel', 'gh label', 'gh secret',
+  // jamais rouverts par un skill (NEVER) : l'irréversible
+  'gh pr merge', 'gh release', 'gh repo',
+  // ce qui change les dépendances
+  'npm install', 'npm i', 'npm add', 'yarn add', 'pnpm add', 'cargo add', 'cargo install', 'pip install',
+  // ce qui détruit
+  'git reset --hard', 'git clean', 'rm -rf', 'sudo',
+  // les commandes git qui écrivent
+  'git add', 'git commit', 'git rebase', 'git checkout', 'git switch', 'git stash', 'git merge', 'git tag',
+  'git branch -D', 'git config', 'git pull', 'git restore',
+  // le système ; distrobox par ses sous-commandes : le préfixe des actions est souvent `distrobox enter <box> --`
+  'kill', 'pkill', 'systemctl', 'podman',
+  'distrobox create', 'distrobox rm', 'distrobox stop', 'distrobox assemble', 'distrobox upgrade',
+  // la CLI de VibeCoder, quel que soit son chemin
+  'node *vibecoder.mjs*',
+];
+
+// Ce qu'aucun skill ne rouvre (skillOpens les garde refusés) : fusionner une PR, publier une release, toucher au dépôt distant.
+export const NEVER: readonly string[] = ['gh pr merge', 'gh release', 'gh repo'];
 
 // Le skill dont la liste vaut pour l'action `actionId` lancée avec le gabarit `template`
 // (« /vibecoder:<nom> … » → <nom>, variante de modèle comprise : la liste est celle de
@@ -35,6 +66,7 @@ export function skillTools(skillMd: string | null, dirs: { skill: string; out: s
     .map((r) => r.replaceAll('${CLAUDE_SKILL_DIR}', dirs.skill).replaceAll('${VIBECODER_OUT}', dirs.out));
 }
 
+// À retirer à l'écriture du module, avec leurs cas (fix/0.15.0-droits-souples) : isCheck, projectCommands, commandRules.
 // Un mot du nom de la commande (`test:invariants` en a deux) désigne un test, un typage ou un lint.
 const isCheck = (c: string) => /\bcargo check\b/.test(c) || c.split(/[^a-z0-9]+/i).some((w) => ['test', 'typecheck', 'tsc', 'vitest', 'lint', 'clippy'].includes(w));
 
@@ -74,14 +106,28 @@ export function commandRules(commands: string[], prefix: string): string[] {
   });
 }
 
-// Le dossier du skill dont une variante de modèle (`<nom>--<modèle>[--<effort>]`) suit le texte ; un autre dossier : tel quel.
-const baseDir = (dir: string) => dir.replace(new RegExp(`--(${SKILL_MODELS.join('|')})(--(${EFFORT_LEVELS.join('|')}))?$`), '');
+// Les commandes de `denied` que les règles Bash de `tools` ouvrent : une règle `Bash(<cmd>)` dont la commande,
+// assignations de tête (`VAR=… `) ôtées, commence mot pour mot par celle du refus (`*` du refus : n'importe quoi) ;
+// dans l'ordre de `denied`, sans doublon. Les autres outils (`Read`…) n'ouvrent rien.
+export function skillOpens(tools: string[], denied: readonly string[]): string[] {
+  void tools; void denied;
+  throw new Error('not implemented');
+}
 
-// La liste d'une course : skillTools (pour une variante, aussi avec le dossier du skill de base : l'agent lit son texte et y
-// tape ${CLAUDE_SKILL_DIR} tel quel), puis commandRules(projectCommands), sans doublon.
-export function runRules(o: { skillMd: string | null; skillDir: string; out: string; agentsMd: string | null; prefix: string }): string[] {
-  const skill = [o.skillDir, baseDir(o.skillDir)].flatMap((dir) => skillTools(o.skillMd, { skill: dir, out: o.out }));
-  return [...new Set([...skill, ...commandRules(projectCommands(o.agentsMd), o.prefix)])];
+// Les règles de refus des commandes `commands` : `Bash(<cmd> *)` (la commande seule comprise), et derrière le
+// préfixe des actions `Bash(<préfixe> <cmd> *)` (Claude Code n'ôte pas un préfixe comme `distrobox enter dev --`) ;
+// préfixe vide : sans lui.
+export function denyRules(commands: readonly string[], prefix: string): string[] {
+  void commands; void prefix;
+  throw new Error('not implemented');
+}
+
+// Les règles d'une course : allow, les outils de skillTools hors règles Bash, plus `Bash`, sans doublon ;
+// deny, denyRules(DENIED moins skillOpens(skillTools), prefix).
+// Squelette : `agentsMd` ignoré, retiré à l'écriture du module avec les cas qui le passent.
+export function runRules(o: { skillMd: string | null; skillDir: string; out: string; prefix: string; agentsMd?: string | null }): RunRules {
+  void o;
+  throw new Error('not implemented');
 }
 
 // Un mot du shell sans composition : des caractères simples, ou entre guillemets (`$`, `` ` `` et `\` interdits dans les

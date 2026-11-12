@@ -3,9 +3,9 @@
  *  Lancer (startRun : si aucune course vivante ni action directe en cours ne
  *  la retient, blockedBy ; retenue, elle rend aussi sa clé, reason (lockCode : same, busy, changing) et by (qui retient) ; elle retient le module qu'elle génère, Run.module,
  *  pour codeLock ; le robot suit dès le départ ; un processus neuf, suivi des fichiers écrits ;
- *  ses droits (runRights) : le mode qui ne demande jamais, quel que soit celui de l'agent, la liste de son skill
- *  et des commandes du projet (core/vibecoder rights : le skill de son gabarit, `note` pour answers ; AGENTS.md ;
- *  le préfixe des actions), le contrôle de ses fichiers (core/vibecoder bounds : le projet, ses sorties, le plugin ;
+ *  ses droits (runRights) : le mode qui ne demande jamais, quel que soit celui de l'agent, les outils de son skill
+ *  plus Bash entier, la liste de refus moins ce que son skill en ouvre (core/vibecoder rights : le skill de son
+ *  gabarit, `note` pour answers ; le préfixe des actions), le contrôle de ses fichiers (core/vibecoder bounds : le projet, ses sorties, le plugin ;
  *  une action en lecture n'écrit que dans ses sorties) ; seulement les sorties de l'agent en dossier de travail,
  *  pas le dossier des artefacts du projet (que la conversation garde) ;
  *  le message part avec ses images ({ text, images }) ;
@@ -50,6 +50,10 @@
  *  commande d'arrière-plan a quand même été coupée à sa fin, elle finit en échec et
  *  sa réponse le dit en tête (cutCommands, cutLine). Une course part avec l'environnement
  *  de son robot (launchOptions : son jeton, jamais un autre), le fork y ajoutant sa variable.
+ *  Son dossier temporaire (décision du 13 novembre ; controllers/run-tmp, core/vibecoder run-tmp) : créé vide à son
+ *  lancement et donné par CLAUDE_CODE_TMPDIR (runEnv, toujours un env désormais), surveillé tant qu'elle court ;
+ *  au-delà de cfg.runTmpMax, elle est arrêtée comme par runOp stop (son processus et son verrou restent), sa
+ *  réponse commence par tmpLine ; effacé à sa fin quelle qu'elle soit (finish, l'arrêt, garder ou annuler, closeRuns).
  *  Ne connaît pas : la page, les fenêtres.
  *  Utilisé par : controllers/vibecoder (releaseWaits), controllers/agents,
  *  controllers/module-code, controllers/commands (runOp, runEnd, queuedOf), menus/agent-menus. */
@@ -75,9 +79,9 @@ export type RunEnd = { action: string; state: 'done' | 'failed' | 'stopped'; rep
 
 // Une course, et ce que la règle et sa fin en retiennent : `reads` (elle lit seulement), `seen` (son tour a commencé),
 // `tasks` (ses tâches de fond comptées au dernier changement, runTasks), `forked` (son skill est en sous-contexte), `grace` (le minuteur du délai de grâce, s'il court),
-// `noticed` (l'état où l'utilisateur l'a vue, null : jamais).
+// `noticed` (l'état où l'utilisateur l'a vue, null : jamais), `tmp` (son dossier temporaire et l'arrêt de sa surveillance, tant qu'il existe).
 // `head` (la course Commit) : le dossier de l'agent et son HEAD au départ, d'où se voit que le commit est passé.
-type Live = Run & { reads: boolean; seen: boolean; forked: boolean; tasks: number; noticed: RunState | null; grace?: NodeJS.Timeout; head?: { dir: string; before: Promise<string | null> } };
+type Live = Run & { reads: boolean; seen: boolean; forked: boolean; tasks: number; noticed: RunState | null; grace?: NodeJS.Timeout; tmp?: { dir: string; stop: () => void }; head?: { dir: string; before: Promise<string | null> } };
 
 const stopGrace = (run: Live) => { clearTimeout(run.grace); run.grace = undefined; };
 
@@ -203,20 +207,16 @@ export async function retryWaits(agent: AgentConfig) {
 }
 
 // Les droits de la course de l'action `def` lancée avec le gabarit `template` (rights : listSkill, runRules — `md`, le
-// SKILL.md de ce skill (celui de `note` pour answers) déjà lu, son dossier, l'AGENTS.md du dossier de l'agent, promptPrefix ;
+// SKILL.md de ce skill (celui de `note` pour answers) déjà lu, son dossier, promptPrefix — : allow et deny ;
 // bounds : fileDecision sur les chemins réels du dossier de l'agent, de ses sorties et du plugin, def.reads).
 export function runRights(agent: AgentConfig, def: ActionDef, template: string, md: string | null, cfg: Config): RunRights {
-  const read = (file: string) => { try { return fs.readFileSync(file, 'utf8'); } catch { return null; } };
   const real = (p: string) => { try { return fs.realpathSync(p); } catch { return p; } };   // un dossier absent : tel quel
   const name = listSkill(def.id, template);
   const skillDir = path.join(vibePluginDir(), 'skills', name ?? '');
   const out = vibeOutDir(agent.id);
   const bounds = { project: real(agent.dir), out: real(out), plugin: real(vibePluginDir()), reads: !!def.reads };
   return {
-    allow: runRules({
-      skillMd: md, skillDir, out,
-      agentsMd: read(path.join(agent.dir, 'AGENTS.md')), prefix: promptPrefix(agent, cfg),
-    }),
+    ...runRules({ skillMd: md, skillDir, out, prefix: promptPrefix(agent, cfg) }),
     check: (tool, input) => fileDecision(tool, input, bounds, fs.realpathSync),
   };
 }

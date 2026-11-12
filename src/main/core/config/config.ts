@@ -7,7 +7,9 @@
  *  langue des agents (`agentLang`, le {{lang}} des actions : celle de l'écran,
  *  `vibeLang`, à défaut) et le modèle et l'effort choisis par action
  *  (`actionPicks`, jamais Fable : I-36), le réglage `outsideAgents` (agents
- *  extérieurs au socket, désactivé par défaut).
+ *  extérieurs au socket, désactivé par défaut), la borne du dossier
+ *  temporaire d'une course (`runTmpMax`, octets, 1 Go par défaut ; pas un
+ *  entier positif : le défaut, withDefaults).
  *  Ne connaît pas : le fichier (technicals/config-file), Electron, git (le
  *  parent d'un agent, l'enfant qu'on crée : core/family).
  *  Utilisé par : app. */
@@ -51,6 +53,7 @@ export type Config = {
   vibeSize?: { width: number; height: number };  // la taille de la fenêtre, retenue
   vibeModulesView?: 'ide' | 'list'; // la vue des Modules, retenue d'une ouverture à l'autre (défaut : liste)
   artifactTextMax: number; // octets : un artefact affiché en texte est coupé au-delà (« fichier tronqué »)
+  runTmpMax: number;       // octets : le dossier temporaire d'une course au-delà duquel l'appli l'arrête (config.json)
   [key: string]: unknown;
 };
 
@@ -64,6 +67,7 @@ export const DEFAULTS: Config = {
   deviceId: '', deviceLabel: '',
   vibeLang: 'fr', actionModels: {}, actionEfforts: {}, vibeCommandPrefix: '', vibeModulesView: 'list',
   artifactTextMax: 10 * 1024 * 1024,
+  runTmpMax: 1024 ** 3,
 };
 
 // Langues de la dictée, dans l'ordre du menu.

@@ -7,11 +7,11 @@
  *  du processus : env, donné par l'appelant, absent : le processus hérite du
  *  sien ; les droits d'une course : rights, rendus au SDK par rightsOptions —
  *  le mode qui ne demande jamais, dontAsk, quel que soit celui de l'agent, sa
- *  liste en allowedTools, son contrôle en crochet PreToolUse qui refuse avec sa
- *  raison ; et la consigne d'outils, TOOL_RULE, la même pour toutes, ajoutée
- *  après la consigne de l'appli par systemAppend : une course la reçoit, la
- *  conversation jamais). launchKey retient la présence d'un env, jamais ses
- *  valeurs (secrets), et la liste d'une course.
+ *  liste en allowedTools, ses refus en disallowedTools, son contrôle en crochet
+ *  PreToolUse qui refuse avec sa raison ; et la consigne d'outils, TOOL_RULE, la
+ *  même pour toutes, ajoutée après la consigne de l'appli par systemAppend : une
+ *  course la reçoit, la conversation jamais). launchKey retient la présence d'un
+ *  env, jamais ses valeurs (secrets), la liste et les refus d'une course.
  *  Pur. Ne connaît pas : process.env (l'appelant le fournit), ce que contient la
  *  liste ni ce que juge le contrôle (core/vibecoder).
  *  Utilisé par : core/agents. */
@@ -24,7 +24,7 @@ import type { AgentConfig, Launch, OutgoingMessage, RunRights, SdkMessage, TurnH
 type Extras = Pick<TurnHooks, 'plugins' | 'dirs' | 'checkpoint' | 'env' | 'rights'>;
 
 // Les options du SDK pour les droits d'une course : permissionMode 'dontAsk', allowedTools
-// (rights.allow), hooks.PreToolUse : un crochet sans filtre qui rend, pour un refus de
+// (rights.allow), disallowedTools (rights.deny), hooks.PreToolUse : un crochet sans filtre qui rend, pour un refus de
 // rights.check, { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision:
 // 'deny', permissionDecisionReason } }, et {} sinon (le mode et la liste jugent ensuite).
 // Un contrôle qui plante refuse (jamais un passage).
@@ -42,9 +42,9 @@ export function rightsOptions(rights: RunRights) {
   return { permissionMode: 'dontAsk' as const, allowedTools: rights.allow, hooks: { PreToolUse: [group] } };
 }
 
-// La consigne d'outils d'une course, en anglais (comme les textes de la table pour un modèle) : un appel Bash par
-// commande, sans cd, enchaînement, redirection ni variable ; lire avec Read, Glob, Grep, écrire avec Write ;
-// seulement les commandes de sa liste, écrites comme elles.
+// La consigne d'outils d'une course, en anglais (comme les textes de la table pour un modèle), allégée : rester
+// dans son travail ; lire avec Read, Glob, Grep plutôt que par Bash quand c'est possible ; une commande refusée se
+// contourne autrement ou se signale, sans la répéter. Plus d'« un appel par commande » ni de liste à recopier.
 export const TOOL_RULE: string = [
   'Tool rules: only the commands on your allowed list work, written exactly as listed; anything else is denied.',
   '- One Bash call per command: no cd, no chaining (; && || |), no redirection (> >> <), no variables or substitutions.',
@@ -71,8 +71,8 @@ export function userMessage({ text, images = [] }: OutgoingMessage, uuid?: strin
 }
 
 // Ce qu'un processus vivant ne peut pas changer : il est relancé si ça change
-// entre deux tours. Mode et modèle, eux, se changent à chaud (setPermissionMode,
-// setModel) ; la session, par close() quand on en reprend une autre.
+// entre deux tours (dont la liste et les refus d'une course). Mode et modèle, eux, se changent à chaud
+// (setPermissionMode, setModel) ; la session, par close() quand on en reprend une autre.
 export const launchKey = (agent: AgentConfig, command: unknown, instructions: string, { plugins = [], dirs = [], checkpoint = false, env, rights }: Extras = {}) => (
   JSON.stringify([agent.dir, agent.effort || '', instructions, String(command || ''), plugins, dirs, checkpoint, !!env, rights?.allow ?? null]));
 

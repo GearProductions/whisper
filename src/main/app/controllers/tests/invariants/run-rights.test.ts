@@ -1,10 +1,10 @@
-// Invariants des droits d'une course (note 0.15.0, docs/tickets/feat/0.15.0-courses-droits.md,
-// « Ce que ça ne doit pas faire ») — l'invariant des droits des actions (nouveau : son numéro est
-// posé avec SPEC.md) :
-//   - donner à une course ou à ses sous-agents plus de droits que la liste de son skill plus les
-//     règles d'autorisation de l'utilisateur, le mode Auto ou le contournement des autorisations
-//     (bypassPermissions), quel que soit le mode de l'agent principal, que la course parte d'un clic
-//     ou de l'orchestrateur (famille « permissions ») ;
+// Invariants des droits d'une course, I-57 (note 0.15.0, docs/tickets/feat/0.15.0-courses-droits.md, revue par
+// docs/tickets/fix/0.15.0-droits-souples.md, « Ce que ça ne doit pas faire ») :
+//   - laisser passer, pour une course, une commande de la liste de refus que son skill n'ouvre pas, quel que
+//     soit le mode de l'agent principal (I-57 revu, famille « permissions » : la liste de refus donnée au SDK) ;
+//   - donner à une course ou à ses sous-agents d'autres outils que ceux de son skill plus Bash, le mode Auto
+//     ou le contournement des autorisations (bypassPermissions), quel que soit le mode de l'agent principal,
+//     que la course parte d'un clic ou de l'orchestrateur (famille « permissions ») ;
 //   - laisser une course ou un sous-agent de VibeCoder lire ou écrire, par ses outils de fichiers, hors
 //     du dossier du projet et des sorties de l'agent (vérifié sur le contrôle que l'appli donne au SDK,
 //     PreToolUse, et sur le mode ; famille « disque ») ;
@@ -18,7 +18,8 @@
 // Code, ici celui du fichier : il relève, pour chaque processus, son premier message, les options reçues
 // à son lancement et chaque changement de mode ; son tour dure (rien ne sort de son flux). Ce que Claude
 // Code juge lui-même (le mode, la liste, les règles de l'utilisateur) n'est pas rejoué : on vérifie ce
-// que l'appli lui donne. Le contrôle des fichiers est appelé comme le SDK l'appelle avant un outil (les
+// que l'appli lui donne ; une commande est jugée sur les règles de refus données au processus, comme la doc
+// des permissions de Claude Code le décrit (relevé dans la note). Le contrôle des fichiers est appelé comme le SDK l'appelle avant un outil (les
 // crochets PreToolUse des options), pour la course ou pour un de ses sous-agents (agent_id).
 import fs from 'node:fs';
 import os from 'node:os';
@@ -57,10 +58,8 @@ vi.mock('technicals/claude', () => ({
   }),
 }));
 
-// Le préfixe des actions (config.json) et les commandes de test et de typage de l'AGENTS.md d'essai ;
-// `npm start`, dans la même section, n'est ni un test ni un typage.
+// Le préfixe des actions (config.json) et l'AGENTS.md d'essai, avec ses commandes.
 const PREFIX = 'distrobox enter dev --';
-const COMMANDS = ['npm test', 'npm run typecheck'];
 const AGENTS_MD = '# AGENTS.md\n\n## Commandes\n\n- Lancer : `npm start`\n- Tests : `npm test` · typage : `npm run typecheck`\n';
 
 let root = '';     // le profil d'essai
@@ -100,6 +99,26 @@ async function startForme(mode: string, by: 'click' | 'orchestrator' = 'click'):
   return forme;
 }
 
+// L'agent a1 en Auto, le préfixe posé ; l'appli démarrée ; l'action `id` (dont le skill est `skill`) lancée comme le
+// fait un bouton (startRun), quel que soit l'état de la branche ; son processus.
+async function startAction(id: string, skill: string): Promise<Proc> {
+  writeConfig(root, [{ id: 'a1', dir: project, name: 'essai', model: 'opus', effort: 'high', mode: 'auto', sessionId: null, view: 'vibecoder',
+    vibe: { flow: 'create', autonomy: 'guide', pr: null } }], { vibeCommandPrefix: PREFIX });
+  (await import('app/settings')).ensureVibeFiles();
+  await openPanel('a1');
+  const { startRun } = await import('app/controllers');
+  const { loadConfig, vibeActions } = await import('app/settings');
+  const { agentList, vibeLang } = await import('core/config');
+  const cfg = loadConfig();
+  const def = vibeActions(vibeLang(cfg)).find((d) => d.id === id);
+  if (!def) throw new Error(`aucune action ${id}`);
+  startRun(agentList(cfg)[0], def, { text: `/vibecoder:${skill}`, images: [] }, cfg);
+  await settle();
+  const proc = procs.find((p) => p.text.startsWith(`/vibecoder:${skill}`));
+  if (!proc) throw new Error(`l’action ${id} n’est pas partie`);
+  return proc;
+}
+
 // Le dossier du plugin de VibeCoder donné au processus.
 function pluginDir(p: Proc): string {
   const plugins = (p.options.plugins ?? []) as { path: string }[];
@@ -108,8 +127,7 @@ function pluginDir(p: Proc): string {
 }
 
 // Ce que la note permet à une course : le champ allowed-tools du SKILL.md qu'appelle son premier message (variante
-// comprise, tel qu'installé), une règle par entrée, ${CLAUDE_SKILL_DIR} et ${VIBECODER_OUT} remplacés ; plus chaque
-// commande du projet derrière le préfixe, seule ou suivie d'arguments.
+// comprise, tel qu'installé), une règle par entrée, ${CLAUDE_SKILL_DIR} et ${VIBECODER_OUT} remplacés ; plus Bash.
 function noteAllows(p: Proc): string[] {
   const skillDir = path.join(pluginDir(p), 'skills', /^\/vibecoder:(\S+)/.exec(p.text)![1]);
   const skillMd = path.join(skillDir, 'SKILL.md');
@@ -117,9 +135,25 @@ function noteAllows(p: Proc): string[] {
   const field = /^allowed-tools:\s*"?(.*?)"?\s*$/m.exec(md)?.[1] ?? '';
   const skill = field.split(/,(?![^(]*\))/).map((r) => r.trim()).filter(Boolean)
     .map((r) => r.replaceAll('${CLAUDE_SKILL_DIR}', skillDir).replaceAll('${VIBECODER_OUT}', out));
-  return [...skill, ...COMMANDS.flatMap((c) => [`Bash(${PREFIX} ${c})`, `Bash(${PREFIX} ${c} *)`])];
+  return [...skill, 'Bash'];
 }
 const allowedTools = (p: Proc) => (p.options.allowedTools ?? []) as string[];
+
+// La commande `command` est-elle refusée au processus ? Jugée sur ses règles de refus (disallowedTools) comme Claude
+// Code les lit : `Bash` seul refuse tout ; `Bash(<motif>)`, `*` vaut n'importe quoi, un ` *` (ou `:*`) final couvre
+// aussi la commande seule, à la frontière d'un mot.
+function refused(p: Proc, command: string): boolean {
+  const rules = (p.options.disallowedTools ?? []) as string[];
+  return rules.some((rule) => {
+    if (rule === 'Bash') return true;
+    const pattern = /^Bash\((.*)\)$/s.exec(rule)?.[1];
+    if (pattern === undefined) return false;
+    const spaced = pattern.replace(/:\*$/, ' *');
+    const tail = spaced.endsWith(' *');
+    const body = (tail ? spaced.slice(0, -2) : spaced).split('*').map((s) => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*');
+    return new RegExp(`^${body}${tail ? '(?: .*)?' : ''}$`, 's').test(command);
+  });
+}
 
 // Ce que décide le contrôle des fichiers de la course pour l'appel `tool(input)`, appelé comme le SDK l'appelle
 // avant l'outil : chaque crochet PreToolUse dont le filtre vise cet outil ; `who` : le sous-agent qui l'appelle
@@ -193,23 +227,390 @@ describe('une course ne part jamais dans un mode qui lui donne plus que sa liste
   });
 });
 
-describe('la liste d’une course : celle de son skill et les commandes du projet, rien de plus', () => {
-  it('au clic, l’agent en Auto : aucune règle hors de la liste du skill et des commandes du projet', async () => {
+describe('la liste d’une course : les outils de son skill et Bash, rien de plus', () => {
+  it('au clic, l’agent en Auto : aucune règle hors de la liste du skill et de Bash', async () => {
     const forme = await startForme('auto');
 
-    // témoin : la liste est bien donnée au processus (la commande de test du projet, derrière le préfixe)
-    expect(allowedTools(forme)).toContain(`Bash(${PREFIX} npm test)`);
-    // aucune règle que ni le skill ni les commandes du projet ne donnent
+    // témoin : la liste est bien donnée au processus (un outil du skill)
+    expect(allowedTools(forme)).toContain('Read');
+    // aucune règle que ni le skill ni Bash ne donnent
     expect(allowedTools(forme).filter((r) => !noteAllows(forme).includes(r))).toEqual([]);
   });
 
-  it('demandée par l’orchestrateur, l’agent en Auto : aucune règle hors de la liste du skill et des commandes du projet', async () => {
+  it('demandée par l’orchestrateur, l’agent en Auto : aucune règle hors de la liste du skill et de Bash', async () => {
     const forme = await startForme('auto', 'orchestrator');
 
     // témoin : la liste est bien donnée au processus
-    expect(allowedTools(forme)).toContain(`Bash(${PREFIX} npm test)`);
-    // aucune règle que ni le skill ni les commandes du projet ne donnent
+    expect(allowedTools(forme)).toContain('Read');
+    // aucune règle que ni le skill ni Bash ne donnent
     expect(allowedTools(forme).filter((r) => !noteAllows(forme).includes(r))).toEqual([]);
+  });
+});
+
+describe('une commande de la liste de refus que son skill n’ouvre pas est refusée à la course, quel que soit le mode', () => {
+  it('l’agent en Manuel, au clic : git push refusé à la Forme', async () => {
+    const forme = await startForme('default');
+
+    // rien ne part à l'extérieur
+    expect(refused(forme, 'git push origin HEAD')).toBe(true);
+  });
+
+  it('l’agent en Accepter les modifications, au clic : git push refusé à la Forme', async () => {
+    const forme = await startForme('acceptEdits');
+
+    // rien ne part à l'extérieur
+    expect(refused(forme, 'git push origin HEAD')).toBe(true);
+  });
+
+  it('l’agent en Auto, au clic : git push refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // rien ne part à l'extérieur
+    expect(refused(forme, 'git push origin HEAD')).toBe(true);
+  });
+
+  // Un mode qu'aucun menu ne propose, écrit à la main dans config.json.
+  it('bypassPermissions écrit à la main pour l’agent : git push refusé à la Forme', async () => {
+    const forme = await startForme('bypassPermissions');
+
+    // rien ne part à l'extérieur
+    expect(refused(forme, 'git push origin HEAD')).toBe(true);
+  });
+
+  it('l’agent en Auto, course demandée par l’orchestrateur : git push refusé à la Forme', async () => {
+    const forme = await startForme('auto', 'orchestrator');
+
+    // rien ne part à l'extérieur
+    expect(refused(forme, 'git push origin HEAD')).toBe(true);
+  });
+
+  it('git push seul, sans argument : refusé', async () => {
+    const forme = await startForme('auto');
+
+    // la commande nue aussi
+    expect(refused(forme, 'git push')).toBe(true);
+  });
+
+  // La commande derrière le préfixe des actions (config.json), comme les skills l'écrivent.
+  it('git push derrière le préfixe des actions : refusé', async () => {
+    const forme = await startForme('auto');
+
+    // le préfixe ne la fait pas passer
+    expect(refused(forme, `${PREFIX} git push origin HEAD`)).toBe(true);
+  });
+
+  it('gh pr create : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // aucune PR ouverte
+    expect(refused(forme, 'gh pr create --fill')).toBe(true);
+  });
+
+  it('curl : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // rien n'est envoyé ni tiré du réseau
+    expect(refused(forme, 'curl https://example.com')).toBe(true);
+  });
+
+  it('wget : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // rien n'est tiré du réseau
+    expect(refused(forme, 'wget https://example.com')).toBe(true);
+  });
+
+  it('npm install : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // les dépendances ne changent pas
+    expect(refused(forme, 'npm install left-pad')).toBe(true);
+  });
+
+  it('npm i : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // la forme courte non plus
+    expect(refused(forme, 'npm i left-pad')).toBe(true);
+  });
+
+  it('cargo add : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // les dépendances d'un projet Rust ne changent pas
+    expect(refused(forme, 'cargo add serde')).toBe(true);
+  });
+
+  it('pip install : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // aucun paquet Python installé
+    expect(refused(forme, 'pip install requests')).toBe(true);
+  });
+
+  it('git reset --hard : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // le travail en cours n'est pas effacé
+    expect(refused(forme, 'git reset --hard HEAD~1')).toBe(true);
+  });
+
+  it('git clean : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // les fichiers non suivis ne sont pas effacés
+    expect(refused(forme, 'git clean -fd')).toBe(true);
+  });
+
+  it('git restore : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // un changement non commité n'est pas effacé
+    expect(refused(forme, 'git restore src/a.ts')).toBe(true);
+  });
+
+  it('rm -rf : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // aucun dossier effacé
+    expect(refused(forme, 'rm -rf build')).toBe(true);
+  });
+
+  it('sudo : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // rien ne passe en administrateur
+    expect(refused(forme, 'sudo ls')).toBe(true);
+  });
+
+  it('git add : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // rien n'est indexé
+    expect(refused(forme, 'git add .')).toBe(true);
+  });
+
+  it('git commit : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // rien n'est commité
+    expect(refused(forme, 'git commit -m x')).toBe(true);
+  });
+
+  it('git rebase : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // l'histoire n'est pas réécrite
+    expect(refused(forme, 'git rebase master')).toBe(true);
+  });
+
+  it('git checkout : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // la branche ne change pas
+    expect(refused(forme, 'git checkout master')).toBe(true);
+  });
+
+  it('git stash : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // le travail en cours n'est pas mis de côté
+    expect(refused(forme, 'git stash')).toBe(true);
+  });
+
+  // Le skill de la Forme nomme `git branch *` (une lecture) : il n'ouvre pas la suppression d'une branche.
+  it('git branch -D : refusé à la Forme, qui nomme pourtant git branch', async () => {
+    const forme = await startForme('auto');
+
+    // aucune branche supprimée
+    expect(refused(forme, 'git branch -D ancienne')).toBe(true);
+  });
+
+  it('git config : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // la configuration de git ne change pas
+    expect(refused(forme, 'git config user.email x@y')).toBe(true);
+  });
+
+  it('kill : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // aucun processus tué
+    expect(refused(forme, 'kill 1234')).toBe(true);
+  });
+
+  it('systemctl : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // aucun service touché
+    expect(refused(forme, 'systemctl --user stop dev-mongodb')).toBe(true);
+  });
+
+  it('podman : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // aucun conteneur touché
+    expect(refused(forme, 'podman rm dev-redis')).toBe(true);
+  });
+
+  it('distrobox rm : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // aucune box détruite
+    expect(refused(forme, 'distrobox rm dev')).toBe(true);
+  });
+
+  it('npm add : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // les dépendances ne changent pas
+    expect(refused(forme, 'npm add left-pad')).toBe(true);
+  });
+
+  it('yarn add : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // les dépendances ne changent pas, par yarn non plus
+    expect(refused(forme, 'yarn add left-pad')).toBe(true);
+  });
+
+  it('pnpm add : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // les dépendances ne changent pas, par pnpm non plus
+    expect(refused(forme, 'pnpm add left-pad')).toBe(true);
+  });
+
+  it('cargo install : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // aucun programme Rust installé
+    expect(refused(forme, 'cargo install ripgrep')).toBe(true);
+  });
+
+  it('git switch : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // la branche ne change pas
+    expect(refused(forme, 'git switch master')).toBe(true);
+  });
+
+  it('git merge : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // aucune branche fusionnée
+    expect(refused(forme, 'git merge master')).toBe(true);
+  });
+
+  it('git tag : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // aucune étiquette posée
+    expect(refused(forme, 'git tag v1.0.0')).toBe(true);
+  });
+
+  it('git pull : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // rien n'est tiré du dépôt distant
+    expect(refused(forme, 'git pull')).toBe(true);
+  });
+
+  it('pkill : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // aucun processus tué par son nom
+    expect(refused(forme, 'pkill node')).toBe(true);
+  });
+
+  it('distrobox create : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // aucune box créée
+    expect(refused(forme, 'distrobox create -n autre')).toBe(true);
+  });
+
+  it('distrobox stop : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // aucune box arrêtée
+    expect(refused(forme, 'distrobox stop dev')).toBe(true);
+  });
+
+  it('distrobox assemble : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // aucune box recréée d'après sa recette
+    expect(refused(forme, 'distrobox assemble create --file dev.ini')).toBe(true);
+  });
+
+  it('distrobox upgrade : refusé à la Forme', async () => {
+    const forme = await startForme('auto');
+
+    // aucune box mise à jour
+    expect(refused(forme, 'distrobox upgrade dev')).toBe(true);
+  });
+
+  // La CLI de VibeCoder, par le chemin qu'écrivent les skills (le plugin installé dans le profil).
+  it('la CLI de VibeCoder : refusée à la Forme', async () => {
+    const forme = await startForme('auto');
+    const cli = `node "${pluginDir(forme)}/skills/forme/../../bin/vibecoder.mjs" run start pr`;
+
+    // la course ne lance aucune action
+    expect(refused(forme, cli)).toBe(true);
+  });
+
+  it('la CLI de VibeCoder derrière le préfixe des actions : refusée à la Forme', async () => {
+    const forme = await startForme('auto');
+    const cli = `${PREFIX} node "${pluginDir(forme)}/skills/forme/../../bin/vibecoder.mjs" run start pr`;
+
+    // le préfixe ne la fait pas passer
+    expect(refused(forme, cli)).toBe(true);
+  });
+
+  // Un skill qui ouvre une partie de la liste (Ouvrir la PR : git push, gh pr create…) : le reste lui est refusé.
+  it('Ouvrir la PR : git commit refusé', async () => {
+    const pr = await startAction('pr', 'pr');
+
+    // la PR ne commite rien
+    expect(refused(pr, 'git commit -m x')).toBe(true);
+  });
+
+  it('Ouvrir la PR : rm -rf refusé', async () => {
+    const pr = await startAction('pr', 'pr');
+
+    // aucun dossier effacé
+    expect(refused(pr, 'rm -rf build')).toBe(true);
+  });
+
+  it('Ouvrir la PR : gh pr merge refusé', async () => {
+    const pr = await startAction('pr', 'pr');
+
+    // fusionner une PR reste à l'utilisateur
+    expect(refused(pr, 'gh pr merge 12')).toBe(true);
+  });
+
+  it('Ouvrir la PR : gh release refusé', async () => {
+    const pr = await startAction('pr', 'pr');
+
+    // publier une release reste à l'utilisateur
+    expect(refused(pr, 'gh release create v1.0.0')).toBe(true);
+  });
+
+  it('Ouvrir la PR : gh pr merge derrière le préfixe refusé', async () => {
+    const pr = await startAction('pr', 'pr');
+
+    // le préfixe ne la fait pas passer
+    expect(refused(pr, `${PREFIX} gh pr merge 12`)).toBe(true);
+  });
+
+  // Commiter ouvre git commit, pas git push.
+  it('Commiter : git push refusé', async () => {
+    const commit = await startAction('commit', 'commit');
+
+    // le commit ne part pas à l'extérieur
+    expect(refused(commit, 'git push origin HEAD')).toBe(true);
   });
 });
 
@@ -330,7 +731,7 @@ describe('une action n’élargit pas ses propres droits', () => {
 
     // témoin : modifier un autre fichier du projet passe (le contrôle juge bien le fichier)
     expect(await verdict(forme, 'Edit', { file_path: path.join(project, 'src', 'a.ts'), old_string: 'a', new_string: 'b' })).toBe('pass');
-    // ses commandes, que l'appli ajoute à la liste, ne changent pas
+    // ses règles, que lisent les agents, ne changent pas
     expect(await verdict(forme, 'Edit', { file_path: path.join(project, 'AGENTS.md'), old_string: 'npm test', new_string: 'rm -rf /' })).toBe('deny');
   });
 
