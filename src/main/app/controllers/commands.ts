@@ -3,7 +3,7 @@
  *  relevé (lastView), puis appelle execute de core/commands avec les
  *  opérations existantes : start → startAction (vibe parti → vibeStart ; parti
  *  → refreshVibe, comme runVibeAction), direct → runDirect, run → runOp, proc
- *  → processOp, artifact → readArtifact, draft → editDraft, wait (run.wait) → runEnd ; le relevé
+ *  → processOp, artifact → readArtifact, draft → editDraft, validate (step.validate) → validateVibe, wait (run.wait) → runEnd ; le relevé
  *  des demandes en attente (runs) : queuedOf. Avant une commande
  *  qui écrit, le relevé est relu (refreshVibe fresh, attendu) : l'état jugé est
  *  celui du dépôt. Sans robot (null) : no-survey, aucune opération appelée.
@@ -28,7 +28,7 @@ import { real, viewAgent } from './agents';
 import { readArtifact } from './artifacts';
 import { processOp } from './processes';
 import { afterStart, queuedOf, queueStart, runEnd, runOp, vibeHalted } from './runs';
-import { editDraft, lastView, runDirect, startAction, surveyAgent } from './vibecoder';
+import { editDraft, lastView, runDirect, startAction, surveyAgent, validateVibe } from './vibecoder';
 
 export async function runCommand(agent: AgentConfig | null, req: CommandRequest): Promise<CommandResponse> {
   const cfg = loadConfig();   // une fois par appel
@@ -57,6 +57,7 @@ export async function runCommand(agent: AgentConfig | null, req: CommandRequest)
     proc: (name, op) => processOp(agent, cfg, name, op),
     artifact: (id) => readArtifact(agent, id),
     draft: (op) => editDraft(agent, op),
+    validate: (step, verdict) => validateVibe(agent, step, verdict),
     wait: (id) => runEnd(agent.id, id),
   };
   return execute(table, req, { view, defs, queued: queuedOf(agent.id), halted: req.door === 'agent' && vibeHalted(agent.id) }, ops);
