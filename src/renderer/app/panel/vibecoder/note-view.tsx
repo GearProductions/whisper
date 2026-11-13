@@ -15,7 +15,7 @@
  *  remarque ouvre la zone, qui ne s'ouvre pas d'elle-même. Ce qui a changé
  *  depuis la note de référence (note.before : posée par le principal, changée par Vu ou la validation)
  *  a un liseré vert, et ce qui en a été retiré est rendu à sa place, barré en rouge, en lecture seule
- *  (removedGroups, placeRemoved, MarkdownView removed ; en mode rendu seulement, disparu avec Vu ou
+ *  (removedGroups, placeRemoved d'après la note actuelle, MarkdownView removed ; en mode rendu seulement, disparu avec Vu ou
  *  la validation), « Changée depuis votre dernière relecture » ; « Voir les
  *  modifications » montre le diff brut, retraits compris, replié autour des
  *  changements (DiffView) ; « Vu » (Icon ok + texte) repart de la note actuelle. Les lignes de « Ce que ça
@@ -34,7 +34,7 @@
  *  faire pour en avoir une. Styles : note-view.css.
  *  Ne connaît pas : le pont (rappels passés), le disque. Utilisé par : step-views. */
 import { useEffect, useMemo, useState } from 'react';
-import { changedLines, excerpt, fileParts, isLive, lineDiff, mustNotLine, mustNotTags, remark, remarksAt } from 'core/vibecoder';
+import { changedLines, excerpt, fileParts, isLive, lineDiff, mustNotLine, mustNotTags, parseMarkdown, placeRemoved, remark, remarksAt, removedGroups } from 'core/vibecoder';
 import type { MustNotMark, VibeLang } from 'technicals/bridge';
 import { CommentBox } from './comment-box';
 import { DraftRemarks } from './draft-remarks';
@@ -71,7 +71,7 @@ const fr = {
     none: ['à classer', 'Sans marque : → invariant, variant, review ou structure ?'],
   } as Record<NonNullable<MustNotMark> | 'none', [string, string]>,
   noNote: 'Pas encore de note pour cette branche',
-  noNoteText: ' Dictez ou écrivez la demande dans le champ ci-dessus, puis « Rédiger la note » : l\'agent la rédige sous docs/tickets/ et pose à part ses questions ouvertes.',
+  noNoteText: ' Dictez ou écrivez la demande dans le champ de la conversation, en bas, puis « Rédiger la note » : l\'agent la rédige sous docs/tickets/ et pose à part ses questions ouvertes.',
   noNoteReview: 'Pas de note de ticket dans cette PR',
   noNoteReviewText: ' Une note se cherche sous docs/tickets/, d\'après la branche de la PR ; chargez d\'abord la PR à l\'étape PR.',
 };
@@ -98,7 +98,7 @@ const S: Record<VibeLang, typeof fr> = {
       none: ['unmarked', 'No mark: → invariant, variant, review or structure?'],
     },
     noNote: 'No note for this branch yet',
-    noNoteText: ' Dictate or type the request in the field above, then « Write the note »: the agent writes it under docs/tickets/ and asks its open questions apart.',
+    noNoteText: ' Dictate or type the request in the conversation field at the bottom, then « Write the note »: the agent writes it under docs/tickets/ and asks its open questions apart.',
     noNoteReview: 'No ticket note in this PR',
     noNoteReviewText: ' A note is looked for under docs/tickets/, after the PR\'s branch; load the PR first, at the PR step.',
   },
@@ -122,6 +122,8 @@ export function NoteView(p: StepProps) {
   const locked = note?.locked ?? null;
   const d = useFileDraft(editable, p.code, locked, act.save, p.drafts);
   const editing = !!editable && d.text != null;
+  // Les retraits depuis la référence, rendus à leur place : la note actuelle contre la référence, jamais le texte en édition.
+  const removedAt = useMemo(() => (diff ? placeRemoved(removedGroups(diff), parseMarkdown(text), text) : undefined), [diff, text]);
   const shown = editing ? d.text! : text; // les pastilles et le liseré suivent le texte affiché
   const changed = useMemo(() => (before === null ? undefined : changedLines(lineDiff(before, shown))), [before, shown]);
   const tags = mustNotTags(shown, note?.mustNot ?? []);
@@ -218,7 +220,7 @@ export function NoteView(p: StepProps) {
                 </>
               )
               : editable && d.tooBig ? <div className="vc-empty">{t.tooBig}</div>
-              : <MarkdownView md={note.text} t={t} onOpenLink={act.openLink} onQuote={quote} onComment={comment} changed={changed} tag={tag} focus={focus} onAsk={ask} blockEnd={remarksUnder} itemEnd={remarksUnder} />}
+              : <MarkdownView md={note.text} t={t} onOpenLink={act.openLink} onQuote={quote} onComment={comment} changed={changed} tag={tag} focus={focus} onAsk={ask} blockEnd={remarksUnder} itemEnd={remarksUnder} removed={removedAt} />}
           </div>
         </section>
       ) : (

@@ -1,6 +1,6 @@
 /* La note (note-view) : en-tête (chemin, Ouvrir, Modifier, Brut,
    validation), bandeau des changements, liseré vert et teinte à plat des
-   blocs changés (ni dégradé ni halo), marques des lignes « ne doit pas »,
+   blocs changés (ni dégradé ni halo), blocs retirés barrés en rouge (vc-removed), marques des lignes « ne doit pas »,
    la note éditable (NoteEditor : vc-note-editor, cm-md-*, ses boutons de
    citation gris, au survol). Sous .vc.
    Ne connaît pas : les autres vues. Utilisé par : note-view, note-editor. */
@@ -51,6 +51,12 @@
 .vc-note .vc-md li li[data-changed]::before { left: -56px; }
 .vc-note .vc-md li li li[data-changed]::before { left: -78px; }
 .vc-note .vc-md :is(.vc-block, li)[data-changed] { background: var(--vc-ok-bg); border-radius: 0 var(--vc-radius) var(--vc-radius) 0; }
+
+/* Ce qui a été retiré depuis la référence : à sa place, barré en rouge, sans liseré ni outil (lecture seule). */
+.vc-note .vc-md .vc-removed { color: var(--vc-ko-text); text-decoration: line-through; background: var(--vc-ko-bg); border-radius: 0 var(--vc-radius) var(--vc-radius) 0; opacity: 0.85; }
+/* Un élément de liste retiré (li.vc-removed > ul > li) : la puce de l'élément seule, au retrait des autres. */
+.vc-md li.vc-removed { list-style: none; }
+.vc-md li.vc-removed > :is(ul, ol) { margin: 0; padding-left: 0; }
 
 /* La marque d'une ligne de « Ce que ça ne doit pas faire ». */
 .vc-mn {
