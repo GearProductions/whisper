@@ -144,25 +144,105 @@ it('la conversation d\'un autre agent avant son relevé : l\'écran d\'avant res
   await act(() => { (on.onFocusInput as () => void)(); });   // le focus du champ, demandé avant que l'écran soit là
 });
 
-// Le trombone : le choix du dialogue va au champ qui l'a ouvert (le dernier 📎 cliqué), sinon à la conversation.
-it('le trombone d\'un champ d\'étape : son choix va à ce champ, pas à la conversation ; celui de la conversation, à la conversation', async () => {
+// Le trombone : le choix du dialogue va au champ qui l'a ouvert (le dernier 📎 cliqué : le questionnaire), sinon à la conversation.
+it('le trombone du questionnaire : son choix va à ce champ, pas à la conversation ; celui de la conversation, à la conversation', async () => {
   const attached: string[] = [];
   own.attach = () => { attached.push('attach'); };
   const act1 = { id: 'note', step: 'note', label: 'Écrire la note', hint: '', who: 'agent', models: [], model: null, kind: 'send', needs: 'text', usesText: true, primary: true, disabled: null, hidden: false };
   await act(() => {
     on.onThread({ key: 'a1', live: true, name: 'A', color: '#fff', title: 't', status: 'idle', messages: [] });
     on.onVibe({ lang: 'fr', agentId: 'a1', steps: [{ id: 'note', status: 'current' }], actions: [act1], runs: [], processes: [], commits: [], agent: {}, time: 0, flow: 'create',
-      outputs: {}, files: [], questions: [], invariants: [], artifacts: [], modules: [], repo: { branch: 'master', base: 'master', changed: 0 } });
+      outputs: {}, files: [], questions: [{ n: 1, text: 'Quoi ?', options: ['a'] }], invariants: [], artifacts: [], modules: [], repo: { branch: 'master', base: 'master', changed: 0 } });
   });
   const pieces = (sel: string) => [...page.querySelectorAll(`${sel} .piece`)].map((p) => p.textContent ?? '');
-  await act(() => { page.querySelector<HTMLButtonElement>('.vc-step-field .vc-attach')!.click(); });
-  await act(() => { (on.onAttached as (v: unknown) => void)({ files: ['/p/champ.md'] }); });
+  await act(() => { page.querySelector<HTMLButtonElement>('.vc-q .vc-attach')!.click(); });
+  await act(() => { (on.onAttached as (v: unknown) => void)({ files: ['/p/reponse.md'] }); });
   expect(attached).toEqual(['attach']);
-  expect(pieces('.vc-step-field')).toHaveLength(1);
-  expect(pieces('#composer').join()).not.toContain('champ.md');
+  expect(pieces('.vc-q')).toHaveLength(1);
+  expect(pieces('#composer').join()).not.toContain('reponse.md');
   await act(() => { page.querySelector<HTMLButtonElement>('#attach')!.click(); });
   await act(() => { (on.onAttached as (v: unknown) => void)({ files: ['/p/conv.md'] }); });
-  expect(pieces('.vc-step-field')).toHaveLength(1);
+  expect(pieces('.vc-q')).toHaveLength(1);
   expect(pieces('#composer').join()).toContain('conv.md');
-  expect(pieces('.vc-step-field').join()).not.toContain('conv.md');
+  expect(pieces('.vc-q').join()).not.toContain('conv.md');
+});
+
+// Les actions qui prennent la demande dans le champ de la conversation (takesConversation : Rédiger la note,
+// Nouvelle demande) : le texte et les pièces jointes du champ partent, le champ se vide ; vide : on le demande.
+// Poser la forme et Écrire les invariants partent sans texte, le brouillon reste.
+const action = (a: object) => ({ id: 'x', step: null, label: 'X', hint: '', who: 'agent', models: [], model: null, kind: 'send', needs: 'none', usesText: false, primary: false, disabled: null, hidden: false, ...a });
+const actions = [
+  action({ id: 'note', step: 'note', label: 'Rédiger la note', needs: 'text', usesText: true, primary: true }),
+  action({ id: 'forme', step: 'forme', label: 'Poser la forme', usesText: true }),
+  action({ id: 'invariants', step: 'invariants', label: 'Écrire les invariants (rouges)', usesText: true }),
+  action({ id: 'new-request', label: 'Nouvelle demande', needs: 'text', usesText: true }),
+];
+const showStep = (step: string, branch = 'feat/x') => act(() => {
+  on.onVibe({ lang: 'fr', agentId: 'a1', steps: [{ id: step, status: 'current' }], actions, runs: [], processes: [], commits: [], agent: {}, time: 0, flow: 'create',
+    outputs: {}, files: [], questions: [], invariants: [], artifacts: [], modules: [], repo: { branch, base: 'master', changed: 0 } });
+});
+const click = (label: string) => act(async () => {
+  [...page.querySelectorAll<HTMLButtonElement>('.vc-step .vc-run')].find((b) => b.textContent?.includes(label))!.click();
+});
+const type = (value: string) => act(() => {
+  Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input, value);
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+});
+const NEED = 'Dictez ou écrivez d\'abord votre demande dans le champ, puis cliquez.';
+const composerPieces = () => page.querySelectorAll('#composer .piece').length;
+const attachPiece = (path: string) => act(async () => { (on.onAttached as (v: unknown) => void)({ files: [path] }); });
+const run = vi.fn(async (..._a: unknown[]) => ({ ok: true }));
+own.vibeRun = run;
+const clearAll = async () => { while (page.querySelector<HTMLButtonElement>('#composer .piece .remove')) await act(async () => { page.querySelector<HTMLButtonElement>('#composer .piece .remove')!.click(); }); await type(''); run.mockClear(); };
+
+it('Rédiger la note, un texte et une pièce jointe dans le champ : les deux partent, le champ se vide', async () => {
+  await showStep('note');
+  await clearAll();
+  await type('une demande');
+  await attachPiece('/p/a.md');
+  await click('Rédiger la note');
+  expect(run).toHaveBeenCalledWith('note', { text: 'une demande', pieces: { images: [], files: ['/p/a.md'], selection: '' } });
+  expect(input.value).toBe('');
+  expect(composerPieces()).toBe(0);
+});
+
+it('Rédiger la note, champ vide : « Dictez ou écrivez d\'abord… », le champ a le clavier, rien ne part', async () => {
+  await showStep('note');
+  await clearAll();
+  await attachPiece('/p/b.md');   // des pièces sans texte ne suffisent pas
+  (document.activeElement as HTMLElement | null)?.blur();
+  await click('Rédiger la note');
+  expect(run).not.toHaveBeenCalled();
+  expect(page.textContent).toContain(NEED);
+  expect(document.activeElement).toBe(input);
+  expect(composerPieces()).toBe(1);
+});
+
+// Sur la branche principale, le même bouton lance la nouvelle demande (le principal redirige 'note' vers new-request) :
+// la page envoie la même chose.
+it('sur la branche principale : de même, le bouton Rédiger la note emporte le champ et ses pièces', async () => {
+  await showStep('note', 'master');
+  await clearAll();
+  (document.activeElement as HTMLElement | null)?.blur();
+  await click('Rédiger la note');
+  expect(run).not.toHaveBeenCalled();
+  expect(page.textContent).toContain(NEED);
+  expect(document.activeElement).toBe(input);
+  await type('autre chose');
+  await attachPiece('/p/c.md');
+  await click('Rédiger la note');
+  expect(run).toHaveBeenCalledWith('note', { text: 'autre chose', pieces: { images: [], files: ['/p/c.md'], selection: '' } });
+  expect(input.value).toBe('');
+  expect(composerPieces()).toBe(0);
+});
+
+it('Poser la forme, Écrire les invariants, un brouillon dans le champ : partent sans texte, le brouillon reste', async () => {
+  await clearAll();
+  await type('un brouillon');
+  for (const [step, id, label] of [['forme', 'forme', 'Poser la forme'], ['invariants', 'invariants', 'Écrire les invariants (rouges)']]) {
+    await showStep(step);
+    await click(label);
+    expect(run).toHaveBeenLastCalledWith(id, {});
+    expect(input.value).toBe('un brouillon');
+  }
 });
