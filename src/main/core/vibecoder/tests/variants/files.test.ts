@@ -57,6 +57,41 @@ describe('codeFile : n, t<i> en Créer', () => {
   });
 });
 
+describe('codeFile : r<i>, un fichier supprimé du menu de diff', () => {
+  const head = [
+    { path: 'src/a.ts', id: 'b0' },
+    { path: 'src/gone.ts', id: 'r0', deleted: true },
+    { path: 'src/new.ts', id: 'r5', added: true },
+  ];
+  const diffs = { head, validated: { forme: [{ path: 'docs/gone.md', id: 'r1', deleted: true }], modules: [{ path: 'src/gone.ts', id: 'r0', deleted: true }] } };
+  const v = { ...view, flow: 'create', diffs } as unknown as VibeView;
+
+  it('r0 de view.diffs : son chemin, deleted, module null ; r9 inconnu : null', () => {
+    expect([codeFile(v, 'r0'), codeFile(v, 'r9')]).toEqual([{ path: 'src/gone.ts', module: null, review: { deleted: true } }, null]);
+  });
+
+  it('un r<i> qui n\'est que dans la liste d\'une étape : suivi aussi', () => {
+    expect(codeFile(v, 'r1')).toEqual({ path: 'docs/gone.md', module: null, review: { deleted: true } });
+  });
+
+  it('un fichier non supprimé qui porte un id r<i> : null', () => {
+    expect(codeFile(v, 'r5')).toBeNull();
+  });
+
+  it('relecteur : r<i> → null', () => {
+    expect(codeFile({ ...v, flow: 'review' } as VibeView, 'r0')).toBeNull();
+  });
+
+  it('sans diffs, sans étape qui porte r1, ou un relevé null : null', () => {
+    const bare = { ...view, flow: 'create' } as VibeView;
+    expect([codeFile(bare, 'r0'), codeFile({ ...bare, diffs: { head, validated: {} } } as unknown as VibeView, 'r1'), codeFile(null, 'r0')]).toEqual([null, null, null]);
+  });
+
+  it('un id qui n\'est pas exactement celui du relevé (r, r-1, r01, le chemin) : null', () => {
+    expect(['r', 'r-1', 'r01', 'R0', ' r0', 'r0 ', 'src/gone.ts'].map((id) => codeFile(v, id))).toEqual(Array(7).fill(null));
+  });
+});
+
 describe('commitFile : c<rang>/<i> en Relire', () => {
   it('c0/0 : le chemin et le hash ; sans parcours ou un commit sans fichiers : rien', () => {
     expect([commitFile({ ...view, flow: 'review' } as VibeView, 'c0/0'), commitFile(view, 'c0/0'), commitFile({ ...view, flow: 'review' } as VibeView, 'c1/0')])
