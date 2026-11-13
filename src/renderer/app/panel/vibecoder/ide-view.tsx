@@ -9,8 +9,11 @@
  *  Le fichier choisi, les dossiers fermés et le défilement (arborescence, fichier) sont gardés par useKept
  *  (par agent et par étape, T-20) : la vue recréée les retrouve ; une seule vue IDE par étape, les clés
  *  ne se heurtent donc pas.
+ *  Le menu de diff (note 0.15.0-ecran-statuts) : bar, au-dessus de l'arborescence et du fichier, sur toute la
+ *  largeur ; files arrive déjà filtré par l'appelant (diffTree) ; vide, empty (« Rien de modifié depuis … ») à
+ *  la place de l'arborescence. Retirés : les accordéons (review, Fold), tools, t.
  *  N'ajoute aucune action : on plie, on choisit.
- *  Ne connaît pas : le pont, les étapes, les actions.
+ *  Ne connaît pas : le pont, les étapes, les actions, les marques, les références du diff.
  *  Utilisé par : forme-view, modules-view, invariants-view. */
 import { useContext, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { fileTree, visibleRows, type IdeFile } from 'core/vibecoder';
@@ -21,13 +24,15 @@ import './ide-view.css';
 export type IdeViewProps = {
   files: IdeFile[];
   children(file: IdeFile | null): ReactNode;
+  bar?: ReactNode;                   // le menu de diff, au-dessus de l'arborescence et du fichier
+  empty?: string;                    // files vide : ce texte à la place de l'arborescence ; absent : l'arborescence vide
 };
 
 // La largeur de l'arborescence, commune aux vues IDE de la page (Forme, Modules, Invariants), bornée à la vue.
 let sideWidth = 240;
 const clampWidth = (w: number, total: number) => Math.round(Math.max(160, Math.min(w, total * 0.6 || w)));
 
-export function IdeView({ files, children }: IdeViewProps) {
+export function IdeView({ files, children, bar, empty }: IdeViewProps) {
   const root = useRef<HTMLDivElement>(null);
   const [width, setWidthState] = useState(sideWidth);
   const setWidth = (w: number) => { sideWidth = clampWidth(w, root.current?.getBoundingClientRect().width ?? 0); setWidthState(sideWidth); };
@@ -45,13 +50,18 @@ export function IdeView({ files, children }: IdeViewProps) {
   const toggle = (key: string) => setClosed((c) => { const next = new Set(c); if (!next.delete(key)) next.add(key); return next; });
 
   return (
+    <>
+    {bar ? <div className="vc-ide-bar">{bar}</div> : null}
     <div className="vc-ide" ref={root}>
       <div className="vc-ide-side" style={{ width }} ref={side} onScroll={(e) => scope?.set('ide-side-top', e.currentTarget.scrollTop)}>
-        <FileTreeView rows={visibleRows(nodes, open)} open={open} selected={file?.path ?? null}
-          mark={(key) => at(key)?.mark ?? null}
-          rank={(key) => { const r = at(key)?.rank; return r == null ? null : r + 1; }}
-          dim={(key) => at(key)?.dim ?? false}
-          onToggle={toggle} onSelect={setChosen} />
+        {!files.length && empty ? <div className="vc-empty">{empty}</div> : (
+          <FileTreeView rows={visibleRows(nodes, open)} open={open} selected={file?.path ?? null}
+            mark={(key) => at(key)?.mark ?? null}
+            rank={(key) => { const r = at(key)?.rank; return r == null ? null : r + 1; }}
+            dim={(key) => at(key)?.dim ?? false}
+          hint={(key) => at(key)?.hint}
+            onToggle={toggle} onSelect={setChosen} />
+        )}
       </div>
       <div className="vc-ide-resize" role="separator" aria-orientation="vertical" aria-valuenow={width} tabIndex={0}
         onPointerDown={(e) => {
@@ -69,5 +79,6 @@ export function IdeView({ files, children }: IdeViewProps) {
         }} />
       <div className="vc-ide-main" ref={main} onScroll={(e) => scope?.set('ide-main-top', e.currentTarget.scrollTop)}>{children(file)}</div>
     </div>
+    </>
   );
 }

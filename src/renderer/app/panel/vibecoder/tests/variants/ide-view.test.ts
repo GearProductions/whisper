@@ -3,8 +3,10 @@
 // le reçoit ; le choix tient par chemin d'un `files` à l'autre, et retombe sur le premier quand il disparaît ;
 // un dossier se plie (et un dossier nouveau s'ouvre seul) ; la couleur du nom de chaque fichier (mark), aucune sans mark ;
 // son numéro, le rang de son module + 1 ; sous un KeptScope (T-20) : le fichier choisi, les dossiers pliés et le
-// défilement reviennent quand la vue est recréée sous le même agent, pas sous un autre.
-import { act, createElement } from 'react';
+// défilement reviennent quand la vue est recréée sous le même agent, pas sous un autre ; bar (note
+// 0.15.0-ecran-statuts) : le menu de diff au-dessus des deux colonnes ; empty : files vide, ce texte à la place de
+// l'arborescence.
+import { act, createElement, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, expect, it } from 'vitest';
 import type { IdeFile } from 'core/vibecoder';
@@ -150,4 +152,32 @@ it('un test (rank null) : pas de numéro, même avec un rang de test', async () 
   await draw([{ ...f('t.test.ts'), rank: null, test: 3 }, { ...f('b.ts'), rank: 1 }]);
   expect(row('t.test.ts')!.querySelector('.vc-tree-rank')).toBeNull();
   expect(row('b.ts')!.querySelector('.vc-tree-rank')!.textContent).toBe('2');
+});
+
+// bar et empty : le menu de diff (note 0.15.0-ecran-statuts).
+const drawBar = (list: IdeFile[], extra: { bar?: ReactNode; empty?: string }) => act(() => {
+  root.render(createElement(IdeView, { files: list, ...extra, children: (file) => `[${file?.path ?? 'rien'}]` }));
+});
+
+it('bar : au-dessus des deux colonnes, hors de l\'arborescence et du fichier', async () => {
+  await drawBar(files, { bar: createElement('b', { className: 'bar' }, 'menu') });
+  const bar = page.querySelector('.bar')!;
+  const side = page.querySelector('.vc-ide-side')!;
+  const main = page.querySelector('.vc-ide-main')!;
+  expect(side.contains(bar) || main.contains(bar)).toBe(false);
+  expect(bar.compareDocumentPosition(side) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(bar.compareDocumentPosition(main) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  await draw();
+  expect(page.querySelector('.bar')).toBeNull();
+});
+
+it('empty : files vide, ce texte à la place de l\'arborescence ; files plein ou sans empty : l\'arborescence', async () => {
+  await drawBar([], { empty: 'Rien de modifié' });
+  expect(page.querySelector('.vc-ide-side')!.textContent).toBe('Rien de modifié');
+  expect(page.querySelector('.vc-tree-row')).toBeNull();
+  await drawBar(files, { empty: 'Rien de modifié' });
+  expect(page.querySelector('.vc-ide-side')!.textContent).not.toContain('Rien de modifié');
+  expect(row('z.ts')).toBeDefined();
+  await drawBar([], {});
+  expect(page.querySelector('.vc-ide-side')!.textContent).toBe('');
 });

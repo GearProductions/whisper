@@ -105,13 +105,14 @@ export function MarkControl({ what, state, review, lang, onMark, onRemark, check
 }
 
 // Le verdict d'un cas : deux badges gris, celui donné allumé (pressé) ; un second clic l'annule.
-export function CaseVerdict({ state, lang, onMark, onRemark }: { state: VibeMarkState; lang: VibeLang; onMark(v: Verdict): void; onRemark?(): void }) {
+// off : la raison qui grise Validé et À revoir (une lecture périmée : relire d'abord) ; absent : actifs.
+export function CaseVerdict({ state, lang, onMark, onRemark, off }: { state: VibeMarkState; lang: VibeLang; onMark(v: Verdict): void; onRemark?(): void; off?: string }) {
   const s = S[lang];
   return (
     <span className="vc-verdict" role="group">
       {(['ok', 'ko'] as const).map((v) => (
-        <button key={v} type="button" className={`vc-verdict-${v}`} aria-pressed={state === v}
-          title={state === v ? `${s[`${v}Done`]} — ${s.verdictUndo}` : s[v]} onClick={() => onMark(state === v ? null : v)}>
+        <button key={v} type="button" className={`vc-verdict-${v}`} aria-pressed={state === v} disabled={!!off}
+          title={off ?? (state === v ? `${s[`${v}Done`]} — ${s.verdictUndo}` : s[v])} onClick={() => onMark(state === v ? null : v)}>
           {v === 'ok' ? s.okDone : s.ko}
         </button>
       ))}

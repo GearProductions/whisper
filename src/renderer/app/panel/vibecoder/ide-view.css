@@ -28,3 +28,9 @@
 .vc-ide .vc-ide-main .vc-src { flex: 0 1 auto; display: flex; flex-direction: column; min-height: 0; }
 .vc-ide .vc-ide-main .vc-src > .cm-editor,
 .vc-ide .vc-ide-main .vc-src.vc-mdiff > .cm-mergeView { flex: 0 1 auto; min-height: 0; max-height: none; }
+/* Le menu de diff (bar), au-dessus des deux colonnes, sur toute la largeur. */
+.vc-ide-bar { flex: none; margin-bottom: 6px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.vc-ide-bar > .vc-mod-bar { margin: 0; }
+
+/* Invariants seuls (invariants-view), à côté du menu de diff. */
+.vc-only-inv { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; font-size: 0.9em; cursor: pointer; }

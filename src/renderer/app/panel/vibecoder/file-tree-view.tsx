@@ -22,11 +22,12 @@ export type FileTreeViewProps = {
   mark?(key: string): FileMark | null;
   rank?(key: string): number | null;
   dim?(key: string): boolean;
+  hint?(key: string): string | undefined;   // l'infobulle d'un fichier, après son chemin
   onToggle(key: string): void;
   onSelect(key: string): void;
 };
 
-export function FileTreeView({ rows, open, selected, mark, rank, dim, onToggle, onSelect }: FileTreeViewProps) {
+export function FileTreeView({ rows, open, selected, mark, rank, dim, hint, onToggle, onSelect }: FileTreeViewProps) {
   return (
     <div className="vc-tree" role="tree">
       {rows.map((n) => {
@@ -36,7 +37,7 @@ export function FileTreeView({ rows, open, selected, mark, rank, dim, onToggle, 
         return (
           <div key={n.key} className="vc-tree-row" role="treeitem" data-key={n.key} data-mark={tone ?? undefined} data-dim={!n.folder && dim?.(n.key) ? '' : undefined}
             aria-selected={n.key === selected} aria-expanded={n.folder ? isOpen : undefined}
-            style={{ paddingLeft: 6 + n.depth * 10 }} title={n.key}
+            style={{ paddingLeft: 6 + n.depth * 10 }} title={!n.folder && hint?.(n.key) ? `${n.key}\n${hint(n.key)}` : n.key}
             onClick={() => (n.folder ? onToggle(n.key) : onSelect(n.key))}>
             <span className="vc-tree-chevron" data-open={isOpen || undefined} aria-hidden="true">
               {n.folder ? '›' : num !== null ? <span className="vc-tree-rank">{num}</span> : ''}

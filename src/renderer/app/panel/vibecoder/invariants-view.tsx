@@ -8,8 +8,8 @@
  *  IconButton. « Pseudo-code / Code » montre à la place son code (CodeView :
  *  coloré d'après l'extension du fichier, comme « Voir le fichier » ; sans 💬
  *  sur ses lignes). Relecteur : le code d'origine du cas, en lecture seule.
- *  Créateur : Code et Voir le fichier ouvrent le fichier entier modifiable (Code :
- *  défilé à la ligne du cas), un seul à la fois, suivi par son id (act.follow ;
+ *  Créateur : Code ouvre le bloc du cas seul modifiable (useCaseDraft), Voir le
+ *  fichier le fichier entier modifiable (useFileDraft), un seul à la fois, suivi par son id (act.follow ;
  *  refermé par l'utilisateur : act.follow(null)) ; la modification gardée,
  *  Ctrl+S, Enregistrer, Abandonner : useFileDraft et DraftEditor (file-draft),
  *  grisés si f.locked (le motif en titre). À revoir et 💬 citent le
@@ -23,10 +23,10 @@
  *  (texte ; en accent seulement quand c'est l'action mise en avant, primary :
  *  Vibe ; ses cartes sans lecture, Validé / À revoir quand même, la lecture est
  *  facultative), Ouvrir (IconButton). « Voir le fichier » (tout son code,
- *  numéroté ; un test que la branche, ou la PR, modifie, f.base : DiffPicker
- *  Fichier · Diff depuis la base de la branche, le diff ModuleDiffView entier,
- *  en lecture seule, de f.base au texte de l'éditeur en créateur, à f.source en
- *  relecteur). Sans test, l'invitation à les écrire, ou « rien à
+ *  numéroté ; si le menu de diff de la vue IDE a une référence : le diff
+ *  ModuleDiffView entier, en lecture seule, du texte de la référence (f.base, ou at du
+ *  fichier suivi : head, validations.invariants ; inconnu : le fichier) au texte de
+ *  l'éditeur en créateur, à f.source en relecteur). Sans test, l'invitation à les écrire, ou « rien à
  *  écrire » si la note n'a aucune ligne « → invariant » ; créateur, la note avec
  *  une ligne « → invariant » : à côté, « ✓ Rien à écrire » (elles sont déjà
  *  observées par des tests existants), validation à la main pour la note telle
@@ -45,7 +45,7 @@
  *  empilées, modifiables sur place ; à côté de 💬, « Poser une question à l'agent » (cite le titre dans le champ,
  *  ne l'envoie pas) ; un cas À revoir : le bouton de remarque (CaseVerdict.onRemark) ouvre la zone, sans rien
  *  ajouter ; À revoir ne l'ouvre plus d'office. Le fichier ouvert est gardé par agent (useKept).
- *  Vue IDE, la seule : sous l'en-tête de l'étape, une carte (IdeView(invariantTree(view))) ; à gauche la
+ *  Vue IDE, la seule : sous l'en-tête de l'étape, une carte (IdeView(diff.filter(invariantTree(view)))) ; à gauche la
  *  même arborescence que la Forme : les tests (vert : ajoutés par la branche, jaune : modifiés, d'après leur
  *  base ; sans numéro) et les fichiers de la Forme, en retrait, numérotés (sans Forme : les tests seuls) ; à
  *  droite, d'un test choisi, son en-tête et ses cartes, comme avant (le premier d'emblée) ; d'un fichier de la
@@ -56,22 +56,31 @@
  *  Sous Garantit, ce que le cas garde (caseLink) : chaque ligne de la note citée, un lien qui passe à
  *  l'étape Note sur elle (goToNote) ; un I-… : son numéro, sans lien ; rien : « non rattaché » ; la lecture
  *  périmée : marqué périmé, comme elle.
+ *  Code d'un cas (créateur, note 0.15.0-ecran-statuts) : l'éditeur ne montre que le bloc du cas (useCaseDraft,
+ *  caseRange), comme sa lecture, sans défiler jusqu'à lui ; enregistré, seul ce bloc change dans le fichier ; Voir le fichier et Ouvrir
+ *  restent le fichier entier. La vue IDE porte le menu de diff de l'étape (useIdeDiff 'invariants' : bar, l'arborescence
+ *  filtrée, empty ; Voir le fichier : le diff depuis la référence choisie) ;
+ *  Valider les invariants (MarkControl 'invariants' dans l'en-tête, créateur ; offert si step.check.now : tous les cas ✓, ou
+ *  ✓ Rien à écrire ; validé, il reste pour Annuler) ; StepHead onSince → showValidated. Un fichier supprimé depuis la référence
+ *  (IdeFile.gone, id r<i>) : suivi, son diff tout en retraits (ModuleCode diff). Retirés : ideReview (accordéons, Valider d'un
+ *  fichier), FileOrDiff.
  *  L'alignement (align.md) : MarkdownView tagged (badges pour toi / pour l'agent, le grisé).
  *  Ne connaît pas : le pont (rappels passés), le brouillon (ses remarques, par cible). Utilisé par : step-views. */
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
-  attentionQuote, awaiting, caseLine, caseLink, caseSource, casesOf, excerpt, fileParts, invariantTree, progress, pseudoLines, remark, remarksAt, withAttention, type CaseLink, type CaseView, type Progress, type Strings,
+  attentionQuote, awaiting, caseLine, checkMark, goneModule, caseLink, caseRange, caseSource, casesOf, excerpt, fileParts, invariantTree, progress, pseudoLines, remark, remarksAt, withAttention, type CaseLink, type CaseView, type IdeFile, type Progress, type Strings,
 } from 'core/vibecoder';
 import type { VibeComment, VibeLang, VibeModule, VibeTestFile } from 'technicals/bridge';
+import { isInvariantPath } from 'shared/test-paths';
 import { CaseLinks } from './case-link';
 import { CodeView } from './code-view';
 import { CommentBox } from './comment-box';
-import { DiffPicker } from './diff-picker';
 import { DraftRemarks } from './draft-remarks';
-import { DraftEditor, useFileDraft } from './file-draft';
+import { DraftEditor, useCaseDraft, useFileDraft } from './file-draft';
 import { Contract } from './forme-view';
 import { Icon, IconButton } from './icons';
 import { IdeView } from './ide-view';
+import { useIdeDiff } from './ide-diff';
 import { useKept } from './kept-scope';
 import { InlineMd, MarkdownView } from './markdown-view';
 import { ModuleCode } from './module-code';
@@ -109,6 +118,9 @@ const fr = {
   formeReadOnly: 'Lecture seule : la Forme se modifie à l\'étape Forme.',
   noReading: 'Pas de lecture pour ce cas (son titre a pu changer) : « Relire » le fichier.',
   reread: 'Relire',
+  onlyInv: 'Invariants seuls',
+  staleOff: 'Lecture périmée : « Relire » le fichier avant de valider ses cas',
+  onlyInvTitle: 'Décoché : les autres fichiers de la référence aussi (la Forme, les variants…), en retrait',
   rereadAll: 'Tout relire',
   casesHere: (n: number) => `${n} cas à valider : Validé ou À revoir sur chaque carte, ou « Tout valider » sur un fichier sans point d'attention.`,
   noTests: 'Aucun test d\'invariant sur la branche',
@@ -120,7 +132,6 @@ const fr = {
   code: 'Code',
   show: 'Montrer',
   wholeFile: 'Voir le fichier',
-  sinceBase: 'Diff depuis la base de la branche',
 };
 const S: Record<VibeLang, typeof fr> = {
   fr,
@@ -152,6 +163,9 @@ const S: Record<VibeLang, typeof fr> = {
     formeReadOnly: 'Read only: the shape is changed in the Forme step.',
     noReading: 'No reading for this case (its title may have changed): « Read again » the file.',
     reread: 'Read again',
+    onlyInv: 'Invariants only',
+    staleOff: 'Outdated reading: « Read again » the file before validating its cases',
+    onlyInvTitle: 'Unchecked: the reference\'s other files too (the forme, the variants…), dimmed',
     rereadAll: 'Read all again',
     casesHere: (n) => `${n} case${n > 1 ? 's' : ''} to approve: Approved or Needs rework on each card, or « Approve all » on a file with no warning.`,
     noTests: 'No invariant test on the branch',
@@ -163,7 +177,6 @@ const S: Record<VibeLang, typeof fr> = {
     code: 'Code',
     show: 'Show',
     wholeFile: 'View the file',
-    sinceBase: 'Diff since the branch base',
   },
 };
 type Labels = typeof fr;
@@ -178,6 +191,14 @@ export function InvariantsView(props: StepProps) {
   const review = view.flow === 'review';
   const total = progress(view.invariants);
   const align = view.outputs['align.md'];
+  const diff = useIdeDiff(view, 'invariants');
+  // Invariants seuls (coché par défaut, gardé par agent) : l'arborescence ne garde que les tests d'invariants ; décoché,
+  // le reste de la référence aussi, en retrait (la Forme, les fichiers de la branche).
+  const [onlyInv, setOnlyInv] = useKept<boolean>('only-invariants', true);
+  const dd = { shown: diff.shown, mode: diff.mode, step: 'invariants' as const };
+  // Valider les invariants : l'état de la validation (step.check), offert si le principal a de quoi valider (now) ou s'il l'est déjà (Annuler).
+  const check = view.steps.find((x) => x.id === 'invariants')?.check;
+  const checkState = checkMark(check);
   const target = (f: VibeTestFile, title: string) => `case:${f.path}:${title}`;
   // À revoir : Créer, le cas cité dans le champ ; Relire, marque seulement (son bouton de remarque ouvre la zone de la carte).
   const verdict = (f: VibeTestFile, title: string, v: Verdict) => {
@@ -196,8 +217,19 @@ export function InvariantsView(props: StepProps) {
   useEffect(() => { if (id) act.follow(id); }, [id]);
   const show = (next: typeof shown) => { setShown(next); if (!next) act.follow(null); };
   const locked = file?.locked ?? null;
-  const d = useFileDraft(file ?? null, props.code, locked, act.save, props.drafts);
-  const editor = (at?: number): ReactNode => (file ? <DraftEditor d={d} file={file} locked={locked} t={t} at={at} /> : null);
+  // Voir le fichier : le fichier entier ; Code : le bloc du cas seul (useCaseDraft), sans défiler jusqu'à lui.
+  const whole = file && shown?.title === null;
+  const d = useFileDraft(whole ? file : null, props.code, locked, act.save, props.drafts);
+  const caseTitle = shown?.title ?? '';
+  const dc = useCaseDraft(file && !whole ? file : null, caseTitle, file ? caseRange(file, file.cases.indexOf(caseTitle)) : null, props.code, locked, act.save, props.drafts);
+  const editor = (block = false): ReactNode => (file ? <DraftEditor d={block ? dc : d} file={file} locked={locked} t={t} /> : null);
+  // Voir le fichier : le fichier (children), ou son diff, entier et en lecture seule, depuis la référence du menu de la vue IDE ;
+  // le texte de la référence pas encore connu (undefined : base inconnue, ou fichier pas encore suivi) : le fichier.
+  const fileOrDiff = (f: VibeTestFile, after: string, children: ReactNode) => {
+    const at = props.code?.id === f.id ? props.code.at : undefined;
+    const before = diff.shown === 'file' ? undefined : diff.shown === 'validated' ? at?.validations?.invariants : diff.shown === 'base' && f.base !== undefined ? f.base : at?.[diff.shown];
+    return before === undefined ? children : <ModuleDiffView before={before ?? ''} after={after} path={f.path} mode={diff.mode} lang={view.lang} whole />;
+  };
   // Le fichier choisi : son en-tête (chemin, lecture, progression, outils), Voir le fichier, une carte par cas.
   const fileBlock = (f: VibeTestFile) => {
     const p = progress([f]);
@@ -216,7 +248,7 @@ export function InvariantsView(props: StepProps) {
           </span>
           <span className="vc-ifile-tools">
             {p.all ? (
-              <button type="button" className="vc-vbtn" title={s.allTitle}
+              <button type="button" className="vc-vbtn" title={f.stale ? s.staleOff : s.allTitle} disabled={!!f.stale}
                 onClick={() => casesOf(f).forEach((c) => { if (c.mark !== 'ok' && c.mark !== 'ko') act.mark(target(f, c.title), 'ok'); })}>
                 <Icon name="ok" />{s.all}
               </button>
@@ -229,14 +261,14 @@ export function InvariantsView(props: StepProps) {
         {f.source ? review ? (
           <details className="vc-ifile-src">
             <summary>{s.wholeFile}</summary>
-            <FileOrDiff f={f} after={f.source} s={s} lang={view.lang}><CodeView code={f.source} path={f.path} t={t} /></FileOrDiff>
+            {fileOrDiff(f, f.source, <CodeView code={f.source} path={f.path} t={t} />)}
           </details>
         ) : (
           // onToggle part aussi quand open change par les props : seul l'écart est un geste.
           <details className="vc-ifile-src" open={f === file && shown?.title === null}
             onToggle={(e) => { const now = e.currentTarget.open; if (now !== (f === file && shown?.title === null)) show(now ? { path: f.path, title: null } : null); }}>
             <summary>{s.wholeFile}</summary>
-            {f === file && shown?.title === null ? <FileOrDiff f={f} after={d.text ?? f.source} s={s} lang={view.lang}>{editor()}</FileOrDiff> : null}
+            {f === file && shown?.title === null ? fileOrDiff(f, d.text ?? f.source, editor()) : null}
           </details>
         ) : null}
         {casesOf(f).map((c, i) => (
@@ -249,7 +281,7 @@ export function InvariantsView(props: StepProps) {
             edit={review ? undefined : {
               shown: f === file && shown?.title === c.title,
               onShow: (on) => show(on ? { path: f.path, title: c.title } : null),
-              view: () => editor(f.lines[i]),
+              view: () => editor(true),
             }} />
         ))}
       </section>
@@ -261,16 +293,26 @@ export function InvariantsView(props: StepProps) {
     ? (
       <Fragment key={m.path}>
         <OnLeave fn={() => act.follow(null)} />
-        <ModuleCode m={m} readOnly={s.formeReadOnly} code={props.code} t={t} lang={view.lang} open onFollow={act.follow} onSave={act.save} drafts={props.drafts} noTree />
+        <ModuleCode m={m} readOnly={s.formeReadOnly} code={props.code} t={t} lang={view.lang} open onFollow={act.follow} onSave={act.save} drafts={props.drafts} noTree diff={dd} />
       </Fragment>
     )
     : <div className="vc-ifile"><Contract text={view.modules[rank].contract} t={t} onOpenLink={act.openLink} /></div>);
+  // Un fichier de la branche hors des tests et de la Forme (f.code), ou supprimé depuis la référence (id r<i>, view.diffs) :
+  // un module d'un seul fichier, son diff (tout en retraits s'il est supprimé).
+  const goneBlock = (f: IdeFile) => (
+    <Fragment key={f.path}>
+      <OnLeave fn={() => act.follow(null)} />
+      <ModuleCode m={f.code ?? goneModule(f)} code={props.code} t={t} lang={view.lang} open onFollow={act.follow} onSave={act.save} drafts={props.drafts} noTree diff={dd} />
+    </Fragment>
+  );
+
   return (
     <>
-      <StepHead p={props} own={['read-invariants', ...(review ? [] : ['align']), ...(view.invariants.length ? [] : ['invariants'])]}>
+      <StepHead p={props} own={['read-invariants', ...(review ? [] : ['align']), ...(view.invariants.length ? [] : ['invariants'])]} onSince={diff.showValidated}>
         {view.invariants.some((f) => f.reading) ? (
           <Run a={read} busy={busy} label={s.rereadAll} onRun={() => act.run('read-invariants', { file: '*' })} />
         ) : null}
+        {review || !(check?.now != null || checkState === 'ok') ? null : <MarkControl what="invariants" state={checkState} review={false} lang={view.lang} onMark={(v) => act.mark('invariants', v)} />}
       </StepHead>
       {wait?.kind === 'cases' ? <p className="vc-ihelp">{s.casesHere(wait.count)}</p> : null}
       {view.invariants.length ? <Summary p={total} files={view.invariants.length} s={s} /> : null}
@@ -295,7 +337,10 @@ export function InvariantsView(props: StepProps) {
       ) : null}
       {view.invariants.length ? (
         <section className="vc-card vc-iide">
-          <IdeView files={invariantTree(view)}>{(ide) => (ide?.test != null ? fileBlock(view.invariants[ide.test]) : ide?.rank != null ? formeBlock(ide.rank, ide.code) : null)}</IdeView>
+          <IdeView files={diff.filter(invariantTree(view)).filter((f) => !onlyInv || f.test != null || isInvariantPath(f.path))} empty={diff.empty}
+            bar={<>{diff.bar}<label className="vc-only-inv" title={s.onlyInvTitle}><input type="checkbox" checked={onlyInv} onChange={(e) => setOnlyInv(e.target.checked)} />{s.onlyInv}</label></>}>
+            {(ide) => (ide?.test != null ? fileBlock(view.invariants[ide.test]) : ide?.gone != null ? goneBlock(ide) : ide?.rank != null ? formeBlock(ide.rank, ide.code) : ide?.code ? goneBlock(ide) : null)}
+          </IdeView>
         </section>
       ) : null}
       {view.invariants.length ? null : (
@@ -312,21 +357,6 @@ export function InvariantsView(props: StepProps) {
 function OnLeave({ fn }: { fn(): void }) {
   useEffect(() => fn, []);
   return null;
-}
-
-// Voir le fichier : un test que la branche modifie (f.base, son texte à la base), Fichier (children) · son diff
-// depuis la base, entier, en lecture seule ; ajouté (pas de f.base) : le fichier seul.
-function FileOrDiff({ f, after, s, lang, children }: { f: VibeTestFile; after: string; s: Labels; lang: VibeLang; children: ReactNode }) {
-  const [shown, setShown] = useState<'file' | 'base'>('file');
-  const [mode, setMode] = useState<'inline' | 'split'>('inline');
-  if (typeof f.base !== 'string') return children;
-  return (
-    <>
-      <DiffPicker<'base'> options={[{ key: 'base', label: s.sinceBase }]} shown={shown} onShown={setShown}
-        mode={shown === 'base' ? mode : null} onMode={setMode} lang={lang} />
-      {shown === 'base' ? <ModuleDiffView before={f.base} after={after} path={f.path} mode={mode} lang={lang} whole /> : children}
-    </>
-  );
 }
 
 // La progression : validés (vert), refusés (rouge), le reste.
@@ -386,7 +416,7 @@ function CaseCard({ c, n, link, stale, onGo, code, from, path, s, t, lang, revie
             <button type="button" aria-pressed={showCode} onClick={() => setShowCode(true)}>{s.code}</button>
           </span>
         ) : null}
-        <CaseVerdict state={c.mark} lang={lang} onMark={onVerdict} onRemark={review ? () => setWriting(true) : undefined} />
+        <CaseVerdict state={c.mark} lang={lang} onMark={onVerdict} onRemark={review ? () => setWriting(true) : undefined} off={stale ? s.staleOff : undefined} />
         <span className="vc-case-tools">
           <IconButton icon="comment" label={quote} pressed={review ? writing : undefined} onClick={() => (review ? setWriting(!writing) : onQuote())} />
           {review ? <IconButton icon="ask" label={t.askAgent} onClick={onQuote} /> : null}

@@ -2,7 +2,9 @@
 // FormeView (forme-view.tsx), en vue IDE : l'arborescence liste les modules ; Structure montre le contrat,
 // Code montre ModuleCode ou « ne change pas ce module » ; les outils en IconButton (comment → act.prefill,
 // open → act.open), l'état « touché » avec Icon ok ; hors du code act.follow(null) ; sans note : l'Invite,
-// puis les fichiers de la branche ; le commit proposé (ProposedCommit) sous l'en-tête.
+// puis les fichiers de la branche ; le commit proposé (ProposedCommit) sous l'en-tête ; le menu de diff de la vue
+// (useIdeDiff 'forme' : l'arborescence filtrée, un supprimé depuis la référence, « modifiée depuis la validation »
+// → Depuis la validation) et Valider la forme d'après step.check (note 0.15.0-ecran-statuts).
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it } from 'vitest';
@@ -24,12 +26,13 @@ const modules = [
     files: [{ id: 'm0/0', path: 'src/a.ts' }] },
   { path: 'src/b.ts', paths: ['src/b.ts'], contract: 'le contrat de b', file: null, touched: false, commits: [] },
 ];
-const draw = (over: Partial<VibeView> & { actions?: { id: string }[] } = {}) => act(() => {
-  const view = { lang: 'fr', flow: 'create', actions: [], outputs: {}, modules, commits: [], draft: [], note: { formeMark: null },
-    agent: { model: 'fable' }, ...over } as unknown as VibeView;
-  const props = { view, step: { id: 'forme', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
-    code: null, drafts: [{}, () => {}],
-    act: { run: async (...a: unknown[]) => { calls.push(['run', ...a]); return true; }, mark: () => {}, set: () => {}, prefill: (...a: unknown[]) => { calls.push(['prefill', ...a]); },
+const plain = { id: 'forme', status: 'current', facts: '', open: true };
+const draw = (over: Partial<VibeView> & { actions?: { id: string }[] } = {}, step: Record<string, unknown> = plain, code: unknown = null) => act(() => {
+  const view = { lang: 'fr', flow: 'create', actions: [], outputs: {}, modules, commits: [{ hash: 'h1', subject: 's', files: [] }], draft: [], note: { formeMark: null },
+    agent: { model: 'fable' }, steps: [step], ...over } as unknown as VibeView;
+  const props = { view, step, t: t('fr'), busy: false, text: '', setText: () => {},
+    code, drafts: [{}, () => {}],
+    act: { run: async (...a: unknown[]) => { calls.push(['run', ...a]); return true; }, mark: (...a: unknown[]) => { calls.push(['mark', ...a]); }, set: () => {}, prefill: (...a: unknown[]) => { calls.push(['prefill', ...a]); },
       open: (id: string) => { calls.push(['open', id]); }, openLink: () => {}, follow: (id: unknown) => { calls.push(['follow', id]); },
       save: async () => true, draft: (op: unknown) => { calls.push(['draft', op]); } } } as unknown as StepProps;
   root.render(createElement(KeptScope.Provider, { value: scope }, createElement(FormeView, props)));
@@ -155,9 +158,73 @@ it('Poser une question sur un module : son chemin cité dans le champ, rien d\'e
   expect(tool('Poser une question à l\'agent')).toHaveLength(0);
 });
 
+// Le menu de diff de la vue IDE et la validation de la forme (note 0.15.0-ecran-statuts).
+const since = { ...plain, head: 'modifiée depuis la validation', check: { state: 'changed', now: 'h2' } };
+const diffs = (validated: unknown[], head: unknown[] = []) => ({ diffs: { head, validated: { forme: validated } } });
+const select = () => page.querySelector('select.vc-mod-shown') as HTMLSelectElement;
+const pick = (v: string) => act(() => { select().value = v; select().dispatchEvent(new Event('change', { bubbles: true })); });
+const side = () => [...page.querySelectorAll('.vc-ide-side .vc-tree-row:not([aria-expanded])')].map((e) => e.textContent);
+
+it('« modifiée depuis la validation » cliqué : Depuis la validation, l\'arborescence ne liste que les fichiers modifiés', async () => {
+  await draw(diffs([{ path: 'src/a.ts' }]) as never, since);
+  expect(side().join('|')).toMatch(/a\.ts.*b\.ts/);
+  expect(select().value).toBe('base');
+  await act(() => page.querySelector<HTMLButtonElement>('.vc-step-head .vc-since')!.click());
+  expect(select().value).toBe('validated');
+  expect(side()).toHaveLength(1);
+  expect(side()[0]).toContain('a.ts');
+});
+
+it('Depuis le dernier commit : ses fichiers ; rien de modifié : grisé, retour à la base', async () => {
+  await draw(diffs([], [{ path: 'src/b.ts' }]) as never);
+  await pick('head');
+  expect(side()).toHaveLength(1);
+  expect(side()[0]).toContain('b.ts');
+  await draw(diffs([]) as never);
+  expect(page.querySelector('.vc-ide-side .vc-empty')).toBeNull();
+  expect(page.textContent).toContain('Depuis le dernier commit (rien de modifié)');
+});
+
+it('un supprimé depuis la référence : dans l\'arborescence (r<i> suivi), son diff tout en retraits', async () => {
+  calls.length = 0;
+  const gone = { path: 'src/old.ts', id: 'r0', deleted: true };
+  const code = { id: 'r0', text: null, time: 1, at: { base: null, head: null, validations: { forme: 'x\ny' } } };
+  await draw(diffs([gone]) as never, since, code);
+  await act(() => page.querySelector<HTMLButtonElement>('.vc-step-head .vc-since')!.click());
+  expect(side()).toHaveLength(1);
+  expect(side()[0]).toContain('old.ts');
+  expect(calls).toContainEqual(['follow', 'r0']);
+  expect(page.querySelector('.vc-ide-main .cm-deletedChunk')?.textContent).toContain('x');
+});
+
+it('relecteur : ni menu de diff, ni validation', async () => {
+  await draw({ flow: 'review', ...diffs([{ path: 'src/a.ts' }]) } as never, since);
+  expect(select()).toBeNull();
+  expect(page.querySelector('.vc-ide-bar')).toBeNull();
+  expect(side().join('|')).toMatch(/a\.ts.*b\.ts/);
+  expect(page.querySelector('.vc-vmark')).toBeNull();
+});
+
+const valider = () => [...page.querySelectorAll<HTMLButtonElement>('.vc-forme .vc-vmark button')].map((b) => b.textContent);
+
+it('Valider la forme suit step.check : ok → Annuler (envoie null) ; changed ou cascade → Revalider ; jamais validée → Valider', async () => {
+  calls.length = 0;
+  await draw({}, { ...plain, check: { state: null, now: 'h1' } });
+  expect(valider()).toEqual(['Valider la forme']);
+  await act(() => page.querySelector<HTMLButtonElement>('.vc-forme .vc-vmark button')!.click());
+  expect(calls).toEqual([['mark', 'forme', 'ok']]);
+  calls.length = 0;
+  await draw({}, { ...plain, check: { state: 'ok', now: 'h1' } });
+  expect(valider()).toEqual(['Annuler']);
+  await act(() => page.querySelector<HTMLButtonElement>('.vc-forme .vc-vmark button')!.click());
+  expect(calls).toEqual([['mark', 'forme', null]]);
+  await draw({}, { ...plain, check: { state: 'cascade', cause: 'note', now: null } });
+  expect(valider()).toEqual(['Revalider']);
+});
+
 it('l\'onglet choisi, la vue recréée sous le même agent : le même ; un autre agent : Structure', async () => {
   const kept = createKept();
-  const pressed = () => page.querySelector('.vc-seg [aria-pressed="true"]')!.textContent;
+  const pressed = () => page.querySelector('.vc-fline .vc-seg [aria-pressed="true"]')!.textContent;
   scope = scoped(kept, 'a1', 'forme');
   await act(() => root.render(null));
   await draw();
