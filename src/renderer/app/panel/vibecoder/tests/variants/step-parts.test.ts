@@ -1,13 +1,14 @@
 // @vitest-environment happy-dom
 // step-parts (step-parts.tsx) : les icônes à la place des caractères — ⏹ d'une course (IconButton stop, même
-// rappel StopRun), la conversation qui travaille (direct.elsewhere : le bouton direct reste actif, « via » grisé), le « @ » du champ
-// d'une étape et ses pièces jointes, un bouton sans choix de modèle, le dernier résultat d'une action directe (Icon ok / ko), Ouvrir la PR (IconButton external).
-import { act, createElement, useState } from 'react';
+// rappel StopRun), la conversation qui travaille (direct.elsewhere : le bouton direct reste actif, « via » grisé), l'en-tête
+// d'une étape (step.head, jamais facts ; ni champ, ni Joindre, ni micro, ni Envoyer ; ses actions restent), un bouton sans
+// choix de modèle, le dernier résultat d'une action directe (Icon ok / ko), Ouvrir la PR (IconButton external).
+import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
 import { t } from 'core/vibecoder';
-import type { VibeAction, VibeArtifact, VibePr } from 'technicals/bridge';
-import { PrCard, Run, StepField, StepHead, StopRun } from '../../step-parts';
+import type { VibeAction, VibePr } from 'technicals/bridge';
+import { PrCard, Run, StepHead, StopRun } from '../../step-parts';
 import type { StepProps } from '../../step-views';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -65,61 +66,28 @@ it('conversation qui travaille : direct.elsewhere dégrise le bouton direct, « 
   }
 });
 
-it('le champ d\'une étape : « @ » propose les artefacts, Entrée met le chemin ; « @types/node » part sans rien retenir', async () => {
-  const art = { id: 'a0', name: 'plan.md', kind: 'markdown', size: 1, time: 1, url: null, truncated: false } as VibeArtifact;
-  function Host() {
-    const [text, setText] = useState('');
-    return createElement(StepField, { name: 'note', text, setText, hint: 'h', artifacts: [art], artifactsDir: '/p/artifacts', t: t('fr'), onSend: () => {}, sendDisabled: false, pieces: [], onRemove: () => {}, onAttach: () => {}, onFiles: () => {} });
+const head = (step: { id: 'note' | 'forme' | 'invariants'; head?: string; facts?: string }, acts: VibeAction[] = []) => render(createElement(StepHead, { p: {
+  view: { lang: 'fr', actions: acts }, step: { status: 'current', facts: '', ...step }, t: t('fr'), busy: false, act: { run: () => {} },
+} as unknown as StepProps }));
+
+it('un en-tête montre step.head, jamais step.facts ; head vide ou absent : rien', async () => {
+  await head({ id: 'note', head: 'cinq faits', facts: 'tous les faits' });
+  expect(page.querySelector('.vc-facts')!.textContent).toBe('cinq faits');
+  expect(page.textContent).not.toContain('tous les faits');
+  for (const h of [{ head: '' }, {}]) {
+    await head({ id: 'note', facts: 'tous les faits', ...h });
+    expect(page.querySelector('.vc-facts')).toBeNull();
+    expect(page.textContent).not.toContain('tous les faits');
   }
-  await render(createElement(Host));
-  const ta = page.querySelector('textarea')!;
-  const type = async (value: string) => {
-    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(ta, value);
-    ta.setSelectionRange(value.length, value.length);
-    await act(() => { ta.dispatchEvent(new Event('input', { bubbles: true })); });
-  };
-  const enter = async () => {
-    const ev = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
-    await act(() => { ta.dispatchEvent(ev); });
-    return ev.defaultPrevented;
-  };
-  await type('voir @pl');
-  expect(page.querySelector('.mention .slash-item')?.textContent).toBe('plan.md');
-  expect(await enter()).toBe(true);
-  expect(ta.value).toBe('voir /p/artifacts/plan.md ');
-  await type('@types/node');
-  expect(page.querySelector('.mention')).toBeNull();
-  expect(await enter()).toBe(false);
 });
 
-it('le champ d\'une étape : Envoyer lance l\'action mise en avant qui emporte le champ ; grisé si elle exige un texte vide', async () => {
-  const runs: string[] = [];
-  const acts = [action({ id: 'a', step: 'note', usesText: true }), action({ id: 'b', step: 'note', usesText: true, primary: true, needs: 'text' })];
-  const draw = (text: string) => render(createElement(StepHead, { p: {
-    view: { lang: 'fr', actions: acts }, step: { id: 'note', status: 'current', facts: '' }, t: t('fr'), busy: false, text, setText: () => {},
-    act: { run: (id: string) => { runs.push(id); } },
-  } as unknown as StepProps }));
-  await draw('');
-  const send = () => page.querySelector<HTMLButtonElement>('.vc-step-field .vc-send')!;
-  expect(send().disabled).toBe(true);
-  await draw('fais-le');
-  await act(async () => send().click());
-  expect(runs).toEqual(['b']);
-});
-
-it('le champ d\'une étape : ses pièces, leur ×, Joindre et les fichiers déposés remontent à l\'appelant', async () => {
-  const calls: string[] = [];
-  const pieces = [{ kind: 'file' as const, name: 'a.ts', path: '/p/a.ts' }];
-  await render(createElement(StepField, {
-    name: 'note', text: '', setText: () => {}, hint: 'h', t: t('fr'), onSend: () => {}, sendDisabled: false, pieces,
-    onRemove: (p: { kind: string }) => calls.push(`remove:${p.kind}`), onAttach: () => calls.push('attach'), onFiles: (f: File[]) => calls.push(`files:${f.length}`),
-  }));
-  expect(page.querySelector('.vc-step-field .piece span')!.textContent).toContain('a.ts');
-  await act(async () => page.querySelector<HTMLElement>('.piece .remove')!.click());
-  await act(async () => page.querySelector<HTMLElement>('.vc-attach')!.click());
-  const drop = Object.assign(new Event('drop', { bubbles: true, cancelable: true }), { dataTransfer: { files: [new File(['x'], 'b.png')] } });
-  await act(async () => { page.querySelector('.vc-prompt')!.dispatchEvent(drop); });
-  expect(calls).toEqual(['remove:file', 'attach', 'files:1']);
+it('Note, Forme, Invariants : ni champ, ni Joindre, ni micro, ni Envoyer ; leurs boutons d\'action restent', async () => {
+  for (const id of ['note', 'forme', 'invariants'] as const) {
+    const acts = [action({ id: `${id}-a`, label: 'Faire', step: id, usesText: true, primary: true, needs: 'text' }), action({ id: `${id}-b`, label: 'Autre', step: id, usesText: true })];
+    await head({ id }, acts);
+    expect(page.querySelector('textarea, .vc-step-field, .vc-attach, .vc-mic, .vc-send')).toBeNull();
+    expect([...page.querySelectorAll('.vc-step-acts .vc-run-label')].map((e) => e.textContent)).toEqual(['Faire', 'Autre']);
+  }
 });
 
 it('une action d\'envoi montre qui travaille, sans liste de modèle ni d\'effort', async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { codeBlock, fieldAction, fieldOf, withPrefill } from 'core/vibecoder';
+import { codeBlock, takesConversation, withPrefill } from 'core/vibecoder';
 import type { VibeAction } from 'technicals/bridge';
 
 describe('withPrefill', () => {
@@ -56,35 +56,23 @@ describe('codeBlock', () => {
   });
 });
 
-describe('fieldOf', () => {
-  const a = (id: string, step: string | null, more: Partial<Parameters<typeof fieldOf>[0]> = {}) =>
-    ({ id, step, kind: 'send', needs: 'none', usesText: true, ...more }) as Parameters<typeof fieldOf>[0];
-
-  it('une action d\'étape qui prend un texte : le champ de son étape', () => {
-    expect(fieldOf(a('note', 'note', { needs: 'text' }))).toBe('note');
-    expect(fieldOf(a('forme', 'forme'))).toBe('forme');
-  });
-
-  it('vibe (Valider et développer) : aucun champ, même s\'il en demandait un', () => {
-    expect(fieldOf(a('vibe', null, { usesText: false }))).toBeNull();
-    expect(fieldOf(a('vibe', null, { needs: 'text' }))).toBeNull();
-  });
-
-  it('aucun champ : sans texte, texte donné par la vue, préparée, message de la conversation', () => {
-    expect(fieldOf(a('checks', 'revue', { usesText: false }))).toBeNull();
-    expect(fieldOf(a('apply', 'revue'))).toBeNull();
-    expect(fieldOf(a('case-ko', 'invariants', { kind: 'prefill' }))).toBeNull();
-    expect(fieldOf(a('new-request', null, { needs: 'text' }))).toBeNull();
-    expect(fieldOf(a('guide', null))).toBeNull();
-  });
-});
-
-describe('fieldAction', () => {
+describe('takesConversation', () => {
   const a = (id: string, more: Partial<VibeAction> = {}) =>
-    ({ id, step: 'note', kind: 'send', needs: 'none', usesText: true, primary: false, hidden: false, ...more }) as VibeAction;
-  it('la mise en avant parmi celles qui emportent le champ, sinon la première ; les masquées et les autres champs exclus', () => {
-    expect(fieldAction([a('x'), a('y', { primary: true })], 'note')?.id).toBe('y');
-    expect(fieldAction([a('h', { hidden: true, primary: true }), a('x')], 'note')?.id).toBe('x');
-    expect(fieldAction([a('x', { step: 'forme' }), a('v', { usesText: false })], 'note')).toBeNull();
+    ({ id, kind: 'send', needs: 'none', ...more }) as Pick<VibeAction, 'id' | 'kind' | 'needs'>;
+
+  it('Rédiger la note, Nouvelle demande : le champ de la conversation', () => {
+    expect(takesConversation(a('note', { needs: 'text' }))).toBe(true);
+    expect(takesConversation(a('new-request', { needs: 'text' }))).toBe(true);
+  });
+
+  it('Poser la forme, Écrire les invariants (ils partent sans texte) : non', () => {
+    expect(takesConversation(a('forme'))).toBe(false);
+    expect(takesConversation(a('invariants'))).toBe(false);
+  });
+
+  it('une préparée, apply (la vue donne le texte), une action sans texte : non', () => {
+    expect(takesConversation(a('case-ko', { kind: 'prefill', needs: 'text' }))).toBe(false);
+    expect(takesConversation(a('apply', { needs: 'text' }))).toBe(false);
+    expect(takesConversation(a('checks'))).toBe(false);
   });
 });

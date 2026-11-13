@@ -69,7 +69,7 @@
  *  Utilisé par : panel-app. */
 import { Component, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { isBusy, piecesArg, revoke, titleOf, withAttached, withPieces, type Piece } from 'core/conversation';
-import { artifactResult, convWidth, fieldOf, isLive, proposedVerdict, scoped, t as strings, type Answers, type Kept, type Strings } from 'core/vibecoder';
+import { artifactResult, convWidth, isLive, proposedVerdict, scoped, t as strings, takesConversation, type Answers, type Kept, type Strings } from 'core/vibecoder';
 import type { Thread, VibeCode, VibeStepId, VibeView } from 'technicals/bridge';
 import type { Drafts } from './file-draft';
 import { ArtifactsView } from './artifacts-view';
@@ -157,41 +157,29 @@ function Screen({ view, thread, act: given, tasks, tasksOpen, contextOpen, onGau
   const up = view.processes?.filter((p) => p.status === 'running').length || 0;
   const runs = view.runs ?? [];
   const live = runs.filter((r) => isLive(r.state)).length;
-  // Le champ de chaque étape : par fieldOf.
-  const [texts, setTexts] = useKept<Record<string, string>>('texts', {});
-  const setText = (key: string) => (text: string) => setTexts((all) => ({ ...all, [key]: text }));
   const drafts = useKept<Drafts>('drafts', {});
-  // Les pièces jointes de chaque champ (sa clé, comme texts ; 'answers' : le questionnaire), tenues avec son texte.
-  const [held, setHeld] = useKept<Record<string, Piece[]>>('pieces', {});
-  const changePieces = (key: string, f: (cur: Piece[]) => Piece[]) => setHeld((all) => ({ ...all, [key]: f(all[key] ?? []) }));
-  const piecesOf = (key: string): StepPieces => ({
-    pieces: held[key] ?? [],
-    onRemove: (p) => { revoke([p]); changePieces(key, (cur) => cur.filter((x) => x !== p)); },
-    onAttach: () => given.attach((what) => changePieces(key, (cur) => withAttached(cur, what))),
+  // Les pièces jointes du questionnaire de la note, tenues ici ; elles partent avec Envoyer les réponses seule.
+  const [held, setHeld] = useKept<Piece[]>('pieces', []);
+  const questions: StepPieces = {
+    pieces: held,
+    onRemove: (p) => { revoke([p]); setHeld((cur) => cur.filter((x) => x !== p)); },
+    onAttach: () => given.attach((what) => setHeld((cur) => withAttached(cur, what))),
     onFiles: async (files) => {
       const added = await given.pieces(files);
-      changePieces(key, (cur) => withPieces(cur, added));
+      setHeld((cur) => withPieces(cur, added));
     },
-  });
-  // Les rappels, avec le texte et les pièces du champ de l'action (eux seuls partent avec elle) ;
-  // ce qui passe par le champ de la conversation le réaffiche.
+  };
+  // Les rappels : Envoyer les réponses emporte les pièces du questionnaire ; une action qui exige une demande
+  // (takesConversation) ou préparée réaffiche la conversation (panel-app y prend le texte et ses pièces).
   const act: VibeActs = {
     ...given,
     run: async (id, args = {}) => {
       const a = view.actions.find((x) => x.id === id);
-      const key = a && args.text === undefined ? fieldOf(a) : null;
-      const pkey = key ?? (id === 'answers' ? 'answers' : null);
-      const sending = pkey ? held[pkey] ?? [] : [];
+      const sending = id === 'answers' ? held : [];
       const pieces = piecesArg(sending);
-      const text = key ? (texts[key] ?? '').trim() : undefined;
-      if (key && a!.needs === 'text' && !text) {
-        root.current?.querySelector<HTMLTextAreaElement>(`[data-field="${key}"]`)?.focus();
-        return false;
-      }
-      if (a && (a.kind === 'prefill' || (a.needs === 'text' && !key && args.text === undefined))) show();
-      const sent = await given.run(id, { ...args, ...(key ? { text } : {}), ...(pieces ? { pieces } : {}) });
-      if (sent && key) setText(key)('');
-      if (sent && pkey && sending.length) { revoke(sending); changePieces(pkey, () => []); }
+      if (a && (a.kind === 'prefill' || (takesConversation(a) && args.text === undefined))) show();
+      const sent = await given.run(id, { ...args, ...(pieces ? { pieces } : {}) });
+      if (sent && sending.length) { revoke(sending); setHeld([]); }
       return sent;
     },
     prefill: (id, quote, block) => { show(); given.prefill(id, quote, block); },
@@ -257,8 +245,7 @@ function Screen({ view, thread, act: given, tasks, tasksOpen, contextOpen, onGau
           ) : (
             <div className="vc-step scroll" key={step ? step.id : ''} ref={stepBox} onScroll={(e) => stepScope.set('top', e.currentTarget.scrollTop)}>
               {step && View ? <KeptScope.Provider value={stepScope}><Guard t={t}><View view={view} step={step} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} verdict={verdict} onVerdict={setVerdict}
-                text={texts[step.id] ?? ''} setText={setText(step.id)} code={code} drafts={drafts} noteFocus={noteFocus} goToNote={goToNote}
-                {...piecesOf(step.id)} questions={piecesOf('answers')} /></Guard></KeptScope.Provider> : null}
+                code={code} drafts={drafts} noteFocus={noteFocus} goToNote={goToNote} questions={questions} /></Guard></KeptScope.Provider> : null}
             </div>
           )}
         </section>

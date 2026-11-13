@@ -6,7 +6,7 @@
  *  de texte du caller (sinon la sienne) ; `ids` : les id #attach, #message, #mic, #send (le champ de la
  *  conversation). Le dépôt est pris ici (data-own-drop : panel-app ne le joint pas aussi). La zone grandit avec son texte, jusqu'à MAX_HEIGHT.
  *  Une image jointe s'agrandit d'un clic (Zoom, fourni par la page).
- *  Ne connaît pas : le pont, le micro, l'agent. Utilisé par : components (composer), step-parts (StepField),
+ *  Ne connaît pas : le pont, le micro, l'agent. Utilisé par : components (composer),
  *  comment-box, questions-view. */
 import { createContext, useContext, useLayoutEffect, useRef, type ClipboardEvent, type DragEvent, type FocusEventHandler, type KeyboardEventHandler, type ReactNode, type RefObject } from 'react';
 import { pieceLabel, pieceTitle, type Piece } from 'core/conversation';
@@ -29,15 +29,15 @@ type Props = {
   field?: RefObject<HTMLTextAreaElement | null>; ids?: boolean;
   onKeyDown?: KeyboardEventHandler<HTMLTextAreaElement>;
   children?: ReactNode;
-  // La zone de texte : son invite, ses lignes, sa sortie (le caller ferme ses menus), son nom (data-field).
-  placeholder?: string; rows?: number; onBlur?: FocusEventHandler<HTMLTextAreaElement>; name?: string;
+  // La zone de texte : son invite, ses lignes, sa sortie (le caller ferme ses menus).
+  placeholder?: string; rows?: number; onBlur?: FocusEventHandler<HTMLTextAreaElement>;
 };
 
 const filesOf = (e: ClipboardEvent | DragEvent) => [...((e as ClipboardEvent).clipboardData ?? (e as DragEvent).dataTransfer)?.files ?? []];
 
 export function PromptField({
   t, text, setText, pieces = [], onRemove, onAttach, onFiles, onSend, sendDisabled, sendTitle, field, ids, onKeyDown, children,
-  placeholder, rows = 1, onBlur, name,
+  placeholder, rows = 1, onBlur,
 }: Props) {
   const zoom = useContext(Zoom);
   const own = useRef<HTMLTextAreaElement>(null);
@@ -79,7 +79,7 @@ export function PromptField({
               ))}
             </div>
           ) : null}
-          <textarea id={ids ? 'message' : undefined} className="scroll" ref={area} rows={rows} value={text} data-field={name}
+          <textarea id={ids ? 'message' : undefined} className="scroll" ref={area} rows={rows} value={text}
             placeholder={placeholder} aria-label={placeholder} onChange={(e) => setText(e.target.value)} onKeyDown={onKeyDown}
             onPaste={take} onBlur={onBlur} />
         </div>

@@ -6,7 +6,7 @@
  *  qu'on tient (retenu jusqu'au retour de la phase à idle) : les autres restent au repos. Le micro vient
  *  du contexte Mic (posé par panel-app) ; sans lui, Envoyer seul. Envoyer : onSend, grisé par sendDisabled ;
  *  sans onSend, pas d'Envoyer (le micro seul : le champ libre d'une question). `ids` : les id #mic et #send (le champ de la conversation).
- *  Ne connaît pas : le pont, le micro lui-même (rappels). Utilisé par : step-parts, comment-box,
+ *  Ne connaît pas : le pont, le micro lui-même (rappels). Utilisé par : comment-box,
  *  questions-view ; components (composer). */
 import { createContext, useContext, useEffect, useRef, useState, type RefObject } from 'react';
 import type { Phase } from 'core/dictation';

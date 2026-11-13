@@ -4,7 +4,7 @@
  *  fichier (le dossier des artefacts + son nom) à la place du « @… ».
  *  Aucune correspondance, ou pas de dossier : liste fermée, key rend false
  *  (« @types/node » se tape et part).
- *  Ne connaît pas : le pont, le disque. Utilisé par : step-parts, composer. */
+ *  Ne connaît pas : le pont, le disque. Utilisé par : composer (le champ de la conversation). */
 import { useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { cycle, matchArtifacts, mentionQuery, pickArtifact } from 'core/conversation';
 import type { VibeArtifact } from 'technicals/bridge';
