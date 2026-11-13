@@ -795,14 +795,18 @@ de l'écran et le brouillon tiennent (S-72).
 - L'**en-tête** d'une étape, son titre et ses faits propres, ne répète rien de
   ce qu'elle montre juste en dessous (le questionnaire, une carte, le résumé,
   la validation à côté du chemin de la note) : « rédigée » ou « à rédiger » à la
-  Note ; « note modifiée depuis son commit » à la Forme ; à la Revue, les
+  Note ; rien à la Forme ; à la Revue, les
   fixups (« pas vérifiée » avant toute vérification, avec eux) ; « pas de
   note », « pas de PR » tant que la carte n'est pas là ; rien aux Invariants, aux
-  Modules ni à la PR ouverte. Le relecteur : la Note de même, « pas de plan » à
-  la Revue sans plan, les Modules gardent leurs faits ; rien ailleurs. L'infobulle du fil
-  d'Ariane (F-92) les garde tous.
+  Modules ni à la PR ouverte. Une étape décochée (F-102, *Les validations
+  d'étape*) le dit en plus, à côté du titre, à la place des faits de l'en-tête :
+  « modifiée depuis la validation » (un bouton : le menu de diff de la vue IDE
+  passe sur *Depuis la validation*) ou « à revoir : la note a changé ». Le
+  relecteur : la Note de même, « pas de plan » à
+  la Revue sans plan, les Modules gardent leurs faits ; rien ailleurs, aucune
+  validation d'étape. L'infobulle du fil d'Ariane (F-92) les garde tous.
 - Sous le titre de l'étape, une **rangée d'actions** compacte : celles de
-  l'étape, chacune avec qui travaille (F-99) et
+  l'étape, chacune avec son modèle en infobulle (F-99) et
   pourquoi elle est grisée ; sans celles qui n'ont pas encore de sens
   (masquées, F-99 ; pas celles qui attendent une étape précédente : grisées), ni celles que la vue montre déjà ailleurs
   (une invitation, une carte, une ligne : jamais deux fois). À l'étape en
@@ -810,7 +814,8 @@ de l'écran et le brouillon tiennent (S-72).
   discrètement mise en avant, même si elle appartient à une autre étape
   (*Préparer le commit* à l'étape Invariants). Ce qu'attend une validation
   reste dans la vue : *Valider la note*, *Valider la forme*, « N cas à
-  valider » en tête des invariants, *Rien à écrire* à l'étape Invariants. Une action dont la course tourne :
+  valider » en tête des invariants, *Rien à écrire* et *Valider les invariants*
+  à l'étape Invariants, *Valider les modules* à l'étape Modules. Une action dont la course tourne :
   « en cours » et *Arrêter* à côté de son bouton (arrêtée, à trancher dans l'onglet
   *Actions*). Conversation au travail : seuls les messages sans étape
   (*Où j'en suis ?*, *Proposer les commandes*)
@@ -1248,7 +1253,11 @@ même dictée, insérée par la page.
 travaille, d'après l'en-tête du skill qu'elle appelle, dans le plugin de
 l'utilisateur (`model`, et `effort` au-delà de `low`) : *haiku*, *sonnet ·
 moyen*, *opus · élevé* ; sans modèle, ou sans skill (un message en clair,
-`/gear-guide`) : *agent*, le modèle de l'agent. Une action grisée dit
+`/gear-guide`) : *agent*, le modèle de l'agent. Le bouton ne l'affiche pas
+(0.15.0) : le modèle se règle dans les paramètres ; il est dans l'infobulle du
+bouton, sous son explication (« — sonnet »), et dans celle de « via ». Seule
+la marque « direct » reste sur le bouton : elle dit ce qui va se passer, pas un
+réglage. Une action grisée dit
 pourquoi (sous le bouton, au survol ; le principal la refuse de même) :
 une action d'étape, par la règle des courses (F-115 : « Cette action est
 déjà en cours », « Une autre action est en cours », « Une action modifie la
@@ -1309,8 +1318,8 @@ prend dans la configuration ; ce qu'une page ou une demande de l'orchestrateur
 en dit est ignoré (et dit, F-115). Sans choix, rien ne change : le modèle
 conseillé, et l'effort de l'en-tête du skill, ou celui de la variante du
 modèle choisi (haiku faible, sonnet moyen, opus élevé) ; un choix n'est
-envoyé que s'il diffère. Le *qui travaille* du bouton (`who`) suit le
-choix. Un skill sans sous-contexte envoyé à la conversation (`vibe`…) garde
+envoyé que s'il diffère. Le *qui travaille* (`who`), dans l'infobulle du
+bouton, suit le choix. Un skill sans sous-contexte envoyé à la conversation (`vibe`…) garde
 le modèle de l'agent. Jamais Fable (I-36) : le choix qui le nommerait, même
 écrit à la main dans `config.json`, est écarté.
 
@@ -1621,6 +1630,18 @@ TypeScript.
   autre ; sans PR suivie, ou en créateur, `no-pr`. `draft.edit` et `draft.remove`
   d'une remarque que le brouillon ne contient pas : `invalid-args` (`arg: id`),
   rien n'est changé.
+- **La validation d'une étape** (0.15.0) : `step.validate`, écriture ouverte aux
+  agents, créateur seulement. `step` : `forme`, `invariants` ou `modules` — jamais
+  `note`, dont la conception est à l'utilisateur : `invalid-args` ; `verdict` :
+  `ok` pour valider, absent ou `null` pour retirer la validation, autre chose :
+  `invalid-args`. Le même geste que le ✓ de l'écran (F-102), sur le dernier
+  relevé, relu avant de l'écrire : l'empreinte de ce que l'étape valide
+  aujourd'hui, et ses fichiers retenus. Refusée (`not-offered`) quand il n'y a rien
+  à valider ou que l'étape d'avant n'est pas cochée ; pour un relecteur, `refused`.
+  Elle ne recoche jamais une étape qui suit, ne touche pas à l'index du dépôt ni à
+  aucun fichier du projet (I-60 à I-62). Après une correction qu'il a faite
+  lui-même, l'agent principal revalide ainsi, dans l'ordre, les étapes dont ce
+  qu'elles valident a changé (skill `vibe`).
 - **Hors de la table**, appels directs comme avant : les gestes de la page
   (*Commenter*, *À revoir* : ils remplissent le champ ; `comment` et `case-ko`
   n'existent plus dans la table), modifier le code ou la note dans le panneau,
@@ -1870,8 +1891,9 @@ créateur ; le relecteur, F-101) :
 2. **Forme** — faite : au moins un module dans la rubrique « Forme », validée,
    et la note sans changement pas commité depuis qu'un commit de la branche la
    porte. Commitée puis modifiée (la note ou sa Forme, à la main ou par
-   l'agent) : l'étape n'est plus faite (« note modifiée depuis son commit »
-   dans ses faits) ; note et forme revalidées, sa prochaine action est
+   l'agent) : l'étape n'est plus faite (son en-tête ne dit plus « note modifiée
+   depuis son commit » : « modifiée depuis la validation » ou « à revoir : la note
+   a changé » quand la validation ne tient plus, F-102) ; note et forme revalidées, sa prochaine action est
    *Préparer le commit* (le skill `commit-preparer` : avant la PR, un fixup
    du commit qui porte la note, le premier, message `fixup! <son sujet>`
    seul ; la PR ouverte, un nouveau commit qui dit pourquoi), puis *✓
@@ -1880,7 +1902,8 @@ créateur ; le relecteur, F-101) :
    rien (elle part avec le premier commit). Une fois un module commencé, le
    parcours ne recule plus : une retouche de la note ou d'un test d'invariant
    de la branche (une passe, un harnais) laisse la Forme et les Invariants
-   faits, ses faits disent toujours « note modifiée depuis son commit », et
+   faits (leur en-tête dit « à revoir… » ou « modifiée depuis la validation » si
+   leur validation ne tient plus, F-102), et
    c'est l'étape Modules qui l'attend : elle n'est faite qu'une fois la
    retouche commitée (*Commiter les modules*, ou *Préparer le commit* quand
    tous les modules le sont déjà ; note 0.15.0-stabilisation). De même, une validation faite puis dépassée par une retouche (« modifiée depuis la validation » : la note, sa Forme, un cas d'invariant) compte encore une fois un module commencé : l'écran la dit changée, *Revalider* reste possible, rien ne recule. L'étape Invariants, une fois un module commencé, ne compte que les tests écrits pour elle (portés par le commit de la note) : un test d'invariant retouché par un module n'est pas à revalider.
@@ -1890,7 +1913,7 @@ créateur ; le relecteur, F-101) :
    Modules (un module d'un seul fichier : sa couleur ; un dossier : modifié si
    l'un de ses fichiers n'est pas commité), et le module choisi à droite : chemin,
    état (touché par la branche, existe, à créer), commits ; *Commenter*,
-   *Ouvrir*. Un interrupteur *Structure* · *Code* : *Structure*, son contrat
+   *Ouvrir* ; en créateur, le menu de diff de la vue (F-102). Un interrupteur *Structure* · *Code* : *Structure*, son contrat
    en rubriques (expose, ne connaît pas, utilisé par), en texte ; *Code*, son
    code en diff depuis la base de la branche (*Voir le code*, étape Modules),
    tout en vert pour un module à créer, seulement ce que la branche a ajouté
@@ -1919,7 +1942,9 @@ créateur ; le relecteur, F-101) :
    écrire ; l'empreinte du texte de la note : il tombe à n'importe quel
    changement de la note, comme *Valider la note*). Pendant *Vibe* aussi, rien
    d'automatique : la course finie ou la validation. *Lire en pseudo-code*
-   n'est qu'une aide à la lecture, facultative. Montre le
+   n'est qu'une aide à la lecture, facultative. *Valider les invariants*, offert
+   quand tous les cas ont leur ✓ (ou ✓ *Rien à écrire*), valide l'étape (F-102).
+   Montre le
    résumé (fichiers, cas, validés, refusés, modifiés depuis, avec un point d'attention,
    à lire), l'alignement (`align.md`, avec *Relancer* en créateur, F-93 : chaque
    écart porte son étiquette, F-95), puis,
@@ -1927,7 +1952,9 @@ créateur ; le relecteur, F-101) :
    les fichiers de la Forme (grisés, numérotés, lecture seule : leur code si la
    branche les touche, sinon leur contrat) et les tests d'invariants (en vert :
    ajouté par la branche ; en jaune : modifié, d'après son texte à la base ; sans
-   numéro), sans Forme les tests seuls, sans analyse des imports ; et au centre ceux du test choisi
+   numéro), sans Forme les tests seuls, sans analyse des imports (en créateur, au-dessus d'eux, le menu de
+   diff de la vue : l'arborescence ne liste que les fichiers qui diffèrent de la
+   référence, F-102) ; et au centre ceux du test choisi
    (le premier d'emblée ; en choisir un autre referme le fichier ouvert), chaque fichier : sa progression,
    *Ouvrir*, *Relire* (lu : refaire sa lecture) ; lu, une carte par cas —
    titre, pseudo-code en étapes `test "…":` / `given` / `when` / `then` /
@@ -1940,8 +1967,8 @@ créateur ; le relecteur, F-101) :
    « non rattaché » ; lecture périmée : rattachement marqué périmé), un point
    d'attention quand le test n'observe pas vraiment la propriété — avec, dans
    son en-tête, *Pseudo-code / Code* (le
-   code d'origine du cas à la place du pseudo-code, de sa ligne à celle du cas
-   suivant, monospace, numéroté, coloré : F-113), les badges *Validé* et
+   code d'origine du cas à la place du pseudo-code : son bloc seul, de sa ligne à
+   celle du cas suivant, monospace, numéroté, coloré : F-113), les badges *Validé* et
    *À revoir* (cite le cas dans le champ), *Commenter* et *Ouvrir* ; un cas validé, discret :
    ni cadre ni fond, la seule fine bordure verte à gauche et son badge allumé ; *Tout valider* quand
    aucun cas n'a de point d'attention, le fichier lu ou pas ; *Voir le
@@ -1954,10 +1981,19 @@ créateur ; le relecteur, F-101) :
    ses cartes sans lecture, avec *Valider* et *À revoir*, et *Lire en pseudo-code* dans les
    outils de son en-tête, avec les autres ; lu puis changé : sa
    dernière lecture reste affichée, marquée « lecture périmée », pas
-   comptée comme lue, *Relire* en accent. Seuls les tests déjà écrits de la
-   branche se modifient : *Code* et *Voir le fichier* ouvrent le fichier
-   entier (*Code* : à la ligne du cas ; un seul à la fois), avec les gestes
-   et le verrou de la note (ci-dessus). Le relevé porte le texte
+   comptée comme lue, *Relire* en accent ; ses cas ne se valident plus
+   (*Validé*, *À revoir* et *Tout valider* grisés, « relire d'abord ») avant
+   *Relire* : on ne valide pas un cas sur une lecture qui ne le décrit plus.
+   Sans lecture, ils restent actifs. Un test modifié depuis la validation de
+   ses cas les décoche tous (« Modifié depuis la validation »). Seuls les tests déjà écrits de la
+   branche se modifient : *Code* ouvre le bloc du cas seul, modifiable,
+   sans défiler jusqu'à lui ; enregistré (Ctrl+S, *Enregistrer*), il remplace
+   ce bloc dans le fichier du disque, et seulement lui : aucune autre ligne
+   n'est modifiée (I-59), les fins de ligne gardées ; refusé (« Le fichier a changé sur le
+   disque », *Enregistrer* grisé) si le fichier a changé sur le disque depuis
+   l'ouverture du bloc. *Voir le fichier* ouvre le fichier entier (un seul éditeur à la
+   fois) ; *Ouvrir*, le fichier entier dans l'éditeur de code de l'utilisateur ;
+   avec les gestes et le verrou de la note (ci-dessus). Le relevé porte le texte
    du test, vide au-delà de 200 000 caractères (rien de tout cela n'est
    alors montré), et son texte au commit d'où part la branche (par git ;
    aucun : ajouté par la branche, ou au-delà de 200 000 caractères). En tête : *Tout relire* (dès qu'un fichier
@@ -2023,13 +2059,16 @@ créateur ; le relecteur, F-101) :
    sur un fond vert ou rouge plus foncé que celui de sa ligne, pas
    souligné), en texte (I-40), seulement pour
    un fichier de module, de la branche (`b<i>`, sans Forme) ou d'un commit (ni la note ni un test, I-37 ; un
-   test a le sien, étape Invariants). Générer ne commite
+   test a le sien, étape Invariants). En créateur, dans la vue IDE, ce choix est
+   celui du menu de diff de la vue entière (F-102), pas de ce sélecteur ; *Valider
+   les modules* valide l'étape. Générer ne commite
    pas : *Commiter* et *Commiter les modules* (skill `commiter-modules`, un
    commit par module selon la convention du projet, un fixup pour un module
    déjà commité — jamais du premier commit de la branche, qui ne porte que la
    note, la forme, les invariants rouges et leurs squelettes —, un nouveau
    commit une fois la PR ouverte) sont des gestes à
-   part. *Commiter les modules* suit l'ordre de la Forme et vérifie, avant
+   part. *Commiter les modules* est grisée (« modules pas validés ») tant que les
+   modules ne le sont pas, sauf pendant *Vibe* (F-102). Elle suit l'ordre de la Forme et vérifie, avant
    chaque commit, qu'il compile : le typage du projet sur ce que le commit
    contiendra (l'arbre d'un index temporaire, extrait par `git archive` dans un
    dossier temporaire, `node_modules` lié), jamais sur le dossier de travail
@@ -2477,6 +2516,93 @@ son contenu d'aujourd'hui, comme un clic ; un ✓ ou ✗ déjà donné pour ce
 contenu reste. *Vibe* arrêté, fini ou l'appli relancée, elles le gardent.
 Gardées par agent (`vibecoder-state.json`) ; aucune n'envoie de message.
 
+**Les validations d'étape** (0.15.0, créateur). Une validation par étape, le même
+geste partout, le ✓ de `conv:vibeMark` (cibles `note`, `forme`, `invariants`,
+`modules`, sans nouveau canal) : *Valider la note*, *Valider la forme*, *Valider
+les invariants* (offert quand tous les cas ont leur ✓, ou ✓ *Rien à écrire* ; les
+cas gardent leurs verdicts) et *Valider les modules* ; puis « validée » et
+*Annuler*, qui retire la validation de l'étape. *Valider* n'est offert, et le
+geste accepté, que si l'étape d'avant est cochée (la note : jamais d'étape
+d'avant) et s'il y a quelque chose à valider (aucun module : rien).
+- **Ce que chacune retient** : la note, sa conception (« Ce que ça fait », « Ce que
+  ça ne doit pas faire » et les rubriques de conception qui suivent, hors la
+  rubrique Forme) ; la Forme, la rubrique Forme de la note ; les invariants, les
+  fichiers de test de l'étape ; les modules, tout ce que la branche change
+  d'après git (`git diff` depuis la base et `git status`), hors la note et les tests
+  d'invariants, supprimés exceptés : une feuille de style, un libellé, la doc
+  hors des chemins de la Forme compris (on suit git, sans autre règle). La marque de l'étape (dans
+  `vibecoder-state.json`, par agent, avec celles des cas) porte l'empreinte de
+  cela, celle de la marque de l'étape d'avant (`after`) et celle de la liste de
+  ses fichiers (`files`).
+- **Ce qui est gardé** : pour le diff *Depuis la validation*, la liste des fichiers
+  de l'étape (une empreinte et un chemin par ligne) et le texte de chacun (la
+  note : aucun), dans le dossier de sorties de l'agent, `validated/<empreinte>`,
+  adressés par leur contenu ; jamais dans le dépôt ni sous `.git/` (I-61). Le
+  texte d'un fichier n'est retenu que s'il est celui que le relevé a vu au
+  clic. L'index du dépôt, ce que `git commit` prend, n'est jamais touché (I-60),
+  ni aucun fichier du projet (I-62). Un `git add` ou un commit ne valide rien :
+  seul un geste de validation compte, celui de l'utilisateur à l'écran ou celui
+  de l'agent principal par la CLI (`step.validate`, F-116).
+- **La cascade** : une étape est cochée quand ce qu'elle a validé n'a pas changé,
+  que l'étape d'avant l'est et qu'elle a été validée d'après la validation
+  d'aujourd'hui de celle-ci. Une étape décochée décoche donc celles qui suivent
+  (note → Forme → Invariants → Modules), par qui que ce soit que le changement
+  vienne (l'utilisateur, un agent, un outil). Son en-tête, à côté du titre, dit
+  pourquoi : « modifiée depuis la validation » quand ce qu'elle a validé a changé
+  (un clic dessus passe le menu de diff de la vue IDE sur *Depuis la validation*,
+  ci-dessous ; à la Note : « rédigée · modifiée depuis la validation ») ; « à
+  revoir : la note a changé » (« la Forme a changé », « les invariants ont
+  changé », « les modules ont changé ») quand une étape d'avant l'a été, la
+  première décochée. *Revalider* une étape ne recoche pas les suivantes : sa
+  nouvelle validation change celle sur laquelle elles s'appuyaient, chacune se
+  revalide à son tour, puisqu'elle ne tient peut-être plus. Un commit ne change aucune validation (ce que
+  valide une étape se lit sur le disque, pas au dernier commit). Une modification
+  de la seule rubrique Forme de la note ne décoche pas la note : elle décoche la
+  Forme, et par elle les étapes qui suivent.
+- **Ce que ça ne change pas** : l'étape faite, sa prochaine action, le ✓ d'un cas.
+  Seule exception : *Commiter les modules* est grisée (« modules pas validés »)
+  tant que les modules ne sont pas validés (cochés), pendant *Vibe* aussi :
+  l'orchestrateur les valide par la CLI (`step.validate`) avant de les commiter
+  (F-103).
+- Pendant *Vibe*, les étapes faites (la note, la Forme, les invariants) reçoivent
+  leur validation d'étape à chaque relevé, dans l'ordre, comme un clic (voir
+  ci-dessus) ; les modules, non : ils se valident à l'écran ou par la CLI.
+
+**Le menu de diff de la vue IDE** (0.15.0, créateur). Aux étapes Forme, Invariants
+et Modules, un seul menu en tête de la vue IDE, au-dessus de l'arborescence et du
+fichier choisi : *Fichier* · *Depuis la base de la branche* (par défaut) ·
+*Depuis le dernier commit* · *Depuis la validation* (seulement si l'étape a une
+validation), avec, pour un diff, *En ligne* · *Côte à côte*. La référence choisie
+vaut pour toute la vue, plus pour le seul fichier affiché, et filtre
+l'arborescence :
+- *Depuis la base de la branche* : tous les fichiers de l'étape, plus tout ce que
+  git dit changé depuis la base (`git diff` et `git status`, suppressions comprises) ;
+- *Depuis le dernier commit* : tout ce qui diffère du dernier commit (le `git status`),
+  de l'étape ou non ; grisé (« pas encore de commit ») tant que la branche n'a aucun
+  commit à elle, le dernier commit étant alors la base, et (« rien de modifié »)
+  quand rien ne diffère du dernier commit ;
+Les listes suivent git, sans autre règle : un fichier supprimé, ou hors des chemins
+de la Forme, y paraît comme dans `git status` ; s'il n'est nommé nulle part dans la
+rubrique Forme de la note (en tête d'un module, dans ses variants, un « supprime … »,
+avec ou sans son `src/`), il est en retrait (grisé), son infobulle « Changé par la
+branche, hors de la Forme » : un oubli possible de la Forme ; nommé, il reste en clair.
+À l'étape Invariants, une case *Invariants seuls*, à côté du menu, cochée par défaut
+(gardée par agent) : l'arborescence ne liste que les tests d'invariants (sous
+`tests/invariants/`, un supprimé compris) ; décochée, le reste de la référence aussi
+(la Forme, les fichiers de la branche), en retrait.
+- *Depuis la validation* : ceux qui diffèrent de leur version validée par l'étape
+  (le dernier texte retenu, `validated/<empreinte>`) ;
+- *Fichier* : le texte du fichier choisi, l'arborescence gardant le filtre de la
+  dernière référence.
+Le fichier choisi montre son diff depuis cette référence, en ligne ou côte à côte
+(ajouts en vert, retraits barrés en rouge, lecture seule). Un fichier créé depuis
+la référence est tout en ajouts, un fichier supprimé tout en retraits (son texte
+vient de la référence, par git ou par `validated/` ; il n'est pas modifiable ; son
+id est `r<i>`, I-37). Aucun fichier ne diffère : « Rien de modifié depuis … » à la
+place de l'arborescence. Le choix est gardé par agent et par étape ; si la
+validation disparaît, il retombe sur la base. Un fichier identique à sa
+référence n'est jamais listé, un fichier qui en diffère l'est toujours.
+
 **F-103 Le mode Vibe** (créateur seulement ; par agent, **en mémoire** :
 l'appli relancée repart sans lui, on relance *Vibe* pour reprendre), sur la
 même mécanique, les courses (F-115). Hors *Vibe* : le développeur valide la
@@ -2698,8 +2824,8 @@ langage de CodeMirror.
 
 **F-114 Actions directes** (sans IA, au clic) : vingt et une actions ne sont que
 des commandes connues d'avance ; l'appli les lance elle-même, sans agent, ni
-modèle, ni jeton, au clic de leur bouton (« direct » à la place du modèle).
-À côté, un petit *via* (et le choix du modèle, F-99) garde le chemin
+modèle, ni jeton, au clic de leur bouton (« direct » sur le bouton).
+À côté, un petit *via*, seul, sans modèle (son infobulle le donne, F-99), garde le chemin
 d'avant, le skill ou le message dans la conversation, en cas de souci ;
 sauf celles que l'appli fait seule : *Retirer le worktree* (l'agent
 n'emporterait pas le robot), *Mettre de côté*, *Revenir sur la branche
@@ -3188,7 +3314,12 @@ demande à Claude Code) et le dernier cas de `runs.test.ts` ; I-44 relancé (T-3
 vrai principal, SDK factice : le mode, la liste de refus et le contrôle des fichiers que
 l'appli lui donne) ; I-58 : `run-tmp.test.ts` (même dossier, sur le vrai
 principal, SDK factice : le dossier effacé à chaque fin, la course arrêtée au-delà
-de la borne) ; I-46 :
+de la borne) ; I-59 :
+`src/renderer/core/vibecoder/tests/invariants/case-block.test.ts` (le bloc
+replacé dans le texte) et `src/renderer/app/panel/vibecoder/tests/invariants/case-draft.test.ts`
+(l'éditeur d'un cas) ; I-60 à I-62 : `file-validations.test.ts` (même dossier que
+`run-tmp.test.ts`, sur le vrai principal, git réel : l'index, le dépôt et les
+fichiers du projet intacts, le dossier de sorties qui garde la version) ; I-46 :
 `src/main/core/vibecoder/tests/invariants/checks.test.ts` ; I-41 :
 `src/main/app/controllers/tests/invariants/worktree.test.ts` (sur le vrai
 principal, git réel) ; la page des réglages et
@@ -3363,13 +3494,14 @@ sont retirés en 0.14.0.)*
   plus, écrit par la page ou à la main dans `config.json`. Seul un clic de
   l'utilisateur y passe l'agent (coût).
 - **I-37** Une page désigne un fichier par son **id dans le dernier relevé**
-  (`m<rang>/<i>`, `b<i>`, `n`, `t<i>`, `c<rang>/<i>`, `a<i>`, `d<i>`…), **jamais
+  (`m<rang>/<i>`, `b<i>`, `n`, `t<i>`, `c<rang>/<i>`, `a<i>`, `d<i>`, `r<i>` : un fichier supprimé du menu de diff de la vue IDE…), **jamais
   par un chemin** : un id en forme de chemin, ou égal au chemin d'un fichier du
   relevé, ne désigne rien (I-34), et le rôle décide de ce qu'on peut désigner
   (F-100, F-101). **Rien n'est lu hors du dossier prévu** — le dossier de
   l'agent (`..` et liens résolus ; ni chemin absolu, ni NUL), ses sorties sous
   leurs noms connus (F-95), le dossier d'artefacts de **son** projet (jamais
-  celui d'un autre) — et **aucun lien n'est suivi** ; les autres versions d'un
+  celui d'un autre) — et **aucun lien n'est suivi** ; les versions validées (F-102), `validated/<empreinte>`,
+  ne se lisent que dans ce dossier de sorties ; les autres versions d'un
   fichier ne se lisent que par git (`show`), au chemin du relevé. Deux
   exceptions, au geste de l'utilisateur, revérifiées par le principal : le dépôt
   sur l'arborescence des artefacts (`conv:vibeDrop`, des chemins que le pont lit
@@ -3581,6 +3713,19 @@ sont retirés en 0.14.0.)*
   borne, fermée : effacé à chacune — et **ne dépasse jamais sa borne
   (`runTmpMax`) sans que la course soit arrêtée** : au-delà, elle s'arrête comme
   à la main, sa réponse le dit en tête.
+- **I-59** Enregistrer le bloc d'un cas (étape Invariants, F-93) ne **modifie
+  aucune ligne du fichier de test hors de ce bloc** : le fichier du disque,
+  seul ce bloc remplacé, fins de ligne gardées ; une plage hors du fichier :
+  rien n'est enregistré.
+- **I-60** Valider une étape, retirer sa validation ou lire les validations
+  (F-102) ne **touche jamais l'index du dépôt**, ce que `git commit` prend : les
+  commits par module, le repli des fixups et les `git add` des agents restent ce
+  qu'ils sont ; l'écran comme la CLI (`step.validate`).
+- **I-61** Valider une étape ou retenir une version (F-102) n'**écrit rien dans
+  le dépôt ni sous `.git/`** : la liste des fichiers d'une étape et le texte de
+  chacun vont dans le dossier de sorties de l'agent, `validated/<empreinte>`.
+- **I-62** Valider une étape, retirer sa validation ou la décocher (F-102) ne
+  **modifie aucun fichier du projet** (note, Forme, tests, modules).
 
 ### Système et code
 

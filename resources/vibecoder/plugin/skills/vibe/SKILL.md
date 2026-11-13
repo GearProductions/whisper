@@ -29,12 +29,20 @@ Read `${CLAUDE_SKILL_DIR}/../actions/SKILL.md` first: it is the protocol — the
 2. **Forme** — `forme` (`text`: a precision, if any): it writes the skeletons in the code, then copies the forme into the note. Check it: small modules, from the inside out, the skeletons compile. Nobody validates it in *Vibe* (as before): go on. A retouch, at any step: `forme` again with `text` — it modifies the note and the skeletons together, it does not regenerate them.
 3. **Invariants** — `invariants` once: it writes the red tests, then the alignment fixes them itself (3 rounds at most); no `read-invariants`, its pseudo-code is for the user. Read `align.md`: « Aligné. » or only `## [agent]` gaps → go on, no new run for a gap. A `## [toi]` gap (a change of contract, a note that makes a test impossible) → blocking question.
 4. **First commit** — `commit-prepare`, check `<out>/commit.md` (note, forme, red invariants), then `commit`.
-5. **Modules** — `modules`: parallel Sonnet subagents, each diff reviewed; it commits nothing. Then `commit-modules`: one commit per module (a fixup for a module already committed).
+5. **Modules** — `modules`: parallel Sonnet subagents, each diff reviewed; it commits nothing. Check its reply, then validate the modules — `vibecoder step.validate step=modules verdict=ok` (*Commit the modules* stays greyed until they are validated, in *Vibe* too; the note, the forme and the invariants are validated by *Vibe* itself) — then `commit-modules`: one commit per module (a fixup for a module already committed).
 6. **Review** — `checks`: it requests the ponytail review itself, both run together; wait for both ends (`run wait` on each, or the end notices; then `checks.json`, `ponytail.md`). Then `apply` (`text`: the `[agent]` remarks you keep; empty: all the `[agent]` ones) and say which ones you discard and why; a `[toi]` remark of `ponytail.md` → blocking question, never applied. A red check tagged `[agent]` → fix it as a fixup of the commit that owns the code, then `checks` again with `check`: its rank in `checks.json` (that check alone); tagged `[toi]` → blocking question.
 7. **Docs** — the note matches what is delivered (A.3); `SPEC.md`, `README.md`, `AGENTS.md`… follow where a behaviour or a convention changed: a doc commit, or fixups.
 8. **Fold** — `fixups`.
 9. **PR** — `pr` (→ `pr.json`), then `ci`, followed until green. Red `[agent]` → fix the cause from `ci.md` in a new commit (the PR is open: no rewrite), push, `ci` again; `[toi]` → blocking question. Green → stop: no further action.
 10. **Answer** — in `lang`: the PR's link, what to try first, the decisions you took alone.
+
+## After a correction — revalidate what you changed
+
+The user tests, then asks you for a correction, and you make it yourself (not through an action): the steps whose content you changed lose their ✓ on the screen, and the ones after them too. Once nothing runs:
+
+1. Rerun what must be rerun: the typecheck, the tests the change touches, the checks.
+2. Revalidate the steps you changed, in order — the forme, then the invariants, then the modules — with `vibecoder step.validate step=<forme|invariants|modules> verdict=ok` (same invocation as the other commands). Revalidating a step does not recheck the next one: from the first step you changed, revalidate it and each validated step after it, one after the other, once what you reran holds for it. Never the note: only the user validates it, and its design is theirs. A refusal (`not-offered`: the step before is not validated, typically the note; or nothing to validate) → leave it and say so.
+3. Tell the user, in `lang`: what you modified, which steps you revalidated, which you could not. They reread it on the screen with *Depuis la validation* (the step's header says « modifiée depuis la validation », the diff menu of the IDE view).
 
 ## Blocking questions — the only reason to stop
 
