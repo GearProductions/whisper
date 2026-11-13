@@ -7,9 +7,13 @@
 // Puis (0.15.0), déplacés de invariants/module-code.test.ts : la forme du relevé, l'id de la
 // note (Créer, Relire), l'id du dossier d'un module, un autre fichier ou l'accordéon replié,
 // et le refus d'Enregistrer renvoyé à la page par sorte de course.
+// Puis (0.15.0, note ecran-statuts) le menu de diff de la vue IDE : at.validations, le texte du fichier à la validation
+// de chaque étape (la liste de sa marque, puis validated/<empreinte>), null : absent de la liste, une étape illisible
+// absente ; un fichier supprimé (`r<i>`) : lu par git seul, text null, Enregistrer refusé, rien en Relire.
 // Sur le vrai principal, par le décor commun (app/tests/harness : Electron et le SDK de Claude Code
 // factices, git réel sur un dépôt d'essai).
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import {
@@ -379,4 +383,149 @@ it('un tour de la conversation en cours : Enregistrer est refusé', async () => 
 
   // la page apprend que rien n'a été enregistré
   expect(result.ok).toBe(false);
+});
+
+// ── Le menu de diff de la vue IDE (0.15.0, note ecran-statuts) ──
+
+const blob = (text: string) => createHash('sha1').update(`blob ${Buffer.byteLength(text)}\0${text}`).digest('hex');
+type StepSpec = { files: Record<string, string>; verdict?: 'ok' | 'ko'; keepList?: boolean; keepTexts?: boolean; list?: string };
+// Les validations d'étape, comme le contrôleur les retient : la marque de l'étape (files : l'empreinte de sa liste), la liste
+// « <empreinte> <chemin> » et chaque texte, dans validated/<empreinte> des sorties de l'agent.
+function validateSteps(steps: Partial<Record<'forme' | 'invariants' | 'modules', StepSpec>>) {
+  const out = path.join(root, 'vibecoder-out', 'a1', 'validated');
+  const marks: Record<string, object> = {};
+  for (const [step, { files, verdict = 'ok', keepList = true, keepTexts = true, list }] of Object.entries(steps)) {
+    const text = list ?? Object.entries(files).map(([p, t]) => `${blob(t)} ${p}`).join('\n');
+    marks[step] = { hash: blob(`source ${step}`), verdict, files: blob(text) };
+    if (keepList) write(path.join(out, blob(text)), text);
+    if (keepTexts) for (const t of Object.values(files)) write(path.join(out, blob(t)), t);
+  }
+  write(path.join(root, 'vibecoder-state.json'), JSON.stringify({ marks: { a1: marks } }));
+}
+type At = { validations?: Record<string, string | null>; base: string | null; head: string | null };
+const lastCode = () => codes().at(-1) as unknown as { id: string; text: string | null; at?: At };
+// Un fichier que la validation d'une étape retient et qui n'est plus nulle part (ni disque, ni dépôt, ni module, ni
+// branche) : il n'a pour id que r<i>, dans les diffs de l'étape.
+const GONE = 'src/core/hello/gone.ts';
+const deletedId = (rel: string) => (survey() as unknown as { diffs: { validated: Record<string, { id?: string; path: string }[]> } })
+  .diffs.validated.modules.find((f) => f.path === rel)!.id!;
+// Le test d'invariant de hello, commité, et son id t<i>.
+const INV = 'src/core/hello/tests/invariants/hello.test.ts';
+const INV_TEXT = "import { it } from 'vitest';\nit('premier cas', () => {});\n";
+async function withInvariant() {
+  write(path.join(dir, INV), INV_TEXT);
+  git(dir, 'add', '.');
+  git(dir, 'commit', '-q', '-m', 'invariant');
+  await resurvey();
+  return (survey() as unknown as { invariants: { id: string; path: string }[] }).invariants.find((f) => f.path === INV)!.id;
+}
+
+it('un module validé puis modifié : at.validations.modules est la version validée, relue à chaque poussée', async () => {
+  const { followCode } = await import('app/controllers');
+  validateSteps({ modules: { files: { [HELLO]: 'HELLO_VALIDE' } } });
+  write(path.join(dir, HELLO), 'HELLO_APRES');
+  await resurvey();
+  followCode(idOf(HELLO));
+  await pushedFor(idOf(HELLO));
+  expect(lastCode()).toMatchObject({ text: 'HELLO_APRES', at: { validations: { modules: 'HELLO_VALIDE' }, head: 'HELLO_TEXTE' } });
+  write(path.join(dir, HELLO), 'HELLO_ENCORE');
+  await vi.waitFor(() => expect(lastCode()).toMatchObject({ text: 'HELLO_ENCORE', at: { validations: { modules: 'HELLO_VALIDE' } } }), { timeout: 10_000 });
+});
+
+it('un test d’invariant : at.validations.invariants est sa version validée', async () => {
+  const { followCode } = await import('app/controllers');
+  const id = await withInvariant();
+  validateSteps({ invariants: { files: { [INV]: 'INV_VALIDE' } } });
+  followCode(id);
+  await pushedFor(id);
+  expect(lastCode()).toMatchObject({ text: INV_TEXT, at: { validations: { invariants: 'INV_VALIDE' }, head: INV_TEXT } });
+});
+
+it('plusieurs étapes qui retiennent le fichier : un texte par étape', async () => {
+  const { followCode } = await import('app/controllers');
+  validateSteps({ forme: { files: { [HELLO]: 'HELLO_FORME' } }, modules: { files: { [HELLO]: 'HELLO_MODULES' } } });
+  followCode(idOf(HELLO));
+  await pushedFor(idOf(HELLO));
+  expect(lastCode().at?.validations).toEqual({ forme: 'HELLO_FORME', modules: 'HELLO_MODULES' });
+});
+
+it('un fichier absent de la liste d’une étape : null pour cette étape', async () => {
+  const { followCode } = await import('app/controllers');
+  validateSteps({ forme: { files: { [GREET]: 'GREET_VALIDE' } }, modules: { files: { [HELLO]: 'HELLO_VALIDE' } } });
+  followCode(idOf(HELLO));
+  await pushedFor(idOf(HELLO));
+  expect(lastCode().at?.validations).toEqual({ forme: null, modules: 'HELLO_VALIDE' });
+});
+
+it('une étape jamais validée ou refusée : absente de at.validations', async () => {
+  const { followCode } = await import('app/controllers');
+  validateSteps({ forme: { files: { [HELLO]: 'HELLO_FORME' }, verdict: 'ko' } });
+  followCode(idOf(HELLO));
+  await pushedFor(idOf(HELLO));
+  expect(lastCode().at?.validations ?? {}).toEqual({});
+});
+
+it('une liste illisible (absente, mal formée) ou un texte qui manque : l’étape est absente, les autres restent', async () => {
+  const { followCode } = await import('app/controllers');
+  write(path.join(root, 'vibecoder-out', 'secret'), 'SECRET');
+  const ok = { files: { [HELLO]: 'HELLO_MODULES' } };
+  for (const bad of [{ keepList: false }, { list: 'pas une liste' }, { keepTexts: false }]) {
+    validateSteps({ forme: { files: { [HELLO]: 'HELLO_FORME' }, ...bad }, modules: ok });
+    followCode(null);
+    followCode(idOf(HELLO));
+    await vi.waitFor(() => expect(lastCode().at?.validations).toEqual({ modules: 'HELLO_MODULES' }), { timeout: 10_000 });
+  }
+  // une marque dont l'empreinte de liste n'en est pas une : jamais un autre fichier lu
+  write(path.join(root, 'vibecoder-state.json'), JSON.stringify({ marks: { a1: { forme: { hash: blob('x'), verdict: 'ok', files: '../secret' } } } }));
+  followCode(null);
+  followCode(idOf(HELLO));
+  await vi.waitFor(() => expect(lastCode().at?.validations).toEqual({}), { timeout: 10_000 });
+  expect(JSON.stringify(codes())).not.toContain('SECRET');
+});
+
+it('un fichier supprimé du menu de diff (r<i>) : text null, ses versions par git, pas de veilleur', async () => {
+  const { followCode } = await import('app/controllers');
+  validateSteps({ modules: { files: { [GONE]: 'GONE_VALIDE' } } });
+  await resurvey();
+  const id = deletedId(GONE);
+  followCode(id);
+  await pushedFor(id);
+  expect(lastCode()).toMatchObject({ text: null, at: { base: null, head: null } });
+  const n = codes().length;
+  write(path.join(dir, GONE), 'GONE_REVENU');
+  await settle();
+  expect(codes().length).toBe(n);
+});
+
+it('r<i> : le texte à la validation de l’étape, lu comme celui d’un fichier présent', async () => {
+  const { followCode } = await import('app/controllers');
+  validateSteps({ modules: { files: { [GONE]: 'GONE_VALIDE' } } });
+  await resurvey();
+  const id = deletedId(GONE);
+  followCode(id);
+  await pushedFor(id);
+  expect(lastCode()).toMatchObject({ text: null, at: { validations: { modules: 'GONE_VALIDE' } } });
+});
+
+it('r<i> : saveCode est refusé, rien n’est écrit', async () => {
+  const { followCode, saveCode } = await import('app/controllers');
+  validateSteps({ modules: { files: { [GONE]: 'GONE_VALIDE' } } });
+  await resurvey();
+  const id = deletedId(GONE);
+  followCode(id);
+  await pushedFor(id);
+  expect(saveCode(id, 'GONE_ECRIT').ok).toBe(false);
+  expect(fs.existsSync(path.join(dir, GONE))).toBe(false);
+});
+
+it('en Relire, un id r<i> n’est pas suivi : null poussé, rien lu', async () => {
+  const { followCode } = await import('app/controllers');
+  validateSteps({ modules: { files: { [GONE]: 'GONE_VALIDE' } } });
+  await resurvey();
+  const id = deletedId(GONE);
+  review();
+  await resurvey();
+  followCode(id);
+  expect(codes().at(-1)).toBeNull();
+  expect(texts()).toEqual([]);
 });
