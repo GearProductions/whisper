@@ -110,6 +110,16 @@ it('le commit proposé (un fixup de la note) : sa carte sous l\'en-tête, ✓ Co
   expect(page.querySelector('.vc-proposed')).toBeNull();
 });
 
+it('sans Forme : le texte d\'aide ne cite plus de champ, en français et en anglais', async () => {
+  await draw({ modules: [], files: [] } as never);
+  expect(page.textContent).toContain('Pas encore de forme');
+  expect(page.textContent).toContain('« Poser la forme » rédige');
+  expect(page.textContent).not.toContain('champ');
+  await draw({ modules: [], files: [], lang: 'en' } as never);
+  expect(page.textContent).toContain('No shape yet');
+  expect(page.textContent).not.toContain('field');
+});
+
 const remarks = [{ id: 7, target: 'forme: src/a.ts', text: 'ce contrat est flou' }, { id: 8, target: 'forme: src/b.ts', text: 'pour b' }];
 
 it('une remarque sur un module : sous lui, grisée, modifiable sur place ; pas en créateur', async () => {

@@ -317,3 +317,35 @@ it('sans test : le texte cite le bouton, en français et en anglais, sans « pui
   await draw([], 'create');
   expect(page.textContent).toContain('« Write the invariants (red) » writes them');
 });
+
+it('sans test : le texte d\'aide ne cite plus de champ, en français et en anglais', async () => {
+  await draw([], 'create');
+  expect(page.textContent).not.toContain('dans le champ');
+  expect(page.textContent).not.toContain('dictez');
+  extra = { lang: 'en' };
+  await draw([], 'create');
+  expect(page.textContent).not.toContain('in the field');
+  expect(page.textContent).not.toContain('dictate');
+});
+
+const stats = () => [...page.querySelectorAll('.vc-isum-stat')].map((e) => e.textContent);
+
+it('le résumé : fichiers, cas, validés, à lire (l\'en-tête d\'étape ne les répète plus)', async () => {
+  await draw(two, 'create');   // 2 fichiers, 3 cas, b1 validé, aucune lecture
+  expect(stats()).toEqual(['2fichiers', '3cas', '1validé', '3à lire']);
+});
+
+it('le résumé : un seul fichier, au singulier ; en anglais', async () => {
+  await draw(two[0], 'create');
+  expect(stats()).toEqual(['1fichier', '1cas', '0validé', '1à lire']);
+  extra = { lang: 'en' };
+  await draw(two[0], 'create');
+  expect(stats()).toEqual(['1file', '1case', '0approved', '1to read']);
+  await draw(two, 'create');
+  expect(stats()).toEqual(['2files', '3cases', '1approved', '3to read']);
+});
+
+it('le résumé : aucun fichier, pas de résumé', async () => {
+  await draw([], 'create');
+  expect(page.querySelector('.vc-isum')).toBeNull();
+});
