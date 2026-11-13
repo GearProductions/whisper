@@ -355,12 +355,15 @@ export function vibeView(input: JourneyInput): VibeView {
   // Les étapes : faite, et l'action qui la fait avancer quand elle est en cours.
   const validated = (s: VibeMarkState) => vibe || stillOk(s);
   const judged = (s: VibeMarkState) => s === 'ok' || s === 'ko';
-  const noteFacts = note ? line(note.filled ? T.filled : T.unfilled, questions.length > 0 && count(questions.length, T.question),
-    note.mark && T.mark[note.mark]) : T.noNote;
+  // Le fait que la Note seule dit ; les questions sont dans le questionnaire, la validation à côté du chemin.
+  const noteHead = note ? (note.filled ? T.filled : T.unfilled) : T.noNote;
+  const noteFacts = note ? line(noteHead, questions.length > 0 && count(questions.length, T.question), note.mark && T.mark[note.mark]) : noteHead;
   const invFacts = line(count(invariants.length, T.file), count(caseCount, T.kase), count(readCount, T.read));
   let done: Partial<Record<VibeStepId, boolean>>;
   let next: Partial<Record<VibeStepId, string | null>>;
   let stepFacts: Partial<Record<VibeStepId, string>>;
+  // head : de facts, ce que l'étape ne montre pas en dessous (une carte, un questionnaire, une validation) ; absent : rien.
+  let stepHead: Partial<Record<VibeStepId, string>>;
   if (flow === 'create') {
     const noteDone = !!note?.filled && !questions.length && validated(note.mark);
     const formeDone = !!note && modules.length > 0 && validated(note.formeMark);
@@ -412,6 +415,13 @@ export function vibeView(input: JourneyInput): VibeView {
         ponytail && T.ponytail, fixups > 0 && count(fixups, T.fixup), screen.length > 0 && `${boxes} / ${count(screen.length, T.box)}`),
       pr: pr ? `PR #${pr.number}` : T.noPr,
     };
+    stepHead = {
+      note: noteHead,
+      forme: note ? line(noteChanged && T.noteChanged) : T.noNote,
+      // Sans vérification, les fixups restent dits ici : aucune carte ne les compte (le § A.3 ne dit que « repliés »).
+      revue: line(!checks && T.unchecked, fixups > 0 && count(fixups, T.fixup)),
+      pr: pr ? '' : T.noPr,
+    };
   } else {
     const noteDone = here && (!note || judged(note.mark));
     done = {
@@ -438,6 +448,8 @@ export function vibeView(input: JourneyInput): VibeView {
       revue: plan === null ? T.noPlan : `${boxes} / ${count(screen.length, T.box)}`,
       pr: line(count(input.draft.length, T.remark), done.pr && T.published),
     };
+    // Modules : sa vue ne compte pas les commits de la PR, inchangé.
+    stepHead = { note: noteHead, modules: stepFacts.modules, revue: plan === null ? T.noPlan : '' };
   }
   const current = ORDER.find((s) => !done[s]) ?? null;
   const primary = current && next[current];
@@ -536,7 +548,7 @@ export function vibeView(input: JourneyInput): VibeView {
     agentId: input.agentId, lang, flow, vibe: input.vibe, agent: input.agent,
     repo: repo && { branch: repo.branch, base: repo.base, changed: changed.length },
     error: input.error,
-    steps: ORDER.map((id) => ({ id, status: done[id] ? 'done' : id === current ? 'current' : 'todo', facts: stepFacts[id] ?? '' })),
+    steps: ORDER.map((id) => ({ id, status: done[id] ? 'done' : id === current ? 'current' : 'todo', facts: stepFacts[id] ?? '', head: stepHead[id] ?? '' })),
     files: [...changed].sort().map((path, i) => ({
       id: `b${i}`, path, ...(input.exists(path) ? gitOf(path) : { deleted: true }), locked: codeLock(null, input.busy, input.running, lang),
     })),

@@ -1412,3 +1412,118 @@ describe('un module n\'est commencé que si un fichier a changé depuis son sque
     expect([vibeView(input({ queued: ['b', 'a'] })).queued, vibeView(input()).queued]).toEqual([['b', 'a'], []]);
   });
 });
+
+// Les en-têtes sans doublon (note 0.15.0-ecran-epure) : head ne garde que ce que l'étape ne montre pas en dessous ;
+// facts reste entier (l'infobulle du fil d'Ariane).
+describe('en-têtes d\'étape sans doublon : head et facts', () => {
+  const step = (v: VibeView, id: string) => v.steps.find((s) => s.id === id)!;
+  const pair = (v: VibeView, id: string) => [step(v, id).facts, step(v, id).head];
+  const QUESTIONS = { 'questions.md': out('## 1. Quelle couleur ?\n- Bleu\n') };
+  const UNFILLED = { path: NOTE_PATH, text: '# T\n\n## Ce que ça fait\n\n## Forme\n```\nsrc/core/hello.ts   x\n```\n', before: null };
+  const all = [FIRST, HELLO, BUTTON];
+  const checks = (items: unknown[]) => ({ 'checks.json': out(JSON.stringify({ items })) });
+  const OK = [{ name: 'tests', ok: true, level: 'ok' }];
+
+  describe('Créer', () => {
+    const create = (name: string, v: VibeView, id: string, facts: string, head: string) =>
+      it(name, () => expect(pair(v, id)).toEqual([facts, head]));
+
+    // Note : seul « rédigée » / « à rédiger » reste (questions et validation sont dessous), « pas de note » sans note.
+    create('Note, sans note : pas de note, des deux côtés', vibeView(input()), 'note', 'pas de note', 'pas de note');
+    create('Note rédigée, 2 questions, validée : facts entier, head « rédigée »',
+      vibeView(input({ note, marks: NOTE_OK, outputs: { 'questions.md': out('## 1. A ?\n- x\n\n## 2. B ?\n- y\n') } })), 'note',
+      'rédigée · 2 questions · validée', 'rédigée');
+    create('Note rédigée, 1 question, pas validée', vibeView(input({ note, outputs: QUESTIONS })), 'note', 'rédigée · 1 question', 'rédigée');
+    create('Note à rédiger', vibeView(input({ note: UNFILLED })), 'note', 'à rédiger', 'à rédiger');
+    create('Note rédigée, refusée', vibeView(input({ note, marks: { note: { hash: blobSha(NOTE), verdict: 'ko' } } })), 'note', 'rédigée · refusée', 'rédigée');
+
+    // Forme : seule « note modifiée depuis son commit » reste ; sans note, « pas de note ».
+    create('Forme, sans note', vibeView(input()), 'forme', 'pas de note', 'pas de note');
+    create('Forme validée : head vide', vibeView(ready()), 'forme', '2 modules · validée', '');
+    it('Forme, note modifiée depuis son commit : head ce fait seul', () => {
+      const v = vibeView(ready({ repo: { ...repo([], [FIRST]), dirty: [NOTE_PATH] } }));
+      expect(pair(v, 'forme')).toEqual(['2 modules · validée · note modifiée depuis son commit', 'note modifiée depuis son commit']);
+    });
+    it('Forme, note modifiée mais pas validée : toujours ce fait seul', () => {
+      const v = vibeView(ready({ marks: {}, repo: { ...repo([], [FIRST]), dirty: [NOTE_PATH] } }));
+      expect(step(v, 'forme').head).toBe('note modifiée depuis son commit');
+    });
+
+    // Invariants, Modules : rien (leurs cartes disent tout) ; facts entier.
+    create('Invariants : head vide, facts entier', vibeView(ready()), 'invariants', '1 fichier · 2 cas · 2 lus', '');
+    create('Invariants sans test : head vide', vibeView(input({ note })), 'invariants', '0 fichier · 0 cas · 0 lu', '');
+    create('Modules : head vide, facts entier', vibeView(ready({ repo: repo([], [FIRST, HELLO]) })), 'modules', '1 / 2 modules', '');
+
+    // Revue : « pas vérifiée » sans vérification, sinon les fixups seuls.
+    it('Revue : vérifications ok, 1 avertissement, ponytail, 2 fixups, 3 / 5 cases → head « 2 fixups »', () => {
+      const fix = [commit('d', 'fixup! core/hello', []), commit('e', 'fixup! app/button', [])];
+      const plan = '- [x] a\n- [x] b\n- [x] c\n- [ ] d\n- [ ] e\n';
+      const v = vibeView(ready({
+        repo: repo([], [...all, ...fix]),
+        outputs: { ...checks([...OK, { name: 'lint', ok: true, level: 'warning' }]), 'ponytail.md': out('- rien'), 'ecran.md': out(plan) },
+      }));
+      expect(pair(v, 'revue')).toEqual(['vérifications ok · 1 avertissement · ponytail faite · 2 fixups · 3 / 5 cases', '2 fixups']);
+    });
+    create('Revue sans vérification : « pas vérifiée »', vibeView(ready({ repo: repo([], all) })), 'revue', 'pas vérifiée', 'pas vérifiée');
+    it('Revue sans vérification mais des fixups : « pas vérifiée · 1 fixup » (le fixup n\'est dit nulle part ailleurs)', () => {
+      const v = vibeView(ready({ repo: repo([], [...all, commit('d', 'fixup! x', [])]) }));
+      expect(pair(v, 'revue')).toEqual(['pas vérifiée · 1 fixup', 'pas vérifiée · 1 fixup']);
+    });
+    create('Revue, vérifications en échec, sans fixup : head vide', vibeView(ready({ repo: repo([], all), outputs: checks([{ name: 't', ok: false, level: 'error' }]) })),
+      'revue', 'vérifications en échec', '');
+    create('Revue, vérifications ok, sans fixup ni ponytail : head vide', vibeView(ready({ repo: repo([], all), outputs: checks(OK) })), 'revue', 'vérifications ok', '');
+
+    // PR : « pas de PR » sans PR ; avec, la carte dit le numéro.
+    create('PR, sans PR : « pas de PR »', vibeView(ready()), 'pr', 'pas de PR', 'pas de PR');
+    create('PR ouverte : head vide, facts « PR #12 »', vibeView(ready({ outputs: { 'pr.json': out('{"number":12,"title":"t"}') } })), 'pr', 'PR #12', '');
+    it('PR ouverte (gh) : head vide', () => {
+      const v = vibeView(ready({ github: { pr: { number: 12, title: 't', state: 'OPEN' } } }));
+      expect(pair(v, 'pr')).toEqual(['PR #12', '']);
+    });
+  });
+
+  describe('Relire', () => {
+    const PR = '{"number":12,"title":"t","head":"feat/G2-1"}';
+    const loaded = (over: Partial<JourneyInput> = {}) => input({
+      flow: 'review', pr: 12, note, tests: [test], repo: repo([], [FIRST, HELLO]), checkout: { branch: 'feat/G2-1', dirty: false }, ...over,
+      outputs: { 'pr-12.json': out(PR), ...over.outputs },
+    });
+    const review = (name: string, v: VibeView, id: string, facts: string, head: string) =>
+      it(name, () => expect(pair(v, id)).toEqual([facts, head]));
+
+    review('Note, sans note : pas de note', vibeView(input({ flow: 'review' })), 'note', 'pas de note', 'pas de note');
+    review('Note jugée, 1 question : facts entier, head « rédigée »', vibeView(loaded({ marks: { note: ok(NOTE) }, outputs: QUESTIONS })), 'note',
+      'rédigée · 1 question · validée', 'rédigée');
+    review('Note à rédiger', vibeView(loaded({ note: UNFILLED })), 'note', 'à rédiger', 'à rédiger');
+    review('Forme : rien', vibeView(loaded()), 'forme', '2 modules', '');
+    review('Forme sans note : facts « pas de note », head vide (l\'invitation le dit)', vibeView(loaded({ note: null })), 'forme', 'pas de note', '');
+    review('Invariants : rien', vibeView(loaded()), 'invariants', '1 fichier · 2 cas · 0 lu', '');
+    review('Modules, commits pas relus : inchangé', vibeView(loaded()), 'modules', '2 commits', '2 commits');
+    review('Modules, commits relus : inchangé', vibeView(loaded({ outputs: { 'pr-12-commits.md': out('## abc x') } })), 'modules', '2 commits · relus', '2 commits · relus');
+    review('Revue sans plan : « pas de plan »', vibeView(loaded()), 'revue', 'pas de plan', 'pas de plan');
+    review('Revue avec plan : head vide, facts entier', vibeView(loaded({ outputs: { 'ecran.md': out('- [ ] Ouvrir\n- [x] Dicter\n') } })), 'revue', '1 / 2 cases', '');
+    review('PR, un brouillon pas publié : rien', vibeView(loaded({ draft: [{ target: 'note', text: 'x' } as never] })), 'pr', '1 remarque', '');
+    review('PR publiée : rien', vibeView(loaded({ outputs: { 'pr-12-review.json': out('{}') } })), 'pr', '0 remarque · publiée', '');
+  });
+
+  it('en anglais, les mêmes faits : head en est un sous-ensemble, dans la langue', () => {
+    const en = (over: Partial<JourneyInput> = {}) => ready({ lang: 'en', ...over });
+    expect(pair(vibeView(en({ outputs: QUESTIONS })), 'note')).toEqual(['written · 1 question · approved', 'written']);
+    expect(pair(vibeView(input({ lang: 'en', note: UNFILLED })), 'note')).toEqual(['to write', 'to write']);
+    expect(pair(vibeView(input({ lang: 'en' })), 'note')).toEqual(['no note', 'no note']);
+    expect(pair(vibeView(en({ repo: { ...repo([], [FIRST]), dirty: [NOTE_PATH] } })), 'forme'))
+      .toEqual(['2 modules · approved · note changed since its commit', 'note changed since its commit']);
+    expect(pair(vibeView(en({ repo: repo([], all) })), 'revue')).toEqual(['not checked', 'not checked']);
+    expect(pair(vibeView(en({ repo: repo([], [...all, commit('d', 'fixup! x', [])]), outputs: checks(OK) })), 'revue'))
+      .toEqual(['checks pass · 1 fixup', '1 fixup']);
+    expect(pair(vibeView(en()), 'pr')).toEqual(['no PR', 'no PR']);
+    expect(pair(vibeView(en({ outputs: { 'pr.json': out('{"number":3}') } })), 'pr')).toEqual(['PR #3', '']);
+    expect(pair(vibeView(en({ flow: 'review', pr: 12, outputs: {} })), 'revue')).toEqual(['no plan', 'no plan']);
+  });
+
+  it('chaque étape a un head (une chaîne, vide au besoin), jamais plus long que ses facts', () => {
+    for (const v of [vibeView(input()), vibeView(ready()), vibeView(input({ flow: 'review' }))]) {
+      for (const s of v.steps) expect([s.id, typeof s.head, s.head!.length <= s.facts.length]).toEqual([s.id, 'string', true]);
+    }
+  });
+});
