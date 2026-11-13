@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { changedLines, excerpt, foldDiff, lineDiff, mustNotLine, mustNotTags, type DiffLine } from 'core/vibecoder';
+import { changedLines, excerpt, foldDiff, lineDiff, mustNotLine, mustNotTags, parseMarkdown, placeRemoved, removedGroups, type DiffLine } from 'core/vibecoder';
 
 const same = (text: string): DiffLine => ({ kind: 'same', text });
 const added = (text: string): DiffLine => ({ kind: 'added', text });
@@ -20,6 +20,117 @@ describe('changedLines', () => {
 
   it('avant vide : toutes les lignes non vides', () => {
     expect([...changedLines(lineDiff('', '# T\n\n- x'))]).toEqual([0, 2]);
+  });
+});
+
+describe('changedLines avec des retraits', () => {
+  it('les numéros restent ceux du texte actuel, les lignes retirées ne comptent pas', () => {
+    expect([...changedLines(lineDiff('a\nx\ny\nb\nc', 'a\nb\nC\nd'))]).toEqual([2, 3]);
+  });
+});
+
+describe('removedGroups', () => {
+  const cases: [string, string, string, { at: number; lines: string[] }[]][] = [
+    ['une ligne changée : l\'ancienne, at sa ligne', 'a\nb\nc', 'a\nB\nc', [{ at: 1, lines: ['b'] }]],
+    ['une ligne retirée seule', 'a\nb\nc', 'a\nc', [{ at: 1, lines: ['b'] }]],
+    ['deux groupes séparés', 'a\nx\nb\nc\ny\nz\nd', 'a\nb\nc\nd', [{ at: 1, lines: ['x'] }, { at: 3, lines: ['y', 'z'] }]],
+    ['un retrait en fin de texte : at = nombre de lignes', 'a\nb\nc', 'a', [{ at: 1, lines: ['b', 'c'] }]],
+    ['un retrait au début : at 0', 'x\na', 'a', [{ at: 0, lines: ['x'] }]],
+    ['tout retiré : at 0', 'a\nb', '', [{ at: 0, lines: ['a', 'b'] }]],
+    ['rien de retiré : rien', 'a\nb', 'a\nb\nc', []],
+    ['aucune différence : rien', 'a\nb', 'a\nb', []],
+    ['diff vide : rien', '', '', []],
+    ['des lignes vides dans un groupe : gardées', 'a\nx\n\ny\nb', 'a\nb', [{ at: 1, lines: ['x', '', 'y'] }]],
+    ['une ligne vide au bord d\'un groupe : gardée', 'a\nx\n\nb', 'a\nb', [{ at: 1, lines: ['x', ''] }]],
+  ];
+  it.each(cases)('%s', (_name, before, after, want) => {
+    expect(removedGroups(lineDiff(before, after))).toEqual(want);
+  });
+
+  it('un groupe de lignes vides seules : ignoré (le suivant garde son at)', () => {
+    expect(removedGroups(lineDiff('a\n\nb\nx\nc', 'a\nb\nc'))).toEqual([{ at: 2, lines: ['x'] }]);
+    expect(removedGroups([removed(''), removed('  '), same('a')])).toEqual([]);
+  });
+
+  it('un groupe de lignes vides seules en fin de texte : ignoré', () => {
+    expect(removedGroups([same('a'), removed('')])).toEqual([]);
+  });
+
+  it('ajoutées et retirées mêlées : at ne compte que les lignes du texte actuel', () => {
+    expect(removedGroups([added('n1'), added('n2'), removed('old'), added('n3'), same('s'), removed('end')]))
+      .toEqual([{ at: 2, lines: ['old'] }, { at: 4, lines: ['end'] }]);
+  });
+});
+
+describe('placeRemoved', () => {
+  const place = (text: string, ...groups: [number, ...string[]][]) => {
+    const p = placeRemoved(groups.map(([at, ...lines]) => ({ at, lines })), parseMarkdown(text), text);
+    return { before: Object.fromEntries(p.before), end: p.end };
+  };
+  const cases: [string, string, [number, ...string[]], Record<number, string>, string | null][] = [
+    ['au début d\'un paragraphe', '# T\n\npara\nsuite', [2, 'x'], { 2: 'x' }, null],
+    ['au milieu d\'un paragraphe : devant lui entier', '# T\n\npara\nsuite\nfin', [3, 'x'], { 2: 'x' }, null],
+    ['au milieu d\'un tableau : devant lui entier', 'a\n\n| a | b |\n| - | - |\n| 1 | 2 |\n| 3 | 4 |', [5, 'x'], { 2: 'x' }, null],
+    ['au milieu d\'un bloc de code : devant lui entier, entre des clôtures', 'a\n\n```\nl1\nl2\n```\n\nb', [4, 'x'], { 2: '```\nx\n```' }, null],
+    ['sur une ligne vide dans un bloc de code : le bloc de code, entre des clôtures', '```\nl1\n\nl2\n```', [2, 'x'], { 0: '```\nx\n```' }, null],
+    ['sur la clôture ouvrante d\'un bloc de code : devant lui, sans clôtures', 'a\n\n```\nl1\n```', [2, 'x'], { 2: 'x' }, null],
+    ['devant un élément de liste', '- a\n- b\n- c', [1, 'x'], { 1: 'x' }, null],
+    ['dans une sous-liste : devant l\'élément le plus profond', '- a\n  - b\n  - c\n- d', [2, 'x'], { 2: 'x' }, null],
+    ['au premier élément d\'une sous-liste', '- a\n  - b\n  - c\n- d', [1, 'x'], { 1: 'x' }, null],
+    ['à un élément de premier niveau après une sous-liste', '- a\n  - b\n- d', [2, 'x'], { 2: 'x' }, null],
+    ['au milieu d\'un élément (ligne de suite) : devant lui', '- a\n  suite\n- b', [1, 'x'], { 0: 'x' }, null],
+    ['dans une liste dans une citation', '> - a\n> - b', [1, 'x'], { 1: 'x' }, null],
+    ['sur une ligne vide entre deux blocs : le suivant', 'a\n\nb', [1, 'x'], { 2: 'x' }, null],
+    ['sur plusieurs lignes vides : le suivant', 'a\n\n\n\nb', [2, 'x'], { 4: 'x' }, null],
+    ['avant des lignes vides en tête du texte : le premier bloc', '\n\nabc', [0, 'x'], { 2: 'x' }, null],
+    ['sur une ligne vide entre deux éléments de liste : l\'élément suivant', '- a\n\n- b', [1, 'x'], { 2: 'x' }, null],
+    ['après le dernier bloc : end', 'a\n\nb', [3, 'x'], {}, 'x'],
+    ['sur les lignes vides qui finissent le texte : end', 'a\nb\n\n', [2, 'x'], {}, 'x'],
+    ['au milieu du dernier bloc : pas end', 'a\nb', [1, 'x'], { 0: 'x' }, null],
+    ['texte vide : end', '', [0, 'x'], {}, 'x'],
+    ['fins de ligne CRLF', 'a\r\n\r\nb', [1, 'x'], { 2: 'x' }, null],
+  ];
+  it.each(cases)('%s', (_name, text, group, before, end) => {
+    expect(place(text, group)).toEqual({ before, end });
+  });
+
+  it('deux groupes d\'un même bloc : un seul Markdown, dans l\'ordre', () => {
+    expect(place('p1\np2\np3', [1, 'x'], [2, 'y', 'z'])).toEqual({ before: { 0: 'x\ny\nz' }, end: null });
+  });
+
+  it('deux groupes de places différentes : un Markdown chacun ; au milieu et à la fin', () => {
+    expect(place('a\n\nb\n\nc', [1, 'x'], [3, 'y'], [5, 'z'])).toEqual({ before: { 2: 'x', 4: 'y' }, end: 'z' });
+    expect(place('a\n\nb', [3, 'x'], [3, 'y'])).toEqual({ before: {}, end: 'x\ny' });
+  });
+
+  it('deux groupes d\'un même endroit séparés par une ligne vide dans la note : une ligne vide entre eux', () => {
+    expect(place('a\n\nb', [1, 'x'], [2, 'y'])).toEqual({ before: { 2: 'x\n\ny' }, end: null });
+    expect(place('a\n\nb\n\n', [3, 'x'], [4, 'y'])).toEqual({ before: {}, end: 'x\n\ny' });
+  });
+
+  it('des retraits d\'un bloc de code : une seule paire de clôtures, texte tel quel (retrait, # et - gardés)', () => {
+    expect(place('```\nl1\nl2\n```', [1, '  - x', '# t'])).toEqual({ before: { 0: '```\n  - x\n# t\n```' }, end: null });
+    expect(place('```\nl1\n\nl2\n```', [1, 'x'], [3, 'y'])).toEqual({ before: { 0: '```\nx\n\ny\n```' }, end: null });
+    const [code] = parseMarkdown(place('```\nl1\nl2\n```', [1, '  - x', '# t']).before[0]);
+    expect(code).toMatchObject({ kind: 'code', text: '  - x\n# t' });
+  });
+
+  it('une puce imbriquée retirée, désindentée : reste une puce (pas un bloc de code)', () => {
+    const { before } = place('- a\n  - b', [1, '  - gone']);
+    expect(before[1]).toBe('- gone');
+    expect(parseMarkdown(before[1])[0].kind).toBe('list');
+  });
+
+  it('retrait commun enlevé, retrait relatif gardé, lignes vides ignorées', () => {
+    expect(place('- a\n  - b', [1, '    - x', '', '      - y']).before[1]).toBe('- x\n\n  - y');
+  });
+
+  it('lignes vides au bord d\'un groupe : coupées', () => {
+    expect(place('a\n\nb', [1, 'x', '']).before[2]).toBe('x');
+  });
+
+  it('rien de retiré : rien', () => {
+    expect(place('a\n\nb')).toEqual({ before: {}, end: null });
   });
 });
 

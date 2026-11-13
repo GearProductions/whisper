@@ -130,7 +130,5 @@ button.vc-chip:hover { border-color: var(--vc-edge); color: var(--vc-text); }
   white-space: nowrap;
 }
 
-/* ---- Le champ d'une étape : un PromptField (prompt-field.css), sur toute la largeur ---- */
-.vc-step-field { flex-basis: 100%; margin: 4px 0 0; }
 /* Une action dont la course est en cours : « en cours » et ⏹ (IconButton stop), à côté de son bouton. */
 .vc-run-on { display: inline-flex; align-items: center; gap: 2px; margin-left: 5px; color: var(--vc-accent); font-size: 12px; }

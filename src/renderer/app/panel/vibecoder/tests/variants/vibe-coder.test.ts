@@ -1,15 +1,15 @@
 // @vitest-environment happy-dom
 // VibeCoder (vibe-coder.tsx) : l'en-tête (les robots des agents, Chercher, ⚙ Réglages en icône ; ni langue ni ↻ ;
 // plus de retour à la conversation ni de fermer), l'onglet Conversation (🕘 : l'historique à la place du fil),
-// Vibe dans le fil d'Ariane (créateur seulement), ↻ dans la barre d'état, et les pièces jointes d'un champ : tenues
-// avec lui, parties avec son action seule (rien d'autre : ni modèle ni effort), libérées ensuite ; le trombone
-// donne son choix au champ qui l'a ouvert ; goToNote (un cas d'Invariants mène à l'étape Note, noteFocus tenu ici).
+// Vibe dans le fil d'Ariane (créateur seulement), ↻ dans la barre d'état, plus de champ d'étape (Rédiger la note
+// réaffiche la conversation et part sans texte : panel-app prend le champ), les pièces jointes du questionnaire : tenues
+// avec lui, parties avec Envoyer les réponses seule, libérées ensuite ; goToNote (un cas d'Invariants mène à l'étape Note, noteFocus tenu ici).
 import { act, createElement, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
 import { createKept, t } from 'core/vibecoder';
 import type { Thread, VibeView } from 'technicals/bridge';
-import { VibeCoder } from '../../vibe-coder';
+import { VibeCoder, type Side } from '../../vibe-coder';
 
 // Des sondes aux deux bouts de goToNote : Invariants (un bouton qui l'appelle) et Note (ce qu'elle reçoit, la vraie vue gardée, sans
 // noteFocus : elle atteindrait la ligne et l'oublierait aussitôt, note-view.test).
@@ -36,13 +36,13 @@ const acts = { follow: noop, set: noop, refresh: noop } as never;
 const sent: unknown[][] = [];
 const calls: string[] = [];
 const kept = createKept();
-const draw = (more: { historyOpen?: boolean; tasksOpen?: boolean; others?: ReactNode; view?: VibeView; acts?: unknown } = {}) => act(() => {
+const draw = (more: { historyOpen?: boolean; tasksOpen?: boolean; others?: ReactNode; view?: VibeView; acts?: unknown; side?: Side; onSide?: (s: Side) => void } = {}) => act(() => {
   root.render(createElement(VibeCoder, {
-    view: more.view ?? view, thread, act: (more.acts ?? acts) as never, tasks: 'TASKS' as ReactNode, tasksOpen: more.tasksOpen ?? false, contextOpen: false, onGauge: noop, onTasks: noop,
+    view: more.view ?? view, thread, act: (more.acts ?? acts) as never, tasks: 'TASKS' as ReactNode, tasksOpen: more.tasksOpen ?? false, contextOpen: false, onGauge: noop, onTasks: () => { calls.push('tasks'); },
     others: more.others, onSearch: () => { calls.push('palette:all'); },
     onSettings: () => { calls.push('settings'); }, historyOpen: more.historyOpen ?? false, onHistory: () => { calls.push('history'); },
     history: createElement('p', { className: 'the-history' }, 'HISTORIQUE'),
-    side: { open: true, width: 400 }, onSide: noop, kept, code: null,
+    side: more.side ?? { open: true, width: 400 }, onSide: more.onSide ?? noop, kept, code: null,
     children: createElement('p', { className: 'the-thread' }, 'FIL'),
   }));
 });
@@ -92,19 +92,21 @@ it('VibeCoder : 🕘 bascule l\'historique ; ouvert, il prend la place du fil, a
   expect(calls).toEqual(['history', 'history']);
 });
 
-// Un relevé à l'étape Note : un champ (l'action « note » emporte son texte), Vibe, et Envoyer les réponses.
+// Un relevé à l'étape Note : Rédiger la note (needs text), Poser la forme (usesText), Vibe, et Envoyer les réponses.
 const act1 = (a: object) => ({ id: 'x', step: null, label: 'X', hint: '', who: 'agent', models: [], model: null, kind: 'send', needs: 'none', usesText: false, primary: false, disabled: null, hidden: false, ...a });
 const noteView = (over: object = {}) => ({
   ...view, steps: [{ id: 'note', status: 'current' }], outputs: {}, files: [], questions: [], invariants: [], artifacts: [], modules: [],
-  actions: [act1({ id: 'note', step: 'note', label: 'Écrire la note', needs: 'text', usesText: true, primary: true }), act1({ id: 'vibe', label: 'Vibe', hint: 'tout' })],
+  actions: [act1({ id: 'note', step: 'note', label: 'Écrire la note', needs: 'text', usesText: true, primary: true }), act1({ id: 'vibe', label: 'Vibe', hint: 'tout' }),
+    act1({ id: 'forme', step: 'forme', label: 'Poser la forme', usesText: true })],
   ...over,
 }) as unknown as VibeView;
-const type = async (ta: HTMLTextAreaElement, value: string) => {
-  Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(ta, value);
-  await act(() => { ta.dispatchEvent(new Event('input', { bubbles: true })); });
-};
-const field = () => page.querySelector<HTMLTextAreaElement>('[data-field="note"]')!;
-const pieces = () => [...page.querySelectorAll('.vc-step-field .piece')].map((p) => p.textContent);
+const runButton = (label: string) => [...page.querySelectorAll<HTMLButtonElement>('.vc-step .vc-run')].find((b) => b.textContent?.includes(label))!;
+
+it('plus de champ d\'étape : ni zone de saisie, ni Joindre, ni Envoyer dans l\'étape', async () => {
+  await draw({ view: noteView() });
+  expect(page.querySelector('.vc-step-field')).toBeNull();
+  expect(page.querySelector('.vc-step textarea')).toBeNull();
+});
 
 it('Vibe : dans le fil d\'Ariane, créateur seulement ; pendant Vibe, Arrêter Vibe (set vibe false) ; plus de bannière', async () => {
   const run = vi.fn(async () => true), set = vi.fn();
@@ -130,45 +132,28 @@ it('↻ de la barre d\'état : relève (act.refresh)', async () => {
   expect(refresh).toHaveBeenCalledTimes(1);
 });
 
-it('les pièces d\'un champ : le trombone donne son choix à ce champ, déposer joint ; elles partent avec son action (texte, pièces, rien d\'autre) puis sont libérées', async () => {
-  sent.length = 0;
-  let into: ((w: { files?: string[] }) => void) | undefined;
-  const a = {
-    follow: noop, set: noop, refresh: noop,
-    run: async (...args: unknown[]) => { sent.push(args); return true; },
-    attach: (f: typeof into) => { into = f; },
-    pieces: async (files: File[]) => files.map((f) => ({ kind: 'file' as const, name: f.name, path: `/tmp/${f.name}` })),
-  };
-  await draw({ view: noteView(), acts: a });
-  await type(field(), 'bonjour');
-  await act(() => { (page.querySelector('.vc-step-field .vc-attach') as HTMLButtonElement).click(); });
-  await act(async () => { into!({ files: ['/p/plan.md'] }); });
-  const drop = new Event('drop', { bubbles: true, cancelable: true });
-  Object.defineProperty(drop, 'dataTransfer', { value: { files: [new File(['x'], 'a.txt')] } });
-  await act(async () => { page.querySelector('.vc-step-field .vc-prompt')!.dispatchEvent(drop); });
-  expect(pieces()).toHaveLength(2);
-  expect(pieces()[0]).toContain('plan.md');
-  expect(pieces()[1]).toContain('a.txt');
-  await act(async () => { (page.querySelector('.vc-step-field .vc-send') as HTMLButtonElement).click(); });
-  expect(sent).toEqual([['note', { text: 'bonjour', pieces: { images: [], files: ['/p/plan.md', '/tmp/a.txt'], selection: '' } }]]);
-  expect(pieces()).toEqual([]);
-  expect(field().value).toBe('');
+it('Rédiger la note cliqué : la conversation réaffichée (colonne masquée, onglet Tâches), l\'action part sans args.text (panel-app prend le champ)', async () => {
+  const run = vi.fn(async (..._a: unknown[]) => true), onSide = vi.fn();
+  const a = { follow: noop, set: noop, refresh: noop, run };
+  calls.length = 0;
+  await draw({ view: noteView(), acts: a, side: { open: false, width: 300 }, onSide, tasksOpen: true });
+  await act(async () => { runButton('Écrire la note').click(); });
+  expect(run).toHaveBeenCalledWith('note', {});
+  expect(run.mock.calls[0][1]).not.toHaveProperty('text');
+  expect(onSide).toHaveBeenCalledWith({ open: true, width: 300 });
+  expect(calls).toEqual(['tasks']);
 });
 
-it('retirer une pièce (×) : elle ne part pas ; sans pièce, aucun « pieces » dans les arguments', async () => {
-  sent.length = 0;
-  let into: ((w: { files?: string[] }) => void) | undefined;
-  const a = { follow: noop, set: noop, refresh: noop, run: async (...args: unknown[]) => { sent.push(args); return true; }, attach: (f: typeof into) => { into = f; }, pieces: async () => [] };
-  await draw({ view: noteView(), acts: a });
-  await type(field(), 'salut');
-  await act(() => { (page.querySelector('.vc-step-field .vc-attach') as HTMLButtonElement).click(); });
-  await act(async () => { into!({ files: ['/p/plan.md'] }); });
-  await act(() => { (page.querySelector('.vc-step-field .piece .remove') as HTMLButtonElement).click(); });
-  await act(async () => { (page.querySelector('.vc-step-field .vc-send') as HTMLButtonElement).click(); });
-  expect(sent).toEqual([['note', { text: 'salut' }]]);
+it('Poser la forme cliqué : part sans texte et ne réaffiche pas la conversation', async () => {
+  const run = vi.fn(async (..._a: unknown[]) => true), onSide = vi.fn();
+  calls.length = 0;
+  await draw({ view: noteView({ steps: [{ id: 'forme', status: 'current' }] }), acts: { follow: noop, set: noop, refresh: noop, run }, side: { open: false, width: 300 }, onSide });
+  await act(async () => { runButton('Poser la forme').click(); });
+  expect(run).toHaveBeenCalledWith('forme', {});
+  expect(onSide).not.toHaveBeenCalled();
 });
 
-it('le questionnaire a ses pièces, qui partent avec « Envoyer les réponses » seulement ; celles du champ de la note restent', async () => {
+it('le questionnaire a ses pièces, qui partent avec « Envoyer les réponses » seulement ; elles sont libérées ensuite', async () => {
   sent.length = 0;
   let into: ((w: { files?: string[] }) => void) | undefined;
   const a = { follow: noop, set: noop, refresh: noop, run: async (...args: unknown[]) => { sent.push(args); return true; }, attach: (f: typeof into) => { into = f; }, pieces: async () => [] };
@@ -177,8 +162,6 @@ it('le questionnaire a ses pièces, qui partent avec « Envoyer les réponses »
     actions: [...noteView().actions, act1({ id: 'answers', step: 'note', label: 'Envoyer les réponses' })],
   });
   await draw({ view: v, acts: a });
-  await act(() => { (page.querySelector('.vc-step-field .vc-attach') as HTMLButtonElement).click(); });
-  await act(async () => { into!({ files: ['/p/champ.md'] }); });
   await act(() => { (page.querySelector('.vc-q .vc-attach') as HTMLButtonElement).click(); });
   await act(async () => { into!({ files: ['/p/reponse.md'] }); });
   expect(page.querySelectorAll('.vc-q .piece')).toHaveLength(1);
@@ -186,7 +169,6 @@ it('le questionnaire a ses pièces, qui partent avec « Envoyer les réponses »
   await act(async () => { page.querySelector<HTMLButtonElement>('.vc-q-send .vc-run')!.click(); });
   expect(sent).toEqual([['answers', { answers: ['a'], pieces: { images: [], files: ['/p/reponse.md'], selection: '' } }]]);
   expect(page.querySelectorAll('.vc-q .piece')).toHaveLength(0);
-  expect(pieces()).toHaveLength(1);   // le champ de la note garde les siennes
 });
 
 // ---- L'état retenu, par agent et par étape (T-20) ; le verdict proposé (T-23) ----

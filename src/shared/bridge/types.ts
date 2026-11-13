@@ -227,7 +227,9 @@ export type VibeLang = 'fr' | 'en';
 export type VibeFlow = 'create' | 'review';
 // Un seul parcours, les deux rôles : note → forme → invariants → modules → revue → pr.
 export type VibeStepId = 'note' | 'forme' | 'invariants' | 'modules' | 'revue' | 'pr';
-export type VibeStep = { id: VibeStepId; status: 'done' | 'current' | 'todo'; facts: string };
+// facts : tous les faits de l'étape (l'infobulle du fil d'Ariane) ; head : ceux que l'étape ne montre nulle part
+// en dessous (son en-tête) ; absent ou vide : aucun.
+export type VibeStep = { id: VibeStepId; status: 'done' | 'current' | 'todo'; facts: string; head?: string };
 
 // Une validation : validé, refusé, validé mais changé depuis, rien.
 export type VibeMarkState = 'ok' | 'ko' | 'changed' | null;

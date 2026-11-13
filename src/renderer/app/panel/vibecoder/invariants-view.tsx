@@ -31,7 +31,8 @@
  *  une ligne « → invariant » : à côté, « ✓ Rien à écrire » (elles sont déjà
  *  observées par des tests existants), validation à la main pour la note telle
  *  qu'elle est (MarkControl, comme « ✓ Valider la note »). En tête : « Tout
- *  relire », le résumé de l'étape, les cas à valider, ce que veut dire
+ *  relire », le résumé de l'étape (Summary : fichiers, cas, validés, à lire ; l'en-tête
+ *  d'étape ne les répète plus), les cas à valider, ce que veut dire
  *  « Attention » (s'il y en a), l'alignement
  *  (align.md ; créateur : Relancer dans son en-tête, l'action align seule, pour
  *  revérifier après avoir corrigé les tests ; relecteur, son bouton est dans la
@@ -81,6 +82,7 @@ import { CaseVerdict, MarkControl } from './validation';
 import './invariants-view.css';
 
 const fr = {
+  files: (n: number): string => (n > 1 ? 'fichiers' : 'fichier'),
   cases: (_n: number): string => 'cas',
   ok: (n: number): string => (n > 1 ? 'validés' : 'validé'),
   ko: (n: number): string => (n > 1 ? 'refusés' : 'refusé'),
@@ -110,7 +112,7 @@ const fr = {
   rereadAll: 'Tout relire',
   casesHere: (n: number) => `${n} cas à valider : Validé ou À revoir sur chaque carte, ou « Tout valider » sur un fichier sans point d'attention.`,
   noTests: 'Aucun test d\'invariant sur la branche',
-  noTestsText: ' « Écrire les invariants (rouges) » les écrit d\'après les lignes « → invariant » de la note ; ou dictez du pseudo-code dans le champ, il est traduit dans le langage du projet.',
+  noTestsText: ' « Écrire les invariants (rouges) » les écrit d\'après les lignes « → invariant » de la note.',
   noInvLines: ' La note ne demande aucun invariant : rien à écrire.',
   noTestsReview: 'Aucun test d\'invariant dans cette PR',
   noTestsReviewText: ' Les tests d\'invariants sont rangés sous tests/invariants/.',
@@ -123,6 +125,7 @@ const fr = {
 const S: Record<VibeLang, typeof fr> = {
   fr,
   en: {
+    files: (n) => (n === 1 ? 'file' : 'files'),
     cases: (n) => (n === 1 ? 'case' : 'cases'),
     ok: () => 'approved',
     ko: () => 'rejected',
@@ -152,7 +155,7 @@ const S: Record<VibeLang, typeof fr> = {
     rereadAll: 'Read all again',
     casesHere: (n) => `${n} case${n > 1 ? 's' : ''} to approve: Approved or Needs rework on each card, or « Approve all » on a file with no warning.`,
     noTests: 'No invariant test on the branch',
-    noTestsText: ' « Write the invariants (red) » writes them from the note\'s « → invariant » lines; or dictate pseudo-code in the field, it is translated into the project\'s language.',
+    noTestsText: ' « Write the invariants (red) » writes them from the note\'s « → invariant » lines.',
     noInvLines: ' The note asks for no invariant: nothing to write.',
     noTestsReview: 'No invariant test in this PR',
     noTestsReviewText: ' Invariant tests live under tests/invariants/.',
@@ -270,7 +273,7 @@ export function InvariantsView(props: StepProps) {
         ) : null}
       </StepHead>
       {wait?.kind === 'cases' ? <p className="vc-ihelp">{s.casesHere(wait.count)}</p> : null}
-      {view.invariants.length ? <Summary p={total} s={s} /> : null}
+      {view.invariants.length ? <Summary p={total} files={view.invariants.length} s={s} /> : null}
       {total.warnings ? <p className="vc-ihelp"><span><Icon name="warn" /></span>{s.warningHelp}</p> : null}
       {align ? (
         <details className="vc-card vc-ialign" open>
@@ -335,14 +338,14 @@ function Bar({ p }: { p: Progress }) {
   );
 }
 
-function Summary({ p, s }: { p: Progress; s: Labels }) {
+function Summary({ p, files, s }: { p: Progress; files: number; s: Labels }) {
   const stats: [number, string, string][] = [
-    [p.total, s.cases(p.total), ''], [p.ok, s.ok(p.ok), 'ok'], [p.ko, s.ko(p.ko), 'ko'], [p.changed, s.changed(p.changed), 'warn'],
+    [files, s.files(files), ''], [p.total, s.cases(p.total), ''], [p.ok, s.ok(p.ok), 'ok'], [p.ko, s.ko(p.ko), 'ko'], [p.changed, s.changed(p.changed), 'warn'],
     [p.warnings, s.warnings, 'warn'], [p.unread, s.unread, 'muted'],
   ];
   return (
     <div className="vc-isum">
-      {stats.map(([n, label, tone], i) => (i < 2 || n ? <span key={i} className="vc-isum-stat" data-tone={tone || undefined}><b>{n}</b>{label}</span> : null))}
+      {stats.map(([n, label, tone], i) => (i < 3 || n ? <span key={i} className="vc-isum-stat" data-tone={tone || undefined}><b>{n}</b>{label}</span> : null))}
       <Bar p={p} />
     </div>
   );

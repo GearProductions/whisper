@@ -1,11 +1,14 @@
 /** note — ce que la vue de la note calcule : les lignes que l'agent a
- *  ajoutées ou changées (leurs blocs sont surlignés), le diff brut replié
+ *  ajoutées ou changées (leurs blocs sont surlignés), les lignes retirées par
+ *  groupes (removedGroups) et leur place, avant le bloc ou l'élément de liste
+ *  qui les suit (placeRemoved, d'après le texte et ses blocs : rendues à part, barrées), le diff brut replié
  *  autour des changements, la marque de chaque ligne de « Ce que ça ne doit
  *  pas faire », la ligne d'une de ces puces (pour y aller depuis un cas d'invariant), un extrait
  *  d'une ligne (la cible d'une remarque).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder (note-view, invariants-view). */
 import type { MustNotMark } from 'technicals/bridge';
 import type { DiffLine } from './diff';
+import type { Block } from './markdown';
 
 // Les lignes du texte actuel (depuis 0) ajoutées ou changées dans le diff ; une ligne vide ne compte pas.
 export function changedLines(diff: DiffLine[]): Set<number> {
@@ -17,6 +20,72 @@ export function changedLines(diff: DiffLine[]): Set<number> {
     n++;
   }
   return out;
+}
+
+// Des lignes retirées d'un même endroit : leur texte, et la ligne du texte actuel (depuis 0) qui les suit
+// (le nombre de lignes du texte actuel : à la fin).
+export type Removed = { at: number; lines: string[] };
+
+// Les suites de lignes retirées du diff, dans l'ordre ; une suite de lignes vides seules ne compte pas.
+export function removedGroups(diff: DiffLine[]): Removed[] {
+  const out: Removed[] = [];
+  let n = 0;
+  for (const l of diff) {
+    if (l.kind !== 'removed') { n++; continue; }
+    const last = out[out.length - 1];
+    if (last?.at === n) last.lines.push(l.text);
+    else out.push({ at: n, lines: [l.text] });
+  }
+  return out.filter((g) => g.lines.some((t) => t.trim()));
+}
+
+// Où rendre les retirées : before, par la ligne (depuis 0) du bloc de premier niveau ou de l'élément de liste
+// (à toute profondeur) devant lequel elles vont, leur Markdown (les groupes du même endroit à la suite,
+// désindentés de leur retrait commun) ; end : après le dernier bloc (null : rien).
+export type RemovedPlaces = { before: Map<number, string>; end: string | null };
+
+// La ligne du plus profond élément de liste qui commence à `line` ou la contient (à travers les citations),
+// null : aucun.
+function itemAt(blocks: Block[], line: number): number | null {
+  const b = blocks.filter((x) => x.line <= line).pop();
+  if (b?.kind === 'quote') return itemAt(b.blocks, line);
+  if (b?.kind !== 'list') return null;
+  const item = b.items.filter((x) => x.line <= line).pop()!;
+  return itemAt(item.children, line) ?? item.line;
+}
+
+// Un groupe va devant le bloc ou l'élément qui commence à la première ligne non vide à partir de sa ligne,
+// ou qui la contient (au milieu d'un paragraphe, d'un tableau, d'un code, d'un élément : devant lui entier ;
+// l'élément le plus profond) ; une ligne vide entre deux blocs : le suivant ; plus de ligne non vide : end.
+// `text` est le texte que `blocks` a lu. Les groupes d'une même place : un seul Markdown, dans l'ordre
+// (une ligne vide entre deux groupes si la note en a une entre leurs places), sans lignes vides au bord,
+// désindenté de leur retrait commun (une puce imbriquée reste une puce) ; retirés du milieu d'un bloc de
+// code : leur texte tel quel, entre des clôtures ```.
+export function placeRemoved(removed: Removed[], blocks: Block[], text: string): RemovedPlaces {
+  const lines = text.split(/\r?\n/);
+  const at = new Map<number | 'end', { code: boolean; lines: string[]; last: number }>();
+  for (const g of removed) {
+    let k = g.at;
+    while (k < lines.length && !lines[k].trim()) k++;
+    const first = blocks.filter((b) => b.line <= k).pop();
+    const key = k >= lines.length || !first ? 'end' : itemAt(blocks, k) ?? first.line;
+    const place = at.get(key) ?? { code: false, lines: [], last: g.at };
+    if (place.lines.length && lines.slice(place.last, g.at).some((l) => !l.trim())) place.lines.push('');
+    place.lines.push(...g.lines);
+    place.last = g.at;
+    place.code ||= key !== 'end' && first?.kind === 'code' && k > first.line;
+    at.set(key, place);
+  }
+  const markdown = ({ code, lines: all }: { code: boolean; lines: string[] }) => {
+    const kept = all.join('\n').replace(/^(?:[ \t]*\n)+|(?:\n[ \t]*)+$/g, '');
+    if (code) return `\`\`\`\n${kept}\n\`\`\``;
+    const rows = kept.split('\n');
+    const indent = Math.min(...rows.filter((l) => l.trim()).map((l) => l.length - l.trimStart().length));
+    return rows.map((l) => l.slice(indent)).join('\n');
+  };
+  const before = new Map<number, string>();
+  for (const [key, place] of at) if (key !== 'end') before.set(key, markdown(place));
+  return { before, end: at.has('end') ? markdown(at.get('end')!) : null };
 }
 
 export type Fold = DiffLine | { kind: 'skip'; count: number };

@@ -1,8 +1,9 @@
 /** step-parts — les pièces des vues d'étape : l'en-tête d'étape (nom, état,
- *  faits, outils à droite ; dessous, le champ de l'étape quand une de ses
- *  actions en prend le texte (fieldOf), puis la rangée des actions de l'étape
+ *  ses faits propres — step.head, ce que l'étape ne montre pas en dessous —,
+ *  outils à droite ; aucun champ d'étape : Rédiger la note prend le champ de
+ *  la conversation, note 0.15.0-ecran-epure ; puis la rangée des actions de l'étape
  *  par stepActions — à l'étape en cours, Vibe d'abord avec son propre accent,
- *  puis celle qui fait avancer l'étape mise en avant), le champ d'une étape,
+ *  puis celle qui fait avancer l'étape mise en avant),
  *  la carte d'une sortie de skill (titre, fichier, depuis quand), le bouton
  *  d'une action du relevé (son libellé ou un plus court, qui travaille,
  *  pourquoi c'est grisé ; ton plain, accent, vibe ou ghost ;
@@ -14,21 +15,17 @@
  *  'review', même allure que celui du worktree ; rien en créateur),
  *  le badge du robot d'une PR ouverte dans un worktree (le badge seul :
  *  Retirer le worktree est dans la vue des branches).
- *  Le champ d'une étape est un PromptField (Joindre, ses pièces, le micro et Envoyer : l'action
- *  du champ, fieldAction) ; les pièces et leurs rappels viennent de l'appelant (StepPieces : vibe-coder les
- *  tient, une liste par champ) ; « @ » cite les artefacts du projet (useArtifactMention, d'après
- *  VibeView.artifacts et artifactsDir). Une action n'a plus de choix de modèle ni d'effort à l'écran
+ *  StepPieces : les pièces jointes du questionnaire et leurs rappels, tenus par l'appelant (vibe-coder) ;
+ *  Plus de champ d'étape (StepField, fieldHint). Une action n'a plus de choix de modèle ni d'effort à l'écran
  *  (le principal les pose) : le bouton montre qui travaille (`who`).
  *  Ne connaît pas : le pont (rappels passés ; ⏹ et la langue par le contexte StopRun).
  *  Utilisé par : les vues d'étape ; vibe-coder (badge Relecteur,
  *  badge du worktree). */
-import { createContext, useContext, useRef, type ReactNode } from 'react';
-import { fieldAction, fieldOf, isLive, stepActions, t as strings, webUrl, type Strings } from 'core/vibecoder';
+import { createContext, useContext, type ReactNode } from 'react';
+import { isLive, stepActions, t as strings, webUrl, type Strings } from 'core/vibecoder';
 import type { Piece } from 'core/conversation';
-import type { VibeAction, VibeArgs, VibeArtifact, VibeLang, VibePr, VibeRun, VibeView } from 'technicals/bridge';
-import { useArtifactMention } from './artifact-mention';
+import type { VibeAction, VibeArgs, VibeLang, VibePr, VibeRun, VibeView } from 'technicals/bridge';
 import { Icon, IconButton } from './icons';
-import { PromptField } from './prompt-field';
 import type { StepProps } from './step-views';
 import './step-parts.css';
 
@@ -50,52 +47,25 @@ const S: Record<VibeLang, typeof fr> = {
 // `lang` : la langue des libellés du bouton (sans lui, le français).
 export const StopRun = createContext<{ stop(id: string): void; state(id: string): VibeRun['state'] | null; lang?: VibeLang }>({ stop: () => {}, state: () => null });
 
-// Les pièces jointes d'un champ : tenues par l'appelant (vibe-coder), une liste par champ.
+// Les pièces jointes du questionnaire : tenues par l'appelant (vibe-coder), en une seule liste.
 export type StepPieces = { pieces: Piece[]; onRemove(p: Piece): void; onAttach(): void; onFiles(files: File[]): void };
 
-// Le champ d'une étape : son texte part avec l'action qui le prend (fieldOf) ; « @ » cite un artefact du projet.
-// Dans son cadre (PromptField), Joindre, le micro (dicter dans ce champ) et Envoyer (onSend : l'action du champ, fieldAction ; grisé sans elle).
-type FieldProps = StepPieces & {
-  name: string; text: string; setText(text: string): void; hint: string; artifacts?: VibeArtifact[]; artifactsDir?: string;
-  t: Strings; onSend(): void; sendDisabled: boolean; sendTitle?: string;
-};
-export function StepField({ name, text, setText, hint, artifacts = [], artifactsDir = '', t, onSend, sendDisabled, sendTitle, pieces, onRemove, onAttach, onFiles }: FieldProps) {
-  const input = useRef<HTMLTextAreaElement>(null);
-  const mention = useArtifactMention(artifacts, artifactsDir, input, setText);
-  return (
-    <div className="vc-step-field">
-      <PromptField t={t} text={text} setText={(v) => { setText(v); mention.update(); }} field={input} name={name} placeholder={hint} rows={3}
-        pieces={pieces} onRemove={onRemove} onAttach={onAttach} onFiles={onFiles}
-        onSend={onSend} sendDisabled={sendDisabled} sendTitle={sendTitle}
-        onKeyDown={mention.key} onBlur={() => setTimeout(mention.close, 150)}>
-        {mention.list}
-      </PromptField>
-    </div>
-  );
-}
-
 // L'en-tête d'une étape ; `own` : les actions que la vue montre elle-même (pas répétées ici) ; les masquées, nulle part.
-// `p` : StepProps, avec les pièces de son champ (vibe-coder les tient).
+// `p` : StepProps (le relevé, l'étape, les libellés, act) ; step.head tel que le principal le donne, aucun champ.
 export function StepHead({ p, own = [], children }: { p: StepProps; own?: string[]; children?: ReactNode }) {
   const { view, step, t, act, busy } = p;
-  const field = view.actions.some((a) => fieldOf(a) === step.id);
-  const sends = fieldAction(view.actions, step.id);
   const acts = stepActions(view, step, own);
   return (
     <div className="vc-step-head">
       <h2>{t.steps[step.id]}</h2>
       <span className="vc-badge" data-status={step.status}>{t.stepStatus[step.status]}</span>
-      {step.facts ? <span className="vc-facts">{step.facts}</span> : null}
+      {step.head ? <span className="vc-facts">{step.head}</span> : null}
       {acts.length ? (
         <div className="vc-step-acts">
           {acts.map(({ a, tone }) => <Run key={a.id} a={a} busy={busy} tone={tone} onRun={(x) => act.run(a.id, x)} />)}
         </div>
       ) : null}
       {children ? <div className="vc-step-tools">{children}</div> : null}
-      {field ? <StepField name={step.id} text={p.text} setText={p.setText} hint={t.fieldHint} artifacts={view.artifacts} artifactsDir={view.artifactsDir}
-        t={t} pieces={p.pieces} onRemove={p.onRemove} onAttach={p.onAttach} onFiles={p.onFiles}
-        onSend={() => { if (sends) act.run(sends.id); }} sendTitle={sends ? `${t.sendField} : ${sends.label}` : undefined}
-        sendDisabled={!sends || !!sends.disabled || (sends.needs === 'text' && !p.text.trim())} /> : null}
     </div>
   );
 }

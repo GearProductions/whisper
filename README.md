@@ -9,8 +9,7 @@ s'écoutent, lues en local par [Pocket TTS](https://github.com/kyutai-labs/pocke
 (Kyutai).
 
 - **Dicter** : chaque zone où l'on écrit à un agent (le champ de la
-  conversation, celui d'une étape, un commentaire, la réponse libre à une
-  question) a, en bas à droite, un **micro** puis *Envoyer*. **Maintenez** le
+  conversation, un commentaire, la réponse libre à une question) a, en bas à droite, un **micro** puis *Envoyer*. **Maintenez** le
   micro, parlez, relâchez (bip aigu = parlez, bip grave = fin) : le texte
   arrive dans ce champ, à relire avant d'envoyer.
 - **Écouter** : *▶ Écouter* sous une réponse de l'agent lit son résumé à voix
@@ -388,7 +387,7 @@ relecteur, plus bas).
 **Le dépôt.** Il faut un dossier sous git, à la racine du dépôt, et ses notes
 de ticket sous `docs/tickets/` ; sans dépôt, l'écran le dit et la
 conversation reste utilisable. Ce qu'on a commencé sur l'écran d'un agent
-(réponses aux questions, champ de chaque étape, modèle choisi, verdict de la
+(réponses aux questions, modèle choisi, verdict de la
 revue, étape choisie, et par étape : le fichier choisi, les dossiers pliés,
 l'onglet, le défilement, la vue IDE ou liste) l'attend quand on revient sur lui,
 le temps que l'appli tourne (un redémarrage l'oublie). En changeant d'agent, l'écran garde l'affichage d'avant jusqu'à ce
@@ -406,8 +405,8 @@ vide, l'en-tête et les robots ne bougent pas.
   masquée et **⚙ Réglages** (la page des réglages), puis les boutons de la
   fenêtre ;
 - au centre, en tête, le **fil d'Ariane** : les étapes en une ligne (point
-  plein : faite ; anneau qui pulse : en cours ; gris : à venir), leurs faits
-  au survol ; au bout, « N commits » déplie les commits de la branche, et le bouton
+  plein : faite ; anneau qui pulse : en cours ; gris : à venir), tous leurs faits
+  au survol (l'en-tête de l'étape, lui, n'en répète aucun qu'elle montre déjà) ; au bout, « N commits » déplie les commits de la branche, et le bouton
   **Vibe** (créateur seulement, à toutes les étapes ; *Arrêter Vibe* pendant
   qu'il tourne). Il
   mène : un clic (ou Ctrl+1…6) ouvre n'importe quelle étape, faite, en
@@ -415,12 +414,11 @@ vide, l'en-tête et les robots ne bougent pas.
   ouvrir une étape à venir ne lance rien ; seuls les boutons dont l'action
   a besoin d'une étape précédente restent grisés, leur raison au survol ;
 - dessous, sur toute la largeur, l'étape choisie — la note du ticket, ce
-  que les skills ont produit —, sur la ligne de son titre ses actions, et
-  dessous son **champ** (quand une de ses actions prend un texte ; son micro
-  et son *Envoyer*, qui lance l'action de l'étape) (à l'étape en cours, en tête :
-  celle qui fait avancer l'étape, discrètement mise en avant) ; chaque carte
+  que les skills ont produit —, sur la ligne de son titre ses actions (à
+  l'étape en cours, en tête : celle qui fait avancer l'étape, discrètement
+  mise en avant), sans champ : aucune étape n'en a ; chaque carte
   produite par un skill a son *Relancer* ; les champs où l'on écrit à un agent
-  (celui de l'étape, les réponses aux questions, la conversation) acceptent
+  (les réponses aux questions, la conversation) acceptent
   des **pièces jointes** (le trombone, glisser-déposer, Ctrl+V), qui partent avec
   l'action de leur champ ; l'étape Invariants se lit comme la Forme et les
   Modules : les tests à gauche, les cas du test choisi au centre ;
@@ -448,14 +446,18 @@ lance l'action dans **sa propre conversation**, avec son skill et son
 modèle, comme si vous aviez tapé `/vibecoder:note fr … votre demande` : la
 conversation de l'agent reste libre, vous lui parlez pendant ce temps. Un
 bouton qui a besoin d'un texte — la demande de feature, du pseudo-code —
-prend celui du **champ de son étape** : dictez-y (son micro, maintenu) ou
-écrivez, puis cliquez (ou son *Envoyer*) ; le champ se vide une fois l'action
-partie. Chaque zone de prompt a son micro : il donne le clavier à son champ,
-et la dictée y arrive — le champ d'une étape, un commentaire de relecteur,
-la réponse libre d'une question —, à la place de la sélection, sans dépasser
+prend celui du **champ de la conversation**, en bas (les étapes n'ont plus de
+champ) : dictez-y (son micro, maintenu) ou écrivez, puis cliquez sur le bouton
+(*Rédiger la note*, ou la nouvelle demande de la branche principale) ; le
+texte et ses pièces jointes partent avec l'action et le champ se vide ; vide :
+« Dictez ou écrivez d'abord votre demande dans le champ, puis cliquez. » et le
+champ prend le clavier. *Poser la forme* et *Écrire les invariants (rouges)*
+partent toujours sans texte, jamais avec votre brouillon. Chaque zone de
+prompt a son micro : il donne le clavier à son champ,
+et la dictée y arrive — un commentaire de relecteur, la réponse libre d'une
+question —, à la place de la sélection, sans dépasser
 sa longueur (pleine : rien n'est ajouté) ; une autre zone qui n'en a pas (un
-éditeur de code, un champ d'une ligne) : au champ de la conversation. Le champ de la
-conversation ne sert plus qu'à elle (et à *Où j'en suis ?*) ; *Commenter* sur un passage (de la note, d'une relecture) l'y cite, à
+éditeur de code, un champ d'une ligne) : au champ de la conversation. *Commenter* sur un passage (de la note, d'une relecture) l'y cite, à
 compléter puis envoyer.
 
 L'onglet **Actions** suit chaque action lancée : qui travaille, son état,
@@ -715,7 +717,7 @@ ou *GitHub* (sa page, dans le navigateur).
 **Le parcours** — les étapes du guide, les mêmes pour créer une feature et pour
 relire une PR (le relecteur, plus bas) :
 
-1. **Note** : *Rédiger la note* d'après la demande du champ de l'étape (sur la branche
+1. **Note** : *Rédiger la note* d'après la demande du champ de la conversation (sur la branche
    principale, c'est une nouvelle demande : l'agent propose d'abord un nom
    de branche, plus bas) ; ses questions
    ouvertes s'affichent à part, chacune avec un badge *important* ou *secondaire*,
@@ -766,7 +768,7 @@ relire une PR (le relecteur, plus bas) :
    squelettes ensemble (on modifie, on ne régénère pas) ; l'étape attend toujours
    votre *Valider la forme* (en *Vibe*, comme avant, sans clic).
 3. **Invariants** : *Écrire les invariants (rouges)*, d'après la note ou
-   d'après le pseudo-code écrit dans le champ de l'étape, à partir des squelettes
+   d'après la note, à partir des squelettes
    — dans la même action, l'alignement ne regarde que les invariants (chaque
    test observe vraiment sa ligne « → invariant », chaque test a sa ligne),
    corrige seul les tests (3 tours au plus, même hors *Vibe*) et ne vous remonte,
@@ -910,9 +912,12 @@ dossier.
 Une validation vaut pour le contenu validé : une note modifiée ensuite
 repasse « modifiée depuis », à revalider. Quand l'étape n'attend plus que
 votre validation, l'étape vous le dit (*Valider la note*, « N cas à valider »). Les lignes de la note que
-l'agent vient de changer sont surlignées depuis votre dernière relecture (*Voir les
-modifications* : le diff ; *Vu* ou la validation de la note : ne plus surligner ; un
-nouveau tour ne l'efface pas, les modifications s'accumulent). Le badge *variant* de
+l'agent vient de changer sont surlignées depuis votre dernière relecture, et ce
+qu'il a retiré s'affiche à sa place, en rouge barré (lecture seule : ni 💬, ni
+remarque ; une ligne changée montre son ancienne version juste au-dessus de la
+nouvelle) ; *Voir les modifications* : le diff brut ; *Vu* ou la validation de la
+note : ne plus surligner ni barrer ; un nouveau tour ne l'efface pas, les
+modifications s'accumulent. Le badge *variant* de
 la note est d'un bleu plus clair que *invariant*.
 
 **Relecteur** — la PR de la branche du dossier. Pas de bouton à choisir :
@@ -1038,7 +1043,7 @@ sans rien modifier (`git log`) ; il suit le distant tel que le dernier
 *Actualiser* l'a laissé : l'appli ne fait jamais de `git fetch` d'elle-même.
 
 **Une nouvelle demande.** Sur la branche principale, dictez la
-demande dans le champ de l'étape Note, puis *Rédiger la note* : l'agent
+demande dans le champ de la conversation, puis *Rédiger la note* : l'agent
 propose un nom de branche (Haiku, selon la convention du projet, sinon
 `<type>/<ticket>-<intitulé>` ou `<type>/<version>-<intitulé>`), et l'appli
 vous demande « Voulez-vous créer la branche … ? », le nom prérempli et
@@ -1117,7 +1122,7 @@ vous donnez la main à l'agent, vous testez et approuvez à la fin. Même
 écran, sans bannière (le bouton *Vibe* devient *Arrêter Vibe*) ; plus rien
 n'attend vos validations, et les étapes qu'il passe les gardent. En deux temps :
 
-1. la demande dans le champ, *Rédiger la note* ; l'agent vous pose
+1. la demande dans le champ de la conversation, *Rédiger la note* ; l'agent vous pose
    **toutes** les questions de la note (*Envoyer les réponses*, ou vos
    réponses dans la conversation : le questionnaire suit) — il n'en
    tranche aucune ; puis vous lisez la note et la validez (*Valider la

@@ -21,13 +21,18 @@
  *  après l'adresse d'une remarque ponytail) ; ce qu'elle couvre (tagCover, l'imbrication des listes)
  *  porte data-tag : [agent] grisé, toujours lisible ; une ligne [toi] sous lui reste normale ; sans
  *  étiquette : comme avant.
+ *  Avec removed (placeRemoved : les lignes retirées depuis la référence), chaque groupe est rendu à part
+ *  juste avant le bloc de premier niveau ou l'élément de liste qui le suit (end : après le dernier),
+ *  mis en forme comme le reste (parseMarkdown, jamais de HTML) et barré en rouge (vc-removed), en lecture
+ *  seule : ni 💬, ni pastille, ni zone de remarque, ni case ; les numéros de ligne (changed, tag, focus,
+ *  les citations) restent ceux du texte actuel.
  *  InlineMd : un texte d'une ligne (réponse proposée, cas limite…) en ligne.
  *  Ne connaît pas : le pont (rappels passés).
  *  Utilisé par : les vues d'étape (note-view en Relire, questions-view, forme-view, invariants-view,
  *  modules-view, review-view, pr-view, branches-view, commits-view, ecran-view, draft-view, runs-view) ;
  *  components (thread : un message de l'agent, sans onQuote ni onComment). */
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { blockQuotes, parseInline, parseMarkdown, tagCover, untag, type Block, type Inline, type Strings, type Tag } from 'core/vibecoder';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { blockQuotes, parseInline, parseMarkdown, tagCover, untag, type Block, type Inline, type RemovedPlaces, type Strings, type Tag } from 'core/vibecoder';
 import { CommentBox } from './comment-box';
 import { Icon } from './icons';
 import { TagBadge } from './tag-badge';
@@ -40,6 +45,7 @@ type Ctx = {
   blockEnd?(text: string): ReactNode;              // après le bloc qui a un 💬 (son texte brut), comme itemEnd
   onComment?(quote: string, text: string): void;   // Relire : 💬 ouvre une zone de commentaire sous ce qu'il cite
   changed?: Set<number>;           // lignes ajoutées ou changées (depuis 0)
+  removed?: RemovedPlaces;         // les lignes retirées, rendues à part et barrées, devant ce qui les suit
   tag?(line: number): ReactNode;   // devant le texte de l'élément de liste qui commence à cette ligne
   itemStart?(text: string): ReactNode;   // devant le texte d'un élément de liste (son texte brut)
   itemEnd?(text: string): ReactNode;   // après le texte d'un élément de liste (son texte brut)
@@ -67,13 +73,19 @@ export function MarkdownView({ md, ...given }: Ctx & { md: string }) {
       {blocks.map((b, i) => {
         const end = blocks[i + 1]?.line ?? Infinity;
         const tag = covers[i] ?? undefined;
-        return b.kind === 'list' || b.kind === 'rule' ? <BlockView key={i} b={b} end={end} ctx={ctx} tag={tag} /> : (
-          <div key={i} className="vc-block" data-changed={touched(ctx, b.line, end) || undefined} data-tag={tag} data-focus={ctx.focus === b.line || undefined}>
-            <BlockView b={b} end={end} ctx={ctx} /><Quote line={b.line} ctx={ctx} />
-            {ctx.quotes.has(b.line) ? ctx.blockEnd?.(ctx.quotes.get(b.line)!) : null}
-          </div>
+        return (
+          <Fragment key={i}>
+            {b.kind === 'list' ? null : <Removed md={ctx.removed?.before.get(b.line)} ctx={ctx} />}
+            {b.kind === 'list' || b.kind === 'rule' ? <BlockView b={b} end={end} ctx={ctx} tag={tag} /> : (
+              <div className="vc-block" data-changed={touched(ctx, b.line, end) || undefined} data-tag={tag} data-focus={ctx.focus === b.line || undefined}>
+                <BlockView b={b} end={end} ctx={ctx} done={b.line} /><Quote line={b.line} ctx={ctx} />
+                {ctx.quotes.has(b.line) ? ctx.blockEnd?.(ctx.quotes.get(b.line)!) : null}
+              </div>
+            )}
+          </Fragment>
         );
       })}
+      <Removed md={ctx.removed?.end} ctx={ctx} />
     </div>
   );
 }
@@ -135,11 +147,21 @@ function Inlines({ inline, ctx }: { inline: Inline[]; ctx: Full }) {
   );
 }
 
+// Un retrait : son Markdown rendu comme le reste mais sans rien d'interactif (contexte vide : ni 💬, ni
+// pastille, ni case, ni remarque), barré par vc-removed ; as : li dans une liste.
+function Removed({ md, ctx, as: Tag = 'div' }: { md?: string | null; ctx: Full; as?: 'div' | 'li' }) {
+  const blocks = useMemo(() => (md ? parseMarkdown(md) : []), [md]);
+  if (!blocks.length) return null;
+  const bare: Full = { t: ctx.t, onOpenLink: ctx.onOpenLink, open: { at: null, set: () => {} }, quotes: new Map() };
+  return <Tag className="vc-removed">{blocks.map((b, i) => <BlockView key={i} b={b} end={blocks[i + 1]?.line ?? Infinity} ctx={bare} />)}</Tag>;
+}
+
 const HEADINGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const;
 
 // end : la ligne où commence ce qui suit le bloc (la fin de son dernier élément de liste) ; tag : ce qui
-// couvre un bloc de premier niveau sans enveloppe (liste, filet).
-function BlockView({ b, end, ctx, tag }: { b: Block; end: number; ctx: Full; tag?: Tag }) {
+// couvre un bloc de premier niveau sans enveloppe (liste, filet) ; done : la ligne dont le retrait est déjà
+// rendu plus haut (un élément qui s'ouvre sur un autre, « - - a », n'en rend pas un second).
+function BlockView({ b, end, ctx, tag, done }: { b: Block; end: number; ctx: Full; tag?: Tag; done?: number }) {
   switch (b.kind) {
     case 'heading': {
       const H = HEADINGS[Math.min(6, Math.max(1, b.level)) - 1];
@@ -154,7 +176,9 @@ function BlockView({ b, end, ctx, tag }: { b: Block; end: number; ctx: Full; tag
             const next = b.items[i + 1]?.line ?? end;
             const sub = item.children.find((c) => c.kind === 'list')?.line ?? next; // une sous-liste a ses propres liserés
             return (
-              <li key={i} className={item.checked === null ? undefined : 'vc-task'} data-changed={touched(ctx, item.line, sub) || undefined}
+              <Fragment key={i}>
+              {item.line === done ? null : <Removed as="li" md={ctx.removed?.before.get(item.line)} ctx={ctx} />}
+              <li className={item.checked === null ? undefined : 'vc-task'} data-changed={touched(ctx, item.line, sub) || undefined}
                 data-tag={own(item.inline, ctx)} data-focus={ctx.focus === item.line || undefined}>
                 {item.checked === null ? null : <span className="vc-box" data-checked={item.checked || undefined} aria-hidden="true" />}
                 {ctx.itemStart?.(ctx.quotes.get(item.line) ?? '')}
@@ -162,14 +186,15 @@ function BlockView({ b, end, ctx, tag }: { b: Block; end: number; ctx: Full; tag
                 <Lead inline={item.inline} ctx={ctx} />
                 {ctx.itemEnd?.(ctx.quotes.get(item.line) ?? '')}
                 <Quote line={item.line} ctx={ctx} />
-                {item.children.map((c, j) => <BlockView key={j} b={c} end={item.children[j + 1]?.line ?? next} ctx={ctx} />)}
+                {item.children.map((c, j) => <BlockView key={j} b={c} end={item.children[j + 1]?.line ?? next} ctx={ctx} done={item.line} />)}
               </li>
+              </Fragment>
             );
           })}
         </List>
       );
     }
-    case 'quote': return <blockquote>{b.blocks.map((c, i) => <BlockView key={i} b={c} end={b.blocks[i + 1]?.line ?? end} ctx={ctx} />)}</blockquote>;
+    case 'quote': return <blockquote>{b.blocks.map((c, i) => <BlockView key={i} b={c} end={b.blocks[i + 1]?.line ?? end} ctx={ctx} done={done} />)}</blockquote>;
     case 'code': return <pre className="vc-code"><code>{b.text}</code></pre>;
     case 'table':
       return (

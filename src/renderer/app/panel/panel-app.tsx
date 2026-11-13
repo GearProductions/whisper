@@ -5,12 +5,16 @@
  *  colonne de droite de VibeCoder (affichée ou masquée, sa largeur : retenues
  *  ici, pour tous les agents) ; le volet des tâches de fond est son onglet
  *  Tâches. Tant que le relevé de l'agent affiché n'est pas là, rien n'est
- *  montré. Une action prend le texte que l'écran lui donne (le champ de son
- *  étape, une remarque) ; seul un message de la conversation (Demander sans
- *  modifier, Où j'en suis ?, Proposer les commandes) prend celui du champ de
- *  la conversation (vidé une fois parti), ou y prépare un message. La dictée
+ *  montré. Une action prend le texte que l'écran lui donne (une remarque) ;
+ *  un message de la conversation (Demander sans modifier, Où j'en suis ?,
+ *  Proposer les commandes) prend celui du champ de la conversation (vidé une
+ *  fois parti), ou y prépare un message ; une action qui exige une demande
+ *  (takesConversation : Rédiger la note, Nouvelle demande) prend ce champ et
+ *  ses pièces jointes (vidés une fois partie ; vide : « Dictez ou écrivez
+ *  d'abord… », le champ prend le clavier) ; Poser la forme, Écrire les
+ *  invariants partent sans texte. La dictée
  *  (le micro du champ, maintenu ; createDictation) rend le texte de whisper à
- *  la zone de texte qui a le clavier (champ d'étape, commentaire, réponse
+ *  la zone de texte qui a le clavier (commentaire, réponse
  *  libre ; pas un éditeur de code ni un champ d'une ligne), sous sa longueur,
  *  sinon au champ de la conversation ; sa phase (erreur, aucune parole) va à
  *  la ligne d'état du champ ; le micro de chaque champ d'agent de VibeCoder (contexte Mic ; une image jointe s'agrandit par le contexte Zoom,
@@ -46,13 +50,13 @@
  *  Ne connaît pas : le principal autrement que par le pont. Utilisé par : main.tsx. */
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import {
-  appendDictation, createDrafts, createPermissionGuard, EMPTY, followsEnd, IMAGE_TYPES, isBusy, revoke, titleOf, toDraft,
+  appendDictation, createDrafts, createPermissionGuard, EMPTY, followsEnd, IMAGE_TYPES, isBusy, piecesArg, revoke, titleOf, toDraft,
   withAttached, withPieces, type Draft, type Piece,
 } from 'core/conversation';
 import { createDictation, type Phase } from 'core/dictation';
 import { beepFor, lastShown, recent, shortcut, type PaletteMove, type Scope } from 'core/switcher';
 import { createSpeechPlayer } from 'core/speech';
-import { createKept, t as vibeStrings, withPrefill } from 'core/vibecoder';
+import { createKept, t as vibeStrings, takesConversation, withPrefill } from 'core/vibecoder';
 import type { AgentsState, Attached, Command, ConvApi, MicDevice, Notice, ProbeResult, SendResult, SettingsOp, SettingsView, Session, Thread, VibeArgs, VibeCode, VibeView } from 'technicals/bridge';
 import { beep, listInputs, openMic, record } from 'technicals/audio';
 import { dictationField, dictationText, imagePng } from 'technicals/dom';
@@ -118,7 +122,7 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
     stopSpeaking: player.stop,
     setPhase: (p, message) => { setMicPhase(p); if (message || p === 'starting') setStatus(message ?? ''); },
     onText: (text) => {
-      // Une autre zone de texte a le clavier (champ d'étape, commentaire, réponse libre) : la dictée
+      // Une autre zone de texte a le clavier (commentaire, réponse libre) : la dictée
       // s'y insère à la place de la sélection, sous sa longueur (son onChange suit) ; plus de place : rien.
       const f = dictationField(document.activeElement, el.input.current);
       const s = f && dictationText(f, text);
@@ -312,28 +316,32 @@ export function PanelApp({ conv }: { conv: ConvApi }) {
   }
 
   // VibeCoder : une action du relevé. 'prefill' : préparée dans le champ ;
-  // 'send' : envoyée, avec le texte que la vue donne (args.text : le champ de
-  // l'étape, une remarque). Sans lui, un message de la conversation dont le
-  // gabarit prend un texte emporte celui du champ de la conversation (exigé et
-  // vide : on le demande ; envoyé : le champ se vide, ses pièces jointes
-  // restent). true : partie.
+  // 'send' : envoyée, avec le texte que la vue donne (args.text : une remarque). Sans lui, un message de
+  // la conversation dont le gabarit prend un texte (Demander sans modifier, Où j'en suis ?, Proposer les
+  // commandes) emporte celui du champ de la conversation ; une action qui exige une demande (takesConversation :
+  // Rédiger la note, Nouvelle demande) y prend aussi les pièces jointes (exigé et vide : on le demande ;
+  // envoyé : le champ et ses pièces sont vidés). Poser la forme, Écrire les invariants (une étape) : sans texte.
+  // true : partie.
   async function vibeRun(id: string, args: VibeArgs = {}): Promise<boolean> {
     const a = vibe?.actions.find((x) => x.id === id);
     if (!vibe || !a || sending) return false;
     if (a.kind === 'prefill') { vibePrefill(id, ''); return false; }
-    const field = args.text === undefined && (a.needs === 'text' || a.usesText) ? draft.text.trim() : '';
+    const request = args.text === undefined && takesConversation(a);
+    const field = args.text === undefined && (request || (a.usesText && !a.step)) ? draft.text.trim() : '';
     if (a.needs === 'text' && !field && !args.text?.trim()) {
       setStatus(vibeStrings(vibe.lang).needText);
       if (args.text === undefined) el.input.current?.focus();
       return false;
     }
+    const pieces = request ? piecesArg(draft.pieces) : undefined;
     setStatus('');
     setSending(true);
     let res: SendResult | null = null;
-    try { res = await conv.vibeRun(id, field ? { ...args, text: field } : args); } catch { res = null; }
+    try { res = await conv.vibeRun(id, field ? { ...args, text: field, ...(pieces ? { pieces } : {}) } : args); } catch { res = null; }
     setSending(false);
     if (res && res.ok) {
-      if (field) setDraft((d) => ({ ...d, text: '' }));
+      if (field) setDraft((d) => ({ ...d, text: '', ...(request ? { pieces: [] } : {}) }));
+      if (request) revoke(draft.pieces);
       if (el.thread.current) el.thread.current.scrollTop = el.thread.current.scrollHeight;
       return true;
     }

@@ -6,7 +6,7 @@
     "kind": "send",
     "needs": "text",
     "label": "Rédiger la note",
-    "hint": "L'agent rédige ou met à jour la note du ticket d'après la demande du champ, et pose à part ses questions ouvertes ; sur la branche principale, il propose d'abord un nom de branche, que vous validez ou changez avant qu'elle ne soit créée.",
+    "hint": "L'agent rédige ou met à jour la note du ticket d'après la demande du champ de la conversation, et pose à part ses questions ouvertes ; sur la branche principale, il propose d'abord un nom de branche, que vous validez ou changez avant qu'elle ne soit créée.",
     "text": "/vibecoder:note {{lang}} {{out}} {{text}}"
   },
   {
@@ -37,7 +37,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Poser la forme",
-    "hint": "L'agent pose la rubrique « Forme » de la note (modules, signatures, contrats) sans écrire de code ; le champ peut la préciser.",
+    "hint": "L'agent pose la rubrique « Forme » de la note (modules, signatures, contrats) sans écrire de code.",
     "text": "/vibecoder:forme {{lang}} {{out}} {{text}}"
   },
   {
@@ -47,7 +47,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Écrire les invariants (rouges)",
-    "hint": "Écrit les tests d'invariants, rouges, d'après la note ou d'après le pseudo-code du champ ; l'alignement les vérifie et les corrige (align.md), 3 tours au plus ; ne commite pas.",
+    "hint": "Écrit les tests d'invariants, rouges, d'après la note ; l'alignement les vérifie et les corrige (align.md), 3 tours au plus ; ne commite pas.",
     "text": "/vibecoder:invariants {{lang}} {{out}} {{text}}"
   },
   {

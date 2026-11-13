@@ -132,7 +132,7 @@ l'action.
 
 | Variable | Valeur |
 |---|---|
-| `{{text}}` | le texte du champ de l'étape (sans étape : celui de la conversation) ; requis quand `needs` vaut `text`, sinon il peut être vide ; 20 000 caractères au plus |
+| `{{text}}` | le texte de la demande (à l'écran : celui du champ de la conversation, jamais pour Poser la forme ni Écrire les invariants ; par la CLI : celui qu'elle passe) ; requis quand `needs` vaut `text`, sinon il peut être vide ; 20 000 caractères au plus |
 | `{{out}}` | le dossier de sorties de l'agent : `userData/vibecoder-out/<agent>` |
 | `{{lang}}` | `fr` ou `en` |
 | `{{branch}}`, `{{base}}` | la branche et sa base (il faut un dépôt git) |

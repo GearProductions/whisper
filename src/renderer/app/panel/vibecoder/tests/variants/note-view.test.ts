@@ -153,3 +153,78 @@ it('le libellé du liseré, en français et en anglais', async () => {
   await draw({ flow: 'create', lang: 'en', note } as never);
   expect(page.querySelector('.vc-note-what')?.textContent).toContain('Changed since your last review');
 });
+
+// Les retraits depuis la référence (note.before) : rendus à leur place, barrés, lecture seule, en mode rendu seulement.
+const old = '# Titre\n\n- premier point\n- ancien point\n- second point\n';
+const now = '# Titre\n\n- premier point\n- second point\n- nouveau point\n';
+const changedNote = (over: object = {}) => ({ id: 'n', path: 'docs/tickets/x.md', text: now, before: old, locked: null, mustNot: [], mark: null, checked: true, ...over });
+// Le composant garde son état (Modifier, diff affiché) d'un cas à l'autre : on repart d'un montage neuf.
+const fresh = () => act(() => root.render(null));
+const removedIn = () => [...page.querySelectorAll<HTMLElement>('.vc-removed')];
+
+it('note changée depuis la référence : ajouts en vert, retraits barrés à leur place', async () => {
+  await fresh();
+  await draw({ flow: 'create', note: changedNote() } as never);
+  const [gone] = removedIn();
+  expect(removedIn()).toHaveLength(1);
+  expect(gone.tagName).toBe('LI');
+  expect(gone.textContent).toBe('ancien point');
+  expect(gone.nextElementSibling?.textContent).toContain('second point'); // à sa place : devant ce qui le suit
+  expect([...page.querySelectorAll('[data-changed]')].map((e) => e.textContent)).toEqual(['nouveau point']);
+});
+
+it('sans référence, ou rien de changé (après Vu ou la validation) : aucun retrait', async () => {
+  await fresh();
+  await draw({ flow: 'create', note: changedNote({ before: null }) } as never);
+  expect(removedIn()).toHaveLength(0);
+  await draw({ flow: 'create', note: changedNote({ before: now }) } as never);
+  expect(removedIn()).toHaveLength(0);
+  expect(page.querySelector('.vc-note-changes')).toBeNull();
+});
+
+it('Modifier, Brut : aucun retrait ; Voir les modifications : le diff brut, inchangé', async () => {
+  await fresh();
+  const code = { id: 'n', text: now, time: 1 };
+  await draw({ flow: 'create', note: changedNote() } as never, null, { code } as never);
+  await act(() => button('Modifier')!.click());
+  expect(page.querySelector('.cm-editor')).not.toBeNull();
+  expect(removedIn()).toHaveLength(0);
+  await act(() => button('Brut')!.click());
+  expect(removedIn()).toHaveLength(0);
+  await act(() => button('Modifier')?.click() ?? button('Fermer')!.click());
+  await act(() => button('Voir les modifications')!.click());
+  expect(removedIn()).toHaveLength(0);
+  expect(page.textContent).toContain('ancien point');
+  expect(page.querySelector('.vc-rawdiff')).not.toBeNull();
+});
+
+it('Relire : ni 💬, ni question, ni pastille, ni remarque sur un retrait', async () => {
+  await fresh();
+  await draw({ flow: 'review', note: changedNote(), draft: [{ id: 4, target: 'note: ancien point', text: 'remarque' }] } as never);
+  const [gone] = removedIn();
+  expect(gone.textContent).toBe('ancien point');
+  expect(gone.querySelector('button, textarea, .vc-mn, .vc-draft-list, .vc-remarks-muted')).toBeNull();
+});
+
+it('sans note : le texte d\'aide cite le champ de la conversation', async () => {
+  await fresh();
+  await draw({ flow: 'create', note: null } as never);
+  expect(page.textContent).toContain('dans le champ de la conversation');
+  expect(page.textContent).not.toContain('ci-dessus');
+  await draw({ flow: 'create', lang: 'en', note: null } as never);
+  expect(page.textContent).toContain('in the conversation field');
+  expect(page.textContent).not.toContain('above');
+});
+
+it('le retrait a sa feuille de style : rouge, barré', () => {
+  const css = fs.readFileSync('src/renderer/app/panel/vibecoder/note-view.css', 'utf8');
+  const rule = /\.vc-removed\s*\{([^}]*)\}/.exec(css);
+  expect(rule?.[1]).toMatch(/line-through/);
+  expect(rule?.[1]).toMatch(/var\(--vc-ko/);
+});
+
+it('un élément de liste retiré n\'a qu\'une puce, sans retrait de plus', () => {
+  const css = fs.readFileSync('src/renderer/app/panel/vibecoder/note-view.css', 'utf8');
+  expect(/li\.vc-removed\s*\{[^}]*list-style:\s*none/.exec(css)).not.toBeNull();
+  expect(/li\.vc-removed\s*>\s*:is\(ul,\s*ol\)\s*\{[^}]*padding-left:\s*0/.exec(css)).not.toBeNull();
+});

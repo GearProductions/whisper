@@ -46,8 +46,8 @@ VibeCoder dans le panneau (`docs/tickets/feat/0.8.0-vibecoder.md`) :
 
 | Module (`src/renderer/`) | Rôle |
 |---|---|
-| `core/vibecoder` | pur : Markdown en blocs (jamais de HTML, liens `http(s)` seuls, I-40), lignes changées (`lineDiff`), coloration du pseudo-code des lectures (`highlight`), ce que cite le *Commenter* de chaque bloc (`blockQuotes`, F-104), les lignes entières d'une sélection (`codeBlock`, F-98), libellés FR et EN |
-| `app/panel/vibecoder/` | l'écran (en-tête de la vue C : les robots des agents, `agent-notices`, la palette Ctrl+K, `palette`, F-92 ; l'accueil sans agent, `no-agent` ; fil d'Ariane des étapes, vues des étapes, leur champ et leurs actions, conversation, actions lancées, tâches et processus en onglets, barre des skills, barre d'état ; `settings-view` : la page des réglages, § 8 ; `prompt-field` : le seul composant de saisie d'un champ où l'on écrit à un agent — trombone, pièces, zone de texte, micro et *Envoyer*, F-68, F-69 ; `prompt-tools` : le micro et *Envoyer* de chaque zone de prompt, F-68 ; `code-view` : le code d'un fichier, numéroté, coloré, éditable, F-113 ; `module-code` : *Voir le code* d'un module, F-100 ; `note-editor` : la note éditable, F-104 ; `file-draft` : la modification gardée d'un fichier suivi, *Enregistrer*, *Abandonner*, partagée par les trois) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
+| `core/vibecoder` | pur : Markdown en blocs (jamais de HTML, liens `http(s)` seuls, I-40), lignes changées (`lineDiff`) et lignes retirées avec leur place (`removedGroups`, `placeRemoved`), coloration du pseudo-code des lectures (`highlight`), ce que cite le *Commenter* de chaque bloc (`blockQuotes`, F-104), les lignes entières d'une sélection (`codeBlock`, F-98), libellés FR et EN |
+| `app/panel/vibecoder/` | l'écran (en-tête de la vue C : les robots des agents, `agent-notices`, la palette Ctrl+K, `palette`, F-92 ; l'accueil sans agent, `no-agent` ; fil d'Ariane des étapes, vues des étapes et leurs actions, conversation, actions lancées, tâches et processus en onglets, barre des skills, barre d'état ; `settings-view` : la page des réglages, § 8 ; `prompt-field` : le seul composant de saisie d'un champ où l'on écrit à un agent — trombone, pièces, zone de texte, micro et *Envoyer*, F-68, F-69 ; `prompt-tools` : le micro et *Envoyer* de chaque zone de prompt, F-68 ; `code-view` : le code d'un fichier, numéroté, coloré, éditable, F-113 ; `module-code` : *Voir le code* d'un module, F-100 ; `note-editor` : la note éditable, F-104 ; `file-draft` : la modification gardée d'un fichier suivi, *Enregistrer*, *Abandonner*, partagée par les trois) ; ne connaît pas le pont : `panel-app.tsx` lui passe ses rappels et la colonne de la conversation |
 | `technicals/codemirror` | les réglages de CodeMirror 6, sans métier : le langage d'un fichier et la coloration (`languageFor`, `codeHighlight`, F-113), le Markdown mis en forme au fil de la frappe, liseré, pastilles et boutons en gouttière (`live-markdown`, F-104) |
 | `core/switcher` | pur : la palette Ctrl+K (`paletteItems`, portées, `pick` : ce que fait Entrée ou Maj+Entrée), les raccourcis (`shortcut` : Ctrl+K, Ctrl+Tab, Ctrl+N, Ctrl+Maj+B ; `recent`, `lastShown`), les robots de l'en-tête (`agentWhere`, `treeMark`, `signalKeys` : ce qui vient d'apparaître et bipe, F-55) |
 | `core/ui` | le thème de la vue C (`theme.css` : les couleurs en variables, les ombres, les polices Inter et JetBrains Mono embarquées dans `fonts/`, F-92) |
@@ -210,8 +210,8 @@ Erreurs : `notInstalled`, `badAudio`, `timeout`, `failed`, chacune avec son
 message dans la ligne d'état du champ de la conversation.
 
 **F-6 Où va le texte.** `dictation:transcribe` rend le texte à la page, qui
-l'insère dans la zone de texte qui a le clavier (le champ d'une étape, un
-commentaire, la réponse libre d'une question : § 7 bis, *La dictée*), sinon
+l'insère dans la zone de texte qui a le clavier (un commentaire, la réponse
+libre d'une question : § 7 bis, *La dictée*), sinon
 dans le **champ de la conversation**, à la suite du brouillon (F-68). Rien
 n'est collé ni envoyé : on relit, puis on envoie.
 
@@ -518,9 +518,9 @@ Dans le cadre du champ, des petites icônes : la pièce jointe (un trombone,
 F-69) au début ; en bas à droite, le micro *Dicter* puis *Envoyer* (une
 flèche), leur libellé en infobulle ; *Envoyer* à la couleur neutre des
 autres boutons (F-92). **Chaque zone de prompt** a le même cadre (un seul composant de saisie : trombone, pièces jointes, zone de texte, F-69) et la même paire micro +
-envoi : le champ d'une étape (*Envoyer* lance son action, F-93), la zone d'un
-commentaire « à revoir » ou 💬 (*Envoyer* l'ajoute), la réponse libre d'une
-question ouverte (*Envoyer* envoie les réponses). Le micro, maintenu, dicte
+envoi : la zone d'un commentaire « à revoir » ou 💬 (*Envoyer* l'ajoute), la
+réponse libre d'une question ouverte (*Envoyer* envoie les réponses) ; aucune
+étape n'a plus de champ (F-93, F-98). Le micro, maintenu, dicte
 (F-1, F-3) : le texte de whisper va à la zone de texte qui a le clavier,
 sinon à ce champ, à la suite du brouillon (espace de séparation), et y met
 le focus (F-98, *La dictée*). Seul le micro qu'on tient montre l'état de
@@ -637,7 +637,7 @@ palette (Ctrl+K) ou Ctrl+Tab (F-92). En changeant d'agent, l'écran garde
 l'affichage d'avant jusqu'à ce que la conversation **et** le relevé du nouvel
 agent soient là : jamais de page vide, l'en-tête et les robots ne bougent
 pas. Ce qu'on a commencé sur l'écran d'un agent (réponses aux questions,
-champ de chaque étape, modèle choisi, verdict de la revue, étape choisie) et
+modèle choisi, verdict de la revue, étape choisie) et
 ce que chaque étape retient (par agent **et** par étape : le fichier choisi,
 les dossiers pliés et le défilement des vues IDE, l'onglet *Structure* ·
 *Code* de la Forme, le module déplié et la vue *IDE* · *liste* de Modules, le
@@ -706,8 +706,9 @@ par l'🕘 Historique (F-67).
 - au centre, en tête, le **fil d'Ariane** : les étapes en une ligne,
   reliées par un trait (point plein : faite ; anneau à la couleur de
   l'agent, qui pulse : en cours, la première non faite ; gris : à venir),
-  chacune son libellé, ses faits en infobulle (« 2 fichiers · 5 cas · 3
-  lus ») ; trop étroit, il défile à l'horizontale. Au bout, « N commits »
+  chacune son libellé, **tous** ses faits en infobulle (« 2 fichiers · 5 cas · 3
+  lus » : l'étape n'y est pas affichée, c'est son seul résumé, alors que son
+  en-tête n'en répète aucun qu'elle montre déjà, F-93) ; trop étroit, il défile à l'horizontale. Au bout, « N commits »
   (à côté, *Vibe*, en créateur : F-93, F-103) déplie sous le fil, par-dessus l'étape, les commits de la branche (hash
   court, sujet ; `fixup!`, `squash!`, `amend!` en couleur d'attention ; un
   clic sur l'un : *Voir le diff*, *GitHub* et ses fichiers) ; un nouveau
@@ -788,9 +789,19 @@ de l'écran et le brouillon tiennent (S-72).
 **F-93 Les actions d'une étape, Relancer, barre des skills.**
 - Une action d'étape **court à part** de la conversation, dans sa propre
   conversation (une course, F-115) : pendant qu'elle tourne, on parle à
-  l'agent comme d'habitude. Sous le titre de l'étape, le **champ de
-  l'étape** quand une de ses actions prend un texte (F-98).
-- Sous le titre de l'étape (et son champ), une **rangée d'actions** compacte : celles de
+  l'agent comme d'habitude. **Aucune étape n'a de champ** (0.15.0) : une action
+  qui exige une demande, cliquée à l'écran, prend celui de la conversation
+  (F-98).
+- L'**en-tête** d'une étape, son titre et ses faits propres, ne répète rien de
+  ce qu'elle montre juste en dessous (le questionnaire, une carte, le résumé,
+  la validation à côté du chemin de la note) : « rédigée » ou « à rédiger » à la
+  Note ; « note modifiée depuis son commit » à la Forme ; à la Revue, les
+  fixups (« pas vérifiée » avant toute vérification, avec eux) ; « pas de
+  note », « pas de PR » tant que la carte n'est pas là ; rien aux Invariants, aux
+  Modules ni à la PR ouverte. Le relecteur : la Note de même, « pas de plan » à
+  la Revue sans plan, les Modules gardent leurs faits ; rien ailleurs. L'infobulle du fil
+  d'Ariane (F-92) les garde tous.
+- Sous le titre de l'étape, une **rangée d'actions** compacte : celles de
   l'étape, chacune avec qui travaille (F-99) et
   pourquoi elle est grisée ; sans celles qui n'ont pas encore de sens
   (masquées, F-99 ; pas celles qui attendent une étape précédente : grisées), ni celles que la vue montre déjà ailleurs
@@ -1145,8 +1156,7 @@ la variable qui le prend ; une action inconnue, grisée ou `prefill` est
 refusée.
 
 **F-97 Gabarit et variables** (liste fermée, I-38) : `{{text}}` (le champ
-de son étape — celui de la conversation pour un message sans étape, F-98 —,
-sans ses blancs autour, 20 000 caractères au plus) ; `{{out}}` (F-95) ;
+de la conversation, F-98, sans ses blancs autour, 20 000 caractères au plus) ; `{{out}}` (F-95) ;
 `{{lang}}` (`fr`, `en`) ; `{{branch}}`, `{{base}}` ; `{{note}}` (le chemin de
 la note) ; `{{ref}}` (`WORKTREE` en créateur, `HEAD` en relecteur : la PR est la
 branche du dossier, F-101) ; `{{files}}` (les tests d'invariants pas encore lus,
@@ -1183,23 +1193,24 @@ variables du gabarit) : `buildMessage` en tire les arguments ignorés, et la
 table des commandes (F-116) les cite pour chaque action.
 
 **F-98 Les champs** : une action dont le gabarit prend `{{text}}` emporte le
-texte de **son champ** s'il y en a, ou l'exige (`needs: text` ; vide →
-« Dictez ou écrivez d'abord votre demande dans le champ, puis cliquez. », le
-champ prend le clavier) : on dicte, puis on clique. Son champ :
-- une action d'étape : le **champ de l'étape**, sous son titre (F-93),
-  montré quand une de ses actions prend un texte — *Rédiger la note* (exigé),
-  *Poser la forme*, *Écrire les invariants (rouges)* ; la dictée y va quand
-  il a le clavier (ci-dessous) ;
-- un message sans étape (*Où j'en suis ?*,
-  *Proposer les commandes* ; la nouvelle demande, *Rédiger la note* sur la
-  base, prend le champ de l'étape, F-110) : le
-  **champ de la conversation**, qui ne sert plus qu'à elle et à eux.
+texte du **champ de la conversation** (le seul : plus aucune étape n'a le
+sien, 0.15.0), ou l'exige (`needs: text` ; vide → « Dictez ou écrivez d'abord
+votre demande dans le champ, puis cliquez. », le champ prend le clavier) : on
+dicte, puis on clique.
+- *Rédiger la note*, et la nouvelle demande de la base (F-110), cliquées à
+  l'écran : le texte du champ, exigé, **et ses pièces jointes** (F-69) ;
+  *Poser la forme* et *Écrire les invariants (rouges)* partent toujours sans
+  texte, jamais avec celui du champ : on n'envoie pas par surprise un brouillon
+  de la conversation. Par la CLI `vibecoder`, rien ne change ;
+- un message sans étape (*Où j'en suis ?*, *Proposer les commandes*) : le
+  texte du champ, s'il y en a, et lui seul.
 
 Sauf quand la vue donne elle-même le texte
 (*Appliquer* une remarque de la ponytail review : la remarque ; *Tout
-appliquer* : rien) : aucun champ ne part, ils restent tels quels. Partie, le
-champ se vide (celui de la conversation : ses pièces jointes restent, une
-action n'envoie pas d'image, et le fil descend) ; refusée, sa raison
+appliquer* : rien) : le champ ne part pas, il reste tel quel. Partie, le
+champ se vide (ses pièces jointes aussi pour *Rédiger la note* qui les a
+emportées ; pour un message sans étape elles restent, une action n'envoie pas
+d'image) et le fil descend ; refusée, sa raison
 s'affiche sous le champ de la conversation. Une action `prefill`
 ajoute son texte au champ de la conversation (à la ligne s'il n'est pas vide), `{{quote}}`
 remplacé par ce qu'on cite (une ligne, 300 caractères au plus ; des lignes de
@@ -1222,8 +1233,8 @@ fermée), à la suite de ce qui y est déjà écrit, rien d'effacé — le relec
 précise, et seul *Ajouter* le verse au brouillon.
 
 **La dictée** (le micro de chaque zone de prompt, maintenu, F-68 : il donne
-le clavier à son champ) va à la zone de texte qui a le clavier : le
-champ d'une étape, la zone de commentaire du relecteur (*Commenter*, le bouton de remarque d'un
+le clavier à son champ) va à la zone de texte qui a le clavier : la zone de
+commentaire du relecteur (*Commenter*, le bouton de remarque d'un
 *À revoir*, une remarque du brouillon), la réponse libre d'une question ouverte ; à la place de la
 sélection, précédée d'une espace si le texte avant le curseur ne finit pas
 par un blanc, coupée à la longueur de la zone (un commentaire : 5 000
@@ -1773,8 +1784,18 @@ créateur ; le relecteur, F-101) :
    hors d'un skill). Montre la note rendue
    (F-104), à jour pendant que l'agent l'écrit : ce qui a changé depuis la
    dernière relecture (« Changée depuis votre dernière relecture ») porte un
-   liseré, *Voir les modifications* montre le diff brut (retraits compris,
-   replié autour des changements), *Vu* en repart. La référence est posée une
+   liseré ; ce qui a été **retiré** depuis s'affiche aussi, à sa place, en
+   rouge barré : l'ancienne version d'une ligne changée juste au-dessus de la
+   nouvelle, les lignes retirées d'un même endroit ensemble, juste avant le
+   bloc ou l'élément de liste qui les suit (à la fin de la note s'il n'y en a
+   pas ; au milieu d'un paragraphe, d'un tableau ou d'un bloc de code : avant
+   lui entier), mises en forme comme la note (une puce reste une puce, jamais
+   de HTML, I-40), en lecture seule : ni 💬, ni pastille, ni remarque, et les
+   numéros de ligne restent ceux de la note actuelle. Rendue seulement (ni
+   *Modifier* ni *Brut*) ; *Voir les modifications* reste le seul à montrer le
+   diff brut (retraits compris, replié autour des changements), *Vu* en repart
+   (le liseré et les retraits disparaissent, de même que par la validation de
+   la note). La référence est posée une
    seule fois, au premier relevé où l'agent ou une course qui modifie la branche
    travaille, puis ne change que par *Vu* ou par la validation de la note
    (*Valider*, *Revalider*, *Valider et vérifier* : la note à l'écran au clic) ;
@@ -1810,7 +1831,7 @@ créateur ; le relecteur, F-101) :
    réponses* envoie ; une liste de pièces jointes pour tout le questionnaire,
    F-69) ; *Envoyer les réponses* les envoie en une fois, une par question
    (grisé tant qu'aucune n'a de réponse). Prochaine action : *Rédiger la
-   note* (la demande du champ de l'étape), puis *Envoyer les réponses*, puis
+   note* (la demande du champ de la conversation), puis *Envoyer les réponses*, puis
    *Valider la note*. Le premier clic du créateur s'appelle **« Valider et
    vérifier »** et ne valide rien : il lance la **vérification de conception**
    (l'action `design-check`, le skill `conception`, *opus · élevé*, une seule
@@ -1877,7 +1898,7 @@ créateur ; le relecteur, F-101) :
    sinon). Sans Forme dans la note, ou sans note : l'invitation, puis
    l'arborescence des fichiers que change la branche (`VibeView.files`, ids
    `b<i>`), pour suivre une petite PR qui n'a pas fait toutes les étapes. *Poser
-   la forme* (le champ de l'étape peut la préciser) écrit dans le même passage les
+   la forme* écrit dans le même passage les
    **squelettes** dans le code — les chemins, les en-têtes (le contrat), les
    signatures typées, des corps qui échouent, le typage du projet qui passe —,
    puis recopie la forme dans la note ; une retouche, à n'importe quelle étape,
@@ -1899,7 +1920,7 @@ créateur ; le relecteur, F-101) :
    changement de la note, comme *Valider la note*). Pendant *Vibe* aussi, rien
    d'automatique : la course finie ou la validation. *Lire en pseudo-code*
    n'est qu'une aide à la lecture, facultative. Montre le
-   résumé (cas, validés, refusés, modifiés depuis, avec un point d'attention,
+   résumé (fichiers, cas, validés, refusés, modifiés depuis, avec un point d'attention,
    à lire), l'alignement (`align.md`, avec *Relancer* en créateur, F-93 : chaque
    écart porte son étiquette, F-95), puis,
    en **vue IDE** comme la Forme et les Modules (la seule), à gauche, par dossier,
@@ -1941,7 +1962,7 @@ créateur ; le relecteur, F-101) :
    alors montré), et son texte au commit d'où part la branche (par git ;
    aucun : ajouté par la branche, ou au-delà de 200 000 caractères). En tête : *Tout relire* (dès qu'un fichier
    est lu). Prochaine action : *Écrire les invariants
-   (rouges)* (le texte d'aide de l'étape sans test la cite sous ce nom ; d'après la note, ou le pseudo-code du champ de l'étape, à partir
+   (rouges)* (le texte d'aide de l'étape sans test la cite sous ce nom ; d'après la note, à partir
    des squelettes de la forme) tant qu'il
    n'y a pas de test, puis les cas à valider (dans la vue), *✓ Commiter* (un
    commit préparé), *Préparer le commit* (des fichiers à commiter ; un fichier déjà porté par
@@ -2107,7 +2128,7 @@ créateur ; le relecteur, F-101) :
    chacune (✓, ✗, ou ! et la pastille orange « avertissements » ; le détail
    déplié en cas d'échec ; *Relancer*, qui ne relance qu'elle, F-93), le compte de la carte « n en échec »
    en rouge, sinon « n avertissements » en orange, sinon « n / n ok » ; les
-   faits de l'étape ajoutent « n avertissements » ; la ponytail
+   faits de l'étape (l'infobulle du fil d'Ariane) ajoutent « n avertissements » ; la ponytail
    review rendue, *Commenter* et *Appliquer* par remarque, une case devant
    chaque remarque pas appliquée (cochée par défaut ; les décochées oubliées
    à une nouvelle review), *Tout appliquer* sur la carte quand toutes sont
@@ -2364,7 +2385,7 @@ une ligne, ou pas de réponse → refusé, rien ne bouge.
   locales*) : `git switch <branche>` (une branche du dernier relevé) ; grisé
   avec des modifications (*Mettre de côté* à côté), comme tout `git switch`.
 - **Une nouvelle demande.** Sur la base, *Rédiger la note*
-  (F-100 ; la demande du champ de l'étape, exigée) part comme une nouvelle
+  (F-100 ; la demande du champ de la conversation, exigée) part comme une nouvelle
   demande (`new-request`) : le message part à l'agent (skill
   `nouvelle-demande`, sous-contexte, haiku · faible), qui propose un nom de
   branche d'après la demande, selon la convention du projet (sinon
@@ -3604,11 +3625,11 @@ qui dit combien de commandes de la table sont couvertes, nomme celles sans cas
 - **S-4** *(retiré en 0.14.0 : collage automatique décoché.)*
 - **S-5** *(retiré en 0.14.0 : dicter dans un terminal.)* Une dictée longue :
   une seule ligne dans le champ.
-- **S-6** Le champ d'une étape a le clavier, maintenir le micro de la
-  conversation → le texte va au champ de l'étape ; le micro du champ d'une
-  étape, d'un commentaire, de la réponse libre d'une question → le texte dans
-  ce champ ; *Envoyer* de chacun fait ce que fait son bouton (lancer l'action
-  de l'étape, ajouter le commentaire, envoyer les réponses). Seul le micro tenu
+- **S-6** Une zone de commentaire a le clavier, maintenir le micro de la
+  conversation → le texte va à cette zone ; le micro d'un commentaire, de la
+  réponse libre d'une question → le texte dans ce champ ; *Envoyer* de chacun
+  fait ce que fait son bouton (ajouter le commentaire, envoyer les réponses).
+  Aucune étape n'a de champ : ni à la Note, ni à la Forme, ni aux Invariants. Seul le micro tenu
   s'allume (rose, « enregistre », « transcrit ») : les autres restent au repos.
 - **S-7** Discord en appel, coupure autorisée : « Micro Discord coupé » en
   tête de la fenêtre, rétabli au relâché ; micro déjà coupé avant → toujours
@@ -3648,7 +3669,7 @@ qui dit combien de commandes de la table sont couvertes, nomme celles sans cas
   champ), *Reprendre*, *← Conversation en cours*.
 - **S-28** Pièces jointes : capture collée, image et fichier déposés, image
   choisie par le trombone du champ ; l'agent les reçoit ; le fil les montre. Les mêmes
-  dans le champ d'une étape (*Rédiger la note*) et dans les réponses du questionnaire
+  dans le champ de la conversation pour *Rédiger la note* et dans les réponses du questionnaire
   (*Envoyer les réponses*) : elles partent avec cette action seule, la course les reçoit ;
   une action dont le gabarit n'a ni `{{text}}` ni `{{answers}}` les ignore et le dit.
 - **S-29** « /comp » → /compact proposé, Entrée le choisit, le message part ;
@@ -3718,7 +3739,7 @@ relire, une PR d'essai sur GitHub)
   VibeCoder), *Général* (dossier whisper, configuration, version, quitter) ; un
   champ s'écrit en le quittant ou par Entrée, une valeur refusée (volume 7,
   commande à saut de ligne) n'écrit rien.
-- **S-52** Sur la base, champ vide, *Rédiger la note* : « Dictez ou écrivez
+- **S-52** Sur la base, champ de la conversation vide, *Rédiger la note* : « Dictez ou écrivez
   d'abord… », rien n'est envoyé. Dicter une demande → dans le champ ;
   *Rédiger la note* : l'agent propose un nom de branche ; « Voulez-vous
   créer la branche … ? », le nom prérempli, modifiable ; rien n'est créé
@@ -3798,7 +3819,8 @@ relire, une PR d'essai sur GitHub)
   comme par *Interrompre* (« Interrompu. »), les boutons se rallument.
 - **S-63** Pas de carte « Prochaine étape » : les actions de l'étape sont
   sur la ligne de son titre (elles passent à la ligne s'il manque de la
-  place), celle qui fait avancer en tête ; le champ de l'étape dessous. Une carte de sortie
+  place), celle qui fait avancer en tête ; aucun champ dessous (la demande se
+  dicte dans celui de la conversation). Une carte de sortie
   (relecture du diff, vérifications…) : *Relancer* la refait ; l'alignement
   et la ponytail review n'en ont pas. La vue des branches, *Revenir sur la
   branche principale* → le dossier sur la base, plus de badge *Relecteur*. Une commande en
@@ -3855,9 +3877,10 @@ relire, une PR d'essai sur GitHub)
   done. », rien ne bouge ; fusionnée → sur la base, à jour, branche locale
   supprimée. `direct.log` : une ligne par commande.
 - **S-68** Courses (F-115), une branche de ticket : à l'étape
-  **Forme**, un mot dans le champ de l'étape, *Poser la forme* → le champ se
-  vide, « en cours » et *Arrêter* à côté du bouton, *Actions (1)* ; pendant ce temps,
-  une question dans le champ de la conversation → l'agent répond. *Écrire
+  **Forme**, un brouillon dans le champ de la conversation, *Poser la forme* →
+  elle part sans lui, le brouillon reste ; « en cours » et *Arrêter* à côté du
+  bouton, *Actions (1)* ; pendant ce temps, une question dans le champ de la
+  conversation → l'agent répond. *Écrire
   les invariants (rouges)* grisé « Une autre action est en cours » ; à
   l'étape Revue, *Lancer les vérifications et la ponytail review* grisé
   « Une action modifie la branche ».
@@ -3947,7 +3970,12 @@ relire, une PR d'essai sur GitHub)
   d'*Envoyer* dans le champ d'une question, le micro gardé. L'étape Note : le
   badge `variant` plus clair que `invariant` ; *Revérifier* (neutre) avant
   *Revalider*, *en cours* / *en attente* à côté ; plusieurs messages à l'agent
-  sans *Vu* → le surlignage s'accumule, *Vu* ou *Revalider* le remettent à zéro.
+  sans *Vu* → le surlignage s'accumule, *Vu* ou *Revalider* le remettent à zéro ;
+  une ligne retirée s'affiche à sa place, barrée en rouge, sans 💬 ni remarque, et
+  disparaît de même ; *Voir les modifications* reste le diff brut. Les en-têtes
+  des étapes sans doublon (« 3 fichiers · 21 cas · 0 validé · 18 à lire » sous la
+  barre des Invariants, plus rien à côté du titre), l'infobulle du fil d'Ariane
+  entière.
 - **S-75** Les courses fiables et cantonnées (0.15.0) : l'agent principal en
   *Manuel* ; *Poser la forme*, *Générer les modules*, *Lancer les vérifications*
   → aucune demande d'autorisation, l'onglet *Actions* n'en montre plus ;
@@ -3972,6 +4000,15 @@ relire, une PR d'essai sur GitHub)
   lancée par l'appli. Une course qui écrit sans fin dans son dossier temporaire
   → arrêtée au-delà de 1 Go, la ligne en tête le dit ; à la fin de toute course,
   son dossier temporaire (sous les sorties de l'agent) n'existe plus.
+- **S-77** L'écran épuré (0.15.0) : les étapes Note, Forme et Invariants n'ont
+  plus de zone de prompt ; *Rédiger la note* prend sa demande dans le champ de la
+  conversation, ses pièces jointes comprises (champ vide → le message, le champ
+  prend le clavier) ; l'en-tête d'une étape ne répète plus ce qu'elle montre en
+  dessous (Invariants : la ligne sous la barre donne aussi le nombre de
+  fichiers). La note changée depuis la référence, sans *Vu* : ses passages
+  supprimés s'affichent, barrés en rouge, juste avant le bloc qui les suit
+  (deux lignes retirées séparées, un élément de liste retiré comme un élément),
+  sans 💬 ni pastille ; les ajouts en vert, comme avant ; *Vu* efface les deux.
 ---
 
 ## 14. Limites connues
