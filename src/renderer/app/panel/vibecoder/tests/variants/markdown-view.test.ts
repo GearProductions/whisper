@@ -108,3 +108,110 @@ it('focus : la note change (l\'agent écrit ailleurs), la ligne visée est la m�
     expect(scrolls).toBe(2);
   } finally { proto.scrollIntoView = before; }
 });
+
+// removed : les retraits, rendus à part, barrés, en lecture seule, devant ce qui les suit.
+const gone = (before: [number, string][] = [], end: string | null = null) => ({ removed: { before: new Map(before), end } });
+const removed = () => [...page.querySelectorAll('.vc-removed')];
+const marks = {
+  onComment: () => {}, onAsk: () => {},
+  tag: () => createElement('i', { className: 'm-tag' }),
+  itemStart: () => createElement('i', { className: 'm-start' }),
+  itemEnd: () => createElement('i', { className: 'm-end' }),
+  blockEnd: () => createElement('i', { className: 'm-block' }),
+};
+
+it('removed : devant un paragraphe, à sa place, vc-removed', async () => {
+  await draw({ md: 'Un.\n\nDeux.', ...gone([[2, 'Ancien.']]) });
+  const kids = [...page.querySelector('.vc-md')!.children];
+  expect(kids.map((k) => k.className)).toEqual(['vc-block', 'vc-removed', 'vc-block']);
+  expect(kids[1].textContent).toBe('Ancien.');
+  expect(kids[1].querySelector('p')).not.toBeNull();
+});
+
+it('removed : à la ligne 0, avant tout', async () => {
+  await draw({ md: 'Un.', ...gone([[0, 'Avant.']]) });
+  expect([...page.querySelector('.vc-md')!.children].map((k) => k.textContent)).toEqual(['Avant.', 'Un.']);
+});
+
+it('removed : devant un élément de liste, un li vc-removed dans la liste', async () => {
+  await draw({ md: '- a\n- b', ...gone([[1, 'x']]) });
+  const ul = page.querySelector('ul')!;
+  expect([...ul.children].map((k) => `${k.tagName}.${k.className}`)).toEqual(['LI.', 'LI.vc-removed', 'LI.']);
+  expect(ul.children[1].textContent).toBe('x');
+});
+
+it('removed : devant le premier élément d\'une liste, un li vc-removed dans la liste (rien en double)', async () => {
+  await draw({ md: '- a\n- b', ...gone([[0, 'x']]) });
+  expect(removed()).toHaveLength(1);
+  const ul = page.querySelector('.vc-md')!.firstElementChild!;
+  expect(ul.tagName).toBe('UL');
+  expect([...ul.children].map((k) => `${k.tagName}.${k.className}`)).toEqual(['LI.vc-removed', 'LI.', 'LI.']);
+});
+
+it('removed : devant un élément imbriqué, dans sa sous-liste', async () => {
+  await draw({ md: '- a\n  - b\n  - c', ...gone([[2, 'x']]) });
+  const inner = page.querySelector('ul ul')!;
+  expect([...inner.children].map((k) => `${k.className}:${k.textContent}`)).toEqual([':b', 'vc-removed:x', ':c']);
+});
+
+it('removed : un élément qui s\'ouvre sur un autre (`- - a`, `> - a`) : un seul retrait', async () => {
+  await draw({ md: '- - a', ...gone([[0, 'x']]) });
+  expect(removed()).toHaveLength(1);
+  await draw({ md: '> - a', ...gone([[0, 'x']]) });
+  expect(removed()).toHaveLength(1);
+});
+
+it('removed : end, après le dernier bloc ; end seul, sans before', async () => {
+  await draw({ md: 'Un.\n\n- a', ...gone([], 'Fin.') });
+  const kids = [...page.querySelector('.vc-md')!.children];
+  expect(kids.map((k) => k.className)).toEqual(['vc-block', '', 'vc-removed']);
+  expect(kids[2].textContent).toBe('Fin.');
+});
+
+it('removed : before vide et end null : rien de barré', async () => {
+  await draw({ md: 'Un.\n\n- a', ...gone() });
+  expect(removed()).toHaveLength(0);
+  await draw({ md: 'Un.' });
+  expect(removed()).toHaveLength(0);
+});
+
+it('removed : une puce reste une puce, un titre un titre, le gras du gras, du code du code', async () => {
+  await draw({ md: 'Un.', ...gone([], '# Titre\n\n- puce\n\n**gras**\n\n```\ncode\n```') });
+  const r = removed()[0];
+  expect(r.querySelector('h1')?.textContent).toBe('Titre');
+  expect(r.querySelector('ul > li')?.textContent).toBe('puce');
+  expect(r.querySelector('strong')?.textContent).toBe('gras');
+  expect(r.querySelector('pre.vc-code code')?.textContent).toBe('code');
+});
+
+it('removed : un retrait qui est un bloc de code, devant un bloc', async () => {
+  await draw({ md: 'Un.', ...gone([[0, '```\nx <b>\n```']]) });
+  expect(removed()[0].querySelector('pre code')?.textContent).toBe('x <b>');
+});
+
+it('removed : du HTML dans un retrait est rendu en texte (I-40)', async () => {
+  await draw({ md: 'Un.', ...gone([[0, '<b>gras</b> <img src=x onerror=alert(1)>']], '- <script>x</script>') });
+  expect(page.querySelector('b, img, script')).toBeNull();
+  expect(removed()[0].textContent).toContain('<b>gras</b>');
+  expect(removed()[1].textContent).toContain('<script>x</script>');
+});
+
+it('removed : onQuote, onComment, onAsk, tag, itemStart, itemEnd, blockEnd : rien sur un retrait', async () => {
+  await draw({ md: 'Un.\n\n- a', ...marks, ...gone([[0, 'P'], [2, '- I']], 'Fin.') });
+  expect(removed()).toHaveLength(3);
+  for (const r of removed()) expect(r.querySelector('button, .vc-quote, .m-tag, .m-start, .m-end, .m-block, textarea')).toBeNull();
+  expect(page.querySelectorAll('.vc-quote').length).toBeGreaterThan(0);   // le texte actuel les garde
+  expect(page.querySelectorAll('.m-start').length).toBe(1);
+});
+
+it('removed : focus et changed visent les lignes du texte actuel', async () => {
+  const proto = Element.prototype as { scrollIntoView?: () => void };
+  const before = proto.scrollIntoView;
+  proto.scrollIntoView = () => {};
+  try {
+    await draw({ md: 'Un.\n\n- a\n- b', focus: 3, changed: new Set([2]), ...gone([[0, 'P'], [3, 'x']], 'Fin.') });
+  } finally { proto.scrollIntoView = before; }
+  expect([...page.querySelectorAll('[data-focus]')].map((e) => e.textContent)).toEqual(['b']);
+  expect([...page.querySelectorAll('[data-changed]')].map((e) => e.textContent)).toEqual(['a']);
+  expect(page.querySelector('.vc-removed [data-focus], .vc-removed [data-changed]')).toBeNull();
+});
