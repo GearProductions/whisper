@@ -132,3 +132,7 @@ button.vc-chip:hover { border-color: var(--vc-edge); color: var(--vc-text); }
 
 /* Une action dont la course est en cours : « en cours » et ⏹ (IconButton stop), à côté de son bouton. */
 .vc-run-on { display: inline-flex; align-items: center; gap: 2px; margin-left: 5px; color: var(--vc-accent); font-size: 12px; }
+
+/* Une étape modifiée depuis sa validation : son libellé, un bouton (la vue IDE passe sur Depuis la validation). */
+.vc-since { padding: 1px 8px; border: 1px solid var(--vc-warn-edge); border-radius: 4px; background: transparent; color: var(--vc-warn); font: 12px var(--vc-sans); cursor: pointer; }
+.vc-since:hover { background: var(--vc-warn-bg); }

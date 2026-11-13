@@ -17,7 +17,12 @@
  *  Retirer le worktree est dans la vue des branches).
  *  StepPieces : les pièces jointes du questionnaire et leurs rappels, tenus par l'appelant (vibe-coder) ;
  *  Plus de champ d'étape (StepField, fieldHint). Une action n'a plus de choix de modèle ni d'effort à l'écran
- *  (le principal les pose) : le bouton montre qui travaille (`who`).
+ *  (le principal les pose) ; qui travaille (`who`) n'est plus sur le bouton ni sur « via » : dans leur infobulle,
+ *  sous l'explication (« — sonnet ») ; « direct » reste (note 0.15.0-ecran-statuts).
+ *  StepHead, la validation de l'étape (step.check, note 0.15.0-ecran-statuts), à côté du titre, à la place des
+ *  faits de head : changed, « modifiée depuis la validation », un bouton qui appelle onSince (le menu de diff de la
+ *  vue IDE passe sur Depuis la validation) ; cascade, « à revoir : <l'étape cause> a changé », en texte (le principal
+ *  les écrit dans step.head, rien n'est répété ici). Retirés : « périmée », son diff et Revalider.
  *  Ne connaît pas : le pont (rappels passés ; ⏹ et la langue par le contexte StopRun).
  *  Utilisé par : les vues d'étape ; vibe-coder (badge Relecteur,
  *  badge du worktree). */
@@ -52,14 +57,19 @@ export type StepPieces = { pieces: Piece[]; onRemove(p: Piece): void; onAttach()
 
 // L'en-tête d'une étape ; `own` : les actions que la vue montre elle-même (pas répétées ici) ; les masquées, nulle part.
 // `p` : StepProps (le relevé, l'étape, les libellés, act) ; step.head tel que le principal le donne, aucun champ.
-export function StepHead({ p, own = [], children }: { p: StepProps; own?: string[]; children?: ReactNode }) {
+// onSince : le clic sur « modifiée depuis la validation » ; absent : un texte, sans clic.
+export function StepHead({ p, own = [], children, onSince }: { p: StepProps; own?: string[]; children?: ReactNode; onSince?(): void }) {
   const { view, step, t, act, busy } = p;
   const acts = stepActions(view, step, own);
+  // head dit déjà « modifiée depuis la validation » ou « à revoir : … » (le principal) : changed en fait un bouton, rien n'est répété.
+  const head = step.head ? (step.check?.state === 'changed' && onSince
+    ? <button type="button" className="vc-since" onClick={onSince}>{step.head}</button>
+    : <span className="vc-facts">{step.head}</span>) : null;
   return (
     <div className="vc-step-head">
       <h2>{t.steps[step.id]}</h2>
       <span className="vc-badge" data-status={step.status}>{t.stepStatus[step.status]}</span>
-      {step.head ? <span className="vc-facts">{step.head}</span> : null}
+      {head}
       {acts.length ? (
         <div className="vc-step-acts">
           {acts.map(({ a, tone }) => <Run key={a.id} a={a} busy={busy} tone={tone} onRun={(x) => act.run(a.id, x)} />)}
@@ -119,15 +129,16 @@ export function Run({ a, busy, label, tone = 'plain', onRun }: RunProps) {
   const direct = send ? a.direct : undefined;
   const off = !!a.disabled || waits;
   const offDirect = !!a.disabled || (waits && !direct?.elsewhere);   // elsewhere : un autre dossier que celui de l'agent, « via » reste grisé (I-25)
+  const tip = (...more: (string | null | undefined)[]) => [a.hint, ...more].filter(Boolean).join('\n');   // hint, puis chaque ligne « — … » non vide
+  const who = send && a.who ? `— ${a.who}` : null;
   const state = run.state(a.id);
   const live = isLive(state);   // sa course retient les autres
   const running = live && state ? <RunOn state={state} t={t} onStop={() => run.stop(a.id)} /> : null;
   const button = (
     <button type="button" className="vc-run" data-tone={tone} disabled={offDirect}
-      title={a.disabled ? `${a.hint}\n— ${a.disabled}` : a.hint} onClick={() => (direct ? onRun({ direct: true }) : onRun())}>
+      title={tip(direct ? null : who, a.disabled && `— ${a.disabled}`)} onClick={() => (direct ? onRun({ direct: true }) : onRun())}>
       <span className="vc-run-label">{label ?? a.label}</span>
-      {direct ? <span className="vc-run-who">direct</span>
-        : send && tone !== 'ghost' ? <span className="vc-run-who">{a.who}</span> : null}
+      {direct ? <span className="vc-run-who">direct</span> : null}
       {a.disabled && !waits && tone !== 'ghost' && !direct?.running && !live ? <span className="vc-run-why">{a.disabled}</span> : null}
     </button>
   );
@@ -138,9 +149,7 @@ export function Run({ a, busy, label, tone = 'plain', onRun }: RunProps) {
         <span className="vc-run-group">
           {button}
           {direct.only ? null : (
-            <button type="button" className="vc-via" disabled={off} title={a.hint} onClick={() => onRun()}>
-              via<span className="vc-run-who">{a.who}</span>
-            </button>
+            <button type="button" className="vc-via" disabled={off} title={tip(who)} onClick={() => onRun()}>via</button>
           )}
           {running}
         </span>

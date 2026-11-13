@@ -90,8 +90,79 @@ it('Note, Forme, Invariants : ni champ, ni Joindre, ni micro, ni Envoyer ; leurs
   }
 });
 
-it('une action d\'envoi montre qui travaille, sans liste de modèle ni d\'effort', async () => {
-  await render(createElement(Run, { a: action({ who: 'agent', models: ['opus', 'sonnet'], model: 'opus', efforts: ['low'] }), busy: false, onRun: () => {} }));
-  expect(page.querySelector('.vc-run-who')!.textContent).toBe('agent');
+const run = (a: Partial<VibeAction>, busy = false) => render(createElement(Run, { a: action(a), busy, onRun: () => {} }));
+
+it('une action par l\'agent : pas de modèle sur le bouton, ni liste de modèle ou d\'effort ; « — sonnet » dans son title', async () => {
+  await run({ who: 'sonnet', hint: 'Écrit les modules', models: ['opus', 'sonnet'], model: 'sonnet', efforts: ['low'] });
+  expect(page.querySelector('.vc-run-who')).toBeNull();
   expect(page.querySelector('select')).toBeNull();
+  expect(page.querySelector('.vc-run')!.textContent).toBe('Commiter');
+  expect(page.querySelector<HTMLButtonElement>('.vc-run')!.title).toBe('Écrit les modules\n— sonnet');
+});
+
+it('le title : hint, puis « — qui », puis la raison du grisé ; qui absent : sans ; hint vide : sans ligne vide', async () => {
+  await run({ who: 'opus · élevé', hint: 'Écrit', disabled: 'rien à faire' });
+  expect(page.querySelector<HTMLButtonElement>('.vc-run')!.title).toBe('Écrit\n— opus · élevé\n— rien à faire');
+  await run({ who: '', hint: 'Écrit', disabled: 'rien à faire' });
+  expect(page.querySelector<HTMLButtonElement>('.vc-run')!.title).toBe('Écrit\n— rien à faire');
+  await run({ who: '', hint: 'Écrit' });
+  expect(page.querySelector<HTMLButtonElement>('.vc-run')!.title).toBe('Écrit');
+  await run({ who: 'sonnet', hint: '' });
+  expect(page.querySelector<HTMLButtonElement>('.vc-run')!.title).toBe('— sonnet');
+});
+
+it('une action directe : « direct » reste, « via » sans modèle, son title le donne', async () => {
+  await run({ who: 'sonnet', hint: 'Fait', direct: { running: false, last: null } });
+  expect(page.querySelector('.vc-run .vc-run-who')!.textContent).toBe('direct');
+  const via = page.querySelector<HTMLButtonElement>('.vc-via')!;
+  expect(via.textContent).toBe('via');
+  expect(via.querySelector('.vc-run-who')).toBeNull();
+  expect(via.title).toBe('Fait\n— sonnet');
+  expect(page.querySelector<HTMLButtonElement>('.vc-run')!.title).toBe('Fait');
+});
+
+it('grisé : la raison reste ; en cours : « en cours » et ⏹ restent', async () => {
+  await run({ who: 'sonnet', disabled: 'pas de note' });
+  expect(page.querySelector('.vc-run-why')!.textContent).toBe('pas de note');
+  expect(page.querySelector('.vc-run-who')).toBeNull();
+  await render(createElement(StopRun.Provider, { value: { stop: () => {}, state: () => 'running' as const } },
+    createElement(Run, { a: action({ who: 'sonnet' }), busy: false, onRun: () => {} })));
+  expect(page.querySelector('.vc-run-on')!.textContent).toContain(t('fr').runState.running);
+  expect(page.querySelector('.vc-run-on .vc-tool')).not.toBeNull();
+  expect(page.querySelector('.vc-run-who')).toBeNull();
+});
+
+const checked = async (check: unknown, head: string, onSince?: () => void) => {
+  await render(createElement('i'));   // démonté d'abord : rien ne passe d'un cas au suivant
+  await render(createElement(StepHead, { onSince, p: {
+    view: { lang: 'fr', actions: [] }, step: { id: 'forme', status: 'done', facts: '', head, check },
+    t: t('fr'), busy: false, act: { run: () => {} },
+  } as unknown as StepProps }));
+};
+
+it('check changed : son libellé en bouton à côté du titre, un clic appelle onSince ; sans onSince, un texte', async () => {
+  const since = vi.fn();
+  await checked({ state: 'changed', now: 'n' }, 'modifiée depuis la validation', since);
+  const label = page.querySelector<HTMLButtonElement>('.vc-since')!;
+  expect(label.textContent).toBe('modifiée depuis la validation');
+  expect(page.textContent?.match(/modifiée depuis la validation/g)).toHaveLength(1);
+  await act(() => { label.click(); });
+  expect(since).toHaveBeenCalledOnce();
+  await checked({ state: 'changed', now: 'n' }, 'modifiée depuis la validation');
+  expect(page.querySelector('.vc-since')).toBeNull();
+  expect(page.querySelector('.vc-facts')!.textContent).toBe('modifiée depuis la validation');
+});
+
+it('check cascade : « à revoir : <étape> a changé » en texte, jamais en bouton', async () => {
+  await checked({ state: 'cascade', cause: 'note', now: null }, 'à revoir : la note a changé', () => {});
+  expect(page.querySelector('.vc-facts')!.textContent).toBe('à revoir : la note a changé');
+  expect(page.querySelector('.vc-since, .vc-stale, .vc-revalidate, .vc-stale-diff')).toBeNull();
+});
+
+it('check ok, null ou absent : head comme avant, ni bouton ni Revalider', async () => {
+  for (const check of [{ state: 'ok', now: 'n' }, { state: null, now: null }, undefined]) {
+    await checked(check, 'trois modules', () => {});
+    expect(page.querySelector('.vc-facts')!.textContent).toBe('trois modules');
+    expect(page.querySelector('.vc-since, .vc-stale, .vc-revalidate, .vc-stale-diff')).toBeNull();
+  }
 });
