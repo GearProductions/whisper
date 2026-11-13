@@ -5,7 +5,7 @@ argument-hint: "<lang> <out> <path — contract> [prefix]"
 disable-model-invocation: true
 model: opus
 effort: high
-allowed-tools: "Read, Glob, Grep, Write, Edit, Agent, SendMessage, Bash(git symbolic-ref *), Bash(git log *), Bash(git status *), Bash(git diff *)"
+allowed-tools: "Read, Glob, Grep, Write, Edit, Agent, SendMessage"
 ---
 
 # Module — the modules loop, for one module

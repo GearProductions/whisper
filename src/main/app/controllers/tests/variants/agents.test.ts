@@ -318,7 +318,10 @@ describe('la consigne dit le rôle (T-19)', () => {
   });
 });
 
-afterEach(async () => { (await import('app/controllers')).closeSocket(); });
+afterEach(async () => {
+  (await import('app/controllers')).closeSocket();
+  fs.rmSync(fake.userData, { recursive: true, force: true });
+});
 
 // L'environnement des robots (note 0.15.0, « Les jetons ») : le port et le jeton du robot, jamais ceux de l'écran ni de l'extérieur.
 describe('l’environnement des robots', () => {

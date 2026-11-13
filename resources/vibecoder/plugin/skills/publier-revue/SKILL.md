@@ -6,7 +6,7 @@ disable-model-invocation: true
 context: fork
 model: haiku
 effort: low
-allowed-tools: "Write, Bash(gh pr review *), Bash(gh api *)"
+allowed-tools: "Write, Bash(gh pr review *)"
 ---
 
 # Publish the review
@@ -15,7 +15,7 @@ allowed-tools: "Write, Bash(gh pr review *), Bash(gh api *)"
 
 1. Write the draft exactly as given — no rewording, no addition, no summary — with the Write tool to `<out>/pr-<n>-review-draft.md`.
 2. `gh pr review <n> --<verdict> --body-file <out>/pr-<n>-review-draft.md` (`--approve`, `--comment` or `--request-changes`). It fails (e.g. one cannot approve one's own PR) → report the error, write nothing, stop.
-3. The review just published: your login (`gh api user --jq .login`), then `gh api --paginate repos/{owner}/{repo}/pulls/<n>/reviews --jq '.[] | {state, url: .html_url, at: .submitted_at, user: .user.login}'` — the last entry whose `user` is you.
-4. Write `<out>/pr-<n>-review.json`: `{"state":"APPROVED"|"COMMENTED"|"CHANGES_REQUESTED","url":"…","verdict":"<the verdict given>","body":"<the draft, exactly as published>","at":"<that entry's at>"}`, valid JSON (escape the draft: quotes, backslashes, newlines).
+3. The review just published, without `gh api` (never use it): your login from `gh auth status` (the account it is logged in as), then `gh pr view <n> --json url,reviews` — the last entry of `reviews` whose `author.login` is you (its `state`, `submittedAt`), and the PR's `url`.
+4. Write `<out>/pr-<n>-review.json`: `{"state":"APPROVED"|"COMMENTED"|"CHANGES_REQUESTED","url":"<the PR's url>","verdict":"<the verdict given>","body":"<the draft, exactly as published>","at":"<that entry's submittedAt>"}`, valid JSON (escape the draft: quotes, backslashes, newlines).
 
 Change nothing else. Answer in English, one line: the verdict and the link.

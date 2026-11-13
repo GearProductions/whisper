@@ -6,7 +6,7 @@ disable-model-invocation: true
 context: fork
 model: opus
 effort: high
-allowed-tools: "Read, Glob, Grep, Write, Edit, Bash(git branch *), Bash(git diff *), Bash(git symbolic-ref *), Bash(git rev-parse *), Bash(git ls-files *)"
+allowed-tools: "Read, Glob, Grep, Write, Edit"
 ---
 
 # Invariants — red, from the note (guide §3)
@@ -36,7 +36,7 @@ allowed-tools: "Read, Glob, Grep, Write, Edit, Bash(git branch *), Bash(git diff
 
 ## Then
 
-Run the project's invariant command (else its test command on your files), exactly as `AGENTS.md` writes it: no `| tail`, no `2>&1`, no `&&`, no composition or redirection (a command outside the allowed ones is denied). Read files with Read, Glob and Grep, never `ls`, `cat` or `find`. Every new test must fail — on its assertion or on its call to the missing code, never on a mistake of its own (syntax, import path, helper). A test that already passes → check it really observes the property, and say so. Commit nothing.
+Run the project's invariant command (else its test command on your files), as `AGENTS.md` writes it. Read files with Read, Glob and Grep, never `ls`, `cat` or `find`. Every new test must fail — on its assertion or on its call to the missing code, never on a mistake of its own (syntax, import path, helper). A test that already passes → check it really observes the property, and say so. Commit nothing.
 
 ## Then, the alignment — in this same run
 

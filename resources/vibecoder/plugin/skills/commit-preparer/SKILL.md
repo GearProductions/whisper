@@ -6,7 +6,7 @@ disable-model-invocation: true
 context: fork
 model: sonnet
 effort: low
-allowed-tools: "Read, Glob, Grep, Write, Bash(git status *), Bash(git diff *), Bash(git log *), Bash(git rev-list *), Bash(git rev-parse *), Bash(git symbolic-ref *), Bash(git add *), Bash(git restore --staged *), Bash(gh pr view *)"
+allowed-tools: "Read, Glob, Grep, Write, Bash(git add *), Bash(gh pr view *)"
 ---
 
 # Prepare the commit — shown before it is made
@@ -30,7 +30,7 @@ First `gh pr view --json state,number` (before anything about fixups): `OPEN` �
   - No open PR → a fixup of that commit, prepared here like any other commit, and before any module: the next commit is the fixup of the oldest of these owners (each file's owner: the latest commit of the branch that touches it). Stage only the files it owns; the message is exactly `fixup! <that commit's subject>` (what `git commit --fixup` writes), no body. The note (its Forme too) and the invariant tests changed after the first commit thus go to the first commit. Not a fixup: a module's file whose only owner is the first commit (a skeleton) — it goes with that module's own commit. The other changes wait for the next commit: say so. The project's `gear-fix-up` skill, if present (`.claude/skills/gear-fix-up/SKILL.md`), for its routing rules.
 - Docs only (`SPEC.md`, `README.md`, `AGENTS.md`…) → a doc commit.
 
-Stage exactly those: `git add -- <paths>`. Files already staged that don't belong → `git restore --staged -- <paths>`, and say so.
+Stage exactly those: `git add -- <paths>`. Files already staged that don't belong → `git reset -q -- <paths>`, and say so.
 
 ## 3. The message → `<out>/commit.md`
 

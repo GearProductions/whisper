@@ -6,7 +6,7 @@ disable-model-invocation: true
 context: fork
 model: sonnet
 effort: medium
-allowed-tools: "Read, Glob, Grep, Write, Bash(git symbolic-ref *), Bash(git rev-parse *), Bash(git diff *), Bash(git ls-files *)"
+allowed-tools: "Read, Glob, Grep, Write"
 ---
 
 # On screen — the manual test plan of a branch (guide §5.4)

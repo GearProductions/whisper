@@ -3,7 +3,7 @@ name: forme
 description: "Lay down the form: the skeletons in the code (paths, file headers = the contract, typed signatures, bodies that fail; the project's typecheck passes), then copy it into the « Forme » section of the ticket note — modules, signatures, what each exposes, does not know and is used by, and its variants (test file and cases). Also for a retouch: the note and the skeletons change together."
 argument-hint: "<lang> <out> [details…]"
 disable-model-invocation: true
-allowed-tools: "Read, Glob, Grep, Write, Edit, Bash(git branch *), Bash(git diff *), Bash(git symbolic-ref *), Bash(git rev-parse *)"
+allowed-tools: "Read, Glob, Grep, Write, Edit"
 ---
 
 # Forme — modules, boundaries and skeletons (guide §2, A.2)

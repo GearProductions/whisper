@@ -194,7 +194,7 @@ disable-model-invocation: true
 context: fork
 model: opus
 effort: high
-allowed-tools: "Read, Glob, Grep, Write, Bash(git show *)"
+allowed-tools: "Read, Glob, Grep, Write"
 ---
 ```
 
@@ -203,7 +203,7 @@ allowed-tools: "Read, Glob, Grep, Write, Bash(git show *)"
 | `context: fork` | le skill tourne dans un sous-contexte, sans relire la conversation : son coût ne dépend pas de la longueur de celle-ci ; sans cette ligne, il tourne dans la conversation |
 | `model` | `haiku`, `sonnet` ou `opus` ; sans cette ligne, le modèle de l'agent |
 | `effort` | `low`, `medium`, `high`, `xhigh` ou `max` ; sans cette ligne, celui de l'agent |
-| `allowed-tools` | la **liste** de l'action : ce qu'elle peut faire, rien d'autre (elle ne demande jamais, tout le reste est refusé et la fait échouer) ; les commandes de test, de typage et de lint d'`AGENTS.md` s'y ajoutent ; elle n'écrit jamais `AGENTS.md`, `package.json`, `.claude/`, `.git/` ni `.husky/` |
+| `allowed-tools` | les **outils** de l'action, plus `Bash` entier (elle ne demande jamais) ; une règle `Bash(…)` n'y sert qu'à rouvrir une commande de la liste de refus (`git push`, `git commit`, `gh pr create`… : voir le README principal) ; un refus ne la fait pas échouer ; elle n'écrit jamais `AGENTS.md`, `package.json`, `.claude/`, `.git/` ni `.husky/` |
 
 ### Changer le modèle ou l'effort d'un skill
 
@@ -273,7 +273,7 @@ sinon.
 | `relire` | sous-contexte | opus · high | `review.md` |
 | `commit-preparer` | sous-contexte | sonnet · low | `commit.md` |
 | `commit` | sous-contexte | haiku · low | (l'appli efface `commit.md` à la fin de la course si le commit est passé) |
-| `verifier` | sous-contexte | haiku · low | `vibecoder run start ponytail` (toutes les vérifications seulement), `checks.json` |
+| `verifier` | sous-contexte | haiku · low | `checks.json` (la ponytail review est lancée par l'appli, pas par lui) |
 | `ponytail` | sous-contexte | opus · high | `ponytail.md` |
 | `appliquer-revue` | conversation | sonnet · high | `ponytail-applied.json` |
 | `fixups` | sous-contexte | sonnet · medium | — |

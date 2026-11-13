@@ -6,7 +6,7 @@ disable-model-invocation: true
 context: fork
 model: sonnet
 effort: medium
-allowed-tools: Read, Glob, Grep, Write, Bash(git status *), Bash(git log *), Bash(git rev-parse *), Bash(git symbolic-ref *), Bash(git add *), Bash(git commit *), Bash(gh pr view *), Bash(GIT_INDEX_FILE="${VIBECODER_OUT}/commit-tree.idx" git read-tree HEAD), Bash(GIT_INDEX_FILE="${VIBECODER_OUT}/commit-tree.idx" git add *), Bash(GIT_INDEX_FILE="${VIBECODER_OUT}/commit-tree.idx" git checkout-index -a --prefix="${VIBECODER_OUT}/commit-tree/"), Bash(ln -s * "${VIBECODER_OUT}/commit-tree/node_modules"), Bash(cd *), Bash(rm -rf "${VIBECODER_OUT}/commit-tree" "${VIBECODER_OUT}/commit-tree.idx")
+allowed-tools: Read, Glob, Grep, Write, Bash(git add *), Bash(git commit *), Bash(gh pr view *), Bash(rm -r "${VIBECODER_OUT}/commit-tree" "${VIBECODER_OUT}/commit-tree.idx")
 ---
 
 # Commit the modules — one commit per module (guide §5.2, §5.3)
@@ -33,13 +33,13 @@ A hook fails → stop there and report it; never `--no-verify`. Never push, amen
 
 ## 3. Before each commit — type what it will contain, outside the working folder
 
-Before each commit (fixup included): check that it will compile on its own, **without touching the working folder or the real index** (the app may be running there, and the modules not yet committed are in it). Each command below is one Bash call, never chained (`&&`, `;`, `|`) nor redirected, its paths written in full (`<out>` as given) and **in double quotes**, exactly as below: the allowed list matches them word for word, and `<out>` may contain spaces.
+Before each commit (fixup included): check that it will compile on its own, **without touching the working folder or the real index** (the app may be running there, and the modules not yet committed are in it). Each command below is one Bash call, never chained (`&&`, `;`, `|`) nor redirected, its paths written in full (`<out>` as given) and **in double quotes**, exactly as below (`<out>` may contain spaces).
 
 1. `GIT_INDEX_FILE="<out>/commit-tree.idx" git read-tree HEAD`, then `GIT_INDEX_FILE="<out>/commit-tree.idx" git add -- <the group's files>`.
 2. `GIT_INDEX_FILE="<out>/commit-tree.idx" git checkout-index -a --prefix="<out>/commit-tree/"`: the tree the commit will hold.
 3. `ln -s <working folder>/node_modules "<out>/commit-tree/node_modules"` (no `install`).
 4. `cd <out>/commit-tree`, then, as a Bash call of its own, the project's typecheck: `<prefix> <command>`, the command exactly as the commands section of `AGENTS.md` writes it (its typecheck line), the prefix exactly as given, none of your own. Only that: no test, no build, no other tool, no other source for the command (not `package.json`, not `Cargo.toml`). Then `cd <working folder>`, whatever the result. `AGENTS.md` has no typecheck line: skip this step, keep the commit, and say in the answer that it was not checked.
-5. `rm -rf "<out>/commit-tree" "<out>/commit-tree.idx"`, whatever the result (also before step 1, if a stopped run left them).
+5. `rm -r "<out>/commit-tree" "<out>/commit-tree.idx"`, whatever the result (also before step 1, if a stopped run left them; an error because they are absent is fine). Not `rm -rf`: it is on the deny list, and reopening it would reopen it whole.
 
 It fails (a typecheck that ran), the errors naming files of a later module of the Forme that has changes (an import of its file, a symbol it defines) → that module joins this group: add its files, redo from 1. Otherwise stop there, say so with the errors: this commit and the ones after it are not made, the files stay uncommitted. Never amend, rebase or `--no-verify` to catch it up; the developer decides.
 

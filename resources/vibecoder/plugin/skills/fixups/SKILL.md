@@ -6,7 +6,7 @@ disable-model-invocation: true
 context: fork
 model: sonnet
 effort: medium
-allowed-tools: "Read, Glob, Grep, Bash(git symbolic-ref *), Bash(git rev-parse *), Bash(git log *), Bash(git merge-base *), Bash(git rebase *), Bash(GIT_SEQUENCE_EDITOR=true git rebase *), Bash(gh pr view *)"
+allowed-tools: "Read, Glob, Grep, Bash(git rebase *), Bash(GIT_SEQUENCE_EDITOR=true git rebase *), Bash(gh pr view *)"
 ---
 
 # Fold the fixups (guide §5.3)

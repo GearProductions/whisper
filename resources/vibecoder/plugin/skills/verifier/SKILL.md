@@ -1,25 +1,21 @@
 ---
 name: verifier
-description: "Run the project's own verification commands — typecheck, tests, invariants, lint — and write the results to <out>/checks.json, asking the app for the ponytail review (`vibecoder run start ponytail`) when all run; or run one check again, the others kept."
+description: "Run the project's own verification commands — typecheck, tests, invariants, lint — and write the results to <out>/checks.json; or run one check again, the others kept."
 argument-hint: "<lang> <out> <check> [prefix…]"
 disable-model-invocation: true
 context: fork
 model: haiku
 effort: low
-allowed-tools: Read, Glob, Grep, Write, Bash(node "${CLAUDE_SKILL_DIR}/../../bin/vibecoder.mjs" run start ponytail), Bash(date +%s%3N)
+allowed-tools: Read, Glob, Grep, Write
 ---
 
 # Checks — the project's own commands
 
 `$ARGUMENTS` = `<lang> <out> <check> [prefix…]`. `lang`: the user's language, not used here — code-related work: the `detail` texts and your answer in English. `out`: absolute path of the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `check`: `*` — every check; or a number `N` — only the item of rank `N` (from 0) of `<out>/checks.json`, run again; neither (an older `actions.<lang>.json`) → it is the first word of `prefix`, and `check` is `*`. `prefix`: everything after `check`, possibly empty — what the app puts before the project's commands, seen from where you run (e.g. `distrobox enter dev --`).
 
-## First, the ponytail review
-
-Only when `check` is `*` (one check run again: no ponytail review). Before any command, run `node "${CLAUDE_SKILL_DIR}/../../bin/vibecoder.mjs" run start ponytail` (the orchestrator's request, `${CLAUDE_SKILL_DIR}/../actions/SKILL.md`): the app starts the ponytail review in its own run, and both reads run together. Nothing else to do for it: don't wait for it, don't read `ponytail.md`.
-
 ## Which commands
 
-From `AGENTS.md` (its commands section), read with `Read`, and nowhere else: no fallback on manifests (`package.json`, `Cargo.toml`…), the app only allows the commands written there. Only these kinds, each one if `AGENTS.md` has it:
+From `AGENTS.md` (its commands section), read with `Read`, and nowhere else: no fallback on manifests (`package.json`, `Cargo.toml`…), only the commands written there count. Only these kinds, each one if `AGENTS.md` has it:
 - `typecheck` — the type check (`npm run typecheck`, `tsc`, `cargo check`, `mypy`…);
 - `tests` — the whole test suite;
 - `invariants` — the invariant tests alone, when the project has a command for them;
@@ -29,13 +25,13 @@ A project in several parts (e.g. front and back) → one item per part and kind,
 
 ## Running them
 
-Run every command yourself, now, with Bash: `<prefix> <command>`, written as in `AGENTS.md`, the prefix exactly as given, adding none of your own. One command per call, bare: never composed or redirected (no `&&`, `;`, `|`, `2>&1`, `> file`, `tee`), never `cd`; its output is in the tool result, read it there. Read and search with `Read`, `Glob` and `Grep`, never `ls`, `cat` or `find`: any other command is denied. Empty prefix → the command as is; never add `distrobox`, `toolbox`, `podman` or `mise exec` because `AGENTS.md` or `CLAUDE.md` mentions a box: the app already knows where commands run. A command that could not start (refused, not found, no permission) → its item at `error`, with why in `detail`; never ask for a permission, never retry it another way. Never: install dependencies, build packages, start the app or a server, run end-to-end tests or comparison benches; never close, kill or restart the user's running app. At most 10 minutes per command.
+Run every command yourself, now, with Bash: `<prefix> <command>`, written as in `AGENTS.md`, the prefix exactly as given, adding none of your own; its output is in the tool result, read it there. Read and search with `Read`, `Glob` and `Grep`, never `ls`, `cat` or `find`. Empty prefix → the command as is; never add `distrobox`, `toolbox`, `podman` or `mise exec` because `AGENTS.md` or `CLAUDE.md` mentions a box: the app already knows where commands run. A command that could not start (refused, not found, no permission) → its item at `error`, with why in `detail`; never ask for a permission, never retry it another way. Never: install dependencies, build packages, start the app or a server, run end-to-end tests or comparison benches; never close, kill or restart the user's running app. At most 10 minutes per command.
 
 ## `<out>/checks.json`
 
 `check` `*`: written only from the commands run in this run. Never read an existing `checks.json`, never reuse or copy a past result: overwrite it.
 
-`check` `N`: read `<out>/checks.json`; run only the command of item `N` (the one its `name` designates, found as above), replace that item with its new result, keep every other item exactly as it is, in the same order, and set a new `time`. The file unreadable or without item `N` → run every check, as for `*`, without the ponytail review.
+`check` `N`: read `<out>/checks.json`; run only the command of item `N` (the one its `name` designates, found as above), replace that item with its new result, keep every other item exactly as it is, in the same order, and set a new `time`. The file unreadable or without item `N` → run every check, as for `*`.
 
 ```json
 {"items":[{"name":"typecheck","ok":true,"level":"ok","detail":"[agent] …"},{"name":"lint","ok":true,"level":"warning","detail":"[agent] …"}],"time":1760000000000}

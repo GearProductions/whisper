@@ -1,11 +1,9 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { commandRules, listSkill, projectCommands, runRules, skillTools, vibeCliCall } from 'core/vibecoder';
+import { DENIED, denyRules, listSkill, NEVER, runRules, skillOpens, skillTools, vibeCliCall } from 'core/vibecoder';
 
 const dirs = { skill: '/p/skills/forme', out: '/o/out' };
 const skillMd = (field: string) => `---\nname: forme\n${field}\n---\n\nCorps\n`;
-const repoAgents = fs.readFileSync(path.join(__dirname, '../../../../../../AGENTS.md'), 'utf8');
+const bash = (...cmds: string[]) => cmds.map((c) => `Bash(${c})`);
 
 describe('listSkill', () => {
   it('le skill du gabarit, variante comprise', () => {
@@ -43,66 +41,114 @@ describe('skillTools', () => {
   });
 });
 
-describe('projectCommands', () => {
-  it('l’AGENTS.md de ce dépôt : tests, typage, jokers ; ni npm start ni dist', () => {
-    const c = projectCommands(repoAgents);
-    expect(c).toEqual(expect.arrayContaining(['npm run typecheck', 'npm test', 'npm run test:invariants', 'npm run test:front-diff -- *', 'npm run test:main-diff -- *']));
-    expect(c).not.toContain('npm start');
-    expect(c).not.toContain('npm run dist:linux');
-    expect(c).not.toContain('npm run dist:win');
-    expect(new Set(c).size).toBe(c.length);
+describe('skillOpens', () => {
+  const denied = ['git push', 'git rebase', 'git checkout', 'git branch -D', 'gh', 'node *vibecoder.mjs*'];
+
+  it('git push --force-with-lease -u origin HEAD ouvre git push', () => {
+    expect(skillOpens(bash('git push --force-with-lease -u origin HEAD'), denied)).toEqual(['git push']);
   });
-  it('plusieurs commandes sur une ligne, dans l’ordre', () => {
-    expect(projectCommands('## Commandes\n\n- Tests : `npm test` · typage : `npm run typecheck`\n')).toEqual(['npm test', 'npm run typecheck']);
+  it('gh pr view * ouvre gh', () => {
+    expect(skillOpens(bash('gh pr view *'), denied)).toEqual(['gh']);
   });
-  it('un bloc de code de la section : une commande par ligne', () => {
-    expect(projectCommands('## Commands\n\n```bash\nnpm start\n$ cargo check\ncargo clippy -- -D warnings\nvitest run\n```\n'))
-      .toEqual(['cargo check', 'cargo clippy -- -D warnings', 'vitest run']);
+  it('GIT_SEQUENCE_EDITOR=true git rebase * ouvre git rebase (assignations de tête ôtées)', () => {
+    expect(skillOpens(bash('GIT_SEQUENCE_EDITOR=true git rebase *'), denied)).toEqual(['git rebase']);
+    expect(skillOpens(bash('A=1 B="x y" C=\'z\' git rebase *'), denied)).toEqual(['git rebase']);
   });
-  it('les mots : tsc, lint, vitest ; pas un bout de mot', () => {
-    expect(projectCommands('## Commandes\n`tsc --noEmit` `npm run lint` `npm run build` `npm run latest` `npx eslint .`\n')).toEqual(['tsc --noEmit', 'npm run lint']);
+  it('la CLI entre guillemets, par skills/verifier/../../bin, ouvre la CLI', () => {
+    expect(skillOpens(bash('node "/p/skills/verifier/../../bin/vibecoder.mjs" run start ponytail'), denied)).toEqual(['node *vibecoder.mjs*']);
+    expect(skillOpens(bash('node "/p/skills/vibe/../../bin/vibecoder.mjs" *'), denied)).toEqual(['node *vibecoder.mjs*']);
   });
-  it('sans doublon', () => {
-    expect(projectCommands('## Commandes\n`npm test` `npm test`\n')).toEqual(['npm test']);
+
+  it('git branch * n’ouvre pas git branch -D', () => {
+    expect(skillOpens(bash('git branch *'), denied)).toEqual([]);
   });
-  it('une ligne de code hors de la section : ignorée ; la section s’arrête au titre suivant de même rang ou plus haut', () => {
-    expect(projectCommands('`npm run lint`\n## Commandes\n`npm test`\n### Détail\n`npm run typecheck`\n## Autre\n`vitest`\n')).toEqual(['npm test', 'npm run typecheck']);
+  it('git checkout-index … n’ouvre pas git checkout (frontière de mot)', () => {
+    expect(skillOpens(bash('git checkout-index -a'), denied)).toEqual([]);
+    expect(skillOpens(bash('git pushx'), denied)).toEqual([]);
   });
-  it('pas de section, AGENTS.md absent ou vide : []', () => {
-    expect(projectCommands('# A\n`npm test`\n')).toEqual([]);
-    expect(projectCommands(null)).toEqual([]);
-    expect(projectCommands('')).toEqual([]);
+  it('Read, Write : rien', () => {
+    expect(skillOpens(['Read', 'Write', 'Write(/o/**)', 'Bash'], denied)).toEqual([]);
+  });
+
+  it('une règle plus courte que la commande refusée ne l’ouvre pas', () => {
+    expect(skillOpens(bash('git *'), denied)).toEqual([]);
+    expect(skillOpens(bash('git'), denied)).toEqual([]);
+  });
+  it('le suffixe :* vaut ` *`', () => {
+    expect(skillOpens(bash('git push:*'), denied)).toEqual(['git push']);
+  });
+  it('dans l’ordre de denied, sans doublon', () => {
+    const tools = bash('git rebase *', 'git push *', 'git push -u origin HEAD');
+    expect(skillOpens(tools, denied)).toEqual(['git push', 'git rebase']);
+    expect(skillOpens(tools, ['git push', 'git push', 'git rebase'])).toEqual(['git push', 'git rebase']);
+  });
+  it('NEVER n’est jamais ouvert : gh repo view * n’ouvre pas gh repo', () => {
+    expect(skillOpens(bash('gh repo view *', 'gh pr merge 1', 'gh release create'), DENIED)).toEqual([]);
+  });
+  it('aucune règle ou aucun refus : rien', () => {
+    expect(skillOpens([], denied)).toEqual([]);
+    expect(skillOpens(bash('git push *'), [])).toEqual([]);
   });
 });
 
-describe('commandRules', () => {
-  it('avec préfixe : les deux règles préfixées seulement', () => {
-    expect(commandRules(['npm test'], 'distrobox enter dev --')).toEqual(['Bash(distrobox enter dev -- npm test)', 'Bash(distrobox enter dev -- npm test *)']);
+describe('denyRules', () => {
+  it('avec préfixe : la commande seule puis derrière le préfixe', () => {
+    expect(denyRules(['curl'], 'distrobox enter dev --')).toEqual(['Bash(curl *)', 'Bash(distrobox enter dev -- curl *)']);
   });
-  it('préfixe vide : sans préfixe', () => {
-    expect(commandRules(['npm test'], '')).toEqual(['Bash(npm test)', 'Bash(npm test *)']);
+  it('préfixe vide : la première seule', () => {
+    expect(denyRules(['curl'], '')).toEqual(['Bash(curl *)']);
+  });
+  it('une commande git : aussi derrière ses options globales -C et -c (Claude Code ne les ôte pas), préfixe compris', () => {
+    expect(denyRules(['git push'], 'P')).toEqual([
+      'Bash(git push *)', 'Bash(P git push *)',
+      'Bash(git -C * push *)', 'Bash(P git -C * push *)',
+      'Bash(git -c * push *)', 'Bash(P git -c * push *)',
+    ]);
+    expect(denyRules(['git reset * --hard'], '')).toEqual(['Bash(git reset * --hard *)', 'Bash(git -C * reset * --hard *)', 'Bash(git -c * reset * --hard *)']);
+  });
+  it('plusieurs commandes : dans l’ordre, deux règles chacune', () => {
+    expect(denyRules(['a', 'b'], 'P')).toEqual(['Bash(a *)', 'Bash(P a *)', 'Bash(b *)', 'Bash(P b *)']);
   });
   it('aucune commande : []', () => {
-    expect(commandRules([], 'x')).toEqual([]);
+    expect(denyRules([], 'P')).toEqual([]);
   });
 });
 
 describe('runRules', () => {
-  const agentsMd = '## Commandes\n`npm test` `npm run typecheck`\n';
-  it('la liste du skill puis les commandes, sans doublon', () => {
-    const rules = runRules({ skillMd: skillMd('allowed-tools: Read, Bash(P npm test), Read'), skillDir: dirs.skill, out: dirs.out, agentsMd, prefix: 'P' });
-    expect(rules).toEqual(['Read', 'Bash(P npm test)', 'Bash(P npm test *)', 'Bash(P npm run typecheck)', 'Bash(P npm run typecheck *)']);
+  const md = (tools: string) => skillMd(`allowed-tools: "${tools}"`);
+  const of = (tools: string | null, prefix = '') => runRules({ skillMd: tools === null ? null : md(tools), skillDir: dirs.skill, out: dirs.out, prefix });
+  const PR = 'Read, Glob, Grep, Write, Bash(git push -u origin HEAD), Bash(git push --force-with-lease -u origin HEAD), Bash(gh pr view *), Bash(gh pr create *), Bash(gh repo view *), Bash(git branch *)';
+
+  it('skill pr : allow Read, Glob, Grep, Write, Bash ; deny sans git push ni les gh qu’il ouvre, avec git commit et rm -rf', () => {
+    const { allow, deny } = of(PR, 'P');
+    expect(allow).toEqual(['Read', 'Glob', 'Grep', 'Write', 'Bash']);
+    expect(deny).not.toContain('Bash(git push *)');
+    expect(deny).not.toContain('Bash(gh pr create *)');
+    expect(deny).toContain('Bash(git commit *)');
+    expect(deny).toContain('Bash(P git commit *)');
+    expect(deny).toContain('Bash(rm -rf *)');
+    // ce qu'aucun skill ne rouvre, ni gh pr checkout que celui-ci n'ouvre pas
+    for (const c of [...NEVER, 'gh pr checkout', 'git branch -D']) expect(deny).toContain(`Bash(${c} *)`);
   });
-  it('une variante de modèle : aussi la règle du dossier du skill de base, dont l\'agent lit le texte', () => {
-    const md = skillMd('allowed-tools: "Bash(node ${CLAUDE_SKILL_DIR}/../../bin/vibecoder.mjs run start ponytail)"');
-    const rule = (d: string) => `Bash(node ${d}/../../bin/vibecoder.mjs run start ponytail)`;
-    const of = (skillDir: string) => runRules({ skillMd: md, skillDir, out: '/o', agentsMd: null, prefix: '' });
-    expect(of('/p/skills/verifier--haiku')).toEqual([rule('/p/skills/verifier--haiku'), rule('/p/skills/verifier')]);
-    expect(of('/p/skills/verifier--opus--high')).toEqual([rule('/p/skills/verifier--opus--high'), rule('/p/skills/verifier')]);
-    expect(of('/p/skills/verifier')).toEqual([rule('/p/skills/verifier')]);
+  it('les graphies ordinaires des commandes qui détruisent ou écrivent : rm -fr, rm -Rf, rm -r -f, git reset -q --hard, git -C x push', () => {
+    const { deny } = of(null);
+    for (const c of ['rm -fr', 'rm -Rf', 'rm -r -f', 'git reset * --hard', 'git -C * push', 'git -c * commit']) expect(deny).toContain(`Bash(${c} *)`);
   });
-  it('sans skill ni AGENTS.md : []', () => {
-    expect(runRules({ skillMd: null, skillDir: '/s', out: '/o', agentsMd: null, prefix: 'P' })).toEqual([]);
+  it('skill note : allow sans Bash(…), rien d’ouvert', () => {
+    const { allow, deny } = of('Read, Glob, Grep, Write(/o/out/**), Edit');
+    expect(allow).toEqual(['Read', 'Glob', 'Grep', 'Write(/o/out/**)', 'Edit', 'Bash']);
+    expect(deny).toEqual(denyRules(DENIED, ''));
+  });
+  it('sans SKILL.md : allow [Bash], deny tout DENIED', () => {
+    expect(of(null, 'P')).toEqual({ allow: ['Bash'], deny: denyRules(DENIED, 'P') });
+  });
+  it('allow sans doublon, Bash d’un skill compris', () => {
+    expect(of('Read, Bash, Read').allow).toEqual(['Read', 'Bash']);
+  });
+  it('la CLI du skill ouverte par un chemin entre guillemets', () => {
+    const { deny } = of('Read, Bash(node "${CLAUDE_SKILL_DIR}/../../bin/vibecoder.mjs" *)');
+    expect(deny).not.toContain('Bash(node *vibecoder.mjs* *)');
+    expect(deny).toContain('Bash(git push *)');
   });
 });
 

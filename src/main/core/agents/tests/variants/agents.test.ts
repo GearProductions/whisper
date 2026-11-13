@@ -323,7 +323,7 @@ describe('tours', () => {
 
   it('une course vivante à qui l’on change le mode de l’agent : dontAsk gardé', async () => {
     const { rt, hooks, log, queries } = runtime(async function* t() { yield ok; });
-    const rights = { allow: ['Read'], check: () => ({ allow: true as const }) };
+    const rights = { allow: ['Read'], deny: [], check: () => ({ allow: true as const }) };
     await rt.send(agent, { text: 'un' }, { ...hooks, rights });
     rt.setMode('a1', 'auto');                                                  // à chaud
     await rt.send({ ...agent, mode: 'acceptEdits' }, { text: 'deux' }, { ...hooks, rights }); // au message suivant
@@ -410,7 +410,7 @@ describe('les droits d’une course (rights)', () => {
   const pre = (rights: RunRights) => rightsOptions(rights).hooks.PreToolUse[0];
   const call = (rights: RunRights, tool_name: string, tool_input: unknown = {}) =>
     pre(rights).hooks[0]({ hook_event_name: 'PreToolUse', tool_name, tool_input }, 't1', { signal: new AbortController().signal });
-  const rights = (check: RunRights['check'], allow = ['Read', 'Bash(git status)']): RunRights => ({ allow, check });
+  const rights = (check: RunRights['check'], allow = ['Read', 'Bash(git status)']): RunRights => ({ allow, deny: [], check });
 
   it('dontAsk et allowedTools = rights.allow, quel que soit le mode de l’agent', () => {
     for (const mode of ['default', 'acceptEdits', 'auto', 'plan', 'bypassPermissions']) {
@@ -450,7 +450,7 @@ describe('les droits d’une course (rights)', () => {
 
   it('launchKey retient la liste : relancé si elle change, pas si seul le contrôle change', () => {
     const check = () => ({ allow: true as const });
-    const key = (allow?: string[]) => launchKey(agent, '', '', allow && { rights: { allow, check } });
+    const key = (allow?: string[]) => launchKey(agent, '', '', allow && { rights: { allow, deny: [], check } });
     expect(key(['Read'])).toBe(key(['Read']));
     expect(key(['Read'])).not.toBe(key(['Read', 'Write']));
     expect(key(['Read'])).not.toBe(key());

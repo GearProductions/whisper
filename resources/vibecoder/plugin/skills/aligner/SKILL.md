@@ -6,7 +6,7 @@ disable-model-invocation: true
 context: fork
 model: opus
 effort: high
-allowed-tools: "Read, Glob, Grep, Write, Edit, Bash(git symbolic-ref *), Bash(git rev-parse *), Bash(git diff *), Bash(git ls-files *)"
+allowed-tools: "Read, Glob, Grep, Write, Edit"
 ---
 
 # Align — note ↔ invariant tests, nothing else

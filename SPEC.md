@@ -819,9 +819,10 @@ de l'écran et le brouillon tiennent (S-72).
   ligne « → invariant » observée par un test, chaque test rattaché à une
   ligne), corrige seul les tests et revérifie, 3 tours au plus, *Vibe* ou pas ;
   `align.md` ne garde que ce qui reste (F-100) ; *Lancer les
-  vérifications et la ponytail review* demande la ponytail review
-  (`vibecoder run start ponytail`, F-115) : deux lectures, qui courent
-  ensemble. Plus de bouton *Vérifier l'alignement* ni *Ponytail
+  vérifications et la ponytail review* lance aussi la ponytail review, par
+  l'appli et non par le skill `verifier` (startAction, F-115) : deux lectures,
+  qui courent ensemble ; déjà en cours, elle ne part pas en double ; relancer
+  une seule vérification ne la lance pas. Plus de bouton *Vérifier l'alignement* ni *Ponytail
   review* dans la rangée de l'étape (créateur) ; leurs cartes restent. Un document demandé hors du projet (PDF,
   présentation, wireframe, document externe, fichier de conception) :
   l'agent le crée en artefact (F-95) par le skill `artefact`, qu'il prend
@@ -1345,23 +1346,59 @@ conversation ; note `0.9.0-actions-independantes.md`).
 - **Ses droits** (0.15.0, I-57 ; `core/vibecoder/rights`, `runRights` de
   `controllers/runs`) : une course part en mode `dontAsk`, quel que soit le mode
   de l'agent principal (que l'action parte d'un clic ou de l'orchestrateur) :
-  ce que sa liste permet passe, le reste est refusé sans question ; la
-  conversation de l'agent, elle, garde son mode. Sa liste (`allowedTools`,
-  donnée au SDK au départ, la même pour ses sous-agents) : le `allowed-tools`
-  de son skill (`note` pour `answers` ; `${CLAUDE_SKILL_DIR}` et
-  `${VIBECODER_OUT}` remplacés) plus les commandes de test, de typage et de lint
-  de la section des commandes d'`AGENTS.md` (un argument `<…>` devient `*`),
-  seules ou suivies d'arguments, jamais composées, derrière le préfixe que
-  l'appli donne aux actions ; pas d'autre source. Les `permissions.allow` des
-  réglages de l'utilisateur s'ajoutent, `ask` vaut un refus, `deny` l'emporte ;
-  ses `additionalDirectories` ne sont pas repris. Un crochet `PreToolUse`
+  ce que ses outils permettent passe, ce que sa liste de refus touche est refusé
+  sans question ; la conversation de l'agent, elle, garde son mode. Donnés au
+  SDK au départ, les mêmes pour ses sous-agents :
+  - *ses outils* (`allowedTools`) : le `allowed-tools` de son skill (`note` pour
+    `answers` ; `${CLAUDE_SKILL_DIR}` et `${VIBECODER_OUT}` remplacés), hors ses
+    règles `Bash(…)`, plus `Bash` **entier** : une commande du projet passe,
+    enchaînée ou non (`cargo build && cargo test`, `cd frontend && npm test`,
+    `npx vitest`, `git -C …`). Plus aucune commande n'est lue dans `AGENTS.md` ;
+  - *sa liste de refus* (`disallowedTools` ; `DENIED` de `core/vibecoder/rights`,
+    une vingtaine de lignes en groupes) moins ce que son skill en ouvre : ce qui
+    part à l'extérieur (`git push`, `curl`, `wget`, `gh` par ses seules
+    sous-commandes qui écrivent — `pr create`, `edit`, `review`, `comment`,
+    `close`, `reopen`, `ready`, `checkout`, `api`, `issue`, `workflow`, `run
+    rerun`, `run cancel`, `label`, `secret` ; ses lectures passent), les
+    dépendances (`npm install`, `i`, `add`, `yarn add`, `pnpm add`, `cargo add`,
+    `cargo install`, `pip install`), ce qui détruit (`git reset --hard`, `git
+    clean`, `git restore`, `rm -rf` et ses graphies `-fr`, `-Rf`, `-r -f`, `sudo`), git qui écrit (`add`, `commit`,
+    `rebase`, `checkout`, `switch`, `stash`, `merge`, `tag`, `branch -D`, `config`,
+    `pull`), le système (`kill`, `pkill`, `systemctl`, `podman`, et `distrobox`
+    par `create`, `rm`, `stop`, `assemble`, `upgrade` seulement : le préfixe des
+    actions, `distrobox enter <box> --`, passe) et la CLI de VibeCoder
+    (`node *vibecoder.mjs*`). Chaque commande est refusée seule ou suivie
+    d'arguments (`Bash(git push *)`), et aussi derrière le préfixe des actions
+    (Claude Code n'ôte pas un préfixe comme `distrobox enter dev --`) et, pour
+    git, derrière `-C` et `-c` (`Bash(git -C * push *)`). Claude
+    Code juge lui-même chaque morceau d'un enchaînement (`&&`, `||`, `;`, `|`,
+    sous-shell, `$(…)`), le refus l'emporte, et ôte `timeout`, `time`, `nice`,
+    `nohup`, les assignations de tête : `timeout 60 git push` est refusé ;
+  - *ce que son skill en ouvre* : une règle `Bash(<commande>)` de son
+    `allowed-tools` dont la commande (assignations `VAR=…` de tête ôtées)
+    commence mot pour mot par celle d'un refus la retire des refus (*Valider la
+    feature* : `git push`, `gh pr create` ; *Commiter* : `git add`, `git commit` ;
+    *Replier les fixups* : `git rebase` ; *PR mergée → revenir sur la base* :
+    `git switch`, `git pull` ; le détail par action, dans le README ; *Lancer les
+    vérifications* n'ouvre pas la CLI : l'appli lance elle-même la ponytail
+    review ; *Publier la revue* n'ouvre pas `gh api`, qui pourrait fusionner par
+    un PUT). `git branch *` n'ouvre pas `git branch -D`. `gh pr merge`, `gh release` et `gh repo` (`NEVER`) ne sont
+    rouverts par aucun skill : fusionner une PR ou publier une release reste à
+    l'utilisateur.
+
+  Compromis accepté : une forme tordue que Claude Code ne découpe pas (`bash
+  -c "…"`, `env`, `npx`) peut passer ; les agents et les skills sont les nôtres,
+  et le vrai rempart reste les bornes de fichiers ci-dessous. Les
+  `permissions.allow` des réglages de l'utilisateur s'ajoutent, `ask` vaut un
+  refus, `deny` l'emporte ; ses `additionalDirectories` ne sont pas repris. Un
+  crochet `PreToolUse`
   (`core/vibecoder/bounds`), que l'appli donne au SDK pour la course et ses
   sous-agents, borne les outils de fichiers, avant les règles de l'utilisateur :
   lecture dans le projet, les sorties de l'agent et le plugin de VibeCoder ;
   écriture dans le projet et les sorties (une action `reads` : les sorties
   seules) ; jamais `.claude/`, `.git/`, `.husky/`, un `AGENTS.md` ni un
   `package.json` ; un motif de `Glob` ou un `glob` de `Grep` absolu ou qui monte
-  par `..` est refusé. Ce qu'une commande autorisée lance n'est pas borné.
+  par `..` est refusé. Ce que lance une commande permise n'est pas borné.
   *Les refus* sont lus dans le flux, de l'agent et de ses sous-agents, pendant
   un tour ou hors tour : un refus ne fait plus échouer la course (l'appel reste
   refusé, seul l'état change) : elle finit comme son travail, *terminée* s'il
@@ -1375,13 +1412,11 @@ conversation ; note `0.9.0-actions-independantes.md`).
   *La consigne d'outils* : l'appli ajoute au prompt système de chaque course
   (`TOOL_RULE`, `systemAppend` de `core/agents/options`, après la consigne de
   l'appli ; la conversation de l'agent, qui n'a pas de droits, ne la reçoit
-  pas), la même pour toutes et en anglais, trois lignes : seules les commandes de
-  sa liste passent, écrites telles quelles, le reste est refusé ; un appel `Bash`
-  par commande (ni `cd`, ni enchaînement `;` `&&` `||` `|`, ni redirection, ni
-  variable ou substitution) ; lire avec `Read`, chercher avec `Glob` et `Grep`,
-  écrire avec `Write`, jamais `cat`, `head`, `tail`, `sed`, `awk`, `grep` ni
-  `find` par `Bash`. Elle ne remplace pas les droits : un appel qui l'enfreint
-  est refusé comme avant.
+  pas), la même pour toutes et en anglais, trois lignes : rester dans son
+  travail ; lire avec `Read`, `Glob` et `Grep` plutôt que par `Bash` ; une
+  commande refusée se contourne autrement ou se signale dans la réponse, sans la
+  répéter. Plus d'« un appel par commande » ni de liste à recopier. Elle ne
+  change pas les droits, elle évite les refus.
   *Vibe* tourne dans la conversation : sa liste (la CLI de VibeCoder,
   `Read`, `Glob`, `Grep`) ne vaut que pour son premier tour (mesuré), le reste
   suit le mode de l'agent — sauf la CLI : tant que le mode *Vibe* de l'agent
@@ -1392,12 +1427,22 @@ conversation ; note `0.9.0-actions-independantes.md`).
   redirection hors guillemets — `;` `&` `|` `<` `>` `$`, accent grave,
   parenthèses, saut de ligne). *Vibe* arrêté, ou jamais lancé : le mode de
   l'agent s'applique, la demande est posée ; toute autre commande pendant
-  *Vibe* : posée aussi. Une variante de modèle d'un skill (`verifier--haiku`)
-  reçoit aussi les règles du dossier du skill de base, dont elle suit le texte.
-  Les skills `modules` et `module` (et leur sous-agent `developpeur`) lancent
+  *Vibe* : posée aussi. Les skills `modules` et `module` (et leur sous-agent `developpeur`) lancent
   les commandes du projet derrière le préfixe de l'agent (`{{prefix}}`, comme
   `verifier` et `commiter-modules`). *Commit* ne supprime plus `commit.md` : à
   la fin de la course, si `HEAD` a bougé depuis son départ, l'appli l'efface.
+- **Son dossier temporaire** (0.15.0, I-58 ; `controllers/run-tmp`,
+  `runEnv` et `tmpLine` de `core/vibecoder/run-tmp`) : chaque course a le sien,
+  `<sorties de l'agent>/tmp/<clé de la course>`, que Claude Code reçoit par
+  `CLAUDE_CODE_TMPDIR` (l'environnement du robot, ou celui du processus,
+  recopié). Il est vidé au lancement (celui qu'une course de même clé a laissé,
+  l'appli tuée en route), et mesuré toutes les 5 s tant qu'elle court. Au-delà de
+  `runTmpMax` (`config.json`, § 9 : 1 Go par défaut, absent de la fenêtre des
+  réglages), la course est arrêtée comme à la main (*Arrêter* : processus et
+  verrou gardés, *Garder* / *Annuler*) et sa réponse commence par une ligne qui
+  dit que le dossier a dépassé la borne. Il est effacé à **chaque fin** : finie,
+  en échec, échec au lancement, arrêtée à la main ou par la borne, fermée. S'il ne
+  peut pas être créé, la course part sans (la variable reste ce qu'elle était).
 - **Un ancien résultat ne compte pas** : un `checks.json` dont le `time`
   précède le départ de la dernière course `checks` est ignoré (I-46).
 - **La règle** (`blockedBy`, sans modèle) : une action qui **modifie la
@@ -2809,7 +2854,7 @@ protocole d'`actions`, à partir de la forme ; il ne s'arrête que sur une ligne
 la lecture et `Write` pour `questions.md` seul) est la vérification de conception
 de la note (`design-check`, F-100) : elle n'écrit que des suggestions, jamais la
 note. `invariants` suit `aligner` une fois dans sa course (lui corrige les tests et
-boucle, F-100) ; `verifier` demande `ponytail` quand il lance toutes les
+boucle, F-100) ; l'appli lance `ponytail` quand `verifier` part pour toutes les
 vérifications (F-93) ; `module` suit la boucle de `modules` pour un seul module
 (F-115), sans demander `relire`. `modules` et `module` ne commitent pas :
 `commiter-modules` commite tous les modules qui ont des changements, un
@@ -3020,6 +3065,7 @@ d'effort des boutons d'action sont passés dans cette page.
 | `vibeCommandPrefix` | `''` | VibeCoder : ce qui précède les commandes du projet et gh (F-111, F-112) ; `''` → `distrobox enter <box> --` d'après `agentCommand`, sinon rien |
 | `outsideAgents` | `false` | VibeCoder : « Autoriser les agents extérieurs » (F-116) ; seul `true` l'active, toute autre valeur est lue comme désactivé ; activé, `live.json` porte le jeton extérieur (I-52) |
 | `artifactTextMax` | `10485760` (10 Mo) | VibeCoder : octets d'un artefact affiché en texte, au-delà « fichier tronqué » (F-95) ; un entier positif, sinon le défaut |
+| `runTmpMax` | `1073741824` (1 Go) | VibeCoder : octets du dossier temporaire d'une course (F-115, I-58), au-delà la course est arrêtée ; un entier positif, sinon le défaut ; pas dans la fenêtre des réglages |
 
 Ces réglages, dont `vocabulary`, `agentCommand`, `editorCommand`,
 `terminalCommand`, `vibeCommandPrefix`, `outsideAgents` et `artifactTextMax`, se changent dans
@@ -3118,8 +3164,10 @@ principal, git réel, SDK factice), et, à la porte des commandes,
 `src/main/core/agents/tests/invariants/rewind.test.ts` (ce que l'appli
 demande à Claude Code) et le dernier cas de `runs.test.ts` ; I-44 relancé (T-32) :
 `run-relaunched.test.ts` ; I-57 : `run-rights.test.ts` (même dossier, sur le
-vrai principal, SDK factice : le mode, la liste et le contrôle des fichiers que
-l'appli lui donne) ; I-46 :
+vrai principal, SDK factice : le mode, la liste de refus et le contrôle des fichiers que
+l'appli lui donne) ; I-58 : `run-tmp.test.ts` (même dossier, sur le vrai
+principal, SDK factice : le dossier effacé à chaque fin, la course arrêtée au-delà
+de la borne) ; I-46 :
 `src/main/core/vibecoder/tests/invariants/checks.test.ts` ; I-41 :
 `src/main/app/controllers/tests/invariants/worktree.test.ts` (sur le vrai
 principal, git réel) ; la page des réglages et
@@ -3497,13 +3545,21 @@ sont retirés en 0.14.0.)*
   robot : refusé, rien ne part. Et il passe par la porte `agent` : ce qu'elle
   ferme (répondre aux demandes d'autorisation, I-13 à I-17) lui reste fermé.
 - **I-57** Une course (F-115) et ses sous-agents n'ont **jamais plus de droits
-  que la liste de leur skill plus les règles d'autorisation de l'utilisateur** :
+  que ceux de leur skill plus les règles d'autorisation de l'utilisateur** :
   toujours le mode `dontAsk` (jamais le mode de l'agent, *Auto* ni le
   contournement des autorisations), que l'action parte d'un clic ou de
-  l'orchestrateur ; leurs outils de fichiers ne lisent ni n'écrivent hors du
+  l'orchestrateur ; la liste de refus donnée au SDK (`disallowedTools`) tient
+  quel que soit le mode : une commande qu'elle nomme, que le skill n'ouvre pas,
+  ne passe pas, et `gh pr merge`, `gh release` et `gh repo` ne passent jamais ;
+  leurs outils de fichiers ne lisent ni n'écrivent hors du
   projet et des sorties de l'agent (le plugin en lecture), et jamais `.claude/`,
   `.git/`, `.husky/`, un `AGENTS.md` ni un `package.json` : une action
   n'élargit pas ses propres droits.
+- **I-58** Le dossier temporaire d'une course (F-115) n'est **jamais laissé après
+  sa fin** — finie, en échec, échec au lancement, arrêtée à la main ou par la
+  borne, fermée : effacé à chacune — et **ne dépasse jamais sa borne
+  (`runTmpMax`) sans que la course soit arrêtée** : au-delà, elle s'arrête comme
+  à la main, sa réponse le dit en tête.
 
 ### Système et code
 
@@ -3815,7 +3871,7 @@ relire, une PR d'essai sur GitHub)
   « VibeCoder : « … » finie — … » dans le fil (après le tour en cours de la
   conversation, s'il y en a un) ; une course arrêtée → aucune. Mode
   *manuel* : la course ne demande rien (mode `dontAsk`, I-57) ; ce que sa
-  liste ne permet pas est refusé, la ligne en tête de sa réponse le cite, la
+  liste de refus touche est refusé, la ligne en tête de sa réponse le cite, la
   course finit *terminée* si son travail l'est. *Nouvelle session* → l'onglet se
   vide.
 - **S-69** L'orchestrateur (F-115, F-103) : « Lance la relecture du diff »
@@ -3901,10 +3957,21 @@ relire, une PR d'essai sur GitHub)
   la ligne en tête de la réponse le cite (un `Read` aussi), la course finit
   *terminée* si son travail l'est. Pendant
   *Générer les modules*, un développeur relancé par l'orchestrateur → la course
-  reste *en cours* jusqu'à sa réponse relue. Les commandes de test d'`AGENTS.md`
-  passent derrière le préfixe, avec un fichier en argument. *Release candidate*
+  reste *en cours* jusqu'à sa réponse relue. Une commande du projet, enchaînée
+  (`cd frontend && npm test`) ou non, passe derrière le préfixe ; `git push` est
+  refusé, seul ou derrière lui, sauf pour *Valider la feature*. *Release candidate*
   et *Release officielle* n'apparaissent plus à l'étape PR. *Revérifier* une
   note sans changement → « rien de bloquant ».
+- **S-76** Des droits d'actions souples (0.15.0) : sur un projet dont l'`AGENTS.md`
+  écrit `cd frontend && npm test` ou `cargo build && cargo test` → *Générer les
+  modules* lance ces commandes sans refus ; une course qui tente `git push`,
+  `gh pr merge`, `npm install`, `rm -rf` ou `timeout 60 git push` → refusé, cité
+  en tête de sa réponse, la course finit *terminée* ; *Créer la PR* pousse et
+  ouvre la PR, mais ne fusionne jamais ; *Publier la revue* n'appelle plus
+  `gh api`. *Lancer les vérifications* → la ponytail review part avec elles,
+  lancée par l'appli. Une course qui écrit sans fin dans son dossier temporaire
+  → arrêtée au-delà de 1 Go, la ligne en tête le dit ; à la fin de toute course,
+  son dossier temporaire (sous les sorties de l'agent) n'existe plus.
 ---
 
 ## 14. Limites connues
