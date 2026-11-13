@@ -5,10 +5,14 @@
  *  colonne de droite de VibeCoder (affichée ou masquée, sa largeur : retenues
  *  ici, pour tous les agents) ; le volet des tâches de fond est son onglet
  *  Tâches. Tant que le relevé de l'agent affiché n'est pas là, rien n'est
- *  montré. Une action prend le texte que l'écran lui donne (le champ de son
- *  étape, une remarque) ; seul un message de la conversation (Demander sans
- *  modifier, Où j'en suis ?, Proposer les commandes) prend celui du champ de
- *  la conversation (vidé une fois parti), ou y prépare un message. La dictée
+ *  montré. Une action prend le texte que l'écran lui donne (une remarque) ;
+ *  un message de la conversation (Demander sans modifier, Où j'en suis ?,
+ *  Proposer les commandes) prend celui du champ de la conversation (vidé une
+ *  fois parti), ou y prépare un message ; une action qui exige une demande
+ *  (takesConversation : Rédiger la note, Nouvelle demande) prend ce champ et
+ *  ses pièces jointes (vidés une fois partie ; vide : « Dictez ou écrivez
+ *  d'abord… », le champ prend le clavier) ; Poser la forme, Écrire les
+ *  invariants partent sans texte. La dictée
  *  (le micro du champ, maintenu ; createDictation) rend le texte de whisper à
  *  la zone de texte qui a le clavier (champ d'étape, commentaire, réponse
  *  libre ; pas un éditeur de code ni un champ d'une ligne), sous sa longueur,

@@ -14,7 +14,9 @@
  *  n'est envoyé) ; sur « À revoir », le bouton de
  *  remarque ouvre la zone, qui ne s'ouvre pas d'elle-même. Ce qui a changé
  *  depuis la note de référence (note.before : posée par le principal, changée par Vu ou la validation)
- *  a un liseré vert, « Changée depuis votre dernière relecture » ; « Voir les
+ *  a un liseré vert, et ce qui en a été retiré est rendu à sa place, barré en rouge, en lecture seule
+ *  (removedGroups, placeRemoved, MarkdownView removed ; en mode rendu seulement, disparu avec Vu ou
+ *  la validation), « Changée depuis votre dernière relecture » ; « Voir les
  *  modifications » montre le diff brut, retraits compris, replié autour des
  *  changements (DiffView) ; « Vu » (Icon ok + texte) repart de la note actuelle. Les lignes de « Ce que ça
  *  ne doit pas faire » portent leur marque en pastille (variant : un bleu plus clair que invariant, même

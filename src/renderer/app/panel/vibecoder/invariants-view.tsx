@@ -31,7 +31,8 @@
  *  une ligne « → invariant » : à côté, « ✓ Rien à écrire » (elles sont déjà
  *  observées par des tests existants), validation à la main pour la note telle
  *  qu'elle est (MarkControl, comme « ✓ Valider la note »). En tête : « Tout
- *  relire », le résumé de l'étape, les cas à valider, ce que veut dire
+ *  relire », le résumé de l'étape (Summary : fichiers, cas, validés, à lire ; l'en-tête
+ *  d'étape ne les répète plus), les cas à valider, ce que veut dire
  *  « Attention » (s'il y en a), l'alignement
  *  (align.md ; créateur : Relancer dans son en-tête, l'action align seule, pour
  *  revérifier après avoir corrigé les tests ; relecteur, son bouton est dans la

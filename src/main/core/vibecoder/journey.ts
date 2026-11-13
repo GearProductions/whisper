@@ -3,7 +3,8 @@
  *  (Note, Forme, Invariants, Modules, Revue, PR) pour les deux rôles (view.flow : créateur
  *  'create', relecteur 'review', décidé par l'appli, passé en entrée). Les étapes (faite,
  *  en cours — la première pas faite — , à venir ; toutes s'ouvrent, la page ne reçoit plus
- *  d'`open`), leurs faits en une ligne, la prochaine action (celle de l'étape en cours), les
+ *  d'`open`), leurs faits en une ligne (facts : tous, l'infobulle du fil d'Ariane ; head : ceux que
+ *  l'étape ne montre pas en dessous, son en-tête, sans doublon ; note 0.15.0-ecran-epure), la prochaine action (celle de l'étape en cours), les
  *  actions possibles, pourquoi une autre est grisée (noNoteYet : grisée, sa raison au survol) et
  *  celles qui n'ont pas encore de sens (hidden : masquées, leur raison d'être grisée gardée).
  *  Faite, en relecteur : la Note jugée ; la Forme avec elle (rien à juger) ; les Invariants,

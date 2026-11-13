@@ -1,8 +1,9 @@
 /** step-views — l'aiguillage des étapes : la vue de chaque étape du parcours,
  *  et ce qu'elle reçoit (StepProps : le relevé, l'étape, les libellés, les
- *  rappels de l'écran, le texte du champ de l'étape, le fichier de module
- *  suivi, les modifications gardées des fichiers suivis, les pièces jointes du champ de l'étape et du questionnaire,
- *  la ligne de la note où aller et le rappel qui y mène ; StepHead y prend les actions de l'étape et ce champ). Un seul
+ *  rappels de l'écran, le fichier de module
+ *  suivi, les modifications gardées des fichiers suivis, les pièces jointes du questionnaire,
+ *  la ligne de la note où aller et le rappel qui y mène ; StepHead y prend les actions de l'étape ;
+ *  plus de champ d'étape : text, setText et ses pièces retirés, note 0.15.0-ecran-epure). Un seul
  *  parcours, une vue par étape, pour les deux rôles (view.flow, décidé par
  *  l'appli) : chaque vue montre en lecture seule ce que le relecteur ne fait
  *  pas (Revue : Relire à l'écran ; Modules : les commits ; PR : le brouillon).

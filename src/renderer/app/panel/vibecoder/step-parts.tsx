@@ -1,6 +1,7 @@
 /** step-parts — les pièces des vues d'étape : l'en-tête d'étape (nom, état,
- *  faits, outils à droite ; dessous, le champ de l'étape quand une de ses
- *  actions en prend le texte (fieldOf), puis la rangée des actions de l'étape
+ *  ses faits propres — step.head, ce que l'étape ne montre pas en dessous —,
+ *  outils à droite ; aucun champ d'étape : Rédiger la note prend le champ de
+ *  la conversation, note 0.15.0-ecran-epure ; puis la rangée des actions de l'étape
  *  par stepActions — à l'étape en cours, Vibe d'abord avec son propre accent,
  *  puis celle qui fait avancer l'étape mise en avant), le champ d'une étape,
  *  la carte d'une sortie de skill (titre, fichier, depuis quand), le bouton
@@ -14,10 +15,8 @@
  *  'review', même allure que celui du worktree ; rien en créateur),
  *  le badge du robot d'une PR ouverte dans un worktree (le badge seul :
  *  Retirer le worktree est dans la vue des branches).
- *  Le champ d'une étape est un PromptField (Joindre, ses pièces, le micro et Envoyer : l'action
- *  du champ, fieldAction) ; les pièces et leurs rappels viennent de l'appelant (StepPieces : vibe-coder les
- *  tient, une liste par champ) ; « @ » cite les artefacts du projet (useArtifactMention, d'après
- *  VibeView.artifacts et artifactsDir). Une action n'a plus de choix de modèle ni d'effort à l'écran
+ *  StepPieces : les pièces jointes du questionnaire et leurs rappels, tenus par l'appelant (vibe-coder) ;
+ *  StepField (le champ d'étape) et fieldHint retirés. Une action n'a plus de choix de modèle ni d'effort à l'écran
  *  (le principal les pose) : le bouton montre qui travaille (`who`).
  *  Ne connaît pas : le pont (rappels passés ; ⏹ et la langue par le contexte StopRun).
  *  Utilisé par : les vues d'étape ; vibe-coder (badge Relecteur,

@@ -21,13 +21,18 @@
  *  après l'adresse d'une remarque ponytail) ; ce qu'elle couvre (tagCover, l'imbrication des listes)
  *  porte data-tag : [agent] grisé, toujours lisible ; une ligne [toi] sous lui reste normale ; sans
  *  étiquette : comme avant.
+ *  Avec removed (placeRemoved : les lignes retirées depuis la référence), chaque groupe est rendu à part
+ *  juste avant le bloc de premier niveau ou l'élément de liste qui le suit (end : après le dernier),
+ *  mis en forme comme le reste (parseMarkdown, jamais de HTML) et barré en rouge (vc-removed), en lecture
+ *  seule : ni 💬, ni pastille, ni zone de remarque, ni case ; les numéros de ligne (changed, tag, focus,
+ *  les citations) restent ceux du texte actuel.
  *  InlineMd : un texte d'une ligne (réponse proposée, cas limite…) en ligne.
  *  Ne connaît pas : le pont (rappels passés).
  *  Utilisé par : les vues d'étape (note-view en Relire, questions-view, forme-view, invariants-view,
  *  modules-view, review-view, pr-view, branches-view, commits-view, ecran-view, draft-view, runs-view) ;
  *  components (thread : un message de l'agent, sans onQuote ni onComment). */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { blockQuotes, parseInline, parseMarkdown, tagCover, untag, type Block, type Inline, type Strings, type Tag } from 'core/vibecoder';
+import { blockQuotes, parseInline, parseMarkdown, tagCover, untag, type Block, type Inline, type RemovedPlaces, type Strings, type Tag } from 'core/vibecoder';
 import { CommentBox } from './comment-box';
 import { Icon } from './icons';
 import { TagBadge } from './tag-badge';
@@ -40,6 +45,7 @@ type Ctx = {
   blockEnd?(text: string): ReactNode;              // après le bloc qui a un 💬 (son texte brut), comme itemEnd
   onComment?(quote: string, text: string): void;   // Relire : 💬 ouvre une zone de commentaire sous ce qu'il cite
   changed?: Set<number>;           // lignes ajoutées ou changées (depuis 0)
+  removed?: RemovedPlaces;         // les lignes retirées, rendues à part et barrées, devant ce qui les suit
   tag?(line: number): ReactNode;   // devant le texte de l'élément de liste qui commence à cette ligne
   itemStart?(text: string): ReactNode;   // devant le texte d'un élément de liste (son texte brut)
   itemEnd?(text: string): ReactNode;   // après le texte d'un élément de liste (son texte brut)

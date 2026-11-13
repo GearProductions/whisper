@@ -43,12 +43,12 @@
  *  ligne n'y est plus, son défilement gardé n'est alors pas rendu). Une vue
  *  d'étape qui échoue ne fait tomber ni l'écran ni le brouillon (I-29). Il
  *  tient les réponses en cours aux questions ouvertes, le verdict de la revue
- *  (rôle Relecteur), le champ de chaque étape (fieldOf : son texte part en
- *  args.text de l'action ; exigé et vide, le champ prend le clavier ; partie,
- *  il se vide) et ses pièces jointes (une liste par champ, et une pour le
- *  questionnaire, 'answers' : elles partent avec l'action de leur champ seule,
- *  piecesArg, puis sont libérées, revoke ; le 📎 d'un champ passe par act.attach,
- *  les fichiers déposés ou collés par act.pieces), la vue des branches ouverte ou non, le panneau Artefacts ouvert ou non, les modifications gardées des
+ *  (rôle Relecteur), les pièces jointes du questionnaire ('answers' : elles
+ *  partent avec Envoyer les réponses seule, piecesArg, puis sont libérées,
+ *  revoke ; le 📎 passe par act.attach, les fichiers déposés ou collés par
+ *  act.pieces) — plus de champ d'étape (note 0.15.0-ecran-epure) : une action
+ *  qui exige une demande (takesConversation) réaffiche la conversation et
+ *  part avec son champ, par panel-app —, la vue des branches ouverte ou non, le panneau Artefacts ouvert ou non, les modifications gardées des
  *  fichiers suivis (drafts, par chemin : useFileDraft ; changer d'étape ne
  *  les jette pas) — tout cela gardé par agent
  *  (kept : l'écran est recréé à chaque changement d'agent), par useKept de kept-scope sous un

@@ -1,11 +1,14 @@
 /** note — ce que la vue de la note calcule : les lignes que l'agent a
- *  ajoutées ou changées (leurs blocs sont surlignés), le diff brut replié
+ *  ajoutées ou changées (leurs blocs sont surlignés), les lignes retirées par
+ *  groupes (removedGroups) et leur place, avant le bloc ou l'élément de liste
+ *  qui les suit (placeRemoved : rendues à part, barrées), le diff brut replié
  *  autour des changements, la marque de chaque ligne de « Ce que ça ne doit
  *  pas faire », la ligne d'une de ces puces (pour y aller depuis un cas d'invariant), un extrait
  *  d'une ligne (la cible d'une remarque).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder (note-view, invariants-view). */
 import type { MustNotMark } from 'technicals/bridge';
 import type { DiffLine } from './diff';
+import type { Block } from './markdown';
 
 // Les lignes du texte actuel (depuis 0) ajoutées ou changées dans le diff ; une ligne vide ne compte pas.
 export function changedLines(diff: DiffLine[]): Set<number> {
@@ -17,6 +20,29 @@ export function changedLines(diff: DiffLine[]): Set<number> {
     n++;
   }
   return out;
+}
+
+// Des lignes retirées d'un même endroit : leur texte, et la ligne du texte actuel (depuis 0) qui les suit
+// (le nombre de lignes du texte actuel : à la fin).
+export type Removed = { at: number; lines: string[] };
+
+// Les suites de lignes retirées du diff, dans l'ordre ; une suite de lignes vides seules ne compte pas.
+export function removedGroups(diff: DiffLine[]): Removed[] {
+  void diff;
+  throw new Error('not implemented');
+}
+
+// Où rendre les retirées : before, par la ligne (depuis 0) du bloc de premier niveau ou de l'élément de liste
+// (à toute profondeur) devant lequel elles vont, leur Markdown (les groupes du même endroit à la suite,
+// désindentés de leur retrait commun) ; end : après le dernier bloc (null : rien).
+export type RemovedPlaces = { before: Map<number, string>; end: string | null };
+
+// Un groupe va devant le bloc ou l'élément qui commence à sa ligne, ou qui la contient (au milieu d'un
+// paragraphe, d'un tableau, d'un code, d'un élément : devant lui entier ; l'élément le plus profond) ;
+// sur une ligne vide entre deux blocs : devant le suivant ; après le dernier : end.
+export function placeRemoved(removed: Removed[], blocks: Block[]): RemovedPlaces {
+  void removed; void blocks;
+  throw new Error('not implemented');
 }
 
 export type Fold = DiffLine | { kind: 'skip'; count: number };
