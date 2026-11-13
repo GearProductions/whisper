@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { runEnv, runKey, runTmpDir, tmpLine } from 'core/vibecoder';
 
@@ -6,11 +7,11 @@ const MO = 1024 ** 2;
 
 describe('runTmpDir', () => {
   it('sous out, au nom de la clé', () => {
-    expect(runTmpDir('/out/agent', 'forme')).toBe('/out/agent/tmp/forme');
+    expect(runTmpDir('/out/agent', 'forme')).toBe(path.join('/out/agent', 'tmp', 'forme'));
   });
 
   it('answers reprend la clé de la note : même dossier', () => {
-    expect(runTmpDir('/out', runKey('answers'))).toBe('/out/tmp/note');
+    expect(runTmpDir('/out', runKey('answers'))).toBe(path.join('/out', 'tmp', 'note'));
   });
 });
 
