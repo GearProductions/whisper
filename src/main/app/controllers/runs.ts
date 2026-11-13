@@ -53,7 +53,8 @@
  *  Son dossier temporaire (décision du 13 novembre ; controllers/run-tmp, core/vibecoder run-tmp) : créé vide à son
  *  lancement et donné par CLAUDE_CODE_TMPDIR (runEnv, toujours un env désormais), surveillé tant qu'elle court ;
  *  au-delà de cfg.runTmpMax, elle est arrêtée comme par runOp stop (son processus et son verrou restent), sa
- *  réponse commence par tmpLine ; effacé à sa fin quelle qu'elle soit (finish, l'arrêt, garder ou annuler, closeRuns).
+ *  réponse commence par tmpLine ; effacé à sa fin quelle qu'elle soit (finish, l'arrêt — garder ou annuler
+ *  viennent après, plus rien à effacer —, closeRuns).
  *  Ne connaît pas : la page, les fenêtres.
  *  Utilisé par : controllers/vibecoder (releaseWaits), controllers/agents,
  *  controllers/module-code, controllers/commands (runOp, runEnd, queuedOf), menus/agent-menus. */
@@ -65,13 +66,14 @@ import { agentList, vibeLang, type Config } from 'core/config';
 import type { PreparedImage } from 'core/conversation';
 import {
   cutCommands, cutLine, denialLine, endNotice, fileDecision, GRACE_MS, headField, listSkill, LOCKING, lockCode, lockText, nextVibeMode,
-  ownRun, parseQuestions, runKey, runRules, skillModel, unreadLine,
+  ownRun, parseQuestions, runEnv, runKey, runRules, skillModel, tmpLine, unreadLine,
   noticedOnShow, remainingModules, runPhase, runSignal, runTasks, type ActionDef, type Run, type RunState, type VibeMode,
 } from 'core/vibecoder';
 import { gitRun } from 'technicals/git';
 import { loadConfig, vibeActions, vibeOutDir, vibePluginDir } from 'app/settings';
 import { agents, CLAUDE_MISSING, isBusy, launchOptions, pushAgents, sendToAgent } from './agents';
 import { promptPrefix } from './processes';
+import { dropRunTmp, openRunTmp, watchRunTmp } from './run-tmp';
 import { directLocks, lastView, refreshVibe, startAction, surveyAgent } from './vibecoder';
 
 /** La fin d'une course, ce que rend run.wait. */
@@ -84,6 +86,14 @@ export type RunEnd = { action: string; state: 'done' | 'failed' | 'stopped'; rep
 type Live = Run & { reads: boolean; seen: boolean; forked: boolean; tasks: number; noticed: RunState | null; grace?: NodeJS.Timeout; tmp?: { dir: string; stop: () => void }; head?: { dir: string; before: Promise<string | null> } };
 
 const stopGrace = (run: Live) => { clearTimeout(run.grace); run.grace = undefined; };
+
+// Son dossier temporaire effacé, sa surveillance arrêtée (à chaque fin de la course) ; sans effet s'il n'y en a plus.
+function dropTmp(run: Live) {
+  if (!run.tmp) return;
+  run.tmp.stop();
+  dropRunTmp(run.tmp.dir);
+  run.tmp = undefined;
+}
 
 const all = new Map<string, Map<string, Live>>();                       // par agent, par clé : la dernière course
 const waits = new Map<string, { id: string; args: VibeArgs; by: string }[]>();   // par agent : la file d'attente, dans l'ordre (queueStart)
@@ -254,12 +264,20 @@ export function startRun(
   // Un processus neuf par course : rewind ramène au premier message de CELLE-CI.
   // Ses tâches de fond oubliées : celles d'une course précédente, tuée en route, la tiendraient en cours.
   const launch = launchOptions(agent, cfg);   // le jeton est celui du robot, pas de la course
+  const base = launch.env ?? process.env;
+  // Son dossier temporaire, surveillé : au-delà de la borne, arrêtée comme à la main (sa réponse dit pourquoi).
+  const tmp = openRunTmp(agent.id, key);
+  if (tmp) {
+    const stop = watchRunTmp(tmp, cfg.runTmpMax, () => { run.reply = `${tmpLine(cfg.runTmpMax, lang)}\n`; void runOp(agent, def.id, 'stop'); });
+    run.tmp = { dir: tmp, stop };
+  }
   agents.close(entry.id).then(() => agents.forgetReply(entry.id)).then(() => agents.send(entry, message, {
     ...launch, checkpoint: true, rights: runRights(agent, def, message.text, def.id === 'answers' ? skillMd('/vibecoder:note') : md, cfg),
     dirs: [vibeOutDir(agent.id)],   // les sorties seules : le dossier des artefacts du projet reste à la conversation
-    // Un fork qui lance une commande de fond la verrait tuée à sa réponse : il l'attend au premier plan.
-    // env remplace celui du processus (le SDK ne fusionne pas) : celui du robot, sinon process.env recopié.
-    ...(forked && { env: { ...(launch.env ?? process.env), CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1' } }),
+    // env remplace celui du processus (le SDK ne fusionne pas) : celui du robot, sinon process.env recopié, plus le dossier
+    // temporaire ; un fork qui lance une commande de fond la verrait tuée à sa réponse : il l'attend au premier plan.
+    // Sans dossier temporaire (pas pu le créer) : la variable reste ce qu'elle était.
+    env: { ...runEnv(base, { tmp: tmp ?? '', forked }), ...(!tmp && { CLAUDE_CODE_TMPDIR: base.CLAUDE_CODE_TMPDIR }) },
     onChange: () => changed(agent.id, run),
     onSession: (id) => { run.sessionId = id; },
     onPermission: () => {},   // dontAsk : canUseTool ne tombe jamais ; le hook est requis par le runtime
@@ -301,6 +319,7 @@ function changed(agentId: string, run: Live) {
 // sont lus avant la fermeture, qui les emporte.
 function finish(agentId: string, run: Live, failure?: string) {
   stopGrace(run);
+  dropTmp(run);
   const entry = entryId(agentId, run.key);
   const cfg = loadConfig();
   const lang = vibeLang(cfg);
@@ -412,6 +431,7 @@ export async function runOp(agent: AgentConfig, id: string, op: VibeRunOp): Prom
   const entry = entryId(agent.id, run.key);
   if (op === 'stop' && (run.state === 'running' || run.state === 'asking')) {
     stopGrace(run);
+    dropTmp(run);
     Object.assign(run, { state: 'stopped', end: Date.now() });   // avant interrupt : sa fin n'en est pas une
     agents.interrupt(entry);
     settle(agent.id, run.id, { action: run.id, state: 'stopped', reply: run.reply });
@@ -439,7 +459,7 @@ export const viewLocks = (view: VibeView, defs: ActionDef[]) => [
 
 // L'agent oublié (retiré, nouvelle session, robot d'un worktree retiré) : ses courses fermées et oubliées.
 export function closeRuns(agent: Pick<AgentConfig, 'id'>) {
-  for (const r of mine(agent.id)) { stopGrace(r); agents.forget(entryId(agent.id, r.key)); }
+  for (const r of mine(agent.id)) { stopGrace(r); dropTmp(r); agents.forget(entryId(agent.id, r.key)); }
   for (const w of ends.get(agent.id) ?? []) w.resolve(null);
   for (const m of [all, waits, ends, notices, signals, modes]) m.delete(agent.id);
   wasBusy.delete(agent.id);

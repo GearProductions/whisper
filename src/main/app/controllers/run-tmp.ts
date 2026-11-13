@@ -8,6 +8,7 @@
  *  quelle qu'elle soit (dropRunTmp : jamais d'erreur, un dossier absent compris).
  *  Ne connaît pas : l'état des courses, le SDK, la page, la réponse d'une course.
  *  Utilisé par : controllers/runs (startRun, finish, runOp, closeRuns). */
+import fs from 'node:fs';
 import { runTmpDir } from 'core/vibecoder';
 import { watchDirSize } from 'technicals/dir-size';
 import { vibeOutDir } from 'app/settings';
@@ -17,18 +18,20 @@ export const RUN_TMP_EVERY_MS = 5_000;
 
 // Le dossier temporaire, vide, de la course `key` de l'agent ; null : pas pu le créer.
 export function openRunTmp(agentId: string, key: string): string | null {
-  void agentId; void key; void runTmpDir; void vibeOutDir;
-  throw new Error('not implemented');
+  const dir = runTmpDir(vibeOutDir(agentId), key);
+  try {
+    fs.rmSync(dir, { recursive: true, force: true });   // celui d'une course de même clé, l'appli tuée en route
+    fs.mkdirSync(dir, { recursive: true });
+    return dir;
+  } catch { return null; }
 }
 
 // Surveille `dir` : onOver au premier dépassement de `max` octets. Rend stop().
 export function watchRunTmp(dir: string, max: number, onOver: () => void): () => void {
-  void dir; void max; void onOver; void watchDirSize;
-  throw new Error('not implemented');
+  return watchDirSize(dir, { max, everyMs: RUN_TMP_EVERY_MS }, () => onOver());
 }
 
 // Efface `dir` et son contenu, sans erreur.
 export function dropRunTmp(dir: string): void {
-  void dir;
-  throw new Error('not implemented');
+  try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* rien à faire : une prochaine course de même clé le vide */ }
 }

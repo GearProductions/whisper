@@ -714,7 +714,8 @@ export const greyed = (def: ActionDef, view: VibeView, lang: VibeLang) =>
 // relevé pour une autre raison qu'une course, refusée (une course, startRun la revoit sur l'état vivant :
 // le relevé peut avoir un temps de retard) ; son gabarit rempli (I-38) ; une action d'étape court à
 // part, les autres vont à la conversation. invalid : ses arguments ne vont pas, rien à retenter ;
-// ignored : les arguments donnés qui ne servent pas à l'action, ignorés (buildMessage).
+// ignored : les arguments donnés qui ne servent pas à l'action, ignorés (buildMessage). checks (toutes les vérifications,
+// sans `check`) lance aussi la course ponytail.
 export function startAction(
   agent: AgentConfig, def: ActionDef, args: VibeArgs, view: VibeView, cfg: Config,
 ): Refusal & { invalid?: true; ignored?: (keyof VibeArgs)[] } {
@@ -750,6 +751,12 @@ export function startAction(
     outgoing = ready.message;
   }
   const sent = ownRun(def) ? startRun(agent, def, outgoing, cfg, runModule(def.id, args, view.modules)) : sendToAgent(agent, outgoing, cfg);
+  // Toutes les vérifications (pas une seule relancée) : la ponytail review part avec elles, en même temps (même verrou de
+  // lecture) ; déjà en cours, startRun la refuse (same) : pas en double. C'est l'appli qui la lance, pas le skill par la CLI.
+  if (sent.ok && def.id === 'checks' && args.check === undefined) {
+    const ponytail = vibeActions(lang).find((a) => a.id === 'ponytail');
+    if (ponytail) startAction(agent, ponytail, {}, view, cfg);
+  }
   // Dans un worktree, par l'agent : sa fiche pr-<n>-worktree.json attendue (syncWorktrees, la question de confiance).
   if (sent.ok && def.id === 'pr-worktree' && view.pr) wantWorktree(agent.id, view.pr.number);
   // Nouvelle demande : la demande retenue ; une fiche d'avant et les derniers résultats de ses choix, oubliés.

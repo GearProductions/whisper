@@ -310,6 +310,35 @@ describe('startRun retenue : reason et by', () => {
   });
 });
 
+// La ponytail review part avec les vérifications (note 0.15.0-droits-souples) : c'est l'appli qui la lance, au départ de la
+// course checks (même verrou de lecture, en même temps), pas le skill verifier par la CLI.
+describe('checks lance aussi la ponytail review', () => {
+  const ponytails = () => fake.turns.filter((t) => t.text.startsWith('/vibecoder:ponytail'));
+
+  it('checks lancé (toutes les vérifications) : la ponytail review part aussi, en même temps', async () => {
+    const { runVibeAction } = await open();
+    expect(await runVibeAction('checks', {})).toEqual({ ok: true });
+    await settle();
+    expect(turn('/vibecoder:verifier')).toBeDefined();
+    expect(ponytails()).toHaveLength(1);
+    expect((await runsNow()).map((r) => r.id).sort()).toEqual(['checks', 'ponytail']);
+  });
+
+  it('la ponytail review déjà en cours : pas en double', async () => {
+    const { startRun, runVibeAction } = await open();
+    const { loadConfig, vibeActions } = await import('app/settings');
+    const { agentList, vibeLang } = await import('core/config');
+    const cfg = loadConfig();
+    const def = vibeActions(vibeLang(cfg)).find((d) => d.id === 'ponytail')!;
+    expect(startRun(agentList(cfg)[0], def, { text: '/vibecoder:ponytail', images: [] }, cfg)).toEqual({ ok: true });
+    await settle();
+    expect(await runVibeAction('checks', {})).toEqual({ ok: true });
+    await settle();
+    expect(turn('/vibecoder:verifier')).toBeDefined();
+    expect(ponytails()).toHaveLength(1);
+  });
+});
+
 // Une course en sous-contexte (note fix/0.13.0-fix-and-improvements, sujet 11) : rien en arrière-plan, et le dire si ça arrive.
 describe('une course dont le skill a context: fork', () => {
   const start = async (id: string, head: string) => {
@@ -372,6 +401,154 @@ describe('une course dont le skill a context: fork', () => {
   it('sans fork, une commande de fond coupée : la course finit comme avant', async () => {
     await endsWith(await start('ci', ''), 'stopped');
     expect((await runsNow())).toMatchObject([{ id: 'ci', state: 'done' }]);
+  });
+});
+
+// Le dossier temporaire d'une course (décision du 13 novembre) : <sorties>/tmp/<clé>, donné par CLAUDE_CODE_TMPDIR, vide au
+// départ, mesuré tant qu'elle court (au-delà de cfg.runTmpMax : arrêtée comme à la main), effacé à sa fin quelle qu'elle soit.
+describe('le dossier temporaire d’une course', () => {
+  const tmp = () => path.join(out, 'tmp', 'forme');
+  const envOf = () => turn('/vibecoder:forme')!.options.env as Record<string, string | undefined>;
+  // La Forme lancée par le bouton ; la borne (octets) posée dans config.json avant l'ouverture.
+  async function startForme(runTmpMax?: number) {
+    if (runTmpMax) {
+      const file = path.join(fake.userData, 'config.json');
+      write(file, JSON.stringify({ ...JSON.parse(fs.readFileSync(file, 'utf8')), runTmpMax }));
+    }
+    const ctl = await open();
+    ctl.runVibeAction('forme', {});
+    await settle();
+    return ctl;
+  }
+  // L'horloge simulée (les mesures du dossier passent à la demande), puis `periods` mesures de 5 s, le disque relu après chacune.
+  async function measures(periods = 3) {
+    for (let i = 0; i < periods; i++) { await vi.advanceTimersByTimeAsync(5_000); await settle(); }
+  }
+  const clock = () => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'], shouldAdvanceTime: true });
+
+  it('une course part avec CLAUDE_CODE_TMPDIR sous les sorties de son agent, le jeton de son robot gardé', async () => {
+    const { robotToken } = await startForme();
+    expect(envOf().CLAUDE_CODE_TMPDIR).toBe(tmp());
+    expect(fs.statSync(tmp()).isDirectory()).toBe(true);
+    expect(envOf().VIBECODER_TOKEN).toBe(robotToken('a1'));
+    expect(envOf().CLAUDE_CODE_DISABLE_BACKGROUND_TASKS).toBe(process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS);   // pas ajoutée (ces tests peuvent tourner dans un fork)
+  });
+
+  it('un fork : les deux variables', async () => {
+    const { startRun } = await open();
+    const { loadConfig, vibeActions, vibePluginDir } = await import('app/settings');
+    const { agentList, vibeLang } = await import('core/config');
+    write(path.join(vibePluginDir(), 'skills', 'ci', 'SKILL.md'), '---\nname: ci\ncontext: fork\n---\n');
+    const cfg = loadConfig();
+    startRun(agentList(cfg)[0], vibeActions(vibeLang(cfg)).find((d) => d.id === 'ci')!, { text: '/vibecoder:ci', images: [] }, cfg);
+    await settle();
+    const env = turn('/vibecoder:ci')!.options.env as Record<string, string>;
+    expect(env.CLAUDE_CODE_TMPDIR).toBe(path.join(out, 'tmp', 'ci'));
+    expect(env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS).toBe('1');
+  });
+
+  it('finie : son dossier temporaire n’existe plus', async () => {
+    await startForme();
+    write(path.join(tmp(), 'fuite.log'), 'x');
+    turn('/vibecoder:forme')!.finish('ok');
+    await settle();
+    expect(await runsNow()).toMatchObject([{ id: 'forme', state: 'done' }]);
+    expect(fs.existsSync(tmp())).toBe(false);
+  });
+
+  it('en échec : son dossier temporaire n’existe plus', async () => {
+    await startForme();
+    write(path.join(tmp(), 'fuite.log'), 'x');
+    turn('/vibecoder:forme')!.emit({ type: 'result', subtype: 'error_during_execution', is_error: true });
+    await settle();
+    expect(await runsNow()).toMatchObject([{ id: 'forme', state: 'failed' }]);
+    expect(fs.existsSync(tmp())).toBe(false);
+  });
+
+  it('arrêtée : son dossier n’existe plus dès l’arrêt ; Garder ensuite, sans erreur', async () => {
+    const { vibeRunOp } = await startForme();
+    write(path.join(tmp(), 'fuite.log'), 'x');
+    vibeRunOp('forme', 'stop');
+    await settle();
+    expect(await runsNow()).toMatchObject([{ id: 'forme', state: 'stopped' }]);
+    expect(fs.existsSync(tmp())).toBe(false);
+    vibeRunOp('forme', 'keep');
+    await settle();
+    expect(await runsNow()).toMatchObject([{ id: 'forme', state: 'kept' }]);
+    expect(fs.existsSync(tmp())).toBe(false);
+  });
+
+  it('arrêtée puis Annuler : son dossier n’existe pas', async () => {
+    const { vibeRunOp } = await startForme();
+    vibeRunOp('forme', 'stop');
+    await settle();
+    vibeRunOp('forme', 'undo');
+    await settle();
+    expect(await runsNow()).toMatchObject([{ id: 'forme', state: 'undone' }]);
+    expect(fs.existsSync(tmp())).toBe(false);
+  });
+
+  it('fermée (closeRuns) : son dossier temporaire n’existe plus', async () => {
+    const { closeRuns } = await startForme();
+    write(path.join(tmp(), 'fuite.log'), 'x');
+    closeRuns({ id: 'a1' });
+    expect(fs.existsSync(tmp())).toBe(false);
+  });
+
+  it('parti en échec avant son tour : son dossier temporaire n’existe plus', async () => {
+    const { startRun } = await open();
+    const { loadConfig, vibeActions } = await import('app/settings');
+    const { agentList, vibeLang } = await import('core/config');
+    const cfg = loadConfig();
+    const forme = vibeActions(vibeLang(cfg)).find((d) => d.id === 'forme')!;
+    const agents = (await import('app/controllers')).agents;
+    vi.spyOn(agents, 'send').mockRejectedValueOnce(new Error('pas parti'));
+    startRun(agentList(cfg)[0], forme, { text: '/vibecoder:forme', images: [] }, cfg);
+    write(path.join(tmp(), 'fuite.log'), 'x');   // posé tout de suite, avant que le départ échoue
+    await settle();
+    expect(await runsNow()).toMatchObject([{ id: 'forme', state: 'failed', reply: 'pas parti' }]);
+    expect(fs.existsSync(tmp())).toBe(false);
+  });
+
+  it('un dossier laissé par une course précédente de même clé (l’appli tuée en route) : vide au départ', async () => {
+    write(path.join(tmp(), 'vieux', 'reste.log'), 'reste');
+    await startForme();
+    expect(fs.readdirSync(tmp())).toEqual([]);
+  });
+
+  it('le dossier ne peut pas être créé : la course part quand même, sans la variable, le jeton gardé', async () => {
+    write(path.join(out, 'tmp'), 'un fichier, pas un dossier');
+    const { robotToken } = await startForme();
+    expect(envOf().CLAUDE_CODE_TMPDIR).toBe(process.env.CLAUDE_CODE_TMPDIR);   // l'héritée (ces tests peuvent tourner dans une course)
+    expect(envOf().VIBECODER_TOKEN).toBe(robotToken('a1'));
+    expect(await runsNow()).toMatchObject([{ id: 'forme', state: 'running' }]);
+  });
+
+  it('au-delà de la borne : arrêtée comme à la main (son processus interrompu), sa réponse commence par la ligne, son dossier effacé', async () => {
+    clock();
+    await startForme(16);
+    const { tmpLine } = await import('core/vibecoder');
+    await measures();
+    expect(await runsNow()).toMatchObject([{ id: 'forme', state: 'running' }]);   // sous la borne : elle court
+    write(path.join(tmp(), 'fuite.log'), 'x'.repeat(64));
+    await measures();
+    expect(turn('/vibecoder:forme')!.interrupted).toBe(true);
+    const [run] = await runsNow();
+    expect(run.state).toBe('stopped');
+    expect(run.reply.startsWith(`${tmpLine(16, 'fr')}\n`)).toBe(true);
+    expect(fs.existsSync(tmp())).toBe(false);
+    await measures(1);   // la surveillance est finie : rien de plus
+    expect((await runsNow())[0].state).toBe('stopped');
+  });
+
+  it('la borne passée après la fin de la course : sans effet', async () => {
+    clock();
+    await startForme(16);
+    turn('/vibecoder:forme')!.finish('ok');
+    await settle();
+    write(path.join(tmp(), 'fuite.log'), 'x'.repeat(64));   // le dossier recréé à la main : plus personne ne le mesure
+    await measures();
+    expect(await runsNow()).toMatchObject([{ id: 'forme', state: 'done', reply: 'ok' }]);
   });
 });
 
