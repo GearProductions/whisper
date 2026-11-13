@@ -10,9 +10,14 @@
  *  tests d'invariants ensemble ; un test : test (son rang dans view.invariants), sans rang (pas de numéro), son
  *  état (cas validés : tous done, aucun todo, sinon wip), sa couleur d'après son texte à la base de la branche
  *  (base absente : nouveau ; différente : modifié ; la même ou inconnue : aucune), code null. Sans Forme : les tests seuls.
+ *  Le menu de diff de la vue IDE (note 0.15.0-ecran-statuts) : ses références (diffRefs : la base de la branche, le
+ *  dernier commit, la validation si l'étape en a une) et l'arborescence filtrée (diffTree : base, tous les fichiers ;
+ *  head ou validated, ceux de view.diffs, un supprimé absent des fichiers ajouté en « supprimé », son id gone).
+ *  Retirés : reviewRows, fileGesture
+ *  (les accordéons, le Valider d'un fichier).
  *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (forme-view, modules-view, ide-view,
- *  invariants-view). */
-import type { VibeGit, VibeModule, VibeTestFile, VibeView } from 'technicals/bridge';
+ *  invariants-view, ide-diff). */
+import type { VibeDiffStep, VibeGit, VibeMarkState, VibeModule, VibeStepCheck, VibeTestFile, VibeView } from 'technicals/bridge';
 
 export type ModuleState = 'done' | 'wip' | 'todo';
 export type FileMark = VibeGit | 'deleted' | 'todo';
@@ -30,7 +35,22 @@ export type IdeFile = {
   code: VibeModule | null;      // ce que ModuleCode montre ; null : rien à montrer
   test?: number;                // Invariants : un test, son rang dans view.invariants ; absent : pas un test
   dim?: boolean;                // Invariants : un fichier de la Forme, en retrait ; absent = false
+  gone?: string;                // menu de diff : un fichier supprimé depuis la référence, son id r<i> (view.diffs) ; absent : aucun
+  hint?: string;                // l'infobulle de sa ligne, après son chemin (un fichier hors de la Forme) ; absent : le chemin seul
 };
+
+// La section Forme d'une note (de « ## Forme » au titre de niveau 2 suivant) ; '' sans elle.
+export function formeText(note: string): string {
+  const m = /^## Forme[ \t]*$/m.exec(note);
+  if (!m) return '';
+  const rest = note.slice(m.index + m[0].length);
+  const end = rest.search(/^## /m);
+  return end < 0 ? rest : rest.slice(0, end);
+}
+
+// Un chemin que la Forme nomme quelque part (en tête d'un module, dans ses variants, un « supprime … ») : déclaré, pas un
+// oubli ; aussi sans son src/ de tête (la Forme l'omet souvent).
+export const inForme = (forme: string, path: string): boolean => forme.includes(path) || forme.includes(path.replace(/^src\//, ''));
 
 // Un fichier de la branche, un module d'un seul fichier (rank et state null).
 const branchRow = ({ deleted, locked, ...file }: NonNullable<VibeView['files']>[number]): IdeFile => ({
@@ -86,3 +106,51 @@ export function invariantTree(view: Pick<VibeView, 'modules' | 'invariants' | 'f
   const forme = view.modules.length ? ideFiles(view, 'module').filter((r) => !paths.has(r.path)).map((r) => ({ ...r, dim: true })) : [];
   return [...forme, ...tests];
 }
+
+// La référence du menu de diff de la vue IDE.
+export type DiffRef = 'base' | 'head' | 'validated';
+
+// Les références offertes à l'étape : base et head toujours ; validated si l'étape a une validation (step.check.state
+// non null).
+export function diffRefs(view: Pick<VibeView, 'steps'>, step: VibeDiffStep): DiffRef[] {
+  const check = view.steps.find((s) => s.id === step)?.check;
+  return check?.state ? ['base', 'head', 'validated'] : ['base', 'head'];
+}
+
+// L'arborescence de la vue IDE pour une référence, d'après git, sans autre règle : base, files plus tout ce que la branche
+// change depuis sa base (view.files : git diff et git status, supprimés compris) qu'aucune ligne de files ne couvre (son
+// chemin, ou sous un dossier de files) ; head, ce qui diffère du dernier commit (view.diffs.head, le git status) ;
+// validated, ce qui diffère de la version validée de l'étape (view.diffs.validated[step]). Un chemin de la liste absent
+// de files : sa ligne de fichier de la branche (branchRow), sinon, supprimé, une ligne « supprimé » (gone : son id r<i>) ;
+// un ajouté que la Forme ne nomme nulle part est en retrait (dim), son infobulle hint le dit (un oubli possible de la
+// Forme) ; un ajouté qu'elle nomme (un variant, un fichier supprimé…) reste en clair. L'ordre de files, les ajoutés à la fin par chemin.
+export function diffTree(files: IdeFile[], view: Pick<VibeView, 'diffs' | 'files'> & { note?: { text: string } | null }, step: VibeDiffStep, ref: DiffRef, hint = 'Changé par la branche, hors de la Forme'): IdeFile[] {
+  const have = new Set(files.map((f) => f.path));
+  // Un ajouté que la Forme nomme quelque part : en clair ; sinon, en retrait, avec son infobulle (un oubli possible).
+  const forme = formeText(view.note?.text ?? '');
+  const outside = (f: IdeFile): IdeFile => (inForme(forme, f.path) ? f : { ...f, dim: true, hint });
+  const branch = new Map((view.files ?? []).map((f) => [f.path, f]));
+  const byPath = (a: { path: string }, b: { path: string }) => (a.path < b.path ? -1 : 1);
+  if (ref === 'base') {
+    const covered = (p: string) => have.has(p) || files.some((f) => p.startsWith(f.path.endsWith('/') ? f.path : `${f.path}/`));
+    const extra = [...branch.values()].filter((f) => !covered(f.path)).sort(byPath).map((f) => outside(branchRow(f)));
+    return extra.length ? [...files, ...extra] : files;
+  }
+  const entries = (ref === 'head' ? view.diffs?.head : view.diffs?.validated[step]) ?? [];
+  const by = new Set(entries.map((e) => e.path));
+  const extra = entries.filter((e) => !have.has(e.path)).sort(byPath).flatMap((e): IdeFile[] => {
+    const known = branch.get(e.path);
+    if (known) return [outside(branchRow(known))];
+    return e.deleted ? [outside({ path: e.path, rank: null, state: null, mark: 'deleted', code: null, gone: e.id ?? '' })] : [];
+  });
+  return [...files.filter((f) => by.has(f.path)), ...extra];
+}
+
+// La validation d'une étape d'après step.check, pour MarkControl : cochée → ok, décochée (changée, ou en cascade) → changed.
+export const checkMark = (c?: VibeStepCheck): VibeMarkState => (c?.state === 'ok' ? 'ok' : c?.state ? 'changed' : null);
+
+// Un fichier supprimé depuis la référence du menu de diff (gone), comme un module d'un seul fichier : ModuleCode le suit par
+// son id r<i>, tout en retraits.
+export const goneModule = (f: Pick<IdeFile, 'path' | 'gone'>): VibeModule => ({
+  path: f.path, paths: [f.path], contract: '', file: null, touched: true, commits: [], files: [{ id: f.gone!, path: f.path, deleted: true }],
+});
