@@ -96,3 +96,16 @@ describe('artefacts', () => {
     for (const v of [0, -5, 1.5, '1000', null, NaN]) expect(withDefaults({ artifactTextMax: v }).artifactTextMax).toBe(max);
   });
 });
+
+describe('dossier temporaire d’une course', () => {
+  it('borne : 1 Go par défaut, un entier positif gardé', () => {
+    expect(withDefaults({}).runTmpMax).toBe(1024 ** 3);
+    expect(withDefaults({ runTmpMax: 2048 }).runTmpMax).toBe(2048);
+  });
+  it('0, -1, 1.5, "1G" et autres valeurs qui ne sont pas un entier positif : 1 Go', () => {
+    for (const v of [0, -1, 1.5, '1G', '2048', null, NaN, Infinity, true, {}]) expect(withDefaults({ runTmpMax: v }).runTmpMax).toBe(1024 ** 3);
+  });
+  it('la borne des artefacts n’est pas touchée', () => {
+    expect(withDefaults({ runTmpMax: 0 }).artifactTextMax).toBe(10 * 1024 * 1024);
+  });
+});

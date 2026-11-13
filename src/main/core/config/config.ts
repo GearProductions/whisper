@@ -78,7 +78,9 @@ export const DICTATION_LANGS: Record<string, string> = {
 // Une limite retouchée à la main qui n'est pas un entier positif prend le défaut.
 export function withDefaults(raw: Record<string, unknown>): Config {
   const cfg = { ...DEFAULTS, ...raw } as Config;
-  if (!Number.isInteger(cfg.artifactTextMax) || cfg.artifactTextMax <= 0) cfg.artifactTextMax = DEFAULTS.artifactTextMax;
+  for (const key of ['artifactTextMax', 'runTmpMax'] as const) {
+    if (!Number.isInteger(cfg[key]) || cfg[key] <= 0) cfg[key] = DEFAULTS[key];
+  }
   return cfg;
 }
 
