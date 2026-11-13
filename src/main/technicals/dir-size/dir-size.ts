@@ -9,14 +9,42 @@
  *  Ne connaît pas : les courses, les réglages, Electron.
  *  Utilisé par : app/controllers (run-tmp). */
 
-// La taille de `dir` en octets (0 : absent).
+import { lstat, readdir } from 'node:fs/promises';
+import path from 'node:path';
+
+// La taille de `dir` en octets (0 : absent). Les liens ne sont ni suivis ni comptés ;
+// ce qui disparaît pendant la lecture vaut 0.
 export async function dirSize(dir: string): Promise<number> {
-  void dir;
-  throw new Error('not implemented');
+  const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
+  const sizes = await Promise.all(
+    entries.map(async (e) => {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) return dirSize(p);
+      if (!e.isFile()) return 0;
+      return (await lstat(p).catch(() => null))?.size ?? 0;
+    }),
+  );
+  return sizes.reduce((a, b) => a + b, 0);
 }
 
 // Surveille `dir` : onOver(octets mesurés) au premier dépassement de `max`, puis plus rien. Rend stop().
+// Le prochain tour n'est armé qu'une fois la mesure finie : jamais deux mesures en parallèle.
 export function watchDirSize(dir: string, o: { max: number; everyMs: number }, onOver: (bytes: number) => void): () => void {
-  void dir; void o; void onOver;
-  throw new Error('not implemented');
+  let stopped = false;
+  let timer: ReturnType<typeof setTimeout>;
+  const tick = async () => {
+    const bytes = await dirSize(dir);
+    if (stopped) return;
+    if (bytes > o.max) {
+      stopped = true;
+      onOver(bytes);
+      return;
+    }
+    timer = setTimeout(tick, o.everyMs);
+  };
+  timer = setTimeout(tick, o.everyMs);
+  return () => {
+    stopped = true;
+    clearTimeout(timer);
+  };
 }
