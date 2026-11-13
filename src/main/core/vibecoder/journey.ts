@@ -67,23 +67,35 @@
  *  décide d'après le relevé ; les autres sont déjà grisées ou masquées (Commiter, Pull, Pousser, S'assigner,
  *  Me retirer…) ou visent un argument que le relevé ne connaît pas) ; Mettre de côté, Actualiser, Pull et
  *  Rebase restent relançables.
+ *  Les validations d'étape (note 0.15.0-ecran-statuts) : step.check de la note, la Forme, les invariants et les
+ *  modules (stepContent et stepChecks de step-checks, d'après marks et blobs ; le créateur seul) ; leur en-tête et
+ *  leurs faits : « modifiée depuis la validation » (changed), « à revoir : la note a changé » (cascade, la première
+ *  étape décochée) ; done et next n'en dépendent pas ; la marque de la note est celle de sa conception (noteDesign :
+ *  la Forme seule changée ne la change pas) ; Commiter les modules grisé (« modules pas validés ») tant que les
+ *  modules ne sont pas cochés, aussi pendant Vibe. Le menu de diff de la vue IDE : diffs (diffFiles de validated ;
+ *  créateur seul, avec les blobs) — head, les fichiers relevés qui diffèrent du dernier commit ; validated, par étape
+ *  dont la liste retenue est lue (validated), ceux de sa vue (les tests, ou les fichiers des modules) qui diffèrent
+ *  d'elle ; un supprimé sans autre id dans la vue (m, b, t) : r<i>, d'un bout à l'autre de diffs.
+ *  Retirés : validation (fileReview), step.stale, since et « périmée ».
  *  Ne connaît pas : Electron, le disque, git, gh (tout est passé ; `exists` dit si
  *  un chemin du dossier de l'agent existe ; les textes des tests, à la tête et à la base, sont lus par
  *  l'appelant).
  *  Utilisé par : app/controllers/vibecoder (refreshVibe). */
 import type {
   VibeAction, VibeCheck, VibeComment, VibeFlow, VibeGit, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePr,
-  VibePrItem, VibeRecipe, VibeRun, VibeStepId, VibeTestFile, VibeView, VibeWorktree,
+  VibeDiffFile, VibeDiffs, VibeDiffStep, VibePrItem, VibeRecipe, VibeRun, VibeStepId, VibeTestFile, VibeView, VibeWorktree,
 } from 'shared/bridge';
 import { DIRECT_ACTIONS, DIRECT_ONLY, EFFORT_LEVELS, prNumber, SKILL_MODELS, templateVars, type ActionDef } from './actions';
 import { designChecked, markState, type Marks } from './marks';
-import { parseNote } from './note';
+import { noteDesign, parseNote } from './note';
 import { json, parseChecklist, parseQuestions, parseReading } from './outputs';
 import { ELSEWHERE, onBase, onPr, placeReason, placeShown, type PlaceState } from './place';
 import { canAssign, unassignable, type PrPeople } from './role';
 import { blockedBy, codeLock, ownRun } from './runs';
+import { CHECKED, stepChecks, stepContent, type CheckedStep } from './step-checks';
 import { syncReason } from './sync';
 import { blobSha, caseLines, caseTitles, isInvariantTest, readingOf } from './test-files';
+import { diffFiles, type FileBlobs, type StepFiles } from './validated';
 
 export type JourneyInput = {
   agentId: string;
@@ -133,7 +145,13 @@ export type JourneyInput = {
   skills: string[];
   exists: (rel: string) => boolean;                 // un chemin, relatif au dépôt, existe sur le disque
   modulesView?: 'ide' | 'list';                     // le réglage de la vue Modules (config) ; absent : non rempli
-  now: number;                                      // l'heure du relevé
+  // Les fichiers des étapes (ceux des modules, les tests, et ceux des listes retenues) : l'empreinte de leur texte sur
+  // le disque et au dernier commit ; absent : aucun.
+  blobs?: FileBlobs[];
+  // La liste des fichiers retenue par la validation de chaque étape (validated/<files> de sa marque, lu par le
+  // contrôleur) ; null : illisible ; absent : pas de validation.
+  validated?: Partial<Record<CheckedStep, StepFiles | null>>;
+  now: number;                                     // l'heure du relevé
 };
 
 // Le texte d'un test d'invariant, montré à l'écran à côté de sa lecture ; au-delà : '' (la vue ne le montre pas) ;
@@ -146,7 +164,8 @@ const TEXT = {
   fr: {
     plural: (n: number) => n > 1,
     mark: { ok: 'validée', ko: 'refusée', changed: 'modifiée depuis' },
-    noNote: 'pas de note', filled: 'rédigée', unfilled: 'à rédiger', question: ['question', 'questions'], noteChanged: 'note modifiée depuis son commit',
+    noNote: 'pas de note', filled: 'rédigée', unfilled: 'à rédiger', question: ['question', 'questions'], changedSince: 'modifiée depuis la validation',
+    toReview: { note: 'à revoir : la note a changé', forme: 'à revoir : la Forme a changé', invariants: 'à revoir : les invariants ont changé', modules: 'à revoir : les modules ont changé' },
     module: ['module', 'modules'], file: ['fichier', 'fichiers'], kase: ['cas', 'cas'], read: ['lu', 'lus'],
     checksOk: 'vérifications ok', checksKo: 'vérifications en échec', warning: ['avertissement', 'avertissements'], unchecked: 'pas vérifiée', ponytail: 'ponytail faite',
     fixup: ['fixup', 'fixups'], noPr: 'pas de PR', commit: ['commit', 'commits'], reviewed: 'relus',
@@ -154,7 +173,7 @@ const TEXT = {
     busy: 'L\'agent travaille', directRunning: 'Une commande directe est en cours', noRepo: 'Pas de dépôt git', noNoteYet: 'Pas encore de note', nothingToRead: 'Aucun test d\'invariant à lire',
     noModule: 'Aucun module à générer', noPrChosen: 'Aucune PR choisie', loadFirst: 'Charger d\'abord la PR',
     emptyDraft: 'Le brouillon de revue est vide', noCommitMd: 'Préparer d\'abord le commit', noQuestion: 'Aucune question ouverte',
-    openQuestions: 'Répondre d\'abord aux questions de la note', unvalidated: 'Valider d\'abord la note', started: 'Déjà en cours',
+    openQuestions: 'Répondre d\'abord aux questions de la note', unvalidated: 'Valider d\'abord la note', started: 'Déjà en cours', modulesUnvalidated: 'modules pas validés',
     noFixup: 'Aucun commit fixup!', dirty: 'Des modifications en cours', preparing: 'Une recette du projet est en cours',
     elsewhere: 'Passer d\'abord sur la branche de la PR', noUpstream: 'Pas de branche distante suivie', upToDate: 'Déjà à jour', alreadyOnBase: 'Déjà sur la base',
     checklist: ['La note est à jour', 'Les invariants passent', 'Chaque diff a été relu', 'Un commit par module, fixups repliés',
@@ -163,7 +182,8 @@ const TEXT = {
   en: {
     plural: (n: number) => n !== 1,
     mark: { ok: 'approved', ko: 'rejected', changed: 'changed since' },
-    noNote: 'no note', filled: 'written', unfilled: 'to write', question: ['question', 'questions'], noteChanged: 'note changed since its commit',
+    noNote: 'no note', filled: 'written', unfilled: 'to write', question: ['question', 'questions'], changedSince: 'changed since approval',
+    toReview: { note: 'to review: the note changed', forme: 'to review: the shape changed', invariants: 'to review: the invariants changed', modules: 'to review: the modules changed' },
     module: ['module', 'modules'], file: ['file', 'files'], kase: ['case', 'cases'], read: ['read', 'read'],
     checksOk: 'checks pass', checksKo: 'checks fail', warning: ['warning', 'warnings'], unchecked: 'not checked', ponytail: 'ponytail done',
     fixup: ['fixup', 'fixups'], noPr: 'no PR', commit: ['commit', 'commits'], reviewed: 'reviewed',
@@ -171,7 +191,7 @@ const TEXT = {
     busy: 'The agent is working', directRunning: 'A direct command is running', noRepo: 'No git repository', noNoteYet: 'No note yet', nothingToRead: 'No invariant test to read',
     noModule: 'No module to generate', noPrChosen: 'No PR chosen', loadFirst: 'Load the PR first',
     emptyDraft: 'The review draft is empty', noCommitMd: 'Prepare the commit first', noQuestion: 'No open question',
-    openQuestions: 'Answer the note\'s questions first', unvalidated: 'Approve the note first', started: 'Already running',
+    openQuestions: 'Answer the note\'s questions first', unvalidated: 'Approve the note first', started: 'Already running', modulesUnvalidated: 'modules not approved',
     noFixup: 'No fixup! commit', dirty: 'Uncommitted changes', preparing: 'A project recipe is running',
     elsewhere: 'Switch to the PR branch first', noUpstream: 'No upstream branch', upToDate: 'Already up to date', alreadyOnBase: 'Already on the base',
     checklist: ['The note is up to date', 'The invariants pass', 'Every diff has been reviewed', 'One commit per module, fixups folded',
@@ -217,6 +237,27 @@ function freshOutputs(outputs: JourneyInput['outputs'], runs: VibeRun[]): Journe
   return Object.fromEntries(Object.entries(outputs).filter(([name]) => name !== 'checks.json'));
 }
 
+// Les fichiers relevés qui diffèrent du dernier commit (head) et de la liste retenue de chaque étape lue (validated),
+// chaque étape ne comparant que sa vue (views : les tests, ou les fichiers des modules) et les chemins de sa liste ; un
+// supprimé qui n'a pas d'autre id dans le relevé (known) reçoit r<i>, le même chemin le même numéro, de head aux modules.
+function diffsOf(
+  blobs: FileBlobs[], validated: JourneyInput['validated'], views: Record<VibeDiffStep, Set<string>>, known: Set<string>,
+): VibeDiffs {
+  const numbers = new Map<string, string>();
+  const numbered = (list: VibeDiffFile[]): VibeDiffFile[] => list.map((f) => {
+    if (!f.deleted || known.has(f.path)) return f;
+    if (!numbers.has(f.path)) numbers.set(f.path, `r${numbers.size}`);
+    return { ...f, id: numbers.get(f.path)! };
+  });
+  const head = numbered(diffFiles(blobs, 'head'));
+  const done: VibeDiffs['validated'] = {};
+  for (const step of ['forme', 'invariants', 'modules'] as const) {
+    const list = validated?.[step];
+    if (list) done[step] = numbered(diffFiles(blobs.filter((b) => views[step].has(b.path) || Object.hasOwn(list, b.path)), list));
+  }
+  return { head, validated: done };
+}
+
 export function vibeView(input: JourneyInput): VibeView {
   const { lang, flow, repo, marks } = input;
   const outputs = freshOutputs(input.outputs, input.runs);
@@ -236,7 +277,7 @@ export function vibeView(input: JourneyInput): VibeView {
   const facts = input.note && parseNote(input.note.text);
   const note: VibeNote | null = input.note && facts && {
     id: 'n', path: input.note.path, text: input.note.text, before: input.note.before, filled: facts.filled, mustNot: facts.mustNot,
-    mark: markState(marks, 'note', blobSha(input.note.text)), formeMark: markState(marks, 'forme', blobSha(facts.forme)),
+    mark: markState(marks, 'note', blobSha(noteDesign(input.note.text))), formeMark: markState(marks, 'forme', blobSha(facts.forme)),
     nothingMark: markState(marks, 'nothing', blobSha(input.note.text)), checked: designChecked(marks, input.note.path), locked: codeLock(null, input.busy, input.running, lang),
   };
   // Le commit de la note : le plus ancien de la branche qui la porte (les commits vont du plus ancien au plus récent) ;
@@ -281,6 +322,23 @@ export function vibeView(input: JourneyInput): VibeView {
     };
   });
   const variants = tests.filter((t) => !isInvariantTest(t.path)).map((t, i) => ({ id: `v${i}`, path: t.path, cases: t.cases.length }));
+  // Les validations d'étape (le créateur seul valide) : ce que chaque étape valide aujourd'hui et son état (step-checks).
+  const blobs = input.blobs ?? [];
+  const stepCheck = flow === 'create' && note
+    ? stepChecks(marks, Object.fromEntries(CHECKED.map((s) => [s, stepContent({ note, invariants, modules, changed }, marks, s, blobs)])))
+    : null;
+  // Ce que dit l'en-tête d'une étape décochée : modifiée depuis la validation, ou à revoir (la première décochée a changé).
+  const mood = (id: VibeStepId): string | null => {
+    const c = stepCheck?.[id as CheckedStep];
+    return c?.state === 'changed' ? T.changedSince : c?.state === 'cascade' ? T.toReview[c.cause as CheckedStep] : null;
+  };
+  // Le menu de diff : sans blobs (aucun relevé des fichiers), rien ne diffère, aucune liste n'est comparée.
+  const modulePaths = modules.flatMap((m) => (m.files ?? []).map((f) => f.path));
+  const diffs = flow === 'create'
+    ? diffsOf(blobs, input.blobs ? input.validated : undefined, {
+      forme: new Set(modulePaths), modules: new Set(modulePaths), invariants: new Set(invariants.map((f) => f.path)),
+    }, new Set([...modulePaths, ...changed, ...invariants.map((f) => f.path)]))
+    : undefined;
   const isRead = (f: VibeTestFile) => f.reading !== null && !f.stale;   // une lecture périmée n'est pas lue
   // Une fois un module commencé, le parcours ne recule plus (note 0.15.0-stabilisation) : une validation faite puis
   // dépassée par une retouche (« changed », la note, sa Forme, un cas) compte encore ; l'écran la dit changée.
@@ -357,8 +415,8 @@ export function vibeView(input: JourneyInput): VibeView {
   const judged = (s: VibeMarkState) => s === 'ok' || s === 'ko';
   // Le fait que la Note seule dit ; les questions sont dans le questionnaire, la validation à côté du chemin.
   const noteHead = note ? (note.filled ? T.filled : T.unfilled) : T.noNote;
-  const noteFacts = note ? line(noteHead, questions.length > 0 && count(questions.length, T.question), note.mark && T.mark[note.mark]) : noteHead;
-  const invFacts = line(count(invariants.length, T.file), count(caseCount, T.kase), count(readCount, T.read));
+  const noteFacts = note ? line(noteHead, questions.length > 0 && count(questions.length, T.question), note.mark && !mood('note') && T.mark[note.mark], mood('note')) : noteHead;
+  const invFacts = line(count(invariants.length, T.file), count(caseCount, T.kase), count(readCount, T.read), mood('invariants'));
   let done: Partial<Record<VibeStepId, boolean>>;
   let next: Partial<Record<VibeStepId, string | null>>;
   let stepFacts: Partial<Record<VibeStepId, string>>;
@@ -408,16 +466,18 @@ export function vibeView(input: JourneyInput): VibeView {
     };
     stepFacts = {
       note: noteFacts,
-      forme: note ? line(count(modules.length, T.module), note.formeMark && T.mark[note.formeMark], noteChanged && T.noteChanged) : T.noNote,
+      forme: note ? line(count(modules.length, T.module), note.formeMark && !mood('forme') && T.mark[note.formeMark], mood('forme')) : T.noNote,
       invariants: invFacts,
-      modules: `${modules.filter((m) => m.commits.length).length} / ${count(modules.length, T.module)}`,
+      modules: line(`${modules.filter((m) => m.commits.length).length} / ${count(modules.length, T.module)}`, mood('modules')),
       revue: line(!checks ? T.unchecked : checksOk ? T.checksOk : T.checksKo, warnings > 0 && count(warnings, T.warning),
         ponytail && T.ponytail, fixups > 0 && count(fixups, T.fixup), screen.length > 0 && `${boxes} / ${count(screen.length, T.box)}`),
       pr: pr ? `PR #${pr.number}` : T.noPr,
     };
     stepHead = {
-      note: noteHead,
-      forme: note ? line(noteChanged && T.noteChanged) : T.noNote,
+      note: line(noteHead, mood('note')),
+      forme: note ? mood('forme') ?? '' : T.noNote,
+      invariants: mood('invariants') ?? '',
+      modules: mood('modules') ?? '',
       // Sans vérification, les fixups restent dits ici : aucune carte ne les compte (le § A.3 ne dit que « repliés »).
       revue: line(!checks && T.unchecked, fixups > 0 && count(fixups, T.fixup)),
       pr: pr ? '' : T.noPr,
@@ -479,6 +539,8 @@ export function vibeView(input: JourneyInput): VibeView {
       if (!stillOk(note.mark)) return 'unvalidated';
       if (vibe || input.busy || input.running.length) return 'started';
     }
+    // Commiter les modules attend leur validation, Vibe compris (l'orchestrateur les valide par step.validate).
+    if (d.id === 'commit-modules' && stepCheck && stepCheck.modules.state !== 'ok') return 'modulesUnvalidated';
     if (v.has('files') && !invariants.length) return 'nothingToRead';   // tout lu : on peut relire (args.file)
     // Relecteur : les étapes qui lisent la PR attendent qu'elle soit chargée (charger la PR, ses choix de lieu : la
     // vue des branches, sans étape, prennent son numéro de la page).
@@ -548,11 +610,14 @@ export function vibeView(input: JourneyInput): VibeView {
     agentId: input.agentId, lang, flow, vibe: input.vibe, agent: input.agent,
     repo: repo && { branch: repo.branch, base: repo.base, changed: changed.length },
     error: input.error,
-    steps: ORDER.map((id) => ({ id, status: done[id] ? 'done' : id === current ? 'current' : 'todo', facts: stepFacts[id] ?? '', head: stepHead[id] ?? '' })),
+    steps: ORDER.map((id) => ({
+      id, status: done[id] ? 'done' : id === current ? 'current' : 'todo', facts: stepFacts[id] ?? '', head: stepHead[id] ?? '',
+      ...(stepCheck && Object.hasOwn(stepCheck, id) && { check: stepCheck[id as CheckedStep] }),
+    })),
     files: [...changed].sort().map((path, i) => ({
       id: `b${i}`, path, ...(input.exists(path) ? gitOf(path) : { deleted: true }), locked: codeLock(null, input.busy, input.running, lang),
     })),
-    modulesView: input.modulesView,
+    modulesView: input.modulesView, diffs,
     note, questions, modules, invariants, variants, commits: viewCommits, outputs, checklist, screen, actions,
     skills: input.skills, pr, prs, loaded, child, branches: input.branches ?? null,
     sync: input.sync ?? null, draft: input.draft, worktree: input.worktree ?? null, runs: input.runs,

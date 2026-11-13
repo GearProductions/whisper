@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { attentionQuote, caseLine, caseLink, caseSource, casesOf, withAttention, progress, pseudoLines } from 'core/vibecoder';
+import { attentionQuote, caseLine, caseLink, caseRange, caseSource, casesOf, replaceRange, withAttention, progress, pseudoLines } from 'core/vibecoder';
 import type { MustNotMark, ReadingCase, VibeNote, VibeTestFile } from 'technicals/bridge';
 
 const reading = (title: string, warning: string | null = null): ReadingCase => ({ title, pseudo: 'it("x")', edges: [], guarantees: 'g', warning });
@@ -40,6 +40,83 @@ describe('caseSource', () => {
 
   it('ligne suivante incohérente : jusqu\'à la fin', () => {
     expect(caseSource(file({ lines: [8, 3], source }), 0)).toBe('it("accepte", () => {});');
+  });
+});
+
+describe('caseRange', () => {
+  const source = ['import x;', '', 'it("refuse", () => {', '  expect(1).toBe(1);', '});', '', '', 'it("accepte", () => {});', ''].join('\n');
+  const f = file({ lines: [3, 8], source });
+
+  it('le premier cas : de sa ligne à la dernière non vide avant le suivant', () => {
+    expect(caseRange(f, 0)).toEqual({ from: 3, to: 5 });
+  });
+
+  it('le dernier cas : jusqu\'à la fin du fichier, lignes vides de la fin ôtées', () => {
+    expect(caseRange(f, 1)).toEqual({ from: 8, to: 8 });
+  });
+
+  it('texte vide, ligne inconnue ou pas une ligne, rang inconnu : null', () => {
+    expect(caseRange(file({ lines: [3, 8] }), 0)).toBeNull();
+    expect(caseRange(file({ lines: [0, 8], source }), 0)).toBeNull();
+    expect(caseRange(file({ lines: [2.5, 8], source }), 0)).toBeNull();
+    expect(caseRange(f, 2)).toBeNull();
+  });
+
+  it('ligne suivante incohérente : jusqu\'à la fin', () => {
+    expect(caseRange(file({ lines: [8, 3], source }), 0)).toEqual({ from: 8, to: 8 });
+  });
+
+  it('un fichier sans saut de ligne final, ou en \\r\\n : les mêmes lignes', () => {
+    expect(caseRange(file({ lines: [3, 8], source: source.trimEnd() }), 1)).toEqual({ from: 8, to: 8 });
+    expect(caseRange(file({ lines: [3, 8], source: source.split('\n').join('\r\n') }), 0)).toEqual({ from: 3, to: 5 });
+  });
+
+  it('un cas fait de lignes vides jusqu\'à la fin : au moins sa première ligne', () => {
+    expect(caseRange(file({ lines: [2], source: 'a\n\n\n' }), 0)).toEqual({ from: 2, to: 2 });
+  });
+
+  it('caseSource rend toujours les lignes de caseRange', () => {
+    for (const s of [source, source.trimEnd(), source.split('\n').join('\r\n')]) {
+      for (const i of [0, 1]) {
+        const g = file({ lines: [3, 8], source: s });
+        const r = caseRange(g, i)!;
+        expect(caseSource(g, i)).toBe(s.split('\n').slice(r.from - 1, r.to).join('\n').trimEnd());
+      }
+    }
+  });
+});
+
+describe('replaceRange', () => {
+  const text = 'a\nb\nc\nd\n';
+
+  it('un bloc plus long, plus court, vide : seules les lignes de la plage changent', () => {
+    expect(replaceRange(text, { from: 2, to: 3 }, 'x\ny\nz')).toBe('a\nx\ny\nz\nd\n');
+    expect(replaceRange(text, { from: 2, to: 3 }, 'x')).toBe('a\nx\nd\n');
+    expect(replaceRange(text, { from: 2, to: 3 }, '')).toBe('a\nd\n');
+  });
+
+  it('la première et la dernière ligne, un fichier sans saut de ligne final', () => {
+    expect(replaceRange(text, { from: 1, to: 1 }, 'x')).toBe('x\nb\nc\nd\n');
+    expect(replaceRange('a\nb', { from: 2, to: 2 }, 'x\ny')).toBe('a\nx\ny');
+  });
+
+  it('un fichier en \\r\\n : les autres lignes gardent leur \\r, le bloc reçoit celui du fichier, donné en \\n ou en \\r\\n', () => {
+    const crlf = 'a\r\nb\r\nc\r\nd\r\n';
+    expect(replaceRange(crlf, { from: 2, to: 3 }, 'x\ny')).toBe('a\r\nx\r\ny\r\nd\r\n');
+    expect(replaceRange(crlf, { from: 2, to: 3 }, 'x\r\ny')).toBe('a\r\nx\r\ny\r\nd\r\n');
+  });
+
+  it('un fichier en \\n, un bloc en \\r\\n : le bloc prend les \\n du fichier', () => {
+    expect(replaceRange(text, { from: 2, to: 2 }, 'x\r\ny')).toBe('a\nx\ny\nc\nd\n');
+  });
+
+  it('une plage hors du texte, renversée ou avant la première ligne : null', () => {
+    expect(replaceRange(text, { from: 4, to: 9 }, 'x')).toBeNull();
+    expect(replaceRange(text, { from: 20, to: 21 }, 'x')).toBeNull();
+    expect(replaceRange(text, { from: 3, to: 2 }, 'x')).toBeNull();
+    expect(replaceRange(text, { from: 0, to: 2 }, 'x')).toBeNull();
+    expect(replaceRange(text, { from: 1.5, to: 2 }, 'x')).toBeNull();
+    expect(replaceRange('', { from: 1, to: 1 }, 'x')).toBe('x');
   });
 });
 

@@ -229,7 +229,25 @@ export type VibeFlow = 'create' | 'review';
 export type VibeStepId = 'note' | 'forme' | 'invariants' | 'modules' | 'revue' | 'pr';
 // facts : tous les faits de l'étape (l'infobulle du fil d'Ariane) ; head : ceux que l'étape ne montre nulle part
 // en dessous (son en-tête) ; absent ou vide : aucun.
-export type VibeStep = { id: VibeStepId; status: 'done' | 'current' | 'todo'; facts: string; head?: string };
+// check : la validation de l'étape (note, Forme, Invariants, Modules ; absent pour les autres et le relecteur).
+export type VibeStep = {
+  id: VibeStepId; status: 'done' | 'current' | 'todo'; facts: string; head?: string;
+  check?: VibeStepCheck;
+};
+
+// La validation d'une étape (note 0.15.0-ecran-statuts) : state 'ok', cochée ; 'changed', ce qu'elle a validé a changé ;
+// 'cascade', une étape d'avant décochée ou revalidée depuis (cause : la première étape décochée) ; null : jamais validée.
+// now : l'empreinte de ce que Valider retiendrait aujourd'hui ; null : rien à valider, ou pas encore offert.
+export type VibeStepCheck = { state: 'ok' | 'changed' | 'cascade' | null; cause?: VibeStepId; now: string | null };
+
+// Les étapes qui ont une vue IDE et un menu de diff.
+export type VibeDiffStep = 'forme' | 'invariants' | 'modules';
+// Un fichier qui diffère d'une référence : added, absent de la référence (tout en ajouts) ; deleted, absent du disque
+// (tout en retraits), id r<i> pour le suivre s'il n'est dans aucune autre liste du relevé.
+export type VibeDiffFile = { path: string; id?: string; added?: true; deleted?: true };
+// Les fichiers des vues IDE qui diffèrent du dernier commit (head) et de la validation de chaque étape (validated :
+// absente si l'étape n'a pas de validation).
+export type VibeDiffs = { head: VibeDiffFile[]; validated: Partial<Record<VibeDiffStep, VibeDiffFile[]>> };
 
 // Une validation : validé, refusé, validé mais changé depuis, rien.
 export type VibeMarkState = 'ok' | 'ko' | 'changed' | null;
@@ -274,8 +292,12 @@ export type VibeCode = {
   text: string | null;
   time: number;
   // commit : un fichier d'un commit, son texte au parent du commit et au commit (null : absent là)
-  at?: { base: string | null; head: string | null; commit?: { before: string | null; after: string | null } };
-  truncated?: boolean;         // un artefact en texte, coupé à la limite configurée (artifactTextMax) ; absent : entier
+  // validations : le texte du fichier à la validation de chaque étape qui le retient (null : absent de cette validation)
+  at?: {
+    base: string | null; head: string | null; commit?: { before: string | null; after: string | null };
+    validations?: Partial<Record<VibeDiffStep, string | null>>;
+  };
+  truncated?: boolean;        // un artefact en texte, coupé à la limite configurée (artifactTextMax) ; absent : entier
 };
 
 // Un artefact de l'agent (le dossier du projet, VibeView.artifactsDir), tel que le relevé le donne : la page
@@ -444,7 +466,8 @@ export type VibeView = {
   // il ne s'édite pas (codeLock), null : éditable.
   files?: (VibeFile & { deleted?: boolean; git?: VibeGit; locked: string | null })[];
   modulesView?: 'ide' | 'list';          // le réglage de la vue Modules
-  time: number;                        // heure du relevé
+  diffs?: VibeDiffs;                     // les fichiers qui diffèrent du dernier commit et des validations (créateur, toujours rempli par lui)
+  time: number;                       // heure du relevé
 };
 
 export type VibeArgs = {

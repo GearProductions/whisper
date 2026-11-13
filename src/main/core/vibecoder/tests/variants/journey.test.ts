@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { VibeView } from 'shared/bridge';
-import { blobSha, EFFORT_LEVELS, parseNote, vibeView, type ActionDef, type JourneyInput, type Marks } from 'core/vibecoder';
+import {
+  blobSha, CHECKED, EFFORT_LEVELS, noteDesign, parseNote, stepContent, validateStep, vibeView, type ActionDef, type JourneyInput, type Marks,
+} from 'core/vibecoder';
 
 // Les actions du brief (celles dont le parcours a besoin), en français.
 const A = (id: string, flow: ActionDef['flow'], step: ActionDef['step'], text: string, needs: ActionDef['needs'] = 'none',
@@ -68,7 +70,13 @@ const READINGS = [{ blob: BLOB, text: READING, time: 1 }];
 
 // Validé, pour ce contenu-là.
 const ok = (text: string) => ({ hash: blobSha(text), verdict: 'ok' as const });
-const NOTE_OK: Marks = { note: ok(NOTE), forme: ok(parseNote(NOTE).forme) };
+// La note validée pour sa conception (noteDesign), la Forme validée à sa suite (after : l'empreinte de la marque de la note).
+const afterOf = (m: Marks[string]) => blobSha(`${m.hash}\n${m.after ?? ''}`);
+const noteMarks = (text: string): Marks => {
+  const n = ok(noteDesign(text));
+  return { note: n, forme: { ...ok(parseNote(text).forme), after: afterOf(n) } };
+};
+const NOTE_OK: Marks = noteMarks(NOTE);
 const CASES_OK: Marks = {
   [`case:${TEST_PATH}:dit bonjour`]: { hash: BLOB, verdict: 'ok' },
   [`case:${TEST_PATH}:ne lit rien d'autre`]: { hash: BLOB, verdict: 'ok' },
@@ -119,12 +127,12 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
   });
 
   it('note validée puis modifiée : à revalider', () => {
-    expect(vibeView(input({ note: { ...note, text: `${NOTE}\nUne ligne de plus.` }, marks: NOTE_OK })).note?.mark).toBe('changed');
+    expect(vibeView(input({ note: { ...note, text: NOTE.replace('dit bonjour.', 'dit bonjour, fort.') }, marks: NOTE_OK })).note?.mark).toBe('changed');
   });
 
   it('note validée, pas de Forme : Poser la forme', () => {
     const text = NOTE.slice(0, NOTE.indexOf('## Forme'));
-    const v = vibeView(input({ note: { ...note, text }, marks: { note: ok(text) } }));
+    const v = vibeView(input({ note: { ...note, text }, marks: { note: ok(noteDesign(text)) } }));
     expect([status(v).forme, primary(v)]).toEqual(['current', 'forme']);
   });
 
@@ -167,7 +175,7 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
 
   it('✓ Rien à écrire puis la note changée : à revalider, pas faits', () => {
     const text = `${NOTE}\nUne ligne de plus.`;
-    const v = vibeView(input({ note: { ...note, text }, marks: { note: ok(text), forme: ok(parseNote(text).forme), nothing: ok(NOTE) } }));
+    const v = vibeView(input({ note: { ...note, text }, marks: { note: ok(noteDesign(text)), forme: ok(parseNote(text).forme), nothing: ok(NOTE) } }));
     expect([v.note?.nothingMark, status(v).invariants]).toEqual(['changed', 'current']);
   });
 
@@ -209,7 +217,7 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
     const changed = { ...repo([], [FIRST]), dirty: [NOTE_PATH] };
     const v = vibeView(ready({ repo: changed }));
     expect([status(v).forme, primary(v)]).toEqual(['current', 'commit-prepare']);
-    expect(v.steps.find((st) => st.id === 'forme')?.facts).toContain('note modifiée depuis son commit');
+    expect(v.steps.find((st) => st.id === 'forme')?.facts).not.toContain('note modifiée depuis son commit');   // la Forme périmée le remplace
     expect(primary(vibeView(ready({ repo: changed, outputs: { 'commit.md': out('fixup! x') } })))).toBe('commit');
     // la note revalidée d'abord : sans sa validation, la Note est l'étape en cours, sans action
     expect(status(vibeView(ready({ repo: changed, marks: CASES_OK }))).note).toBe('current');
@@ -220,7 +228,7 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
     const modules = ['src/core/hello.ts', 'src/app/button.tsx'];
     const v = vibeView(ready({ repo: { ...repo(modules, [FIRST]), dirty: [...modules, NOTE_PATH, TEST_PATH] } }));
     expect([status(v).forme, status(v).invariants, status(v).modules, primary(v)]).toEqual(['done', 'done', 'current', 'commit-modules']);
-    expect(v.steps.find((st) => st.id === 'forme')?.facts).toContain('note modifiée depuis son commit');   // dit, sans faire reculer
+    expect(v.steps.find((st) => st.id === 'forme')?.facts).not.toContain('note modifiée depuis son commit');   // plus dit : « Forme périmée » le remplace
     // un module commité, l'autre pas encore généré : on continue de générer, la note attend
     expect(primary(vibeView(ready({ repo: { ...repo([], [FIRST, HELLO]), dirty: [NOTE_PATH] } })))).toBe('modules');
     // tous les modules commités, la note encore modifiée : l'étape Modules n'est pas faite, Préparer le commit (son fixup)
@@ -344,7 +352,7 @@ describe('Créer, Vibe en cours : aucune validation attendue', () => {
 
   it('note rédigée sans question, forme pas faite : Poser la forme (primary suit next, plus Vibe)', () => {
     const text = NOTE.slice(0, NOTE.indexOf('## Forme'));
-    expect(primary(vibeView(input({ vibe: true, note: { ...note, text }, marks: { note: ok(text) } })))).toBe('forme');
+    expect(primary(vibeView(input({ vibe: true, note: { ...note, text }, marks: { note: ok(noteDesign(text)) } })))).toBe('forme');
   });
 
   it('note rédigée sans validation : note et forme faites', () => {
@@ -394,36 +402,36 @@ describe('Relecteur : les étapes et la prochaine action', () => {
   });
 
   it('la Forme est faite avec la Note (rien à juger), pas avant', () => {
-    expect([status(vibeView(loaded())).forme, status(vibeView(loaded({ marks: { note: ok(NOTE) } }))).forme]).toEqual(['todo', 'done']);
+    expect([status(vibeView(loaded())).forme, status(vibeView(loaded({ marks: { note: ok(noteDesign(NOTE)) } }))).forme]).toEqual(['todo', 'done']);
   });
 
   it('la note refusée : un verdict suffit, l\'étape est faite', () => {
-    expect(status(vibeView(loaded({ marks: { note: { hash: blobSha(NOTE), verdict: 'ko' } } }))).note).toBe('done');
+    expect(status(vibeView(loaded({ marks: { note: { hash: blobSha(noteDesign(NOTE)), verdict: 'ko' } } }))).note).toBe('done');
   });
 
   it('note jugée, cas pas jugés : l\'étape attend leurs verdicts, sans action', () => {
-    const v = vibeView(loaded({ marks: { note: ok(NOTE) } }));
+    const v = vibeView(loaded({ marks: { note: ok(noteDesign(NOTE)) } }));
     expect([status(v).invariants, primary(v)]).toEqual(['current', null]);
   });
 
   it('tests pas lus, chaque cas jugé : l\'étape Invariants est faite', () => {
-    expect(status(vibeView(loaded({ marks: { note: ok(NOTE), ...CASES_OK } }))).invariants).toBe('done');
+    expect(status(vibeView(loaded({ marks: { note: ok(noteDesign(NOTE)), ...CASES_OK } }))).invariants).toBe('done');
   });
 
   it('tests lus et jugés : Relire les commits', () => {
-    const v = vibeView(loaded({ marks: { note: ok(NOTE), ...CASES_OK }, readings: READINGS }));
+    const v = vibeView(loaded({ marks: { note: ok(noteDesign(NOTE)), ...CASES_OK }, readings: READINGS }));
     expect([status(v).modules, primary(v)]).toEqual(['current', 'review-commits']);
   });
 
   it('les commits relus (pr-<n>-commits.md) : Modules faite, la Revue attend le plan à l\'écran', () => {
     const outputs = { 'pr-12-commits.md': out('## abc x') };
-    const v = vibeView(loaded({ marks: { note: ok(NOTE), ...CASES_OK }, readings: READINGS, outputs }));
+    const v = vibeView(loaded({ marks: { note: ok(noteDesign(NOTE)), ...CASES_OK }, readings: READINGS, outputs }));
     expect([status(v).modules, status(v).revue, primary(v), v.steps[3].facts]).toEqual(['done', 'current', 'screen', '2 commits · relus']);
   });
 
   it('un plan de test pas tout coché : la Revue reste en cours, sans action', () => {
     const outputs = { 'pr-12-commits.md': out('## abc x'), 'ecran.md': out('- [ ] Ouvrir\n- [x] Dicter\n') };
-    const v = vibeView(loaded({ marks: { note: ok(NOTE), ...CASES_OK }, readings: READINGS, outputs }));
+    const v = vibeView(loaded({ marks: { note: ok(noteDesign(NOTE)), ...CASES_OK }, readings: READINGS, outputs }));
     expect([status(v).revue, primary(v), v.steps[4].facts]).toEqual(['current', null, '1 / 2 cases']);
   });
 
@@ -450,7 +458,7 @@ describe('Relecteur : les étapes et la prochaine action', () => {
 
   it('tout coché : la PR en cours, Publier la revue', () => {
     const outputs = { 'pr-12-commits.md': out('## abc x'), 'ecran.md': out('- [x] Ouvrir\n') };
-    const v = vibeView(loaded({ marks: { note: ok(NOTE), ...CASES_OK }, readings: READINGS, outputs }));
+    const v = vibeView(loaded({ marks: { note: ok(noteDesign(NOTE)), ...CASES_OK }, readings: READINGS, outputs }));
     expect([status(v).revue, status(v).pr, primary(v)]).toEqual(['done', 'current', 'publish']);
   });
 
@@ -1091,7 +1099,7 @@ describe('le parcours guidé (0.9.0) : étapes ouvertes, actions masquées', () 
 
   it('Vibe : grisée tant que la note n\'est pas rédigée', () => {
     const text = NOTE.replace('Un bouton qui dit bonjour.', '');
-    const v = vibeView(input({ note: { ...note, text }, marks: { note: ok(text) } }));
+    const v = vibeView(input({ note: { ...note, text }, marks: { note: ok(noteDesign(text)) } }));
     expect([action(v, 'vibe')?.hidden, action(v, 'vibe')?.disabled]).toEqual([false, 'Pas encore de note']);
   });
 
@@ -1141,7 +1149,7 @@ describe('checks.json et la dernière course checks (I-46)', () => {
 describe('l\'étape Invariants, sans invariant et sans lecture (0.9.0-rc.4)', () => {
   const text = NOTE.replace('- Lire un autre fichier. → invariant\n', '');
   // La note et la forme validées.
-  const marks: Marks = { note: ok(text), forme: ok(parseNote(text).forme) };
+  const marks: Marks = noteMarks(text);
 
   it('une note sans ligne « → invariant », la forme validée, pas commitée : l\'étape Invariants est faite, les Modules s\'ouvrent', () => {
     const v = vibeView(input({ note: { ...note, text }, marks, repo: repo([NOTE_PATH]) }));
@@ -1175,7 +1183,7 @@ describe('l\'étape Invariants, sans invariant et sans lecture (0.9.0-rc.4)', ()
   });
 
   it('sans ligne « → invariant », la note validée mais pas la forme : l\'étape Invariants n\'est pas faite (0.12.0)', () => {
-    const v = vibeView(input({ note: { ...note, text }, marks: { note: ok(text) }, repo: repo([NOTE_PATH]) }));
+    const v = vibeView(input({ note: { ...note, text }, marks: { note: ok(noteDesign(text)) }, repo: repo([NOTE_PATH]) }));
 
     expect(status(v).invariants).not.toBe('done');
   });
@@ -1435,18 +1443,14 @@ describe('en-têtes d\'étape sans doublon : head et facts', () => {
       'rédigée · 2 questions · validée', 'rédigée');
     create('Note rédigée, 1 question, pas validée', vibeView(input({ note, outputs: QUESTIONS })), 'note', 'rédigée · 1 question', 'rédigée');
     create('Note à rédiger', vibeView(input({ note: UNFILLED })), 'note', 'à rédiger', 'à rédiger');
-    create('Note rédigée, refusée', vibeView(input({ note, marks: { note: { hash: blobSha(NOTE), verdict: 'ko' } } })), 'note', 'rédigée · refusée', 'rédigée');
+    create('Note rédigée, refusée', vibeView(input({ note, marks: { note: { hash: blobSha(noteDesign(NOTE)), verdict: 'ko' } } })), 'note', 'rédigée · refusée', 'rédigée');
 
-    // Forme : seule « note modifiée depuis son commit » reste ; sans note, « pas de note ».
+    // Forme : rien en en-tête (la Forme périmée est dite dans facts seulement) ; sans note, « pas de note ».
     create('Forme, sans note', vibeView(input()), 'forme', 'pas de note', 'pas de note');
     create('Forme validée : head vide', vibeView(ready()), 'forme', '2 modules · validée', '');
-    it('Forme, note modifiée depuis son commit : head ce fait seul', () => {
+    it('Forme, note modifiée depuis son commit : « note modifiée depuis son commit » n\'est plus dit', () => {
       const v = vibeView(ready({ repo: { ...repo([], [FIRST]), dirty: [NOTE_PATH] } }));
-      expect(pair(v, 'forme')).toEqual(['2 modules · validée · note modifiée depuis son commit', 'note modifiée depuis son commit']);
-    });
-    it('Forme, note modifiée mais pas validée : toujours ce fait seul', () => {
-      const v = vibeView(ready({ marks: {}, repo: { ...repo([], [FIRST]), dirty: [NOTE_PATH] } }));
-      expect(step(v, 'forme').head).toBe('note modifiée depuis son commit');
+      expect(pair(v, 'forme')).toEqual(['2 modules · validée', '']);
     });
 
     // Invariants, Modules : rien (leurs cartes disent tout) ; facts entier.
@@ -1492,7 +1496,7 @@ describe('en-têtes d\'étape sans doublon : head et facts', () => {
       it(name, () => expect(pair(v, id)).toEqual([facts, head]));
 
     review('Note, sans note : pas de note', vibeView(input({ flow: 'review' })), 'note', 'pas de note', 'pas de note');
-    review('Note jugée, 1 question : facts entier, head « rédigée »', vibeView(loaded({ marks: { note: ok(NOTE) }, outputs: QUESTIONS })), 'note',
+    review('Note jugée, 1 question : facts entier, head « rédigée »', vibeView(loaded({ marks: { note: ok(noteDesign(NOTE)) }, outputs: QUESTIONS })), 'note',
       'rédigée · 1 question · validée', 'rédigée');
     review('Note à rédiger', vibeView(loaded({ note: UNFILLED })), 'note', 'à rédiger', 'à rédiger');
     review('Forme : rien', vibeView(loaded()), 'forme', '2 modules', '');
@@ -1511,8 +1515,7 @@ describe('en-têtes d\'étape sans doublon : head et facts', () => {
     expect(pair(vibeView(en({ outputs: QUESTIONS })), 'note')).toEqual(['written · 1 question · approved', 'written']);
     expect(pair(vibeView(input({ lang: 'en', note: UNFILLED })), 'note')).toEqual(['to write', 'to write']);
     expect(pair(vibeView(input({ lang: 'en' })), 'note')).toEqual(['no note', 'no note']);
-    expect(pair(vibeView(en({ repo: { ...repo([], [FIRST]), dirty: [NOTE_PATH] } })), 'forme'))
-      .toEqual(['2 modules · approved · note changed since its commit', 'note changed since its commit']);
+    expect(pair(vibeView(en({ repo: { ...repo([], [FIRST]), dirty: [NOTE_PATH] } })), 'forme')).toEqual(['2 modules · approved', '']);
     expect(pair(vibeView(en({ repo: repo([], all) })), 'revue')).toEqual(['not checked', 'not checked']);
     expect(pair(vibeView(en({ repo: repo([], [...all, commit('d', 'fixup! x', [])]), outputs: checks(OK) })), 'revue'))
       .toEqual(['checks pass · 1 fixup', '1 fixup']);
@@ -1525,5 +1528,190 @@ describe('en-têtes d\'étape sans doublon : head et facts', () => {
     for (const v of [vibeView(input()), vibeView(ready()), vibeView(input({ flow: 'review' }))]) {
       for (const s of v.steps) expect([s.id, typeof s.head, s.head!.length <= s.facts.length]).toEqual([s.id, 'string', true]);
     }
+  });
+});
+
+
+// Les validations d'étape et le menu de diff (note 0.15.0-ecran-statuts).
+describe('les validations d\'étape et le menu de diff', () => {
+  const step = (v: VibeView, id: string) => v.steps.find((s) => s.id === id)!;
+  const sha = (c: string) => c.repeat(40);
+  const H = 'src/core/hello.ts';
+  const B = 'src/app/button.tsx';
+  const CHANGED_NOTE = { ...note, text: NOTE.replace('Un bouton qui dit bonjour.', 'Un bouton qui dit bonjour, fort.') };
+  const CHANGED_FORME = { ...note, text: NOTE.replace('le bouton', 'le gros bouton') };
+  // Les deux modules commités, leurs fichiers relevés.
+  const files = {
+    repo: repo([], [FIRST, HELLO, BUTTON]), exists: () => true,
+    blobs: [{ path: H, disk: sha('a'), head: sha('a') }, { path: B, disk: sha('b'), head: sha('b') }],
+  };
+  // Les marques des étapes données, posées par le geste (validateStep), dans l'ordre, après la note et la Forme.
+  const validated = (over: Partial<JourneyInput>, ...steps: ('invariants' | 'modules')[]): Marks =>
+    steps.reduce((marks, s) => {
+      const v = vibeView(ready({ ...over, marks }));
+      const contents = Object.fromEntries(CHECKED.map((c) => [c, stepContent(v, marks, c, over.blobs ?? [])]));
+      return validateStep(marks, contents, s, 'ok')!;
+    }, { ...NOTE_OK, ...CASES_OK } as Marks);
+
+  describe('check', () => {
+    it('la note et la Forme validées : cochées, les autres jamais validées, rien dit en en-tête ; ni la Revue ni la PR n\'en ont', () => {
+      const v = vibeView(ready());
+      expect(v.steps.map((s) => s.check?.state)).toEqual(['ok', 'ok', null, null, undefined, undefined]);
+      expect(Object.hasOwn(step(v, 'revue'), 'check')).toBe(false);
+      expect([step(v, 'forme').facts, step(v, 'forme').head]).toEqual(['2 modules · validée', '']);
+    });
+
+    it('la note changée : son en-tête « modifiée depuis la validation », la Forme « à revoir : la note a changé »', () => {
+      const v = vibeView(ready({ note: CHANGED_NOTE }));
+      expect(step(v, 'note').check).toMatchObject({ state: 'changed' });
+      expect(step(v, 'note').head).toBe('rédigée · modifiée depuis la validation');
+      expect(step(v, 'note').facts).toBe('rédigée · modifiée depuis la validation');
+      expect(step(v, 'forme').check).toMatchObject({ state: 'cascade', cause: 'note' });
+      expect(step(v, 'forme').head).toBe('à revoir : la note a changé');
+      expect(step(v, 'forme').facts).toBe('2 modules · à revoir : la note a changé');
+    });
+
+    it('la Forme seule changée : la note reste cochée, la Forme est « modifiée depuis la validation »', () => {
+      const v = vibeView(ready({ note: CHANGED_FORME }));
+      expect([step(v, 'note').check?.state, step(v, 'forme').check?.state]).toEqual(['ok', 'changed']);
+      expect([step(v, 'note').head, step(v, 'forme').head]).toEqual(['rédigée', 'modifiée depuis la validation']);
+      // la marque de la note suit sa conception, pas la note entière
+      expect([v.note?.mark, v.note?.formeMark]).toEqual(['ok', 'changed']);
+    });
+
+    it('en anglais', () => {
+      const v = vibeView(ready({ lang: 'en', note: CHANGED_NOTE }));
+      expect(step(v, 'note').head).toBe('written · changed since approval');
+      expect(step(v, 'forme').head).toBe('to review: the note changed');
+    });
+
+    it('la cause d\'une cascade est la première étape pas cochée : la Forme changée, les invariants à revoir', () => {
+      const marks = validated({}, 'invariants');
+      expect(step(vibeView(ready({ marks })), 'invariants').check?.state).toBe('ok');
+      const v = vibeView(ready({ marks, note: CHANGED_FORME }));
+      expect(step(v, 'invariants').check).toMatchObject({ state: 'cascade', cause: 'forme' });
+      expect(step(v, 'invariants').head).toBe('à revoir : la Forme a changé');
+      expect(step(v, 'invariants').facts).toBe('1 fichier · 2 cas · 2 lus · à revoir : la Forme a changé');
+      expect(step(v, 'modules').check?.state).toBeNull();
+    });
+
+    it('un module modifié depuis sa validation : les modules « modifiés depuis la validation »', () => {
+      const marks = validated(files, 'invariants', 'modules');
+      expect(step(vibeView(ready({ ...files, marks })), 'modules').check?.state).toBe('ok');
+      const moved = { ...files, blobs: [{ path: H, disk: sha('c'), head: sha('a') }, files.blobs[1]] };
+      const v = vibeView(ready({ ...moved, marks }));
+      expect(step(v, 'modules').check?.state).toBe('changed');
+      expect(step(v, 'modules').head).toBe('modifiée depuis la validation');
+      expect(step(v, 'modules').facts).toBe('2 / 2 modules · modifiée depuis la validation');
+    });
+
+    it('un commit ne change pas une validation : même disque, autre dernier commit', () => {
+      const marks = validated(files, 'invariants', 'modules');
+      const later = { ...files, repo: repo([], [FIRST, HELLO, BUTTON, commit('d', 'fixup! x', [])]) };
+      expect(vibeView(ready({ ...later, marks })).steps.map((s) => s.check?.state)).toEqual(['ok', 'ok', 'ok', 'ok', undefined, undefined]);
+    });
+
+    it('relecteur : ni check ni diffs', () => {
+      const v = vibeView(input({ flow: 'review', note, blobs: files.blobs, validated: { modules: { [H]: sha('a') } }, marks: NOTE_OK }));
+      expect(v.steps.some((s) => Object.hasOwn(s, 'check'))).toBe(false);
+      expect(v.diffs).toBeUndefined();
+    });
+
+    it('retirés : plus de validation par fichier, plus de step.stale, même conception changée et tout validé', () => {
+      const v = vibeView(ready({ ...files, note: CHANGED_NOTE }));
+      expect(Object.hasOwn(v, 'validation')).toBe(false);
+      expect(v.steps.some((s) => Object.hasOwn(s, 'stale'))).toBe(false);
+      expect(v.steps.map((s) => s.facts).join(' ')).not.toMatch(/périmé/);
+    });
+  });
+
+  describe('Commiter les modules', () => {
+    const disabled = (marks: Marks, over: Partial<JourneyInput> = {}) => action(vibeView(ready({ ...files, ...over, marks })), 'commit-modules')?.disabled ?? null;
+
+    it('modules validés : offert ; pas validés : grisé avec sa raison, en français et en anglais', () => {
+      expect(disabled(validated(files, 'invariants', 'modules'))).toBeNull();
+      expect(disabled(validated(files, 'invariants'))).toBe('modules pas validés');
+      expect(disabled(validated(files, 'invariants'), { lang: 'en' })).toBe('modules not approved');
+    });
+
+    it('modules validés puis modifiés, ou une étape d\'avant changée : grisé de nouveau', () => {
+      const marks = validated(files, 'invariants', 'modules');
+      expect(disabled(marks, { blobs: [{ path: H, disk: sha('c'), head: sha('a') }, files.blobs[1]] })).toBe('modules pas validés');
+      expect(disabled(marks, { note: CHANGED_NOTE })).toBe('modules pas validés');
+    });
+
+    it('pendant Vibe aussi : grisé tant que les modules ne sont pas validés (l\'orchestrateur les valide par step.validate)', () => {
+      expect(disabled(NOTE_OK, { vibe: true })).toBe('modules pas validés');
+    });
+
+    it('grisé sans rien changer à l\'étape en cours ni à la prochaine action', () => {
+      const v = vibeView(ready({ repo: repo(['src/app/button.tsx'], [FIRST, HELLO]) }));
+      expect([primary(v), action(v, 'commit-modules')?.disabled]).toEqual(['commit-modules', 'modules pas validés']);
+    });
+  });
+
+  describe('diffs', () => {
+    it('head : un module modifié depuis le dernier commit ; un fichier identique, absent', () => {
+      const v = vibeView(ready({ ...files, blobs: [{ path: H, disk: sha('c'), head: sha('a') }, files.blobs[1]] }));
+      expect(v.diffs).toEqual({ head: [{ path: H }], validated: {} });
+    });
+
+    it('head : nouveau (added), absent du disque (deleted), triés ; un supprimé qui a déjà son id (m0/0) n\'en reçoit pas', () => {
+      const v = vibeView(ready({
+        ...files, exists: (p: string) => p === B,
+        blobs: [{ path: 'z.ts', disk: sha('z'), head: null }, { path: H, disk: null, head: sha('a') }, files.blobs[1]],
+      }));
+      expect(v.modules[0].files).toEqual([{ id: 'm0/0', path: H, deleted: true }]);
+      expect(v.diffs?.head).toEqual([{ path: H, deleted: true }, { path: 'z.ts', added: true }]);
+    });
+
+    it('un fichier validé puis supprimé, sans autre id : r0 ; le même dans head et dans la liste : un seul r0', () => {
+      const GONE = 'src/core/gone.ts';
+      const v = vibeView(ready({
+        ...files, blobs: [...files.blobs, { path: GONE, disk: null, head: sha('g') }],
+        validated: { modules: { [H]: sha('a'), [B]: sha('b'), [GONE]: sha('g') } },
+      }));
+      expect(v.diffs).toEqual({
+        head: [{ path: GONE, id: 'r0', deleted: true }],
+        validated: { modules: [{ path: GONE, id: 'r0', deleted: true }] },
+      });
+    });
+
+    it('un chemin de la liste absent des blobs : supprimé, numéroté', () => {
+      const v = vibeView(ready({ ...files, validated: { modules: { [H]: sha('a'), [B]: sha('b'), 'old.ts': sha('o') } } }));
+      expect(v.diffs?.validated.modules).toEqual([{ path: 'old.ts', id: 'r0', deleted: true }]);
+    });
+
+    it('l\'ordre des r<i> : head, puis la Forme, les invariants, les modules ; le même chemin garde son numéro', () => {
+      const v = vibeView(ready({
+        ...files, blobs: [...files.blobs, { path: 'z.ts', disk: null, head: sha('z') }, { path: 'm.ts', disk: null, head: sha('m') }],
+        validated: {
+          forme: { [H]: sha('a'), [B]: sha('b'), 'a.ts': sha('1') },
+          modules: { [H]: sha('a'), [B]: sha('b'), 'z.ts': sha('z') },
+        },
+      }));
+      expect(v.diffs).toEqual({
+        head: [{ path: 'm.ts', id: 'r0', deleted: true }, { path: 'z.ts', id: 'r1', deleted: true }],
+        validated: { forme: [{ path: 'a.ts', id: 'r2', deleted: true }], modules: [{ path: 'z.ts', id: 'r1', deleted: true }] },
+      });
+    });
+
+    it('validated : chaque étape ne compare que les fichiers de sa vue (les tests pour les invariants, les modules pour les autres)', () => {
+      const v = vibeView(ready({
+        ...files, blobs: [...files.blobs, { path: TEST_PATH, disk: sha('t'), head: sha('t') }],
+        validated: { forme: { [H]: sha('a'), [B]: sha('b') }, invariants: { [TEST_PATH]: sha('u') }, modules: { [H]: sha('a'), [B]: sha('c') } },
+      }));
+      expect(v.diffs?.validated).toEqual({ forme: [], invariants: [{ path: TEST_PATH }], modules: [{ path: B }] });
+    });
+
+    it('une liste illisible (null) ou absente : pas d\'entrée pour l\'étape', () => {
+      const v = vibeView(ready({ ...files, validated: { modules: null, forme: { [H]: sha('a'), [B]: sha('b') } } }));
+      expect(v.diffs?.validated).toEqual({ forme: [] });
+    });
+
+    it('blobs absents : rien ne diffère, aucune liste comparée', () => {
+      const v = vibeView(ready({ validated: { modules: { [H]: sha('a') } } }));
+      expect(v.diffs).toEqual({ head: [], validated: {} });
+    });
   });
 });
