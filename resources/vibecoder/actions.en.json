@@ -6,7 +6,7 @@
     "kind": "send",
     "needs": "text",
     "label": "Write the note",
-    "hint": "The agent writes or updates the ticket note from the request in the field, and asks its open questions separately; on the main branch, it first suggests a branch name, which you accept or change before the branch is created.",
+    "hint": "The agent writes or updates the ticket note from the request in the conversation field, and asks its open questions separately; on the main branch, it first suggests a branch name, which you accept or change before the branch is created.",
     "text": "/vibecoder:note {{lang}} {{out}} {{text}}"
   },
   {
@@ -37,7 +37,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Set the shape",
-    "hint": "The agent lays down the note's “Forme” section (modules, signatures, contracts) without writing code; the field can refine it.",
+    "hint": "The agent lays down the note's “Forme” section (modules, signatures, contracts) without writing code.",
     "text": "/vibecoder:forme {{lang}} {{out}} {{text}}"
   },
   {
@@ -47,7 +47,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Write the invariants (red)",
-    "hint": "Writes the invariant tests, red, from the note or from the pseudo-code in the field; the alignment checks and fixes them (align.md), 3 rounds at most; doesn't commit.",
+    "hint": "Writes the invariant tests, red, from the note; the alignment checks and fixes them (align.md), 3 rounds at most; doesn't commit.",
     "text": "/vibecoder:invariants {{lang}} {{out}} {{text}}"
   },
   {
