@@ -20,11 +20,9 @@ export type FileBlobs = { path: string; disk: string | null; head: string | null
 // Les fichiers d'une validation d'étape : chemin relatif au dépôt → empreinte git du texte validé.
 export type StepFiles = Record<string, string>;
 
-const byPath = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
-
 // La liste en texte, une ligne « <empreinte> <chemin> » par fichier, triée par chemin ; {} : ''.
 export function filesText(files: StepFiles): string {
-  return Object.keys(files).sort(byPath).map((path) => `${files[path]} ${path}`).join('\n');
+  return Object.keys(files).sort().map((path) => `${files[path]} ${path}`).join('\n');
 }
 
 // Relit filesText (un retour à la ligne final et des CRLF tolérés) ; une ligne mal formée (empreinte pas hexadécimale
@@ -48,9 +46,8 @@ export function parseFiles(text: string): StepFiles | null {
 // deleted : disk null. Un fichier identique à sa référence : absent. Sans id (journey les numérote).
 export function diffFiles(files: FileBlobs[], ref: 'head' | StepFiles): VibeDiffFile[] {
   const all = ref === 'head' ? files : [...files, ...Object.keys(ref).filter((p) => !files.some((f) => f.path === p)).map((path) => ({ path, disk: null, head: null }))];
-  return all
+  return [...all].sort((a, b) => (a.path < b.path ? -1 : 1))
     .map(({ path, disk, head }) => ({ path, disk, ref: ref === 'head' ? head : (Object.hasOwn(ref, path) ? ref[path] : null) }))
     .filter(({ disk, ref }) => disk !== ref)
-    .sort((a, b) => byPath(a.path, b.path))
     .map(({ path, disk, ref }) => ({ path, ...(ref === null && { added: true as const }), ...(disk === null && { deleted: true as const }) }));
 }

@@ -68,7 +68,7 @@
  *  Me retirer…) ou visent un argument que le relevé ne connaît pas) ; Mettre de côté, Actualiser, Pull et
  *  Rebase restent relançables.
  *  Les validations d'étape (note 0.15.0-ecran-statuts) : step.check de la note, la Forme, les invariants et les
- *  modules (stepContent et stepChecks de step-checks, d'après marks et blobs ; le créateur seul) ; leur en-tête et
+ *  modules (stepContents et stepChecks de step-checks, d'après marks et blobs ; le créateur seul) ; leur en-tête et
  *  leurs faits : « modifiée depuis la validation » (changed), « à revoir : la note a changé » (cascade, la première
  *  étape décochée) ; done et next n'en dépendent pas ; la marque de la note est celle de sa conception (noteDesign :
  *  la Forme seule changée ne la change pas) ; Commiter les modules grisé (« modules pas validés ») tant que les
@@ -92,7 +92,7 @@ import { json, parseChecklist, parseQuestions, parseReading } from './outputs';
 import { ELSEWHERE, onBase, onPr, placeReason, placeShown, type PlaceState } from './place';
 import { canAssign, unassignable, type PrPeople } from './role';
 import { blockedBy, codeLock, ownRun } from './runs';
-import { CHECKED, stepChecks, stepContent, type CheckedStep } from './step-checks';
+import { stepChecks, stepContents, type CheckedStep } from './step-checks';
 import { syncReason } from './sync';
 import { blobSha, caseLines, caseTitles, isInvariantTest, readingOf } from './test-files';
 import { diffFiles, type FileBlobs, type StepFiles } from './validated';
@@ -325,7 +325,7 @@ export function vibeView(input: JourneyInput): VibeView {
   // Les validations d'étape (le créateur seul valide) : ce que chaque étape valide aujourd'hui et son état (step-checks).
   const blobs = input.blobs ?? [];
   const stepCheck = flow === 'create' && note
-    ? stepChecks(marks, Object.fromEntries(CHECKED.map((s) => [s, stepContent({ note, invariants, modules, changed }, marks, s, blobs)])))
+    ? stepChecks(marks, stepContents({ note, invariants, modules, changed }, marks, blobs))
     : null;
   // Ce que dit l'en-tête d'une étape décochée : modifiée depuis la validation, ou à revoir (la première décochée a changé).
   const mood = (id: VibeStepId): string | null => {
@@ -334,10 +334,13 @@ export function vibeView(input: JourneyInput): VibeView {
   };
   // Le menu de diff : sans blobs (aucun relevé des fichiers), rien ne diffère, aucune liste n'est comparée.
   const modulePaths = modules.flatMap((m) => (m.files ?? []).map((f) => f.path));
+  const invariantPaths = invariants.map((f) => f.path);
+  // Les modules valident tout ce que la branche change, hors la note et les tests d'invariants (stepContent) : le menu de diff aussi.
+  const own = new Set([note?.path, ...invariantPaths]);
   const diffs = flow === 'create'
     ? diffsOf(blobs, input.blobs ? input.validated : undefined, {
-      forme: new Set(modulePaths), modules: new Set(modulePaths), invariants: new Set(invariants.map((f) => f.path)),
-    }, new Set([...modulePaths, ...changed, ...invariants.map((f) => f.path)]))
+      forme: new Set(modulePaths), modules: new Set([...modulePaths, ...changed.filter((p) => !own.has(p))]), invariants: new Set(invariantPaths),
+    }, new Set([...modulePaths, ...changed, ...invariantPaths]))
     : undefined;
   const isRead = (f: VibeTestFile) => f.reading !== null && !f.stale;   // une lecture périmée n'est pas lue
   // Une fois un module commencé, le parcours ne recule plus (note 0.15.0-stabilisation) : une validation faite puis

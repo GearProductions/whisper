@@ -74,11 +74,18 @@ describe('stepContent', () => {
     expect(stepContent(b.view, {}, 'note', b.blobs)!.hash).not.toBe(stepContent(a.view, {}, 'note', a.blobs)!.hash);
   });
 
-  it('la Forme retient les fichiers des modules (leur empreinte sur le disque), pas ceux supprimés ni sans empreinte', () => {
+  it('la Forme retient la note (son texte) et les fichiers des modules (leur empreinte sur le disque), pas ceux supprimés ni sans empreinte', () => {
     const { view, blobs } = build({ deleted: ['src/a/gone.ts'] });
     const withGhost = [...blobs.filter((b) => b.path !== 'src/a/b.ts'), { path: 'src/a/gone.ts', disk: null, head: 'x' }];
-    expect(stepContent(view, {}, 'forme', blobs)!.files).toEqual({ 'src/a/index.ts': blobSha('code A'), 'src/a/b.ts': blobSha('code B') });
-    expect(stepContent(view, {}, 'forme', withGhost)!.files).toEqual({ 'src/a/index.ts': blobSha('code A') });
+    const note = { 'docs/n.md': blobSha(view.note!.text) };
+    expect(stepContent(view, {}, 'forme', blobs)!.files).toEqual({ ...note, 'src/a/index.ts': blobSha('code A'), 'src/a/b.ts': blobSha('code B') });
+    expect(stepContent(view, {}, 'forme', withGhost)!.files).toEqual({ ...note, 'src/a/index.ts': blobSha('code A') });
+  });
+
+  it('la Forme seule changée change la liste retenue (la note y est), pas l’empreinte de la note', () => {
+    const a = build({ forme: 'src/a/index.ts  un contrat' });
+    const b = build({ forme: 'src/a/index.ts  un autre contrat, plus long' });
+    expect(stepContent(b.view, {}, 'forme', b.blobs)!.files['docs/n.md']).not.toBe(stepContent(a.view, {}, 'forme', a.blobs)!.files['docs/n.md']);
   });
 
   it('un cas sans ✓ : invariants null ; tous les cas ✓ : les fichiers de test', () => {
@@ -268,7 +275,7 @@ describe('validateStep', () => {
     const m = validate({}, {});
     expect(m.note).toEqual({ hash: now({}).note!.hash, verdict: 'ok', files: blobSha('') });
     expect(m.note.after).toBeUndefined();
-    expect(m.forme.files).toBe(blobSha(`${blobSha('code B')} src/a/b.ts\n${blobSha('code A')} src/a/index.ts`));
+    expect(m.forme.files).toBe(blobSha(`${blobSha(build().view.note!.text)} docs/n.md\n${blobSha('code B')} src/a/b.ts\n${blobSha('code A')} src/a/index.ts`));
     expect(m.forme.after).toBeTypeOf('string');
     expect(m.forme.after).not.toBe(m.invariants.after);
     expect(m.invariants.files).toBe(m.invariants.hash);

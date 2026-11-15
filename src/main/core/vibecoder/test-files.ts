@@ -42,9 +42,9 @@ export function caseLines(src: string): number[] {
   });
 }
 
-// L'empreinte git (blob) d'un contenu : sha1 de « blob <octets>\0<contenu> », en UTF-8.
-export function blobSha(text: string): string {
-  const body = Buffer.from(text, 'utf8');
+// L'empreinte git (blob) d'un contenu : sha1 de « blob <octets>\0<contenu> », en UTF-8 (un Buffer : ses octets tels quels).
+export function blobSha(text: string | Buffer): string {
+  const body = typeof text === 'string' ? Buffer.from(text, 'utf8') : text;
   return createHash('sha1').update(`blob ${body.length}\0`).update(body).digest('hex');
 }
 

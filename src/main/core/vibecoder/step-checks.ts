@@ -1,6 +1,6 @@
 /** step-checks — la validation de chaque étape et sa cascade (note 0.15.0-ecran-statuts) : ce que valide
- *  une étape aujourd'hui (stepContent : la note, sa conception, noteDesign ; la Forme, la section Forme de la
- *  note, et les fichiers des modules retenus pour le diff ; les invariants, les fichiers de test ; les modules,
+ *  une étape aujourd'hui (stepContent, et stepContents pour les quatre : la note, sa conception, noteDesign ; la Forme, la
+ *  section Forme de la note, et, retenus pour le diff, la note et les fichiers des modules ; les invariants, les fichiers de test ; les modules,
  *  tout ce que la branche change d'après git — changed, ou view.files — plus les fichiers des modules, hors la note
  *  et les tests d'invariants : on suit git, sans autre règle, une feuille de style ou un libellé compris) ; l'état de chaque étape (stepChecks : cochée ; « changed », ce qu'elle a
  *  validé a changé ; « cascade », une étape d'avant décochée ou revalidée depuis, avec la première décochée
@@ -28,15 +28,14 @@ export const CHECKED: CheckedStep[] = ['note', 'forme', 'invariants', 'modules']
 export type StepContent = { hash: string; files: StepFiles };
 
 type Contents = Partial<Record<CheckedStep, StepContent | null>>;
+type StepView = Pick<VibeView, 'note' | 'invariants' | 'modules'> & { changed?: string[]; files?: VibeView['files'] };
 
 // Ce que valide l'étape aujourd'hui, d'après le relevé, ses marques et les empreintes du disque (blobs) ; null : rien à
 // valider — pas de note ; invariants : un cas sans ✓ et pas « Rien à écrire » ✓ ; modules : aucun fichier.
-// La note : blobSha(noteDesign) ; la Forme : blobSha de la section Forme, files ceux des modules ; invariants et modules :
+// La note : blobSha(noteDesign) ; la Forme : blobSha de la section Forme, files la note (son texte, pour que « Depuis la
+// validation » montre son diff quand seule la section Forme change) et ceux des modules ; invariants et modules :
 // blobSha(filesText(files)). Un fichier sans empreinte sur le disque n'est pas dans la liste.
-export function stepContent(
-  view: Pick<VibeView, 'note' | 'invariants' | 'modules'> & { changed?: string[]; files?: VibeView['files'] },
-  marks: Marks, step: CheckedStep, blobs: FileBlobs[],
-): StepContent | null {
+export function stepContent(view: StepView, marks: Marks, step: CheckedStep, blobs: FileBlobs[]): StepContent | null {
   const { note } = view;
   if (!note) return null;
   const disk = new Map(blobs.map((b) => [b.path, b.disk]));
@@ -45,7 +44,7 @@ export function stepContent(
   const list = (files: StepFiles): StepContent => ({ hash: blobSha(filesText(files)), files });
   const modules = listed(view.modules.flatMap((m) => (m.files ?? []).filter((f) => !f.deleted).map((f) => f.path)));
   if (step === 'note') return { hash: blobSha(noteDesign(note.text)), files: {} };
-  if (step === 'forme') return { hash: blobSha(parseNote(note.text).forme), files: modules };
+  if (step === 'forme') return { hash: blobSha(parseNote(note.text).forme), files: { [note.path]: blobSha(note.text), ...modules } };
   if (step === 'modules') {
     // Tout ce que git voit changer sur la branche, hors la note et les tests d'invariants (leurs propres validations).
     const own = new Set([note.path, ...view.invariants.map((f) => f.path)]);
@@ -57,6 +56,10 @@ export function stepContent(
   const allOk = view.invariants.every((f) => f.cases.every((c) => markState(marks, `case:${f.path}:${c}`, f.blob) === 'ok'));
   return allOk ? list(listed(view.invariants.map((f) => f.path))) : null;
 }
+
+// Le contenu de chaque étape (stepContent), pour les mêmes relevé, marques et empreintes.
+export const stepContents = (view: StepView, marks: Marks, blobs: FileBlobs[]): Record<CheckedStep, StepContent | null> =>
+  Object.fromEntries(CHECKED.map((s) => [s, stepContent(view, marks, s, blobs)])) as Record<CheckedStep, StepContent | null>;
 
 // Ce que l'after d'une étape retient de la marque de l'étape d'avant : son empreinte et son propre after (revalider la
 // note change sa marque, donc la Forme ne suit plus ; revalider la Forme change la sienne, donc les invariants non plus).

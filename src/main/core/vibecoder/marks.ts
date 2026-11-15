@@ -16,7 +16,7 @@
  *  Utilisé par : core/vibecoder (journey : checked ; step-checks), app/controllers/vibecoder, app/settings. */
 import type { VibeComment, VibeFlow, VibeMarkState, VibeView } from 'shared/bridge';
 import { noteDesign } from './note';
-import { CHECKED, stepContent, validateStep } from './step-checks';
+import { stepChecks, stepContents, validateStep } from './step-checks';
 import { blobSha } from './test-files';
 import type { FileBlobs } from './validated';
 
@@ -61,14 +61,12 @@ export function designEnd(
   return end.clicked && !end.questions ? setMark(checked, 'note', end.clicked, 'ok') : checked;
 }
 
-// L'empreinte du contenu d'une cible dans le relevé : la note (sa conception, noteDesign), 'forme', 'invariants' et
-// 'modules' (step.check.now de leur étape), « rien à écrire » de l'étape Invariants (créateur : le
-// texte de la note), un cas de test (le fichier), une case du plan à l'écran (ecran.md), une case du § A.3 à cocher à
-// la main (le commit de tête de la branche), un commit (« commit:<hash> » : son hash) ; null si la cible n'y est pas
-// (« file: » et « step: » compris, retirés).
+// L'empreinte du contenu d'une cible dans le relevé : la note (sa conception, noteDesign), « rien à écrire » de l'étape
+// Invariants (créateur : le texte de la note), un cas de test (le fichier), une case du plan à l'écran (ecran.md), une case
+// du § A.3 à cocher à la main (le commit de tête de la branche), un commit (« commit:<hash> » : son hash) ; null si la
+// cible n'y est pas (« file: » et « step: » compris, retirés ; 'forme', 'invariants' et 'modules' : markStep, step-checks).
 export function targetHash(view: VibeView, target: string): string | null {
   const { note } = view;
-  if (target === 'forme' || target === 'invariants' || target === 'modules') return view.steps.find((s) => s.id === target)?.check?.now ?? null;
   if (target.startsWith('commit:')) return view.commits.find((c) => `commit:${c.hash}` === target)?.hash ?? null;
   const a3 = /^a3:(\d+)$/.exec(target);
   if (a3) return view.flow === 'create' && view.checklist[Number(a3[1])]?.manual ? view.commits.at(-1)?.hash ?? null : null;
@@ -90,10 +88,12 @@ export function vibeMarks(marks: Marks, view: VibeView, blobs: FileBlobs[] = [])
   const done = new Set(view.steps.filter((s) => s.status === 'done').map((s) => s.id));
   const cases = done.has('invariants') ? view.invariants.flatMap((f) => f.cases.map((c) => ({ target: `case:${f.path}:${c}`, hash: f.blob }))) : [];
   const withCases = cases.reduce((m, { target, hash }) => (markState(m, target, hash) === 'ok' || markState(m, target, hash) === 'ko' ? m : setMark(m, target, hash, 'ok')), marks);
+  // Les contenus ne dépendent que des cas et de « rien à écrire » (withCases) : les marques d'étape que le reste ajoute n'y changent rien.
+  const contents = stepContents(view, withCases, blobs);
   return (['note', 'forme', 'invariants'] as const).filter((step) => done.has(step)).reduce((m, step) => {
-    const contents = Object.fromEntries(CHECKED.map((s) => [s, stepContent(view, m, s, blobs)]));
     const hash = contents[step]?.hash;
-    return !hash || markState(m, step, hash) === 'ko' ? m : validateStep(m, contents, step, 'ok') ?? m;
+    // Déjà cochée pour ce contenu (et l'étape d'avant) : rien à écrire, ni marque neuve ni relevé du disque du contrôleur.
+    return !hash || markState(m, step, hash) === 'ko' || stepChecks(m, contents)[step].state === 'ok' ? m : validateStep(m, contents, step, 'ok') ?? m;
   }, withCases);
 }
 

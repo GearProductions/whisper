@@ -167,9 +167,9 @@ describe('vibeMarks : le ✓ des étapes faites pendant Vibe', () => {
     expect(status(run().next)).toMatchObject({ note: 'done', forme: 'done', invariants: 'done' });
   });
 
-  it('rejouée, elle ne change rien', () => {
+  it('rejouée, elle ne change rien : les marques rendues sont les mêmes (le contrôleur ne réécrit rien)', () => {
     const { view, next } = run();
-    expect(vibeMarks(next, view, blobs)).toEqual(next);
+    expect(vibeMarks(next, view, blobs)).toBe(next);
   });
 
   it('un ✗ déjà donné à la note pour ce contenu reste : la Forme et les invariants ne sont pas validés, les cas oui', () => {
@@ -213,25 +213,15 @@ describe('vibeMarks : le ✓ des étapes faites pendant Vibe', () => {
   });
 });
 
-describe('targetHash : note, forme, invariants, modules', () => {
+describe('targetHash : note', () => {
   const text = (forme: string) => `# T\n\n## Ce que ça fait\n\nA\n\n## Forme\n\n${forme}\n\n## Ce que ça ne doit pas faire\n\n- rien\n`;
   const view = (over: object = {}) =>
     ({ flow: 'create', note: { text: text('src/a.ts  un') }, invariants: [], commits: [], steps: [], ...over }) as unknown as Parameters<typeof targetHash>[0];
-  const withCheck = (id: string, now: string | null) => ({ steps: [{ id, check: { state: null, now } }] });
 
   it('note : l\'empreinte de la conception ; la Forme seule changée : la même', () => {
     expect(targetHash(view(), 'note')).toBe(blobSha(noteDesign(text('src/a.ts  un'))));
     expect(targetHash(view({ note: { text: text('src/a.ts  un autre contrat') } }), 'note')).toBe(targetHash(view(), 'note'));
     expect(targetHash(view({ note: { text: text('x').replace('A', 'B') } }), 'note')).not.toBe(targetHash(view(), 'note'));
-  });
-
-  it('forme, invariants, modules : step.check.now de l\'étape ; sans check : null', () => {
-    expect(targetHash(view(withCheck('modules', 'h1')), 'modules')).toBe('h1');
-    expect(targetHash(view(withCheck('invariants', 'h2')), 'invariants')).toBe('h2');
-    expect(targetHash(view(withCheck('forme', 'h3')), 'forme')).toBe('h3');
-    expect(targetHash(view({ steps: [{ id: 'modules' }] }), 'modules')).toBeNull();
-    expect(targetHash(view(withCheck('modules', null)), 'modules')).toBeNull();
-    expect(targetHash(view(), 'invariants')).toBeNull();
   });
 
   it('« file: » et « step: » sont retirés : null, même avec un relevé de validation', () => {

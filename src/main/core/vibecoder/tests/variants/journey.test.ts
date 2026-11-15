@@ -1704,6 +1704,16 @@ describe('les validations d\'étape et le menu de diff', () => {
       expect(v.diffs?.validated).toEqual({ forme: [], invariants: [{ path: TEST_PATH }], modules: [{ path: B }] });
     });
 
+    it('modules : un fichier que la branche change hors de la Forme (SPEC.md) compte, comme dans la validation ; la note et les tests, non', () => {
+      const SPEC = 'SPEC.md';
+      const v = vibeView(ready({
+        ...files, repo: repo([SPEC, TEST_PATH, note.path], [FIRST, HELLO, BUTTON]),
+        blobs: [...files.blobs, { path: SPEC, disk: sha('s'), head: sha('s') }, { path: note.path, disk: sha('n'), head: sha('n') }],
+        validated: { modules: { [H]: sha('a'), [B]: sha('b') } },
+      }));
+      expect(v.diffs?.validated.modules).toEqual([{ path: SPEC, added: true }]);
+    });
+
     it('une liste illisible (null) ou absente : pas d\'entrée pour l\'étape', () => {
       const v = vibeView(ready({ ...files, validated: { modules: null, forme: { [H]: sha('a'), [B]: sha('b') } } }));
       expect(v.diffs?.validated).toEqual({ forme: [] });
