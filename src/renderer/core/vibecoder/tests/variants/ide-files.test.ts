@@ -231,10 +231,35 @@ describe('diffTree', () => {
 
   it('un ajouté que la Forme nomme quelque part (un variant, sans son src/) : en clair ; sinon, en retrait avec son infobulle', () => {
     const note = { text: '# T\n\n## Forme\n\nmod/x.ts  le module\n    variants : other.ts\n\n## Après\n\nd/gone.ts hors de la Forme\n' };
-    const out = diffTree(withMod, { diffs, files: branchFiles, note }, 'forme', 'base', 'hors');
-    expect(out.slice(4).map((r) => [r.path, !!r.dim, r.hint])).toEqual([['d/gone.ts', true, 'hors'], ['other.ts', false, undefined]]);
+    const out = diffTree(withMod, { diffs, files: branchFiles, note }, 'forme', 'base');
+    expect(out.slice(4).map((r) => [r.path, !!r.dim, r.hint])).toEqual([['d/gone.ts', true, 'Modifié, mais non déclaré dans la Forme'], ['other.ts', false, undefined]]);
+    expect(diffTree(withMod, { diffs, files: branchFiles, note, lang: 'en' }, 'forme', 'base')[4].hint).toBe('Changed, but not declared in the forme');
     expect(formeText('pas de forme')).toBe('');
     expect(inForme('src : main/core/x.ts', 'src/main/core/x.ts')).toBe(true);
+  });
+
+  it('formeText : « Shape » et « Form » comme « Forme » ; un « ## » dans un bloc de code ne coupe pas la section', () => {
+    expect(formeText('# T\n\n## Shape\n\na.ts\n\n## After\n\nb.ts\n')).toContain('a.ts');
+    expect(formeText('# T\n\n## Shape\n\na.ts\n\n## After\n\nb.ts\n')).not.toContain('b.ts');
+    expect(formeText('## Form\n\nx.ts\n')).toContain('x.ts');
+    expect(formeText('## Forme\n\n```\n## pas un titre\nc.ts\n```\n\nd.ts\n\n## Suite\n\ne.ts\n')).toMatch(/c\.ts[\s\S]*d\.ts/);
+    expect(formeText('## Forme\n\n```\n## pas un titre\nc.ts\n```\n\nd.ts\n\n## Suite\n\ne.ts\n')).not.toContain('e.ts');
+  });
+
+  it('head et validated : une ligne de dossier couvre les fichiers dessous (elle reste, ils ne sortent pas en grisé)', () => {
+    const d: VibeDiffs = { head: [{ path: 'mod/in.ts' }], validated: { forme: [{ path: 'mod/in.ts' }] } };
+    for (const ref of ['head', 'validated'] as const) {
+      const out = diffTree(withMod, { diffs: d, files: branchFiles }, 'forme', ref);
+      expect(out.map((r) => [r.path, !!r.dim])).toEqual([['mod/', false]]);
+    }
+  });
+
+  it('validated : la note, retenue par la Forme, sort en clair (jamais « non déclaré dans la Forme »), un autre fichier hors de la Forme en retrait', () => {
+    const note = { path: 'docs/n.md', text: '# T\n\n## Forme\n\na.ts\n' };
+    const d: VibeDiffs = { head: [], validated: { forme: [{ path: 'docs/n.md' }, { path: 'other.ts' }] } };
+    const all = [{ id: 'b0', path: 'docs/n.md', git: 'modified' as const, locked: null }, ...branchFiles];
+    const out = diffTree(files, { diffs: d, files: all, note }, 'forme', 'validated');
+    expect(out.map((r) => [r.path, !!r.dim])).toEqual([['docs/n.md', false], ['other.ts', true]]);
   });
 
   it('head : un modifié hors de files listé comme fichier de la branche (git status, sans autre règle)', () => {

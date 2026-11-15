@@ -106,6 +106,10 @@ describe('replaceRange', () => {
     expect(replaceRange(crlf, { from: 2, to: 3 }, 'x\r\ny')).toBe('a\r\nx\r\ny\r\nd\r\n');
   });
 
+  it('un fichier en \\r\\n sans fin de ligne finale, le bloc à la fin : il garde le \\r\\n', () => {
+    expect(replaceRange('a\r\nb\r\nc', { from: 2, to: 3 }, 'x\ny')).toBe('a\r\nx\r\ny');
+  });
+
   it('un fichier en \\n, un bloc en \\r\\n : le bloc prend les \\n du fichier', () => {
     expect(replaceRange(text, { from: 2, to: 2 }, 'x\r\ny')).toBe('a\nx\ny\nc\nd\n');
   });

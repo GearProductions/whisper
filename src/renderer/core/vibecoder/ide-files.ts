@@ -17,7 +17,8 @@
  *  (les accordéons, le Valider d'un fichier).
  *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (forme-view, modules-view, ide-view,
  *  invariants-view, ide-diff). */
-import type { VibeDiffStep, VibeGit, VibeMarkState, VibeModule, VibeStepCheck, VibeTestFile, VibeView, VibeStep } from 'technicals/bridge';
+import type { VibeDiffStep, VibeGit, VibeLang, VibeMarkState, VibeModule, VibeStepCheck, VibeTestFile, VibeView, VibeStep } from 'technicals/bridge';
+import { t } from './i18n';
 
 export type ModuleState = 'done' | 'wip' | 'todo';
 export type FileMark = VibeGit | 'deleted' | 'todo';
@@ -39,13 +40,18 @@ export type IdeFile = {
   hint?: string;                // l'infobulle de sa ligne, après son chemin (un fichier hors de la Forme) ; absent : le chemin seul
 };
 
-// La section Forme d'une note (de « ## Forme » au titre de niveau 2 suivant) ; '' sans elle.
+// La section Forme d'une note (parseNote du principal : « Forme », « Shape » ou « Form », casse et accents ignorés, jusqu'au
+// titre de niveau 2 suivant, ceux des blocs de code exceptés) ; '' sans elle.
 export function formeText(note: string): string {
-  const m = /^## Forme[ \t]*$/m.exec(note);
-  if (!m) return '';
-  const rest = note.slice(m.index + m[0].length);
-  const end = rest.search(/^## /m);
-  return end < 0 ? rest : rest.slice(0, end);
+  const sections: { name: string; text: string }[] = [];
+  let fence = false;
+  for (const line of note.split(/\r?\n/)) {
+    if (/^\s*(```|~~~)/.test(line)) fence = !fence;
+    const h = fence ? null : /^##\s+(.*?)\s*$/.exec(line);
+    if (h) sections.push({ name: h[1], text: '' });
+    else if (sections.length) sections[sections.length - 1].text += `${line}\n`;
+  }
+  return sections.find((s) => /^(forme|shape|form)\b/.test(s.name.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')))?.text ?? '';
 }
 
 // Un chemin que la Forme nomme quelque part (en tête d'un module, dans ses variants, un « supprime … ») : déclaré, pas un
@@ -120,30 +126,33 @@ export function diffRefs(view: Pick<VibeView, 'steps'>, step: VibeDiffStep): Dif
 // L'arborescence de la vue IDE pour une référence, d'après git, sans autre règle : base, files plus tout ce que la branche
 // change depuis sa base (view.files : git diff et git status, supprimés compris) qu'aucune ligne de files ne couvre (son
 // chemin, ou sous un dossier de files) ; head, ce qui diffère du dernier commit (view.diffs.head, le git status) ;
-// validated, ce qui diffère de la version validée de l'étape (view.diffs.validated[step]). Un chemin de la liste absent
-// de files : sa ligne de fichier de la branche (branchRow), sinon, supprimé, une ligne « supprimé » (gone : son id r<i>) ;
+// validated, ce qui diffère de la version validée de l'étape (view.diffs.validated[step]) ; dans les trois, une ligne de
+// dossier (un module de la Forme) couvre ses fichiers et reste dès qu'un d'eux diffère. Un chemin de la liste qu'aucune
+// ligne de files ne couvre : sa ligne de fichier de la branche (branchRow), sinon, supprimé, une ligne « supprimé » (gone : son id r<i>) ;
 // un ajouté que la Forme ne nomme nulle part est en retrait (dim), son infobulle hint le dit (un oubli possible de la
 // Forme) ; un ajouté qu'elle nomme (un variant, un fichier supprimé…) reste en clair. L'ordre de files, les ajoutés à la fin par chemin.
-export function diffTree(files: IdeFile[], view: Pick<VibeView, 'diffs' | 'files'> & { note?: { text: string } | null }, step: VibeDiffStep, ref: DiffRef, hint = 'Modifié, mais non déclaré dans la Forme'): IdeFile[] {
-  const have = new Set(files.map((f) => f.path));
+export function diffTree(files: IdeFile[], view: Pick<VibeView, 'diffs' | 'files'> & { note?: { text: string; path?: string } | null; lang?: VibeLang }, step: VibeDiffStep, ref: DiffRef): IdeFile[] {
+  // Un chemin que couvre une ligne de files : le sien, ou, d'un dossier (module de la Forme), un chemin dessous.
+  const under = (p: string, dir: string) => p === dir || p.startsWith(dir.endsWith('/') ? dir : `${dir}/`);
+  const covered = (p: string) => files.some((f) => under(p, f.path));
   // Un ajouté que la Forme nomme quelque part : en clair ; sinon, en retrait, avec son infobulle (un oubli possible).
+  // La note n'est jamais un oubli de la Forme : la validation de la Forme la retient (son diff : Depuis la validation).
   const forme = formeText(view.note?.text ?? '');
-  const outside = (f: IdeFile): IdeFile => (inForme(forme, f.path) ? f : { ...f, dim: true, hint });
+  const hint = t(view.lang ?? 'fr').notInForme;
+  const outside = (f: IdeFile): IdeFile => (f.path === view.note?.path || inForme(forme, f.path) ? f : { ...f, dim: true, hint });
   const branch = new Map((view.files ?? []).map((f) => [f.path, f]));
   const byPath = (a: { path: string }, b: { path: string }) => (a.path < b.path ? -1 : 1);
   if (ref === 'base') {
-    const covered = (p: string) => have.has(p) || files.some((f) => p.startsWith(f.path.endsWith('/') ? f.path : `${f.path}/`));
     const extra = [...branch.values()].filter((f) => !covered(f.path)).sort(byPath).map((f) => outside(branchRow(f)));
     return extra.length ? [...files, ...extra] : files;
   }
   const entries = (ref === 'head' ? view.diffs?.head : view.diffs?.validated[step]) ?? [];
-  const by = new Set(entries.map((e) => e.path));
-  const extra = entries.filter((e) => !have.has(e.path)).sort(byPath).flatMap((e): IdeFile[] => {
+  const extra = entries.filter((e) => !covered(e.path)).sort(byPath).flatMap((e): IdeFile[] => {
     const known = branch.get(e.path);
     if (known) return [outside(branchRow(known))];
     return e.deleted ? [outside({ path: e.path, rank: null, state: null, mark: 'deleted', code: null, gone: e.id ?? '' })] : [];
   });
-  return [...files.filter((f) => by.has(f.path)), ...extra];
+  return [...files.filter((f) => entries.some((e) => under(e.path, f.path))), ...extra];
 }
 
 // La couleur d'une étape du fil d'Ariane d'après sa validation (step.check ; les étapes qui se valident) : ok, validée et

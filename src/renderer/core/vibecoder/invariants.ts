@@ -57,14 +57,15 @@ export function caseRange(file: VibeTestFile, i: number): CaseRange | null {
 }
 
 // `text` dont les lignes range.from à range.to sont remplacées par `block` ; toute autre ligne, et les fins de ligne
-// du fichier, identiques (le bloc, donné en \n ou en \r\n, prend la fin de ligne de la dernière ligne remplacée) ;
+// du fichier, identiques (le bloc, donné en \n ou en \r\n, prend la fin de ligne de la première ligne remplacée, sa dernière ligne celle de la dernière) ;
 // une plage hors du texte ou renversée : null.
 export function replaceRange(text: string, range: CaseRange, block: string): string | null {
   const { from, to } = range;
   const lines = text.split('\n');
   if (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to < from || to > lines.length) return null;
-  const cr = lines[to - 1].endsWith('\r') ? '\r' : '';
-  lines.splice(from - 1, to - from + 1, ...(block ? block.split(/\r?\n/).map((l) => l + cr) : []));
+  const eol = (line: string) => (line.endsWith('\r') ? '\r' : '');
+  const first = eol(lines[from - 1]), last = eol(lines[to - 1]);   // la dernière ligne du fichier n'a pas de fin de ligne
+  lines.splice(from - 1, to - from + 1, ...(block ? block.split(/\r?\n/).map((l, i, all) => l + (i === all.length - 1 ? last : first)) : []));
   return lines.join('\n');
 }
 
