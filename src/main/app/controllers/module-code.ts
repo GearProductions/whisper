@@ -43,7 +43,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { SendResult, VibeCode, VibeLang } from 'shared/bridge';
 import { vibeLang } from 'core/config';
-import { artifactOf, codeFile, codeLock, commitFile, parseFiles, safePath, versionName } from 'core/vibecoder';
+import { artifactOf, codeFile, codeLock, commitFile, safePath, versionName } from 'core/vibecoder';
 import { artifactFile } from './artifacts';
 import { gitReader, gitRun } from 'technicals/git';
 import { loadConfig, vibeOutPath, vibeStore } from 'app/settings';
@@ -51,7 +51,7 @@ import { state } from 'app/state';
 import { isBusy, viewAgent } from './agents';
 import { lockingRuns } from './runs';
 import { READ_MAX, readFile, readTimed } from './processes';
-import { lastView, refreshVibe } from './vibecoder';
+import { keptLists, lastView, refreshVibe } from './vibecoder';
 
 const ERRORS: Record<VibeLang, Record<'file' | 'text' | 'write', string>> = {
   fr: { file: 'Ce fichier n’est plus affiché.', text: 'Texte invalide ou trop gros.', write: 'Enregistrement impossible.' },
@@ -88,15 +88,12 @@ async function versions(dir: string, agentId: string, rel: string, hash: string 
   return { base: atBase, head, ...(hash && { commit: { before, after } }) };
 }
 
-// Le texte du fichier à la validation de chaque étape validée ('ok') qui a retenu sa liste : null s'il n'est pas dans
-// la liste ; liste ou texte illisibles : l'étape absente. Rien n'est écrit.
+// Le texte du fichier à la validation de chaque étape validée ('ok') qui a retenu sa liste (keptLists) : null s'il n'est pas
+// dans la liste ; liste ou texte illisibles : l'étape absente. Rien n'est écrit.
 function validationsOf(agentId: string, rel: string): NonNullable<NonNullable<VibeCode['at']>['validations']> {
-  const marks = vibeStore().marks[agentId] ?? {};
-  const read = (hash: string | undefined) => { const name = hash && versionName(hash); return name ? readFile(path.join(vibeOutPath(agentId), name)) : null; };
-  return Object.fromEntries((['forme', 'invariants', 'modules'] as const).flatMap((step): [string, string | null][] => {
-    const mark = Object.hasOwn(marks, step) ? marks[step] : undefined;
-    const text = mark?.verdict === 'ok' ? read(mark.files) : null;
-    const list = text === null ? null : parseFiles(text);
+  const out = vibeOutPath(agentId);
+  const read = (hash: string) => { const name = versionName(hash); return name ? readFile(path.join(out, name)) : null; };
+  return Object.fromEntries(Object.entries(keptLists(out, vibeStore().marks[agentId] ?? {})).flatMap(([step, list]): [string, string | null][] => {
     if (!list) return [];
     if (!Object.hasOwn(list, rel)) return [[step, null]];
     const validated = read(list[rel]);

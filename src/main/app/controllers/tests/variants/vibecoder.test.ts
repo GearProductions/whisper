@@ -2366,17 +2366,19 @@ describe('0.15.0 : valider une étape, retenir sa liste et ses fichiers', () => 
     expect(fake.calls.filter((c) => c[0] === 'git' && !['rev-parse', 'status'].includes(String(c[1])))).toEqual([]);
   });
 
-  it('chaque étape retient sa liste et ses fichiers : la Forme et les modules ceux des modules, les invariants ceux des tests', async () => {
+  it('chaque étape retient sa liste et ses fichiers : la Forme la note et ceux des modules, les modules ceux des modules, les invariants ceux des tests', async () => {
     const { filesText } = await import('core/vibecoder');
     await open();
     await toInvariants();
     await mark('modules', 'ok');
+    const forme = filesText({ [NOTE_PATH]: await sha(NOTE_F), [MOD]: await sha(MOD_TEXT) });
     const modules = filesText({ [MOD]: await sha(MOD_TEXT) });
     const tests = filesText({ [INV]: await sha(TEST) });
-    expect(kept()).toEqual([await sha(modules), await sha(tests), await sha(MOD_TEXT), await sha(TEST)].sort());
+    expect(kept()).toEqual([await sha(forme), await sha(modules), await sha(tests), await sha(MOD_TEXT), await sha(TEST), await sha(NOTE_F)].sort());
     expect(keptText(await sha(tests))).toBe(tests);
     expect(keptText(await sha(TEST))).toBe(TEST);
-    expect((await marks()).forme?.files).toBe(await sha(modules));
+    expect(keptText(await sha(NOTE_F))).toBe(NOTE_F);
+    expect((await marks()).forme?.files).toBe(await sha(forme));
     expect((await marks()).invariants?.files).toBe(await sha(tests));
   });
 

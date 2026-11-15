@@ -183,7 +183,7 @@ import { githubPage } from 'core/repo';
 import { START, type CommandError } from 'core/commands';
 import {
   addComment, artifactOf, beforeOf, blobSha, buildMessage, designEnd, hasComment, noteClick, parseQuestions, vibeMarks, ARTIFACT_OPS, DIRECT_ACTIONS, DIRECT_ONLY, editComment, findNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath, nextRef,
-  CHECKED, filesText, parseFiles, stepContent, validateStep, versionName, type CheckedStep, type FileBlobs, type Marks, type StepContent, type StepFiles,
+  CHECKED, filesText, parseFiles, stepContents, validateStep, versionName, type CheckedStep, type FileBlobs, type Marks, type StepContent, type StepFiles,
   blockedBy, BRANCH_CHANGES, lockCode, lockText, ELSEWHERE, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeRole, vibeView, whoOf, type ActionDef, type MessageError, type NoteRef,
 } from 'core/vibecoder';
 import { draftText, isVerdict } from 'shared/review';
@@ -487,10 +487,10 @@ const viewBlobs = new WeakMap<VibeView, FileBlobs[]>();
 const FILE_GITS = 8;
 
 // Un fichier que `read` refuse (au-delà de READ_MAX) : son empreinte tout de même, pour qu'il ne passe pas pour absent ;
-// null : absent, un lien ou illisible.
+// null : absent, un lien ou illisible. Les octets sont hachés tels quels, sans décodage en chaîne (la limite d'une chaîne V8).
 function bigBlob(dir: string, rel: string) {
   const file = safePath(dir, rel, fs.realpathSync.native);
-  try { return file && fs.lstatSync(file).isFile() ? blobSha(fs.readFileSync(file, 'utf8')) : null; } catch { return null; }
+  try { return file && fs.lstatSync(file).isFile() ? blobSha(fs.readFileSync(file)) : null; } catch { return null; }
 }
 
 async function fileBlobs(
@@ -513,7 +513,8 @@ async function fileBlobs(
 }
 
 // La liste retenue de chaque étape validée (la marque 'ok' et sa liste dans <sorties>/validated/) ; null : illisible.
-function keptLists(out: string, marks: Marks): Partial<Record<CheckedStep, StepFiles | null>> {
+// Aussi lue par module-code (le texte d'un fichier à la validation).
+export function keptLists(out: string, marks: Marks): Partial<Record<CheckedStep, StepFiles | null>> {
   return Object.fromEntries((['forme', 'invariants', 'modules'] as const).flatMap((step) => {
     const mark = Object.hasOwn(marks, step) ? marks[step] : undefined;
     const name = mark?.verdict === 'ok' && mark.files ? versionName(mark.files) : null;
@@ -545,10 +546,6 @@ function retain(agent: AgentConfig, step: CheckedStep, { files }: StepContent) {
   }
 }
 
-// Le contenu de chaque étape d'après le relevé `view`, ses empreintes (blobs) et ces marques.
-const contentsOf = (view: VibeView, marks: Marks, blobs: FileBlobs[]) =>
-  Object.fromEntries(CHECKED.map((s) => [s, stepContent(view, marks, s, blobs)])) as Record<CheckedStep, StepContent | null>;
-
 // Valider (ok) ou retirer la validation (null) d'une étape pour le contenu du dernier relevé (validateStep), ses textes retenus ;
 // false : refusé (rien à valider, l'étape d'avant pas cochée, ou un relecteur hors la note). Rien n'est écrit ailleurs que dans les
 // marques et le dossier de sorties.
@@ -556,7 +553,7 @@ function markStep(agent: AgentConfig, view: VibeView, step: CheckedStep, verdict
   if (step !== 'note' && view.flow !== 'create') return false;
   const store = vibeStore();
   const before = store.marks[agent.id] || {};
-  const contents = contentsOf(view, before, viewBlobs.get(view) ?? []);
+  const contents = stepContents(view, before, viewBlobs.get(view) ?? []);
   const after = validateStep(before, contents, step, verdict);
   if (!after) return false;
   if (verdict) retain(agent, step, contents[step]!);
@@ -717,7 +714,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     const marks = store.marks[agent.id] || {};
     const next = vibeMarks(marks, journey, blobs);
     if (next !== marks) {
-      const contents = contentsOf(journey, next, blobs);
+      const contents = stepContents(journey, next, blobs);
       for (const step of CHECKED) if (next[step] !== marks[step] && contents[step]) retain(agent, step, contents[step]!);
       store.marks[agent.id] = next;
       saveVibeStore(store);
