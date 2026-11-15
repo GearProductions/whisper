@@ -77,3 +77,5 @@
 
 /* Grisés (une lecture périmée : relire d'abord) : ni survol ni clic, comme un bouton indisponible. */
 .vc-verdict button:disabled, .vc-vbtn:disabled { opacity: 0.45; cursor: not-allowed; }
+/* En attente de l'étape d'avant : la raison, discrète, à côté de Valider grisé. */
+.vc-vstate[data-state="waiting"] { color: var(--vc-muted); font-style: italic; }

@@ -152,6 +152,16 @@ export function diffTree(files: IdeFile[], view: Pick<VibeView, 'diffs' | 'files
 export const crumbCheck = (s: Pick<VibeStep, 'check'>): 'ok' | 'warn' | 'none' | null =>
   (!s.check ? null : s.check.state === 'ok' ? 'ok' : s.check.state ? 'warn' : 'none');
 
+// L'étape d'avant qui n'est pas validée (Note → Forme → Invariants → Modules) : celle qu'attend la validation de step ;
+// null, rien à attendre (la note, une étape sans validation, ou celle d'avant validée).
+const CHAIN = ['note', 'forme', 'invariants', 'modules'] as const;
+export function waitingFor(steps: Pick<VibeStep, 'id' | 'check'>[], step: VibeStep['id']): VibeStep['id'] | null {
+  const i = CHAIN.indexOf(step as typeof CHAIN[number]);
+  if (i <= 0) return null;
+  const prev = steps.find((s) => s.id === CHAIN[i - 1]);
+  return prev?.check && prev.check.state !== 'ok' ? prev.id : null;
+}
+
 // La validation d'une étape d'après step.check, pour MarkControl : cochée → ok, décochée (changée, ou en cascade) → changed.
 export const checkMark = (c?: VibeStepCheck): VibeMarkState => (c?.state === 'ok' ? 'ok' : c?.state ? 'changed' : null);
 

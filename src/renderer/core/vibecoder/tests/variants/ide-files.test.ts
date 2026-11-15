@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkMark, crumbCheck, diffRefs, diffTree, formeText, inForme, goneModule, ideFiles, invariantTree, moduleState } from 'core/vibecoder';
+import { checkMark, crumbCheck, waitingFor, diffRefs, diffTree, formeText, inForme, goneModule, ideFiles, invariantTree, moduleState } from 'core/vibecoder';
 import type { IdeFile } from 'core/vibecoder';
 import type { VibeDiffs, VibeModule, VibeStep, VibeStepCheck, VibeTestFile } from 'technicals/bridge';
 
@@ -281,5 +281,13 @@ describe('crumbCheck', () => {
   it('validée : ok ; modifiée ou en cascade : warn ; jamais validée : none ; sans validation (Revue, PR) : null', () => {
     const c = (state: VibeStepCheck['state']) => ({ check: { state, now: null } });
     expect([crumbCheck(c('ok')), crumbCheck(c('changed')), crumbCheck(c('cascade')), crumbCheck(c(null)), crumbCheck({})]).toEqual(['ok', 'warn', 'warn', 'none', null]);
+  });
+});
+
+describe('waitingFor', () => {
+  const st = (id: string, state: VibeStepCheck['state'] | 'none') => ({ id, ...(state !== 'none' && { check: { state, now: null } }) }) as Pick<VibeStep, 'id' | 'check'>;
+  it('l\'étape d\'avant pas validée : elle ; validée, la note, ou une étape sans validation : null', () => {
+    const steps = [st('note', 'changed'), st('forme', 'ok'), st('invariants', null), st('modules', null), st('revue', 'none')];
+    expect(['note', 'forme', 'invariants', 'modules', 'revue'].map((id) => waitingFor(steps, id as VibeStep['id']))).toEqual([null, 'note', null, 'invariants', null]);
   });
 });

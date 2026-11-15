@@ -47,7 +47,7 @@
  *  (note 0.15.0-ecran-statuts). Retirés : ideReview (accordéons, Valider d'un fichier).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useEffect } from 'react';
-import { checkMark, fileParts, goneModule, ideFiles, moduleCommits, moduleState, type IdeFile, type ModuleState } from 'core/vibecoder';
+import { checkMark, waitingFor, fileParts, goneModule, ideFiles, moduleCommits, moduleState, type IdeFile, type ModuleState } from 'core/vibecoder';
 import type { VibeLang, VibeModule } from 'technicals/bridge';
 import { CommitsSection } from './commits-view';
 import { Contract } from './forme-view';
@@ -59,7 +59,7 @@ import { ModuleCode } from './module-code';
 import { PROPOSED_ACTS, ProposedCommit } from './proposed-commit';
 import { Invite, OutputCard, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
-import { MarkControl } from './validation';
+import { MarkControl, waitText } from './validation';
 import './modules-view.css';
 
 const fr = {
@@ -192,8 +192,8 @@ export function ModulesView(p: StepProps) {
         <OutputCard className="vc-modules" title={s.modules} t={t} acts={hasModules && !reviewer ? (
           <>
             {CARD_ACTS.map(cardRun)}
-            {check && (check.now != null || check.state === 'ok') ? (
-              <MarkControl what="modules" state={checkMark(check)} review={false} lang={view.lang} onMark={(v) => act.mark('modules', v)} />
+            {check && (check.now != null || check.state === 'ok' || waitingFor(view.steps, 'modules')) ? (
+              <MarkControl what="modules" state={checkMark(check)} review={false} lang={view.lang} onMark={(v) => act.mark('modules', v)} waiting={waitText(view, 'modules')} />
             ) : null}
             {view.modules.some((m) => m.uncommitted) ? cardRun('commit-modules') : null}
           </>

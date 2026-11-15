@@ -18,7 +18,7 @@
  *  l'est) ; pendant Vibe, Arrêter Vibe à sa place (onStopVibe), même l'action masquée (« déjà en cours »).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
 import { useEffect, useState } from 'react';
-import { crumbCheck, type Strings } from 'core/vibecoder';
+import { crumbCheck, waitingFor, type Strings } from 'core/vibecoder';
 import type { VibeAction, VibeCommit, VibeStepId, VibeView } from 'technicals/bridge';
 import { IconButton } from './icons';
 import './breadcrumb.css';
@@ -48,7 +48,7 @@ export function Breadcrumb({ view, t, selected, vibe, onPick, onOpen, onVibe, on
           {view.steps.map((s, i) => (
             <li key={s.id} data-status={s.status} data-check={crumbCheck(s) ?? undefined}>
               <button type="button" className="vc-jstep" aria-current={s.id === selected ? 'step' : undefined} onClick={() => onPick(s.id)}
-                title={`${t.steps[s.id]} — ${t.stepStatus[s.status]}${s.check ? ` · ${t.stepCheck[s.check.state ?? 'none']}` : ''}${s.facts ? ` · ${s.facts}` : ''}${i < 6 ? ` (${t.shortcut(i + 1)})` : ''}`}>
+                title={`${t.steps[s.id]} — ${t.stepStatus[s.status]}${s.check ? ` · ${t.stepCheck[s.check.state ?? 'none']}` : ''}${waitingFor(view.steps, s.id) ? ` · ${t.waitingFor(t.steps[waitingFor(view.steps, s.id)!])}` : ''}${s.facts ? ` · ${s.facts}` : ''}${i < 6 ? ` (${t.shortcut(i + 1)})` : ''}`}>
                 <span className="vc-jdot" />
                 <span className="vc-jlabel">{t.steps[s.id]}</span>
               </button>

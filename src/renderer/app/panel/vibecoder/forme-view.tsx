@@ -38,7 +38,7 @@ import { ModuleCode } from './module-code';
 import { PROPOSED_ACTS, ProposedCommit } from './proposed-commit';
 import { Invite, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
-import { MarkControl } from './validation';
+import { MarkControl, waitText } from './validation';
 import './forme-view.css';
 
 const fr = {
@@ -123,7 +123,7 @@ export function FormeView(p: StepProps) {
             </span>
             {review ? null : (
               <span className="vc-forme-mark">
-                <MarkControl what="forme" state={checkMark(p.step.check)} review={false} lang={view.lang} onMark={(v) => act.mark('forme', v)} />
+                <MarkControl what="forme" state={checkMark(p.step.check)} review={false} lang={view.lang} onMark={(v) => act.mark('forme', v)} waiting={waitText(view, 'forme')} />
               </span>
             )}
           </div>

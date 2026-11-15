@@ -710,7 +710,8 @@ par l'🕘 Historique (F-67).
   prennent la couleur de leur validation, pas du seul parcours : verte, validée
   et rien de changé depuis ; jaune (attention), du contenu déjà validé puis
   modifié depuis, ou à revoir en cascade ; grise, jamais validée, même faite ;
-  l'infobulle le dit), chacune son libellé, **tous** ses faits en infobulle (« 2 fichiers · 5 cas · 3
+  l'infobulle le dit, et « En attente : valider d'abord l'étape … » quand celle
+  d'avant ne l'est pas — *Valider* y est alors grisé, la même raison à côté), chacune son libellé, **tous** ses faits en infobulle (« 2 fichiers · 5 cas · 3
   lus » : l'étape n'y est pas affichée, c'est son seul résumé, alors que son
   en-tête n'en répète aucun qu'elle montre déjà, F-93) ; trop étroit, il défile à l'horizontale. Au bout, « N commits »
   (à côté, *Vibe*, en créateur : F-93, F-103) déplie sous le fil, par-dessus l'étape, les commits de la branche (hash
