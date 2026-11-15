@@ -26,7 +26,8 @@ export type FileMark = VibeGit | 'deleted' | 'todo';
 // La couleur d'un fichier de la branche : supprimé, sinon son état git (rien : commité).
 const markOf = (f: { deleted?: boolean; git?: VibeGit }): FileMark | null => (f.deleted ? 'deleted' : f.git ?? null);
 
-export const moduleState = (m: VibeModule): ModuleState => (m.commits.length ? 'done' : m.touched ? 'wip' : 'todo');
+// Un module dont tous les fichiers sont encore le squelette de la Forme (skeleton) : à générer, comme un module pas touché.
+export const moduleState = (m: VibeModule): ModuleState => (m.commits.length ? 'done' : m.touched && !m.skeleton ? 'wip' : 'todo');
 
 export type IdeFile = {
   path: string;
@@ -71,7 +72,8 @@ const branchRow = ({ deleted, locked, ...file }: NonNullable<VibeView['files']>[
 // des modules touchés, le chemin de leur fichier des autres (un module touché sans fichier compris). Un chemin
 // n'a qu'une ligne : si des modules se chevauchent, le premier de la Forme le garde. Puis, by 'file',
 // les variants de la branche (view.variants) qu'aucun module ne liste, chacun comme un fichier de la branche.
-export function ideFiles(view: Pick<VibeView, 'modules' | 'files'> & { variants?: VibeView['variants'] }, by: 'module' | 'file'): IdeFile[] {
+// skeletonHint : l'infobulle d'un fichier encore squelette (by 'file' : en retrait, marqué à générer).
+export function ideFiles(view: Pick<VibeView, 'modules' | 'files'> & { variants?: VibeView['variants'] }, by: 'module' | 'file', skeletonHint = 'À générer : encore le squelette de la Forme'): IdeFile[] {
   if (!view.modules.length) return (view.files ?? []).map(branchRow);
   const variants = by === 'file' ? (view.files ?? []).filter((f) => view.variants?.some((v) => v.path === f.path)) : [];
   const seen = new Set<string>();
@@ -85,7 +87,8 @@ export function ideFiles(view: Pick<VibeView, 'modules' | 'files'> & { variants?
     // Une entrée de la Forme à plusieurs chemins (« a + b », T-15) : une ligne par chemin, au rang de l'entrée.
     const row = { rank, state, mark: !m.touched ? 'todo' as const : own ? markOf(own) : m.files?.some((f) => markOf(f)) ? 'modified' as const : null, code: m.touched ? m : null };
     if (by === 'module' || !m.touched || !m.files?.length) return lines.map((path) => ({ path, ...row }));
-    return m.files.map((f) => ({ path: f.path, rank, state, mark: markOf(f), code: { ...m, files: [f] } }));
+    return m.files.map((f) => ({ path: f.path, rank, state, mark: f.skeleton ? 'todo' as const : markOf(f), code: { ...m, files: [f] },
+      ...(f.skeleton && { dim: true, hint: skeletonHint }) }));
   }), ...variants.map(branchRow)].filter((r) => !seen.has(r.path) && seen.add(r.path));
 }
 

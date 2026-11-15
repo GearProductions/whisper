@@ -168,7 +168,8 @@ export function ModulesView(p: StepProps) {
     const a = action(id);
     return <Run key={id} a={a} busy={busy} tone={a?.primary ? 'accent' : 'plain'} onRun={(x) => act.run(id, x)} />;
   };
-  const files = reviewer ? ideFiles(view, 'file') : diff.filter(ideFiles(view, 'file'));
+  const skel = view.lang === 'en' ? 'To generate: still the forme\'s skeleton' : 'À générer : encore le squelette de la Forme';
+  const files = reviewer ? ideFiles(view, 'file', skel) : diff.filter(ideFiles(view, 'file', skel));
   const menu = reviewer ? {} : { bar: diff.bar, empty: diff.empty };
   const hasModules = view.modules.length > 0;
   const ide = mode === 'ide' || !hasModules;   // sans module : les fichiers de la branche, dans les deux vues

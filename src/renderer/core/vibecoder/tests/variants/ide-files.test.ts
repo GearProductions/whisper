@@ -316,3 +316,13 @@ describe('waitingFor', () => {
     expect(['note', 'forme', 'invariants', 'modules', 'revue'].map((id) => waitingFor(steps, id as VibeStep['id']))).toEqual([null, 'note', null, 'invariants', null]);
   });
 });
+
+describe('les squelettes à générer', () => {
+  it('un module dont tous les fichiers sont squelette : todo ; by file, le fichier squelette : todo, en retrait, son infobulle', () => {
+    const skel = mod('s.ts', { touched: true, skeleton: true, files: [{ id: 'm0/0', path: 's.ts', skeleton: true }] });
+    const gen = mod('g.ts', { touched: true, files: [{ id: 'm1/0', path: 'g.ts', git: 'new' }] });
+    expect([moduleState(skel), moduleState(gen)]).toEqual(['todo', 'wip']);
+    const rows = ideFiles({ modules: [skel, gen] }, 'file', 'à générer');
+    expect(rows.map((r) => [r.path, r.mark, !!r.dim, r.hint])).toEqual([['s.ts', 'todo', true, 'à générer'], ['g.ts', 'new', false, undefined]]);
+  });
+});
