@@ -809,7 +809,8 @@ relire une PR (le relecteur, plus bas) :
    a fini, ou par *Rien à écrire* (à revalider si la note change ;
    pendant *Vibe* aussi).
 4. **Modules** : deux boutons, *Générer les modules* puis *Commiter les
-   modules*. On génère tout (ou un module à la fois, avec *Générer* sur sa
+   modules*. Un fichier encore identique au squelette de la Forme est en retrait,
+   « à générer » : on voit d'un coup d'œil ce qui reste à écrire. On génère tout (ou un module à la fois, avec *Générer* sur sa
    ligne : ses variants écrits d'abord et vus rouges, puis le code (TDD),
    `ponytail`, typecheck et tests du module lancés, sans commit, avec la boucle de
    *Générer les modules* pour un seul : son diff relu, les défauts corrigés, les

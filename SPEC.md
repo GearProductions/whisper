@@ -2038,7 +2038,13 @@ créateur ; le relecteur, F-101) :
    *Préparer le commit* n'y est pas : il sert au premier commit, étape
    Invariants, et aux fixups de la note, étape Forme) ; puis une ligne par module, un accordéon (replié ;
    un seul déplié à la fois ; commité, en cours :
-   modifié pas commité, à faire ; son numéro, son rang dans la Forme, l'ordre
+   modifié pas commité, à faire — un module dont tous les fichiers sont encore
+   le squelette laissé par *Poser la forme* est « à faire », et dans la vue IDE
+   ses fichiers sont en retrait, marqués à générer, l'infobulle « À générer :
+   encore le squelette de la Forme » ; l'appli retient l'empreinte de chaque
+   fichier de module à la fin d'une course `forme` réussie (marque
+   `skel:<chemin>`, dans `vibecoder-state.json`, jamais dans le dépôt), sauf pour
+   un fichier déjà généré à son départ ; un fichier qui en diffère est généré ; son numéro, son rang dans la Forme, l'ordre
    où les générer, « Ordre de génération : n sur N » au
    survol ; nom, dossier, « à créer », ses
    commits). Sur sa ligne, au bout, replié comme déplié : *Générer* (ce
