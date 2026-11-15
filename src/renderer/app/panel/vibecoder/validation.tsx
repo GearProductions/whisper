@@ -1,5 +1,6 @@
 /** validation — les validations de l'utilisateur à l'écran : l'état et les
- *  boutons de celle de la note, de la forme ou de « Rien à écrire » (étape
+ *  boutons de celle de la note, de la forme, des invariants, des modules (note
+ *  0.15.0-ecran-statuts : Valider les invariants, Valider les modules) ou de « Rien à écrire » (étape
  *  Invariants) (Valider ; validée et Annuler ; modifiée depuis et Revalider ;
  *  Relire : Valider ou À revoir ; la note en créateur (onRecheck) : pas vérifiée,
  *  Valider et vérifier ; vérifiée, Revérifier d'abord, en couleur neutre, sans coche (il ne fait
@@ -12,7 +13,7 @@
  *  invariant). Sur un « À revoir », onRemark (facultatif) ajoute le bouton
  *  « Ajouter une remarque au brouillon » : il ne fait qu'appeler onRemark.
  *  Ne connaît pas : le pont (rappels passés), le brouillon, ce que porte le cas ; de step-parts, que RunOn.
- *  Utilisé par : note-view, forme-view, invariants-view, commits-view. */
+ *  Utilisé par : note-view, forme-view, invariants-view, modules-view, commits-view. */
 import { t } from 'core/vibecoder';
 import type { VibeLang, VibeMarkState } from 'technicals/bridge';
 import { Icon } from './icons';
@@ -20,12 +21,12 @@ import { RunOn } from './step-parts';
 import './validation.css';
 
 type Verdict = 'ok' | 'ko' | null;
-type What = 'note' | 'forme' | 'nothing';
+type What = 'note' | 'forme' | 'invariants' | 'modules' | 'nothing';
 
 const fr = {
-  validate: { note: 'Valider la note', forme: 'Valider la forme', nothing: 'Rien à écrire' } as Record<What, string>,
-  done: { note: 'Note validée', forme: 'Forme validée', nothing: 'Rien à écrire : validé' } as Record<What, string>,
-  refused: { note: 'Note refusée', forme: 'Forme refusée', nothing: 'Rien à écrire : refusé' } as Record<What, string>,
+  validate: { note: 'Valider la note', forme: 'Valider la forme', invariants: 'Valider les invariants', modules: 'Valider les modules', nothing: 'Rien à écrire' } as Record<What, string>,
+  done: { note: 'Note validée', forme: 'Forme validée', invariants: 'Invariants validés', modules: 'Modules validés', nothing: 'Rien à écrire : validé' } as Record<What, string>,
+  refused: { note: 'Note refusée', forme: 'Forme refusée', invariants: 'Invariants refusés', modules: 'Modules refusés', nothing: 'Rien à écrire : refusé' } as Record<What, string>,
   validateTitle: 'Valider ce contenu tel qu\'il est : un changement ultérieur l\'affichera « modifié depuis »',
   changed: 'Modifiée depuis la validation',
   changedTitle: 'Le contenu a changé depuis la validation : relisez-le, puis revalidez-le',
@@ -45,9 +46,9 @@ const fr = {
 const S: Record<VibeLang, typeof fr> = {
   fr,
   en: {
-    validate: { note: 'Approve the note', forme: 'Approve the shape', nothing: 'Nothing to write' },
-    done: { note: 'Note approved', forme: 'Shape approved', nothing: 'Nothing to write: approved' },
-    refused: { note: 'Note rejected', forme: 'Shape rejected', nothing: 'Nothing to write: rejected' },
+    validate: { note: 'Approve the note', forme: 'Approve the shape', invariants: 'Approve the invariants', modules: 'Approve the modules', nothing: 'Nothing to write' },
+    done: { note: 'Note approved', forme: 'Shape approved', invariants: 'Invariants approved', modules: 'Modules approved', nothing: 'Nothing to write: approved' },
+    refused: { note: 'Note rejected', forme: 'Shape rejected', invariants: 'Invariants rejected', modules: 'Modules rejected', nothing: 'Nothing to write: rejected' },
     validateTitle: 'Approve this content as it is: a later change will show it as « changed since »',
     changed: 'Changed since the approval',
     changedTitle: 'The content changed since the approval: read it again, then approve it again',
