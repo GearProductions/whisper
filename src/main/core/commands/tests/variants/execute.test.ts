@@ -48,6 +48,7 @@ function ops(outcome: OpOutcome = { ok: true }, over: Partial<CommandOps> = {}) 
     proc: async (...a) => { calls.push(['proc', ...a]); return true; },
     artifact: async (...a) => { calls.push(['artifact', ...a]); return { name: 'a.md', kind: 'markdown', text: 'x', truncated: false }; },
     draft: (...a) => { calls.push(['draft', ...a]); return outcome; },
+    validate: (...a) => { calls.push(['validate', ...a]); return outcome; },
     wait: async (...a) => { calls.push(['wait', ...a]); return { action: 'modules', state: 'done', reply: 'fini' }; },
     ...over,
   };
@@ -295,6 +296,34 @@ describe('execute : les écritures', () => {
     const missing = ops();
     expect(code(await go({ command: 'run.wait', args: {} }, missing))).toBe('invalid-args');
     expect(missing.calls).toEqual([]);
+  });
+
+  it('step.validate modules ok : ops.validate(modules, ok) ; les autres étapes, et le verdict none ou null (retirer), mêmes portes', async () => {
+    const o = ops();
+    expect(await go({ command: 'step.validate', args: { step: 'modules', verdict: 'ok' } }, o)).toEqual({ ok: true, result: null });
+    await go({ command: 'step.validate', args: { step: 'forme', verdict: 'ok' }, door: 'agent' }, o);
+    await go({ command: 'step.validate', args: { step: 'invariants', verdict: null } }, o);
+    await go({ command: 'step.validate', args: { step: 'modules', verdict: 'none' }, door: 'agent' }, o);
+    expect(o.calls).toEqual([['validate', 'modules', 'ok'], ['validate', 'forme', 'ok'], ['validate', 'invariants', null], ['validate', 'modules', null]]);
+  });
+
+  it('step.validate : le refus de ops.validate traduit (not-offered, step : invalid-args { arg }, autre : refused)', async () => {
+    const args = { step: 'modules', verdict: 'ok' };
+    const refuse = (reason: string, error = 'x') => go({ command: 'step.validate', args }, ops({ ok: false, reason, error }));
+    expect(code(await refuse('not-offered'))).toBe('not-offered');
+    const s = await refuse('step');
+    expect([code(s), details(s)]).toEqual(['invalid-args', { arg: 'step' }]);
+    const f = await refuse('flow', 'Relecteur');
+    expect([code(f), details(f)]).toEqual(['refused', { reason: 'Relecteur' }]);
+  });
+
+  it('step.validate note, une étape inconnue, un verdict ko, une clé de trop, sans étape, sans verdict : invalid-args, rien d\'appelé', async () => {
+    const o = ops();
+    for (const args of [{ step: 'note', verdict: 'ok' }, { step: 'bogus', verdict: 'ok' }, { step: 'forme', verdict: 'ko' },
+      { step: 'forme', verdict: 'ok', extra: 1 }, { verdict: 'ok' }, { step: 'modules' }, {}]) {
+      expect(code(await go({ command: 'step.validate', args }, o)), JSON.stringify(args)).toBe('invalid-args');
+    }
+    expect(o.calls).toEqual([]);
   });
 
   it('proc.restart : nom hors du relevé, unknown-process ; sinon ops.proc', async () => {

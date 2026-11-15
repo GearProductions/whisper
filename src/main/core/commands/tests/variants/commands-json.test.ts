@@ -215,6 +215,28 @@ describe('les commandes du ticket socket', () => {
   });
 });
 
+describe('step.validate', () => {
+  const validate = get('step.validate');
+
+  it('une écriture ouverte aux agents : step (forme, invariants, modules, jamais la note) et verdict obligatoire (ok, ou none / null pour retirer)', () => {
+    expect([validate.kind, validate.agent, validate.args.required, validate.args.additionalProperties]).toEqual(['write', true, ['step', 'verdict'], false]);
+    expect(Object.keys(argsOf('step.validate'))).toEqual(['step', 'verdict']);
+    expect(argsOf('step.validate').step).toMatchObject({ type: 'string', enum: ['forme', 'invariants', 'modules'] });
+    expect(argsOf('step.validate').verdict).toMatchObject({ type: ['string', 'null'], enum: ['ok', 'none', null] });
+    expect(validate.description).toMatch(/Never the note/);
+  });
+
+  it('son schéma accepte une étape avec ok, none ou null ; refuse la note, un verdict ko ou absent, une clé de trop', () => {
+    const args = validate.args;
+    for (const v of [{ step: 'modules', verdict: 'ok' }, { step: 'forme', verdict: null }, { step: 'invariants', verdict: 'none' }]) expect(schemaError(args, v), JSON.stringify(v)).toBeNull();
+    expect(schemaError(args, { step: 'invariants' })).toMatch(/verdict: required/);
+    expect(schemaError(args, { step: 'note', verdict: 'ok' })).toMatch(/one of forme, invariants, modules/);
+    expect(schemaError(args, { step: 'forme', verdict: 'ko' })).toMatch(/verdict: one of ok/);
+    expect(schemaError(args, { verdict: 'ok' })).toMatch(/step: required/);
+    expect(schemaError(args, { step: 'forme', verdict: 'ok', x: 1 })).toMatch(/unknown/);
+  });
+});
+
 describe('errors', () => {
   const errors = (JSON.parse(text) as { errors?: { code: string; message: string; todo: string }[] }).errors ?? [];
 

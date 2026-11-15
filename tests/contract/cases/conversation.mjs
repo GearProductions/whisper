@@ -1,5 +1,6 @@
 // Les cas de la conversation, servis par le faux claude : vibe, guide,
-// new-request, propose-run — chacune ses refus principaux et, quand l'extérieur
+// new-request, propose-run, et step.validate (les validations d'étape : refusée
+// la note, une étape inconnue, la Forme avant la note validée) — chacune ses refus principaux et, quand l'extérieur
 // peut la provoquer, un succès, chacun avec le code de la table. Ce que la table
 // appelle busy (la conversation travaille) est rendu disabled (le bouton grisé) ;
 // la conversation est tenue par un tour « forme » du faux claude (4 s), dont le
@@ -47,6 +48,14 @@ export async function conversation(app) {
   check('vibe', 'un argument inconnu : refusé, invalid-args', refused(vibeArgs, 'invalid-args'), said(vibeArgs), 'invalid-args');
   const vibe = await asJson(['vibe'], here);
   check('vibe', 'note non validée (à l\'écran seulement) : refusé, not-offered', refused(vibe, 'not-offered'), said(vibe), 'not-offered');
+  // step.validate : la note n'est jamais validée par la CLI ; la Forme, note non validée : l'étape d'avant n'est pas cochée.
+  for (const [name, args] of [['la note', ['step=note', 'verdict=ok']], ['une étape inconnue', ['step=bogus', 'verdict=ok']],
+    ['un verdict ko', ['step=forme', 'verdict=ko']], ['sans étape', ['verdict=ok']], ['sans verdict', ['step=modules']], ['un argument inconnu', ['step=forme', 'verdict=ok', 'bogus=1']]]) {
+    const r = await asJson(['step.validate', ...args], here);
+    check('step.validate', `${name} : refusé, invalid-args`, refused(r, 'invalid-args'), said(r), 'invalid-args');
+  }
+  const formeFirst = await asJson(['step.validate', 'step=forme', 'verdict=ok'], here);
+  check('step.validate', 'la note non validée : la Forme refusée, not-offered', refused(formeFirst, 'not-offered'), said(formeFirst), 'not-offered');
   const offBase = await asJson(['new-request', 'text=une demande'], here);
   check('new-request', 'hors de la base : refusé, not-offered', refused(offBase, 'not-offered'), said(offBase), 'not-offered');
 

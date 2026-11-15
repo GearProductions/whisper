@@ -1900,6 +1900,43 @@
         ],
         "additionalProperties": false
       }
+    },
+    {
+      "name": "step.validate",
+      "description": "Validates a step of the journey, as the check mark on the screen does: the app keeps the step's content and its files as they are now, and the step shows as validated until its content changes. Use it again after a correction, to validate the new version. Never the note: only the user validates it, on the screen. Refused when the step before is not validated, or when there is nothing to validate. Nothing in the project is written, the git index is never touched.",
+      "kind": "write",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {
+          "step": {
+            "type": "string",
+            "description": "The step to validate.",
+            "enum": [
+              "forme",
+              "invariants",
+              "modules"
+            ]
+          },
+          "verdict": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Required: ok to validate the step, none to withdraw its validation (an omitted verdict is refused, never read as a withdrawal).",
+            "enum": [
+              "ok",
+              "none",
+              null
+            ]
+          }
+        },
+        "required": [
+          "step",
+          "verdict"
+        ],
+        "additionalProperties": false
+      }
     }
   ],
   "errors": [
