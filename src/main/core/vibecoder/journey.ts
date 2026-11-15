@@ -273,6 +273,10 @@ export function vibeView(input: JourneyInput): VibeView {
   // L'état git d'un fichier, comme VS Code : nouveau (pas suivi, ajouté) ou modifié, pas commité ; rien : commité.
   const gitOf = (path: string): { git?: VibeGit } => (!dirty.includes(path) ? {} : { git: repo?.added?.includes(path) ? 'new' : 'modified' });
 
+  // Un fichier encore identique au squelette que la Forme a laissé (marque skel:<chemin>, empreinte du disque).
+  const diskBlob = new Map((input.blobs ?? []).map((b) => [b.path, b.disk]));
+  const isSkeleton = (path: string): boolean => { const k = marks[`skel:${path}`]?.hash; return !!k && diskBlob.get(path) === k; };
+
   // La note, ses validations, les modules de sa Forme.
   const facts = input.note && parseNote(input.note.text);
   const note: VibeNote | null = input.note && facts && {
@@ -299,11 +303,16 @@ export function vibeView(input: JourneyInput): VibeView {
     const started = by.length > 0 || (!!noteCommit && uncommitted);
     // Les fichiers que la branche change sous l'un de ses chemins (changed : la copie de travail comprise), dans son dossier
     // seulement (roots) ; sans dossier (supprimé), sous tout chemin qui le contient ; absent : supprimé.
+    // skeleton : un fichier dont l'empreinte du disque est celle que la Forme a laissée (marque skel:<chemin>) : à générer.
     const files = !touched ? [] : changed.filter((f) => bares.some((b, k) => (roots[k] ? within(f, b) === roots[k] : within(f, b) !== null))).sort()
-      .map((path, j) => (input.exists(path) ? { id: `m${i}/${j}`, path, ...gitOf(path) } : { id: `m${i}/${j}`, path, deleted: true }));
+      .map((path, j) => (input.exists(path)
+        ? { id: `m${i}/${j}`, path, ...gitOf(path), ...(isSkeleton(path) && { skeleton: true as const }) }
+        : { id: `m${i}/${j}`, path, deleted: true }));
+    const skeleton = files.length > 0 && files.every((f) => 'skeleton' in f && f.skeleton);
     return {
       path: m.path, paths: m.paths, contract: m.contract, file: real ? { id: `m${i}`, path: real } : null,
       touched, started, commits: by.map((c) => c.hash), files, locked: codeLock(m.path, input.busy, input.running, lang), uncommitted,
+      ...(skeleton && { skeleton }),
     };
   });
   const unstarted = modules.some((m) => !m.started);

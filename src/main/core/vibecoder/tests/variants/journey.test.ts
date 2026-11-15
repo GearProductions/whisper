@@ -1553,6 +1553,13 @@ describe('les validations d\'étape et le menu de diff', () => {
       return validateStep(marks, contents, s, 'ok')!;
     }, { ...NOTE_OK, ...CASES_OK } as Marks);
 
+  it('un fichier de module encore identique à son squelette (marque skel:<chemin>) : skeleton ; différent : non', () => {
+    const v = vibeView(ready({ ...files, marks: { ...NOTE_OK, [`skel:${H}`]: { hash: sha('a'), verdict: 'ok' }, [`skel:${B}`]: { hash: sha('x'), verdict: 'ok' } } }));
+    const f = (p: string) => v.modules.flatMap((m) => m.files ?? []).find((x) => x.path === p);
+    expect([f(H)?.skeleton, f(B)?.skeleton]).toEqual([true, undefined]);
+    expect(v.modules.find((m) => m.files?.some((x) => x.path === H))?.skeleton).toBe(true);
+  });
+
   describe('check', () => {
     it('la note et la Forme validées : cochées, les autres jamais validées, rien dit en en-tête ; ni la Revue ni la PR n\'en ont', () => {
       const v = vibeView(ready());

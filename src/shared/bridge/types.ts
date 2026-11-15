@@ -278,9 +278,10 @@ export type VibeModule = {
   touched: boolean;            // la branche le touche (un squelette compris)
   started?: boolean;           // un fichier a changé depuis son squelette : un commit sans la note le touche, ou, la note commitée, un fichier pas commité ; absent = comme touched
   commits: string[];           // hash des commits qui le touchent
-  files?: (VibeFile & { deleted?: boolean; git?: VibeGit })[];  // touché : ses fichiers que la branche change (ids m<rang>/<i>) ; deleted : supprimé par la branche (absent = false) ; git : pas commité (absent : commité) ; absent = []
+  files?: (VibeFile & { deleted?: boolean; git?: VibeGit; skeleton?: true })[];  // touché : ses fichiers que la branche change (ids m<rang>/<i>) ; deleted : supprimé par la branche (absent = false) ; git : pas commité (absent : commité) ; skeleton : encore le squelette de la Forme (à générer) ; absent = []
   locked?: string | null;      // pourquoi Voir le code est grisé (codeLock) ; absent = null : éditable
   uncommitted?: boolean;       // des fichiers changés pas encore commités, ou commités puis retouchés (git status) ; absent = false
+  skeleton?: boolean;          // tous ses fichiers sont encore le squelette de la Forme : à générer ; absent = false
 };
 
 // Le texte d'un fichier de module ou d'un commit, poussé par le principal (Voir le code) ; null : trop gros,

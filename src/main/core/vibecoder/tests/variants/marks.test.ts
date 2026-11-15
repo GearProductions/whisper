@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addComment, blobSha, CHECKED, designChecked, designEnd, editComment, hasComment, markState, noteClick, noteDesign, parseNote, removeComment, setMark, stepChecks, stepContent,
-  targetHash, vibeMarks, vibeView, type Drafts, type FileBlobs, type JourneyInput, type Marks,
+  skeletonMarks, targetHash, vibeMarks, vibeView, type Drafts, type FileBlobs, type JourneyInput, type Marks,
 } from 'core/vibecoder';
 
 describe('markState : une validation vaut pour le contenu validé', () => {
@@ -298,5 +298,24 @@ describe('la vérification de conception de la note', () => {
     const before: Marks = {};
     designEnd(before, done);
     expect(before).toEqual({});
+  });
+});
+
+describe('skeletonMarks : les squelettes que la Forme laisse', () => {
+  const blobs = (o: Record<string, string | null>): FileBlobs[] => Object.entries(o).map(([path, disk]) => ({ path, disk, head: null }));
+  it('un fichier nouveau ou encore squelette au départ : sa marque prend l\'empreinte laissée ; déjà généré au départ : gardée', () => {
+    const marks: Marks = { 'skel:a.ts': { hash: 's1', verdict: 'ok' }, 'skel:g.ts': { hash: 's2', verdict: 'ok' } };
+    const before = new Map<string, string | null>([['a.ts', 's1'], ['g.ts', 'gen'], ['n.ts', null]]);
+    const next = skeletonMarks(marks, ['a.ts', 'g.ts', 'n.ts', 'x.ts'], blobs({ 'a.ts': 's1b', 'g.ts': 'gen2', 'n.ts': 'n1', 'x.ts': null }), before);
+    expect(next['skel:a.ts'].hash).toBe('s1b');
+    expect(next['skel:g.ts'].hash).toBe('s2');
+    expect(next['skel:n.ts'].hash).toBe('n1');
+    expect(next['skel:x.ts']).toBeUndefined();
+  });
+  it('sans départ connu : seul un fichier sans marque en reçoit une ; rien de changé : marks tel quel', () => {
+    const marks: Marks = { 'skel:a.ts': { hash: 's1', verdict: 'ok' } };
+    const next = skeletonMarks(marks, ['a.ts', 'n.ts'], blobs({ 'a.ts': 'other', 'n.ts': 'n1' }), null);
+    expect([next['skel:a.ts'].hash, next['skel:n.ts'].hash]).toEqual(['s1', 'n1']);
+    expect(skeletonMarks(marks, ['a.ts'], blobs({ 'a.ts': 's1' }), null)).toBe(marks);
   });
 });

@@ -115,3 +115,22 @@ export function editComment(drafts: Drafts, pr: number, id: number, text: string
 export function hasComment(drafts: Drafts, pr: number, id: number): boolean {
   return (drafts[pr] ?? []).some((c) => c.id === id);
 }
+
+// Les squelettes de la Forme (note 0.15.0-ecran-statuts) : à la fin d'une course forme réussie, la marque 'skel:<chemin>'
+// retient l'empreinte de chaque fichier de module tel que la Forme l'a laissé (disk de blobs). before : les empreintes au
+// départ de la course (null : inconnu, l'appli relancée entre-temps) ; un fichier déjà généré au départ (son empreinte
+// d'alors n'était plus celle de son squelette) garde sa marque : une retouche de la Forme ne le rend pas « à générer ».
+// Sans before, seul un fichier sans marque en reçoit une. Un fichier absent du disque : rien. Rend marks tel quel sans changement.
+export function skeletonMarks(marks: Marks, paths: string[], blobs: FileBlobs[], before: Map<string, string | null> | null): Marks {
+  const disk = new Map(blobs.map((b) => [b.path, b.disk]));
+  let next = marks;
+  for (const p of paths) {
+    const now = disk.get(p);
+    const old = marks[`skel:${p}`]?.hash;
+    if (!now || now === old) continue;
+    const generated = old !== undefined && (before ? (before.get(p) ?? null) !== null && before.get(p) !== old : true);
+    if (generated) continue;
+    next = { ...next, [`skel:${p}`]: { hash: now, verdict: 'ok' } };
+  }
+  return next;
+}

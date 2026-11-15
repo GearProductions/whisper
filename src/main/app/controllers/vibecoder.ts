@@ -182,7 +182,7 @@ import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
 import { START, type CommandError } from 'core/commands';
 import {
-  addComment, artifactOf, beforeOf, blobSha, buildMessage, designEnd, hasComment, noteClick, parseQuestions, vibeMarks, ARTIFACT_OPS, DIRECT_ACTIONS, DIRECT_ONLY, editComment, findNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath, nextRef,
+  addComment, artifactOf, beforeOf, blobSha, buildMessage, designEnd, hasComment, noteClick, parseQuestions, skeletonMarks, vibeMarks, ARTIFACT_OPS, DIRECT_ACTIONS, DIRECT_ONLY, editComment, findNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath, nextRef,
   CHECKED, filesText, parseFiles, stepContents, validateStep, versionName, type CheckedStep, type FileBlobs, type Marks, type StepContent, type StepFiles,
   blockedBy, BRANCH_CHANGES, lockCode, lockText, ELSEWHERE, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeRole, vibeView, whoOf, type ActionDef, type MessageError, type NoteRef,
 } from 'core/vibecoder';
@@ -269,6 +269,9 @@ const prsFound = new Map<string, { mine: unknown[]; review: unknown[]; all: unkn
 const requests = new Map<string, { text: string; branch?: string }>();  // new-request : la demande partie, par agent (en mémoire), puis sa branche
 const clicked = new Map<string, string>();     // Valider la note a lancé la vérification de conception : par agent, l'empreinte de la note que le clic avait sous les yeux
 const designSeen = new Map<string, number>();  // par agent : le départ de la dernière course design-check dont la fin est rangée
+// Par agent : la course forme suivie (son départ), les empreintes de ses fichiers de module au départ (null : pas vues),
+// et si sa fin est rangée (les squelettes retenus, skeletonMarks).
+const formeSeen = new Map<string, { since: number; before: Map<string, string | null> | null; done: boolean }>();
 const firstNotes = new Map<string, string>();   // … puis par agent qui la prend (lui, ou l'enfant né d'elle) : sa note à rédiger, à son premier relevé
 let shown: string | null = null;           // l'agent dont le panneau a le relevé (null : aucun, ou null envoyé)
 let lastAt = 0;
@@ -709,6 +712,26 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     exists: (rel) => { const file = safePath(agent.dir, rel, realpath); return !!file && fs.existsSync(file); },
     now: Date.now(),
   });
+  // Les squelettes de la Forme : au départ d'une course forme, les empreintes des fichiers de module ; à sa fin réussie, celles
+  // qu'elle a laissées (skeletonMarks) : un fichier encore identique est « à générer » (journey : skeleton).
+  const forme = runsOf(agent).filter((r) => r.id === 'forme').at(-1);
+  if (forme && role === 'create') {
+    const seen = formeSeen.get(agent.id);
+    const paths = journey.modules.flatMap((m) => (m.files ?? []).filter((f) => !f.deleted).map((f) => f.path));
+    if (seen?.since !== forme.since) {
+      const disk = new Map(blobs.map((b) => [b.path, b.disk]));
+      // Déjà finie quand on la voit (l'appli relancée, ou ce code nouveau) : rien de retenu, on ne sait pas ce qu'elle a écrit.
+      const ended = forme.state !== 'running';
+      formeSeen.set(agent.id, { since: forme.since, before: ended ? null : new Map(paths.map((p) => [p, disk.get(p) ?? null])), done: ended });
+    }
+    const now = formeSeen.get(agent.id)!;
+    if (!now.done && forme.state === 'done') {
+      now.done = true;
+      const marks = store.marks[agent.id] || {};
+      const next = skeletonMarks(marks, paths, blobs, now.before);
+      if (next !== marks) { store.marks[agent.id] = next; saveVibeStore(store); }
+    }
+  }
   // Vibe en cours : les étapes faites reçoivent leur ✓ (validateStep), leurs textes retenus ; elles le gardent une fois Vibe fini (F-102).
   if (journey.vibe) {
     const marks = store.marks[agent.id] || {};
