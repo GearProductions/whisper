@@ -705,8 +705,12 @@ par l'🕘 Historique (F-67).
   juste avant, Ctrl+N *Nouvel agent…*, Ctrl+Maj+B la vue des branches ;
 - au centre, en tête, le **fil d'Ariane** : les étapes en une ligne,
   reliées par un trait (point plein : faite ; anneau à la couleur de
-  l'agent, qui pulse : en cours, la première non faite ; gris : à venir),
-  chacune son libellé, **tous** ses faits en infobulle (« 2 fichiers · 5 cas · 3
+  l'agent, qui pulse : en cours, la première non faite ; gris : à venir ;
+  en créateur, les étapes qui se valident — Note, Forme, Invariants, Modules —
+  prennent la couleur de leur validation, pas du seul parcours : verte, validée
+  et rien de changé depuis ; jaune (attention), du contenu déjà validé puis
+  modifié depuis, ou à revoir en cascade ; grise, jamais validée, même faite ;
+  l'infobulle le dit), chacune son libellé, **tous** ses faits en infobulle (« 2 fichiers · 5 cas · 3
   lus » : l'étape n'y est pas affichée, c'est son seul résumé, alors que son
   en-tête n'en répète aucun qu'elle montre déjà, F-93) ; trop étroit, il défile à l'horizontale. Au bout, « N commits »
   (à côté, *Vibe*, en créateur : F-93, F-103) déplie sous le fil, par-dessus l'étape, les commits de la branche (hash
@@ -2584,8 +2588,8 @@ l'arborescence :
 Les listes suivent git, sans autre règle : un fichier supprimé, ou hors des chemins
 de la Forme, y paraît comme dans `git status` ; s'il n'est nommé nulle part dans la
 rubrique Forme de la note (en tête d'un module, dans ses variants, un « supprime … »,
-avec ou sans son `src/`), il est en retrait (grisé), son infobulle « Changé par la
-branche, hors de la Forme » : un oubli possible de la Forme ; nommé, il reste en clair.
+avec ou sans son `src/`), il est en retrait (grisé), son infobulle « Modifié, mais non
+déclaré dans la Forme » : un oubli possible de la Forme ; nommé, il reste en clair.
 À l'étape Invariants, une case *Invariants seuls*, à côté du menu, cochée par défaut
 (gardée par agent) : l'arborescence ne liste que les tests d'invariants (sous
 `tests/invariants/`, un supprimé compris) ; décochée, le reste de la référence aussi

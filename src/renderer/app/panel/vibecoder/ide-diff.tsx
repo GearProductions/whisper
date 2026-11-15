@@ -55,7 +55,7 @@ export function useIdeDiff(view: VibeView, step: VibeDiffStep): IdeDiff {
     shown, ref, mode,
     bar: <DiffPicker<DiffRef> options={refs.map((k) => (k === 'head' && headOff ? { key: k, label: noCommit ? s[k].none! : s[k].clean!, disabled: true } : { key: k, label: s[k].label }))} shown={shown} onShown={pick}
       mode={shown === 'file' ? null : mode} onMode={setMode} lang={view.lang} />,
-    filter: (files) => diffTree(files, view, step, ref, view.lang === 'en' ? 'Changed by the branch, outside the forme' : 'Changé par la branche, hors de la Forme'),
+    filter: (files) => diffTree(files, view, step, ref, view.lang === 'en' ? 'Changed, but not declared in the forme' : 'Modifié, mais non déclaré dans la Forme'),
     empty: s[ref].empty,
     showValidated: () => { if (refs.includes('validated')) pick('validated'); },
   };

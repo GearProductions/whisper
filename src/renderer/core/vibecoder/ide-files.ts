@@ -17,7 +17,7 @@
  *  (les accordéons, le Valider d'un fichier).
  *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (forme-view, modules-view, ide-view,
  *  invariants-view, ide-diff). */
-import type { VibeDiffStep, VibeGit, VibeMarkState, VibeModule, VibeStepCheck, VibeTestFile, VibeView } from 'technicals/bridge';
+import type { VibeDiffStep, VibeGit, VibeMarkState, VibeModule, VibeStepCheck, VibeTestFile, VibeView, VibeStep } from 'technicals/bridge';
 
 export type ModuleState = 'done' | 'wip' | 'todo';
 export type FileMark = VibeGit | 'deleted' | 'todo';
@@ -124,7 +124,7 @@ export function diffRefs(view: Pick<VibeView, 'steps'>, step: VibeDiffStep): Dif
 // de files : sa ligne de fichier de la branche (branchRow), sinon, supprimé, une ligne « supprimé » (gone : son id r<i>) ;
 // un ajouté que la Forme ne nomme nulle part est en retrait (dim), son infobulle hint le dit (un oubli possible de la
 // Forme) ; un ajouté qu'elle nomme (un variant, un fichier supprimé…) reste en clair. L'ordre de files, les ajoutés à la fin par chemin.
-export function diffTree(files: IdeFile[], view: Pick<VibeView, 'diffs' | 'files'> & { note?: { text: string } | null }, step: VibeDiffStep, ref: DiffRef, hint = 'Changé par la branche, hors de la Forme'): IdeFile[] {
+export function diffTree(files: IdeFile[], view: Pick<VibeView, 'diffs' | 'files'> & { note?: { text: string } | null }, step: VibeDiffStep, ref: DiffRef, hint = 'Modifié, mais non déclaré dans la Forme'): IdeFile[] {
   const have = new Set(files.map((f) => f.path));
   // Un ajouté que la Forme nomme quelque part : en clair ; sinon, en retrait, avec son infobulle (un oubli possible).
   const forme = formeText(view.note?.text ?? '');
@@ -145,6 +145,12 @@ export function diffTree(files: IdeFile[], view: Pick<VibeView, 'diffs' | 'files
   });
   return [...files.filter((f) => by.has(f.path)), ...extra];
 }
+
+// La couleur d'une étape du fil d'Ariane d'après sa validation (step.check ; les étapes qui se valident) : ok, validée et
+// rien de changé depuis (vert) ; warn, du contenu déjà validé, modifié depuis ou à revoir en cascade (jaune) ; none,
+// jamais validée (gris, même faite) ; null : une étape sans validation (Revue, PR), la couleur de son état.
+export const crumbCheck = (s: Pick<VibeStep, 'check'>): 'ok' | 'warn' | 'none' | null =>
+  (!s.check ? null : s.check.state === 'ok' ? 'ok' : s.check.state ? 'warn' : 'none');
 
 // La validation d'une étape d'après step.check, pour MarkControl : cochée → ok, décochée (changée, ou en cascade) → changed.
 export const checkMark = (c?: VibeStepCheck): VibeMarkState => (c?.state === 'ok' ? 'ok' : c?.state ? 'changed' : null);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkMark, diffRefs, diffTree, formeText, inForme, goneModule, ideFiles, invariantTree, moduleState } from 'core/vibecoder';
+import { checkMark, crumbCheck, diffRefs, diffTree, formeText, inForme, goneModule, ideFiles, invariantTree, moduleState } from 'core/vibecoder';
 import type { IdeFile } from 'core/vibecoder';
 import type { VibeDiffs, VibeModule, VibeStep, VibeStepCheck, VibeTestFile } from 'technicals/bridge';
 
@@ -209,7 +209,7 @@ describe('diffTree', () => {
   });
 
   it('un supprimé absent de files : ajouté en « supprimé », son id dans gone, en retrait (pas de l’étape)', () => {
-    expect(diffTree(files, { diffs }, 'forme', 'head')[1]).toEqual({ path: 'gone.ts', rank: null, state: null, mark: 'deleted', code: null, gone: 'r0', dim: true, hint: 'Changé par la branche, hors de la Forme' });
+    expect(diffTree(files, { diffs }, 'forme', 'head')[1]).toEqual({ path: 'gone.ts', rank: null, state: null, mark: 'deleted', code: null, gone: 'r0', dim: true, hint: 'Modifié, mais non déclaré dans la Forme' });
   });
 
   it('base sans fichier de la branche : files tels quels', () => {
@@ -274,5 +274,12 @@ describe('checkMark et goneModule : la validation d\'une étape pour MarkControl
 
   it('un supprimé : un module d\'un seul fichier, supprimé, suivi par son id r<i>', () => {
     expect(goneModule({ path: 'src/x.ts', gone: 'r0' })).toMatchObject({ path: 'src/x.ts', files: [{ id: 'r0', path: 'src/x.ts', deleted: true }] });
+  });
+});
+
+describe('crumbCheck', () => {
+  it('validée : ok ; modifiée ou en cascade : warn ; jamais validée : none ; sans validation (Revue, PR) : null', () => {
+    const c = (state: VibeStepCheck['state']) => ({ check: { state, now: null } });
+    expect([crumbCheck(c('ok')), crumbCheck(c('changed')), crumbCheck(c('cascade')), crumbCheck(c(null)), crumbCheck({})]).toEqual(['ok', 'warn', 'warn', 'none', null]);
   });
 });

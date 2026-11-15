@@ -38,6 +38,15 @@
 .vc-crumbs li[data-status="done"] .vc-jstep[aria-current] { color: var(--vc-text); }
 .vc-crumbs li[data-status="done"] .vc-jdot { border-color: var(--vc-ok); background: var(--vc-ok); }
 .vc-crumbs li[data-status="current"] .vc-jdot { border-color: var(--vc-accent); background: var(--vc-accent); animation: vc-ring 2.4s ease-in-out infinite; }
+/* Les étapes qui se valident : la couleur suit la validation (data-check), pas le seul parcours. Jamais validée : grise,
+   même faite ; modifiée depuis la validation ou à revoir : la couleur d'attention ; validée : verte (comme faite). */
+.vc-crumbs li[data-check="none"][data-status="done"] .vc-jstep { color: var(--vc-soft); }
+.vc-crumbs li[data-check="none"][data-status="done"] .vc-jdot { border-color: var(--vc-soft); background: var(--vc-soft); }
+.vc-crumbs li[data-check="warn"] .vc-jstep { color: var(--vc-warn); }
+.vc-crumbs li[data-check="warn"] .vc-jdot { border-color: var(--vc-warn); background: var(--vc-warn); }
+.vc-crumbs li[data-check="ok"] .vc-jstep { color: var(--vc-ok); }
+.vc-crumbs li[data-check="ok"] .vc-jdot { border-color: var(--vc-ok); background: var(--vc-ok); }
+.vc-crumbs li[data-check] .vc-jstep[aria-current] { color: var(--vc-text); }
 /* « N commits » : un bouton discret ; aucun commit : le texte seul. */
 .vc-ccount { flex: none; margin-left: auto; padding: 2px 8px; border: 0; border-radius: 5px; background: none; color: var(--vc-muted); font: 12px/1.5 var(--vc-sans); }
 button.vc-ccount { cursor: pointer; }
