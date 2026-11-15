@@ -167,8 +167,9 @@ describe('le diff ne lit que le fichier suivi d’un module touché, désigné p
     expect(pushed()).not.toContain('NOTE_COMMIT');
   });
 
-  // Un test d'invariant se suit par son id (Créer) : son texte oui, ses versions non.
-  it('un test d’invariant suivi : sa version au dernier commit n’est pas lue', async () => {
+  // Un test d'invariant se suit par son id (Créer) : son texte et ses versions, pour le menu de diff de la vue IDE
+  // (note 0.15.0-ecran-statuts : tout fichier du créateur, tests compris, est suivi avec at).
+  it('un test d’invariant suivi : son texte et sa version au dernier commit', async () => {
     await open();
     await follow(idOf(HELLO));
 
@@ -176,9 +177,8 @@ describe('le diff ne lit que le fichier suivi d’un module touché, désigné p
 
     // témoin : le diff du fichier de module a bien été poussé
     expect(lastCode(idOf(HELLO))?.at?.base).toBe(gitText(forkPoint(), HELLO));
-    // témoin : le test tel qu'il est sur le disque est poussé
+    // le test tel qu'il est sur le disque, et sa version au dernier commit
     expect(lastCode(testId(INV))?.text).toBe(fs.readFileSync(path.join(dir, INV), 'utf8'));
-    // sa version commitée n'est jamais poussée
-    expect(pushed()).not.toContain('INV_COMMIT');
+    expect(lastCode(testId(INV))?.at?.head).toBe(gitText('HEAD', INV));
   });
 });

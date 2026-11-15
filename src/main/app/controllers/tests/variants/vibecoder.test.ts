@@ -38,6 +38,7 @@ const fake = vi.hoisted(() => {
     git: (() => null) as (args: string[]) => string | null, calls: [] as unknown[][], noChild: false,
     branches: null as string[] | null, synced: [] as string[], prs: null as unknown, login: 'moi' as string | null,
     found: null as unknown, people: null as unknown,
+    real: false as boolean,   // le vrai parcours (vibeView), pour les cas qui lisent les validations ; sinon il rend ce qu'il reçoit
     dev: null as 'reload' | 'restart' | null, answer: 0, busy: false, release: (() => {}) as (v?: unknown) => void,
     fork: null as string | null, reads: [] as unknown[][], onFork: null as null | (() => Promise<void>),
     // Le socket de l'écran : les commandes envoyées [commande, arguments] ; la réponse du cas (null : celle de l'exécuteur, 'down' : socket indisponible).
@@ -109,16 +110,16 @@ vi.mock('technicals/paths', async (original) => ({
   resourcePath: (name: string) => `${process.cwd()}/resources/${name}`,
 }));
 
-vi.mock('core/vibecoder', async (original) => ({
-  ...await original<typeof import('core/vibecoder')>(),
-  vibeView: (input: JourneyInput) => ({
+vi.mock('core/vibecoder', async (original) => { const core = await original<typeof import('core/vibecoder')>(); return ({
+  ...core,
+  vibeView: (input: JourneyInput) => fake.real ? core.vibeView(input) : ({
     ...input, pr: input.pr && { number: input.pr }, prs: input.github?.prs ?? null, steps: fake.steps, commits: input.repo?.commits ?? [], invariants: [], variants: [], modules: [], questions: [],
     checklist: [{ text: 'Chaque diff a été relu', done: null, manual: true }, { text: 'La note est à jour', done: false }],
     actions: input.actions.map((a) => ({
       ...a, who: input.who[a.id], model: input.model[a.id], models: input.model[a.id] ? ['haiku', 'sonnet', 'opus'] : [], primary: false, disabled: null,
     })),
   }),
-}));
+}); });
 
 // Les actions directes, la recette et les worktrees : relevés (0.12.0-worktrees).
 const OK = { ok: true, line: 'ok', detail: '' };
@@ -214,6 +215,7 @@ beforeEach(() => {
   fake.fork = null;
   fake.onFork = null;
   fake.reads = [];
+  fake.real = false;
   fake.diff = null;
   fake.opened = [];
   fake.tabs = [];
@@ -317,7 +319,7 @@ describe('le relevé', () => {
     const v = view()!;
     expect(v.tests.map((t) => t.base)).toEqual(['BASE', 'BASE', null]);
     // par relevé envoyé : un forkPoint, puis un show par test d'invariants
-    expect(fake.reads).toEqual(vibes().flatMap(() => [['forkPoint', 'origin/main'],
+    expect(fake.reads.filter((r) => r[1] !== 'HEAD')).toEqual(vibes().flatMap(() => [['forkPoint', 'origin/main'],
       ['show', 'f0', 'src/x/tests/invariants/x.test.ts'], ['show', 'f0', 'src/y/tests/invariants/y.test.ts']]));
     expect(v).not.toHaveProperty('list');
   });
@@ -330,12 +332,12 @@ describe('le relevé', () => {
     fake.fork = null;    // pas de base
     fake.reads = [];
     expect((await open()).view()!.tests[0].base).toBeUndefined();
-    expect(fake.reads.filter(([c]) => c === 'show')).toEqual([]);
+    expect(fake.reads.filter(([c, ref]) => c === 'show' && ref !== 'HEAD')).toEqual([]);
     vi.resetModules();
     fake.facts = { ...fake.facts as object, changed: ['docs/tickets/feat/0.8.0-essai.md'] };
     fake.reads = [];
     expect((await open()).view()!.tests).toEqual([]);
-    expect(fake.reads).toEqual([]);
+    expect(fake.reads.filter((r) => r[1] !== 'HEAD')).toEqual([]);
   });
 
   it('lastView : le dernier relevé de l’agent, null pour un autre', async () => {
@@ -675,7 +677,7 @@ describe('0.11.0 : invariants existants et courses', () => {
     const { vibes } = await open();
     const { runVibeAction, setVibe } = await import('app/controllers');
     const { vibeStore } = await import('app/settings');
-    const { blobSha } = await import('core/vibecoder');
+    const { blobSha, noteDesign } = await import('core/vibecoder');
     expect(vibes().at(-1)).toMatchObject({ vibe: false });
     expect(vibeStore().marks.a1 ?? {}).toEqual({});   // hors Vibe : aucun ✓ donné
     expect(await runVibeAction('vibe', {})).toEqual({ ok: true });
@@ -683,12 +685,12 @@ describe('0.11.0 : invariants existants et courses', () => {
     expect(fake.messages[0]).toBe(`/vibecoder:vibe fr ${out}`);
     // Un relevé neuf précède le départ (surveyAgent) : celui qui porte le mode Vibe arrive un peu après.
     await vi.waitFor(() => expect(vibes().some((v) => v?.vibe === true)).toBe(true), { timeout: slow(3000), interval: 50 });
-    expect(vibeStore().marks.a1).toEqual({ note: { hash: blobSha(NOTE), verdict: 'ok' } });
+    expect(vibeStore().marks.a1).toEqual({ note: { hash: blobSha(noteDesign(NOTE)), verdict: 'ok', files: blobSha('') } });
     setVibe({ vibe: false });
     fake.steps = [{ id: 'note', status: 'done' }, { id: 'forme', status: 'done' }];
     await settle();
     expect(vibes().at(-1)).toMatchObject({ vibe: false });
-    expect(vibeStore().marks.a1).toEqual({ note: { hash: blobSha(NOTE), verdict: 'ok' } });   // gardé, rien de plus
+    expect(vibeStore().marks.a1).toEqual({ note: { hash: blobSha(noteDesign(NOTE)), verdict: 'ok', files: blobSha('') } });   // gardé, rien de plus
   });
 
   it('le relevé passe repo.dirty au parcours (VibeModule.uncommitted)', async () => {
@@ -702,9 +704,9 @@ describe('0.11.0 : invariants existants et courses', () => {
     const { vibeStore } = await import('app/settings');
     const { blobSha } = await import('core/vibecoder');
     markVibe('nothing', 'ok');
-    expect(vibeStore().marks.a1).toEqual({ nothing: { hash: blobSha(NOTE), verdict: 'ok' } });
+    expect(vibeStore().marks.a1).toMatchObject({ nothing: { hash: blobSha(NOTE), verdict: 'ok' } });
     markVibe('nothing', null);
-    expect(vibeStore().marks.a1).toEqual({});
+    expect(vibeStore().marks.a1).not.toHaveProperty('nothing');
   });
 });
 
@@ -1931,8 +1933,8 @@ describe('0.15.0 : Valider la note, la course à la vérification de conception'
   const checks = () => fake.messages.filter((m) => JSON.stringify(m).includes('/vibecoder:conception')).length;
   const marks = async () => (await import('app/settings')).vibeStore().marks.a1 ?? {};
   const noteState = async (text: string) => {
-    const { markState, blobSha } = await import('core/vibecoder');
-    return markState(await marks(), 'note', blobSha(text));
+    const { markState, blobSha, noteDesign } = await import('core/vibecoder');
+    return markState(await marks(), 'note', blobSha(noteDesign(text)));
   };
   // Un relevé : la fin de la course est lue à chaque relevé.
   const survey = async () => { await (await import('app/controllers')).refreshVibe({ now: true }); await settle(); };
@@ -2268,5 +2270,299 @@ describe('0.15.0 : la note de référence du surlignage', () => {
     await finish();
     await survey();
     expect((view() as unknown as { queued: string[] }).queued).toEqual([]);
+  });
+});
+
+// Les validations d'étape (0.15.0-ecran-statuts) : le ✓ de la page (conv:vibeMark, markVibe) et la CLI (validateVibe) posent la
+// marque de l'étape (validateStep) d'après le dernier relevé et retiennent sa liste et le texte de ses fichiers dans
+// <sorties>/validated/ ; le relevé lit les empreintes (blobs) et les listes retenues (validated).
+describe('0.15.0 : valider une étape, retenir sa liste et ses fichiers', () => {
+  const NOTE_PATH = 'docs/tickets/feat/0.8.0-essai.md';
+  const NOTE_F = `${NOTE}\n## Forme\n\n\`\`\`\nsrc/x/mod    mod() · ne connaît pas : le DOM\n\`\`\`\n`;
+  const REDESIGNED = NOTE_F.replace('- un essai\n', '- un essai\n- une ligne de plus\n');
+  const INV = 'src/x/tests/invariants/x.test.ts';
+  const MOD = 'src/x/mod/index.ts';
+  const MOD_TEXT = 'export const mod = 1;\n';
+  const CASE = `case:${INV}:un cas`;
+  const ACTIONS = [
+    { id: 'design-check', flow: 'create', step: 'note', kind: 'send', needs: 'none', reads: true, label: 'Vérifier la conception', text: '/vibecoder:conception {{lang}} {{out}}' },
+  ];
+  beforeEach(() => {
+    vi.doUnmock('app/controllers/runs');
+    write(path.join(fake.userData, 'vibecoder', 'actions.fr.json'), JSON.stringify(ACTIONS));
+    write(path.join(dir, NOTE_PATH), NOTE_F);
+    write(path.join(dir, MOD), MOD_TEXT);
+    fake.facts = { ...fake.facts as object, changed: [NOTE_PATH, INV, MOD] };
+    fake.real = true;
+    fake.shown = 'AU COMMIT\n';
+  });
+
+  const controllers = () => import('app/controllers');
+  const marks = async () => ((await import('app/settings')).vibeStore().marks.a1 ?? {}) as Record<string, { hash: string; verdict: string; after?: string; files?: string }>;
+  const kept = () => (fs.existsSync(path.join(out, 'validated')) ? fs.readdirSync(path.join(out, 'validated')).sort() : []);
+  const keptText = (hash: string) => fs.readFileSync(path.join(out, 'validated', hash), 'utf8');
+  const survey = async () => { await (await controllers()).refreshVibe({ now: true }); await settle(); };
+  const mark = async (target: string, verdict: 'ok' | null) => { (await controllers()).markVibe(target, verdict); await settle(); await survey(); };
+  // L'état de la validation d'une étape au dernier relevé : 'ok', 'changed', 'cascade', null.
+  const check = async (id: string) => (await controllers()).lastView('a1')!.steps.find((s) => s.id === id)?.check?.state;
+  const states = async () => Promise.all(['note', 'forme', 'invariants', 'modules'].map(check));
+  // Tout ce que contient le dossier du projet : chemin, texte.
+  const tree = () => Object.fromEntries((fs.readdirSync(dir, { recursive: true, encoding: 'utf8' }))
+    .filter((r) => fs.statSync(path.join(dir, r)).isFile()).map((r) => [r, fs.readFileSync(path.join(dir, r), 'utf8')]));
+  // La note validée (la vérification de conception, puis sa fin), puis la Forme, les invariants.
+  const toNote = async () => { await mark('note', 'ok'); await survey(); };
+  const toForme = async () => { await toNote(); await mark('forme', 'ok'); };
+  const toInvariants = async () => { await toForme(); await mark(CASE, 'ok'); await mark('invariants', 'ok'); };
+  const sha = async (text: string) => (await import('core/vibecoder')).blobSha(text);
+  const agentOf = async () => (await import('app/settings')).loadConfig().agents[0] as never;
+
+  it('le relevé : blobs = les fichiers que change la branche et ceux des listes retenues, validated = ces listes (null : illisible)', async () => {
+    fake.real = false;
+    const { blobSha, filesText } = await import('core/vibecoder');
+    write(path.join(dir, 'README.md'), 'lisez-moi\n');
+    const list = filesText({ 'README.md': blobSha('lisez-moi\n') });
+    write(path.join(out, 'validated', blobSha(list)), list);
+    const { saveVibeStore } = await import('app/settings');
+    saveVibeStore({ marks: { a1: {
+      modules: { hash: blobSha(list), verdict: 'ok', files: blobSha(list) },
+      invariants: { hash: 'a'.repeat(40), verdict: 'ok', files: 'b'.repeat(40) },   // sa liste n'est pas retenue
+    } }, drafts: {} } as never);
+    const v = (await open()).view() as unknown as { blobs: { path: string; disk: string | null; head: string | null }[]; validated: unknown };
+    const head = blobSha('AU COMMIT\n');
+    expect(v.blobs).toEqual(expect.arrayContaining([
+      { path: MOD, disk: blobSha(MOD_TEXT), head },
+      { path: NOTE_PATH, disk: blobSha(NOTE_F), head },
+      { path: 'README.md', disk: blobSha('lisez-moi\n'), head },
+    ]));
+    expect(v.blobs).toHaveLength(4);
+    expect(v.validated).toEqual({ modules: { 'README.md': blobSha('lisez-moi\n') }, invariants: null });
+    // le dernier commit, lu une fois par fichier et par commit : les relevés qui suivent ne redemandent rien à git
+    fake.reads = [];
+    await survey();
+    await survey();
+    expect(fake.reads.filter((r) => r[1] === 'HEAD')).toEqual([]);
+    fake.shown = null;
+    fs.rmSync(path.join(dir, MOD));
+    await survey();
+    const after = (await controllers()).lastView('a1') as unknown as typeof v;
+    expect(after.blobs.find((b) => b.path === MOD)).toEqual({ path: MOD, disk: null, head });
+  });
+
+  it('Valider les modules : la marque, sa liste et ses textes dans validated/, git status et l’index inchangés', async () => {
+    const { filesText } = await import('core/vibecoder');
+    fake.git = (args) => { fake.calls.push(['git', ...args]); return null; };
+    await open();
+    await toInvariants();
+    const before = tree();
+    await mark('modules', 'ok');
+    const list = filesText({ [MOD]: await sha(MOD_TEXT) });
+    expect((await marks()).modules).toEqual({ hash: await sha(list), verdict: 'ok', after: expect.any(String), files: await sha(list) });
+    expect(await check('modules')).toBe('ok');
+    expect(keptText(await sha(list))).toBe(list);
+    expect(keptText(await sha(MOD_TEXT))).toBe(MOD_TEXT);
+    // rien dans le dépôt, aucune écriture git : seuls rev-parse et status (et git show, lecture, par technicals/git)
+    expect(tree()).toEqual(before);
+    expect(fs.existsSync(path.join(dir, '.git'))).toBe(false);
+    expect(fake.calls.filter((c) => c[0] === 'git' && !['rev-parse', 'status'].includes(String(c[1])))).toEqual([]);
+  });
+
+  it('chaque étape retient sa liste et ses fichiers : la Forme la note et ceux des modules, les modules ceux des modules, les invariants ceux des tests', async () => {
+    const { filesText } = await import('core/vibecoder');
+    await open();
+    await toInvariants();
+    await mark('modules', 'ok');
+    const forme = filesText({ [NOTE_PATH]: await sha(NOTE_F), [MOD]: await sha(MOD_TEXT) });
+    const modules = filesText({ [MOD]: await sha(MOD_TEXT) });
+    const tests = filesText({ [INV]: await sha(TEST) });
+    expect(kept()).toEqual([await sha(forme), await sha(modules), await sha(tests), await sha(MOD_TEXT), await sha(TEST), await sha(NOTE_F)].sort());
+    expect(keptText(await sha(tests))).toBe(tests);
+    expect(keptText(await sha(TEST))).toBe(TEST);
+    expect(keptText(await sha(NOTE_F))).toBe(NOTE_F);
+    expect((await marks()).forme?.files).toBe(await sha(forme));
+    expect((await marks()).invariants?.files).toBe(await sha(tests));
+  });
+
+  it('la note modifiée puis revalidée : la Forme décochée au relevé suivant', async () => {
+    await open();
+    await toInvariants();
+    expect(await states()).toEqual(['ok', 'ok', 'ok', null]);
+    write(path.join(dir, NOTE_PATH), REDESIGNED);
+    await survey();
+    expect(await states()).toEqual(['changed', 'cascade', 'cascade', null]);
+    await mark('note', 'ok');   // la conception est déjà vérifiée : un Valider comme les autres
+    expect(await states()).toEqual(['ok', 'cascade', 'cascade', null]);
+    await mark('forme', 'ok');   // revalider ne recoche pas les suivantes
+    expect(await states()).toEqual(['ok', 'ok', 'cascade', null]);
+  });
+
+  it('retirer la validation d’une étape décochée en cascade : oubliée', async () => {
+    await open();
+    await toForme();
+    write(path.join(dir, NOTE_PATH), REDESIGNED);
+    await survey();
+    expect(await check('forme')).toBe('cascade');
+    await mark('forme', null);
+    expect(await check('forme')).toBeNull();
+    expect(Object.keys(await marks())).not.toContain('forme');
+  });
+
+  it('validateVibe : la note refusée (invalid-args), un verdict inconnu aussi ; la Forme sans la note validée : refusée', async () => {
+    const { validateVibe } = await controllers();
+    await open();
+    const agent = await agentOf();
+    expect(validateVibe(agent, 'note', 'ok')).toMatchObject({ ok: false, reason: 'step' });
+    expect(validateVibe(agent, 'forme', 'peut-être')).toMatchObject({ ok: false, reason: 'step' });
+    expect(validateVibe(agent, 'forme', 'ok')).toMatchObject({ ok: false, reason: 'not-offered' });
+    expect(await marks()).toEqual({});
+    // la note validée puis décochée : la Forme encore refusée
+    await toNote();
+    write(path.join(dir, NOTE_PATH), REDESIGNED);
+    await survey();
+    expect(await check('note')).toBe('changed');
+    expect(validateVibe(agent, 'forme', 'ok')).toMatchObject({ ok: false, reason: 'not-offered' });
+    expect(Object.keys(await marks())).not.toContain('forme');
+  });
+
+  it('validateVibe : le même geste que la page — la marque, ses textes ; retirer la validation', async () => {
+    const { validateVibe } = await controllers();
+    await open();
+    await toNote();
+    const agent = await agentOf();
+    expect(validateVibe(agent, 'forme', 'ok')).toEqual({ ok: true });
+    await settle();
+    await survey();
+    expect(await check('forme')).toBe('ok');
+    expect(kept()).toContain(await sha(MOD_TEXT));
+    expect(validateVibe(agent, 'forme', null)).toEqual({ ok: true });
+    await settle();
+    await survey();
+    expect(await check('forme')).toBeNull();
+  });
+
+  it('validateVibe : un relecteur n’a pas d’étape à valider', async () => {
+    review();
+    const { validateVibe } = await controllers();
+    await open();
+    await survey();   // le rôle, d'après gh
+    expect(validateVibe(await agentOf(), 'forme', 'ok')).toMatchObject({ ok: false, reason: 'flow' });
+    expect(await marks()).toEqual({});
+  });
+
+  it('un git add puis un commit sans geste : aucune marque posée, rien retenu', async () => {
+    await open();
+    // le commit a pris le module (le dernier commit a son texte), sans geste Valider
+    fake.facts = { ...fake.facts as object, head: 'h2' };
+    fake.shown = MOD_TEXT;
+    await survey();
+    expect(await marks()).toEqual({});
+    expect(kept()).toEqual([]);
+  });
+
+  it('un commit après la validation : rien ne change', async () => {
+    await open();
+    await toInvariants();
+    await mark('modules', 'ok');
+    const [before, files] = [await marks(), kept()];
+    fake.facts = { ...fake.facts as object, head: 'h2' };
+    fake.shown = MOD_TEXT;
+    await survey();
+    expect(await states()).toEqual(['ok', 'ok', 'ok', 'ok']);
+    expect(await marks()).toEqual(before);
+    expect(kept()).toEqual(files);
+  });
+
+  it('un refus (✗) sur une étape : ignoré, aucune marque', async () => {
+    await open();
+    await toNote();
+    (await controllers()).markVibe('forme', 'ko');
+    await settle();
+    await survey();
+    expect(Object.keys(await marks())).not.toContain('forme');
+  });
+
+  it('le ✗ de la note (À revoir) : sa marque ko, pas une validation', async () => {
+    await open();
+    await survey();
+    (await controllers()).markVibe('note', 'ko');
+    await settle();
+    await survey();
+    expect((await marks()).note?.verdict).toBe('ko');
+  });
+
+  it('valider deux fois le même contenu : la même marque, les mêmes textes', async () => {
+    await open();
+    await toInvariants();
+    await mark('modules', 'ok');
+    const [first, files] = [await marks(), kept()];
+    await mark('modules', 'ok');
+    expect(await marks()).toEqual(first);
+    expect(kept()).toEqual(files);
+  });
+
+  it('retirer puis revalider : la même marque, les textes déjà retenus restent', async () => {
+    await open();
+    await toInvariants();
+    await mark('modules', 'ok');
+    const [first, files] = [await marks(), kept()];
+    await mark('modules', null);
+    expect(await check('modules')).toBeNull();
+    expect(kept()).toEqual(files);
+    await mark('modules', 'ok');
+    expect(await marks()).toEqual(first);
+    expect(await check('modules')).toBe('ok');
+  });
+
+  it('un module corrigé puis revalidé : la nouvelle version retenue, l’ancienne gardée', async () => {
+    await open();
+    await toInvariants();
+    await mark('modules', 'ok');
+    write(path.join(dir, MOD), 'export const mod = 2;\n');
+    await survey();
+    expect(await check('modules')).toBe('changed');
+    await mark('modules', 'ok');
+    expect(await check('modules')).toBe('ok');
+    expect(kept()).toEqual(expect.arrayContaining([await sha(MOD_TEXT), await sha('export const mod = 2;\n')]));
+  });
+
+  it('un fichier changé depuis le relevé : la marque dit ce que le relevé a vu, la version qui a changé n’est pas retenue, le relevé suivant décoche', async () => {
+    await open();
+    await toInvariants();
+    write(path.join(dir, MOD), 'export const mod = 3;\n');   // après le relevé, avant le clic
+    (await controllers()).markVibe('modules', 'ok');
+    await settle();
+    expect(kept()).not.toContain(await sha('export const mod = 3;\n'));
+    await survey();
+    expect(await check('modules')).toBe('changed');
+  });
+
+  it('un dossier de sorties illisible (un fichier à la place de validated/) : la validation tient, rien ne casse', async () => {
+    await open();
+    await toNote();
+    write(path.join(out, 'validated'), 'pas un dossier');
+    await mark('forme', 'ok');
+    expect(await check('forme')).toBe('ok');
+    expect(fs.readFileSync(path.join(out, 'validated'), 'utf8')).toBe('pas un dossier');
+  });
+
+  it('des gestes qui se suivent sans relevé : chacun juge d’après les marques d’avant', async () => {
+    await open();
+    await toNote();
+    const { markVibe } = await controllers();
+    markVibe('forme', 'ok');
+    markVibe(CASE, 'ok');
+    markVibe('invariants', 'ok');
+    markVibe('modules', 'ok');
+    await settle();
+    await survey();
+    expect(await states()).toEqual(['ok', 'ok', 'ok', 'ok']);
+  });
+
+  it('une étape sans rien à valider (un cas sans ✓, des modules sans fichier) : refusée, aucune marque', async () => {
+    await open();
+    await toForme();
+    (await controllers()).markVibe('invariants', 'ok');   // le cas n'a pas son ✓
+    await settle();
+    await survey();
+    expect(Object.keys(await marks())).not.toContain('invariants');
   });
 });

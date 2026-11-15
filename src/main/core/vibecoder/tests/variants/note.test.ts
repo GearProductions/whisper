@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { findNote, noteKey, parseNote } from 'core/vibecoder';
+import { findNote, noteDesign, noteKey, parseNote } from 'core/vibecoder';
 
 // Une vraie note du dépôt (0.7.0) : sa Forme est un bloc de code « chemin  contrat ».
 const ROOT = path.resolve(__dirname, '../../../../../..');
@@ -400,5 +400,67 @@ describe('parseNote : une entrée à plusieurs chemins (T-15)', () => {
 
   it('une entrée à un chemin : inchangée, paths d\'un élément', () => {
     expect(modules[3]).toEqual({ path: 'main/core/solo.ts', paths: ['main/core/solo.ts'], contract: 'un seul chemin' });
+  });
+});
+
+describe('noteDesign : la conception de la note, sans la Forme', () => {
+  const note = [
+    '# Titre du ticket', '', 'Un mot avant.', '',
+    '## Contexte', '', 'Avant « Ce que ça fait ».', '',
+    '## Ce que ça fait', '', '- Une chose.', '',
+    '## Ce que ça ne doit pas faire', '', '- Rien. → variant', '',
+    '## Forme', '', '```', 'a.ts  contrat', '## pas un titre', '```', '',
+    '## Pistes pour plus tard', '', 'Plus tard.', '',
+  ].join('\n');
+
+  it('une note entière : la Forme absente, les autres rubriques avec leur titre', () => {
+    expect(noteDesign(note)).toBe([
+      '## Ce que ça fait', '', '- Une chose.', '',
+      '## Ce que ça ne doit pas faire', '', '- Rien. → variant', '',
+      '## Pistes pour plus tard', '', 'Plus tard.',
+    ].join('\n'));
+  });
+
+  it('un bloc de code de la Forme qui contient « ## » : ignoré avec elle', () => {
+    const out = noteDesign(note);
+    expect(out).not.toContain('pas un titre');
+    expect(out).not.toContain('a.ts');
+    expect(out).toContain('## Pistes pour plus tard');
+  });
+
+  it('le titre # et ce qui précède « Ce que ça fait » : absents', () => {
+    const out = noteDesign(note);
+    expect(out).not.toContain('Titre du ticket');
+    expect(out).not.toContain('Un mot avant');
+    expect(out).not.toContain('Contexte');
+  });
+
+  it('sans rubrique : \'\'', () => {
+    expect(noteDesign('')).toBe('');
+    expect(noteDesign('# Titre\n\nDu texte, aucune rubrique.\n')).toBe('');
+  });
+
+  it('sans « Ce que ça fait » : toutes les rubriques hors Forme', () => {
+    expect(noteDesign('# T\n\n## Contexte\n\nUn.\n\n## Forme\n\nx\n\n## Fin\n\nDeux.\n'))
+      .toBe('## Contexte\n\nUn.\n\n## Fin\n\nDeux.');
+  });
+
+  it('un bloc de code d\'une autre rubrique qui contient « ## » ne la coupe pas', () => {
+    const md = '## Ce que ça fait\n\n```md\n## dedans\n```\n\n## Forme\n\nx\n';
+    expect(noteDesign(md)).toBe('## Ce que ça fait\n\n```md\n## dedans\n```');
+  });
+
+  it('CRLF : lu comme LF', () => {
+    expect(noteDesign('# T\r\n\r\n## Ce que ça fait\r\n\r\nUne.\r\n\r\n## Forme\r\n\r\nx\r\n')).toBe('## Ce que ça fait\n\nUne.');
+  });
+
+  it('la Forme se reconnaît à son titre : « Forme », « Shape », casse ignorée', () => {
+    for (const h of ['Forme', 'forme', 'Shape', 'Form']) {
+      expect(noteDesign(`## Ce que ça fait\n\nUne.\n\n## ${h}\n\nsecret\n`)).toBe('## Ce que ça fait\n\nUne.');
+    }
+  });
+
+  it('une rubrique vide garde son titre', () => {
+    expect(noteDesign('## Ce que ça fait\n\n## Fin\n\nx\n')).toBe('## Ce que ça fait\n\n## Fin\n\nx');
   });
 });

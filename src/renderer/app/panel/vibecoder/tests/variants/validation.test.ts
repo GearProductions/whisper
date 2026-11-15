@@ -132,6 +132,36 @@ it('note vérifiée : Revérifier avant Revalider, sans data-v ok ni coche (Reva
   expect(revalidate.querySelector('svg')).not.toBeNull();
 });
 
+it('invariants, modules : le libellé (fr, en) ; validé : Annuler ; modifié depuis : Revalider ; rien n\'est envoyé sans clic', async () => {
+  const log: unknown[] = [];
+  const draw = (what: 'invariants' | 'modules', state: 'ok' | 'changed' | null, lang: 'fr' | 'en' = 'fr') => act(() => root.render(createElement(MarkControl,
+    { what, state, review: false, lang, onMark: (v) => { log.push(v); } })));
+  const want = {
+    invariants: { fr: ['Valider les invariants', 'Invariants validés'], en: ['Approve the invariants', 'Invariants approved'] },
+    modules: { fr: ['Valider les modules', 'Modules validés'], en: ['Approve the modules', 'Modules approved'] },
+  };
+  for (const what of ['invariants', 'modules'] as const) {
+    for (const lang of ['fr', 'en'] as const) {
+      await draw(what, null, lang);
+      expect(buttons().map((b) => b.textContent)).toEqual([want[what][lang][0]]);
+      expect(log).toEqual([]);
+      buttons()[0].click();
+      expect(log).toEqual(['ok']);
+      log.length = 0;
+      await draw(what, 'ok', lang);
+      expect(page.querySelector('.vc-vstate')!.textContent).toBe(want[what][lang][1]);
+      expect(buttons().map((b) => b.textContent)).toEqual([lang === 'fr' ? 'Annuler' : 'Undo']);
+      buttons()[0].click();
+      expect(log).toEqual([null]);
+      log.length = 0;
+    }
+    await draw(what, 'changed');
+    expect(buttons().map((b) => b.textContent)).toEqual(['Revalider']);
+    await draw(what, 'changed', 'en');
+    expect(buttons().map((b) => b.textContent)).toEqual(['Approve again']);
+  }
+});
+
 it('run : running → « en cours » et ⏹ (onStop) ; queued → « en attente », pas de ⏹ ; sans run : rien ; vérifiée ou non', async () => {
   const log: unknown[] = [];
   const draw = (run: { state: 'running' | 'asking' | 'stopped' | 'queued'; onStop(): void } | undefined, checked: boolean, lang: 'fr' | 'en' = 'fr') =>

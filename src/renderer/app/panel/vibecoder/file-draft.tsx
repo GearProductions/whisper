@@ -13,15 +13,20 @@
  *  une fois l'édition rendue. Enregistrée : rebasée sur la poussée suivante
  *  (égale, supprimée ; sinon gardée, avec son heure pour base). text null :
  *  rien à montrer ; tooBig : le disque a répondu sans texte (trop gros).
+ *  useCaseDraft (note 0.15.0-ecran-statuts) : comme useFileDraft, pour le seul bloc
+ *  d'un cas (range, lu sur file.source) : text, le bloc ; la modification gardée
+ *  sous `<chemin>#<titre du cas>` ; save envoie le fichier du disque dont seul le
+ *  bloc est remplacé (replaceRange) ; le disque différent de file.source ou
+ *  changé depuis le début de la modification : stale.
  *  DraftEditor : le fichier dans CodeView (edit) et son pied (footInTools : le
  *  pied passé à CodeView, au bout de sa rangée d'outils, au lieu d'en dessous ;
  *  noFoot : sans pied), ou « fichier trop gros ».
  *  Ne connaît pas : le pont (rappels passés), le disque, le relevé.
  *  Utilisé par : module-code, invariants-view, note-view ; vibe-coder et
  *  step-views (Drafts). */
-import { useEffect, useRef, type Dispatch, type ReactNode, type SetStateAction } from 'react';
-import type { Strings } from 'core/vibecoder';
-import type { VibeCode, VibeFile } from 'technicals/bridge';
+import { useEffect, useMemo, useRef, type Dispatch, type ReactNode, type SetStateAction } from 'react';
+import { replaceRange, type CaseRange, type Strings } from 'core/vibecoder';
+import type { VibeCode, VibeFile, VibeTestFile } from 'technicals/bridge';
 import { CodeView } from './code-view';
 
 // Les modifications gardées, par chemin : leur texte et l'heure du disque à leur début (null : la prochaine poussée).
@@ -70,6 +75,28 @@ export function useFileDraft(file: VibeFile | null, code: VibeCode | null, locke
     if (file) setDrafts((d) => ({ ...d, [file.path]: { text: x, base: d[file.path] ? d[file.path].base : disk?.time ?? 0 } }));
   };
   return { text, draft: !!draft, stale, tooBig: !!disk && text === null, change, save, drop };
+}
+
+// Le bloc d'un cas, modifiable seul : title nomme sa modification gardée, range ses lignes dans file.source.
+// useFileDraft sur un fichier de substitution (`<chemin>#<titre>`) dont le texte est le bloc ; save recoud le bloc
+// dans le fichier du disque (replaceRange).
+export function useCaseDraft(file: VibeTestFile | null, title: string, range: CaseRange | null, code: VibeCode | null, locked: string | null,
+  onSave: (id: string, text: string) => Promise<boolean>,
+  drafts: readonly [Drafts, Dispatch<SetStateAction<Drafts>>]): FileDraft {
+  const key = file ? `${file.path}#${title}` : '';
+  // Le bloc tel que le disque l'a poussé (lu sur file.source, où range est valable), sans \r : le disque rendu les garde.
+  const pushed = useMemo<VibeCode | null>(() => {
+    if (!file || !range || !code || code.id !== file.id) return null;
+    const block = code.text === null ? null : file.source.split('\n').slice(range.from - 1, range.to).map((l) => l.replace(/\r$/, '')).join('\n');
+    return { ...code, text: block };
+  }, [file?.id, file?.source, range?.from, range?.to, code]);
+  // Le disque n'est plus celui où range a été lu : le bloc écrasé serait celui d'un autre fichier.
+  const moved = !!file && !!code && code.id === file.id && code.text !== null && code.text !== file.source;
+  const d = useFileDraft(file && { id: file.id, path: key }, pushed, locked, async (id, block) => {
+    const whole = !moved && range && code?.text != null ? replaceRange(code.text, range, block) : null;
+    return whole !== null && onSave(id, whole);
+  }, drafts);
+  return { ...d, stale: d.stale || (moved && d.draft) };
 }
 
 /** Le pied d'un éditeur : Abandonner (le disque a changé), Enregistrer (grisé : locked, rien à

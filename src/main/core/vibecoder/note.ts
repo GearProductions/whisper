@@ -7,8 +7,10 @@
  *  Et où la trouver : la clé que porte la branche (ticket ou version), le
  *  fichier de docs/tickets/ qui la nomme parmi ceux que la branche change.
  *  Les questions ouvertes ne sont pas dans la note (<sorties>/questions.md).
+ *  Sa conception (noteDesign) : « Ce que ça fait » et les rubriques qui la suivent,
+ *  hors la Forme — la source de l'étape Forme (note 0.15.0-ecran-statuts).
  *  Ne connaît pas : Electron, le disque, git (texte et chemins passés).
- *  Utilisé par : core/vibecoder (journey : parseNote), app/controllers/vibecoder
+ *  Utilisé par : core/vibecoder (journey : parseNote ; step-checks, marks, journey : noteDesign), app/controllers/vibecoder
  *  (noteKey, findNote, parseNote). */
 import type { MustNotMark } from 'shared/bridge';
 import { oneLine } from 'helpers';
@@ -55,6 +57,17 @@ export function parseNote(md: string): NoteFacts {
     modules: modulesOf(forme),
     forme,
   };
+}
+
+// La conception de la note : de « Ce que ça fait » (son titre compris) à la fin, chaque rubrique ## avec son titre,
+// sauf la Forme (que l'étape Forme écrit elle-même) ; le titre # et ce qui précède ignorés ; sans « Ce que ça fait » :
+// toutes les rubriques hors Forme ; '' sans rubrique.
+export function noteDesign(md: string): string {
+  // Les rubriques de parseNote (titres ## hors blocs de code, fins de ligne normalisées) ; texte rogné, titre remis.
+  const { sections } = parseNote(md);
+  const from = Math.max(0, sections.findIndex((s) => DOES.test(norm(s.name))));   // -1 (absente) → depuis la première
+  return sections.slice(from).filter((s) => !FORME.test(norm(s.name)))
+    .map((s) => (s.text ? `## ${s.name}\n\n${s.text}` : `## ${s.name}`)).join('\n\n');
 }
 
 // Les éléments d'une liste, leurs lignes de suite jointes ; le texte avant la première puce est ignoré.

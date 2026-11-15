@@ -1,5 +1,7 @@
 /** breadcrumb — le fil d'Ariane, au-dessus de l'étape : les étapes en une
- *  ligne (point plein : faite ; anneau qui pulse : en cours ; gris : à venir ;
+ *  ligne (point plein : faite ; anneau qui pulse : en cours ; gris : à venir ; pour les étapes qui se valident
+ *  (Note, Forme, Invariants, Modules), la couleur suit leur validation, crumbCheck : verte validée, jaune modifiée
+ *  depuis ou à revoir, grise jamais validée ;
  *  le libellé à côté du point), reliées d'un trait ; leur état et leurs faits
  *  en infobulle, avec le raccourci (Ctrl+1…6) pour les six. Chaque étape
  *  est cliquable, faite, en cours ou à venir : un clic appelle onPick, rien
@@ -16,7 +18,7 @@
  *  l'est) ; pendant Vibe, Arrêter Vibe à sa place (onStopVibe), même l'action masquée (« déjà en cours »).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
 import { useEffect, useState } from 'react';
-import type { Strings } from 'core/vibecoder';
+import { crumbCheck, waitingFor, type Strings } from 'core/vibecoder';
 import type { VibeAction, VibeCommit, VibeStepId, VibeView } from 'technicals/bridge';
 import { IconButton } from './icons';
 import './breadcrumb.css';
@@ -44,9 +46,9 @@ export function Breadcrumb({ view, t, selected, vibe, onPick, onOpen, onVibe, on
       <div className="vc-crumbs-line">
         <ol className="vc-steps">
           {view.steps.map((s, i) => (
-            <li key={s.id} data-status={s.status}>
+            <li key={s.id} data-status={s.status} data-check={crumbCheck(s) ?? undefined}>
               <button type="button" className="vc-jstep" aria-current={s.id === selected ? 'step' : undefined} onClick={() => onPick(s.id)}
-                title={`${t.steps[s.id]} — ${t.stepStatus[s.status]}${s.facts ? ` · ${s.facts}` : ''}${i < 6 ? ` (${t.shortcut(i + 1)})` : ''}`}>
+                title={`${t.steps[s.id]} — ${t.stepStatus[s.status]}${s.check ? ` · ${t.stepCheck[s.check.state ?? 'none']}` : ''}${waitingFor(view.steps, s.id) ? ` · ${t.waitingFor(t.steps[waitingFor(view.steps, s.id)!])}` : ''}${s.facts ? ` · ${s.facts}` : ''}${i < 6 ? ` (${t.shortcut(i + 1)})` : ''}`}>
                 <span className="vc-jdot" />
                 <span className="vc-jlabel">{t.steps[s.id]}</span>
               </button>

@@ -16,23 +16,29 @@
  *  forme » ; code en lecture seule ; sous le module, ses remarques du brouillon (remarksAt,
  *  DraftRemarks : grisées, crayon, croix) ; à côté de Commenter, « Poser une question à
  *  l'agent » cite son chemin dans le champ (prefill, rien d'envoyé : I-2).
+ *  La vue IDE porte le menu de diff de l'étape (useIdeDiff 'forme' : bar, l'arborescence filtrée, empty ; le
+ *  module choisi : ModuleCode diff ; un supprimé depuis la référence : goneModule, tout en retraits ; le relecteur
+ *  n'a ni menu ni validation) ; « modifiée depuis la validation » (StepHead onSince) y passe sur Depuis la
+ *  validation (note 0.15.0-ecran-statuts). Valider la forme suit step.check (checkMark : ok, ou décochée = changed,
+ *  cascade comprise). Retirés : ideReview (accordéons, Valider d'un fichier).
  *  L'onglet affiché (Structure · Code) est gardé par agent (useKept).
  *  Contract : le contrat d'un module, par rubrique (contractParts, InlineMd).
  *  Ne connaît pas : le pont (rappels passés), le brouillon entier (view.draft, filtré par module). Utilisé par : step-views, modules-view (Contract). */
 import { useEffect, useState, type ReactNode } from 'react';
-import { contractParts, fileParts, ideFiles, remark, remarksAt, type IdeFile, type Strings } from 'core/vibecoder';
+import { checkMark, contractParts, fileParts, goneModule, ideFiles, remark, remarksAt, type IdeFile, type Strings } from 'core/vibecoder';
 import type { VibeLang, VibeModule } from 'technicals/bridge';
 import { Icon, IconButton } from './icons';
 import { CommentBox } from './comment-box';
 import { DraftRemarks } from './draft-remarks';
 import { InlineMd } from './markdown-view';
+import { useIdeDiff } from './ide-diff';
 import { IdeView } from './ide-view';
 import { useKept } from './kept-scope';
 import { ModuleCode } from './module-code';
 import { PROPOSED_ACTS, ProposedCommit } from './proposed-commit';
 import { Invite, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
-import { MarkControl } from './validation';
+import { MarkControl, waitText } from './validation';
 import './forme-view.css';
 
 const fr = {
@@ -89,21 +95,24 @@ export function FormeView(p: StepProps) {
   const { note, modules } = view;
   const [shown, setShown] = useKept<Shown>('shown', 'structure');
   const review = view.flow === 'review';
-  const files = ideFiles(view, 'module');
+  // Le menu de diff de la vue : le créateur seul (le relecteur n'a ni check ni diffs : ModuleCode garde son sélecteur).
+  const diff = useIdeDiff(view, 'forme');
+  const ide = review ? {} : { bar: diff.bar, empty: diff.empty };
+  const files = review ? ideFiles(view, 'module') : diff.filter(ideFiles(view, 'module'));
   const code = (m: VibeModule) => (
     <ModuleCode key={m.path} m={m} readOnly={review ? s.readOnly : undefined} code={p.code} t={t} lang={view.lang} open onFollow={act.follow} onSave={act.save}
-      onQuote={(block) => act.prefill('comment', block, true)} drafts={p.drafts} noTree />
+      onQuote={(block) => act.prefill('comment', block, true)} drafts={p.drafts} noTree diff={review ? undefined : { shown: diff.shown, mode: diff.mode, step: 'forme' }} />
   );
   return (
     <>
-      <StepHead p={p} own={[...(note && !modules.length ? ['forme'] : []), ...(view.outputs['commit.md'] ? PROPOSED_ACTS : [])]} />
+      <StepHead p={p} onSince={review ? undefined : diff.showValidated} own={[...(note && !modules.length ? ['forme'] : []), ...(view.outputs['commit.md'] ? PROPOSED_ACTS : [])]} />
       <ProposedCommit p={p} />
       {!note || !modules.length ? (
         <>
           <Invite title={note ? (review ? s.noFormeReview : s.noForme) : s.noNote} text={note ? (review ? s.noFormeReviewText : s.noFormeText) : s.noNoteText}>
             {note ? <Run a={view.actions.find((a) => a.id === 'forme')} busy={busy} tone="accent" onRun={() => act.run('forme')} /> : null}
           </Invite>
-          {files.length ? <section className="vc-card vc-forme"><IdeView files={files}>{(f) => (f?.code ? code(f.code) : null)}</IdeView></section> : null}
+          {ideFiles(view, 'module').length ? <section className="vc-card vc-forme"><IdeView files={files} {...ide}>{(f) => (f?.code ? code(f.code) : f?.gone ? code(goneModule(f)) : null)}</IdeView></section> : null}
         </>
       ) : (
         <section className="vc-card vc-forme">
@@ -114,14 +123,14 @@ export function FormeView(p: StepProps) {
             </span>
             {review ? null : (
               <span className="vc-forme-mark">
-                <MarkControl what="forme" state={note.formeMark} review={false} lang={view.lang} onMark={(v) => act.mark('forme', v)} />
+                <MarkControl what="forme" state={checkMark(p.step.check)} review={false} lang={view.lang} onMark={(v) => act.mark('forme', v)} waiting={waitText(view, 'forme')} />
               </span>
             )}
           </div>
-          <IdeView files={files}>
+          <IdeView files={files} {...ide}>
             {(f) => f && f.rank !== null ? (
               <Chosen key={f.path} f={f} m={modules[f.rank]} s={s} p={p} shown={shown} onShown={setShown} code={code} />
-            ) : null}
+            ) : f?.gone ? code(goneModule(f)) : null}
           </IdeView>
         </section>
       )}

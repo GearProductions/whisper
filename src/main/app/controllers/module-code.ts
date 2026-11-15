@@ -29,6 +29,12 @@
  *  UTF-8 (un binaire compris), truncated s'il est plus long ; relu par
  *  artifactFile à chaque poussée (sorti du relevé, devenu lien : text null) ;
  *  saveCode le refuse, comme un fichier d'un commit (ce n'est pas un codeFile).
+ *  Le menu de diff de la vue IDE (note 0.15.0-ecran-statuts) : tout fichier du créateur (module, branche, test
+ *  d'invariant, `r<i>`) est suivi avec at ; at.validations, par étape validée qui le retient, son texte à la
+ *  validation (la liste de l'étape, validated/<files> de sa marque, puis validated/<empreinte> ; null : absent de la
+ *  liste ; illisible : l'étape absente), relu à chaque poussée. `r<i>` : un fichier supprimé de view.diffs, lu par
+ *  git et ses versions seules (text null) ; saveCode le refuse (lecture seule). Retiré : la référence d'un fichier
+ *  de « Modifié depuis la validation » (at.validated, since).
  *  Ne connaît pas : la page (seulement ses canaux) ; git (technicals/git). La fenêtre : seulement
  *  state.panel pour pousser conv:vibeCode, comme controllers/vibecoder pour
  *  conv:vibe (aucun assistant d'envoi au panneau n'existe).
@@ -37,15 +43,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { SendResult, VibeCode, VibeLang } from 'shared/bridge';
 import { vibeLang } from 'core/config';
-import { artifactOf, codeFile, codeLock, commitFile, safePath } from 'core/vibecoder';
+import { artifactOf, codeFile, codeLock, commitFile, safePath, versionName } from 'core/vibecoder';
 import { artifactFile } from './artifacts';
 import { gitReader, gitRun } from 'technicals/git';
-import { loadConfig } from 'app/settings';
+import { loadConfig, vibeOutPath, vibeStore } from 'app/settings';
 import { state } from 'app/state';
 import { isBusy, viewAgent } from './agents';
 import { lockingRuns } from './runs';
-import { READ_MAX, readTimed } from './processes';
-import { lastView, refreshVibe } from './vibecoder';
+import { READ_MAX, readFile, readTimed } from './processes';
+import { keptLists, lastView, refreshVibe } from './vibecoder';
 
 const ERRORS: Record<VibeLang, Record<'file' | 'text' | 'write', string>> = {
   fr: { file: 'Ce fichier n’est plus affiché.', text: 'Texte invalide ou trop gros.', write: 'Enregistrement impossible.' },
@@ -54,7 +60,7 @@ const ERRORS: Record<VibeLang, Record<'file' | 'text' | 'write', string>> = {
 
 // Le fichier suivi : l'agent, l'id, son chemin dans le dépôt (d'un artefact : son
 // chemin absolu, artifact vrai ; module vrai : d'un module ou de la branche, lu avec at), le hash de son commit (un fichier d'un commit),
-// disk faux s'il ne se lit que par git (d'un commit, supprimé), son veilleur.
+// disk faux s'il ne se lit que par git (d'un commit, supprimé, `r<i>`), son veilleur.
 type Followed = {
   agentId: string; id: string; rel: string; module: boolean; artifact: boolean; commit: string | null; disk: boolean;
   watcher: fs.FSWatcher | null;
@@ -80,6 +86,19 @@ async function versions(dir: string, agentId: string, rel: string, hash: string 
   };
   const [atBase, head, before, after] = await Promise.all([show(fork), show('HEAD'), show(parent), show(hash)]);
   return { base: atBase, head, ...(hash && { commit: { before, after } }) };
+}
+
+// Le texte du fichier à la validation de chaque étape validée ('ok') qui a retenu sa liste (keptLists) : null s'il n'est pas
+// dans la liste ; liste ou texte illisibles : l'étape absente. Rien n'est écrit.
+function validationsOf(agentId: string, rel: string): NonNullable<NonNullable<VibeCode['at']>['validations']> {
+  const out = vibeOutPath(agentId);
+  const read = (hash: string) => { const name = versionName(hash); return name ? readFile(path.join(out, name)) : null; };
+  return Object.fromEntries(Object.entries(keptLists(out, vibeStore().marks[agentId] ?? {})).flatMap(([step, list]): [string, string | null][] => {
+    if (!list) return [];
+    if (!Object.hasOwn(list, rel)) return [[step, null]];
+    const validated = read(list[rel]);
+    return validated === null ? [] : [[step, validated]];
+  }));
 }
 
 // Le début d'un fichier ordinaire, au plus `max` octets, par un descripteur (jamais
@@ -112,6 +131,7 @@ async function pushFollowed(dir: string) {
   }
   const at = !me.disk || me.module ? await versions(dir, me.agentId, me.rel, me.commit) : undefined;
   if (followed !== me || n !== pushes) return;
+  if (at && me.module && lastView(me.agentId)?.flow === 'create') at.validations = validationsOf(me.agentId, me.rel);
   if (!me.disk) { push({ id: me.id, text: me.commit ? at?.head ?? null : null, time: 0, at }); return; }
   const file = fileOf(dir, me.rel);
   const read = file ? readTimed(file) : null;
@@ -134,11 +154,11 @@ export function followCode(id: unknown): void {
   const view = lastView(agent.id);
   const found = codeFile(view, id);
   const commit = found ? null : commitFile(view, id);
-  const file = found ? fileOf(agent.dir, found.path) : commit ? null : textArtifact(agent.id, id);
-  const deleted = !file && !!(found?.module?.files ?? view?.files)?.find((f) => f.id === id)?.deleted;
+  const file = found ? (found.review ? null : fileOf(agent.dir, found.path)) : commit ? null : textArtifact(agent.id, id);
+  const deleted = !file && !!(found?.review ?? (found?.module?.files ?? view?.files)?.find((f) => f.id === id))?.deleted;
   if (!file && !commit && !deleted) { push(null); return; }
   const me: Followed = {
-    agentId: agent.id, id, rel: found?.path ?? commit?.path ?? file!, module: !!(found?.module ?? found?.branch), artifact: !found && !commit,
+    agentId: agent.id, id, rel: found?.path ?? commit?.path ?? file!, module: !!(found?.module ?? found?.branch ?? found?.review) || !!view?.invariants?.some((f) => f.id === id), artifact: !found && !commit,
     commit: commit?.hash ?? null, disk: !!file, watcher: null,
   };
   followed = me;
@@ -163,7 +183,7 @@ export function saveCode(id: unknown, text: unknown): SendResult {
   const view = lastView(agent.id);
   if (view?.flow === 'review') return { ok: false, error: T.file };   // le relecteur n'écrit rien
   const found = codeFile(view, followed.id);
-  if (!found || found.path !== followed.rel) return { ok: false, error: T.file };
+  if (!found || found.path !== followed.rel || found.review) return { ok: false, error: T.file };   // `r<i>` : lecture seule
   const locked = codeLock(found.module?.path ?? null, isBusy(agent.id), lockingRuns(agent.id), lang);
   if (locked) return { ok: false, error: locked };
   if (typeof text !== 'string' || Buffer.byteLength(text) > READ_MAX) return { ok: false, error: T.text };

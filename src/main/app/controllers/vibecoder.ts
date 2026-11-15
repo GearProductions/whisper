@@ -150,6 +150,15 @@
  *  questions.md n'a aucune question, « modifiée depuis » si la note a changé pendant la course ; Revérifier ne valide jamais),
  *  clicked oublié. Revalider, un Valider ensuite, ou le relecteur : le verdict aussitôt, aucune course ; conv:vibeMark ne lit
  *  jamais un texte de la page.
+ *  Les validations d'étape (0.15.0, note ecran-statuts) : markVibe sur 'note', 'forme', 'invariants', 'modules'
+ *  (Valider la note, la forme, les invariants, les modules ; retirer : verdict null) et validateVibe (la CLI,
+ *  step.validate : la Forme, les invariants, les modules, jamais la note) passent par validateStep (step-checks),
+ *  d'après le contenu des étapes au dernier relevé (stepContent, ses blobs gardés en mémoire par agent) ; chaque
+ *  validation écrit dans le dossier de sorties de l'agent (versionName) sa liste de fichiers (filesText) et le texte
+ *  de chacun, jamais dans le dépôt ni sous .git/ ; l'index du dépôt n'est jamais touché. Au relevé, blobs : les
+ *  fichiers des modules, les tests et ceux des listes retenues, leur empreinte sur le disque (blobSha du texte lu) et
+ *  au dernier commit (gitReader.show('HEAD'), blobSha) ; validated : la liste retenue de chaque étape validée.
+ *  Retirés : « file: », « step: », Revalider, gestureFiles, retainSteps.
  *  La note de référence du surlignage (0.15.0, note ecran-humain-ia ; core/vibecoder note-ref, en mémoire par agent) :
  *  posée une fois, au premier relevé où l'agent ou une course qui modifie la branche travaille (nextRef) ; ensuite
  *  remplacée seulement par Vu (setVibe seen) et la validation de la note (markVibe 'note' 'ok' : Valider, Revalider,
@@ -173,7 +182,8 @@ import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
 import { START, type CommandError } from 'core/commands';
 import {
-  addComment, artifactOf, beforeOf, blobSha, buildMessage, designEnd, hasComment, noteClick, parseQuestions, vibeMarks, ARTIFACT_OPS, DIRECT_ACTIONS, DIRECT_ONLY, editComment, findNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath, nextRef,
+  addComment, artifactOf, beforeOf, blobSha, buildMessage, designEnd, hasComment, noteClick, parseQuestions, skeletonMarks, vibeMarks, ARTIFACT_OPS, DIRECT_ACTIONS, DIRECT_ONLY, editComment, findNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath, nextRef,
+  CHECKED, filesText, parseFiles, stepContents, validateStep, versionName, type CheckedStep, type FileBlobs, type Marks, type StepContent, type StepFiles,
   blockedBy, BRANCH_CHANGES, lockCode, lockText, ELSEWHERE, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeRole, vibeView, whoOf, type ActionDef, type MessageError, type NoteRef,
 } from 'core/vibecoder';
 import { draftText, isVerdict } from 'shared/review';
@@ -259,6 +269,9 @@ const prsFound = new Map<string, { mine: unknown[]; review: unknown[]; all: unkn
 const requests = new Map<string, { text: string; branch?: string }>();  // new-request : la demande partie, par agent (en mémoire), puis sa branche
 const clicked = new Map<string, string>();     // Valider la note a lancé la vérification de conception : par agent, l'empreinte de la note que le clic avait sous les yeux
 const designSeen = new Map<string, number>();  // par agent : le départ de la dernière course design-check dont la fin est rangée
+// Par agent : la course forme suivie (son départ), les empreintes de ses fichiers de module au départ (null : pas vues),
+// et si sa fin est rangée (les squelettes retenus, skeletonMarks).
+const formeSeen = new Map<string, { since: number; before: Map<string, string | null> | null; done: boolean }>();
 const firstNotes = new Map<string, string>();   // … puis par agent qui la prend (lui, ou l'enfant né d'elle) : sa note à rédiger, à son premier relevé
 let shown: string | null = null;           // l'agent dont le panneau a le relevé (null : aucun, ou null envoyé)
 let lastAt = 0;
@@ -464,6 +477,94 @@ function firstNote(agent: AgentConfig, view: VibeView, cfg: Config) {
   if (sent.ok || sent.invalid) firstNotes.delete(agent.id);
 }
 
+// Le dernier commit : l'empreinte d'un fichier à un commit (null : absent), retenue par dépôt, commit et chemin ;
+// un commit ne change pas, git n'est donc lu qu'une fois par fichier et par commit.
+// ponytail: un échec de git (délai) y est retenu comme une absence jusqu'au commit suivant ; borné, vidé au-delà de 5 000 entrées.
+const headBlobs = new Map<string, string | null>();
+// Les empreintes que le relevé a vues, par relevé : ce sur quoi un geste de validation juge (stepContent).
+const viewBlobs = new WeakMap<VibeView, FileBlobs[]>();
+
+// Les fichiers des étapes : ceux que change la branche (modules, tests) et ceux des listes retenues ; l'empreinte de leur texte
+// sur le disque (déjà lu au relevé : read) et au dernier commit (git show, en lecture seule ; un git par fichier au plus,
+// la première fois), par lots de FILE_GITS à la fois.
+const FILE_GITS = 8;
+
+// Un fichier que `read` refuse (au-delà de READ_MAX) : son empreinte tout de même, pour qu'il ne passe pas pour absent ;
+// null : absent, un lien ou illisible. Les octets sont hachés tels quels, sans décodage en chaîne (la limite d'une chaîne V8).
+function bigBlob(dir: string, rel: string) {
+  const file = safePath(dir, rel, fs.realpathSync.native);
+  try { return file && fs.lstatSync(file).isFile() ? blobSha(fs.readFileSync(file)) : null; } catch { return null; }
+}
+
+async function fileBlobs(
+  dir: string, git: ReturnType<typeof gitReader>, head: string, paths: string[], read: (rel: string) => string | null,
+): Promise<FileBlobs[]> {
+  if (headBlobs.size > 5000) headBlobs.clear();
+  const one = async (rel: string): Promise<FileBlobs> => {
+    const text = read(rel);
+    const key = `${dir}\0${head}\0${rel}`;
+    if (!headBlobs.has(key)) {
+      const at = await git.show('HEAD', rel);
+      headBlobs.set(key, at === null ? null : blobSha(at));
+    }
+    return { path: rel, disk: text === null ? bigBlob(dir, rel) : blobSha(text), head: headBlobs.get(key) ?? null };
+  };
+  const unique = [...new Set(paths)];
+  const out: FileBlobs[] = [];
+  for (let i = 0; i < unique.length; i += FILE_GITS) out.push(...await Promise.all(unique.slice(i, i + FILE_GITS).map(one)));
+  return out;
+}
+
+// La liste retenue de chaque étape validée (la marque 'ok' et sa liste dans <sorties>/validated/) ; null : illisible.
+// Aussi lue par module-code (le texte d'un fichier à la validation).
+export function keptLists(out: string, marks: Marks): Partial<Record<CheckedStep, StepFiles | null>> {
+  return Object.fromEntries((['forme', 'invariants', 'modules'] as const).flatMap((step) => {
+    const mark = Object.hasOwn(marks, step) ? marks[step] : undefined;
+    const name = mark?.verdict === 'ok' && mark.files ? versionName(mark.files) : null;
+    const text = name ? readFile(path.join(out, name)) : null;
+    return name ? [[step, text === null ? null : parseFiles(text)]] : [];
+  }));
+}
+
+// Retient un texte dans <sorties>/validated/<empreinte> (adressé par son contenu : déjà là, rien à refaire) ; jamais dans le
+// dépôt ni sous .git/. Une écriture qui échoue ne bloque rien : la version manquera au diff « Depuis la validation ».
+function keep(out: string, hash: string, text: string) {
+  const name = versionName(hash);
+  if (!name) return;
+  try {
+    fs.mkdirSync(path.join(out, 'validated'), { recursive: true });
+    fs.writeFileSync(path.join(out, name), text, { flag: 'wx' });
+  } catch { /* EEXIST : déjà retenue ; autre échec : voir plus haut */ }
+}
+
+// Ce que valide une étape : sa liste (sous l'empreinte de sa marque) et le texte de chaque fichier (sous la sienne), le texte du
+// disque s'il est celui que le relevé a vu (sinon le relevé suivant décoche l'étape). La note n'a aucun fichier.
+function retain(agent: AgentConfig, step: CheckedStep, { files }: StepContent) {
+  if (step === 'note') return;
+  const out = vibeOutDir(agent.id);
+  keep(out, blobSha(filesText(files)), filesText(files));
+  for (const [rel, hash] of Object.entries(files)) {
+    const text = onDisk(agent.dir, rel);
+    if (text !== null && blobSha(text) === hash) keep(out, hash, text);
+  }
+}
+
+// Valider (ok) ou retirer la validation (null) d'une étape pour le contenu du dernier relevé (validateStep), ses textes retenus ;
+// false : refusé (rien à valider, l'étape d'avant pas cochée, ou un relecteur hors la note). Rien n'est écrit ailleurs que dans les
+// marques et le dossier de sorties.
+function markStep(agent: AgentConfig, view: VibeView, step: CheckedStep, verdict: 'ok' | null): boolean {
+  if (step !== 'note' && view.flow !== 'create') return false;
+  const store = vibeStore();
+  const before = store.marks[agent.id] || {};
+  const contents = stepContents(view, before, viewBlobs.get(view) ?? []);
+  const after = validateStep(before, contents, step, verdict);
+  if (!after) return false;
+  if (verdict) retain(agent, step, contents[step]!);
+  store.marks[agent.id] = after;
+  saveVibeStore(store);
+  return true;
+}
+
 async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const lang = vibeLang(cfg);
   const { flow, pr } = agentVibe(agent);
@@ -520,10 +621,13 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   // les .md de docs/tickets/ que change la branche (ou la PR).
   const key = repo && noteKey(repo.branch, null);
   const notePath = repo && key ? findNote(repo.changed, key, repo.branch) : null;
-  const noteText = notePath ? onDisk(agent.dir, notePath) : null;
+  // Chaque fichier du projet lu une fois par relevé (la note, les tests, les fichiers à revoir).
+  const disks = new Map<string, string | null>();
+  const diskOf = (rel: string) => { if (!disks.has(rel)) disks.set(rel, onDisk(agent.dir, rel)); return disks.get(rel) ?? null; };
+  const noteText = notePath ? diskOf(notePath) : null;
   // Les tests de la branche, et leur empreinte, qui nomme leur lecture.
   const tests = (repo?.changed ?? []).filter(isTest).flatMap((p) => {
-    const text = onDisk(agent.dir, p);
+    const text = diskOf(p);
     return text === null ? [] : [{ path: p, blob: blobSha(text), text }];
   });
   // Le texte d'un test d'invariants à la base (par git seul, I-37) : au commit où la branche part de repo.base (forkPoint,
@@ -569,6 +673,12 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const checkout = facts ? { branch: facts.branch, dirty: facts.dirty.length > 0 } : await checkoutOf(agent.dir);
   // Processus : les commandes du projet, leur état, la recette de la famille (controllers/processes).
   const proc = processView(agent, cfg);
+  // Les validations (le créateur seul valide les étapes) : la liste retenue de chaque étape validée, et l'empreinte des fichiers
+  // des étapes — ceux que change la branche (modules, tests) et ceux de ces listes.
+  const current = store.marks[agent.id] || {};
+  const validated = role === 'review' || !facts ? {} : keptLists(out, current);
+  const listed = Object.values(validated).flatMap((files) => Object.keys(files ?? {}));
+  const blobs = role === 'review' || !facts ? [] : await fileBlobs(agent.dir, git, facts.head, [...(repo?.changed ?? []), ...listed], diskOf);
   const journey = vibeView({
     agentId: agent.id, lang, modulesView: vibeModulesView(cfg), flow: role, pr, people, login, vibe: vibeOn(agent.id),
     agent: { model: agent.model || '', effort: agent.effort || '', mode: agent.mode || 'default' },
@@ -581,7 +691,9 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     tests: based,
     readings,
     outputs,
-    marks: store.marks[agent.id] || {},
+    marks: current,
+    blobs,
+    validated,
     draft: role === 'review' && pr ? store.drafts[agent.id]?.[pr] || [] : [],
     worktree,   // Dans un worktree (pr-worktree, direct) en cours
     child: !!agentParent(agent),
@@ -600,15 +712,42 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     exists: (rel) => { const file = safePath(agent.dir, rel, realpath); return !!file && fs.existsSync(file); },
     now: Date.now(),
   });
-  // Vibe en cours : les étapes faites reçoivent leur ✓, qu'elles gardent une fois Vibe fini (F-102).
+  // Les squelettes de la Forme : au départ d'une course forme, les empreintes des fichiers de module ; à sa fin réussie, celles
+  // qu'elle a laissées (skeletonMarks) : un fichier encore identique est « à générer » (journey : skeleton).
+  const forme = runsOf(agent).filter((r) => r.id === 'forme').at(-1);
+  if (forme && role === 'create') {
+    const seen = formeSeen.get(agent.id);
+    const paths = journey.modules.flatMap((m) => (m.files ?? []).filter((f) => !f.deleted).map((f) => f.path));
+    if (seen?.since !== forme.since) {
+      const disk = new Map(blobs.map((b) => [b.path, b.disk]));
+      // Déjà finie quand on la voit (l'appli relancée, ou ce code nouveau) : rien de retenu, on ne sait pas ce qu'elle a écrit.
+      const ended = forme.state !== 'running';
+      formeSeen.set(agent.id, { since: forme.since, before: ended ? null : new Map(paths.map((p) => [p, disk.get(p) ?? null])), done: ended });
+    }
+    const now = formeSeen.get(agent.id)!;
+    if (!now.done && forme.state === 'done') {
+      now.done = true;
+      const marks = store.marks[agent.id] || {};
+      const next = skeletonMarks(marks, paths, blobs, now.before);
+      if (next !== marks) { store.marks[agent.id] = next; saveVibeStore(store); }
+    }
+  }
+  // Vibe en cours : les étapes faites reçoivent leur ✓ (validateStep), leurs textes retenus ; elles le gardent une fois Vibe fini (F-102).
   if (journey.vibe) {
     const marks = store.marks[agent.id] || {};
-    const next = vibeMarks(marks, journey);
-    if (next !== marks) { store.marks[agent.id] = next; saveVibeStore(store); }
+    const next = vibeMarks(marks, journey, blobs);
+    if (next !== marks) {
+      const contents = stepContents(journey, next, blobs);
+      for (const step of CHECKED) if (next[step] !== marks[step] && contents[step]) retain(agent, step, contents[step]!);
+      store.marks[agent.id] = next;
+      saveVibeStore(store);
+    }
   }
   const artifactsDir = projectArtifactsDir(agent.dir);
   const { artifacts, dirs } = listArtifacts(agent.id, artifactsDir, cfg.artifactTextMax);
-  return { ...journey, ...proc, artifacts, artifactDirs: dirs, artifactsDir, dev: devState() };
+  const view = { ...journey, ...proc, artifacts, artifactDirs: dirs, artifactsDir, dev: devState() };
+  viewBlobs.set(view, blobs);
+  return view;
 }
 
 /* ---- Ce que demande l'écran ------------------------------------------------ */
@@ -1102,13 +1241,19 @@ export function setVibe(patch: unknown) {
   refreshVibe({ now: true });
 }
 
-// ✓, ✗ ou oublier (null), pour le contenu que l'utilisateur a sous les yeux.
+// ✓, ✗ ou oublier (null), pour le contenu que l'utilisateur a sous les yeux. Une étape (note, forme, invariants, modules) :
+// valider (ok) ou retirer la validation (null) par markStep, d'après le dernier relevé ; le ✗ de la note (À revoir du
+// relecteur) : sa marque, pour l'empreinte de targetHash, comme toute autre cible ; un ✗ sur une autre étape : ignoré.
 export function markVibe(target: unknown, verdict: unknown) {
   const agent = viewAgent();
   const view = agent && last.get(agent.id);
   if (!agent || !view || typeof target !== 'string' || (verdict !== 'ok' && verdict !== 'ko' && verdict !== null)) return;
-  const hash = targetHash(view, target);
-  if (!hash) return;
+  // Le ✗ de la note (À revoir du relecteur) n'est pas une validation d'étape : une marque comme les autres. Un ✗ sur une
+  // autre étape : ignoré.
+  const step = verdict === 'ko' && target === 'note' ? undefined : CHECKED.find((s) => s === target);
+  const hash = step ? null : targetHash(view, target);
+  if (!step && !hash) return;
+  if (step && verdict === 'ko') return;
   // Valider la note (le premier clic, Revalider, un Valider) : la référence du surlignage devient la note du dernier relevé.
   if (target === 'note' && verdict === 'ok' && view.note) noteRefs.set(agent.id, { path: view.note.path, text: view.note.text });
   const store = vibeStore();
@@ -1118,7 +1263,7 @@ export function markVibe(target: unknown, verdict: unknown) {
     const cfg = loadConfig();
     const def = vibeActions(vibeLang(cfg)).find((a) => a.id === 'design-check');
     if (def) {
-      clicked.set(agent.id, hash);
+      clicked.set(agent.id, targetHash(view, 'note')!);
       const sent = startAction(agent, def, {}, view, cfg);
       const held = (sent.reason === 'busy' || sent.reason === 'changing') && sent.by;
       if (held) queueStart(agent, def.id, {}, held);
@@ -1127,9 +1272,28 @@ export function markVibe(target: unknown, verdict: unknown) {
       clicked.delete(agent.id);
     }
   }
-  store.marks[agent.id] = setMark(store.marks[agent.id] || {}, target, hash, verdict);
-  saveVibeStore(store);
+  if (step) markStep(agent, view, step, verdict === 'ok' ? 'ok' : null);
+  else {
+    const before = store.marks[agent.id] || {};
+    store.marks[agent.id] = setMark(before, target, hash!, verdict);
+    saveVibeStore(store);
+  }
   refreshVibe({ now: true });
+}
+
+// La validation d'une étape par la CLI (step.validate, controllers/commands) : la Forme, les invariants, les modules
+// (valider : ok ; retirer la validation : null), jamais la note ; le même geste que markVibe (markStep : validateStep, les textes
+// retenus dans le dossier de sorties). Refus : reason 'step' (invalid-args), 'not-offered' (rien à valider, ou l'étape
+// d'avant pas cochée), 'flow' (relecteur).
+export function validateVibe(agent: AgentConfig, step: unknown, verdict: unknown): Refusal {
+  const lang = vibeLang(loadConfig());
+  const view = lastView(agent.id);
+  if (!view) return fail(lang, 'agent');
+  if ((step !== 'forme' && step !== 'invariants' && step !== 'modules') || (verdict !== 'ok' && verdict !== null)) return { ...fail(lang, 'args'), reason: 'step' };
+  if (view.flow !== 'create') return { ...fail(lang, 'action'), reason: 'flow' };
+  if (!markStep(agent, view, step, verdict)) return { ...fail(lang, 'action'), reason: 'not-offered' };
+  refreshVibe({ now: true });
+  return { ok: true };
 }
 
 // Le brouillon de revue de la PR suivie, du relecteur : ajouter une remarque (sa cible, sur une ligne de 300 caractères

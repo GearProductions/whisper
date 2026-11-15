@@ -39,12 +39,19 @@
  *  seuls, et plus aucun fichier suivi. Sans module : les fichiers de la branche, dans les deux vues, sans
  *  interrupteur. Basculer ne suit plus aucun fichier ; chaque vue suit ensuite le sien. Le point d'état
  *  de la liste vient de moduleState (core).
+ *  La vue IDE porte le menu de diff de l'étape (useIdeDiff 'modules', comme forme-view : bar, l'arborescence
+ *  filtrée, empty ; le fichier choisi : ModuleCode diff ; un supprimé depuis la référence : goneModule, tout en
+ *  retraits ; la liste n'a pas de diff, le relecteur ni menu ni validation) ; Valider les modules (MarkControl
+ *  'modules', dans les actions de la carte entre Générer et Commiter, offert si step.check.now ou validé : Annuler
+ *  reste là) ; « modifiée depuis la validation » (StepHead onSince) passe sur Depuis la validation, en vue IDE
+ *  (note 0.15.0-ecran-statuts). Retirés : ideReview (accordéons, Valider d'un fichier).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useEffect } from 'react';
-import { fileParts, ideFiles, moduleCommits, moduleState, type IdeFile, type ModuleState } from 'core/vibecoder';
+import { checkMark, waitingFor, fileParts, goneModule, ideFiles, moduleCommits, moduleState, type IdeFile, type ModuleState } from 'core/vibecoder';
 import type { VibeLang, VibeModule } from 'technicals/bridge';
 import { CommitsSection } from './commits-view';
 import { Contract } from './forme-view';
+import { useIdeDiff, type IdeDiff } from './ide-diff';
 import { IdeView } from './ide-view';
 import { useKept } from './kept-scope';
 import { MarkdownView } from './markdown-view';
@@ -52,6 +59,7 @@ import { ModuleCode } from './module-code';
 import { PROPOSED_ACTS, ProposedCommit } from './proposed-commit';
 import { Invite, OutputCard, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
+import { MarkControl, waitText } from './validation';
 import './modules-view.css';
 
 const fr = {
@@ -118,16 +126,18 @@ function ModuleTools({ p, m, i, all }: { p: StepProps; m: VibeModule; i: number;
 }
 
 // Vue IDE : à droite, du fichier choisi, les outils de son module puis son code ; sans code, plus aucun fichier suivi.
-function IdeBody({ p, file }: { p: StepProps; file: IdeFile | null }) {
+// Un fichier supprimé depuis la référence du menu de diff (gone) : un module d'un seul fichier, tout en retraits.
+function IdeBody({ p, file, diff }: { p: StepProps; file: IdeFile | null; diff?: IdeDiff }) {
   const { view, t, act } = p;
-  const has = !!file?.code;
+  const code = file?.code ?? (file?.gone ? goneModule(file) : null);
+  const has = !!code;
   useEffect(() => { if (!has) act.follow(null); }, [file?.path, has]);
   const tools = file && file.rank != null ? <ModuleTools p={p} m={view.modules[file.rank]} i={file.rank} all /> : null;
   return (
     <>
-      {file?.code ? null : tools}
-      {file?.code ? (
-        <ModuleCode key={file.path} m={file.code} tools={tools} noTree readOnly={view.flow === 'review' ? S[view.lang].readOnly : undefined} code={p.code} t={t} lang={view.lang} open
+      {code ? null : tools}
+      {code ? (
+        <ModuleCode key={file!.path} m={code} tools={tools} noTree diff={diff && { shown: diff.shown, mode: diff.mode, step: 'modules' }} readOnly={view.flow === 'review' ? S[view.lang].readOnly : undefined} code={p.code} t={t} lang={view.lang} open
           onFollow={act.follow} onSave={act.save} onQuote={(block) => act.prefill('comment', block, true)} drafts={p.drafts} />
       ) : null}
     </>
@@ -151,7 +161,16 @@ export function ModulesView(p: StepProps) {
   const review = reviewer ? undefined : view.outputs['review.md'];
   const counts = view.modules.reduce((n, m) => ({ ...n, [moduleState(m)]: n[moduleState(m)] + 1 }), { done: 0, wip: 0, todo: 0 } as Record<ModuleState, number>);
   const reviewDiff = action('review-diff');
-  const files = ideFiles(view, 'file');
+  // Le menu de diff de la vue IDE : le créateur seul (le relecteur n'a ni check ni diffs).
+  const diff = useIdeDiff(view, 'modules');
+  const check = p.step.check;
+  const cardRun = (id: string) => {
+    const a = action(id);
+    return <Run key={id} a={a} busy={busy} tone={a?.primary ? 'accent' : 'plain'} onRun={(x) => act.run(id, x)} />;
+  };
+  const skel = view.lang === 'en' ? 'To generate: still the forme\'s skeleton' : 'À générer : encore le squelette de la Forme';
+  const files = reviewer ? ideFiles(view, 'file', skel) : diff.filter(ideFiles(view, 'file', skel));
+  const menu = reviewer ? {} : { bar: diff.bar, empty: diff.empty };
   const hasModules = view.modules.length > 0;
   const ide = mode === 'ide' || !hasModules;   // sans module : les fichiers de la branche, dans les deux vues
   const switchTo = (k: 'ide' | 'list') => { act.follow(null); setMode(k); act.set({ modulesView: k }); };
@@ -160,7 +179,7 @@ export function ModulesView(p: StepProps) {
   useEffect(() => { if (!ide && opened && !openedFiles) act.follow(null); }, [ide, opened, openedFiles]);
   return (
     <>
-      <StepHead p={p} own={reviewer
+      <StepHead p={p} onSince={reviewer ? undefined : () => { diff.showValidated(); if (!ide) switchTo('ide'); }} own={reviewer
         ? ['review-commits']
         : [...(commit ? PROPOSED_ACTS : []), 'commit-prepare', 'review-diff', 'commit-modules', 'module', ...(hasModules ? CARD_ACTS : [])]} />
       <ProposedCommit p={p} />
@@ -170,12 +189,15 @@ export function ModulesView(p: StepProps) {
           <MarkdownView md={review.text} t={t} tagged onOpenLink={act.openLink} onQuote={quote} />
         </OutputCard>
       ) : null}
-      {hasModules || files.length ? (
+      {hasModules || ideFiles(view, 'file').length ? (
         <OutputCard className="vc-modules" title={s.modules} t={t} acts={hasModules && !reviewer ? (
-          [...CARD_ACTS, ...(view.modules.some((m) => m.uncommitted) ? ['commit-modules'] : [])].map((id) => {
-            const a = action(id);
-            return <Run key={id} a={a} busy={busy} tone={a?.primary ? 'accent' : 'plain'} onRun={(x) => act.run(id, x)} />;
-          })
+          <>
+            {CARD_ACTS.map(cardRun)}
+            {check && (check.now != null || check.state === 'ok' || waitingFor(view.steps, 'modules')) ? (
+              <MarkControl what="modules" state={checkMark(check)} review={false} lang={view.lang} onMark={(v) => act.mark('modules', v)} waiting={waitText(view, 'modules')} />
+            ) : null}
+            {view.modules.some((m) => m.uncommitted) ? cardRun('commit-modules') : null}
+          </>
         ) : undefined} tools={(
           <>
             {hasModules ? (
@@ -196,7 +218,7 @@ export function ModulesView(p: StepProps) {
         )}>
           {ide ? (
             <div className="vc-mod-ide">
-              <IdeView files={files}>{(file) => <IdeBody p={p} file={file} />}</IdeView>
+              <IdeView files={files} {...menu}>{(file) => <IdeBody p={p} file={file} diff={reviewer ? undefined : diff} />}</IdeView>
             </div>
           ) : <ul className="vc-mod-list">
             {view.modules.map((m, i) => {

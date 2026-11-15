@@ -604,6 +604,7 @@ vibecoder run wait forme               # rend la main à la fin de la course
 vibecoder run list | run stop <action>
 vibecoder proc list | proc logs <nom> | proc restart <nom> | proc stop <nom>
 vibecoder draft.add target=… text=…    # toute commande de la table : <commande> [clé=valeur…]
+vibecoder step.validate step=modules verdict=ok   # valider une étape (forme, invariants, modules ; jamais la note) ; sans verdict : la retirer
 vibecoder commands | schema <commande> # la table, sans l'appli ; --json : une ligne
 ```
 
@@ -758,8 +759,8 @@ relire une PR (le relecteur, plus bas) :
    (*Structure*) ou son code en diff depuis la base de la branche (*Code* :
    tout en vert pour un module neuf). Sans Forme, l'arborescence montre les
    fichiers que change la branche. La note (ou sa Forme) modifiée après avoir
-   été commitée, par vous ou par l'agent : l'étape revient « en cours », avec
-   « note modifiée depuis son commit » ; une fois la note et la forme
+   été commitée, par vous ou par l'agent : l'étape revient « en cours » (et sa validation est
+   décochée si ce qu'elle validait a changé, voir *Valider chaque étape*, plus bas) ; une fois la note et la forme
    revalidées, *Préparer le commit* en fait un fixup du premier commit
    (`fixup! <son sujet>`, affiché dans la carte du commit proposé), puis
    *✓ Commiter* ; *Replier les fixups*, à la Revue, le fond dans son commit.
@@ -787,9 +788,11 @@ relire une PR (le relecteur, plus bas) :
    `when`, `then` — une ligne `then` par assertion), quel que soit le
    langage du test, avec ses cas limites, ce qu'il garantit, et un
    point d'attention s'il n'observe pas vraiment la propriété ; *Code* montre le code
-   d'origine du cas à la place du pseudo-code, *Voir le fichier* le fichier
-   entier, colorés comme sur GitHub (TypeScript / JavaScript, Rust, Python,
-   Go ; un autre langage : sans couleurs) et modifiables comme la note ; un
+   d'origine du cas à la place du pseudo-code, son bloc seul, *Voir le fichier*
+   le fichier entier (*Ouvrir* l'ouvre dans votre éditeur), colorés comme sur GitHub (TypeScript / JavaScript, Rust, Python,
+   Go ; un autre langage : sans couleurs) et modifiables comme la note ; enregistrer le bloc
+   d'un cas ne change que ses lignes dans le fichier, et se refuse si le fichier a
+   changé sur le disque depuis son ouverture ; un
    test qui existait déjà et que la branche modifie : *Diff depuis la base de
    la branche*, en ligne ou côte à côte, le test entier, ses lignes
    retirées, modifiées et ajoutées marquées ;
@@ -806,7 +809,8 @@ relire une PR (le relecteur, plus bas) :
    a fini, ou par *Rien à écrire* (à revalider si la note change ;
    pendant *Vibe* aussi).
 4. **Modules** : deux boutons, *Générer les modules* puis *Commiter les
-   modules*. On génère tout (ou un module à la fois, avec *Générer* sur sa
+   modules*. Un fichier encore identique au squelette de la Forme est en retrait,
+   « à générer » : on voit d'un coup d'œil ce qui reste à écrire. On génère tout (ou un module à la fois, avec *Générer* sur sa
    ligne : ses variants écrits d'abord et vus rouges, puis le code (TDD),
    `ponytail`, typecheck et tests du module lancés, sans commit, avec la boucle de
    *Générer les modules* pour un seul : son diff relu, les défauts corrigés, les
@@ -919,6 +923,43 @@ nouvelle) ; *Voir les modifications* : le diff brut ; *Vu* ou la validation de l
 note : ne plus surligner ni barrer ; un nouveau tour ne l'efface pas, les
 modifications s'accumulent. Le badge *variant* de
 la note est d'un bleu plus clair que *invariant*.
+
+**Valider chaque étape, voir ce qui a changé** (créateur). Chaque étape a sa validation,
+le même geste partout : *Valider la note*, *Valider la forme*, *Valider les
+invariants* (quand tous les cas ont leur ✓, ou *Rien à écrire* ; les cas gardent leurs
+verdicts) et *Valider les modules*, puis *Annuler* pour la retirer. Elle retient ce que
+l'étape a validé : la conception de la note (sans sa rubrique Forme), la rubrique
+Forme, les fichiers de test, et pour les modules tout ce que la branche change d'après git
+(hors la note et les tests d'invariants). Ces versions sont
+gardées dans le dossier de sorties de l'agent (`validated/<empreinte>`), jamais dans le
+dépôt ni sous `.git/` ; l'index git n'est jamais touché : un `git add` ou un commit ne
+valide rien, et un commit ne change pas une validation.
+
+Qui que ce soit qui modifie ce qu'une étape a validé (vous, à la main, ou un agent),
+l'étape perd sa coche, et celles qui suivent aussi (note, Forme, Invariants, Modules) :
+son en-tête dit « modifiée depuis la validation » (un clic passe la vue IDE sur *Depuis
+la validation*), les suivantes « à revoir : la note a changé » (la première étape
+décochée). Revalider une étape ne recoche pas les suivantes : chacune se revalide, puisqu'elle
+ne tient peut-être plus. Changer la seule rubrique Forme de la note ne décoche pas la
+note, seulement la Forme et ce qui suit. *Commiter les modules* est grisé (« modules pas
+validés ») tant que les modules ne sont pas validés (pas pendant *Vibe*).
+
+**Le menu de diff de la vue IDE** (créateur : Forme, Invariants, Modules). Un seul menu
+en tête de la vue : *Fichier* · *Depuis la base de la branche* (par défaut) · *Depuis le
+dernier commit* (grisé tant que la branche n'a aucun commit, ou que rien ne diffère du dernier commit) · *Depuis la validation* (seulement si l'étape a une validation), puis *En
+ligne* · *Côte à côte*. Il vaut pour toute la vue, plus pour le seul fichier affiché :
+l'arborescence ne liste que les fichiers qui diffèrent de la référence choisie, comme
+`git status` (suppressions et fichiers hors de la Forme compris), et le
+fichier choisi montre son diff depuis elle (ajouts en vert, retraits barrés en rouge ;
+un fichier créé : tout en ajouts, supprimé : tout en retraits). Aucun fichier : « Rien de
+modifié depuis … ». À l'étape Invariants, la case *Invariants seuls* (cochée par défaut)
+ne garde que les tests d'invariants ; décochée, le reste suit, en retrait.
+
+**L'agent principal revalide.** Si vous testez, demandez une correction et qu'il la fait
+lui-même, il relance ce qu'il faut et revalide les étapes touchées par la CLI
+(`vibecoder step.validate step=forme|invariants|modules verdict=ok` ; jamais la note,
+dont la conception est à vous), puis vous dit ce qu'il a modifié et revalidé : vous le
+relisez avec *Depuis la validation*.
 
 **Relecteur** — la PR de la branche du dossier. Pas de bouton à choisir :
 l'appli décide d'après la PR. Vous êtes **relecteur**, par défaut, sur une PR
@@ -1146,8 +1187,10 @@ n'attend vos validations, et les étapes qu'il passe les gardent. En deux temps 
 pas. *Vibe* ne survit pas à un redémarrage de l'appli : relancez-le pour
 reprendre.
 
-**Qui travaille, ce que ça coûte.** Chaque bouton dit qui travaille :
-*haiku*, *sonnet · moyen*, *opus · élevé*… ou *agent* (le modèle de l'agent).
+**Qui travaille, ce que ça coûte.** Chaque action sait qui travaille :
+*haiku*, *sonnet · moyen*, *opus · élevé*… ou *agent* (le modèle de l'agent) ;
+le bouton ne l'affiche pas, son infobulle le dit (« — sonnet »), ainsi que celle de
+« via » ; seul « direct » reste sur le bouton.
 Ce qui se suffit à soi-même tourne à part, sans relire la conversation : son
 prix ne dépend pas de la longueur de celle-ci (≈ 0,02 $ sur Haiku : lister ou
 charger une PR, lancer les vérifications, commiter, publier une revue,
@@ -1173,8 +1216,8 @@ de chaque skill qui fixe son modèle (`<nom>--haiku`, `--sonnet`, `--opus`). La
 rubrique propose aussi l'**effort**, à côté du modèle : sans choix, celui du skill
 (ou de la variante du modèle choisi) ; le choix est enregistré dans `config.json` :
 il vaut pour tous les agents et tient après un redémarrage (variantes
-`<nom>--<modèle>--<effort>`, cachées des commandes « / »). Le bouton de l'action
-dit qui travaille d'après ce choix.
+`<nom>--<modèle>--<effort>`, cachées des commandes « / »). L'infobulle du bouton
+de l'action dit qui travaille d'après ce choix.
 *Vibe* tourne dans la conversation de l'agent : pour le passer sur Sonnet,
 passez l'agent sur Sonnet (menu du robot ou barre d'état) avant de lancer
 *Vibe*. VibeCoder ne passe jamais un

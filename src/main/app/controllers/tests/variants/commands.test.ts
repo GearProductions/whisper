@@ -18,7 +18,7 @@ import { closeAll, fakeClaude, fakeElectron, openPanel, profile, repo, repoResou
 const fake = vi.hoisted(() => ({
   userData: '',
   view: null as unknown,
-  start: vi.fn(), survey: vi.fn(), queue: vi.fn(), direct: vi.fn(), refresh: vi.fn(), run: vi.fn(), vibeStart: vi.fn(), proc: vi.fn(), artifact: vi.fn(), draft: vi.fn(),
+  start: vi.fn(), survey: vi.fn(), queue: vi.fn(), direct: vi.fn(), refresh: vi.fn(), run: vi.fn(), vibeStart: vi.fn(), proc: vi.fn(), artifact: vi.fn(), draft: vi.fn(), validate: vi.fn(),
   shown: null as unknown,   // le robot affiché (viewAgent)
   halted: false,            // le mode Vibe du robot est arrêté (vibeHalted)
 }));
@@ -28,7 +28,7 @@ vi.mock('technicals/paths', async (original) => ({
   resourcePath: (name: string) => `${process.cwd()}/resources/${name}`,
 }));
 vi.mock('app/controllers/vibecoder', () => ({
-  lastView: () => fake.view, surveyAgent: fake.survey, startAction: fake.start, runDirect: fake.direct, refreshVibe: fake.refresh, editDraft: fake.draft,
+  lastView: () => fake.view, surveyAgent: fake.survey, startAction: fake.start, runDirect: fake.direct, refreshVibe: fake.refresh, editDraft: fake.draft, validateVibe: fake.validate,
 }));
 vi.mock('app/controllers/artifacts', () => ({ readArtifact: fake.artifact }));
 vi.mock('app/controllers/agents', () => ({ viewAgent: () => fake.shown, real: (d: string) => { try { return fs.realpathSync.native(d); } catch { return null; } } }));
@@ -48,9 +48,10 @@ beforeEach(() => {
   fake.view = view;
   fake.shown = null;
   fake.halted = false;
-  for (const f of [fake.start, fake.survey, fake.queue, fake.direct, fake.refresh, fake.run, fake.vibeStart, fake.proc, fake.artifact, fake.draft]) f.mockReset();
+  for (const f of [fake.start, fake.survey, fake.queue, fake.direct, fake.refresh, fake.run, fake.vibeStart, fake.proc, fake.artifact, fake.draft, fake.validate]) f.mockReset();
   fake.artifact.mockResolvedValue({ name: 'a.md', kind: 'markdown', text: 'x', truncated: false });
   fake.draft.mockReturnValue({ ok: true });
+  fake.validate.mockReturnValue({ ok: true });
   fake.start.mockReturnValue({ ok: true });
   fake.direct.mockReturnValue({ ok: true });
   fake.run.mockResolvedValue(true);
@@ -102,6 +103,14 @@ describe('runCommand', () => {
     const res = await runCommand(agent, { command: 'run.start', args: { action: 'fantome' }, door: 'agent' });
     expect(res.ok).toBe(false);
     expect(fake.start).not.toHaveBeenCalled();
+  });
+
+  it('step.validate : validateVibe avec le robot, l’étape et le verdict (retirer, none : null) ; son refus traduit', async () => {
+    expect((await runCommand(agent, { command: 'step.validate', args: { step: 'modules', verdict: 'ok' }, door: 'agent' })).ok).toBe(true);
+    await runCommand(agent, { command: 'step.validate', args: { step: 'forme', verdict: 'none' }, door: 'agent' });
+    expect(fake.validate.mock.calls).toEqual([[agent, 'modules', 'ok'], [agent, 'forme', null]]);
+    fake.validate.mockReturnValue({ ok: false, error: 'non', reason: 'not-offered' });
+    expect(await runCommand(agent, { command: 'step.validate', args: { step: 'forme', verdict: 'ok' }, door: 'agent' })).toMatchObject({ ok: false, error: { code: 'not-offered' } });
   });
 
   it('status : le relevé du robot, sans son id', async () => {

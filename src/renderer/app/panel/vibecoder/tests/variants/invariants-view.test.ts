@@ -1,18 +1,22 @@
 // @vitest-environment happy-dom
-// InvariantsView (invariants-view.tsx) : Voir le fichier d'un test modifié (f.base) → Fichier · Diff depuis la
-// base de la branche, le diff entier en lecture seule (Relire : de f.base à f.source ; Créer : au texte de
-// l'éditeur) ; un test ajouté, pas de sélecteur ; Lire en pseudo-code dans les outils de l'en-tête, même action ;
+// InvariantsView (invariants-view.tsx) : Voir le fichier d'un test : le diff entier en lecture seule depuis la
+// référence du menu de la vue IDE (Relire : de f.base à f.source ; Créer : au texte de l'éditeur ; Fichier :
+// l'éditeur) ; Lire en pseudo-code dans les outils de l'en-tête, même action ;
 // 💬 et Ouvrir en IconButton (nommés, 💬 pressé pendant la saisie en Relire), l'état et Tout valider : une icône et leur texte ;
 // vue IDE : les tests et les fichiers de la Forme à gauche (nom coloré d'après leur base), le premier choisi d'emblée, un clic montre ses cartes seules (en-tête et boutons
 // intacts) et referme le fichier ouvert de l'autre ;
 // un fichier de la Forme : son code en lecture seule (touché) ou son contrat ; sous Garantit, ce que garde le cas (lien vers la note) ;
-// le verdict d'un cas : deux badges écrits dans son en-tête, celui donné pressé ; À revoir, selon le flux : cite le cas ou ouvre la zone de commentaire.
+// le verdict d'un cas : deux badges écrits dans son en-tête, celui donné pressé ; À revoir, selon le flux : cite le cas ou ouvre la zone de commentaire ;
+// note 0.15.0-ecran-statuts : Code d'un cas (créateur) : le bloc seul, enregistré le fichier dont seul le bloc change, grisé s'il est verrouillé ;
+// le menu de diff de la vue IDE (arborescence filtrée, un fichier supprimé en retraits, « modifiée depuis la validation »)
+// et Valider les invariants (MarkControl, offert si step.check.now) ; relecteur : pas de validation.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EditorView } from '@codemirror/view';
 import { beforeEach, expect, it } from 'vitest';
 import { createKept, scoped, t } from 'core/vibecoder';
-import type { VibeAction, VibeModule, VibeTestFile, VibeView } from 'technicals/bridge';
+import type { VibeAction, VibeModule, VibeStep, VibeTestFile, VibeView } from 'technicals/bridge';
+import type { Drafts } from '../../file-draft';
 import { InvariantsView } from '../../invariants-view';
 import { KeptScope } from '../../kept-scope';
 import type { StepProps } from '../../step-views';
@@ -32,17 +36,20 @@ let prefills: unknown[][] = [];
 let drafts: unknown[][] = [];
 let goes: unknown[] = [];
 let follows: unknown[][] = [];
+let saves: unknown[][] = [];
+let stored: Drafts = {};   // les modifications gardées au-dessus de l'étape
 let pushed: unknown = null;   // le texte poussé par le principal (props.code)
 let extra: Partial<VibeView> = {};   // ce que la vue a de plus (modules, note)
-beforeEach(() => { runs = []; marks = []; prefills = []; drafts = []; goes = []; follows = []; pushed = null; extra = {}; act(() => root.render(null)); });
+beforeEach(() => { runs = []; marks = []; prefills = []; drafts = []; goes = []; follows = []; saves = []; stored = {}; pushed = null; extra = {}; act(() => root.render(null)); });
 const draw = (f: VibeTestFile | VibeTestFile[], flow: 'create' | 'review', files: unknown[] = [], draft: unknown[] = [], kept?: ReturnType<typeof scoped>) => act(() => {
-  const view = { lang: 'fr', flow, actions: [read], invariants: [f].flat(), files, outputs: {}, note: null, steps: [], modules: [], questions: [], checklist: [], draft, ...extra } as unknown as VibeView;
-  const props = { view, step: { id: 'invariants', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
-    code: pushed, drafts: [{}, () => {}], goToNote: (l: unknown) => goes.push(l), act: { run: (...a: unknown[]) => runs.push(a), follow: (...a: unknown[]) => follows.push(a), mark: (...a: unknown[]) => marks.push(a), prefill: (...a: unknown[]) => prefills.push(a),
-      draft: (...a: unknown[]) => drafts.push(a), open: (...a: unknown[]) => runs.push(['open', ...a]), openLink: () => {}, save: async () => true } } as unknown as StepProps;
+  const view = { lang: 'fr', flow, actions: [read], invariants: [f].flat(), files, outputs: {}, note: null, steps: [], modules: [], questions: [], checklist: [], commits: [{ hash: 'h1', subject: 's', files: [] }], draft, ...extra } as unknown as VibeView;
+  const props = { view, step: { id: 'invariants', status: 'current', facts: '', open: true, ...extra.steps?.[0] }, t: t('fr'), busy: false, text: '', setText: () => {},
+    code: pushed, drafts: [stored, () => {}], goToNote: (l: unknown) => goes.push(l), act: { run: (...a: unknown[]) => runs.push(a), follow: (...a: unknown[]) => follows.push(a), mark: (...a: unknown[]) => marks.push(a), prefill: (...a: unknown[]) => prefills.push(a),
+      draft: (...a: unknown[]) => drafts.push(a), open: (...a: unknown[]) => runs.push(['open', ...a]), openLink: () => {}, save: async (...a: unknown[]) => { saves.push(a); return true; } } } as unknown as StepProps;
   root.render(kept ? createElement(KeptScope.Provider, { value: kept }, createElement(InvariantsView, props)) : createElement(InvariantsView, props));
 });
 const src = () => page.querySelector('details.vc-ifile-src') as HTMLDetailsElement;
+const showAll = () => act(() => page.querySelector<HTMLInputElement>('.vc-only-inv input')!.click());
 const pick = (v: string) => act(() => {
   const s = page.querySelector('select.vc-mod-shown') as HTMLSelectElement;
   s.value = v;
@@ -50,34 +57,44 @@ const pick = (v: string) => act(() => {
 });
 const docs = () => [...page.querySelectorAll('.vc-mdiff .cm-editor')].map((e) => EditorView.findFromDOM(e as HTMLElement)!.state.doc.toString());
 
-it('Relire : un test modifié, Fichier · Diff depuis la base ; le diff de f.base à f.source', async () => {
+it('Voir le fichier : le diff depuis la base, entier, en lecture seule (Relire : de f.base à f.source) ; En ligne · Côte à côte', async () => {
   await draw(test({ base: 'const a = 1;\n' }), 'review');
   const s = page.querySelector('select.vc-mod-shown') as HTMLSelectElement;
-  expect([...s.options].map((o) => o.textContent)).toEqual(['Fichier', 'Diff depuis la base de la branche']);
-  expect(page.querySelector('.vc-mdiff')).toBeNull();
-  await pick('base');
+  expect([...s.options].map((o) => o.textContent)).toEqual(['Fichier', 'Depuis la base de la branche', 'Depuis le dernier commit (rien de modifié)']);
   expect(docs()).toEqual(['const a = 2;\n']);
   await act(async () => [...page.querySelectorAll<HTMLButtonElement>('.vc-seg button')].find((b) => b.textContent === 'Côte à côte')!.click());
   expect(docs()).toEqual(['const a = 1;\n', 'const a = 2;\n']);
+  await pick('file');
+  expect(page.querySelector('.vc-mdiff')).toBeNull();
 });
 
-it('un test ajouté (base null ou absente) : pas de sélecteur', async () => {
+it('un test ajouté (base null) : tout en ajouts ; base inconnue (absente) : le fichier', async () => {
   await draw(test({ base: null }), 'review');
-  expect(page.querySelector('select.vc-mod-shown')).toBeNull();
-  await draw(test(), 'create');
-  await act(async () => { src().open = true; src().dispatchEvent(new Event('toggle')); });
-  expect(page.querySelector('select.vc-mod-shown')).toBeNull();
+  expect(docs()).toEqual(['const a = 2;\n']);
+  await draw(test(), 'review');
+  expect(page.querySelector('.vc-mdiff')).toBeNull();
 });
 
-it('Créer : ouvert, Fichier modifiable ; le diff, en lecture seule, jusqu\'au texte de l\'éditeur (le disque absent : f.source)', async () => {
+it('Créer : ouvert, le diff en lecture seule jusqu\'au texte de l\'éditeur ; Fichier : l\'éditeur modifiable', async () => {
+  pushed = { id: 't0', text: 'const a = 2;\n', time: 1 };
   await draw(test({ base: 'const a = 1;\n' }), 'create');
-  expect(page.querySelector('select.vc-mod-shown')).toBeNull();   // fermé
+  expect(page.querySelector('.vc-mdiff')).toBeNull();   // fermé : rien de suivi
   await act(async () => { src().open = true; src().dispatchEvent(new Event('toggle')); });
-  expect(page.querySelector('select.vc-mod-shown')).not.toBeNull();
-  await pick('base');
   expect(docs()).toEqual(['const a = 2;\n']);
-  const v = EditorView.findFromDOM(page.querySelector('.vc-mdiff .cm-editor') as HTMLElement)!;
-  expect(v.state.readOnly).toBe(true);
+  expect(EditorView.findFromDOM(page.querySelector('.vc-mdiff .cm-editor') as HTMLElement)!.state.readOnly).toBe(true);
+  await pick('file');
+  expect(page.querySelector('.vc-mdiff')).toBeNull();
+  expect(EditorView.findFromDOM(src().querySelector('.cm-editor') as HTMLElement)!.state.readOnly).toBe(false);
+});
+
+it('Créer : Depuis le dernier commit, de at.head (poussé par le suivi) au texte de l\'éditeur', async () => {
+  pushed = { id: 't0', text: 'const a = 2;\n', time: 1, at: { base: null, head: 'const a = 0;\n' } };
+  extra = { diffs: { head: [{ path: 'tests/invariants/a.test.ts' }], validated: {} } };
+  await draw(test({ base: 'const a = 1;\n' }), 'create');
+  await act(async () => { src().open = true; src().dispatchEvent(new Event('toggle')); });
+  await pick('head');
+  await act(async () => [...page.querySelectorAll<HTMLButtonElement>('.vc-seg button')].find((b) => b.textContent === 'Côte à côte')!.click());
+  expect(docs()).toEqual(['const a = 0;\n', 'const a = 2;\n']);
 });
 
 it('pas lu : Lire en pseudo-code dans les outils de l\'en-tête, plus sous les cartes ; même action', async () => {
@@ -232,6 +249,7 @@ const mustNot = (...texts: string[]) => ({ text: '', mark: 'nothing', mustNot: t
 it('la Forme et les tests dans une arborescence : les fichiers de la Forme numérotés, en retrait ; sans Forme, les tests seuls', async () => {
   extra = { modules: forme };
   await draw(two, 'create');
+  await showAll();
   expect([...page.querySelectorAll<HTMLElement>('.vc-tree-row[data-key$=".ts"]')].map((r) => r.dataset.key))
     .toEqual(['src/a.ts', 'src/b.ts', 'tests/invariants/a.test.ts', 'tests/invariants/b.test.ts']);
   expect(row('src/b.ts').querySelector('.vc-tree-rank')!.textContent).toBe('2');
@@ -252,6 +270,7 @@ it('un fichier de la Forme touché : suivi par son id, son code poussé, verroui
   extra = { modules: forme };
   pushed = { id: 'm0/0', text: 'const forme = 1;\n', time: 0 };
   await draw(two, 'create');
+  await showAll();
   await act(async () => row('src/a.ts').click());
   expect(follows).toContainEqual(['m0/0']);
   expect(page.querySelector('.vc-ide-main .vc-ifile')).toBeNull();
@@ -271,6 +290,7 @@ it('un fichier de la Forme touché : suivi par son id, son code poussé, verroui
 it('un test choisi : ses cartes, comme avant, après un fichier de la Forme', async () => {
   extra = { modules: forme };
   await draw(two, 'create');
+  await showAll();
   await act(async () => row('src/b.ts').click());
   await act(async () => row('tests/invariants/b.test.ts').click());
   expect(titles()).toEqual(['b1', 'b2']);
@@ -307,6 +327,19 @@ it('pas lu : non rattaché ; lecture périmée : le rattachement est marqué pé
   expect(keeps()[0]!.getAttribute('data-stale')).toBe('true');
   await draw(test({ cases: ['a'], lines: [1], reading: [link.reading![0]] }), 'create');
   expect(keeps()[0]!.hasAttribute('data-stale')).toBe(false);
+});
+
+it('lecture périmée : Validé, À revoir et Tout valider grisés (relire d\'abord) ; à jour, ou sans lecture : actifs', async () => {
+  const verdicts = () => [...page.querySelectorAll<HTMLButtonElement>('.vc-verdict button')];
+  const all = () => [...page.querySelectorAll<HTMLButtonElement>('.vc-ifile-tools button')].find((b) => b.textContent === 'Tout valider');
+  await draw(test({ cases: ['a'], lines: [1], reading: [link.reading![0]], stale: true }), 'create');
+  expect(verdicts().length).toBeGreaterThan(0);
+  expect(verdicts().every((b) => b.disabled && b.title.includes('Lecture périmée'))).toBe(true);
+  if (all()) expect(all()!.disabled).toBe(true);
+  await draw(test({ cases: ['a'], lines: [1], reading: [link.reading![0]] }), 'create');
+  expect(verdicts().some((b) => b.disabled)).toBe(false);
+  await draw(test({ cases: ['a'], lines: [1] }), 'create');
+  expect(verdicts().some((b) => b.disabled)).toBe(false);
 });
 
 it('sans test : le texte cite le bouton, en français et en anglais, sans « puis vérifier l\'alignement »', async () => {
@@ -348,4 +381,128 @@ it('le résumé : un seul fichier, au singulier ; en anglais', async () => {
 it('le résumé : aucun fichier, pas de résumé', async () => {
   await draw([], 'create');
   expect(page.querySelector('.vc-isum')).toBeNull();
+});
+
+// ---- Note 0.15.0-ecran-statuts : le bloc d'un cas, les validations --------------------------------------------------
+const DISK = ["it('a', () => {", '  expect(1).toBe(1);', '});', '', "it('b', () => {", '  expect(2).toBe(2);', '});', ''].join('\n');
+const BLOCK_B = ["it('b', () => {", '  expect(2).toBe(2);', '});'].join('\n');
+const EDITED = BLOCK_B.replaceAll('2', '3');   // le bloc modifié
+const split = test({ cases: ['a', 'b'], lines: [1, 5], source: DISK });
+const codeBtn = (i: number) => [...page.querySelectorAll('.vc-case')][i].querySelectorAll<HTMLButtonElement>('.vc-case-view button')[1];
+const editorDocs = () => [...page.querySelectorAll('.vc-case .cm-editor, .vc-ifile-src .cm-editor')].map((e) => EditorView.findFromDOM(e as HTMLElement)!.state.doc.toString());
+const footBtn = (label: string) => [...page.querySelectorAll<HTMLButtonElement>('.vc-mod-code-foot button')].find((b) => b.textContent === label);
+
+it('Code d\'un cas (créateur) : le bloc seul, pas le fichier ; Voir le fichier : le fichier entier', async () => {
+  pushed = { id: 't0', text: DISK, time: 1 };
+  await draw(split, 'create');
+  await act(async () => codeBtn(1).click());
+  expect(editorDocs()).toEqual([BLOCK_B]);
+  await act(async () => { src().open = true; src().dispatchEvent(new Event('toggle')); });
+  expect(editorDocs()).toEqual([DISK]);   // un seul à la fois : Voir le fichier a pris la place du bloc
+});
+
+it('Code d\'un cas enregistré : saveCode reçoit le fichier du disque dont seul le bloc change', async () => {
+  pushed = { id: 't0', text: DISK, time: 1 };
+  stored = { [`${split.path}#b`]: { text: EDITED, base: 1 } };
+  await draw(split, 'create');
+  await act(async () => codeBtn(1).click());
+  expect(editorDocs()).toEqual([EDITED]);
+  await act(async () => footBtn('Enregistrer')!.click());
+  expect(saves).toEqual([['t0', DISK.replace(BLOCK_B, EDITED)]]);
+});
+
+it('Code d\'un cas : grisé si le test est verrouillé (rien d\'enregistré)', async () => {
+  pushed = { id: 't0', text: DISK, time: 1 };
+  stored = { [`${split.path}#b`]: { text: EDITED, base: 1 } };
+  await draw({ ...split, locked: 'Un agent écrit' }, 'create');
+  await act(async () => codeBtn(1).click());
+  expect(footBtn('Enregistrer')!.disabled).toBe(true);
+  expect(saves).toEqual([]);
+});
+
+it('Relecteur : le code d\'un cas en lecture seule, sans éditeur ni pied', async () => {
+  await draw(split, 'review');
+  await act(async () => codeBtn(1).click());
+  expect(footBtn('Enregistrer')).toBeUndefined();
+  expect(EditorView.findFromDOM(page.querySelector('.vc-case .cm-editor') as HTMLElement)!.state.readOnly).toBe(true);
+});
+
+// ---- Valider les invariants, le menu de diff de la vue IDE ------------------------------------------------------------
+const step = (check: VibeStep['check'], head?: string): VibeStep[] => [{ id: 'invariants', status: 'current', facts: '', head, check }];
+const validate = (label: string) => [...page.querySelectorAll<HTMLButtonElement>('.vc-step-head .vc-vmark button')].find((b) => b.textContent?.includes(label));
+
+it('Valider les invariants : offert (now) envoie \'invariants\' ok ; sans now, ni validation : absent ; relecteur : absent', async () => {
+  extra = { steps: step({ state: null, now: 'n' }) };
+  await draw(split, 'create');
+  await act(async () => validate('Valider les invariants')!.click());
+  expect(marks).toEqual([['invariants', 'ok']]);
+  extra = { steps: step({ state: null, now: null }) };   // un cas sans ✓ : le principal ne l'offre pas
+  await draw(split, 'create');
+  expect(validate('Valider les invariants')).toBeUndefined();
+  extra = { steps: step({ state: null, now: 'n' }) };
+  await draw(split, 'review');
+  expect(page.querySelector('.vc-step-head .vc-vmark')).toBeNull();
+});
+
+it('Valider les invariants : validé, Annuler (même sans now) ; modifié ou en cascade, Revalider', async () => {
+  extra = { steps: step({ state: 'ok', now: null }) };
+  await draw(split, 'create');
+  await act(async () => validate('Annuler')!.click());
+  expect(marks).toEqual([['invariants', null]]);
+  for (const state of ['changed', 'cascade'] as const) {
+    extra = { steps: step({ state, now: 'n' }) };
+    await draw(split, 'create');
+    expect(validate('Revalider')).toBeDefined();
+  }
+});
+
+const gt = (path: string, id = 't0') => test({ id, path, cases: ['a'], lines: [1] });
+const three = [gt('tests/invariants/a.test.ts'), gt('tests/invariants/b.test.ts', 't1'), gt('tests/invariants/c.test.ts', 't2')];
+const rows = () => [...page.querySelectorAll<HTMLElement>('.vc-tree-row[data-key$=".ts"]')].map((r) => r.dataset.key);
+
+it('Depuis le dernier commit : l\'arborescence ne liste que les fichiers de view.diffs.head ; aucun : grisé, retour à la base', async () => {
+  extra = { diffs: { head: [{ path: 'tests/invariants/b.test.ts' }], validated: {} } };
+  await draw(three, 'create');
+  expect(rows()).toEqual(['tests/invariants/a.test.ts', 'tests/invariants/b.test.ts', 'tests/invariants/c.test.ts']);   // la base d'abord
+  await pick('head');
+  expect(rows()).toEqual(['tests/invariants/b.test.ts']);
+  expect(titles()).toEqual(['a']);
+  extra = { diffs: { head: [], validated: {} } };
+  await draw(three, 'create');
+  expect(rows()).toEqual(['tests/invariants/a.test.ts', 'tests/invariants/b.test.ts', 'tests/invariants/c.test.ts']);
+  expect(page.textContent).toContain('Depuis le dernier commit (rien de modifié)');
+});
+
+it('« modifiée depuis la validation » cliqué : Depuis la validation, l\'arborescence filtrée ; sans validation : pas de l\'option', async () => {
+  extra = { steps: step({ state: 'changed', now: 'n' }, 'modifiée depuis la validation'), diffs: { head: [], validated: { invariants: [{ path: 'tests/invariants/c.test.ts' }] } } };
+  await draw(three, 'create');
+  await act(async () => page.querySelector<HTMLButtonElement>('.vc-since')!.click());
+  expect((page.querySelector('select.vc-mod-shown') as HTMLSelectElement).value).toBe('validated');
+  expect(rows()).toEqual(['tests/invariants/c.test.ts']);
+  extra = { steps: step({ state: null, now: 'n' }) };
+  await draw(three, 'create');
+  expect([...(page.querySelector('select.vc-mod-shown') as HTMLSelectElement).options].map((o) => o.value)).not.toContain('validated');
+});
+
+it('Invariants seuls, coché par défaut : les seuls tests d\'invariants ; décoché : la Forme aussi, en retrait', async () => {
+  extra = { modules: forme };
+  await draw(two, 'create');
+  expect(page.querySelector<HTMLInputElement>('.vc-only-inv input')!.checked).toBe(true);
+  expect(rows()).toEqual(['tests/invariants/a.test.ts', 'tests/invariants/b.test.ts']);
+  await showAll();
+  expect(rows()).toEqual(['src/a.ts', 'src/b.ts', 'tests/invariants/a.test.ts', 'tests/invariants/b.test.ts']);
+  expect(row('src/a.ts').dataset.dim).toBe('');
+});
+
+it('un fichier supprimé depuis la référence : listé, suivi par son id, son diff tout en retraits ; Voir le fichier : le diff depuis la validation', async () => {
+  extra = { diffs: { head: [{ path: 'tests/invariants/old.test.ts', id: 'r0', deleted: true }], validated: {} } };
+  pushed = { id: 'r0', text: null, time: 1, at: { base: 'old\n', head: 'old\n' } };
+  await draw(three, 'create');
+  await pick('head');
+  expect(rows()).toEqual(['tests/invariants/old.test.ts']);
+  expect(row('tests/invariants/old.test.ts').dataset.mark).toBe('deleted');
+  await act(async () => row('tests/invariants/old.test.ts').click());
+  expect(follows).toContainEqual(['r0']);
+  expect(page.querySelector('.vc-ide-main .vc-ifile')).toBeNull();
+  expect(page.querySelector('.vc-ide-main .vc-mdiff')).not.toBeNull();
 });

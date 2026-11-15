@@ -48,7 +48,7 @@
   cursor: pointer;
   transition: background-color 0.12s, border-color 0.12s, color 0.12s;
 }
-.vc-vbtn:hover { border-color: var(--vc-ok); background: var(--vc-ok-bg); color: var(--vc-ok-text); }
+.vc-vbtn:hover:not(:disabled) { border-color: var(--vc-ok); background: var(--vc-ok-bg); color: var(--vc-ok-text); }
 .vc-vbtn[data-v="ko"] { border-color: var(--vc-warn-edge); background: transparent; color: var(--vc-warn); }
 .vc-vbtn[data-v="ko"]:hover { border-color: var(--vc-warn); background: var(--vc-warn-bg); }
 
@@ -70,7 +70,12 @@
   cursor: pointer;
   transition: background-color 0.12s, border-color 0.12s, color 0.12s;
 }
-.vc-verdict .vc-verdict-ok:hover { border-color: var(--vc-ok-edge); color: var(--vc-ok-text); }
-.vc-verdict .vc-verdict-ko:hover { border-color: var(--vc-warn-edge); color: var(--vc-warn); }
+.vc-verdict .vc-verdict-ok:hover:not(:disabled) { border-color: var(--vc-ok-edge); color: var(--vc-ok-text); }
+.vc-verdict .vc-verdict-ko:hover:not(:disabled) { border-color: var(--vc-warn-edge); color: var(--vc-warn); }
 .vc-verdict .vc-verdict-ok[aria-pressed="true"] { border-color: var(--vc-ok-edge); background: var(--vc-ok-bg); color: var(--vc-ok-text); }
 .vc-verdict .vc-verdict-ko[aria-pressed="true"] { border-color: var(--vc-warn-edge); background: var(--vc-warn-bg); color: var(--vc-warn); }
+
+/* Grisés (une lecture périmée : relire d'abord) : ni survol ni clic, comme un bouton indisponible. */
+.vc-verdict button:disabled, .vc-vbtn:disabled { opacity: 0.45; cursor: not-allowed; }
+/* En attente de l'étape d'avant : la raison, discrète, à côté de Valider grisé. */
+.vc-vstate[data-state="waiting"] { color: var(--vc-muted); font-style: italic; }

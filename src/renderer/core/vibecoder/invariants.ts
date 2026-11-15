@@ -1,6 +1,7 @@
 /** invariants — les tests d'invariants tels que la vue les montre : chaque cas
  *  avec sa lecture en pseudo-code (par son titre, sinon à son rang) et sa
- *  validation, sa ligne dans le fichier et son code d'origine ; ce qui est validé, refusé, à lire, avec un point d'attention,
+ *  validation, sa ligne dans le fichier et son code d'origine, les lignes de son bloc (caseRange) et le
+ *  fichier dont seul ce bloc est remplacé (replaceRange) ; ce qui est validé, refusé, à lire, avec un point d'attention,
  *  et si « Tout valider » est permis (lu ou pas : la lecture n'est qu'une aide) ; le pseudo-code ligne à ligne, coloré,
  *  ses assertions et ses « given / when / then » repérés — en tête de ligne
  *  (`test "…":`, la forme des lectures) ou en commentaire (`it(…)`, l'ancienne) ;
@@ -37,10 +38,35 @@ export function caseLine(file: VibeTestFile, title: string): number | undefined 
 // Le code d'origine du cas de rang i : de sa ligne à celle du cas suivant (ou à
 // la fin du fichier), sans les lignes vides de la fin ; texte ou ligne inconnus : ''.
 export function caseSource(file: VibeTestFile, i: number): string {
+  const range = caseRange(file, i);
+  return range ? file.source.split('\n').slice(range.from - 1, range.to).join('\n').trimEnd() : '';
+}
+
+// Les lignes (1…, bornes comprises) du bloc du cas de rang i dans file.source, celles que caseSource rend : de la
+// ligne du cas à celle d'avant le suivant (ou à la fin du fichier), sans les lignes vides de la fin, mais au moins la
+// première ; texte ou ligne inconnus : null (note 0.15.0-ecran-statuts : l'éditeur d'un cas ne montre que ce bloc).
+export type CaseRange = { from: number; to: number };
+export function caseRange(file: VibeTestFile, i: number): CaseRange | null {
   const from = file.lines[i];
-  if (!file.source || !Number.isInteger(from) || from < 1) return '';
+  if (!file.source || !Number.isInteger(from) || from < 1) return null;
   const next = file.lines[i + 1];
-  return file.source.split('\n').slice(from - 1, Number.isInteger(next) && next > from ? next - 1 : undefined).join('\n').trimEnd();
+  const lines = file.source.split('\n').slice(0, Number.isInteger(next) && next > from ? next - 1 : undefined);
+  let to = lines.length;
+  while (to > from && !lines[to - 1].trim()) to--;
+  return { from, to };
+}
+
+// `text` dont les lignes range.from à range.to sont remplacées par `block` ; toute autre ligne, et les fins de ligne
+// du fichier, identiques (le bloc, donné en \n ou en \r\n, prend la fin de ligne de la première ligne remplacée, sa dernière ligne celle de la dernière) ;
+// une plage hors du texte ou renversée : null.
+export function replaceRange(text: string, range: CaseRange, block: string): string | null {
+  const { from, to } = range;
+  const lines = text.split('\n');
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to < from || to > lines.length) return null;
+  const eol = (line: string) => (line.endsWith('\r') ? '\r' : '');
+  const first = eol(lines[from - 1]), last = eol(lines[to - 1]);   // la dernière ligne du fichier n'a pas de fin de ligne
+  lines.splice(from - 1, to - from + 1, ...(block ? block.split(/\r?\n/).map((l, i, all) => l + (i === all.length - 1 ? last : first)) : []));
+  return lines.join('\n');
 }
 
 export type Progress = {

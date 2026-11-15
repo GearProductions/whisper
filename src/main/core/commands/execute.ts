@@ -10,12 +10,15 @@
  *  commandes de départ rendent halted, rien n'est appelé ; les autres : au relevé et pas
  *  masquée, sauf à la porte 'screen' (au relevé suffit, comme l'écran d'avant). Les
  *  artefacts, le brouillon de revue et le démarrage d'un processus passent par leurs
- *  opérations (artifact, draft, proc). bad-token est un code du protocole du socket,
+ *  opérations (artifact, draft, proc) ; step.validate (la Forme, les invariants, les modules, verdict 'ok' ou
+ *  null pour retirer, absent : null ; jamais la note, absente de son enum : invalid-args par le schéma) par validate
+ *  (optionnelle, comme wait : absente, not-offered).
+ *  bad-token est un code du protocole du socket,
  *  jamais rendu ici. Une commande fermée ne s'ouvre qu'à la
  *  porte 'screen' (toute autre porte est fermée). Les gardes (course qui retient,
  *  grisé, arguments de buildMessage, okRef) ne sont pas refaites : elles restent
  *  dans les opérations injectées, dont il traduit la clé de refus (reason) :
- *  'unknown-artifact' et 'failed' (un artefact) en leur code, une clé d'argument
+ *  'unknown-artifact' et 'failed' (un artefact) en leur code, 'action' et 'not-offered' en not-offered, une clé d'argument
  *  en invalid-args, toute autre en refused. Une opération qui rend done (une
  *  action d'artefact) : sa fin attendue, puis traduite de même.
  *  Ne connaît pas : Electron, le disque, les robots, la langue de l'appli, les
@@ -49,6 +52,8 @@ export type CommandOps = {
   /** Le contenu d'un artefact du dernier relevé ; null : id inconnu, ou un lien. */
   artifact(id: string): Promise<object | null>;
   draft(op: DraftOp): OpOutcome;
+  /** step.validate : valider (ok) ou retirer la validation (null) d'une étape. Optionnelle (les faux des tests protégés ne l'ont pas) : absente, not-offered. */
+  validate?(step: 'forme' | 'invariants' | 'modules', verdict: 'ok' | null): OpOutcome;
   /** run.wait : la fin de la course de l'action, en cours ou en attente ; null : ni l'un ni l'autre. Optionnelle : absente, no-run. */
   wait?(action: string): Promise<object | null>;
 };
@@ -78,7 +83,7 @@ export async function execute(
       case 'failed': return fail('failed', { message: o.error ?? '' });
       case 'same': case 'busy': case 'changing': case 'worktree': return fail(key, o.by === undefined ? {} : { by: o.by });
       case 'disabled': return fail('disabled', { reason: o.error });
-      case 'action': return fail('not-offered');
+      case 'action': case 'not-offered': return fail('not-offered');
       case 'no-pr': return fail('no-pr');
       case 'args': return fail('invalid-args');
       default: return key && props.includes(key) ? fail('invalid-args', { arg: key }) : fail('refused', { reason: o.error ?? '' });
@@ -133,6 +138,9 @@ export async function execute(
     }
     // run.start et run.wait sont traités plus haut : les autres run.* sont les opérations d'une course (stop, keep, undo, allow, always, deny).
     if (def.name.startsWith('run.')) return (await ops.run(a.action as string, def.name.slice(4) as VibeRunOp)) ? ok() : fail('no-run', { action: a.action });
+    if (def.name === 'step.validate') {   // la note n'est pas dans l'enum : le schéma l'a déjà refusée (invalid-args)
+      return await refusal(ops.validate?.(a.step as 'forme' | 'invariants' | 'modules', a.verdict === 'ok' ? 'ok' : null) ?? { ok: false, reason: 'not-offered' }, props);
+    }
     if (def.name.startsWith('draft.')) {
       const op: DraftOp = def.name === 'draft.add' ? { add: { target: a.target as string, text: a.text as string } }
         : def.name === 'draft.edit' ? { edit: { id: a.id as number, text: a.text as string } } : { remove: a.id as number };

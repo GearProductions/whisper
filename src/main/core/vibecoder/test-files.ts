@@ -8,13 +8,14 @@
  *  de la branche et l'empreinte de chacun ; blobSha : aussi l'empreinte de ce
  *  qu'on valide). */
 import { createHash } from 'node:crypto';
+import { isInvariantPath } from 'shared/test-paths';
 
 // Un fichier de test, quel que soit son langage : Vitest / Jest (*.test.ts,
 // *.spec.js…), pytest (test_*.py, *_test.py), Go (*_test.go), Rust (un .rs sous tests/).
 export const isTest = (path: string) =>
   /\.(test|spec)\.[cm]?[jt]sx?$/.test(path) || /(^|\/)test_[^/]*\.py$|_test\.(py|go)$/.test(path) || /(^|\/)tests\/.*\.rs$/.test(path);
 
-export const isInvariantTest = (path: string) => isTest(path) && /(^|\/)tests\/invariants\//.test(path);
+export const isInvariantTest = (path: string) => isTest(path) && isInvariantPath(path);
 
 // Un cas : it / test (.only, .skip, .each(…)…) et son titre littéral ; une
 // fonction Rust sous #[test] ou #[tokio::test(…)] ; une fonction Python test_….
@@ -41,9 +42,9 @@ export function caseLines(src: string): number[] {
   });
 }
 
-// L'empreinte git (blob) d'un contenu : sha1 de « blob <octets>\0<contenu> », en UTF-8.
-export function blobSha(text: string): string {
-  const body = Buffer.from(text, 'utf8');
+// L'empreinte git (blob) d'un contenu : sha1 de « blob <octets>\0<contenu> », en UTF-8 (un Buffer : ses octets tels quels).
+export function blobSha(text: string | Buffer): string {
+  const body = typeof text === 'string' ? Buffer.from(text, 'utf8') : text;
   return createHash('sha1').update(`blob ${body.length}\0`).update(body).digest('hex');
 }
 

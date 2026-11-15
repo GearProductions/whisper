@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 // ModulesView (modules-view.tsx) : le 💬 du commit proposé devenu IconButton comment, même action (cite la
-// première ligne du message), absent sans l'action comment.
+// première ligne du message), absent sans l'action comment ; Valider les modules (step.check) et le menu de diff de la
+// vue IDE (note 0.15.0-ecran-statuts).
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it } from 'vitest';
@@ -16,8 +17,9 @@ const page = document.createElement('div');
 document.body.append(page);
 const root = createRoot(page);
 const prefills: unknown[][] = [];
+const steps = [{ id: 'modules', status: 'current', facts: '' }];   // la vue IDE lit view.steps (diffRefs)
 const draw = (actions: { id: string }[]) => act(() => {
-  const view = { lang: 'fr', flow: 'create', actions, modules: [], commits: [],
+  const view = { lang: 'fr', steps, flow: 'create', actions, modules: [], commits: [],
     outputs: { 'commit.md': { text: 'feat : sujet\n\ncorps\n', time: 0 } } } as unknown as VibeView;
   const props = { view, step: { id: 'modules', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
     code: null, drafts: [{}, () => {}], act: { run: async () => true, prefill: (...a: unknown[]) => { prefills.push(a); }, open: () => {},
@@ -44,7 +46,7 @@ const module = (path: string, touched: boolean) => ({ path, paths: [path], contr
   ...(touched ? { files: [{ id: `${path}/0`, path: `${path}/a.ts` }] } : {}) });
 const followed: unknown[] = [];
 const drawModules = () => act(() => {
-  const view = { lang: 'fr', flow: 'create', actions: [{ id: 'module' }], commits: [], outputs: {},
+  const view = { lang: 'fr', steps, flow: 'create', actions: [{ id: 'module' }], commits: [], outputs: {},
     modules: [module('src/touche', true), module('src/autre', false)] } as unknown as VibeView;
   const props = { view, step: { id: 'modules', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
     code: null, drafts: [{}, () => {}], act: { run: async () => true, prefill: () => {}, open: () => {}, openLink: () => {},
@@ -78,7 +80,7 @@ it('un module : replié, Générer seul, sans fichiers ; déplié, tous ses outi
 it('relecteur : ni commit.md, review.md, Générer, Commiter, Enregistrer ; l\'en-tête ne répète pas Relire les commits', async () => {
   const actions = ['review-commits'].map((id) => ({ id, step: 'modules', hidden: false, who: '', hint: '', label: id }));
   await act(() => {
-    const view = { lang: 'fr', flow: 'review', actions, commits: [], pr: { number: 7 },
+    const view = { lang: 'fr', steps, flow: 'review', actions, commits: [], pr: { number: 7 },
       outputs: { 'commit.md': { text: 'x', time: 0 }, 'review.md': { text: 'y', time: 0 } },
       modules: [{ ...module('src/touche', true), uncommitted: true }] } as unknown as VibeView;
     const props = { view, step: { id: 'modules', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
@@ -103,7 +105,7 @@ const drawView = async (extra: Record<string, unknown>, modules: unknown[]) => {
   await act(() => root.render(null));   // la vue et le module déplié sont tenus par le composant : chaque tracé repart de la vue de départ
   await act(() => {
   const actions = ['module', 'review-diff'].map((id) => ({ id, hidden: false, who: '', hint: '', label: id }));
-  const view = { lang: 'fr', flow: 'create', actions, commits: [], outputs: {}, modules, ...extra } as unknown as VibeView;
+  const view = { lang: 'fr', steps, flow: 'create', actions, commits: [], outputs: {}, modules, ...extra } as unknown as VibeView;
   const props = { view, step: { id: 'modules', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
     code: null, drafts: [{}, () => {}], act: { run: async () => true, prefill: () => {}, open: () => {}, openLink: () => {},
       follow: (id: unknown) => { followed.push(id); }, save: async () => true, set: (x: unknown) => { sets.push(x); } } } as unknown as StepProps;
@@ -171,7 +173,7 @@ it('créateur : l\'en-tête vide ; dans la carte, Générer les modules et Commi
     .map((a) => ({ hidden: false, who: '', hint: '', primary: false, step: 'modules', ...a }));
   await act(() => root.render(null));   // tout replié
   await act(() => {
-    const view = { lang: 'fr', flow: 'create', actions, commits: [], outputs: {}, modules: two } as unknown as VibeView;
+    const view = { lang: 'fr', steps, flow: 'create', actions, commits: [], outputs: {}, modules: two } as unknown as VibeView;
     const props = { view, step: { id: 'modules', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
       code: null, drafts: [{}, () => {}], act: { run: async () => true, prefill: () => {}, open: () => {}, openLink: () => {}, follow: () => {}, save: async () => true } } as unknown as StepProps;
     root.render(createElement(ModulesView, props));
@@ -183,12 +185,80 @@ it('créateur : l\'en-tête vide ; dans la carte, Générer les modules et Commi
   expect([line(0), line(1)]).toEqual([['Générer'], ['Générer']]);   // pas de Commiter, même pas commité
 });
 
+// Valider les modules et le menu de diff de la vue IDE (note 0.15.0-ecran-statuts).
+const marks: unknown[][] = [];
+const drawValidation = async (extra: Record<string, unknown>, step: Record<string, unknown> = steps[0], code: unknown = null) => {
+  await act(() => root.render(null));
+  await act(() => {
+    const view = { lang: 'fr', flow: 'create', actions: [], commits: [], outputs: {}, modules: two, modulesView: 'ide', invariants: [], steps: [step], ...extra } as unknown as VibeView;
+    const props = { view, step, t: t('fr'), busy: false, text: '', setText: () => {},
+      code, drafts: [{}, () => {}], act: { run: async () => true, prefill: () => {}, open: () => {}, openLink: () => {},
+        follow: (id: unknown) => { followed.push(id); }, save: async () => true, set: () => {}, mark: (...a: unknown[]) => { marks.push(a); } } } as unknown as StepProps;
+    root.render(createElement(ModulesView, props));
+  });
+};
+const withCheck = (check: Record<string, unknown>, head?: string) => ({ ...steps[0], head, check });
+const validate = () => [...page.querySelectorAll<HTMLButtonElement>('.vc-card-acts .vc-vmark button')];
+const select = () => page.querySelector('select.vc-mod-shown') as HTMLSelectElement;
+const side = () => [...page.querySelectorAll('.vc-ide-side .vc-tree-row:not([aria-expanded])')].map((e) => e.textContent);
+
+it('Valider les modules : offert si step.check.now, envoie \'modules\' ok ; validé : Annuler envoie null', async () => {
+  marks.length = 0;
+  await drawValidation({}, withCheck({ state: null, now: 'h1' }));
+  expect(validate().map((b) => b.textContent)).toEqual(['Valider les modules']);
+  await act(() => validate()[0].click());
+  expect(marks).toEqual([['modules', 'ok']]);
+  marks.length = 0;
+  await drawValidation({}, withCheck({ state: 'ok', now: 'h1' }));
+  expect(validate().map((b) => b.textContent)).toEqual(['Annuler']);
+  await act(() => validate()[0].click());
+  expect(marks).toEqual([['modules', null]]);
+  await drawValidation({}, withCheck({ state: 'changed', now: 'h2' }));
+  expect(validate().map((b) => b.textContent)).toEqual(['Revalider']);
+});
+
+it('Valider les modules : pas offert sans rien à valider (now null) ni sans check ; relecteur : ni validation ni menu de diff', async () => {
+  await drawValidation({}, withCheck({ state: null, now: null }));
+  expect(validate()).toHaveLength(0);
+  await drawValidation({});
+  expect(validate()).toHaveLength(0);
+  await drawValidation({ flow: 'review' }, withCheck({ state: 'ok', now: 'h1' }));
+  expect(page.querySelector('.vc-vmark')).toBeNull();
+  expect(select()).toBeNull();
+});
+
+it('un fichier modifié depuis la validation : « modifiée depuis la validation » passe sur Depuis la validation, l\'arborescence filtrée et son diff', async () => {
+  followed.length = 0;
+  const diffs = { head: [], validated: { modules: [{ path: 'src/touche/a.ts' }] } };
+  const code = { id: 'src/touche/0', text: 'a\nc', time: 1, at: { base: null, head: null, validations: { modules: 'a\nb' } } };
+  const step = withCheck({ state: 'changed', now: 'h2' }, 'modifiée depuis la validation');
+  await drawValidation({ diffs, files: [{ id: 'f9', path: 'src/zzz.ts' }], variants: [{ path: 'src/zzz.ts' }] }, step, code);
+  expect(side().join('|')).toMatch(/a\.ts.*zzz/);
+  await act(() => page.querySelector<HTMLButtonElement>('.vc-step-head .vc-since')!.click());
+  expect(select().value).toBe('validated');
+  expect(side()).toHaveLength(1);
+  expect(side()[0]).toContain('a.ts');
+  expect(page.querySelector('.vc-ide-main .cm-deletedChunk')?.textContent).toContain('b');
+});
+
+it('un fichier supprimé depuis la validation : dans l\'arborescence, suivi par son r<i>, tout en retraits', async () => {
+  followed.length = 0;
+  const diffs = { head: [], validated: { modules: [{ path: 'src/old.ts', id: 'r0', deleted: true }] } };
+  const code = { id: 'r0', text: null, time: 1, at: { base: null, head: null, validations: { modules: 'x\ny' } } };
+  await drawValidation({ diffs }, withCheck({ state: 'changed', now: 'h2' }, 'modifiée depuis la validation'), code);
+  await act(() => page.querySelector<HTMLButtonElement>('.vc-step-head .vc-since')!.click());
+  expect(side()).toHaveLength(1);
+  expect(side()[0]).toContain('old.ts');
+  expect(followed.at(-1)).toBe('r0');
+  expect(page.querySelector('.vc-ide-main .cm-deletedChunk')?.textContent).toContain('x');
+});
+
 // T-20 : la vue IDE ou liste et le module déplié, gardés par agent (KeptScope) ; au départ, le dernier choix enregistré (view.modulesView).
 const kept = createKept();
 const drawAs = async (agent: string, modulesView: 'ide' | 'list') => {
   await act(() => root.render(null));   // le panneau recrée l'écran à chaque changement d'agent
   await act(() => {
-    const view = { lang: 'fr', flow: 'create', actions: [], commits: [], outputs: {}, modules: two, modulesView } as unknown as VibeView;
+    const view = { lang: 'fr', steps, flow: 'create', actions: [], commits: [], outputs: {}, modules: two, modulesView } as unknown as VibeView;
     const props = { view, step: { id: 'modules', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
       code: null, drafts: [{}, () => {}], act: { run: async () => true, prefill: () => {}, open: () => {}, openLink: () => {},
         follow: () => {}, save: async () => true, set: () => {} } } as unknown as StepProps;
@@ -223,7 +293,7 @@ it('revenu au premier agent : sa vue IDE et son module déplié', async () => {
 it('review.md étiquetée : ses badges, data-tag sur la ligne ; sans étiquette, comme avant', async () => {
   await act(() => root.render(null));
   await act(() => {
-    const view = { lang: 'fr', flow: 'create', actions: [], modules: [], commits: [],
+    const view = { lang: 'fr', steps, flow: 'create', actions: [], modules: [], commits: [],
       outputs: { 'review.md': { text: '- [agent] un point\n- [toi] un autre\n- sans', time: 0 } } } as unknown as VibeView;
     const props = { view, step: { id: 'modules', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
       code: null, drafts: [{}, () => {}], act: { run: async () => true, prefill: () => {}, open: () => {}, openLink: () => {},

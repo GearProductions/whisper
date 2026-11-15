@@ -27,12 +27,18 @@
  *  (sans la rangée des fichiers quand il n'y en a qu'un : l'arborescence la remplace)
  *  et tools, en tête de la rangée du sélecteur (la vue IDE de Modules : les boutons
  *  du module et le sélecteur sur une seule ligne).
+ *  diff (la vue IDE, note 0.15.0-ecran-statuts) : le choix vient du menu de la vue (useIdeDiff), sans
+ *  sélecteur propre ni choice ; base, head ou validated → ModuleDiffView(at.base | at.head |
+ *  at.validations[step] ?? '', le texte), en `mode` du menu ; une référence absente ou null : tout ajouté ; un fichier
+ *  supprimé (deleted) : tout en retraits depuis cette référence (la base si file) ; file : l'éditeur. Sans diff
+ *  (la liste de Modules) : comme avant.
  *  Ne connaît pas : le pont (rappels passés), le disque, les autres modules,
  *  les actions de la barre d'outils.
  *  Utilisé par : modules-view, forme-view. */
 import { useEffect, useState, type ReactNode } from 'react';
 import { fileParts, filesByDir, type Strings } from 'core/vibecoder';
-import type { VibeCode, VibeLang, VibeModule } from 'technicals/bridge';
+import type { VibeCode, VibeDiffStep, VibeLang, VibeModule } from 'technicals/bridge';
+import type { DiffRef } from 'core/vibecoder';
 import { DiffPicker } from './diff-picker';
 import { ModuleDiffView } from './module-diff-view';
 import { DraftEditor, useFileDraft } from './file-draft';
@@ -49,12 +55,13 @@ const S: Record<VibeLang, Record<Exclude<Shown, 'file'> | 'deleted', string>> = 
 // Le choix d'affichage, commun à tous les fichiers tant que la page vit : ce qu'on change vaut pour les suivants.
 const choice: { shown: Shown; mode: Mode } = { shown: 'base', mode: 'inline' };
 
-export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, drafts, readOnly, noTree, tools }: {
+export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, drafts, readOnly, noTree, tools, diff }: {
   m: VibeModule;
   readOnly?: string;               // le motif : le code ne s'édite pas, et son pied (Enregistrer, Abandonner) est masqué
   lang: VibeLang;
   noTree?: boolean;                // sans la rangée des fichiers quand il n'y en a qu'un
   tools?: ReactNode;               // en tête de la rangée du sélecteur
+  diff?: { shown: 'file' | DiffRef; mode: Mode; step: VibeDiffStep };   // le menu de la vue IDE ; absent : son sélecteur
   open: boolean;
   code: VibeCode | null;
   t: Strings;
@@ -82,8 +89,13 @@ export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, 
   // Pas de version à la base alors qu'il y en a une au dernier commit (trop grosse, pas de base) : pas de diff
   // depuis la base, il montrerait tout ajouté ; absent des deux (vraiment nouveau) : tout ajouté.
   const noBase = at?.base === null && at.head !== null;
+  // Le texte d'une référence ; absent ou null : '' (tout ajouté).
+  const refText = (r: DiffRef) => (r === 'validated' ? at?.validations?.[diff!.step] : at?.[r]) ?? '';
+  // Avec diff, le menu de la vue décide (même depuis une base absente) ; sans, le sélecteur de ce composant.
+  const ref: Shown | 'validated' = diff ? diff.shown : shown;
+  const dmode = diff ? diff.mode : mode;
   // Le texte d'avant du diff affiché ; null : le fichier.
-  const before = shown !== 'file' && at && d.text != null && !(shown === 'base' && noBase) ? at[shown] ?? '' : null;
+  const before = ref !== 'file' && at && d.text != null && (diff || !(ref === 'base' && noBase)) ? refText(ref) : null;
 
   if (!open) return null;
   return (
@@ -106,13 +118,13 @@ export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, 
             </div>
           ))}
         </div>}
-        {at && !file?.deleted ? (
+        {at && !file?.deleted && !diff ? (
           <DiffPicker<'base' | 'head'> options={(['base', 'head'] as const).map((k) => ({ key: k, label: S[lang][k], disabled: k === 'base' && noBase }))}
             shown={shown === 'base' && noBase ? 'file' : shown} onShown={setShown} mode={before != null ? mode : null} onMode={setMode} lang={lang} />
         ) : null}
       </div>
-      {file?.deleted ? (at ? <ModuleDiffView before={at.base ?? ''} after="" path={file.path} mode="inline" lang={lang} /> : null)
-        : before != null && file ? <ModuleDiffView before={before} after={d.text ?? ''} path={file.path} mode={mode} lang={lang} />
+      {file?.deleted ? (at ? <ModuleDiffView before={refText(diff && ref !== 'file' ? ref : 'base')} after="" path={file.path} mode={diff ? dmode : 'inline'} lang={lang} /> : null)
+        : before != null && file ? <ModuleDiffView before={before} after={d.text ?? ''} path={file.path} mode={dmode} lang={lang} />
         : file ? <DraftEditor d={d} file={file} locked={locked} t={t} onQuote={onQuote} footInTools noFoot={!!readOnly} /> : null}
     </>
   );

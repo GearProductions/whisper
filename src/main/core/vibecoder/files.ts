@@ -9,7 +9,9 @@
  *  Un fichier à suivre et enregistrer (codeFile) : celui d'un module touché
  *  par la branche (`m<rang>/<i>`), un fichier que change la branche (`b<i>`,
  *  dans les deux rôles) ou, en créateur seulement, la note (`n`) ou un test
- *  d'invariant (`t<i>`), par son id dans le dernier relevé, jamais lu comme un
+ *  d'invariant (`t<i>`), ou un fichier supprimé du menu de diff (`r<i>`,
+ *  view.diffs ; review : { deleted }, ni lu sur le disque ni enregistré, note
+ *  0.15.0-ecran-statuts), par son id dans le dernier relevé, jamais lu comme un
  *  chemin. Un fichier d'un commit à suivre (commitFile) : en relecteur
  *  seulement, par son id `c<rang>/<i>` du dernier relevé, jamais lu comme un
  *  chemin.
@@ -79,7 +81,10 @@ export function itemCommit(view: VibeView | null, id: string): { hash: string; w
 // test d'invariant (module null) ; null pour tout autre id (variant, commit,
 // module pas touché, note ou test en relecteur, id inconnu), l'id n'étant
 // jamais lu comme un chemin.
-export function codeFile(view: VibeView | null, id: string): { path: string; module: VibeModule | null; branch?: true } | null {
+// `r<i>` : un fichier supprimé de view.diffs (head ou une étape), en créateur, module null, review { deleted } : ni lu ni enregistré.
+export function codeFile(view: VibeView | null, id: string): {
+  path: string; module: VibeModule | null; branch?: true; review?: { deleted?: true };
+} | null {
   for (const module of view?.modules ?? []) {
     const f = module.touched ? module.files?.find((x) => x.id === id) : undefined;
     if (f) return { path: f.path, module };
@@ -87,7 +92,10 @@ export function codeFile(view: VibeView | null, id: string): { path: string; mod
   const b = view?.files?.find((x) => x.id === id);
   if (b) return { path: b.path, module: null, branch: true };
   const own = view?.flow === 'create' ? [view.note, ...view.invariants].find((f) => f?.id === id) : undefined;
-  return own ? { path: own.path, module: null } : null;
+  if (own) return { path: own.path, module: null };
+  const d = view?.flow === 'create' && view.diffs ? [...view.diffs.head, ...Object.values(view.diffs.validated).flat()] : [];
+  const gone = d.find((x) => x.deleted && x.id === id);
+  return gone ? { path: gone.path, module: null, review: { deleted: true } } : null;
 }
 
 // Le fichier d'un commit que désigne `c<rang>/<i>` (le i-ème fichier du commit

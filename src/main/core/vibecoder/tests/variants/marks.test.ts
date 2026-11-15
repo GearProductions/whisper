@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  addComment, blobSha, designChecked, designEnd, editComment, hasComment, markState, noteClick, parseNote, removeComment, setMark, targetHash, vibeMarks, vibeView,
-  type Drafts, type JourneyInput, type Marks,
+  addComment, blobSha, CHECKED, designChecked, designEnd, editComment, hasComment, markState, noteClick, noteDesign, parseNote, removeComment, setMark, stepChecks, stepContent,
+  skeletonMarks, targetHash, vibeMarks, vibeView, type Drafts, type FileBlobs, type JourneyInput, type Marks,
 } from 'core/vibecoder';
 
 describe('markState : une validation vaut pour le contenu validé', () => {
@@ -113,6 +113,7 @@ describe('vibeMarks : le ✓ des étapes faites pendant Vibe', () => {
   const TEST_PATH = 'src/core/tests/invariants/hello.test.ts';
   const TEST = 'it("dit bonjour", () => {});\nit("ne lit rien", () => {});\n';
   const BLOB = blobSha(TEST);
+  const blobs: FileBlobs[] = [{ path: TEST_PATH, disk: BLOB, head: null }, { path: 'src/core/hello.ts', disk: blobSha('code'), head: null }];
   const input = (over: Partial<JourneyInput> = {}): JourneyInput => ({
     agentId: 'a1', lang: 'fr', flow: 'create', pr: null, autonomy: 'guide', vibe: true, agent: { model: 'opus', effort: 'high', mode: 'default' },
     busy: false, running: [], runs: [], error: null, readings: [], outputs: {}, marks: {}, draft: [], actions: [],
@@ -122,37 +123,112 @@ describe('vibeMarks : le ✓ des étapes faites pendant Vibe', () => {
       commits: [{ hash: 'a'.repeat(40), subject: 'Note, forme, invariants', files: [NOTE_PATH, TEST_PATH] }] },
     ...over,
   });
-  const status = (marks: Marks) => Object.fromEntries(vibeView(input({ vibe: false, marks })).steps.map((s) => [s.id, s.status]));
+  const CASES = [`case:${TEST_PATH}:dit bonjour`, `case:${TEST_PATH}:ne lit rien`];
+  const run = (marks: Marks = {}, over: Partial<JourneyInput> = {}) => {
+    const view = vibeView(input({ marks, ...over }));
+    return { view, next: vibeMarks(marks, view, blobs) };
+  };
+  // L'état de chaque étape d'après les marques, comme le contrôleur le calcule.
+  const checks = (view: ReturnType<typeof vibeView>, marks: Marks) =>
+    stepChecks(marks, Object.fromEntries(CHECKED.map((s) => [s, stepContent(view, marks, s, blobs)])));
+  const status = (marks: Marks) => Object.fromEntries(vibeView(input({ vibe: false, marks, blobs })).steps.map((s) => [s.id, s.status]));
 
-  it('les cibles et empreintes d\'un clic sur ✓ : note, forme, chaque cas', () => {
-    expect(vibeMarks({}, vibeView(input()))).toEqual({
-      note: { hash: blobSha(NOTE), verdict: 'ok' },
-      forme: { hash: blobSha(parseNote(NOTE).forme), verdict: 'ok' },
-      [`case:${TEST_PATH}:dit bonjour`]: { hash: BLOB, verdict: 'ok' },
-      [`case:${TEST_PATH}:ne lit rien`]: { hash: BLOB, verdict: 'ok' },
-    });
+  it('note, forme, invariants : chaque étape validée pour son contenu, et chaque cas son ✓ (les empreintes d\'un clic)', () => {
+    const { next } = run();
+    expect(next.note).toMatchObject({ hash: blobSha(noteDesign(NOTE)), verdict: 'ok' });
+    expect(next.forme).toMatchObject({ hash: blobSha(parseNote(NOTE).forme), verdict: 'ok' });
+    expect(next.invariants).toMatchObject({ verdict: 'ok' });
+    CASES.forEach((c) => expect(next[c]).toEqual({ hash: BLOB, verdict: 'ok' }));
+  });
+
+  it('la Forme validée porte after = la marque de la note, les invariants celle de la Forme : l\'état de chaque étape est ok', () => {
+    const { view, next } = run();
+    expect(next.note.after).toBeUndefined();
+    expect(next.forme.after).toBeDefined();
+    expect(next.invariants.after).toBeDefined();
+    const c = checks(view, next);
+    expect([c.note.state, c.forme.state, c.invariants.state, c.modules.state]).toEqual(['ok', 'ok', 'ok', null]);
+  });
+
+  it('plus de marque de fichier', () => {
+    expect(Object.keys(run().next).filter((k) => k.startsWith('file:'))).toEqual([]);
+  });
+
+  it('les validations suivent l\'ordre note → forme → invariants : une note déjà validée change son after, pas son contenu', () => {
+    const first = run().next;
+    // La note revalidée avec un autre after : la Forme ne suit plus, le geste Vibe la revalide dans l'ordre.
+    const marks: Marks = { ...first, note: { ...first.note, after: 'autre' } };
+    const { view, next } = run(marks);
+    expect(checks(view, next).forme.state).toBe('ok');
   });
 
   it('Vibe arrêté ou fini, ces étapes restent faites sans recliquer', () => {
     expect(status({})).toMatchObject({ note: 'current' });
-    expect(status(vibeMarks({}, vibeView(input())))).toMatchObject({ note: 'done', forme: 'done', invariants: 'done' });
+    expect(status(run().next)).toMatchObject({ note: 'done', forme: 'done', invariants: 'done' });
   });
 
-  it('un ✗ déjà donné pour ce contenu reste ; une validation d\'un autre contenu est remplacée', () => {
-    const marks: Marks = { note: { hash: blobSha(NOTE), verdict: 'ko' }, forme: { hash: 'vieux', verdict: 'ko' } };
-    const next = vibeMarks(marks, vibeView(input({ marks })));
-    expect(next.note).toEqual({ hash: blobSha(NOTE), verdict: 'ko' });
-    expect(next.forme).toEqual({ hash: blobSha(parseNote(NOTE).forme), verdict: 'ok' });
+  it('rejouée, elle ne change rien : les marques rendues sont les mêmes (le contrôleur ne réécrit rien)', () => {
+    const { view, next } = run();
+    expect(vibeMarks(next, view, blobs)).toBe(next);
+  });
+
+  it('un ✗ déjà donné à la note pour ce contenu reste : la Forme et les invariants ne sont pas validés, les cas oui', () => {
+    const marks: Marks = { note: { hash: blobSha(noteDesign(NOTE)), verdict: 'ko' } };
+    const { next } = run(marks);
+    expect(next.note).toEqual(marks.note);
+    expect(next.forme).toBeUndefined();
+    expect(next.invariants).toBeUndefined();
+    CASES.forEach((c) => expect(next[c].verdict).toBe('ok'));
+  });
+
+  it('un ✗ déjà donné à la Forme pour ce contenu reste ; celui d\'un autre contenu est remplacé', () => {
+    const ko: Marks = { forme: { hash: blobSha(parseNote(NOTE).forme), verdict: 'ko' } };
+    expect(run(ko).next.forme).toEqual(ko.forme);
+    expect(run(ko).next.invariants).toBeUndefined();
+    const vieux: Marks = { forme: { hash: 'vieux', verdict: 'ko' } };
+    expect(run(vieux).next.forme).toMatchObject({ hash: blobSha(parseNote(NOTE).forme), verdict: 'ok' });
+  });
+
+  it('un ✗ déjà donné à un cas reste, et les invariants ne sont pas validés', () => {
+    const marks: Marks = { [CASES[0]]: { hash: BLOB, verdict: 'ko' } };
+    const { next } = run(marks);
+    expect(next[CASES[0]].verdict).toBe('ko');
+    expect(next.invariants).toBeUndefined();
   });
 
   it('une étape pas faite ne reçoit rien', () => {
     // Les invariants écrits mais pas commités : l'étape Invariants n'est pas faite.
-    const v = vibeView(input({ repo: { branch: 'b', base: 'origin/main', changed: [NOTE_PATH, TEST_PATH], dirty: [NOTE_PATH, TEST_PATH], commits: [] } }));
-    expect(Object.keys(vibeMarks({}, v))).toEqual(['note', 'forme']);
+    const { next } = run({}, { repo: { branch: 'b', base: 'origin/main', changed: [NOTE_PATH, TEST_PATH], dirty: [NOTE_PATH, TEST_PATH], commits: [] } });
+    expect(Object.keys(next)).toEqual(['note', 'forme']);
+  });
+
+  it('sans les empreintes du disque (blobs omis), la note et la Forme sont validées', () => {
+    const next = vibeMarks({}, vibeView(input()));
+    expect(next.note.verdict).toBe('ok');
+    expect(next.forme.verdict).toBe('ok');
   });
 
   it('Relire : rien', () => {
-    expect(vibeMarks({}, vibeView(input({ flow: 'review' })))).toEqual({});
+    expect(run({}, { flow: 'review' }).next).toEqual({});
+  });
+});
+
+describe('targetHash : note', () => {
+  const text = (forme: string) => `# T\n\n## Ce que ça fait\n\nA\n\n## Forme\n\n${forme}\n\n## Ce que ça ne doit pas faire\n\n- rien\n`;
+  const view = (over: object = {}) =>
+    ({ flow: 'create', note: { text: text('src/a.ts  un') }, invariants: [], commits: [], steps: [], ...over }) as unknown as Parameters<typeof targetHash>[0];
+
+  it('note : l\'empreinte de la conception ; la Forme seule changée : la même', () => {
+    expect(targetHash(view(), 'note')).toBe(blobSha(noteDesign(text('src/a.ts  un'))));
+    expect(targetHash(view({ note: { text: text('src/a.ts  un autre contrat') } }), 'note')).toBe(targetHash(view(), 'note'));
+    expect(targetHash(view({ note: { text: text('x').replace('A', 'B') } }), 'note')).not.toBe(targetHash(view(), 'note'));
+  });
+
+  it('« file: » et « step: » sont retirés : null, même avec un relevé de validation', () => {
+    const v = view({ steps: [{ id: 'forme', status: 'done', stale: { label: 'x', since: 'a', now: 'b' } }],
+      validation: { validated: [], changed: [], files: { 'src/a.ts': { blob: 'b1' } } } });
+    expect(targetHash(v, 'file:src/a.ts')).toBeNull();
+    expect(targetHash(v, 'step:forme')).toBeNull();
   });
 });
 
@@ -222,5 +298,24 @@ describe('la vérification de conception de la note', () => {
     const before: Marks = {};
     designEnd(before, done);
     expect(before).toEqual({});
+  });
+});
+
+describe('skeletonMarks : les squelettes que la Forme laisse', () => {
+  const blobs = (o: Record<string, string | null>): FileBlobs[] => Object.entries(o).map(([path, disk]) => ({ path, disk, head: null }));
+  it('un fichier nouveau ou encore squelette au départ : sa marque prend l\'empreinte laissée ; déjà généré au départ : gardée', () => {
+    const marks: Marks = { 'skel:a.ts': { hash: 's1', verdict: 'ok' }, 'skel:g.ts': { hash: 's2', verdict: 'ok' } };
+    const before = new Map<string, string | null>([['a.ts', 's1'], ['g.ts', 'gen'], ['n.ts', null]]);
+    const next = skeletonMarks(marks, ['a.ts', 'g.ts', 'n.ts', 'x.ts'], blobs({ 'a.ts': 's1b', 'g.ts': 'gen2', 'n.ts': 'n1', 'x.ts': null }), before);
+    expect(next['skel:a.ts'].hash).toBe('s1b');
+    expect(next['skel:g.ts'].hash).toBe('s2');
+    expect(next['skel:n.ts'].hash).toBe('n1');
+    expect(next['skel:x.ts']).toBeUndefined();
+  });
+  it('sans départ connu : seul un fichier sans marque en reçoit une ; rien de changé : marks tel quel', () => {
+    const marks: Marks = { 'skel:a.ts': { hash: 's1', verdict: 'ok' } };
+    const next = skeletonMarks(marks, ['a.ts', 'n.ts'], blobs({ 'a.ts': 'other', 'n.ts': 'n1' }), null);
+    expect([next['skel:a.ts'].hash, next['skel:n.ts'].hash]).toEqual(['s1', 'n1']);
+    expect(skeletonMarks(marks, ['a.ts'], blobs({ 'a.ts': 's1' }), null)).toBe(marks);
   });
 });
