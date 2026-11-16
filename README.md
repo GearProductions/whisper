@@ -1034,7 +1034,8 @@ branches à la place de l'étape (un nouveau clic la referme). Elle montre :
   *À relire* ;
 - *Revenir sur la branche principale* ; *Créer une branche* ; *Retirer le
   worktree* (sur le robot d'un worktree) ; *Actualiser* (`git fetch origin` :
-  l'état du distant, pour *Pull* et *Rebase*).
+  l'état du distant, pour *Pull* et *Rebase* ; les listes de PR relues, *À relire* à jour
+  tout de suite).
 
 Dans un worktree (l'enfant d'une demande, le robot d'une PR), on ne change
 pas de branche : la vue n'y montre qu'*Actualiser* et *Retirer le worktree*.

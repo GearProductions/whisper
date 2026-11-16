@@ -2411,7 +2411,11 @@ du champ de la conversation (ci-dessous). La vue montre :
 - la PR chargée et ses choix ; *Revenir sur la branche principale* ;
   *Créer une branche* ; *Retirer le worktree* (sur un enfant) ;
   *Actualiser* (`fetch`, F-114 : l'état distant, pour *Pull* et la pastille
-  de *Rebase*, F-92).
+  de *Rebase*, F-92 ; les listes de PR relues aussi). *À relire* : la recherche
+  `review-requested:@me` de GitHub (qui voit les demandes faites à une équipe,
+  mais avec quelques minutes de retard) plus les PR dont les demandes de
+  relecture, lues directement, nomment mon identifiant : une demande qu'on vient
+  de faire paraît tout de suite, après *Me demander en relecture* ou *Actualiser*.
 
 Un **worktree** (l'enfant d'une demande, le robot d'une PR) reste sur sa
 branche : sa vue des branches ne montre qu'*Actualiser* et *Retirer le
