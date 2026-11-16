@@ -3,8 +3,9 @@
  *  pseudo-code ou pas (la lecture est facultative ; l'écran n'en montre plus
  *  que les cas : la note et la forme ont leur ✓).
  *  Créer : la validation (✓) ; pendant Vibe (view.vibe), rien. Relire : un verdict
- *  (✓ ou ✗) sur la note et sur chaque cas.
+ *  (✓ ou ✗) sur la note et sur chaque cas (lu par sa clé, caseKeys de shared/test-cases).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder (invariants-view : les cas à valider). */
+import { caseKeys } from 'shared/test-cases';
 import type { VibeMarkState, VibeView } from 'technicals/bridge';
 
 export type Awaiting = { kind: 'note' } | { kind: 'forme' } | { kind: 'cases'; count: number };
@@ -17,7 +18,7 @@ export function awaiting(view: VibeView): Awaiting | null {
   if (current === 'note' && note && !judged(note.mark) && (flow === 'review' || (note.filled && !view.questions.length))) return { kind: 'note' };
   if (current === 'forme' && note && view.modules.length && !judged(note.formeMark)) return { kind: 'forme' };
   if (current === 'invariants' && view.invariants.length) {
-    const count = view.invariants.reduce((n, f) => n + f.cases.filter((c) => !judged(Object.hasOwn(f.marks, c) ? f.marks[c] : null)).length, 0);
+    const count = view.invariants.reduce((n, f) => n + caseKeys(f.cases).filter((k) => !judged(Object.hasOwn(f.marks, k) ? f.marks[k] : null)).length, 0);
     if (count) return { kind: 'cases', count };
   }
   return null;

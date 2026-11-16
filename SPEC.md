@@ -963,7 +963,9 @@ fiche), `pr-<n>-note.md`, `pr-<n>-commits.md`, `pr-<n>-review.json` (revue publi
 worktree, écrit par l'appli, F-110) ; `new-request.json` (`{ branch }` : la
 branche d'une nouvelle demande, skill `nouvelle-demande`, F-110) ; les lectures
 `invariants/<empreinte>.md` (toutes : celle d'un test qui a changé depuis
-reste, périmée, F-100) ; `ponytail-applied.json` (`{ applied:
+reste, périmée cas par cas, F-100) et, à côté de chacune, `<empreinte>.json`
+(`{ <clé>: <empreinte du bloc> }`, écrit une fois quand la lecture
+est à jour : voir l'étape Invariants) ; `ponytail-applied.json` (`{ applied:
 ["<fichier>:L<ligne>", …] }` : les remarques de `ponytail.md` que *Appliquer
 la revue* a appliquées ; plus vieux que `ponytail.md`, ou illisible : aucune ;
 suit la branche comme lui). Chaque étape montre les siennes (titre, fichier,
@@ -1976,7 +1978,9 @@ créateur ; le relecteur, F-101) :
    celle du cas suivant, monospace, numéroté, coloré : F-113), les badges *Validé* et
    *À revoir* (cite le cas dans le champ), *Commenter* et *Ouvrir* ; un cas validé, discret :
    ni cadre ni fond, la seule fine bordure verte à gauche et son badge allumé ; *Tout valider* quand
-   aucun cas n'a de point d'attention, le fichier lu ou pas ; *Voir le
+   aucun cas n'a de point d'attention, le fichier lu ou pas, qui ne valide que les
+   cas sans verdict (un *À revoir* est gardé, un cas dont le bloc a changé est
+   revalidé) ; *Voir le
    fichier* (replié : tout son code, numéroté ; un test qui existait à la
    base de la branche et qu'elle modifie : un sélecteur *Fichier* · *Diff
    depuis la base de la branche*, le diff *En ligne* ou *Côte à côte*, en
@@ -1985,12 +1989,42 @@ créateur ; le relecteur, F-101) :
    marquées ; un test ajouté par la branche : pas de sélecteur) ; pas lu :
    ses cartes sans lecture, avec *Valider* et *À revoir*, et *Lire en pseudo-code* dans les
    outils de son en-tête, avec les autres ; lu puis changé : sa
-   dernière lecture reste affichée, marquée « lecture périmée », pas
-   comptée comme lue, *Relire* en accent ; ses cas ne se valident plus
+   dernière lecture reste affichée, marquée « lecture périmée », *Relire* en
+   accent, mais cas par cas : seuls les cas dont le bloc a changé depuis la lecture
+   sont périmés, pas comptés comme lus, et leurs boutons grisés
    (*Validé*, *À revoir* et *Tout valider* grisés, « relire d'abord ») avant
    *Relire* : on ne valide pas un cas sur une lecture qui ne le décrit plus.
-   Sans lecture, ils restent actifs. Un test modifié depuis la validation de
-   ses cas les décoche tous (« Modifié depuis la validation »). Seuls les tests déjà écrits de la
+   Les autres cas gardent leur lecture et leurs boutons : le pseudo-code d'un cas
+   ne dépend que de son bloc. Pour le savoir, l'appli retient, quand une lecture est à
+   jour, l'empreinte du bloc de chaque cas lu, dans `<sorties>/invariants/<empreinte>.json`,
+   à côté de la lecture (`<empreinte>.md`) ; une lecture d'une autre version
+   de ce fichier, sans ce `.json`, est périmée pour tous ses cas. Rien n'est écrit dans le projet (I-63).
+   Sans lecture, les cas restent actifs.
+   **La validation d'un cas porte sur son bloc, pas sur le fichier** (0.15.0). Le bloc
+   d'un cas, pour sa validation, va de la ligne du cas à celle qui le ferme,
+   trouvée par l'indentation, sans analyser le code : après la ligne qui porte son
+   titre (son `it(`, son `fn`, son `def`), la première ligne non vide indentée comme
+   la ligne du cas ou moins, en sautant celle qui commence par `)` et finit par `{`
+   ou `:` (la fin d'une signature sur plusieurs lignes) ; elle est comprise si elle est
+   indentée comme elle et commence par `}` ou `)`, exclue sinon ; sans une telle
+   ligne, le bloc va jusqu'à la fin du fichier. Ce qui reste dans la découpe de l'écran
+   (la fermeture d'un `describe`, l'en-tête du suivant, un `beforeEach`), avec les imports
+   et les helpers, est le **code commun** du fichier. Les lignes vides ne comptent ni dans un
+   bloc ni dans le code commun. La validation d'un cas garde l'empreinte de son bloc
+   et celle du code commun : bloc changé, le cas seul affiche « Modifié depuis la
+   validation » et perd son verdict ; code commun changé (un import, un helper, un
+   `beforeEach`), tous les cas du fichier perdent leur verdict et affichent « Le code
+   commun du fichier a changé » ; ni l'un ni l'autre : le cas garde son *Validé* ou
+   son *À revoir*. Un cas ajouté n'a pas de validation, un cas retiré disparaît avec la sienne. La
+   clé d'un cas est son titre ; un titre en double est rangé sous son titre et son
+   numéro d'ordre dans le fichier (le premier sous le titre seul, puis
+   « <titre> n° 2 », « <titre> n° 3 »…), la lecture d'un cas aussi : valider un cas ne
+   valide jamais un autre cas ; un cas de même titre inséré avant les autres décale leurs numéros,
+   qui perdent leur validation. Un cas qui perd sa validation décoche l'étape
+   Invariants (et la cascade, F-102). Une validation posée avant cette version
+   porte sur le fichier entier : **convertie sans bruit** au relevé, sur le bloc du cas,
+   si le fichier n'a pas changé depuis, sans rien demander ni rien afficher ; sinon elle
+   reste « Modifié depuis la validation ». Seuls les tests déjà écrits de la
    branche se modifient : *Code* ouvre le bloc du cas seul, modifiable,
    sans défiler jusqu'à lui ; enregistré (Ctrl+S, *Enregistrer*), il remplace
    ce bloc dans le fichier du disque, et seulement lui : aucune autre ligne
@@ -2511,7 +2545,8 @@ peut pas cocher (créateur, `a3:<rang>` : cocher la valide, décocher l'oublie).
 (relecteur : la note *Valider* ou *À revoir* ; la forme, rien à juger), puis « validée » et *Annuler* ; un cas : *Validé* ou
 *À revoir* (deux badges écrits, *Validé* et *À revoir*, gris ; celui donné allumé de sa couleur,
 « Validé » ou « Refusé — Cliquer de nouveau pour annuler » en infobulle), un second clic l'annule. Chacune vaut pour l'empreinte du contenu validé (le
-texte de la note, la rubrique « Forme », le fichier du test, le plan, le
+texte de la note, la rubrique « Forme », le bloc du cas et le code commun de son fichier
+de test (étape Invariants), le plan, le
 commit de tête de la branche pour une case du § A.3) : le
 contenu change → « modifiée depuis » (*Revalider*), et l'étape attend une
 nouvelle validation. Une cible absente du dernier relevé est ignorée.
@@ -3330,7 +3365,9 @@ de la borne) ; I-59 :
 replacé dans le texte) et `src/renderer/app/panel/vibecoder/tests/invariants/case-draft.test.ts`
 (l'éditeur d'un cas) ; I-60 à I-62 : `file-validations.test.ts` (même dossier que
 `run-tmp.test.ts`, sur le vrai principal, git réel : l'index, le dépôt et les
-fichiers du projet intacts, le dossier de sorties qui garde la version) ; I-46 :
+fichiers du projet intacts, le dossier de sorties qui garde la version) ; I-63 :
+`case-validations.test.ts` (même dossier, sur le vrai principal : les fichiers du
+projet intacts après une validation, une retouche, une conversion, une lecture) ; I-46 :
 `src/main/core/vibecoder/tests/invariants/checks.test.ts` ; I-41 :
 `src/main/app/controllers/tests/invariants/worktree.test.ts` (sur le vrai
 principal, git réel) ; la page des réglages et
@@ -3737,6 +3774,10 @@ sont retirés en 0.14.0.)*
   chacun vont dans le dossier de sorties de l'agent, `validated/<empreinte>`.
 - **I-62** Valider une étape, retirer sa validation ou la décocher (F-102) ne
   **modifie aucun fichier du projet** (note, Forme, tests, modules).
+- **I-63** Calculer, garder, convertir ou retirer la validation d'un cas
+  d'invariant (étape Invariants) ne **modifie aucun fichier du projet** : les
+  empreintes des blocs, la conversion des validations d'avant et la lecture cas par
+  cas vont dans `vibecoder-state.json` et le dossier de sorties de l'agent.
 
 ### Système et code
 

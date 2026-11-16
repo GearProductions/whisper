@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { VibeView } from 'shared/bridge';
 import {
-  blobSha, CHECKED, EFFORT_LEVELS, noteDesign, parseNote, stepContent, validateStep, vibeView, type ActionDef, type JourneyInput, type Marks,
+  blobSha, caseBlocks, caseTarget, CHECKED, EFFORT_LEVELS, noteDesign, parseNote, stepContent, validateStep, vibeView, type ActionDef, type JourneyInput, type Marks,
 } from 'core/vibecoder';
 
 // Les actions du brief (celles dont le parcours a besoin), en français.
@@ -77,10 +77,12 @@ const noteMarks = (text: string): Marks => {
   return { note: n, forme: { ...ok(parseNote(text).forme), after: afterOf(n) } };
 };
 const NOTE_OK: Marks = noteMarks(NOTE);
-const CASES_OK: Marks = {
-  [`case:${TEST_PATH}:dit bonjour`]: { hash: BLOB, verdict: 'ok' },
-  [`case:${TEST_PATH}:ne lit rien d'autre`]: { hash: BLOB, verdict: 'ok' },
+// Les validations de chaque cas d'un test (par sa clé : son bloc et le code commun du fichier, comme le geste les pose).
+const casesOk = (text: string, verdict: 'ok' | 'ko' = 'ok'): Marks => {
+  const { keys, blocks, common } = caseBlocks(text);
+  return Object.fromEntries(keys.map((k, i) => [caseTarget(TEST_PATH, k), { hash: blocks[i], common, verdict }]));
 };
+const CASES_OK: Marks = casesOk(TEST);
 const commit = (hash: string, subject: string, files: string[]) => ({ hash: hash.repeat(40).slice(0, 40), subject, files });
 const FIRST = commit('a', 'Note, forme, invariants', [NOTE_PATH, TEST_PATH]);
 const HELLO = commit('b', 'core/hello', ['src/core/hello.ts']);
@@ -239,7 +241,7 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
   it('modules commités, puis la note et un test retouchés après leur validation (validations « changed ») : le parcours ne recule pas, Vibe reste possible', () => {
     // les validations portent sur l'ancien contenu : la note, sa Forme et un cas ont changé depuis
     const stale: Marks = { note: { hash: 'x', verdict: 'ok' }, forme: { hash: 'y', verdict: 'ok' },
-      [`case:${TEST_PATH}:dit bonjour`]: { hash: 'z', verdict: 'ok' }, [`case:${TEST_PATH}:ne lit rien d'autre`]: { hash: BLOB, verdict: 'ok' } };
+      ...CASES_OK, [caseTarget(TEST_PATH, 'dit bonjour')]: { hash: 'z', common: 'c', verdict: 'ok' } };
     const v = vibeView(ready({ marks: stale, repo: repo([], [FIRST, HELLO, BUTTON]) }));
     expect([status(v).note, status(v).forme, status(v).invariants, status(v).modules]).toEqual(['done', 'done', 'done', 'done']);
     expect(v.actions.find((a) => a.id === 'vibe')?.disabled ?? null).toBeNull();
@@ -746,8 +748,8 @@ describe('le relevé : modules, tests, faits', () => {
     expect(vibeView(input({ tests: [variant] })).variants).toEqual([{ id: 'v0', path: variant.path, cases: 2 }]);
   });
 
-  it('les validations d\'un cas valent pour l\'empreinte du fichier', () => {
-    const marks: Marks = { [`case:${TEST_PATH}:dit bonjour`]: { hash: 'autre', verdict: 'ok' } };
+  it('les validations d\'un cas valent pour son bloc', () => {
+    const marks: Marks = { [caseTarget(TEST_PATH, 'dit bonjour')]: { hash: 'autre', common: 'c', verdict: 'ok' } };
     expect(vibeView(input({ tests: [test], marks })).invariants[0].marks).toEqual({ 'dit bonjour': 'changed', 'ne lit rien d\'autre': null });
   });
 
@@ -1730,5 +1732,91 @@ describe('les validations d\'étape et le menu de diff', () => {
       const v = vibeView(ready({ validated: { modules: { [H]: sha('a') } } }));
       expect(v.diffs).toEqual({ head: [], validated: {} });
     });
+  });
+});
+
+// Les cas d'un test d'invariant, un par un : leur validation, leur lecture (note 0.15.0-invariants-par-cas).
+describe('les cas un par un', () => {
+  const SRC = 'import { x } from \'./x\';\n\nit("a", () => {\n  expect(x()).toBe(1);\n});\n\nit("b", () => {\n  expect(x()).toBe(2);\n});\n';
+  const at = (text: string) => ({ path: TEST_PATH, blob: blobSha(text), text });
+  const file = (over: Partial<JourneyInput>, text = SRC) => vibeView(input({ tests: [at(text)], ...over })).invariants[0];
+  const facts = (v: VibeView) => v.steps.find((s) => s.id === 'invariants')?.facts;
+
+  it('un cas retouché : lui seul « changed », les autres ok', () => {
+    const f = file({ marks: casesOk(SRC) }, SRC.replace('toBe(1)', 'toBe(11)'));
+    expect(f.marks).toEqual({ a: 'changed', b: 'ok' });
+    expect(f.commonChanged).toBeUndefined();
+  });
+
+  it('un import changé : tous « changed », leurs clés dans commonChanged', () => {
+    const f = file({ marks: casesOk(SRC) }, SRC.replace('./x', './y'));
+    expect(f.marks).toEqual({ a: 'changed', b: 'changed' });
+    expect(f.commonChanged).toEqual(['a', 'b']);
+  });
+
+  it('un cas refusé garde son verdict tant que rien n\'a changé ; sans validation : null', () => {
+    const marks = casesOk(SRC, 'ko');
+    delete marks[caseTarget(TEST_PATH, 'b')];
+    expect(file({ marks }).marks).toEqual({ a: 'ko', b: null });
+  });
+
+  it('les hashes : le bloc de chaque cas et le code commun (caseBlocks)', () => {
+    const { blocks, common } = caseBlocks(SRC);
+    expect(file({}).hashes).toEqual({ blocks, common });
+  });
+
+  it('deux cas de même titre : deux clés, deux marques', () => {
+    const twice = 'it("a", () => {\n  expect(1).toBe(1);\n});\n\nit("a", () => {\n  expect(2).toBe(2);\n});\n';
+    const marks = casesOk(twice);
+    delete marks[caseTarget(TEST_PATH, 'a n° 2')];
+    expect(file({ marks }, twice).marks).toEqual({ a: 'ok', 'a n° 2': null });
+    // le second retouché : le premier reste validé
+    const edited = twice.replace('toBe(2)', 'toBe(3)');
+    expect(file({ marks: casesOk(twice) }, edited).marks).toEqual({ a: 'ok', 'a n° 2': 'changed' });
+  });
+
+  describe('une lecture d\'une autre version du test', () => {
+    const OLD_SRC = SRC.replace('toBe(1)', 'toBe(0)');
+    const old = { blob: 'f'.repeat(40), text: `# ${TEST_PATH}\n## a\n\n## b\n`, time: 1, blocks: Object.fromEntries(
+      caseBlocks(OLD_SRC).keys.map((k, i) => [k, caseBlocks(OLD_SRC).blocks[i]])) };
+
+    it('staleCases : le cas changé seul ; stale ; readCount compte les autres', () => {
+      const v = vibeView(input({ tests: [at(SRC)], readings: [old] }));
+      expect(v.invariants[0]).toMatchObject({ stale: true, staleCases: ['a'] });
+      expect(facts(v)).toBe('1 fichier · 2 cas · 1 lu');
+    });
+
+    it('une lecture sans empreintes de blocs : tous les cas périmés, aucun lu', () => {
+      const v = vibeView(input({ tests: [at(SRC)], readings: [{ ...old, blocks: undefined }] }));
+      expect(v.invariants[0].staleCases).toEqual(['a', 'b']);
+      expect(facts(v)).toBe('1 fichier · 2 cas · 0 lu');
+    });
+
+    it('la lecture de son empreinte, ou aucune : ni stale, ni staleCases', () => {
+      for (const readings of [[{ ...old, blob: blobSha(SRC) }], []]) {
+        const f = file({ readings });
+        expect([f.stale, f.staleCases]).toEqual([false, undefined]);
+      }
+    });
+
+    it('l\'ancienne forme (texte par empreinte, d\'avant la 0.11.0) : la lecture de son empreinte, à jour', () => {
+      const v = vibeView(input({ tests: [at(SRC)], readings: { [blobSha(SRC)]: '## a\n\n## b\n' } }));
+      expect(v.invariants[0]).toMatchObject({ stale: false, reading: [{ title: 'a' }, { title: 'b' }] });
+      expect(facts(v)).toBe('1 fichier · 2 cas · 2 lus');
+    });
+  });
+
+  it('le cas retouché : l\'étape Invariants décochée', () => {
+    const base = { note, repo: repo([], [FIRST]) };
+    const state = (marks: Marks, text: string, blobs = []) => ({ ...base, tests: [at(text)], marks, blobs });
+    let marks: Marks = { ...NOTE_OK, ...casesOk(SRC) };
+    for (const s of ['invariants'] as const) {
+      const over = state(marks, SRC);
+      const v = vibeView(input(over));
+      const contents = Object.fromEntries(CHECKED.map((c) => [c, stepContent(v, marks, c, [])]));
+      marks = validateStep(marks, contents, s, 'ok')!;
+    }
+    expect(vibeView(input(state(marks, SRC))).steps.find((s) => s.id === 'invariants')?.check?.state).toBe('ok');
+    expect(vibeView(input(state(marks, SRC.replace('toBe(1)', 'toBe(11)')))).steps.find((s) => s.id === 'invariants')?.check?.state).toBe('changed');
   });
 });

@@ -280,7 +280,7 @@ describe('le relevé', () => {
     expect(v.tests).toEqual([{ path: 'src/x/tests/invariants/x.test.ts', blob: blobSha(TEST), text: TEST, base: undefined }]);
     expect(v.readings).toHaveLength(2);
     expect(v.readings).toEqual(expect.arrayContaining([
-      { blob: blobSha(TEST), text: '# lecture\n', time: expect.any(Number) },
+      { blob: blobSha(TEST), text: '# lecture\n', time: expect.any(Number), blocks: { 'un cas': expect.any(String) } },   // la lecture à jour : ses blocs, rangés à côté
       { blob: 'f'.repeat(40), text: '# une version précédente\n', time: expect.any(Number) },
     ]));
     expect(Object.keys(v.outputs)).toEqual(['ponytail.md']); // secret.txt : pas un nom connu
@@ -2564,5 +2564,154 @@ describe('0.15.0 : valider une étape, retenir sa liste et ses fichiers', () => 
     await settle();
     await survey();
     expect(Object.keys(await marks())).not.toContain('invariants');
+  });
+});
+
+// Les cas des invariants, un par un (0.15.0-invariants-par-cas) : le ✓ d'un cas (markVibe « case:<chemin>:<clé> »), la
+// conversion des validations d'avant au relevé, les blocs lus rangés à côté de la lecture (<blob>.json).
+describe('0.15.0 : les invariants cas par cas', () => {
+  const INV = 'src/x/tests/invariants/x.test.ts';
+  const CASE_TEXT = "import { it } from 'vitest';\nconst un = 1;\nit('premier', () => {\n  void un;\n});\nit('second', () => {\n  void 2;\n});\n";
+  const CASE_EDITED = CASE_TEXT.replace('void 2;', 'void 3;');
+  const FIRST = `case:${INV}:premier`;
+  const SECOND = `case:${INV}:second`;
+  const stateFile = () => path.join(fake.userData, 'vibecoder-state.json');
+  const inv = (name: string) => path.join(out, 'invariants', name);
+  beforeEach(() => {
+    write(path.join(dir, INV), CASE_TEXT);
+    fake.real = true;
+  });
+
+  const controllers = () => import('app/controllers');
+  const survey = async () => { await (await controllers()).refreshVibe({ now: true }); await settle(); };
+  const mark = async (target: string, verdict: 'ok' | 'ko' | null) => { (await controllers()).markVibe(target, verdict); await settle(); await survey(); };
+  const marks = async () => ((await import('app/settings')).vibeStore().marks.a1 ?? {}) as Record<string, { hash: string; verdict: string; common?: string }>;
+  const file = async () => (await controllers()).lastView('a1')!.invariants.find((f) => f.path === INV)!;
+  const blocks = async (text: string) => (await import('core/vibecoder')).caseBlocks(text);
+
+  it('valider un cas puis retoucher un autre : le premier reste ✓, le second perd sa validation', async () => {
+    await open();
+    await mark(FIRST, 'ok');
+    await mark(SECOND, 'ok');
+    expect((await file()).marks).toEqual({ premier: 'ok', second: 'ok' });
+    write(path.join(dir, INV), CASE_EDITED);
+    await survey();
+    expect((await file()).marks).toEqual({ premier: 'ok', second: 'changed' });
+  });
+
+  it('la marque d\'un cas : l\'empreinte de son bloc et celle du code commun ; ✗ de même ; null l\'oublie', async () => {
+    await open();
+    const { keys, blocks: hashes, common } = await blocks(CASE_TEXT);
+    await mark(SECOND, 'ko');
+    expect(await marks()).toEqual({ [SECOND]: { hash: hashes[keys.indexOf('second')], verdict: 'ko', common } });
+    await mark(SECOND, null);
+    expect(await marks()).toEqual({});
+  });
+
+  it('un cas inconnu (clé, fichier) : ignoré, aucune marque', async () => {
+    await open();
+    await mark(`case:${INV}:absent`, 'ok');
+    await mark('case:src/y/tests/invariants/y.test.ts:premier', 'ok');
+    await mark('case:', 'ok');
+    expect(await marks()).toEqual({});
+  });
+
+  it('une marque d\'avant (sur le fichier entier), fichier inchangé : convertie au premier relevé, sans toucher au projet', async () => {
+    const { blobSha } = await import('core/vibecoder');
+    const { saveVibeStore } = await import('app/settings');
+    saveVibeStore({ marks: { a1: { [FIRST]: { hash: blobSha(CASE_TEXT), verdict: 'ok' } } }, drafts: {} } as never);
+    const before = fs.readFileSync(path.join(dir, INV), 'utf8');
+    await open();
+    const { keys, blocks: hashes, common } = await blocks(CASE_TEXT);
+    expect(await marks()).toEqual({ [FIRST]: { hash: hashes[keys.indexOf('premier')], verdict: 'ok', common } });
+    expect((await file()).marks).toEqual({ premier: 'ok', second: null });
+    expect(fs.readFileSync(path.join(dir, INV), 'utf8')).toBe(before);
+  });
+
+  it('une marque d\'avant, fichier retouché depuis : laissée telle quelle, le cas à revoir', async () => {
+    const { blobSha } = await import('core/vibecoder');
+    const { saveVibeStore } = await import('app/settings');
+    const old = { hash: blobSha('une version précédente'), verdict: 'ok' };
+    saveVibeStore({ marks: { a1: { [FIRST]: old } }, drafts: {} } as never);
+    await open();
+    expect(await marks()).toEqual({ [FIRST]: old });
+    expect((await file()).marks.premier).toBe('changed');
+  });
+
+  it('rien à convertir : le fichier d\'état n\'est pas réécrit par le relevé', async () => {
+    await open();
+    await mark(FIRST, 'ok');
+    const past = new Date(Date.now() - 60_000);
+    fs.utimesSync(stateFile(), past, past);
+    await survey();
+    await survey();
+    expect(fs.statSync(stateFile()).mtimeMs).toBe(past.getTime());
+  });
+
+  it('la lecture à jour : son .json écrit à côté, une seule fois, lu avec elle (blocks) ; le .json n\'est pas une lecture', async () => {
+    fake.real = false;   // le parcours rend ce qu'il reçoit : readings, tels que le relevé les lit
+    const { blobSha } = await import('core/vibecoder');
+    write(inv(`${blobSha(CASE_TEXT)}.md`), `# ${INV}\n`);
+    const { view } = await open();
+    const { keys, blocks: hashes } = await blocks(CASE_TEXT);
+    const expected = Object.fromEntries(keys.map((k, i) => [k, hashes[i]]));
+    expect(JSON.parse(fs.readFileSync(inv(`${blobSha(CASE_TEXT)}.json`), 'utf8'))).toEqual(expected);
+    expect(view()!.readings).toEqual([{ blob: blobSha(CASE_TEXT), text: `# ${INV}\n`, time: expect.any(Number), blocks: expected }]);
+    // une seule fois : le test retouché (sa lecture périmée) ne réécrit pas le .json de l'ancienne empreinte
+    write(path.join(dir, INV), CASE_EDITED);
+    await survey();
+    expect(JSON.parse(fs.readFileSync(inv(`${blobSha(CASE_TEXT)}.json`), 'utf8'))).toEqual(expected);
+    expect(fs.readdirSync(inv('')).sort()).toEqual([`${blobSha(CASE_TEXT)}.json`, `${blobSha(CASE_TEXT)}.md`].sort());
+  });
+
+  it('la lecture dont un bloc a changé depuis : seul ce cas est périmé (les blocs lus par le .json)', async () => {
+    const { blobSha } = await import('core/vibecoder');
+    write(inv(`${blobSha(CASE_TEXT)}.md`), `# ${INV}\n`);
+    await open();
+    expect((await file()).staleCases ?? []).toEqual([]);
+    write(path.join(dir, INV), CASE_EDITED);
+    await survey();
+    expect((await file()).staleCases).toEqual(['second']);
+  });
+
+  it('un .json déjà là (même fait à la main, illisible) : jamais réécrit', async () => {
+    fake.real = false;   // le parcours rend ce qu'il reçoit : readings, tels que le relevé les lit
+    const { blobSha } = await import('core/vibecoder');
+    write(inv(`${blobSha(CASE_TEXT)}.md`), `# ${INV}\n`);
+    write(inv(`${blobSha(CASE_TEXT)}.json`), '{ pas du json');
+    const { view } = await open();
+    expect(fs.readFileSync(inv(`${blobSha(CASE_TEXT)}.json`), 'utf8')).toBe('{ pas du json');
+    expect(view()!.readings).toEqual([{ blob: blobSha(CASE_TEXT), text: `# ${INV}\n`, time: expect.any(Number) }]);   // sans blocs
+  });
+
+  it('un .json qui n\'est pas { clé: empreinte } : sans blocs, ou seules les empreintes en texte', async () => {
+    fake.real = false;   // le parcours rend ce qu'il reçoit : readings, tels que le relevé les lit
+    const { blobSha } = await import('core/vibecoder');
+    write(inv(`${'a'.repeat(40)}.md`), '# autre\n');
+    write(inv(`${'a'.repeat(40)}.json`), '[1, 2]');
+    write(inv(`${'b'.repeat(40)}.md`), '# autre\n');
+    write(inv(`${'b'.repeat(40)}.json`), JSON.stringify({ premier: 'x'.repeat(40), second: 3 }));
+    const { view } = await open();
+    const reading = (blob: string) => (view()!.readings as unknown as { blob: string; blocks?: unknown }[]).find((r) => r.blob === blob);
+    expect(reading('a'.repeat(40))).not.toHaveProperty('blocks');
+    expect(reading('b'.repeat(40))!.blocks).toEqual({ premier: 'x'.repeat(40) });
+    void blobSha;
+  });
+
+  it('une lecture d\'une empreinte d\'avant : pas de .json écrit pour elle (le test d\'aujourd\'hui n\'a pas sa lecture)', async () => {
+    write(inv(`${'f'.repeat(40)}.md`), `# ${INV}\n`);
+    await open();
+    expect(fs.existsSync(inv(`${'f'.repeat(40)}.json`))).toBe(false);
+  });
+
+  it('un variant (pas un invariant) lu : aucun .json', async () => {
+    const { blobSha } = await import('core/vibecoder');
+    const VARIANT = 'src/x/tests/variants/x.test.ts';
+    const text = `${CASE_TEXT}// un variant\n`;   // son empreinte n'est pas celle du test d'invariants
+    write(path.join(dir, VARIANT), text);
+    fake.facts = { ...fake.facts as object, changed: [...(fake.facts as { changed: string[] }).changed, VARIANT] };
+    write(inv(`${blobSha(text)}.md`), `# ${VARIANT}\n`);
+    await open();
+    expect(fs.existsSync(inv(`${blobSha(text)}.json`))).toBe(false);
   });
 });

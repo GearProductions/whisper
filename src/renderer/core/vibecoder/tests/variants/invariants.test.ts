@@ -1,23 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { attentionQuote, caseLine, caseLink, caseRange, caseSource, casesOf, replaceRange, withAttention, progress, pseudoLines } from 'core/vibecoder';
+import { attentionQuote, caseLink, caseRange, caseSource, casesOf, replaceRange, withAttention, progress, pseudoLines } from 'core/vibecoder';
 import type { MustNotMark, ReadingCase, VibeNote, VibeTestFile } from 'technicals/bridge';
 
 const reading = (title: string, warning: string | null = null): ReadingCase => ({ title, pseudo: 'it("x")', edges: [], guarantees: 'g', warning });
 const file = (over: Partial<VibeTestFile> = {}): VibeTestFile => ({
   id: 't0', path: 'tests/invariants/a.test.ts', blob: 'b', cases: ['refuse', 'accepte'], lines: [4, 12], source: '', reading: null, marks: {}, ...over,
-});
-
-describe('caseLine', () => {
-  it('la ligne du cas, d\'après son rang dans cases', () => {
-    expect(caseLine(file(), 'accepte')).toBe(12);
-  });
-
-  it('cas inconnu, lignes manquantes ou pas des lignes : undefined', () => {
-    expect(caseLine(file(), 'autre')).toBeUndefined();
-    expect(caseLine(file({ lines: [4] }), 'accepte')).toBeUndefined();
-    expect(caseLine(file({ lines: [0, 2.5] }), 'refuse')).toBeUndefined();
-    expect(caseLine(file({ lines: [0, 2.5] }), 'accepte')).toBeUndefined();
-  });
 });
 
 describe('caseSource', () => {
@@ -127,8 +114,66 @@ describe('replaceRange', () => {
 describe('casesOf', () => {
   it('pas lu : chaque cas sans lecture, sa validation', () => {
     expect(casesOf(file({ marks: { refuse: 'ok' } }))).toEqual([
-      { title: 'refuse', reading: null, mark: 'ok' }, { title: 'accepte', reading: null, mark: null },
+      { title: 'refuse', key: 'refuse', reading: null, mark: 'ok' }, { title: 'accepte', key: 'accepte', reading: null, mark: null },
     ]);
+  });
+
+  describe('par la clé (titres en double, périmé, code commun)', () => {
+    const twin = (over: Partial<VibeTestFile> = {}) => file({ cases: ['x', 'x', 'y'], lines: [1, 5, 9], ...over });
+    const x2 = { ...reading('x'), guarantees: 'g2' };
+
+    it('deux cas de même titre : la lecture n° 2 au second, chacun sa marque', () => {
+      const r = [reading('x'), x2, reading('y')];
+      const cs = casesOf(twin({ reading: r, marks: { x: 'ok', 'x n° 2': 'ko' } }));
+      expect(cs.map((c) => c.key)).toEqual(['x', 'x n° 2', 'y']);
+      expect(cs.map((c) => c.reading)).toEqual(r);
+      expect(cs.map((c) => c.mark)).toEqual(['ok', 'ko', null]);
+    });
+
+    it('la marque du premier ne passe pas au second de même titre', () => {
+      expect(casesOf(twin({ marks: { x: 'ok' } })).map((c) => c.mark)).toEqual(['ok', null, null]);
+      expect(casesOf(twin({ marks: { 'x n° 2': 'changed' } })).map((c) => c.mark)).toEqual([null, 'changed', null]);
+    });
+
+    it('la lecture est cherchée par clé, quel que soit son rang', () => {
+      const r = [reading('y'), x2, reading('x')];
+      expect(casesOf(twin({ reading: r })).map((c) => c.reading)).toEqual([r[1], r[2], r[0]]);   // les « x » de la lecture, dans leur ordre : n° 1 puis n° 2
+    });
+
+    it('une lecture de moins de cas : les cas sans lecture de cette clé n\'en ont pas', () => {
+      const r = [reading('x'), x2];
+      expect(casesOf(twin({ reading: r })).map((c) => c.reading)).toEqual([r[0], r[1], null]);
+    });
+
+    it('une lecture de plus de cas que le fichier : les cas du fichier trouvent la leur', () => {
+      const r = [reading('z'), reading('refuse'), reading('accepte')];
+      expect(casesOf(file({ reading: r })).map((c) => c.reading)).toEqual([r[1], r[2]]);
+    });
+
+    it('titres réécrits par la lecture, titres en double : celle de même rang', () => {
+      const r = [reading('x un'), reading('x deux'), reading('y')];
+      expect(casesOf(twin({ reading: r })).map((c) => c.reading)).toEqual([r[0], r[1], r[2]]);
+    });
+
+    it('staleCases : stale sur ce cas seul', () => {
+      const r = [reading('x'), x2, reading('y')];
+      const cs = casesOf(twin({ reading: r, staleCases: ['x n° 2'] }));
+      expect(cs.map((c) => !!c.stale)).toEqual([false, true, false]);
+    });
+
+    it('staleCases ou commonChanged absents : aucun cas périmé ni changé par le code commun', () => {
+      const cs = casesOf(twin({ reading: [reading('x'), x2, reading('y')] }));
+      expect(cs.some((c) => c.stale || c.common)).toBe(false);
+    });
+
+    it('commonChanged : common sur ces cas', () => {
+      const cs = casesOf(twin({ marks: { x: 'changed', 'x n° 2': 'changed', y: 'changed' }, commonChanged: ['x n° 2', 'y'] }));
+      expect(cs.map((c) => !!c.common)).toEqual([false, true, true]);
+    });
+
+    it('une clé qui est une propriété d\'Object : pas de marque', () => {
+      expect(casesOf(file({ cases: ['toString'], lines: [1] }))[0].mark).toBeNull();
+    });
   });
 
   it('lu : la lecture de même titre, quel que soit son rang', () => {
@@ -155,6 +200,22 @@ describe('progress', () => {
       file({ id: 't1', cases: ['x', 'y'], marks: { x: 'ok' } }),
     ];
     expect(progress(files)).toEqual({ total: 4, ok: 1, ko: 1, changed: 1, warnings: 1, unread: 2, all: false });
+  });
+
+  it('staleCases : unread ne compte que le cas périmé, seul', () => {
+    const r = [reading('refuse'), reading('accepte')];
+    expect(progress([file({ reading: r, staleCases: ['refuse'] })]).unread).toBe(1);
+    expect(progress([file({ reading: r, staleCases: ['refuse', 'accepte'] })]).unread).toBe(2);
+    expect(progress([file({ reading: r })]).unread).toBe(0);
+  });
+
+  it('un cas périmé et sans lecture : compté une fois', () => {
+    expect(progress([file({ reading: [reading('accepte')], staleCases: ['refuse', 'accepte'] })]).unread).toBe(2);
+  });
+
+  it('deux cas de même titre, le second périmé : lui seul est à relire', () => {
+    const f = file({ cases: ['x', 'x'], lines: [1, 5], reading: [reading('x'), reading('x')], staleCases: ['x n° 2'] });
+    expect(progress([f]).unread).toBe(1);
   });
 
   it('Tout valider : aucun point d\'attention, un au moins sans verdict, lus ou pas', () => {

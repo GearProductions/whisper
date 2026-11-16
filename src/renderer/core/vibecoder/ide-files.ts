@@ -8,7 +8,7 @@
  *  on voit où ils sont écrits (note 0.15.0-variants-tdd).
  *  L'étape Invariants (invariantTree) : les fichiers de la Forme (comme by 'module', en retrait : dim) et les
  *  tests d'invariants ensemble ; un test : test (son rang dans view.invariants), sans rang (pas de numéro), son
- *  état (cas validés : tous done, aucun todo, sinon wip), sa couleur d'après son texte à la base de la branche
+ *  état (cas validés, lus par leur clé, caseKeys de shared/test-cases : tous done, aucun todo, sinon wip), sa couleur d'après son texte à la base de la branche
  *  (base absente : nouveau ; différente : modifié ; la même ou inconnue : aucune), code null. Sans Forme : les tests seuls.
  *  Le menu de diff de la vue IDE (note 0.15.0-ecran-statuts) : ses références (diffRefs : la base de la branche, le
  *  dernier commit, la validation si l'étape en a une) et l'arborescence filtrée (diffTree : base, tous les fichiers ;
@@ -18,6 +18,7 @@
  *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (forme-view, modules-view, ide-view,
  *  invariants-view, ide-diff). */
 import type { VibeDiffStep, VibeGit, VibeLang, VibeMarkState, VibeModule, VibeStepCheck, VibeTestFile, VibeView, VibeStep } from 'technicals/bridge';
+import { caseKeys } from 'shared/test-cases';
 import { t } from './i18n';
 
 export type ModuleState = 'done' | 'wip' | 'todo';
@@ -94,7 +95,7 @@ export function ideFiles(view: Pick<VibeView, 'modules' | 'files'> & { variants?
 
 // L'état d'un test : done si tous ses cas sont validés (ok), todo si aucun n'a de verdict, sinon wip.
 const testState = (t: VibeTestFile): ModuleState => {
-  const marks = t.cases.map((c) => t.marks[c]);
+  const marks = caseKeys(t.cases).map((k) => t.marks[k]);
   return marks.length && marks.every((m) => m === 'ok') ? 'done' : marks.some(Boolean) ? 'wip' : 'todo';
 };
 

@@ -5,8 +5,10 @@
  *  d'étape (note 0.15.0-ecran-statuts) : 'note' pour l'empreinte de sa conception
  *  (noteDesign), 'forme', 'invariants', 'modules' pour celle de step.check.now ; leur
  *  marque porte aussi after (la validation de l'étape d'avant) et files (la liste des
- *  fichiers retenus) — step-checks. Plus de « file: » ni de « step: » (retirés). Le ✓ des
- *  étapes faites pendant Vibe (vibeMarks : note, forme, invariants, par validateStep). Et le brouillon de
+ *  fichiers retenus) — step-checks. Plus de « file: » ni de « step: » (retirés). Un cas : son bloc et le code
+ *  commun de son fichier (case-marks, note 0.15.0-invariants-par-cas) ; targetHash n'en donne plus l'empreinte
+ *  (null : caseHashes). Le ✓ des
+ *  étapes faites pendant Vibe (vibeMarks : note, forme, invariants, par validateStep ; chaque cas par setCaseMark). Et le brouillon de
  *  revue de chaque PR (relecteur) : ajouter, modifier, retirer une remarque, savoir
  *  si une remarque y est (hasComment). Et la
  *  vérification de conception de la note, gardée avec les validations (la cible
@@ -15,15 +17,19 @@
  *  course design-check (le contrôleur lui dit comment elle a fini).
  *  Utilisé par : core/vibecoder (journey : checked ; step-checks), app/controllers/vibecoder, app/settings. */
 import type { VibeComment, VibeFlow, VibeMarkState, VibeView } from 'shared/bridge';
+import { caseKeys } from 'shared/test-cases';
+import { caseHashes, caseMarkState, caseTarget, setCaseMark } from './case-marks';
 import { noteDesign } from './note';
 import { stepChecks, stepContents, validateStep } from './step-checks';
 import { blobSha } from './test-files';
 import type { FileBlobs } from './validated';
 
-// Par cible ('note', 'forme', 'nothing' (pour le texte de la note), 'case:<chemin du fichier>:<titre du cas>', 'check:<rang>' (une case du plan à l'écran, ecran.md), 'a3:<rang>', 'commit:<hash>',
+// Par cible ('note', 'forme', 'nothing' (pour le texte de la note), 'case:<chemin du fichier>:<clé du cas>' (case-marks), 'check:<rang>' (une case du plan à l'écran, ecran.md), 'a3:<rang>', 'commit:<hash>',
 // 'invariants', 'modules' (step-checks) ; 'file:<chemin>' et 'step:<étape>' : retirés).
 // after, files : une validation d'étape (step-checks) — l'empreinte de la marque de l'étape d'avant, celle de sa liste de fichiers.
-export type Marks = Record<string, { hash: string; verdict: 'ok' | 'ko'; after?: string; files?: string }>;
+// common : un cas (case-marks) — l'empreinte du code commun de son fichier ; hash, celle de son bloc (absent : une marque d'avant
+// la 0.15.0, sur le fichier entier, convertCaseMarks).
+export type Marks = Record<string, { hash: string; verdict: 'ok' | 'ko'; after?: string; files?: string; common?: string }>;
 // Par numéro de PR.
 export type Drafts = Record<string, VibeComment[]>;
 
@@ -62,9 +68,10 @@ export function designEnd(
 }
 
 // L'empreinte du contenu d'une cible dans le relevé : la note (sa conception, noteDesign), « rien à écrire » de l'étape
-// Invariants (créateur : le texte de la note), un cas de test (le fichier), une case du plan à l'écran (ecran.md), une case
-// du § A.3 à cocher à la main (le commit de tête de la branche), un commit (« commit:<hash> » : son hash) ; null si la
-// cible n'y est pas (« file: » et « step: » compris, retirés ; 'forme', 'invariants' et 'modules' : markStep, step-checks).
+// Invariants (créateur : le texte de la note), une case du plan à l'écran (ecran.md), une case du § A.3 à cocher à la
+// main (le commit de tête de la branche), un commit (« commit:<hash> » : son hash) ; null si la cible n'y est pas
+// (« file: » et « step: » compris, retirés ; 'forme', 'invariants' et 'modules' : markStep, step-checks ; un « case: » :
+// toujours null, ses empreintes sont celles de caseHashes).
 export function targetHash(view: VibeView, target: string): string | null {
   const { note } = view;
   if (target.startsWith('commit:')) return view.commits.find((c) => `commit:${c.hash}` === target)?.hash ?? null;
@@ -72,22 +79,26 @@ export function targetHash(view: VibeView, target: string): string | null {
   if (a3) return view.flow === 'create' && view.checklist[Number(a3[1])]?.manual ? view.commits.at(-1)?.hash ?? null : null;
   if (target === 'nothing' && view.flow !== 'create') return null;
   if (target === 'note' || target === 'nothing') return note && blobSha(target === 'note' ? noteDesign(note.text) : note.text);
-  const file = view.invariants.find((f) => target.startsWith(`case:${f.path}:`) && f.cases.includes(target.slice(`case:${f.path}:`.length)));
-  if (file) return file.blob;
+  if (target.startsWith('case:')) return null;
   const check = /^check:(\d+)$/.exec(target);
   const plan = check && Number(check[1]) < (view.screen?.length ?? 0) ? view.outputs['ecran.md'] : undefined;
   return plan ? blobSha(plan.text) : null;
 }
 
 // Créateur : chaque étape faite de view (note, forme, invariants) reçoit sa validation d'étape pour son contenu
-// d'aujourd'hui (validateStep de step-checks, dans l'ordre : after suit), et chaque cas des invariants son ✓, les mêmes
-// cibles et empreintes qu'un clic (targetHash) ; un ✓ ou ✗ déjà donné pour ce contenu reste ; une étape refusée (l'étape
-// d'avant pas cochée) ne reçoit rien. blobs : les empreintes du disque (les fichiers retenus par la Forme et les invariants).
+// d'aujourd'hui (validateStep de step-checks, dans l'ordre : after suit), et chaque cas des invariants son ✓ (setCaseMark,
+// les mêmes cible et empreintes qu'un clic : caseTarget, caseHashes) ; un ✓ ou ✗ déjà donné pour ce bloc et ce code commun
+// reste (un fichier sans hashes : aucun cas) ; une étape refusée (l'étape d'avant pas cochée) ne reçoit rien. blobs : les
+// empreintes du disque (les fichiers retenus par la Forme et les invariants).
 export function vibeMarks(marks: Marks, view: VibeView, blobs: FileBlobs[] = []): Marks {
   if (view.flow !== 'create' || !view.note) return marks;
   const done = new Set(view.steps.filter((s) => s.status === 'done').map((s) => s.id));
-  const cases = done.has('invariants') ? view.invariants.flatMap((f) => f.cases.map((c) => ({ target: `case:${f.path}:${c}`, hash: f.blob }))) : [];
-  const withCases = cases.reduce((m, { target, hash }) => (markState(m, target, hash) === 'ok' || markState(m, target, hash) === 'ko' ? m : setMark(m, target, hash, 'ok')), marks);
+  const cases = done.has('invariants') ? view.invariants.flatMap((f) => caseKeys(f.cases).map((k) => caseTarget(f.path, k))) : [];
+  const withCases = cases.reduce((m, target) => {
+    const hashes = caseHashes(view.invariants, target);
+    const state = hashes && caseMarkState(m, target, hashes);
+    return !hashes || state === 'ok' || state === 'ko' ? m : setCaseMark(m, target, hashes, 'ok');
+  }, marks);
   // Les contenus ne dépendent que des cas et de « rien à écrire » (withCases) : les marques d'étape que le reste ajoute n'y changent rien.
   const contents = stepContents(view, withCases, blobs);
   return (['note', 'forme', 'invariants'] as const).filter((step) => done.has(step)).reduce((m, step) => {
