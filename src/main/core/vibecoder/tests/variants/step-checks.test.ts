@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { VibeView } from 'shared/bridge';
 import {
-  blobSha, CHECKED, setMark, stepChecks, stepContent, validateStep, type CheckedStep, type FileBlobs, type Marks, type StepContent,
+  blobSha, caseHashes, caseTarget, CHECKED, setCaseMark, setMark, stepChecks, stepContent, validateStep, type CheckedStep, type FileBlobs,
+  type Marks, type StepContent,
 } from 'core/vibecoder';
+import { caseKeys } from 'shared/test-cases';
 
 type V = Pick<VibeView, 'note' | 'invariants' | 'modules'>;
 type Contents = Record<CheckedStep, StepContent | null>;
@@ -11,7 +13,7 @@ const T = 'src/a/tests/invariants/a.test.ts';
 
 type Spec = {
   does?: string; forme?: string | null; noNote?: boolean;
-  tests?: Record<string, { source: string; cases: string[] }>; code?: Record<string, string>; deleted?: string[];
+  tests?: Record<string, { source: string; cases: string[]; blocks?: string[]; common?: string; noHashes?: boolean }>; code?: Record<string, string>; deleted?: string[];
 };
 
 // Un relevé à la main : la note, les tests (le disque a leur texte), les fichiers des modules.
@@ -26,7 +28,10 @@ function build(s: Spec = {}): { view: V; blobs: FileBlobs[] } {
     blobs,
     view: {
       note: s.noNote ? null : ({ id: 'n', path: 'docs/n.md', text } as V['note']),
-      invariants: Object.entries(tests).map(([path, t]) => ({ path, id: path, cases: t.cases, blob: blobSha(t.source) })) as V['invariants'],
+      invariants: Object.entries(tests).map(([path, t]) => ({
+        path, id: path, cases: t.cases, blob: blobSha(t.source),
+        ...(!t.noHashes && { hashes: { blocks: t.blocks ?? t.cases.map((c) => blobSha(`bloc ${c}`)), common: blobSha(t.common ?? 'commun') } }),
+      })) as V['invariants'],
       modules: [{ files: [...Object.keys(code).map((path) => ({ id: path, path })), ...(s.deleted ?? []).map((path) => ({ id: path, path, deleted: true }))] }] as V['modules'],
     },
   };
@@ -34,7 +39,13 @@ function build(s: Spec = {}): { view: V; blobs: FileBlobs[] } {
 
 const contentsOf = (view: V, marks: Marks, blobs: FileBlobs[]): Contents =>
   Object.fromEntries(CHECKED.map((s) => [s, stepContent(view, marks, s, blobs)])) as Contents;
-const casesOk = (m: Marks, v: V) => v.invariants.reduce((acc, f) => f.cases.reduce((a, c) => setMark(a, `case:${f.path}:${c}`, f.blob, 'ok'), acc), m);
+// Un cas ✓ pour ses empreintes d'aujourd'hui (la clé de caseKeys), un autre verdict au besoin.
+const markCase = (m: Marks, v: V, path: string, i: number, verdict: 'ok' | 'ko' = 'ok'): Marks => {
+  const f = v.invariants.find((x) => x.path === path)!;
+  const target = caseTarget(path, caseKeys(f.cases)[i]);
+  return setCaseMark(m, target, caseHashes(v.invariants, target)!, verdict);
+};
+const casesOk = (m: Marks, v: V) => v.invariants.reduce((acc, f) => f.cases.reduce((a, _c, i) => markCase(a, v, f.path, i), acc), m);
 const states = (m: Marks, c: Contents) => CHECKED.map((s) => stepChecks(m, c)[s].state);
 
 // Valide les étapes dans l'ordre, comme le contrôleur : chaque geste recalcule les contenus d'après les marques d'alors.
@@ -91,15 +102,57 @@ describe('stepContent', () => {
   it('un cas sans ✓ : invariants null ; tous les cas ✓ : les fichiers de test', () => {
     const { view, blobs } = build();
     expect(stepContent(view, {}, 'invariants', blobs)).toBeNull();
-    const half = setMark({}, `case:${T}:c1`, view.invariants[0].blob, 'ok');
-    expect(stepContent(view, half, 'invariants', blobs)).toBeNull();
-    // un ✓ donné à une autre version du test ne compte pas
-    expect(stepContent(view, setMark(casesOk({}, view), `case:${T}:c2`, 'autre', 'ok'), 'invariants', blobs)).toBeNull();
-    // un ✗ non plus
-    expect(stepContent(view, setMark(casesOk({}, view), `case:${T}:c2`, view.invariants[0].blob, 'ko'), 'invariants', blobs)).toBeNull();
+    expect(stepContent(view, markCase({}, view, T, 0), 'invariants', blobs)).toBeNull();
+    // un ✗ ne compte pas
+    expect(stepContent(view, markCase(casesOk({}, view), view, T, 1, 'ko'), 'invariants', blobs)).toBeNull();
     const c = stepContent(view, casesOk({}, view), 'invariants', blobs)!;
     expect(c.files).toEqual({ [T]: blobSha('test A') });
     expect(c.hash).toBe(blobSha(`${blobSha('test A')} ${T}`));
+  });
+
+  it('tous les cas ✓ pour leur bloc : la liste ; un cas au bloc changé depuis son ✓ : null', () => {
+    const marks = casesOk({}, build().view);
+    const changed = build({ tests: { [T]: { source: 'test A', cases: ['c1', 'c2'], blocks: [blobSha('bloc c1'), blobSha('bloc c2 modifié')] } } });
+    expect(stepContent(changed.view, marks, 'invariants', changed.blobs)).toBeNull();
+    // le bloc d'un autre cas changé : tant que le sien tient, il reste ✓, mais pas « tous »
+    const first = build({ tests: { [T]: { source: 'test A', cases: ['c1', 'c2'], blocks: [blobSha('bloc c1 modifié'), blobSha('bloc c2')] } } });
+    expect(stepContent(first.view, marks, 'invariants', first.blobs)).toBeNull();
+    // le fichier peut changer (source) sans toucher aux blocs : les ✓ tiennent
+    const src = build({ tests: { [T]: { source: 'test A, un commentaire en plus', cases: ['c1', 'c2'] } } });
+    expect(stepContent(src.view, marks, 'invariants', src.blobs)).not.toBeNull();
+  });
+
+  it('le code commun du fichier changé depuis les ✓ : null ; une marque sans common (d’avant) : null', () => {
+    const marks = casesOk({}, build().view);
+    const common = build({ tests: { [T]: { source: 'test A', cases: ['c1', 'c2'], common: 'autre commun' } } });
+    expect(stepContent(common.view, marks, 'invariants', common.blobs)).toBeNull();
+    const { view, blobs } = build();
+    const old = Object.fromEntries(Object.entries(marks).map(([k, m]) => [k, { hash: m.hash, verdict: m.verdict }]));
+    expect(stepContent(view, old, 'invariants', blobs)).toBeNull();
+  });
+
+  it('un fichier sans hashes : null, même avec des marques de cas', () => {
+    const { view } = build();
+    const marks = casesOk({}, view);
+    const bare = build({ tests: { [T]: { source: 'test A', cases: ['c1', 'c2'], noHashes: true } } });
+    expect(stepContent(bare.view, marks, 'invariants', bare.blobs)).toBeNull();
+  });
+
+  it('titres en double : chaque cas a sa clé, un seul ✓ ne suffit pas', () => {
+    const tests = { [T]: { source: 'test A', cases: ['dup', 'dup'] } };
+    const { view, blobs } = build({ tests });
+    expect(stepContent(view, markCase({}, view, T, 0), 'invariants', blobs)).toBeNull();
+    expect(stepContent(view, markCase({}, view, T, 1), 'invariants', blobs)).toBeNull();
+    expect(stepContent(view, markCase(markCase({}, view, T, 0), view, T, 1), 'invariants', blobs)).not.toBeNull();
+  });
+
+  it('plusieurs fichiers : un cas sans ✓ dans l’un suffit à tout refuser', () => {
+    const T2 = 'src/b/tests/invariants/b.test.ts';
+    const { view, blobs } = build({ tests: { [T]: { source: 'test A', cases: ['c1'] }, [T2]: { source: 'test B', cases: ['d1', 'd2'] } } });
+    const m = markCase(markCase(markCase({}, view, T, 0), view, T2, 0), view, T2, 1);
+    expect(Object.keys(stepContent(view, m, 'invariants', blobs)!.files).sort()).toEqual([T, T2]);
+    const { [caseTarget(T2, 'd2')]: _, ...partial } = m;
+    expect(stepContent(view, partial, 'invariants', blobs)).toBeNull();
   });
 
   it('✓ Rien à écrire, sans test : une liste vide ; sans ✓ ou avec des tests : pas ce cas', () => {
@@ -160,7 +213,7 @@ describe('stepChecks', () => {
     ['un module', { code: { 'src/a/index.ts': 'code A modifié', 'src/a/b.ts': 'code B' } }, ['ok', 'ok', 'ok', 'changed']],
   ] as [string, Spec, string[]][])('%s changé : sa propre étape changed, les suivantes en cascade', (_n, change, expected) => {
     const m = validate({}, {});
-    // un test modifié perd ses ✓ de cas (leur empreinte est celle du fichier) : on les redonne, ils ne sont pas ce qui est mesuré
+    // un test modifié peut perdre ses ✓ de cas : on les redonne, ils ne sont pas ce qui est mesuré
     const { view, blobs } = build(change);
     const c = stepChecks(m, contentsOf(view, casesOk(m, view), blobs));
     expect(CHECKED.map((s) => c[s].state)).toEqual(expected);

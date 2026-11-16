@@ -51,8 +51,11 @@
  *  0.11.0-editer-invariants-et-note) ; les fichiers que change la branche (files : repo.changed,
  *  la copie de travail comprise, triés, ids `b<i>`, deleted : absents du disque, locked : codeLock
  *  sans module ; note 0.13.0-forme-modules-ide) et le réglage de la vue Modules (modulesView,
- *  recopié) ; la lecture d'un test (readingOf), celle d'une version
- *  précédente montrée périmée (stale), jamais comptée comme lue ; le texte d'un test à la base
+ *  recopié) ; la lecture d'un test (caseReading), celle d'une version
+ *  précédente périmée pour les seuls cas dont le bloc a changé depuis (staleCases ; stale : un au moins), un cas
+ *  périmé jamais compté comme lu ; les validations des cas par leur clé (caseKeys), d'après leur bloc et le code
+ *  commun (caseMarkState de case-marks ; 'common' rendu 'changed', sa clé dans commonChanged ; hashes : caseBlocks)
+ *  (note 0.15.0-invariants-par-cas) ; le texte d'un test à la base
  *  (base, passé ; au-delà de SOURCE_MAX : null) ; les actions en file d'attente (queued, recopiées : la page
  *  montre « en attente » à côté de leur bouton, design-check comprise).
  *  Un module de la Forme a un chemin ou plusieurs (parseNote : paths) : ses fichiers sont ceux sous l'un d'eux,
@@ -86,6 +89,7 @@ import type {
   VibeDiffFile, VibeDiffs, VibeDiffStep, VibePrItem, VibeRecipe, VibeRun, VibeStepId, VibeTestFile, VibeView, VibeWorktree,
 } from 'shared/bridge';
 import { DIRECT_ACTIONS, DIRECT_ONLY, EFFORT_LEVELS, prNumber, SKILL_MODELS, templateVars, type ActionDef } from './actions';
+import { caseMarkState, caseTarget } from './case-marks';
 import { designChecked, markState, type Marks } from './marks';
 import { noteDesign, parseNote } from './note';
 import { json, parseChecklist, parseQuestions, parseReading } from './outputs';
@@ -94,7 +98,7 @@ import { canAssign, unassignable, type PrPeople } from './role';
 import { blockedBy, codeLock, ownRun } from './runs';
 import { stepChecks, stepContents, type CheckedStep } from './step-checks';
 import { syncReason } from './sync';
-import { blobSha, caseLines, caseTitles, isInvariantTest, readingOf } from './test-files';
+import { blobSha, caseBlocks, caseLines, caseReading, caseTitles, isInvariantTest, type ReadingRecord } from './test-files';
 import { diffFiles, type FileBlobs, type StepFiles } from './validated';
 
 export type JourneyInput = {
@@ -117,7 +121,7 @@ export type JourneyInput = {
   // inconnu, pas de base, ou au-delà de 200 Ko, aussi les fixtures des invariants protégés d'avant la 0.13.0).
   tests: { path: string; blob: string; text: string; base?: string | null }[];
   // Toutes les lectures (<sorties>/invariants/<blob>.md) ; par blob : d'avant la 0.11.0 (fixtures protégées), heure 0.
-  readings: { blob: string; text: string; time: number }[] | Record<string, string>;
+  readings: ReadingRecord[] | Record<string, string>;
   outputs: Record<string, { text: string; time: number }>; // par nom connu (OUTPUTS)
   marks: Marks;
   draft: VibeComment[];
@@ -322,12 +326,17 @@ export function vibeView(input: JourneyInput): VibeView {
   const tests = input.tests.map((t) => ({ ...t, cases: caseTitles(t.text), lines: caseLines(t.text) })).filter((t) => t.cases.length);
   const readings = Array.isArray(input.readings) ? input.readings : Object.entries(input.readings).map(([blob, text]) => ({ blob, text, time: 0 }));
   const invariants: VibeTestFile[] = tests.filter((t) => isInvariantTest(t.path)).map((t, i) => {
-    const r = readingOf(t, readings);
+    const r = caseReading(t, readings);
+    const { keys, blocks, common } = caseBlocks(t.text);
+    const states = keys.map((k, j) => caseMarkState(marks, caseTarget(t.path, k), { hash: blocks[j], common }));
+    const commonChanged = keys.filter((_, j) => states[j] === 'common');   // 'common' : rendu 'changed'
     return {
       id: `t${i}`, path: t.path, blob: t.blob, cases: t.cases, lines: t.lines, source: t.text.length > SOURCE_MAX ? '' : t.text,
       base: t.base != null && t.base.length > SOURCE_MAX ? undefined : t.base,
-      reading: r && parseReading(r.text), stale: !!r?.stale, locked: codeLock(null, input.busy, input.running, lang),
-      marks: Object.fromEntries(t.cases.map((c) => [c, markState(marks, `case:${t.path}:${c}`, t.blob)])),
+      reading: r && parseReading(r.text), stale: !!r?.stale.length, locked: codeLock(null, input.busy, input.running, lang),
+      ...(r?.stale.length && { staleCases: r.stale }),
+      marks: Object.fromEntries(keys.map((k, j) => [k, states[j] === 'common' ? 'changed' : states[j]])),
+      ...(commonChanged.length && { commonChanged }), hashes: { blocks, common },
     };
   });
   const variants = tests.filter((t) => !isInvariantTest(t.path)).map((t, i) => ({ id: `v${i}`, path: t.path, cases: t.cases.length }));
@@ -351,16 +360,16 @@ export function vibeView(input: JourneyInput): VibeView {
       forme: new Set(modulePaths), modules: new Set([...modulePaths, ...changed.filter((p) => !own.has(p))]), invariants: new Set(invariantPaths),
     }, new Set([...modulePaths, ...changed, ...invariantPaths]))
     : undefined;
-  const isRead = (f: VibeTestFile) => f.reading !== null && !f.stale;   // une lecture périmée n'est pas lue
   // Une fois un module commencé, le parcours ne recule plus (note 0.15.0-stabilisation) : une validation faite puis
   // dépassée par une retouche (« changed », la note, sa Forme, un cas) compte encore ; l'écran la dit changée.
   const begun = modules.some((m) => m.started);
   const stillOk = (s: VibeMarkState) => s === 'ok' || (begun && s === 'changed');
-  const casesOk = invariants.every((f) => f.cases.every((c) => stillOk(f.marks[c])));
+  const casesOk = invariants.every((f) => Object.values(f.marks).every(stillOk));
   // Les tests de l'étape Invariants : ceux qu'un commit porte avec la note (le premier, ses fixups repliés).
   const stepTests = invariants.filter((f) => !!note && commits.some((c) => c.files.includes(note.path) && c.files.includes(f.path)));
   const caseCount = invariants.reduce((s, f) => s + f.cases.length, 0);
-  const readCount = invariants.reduce((s, f) => s + (isRead(f) ? f.cases.length : 0), 0);
+  // un cas périmé n'est pas lu
+  const readCount = invariants.reduce((s, f) => s + (f.reading ? f.cases.length - (f.staleCases?.length ?? 0) : 0), 0);
 
   // Les sorties des skills.
   const questions = parseQuestions(out('questions.md') ?? '');
@@ -456,7 +465,7 @@ export function vibeView(input: JourneyInput): VibeView {
       // Une fois un module commencé, seuls comptent les tests écrits pour l'étape (portés par le commit de la note) :
       // un test protégé retouché ensuite par un module (un harnais) est du travail des modules, pas à revalider.
       invariants: noteDone && formeDone && (!invLines || (begun
-        ? vibe || stepTests.every((f) => f.cases.every((c) => stillOk(f.marks[c])))
+        ? vibe || stepTests.every((f) => Object.values(f.marks).every(stillOk))
         : !invariants.length
           ? input.runs.find((r) => r.id === 'invariants' || r.id === 'align')?.state === 'done' || note.nothingMark === 'ok'
           : (vibe || casesOk) && !retouched)),
@@ -499,7 +508,7 @@ export function vibeView(input: JourneyInput): VibeView {
     done = {
       note: noteDone,
       forme: noteDone,   // rien à juger : avec la Note
-      invariants: here && invariants.every((f) => f.cases.every((c) => judged(f.marks[c]))),
+      invariants: here && invariants.every((f) => Object.values(f.marks).every(judged)),
       modules: !!n && out(`pr-${n}-commits.md`) !== null,
       revue: screen.length > 0 && boxes === screen.length,
       pr: !!n && out(`pr-${n}-review.json`) !== null,

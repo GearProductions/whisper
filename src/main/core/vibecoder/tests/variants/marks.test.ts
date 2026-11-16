@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  addComment, blobSha, CHECKED, designChecked, designEnd, editComment, hasComment, markState, noteClick, noteDesign, parseNote, removeComment, setMark, stepChecks, stepContent,
+  addComment, blobSha, caseBlocks, CHECKED, designChecked, designEnd, editComment, hasComment, markState, noteClick, noteDesign, parseNote, removeComment, setMark, stepChecks, stepContent,
   skeletonMarks, targetHash, vibeMarks, vibeView, type Drafts, type FileBlobs, type JourneyInput, type Marks,
 } from 'core/vibecoder';
 
@@ -124,10 +124,19 @@ describe('vibeMarks : le ✓ des étapes faites pendant Vibe', () => {
     ...over,
   });
   const CASES = [`case:${TEST_PATH}:dit bonjour`, `case:${TEST_PATH}:ne lit rien`];
+  // Les empreintes de chaque cas et du code commun (hashes de chaque test du relevé) : celles de caseBlocks du texte.
+  const hashed = (view: ReturnType<typeof vibeView>) => ({
+    ...view, invariants: view.invariants.map((f) => {
+      const { blocks, common } = caseBlocks(TEST);
+      return { ...f, hashes: { blocks, common } };
+    }),
+  });
   const run = (marks: Marks = {}, over: Partial<JourneyInput> = {}) => {
-    const view = vibeView(input({ marks, ...over }));
+    const view = hashed(vibeView(input({ marks, ...over })));
     return { view, next: vibeMarks(marks, view, blobs) };
   };
+  const { blocks: BLOCKS, common: COMMON } = caseBlocks(TEST);
+  const MARK = (i: number) => ({ hash: BLOCKS[i], verdict: 'ok', common: COMMON });
   // L'état de chaque étape d'après les marques, comme le contrôleur le calcule.
   const checks = (view: ReturnType<typeof vibeView>, marks: Marks) =>
     stepChecks(marks, Object.fromEntries(CHECKED.map((s) => [s, stepContent(view, marks, s, blobs)])));
@@ -138,7 +147,52 @@ describe('vibeMarks : le ✓ des étapes faites pendant Vibe', () => {
     expect(next.note).toMatchObject({ hash: blobSha(noteDesign(NOTE)), verdict: 'ok' });
     expect(next.forme).toMatchObject({ hash: blobSha(parseNote(NOTE).forme), verdict: 'ok' });
     expect(next.invariants).toMatchObject({ verdict: 'ok' });
-    CASES.forEach((c) => expect(next[c]).toEqual({ hash: BLOB, verdict: 'ok' }));
+    CASES.forEach((c, i) => expect(next[c]).toEqual(MARK(i)));
+  });
+
+  it('chaque cas : son ✓ pour son bloc et le code commun, pas pour le fichier entier', () => {
+    const { next } = run();
+    expect(BLOCKS[0]).not.toBe(BLOCKS[1]);
+    expect(next[CASES[0]].hash).toBe(BLOCKS[0]);
+    expect(next[CASES[1]].hash).toBe(BLOCKS[1]);
+    CASES.forEach((c) => expect(next[c].common).toBe(COMMON));
+  });
+
+  it('un ✓ donné pour un bloc changé depuis est remplacé ; celui d\'un bloc inchangé reste', () => {
+    const marks: Marks = { [CASES[0]]: { hash: 'vieux', verdict: 'ok', common: COMMON }, [CASES[1]]: MARK(1) as Marks[string] };
+    const { next } = run(marks);
+    expect(next[CASES[0]]).toEqual(MARK(0));
+    expect(next[CASES[1]]).toBe(marks[CASES[1]]);
+  });
+
+  it('un ✓ dont seul le code commun a changé, ou d\'avant la 0.15.0 (sans common), est remplacé', () => {
+    const marks: Marks = { [CASES[0]]: { hash: BLOCKS[0], verdict: 'ok', common: 'vieux' }, [CASES[1]]: { hash: BLOCKS[1], verdict: 'ok' } };
+    const { next } = run(marks);
+    CASES.forEach((c, i) => expect(next[c]).toEqual(MARK(i)));
+  });
+
+  it('un ✗ donné pour un bloc changé depuis est remplacé par le ✓', () => {
+    const { next } = run({ [CASES[0]]: { hash: 'vieux', verdict: 'ko', common: COMMON } });
+    expect(next[CASES[0]]).toEqual(MARK(0));
+  });
+
+  it('un titre en double : deux marques, « titre » et « titre n° 2 », chacune pour son bloc', () => {
+    const text = 'it("a", () => {\n  x();\n});\nit("a", () => {\n  y();\n});\n';
+    const view = vibeView(input({ tests: [{ path: TEST_PATH, blob: blobSha(text), text }] }));
+    const { blocks, common } = caseBlocks(text);
+    const dup = { ...view, invariants: view.invariants.map((f) => ({ ...f, hashes: { blocks, common } })) };
+    const next = vibeMarks({}, dup, blobs);
+    expect(next[`case:${TEST_PATH}:a`]).toEqual({ hash: blocks[0], verdict: 'ok', common });
+    expect(next[`case:${TEST_PATH}:a n° 2`]).toEqual({ hash: blocks[1], verdict: 'ok', common });
+    expect(blocks[0]).not.toBe(blocks[1]);
+  });
+
+  it('un fichier sans hashes : aucun ✓ de cas, les étapes suivent leur chemin', () => {
+    const view = vibeView(input());
+    const bare = { ...view, invariants: view.invariants.map(({ hashes: _, ...f }) => f) };
+    const next = vibeMarks({}, bare, blobs);
+    expect(Object.keys(next).filter((k) => k.startsWith('case:'))).toEqual([]);
+    expect(next.note.verdict).toBe('ok');
   });
 
   it('la Forme validée porte after = la marque de la note, les invariants celle de la Forme : l\'état de chaque étape est ok', () => {
@@ -190,9 +244,9 @@ describe('vibeMarks : le ✓ des étapes faites pendant Vibe', () => {
   });
 
   it('un ✗ déjà donné à un cas reste, et les invariants ne sont pas validés', () => {
-    const marks: Marks = { [CASES[0]]: { hash: BLOB, verdict: 'ko' } };
+    const marks: Marks = { [CASES[0]]: { hash: BLOCKS[0], verdict: 'ko', common: COMMON } };
     const { next } = run(marks);
-    expect(next[CASES[0]].verdict).toBe('ko');
+    expect(next[CASES[0]]).toBe(marks[CASES[0]]);
     expect(next.invariants).toBeUndefined();
   });
 
@@ -229,6 +283,21 @@ describe('targetHash : note', () => {
       validation: { validated: [], changed: [], files: { 'src/a.ts': { blob: 'b1' } } } });
     expect(targetHash(v, 'file:src/a.ts')).toBeNull();
     expect(targetHash(v, 'step:forme')).toBeNull();
+  });
+});
+
+describe('targetHash : case:<chemin>:<clé>', () => {
+  const view = { flow: 'create', note: null, commits: [], steps: [],
+    invariants: [{ path: 'a.test.ts', blob: 'b1', cases: ['x', 'x'], hashes: { blocks: ['h1', 'h2'], common: 'c' } }] } as unknown as Parameters<typeof targetHash>[0];
+
+  it('un cas du relevé : null (ses empreintes : caseHashes), plus l\'empreinte du fichier', () => {
+    expect(targetHash(view, 'case:a.test.ts:x')).toBeNull();
+    expect(targetHash(view, 'case:a.test.ts:x n° 2')).toBeNull();
+  });
+
+  it('un cas inconnu : null aussi', () => {
+    expect(targetHash(view, 'case:a.test.ts:y')).toBeNull();
+    expect(targetHash(view, 'case:autre.test.ts:x')).toBeNull();
   });
 });
 
