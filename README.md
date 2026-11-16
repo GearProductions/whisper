@@ -834,7 +834,8 @@ relire une PR (le relecteur, plus bas) :
    commit). Générer
    et commiter sont deux gestes : *Commiter les modules* (un commit par module dans l'ordre de la Forme, un fixup
    pour un module déjà commité ; le typage de chaque commit est vérifié sur son
-   contenu, hors du dossier de travail ; des modules qui ne compilent
+   contenu, hors du dossier de travail, avec les `node_modules` du dossier reliés à leur place,
+   ceux de chaque workspace compris ; des modules qui ne compilent
    qu'ensemble, notés sur une seule entrée de la Forme (« a.ts + b.ts »), font un seul
    commit, et un module suivant que l'erreur de typage nomme les rejoint ; une
    autre erreur arrête là, sans rattrapage) ; vous pouvez donc retoucher le code entre les deux.
