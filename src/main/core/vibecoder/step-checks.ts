@@ -1,6 +1,7 @@
 /** step-checks — la validation de chaque étape et sa cascade (note 0.15.0-ecran-statuts) : ce que valide
  *  une étape aujourd'hui (stepContent, et stepContents pour les quatre : la note, sa conception, noteDesign ; la Forme, la
- *  section Forme de la note, et, retenus pour le diff, la note et les fichiers des modules ; les invariants, les fichiers de test ; les modules,
+ *  section Forme de la note, et, retenus pour le diff, la note et les fichiers des modules ; les invariants, les fichiers de test,
+ *  aucun sans test ni ligne « → invariant » ; les modules,
  *  tout ce que la branche change d'après git — changed, ou view.files — plus les fichiers des modules, hors la note
  *  et les tests d'invariants : on suit git, sans autre règle, une feuille de style ou un libellé compris) ; l'état de chaque étape (stepChecks : cochée ; « changed », ce qu'elle a
  *  validé a changé ; « cascade », une étape d'avant décochée ou revalidée depuis, avec la première décochée
@@ -15,7 +16,7 @@
  *  Utilisé par : core/vibecoder (journey, marks : vibeMarks), app/controllers/vibecoder (validateStep). */
 import type { VibeStepCheck, VibeStepId, VibeView } from 'shared/bridge';
 import { markState, setMark, type Marks } from './marks';
-import { noteDesign, parseNote } from './note';
+import { hasInvariantLines, noteDesign, parseNote } from './note';
 import { blobSha } from './test-files';
 import { filesText, type FileBlobs, type StepFiles } from './validated';
 
@@ -31,7 +32,8 @@ type Contents = Partial<Record<CheckedStep, StepContent | null>>;
 type StepView = Pick<VibeView, 'note' | 'invariants' | 'modules'> & { changed?: string[]; files?: VibeView['files'] };
 
 // Ce que valide l'étape aujourd'hui, d'après le relevé, ses marques et les empreintes du disque (blobs) ; null : rien à
-// valider — pas de note ; invariants : un cas sans ✓ et pas « Rien à écrire » ✓ ; modules : aucun fichier.
+// valider — pas de note ; invariants : un cas sans ✓, ou aucun test, des lignes « → invariant » dans la note et pas
+// « Rien à écrire » ✓ (sans test ni ligne « → invariant » : le contenu vide) ; modules : aucun fichier.
 // La note : blobSha(noteDesign) ; la Forme : blobSha de la section Forme, files la note (son texte, pour que « Depuis la
 // validation » montre son diff quand seule la section Forme change) et ceux des modules ; invariants et modules :
 // blobSha(filesText(files)). Un fichier sans empreinte sur le disque n'est pas dans la liste.
@@ -52,7 +54,7 @@ export function stepContent(view: StepView, marks: Marks, step: CheckedStep, blo
     const code = { ...modules, ...listed(branch.filter((p) => !own.has(p))) };
     return Object.keys(code).length ? list(code) : null;
   }
-  if (!view.invariants.length) return markState(marks, 'nothing', blobSha(note.text)) === 'ok' ? list({}) : null;
+  if (!view.invariants.length) return !hasInvariantLines(note.text) || markState(marks, 'nothing', blobSha(note.text)) === 'ok' ? list({}) : null;
   const allOk = view.invariants.every((f) => f.cases.every((c) => markState(marks, `case:${f.path}:${c}`, f.blob) === 'ok'));
   return allOk ? list(listed(view.invariants.map((f) => f.path))) : null;
 }
