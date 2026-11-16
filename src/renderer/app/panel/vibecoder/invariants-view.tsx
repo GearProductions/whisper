@@ -4,7 +4,7 @@
  *  repérés), ses cas limites, ce qu'il garantit, son point d'attention. Dans
  *  son en-tête, alignés : « Pseudo-code / Code », le verdict (CaseVerdict :
  *  badges Validé / À revoir ; la carte discrète une fois validée), modifié
- *  depuis (Icon warn et texte), 💬 et Ouvrir (à la ligne du cas) en
+ *  depuis (Icon warn et texte ; « Le code commun du fichier a changé » si c'est lui, CaseView.common), 💬 et Ouvrir (à la ligne du cas) en
  *  IconButton. « Pseudo-code / Code » montre à la place son code (CodeView :
  *  coloré d'après l'extension du fichier, comme « Voir le fichier » ; sans 💬
  *  sur ses lignes). Relecteur : le code d'origine du cas, en lecture seule.
@@ -18,8 +18,9 @@
  *  progression ; dans les outils de l'en-tête, alignés : « Tout valider »
  *  (Icon ok et texte) quand aucun cas n'a de point d'attention (lu ou pas,
  *  progress().all), « Relire » (refaire sa lecture ; en accent si la
- *  lecture est périmée, f.stale : le test a changé depuis, sa lecture reste
- *  affichée, marquée « lecture périmée ») ou, pas lu, « Lire en pseudo-code »
+ *  lecture d'un cas au moins est périmée, f.stale : son bloc a changé depuis, sa lecture reste
+ *  affichée, marquée « lecture périmée » ; note 0.15.0-invariants-par-cas : sur ce cas seul, Validé / À revoir
+ *  grisés jusqu'à Relire ; les autres gardent les leurs) ou, pas lu, « Lire en pseudo-code »
  *  (texte ; en accent seulement quand c'est l'action mise en avant, primary :
  *  Vibe ; ses cartes sans lecture, Validé / À revoir quand même, la lecture est
  *  facultative), Ouvrir (IconButton). « Voir le fichier » (tout son code,
@@ -57,7 +58,7 @@
  *  l'étape Note sur elle (goToNote) ; un I-… : son numéro, sans lien ; rien : « non rattaché » ; la lecture
  *  périmée : marqué périmé, comme elle.
  *  Code d'un cas (créateur, note 0.15.0-ecran-statuts) : l'éditeur ne montre que le bloc du cas (useCaseDraft,
- *  caseRange), comme sa lecture, sans défiler jusqu'à lui ; enregistré, seul ce bloc change dans le fichier ; Voir le fichier et Ouvrir
+ *  caseRange), retrouvé par la clé du cas (un titre en double ouvre le bon bloc), comme sa lecture, sans défiler jusqu'à lui ; enregistré, seul ce bloc change dans le fichier ; Voir le fichier et Ouvrir
  *  restent le fichier entier. La vue IDE porte le menu de diff de l'étape (useIdeDiff 'invariants' : bar, l'arborescence
  *  filtrée, empty ; Voir le fichier : le diff depuis la référence choisie) ;
  *  Valider les invariants (MarkControl 'invariants' dans l'en-tête, créateur ; offert si step.check.now : tous les cas ✓, ou
@@ -68,7 +69,7 @@
  *  Ne connaît pas : le pont (rappels passés), le brouillon (ses remarques, par cible). Utilisé par : step-views. */
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
-  attentionQuote, awaiting, caseLine, checkMark, waitingFor, goneModule, caseLink, caseRange, caseSource, casesOf, excerpt, fileParts, invariantTree, progress, pseudoLines, remark, remarksAt, withAttention, type CaseLink, type CaseView, type IdeFile, type Progress, type Strings,
+  attentionQuote, awaiting, checkMark, waitingFor, goneModule, caseLink, caseRange, caseSource, casesOf, excerpt, fileParts, invariantTree, progress, pseudoLines, remark, remarksAt, withAttention, type CaseLink, type CaseView, type IdeFile, type Progress, type Strings,
 } from 'core/vibecoder';
 import type { VibeComment, VibeLang, VibeModule, VibeTestFile } from 'technicals/bridge';
 import { isInvariantPath } from 'shared/test-paths';
@@ -107,6 +108,8 @@ const fr = {
   allTitle: 'Valider chaque cas de ce fichier qui n\'a pas de verdict : aucun n\'a de point d\'attention',
   changedState: 'Modifié depuis la validation',
   changedTitle: 'Le test a changé depuis votre verdict : relisez le cas',
+  commonState: 'Le code commun du fichier a changé',
+  commonTitle: 'Le code commun du fichier (hors des cas) a changé depuis votre verdict : relisez le cas',
   edges: 'Cas limites',
   guarantees: 'Garantit',
   warning: 'Attention',
@@ -152,6 +155,8 @@ const S: Record<VibeLang, typeof fr> = {
     allTitle: 'Approve every case of this file that has no verdict: none has a warning',
     changedState: 'Changed since the approval',
     changedTitle: 'The test changed since your verdict: read the case again',
+    commonState: 'The file\'s common code changed',
+    commonTitle: 'The file\'s common code (outside the cases) changed since your verdict: read the case again',
     edges: 'Edge cases',
     guarantees: 'Guarantees',
     warning: 'Warning',
@@ -199,18 +204,18 @@ export function InvariantsView(props: StepProps) {
   // Valider les invariants : l'état de la validation (step.check), offert si le principal a de quoi valider (now) ou s'il l'est déjà (Annuler).
   const check = view.steps.find((x) => x.id === 'invariants')?.check;
   const checkState = checkMark(check);
-  const target = (f: VibeTestFile, title: string) => `case:${f.path}:${title}`;
+  const target = (f: VibeTestFile, c: CaseView) => `case:${f.path}:${c.key ?? c.title}`;
   // À revoir : Créer, le cas cité dans le champ ; Relire, marque seulement (son bouton de remarque ouvre la zone de la carte).
-  const verdict = (f: VibeTestFile, title: string, v: Verdict) => {
-    act.mark(target(f, title), v);
-    if (v === 'ko' && !review) act.prefill('case-ko', title);
+  const verdict = (f: VibeTestFile, c: CaseView, v: Verdict) => {
+    act.mark(target(f, c), v);
+    if (v === 'ko' && !review) act.prefill('case-ko', c.title);
   };
   const quoteAlign = !review && view.actions.some((a) => a.id === 'comment') ? (q: string) => act.prefill('comment', q) : undefined;
   const commentAlign = review ? (q: string, text: string) => act.draft({ add: remark(`align: ${excerpt(q, 80)}`, text) }) : undefined;
 
   // Créer : le fichier ouvert, par son chemin (un id t<i> change de fichier quand la liste change),
-  // et où (le titre d'un cas, Code ; null, Voir le fichier). Un seul à la fois.
-  const [shown, setShown] = useKept<{ path: string; title: string | null } | null>('shown', null);
+  // et où (la clé d'un cas, Code ; null, Voir le fichier). Un seul à la fois.
+  const [shown, setShown] = useKept<{ path: string; key: string | null } | null>('shown', null);
   const file = review || !shown ? undefined : view.invariants.find((f) => f.path === shown.path);
   const id = file?.id ?? null;
   // null n'est pas envoyé ici : refermé par l'utilisateur, show(null) l'envoie.
@@ -218,10 +223,10 @@ export function InvariantsView(props: StepProps) {
   const show = (next: typeof shown) => { setShown(next); if (!next) act.follow(null); };
   const locked = file?.locked ?? null;
   // Voir le fichier : le fichier entier ; Code : le bloc du cas seul (useCaseDraft), sans défiler jusqu'à lui.
-  const whole = file && shown?.title === null;
+  const whole = file && shown?.key === null;
   const d = useFileDraft(whole ? file : null, props.code, locked, act.save, props.drafts);
-  const caseTitle = shown?.title ?? '';
-  const dc = useCaseDraft(file && !whole ? file : null, caseTitle, file ? caseRange(file, file.cases.indexOf(caseTitle)) : null, props.code, locked, act.save, props.drafts);
+  const caseKey = shown?.key ?? '';
+  const dc = useCaseDraft(file && !whole ? file : null, caseKey, file ? caseRange(file, casesOf(file).findIndex((c) => (c.key ?? c.title) === caseKey)) : null, props.code, locked, act.save, props.drafts);
   const editor = (block = false): ReactNode => (file ? <DraftEditor d={block ? dc : d} file={file} locked={locked} t={t} /> : null);
   // Voir le fichier : le fichier (children), ou son diff, entier et en lecture seule, depuis la référence du menu de la vue IDE ;
   // le texte de la référence pas encore connu (undefined : base inconnue, ou fichier pas encore suivi) : le fichier.
@@ -249,7 +254,7 @@ export function InvariantsView(props: StepProps) {
           <span className="vc-ifile-tools">
             {p.all ? (
               <button type="button" className="vc-vbtn" title={f.stale ? s.staleOff : s.allTitle} disabled={!!f.stale}
-                onClick={() => casesOf(f).forEach((c) => { if (c.mark !== 'ok' && c.mark !== 'ko') act.mark(target(f, c.title), 'ok'); })}>
+                onClick={() => casesOf(f).forEach((c) => { if (c.mark !== 'ok' && c.mark !== 'ko') act.mark(target(f, c), 'ok'); })}>
                 <Icon name="ok" />{s.all}
               </button>
             ) : null}
@@ -265,22 +270,22 @@ export function InvariantsView(props: StepProps) {
           </details>
         ) : (
           // onToggle part aussi quand open change par les props : seul l'écart est un geste.
-          <details className="vc-ifile-src" open={f === file && shown?.title === null}
-            onToggle={(e) => { const now = e.currentTarget.open; if (now !== (f === file && shown?.title === null)) show(now ? { path: f.path, title: null } : null); }}>
+          <details className="vc-ifile-src" open={f === file && shown?.key === null}
+            onToggle={(e) => { const now = e.currentTarget.open; if (now !== (f === file && shown?.key === null)) show(now ? { path: f.path, key: null } : null); }}>
             <summary>{s.wholeFile}</summary>
-            {f === file && shown?.title === null ? fileOrDiff(f, d.text ?? f.source, editor()) : null}
+            {f === file && shown?.key === null ? fileOrDiff(f, d.text ?? f.source, editor()) : null}
           </details>
         ) : null}
         {casesOf(f).map((c, i) => (
-          <CaseCard key={c.title} c={c} n={i + 1} link={caseLink(c.reading, view.note?.mustNot ?? [])} stale={!!f.stale} onGo={props.goToNote} code={caseSource(f, i)} from={f.lines[i]} path={f.path} s={s} t={t} lang={view.lang} review={review} onOpenLink={act.openLink}
-            onVerdict={(v) => verdict(f, c.title, v)} onQuote={() => act.prefill('comment', c.title)}
-            onQuoteAttention={() => act.prefill('comment', attentionQuote(c.title, c.reading?.warning ?? ''), true)} onOpen={() => act.open(f.id, caseLine(f, c.title))}
-            onComment={(text) => act.draft({ add: remark(target(f, c.title), text) })}
-            remarks={review ? remarksAt(view.draft, target(f, c.title)) : []}
+          <CaseCard key={c.key ?? c.title} c={c} n={i + 1} link={caseLink(c.reading, view.note?.mustNot ?? [])} stale={!!c.stale} onGo={props.goToNote} code={caseSource(f, i)} from={f.lines[i]} path={f.path} s={s} t={t} lang={view.lang} review={review} onOpenLink={act.openLink}
+            onVerdict={(v) => verdict(f, c, v)} onQuote={() => act.prefill('comment', c.title)}
+            onQuoteAttention={() => act.prefill('comment', attentionQuote(c.title, c.reading?.warning ?? ''), true)} onOpen={() => act.open(f.id, f.lines[i])}
+            onComment={(text) => act.draft({ add: remark(target(f, c), text) })}
+            remarks={review ? remarksAt(view.draft, target(f, c)) : []}
             onDraft={act.draft}
             edit={review ? undefined : {
-              shown: f === file && shown?.title === c.title,
-              onShow: (on) => show(on ? { path: f.path, title: c.title } : null),
+              shown: f === file && shown?.key === (c.key ?? c.title),
+              onShow: (on) => show(on ? { path: f.path, key: c.key ?? c.title } : null),
               view: () => editor(true),
             }} />
         ))}
@@ -409,7 +414,7 @@ function CaseCard({ c, n, link, stale, onGo, code, from, path, s, t, lang, revie
       <div className="vc-case-head">
         <span className="vc-case-n">{n}</span>
         <h3 className="vc-case-title">{c.title}</h3>
-        {c.mark === 'changed' ? <span className="vc-case-state" title={s.changedTitle}><Icon name="warn" />{s.changedState}</span> : null}
+        {c.mark === 'changed' ? <span className="vc-case-state" title={c.common ? s.commonTitle : s.changedTitle}><Icon name="warn" />{c.common ? s.commonState : s.changedState}</span> : null}
         {code ? (
           <span className="vc-seg vc-case-view" role="group" aria-label={s.show}>
             <button type="button" aria-pressed={!showCode} onClick={() => setShowCode(false)}>{s.pseudo}</button>
