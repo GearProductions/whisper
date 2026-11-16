@@ -1948,7 +1948,8 @@ créateur ; le relecteur, F-101) :
    changement de la note, comme *Valider la note*). Pendant *Vibe* aussi, rien
    d'automatique : la course finie ou la validation. *Lire en pseudo-code*
    n'est qu'une aide à la lecture, facultative. *Valider les invariants*, offert
-   quand tous les cas ont leur ✓ (ou ✓ *Rien à écrire*), valide l'étape (F-102).
+   quand tous les cas ont leur ✓ (ou ✓ *Rien à écrire*), ou sans ligne
+   « → invariant » ni test (contenu vide, rien à cocher), valide l'étape (F-102).
    Montre le
    résumé (fichiers, cas, validés, refusés, modifiés depuis, avec un point d'attention,
    à lire), l'alignement (`align.md`, avec *Relancer* en créateur, F-93 : chaque
@@ -2522,7 +2523,8 @@ clic, et si elle a changé pendant la course, elle s'affiche « modifiée depuis
 jamais validée pour un autre texte que celui que l'utilisateur avait sous les yeux.
 *Revalider* valide aussitôt, *Revérifier* ne valide jamais.
 Pendant le mode *Vibe* (F-103), à chaque relevé, chaque étape faite
-— la note, la forme, chaque cas des invariants — reçoit un ✓ pour
+— la note, la forme, chaque cas des invariants (sans test : ✓ *Rien à
+écrire*) — reçoit un ✓ pour
 son contenu d'aujourd'hui, comme un clic ; un ✓ ou ✗ déjà donné pour ce
 contenu reste. *Vibe* arrêté, fini ou l'appli relancée, elles le gardent.
 Gardées par agent (`vibecoder-state.json`) ; aucune n'envoie de message.
@@ -2530,7 +2532,8 @@ Gardées par agent (`vibecoder-state.json`) ; aucune n'envoie de message.
 **Les validations d'étape** (0.15.0, créateur). Une validation par étape, le même
 geste partout, le ✓ de `conv:vibeMark` (cibles `note`, `forme`, `invariants`,
 `modules`, sans nouveau canal) : *Valider la note*, *Valider la forme*, *Valider
-les invariants* (offert quand tous les cas ont leur ✓, ou ✓ *Rien à écrire* ; les
+les invariants* (offert quand tous les cas ont leur ✓, ou ✓ *Rien à écrire*,
+ou sans ligne « → invariant » ni test (contenu vide) ; les
 cas gardent leurs verdicts) et *Valider les modules* ; puis « validée » et
 *Annuler*, qui retire la validation de l'étape. *Valider* n'est offert, et le
 geste accepté, que si l'étape d'avant est cochée (la note : jamais d'étape
