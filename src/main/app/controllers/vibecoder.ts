@@ -159,6 +159,12 @@
  *  fichiers des modules, les tests et ceux des listes retenues, leur empreinte sur le disque (blobSha du texte lu) et
  *  au dernier commit (gitReader.show('HEAD'), blobSha) ; validated : la liste retenue de chaque étape validée.
  *  Retirés : « file: », « step: », Revalider, gestureFiles, retainSteps.
+ *  Les cas des invariants, un par un (0.15.0, note invariants-par-cas) : markVibe sur « case:<chemin>:<clé> » pose la
+ *  marque de son bloc et du code commun (caseHashes, setCaseMark de core/vibecoder) ; au relevé, les validations d'avant,
+ *  sur le fichier entier, converties sans bruit tant que le fichier n'a pas changé (convertCaseMarks, rangées une fois) ;
+ *  la lecture à jour d'un test (son empreinte est celle du disque) retient l'empreinte du bloc de chaque cas lu à côté
+ *  d'elle (<sorties>/invariants/<blob>.json, caseBlocks, écrit une fois), lue avec elle (ReadingRecord.blocks). Rien
+ *  n'est écrit dans le projet.
  *  La note de référence du surlignage (0.15.0, note ecran-humain-ia ; core/vibecoder note-ref, en mémoire par agent) :
  *  posée une fois, au premier relevé où l'agent ou une course qui modifie la branche travaille (nextRef) ; ensuite
  *  remplacée seulement par Vu (setVibe seen) et la validation de la note (markVibe 'note' 'ok' : Valider, Revalider,
@@ -182,7 +188,7 @@ import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
 import { START, type CommandError } from 'core/commands';
 import {
-  addComment, artifactOf, beforeOf, blobSha, buildMessage, designEnd, hasComment, noteClick, parseQuestions, skeletonMarks, vibeMarks, ARTIFACT_OPS, DIRECT_ACTIONS, DIRECT_ONLY, editComment, findNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath, nextRef,
+  addComment, artifactOf, caseBlocks, caseHashes, convertCaseMarks, setCaseMark, beforeOf, blobSha, buildMessage, designEnd, hasComment, noteClick, parseQuestions, skeletonMarks, vibeMarks, ARTIFACT_OPS, DIRECT_ACTIONS, DIRECT_ONLY, editComment, findNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath, nextRef,
   CHECKED, filesText, parseFiles, stepContents, validateStep, versionName, type CheckedStep, type FileBlobs, type Marks, type StepContent, type StepFiles,
   blockedBy, BRANCH_CHANGES, lockCode, lockText, ELSEWHERE, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeRole, vibeView, whoOf, type ActionDef, type MessageError, type NoteRef,
 } from 'core/vibecoder';
@@ -635,12 +641,25 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const fork = repo && tests.some((t) => isInvariantTest(t.path)) ? await git.forkPoint(repo.base) : null;
   const based = await Promise.all(tests.map(async (t) => ({ ...t, base: !isInvariantTest(t.path) ? null : fork ? await git.show(fork, t.path) : undefined })));
   // Toutes les lectures d'invariants : un test modifié depuis la sienne reprend la plus récente de son fichier,
-  // périmée (readingOf, core/vibecoder).
+  // périmée (caseReading, core/vibecoder). Les blocs lus (<blob>.json, { clé: empreinte du bloc }) : écrits une fois
+  // quand la lecture d'un test est à jour (un .md à son empreinte), lus avec elle ; illisibles : sans blocs.
+  const readDir = path.join(out, 'invariants');
   let names: string[] = [];
-  try { names = fs.readdirSync(path.join(out, 'invariants')); } catch { /* pas encore de lecture */ }
+  try { names = fs.readdirSync(readDir); } catch { /* pas encore de lecture */ }
+  for (const t of tests) {
+    if (!isInvariantTest(t.path) || !names.includes(`${t.blob}.md`) || names.includes(`${t.blob}.json`)) continue;
+    const { keys, blocks } = caseBlocks(t.text);
+    try {
+      fs.writeFileSync(path.join(readDir, `${t.blob}.json`), JSON.stringify(Object.fromEntries(keys.map((k, i) => [k, blocks[i]]))));
+      names.push(`${t.blob}.json`);
+    } catch { /* I-29 */ }
+  }
   const readings = names.filter((n) => isOutputName(`invariants/${n}`)).flatMap((n) => {
-    const reading = readTimed(path.join(out, 'invariants', n));
-    return reading ? [{ blob: n.slice(0, -3), ...reading }] : [];
+    const reading = readTimed(path.join(readDir, n));
+    if (!reading) return [];
+    const kept = names.includes(`${n.slice(0, -3)}.json`) ? json(readFile(path.join(readDir, `${n.slice(0, -3)}.json`))) : null;
+    const blocks = kept && !Array.isArray(kept) ? Object.fromEntries(Object.entries(kept).filter(([, v]) => typeof v === 'string')) as Record<string, string> : null;
+    return [{ blob: n.slice(0, -3), ...reading, ...(blocks && { blocks }) }];
   });
   // La note de référence du surlignage (nextRef) : posée au premier relevé où l'agent ou une course qui modifie la
   // branche travaille ; ensuite seuls Vu et Valider la note la remplacent (setVibe, markVibe).
@@ -675,7 +694,10 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const proc = processView(agent, cfg);
   // Les validations (le créateur seul valide les étapes) : la liste retenue de chaque étape validée, et l'empreinte des fichiers
   // des étapes — ceux que change la branche (modules, tests) et ceux de ces listes.
-  const current = store.marks[agent.id] || {};
+  // Les validations de cas d'avant cette version, converties une fois (convertCaseMarks : rien à convertir, mêmes marques, rien rangé).
+  const stored = store.marks[agent.id] || {};
+  const current = convertCaseMarks(stored, tests);
+  if (current !== stored) { store.marks[agent.id] = current; saveVibeStore(store); }
   const validated = role === 'review' || !facts ? {} : keptLists(out, current);
   const listed = Object.values(validated).flatMap((files) => Object.keys(files ?? {}));
   const blobs = role === 'review' || !facts ? [] : await fileBlobs(agent.dir, git, facts.head, [...(repo?.changed ?? []), ...listed], diskOf);
@@ -1251,8 +1273,10 @@ export function markVibe(target: unknown, verdict: unknown) {
   // Le ✗ de la note (À revoir du relecteur) n'est pas une validation d'étape : une marque comme les autres. Un ✗ sur une
   // autre étape : ignoré.
   const step = verdict === 'ko' && target === 'note' ? undefined : CHECKED.find((s) => s === target);
-  const hash = step ? null : targetHash(view, target);
-  if (!step && !hash) return;
+  // Un cas (« case:<chemin>:<clé> ») : ses empreintes d'après le relevé (bloc et code commun), pas un hash ; inconnu : ignoré.
+  const kase = step || !target.startsWith('case:') ? null : caseHashes(view.invariants, target);
+  const hash = step || target.startsWith('case:') ? null : targetHash(view, target);
+  if (!step && !hash && !kase) return;
   if (step && verdict === 'ko') return;
   // Valider la note (le premier clic, Revalider, un Valider) : la référence du surlignage devient la note du dernier relevé.
   if (target === 'note' && verdict === 'ok' && view.note) noteRefs.set(agent.id, { path: view.note.path, text: view.note.text });
@@ -1273,7 +1297,10 @@ export function markVibe(target: unknown, verdict: unknown) {
     }
   }
   if (step) markStep(agent, view, step, verdict === 'ok' ? 'ok' : null);
-  else {
+  else if (kase) {
+    store.marks[agent.id] = setCaseMark(store.marks[agent.id] || {}, target, kase, verdict);
+    saveVibeStore(store);
+  } else {
     const before = store.marks[agent.id] || {};
     store.marks[agent.id] = setMark(before, target, hash!, verdict);
     saveVibeStore(store);
