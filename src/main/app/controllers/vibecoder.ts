@@ -995,7 +995,16 @@ export function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, vi
   const asked = requests.get(agent.id);
   let job: () => Promise<DirectResult>;
   if (id === 'commit') job = () => run.commit();
-  else if (id === 'fetch') job = () => run.fetchAll();   // Actualiser : au clic seulement ; le relevé suit (track)
+  else if (id === 'fetch') {
+    // Actualiser : au clic seulement ; le relevé suit (track). Les listes de PR relues aussi (mon identifiant, puis
+    // openPrs) : une PR qu'on vient de me demander de relire paraît dans « à relire » sans attendre.
+    job = async () => {
+      const r = await run.fetchAll();
+      const gh = githubReader(ghRun(agent.dir, agentPrefix(agent, cfg)));
+      prsFound.set(agent.id, (await gh.openPrs(await gh.login())) ?? false);
+      return r;
+    };
+  }
   else if (id === 'pull') job = () => run.pull();
   else if (id === 'push') job = () => run.push();
   else if (id === 'switch-branch') {
@@ -1023,7 +1032,7 @@ export function runDirect(agent: AgentConfig, def: ActionDef, args: VibeArgs, vi
       const login = await gh.login();
       if (!login) return refused('No GitHub login (gh api user): nothing done.');
       const r = await run.requestReview(pr, login);
-      if (r.ok) prsFound.set(agent.id, (await gh.openPrs()) ?? false);
+      if (r.ok) prsFound.set(agent.id, (await gh.openPrs(login)) ?? false);
       return r;
     };
   } else if (id === 'assign-pr' || id === 'unassign-pr') {
@@ -1255,7 +1264,8 @@ export function setVibe(patch: unknown) {
   if (p.reloadUi === true && devState() === 'reload' && !state.recording) reloadPages();
   if (p.restartApp === true && devState() === 'restart') void confirmRestart();
   if (p.prs === true) {
-    githubReader(ghRun(agent.dir, agentPrefix(agent, loadConfig()))).openPrs().then((list) => {
+    const gh = githubReader(ghRun(agent.dir, agentPrefix(agent, loadConfig())));
+    gh.login().then((login) => gh.openPrs(login)).then((list) => {
       prsFound.set(agent.id, list ?? false);
       refreshVibe({ now: true });
     });

@@ -60,17 +60,27 @@ export function githubReader(run: GhRun) {
         base: String(p.baseRefName ?? ''), head: String(p.headRefName ?? ''),
       } : null;
     },
-    // Les PR ouvertes du dépôt, en trois listes (gh pr list --author @me ;
-    // --search review-requested:@me ; sans filtre, --limit 100) ; une qui échoue → null.
-    async openPrs(): Promise<{ mine: unknown[]; review: unknown[]; all: unknown[] } | null> {
-      const list = async (filter: string[]) => {
-        const l = parse(await run(['pr', 'list', ...filter, '--json', 'number,title,author,url']));
+    // Les PR ouvertes du dépôt, en trois listes (gh pr list --author @me ; à relire ; sans filtre, --limit 100) ; une
+    // qui échoue → null. À relire : celles de --search review-requested:@me (l'index de recherche de GitHub, en retard
+    // de quelques minutes, mais qui voit les demandes faites à une équipe) plus celles de la liste entière dont les
+    // demandes de relecture (reviewRequests, lues directement, à jour) nomment mon identifiant (login, lu par l'appelant
+    // avec login() : openPrs ne lance que gh pr list) ; sans login, la recherche seule.
+    async openPrs(login: string | null = null): Promise<{ mine: unknown[]; review: unknown[]; all: unknown[] } | null> {
+      const list = async (filter: string[], fields = 'number,title,author,url') => {
+        const l = parse(await run(['pr', 'list', ...filter, '--json', fields]));
         return Array.isArray(l) ? l : null;
       };
-      const [mine, review, all] = await Promise.all([
-        list(['--author', '@me']), list(['--search', 'review-requested:@me']), list(['--limit', '100']),
+      const [mine, searched, full] = await Promise.all([
+        list(['--author', '@me']), list(['--search', 'review-requested:@me']),
+        list(['--limit', '100'], 'number,title,author,url,reviewRequests'),
       ]);
-      return mine && review && all ? { mine, review, all } : null;
+      if (!mine || !searched || !full) return null;
+      const asked = (p: unknown) => !!login && okLogin(login) && Array.isArray((p as { reviewRequests?: unknown })?.reviewRequests)
+        && ((p as { reviewRequests: unknown[] }).reviewRequests).some((r) => (r as { login?: unknown } | null)?.login === login);
+      const all = full.map((p) => { const { reviewRequests: _, ...rest } = (p ?? {}) as Record<string, unknown>; return rest; });
+      const seen = new Set(searched.map((p) => (p as { number?: unknown } | null)?.number));
+      const review = [...searched, ...all.filter((p, i) => asked(full[i]) && !seen.has(p.number))];
+      return { mine, review, all };
     },
     // L'identifiant GitHub de l'utilisateur (gh api user), ou null.
     async login(): Promise<string | null> {
