@@ -6,7 +6,7 @@
  *  (noteDesign), 'forme', 'invariants', 'modules' pour celle de step.check.now ; leur
  *  marque porte aussi after (la validation de l'étape d'avant) et files (la liste des
  *  fichiers retenus) — step-checks. Plus de « file: » ni de « step: » (retirés). Le ✓ des
- *  étapes faites pendant Vibe (vibeMarks : note, forme, invariants, par validateStep). Et le brouillon de
+ *  étapes faites pendant Vibe (vibeMarks : note, forme, invariants, par validateStep ; les cas, ou « Rien à écrire » sans test). Et le brouillon de
  *  revue de chaque PR (relecteur) : ajouter, modifier, retirer une remarque, savoir
  *  si une remarque y est (hasComment). Et la
  *  vérification de conception de la note, gardée avec les validations (la cible
@@ -80,13 +80,16 @@ export function targetHash(view: VibeView, target: string): string | null {
 }
 
 // Créateur : chaque étape faite de view (note, forme, invariants) reçoit sa validation d'étape pour son contenu
-// d'aujourd'hui (validateStep de step-checks, dans l'ordre : after suit), et chaque cas des invariants son ✓, les mêmes
-// cibles et empreintes qu'un clic (targetHash) ; un ✓ ou ✗ déjà donné pour ce contenu reste ; une étape refusée (l'étape
+// d'aujourd'hui (validateStep de step-checks, dans l'ordre : after suit), et chaque cas des invariants son ✓ (aucun test :
+// « Rien à écrire » son ✓, pour le texte de la note), les mêmes cibles et empreintes qu'un clic (targetHash) ; un ✓ ou ✗ déjà donné pour ce contenu reste ; une étape refusée (l'étape
 // d'avant pas cochée) ne reçoit rien. blobs : les empreintes du disque (les fichiers retenus par la Forme et les invariants).
 export function vibeMarks(marks: Marks, view: VibeView, blobs: FileBlobs[] = []): Marks {
   if (view.flow !== 'create' || !view.note) return marks;
   const done = new Set(view.steps.filter((s) => s.status === 'done').map((s) => s.id));
-  const cases = done.has('invariants') ? view.invariants.flatMap((f) => f.cases.map((c) => ({ target: `case:${f.path}:${c}`, hash: f.blob }))) : [];
+  const cases = done.has('invariants')
+    ? [...view.invariants.flatMap((f) => f.cases.map((c) => ({ target: `case:${f.path}:${c}`, hash: f.blob }))),
+      ...(!view.invariants.length ? [{ target: 'nothing', hash: blobSha(view.note.text) }] : [])]
+    : [];
   const withCases = cases.reduce((m, { target, hash }) => (markState(m, target, hash) === 'ok' || markState(m, target, hash) === 'ko' ? m : setMark(m, target, hash, 'ok')), marks);
   // Les contenus ne dépendent que des cas et de « rien à écrire » (withCases) : les marques d'étape que le reste ajoute n'y changent rien.
   const contents = stepContents(view, withCases, blobs);
