@@ -10,14 +10,14 @@ type Contents = Record<CheckedStep, StepContent | null>;
 const T = 'src/a/tests/invariants/a.test.ts';
 
 type Spec = {
-  does?: string; forme?: string | null; noNote?: boolean;
+  does?: string; forme?: string | null; noNote?: boolean; mustNot?: string;
   tests?: Record<string, { source: string; cases: string[] }>; code?: Record<string, string>; deleted?: string[];
 };
 
 // Un relevé à la main : la note, les tests (le disque a leur texte), les fichiers des modules.
 function build(s: Spec = {}): { view: V; blobs: FileBlobs[] } {
   const forme = s.forme === null ? '' : `\n\n## Forme\n\n${s.forme ?? 'src/a/index.ts  contrat'}`;
-  const text = `# T\n\n## Ce que ça fait\n\n${s.does ?? 'il fait A'}${forme}\n\n## Ce que ça ne doit pas faire\n\n- rien\n`;
+  const text = `# T\n\n## Ce que ça fait\n\n${s.does ?? 'il fait A'}${forme}\n\n## Ce que ça ne doit pas faire\n\n${s.mustNot ?? '- rien'}\n`;
   const tests = s.tests ?? { [T]: { source: 'test A', cases: ['c1', 'c2'] } };
   const code = s.code ?? { 'src/a/index.ts': 'code A', 'src/a/b.ts': 'code B' };
   const blobs: FileBlobs[] = [...Object.entries(tests).map(([path, t]) => [path, t.source]), ...Object.entries(code)]
@@ -102,13 +102,37 @@ describe('stepContent', () => {
     expect(c.hash).toBe(blobSha(`${blobSha('test A')} ${T}`));
   });
 
-  it('✓ Rien à écrire, sans test : une liste vide ; sans ✓ ou avec des tests : pas ce cas', () => {
+  it('aucun test ni ligne « → invariant » : contenu vide même sans ✓ Rien à écrire, et la cascade jusqu’aux modules est acceptée', () => {
     const { view, blobs } = build({ tests: {} });
+    expect(stepContent(view, {}, 'invariants', blobs)).toEqual({ hash: blobSha(''), files: {} });
+    const m = validate({}, { tests: {} });
+    expect(states(m, now(m, { tests: {} }))).toEqual(['ok', 'ok', 'ok', 'ok']);
+  });
+
+  it('une ligne « → invariant » ajoutée après la validation (sans test) : l’étape devient changed', () => {
+    const m = validate({}, { tests: {} });
+    const c = checksAfter(m, { tests: {}, mustNot: '- x → invariant' });
+    expect(c.invariants.state).toBe('changed');
+    expect(c.invariants.now).toBeNull();
+  });
+
+  it('une ligne « → variant suffit » (pas invariant) ne compte pas comme ligne « → invariant » : contenu vide', () => {
+    const { view, blobs } = build({ tests: {}, mustNot: '- x → variant suffit' });
+    expect(stepContent(view, {}, 'invariants', blobs)).toEqual({ hash: blobSha(''), files: {} });
+  });
+
+  it('plusieurs lignes « ne doit pas », une seule marquée invariant : comptée', () => {
+    const { view, blobs } = build({ tests: {}, mustNot: '- a → variant suffit\n- b → invariant\n- c → structure' });
+    expect(stepContent(view, {}, 'invariants', blobs)).toBeNull();
+  });
+
+  it('des lignes « → invariant », aucun test, sans ✓ Rien à écrire : null ; avec : une liste vide', () => {
+    const { view, blobs } = build({ tests: {}, mustNot: '- x → invariant' });
     expect(stepContent(view, {}, 'invariants', blobs)).toBeNull();
     const nothing = setMark({}, 'nothing', blobSha(view.note!.text), 'ok');
     expect(stepContent(view, nothing, 'invariants', blobs)).toEqual({ hash: blobSha(''), files: {} });
     // la note changée depuis le ✓ Rien à écrire : plus rien
-    const other = build({ tests: {}, does: 'il fait B' });
+    const other = build({ tests: {}, mustNot: '- x → invariant', does: 'il fait B' });
     expect(stepContent(other.view, nothing, 'invariants', other.blobs)).toBeNull();
     // avec un test, le ✓ Rien à écrire ne dispense pas des cas
     const withTest = build();

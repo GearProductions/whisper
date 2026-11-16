@@ -196,6 +196,41 @@ describe('vibeMarks : le ✓ des étapes faites pendant Vibe', () => {
     expect(next.invariants).toBeUndefined();
   });
 
+  // Note 0.15.0-invariants-sans-ligne : sans test de la branche, l'étape Invariants faite par une course finie
+  // (pas par un ✓ déjà là) doit recevoir sa marque 'nothing', comme un cas, puis être validée.
+  const invariantsDone = { id: 'invariants', label: 'invariants', who: 'agent', state: 'done' as const, since: 4, end: 5, reply: '', permission: null };
+  const noTests = { tests: [], repo: { branch: 'feat/G2-1-bouton', base: 'origin/main', changed: [NOTE_PATH],
+    commits: [{ hash: 'a'.repeat(40), subject: 'Note, forme', files: [NOTE_PATH] }] } };
+
+  it('sans test, l\'étape Invariants faite (course finie) : ✓ Rien à écrire pour le texte de la note, puis l\'étape validée', () => {
+    const { view, next } = run({}, { ...noTests, runs: [invariantsDone] });
+    expect(next.nothing).toEqual({ hash: blobSha(NOTE), verdict: 'ok' });
+    expect(checks(view, next).invariants.state).toBe('ok');
+  });
+
+  it('sans test, l\'étape Invariants pas faite : aucune marque \'nothing\'', () => {
+    const { next } = run({}, { tests: [] });
+    expect(next.nothing).toBeUndefined();
+  });
+
+  it('un ✗ Rien à écrire déjà donné pour ce texte : gardé, l\'étape non validée', () => {
+    const marks: Marks = { nothing: { hash: blobSha(NOTE), verdict: 'ko' } };
+    const { view, next } = run(marks, { ...noTests, runs: [invariantsDone] });
+    expect(next.nothing).toEqual(marks.nothing);
+    expect(checks(view, next).invariants.state).not.toBe('ok');
+  });
+
+  it('un ✓ ou ✗ \'nothing\' d\'un autre texte (note changée depuis) est remplacé par le ✓ d\'aujourd\'hui', () => {
+    const marks: Marks = { nothing: { hash: 'vieux-texte', verdict: 'ko' } };
+    const { next } = run(marks, { ...noTests, runs: [invariantsDone] });
+    expect(next.nothing).toEqual({ hash: blobSha(NOTE), verdict: 'ok' });
+  });
+
+  it('avec des tests de la branche, aucune marque \'nothing\' même si l\'étape est faite', () => {
+    const { next } = run();
+    expect(next.nothing).toBeUndefined();
+  });
+
   it('une étape pas faite ne reçoit rien', () => {
     // Les invariants écrits mais pas commités : l'étape Invariants n'est pas faite.
     const { next } = run({}, { repo: { branch: 'b', base: 'origin/main', changed: [NOTE_PATH, TEST_PATH], dirty: [NOTE_PATH, TEST_PATH], commits: [] } });
