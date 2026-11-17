@@ -13,13 +13,15 @@ import type { MouseEvent } from 'react';
 
 export type IconName = 'close' | 'open' | 'external' | 'diff' | 'comment' | 'ask' | 'ok' | 'ko' | 'warn'
   | 'stop' | 'play' | 'refresh' | 'edit' | 'pull' | 'push' | 'rebase'
-  | 'attach' | 'send' | 'branch' | 'search' | 'chevron' | 'history' | 'mic' | 'gear';
+  | 'attach' | 'send' | 'branch' | 'search' | 'chevron' | 'history' | 'mic' | 'gear' | 'folder';
 
 const X = ['M4 4l8 8', 'M12 4l-8 8'];
 const PATHS: Record<IconName, string[]> = {
   close: X,
   ko: X,
   open: ['M4 2h5l3 3v9H4z', 'M9 2v3h3'],
+  // Un dossier : Montrer dans le dossier (un artefact, dans le gestionnaire de fichiers).
+  folder: ['M2 4.5V12.5h12V5.5H7.5L6 3.5H2z'],
   external: ['M9 3h4v4', 'M13 3L7 9', 'M11 9v4H3V5h4'],
   diff: ['M5 2.5v5', 'M2.5 5h5', 'M8.5 12h5'],
   comment: ['M2.5 3h11v7.5h-6l-3 2.5v-2.5h-2z'],

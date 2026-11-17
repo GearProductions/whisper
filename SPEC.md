@@ -1022,7 +1022,10 @@ dossier : le centre reste vide) :
   dans l'éditeur* montre la suite. Suivi comme le fichier de *Voir le code*
   (F-100) : relu à chaque écriture de l'agent.
 
-En tête de l'artefact : *Ouvrir dans l'éditeur* et *Copier dans le projet*
+En tête de l'artefact : *Ouvrir dans l'éditeur*, *Montrer dans le dossier*
+(une icône de dossier : le gestionnaire de fichiers s'ouvre sur le fichier,
+jamais lancé — pour le récupérer ou l'envoyer ; l'écran ne passe que l'id de
+l'artefact, `dir:<id>`, le principal retrouve son fichier) et *Copier dans le projet*
 (`copy-artifact`, F-114). La conversation reste à droite : on demande à
 l'agent de retoucher l'artefact affiché.
 

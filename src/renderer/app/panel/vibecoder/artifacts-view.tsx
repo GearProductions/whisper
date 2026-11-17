@@ -5,7 +5,8 @@
  *  plusieurs éléments : vide ; au départ, le premier) : markdown → MarkdownView, text → CodeView en
  *  lecture seule (le texte reçu par `code`, VibeCode de son id), « fichier tronqué » si truncated ; page →
  *  <iframe sandbox> (attribut vide : ni script, ni réseau) sur url ; media → <iframe> sur url ; en tête,
- *  Ouvrir dans l'éditeur (onOpen) et Copier dans le projet (onRun('copy-artifact')). Sélection, focus,
+ *  Ouvrir dans l'éditeur (onOpen), Montrer dans le dossier (onOpen('dir:<id>') : le gestionnaire de fichiers, le fichier
+ *  choisi) et Copier dans le projet (onRun('copy-artifact')). Sélection, focus,
  *  dossiers ouverts, presse-papiers, saisie, menu et confirmation sont l'état local ; tout est tenu par
  *  le nom (les ids a<i> glissent quand la liste change) et les ids ne sont lus qu'au moment d'agir.
  *  Après Renommer ou Déplacer, la sélection suit le nom attendu, donc l'artefact du centre aussi. Chaque
@@ -227,6 +228,7 @@ export function ArtifactsView({ artifacts, artifactDirs, lang, code, onChoose, o
               <h2 className="vc-mono" title={chosen.name}>{chosen.name}</h2>
               <span className="vc-art-size">{fileSize(chosen.size, lang)}</span>
               <IconButton icon="open" label={t.openTitle} onClick={() => onOpen(chosen.id)} />
+              <IconButton icon="folder" label={t.showInFolder} onClick={() => onOpen(`dir:${chosen.id}`)} />
               <button type="button" className="vc-mini" title={t.artifactCopyTitle}
                 onClick={() => run('copy-artifact', { artifacts: idsOf(nodes, cur.keys) })}>{t.artifactCopy}</button>
             </div>

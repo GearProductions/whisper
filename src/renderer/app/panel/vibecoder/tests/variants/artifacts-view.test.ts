@@ -84,9 +84,11 @@ it('un média dans un cadre sans bac à sable ; Ouvrir donne l\'id, Copier dans 
   expect(page.querySelector('iframe')?.hasAttribute('sandbox')).toBe(false);
   expect([button('Ouvrir').title, button('Ouvrir').textContent]).toEqual(['Ouvrir dans l\'éditeur', '']);
   expect(button('Copier').textContent).toBe('Copier dans le projet');
+  expect(button('Montrer').title).toBe('Montrer dans le dossier (pour le récupérer ou l\'envoyer)');
   button('Ouvrir').click();
+  button('Montrer').click();
   button('Copier').click();
-  expect(calls).toEqual(['choose a0', 'open a0']);
+  expect(calls).toEqual(['choose a0', 'open a0', 'open dir:a0']);
   expect(runs).toEqual([{ action: 'copy-artifact', args: { direct: true, artifacts: ['a0'] } }]);
 });
 

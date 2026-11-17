@@ -33,7 +33,7 @@ const fake = vi.hoisted(() => {
   }
   return {
     Win, userData: '', windows: [] as InstanceType<typeof Win>[], facts: null as unknown, messages: [] as unknown[],
-    shown: null as string | null, diff: null as string | null, edited: [] as unknown[][], opened: [] as string[],
+    shown: null as string | null, diff: null as string | null, edited: [] as unknown[][], opened: [] as string[], revealed: [] as string[],
     tabs: [] as (string | null)[], steps: [] as { id: string; status: string }[],
     git: (() => null) as (args: string[]) => string | null, calls: [] as unknown[][], noChild: false,
     branches: null as string[] | null, synced: [] as string[], prs: null as unknown, login: 'moi' as string | null,
@@ -51,7 +51,7 @@ vi.mock('electron', () => ({
   app: { getPath: () => fake.userData, quit: () => {} },
   BrowserWindow: class extends fake.Win { constructor() { super(); fake.windows.push(this); } },
   screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) },
-  shell: { openExternal: (url: string) => { fake.opened.push(url); } }, clipboard: {},
+  shell: { openExternal: (url: string) => { fake.opened.push(url); }, showItemInFolder: (file: string) => { fake.revealed.push(file); } }, clipboard: {},
   // Le décodeur d'images d'Electron ne lit rien : un GIF part tel quel, un PNG est refusé.
   nativeImage: { createFromBuffer: () => ({ isEmpty: () => true }) },
   dialog: { showMessageBox: async (o: { message: string }) => { fake.calls.push(['dialog', o.message]); return { response: fake.answer }; } },
@@ -631,6 +631,23 @@ describe('rc.2', () => {
     await openVibeItem('c0/0', 3);
     expect(fake.edited).toEqual([]);
     expect(fake.opened).toEqual([]);
+  });
+});
+
+describe('Montrer un artefact dans le dossier', () => {
+  it('dir:<id d\'artefact> : le fichier montré dans le gestionnaire de fichiers, jamais ouvert ; un id inconnu, un chemin : rien', async () => {
+    const { projectArtifactsPath } = await import('app/controllers');
+    const root = projectArtifactsPath(dir);
+    write(path.join(root, 'plan.md'), '# plan\n');
+    const { view } = await open();
+    const a = (view() as unknown as { artifacts: { id: string; name: string }[] }).artifacts.find((x) => x.name === 'plan.md')!;
+    const { openVibeItem } = await import('app/controllers');
+    fake.revealed.length = 0;
+    await openVibeItem(`dir:${a.id}`);
+    await openVibeItem('dir:a99');
+    await openVibeItem('dir:/etc/passwd');
+    expect(fake.revealed).toEqual([fs.realpathSync.native(path.join(root, 'plan.md'))]);
+    expect(fake.edited).toEqual([]);
   });
 });
 

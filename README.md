@@ -672,7 +672,8 @@ bouton *Artefacts* de l'en-tête ouvre leur panneau à la place du fil d'Ariane
 et de l'étape : l'arborescence à gauche, au centre le fichier que vous choisissez. Image,
 PDF, son, vidéo, page HTML ou SVG s'affichent tels quels (une page sans
 script ni réseau) ; le reste en texte, un binaire compris, coupé au-delà de
-10 Mo (`artifactTextMax`) — *Ouvrir dans l'éditeur* montre la suite. *Copier
+10 Mo (`artifactTextMax`) — *Ouvrir dans l'éditeur* montre la suite. L'icône de dossier montre le fichier dans
+le gestionnaire de fichiers, pour le récupérer ou l'envoyer. *Copier
 dans le projet* le copie dans le dossier que vous choisissez (un fichier du
 même nom n'est remplacé que si vous l'acceptez). La conversation reste à
 droite : demandez-y une retouche, l'artefact se met à jour.
