@@ -1419,6 +1419,11 @@ export async function openVibeItem(id: unknown, line?: unknown) {
   const git = gitReader(gitRun(agent.dir));
   const commit = itemCommit(view, id);
   if (/^a\d+$/.test(id)) open(artifactFile(agent.id, artifactOf(view, id)));
+  else if (/^dir:a\d+$/.test(id)) {
+    // Montrer dans le dossier : le gestionnaire de fichiers, le fichier choisi, jamais ouvert (un script se lancerait).
+    const file = artifactFile(agent.id, artifactOf(view, id.slice(4)));
+    if (file) shell.showItemInFolder(file);
+  }
   else if (commit?.web) {
     const page = githubPage(agent.dir, readFile);
     if (page && /^[0-9a-f]{7,64}$/.test(commit.hash)) shell.openExternal(`${page}/commit/${commit.hash}`);
