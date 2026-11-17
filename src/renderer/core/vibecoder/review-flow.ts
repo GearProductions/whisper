@@ -10,7 +10,7 @@
  *  selon les remarques cochées (applySelection) ; si une course retient les
  *  autres (isLive).
  *  Et, en relecteur : les remarques d'un élément (remarksAt), le verdict que les marques
- *  proposent (proposedVerdict : il ne fait que proposer) et si la revue affichée est celle qu'on
+ *  proposent (proposedVerdict : il ne fait que proposer ; les cas lus par leur clé, caseKeys de shared/test-cases) et si la revue affichée est celle qu'on
  *  publierait (reviewSent : le texte du brouillon est draftText, de shared/review, celui du principal ;
  *  les blancs de fin et les \r\n ne comptent pas).
  *  Ne connaît pas : le DOM, React, le pont, les noms des fichiers de sortie.
@@ -19,6 +19,7 @@
  *  review-view : remarkMark, allApplied, remarkId, applySelection ; review-view, step-parts, vibe-coder : isLive ;
  *  vues du relecteur : remarksAt, proposedVerdict, reviewSent). */
 import { draftText, type Verdict } from 'shared/review';
+import { caseKeys } from 'shared/test-cases';
 import type { VibeComment, VibeRun, VibeView } from 'technicals/bridge';
 import { BULLET, excerpt } from './note';
 import { type parseReview, remarkKey } from './outputs';
@@ -87,7 +88,7 @@ export const remarksAt = (draft: VibeComment[], target: string): VibeComment[] =
 // Le verdict que proposent les marques (il ne publie rien) : un À revoir sur la note, un cas d'invariant ou un
 // commit → request-changes ; tout validé → approve ; sinon (pas jugé, modifié depuis, rien) null.
 export function proposedVerdict(view: VibeView): Verdict | null {
-  const marks = [...(view.note ? [view.note.mark] : []), ...view.invariants.flatMap((f) => f.cases.map((c) => (Object.hasOwn(f.marks, c) ? f.marks[c] : null))),
+  const marks = [...(view.note ? [view.note.mark] : []), ...view.invariants.flatMap((f) => caseKeys(f.cases).map((k) => (Object.hasOwn(f.marks, k) ? f.marks[k] : null))),
     ...view.commits.map((c) => c.mark ?? null)];
   if (marks.includes('ko')) return 'request-changes';
   return marks.length && marks.every((m) => m === 'ok') ? 'approve' : null;

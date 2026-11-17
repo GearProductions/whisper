@@ -781,7 +781,15 @@ relire une PR (le relecteur, plus bas) :
    lien qui ouvre la note à cette ligne (un invariant `I-…` du projet : son
    numéro ; sinon « non rattaché ») ; puis, dans l'en-tête de chaque
    cas, le badge *Validé* ou *À revoir*, qui s'allume au clic (*À revoir* le cite dans le champ, pour dire quoi changer), *Tout valider* pour
-   un fichier. *Lire en pseudo-code* (dans les outils en haut du fichier)
+   un fichier (il ne valide que les cas sans verdict). La validation d'un cas porte
+   sur son bloc, celui que *Code* montre : retoucher un cas ne décoche que lui
+   (« Modifié depuis la validation ») ; retoucher le code commun du fichier (un
+   import, un helper, un `beforeEach`) les décoche tous (« Le code commun du fichier
+   a changé ») ; un cas ajouté n'est pas validé, un cas retiré disparaît avec sa
+   validation. Deux cas de même titre dans un fichier se valident chacun à part (le
+   second est rangé sous « <titre> n° 2 »). Les validations posées avant la 0.15.0,
+   sur le fichier entier, sont reprises sur le bloc de chaque cas sans rien vous
+   demander, si le fichier n'a pas changé depuis. Rien n'est écrit dans le projet. *Lire en pseudo-code* (dans les outils en haut du fichier)
    aide à lire, sans être obligatoire (à
    la main, jamais mise en avant ; en *Vibe*, l'agent ne la lance pas) :
    chaque cas de test traduit en étapes simples (`test "…":`, `given`,
@@ -798,7 +806,9 @@ relire une PR (le relecteur, plus bas) :
    retirées, modifiées et ajoutées marquées ;
    *Relire* un fichier (ou *Tout relire*) refait sa lecture — un test
    modifié depuis garde sa lecture, marquée « lecture périmée », et
-   *Relire* est mis en avant ; *Préparer le commit* puis *✓ Commiter* (un fichier
+   *Relire* est mis en avant, mais seuls les cas dont le bloc a changé sont
+   périmés (leurs boutons grisés jusqu'à *Relire*) : les autres gardent leur
+   lecture et leurs boutons ; *Préparer le commit* puis *✓ Commiter* (un fichier
    déjà porté par un commit de la branche : un fixup, sauf PR ouverte, où il va
    dans un nouveau commit qui dit pourquoi).
    Une note sans ligne « → invariant » passe l'étape dès la forme validée (pas de
@@ -824,7 +834,8 @@ relire une PR (le relecteur, plus bas) :
    commit). Générer
    et commiter sont deux gestes : *Commiter les modules* (un commit par module dans l'ordre de la Forme, un fixup
    pour un module déjà commité ; le typage de chaque commit est vérifié sur son
-   contenu, hors du dossier de travail ; des modules qui ne compilent
+   contenu, hors du dossier de travail, avec les `node_modules` du dossier reliés à leur place,
+   ceux de chaque workspace compris ; des modules qui ne compilent
    qu'ensemble, notés sur une seule entrée de la Forme (« a.ts + b.ts »), font un seul
    commit, et un module suivant que l'erreur de typage nomme les rejoint ; une
    autre erreur arrête là, sans rattrapage) ; vous pouvez donc retoucher le code entre les deux.
@@ -1023,7 +1034,8 @@ branches à la place de l'étape (un nouveau clic la referme). Elle montre :
   *À relire* ;
 - *Revenir sur la branche principale* ; *Créer une branche* ; *Retirer le
   worktree* (sur le robot d'un worktree) ; *Actualiser* (`git fetch origin` :
-  l'état du distant, pour *Pull* et *Rebase*).
+  l'état du distant, pour *Pull* et *Rebase* ; les listes de PR relues, *À relire* à jour
+  tout de suite).
 
 Dans un worktree (l'enfant d'une demande, le robot d'une PR), on ne change
 pas de branche : la vue n'y montre qu'*Actualiser* et *Retirer le worktree*.

@@ -41,6 +41,12 @@ describe('awaiting', () => {
     expect(awaiting(view('invariants'))).toBeNull();
   });
 
+  it('deux cas de même titre, un seul ✓ : l\u2019autre attend sa validation', () => {
+    const dup = (marks: VibeTestFile['marks']) => view('invariants', { invariants: [{ ...tests(marks)[0], cases: ['t', 't'] }] });
+    expect(awaiting(dup({ t: 'ok' }))).toEqual({ kind: 'cases', count: 1 });
+    expect(awaiting(dup({ t: 'ok', 't n° 2': 'ok' }))).toBeNull();
+  });
+
   it('Vibe en cours : rien à valider', () => {
     expect(awaiting(view('note', { vibe: true }))).toBeNull();
     expect(awaiting(view('note', { vibe: false }))).toEqual({ kind: 'note' });

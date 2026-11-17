@@ -1,6 +1,7 @@
 /** invariants — les tests d'invariants tels que la vue les montre : chaque cas
- *  avec sa lecture en pseudo-code (par son titre, sinon à son rang) et sa
- *  validation, sa ligne dans le fichier et son code d'origine, les lignes de son bloc (caseRange) et le
+ *  avec sa clé (caseKeys de shared/test-cases : un titre en double, son numéro d'ordre), sa lecture en pseudo-code
+ *  (par sa clé parmi les cas lus, sinon à son rang), sa lecture périmée ou non (staleCases), et sa
+ *  validation (par sa clé ; common : « changed » parce que le code commun du fichier a changé, commonChanged), sa ligne dans le fichier et son code d'origine, les lignes de son bloc (caseRange) et le
  *  fichier dont seul ce bloc est remplacé (replaceRange) ; ce qui est validé, refusé, à lire, avec un point d'attention,
  *  et si « Tout valider » est permis (lu ou pas : la lecture n'est qu'une aide) ; le pseudo-code ligne à ligne, coloré,
  *  ses assertions et ses « given / when / then » repérés — en tête de ligne
@@ -12,27 +13,29 @@
  *  Ne connaît pas : le DOM, React, la spécification du projet (un I-… n'est qu'un numéro).
  *  Utilisé par : app/panel/vibecoder (invariants-view). */
 import type { ReadingCase, VibeMarkState, VibeNote, VibeTestFile } from 'technicals/bridge';
+import { caseKeys } from 'shared/test-cases';
 import { tokens, type Token } from './highlight';
 
-export type CaseView = { title: string; reading: ReadingCase | null; mark: VibeMarkState };
+// key : la clé du cas (sa cible : « case:<chemin>:<clé> ») ; stale : sa lecture est périmée ; common : sa validation est
+// tombée parce que le code commun du fichier a changé (absents : non ; note 0.15.0-invariants-par-cas).
+export type CaseView = { title: string; key?: string; reading: ReadingCase | null; stale?: boolean; mark: VibeMarkState; common?: boolean };
 
-// Les cas du fichier (les titres du test : les validations s'y rattachent) ; la
-// lecture d'un cas est celle de même titre, sinon celle de même rang si la
-// lecture a autant de cas et que celle-ci ne porte le titre d'aucun autre.
+// Les cas du fichier (leurs clés : les validations s'y rattachent) ; la lecture d'un cas est celle de même clé parmi les
+// cas lus (caseKeys de leurs titres), sinon celle de même rang si la lecture a autant de cas et que celle-ci ne porte
+// le titre d'aucun autre.
 export function casesOf(file: VibeTestFile): CaseView[] {
   const r = file.reading;
-  return file.cases.map((title, i) => ({
-    title,
-    reading: !r ? null : r.find((c) => c.title === title)
-      ?? (r.length === file.cases.length && !file.cases.includes(r[i].title) ? r[i] : null),
-    mark: Object.hasOwn(file.marks, title) ? file.marks[title] : null,
-  }));
-}
-
-// La ligne (1…) d'un cas dans son fichier, pour Ouvrir à la ligne ; inconnue : undefined (Ouvrir au début).
-export function caseLine(file: VibeTestFile, title: string): number | undefined {
-  const line = file.lines[file.cases.indexOf(title)];
-  return Number.isInteger(line) && line > 0 ? line : undefined;
+  const keys = caseKeys(file.cases), readKeys = r ? caseKeys(r.map((c) => c.title)) : [];
+  return file.cases.map((title, i) => {
+    const key = keys[i], at = readKeys.indexOf(key);
+    return {
+      title, key,
+      reading: !r ? null : r[at] ?? (r.length === file.cases.length && !file.cases.includes(r[i].title) ? r[i] : null),
+      stale: file.staleCases?.includes(key) || undefined,
+      mark: Object.hasOwn(file.marks, key) ? file.marks[key] : null,
+      common: file.commonChanged?.includes(key) || undefined,
+    };
+  });
 }
 
 // Le code d'origine du cas de rang i : de sa ligne à celle du cas suivant (ou à
@@ -77,12 +80,12 @@ export type Progress = {
 };
 
 export function progress(files: VibeTestFile[]): Progress {
-  // une lecture périmée n'est pas lue (comme côté principal)
-  const cases = files.flatMap((file) => casesOf(file).map((c) => ({ ...c, stale: !!file.stale })));
-  const count = (f: (c: CaseView & { stale: boolean }) => boolean) => cases.filter(f).length;
+  // une lecture périmée n'est pas lue (comme côté principal), cas par cas
+  const cases = files.flatMap(casesOf);
+  const count = (f: (c: CaseView) => boolean) => cases.filter(f).length;
   const p = {
     total: cases.length, ok: count((c) => c.mark === 'ok'), ko: count((c) => c.mark === 'ko'),
-    changed: count((c) => c.mark === 'changed'), warnings: count((c) => !!c.reading?.warning), unread: count((c) => !c.reading || c.stale),
+    changed: count((c) => c.mark === 'changed'), warnings: count((c) => !!c.reading?.warning), unread: count((c) => !c.reading || !!c.stale),
   };
   return { ...p, all: !p.warnings && p.ok + p.ko < p.total };
 }

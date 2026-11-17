@@ -7,6 +7,7 @@
 export * from './actions';
 export * from './artifacts';
 export * from './bounds';
+export * from './case-marks';
 export * from './defaults';
 export * from './files';
 export * from './journey';

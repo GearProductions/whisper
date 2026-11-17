@@ -29,8 +29,22 @@ describe('les PR ouvertes', () => {
     expect(calls).toEqual([
       ['pr', 'list', '--author', '@me', '--json', 'number,title,author,url'],
       ['pr', 'list', '--search', 'review-requested:@me', '--json', 'number,title,author,url'],
-      ['pr', 'list', '--limit', '100', '--json', 'number,title,author,url'],
+      ['pr', 'list', '--limit', '100', '--json', 'number,title,author,url,reviewRequests'],
     ]);
+  });
+
+  it('à relire : aussi une PR dont la demande de relecture me nomme, que la recherche (en retard) ne voit pas encore ; une fois', async () => {
+    const gh = githubReader(async (args) => (args.includes('--author') ? '[]' : args.includes('--search') ? '[{"number":2}]'
+      : '[{"number":2,"reviewRequests":[{"login":"moi"}]},{"number":3,"reviewRequests":[{"login":"moi"}]},{"number":4,"reviewRequests":[{"login":"autre"},{"name":"équipe"}]}]'));
+    const r = await gh.openPrs('moi');
+    expect(r!.review).toEqual([{ number: 2 }, { number: 3 }]);
+    expect(r!.all).toEqual([{ number: 2 }, { number: 3 }, { number: 4 }]);
+  });
+
+  it('sans identifiant lisible : la recherche seule', async () => {
+    const gh = githubReader(async (args) => (args.includes('--search') ? '[]' : '[{"number":3,"reviewRequests":[{"login":"moi"}]}]'));
+    expect((await gh.openPrs())!.review).toEqual([]);
+    expect((await gh.openPrs('-x'))!.review).toEqual([]);
   });
 
   it('[] : aucune', async () => {

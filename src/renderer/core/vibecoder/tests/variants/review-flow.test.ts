@@ -152,6 +152,18 @@ describe('proposedVerdict', () => {
   });
 });
 
+describe('proposedVerdict, deux cas de même titre', () => {
+  const dup = (marks: Record<string, VibeMarkState>) => ({
+    note: { mark: 'ok' }, invariants: [{ cases: ['t', 't'], marks }], commits: [],
+  }) as unknown as VibeView;
+
+  it('un seul ✓ : pas approve ; les deux : approve ; le second À revoir : request-changes', () => {
+    expect(proposedVerdict(dup({ t: 'ok', 't n° 2': null }))).toBeNull();
+    expect(proposedVerdict(dup({ t: 'ok', 't n° 2': 'ok' }))).toBe('approve');
+    expect(proposedVerdict(dup({ t: 'ok', 't n° 2': 'ko' }))).toBe('request-changes');
+  });
+});
+
 describe('reviewSent', () => {
   const body = '- [Commit 1] a\n- [La note] b\n- [Commit 1] c';
   const sent = { state: 'CHANGES_REQUESTED', url: null, verdict: 'request-changes' as const, body, at: 1 };

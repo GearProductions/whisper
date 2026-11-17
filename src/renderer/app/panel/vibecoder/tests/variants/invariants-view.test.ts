@@ -323,7 +323,7 @@ it('pas lu : non rattaché ; lecture périmée : le rattachement est marqué pé
   await draw(test({ cases: ['a'], lines: [1] }), 'create');
   expect(keeps()[0]!.textContent).toContain('non rattaché');
   extra = { note: mustNot('Ne jamais écrire → invariant') };
-  await draw(test({ cases: ['a'], lines: [1], reading: [link.reading![0]], stale: true }), 'create');
+  await draw(test({ cases: ['a'], lines: [1], reading: [link.reading![0]], stale: true, staleCases: ['a'] }), 'create');
   expect(keeps()[0]!.getAttribute('data-stale')).toBe('true');
   await draw(test({ cases: ['a'], lines: [1], reading: [link.reading![0]] }), 'create');
   expect(keeps()[0]!.hasAttribute('data-stale')).toBe(false);
@@ -332,7 +332,7 @@ it('pas lu : non rattaché ; lecture périmée : le rattachement est marqué pé
 it('lecture périmée : Validé, À revoir et Tout valider grisés (relire d\'abord) ; à jour, ou sans lecture : actifs', async () => {
   const verdicts = () => [...page.querySelectorAll<HTMLButtonElement>('.vc-verdict button')];
   const all = () => [...page.querySelectorAll<HTMLButtonElement>('.vc-ifile-tools button')].find((b) => b.textContent === 'Tout valider');
-  await draw(test({ cases: ['a'], lines: [1], reading: [link.reading![0]], stale: true }), 'create');
+  await draw(test({ cases: ['a'], lines: [1], reading: [link.reading![0]], stale: true, staleCases: ['a'] }), 'create');
   expect(verdicts().length).toBeGreaterThan(0);
   expect(verdicts().every((b) => b.disabled && b.title.includes('Lecture périmée'))).toBe(true);
   if (all()) expect(all()!.disabled).toBe(true);
@@ -340,6 +340,42 @@ it('lecture périmée : Validé, À revoir et Tout valider grisés (relire d\'ab
   expect(verdicts().some((b) => b.disabled)).toBe(false);
   await draw(test({ cases: ['a'], lines: [1] }), 'create');
   expect(verdicts().some((b) => b.disabled)).toBe(false);
+});
+
+// ---- Note 0.15.0-invariants-par-cas : les cas un par un --------------------------------------------------------------
+const caseVerdicts = (i: number) => [...[...page.querySelectorAll('.vc-case')][i].querySelectorAll<HTMLButtonElement>('.vc-verdict button')];
+
+it('un cas à la lecture périmée : ses boutons grisés, ceux de l\'autre non ; Tout valider grisé, Relire en accent', async () => {
+  await draw(test({ cases: ['a', 'b'], lines: [1, 2], reading: [link.reading![0], { ...link.reading![0], title: 'b' }], stale: true, staleCases: ['a'] }), 'create');
+  expect(caseVerdicts(0).every((b) => b.disabled)).toBe(true);
+  expect(caseVerdicts(1).some((b) => b.disabled)).toBe(false);
+  const tools = [...page.querySelectorAll<HTMLButtonElement>('.vc-ifile-tools button')];
+  expect(tools.find((b) => b.textContent === 'Tout valider')!.disabled).toBe(true);
+  expect(tools.find((b) => b.textContent?.includes('Relire'))!.dataset.tone).toBe('accent');
+  expect(page.querySelector('.vc-ifile-read')!.textContent).toBe('lecture périmée');
+});
+
+it('une validation tombée sur le code commun : son texte, pas « Modifié depuis la validation » ; sinon l\'ancien', async () => {
+  await draw(test({ cases: ['a', 'b'], lines: [1, 2], marks: { a: 'changed', b: 'changed' }, commonChanged: ['a'] }), 'review');
+  const states = [...page.querySelectorAll('.vc-case-state')].map((e) => e.textContent);
+  expect(states).toEqual(['Le code commun du fichier a changé', 'Modifié depuis la validation']);
+  extra = { lang: 'en' };
+  await draw(test({ cases: ['a'], lines: [1], marks: { a: 'changed' }, commonChanged: ['a'] }), 'review');
+  expect(page.querySelector('.vc-case-state')!.textContent).toBe('The file\'s common code changed');
+});
+
+it('deux cas de même titre : deux cibles distinctes (la clé), pour le verdict et pour Tout valider ; les remarques suivent leur cible', async () => {
+  const dup = test({ cases: ['a', 'a'], lines: [1, 2] });
+  await draw(dup, 'create');
+  await act(async () => caseVerdicts(1)[0].click());
+  expect(marks).toEqual([['case:tests/invariants/a.test.ts:a n° 2', 'ok']]);
+  marks = [];
+  await act(async () => [...page.querySelectorAll<HTMLButtonElement>('.vc-ifile-tools button')].find((b) => b.textContent === 'Tout valider')!.click());
+  expect(marks).toEqual([['case:tests/invariants/a.test.ts:a', 'ok'], ['case:tests/invariants/a.test.ts:a n° 2', 'ok']]);
+  await draw(dup, 'review', [], [{ id: 1, target: 'case:tests/invariants/a.test.ts:a n° 2', text: 'le second' }]);
+  const cards = [...page.querySelectorAll('.vc-case')];
+  expect(cards[0].querySelector('.vc-draft-list')).toBeNull();
+  expect(cards[1].querySelector('.vc-draft-list')!.textContent).toContain('le second');
 });
 
 it('sans test : le texte cite le bouton, en français et en anglais, sans « puis vérifier l\'alignement »', async () => {
@@ -418,6 +454,29 @@ it('Code d\'un cas : grisé si le test est verrouillé (rien d\'enregistré)', a
   await act(async () => codeBtn(1).click());
   expect(footBtn('Enregistrer')!.disabled).toBe(true);
   expect(saves).toEqual([]);
+});
+
+// Deux cas de même titre : Code du second ouvre le second bloc, et sa modification, gardée sous la clé « a n° 2 », ne
+// remplace que lui dans le fichier.
+const DUP = ["it('a', () => {", '  expect(1).toBe(1);', '});', '', "it('a', () => {", '  expect(2).toBe(2);', '});', ''].join('\n');
+const SECOND = ["it('a', () => {", '  expect(2).toBe(2);', '});'].join('\n');
+const dup = test({ cases: ['a', 'a'], lines: [1, 5], source: DUP });
+
+it('Code d\'un cas de titre en double : le bloc du second, pas du premier', async () => {
+  pushed = { id: 't0', text: DUP, time: 1 };
+  await draw(dup, 'create');
+  await act(async () => codeBtn(1).click());
+  expect(editorDocs()).toEqual([SECOND]);
+});
+
+it('Code d\'un cas de titre en double enregistré : seul le bloc du second change dans le fichier', async () => {
+  pushed = { id: 't0', text: DUP, time: 1 };
+  stored = { [`${dup.path}#a n° 2`]: { text: SECOND.replaceAll('2', '3'), base: 1 } };
+  await draw(dup, 'create');
+  await act(async () => codeBtn(1).click());
+  expect(editorDocs()).toEqual([SECOND.replaceAll('2', '3')]);
+  await act(async () => footBtn('Enregistrer')!.click());
+  expect(saves).toEqual([['t0', DUP.replace(SECOND, SECOND.replaceAll('2', '3'))]]);
 });
 
 it('Relecteur : le code d\'un cas en lecture seule, sans éditeur ni pied', async () => {

@@ -155,6 +155,12 @@ describe('invariantTree', () => {
     expect(rows.slice(1).every((r) => !r.dim)).toBe(true);
   });
 
+  it('deux cas de même titre, un seul ✓ : le test n\u2019est pas done (marques lues par clé)', () => {
+    const row = (marks: VibeTestFile['marks']) => invariantTree({ modules: [], files: [], invariants: [test('a.test.ts', { cases: ['t', 't'], marks })] })[0].state;
+    expect(row({ t: 'ok', 't n° 2': null })).toBe('wip');
+    expect(row({ t: 'ok', 't n° 2': 'ok' })).toBe('done');
+  });
+
   it('base absente : new ; base différente : modified ; égale : null, commité ou non ; base inconnue : aucune couleur', () => {
     const rows = invariantTree({
       modules: [],

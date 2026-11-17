@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
-import { blobSha, caseLines, caseTitles, isInvariantTest, isTest, readingOf } from 'core/vibecoder';
+import { blobSha, caseBlocks, caseHeads, caseLines, caseReading, caseTitles, isInvariantTest, isTest } from 'core/vibecoder';
 
 describe('isTest : un fichier de test, quel que soit son langage', () => {
   it('Vitest : *.test.ts', () => {
@@ -142,6 +142,134 @@ describe('caseLines : la ligne de chaque cas, d\'après le texte du test', () =>
   });
 });
 
+describe('caseHeads : la ligne de chaque cas et celle de son titre', () => {
+  it('it( dont le titre est sur la ligne suivante', () => {
+    const src = 'describe(\'g\', () => {\n  it(\n    \'long titre\',\n    () => {},\n  );\n  it(\'b\', f);\n});\n';
+    expect(caseHeads(src)).toEqual([{ from: 2, title: 3 }, { from: 6, title: 6 }]);
+  });
+
+  it('it.each([…])(titre) : le titre est à la fin du tableau', () => {
+    expect(caseHeads('it.each([\n  [1],\n])(\'%d\', f);')).toEqual([{ from: 1, title: 3 }]);
+  });
+
+  it('Rust : #[test] puis fn', () => {
+    expect(caseHeads('use x;\n\n#[test]\nfn a() {}\n#[tokio::test]\n#[ignore]\nasync fn b() {}\n')).toEqual([
+      { from: 3, title: 4 },
+      { from: 5, title: 7 },
+    ]);
+  });
+
+  it('Python : le def', () => {
+    expect(caseHeads('import x\n\ndef test_a():\n    pass\n')).toEqual([{ from: 3, title: 3 }]);
+  });
+
+  it('même ordre et mêmes lignes que caseTitles et caseLines ; CRLF compris', () => {
+    const src = '// x\r\n\r\nit(\'a\', f);\r\nit(\r\n  \'b\',\r\n  f);\r\n';
+    expect(caseHeads(src).map((h) => h.from)).toEqual(caseLines(src));
+    expect(caseHeads(src)).toEqual([{ from: 3, title: 3 }, { from: 4, title: 5 }]);
+  });
+
+  it('un fichier vide, ou sans cas : aucun', () => {
+    expect(caseHeads('')).toEqual([]);
+    expect(caseHeads('const x = 1;\n')).toEqual([]);
+  });
+});
+
+describe('caseBlocks : l\'empreinte de chaque bloc et du code commun', () => {
+  const src = (a: string, imp = 'import x from \'x\';') =>
+    `${imp}\n\ndescribe('g', () => {\n  it('a', () => {\n    ${a};\n  });\n\n  it('b', () => {\n    two();\n  });\n});\n`;
+
+  it('les clés dans l\'ordre, une empreinte par bloc', () => {
+    const r = caseBlocks(src('one()'));
+    expect(r.keys).toEqual(['a', 'b']);
+    expect(r.blocks).toHaveLength(2);
+    expect(r.blocks[0]).not.toBe(r.blocks[1]);
+  });
+
+  it('un cas retouché change son bloc seul', () => {
+    const before = caseBlocks(src('one()'));
+    const after = caseBlocks(src('other()'));
+    expect(after.blocks[0]).not.toBe(before.blocks[0]);
+    expect(after.blocks[1]).toBe(before.blocks[1]);
+    expect(after.common).toBe(before.common);
+  });
+
+  it('un import change le code commun seul', () => {
+    const before = caseBlocks(src('one()'));
+    const after = caseBlocks(src('one()', 'import y from \'y\';'));
+    expect(after.common).not.toBe(before.common);
+    expect(after.blocks).toEqual(before.blocks);
+  });
+
+  it('un titre en double : deux clés, deux blocs', () => {
+    const r = caseBlocks('it(\'a\', () => {\n  x();\n});\nit(\'a\', () => {\n  y();\n});\n');
+    expect(r.keys).toEqual(['a', 'a n° 2']);
+    expect(r.blocks[0]).not.toBe(r.blocks[1]);
+  });
+
+  it('des lignes vides ajoutées ne changent rien', () => {
+    expect(caseBlocks(src('one()').replace('\n    one', '\n\n    one'))).toEqual(caseBlocks(src('one()')));
+  });
+
+  it('un fichier vide : ni clé ni bloc, le code commun du vide', () => {
+    expect(caseBlocks('')).toEqual({ keys: [], blocks: [], common: blobSha('') });
+  });
+});
+
+describe('caseReading : la lecture d\'un test, cas par cas', () => {
+  const path = 'src/x/tests/invariants/a.test.ts';
+  const text = (a: string, b = 'two()') => `it('a', () => {\n  ${a};\n});\nit('b', () => {\n  ${b};\n});\n`;
+  const blocksOf = (t: string) => Object.fromEntries(caseBlocks(t).keys.map((k, i) => [k, caseBlocks(t).blocks[i]]));
+  const reading = (blob: string, t: string, time: number, withBlocks = true) =>
+    ({ blob, text: `# ${path}\nlecture ${blob}`, time, ...(withBlocks ? { blocks: blocksOf(t) } : {}) });
+  const test = { path, blob: 'now', text: text('one()') };
+
+  it('sa propre empreinte : stale vide', () => {
+    const own = reading('now', text('autre()'), 1);
+    expect(caseReading(test, [reading('old', text('one()'), 9), own])).toEqual({ text: own.text, stale: [] });
+  });
+
+  it('une autre version, un seul bloc changé : sa clé seule', () => {
+    const old = reading('old', text('one()', 'changed()'), 1);
+    expect(caseReading(test, [old])).toEqual({ text: old.text, stale: ['b'] });
+  });
+
+  it('une autre version dont aucun bloc n\'a changé : stale vide', () => {
+    expect(caseReading(test, [reading('old', text('one()'), 1)])?.stale).toEqual([]);
+  });
+
+  it('sans blocks : toutes les clés', () => {
+    const old = reading('old', text('one()'), 1, false);
+    expect(caseReading(test, [old])).toEqual({ text: old.text, stale: ['a', 'b'] });
+  });
+
+  it('aucune lecture : null ; celle d\'un autre fichier ou d\'un chemin qui le prolonge : ignorée', () => {
+    expect(caseReading(test, [])).toBeNull();
+    const other = { ...reading('o', text('one()'), 9), text: '# src/x/tests/invariants/b.test.ts\nautre' };
+    const longer = { ...reading('l', text('one()'), 9), text: `# ${path}.bak\nautre` };
+    expect(caseReading(test, [other, longer])).toBeNull();
+  });
+
+  it('la plus récente du fichier est prise, quel que soit l\'ordre', () => {
+    const older = reading('o', text('one()', 'x()'), 1);
+    const newer = reading('n', text('y()'), 5);
+    expect(caseReading(test, [newer, older])?.text).toBe(newer.text);
+    expect(caseReading(test, [older, newer])?.text).toBe(newer.text);
+  });
+
+  it('un cas ajouté depuis la lecture : sa clé est périmée ; un cas retiré : ignoré', () => {
+    const added = { ...reading('old', text('one()'), 1), blocks: { a: blocksOf(text('one()')).a } };
+    expect(caseReading(test, [added])?.stale).toEqual(['b']);
+    const removed = { ...reading('old', text('one()'), 1), blocks: { ...blocksOf(text('one()')), gone: 'x' } };
+    expect(caseReading(test, [removed])?.stale).toEqual([]);
+  });
+
+  it('le code commun seul changé : les blocs lus restent à jour', () => {
+    const old = reading('old', `import z;\n${text('one()')}`, 1);
+    expect(caseReading(test, [old])?.stale).toEqual([]);
+  });
+});
+
 describe('blobSha : l\'empreinte git d\'un contenu', () => {
   it('la même que git hash-object, accents compris', () => {
     const text = 'it(\'détecte l\'été\', () => {});\n';
@@ -150,26 +278,5 @@ describe('blobSha : l\'empreinte git d\'un contenu', () => {
 
   it('le contenu vide : l\'empreinte bien connue de git', () => {
     expect(blobSha('')).toBe('e69de29bb2d1d6434b8b29ae775ad8c2e48c5391');
-  });
-});
-
-describe('readingOf : la lecture d\'un test, à jour ou périmée', () => {
-  const test = { path: 'src/x/tests/invariants/a.test.ts', blob: 'b2' };
-  const old = { blob: 'b0', text: '# src/x/tests/invariants/a.test.ts\nancienne', time: 1 };
-  const prev = { blob: 'b1', text: '# src/x/tests/invariants/a.test.ts\r\nprécédente', time: 2 };
-  const other = { blob: 'b9', text: '# src/x/tests/invariants/b.test.ts\nautre', time: 9 };
-
-  it('celle de son empreinte, à jour', () => {
-    const own = { blob: 'b2', text: 'actuelle', time: 0 };
-    expect(readingOf(test, [old, own, prev])).toEqual({ text: 'actuelle', stale: false });
-  });
-
-  it('sinon la plus récente de son fichier, périmée', () => {
-    expect(readingOf(test, [prev, other, old])).toEqual({ text: prev.text, stale: true });
-  });
-
-  it('pas celle d\'un autre fichier ni d\'un chemin qui le prolonge', () => {
-    const longer = { blob: 'b8', text: '# src/x/tests/invariants/a.test.ts.bak\n', time: 5 };
-    expect(readingOf(test, [other, longer])).toBeNull();
   });
 });

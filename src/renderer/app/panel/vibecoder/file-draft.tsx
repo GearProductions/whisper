@@ -15,7 +15,7 @@
  *  rien à montrer ; tooBig : le disque a répondu sans texte (trop gros).
  *  useCaseDraft (note 0.15.0-ecran-statuts) : comme useFileDraft, pour le seul bloc
  *  d'un cas (range, lu sur file.source) : text, le bloc ; la modification gardée
- *  sous `<chemin>#<titre du cas>` ; save envoie le fichier du disque dont seul le
+ *  sous `<chemin>#<clé du cas>` ; save envoie le fichier du disque dont seul le
  *  bloc est remplacé (replaceRange) ; le disque différent de file.source ou
  *  changé depuis le début de la modification : stale.
  *  DraftEditor : le fichier dans CodeView (edit) et son pied (footInTools : le
@@ -77,13 +77,13 @@ export function useFileDraft(file: VibeFile | null, code: VibeCode | null, locke
   return { text, draft: !!draft, stale, tooBig: !!disk && text === null, change, save, drop };
 }
 
-// Le bloc d'un cas, modifiable seul : title nomme sa modification gardée, range ses lignes dans file.source.
-// useFileDraft sur un fichier de substitution (`<chemin>#<titre>`) dont le texte est le bloc ; save recoud le bloc
+// Le bloc d'un cas, modifiable seul : caseKey (sa clé, caseKeys) nomme sa modification gardée, range ses lignes dans file.source.
+// useFileDraft sur un fichier de substitution (`<chemin>#<clé>`) dont le texte est le bloc ; save recoud le bloc
 // dans le fichier du disque (replaceRange).
-export function useCaseDraft(file: VibeTestFile | null, title: string, range: CaseRange | null, code: VibeCode | null, locked: string | null,
+export function useCaseDraft(file: VibeTestFile | null, caseKey: string, range: CaseRange | null, code: VibeCode | null, locked: string | null,
   onSave: (id: string, text: string) => Promise<boolean>,
   drafts: readonly [Drafts, Dispatch<SetStateAction<Drafts>>]): FileDraft {
-  const key = file ? `${file.path}#${title}` : '';
+  const key = file ? `${file.path}#${caseKey}` : '';
   // Le bloc tel que le disque l'a poussé (lu sur file.source, où range est valable), sans \r : le disque rendu les garde.
   const pushed = useMemo<VibeCode | null>(() => {
     if (!file || !range || !code || code.id !== file.id) return null;

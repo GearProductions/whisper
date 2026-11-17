@@ -161,7 +161,7 @@ export interface ConvApi {
   /** Une action (son id dans VibeView.actions) → un message à l'agent affiché. */
   vibeRun(action: string, args: VibeArgs): Promise<SendResult>;
   vibeSet(patch: VibePatch): void;
-  /** Valider ('ok'), refuser ('ko') ou oublier (null) : 'note', 'forme', 'case:<chemin du fichier>:<titre du cas>', 'check:<rang>' (une case du plan à l'écran). */
+  /** Valider ('ok'), refuser ('ko') ou oublier (null) : 'note', 'forme', 'case:<chemin du fichier>:<clé du cas>', 'check:<rang>' (une case du plan à l'écran). */
   vibeMark(target: string, verdict: 'ok' | 'ko' | null): void;
   /** Relecteur : ajouter au brouillon de revue de la PR (le texte du champ), ou en retirer une remarque. */
   vibeDraft(op: { add?: { target: string; text: string }; edit?: { id: number; text: string }; remove?: number }): void;
@@ -336,8 +336,11 @@ export type VibeTestFile = VibeFile & {
   source: string;                        // le texte du fichier, pour le montrer à côté de sa lecture ; '' au-delà de 200 Ko
   base?: string | null;                  // son texte à la base de la branche ; null : absent à la base, ajouté par la branche ; absent : inconnu (pas de base, ou au-delà de 200 Ko)
   reading: ReadingCase[] | null;         // null : pas encore lu
-  stale?: boolean;                       // sa lecture est celle d'une version précédente ; absent = false
-  marks: Record<string, VibeMarkState>;  // par titre de cas
+  stale?: boolean;                       // la lecture d'un cas au moins est périmée (staleCases) ; absent = false
+  staleCases?: string[];                 // les clés des cas dont le bloc a changé depuis la lecture ; absent = aucun
+  marks: Record<string, VibeMarkState>;  // par clé de cas (caseKeys de shared/test-cases : le titre, « <titre> n° 2 »…)
+  commonChanged?: string[];              // les clés des cas « changed » parce que le code commun du fichier a changé ; absent = aucun
+  hashes?: { blocks: string[]; common: string };   // l'empreinte du bloc de chaque cas (ordre de cases) et du code commun ; absent : aucun cas ne se valide
   locked?: string | null;                // pourquoi il ne s'édite pas (codeLock) ; absent = null : éditable
 };
 
