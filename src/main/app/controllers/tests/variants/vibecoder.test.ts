@@ -2658,7 +2658,9 @@ describe('0.15.0 : les invariants cas par cas', () => {
   it('rien à convertir : le fichier d\'état n\'est pas réécrit par le relevé', async () => {
     await open();
     await mark(FIRST, 'ok');
-    const past = new Date(Date.now() - 60_000);
+    // Une seconde entière : utimes passe des secondes en flottant, le disque garde des nanosecondes ; une date à la
+    // milliseconde peut revenir à un millième près (…908,999), et le test échouait selon l'heure.
+    const past = new Date(Math.floor((Date.now() - 60_000) / 1000) * 1000);
     fs.utimesSync(stateFile(), past, past);
     await survey();
     await survey();
