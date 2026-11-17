@@ -59,6 +59,12 @@ export function parseNote(md: string): NoteFacts {
   };
 }
 
+// Des lignes « → invariant » dans « Ce que ça ne doit pas faire » (step-checks, journey : l'étape Invariants n'a
+// rien à écrire sans elles).
+export function hasInvariantLines(text: string): boolean {
+  return parseNote(text).mustNot.some((m) => m.mark === 'invariant');
+}
+
 // La conception de la note : de « Ce que ça fait » (son titre compris) à la fin, chaque rubrique ## avec son titre,
 // sauf la Forme (que l'étape Forme écrit elle-même) ; le titre # et ce qui précède ignorés ; sans « Ce que ça fait » :
 // toutes les rubriques hors Forme ; '' sans rubrique.

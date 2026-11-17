@@ -91,7 +91,7 @@ import type {
 import { DIRECT_ACTIONS, DIRECT_ONLY, EFFORT_LEVELS, prNumber, SKILL_MODELS, templateVars, type ActionDef } from './actions';
 import { caseMarkState, caseTarget } from './case-marks';
 import { designChecked, markState, type Marks } from './marks';
-import { noteDesign, parseNote } from './note';
+import { hasInvariantLines, noteDesign, parseNote } from './note';
 import { json, parseChecklist, parseQuestions, parseReading } from './outputs';
 import { ELSEWHERE, onBase, onPr, placeReason, placeShown, type PlaceState } from './place';
 import { canAssign, unassignable, type PrPeople } from './role';
@@ -320,7 +320,7 @@ export function vibeView(input: JourneyInput): VibeView {
     };
   });
   const unstarted = modules.some((m) => !m.started);
-  const invLines = !!facts?.mustNot.some((l) => l.mark === 'invariant');
+  const invLines = !!input.note && hasInvariantLines(input.note.text);
 
   // Les tests de la branche (ceux qui ont des cas) : invariants et variants.
   const tests = input.tests.map((t) => ({ ...t, cases: caseTitles(t.text), lines: caseLines(t.text) })).filter((t) => t.cases.length);
