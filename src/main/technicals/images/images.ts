@@ -6,9 +6,16 @@ import { createHash } from 'node:crypto';
 import { nativeImage } from 'electron';
 
 export const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']; // acceptés par Claude
-const IMAGE_SIDE = 1568;               // au-delà, Claude la réduirait lui-même : autant envoyer moins
+// Le maximum que lisent les modèles actuels (Opus 4.7 et suivants, Sonnet 5 et suivants) : 2576 px sur le grand côté et
+// 3,75 mégapixels ; au-delà, Claude la réduirait lui-même : autant envoyer moins. Une capture 2560×1440 passe entière.
+const IMAGE_SIDE = 2576;
+const IMAGE_PIXELS = 3.75e6;
 const IMAGE_BYTES = 3.75 * 1024 * 1024; // ~5 Mo une fois en base64 : la limite par image
 const IMAGE_MAX_INPUT = 50 * 1024 * 1024;
+
+// L'échelle d'une image de width × height : 1 si elle tient (côté et surface), sinon de quoi y tenir.
+export const imageScale = (width: number, height: number): number =>
+  Math.min(1, IMAGE_SIDE / Math.max(width, height), Math.sqrt(IMAGE_PIXELS / (width * height)));
 
 export type ImageInput = { name?: string; type?: string; data?: unknown };
 export type PreparedImage = { mediaType: string; data: string };
@@ -26,7 +33,7 @@ export function prepareImage(img: ImageInput | null | undefined): PreparedImage 
   // Illisible ici : GIF et WebP (qu'Electron ne décode pas) passent tels quels ; un PNG ou un JPEG est abîmé.
   if (image.isEmpty()) return keep && ['image/gif', 'image/webp'].includes(type) ? { mediaType: type, data: buf.toString('base64') } : null;
   const { width, height } = image.getSize();
-  const scale = Math.min(1, IMAGE_SIDE / Math.max(width, height));
+  const scale = imageScale(width, height);
   if (scale === 1 && keep) return { mediaType: type, data: buf.toString('base64') };
   const out = scale < 1 ? image.resize({ width: Math.round(width * scale), height: Math.round(height * scale), quality: 'best' }) : image;
   const png = out.toPNG(); // net pour une capture d'écran ; en JPEG si trop lourd
