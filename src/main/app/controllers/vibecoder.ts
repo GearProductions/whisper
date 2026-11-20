@@ -41,7 +41,9 @@
  *  du relevé (dans l'éditeur, à une ligne ; la page d'un commit dans le
  *  navigateur, d'après l'origine GitHub du dépôt, I-32).
  *  Ne lit que la note et les tests que git donne dans le dossier de l'agent
- *  (safePath), et les sorties de cet agent sous leurs noms connus (isOutputName),
+ *  (safePath ; la note : parmi les fichiers changés, ou ceux de docs/tickets/ que
+ *  git ignore, git.ignored puis locateNote, son « ignored » passé au parcours ;
+ *  note 0.16.0-notes-hors-projet), et les sorties de cet agent sous leurs noms connus (isOutputName),
  *  dont toutes ses lectures d'invariants (invariants/<blob>.md : celle d'un
  *  test modifié depuis reste montrée, périmée, core/vibecoder) : une page
  *  désigne un fichier par son id dans le dernier relevé (lastView), jamais par

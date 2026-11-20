@@ -5,13 +5,15 @@
  *  ses blocs comptent) et leur contrat ; une entrée peut avoir plusieurs chemins
  *  (« a.ts + b.ts  contrat » : des fichiers qui ne compilent qu'ensemble).
  *  Et où la trouver : la clé que porte la branche (ticket ou version), le
- *  fichier de docs/tickets/ qui la nomme parmi ceux que la branche change.
+ *  fichier de docs/tickets/ qui la nomme parmi ceux que la branche change ;
+ *  locateNote : parmi eux et les fichiers de docs/tickets/ que git ignore (une
+ *  note hors du projet, note 0.16.0-notes-hors-projet), et si elle est ignorée.
  *  Les questions ouvertes ne sont pas dans la note (<sorties>/questions.md).
  *  Sa conception (noteDesign) : « Ce que ça fait » et les rubriques qui la suivent,
  *  hors la Forme — la source de l'étape Forme (note 0.15.0-ecran-statuts).
  *  Ne connaît pas : Electron, le disque, git (texte et chemins passés).
  *  Utilisé par : core/vibecoder (journey : parseNote ; step-checks, marks, journey : noteDesign), app/controllers/vibecoder
- *  (noteKey, findNote, parseNote). */
+ *  (noteKey, locateNote, parseNote). */
 import type { MustNotMark } from 'shared/bridge';
 import { oneLine } from 'helpers';
 
@@ -205,4 +207,12 @@ export function findNote(paths: string[], key: string, branch?: string): string 
   const notes = [...paths].sort().filter((p) => /(^|\/)docs\/tickets\/.*\.md$/i.test(p) && word.test(p.slice(p.lastIndexOf('/') + 1)));
   const own = branch && `/${branch.slice(branch.lastIndexOf('/') + 1)}.md`.toLowerCase();
   return notes.find((p) => own && `/${p}`.toLowerCase().endsWith(own)) ?? notes[0] ?? null;
+}
+
+// La note de la branche (findNote) parmi les fichiers que la branche change et ceux
+// de docs/tickets/ que git ignore (sur le disque, jamais commités) ; ignored : elle
+// est de ces derniers (une note hors du projet) ; null si aucune.
+export function locateNote(changed: string[], ignored: string[], key: string, branch?: string): { path: string; ignored: boolean } | null {
+  void changed; void ignored; void key; void branch;
+  throw new Error('not implemented');
 }

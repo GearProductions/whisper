@@ -13,9 +13,10 @@
  *  premier parent d'un commit (parent, par rev-parse <ref>^). Les
  *  branches locales (branches : for-each-ref refs/heads/, hors d'okRef
  *  écartées) ; l'état de Pull et de Rebase (sync : les commits de @{u}, puis
- *  ceux de origin/<base>, absents de HEAD, comptés par log).
+ *  ceux de origin/<base>, absents de HEAD, comptés par log). Les fichiers
+ *  ignorés d'un dossier (ignored : status --ignored, GIT_READ inchangé).
  *  Ne connaît pas : VibeCoder, Electron.
- *  Utilisé par : app/controllers/vibecoder (gitRun, gitReader, okRef),
+ *  Utilisé par : app/controllers/vibecoder (gitRun, gitReader, okRef ; ignored),
  *  app/controllers/worktrees (gitRun : rev-parse, worktree list),
  *  app/controllers/module-code (gitReader : show, forkPoint, parent). */
 import { execFile } from 'node:child_process';
@@ -74,7 +75,11 @@ const plainPath = (path: string) => path !== '' && !path.startsWith('"') && !/[\
 // le premier parent d'un commit (null pour un commit racine) ;
 // branches : les branches locales, noms hors d'okRef écartés ; sync : behind,
 // les commits de @{u} absents de HEAD (null sans @{u}), baseAhead, ceux de
-// origin/<base> (null si absente) ; une base hors d'okRef : null sans lancer git.
+// origin/<base> (null si absente) ; une base hors d'okRef : null sans lancer git ;
+// ignored : les fichiers de `dir` (relatif au dépôt) que git ignore, un par un
+// (status --porcelain -z --ignored --untracked-files=all -- <dir>, les « !! »),
+// chemins cités ou à caractère de contrôle écartés ; un dir hors d'okPath : null
+// sans lancer git ; git en échec : null.
 export function gitReader(run: Run): {
   facts(ref?: string, base?: string): Promise<GitFacts | null>;
   show(ref: string, path: string): Promise<string | null>;
@@ -83,6 +88,7 @@ export function gitReader(run: Run): {
   parent(ref: string): Promise<string | null>;
   branches(): Promise<string[] | null>;
   sync(base: string): Promise<{ behind: number | null; baseAhead: number | null } | null>;
+  ignored(dir: string): Promise<string[] | null>;
 } {
   const exists = async (ref: string) => (await run(['rev-parse', '--verify', '--quiet', '--end-of-options', ref])) !== null;
   const defaultBase = async () => (await run(['rev-parse', '--abbrev-ref', 'origin/HEAD']))?.trim()
@@ -150,6 +156,10 @@ export function gitReader(run: Run): {
       };
       const [behind, baseAhead] = await Promise.all([count('HEAD..@{u}'), count(`HEAD..origin/${base}`)]);
       return { behind, baseAhead };
+    },
+    async ignored(dir) {
+      void dir;
+      throw new Error('not implemented');
     },
   };
 }

@@ -62,7 +62,9 @@
  *  il est touché si l'un l'est (note 0.15.0-stabilisation, T-15) ; commencé (started) seulement si un fichier a
  *  changé depuis son squelette : un commit sans la note le touche, ou, la note commitée, un fichier sous ses chemins
  *  n'est pas commité (le commit de la note : le plus ancien de la branche qui la porte, il porte les squelettes ;
- *  ses commits sont ceux hors de lui) : begun, Générer les modules, stillOk en dépendent, pas touched (note
+ *  ses commits sont ceux hors de lui ; la note ignorée par git, note.ignored : le plus ancien de la branche, et la
+ *  note n'est jamais attendue dans un commit — ni noteChanged, ni la case « note commitée » d'après elle, qui suit
+ *  ce premier commit ; note 0.16.0-notes-hors-projet) : begun, Générer les modules, stillOk en dépendent, pas touched (note
  *  0.15.0-skills-humain-ia) ; la note vérifiée (checked : la marque design de sa note, designChecked), Vérifier la
  *  conception masquée tant qu'elle ne l'est pas (la première part de Valider la note) ; un commit porte sa marque « commit:<hash> »
  *  (mark, absente : aucune ; T-23). Une action directe faite et dont rien n'a changé depuis ne ferait rien de
@@ -116,7 +118,8 @@ export type JourneyInput = {
   queued?: string[];                                // les actions en file d'attente (queuedOf de controllers/runs), dans l'ordre ; absent : aucune
   repo: { branch: string; base: string; changed: string[]; dirty?: string[]; added?: string[]; commits: { hash: string; subject: string; files: string[] }[] } | null;
   error: string | null;                             // pourquoi le dépôt manque
-  note: { path: string; text: string; before: string | null } | null;
+  // ignored : la note est ignorée par git (hors du projet, jamais commitée) ; absent : non.
+  note: { path: string; text: string; before: string | null; ignored?: boolean } | null;
   // Les tests de la branche ; base : leur texte à la base de la branche (null : absent à la base, ajouté ; absent :
   // inconnu, pas de base, ou au-delà de 200 Ko, aussi les fixtures des invariants protégés d'avant la 0.13.0).
   tests: { path: string; blob: string; text: string; base?: string | null }[];
