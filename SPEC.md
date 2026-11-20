@@ -421,7 +421,13 @@ Options : `cwd` = dossier, réglages `user`, `project`, `local`, préréglage
 `claude_code` + la consigne de `consigne-agents.md`, suivie de la ligne
 VibeCoder du questionnaire (une réponse aux questions de la note donnée
 dans la conversation → la note, puis `<sorties>/questions.md` réécrit :
-les skills de VibeCoder ne s'y chargent jamais d'eux-mêmes) ; le plugin `vibecoder`
+les skills de VibeCoder ne s'y chargent jamais d'eux-mêmes), de celle du rôle
+(créateur ou relecteur) et, pour un créateur, de celle du parcours : développer
+par VibeCoder d'office — une modification du code part d'une note (l'action
+`note`) et passe par les actions de l'écran, lancées par la CLI `vibecoder` ou
+*Vibe* ; l'agent écrit lui-même le code seulement quand l'utilisateur le demande
+(correctif rapide, PR express, doc ou texte d'un skill seuls, correction après son
+essai) ; dans le doute, il demande ; le plugin `vibecoder`
 (`userData/vibecoder/plugin`, s'il existe : F-105) et le dossier de sorties de
 l'agent (`userData/vibecoder-out/<agent>`) et le dossier d'artefacts de son
 projet (`userData/vibecoder-artifacts/<clé>`, F-95) en dossiers de travail en

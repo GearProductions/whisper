@@ -35,3 +35,16 @@ export function roleRule(flow: VibeFlow): string {
     ? 'VibeCoder: the user is the creator of this branch (author or assignee of its pull request).'
     : 'VibeCoder: the user is a reviewer of this pull request: do not modify the branch; propose remarks to the review draft instead, with `vibecoder draft` (read it), `vibecoder draft.add target=… text=…`, `vibecoder draft.edit id=… text=…` and `vibecoder draft.remove id=…`.';
 }
+
+// La ligne de la consigne d'un créateur qui dit comment développer : par le parcours de VibeCoder, d'office. Vu le
+// 19 novembre sur Gear Authenticator : prié d'utiliser VibeCoder, l'agent avait lu ses skills puis écrit lui-même tout
+// le code, sans note par l'action, ni Forme, ni invariants, ni modules. Les exceptions ne viennent que de l'utilisateur.
+export function flowRule(): string {
+  return 'VibeCoder: develop through VibeCoder by default. A change of the project\'s code starts from a ticket note — '
+    + 'the `note` action with the user\'s request as its text — and goes on through the screen\'s actions (forme, '
+    + 'invariants, first commit, modules and their commits, checks, fixups, PR, CI), started with the `vibecoder` command '
+    + '(skill `actions`), or with `vibe` once the user validated the note; the actions write the code, you orchestrate, '
+    + 'check and report. Writing the code yourself in this conversation is for what the user explicitly asks to do that '
+    + 'way: a quick fix or an express PR, a change of docs or of a skill\'s text only, or a correction after their test. '
+    + 'A request that writes no code (a question, an artifact, a review) needs none of it. In doubt, ask.';
+}

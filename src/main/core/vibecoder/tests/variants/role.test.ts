@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAssign, roleRule, unassignable, vibeRole, type PrPeople } from 'core/vibecoder';
+import { canAssign, flowRule, roleRule, unassignable, vibeRole, type PrPeople } from 'core/vibecoder';
 
 const people = (p: Partial<PrPeople> = {}): PrPeople => ({ author: 'bob', assignees: [], ...p });
 const role = (o: { open?: boolean; people?: PrPeople | null; login?: string | null; was?: 'create' | 'review' }) =>
@@ -50,5 +50,13 @@ describe('roleRule', () => {
     expect(line).not.toMatch(/creator/i);
     expect(line).toMatch(/do not modify the branch/i);
     for (const name of ['vibecoder draft', 'draft.add', 'draft.edit', 'draft.remove']) expect(line).toContain(name);
+  });
+});
+
+describe('flowRule', () => {
+  it('développer par VibeCoder d\'office : la note par l\'action, les actions par la CLI ; les exceptions, de l\'utilisateur seul', () => {
+    const line = flowRule();
+    expect(line).toMatch(/^VibeCoder: develop through VibeCoder by default/);
+    for (const word of ['`note` action', '`vibecoder` command', 'skill `actions`', '`vibe`', 'explicitly asks', 'express PR', 'In doubt, ask']) expect(line).toContain(word);
   });
 });
