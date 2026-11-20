@@ -18,7 +18,7 @@ The code is written and the user (or the orchestrator) asked to commit it: commi
 ## 1. What to commit
 
 - Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that `git rev-parse --verify` finds. Then `git status --short` (untracked files included) and `git log --format='%h %s' --name-only <base>..HEAD`.
-- The note (under `docs/tickets/`, named like the branch, or the one the branch adds or changes) and its « Forme »: each changed file belongs to the module one of whose paths is that file or contains it.
+- The note (under `docs/tickets/`, named like the branch, on the disk even if git ignores it, else the one the branch adds or changes) and its « Forme »: each changed file belongs to the module one of whose paths is that file or contains it. Ignored (`git check-ignore -q <note>`, exit 0): it is never staged, not even forced (`git add -f`), never committed; the oldest commit of the branch is the one that stands for its commit.
 - Every module with changed files, in the Forme's order (pure → orchestration → UI → doc).
 - Nothing to commit → say so and stop. Changed files no module owns: leave them, and say so.
 

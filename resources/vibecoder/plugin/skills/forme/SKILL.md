@@ -10,7 +10,7 @@ allowed-tools: "Read, Glob, Grep, Write, Edit"
 
 `$ARGUMENTS` = `<lang> <out> [details…]`. `lang`: the user's language — of your answer and of the contracts' prose; module names, paths and signatures in English (or the project's convention). `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`): nothing to write there. Details: optional instructions from the user (names, signatures, a split) — they win over your choices.
 
-The note: under `docs/tickets/`, the file named like the branch (`git branch --show-current`; `<type>/<name>` → `docs/tickets/<type>/<name>.md`), else the one the branch adds or changes (`git diff --name-only <base>...HEAD -- docs/tickets`, base: `git symbolic-ref --short refs/remotes/origin/HEAD`, else `origin/main`, `origin/master`, `main` or `master`, the first that exists, `git rev-parse --verify -q <ref>`). None → say so and stop.
+The note: under `docs/tickets/`, the file named like the branch (`git branch --show-current`; `<type>/<name>` → `docs/tickets/<type>/<name>.md`, on the disk even if git ignores it), else the one the branch adds or changes (`git diff --name-only <base>...HEAD -- docs/tickets`, base: `git symbolic-ref --short refs/remotes/origin/HEAD`, else `origin/main`, `origin/master`, `main` or `master`, the first that exists, `git rev-parse --verify -q <ref>`). None → say so and stop.
 
 Read first: the note; `AGENTS.md` if present (layers, module layout, naming, barrels, imports); the guide's §2 « La forme : dans la note et en tête des fichiers », §4.1 and A.2 if the repo has it (`docs/dev_guide/*.html`); the « Forme » of the project's previous notes (their layout); the code the note touches (`Grep`, `Glob`): reuse what exists before creating a module.
 

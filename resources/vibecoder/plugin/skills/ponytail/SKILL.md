@@ -21,7 +21,7 @@ Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), 
 
 1. The `ponytail-review` skill: read its `SKILL.md` (`.claude/skills/ponytail-review/` at the repo root) and apply it to the diff, with its tags (`delete`, `stdlib`, `native`, `yagni`, `shrink`). Missing → hunt the same: dead flexibility, abstractions with one user, a hand-rolled standard library, a dependency doing what the platform does.
 2. Then, beyond over-engineering:
-   - `note`: the code does not do what the note says (under `docs/tickets/`, named like the branch) — behaviour, Forme, a « ne doit pas » line not held: a defect of the code, not a reason to rewrite the note;
+   - `note`: the code does not do what the note says (under `docs/tickets/`, named like the branch, on the disk even if git ignores it) — behaviour, Forme, a « ne doit pas » line not held: a defect of the code, not a reason to rewrite the note;
    - `duplicate`: logic that already exists elsewhere in the repo (name it);
    - `edge`: an input not handled — empty, missing, too big, concurrent, a failing call;
    - `security`: a path, an id or a text from outside used unchecked, a secret logged, a command built through a shell;
