@@ -62,6 +62,19 @@ const NO_PROGRAM = ['--no-ext-diff', '--no-textconv'];
 // Un chemin que git rend cité (« "… ») ou qui contient un caractère de contrôle
 // (saut de ligne…) : écarté, il finirait dans un message à l'agent.
 const plainPath = (path: string) => path !== '' && !path.startsWith('"') && !/[\0-\x1f\x7f]/.test(path);
+// status -z : « XY chemin », suivi du chemin d'origine pour un renommage ou une copie (sauté) ;
+// les chemins hors de plainPath écartés.
+function statusEntries(out: string): { xy: string; path: string }[] {
+  const tokens = out.split('\0');
+  const entries: { xy: string; path: string }[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    if (tokens[i].length < 4) continue;
+    const [xy, path] = [tokens[i].slice(0, 2), tokens[i].slice(3)];
+    if (plainPath(path)) entries.push({ xy, path });
+    if (/[RC]/.test(xy)) i++;
+  }
+  return entries;
+}
 
 // Tout passe par `run`, args[0] dans GIT_READ. Un ref ou un chemin qui commence
 // par '-' ou contient un NUL, un ref qui contient '..' ou sort de
@@ -109,17 +122,10 @@ export function gitReader(run: Run): {
       const changed = new Set((diff ?? '').split('\0').filter(plainPath));
       const dirty: string[] = [];
       const added: string[] = [];
-      // status -z : « XY chemin », suivi du chemin d'origine pour un renommage ou une copie (sauté).
-      const entries = (status ?? '').split('\0');
-      for (let i = 0; i < entries.length; i++) {
-        if (entries[i].length < 4) continue;
-        const p = entries[i].slice(3);
-        if (plainPath(p)) {
-          changed.add(p);
-          dirty.push(p);
-          if (/^\?\?|A/.test(entries[i].slice(0, 2))) added.push(p);
-        }
-        if (/[RC]/.test(entries[i].slice(0, 2))) i++;
+      for (const { xy, path: p } of statusEntries(status ?? '')) {
+        changed.add(p);
+        dirty.push(p);
+        if (/^\?\?|A/.test(xy)) added.push(p);
       }
       // log -z : « \x01<hash>\t<sujet> » par commit, puis ses fichiers (le premier précédé d'un saut de ligne).
       const commits: GitFacts['commits'] = [];
@@ -158,8 +164,9 @@ export function gitReader(run: Run): {
       return { behind, baseAhead };
     },
     async ignored(dir) {
-      void dir;
-      throw new Error('not implemented');
+      if (!okPath(dir)) return null;
+      const out = await run(['status', '--porcelain', '-z', '--ignored', '--untracked-files=all', '--', dir]);
+      return out === null ? null : statusEntries(out).filter((e) => e.xy === '!!').map((e) => e.path);
     },
   };
 }
