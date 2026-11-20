@@ -1423,6 +1423,60 @@ describe('un module n\'est commencé que si un fichier a changé depuis son sque
   });
 });
 
+// Une note ignorée par git (note 0.16.0-notes-hors-projet) : jamais commitée ; le plus ancien commit de la branche tient lieu
+// du commit de la note (squelettes, tests d'invariants rouges), et la case « note commitée » suit ce premier commit.
+describe('une note ignorée par git : le premier commit tient lieu du commit de la note', () => {
+  const HELLO_PATH = 'src/core/hello.ts', BUTTON_PATH = 'src/app/button.tsx';
+  const SKELS = commit('a', 'Squelettes, invariants', [TEST_PATH, HELLO_PATH, BUTTON_PATH]);   // pas la note
+  const ignored = { ...note, ignored: true };
+  const view = (over: Partial<JourneyInput> = {}) => vibeView(ready({ note: ignored, repo: repo([], [SKELS]), exists: () => true, ...over }));
+  const started = (v: VibeView) => v.modules.map((m) => m.started);
+  const a3 = (v: VibeView) => v.checklist[0].done;
+
+  it('un commit de squelettes : aucun module commencé, commits vides, Modules en cours', () => {
+    const v = view();
+    expect([started(v), v.modules.map((m) => m.commits), status(v).modules]).toEqual([[false, false], [[], []], 'current']);
+    expect(action(v, 'modules')?.hidden).toBe(false);
+  });
+
+  it('un commit qui touche un module après le premier : commencé, ce commit seul dans commits', () => {
+    const v = view({ repo: repo([], [SKELS, HELLO]) });
+    expect([started(v), v.modules.map((m) => m.commits)]).toEqual([[true, false], [[HELLO.hash], []]]);
+  });
+
+  it('un fichier d\'un module retouché après le premier commit : commencé', () => {
+    expect(started(view({ repo: { ...repo([], [SKELS]), dirty: [HELLO_PATH] } }))).toEqual([true, false]);   // commité puis retouché
+  });
+
+  it('les tests d\'invariants du premier commit sont ceux de l\'étape, une fois un module commencé', () => {
+    const begun = repo([], [SKELS, HELLO]);
+    expect(status(view({ repo: begun, marks: NOTE_OK })).invariants).toBe('current');   // un cas pas validé
+    expect(status(view({ repo: begun })).invariants).toBe('done');
+  });
+
+  it('« note commitée » : pas cochée sans commit, cochée dès le premier', () => {
+    expect([a3(view({ repo: repo() })), a3(view())]).toEqual([false, true]);
+  });
+
+  it('pas de commit du tout : rien ne plante, aucun module commencé', () => {
+    const v = view({ repo: repo() });
+    expect([started(v), status(v).modules]).toEqual([[false, false], 'current']);
+  });
+
+  it('un seul commit, de module : c\'est lui le commit de la note, le module n\'est pas commencé', () => {
+    expect(started(view({ repo: repo([], [HELLO]) }))).toEqual([false, false]);
+  });
+
+  it('ignored: false ou absent : le même parcours que la note commitée', () => {
+    const a = vibeView(ready()), b = vibeView(ready({ note: { ...note, ignored: false } }));
+    expect(b).toEqual(a);
+  });
+
+  it('note non ignorée : « note commitée » vraie seulement si un commit la porte', () => {
+    expect([a3(vibeView(ready({ repo: repo([], [SKELS]) }))), a3(vibeView(ready()))]).toEqual([false, true]);
+  });
+});
+
 // Les en-têtes sans doublon (note 0.15.0-ecran-epure) : head ne garde que ce que l'étape ne montre pas en dessous ;
 // facts reste entier (l'infobulle du fil d'Ariane).
 describe('en-têtes d\'étape sans doublon : head et facts', () => {

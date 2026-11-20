@@ -292,8 +292,11 @@ export function vibeView(input: JourneyInput): VibeView {
     nothingMark: markState(marks, 'nothing', blobSha(input.note.text)), checked: designChecked(marks, input.note.path), locked: codeLock(null, input.busy, input.running, lang),
   };
   // Le commit de la note : le plus ancien de la branche qui la porte (les commits vont du plus ancien au plus récent) ;
-  // il porte aussi les squelettes des modules, qui ne sont pas un module fait.
-  const noteCommit = note && commits.find((c) => c.files.includes(note.path));
+  // il porte aussi les squelettes des modules, qui ne sont pas un module fait. Note ignorée par git (jamais commitée) :
+  // le plus ancien de la branche, tout simplement ; noteIn dit si un commit est le sien, et noteDirty si elle est à commiter.
+  const noteIn = (c: { files: string[] }) => !!note && (input.note?.ignored ? c === commits[0] : c.files.includes(note.path));
+  const noteCommit = note && commits.find(noteIn);
+  const noteDirty = !!note && dirty.includes(note.path);
   const modules: VibeModule[] = (facts?.modules ?? []).map((m, i) => {
     const bares = m.paths.map((p) => p.replace(/\/+$/, ''));   // un module a un chemin ou plusieurs (T-15)
     const per = bares.map((b) => changed.flatMap((f) => within(f, b) ?? []));   // les fichiers changés sous chaque chemin
@@ -369,7 +372,7 @@ export function vibeView(input: JourneyInput): VibeView {
   const stillOk = (s: VibeMarkState) => s === 'ok' || (begun && s === 'changed');
   const casesOk = invariants.every((f) => Object.values(f.marks).every(stillOk));
   // Les tests de l'étape Invariants : ceux qu'un commit porte avec la note (le premier, ses fixups repliés).
-  const stepTests = invariants.filter((f) => !!note && commits.some((c) => c.files.includes(note.path) && c.files.includes(f.path)));
+  const stepTests = invariants.filter((f) => !!note && commits.some((c) => noteIn(c) && c.files.includes(f.path)));
   const caseCount = invariants.reduce((s, f) => s + f.cases.length, 0);
   // un cas périmé n'est pas lu
   const readCount = invariants.reduce((s, f) => s + (f.reading ? f.cases.length - (f.staleCases?.length ?? 0) : 0), 0);
@@ -422,7 +425,7 @@ export function vibeView(input: JourneyInput): VibeView {
   const boxes = screen.filter((c) => c.done).length;
   const head = commits.at(-1)?.hash;
   const a3 = [
-    !!note && commits.some((c) => c.files.includes(note.path)),
+    commits.some(noteIn),   // note ignorée : le premier commit
     // Tous les invariants passent, quel que soit le nom que leur donne le projet (« invariants (backend) »…).
     !!checks?.some((c) => /invariant/i.test(String(c?.name))) && checks!.filter((c) => /invariant/i.test(String(c?.name))).every(passes),
     null,
@@ -453,10 +456,10 @@ export function vibeView(input: JourneyInput): VibeView {
     // (Préparer le commit : un fixup de son commit, un nouveau commit une fois la PR ouverte), note et Forme revalidées.
     // Une fois un module commencé, le parcours ne recule plus : une retouche de la note ou d'un test d'invariant fait
     // partie du travail en cours, que Commiter les modules range (note 0.15.0-stabilisation) ; les faits le disent.
-    const noteChanged = !!note && dirty.includes(note.path) && commits.some((c) => c.files.includes(note.path));
+    const noteChanged = noteDirty && commits.some(noteIn);
     const reopens = noteChanged && !begun;
     // la retouche : la note ou un test d'invariant de la branche, modifiés ; en attente une fois les modules commencés
-    const retouched = !!note && dirty.some((f) => f === note.path || invariants.some((t) => t.path === f));
+    const retouched = noteDirty || dirty.some((f) => invariants.some((t) => t.path === f));
     const pending = begun && retouched;
     done = {
       note: noteDone,
