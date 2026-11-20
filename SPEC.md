@@ -530,7 +530,7 @@ l'écran restent au repos.
 **F-69 Pièces jointes** : glisser-déposer et Ctrl+V (images PNG, JPEG, GIF,
 WebP envoyées en image ; autres fichiers par leur **chemin**, l'agent les lit
 lui-même ; un fichier sans chemin est refusé) ; le trombone du champ ouvre directement le choix
-d'images ou de fichiers (une image choisie part en image). Images réduites à 1568 px, ≤ 3,75 Mo (PNG, sinon JPEG 85) ;
+d'images ou de fichiers (une image choisie part en image). Images réduites au maximum que lisent les modèles (2576 px sur le grand côté, 3,75 Mpx : une capture 2560×1440 passe entière), ≤ 3,75 Mo (PNG, sinon JPEG 85) ;
 ≤ 20 images (et, depuis l'écran, 64 Mio décodés au total : au-delà, le refus « Pièces jointes trop lourdes », avant le socket), ≤ 50 fichiers, sélection ≤ 100 000 caractères (la pièce
 `selection`, qu'une commande du socket peut encore donner : le trombone ne la
 lit plus). Le message

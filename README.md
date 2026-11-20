@@ -245,7 +245,7 @@ l'en-tête de la fenêtre :
   brouillon par agent. Le **micro**, en bas à droite avant *Envoyer* :
   maintenu, il dicte dans ce champ (à relire, compléter, envoyer). **Pièces
   jointes** : glisser-déposer ou **Ctrl+V** (images envoyées à Claude —
-  réduites au-delà de 1568 px —, autres fichiers par leur chemin, que l'agent
+  réduites au-delà de 2576 px ou 3,75 Mpx, le maximum des modèles : une capture en 1440p passe entière —, autres fichiers par leur chemin, que l'agent
   lit lui-même) ; le **trombone**, au début du champ : choisir des images ou
   fichiers. Pendant que l'agent travaille, on écrit mais on
   n'envoie pas.
