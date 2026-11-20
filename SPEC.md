@@ -887,7 +887,9 @@ principal pour l'agent affiché :
   `.md` de `docs/tickets/` que change la branche (relecteur : la PR) nommé
   comme elle (`feat/0.8.0-vibecoder` → `0.8.0-vibecoder.md`), sinon le
   premier dont le nom contient la clé en mot entier (une branche qui change
-  aussi la note d'un autre ticket de la même version garde la sienne). Lue par ses
+  aussi la note d'un autre ticket de la même version garde la sienne) ; sinon, ou
+  en plus, celle que git **ignore** sous `docs/tickets/` (`status --ignored`,
+  sur le disque : la note hors du projet, 0.16.0, voir F-100). Lue par ses
   titres (`## Ce que ça fait`, `## Ce que ça ne doit pas faire`, `## Forme`,
   ou `What it does`, `What it must not do`, `Shape`) : rédigée ou non, les
   lignes « ne doit pas » et leur marque (le premier mot connu après la
@@ -910,7 +912,7 @@ principal pour l'agent affiché :
   (le squelette compris) ou non, commencés (`started`) ou non — un fichier a changé
   depuis le squelette : un commit sans la note, ou, la note commitée, un
   changement pas commité ; absent, comme touché —, les commits qui les
-  touchent hors celui de la note (le plus ancien de la branche qui la porte), leur fichier s'il existe (tel quel ou sous `src/`) ; un module
+  touchent hors celui de la note (le plus ancien de la branche qui la porte ; la note ignorée par git : le plus ancien de la branche), leur fichier s'il existe (tel quel ou sous `src/`) ; un module
   touché, ses fichiers (`files`, ids `m<rang>/<i>`, triés : son dossier et ses
   sous-dossiers, sans lien ni fichier ou dossier caché ni dossier
   `node_modules`, `target`, `dist`, `build`, chacun dans le dossier de
@@ -2211,7 +2213,7 @@ créateur ; le relecteur, F-101) :
    aucun commit `fixup!`, et, s'il y a un plan à l'écran, chacune de ses cases
    cochée. Montre la
    liste du § A.3 (créateur ; le relecteur n'a pas la liste), cochée d'après le dépôt quand c'est possible (la note dans
-   un commit de la branche ; tous les contrôles dont le nom contient
+   un commit de la branche, ou, ignorée par git, un commit au moins ; tous les contrôles dont le nom contient
    « invariant » passés, quelle que soit la partie : `invariants (backend)`… ;
    aucun `fixup!` et chaque module de la Forme dans au moins un commit) ; « chaque diff relu » (avec
    l'aide « Cochez une fois chaque module relu (Modules → Relire le diff) »)
@@ -2257,6 +2259,31 @@ créateur ; le relecteur, F-101) :
    *Release candidate* et *Release officielle* (leurs skills `rc` et `release`
    aussi). Créateur assigné à une PR qui n'est pas la sienne : *Me retirer
    de la PR* (F-101). Relecteur : F-101.
+
+**La note hors du projet** (0.16.0, note `0.16.0-notes-hors-projet`). Un projet
+peut exclure ses notes de git, à la main (`docs/tickets/` dans
+`.git/info/exclude`) : une note que git ignore (`git check-ignore -q`) est
+**hors du projet**. Ni réglage ni case : git dit si elle l'est. Le relevé la
+retrouve sur le disque (`status --ignored`, jamais dans les fichiers changés),
+par la clé de la branche — son ticket, sinon sa version, sinon son nom sans son
+type, en nom exact (`feat/teams-admins` → `teams-admins.md`, jamais une note qui
+contient seulement le mot) : une branche sans ticket ni version trouve aussi sa
+note. Parmi les notes ignorées, seule compte celle nommée exactement comme la
+branche : git ne retire jamais un fichier ignoré, celles des branches passées
+restent sur le disque. Un agent qui suit une PR dans son worktree, sur une
+branche locale `pr-<n>`, cherche la note d'après la branche de la PR (la tête de
+sa fiche), pas d'après ce nom local.
+Alors : aucun skill ne la commite ni ne la pousse, même de force, et la PR ne
+la cite pas (ni lien ni chemin) ; le premier commit de la branche ne garde que
+les squelettes de la Forme et les tests d'invariants rouges, et il tient lieu de
+« commit de la note » (le plus ancien de la branche : le parcours n'attend
+aucun commit d'elle, la Forme reste faite quand elle change, rien à
+recommiter) ; la case « note commitée » de l'étape Revue se coche dès que la
+branche a un commit. Le prix : la note vit dans la copie de travail, retirer le
+worktree de la branche l'efface. Relecteur sans note (elle est restée chez
+l'auteur) : si son dépôt ignore `docs/tickets/`, l'écran dit « pas de note » et
+*Relire la note* est sautée, sans reproche ; sinon, comme avant. Un projet qui
+n'ignore pas `docs/tickets/` ne change en rien.
 
 Une nouvelle demande commence sur la base par *Rédiger la note* (ci-dessus,
 F-110) : sur une branche neuve du dossier, ou dans un worktree. Une branche
