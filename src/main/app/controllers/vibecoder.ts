@@ -41,7 +41,9 @@
  *  du relevé (dans l'éditeur, à une ligne ; la page d'un commit dans le
  *  navigateur, d'après l'origine GitHub du dépôt, I-32).
  *  Ne lit que la note et les tests que git donne dans le dossier de l'agent
- *  (safePath), et les sorties de cet agent sous leurs noms connus (isOutputName),
+ *  (safePath ; la note : parmi les fichiers changés, ou ceux de docs/tickets/ que
+ *  git ignore, git.ignored puis locateNote, son « ignored » passé au parcours ;
+ *  note 0.16.0-notes-hors-projet), et les sorties de cet agent sous leurs noms connus (isOutputName),
  *  dont toutes ses lectures d'invariants (invariants/<blob>.md : celle d'un
  *  test modifié depuis reste montrée, périmée, core/vibecoder) : une page
  *  désigne un fichier par son id dans le dernier relevé (lastView), jamais par
@@ -188,9 +190,9 @@ import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
 import { START, type CommandError } from 'core/commands';
 import {
-  addComment, artifactOf, caseBlocks, caseHashes, convertCaseMarks, setCaseMark, beforeOf, blobSha, buildMessage, designEnd, hasComment, noteClick, parseQuestions, skeletonMarks, vibeMarks, ARTIFACT_OPS, DIRECT_ACTIONS, DIRECT_ONLY, editComment, findNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath, nextRef,
+  addComment, artifactOf, caseBlocks, caseHashes, convertCaseMarks, setCaseMark, beforeOf, blobSha, buildMessage, designEnd, hasComment, noteClick, parseQuestions, skeletonMarks, vibeMarks, ARTIFACT_OPS, DIRECT_ACTIONS, DIRECT_ONLY, editComment, locateNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath, nextRef,
   CHECKED, filesText, parseFiles, stepContents, validateStep, versionName, type CheckedStep, type FileBlobs, type Marks, type StepContent, type StepFiles,
-  blockedBy, BRANCH_CHANGES, lockCode, lockText, ELSEWHERE, json, newRequestCard, noteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeRole, vibeView, whoOf, type ActionDef, type MessageError, type NoteRef,
+  blockedBy, BRANCH_CHANGES, lockCode, lockText, ELSEWHERE, json, newRequestCard, branchNoteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeRole, vibeView, whoOf, type ActionDef, type MessageError, type NoteRef,
 } from 'core/vibecoder';
 import { draftText, isVerdict } from 'shared/review';
 import { findEditor } from 'technicals/editor';
@@ -623,10 +625,16 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const sync = facts ? gitState?.sync ?? null : null;
   const github = { pr: found, state, prs: prsFound.get(agent.id) ?? null };
   const repo = facts && { branch: (role === 'review' && followed && branchName(card?.head)) || facts.branch, base: facts.base, changed: facts.changed, dirty: facts.dirty, added: facts.added, commits: facts.commits };
-  // La note du ticket : sa clé d'après la branche (ticket, sinon version), parmi
-  // les .md de docs/tickets/ que change la branche (ou la PR).
-  const key = repo && noteKey(repo.branch, null);
-  const notePath = repo && key ? findNote(repo.changed, key, repo.branch) : null;
+  // La note du ticket : sa clé d'après la branche (ticket, sinon version, sinon son nom exact), parmi les .md de
+  // docs/tickets/ que change la branche (ou la PR), ou, ignorée par git, celle nommée comme la branche (git échoue : aucune).
+  // Un agent sur la PR qu'il suit (sa branche, ou le worktree de la PR sur une branche locale `pr-<n>`) : la branche de la
+  // PR (head de sa fiche), pas le nom local, qui ne dit ni le ticket ni la note (vu sur gt-plugins, pr-774 →
+  // feat/G2-6799-imagine-decision-model). Passé sur une autre branche, la PR gardée en mémoire ne compte plus.
+  const onPr = !!pr && (followed || repo?.branch === `pr-${pr}`);
+  const noteBranch = repo && ((onPr && branchName(card?.head)) || repo.branch);
+  const key = noteBranch && branchNoteKey(noteBranch);
+  const located = repo && noteBranch && key ? locateNote(repo.changed, await git.ignored('docs/tickets') ?? [], key, noteBranch) : null;
+  const notePath = located?.path ?? null;
   // Chaque fichier du projet lu une fois par relevé (la note, les tests, les fichiers à revoir).
   const disks = new Map<string, string | null>();
   const diskOf = (rel: string) => { if (!disks.has(rel)) disks.set(rel, onDisk(agent.dir, rel)); return disks.get(rel) ?? null; };
@@ -665,7 +673,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   // branche travaille ; ensuite seuls Vu et Valider la note la remplacent (setVibe, markVibe).
   const busy = isBusy(agent.id);
   const writing = busy || lockingRuns(agent.id).some((r) => !r.reads);
-  const note = notePath && noteText !== null ? { path: notePath, text: noteText } : null;
+  const note = located && noteText !== null ? { ...located, text: noteText } : null;
   const ref = nextRef(noteRefs.get(agent.id) ?? null, note, writing);
   noteRefs.set(agent.id, ref);
   const store = vibeStore();

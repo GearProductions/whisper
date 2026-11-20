@@ -15,8 +15,8 @@ allowed-tools: "Read, Glob, Grep, Write, Edit, Agent, SendMessage"
 ## 1. What remains
 
 - Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists. Then `git log --format='%h %s' --name-only <base>..HEAD` and `git status --short`.
-- The note's « Forme » (under `docs/tickets/`, named like the branch, or the one the branch adds or changes): the modules not started, in its order. None → say so and stop.
-- A module is started when a commit without the note touches one of its files, or, the note committed, when one of its files changed without being committed. Its skeleton alone (the files as *Poser la forme* wrote them: carried by the note's commit, or uncommitted before any commit) is not started: it is still to generate, even if `git status` lists its files.
+- The note's « Forme » (under `docs/tickets/`, named like the branch, on the disk even if git ignores it, else the one the branch adds or changes): the modules not started, in its order. None → say so and stop.
+- A module is started when a commit without the note touches one of its files, or, the note committed, when one of its files changed without being committed. A note git ignores (`git check-ignore -q <note>`) is in no commit: the oldest commit of the branch stands for the note's commit. Its skeleton alone (the files as *Poser la forme* wrote them: carried by the note's commit, or uncommitted before any commit) is not started: it is still to generate, even if `git status` lists its files.
 - A started module with uncommitted changes → it is written: review it with the first wave (step 3), don't generate it again.
 - For each module, from the note: its « Forme » entry (its `variants :` line and cases included), the lines of « Ce que ça ne doit pas faire » that concern it, and the paths of its invariant tests. They go into its subagent's prompt.
 

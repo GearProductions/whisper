@@ -15,7 +15,7 @@ Does the design hold, and is it the right design? Read it as the developer's des
 
 `$ARGUMENTS` = `<lang> <out>`. `lang`: the language of the suggestions and of your answer; identifiers, paths and signatures stay as they are. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
 
-Read: the note (under `docs/tickets/`, named like the branch, or the one the branch adds or changes); `AGENTS.md`, if present; the guide (`docs/dev_guide/*.html`) §2 and §3.1 to §3.3, if present; the existing code the note says it touches, enough to judge. One pass: no loop.
+Read: the note (under `docs/tickets/`, named like the branch, on the disk even if git ignores it, else the one the branch adds or changes); `AGENTS.md`, if present; the guide (`docs/dev_guide/*.html`) §2 and §3.1 to §3.3, if present; the existing code the note says it touches, enough to judge. One pass: no loop.
 
 ## First check or re-check
 

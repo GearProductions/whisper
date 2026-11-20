@@ -15,7 +15,7 @@ Does one agree with the decisions? If not, there is no point reading the code.
 
 `$ARGUMENTS` = `<lang> <out> <n>`. `lang`: language of the review and of your answer. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `n`: the PR number.
 
-The PR is the branch of this folder (`HEAD`), checked out: read its files in the folder; its base is the `base` of `<out>/pr-<n>.json`; range `origin/<base>...HEAD`. The note: the file under `docs/tickets/` the range adds or changes (`git diff --name-only <range> -- docs/tickets`). No note → say so in the file (a feature without its note) and stop.
+The PR is the branch of this folder (`HEAD`), checked out: read its files in the folder; its base is the `base` of `<out>/pr-<n>.json`; range `origin/<base>...HEAD`. The note: the file under `docs/tickets/` named like the branch, on the disk, else the one the range adds or changes (`git diff --name-only <range> -- docs/tickets`). No note → if `docs/tickets/` is ignored here (`git check-ignore -q docs/tickets/x.md`), write « no note » in the file, no reproach, and stop; otherwise say so in the file (a feature without its note) and stop.
 
 Also read: the PR's description (`body` in the JSON); the guide (`docs/dev_guide/*.html`) §2 and §3.1 to §3.3, and `AGENTS.md`, if present; the code the note says it touches, enough to judge.
 

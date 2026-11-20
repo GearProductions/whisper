@@ -17,13 +17,13 @@ The user reads the message on screen, then clicks « Commit »: you prepare, you
 
 ## 1. State
 
-Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists (`git rev-parse --verify -q <ref>`). Then `git rev-list --count <base>..HEAD`, `git log --format='%h %s' <base>..HEAD`, `git status --short`; the note (under `docs/tickets/`, named like the branch, or the one the branch adds or changes) and its « Forme ». Nothing changed → say so, write nothing.
+Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists (`git rev-parse --verify -q <ref>`). Then `git rev-list --count <base>..HEAD`, `git log --format='%h %s' <base>..HEAD`, `git status --short`; the note (under `docs/tickets/`, named like the branch, on the disk even if git ignores it, else the one the branch adds or changes) and its « Forme ». Ignored (`git check-ignore -q <note>`, exit 0): it is never staged, not even forced (`git add -f`), never part of a commit. Nothing changed → say so, write nothing.
 
 First `gh pr view --json state,number` (before anything about fixups): `OPEN` → the branch's PR is open, its history is not rewritten. An error (no PR) or any other state → no open PR.
 
 ## 2. The files — one commit, one module (guide §5.2)
 
-- First commit of the branch: the note (with its Forme), the file headers or skeletons, the red invariant tests.
+- First commit of the branch: the note (with its Forme), the file headers or skeletons, the red invariant tests. A note git ignores: the skeletons and the red invariant tests only.
 - Otherwise one module: its files and its tests — the first in the Forme's order (pure → orchestration → UI → doc) among those changed. The rest waits for the next commit: say so.
 - A file already owned by an earlier commit of the branch (`git log --format=%h <base>..HEAD -- <file>`):
   - PR open → never a fixup or an amend. It is a new commit of its own: stage it and write a message that says why the file changes again (the reason, not only the what), in the module's subject style.
