@@ -627,9 +627,11 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const repo = facts && { branch: (role === 'review' && followed && branchName(card?.head)) || facts.branch, base: facts.base, changed: facts.changed, dirty: facts.dirty, added: facts.added, commits: facts.commits };
   // La note du ticket : sa clé d'après la branche (ticket, sinon version, sinon son nom exact), parmi les .md de
   // docs/tickets/ que change la branche (ou la PR), ou, ignorée par git, celle nommée comme la branche (git échoue : aucune).
-  // Un agent qui suit une PR (son worktree sur une branche locale `pr-<n>`) : la branche de la PR (head de sa fiche), pas
-  // le nom local, qui ne dit ni le ticket ni la note (vu sur gt-plugins, pr-774 → feat/G2-6799-imagine-decision-model).
-  const noteBranch = repo && ((pr && branchName(card?.head)) || repo.branch);
+  // Un agent sur la PR qu'il suit (sa branche, ou le worktree de la PR sur une branche locale `pr-<n>`) : la branche de la
+  // PR (head de sa fiche), pas le nom local, qui ne dit ni le ticket ni la note (vu sur gt-plugins, pr-774 →
+  // feat/G2-6799-imagine-decision-model). Passé sur une autre branche, la PR gardée en mémoire ne compte plus.
+  const onPr = !!pr && (followed || repo?.branch === `pr-${pr}`);
+  const noteBranch = repo && ((onPr && branchName(card?.head)) || repo.branch);
   const key = noteBranch && branchNoteKey(noteBranch);
   const located = repo && noteBranch && key ? locateNote(repo.changed, await git.ignored('docs/tickets') ?? [], key, noteBranch) : null;
   const notePath = located?.path ?? null;

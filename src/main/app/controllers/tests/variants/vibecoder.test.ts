@@ -301,6 +301,14 @@ describe('le relevé', () => {
     expect(v.note).toMatchObject({ path: 'docs/tickets/feat/0.8.0-essai.md' });
   });
 
+  it('une PR gardée en mémoire, mais passé sur une autre branche : la note de cette branche, pas celle de la PR', async () => {
+    const { saveConfig, loadConfig } = await import('app/settings');
+    saveConfig({ agents: loadConfig().agents!.map((a) => (a.id === 'a1' ? { ...a, vibe: { flow: 'create', pr: 12 } } : a)) });
+    write(path.join(out, 'pr-12.json'), JSON.stringify({ number: 12, head: 'feat/G2-1-autre', base: 'main' }));
+    const v = (await open()).view()!;
+    expect(v.note).toMatchObject({ path: 'docs/tickets/feat/0.8.0-essai.md' });
+  });
+
   // Une note que git ignore (0.16.0-notes-hors-projet) : docs/tickets/ exclu du projet, la note reste sur le disque.
   describe('la note que git ignore', () => {
     const NOTE_PATH = 'docs/tickets/feat/0.8.0-essai.md';

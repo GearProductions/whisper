@@ -2270,9 +2270,10 @@ type, en nom exact (`feat/teams-admins` → `teams-admins.md`, jamais une note q
 contient seulement le mot) : une branche sans ticket ni version trouve aussi sa
 note. Parmi les notes ignorées, seule compte celle nommée exactement comme la
 branche : git ne retire jamais un fichier ignoré, celles des branches passées
-restent sur le disque. Un agent qui suit une PR dans son worktree, sur une
-branche locale `pr-<n>`, cherche la note d'après la branche de la PR (la tête de
-sa fiche), pas d'après ce nom local.
+restent sur le disque. Un agent sur la PR qu'il suit — sa branche, ou son
+worktree sur une branche locale `pr-<n>` — cherche la note d'après la branche de
+la PR (la tête de sa fiche), pas d'après ce nom local ; passé sur une autre
+branche, la PR gardée en mémoire ne compte plus.
 Alors : aucun skill ne la commite ni ne la pousse, même de force, et la PR ne
 la cite pas (ni lien ni chemin) ; le premier commit de la branche ne garde que
 les squelettes de la Forme et les tests d'invariants rouges, et il tient lieu de
