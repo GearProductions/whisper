@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { findNote, noteDesign, noteKey, parseNote } from 'core/vibecoder';
+import { branchNoteKey, findNote, locateNote, noteDesign, noteKey, parseNote } from 'core/vibecoder';
 
 // Une vraie note du dépôt (0.7.0) : sa Forme est un bloc de code « chemin  contrat ».
 const ROOT = path.resolve(__dirname, '../../../../../..');
@@ -363,6 +363,39 @@ describe('findNote : le .md de docs/tickets/ qui nomme la clé', () => {
   });
 });
 
+describe('locateNote : la note parmi les fichiers changés et ceux que git ignore', () => {
+  const kept = 'docs/tickets/feat/0.16.0-autre.md';
+  const own = 'docs/tickets/feat/0.16.0-notes-hors-projet.md';
+
+  it('aucun fichier ignoré : le résultat de findNote, ignored false', () => {
+    const changed = ['README.md', kept, own];
+    expect(locateNote(changed, [], '0.16.0', 'feat/0.16.0-notes-hors-projet')).toEqual({ path: findNote(changed, '0.16.0', 'feat/0.16.0-notes-hors-projet'), ignored: false });
+    expect(locateNote(changed, [], '0.16.0')).toEqual({ path: kept, ignored: false });
+  });
+
+  it('la note nommée comme la branche, ignorée, une autre note de la version changée : la note ignorée', () => {
+    expect(locateNote([kept], [own], '0.16.0', 'feat/0.16.0-notes-hors-projet')).toEqual({ path: own, ignored: true });
+  });
+
+  it('seule une note ignorée nommée comme la branche compte : elle, ignored true', () => {
+    expect(locateNote(['README.md', 'docs/tickets/feat/0.15.0-x.md'], [own], '0.16.0', 'feat/0.16.0-notes-hors-projet')).toEqual({ path: own, ignored: true });
+  });
+
+  it('une note ignorée qui porte la clé sans être nommée comme la branche (celle d\'une branche passée) : null', () => {
+    expect(locateNote([], ['docs/tickets/feat/0.16.0-a.md'], '0.16.0', 'feat/0.16.0-b')).toBeNull();
+    expect(locateNote([], [own], '0.16.0')).toBeNull();
+  });
+
+  it('rien sous docs/tickets/ qui porte la clé : null', () => {
+    expect(locateNote(['README.md'], ['docs/tickets/feat/0.15.0-x.md', 'notes/0.16.0.md'], '0.16.0')).toBeNull();
+    expect(locateNote([], [], '0.16.0')).toBeNull();
+  });
+
+  it('la note changée nommée comme la branche l\'emporte sur une ignorée qui vient avant', () => {
+    expect(locateNote([own], ['docs/tickets/feat/0.16.0-a.md'], '0.16.0', 'feat/0.16.0-notes-hors-projet')).toEqual({ path: own, ignored: false });
+  });
+});
+
 // Une entrée à plusieurs chemins (T-15) : des fichiers qui ne compilent qu'ensemble, un seul module.
 const MULTI = `# x
 
@@ -462,5 +495,21 @@ describe('noteDesign : la conception de la note, sans la Forme', () => {
 
   it('une rubrique vide garde son titre', () => {
     expect(noteDesign('## Ce que ça fait\n\n## Fin\n\nx\n')).toBe('## Ce que ça fait\n\n## Fin\n\nx');
+  });
+});
+
+describe('branchNoteKey : la clé de la note pour le relevé', () => {
+  it('le ticket, sinon la version, sinon le nom de la branche sans son type', () => {
+    expect([branchNoteKey('feat/G2-6799-imagine'), branchNoteKey('feat/0.16.0-notes'), branchNoteKey('feat/teams-admins')]).toEqual(['G2-6799', '0.16.0', 'teams-admins']);
+  });
+  it('une branche sans ticket ni version trouve sa note ignorée par git, nommée comme elle', () => {
+    const ignored = ['docs/tickets/chore/project-layout.md', 'docs/tickets/feat/teams-admins.md', 'docs/tickets/feat/test-portal.md'];
+    expect(locateNote([], ignored, branchNoteKey('feat/teams-admins'), 'feat/teams-admins')).toEqual({ path: 'docs/tickets/feat/teams-admins.md', ignored: true });
+  });
+  it('une branche sans ticket ni version : seulement la note de nom exact, jamais celle qui contient le mot', () => {
+    const changed = ['docs/tickets/fix/teams-admins.md'];
+    expect(locateNote(changed, ['docs/tickets/fix/teams-admins.md'], branchNoteKey('fix/teams'), 'fix/teams')).toBeNull();
+    expect(findNote(changed, branchNoteKey('fix/teams'), 'fix/teams')).toBeNull();
+    expect(findNote([...changed, 'docs/tickets/chore/teams.md'], branchNoteKey('fix/teams'), 'fix/teams')).toBe('docs/tickets/chore/teams.md');
   });
 });
