@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { VibeView } from 'shared/bridge';
 import type { JourneyInput } from 'core/vibecoder';
 import { slow } from '../slow';
 
@@ -38,6 +39,7 @@ const fake = vi.hoisted(() => {
     git: (() => null) as (args: string[]) => string | null, calls: [] as unknown[][], noChild: false,
     branches: null as string[] | null, synced: [] as string[], prs: null as unknown, login: 'moi' as string | null,
     found: null as unknown, people: null as unknown,
+    ignored: [] as string[] | null, ignoredDirs: [] as string[],   // git.ignored : les fichiers que git ignore (null : git en échec), les dossiers demandés
     real: false as boolean,   // le vrai parcours (vibeView), pour les cas qui lisent les validations ; sinon il rend ce qu'il reçoit
     dev: null as 'reload' | 'restart' | null, answer: 0, busy: false, release: (() => {}) as (v?: unknown) => void,
     fork: null as string | null, reads: [] as unknown[][], onFork: null as null | (() => Promise<void>),
@@ -85,6 +87,7 @@ vi.mock('technicals/git', () => ({
     facts: async () => fake.facts, commit: async () => fake.diff,
     show: async (ref: string, p: string) => { fake.reads.push(['show', ref, p]); return fake.shown; },
     forkPoint: async (base: string) => { fake.reads.push(['forkPoint', base]); await fake.onFork?.(); return fake.fork; },
+    ignored: async (d: string) => { fake.ignoredDirs.push(d); return fake.ignored; },
     branches: async () => fake.branches, sync: async (base: string) => { fake.synced.push(base); return { behind: 1, baseAhead: 2 }; },
   }),
   okRef: (ref: string) => /^(?!-)(?!.*\.\.)[A-Za-z0-9._/-]+$/.test(ref),
@@ -232,6 +235,8 @@ beforeEach(() => {
   fake.login = 'moi';
   fake.found = null;
   fake.people = null;
+  fake.ignored = [];
+  fake.ignoredDirs = [];
   fake.dev = null;
   fake.answer = 0;
   fake.busy = false;
@@ -284,6 +289,67 @@ describe('le relevé', () => {
       { blob: 'f'.repeat(40), text: '# une version précédente\n', time: expect.any(Number) },
     ]));
     expect(Object.keys(v.outputs)).toEqual(['ponytail.md']); // secret.txt : pas un nom connu
+  });
+
+  // Le worktree d'une PR, sur une branche locale pr-<n> : la note se trouve d'après la branche de la PR (vu sur gt-plugins).
+  it('un agent qui suit une PR sur une branche locale pr-12 : la note de la branche de la PR (head de sa fiche)', async () => {
+    const { saveConfig, loadConfig } = await import('app/settings');
+    saveConfig({ agents: loadConfig().agents!.map((a) => (a.id === 'a1' ? { ...a, vibe: { flow: 'create', pr: 12 } } : a)) });
+    write(path.join(out, 'pr-12.json'), JSON.stringify({ number: 12, head: 'feat/0.8.0-essai', base: 'main' }));
+    fake.facts = { ...fake.facts as object, branch: 'pr-12' };
+    const v = (await open()).view()!;
+    expect(v.note).toMatchObject({ path: 'docs/tickets/feat/0.8.0-essai.md' });
+  });
+
+  // Une note que git ignore (0.16.0-notes-hors-projet) : docs/tickets/ exclu du projet, la note reste sur le disque.
+  describe('la note que git ignore', () => {
+    const NOTE_PATH = 'docs/tickets/feat/0.8.0-essai.md';
+    const INV = 'src/x/tests/invariants/x.test.ts';
+    const notIn = (changed: string[]) => { fake.facts = { ...fake.facts as object, changed }; };
+
+    it('docs/tickets/ exclu, la note sur le disque : le relevé la montre, ignorée', async () => {
+      notIn([INV]);
+      fake.ignored = [NOTE_PATH];
+      const v = (await open()).view()!;
+      expect(v.note).toMatchObject({ path: NOTE_PATH, text: NOTE, ignored: true });
+      expect(fake.ignoredDirs).toContain('docs/tickets');
+    });
+
+    it('la même, rien de commité : l’étape PR ne coche pas « note commitée » ; un premier commit la coche', async () => {
+      fake.real = true;
+      notIn([INV]);
+      fake.ignored = [NOTE_PATH];
+      const done = async () => ((await open()).view() as unknown as VibeView).checklist[0];
+      expect(await done()).toMatchObject({ text: 'La note est à jour', done: false });
+      fake.facts = { ...fake.facts as object, commits: [{ hash: 'a'.repeat(40), subject: 'Squelettes', files: [INV] }] };
+      vi.resetModules();
+      expect((await done()).done).toBe(true);
+    });
+
+    it('un projet qui n’ignore rien : la note commitée, retrouvée comme avant, non ignorée', async () => {
+      const v = (await open()).view()!;
+      expect(v.note).toMatchObject({ path: NOTE_PATH, text: NOTE, ignored: false });
+    });
+
+    it('git.ignored en échec (null) : la note parmi les fichiers changés, comme avant', async () => {
+      fake.ignored = null;
+      expect((await open()).view()!.note).toMatchObject({ path: NOTE_PATH, text: NOTE, ignored: false });
+    });
+
+    it('une note ignorée et une note changée pour la même clé : la changée l’emporte', async () => {
+      const OTHER = 'docs/tickets/feat/0.8.0-autre.md';
+      write(path.join(dir, OTHER), '# 0.8.0 — autre\n');
+      fake.ignored = [OTHER];
+      expect((await open()).view()!.note).toMatchObject({ path: NOTE_PATH, text: NOTE, ignored: false });
+    });
+
+    it.skipIf(process.platform === 'win32')('une note ignorée qui est un lien hors du dossier : pas lue', async () => {
+      write(path.join(fake.userData, 'dehors.md'), '# 0.8.0 — dehors\n');
+      fs.symlinkSync(path.join(fake.userData, 'dehors.md'), path.join(dir, 'docs/tickets/feat/0.8.0-lien.md'));
+      notIn([INV]);
+      fake.ignored = ['docs/tickets/feat/0.8.0-lien.md'];
+      expect((await open()).view()!.note).toBeNull();
+    });
   });
 
   it.skipIf(process.platform === 'win32')('une sortie qui est un lien n’est pas lue', async () => {
