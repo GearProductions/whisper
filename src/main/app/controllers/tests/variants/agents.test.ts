@@ -316,6 +316,16 @@ describe('la consigne dit le rôle (T-19)', () => {
     expect(fake.launched[1]).toContain(REVIEWER);
     expect(fake.launched[1]).not.toContain(CREATOR);
   });
+
+  it('créateur : la consigne dit de développer par VibeCoder, d\'office ; relecteur : pas cette ligne', async () => {
+    const FLOW = 'develop through VibeCoder by default';
+    fake.views = { a1: view('create') };
+    await turn();
+    fake.views = { a1: view('review') };
+    await turn();
+    expect(fake.launched[0]).toContain(FLOW);
+    expect(fake.launched[1]).not.toContain(FLOW);
+  });
 });
 
 afterEach(async () => {

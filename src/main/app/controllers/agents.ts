@@ -28,7 +28,7 @@ import { createAgentRuntime, createSessions, type AgentConfig, type OutgoingMess
 import { agentList, agentVibe, folderColors, needsTrust, type Config } from 'core/config';
 import { agentParent, branchOf } from 'core/family';
 import { agentEvents, switcherAgents } from 'core/switcher';
-import { questionsRule, robotState, roleRule, vibeCliCall } from 'core/vibecoder';
+import { flowRule, questionsRule, robotState, roleRule, vibeCliCall } from 'core/vibecoder';
 import { launcher, loadSdk } from 'technicals/claude';
 import { createJournal } from 'technicals/journal';
 import { agentInstructions, journalFile, loadConfig, saveConfig, updateAgent, vibeOutDir, vibePluginDir } from 'app/settings';
@@ -154,7 +154,8 @@ export function interruptAgent(id: string) {
 
 // Ce que reçoit Claude Code pour cet agent, à chaque tour comme à la sonde : la
 // commande, la consigne (la consigne audio, la ligne du questionnaire, questionsRule,
-// puis celle du rôle, roleRule : celui du dernier relevé, sinon celui de la config ;
+// puis celle du rôle, roleRule : celui du dernier relevé, sinon celui de la config ; pour un créateur, celle du parcours,
+// flowRule ;
 // il change, la consigne aussi, donc launchKey : le processus est relancé au tour suivant), le
 // plugin de VibeCoder (seulement s'il est là : ensureVibeFiles a pu échouer), le
 // dossier de sorties de l'agent et le dossier d'artefacts de son projet, et son
@@ -165,7 +166,9 @@ export function interruptAgent(id: string) {
 export function launchOptions(agent: AgentConfig, cfg: Config) {
   const plugin = vibePluginDir();
   const audio = agentInstructions();
-  const rule = `${questionsRule(vibeOutDir(agent.id))}\n\n${roleRule(lastView(agent.id)?.flow ?? agentVibe(agent).flow)}`;
+  const flow = lastView(agent.id)?.flow ?? agentVibe(agent).flow;
+  // Un créateur développe par le parcours de VibeCoder, d'office (flowRule) ; un relecteur ne modifie pas la branche.
+  const rule = [questionsRule(vibeOutDir(agent.id)), roleRule(flow), ...(flow === 'create' ? [flowRule()] : [])].join('\n\n');
   const access = robotAccess(agent.id);
   return {
     ...(access && { env: robotEnv(process.env, access.port, access.token) }),
