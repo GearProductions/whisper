@@ -79,7 +79,7 @@ Read from it: ticket id (branch), note present?, first commit content, one commi
 
 - AGENTS.md du guide = `AGENTS.md` ici (`CLAUDE.md` l'importe). Base de rebase = `master`.
 - Notes de ticket : `docs/tickets/<type>/<version>-<slug>.md` (pas d'identifiant `G2-XXXX`).
-- Commits : `<module> : <ce qui change>`, contrat en prose dans le corps, pas de `chore(<TICKET>)`. PR fusionnées sans squash : la description de la PR tient lieu du message de squash, et un `fixup!` non replié arrive sur `master`.
+- Commits : `<module> : <ce qui change>`, contrat en prose dans le corps, pas de `chore(<TICKET>)`. Historique simple (`AGENTS.md`, rubrique « PR ») : après le premier commit, un seul commit pour le code de tous les modules, puis des commits ordinaires « revue : … » ; PR fusionnées en squash, le titre et la description de la PR deviennent le commit de `master`, rien à replier.
 - Never suggest a skill or slash command unless it lives in this repo's `.claude/skills/` (check with Glob). Skills installed only on the user's machine are personal, not shared: describe the gesture instead.
 
 ## Diagrams
