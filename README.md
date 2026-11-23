@@ -867,11 +867,12 @@ relire une PR (le relecteur, plus bas) :
    `CLAUDE.md`, que les skills de commit lisent, passe à l'historique simple : après le
    premier commit (la note, la forme, les invariants rouges), *Commiter les modules*
    fait un seul commit pour le code de tous les modules, avec tous les fichiers
-   modifiés ou nouveaux du dossier (sauf une note ignorée par git), et sa réponse nomme
+   modifiés, nouveaux ou supprimés du dossier (sauf une note ignorée par git), et sa réponse nomme
    ceux qu'aucun module de la Forme ne possède. Les corrections d'après (*Appliquer la
    revue*, une vérification rouge, un retour d'essai) sont des commits ordinaires,
    « revue : … » : jamais un fixup, rien à replier (*Replier les fixups* dit « Rien à
-   replier : historique simple »), l'historique n'est jamais réécrit.
+   replier : historique simple », sauf s'il reste un commit `fixup!` fait à la main :
+   il le replie alors comme d'habitude, avant la PR).
    Ces boutons de l'étape sont à côté du titre de la carte des modules, et n'y sont
    que s'ils ont quelque chose à faire. Chaque
    module est un accordéon : *Générer* (ce module seul) est toujours au bout

@@ -295,7 +295,7 @@ sinon.
 | `verifier` | sous-contexte | haiku · low | `checks.json` (la ponytail review est lancée par l'appli, pas par lui) |
 | `ponytail` | sous-contexte | opus · high | `ponytail.md` |
 | `appliquer-revue` | conversation | sonnet · high | `ponytail-applied.json` (chaque remarque en fixup du commit qui possède le code ; historique simple : un commit ordinaire « revue : … », son droit `git commit -m` en plus) |
-| `fixups` | sous-contexte | sonnet · medium | — (historique simple : « Rien à replier » ; `base=` reçu) |
+| `fixups` | sous-contexte | sonnet · medium | — (historique simple : « Rien à replier » sans commit `fixup!`, sinon le repli habituel ; `base=` reçu) |
 | `pr` | sous-contexte | sonnet · medium | `pr.json` (historique simple : ne réclame aucun repli ; `base=` reçu) |
 | `ci` | sous-contexte | sonnet · medium | `ci.md` |
 | `base` | sous-contexte | haiku · low | — |

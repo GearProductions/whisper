@@ -2169,8 +2169,8 @@ créateur ; le relecteur, F-101) :
    les skills de commit le lisent. Le premier commit ne change pas (la note, la
    forme, les invariants rouges, leurs squelettes) ; puis *Commiter les modules*
    fait **un seul commit** pour le code de tous les modules, avec tous les
-   fichiers modifiés ou nouveaux du dossier (sauf une note que git ignore, jamais
-   indexée), le typage vérifié comme ci-dessus, et sa réponse nomme les fichiers
+   fichiers modifiés, nouveaux ou supprimés du dossier, les deux côtés d'un
+   renommage compris (sauf une note que git ignore, jamais indexée), le typage vérifié comme ci-dessus, et sa réponse nomme les fichiers
    qu'aucun module de la Forme ne possède : rien n'échappe, et on voit ce qui est
    parti. Une correction faite après (*Appliquer la revue*, une vérification
    rouge, un retour d'essai) est un **commit ordinaire**, « revue : … », jamais
@@ -2306,8 +2306,9 @@ créateur ; le relecteur, F-101) :
    pour que la Revue soit faite, pour l'un comme pour l'autre. Prochaine action : *Lancer les vérifications et la
    ponytail review* (tant que `checks.json` ou `ponytail.md` manque, ou
    qu'une vérification échoue), puis *Replier les fixups* (masquée sans commit
-   `fixup!` : en historique simple, jamais ; le skill dit « Rien à replier :
-   historique simple »).
+   `fixup!` : en historique simple, les skills n'en font aucun ; s'il en reste
+   un, fait à la main ou d'avant le passage au mode, le skill le replie comme
+   d'habitude, et sans aucun il dit « Rien à replier : historique simple »).
 6. **PR** — faite : une PR pour la branche, lue par gh (F-112 ; sinon
    `pr.json`). Montre la PR (numéro, titre, base ← branche,
    *Ouvrir* dans le navigateur) et l'état de la CI (`ci.md`). Ses actions
