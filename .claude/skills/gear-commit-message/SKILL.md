@@ -1,6 +1,6 @@
 ---
 name: gear-commit-message
-description: "Build the commit message for the pending changes following the commit convention of the 'Développer avec l'IA' guide (§5.2), as practised in this repo, and copy it to the clipboard. Usage: /gear-commit-message [pr]. Detects the case from git state: first commit of the branch (note + forme + invariants, or the red test of a bug), one module commit with its contract, a change to an already-committed module (before the PR: redirects to /gear-fix-up; after: new commit with the why), or the PR title and description with `pr` (PRs are merged without squash here). Never runs git commit. Use when I ask for a commit message, 'message de commit', or the PR title/description."
+description: "Build the commit message for the pending changes following the commit convention of the 'Développer avec l'IA' guide (§5.2), as practised in this repo, and copy it to the clipboard. Usage: /gear-commit-message [pr]. Detects the case from git state: first commit of the branch (note + forme + invariants, or the red test of a bug), one module commit with its contract, a change to an already-committed module (before the PR: redirects to /gear-fix-up; after: new commit with the why), or the PR title and description with `pr` (PRs are merged in squash here). Never runs git commit. Use when I ask for a commit message, 'message de commit', or the PR title/description."
 argument-hint: "[pr]"
 allowed-tools: Bash, Read, Glob, Grep
 ---
@@ -15,7 +15,7 @@ Output: the message in a code block, then one line `Copié.` — plus at most on
 
 Before building the message, read the guide `docs/dev_guide/guide-travail-dev-ia.html` (repo root): §5.2 « Les commits racontent le design », plus §4.2 « Par type de ticket » for case A and §5.3 « Corriger un commit précédent » for case C. Locate them with `Grep` pattern `<h[12]>` (`-n`), then `Read` from the heading's line up to the next `<h1` or `<h2`. Heading missing → find the section by its title in that index. No guide file → say so and stop.
 
-The guide gives the principles (one commit per module, the first commit holds note + forme + invariants, the contract in the message). This repo has its own **format**, described below: where the guide's format differs (`chore(<TICKET>)`, `exposes:` lines, ticket ids, final squash), follow this file — it is not a contradiction to report. Anything else below that contradicts the guide → follow the guide, and add one warning line `gear-commit-message à mettre à jour : <point>.`
+The guide gives the principles (one commit per module, the first commit holds note + forme + invariants, the contract in the message). This repo has its own **format**, described below: where the guide's format differs (`chore(<TICKET>)`, `exposes:` lines, ticket ids), follow this file — it is not a contradiction to report. Same for the history: `AGENTS.md` declares « Historique simple » (« PR » section): one commit for all the modules' code, corrections as ordinary commits. Anything else below that contradicts the guide → follow the guide, and add one warning line `gear-commit-message à mettre à jour : <point>.`
 
 ## Convention of this repo
 
@@ -54,7 +54,7 @@ Find the ticket note, in this order: `docs/tickets/*/*-<slug>.md` with the branc
 
 ## Step 2 — Pick the case
 
-For each changed file, `git log --format=%h master..HEAD -- <file>` tells whether an earlier branch commit already owns it. Some files owned, others not → split: `Fixup pour <owned files> : /gear-fix-up`, then case B for the rest.
+For each changed file, `git log --format=%h master..HEAD -- <file>` tells whether an earlier branch commit already owns it. Some files owned, others not → split: case C for the owned files, then case B for the rest.
 
 **A. First commit** (count = 0). Expected content depends on the ticket type (§4.2, note folder or branch prefix):
 - `feat`, `refactor`, `chore` → the note with its « Forme », file headers or skeletons, the red invariants for the lines marked `→ invariant`:
@@ -74,22 +74,24 @@ For each changed file, `git log --format=%h master..HEAD -- <file>` tells whethe
   No test → warning `Un bug commence par un test qui échoue avant le fix (§4.2).`
 - `chore` (migration) → the tests of what the library does for us, written against the old version.
 
-**B. New module** (no changed file is owned by an earlier commit). One module + its variants.
+**B. Code of the modules** (no changed file is owned by an earlier commit).
+- Historique simple (`AGENTS.md`, « PR » section): ONE commit for the code of all the modules, with their variants. Subject `<version> : <sujet du ticket>`; body: one line `- <module> : <contrat>` per module of the note's « Forme », then what turns green. No « Un commit par module » warning, no size warning.
 - Contract, in order of preference: the module's block in the note's « Forme »; the header comment of its main file (ce qu'il fait, ce qu'il ne connaît pas, qui l'utilise); otherwise what the diff exports, with the warning `Contrat absent de la note et de l'en-tête.` Never invent a boundary.
 - Diff over 400 lines → warning `> 400 lignes : module probablement trop gros (§5.1).` A big module may be split into several coherent commits, never code on one side and its tests on the other.
-- Changes span several modules (unrelated folders, or pages + principal) → don't build one message. Warning: `Un commit par module (§5.2) :` followed by one line per group of files, and stop.
+- Without Historique simple: changes span several modules (unrelated folders, or pages + principal) → don't build one message. Warning: `Un commit par module (§5.2) :` followed by one line per group of files, and stop.
 - Only docs (`SPEC.md`, `README.md`, `AGENTS.md`, the note) → `<version> : doc` or `Doc : <sujet> (<SPEC ids> ; README ; note)`, the body listing what each document gained.
 
 **C. Change to an already-committed module**:
-- PR **not open** → no message: it's a fixup. Output only `Fixup, pas un nouveau commit : /gear-fix-up` and stop.
-- PR **open** → ordinary commit (§5.3), the why in the body, the note mention if it changed:
+- Historique simple, PR open or not → an ordinary commit `revue : <ce qui change>`, the why in the body; never a redirect to `/gear-fix-up`.
+- Otherwise, PR **not open** → no message: it's a fixup. Output only `Fixup, pas un nouveau commit : /gear-fix-up` and stop.
+- Otherwise, PR **open** → ordinary commit (§5.3), the why in the body, the note mention if it changed:
   ```
   <module> : <ce qui change>
 
   <pourquoi, découvert en faisant quoi>. Note à jour (« <rubrique> »).
   ```
 
-**D. `pr` argument** — PRs are merged with a merge commit, not squashed: the branch commits stay on `master`, and the PR carries the summary the guide puts in the squash message. Produce its title and description, shaped like the previous PRs (`gh pr view <n> --json title,body` on the last merged one if in doubt):
+**D. `pr` argument** — PRs are merged in squash: the PR title and description become the single commit on `master`. Produce its title and description, shaped like the previous PRs (`gh pr view <n> --json title,body` on the last merged one if in doubt):
 - Title: `<version> : <titre de la note>`.
 - Body, in Markdown:
   ```
@@ -101,13 +103,13 @@ For each changed file, `git log --format=%h master..HEAD -- <file>` tells whethe
 
   ## Forme
 
-  - `<module>` : <contrat en une ligne>   ← one line per module commit of the branch
+  - `<module>` : <contrat en une ligne>   ← one line per module (of the modules commit)
 
   ## Invariants
 
   - <invariant> (<ids SPEC>)              ← only if the branch adds or changes some
   ```
-- `fixup!`, `squash!` or `amend!` commits still on the branch → warning `Fixups non repliés : ils arriveraient sur master (/gear-fix-up fold).`
+- `fixup!`, `squash!` or `amend!` commits still on the branch → no warning in Historique simple: the squash absorbs them. Without it → warning `Fixups non repliés : ils arriveraient sur master (/gear-fix-up fold).`
 
 ## Step 3 — Clipboard
 

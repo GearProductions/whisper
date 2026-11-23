@@ -1,7 +1,7 @@
 ---
 name: commiter-modules
-description: "Commit the uncommitted changes of every module of the forme that has some, one commit per module (one for modules that only compile together) following the project's message convention, a fixup for a module already committed (a new commit once the PR is open), without pushing."
-argument-hint: "<lang> <out> [prefix…]"
+description: "Commit the uncommitted changes of every module of the forme that has some, one commit per module (one for modules that only compile together) following the project's message convention, a fixup for a module already committed (a new commit once the PR is open), without pushing. In a project that declares a simple history: one commit for all the code, then ordinary commits, never a fixup."
+argument-hint: "<lang> <out> [base=<ref>] [prefix…]"
 disable-model-invocation: true
 context: fork
 model: sonnet
@@ -11,16 +11,17 @@ allowed-tools: Read, Glob, Grep, Write, Bash(git add *), Bash(git commit *), Bas
 
 # Commit the modules — one commit per module (guide §5.2, §5.3)
 
-`$ARGUMENTS` = `<lang> <out> [prefix…]`. `lang`: the user's language, not used here — code-related work: your answer in English. Commit messages follow the project's convention. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`): the commit message and the trees to type go there. `prefix`: everything after `out`, possibly empty — what the app puts before the project's commands, seen from where you run (e.g. `distrobox enter dev --`).
+`$ARGUMENTS` = `<lang> <out> [base=<ref>] [prefix…]`. `base=<ref>`: optional, given by the app right after `out`; given → the base, no search; absent → the search of § 1. `lang`: the user's language, not used here — code-related work: your answer in English. Commit messages follow the project's convention. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`): the commit message and the trees to type go there. `prefix`: everything after `out` and its named arguments, possibly empty — what the app puts before the project's commands, seen from where you run (e.g. `distrobox enter dev --`).
 
 The code is written and the user (or the orchestrator) asked to commit it: commit, don't review, don't change a line.
 
 ## 1. What to commit
 
-- Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that `git rev-parse --verify` finds. Then `git status --short` (untracked files included) and `git log --format='%h %s' --name-only <base>..HEAD`.
+- Base: `base=` if given, else `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that `git rev-parse --verify` finds. Then `git status --short` (untracked files included) and `git log --format='%h %s' --name-only <base>..HEAD`.
 - The note (under `docs/tickets/`, named like the branch, on the disk even if git ignores it, else the one the branch adds or changes) and its « Forme »: each changed file belongs to the module one of whose paths is that file or contains it. Ignored (`git check-ignore -q <note>`, exit 0): it is never staged, not even forced (`git add -f`), never committed; the oldest commit of the branch is the one that stands for its commit.
 - Every module with changed files, in the Forme's order (pure → orchestration → UI → doc).
-- Nothing to commit → say so and stop. Changed files no module owns: leave them, and say so.
+- Nothing to commit → say so and stop. Changed files no module owns: leave them, and say so (simple history: see below).
+- History mode: read the project's commit convention (`AGENTS.md`, `CLAUDE.md`): the words « Historique simple » (« Simple history » in an English project) mean **simple history**; without them, everything below applies as written (one commit per module, fixups).
 
 ## 2. One commit per module
 
@@ -30,6 +31,13 @@ For each module, in that order, after §3 (it may add later modules to this one:
 - **Otherwise** → `git add -- <its files>`, then `git commit -F <out>/commit-message.txt -- <its files>` (the message written there first; only those paths, whatever else is staged). The message: the project's convention — its `gear-commit-message` skill if present (`.claude/skills/gear-commit-message/SKILL.md`: follow its rules and format, skip the clipboard), else the guide §5.2 (`docs/dev_guide/*.html`) and the style of `git log <base>`: subject `<module> : <what changes>`, a blank line, the module's contract in a few lines (what it exposes, what it does not know, who uses it). End with the attribution trailer your own instructions ask for, if any.
 
 A hook fails → stop there and report it; never `--no-verify`. Never push, amend, rebase or reset; never edit a file of the project (only what goes under `<out>`).
+
+## 2 bis. Simple history — one commit for all the code
+
+Instead of § 2 (the typecheck of § 3 and the rules on hooks, push, amend stay):
+- The code commit is not made yet when no commit of the branch **other than its first one** touches a file of a Forme module (the first commit holds the note, the forme, the red invariants and the skeletons). Then **one commit**, one group: `git add -- <every modified or new file of the folder>` (`git status --short`, untracked included) except a note git ignores (`git check-ignore -q <note>`: never staged, not even forced), then `git commit -F <out>/commit-message.txt -- <those files>`. The message: as in § 2, « Otherwise », one subject naming the modules and the contract of each in a few lines. Whatever the module: no fixup.
+- Already made (a later passage: a correction, a red check, a trial's feedback) → an **ordinary commit** of the changed files, whatever the PR's state: never a fixup, never an amend. Its subject says what changes and why (« revue : … » for a correction), no module split.
+- Nothing is left out: the answer names every file no Forme module owns that went into the commit (« not in any module: … »), so the user sees what left.
 
 ## 3. Before each commit — type what it will contain, outside the working folder
 
@@ -45,4 +53,4 @@ It fails (a typecheck that ran), the errors naming files of a later module of th
 
 ## Answer
 
-In English: one line per commit (`<short hash> <subject>`) with its typecheck result (or « not checked »), then what was left uncommitted, if anything.
+In English: one line per commit (`<short hash> <subject>`) with its typecheck result (or « not checked »), then what was left uncommitted, if anything (simple history: then the files that no module of the Forme owns, committed anyway).

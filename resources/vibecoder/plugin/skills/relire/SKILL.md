@@ -1,7 +1,7 @@
 ---
 name: relire
 description: "Review a diff — one commit or the uncommitted changes — with the guide's four questions (§5.1), plus duplication and file headers, into <out>/review.md."
-argument-hint: "<lang> <out> <commit | WORKTREE>"
+argument-hint: "<lang> <out> [base=<base>] <commit | WORKTREE>"
 disable-model-invocation: true
 context: fork
 model: opus
@@ -13,7 +13,7 @@ allowed-tools: "Read, Glob, Grep, Write"
 
 A conformity read, not a bug hunt: does this diff stay inside what was decided?
 
-`$ARGUMENTS` = `<lang> <out> <target>`. `lang`: the user's language, not used here — code-related work: `review.md` and your answer in English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `target`: a commit hash → `git show <hash>`; `WORKTREE` → `git diff HEAD`, plus the untracked files (`git ls-files --others --exclude-standard`), read in full.
+`$ARGUMENTS` = `<lang> <out> [base=<base>] <target>`. `base=<base>`: optional, the base branch, given by the app right after `out`: the base for the note's fallback below (absent → `git symbolic-ref --short refs/remotes/origin/HEAD`, else `origin/main`, `origin/master`, `main` or `master`, the first that exists). `lang`: the user's language, not used here — code-related work: `review.md` and your answer in English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `target`: a commit hash → `git show <hash>`; `WORKTREE` → `git diff HEAD`, plus the untracked files (`git ls-files --others --exclude-standard`), read in full.
 
 Context: the note (under `docs/tickets/`, named like the branch, on the disk even if git ignores it, else the one the branch adds or changes) — « Ce que ça fait », « Ce que ça ne doit pas faire », the « Forme » entry of each module the diff touches; if present, `AGENTS.md` (architecture rules, protected files) and the guide (`docs/dev_guide/*.html`) §5.1. Read the code around the diff, not only the diff.
 

@@ -89,7 +89,8 @@ une seule passe, elle n'écrit que des suggestions à la suite de `questions.md`
 jamais la note. Elle part au premier *Valider la note* (*Valider et vérifier*) et à
 *Revérifier* ; masquée dans la liste tant que la note n'est pas vérifiée, et dans
 l'`enum` de `run.start` de la CLI (`commands.json`). Les skills de VibeCoder reçoivent toujours d'abord
-`{{lang}} {{out}}`. Le bouton `guide` n'apparaît que si le skill `gear-guide`
+`{{lang}} {{out}}`, puis, pour ceux dont le gabarit les passe, leurs arguments nommés
+`note=<chemin>` et `base=<réf>` (voir *Les variables*). Le bouton `guide` n'apparaît que si le skill `gear-guide`
 existe (dans le projet ou chez l'utilisateur).
 
 Dix-neuf boutons ont aussi une voie **directe**, sans agent : `commit`,
@@ -148,6 +149,24 @@ l'action.
 | `{{check}}` | le rang d'une vérification de `checks.json` (*Relancer* sur l'une d'elles) ; sans choix : `*` (toutes) |
 | `{{quote}}` | (`prefill` seulement) ce qu'on cite |
 | `{{prefix}}` | le préfixe des commandes du projet vu de l'agent (sans la box où il tourne déjà) ; peut être vide |
+
+**La note et la base, données aux skills.** L'appli sait déjà le chemin de la
+note et la branche de base : les gabarits livrés les passent par des arguments
+nommés, juste après `{{out}}`, au lieu que chaque skill les cherche
+(`/vibecoder:forme {{lang}} {{out}} note={{note}} {{text}}`). `note={{note}}` :
+*Vérifier la conception*, *Poser la forme*, *Écrire les invariants (rouges)*,
+*Vibe* et *Générer les modules* (les actions qui n'ont pas de sens sans note : un
+gabarit qui porte `{{note}}` est refusé quand il n'y en a pas, donc *Rédiger la
+note* et toute action lancée sans note ne le portent pas et gardent la recherche
+du skill). `base={{base}}` : *Générer les modules* (avec `note=`, dans cet ordre),
+*Générer ce module*, *Commiter les modules*, *Vérifier l'alignement*, *Préparer
+le commit*, *Relire le diff*, *Ponytail review*, *Replier les fixups*, *Plan de
+test à l'écran* et *Valider la feature*. Un skill qui reçoit `note=` ou `base=`
+ne cherche pas ; lancé à la main, ou par un gabarit que vous avez retouché sans
+ces arguments, il cherche comme avant. Un `actions.<langue>.json` modifié n'est
+jamais remplacé : ses gabarits ne passent donc pas ces valeurs, et les skills les
+cherchent. Les arguments libres (`{{text}}`, `{{prefix}}`, le module, le commit,
+la référence) viennent après les arguments nommés.
 
 ### Ajouter un bouton
 
@@ -263,21 +282,21 @@ sinon.
 |---|---|---|---|
 | `note` | conversation | agent | `questions.md` |
 | `conception` | sous-contexte | opus · high | `questions.md` (ses suggestions à la suite ; ne modifie jamais la note ; lecture, `git` en lecture et `Write` pour ce fichier seul) |
-| `forme` | conversation | agent | — (les squelettes dans le code, puis la forme dans la note) |
+| `forme` | conversation | agent | — (les squelettes dans le code, avec les signatures typées, puis la forme dans la note, en prose : sans signatures ; `note=<chemin>` reçu, sinon cherché) |
 | `invariants` | sous-contexte | opus · high | `align.md` (suit `aligner` une fois : il corrige les tests lui-même) |
 | `lire-invariants` | sous-contexte | sonnet · medium | `invariants/<blob>.md` |
 | `aligner` | sous-contexte | opus · high | `align.md` (les invariants seuls : corrige les tests, 3 tours ; relecteur, `HEAD` : une liste, rien de corrigé) |
 | `module` | conversation | opus · high | — (la boucle de `modules` pour un seul module, `developpeur` sonnet · high ; plus de `review-diff` en seconde course) |
-| `modules` | conversation | opus · high, sous-agents `developpeur` sonnet · high (opus au second échec) | — (ne commite pas) |
-| `commiter-modules` | sous-contexte | sonnet · medium | — (un module, ou tous ceux qui ont des changements : un commit chacun, un fixup pour un module déjà commité) |
+| `modules` | conversation | opus · high, `developpeur` sonnet · high (opus au second échec) : un seul agent pour au plus 4 modules de code, sans compter ceux qui n'ont pas de variants, sinon des sous-agents en vagues parallèles | — (ne commite pas ; son contrôle de chaque diff est une lecture de conformité, les défauts sont ceux de `ponytail` ; `note=` et `base=` reçus, sinon cherchés) |
+| `commiter-modules` | sous-contexte | sonnet · medium | — (un module, ou tous ceux qui ont des changements : un commit chacun, un fixup pour un module déjà commité ; historique simple : un seul commit pour tout le code, ses fichiers hors Forme nommés dans la réponse, puis des commits ordinaires ; `base=` reçu) |
 | `relire` | sous-contexte | opus · high | `review.md` |
-| `commit-preparer` | sous-contexte | sonnet · low | `commit.md` |
+| `commit-preparer` | sous-contexte | sonnet · low | `commit.md` (un fichier déjà commité : un fixup ; historique simple : un commit ordinaire ; `base=` reçu) |
 | `commit` | sous-contexte | haiku · low | (l'appli efface `commit.md` à la fin de la course si le commit est passé) |
 | `verifier` | sous-contexte | haiku · low | `checks.json` (la ponytail review est lancée par l'appli, pas par lui) |
 | `ponytail` | sous-contexte | opus · high | `ponytail.md` |
-| `appliquer-revue` | conversation | sonnet · high | `ponytail-applied.json` |
-| `fixups` | sous-contexte | sonnet · medium | — |
-| `pr` | sous-contexte | sonnet · medium | `pr.json` |
+| `appliquer-revue` | conversation | sonnet · high | `ponytail-applied.json` (chaque remarque en fixup du commit qui possède le code ; historique simple : un commit ordinaire « revue : … », son droit `git commit -m` en plus) |
+| `fixups` | sous-contexte | sonnet · medium | — (historique simple : « Rien à replier » ; `base=` reçu) |
+| `pr` | sous-contexte | sonnet · medium | `pr.json` (historique simple : ne réclame aucun repli ; `base=` reçu) |
 | `ci` | sous-contexte | sonnet · medium | `ci.md` |
 | `base` | sous-contexte | haiku · low | — |
 | `charger-pr` | sous-contexte | haiku · low | `pr-<n>.json` |
@@ -285,12 +304,21 @@ sinon.
 | `relire-commits` | sous-contexte | opus · high | `pr-<n>-commits.md` |
 | `ecran` | sous-contexte | sonnet · medium | `ecran.md` |
 | `publier-revue` | sous-contexte | haiku · low | `pr-<n>-review.json` |
-| `vibe` | conversation | agent ; *Vibe* : reprend à la première étape pas faite et enchaîne les actions | `vibecoder run start <id>` |
+| `vibe` | conversation | agent ; *Vibe* : reprend à la première étape pas faite et enchaîne les actions (historique simple : saute *Replier les fixups*) ; `note=` reçu | `vibecoder run start <id>` |
 | `actions` | conversation (l'agent l'appelle de lui-même) | agent | `vibecoder run start`, `run stop`, `run wait`, `run list` |
 | `nouvelle-demande` | sous-contexte | haiku · low | `new-request.json` (`{ "branch" }` : le nom proposé pour la branche d'une nouvelle demande, ou de *Rédiger la note* sur la branche principale ; l'appli le montre prérempli, l'utilisateur le valide ou le change, puis la crée ici ou dans un worktree ; la demande n'y est pas) |
 | `lancement` | sous-contexte | haiku · low | `lancement.json` (les commandes ; `setup` et `worktree`, une seule fois par projet) |
 | `processus` | conversation (l'agent l'appelle de lui-même) | agent | `vibecoder proc list`, `proc logs`, `proc stop`, `proc restart` |
 | `artefact` | conversation (l'agent l'appelle de lui-même, sans bouton ; aussi par « / ») | agent | `<artefacts>/<nom>` (un fichier par artefact, montré dans le panneau *Artefacts* ; jamais le projet) |
+
+**L'historique, choix du projet.** Par défaut (sans réglage) : un commit par module,
+les corrections en fixups du commit qui possède le code, repliés avant la PR. Les skills
+de commit (`commiter-modules`, `commit-preparer`, `appliquer-revue`, `fixups`, `pr`, `vibe`)
+lisent dans la convention de commit du projet (`AGENTS.md`, `CLAUDE.md`) les mots
+« Historique simple » (« Simple history » dans un projet en anglais) : ils passent alors à un
+seul commit pour le code de tous les modules, puis des commits ordinaires, jamais un fixup.
+Rien dans l'appli ni dans `.vibecoder/project.json` : le mot est dans le dépôt, partagé par
+l'équipe. Le parcours de l'écran convient aux deux.
 
 `<artefacts>` : `userData/vibecoder-artifacts/<projet>/`, **un seul dossier par
 projet** — le dépôt, ses worktrees et leurs robots y lisent et y écrivent les

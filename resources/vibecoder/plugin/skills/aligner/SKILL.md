@@ -1,7 +1,7 @@
 ---
 name: aligner
 description: "Check the invariants only — every « → invariant » line of the note truly observed by a test, every invariant test tied to a line — and, in the creator's worktree, fix the tests (3 rounds at most); gaps left go to <out>/align.md. Followed by invariants (Create) in its own run, after the red tests. In a PR (HEAD): a list, nothing fixed."
-argument-hint: "<lang> <out> <ref>"
+argument-hint: "<lang> <out> [base=<base>] <ref>"
 disable-model-invocation: true
 context: fork
 model: opus
@@ -11,8 +11,8 @@ allowed-tools: "Read, Glob, Grep, Write, Edit"
 
 # Align — note ↔ invariant tests, nothing else
 
-`$ARGUMENTS` = `<lang> <out> <ref>`. `lang`: the user's language (`fr`, `en`…): `align.md` in it — the user reads it closely (note 0.15.0-stabilisation, as `ponytail.md`); your answer in English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `ref`:
-- `WORKTREE` (the creator): the current branch, uncommitted and untracked files included. Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists (`git rev-parse --verify -q <ref>`); range `<base>...HEAD`. You **fix** the tests.
+`$ARGUMENTS` = `<lang> <out> [base=<base>] <ref>`. `base=<base>`: optional, the base branch, given by the app right after `out` (absent → the search below; the note is always searched). `lang`: the user's language (`fr`, `en`…): `align.md` in it — the user reads it closely (note 0.15.0-stabilisation, as `ponytail.md`); your answer in English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `ref`:
+- `WORKTREE` (the creator): the current branch, uncommitted and untracked files included. Base: `base=` if given, else `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists (`git rev-parse --verify -q <ref>`); range `<base>...HEAD`. You **fix** the tests.
 - `HEAD` (the reviewer): a pull request, checked out in this folder — read its files in the folder; base = `base` of the `<out>/pr-<n>.json` whose `head` is the current branch (`git rev-parse --abbrev-ref HEAD`; on a `pr-<n>` branch, that `<n>`); none → as for `WORKTREE`; range `origin/<base>...HEAD`. You **list only**: touch no file of the branch, run no command that writes (T-19); `align.md` is the one file you write.
 
 Read, with the Read, Glob and Grep tools: the note (under `docs/tickets/`, named like the branch, on the disk even if git ignores it, else the one the range adds or changes) — its « Ce que ça ne doit pas faire » only; the invariant tests the range adds or changes (`git diff --name-only <range>`, for `WORKTREE` `git diff --name-only <base>` and `git ls-files --others --exclude-standard`; `tests/invariants/` folders, or where `AGENTS.md`, if present, puts them); the project's list of invariants, if any (e.g. `SPEC.md`); the guide (`docs/dev_guide/*.html`) §3.1 to §3.5, if present. Not the forme, not the code: the invariants are written from the note, the modules come later.

@@ -1,7 +1,7 @@
 ---
 name: invariants
 description: "Write the red invariant tests of the ticket from the note's « → invariant » lines, or from the pseudo-code given, in the project's language and test framework, then follow aligner once (WORKTREE: it fixes the tests itself and loops, 3 rounds at most), without committing."
-argument-hint: "<lang> <out> [pseudo-code…]"
+argument-hint: "<lang> <out> [note=<path>] [pseudo-code…]"
 disable-model-invocation: true
 context: fork
 model: opus
@@ -11,11 +11,11 @@ allowed-tools: "Read, Glob, Grep, Write, Edit"
 
 # Invariants — red, from the note (guide §3)
 
-`$ARGUMENTS` = `<lang> <out> [pseudo-code…]`. `lang`: the user's language, not used here — code-related work: your answer in English. The tests follow the project's convention (`AGENTS.md`), else English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces): only `align.md` is written there. Pseudo-code: optional, written by the developer — when given, it is the test to write, every case and every assertion of it, translated into the project's language and test framework.
+`$ARGUMENTS` = `<lang> <out> [note=<path>] [pseudo-code…]`. `note=<path>`: optional, the ticket note, given by the app right after `out` (absent → the search below). `lang`: the user's language, not used here — code-related work: your answer in English. The tests follow the project's convention (`AGENTS.md`), else English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces): only `align.md` is written there. Pseudo-code: optional, written by the developer — when given, it is the test to write, every case and every assertion of it, translated into the project's language and test framework.
 
 ## Read first
 
-- The note: under `docs/tickets/`, the file named like the branch (`git branch --show-current`; `<type>/<name>` → `docs/tickets/<type>/<name>.md`, on the disk even if git ignores it), else the one the branch adds or changes (`git diff --name-only <base>...HEAD -- docs/tickets`, base: `git symbolic-ref --short refs/remotes/origin/HEAD`, else `origin/main`, `origin/master`, `main` or `master`, the first that exists, `git rev-parse --verify -q <ref>`). Its « Ce que ça ne doit pas faire » lines marked `→ invariant` are the tests to write (one already covered by an existing test → skip it, say so). Its « Forme »: the names and signatures to call, already posed as skeletons in the code by *Poser la forme*.
+- The note: `note=` if given, else under `docs/tickets/` the file named like the branch (`git branch --show-current`; `<type>/<name>` → `docs/tickets/<type>/<name>.md`, on the disk even if git ignores it), else the one the branch adds or changes (`git diff --name-only <base>...HEAD -- docs/tickets`, base: `git symbolic-ref --short refs/remotes/origin/HEAD`, else `origin/main`, `origin/master`, `main` or `master`, the first that exists, `git rev-parse --verify -q <ref>`). Its « Ce que ça ne doit pas faire » lines marked `→ invariant` are the tests to write (one already covered by an existing test → skip it, say so). Its « Forme »: the names and signatures to call, already posed as skeletons in the code by *Poser la forme*.
 - `AGENTS.md`, if present: where invariants live, how they are written (e.g. an « Écrire un invariant » section), the language of code and comments, the test commands, the protected folders.
 - The guide (`docs/dev_guide/*.html`) §3.1 to §3.6, if present.
 - Two or three existing invariant tests: their style, harness and helpers — reuse them.

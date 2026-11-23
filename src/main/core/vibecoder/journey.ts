@@ -186,7 +186,7 @@ const TEXT = {
     openQuestions: 'Répondre d\'abord aux questions de la note', unvalidated: 'Valider d\'abord la note', started: 'Déjà en cours', modulesUnvalidated: 'modules pas validés',
     noFixup: 'Aucun commit fixup!', dirty: 'Des modifications en cours', preparing: 'Une recette du projet est en cours',
     elsewhere: 'Passer d\'abord sur la branche de la PR', noUpstream: 'Pas de branche distante suivie', upToDate: 'Déjà à jour', alreadyOnBase: 'Déjà sur la base',
-    checklist: ['La note est à jour', 'Les invariants passent', 'Chaque diff a été relu', 'Un commit par module, fixups repliés',
+    checklist: ['La note est à jour', 'Les invariants passent', 'Chaque diff a été relu', 'Chaque module commité, aucun fixup à replier',
       'AGENTS.md à jour si une convention a changé'],
   },
   en: {
@@ -204,7 +204,7 @@ const TEXT = {
     openQuestions: 'Answer the note\'s questions first', unvalidated: 'Approve the note first', started: 'Already running', modulesUnvalidated: 'modules not approved',
     noFixup: 'No fixup! commit', dirty: 'Uncommitted changes', preparing: 'A project recipe is running',
     elsewhere: 'Switch to the PR branch first', noUpstream: 'No upstream branch', upToDate: 'Already up to date', alreadyOnBase: 'Already on the base',
-    checklist: ['The note is up to date', 'The invariants pass', 'Every diff has been reviewed', 'One commit per module, fixups folded',
+    checklist: ['The note is up to date', 'The invariants pass', 'Every diff has been reviewed', 'Every module committed, no fixup to fold',
       'AGENTS.md updated if a convention changed'],
   },
 };

@@ -1195,7 +1195,19 @@ une vide : « (pas de réponse) » ; 50 réponses de 2 000 caractères au plus) 
 toutes ; un rang absent refuse l'action) ;
 `{{quote}}` (`prefill` seulement, rempli par la page) ; `{{prefix}}` (le
 préfixe des commandes vu de l'agent, F-112 ; vide permis). Les skills de
-VibeCoder reçoivent d'abord `{{lang}} {{out}}`. Une valeur qui manque refuse
+VibeCoder reçoivent d'abord `{{lang}} {{out}}`, puis, juste après, leurs
+**arguments nommés** : `note={{note}}` (le chemin de la note ; *Vérifier la
+conception*, *Poser la forme*, *Écrire les invariants*, *Vibe*, *Générer les
+modules*) et `base={{base}}` (la branche de base ; *Générer les modules*,
+*Générer ce module*, *Commiter les modules*, *Vérifier l'alignement*, *Préparer
+le commit*, *Relire le diff*, *Ponytail review*, *Replier les fixups*, *Plan de
+test à l'écran*, *Valider la feature*). `{{note}}` ne va qu'aux actions qui n'ont pas
+de sens sans note : un gabarit qui le porte est refusé sans note (la règle
+ci-dessous), donc *Rédiger la note* et toute action lancée aujourd'hui sans note
+(*Générer ce module*, *Commiter les modules*, *Préparer le commit*, *Relire la
+note*…) ne le reçoivent pas. Un skill qui reçoit `note=` ou `base=` ne cherche
+pas ; lancé à la main, ou par un `actions.<langue>.json` modifié (jamais
+remplacé, ses gabarits ne les passent pas), il cherche comme avant. Une valeur qui manque refuse
 l'action, avec sa raison (« Dictez ou écrivez d'abord dans le champ », « Pas
 encore de note pour cette branche », « Ce commit n'est pas dans la
 branche »…) ; une variable inconnue aussi, ou une valeur autre que
@@ -1416,6 +1428,8 @@ conversation ; note `0.9.0-actions-independantes.md`).
     `allowed-tools` dont la commande (assignations `VAR=…` de tête ôtées)
     commence mot pour mot par celle d'un refus la retire des refus (*Valider la
     feature* : `git push`, `gh pr create` ; *Commiter* : `git add`, `git commit` ;
+    *Appliquer la revue* : `git add`, `git commit --fixup` et `git commit -m`
+    (le commit ordinaire de l'historique simple) ;
     *Replier les fixups* : `git rebase` ; *PR mergée → revenir sur la base* :
     `git switch`, `git pull` ; le détail par action, dans le README ; *Lancer les
     vérifications* n'ouvre pas la CLI : l'appli lance elle-même la ponytail
@@ -1914,7 +1928,8 @@ créateur ; le relecteur, F-101) :
    a changé » quand la validation ne tient plus, F-102) ; note et forme revalidées, sa prochaine action est
    *Préparer le commit* (le skill `commit-preparer` : avant la PR, un fixup
    du commit qui porte la note, le premier, message `fixup! <son sujet>`
-   seul ; la PR ouverte, un nouveau commit qui dit pourquoi), puis *✓
+   seul ; la PR ouverte, un nouveau commit qui dit pourquoi ; en historique
+   simple, toujours un commit ordinaire, jamais un fixup), puis *✓
    Commiter* ; la carte du commit proposé (commit.md) est aussi dans cette
    étape, ses actions hors de l'en-tête. Une note jamais commitée qui change :
    rien (elle part avec le premier commit). Une fois un module commencé, le
@@ -1942,7 +1957,12 @@ créateur ; le relecteur, F-101) :
    la forme* écrit dans le même passage les
    **squelettes** dans le code — les chemins, les en-têtes (le contrat), les
    signatures typées, des corps qui échouent, le typage du projet qui passe —,
-   puis recopie la forme dans la note ; une retouche, à n'importe quelle étape,
+   puis recopie la forme dans la note, **en prose** : pour chaque module son
+   chemin, ce qu'il expose en une ou deux lignes (sans signature typée : elles
+   vivent dans les squelettes et les en-têtes, qui disent la même chose), ce
+   qu'il ne connaît pas, qui l'utilise, sa ligne « variants : » et ses cas ; la
+   mise en page que lit l'écran ne change pas (le chemin en début de ligne, les
+   suites indentées, une ligne vide entre deux entrées) ; une retouche, à n'importe quelle étape,
    modifie la note et les squelettes ensemble, sans les régénérer ; un écart
    d'alignement de la forme se corrige sans être remonté. Puis *Valider la forme* :
    l'étape l'attend toujours (sauf en *Vibe*, où elle n'attend aucun clic, comme avant). Un squelette n'est pas
@@ -2056,7 +2076,7 @@ créateur ; le relecteur, F-101) :
    un commit de la branche : un fixup de ce commit tant qu'aucune PR n'est
    ouverte, un nouveau commit qui dit pourquoi le fichier change une fois
    la PR ouverte, jamais un fixup ni un amend : son historique n'est pas
-   réécrit). *Lire en
+   réécrit ; en historique simple, toujours un commit ordinaire). *Lire en
    pseudo-code* (les fichiers pas encore lus : une lecture est nommée par
    l'empreinte du fichier, sa première ligne `# <chemin du test>` ; relire
    la remplace) n'est jamais mise en avant, *Vibe* compris (l'orchestrateur
@@ -2120,7 +2140,8 @@ créateur ; le relecteur, F-101) :
    celui du menu de diff de la vue entière (F-102), pas de ce sélecteur ; *Valider
    les modules* valide l'étape. Générer ne commite
    pas : *Commiter* et *Commiter les modules* (skill `commiter-modules`, un
-   commit par module selon la convention du projet, un fixup pour un module
+   commit par module selon la convention du projet — par défaut : voir **Deux
+   historiques**, plus bas —, un fixup pour un module
    déjà commité — jamais du premier commit de la branche, qui ne porte que la
    note, la forme, les invariants rouges et leurs squelettes —, un nouveau
    commit une fois la PR ouverte) sont des gestes à
@@ -2137,7 +2158,31 @@ créateur ; le relecteur, F-101) :
    (ni `AGENTS.md`, ni manifeste qui en donne un) : le commit reste et la
    réponse dit qu'il n'a pas été vérifié. Une erreur que ce rattrapage n'explique pas :
    elle s'arrête et le dit, ce commit et les suivants ne sont pas faits ; ni amend, ni
-   rebase, ni `--no-verify` pour le rattraper. Les éditeurs (le code, la note en édition) défilent dans
+   rebase, ni `--no-verify` pour le rattraper.
+   **Deux historiques**, au choix du projet. Le défaut, sans réglage, est celui
+   qui précède : un commit par module, les corrections en fixups du commit qui
+   possède le code, repliés avant la PR (un projet où l'on relit commit par
+   commit). Un projet dont la convention de commit (`AGENTS.md` ou `CLAUDE.md`)
+   porte les mots « Historique simple » (« Simple history » dans un projet en
+   anglais) est en **historique simple** : ni case dans l'appli, ni clé de
+   `.vibecoder/project.json`, le mot est dans le dépôt, partagé par l'équipe, et
+   les skills de commit le lisent. Le premier commit ne change pas (la note, la
+   forme, les invariants rouges, leurs squelettes) ; puis *Commiter les modules*
+   fait **un seul commit** pour le code de tous les modules, avec tous les
+   fichiers modifiés ou nouveaux du dossier (sauf une note que git ignore, jamais
+   indexée), le typage vérifié comme ci-dessus, et sa réponse nomme les fichiers
+   qu'aucun module de la Forme ne possède : rien n'échappe, et on voit ce qui est
+   parti. Une correction faite après (*Appliquer la revue*, une vérification
+   rouge, un retour d'essai) est un **commit ordinaire**, « revue : … », jamais
+   un fixup ni un amend, la PR ouverte ou non : rien à replier, aucune
+   réécriture d'historique (une PR ouverte, dans les deux modes, n'est jamais
+   réécrite) ; la fusion en squash efface ces commits. Le parcours de l'écran
+   convient aux deux et ne lit pas le mode : l'étape Modules est faite quand
+   chaque module a un commit hors du premier et que rien n'est à commiter (ce que
+   le commit unique remplit), *Replier les fixups* est masquée sans commit
+   `fixup!`, l'étape Revue se fait sans fixup. Les skills de commit
+   (`commiter-modules`, `commit-preparer`, `appliquer-revue`, `fixups`, `pr`) et
+   `vibe` suivent le mode : sans ces mots, tout comme avant. Les éditeurs (le code, la note en édition) défilent dans
    CodeMirror lui-même, hauteur bornée : pas de vide au-dessus du texte. Seul ce
    fichier est lu, à l'ouverture puis à chaque changement sur le disque
    (surveillé et poussé par le principal, pas au rythme du relevé : pendant
@@ -2162,11 +2207,17 @@ créateur ; le relecteur, F-101) :
    (un commit préparé), sinon *Générer les modules* tant qu'un module n'est
    pas commencé (un module n'est commencé que si un fichier a changé depuis son
    squelette : un commit sans la note le touche, ou, la note commitée, un de ses
-   fichiers n'est pas commité ; ceux qui restent, confiés à des agents Sonnet en parallèle
-   dans l'ordre de la Forme, chaque diff relu, sans commit ; masqué quand
-   tous le sont), puis *Commiter les modules* (un commit par module, ou un
-   fixup, rangés par l'agent : le dev génère, relit, ajuste, et laisse les
-   commits à la fin). *Générer* sur la ligne d'un module en génère un seul
+   fichiers n'est pas commité ; ceux qui restent, dans l'ordre de la Forme :
+   **au plus 4 modules de code** (sans compter ceux de « variants : aucun », la
+   doc et les textes de skills), un seul agent `developpeur` les écrit tous, à la
+   suite, dans un seul contexte, les variants rouges d'abord pour chacun, les
+   modules sans variants après les modules de code ; au-delà, des agents Sonnet
+   en parallèle, par vagues. Le seuil se compte dans la Forme, sans estimation de
+   lignes, et n'est pas réglable. Chaque diff est relu par l'orchestrateur, sans
+   commit ; masqué quand tous le sont), puis *Commiter les modules* (un commit par
+   module, ou un fixup, rangés par l'agent ; en historique simple, un seul commit
+   pour tout le code : le dev génère, relit, ajuste, et laisse les commits à la
+   fin). *Générer* sur la ligne d'un module en génère un seul
    (avec `ponytail`, la même boucle que *Générer les modules* pour un seul : son
    diff relu, les défauts corrigés, le typage et ses tests relancés jusqu'au vert,
    dans sa course ; sans commit), au choix. Plus de
@@ -2215,7 +2266,10 @@ créateur ; le relecteur, F-101) :
    liste du § A.3 (créateur ; le relecteur n'a pas la liste), cochée d'après le dépôt quand c'est possible (la note dans
    un commit de la branche, ou, ignorée par git, un commit au moins ; tous les contrôles dont le nom contient
    « invariant » passés, quelle que soit la partie : `invariants (backend)`… ;
-   aucun `fixup!` et chaque module de la Forme dans au moins un commit) ; « chaque diff relu » (avec
+   aucun `fixup!` et chaque module de la Forme dans au moins un commit : la case
+   « Chaque module commité, aucun fixup à replier » (« Every module committed, no
+   fixup to fold »), dont la règle ne dépend pas de l'historique du projet : un
+   seul commit pour le code de tous les modules la coche) ; « chaque diff relu » (avec
    l'aide « Cochez une fois chaque module relu (Modules → Relire le diff) »)
    et « AGENTS.md à jour » se cochent à la main (« à vérifier » tant qu'elles
    ne le sont pas ; F-102, cible `a3:<rang>`, pour le commit de tête de la
@@ -2229,7 +2283,10 @@ créateur ; le relecteur, F-101) :
    chaque remarque pas appliquée (cochée par défaut ; les décochées oubliées
    à une nouvelle review), *Tout appliquer* sur la carte quand toutes sont
    cochées, sinon *Appliquer la sélection (n)* (grisé sans aucune) (l'action
-   `apply`, skill `appliquer-revue`, sur Sonnet ; *Appliquer* lui donne la
+   `apply`, skill `appliquer-revue`, sur Sonnet : chaque remarque en fixup du
+   commit qui possède le code, ou, en historique simple, toutes ensemble dans
+   un commit ordinaire « revue : … » sans chercher de propriétaire, avec le droit
+   `git commit -m` en plus, rien d'autre (I-57 ne change pas) ; *Appliquer* lui donne la
    remarque, `{{text}}`, *Appliquer la sélection* les cochées, une par ligne
    de liste, *Tout appliquer* rien : toutes ; ni l'un ni
    l'autre ne prend le champ ; absents sans remarque en liste ; *Appliquer*
@@ -2248,7 +2305,9 @@ créateur ; le relecteur, F-101) :
    sans plan, une invitation ; *Relancer*. Toutes les cases cochées comptent
    pour que la Revue soit faite, pour l'un comme pour l'autre. Prochaine action : *Lancer les vérifications et la
    ponytail review* (tant que `checks.json` ou `ponytail.md` manque, ou
-   qu'une vérification échoue), puis *Replier les fixups*.
+   qu'une vérification échoue), puis *Replier les fixups* (masquée sans commit
+   `fixup!` : en historique simple, jamais ; le skill dit « Rien à replier :
+   historique simple »).
 6. **PR** — faite : une PR pour la branche, lue par gh (F-112 ; sinon
    `pr.json`). Montre la PR (numéro, titre, base ← branche,
    *Ouvrir* dans le navigateur) et l'état de la CI (`ci.md`). Ses actions
@@ -2717,10 +2776,11 @@ tests, faits sans ✓ ni lecture) ; les étapes qu'il passe reçoivent leur ✓
    l'écran** par leurs demandes (F-115) — forme, invariants rouges
    (les squelettes compris, F-100 ; l'alignement compris, qui corrige seul,
    sans *Lire en pseudo-code*), premier commit,
-   modules (confiés à des agents Sonnet avec `ponytail`) puis *Commiter les
+   modules (confiés à un agent, ou au-delà de 4 modules de code à des agents Sonnet
+   en parallèle, avec `ponytail`) puis *Commiter les
    modules*, vérifications (la ponytail review comprise ; un échec corrigé :
-   cette vérification seule relancée),
-   fixups, PR, CI suivie jusqu'au vert (un échec : un commit de correction
+   cette vérification seule relancée, en commit ordinaire en historique simple),
+   fixups (sautés en historique simple : rien à replier), PR, CI suivie jusqu'au vert (un échec : un commit de correction
    poussé, *Diagnostiquer la CI* relancé), puis il s'arrête —, une
    demande puis la fin de son tour, réveillé par l'avis de fin ; chaque
    action reste visible et arrêtable dans l'onglet *Actions*, et ce qui
@@ -3096,8 +3156,19 @@ vérifications (F-93) ; `module` suit la boucle de `modules` pour un seul module
 (F-115), sans demander `relire`. `modules` et `module` ne commitent pas :
 `commiter-modules` commite tous les modules qui ont des changements, un
 commit chacun (un seul, avec son argument `module`, que l'écran ne propose
-plus).
-`forme` pose les squelettes dans le code puis recopie la forme dans la note (F-100) ;
+plus) ; en historique simple (voir l'étape Modules), un seul commit pour tout le code,
+puis des commits ordinaires. **Le mode** se lit dans la convention de commit du
+projet : les mots « Historique simple » (« Simple history ») dans `AGENTS.md` ou
+`CLAUDE.md`, que lisent `commiter-modules`, `commit-preparer`, `appliquer-revue`,
+`fixups`, `pr` et `vibe` ; sans eux, tout comme avant.
+**La note et la base** : les skills reçoivent, quand le gabarit les passe (F-97),
+`note=<chemin>` et `base=<réf>` après `{{out}}` et ne cherchent pas ; sinon
+ils cherchent comme avant (la note sous `docs/tickets/`, la base par
+`git symbolic-ref`). `modules` et `module` donnent le chemin de la note à
+`developpeur`, qui ne la cherche plus.
+`forme` pose les squelettes dans le code puis recopie la forme dans la note (F-100),
+en prose : ce qu'un module expose en une ou deux lignes, les signatures typées
+restant dans les squelettes et leurs en-têtes ;
 il nomme, sous le contrat de chaque module, ses variants : une ligne
 `variants :` (le fichier de tests ordinaires, existant ou « à créer », ou
 `aucun` et pourquoi), puis les cas à couvrir, chacun commençant par un mot
@@ -3109,7 +3180,11 @@ en tête séparés par « + ». `module` et `developpeur` les
 puis écrivent le code jusqu'à ce qu'ils passent (TDD, guide § 3.4), et le
 disent dans leur réponse (rouges, puis verts) ; `modules` vérifie à la
 relecture qu'ils sont dans le fichier nommé, couvrent ses cas et ont été vus
-rouges (note 0.15.0-variants-tdd).
+rouges (note 0.15.0-variants-tdd). Cette relecture de chaque diff est un
+**contrôle de conformité** (guide § 5.1) : les quatre questions, l'en-tête fidèle au
+contrat, les variants vus rouges puis verts, les invariants verts et intacts ; les
+doublons, cas limites, failles, code mort et les lignes « ne doit pas » d'un
+module sont ceux de la revue `ponytail`, qui relit toute la branche juste après.
 **Les questions** (`note` et `vibe`, dans `<sorties>/questions.md` ; `forme`, dans
 sa réponse) se comprennent sans connaître le code : une clarté vaut mieux qu'une
 brièveté. Chacune commence par une ou deux phrases de contexte, en langage simple,
@@ -3120,7 +3195,8 @@ fonction ou de fichier n'est jamais seul, il vient avec ce qu'il désigne ; les
 options se comprennent sans relire le code, la recommandée marquée
 « (recommandé) » avec sa raison en quelques mots.
 Un agent du plugin, Sonnet à effort élevé : `developpeur` (un module de la
-Forme, qui part du squelette — il le remplit, ne le recrée pas —, `ponytail` préchargé, ses
+Forme, ou, pour au plus 4 modules de code, tous à la suite dans l'ordre de la Forme, chacun
+avec ses variants rouges avant son code ; il part du squelette — il le remplit, ne le recrée pas —, `ponytail` préchargé, ses
 variants d'abord, puis aussi ses fonctions complexes et son code technique — cas
 limites, bornes, erreurs, concurrence —, le typecheck et les tests de son module
 seulement, rien de commité), lancé par `modules` (Opus · élevé), qui relit

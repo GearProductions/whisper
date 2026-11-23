@@ -1,7 +1,7 @@
 ---
 name: fixups
 description: "Fold the branch's fixup! commits into their targets with an autosquash rebase before the PR, refusing once the PR is open if the project forbids rewriting, and never pushing."
-argument-hint: "<lang> <out>"
+argument-hint: "<lang> <out> [base=<ref>]"
 disable-model-invocation: true
 context: fork
 model: sonnet
@@ -11,17 +11,18 @@ allowed-tools: "Read, Glob, Grep, Bash(git rebase *), Bash(GIT_SEQUENCE_EDITOR=t
 
 # Fold the fixups (guide §5.3)
 
-`$ARGUMENTS` = `<lang> <out>`. `lang`: the user's language, not used here — code-related work: your answer in English. `out`: the agent's output folder: nothing to write there.
+`$ARGUMENTS` = `<lang> <out> [base=<ref>]`. `base=<ref>`: optional, given by the app right after `out`; given → the base, no search; absent → the search of step 1. `lang`: the user's language, not used here — code-related work: your answer in English. `out`: the agent's output folder: nothing to write there.
 
 The user clicked « fold the fixups »: that click is the confirmation — don't ask again.
 
-1. Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists (`git rev-parse --verify -q <ref>`). On the base branch itself → say so, stop.
-2. `git log --format='%h %s' <base>..HEAD`: no `fixup!`, `squash!` or `amend!` commit → « Rien à replier. » / « Nothing to fold. », stop.
-3. PR open (`gh pr view --json state -q .state` prints `OPEN`): the guide (`docs/dev_guide/*.html` §5.3) and the project's `gear-fix-up` skill (read its `SKILL.md` if present: `.claude/skills/gear-fix-up/`) say whether history may still be rewritten. Forbidden, or unclear → refuse, say why and what the project does instead (usually a new commit), stop.
-4. Fold in place, on the branch's own fork point (no new base commit comes in): `git merge-base HEAD <base>` first, then, with its hash (no `$(…)`):
+1. Base: `base=` if given, else `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists (`git rev-parse --verify -q <ref>`). On the base branch itself → say so, stop.
+2. History mode: read the project's commit convention (`AGENTS.md`, `CLAUDE.md`): the words « Historique simple » (« Simple history » in an English project) mean a simple history: corrections are ordinary commits, there is nothing to fold → say « Rien à replier : historique simple. » / "Nothing to fold: simple history.", stop. Without those words, go on.
+3. `git log --format='%h %s' <base>..HEAD`: no `fixup!`, `squash!` or `amend!` commit → « Rien à replier. » / « Nothing to fold. », stop.
+4. PR open (`gh pr view --json state -q .state` prints `OPEN`): the guide (`docs/dev_guide/*.html` §5.3) and the project's `gear-fix-up` skill (read its `SKILL.md` if present: `.claude/skills/gear-fix-up/`) say whether history may still be rewritten. Forbidden, or unclear → refuse, say why and what the project does instead (usually a new commit), stop.
+5. Fold in place, on the branch's own fork point (no new base commit comes in): `git merge-base HEAD <base>` first, then, with its hash (no `$(…)`):
    `GIT_SEQUENCE_EDITOR=true git rebase -i --autosquash --autostash <hash>`
-5. Conflict → `git rebase --abort` (back to the state before), report the commit being replayed and the conflicting files, stop. Never resolve it yourself.
-6. Success → show `git log --format='%h %s' <base>..HEAD` and the undo command, `git reset --hard ORIG_HEAD`. Branch already pushed (`git rev-parse --verify -q @{u}`) → say that the next push needs `--force-with-lease` (the PR action does it).
+6. Conflict → `git rebase --abort` (back to the state before), report the commit being replayed and the conflicting files, stop. Never resolve it yourself.
+7. Success → show `git log --format='%h %s' <base>..HEAD` and the undo command, `git reset --hard ORIG_HEAD`. Branch already pushed (`git rev-parse --verify -q @{u}`) → say that the next push needs `--force-with-lease` (the PR action does it).
 
 Never push. Never `git push --force`.
 

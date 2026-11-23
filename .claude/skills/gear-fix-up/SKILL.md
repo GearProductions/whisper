@@ -9,13 +9,13 @@ allowed-tools: Bash, Read, Glob, Grep, AskUserQuestion
 
 Rule of the guide: a module already committed gets corrected **in its own commit**. Before the PR: fixup, then fold. After the PR is open: an ordinary new commit (→ `/gear-commit-message`), never a rewrite.
 
-In this repo, PRs are merged with a merge commit, **not squashed**: every branch commit lands on `master` as is. Where the guide counts on the final squash to clean up, here nothing does — a `fixup!` must be folded before the merge.
+If `AGENTS.md` declares « Historique simple » in its « PR » section (this repo), there is nothing to fold: PRs are merged in squash. Say `Historique simple : rien à replier, commit ordinaire « revue : … » (/gear-commit-message).` and stop, for every argument except `help`. Never rewrite the history of an open PR. Below, this applies only without Historique simple.
 
 Output: terse. One line per action done, the commands you ran, one warning line max. No explanation unless `help`. Fixed strings below are French: translate them if the user writes in English.
 
 ## The guide wins
 
-Before any plan (not for `help`), read §5.3 « Corriger un commit précédent » of the guide `docs/dev_guide/guide-travail-dev-ia.html` (repo root): locate it with `Grep` pattern `<h[12]>` (`-n`), then `Read` from the heading's line up to the next `<h1` or `<h2`. Heading missing → find the section by its title in that index. The merge without squash (above) is this repo's choice, not a contradiction. Anything else in this skill that contradicts the guide → follow the guide, and add one warning line `gear-fix-up à mettre à jour : <point>.` No guide file → say so and stop. The confirmation rule below stays, whatever the guide says.
+Before any plan (not for `help`), read §5.3 « Corriger un commit précédent » of the guide `docs/dev_guide/guide-travail-dev-ia.html` (repo root): locate it with `Grep` pattern `<h[12]>` (`-n`), then `Read` from the heading's line up to the next `<h1` or `<h2`. Heading missing → find the section by its title in that index. The history mode (above) is this repo's choice, not a contradiction. Anything else in this skill that contradicts the guide → follow the guide, and add one warning line `gear-fix-up à mettre à jour : <point>.` No guide file → say so and stop. The confirmation rule below stays, whatever the guide says.
 
 ## Plan, then confirm, then run — always
 
@@ -82,7 +82,7 @@ List `fixup!`/`squash!`/`amend!` commits not yet folded (`git log --format='%h %
 
 ## PR ouverte: rewriting
 
-The guide advises against it (§5.3), except here to fold `fixup!` commits that would otherwise land on `master`. Same plans and confirmations as above (fold, then push), with the line `Préviens le reviewer : il doit relire depuis le début.` in the push plan.
+The guide advises against it (§5.3), except, without Historique simple, to fold `fixup!` commits that would otherwise land on `master` (in Historique simple the squash on merge absorbs them). Same plans and confirmations as above (fold, then push), with the line `Préviens le reviewer : il doit relire depuis le début.` in the push plan.
 
 ## `help`
 
@@ -91,7 +91,8 @@ Print this, as is:
 ```
 Fixup = corriger un commit précédent de la branche sans commit « fix ».
 Avant la PR ouverte : fixup puis repli. Après : nouveau commit avec le pourquoi.
-Ici, pas de squash à la fusion : un fixup! non replié arrive sur master.
+En historique simple (ce dépôt) : squash à la fusion, rien à replier.
+Sans lui : un fixup! non replié arrive sur master.
 
 /gear-fix-up          route chaque changement vers son commit et crée les fixups
 /gear-fix-up status   ce qui reste à replier / à router
