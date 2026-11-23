@@ -23,6 +23,8 @@
  *  cascade comprise). Retirés : ideReview (accordéons, Valider d'un fichier).
  *  L'onglet affiché (Structure · Code) est gardé par agent (useKept).
  *  Contract : le contrat d'un module, par rubrique (contractParts, InlineMd).
+ *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : en créateur, la Forme montre sa validation
+ *  (MarkControl, by de step.check : « validée par le système », ou à la main) ; Valider la forme reste, en discret.
  *  Ne connaît pas : le pont (rappels passés), le brouillon entier (view.draft, filtré par module). Utilisé par : step-views, modules-view (Contract). */
 import { useEffect, useState, type ReactNode } from 'react';
 import { checkMark, contractParts, fileParts, goneModule, ideFiles, remark, remarksAt, type IdeFile, type Strings } from 'core/vibecoder';

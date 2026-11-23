@@ -8,6 +8,11 @@
  *  sur un fichier borné du projet (BOUNDED : ses réglages et skills `.claude/`,
  *  un `AGENTS.md`, un `package.json`, `.git/`, `.husky/`). Un chemin est jugé
  *  résolu (relatif au projet, liens suivis par `real` : /home → /var/home).
+ *  Une course à qui l'appelant passe `frozen` (Vérifier l'alignement, note
+ *  0.16.0-controle-en-trois-points : les fichiers de tests d'invariants qui existaient
+ *  au départ de la branche, chemins relatifs au projet) n'écrit dans aucun d'eux, jugé
+ *  au chemin demandé comme au chemin réel ; la raison dit que le fichier est protégé
+ *  et que son cas remonte à l'utilisateur ([toi]). Sans `frozen` : comme avant.
  *  Un autre outil (Bash, Agent…) : rien à dire, le mode et la liste en décident.
  *  `real` suit les liens d'un chemin ; il peut lever sur un fichier qui n'existe pas
  *  encore (un Write) : on juge alors son plus proche dossier existant, nom remis
@@ -16,7 +21,8 @@
  *  ne sont pas jugées sur ces noms (ce sont les fichiers de l'agent). Le motif d'un
  *  Glob (le filtre d'un Grep) ne sort pas de son dossier : absolu ou `..`, refusé.
  *  Pur. Les outils de lecture sont ceux de core/agents (READ_TOOLS). Ne connaît pas : le SDK et la forme de sa réponse, le disque
- *  (`real` passé), les règles de l'utilisateur, ce que lance une commande.
+ *  (`real` passé), les règles de l'utilisateur, ce que lance une commande, git (la
+ *  liste `frozen` est lue par l'appelant).
  *  Utilisé par : app/controllers (runs : runRights). */
 
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
@@ -24,7 +30,8 @@ import { READ_TOOLS } from 'core/agents';
 import { inside } from './files';
 
 // Les dossiers d'une course, chemins réels ; reads : l'action est marquée en lecture.
-export type Bounds = { project: string; out: string; plugin: string; reads: boolean };
+// frozen : les fichiers du projet (chemins relatifs) que cette course n'écrit pas ; absent : aucun de plus.
+export type Bounds = { project: string; out: string; plugin: string; reads: boolean; frozen?: readonly string[] };
 
 // La décision : passer (le mode et la liste jugent ensuite), ou refuser, avec la raison
 // que lira l'agent (le chemin et pourquoi).

@@ -14,8 +14,20 @@
  *  si une remarque y est (hasComment). Et la
  *  vérification de conception de la note, gardée avec les validations (la cible
  *  'design'). Rend un nouvel état, ne touche pas à l'ancien.
+ *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) :
+ *  - Valider la note, un seul geste : noteClick rend 'check' à chaque Valider du créateur (plus seulement le premier) ;
+ *    la note n'est validée que par designEnd, quand la vérification finit sans question ; plus de Revérifier.
+ *  - Les validations d'étape du système : vibeMarks ne dépend plus du mode Vibe et ne valide jamais la note ; la Forme
+ *    et les invariants faits (view.steps) reçoivent leur marque avec by: 'system', chaque cas son ✓ comme avant (un ✓
+ *    ou ✗ déjà donné reste) ; une marque d'étape posée à la main (sans by) pour ce contenu reste telle quelle.
+ *    Les modules : par step.validate (le contrôleur, by: 'system'), jamais ici.
+ *  - keepNote(marks: Marks, o: { validated: string | null; design: string; accepted: string[] }): Marks — la note
+ *    validée puis changée : sa marque passe à la conception d'aujourd'hui (design) si celle-ci n'ajoute à la conception
+ *    validée (validated : son texte retenu, null : pas retenu) que des textes de accepted (onlyAccepted) ; sinon,
+ *    sans marque 'ok' sur la note, ou la marque déjà à jour : marks tel quel (le ✓ tombe : « modifiée depuis »).
  *  Ne connaît pas : Electron, le disque (l'état est rangé par app/settings), la
- *  course design-check (le contrôleur lui dit comment elle a fini).
+ *  course design-check (le contrôleur lui dit comment elle a fini), le rythme (par défaut, express), les réponses
+ *  envoyées (les textes acceptés sont passés).
  *  Utilisé par : core/vibecoder (journey : checked ; step-checks), app/controllers/vibecoder, app/settings. */
 import type { VibeComment, VibeFlow, VibeMarkState, VibeView } from 'shared/bridge';
 import { caseKeys } from 'shared/test-cases';
@@ -30,7 +42,8 @@ import type { FileBlobs } from './validated';
 // after, files : une validation d'étape (step-checks) — l'empreinte de la marque de l'étape d'avant, celle de sa liste de fichiers.
 // common : un cas (case-marks) — l'empreinte du code commun de son fichier ; hash, celle de son bloc (absent : une marque d'avant
 // la 0.15.0, sur le fichier entier, convertCaseMarks).
-export type Marks = Record<string, { hash: string; verdict: 'ok' | 'ko'; after?: string; files?: string; common?: string }>;
+// by : une validation d'étape posée par le système ('system') ; absent : par l'utilisateur.
+export type Marks = Record<string, { hash: string; verdict: 'ok' | 'ko'; after?: string; files?: string; common?: string; by?: 'system' }>;
 // Par numéro de PR.
 export type Drafts = Record<string, VibeComment[]>;
 
@@ -66,6 +79,12 @@ export function designEnd(
   if (end.state !== 'done') return marks;
   const checked = setMark(marks, 'design', end.path, 'ok');
   return end.clicked && !end.questions ? setMark(checked, 'note', end.clicked, 'ok') : checked;
+}
+
+// La note validée puis changée : son ✓ suit la conception d'aujourd'hui si le changement n'y ajoute que des textes
+// « Accepter » choisis par l'utilisateur (onlyAccepted de accepted) ; sinon marks tel quel.
+export function keepNote(_marks: Marks, _o: { validated: string | null; design: string; accepted: string[] }): Marks {
+  throw new Error('not implemented');
 }
 
 // L'empreinte du contenu d'une cible dans le relevé : la note (sa conception, noteDesign), « rien à écrire » de l'étape

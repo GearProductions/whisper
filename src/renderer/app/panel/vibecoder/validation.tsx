@@ -12,6 +12,13 @@
  *  l'annule) ; CaseVerdict sert à tout cas ou commit (il ne sait rien d'un
  *  invariant). Sur un « À revoir », onRemark (facultatif) ajoute le bouton
  *  « Ajouter une remarque au brouillon » : il ne fait qu'appeler onRemark.
+ *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : la note en créateur, un seul bouton,
+ *  Valider la note (pas validée) ou Revalider (modifiée depuis), qui lance la vérification (onMark('ok')), sa course à
+ *  côté ; plus de Revérifier ni de Valider et vérifier (checked et onRecheck ne sont plus lus). Une étape (forme,
+ *  invariants, modules) en créateur : son état seul quand elle est validée — « validée par le système » et ce qui l'a
+ *  contrôlée (by: 'system' ; forme : les squelettes posés ; invariants : l'alignement ; modules : la conformité et la
+ *  preuve par mutation), « validée » à la main sinon — ; Valider, Revalider et Annuler restent, en discret (un
+ *  bouton sans couleur ni coche, jamais mis en avant, jamais grisé par l'étape d'avant qui attend).
  *  Ne connaît pas : le pont (rappels passés), le brouillon, ce que porte le cas ; de step-parts, que RunOn.
  *  Utilisé par : note-view, forme-view, invariants-view, modules-view, commits-view. */
 import { t, waitingFor } from 'core/vibecoder';
@@ -70,6 +77,7 @@ const S: Record<VibeLang, typeof fr> = {
 // run : la course design-check de la note (en cours, attend une autorisation, arrêtée ; queued : en file) ; absent : aucune.
 type DesignRun = { state: 'running' | 'asking' | 'stopped' | 'queued'; onStop?(): void };
 type MarkProps = { what: What; state: VibeMarkState; review: boolean; lang: VibeLang; onMark(v: Verdict): void; onRemark?(): void; checked?: boolean; onRecheck?(): void; run?: DesignRun;
+  by?: 'system';      // une étape validée par le système (VibeStepCheck.by) ; absent : à la main
   waiting?: string;   // la raison qui grise Valider (l'étape d'avant n'est pas validée) ; absent : actif
 };
 

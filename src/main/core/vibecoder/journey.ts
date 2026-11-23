@@ -85,6 +85,27 @@
  *  Les mêmes règles pour les deux historiques d'un projet (note 0.16.0-flow-allege) : un commit par module et ses
  *  fixups repliés, ou un seul commit pour le code de tous les modules et des corrections en commits ordinaires —
  *  l'étape Modules, l'étape Revue et la case « Chaque module commité, aucun fixup à replier » de l'étape PR.
+ *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points), en créateur :
+ *  - la note n'est faite que par le ✓ de l'utilisateur, jamais tenue pour validée (Vibe en cours compris) ; la Forme, les
+ *    invariants et les modules ne l'attendent plus pour être faits : la Forme, dès qu'elle a des modules ; les
+ *    invariants, alignés (align.md sans rubrique [toi], toiCount) ou chaque cas validé à la main, et le premier commit
+ *    fait ; sans ligne « → invariant » : comme avant ;
+ *  - la preuve (proof : proofOf de outputs, preuve.md et les lignes « → invariant » de la note) : l'étape Modules n'est
+ *    pas faite tant qu'elle n'est ni 'ok' ni 'none', quel que soit le rythme ; Prouver les invariants (prove) est sa
+ *    prochaine action une fois chaque module commencé, avant Commiter les modules ; masquée sans ligne
+ *    « → invariant » (ses faits le disent : « rien à prouver ») ; une preuve passée le reste quand le code change
+ *    ensuite (un module corrigé, un commit de plus) : Prouver les invariants n'est pas reproposée ;
+ *  - check.by de chaque étape validée : 'system' d'après sa marque ;
+ *  - la pause (pause) : 'note', un commit porte la note (ou, ignorée par git, la branche a un commit) et elle n'a pas
+ *    son ✓ ; 'invariants', l'étape Invariants faite, le premier commit fait, aucun module commencé ; 'modules',
+ *    l'étape Modules faite, la Revue pas commencée (ni vérifications ni ponytail review) ; sinon null ; le relecteur :
+ *    toujours null ; express (recopié de l'entrée) n'y change rien, c'est holdsPause de vibe-mode qui tranche ;
+ *  - Vibe (le moteur, relancé à une pause) : la prochaine action d'une pause 'invariants' ou 'modules' ; Vérifier la
+ *    conception toujours masquée (plus de Revérifier : elle part de Valider la note) ; Relire le diff, Lire en
+ *    pseudo-code : jamais prochaine action ;
+ *  - la liste « Avant la PR » : « Chaque diff a été relu » cochée par le relevé (les modules validés et la ponytail
+ *    review faite), plus à la main ; « AGENTS.md à jour… » reste à la main.
+ *  Le relecteur : rien ne change (ses étapes, ses actions, ses faits).
  *  Ne connaît pas : Electron, le disque, git, gh (tout est passé ; `exists` dit si
  *  un chemin du dossier de l'agent existe ; les textes des tests, à la tête et à la base, sont lus par
  *  l'appelant) ; l'historique que choisit le projet (AGENTS.md : lu par les skills de commit, jamais ici).
@@ -113,6 +134,7 @@ export type JourneyInput = {
   pr: number | null;            // la PR suivie (vibeSet({ pr }), load-pr), les deux rôles
   autonomy?: 'guide' | 'vibe';  // d'avant la 0.12.0, ignorée (plus rendue) : vibe la remplace
   vibe?: boolean;               // le mode Vibe en cours (F-103) ; absent : non
+  express?: boolean;            // le rythme express (aucune pause) ; absent : le rythme par défaut
   agent: { model: string; effort: string; mode: string };
   busy: boolean;                                    // la conversation de l'agent travaille
   // Les courses qui retiennent (runs : LOCKING), par id d'action, avec le module qu'elles génèrent (Run.module).

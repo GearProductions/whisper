@@ -16,6 +16,11 @@
  *  Vibe, à côté de « N commits » (vibe : l'action et si Vibe tourne ; null, le
  *  relecteur : rien) : le bouton de l'action (grisé, avec sa raison, si elle
  *  l'est) ; pendant Vibe, Arrêter Vibe à sa place (onStopVibe), même l'action masquée (« déjà en cours »).
+ *  Les deux rythmes (note 0.16.0-controle-en-trois-points), en créateur : à côté du bouton, l'interrupteur Express
+ *  (view.express ; onExpress(true | false)), toujours là, note validée ou pas, Vibe en cours ou pas ; à une pause
+ *  (view.pause 'invariants' ou 'modules', Vibe pas en cours) le bouton de l'action dit Relancer, et une ligne dit ce
+ *  qu'il y a à regarder (les invariants posés ; l'essai à l'écran, avant la revue) ; 'note' : « la note attend sa
+ *  validation ». Le relecteur : rien.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
 import { useEffect, useState } from 'react';
 import { crumbCheck, waitingFor, type Strings } from 'core/vibecoder';
@@ -27,6 +32,7 @@ type Props = {
   view: VibeView; t: Strings; selected: VibeStepId | null;
   vibe: { a: VibeAction; on: boolean } | null;
   onPick(id: VibeStepId): void; onOpen(id: string): void; onVibe(): void; onStopVibe(): void;
+  onExpress?(on: boolean): void;   // l'interrupteur Express ; absent : pas d'interrupteur
 };
 
 export function Breadcrumb({ view, t, selected, vibe, onPick, onOpen, onVibe, onStopVibe }: Props) {

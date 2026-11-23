@@ -174,6 +174,26 @@
  *  vérification la valide ou non) ; repartie quand la note change de fichier. Un message envoyé, un tour ou une course
  *  qui commence ne la changent plus. Les actions en file d'attente (queuedOf de controllers/runs) partent au relevé
  *  (queued) : la page montre « en attente » à côté du bouton, design-check comprise.
+ *  Le contrôle en trois points (0.16.0, note controle-en-trois-points) :
+ *  - le moteur part seul : au relevé qui range la fin d'une vérification de conception validant la note (designEnd), puis à
+ *    chaque relevé tant qu'elle n'est pas partie, l'action vibe est lancée comme un clic (startAction, vibeStart ; retenue :
+ *    en file) ; le rythme de l'agent (expressOn de controllers/runs) part au parcours (express), et chaque relevé tient la
+ *    pause (pauseVibe) ; setVibe({ express }) : le rythme réglé (setExpress), et, passé en express à une pause
+ *    'invariants' ou 'modules' du dernier relevé, le moteur relancé ; jamais sans la note validée ;
+ *  - Valider la note, un seul geste : chaque Valider du créateur lance la vérification (noteClick), plus de Revérifier ;
+ *    un second Valider, comme le premier, n'envoie que le gabarit de la vérification, ni le texte du champ ni ses
+ *    pièces jointes (I-2 ; tests/invariants/design-check-text.test.ts, son cas « Revérifier… » retouché avec l'accord
+ *    de l'utilisateur : la règle est la même, seul le geste change) ;
+ *    la conception validée est retenue dans les sorties (validated/<empreinte>, comme les fichiers d'une étape) ; à
+ *    l'envoi des réponses (answers), les textes « Accepter » choisis sont gardés en mémoire (acceptedTexts, d'après les
+ *    questions du dernier relevé) ; au relevé, la note changée garde son ✓ par keepNote seulement (sa conception retenue,
+ *    ces textes), sinon il tombe ; aucun autre chemin ne valide la note à la place de l'utilisateur ;
+ *  - les validations du système : vibeMarks à chaque relevé du créateur (plus seulement pendant Vibe) ; step.validate
+ *    (validateVibe) pose by: 'system', et refuse les modules (not-offered) tant que la preuve du dernier relevé
+ *    (view.proof) n'est ni 'ok' ni 'none' ; le ✓ de l'écran (markVibe) reste à la main, sans by ;
+ *  - preuve.md : une sortie de branche de plus (BRANCH_OUTPUTS), lue au relevé comme align.md ; effacée par
+ *    controllers/runs quand la course prove a touché le dossier de travail ou l'index ; align.md de même, effacé par
+ *    controllers/runs quand la course align a changé un test d'invariant d'avant la branche.
  *  Ne connaît pas : la page (seulement ses canaux), la fenêtre, le jeton du socket.
  *  Utilisé par : app/ipc (runVibeAction, vibeRunOp, draftVibe, dropOnArtifacts), app/menus, controllers/conversation,
  *  controllers/runs, controllers/agents et controllers/module-code

@@ -4,8 +4,16 @@
  *  aussitôt le repos : off s'il l'est déjà) ; au repos (conversation libre,
  *  aucune course vivante ni demande retenue) : halted → off, on → off sans
  *  question ouverte (une question qui bloque le garde on) ; sinon inchangé.
- *  Ne connaît pas : Electron, le disque, les courses (leur compte est passé).
+ *  Les deux rythmes du créateur (note 0.16.0-controle-en-trois-points) : un seul moteur, ce mode ; le rythme par
+ *  défaut tient deux pauses, l'express aucune.
+ *  holdsPause(o: { at: VibePause | null; express: boolean; released: VibePause | null }): boolean — la pause où se
+ *  tient le parcours (at, calculée par journey) est-elle tenue : 'note' (la note a perdu son ✓) toujours, express
+ *  compris ; 'invariants' et 'modules' au rythme par défaut seulement, et pas celle d'où l'utilisateur vient de
+ *  relancer (released) ; null : non. Tenue, le contrôleur arrête le moteur comme la bannière (stop : la file jetée,
+ *  la porte agent refuse halted), il ne repart qu'au geste de l'utilisateur.
+ *  Ne connaît pas : Electron, le disque, les courses (leur compte est passé), le parcours (la pause est passée).
  *  Utilisé par : app/controllers (runs, vibecoder). */
+import type { VibePause } from 'shared/bridge';
 
 export type VibeMode = 'on' | 'halted' | 'off';
 export type VibeRest = { busy: boolean; live: number; waiting: number; questions: number };
@@ -16,4 +24,8 @@ export function nextVibeMode(mode: VibeMode, e: 'stop' | VibeRest): VibeMode {
   if (e === 'stop') return mode === 'on' ? 'halted' : mode;
   if (!atRest(e)) return mode;
   return mode === 'halted' || !e.questions ? 'off' : mode;
+}
+
+export function holdsPause(_o: { at: VibePause | null; express: boolean; released: VibePause | null }): boolean {
+  throw new Error('not implemented');
 }

@@ -238,7 +238,21 @@ export type VibeStep = {
 // La validation d'une étape (note 0.15.0-ecran-statuts) : state 'ok', cochée ; 'changed', ce qu'elle a validé a changé ;
 // 'cascade', une étape d'avant décochée ou revalidée depuis (cause : la première étape décochée) ; null : jamais validée.
 // now : l'empreinte de ce que Valider retiendrait aujourd'hui ; null : rien à valider, ou pas encore offert.
-export type VibeStepCheck = { state: 'ok' | 'changed' | 'cascade' | null; cause?: VibeStepId; now: string | null };
+// by : 'system', validée par le système quand ses contrôles sont passés (note 0.16.0-controle-en-trois-points : la Forme,
+// les invariants, les modules ; jamais la note) ; absent : validée à la main.
+export type VibeStepCheck = { state: 'ok' | 'changed' | 'cascade' | null; cause?: VibeStepId; now: string | null; by?: 'system' };
+
+// La pause où se tient le parcours du créateur (note 0.16.0-controle-en-trois-points) : 'note', la note validée a perdu
+// son ✓ (tenue dans les deux rythmes) ; 'invariants', le premier commit fait, aucun module commencé ; 'modules', l'étape
+// Modules faite, la Revue pas commencée (ces deux-là : le rythme par défaut seul).
+export type VibePause = 'note' | 'invariants' | 'modules';
+
+// preuve.md (note 0.16.0-controle-en-trois-points) : une ligne « → invariant » de la note — line, son texte ; proved,
+// un mutant a fait échouer son test ; detail, le mutant qui l'a prouvée, ou pourquoi elle remonte à l'utilisateur.
+export type VibeProofLine = { line: string; proved: boolean; detail: string };
+// La preuve des invariants par mutation : 'none', rien à prouver (aucune ligne « → invariant ») ; 'missing', pas de
+// preuve, ou une ligne de la note n'y est pas ; 'blocked', une ligne pour l'utilisateur ([toi]) ; 'ok', toutes prouvées.
+export type VibeProof = { state: 'none' | 'missing' | 'blocked' | 'ok'; lines: VibeProofLine[] };
 
 // Les étapes qui ont une vue IDE et un menu de diff.
 export type VibeDiffStep = 'forme' | 'invariants' | 'modules';
@@ -423,6 +437,9 @@ export type VibeView = {
   flow: VibeFlow;
   autonomy?: 'guide' | 'vibe';            // d'avant la 0.12.0, ignorée
   vibe?: boolean;                        // le mode Vibe en cours (F-103) ; absent : non
+  express?: boolean;                     // le rythme : express (aucune pause), sinon par défaut (deux pauses) ; absent : par défaut
+  pause?: VibePause | null;              // créateur : la pause où se tient le parcours ; absent ou null : aucune
+  proof?: VibeProof;                     // créateur : la preuve des invariants par mutation (preuve.md) ; absent : pas lue
   agent: { model: string; effort: string; mode: string };
   repo: { branch: string; base: string; changed: number } | null;
   error: string | null;                  // pourquoi le parcours manque (pas un dépôt, git introuvable…)
@@ -498,6 +515,7 @@ export type VibeArgs = {
 
 export type VibePatch = {
   vibe?: false;                // la bannière : arrêter le mode Vibe (la course en cours finit)
+  express?: boolean;           // le rythme : passer en express (true), revenir au rythme par défaut (false)
   pr?: number | null;          // la PR suivie
   seen?: boolean;              // « Vu » : la note de référence devient l'actuelle
   modulesView?: 'ide' | 'list'; // le réglage de la vue Modules

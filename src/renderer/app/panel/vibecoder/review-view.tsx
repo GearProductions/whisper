@@ -19,6 +19,9 @@
  *  vérifications (F-115) : ni Relancer ni bouton, sans sortie l'invitation le dit.
  *  Puis, pour le créateur comme pour le relecteur (qui ne voit qu'elle), « Relire à
  *  l'écran » (EcranSection) ; l'en-tête n'y répète pas l'action screen.
+ *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : « Chaque diff a été relu » est cochée par
+ *  le relevé (plus de case à la main, son aide dit par quoi : le contrôle des modules et la ponytail review) ; seule
+ *  « AGENTS.md à jour… » reste à cocher à la main, dite facultative.
  *  Ne connaît pas : le pont (rappels passés ; l'état des courses par StopRun).
  *  Utilisé par : step-views. */
 import { useContext, useState } from 'react';

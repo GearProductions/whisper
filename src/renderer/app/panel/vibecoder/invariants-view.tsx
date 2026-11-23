@@ -66,6 +66,10 @@
  *  (IdeFile.gone, id r<i>) : suivi, son diff tout en retraits (ModuleCode diff). Retirés : ideReview (accordéons, Valider d'un
  *  fichier), FileOrDiff.
  *  L'alignement (align.md) : MarkdownView tagged (badges pour toi / pour l'agent, le grisé).
+ *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : en créateur, l'étape montre sa validation
+ *  (by de step.check : « validée par le système », sur l'alignement) ; Valider les invariants, le ✓ de chaque cas et
+ *  Lire en pseudo-code restent à leur place, en discret, sans « n cas à valider » ni rien qui attende ; le relecteur :
+ *  inchangé.
  *  Ne connaît pas : le pont (rappels passés), le brouillon (ses remarques, par cible). Utilisé par : step-views. */
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {

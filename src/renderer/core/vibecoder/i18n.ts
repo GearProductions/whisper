@@ -23,6 +23,9 @@
  *  la page des réglages (titre de l'engrenage, catégories, chaque réglage, information et commande) ;
  *  le badge d'une étiquette des fichiers de retour (tags : « pour toi », « pour l'agent »). Ceux des boutons viennent des
  *  actions (actions.<langue>.json).
+ *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : l'interrupteur Express et son infobulle,
+ *  Relancer (le bouton du moteur à une pause), la ligne de chaque pause (note, invariants, modules), le titre de la
+ *  sortie preuve.md, et l'état d'une étape validée par le système (stepCheck : « validée par le système »).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
 import type {
   AgentActivity, AgentView, SettingKey, SettingsCategory, SettingsCommand, SettingsInfo, VibeLang, VibeRun, VibeRunProgress, VibeStepId,

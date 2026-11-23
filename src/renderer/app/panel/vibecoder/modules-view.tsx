@@ -45,6 +45,12 @@
  *  'modules', dans les actions de la carte entre Générer et Commiter, offert si step.check.now ou validé : Annuler
  *  reste là) ; « modifiée depuis la validation » (StepHead onSince) passe sur Depuis la validation, en vue IDE
  *  (note 0.15.0-ecran-statuts). Retirés : ideReview (accordéons, Valider d'un fichier).
+ *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points), en créateur : la preuve des invariants
+ *  (preuve.md : une carte comme align.md à l'étape Invariants, MarkdownView tagged, Relancer dans son en-tête, l'action
+ *  prove ; sans ligne « → invariant » : pas de carte) ; Prouver les invariants parmi les actions de la carte des
+ *  modules (CARD_ACTS : après Générer les modules, avant Commiter les modules) ; la validation des modules montrée
+ *  (by de step.check : « validée par le système », sur la conformité et la preuve), Valider les modules en discret ;
+ *  Relire le diff reste sur la ligne de chaque module, à la demande.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useEffect } from 'react';
 import { checkMark, waitingFor, fileParts, goneModule, ideFiles, moduleCommits, moduleState, type IdeFile, type ModuleState } from 'core/vibecoder';

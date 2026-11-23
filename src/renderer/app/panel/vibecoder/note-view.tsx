@@ -32,6 +32,10 @@
  *  Au-dessus, Créer : les questions ouvertes (questions-view) ; Relire : la
  *  relecture de la note par l'agent (Relancer). Pas de note : ce qu'il faut
  *  faire pour en avoir une. Styles : note-view.css.
+ *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : en créateur, la validation de la note est un
+ *  seul bouton (MarkControl) : Valider la note lance la vérification de conception (act.mark('note', 'ok')), la note
+ *  est validée quand elle finit sans rien de bloquant, sinon ses suggestions sont au questionnaire au-dessus ; plus
+ *  de Revérifier (act.run('design-check') n'est plus appelé d'ici).
  *  Ne connaît pas : le pont (rappels passés), le disque. Utilisé par : step-views. */
 import { useEffect, useMemo, useState } from 'react';
 import { changedLines, excerpt, fileParts, isLive, lineDiff, mustNotLine, mustNotTags, parseMarkdown, placeRemoved, remark, remarksAt, removedGroups } from 'core/vibecoder';

@@ -44,7 +44,29 @@
  *  failed ou stopped, sa réponse) ; null : ni l'une ni l'autre, ou la demande n'a plus de course (file vidée, invalide, agent oublié).
  *  La course Commit (commit) : l'appli efface <sorties>/commit.md à sa fin si le commit est passé (HEAD a bougé depuis son départ ;
  *  dropCommitMessage) — le skill ne l'efface pas.
- *  Courses, avis, file et mode Vibe : en mémoire. closeRuns : l'agent oublié.
+ *  Les deux rythmes (note 0.16.0-controle-en-trois-points), en mémoire avec le mode : expressOn (le rythme express de
+ *  l'agent ; absent : par défaut), setExpress (le régler : la bannière) ; vibeStart(agent, released) retient la pause
+ *  d'où l'utilisateur relance (celle du dernier relevé : elle n'est plus tenue) ; pauseVibe(agent, view), à chaque
+ *  relevé de l'agent (controllers/vibecoder, panneau visible ou non) : le mode en cours et la pause du relevé tenue
+ *  (holdsPause de core/vibecoder : rythme, pause relancée) → arrêté comme par la bannière (vibeStop : la file jetée,
+ *  la porte agent refuse halted, la course en cours finit) ; rien d'autre ne tient une pause. Le rythme n'est jamais
+ *  écrit dans les réglages : l'appli relancée, chaque agent est au rythme par défaut.
+ *  Les deux contrôles de la preuve (même note), tenus par l'appli et non par la consigne d'un skill :
+ *  - la course Vérifier l'alignement (align) part avec, dans le contrôle de ses fichiers (bounds.frozen), les
+ *    fichiers de tests d'invariants qui existaient au départ de la branche (isInvariantTest sur les fichiers du
+ *    commit où elle part de sa base, lus par technicals/git avant l'envoi de son message, GIT_READ inchangé) : elle
+ *    n'y écrit pas ; liste illisible : elle finit en échec avant son tour, sa réponse le dit ; ce contrôle ne voit pas
+ *    les commandes de son terminal, qu'elle garde : l'état de ces seuls fichiers (un WorkState de core/vibecoder :
+ *    l'empreinte du contenu de chacun, lue sur le disque, absent compris) est donc relevé à son départ et à sa fin
+ *    quelle qu'elle soit (finish, l'arrêt) ; l'un d'eux changé, disparu ou revenu (touched) : sa réponse commence par
+ *    touchedLine (le fichier nommé), finie elle est en échec, et l'appli efface <sorties>/align.md (comme preuve.md
+ *    ci-dessous : l'étape Invariants ne paraît pas faite après cet échec) ; aucun changé, ou liste vide : rien de plus ;
+ *  - la course Prouver les invariants (prove) : l'état du dossier de travail et de l'index (workState de
+ *    core/vibecoder : HEAD, status, diff --cached, l'empreinte du contenu des fichiers changés ou pas suivis) est
+ *    relevé à son départ et à sa fin quelle qu'elle soit (finish, l'arrêt) ; une différence (touched) ou un état
+ *    illisible : sa réponse commence par touchedLine (les fichiers nommés), finie elle est en échec, et l'appli
+ *    efface <sorties>/preuve.md (la preuve manque : l'étape Modules pas faite) ; sans différence : rien de plus.
+ *  Courses, avis, file, mode Vibe et rythme : en mémoire. closeRuns : l'agent oublié.
  *  Une course dont le skill a `context: fork` part sans tâches de fond (forked :
  *  CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1, le fork attend ses commandes) ; si une
  *  commande d'arrière-plan a quand même été coupée à sa fin, elle finit en échec et
@@ -60,7 +82,7 @@
  *  controllers/module-code, controllers/commands (runOp, runEnd, queuedOf), menus/agent-menus. */
 import fs from 'node:fs';
 import path from 'node:path';
-import type { RunSignal, SendResult, VibeArgs, VibeRunOp, VibeView } from 'shared/bridge';
+import type { RunSignal, SendResult, VibeArgs, VibePause, VibeRunOp, VibeView } from 'shared/bridge';
 import { EMPTY_LOG, runProgress, unreadAgents, type AgentConfig, type RunRights } from 'core/agents';
 import { agentList, vibeLang, type Config } from 'core/config';
 import type { PreparedImage } from 'core/conversation';
@@ -370,8 +392,23 @@ export const vibeOn = (agentId: string) => modes.get(agentId) === 'on';
 // Le mode Vibe de l'agent est arrêté (halted) : rien de nouveau ne part, ni de la file ni par sa porte (controllers/commands).
 export const vibeHalted = (agentId: string) => modes.get(agentId) === 'halted';
 
-// Vibe lancé (l'action vibe partie).
-export const vibeStart = (agent: Pick<AgentConfig, 'id'>) => { modes.set(agent.id, 'on'); };
+// Vibe lancé (l'action vibe partie) ; released : la pause du dernier relevé, d'où l'utilisateur relance (absent : aucune).
+export const vibeStart = (agent: Pick<AgentConfig, 'id'>, _released?: VibePause | null) => { modes.set(agent.id, 'on'); };
+
+// Le rythme express de l'agent (aucune pause) ; non : le rythme par défaut.
+export function expressOn(_agentId: string): boolean {
+  throw new Error('not implemented');
+}
+
+// La bannière : passer en express (true) ou revenir au rythme par défaut (false).
+export function setExpress(_agent: Pick<AgentConfig, 'id'>, _on: boolean): void {
+  throw new Error('not implemented');
+}
+
+// À chaque relevé de l'agent : le mode en cours et la pause du relevé tenue (holdsPause) → arrêté comme par la bannière (vibeStop).
+export function pauseVibe(_agent: Pick<AgentConfig, 'id'>, _view: Pick<VibeView, 'pause'>): void {
+  throw new Error('not implemented');
+}
 
 // La bannière : Vibe arrêté ; la file d'attente jetée, la course en cours finit ; déjà au repos : off.
 export function vibeStop(agent: Pick<AgentConfig, 'id'>) {

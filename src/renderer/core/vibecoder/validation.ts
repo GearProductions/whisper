@@ -4,6 +4,9 @@
  *  que les cas : la note et la forme ont leur ✓).
  *  Créer : la validation (✓) ; pendant Vibe (view.vibe), rien. Relire : un verdict
  *  (✓ ou ✗) sur la note et sur chaque cas (lu par sa clé, caseKeys de shared/test-cases).
+ *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : en créateur, seule la note est attendue
+ *  ({ kind: 'note' }), Vibe en cours ou pas ; la Forme et les cas ne le sont plus jamais (le système les valide) ;
+ *  le relecteur : inchangé.
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder (invariants-view : les cas à valider). */
 import { caseKeys } from 'shared/test-cases';
 import type { VibeMarkState, VibeView } from 'technicals/bridge';

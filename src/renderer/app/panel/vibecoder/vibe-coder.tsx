@@ -65,6 +65,8 @@
  *  aucun fichier suivi. L'onglet Actions ouvert le dit au principal
  *  (runsSeen : true, les courses de l'agent vues) ; quitté, ou l'écran fermé
  *  (dont un changement d'agent) : runsSeen false.
+ *  Les deux rythmes (note 0.16.0-controle-en-trois-points) : le fil d'Ariane reçoit onExpress, soit
+ *  act.set({ express }) ; Relancer à une pause est l'action vibe, comme son bouton.
  *  Ne connaît pas : le pont (rappels passés), le contenu de la conversation.
  *  Utilisé par : panel-app. */
 import { Component, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
