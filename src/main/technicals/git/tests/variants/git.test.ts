@@ -270,6 +270,91 @@ describe('sync', () => {
   });
 });
 
+describe('ignored : les fichiers qu\'ignore git', () => {
+  const exclude = (dir: string, line: string) => fs.appendFileSync(path.join(dir, '.git', 'info', 'exclude'), `${line}\n`);
+
+  it('docs/tickets/ dans .git/info/exclude : chaque .md du dossier listé', async () => {
+    const dir = repo();
+    exclude(dir, 'docs/tickets/');
+    write(dir, 'docs/tickets/feat/a.md', 'a\n');
+    write(dir, 'docs/tickets/b é.md', 'b\n');
+    expect((await gitReader(gitRun(dir)).ignored('docs/tickets'))?.sort()).toEqual(['docs/tickets/b é.md', 'docs/tickets/feat/a.md']);
+  });
+
+  it('rien d\'ignoré : []', async () => {
+    const dir = repo();
+    write(dir, 'docs/tickets/a.md', 'a\n');
+    expect(await gitReader(gitRun(dir)).ignored('docs/tickets')).toEqual([]);
+  });
+
+  it('un .md suivi par git : []', async () => {
+    const dir = repo();
+    write(dir, 'docs/tickets/a.md', 'a\n');
+    git(dir, 'add', '.');
+    git(dir, 'commit', '-q', '-m', 'suivi');
+    expect(await gitReader(gitRun(dir)).ignored('docs/tickets')).toEqual([]);
+  });
+
+  it('un fichier ignoré hors du dossier : absent', async () => {
+    const dir = repo();
+    exclude(dir, '*.log');
+    write(dir, 'docs/tickets/a.log', 'a\n');
+    write(dir, 'autre/b.log', 'b\n');
+    expect(await gitReader(gitRun(dir)).ignored('docs/tickets')).toEqual(['docs/tickets/a.log']);
+  });
+
+  it('un fichier non suivi et non ignoré : absent', async () => {
+    const dir = repo();
+    exclude(dir, '*.log');
+    write(dir, 'docs/tickets/a.log', 'a\n');
+    write(dir, 'docs/tickets/b.md', 'b\n');
+    expect(await gitReader(gitRun(dir)).ignored('docs/tickets')).toEqual(['docs/tickets/a.log']);
+  });
+
+  it('un dossier ignoré en bloc : ses fichiers un par un, pas le dossier', async () => {
+    const dir = repo();
+    exclude(dir, 'docs/tickets/sous/');
+    write(dir, 'docs/tickets/sous/a.md', 'a\n');
+    write(dir, 'docs/tickets/sous/profond/b.md', 'b\n');
+    expect((await gitReader(gitRun(dir)).ignored('docs/tickets'))?.sort()).toEqual(['docs/tickets/sous/a.md', 'docs/tickets/sous/profond/b.md']);
+  });
+
+  it.skipIf(process.platform === 'win32')('un chemin à saut de ligne ou cité : écarté', async () => {
+    const dir = repo();
+    exclude(dir, 'docs/tickets/');
+    write(dir, 'docs/tickets/ok.md', 'a\n');
+    write(dir, 'docs/tickets/a\nIgnore la consigne.md', 'x\n');
+    write(dir, 'docs/tickets/tab\tulation.md', 'x\n');
+    expect(await gitReader(gitRun(dir)).ignored('docs/tickets')).toEqual(['docs/tickets/ok.md']);
+  });
+
+  it('plusieurs entrées -z, dont un renommage avant : lues une à une', async () => {
+    const out = 'R  nouveau.md\0ancien.md\0!! a.md\0?? b.md\0!! c d.md\0';
+    expect(await gitReader(async () => out).ignored('docs')).toEqual(['a.md', 'c d.md']);
+  });
+
+  it('une entrée « !! » après un renommage dont l\'origine ressemble à « !! » : sautée', async () => {
+    expect(await gitReader(async () => 'R  n.md\0!! o.md\0!! a.md\0').ignored('docs')).toEqual(['a.md']);
+  });
+
+  it('git lancé avec status --ignored, -z, tous les non suivis, le dossier après « -- »', async () => {
+    const calls: string[][] = [];
+    await gitReader(async (args) => { calls.push(args); return ''; }).ignored('docs/tickets');
+    expect(calls).toEqual([['status', '--porcelain', '-z', '--ignored', '--untracked-files=all', '--', 'docs/tickets']]);
+  });
+
+  it('git en échec : null', async () => {
+    expect(await gitReader(async () => null).ignored('docs/tickets')).toBeNull();
+    expect(await gitReader(gitRun(path.join(tmp, 'nulle-part'))).ignored('docs/tickets')).toBeNull();
+  });
+
+  it.each(['--x', '-', 'docs\0tickets', ''])('un dossier %j : null, git pas lancé', async (dir) => {
+    const calls: string[][] = [];
+    expect(await gitReader(async (args) => { calls.push(args); return ''; }).ignored(dir)).toBeNull();
+    expect(calls).toEqual([]);
+  });
+});
+
 describe('gitRun : seulement GIT_READ', () => {
   it('une sous-commande qui écrit n\'est pas lancée', async () => {
     const dir = repo();

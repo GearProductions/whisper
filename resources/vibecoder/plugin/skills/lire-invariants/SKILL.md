@@ -21,7 +21,7 @@ The developer validates each invariant from your reading, often without reading 
 - `ref`: `WORKTREE` → read each file from disk at `<repo root>/<path>`; otherwise a git ref → `git show <ref>:<path>`;
 - items: `<path>@<blob>` separated by spaces — path relative to the repo root, blob = 40 or 64 hex characters; a path may contain spaces: an item ends at its `@<blob>`.
 
-For each item, write `<out>/invariants/<blob>.md` — always named after the blob you received, never one you compute; if it already exists, read the test again and overwrite it (the developer asked for a new reading) — and nothing else, anywhere. Don't run the tests. To name the note lines, read the ticket note's « Ce que ça ne doit pas faire » once if it is easy to find (under `docs/tickets/`, named like the branch).
+For each item, write `<out>/invariants/<blob>.md` — always named after the blob you received, never one you compute; if it already exists, read the test again and overwrite it (the developer asked for a new reading) — and nothing else, anywhere. Don't run the tests. To name the note lines, read the ticket note's « Ce que ça ne doit pas faire » once if it is easy to find (under `docs/tickets/`, named like the branch, on the disk even if git ignores it).
 
 ## Format — one file per test file
 

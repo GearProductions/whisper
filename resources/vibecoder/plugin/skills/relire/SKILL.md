@@ -15,7 +15,7 @@ A conformity read, not a bug hunt: does this diff stay inside what was decided?
 
 `$ARGUMENTS` = `<lang> <out> <target>`. `lang`: the user's language, not used here — code-related work: `review.md` and your answer in English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `target`: a commit hash → `git show <hash>`; `WORKTREE` → `git diff HEAD`, plus the untracked files (`git ls-files --others --exclude-standard`), read in full.
 
-Context: the note (under `docs/tickets/`, named like the branch, or the one the branch adds or changes) — « Ce que ça fait », « Ce que ça ne doit pas faire », the « Forme » entry of each module the diff touches; if present, `AGENTS.md` (architecture rules, protected files) and the guide (`docs/dev_guide/*.html`) §5.1. Read the code around the diff, not only the diff.
+Context: the note (under `docs/tickets/`, named like the branch, on the disk even if git ignores it, else the one the branch adds or changes) — « Ce que ça fait », « Ce que ça ne doit pas faire », the « Forme » entry of each module the diff touches; if present, `AGENTS.md` (architecture rules, protected files) and the guide (`docs/dev_guide/*.html`) §5.1. Read the code around the diff, not only the diff.
 
 ## `<out>/review.md`, in English
 

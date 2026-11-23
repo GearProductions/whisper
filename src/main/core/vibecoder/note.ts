@@ -5,13 +5,15 @@
  *  ses blocs comptent) et leur contrat ; une entrée peut avoir plusieurs chemins
  *  (« a.ts + b.ts  contrat » : des fichiers qui ne compilent qu'ensemble).
  *  Et où la trouver : la clé que porte la branche (ticket ou version), le
- *  fichier de docs/tickets/ qui la nomme parmi ceux que la branche change.
+ *  fichier de docs/tickets/ qui la nomme parmi ceux que la branche change ;
+ *  locateNote : parmi eux et, des fichiers de docs/tickets/ que git ignore, celui nommé
+ *  comme la branche (une note hors du projet, note 0.16.0-notes-hors-projet), et si elle est ignorée.
  *  Les questions ouvertes ne sont pas dans la note (<sorties>/questions.md).
  *  Sa conception (noteDesign) : « Ce que ça fait » et les rubriques qui la suivent,
  *  hors la Forme — la source de l'étape Forme (note 0.15.0-ecran-statuts).
  *  Ne connaît pas : Electron, le disque, git (texte et chemins passés).
  *  Utilisé par : core/vibecoder (journey : parseNote ; step-checks, marks, journey : noteDesign), app/controllers/vibecoder
- *  (noteKey, findNote, parseNote). */
+ *  (branchNoteKey, locateNote, parseNote). */
 import type { MustNotMark } from 'shared/bridge';
 import { oneLine } from 'helpers';
 
@@ -195,14 +197,35 @@ export function noteKey(branch: string, version: string | null): string | null {
     ?? (version || null);
 }
 
+// La clé de la note d'une branche pour le relevé : noteKey (le ticket, sinon la version), sinon le nom de la branche
+// sans son type (`feat/teams-admins` → `teams-admins`) : une branche sans ticket ni version (vu sur Gear Authenticator)
+// trouve sa note nommée exactement comme elle (findNote : jamais une note qui contient seulement ce mot).
+export const branchNoteKey = (branch: string): string => noteKey(branch, null) ?? branch.slice(branch.lastIndexOf('/') + 1);
+
+// Le fichier est nommé comme la branche (`<type>/<nom>` → `<nom>.md`), casse ignorée.
+const named = (p: string, branch?: string) =>
+  !!branch && `/${p}`.toLowerCase().endsWith(`/${branch.slice(branch.lastIndexOf('/') + 1)}.md`.toLowerCase());
+
 // Le .md sous docs/tickets/ nommé comme la branche (`<type>/<nom>` → `<nom>.md`),
 // sinon le premier (dans l'ordre des chemins) dont le nom contient `key` en mot
-// entier, sans tenir compte de la casse ; null si aucun. `paths` : les fichiers
+// entier, sans tenir compte de la casse ; null si aucun. Une branche sans ticket ni
+// version : seulement le fichier nommé comme elle. `paths` : les fichiers
 // que la branche change (la note du ticket en est, parfois avec la note d'un
 // autre ticket de la même version).
 export function findNote(paths: string[], key: string, branch?: string): string | null {
   const word = new RegExp(`(?<![A-Za-z0-9])${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z0-9])`, 'i');
-  const notes = [...paths].sort().filter((p) => /(^|\/)docs\/tickets\/.*\.md$/i.test(p) && word.test(p.slice(p.lastIndexOf('/') + 1)));
-  const own = branch && `/${branch.slice(branch.lastIndexOf('/') + 1)}.md`.toLowerCase();
-  return notes.find((p) => own && `/${p}`.toLowerCase().endsWith(own)) ?? notes[0] ?? null;
+  const exact = !!branch && !noteKey(branch, null);
+  const notes = [...paths].sort().filter((p) => /(^|\/)docs\/tickets\/.*\.md$/i.test(p) && word.test(p.slice(p.lastIndexOf('/') + 1))
+    && (!exact || named(p, branch)));
+  return notes.find((p) => named(p, branch)) ?? notes[0] ?? null;
+}
+
+// La note de la branche (findNote) parmi les fichiers que la branche change et, de ceux
+// de docs/tickets/ que git ignore (sur le disque, jamais commités ; git ne les retire pas
+// au changement de branche, les notes des branches passées y restent), le seul nommé comme
+// la branche ; ignored : elle est de ces derniers (une note hors du projet) ; null si aucune.
+export function locateNote(changed: string[], ignored: string[], key: string, branch?: string): { path: string; ignored: boolean } | null {
+  const own = ignored.filter((p) => named(p, branch));
+  const path = findNote([...changed, ...own], key, branch);
+  return path ? { path, ignored: own.includes(path) } : null;
 }

@@ -6,7 +6,7 @@ effort: high
 skills: ponytail
 ---
 
-You implement ONE module of a ticket. The prompt gives you what you need from the ticket note: the module's « Forme » entry (its contract), its « ne doit pas » lines, the paths of its invariant tests, and the files you may touch. Read AGENTS.md (or CLAUDE.md) for the commands and the architecture rules; open the note (`docs/tickets/…`) only if the prompt leaves something unclear. Code-related work: your answer in English; the code follows the project's convention (`AGENTS.md`), else English.
+You implement ONE module of a ticket. The prompt gives you what you need from the ticket note: the module's « Forme » entry (its contract), its « ne doit pas » lines, the paths of its invariant tests, and the files you may touch. Read AGENTS.md (or CLAUDE.md) for the commands and the architecture rules; open the note (`docs/tickets/…`: the file named like the branch, on the disk even if git ignores it, else the one the branch changes) only if the prompt leaves something unclear. Code-related work: your answer in English; the code follows the project's convention (`AGENTS.md`), else English.
 
 - The `ponytail` skill is preloaded: apply it, don't re-read it. The laziest solution that works, standard library first, no new dependency.
 - Start from the skeleton *Poser la forme* wrote (paths, headers, signatures, bodies that fail): fill it, don't recreate it. Same names, signatures and boundaries.

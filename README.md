@@ -394,6 +394,16 @@ le temps que l'appli tourne (un redémarrage l'oublie). En changeant d'agent, l'
 que la conversation et le relevé du nouvel agent soient là : jamais de page
 vide, l'en-tête et les robots ne bougent pas.
 
+**Des notes hors du projet** (0.16.0). Un projet public, ou qui code en
+anglais, n'a pas à garder des notes en français : ajoutez la ligne
+`docs/tickets/` au fichier `.git/info/exclude` du dépôt (partagé par ses
+worktrees ; rien n'est écrit dans le dépôt). Git ignore alors les notes, et
+VibeCoder le voit seul : pas de réglage. Il les retrouve sur le disque, ne les
+commite jamais (le premier commit ne garde que les squelettes et les
+invariants rouges) et la PR ne les cite pas. Le prix : la note vit dans la
+copie de travail, retirer le worktree de la branche l'efface. Relire la PR d'un
+autre, dont la note est restée chez lui : « pas de note », sans reproche.
+
 **L'écran.**
 
 - en haut, l'**en-tête** (la barre de titre de la fenêtre) : à gauche les
@@ -1300,7 +1310,8 @@ commit et de PR suivent la convention du projet). Pour tous les agents. La conve
 champ) reste en français.
 
 **Limites.** La note n'est trouvée que si le nom de la branche porte le
-ticket ou la version, et que la branche la change (ou la crée). Les actions
+ticket ou la version, et que la branche la change (ou la crée), ou que git
+l'ignore (note hors du projet, plus haut). Les actions
 lancées, et une nouvelle demande dans un worktree pas encore créé, ne
 survivent pas à un redémarrage de l'appli ; *Annuler* une action
 suppose que Claude Code reçoive le suivi des fichiers à travers sa commande

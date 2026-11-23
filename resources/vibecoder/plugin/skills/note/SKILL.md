@@ -14,7 +14,7 @@ allowed-tools: "Read, Glob, Grep, Write, Edit"
 
 1. The project or user skill `gear-prompt-specs-to-feature-note`: read its `SKILL.md` (`.claude/skills/<name>/` at the repo root, if present) and follow it — dictation cleanup, sections, marks, never inventing, file name, living note. Where it puts the questions in chat, do what « Questions » below says.
 2. Without it: the guide (`docs/dev_guide/*.html`: §2, §3.1 to §3.3, A.1; find the sections with `Grep` on `<h[12]>`), else these rules:
-   - one file, `docs/tickets/<type>/<ticket or version>-<slug>.md`, `<type>` = `feat`, `fix`, `refactor` or `chore`, named like the project's other notes; a note for this ticket exists → update it in place: final state only, the why of a choice in parentheses;
+   - one file, `docs/tickets/<type>/<ticket or version>-<slug>.md`, `<type>` = `feat`, `fix`, `refactor` or `chore`, named like the project's other notes; a note for this ticket exists (the file named like the branch, on the disk even if git ignores it, else the one the branch adds or changes) → update it in place: final state only, the why of a choice in parentheses;
    - only the sections that serve, titled exactly `## Ce que ça fait`, `## Ce que ça ne doit pas faire`, `## Où ça casse`, `## Ce que ça touche`, `## Forme`, `## Pistes pour plus tard` — whatever `lang`: the screen reads the note by these titles;
    - each « ne doit pas » line ends with its mark: `→ invariant` only if critical and invisible on screen (§3.2), else `→ variant suffit`, `→ vu en review` or `→ structure`;
    - every line comes from the request, the code or an existing note: never invent a requirement, a number or a module; a path you write exists, or says « à créer ».

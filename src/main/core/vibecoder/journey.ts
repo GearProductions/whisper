@@ -62,7 +62,9 @@
  *  il est touché si l'un l'est (note 0.15.0-stabilisation, T-15) ; commencé (started) seulement si un fichier a
  *  changé depuis son squelette : un commit sans la note le touche, ou, la note commitée, un fichier sous ses chemins
  *  n'est pas commité (le commit de la note : le plus ancien de la branche qui la porte, il porte les squelettes ;
- *  ses commits sont ceux hors de lui) : begun, Générer les modules, stillOk en dépendent, pas touched (note
+ *  ses commits sont ceux hors de lui ; la note ignorée par git, note.ignored : le plus ancien de la branche, et la
+ *  note n'est jamais attendue dans un commit — ni noteChanged, ni la case « note commitée » d'après elle, qui suit
+ *  ce premier commit ; note 0.16.0-notes-hors-projet) : begun, Générer les modules, stillOk en dépendent, pas touched (note
  *  0.15.0-skills-humain-ia) ; la note vérifiée (checked : la marque design de sa note, designChecked), Vérifier la
  *  conception masquée tant qu'elle ne l'est pas (la première part de Valider la note) ; un commit porte sa marque « commit:<hash> »
  *  (mark, absente : aucune ; T-23). Une action directe faite et dont rien n'a changé depuis ne ferait rien de
@@ -116,7 +118,8 @@ export type JourneyInput = {
   queued?: string[];                                // les actions en file d'attente (queuedOf de controllers/runs), dans l'ordre ; absent : aucune
   repo: { branch: string; base: string; changed: string[]; dirty?: string[]; added?: string[]; commits: { hash: string; subject: string; files: string[] }[] } | null;
   error: string | null;                             // pourquoi le dépôt manque
-  note: { path: string; text: string; before: string | null } | null;
+  // ignored : la note est ignorée par git (hors du projet, jamais commitée) ; absent : non.
+  note: { path: string; text: string; before: string | null; ignored?: boolean } | null;
   // Les tests de la branche ; base : leur texte à la base de la branche (null : absent à la base, ajouté ; absent :
   // inconnu, pas de base, ou au-delà de 200 Ko, aussi les fixtures des invariants protégés d'avant la 0.13.0).
   tests: { path: string; blob: string; text: string; base?: string | null }[];
@@ -289,8 +292,11 @@ export function vibeView(input: JourneyInput): VibeView {
     nothingMark: markState(marks, 'nothing', blobSha(input.note.text)), checked: designChecked(marks, input.note.path), locked: codeLock(null, input.busy, input.running, lang),
   };
   // Le commit de la note : le plus ancien de la branche qui la porte (les commits vont du plus ancien au plus récent) ;
-  // il porte aussi les squelettes des modules, qui ne sont pas un module fait.
-  const noteCommit = note && commits.find((c) => c.files.includes(note.path));
+  // il porte aussi les squelettes des modules, qui ne sont pas un module fait. Note ignorée par git (jamais commitée) :
+  // le plus ancien de la branche, tout simplement ; noteIn dit si un commit est le sien, et noteDirty si elle est à commiter.
+  const noteIn = (c: { files: string[] }) => !!note && (input.note?.ignored ? c === commits[0] : c.files.includes(note.path));
+  const noteCommit = note && commits.find(noteIn);
+  const noteDirty = !!note && dirty.includes(note.path);
   const modules: VibeModule[] = (facts?.modules ?? []).map((m, i) => {
     const bares = m.paths.map((p) => p.replace(/\/+$/, ''));   // un module a un chemin ou plusieurs (T-15)
     const per = bares.map((b) => changed.flatMap((f) => within(f, b) ?? []));   // les fichiers changés sous chaque chemin
@@ -366,7 +372,7 @@ export function vibeView(input: JourneyInput): VibeView {
   const stillOk = (s: VibeMarkState) => s === 'ok' || (begun && s === 'changed');
   const casesOk = invariants.every((f) => Object.values(f.marks).every(stillOk));
   // Les tests de l'étape Invariants : ceux qu'un commit porte avec la note (le premier, ses fixups repliés).
-  const stepTests = invariants.filter((f) => !!note && commits.some((c) => c.files.includes(note.path) && c.files.includes(f.path)));
+  const stepTests = invariants.filter((f) => !!note && commits.some((c) => noteIn(c) && c.files.includes(f.path)));
   const caseCount = invariants.reduce((s, f) => s + f.cases.length, 0);
   // un cas périmé n'est pas lu
   const readCount = invariants.reduce((s, f) => s + (f.reading ? f.cases.length - (f.staleCases?.length ?? 0) : 0), 0);
@@ -419,7 +425,7 @@ export function vibeView(input: JourneyInput): VibeView {
   const boxes = screen.filter((c) => c.done).length;
   const head = commits.at(-1)?.hash;
   const a3 = [
-    !!note && commits.some((c) => c.files.includes(note.path)),
+    commits.some(noteIn),   // note ignorée : le premier commit
     // Tous les invariants passent, quel que soit le nom que leur donne le projet (« invariants (backend) »…).
     !!checks?.some((c) => /invariant/i.test(String(c?.name))) && checks!.filter((c) => /invariant/i.test(String(c?.name))).every(passes),
     null,
@@ -450,10 +456,10 @@ export function vibeView(input: JourneyInput): VibeView {
     // (Préparer le commit : un fixup de son commit, un nouveau commit une fois la PR ouverte), note et Forme revalidées.
     // Une fois un module commencé, le parcours ne recule plus : une retouche de la note ou d'un test d'invariant fait
     // partie du travail en cours, que Commiter les modules range (note 0.15.0-stabilisation) ; les faits le disent.
-    const noteChanged = !!note && dirty.includes(note.path) && commits.some((c) => c.files.includes(note.path));
+    const noteChanged = noteDirty && commits.some(noteIn);
     const reopens = noteChanged && !begun;
     // la retouche : la note ou un test d'invariant de la branche, modifiés ; en attente une fois les modules commencés
-    const retouched = !!note && dirty.some((f) => f === note.path || invariants.some((t) => t.path === f));
+    const retouched = noteDirty || dirty.some((f) => invariants.some((t) => t.path === f));
     const pending = begun && retouched;
     done = {
       note: noteDone,
