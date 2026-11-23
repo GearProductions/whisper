@@ -11,7 +11,7 @@ allowed-tools: "Read, Glob, Grep, Write, Bash(git push -u origin HEAD), Bash(git
 
 # Open the PR (guide §5.2, A.3)
 
-`$ARGUMENTS` = `<lang> <out> [base=<ref>]`. `base=<ref>`: optional, given by the app right after `out`; given → the base (its name is the part after `origin/`), no search; absent → the search of § 1. `lang`: the user's language, not used here — code-related work: your answer in English. The title and description follow the project's convention. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
+`$ARGUMENTS` = `<lang> <out> [base=<ref>]`. `base=<ref>`: optional, given by the app right after `out` (an empty value, `base=` or `note=` alone, counts as not given); given → the base (its name is the part after `origin/`), no search; absent → the search of § 1. `lang`: the user's language, not used here — code-related work: your answer in English. The title and description follow the project's convention. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
 
 ## 1. Before
 

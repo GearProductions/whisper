@@ -1220,7 +1220,7 @@ n'attend vos validations, et les étapes qu'il passe les gardent. En deux temps 
    et sa CI au vert en
    **enchaînant lui-même les actions de
    l'écran** — les mêmes que vous lanceriez, visibles et arrêtables dans
-   l'onglet *Actions* (modules confiés à des agents Sonnet en parallèle, puis
+   l'onglet *Actions* (modules confiés à un agent, ou au-delà de 4 modules de code à des agents Sonnet en parallèle, puis
    commités) —, ne choisit jamais *Garder* / *Annuler* à votre place. Une
    question qui bloque vous attend à l'étape Note, sans arrêter *Vibe* :
    vos réponses envoyées, il reprend seul. Il ne s'arrête que sur une ligne

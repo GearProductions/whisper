@@ -13,7 +13,7 @@ allowed-tools: "Read, Glob, Grep, Write"
 
 Does the design hold, and is it the right design? Read it as the developer's design partner, the one they brainstorm with — not only a checker: someone who must build it tomorrow, and who would rather build less.
 
-`$ARGUMENTS` = `<lang> <out> [note=<path>]`. `note=<path>`: optional, the ticket note, given by the app right after `out` (absent → the search below). `lang`: the language of the suggestions and of your answer; identifiers, paths and signatures stay as they are. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
+`$ARGUMENTS` = `<lang> <out> [note=<path>]`. `note=<path>`: optional, the ticket note, given by the app right after `out` (an empty value, `base=` or `note=` alone, counts as not given) (absent → the search below). `lang`: the language of the suggestions and of your answer; identifiers, paths and signatures stay as they are. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
 
 Read: the note (`note=` if given, else under `docs/tickets/`, named like the branch, on the disk even if git ignores it, else the one the branch adds or changes); `AGENTS.md`, if present; the guide (`docs/dev_guide/*.html`) §2 and §3.1 to §3.3, if present; the existing code the note says it touches, enough to judge. One pass: no loop.
 

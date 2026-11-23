@@ -11,7 +11,7 @@ allowed-tools: "Read, Glob, Grep, Bash(git rebase *), Bash(GIT_SEQUENCE_EDITOR=t
 
 # Fold the fixups (guide §5.3)
 
-`$ARGUMENTS` = `<lang> <out> [base=<ref>]`. `base=<ref>`: optional, given by the app right after `out`; given → the base, no search; absent → the search of step 1. `lang`: the user's language, not used here — code-related work: your answer in English. `out`: the agent's output folder: nothing to write there.
+`$ARGUMENTS` = `<lang> <out> [base=<ref>]`. `base=<ref>`: optional, given by the app right after `out` (an empty value, `base=` or `note=` alone, counts as not given); given → the base, no search; absent → the search of step 1. `lang`: the user's language, not used here — code-related work: your answer in English. `out`: the agent's output folder: nothing to write there.
 
 The user clicked « fold the fixups »: that click is the confirmation — don't ask again.
 

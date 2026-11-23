@@ -13,7 +13,7 @@ allowed-tools: "Read, Glob, Grep, Write"
 
 The eye sees in two seconds what no test captures.
 
-`$ARGUMENTS` = `<lang> <out> [base=<base>] <ref>`. `base=<base>`: optional, the base branch, given by the app right after `out` (absent → the search below). `lang`: language of the plan and of your answer. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `ref`:
+`$ARGUMENTS` = `<lang> <out> [base=<base>] <ref>`. `base=<base>`: optional, the base branch, given by the app right after `out` (an empty value, `base=` or `note=` alone, counts as not given) (absent → the search below). `lang`: language of the plan and of your answer. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `ref`:
 - `WORKTREE`: the creator's current branch, uncommitted and untracked files included. Base: `base=` if given, else `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists (`git rev-parse --verify -q <ref>`); range `<base>...HEAD`; the untracked files: `git ls-files --others --exclude-standard`.
 - `HEAD`: a pull request, checked out in this folder (the reviewer) — read its files in the folder; base = `base` of the `<out>/pr-<n>.json` whose `head` is the current branch (`git rev-parse --abbrev-ref HEAD`; on a `pr-<n>` branch, that `<n>`); none → as for `WORKTREE`; range `origin/<base>...HEAD`.
 

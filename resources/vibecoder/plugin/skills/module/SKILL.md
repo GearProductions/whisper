@@ -10,7 +10,7 @@ allowed-tools: "Read, Glob, Grep, Write, Edit, Agent, SendMessage"
 
 # Module — the modules loop, for one module
 
-`$ARGUMENTS` = `<lang> <out> [base=<ref>] <module>`, then `prefix` on the next line. `lang`, `out`: as in the `modules` skill. `base=<ref>`: optional, given by the app right after `out`, as in the `modules` skill (given → the base, no search; absent → its search). The note is not given: you search for it, as in the `modules` skill, and give its path to your developer. `module`: `<path> — <contract>`, an entry of the note's « Forme », on one line. `prefix`: the line after it, possibly empty — what the app puts before the project's commands, as in the `modules` skill: you and your developer launch every typecheck and test command behind it.
+`$ARGUMENTS` = `<lang> <out> [base=<ref>] <module>`, then `prefix` on the next line. `lang`, `out`: as in the `modules` skill. `base=<ref>`: optional, given by the app right after `out` (an empty value, `base=` or `note=` alone, counts as not given), as in the `modules` skill (given → the base, no search; absent → its search). The note is not given: you search for it, as in the `modules` skill, and give its path to your developer. `module`: `<path> — <contract>`, an entry of the note's « Forme », on one line. `prefix`: the line after it, possibly empty — what the app puts before the project's commands, as in the `modules` skill: you and your developer launch every typecheck and test command behind it.
 
 Follow `${CLAUDE_SKILL_DIR}/../modules/SKILL.md` for this one module:
 

@@ -11,7 +11,7 @@ allowed-tools: Read, Glob, Grep, Write, Bash(git add *), Bash(git commit *), Bas
 
 # Commit the modules — one commit per module (guide §5.2, §5.3)
 
-`$ARGUMENTS` = `<lang> <out> [base=<ref>] [prefix…]`. `base=<ref>`: optional, given by the app right after `out`; given → the base, no search; absent → the search of § 1. `lang`: the user's language, not used here — code-related work: your answer in English. Commit messages follow the project's convention. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`): the commit message and the trees to type go there. `prefix`: everything after `out` and its named arguments, possibly empty — what the app puts before the project's commands, seen from where you run (e.g. `distrobox enter dev --`).
+`$ARGUMENTS` = `<lang> <out> [base=<ref>] [prefix…]`. `base=<ref>`: optional, given by the app right after `out` (an empty value, `base=` or `note=` alone, counts as not given); given → the base, no search; absent → the search of § 1. `lang`: the user's language, not used here — code-related work: your answer in English. Commit messages follow the project's convention. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`): the commit message and the trees to type go there. `prefix`: everything after `out` and its named arguments, possibly empty — what the app puts before the project's commands, seen from where you run (e.g. `distrobox enter dev --`).
 
 The code is written and the user (or the orchestrator) asked to commit it: commit, don't review, don't change a line.
 

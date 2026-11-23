@@ -37,7 +37,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Poser la forme",
-    "hint": "L'agent pose la rubrique « Forme » de la note (modules, signatures, contrats) sans écrire de code.",
+    "hint": "L'agent pose la rubrique « Forme » de la note, en prose, et les squelettes du code (où vivent les signatures), sans écrire de code.",
     "text": "/vibecoder:forme {{lang}} {{out}} note={{note}} {{text}}"
   },
   {
@@ -79,7 +79,7 @@
     "needs": "none",
     "reads": true,
     "label": "Préparer le commit",
-    "hint": "Choisit et indexe les fichiers du prochain commit et propose son message, affiché ici avant de commiter ; avant la PR, un fichier déjà commité (la note, la forme, un module) fait un fixup de son commit.",
+    "hint": "Choisit et indexe les fichiers du prochain commit et propose son message, affiché ici avant de commiter ; avant la PR, un fichier déjà commité (la note, la forme, un module) fait un fixup de son commit ; en historique simple : un seul commit pour le code, puis des commits ordinaires.",
     "text": "/vibecoder:commit-preparer {{lang}} {{out}} base={{base}}"
   },
   {
@@ -109,7 +109,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Générer les modules",
-    "hint": "L'agent confie les modules pas encore générés à des agents Sonnet en parallèle, dans l'ordre de la Forme, et relit chaque diff ; ne commite pas : Commiter les modules ensuite ; long et coûteux.",
+    "hint": "L'agent confie les modules pas encore générés à un agent développeur (jusqu'à 4 modules de code ; au-delà, à des agents Sonnet en parallèle, par vagues), dans l'ordre de la Forme, et relit chaque diff ; ne commite pas : Commiter les modules ensuite ; long et coûteux.",
     "text": "/vibecoder:modules {{lang}} {{out}} note={{note}} base={{base}} {{prefix}}"
   },
   {
@@ -119,7 +119,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Commiter les modules",
-    "hint": "Commite chaque module qui a des changements pas commités, un commit par module dans l'ordre de la forme (un fixup pour un module déjà commité).",
+    "hint": "Commite chaque module qui a des changements pas commités, un commit par module dans l'ordre de la forme (un fixup pour un module déjà commité) ; en historique simple : un seul commit pour le code, puis des commits ordinaires.",
     "text": "/vibecoder:commiter-modules {{lang}} {{out}} base={{base}} {{prefix}}"
   },
   {
@@ -162,7 +162,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Appliquer la revue",
-    "hint": "L'agent applique les remarques de la revue qu'il juge justes (toutes, celles cochées, ou celle d'Appliquer), chacune en fixup du commit concerné, et dit lesquelles il écarte.",
+    "hint": "L'agent applique les remarques de la revue qu'il juge justes (toutes, celles cochées, ou celle d'Appliquer), chacune en fixup du commit concerné (en historique simple : un seul commit ordinaire « revue : … »), et dit lesquelles il écarte.",
     "text": "/vibecoder:appliquer-revue {{lang}} {{out}} {{text}}"
   },
   {

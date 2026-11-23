@@ -13,7 +13,7 @@ allowed-tools: "Read, Glob, Grep, Write"
 
 The technical review: the code, what could not be foreseen. The structure and the contract (the note's Forme and « ne doit pas » lines) are already validated: don't go back on them. Code that does not do what the note says stays reported (tag `note`), like any other defect of the code. This review owns the hunt for defects that *Generate the modules* no longer does (its per-diff check is only conformity): edge cases, duplicates, security, dead code, and every « ne doit pas » line of the note, module by module.
 
-`$ARGUMENTS` = `<lang> <out> [base=<ref>]`. `base=<ref>`: optional, the base branch, given by the app right after `out` (absent → the search below). `lang`: the user's language (`fr`, `en`…): `ponytail.md` and your answer in it — the review is read closely, technical subtleties included. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
+`$ARGUMENTS` = `<lang> <out> [base=<ref>]`. `base=<ref>`: optional, the base branch, given by the app right after `out` (an empty value, `base=` or `note=` alone, counts as not given) (absent → the search below). `lang`: the user's language (`fr`, `en`…): `ponytail.md` and your answer in it — the review is read closely, technical subtleties included. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
 
 Base: `base=` if given, else `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists (`git rev-parse --verify -q <ref>`). The diff: `git diff <base>...HEAD` (the commits: `git log --format='%h %s' <base>..HEAD`). Read the changed files in full, and the code next to them.
 
