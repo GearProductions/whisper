@@ -553,6 +553,17 @@ describe('ignoredText : le texte du champ qu’un gabarit laisse tomber', () => 
 
 describe('les actions de resources/vibecoder (fr et en)', () => {
   const ROOT = path.resolve(__dirname, '../../../../../../resources/vibecoder');
+  const OUT = '/u/vibecoder-out/a1';
+  const NOTE = 'note=docs/tickets/feat/G2-1-x.md';
+  const BASE = 'base=origin/main';
+  const noNote = { ...ctx, view: { ...view, note: null } };
+  // Chaque action, ses arguments nommés ; une action absente d'ici n'en porte aucun.
+  const NAMED: Record<string, string[]> = {
+    'design-check': ['note'], forme: ['note'], invariants: ['note'], vibe: ['note'],
+    modules: ['note', 'base'],
+    module: ['base'], 'commit-modules': ['base'], align: ['base'], 'commit-prepare': ['base'], 'review-diff': ['base'],
+    ponytail: ['base'], fixups: ['base'], screen: ['base'], pr: ['base'],
+  };
   for (const lang of ['fr', 'en']) {
     const all = parseActions(JSON.parse(fs.readFileSync(path.join(ROOT, `actions.${lang}.json`), 'utf8')));
     const byId = (id: string) => all.find((a) => a.id === id);
@@ -580,26 +591,9 @@ describe('les actions de resources/vibecoder (fr et en)', () => {
       expect(byId('align')?.reads).toBe(false);
       expect(buildMessage(byId('align')!, {}, review)).toEqual({ text: '/vibecoder:aligner fr /u/vibecoder-out/a1 base=origin/main HEAD' });
     });
-  }
-});
 
-// Note 0.16.0-flow-allege : la note et la base données aux skills, des arguments nommés juste après {{out}}.
-describe('la note et la base dans les gabarits livrés (fr et en)', () => {
-  const ROOT = path.resolve(__dirname, '../../../../../../resources/vibecoder');
-  const OUT = '/u/vibecoder-out/a1';
-  const NOTE = 'note=docs/tickets/feat/G2-1-x.md';
-  const BASE = 'base=origin/main';
-  const noNote = { ...ctx, view: { ...view, note: null } };
-  // Chaque action, ses arguments nommés ; une action absente d'ici n'en porte aucun.
-  const NAMED: Record<string, string[]> = {
-    'design-check': ['note'], forme: ['note'], invariants: ['note'], vibe: ['note'],
-    modules: ['note', 'base'],
-    module: ['base'], 'commit-modules': ['base'], align: ['base'], 'commit-prepare': ['base'], 'review-diff': ['base'],
-    ponytail: ['base'], fixups: ['base'], screen: ['base'], pr: ['base'],
-  };
-  for (const lang of ['fr', 'en']) {
-    const all = parseActions(JSON.parse(fs.readFileSync(path.join(ROOT, `actions.${lang}.json`), 'utf8')));
-    const send = (id: string, args = {}, c = ctx) => buildMessage(all.find((a) => a.id === id)!, args, c);
+    // Note 0.16.0-flow-allege : la note et la base données aux skills, des arguments nommés juste après {{out}}.
+    const send = (id: string, args = {}, c = ctx) => buildMessage(byId(id)!, args, c);
 
     it(`${lang} : chaque action porte exactement ses arguments nommés, tout de suite après {{out}}`, () => {
       for (const a of all) {
