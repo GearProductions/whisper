@@ -1,6 +1,6 @@
 ---
 name: gear-commit-message
-description: "Build the commit message for the pending changes following the commit convention of the 'Développer avec l'IA' guide (§5.2), as practised in this repo, and copy it to the clipboard. Usage: /gear-commit-message [pr]. Detects the case from git state: first commit of the branch (note + forme + invariants, or the red test of a bug), one module commit with its contract, a change to an already-committed module (before the PR: redirects to /gear-fix-up; after: new commit with the why), or the PR title and description with `pr` (PRs are merged in squash here). Never runs git commit. Use when I ask for a commit message, 'message de commit', or the PR title/description."
+description: "Build the commit message for the pending changes following the commit convention of the 'Développer avec l'IA' guide (§5.2), as practised in this repo, and copy it to the clipboard. Usage: /gear-commit-message [pr]. Detects the case from git state: first commit of the branch (note + forme + invariants, or the red test of a bug), the code commit of all the modules, a correction (« revue : … », or a fixup outside a simple history), or the PR title and description with `pr` (PRs are merged in squash here). Never runs git commit. Use when I ask for a commit message, 'message de commit', or the PR title/description."
 argument-hint: "[pr]"
 allowed-tools: Bash, Read, Glob, Grep
 ---
@@ -54,7 +54,7 @@ Find the ticket note, in this order: `docs/tickets/*/*-<slug>.md` with the branc
 
 ## Step 2 — Pick the case
 
-For each changed file, `git log --format=%h master..HEAD -- <file>` tells whether an earlier branch commit already owns it. Some files owned, others not → split: case C for the owned files, then case B for the rest.
+For each changed file, `git log --format=%h master..HEAD -- <file>` tells whether an earlier branch commit already owns it. A file whose only owner is the first commit of the branch (its skeleton) is not owned. Historique simple: never split — one message for everything that changes: case B while no commit other than the first one touches a changed file (the code commit), case C after. Without it: some files owned, others not → split: case C for the owned files, then case B for the rest.
 
 **A. First commit** (count = 0). Expected content depends on the ticket type (§4.2, note folder or branch prefix):
 - `feat`, `refactor`, `chore` → the note with its « Forme », file headers or skeletons, the red invariants for the lines marked `→ invariant`:
