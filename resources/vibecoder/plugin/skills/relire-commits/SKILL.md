@@ -23,7 +23,7 @@ The PR is the branch of this folder (`HEAD`), checked out; its base is the `base
 - Duplication with code that already exists (`git grep <name> HEAD`): name it.
 - File headers still true to the contract; no import breaking a « ne connaît pas ».
 - Glue code and whatever touches rights or data: read in full. A generic module: judge it by its imports.
-- The story (§5.2): the first commit holds the note, the forme and the red invariants (a note git ignores: the skeletons and the red invariants only); then one commit per module, with its variants and its contract in the message; no `wip`, `fix`, `retry` or `fixup!` commit; over ~400 lines, the module was too big; an invariant test changed after the first commit (they are protected) — say it.
+- The story (§5.2): the first commit holds the note, the forme and the red invariants (a note git ignores: the skeletons and the red invariants only); then one commit per module, with its variants and its contract in the message (simple history, the words « Historique simple » in `AGENTS.md`: one commit for all the code, then ordinary « revue : … » commits); no `wip`, `fix`, `retry` or `fixup!` commit; over ~400 lines, the module was too big; an invariant test changed after the first commit (they are protected) — say it.
 
 ## `<out>/pr-<n>-commits.md`, in English
 

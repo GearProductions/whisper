@@ -553,6 +553,17 @@ describe('ignoredText : le texte du champ qu’un gabarit laisse tomber', () => 
 
 describe('les actions de resources/vibecoder (fr et en)', () => {
   const ROOT = path.resolve(__dirname, '../../../../../../resources/vibecoder');
+  const OUT = '/u/vibecoder-out/a1';
+  const NOTE = 'note=docs/tickets/feat/G2-1-x.md';
+  const BASE = 'base=origin/main';
+  const noNote = { ...ctx, view: { ...view, note: null } };
+  // Chaque action, ses arguments nommés ; une action absente d'ici n'en porte aucun.
+  const NAMED: Record<string, string[]> = {
+    'design-check': ['note'], forme: ['note'], invariants: ['note'], vibe: ['note'],
+    modules: ['note', 'base'],
+    module: ['base'], 'commit-modules': ['base'], align: ['base'], 'commit-prepare': ['base'], 'review-diff': ['base'],
+    ponytail: ['base'], fixups: ['base'], screen: ['base'], pr: ['base'],
+  };
   for (const lang of ['fr', 'en']) {
     const all = parseActions(JSON.parse(fs.readFileSync(path.join(ROOT, `actions.${lang}.json`), 'utf8')));
     const byId = (id: string) => all.find((a) => a.id === id);
@@ -571,14 +582,56 @@ describe('les actions de resources/vibecoder (fr et en)', () => {
       expect(byId('publish')?.step).toBe('pr');
     });
 
-    it(`${lang} : design-check, créateur, étape Note, en lecture ; son message : le gabarit seul, sans le champ`, () => {
+    it(`${lang} : design-check, créateur, étape Note, en lecture ; son message : le gabarit et la note, sans le champ`, () => {
       expect(byId('design-check')).toMatchObject({ flow: 'create', step: 'note', kind: 'send', needs: 'none', reads: true });
-      expect(buildMessage(byId('design-check')!, { text: 'le texte du champ' }, ctx)).toEqual({ text: '/vibecoder:conception fr /u/vibecoder-out/a1' });
+      expect(buildMessage(byId('design-check')!, { text: 'le texte du champ' }, ctx)).toEqual({ text: '/vibecoder:conception fr /u/vibecoder-out/a1 note=docs/tickets/feat/G2-1-x.md' });
     });
 
-    it(`${lang} : align modifie la branche (chez le créateur, elle corrige les tests) ; en relecteur, son message porte HEAD`, () => {
+    it(`${lang} : align modifie la branche (chez le créateur, elle corrige les tests) ; en relecteur, son message porte la base et HEAD`, () => {
       expect(byId('align')?.reads).toBe(false);
-      expect(buildMessage(byId('align')!, {}, review)).toEqual({ text: '/vibecoder:aligner fr /u/vibecoder-out/a1 HEAD' });
+      expect(buildMessage(byId('align')!, {}, review)).toEqual({ text: '/vibecoder:aligner fr /u/vibecoder-out/a1 base=origin/main HEAD' });
+    });
+
+    // Note 0.16.0-flow-allege : la note et la base données aux skills, des arguments nommés juste après {{out}}.
+    const send = (id: string, args = {}, c = ctx) => buildMessage(byId(id)!, args, c);
+
+    it(`${lang} : chaque action porte exactement ses arguments nommés, tout de suite après {{out}}`, () => {
+      for (const a of all) {
+        const named = [...a.text.matchAll(/ (note|base)=\{\{\1\}\}/g)].map((m) => m[1]);
+        expect({ id: a.id, named }).toEqual({ id: a.id, named: NAMED[a.id] ?? [] });
+        if (named.length) expect(a.text).toContain(`{{out}} ${named.map((n) => `${n}={{${n}}}`).join(' ')}`);
+      }
+    });
+
+    it(`${lang} : Poser la forme avec une note au relevé : « note= » avant le champ ; sans note : refusée`, () => {
+      expect(send('forme', { text: 'x' })).toEqual({ text: `/vibecoder:forme fr ${OUT} ${NOTE} x` });
+      expect(send('forme', { text: 'x' }, noNote)).toEqual({ error: 'note' });
+    });
+
+    it(`${lang} : Générer les modules : « note= » et « base= » avant le préfixe`, () => {
+      expect(send('modules', {}, { ...ctx, prefix: 'distrobox enter dev --' }))
+        .toEqual({ text: `/vibecoder:modules fr ${OUT} ${NOTE} ${BASE} distrobox enter dev --` });
+    });
+
+    it(`${lang} : Générer ce module : « base= », le module et le préfixe à leur place`, () => {
+      expect(send('module', {}, { ...ctx, prefix: 'p' }))
+        .toEqual({ text: `/vibecoder:module fr ${OUT} ${BASE} src/core/b.ts — b() · ne connaît pas : a\np` });
+    });
+
+    it(`${lang} : Commiter les modules et Générer ce module sans note au relevé : le message part, sans « note= »`, () => {
+      expect(send('commit-modules', {}, noNote)).toEqual({ text: `/vibecoder:commiter-modules fr ${OUT} ${BASE} ` });
+      const module = send('module', {}, noNote);
+      expect(module).toEqual({ text: `/vibecoder:module fr ${OUT} ${BASE} src/core/b.ts — b() · ne connaît pas : a\n` });
+    });
+
+    it(`${lang} : Rédiger la note, Préparer le commit, Relire la note sans note au relevé : le message part, sans « note= »`, () => {
+      const messages = [send('note', { text: 'x' }, noNote), send('commit-prepare', {}, noNote), send('review-note', { pr: 12 }, { ...noNote, view: { ...noNote.view, flow: 'review' } })];
+      for (const m of messages) expect(m).toEqual({ text: expect.not.stringContaining('note=') });
+      expect(messages[1]).toEqual({ text: `/vibecoder:commit-preparer fr ${OUT} ${BASE}` });
+    });
+
+    it(`${lang} : Appliquer la revue : son message d'aujourd'hui, inchangé`, () => {
+      expect(send('apply', { text: 'une remarque' })).toEqual({ text: `/vibecoder:appliquer-revue fr ${OUT} une remarque` });
     });
   }
 });

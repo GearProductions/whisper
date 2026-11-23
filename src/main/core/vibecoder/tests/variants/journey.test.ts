@@ -658,7 +658,7 @@ describe('Créer : la liste du § A.3', () => {
 
   it('ses cinq points', () => {
     expect(vibeView(input()).checklist.map((c) => c.text)).toEqual(['La note est à jour', 'Les invariants passent', 'Chaque diff a été relu',
-      'Un commit par module, fixups repliés', 'AGENTS.md à jour si une convention a changé']);
+      'Chaque module commité, aucun fixup à replier', 'AGENTS.md à jour si une convention a changé']);
   });
 
   it('rien de fait : rien de coché', () => {
@@ -700,6 +700,45 @@ describe('Créer : la liste du § A.3', () => {
   it('refusée (✗) ou sans commit : pas cochée', () => {
     expect(done(vibeView(ready({ marks: { ...NOTE_OK, 'a3:4': { hash: FIRST.hash, verdict: 'ko' } } })))[4]).toBeNull();
     expect(done(vibeView(input({ marks: { 'a3:2': { hash: '', verdict: 'ok' } } })))[2]).toBeNull();
+  });
+});
+
+// Les deux historiques d'un projet (note 0.16.0-flow-allege) : un seul commit pour le code de tous les modules
+// suit les mêmes règles ; seul le libellé de la case de l'étape PR change.
+describe('Créer : la case « Chaque module commité, aucun fixup à replier »', () => {
+  const CODE = commit('d', 'Les modules', ['src/core/hello.ts', 'src/app/button.tsx']);
+  const REVIEW = commit('e', 'revue : le bouton', ['src/app/button.tsx']);
+  const CHECKED = { 'checks.json': out('{"items":[{"name":"tests","ok":true}]}'), 'ponytail.md': out('- rien') };
+
+  it('le libellé, en français et en anglais', () => {
+    expect([vibeView(input()).checklist[3].text, vibeView(input({ lang: 'en' })).checklist[3].text])
+      .toEqual(['Chaque module commité, aucun fixup à replier', 'Every module committed, no fixup to fold']);
+  });
+
+  it('un seul commit après le premier pour tous les modules : étape Modules faite, case cochée (déjà vert)', () => {
+    const v = vibeView(ready({ repo: repo([], [FIRST, CODE]) }));
+    expect([status(v).modules, v.checklist[3].done]).toEqual(['done', true]);
+  });
+
+  it('le même, un fichier d\'un module modifié depuis : étape Modules pas faite (déjà vert)', () => {
+    const v = vibeView(ready({ repo: { ...repo([], [FIRST, CODE]), dirty: ['src/core/hello.ts'] } }));
+    expect(status(v).modules).not.toBe('done');
+  });
+
+  it('le même, un fichier hors de la Forme pas commité : Préparer le commit reste proposée (déjà vert)', () => {
+    const v = vibeView(ready({ repo: { ...repo([], [FIRST, CODE]), dirty: ['scripts/outil.sh'], added: ['scripts/outil.sh'] } }));
+    expect([status(v).modules, action(v, 'commit-prepare')?.hidden]).toEqual(['done', false]);
+  });
+
+  it('des commits « revue : … » après lui, aucun fixup : étape Revue faite, Replier les fixups masquée (déjà vert)', () => {
+    const v = vibeView(ready({ repo: repo([], [FIRST, CODE, REVIEW]), outputs: CHECKED }));
+    expect([status(v).revue, action(v, 'fixups')?.hidden]).toEqual(['done', true]);
+  });
+
+  it('un commit par module puis un fixup : case décochée, Replier les fixups proposée', () => {
+    const fix = commit('f', 'fixup! core/hello', ['src/core/hello.ts']);
+    const v = vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON, fix]), outputs: CHECKED }));
+    expect([v.checklist[3].done, primary(v)]).toEqual([false, 'fixups']);
   });
 });
 

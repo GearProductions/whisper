@@ -554,7 +554,7 @@ dans les sorties de l'agent, jamais dans le projet.
 | Commiter les modules | lecture, écriture des sorties | `git add`, `git commit`, `rm -rf` de son dossier temporaire | non |
 | Relire le diff, Ponytail review, Plan de test à l'écran, Relire la note, Relire les commits | lecture, écriture des sorties | — | oui |
 | Lancer les vérifications et la ponytail review | lecture, écriture des sorties | — (la ponytail review est lancée par l'appli, en même temps) | oui |
-| Appliquer la revue | lecture, écriture, édition | `git add`, `git commit --fixup` | non |
+| Appliquer la revue | lecture, écriture, édition | `git add`, `git commit --fixup`, `git commit -m` (le commit ordinaire de l'historique simple) | non |
 | Replier les fixups | lecture | `git rebase` | non |
 | Valider la feature (ouvrir la PR) | lecture, écriture des sorties | `git push` de la branche, `gh pr create` | non |
 | Diagnostiquer la CI | lecture, écriture des sorties | — | oui |
@@ -763,7 +763,9 @@ relire une PR (le relecteur, plus bas) :
    grisée pendant un tour de la conversation ou une action de l'agent.
 2. **Forme** : *Poser la forme* écrit d'un seul passage les squelettes dans le code
    (chemins, en-têtes = les contrats, signatures, corps qui échouent ; le typage
-   passe), puis recopie la forme dans la note (les modules et leurs contrats ; sous chacun, ses variants : le fichier de tests et les cas à
+   passe), puis recopie la forme dans la note (les modules et leurs contrats, en prose : ce
+   qu'ils exposent en une ou deux lignes, les signatures typées restent dans les squelettes et
+   leurs en-têtes ; sous chacun, ses variants : le fichier de tests et les cas à
    couvrir, à challenger avant le code ; des modules qui ne compilent
    qu'ensemble : une seule entrée, leurs chemins séparés par « + ») ; *Valider la forme*. La vue est celle d'un IDE : à gauche
    l'arborescence des modules, à droite le module choisi, son contrat
@@ -775,7 +777,8 @@ relire une PR (le relecteur, plus bas) :
    revalidées, *Préparer le commit* en fait un fixup du premier commit
    (`fixup! <son sujet>`, affiché dans la carte du commit proposé), puis
    *✓ Commiter* ; *Replier les fixups*, à la Revue, le fond dans son commit.
-   La PR déjà ouverte : un nouveau commit qui dit pourquoi, pas de fixup.
+   La PR déjà ouverte : un nouveau commit qui dit pourquoi, pas de fixup. Un projet
+   en historique simple (voir *Modules*) : toujours un commit ordinaire, rien à replier.
    Une retouche de la forme, à n'importe quelle étape, change la note et les
    squelettes ensemble (on modifie, on ne régénère pas) ; l'étape attend toujours
    votre *Valider la forme* (en *Vibe*, comme avant, sans clic).
@@ -821,7 +824,8 @@ relire une PR (le relecteur, plus bas) :
    périmés (leurs boutons grisés jusqu'à *Relire*) : les autres gardent leur
    lecture et leurs boutons ; *Préparer le commit* puis *✓ Commiter* (un fichier
    déjà porté par un commit de la branche : un fixup, sauf PR ouverte, où il va
-   dans un nouveau commit qui dit pourquoi).
+   dans un nouveau commit qui dit pourquoi ; en historique simple, toujours un
+   commit ordinaire).
    Une note sans ligne « → invariant » passe l'étape dès la forme validée (pas de
    test à écrire, *Écrire les invariants* n'est pas proposée) : la note et la
    forme se commitent à l'étape Modules. Des lignes « → invariant » déjà
@@ -837,12 +841,19 @@ relire une PR (le relecteur, plus bas) :
    *Générer les modules* pour un seul : son diff relu, les défauts corrigés, les
    tests relancés jusqu'au vert, dans la même course ; seules les remarques
    `[toi]` remontent), on relit, on ajuste, et l'agent range les commits à la
-   fin. *Générer les modules* (des agents Sonnet en parallèle, chaque
-   diff relu : un défaut est corrigé ou renvoyé au même agent, relancé sur
-   Opus au second échec ; à chaque vague, le typage et les tests des fichiers
-   modifiés (toute la suite si le projet ne sait pas les choisir), rien avant la première ;
-   la suite complète une seule fois, à la fin ; sans
-   commit). Générer
+   fin. *Générer les modules* : jusqu'à 4 modules de code dans la Forme (sans
+   compter ceux qui n'ont pas de variants : la doc, les textes de skills), un seul agent
+   les écrit tous, à la suite, dans l'ordre de la Forme, les variants rouges
+   d'abord pour chacun ; au-delà, des agents Sonnet en parallèle, par vagues. Le
+   seuil se compte dans la Forme, il n'est pas réglable. Chaque diff est relu pour sa
+   conformité (le périmètre, une dépendance ajoutée, une lecture ou une écriture dans une
+   boucle, une donnée hors de son périmètre ; l'en-tête fidèle au contrat ; les variants
+   vus rouges puis verts ; les invariants verts et intacts) : un défaut est corrigé ou
+   renvoyé au même agent, relancé sur Opus au second échec ; les doublons, cas limites,
+   failles et code mort sont ceux de la ponytail review, qui relit toute la branche
+   juste après. Typage et tests des fichiers modifiés après chaque vague (toute la
+   suite si le projet ne sait pas les choisir), rien avant la première ; la suite
+   complète une seule fois, à la fin ; sans commit. Générer
    et commiter sont deux gestes : *Commiter les modules* (un commit par module dans l'ordre de la Forme, un fixup
    pour un module déjà commité ; le typage de chaque commit est vérifié sur son
    contenu, hors du dossier de travail, avec les `node_modules` du dossier reliés à leur place,
@@ -850,6 +861,18 @@ relire une PR (le relecteur, plus bas) :
    qu'ensemble, notés sur une seule entrée de la Forme (« a.ts + b.ts »), font un seul
    commit, et un module suivant que l'erreur de typage nomme les rejoint ; une
    autre erreur arrête là, sans rattrapage) ; vous pouvez donc retoucher le code entre les deux.
+   **Deux historiques**, au choix du projet : l'historique par module, décrit ci-dessus,
+   est le défaut et ne demande aucun réglage ; un projet qui écrit « Historique simple »
+   (« Simple history » en anglais) dans sa convention de commit, `AGENTS.md` ou
+   `CLAUDE.md`, que les skills de commit lisent, passe à l'historique simple : après le
+   premier commit (la note, la forme, les invariants rouges), *Commiter les modules*
+   fait un seul commit pour le code de tous les modules, avec tous les fichiers
+   modifiés, nouveaux ou supprimés du dossier (sauf une note ignorée par git), et sa réponse nomme
+   ceux qu'aucun module de la Forme ne possède. Les corrections d'après (*Appliquer la
+   revue*, une vérification rouge, un retour d'essai) sont des commits ordinaires,
+   « revue : … » : jamais un fixup, rien à replier (*Replier les fixups* dit « Rien à
+   replier : historique simple », sauf s'il reste un commit `fixup!` fait à la main :
+   il le replie alors comme d'habitude, avant la PR).
    Ces boutons de l'étape sont à côté du titre de la carte des modules, et n'y sont
    que s'ils ont quelque chose à faire. Chaque
    module est un accordéon : *Générer* (ce module seul) est toujours au bout
@@ -885,7 +908,7 @@ relire une PR (le relecteur, plus bas) :
    commandes du projet sont vraiment lancées, par le préfixe des commandes,
    et un résultat d'avant ce lancement ne compte pas), *Tout appliquer*,
    *Appliquer la sélection* (décochez les remarques à écarter : toutes sont
-   cochées par défaut) ou *Appliquer* une remarque (en fixups ; une remarque appliquée est marquée
+   cochées par défaut) ou *Appliquer* une remarque (en fixups, ou, en historique simple, en un commit ordinaire « revue : … » ; une remarque appliquée est marquée
    ✓, toutes : « Appliquée »), *Replier les fixups* ; la liste du
    guide avant une PR, cochée quand le dépôt le dit — « chaque diff relu » et
    « AGENTS.md à jour » se cochent à la main, jusqu'au prochain commit. Puis
@@ -1198,7 +1221,7 @@ n'attend vos validations, et les étapes qu'il passe les gardent. En deux temps 
    et sa CI au vert en
    **enchaînant lui-même les actions de
    l'écran** — les mêmes que vous lanceriez, visibles et arrêtables dans
-   l'onglet *Actions* (modules confiés à des agents Sonnet en parallèle, puis
+   l'onglet *Actions* (modules confiés à un agent, ou au-delà de 4 modules de code à des agents Sonnet en parallèle, puis
    commités) —, ne choisit jamais *Garder* / *Annuler* à votre place. Une
    question qui bloque vous attend à l'étape Note, sans arrêter *Vibe* :
    vos réponses envoyées, il reprend seul. Il ne s'arrête que sur une ligne

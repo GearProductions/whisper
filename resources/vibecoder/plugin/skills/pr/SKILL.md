@@ -1,7 +1,7 @@
 ---
 name: pr
 description: "Push the branch and open its pull request with the project's title and description convention, or pick up the one already open, and record it in <out>/pr.json."
-argument-hint: "<lang> <out>"
+argument-hint: "<lang> <out> [base=<ref>]"
 disable-model-invocation: true
 context: fork
 model: sonnet
@@ -11,13 +11,13 @@ allowed-tools: "Read, Glob, Grep, Write, Bash(git push -u origin HEAD), Bash(git
 
 # Open the PR (guide §5.2, A.3)
 
-`$ARGUMENTS` = `<lang> <out>`. `lang`: the user's language, not used here — code-related work: your answer in English. The title and description follow the project's convention. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
+`$ARGUMENTS` = `<lang> <out> [base=<ref>]`. `base=<ref>`: optional, given by the app right after `out` (an empty value, `base=` or `note=` alone, counts as not given); given → the base (its name is the part after `origin/`), no search; absent → the search of § 1. `lang`: the user's language, not used here — code-related work: your answer in English. The title and description follow the project's convention. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
 
 ## 1. Before
 
-Base: `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else the first of `origin/main`, `origin/master` that `git rev-parse --verify` finds; its name is the part after `origin/`. Stop and say why when:
+Base: `base=` if given, else `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else the first of `origin/main`, `origin/master` that `git rev-parse --verify` finds; its name is the part after `origin/`. Stop and say why when:
 - you are on the base branch;
-- `fixup!`, `squash!` or `amend!` commits remain in `<base>..HEAD`: fold them first;
+- `fixup!`, `squash!` or `amend!` commits remain in `<base>..HEAD`: fold them first (this check is skipped when the project declares a simple history: the words « Historique simple » / « Simple history » in its commit convention, `AGENTS.md` or `CLAUDE.md` — no fold is asked);
 - tracked files have uncommitted changes (`git status --porcelain --untracked-files=no`): they would be missing from the PR.
 
 ## 2. Push

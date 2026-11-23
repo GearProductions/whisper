@@ -28,7 +28,7 @@
     "reads": true,
     "label": "Vérifier la conception",
     "hint": "Vérifie la conception de la note, en une seule passe : cas oubliés, contradictions, cas limites des règles chiffrées, comportement inatteignable, ligne plutôt invariant ou variant ; ne modifie jamais la note, ses suggestions vont au questionnaire.",
-    "text": "/vibecoder:conception {{lang}} {{out}}"
+    "text": "/vibecoder:conception {{lang}} {{out}} note={{note}}"
   },
   {
     "id": "forme",
@@ -37,8 +37,8 @@
     "kind": "send",
     "needs": "none",
     "label": "Poser la forme",
-    "hint": "L'agent pose la rubrique « Forme » de la note (modules, signatures, contrats) sans écrire de code.",
-    "text": "/vibecoder:forme {{lang}} {{out}} {{text}}"
+    "hint": "L'agent pose la rubrique « Forme » de la note, en prose, et les squelettes du code (où vivent les signatures), sans écrire de code.",
+    "text": "/vibecoder:forme {{lang}} {{out}} note={{note}} {{text}}"
   },
   {
     "id": "invariants",
@@ -48,7 +48,7 @@
     "needs": "none",
     "label": "Écrire les invariants (rouges)",
     "hint": "Écrit les tests d'invariants, rouges, d'après la note ; l'alignement les vérifie et les corrige (align.md), 3 tours au plus ; ne commite pas.",
-    "text": "/vibecoder:invariants {{lang}} {{out}} {{text}}"
+    "text": "/vibecoder:invariants {{lang}} {{out}} note={{note}} {{text}}"
   },
   {
     "id": "read-invariants",
@@ -69,7 +69,7 @@
     "needs": "none",
     "label": "Vérifier l'alignement",
     "hint": "Vérifie les invariants seuls : chaque ligne « → invariant » a un test qui l'observe vraiment, chaque test a sa ligne ; corrige les tests, 3 tours au plus ; chez le relecteur, une liste, sans rien corriger.",
-    "text": "/vibecoder:aligner {{lang}} {{out}} {{ref}}"
+    "text": "/vibecoder:aligner {{lang}} {{out}} base={{base}} {{ref}}"
   },
   {
     "id": "commit-prepare",
@@ -79,8 +79,8 @@
     "needs": "none",
     "reads": true,
     "label": "Préparer le commit",
-    "hint": "Choisit et indexe les fichiers du prochain commit et propose son message, affiché ici avant de commiter ; avant la PR, un fichier déjà commité (la note, la forme, un module) fait un fixup de son commit.",
-    "text": "/vibecoder:commit-preparer {{lang}} {{out}}"
+    "hint": "Choisit et indexe les fichiers du prochain commit et propose son message, affiché ici avant de commiter ; avant la PR, un fichier déjà commité (la note, la forme, un module) fait un fixup de son commit ; en historique simple : un seul commit pour le code, puis des commits ordinaires.",
+    "text": "/vibecoder:commit-preparer {{lang}} {{out}} base={{base}}"
   },
   {
     "id": "commit",
@@ -100,7 +100,7 @@
     "needs": "none",
     "label": "Générer ce module",
     "hint": "Implémente le module choisi selon la note et sa forme, avec ponytail, avec la boucle de Générer les modules pour un seul : son diff relu, les défauts corrigés, le typage et ses tests relancés jusqu'au vert, dans la même course ; ne commite pas.",
-    "text": "/vibecoder:module {{lang}} {{out}} {{module}}\n{{prefix}}"
+    "text": "/vibecoder:module {{lang}} {{out}} base={{base}} {{module}}\n{{prefix}}"
   },
   {
     "id": "modules",
@@ -109,8 +109,8 @@
     "kind": "send",
     "needs": "none",
     "label": "Générer les modules",
-    "hint": "L'agent confie les modules pas encore générés à des agents Sonnet en parallèle, dans l'ordre de la Forme, et relit chaque diff ; ne commite pas : Commiter les modules ensuite ; long et coûteux.",
-    "text": "/vibecoder:modules {{lang}} {{out}} {{prefix}}"
+    "hint": "L'agent confie les modules pas encore générés à un agent développeur (jusqu'à 4 modules de code ; au-delà, à des agents Sonnet en parallèle, par vagues), dans l'ordre de la Forme, et relit chaque diff ; ne commite pas : Commiter les modules ensuite ; long et coûteux.",
+    "text": "/vibecoder:modules {{lang}} {{out}} note={{note}} base={{base}} {{prefix}}"
   },
   {
     "id": "commit-modules",
@@ -119,8 +119,8 @@
     "kind": "send",
     "needs": "none",
     "label": "Commiter les modules",
-    "hint": "Commite chaque module qui a des changements pas commités, un commit par module dans l'ordre de la forme (un fixup pour un module déjà commité).",
-    "text": "/vibecoder:commiter-modules {{lang}} {{out}} {{prefix}}"
+    "hint": "Commite chaque module qui a des changements pas commités, un commit par module dans l'ordre de la forme (un fixup pour un module déjà commité) ; en historique simple : un seul commit pour le code, puis des commits ordinaires.",
+    "text": "/vibecoder:commiter-modules {{lang}} {{out}} base={{base}} {{prefix}}"
   },
   {
     "id": "review-diff",
@@ -131,7 +131,7 @@
     "reads": true,
     "label": "Relire le diff",
     "hint": "Relit le diff choisi, ou les changements en cours, avec les quatre questions du guide (§ 5.1), la duplication et les en-têtes.",
-    "text": "/vibecoder:relire {{lang}} {{out}} {{commit}}"
+    "text": "/vibecoder:relire {{lang}} {{out}} base={{base}} {{commit}}"
   },
   {
     "id": "checks",
@@ -153,7 +153,7 @@
     "reads": true,
     "label": "Ponytail review",
     "hint": "Lancée avec les vérifications : relit toute la branche — sur-ingénierie, duplication, note alignée avec le code, cas limites, sécurité, code mort ; ne modifie rien.",
-    "text": "/vibecoder:ponytail {{lang}} {{out}}"
+    "text": "/vibecoder:ponytail {{lang}} {{out}} base={{base}}"
   },
   {
     "id": "apply",
@@ -162,7 +162,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Appliquer la revue",
-    "hint": "L'agent applique les remarques de la revue qu'il juge justes (toutes, celles cochées, ou celle d'Appliquer), chacune en fixup du commit concerné, et dit lesquelles il écarte.",
+    "hint": "L'agent applique les remarques de la revue qu'il juge justes (toutes, celles cochées, ou celle d'Appliquer), chacune en fixup du commit concerné (en historique simple : un seul commit ordinaire « revue : … »), et dit lesquelles il écarte.",
     "text": "/vibecoder:appliquer-revue {{lang}} {{out}} {{text}}"
   },
   {
@@ -173,7 +173,7 @@
     "needs": "none",
     "label": "Replier les fixups",
     "hint": "Replie les commits « fixup! » dans leurs cibles avant d'ouvrir la PR ; ne pousse pas.",
-    "text": "/vibecoder:fixups {{lang}} {{out}}"
+    "text": "/vibecoder:fixups {{lang}} {{out}} base={{base}}"
   },
   {
     "id": "pr",
@@ -183,7 +183,7 @@
     "needs": "none",
     "label": "Valider la feature (ouvrir la PR)",
     "hint": "Sans PR : pousse la branche et ouvre la PR, titre et description selon la convention du projet.",
-    "text": "/vibecoder:pr {{lang}} {{out}}"
+    "text": "/vibecoder:pr {{lang}} {{out}} base={{base}}"
   },
   {
     "id": "ci",
@@ -468,7 +468,7 @@
     "reads": true,
     "label": "Plan de test à l'écran",
     "hint": "Prépare la liste de ce qu'il faut essayer à la main, et comment lancer la branche.",
-    "text": "/vibecoder:ecran {{lang}} {{out}} {{ref}}"
+    "text": "/vibecoder:ecran {{lang}} {{out}} base={{base}} {{ref}}"
   },
   {
     "id": "publish",
@@ -489,7 +489,7 @@
     "needs": "none",
     "label": "Vibe",
     "hint": "L'agent reprend à la première étape pas faite et enchaîne jusqu'à la PR et sa CI au vert ; une question qui bloque l'attend sans l'arrêter ; long et coûteux.",
-    "text": "/vibecoder:vibe {{lang}} {{out}}"
+    "text": "/vibecoder:vibe {{lang}} {{out}} note={{note}}"
   },
   {
     "id": "guide",

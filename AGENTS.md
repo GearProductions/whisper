@@ -98,4 +98,6 @@
 ## PR
 
 - Une note par ticket : `docs/tickets/<type>/<ticket>-<slug>.md`.
-- Un commit par module : fonctions pures → orchestration → composants → colle.
+- Historique simple : après le premier commit (note, forme, invariants
+  rouges), un seul commit pour le code de tous les modules ; les corrections
+  sont des commits ordinaires « revue : … » ; la PR est fusionnée en squash.

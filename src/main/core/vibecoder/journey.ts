@@ -82,9 +82,12 @@
  *  dont la liste retenue est lue (validated), ceux de sa vue (les tests, ou les fichiers des modules) qui diffèrent
  *  d'elle ; un supprimé sans autre id dans la vue (m, b, t) : r<i>, d'un bout à l'autre de diffs.
  *  Retirés : validation (fileReview), step.stale, since et « périmée ».
+ *  Les mêmes règles pour les deux historiques d'un projet (note 0.16.0-flow-allege) : un commit par module et ses
+ *  fixups repliés, ou un seul commit pour le code de tous les modules et des corrections en commits ordinaires —
+ *  l'étape Modules, l'étape Revue et la case « Chaque module commité, aucun fixup à replier » de l'étape PR.
  *  Ne connaît pas : Electron, le disque, git, gh (tout est passé ; `exists` dit si
  *  un chemin du dossier de l'agent existe ; les textes des tests, à la tête et à la base, sont lus par
- *  l'appelant).
+ *  l'appelant) ; l'historique que choisit le projet (AGENTS.md : lu par les skills de commit, jamais ici).
  *  Utilisé par : app/controllers/vibecoder (refreshVibe). */
 import type {
   VibeAction, VibeCheck, VibeComment, VibeFlow, VibeGit, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePr,
@@ -183,7 +186,7 @@ const TEXT = {
     openQuestions: 'Répondre d\'abord aux questions de la note', unvalidated: 'Valider d\'abord la note', started: 'Déjà en cours', modulesUnvalidated: 'modules pas validés',
     noFixup: 'Aucun commit fixup!', dirty: 'Des modifications en cours', preparing: 'Une recette du projet est en cours',
     elsewhere: 'Passer d\'abord sur la branche de la PR', noUpstream: 'Pas de branche distante suivie', upToDate: 'Déjà à jour', alreadyOnBase: 'Déjà sur la base',
-    checklist: ['La note est à jour', 'Les invariants passent', 'Chaque diff a été relu', 'Un commit par module, fixups repliés',
+    checklist: ['La note est à jour', 'Les invariants passent', 'Chaque diff a été relu', 'Chaque module commité, aucun fixup à replier',
       'AGENTS.md à jour si une convention a changé'],
   },
   en: {
@@ -201,7 +204,7 @@ const TEXT = {
     openQuestions: 'Answer the note\'s questions first', unvalidated: 'Approve the note first', started: 'Already running', modulesUnvalidated: 'modules not approved',
     noFixup: 'No fixup! commit', dirty: 'Uncommitted changes', preparing: 'A project recipe is running',
     elsewhere: 'Switch to the PR branch first', noUpstream: 'No upstream branch', upToDate: 'Already up to date', alreadyOnBase: 'Already on the base',
-    checklist: ['The note is up to date', 'The invariants pass', 'Every diff has been reviewed', 'One commit per module, fixups folded',
+    checklist: ['The note is up to date', 'The invariants pass', 'Every diff has been reviewed', 'Every module committed, no fixup to fold',
       'AGENTS.md updated if a convention changed'],
   },
 };
