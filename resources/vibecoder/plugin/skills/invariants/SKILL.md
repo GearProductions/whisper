@@ -11,7 +11,7 @@ allowed-tools: "Read, Glob, Grep, Write, Edit"
 
 # Invariants — red, from the note (guide §3)
 
-`$ARGUMENTS` = `<lang> <out> [note=<path>] [pseudo-code…]`. `note=<path>`: optional, the ticket note, given by the app right after `out` (an empty value, `base=` or `note=` alone, counts as not given) (absent → the search below). `lang`: the user's language, not used here — code-related work: your answer in English. The tests follow the project's convention (`AGENTS.md`), else English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces): only `align.md` is written there. Pseudo-code: optional, written by the developer — when given, it is the test to write, every case and every assertion of it, translated into the project's language and test framework.
+`$ARGUMENTS` = `<lang> <out> [note=<path>] [pseudo-code…]`. `note=<path>`: optional, the ticket note, given by the app right after `out` (an empty value, `base=` or `note=` alone, counts as not given) (absent → the search below); the path stops at `.md` (what follows, spaces included, is the pseudo-code). `lang`: the user's language, not used here — code-related work: your answer in English. The tests follow the project's convention (`AGENTS.md`), else English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces): only `align.md` is written there. Pseudo-code: optional, written by the developer — when given, it is the test to write, every case and every assertion of it, translated into the project's language and test framework.
 
 ## Read first
 
