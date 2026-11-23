@@ -82,9 +82,12 @@
  *  dont la liste retenue est lue (validated), ceux de sa vue (les tests, ou les fichiers des modules) qui diffèrent
  *  d'elle ; un supprimé sans autre id dans la vue (m, b, t) : r<i>, d'un bout à l'autre de diffs.
  *  Retirés : validation (fileReview), step.stale, since et « périmée ».
+ *  Les mêmes règles pour les deux historiques d'un projet (note 0.16.0-flow-allege) : un commit par module et ses
+ *  fixups repliés, ou un seul commit pour le code de tous les modules et des corrections en commits ordinaires —
+ *  l'étape Modules, l'étape Revue et la case « Chaque module commité, aucun fixup à replier » de l'étape PR.
  *  Ne connaît pas : Electron, le disque, git, gh (tout est passé ; `exists` dit si
  *  un chemin du dossier de l'agent existe ; les textes des tests, à la tête et à la base, sont lus par
- *  l'appelant).
+ *  l'appelant) ; l'historique que choisit le projet (AGENTS.md : lu par les skills de commit, jamais ici).
  *  Utilisé par : app/controllers/vibecoder (refreshVibe). */
 import type {
   VibeAction, VibeCheck, VibeComment, VibeFlow, VibeGit, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePr,
