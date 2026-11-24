@@ -1896,6 +1896,11 @@ describe('les cas un par un', () => {
     });
   });
 
+  it('la lecture de son empreinte qui a sauté un cas : ce cas n\'est pas lu', () => {
+    const v = vibeView(input({ tests: [at(SRC)], readings: [{ blob: blobSha(SRC), text: '## a\n', time: 1 }] }));
+    expect(facts(v)).toBe('1 fichier · 2 cas · 1 lu');
+  });
+
   it('le cas retouché : l\'étape Invariants décochée', () => {
     const base = { note, repo: repo([], [FIRST]) };
     const state = (marks: Marks, text: string, blobs = []) => ({ ...base, tests: [at(text)], marks, blobs });

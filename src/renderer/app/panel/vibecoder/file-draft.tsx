@@ -43,7 +43,7 @@ export type FileDraft = {
 };
 
 export function useFileDraft(file: VibeFile | null, code: VibeCode | null, locked: string | null,
-  onSave: (id: string, text: string) => Promise<boolean>,
+  onSave: ((id: string, text: string) => Promise<boolean>) | undefined,   // absent : rien ne s'enregistre (le créateur, noEdit)
   [drafts, setDrafts]: readonly [Drafts, Dispatch<SetStateAction<Drafts>>]): FileDraft {
   const pushed = file && code?.id === file.id ? code : null; // un texte poussé pour un autre fichier est ignoré
   // Le dernier texte du fichier, par son chemin : gardé quand son id change, jusqu'au prochain.
@@ -65,7 +65,7 @@ export function useFileDraft(file: VibeFile | null, code: VibeCode | null, locke
   // Le disque a changé depuis le début de la modification : l'enregistrer l'écraserait.
   const stale = !!draft && !!disk && draft.base !== null && disk.time > draft.base;
   const save = async () => {
-    if (!file || !draft || locked || stale) return;
+    if (!file || !draft || locked || stale || !onSave) return;
     const p = file.path;
     // Enregistrée, elle attend la poussée de son écriture : égale, supprimée (le disque l'a rejointe) ;
     // sinon (tapé depuis), elle y prend sa base.

@@ -61,6 +61,20 @@ it('un fichier « Aligné. » : rien du tout', async () => {
   expect(page.innerHTML).toBe('');
 });
 
+it('les textes « tout va bien » connus, une ligne : rien du tout, même suivis de ce qui a été vérifié', async () => {
+  for (const md of ['Aligned.', 'Déjà sobre. On livre.', 'Lean already. Ship.', 'Aligné. 3 fichiers, 12 cas lus.']) {
+    await draw(md);
+    expect(page.innerHTML).toBe('');
+  }
+});
+
+it('une ligne sans étiquette qui n\'est pas un « tout va bien » : montrée telle quelle, rien n\'est caché', async () => {
+  for (const md of ['Erreur : lecture impossible.', 'La sortie est tronq']) {
+    await draw(md);
+    expect(page.textContent).toBe(md);
+  }
+});
+
 it('un fichier sans étiquette de plusieurs lignes : montré tel quel', async () => {
   await draw('# Alignement\n\nUne ligne.\n\n- un point\n- un autre');
   expect(fold()).toBeNull();

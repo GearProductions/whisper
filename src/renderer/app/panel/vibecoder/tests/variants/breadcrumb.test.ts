@@ -87,6 +87,16 @@ it('créateur : une erreur du relevé : aucune ligne (le bandeau d\'erreur parle
 
 // --- Le bouton du moteur ---
 
+it('une erreur du relevé, le moteur en route : pas de ligne, mais Arrêter reste ; un clic → onStopVibe', async () => {
+  calls.length = 0;
+  const m = await mount(creator({ error: 'boom' as never, vibe: true }), [], [], { a: act1(), on: true }, () => {});
+  expect(lines(m.page)).toHaveLength(0);
+  expect(runs(m.page).map((b) => b.textContent)).toEqual([s.vibeStop]);
+  await act(() => runs(m.page)[0].click());
+  expect(calls).toEqual(['stop']);
+  await m.unmount();
+});
+
 it('le moteur en route : Arrêter à côté de la ligne, un clic → onStopVibe ; même l\'action masquée (« déjà en cours »)', async () => {
   calls.length = 0;
   let m = await mount(creator({ vibe: true }), [], [], { a: act1(), on: true }, () => {});

@@ -75,7 +75,7 @@ export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, 
   code: VibeCode | null;
   t: Strings;
   onFollow(id: string | null): void;
-  onSave(id: string, text: string): Promise<boolean>;
+  onSave?(id: string, text: string): Promise<boolean>;   // absent avec noEdit : rien ne s'enregistre
   onQuote?(block: string): void;
   onOpen?(id: string): void;       // Ouvrir dans l'éditeur : l'icône du fichier affiché ; absent : pas d'icône
   drafts: StepProps['drafts'];

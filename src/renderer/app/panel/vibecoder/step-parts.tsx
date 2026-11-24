@@ -29,7 +29,8 @@
  *  ou le rendre (act.mark(étape, 'ok')) ; sans ✓ ni retrait, un badge sans clic : il ne valide jamais une étape que le
  *  système n'a pas validée, ne lance aucune action, ne touche pas à la note. « modifiée depuis la validation » reste
  *  un bouton là où la vue passe onSince (Modules : le diff bascule sur ce qui a changé depuis le ✓), un texte ailleurs.
- *  Run, Invite et OutputCard ne servent plus qu'au relecteur et à la note (Vérifier). Le relecteur : inchangé.
+ *  Run, Invite et OutputCard ne sont plus rendus par StepHead : les vues les posent elles-mêmes (le créateur garde Invite
+ *  et OutputCard : modules, Forme, PR ; Run reste surtout au relecteur et à la note, Vérifier). Le relecteur : inchangé.
  *  Ne connaît pas : le pont (rappels passés ; ⏹ et la langue par le contexte StopRun).
  *  Utilisé par : les vues d'étape ; vibe-coder (badge Relecteur,
  *  badge du worktree). */
@@ -74,7 +75,9 @@ export type StepPieces = { pieces: Piece[]; onRemove(p: Piece): void; onAttach()
 export function StepHead({ p, own = [], children, onSince }: { p: StepProps; own?: string[]; children?: ReactNode; onSince?(): void }) {
   const { view, step, t, act, busy } = p;
   const acts = stepActions(view, step, own);
-  const { mark, click } = stepBadge(view.flow, step);
+  // l'étape d'avant validée : ne compte que pour rendre un ✓ retiré (stepBadge)
+  const prevOk = !step.check?.withdrawn || view.steps[view.steps.findIndex((x) => x.id === step.id) - 1]?.check?.state === 'ok';
+  const { mark, click } = stepBadge(view.flow, step, prevOk);
   const s = S[view.lang];
   const badge = mark
     ? `${t.stepStatus.done} ${mark === 'ok' ? '✓' : s.withdrawn}`

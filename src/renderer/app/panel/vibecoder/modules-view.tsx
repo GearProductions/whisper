@@ -84,15 +84,13 @@ export function ModulesView(p: StepProps) {
 
 // À droite, le fichier choisi : son diff (depuis la base, ou la validation), l'icône Ouvrir ; sans code, plus aucun fichier suivi.
 // Un fichier supprimé depuis la référence (gone) : un module d'un seul fichier, tout en retraits.
-const noSave = async () => false;   // jamais appelée : noEdit
-
 function CreatorBody({ p, file, diff }: { p: StepProps; file: IdeFile | null; diff: CreatorDiff }) {
   const { view, t, act } = p;
   const code = file?.code ?? (file?.gone ? goneModule(file) : null);
   useEffect(() => { if (!code) act.follow(null); }, [file?.path, !!code]);
   return code ? (
     <ModuleCode key={file!.path} m={code} noEdit noTree diff={{ shown: diff.shown, mode: 'inline', step: 'modules' }} code={p.code} t={t} lang={view.lang} open
-      onFollow={act.follow} onSave={noSave} onOpen={act.open} drafts={p.drafts} />
+      onFollow={act.follow} onOpen={act.open} drafts={p.drafts} />
   ) : null;
 }
 

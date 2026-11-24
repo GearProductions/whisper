@@ -253,8 +253,9 @@ export type VibeStepCheck = { state: 'ok' | 'changed' | 'cascade' | null; cause?
 export type VibePause = 'note' | 'invariants' | 'modules' | 'withdrawn:forme' | 'withdrawn:invariants' | 'withdrawn:modules';
 
 // preuve.md (note 0.16.0-controle-en-trois-points) : une ligne « → invariant » de la note — line, son texte ; proved,
-// un mutant a fait échouer son test ; detail, le mutant qui l'a prouvée, ou pourquoi elle remonte à l'utilisateur.
-export type VibeProofLine = { line: string; proved: boolean; detail: string };
+// un mutant a fait échouer son test ; detail, le mutant qui l'a prouvée, ou pourquoi elle remonte à l'utilisateur ;
+// found, preuve.md a une rubrique pour elle (false : aucune, la ligne est « écrite » ; absent : tenue pour trouvée).
+export type VibeProofLine = { line: string; proved: boolean; detail: string; found?: boolean };
 // La preuve des invariants par mutation : 'none', rien à prouver (aucune ligne « → invariant ») ; 'missing', pas de
 // preuve, ou une ligne de la note n'y est pas ; 'blocked', une ligne pour l'utilisateur ([toi]) ; 'ok', toutes prouvées.
 export type VibeProof = { state: 'none' | 'missing' | 'blocked' | 'ok'; lines: VibeProofLine[] };
@@ -497,7 +498,7 @@ export type VibeView = {
   // par la branche (absent = false) ; git : pas commité, nouveau ou modifié (absent : commité) ; locked : pourquoi
   // il ne s'édite pas (codeLock), null : éditable.
   files?: (VibeFile & { deleted?: boolean; git?: VibeGit; locked: string | null })[];
-  modulesView?: 'ide' | 'list';          // d'avant la 0.16.0-ecran-essentiel (Vue IDE · Vue liste) : la page ne le lit plus
+  modulesView?: 'ide' | 'list';          // d'avant la 0.16.0-ecran-essentiel (Vue IDE · Vue liste) : le créateur ne le lit plus, le relecteur si
   diffs?: VibeDiffs;                     // les fichiers qui diffèrent du dernier commit et des validations (créateur, toujours rempli par lui)
   time: number;                       // heure du relevé
 };
@@ -529,7 +530,7 @@ export type VibePatch = {
   express?: boolean;           // le rythme : passer en express (true), revenir au rythme par défaut (false)
   pr?: number | null;          // la PR suivie
   seen?: boolean;              // « Vu » : la note de référence devient l'actuelle
-  modulesView?: 'ide' | 'list'; // d'avant la 0.16.0-ecran-essentiel : la page ne l'envoie plus
+  modulesView?: 'ide' | 'list'; // d'avant la 0.16.0-ecran-essentiel : le créateur ne l'envoie plus, le relecteur si
   model?: string;              // le modèle de l'agent, comme son menu
   effort?: string;
   mode?: string;

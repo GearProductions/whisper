@@ -11,11 +11,12 @@
  *  Aucun bouton d'action, aucune validation (ni cas par cas, ni Tout valider, ni Rien à écrire), aucun chiffre en tête,
  *  aucune barre, ni code ni éditeur ; sans ligne « → invariant » dans la note : une phrase, « La note ne demande aucun
  *  invariant ». L'en-tête d'étape (StepHead) est rendu par invariants-view.
- *  RulesView(p: StepProps): ReactNode ; Pseudo({ code }) : le pseudo-code coloré, repris par les cartes du relecteur
+ *  RulesView(p: StepProps): ReactNode ; Pseudo({ code }) : le pseudo-code coloré, et Attention({ text, lang, t,
+ *  onOpenLink, children? }) : l'encart du point d'attention, repris par les cartes du relecteur
  *  Ne connaît pas : le pont (rappels passés), le relecteur (invariants-view garde sa vue), le brouillon de revue.
- *  Utilisé par : invariants-view (RulesView ; Pseudo). */
+ *  Utilisé par : invariants-view (RulesView ; Pseudo, Attention). */
 import { useMemo, type ReactNode } from 'react';
-import { pseudoLines, ruleGroups, type RuleCase, type RuleState } from 'core/vibecoder';
+import { pseudoLines, ruleGroups, type RuleCase, type RuleState, type Strings } from 'core/vibecoder';
 import type { VibeLang } from 'technicals/bridge';
 import { FeedbackView } from './feedback-view';
 import { Icon, IconButton } from './icons';
@@ -62,12 +63,7 @@ export function RulesView({ view, t, act }: StepProps): ReactNode {
           <IconButton icon="open" label={t.openTitle} onClick={() => act.open(file.id, file.lines[index])} />
         </div>
         {r ? <Pseudo code={r.pseudo} /> : <p className="vc-rule-reading">{s.reading}</p>}
-        {r?.warning ? (
-          <div className="vc-attention" role="note" title={s.warningHelp}>
-            <span className="vc-attention-icon"><Icon name="warn" /></span>
-            <p><b>{s.warning}</b><InlineMd text={r.warning} t={t} onOpenLink={act.openLink} /></p>
-          </div>
-        ) : null}
+        {r?.warning ? <Attention text={r.warning} lang={view.lang} t={t} onOpenLink={act.openLink} /> : null}
       </article>
     );
   };
@@ -92,6 +88,19 @@ export function RulesView({ view, t, act }: StepProps): ReactNode {
           {others.map(test)}
         </section>
       ) : null}
+    </div>
+  );
+}
+
+// Le point d'attention d'un test (r.warning) : l'encart, son aide en infobulle ; children, à droite (le relecteur y met sa
+// citation) ; les cartes du relecteur (invariants-view) l'importent d'ici.
+export function Attention({ text, lang, t, onOpenLink, children }: { text: string; lang: VibeLang; t: Strings; onOpenLink(url: string): void; children?: ReactNode }) {
+  const s = S[lang];
+  return (
+    <div className="vc-attention" role="note" title={s.warningHelp}>
+      <span className="vc-attention-icon"><Icon name="warn" /></span>
+      <p><b>{s.warning}</b><InlineMd text={text} t={t} onOpenLink={onOpenLink} /></p>
+      {children}
     </div>
   );
 }

@@ -41,7 +41,7 @@ export function statusLine(view: VibeView): StatusLine | null {
   if (view.pr?.state === 'OPEN') {
     const ci = parseCi(view.outputs['ci.md']?.text ?? '');
     if (ci?.state === 'ok') return yours(l.green);
-    return { text: ci?.state === 'ko' ? l.ciFailed(ci.failed) : l.ciRunning, yours: false };
+    return { text: ci?.state === 'ko' ? l.ciFailed : l.ciRunning, yours: false };
   }
   if (view.pr?.state === 'MERGED') return { text: l.merged, yours: false };
   return yours(l.stopped);

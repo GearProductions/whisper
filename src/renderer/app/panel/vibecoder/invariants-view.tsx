@@ -48,7 +48,7 @@ import { useKept } from './kept-scope';
 import { InlineMd, MarkdownView } from './markdown-view';
 import { ModuleCode } from './module-code';
 import { ModuleDiffView } from './module-diff-view';
-import { Pseudo, RulesView } from './rules-view';
+import { Attention, Pseudo, RulesView } from './rules-view';
 import { Invite, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
 import { CaseVerdict } from './validation';
@@ -75,7 +75,6 @@ const fr = {
   commonTitle: 'Le code commun du fichier (hors des cas) a changé depuis votre verdict : relisez le cas',
   edges: 'Cas limites',
   guarantees: 'Garantit',
-  warning: 'Attention',
   warningHelp: 'Attention : le relecteur pense que ce test ne vérifie pas vraiment ce qu\'il annonce (mock, boucle, assertion faible…). Ce n\'est pas un échec : une piste pour votre relecture.',
   quote: 'Une remarque sur ce cas, au brouillon de revue',
   quoteAttention: 'Reprendre ce point d\'attention dans une remarque, au brouillon de revue',
@@ -117,7 +116,6 @@ const S: Record<VibeLang, typeof fr> = {
     commonTitle: 'The file\'s common code (outside the cases) changed since your verdict: read the case again',
     edges: 'Edge cases',
     guarantees: 'Guarantees',
-    warning: 'Warning',
     warningHelp: 'Warning: the reviewer thinks this test does not really check what it claims (mock, loop, weak assertion…). It is not a failure: a lead for your review.',
     quote: 'A remark on this case, to the review draft',
     quoteAttention: 'Take this warning into a remark, to the review draft',
@@ -347,14 +345,12 @@ function CaseCard({ c, n, link, stale, onGo, code, from, path, s, t, lang, onOpe
             </div>
           ) : null}
           {r.warning ? (
-            <div className="vc-attention" role="note" title={s.warningHelp}>
-              <span className="vc-attention-icon"><Icon name="warn" /></span>
-              <p><b>{s.warning}</b><InlineMd text={r.warning} t={t} onOpenLink={onOpenLink} /></p>
+            <Attention text={r.warning} lang={lang} t={t} onOpenLink={onOpenLink}>
               <span style={{ marginLeft: 'auto' }}>
                 <IconButton icon="comment" label={s.quoteAttention}
                   onClick={() => { setWriting(true); setText(withAttention(text, r.warning ?? '')); }} />
               </span>
-            </div>
+            </Attention>
           ) : null}
         </>
       ) : <p className="vc-case-none">{s.noReading}</p>}

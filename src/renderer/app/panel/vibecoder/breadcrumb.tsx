@@ -12,7 +12,8 @@
  *  vibe et si le moteur tourne) : Arrêter pendant que le système enchaîne (onStopVibe), même l'action masquée
  *  (« déjà en cours ») ; Reprendre quand il est arrêté (onVibe ; grisé, avec sa raison, si l'action l'est) ; ni l'un ni
  *  l'autre tant que l'action est masquée (note ou ✓ d'étape pas posé), ni à la pause 'note'. Ni libellé ni infobulle ne
- *  disent « Vibe » ; les noms internes (vibe, onVibe, onStopVibe) restent. Un relevé en erreur : pas de ligne.
+ *  disent « Vibe » ; les noms internes (vibe, onVibe, onStopVibe) restent. Un relevé en erreur : pas de ligne, mais Arrêter
+ *  reste tant que le moteur tourne.
  *  L'interrupteur Express (view.express ; onExpress(true | false)) reste au bout du fil, toujours là, note validée ou
  *  non, le moteur en route ou non ; absent, pas d'interrupteur. Plus de « N commits » ni de liste pour le créateur.
  *  Le relecteur (flow 'review') : ni ligne ni bouton du moteur ; au bout du fil, « N commits » déplie sous le fil la
@@ -40,7 +41,14 @@ export function Breadcrumb({ view, t, selected, vibe, onPick, onOpen, onVibe, on
   const [open, setOpen] = useState<string | null>(null);
   const n = view.commits.length;
   const review = view.flow === 'review';
-  const line = review ? null : statusLine(view);   // le créateur : toujours une ligne (sauf relevé en erreur) ; le relecteur : aucune
+  const line = statusLine(view);   // le créateur : toujours une ligne (sauf relevé en erreur) ; le relecteur : aucune
+  // Le bouton du moteur : Arrêter même sans ligne (relevé en erreur), Reprendre seulement à côté d'une ligne ; jamais au relecteur.
+  const engine = !review && vibe && (vibe.on || (line && !vibe.a.hidden && view.pause !== 'note')) ? (vibe.on ? (
+    <button type="button" className="vc-run" data-tone="ghost" title={t.vibeStopTitle} onClick={onStopVibe}>{t.vibeStop}</button>
+  ) : (
+    <button type="button" className="vc-run" data-tone="vibe" disabled={!!vibe.a.disabled}
+      title={vibe.a.disabled ? `${vibe.a.hint}\n— ${vibe.a.disabled}` : vibe.a.hint} onClick={onVibe}>{vibe.a.label}</button>
+  )) : null;
   useEffect(() => {
     if (!list) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); setList(false); } };
@@ -72,15 +80,10 @@ export function Breadcrumb({ view, t, selected, vibe, onPick, onOpen, onVibe, on
           </label>
         ) : null}
       </div>
-      {line ? (
+      {line || engine ? (
         <div className="vc-line">
-          <p role="status" data-yours={line.yours}>{line.text}</p>
-          {vibe && (vibe.on || (!vibe.a.hidden && view.pause !== 'note')) ? (vibe.on ? (
-            <button type="button" className="vc-run" data-tone="ghost" title={t.vibeStopTitle} onClick={onStopVibe}>{t.vibeStop}</button>
-          ) : (
-            <button type="button" className="vc-run" data-tone="vibe" disabled={!!vibe.a.disabled}
-              title={vibe.a.disabled ? `${vibe.a.hint}\n— ${vibe.a.disabled}` : vibe.a.hint} onClick={onVibe}>{vibe.a.label}</button>
-          )) : null}
+          {line ? <p role="status" data-yours={line.yours}>{line.text}</p> : null}
+          {engine}
         </div>
       ) : null}
       {list && n ? (

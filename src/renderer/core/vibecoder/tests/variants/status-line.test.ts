@@ -93,11 +93,11 @@ describe('statusLine', () => {
     }
   });
 
-  it('la PR ouverte, la CI en échec : elle le dit, avec les vérifications', () => {
+  it('la PR ouverte, la CI en échec : elle le dit, sans les noms (la vue de la PR les liste)', () => {
     const outputs = { 'ci.md': { text: '✗ échec\n\n## lint\nx\n\n## test\ny\n', time: 1 } };
     const l = statusLine(view('pr', { pr, outputs }));
     expect(l?.yours).toBe(false);
-    expect(l?.text).toBe('La PR est ouverte, la CI est en échec : lint, test');
+    expect(l?.text).toBe('La PR est ouverte, la CI est en échec');
     expect(statusLine(view('pr', { pr, outputs: ci('✗ échec') }))?.text).toBe('La PR est ouverte, la CI est en échec');
   });
 

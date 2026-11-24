@@ -497,14 +497,19 @@ describe('ruleGroups', () => {
       const lines = [{ line: lineA, proved: true, detail: 'm' }, { line: 'autre → invariant', proved: false, detail: 'pourquoi' }];
       // absente des lignes du relevé
       expect(states(ruleGroups(view([inv(A), inv(B), inv('autre')], [], { state: 'missing', lines: lines.slice(0, 1) })))).toEqual([['proved', 'm'], ['written', ''], ['written', '']]);
-      // présente, mais sans rubrique (proofOf la rend non prouvée, sans détail, l'état « missing »)
-      const proof: VibeProof = { state: 'missing', lines: [lines[0], { line: lineB, proved: false, detail: '' }, lines[1]] };
+      // présente, mais sans rubrique (proofOf la rend non prouvée, sans détail, found: false)
+      const proof: VibeProof = { state: 'missing', lines: [lines[0], { line: lineB, proved: false, detail: '', found: false }, lines[1]] };
       expect(states(ruleGroups(view([inv(A), inv(B), inv('autre')], [], proof)))).toEqual([['proved', 'm'], ['written', ''], ['unproved', 'pourquoi']]);
     });
 
-    it('la ligne de la preuve se retrouve à l\'espace près', () => {
-      const proof: VibeProof = { state: 'ok', lines: [{ line: `  ${A}  →   invariant `, proved: true, detail: 'm' }] };
-      expect(states(ruleGroups(view([inv(A)], [], proof)))).toEqual([['proved', 'm']]);
+    it('une rubrique [toi] sans corps, pendant qu\'une autre ligne manque : « non prouvée », pas « écrite »', () => {
+      const proof: VibeProof = { state: 'missing', lines: [{ line: lineA, proved: false, detail: '', found: true }, { line: lineB, proved: false, detail: '', found: false }] };
+      expect(states(ruleGroups(view([inv(A), inv(B)], [], proof)))).toEqual([['unproved', ''], ['written', '']]);
+    });
+
+    it('la ligne de la preuve est le texte de la note tel quel (proofOf le rend ainsi) : une autre ligne ne la rattache pas', () => {
+      const proof: VibeProof = { state: 'ok', lines: [{ line: lineA, proved: true, detail: 'm', found: true }] };
+      expect(states(ruleGroups(view([inv(A), inv(B)], [], proof)))).toEqual([['proved', 'm'], ['written', '']]);
     });
   });
 });

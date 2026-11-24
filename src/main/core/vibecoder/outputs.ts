@@ -165,5 +165,5 @@ export function proofOf(md: string | null, lines: string[]): VibeProof {
     return { line, proved: mine.length > 0 && mine.every((r) => r.proved), detail: (mine.find((r) => !r.proved) ?? mine[0])?.detail ?? '', found: mine.length > 0 };
   });
   const state = got.some((l) => !l.found) ? 'missing' : got.every((l) => l.proved) ? 'ok' : 'blocked';
-  return { state, lines: got.map(({ line, proved, detail }) => ({ line, proved, detail })) };
+  return { state, lines: got };
 }

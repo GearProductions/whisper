@@ -2201,13 +2201,14 @@ créateur ; le relecteur, F-101) :
    est lu). Prochaine action : *Écrire les invariants
    (rouges)* (le texte d'aide de l'étape sans test la cite sous ce nom ; d'après la note, à partir
    des squelettes de la forme) tant qu'il
-   n'y a pas de test, puis *✓ Commiter* (un
+   n'y a pas de test, puis *Lire en pseudo-code* tant qu'un test n'est pas lu ou que sa
+   lecture est périmée (avant le premier commit), puis *✓ Commiter* (un
    commit préparé), *Préparer le commit* (des fichiers à commiter ; un fichier déjà porté par
    un commit de la branche : un fixup de ce commit tant qu'aucune PR n'est
    ouverte, un nouveau commit qui dit pourquoi le fichier change une fois
    la PR ouverte, jamais un fixup ni un amend : son historique n'est pas
    réécrit ; en historique simple, toujours un commit ordinaire). *Lire en
-   pseudo-code* (les fichiers pas encore lus : une lecture est nommée par
+   pseudo-code* (les fichiers pas encore lus, ou dont la lecture est périmée : une lecture est nommée par
    l'empreinte du fichier, sa première ligne `# <chemin du test>` ; relire
    la remplace) est lancée par le moteur (ci-dessus) ; chez le relecteur, elle
    n'est jamais mise en avant : elle reste dans la rangée de l'étape.

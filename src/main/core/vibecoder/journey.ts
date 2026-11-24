@@ -124,7 +124,7 @@
  *    de marks, pour son contenu d'aujourd'hui) : toutes, pas seulement la première, que nomme la pause ;
  *  - l'état de la preuve quitte les faits de l'étape Modules pour ceux de l'étape Invariants (il ne se dit qu'à un
  *    endroit) ; « modifiée depuis la validation » et « à revoir » restent seuls dans leur en-tête ;
- *  - rien n'est retiré du relevé : les actions, checklist et modulesView (recopié, plus lu par la page) restent.
+ *  - rien n'est retiré du relevé : les actions, checklist et modulesView (recopié : le créateur ne le lit plus, le relecteur si) restent.
  *  Ne connaît pas : Electron, le disque, git, gh, si la pause est tenue (holdsPause de vibe-mode : journey dit où le
  *  parcours se tient, le contrôleur décide) (tout est passé ; `exists` dit si
  *  un chemin du dossier de l'agent existe ; les textes des tests, à la tête et à la base, sont lus par
@@ -134,6 +134,7 @@ import type {
   VibeAction, VibeCheck, VibeComment, VibeFlow, VibeGit, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePause, VibePr,
   VibeDiffFile, VibeDiffs, VibeDiffStep, VibePrItem, VibeRecipe, VibeRun, VibeStepCheck, VibeStepId, VibeTestFile, VibeView, VibeWorktree,
 } from 'shared/bridge';
+import { caseKeys, readingRanks } from 'shared/test-cases';
 import { DIRECT_ACTIONS, DIRECT_ONLY, EFFORT_LEVELS, prNumber, SKILL_MODELS, templateVars, type ActionDef } from './actions';
 import { caseMarkState, caseTarget } from './case-marks';
 import { designState, markState, withdrawn, type Marks } from './marks';
@@ -432,8 +433,11 @@ export function vibeView(input: JourneyInput): VibeView {
   // Les tests de l'étape Invariants : ceux qu'un commit porte avec la note (le premier, ses fixups repliés).
   const stepTests = invariants.filter((f) => !!note && commits.some((c) => noteIn(c) && c.files.includes(f.path)));
   const caseCount = invariants.reduce((s, f) => s + f.cases.length, 0);
-  // un cas périmé n'est pas lu
-  const readCount = invariants.reduce((s, f) => s + (f.reading ? f.cases.length - (f.staleCases?.length ?? 0) : 0), 0);
+  // un cas lu : celui que sa lecture couvre (readingRanks, comme la page) ; un cas périmé ou sauté n'est pas lu
+  const readCount = invariants.reduce((s, f) => {
+    const keys = caseKeys(f.cases);
+    return s + (f.reading ? readingRanks(f.cases, f.reading.map((c) => c.title)).filter((r, i) => r !== null && !f.staleCases?.includes(keys[i])).length : 0);
+  }, 0);
 
   // Les sorties des skills.
   const questions = parseQuestions(out('questions.md') ?? '');

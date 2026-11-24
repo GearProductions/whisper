@@ -195,7 +195,7 @@ export function NoteView(p: StepProps) {
             {editing ? (
               <button type="button" className="vc-mini" aria-pressed={brut} title={s.rawTitle} onClick={() => setBrut(!brut)}>{brut ? s.rendered : s.raw}</button>
             ) : null}
-            <span className="vc-note-mark"><MarkControl what="note" state={note.mark} review={review} lang={view.lang} onMark={(v) => act.mark('note', v)} onRemark={review ? () => setRefusing(true) : undefined}
+            <span className="vc-note-mark"><MarkControl state={note.mark} review={review} lang={view.lang} onMark={(v) => act.mark('note', v)} onRemark={review ? () => setRefusing(true) : undefined}
               run={designRun} onCheck={review ? undefined : () => act.run('design-check')} verified={note.verified} /></span>
           </div>
           {refusing ? (

@@ -93,11 +93,12 @@ it('relecteur — Note, Forme, Invariants : ni champ, ni Joindre, ni micro, ni E
 });
 
 // L'écran de l'essentiel : en créateur, le badge d'état porte le ✓ et se clique pour le retirer ou le rendre.
-const create = async (id: 'note' | 'forme' | 'invariants' | 'modules', check: unknown, over: { flow?: string; onSince?: () => void; head?: string } = {}) => {
+const create = async (id: 'note' | 'forme' | 'invariants' | 'modules', check: unknown, over: { flow?: string; onSince?: () => void; head?: string; prevOk?: boolean } = {}) => {
   const act = { run: vi.fn(), mark: vi.fn() };
   await render(createElement('i'));   // démonté d'abord : rien ne passe d'un cas au suivant
   await render(createElement(StepHead, { onSince: over.onSince, p: {
-    view: { lang: 'fr', flow: over.flow ?? 'create', actions: [action({ id: 'x', step: id, primary: true }), action({ id: 'y', step: id })] },
+    // les étapes d'avant : validées, sauf prevOk false (celle d'avant n'est pas validée)
+    view: { lang: 'fr', flow: over.flow ?? 'create', steps: ['note', 'forme', 'invariants', 'modules'].map((s) => ({ id: s, check: { state: over.prevOk === false ? null : 'ok' } })), actions: [action({ id: 'x', step: id, primary: true }), action({ id: 'y', step: id })] },
     step: { id, status: 'done', facts: '', head: over.head ?? '', check }, t: t('fr'), busy: false, act,
   } as unknown as StepProps }));
   return act;
@@ -128,6 +129,14 @@ it('créateur, le ✓ retiré : « faite · ✓ retiré », un clic le rend', as
   await act_(() => { badge().click(); });
   expect(act.mark.mock.calls).toEqual([['forme', 'ok']]);
   expect(act.run).not.toHaveBeenCalled();
+});
+
+it('créateur, le ✓ retiré mais l\'étape d\'avant pas validée : « faite · ✓ retiré », sans clic (validateStep refuserait)', async () => {
+  const act = await create('modules', { state: null, now: null, withdrawn: true }, { prevOk: false });
+  expect(badge().tagName).toBe('SPAN');
+  expect(badge().textContent).toBe('faite · ✓ retiré');
+  await act_(() => { badge().click(); });
+  expect(act.mark).not.toHaveBeenCalled();
 });
 
 it('créateur, une étape faite pas validée (jamais, modifiée, à revoir) : le badge sans ✓, pas un bouton', async () => {

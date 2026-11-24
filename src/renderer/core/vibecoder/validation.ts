@@ -8,10 +8,11 @@
  *  le relecteur : inchangé.
  *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : le ✓ d'une étape sur son badge d'état, et ce que fait un clic
  *  dessus.
- *  stepBadge(flow: VibeFlow, step: Pick<VibeStep, 'id' | 'check'>): StepBadge
+ *  stepBadge(flow: VibeFlow, step: Pick<VibeStep, 'id' | 'check'>, prevOk: boolean): StepBadge
  *  En créateur, à la Forme, aux Invariants et aux Modules seulement : validée (check.state 'ok') → mark 'ok' (« faite ✓ »),
  *  click 'withdraw' (retirer le ✓) ; le ✓ retiré à la main et qui tient (check.withdrawn) → mark 'withdrawn'
- *  (« faite · ✓ retiré »), click 'restore' (le rendre) ; sinon — jamais validée, modifiée depuis, à revoir, une preuve
+ *  (« faite · ✓ retiré »), click 'restore' (le rendre) seulement si l'étape d'avant est validée (prevOk : validateStep
+ *  refuse sinon), sans clic autrement ; sinon — jamais validée, modifiée depuis, à revoir, une preuve
  *  qui ne passe pas — ni ✓ ni clic : le badge ne valide jamais à la place du système. La note, la Revue, la PR et le
  *  relecteur : ni ✓ ni clic.
  *  Ne connaît pas : le DOM, React, ce que le clic envoie (step-parts : act.mark de l'étape, null ou 'ok').
@@ -38,9 +39,9 @@ export function awaiting(view: VibeView): Awaiting | null {
 // Le badge d'état d'une étape : son ✓ (validée, ou retiré à la main) et ce que fait un clic (le retirer, le rendre, rien).
 export type StepBadge = { mark: 'ok' | 'withdrawn' | null; click: 'withdraw' | 'restore' | null };
 
-export function stepBadge(flow: VibeFlow, step: Pick<VibeStep, 'id' | 'check'>): StepBadge {
+export function stepBadge(flow: VibeFlow, step: Pick<VibeStep, 'id' | 'check'>, prevOk: boolean): StepBadge {
   if (flow !== 'create' || (step.id !== 'forme' && step.id !== 'invariants' && step.id !== 'modules')) return { mark: null, click: null };
   if (step.check?.state === 'ok') return { mark: 'ok', click: 'withdraw' };
-  if (step.check?.withdrawn) return { mark: 'withdrawn', click: 'restore' };
+  if (step.check?.withdrawn) return { mark: 'withdrawn', click: prevOk ? 'restore' : null };   // validateStep refuse si l'étape d'avant n'est pas validée
   return { mark: null, click: null };
 }

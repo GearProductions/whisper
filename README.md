@@ -527,8 +527,7 @@ rester dans son travail ; lire avec `Read`, `Glob`, `Grep` plutôt que par `Bash
 une commande refusée se contourne autrement ou se signale, sans la répéter.
 Elle ne change pas les droits, elle évite les refus. Un bouton qui doit
 attendre est grisé et dit pourquoi ; un bouton qui n'a pas encore de sens
-n'est pas affiché (pas de *✓ Commiter* sans commit préparé, pas de *Diagnostiquer
-la CI* sans PR…) ; une action arrêtée retient les autres
+n'est pas affiché ; une action arrêtée retient les autres
 tant que vous n'avez pas choisi. *⏹ Arrêter* de la barre d'état n'arrête
 que le tour de la conversation. Quand sa conversation est au repos, le robot
 de l'agent montre ses actions : il clignote pendant qu'une action travaille ;

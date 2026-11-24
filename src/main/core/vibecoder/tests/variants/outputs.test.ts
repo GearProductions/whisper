@@ -240,17 +240,17 @@ describe('proofOf : l’état de la preuve pour les lignes de la note', () => {
   });
 
   it('des lignes dans la note, pas de fichier : la preuve manque', () => {
-    expect(proofOf(null, [L1])).toEqual({ state: 'missing', lines: [{ line: L1, proved: false, detail: '' }] });
+    expect(proofOf(null, [L1])).toEqual({ state: 'missing', lines: [{ line: L1, proved: false, detail: '', found: false }] });
   });
 
   it('une ligne de la note sans rubrique : la preuve manque', () => {
     const p = proofOf(proved(L1), [L1, L2]);
     expect(p.state).toBe('missing');
-    expect(p.lines.map((l) => [l.line, l.proved])).toEqual([[L1, true], [L2, false]]);
+    expect(p.lines.map((l) => [l.line, l.proved, l.found])).toEqual([[L1, true, true], [L2, false, false]]);
   });
 
   it('une rubrique [toi] : la preuve est bloquée', () => {
-    expect(proofOf(toi(L1), [L1])).toEqual({ state: 'blocked', lines: [{ line: L1, proved: false, detail: 'Raison.' }] });
+    expect(proofOf(toi(L1), [L1])).toEqual({ state: 'blocked', lines: [{ line: L1, proved: false, detail: 'Raison.', found: true }] });
   });
 
   it('chaque ligne de la note prouvée : la preuve passe', () => {

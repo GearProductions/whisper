@@ -23,7 +23,7 @@
  *  Ne connaît pas : le DOM, React, la spécification du projet (un I-… n'est qu'un numéro).
  *  Utilisé par : app/panel/vibecoder (invariants-view ; rules-view : ruleGroups, pseudoLines). */
 import type { ReadingCase, VibeMarkState, VibeNote, VibeTestFile, VibeView } from 'technicals/bridge';
-import { caseKeys } from 'shared/test-cases';
+import { caseKeys, readingRanks } from 'shared/test-cases';
 import { tokens, type Token } from './highlight';
 
 // key : la clé du cas (sa cible : « case:<chemin>:<clé> ») ; stale : sa lecture est périmée ; common : sa validation est
@@ -35,12 +35,12 @@ export type CaseView = { title: string; key?: string; reading: ReadingCase | nul
 // le titre d'aucun autre.
 export function casesOf(file: VibeTestFile): CaseView[] {
   const r = file.reading;
-  const keys = caseKeys(file.cases), readKeys = r ? caseKeys(r.map((c) => c.title)) : [];
+  const keys = caseKeys(file.cases), ranks = r ? readingRanks(file.cases, r.map((c) => c.title)) : [];
   return file.cases.map((title, i) => {
-    const key = keys[i], at = readKeys.indexOf(key);
+    const key = keys[i];
     return {
       title, key,
-      reading: !r ? null : r[at] ?? (r.length === file.cases.length && !file.cases.includes(r[i].title) ? r[i] : null),
+      reading: r && ranks[i] !== null ? r[ranks[i]!] : null,
       stale: file.staleCases?.includes(key) || undefined,
       mark: Object.hasOwn(file.marks, key) ? file.marks[key] : null,
       common: file.commonChanged?.includes(key) || undefined,
@@ -183,13 +183,12 @@ export type RuleGroups = { rules: Rule[]; others: RuleCase[] };
 
 export function ruleGroups(view: Pick<VibeView, 'note' | 'invariants' | 'proof'>): RuleGroups {
   const mustNot = view.note?.mustNot ?? [];
-  const same = (a: string, b: string) => a.trim().replace(/\s+/g, ' ') === b.trim().replace(/\s+/g, ' ');
   const cases = view.invariants.flatMap((file) => casesOf(file).map((v, index): RuleCase & { link: CaseLink } => ({ file, index, view: v, link: caseLink(v.reading, mustNot) })));
   const strip = ({ link: _l, ...c }: RuleCase & { link: CaseLink }): RuleCase => c;
   const rules = mustNot.filter((l) => l.mark === 'invariant').map(({ text }): Rule => {
-    const p = view.proof?.lines.find((l) => same(l.line, text));
-    // proofOf rend une ligne sans rubrique non prouvée, sans détail, quand l'état est 'missing' : « écrite », pas « non prouvée »
-    const state: RuleState = !p || (!p.proved && !p.detail && view.proof?.state === 'missing') ? 'written' : p.proved ? 'proved' : 'unproved';
+    const p = view.proof?.lines.find((l) => l.line === text);
+    // sans rubrique dans preuve.md (found false) : « écrite », pas « non prouvée »
+    const state: RuleState = !p || p.found === false ? 'written' : p.proved ? 'proved' : 'unproved';
     return { line: text, state, detail: state === 'written' ? '' : p!.detail, cases: cases.filter((c) => c.link.kind === 'note' && c.link.lines.includes(text)).map(strip) };
   });
   return { rules, others: cases.filter((c) => c.link.kind !== 'note').map(strip) };
