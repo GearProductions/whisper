@@ -30,7 +30,7 @@
  *  celle d'artifact-ops) ; ses boîtes de dialogue dans la langue de VibeCoder (vibeLang).
  *  Ne connaît pas : la page (ses canaux), les libellés de l'écran.
  *  Utilisé par : controllers/vibecoder (survey, openVibeItem, runDirect, dropOnArtifacts), commands
- *  (readArtifact), artifact-ops (ArtifactRefusal), agents,
+ *  (readArtifact), artifact-ops (ArtifactRefusal), agents, runs (projectArtifactsPath, le contrôle d'une course),
  *  artifact-migration, module-code, app/lifecycle. */
 import fs from 'node:fs';
 import path from 'node:path';

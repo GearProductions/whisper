@@ -6,8 +6,9 @@
  *  ses droits (runRights) : le mode qui ne demande jamais, quel que soit celui de l'agent, les outils de son skill
  *  plus Bash entier, la liste de refus moins ce que son skill en ouvre (core/vibecoder rights : le skill de son
  *  gabarit, `note` pour answers ; le préfixe des actions), le contrôle de ses fichiers (core/vibecoder bounds : le projet, ses sorties, le plugin ;
- *  une action en lecture n'écrit que dans ses sorties) ; seulement les sorties de l'agent en dossier de travail,
- *  pas le dossier des artefacts du projet (que la conversation garde) ;
+ *  le dossier d'artefacts du projet en lecture seule, projectArtifactsPath de controllers/artifacts, s'il est un
+ *  dossier et pas un lien ; une action en lecture n'écrit que dans ses sorties) ; seulement les sorties de l'agent
+ *  en dossier de travail, pas le dossier des artefacts du projet (que la conversation garde) ;
  *  le message part avec ses images ({ text, images }) ;
  *  modèle et effort du skill que son texte appelle, sinon ceux de l'agent ; answers reprend la session de la course de la note),
  *  suivre (son état d'après runPhase : en cours tant que son processus travaille ou que le runtime lui voit des
@@ -305,7 +306,8 @@ export async function retryWaits(agent: AgentConfig) {
 
 // Les droits de la course de l'action `def` lancée avec le gabarit `template` (rights : listSkill, runRules — `md`, le
 // SKILL.md de ce skill (celui de `note` pour answers) déjà lu, son dossier, promptPrefix — : allow et deny ;
-// bounds : fileDecision sur les chemins réels du dossier de l'agent, de ses sorties et du plugin, def.reads).
+// bounds : fileDecision sur les chemins réels du dossier de l'agent, de ses sorties, du plugin et du dossier
+// d'artefacts de son projet — absent, ou un lien : aucun —, def.reads).
 export function runRights(agent: AgentConfig, def: ActionDef, template: string, md: string | null, cfg: Config, frozen?: string[]): RunRights {
   const real = (p: string) => { try { return fs.realpathSync(p); } catch { return p; } };   // un dossier absent : tel quel
   const name = listSkill(def.id, template);
