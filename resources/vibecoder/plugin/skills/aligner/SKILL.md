@@ -15,7 +15,9 @@ allowed-tools: "Read, Glob, Grep, Write, Edit"
 - `WORKTREE` (the creator): the current branch, uncommitted and untracked files included. Base: `base=` if given, else `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists (`git rev-parse --verify -q <ref>`); range `<base>...HEAD`. You **fix** the tests.
 - `HEAD` (the reviewer): a pull request, checked out in this folder — read its files in the folder; base = `base` of the `<out>/pr-<n>.json` whose `head` is the current branch (`git rev-parse --abbrev-ref HEAD`; on a `pr-<n>` branch, that `<n>`); none → as for `WORKTREE`; range `origin/<base>...HEAD`. You **list only**: touch no file of the branch, run no command that writes (T-19); `align.md` is the one file you write.
 
-Read, with the Read, Glob and Grep tools: the note (under `docs/tickets/`, named like the branch, on the disk even if git ignores it, else the one the range adds or changes) — its « Ce que ça ne doit pas faire » only; the invariant tests the range adds or changes (`git diff --name-only <range>`, for `WORKTREE` `git diff --name-only <base>` and `git ls-files --others --exclude-standard`; `tests/invariants/` folders, or where `AGENTS.md`, if present, puts them); the project's list of invariants, if any (e.g. `SPEC.md`); the guide (`docs/dev_guide/*.html`) §3.1 to §3.5, if present. Not the forme, not the code: the invariants are written from the note, the modules come later.
+Read, with the Read, Glob and Grep tools: the note (under `docs/tickets/`, named like the branch, on the disk even if git ignores it, else the one the range adds or changes) — its « Ce que ça ne doit pas faire » only; the invariant tests the range adds or changes (`git diff --name-only <range>`, for `WORKTREE` `git diff --name-only <base>` and `git ls-files --others --exclude-standard`; `tests/invariants/` folders, or where `AGENTS.md`, if present, puts them); the project's list of invariants, if any (e.g. `SPEC.md`); the guide (`docs/dev_guide/*.html`) §3.1 to §3.5, if present; `<out>/preuve.md`, if it exists (the proof of the invariants by mutation, skill `prouver`: a `## [toi]` section says a test stayed green, and the mutant that did not shake it). Not the forme, not the code: the invariants are written from the note, the modules come later.
+
+When `preuve.md` names a test that stayed green, that test does not observe its line: the gap is the rule the mutant broke, said **in the note's words** — fix the test so that it observes that rule, never by reading the mutant's code to shape an assertion.
 
 ## 1. The list, first — exhaustive
 
@@ -36,12 +38,13 @@ Not checked, never reported: the forme and the files' headers, whether a line sh
 
 Gaps found → fix them yourself, in the tests only, by the rules of `${CLAUDE_SKILL_DIR}/../invariants/SKILL.md` (« Rules »: from the note, the real system, one test per case, comments, a relation rather than a value, protected files, no background command); the tests stay red, for the right reason (the code is missing, not a mistake of the test). Then redo the list and the two checks on what you changed and on what it touches: that is one round. **3 rounds at most**, in Vibe mode or not; gaps still there after the third → stop, no more fixes.
 
-Never fixed by you, whatever the round: the note (« Ce que ça fait », « Ce que ça ne doit pas faire », « Où ça casse », a label `→ invariant`…), the forme, the code. A gap only they can close is `[toi]`: leave it, don't spend a round on it.
+Never fixed by you, whatever the round: the note (« Ce que ça fait », « Ce que ça ne doit pas faire », « Où ça casse », a label `→ invariant`…), the forme, the code, and any invariant test file that existed before the branch (a case the branch added to such a file included): the app refuses you the write, and a command that changes one fails the run. A gap there is `[toi]`: leave it, don't spend a round on it. Only the invariant test files the branch creates are corrected.
+A gap only the note, the forme or the code can close is `[toi]` too.
 
 ## `<out>/align.md`, in `lang`
 
 Rewritten after each check; at the end, only what stands. One `##` per gap, its title naming the item (the note line, the test), **starting with its label**: `## [toi] …` or `## [agent] …`; under it, 1 to 3 lines: what is off, where (`file:line`), what to change. Most serious first. The page reads each title as a section: keep `##` and the label at the start of the title.
-- `[toi]`: needs the user's decision — a change of contract (what the note does or must not do, an invariant label), or a note that makes a test impossible to write. Nothing else is `[toi]`: a gap in a test is `[agent]`.
+- `[toi]`: needs the user's decision — a change of contract (what the note does or must not do, an invariant label), a note that makes a test impossible to write, or a gap in a test file from before the branch (protected). Nothing else is `[toi]`: a gap in a test the branch creates is `[agent]`.
 - `[agent]`: the rest — a gap in a test that you could fix but did not (3 rounds spent). Never a gap you fixed: it is not listed.
 - `HEAD`: the same list, **no label**, nothing fixed, the gaps in the same words.
 

@@ -119,3 +119,56 @@ describe('la page des réglages', () => {
     expect(t('en').settingInfoValue.downloading(42)).toBe('downloading 42 %');
   });
 });
+
+// 0.16.0 : le contrôle en trois points (docs/tickets/feat/0.16.0-controle-en-trois-points.md).
+describe('le contrôle en trois points', () => {
+  it('l\'interrupteur Express, Arrêter, Reprendre et la ligne de chaque pause, dans les deux langues', () => {
+    expect([t('fr').express, t('en').express]).toEqual(['Express', 'Express']);
+    expect([t('fr').vibeStop, t('en').vibeStop]).toEqual(['Arrêter', 'Stop']);
+    expect([t('fr').resume, t('en').resume]).toEqual(['Reprendre', 'Resume']);
+    for (const lang of ['fr', 'en'] as const) {
+      expect(Object.keys(t(lang).pause).sort()).toEqual(['invariants', 'modules', 'note', 'withdrawn:forme', 'withdrawn:invariants', 'withdrawn:modules']);
+      for (const text of [t(lang).expressTitle, t(lang).vibeStopTitle, t(lang).resumeTitle, ...Object.values(t(lang).pause)]) expect(text.length).toBeGreaterThan(10);
+    }
+    // La note a perdu son ✓ : la ligne le dit ; aux deux autres pauses, ce qu'il y a à regarder.
+    expect(t('fr').pause.note).toContain('note');
+    expect(t('en').pause.invariants).not.toBe(t('fr').pause.invariants);
+  });
+
+  it('Arrêter, Reprendre, leurs infobulles et les lignes de pause : sans « Vibe », ni « Relancer » pour le moteur', () => {
+    for (const lang of ['fr', 'en'] as const) {
+      const s = t(lang);
+      for (const text of [s.vibeStop, s.vibeStopTitle, s.resume, s.resumeTitle, s.express, s.expressTitle, ...Object.values(s.pause)]) expect(text).not.toMatch(/vibe/i);
+      expect(Object.keys(s)).not.toContain('restart');
+    }
+    // Chaque pause dit « puis reprenez » ; la note n'a rien à reprendre (elle attend sa validation).
+    expect(t('fr').pause.invariants).toMatch(/puis reprenez$/);
+    expect(t('fr').pause.modules).toMatch(/puis reprenez$/);
+    expect(t('en').pause.invariants).toMatch(/then resume$/);
+    expect(t('en').pause.modules).toMatch(/then resume$/);
+  });
+
+  it('un ✓ d\'étape retiré à la main : une ligne par étape, qui la nomme et dit de la modifier ou de la revalider, sans « puis reprenez »', () => {
+    const steps = [['forme', 'forme', 'shape'], ['invariants', 'invariants', 'invariants'], ['modules', 'modules', 'modules']] as const;
+    for (const [step, fr, en] of steps) {
+      const key = `withdrawn:${step}` as const;
+      expect(t('fr').pause[key]).toContain(fr);
+      expect(t('fr').pause[key]).toMatch(/modifiez-l.* ou revalidez-l.* pour reprendre$/);
+      expect(t('fr').pause[key]).not.toMatch(/puis reprenez/);
+      expect(t('en').pause[key]).toContain(en);
+      expect(t('en').pause[key]).toMatch(/change .* or approve .* again to resume$/);
+      expect(t('en').pause[key]).not.toMatch(/then resume/);
+    }
+  });
+
+  it('la sortie preuve.md a son titre ; rien à prouver est dit', () => {
+    expect([t('fr').outputs['preuve.md'], t('en').outputs['preuve.md']]).toEqual(['Preuve des invariants', 'Proof of the invariants']);
+    expect([t('fr').noProof, t('en').noProof]).toEqual(['rien à prouver', 'nothing to prove']);
+  });
+
+  it('une étape validée par le système : « validée par le système » et son contrôle ; à la main : « validée »', () => {
+    expect([t('fr').stepCheck.system, t('en').stepCheck.system]).toEqual(['validée par le système', 'validated by the system']);
+    expect([t('fr').stepCheck.ok, t('en').stepCheck.ok]).toEqual(['validée', 'validated']);
+    for (const lang of ['fr', 'en'] as const) expect(Object.keys(t(lang).systemCheck).sort()).toEqual(['forme', 'invariants', 'modules']);
+  });
+});

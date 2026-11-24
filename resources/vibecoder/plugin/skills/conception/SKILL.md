@@ -1,6 +1,6 @@
 ---
 name: conception
-description: "Check the design of the ticket note, in one pass, before its validation — forgotten cases, contradictions, edge cases of numeric rules, unreachable visible behaviour, a line that is rather an invariant or a variant — and write its suggestions after the questions in <out>/questions.md; a re-check reads only what changed since the last one and reports only what blocks. Never edits the note."
+description: "Check the design of the ticket note, in one pass, started by the user's *Check the design*, as often as they want — forgotten cases, contradictions, edge cases of numeric rules, unreachable visible behaviour, a line that is rather an invariant or a variant — and write its suggestions after the questions in <out>/questions.md; a re-check reads only what changed since the last one and reports only what blocks. Never edits the note."
 argument-hint: "<lang> <out> [note=<path>]"
 disable-model-invocation: true
 context: fork
@@ -10,6 +10,8 @@ allowed-tools: "Read, Glob, Grep, Write"
 ---
 
 # Design check — the note, before its validation
+
+The user's *Check the design* starts this check, as many times as they want. It never validates the note, whatever it finds: with « nothing blocking », the app offers *Validate the note*, and the user rereads, cleans up, then validates themselves — their gesture alone starts the engine; otherwise the note keeps waiting, with your suggestions. You never edit the note nor validate it.
 
 Does the design hold, and is it the right design? Read it as the developer's design partner, the one they brainstorm with — not only a checker: someone who must build it tomorrow, and who would rather build less.
 
@@ -22,7 +24,7 @@ Read: the note (`note=` if given, else under `docs/tickets/`, named like the bra
 `<out>/conception/<the note's file name>` (e.g. `<out>/conception/0.15.0-cli.md`) holds that note's text as you last checked it.
 
 - Absent → **first check**: the whole note; both levels.
-- Present → **re-check** (the user pressed *Revérifier*): read only what changed, `git diff --no-index -- <out>/conception/<name> <note>`, and the direct consequences of those changes on the rest of the note. Report **only `[important]`** suggestions; no `[secondaire]` on a re-check. Do not raise again what the earlier check already raised and the user answered (accepted or refused), nor what « Où ça casse » already lists as to be measured.
+- Present → **re-check** (the user checked again): read only what changed, `git diff --no-index -- <out>/conception/<name> <note>`, and the direct consequences of those changes on the rest of the note. Report **only `[important]`** suggestions; no `[secondaire]` on a re-check. Do not raise again what the earlier check already raised and the user answered (accepted or refused), nor what « Où ça casse » already lists as to be measured.
 
 At the end, whatever you found, write `<out>/conception/<name>` with the `Write` tool: the note's full current text, as is.
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isOutputName, parseChecklist, parseQuestions, parseReading, newRequestCard, questionsRule, worktreeCard } from 'core/vibecoder';
+import { isOutputName, parseChecklist, parseProof, parseQuestions, parseReading, newRequestCard, proofOf, questionsRule, toiCount, worktreeCard } from 'core/vibecoder';
 
 const READING_FR = `# src/main/core/x/tests/invariants/x.test.ts
 
@@ -187,5 +187,104 @@ describe('questionsRule : la ligne de la consigne', () => {
     expect(line).toContain('/home/x/vibecoder-out/mon agent/questions.md');
     expect(line).toContain('note');
     expect(line.split('\n')).toHaveLength(1);
+  });
+});
+
+// La preuve des invariants par mutation (note 0.16.0) : preuve.md.
+const L1 = 'Lire un autre fichier. → invariant';
+const L2 = 'Écrire hors du dossier. → invariant';
+
+describe('preuve.md : une sortie connue', () => {
+  it('preuve.md est un nom connu ; pr-1-preuve.md non', () => {
+    expect([isOutputName('preuve.md'), isOutputName('pr-1-preuve.md')]).toEqual([true, false]);
+  });
+});
+
+describe('parseProof : les rubriques de preuve.md', () => {
+  it('[prouvé] : la ligne, prouvée, son mutant en détail', () => {
+    expect(parseProof(`## [prouvé] ${L1}\n\nMutant : lit /etc/passwd.\nLe test échoue.\n`)).toEqual([
+      { line: L1, proved: true, detail: 'Mutant : lit /etc/passwd.\nLe test échoue.' },
+    ]);
+  });
+
+  it('[proved], en anglais : de même', () => {
+    expect(parseProof(`## [proved] ${L1}\nMutant: reads it.\n`)).toEqual([{ line: L1, proved: true, detail: 'Mutant: reads it.' }]);
+  });
+
+  it('[toi] : la ligne, pas prouvée, sa raison en détail', () => {
+    expect(parseProof(`## [toi] ${L1}\n\nLe test reste vert.\n`)).toEqual([{ line: L1, proved: false, detail: 'Le test reste vert.' }]);
+  });
+
+  it('une étiquette inconnue, ou aucune : pas prouvée', () => {
+    expect(parseProof(`## [vert] ${L1}\nx\n## ${L2}\ny\n`).map((r) => [r.line, r.proved])).toEqual([[L1, false], [L2, false]]);
+  });
+
+  it('les rubriques dans l’ordre ; le texte avant la première est ignoré ; sans rubrique : rien', () => {
+    expect(parseProof(`Intro\n## [prouvé] ${L1}\na\n## [toi] ${L2}\nb\n`).map((r) => r.line)).toEqual([L1, L2]);
+    expect(parseProof('Rien à prouver.\n')).toEqual([]);
+    expect(parseProof('')).toEqual([]);
+  });
+
+  it('fins de ligne Windows, espaces en bout de titre', () => {
+    expect(parseProof(`## [prouvé] ${L1}  \r\nmutant\r\n`)).toEqual([{ line: L1, proved: true, detail: 'mutant' }]);
+  });
+});
+
+describe('proofOf : l’état de la preuve pour les lignes de la note', () => {
+  const proved = (l: string) => `## [prouvé] ${l}\n\nMutant.\n`;
+  const toi = (l: string) => `## [toi] ${l}\n\nRaison.\n`;
+
+  it('la note sans ligne « → invariant » : rien à prouver, avec ou sans fichier', () => {
+    expect(proofOf('Rien à prouver.\n', [])).toEqual({ state: 'none', lines: [] });
+    expect(proofOf(null, [])).toEqual({ state: 'none', lines: [] });
+  });
+
+  it('des lignes dans la note, pas de fichier : la preuve manque', () => {
+    expect(proofOf(null, [L1])).toEqual({ state: 'missing', lines: [{ line: L1, proved: false, detail: '' }] });
+  });
+
+  it('une ligne de la note sans rubrique : la preuve manque', () => {
+    const p = proofOf(proved(L1), [L1, L2]);
+    expect(p.state).toBe('missing');
+    expect(p.lines.map((l) => [l.line, l.proved])).toEqual([[L1, true], [L2, false]]);
+  });
+
+  it('une rubrique [toi] : la preuve est bloquée', () => {
+    expect(proofOf(toi(L1), [L1])).toEqual({ state: 'blocked', lines: [{ line: L1, proved: false, detail: 'Raison.' }] });
+  });
+
+  it('chaque ligne de la note prouvée : la preuve passe', () => {
+    expect(proofOf(proved(L1) + proved(L2), [L1, L2]).state).toBe('ok');
+  });
+
+  it('une ligne manquante l’emporte sur une ligne [toi]', () => {
+    expect(proofOf(toi(L1), [L1, L2]).state).toBe('missing');
+  });
+
+  it('une rubrique d’une ligne qui n’est pas dans la note : ignorée', () => {
+    expect(proofOf(proved(L1) + proved('Autre. → invariant'), [L1]).state).toBe('ok');
+  });
+
+  it('la ligne se compare à l’espace près', () => {
+    expect(proofOf(proved(`  Lire   un autre fichier. → invariant `), [L1]).state).toBe('ok');
+  });
+
+  it('deux rubriques pour la même ligne, une [toi] : pas prouvée', () => {
+    expect(proofOf(proved(L1) + toi(L1), [L1]).state).toBe('blocked');
+  });
+});
+
+describe('toiCount : les rubriques [toi] d’un fichier de retour', () => {
+  it('« Aligné. » : aucune', () => {
+    expect(toiCount('Aligné.\n')).toBe(0);
+    expect(toiCount('')).toBe(0);
+  });
+
+  it('deux [toi] et une [agent] : deux', () => {
+    expect(toiCount('## [toi] a\nx\n## [agent] b\ny\n## [toi] c\nz\n')).toBe(2);
+  });
+
+  it('[toi] ailleurs qu’en titre : pas compté', () => {
+    expect(toiCount('Voir [toi]\n### [toi] a\n## a [toi]\n')).toBe(0);
   });
 });

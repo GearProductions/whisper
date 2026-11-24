@@ -47,13 +47,13 @@
  *  (note 0.15.0-ecran-statuts). Retirés : ideReview (accordéons, Valider d'un fichier).
  *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points), en créateur : la preuve des invariants
  *  (preuve.md : une carte comme align.md à l'étape Invariants, MarkdownView tagged, Relancer dans son en-tête, l'action
- *  prove ; sans ligne « → invariant » : pas de carte) ; Prouver les invariants parmi les actions de la carte des
+ *  prove ; pas de preuve.md : pas de carte ; view.proof 'none' : « rien à prouver » dans les outils de la carte des modules) ; Prouver les invariants parmi les actions de la carte des
  *  modules (CARD_ACTS : après Générer les modules, avant Commiter les modules) ; la validation des modules montrée
  *  (by de step.check : « validée par le système », sur la conformité et la preuve), Valider les modules en discret ;
  *  Relire le diff reste sur la ligne de chaque module, à la demande.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useEffect } from 'react';
-import { checkMark, waitingFor, fileParts, goneModule, ideFiles, moduleCommits, moduleState, type IdeFile, type ModuleState } from 'core/vibecoder';
+import { checkMark, fileParts, goneModule, ideFiles, moduleCommits, moduleState, type IdeFile, type ModuleState } from 'core/vibecoder';
 import type { VibeLang, VibeModule } from 'technicals/bridge';
 import { CommitsSection } from './commits-view';
 import { Contract } from './forme-view';
@@ -65,7 +65,7 @@ import { ModuleCode } from './module-code';
 import { PROPOSED_ACTS, ProposedCommit } from './proposed-commit';
 import { Invite, OutputCard, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
-import { MarkControl, waitText } from './validation';
+import { MarkControl } from './validation';
 import './modules-view.css';
 
 const fr = {
@@ -152,7 +152,7 @@ function IdeBody({ p, file, diff }: { p: StepProps; file: IdeFile | null; diff?:
 
 // Les actions de l'étape dans la carte des modules, pas dans l'en-tête (Commiter les modules les suit, s'il y a un
 // module pas commité) ; sans module, elles restent dans l'en-tête.
-const CARD_ACTS = ['modules'];
+const CARD_ACTS = ['modules', 'prove'];
 
 export function ModulesView(p: StepProps) {
   const { view, t, act, busy } = p;
@@ -165,6 +165,7 @@ export function ModulesView(p: StepProps) {
   const reviewer = view.flow === 'review';
   const commit = reviewer ? undefined : view.outputs['commit.md'];
   const review = reviewer ? undefined : view.outputs['review.md'];
+  const proof = reviewer ? undefined : view.outputs['preuve.md'];
   const counts = view.modules.reduce((n, m) => ({ ...n, [moduleState(m)]: n[moduleState(m)] + 1 }), { done: 0, wip: 0, todo: 0 } as Record<ModuleState, number>);
   const reviewDiff = action('review-diff');
   // Le menu de diff de la vue IDE : le créateur seul (le relecteur n'a ni check ni diffs).
@@ -195,12 +196,18 @@ export function ModulesView(p: StepProps) {
           <MarkdownView md={review.text} t={t} tagged onOpenLink={act.openLink} onQuote={quote} />
         </OutputCard>
       ) : null}
+      {proof ? (
+        <OutputCard className="vc-proof" title={t.outputs['preuve.md']} file="preuve.md" time={proof.time} t={t}
+          tools={<Run a={action('prove')} busy={busy} tone="ghost" label={t.rerun} onRun={() => act.run('prove')} />}>
+          <MarkdownView md={proof.text} t={t} tagged onOpenLink={act.openLink} onQuote={quote} />
+        </OutputCard>
+      ) : null}
       {hasModules || ideFiles(view, 'file').length ? (
         <OutputCard className="vc-modules" title={s.modules} t={t} acts={hasModules && !reviewer ? (
           <>
             {CARD_ACTS.map(cardRun)}
-            {check && (check.now != null || check.state === 'ok' || waitingFor(view.steps, 'modules')) ? (
-              <MarkControl what="modules" state={checkMark(check)} review={false} lang={view.lang} onMark={(v) => act.mark('modules', v)} waiting={waitText(view, 'modules')} />
+            {check && (check.now != null || check.state === 'ok') ? (
+              <MarkControl what="modules" state={checkMark(check)} review={false} lang={view.lang} onMark={(v) => act.mark('modules', v)} by={check.by} />
             ) : null}
             {view.modules.some((m) => m.uncommitted) ? cardRun('commit-modules') : null}
           </>
@@ -213,6 +220,7 @@ export function ModulesView(p: StepProps) {
                     <button key={k} type="button" aria-pressed={k === (ide ? 'ide' : 'list')} onClick={() => switchTo(k)}>{k === 'ide' ? t.ideView : t.listView}</button>
                   ))}
                 </div>
+                {!reviewer && view.proof?.state === 'none' ? <span className="vc-mod-noproof">{t.noProof}</span> : null}
                 <span className="vc-mod-legend">
                   {(['done', 'wip', 'todo'] as ModuleState[]).map((k) => (
                     <span key={k} data-state={k}><i className="vc-mod-dot" />{`${counts[k]} ${s.state[k]}`}</span>

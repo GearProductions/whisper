@@ -115,6 +115,7 @@ const request = (text: string) => fake.turns.find((t) => t.text.startsWith('/vib
 // Les courses de l'agent, comme le relevé les montre (runsOf).
 const runsNow = async () => (await import('app/controllers')).runsOf({ id: 'a1' });
 let out = '';
+const NOTE_TEXT = '# 0.9.0 — essai\n\n## Ce que ça fait\n\n- un essai\n';
 
 beforeEach(() => {
   vi.resetModules();
@@ -128,7 +129,7 @@ beforeEach(() => {
   git(dir, 'init', '-q', '-b', 'main');
   git(dir, 'commit', '-q', '--allow-empty', '-m', 'init');
   git(dir, 'checkout', '-q', '-b', 'feat/0.9.0-essai');
-  write(path.join(dir, 'docs/tickets/feat/0.9.0-essai.md'), '# 0.9.0 — essai\n\n## Ce que ça fait\n\n- un essai\n');
+  write(path.join(dir, 'docs/tickets/feat/0.9.0-essai.md'), NOTE_TEXT);
   git(dir, 'add', '.');
   git(dir, 'commit', '-q', '-m', 'note');
   out = path.join(fake.userData, 'vibecoder-out', 'a1');
@@ -154,6 +155,15 @@ async function open() {
   await panelReady();
   await settle();
   return import('app/controllers');
+}
+
+// La note validée par l'utilisateur (son ✓) : sans elle, la pause « note » arrête le moteur à peine lancé (0.16.0, holdsPause).
+async function noteValidated() {
+  const { saveVibeStore, vibeStore } = await import('app/settings');
+  const { blobSha, noteDesign } = await import('core/vibecoder');
+  const store = vibeStore();
+  store.marks.a1 = { note: { hash: blobSha(noteDesign(NOTE_TEXT)), verdict: 'ok' } };
+  saveVibeStore(store);
 }
 
 // L'orchestrateur demande par la porte de son robot (le jeton du robot a1 : l'appelant) ; rend la réponse de l'exécuteur.
@@ -763,6 +773,7 @@ describe('la boîte aux lettres retirée', () => {
 
   it('une demande en file, le mode Vibe arrêté après coup : elle ne part pas à la fin de la course', async () => {
     const { runVibeAction, queueStart, queuedOf, vibeStart, vibeStop, vibeHalted } = await open();
+    await noteValidated();
     vibeStart({ id: 'a1' });
     runVibeAction('forme', {});
     await settle();
@@ -1134,6 +1145,7 @@ describe('le mode Vibe', () => {
 
   it('arrêté : la course en cours finit, la demande en file jetée, rien de nouveau ne part ; au repos, hors Vibe', async () => {
     const { runVibeAction, queuedOf, vibeOn, vibeStart, vibeStop } = await open();
+    await noteValidated();
     vibeStart({ id: 'a1' });
     runVibeAction('forme', {});
     await settle();
@@ -1173,6 +1185,7 @@ describe('le mode Vibe', () => {
 
   it('en cours : la conversation accepte d’elle-même la CLI de VibeCoder, pas une autre commande', async () => {
     const { vibeStart } = await open();
+    await noteValidated();
     vibeStart({ id: 'a1' });
     expect(await cliAsk(cli())).toBe(true);
     expect(await cliAsk(`${cli()} ; rm -rf x`)).toBe(false);
@@ -1189,6 +1202,7 @@ describe('le mode Vibe', () => {
 
   it('en cours : une question ouverte le garde, fini seul quand la conversation finit son tour sans rien d’ouvert', async () => {
     const { refreshVibe, runVibeAction, vibeOn, vibeStart } = await open();
+    await noteValidated();
     runVibeAction('new-request', { text: 'une question' });
     vibeStart({ id: 'a1' });
     await settle();
@@ -1209,7 +1223,7 @@ describe('le mode Vibe', () => {
     expect(vibeOn('a1')).toBe(false);
   });
 
-  it('panneau caché tout du long : un relevé forcé avant de finir, les étapes faites reçoivent leur ✓', async () => {
+  it('panneau caché tout du long : un relevé forcé avant de finir, la note jamais validée par le système', async () => {
     const { runVibeAction, vibeOn, vibeStart } = await open();
     const { state } = await import('app/state');
     const { vibeStore } = await import('app/settings');
@@ -1221,11 +1235,13 @@ describe('le mode Vibe', () => {
     // fini au relevé forcé qui suit le tour (ses lectures git, lentes sur un runner Windows)
     for (let i = 0; i < 30 && vibeOn('a1'); i++) await settle();
     expect(vibeOn('a1')).toBe(false);
-    expect(vibeStore().marks.a1).toHaveProperty('note');
+    // 0.16.0 : la note n'est validée que par l'utilisateur, Vibe en cours ou non
+    expect(vibeStore().marks.a1 ?? {}).not.toHaveProperty('note');
   });
 
   it('la course en cours arrêtée par ⏹ : au repos, hors Vibe', async () => {
     const { runVibeAction, vibeOn, vibeRunOp, vibeStart } = await open();
+    await noteValidated();
     runVibeAction('forme', {});
     vibeStart({ id: 'a1' });
     await settle();
@@ -1406,5 +1422,124 @@ describe('les droits d’une course', () => {
     await settle();
 
     expect(await runsNow()).toMatchObject([{ id: 'forme', state: 'running' }]);
+  });
+});
+
+// Les deux rythmes (note 0.16.0-controle-en-trois-points) : en mémoire avec le mode Vibe, la pause du relevé tenue arrête le
+// moteur comme la bannière ; le rythme oublié avec l'agent. Le relevé de la pause : controllers/vibecoder (vibecoder-control.test.ts).
+describe('les deux rythmes', () => {
+  const agent = { id: 'a1' };
+  const halted = async (...a: [] | [string]) => (await import('app/controllers')).vibeHalted(a[0] ?? 'a1');
+
+  it('le rythme par défaut : pas d’express ; setExpress le règle, par agent', async () => {
+    const { expressOn, setExpress } = await open();
+    expect(expressOn('a1')).toBe(false);
+    setExpress(agent, true);
+    expect(expressOn('a1')).toBe(true);
+    expect(expressOn('a2')).toBe(false);
+    setExpress(agent, false);
+    expect(expressOn('a1')).toBe(false);
+  });
+
+  it('closeRuns : le rythme oublié avec l’agent', async () => {
+    const { closeRuns, expressOn, setExpress } = await open();
+    setExpress(agent, true);
+    closeRuns(agent);
+    expect(expressOn('a1')).toBe(false);
+  });
+
+  it.each(['invariants', 'modules'] as const)('Vibe en cours, la pause « %s » au rythme par défaut : le moteur arrêté, hors Vibe aussitôt si rien ne travaille', async (pause) => {
+    const { vibeOn, vibeStart, pauseVibe } = await open();
+    vibeStart(agent);
+    pauseVibe(agent, { pause });
+    expect(vibeOn('a1')).toBe(false);
+    expect(await halted()).toBe(false);   // la bannière : au repos, halted devient off
+  });
+
+  it('une pause tenue, le moteur au travail : halted (la porte agent refuse) ; la file jetée', async () => {
+    const { vibeOn, vibeStart, pauseVibe, queueStart, queuedOf, runVibeAction } = await open();
+    await noteValidated();
+    vibeStart(agent);
+    runVibeAction('new-request', { text: 'le moteur' });   // la conversation travaille : le repos n'arrive pas
+    await settle();
+    queueStart(agent, 'forme', {}, 'ponytail');
+
+    pauseVibe(agent, { pause: 'invariants' });
+
+    expect(vibeOn('a1')).toBe(false);
+    expect(await halted()).toBe(true);
+    expect(queuedOf('a1')).toEqual([]);
+  });
+
+  it('pas de pause, ou Vibe pas en cours : rien n’est arrêté', async () => {
+    const { vibeOn, vibeStart, pauseVibe } = await open();
+    vibeStart(agent);
+    pauseVibe(agent, { pause: null });
+    pauseVibe(agent, {});
+    expect(vibeOn('a1')).toBe(true);
+
+    const { vibeStop } = await import('app/controllers');
+    vibeStop(agent);
+    pauseVibe(agent, { pause: 'modules' });   // hors Vibe : rien à arrêter
+    expect(await halted()).toBe(false);
+    expect(vibeOn('a1')).toBe(false);
+  });
+
+  it('en express : les pauses invariants et modules ne sont pas tenues, celle de la note l’est', async () => {
+    const { vibeOn, vibeStart, pauseVibe, setExpress, runVibeAction } = await open();
+    runVibeAction('new-request', { text: 'le moteur' });
+    await settle();
+    vibeStart(agent);
+    setExpress(agent, true);
+    pauseVibe(agent, { pause: 'invariants' });
+    pauseVibe(agent, { pause: 'modules' });
+    expect(vibeOn('a1')).toBe(true);
+
+    pauseVibe(agent, { pause: 'note' });
+    expect(vibeOn('a1')).toBe(false);
+    expect(await halted()).toBe(true);
+  });
+
+  it('relancé à une pause : elle n’est plus tenue, la suivante l’est ; la pause quittée est oubliée', async () => {
+    const { vibeOn, vibeStart, pauseVibe, runVibeAction } = await open();
+    runVibeAction('new-request', { text: 'le moteur' });
+    await settle();
+
+    vibeStart(agent, 'invariants');
+    pauseVibe(agent, { pause: 'invariants' });
+    expect(vibeOn('a1')).toBe(true);
+    pauseVibe(agent, { pause: 'modules' });
+    expect(vibeOn('a1')).toBe(false);
+
+    // relancé après les invariants, le parcours quitte la pause (aucune), puis y revient : la pause est de nouveau tenue
+    vibeStart(agent, 'invariants');
+    pauseVibe(agent, { pause: null });
+    pauseVibe(agent, { pause: 'invariants' });
+    expect(vibeOn('a1')).toBe(false);
+  });
+
+  it('la pause d’un ✓ retiré, le moteur relancé d’une autre pause juste avant : tenue quand même, en express aussi', async () => {
+    const { vibeOn, vibeStart, pauseVibe, setExpress, runVibeAction } = await open();
+    runVibeAction('new-request', { text: 'le moteur' });
+    await settle();
+    vibeStart(agent, 'invariants');
+    pauseVibe(agent, { pause: 'withdrawn:forme' });
+    expect(vibeOn('a1')).toBe(false);
+    expect(await halted()).toBe(true);
+
+    setExpress(agent, true);
+    vibeStart(agent, 'withdrawn:invariants');   // même relancé de cette pause-là
+    pauseVibe(agent, { pause: 'withdrawn:invariants' });
+    expect(vibeOn('a1')).toBe(false);
+  });
+
+  it('vibeStart sans pause (le moteur parti seul, une demande de l’orchestrateur) : aucune pause relancée', async () => {
+    const { vibeOn, vibeStart, pauseVibe, runVibeAction } = await open();
+    runVibeAction('new-request', { text: 'le moteur' });
+    await settle();
+    vibeStart(agent, 'modules');
+    vibeStart(agent);
+    pauseVibe(agent, { pause: 'modules' });
+    expect(vibeOn('a1')).toBe(false);
   });
 });

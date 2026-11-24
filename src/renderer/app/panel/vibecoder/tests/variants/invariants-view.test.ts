@@ -565,3 +565,35 @@ it('un fichier supprimé depuis la référence : listé, suivi par son id, son d
   expect(page.querySelector('.vc-ide-main .vc-ifile')).toBeNull();
   expect(page.querySelector('.vc-ide-main .vc-mdiff')).not.toBeNull();
 });
+
+// ---- 0.16.0 : les invariants validés par le système (docs/tickets/feat/0.16.0-controle-en-trois-points.md) ----
+const withCases = (marks: VibeTestFile['marks'] = {}) => test({ cases: ['a', 'b'], lines: [1, 5], marks });
+
+it('créateur, validés par le système : la validation dite avec son contrôle ; le ✓ de chaque cas et Lire en pseudo-code là ; aucun « cas à valider »', async () => {
+  extra = { steps: step({ state: 'ok', now: null, by: 'system' }) };
+  await draw(withCases(), 'create');
+  expect(page.querySelector('.vc-step-head .vc-vstate')!.textContent).toBe('validée par le système');
+  expect(page.querySelector('.vc-step-head .vc-vby')!.textContent).toBe('alignement avec la note');
+  expect(page.querySelectorAll('.vc-case .vc-verdict button')).toHaveLength(4);   // Validé et À revoir, par cas
+  expect([...page.querySelectorAll('button.vc-run')].some((b) => b.textContent?.includes('Lire en pseudo-code'))).toBe(true);
+  expect(page.textContent).not.toMatch(/cas à valider|cases? to approve/);
+  extra = { steps: step({ state: null, now: null }) };   // pas validés, aucun ✓ : rien n'attend non plus
+  await draw(withCases(), 'create');
+  expect(page.textContent).not.toMatch(/cas à valider/);
+});
+
+it('créateur, pas validés : Valider les invariants en discret (sans vert ni coche), jamais grisé, même si la Forme attend', async () => {
+  extra = { steps: [{ id: 'forme', status: 'done', facts: '', check: { state: null, now: null } }, ...step({ state: null, now: 'n' })] };
+  await draw(withCases(), 'create');
+  const b = validate('Valider les invariants')!;
+  expect([b.disabled, b.getAttribute('data-v'), b.querySelector('svg')]).toEqual([false, null, null]);
+  expect(page.querySelector('.vc-vstate[data-state="waiting"]')).toBeNull();
+});
+
+it('relecteur : le verdict de chaque cas et « n cas à valider », comme avant ; aucune validation d\'étape', async () => {
+  extra = { steps: step(undefined) };
+  await draw(withCases({ a: 'ok' }), 'review');
+  expect(page.textContent).toContain('1 cas à valider');
+  expect(page.querySelectorAll('.vc-case .vc-verdict button')).toHaveLength(4);
+  expect(page.querySelector('.vc-step-head .vc-vmark')).toBeNull();
+});

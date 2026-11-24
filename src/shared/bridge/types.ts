@@ -244,8 +244,10 @@ export type VibeStepCheck = { state: 'ok' | 'changed' | 'cascade' | null; cause?
 
 // La pause où se tient le parcours du créateur (note 0.16.0-controle-en-trois-points) : 'note', la note validée a perdu
 // son ✓ (tenue dans les deux rythmes) ; 'invariants', le premier commit fait, aucun module commencé ; 'modules', l'étape
-// Modules faite, la Revue pas commencée (ces deux-là : le rythme par défaut seul).
-export type VibePause = 'note' | 'invariants' | 'modules';
+// Modules faite, la Revue pas commencée (ces deux-là : le rythme par défaut seul) ; 'withdrawn:<étape>', l'utilisateur a
+// retiré à la main le ✓ de cette étape (la Forme, les invariants, les modules) et ce retrait tient pour son contenu
+// d'aujourd'hui (tenue dans les deux rythmes, comme 'note' ; le contenu changé ou l'étape revalidée à la main : plus de pause).
+export type VibePause = 'note' | 'invariants' | 'modules' | 'withdrawn:forme' | 'withdrawn:invariants' | 'withdrawn:modules';
 
 // preuve.md (note 0.16.0-controle-en-trois-points) : une ligne « → invariant » de la note — line, son texte ; proved,
 // un mutant a fait échouer son test ; detail, le mutant qui l'a prouvée, ou pourquoi elle remonte à l'utilisateur.
@@ -272,6 +274,12 @@ export type VibeFile = { id: string; path: string };
 // L'état git d'un fichier de la branche, comme VS Code : nouveau ou modifié hors de tout commit ; absent : commité.
 export type VibeGit = 'new' | 'modified';
 
+// La dernière vérification de conception de la note du créateur (note 0.16.0-controle-en-trois-points : Vérifier, puis
+// Valider la note, deux gestes) : 'clean', elle n'a rien trouvé (« rien de bloquant ») et la conception n'a pas changé
+// depuis ; 'edited', elle n'a rien trouvé, la conception a changé depuis (Valider la note reste, l'écran le dit).
+// null : jamais vérifiée, ou la dernière vérification a trouvé quelque chose (pas de Valider la note).
+export type VibeNoteCheck = 'clean' | 'edited';
+
 export type VibeNote = VibeFile & {
   text: string;
   before: string | null;       // la note au début du dernier tour, si elle a changé depuis (surlignage)
@@ -280,6 +288,7 @@ export type VibeNote = VibeFile & {
   mark: VibeMarkState;         // la note
   formeMark: VibeMarkState;    // sa rubrique « Forme »
   checked?: boolean;           // la vérification de conception faite une fois pour cette note (marque 'design') ; absent = false
+  verified?: VibeNoteCheck | null; // créateur : ce qu'a rendu sa dernière vérification (Valider la note n'est montré qu'avec) ; absent = null
   nothingMark?: VibeMarkState; // ✓ Rien à écrire (Invariants, créateur) ; absent = null
   locked?: string | null;      // pourquoi elle ne s'édite pas (codeLock) ; absent = null : éditable
 };
@@ -514,7 +523,7 @@ export type VibeArgs = {
 };
 
 export type VibePatch = {
-  vibe?: false;                // la bannière : arrêter le mode Vibe (la course en cours finit)
+  vibe?: false;                // Arrêter, le bouton du moteur : arrêter le mode Vibe (la course en cours finit)
   express?: boolean;           // le rythme : passer en express (true), revenir au rythme par défaut (false)
   pr?: number | null;          // la PR suivie
   seen?: boolean;              // « Vu » : la note de référence devient l'actuelle

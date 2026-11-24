@@ -11,7 +11,8 @@ const PLUGIN = '/opt/plugin';
 const B: Bounds = { project: P, out: OUT, plugin: PLUGIN, reads: false };
 
 // Un faux disque : /home → /var/home, des liens, et des chemins qui n'existent pas (real lève).
-const LINKS: Record<string, string> = { [`${P}/lien`]: '/etc', [`${P}/doc`]: `${P}/.git/hooks`, [`${P}/AGENTS.md`]: `${P}/notes.md` };
+const LINKS: Record<string, string> = { [`${P}/lien`]: '/etc', [`${P}/doc`]: `${P}/.git/hooks`, [`${P}/AGENTS.md`]: `${P}/notes.md`,
+  [`${P}/raccourci`]: `${P}/src/core/hello/tests/invariants/ancien.test.ts`, [`${P}/dossier-lien`]: `${P}/src/core/hello/tests/invariants` };
 const real = (p: string): string => {
   if (p.startsWith('/home/')) return `/var${p}`;
   for (const [from, to] of Object.entries(LINKS)) if (p === from || p.startsWith(`${from}/`)) return to + p.slice(from.length);
@@ -124,6 +125,46 @@ onPosix('fileDecision : chemins', () => {
     refused('Read', `${P}2/a.ts`);
     refused('Write', `${OUT}-x/a.ts`);
     refused('Read', `${PLUGIN}er/a`);
+  });
+});
+
+onPosix('fileDecision : les fichiers qu\'une course n\'écrit pas (frozen)', () => {
+  const OLD = 'src/core/hello/tests/invariants/ancien.test.ts';
+  const NEW = 'src/core/hello/tests/invariants/nouveau.test.ts';
+  const F: Bounds = { ...B, frozen: [OLD] };
+  it('un fichier de la liste : Write, Edit, MultiEdit, NotebookEdit refusés, la raison nomme le fichier et dit qu\'il est protégé', () => {
+    for (const t of ['Write', 'Edit', 'MultiEdit']) {
+      const why = refused(t, `${P}/${OLD}`, F);
+      expect(why).toContain(`${P}/${OLD}`);
+      expect(why).toContain('protégé');
+      expect(why).toContain('[toi]');
+    }
+    refused('NotebookEdit', `${P}/${OLD}`, F, 'notebook_path');
+  });
+  it('le chemin relatif, avec ../ ou en /home/… : le même fichier', () => {
+    refused('Edit', OLD, F);
+    refused('Edit', `a/../${OLD}`, F);
+    refused('Edit', `/home/u/proj/${OLD}`, F);
+  });
+  it('un fichier de la liste atteint par un lien : refusé', () => {
+    refused('Write', 'raccourci', { ...F, frozen: [OLD] });
+    refused('Edit', 'dossier-lien/ancien.test.ts', F);
+  });
+  it('un fichier qui n\'existe pas encore, de la liste : refusé', () => {
+    refused('Write', 'nouveau/x.ts', { ...B, frozen: ['nouveau/x.ts'] });
+  });
+  it('un fichier de tests d\'invariants hors de la liste (nouveau) : écrit ; un nom voisin aussi', () => {
+    expect(d('Write', NEW, F)).toEqual({ allow: true });
+    expect(d('Edit', `${OLD}.bak`, F)).toEqual({ allow: true });
+    expect(d('Edit', `x/${OLD}`, F)).toEqual({ allow: true });
+  });
+  it('un fichier de la liste : lu ; sa copie sous les sorties : écrite', () => {
+    expect(d('Read', OLD, F)).toEqual({ allow: true });
+    expect(d('Write', `${OUT}/${OLD}`, F)).toEqual({ allow: true });
+  });
+  it('sans liste ou liste vide : les décisions d\'avant', () => {
+    expect(d('Edit', OLD)).toEqual({ allow: true });
+    expect(d('Edit', OLD, { ...B, frozen: [] })).toEqual({ allow: true });
   });
 });
 

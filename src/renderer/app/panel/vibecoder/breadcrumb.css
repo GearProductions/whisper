@@ -51,6 +51,10 @@
 .vc-ccount { flex: none; margin-left: auto; padding: 2px 8px; border: 0; border-radius: 5px; background: none; color: var(--vc-muted); font: 12px/1.5 var(--vc-sans); }
 button.vc-ccount { cursor: pointer; }
 button.vc-ccount:hover, button.vc-ccount[aria-expanded="true"] { background: var(--vc-hover); color: var(--vc-text); }
+/* L'interrupteur Express, après le bouton du moteur ; la ligne d'une pause, sous le fil. */
+.vc-crumbs .vc-express { flex: none; display: inline-flex; align-items: center; gap: 5px; color: var(--vc-soft); font: 12px/1.5 var(--vc-sans); cursor: pointer; }
+.vc-crumbs .vc-express:has(input:checked) { color: var(--vc-text); }
+.vc-crumbs .vc-pause { margin: 0; padding: 4px 16px 6px; color: var(--vc-soft); font: 12px/1.5 var(--vc-sans); }
 /* La liste des commits, en surimpression sous le fil, à droite. */
 .vc-crumbs .vc-commits {
   position: absolute;

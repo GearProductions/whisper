@@ -96,7 +96,7 @@ it('VibeCoder : 🕘 bascule l\'historique ; ouvert, il prend la place du fil, a
 const act1 = (a: object) => ({ id: 'x', step: null, label: 'X', hint: '', who: 'agent', models: [], model: null, kind: 'send', needs: 'none', usesText: false, primary: false, disabled: null, hidden: false, ...a });
 const noteView = (over: object = {}) => ({
   ...view, steps: [{ id: 'note', status: 'current' }], outputs: {}, files: [], questions: [], invariants: [], artifacts: [], modules: [],
-  actions: [act1({ id: 'note', step: 'note', label: 'Écrire la note', needs: 'text', usesText: true, primary: true }), act1({ id: 'vibe', label: 'Vibe', hint: 'tout' }),
+  actions: [act1({ id: 'note', step: 'note', label: 'Écrire la note', needs: 'text', usesText: true, primary: true }), act1({ id: 'vibe', label: 'Reprendre', hint: 'tout' }),
     act1({ id: 'forme', step: 'forme', label: 'Poser la forme', usesText: true })],
   ...over,
 }) as unknown as VibeView;
@@ -108,15 +108,15 @@ it('plus de champ d\'étape : ni zone de saisie, ni Joindre, ni Envoyer dans l\'
   expect(page.querySelector('.vc-step textarea')).toBeNull();
 });
 
-it('Vibe : dans le fil d\'Ariane, créateur seulement ; pendant Vibe, Arrêter Vibe (set vibe false) ; plus de bannière', async () => {
+it('Moteur : dans le fil d\'Ariane, créateur seulement ; Reprendre lance l\'action vibe ; pendant que le système enchaîne, Arrêter (set vibe false)', async () => {
   const run = vi.fn(async () => true), set = vi.fn();
   const a = { follow: noop, refresh: noop, run, set };
   await draw({ view: noteView(), acts: a });
   const vibe = page.querySelector<HTMLButtonElement>('.vc-crumbs [data-tone="vibe"]')!;
-  expect(vibe.textContent).toBe('Vibe');
+  expect(vibe.textContent).toBe(fr.resume);
   expect(page.querySelectorAll('.vc-step-acts [data-tone="vibe"]')).toHaveLength(0);
   await act(() => { vibe.click(); });
-  expect(run).toHaveBeenCalledWith('vibe', {});          // sans texte ni pièces : Vibe n'emporte aucun champ
+  expect(run).toHaveBeenCalledWith('vibe', {});          // sans texte ni pièces : l'action n'emporte aucun champ
   await draw({ view: noteView({ vibe: true }), acts: a });
   await act(() => { (byText(fr.vibeStop) as HTMLButtonElement).click(); });
   expect(set).toHaveBeenCalledWith({ vibe: false });
@@ -255,4 +255,31 @@ it('goToNote : le défilement gardé de l\'étape Note n\'est pas rendu (en haut
   await act(() => crumb(0).click());
   await act(() => crumb(1).click());
   expect(stepBox().scrollTop).toBe(80);
+});
+
+// 0.16.0 : l'interrupteur Express envoie le réglage du rythme (docs/tickets/feat/0.16.0-controle-en-trois-points.md).
+it('Express : un clic envoie set({ express }) avec l\'autre état ; allumé, il se décoche en envoyant false ; relecteur : aucun interrupteur', async () => {
+  const set = vi.fn();
+  const a = { follow: noop, refresh: noop, run: vi.fn(async () => true), set };
+  await draw({ view: noteView(), acts: a });
+  const box = () => page.querySelector<HTMLInputElement>('.vc-crumbs .vc-express input')!;
+  expect(box().checked).toBe(false);
+  await act(() => { box().click(); });
+  expect(set).toHaveBeenLastCalledWith({ express: true });
+  await draw({ view: noteView({ express: true }), acts: a });
+  expect(box().checked).toBe(true);
+  await act(() => { box().click(); });
+  expect(set).toHaveBeenLastCalledWith({ express: false });
+  expect(set).toHaveBeenCalledTimes(2);
+  await draw({ view: noteView({ flow: 'review' }), acts: a });
+  expect(page.querySelector('.vc-crumbs .vc-express')).toBeNull();
+});
+
+it('Reprendre à une pause : le bouton du fil lance l\'action vibe', async () => {
+  const run = vi.fn(async () => true);
+  await draw({ view: noteView({ pause: 'invariants' }), acts: { follow: noop, refresh: noop, set: noop, run } });
+  const b = page.querySelector<HTMLButtonElement>('.vc-crumbs [data-tone="vibe"]')!;
+  expect(b.textContent).toBe(fr.resume);
+  await act(() => { b.click(); });
+  expect(run).toHaveBeenCalledWith('vibe', {});
 });

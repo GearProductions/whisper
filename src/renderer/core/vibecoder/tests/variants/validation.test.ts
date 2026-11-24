@@ -29,27 +29,37 @@ describe('awaiting', () => {
     expect(awaiting(view('note', { note: null }))).toBeNull();
   });
 
-  it('la forme posée, pas validée → la valider ; sans module, rien', () => {
-    expect(awaiting(view('forme'))).toEqual({ kind: 'forme' });
-    expect(awaiting(view('forme', { modules: [] }))).toBeNull();
-    expect(awaiting(view('forme', { note: note({ formeMark: 'ok' }) }))).toBeNull();
+  it('Créer : la forme posée, les cas pas cochés : rien d\u2019attendu (le système les valide)', () => {
+    expect(awaiting(view('forme'))).toBeNull();
+    expect(awaiting(view('forme', { note: note({ formeMark: 'changed' }) }))).toBeNull();
+    expect(awaiting(view('invariants', { invariants: tests({ a: 'ok', b: 'ko' }) }))).toBeNull();
+    expect(awaiting(view('invariants', { invariants: tests({}, false) }))).toBeNull();
   });
 
-  it('invariants : le nombre de cas sans validation ; tous validés ou sans test : rien', () => {
-    expect(awaiting(view('invariants', { invariants: tests({ a: 'ok', b: 'ko' }) }))).toEqual({ kind: 'cases', count: 1 });
-    expect(awaiting(view('invariants', { invariants: tests({ a: 'ok', b: 'ok' }) }))).toBeNull();
-    expect(awaiting(view('invariants'))).toBeNull();
+  it('Relire : la forme pas validée → la valider ; sans module, validée : rien', () => {
+    expect(awaiting(view('forme', { flow: 'review' }))).toEqual({ kind: 'forme' });
+    expect(awaiting(view('forme', { flow: 'review', modules: [] }))).toBeNull();
+    expect(awaiting(view('forme', { flow: 'review', note: note({ formeMark: 'ok' }) }))).toBeNull();
+  });
+
+  it('Relire, invariants : le nombre de cas sans verdict ; tous jugés ou sans test : rien', () => {
+    const review = (marks: VibeTestFile['marks']) => view('invariants', { flow: 'review', invariants: tests(marks) });
+    expect(awaiting(review({ a: 'ok', b: 'changed' }))).toEqual({ kind: 'cases', count: 1 });
+    expect(awaiting(review({ a: 'ok', b: 'ko' }))).toBeNull();
+    expect(awaiting(view('invariants', { flow: 'review' }))).toBeNull();
   });
 
   it('deux cas de même titre, un seul ✓ : l\u2019autre attend sa validation', () => {
-    const dup = (marks: VibeTestFile['marks']) => view('invariants', { invariants: [{ ...tests(marks)[0], cases: ['t', 't'] }] });
+    const dup = (marks: VibeTestFile['marks']) => view('invariants', { flow: 'review', invariants: [{ ...tests(marks)[0], cases: ['t', 't'] }] });
     expect(awaiting(dup({ t: 'ok' }))).toEqual({ kind: 'cases', count: 1 });
     expect(awaiting(dup({ t: 'ok', 't n° 2': 'ok' }))).toBeNull();
   });
 
-  it('Vibe en cours : rien à valider', () => {
-    expect(awaiting(view('note', { vibe: true }))).toBeNull();
+  it('Créer : la note attendue (à vérifier, puis à valider), le moteur en marche ou pas ; validée, rien', () => {
+    expect(awaiting(view('note', { vibe: true }))).toEqual({ kind: 'note' });
     expect(awaiting(view('note', { vibe: false }))).toEqual({ kind: 'note' });
+    expect(awaiting(view('note', { vibe: true, note: note({ mark: 'ok' }) }))).toBeNull();
+    expect(awaiting(view('note', { vibe: true, note: note({ filled: false }) }))).toBeNull();
   });
 
   it('Relire : un verdict, ✓ ou ✗, sur la note (même pas rédigée) et sur chaque cas', () => {
@@ -61,12 +71,12 @@ describe('awaiting', () => {
 
 // 0.9.0-rc.4 : valider ne demande plus d'avoir lu (docs/tickets/fix/0.9.0-vibecoder-etape-invariants.md).
 describe('awaiting, un fichier pas lu', () => {
-  it('l\'étape Invariants en cours, un fichier pas lu sans verdict : ses cas attendent leur validation', () => {
+  it('Relire, l\'étape Invariants en cours, un fichier pas lu sans verdict : ses cas attendent leur verdict', () => {
     const invariants = tests({}, false);
 
-    const waiting = awaiting(view('invariants', { invariants }));
+    const waiting = awaiting(view('invariants', { flow: 'review', invariants }));
 
-    // Chaque cas du fichier attend son ✓, lu ou pas.
+    // Chaque cas du fichier attend son verdict, lu ou pas.
     expect(waiting).toEqual({ kind: 'cases', count: invariants[0].cases.length });
   });
 });

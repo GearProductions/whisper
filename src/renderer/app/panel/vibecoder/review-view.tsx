@@ -40,10 +40,11 @@ const fr = {
   a3File: 'guide § A.3',
   a3Count: (ok: number, n: number) => `${ok} / ${n}`,
   manual: 'à vérifier',
-  manualTitle: 'Le dépôt ne le dit pas : cochez-le une fois vérifié (vaut jusqu\'au prochain commit)',
+  optional: 'facultatif',
+  manualTitle: 'Facultatif, le dépôt ne le dit pas : cochez-le une fois vérifié (vaut jusqu\'au prochain commit)',
   manualDone: 'Coché à la main, pour le dernier commit de la branche',
   noCommit: 'Pas encore de commit sur la branche',
-  reviewedHelp: 'Cochez une fois chaque module relu (Modules → Relire le diff)',
+  reviewedHelp: 'Cochée par le contrôle des modules et la ponytail review',
   warnings: (n: number) => `${n} avertissement${n > 1 ? 's' : ''}`,
   warningPill: 'avertissements',
   applyAll: 'Tout appliquer',
@@ -71,10 +72,11 @@ const S: Record<VibeLang, typeof fr> = {
     a3File: 'guide § A.3',
     a3Count: (ok, n) => `${ok} / ${n}`,
     manual: 'to check',
-    manualTitle: 'The repository cannot tell: tick it once checked (holds until the next commit)',
+    optional: 'optional',
+    manualTitle: 'Optional, the repository cannot tell: tick it once checked (holds until the next commit)',
     manualDone: 'Ticked by hand, for the branch\'s last commit',
     noCommit: 'No commit on the branch yet',
-    reviewedHelp: 'Tick once every module has been reviewed (Modules → Review the diff)',
+    reviewedHelp: 'Ticked by the modules check and the ponytail review',
     warnings: (n) => `${n} warning${n !== 1 ? 's' : ''}`,
     warningPill: 'warnings',
     applyAll: 'Apply all',
@@ -163,19 +165,19 @@ function CreatorParts(p: StepProps) {
                     <label className="vc-a3-check">
                       <input type="checkbox" checked={c.done === true} disabled={noHead}
                         onChange={() => act.mark(`a3:${i}`, c.done ? null : 'ok')} />
-                      <span className="vc-a3-text">
-                        {c.text}
-                        {i === REVIEWED ? <span className="vc-a3-help">{s.reviewedHelp}</span> : null}
-                      </span>
+                      <span className="vc-a3-text">{c.text}</span>
                     </label>
-                    {state === 'manual' ? <span className="vc-a3-manual">{s.manual}</span> : null}
+                    {state === 'manual' ? <span className="vc-a3-manual">{s.optional}</span> : null}
                   </li>
                 );
               }
               return (
                 <li key={i} data-state={state} title={state === 'ok' ? s.okTitle : state === 'ko' ? s.koTitle : s.manualTitle}>
                   <span className="vc-mark" aria-hidden="true" />
-                  <span className="vc-a3-text">{c.text}</span>
+                  <span className="vc-a3-text">
+                    {c.text}
+                    {i === REVIEWED ? <span className="vc-a3-help">{s.reviewedHelp}</span> : null}
+                  </span>
                   {state === 'manual' ? <span className="vc-a3-manual">{s.manual}</span> : null}
                 </li>
               );

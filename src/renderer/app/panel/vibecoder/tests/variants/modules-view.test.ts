@@ -305,3 +305,86 @@ it('review.md étiquetée : ses badges, data-tag sur la ligne ; sans étiquette,
   expect([...page.querySelectorAll('.vc-diff-review .vc-tag-badge')].map((b) => b.textContent)).toEqual(['pour l\'agent', 'pour toi']);
   expect(page.querySelector('.vc-diff-review')!.textContent).not.toContain('[');
 });
+
+// 0.16.0 : les étapes validées par le système, la preuve à l'écran (docs/tickets/feat/0.16.0-controle-en-trois-points.md).
+const runs: unknown[][] = [];
+const drawProof = async (over: Record<string, unknown> = {}, step: Record<string, unknown> = steps[0], actions: Record<string, unknown>[] = []) => {
+  await act(() => root.render(null));
+  await act(() => {
+    const view = { lang: 'fr', flow: 'create', actions: actions.map((a) => ({ hidden: false, who: '', hint: '', primary: false, step: 'modules', label: a.id, ...a })),
+      commits: [], outputs: {}, modules: two, invariants: [], steps: [step], ...over } as unknown as VibeView;
+    const props = { view, step, t: t('fr'), busy: false, text: '', setText: () => {},
+      code: null, drafts: [{}, () => {}], act: { run: async (...a: unknown[]) => { runs.push(a); return true; }, prefill: () => {}, open: () => {}, openLink: () => {},
+        follow: () => {}, save: async () => true, set: () => {}, mark: () => {} } } as unknown as StepProps;
+    root.render(createElement(ModulesView, props));
+  });
+};
+const PROOF = '## [prouvé] « une règle »\n\nle mutant a fait échouer le test\n\n## [toi] « une autre »\n\nle test reste vert\n';
+
+it('preuve.md au relevé : sa carte, ses étiquettes en badges, Relancer relance l\'action prove', async () => {
+  runs.length = 0;
+  await drawProof({ outputs: { 'preuve.md': { text: PROOF, time: 0 } } }, steps[0], [{ id: 'prove', label: 'Prouver les invariants' }]);
+  const card = page.querySelector('.vc-proof')!;
+  expect(card.querySelector('.vc-card-title')!.textContent).toBe('Preuve des invariants');
+  expect(card.querySelector('.vc-card-file')!.textContent).toBe('preuve.md');
+  expect([...card.querySelectorAll('.vc-tag-badge')].map((b) => b.textContent)).toEqual(['pour toi']);
+  expect(card.textContent).not.toContain('[toi]');
+  const again = [...card.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent === 'Relancer')!;
+  await act(() => again.click());
+  expect(runs).toEqual([['prove']]);
+});
+
+it('pas de preuve.md : pas de carte ; relecteur : jamais', async () => {
+  await drawProof({}, steps[0], [{ id: 'prove' }]);
+  expect(page.querySelector('.vc-proof')).toBeNull();
+  await drawProof({ flow: 'review', outputs: { 'preuve.md': { text: PROOF, time: 0 } } });
+  expect(page.querySelector('.vc-proof')).toBeNull();
+});
+
+it('Prouver les invariants : dans la carte des modules, après Générer les modules, avant Commiter les modules ; pas dans l\'en-tête ; masquée : absente', async () => {
+  const actions = [{ id: 'commit-modules', label: 'Commiter les modules' }, { id: 'prove', label: 'Prouver les invariants' }, { id: 'modules', label: 'Générer les modules' }];
+  await drawProof({ modules: [{ ...module('src/touche', true), uncommitted: true }] }, steps[0], actions);
+  expect([...page.querySelectorAll('.vc-card-acts .vc-run-label')].map((b) => b.textContent)).toEqual(['Générer les modules', 'Prouver les invariants', 'Commiter les modules']);
+  expect(page.querySelectorAll('.vc-step-acts button')).toHaveLength(0);
+  await drawProof({ modules: [{ ...module('src/touche', true), uncommitted: true }] }, steps[0], actions.map((a) => (a.id === 'prove' ? { ...a, hidden: true } : a)));
+  expect([...page.querySelectorAll('.vc-card-acts .vc-run-label')].map((b) => b.textContent)).toEqual(['Générer les modules', 'Commiter les modules']);
+  expect(page.textContent).not.toContain('Prouver les invariants');
+});
+
+it('modules validés par le système : « validée par le système » et son contrôle dans la carte ; Annuler reste ; à la main : « Modules validés »', async () => {
+  await drawProof({}, { ...steps[0], check: { state: 'ok', now: null, by: 'system' } });
+  const mark = page.querySelector('.vc-card-acts .vc-vmark')!;
+  expect(mark.querySelector('.vc-vstate')!.textContent).toBe('validée par le système');
+  expect(mark.querySelector('.vc-vby')!.textContent).toBe('conformité à la forme et preuve par mutation');
+  expect([...mark.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Annuler']);
+  await drawProof({}, { ...steps[0], check: { state: 'ok', now: null } });
+  expect(page.querySelector('.vc-card-acts .vc-vstate')!.textContent).toBe('Modules validés');
+});
+
+it('Valider les modules, pas validés : en discret (sans vert ni coche), jamais grisé', async () => {
+  await drawProof({}, { ...steps[0], check: { state: null, now: 'h1' } });
+  const b = page.querySelector<HTMLButtonElement>('.vc-card-acts .vc-vmark button')!;
+  expect([b.textContent, b.disabled, b.getAttribute('data-v'), b.querySelector('svg')]).toEqual(['Valider les modules', false, null, null]);
+  // l'étape d'avant n'est pas validée : le bouton n'est pas grisé pour autant
+  await drawProof({ steps: [{ id: 'invariants', status: 'done', facts: '', check: { state: null, now: null } }, { ...steps[0], check: { state: null, now: 'h1' } }] }, { ...steps[0], check: { state: null, now: 'h1' } });
+  expect(page.querySelector<HTMLButtonElement>('.vc-card-acts .vc-vmark button')!.disabled).toBe(false);
+  expect(page.querySelector('.vc-vstate[data-state="waiting"]')).toBeNull();
+});
+
+it('Relire le diff : sur la ligne de chaque module touché, à la demande (déplié en liste, toujours en vue IDE)', async () => {
+  const actions = [{ id: 'module' }, { id: 'review-diff', label: 'Relire le diff' }];
+  await drawProof({ modules: two }, steps[0], actions);
+  await toggle(0, true);
+  expect([...row(0).querySelectorAll('summary .vc-mod-acts button')].map((b) => b.textContent)).toEqual(['Générer', 'Relire le diff', 'Ouvrir']);
+  await drawProof({ modules: two, modulesView: 'ide' }, steps[0], actions);
+  expect([...page.querySelectorAll('.vc-ide-main .vc-mod-acts button')].map((b) => b.textContent)).toEqual(['Générer', 'Relire le diff', 'Ouvrir']);
+});
+
+it('rien à prouver (view.proof none) : l\'étape le dit en une ligne, sinon rien', async () => {
+  await drawProof({ proof: { state: 'none', lines: [] } });
+  expect(page.querySelector('.vc-mod-noproof')!.textContent).toBe('rien à prouver');
+  await drawProof({ proof: { state: 'ok', lines: [] } });
+  expect(page.querySelector('.vc-mod-noproof')).toBeNull();
+  await drawProof({});
+  expect(page.querySelector('.vc-mod-noproof')).toBeNull();
+});

@@ -4,6 +4,9 @@
 // Au rythme par défaut, le moteur parti : une note changée autrement que par un « Accepter » perd son ✓. En express :
 // aucun relevé ne valide une note jamais validée, l'orchestrateur ne la valide pas par sa CLI, une note
 // validée puis changée autrement que par un « Accepter » perd son ✓, et rien de l'appli n'écrit la note sur le disque.
+// Vérifier, puis valider la note, deux gestes (« Ce que ça fait » 2) : Vérifier ne valide jamais la note, qu'il trouve
+// quelque chose ou non, au rythme par défaut comme en express ; Valider la note ne lance aucune vérification, la note
+// jamais vérifiée comme après une vérification qui n'a rien trouvé.
 // Chaque absence a son témoin (le rythme est bien l'express, la note bien validée avant le changement).
 // Les fonctions pures (vibeView, vibeMarks, keepNote, acceptedTexts) : core/vibecoder/tests/invariants/note-by-user.test.ts.
 // Protégé : si un test échoue, corriger le code.
@@ -11,7 +14,8 @@
 // Sur le vrai principal, par le décor commun (app/tests/harness : Electron et le SDK de Claude Code factices — chaque
 // tour finit aussitôt, sans rien écrire —, git réel sur un dépôt d'essai). Le rythme se règle comme l'écran le règle
 // (setVibe({ express })) ; Valider la note par le ✓ que la page envoie (markVibe) ; l'orchestrateur par le socket, à la
-// porte du robot (commandFromSocket) ; ce que la page voit : le dernier conv:vibe poussé.
+// porte du robot (commandFromSocket) ; Vérifier par l'action que la page lance (runVibeAction('design-check')) ; ce que
+// la page voit : le dernier conv:vibe poussé ; une vérification lancée : un tour du skill de la conception.
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -53,6 +57,9 @@ afterEach(closeAll);
 const view = () => electron.windows.at(-1)!.sent.filter(([ch]) => ch === 'conv:vibe').at(-1)![1] as VibeView;
 // Où en est la validation de la note : 'ok' (cochée), 'changed', 'cascade', null (jamais validée).
 const noteChecked = () => view().steps.find((s) => s.id === 'note')?.check?.state;
+// La commande du skill de la vérification de conception, et le nombre de vérifications lancées.
+const CHECK = '/vibecoder:conception';
+const checks = () => claude.turns.filter((t) => t.skill === CHECK).length;
 // Le texte de la note sur le disque.
 const noteOnDisk = () => fs.readFileSync(path.join(dir, NOTE), 'utf8');
 
@@ -69,7 +76,15 @@ async function express() {
   await settle();
   await survey();
 }
-// Valider la note : la vérification de conception part, finit aussitôt sans question, et la note est validée.
+// Vérifier : la vérification de conception part et finit aussitôt (sans question : rien n'est écrit), puis deux relevés.
+async function check() {
+  const { runVibeAction } = await import('app/controllers');
+  await runVibeAction('design-check', {});
+  await settle();
+  await survey();
+  await survey();
+}
+// Valider la note par le ✓ que la page envoie, puis deux relevés.
 async function validateNote() {
   const { markVibe } = await import('app/controllers');
   markVibe('note', 'ok');
@@ -160,5 +175,74 @@ describe('I-67 : en express, la note n’est validée que par l’utilisateur', 
     expect(view().express).toBe(true);
     // la note sur le disque n'a pas changé
     expect(noteOnDisk()).toEqual(before);
+  });
+});
+
+describe('I-67 : Vérifier ne valide jamais la note', () => {
+  it('Vérifier finie sans question, au rythme par défaut : la note n’est pas validée', async () => {
+    await openPanel('a1');
+
+    await check();
+
+    // témoin : la vérification est bien partie
+    expect(checks()).toBeGreaterThan(0);
+    // la note n'est pas validée
+    expect(noteChecked()).not.toBe('ok');
+  });
+
+  // La vérification qui finit sans question, en express : là où le système enchaîne sans pause.
+  it('Vérifier finie sans question, en express : la note n’est pas validée', async () => {
+    await openPanel('a1');
+    await express();
+
+    await check();
+
+    // témoin : le rythme est bien l'express
+    expect(view().express).toBe(true);
+    // témoin : la vérification est bien partie
+    expect(checks()).toBeGreaterThan(0);
+    // la note n'est pas validée
+    expect(noteChecked()).not.toBe('ok');
+  });
+
+  // La vérification qui finit sur une question du questionnaire.
+  it('Vérifier finie avec une question : la note n’est pas validée', async () => {
+    await openPanel('a1');
+    write(path.join(root, 'vibecoder-out', 'a1', 'questions.md'), '## 1. Une question ?\n');
+
+    await check();
+
+    // témoin : la vérification est bien partie
+    expect(checks()).toBeGreaterThan(0);
+    // la note n'est pas validée
+    expect(noteChecked()).not.toBe('ok');
+  });
+});
+
+describe('I-67 : Valider la note ne lance aucune vérification', () => {
+  it('la note jamais vérifiée, Valider la note : aucune vérification ne part', async () => {
+    await openPanel('a1');
+
+    await validateNote();
+
+    // témoin : le clic a bien validé la note
+    expect(noteChecked()).toBe('ok');
+    // aucune vérification n'est partie
+    expect(checks()).toBe(0);
+  });
+
+  it('après une vérification qui n’a rien trouvé, Valider la note : aucune nouvelle vérification ne part', async () => {
+    await openPanel('a1');
+    await check();
+    const before = checks();
+
+    await validateNote();
+
+    // témoin : la vérification d'avant est bien partie
+    expect(before).toBeGreaterThan(0);
+    // témoin : le clic a bien validé la note
+    expect(noteChecked()).toBe('ok');
+    // aucune vérification de plus
+    expect(checks()).toEqual(before);
   });
 });

@@ -2,8 +2,8 @@
  *  (vibeLang) : en-tête (dont le bouton de la branche, le badge Relecteur et son
  *  infobulle : plus de mode Créer / Relire, l'appli décide du rôle), le fil
  *  d'Ariane des étapes (son aria-label journey, « N commits » à son bout),
- *  étapes (toutes s'ouvrent), l'interrupteur IDE / liste de Modules et Structure / Code de Forme, Relancer, Arrêter, onglets Conversation /
- *  Actions / Tâches / Processus, Arrêter Vibe (le fil d'Ariane), le champ d'une étape, la ponytail review lancée avec les
+ *  étapes (toutes s'ouvrent), l'interrupteur IDE / liste de Modules et Structure / Code de Forme, Relancer (une action, pas le moteur), Arrêter, onglets Conversation /
+ *  Actions / Tâches / Processus, Arrêter et Reprendre (le bouton du moteur, au fil d'Ariane ; plus « Arrêter Vibe »), le champ d'une étape, la ponytail review lancée avec les
  *  vérifications,
  *  l'onglet Actions (états d'une course, Garder / Annuler, Autoriser /
  *  Toujours / Refuser), zone de commentaire, barre d'état
@@ -24,11 +24,15 @@
  *  le badge d'une étiquette des fichiers de retour (tags : « pour toi », « pour l'agent »). Ceux des boutons viennent des
  *  actions (actions.<langue>.json).
  *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : l'interrupteur Express et son infobulle,
- *  Relancer (le bouton du moteur à une pause), la ligne de chaque pause (note, invariants, modules), le titre de la
- *  sortie preuve.md, et l'état d'une étape validée par le système (stepCheck : « validée par le système »).
+ *  le bouton du moteur — Arrêter pendant que le système enchaîne, Reprendre quand il est arrêté (une pause, un arrêt à
+ *  la main, un redémarrage de l'appli), leurs infobulles ; aucun libellé ni infobulle de l'écran ne dit plus « Vibe »,
+ *  plus de Relancer pour le moteur —, la ligne de chaque pause (note, invariants, modules : « puis reprenez » ; un ✓ d'étape
+ *  retiré à la main, withdrawn:forme, withdrawn:invariants, withdrawn:modules : l'étape nommée, « modifiez-la ou
+ *  revalidez-la pour reprendre »), le titre
+ *  de la sortie preuve.md, et l'état d'une étape validée par le système (stepCheck : « validée par le système »).
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
 import type {
-  AgentActivity, AgentView, SettingKey, SettingsCategory, SettingsCommand, SettingsInfo, VibeLang, VibeRun, VibeRunProgress, VibeStepId,
+  AgentActivity, AgentView, SettingKey, SettingsCategory, SettingsCommand, SettingsInfo, VibeLang, VibeRun, VibePause, VibeRunProgress, VibeStepId,
 } from 'technicals/bridge';
 import type { MenuEntry } from './artifact-clipboard';
 import type { NameProblem } from './artifact-tree';
@@ -56,7 +60,12 @@ const fr = {
     note: 'Note', forme: 'Forme', invariants: 'Invariants', modules: 'Modules', revue: 'Revue', pr: 'PR',
   } as Record<VibeStepId, string>,
   stepStatus: { done: 'faite', current: 'en cours', todo: 'à venir' },
-  stepCheck: { ok: 'validée', changed: 'modifiée depuis la validation', cascade: 'à revoir : une étape d\'avant a changé', none: 'pas validée' },
+  stepCheck: {
+    ok: 'validée', changed: 'modifiée depuis la validation', cascade: 'à revoir : une étape d\'avant a changé', none: 'pas validée',
+    system: 'validée par le système',
+  },
+  // Ce qui a contrôlé une étape validée par le système.
+  systemCheck: { forme: 'squelettes posés', invariants: 'alignement avec la note', modules: 'conformité à la forme et preuve par mutation' },
   waitingFor: (step: string) => `En attente : valider d'abord l'étape ${step}`,
   ideView: 'Vue IDE', listView: 'Vue liste', structure: 'Structure', code: 'Code',
   noChange: 'la branche ne change pas ce module',
@@ -77,6 +86,20 @@ const fr = {
   conversation: 'Conversation',
   shortcut: (n: number) => `Ctrl+${n}`,
   rerun: 'Relancer',
+  // Le contrôle en trois points : le rythme, le bouton du moteur à une pause, la ligne de chaque pause.
+  express: 'Express',
+  expressTitle: 'Express : aucune pause, le système enchaîne jusqu\'à la PR ouverte. Éteint, le parcours s\'arrête après les invariants et après les modules.',
+  resume: 'Reprendre',
+  resumeTitle: 'Reprendre le parcours à la première étape pas faite',
+  pause: {
+    note: 'La note a changé : elle attend sa validation',
+    invariants: 'Pause : regardez ce qui a été posé (forme, invariants, premier commit), puis reprenez',
+    modules: 'Pause : essayez à l\'écran avant la revue, puis reprenez',
+    'withdrawn:forme': 'Vous avez retiré la validation de la forme : modifiez-la ou revalidez-la pour reprendre',
+    'withdrawn:invariants': 'Vous avez retiré la validation des invariants : modifiez-les ou revalidez-les pour reprendre',
+    'withdrawn:modules': 'Vous avez retiré la validation des modules : modifiez-les ou revalidez-les pour reprendre',
+  } as Record<VibePause, string>,
+  noProof: 'rien à prouver',
   errorHint: 'La conversation reste utilisable, à droite.',
   broken: 'Cette étape ne peut pas s\'afficher.',
   retry: 'Réessayer',
@@ -96,6 +119,7 @@ const fr = {
     'commit.md': 'Commit proposé', 'checks.json': 'Vérifications', 'ponytail.md': 'Ponytail review', 'pr.json': 'PR ouverte',
     'ci.md': 'CI', 'pr-#.json': 'PR chargée', 'pr-#-note.md': 'Relecture de la note',
     'pr-#-commits.md': 'Relecture des commits', 'pr-#-review.json': 'Revue publiée',
+    'preuve.md': 'Preuve des invariants',
   } as Record<string, string>,
   needText: 'Dictez ou écrivez d\'abord votre demande dans le champ, puis cliquez.',
   sendFailed: 'L\'action n\'est pas partie.',
@@ -145,7 +169,7 @@ const fr = {
   keep: 'Garder', keepTitle: 'Garder ce que l\'action a déjà écrit',
   undo: 'Annuler', undoTitle: 'Remettre les fichiers qu\'elle a écrits dans leur état d\'avant (et eux seuls)',
   ponytailWithChecks: 'Lancée avec les vérifications.',
-  vibeStop: 'Arrêter Vibe',
+  vibeStop: 'Arrêter',
   vibeStopTitle: 'La course en cours finit, la suivante ne part pas',
   changed: (n: number) => (n > 1 ? `${n} fichiers modifiés` : `${n} fichier modifié`),
   at: (time: string) => `relevé à ${time}`,
@@ -261,7 +285,11 @@ const en: Strings = {
     note: 'Note', forme: 'Shape', invariants: 'Invariants', modules: 'Modules', revue: 'Review', pr: 'PR',
   },
   stepStatus: { done: 'done', current: 'in progress', todo: 'to do' },
-  stepCheck: { ok: 'validated', changed: 'changed since the validation', cascade: 'to review: an earlier step changed', none: 'not validated' },
+  stepCheck: {
+    ok: 'validated', changed: 'changed since the validation', cascade: 'to review: an earlier step changed', none: 'not validated',
+    system: 'validated by the system',
+  },
+  systemCheck: { forme: 'skeletons set up', invariants: 'alignment with the note', modules: 'conformity to the shape and proof by mutation' },
   waitingFor: (step: string) => `Waiting: validate the ${step} step first`,
   ideView: 'IDE view', listView: 'List view', structure: 'Structure', code: 'Code',
   noChange: 'the branch does not change this module',
@@ -282,6 +310,19 @@ const en: Strings = {
   conversation: 'Conversation',
   shortcut: (n) => `Ctrl+${n}`,
   rerun: 'Run again',
+  express: 'Express',
+  expressTitle: 'Express: no pause, the system carries on until the PR is open. Off, the journey stops after the invariants and after the modules.',
+  resume: 'Resume',
+  resumeTitle: 'Resume the journey at the first step not done',
+  pause: {
+    note: 'The note changed: it awaits its validation',
+    invariants: 'Pause: look at what was set up (shape, invariants, first commit), then resume',
+    modules: 'Pause: try it on screen before the review, then resume',
+    'withdrawn:forme': 'You withdrew the approval of the shape: change it or approve it again to resume',
+    'withdrawn:invariants': 'You withdrew the approval of the invariants: change them or approve them again to resume',
+    'withdrawn:modules': 'You withdrew the approval of the modules: change them or approve them again to resume',
+  },
+  noProof: 'nothing to prove',
   errorHint: 'The conversation is still usable, on the right.',
   broken: 'This step cannot be displayed.',
   retry: 'Retry',
@@ -301,6 +342,7 @@ const en: Strings = {
     'commit.md': 'Proposed commit', 'checks.json': 'Checks', 'ponytail.md': 'Ponytail review', 'pr.json': 'Opened PR',
     'ci.md': 'CI', 'pr-#.json': 'Loaded PR', 'pr-#-note.md': 'Note review',
     'pr-#-commits.md': 'Commits review', 'pr-#-review.json': 'Published review',
+    'preuve.md': 'Proof of the invariants',
   },
   needText: 'First dictate or write your request in the field, then click.',
   sendFailed: 'The action was not sent.',
@@ -350,7 +392,7 @@ const en: Strings = {
   keep: 'Keep', keepTitle: 'Keep what the action already wrote',
   undo: 'Undo', undoTitle: 'Put the files it wrote back as they were (and only those)',
   ponytailWithChecks: 'Started with the checks.',
-  vibeStop: 'Stop Vibe',
+  vibeStop: 'Stop',
   vibeStopTitle: 'The running action finishes, the next one does not start',
   changed: (n) => `${n} file${n === 1 ? '' : 's'} changed`,
   at: (time) => `read at ${time}`,

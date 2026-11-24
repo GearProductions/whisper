@@ -27,7 +27,7 @@
     "needs": "none",
     "reads": true,
     "label": "Check the design",
-    "hint": "Checks the note's design in a single pass: forgotten cases, contradictions, edge cases of numbered rules, unreachable behavior, a line that is rather an invariant or a variant; never changes the note, its suggestions go to the questionnaire.",
+    "hint": "A gesture of its own: checks the note's design in a single pass: forgotten cases, contradictions, edge cases of numbered rules, unreachable behavior, a line that is rather an invariant or a variant; never validates the note (with nothing blocking, Validate the note is offered, and you are the one who validates) nor changes it: its suggestions go to the questionnaire.",
     "text": "/vibecoder:conception {{lang}} {{out}} note={{note}}"
   },
   {
@@ -68,7 +68,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Check the alignment",
-    "hint": "Checks the invariants only: each “→ invariant” line has a test that truly observes it, each test has its line; fixes the tests, 3 rounds at most; for the reviewer, a list, nothing fixed.",
+    "hint": "Checks the invariants only: each “→ invariant” line has a test that truly observes it, each test has its line; fixes the tests, 3 rounds at most; also reads the proof (preuve.md) to say the rule a mutant broke; fixes only the new invariant test files (the app refuses it those from before the branch); for the reviewer, a list, nothing fixed.",
     "text": "/vibecoder:aligner {{lang}} {{out}} base={{base}} {{ref}}"
   },
   {
@@ -111,6 +111,17 @@
     "label": "Generate the modules",
     "hint": "The agent hands the modules not generated yet to one developer agent (up to 4 code modules; beyond, to parallel Sonnet agents, in waves), in the Forme's order, and reviews each diff; does not commit: Commit the modules afterwards; long and costly.",
     "text": "/vibecoder:modules {{lang}} {{out}} note={{note}} base={{base}} {{prefix}}"
+  },
+  {
+    "id": "prove",
+    "flow": "create",
+    "step": "modules",
+    "kind": "send",
+    "needs": "none",
+    "reads": true,
+    "label": "Prove the invariants",
+    "hint": "For each “→ invariant” line of the note, breaks the rule in a copy of the code, outside the working folder, and runs the test again: it must fail; writes preuve.md, changes nothing in the project (the app checks it at the end); a test that stays green goes back to the alignment.",
+    "text": "/vibecoder:prouver {{lang}} {{out}} note={{note}} base={{base}} {{prefix}}"
   },
   {
     "id": "commit-modules",
@@ -487,8 +498,8 @@
     "step": null,
     "kind": "send",
     "needs": "none",
-    "label": "Vibe",
-    "hint": "The agent picks up at the first step not done and chains everything up to the PR and its CI green; a blocking question waits for you without stopping it; long and costly.",
+    "label": "Resume",
+    "hint": "The agent picks up at the first step not done and chains everything up to the PR and its CI green; at the default rhythm, two pauses (after the invariants, after the modules) where you resume it, in express none; a blocking question waits for you without stopping it; long and costly.",
     "text": "/vibecoder:vibe {{lang}} {{out}} note={{note}}"
   },
   {

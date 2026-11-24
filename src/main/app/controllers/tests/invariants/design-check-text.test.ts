@@ -4,13 +4,13 @@
 // whisper vient de rendre, ou le gabarit d'une action : la nouvelle action
 // comprise → invariant (I-2, existant) »). Protégé : si un test échoue,
 // corriger le code.
-//   I-2 : la nouvelle action design-check, lancée par chaque Valider la note
-//   (conv:vibeMark), le premier comme un second, n'envoie que son gabarit : ni
-//   le texte de la note, ni un texte glissé par la page avec le clic, ni le
-//   texte ou les pièces jointes du champ (son gabarit ne lit pas le champ).
-//   Retouché avec l'accord de l'utilisateur (docs/tickets/feat/0.16.0-controle-en-trois-points.md,
-//   « Ce que ça fait » 2) : Revérifier disparaît, un second Valider la note
-//   lance la vérification ; la règle reste la même, seul le geste change.
+//   I-2 : la nouvelle action design-check, lancée par Vérifier (conv:vibeRun), la première fois comme
+//   relancée, n'envoie que son gabarit : ni le texte de la note, ni un texte glissé par la page avec le clic,
+//   ni le texte ou les pièces jointes du champ (son gabarit ne lit pas le champ).
+//   Retouché avec l'accord de l'utilisateur, donné le 23 novembre 2026 et écrit dans la note
+//   (docs/tickets/feat/0.16.0-controle-en-trois-points.md, « Ce que ça fait » 2 et « Où ça casse ») : Vérifier
+//   et Valider la note sont deux gestes, Valider la note ne lance plus la vérification ; les trois cas partent
+//   donc de Vérifier, le seul geste qui la lance encore. La règle ne change pas, seul le geste change.
 // Les autres actions et la dictée : app/controllers/tests/invariants/page-text.test.ts.
 //
 // Sur le vrai principal (contrôleurs, canaux de la page, état, réglages sur
@@ -79,17 +79,17 @@ beforeEach(() => {
   repo(dir, { branch: 'feat/0.15.0-essai', note: `# 0.15.0 — essai\n\n## Ce que ça fait\n\n- ${NOTE_LINE}\n` });
   writeConfig(root, [{ id: 'a1', dir, name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
     vibe: { flow: 'create', pr: null } }], { agentSelected: 'a1' });
-  // Une question au questionnaire : la vérification finie, la note reste à valider (un second Valider la note).
+  // Une question au questionnaire : la vérification finie a trouvé quelque chose, Vérifier se relance.
   write(path.join(root, 'vibecoder-out', 'a1', 'questions.md'), '## 1. Une question ?\n');
 });
 afterEach(closeAll);
 
 describe('la vérification de conception n’envoie que son gabarit (I-2, la nouvelle action comprise)', () => {
-  it('le premier Valider la note envoie le gabarit de la vérification, sans le texte de la note', async () => {
+  it('Vérifier envoie le gabarit de la vérification, sans le texte de la note', async () => {
     await openPanel('a1');
-    const { markVibe } = await import('app/controllers');
+    const { runVibeAction } = await import('app/controllers');
 
-    markVibe('note', 'ok');
+    runVibeAction('design-check', {});
     await settle();
 
     // La vérification est bien partie : son gabarit a été reçu (l'absence qui suit porte sur un envoi).
@@ -98,11 +98,11 @@ describe('la vérification de conception n’envoie que son gabarit (I-2, la nou
     expect(received()).not.toContain(NOTE_LINE);
   });
 
-  it('un texte que la page glisse avec le clic Valider la note ne part pas', async () => {
+  it('un texte que la page glisse avec le clic Vérifier ne part pas', async () => {
     const panel = await openPanel('a1');
 
-    // Le clic Valider la note par son canal, envoyé par la fenêtre du panneau, un texte de la page en plus.
-    electron.ipc.get('conv:vibeMark')!({ sender: panel.webContents }, 'note', 'ok', PAGE_TEXT);
+    // Le clic Vérifier par son canal, envoyé par la fenêtre du panneau, un texte de la page en plus.
+    electron.ipc.get('conv:vibeRun')!({ sender: panel.webContents }, 'design-check', {}, PAGE_TEXT);
     await settle();
 
     // La vérification est bien partie : son gabarit a été reçu.
@@ -111,18 +111,17 @@ describe('la vérification de conception n’envoie que son gabarit (I-2, la nou
     expect(received()).not.toContain(PAGE_TEXT);
   });
 
-  it('un second Valider la note n’envoie ni le texte du champ ni ses pièces jointes', async () => {
-    const panel = await openPanel('a1');
-    const { markVibe, refreshVibe } = await import('app/controllers');
-    // La note vérifiée une première fois (sa course finie, puis un relevé) : Valider la note est proposé de nouveau.
-    markVibe('note', 'ok');
+  it('Vérifier relancé n’envoie ni le texte du champ ni ses pièces jointes', async () => {
+    await openPanel('a1');
+    const { refreshVibe, runVibeAction } = await import('app/controllers');
+    // La note vérifiée une première fois (sa course finie, puis un relevé) : Vérifier se relance.
+    runVibeAction('design-check', {});
     await settle();
     await refreshVibe({ now: true });
     await settle();
     fake.prompts.length = 0;
 
-    // Le second clic Valider la note par son canal, envoyé par la fenêtre du panneau, le texte du champ et ses pièces jointes en plus.
-    electron.ipc.get('conv:vibeMark')!({ sender: panel.webContents }, 'note', 'ok', FIELD, pieces());
+    runVibeAction('design-check', { text: FIELD, pieces: pieces() });
     await settle();
 
     // La vérification est bien repartie : son gabarit a été reçu.

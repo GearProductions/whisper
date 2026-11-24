@@ -27,7 +27,7 @@
     "needs": "none",
     "reads": true,
     "label": "Vérifier la conception",
-    "hint": "Vérifie la conception de la note, en une seule passe : cas oubliés, contradictions, cas limites des règles chiffrées, comportement inatteignable, ligne plutôt invariant ou variant ; ne modifie jamais la note, ses suggestions vont au questionnaire.",
+    "hint": "Un geste à part : vérifie la conception de la note, en une seule passe : cas oubliés, contradictions, cas limites des règles chiffrées, comportement inatteignable, ligne plutôt invariant ou variant ; ne valide jamais la note (sans rien de bloquant, Valider la note est proposé, et c'est vous qui validez) ni ne la modifie : ses suggestions vont au questionnaire.",
     "text": "/vibecoder:conception {{lang}} {{out}} note={{note}}"
   },
   {
@@ -68,7 +68,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Vérifier l'alignement",
-    "hint": "Vérifie les invariants seuls : chaque ligne « → invariant » a un test qui l'observe vraiment, chaque test a sa ligne ; corrige les tests, 3 tours au plus ; chez le relecteur, une liste, sans rien corriger.",
+    "hint": "Vérifie les invariants seuls : chaque ligne « → invariant » a un test qui l'observe vraiment, chaque test a sa ligne ; corrige les tests, 3 tours au plus ; lit aussi la preuve (preuve.md) pour dire la règle qu'un mutant a cassée ; ne corrige que les fichiers de tests d'invariants nouveaux (l'appli lui refuse ceux d'avant la branche) ; chez le relecteur, une liste, sans rien corriger.",
     "text": "/vibecoder:aligner {{lang}} {{out}} base={{base}} {{ref}}"
   },
   {
@@ -111,6 +111,17 @@
     "label": "Générer les modules",
     "hint": "L'agent confie les modules pas encore générés à un agent développeur (jusqu'à 4 modules de code ; au-delà, à des agents Sonnet en parallèle, par vagues), dans l'ordre de la Forme, et relit chaque diff ; ne commite pas : Commiter les modules ensuite ; long et coûteux.",
     "text": "/vibecoder:modules {{lang}} {{out}} note={{note}} base={{base}} {{prefix}}"
+  },
+  {
+    "id": "prove",
+    "flow": "create",
+    "step": "modules",
+    "kind": "send",
+    "needs": "none",
+    "reads": true,
+    "label": "Prouver les invariants",
+    "hint": "Pour chaque ligne « → invariant » de la note, casse la règle dans une copie du code, hors du dossier de travail, et relance le test : il doit échouer ; écrit preuve.md, ne modifie rien dans le projet (l'appli le vérifie à la fin) ; un test resté vert repart à l'alignement.",
+    "text": "/vibecoder:prouver {{lang}} {{out}} note={{note}} base={{base}} {{prefix}}"
   },
   {
     "id": "commit-modules",
@@ -487,8 +498,8 @@
     "step": null,
     "kind": "send",
     "needs": "none",
-    "label": "Vibe",
-    "hint": "L'agent reprend à la première étape pas faite et enchaîne jusqu'à la PR et sa CI au vert ; une question qui bloque l'attend sans l'arrêter ; long et coûteux.",
+    "label": "Reprendre",
+    "hint": "L'agent reprend à la première étape pas faite et enchaîne jusqu'à la PR et sa CI au vert ; au rythme par défaut, deux pauses (après les invariants, après les modules) où vous reprenez, en express aucune ; une question qui bloque l'attend sans l'arrêter ; long et coûteux.",
     "text": "/vibecoder:vibe {{lang}} {{out}} note={{note}}"
   },
   {

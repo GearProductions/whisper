@@ -13,10 +13,34 @@
  *  Utilisé par : core/vibecoder (marks : keepNote), app/controllers/vibecoder (acceptedTexts, à l'envoi des réponses). */
 import type { VibeQuestion } from 'shared/bridge';
 
-export function acceptedTexts(_questions: VibeQuestion[], _answers: string[]): string[] {
-  throw new Error('not implemented');
+// `**Accepter** — *<où>* : « <texte> »` : le texte va du premier « au dernier » (il peut contenir des « »).
+const ACCEPT = /^\*\*Accept(?:er)?\*\*[^«]*«\s*([\s\S]*?)\s*»$/;
+
+export function acceptedTexts(questions: VibeQuestion[], answers: string[]): string[] {
+  const texts: string[] = [];
+  questions.forEach((question, i) => {
+    const answer = answers[i];
+    if (answer === undefined || !question.options.includes(answer)) return;
+    const text = ACCEPT.exec(answer)?.[1];
+    if (text) texts.push(text);
+  });
+  return texts;
 }
 
-export function onlyAccepted(_validated: string, _now: string, _accepted: string[]): boolean {
-  throw new Error('not implemented');
+// Un texte accepté s'ajoute en lignes entières, une ligne chacun ; une ligne vide de plus ne passe que collée à un
+// ajout (juste après, ou juste avant) : retirer ou ajouter un saut de paragraphe ailleurs change la conception.
+const lines = (text: string) => text.trim().split('\n').map((line) => line.trimEnd());
+
+export function onlyAccepted(validated: string, now: string, accepted: string[]): boolean {
+  const kept = lines(validated);
+  const got = lines(now);
+  const free = accepted.map((text) => text.trim());
+  let i = 0;
+  let added = false;
+  for (const [k, line] of got.entries()) {
+    if (line === kept[i]) { i++; added = false; }
+    else if (free.includes(line)) { free.splice(free.indexOf(line), 1); added = true; }
+    else if (line !== '' || !(added || free.includes(got[k + 1]))) return false;
+  }
+  return i === kept.length;
 }

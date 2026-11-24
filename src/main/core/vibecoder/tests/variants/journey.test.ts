@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { VibeView } from 'shared/bridge';
 import {
-  blobSha, caseBlocks, caseTarget, CHECKED, EFFORT_LEVELS, noteDesign, parseNote, stepContent, validateStep, vibeView, type ActionDef, type JourneyInput, type Marks,
+  blobSha, caseBlocks, caseTarget, CHECKED, EFFORT_LEVELS, noteDesign, parseNote, stepContent, stepContents, validateStep, vibeView, withdraw, type ActionDef, type JourneyInput, type Marks,
 } from 'core/vibecoder';
 
 // Les actions du brief (celles dont le parcours a besoin), en français.
@@ -18,6 +18,8 @@ const ACTIONS: ActionDef[] = [
   A('commit-prepare', 'create', 'modules', '/vibecoder:commit-preparer {{lang}} {{out}}'),
   A('commit', 'create', 'modules', '/vibecoder:commit {{lang}} {{out}}'),
   A('commit-modules', 'create', 'modules', '/vibecoder:commiter-modules {{lang}} {{out}} {{prefix}}'),
+  { ...A('prove', 'create', 'modules', '/vibecoder:prouver {{lang}} {{out}} note={{note}}'), reads: true },
+  { ...A('review-diff', 'create', 'modules', '/vibecoder:relire {{lang}} {{out}} base={{base}} {{commit}}'), reads: true },
   A('module', 'create', 'modules', '/vibecoder:module {{lang}} {{out}} {{module}}'),
   A('modules', 'create', 'modules', '/vibecoder:modules {{lang}} {{out}}'),
   { ...A('checks', 'create', 'revue', '/vibecoder:verifier {{lang}} {{out}}'), reads: true },
@@ -94,6 +96,8 @@ const repo = (changed: string[] = [], commits: ReturnType<typeof commit>[] = [])
   dirty: changed.filter((f) => !commits.some((c) => c.files.includes(f))),
 });
 const out = (text = '') => ({ text, time: 1 });
+// La preuve des invariants qui passe (preuve.md) : sans elle, l'étape Modules n'est pas faite quand la note a une ligne « → invariant ».
+const PROOF = { 'preuve.md': out(`## [prouvé] ${parseNote(NOTE).mustNot[0].text}\n\nMutant : un autre fichier lu ; le test échoue.\n`) };
 // La dernière course : des réponses envoyées (la course arrêtée sur une question qui bloque).
 const ANSWERED = [{ id: 'answers', label: 'answers', who: 'agent', state: 'done' as const, since: 2, end: 3, reply: '', permission: null }];
 const input = (over: Partial<JourneyInput> = {}): JourneyInput => ({
@@ -187,7 +191,7 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
     expect(status(v).invariants).toBe('current');
   });
 
-  it('des tests pas encore lus (hors Vibe) : aucune action, la validation des cas passe avant la lecture', () => {
+  it('des tests pas encore lus, rien à commiter : aucune action (la lecture ne s\'impose pas)', () => {
     expect(primary(vibeView(input({ note, marks: NOTE_OK, tests: [test] })))).toBeNull();
   });
 
@@ -195,9 +199,9 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
     expect(primary(vibeView(input({ note, marks: NOTE_OK, tests: [test], vibe: true, repo: repo([NOTE_PATH, TEST_PATH]) })))).toBe('commit-prepare');
   });
 
-  it('lus mais pas tous validés (hors Vibe) : aucune action, la validation attend', () => {
+  it('lus mais pas tous validés : Préparer le commit, aucun ✓ ne se fait attendre (0.16.0)', () => {
     expect(primary(vibeView(input({ note, marks: NOTE_OK, tests: [test], readings: READINGS, repo: repo([NOTE_PATH, TEST_PATH]) }))))
-      .toBeNull();
+      .toBe('commit-prepare');
   });
 
   it('lus et validés, des fichiers pas commités : Préparer le commit', () => {
@@ -228,13 +232,13 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
   it('modules générés, puis la note et un test d\'invariant retouchés (une passe, des harnais) : le parcours ne recule pas, Commiter les modules les range', () => {
     // la génération a touché les deux modules ; la note et le test, déjà commités, sont modifiés à côté
     const modules = ['src/core/hello.ts', 'src/app/button.tsx'];
-    const v = vibeView(ready({ repo: { ...repo(modules, [FIRST]), dirty: [...modules, NOTE_PATH, TEST_PATH] } }));
+    const v = vibeView(ready({ repo: { ...repo(modules, [FIRST]), dirty: [...modules, NOTE_PATH, TEST_PATH] }, outputs: PROOF }));
     expect([status(v).forme, status(v).invariants, status(v).modules, primary(v)]).toEqual(['done', 'done', 'current', 'commit-modules']);
     expect(v.steps.find((st) => st.id === 'forme')?.facts).not.toContain('note modifiée depuis son commit');   // plus dit : « Forme périmée » le remplace
     // un module commité, l'autre pas encore généré : on continue de générer, la note attend
-    expect(primary(vibeView(ready({ repo: { ...repo([], [FIRST, HELLO]), dirty: [NOTE_PATH] } })))).toBe('modules');
+    expect(primary(vibeView(ready({ repo: { ...repo([], [FIRST, HELLO]), dirty: [NOTE_PATH] }, outputs: PROOF })))).toBe('modules');
     // tous les modules commités, la note encore modifiée : l'étape Modules n'est pas faite, Préparer le commit (son fixup)
-    const all = vibeView(ready({ repo: { ...repo([], [FIRST, HELLO, BUTTON]), dirty: [NOTE_PATH] } }));
+    const all = vibeView(ready({ repo: { ...repo([], [FIRST, HELLO, BUTTON]), dirty: [NOTE_PATH] }, outputs: PROOF }));
     expect([status(all).forme, status(all).modules, primary(all)]).toEqual(['done', 'current', 'commit-prepare']);
   });
 
@@ -242,7 +246,7 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
     // les validations portent sur l'ancien contenu : la note, sa Forme et un cas ont changé depuis
     const stale: Marks = { note: { hash: 'x', verdict: 'ok' }, forme: { hash: 'y', verdict: 'ok' },
       ...CASES_OK, [caseTarget(TEST_PATH, 'dit bonjour')]: { hash: 'z', common: 'c', verdict: 'ok' } };
-    const v = vibeView(ready({ marks: stale, repo: repo([], [FIRST, HELLO, BUTTON]) }));
+    const v = vibeView(ready({ marks: stale, repo: repo([], [FIRST, HELLO, BUTTON]), outputs: PROOF }));
     expect([status(v).note, status(v).forme, status(v).invariants, status(v).modules]).toEqual(['done', 'done', 'done', 'done']);
     expect(v.actions.find((a) => a.id === 'vibe')?.disabled ?? null).toBeNull();
     // aucun module touché : une validation « changed » ne compte pas (on revalide avant de générer)
@@ -253,7 +257,7 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
     // le premier commit ne porte que la note ; le test protégé n'est modifié que par un commit de module
     const first = commit('a', 'Note, forme', [NOTE_PATH]);
     const harness = commit('d', 'core/hello et son harnais', ['src/core/hello.ts', TEST_PATH]);
-    const v = vibeView(ready({ marks: NOTE_OK, repo: repo([], [first, harness, BUTTON]) }));
+    const v = vibeView(ready({ marks: NOTE_OK, repo: repo([], [first, harness, BUTTON]), outputs: PROOF }));
     expect([status(v).invariants, status(v).modules]).toEqual(['done', 'done']);
   });
 
@@ -262,9 +266,9 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
     expect(status(v).forme).toBe('done');
   });
 
-  it('invariants validés et commités, aucun module touché : Générer les modules', () => {
+  it('invariants validés et commités, aucun module touché : la pause après les invariants, Vibe (0.16.0) ; Générer les modules reste à portée', () => {
     const v = vibeView(ready());
-    expect([status(v).modules, primary(v)]).toEqual(['current', 'modules']);
+    expect([status(v).modules, primary(v), action(v, 'modules')?.hidden]).toEqual(['current', 'vibe', false]);
   });
 
   it('un module généré (un à un), pas commité, un autre reste : toujours Générer les modules ; on commite à la fin', () => {
@@ -279,11 +283,11 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
   });
 
   it('le dernier module modifié, pas commité : Commiter les modules', () => {
-    expect(primary(vibeView(ready({ repo: repo(['src/app/button.tsx'], [FIRST, HELLO]) })))).toBe('commit-modules');
+    expect(primary(vibeView(ready({ repo: repo(['src/app/button.tsx'], [FIRST, HELLO]), outputs: PROOF })))).toBe('commit-modules');
   });
 
   it('les deux modules modifiés, aucun commité : Commiter les modules', () => {
-    expect(primary(vibeView(ready({ repo: repo(['src/core/hello.ts', 'src/app/button.tsx'], [FIRST]) })))).toBe('commit-modules');
+    expect(primary(vibeView(ready({ repo: repo(['src/core/hello.ts', 'src/app/button.tsx'], [FIRST]), outputs: PROOF })))).toBe('commit-modules');
   });
 
   it('uncommitted : un module aux fichiers changés hors de tout commit ; commité (pas retouché) ou pas touché, non', () => {
@@ -308,34 +312,34 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
   });
 
   it('chaque module commité : la revue, d\'abord les vérifications', () => {
-    const v = vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]) }));
-    expect([status(v).modules, status(v).revue, primary(v)]).toEqual(['done', 'current', 'checks']);
+    const v = vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), outputs: PROOF }));
+    expect([status(v).modules, status(v).revue, primary(v)]).toEqual(['done', 'current', 'vibe']);   // la pause après les modules (0.16.0)
   });
 
   it('vérifications passées sans ponytail review : relancer les vérifications (elles la demandent)', () => {
     const checks = out('{"items":[{"name":"tests","ok":true}],"time":1}');
-    expect(primary(vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), outputs: { 'checks.json': checks } })))).toBe('checks');
+    expect(primary(vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), outputs: { ...PROOF, 'checks.json': checks } })))).toBe('checks');
   });
 
   it('ponytail review sans vérifications : Lancer les vérifications', () => {
-    expect(primary(vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), outputs: { 'ponytail.md': out('- rien') } })))).toBe('checks');
+    expect(primary(vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), outputs: { ...PROOF, 'ponytail.md': out('- rien') } })))).toBe('checks');
   });
 
   it('un commit fixup! : Replier les fixups', () => {
-    const outputs = { 'checks.json': out('{"items":[{"name":"tests","ok":true}]}'), 'ponytail.md': out('- rien') };
+    const outputs = { ...PROOF, 'checks.json': out('{"items":[{"name":"tests","ok":true}]}'), 'ponytail.md': out('- rien') };
     const fix = commit('d', 'fixup! core/hello', ['src/core/hello.ts']);
     expect(primary(vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON, fix]), outputs })))).toBe('fixups');
   });
 
   it('revue faite : ouvrir la PR', () => {
-    const outputs = { 'checks.json': out('{"items":[{"name":"tests","ok":true}]}'), 'ponytail.md': out('- rien') };
+    const outputs = { ...PROOF, 'checks.json': out('{"items":[{"name":"tests","ok":true}]}'), 'ponytail.md': out('- rien') };
     const v = vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), outputs }));
     expect([status(v).pr, primary(v)]).toEqual(['current', 'pr']);
   });
 
   it('PR ouverte (pr.json) : tout est fait, plus de prochaine action', () => {
     const outputs = {
-      'checks.json': out('{"items":[{"name":"tests","ok":true}]}'), 'ponytail.md': out('- rien'),
+      ...PROOF, 'checks.json': out('{"items":[{"name":"tests","ok":true}]}'), 'ponytail.md': out('- rien'),
       'pr.json': out('{"number":31,"url":"https://github.com/o/d/pull/31","title":"G2-1"}'),
     };
     const v = vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), outputs }));
@@ -357,13 +361,16 @@ describe('Créer, Vibe en cours : aucune validation attendue', () => {
     expect(primary(vibeView(input({ vibe: true, note: { ...note, text }, marks: { note: ok(noteDesign(text)) } })))).toBe('forme');
   });
 
-  it('note rédigée sans validation : note et forme faites', () => {
+  it('note rédigée sans ✓, Vibe en cours : la note n\'est pas faite (seul l\'utilisateur la valide), la Forme l\'est', () => {
     const v = vibeView(input({ vibe: true, note }));
-    expect([status(v).note, status(v).forme]).toEqual(['done', 'done']);
+    expect([status(v).note, status(v).forme]).toEqual(['current', 'done']);
   });
 
-  it('un test d\'invariant, ni lu ni validé : invariants faits', () => {
-    expect(status(vibeView(input({ vibe: true, note, tests: [test] }))).invariants).toBe('done');
+  it('un test d\'invariant, ni lu ni validé, la note validée et les tests alignés : invariants faits', () => {
+    const aligned = { 'align.md': out('## [agent] Un cas corrigé\n') };
+    expect(status(vibeView(input({ vibe: true, note, tests: [test], marks: { note: ok(noteDesign(NOTE)) }, outputs: aligned, repo: repo([], [FIRST]) }))).invariants).toBe('done');
+    // pas alignés, aucun cas validé : pas faits, Vibe ou non
+    expect(status(vibeView(input({ vibe: true, note, tests: [test], marks: { note: ok(noteDesign(NOTE)) }, repo: repo([], [FIRST]) }))).invariants).toBe('current');
   });
 
   it('le relevé dit si Vibe est en cours ; autonomy ne compte plus, ni rendue', () => {
@@ -481,7 +488,7 @@ describe('Relecteur : rien de ce qui édite, génère ou commite ; tout ce que f
     outputs: { 'pr-12.json': out(CARD) }, ...over,
   }));
   const shown = (v: VibeView) => v.actions.filter((a) => !a.hidden).map((a) => a.id);
-  const CREATE_ONLY = ['note', 'answers', 'forme', 'invariants', 'commit-prepare', 'commit', 'commit-modules', 'module', 'checks',
+  const CREATE_ONLY = ['note', 'answers', 'forme', 'invariants', 'commit-prepare', 'commit', 'commit-modules', 'prove', 'review-diff', 'module', 'checks',
     'ponytail', 'fixups', 'pr', 'ci', 'base', 'vibe'];
 
   it('aucune action create au relevé ; rebase, push et copier dans le projet masquées', () => {
@@ -662,7 +669,7 @@ describe('Créer : la liste du § A.3', () => {
   });
 
   it('rien de fait : rien de coché', () => {
-    expect(done(vibeView(input()))).toEqual([false, false, null, false, null]);
+    expect(done(vibeView(input()))).toEqual([false, false, false, false, null]);
   });
 
   it('des invariants par partie (« invariants (backend) », « invariants (frontend) ») tous passés : cochés', () => {
@@ -677,7 +684,7 @@ describe('Créer : la liste du § A.3', () => {
 
   it('la note commitée, les invariants passés, un commit par module : cochés ; relecture et AGENTS.md restent à vérifier', () => {
     const checks = out('{"items":[{"name":"invariants","ok":true},{"name":"tests","ok":true}]}');
-    expect(done(vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), outputs: { 'checks.json': checks } })))).toEqual([true, true, null, true, null]);
+    expect(done(vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), outputs: { 'checks.json': checks } })))).toEqual([true, true, false, true, null]);
   });
 
   it('un fixup! pas replié : « un commit par module » n\'est pas coché', () => {
@@ -689,17 +696,17 @@ describe('Créer : la liste du § A.3', () => {
     expect(done(vibeView(ready({ repo: repo([], [FIRST, HELLO]) })))[3]).toBe(false);
   });
 
-  it('relecture et AGENTS.md : à cocher à la main ; cochés pour le commit de tête, décochés par un commit de plus', () => {
-    const marks = { ...NOTE_OK, ...CASES_OK, 'a3:2': { hash: BUTTON.hash, verdict: 'ok' as const } };
+  it('AGENTS.md : à cocher à la main ; coché pour le commit de tête, décoché par un commit de plus ; la relecture, plus à la main (0.16.0)', () => {
+    const marks = { ...NOTE_OK, ...CASES_OK, 'a3:4': { hash: BUTTON.hash, verdict: 'ok' as const } };
     const v = vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON]), marks }));
-    expect(v.checklist.map((c) => [c.done, !!c.manual])).toEqual([[true, false], [false, false], [true, true], [true, false], [null, true]]);
+    expect(v.checklist.map((c) => [c.done, !!c.manual])).toEqual([[true, false], [false, false], [false, false], [true, false], [true, true]]);
     const fix = commit('d', 'core/hello encore', ['src/core/hello.ts']);
-    expect(done(vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON, fix]), marks })))[2]).toBeNull();
+    expect(done(vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON, fix]), marks })))[4]).toBeNull();
   });
 
   it('refusée (✗) ou sans commit : pas cochée', () => {
     expect(done(vibeView(ready({ marks: { ...NOTE_OK, 'a3:4': { hash: FIRST.hash, verdict: 'ko' } } })))[4]).toBeNull();
-    expect(done(vibeView(input({ marks: { 'a3:2': { hash: '', verdict: 'ok' } } })))[2]).toBeNull();
+    expect(done(vibeView(input({ marks: { 'a3:4': { hash: '', verdict: 'ok' } } })))[4]).toBeNull();
   });
 });
 
@@ -716,7 +723,7 @@ describe('Créer : la case « Chaque module commité, aucun fixup à replier »'
   });
 
   it('un seul commit après le premier pour tous les modules : étape Modules faite, case cochée (déjà vert)', () => {
-    const v = vibeView(ready({ repo: repo([], [FIRST, CODE]) }));
+    const v = vibeView(ready({ repo: repo([], [FIRST, CODE]), outputs: PROOF }));
     expect([status(v).modules, v.checklist[3].done]).toEqual(['done', true]);
   });
 
@@ -726,7 +733,7 @@ describe('Créer : la case « Chaque module commité, aucun fixup à replier »'
   });
 
   it('le même, un fichier hors de la Forme pas commité : Préparer le commit reste proposée (déjà vert)', () => {
-    const v = vibeView(ready({ repo: { ...repo([], [FIRST, CODE]), dirty: ['scripts/outil.sh'], added: ['scripts/outil.sh'] } }));
+    const v = vibeView(ready({ repo: { ...repo([], [FIRST, CODE]), dirty: ['scripts/outil.sh'], added: ['scripts/outil.sh'] }, outputs: PROOF }));
     expect([status(v).modules, action(v, 'commit-prepare')?.hidden]).toEqual(['done', false]);
   });
 
@@ -737,7 +744,7 @@ describe('Créer : la case « Chaque module commité, aucun fixup à replier »'
 
   it('un commit par module puis un fixup : case décochée, Replier les fixups proposée', () => {
     const fix = commit('f', 'fixup! core/hello', ['src/core/hello.ts']);
-    const v = vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON, fix]), outputs: CHECKED }));
+    const v = vibeView(ready({ repo: repo([], [FIRST, HELLO, BUTTON, fix]), outputs: { ...PROOF, ...CHECKED } }));
     expect([v.checklist[3].done, primary(v)]).toEqual([false, 'fixups']);
   });
 });
@@ -1177,11 +1184,11 @@ describe('checks.json et la dernière course checks (I-46)', () => {
   });
 
   it('frais : la revue passe à la PR', () => {
-    expect(primary(revue({ 'checks.json': green(100), 'ponytail.md': out('- rien') }))).toBe('pr');
+    expect(primary(revue({ ...PROOF, 'checks.json': green(100), 'ponytail.md': out('- rien') }))).toBe('pr');
   });
 
   it('ancien : l\'état de la PR ne change pas (pr.json lu)', () => {
-    const v = revue({ 'checks.json': green(50), 'ponytail.md': out('- rien'), 'pr.json': out('{"number":31,"url":"u","title":"G2-1"}') });
+    const v = revue({ ...PROOF, 'checks.json': green(50), 'ponytail.md': out('- rien'), 'pr.json': out('{"number":31,"url":"u","title":"G2-1"}') });
     expect([v.pr?.number, primary(v)]).toEqual([31, 'checks']);
   });
 });
@@ -1223,8 +1230,9 @@ describe('l\'étape Invariants, sans invariant et sans lecture (0.9.0-rc.4)', ()
     expect(status(v).invariants).not.toBe('done');
   });
 
-  it('sans ligne « → invariant », la note validée mais pas la forme : l\'étape Invariants n\'est pas faite (0.12.0)', () => {
-    const v = vibeView(input({ note: { ...note, text }, marks: { note: ok(noteDesign(text)) }, repo: repo([NOTE_PATH]) }));
+  it('sans ligne « → invariant », la note validée mais pas de Forme posée : l\'étape Invariants n\'est pas faite (0.12.0 ; la Forme ne se valide plus à la main, 0.16.0)', () => {
+    const bare = text.slice(0, text.indexOf('## Forme'));
+    const v = vibeView(input({ note: { ...note, text: bare }, marks: { note: ok(noteDesign(bare)) }, repo: repo([NOTE_PATH]) }));
 
     expect(status(v).invariants).not.toBe('done');
   });
@@ -1452,11 +1460,6 @@ describe('un module n\'est commencé que si un fichier a changé depuis son sque
       .toEqual([true, false, false]);
   });
 
-  it('design-check masquée avant la vérification, montrée après', () => {
-    const hidden = (marks: Marks) => action(vibeView(input({ note, marks })), 'design-check')?.hidden;
-    expect([hidden(NOTE_OK), hidden({ ...NOTE_OK, design: { hash: NOTE_PATH, verdict: 'ok' } })]).toEqual([true, false]);
-  });
-
   it('queued : recopié dans l\'ordre ; absent : []', () => {
     expect([vibeView(input({ queued: ['b', 'a'] })).queued, vibeView(input()).queued]).toEqual([['b', 'a'], []]);
   });
@@ -1637,7 +1640,7 @@ describe('les validations d\'étape et le menu de diff', () => {
   const CHANGED_FORME = { ...note, text: NOTE.replace('le bouton', 'le gros bouton') };
   // Les deux modules commités, leurs fichiers relevés.
   const files = {
-    repo: repo([], [FIRST, HELLO, BUTTON]), exists: () => true,
+    repo: repo([], [FIRST, HELLO, BUTTON]), exists: () => true, outputs: PROOF,
     blobs: [{ path: H, disk: sha('a'), head: sha('a') }, { path: B, disk: sha('b'), head: sha('b') }],
   };
   // Les marques des étapes données, posées par le geste (validateStep), dans l'ordre, après la note et la Forme.
@@ -1704,7 +1707,7 @@ describe('les validations d\'étape et le menu de diff', () => {
       const v = vibeView(ready({ ...moved, marks }));
       expect(step(v, 'modules').check?.state).toBe('changed');
       expect(step(v, 'modules').head).toBe('modifiée depuis la validation');
-      expect(step(v, 'modules').facts).toBe('2 / 2 modules · modifiée depuis la validation');
+      expect(step(v, 'modules').facts).toBe('2 / 2 modules · invariants prouvés · modifiée depuis la validation');
     });
 
     it('un commit ne change pas une validation : même disque, autre dernier commit', () => {
@@ -1747,7 +1750,7 @@ describe('les validations d\'étape et le menu de diff', () => {
     });
 
     it('grisé sans rien changer à l\'étape en cours ni à la prochaine action', () => {
-      const v = vibeView(ready({ repo: repo(['src/app/button.tsx'], [FIRST, HELLO]) }));
+      const v = vibeView(ready({ repo: repo(['src/app/button.tsx'], [FIRST, HELLO]), outputs: PROOF }));
       expect([primary(v), action(v, 'commit-modules')?.disabled]).toEqual(['commit-modules', 'modules pas validés']);
     });
   });
@@ -1911,5 +1914,436 @@ describe('les cas un par un', () => {
     }
     expect(vibeView(input(state(marks, SRC))).steps.find((s) => s.id === 'invariants')?.check?.state).toBe('ok');
     expect(vibeView(input(state(marks, SRC.replace('toBe(1)', 'toBe(11)')))).steps.find((s) => s.id === 'invariants')?.check?.state).toBe('changed');
+  });
+});
+
+// Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : la note faite par le seul ✓ de l'utilisateur, la
+// Forme, les invariants et les modules faits sans validation à la main, la preuve des invariants, la pause du parcours.
+describe('le contrôle en trois points (0.16.0)', () => {
+  const HELLO_PATH = 'src/core/hello.ts', BUTTON_PATH = 'src/app/button.tsx';
+  const LINE = parseNote(NOTE).mustNot[0].text;
+  const PROVED = `## [prouvé] ${LINE}\n\nMutant : hello() lit un autre fichier ; le test échoue sur son assertion.\n`;
+  const TOI = `## [toi] ${LINE}\n\nLe test reste vert sur chaque mutant essayé.\n`;
+  const ALIGNED = '## [agent] Un cas corrigé\n\nFait.\n';
+  const STILL_GREEN = '## [toi] Un cas reste vert\n\nÀ trancher.\n';
+  const proof = (md: string) => ({ 'preuve.md': out(md) });
+  const ALL = repo([], [FIRST, HELLO, BUTTON]);
+  const FIX = commit('d', 'revue : un détail', [HELLO_PATH]);
+  // La note validée par l'utilisateur ; la Forme, jamais validée à la main ; chaque cas validé.
+  const NOTE_ONLY: Marks = { note: ok(noteDesign(NOTE)) };
+  const MARKED: Marks = { ...NOTE_ONLY, ...CASES_OK };
+  // Les deux modules commités, la preuve qui passe : l'étape Modules faite.
+  const modulesDone = (over: Partial<JourneyInput> = {}) => vibeView(ready({ marks: MARKED, repo: ALL, outputs: proof(PROVED), ...over }));
+  // Une note à deux lignes « → invariant ».
+  const TWO = NOTE.replace('- Planter. → variant suffit', '- Écrire hors du dossier. → invariant');
+  // Une note sans ligne « → invariant » ; son premier commit ne porte que la note.
+  const NO_INV = NOTE.replace('- Lire un autre fichier. → invariant\n', '');
+  const noInv = (over: Partial<JourneyInput> = {}) => vibeView(input({
+    note: { ...note, text: NO_INV }, marks: { note: ok(noteDesign(NO_INV)) }, repo: repo([], [commit('a', 'Note, forme', [NOTE_PATH])]), ...over,
+  }));
+  const step = (v: VibeView, id: string) => v.steps.find((s) => s.id === id)!;
+
+  describe('la note, la Forme, les invariants', () => {
+    it('la note sans ✓, Vibe en cours (au rythme par défaut ou en express) : l\'étape Note pas faite', () => {
+      const checked = vibeView(ready({ vibe: true, marks: MARKED }));
+      expect(status(checked).note).toBe('done');
+      for (const express of [false, true]) {
+        const v = vibeView(ready({ vibe: true, express, marks: CASES_OK }));
+        expect(status(v).note).toBe('current');
+        expect(status(v).invariants).not.toBe('done');
+      }
+    });
+
+    it('la Forme posée, jamais validée à la main : l\'étape Forme faite', () => {
+      const v = vibeView(ready({ marks: NOTE_ONLY }));
+      expect([status(v).note, status(v).forme]).toEqual(['done', 'done']);
+      // sans module posé : pas faite
+      const text = NOTE.slice(0, NOTE.indexOf('## Forme'));
+      expect(status(vibeView(input({ note: { ...note, text }, marks: { note: ok(noteDesign(text)) } }))).forme).toBe('current');
+    });
+
+    it('les tests alignés (align.md sans [toi]), aucun cas coché, le premier commit fait : l\'étape Invariants faite', () => {
+      const aligned = (md: string, over: Partial<JourneyInput> = {}) => vibeView(input({
+        note, tests: [test], marks: NOTE_ONLY, repo: repo([], [FIRST]), outputs: { 'align.md': out(md) }, ...over,
+      }));
+      const v = aligned(ALIGNED);
+      expect([status(v).invariants, status(v).modules]).toEqual(['done', 'current']);
+      // le premier commit pas fait (les tests encore à commiter) : pas faite
+      expect(status(aligned(ALIGNED, { repo: repo([NOTE_PATH, TEST_PATH]) })).invariants).toBe('current');
+    });
+
+    it('un align.md avec une rubrique [toi], aucun cas coché : l\'étape Invariants pas faite', () => {
+      const aligned = (md: string) => vibeView(input({
+        note, tests: [test], marks: NOTE_ONLY, repo: repo([], [FIRST]), outputs: { 'align.md': out(md) },
+      }));
+      // témoin : le même align.md sans [toi] la fait
+      expect(status(aligned(ALIGNED)).invariants).toBe('done');
+      expect(status(aligned(STILL_GREEN)).invariants).toBe('current');
+      expect(status(aligned(`${ALIGNED}\n${STILL_GREEN}`)).invariants).toBe('current');
+    });
+
+    it('chaque cas validé à la main, sans align.md : l\'étape Invariants faite', () => {
+      expect(status(vibeView(ready({ marks: MARKED }))).invariants).toBe('done');
+      // un cas sans ✓, sans align.md : pas faite
+      expect(status(vibeView(ready({ marks: NOTE_ONLY }))).invariants).toBe('current');
+    });
+
+    it('les cas pas validés, pas alignés : Écrire les invariants fait, Préparer le commit ou rien, jamais attendre un ✓', () => {
+      const v = vibeView(input({ note, tests: [test], marks: NOTE_ONLY, repo: repo([NOTE_PATH, TEST_PATH]) }));
+      expect([status(v).invariants, primary(v)]).toEqual(['current', 'commit-prepare']);
+    });
+  });
+
+  describe('la preuve et l\'étape Modules', () => {
+    it('les modules commités, la preuve qui passe : l\'étape Modules faite', () => {
+      const v = modulesDone();
+      expect([status(v).modules, status(v).revue, v.proof?.state]).toEqual(['done', 'current', 'ok']);
+    });
+
+    it('les modules commités, pas de preuve.md, une preuve bloquée ou incomplète : pas faite, en express aussi', () => {
+      const two = { note: { ...note, text: TWO }, marks: { note: ok(noteDesign(TWO)), ...CASES_OK } };
+      const cases: [string, Partial<JourneyInput>, string][] = [
+        ['pas de preuve.md', { outputs: {} }, 'missing'],
+        ['une ligne [toi]', { outputs: proof(TOI) }, 'blocked'],
+        ['une ligne de la note sans rubrique', { ...two, outputs: proof(PROVED) }, 'missing'],
+      ];
+      for (const [, over, state] of cases) {
+        for (const express of [false, true]) {
+          const v = modulesDone({ ...over, express, vibe: express });
+          expect([status(v).modules, primary(v), v.proof?.state]).toEqual(['current', 'prove', state]);
+        }
+      }
+      // la ligne non prouvée reste dans le relevé
+      expect(modulesDone({ outputs: proof(TOI) }).proof?.lines.filter((l) => !l.proved).map((l) => l.line)).toEqual([LINE]);
+    });
+
+    it('la preuve passée, un module corrigé ensuite : l\'étape Modules reste faite, Prouver les invariants n\'est pas la prochaine action', () => {
+      // un commit de plus qui touche un module
+      const later = modulesDone({ repo: repo([], [FIRST, HELLO, BUTTON, FIX]) });
+      expect([status(later).modules, primary(later)]).toEqual(['done', 'vibe']);   // la pause après les modules : jamais la preuve
+      // une correction pas encore commitée : l'étape attend son commit (comme avant), jamais la preuve
+      const fixing = modulesDone({ repo: { ...ALL, dirty: [HELLO_PATH] } });
+      expect([status(fixing).modules, primary(fixing)]).toEqual(['current', 'commit-modules']);
+    });
+
+    it('la note sans ligne « → invariant » : rien à prouver, l\'étape faite, Prouver les invariants masquée, ses faits le disent', () => {
+      const v = noInv({ repo: repo([], [commit('a', 'Note, forme', [NOTE_PATH]), HELLO, BUTTON]) });
+      expect([status(v).modules, v.proof?.state, action(v, 'prove')?.hidden]).toEqual(['done', 'none', true]);
+      expect(step(v, 'modules').facts).toBe('2 / 2 modules · rien à prouver');
+      expect(step(noInv({ lang: 'en', repo: repo([], [commit('a', 'Note, forme', [NOTE_PATH]), HELLO, BUTTON]) }), 'modules').facts).toBe('2 / 2 modules · nothing to prove');
+      // avec la ligne, l'action est montrée
+      expect(action(modulesDone(), 'prove')?.hidden).toBe(false);
+    });
+
+    it('chaque module commencé, la preuve pas passée : Prouver les invariants est la prochaine action, avant Commiter les modules', () => {
+      const both = repo([HELLO_PATH, BUTTON_PATH], [FIRST]);
+      expect(primary(vibeView(ready({ marks: MARKED, repo: both })))).toBe('prove');
+      // la preuve passée : Commiter les modules
+      expect(primary(vibeView(ready({ marks: MARKED, repo: both, outputs: proof(PROVED) })))).toBe('commit-modules');
+      // un module pas encore commencé : Générer les modules d'abord
+      expect(primary(vibeView(ready({ marks: MARKED, repo: repo([HELLO_PATH], [FIRST]) })))).toBe('modules');
+      // un commit préparé passe avant
+      expect(primary(vibeView(ready({ marks: MARKED, repo: both, outputs: { 'commit.md': out('x') } })))).toBe('commit');
+      // sans ligne « → invariant » : rien à prouver, Commiter les modules directement
+      expect(primary(noInv({ repo: repo([HELLO_PATH, BUTTON_PATH], [commit('a', 'Note, forme', [NOTE_PATH])]) }))).toBe('commit-modules');
+    });
+
+    it('les faits de l\'étape Modules disent l\'état de la preuve, une fois chaque module commencé', () => {
+      expect(step(modulesDone(), 'modules').facts).toBe('2 / 2 modules · invariants prouvés');
+      expect(step(modulesDone({ outputs: proof(TOI) }), 'modules').facts).toBe('2 / 2 modules · preuve bloquée : à toi');
+      expect(step(modulesDone({ outputs: {} }), 'modules').facts).toBe('2 / 2 modules · invariants pas prouvés');
+      // pas un module commencé : rien à dire de la preuve
+      expect(step(vibeView(ready({ marks: MARKED })), 'modules').facts).toBe('0 / 2 modules');
+    });
+
+    it('un preuve.md d\'avant (une autre ligne) ne prouve pas la ligne d\'aujourd\'hui', () => {
+      const other = '## [prouvé] Une ligne qui n\'est pas dans la note.\n\nMutant.\n';
+      expect(status(modulesDone({ outputs: proof(other) })).modules).not.toBe('done');
+      expect(modulesDone({ outputs: proof(other) }).proof?.state).toBe('missing');
+    });
+  });
+
+  describe('la pause', () => {
+    it('le premier commit fait, aucun module commencé : la pause après les invariants, Vibe la prochaine action', () => {
+      const v = vibeView(ready({ marks: MARKED }));
+      expect([v.pause, primary(v)]).toEqual(['invariants', 'vibe']);
+      expect(action(v, 'vibe')).toMatchObject({ hidden: false, disabled: null });
+      // un module commencé : plus de pause
+      expect(vibeView(ready({ marks: MARKED, repo: repo([HELLO_PATH], [FIRST]) })).pause ?? null).toBeNull();
+      // les invariants pas faits : pas de pause
+      expect(vibeView(ready({ marks: NOTE_ONLY })).pause ?? null).toBeNull();
+    });
+
+    it('sans ligne « → invariant », la Forme posée, pas encore de commit : aucune pause ; le premier commit fait : la pause', () => {
+      expect(noInv({ repo: repo() }).pause ?? null).toBeNull();
+      expect(noInv().pause).toBe('invariants');
+    });
+
+    it('les modules faits, ni vérifications ni ponytail review : la pause après les modules', () => {
+      const v = modulesDone();
+      expect([v.pause, primary(v)]).toEqual(['modules', 'vibe']);
+    });
+
+    it('la revue commencée : plus de pause', () => {
+      const checks = out('{"items":[{"name":"tests","ok":true}]}');
+      expect(modulesDone({ outputs: { ...proof(PROVED), 'checks.json': checks } }).pause ?? null).toBeNull();
+      expect(modulesDone({ outputs: { ...proof(PROVED), 'ponytail.md': out('- rien') } }).pause ?? null).toBeNull();
+      // des vérifications en échec comptent aussi : la revue est commencée
+      expect(modulesDone({ outputs: { ...proof(PROVED), 'checks.json': out('{"items":[{"name":"tests","ok":false}]}') } }).pause ?? null).toBeNull();
+      // les modules pas faits (la preuve manque) : pas de pause après les modules
+      expect(modulesDone({ outputs: {} }).pause ?? null).toBeNull();
+    });
+
+    it('la note commitée puis changée, son ✓ tombé : la pause de la note', () => {
+      const changed = { ...note, text: NOTE.replace('dit bonjour.', 'dit bonjour, fort.') };
+      const v = vibeView(ready({ note: changed, marks: MARKED }));
+      expect([v.pause, status(v).note]).toEqual(['note', 'current']);
+      // la note jamais commitée : pas de pause
+      expect(vibeView(input({ note: changed, marks: NOTE_ONLY, repo: repo() })).pause ?? null).toBeNull();
+      // ignorée par git : le premier commit tient lieu du commit de la note
+      const skels = commit('a', 'Squelettes, invariants', [TEST_PATH, HELLO_PATH]);
+      expect(vibeView(ready({ note: { ...changed, ignored: true }, marks: MARKED, repo: repo([], [skels]) })).pause).toBe('note');
+      expect(vibeView(ready({ note: { ...changed, ignored: true }, marks: MARKED, repo: repo() })).pause ?? null).toBeNull();
+      // un module commencé : le parcours ne recule plus
+      expect(vibeView(ready({ note: changed, marks: MARKED, repo: repo([], [FIRST, HELLO]) })).pause ?? null).not.toBe('note');
+      // la note refusée (✗), commitée : sans ✓, la pause de la note
+      const refused: Marks = { note: { hash: blobSha(noteDesign(NOTE)), verdict: 'ko' }, ...CASES_OK };
+      expect(vibeView(ready({ marks: refused })).pause).toBe('note');
+    });
+
+    it('le rythme express au relevé : les mêmes pauses (il ne les calcule pas), recopié', () => {
+      const at = (over: Partial<JourneyInput>, express?: boolean) => vibeView(ready({ marks: MARKED, ...over, ...(express === undefined ? {} : { express }) }));
+      for (const over of [{}, { repo: ALL, outputs: proof(PROVED) }, { marks: { ...CASES_OK } }]) {
+        const pauses = [undefined, false, true].map((express) => at(over, express).pause ?? null);
+        expect(new Set(pauses).size).toBe(1);
+      }
+      expect([at({}).express, at({}, false).express, at({}, true).express]).toEqual([undefined, false, true]);
+      expect(at({}, true).pause).toBe('invariants');
+      expect(at({ repo: ALL, outputs: proof(PROVED) }, true).pause).toBe('modules');
+    });
+
+    it('le relecteur : jamais de pause ni de preuve', () => {
+      const CARD = JSON.stringify({ number: 12, head: 'feat/G2-1', author: 'kb' });
+      const v = vibeView(input({
+        flow: 'review', pr: 12, note, tests: [test], repo: repo([], [FIRST]), checkout: { branch: 'feat/G2-1', dirty: false },
+        outputs: { 'pr-12.json': out(CARD) }, marks: MARKED, express: false,
+      }));
+      expect([v.pause ?? null, v.proof]).toEqual([null, undefined]);
+    });
+  });
+
+  describe('un ✓ d\'étape retiré à la main : la pause sur cette étape', () => {
+    const STEPS = ['forme', 'invariants', 'modules'] as const;
+    const BLOBS = [TEST_PATH, HELLO_PATH, BUTTON_PATH].map((path) => ({ path, disk: blobSha(path), head: blobSha(path) }));
+    // Les trois étapes faites, la preuve passée, les empreintes du disque relevées : sans retrait, la pause après les modules.
+    const build = (over: Partial<JourneyInput> = {}) => vibeView(ready({ marks: MARKED, repo: ALL, outputs: proof(PROVED), blobs: BLOBS, ...over }));
+    // Ce que valide l'étape aujourd'hui, comme le relevé le voit.
+    const hashOf = (s: typeof STEPS[number], over: Partial<JourneyInput> = {}) => {
+      const v = build(over);
+      return stepContents({ note: v.note, invariants: v.invariants, modules: v.modules, changed: (over.repo ?? ALL).changed }, MARKED, over.blobs ?? BLOBS)[s]!.hash;
+    };
+    // Les marques d'un retrait : celles de l'utilisateur, plus le retrait des étapes dites pour le contenu d'aujourd'hui.
+    const without = (steps: typeof STEPS[number][], over: Partial<JourneyInput> = {}, base: Marks = MARKED): Marks =>
+      steps.reduce((m, s) => withdraw(m, s, hashOf(s, over)), base);
+    const FIRST_ONLY = { repo: repo([], [FIRST]), outputs: {} };
+
+    it('le ✓ de la Forme, des invariants, des modules retiré, son contenu inchangé : la pause sur cette étape', () => {
+      for (const s of STEPS) expect(build({ marks: without([s]) }).pause).toBe(`withdrawn:${s}`);
+    });
+
+    it('cette pause, en express au relevé : la même', () => {
+      for (const s of STEPS) for (const express of [false, true]) expect(build({ marks: without([s]), express }).pause).toBe(`withdrawn:${s}`);
+    });
+
+    it('le contenu de l\'étape changé depuis le retrait : plus cette pause', () => {
+      // les invariants et les modules : un fichier retouché sur le disque
+      const edited = BLOBS.map((b) => ({ ...b, disk: blobSha(`${b.path} retouché`) }));
+      for (const s of ['invariants', 'modules'] as const) expect(build({ marks: without([s]), blobs: edited }).pause).toBe('modules');
+      // la Forme : sa section réécrite (la conception de la note, elle, ne change pas)
+      const marks = without(['forme']);
+      expect(build({ marks, note: { ...note, text: NOTE.replace('le bouton', 'le gros bouton') } }).pause).toBe('modules');
+    });
+
+    it('le retrait oublié (l\'étape revalidée à la main) : plus cette pause', () => {
+      for (const s of STEPS) expect(build({ marks: withdraw(without([s]), s, null) }).pause).toBe('modules');
+    });
+
+    it('la Forme et les modules retirés tous les deux : la pause sur la Forme', () => {
+      expect(build({ marks: without(['modules', 'forme']) }).pause).toBe('withdrawn:forme');
+      expect(build({ marks: without(['modules', 'invariants']) }).pause).toBe('withdrawn:invariants');
+    });
+
+    it('la note sans son ✓ et une étape retirée : la pause de la note', () => {
+      expect(build({ marks: without(['forme'], {}, CASES_OK) }).pause).toBe('note');
+    });
+
+    it('une étape retirée, le premier commit fait, aucun module commencé : sa pause, pas celle d\'après les invariants', () => {
+      expect(vibeView(ready({ marks: MARKED, blobs: BLOBS })).pause).toBe('invariants');
+      for (const s of ['forme', 'invariants'] as const) {
+        expect(build({ ...FIRST_ONLY, marks: without([s], FIRST_ONLY) }).pause).toBe(`withdrawn:${s}`);
+      }
+    });
+
+    it('à cette pause : l\'action du moteur masquée, sa raison « étape refusée » ; la pause levée : proposée de nouveau', () => {
+      for (const s of STEPS) {
+        const v = build({ marks: without([s]) });
+        expect(action(v, 'vibe')).toMatchObject({ hidden: true, disabled: 'étape refusée' });
+        expect(primary(v)).not.toBe('vibe');
+        expect(action(build({ marks: without([s]), lang: 'en' }), 'vibe')).toMatchObject({ hidden: true, disabled: 'step rejected' });
+        // levée : revalidée à la main (le retrait oublié)
+        expect(action(build({ marks: withdraw(without([s]), s, null) }), 'vibe')).toMatchObject({ hidden: false, disabled: null });
+      }
+      // la note sans son ✓ passe avant : sa raison
+      expect(action(build({ marks: without(['forme'], {}, CASES_OK) }), 'vibe')).toMatchObject({ hidden: true, disabled: 'Valider d\'abord la note' });
+      // les invariants retirés, au premier commit : pas Reprendre non plus
+      const first = build({ ...FIRST_ONLY, marks: without(['invariants'], FIRST_ONLY) });
+      expect([action(first, 'vibe')?.hidden, primary(first)]).toEqual([true, 'modules']);
+    });
+
+    it('à cette pause : l\'étape reste faite, ses actions à la main restent proposées', () => {
+      for (const s of STEPS) {
+        const v = build({ marks: without([s]) });
+        expect(status(v)[s]).toBe('done');
+      }
+      const v = build({ marks: without(['forme', 'invariants', 'modules']) });
+      for (const id of ['forme', 'invariants', 'prove']) expect(action(v, id)).toMatchObject({ hidden: false, disabled: null });
+    });
+
+    it('le relecteur, un retrait dans les marques : aucune pause', () => {
+      const CARD = JSON.stringify({ number: 12, head: 'feat/G2-1', author: 'kb' });
+      const v = vibeView(input({
+        flow: 'review', pr: 12, note, tests: [test], repo: repo([], [FIRST]), checkout: { branch: 'feat/G2-1', dirty: false },
+        outputs: { 'pr-12.json': out(CARD) }, marks: withdraw(MARKED, 'forme', blobSha(parseNote(NOTE).forme)), express: false,
+      }));
+      expect(v.pause ?? null).toBeNull();
+    });
+  });
+
+  describe('qui a validé, et ce qui reste à la main', () => {
+    it('une étape validée par le système : son relevé le dit ; à la main : non', () => {
+      const system: Marks = { ...MARKED, forme: { ...NOTE_OK.forme, by: 'system' } };
+      const v = vibeView(ready({ marks: system }));
+      expect([step(v, 'note').check?.by, step(v, 'forme').check?.by]).toEqual([undefined, 'system']);
+      expect(step(v, 'forme').check?.state).toBe('ok');
+      const hand = vibeView(ready({ marks: { ...NOTE_OK, ...CASES_OK } }));
+      expect(Object.hasOwn(step(hand, 'forme').check!, 'by')).toBe(false);
+      // pas validée : pas de by
+      expect(Object.hasOwn(step(hand, 'invariants').check!, 'by')).toBe(false);
+    });
+
+    describe('Vérifier la conception, et ce qu\'a rendu la dernière vérification', () => {
+      const DESIGN: Marks = { design: { hash: NOTE_PATH, verdict: 'ok' } };
+      const verifiedFor = (text: string): Marks => ({ ...DESIGN, verified: ok(noteDesign(text)) });
+      const check = (over: Partial<JourneyInput>) => action(vibeView(input({ note, ...over })), 'design-check');
+      const EMPTY = { path: NOTE_PATH, text: '# T\n\n## Ce que ça fait\n\n## Forme\n```\nsrc/core/hello.ts   x\n```\n', before: null };
+
+      it('proposée dès que la note est rédigée, vérifiée ou pas, validée ou pas', () => {
+        for (const marks of [{}, NOTE_OK, DESIGN, { ...NOTE_OK, ...verifiedFor(NOTE) }, { ...CASES_OK }]) {
+          expect(check({ marks })?.hidden).toBe(false);
+          expect(check({ marks })?.disabled).toBeNull();
+        }
+        // hors de la note de départ : les étapes d'après, Vibe en cours, la note commitée
+        for (const over of [{ vibe: true }, { repo: repo([], [FIRST]) }, { tests: [test], marks: { ...NOTE_OK, ...CASES_OK } }]) {
+          expect(check(over)?.hidden).toBe(false);
+        }
+      });
+
+      it('masquée sans note rédigée (pas de note, note à rédiger)', () => {
+        expect([check({ note: null })?.hidden, check({ note: EMPTY })?.hidden]).toEqual([true, true]);
+      });
+
+      it('jamais la prochaine action, quel que soit l\'état de la note', () => {
+        for (const over of [{}, { marks: NOTE_OK }, { marks: verifiedFor(NOTE) }, { note: EMPTY }, { vibe: true },
+          { outputs: { 'questions.md': out('## 1. Quelle couleur ?\n- Bleu\n') } }]) {
+          expect(check(over)?.primary).toBe(false);
+        }
+      });
+
+      it('relançable : la conversation qui travaille ne la grise pas (course d\'étape à part), sa propre course oui', () => {
+        expect(check({ busy: true, marks: verifiedFor(NOTE) })?.disabled).toBeNull();
+        expect(check({ running: [{ id: 'design-check', reads: true }], marks: verifiedFor(NOTE) })?.disabled).toBeTruthy();
+      });
+
+      it('le relecteur : ni action ni vérification au relevé', () => {
+        const v = vibeView(input({ flow: 'review', pr: 12, note, marks: verifiedFor(NOTE) }));
+        expect([action(v, 'design-check'), v.note?.verified]).toEqual([undefined, undefined]);
+      });
+
+      it('la note jamais vérifiée, ou une vérification qui a trouvé quelque chose : le relevé ne dit pas « rien trouvé »', () => {
+        const verified = (marks: Marks, over: Partial<JourneyInput> = {}) => vibeView(input({ note, marks, ...over })).note?.verified;
+        expect(verified({})).toBeNull();
+        expect(verified(NOTE_OK)).toBeNull();
+        expect(verified(DESIGN)).toBeNull();   // vérifiée, des questions : 'verified' retirée
+        // une empreinte 'verified' sans la marque design de cette note : une autre note, jamais vérifiée
+        expect(verified({ verified: ok(noteDesign(NOTE)) })).toBeNull();
+        expect(verified({ design: { hash: 'docs/tickets/autre.md', verdict: 'ok' }, verified: ok(noteDesign(NOTE)) })).toBeNull();
+        // pas de note : rien à dire
+        expect(vibeView(input({ marks: verifiedFor(NOTE) })).note).toBeNull();
+      });
+
+      it('une vérification qui n\'a rien trouvé : le relevé le dit ; la conception changée depuis : « changée depuis »', () => {
+        const verified = (text: string, marks: Marks) => vibeView(input({ note: { ...note, text }, marks })).note?.verified;
+        expect(verified(NOTE, verifiedFor(NOTE))).toBe('clean');
+        const edited = NOTE.replace('dit bonjour.', 'dit bonjour, fort.');
+        expect(verified(edited, verifiedFor(NOTE))).toBe('edited');
+        // la Forme seule changée ne change pas la conception
+        expect(verified(NOTE.replace('le bouton', 'le gros bouton'), verifiedFor(NOTE))).toBe('clean');
+        // la validation de la note n'y change rien
+        expect(verified(NOTE, { ...NOTE_OK, ...verifiedFor(NOTE) })).toBe('clean');
+        expect(verified(edited, { ...NOTE_OK, ...verifiedFor(NOTE) })).toBe('edited');
+      });
+
+      it('la marque design reste au relevé', () => {
+        expect(vibeView(input({ note, marks: { ...NOTE_OK, ...DESIGN } })).note?.checked).toBe(true);
+      });
+    });
+
+    it('Relire le diff, Lire en pseudo-code : proposées, jamais la prochaine action', () => {
+      const views = [vibeView(ready({ marks: MARKED })), modulesDone(), vibeView(ready({ marks: MARKED, vibe: true })),
+        vibeView(ready({ marks: MARKED, repo: repo([HELLO_PATH], [FIRST]) })), modulesDone({ outputs: {} })];
+      for (const v of views) {
+        for (const id of ['review-diff', 'read-invariants']) expect([id, action(v, id)?.hidden, action(v, id)?.primary]).toEqual([id, false, false]);
+      }
+    });
+
+    describe('« Chaque diff a été relu »', () => {
+      const sha = (c: string) => c.repeat(40);
+      const files = {
+        repo: ALL, exists: () => true, outputs: proof(PROVED),
+        blobs: [{ path: HELLO_PATH, disk: sha('a'), head: sha('a') }, { path: BUTTON_PATH, disk: sha('b'), head: sha('b') }],
+      };
+      // Les validations d'étape, posées par le geste (validateStep), dans l'ordre.
+      const validated = (...steps: ('invariants' | 'modules')[]): Marks => steps.reduce((marks, s) => {
+        const v = vibeView(ready({ ...files, marks }));
+        const contents = Object.fromEntries(CHECKED.map((c) => [c, stepContent(v, marks, c, files.blobs)]));
+        return validateStep(marks, contents, s, 'ok')!;
+      }, { ...NOTE_OK, ...CASES_OK } as Marks);
+      const PONYTAIL = { 'ponytail.md': out('- rien') };
+      const read = (marks: Marks, outputs = {}) => vibeView(ready({ ...files, marks, outputs: { ...files.outputs, ...outputs } })).checklist[2];
+
+      it('cochée quand les modules sont validés et la ponytail review faite, décochée sinon, plus à la main', () => {
+        const done = validated('invariants', 'modules');
+        expect(read(done, PONYTAIL)).toEqual({ text: 'Chaque diff a été relu', done: true });
+        expect(read(done)).toEqual({ text: 'Chaque diff a été relu', done: false });                          // pas de ponytail review
+        expect(read(validated('invariants'), PONYTAIL)).toEqual({ text: 'Chaque diff a été relu', done: false });  // modules pas validés
+        // la marque à la main d'avant (a3:2 pour le commit de tête) ne coche plus rien
+        const old: Marks = { ...validated('invariants'), 'a3:2': { hash: ALL.commits.at(-1)!.hash, verdict: 'ok' } };
+        expect(read(old, PONYTAIL)?.done).toBe(false);
+      });
+
+      it('les modules validés puis modifiés : décochée', () => {
+        const done = validated('invariants', 'modules');
+        const moved = { ...files, blobs: [{ path: HELLO_PATH, disk: sha('c'), head: sha('a') }, files.blobs[1]] };
+        expect(vibeView(ready({ ...moved, marks: done, outputs: { ...files.outputs, ...PONYTAIL } })).checklist[2].done).toBe(false);
+      });
+
+      it('« AGENTS.md à jour… » : toujours à la main', () => {
+        const [item] = vibeView(ready({ ...files, marks: validated('invariants', 'modules') })).checklist.slice(4);
+        expect(item).toMatchObject({ text: 'AGENTS.md à jour si une convention a changé', done: null, manual: true });
+        const head = ALL.commits.at(-1)!.hash;
+        const marked = vibeView(ready({ ...files, marks: { ...validated('invariants'), 'a3:4': { hash: head, verdict: 'ok' } } })).checklist[4];
+        expect(marked).toMatchObject({ done: true, manual: true });
+      });
+    });
   });
 });

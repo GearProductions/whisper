@@ -52,7 +52,7 @@
 .vc-vbtn[data-v="ko"] { border-color: var(--vc-warn-edge); background: transparent; color: var(--vc-warn); }
 .vc-vbtn[data-v="ko"]:hover { border-color: var(--vc-warn); background: var(--vc-warn-bg); }
 
-/* Revérifier : neutre, ni le vert ni la coche (il ne valide rien). */
+/* Valider d'une étape que le système valide : neutre, ni le vert ni la coche, discret. */
 .vc-vbtn.vc-vbtn-plain { border-color: var(--vc-line); color: var(--vc-soft); }
 .vc-vbtn.vc-vbtn-plain:hover { border-color: var(--vc-soft); background: transparent; color: var(--vc-text); }
 
@@ -77,5 +77,5 @@
 
 /* Grisés (une lecture périmée : relire d'abord) : ni survol ni clic, comme un bouton indisponible. */
 .vc-verdict button:disabled, .vc-vbtn:disabled { opacity: 0.45; cursor: not-allowed; }
-/* En attente de l'étape d'avant : la raison, discrète, à côté de Valider grisé. */
-.vc-vstate[data-state="waiting"] { color: var(--vc-muted); font-style: italic; }
+/* Ce qui a contrôlé une étape validée par le système : à côté de son état, discret. */
+.vc-vby { color: var(--vc-faint); font: 12px/1.5 var(--vc-sans); }

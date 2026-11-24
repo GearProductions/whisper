@@ -32,6 +32,7 @@ export const OUTPUTS: readonly string[] = [
   'lancement.json',   // la proposition des commandes du projet (skill lancement), adoptée par controllers/processes
   'ponytail-applied.json', // { applied: ["<fichier>:L<ligne>", …] } : les remarques de ponytail.md que la course apply a appliquées
   'new-request.json',      // { branch } : la branche d'une nouvelle demande (skill nouvelle-demande)
+  'preuve.md',             // la preuve des invariants par mutation (skill prouver), lue par journey
 ];
 
 // Un nom de sortie connu, rien d'autre : ni `..`, ni autre dossier qu'invariants/.
@@ -134,16 +135,35 @@ export function parseChecklist(md: string): VibeCheck[] {
 }
 
 // Les rubriques `## [toi]` d'un fichier de retour (align.md, preuve.md) : ce qui remonte à l'utilisateur.
-export function toiCount(_md: string): number {
-  throw new Error('not implemented');
+export function toiCount(md: string): number {
+  return md.split(/\r?\n/).filter((line) => /^##\s+\[toi\]/.test(line)).length;
 }
 
 // preuve.md : une rubrique par ligne « → invariant » de la note, prouvée ([prouvé], [proved]) ou pour l'utilisateur ([toi]).
-export function parseProof(_md: string): VibeProofLine[] {
-  throw new Error('not implemented');
+// Le détail : le texte de la rubrique, jusqu'au titre suivant.
+export function parseProof(md: string): VibeProofLine[] {
+  const out: VibeProofLine[] = [];
+  const detail: string[][] = [];
+  for (const row of md.split(/\r?\n/)) {
+    const h = /^##\s+(?:\[([^\]]*)\]\s*)?(.*?)\s*$/.exec(row);
+    if (h) {
+      out.push({ line: h[2], proved: h[1] === 'prouvé' || h[1] === 'proved', detail: '' });
+      detail.push([]);
+    } else if (out.length) detail[detail.length - 1].push(row);
+  }
+  return out.map((r, i) => ({ ...r, detail: detail[i].join('\n').trim() }));
 }
 
 // L'état de la preuve pour les lignes « → invariant » de la note (leur texte) ; md null : pas de preuve.md.
-export function proofOf(_md: string | null, _lines: string[]): VibeProof {
-  throw new Error('not implemented');
+// Une ligne se compare à l'espace près ; une ligne n'est prouvée que si toutes ses rubriques le sont.
+export function proofOf(md: string | null, lines: string[]): VibeProof {
+  if (!lines.length) return { state: 'none', lines: [] };
+  const norm = (s: string) => s.trim().replace(/\s+/g, ' ');
+  const rubrics = md === null ? [] : parseProof(md);
+  const got = lines.map((line): VibeProofLine & { found: boolean } => {
+    const mine = rubrics.filter((r) => norm(r.line) === norm(line));
+    return { line, proved: mine.length > 0 && mine.every((r) => r.proved), detail: (mine.find((r) => !r.proved) ?? mine[0])?.detail ?? '', found: mine.length > 0 };
+  });
+  const state = got.some((l) => !l.found) ? 'missing' : got.every((l) => l.proved) ? 'ok' : 'blocked';
+  return { state, lines: got.map(({ line, proved, detail }) => ({ line, proved, detail })) };
 }

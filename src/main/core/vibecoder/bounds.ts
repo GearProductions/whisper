@@ -69,6 +69,11 @@ function bounded(project: string, p: string): boolean {
   return parts.some((s) => BOUNDED.dirs.includes(s as never)) || BOUNDED.names.some((n) => n.toLowerCase() === parts[parts.length - 1]);
 }
 
+// Un chemin du projet qui est un de ceux de `frozen` (relatifs, en / comme git les rend).
+function frozen(b: Bounds, p: string): boolean {
+  return inside(b.project, p) && !!b.frozen?.includes(relative(b.project, p).split(sep).join('/'));
+}
+
 // La décision du contrôle pour l'appel `tool(input)` d'une course aux dossiers `bounds`.
 export function fileDecision(tool: string, input: unknown, bounds: Bounds, real: (p: string) => string): FileDecision {
   const t = fileTarget(tool, input, bounds.project);
@@ -86,6 +91,9 @@ export function fileDecision(tool: string, input: unknown, bounds: Bounds, real:
   if (bounds.reads) return no('une action en lecture n\'écrit que dans les sorties de l\'agent');
   if (bounded(bounds.project, p) || bounded(bounds.project, t.path)) {
     return no('un fichier borné (réglages et skills .claude, AGENTS.md, package.json, .git, .husky) : une action n\'élargit pas ses droits ; à faire par l\'utilisateur');
+  }
+  if (bounds.frozen?.length && (frozen(bounds, p) || frozen(bounds, t.path))) {
+    return no('un fichier protégé (un test d\'invariants d\'avant le ticket) : cette course ne l\'écrit pas ; son cas remonte à l\'utilisateur, en [toi]');
   }
   return { allow: true };
 }

@@ -143,3 +143,47 @@ it('une remarque ponytail étiquetée : son badge ; Appliquer et sa case d\'apr�
   await act(() => { one.querySelector<HTMLButtonElement>('.vc-apply-one')!.click(); });
   expect(runs.at(-1)).toEqual(['apply', { text: 'a.ts:L1 [agent] — trop long' }]);
 });
+
+// 0.16.0 : « Avant la PR », « Chaque diff a été relu » cochée par le relevé (docs/tickets/feat/0.16.0-controle-en-trois-points.md).
+const marks: unknown[][] = [];
+const drawList = (reviewed: boolean, agents: boolean | null, lang: 'fr' | 'en' = 'fr') => act(() => {
+  const checklist = [
+    { text: 'La note est à jour', done: true }, { text: 'Les invariants passent', done: true }, { text: 'Chaque diff a été relu', done: reviewed },
+    { text: 'Chaque module commité, aucun fixup à replier', done: true }, { text: 'AGENTS.md à jour si une convention a changé', done: agents, manual: true },
+  ];
+  const view = { lang, flow: 'create', actions: [], checklist, commits: [{ hash: 'h1', subject: 's', files: [] }], steps: [], draft: [], screen: [], outputs: {} } as unknown as VibeView;
+  const props = { view, step: { id: 'revue', status: 'current', facts: '', open: true }, t: t(lang), busy: false, text: '', setText: () => {},
+    code: null, drafts: [{}, () => {}], act: { run: () => {}, follow: () => {}, mark: (...a: unknown[]) => { marks.push(a); }, prefill: () => {},
+      draft: () => {}, open: () => {}, openLink: () => {}, save: async () => true } } as unknown as StepProps;
+  root.render(createElement(ReviewView, props));
+});
+const item = (text: string) => [...page.querySelectorAll<HTMLElement>('.vc-a3-list li')].find((li) => li.textContent?.includes(text))!;
+
+it('« Chaque diff a été relu » : ✓ ou ✗ d\'après le relevé, pas de case à cocher, son aide dit par quoi', async () => {
+  for (const [reviewed, state] of [[true, 'ok'], [false, 'ko']] as const) {
+    await drawList(reviewed, null);
+    const li = item('Chaque diff a été relu');
+    expect(li.getAttribute('data-state')).toBe(state);
+    expect(li.querySelector('input')).toBeNull();
+    expect(li.querySelector('.vc-mark')).not.toBeNull();
+    expect(li.querySelector('.vc-a3-help')!.textContent).toBe('Cochée par le contrôle des modules et la ponytail review');
+  }
+  await drawList(true, null, 'en');
+  expect(item('Chaque diff').querySelector('.vc-a3-help')!.textContent).toBe('Ticked by the modules check and the ponytail review');
+});
+
+it('« AGENTS.md à jour… » : seule case à cocher, dite facultative ; le clic marque a3:4', async () => {
+  marks.length = 0;
+  await drawList(true, null);
+  expect(page.querySelectorAll('.vc-a3-list input[type="checkbox"]')).toHaveLength(1);
+  const li = item('AGENTS.md');
+  expect(li.querySelector('.vc-a3-manual')!.textContent).toBe('facultatif');
+  expect(li.querySelector('.vc-a3-help')).toBeNull();
+  await act(() => li.querySelector<HTMLInputElement>('input')!.click());
+  expect(marks).toEqual([['a3:4', 'ok']]);
+  await drawList(true, true);
+  expect(item('AGENTS.md').querySelector<HTMLInputElement>('input')!.checked).toBe(true);
+  expect(item('AGENTS.md').querySelector('.vc-a3-manual')).toBeNull();
+  await drawList(true, null, 'en');
+  expect(item('AGENTS.md').querySelector('.vc-a3-manual')!.textContent).toBe('optional');
+});

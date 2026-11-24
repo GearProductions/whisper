@@ -760,7 +760,7 @@ describe('0.11.0 : invariants existants et courses', () => {
     expect(fake.tabs).toEqual(['a1', null]);
   });
 
-  it('Vibe (0.12.0) : lancé par son action ; en cours, les étapes faites reçoivent leur ✓ ; arrêté, elles le gardent', async () => {
+  it('Vibe (0.12.0) : lancé par son action ; en cours ou arrêté, la note n’est jamais validée par le système (0.16.0)', async () => {
     write(path.join(fake.userData, 'vibecoder', 'actions.fr.json'), JSON.stringify([
       { id: 'vibe', flow: 'create', step: null, kind: 'send', label: 'Vibe', text: '/vibecoder:vibe {{lang}} {{out}}' },
     ]));
@@ -768,7 +768,6 @@ describe('0.11.0 : invariants existants et courses', () => {
     const { vibes } = await open();
     const { runVibeAction, setVibe } = await import('app/controllers');
     const { vibeStore } = await import('app/settings');
-    const { blobSha, noteDesign } = await import('core/vibecoder');
     expect(vibes().at(-1)).toMatchObject({ vibe: false });
     expect(vibeStore().marks.a1 ?? {}).toEqual({});   // hors Vibe : aucun ✓ donné
     expect(await runVibeAction('vibe', {})).toEqual({ ok: true });
@@ -776,12 +775,12 @@ describe('0.11.0 : invariants existants et courses', () => {
     expect(fake.messages[0]).toBe(`/vibecoder:vibe fr ${out}`);
     // Un relevé neuf précède le départ (surveyAgent) : celui qui porte le mode Vibe arrive un peu après.
     await vi.waitFor(() => expect(vibes().some((v) => v?.vibe === true)).toBe(true), { timeout: slow(3000), interval: 50 });
-    expect(vibeStore().marks.a1).toEqual({ note: { hash: blobSha(noteDesign(NOTE)), verdict: 'ok', files: blobSha('') } });
+    expect(vibeStore().marks.a1 ?? {}).toEqual({});   // en cours : la note faite n'est pas validée à la place de l'utilisateur
     setVibe({ vibe: false });
     fake.steps = [{ id: 'note', status: 'done' }, { id: 'forme', status: 'done' }];
     await settle();
     expect(vibes().at(-1)).toMatchObject({ vibe: false });
-    expect(vibeStore().marks.a1).toEqual({ note: { hash: blobSha(noteDesign(NOTE)), verdict: 'ok', files: blobSha('') } });   // gardé, rien de plus
+    expect(vibeStore().marks.a1 ?? {}).toEqual({});   // arrêté : rien non plus (la Forme attend la validation de la note)
   });
 
   it('le relevé passe repo.dirty au parcours (VibeModule.uncommitted)', async () => {
@@ -2006,18 +2005,19 @@ describe('0.15.0 : l’écran par le socket (les adaptateurs)', () => {
   });
 });
 
-// Valider la note (0.15.0-skills-humain-ia) : le premier clic du créateur lance la vérification de conception au lieu de
-// valider ; sa fin sans question valide la note du clic, avec une question la laisse à valider ; Revérifier ne valide jamais.
-describe('0.15.0 : Valider la note, la course à la vérification de conception', () => {
+// Vérifier, puis valider la note (0.15.0-skills-humain-ia, 0.16.0 : deux gestes) : Vérifier lance la vérification de conception et ne
+// valide jamais ; sa fin est rangée une fois au relevé (la conception d'où elle est partie) ; Valider la note valide aussitôt, sans course.
+describe('0.16.0 : Vérifier, puis valider la note', () => {
   const ACTIONS = [
     { id: 'design-check', flow: 'create', step: 'note', kind: 'send', needs: 'none', reads: true, label: 'Vérifier la conception', text: '/vibecoder:conception {{lang}} {{out}}' },
     { id: 'forme', flow: 'create', step: 'forme', kind: 'send', needs: 'none', label: 'Forme', text: '/vibecoder:forme {{lang}} {{out}}' },
   ];
   const QUESTION = '## 1. Une question ?\n';
+  const NOTE_FILE = 'docs/tickets/feat/0.8.0-essai.md';
   beforeEach(() => {
     write(path.join(fake.userData, 'vibecoder', 'actions.fr.json'), JSON.stringify(ACTIONS));
     // Les courses de ce bloc sont celles de chaque cas : le faux de controllers/runs du haut du fichier garde les siennes d'un cas
-    // à l'autre (vi.resetModules ne le refait pas). Ce bloc est le dernier du fichier.
+    // à l'autre (vi.resetModules ne le refait pas).
     vi.doUnmock('app/controllers/runs');
   });
 
@@ -2027,44 +2027,67 @@ describe('0.15.0 : Valider la note, la course à la vérification de conception'
     const { markState, blobSha, noteDesign } = await import('core/vibecoder');
     return markState(await marks(), 'note', blobSha(noteDesign(text)));
   };
+  // L'état de la dernière vérification pour ce texte de note (designState) : 'clean', 'edited', null.
+  const verified = async (text: string) => {
+    const { designState, blobSha, noteDesign } = await import('core/vibecoder');
+    return designState(await marks(), NOTE_FILE, blobSha(noteDesign(text)));
+  };
   // Un relevé : la fin de la course est lue à chaque relevé.
   const survey = async () => { await (await import('app/controllers')).refreshVibe({ now: true }); await settle(); };
-  const click = async () => { (await import('app/controllers')).markVibe('note', 'ok'); await settle(); };
+  const validate = async () => { (await import('app/controllers')).markVibe('note', 'ok'); await settle(); };
+  const verify = async () => (await import('app/controllers')).runVibeAction('design-check', {});
 
-  it('le premier Valider la note : le faux claude reçoit /vibecoder:conception, la note pas validée', async () => {
+  it('Vérifier : le faux claude reçoit /vibecoder:conception, la note pas validée', async () => {
     await open();
-    await click();
+    expect(await verify()).toEqual({ ok: true });
+    await settle();
     expect(checks()).toBe(1);
     expect(await noteState(NOTE)).toBeNull();
   });
 
-  it('sa fin sans question : la note validée', async () => {
+  it('sa fin sans question : rangée au relevé, une fois ; la note pas validée', async () => {
     await open();
-    await click();
+    await verify();
+    await settle();
+    await survey();
     await survey();
     expect(checks()).toBe(1);
-    expect(await noteState(NOTE)).toBe('ok');
+    expect(await noteState(NOTE)).toBeNull();
+    expect(await verified(NOTE)).toBe('clean');
+    expect(Object.keys(await marks()).sort()).toEqual(['design', 'verified']);
   });
 
-  it('sa fin sans question, la note réécrite pendant la course : validée pour le texte du clic, « modifiée depuis »', async () => {
+  it('sa fin sans question, la note réécrite pendant la course : rangée pour la conception du départ, « changée depuis »', async () => {
     const NEW = `${NOTE}\n- une ligne de plus\n`;
     fake.busy = true;
     await open();
-    await click();
-    write(path.join(dir, 'docs/tickets/feat/0.8.0-essai.md'), NEW);
+    await verify();
+    write(path.join(dir, NOTE_FILE), NEW);
     fake.busy = false;
     fake.release();
     await settle();
     await survey();
     expect(checks()).toBe(1);
-    expect(await noteState(NOTE)).toBe('ok');
-    expect(await noteState(NEW)).toBe('changed');
+    expect(await verified(NOTE)).toBe('clean');
+    expect(await verified(NEW)).toBe('edited');
+    expect(await noteState(NEW)).toBeNull();
+  });
+
+  it('la note changée avant le départ (pas encore relevée) : l’empreinte est celle de la note au départ (la commande relève d’abord)', async () => {
+    const NEW = `${NOTE}\n- une ligne de plus\n`;
+    await open();
+    write(path.join(dir, NOTE_FILE), NEW);
+    await verify();
+    await settle();
+    await survey();
+    expect(await verified(NEW)).toBe('clean');
+    expect(await verified(NOTE)).toBe('edited');
   });
 
   it('sa fin pendant le relevé : les questions de questions.md à sa fin, pas celles lues au début du relevé', async () => {
     fake.busy = true;
     await open();
-    await click();
+    await verify();
     // Le relevé a lu les sorties (sans question) ; pendant qu'il attend git, la vérification écrit sa question et finit.
     fake.onFork = async () => {
       fake.onFork = null;
@@ -2076,71 +2099,123 @@ describe('0.15.0 : Valider la note, la course à la vérification de conception'
     await survey();
     await survey();
     expect(checks()).toBe(1);
-    expect(await noteState(NOTE)).toBeNull();
+    expect(await verified(NOTE)).toBeNull();
   });
 
-  it('un second Valider et vérifier pendant la vérification : la note validée à sa fin, pour le texte du clic', async () => {
+  it('un second Vérifier pendant la course : refusé (same), sa fin rangée une fois pour la première empreinte', async () => {
+    const NEW = `${NOTE}\n- une ligne de plus\n`;
     fake.busy = true;
     await open();
-    await click();
-    await click();   // refusé (same) : la vérification court déjà
+    await verify();
+    await survey();
+    write(path.join(dir, NOTE_FILE), NEW);
+    await survey();
+    expect(await verify()).toMatchObject({ ok: false });   // la vérification court déjà
     fake.busy = false;
     fake.release();
     await settle();
     await survey();
     expect(checks()).toBe(1);
-    expect(await noteState(NOTE)).toBe('ok');
+    expect(await verified(NOTE)).toBe('clean');
   });
 
-  it('sa fin avec une question : pas validée ; Valider ensuite : validée, aucune course', async () => {
+  it('sa fin avec une question : « rien trouvé » retiré ; relancée sans question : posée de nouveau ; jamais une validation', async () => {
     write(path.join(out, 'questions.md'), QUESTION);
     await open();
-    await click();
+    await verify();
+    await settle();
     await survey();
-    expect(await noteState(NOTE)).toBeNull();
-    await click();
-    expect(await noteState(NOTE)).toBe('ok');
-    expect(checks()).toBe(1);
-  });
-
-  it('Revérifier : une course, ses questions, aucune validation', async () => {
-    write(path.join(out, 'questions.md'), QUESTION);
-    await open();
-    await click();
-    await survey();
+    expect(await verified(NOTE)).toBeNull();
     fs.rmSync(path.join(out, 'questions.md'));   // sans question, cette fois
-    const { runVibeAction } = await import('app/controllers');
-    expect(await runVibeAction('design-check', {})).toEqual({ ok: true });
+    expect(await verify()).toEqual({ ok: true });
     await settle();
     await survey();
     expect(checks()).toBe(2);
+    expect(await verified(NOTE)).toBe('clean');
     expect(await noteState(NOTE)).toBeNull();
+    // et de nouveau avec une question : retirée
+    write(path.join(out, 'questions.md'), QUESTION);
+    await verify();
+    await settle();
+    await survey();
+    expect(await verified(NOTE)).toBeNull();
   });
 
-  it('une course qui modifie la branche en cours : le clic attend en file, puis part', async () => {
+  it('en échec ou arrêtée : rien rangé', async () => {
     fake.busy = true;
     await open();
-    const { runVibeAction, markVibe } = await import('app/controllers');
-    const { queuedOf } = await import('app/controllers/runs');
-    await runVibeAction('forme', {});
-    await settle();
-    markVibe('note', 'ok');
-    await settle();
-    expect(checks()).toBe(0);
-    expect(queuedOf('a1')).toEqual([{ action: 'design-check', by: 'forme' }]);
+    await verify();
+    const { runOp } = await import('app/controllers/runs');
+    const { agentList } = await import('core/config');
+    const { loadConfig } = await import('app/settings');
+    await runOp(agentList(loadConfig())[0], 'design-check', 'stop');
     fake.busy = false;
     fake.release();
     await settle();
     await survey();
+    expect(await marks()).toEqual({});
+  });
+
+  it('Vérifier depuis la file (retenue par une course qui modifie la branche) : part à la fin de la course, sa fin rangée, jamais une validation', async () => {
+    fake.busy = true;
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+    const { queueStart, queuedOf } = await import('app/controllers/runs');
+    await runVibeAction('forme', {});
+    await settle();
+    expect(await verify()).toMatchObject({ ok: false });   // « changing » : l'écran ne met pas en file
+    queueStart({ id: 'a1' }, 'design-check', {}, 'forme');
+    expect(checks()).toBe(0);
+    fake.busy = false;
+    fake.release();
+    await settle();
+    await survey();
+    await survey();
     expect(checks()).toBe(1);
     expect(queuedOf('a1')).toEqual([]);
+    expect(await verified(NOTE)).toBe('clean');
+    expect(await noteState(NOTE)).toBeNull();
+  });
+
+  it('Valider la note : validée aussitôt, aucune vérification ne part ; la conception validée retenue dans les sorties', async () => {
+    const { blobSha, noteDesign } = await import('core/vibecoder');
+    await open();
+    await validate();
+    expect(checks()).toBe(0);
+    expect(await noteState(NOTE)).toBe('ok');
+    expect(fs.readFileSync(path.join(out, 'validated', blobSha(noteDesign(NOTE))), 'utf8')).toBe(noteDesign(NOTE));
+  });
+
+  it('Valider la note après une vérification : la note validée, la vérification gardée, aucune autre ne part', async () => {
+    await open();
+    await verify();
+    await settle();
+    await survey();
+    await validate();
+    await survey();
+    expect(checks()).toBe(1);
+    expect(await noteState(NOTE)).toBe('ok');
+    expect(await verified(NOTE)).toBe('clean');
+  });
+
+  it('une course qui modifie la branche en cours : Valider la note part aussitôt, rien en file', async () => {
+    fake.busy = true;
+    await open();
+    const { runVibeAction } = await import('app/controllers');
+    const { queuedOf } = await import('app/controllers/runs');
+    await runVibeAction('forme', {});
+    await settle();
+    await validate();
+    expect(checks()).toBe(0);
+    expect(queuedOf('a1')).toEqual([]);
+    expect(await noteState(NOTE)).toBe('ok');
   });
 
   it('relecteur : Valider la note, son verdict aussitôt, aucune course', async () => {
     review();
     await open();
     await survey();   // le rôle, d'après gh
-    await click();
+    await validate();
     expect(checks()).toBe(0);
     expect(await noteState(NOTE)).toBe('ok');
   });
@@ -2216,7 +2291,7 @@ describe('0.15.0 : la note de référence du surlignage', () => {
     expect(before(view)).toBe(V2);
   });
 
-  it('Valider et vérifier : la ref devient la note au clic, la vérification finie sans question', async () => {
+  it('Valider la note : la ref devient la note au clic', async () => {
     const { view } = await open();
     await startTurn();
     await survey();
@@ -2226,7 +2301,7 @@ describe('0.15.0 : la note de référence du surlignage', () => {
     expect(before(view)).toBe(NOTE);
     (await import('app/controllers')).markVibe('note', 'ok');
     await settle();
-    await survey();   // la fin de la vérification est rangée
+    await survey();
     expect(before(view)).toBeNull();
     await startTurn();
     rewrite(V3);
@@ -2234,7 +2309,7 @@ describe('0.15.0 : la note de référence du surlignage', () => {
     expect(before(view)).toBe(V2);
   });
 
-  it('Valider et vérifier, la vérification finie avec une question : la ref devient la note au clic', async () => {
+  it('Valider la note, une vérification finie avec une question : la ref devient la note au clic', async () => {
     write(path.join(out, 'questions.md'), '## 1. Une question ?\n');
     const { view } = await open();
     await startTurn();
@@ -2242,13 +2317,16 @@ describe('0.15.0 : la note de référence du surlignage', () => {
     rewrite(V2);
     await survey();
     await finish();
+    await (await import('app/controllers')).runVibeAction('design-check', {});
+    await settle();
+    await survey();
     (await import('app/controllers')).markVibe('note', 'ok');
     await settle();
     await survey();
     expect(before(view)).toBeNull();
   });
 
-  it('Valider et vérifier qui attend en file : la ref devient la note au clic, aussi', async () => {
+  it('Valider la note pendant une course qui modifie la branche : la ref devient la note au clic, aussi', async () => {
     const { view } = await open();
     const { runVibeAction, markVibe } = await import('app/controllers');
     fake.busy = true;
@@ -2261,13 +2339,13 @@ describe('0.15.0 : la note de référence du surlignage', () => {
     markVibe('note', 'ok');
     await settle();
     expect(before(view)).toBeNull();
-    expect((view() as unknown as { queued: string[] }).queued).toEqual(['design-check']);
+    expect((view() as unknown as { queued: string[] }).queued).toEqual([]);
   });
 
   it('Revalider : la ref devient la note de l’instant', async () => {
     const { view } = await open();
     const { markVibe } = await import('app/controllers');
-    markVibe('note', 'ok');   // la vérification, puis validée
+    markVibe('note', 'ok');
     await settle();
     await survey();
     await startTurn();
@@ -2276,7 +2354,7 @@ describe('0.15.0 : la note de référence du surlignage', () => {
     await survey();
     await finish();
     expect(before(view)).toBe(NOTE);
-    markVibe('note', 'ok');   // la note est déjà vérifiée : un Valider comme les autres
+    markVibe('note', 'ok');   // un Valider comme les autres
     await settle();
     expect(before(view)).toBeNull();
   });
@@ -2351,12 +2429,13 @@ describe('0.15.0 : la note de référence du surlignage', () => {
 
   it('design-check en file derrière une course : queued [design-check] ; partie : plus en file', async () => {
     const { view } = await open();
-    const { runVibeAction, markVibe } = await import('app/controllers');
+    const { runVibeAction } = await import('app/controllers');
+    const { queueStart } = await import('app/controllers/runs');
     fake.busy = true;
     await runVibeAction('forme', {});
     await settle();
-    markVibe('note', 'ok');
-    await settle();
+    queueStart({ id: 'a1' }, 'design-check', {}, 'forme');
+    await survey();
     expect((view() as unknown as { queued: string[] }).queued).toEqual(['design-check']);
     await finish();
     await survey();
@@ -2458,14 +2537,15 @@ describe('0.15.0 : valider une étape, retenir sa liste et ses fichiers', () => 
   });
 
   it('chaque étape retient sa liste et ses fichiers : la Forme la note et ceux des modules, les modules ceux des modules, les invariants ceux des tests', async () => {
-    const { filesText } = await import('core/vibecoder');
+    const { filesText, noteDesign } = await import('core/vibecoder');
     await open();
     await toInvariants();
     await mark('modules', 'ok');
     const forme = filesText({ [NOTE_PATH]: await sha(NOTE_F), [MOD]: await sha(MOD_TEXT) });
     const modules = filesText({ [MOD]: await sha(MOD_TEXT) });
     const tests = filesText({ [INV]: await sha(TEST) });
-    expect(kept()).toEqual([await sha(forme), await sha(modules), await sha(tests), await sha(MOD_TEXT), await sha(TEST), await sha(NOTE_F)].sort());
+    // et la conception validée de la note (0.16.0 : de quoi garder son ✓ après un « Accepter »)
+    expect(kept()).toEqual([await sha(forme), await sha(modules), await sha(tests), await sha(MOD_TEXT), await sha(TEST), await sha(NOTE_F), await sha(noteDesign(NOTE_F))].sort());
     expect(keptText(await sha(tests))).toBe(tests);
     expect(keptText(await sha(TEST))).toBe(TEST);
     expect(keptText(await sha(NOTE_F))).toBe(NOTE_F);
@@ -2480,10 +2560,8 @@ describe('0.15.0 : valider une étape, retenir sa liste et ses fichiers', () => 
     write(path.join(dir, NOTE_PATH), REDESIGNED);
     await survey();
     expect(await states()).toEqual(['changed', 'cascade', 'cascade', null]);
-    await mark('note', 'ok');   // la conception est déjà vérifiée : un Valider comme les autres
-    expect(await states()).toEqual(['ok', 'cascade', 'cascade', null]);
-    await mark('forme', 'ok');   // revalider ne recoche pas les suivantes
-    expect(await states()).toEqual(['ok', 'ok', 'cascade', null]);
+    await mark('note', 'ok');   // un Valider comme les autres ; au relevé, le système recoche la Forme et les invariants faits (0.16.0), pas les modules
+    expect(await states()).toEqual(['ok', 'ok', 'ok', null]);
   });
 
   it('retirer la validation d’une étape décochée en cascade : oubliée', async () => {
@@ -2511,7 +2589,7 @@ describe('0.15.0 : valider une étape, retenir sa liste et ses fichiers', () => 
     await survey();
     expect(await check('note')).toBe('changed');
     expect(validateVibe(agent, 'forme', 'ok')).toMatchObject({ ok: false, reason: 'not-offered' });
-    expect(Object.keys(await marks())).not.toContain('forme');
+    expect(await check('forme')).not.toBe('ok');   // celle que le système avait posée est décochée en cascade
   });
 
   it('validateVibe : le même geste que la page — la marque, ses textes ; retirer la validation', async () => {
@@ -2562,13 +2640,13 @@ describe('0.15.0 : valider une étape, retenir sa liste et ses fichiers', () => 
     expect(kept()).toEqual(files);
   });
 
-  it('un refus (✗) sur une étape : ignoré, aucune marque', async () => {
+  it('un refus (✗) sur une étape : ignoré, aucune marque ko', async () => {
     await open();
     await toNote();
     (await controllers()).markVibe('forme', 'ko');
     await settle();
     await survey();
-    expect(Object.keys(await marks())).not.toContain('forme');
+    expect((await marks()).forme?.verdict).not.toBe('ko');
   });
 
   it('le ✗ de la note (À revoir) : sa marque ko, pas une validation', async () => {
@@ -2629,6 +2707,7 @@ describe('0.15.0 : valider une étape, retenir sa liste et ses fichiers', () => 
   it('un dossier de sorties illisible (un fichier à la place de validated/) : la validation tient, rien ne casse', async () => {
     await open();
     await toNote();
+    fs.rmSync(path.join(out, 'validated'), { recursive: true, force: true });   // la conception de la note validée y est retenue
     write(path.join(out, 'validated'), 'pas un dossier');
     await mark('forme', 'ok');
     expect(await check('forme')).toBe('ok');
@@ -2648,13 +2727,31 @@ describe('0.15.0 : valider une étape, retenir sa liste et ses fichiers', () => 
     expect(await states()).toEqual(['ok', 'ok', 'ok', 'ok']);
   });
 
-  it('une étape sans rien à valider (un cas sans ✓, des modules sans fichier) : refusée, aucune marque', async () => {
+  it('les invariants faits (0.16.0) : le système donne son ✓ à chaque cas et à l’étape, « système » ; un Valider à la main ne change rien', async () => {
     await open();
     await toForme();
-    (await controllers()).markVibe('invariants', 'ok');   // le cas n'a pas son ✓
+    expect((await marks()).invariants).toMatchObject({ verdict: 'ok', by: 'system' });
+    expect(Object.keys(await marks())).toContain(CASE);
+    const before = await marks();
+    (await controllers()).markVibe('invariants', 'ok');
     await settle();
     await survey();
-    expect(Object.keys(await marks())).not.toContain('invariants');
+    expect(await check('invariants')).toBe('ok');
+    expect(Object.keys(await marks()).sort()).toEqual(Object.keys(before).sort());
+  });
+
+  it('une validation retirée à la main : le système ne la repose pas aux relevés qui suivent (0.16.0) ; la valider à la main, si', async () => {
+    await open();
+    await toForme();
+    expect(await check('forme')).toBe('ok');
+    await mark('forme', null);
+    await survey();
+    expect(await check('forme')).toBeNull();
+    await survey();
+    expect(await check('forme')).toBeNull();
+    // le geste à la main la rend, et la validation tient comme avant
+    await mark('forme', 'ok');
+    expect(await check('forme')).toBe('ok');
   });
 });
 

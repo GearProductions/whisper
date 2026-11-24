@@ -26,16 +26,17 @@
  *  en évidence ; puis goToNote(null). 💬 sur un bloc le cite
  *  dans le champ (Relire : il ouvre sous le bloc une zone de commentaire, pour
  *  le brouillon de revue ; ✗ sur la note aussi, sous son en-tête). En tête :
- *  son chemin, Ouvrir (IconButton open), Modifier ou Fermer et Brut (Créer), sa validation (Créer : Valider et vérifier, puis Revérifier, qui
- *  lance act.run('design-check'), et Revalider ; la course design-check en cours ou en attente à côté :
+ *  son chemin, Ouvrir (IconButton open), Modifier ou Fermer et Brut (Créer), sa validation (Créer : Vérifier, puis Valider la note ou
+ *  Revalider, deux boutons ; la course design-check en cours ou en attente à côté de Vérifier :
  *  d'après view.runs et view.queued, son ⏹ par act.runOp ; Relire : Valider ou À revoir).
  *  Au-dessus, Créer : les questions ouvertes (questions-view) ; Relire : la
  *  relecture de la note par l'agent (Relancer). Pas de note : ce qu'il faut
  *  faire pour en avoir une. Styles : note-view.css.
- *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : en créateur, la validation de la note est un
- *  seul bouton (MarkControl) : Valider la note lance la vérification de conception (act.mark('note', 'ok')), la note
- *  est validée quand elle finit sans rien de bloquant, sinon ses suggestions sont au questionnaire au-dessus ; plus
- *  de Revérifier (act.run('design-check') n'est plus appelé d'ici).
+ *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : en créateur, deux gestes (MarkControl).
+ *  Vérifier lance la vérification de conception (act.run('design-check')) et ne valide rien ; ses suggestions sont au
+ *  questionnaire au-dessus. Valider la note (act.mark('note', 'ok')) n'est montré que si la dernière vérification
+ *  n'a rien trouvé (note.verified, passé à MarkControl), et ne lance aucune vérification ; la note modifiée depuis
+ *  cette vérification ('edited') : MarkControl le dit, Valider la note reste.
  *  Ne connaît pas : le pont (rappels passés), le disque. Utilisé par : step-views. */
 import { useEffect, useMemo, useState } from 'react';
 import { changedLines, excerpt, fileParts, isLive, lineDiff, mustNotLine, mustNotTags, parseMarkdown, placeRemoved, remark, remarksAt, removedGroups } from 'core/vibecoder';
@@ -192,7 +193,7 @@ export function NoteView(p: StepProps) {
               <button type="button" className="vc-mini" aria-pressed={brut} title={s.rawTitle} onClick={() => setBrut(!brut)}>{brut ? s.rendered : s.raw}</button>
             ) : null}
             <span className="vc-note-mark"><MarkControl what="note" state={note.mark} review={review} lang={view.lang} onMark={(v) => act.mark('note', v)} onRemark={review ? () => setRefusing(true) : undefined}
-              checked={note.checked} onRecheck={review ? undefined : () => act.run('design-check')} run={designRun} /></span>
+              run={designRun} onCheck={review ? undefined : () => act.run('design-check')} verified={note.verified} /></span>
           </div>
           {refusing ? (
             <div className="vc-note-refuse">
