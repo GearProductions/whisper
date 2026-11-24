@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  addComment, blobSha, caseBlocks, CHECKED, designChecked, designEnd, designState, editComment, hasComment, keepNote, markState, noteClick, noteDesign, parseNote, removeComment, setMark, stepChecks, stepContent,
+  addComment, blobSha, caseBlocks, CHECKED, designChecked, designEnd, designState, editComment, hasComment, keepNote, markState, noteDesign, parseNote, removeComment, setMark, stepChecks, stepContent,
   skeletonMarks, targetHash, vibeMarks, vibeView, withdraw, withdrawn, type Drafts, type FileBlobs, type JourneyInput, type Marks,
 } from 'core/vibecoder';
 
@@ -467,18 +467,6 @@ describe('la vérification de conception de la note', () => {
   const path = '/p/note.md';
   const checked: Marks = { design: { hash: path, verdict: 'ok' } };
   const done = { path, state: 'done' as const, questions: 0, clicked: 'h1' };
-
-  it('noteClick : le créateur valide, vérifiée ou pas : une marque, aucune vérification', () => {
-    expect(noteClick({}, path, 'ok', 'create')).toBe('mark');
-    expect(noteClick({ design: { hash: '/autre.md', verdict: 'ok' } }, path, 'ok', 'create')).toBe('mark');
-    expect(noteClick(checked, path, 'ok', 'create')).toBe('mark');
-  });
-
-  it('noteClick : relecteur ; ko ; null (Annuler) → mark', () => {
-    expect(noteClick({}, path, 'ok', 'review')).toBe('mark');
-    expect(noteClick({}, path, 'ko', 'create')).toBe('mark');
-    expect(noteClick({}, path, null, 'create')).toBe('mark');
-  });
 
   it('designChecked : la marque design sur ce chemin, vrai ; sur un autre ou sans, faux', () => {
     expect(designChecked(checked, path)).toBe(true);

@@ -6,16 +6,20 @@
 // n'ajoute que le texte exact d'une réponse « Accepter » choisie par l'utilisateur (acceptedTexts) ; tout autre
 // changement fait tomber le ✓, une note jamais validée ou refusée ne le reçoit pas par ce chemin.
 // Vérifier, puis valider la note, deux gestes (« Ce que ça fait » 2) : la fin d'une vérification (designEnd), quel que
-// soit son résultat, ne valide pas la note ; le clic Valider la note du créateur (noteClick) pose une marque, il ne lance
-// pas de vérification, la note vérifiée ou pas.
+// soit son résultat, ne valide pas la note ; le clic Valider la note, lui, ne lance pas de vérification (geste couvert côté
+// contrôleur).
 // Sur le vrai principal (le rythme express, la CLI, le disque) : app/controllers/tests/invariants/note-by-user.test.ts.
 // Protégé : si un test échoue, corriger le code.
+// Retouche acceptée par l'utilisateur (revue de la PR, remarque ponytail « noteClick est une fonction morte ») : noteClick,
+// qui rendait toujours 'mark' sans plus aucun appelant en production, est retirée avec les deux cas qui ne regardaient
+// qu'elle (« Valider la note ne lance aucune vérification ») ; les autres cas du fichier ne changent pas, I-67 reste tenue
+// par eux.
 //
-// Sur les fonctions pures : vibeView, vibeMarks, keepNote, acceptedTexts, designEnd, noteClick.
+// Sur les fonctions pures : vibeView, vibeMarks, keepNote, acceptedTexts, designEnd.
 import { describe, expect, it } from 'vitest';
 import type { VibeQuestion } from 'shared/bridge';
 import {
-  acceptedTexts, blobSha, designChecked, designEnd, keepNote, markState, noteClick, noteDesign, vibeMarks, vibeView,
+  acceptedTexts, blobSha, designChecked, designEnd, keepNote, markState, noteDesign, vibeMarks, vibeView,
   type ActionDef, type JourneyInput, type Marks,
 } from 'core/vibecoder';
 
@@ -269,25 +273,5 @@ describe('I-67 : Vérifier ne valide jamais la note, quel que soit son résultat
 
     // la marque de la note est celle de l'utilisateur, telle quelle
     expect(marks.note).toEqual(refused.note);
-  });
-});
-
-describe('I-67 : Valider la note ne lance aucune vérification', () => {
-  it('le créateur valide une note jamais vérifiée : une marque, pas de vérification', () => {
-    const gesture = noteClick({}, NOTE_PATH, 'ok', 'create');
-
-    // le clic pose la marque de l'utilisateur, il ne lance pas la vérification
-    expect(gesture).toBe('mark');
-  });
-
-  it('le créateur valide une note après une vérification sans question : une marque, pas de vérification', () => {
-    const checked = designEnd({}, { path: NOTE_PATH, state: 'done', questions: 0, clicked: blobSha(noteDesign(NOTE)) });
-
-    const gesture = noteClick(checked, NOTE_PATH, 'ok', 'create');
-
-    // témoin : la note est bien vérifiée
-    expect(designChecked(checked, NOTE_PATH)).toBe(true);
-    // le clic pose la marque de l'utilisateur, il ne lance pas de nouvelle vérification
-    expect(gesture).toBe('mark');
   });
 });

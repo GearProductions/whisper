@@ -16,8 +16,8 @@
  *  'design'). Rend un nouvel état, ne touche pas à l'ancien.
  *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) :
  *  - Vérifier, puis valider la note, deux gestes : la vérification ne valide jamais (designEnd ne pose plus la marque
- *    'note'), Valider la note ne lance jamais de vérification (noteClick rend 'mark' pour tout clic, créateur compris,
- *    plus jamais 'check') : la note n'est validée que par la marque que pose le clic de l'utilisateur.
+ *    'note'), Valider la note ne lance jamais de vérification (le clic pose
+ *    toujours une marque, créateur compris) : la note n'est validée que par la marque que pose le clic de l'utilisateur.
  *    designEnd retient ce que la vérification a rendu : finie sans question (« rien de bloquant »), la cible 'verified'
  *    porte l'empreinte de la conception d'où elle est partie ; finie avec une question, 'verified' est retirée ; en
  *    échec ou arrêtée : rien ne bouge.
@@ -45,7 +45,7 @@
  *  course design-check (le contrôleur lui dit comment elle a fini), le rythme (par défaut, express), les réponses
  *  envoyées (les textes acceptés sont passés).
  *  Utilisé par : core/vibecoder (journey : checked, verified ; step-checks), app/controllers/vibecoder, app/settings. */
-import type { VibeComment, VibeFlow, VibeMarkState, VibeNoteCheck, VibeView } from 'shared/bridge';
+import type { VibeComment, VibeMarkState, VibeNoteCheck, VibeView } from 'shared/bridge';
 import { caseKeys } from 'shared/test-cases';
 import { onlyAccepted } from './accepted';
 import { caseHashes, caseMarkState, caseTarget, setCaseMark } from './case-marks';
@@ -89,12 +89,6 @@ export function designChecked(marks: Marks, notePath: string): boolean {
 // changé depuis ; null : jamais vérifiée, une autre note (designChecked), ou la dernière vérification a trouvé quelque chose.
 export function designState(marks: Marks, notePath: string, design: string): VibeNoteCheck | null {
   return !designChecked(marks, notePath) || !Object.hasOwn(marks, 'verified') ? null : marks.verified.hash === design ? 'clean' : 'edited';
-}
-
-// Valider la note ne lance plus de vérification : 'mark' pour tout clic, créateur compris (plus jamais 'check' ; Vérifier
-// est un geste à part, l'action design-check). marks et notePath ne servent plus : la signature reste celle de l'appelant.
-export function noteClick(_marks: Marks, _notePath: string, _verdict: 'ok' | 'ko' | null, _flow: VibeFlow): 'mark' {
-  return 'mark';
 }
 
 // La fin de la course design-check : finie, la note est vérifiée ('design') ; sans question, la cible 'verified' porte
