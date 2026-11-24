@@ -505,7 +505,8 @@ refusés : … »), et c'est vous, ou l'orchestrateur, qui jugez en la lisant si
 travail est complet. Vos règles `permissions.allow` (réglages de
 Claude Code) s'ajoutent, `permissions.ask` compte comme un refus,
 `permissions.deny` l'emporte. Ses outils de fichiers lisent dans le projet, les
-sorties de l'agent et le plugin de VibeCoder, écrivent dans le projet et les
+sorties de l'agent, le plugin de VibeCoder et le dossier d'artefacts du projet
+(sans y écrire), écrivent dans le projet et les
 sorties (une action en lecture : les sorties seules), jamais `.claude/`, `.git/`,
 `.husky/`, un `AGENTS.md` ni un `package.json` (une dépendance à ajouter, c'est
 vous) : c'est le vrai rempart. L'appli rappelle à

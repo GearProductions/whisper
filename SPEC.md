@@ -1459,9 +1459,12 @@ conversation ; note `0.9.0-actions-independantes.md`).
   crochet `PreToolUse`
   (`core/vibecoder/bounds`), que l'appli donne au SDK pour la course et ses
   sous-agents, borne les outils de fichiers, avant les règles de l'utilisateur :
-  lecture dans le projet, les sorties de l'agent et le plugin de VibeCoder ;
+  lecture dans le projet, les sorties de l'agent, le plugin de VibeCoder et le
+  dossier d'artefacts du projet (s'il existe et n'est pas un lien : un artefact
+  rangé depuis le dépôt principal se lit aussi depuis un worktree ; il reste
+  hors des dossiers de travail du processus, que la conversation garde) ;
   écriture dans le projet et les sorties (une action `reads` : les sorties
-  seules) ; jamais `.claude/`, `.git/`, `.husky/`, un `AGENTS.md` ni un
+  seules), jamais dans le dossier d'artefacts ; jamais `.claude/`, `.git/`, `.husky/`, un `AGENTS.md` ni un
   `package.json` ; un motif de `Glob` ou un `glob` de `Grep` absolu ou qui monte
   par `..` est refusé. Ce que lance une commande permise n'est pas borné.
   *Les refus* sont lus dans le flux, de l'agent et de ses sous-agents, pendant
@@ -4118,7 +4121,9 @@ sont retirés en 0.14.0.)*
   quel que soit le mode : une commande qu'elle nomme, que le skill n'ouvre pas,
   ne passe pas, et `gh pr merge`, `gh release` et `gh repo` ne passent jamais ;
   leurs outils de fichiers ne lisent ni n'écrivent hors du
-  projet et des sorties de l'agent (le plugin en lecture), et jamais `.claude/`,
+  projet et des sorties de l'agent (le plugin et le dossier d'artefacts du
+  projet en lecture : rien dessous n'est écrit, rien n'en sort par `../` ni par
+  un lien, aucun autre projet), et jamais `.claude/`,
   `.git/`, `.husky/`, un `AGENTS.md` ni un `package.json` : une action
   n'élargit pas ses propres droits.
 - **I-58** Le dossier temporaire d'une course (F-115) n'est **jamais laissé après

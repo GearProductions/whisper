@@ -89,7 +89,7 @@ export function fileDecision(tool: string, input: unknown, bounds: Bounds, real:
   if (typeof glob === 'string' && /^[/~\\]|^[a-z]:|(^|[/\\])\.\.([/\\]|$)/i.test(glob)) return no(`le motif ${glob} sort du dossier qu'il parcourt`);
   if (inside(bounds.out, p)) return { allow: true };
   if (!t.write) {
-    return inside(bounds.project, p) || inside(bounds.plugin, p) ? { allow: true } : no('hors du dossier du projet et des sorties de l\'agent');
+    return inside(bounds.project, p) || inside(bounds.plugin, p) || (bounds.artifacts && inside(bounds.artifacts, p)) ? { allow: true } : no('hors du dossier du projet et des sorties de l\'agent');
   }
   if (!inside(bounds.project, p)) return no('hors du dossier du projet et des sorties de l\'agent, qu\'une action n\'écrit pas');
   if (bounds.reads) return no('une action en lecture n\'écrit que dans les sorties de l\'agent');

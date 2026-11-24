@@ -168,6 +168,49 @@ onPosix('fileDecision : les fichiers qu\'une course n\'écrit pas (frozen)', () 
   });
 });
 
+// Le dossier d'artefacts du projet (note fix/0.16.0-action-note-access-artefact) : lu, jamais écrit.
+onPosix('fileDecision : le dossier d’artefacts', () => {
+  const ARTS = '/var/home/u/data/artifacts/k1';
+  const A: Bounds = { ...B, artifacts: ARTS };
+  // un faux disque de plus : un lien du dossier d'artefacts vers /etc
+  const realA = (p: string) => (p === `${ARTS}/lien` || p.startsWith(`${ARTS}/lien/`) ? '/etc' + p.slice(`${ARTS}/lien`.length) : real(p));
+  const da = (tool: string, path: string, input: object = { file_path: path }) => fileDecision(tool, input, A, realA);
+
+  it('Read, Glob, Grep d’un artefact : allow', () => {
+    expect(da('Read', `${ARTS}/plan.md`)).toEqual({ allow: true });
+    expect(da('Glob', ARTS, { pattern: '*.md', path: ARTS })).toEqual({ allow: true });
+    expect(da('Grep', ARTS, { pattern: 'x', path: ARTS })).toEqual({ allow: true });
+    expect(da('Read', ARTS)).toEqual({ allow: true });
+  });
+  it('Write, Edit, MultiEdit, NotebookEdit d’un artefact : refus, existant ou non, même d’une action qui modifie', () => {
+    for (const t of ['Write', 'Edit', 'MultiEdit']) {
+      expect(da(t, `${ARTS}/plan.md`).allow).toBe(false);
+      expect(da(t, `${ARTS}/nouveau/plan.md`).allow).toBe(false);
+    }
+    expect(da('NotebookEdit', '', { notebook_path: `${ARTS}/n.ipynb` }).allow).toBe(false);
+  });
+  it('artifacts absent : un Read sous ce dossier refusé, comme avant', () => {
+    expect(refused('Read', `${ARTS}/plan.md`)).toContain(`${ARTS}/plan.md`);
+  });
+  it('un chemin sous artifacts qui en sort par ../ : refus', () => {
+    expect(da('Read', `${ARTS}/../../../../../etc/passwd`).allow).toBe(false);
+    expect(da('Read', `${ARTS}/../k2/plan.md`).allow).toBe(false);
+  });
+  it('un lien dans artifacts vers /etc : refus', () => {
+    expect(da('Read', `${ARTS}/lien/passwd`).allow).toBe(false);
+    expect(da('Glob', `${ARTS}/lien`, { pattern: '*', path: `${ARTS}/lien` }).allow).toBe(false);
+  });
+  it('un dossier voisin (une autre clé), un nom qui partage le préfixe : refus', () => {
+    expect(da('Read', '/var/home/u/data/artifacts/k2/plan.md').allow).toBe(false);
+    expect(da('Read', `${ARTS}2/plan.md`).allow).toBe(false);
+    expect(da('Grep', '/var/home/u/data/artifacts', { pattern: 'x', path: '/var/home/u/data/artifacts' }).allow).toBe(false);
+  });
+  it('le motif d’un Glob jugé comme avant : absolu ou .. refusé', () => {
+    expect(fileDecision('Glob', { pattern: '/etc/*', path: ARTS }, A, realA).allow).toBe(false);
+    expect(fileDecision('Glob', { pattern: '../**/*', path: ARTS }, A, realA).allow).toBe(false);
+  });
+});
+
 onPosix('fileDecision : les autres outils', () => {
   it('Bash, Agent, WebFetch : allow', () => {
     for (const t of ['Bash', 'Agent', 'WebFetch'])

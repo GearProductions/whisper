@@ -97,6 +97,7 @@ import {
 import { gitReader, gitRun } from 'technicals/git';
 import { loadConfig, vibeActions, vibeOutDir, vibePluginDir } from 'app/settings';
 import { agents, CLAUDE_MISSING, isBusy, launchOptions, pushAgents, sendToAgent } from './agents';
+import { projectArtifactsPath } from './artifacts';
 import { promptPrefix } from './processes';
 import { dropRunTmp, openRunTmp, watchRunTmp } from './run-tmp';
 import { bigBlob, directLocks, lastView, refreshVibe, startAction, surveyAgent } from './vibecoder';
@@ -313,7 +314,9 @@ export function runRights(agent: AgentConfig, def: ActionDef, template: string, 
   const name = listSkill(def.id, template);
   const skillDir = path.join(vibePluginDir(), 'skills', name ?? '');
   const out = vibeOutDir(agent.id);
-  const bounds = { project: real(agent.dir), out: real(out), plugin: real(vibePluginDir()), reads: !!def.reads, frozen };
+  const arts = projectArtifactsPath(agent.dir);   // sans le créer ; un lien (lstat) : aucun dossier d'artefacts
+  const artifacts = fs.lstatSync(arts, { throwIfNoEntry: false })?.isDirectory() ? real(arts) : undefined;
+  const bounds = { project: real(agent.dir), out: real(out), plugin: real(vibePluginDir()), artifacts, reads: !!def.reads, frozen };
   return {
     ...runRules({ skillMd: md, skillDir, out, prefix: promptPrefix(agent, cfg) }),
     check: (tool, input) => fileDecision(tool, input, bounds, fs.realpathSync),
@@ -370,7 +373,7 @@ export function startRun(
   };
   agents.close(entry.id).then(() => agents.forgetReply(entry.id)).then(ready).then((frozen) => agents.send(entry, message, {
     ...launch, checkpoint: true, rights: runRights(agent, def, message.text, def.id === 'answers' ? skillMd('/vibecoder:note') : md, cfg, frozen),
-    dirs: [vibeOutDir(agent.id)],   // les sorties seules : le dossier des artefacts du projet reste à la conversation
+    dirs: [vibeOutDir(agent.id)],   // les sorties seules : le dossier des artefacts du projet reste à la conversation, la course le lit par le contrôle (runRights)
     // env remplace celui du processus (le SDK ne fusionne pas) : celui du robot, sinon process.env recopié, plus le dossier
     // temporaire ; un fork qui lance une commande de fond la verrait tuée à sa réponse : il l'attend au premier plan.
     // Sans dossier temporaire (pas pu le créer) : la variable reste ce qu'elle était.

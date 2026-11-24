@@ -1376,6 +1376,53 @@ describe('les droits d’une course', () => {
     expect(request('une question')!.options.additionalDirectories).toEqual([out, projectArtifactsPath(project())]);
   });
 
+  // Le dossier d'artefacts du projet (note fix/0.16.0-action-note-access-artefact) : lu par le contrôle, jamais écrit.
+  it('un artefact du projet : Read, Glob et Grep passent, Write et Edit sont refusés, même pour une action qui modifie', async () => {
+    const arts = (await import('app/controllers')).projectArtifactsPath(project());
+    write(path.join(arts, 'plan.md'), '# plan');
+    const forme = await run('forme');
+    expect(await verdict(forme, 'Read', { file_path: path.join(arts, 'plan.md') })).toBe('pass');
+    expect(await verdict(forme, 'Glob', { pattern: '*.md', path: arts })).toBe('pass');
+    expect(await verdict(forme, 'Grep', { pattern: 'plan', path: arts })).toBe('pass');
+    expect(await verdict(forme, 'Write', { file_path: path.join(arts, 'nouveau.md'), content: 'x' })).toBe('deny');
+    expect(await verdict(forme, 'Edit', { file_path: path.join(arts, 'plan.md'), old_string: 'plan', new_string: 'x' })).toBe('deny');
+  });
+
+  it('un artefact rangé depuis le dépôt principal, la course dans un worktree : Read passe', async () => {
+    const wt = path.join(fake.userData, 'wt');
+    git(project(), 'worktree', 'add', '-q', '-b', 'feat/0.9.0-wt', wt);
+    const file = path.join(fake.userData, 'config.json');
+    const cfg = JSON.parse(fs.readFileSync(file, 'utf8'));
+    cfg.agents[0].dir = wt;
+    write(file, JSON.stringify(cfg));
+    const arts = (await import('app/controllers')).projectArtifactsPath(project());
+    write(path.join(arts, 'plan.md'), '# plan');
+    const forme = await run('forme');
+    expect(await verdict(forme, 'Read', { file_path: path.join(arts, 'plan.md') })).toBe('pass');
+  });
+
+  it('un dossier d’artefacts devenu un lien : aucun pour la course', async () => {
+    const arts = (await import('app/controllers')).projectArtifactsPath(project());
+    write(path.join(fake.userData, 'dehors', 'secret.txt'), 'S');
+    fs.mkdirSync(path.dirname(arts), { recursive: true });
+    fs.symlinkSync(path.join(fake.userData, 'dehors'), arts);
+    const forme = await run('forme');
+    expect(await verdict(forme, 'Read', { file_path: path.join(arts, 'secret.txt') })).toBe('deny');
+  });
+
+  // Sans passer par open() : ouvrir la conversation crée ce dossier (ses dossiers de travail), pas les droits de la course.
+  it('aucun dossier d’artefacts encore : runRights ne le crée pas, un Read dessous est refusé', async () => {
+    const { runRights, projectArtifactsPath } = await import('app/controllers');
+    const { loadConfig, vibeActions } = await import('app/settings');
+    const { agentList, vibeLang } = await import('core/config');
+    const cfg = loadConfig();
+    const arts = projectArtifactsPath(project());
+    const rights = runRights(agentList(cfg)[0], vibeActions(vibeLang(cfg)).find((d) => d.id === 'forme')!, '/vibecoder:forme', null, cfg);
+    expect(rights.check('Read', { file_path: path.join(arts, 'plan.md') })).toMatchObject({ allow: false });
+    expect(rights.check('Read', { file_path: path.join(project(), 'a.ts') })).toEqual({ allow: true });
+    expect(fs.existsSync(arts)).toBe(false);
+  });
+
   it('un skill sans allowed-tools, aucun plugin : Bash seul, tout refusé sauf lui, la course part', async () => {
     const ci = await run('ci');
     expect(ci.options.permissionMode).toBe('dontAsk');
