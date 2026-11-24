@@ -181,7 +181,7 @@
  *    'invariants' ou 'modules' du dernier relevé, le moteur relancé ; jamais sans la note validée ; refusé « grisé » (le tour de la
  *    conversation finit encore) : retenté au relevé suivant (drive) ;
  *  - Vérifier, puis valider la note, deux gestes : Vérifier lance la vérification (l'action design-check) et ne valide
- *    rien ; Valider la note valide et ne vérifie rien (noteClick ne rend plus 'check') ; la note du relevé porte ce
+ *    rien ; Valider la note valide et ne vérifie rien ; la note du relevé porte ce
  *    qu'a rendu sa dernière vérification (verified : designState), d'après quoi la page montre ou non Valider la note
  *    (une règle d'affichage : markVibe ne refuse pas un Valider sans vérification) ; Vérifier n'envoie que le gabarit
  *    de la vérification, ni le texte du champ ni ses pièces jointes (I-2 ; tests/invariants/design-check-text.test.ts :
