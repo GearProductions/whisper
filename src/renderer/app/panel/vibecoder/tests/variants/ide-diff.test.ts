@@ -9,7 +9,7 @@ import { createKept, scoped } from 'core/vibecoder/kept';
 import type { IdeFile } from 'core/vibecoder';
 import type { VibeDiffs, VibeView } from 'technicals/bridge';
 import { KeptScope } from '../../kept-scope';
-import { useIdeDiff, type IdeDiff } from '../../ide-diff';
+import { useCreatorDiff, useIdeDiff, type CreatorDiff, type IdeDiff } from '../../ide-diff';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -117,4 +117,73 @@ it('gardé par agent : retrouvé après un autre agent, la base pour l\'autre', 
   expect(got.ref).toBe('base');
   await draw(viewOf(false), kept, 'a');
   expect(got.ref).toBe('head');
+});
+
+// useCreatorDiff (note 0.16.0-ecran-essentiel) : la base de la branche, ou la validation de l'étape ; ni menu, ni mode, ni head.
+let creator: CreatorDiff;
+const drawCreator = (view: VibeView, kept = createKept(), agent = 'a') => act(() => {
+  const Probe = () => { creator = useCreatorDiff(view, 'forme'); return null; };
+  root.render(createElement(KeptScope.Provider, { value: scoped(kept, agent, 'forme') }, createElement(Probe)));
+});
+const creatorPaths = () => creator.filter(files).map((f) => f.path);
+
+it('créateur : par défaut la base, tous les fichiers, rien d\'autre qu\'un filtre (ni bar, ni mode, ni head)', async () => {
+  await drawCreator(viewOf(false));
+  expect(creator.shown).toBe('base');
+  expect(creatorPaths()).toEqual(['a.ts', 'b.ts', 'c.ts']);
+  expect(creator.empty).toBe('Rien de modifié depuis la base de la branche');
+  expect(Object.keys(creator).sort()).toEqual(['empty', 'filter', 'shown', 'toggleValidated']);
+});
+
+it('créateur, sans validation : toggleValidated ne change rien, ni shown ni le filtre', async () => {
+  await drawCreator(viewOf(false));
+  await act(async () => creator.toggleValidated());
+  expect([creator.shown, creatorPaths().length]).toEqual(['base', 3]);
+});
+
+it('créateur, avec validation : toggleValidated passe sur la validation (ses fichiers, son texte), puis revient à la base', async () => {
+  await drawCreator(viewOf(true));
+  expect(creator.shown).toBe('base');
+  await act(async () => creator.toggleValidated());
+  expect([creator.shown, creatorPaths(), creator.empty]).toEqual(['validated', ['c.ts'], 'Rien de modifié depuis la validation']);
+  await act(async () => creator.toggleValidated());
+  expect([creator.shown, creatorPaths().length]).toEqual(['base', 3]);
+});
+
+it('créateur : pas de view.diffs (référence absente) : la base garde tout, la validation ne montre rien, sans erreur', async () => {
+  const kept = createKept();
+  await drawCreator(viewOf(true, null as unknown as undefined), kept);
+  expect(creatorPaths()).toHaveLength(3);
+  await act(async () => creator.toggleValidated());
+  expect([creator.shown, creatorPaths()]).toEqual(['validated', []]);
+});
+
+it('créateur : la validation disparaît pendant qu\'on la regarde : retour à la base, et rendue, on ne la retrouve pas d\'elle-même', async () => {
+  const kept = createKept();
+  await drawCreator(viewOf(true), kept);
+  await act(async () => creator.toggleValidated());
+  expect(creator.shown).toBe('validated');
+  await drawCreator(viewOf(false), kept);
+  expect(creator.shown).toBe('base');
+  await act(async () => creator.toggleValidated());   // sans validation : rien, et ce qui était gardé est défait
+  await drawCreator(viewOf(true), kept);
+  expect(creator.shown).toBe('base');
+});
+
+it('créateur : un fichier supprimé depuis la validation : sa ligne « supprimé » (gone) dans l\'arborescence', async () => {
+  const d: VibeDiffs = { head: [], validated: { forme: [{ path: 'old.ts', deleted: true, id: 'r1' }] } };
+  await drawCreator(viewOf(true, d));
+  await act(async () => creator.toggleValidated());
+  const [gone] = creator.filter(files);
+  expect([gone.path, gone.gone, gone.mark]).toEqual(['old.ts', 'r1', 'deleted']);
+});
+
+it('créateur : gardé par agent et par étape', async () => {
+  const kept = createKept();
+  await drawCreator(viewOf(true), kept, 'a');
+  await act(async () => creator.toggleValidated());
+  await drawCreator(viewOf(true), kept, 'b');
+  expect(creator.shown).toBe('base');
+  await drawCreator(viewOf(true), kept, 'a');
+  expect(creator.shown).toBe('validated');
 });

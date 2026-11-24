@@ -38,7 +38,7 @@
  *  n'a rien trouvé (note.verified, passé à MarkControl), et ne lance aucune vérification ; la note modifiée depuis
  *  cette vérification ('edited') : MarkControl le dit, Valider la note reste.
  *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel), en créateur : pas de note, une phrase (« Demandez la note à l'agent, dans la
- *  conversation »), sans bouton Rédiger la note ni Nouvelle demande ; restent Vérifier, Valider la note, le
+ *  conversation »), sans bouton Rédiger la note ni Nouvelle demande (elles restent lançables par la CLI) ; restent Vérifier, Valider la note, le
  *  questionnaire, Modifier (la note reste modifiable à l'écran : le document de l'utilisateur) et 💬 sur une ligne.
  *  Ne connaît pas : le pont (rappels passés), le disque. Utilisé par : step-views. */
 import { useEffect, useMemo, useState } from 'react';
@@ -79,7 +79,7 @@ const fr = {
     none: ['à classer', 'Sans marque : → invariant, variant, review ou structure ?'],
   } as Record<NonNullable<MustNotMark> | 'none', [string, string]>,
   noNote: 'Pas encore de note pour cette branche',
-  noNoteText: ' Dictez ou écrivez la demande dans le champ de la conversation, en bas, puis « Rédiger la note » : l\'agent la rédige sous docs/tickets/ et pose à part ses questions ouvertes.',
+  noNoteText: ' Demandez la note à l\'agent, dans la conversation : il la rédige sous docs/tickets/ et pose à part ses questions ouvertes.',
   noNoteReview: 'Pas de note de ticket dans cette PR',
   noNoteReviewText: ' Une note se cherche sous docs/tickets/, d\'après la branche de la PR ; chargez d\'abord la PR à l\'étape PR.',
 };
@@ -106,7 +106,7 @@ const S: Record<VibeLang, typeof fr> = {
       none: ['unmarked', 'No mark: → invariant, variant, review or structure?'],
     },
     noNote: 'No note for this branch yet',
-    noNoteText: ' Dictate or type the request in the conversation field at the bottom, then « Write the note »: the agent writes it under docs/tickets/ and asks its open questions apart.',
+    noNoteText: ' Ask the agent for the note, in the conversation: it writes it under docs/tickets/ and asks its open questions apart.',
     noNoteReview: 'No ticket note in this PR',
     noNoteReviewText: ' A note is looked for under docs/tickets/, after the PR\'s branch; load the PR first, at the PR step.',
   },
@@ -232,9 +232,7 @@ export function NoteView(p: StepProps) {
           </div>
         </section>
       ) : (
-        <Invite title={review ? s.noNoteReview : s.noNote} text={review ? s.noNoteReviewText : s.noNoteText}>
-          {review ? null : <Run a={view.actions.find((a) => a.id === 'note')} busy={busy} tone="accent" onRun={() => act.run('note')} />}
-        </Invite>
+        <Invite title={review ? s.noNoteReview : s.noNote} text={review ? s.noNoteReviewText : s.noNoteText} />
       )}
     </>
   );

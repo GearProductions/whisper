@@ -34,7 +34,7 @@
  *  Utilisé par : les vues d'étape ; vibe-coder (badge Relecteur,
  *  badge du worktree). */
 import { createContext, useContext, type ReactNode } from 'react';
-import { isLive, stepActions, t as strings, webUrl, type Strings } from 'core/vibecoder';
+import { isLive, stepActions, stepBadge, t as strings, webUrl, type Strings } from 'core/vibecoder';
 import type { Piece } from 'core/conversation';
 import type { VibeAction, VibeArgs, VibeLang, VibePr, VibeRun, VibeView } from 'technicals/bridge';
 import { Icon, IconButton } from './icons';
@@ -45,6 +45,9 @@ const fr = {
   openPrTitle: 'Ouvrir la PR dans le navigateur',
   by: (author: string) => `par ${author}`,
   worktree: (n: number) => `PR #${n} · worktree`,
+  withdrawn: '· ✓ retiré',
+  withdrawTitle: 'Retirer la validation de l\'étape',
+  restoreTitle: 'Rendre la validation de l\'étape',
 };
 const S: Record<VibeLang, typeof fr> = {
   fr,
@@ -52,6 +55,9 @@ const S: Record<VibeLang, typeof fr> = {
     openPrTitle: 'Open the PR in the browser',
     by: (author) => `by ${author}`,
     worktree: (n) => `PR #${n} · worktree`,
+    withdrawn: '· ✓ withdrawn',
+    withdrawTitle: 'Withdraw the approval of the step',
+    restoreTitle: 'Give back the approval of the step',
   },
 };
 
@@ -68,6 +74,11 @@ export type StepPieces = { pieces: Piece[]; onRemove(p: Piece): void; onAttach()
 export function StepHead({ p, own = [], children, onSince }: { p: StepProps; own?: string[]; children?: ReactNode; onSince?(): void }) {
   const { view, step, t, act, busy } = p;
   const acts = stepActions(view, step, own);
+  const { mark, click } = stepBadge(view.flow, step);
+  const s = S[view.lang];
+  const badge = mark
+    ? `${t.stepStatus.done} ${mark === 'ok' ? '✓' : s.withdrawn}`
+    : t.stepStatus[step.status];
   // head dit déjà « modifiée depuis la validation » ou « à revoir : … » (le principal) : changed en fait un bouton, rien n'est répété.
   const head = step.head ? (step.check?.state === 'changed' && onSince
     ? <button type="button" className="vc-since" onClick={onSince}>{step.head}</button>
@@ -75,7 +86,10 @@ export function StepHead({ p, own = [], children, onSince }: { p: StepProps; own
   return (
     <div className="vc-step-head">
       <h2>{t.steps[step.id]}</h2>
-      <span className="vc-badge" data-status={step.status}>{t.stepStatus[step.status]}</span>
+      {click ? (
+        <button type="button" className="vc-badge vc-badge-click" data-status="done" title={click === 'withdraw' ? s.withdrawTitle : s.restoreTitle}
+          onClick={() => act.mark(step.id, click === 'withdraw' ? null : 'ok')}>{badge}</button>
+      ) : <span className="vc-badge" data-status={mark ? 'done' : step.status}>{badge}</span>}
       {head}
       {acts.length ? (
         <div className="vc-step-acts">

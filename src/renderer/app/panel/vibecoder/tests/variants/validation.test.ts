@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 // validation (validation.tsx) : CaseVerdict, deux badges écrits (Validé, À revoir), celui donné pressé,
 // un second clic l'annule ; MarkControl, l'icône devant le texte, sans glyphe Unicode ; 0.16.0 : la note en créateur, Vérifier puis Valider la note,
-// une étape validée par le système le dit, sa validation à la main en discret, jamais grisée.
+// 0.16.0 écran essentiel : la forme, les invariants, les modules et « Rien à écrire » n'ont plus de bouton ni d'état en créateur.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it } from 'vitest';
@@ -180,79 +180,38 @@ it('relecteur : Valider la note et À revoir, comme avant (forme comprise, sans 
   expect(buttons().map((b) => b.getAttribute('data-v'))).toEqual(['ok', 'ko']);
 });
 
-it('étape pas validée, créateur : Valider en discret (ni vert ni coche), jamais grisé, même à une étape qui attend', async () => {
-  const log: unknown[] = [];
-  for (const what of ['forme', 'invariants', 'modules'] as const) {
-    for (const state of [null, 'changed'] as const) {
-      await act(() => root.render(createElement(MarkControl, { what, state, review: false, lang: 'fr', onMark: (v) => { log.push(v); } })));
-      const [b] = buttons();
-      expect(buttons()).toHaveLength(1);
-      expect([b.disabled, b.getAttribute('data-v'), b.querySelector('svg'), b.className]).toEqual([false, null, null, 'vc-vbtn vc-vbtn-plain']);
-      b.click();
+it('créateur, la forme, les invariants, les modules, « Rien à écrire » : aucun bouton ni état, quel que soit l\'état, by ou run', async () => {
+  for (const what of ['forme', 'invariants', 'modules', 'nothing'] as const) {
+    for (const state of [null, 'changed', 'ok', 'ko'] as const) {
+      for (const extra of [{}, { by: 'system' }, { run: { state: 'running', onStop: () => {} } }, { onCheck: () => {}, verified: 'clean' }, { onRemark: () => {} }]) {
+        await act(() => root.render(createElement(MarkControl, { what, state, review: false, lang: 'fr', onMark: () => {}, ...extra } as never)));
+        expect(page.textContent).toBe('');
+        expect(buttons()).toHaveLength(0);
+      }
     }
   }
-  expect(log).toEqual(['ok', 'ok', 'ok', 'ok', 'ok', 'ok']);
-  // « Rien à écrire » est une décision de l'utilisateur : son bouton garde son vert.
-  await act(() => root.render(createElement(MarkControl, { what: 'nothing', state: null, review: false, lang: 'fr', onMark: () => {} })));
-  expect(buttons()[0].getAttribute('data-v')).toBe('ok');
+  await act(() => root.render(createElement(MarkControl, { what: 'forme', state: 'ok', review: false, lang: 'en', by: 'system', onMark: () => {} })));
+  expect(page.textContent).toBe('');
 });
 
-it('étape validée par le système : « validée par le système » et son contrôle ; à la main : « validée » ; Annuler reste', async () => {
+it('relecteur, la forme, les invariants, les modules : Valider et À revoir, l\'état et Annuler, comme avant', async () => {
   const log: unknown[] = [];
-  const draw = (what: 'forme' | 'invariants' | 'modules', by: 'system' | undefined, lang: 'fr' | 'en' = 'fr') => act(() => root.render(createElement(MarkControl,
-    { what, state: 'ok', review: false, lang, by, onMark: (v) => { log.push(v); } })));
-  const want = {
-    forme: ['validée par le système', 'squelettes posés'],
-    invariants: ['validée par le système', 'alignement avec la note'],
-    modules: ['validée par le système', 'conformité à la forme et preuve par mutation'],
-  } as const;
+  const want = { forme: ['Valider la forme', 'Forme validée', 'Forme refusée'], invariants: ['Valider les invariants', 'Invariants validés', 'Invariants refusés'], modules: ['Valider les modules', 'Modules validés', 'Modules refusés'] };
   for (const what of ['forme', 'invariants', 'modules'] as const) {
-    await draw(what, 'system');
-    expect(page.querySelector('.vc-vstate')!.textContent).toBe(want[what][0]);
-    expect(page.querySelector('.vc-vby')!.textContent).toBe(want[what][1]);
-    expect(buttons().map((b) => b.textContent)).toEqual(['Annuler']);
+    const draw = (state: 'ok' | 'ko' | 'changed' | null) => act(() => root.render(createElement(MarkControl, { what, state, review: true, lang: 'fr', onMark: (v) => { log.push(v); } })));
+    await draw(null);
+    expect(buttons().map((b) => [b.textContent, b.getAttribute('data-v')])).toEqual([[want[what][0], 'ok'], ['À revoir', 'ko']]);
+    buttons()[0].click();
+    buttons()[1].click();
+    await draw('changed');
+    expect(buttons().map((b) => b.textContent)).toEqual(['Revalider', 'À revoir']);
+    await draw('ok');
+    expect(page.textContent).toBe(`${want[what][1]}Annuler`);
+    await draw('ko');
+    expect(page.textContent).toBe(`${want[what][2]}Annuler`);
+    buttons()[0].click();
   }
-  await draw('modules', undefined);
-  expect(page.querySelector('.vc-vstate')!.textContent).toBe('Modules validés');
-  expect(page.querySelector('.vc-vby')).toBeNull();
-  await draw('forme', 'system', 'en');
-  expect(page.querySelector('.vc-vstate')!.textContent).toBe('validated by the system');
-  expect(page.querySelector('.vc-vby')!.textContent).toBe('skeletons set up');
-  buttons()[0].click();
-  expect(log).toEqual([null]);
-  // La note n'est jamais validée par le système : by n'y change rien.
-  await act(() => root.render(createElement(MarkControl, { what: 'note', state: 'ok', review: false, lang: 'fr', by: 'system', onMark: () => {} })));
-  expect(page.textContent).toBe('Note validéeAnnuler');
-});
-
-it('invariants, modules : le libellé (fr, en) ; validé : Annuler ; modifié depuis : Revalider ; rien n\'est envoyé sans clic', async () => {
-  const log: unknown[] = [];
-  const draw = (what: 'invariants' | 'modules', state: 'ok' | 'changed' | null, lang: 'fr' | 'en' = 'fr') => act(() => root.render(createElement(MarkControl,
-    { what, state, review: false, lang, onMark: (v) => { log.push(v); } })));
-  const want = {
-    invariants: { fr: ['Valider les invariants', 'Invariants validés'], en: ['Approve the invariants', 'Invariants approved'] },
-    modules: { fr: ['Valider les modules', 'Modules validés'], en: ['Approve the modules', 'Modules approved'] },
-  };
-  for (const what of ['invariants', 'modules'] as const) {
-    for (const lang of ['fr', 'en'] as const) {
-      await draw(what, null, lang);
-      expect(buttons().map((b) => b.textContent)).toEqual([want[what][lang][0]]);
-      expect(log).toEqual([]);
-      buttons()[0].click();
-      expect(log).toEqual(['ok']);
-      log.length = 0;
-      await draw(what, 'ok', lang);
-      expect(page.querySelector('.vc-vstate')!.textContent).toBe(want[what][lang][1]);
-      expect(buttons().map((b) => b.textContent)).toEqual([lang === 'fr' ? 'Annuler' : 'Undo']);
-      buttons()[0].click();
-      expect(log).toEqual([null]);
-      log.length = 0;
-    }
-    await draw(what, 'changed');
-    expect(buttons().map((b) => b.textContent)).toEqual(['Revalider']);
-    await draw(what, 'changed', 'en');
-    expect(buttons().map((b) => b.textContent)).toEqual(['Approve again']);
-  }
+  expect(log).toEqual(['ok', 'ko', null, 'ok', 'ko', null, 'ok', 'ko', null]);
 });
 
 it('run : running → « en cours » et ⏹ (onStop) ; queued → « en attente », pas de ⏹ ; sans run : rien ; à côté du bouton', async () => {

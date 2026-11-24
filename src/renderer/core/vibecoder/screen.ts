@@ -24,8 +24,9 @@ type StepAction = { a: VibeAction; tone: 'accent' | 'plain' };
 // Une action qui cite ({{quote}}) part d'un bloc ou d'un cas, pas d'un bouton à elle.
 const cites = (a: VibeAction) => a.kind === 'prefill' && !!a.text?.includes('{{quote}}');
 
-// La rangée d'une étape : ses actions ; à l'étape en cours, celle mise en avant d'abord. Jamais Vibe.
+// La rangée d'une étape, au relecteur seulement : ses actions ; à l'étape en cours, celle mise en avant d'abord. Jamais Vibe.
 export function stepActions(view: VibeView, step: VibeStep, own: string[]): StepAction[] {
+  if (view.flow !== 'review') return [];
   const tone = (a: VibeAction): StepAction['tone'] => (step.status === 'current' && a.primary ? 'accent' : 'plain');
   return view.actions
     .filter((a) => a.id !== 'vibe' && !a.hidden && !cites(a) && !own.includes(a.id) && (a.step === step.id || tone(a) !== 'plain'))

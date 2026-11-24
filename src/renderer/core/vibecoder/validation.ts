@@ -38,6 +38,9 @@ export function awaiting(view: VibeView): Awaiting | null {
 // Le badge d'état d'une étape : son ✓ (validée, ou retiré à la main) et ce que fait un clic (le retirer, le rendre, rien).
 export type StepBadge = { mark: 'ok' | 'withdrawn' | null; click: 'withdraw' | 'restore' | null };
 
-export function stepBadge(_flow: VibeFlow, _step: Pick<VibeStep, 'id' | 'check'>): StepBadge {
-  throw new Error('not implemented');
+export function stepBadge(flow: VibeFlow, step: Pick<VibeStep, 'id' | 'check'>): StepBadge {
+  if (flow !== 'create' || (step.id !== 'forme' && step.id !== 'invariants' && step.id !== 'modules')) return { mark: null, click: null };
+  if (step.check?.state === 'ok') return { mark: 'ok', click: 'withdraw' };
+  if (step.check?.withdrawn) return { mark: 'withdrawn', click: 'restore' };
+  return { mark: null, click: null };
 }

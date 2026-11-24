@@ -193,6 +193,8 @@ export const goneModule = (f: Pick<IdeFile, 'path' | 'gone'>): VibeModule => ({
 // La ligne d'état de l'étape Modules, en nombres (voir l'en-tête).
 export type ModuleCounts = { total: number; written: number; committed: number };
 
-export function moduleCounts(_modules: VibeModule[]): ModuleCounts {
-  throw new Error('not implemented');
-}
+export const moduleCounts = (modules: VibeModule[]): ModuleCounts => ({
+  total: modules.length,
+  written: modules.filter((m) => moduleState(m) !== 'todo').length,
+  committed: modules.filter((m) => m.commits.length > 0 && !m.uncommitted).length,
+});

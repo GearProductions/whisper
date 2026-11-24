@@ -1,10 +1,12 @@
-/* La Forme (forme-view) : une carte, l'arborescence des modules à gauche (ide-view) ; à droite le module
+/* La Forme du relecteur (forme-view) : une carte, l'arborescence des modules à gauche (ide-view) ; à droite le module
    choisi : chemin, état (Icon ok devant « touché »), outils (.vc-tool), interrupteur Structure · Code
    (.vc-seg), contrat en rubriques. Sous .vc, couleurs et .vc-tool de vibecoder.css. */
 
-.vc-forme .vc-card-head { min-height: 42px; }
-.vc-forme-sum { color: var(--vc-faint); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.vc-forme-mark { margin-left: auto; display: flex; padding-left: 8px; }
+/* L'essentiel (créateur) : une ligne par module, son chemin puis sa phrase. */
+.vc-forme-list { margin: 0; padding: 4px var(--vc-pad, 12px); list-style: none; }
+.vc-forme-list li { display: flex; align-items: baseline; gap: 12px; min-height: 28px; padding: 3px 0; }
+.vc-forme-list .vc-fpath { flex: none; max-width: 45%; }
+.vc-fsay { min-width: 0; color: var(--vc-soft); font-size: 13px; overflow-wrap: break-word; }
 
 .vc-fmain { min-width: 0; padding: 8px var(--vc-pad, 12px); }
 .vc-fline { display: flex; align-items: center; gap: 8px; min-height: 20px; }

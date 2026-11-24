@@ -24,6 +24,8 @@ export function contractParts(contract: string): { label: string | null; text: s
 }
 
 // Ce que fait un module, en une phrase : le début de son contrat (voir l'en-tête).
-export function moduleLine(_contract: string): string {
-  throw new Error('not implemented');
+export function moduleLine(contract: string): string {
+  const first = contract.split('\n').map((l) => l.trim()).find(Boolean) ?? '';
+  const line = first.replace(/^·\s*/, '').split(/\s+·\s+/)[0].trim();
+  return LABEL.test(line) ? '' : line;
 }

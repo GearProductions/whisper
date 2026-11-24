@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkMark, crumbCheck, waitingFor, diffRefs, diffTree, formeText, inForme, goneModule, ideFiles, invariantTree, moduleState } from 'core/vibecoder';
+import { checkMark, crumbCheck, waitingFor, diffRefs, diffTree, formeText, inForme, goneModule, ideFiles, invariantTree, moduleCounts, moduleState } from 'core/vibecoder';
 import type { IdeFile } from 'core/vibecoder';
 import type { VibeDiffs, VibeModule, VibeStep, VibeStepCheck, VibeTestFile } from 'technicals/bridge';
 
@@ -16,6 +16,32 @@ describe('moduleState', () => {
     expect(moduleState(done)).toBe('done');
     expect(moduleState(wip)).toBe('wip');
     expect(moduleState(todo)).toBe('todo');
+  });
+});
+
+describe('moduleCounts (note 0.16.0-ecran-essentiel)', () => {
+  const committed = (p: string) => mod(p, { touched: true, commits: ['h'], uncommitted: false });
+  it('seize modules commités : seize, seize, seize', () => {
+    const sixteen = Array.from({ length: 16 }, (_, i) => committed(`m${i}.ts`));
+    expect(moduleCounts(sixteen)).toEqual({ total: 16, written: 16, committed: 16 });
+  });
+  it('un module encore au squelette : pas écrit', () => {
+    expect(moduleCounts([mod('a.ts', { touched: true, skeleton: true })])).toEqual({ total: 1, written: 0, committed: 0 });
+    expect(moduleCounts([mod('a.ts')])).toEqual({ total: 1, written: 0, committed: 0 });
+  });
+  it('un module écrit, pas commité : écrit, pas commité', () => {
+    expect(moduleCounts([mod('a.ts', { touched: true, uncommitted: true })])).toEqual({ total: 1, written: 1, committed: 0 });
+    expect(moduleCounts([mod('a.ts', { touched: true })])).toEqual({ total: 1, written: 1, committed: 0 });
+  });
+  it('un module commité puis retouché : écrit, pas commité', () => {
+    expect(moduleCounts([mod('a.ts', { touched: true, commits: ['h'], uncommitted: true })])).toEqual({ total: 1, written: 1, committed: 0 });
+  });
+  it('aucun module : zéro partout', () => {
+    expect(moduleCounts([])).toEqual({ total: 0, written: 0, committed: 0 });
+  });
+  it('un mélange : chacun compté une fois', () => {
+    const mixed = [committed('a.ts'), mod('b.ts', { touched: true }), mod('c.ts'), mod('d.ts', { touched: true, commits: ['h'], uncommitted: true })];
+    expect(moduleCounts(mixed)).toEqual({ total: 4, written: 3, committed: 1 });
   });
 });
 

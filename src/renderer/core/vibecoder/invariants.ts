@@ -181,6 +181,16 @@ export type RuleCase = { file: VibeTestFile; index: number; view: CaseView };
 export type Rule = { line: string; state: RuleState; detail: string; cases: RuleCase[] };
 export type RuleGroups = { rules: Rule[]; others: RuleCase[] };
 
-export function ruleGroups(_view: Pick<VibeView, 'note' | 'invariants' | 'proof'>): RuleGroups {
-  throw new Error('not implemented');
+export function ruleGroups(view: Pick<VibeView, 'note' | 'invariants' | 'proof'>): RuleGroups {
+  const mustNot = view.note?.mustNot ?? [];
+  const same = (a: string, b: string) => a.trim().replace(/\s+/g, ' ') === b.trim().replace(/\s+/g, ' ');
+  const cases = view.invariants.flatMap((file) => casesOf(file).map((v, index): RuleCase & { link: CaseLink } => ({ file, index, view: v, link: caseLink(v.reading, mustNot) })));
+  const strip = ({ link: _l, ...c }: RuleCase & { link: CaseLink }): RuleCase => c;
+  const rules = mustNot.filter((l) => l.mark === 'invariant').map(({ text }): Rule => {
+    const p = view.proof?.lines.find((l) => same(l.line, text));
+    // proofOf rend une ligne sans rubrique non prouvée, sans détail, quand l'état est 'missing' : « écrite », pas « non prouvée »
+    const state: RuleState = !p || (!p.proved && !p.detail && view.proof?.state === 'missing') ? 'written' : p.proved ? 'proved' : 'unproved';
+    return { line: text, state, detail: state === 'written' ? '' : p!.detail, cases: cases.filter((c) => c.link.kind === 'note' && c.link.lines.includes(text)).map(strip) };
+  });
+  return { rules, others: cases.filter((c) => c.link.kind !== 'note').map(strip) };
 }

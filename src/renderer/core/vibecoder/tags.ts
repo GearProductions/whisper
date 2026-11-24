@@ -13,7 +13,7 @@
  *  l'ordre du fichier ; un bloc de code n'est jamais coupé ni lu comme une étiquette.
  *  Ne connaît pas : le DOM, React, les noms des fichiers de retour ; d'outputs, que ADDRESS.
  *  Utilisé par : app/panel/vibecoder (markdown-view, review-view : checks.json ; feedback-view : tagSplit). */
-import type { Block, Inline } from './markdown';
+import { parseMarkdown, type Block, type Inline } from './markdown';
 import { ADDRESS } from './outputs';
 
 export const TAGS = ['toi', 'agent'] as const;
@@ -58,6 +58,23 @@ export function tagCover(blocks: Block[]): (Tag | null)[] {
 // Un fichier de retour coupé selon ses étiquettes (voir l'en-tête) : pour l'utilisateur, pour l'agent et combien, le reste.
 export type TagSplit = { toi: string; agent: string; agents: number; rest: string };
 
-export function tagSplit(_md: string): TagSplit {
-  throw new Error('not implemented');
+export function tagSplit(md: string): TagSplit {
+  const lines = md.split(/\r?\n/);
+  const blocks = parseMarkdown(md);
+  const covers = tagCover(blocks);
+  const owner = lines.map((): Tag | null => null); // à qui va chaque ligne ; un bloc prend jusqu'au suivant (ses lignes vides comprises)
+  let agents = 0;
+  blocks.forEach((b, i) => {
+    const end = blocks[i + 1]?.line ?? lines.length;
+    if (b.kind === 'heading' && untag(b.inline).tag === 'agent') agents++;
+    if (b.kind !== 'list') return void owner.fill(covers[i], b.line, end);
+    // Un élément garde ses sous-points ; son étiquette, sinon celle de ce qui couvre la liste.
+    b.items.forEach((it, j) => {
+      const tag = untag(it.inline).tag;
+      if (tag === 'agent' && covers[i] !== 'agent') agents++;
+      owner.fill(tag ?? covers[i], it.line, b.items[j + 1]?.line ?? end);
+    });
+  });
+  const part = (tag: Tag | null) => lines.filter((_, i) => owner[i] === tag).join('\n').replace(/^(\s*\n)+/, '').trimEnd();
+  return { toi: part('toi'), agent: part('agent'), agents, rest: part(null) };
 }

@@ -9,7 +9,8 @@
  *  Ne connaît pas : le pont (rappels passés), les noms des fichiers de retour, les actions.
  *  Utilisé par : rules-view (l'alignement), review-view (la ponytail review). */
 import type { ReactNode } from 'react';
-import type { Strings } from 'core/vibecoder';
+import { tagSplit, type Strings } from 'core/vibecoder';
+import { MarkdownView } from './markdown-view';
 
 export type FeedbackProps = {
   md: string;                       // le texte du fichier de retour
@@ -18,6 +19,15 @@ export type FeedbackProps = {
   onQuote?(text: string): void;
 };
 
-export function FeedbackView(_props: FeedbackProps): ReactNode {
-  throw new Error('not implemented');
+export function FeedbackView({ md, t, onOpenLink, onQuote }: FeedbackProps): ReactNode {
+  const { toi, agent, agents, rest } = tagSplit(md);
+  if (!toi && !agent && !rest.includes('\n')) return null; // « Aligné. » : tout va bien
+  const front = [toi, rest].filter(Boolean).join('\n\n'); // le sans-étiquette reste visible : rien n'est caché
+  const view = (text: string) => <MarkdownView md={text} t={t} onOpenLink={onOpenLink} onQuote={onQuote} tagged />;
+  return (
+    <div className="vc-feedback">
+      {front ? view(front) : null}
+      {agent ? <details className="vc-feedback-agent"><summary>{`${agents} ${t.tags.agent}`}</summary>{view(agent)}</details> : null}
+    </div>
+  );
 }

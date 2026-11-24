@@ -12,6 +12,7 @@ import { PrCard, Run, StepHead, StopRun } from '../../step-parts';
 import type { StepProps } from '../../step-views';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+const act_ = act;   // `act` : aussi le nom des rappels du pont dans les cas ci-dessous
 
 const page = document.createElement('div');
 const root = createRoot(page);
@@ -66,8 +67,8 @@ it('conversation qui travaille : direct.elsewhere dégrise le bouton direct, « 
   }
 });
 
-const head = (step: { id: 'note' | 'forme' | 'invariants'; head?: string; facts?: string }, acts: VibeAction[] = []) => render(createElement(StepHead, { p: {
-  view: { lang: 'fr', actions: acts }, step: { status: 'current', facts: '', ...step }, t: t('fr'), busy: false, act: { run: () => {} },
+const head = (step: { id: 'note' | 'forme' | 'invariants'; head?: string; facts?: string }, acts: VibeAction[] = [], flow = 'review') => render(createElement(StepHead, { p: {
+  view: { lang: 'fr', flow, actions: acts }, step: { status: 'current', facts: '', ...step }, t: t('fr'), busy: false, act: { run: () => {} },
 } as unknown as StepProps }));
 
 it('un en-tête montre step.head, jamais step.facts ; head vide ou absent : rien', async () => {
@@ -81,13 +82,90 @@ it('un en-tête montre step.head, jamais step.facts ; head vide ou absent : rien
   }
 });
 
-it('Note, Forme, Invariants : ni champ, ni Joindre, ni micro, ni Envoyer ; leurs boutons d\'action restent', async () => {
+it('relecteur — Note, Forme, Invariants : ni champ, ni Joindre, ni micro, ni Envoyer ; leurs boutons d\'action restent, le badge sans clic ni ✓', async () => {
   for (const id of ['note', 'forme', 'invariants'] as const) {
     const acts = [action({ id: `${id}-a`, label: 'Faire', step: id, usesText: true, primary: true, needs: 'text' }), action({ id: `${id}-b`, label: 'Autre', step: id, usesText: true })];
     await head({ id }, acts);
     expect(page.querySelector('textarea, .vc-step-field, .vc-attach, .vc-mic, .vc-send')).toBeNull();
     expect([...page.querySelectorAll('.vc-step-acts .vc-run-label')].map((e) => e.textContent)).toEqual(['Faire', 'Autre']);
+    expect(page.querySelector('button.vc-badge')).toBeNull();
   }
+});
+
+// L'écran de l'essentiel : en créateur, le badge d'état porte le ✓ et se clique pour le retirer ou le rendre.
+const create = async (id: 'note' | 'forme' | 'invariants' | 'modules', check: unknown, over: { flow?: string; onSince?: () => void; head?: string } = {}) => {
+  const act = { run: vi.fn(), mark: vi.fn() };
+  await render(createElement('i'));   // démonté d'abord : rien ne passe d'un cas au suivant
+  await render(createElement(StepHead, { onSince: over.onSince, p: {
+    view: { lang: 'fr', flow: over.flow ?? 'create', actions: [action({ id: 'x', step: id, primary: true }), action({ id: 'y', step: id })] },
+    step: { id, status: 'done', facts: '', head: over.head ?? '', check }, t: t('fr'), busy: false, act,
+  } as unknown as StepProps }));
+  return act;
+};
+const badge = () => page.querySelector<HTMLElement>('.vc-badge')!;
+
+it('créateur, une étape avec des actions au relevé : aucun bouton d\'action', async () => {
+  for (const id of ['forme', 'invariants', 'modules'] as const) {
+    await create(id, { state: 'ok', now: 'h' });
+    expect(page.querySelector('.vc-step-acts, .vc-run')).toBeNull();
+  }
+});
+
+it('créateur, la Forme validée : « faite ✓ », un clic retire le ✓ de la Forme, rien d\'autre n\'est appelé', async () => {
+  for (const id of ['forme', 'invariants', 'modules'] as const) {
+    const act = await create(id, { state: 'ok', now: 'h' });
+    expect(badge().tagName).toBe('BUTTON');
+    expect(badge().textContent).toBe('faite ✓');
+    await act_(() => { badge().click(); });
+    expect(act.mark.mock.calls).toEqual([[id, null]]);
+    expect(act.run).not.toHaveBeenCalled();
+  }
+});
+
+it('créateur, le ✓ retiré : « faite · ✓ retiré », un clic le rend', async () => {
+  const act = await create('forme', { state: null, now: 'h', withdrawn: true });
+  expect(badge().textContent).toBe('faite · ✓ retiré');
+  await act_(() => { badge().click(); });
+  expect(act.mark.mock.calls).toEqual([['forme', 'ok']]);
+  expect(act.run).not.toHaveBeenCalled();
+});
+
+it('créateur, une étape faite pas validée (jamais, modifiée, à revoir) : le badge sans ✓, pas un bouton', async () => {
+  for (const check of [undefined, { state: null, now: 'h' }, { state: 'changed', now: 'n' }, { state: 'cascade', cause: 'note', now: null }]) {
+    const act = await create('modules', check);
+    expect(badge().tagName).toBe('SPAN');
+    expect(badge().textContent).toBe('faite');
+    await act_(() => { badge().click(); });
+    expect(act.mark).not.toHaveBeenCalled();
+    expect(act.run).not.toHaveBeenCalled();
+  }
+});
+
+it('créateur, la note : le badge sans clic ni ✓, même validée ; un clic ne valide rien', async () => {
+  const act = await create('note', { state: 'ok', now: 'h' });
+  expect(badge().tagName).toBe('SPAN');
+  expect(badge().textContent).toBe('faite');
+  await act_(() => { badge().click(); });
+  expect(act.mark).not.toHaveBeenCalled();
+  expect(act.run).not.toHaveBeenCalled();
+});
+
+it('relecteur : sa rangée d\'actions, son badge sans clic ni ✓, même validé', async () => {
+  const act = await create('forme', { state: 'ok', now: 'h' }, { flow: 'review' });
+  expect([...page.querySelectorAll('.vc-step-acts .vc-run-label')].map((e) => e.textContent)).toEqual(['Commiter', 'Commiter']);
+  expect(badge().tagName).toBe('SPAN');
+  expect(badge().textContent).toBe('faite');
+  await act_(() => { badge().click(); });
+  expect(act.mark).not.toHaveBeenCalled();
+});
+
+it('créateur, aux Modules : « modifiée depuis la validation » reste un bouton onSince, le badge sans ✓ ; sans onSince, un texte', async () => {
+  const since = vi.fn();
+  const act = await create('modules', { state: 'changed', now: 'n' }, { onSince: since, head: 'modifiée depuis la validation' });
+  expect(badge().tagName).toBe('SPAN');
+  await act_(() => { page.querySelector<HTMLButtonElement>('.vc-since')!.click(); });
+  expect(since).toHaveBeenCalledOnce();
+  expect(act.mark).not.toHaveBeenCalled();
 });
 
 const run = (a: Partial<VibeAction>, busy = false) => render(createElement(Run, { a: action(a), busy, onRun: () => {} }));

@@ -160,14 +160,43 @@ describe('le contrôle en trois points', () => {
     }
   });
 
-  it('la sortie preuve.md a son titre ; rien à prouver est dit', () => {
+  it('la sortie preuve.md a son titre', () => {
     expect([t('fr').outputs['preuve.md'], t('en').outputs['preuve.md']]).toEqual(['Preuve des invariants', 'Proof of the invariants']);
-    expect([t('fr').noProof, t('en').noProof]).toEqual(['rien à prouver', 'nothing to prove']);
+  });
+});
+
+// 0.16.0 : l'écran de l'essentiel (docs/tickets/feat/0.16.0-ecran-essentiel.md).
+describe('l\'écran de l\'essentiel', () => {
+  const same = (a: object, b: object): void => {
+    expect(Object.keys(a).sort()).toEqual(Object.keys(b).sort());
+    for (const k of Object.keys(a) as (keyof typeof a)[]) {
+      const [x, y] = [a[k], b[k]];
+      if (x && typeof x === 'object' && !Array.isArray(x)) same(x, y);
+      else expect(typeof y).toBe(typeof x);
+    }
+  };
+
+  it('le français et l\'anglais portent les mêmes libellés', () => {
+    same(t('fr'), t('en'));
   });
 
-  it('une étape validée par le système : « validée par le système » et son contrôle ; à la main : « validée »', () => {
-    expect([t('fr').stepCheck.system, t('en').stepCheck.system]).toEqual(['validée par le système', 'validated by the system']);
-    expect([t('fr').stepCheck.ok, t('en').stepCheck.ok]).toEqual(['validée', 'validated']);
-    for (const lang of ['fr', 'en'] as const) expect(Object.keys(t(lang).systemCheck).sort()).toEqual(['forme', 'invariants', 'modules']);
+  it('les libellés que plus rien n\'affiche sont retirés : rien à prouver, la validation par le système', () => {
+    for (const lang of ['fr', 'en'] as const) {
+      const s = t(lang);
+      expect(Object.keys(s)).not.toContain('noProof');
+      expect(Object.keys(s)).not.toContain('systemCheck');
+      expect(Object.keys(s)).not.toContain('ponytailWithChecks');
+      expect(Object.keys(s.stepCheck).sort()).toEqual(['cascade', 'changed', 'none', 'ok']);
+    }
+  });
+
+  it('un libellé du relecteur est toujours là : les commits, Relire, Structure · Code, la vue IDE · liste', () => {
+    for (const lang of ['fr', 'en'] as const) {
+      const s = t(lang);
+      expect(s.commitsOf(2)).toContain('commits');
+      for (const label of [s.reviewer, s.reviewerTitle, s.screenTitle, s.structure, s.code, s.ideView, s.listView, s.noChange, s.notInForme, s.diffTitle, s.githubTitle, s.askAgent]) {
+        expect(label.length).toBeGreaterThan(1);
+      }
+    }
   });
 });

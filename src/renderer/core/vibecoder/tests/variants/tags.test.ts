@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseInline, parseMarkdown, tagCover, tagOf, untag, type Inline } from 'core/vibecoder';
+import { parseInline, parseMarkdown, tagCover, tagOf, tagSplit, untag, type Inline } from 'core/vibecoder';
 
 const t = (text: string): Inline => ({ kind: 'text', text });
 const code = (text: string): Inline => ({ kind: 'code', text });
@@ -80,5 +80,74 @@ describe('tagCover', () => {
 
   it('une étiquette qui n\'est pas en tête d\'un titre ne couvre rien', () => {
     expect(cover('## A [toi]\n\n[agent] b')).toEqual([null, null]);
+  });
+});
+
+describe('tagSplit', () => {
+  const lost = (md: string) => {
+    const s = tagSplit(md);
+    const got = [s.toi, s.agent, s.rest].join('\n').split('\n').filter((l) => l.trim()).sort();
+    expect(got).toEqual(md.split(/\r?\n/).filter((l) => l.trim()).sort());
+  };
+
+  it('deux rubriques [toi] et une [agent] : chacune de son côté, un pour l\'agent', () => {
+    const md = '## [toi] A\n\nun\n\n## [agent] B\n\ndeux\n\n## [toi] C\n\ntrois';
+    expect(tagSplit(md)).toEqual({ toi: '## [toi] A\n\nun\n\n## [toi] C\n\ntrois', agent: '## [agent] B\n\ndeux', agents: 1, rest: '' });
+    lost(md);
+  });
+
+  it('une rubrique [toi] et son sous-titre sans étiquette : ensemble', () => {
+    const md = 'intro\n\n## [toi] A\n\nx\n\n### B\n\ny\n\n## [agent] C\n\nz';
+    expect(tagSplit(md)).toEqual({ toi: '## [toi] A\n\nx\n\n### B\n\ny', agent: '## [agent] C\n\nz', agents: 1, rest: 'intro' });
+    lost(md);
+  });
+
+  it('une liste de remarques, l\'étiquette après l\'adresse : chaque remarque de son côté, avec ses sous-points', () => {
+    const md = '- `a.ts:L1` [toi] une\n  - détail un\n- `b.ts:L2` [agent] deux\n  - détail deux\n- sans étiquette';
+    expect(tagSplit(md)).toEqual({
+      toi: '- `a.ts:L1` [toi] une\n  - détail un',
+      agent: '- `b.ts:L2` [agent] deux\n  - détail deux',
+      agents: 1,
+      rest: '- sans étiquette',
+    });
+    lost(md);
+  });
+
+  it('trois remarques [agent] : trois', () => {
+    const md = '- [agent] a\n- [agent] b\n- [agent] c';
+    expect(tagSplit(md)).toEqual({ toi: '', agent: md, agents: 3, rest: '' });
+  });
+
+  it('un fichier d\'une ligne sans étiquette : tout dans le reste', () => {
+    expect(tagSplit('Aligné.')).toEqual({ toi: '', agent: '', agents: 0, rest: 'Aligné.' });
+  });
+
+  it('une étiquette dans un bloc de code : pas lue', () => {
+    const md = '```\n## [agent] A\n- [toi] b\n```\n\n```md\n[toi] x\n```';
+    expect(tagSplit(md)).toEqual({ toi: '', agent: '', agents: 0, rest: md });
+  });
+
+  it('une rubrique [agent] : une, ses puces non comptées ; une puce [agent] sans rubrique : comptée', () => {
+    expect(tagSplit('## [agent] A\n\n- [agent] a\n- b').agents).toBe(1);
+    expect(tagSplit('## [toi] A\n\n- [agent] a\n- b')).toEqual({ toi: '## [toi] A\n\n- b', agent: '- [agent] a', agents: 1, rest: '' });
+  });
+
+  it('rien, ou des blancs : tout vide', () => {
+    expect(tagSplit('')).toEqual({ toi: '', agent: '', agents: 0, rest: '' });
+    expect(tagSplit('\n\n')).toEqual({ toi: '', agent: '', agents: 0, rest: '' });
+  });
+
+  it('un titre de même niveau sans étiquette ferme la rubrique ; un plus bas hérite', () => {
+    const md = '## [toi] A\n\n#### B\n\nx\n\n## C\n\ny';
+    expect(tagSplit(md)).toEqual({ toi: '## [toi] A\n\n#### B\n\nx', agent: '', agents: 0, rest: '## C\n\ny' });
+  });
+
+  it('un texte avant le premier titre, une liste imbriquée, un retour CRLF : rien de perdu', () => {
+    lost('avant\r\n\r\n## [toi] A\r\n\r\n- a\r\n  - b\r\n    - [agent] c\r\n\r\n## [agent] D\r\n\r\n1. x\r\n2. y');
+    lost('# T\n\n> [toi] cité\n\n| a | b |\n|---|---|\n| [toi] | 1 |\n\n---\n\n- [toi] fin');
+  });
+
+  it('une sous-remarque étiquetée reste avec son parent', () => {
+    expect(tagSplit('- [toi] a\n  - [agent] b')).toEqual({ toi: '- [toi] a\n  - [agent] b', agent: '', agents: 0, rest: '' });
   });
 });

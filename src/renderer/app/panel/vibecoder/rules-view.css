@@ -1,0 +1,17 @@
+/* rules-view : les règles du créateur, une section par ligne « → invariant ». Le pseudo-code et l'encart d'attention
+   viennent d'invariants-view.css. */
+.vc-rules { display: flex; flex-direction: column; gap: 14px; }
+.vc-rules-none { margin: 0; color: var(--vc-faint); font-size: 12.5px; }
+.vc-rule, .vc-rules-others { padding: 10px 14px; border: 1px solid var(--vc-sep); border-radius: var(--vc-radius); }
+.vc-rule-head { display: flex; align-items: flex-start; gap: 8px; }
+.vc-rule-line { flex: 1 1 240px; min-width: 0; margin: 0; color: var(--vc-text); font-size: 14px; font-weight: 600; line-height: 1.45; overflow-wrap: break-word; text-wrap: pretty; }
+.vc-rule-state { flex: none; padding: 1px 7px; border-radius: var(--vc-radius); background: var(--vc-hover); color: var(--vc-soft); font: 500 11.5px/1.5 var(--vc-sans); white-space: nowrap; }
+.vc-rule[data-state="proved"] .vc-rule-state { color: var(--vc-ok-text); }
+.vc-rule[data-state="unproved"] .vc-rule-state { background: var(--vc-warn-bg); color: var(--vc-warn); }
+.vc-rule-proof { margin: 6px 0 0; color: var(--vc-soft); font-size: 12.8px; line-height: 1.5; overflow-wrap: break-word; }
+.vc-rule[data-state="unproved"] .vc-rule-proof { color: var(--vc-warn); }
+.vc-rule-notest, .vc-rule-reading { margin: 8px 0 0; color: var(--vc-faint); font-size: 12.5px; }
+.vc-rule-case { margin-top: 10px; }
+.vc-rule-case-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.vc-rule-case-head h4 { flex: 1; min-width: 0; margin: 0; color: var(--vc-soft); font-size: 12.5px; font-weight: 500; overflow-wrap: break-word; }
+.vc-rules-others h3 { margin: 0; color: var(--vc-soft); font-size: 13px; font-weight: 600; }

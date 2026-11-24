@@ -11,12 +11,103 @@
  *  Aucun bouton d'action, aucune validation (ni cas par cas, ni Tout valider, ni Rien à écrire), aucun chiffre en tête,
  *  aucune barre, ni code ni éditeur ; sans ligne « → invariant » dans la note : une phrase, « La note ne demande aucun
  *  invariant ». L'en-tête d'étape (StepHead) est rendu par invariants-view.
- *  RulesView(p: StepProps): ReactNode
+ *  RulesView(p: StepProps): ReactNode ; Pseudo({ code }) : le pseudo-code coloré, repris par les cartes du relecteur
  *  Ne connaît pas : le pont (rappels passés), le relecteur (invariants-view garde sa vue), le brouillon de revue.
- *  Utilisé par : invariants-view. */
-import type { ReactNode } from 'react';
+ *  Utilisé par : invariants-view (RulesView ; Pseudo). */
+import { useMemo, type ReactNode } from 'react';
+import { pseudoLines, ruleGroups, type RuleCase, type RuleState } from 'core/vibecoder';
+import type { VibeLang } from 'technicals/bridge';
+import { FeedbackView } from './feedback-view';
+import { Icon, IconButton } from './icons';
+import { InlineMd } from './markdown-view';
 import type { StepProps } from './step-views';
+import './invariants-view.css';   // le pseudo-code (vc-pseudo, vc-tk-*) et l'encart d'attention, comme les cartes du relecteur
+import './rules-view.css';
 
-export function RulesView(_p: StepProps): ReactNode {
-  throw new Error('not implemented');
+const fr = {
+  state: { written: 'écrite', proved: 'prouvée', unproved: 'non prouvée' } as Record<RuleState, string>,
+  noTest: 'aucun test',
+  others: 'Autres tests',
+  reading: 'lecture en cours',
+  warning: 'Attention',
+  warningHelp: 'Attention : le relecteur pense que ce test ne vérifie pas vraiment ce qu\'il annonce (mock, boucle, assertion faible…). Ce n\'est pas un échec : une piste pour votre relecture.',
+  quote: 'Citer cette règle dans le champ',
+  none: 'La note ne demande aucun invariant.',
+};
+const S: Record<VibeLang, typeof fr> = {
+  fr,
+  en: {
+    state: { written: 'written', proved: 'proved', unproved: 'unproved' },
+    noTest: 'no test',
+    others: 'Other tests',
+    reading: 'reading in progress',
+    warning: 'Warning',
+    warningHelp: 'Warning: the reviewer thinks this test does not really check what it claims (mock, loop, weak assertion…). It is not a failure: a lead for your review.',
+    quote: 'Quote this rule in the field',
+    none: 'The note asks for no invariant.',
+  },
+};
+
+export function RulesView({ view, t, act }: StepProps): ReactNode {
+  const s = S[view.lang];
+  const { rules, others } = useMemo(() => ruleGroups(view), [view.note, view.invariants, view.proof]);
+  const align = view.outputs['align.md'];
+  const quote = view.actions.some((a) => a.id === 'comment') ? (q: string) => act.prefill('comment', q) : undefined;
+  const test = ({ file, index, view: c }: RuleCase) => {
+    const r = c.reading;
+    return (
+      <article key={`${file.id}:${index}`} className="vc-rule-case">
+        <div className="vc-rule-case-head">
+          <h4>{c.title}</h4>
+          <IconButton icon="open" label={t.openTitle} onClick={() => act.open(file.id, file.lines[index])} />
+        </div>
+        {r ? <Pseudo code={r.pseudo} /> : <p className="vc-rule-reading">{s.reading}</p>}
+        {r?.warning ? (
+          <div className="vc-attention" role="note" title={s.warningHelp}>
+            <span className="vc-attention-icon"><Icon name="warn" /></span>
+            <p><b>{s.warning}</b><InlineMd text={r.warning} t={t} onOpenLink={act.openLink} /></p>
+          </div>
+        ) : null}
+      </article>
+    );
+  };
+  return (
+    <div className="vc-rules">
+      {align ? <FeedbackView md={align.text} t={t} onOpenLink={act.openLink} onQuote={quote} /> : null}
+      {rules.length ? null : <p className="vc-rules-none">{s.none}</p>}
+      {rules.map((r, i) => (
+        <section key={i} className="vc-rule" data-state={r.state}>
+          <div className="vc-rule-head">
+            <h3 className="vc-rule-line">{r.line}</h3>
+            <span className="vc-rule-state">{s.state[r.state]}</span>
+            <IconButton icon="comment" label={s.quote} onClick={() => act.prefill('comment', r.line)} />
+          </div>
+          {r.detail ? <p className="vc-rule-proof">{r.detail}</p> : null}
+          {r.cases.length ? r.cases.map(test) : <p className="vc-rule-notest">{s.noTest}</p>}
+        </section>
+      ))}
+      {others.length ? (
+        <section className="vc-rules-others">
+          <h3>{s.others}</h3>
+          {others.map(test)}
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+// Le pseudo-code, ligne à ligne, coloré (pseudoLines) : le rendu des cartes du relecteur aussi (invariants-view l'importe d'ici).
+export function Pseudo({ code }: { code: string }) {
+  const lines = useMemo(() => pseudoLines(code), [code]);
+  return (
+    <pre className="vc-pseudo scroll">
+      <code>
+        {lines.map((l, i) => (
+          <span key={i} className="vc-pl" data-assert={l.assert || undefined}>
+            {l.parts.map((p, j) => (p.kind === 'text' ? p.text : <span key={j} className={`vc-tk-${p.kind}`}>{p.text}</span>))}
+          </span>
+        ))}
+      </code>
+    </pre>
+  );
 }

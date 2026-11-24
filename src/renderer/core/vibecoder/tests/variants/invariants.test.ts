@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { attentionQuote, caseLink, caseRange, caseSource, casesOf, replaceRange, withAttention, progress, pseudoLines } from 'core/vibecoder';
-import type { MustNotMark, ReadingCase, VibeNote, VibeTestFile } from 'technicals/bridge';
+import { attentionQuote, caseLink, caseRange, caseSource, casesOf, replaceRange, ruleGroups, withAttention, progress, pseudoLines } from 'core/vibecoder';
+import type { MustNotMark, ReadingCase, VibeNote, VibeProof, VibeTestFile, VibeView } from 'technicals/bridge';
 
 const reading = (title: string, warning: string | null = null): ReadingCase => ({ title, pseudo: 'it("x")', edges: [], guarantees: 'g', warning });
 const file = (over: Partial<VibeTestFile> = {}): VibeTestFile => ({
@@ -396,5 +396,115 @@ describe('caseLink', () => {
     const mustNot = [{ text: 'a → b ne change pas -> invariant', mark: 'invariant' as const }];
     expect(caseLink(read('a → b ne change pas'), mustNot).kind).toBe('note');
     expect(caseLink(read('invariant'), mustNot)).toEqual({ kind: 'none' });
+  });
+});
+
+// 0.16.0-ecran-essentiel : les tests rangés par ligne « → invariant » de la note.
+describe('ruleGroups', () => {
+  const A = 'ne jamais effacer le disque', B = 'ne rien envoyer à la page';
+  const inv = (text: string) => ({ text: `${text} → invariant`, mark: 'invariant' as const });
+  const note = (...mustNot: VibeNote['mustNot']) => ({ mustNot }) as VibeNote;
+  const cites = (title: string, guarantees: string): ReadingCase => ({ ...reading(title), guarantees });
+  const view = (mustNot: VibeNote['mustNot'] | null, invariants: VibeTestFile[], proof?: VibeProof): Pick<VibeView, 'note' | 'invariants' | 'proof'> =>
+    ({ note: mustNot && note(...mustNot), invariants, proof });
+  const titles = (cs: { file: VibeTestFile; index: number }[]) => cs.map((c) => c.file.cases[c.index]);
+  const f = (id: string, cases: string[], r: ReadingCase[] | null, over: Partial<VibeTestFile> = {}) =>
+    file({ id, cases, lines: cases.map((_, i) => i + 1), reading: r, ...over });
+
+  it('deux lignes → invariant : deux règles, dans l\'ordre de la note, leur texte tel qu\'écrit', () => {
+    const g = ruleGroups(view([inv(B), inv(A)], []));
+    expect(g.rules.map((r) => r.line)).toEqual([`${B} → invariant`, `${A} → invariant`]);
+  });
+
+  it('une ligne → variant suffit : pas une règle', () => {
+    const g = ruleGroups(view([inv(A), { text: 'autre → variant suffit', mark: 'variant' }, { text: 'sans marque', mark: null }], []));
+    expect(g.rules.map((r) => r.line)).toEqual([`${A} → invariant`]);
+  });
+
+  it('un cas dont la lecture cite une ligne : sous cette ligne, avec son rang, son fichier et sa vue', () => {
+    const a = f('a', ['x', 'y'], [cites('x', 'rien'), cites('y', `« ${A} »`)], { marks: { y: 'ok' } });
+    const [rule] = ruleGroups(view([inv(A)], [a])).rules;
+    expect(rule.cases).toHaveLength(1);
+    expect(rule.cases[0].file).toBe(a);
+    expect(rule.cases[0].index).toBe(1);
+    expect(rule.cases[0].view).toEqual(casesOf(a)[1]);
+  });
+
+  it('un cas qui cite deux lignes : sous chacune ; les cas dans l\'ordre des fichiers puis des cas', () => {
+    const a = f('a', ['a1', 'a2'], [cites('a1', `${A} et ${B}`), cites('a2', B)]);
+    const b = f('b', ['b1'], [cites('b1', A)]);
+    const g = ruleGroups(view([inv(A), inv(B)], [a, b]));
+    expect(g.rules.map((r) => titles(r.cases))).toEqual([['a1', 'b1'], ['a1', 'a2']]);
+    expect(g.others).toEqual([]);
+  });
+
+  it('une ligne qu\'aucun cas ne cite : gardée, sans cas', () => {
+    const a = f('a', ['x'], [cites('x', A)]);
+    const g = ruleGroups(view([inv(A), inv(B)], [a]));
+    expect(g.rules.map((r) => r.cases.length)).toEqual([1, 0]);
+  });
+
+  it('un cas pas lu, ou qui ne cite aucune ligne : dans les autres tests', () => {
+    const a = f('a', ['pas lu', 'rien cité', 'un I-3 seul', 'cité'], [cites('rien cité', 'autre chose'), cites('un I-3 seul', 'I-3'), cites('cité', A)]);
+    const g = ruleGroups(view([inv(A)], [a]));
+    expect(titles(g.others)).toEqual(['pas lu', 'rien cité', 'un I-3 seul']);
+    expect(titles(g.rules[0].cases)).toEqual(['cité']);
+  });
+
+  it('un cas dont la lecture est périmée : il garde sa ligne', () => {
+    const a = f('a', ['x'], [cites('x', A)], { staleCases: ['x'] });
+    const g = ruleGroups(view([inv(A)], [a]));
+    expect(titles(g.rules[0].cases)).toEqual(['x']);
+    expect(g.rules[0].cases[0].view.stale).toBe(true);
+  });
+
+  it('chaque cas de chaque fichier est dans une règle ou dans les autres', () => {
+    const a = f('a', ['1', '2', '3'], [cites('1', A), cites('2', 'rien')]);
+    const b = f('b', ['x', 'x'], [cites('x', B), cites('x', 'rien')]);
+    const g = ruleGroups(view([inv(A), inv(B)], [a, b]));
+    const all = [...new Set([...g.rules.flatMap((r) => r.cases), ...g.others])];
+    expect(all.map((c) => `${c.file.id}:${c.index}`).sort()).toEqual(['a:0', 'a:1', 'a:2', 'b:0', 'b:1']);
+  });
+
+  it('sans note : aucune règle, tous les cas dans les autres tests', () => {
+    const a = f('a', ['x', 'y'], [cites('x', A)]);
+    const g = ruleGroups(view(null, [a]));
+    expect(g.rules).toEqual([]);
+    expect(titles(g.others)).toEqual(['x', 'y']);
+    expect(ruleGroups(view([inv(A)], [])).others).toEqual([]);
+  });
+
+  describe('l\'état d\'après la preuve', () => {
+    const lineA = `${A} → invariant`, lineB = `${B} → invariant`;
+    const states = (g: ReturnType<typeof ruleGroups>) => g.rules.map((r) => [r.state, r.detail]);
+
+    it('pas de preuve au relevé, ou rien à prouver : chaque ligne « écrite »', () => {
+      expect(states(ruleGroups(view([inv(A), inv(B)], [])))).toEqual([['written', ''], ['written', '']]);
+      expect(states(ruleGroups(view([inv(A)], [], { state: 'none', lines: [] })))).toEqual([['written', '']]);
+    });
+
+    it('une ligne prouvée : « prouvée », le mutant en détail', () => {
+      const proof: VibeProof = { state: 'ok', lines: [{ line: lineA, proved: true, detail: 'le mutant : effacer sans vérifier' }] };
+      expect(states(ruleGroups(view([inv(A)], [], proof)))).toEqual([['proved', 'le mutant : effacer sans vérifier']]);
+    });
+
+    it('une ligne que la preuve remonte à l\'utilisateur : « non prouvée », sa raison en détail', () => {
+      const proof: VibeProof = { state: 'blocked', lines: [{ line: lineA, proved: true, detail: 'm' }, { line: lineB, proved: false, detail: 'aucun mutant ne tient' }] };
+      expect(states(ruleGroups(view([inv(A), inv(B)], [], proof)))).toEqual([['proved', 'm'], ['unproved', 'aucun mutant ne tient']]);
+    });
+
+    it('une ligne ajoutée après la preuve : « écrite », les autres gardent leur état', () => {
+      const lines = [{ line: lineA, proved: true, detail: 'm' }, { line: 'autre → invariant', proved: false, detail: 'pourquoi' }];
+      // absente des lignes du relevé
+      expect(states(ruleGroups(view([inv(A), inv(B), inv('autre')], [], { state: 'missing', lines: lines.slice(0, 1) })))).toEqual([['proved', 'm'], ['written', ''], ['written', '']]);
+      // présente, mais sans rubrique (proofOf la rend non prouvée, sans détail, l'état « missing »)
+      const proof: VibeProof = { state: 'missing', lines: [lines[0], { line: lineB, proved: false, detail: '' }, lines[1]] };
+      expect(states(ruleGroups(view([inv(A), inv(B), inv('autre')], [], proof)))).toEqual([['proved', 'm'], ['written', ''], ['unproved', 'pourquoi']]);
+    });
+
+    it('la ligne de la preuve se retrouve à l\'espace près', () => {
+      const proof: VibeProof = { state: 'ok', lines: [{ line: `  ${A}  →   invariant `, proved: true, detail: 'm' }] };
+      expect(states(ruleGroups(view([inv(A)], [], proof)))).toEqual([['proved', 'm']]);
+    });
   });
 });

@@ -14,9 +14,35 @@
  *  Ne connaît pas : le DOM, React, le pont, le bouton du moteur (breadcrumb le pose à côté).
  *  Utilisé par : app/panel/vibecoder (breadcrumb). */
 import type { VibeView } from 'technicals/bridge';
+import { t } from './i18n';
+import { parseCi } from './outputs';
+import { runningRuns } from './screen';
 
 export type StatusLine = { text: string; yours: boolean };
 
-export function statusLine(_view: VibeView): StatusLine | null {
-  throw new Error('not implemented');
+export function statusLine(view: VibeView): StatusLine | null {
+  if (view.flow === 'review' || view.error) return null;
+  const s = t(view.lang);
+  const l = s.statusLine;
+  const yours = (text: string): StatusLine => ({ text, yours: true });
+  const pause = view.pause ?? null;
+  if (!view.note?.filled) return yours(l.noNote);
+  if (view.questions.length) return yours(l.questions(view.questions.length));
+  if (view.note.mark !== 'ok') return yours(pause === 'note' ? s.pause.note : l.verifyNote);
+  if (pause?.startsWith('withdrawn:')) return yours(s.pause[pause]);
+  if (view.vibe) {
+    const run = runningRuns(view.runs ?? [])[0];
+    const step = view.steps.find((x) => x.status === 'current');
+    const progress = run?.progress ? s.runProgress(run.progress) : '';
+    const what = run ? s.statusLine.run(`${run.label}${progress ? ` · ${progress}` : ''}`) : step ? l.step[step.id] : l.working;
+    return { text: what, yours: false };
+  }
+  if (pause === 'invariants' || pause === 'modules') return yours(l.pause[pause]);
+  if (view.pr?.state === 'OPEN') {
+    const ci = parseCi(view.outputs['ci.md']?.text ?? '');
+    if (ci?.state === 'ok') return yours(l.green);
+    return { text: ci?.state === 'ko' ? l.ciFailed(ci.failed) : l.ciRunning, yours: false };
+  }
+  if (view.pr?.state === 'MERGED') return { text: l.merged, yours: false };
+  return yours(l.stopped);
 }

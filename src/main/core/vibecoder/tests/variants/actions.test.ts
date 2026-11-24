@@ -149,6 +149,11 @@ describe('buildMessage : ce qui manque refuse l\'action', () => {
     expect(build('{{note}}', {}, { ...ctx, view: { ...view, note: null } })).toEqual({ error: 'note' });
   });
 
+  it('{{files}} : un test lu dont la lecture est périmée est relu (le moteur le lance sans fichier)', () => {
+    const stale = { ...view, invariants: [{ ...view.invariants[1], stale: true }] };
+    expect(build('{{files}}', {}, { ...ctx, view: stale })).toEqual({ text: `src/core/tests/invariants/b.test.ts@${'b'.repeat(40)}` });
+  });
+
   it('{{files}} quand tout est lu : files', () => {
     expect(build('{{files}}', {}, { ...ctx, view: { ...view, invariants: view.invariants.slice(1) } })).toEqual({ error: 'files' });
   });

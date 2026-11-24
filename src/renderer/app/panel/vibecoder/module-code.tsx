@@ -47,6 +47,7 @@ import { fileParts, filesByDir, type Strings } from 'core/vibecoder';
 import type { VibeCode, VibeDiffStep, VibeLang, VibeModule } from 'technicals/bridge';
 import type { DiffRef } from 'core/vibecoder';
 import { DiffPicker } from './diff-picker';
+import { IconButton } from './icons';
 import { ModuleDiffView } from './module-diff-view';
 import { DraftEditor, useFileDraft } from './file-draft';
 import type { StepProps } from './step-views';
@@ -54,15 +55,15 @@ import type { StepProps } from './step-views';
 type Shown = 'file' | 'base' | 'head';
 type Mode = 'inline' | 'split';
 
-const S: Record<VibeLang, Record<Exclude<Shown, 'file'> | 'deleted', string>> = {
-  fr: { base: 'Diff depuis la base de la branche', head: 'Diff depuis le dernier commit', deleted: 'supprimé' },
-  en: { base: 'Diff since the branch base', head: 'Diff since the last commit', deleted: 'deleted' },
+const S: Record<VibeLang, Record<Exclude<Shown, 'file'> | 'deleted' | 'loading', string>> = {
+  fr: { base: 'Diff depuis la base de la branche', head: 'Diff depuis le dernier commit', deleted: 'supprimé', loading: 'Chargement du fichier…' },
+  en: { base: 'Diff since the branch base', head: 'Diff since the last commit', deleted: 'deleted', loading: 'Loading the file…' },
 };
 
 // Le choix d'affichage, commun à tous les fichiers tant que la page vit : ce qu'on change vaut pour les suivants.
 const choice: { shown: Shown; mode: Mode } = { shown: 'base', mode: 'inline' };
 
-export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, drafts, readOnly, noTree, tools, diff }: {
+export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, onOpen, drafts, readOnly, noTree, tools, diff, noEdit }: {
   m: VibeModule;
   readOnly?: string;               // le motif : le code ne s'édite pas, et son pied (Enregistrer, Abandonner) est masqué
   lang: VibeLang;
@@ -102,15 +103,15 @@ export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, 
   const refText = (r: DiffRef) => (r === 'validated' ? at?.validations?.[diff!.step] : at?.[r]) ?? '';
   // Avec diff, le menu de la vue décide (même depuis une base absente) ; sans, le sélecteur de ce composant.
   const ref: Shown | 'validated' = diff ? diff.shown : shown;
-  const dmode = diff ? diff.mode : mode;
+  const dmode = noEdit ? 'inline' : diff ? diff.mode : mode;   // noEdit : toujours en ligne
   // Le texte d'avant du diff affiché ; null : le fichier.
-  const before = ref !== 'file' && at && d.text != null && (diff || !(ref === 'base' && noBase)) ? refText(ref) : null;
+  const before = ref !== 'file' && (at || noEdit) && d.text != null && (diff || !(ref === 'base' && noBase)) ? refText(ref) : null;
 
   if (!open) return null;
   return (
     <>
       <div className="vc-mod-head">
-        {tools}
+        {noEdit ? null : tools}
         {noTree && files.length <= 1 ? null : <div className="vc-mod-tree">
           {filesByDir(files).map((g) => (
             <div key={g.dir}>
@@ -131,9 +132,11 @@ export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, 
           <DiffPicker<'base' | 'head'> options={(['base', 'head'] as const).map((k) => ({ key: k, label: S[lang][k], disabled: k === 'base' && noBase }))}
             shown={shown === 'base' && noBase ? 'file' : shown} onShown={setShown} mode={before != null ? mode : null} onMode={setMode} lang={lang} />
         ) : null}
+        {onOpen && file && !file.deleted ? <IconButton icon="open" label={t.openTitle} className="vc-mod-open" onClick={() => onOpen(file.id)} /> : null}
       </div>
       {file?.deleted ? (at ? <ModuleDiffView before={refText(diff && ref !== 'file' ? ref : 'base')} after="" path={file.path} mode={diff ? dmode : 'inline'} lang={lang} /> : null)
         : before != null && file ? <ModuleDiffView before={before} after={d.text ?? ''} path={file.path} mode={dmode} lang={lang} />
+        : noEdit ? (file ? <div className="vc-empty">{d.tooBig ? t.tooBig : S[lang].loading}</div> : null)
         : file ? <DraftEditor d={d} file={file} locked={locked} t={t} onQuote={onQuote} footInTools noFoot={!!readOnly} /> : null}
     </>
   );

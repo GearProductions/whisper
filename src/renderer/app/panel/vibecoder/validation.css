@@ -77,5 +77,3 @@
 
 /* Grisés (une lecture périmée : relire d'abord) : ni survol ni clic, comme un bouton indisponible. */
 .vc-verdict button:disabled, .vc-vbtn:disabled { opacity: 0.45; cursor: not-allowed; }
-/* Ce qui a contrôlé une étape validée par le système : à côté de son état, discret. */
-.vc-vby { color: var(--vc-faint); font: 12px/1.5 var(--vc-sans); }

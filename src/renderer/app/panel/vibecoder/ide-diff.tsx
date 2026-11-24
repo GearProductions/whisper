@@ -76,6 +76,14 @@ export type CreatorDiff = {
   toggleValidated(): void;                // depuis la validation, et retour ; sans validation, rien
 };
 
-export function useCreatorDiff(_view: VibeView, _step: VibeDiffStep): CreatorDiff {
-  throw new Error('not implemented');
+export function useCreatorDiff(view: VibeView, step: VibeDiffStep): CreatorDiff {
+  const [on, setOn] = useKept<boolean>('creator-diff-validated', false);
+  const offered = diffRefs(view, step).includes('validated');   // la validation a disparu : retour à la base
+  const shown = on && offered ? 'validated' : 'base';
+  return {
+    shown,
+    filter: (files) => diffTree(files, view, step, shown),
+    empty: S[view.lang][shown].empty,
+    toggleValidated: () => setOn(offered && !on),
+  };
 }

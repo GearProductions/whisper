@@ -34,7 +34,7 @@ const draw = (over: Partial<VibeView> = {}, mark: 'ok' | 'ko' | null = null, ext
     answers: {}, onAnswer: () => {}, code: null, drafts: [{}, () => {}], questions: {},
     act: { run: async (...a: unknown[]) => { calls.push(['run', ...a]); return true; }, mark: (...a: unknown[]) => { calls.push(['mark', ...a]); },
       set: () => {}, prefill: (...a: unknown[]) => { calls.push(['prefill', ...a]); }, open: () => {}, openLink: () => {},
-      follow: () => {}, save: async () => true, draft: (...a: unknown[]) => { calls.push(['draft', ...a]); },
+      follow: () => {}, save: async (...a: unknown[]) => { calls.push(['save', ...a]); return true; }, draft: (...a: unknown[]) => { calls.push(['draft', ...a]); },
       runOp: (...a: unknown[]) => { calls.push(['runOp', ...a]); } }, ...extra } as unknown as StepProps;
   root.render(createElement(NoteView, props));
 });
@@ -206,14 +206,63 @@ it('Relire : ni 💬, ni question, ni pastille, ni remarque sur un retrait', asy
   expect(gone.querySelector('button, textarea, .vc-mn, .vc-draft-list, .vc-remarks-muted')).toBeNull();
 });
 
-it('sans note : le texte d\'aide cite le champ de la conversation', async () => {
+// 0.16.0, l'écran de l'essentiel (docs/tickets/feat/0.16.0-ecran-essentiel.md) : en créateur, la note sans bouton d'action.
+const act2 = (id: string, extra: object = {}) => ({ id, label: id, hint: '', who: 'agent', models: [], model: null, kind: 'send', needs: 'none', disabled: null, hidden: false, step: 'note', ...extra });
+
+it('créateur, pas de note : une phrase qui renvoie à l\'agent, aucun bouton (Rédiger la note, Nouvelle demande restent lançables par la CLI)', async () => {
   await fresh();
-  await draw({ flow: 'create', note: null } as never);
-  expect(page.textContent).toContain('dans le champ de la conversation');
-  expect(page.textContent).not.toContain('ci-dessus');
-  await draw({ flow: 'create', lang: 'en', note: null } as never);
-  expect(page.textContent).toContain('in the conversation field');
-  expect(page.textContent).not.toContain('above');
+  const actions = [act2('note', { label: 'Rédiger la note', primary: true }), act2('new-request', { label: 'Nouvelle demande', step: null }), act2('comment', { kind: 'prefill' })];
+  await draw({ flow: 'create', note: null, actions } as never);
+  expect(page.textContent).toContain('Demandez la note à l\'agent, dans la conversation');
+  expect(page.querySelector('.vc-invite')).not.toBeNull();
+  expect(page.querySelector('button')).toBeNull();
+  expect(page.textContent).not.toMatch(/Rédiger la note|Nouvelle demande/);
+  await draw({ flow: 'create', lang: 'en', note: null, actions } as never);
+  expect(page.textContent).toContain('Ask the agent for the note, in the conversation');
+  expect(page.querySelector('button')).toBeNull();
+});
+
+it('relecteur, pas de note : l\'aide de la PR, aucun bouton, comme avant', async () => {
+  await fresh();
+  await draw({ flow: 'review', note: null, actions: [act2('note', { label: 'Rédiger la note' })] } as never);
+  expect(page.textContent).toContain('Pas de note de ticket dans cette PR');
+  expect(page.querySelector('button')).toBeNull();
+});
+
+it('créateur, une note : Modifier reste ; Enregistrer enregistre la note modifiée', async () => {
+  await fresh();
+  const code = { id: 'n', text: now, time: 1 };
+  const drafts = [{ 'docs/tickets/x.md': { text: `${now}- ajouté\n`, base: 1 } }, () => {}];
+  await draw({ flow: 'create', note: changedNote({ before: null }) } as never, null, { code, drafts } as never);
+  expect(button('Modifier')).toBeDefined();
+  await act(() => button('Modifier')!.click());
+  calls.length = 0;
+  await act(() => button('Enregistrer')!.click());
+  expect(calls).toEqual([['save', 'n', `${now}- ajouté\n`]]);
+});
+
+it('créateur : Vérifier et Valider la note restent, avec des actions de l\'écran en plus', async () => {
+  await fresh();
+  const actions = [act2('note'), act2('comment', { kind: 'prefill' })];
+  await draw({ flow: 'create', actions, note: changedNote({ before: null, verified: 'clean' }) } as never);
+  expect([...page.querySelectorAll('.vc-note-mark button')].map((b) => b.textContent)).toEqual(['Vérifier', 'Valider la note']);
+});
+
+it('créateur, des questions : le questionnaire reste, avec ou sans note', async () => {
+  await fresh();
+  const questions = [{ n: 1, text: 'Q1 ?', options: ['oui'] }, { n: 2, text: 'Q2 ?', options: [] }];
+  await draw({ flow: 'create', note: changedNote({ before: null }), questions } as never);
+  expect(page.querySelectorAll('.vc-q')).toHaveLength(2);
+  await draw({ flow: 'create', note: null, questions } as never);
+  expect(page.querySelectorAll('.vc-q')).toHaveLength(2);
+});
+
+it('créateur, la bulle sur une ligne de la note : elle la cite dans le champ de la conversation', async () => {
+  await fresh();
+  await draw({ flow: 'create', note: changedNote({ before: null }) } as never);
+  calls.length = 0;
+  await act(() => button('Citer dans le champ', items()[0])!.click());
+  expect(calls).toEqual([['prefill', 'comment', 'premier point']]);
 });
 
 it('le retrait a sa feuille de style : rouge, barré', () => {

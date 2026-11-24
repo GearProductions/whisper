@@ -1,29 +1,16 @@
-/** validation — les validations de l'utilisateur à l'écran : l'état et les
- *  boutons de celle de la note, de la forme, des invariants, des modules (note
- *  0.15.0-ecran-statuts : Valider les invariants, Valider les modules) ou de « Rien à écrire » (étape
- *  Invariants) (Valider ; validée et Annuler ; modifiée depuis et Revalider ;
- *  Relire : Valider ou À revoir), chaque libellé derrière son icône (Icon ok /
- *  ko / warn), le verdict d'un cas d'invariant (deux badges écrits, Validé et
- *  À revoir, gris ; celui donné pressé, allumé de sa couleur, un second clic
- *  l'annule) ; CaseVerdict sert à tout cas ou commit (il ne sait rien d'un
- *  invariant). Sur un « À revoir », onRemark (facultatif) ajoute le bouton
+/** validation — les validations de l'utilisateur à l'écran : celle de la note en créateur, et le verdict du relecteur.
+ *  Créateur (note 0.16.0-ecran-essentiel) : MarkControl ne sert plus qu'à la note. Vérifier (un bouton ordinaire, couleur
+ *  neutre, sans coche) ne fait qu'appeler onCheck, toujours là, relançable ; la course de la vérification (`run`) à côté de
+ *  lui, comme celle d'un bouton d'action (RunOn, step-parts : « en cours » et ⏹ → run.onStop ; « en attente » tant qu'elle
+ *  est en file). Valider la note (ou Revalider, modifiée depuis la validation), le bouton vert, onMark('ok') : montré
+ *  seulement quand la dernière vérification n'a rien trouvé (verified 'clean' ou 'edited'), absent sinon (jamais grisé) ;
+ *  'edited' : une ligne dit que la note a changé depuis la vérification. Validée : « Note validée » et Annuler. Valider ne
+ *  lance aucune vérification, Vérifier ne valide rien. La Forme, les invariants, les modules et « Rien à écrire » n'ont
+ *  plus ni bouton ni état ici (MarkControl rend rien) : leur ✓ est sur le badge de l'étape (StepHead, step-parts).
+ *  Le relecteur, inchangé : MarkControl (review) Valider et À revoir, chaque libellé derrière son icône (Icon ok / ko /
+ *  warn) ; CaseVerdict, le verdict d'un cas ou d'un commit (deux badges écrits, Validé et À revoir, gris ; celui donné
+ *  pressé, allumé de sa couleur, un second clic l'annule). Sur un « À revoir », onRemark (facultatif) ajoute le bouton
  *  « Ajouter une remarque au brouillon » : il ne fait qu'appeler onRemark.
- *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : la note en créateur (onCheck), deux gestes.
- *  Vérifier (l'ancien Revérifier : un bouton ordinaire, couleur neutre, sans coche) ne fait qu'appeler onCheck, toujours
- *  là, relançable ; la course de la vérification (`run`) à côté de lui, comme celle d'un bouton d'action (RunOn,
- *  step-parts : « en cours » et ⏹ → run.onStop ; « en attente » tant qu'elle est en file). Valider la note (ou
- *  Revalider, modifiée depuis la validation), le bouton vert, onMark('ok') : montré seulement quand la dernière
- *  vérification n'a rien trouvé (verified 'clean' ou 'edited'), absent sinon (jamais grisé) ; 'edited' : une ligne dit
- *  que la note a changé depuis la vérification, Valider la note reste, Vérifier à côté. Valider ne lance aucune
- *  vérification, Vérifier ne valide rien. Une étape (forme, invariants, modules) en créateur : son état seul quand
- *  elle est validée — « validée par le système » et ce qui l'a contrôlée (by: 'system' ; forme : les squelettes
- *  posés ; invariants : l'alignement ; modules : la conformité et la preuve par mutation), « validée » à la main
- *  sinon — ; Valider, Revalider et Annuler restent, en discret (un bouton sans couleur ni coche, jamais mis en avant,
- *  jamais grisé). Le relecteur : Valider et À revoir, comme avant.
- *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : en créateur, MarkControl ne sert plus qu'à la note (Vérifier, Valider la
- *  note, « Note validée » et Annuler) ; la Forme, les invariants, les modules et « Rien à écrire » n'ont plus de
- *  bouton ni d'état ici : leur ✓ est sur le badge de l'étape (StepHead, step-parts), qui le retire ou le rend. Le
- *  relecteur (Valider, À revoir, CaseVerdict) : inchangé.
  *  Ne connaît pas : le pont (rappels passés), le brouillon, ce que porte le cas ; de step-parts, que RunOn.
  *  Utilisé par : note-view ; forme-view, invariants-view (le relecteur). */
 import { t } from 'core/vibecoder';
@@ -84,7 +71,7 @@ const S: Record<VibeLang, typeof fr> = {
 // run : la course design-check de la note (en cours, attend une autorisation, arrêtée ; queued : en file) ; absent : aucune.
 type DesignRun = { state: 'running' | 'asking' | 'stopped' | 'queued'; onStop?(): void };
 type MarkProps = { what: What; state: VibeMarkState; review: boolean; lang: VibeLang; onMark(v: Verdict): void; onRemark?(): void; run?: DesignRun;
-  by?: 'system';      // une étape validée par le système (VibeStepCheck.by) ; absent : à la main
+  by?: 'system';      // plus lu (la ✓ d'une étape est sur son badge) ; gardé pour les appelants d'avant
   onCheck?(): void;   // la note en créateur : Vérifier (lance la vérification de conception, ne valide rien) ; absent : pas de Vérifier
   verified?: VibeNoteCheck | null;   // avec onCheck : ce qu'a rendu la dernière vérification ; null ou absent : pas de Valider la note
 };
@@ -95,21 +82,17 @@ function Course({ run, lang }: { run?: DesignRun; lang: VibeLang }) {
   return run.state === 'queued' ? <span className="vc-run-on">{S[lang].queued}</span> : <RunOn state={run.state} t={t(lang)} onStop={run.onStop} />;
 }
 
-// La validation de la note, d'une étape ou de « Rien à écrire ». Relire : un verdict, Valider ou À revoir.
-// Une étape en créateur (forme, invariants, modules) : Valider en discret, jamais grisé ; validée par le système, elle le dit.
-export function MarkControl({ what, state, review, lang, onMark, onRemark, run, by, onCheck, verified }: MarkProps) {
+// La validation de la note en créateur (Vérifier, Valider la note) ; relire : un verdict, Valider ou À revoir, pour toute étape.
+// En créateur, une autre étape que la note : rien.
+export function MarkControl({ what, state, review, lang, onMark, onRemark, run, onCheck, verified }: MarkProps) {
+  if (!review && what !== 'note') return null; // en créateur, seule la note se valide ici ; les étapes ont leur ✓ sur le badge (StepHead)
   const s = S[lang];
-  const tt = t(lang);
-  const quiet = !review && what !== 'note' && what !== 'nothing';
   const label = state === 'changed' ? s.revalidate : s.validate[what];
   const refuse = review ? <button type="button" className="vc-vbtn" data-v="ko" title={s.refuseTitle} onClick={() => onMark('ko')}><Icon name="ko" />{s.refuse}</button> : null;
   if (state === 'ok' || state === 'ko') {
-    const step = what === 'forme' || what === 'invariants' || what === 'modules' ? what : null;
-    const system = state === 'ok' && by === 'system' && step !== null;
     return (
       <span className="vc-vmark">
-        <span className="vc-vstate" data-state={state}><Icon name={state} />{system ? tt.stepCheck.system : state === 'ok' ? s.done[what] : s.refused[what]}</span>
-        {system ? <span className="vc-vby">{tt.systemCheck[step!]}</span> : null}
+        <span className="vc-vstate" data-state={state}><Icon name={state} />{state === 'ok' ? s.done[what] : s.refused[what]}</span>
         {state === 'ko' && onRemark ? <button type="button" className="vc-vundo" onClick={onRemark}>{s.remark}</button> : null}
         <button type="button" className="vc-vundo" title={s.undoTitle} onClick={() => onMark(null)}>{s.undo}</button>
       </span>
@@ -117,8 +100,8 @@ export function MarkControl({ what, state, review, lang, onMark, onRemark, run, 
   }
   const noteCheck = onCheck && !review && what === 'note'; // la note en créateur : Vérifier, puis Valider la note si la vérification n'a rien trouvé
   const validate = (
-    <button type="button" className={quiet ? 'vc-vbtn vc-vbtn-plain' : 'vc-vbtn'} data-v={quiet ? undefined : 'ok'} title={s.validateTitle} onClick={() => onMark('ok')}>
-      {quiet ? null : <Icon name="ok" />}{label}
+    <button type="button" className="vc-vbtn" data-v="ok" title={s.validateTitle} onClick={() => onMark('ok')}>
+      <Icon name="ok" />{label}
     </button>
   );
   return (

@@ -40,6 +40,7 @@ export function EcranSection(p: StepProps) {
   const { view, t, act, busy } = p;
   const s = S[view.lang];
   const action = view.actions.find((a) => a.id === 'screen');
+  const reviewer = view.flow === 'review';
   const plan = view.outputs['ecran.md'];
   const screen = view.screen ?? [];
   // Ce qu'on vient de cocher ou décocher, jusqu'au relevé suivant.
@@ -55,12 +56,13 @@ export function EcranSection(p: StepProps) {
     setClicked({ time: view.time, done: { ...flipped, ...Object.fromEntries(boxes.map((_, i) => [i, true])) } });
     boxes.forEach((b, i) => { if (!b) act.mark(`check:${i}`, 'ok'); });
   };
+  if (!plan && !reviewer) return null;   // le créateur : le plan, quand l'agent l'a écrit, jamais une invitation
   return plan ? (
     <OutputCard className="vc-plan" title={t.screenTitle} file="ecran.md" time={plan.time} t={t}
       tools={<>
         {boxes.length ? <span className="vc-count">{s.done(ticked, boxes.length)}</span> : null}
         {ticked < boxes.length ? <button type="button" className="vc-vbtn" title={s.allTitle} onClick={tickAll}><Icon name="ok" />{s.all}</button> : null}
-        <Run a={action} busy={busy} tone="ghost" label={t.rerun} onRun={() => act.run('screen')} />
+        {reviewer ? <Run a={action} busy={busy} tone="ghost" label={t.rerun} onRun={() => act.run('screen')} /> : null}
       </>}>
       {boxes.length ? (
         <>

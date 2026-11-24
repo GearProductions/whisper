@@ -182,7 +182,7 @@ export function buildMessage(def: ActionDef, args: VibeArgs, ctx: MessageContext
     note: () => view.note?.path ?? fail('note'),
     ref: () => (view.flow !== 'review' ? 'WORKTREE' : prNumber(view.pr?.number) ? 'HEAD' : fail('pr')),
     files: () => {
-      const files = args.file === undefined ? view.invariants.filter((f) => f.reading === null)
+      const files = args.file === undefined ? view.invariants.filter((f) => f.reading === null || f.stale)
         : args.file === '*' ? view.invariants : view.invariants.filter((f) => f.id === args.file);
       return files.length ? files.map((f) => `${f.path}@${f.blob}`).join(' ') : fail('files');
     },
