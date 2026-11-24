@@ -91,7 +91,9 @@
 ## Ne pas modifier sans demander
 
 - `**/tests/invariants/**` : protégés. Si un invariant échoue, corriger le
-  code, pas le test.
+  code, pas le test. Une preuve (*Prouver les invariants*) et l'alignement ne
+  corrigent que les fichiers de tests d'invariants que leur ticket crée : un
+  test resté vert dans un fichier d'avant remonte à l'utilisateur.
 - `src/preload/` et `src/shared/bridge/channels.ts` : les ponts et leurs
   canaux, frontière de sécurité.
 
