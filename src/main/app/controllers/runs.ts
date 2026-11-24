@@ -45,10 +45,10 @@
  *  La course Commit (commit) : l'appli efface <sorties>/commit.md à sa fin si le commit est passé (HEAD a bougé depuis son départ ;
  *  dropCommitMessage) — le skill ne l'efface pas.
  *  Les deux rythmes (note 0.16.0-controle-en-trois-points), en mémoire avec le mode : expressOn (le rythme express de
- *  l'agent ; absent : par défaut), setExpress (le régler : la bannière) ; vibeStart(agent, released) retient la pause
+ *  l'agent ; absent : par défaut), setExpress (le régler : l'interrupteur Express du fil d'Ariane) ; vibeStart(agent, released) retient la pause
  *  d'où l'utilisateur relance (celle du dernier relevé : elle n'est plus tenue) ; pauseVibe(agent, view), à chaque
  *  relevé de l'agent (controllers/vibecoder, panneau visible ou non) : le mode en cours et la pause du relevé tenue
- *  (holdsPause de core/vibecoder : rythme, pause relancée) → arrêté comme par la bannière (vibeStop : la file jetée,
+ *  (holdsPause de core/vibecoder : rythme, pause relancée) → arrêté comme par le bouton Arrêter du moteur (vibeStop : la file jetée,
  *  la porte agent refuse halted, la course en cours finit) ; rien d'autre ne tient une pause. La pause d'un ✓ d'étape
  *  retiré à la main ('withdrawn:<étape>') passe par là comme celle de la note sans son ✓ : tenue en express aussi,
  *  relancée ou pas, sans mécanisme de plus. Le rythme n'est jamais
@@ -89,7 +89,7 @@ import { EMPTY_LOG, runProgress, unreadAgents, type AgentConfig, type RunRights 
 import { agentList, vibeLang, type Config } from 'core/config';
 import type { PreparedImage } from 'core/conversation';
 import {
-  blobSha, cutCommands, cutLine, denialLine, endNotice, fileDecision, GRACE_MS, headField, holdsPause, isInvariantTest, listSkill, LOCKING,
+  cutCommands, cutLine, denialLine, endNotice, fileDecision, GRACE_MS, headField, holdsPause, isInvariantTest, listSkill, LOCKING,
   lockCode, lockText, nextVibeMode, ownRun, parseQuestions, runEnv, runKey, runRules, skillModel, tmpLine, touched, touchedLine, unreadLine,
   noticedOnShow, remainingModules, runPhase, runSignal, runTasks, workState, type ActionDef, type Run, type RunState, type VibeMode, type WorkState,
 } from 'core/vibecoder';
@@ -98,7 +98,7 @@ import { loadConfig, vibeActions, vibeOutDir, vibePluginDir } from 'app/settings
 import { agents, CLAUDE_MISSING, isBusy, launchOptions, pushAgents, sendToAgent } from './agents';
 import { promptPrefix } from './processes';
 import { dropRunTmp, openRunTmp, watchRunTmp } from './run-tmp';
-import { directLocks, lastView, refreshVibe, startAction, surveyAgent } from './vibecoder';
+import { bigBlob, directLocks, lastView, refreshVibe, startAction, surveyAgent } from './vibecoder';
 
 /** La fin d'une course, ce que rend run.wait. */
 export type RunEnd = { action: string; state: 'done' | 'failed' | 'stopped'; reply: string };
@@ -107,11 +107,11 @@ export type RunEnd = { action: string; state: 'done' | 'failed' | 'stopped'; rep
 // `tasks` (ses tâches de fond comptées au dernier changement, runTasks), `forked` (son skill est en sous-contexte), `grace` (le minuteur du délai de grâce, s'il court),
 // `noticed` (l'état où l'utilisateur l'a vue, null : jamais), `tmp` (son dossier temporaire et l'arrêt de sa surveillance, tant qu'il existe).
 // `head` (la course Commit) : le dossier de l'agent et son HEAD au départ, d'où se voit que le commit est passé.
-// `guard` (les courses align et prove) : ce qu'elle ne doit pas changer, relevé à son départ ; `closing` : sa fin attend la
-// comparaison ; `line` : la ligne en tête de sa réponse quand elle a touché ce qu'elle ne devait pas (touchedLine).
+// `guard` (les courses align et prove) : ce qu'elle ne doit pas changer, relevé à son départ ; `closing` : la comparaison de sa fin, en cours (sa fin et son arrêt l'attendent) ; `line` : la ligne
+// en tête de sa réponse quand elle a touché ce qu'elle ne devait pas (touchedLine).
 type Live = Run & {
   reads: boolean; seen: boolean; forked: boolean; tasks: number; noticed: RunState | null; grace?: NodeJS.Timeout; tmp?: { dir: string; stop: () => void };
-  head?: { dir: string; before: Promise<string | null> }; guard?: Guard; closing?: boolean; line?: string;
+  head?: { dir: string; before: Promise<string | null> }; guard?: Guard; closing?: Promise<string>; line?: string;
 };
 
 const stopGrace = (run: Live) => { clearTimeout(run.grace); run.grace = undefined; };
@@ -129,8 +129,6 @@ function dropTmp(run: Live) {
 // d'invariants du départ de la branche que le contrôle des fichiers lui refuse ; null : illisible, elle ne part pas).
 type Guard = { erase: string; frozen?: Promise<string[] | null>; before: Promise<WorkState | null>; after: () => Promise<WorkState | null> };
 
-const fileHash = (dir: string, rel: string) => { try { return blobSha(fs.readFileSync(path.join(dir, rel))); } catch { return null; } };
-
 // L'état du dossier de travail et de l'index (workState : HEAD, status, diff --cached) ; null : git ne répond pas.
 // ponytail: l'empreinte de chaque fichier changé ou pas suivi est lue de façon synchrone ; borné par le dossier, à passer en flux si un projet en change des milliers.
 async function readWorkState(dir: string): Promise<WorkState | null> {
@@ -138,7 +136,7 @@ async function readWorkState(dir: string): Promise<WorkState | null> {
   const [head, status, staged] = await Promise.all([
     git(['rev-parse', 'HEAD']), git(['status', '--porcelain', '-z', '--untracked-files=all']), git(['diff', '--cached', '--raw', '--no-abbrev', '-z']),
   ]);
-  return head === null || status === null || staged === null ? null : workState({ head, status, staged }, (rel) => fileHash(dir, rel));
+  return head === null || status === null || staged === null ? null : workState({ head, status, staged }, (rel) => bigBlob(dir, rel));
 }
 
 // Les tests d'invariants qui existaient au départ de la branche : les fichiers du commit où elle part de sa base (git diff
@@ -158,7 +156,7 @@ function guardOf(id: string, dir: string): Guard | undefined {
   if (id === 'prove') return { erase: 'preuve.md', before: readWorkState(dir), after: () => readWorkState(dir) };
   if (id !== 'align') return undefined;
   const frozen = startTests(dir);
-  const state = async () => { const files = await frozen; return files && Object.fromEntries(files.map((f) => [f, fileHash(dir, f) ?? '-'])); };
+  const state = async () => { const files = await frozen; return files && Object.fromEntries(files.map((f) => [f, bigBlob(dir, f) ?? '-'])); };
   return { erase: 'align.md', frozen, before: state(), after: state };
 }
 
@@ -175,6 +173,11 @@ async function checkGuard(agentId: string, g: Guard): Promise<string> {
 const FROZEN_FAILED = {
   fr: 'Les tests d’invariants du départ de la branche n’ont pas pu être lus (git) : l’action ne part pas.',
   en: 'The branch’s starting invariant tests could not be read (git): the action does not start.',
+};
+
+const UNREADABLE = {
+  fr: 'L’état du dossier de travail n’a pas pu être lu (git) : l’action ne part pas.',
+  en: 'The state of the working folder could not be read (git): the action does not start.',
 };
 
 const all = new Map<string, Map<string, Live>>();                       // par agent, par clé : la dernière course
@@ -358,8 +361,9 @@ export function startRun(
   // Son état relevé (guard.before) et la liste de ses fichiers gelés lue avant que son message parte ; illisible : elle ne part pas.
   const ready = async () => {
     const frozen = await run.guard?.frozen;
-    await run.guard?.before;
+    const before = await run.guard?.before;
     if (frozen === null) { run.guard = undefined; throw new Error(FROZEN_FAILED[lang]); }
+    if (before === null) { run.guard = undefined; throw new Error(UNREADABLE[lang]); }
     return frozen;
   };
   agents.close(entry.id).then(() => agents.forgetReply(entry.id)).then(ready).then((frozen) => agents.send(entry, message, {
@@ -413,8 +417,8 @@ function finish(agentId: string, run: Live, failure?: string) {
   // arrêtée ou oubliée entre-temps ne finit pas une seconde fois.
   if (run.guard) {
     if (run.closing) return;
-    run.closing = true;
-    void checkGuard(agentId, run.guard).then((line) => {
+    run.closing = checkGuard(agentId, run.guard);
+    void run.closing.then((line) => {
       run.guard = undefined;
       run.line = line;
       if (all.get(agentId)?.get(run.key) === run && (run.state === 'running' || run.state === 'asking')) { finish(agentId, run, failure); refreshVibe(); }
@@ -482,12 +486,12 @@ export function vibeStart(agent: Pick<AgentConfig, 'id'>, released?: VibePause |
 // Le rythme express de l'agent (aucune pause) ; non : le rythme par défaut.
 export const expressOn = (agentId: string) => express.has(agentId);
 
-// La bannière : passer en express (true) ou revenir au rythme par défaut (false).
+// L'interrupteur Express du fil d'Ariane : passer en express (true) ou revenir au rythme par défaut (false).
 export function setExpress(agent: Pick<AgentConfig, 'id'>, on: boolean) {
   if (on) express.add(agent.id); else express.delete(agent.id);
 }
 
-// À chaque relevé de l'agent : le mode en cours et la pause du relevé tenue (holdsPause) → arrêté comme par la bannière (vibeStop).
+// À chaque relevé de l'agent : le mode en cours et la pause du relevé tenue (holdsPause) → arrêté comme par le bouton Arrêter du moteur (vibeStop).
 // La pause d'où l'on a relancé est oubliée dès que le relevé en est sorti : y revenir la tient de nouveau.
 export function pauseVibe(agent: Pick<AgentConfig, 'id'>, view: Pick<VibeView, 'pause'>) {
   const at = view.pause ?? null;
@@ -557,9 +561,9 @@ export async function runOp(agent: AgentConfig, id: string, op: VibeRunOp): Prom
     Object.assign(run, { state: 'stopped', end: Date.now() });   // avant interrupt : sa fin n'en est pas une
     agents.interrupt(entry);
     // Gardée : son état comparé d'abord, sa réponse le dit (ce qui l'attend la reçoit ensuite).
-    if (run.guard && !run.closing) {
-      run.closing = true;
-      void checkGuard(agent.id, run.guard).then((line) => {
+    if (run.guard) {
+      run.closing ??= checkGuard(agent.id, run.guard);   // la comparaison de fin déjà en cours : on l'attend
+      void run.closing.then((line) => {
         run.guard = undefined;
         if (line) run.reply = `${line}\n${run.reply}`;
         settle(agent.id, run.id, { action: run.id, state: 'stopped', reply: run.reply });

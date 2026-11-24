@@ -113,7 +113,7 @@ it('Moteur : dans le fil d\'Ariane, créateur seulement ; Reprendre lance l\'act
   const a = { follow: noop, refresh: noop, run, set };
   await draw({ view: noteView(), acts: a });
   const vibe = page.querySelector<HTMLButtonElement>('.vc-crumbs [data-tone="vibe"]')!;
-  expect(vibe.textContent).toBe(fr.resume);
+  expect(vibe.textContent).toBe('Reprendre');
   expect(page.querySelectorAll('.vc-step-acts [data-tone="vibe"]')).toHaveLength(0);
   await act(() => { vibe.click(); });
   expect(run).toHaveBeenCalledWith('vibe', {});          // sans texte ni pièces : l'action n'emporte aucun champ
@@ -279,7 +279,7 @@ it('Reprendre à une pause : le bouton du fil lance l\'action vibe', async () =>
   const run = vi.fn(async () => true);
   await draw({ view: noteView({ pause: 'invariants' }), acts: { follow: noop, refresh: noop, set: noop, run } });
   const b = page.querySelector<HTMLButtonElement>('.vc-crumbs [data-tone="vibe"]')!;
-  expect(b.textContent).toBe(fr.resume);
+  expect(b.textContent).toBe('Reprendre');
   await act(() => { b.click(); });
   expect(run).toHaveBeenCalledWith('vibe', {});
 });

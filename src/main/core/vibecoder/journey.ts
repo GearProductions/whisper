@@ -65,7 +65,7 @@
  *  ses commits sont ceux hors de lui ; la note ignorée par git, note.ignored : le plus ancien de la branche, et la
  *  note n'est jamais attendue dans un commit — ni noteChanged, ni la case « note commitée » d'après elle, qui suit
  *  ce premier commit ; note 0.16.0-notes-hors-projet) : begun, Générer les modules, stillOk en dépendent, pas touched (note
- *  0.15.0-skills-humain-ia) ; la note vérifiée (checked : la marque design de sa note, designChecked ; verified :
+ *  0.15.0-skills-humain-ia) ; la note vérifiée (verified :
  *  ce qu'a rendu sa dernière vérification, designState de marks, créateur seul), Vérifier la
  *  conception proposée dès que la note est rédigée (le contrôle en trois points, plus bas) ; un commit porte sa marque « commit:<hash> »
  *  (mark, absente : aucune ; T-23). Une action directe faite et dont rien n'a changé depuis ne ferait rien de
@@ -126,7 +126,7 @@ import type {
 } from 'shared/bridge';
 import { DIRECT_ACTIONS, DIRECT_ONLY, EFFORT_LEVELS, prNumber, SKILL_MODELS, templateVars, type ActionDef } from './actions';
 import { caseMarkState, caseTarget } from './case-marks';
-import { designChecked, designState, markState, withdrawn, type Marks } from './marks';
+import { designState, markState, withdrawn, type Marks } from './marks';
 import { hasInvariantLines, noteDesign, parseNote } from './note';
 import { json, parseChecklist, parseQuestions, parseReading, proofOf, toiCount } from './outputs';
 import { ELSEWHERE, onBase, onPr, placeReason, placeShown, type PlaceState } from './place';
@@ -326,7 +326,7 @@ export function vibeView(input: JourneyInput): VibeView {
   const note: VibeNote | null = input.note && facts && {
     id: 'n', path: input.note.path, text: input.note.text, before: input.note.before, filled: facts.filled, mustNot: facts.mustNot,
     mark: markState(marks, 'note', blobSha(noteDesign(input.note.text))), formeMark: markState(marks, 'forme', blobSha(facts.forme)),
-    nothingMark: markState(marks, 'nothing', blobSha(input.note.text)), checked: designChecked(marks, input.note.path), locked: codeLock(null, input.busy, input.running, lang),
+    nothingMark: markState(marks, 'nothing', blobSha(input.note.text)), locked: codeLock(null, input.busy, input.running, lang),
     ...(flow === 'create' && { verified: designState(marks, input.note.path, blobSha(noteDesign(input.note.text))) }),
   };
   // Le commit de la note : le plus ancien de la branche qui la porte (les commits vont du plus ancien au plus récent) ;

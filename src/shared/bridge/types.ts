@@ -287,7 +287,6 @@ export type VibeNote = VibeFile & {
   mustNot: { text: string; mark: MustNotMark }[];
   mark: VibeMarkState;         // la note
   formeMark: VibeMarkState;    // sa rubrique « Forme »
-  checked?: boolean;           // la vérification de conception faite une fois pour cette note (marque 'design') ; absent = false
   verified?: VibeNoteCheck | null; // créateur : ce qu'a rendu sa dernière vérification (Valider la note n'est montré qu'avec) ; absent = null
   nothingMark?: VibeMarkState; // ✓ Rien à écrire (Invariants, créateur) ; absent = null
   locked?: string | null;      // pourquoi elle ne s'édite pas (codeLock) ; absent = null : éditable

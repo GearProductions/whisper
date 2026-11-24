@@ -122,23 +122,22 @@ describe('la page des réglages', () => {
 
 // 0.16.0 : le contrôle en trois points (docs/tickets/feat/0.16.0-controle-en-trois-points.md).
 describe('le contrôle en trois points', () => {
-  it('l\'interrupteur Express, Arrêter, Reprendre et la ligne de chaque pause, dans les deux langues', () => {
+  it('l\'interrupteur Express, Arrêter et la ligne de chaque pause, dans les deux langues', () => {
     expect([t('fr').express, t('en').express]).toEqual(['Express', 'Express']);
     expect([t('fr').vibeStop, t('en').vibeStop]).toEqual(['Arrêter', 'Stop']);
-    expect([t('fr').resume, t('en').resume]).toEqual(['Reprendre', 'Resume']);
     for (const lang of ['fr', 'en'] as const) {
       expect(Object.keys(t(lang).pause).sort()).toEqual(['invariants', 'modules', 'note', 'withdrawn:forme', 'withdrawn:invariants', 'withdrawn:modules']);
-      for (const text of [t(lang).expressTitle, t(lang).vibeStopTitle, t(lang).resumeTitle, ...Object.values(t(lang).pause)]) expect(text.length).toBeGreaterThan(10);
+      for (const text of [t(lang).expressTitle, t(lang).vibeStopTitle, ...Object.values(t(lang).pause)]) expect(text.length).toBeGreaterThan(10);
     }
     // La note a perdu son ✓ : la ligne le dit ; aux deux autres pauses, ce qu'il y a à regarder.
     expect(t('fr').pause.note).toContain('note');
     expect(t('en').pause.invariants).not.toBe(t('fr').pause.invariants);
   });
 
-  it('Arrêter, Reprendre, leurs infobulles et les lignes de pause : sans « Vibe », ni « Relancer » pour le moteur', () => {
+  it('Arrêter, son infobulle et les lignes de pause : sans « Vibe », ni « Relancer » pour le moteur', () => {
     for (const lang of ['fr', 'en'] as const) {
       const s = t(lang);
-      for (const text of [s.vibeStop, s.vibeStopTitle, s.resume, s.resumeTitle, s.express, s.expressTitle, ...Object.values(s.pause)]) expect(text).not.toMatch(/vibe/i);
+      for (const text of [s.vibeStop, s.vibeStopTitle, s.express, s.expressTitle, ...Object.values(s.pause)]) expect(text).not.toMatch(/vibe/i);
       expect(Object.keys(s)).not.toContain('restart');
     }
     // Chaque pause dit « puis reprenez » ; la note n'a rien à reprendre (elle attend sa validation).

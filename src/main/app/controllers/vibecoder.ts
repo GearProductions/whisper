@@ -535,7 +535,7 @@ const FILE_GITS = 8;
 
 // Un fichier que `read` refuse (au-delà de READ_MAX) : son empreinte tout de même, pour qu'il ne passe pas pour absent ;
 // null : absent, un lien ou illisible. Les octets sont hachés tels quels, sans décodage en chaîne (la limite d'une chaîne V8).
-function bigBlob(dir: string, rel: string) {
+export function bigBlob(dir: string, rel: string) {
   const file = safePath(dir, rel, fs.realpathSync.native);
   try { return file && fs.lstatSync(file).isFile() ? blobSha(fs.readFileSync(file)) : null; } catch { return null; }
 }
@@ -836,7 +836,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const view = { ...journey, ...proc, artifacts, artifactDirs: dirs, artifactsDir, dev: devState() };
   viewBlobs.set(view, blobs);
   if (role === 'create') {
-    pauseVibe(agent, view);   // la pause tenue arrête le moteur comme la bannière
+    pauseVibe(agent, view);   // la pause tenue arrête le moteur, comme le bouton Arrêter
     drive(agent, view, cfg);
   }
   return view;

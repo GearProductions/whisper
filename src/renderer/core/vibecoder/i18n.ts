@@ -89,8 +89,6 @@ const fr = {
   // Le contrôle en trois points : le rythme, le bouton du moteur à une pause, la ligne de chaque pause.
   express: 'Express',
   expressTitle: 'Express : aucune pause, le système enchaîne jusqu\'à la PR ouverte. Éteint, le parcours s\'arrête après les invariants et après les modules.',
-  resume: 'Reprendre',
-  resumeTitle: 'Reprendre le parcours à la première étape pas faite',
   pause: {
     note: 'La note a changé : elle attend sa validation',
     invariants: 'Pause : regardez ce qui a été posé (forme, invariants, premier commit), puis reprenez',
@@ -312,8 +310,6 @@ const en: Strings = {
   rerun: 'Run again',
   express: 'Express',
   expressTitle: 'Express: no pause, the system carries on until the PR is open. Off, the journey stops after the invariants and after the modules.',
-  resume: 'Resume',
-  resumeTitle: 'Resume the journey at the first step not done',
   pause: {
     note: 'The note changed: it awaits its validation',
     invariants: 'Pause: look at what was set up (shape, invariants, first commit), then resume',

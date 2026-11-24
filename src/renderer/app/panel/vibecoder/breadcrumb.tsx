@@ -73,7 +73,7 @@ export function Breadcrumb({ view, t, selected, vibe, onPick, onOpen, onVibe, on
           <button type="button" className="vc-run" data-tone="ghost" title={t.vibeStopTitle} onClick={onStopVibe}>{t.vibeStop}</button>
         ) : (
           <button type="button" className="vc-run" data-tone="vibe" disabled={!!vibe.a.disabled}
-            title={vibe.a.disabled ? `${t.resumeTitle}\n— ${vibe.a.disabled}` : t.resumeTitle} onClick={onVibe}>{t.resume}</button>
+            title={vibe.a.disabled ? `${vibe.a.hint}\n— ${vibe.a.disabled}` : vibe.a.hint} onClick={onVibe}>{vibe.a.label}</button>
         )) : null}
         {onExpress ? (
           <label className="vc-express" title={t.expressTitle}>

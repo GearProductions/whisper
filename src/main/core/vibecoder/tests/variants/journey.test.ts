@@ -1454,12 +1454,6 @@ describe('un module n\'est commencé que si un fichier a changé depuis son sque
     expect([hello.touched, hello.files?.map((f) => f.path)]).toEqual([true, [HELLO_PATH]]);
   });
 
-  it('checked : la marque design sur ce chemin, vrai ; sur un autre, faux', () => {
-    const design = (path: string): Marks => ({ ...NOTE_OK, design: { hash: path, verdict: 'ok' } });
-    expect([design(NOTE_PATH), design('docs/tickets/autre.md'), NOTE_OK].map((marks) => vibeView(input({ note, marks })).note?.checked))
-      .toEqual([true, false, false]);
-  });
-
   it('queued : recopié dans l\'ordre ; absent : []', () => {
     expect([vibeView(input({ queued: ['b', 'a'] })).queued, vibeView(input()).queued]).toEqual([['b', 'a'], []]);
   });
@@ -2291,10 +2285,6 @@ describe('le contrôle en trois points (0.16.0)', () => {
         // la validation de la note n'y change rien
         expect(verified(NOTE, { ...NOTE_OK, ...verifiedFor(NOTE) })).toBe('clean');
         expect(verified(edited, { ...NOTE_OK, ...verifiedFor(NOTE) })).toBe('edited');
-      });
-
-      it('la marque design reste au relevé', () => {
-        expect(vibeView(input({ note, marks: { ...NOTE_OK, ...DESIGN } })).note?.checked).toBe(true);
       });
     });
 

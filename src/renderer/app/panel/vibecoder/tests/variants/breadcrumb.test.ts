@@ -103,7 +103,7 @@ it('arrêté hors d\'une pause (à la main, l\'appli relancée) : Reprendre à c
   calls.length = 0;
   const { page, unmount } = await mount(empty, [], [], { a: act1(), on: false });
   const b = page.querySelector<HTMLButtonElement>('.vc-run')!;
-  expect([b.textContent, b.title, b.dataset.tone, b.disabled, b.previousElementSibling?.className]).toEqual([s.resume, s.resumeTitle, 'vibe', false, 'vc-ccount']);
+  expect([b.textContent, b.title, b.dataset.tone, b.disabled, b.previousElementSibling?.className]).toEqual([act1().label, act1().hint, 'vibe', false, 'vc-ccount']);
   expect(page.querySelector('.vc-pause')).toBeNull();
   await act(() => b.click());
   expect(calls).toEqual(['vibe']);
@@ -113,7 +113,7 @@ it('arrêté hors d\'une pause (à la main, l\'appli relancée) : Reprendre à c
 it('l\'action grisée : Reprendre grisé, sa raison en title ; masquée (note pas validée) ou null (relecteur) : rien', async () => {
   let m = await mount(empty, [], [], { a: act1({ disabled: 'rien à faire' }), on: false });
   const b = m.page.querySelector<HTMLButtonElement>('.vc-run')!;
-  expect([b.textContent, b.disabled, b.title]).toEqual([s.resume, true, `${s.resumeTitle}\n— rien à faire`]);
+  expect([b.textContent, b.disabled, b.title]).toEqual([act1().label, true, `${act1().hint}\n— rien à faire`]);
   await m.unmount();
   m = await mount(empty, [], [], { a: act1({ hidden: true }), on: false });
   expect(m.page.querySelector('.vc-run')).toBeNull();
@@ -177,7 +177,7 @@ it('pause après les invariants, après les modules : Reprendre et sa ligne ; un
     calls.length = 0;
     const m = await mount(rhythm({ pause }), [], [], { a: act1(), on: false }, () => {});
     const b = m.page.querySelector<HTMLButtonElement>('.vc-run')!;
-    expect([b.textContent, b.title, b.dataset.tone, b.disabled]).toEqual([s.resume, s.resumeTitle, 'vibe', false]);
+    expect([b.textContent, b.title, b.dataset.tone, b.disabled]).toEqual([act1().label, act1().hint, 'vibe', false]);
     expect(m.page.querySelector('.vc-pause')!.textContent).toBe(s.pause[pause]);
     await act(() => b.click());
     expect(calls).toEqual(['vibe']);
@@ -207,7 +207,7 @@ it('pas de ligne hors d\'une pause (absente, null) ni pendant que le système en
 it('une pause, l\'action grisée : Reprendre grisé avec sa raison ; masquée : pas de bouton, la ligne reste', async () => {
   let m = await mount(rhythm({ pause: 'modules' }), [], [], { a: act1({ disabled: 'occupé' }), on: false }, () => {});
   const b = m.page.querySelector<HTMLButtonElement>('.vc-run')!;
-  expect([b.textContent, b.disabled, b.title]).toEqual([s.resume, true, `${s.resumeTitle}\n— occupé`]);
+  expect([b.textContent, b.disabled, b.title]).toEqual([act1().label, true, `${act1().hint}\n— occupé`]);
   await m.unmount();
   m = await mount(rhythm({ pause: 'modules' }), [], [], { a: act1({ hidden: true }), on: false }, () => {});
   expect(m.page.querySelector('.vc-run')).toBeNull();
@@ -230,7 +230,7 @@ it('la pause d\'un ✓ d\'étape retiré à la main, l\'action masquée : la lig
 
 it('cette pause levée, l\'action de nouveau au relevé : Reprendre, sans ligne', async () => {
   const m = await mount(rhythm({ pause: null }), [], [], { a: act1(), on: false }, () => {});
-  expect(runs(m.page).map((b) => b.textContent)).toEqual([s.resume]);
+  expect(runs(m.page).map((b) => b.textContent)).toEqual([act1().label]);
   expect(m.page.querySelector('.vc-pause')).toBeNull();
   await m.unmount();
 });
@@ -238,7 +238,7 @@ it('cette pause levée, l\'action de nouveau au relevé : Reprendre, sans ligne'
 it('aucun bouton, aucune infobulle ne dit « Vibe » (arrêté, en pause, en route, grisé)', async () => {
   const cases: [Partial<VibeView>, Vibe][] = [
     [{}, { a: act1(), on: false }], [{ pause: 'invariants' }, { a: act1(), on: false }], [{}, { a: act1(), on: true }],
-    [{}, { a: act1({ disabled: 'occupé' }), on: false }], [{ pause: 'modules' }, { a: act1({ label: 'Vibe', hint: 'Vibe' }), on: false }],
+    [{}, { a: act1({ disabled: 'occupé' }), on: false }],
   ];
   for (const [over, vibe] of cases) {
     const m = await mount(rhythm(over), [], [], vibe, () => {});

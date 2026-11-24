@@ -987,4 +987,52 @@ describe('Prouver les invariants : le dossier de travail et l’index relevés',
     expect(run()?.state).toBe('done');
     expect(fs.existsSync(path.join(out, 'preuve.md'))).toBe(true);
   });
+
+  it('l’état du dossier de travail illisible au départ : la course ne part pas, en échec', async () => {
+    await openPanel('a1');
+    fs.renameSync(path.join(dir, '.git'), path.join(dir, '.git-off'));
+
+    const { turn, run } = await startCourse('prove', 'prouver');
+    await settle(500);
+
+    expect(turn).toBeUndefined();
+    expect(run()?.state).toBe('failed');
+    expect(run()?.reply).not.toBe('');
+  });
+
+  it('arrêtée pendant la comparaison de fin : sa réponse nomme tout de même le fichier touché, preuve.md effacée', async () => {
+    await openPanel('a1');
+    const { turn, run } = await startCourse('prove', 'prouver');
+    write(path.join(out, 'preuve.md'), PROOF);
+    fs.rmSync(path.join(dir, MOD));
+    const { runOp } = await import('app/controllers');
+    const { loadConfig } = await import('app/settings');
+    const { agentList } = await import('core/config');
+
+    turn!.end(true);
+    await new Promise((r) => setImmediate(r));   // la fin est prise, sa comparaison court (git)
+    await runOp(agentList(loadConfig())[0], 'prove', 'stop');   // direct (pas par le socket de l'écran) : la comparaison de la fin n'est pas rendue
+    await settle(1000);
+
+    expect(run()?.state).toBe('stopped');
+    expect(run()?.reply).toContain(MOD);
+    expect(fs.existsSync(path.join(out, 'preuve.md'))).toBe(false);
+  });
+
+  it('un lien posé pendant la preuve : son contenu n’est pas lu (ni suivi), le fichier est tout de même nommé', async () => {
+    await openPanel('a1');
+    const { turn, run } = await startCourse('prove', 'prouver');
+    write(path.join(out, 'preuve.md'), PROOF);
+    fs.symlinkSync(path.join(root, 'config.json'), path.join(dir, 'lien'));
+    const read = vi.spyOn(fs, 'readFileSync');
+
+    turn!.end(true);
+    await settle(1000);
+    const reads = read.mock.calls.map(([f]) => String(f)).filter((f) => f.endsWith(`${path.sep}lien`));
+    read.mockRestore();
+
+    expect(reads).toEqual([]);
+    expect(run()?.state).toBe('failed');
+    expect(run()?.reply).toContain('lien');
+  });
 });
