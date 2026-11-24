@@ -2,9 +2,11 @@
  *  de fichiers d'une course et de ses sous-agents (crochet PreToolUse, appliqué
  *  avant les règles de l'utilisateur) : c'est sur elle que porte l'invariant du
  *  disque. Lecture et exploration (Read, Glob, Grep) : dans le dossier du
- *  projet, les sorties de l'agent et le dossier du plugin de VibeCoder.
+ *  projet, les sorties de l'agent, le dossier du plugin de VibeCoder et le
+ *  dossier d'artefacts du projet (artifacts ; absent : aucun pour la course).
  *  Écriture (Write, Edit, MultiEdit, NotebookEdit) : dans le projet et les
- *  sorties ; pour une action en lecture (reads), dans les seules sorties ; jamais
+ *  sorties, jamais dans le plugin ni le dossier d'artefacts ; pour une action
+ *  en lecture (reads), dans les seules sorties ; jamais
  *  sur un fichier borné du projet (BOUNDED : ses réglages et skills `.claude/`,
  *  un `AGENTS.md`, un `package.json`, `.git/`, `.husky/`). Un chemin est jugé
  *  résolu (relatif au projet, liens suivis par `real` : /home → /var/home).
@@ -22,16 +24,18 @@
  *  Glob (le filtre d'un Grep) ne sort pas de son dossier : absolu ou `..`, refusé.
  *  Pur. Les outils de lecture sont ceux de core/agents (READ_TOOLS). Ne connaît pas : le SDK et la forme de sa réponse, le disque
  *  (`real` passé), les règles de l'utilisateur, ce que lance une commande, git (la
- *  liste `frozen` est lue par l'appelant).
+ *  liste `frozen` est lue par l'appelant), la clé d'un projet ni où vivent ses
+ *  artefacts (le chemin réel est passé).
  *  Utilisé par : app/controllers (runs : runRights). */
 
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { READ_TOOLS } from 'core/agents';
 import { inside } from './files';
 
-// Les dossiers d'une course, chemins réels ; reads : l'action est marquée en lecture.
+// Les dossiers d'une course, chemins réels ; reads : l'action est marquée en lecture ;
+// artifacts : le dossier d'artefacts de son projet, en lecture seule (absent : aucun) ;
 // frozen : les fichiers du projet (chemins relatifs) que cette course n'écrit pas ; absent : aucun de plus.
-export type Bounds = { project: string; out: string; plugin: string; reads: boolean; frozen?: readonly string[] };
+export type Bounds = { project: string; out: string; plugin: string; artifacts?: string; reads: boolean; frozen?: readonly string[] };
 
 // La décision : passer (le mode et la liste jugent ensuite), ou refuser, avec la raison
 // que lira l'agent (le chemin et pourquoi).
@@ -85,7 +89,7 @@ export function fileDecision(tool: string, input: unknown, bounds: Bounds, real:
   if (typeof glob === 'string' && /^[/~\\]|^[a-z]:|(^|[/\\])\.\.([/\\]|$)/i.test(glob)) return no(`le motif ${glob} sort du dossier qu'il parcourt`);
   if (inside(bounds.out, p)) return { allow: true };
   if (!t.write) {
-    return inside(bounds.project, p) || inside(bounds.plugin, p) ? { allow: true } : no('hors du dossier du projet et des sorties de l\'agent');
+    return inside(bounds.project, p) || inside(bounds.plugin, p) || (bounds.artifacts && inside(bounds.artifacts, p)) ? { allow: true } : no('hors du dossier du projet et des sorties de l\'agent');
   }
   if (!inside(bounds.project, p)) return no('hors du dossier du projet et des sorties de l\'agent, qu\'une action n\'écrit pas');
   if (bounds.reads) return no('une action en lecture n\'écrit que dans les sorties de l\'agent');
