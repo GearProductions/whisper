@@ -1373,8 +1373,9 @@ conversation ; note `0.9.0-actions-independantes.md`).
   (la clé : l'id de l'action ; *Envoyer les réponses* reprend celle de la
   note, `note`, et sa session : l'agent qui a rédigé la note garde son
   contexte). Mêmes dossier, consigne et plugin que l'agent (F-58), ses
-  sorties pour seul dossier en plus (le dossier des artefacts du projet reste à
-  la conversation), ses propres droits (ci-dessous), interruption comme lui
+  sorties pour seul dossier en plus (le dossier des artefacts du projet reste
+  un dossier de travail de la conversation seule ; la course le lit par le
+  contrôle, ci-dessous), ses propres droits (ci-dessous), interruption comme lui
   (F-59) ; le modèle
   et l'effort de l'en-tête de son skill, en sous-contexte ou non (ou le
   modèle choisi, F-99), sinon ceux de l'agent ; le suivi des fichiers écrits de Claude Code
