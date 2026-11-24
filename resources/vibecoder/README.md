@@ -68,7 +68,7 @@ répond aussitôt `{ queued: true, by }` (code de sortie 0), et l'appli le lance
 d'elle-même dès que la voie est libre. À la fin de chaque action, la conversation
 reçoit une ligne « VibeCoder : « <libellé> » … » (pas pour une action arrêtée). Une
 demande que l'appli ne lance ni ne met en attente (inconnue, pas proposée, déjà
-en cours, argument invalide, ou *Vibe* arrêté par l'utilisateur : tout lancement,
+en cours, argument invalide, ou le moteur arrêté par l'utilisateur ou à une pause : tout lancement,
 jusqu'au repos) est refusée tout de suite : la commande sort en 1 avec la raison ;
 un argument que l'action ne lit pas (ou un modèle ou un effort qu'elle ne propose
 pas) ne la fait pas refuser : elle part, et la réponse dit « arguments ignorés :
@@ -82,13 +82,23 @@ sur eux (l'action mise en avant de l'étape en cours, les boutons propres à une
 bouton retiré suivi d'un bouton ajouté. `ponytail` n'a pas de bouton : `checks`
 (skill `verifier`) la demande ; `align` n'a de bouton qu'en *Relire* : en
 *Créer*, `invariants` le suit une fois, et sa carte a *Relancer*. `align` n'a plus
-`reads` : en *Créer* il corrige les tests (la branche change, 3 tours au plus),
-en *Relire* il liste sans rien corriger. `design-check` (flow `create`, étape
+`reads` : en *Créer* il corrige les tests (la branche change, 3 tours au plus), mais
+seulement les fichiers de tests d'invariants que la branche crée : l'appli lui refuse
+d'écrire dans ceux d'avant la branche, et fait échouer la course (en effaçant `align.md`)
+si l'un d'eux a changé à sa fin ; en *Relire* il liste sans rien corriger. `design-check` (flow `create`, étape
 `note`, `reads`, skill `conception`) est la vérification de conception de la note :
 une seule passe, elle n'écrit que des suggestions à la suite de `questions.md`,
-jamais la note. Elle part au premier *Valider la note* (*Valider et vérifier*) et à
-*Revérifier* ; masquée dans la liste tant que la note n'est pas vérifiée, et dans
-l'`enum` de `run.start` de la CLI (`commands.json`). Les skills de VibeCoder reçoivent toujours d'abord
+jamais la note, et ne la valide jamais : c'est *Vérifier* (l'ancien *Revérifier*) qui la
+lance, à volonté ; sa fin retient seulement si elle n'a rien trouvé, et sans rien de bloquant
+l'écran propose *Valider la note*, geste de l'utilisateur qui lance le moteur. Proposée à
+l'étape Note dès que la note est rédigée.
+`prove` (flow `create`, étape `modules`, `reads`, skill `prouver`, entre `modules` et
+`commit-modules`) est la preuve des invariants par mutation : pour chaque ligne
+« → invariant » de la note, une copie du code hors du dossier de travail, la règle
+cassée, le test relancé seul, qui doit échouer. Elle écrit `preuve.md` (voir plus bas)
+et ne modifie rien dans le projet : son `reads` lui ferme l'écriture, et l'appli
+compare le dossier de travail et l'index à ceux de son départ, la course échoue et
+efface `preuve.md` à la moindre différence. Masquée sans ligne « → invariant ». Les skills de VibeCoder reçoivent toujours d'abord
 `{{lang}} {{out}}`, puis, pour ceux dont le gabarit les passe, leurs arguments nommés
 `note=<chemin>` et `base=<réf>` (voir *Les variables*). Le bouton `guide` n'apparaît que si le skill `gear-guide`
 existe (dans le projet ou chez l'utilisateur).
@@ -155,10 +165,10 @@ note et la branche de base : les gabarits livrés les passent par des arguments
 nommés, juste après `{{out}}`, au lieu que chaque skill les cherche
 (`/vibecoder:forme {{lang}} {{out}} note={{note}} {{text}}`). `note={{note}}` :
 *Vérifier la conception*, *Poser la forme*, *Écrire les invariants (rouges)*,
-*Vibe* et *Générer les modules* (les actions qui n'ont pas de sens sans note : un
+*Reprendre* (`vibe`), *Générer les modules* et *Prouver les invariants* (les actions qui n'ont pas de sens sans note : un
 gabarit qui porte `{{note}}` est refusé quand il n'y en a pas, donc *Rédiger la
 note* et toute action lancée sans note ne le portent pas et gardent la recherche
-du skill). `base={{base}}` : *Générer les modules* (avec `note=`, dans cet ordre),
+du skill). `base={{base}}` : *Générer les modules* et *Prouver les invariants* (avec `note=`, dans cet ordre),
 *Générer ce module*, *Commiter les modules*, *Vérifier l'alignement*, *Préparer
 le commit*, *Relire le diff*, *Ponytail review*, *Replier les fixups*, *Plan de
 test à l'écran* et *Valider la feature*. Un skill qui reçoit `note=` ou `base=`
@@ -272,7 +282,10 @@ de `align.md` (en tête de chaque titre `##`), `ponytail.md` (après l'adresse
 `<fichier>:L<ligne>`, qui reste en tête), `review.md`, `ci.md` et du `detail` de
 chaque item de `checks.json` (le créateur seulement) porte `[toi]` (une décision de
 l'utilisateur : un changement de contrat) ou `[agent]` (le reste) ; `vibe` ne
-s'arrête que sur `[toi]`.
+s'arrête que sur `[toi]` (et aux pauses de son rythme). `preuve.md` : une rubrique `##`
+par ligne « → invariant » de la note, `[prouvé]` (`[proved]`) et son mutant, ou `[toi]` et
+sa raison (une rubrique sans étiquette connue compte pour pas prouvée) ; sans ligne :
+« Rien à prouver. ». L'étape Modules n'est pas faite sans une preuve qui passe.
 
 « conversation » : sans sous-contexte, là où le bouton l'envoie — la
 conversation propre à l'action pour un bouton d'étape, celle de l'agent
@@ -281,11 +294,12 @@ sinon.
 | Skill | Où | Modèle · effort | Écrit dans `{{out}}` |
 |---|---|---|---|
 | `note` | conversation | agent | `questions.md` |
-| `conception` | sous-contexte | opus · high | `questions.md` (ses suggestions à la suite ; ne modifie jamais la note ; lecture, `git` en lecture et `Write` pour ce fichier seul) |
+| `conception` | sous-contexte | opus · high | `questions.md` (ses suggestions à la suite ; ne modifie jamais la note ; lecture, `git` en lecture et `Write` pour ce fichier seul ; ne la valide jamais : lancée par *Vérifier*, à volonté) |
 | `forme` | conversation | agent | — (les squelettes dans le code, avec les signatures typées, puis la forme dans la note, en prose : sans signatures ; `note=<chemin>` reçu, sinon cherché) |
 | `invariants` | sous-contexte | opus · high | `align.md` (suit `aligner` une fois : il corrige les tests lui-même) |
 | `lire-invariants` | sous-contexte | sonnet · medium | `invariants/<blob>.md` |
-| `aligner` | sous-contexte | opus · high | `align.md` (les invariants seuls : corrige les tests, 3 tours ; relecteur, `HEAD` : une liste, rien de corrigé) |
+| `aligner` | sous-contexte | opus · high | `align.md` (les invariants seuls : corrige les tests, 3 tours, seulement les fichiers de tests d'invariants que la branche crée, l'appli lui refuse les autres ; lit `preuve.md` s'il existe ; relecteur, `HEAD` : une liste, rien de corrigé) |
+| `prouver` | sous-contexte | opus · high | `preuve.md` (en lecture : une rubrique par ligne « → invariant », `## [prouvé]` et son mutant ou `## [toi]` et sa raison, « Rien à prouver. » sans ligne ; sa copie du code dans son dossier temporaire, aucune commande git qui écrit ; `note=` et `base=` reçus) |
 | `module` | conversation | opus · high | — (la boucle de `modules` pour un seul module, `developpeur` sonnet · high ; plus de `review-diff` en seconde course) |
 | `modules` | conversation | opus · high, `developpeur` sonnet · high (opus au second échec) : un seul agent pour au plus 4 modules de code, sans compter ceux qui n'ont pas de variants, sinon des sous-agents en vagues parallèles | — (ne commite pas ; son contrôle de chaque diff est une lecture de conformité, les défauts sont ceux de `ponytail` ; `note=` et `base=` reçus, sinon cherchés) |
 | `commiter-modules` | sous-contexte | sonnet · medium | — (un module, ou tous ceux qui ont des changements : un commit chacun, un fixup pour un module déjà commité ; historique simple : un seul commit pour tout le code, ses fichiers hors Forme nommés dans la réponse, puis des commits ordinaires ; `base=` reçu) |
@@ -304,7 +318,7 @@ sinon.
 | `relire-commits` | sous-contexte | opus · high | `pr-<n>-commits.md` |
 | `ecran` | sous-contexte | sonnet · medium | `ecran.md` |
 | `publier-revue` | sous-contexte | haiku · low | `pr-<n>-review.json` |
-| `vibe` | conversation | agent ; *Vibe* : reprend à la première étape pas faite et enchaîne les actions (historique simple : saute *Replier les fixups*) ; `note=` reçu | `vibecoder run start <id>` |
+| `vibe` | conversation | agent ; le moteur des deux rythmes (à l'écran, le bouton *Arrêter* / *Reprendre*) : lancé seul ou repris, il reprend à la première étape pas faite et enchaîne les actions (historique simple : saute *Replier les fixups*) ; un refus `halted` (arrêté, ou une pause tenue) : il dit où il en est et quoi regarder, puis rend la main ; ne valide ni la Forme ni les invariants (l'appli le fait), valide les modules une fois la preuve passée, jamais la note ; `note=` reçu | `vibecoder run start <id>` |
 | `actions` | conversation (l'agent l'appelle de lui-même) | agent | `vibecoder run start`, `run stop`, `run wait`, `run list` |
 | `nouvelle-demande` | sous-contexte | haiku · low | `new-request.json` (`{ "branch" }` : le nom proposé pour la branche d'une nouvelle demande, ou de *Rédiger la note* sur la branche principale ; l'appli le montre prérempli, l'utilisateur le valide ou le change, puis la crée ici ou dans un worktree ; la demande n'y est pas) |
 | `lancement` | sous-contexte | haiku · low | `lancement.json` (les commandes ; `setup` et `worktree`, une seule fois par projet) |

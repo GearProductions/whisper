@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  addComment, blobSha, caseBlocks, CHECKED, designChecked, designEnd, editComment, hasComment, markState, noteClick, noteDesign, parseNote, removeComment, setMark, stepChecks, stepContent,
-  skeletonMarks, targetHash, vibeMarks, vibeView, type Drafts, type FileBlobs, type JourneyInput, type Marks,
+  addComment, blobSha, caseBlocks, CHECKED, designChecked, designEnd, designState, editComment, hasComment, keepNote, markState, noteDesign, parseNote, removeComment, setMark, stepChecks, stepContent,
+  skeletonMarks, targetHash, vibeMarks, vibeView, withdraw, withdrawn, type Drafts, type FileBlobs, type JourneyInput, type Marks,
 } from 'core/vibecoder';
 
 describe('markState : une validation vaut pour le contenu validé', () => {
@@ -106,7 +106,7 @@ describe('hasComment : une remarque du brouillon, connue ou non', () => {
   });
 });
 
-describe('vibeMarks : le ✓ des étapes faites pendant Vibe', () => {
+describe('vibeMarks : les validations du système des étapes faites', () => {
   const NOTE = ['# G2-1 — Un bouton', '', '## Ce que ça fait', 'Un bouton.', '', '## Ce que ça ne doit pas faire',
     '- Lire un autre fichier. → invariant', '', '## Forme', '```', 'src/core/hello.ts    hello()', '```', ''].join('\n');
   const NOTE_PATH = 'docs/tickets/feat/G2-1-bouton.md';
@@ -116,7 +116,8 @@ describe('vibeMarks : le ✓ des étapes faites pendant Vibe', () => {
   const blobs: FileBlobs[] = [{ path: TEST_PATH, disk: BLOB, head: null }, { path: 'src/core/hello.ts', disk: blobSha('code'), head: null }];
   const input = (over: Partial<JourneyInput> = {}): JourneyInput => ({
     agentId: 'a1', lang: 'fr', flow: 'create', pr: null, autonomy: 'guide', vibe: true, agent: { model: 'opus', effort: 'high', mode: 'default' },
-    busy: false, running: [], runs: [], error: null, readings: [], outputs: {}, marks: {}, draft: [], actions: [],
+    busy: false, running: [], runs: [], error: null, readings: [],
+    outputs: { 'align.md': { text: 'Aligné.', time: 1700000000000 } }, marks: {}, draft: [], actions: [],
     who: {}, model: {}, skills: [], exists: () => false, now: 1700000000000,
     note: { path: NOTE_PATH, text: NOTE, before: null }, tests: [{ path: TEST_PATH, blob: BLOB, text: TEST }],
     repo: { branch: 'feat/G2-1-bouton', base: 'origin/main', changed: [NOTE_PATH, TEST_PATH],
@@ -131,9 +132,17 @@ describe('vibeMarks : le ✓ des étapes faites pendant Vibe', () => {
       return { ...f, hashes: { blocks, common } };
     }),
   });
-  const run = (marks: Marks = {}, over: Partial<JourneyInput> = {}) => {
+  // La note, validée par l'utilisateur (jamais par le système) pour sa conception d'aujourd'hui : le point de départ de chaque cas.
+  const NOTE_OK: Marks = { note: { hash: blobSha(noteDesign(NOTE)), verdict: 'ok' } };
+  const run = (given: Marks = {}, over: Partial<JourneyInput> = {}) => {
+    const marks = { ...NOTE_OK, ...given };
     const view = hashed(vibeView(input({ marks, ...over })));
     return { view, next: vibeMarks(marks, view, blobs) };
+  };
+  // Chaque étape donnée pour faite, la note comprise, sans que la note ait son ✓ : ce que vibeMarks reçoit de plus favorable.
+  const allDone = (marks: Marks, vibe: boolean) => {
+    const view = hashed(vibeView(input({ marks, vibe })));
+    return { ...view, steps: view.steps.map((s) => ({ ...s, status: 'done' as const })) };
   };
   const { blocks: BLOCKS, common: COMMON } = caseBlocks(TEST);
   const MARK = (i: number) => ({ hash: BLOCKS[i], verdict: 'ok', common: COMMON });
@@ -142,9 +151,11 @@ describe('vibeMarks : le ✓ des étapes faites pendant Vibe', () => {
     stepChecks(marks, Object.fromEntries(CHECKED.map((s) => [s, stepContent(view, marks, s, blobs)])));
   const status = (marks: Marks) => Object.fromEntries(vibeView(input({ vibe: false, marks, blobs })).steps.map((s) => [s.id, s.status]));
 
-  it('note, forme, invariants : chaque étape validée pour son contenu, et chaque cas son ✓ (les empreintes d\'un clic)', () => {
+  it('forme, invariants : chaque étape validée par le système pour son contenu, et chaque cas son ✓ (les empreintes d\'un clic)', () => {
     const { next } = run();
-    expect(next.note).toMatchObject({ hash: blobSha(noteDesign(NOTE)), verdict: 'ok' });
+    expect(next.note).toBe(NOTE_OK.note);
+    expect(next.forme).toMatchObject({ by: 'system' });
+    expect(next.invariants).toMatchObject({ by: 'system' });
     expect(next.forme).toMatchObject({ hash: blobSha(parseNote(NOTE).forme), verdict: 'ok' });
     expect(next.invariants).toMatchObject({ verdict: 'ok' });
     CASES.forEach((c, i) => expect(next[c]).toEqual(MARK(i)));
@@ -178,21 +189,22 @@ describe('vibeMarks : le ✓ des étapes faites pendant Vibe', () => {
 
   it('un titre en double : deux marques, « titre » et « titre n° 2 », chacune pour son bloc', () => {
     const text = 'it("a", () => {\n  x();\n});\nit("a", () => {\n  y();\n});\n';
-    const view = vibeView(input({ tests: [{ path: TEST_PATH, blob: blobSha(text), text }] }));
+    const view = vibeView(input({ marks: NOTE_OK, tests: [{ path: TEST_PATH, blob: blobSha(text), text }] }));
     const { blocks, common } = caseBlocks(text);
     const dup = { ...view, invariants: view.invariants.map((f) => ({ ...f, hashes: { blocks, common } })) };
-    const next = vibeMarks({}, dup, blobs);
+    const next = vibeMarks(NOTE_OK, dup, blobs);
     expect(next[`case:${TEST_PATH}:a`]).toEqual({ hash: blocks[0], verdict: 'ok', common });
     expect(next[`case:${TEST_PATH}:a n° 2`]).toEqual({ hash: blocks[1], verdict: 'ok', common });
     expect(blocks[0]).not.toBe(blocks[1]);
   });
 
   it('un fichier sans hashes : aucun ✓ de cas, les étapes suivent leur chemin', () => {
-    const view = vibeView(input());
+    const view = vibeView(input({ marks: NOTE_OK }));
     const bare = { ...view, invariants: view.invariants.map(({ hashes: _, ...f }) => f) };
-    const next = vibeMarks({}, bare, blobs);
+    const next = vibeMarks(NOTE_OK, bare, blobs);
     expect(Object.keys(next).filter((k) => k.startsWith('case:'))).toEqual([]);
-    expect(next.note.verdict).toBe('ok');
+    expect(next.note).toBe(NOTE_OK.note);
+    expect(next.forme.verdict).toBe('ok');
   });
 
   it('la Forme validée porte after = la marque de la note, les invariants celle de la Forme : l\'état de chaque étape est ok', () => {
@@ -228,7 +240,8 @@ describe('vibeMarks : le ✓ des étapes faites pendant Vibe', () => {
 
   it('un ✗ déjà donné à la note pour ce contenu reste : la Forme et les invariants ne sont pas validés, les cas oui', () => {
     const marks: Marks = { note: { hash: blobSha(noteDesign(NOTE)), verdict: 'ko' } };
-    const { next } = run(marks);
+    // Une note ✗ bloque les étapes du relevé : la vue est forcée à « faite » pour que vibeMarks seul en réponde.
+    const next = vibeMarks(marks, allDone(marks, false), blobs);
     expect(next.note).toEqual(marks.note);
     expect(next.forme).toBeUndefined();
     expect(next.invariants).toBeUndefined();
@@ -291,14 +304,116 @@ describe('vibeMarks : le ✓ des étapes faites pendant Vibe', () => {
     expect(Object.keys(next)).toEqual(['note', 'forme']);
   });
 
-  it('sans les empreintes du disque (blobs omis), la note et la Forme sont validées', () => {
-    const next = vibeMarks({}, vibeView(input()));
-    expect(next.note.verdict).toBe('ok');
+  it('sans les empreintes du disque (blobs omis), la Forme est validée', () => {
+    const next = vibeMarks(NOTE_OK, vibeView(input({ marks: NOTE_OK })));
+    expect(next.note).toBe(NOTE_OK.note);
     expect(next.forme.verdict).toBe('ok');
   });
 
+  it('Vibe pas en cours : la Forme et les invariants faits sont validés par le système, comme pendant Vibe', () => {
+    const next = vibeMarks(NOTE_OK, allDone(NOTE_OK, false), blobs);
+    expect(next.forme).toMatchObject({ verdict: 'ok', by: 'system' });
+    expect(next.invariants).toMatchObject({ verdict: 'ok', by: 'system' });
+  });
+
+  it('la note faite, jamais validée : aucune marque de note, Vibe en cours ou pas', () => {
+    for (const vibe of [true, false]) expect(vibeMarks({}, allDone({}, vibe), blobs)).not.toHaveProperty(['note']);
+  });
+
+  it('une étape dont l\'étape d\'avant n\'est pas validée (la note sans ✓) : rien', () => {
+    const next = vibeMarks({}, allDone({}, true), blobs);
+    expect(next.forme).toBeUndefined();
+    expect(next.invariants).toBeUndefined();
+  });
+
+  it('une étape déjà validée à la main pour ce contenu : sa marque reste, sans « système »', () => {
+    const manual = run().next;
+    const { forme: { by: _, ...hand } } = manual;
+    const marks: Marks = { ...manual, forme: hand };
+    const { next } = run(marks);
+    expect(next.forme).toBe(marks.forme);
+    expect(next.forme).not.toHaveProperty('by');
+  });
+
+  it('une étape validée à la main pour un autre contenu : revalidée, cette fois par le système', () => {
+    const { next } = run({ forme: { hash: 'vieux', verdict: 'ok' } });
+    expect(next.forme).toMatchObject({ hash: blobSha(parseNote(NOTE).forme), by: 'system' });
+  });
+
   it('Relire : rien', () => {
-    expect(run({}, { flow: 'review' }).next).toEqual({});
+    expect(vibeMarks({}, hashed(vibeView(input({ flow: 'review' }))), blobs)).toEqual({});
+  });
+
+  const FORME = blobSha(parseNote(NOTE).forme);
+
+  it('la Forme faite, son retrait retenu pour ce contenu : pas validée par le système, les invariants faits non plus', () => {
+    const marks = withdraw(NOTE_OK, 'forme', FORME);
+    const { next } = run(marks);
+    expect(next.forme).toBeUndefined();
+    expect(next.invariants).toBeUndefined();
+    expect(next['withdrawn:forme']).toBe(marks['withdrawn:forme']);
+    CASES.forEach((c, i) => expect(next[c]).toEqual(MARK(i)));
+  });
+
+  it('le contenu de la Forme changé depuis le retrait : validée de nouveau par le système', () => {
+    const { next } = run(withdraw(NOTE_OK, 'forme', 'vieux-contenu'));
+    expect(next.forme).toMatchObject({ hash: FORME, verdict: 'ok', by: 'system' });
+    expect(next.invariants).toMatchObject({ verdict: 'ok', by: 'system' });
+  });
+
+  it('le retrait des invariants : la Forme validée, les invariants non', () => {
+    const { view } = run();
+    const marks = withdraw(NOTE_OK, 'invariants', stepContent(view, run().next, 'invariants', blobs)!.hash);
+    const { next } = run(marks);
+    expect(next.forme).toMatchObject({ verdict: 'ok', by: 'system' });
+    expect(next.invariants).toBeUndefined();
+  });
+
+  it('le retrait d\'une étape ne retient pas l\'autre : celui des modules ne change rien à la Forme', () => {
+    const { next } = run(withdraw(NOTE_OK, 'modules', FORME));
+    expect(next.forme).toMatchObject({ by: 'system' });
+    expect(next.invariants).toMatchObject({ by: 'system' });
+  });
+
+  it('un retrait retenu ne défait pas une validation déjà là : rien n\'est écrit à sa place', () => {
+    const validated = run().next;
+    expect(vibeMarks(withdraw(validated, 'forme', FORME), run().view, blobs)).toEqual(withdraw(validated, 'forme', FORME));
+  });
+});
+
+describe('withdraw, withdrawn : le retrait à la main d\'une validation d\'étape', () => {
+  const MARKS: Marks = { note: { hash: 'n', verdict: 'ok' }, forme: { hash: 'f', verdict: 'ok', after: 'x', files: 'y' } };
+
+  it('un retrait retenu pour une étape : son contenu relu des marques ; aucun retrait : rien', () => {
+    expect(withdrawn(MARKS, 'forme')).toBeNull();
+    const next = withdraw(MARKS, 'forme', 'abc');
+    expect(withdrawn(next, 'forme')).toBe('abc');
+    expect(withdrawn(next, 'invariants')).toBeNull();
+    expect(withdrawn(next, 'modules')).toBeNull();
+  });
+
+  it('chaque étape garde son retrait ; un retrait retenu de nouveau remplace le précédent', () => {
+    const next = withdraw(withdraw(withdraw(MARKS, 'forme', 'a'), 'invariants', 'b'), 'forme', 'c');
+    expect(withdrawn(next, 'forme')).toBe('c');
+    expect(withdrawn(next, 'invariants')).toBe('b');
+  });
+
+  it('les autres marques sont inchangées, l\'ancien état aussi', () => {
+    const next = withdraw(MARKS, 'forme', 'abc');
+    expect(next.note).toBe(MARKS.note);
+    expect(next.forme).toBe(MARKS.forme);
+    expect(Object.keys(MARKS)).toEqual(['note', 'forme']);
+  });
+
+  it('un retrait oublié : sa marque partie, les autres marques restent', () => {
+    const next = withdraw(withdraw(MARKS, 'forme', 'abc'), 'forme', null);
+    expect(next).toEqual(MARKS);
+    expect(withdrawn(next, 'forme')).toBeNull();
+    expect(withdraw(MARKS, 'forme', null)).toEqual(MARKS);
+  });
+
+  it('une empreinte vide n\'est pas un oubli : seul null oublie', () => {
+    expect(withdrawn(withdraw(MARKS, 'forme', ''), 'forme')).toBe('');
   });
 });
 
@@ -353,48 +468,49 @@ describe('la vérification de conception de la note', () => {
   const checked: Marks = { design: { hash: path, verdict: 'ok' } };
   const done = { path, state: 'done' as const, questions: 0, clicked: 'h1' };
 
-  it('noteClick : créateur, pas vérifiée, ok → check ; vérifiée → mark', () => {
-    expect(noteClick({}, path, 'ok', 'create')).toBe('check');
-    expect(noteClick({ design: { hash: '/autre.md', verdict: 'ok' } }, path, 'ok', 'create')).toBe('check');
-    expect(noteClick(checked, path, 'ok', 'create')).toBe('mark');
-  });
-
-  it('noteClick : relecteur ; ko ; null (Annuler) → mark', () => {
-    expect(noteClick({}, path, 'ok', 'review')).toBe('mark');
-    expect(noteClick({}, path, 'ko', 'create')).toBe('mark');
-    expect(noteClick({}, path, null, 'create')).toBe('mark');
-  });
-
   it('designChecked : la marque design sur ce chemin, vrai ; sur un autre ou sans, faux', () => {
     expect(designChecked(checked, path)).toBe(true);
     expect(designChecked(checked, '/autre.md')).toBe(false);
     expect(designChecked({}, path)).toBe(false);
   });
 
-  it('designEnd done, sans question, clicked : validée pour clicked, même si la note a changé depuis', () => {
+  it('designEnd done, sans question : la note pas validée, « rien trouvé » retenu pour la conception d\'où elle est partie', () => {
     const marks = designEnd({}, done);
     expect(designChecked(marks, path)).toBe(true);
-    expect(markState(marks, 'note', 'h1')).toBe('ok');
-    expect(markState(marks, 'note', 'h2')).toBe('changed');
+    expect(marks).not.toHaveProperty(['note']);
+    expect(markState(marks, 'verified', 'h1')).toBe('ok');
+    expect(markState(marks, 'verified', 'h2')).toBe('changed');
   });
 
-  it('designEnd done avec une question : vérifiée, pas validée', () => {
-    const marks = designEnd({}, { ...done, questions: 1 });
+  it('designEnd done avec une question : vérifiée, pas validée, plus de « rien trouvé » (celui d\'avant est retiré)', () => {
+    const before: Marks = { ...checked, verified: { hash: 'h0', verdict: 'ok' } };
+    const marks = designEnd(before, { ...done, questions: 1 });
     expect(designChecked(marks, path)).toBe(true);
-    expect(markState(marks, 'note', 'h1')).toBeNull();
+    expect(marks).not.toHaveProperty(['note']);
+    expect(marks).not.toHaveProperty(['verified']);
+    expect(designEnd({}, { ...done, questions: 1 })).toEqual(checked);
   });
 
-  it('designEnd sans clicked (Revérifier) : vérifiée, jamais validée', () => {
+  it('designEnd done sans question, conception de départ pas retenue (clicked null) : « rien trouvé » pour une empreinte vide, la note dite changée depuis', () => {
     const marks = designEnd({}, { ...done, clicked: null });
     expect(designChecked(marks, path)).toBe(true);
-    expect(markState(marks, 'note', 'h1')).toBeNull();
+    expect(marks).not.toHaveProperty(['note']);
+    expect(marks.verified.hash).toBe('');
+    expect(designState(marks, path, 'h1')).toBe('edited');
   });
 
-  it('designEnd failed ou stopped : rien de changé, le clic suivant revérifie', () => {
+  it('designEnd failed ou stopped : rien ne bouge, le « rien trouvé » d\'avant et la vérification d\'avant restent', () => {
+    const before: Marks = { ...checked, verified: { hash: 'h0', verdict: 'ok' } };
     for (const state of ['failed', 'stopped'] as const) {
-      const marks = designEnd({}, { ...done, state });
-      expect(marks).toEqual({});
-      expect(noteClick(marks, path, 'ok', 'create')).toBe('check');
+      expect(designEnd({}, { ...done, state })).toEqual({});
+      expect(designEnd(before, { ...done, state })).toBe(before);
+    }
+  });
+
+  it('designEnd ne touche jamais à la marque de la note : une note validée avant la vérification garde la sienne', () => {
+    const before: Marks = { note: { hash: 'h0', verdict: 'ok' } };
+    for (const end of [done, { ...done, questions: 2 }, { ...done, clicked: null }, { ...done, state: 'failed' as const }]) {
+      expect(designEnd(before, end).note).toBe(before.note);
     }
   });
 
@@ -402,6 +518,63 @@ describe('la vérification de conception de la note', () => {
     const before: Marks = {};
     designEnd(before, done);
     expect(before).toEqual({});
+  });
+
+  it('designState : rien trouvé, la conception inchangée : clean', () => {
+    expect(designState(designEnd({}, done), path, 'h1')).toBe('clean');
+  });
+
+  it('designState : rien trouvé, la conception changée depuis : edited', () => {
+    expect(designState(designEnd({}, done), path, 'h2')).toBe('edited');
+  });
+
+  it('designState : note jamais vérifiée, ou dernière vérification d\'une autre note : null', () => {
+    expect(designState({}, path, 'h1')).toBeNull();
+    expect(designState(designEnd({}, done), '/autre.md', 'h1')).toBeNull();
+  });
+
+  it('designState : la dernière vérification a trouvé une question : null ; vérifiée mais sans « rien trouvé » : null', () => {
+    expect(designState(designEnd(designEnd({}, done), { ...done, questions: 1 }), path, 'h1')).toBeNull();
+    expect(designState(checked, path, 'h1')).toBeNull();
+  });
+});
+
+describe('keepNote : la note validée puis changée', () => {
+  const VALIDATED = ['## Ce que ça fait', '', 'Un bouton.', '', '## Ce que ça ne doit pas faire', '', '- Lire un autre fichier. → invariant'].join('\n');
+  const ACCEPTED = 'Il se tait la nuit.';
+  const WITH = VALIDATED.replace('Un bouton.\n', `Un bouton.\n\n${ACCEPTED}\n`);
+  const MARKS: Marks = { note: { hash: blobSha(VALIDATED), verdict: 'ok' }, forme: { hash: 'f', verdict: 'ok' } };
+
+  it('un texte accepté ajouté : la marque suit la nouvelle conception, les autres marques restent', () => {
+    const next = keepNote(MARKS, { validated: VALIDATED, design: WITH, accepted: [ACCEPTED] });
+    expect(next.note).toEqual({ hash: blobSha(WITH), verdict: 'ok' });
+    expect(next.forme).toBe(MARKS.forme);
+  });
+
+  it('rend un nouvel état, sans toucher à l\'ancien', () => {
+    keepNote(MARKS, { validated: VALIDATED, design: WITH, accepted: [ACCEPTED] });
+    expect(MARKS.note.hash).toBe(blobSha(VALIDATED));
+  });
+
+  it('un autre changement : marks tel quel (« modifiée depuis »)', () => {
+    const design = WITH.replace('Un bouton.', 'Deux boutons.');
+    expect(keepNote(MARKS, { validated: VALIDATED, design, accepted: [ACCEPTED] })).toBe(MARKS);
+  });
+
+  it('la conception validée pas retenue : marks tel quel', () => {
+    expect(keepNote(MARKS, { validated: null, design: WITH, accepted: [ACCEPTED] })).toBe(MARKS);
+  });
+
+  it('la note jamais validée, ou refusée : marks tel quel', () => {
+    const refused: Marks = { note: { hash: blobSha(VALIDATED), verdict: 'ko' } };
+    expect(keepNote({}, { validated: VALIDATED, design: WITH, accepted: [ACCEPTED] })).toEqual({});
+    expect(keepNote(refused, { validated: VALIDATED, design: WITH, accepted: [ACCEPTED] })).toBe(refused);
+  });
+
+  it('la marque déjà à jour : marks tel quel', () => {
+    const now = keepNote(MARKS, { validated: VALIDATED, design: WITH, accepted: [ACCEPTED] });
+    expect(keepNote(now, { validated: VALIDATED, design: WITH, accepted: [ACCEPTED] })).toBe(now);
+    expect(keepNote(MARKS, { validated: VALIDATED, design: VALIDATED, accepted: [] })).toBe(MARKS);
   });
 });
 

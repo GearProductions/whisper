@@ -31,7 +31,7 @@ allowed-tools: "Read, Glob, Grep, Write, Edit"
 - Where: the module's `tests/invariants/` folder, or what `AGENTS.md` says; cross-module ones in the root `tests/invariants/`. File header: what it guards (the note line, the project's invariant id such as `I-12`), and that it is protected: if it fails, fix the code.
 - Call the signatures of the skeletons that *Poser la forme* posed. A skeleton missing: pose it as the Forme says — path, file header, signature, a body that fails (`throw new Error('not implemented')`, `todo!()`, `raise NotImplementedError`). No implementation. In a compiled language, never leave the test suite uncompilable.
 - Apply the `ponytail` skill (`.claude/skills/ponytail/SKILL.md` of the project, if present) to helpers and harness — reuse, no new dependency — never to the cases.
-- Existing invariant files are protected: change one only if the note changes that invariant, and say so.
+- Existing invariant files are protected: change one only if the note changes that invariant, and say so. A new case added to an existing file will not be corrected later (the alignment and the proof of the invariants leave those files alone, a case that stays green goes up to the user as `[toi]`): put the ticket's invariants in a **new file**, preferably.
 - Nothing in the background: this run ends when you answer, and a command still running is lost. Never set `run_in_background`, never end the `Bash` command with `&`, never answer « still running ». A long command (the mutants, a full test run) runs in the foreground, in batches that each fit under Bash's maximum timeout (600000 ms): split by file or by mutant, run the batches one after the other. What did not run (batches left, mutants not tried) is named in the answer, never implied.
 
 ## Then

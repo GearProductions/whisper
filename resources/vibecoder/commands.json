@@ -774,6 +774,7 @@
               "commit",
               "module",
               "modules",
+              "prove",
               "commit-modules",
               "review-diff",
               "checks",
@@ -1903,7 +1904,7 @@
     },
     {
       "name": "step.validate",
-      "description": "Validates a step of the journey, as the check mark on the screen does: the app keeps the step's content and its files as they are now, and the step shows as validated until its content changes. Use it again after a correction, to validate the new version. Never the note: only the user validates it, on the screen. Refused when the step before is not validated, or when there is nothing to validate. Nothing in the project is written, the git index is never touched.",
+      "description": "Validates a step of the journey, as the check mark on the screen does: the app keeps the step's content and its files as they are now, and the step shows as validated until its content changes. Use it again after a correction, to validate the new version. Never the note: only the user validates it, on the screen. The modules are validated only once the proof of the invariants (prove) has passed. Refused when the step before is not validated, or when there is nothing to validate. Nothing in the project is written, the git index is never touched.",
       "kind": "write",
       "agent": true,
       "args": {
@@ -1987,8 +1988,8 @@
     },
     {
       "code": "halted",
-      "message": "Vibe was stopped by the user: start nothing more.",
-      "todo": "Do not retry and do not start anything else. Tell the user, who stopped Vibe, that you are waiting for them."
+      "message": "Vibe was stopped by the user, or the journey is at a pause the user holds: start nothing more.",
+      "todo": "Do not retry and do not start anything else. Tell the user, who stopped Vibe or holds the pause, where you are and what to look at, and that you are waiting for them."
     },
     {
       "code": "worktree",

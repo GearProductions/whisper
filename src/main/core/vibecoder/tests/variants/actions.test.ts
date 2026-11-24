@@ -560,7 +560,7 @@ describe('les actions de resources/vibecoder (fr et en)', () => {
   // Chaque action, ses arguments nommés ; une action absente d'ici n'en porte aucun.
   const NAMED: Record<string, string[]> = {
     'design-check': ['note'], forme: ['note'], invariants: ['note'], vibe: ['note'],
-    modules: ['note', 'base'],
+    modules: ['note', 'base'], prove: ['note', 'base'],
     module: ['base'], 'commit-modules': ['base'], align: ['base'], 'commit-prepare': ['base'], 'review-diff': ['base'],
     ponytail: ['base'], fixups: ['base'], screen: ['base'], pr: ['base'],
   };
@@ -613,6 +613,35 @@ describe('les actions de resources/vibecoder (fr et en)', () => {
         .toEqual({ text: `/vibecoder:modules fr ${OUT} ${NOTE} ${BASE} distrobox enter dev --` });
     });
 
+    it(`${lang} : Prouver les invariants : en lecture, étape Modules, créateur, entre Générer les modules et Commiter les modules`, () => {
+      expect(byId('prove')).toMatchObject({ flow: 'create', step: 'modules', kind: 'send', needs: 'none', reads: true });
+      const ids = all.map((a) => a.id);
+      expect(ids.indexOf('prove')).toBe(ids.indexOf('modules') + 1);
+      expect(ids.indexOf('commit-modules')).toBe(ids.indexOf('prove') + 1);
+    });
+
+    it(`${lang} : Prouver les invariants : « note= », « base= » et le préfixe ; sans note au relevé : refusée`, () => {
+      expect(send('prove', {}, { ...ctx, prefix: 'distrobox enter dev --' }))
+        .toEqual({ text: `/vibecoder:prouver fr ${OUT} ${NOTE} ${BASE} distrobox enter dev --` });
+      expect(send('prove', {}, noNote)).toEqual({ error: 'note' });
+    });
+
+    it(`${lang} : l'action vibe : ni son libellé ni son aide ne disent « Vibe » (son id, son skill inchangés)`, () => {
+      const vibe = byId('vibe')!;
+      expect(vibe.label).toBe(lang === 'fr' ? 'Reprendre' : 'Resume');
+      expect(vibe.hint).not.toBe('');
+      expect(`${vibe.label} ${vibe.hint}`).not.toMatch(/\bvibe\b/i);
+      expect(send('vibe')).toEqual({ text: `/vibecoder:vibe fr ${OUT} ${NOTE}` });
+    });
+
+    // Trouvé en route : Vérifier la conception est un geste à part, Valider la note un autre.
+    it(`${lang} : Vérifier la conception : un geste à part, son aide ne dit pas qu'elle valide la note`, () => {
+      const hint = byId('design-check')!.hint;
+      expect(hint).not.toMatch(/part de valider|starts from validate|la note est validée|the note is validated/i);
+      expect(hint).toMatch(lang === 'fr' ? /Valider la note/ : /Validate the note/);
+      expect(hint).toMatch(lang === 'fr' ? /ne valide jamais la note/ : /never validates the note/);
+    });
+
     it(`${lang} : Générer ce module : « base= », le module et le préfixe à leur place`, () => {
       expect(send('module', {}, { ...ctx, prefix: 'p' }))
         .toEqual({ text: `/vibecoder:module fr ${OUT} ${BASE} src/core/b.ts — b() · ne connaît pas : a\np` });
@@ -634,6 +663,19 @@ describe('les actions de resources/vibecoder (fr et en)', () => {
       expect(send('apply', { text: 'une remarque' })).toEqual({ text: `/vibecoder:appliquer-revue fr ${OUT} une remarque` });
     });
   }
+});
+
+describe('les actions de resources/vibecoder : le français et l\'anglais portent les mêmes variables', () => {
+  const ROOT = path.resolve(__dirname, '../../../../../../resources/vibecoder');
+  const load = (lang: string) => parseActions(JSON.parse(fs.readFileSync(path.join(ROOT, `actions.${lang}.json`), 'utf8')));
+  const vars = (text: string) => [...text.matchAll(/\{\{\s*(\w+)\s*\}\}/g)].map((m) => m[1]);
+
+  it('chaque action : les mêmes variables, dans le même ordre, dans les deux langues (prove comprise)', () => {
+    const [fr, en] = [load('fr'), load('en')];
+    expect(en.map((a) => a.id)).toEqual(fr.map((a) => a.id));
+    expect(fr.some((a) => a.id === 'prove')).toBe(true);
+    for (const a of fr) expect({ id: a.id, vars: vars(en.find((b) => b.id === a.id)!.text) }).toEqual({ id: a.id, vars: vars(a.text) });
+  });
 });
 
 describe('readArgs : les arguments que lit un gabarit', () => {

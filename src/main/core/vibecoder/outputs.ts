@@ -4,12 +4,24 @@
  *  niveau, cases à cocher, un JSON, le worktree d'une PR, la branche d'une nouvelle demande
  *  (new-request.json), les remarques ponytail appliquées) ;
  *  la ligne de la consigne qui fait vider questions.md par la conversation.
+ *  La preuve des invariants par mutation (note 0.16.0-controle-en-trois-points) : preuve.md, une sortie connue de
+ *  plus (OUTPUTS), écrite par le skill prouver — une rubrique par ligne « → invariant » de la note,
+ *  `## [prouvé] <la ligne>` (« [proved] ») puis le mutant qui a fait échouer son test, ou `## [toi] <la ligne>` puis
+ *  pourquoi elle remonte à l'utilisateur ; sans ligne « → invariant » : « Rien à prouver. ».
+ *  toiCount(md: string): number — les rubriques `## [toi]` d'un fichier de retour (align.md, preuve.md).
+ *  parseProof(md: string): VibeProofLine[] — les rubriques de preuve.md, dans l'ordre ; une rubrique sans étiquette
+ *  connue n'est pas prouvée.
+ *  proofOf(md: string | null, lines: string[]): VibeProof — l'état de la preuve pour les lignes « → invariant » de la
+ *  note (lines, leur texte) : 'none' sans ligne ; 'missing' sans fichier, ou si une ligne de la note n'a pas sa
+ *  rubrique ; 'blocked' si une rubrique est [toi] ou pas prouvée ; 'ok' si chaque ligne de la note est prouvée.
+ *  Elle ne lit que preuve.md et les lignes de la note, ni le code ni les tests : une preuve passée le reste quand le
+ *  code change ensuite (une correction après l'essai à l'écran) ; seule une nouvelle course la remplace.
  *  Ne connaît pas : le disque (textes passés), git, les skills.
  *  Utilisé par : core/vibecoder (journey), app/controllers (vibecoder,
  *  worktrees, agents). */
 import path from 'node:path';
 import { okRef } from 'helpers';
-import type { ReadingCase, VibeCheck, VibeQuestion } from 'shared/bridge';
+import type { ReadingCase, VibeCheck, VibeProof, VibeProofLine, VibeQuestion } from 'shared/bridge';
 
 // Les noms fixes. S'y ajoutent, par PR : pr-<n>.json, pr-<n>-note.md,
 // pr-<n>-commits.md, pr-<n>-review.json, pr-<n>-worktree.json ; et les lectures
@@ -20,6 +32,7 @@ export const OUTPUTS: readonly string[] = [
   'lancement.json',   // la proposition des commandes du projet (skill lancement), adoptée par controllers/processes
   'ponytail-applied.json', // { applied: ["<fichier>:L<ligne>", …] } : les remarques de ponytail.md que la course apply a appliquées
   'new-request.json',      // { branch } : la branche d'une nouvelle demande (skill nouvelle-demande)
+  'preuve.md',             // la preuve des invariants par mutation (skill prouver), lue par journey
 ];
 
 // Un nom de sortie connu, rien d'autre : ni `..`, ni autre dossier qu'invariants/.
@@ -119,4 +132,38 @@ export function parseChecklist(md: string): VibeCheck[] {
     const m = /^\s*(?:[-*+]|\d+[.)])\s+\[([ xX])\]\s+(.*?)\s*$/.exec(line);
     return m ? [{ text: m[2], done: m[1] !== ' ' }] : [];
   });
+}
+
+// Les rubriques `## [toi]` d'un fichier de retour (align.md, preuve.md) : ce qui remonte à l'utilisateur.
+export function toiCount(md: string): number {
+  return md.split(/\r?\n/).filter((line) => /^##\s+\[toi\]/.test(line)).length;
+}
+
+// preuve.md : une rubrique par ligne « → invariant » de la note, prouvée ([prouvé], [proved]) ou pour l'utilisateur ([toi]).
+// Le détail : le texte de la rubrique, jusqu'au titre suivant.
+export function parseProof(md: string): VibeProofLine[] {
+  const out: VibeProofLine[] = [];
+  const detail: string[][] = [];
+  for (const row of md.split(/\r?\n/)) {
+    const h = /^##\s+(?:\[([^\]]*)\]\s*)?(.*?)\s*$/.exec(row);
+    if (h) {
+      out.push({ line: h[2], proved: h[1] === 'prouvé' || h[1] === 'proved', detail: '' });
+      detail.push([]);
+    } else if (out.length) detail[detail.length - 1].push(row);
+  }
+  return out.map((r, i) => ({ ...r, detail: detail[i].join('\n').trim() }));
+}
+
+// L'état de la preuve pour les lignes « → invariant » de la note (leur texte) ; md null : pas de preuve.md.
+// Une ligne se compare à l'espace près ; une ligne n'est prouvée que si toutes ses rubriques le sont.
+export function proofOf(md: string | null, lines: string[]): VibeProof {
+  if (!lines.length) return { state: 'none', lines: [] };
+  const norm = (s: string) => s.trim().replace(/\s+/g, ' ');
+  const rubrics = md === null ? [] : parseProof(md);
+  const got = lines.map((line): VibeProofLine & { found: boolean } => {
+    const mine = rubrics.filter((r) => norm(r.line) === norm(line));
+    return { line, proved: mine.length > 0 && mine.every((r) => r.proved), detail: (mine.find((r) => !r.proved) ?? mine[0])?.detail ?? '', found: mine.length > 0 };
+  });
+  const state = got.some((l) => !l.found) ? 'missing' : got.every((l) => l.proved) ? 'ok' : 'blocked';
+  return { state, lines: got.map(({ line, proved, detail }) => ({ line, proved, detail })) };
 }

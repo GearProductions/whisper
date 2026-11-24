@@ -58,7 +58,7 @@
 .vc-a3-list li + li, .vc-check-list li + li { border-top: 1px solid var(--vc-sep-soft); }
 .vc-a3-list li[data-state="ko"] .vc-a3-text { color: var(--vc-soft); }
 .vc-a3-text { min-width: 0; }
-/* Une case que l'on coche à la main (relecture, AGENTS.md) ; dessous, son aide. */
+/* La case que l'on coche à la main (AGENTS.md, facultative) ; l'aide d'une case du relevé se met dessous (.vc-a3-help). */
 .vc-a3-check { display: flex; align-items: center; gap: 8px; min-width: 0; cursor: pointer; }
 .vc-a3-check input { flex: none; width: 16px; height: 16px; margin: 0; accent-color: var(--vc-ok); cursor: pointer; }
 .vc-a3-check input:disabled { cursor: default; }

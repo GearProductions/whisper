@@ -2,20 +2,28 @@
  *  boutons de celle de la note, de la forme, des invariants, des modules (note
  *  0.15.0-ecran-statuts : Valider les invariants, Valider les modules) ou de « Rien à écrire » (étape
  *  Invariants) (Valider ; validée et Annuler ; modifiée depuis et Revalider ;
- *  Relire : Valider ou À revoir ; la note en créateur (onRecheck) : pas vérifiée,
- *  Valider et vérifier ; vérifiée, Revérifier d'abord, en couleur neutre, sans coche (il ne fait
- *  qu'appeler onRecheck), puis Revalider ; `run` : la course de la vérification, à côté du bouton,
- *  comme celle d'un bouton d'action (RunOn, step-parts : « en cours » et ⏹ → run.onStop ; « en attente » tant
- *  qu'elle est en file)), chaque libellé derrière son icône (Icon ok /
+ *  Relire : Valider ou À revoir), chaque libellé derrière son icône (Icon ok /
  *  ko / warn), le verdict d'un cas d'invariant (deux badges écrits, Validé et
  *  À revoir, gris ; celui donné pressé, allumé de sa couleur, un second clic
  *  l'annule) ; CaseVerdict sert à tout cas ou commit (il ne sait rien d'un
  *  invariant). Sur un « À revoir », onRemark (facultatif) ajoute le bouton
  *  « Ajouter une remarque au brouillon » : il ne fait qu'appeler onRemark.
+ *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : la note en créateur (onCheck), deux gestes.
+ *  Vérifier (l'ancien Revérifier : un bouton ordinaire, couleur neutre, sans coche) ne fait qu'appeler onCheck, toujours
+ *  là, relançable ; la course de la vérification (`run`) à côté de lui, comme celle d'un bouton d'action (RunOn,
+ *  step-parts : « en cours » et ⏹ → run.onStop ; « en attente » tant qu'elle est en file). Valider la note (ou
+ *  Revalider, modifiée depuis la validation), le bouton vert, onMark('ok') : montré seulement quand la dernière
+ *  vérification n'a rien trouvé (verified 'clean' ou 'edited'), absent sinon (jamais grisé) ; 'edited' : une ligne dit
+ *  que la note a changé depuis la vérification, Valider la note reste, Vérifier à côté. Valider ne lance aucune
+ *  vérification, Vérifier ne valide rien. Une étape (forme, invariants, modules) en créateur : son état seul quand
+ *  elle est validée — « validée par le système » et ce qui l'a contrôlée (by: 'system' ; forme : les squelettes
+ *  posés ; invariants : l'alignement ; modules : la conformité et la preuve par mutation), « validée » à la main
+ *  sinon — ; Valider, Revalider et Annuler restent, en discret (un bouton sans couleur ni coche, jamais mis en avant,
+ *  jamais grisé). Le relecteur : Valider et À revoir, comme avant.
  *  Ne connaît pas : le pont (rappels passés), le brouillon, ce que porte le cas ; de step-parts, que RunOn.
- *  Utilisé par : note-view, forme-view, invariants-view, modules-view, commits-view. */
-import { t, waitingFor } from 'core/vibecoder';
-import type { VibeLang, VibeMarkState, VibeStepId, VibeView } from 'technicals/bridge';
+ *  Utilisé par : note-view, forme-view, invariants-view, modules-view. */
+import { t } from 'core/vibecoder';
+import type { VibeLang, VibeMarkState, VibeNoteCheck } from 'technicals/bridge';
 import { Icon } from './icons';
 import { RunOn } from './step-parts';
 import './validation.css';
@@ -31,9 +39,6 @@ const fr = {
   changed: 'Modifiée depuis la validation',
   changedTitle: 'Le contenu a changé depuis la validation : relisez-le, puis revalidez-le',
   revalidate: 'Revalider',
-  validateCheck: 'Valider et vérifier',
-  recheck: 'Revérifier',
-  recheckTitle: 'Relancer la vérification de conception de la note, sans la valider',
   refuse: 'À revoir',
   refuseTitle: 'Refuser : une zone de commentaire s\'ouvre, la remarque va au brouillon de revue',
   undo: 'Annuler',
@@ -42,6 +47,10 @@ const fr = {
   verdictUndo: 'Cliquer de nouveau pour annuler',
   remark: 'Ajouter une remarque au brouillon',
   queued: 'en attente',
+  check: 'Vérifier',
+  checkTitle: 'Vérifier la conception de la note : ses suggestions vont au questionnaire, rien n\'est validé',
+  edited: 'Modifiée depuis la vérification',
+  editedTitle: 'La note a changé depuis la dernière vérification : vérifiez-la de nouveau, ou validez-la telle quelle',
 };
 const S: Record<VibeLang, typeof fr> = {
   fr,
@@ -53,9 +62,6 @@ const S: Record<VibeLang, typeof fr> = {
     changed: 'Changed since the approval',
     changedTitle: 'The content changed since the approval: read it again, then approve it again',
     revalidate: 'Approve again',
-    validateCheck: 'Approve and check',
-    recheck: 'Check again',
-    recheckTitle: 'Run the note\'s design check again, without approving it',
     refuse: 'Needs rework',
     refuseTitle: 'Reject: a comment box opens, the remark goes to the review draft',
     undo: 'Undo',
@@ -64,13 +70,19 @@ const S: Record<VibeLang, typeof fr> = {
     verdictUndo: 'Click again to undo',
     remark: 'Add a remark to the draft',
     queued: 'queued',
+    check: 'Check',
+    checkTitle: 'Check the note\'s design: its suggestions go to the questions, nothing is approved',
+    edited: 'Changed since the check',
+    editedTitle: 'The note changed since the last check: check it again, or approve it as it is',
   },
 };
 
 // run : la course design-check de la note (en cours, attend une autorisation, arrêtée ; queued : en file) ; absent : aucune.
 type DesignRun = { state: 'running' | 'asking' | 'stopped' | 'queued'; onStop?(): void };
-type MarkProps = { what: What; state: VibeMarkState; review: boolean; lang: VibeLang; onMark(v: Verdict): void; onRemark?(): void; checked?: boolean; onRecheck?(): void; run?: DesignRun;
-  waiting?: string;   // la raison qui grise Valider (l'étape d'avant n'est pas validée) ; absent : actif
+type MarkProps = { what: What; state: VibeMarkState; review: boolean; lang: VibeLang; onMark(v: Verdict): void; onRemark?(): void; run?: DesignRun;
+  by?: 'system';      // une étape validée par le système (VibeStepCheck.by) ; absent : à la main
+  onCheck?(): void;   // la note en créateur : Vérifier (lance la vérification de conception, ne valide rien) ; absent : pas de Vérifier
+  verified?: VibeNoteCheck | null;   // avec onCheck : ce qu'a rendu la dernière vérification ; null ou absent : pas de Valider la note
 };
 
 // La course de la vérification, comme celle d'une action (step-parts) ; « en attente » : pas encore partie, rien à arrêter.
@@ -79,30 +91,48 @@ function Course({ run, lang }: { run?: DesignRun; lang: VibeLang }) {
   return run.state === 'queued' ? <span className="vc-run-on">{S[lang].queued}</span> : <RunOn state={run.state} t={t(lang)} onStop={run.onStop} />;
 }
 
-// La validation de la note, de la forme ou de « Rien à écrire ». Relire : un verdict, Valider ou À revoir.
-export function MarkControl({ what, state, review, lang, onMark, onRemark, checked, onRecheck, run, waiting }: MarkProps) {
+// La validation de la note, d'une étape ou de « Rien à écrire ». Relire : un verdict, Valider ou À revoir.
+// Une étape en créateur (forme, invariants, modules) : Valider en discret, jamais grisé ; validée par le système, elle le dit.
+export function MarkControl({ what, state, review, lang, onMark, onRemark, run, by, onCheck, verified }: MarkProps) {
   const s = S[lang];
-  const check = what === 'note' && !!onRecheck; // la note, en créateur : sa vérification de conception
-  const label = check && !checked ? s.validateCheck : state === 'changed' || check ? s.revalidate : s.validate[what];
+  const tt = t(lang);
+  const quiet = !review && what !== 'note' && what !== 'nothing';
+  const label = state === 'changed' ? s.revalidate : s.validate[what];
   const refuse = review ? <button type="button" className="vc-vbtn" data-v="ko" title={s.refuseTitle} onClick={() => onMark('ko')}><Icon name="ko" />{s.refuse}</button> : null;
   if (state === 'ok' || state === 'ko') {
+    const step = what === 'forme' || what === 'invariants' || what === 'modules' ? what : null;
+    const system = state === 'ok' && by === 'system' && step !== null;
     return (
       <span className="vc-vmark">
-        <span className="vc-vstate" data-state={state}><Icon name={state} />{state === 'ok' ? s.done[what] : s.refused[what]}</span>
+        <span className="vc-vstate" data-state={state}><Icon name={state} />{system ? tt.stepCheck.system : state === 'ok' ? s.done[what] : s.refused[what]}</span>
+        {system ? <span className="vc-vby">{tt.systemCheck[step!]}</span> : null}
         {state === 'ko' && onRemark ? <button type="button" className="vc-vundo" onClick={onRemark}>{s.remark}</button> : null}
         <button type="button" className="vc-vundo" title={s.undoTitle} onClick={() => onMark(null)}>{s.undo}</button>
       </span>
     );
   }
+  const noteCheck = onCheck && !review && what === 'note'; // la note en créateur : Vérifier, puis Valider la note si la vérification n'a rien trouvé
+  const validate = (
+    <button type="button" className={quiet ? 'vc-vbtn vc-vbtn-plain' : 'vc-vbtn'} data-v={quiet ? undefined : 'ok'} title={s.validateTitle} onClick={() => onMark('ok')}>
+      {quiet ? null : <Icon name="ok" />}{label}
+    </button>
+  );
   return (
     <span className="vc-vmark">
       {state === 'changed' ? <span className="vc-vstate" data-state="changed" title={s.changedTitle}><Icon name="warn" />{s.changed}</span> : null}
-      {check && checked ? <><button type="button" className="vc-vbtn vc-vbtn-plain" title={s.recheckTitle} onClick={onRecheck}>{s.recheck}</button><Course run={run} lang={lang} /></> : null}
-      {waiting ? <span className="vc-vstate" data-state="waiting">{waiting}</span> : null}
-      <button type="button" className="vc-vbtn" data-v="ok" title={waiting ?? s.validateTitle} disabled={!!waiting} onClick={() => onMark('ok')}>
-        <Icon name="ok" />{label}
-      </button>
-      {check && !checked ? <Course run={run} lang={lang} /> : null}
+      {noteCheck ? (
+        <>
+          {verified === 'edited' ? <span className="vc-vstate" data-state="changed" title={s.editedTitle}><Icon name="warn" />{s.edited}</span> : null}
+          <button type="button" className="vc-vbtn vc-vbtn-plain" title={s.checkTitle} onClick={onCheck}>{s.check}</button>
+          <Course run={run} lang={lang} />
+          {verified ? validate : null}
+        </>
+      ) : (
+        <>
+          {validate}
+          <Course run={run} lang={lang} />
+        </>
+      )}
       {refuse}
     </span>
   );
@@ -123,11 +153,4 @@ export function CaseVerdict({ state, lang, onMark, onRemark, off }: { state: Vib
       {state === 'ko' && onRemark ? <button type="button" onClick={onRemark}>{s.remark}</button> : null}
     </span>
   );
-}
-
-// La raison qui grise Valider d'une étape : l'étape d'avant qu'elle attend (waitingFor), en toutes lettres ; undefined : rien.
-export function waitText(view: Pick<VibeView, 'steps' | 'lang'>, step: VibeStepId): string | undefined {
-  const prev = waitingFor(view.steps, step);
-  const tt = t(view.lang);
-  return prev ? tt.waitingFor(tt.steps[prev]) : undefined;
 }

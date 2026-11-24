@@ -238,3 +238,22 @@ it('l\'onglet choisi, la vue recréée sous le même agent : le même ; un autre
   expect(pressed()).toBe('Structure');
   scope = null;
 });
+
+// 0.16.0 : la Forme validée par le système (docs/tickets/feat/0.16.0-controle-en-trois-points.md).
+it('Forme validée par le système : « validée par le système » et son contrôle ; Annuler reste ; à la main : « Forme validée »', async () => {
+  await draw({}, { ...plain, check: { state: 'ok', now: null, by: 'system' } });
+  expect(page.querySelector('.vc-forme .vc-vstate')!.textContent).toBe('validée par le système');
+  expect(page.querySelector('.vc-forme .vc-vby')!.textContent).toBe('squelettes posés');
+  expect(valider()).toEqual(['Annuler']);
+  await draw({}, { ...plain, check: { state: 'ok', now: null } });
+  expect(page.querySelector('.vc-forme .vc-vstate')!.textContent).toBe('Forme validée');
+  expect(page.querySelector('.vc-forme .vc-vby')).toBeNull();
+});
+
+it('Forme pas validée : Valider la forme en discret (sans vert ni coche), jamais grisé, même si la note attend', async () => {
+  const note = { id: 'note', status: 'done', facts: '', check: { state: null, now: null } };
+  await draw({ steps: [note, { ...plain, check: { state: null, now: null } }] } as never, { ...plain, check: { state: null, now: null } });
+  const b = page.querySelector<HTMLButtonElement>('.vc-forme .vc-vmark button')!;
+  expect([b.textContent, b.disabled, b.getAttribute('data-v'), b.querySelector('svg')]).toEqual(['Valider la forme', false, null, null]);
+  expect(page.querySelector('.vc-vstate[data-state="waiting"]')).toBeNull();
+});

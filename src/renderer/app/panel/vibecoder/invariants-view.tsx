@@ -66,10 +66,14 @@
  *  (IdeFile.gone, id r<i>) : suivi, son diff tout en retraits (ModuleCode diff). Retirés : ideReview (accordéons, Valider d'un
  *  fichier), FileOrDiff.
  *  L'alignement (align.md) : MarkdownView tagged (badges pour toi / pour l'agent, le grisé).
+ *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : en créateur, l'étape montre sa validation
+ *  (by de step.check : « validée par le système », sur l'alignement) ; Valider les invariants, le ✓ de chaque cas et
+ *  Lire en pseudo-code restent à leur place, en discret, sans « n cas à valider » ni rien qui attende ; le relecteur :
+ *  inchangé.
  *  Ne connaît pas : le pont (rappels passés), le brouillon (ses remarques, par cible). Utilisé par : step-views. */
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
-  attentionQuote, awaiting, checkMark, waitingFor, goneModule, caseLink, caseRange, caseSource, casesOf, excerpt, fileParts, invariantTree, progress, pseudoLines, remark, remarksAt, withAttention, type CaseLink, type CaseView, type IdeFile, type Progress, type Strings,
+  attentionQuote, awaiting, checkMark, goneModule, caseLink, caseRange, caseSource, casesOf, excerpt, fileParts, invariantTree, progress, pseudoLines, remark, remarksAt, withAttention, type CaseLink, type CaseView, type IdeFile, type Progress, type Strings,
 } from 'core/vibecoder';
 import type { VibeComment, VibeLang, VibeModule, VibeTestFile } from 'technicals/bridge';
 import { isInvariantPath } from 'shared/test-paths';
@@ -88,7 +92,7 @@ import { ModuleCode } from './module-code';
 import { ModuleDiffView } from './module-diff-view';
 import { Invite, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
-import { CaseVerdict, MarkControl, waitText } from './validation';
+import { CaseVerdict, MarkControl } from './validation';
 import './invariants-view.css';
 
 const fr = {
@@ -317,7 +321,7 @@ export function InvariantsView(props: StepProps) {
         {view.invariants.some((f) => f.reading) ? (
           <Run a={read} busy={busy} label={s.rereadAll} onRun={() => act.run('read-invariants', { file: '*' })} />
         ) : null}
-        {review || !(check?.now != null || checkState === 'ok' || waitingFor(view.steps, 'invariants')) ? null : <MarkControl what="invariants" state={checkState} review={false} lang={view.lang} onMark={(v) => act.mark('invariants', v)} waiting={waitText(view, 'invariants')} />}
+        {review || !(check?.now != null || checkState === 'ok') ? null : <MarkControl what="invariants" state={checkState} review={false} lang={view.lang} onMark={(v) => act.mark('invariants', v)} by={check?.by} />}
       </StepHead>
       {wait?.kind === 'cases' ? <p className="vc-ihelp">{s.casesHere(wait.count)}</p> : null}
       {view.invariants.length ? <Summary p={total} files={view.invariants.length} s={s} /> : null}

@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 // validation (validation.tsx) : CaseVerdict, deux badges écrits (Validé, À revoir), celui donné pressé,
-// un second clic l'annule ; MarkControl, l'icône devant le texte, sans glyphe Unicode.
+// un second clic l'annule ; MarkControl, l'icône devant le texte, sans glyphe Unicode ; 0.16.0 : la note en créateur, Vérifier puis Valider la note,
+// une étape validée par le système le dit, sa validation à la main en discret, jamais grisée.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it } from 'vitest';
@@ -84,52 +85,144 @@ it('Validé, ou sans onRemark : pas de bouton', async () => {
   expect(buttons()).toHaveLength(2);
 });
 
-it('note, créateur (onRecheck) : pas vérifiée → « Valider et vérifier », un clic → onMark(\'ok\') ; en anglais aussi', async () => {
+// 0.16.0, vérifier puis valider : la note en créateur reçoit onCheck (Vérifier) et verified (ce qu'a rendu la dernière vérification).
+const drawNote = (over: object, state: 'ok' | 'ko' | 'changed' | null = null, lang: 'fr' | 'en' = 'fr') => act(() => root.render(createElement(MarkControl,
+  { what: 'note', state, review: false, lang, onMark: () => {}, onCheck: () => {}, ...over } as never)));
+
+it('note, créateur, jamais vérifiée, ou la dernière vérification a trouvé quelque chose : Vérifier seul, pas de Valider la note', async () => {
+  for (const verified of [undefined, null]) {
+    for (const state of [null, 'changed'] as const) {
+      await drawNote({ verified }, state);
+      expect(buttons().map((b) => b.textContent)).toEqual(['Vérifier']);
+    }
+  }
+  await drawNote({ verified: null }, null, 'en');
+  expect(buttons().map((b) => b.textContent)).toEqual(['Check']);
+});
+
+it('note, créateur, vérifiée sans rien trouver : Valider la note (vert), Vérifier à côté (ordinaire, ni vert ni coche)', async () => {
+  await drawNote({ verified: 'clean' });
+  const [check, validate] = buttons();
+  expect([check.textContent, check.className, check.getAttribute('data-v'), check.querySelector('svg')]).toEqual(['Vérifier', 'vc-vbtn vc-vbtn-plain', null, null]);
+  expect([validate.textContent, validate.getAttribute('data-v'), validate.querySelector('svg') !== null, validate.disabled]).toEqual(['Valider la note', 'ok', true, false]);
+  expect(page.querySelector('.vc-vstate')).toBeNull();
+  await drawNote({ verified: 'clean' }, 'changed');
+  expect(buttons().map((b) => b.textContent)).toEqual(['Vérifier', 'Revalider']);
+  await drawNote({ verified: 'clean' }, null, 'en');
+  expect(buttons().map((b) => b.textContent)).toEqual(['Check', 'Approve the note']);
+});
+
+it('note, créateur, rien trouvé mais modifiée depuis : Valider la note reste, Vérifier à côté, et la ligne le dit', async () => {
+  await drawNote({ verified: 'edited' });
+  expect(buttons().map((b) => b.textContent)).toEqual(['Vérifier', 'Valider la note']);
+  expect(page.querySelector('.vc-vstate')!.textContent).toBe('Modifiée depuis la vérification');
+  await drawNote({ verified: 'edited' }, null, 'en');
+  expect(page.querySelector('.vc-vstate')!.textContent).toBe('Changed since the check');
+});
+
+it('note, créateur : Vérifier n\'appelle que onCheck, Valider la note que onMark(\'ok\')', async () => {
   const log: unknown[] = [];
-  const draw = (state: 'ok' | 'ko' | 'changed' | null, checked: boolean, lang: 'fr' | 'en' = 'fr') => act(() => root.render(createElement(MarkControl,
-    { what: 'note', state, review: false, lang, checked, onMark: (v) => { log.push(v); }, onRecheck: () => { log.push('recheck'); } })));
-  await draw(null, false);
-  expect(buttons().map((b) => b.textContent)).toEqual(['Valider et vérifier']);
+  await drawNote({ verified: 'clean', onCheck: () => { log.push('check'); }, onMark: (v: unknown) => { log.push(v); } });
+  buttons()[0].click();
+  expect(log).toEqual(['check']);
+  buttons()[1].click();
+  expect(log).toEqual(['check', 'ok']);
+});
+
+it('note, créateur, validée : son état et Annuler, sans Vérifier', async () => {
+  await drawNote({ verified: 'clean' }, 'ok');
+  expect(page.textContent).toBe('Note validéeAnnuler');
+});
+
+it('note, créateur : la course de la vérification est dite à côté de Vérifier', async () => {
+  const draw = (run: { state: 'running' | 'queued'; onStop(): void } | undefined, verified?: 'clean') => drawNote({ run, verified });
+  await draw({ state: 'running', onStop: () => {} });
+  const on = page.querySelector('.vc-run-on')!;
+  expect(on.textContent).toBe('en cours');
+  expect(on.previousElementSibling).toBe(buttons()[0]);
+  expect(buttons()[0].textContent).toBe('Vérifier');
+  await draw({ state: 'queued', onStop: () => {} }, 'clean');
+  expect(page.querySelector('.vc-run-on')!.textContent).toBe('en attente');
+  expect(page.querySelector('.vc-run-on')!.previousElementSibling).toBe(buttons()[0]);
+});
+
+it('note, créateur sans onCheck, validée ou pas : un seul bouton, Valider la note (Revalider si modifiée) ; un clic → onMark(\'ok\')', async () => {
+  const log: unknown[] = [];
+  // checked et onRecheck, d'avant la 0.16.0, ne sont plus lus : le bouton ne change pas.
+  const old = { checked: true, onRecheck: () => { log.push('recheck'); } };
+  const draw = (state: 'ok' | 'ko' | 'changed' | null, lang: 'fr' | 'en' = 'fr') => act(() => root.render(createElement(MarkControl,
+    { what: 'note', state, review: false, lang, onMark: (v: unknown) => { log.push(v); }, ...old } as never)));
+  await draw(null);
+  expect(buttons().map((b) => b.textContent)).toEqual(['Valider la note']);
   buttons()[0].click();
   expect(log).toEqual(['ok']);
-  await draw(null, false, 'en');
-  expect(buttons().map((b) => b.textContent)).toEqual(['Approve and check']);
-});
-
-it('note vérifiée, pas validée ou modifiée depuis : « Revalider » et « Revérifier » ; Revérifier → onRecheck, jamais onMark', async () => {
-  const log: unknown[] = [];
-  for (const state of [null, 'changed'] as const) {
-    await act(() => root.render(createElement(MarkControl,
-      { what: 'note', state, review: false, lang: 'fr', checked: true, onMark: (v) => { log.push(v); }, onRecheck: () => { log.push('recheck'); } })));
-    expect(buttons().map((b) => b.textContent)).toEqual(['Revérifier', 'Revalider']);
-    buttons()[0].click();
-    expect(log).toEqual(['recheck']);
-    log.length = 0;
-  }
-  await act(() => root.render(createElement(MarkControl,
-    { what: 'note', state: null, review: false, lang: 'en', checked: true, onMark: () => {}, onRecheck: () => {} })));
-  expect(buttons().map((b) => b.textContent)).toEqual(['Check again', 'Approve again']);
-});
-
-it('note validée : inchangé (pas de Revérifier) ; forme, relecteur : leurs libellés inchangés', async () => {
-  await act(() => root.render(createElement(MarkControl,
-    { what: 'note', state: 'ok', review: false, lang: 'fr', checked: true, onMark: () => {}, onRecheck: () => {} })));
+  await draw('changed');
+  expect(buttons().map((b) => b.textContent)).toEqual(['Revalider']);
+  await draw(null, 'en');
+  expect(buttons().map((b) => b.textContent)).toEqual(['Approve the note']);
+  await draw('changed', 'en');
+  expect(buttons().map((b) => b.textContent)).toEqual(['Approve again']);
+  await draw('ok');
   expect(page.textContent).toBe('Note validéeAnnuler');
-  await act(() => root.render(createElement(MarkControl, { what: 'forme', state: null, review: false, lang: 'fr', onMark: () => {} })));
-  expect(buttons().map((b) => b.textContent)).toEqual(['Valider la forme']);
-  await act(() => root.render(createElement(MarkControl, { what: 'note', state: null, review: true, lang: 'fr', checked: true, onMark: () => {} })));
-  expect(buttons().map((b) => b.textContent)).toEqual(['Valider la note', 'À revoir']);
+  expect(log).toEqual(['ok']);
 });
 
-it('note vérifiée : Revérifier avant Revalider, sans data-v ok ni coche (Revalider garde les siens)', async () => {
-  await act(() => root.render(createElement(MarkControl,
-    { what: 'note', state: null, review: false, lang: 'fr', checked: true, onMark: () => {}, onRecheck: () => {} })));
-  const [recheck, revalidate] = buttons();
-  expect(recheck.textContent).toBe('Revérifier');
-  expect(recheck.getAttribute('data-v')).not.toBe('ok');
-  expect(recheck.querySelector('svg')).toBeNull();
-  expect(revalidate.getAttribute('data-v')).toBe('ok');
-  expect(revalidate.querySelector('svg')).not.toBeNull();
+it('note : le bouton garde son vert et sa coche (data-v ok, icône), à côté du bouton rien d\'autre', async () => {
+  await act(() => root.render(createElement(MarkControl, { what: 'note', state: null, review: false, lang: 'fr', onMark: () => {} })));
+  expect(buttons()).toHaveLength(1);
+  expect(buttons()[0].getAttribute('data-v')).toBe('ok');
+  expect(buttons()[0].querySelector('svg')).not.toBeNull();
+});
+
+it('relecteur : Valider la note et À revoir, comme avant (forme comprise, sans bouton discret)', async () => {
+  await act(() => root.render(createElement(MarkControl, { what: 'note', state: null, review: true, lang: 'fr', onMark: () => {} })));
+  expect(buttons().map((b) => b.textContent)).toEqual(['Valider la note', 'À revoir']);
+  expect(buttons().map((b) => b.getAttribute('data-v'))).toEqual(['ok', 'ko']);
+});
+
+it('étape pas validée, créateur : Valider en discret (ni vert ni coche), jamais grisé, même à une étape qui attend', async () => {
+  const log: unknown[] = [];
+  for (const what of ['forme', 'invariants', 'modules'] as const) {
+    for (const state of [null, 'changed'] as const) {
+      await act(() => root.render(createElement(MarkControl, { what, state, review: false, lang: 'fr', onMark: (v) => { log.push(v); } })));
+      const [b] = buttons();
+      expect(buttons()).toHaveLength(1);
+      expect([b.disabled, b.getAttribute('data-v'), b.querySelector('svg'), b.className]).toEqual([false, null, null, 'vc-vbtn vc-vbtn-plain']);
+      b.click();
+    }
+  }
+  expect(log).toEqual(['ok', 'ok', 'ok', 'ok', 'ok', 'ok']);
+  // « Rien à écrire » est une décision de l'utilisateur : son bouton garde son vert.
+  await act(() => root.render(createElement(MarkControl, { what: 'nothing', state: null, review: false, lang: 'fr', onMark: () => {} })));
+  expect(buttons()[0].getAttribute('data-v')).toBe('ok');
+});
+
+it('étape validée par le système : « validée par le système » et son contrôle ; à la main : « validée » ; Annuler reste', async () => {
+  const log: unknown[] = [];
+  const draw = (what: 'forme' | 'invariants' | 'modules', by: 'system' | undefined, lang: 'fr' | 'en' = 'fr') => act(() => root.render(createElement(MarkControl,
+    { what, state: 'ok', review: false, lang, by, onMark: (v) => { log.push(v); } })));
+  const want = {
+    forme: ['validée par le système', 'squelettes posés'],
+    invariants: ['validée par le système', 'alignement avec la note'],
+    modules: ['validée par le système', 'conformité à la forme et preuve par mutation'],
+  } as const;
+  for (const what of ['forme', 'invariants', 'modules'] as const) {
+    await draw(what, 'system');
+    expect(page.querySelector('.vc-vstate')!.textContent).toBe(want[what][0]);
+    expect(page.querySelector('.vc-vby')!.textContent).toBe(want[what][1]);
+    expect(buttons().map((b) => b.textContent)).toEqual(['Annuler']);
+  }
+  await draw('modules', undefined);
+  expect(page.querySelector('.vc-vstate')!.textContent).toBe('Modules validés');
+  expect(page.querySelector('.vc-vby')).toBeNull();
+  await draw('forme', 'system', 'en');
+  expect(page.querySelector('.vc-vstate')!.textContent).toBe('validated by the system');
+  expect(page.querySelector('.vc-vby')!.textContent).toBe('skeletons set up');
+  buttons()[0].click();
+  expect(log).toEqual([null]);
+  // La note n'est jamais validée par le système : by n'y change rien.
+  await act(() => root.render(createElement(MarkControl, { what: 'note', state: 'ok', review: false, lang: 'fr', by: 'system', onMark: () => {} })));
+  expect(page.textContent).toBe('Note validéeAnnuler');
 });
 
 it('invariants, modules : le libellé (fr, en) ; validé : Annuler ; modifié depuis : Revalider ; rien n\'est envoyé sans clic', async () => {
@@ -162,25 +255,23 @@ it('invariants, modules : le libellé (fr, en) ; validé : Annuler ; modifié de
   }
 });
 
-it('run : running → « en cours » et ⏹ (onStop) ; queued → « en attente », pas de ⏹ ; sans run : rien ; vérifiée ou non', async () => {
+it('run : running → « en cours » et ⏹ (onStop) ; queued → « en attente », pas de ⏹ ; sans run : rien ; à côté du bouton', async () => {
   const log: unknown[] = [];
-  const draw = (run: { state: 'running' | 'asking' | 'stopped' | 'queued'; onStop(): void } | undefined, checked: boolean, lang: 'fr' | 'en' = 'fr') =>
-    act(() => root.render(createElement(MarkControl,
-      { what: 'note', state: null, review: false, lang, checked, run, onMark: () => {}, onRecheck: () => {} })));
+  const draw = (run: { state: 'running' | 'asking' | 'stopped' | 'queued'; onStop(): void } | undefined, lang: 'fr' | 'en' = 'fr') =>
+    act(() => root.render(createElement(MarkControl, { what: 'note', state: null, review: false, lang, run, onMark: () => {} })));
   const on = () => page.querySelector('.vc-run-on');
-  for (const checked of [false, true]) {
-    await draw(undefined, checked);
-    expect(on()).toBeNull();
-    await draw({ state: 'running', onStop: () => { log.push('stop'); } }, checked);
-    expect(on()!.textContent).toBe('en cours');
-    on()!.querySelector('button')!.click();
-    await draw({ state: 'queued', onStop: () => { log.push('bad'); } }, checked);
-    expect(on()!.textContent).toBe('en attente');
-    expect(on()!.querySelector('button')).toBeNull();
-    await draw({ state: 'stopped', onStop: () => {} }, checked);
-    expect(on()!.querySelector('button')).toBeNull();
-  }
-  expect(log).toEqual(['stop', 'stop']);
-  await draw({ state: 'queued', onStop: () => {} }, false, 'en');
+  await draw(undefined);
+  expect(on()).toBeNull();
+  await draw({ state: 'running', onStop: () => { log.push('stop'); } });
+  expect(on()!.textContent).toBe('en cours');
+  expect(on()!.previousElementSibling).toBe(buttons()[0]);
+  on()!.querySelector('button')!.click();
+  await draw({ state: 'queued', onStop: () => { log.push('bad'); } });
+  expect(on()!.textContent).toBe('en attente');
+  expect(on()!.querySelector('button')).toBeNull();
+  await draw({ state: 'stopped', onStop: () => {} });
+  expect(on()!.querySelector('button')).toBeNull();
+  expect(log).toEqual(['stop']);
+  await draw({ state: 'queued', onStop: () => {} }, 'en');
   expect(on()!.textContent).toBe('queued');
 });

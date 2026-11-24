@@ -13,9 +13,18 @@
  *  de son bouton ; les écouteurs ne vivent que liste ouverte. Un clic sur un commit le déplie : Voir le diff (dans
  *  l'éditeur, c<rang>), GitHub (sa page, gh:c<rang>) — deux IconButton
  *  (icons), libellé en infobulle — et ses fichiers, en texte simple.
- *  Vibe, à côté de « N commits » (vibe : l'action et si Vibe tourne ; null, le
- *  relecteur : rien) : le bouton de l'action (grisé, avec sa raison, si elle
- *  l'est) ; pendant Vibe, Arrêter Vibe à sa place (onStopVibe), même l'action masquée (« déjà en cours »).
+ *  Le bouton du moteur, à côté de « N commits » (vibe : l'action vibe et si le moteur tourne ; null, le
+ *  relecteur : rien), un seul bouton, plus de bouton Vibe (note 0.16.0-controle-en-trois-points) : Arrêter pendant que
+ *  le système enchaîne (onStopVibe), même l'action masquée (« déjà en cours ») ; Reprendre quand il est arrêté — une
+ *  pause, un arrêt à la main, un redémarrage de l'appli — (onVibe ; grisé, avec sa raison, si l'action l'est) ; rien
+ *  tant que l'action est masquée (la note pas validée : le moteur part de sa validation). Ni son libellé ni son
+ *  infobulle ne disent « Vibe » ; les noms internes (vibe, onVibe, onStopVibe) restent.
+ *  Les deux rythmes (même note), en créateur : à côté du bouton, l'interrupteur Express
+ *  (view.express ; onExpress(true | false)), toujours là, note validée ou pas, le moteur en route ou pas ; à une pause
+ *  (view.pause, le moteur arrêté) une ligne dit ce qu'il y a à regarder (les invariants posés ; l'essai à l'écran,
+ *  avant la revue) ; 'note' : « la note attend sa validation » ; 'withdrawn:<étape>' (un ✓ d'étape retiré à la main,
+ *  qui tient) : sa ligne nomme l'étape, sans bouton Reprendre (l'action vibe est masquée par le relevé), qui revient
+ *  avec la pause levée. Le relecteur : rien.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
 import { useEffect, useState } from 'react';
 import { crumbCheck, waitingFor, type Strings } from 'core/vibecoder';
@@ -27,12 +36,14 @@ type Props = {
   view: VibeView; t: Strings; selected: VibeStepId | null;
   vibe: { a: VibeAction; on: boolean } | null;
   onPick(id: VibeStepId): void; onOpen(id: string): void; onVibe(): void; onStopVibe(): void;
+  onExpress?(on: boolean): void;   // l'interrupteur Express ; absent : pas d'interrupteur
 };
 
-export function Breadcrumb({ view, t, selected, vibe, onPick, onOpen, onVibe, onStopVibe }: Props) {
+export function Breadcrumb({ view, t, selected, vibe, onPick, onOpen, onVibe, onStopVibe, onExpress }: Props) {
   const [list, setList] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const n = view.commits.length;
+  const pause = vibe?.on ? null : view.pause ?? null;   // la ligne, à une pause seulement ; 'note' : sans bouton
   useEffect(() => {
     if (!list) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); setList(false); } };
@@ -58,13 +69,19 @@ export function Breadcrumb({ view, t, selected, vibe, onPick, onOpen, onVibe, on
         {n ? (
           <button type="button" className="vc-ccount" aria-expanded={list} onClick={() => setList(!list)}>{t.commitsOf(n)}</button>
         ) : <span className="vc-ccount">{t.commitsOf(0)}</span>}
-        {vibe && (vibe.on || !vibe.a.hidden) ? (vibe.on ? (
+        {vibe && (vibe.on || (!vibe.a.hidden && pause !== 'note')) ? (vibe.on ? (
           <button type="button" className="vc-run" data-tone="ghost" title={t.vibeStopTitle} onClick={onStopVibe}>{t.vibeStop}</button>
         ) : (
           <button type="button" className="vc-run" data-tone="vibe" disabled={!!vibe.a.disabled}
             title={vibe.a.disabled ? `${vibe.a.hint}\n— ${vibe.a.disabled}` : vibe.a.hint} onClick={onVibe}>{vibe.a.label}</button>
         )) : null}
+        {onExpress ? (
+          <label className="vc-express" title={t.expressTitle}>
+            <input type="checkbox" checked={!!view.express} onChange={() => onExpress(!view.express)} />{t.express}
+          </label>
+        ) : null}
       </div>
+      {pause ? <p className="vc-pause" role="status">{t.pause[pause]}</p> : null}
       {list && n ? (
         <ul className="vc-commits">
           {view.commits.map((c, i) => (

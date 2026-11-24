@@ -15,8 +15,8 @@
  *  create ne sont pas au relevé ; rebase, push, copy-artifact masquées) ; S'assigner la PR lui
  *  est montrée si canAssign, Me retirer de la PR au créateur si unassignable (people, login :
  *  lus par gh, absents : null).
- *  Le mode Vibe en cours ou pas (vibe : les validations tenues pour données ; note
- *  0.12.0-mode-vibe), les choix de lieu (charger la PR suivie, aller sur une branche, en créer
+ *  Le mode Vibe en cours ou pas (vibe : le moteur est en route, aucune validation tenue pour donnée
+ *  depuis la 0.16.0 ; note 0.12.0-mode-vibe), les choix de lieu (charger la PR suivie, aller sur une branche, en créer
  *  une, revenir sur la base, mettre de côté), montrés et grisés par core/vibecoder place
  *  d'après le dossier (checkout, onBase), Pull grisé par core/vibecoder sync, Pousser montré
  *  après un rebase réussi pas encore poussé (d'après direct), Nouvelle demande masquée hors de
@@ -35,8 +35,8 @@
  *  un checks.json antérieur au départ de la dernière course checks ignoré partout, sorties
  *  comprises (I-46 ; note 0.9.0-vibecoder-pr-verifications-courses) ; l'étape Invariants faite
  *  seulement si la Note et la Forme le sont (note 0.12.0-vibe-sans-rc-diff-en-fond), puis sans
- *  ligne « → invariant » (Écrire les invariants masquée sans griser), sinon chaque cas validé
- *  (créateur) ou jugé (relecteur), lu ou pas ; en créateur, sans test d'invariant de la branche
+ *  ligne « → invariant » (Écrire les invariants masquée sans griser), sinon chaque cas jugé
+ *  (relecteur), lu ou pas ; en créateur : le contrôle en trois points, plus bas ; sans test d'invariant de la branche
  *  (la ligne déjà observée par un test existant) : la dernière course invariants ou align
  *  finie, ou ✓ Rien à écrire validé à la main, Vibe compris (nothingMark ; note
  *  0.11.0-vibecoder-invariants-existants-et-courses) ; Lire en pseudo-code jamais mise en
@@ -65,8 +65,9 @@
  *  ses commits sont ceux hors de lui ; la note ignorée par git, note.ignored : le plus ancien de la branche, et la
  *  note n'est jamais attendue dans un commit — ni noteChanged, ni la case « note commitée » d'après elle, qui suit
  *  ce premier commit ; note 0.16.0-notes-hors-projet) : begun, Générer les modules, stillOk en dépendent, pas touched (note
- *  0.15.0-skills-humain-ia) ; la note vérifiée (checked : la marque design de sa note, designChecked), Vérifier la
- *  conception masquée tant qu'elle ne l'est pas (la première part de Valider la note) ; un commit porte sa marque « commit:<hash> »
+ *  0.15.0-skills-humain-ia) ; la note vérifiée (verified :
+ *  ce qu'a rendu sa dernière vérification, designState de marks, créateur seul), Vérifier la
+ *  conception proposée dès que la note est rédigée (le contrôle en trois points, plus bas) ; un commit porte sa marque « commit:<hash> »
  *  (mark, absente : aucune ; T-23). Une action directe faite et dont rien n'a changé depuis ne ferait rien de
  *  plus : grisée avec sa raison (T-24 ; la passe sur F-114 : seul Revenir sur la base, une fois dessus, se
  *  décide d'après le relevé ; les autres sont déjà grisées ou masquées (Commiter, Pull, Pousser, S'assigner,
@@ -85,19 +86,49 @@
  *  Les mêmes règles pour les deux historiques d'un projet (note 0.16.0-flow-allege) : un commit par module et ses
  *  fixups repliés, ou un seul commit pour le code de tous les modules et des corrections en commits ordinaires —
  *  l'étape Modules, l'étape Revue et la case « Chaque module commité, aucun fixup à replier » de l'étape PR.
- *  Ne connaît pas : Electron, le disque, git, gh (tout est passé ; `exists` dit si
+ *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points), en créateur :
+ *  - la note n'est faite que par le ✓ de l'utilisateur, jamais tenue pour validée (Vibe en cours compris) ; la Forme, les
+ *    invariants et les modules ne l'attendent plus pour être faits : la Forme, dès qu'elle a des modules ; les
+ *    invariants, alignés (align.md sans rubrique [toi], toiCount) ou chaque cas validé à la main, et le premier commit
+ *    fait ; sans ligne « → invariant » : comme avant ;
+ *  - la preuve (proof : proofOf de outputs, preuve.md et les lignes « → invariant » de la note) : l'étape Modules n'est
+ *    pas faite tant qu'elle n'est ni 'ok' ni 'none', quel que soit le rythme ; Prouver les invariants (prove) est sa
+ *    prochaine action une fois chaque module commencé, avant Commiter les modules ; masquée sans ligne
+ *    « → invariant » (ses faits le disent : « rien à prouver ») ; une preuve passée le reste quand le code change
+ *    ensuite (un module corrigé, un commit de plus) : Prouver les invariants n'est pas reproposée ;
+ *  - check.by de chaque étape validée : 'system' d'après sa marque ;
+ *  - la pause (pause) : 'note', un commit porte la note (ou, ignorée par git, la branche a un commit) et elle n'a pas
+ *    son ✓ ; sinon 'withdrawn:<étape>', la première étape (la Forme, les invariants, les modules, dans cet ordre) dont
+ *    le ✓ a été retiré à la main et dont le retrait tient (withdrawn de marks : l'empreinte retenue est celle du
+ *    contenu d'aujourd'hui de l'étape, stepContents) — le contenu changé, ou l'étape revalidée à la main (le retrait
+ *    oublié) : plus cette pause ; sinon 'invariants', l'étape Invariants faite, le premier commit fait, aucun module
+ *    commencé ; 'modules', l'étape Modules faite, la Revue pas commencée (ni vérifications ni ponytail review) ; sinon
+ *    null ; le relecteur : toujours null ; express (recopié de l'entrée) n'y change rien, c'est holdsPause de vibe-mode
+ *    qui tranche ; done et next ne dépendent pas du retrait (l'étape reste faite, ses actions à la main restent) ;
+ *  - Vibe (le moteur, repris à une pause) : la prochaine action d'une pause 'invariants' ou 'modules' ; masquée à une
+ *    pause 'withdrawn:<étape>' (refused : « étape refusée », comme unvalidated pour la note sans son ✓), elle revient
+ *    quand la pause est levée : Reprendre n'est proposé ni à l'écran ni par la CLI tant que le retrait tient ; Vérifier la
+ *    conception (design-check : Vérifier, un geste à part de Valider la note) proposée en créateur dès que la note est
+ *    rédigée, vérifiée ou non, validée ou non, et relançable à volonté ; masquée sans note rédigée ; note.verified dit à
+ *    l'écran si Valider la note se montre ('clean', 'edited') ; Relire le diff, Lire en pseudo-code : jamais prochaine
+ *    action ;
+ *  - la liste « Avant la PR » : « Chaque diff a été relu » cochée par le relevé (les modules validés et la ponytail
+ *    review faite), plus à la main ; « AGENTS.md à jour… » reste à la main.
+ *  Le relecteur : rien ne change (ses étapes, ses actions, ses faits).
+ *  Ne connaît pas : Electron, le disque, git, gh, si la pause est tenue (holdsPause de vibe-mode : journey dit où le
+ *  parcours se tient, le contrôleur décide) (tout est passé ; `exists` dit si
  *  un chemin du dossier de l'agent existe ; les textes des tests, à la tête et à la base, sont lus par
  *  l'appelant) ; l'historique que choisit le projet (AGENTS.md : lu par les skills de commit, jamais ici).
  *  Utilisé par : app/controllers/vibecoder (refreshVibe). */
 import type {
-  VibeAction, VibeCheck, VibeComment, VibeFlow, VibeGit, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePr,
-  VibeDiffFile, VibeDiffs, VibeDiffStep, VibePrItem, VibeRecipe, VibeRun, VibeStepId, VibeTestFile, VibeView, VibeWorktree,
+  VibeAction, VibeCheck, VibeComment, VibeFlow, VibeGit, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePause, VibePr,
+  VibeDiffFile, VibeDiffs, VibeDiffStep, VibePrItem, VibeRecipe, VibeRun, VibeStepCheck, VibeStepId, VibeTestFile, VibeView, VibeWorktree,
 } from 'shared/bridge';
 import { DIRECT_ACTIONS, DIRECT_ONLY, EFFORT_LEVELS, prNumber, SKILL_MODELS, templateVars, type ActionDef } from './actions';
 import { caseMarkState, caseTarget } from './case-marks';
-import { designChecked, markState, type Marks } from './marks';
+import { designState, markState, withdrawn, type Marks } from './marks';
 import { hasInvariantLines, noteDesign, parseNote } from './note';
-import { json, parseChecklist, parseQuestions, parseReading } from './outputs';
+import { json, parseChecklist, parseQuestions, parseReading, proofOf, toiCount } from './outputs';
 import { ELSEWHERE, onBase, onPr, placeReason, placeShown, type PlaceState } from './place';
 import { canAssign, unassignable, type PrPeople } from './role';
 import { blockedBy, codeLock, ownRun } from './runs';
@@ -113,6 +144,7 @@ export type JourneyInput = {
   pr: number | null;            // la PR suivie (vibeSet({ pr }), load-pr), les deux rôles
   autonomy?: 'guide' | 'vibe';  // d'avant la 0.12.0, ignorée (plus rendue) : vibe la remplace
   vibe?: boolean;               // le mode Vibe en cours (F-103) ; absent : non
+  express?: boolean;            // le rythme express (aucune pause) ; absent : le rythme par défaut
   agent: { model: string; effort: string; mode: string };
   busy: boolean;                                    // la conversation de l'agent travaille
   // Les courses qui retiennent (runs : LOCKING), par id d'action, avec le module qu'elles génèrent (Run.module).
@@ -183,7 +215,8 @@ const TEXT = {
     busy: 'L\'agent travaille', directRunning: 'Une commande directe est en cours', noRepo: 'Pas de dépôt git', noNoteYet: 'Pas encore de note', nothingToRead: 'Aucun test d\'invariant à lire',
     noModule: 'Aucun module à générer', noPrChosen: 'Aucune PR choisie', loadFirst: 'Charger d\'abord la PR',
     emptyDraft: 'Le brouillon de revue est vide', noCommitMd: 'Préparer d\'abord le commit', noQuestion: 'Aucune question ouverte',
-    openQuestions: 'Répondre d\'abord aux questions de la note', unvalidated: 'Valider d\'abord la note', started: 'Déjà en cours', modulesUnvalidated: 'modules pas validés',
+    openQuestions: 'Répondre d\'abord aux questions de la note', unvalidated: 'Valider d\'abord la note', refused: 'étape refusée', started: 'Déjà en cours', modulesUnvalidated: 'modules pas validés',
+    proof: { none: 'rien à prouver', ok: 'invariants prouvés', missing: 'invariants pas prouvés', blocked: 'preuve bloquée : à toi' },
     noFixup: 'Aucun commit fixup!', dirty: 'Des modifications en cours', preparing: 'Une recette du projet est en cours',
     elsewhere: 'Passer d\'abord sur la branche de la PR', noUpstream: 'Pas de branche distante suivie', upToDate: 'Déjà à jour', alreadyOnBase: 'Déjà sur la base',
     checklist: ['La note est à jour', 'Les invariants passent', 'Chaque diff a été relu', 'Chaque module commité, aucun fixup à replier',
@@ -201,7 +234,8 @@ const TEXT = {
     busy: 'The agent is working', directRunning: 'A direct command is running', noRepo: 'No git repository', noNoteYet: 'No note yet', nothingToRead: 'No invariant test to read',
     noModule: 'No module to generate', noPrChosen: 'No PR chosen', loadFirst: 'Load the PR first',
     emptyDraft: 'The review draft is empty', noCommitMd: 'Prepare the commit first', noQuestion: 'No open question',
-    openQuestions: 'Answer the note\'s questions first', unvalidated: 'Approve the note first', started: 'Already running', modulesUnvalidated: 'modules not approved',
+    openQuestions: 'Answer the note\'s questions first', unvalidated: 'Approve the note first', refused: 'step rejected', started: 'Already running', modulesUnvalidated: 'modules not approved',
+    proof: { none: 'nothing to prove', ok: 'invariants proved', missing: 'invariants not proved', blocked: 'proof blocked: yours to decide' },
     noFixup: 'No fixup! commit', dirty: 'Uncommitted changes', preparing: 'A project recipe is running',
     elsewhere: 'Switch to the PR branch first', noUpstream: 'No upstream branch', upToDate: 'Already up to date', alreadyOnBase: 'Already on the base',
     checklist: ['The note is up to date', 'The invariants pass', 'Every diff has been reviewed', 'Every module committed, no fixup to fold',
@@ -292,7 +326,8 @@ export function vibeView(input: JourneyInput): VibeView {
   const note: VibeNote | null = input.note && facts && {
     id: 'n', path: input.note.path, text: input.note.text, before: input.note.before, filled: facts.filled, mustNot: facts.mustNot,
     mark: markState(marks, 'note', blobSha(noteDesign(input.note.text))), formeMark: markState(marks, 'forme', blobSha(facts.forme)),
-    nothingMark: markState(marks, 'nothing', blobSha(input.note.text)), checked: designChecked(marks, input.note.path), locked: codeLock(null, input.busy, input.running, lang),
+    nothingMark: markState(marks, 'nothing', blobSha(input.note.text)), locked: codeLock(null, input.busy, input.running, lang),
+    ...(flow === 'create' && { verified: designState(marks, input.note.path, blobSha(noteDesign(input.note.text))) }),
   };
   // Le commit de la note : le plus ancien de la branche qui la porte (les commits vont du plus ancien au plus récent) ;
   // il porte aussi les squelettes des modules, qui ne sont pas un module fait. Note ignorée par git (jamais commitée) :
@@ -330,6 +365,10 @@ export function vibeView(input: JourneyInput): VibeView {
   });
   const unstarted = modules.some((m) => !m.started);
   const invLines = !!input.note && hasInvariantLines(input.note.text);
+  // La preuve des invariants : preuve.md et les lignes « → invariant » de la note ; passée si elle est 'ok' (ou 'none' : rien à
+  // prouver). Elle ne dépend que d'eux : le code corrigé ensuite ne la périme pas.
+  const proof = proofOf(out('preuve.md'), (facts?.mustNot ?? []).filter((m) => m.mark === 'invariant').map((m) => m.text));
+  const proved = proof.state === 'ok' || proof.state === 'none';
 
   // Les tests de la branche (ceux qui ont des cas) : invariants et variants.
   const tests = input.tests.map((t) => ({ ...t, cases: caseTitles(t.text), lines: caseLines(t.text) })).filter((t) => t.cases.length);
@@ -351,9 +390,13 @@ export function vibeView(input: JourneyInput): VibeView {
   const variants = tests.filter((t) => !isInvariantTest(t.path)).map((t, i) => ({ id: `v${i}`, path: t.path, cases: t.cases.length }));
   // Les validations d'étape (le créateur seul valide) : ce que chaque étape valide aujourd'hui et son état (step-checks).
   const blobs = input.blobs ?? [];
-  const stepCheck = flow === 'create' && note
-    ? stepChecks(marks, stepContents({ note, invariants, modules, changed }, marks, blobs))
-    : null;
+  const contents = flow === 'create' && note ? stepContents({ note, invariants, modules, changed }, marks, blobs) : null;
+  const stepCheck = contents && stepChecks(marks, contents);
+  // La validation d'une étape et qui l'a posée : 'system' d'après sa marque (by), absent : à la main.
+  const checkOf = (id: CheckedStep): VibeStepCheck => {
+    const c = stepCheck![id];
+    return c.state && marks[id]?.by === 'system' ? { ...c, by: 'system' } : c;
+  };
   // Ce que dit l'en-tête d'une étape décochée : modifiée depuis la validation, ou à revoir (la première décochée a changé).
   const mood = (id: VibeStepId): string | null => {
     const c = stepCheck?.[id as CheckedStep];
@@ -431,7 +474,8 @@ export function vibeView(input: JourneyInput): VibeView {
     commits.some(noteIn),   // note ignorée : le premier commit
     // Tous les invariants passent, quel que soit le nom que leur donne le projet (« invariants (backend) »…).
     !!checks?.some((c) => /invariant/i.test(String(c?.name))) && checks!.filter((c) => /invariant/i.test(String(c?.name))).every(passes),
-    null,
+    // Chaque diff relu : cochée par le relevé, les modules validés et la ponytail review faite.
+    stepCheck?.modules.state === 'ok' && ponytail,
     // Aucun fixup! à replier, et chaque module de la Forme a son commit (un commit peut en porter plusieurs).
     !fixups && modules.length > 0 && modules.every((m) => m.commits.length > 0),
     null,
@@ -441,7 +485,6 @@ export function vibeView(input: JourneyInput): VibeView {
       : { text, done: (!!head && markState(marks, `a3:${i}`, head) === 'ok') || null, manual: true }));
 
   // Les étapes : faite, et l'action qui la fait avancer quand elle est en cours.
-  const validated = (s: VibeMarkState) => vibe || stillOk(s);
   const judged = (s: VibeMarkState) => s === 'ok' || s === 'ko';
   // Le fait que la Note seule dit ; les questions sont dans le questionnaire, la validation à côté du chemin.
   const noteHead = note ? (note.filled ? T.filled : T.unfilled) : T.noNote;
@@ -452,9 +495,12 @@ export function vibeView(input: JourneyInput): VibeView {
   let stepFacts: Partial<Record<VibeStepId, string>>;
   // head : de facts, ce que l'étape ne montre pas en dessous (une carte, un questionnaire, une validation) ; absent : rien.
   let stepHead: Partial<Record<VibeStepId, string>>;
+  // Où le parcours se tient (créateur) ; le contrôleur dit, d'après le rythme, si elle est tenue (holdsPause).
+  let pause: VibePause | null = null;
   if (flow === 'create') {
-    const noteDone = !!note?.filled && !questions.length && validated(note.mark);
-    const formeDone = !!note && modules.length > 0 && validated(note.formeMark);
+    // La note n'est faite que par le ✓ de l'utilisateur, Vibe et l'express compris ; la Forme, dès qu'elle a des modules.
+    const noteDone = !!note?.filled && !questions.length && stillOk(note.mark);
+    const formeDone = !!note && modules.length > 0;
     // La note (sa Forme comprise) commitée puis modifiée : la Forme n'est faite qu'une fois ce changement commité
     // (Préparer le commit : un fixup de son commit, un nouveau commit une fois la PR ouverte), note et Forme revalidées.
     // Une fois un module commencé, le parcours ne recule plus : une retouche de la note ou d'un test d'invariant fait
@@ -464,41 +510,60 @@ export function vibeView(input: JourneyInput): VibeView {
     // la retouche : la note ou un test d'invariant de la branche, modifiés ; en attente une fois les modules commencés
     const retouched = noteDirty || dirty.some((f) => invariants.some((t) => t.path === f));
     const pending = begun && retouched;
+    // Les tests alignés : align.md, sans rubrique [toi] ; ou chaque cas validé à la main.
+    const alignMd = out('align.md');
+    const aligned = alignMd !== null && toiCount(alignMd) === 0;
     done = {
       note: noteDone,
       forme: formeDone && !reopens,
       // Seulement si la Note et la Forme le sont (note 0.12.0-vibe-sans-rc-diff-en-fond), puis : sans ligne « → invariant »,
       // rien à écrire ni à commiter. Avec, sans test de la branche (déjà observée par un test existant) : la
       // dernière course Écrire les invariants ou Vérifier l'alignement finie, ou ✓ Rien à écrire. Avec des
-      // tests : chaque cas validé, lu ou pas, et le premier commit (note, forme, invariants) fait.
+      // tests : alignés (align.md sans [toi]) ou chaque cas validé à la main, lu ou pas, et le premier commit
+      // (note, forme, invariants) fait.
       // Une fois un module commencé, seuls comptent les tests écrits pour l'étape (portés par le commit de la note) :
       // un test protégé retouché ensuite par un module (un harnais) est du travail des modules, pas à revalider.
       invariants: noteDone && formeDone && (!invLines || (begun
-        ? vibe || stepTests.every((f) => Object.values(f.marks).every(stillOk))
+        ? aligned || stepTests.every((f) => Object.values(f.marks).every(stillOk))
         : !invariants.length
           ? input.runs.find((r) => r.id === 'invariants' || r.id === 'align')?.state === 'done' || note.nothingMark === 'ok'
-          : (vibe || casesOk) && !retouched)),
-      modules: modules.length > 0 && modules.every((m) => m.commits.length > 0) && !modules.some((m) => m.uncommitted) && !pending,
+          : (aligned || casesOk) && !retouched)),
+      // Pas faite sans preuve qui passe, quel que soit le rythme.
+      modules: modules.length > 0 && modules.every((m) => m.commits.length > 0) && !modules.some((m) => m.uncommitted) && !pending && proved,
       revue: checksOk && ponytail && !fixups && boxes === screen.length,   // le plan à l'écran, s'il y en a un
       pr: !!pr,
     };
+    // La pause : la note commitée qui a perdu son ✓ ; un ✓ d'étape retiré à la main qui tient ; le premier commit fait, aucun module commencé ; les modules faits, la
+    // revue pas commencée (ni vérifications ni ponytail review, ni PR).
+    const first = commits.some(noteIn);
+    // Un ✓ d'étape retiré à la main qui tient : sa marque retient l'empreinte du contenu d'aujourd'hui de l'étape.
+    const refused = (['forme', 'invariants', 'modules'] as const).find((s) => withdrawn(marks, s) !== null && withdrawn(marks, s) === contents?.[s]?.hash);
+    pause = !note ? null
+      : first && !stillOk(note.mark) ? 'note'
+        : refused ? `withdrawn:${refused}`
+          : done.invariants && first && !begun ? 'invariants'
+            : done.modules && !checks && !ponytail && !pr ? 'modules'
+              : null;
     next = {
       note: !note?.filled ? 'note' : questions.length ? 'answers' : null,
       forme: !modules.length ? 'forme' : reopens && noteDone && formeDone ? (commitMd ? 'commit' : 'commit-prepare') : null,
-      // Hors Vibe : les cas attendent leurs ✓, lus ou pas ; Vibe : sans lecture (Écrire les invariants vérifie l'alignement).
-      invariants: !invariants.length ? 'invariants' : !vibe && !casesOk ? null
-        : commitMd ? 'commit' : dirty.length ? 'commit-prepare' : null,
-      // Générer les modules tant qu'il en reste un pas commencé (un à un sur sa ligne, au choix), puis Commiter les modules.
-      modules: commitMd ? 'commit' : unstarted ? 'modules' : modules.some((m) => m.uncommitted) ? 'commit-modules' : pending ? 'commit-prepare' : null,
-      // Lancer les vérifications demande aussi la ponytail review (F-115) : elle n'a plus son bouton.
-      revue: !checksOk || !ponytail ? 'checks' : fixups ? 'fixups' : null,
+      // Aucun ✓ à attendre ni lecture : Écrire les invariants vérifie l'alignement, la pause après eux dit où l'on en est.
+      invariants: !invariants.length ? 'invariants' : commitMd ? 'commit' : dirty.length ? 'commit-prepare' : null,
+      // À la pause après les invariants : Vibe. Sinon Générer les modules tant qu'il en reste un pas commencé (un à un sur sa
+      // ligne, au choix), puis Prouver les invariants (avant Commiter les modules), puis Commiter les modules.
+      modules: pause === 'invariants' ? 'vibe' : commitMd ? 'commit' : unstarted ? 'modules' : !proved ? 'prove'
+        : modules.some((m) => m.uncommitted) ? 'commit-modules' : pending ? 'commit-prepare' : null,
+      // Lancer les vérifications demande aussi la ponytail review (F-115) : elle n'a plus son bouton. À la pause après les modules : Vibe.
+      revue: pause === 'modules' ? 'vibe' : !checksOk || !ponytail ? 'checks' : fixups ? 'fixups' : null,
       pr: 'pr',
     };
     stepFacts = {
       note: noteFacts,
       forme: note ? line(count(modules.length, T.module), note.formeMark && !mood('forme') && T.mark[note.formeMark], mood('forme')) : T.noNote,
       invariants: invFacts,
-      modules: line(`${modules.filter((m) => m.commits.length).length} / ${count(modules.length, T.module)}`, mood('modules')),
+      // La preuve, dite quand chaque module est commencé (avant, il n'y a rien à en dire, sauf rien à prouver).
+      modules: line(`${modules.filter((m) => m.commits.length).length} / ${count(modules.length, T.module)}`,
+        (!unstarted || proof.state !== 'missing') && T.proof[proof.state], mood('modules')),
       revue: line(!checks ? T.unchecked : checksOk ? T.checksOk : T.checksKo, warnings > 0 && count(warnings, T.warning),
         ponytail && T.ponytail, fixups > 0 && count(fixups, T.fixup), screen.length > 0 && `${boxes} / ${count(screen.length, T.box)}`),
       pr: pr ? `PR #${pr.number}` : T.noPr,
@@ -567,6 +632,7 @@ export function vibeView(input: JourneyInput): VibeView {
       if (!note?.filled) return 'noNoteYet';
       if (questions.length) return 'openQuestions';
       if (!stillOk(note.mark)) return 'unvalidated';
+      if (pause?.startsWith('withdrawn:')) return 'refused';
       if (vibe || input.busy || input.running.length) return 'started';
     }
     // Commiter les modules attend leur validation, Vibe compris (l'orchestrateur les valide par step.validate).
@@ -589,7 +655,7 @@ export function vibeView(input: JourneyInput): VibeView {
   // Pas encore de sens : masquée (sa raison reste), sauf noNoteYet : grisée, sa raison au survol. L'étape PR (créateur) d'après l'état de la PR, sans griser :
   // une demande juste après pr ne doit pas tomber sur un relevé en retard.
   const notYet = new Set<Reason>(['nothingToRead', 'noCommitMd', 'noQuestion', 'noFixup',
-    'openQuestions', 'unvalidated', 'started']);
+    'openQuestions', 'unvalidated', 'refused', 'started']);
   // ponytail: une PR sans état connu (pr.json, avant que gh réponde) compte comme ouverte.
   const prState = pr && (pr.state ?? 'OPEN');
   const child = !!input.child;
@@ -612,7 +678,8 @@ export function vibeView(input: JourneyInput): VibeView {
     'remove-worktree': child && (flow === 'create' ? prState === 'MERGED' : place.robot),
     'commit-prepare': dirty.length > 0,
     modules: unstarted,
-    'design-check': !!note?.checked,   // la première vérification est la part de Valider la note
+    'design-check': !!note?.filled,   // un geste à part de Valider la note : dès que la note est rédigée, à volonté
+    prove: proof.state !== 'none',   // sans ligne « → invariant », rien à prouver
   };
   // Écrire les invariants, sans ligne « → invariant » dans la note : masquée sans griser, elle aussi (un clic
   // reste possible si le relevé retarde sur une ligne ajoutée ; runs.test.ts, invariant, le clique ainsi).
@@ -637,13 +704,14 @@ export function vibeView(input: JourneyInput): VibeView {
     });
 
   return {
-    agentId: input.agentId, lang, flow, vibe: input.vibe, agent: input.agent,
+    agentId: input.agentId, lang, flow, vibe: input.vibe, express: input.express, agent: input.agent,
     repo: repo && { branch: repo.branch, base: repo.base, changed: changed.length },
     error: input.error,
     steps: ORDER.map((id) => ({
       id, status: done[id] ? 'done' : id === current ? 'current' : 'todo', facts: stepFacts[id] ?? '', head: stepHead[id] ?? '',
-      ...(stepCheck && Object.hasOwn(stepCheck, id) && { check: stepCheck[id as CheckedStep] }),
+      ...(stepCheck && Object.hasOwn(stepCheck, id) && { check: checkOf(id as CheckedStep) }),
     })),
+    ...(flow === 'create' && { pause, proof }),
     files: [...changed].sort().map((path, i) => ({
       id: `b${i}`, path, ...(input.exists(path) ? gitOf(path) : { deleted: true }), locked: codeLock(null, input.busy, input.running, lang),
     })),

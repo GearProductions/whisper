@@ -86,6 +86,15 @@ describe('run.start', () => {
     expect(ids('en')).toEqual(ids('fr'));
   });
 
+  it('prove est une action de run.start, entre modules et commit-modules ; le refus halted dit aussi la pause, step.validate la preuve', () => {
+    const ids = props.action.enum as string[];
+    expect(ids).toContain('prove');
+    expect(ids.indexOf('prove')).toBe(ids.indexOf('modules') + 1);
+    expect(ids.indexOf('commit-modules')).toBe(ids.indexOf('prove') + 1);
+    expect(table.errors.find((e) => e.code === 'halted')!.message).toMatch(/pause/);
+    expect(get('step.validate').description).toMatch(/proof/);
+  });
+
   it('les types et les bornes suivent ce que gardent parseRequest et buildMessage', () => {
     const type = (k: string) => props[k].type;
     expect(['module', 'pr', 'check'].map(type)).toEqual(['integer', 'integer', 'integer']);

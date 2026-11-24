@@ -10,8 +10,8 @@
  *  réglage — au plus un par seconde ; null, une fois, quand l'agent affiché
  *  n'est plus en VibeCoder ; chaque relevé retente la file d'attente
  *  (releaseWaits de controllers/runs). Le mode Vibe en cours (vibeOn de
- *  controllers/runs) part au parcours ; pendant Vibe, chaque relevé donne
- *  leur ✓ aux étapes faites (vibeMarks), qu'elles gardent après (F-102) ;
+ *  controllers/runs) part au parcours ; chaque relevé du créateur donne
+ *  leur ✓ du système aux étapes faites (vibeMarks), Vibe en cours ou non (F-102) ;
  *  l'action vibe partie le lance (vibeStart). Et ce que l'écran demande : une action (celle d'une
  *  étape court à part, ownRun → startRun de controllers/runs, sous sa propre
  *  entrée du runtime, si aucune course en cours ne la retient ; une action sans
@@ -143,15 +143,15 @@
  *  runDirect exportée pour controllers/commands) ; runVibeAction et la page
  *  n'en voient que le texte, inchangé.
  *  surveyAgent : le relevé d'un robot quelconque (affiché : comme refreshVibe ; sinon retenu par lastView, rien envoyé à la page).
- *  Valider la note (conv:vibeMark, markVibe ; 0.15.0, note skills-humain-ia) : le premier clic du créateur sur une note pas encore
- *  vérifiée (noteClick, core/vibecoder) ne valide rien : la vérification de conception part, comme un clic sur l'action
- *  design-check (startAction, masquée au relevé tant que la note n'est pas vérifiée ; retenue par une course ou une action directe,
- *  busy ou changing : en file, queueStart de controllers/runs), et l'empreinte de la note qu'il avait sous les yeux est gardée en
- *  mémoire (clicked). À chaque relevé, panneau visible ou non (T-31), la fin de la course design-check — du clic, ou Revérifier,
- *  par conv:vibeRun, sans clicked — est rangée une fois (designEnd : la note vérifiée ; validée pour l'empreinte du clic si
- *  questions.md n'a aucune question, « modifiée depuis » si la note a changé pendant la course ; Revérifier ne valide jamais),
- *  clicked oublié. Revalider, un Valider ensuite, ou le relecteur : le verdict aussitôt, aucune course ; conv:vibeMark ne lit
- *  jamais un texte de la page.
+ *  Vérifier, puis valider la note (0.15.0, note skills-humain-ia ; 0.16.0 : deux gestes). Vérifier : l'action design-check
+ *  par son canal (conv:vibeRun, runVibeAction ; proposée au relevé dès que la note est rédigée, relançable à volonté ;
+ *  retenue par une course ou une action directe, busy ou changing : en file, queueStart de controllers/runs) ; au départ
+ *  de sa course, quel que soit le geste qui la lance, l'empreinte de la conception de la note est gardée en mémoire
+ *  (clicked). À chaque relevé, panneau visible ou non (T-31), la fin de la course design-check est rangée une fois
+ *  (designEnd : la note vérifiée ; questions.md sans question, « rien de bloquant » : la marque 'verified' pour cette
+ *  empreinte, sinon retirée), clicked oublié ; elle ne valide jamais la note et ne lance jamais le moteur. Valider la
+ *  note (conv:vibeMark, markVibe) : une validation d'étape, aussitôt, aucune course, créateur comme relecteur ; elle ne
+ *  lance jamais de vérification ; conv:vibeMark ne lit jamais un texte de la page.
  *  Les validations d'étape (0.15.0, note ecran-statuts) : markVibe sur 'note', 'forme', 'invariants', 'modules'
  *  (Valider la note, la forme, les invariants, les modules ; retirer : verdict null) et validateVibe (la CLI,
  *  step.validate : la Forme, les invariants, les modules, jamais la note) passent par validateStep (step-checks),
@@ -169,11 +169,45 @@
  *  n'est écrit dans le projet.
  *  La note de référence du surlignage (0.15.0, note ecran-humain-ia ; core/vibecoder note-ref, en mémoire par agent) :
  *  posée une fois, au premier relevé où l'agent ou une course qui modifie la branche travaille (nextRef) ; ensuite
- *  remplacée seulement par Vu (setVibe seen) et la validation de la note (markVibe 'note' 'ok' : Valider, Revalider,
- *  Valider et vérifier — la note du dernier relevé, celle que l'utilisateur avait sous les yeux au clic, que la
- *  vérification la valide ou non) ; repartie quand la note change de fichier. Un message envoyé, un tour ou une course
+ *  remplacée seulement par Vu (setVibe seen) et la validation de la note (markVibe 'note' 'ok' : Valider, Revalider
+ *  — la note du dernier relevé, celle que l'utilisateur avait sous les yeux au clic) ; repartie quand la note change de fichier. Un message envoyé, un tour ou une course
  *  qui commence ne la changent plus. Les actions en file d'attente (queuedOf de controllers/runs) partent au relevé
  *  (queued) : la page montre « en attente » à côté du bouton, design-check comprise.
+ *  Le contrôle en trois points (0.16.0, note controle-en-trois-points) :
+ *  - le moteur part seul, du seul Valider la note du créateur (markVibe 'note' 'ok', la note validée par ce clic) : au
+ *    relevé qui suit, puis à chaque relevé tant qu'elle n'est pas partie, l'action vibe est lancée comme un clic (startAction, vibeStart ; retenue :
+ *    en file) ; le rythme de l'agent (expressOn de controllers/runs) part au parcours (express), et chaque relevé tient la
+ *    pause (pauseVibe) ; setVibe({ express }) : le rythme réglé (setExpress), et, passé en express à une pause
+ *    'invariants' ou 'modules' du dernier relevé, le moteur relancé ; jamais sans la note validée ; refusé « grisé » (le tour de la
+ *    conversation finit encore) : retenté au relevé suivant (drive) ;
+ *  - Vérifier, puis valider la note, deux gestes : Vérifier lance la vérification (l'action design-check) et ne valide
+ *    rien ; Valider la note valide et ne vérifie rien ; la note du relevé porte ce
+ *    qu'a rendu sa dernière vérification (verified : designState), d'après quoi la page montre ou non Valider la note
+ *    (une règle d'affichage : markVibe ne refuse pas un Valider sans vérification) ; Vérifier n'envoie que le gabarit
+ *    de la vérification, ni le texte du champ ni ses pièces jointes (I-2 ; tests/invariants/design-check-text.test.ts :
+ *    son cas « Revérifier… » revient à son état d'avant le ticket, la retouche « un second Valider la note… » n'a plus
+ *    lieu d'être ; ses deux autres cas partaient du premier Valider la note, qui ne lance plus rien : à reprendre pour
+ *    partir de Vérifier, la règle inchangée, avec l'accord de l'utilisateur) ;
+ *    la conception validée est retenue dans les sorties par Valider la note (validated/<empreinte>, comme les fichiers d'une
+ *    étape), les « Accepter » d'avant oubliés ; à
+ *    l'envoi des réponses (answers), les textes « Accepter » choisis sont gardés en mémoire (acceptedTexts, d'après les
+ *    questions du dernier relevé) ; au relevé, la note changée garde son ✓ par keepNote seulement (sa conception retenue,
+ *    ces textes), sinon il tombe ; aucun autre chemin ne valide la note à la place de l'utilisateur ;
+ *  - les validations du système : vibeMarks à chaque relevé du créateur (plus seulement pendant Vibe) ; step.validate
+ *    (validateVibe) pose by: 'system', et refuse les modules (not-offered) tant que la preuve du dernier relevé
+ *    (view.proof) n'est ni 'ok' ni 'none' ; le ✓ de l'écran (markVibe) reste à la main, sans by ; une validation retirée
+ *    (markVibe ou step.validate, verdict null) tient pour ce contenu : le retrait est rangé dans les marques de l'agent
+ *    (withdraw de core/vibecoder ; vibecoder-state.json, avec ses validations : il survit à un redémarrage de l'appli,
+ *    aucune table en mémoire), le relevé (vibeMarks) ne la repose pas, ni celles des étapes qui la suivent, ni
+ *    step.validate (withdrawn), tant que le contenu de l'étape ne change pas ; revalidée à la main : le retrait oublié ;
+ *    tant que ce retrait tient, le relevé porte la pause 'withdrawn:<étape>' (journey) et pauseVibe arrête le moteur, en
+ *    express aussi ; rien ne le relance seul à cette pause : ni le passage en express (setVibe : seules les pauses
+ *    'invariants' et 'modules'), ni un Valider la note (drive : l'action vibe masquée par le parcours, la demande
+ *    oubliée, pas retentée aux relevés suivants) ; la pause levée (le contenu changé, l'étape revalidée à la main),
+ *    le moteur reste arrêté jusqu'au Reprendre de l'utilisateur ;
+ *  - preuve.md : une sortie de branche de plus (BRANCH_OUTPUTS), lue au relevé comme align.md ; effacée par
+ *    controllers/runs quand la course prove a touché le dossier de travail ou l'index ; align.md de même, effacé par
+ *    controllers/runs quand la course align a changé un test d'invariant d'avant la branche.
  *  Ne connaît pas : la page (seulement ses canaux), la fenêtre, le jeton du socket.
  *  Utilisé par : app/ipc (runVibeAction, vibeRunOp, draftVibe, dropOnArtifacts), app/menus, controllers/conversation,
  *  controllers/runs, controllers/agents et controllers/module-code
@@ -190,8 +224,8 @@ import { agentParent } from 'core/family';
 import { githubPage } from 'core/repo';
 import { START, type CommandError } from 'core/commands';
 import {
-  addComment, artifactOf, caseBlocks, caseHashes, convertCaseMarks, setCaseMark, beforeOf, blobSha, buildMessage, designEnd, hasComment, noteClick, parseQuestions, skeletonMarks, vibeMarks, ARTIFACT_OPS, DIRECT_ACTIONS, DIRECT_ONLY, editComment, locateNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath, nextRef,
-  CHECKED, filesText, parseFiles, stepContents, validateStep, versionName, type CheckedStep, type FileBlobs, type Marks, type StepContent, type StepFiles,
+  acceptedTexts, addComment, artifactOf, caseBlocks, caseHashes, convertCaseMarks, setCaseMark, beforeOf, blobSha, buildMessage, designEnd, hasComment, keepNote, noteDesign, parseQuestions, skeletonMarks, vibeMarks, ARTIFACT_OPS, DIRECT_ACTIONS, DIRECT_ONLY, editComment, locateNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath, nextRef,
+  CHECKED, filesText, parseFiles, stepContents, validateStep, versionName, withdraw, withdrawn, type CheckedStep, type FileBlobs, type Marks, type StepContent, type StepFiles,
   blockedBy, BRANCH_CHANGES, lockCode, lockText, ELSEWHERE, json, newRequestCard, branchNoteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeRole, vibeView, whoOf, type ActionDef, type MessageError, type NoteRef,
 } from 'core/vibecoder';
 import { draftText, isVerdict } from 'shared/review';
@@ -211,7 +245,7 @@ import { copyArtifacts, duplicateArtifacts, moveArtifacts, newArtifact, renameAr
 import { prepareMessage } from './conversation';
 import { createWorktree } from './recipe';
 import { SOCKET_DOWN, screenSend, socketDown } from './socket';
-import { lockingRuns, viewLocks, queueStart, queuedOf, releaseWaits, runsOf, runsTab, skillMd, startRun, vibeOn, vibeStop } from './runs';
+import { expressOn, lockingRuns, pauseVibe, viewLocks, queueStart, queuedOf, releaseWaits, runsOf, runsTab, setExpress, skillMd, startRun, vibeOn, vibeStart, vibeStop } from './runs';
 import { openChild, prWorktreeReady, removeWorktreeChild, showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
 
 const VIBE_MS = 4000;          // le relevé régulier, panneau visible
@@ -275,8 +309,10 @@ const gitCache = new Map<string, { key: string; at: number; value: GitState | nu
 const directs = new Map<string, Record<string, NonNullable<VibeAction['direct']>>>();  // par agent : ses actions directes (F-114)
 const prsFound = new Map<string, { mine: unknown[]; review: unknown[]; all: unknown[] } | false>();   // les PR ouvertes, par agent (la dernière réponse de gh ; false : en échec)
 const requests = new Map<string, { text: string; branch?: string }>();  // new-request : la demande partie, par agent (en mémoire), puis sa branche
-const clicked = new Map<string, string>();     // Valider la note a lancé la vérification de conception : par agent, l'empreinte de la note que le clic avait sous les yeux
+const clicked = new Map<string, string>();     // par agent : l'empreinte de la conception de la note au départ de la dernière course design-check, quel que soit le geste qui l'a lancée
 const designSeen = new Map<string, number>();  // par agent : le départ de la dernière course design-check dont la fin est rangée
+const engine = new Set<string>();              // le moteur (vibe) à lancer : Valider la note vient d'être cliqué, ou passé en express à une pause
+const accepts = new Map<string, string[]>();   // par agent : les textes « Accepter » choisis depuis la dernière validation de la note (answers)
 // Par agent : la course forme suivie (son départ), les empreintes de ses fichiers de module au départ (null : pas vues),
 // et si sa fin est rangée (les squelettes retenus, skeletonMarks).
 const formeSeen = new Map<string, { since: number; before: Map<string, string | null> | null; done: boolean }>();
@@ -427,7 +463,7 @@ const branchName = (v: unknown) => (typeof v === 'string' && okRef(v) ? v : null
 
 // Les sorties que les skills écrivent pour une branche, dans les deux rôles (pas les lectures
 // invariants/, nommées par l'empreinte du test, ni celles de la PR, par numéro).
-const BRANCH_OUTPUTS = ['questions.md', 'align.md', 'review.md', 'commit.md', 'checks.json', 'ponytail.md', 'ponytail-applied.json', 'pr.json', 'ci.md', 'ecran.md'];
+const BRANCH_OUTPUTS = ['questions.md', 'align.md', 'preuve.md', 'review.md', 'commit.md', 'checks.json', 'ponytail.md', 'ponytail-applied.json', 'pr.json', 'ci.md', 'ecran.md'];
 
 // Les sorties suivent la branche : la dernière vue est dans
 // <out>/.branche ; quand elle passe de P à N, celles de la racine vont dans
@@ -499,7 +535,7 @@ const FILE_GITS = 8;
 
 // Un fichier que `read` refuse (au-delà de READ_MAX) : son empreinte tout de même, pour qu'il ne passe pas pour absent ;
 // null : absent, un lien ou illisible. Les octets sont hachés tels quels, sans décodage en chaîne (la limite d'une chaîne V8).
-function bigBlob(dir: string, rel: string) {
+export function bigBlob(dir: string, rel: string) {
   const file = safePath(dir, rel, fs.realpathSync.native);
   try { return file && fs.lstatSync(file).isFile() ? blobSha(fs.readFileSync(file)) : null; } catch { return null; }
 }
@@ -560,13 +596,19 @@ function retain(agent: AgentConfig, step: CheckedStep, { files }: StepContent) {
 // Valider (ok) ou retirer la validation (null) d'une étape pour le contenu du dernier relevé (validateStep), ses textes retenus ;
 // false : refusé (rien à valider, l'étape d'avant pas cochée, ou un relecteur hors la note). Rien n'est écrit ailleurs que dans les
 // marques et le dossier de sorties.
-function markStep(agent: AgentConfig, view: VibeView, step: CheckedStep, verdict: 'ok' | null): boolean {
+function markStep(agent: AgentConfig, view: VibeView, step: CheckedStep, verdict: 'ok' | null, by?: 'system'): boolean {
   if (step !== 'note' && view.flow !== 'create') return false;
   const store = vibeStore();
   const before = store.marks[agent.id] || {};
   const contents = stepContents(view, before, viewBlobs.get(view) ?? []);
-  const after = validateStep(before, contents, step, verdict);
-  if (!after) return false;
+  // Une validation retirée tient pour ce contenu, retenue parmi les marques (withdraw) : ni le relevé suivant (vibeMarks) ni
+  // la CLI (by) ne la reposent ; seul le geste à la main l'oublie. La note : jamais validée par le système, aucun retrait retenu.
+  const hash = contents[step]?.hash;
+  if (verdict && by && hash && withdrawn(before, step) === hash) return false;
+  const validated = validateStep(before, contents, step, verdict);
+  if (!validated) return false;
+  const marked = verdict && by ? { ...validated, [step]: { ...validated[step], by } } : validated;
+  const after = step === 'note' ? marked : !verdict && hash ? withdraw(marked, step, hash) : !by ? withdraw(marked, step, null) : marked;
   if (verdict) retain(agent, step, contents[step]!);
   store.marks[agent.id] = after;
   saveVibeStore(store);
@@ -677,9 +719,10 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const ref = nextRef(noteRefs.get(agent.id) ?? null, note, writing);
   noteRefs.set(agent.id, ref);
   const store = vibeStore();
-  // La vérification de conception finie (la première, du clic Valider la note, ou Revérifier) : sa fin rangée une fois (designEnd),
+  // La vérification de conception finie (Vérifier, par l'écran, l'orchestrateur ou la file) : sa fin rangée une fois (designEnd),
   // à chaque relevé, panneau visible ou non (T-31) ; ses questions : celles de questions.md, lues avec les sorties après
-  // l'état de la course (check) : la course écrit ses questions avant de finir, finie elle a donc les siennes.
+  // l'état de la course (check) : la course écrit ses questions avant de finir, finie elle a donc les siennes. Jamais une
+  // validation de la note, jamais le moteur.
   if (check && notePath && check.since !== designSeen.get(agent.id)) {
     designSeen.set(agent.id, check.since);
     const marks = store.marks[agent.id] || {};
@@ -687,6 +730,20 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     store.marks[agent.id] = designEnd(marks, { path: notePath, state: check.state as 'done' | 'failed' | 'stopped', questions, clicked: clicked.get(agent.id) ?? null });
     clicked.delete(agent.id);
     saveVibeStore(store);
+  }
+  // La note validée puis changée : son ✓ suit la conception d'aujourd'hui si le changement n'y ajoute que des textes « Accepter »
+  // choisis (answers) ; sinon il tombe au relevé (keepNote). Aucun autre chemin ne valide la note à la place de l'utilisateur.
+  if (role === 'create' && noteText !== null) {
+    const marks = store.marks[agent.id] || {};
+    const mark = Object.hasOwn(marks, 'note') ? marks.note : undefined;
+    const name = mark?.verdict === 'ok' ? versionName(mark.hash) : null;
+    const design = noteDesign(noteText);
+    const kept = keepNote(marks, { validated: name ? readFile(path.join(out, name)) : null, design, accepted: accepts.get(agent.id) ?? [] });
+    if (kept !== marks) {
+      store.marks[agent.id] = kept;
+      keep(out, blobSha(design), design);
+      saveVibeStore(store);
+    }
   }
   const actions = vibeActions(lang);
   const skills = Object.fromEntries(actions.map((a) => [a.id, skillMd(a.text)]));
@@ -710,7 +767,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const listed = Object.values(validated).flatMap((files) => Object.keys(files ?? {}));
   const blobs = role === 'review' || !facts ? [] : await fileBlobs(agent.dir, git, facts.head, [...(repo?.changed ?? []), ...listed], diskOf);
   const journey = vibeView({
-    agentId: agent.id, lang, modulesView: vibeModulesView(cfg), flow: role, pr, people, login, vibe: vibeOn(agent.id),
+    agentId: agent.id, lang, modulesView: vibeModulesView(cfg), flow: role, pr, people, login, vibe: vibeOn(agent.id), express: expressOn(agent.id),
     agent: { model: agent.model || '', effort: agent.effort || '', mode: agent.mode || 'default' },
     busy,
     running,
@@ -762,8 +819,9 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
       if (next !== marks) { store.marks[agent.id] = next; saveVibeStore(store); }
     }
   }
-  // Vibe en cours : les étapes faites reçoivent leur ✓ (validateStep), leurs textes retenus ; elles le gardent une fois Vibe fini (F-102).
-  if (journey.vibe) {
+  // Les étapes faites reçoivent leur ✓ du système (validateStep, by: 'system'), leurs textes retenus, Vibe en cours ou non (F-102) ;
+  // jamais la note ; ni une étape dont la validation a été retirée à la main pour ce contenu, ni celles qui la suivent (withdrawn).
+  {
     const marks = store.marks[agent.id] || {};
     const next = vibeMarks(marks, journey, blobs);
     if (next !== marks) {
@@ -777,7 +835,28 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const { artifacts, dirs } = listArtifacts(agent.id, artifactsDir, cfg.artifactTextMax);
   const view = { ...journey, ...proc, artifacts, artifactDirs: dirs, artifactsDir, dev: devState() };
   viewBlobs.set(view, blobs);
+  if (role === 'create') {
+    pauseVibe(agent, view);   // la pause tenue arrête le moteur, comme le bouton Arrêter
+    drive(agent, view, cfg);
+  }
   return view;
+}
+
+// Le moteur parti seul : l'action vibe lancée comme un clic, à chaque relevé tant qu'elle n'est pas partie (engine : la note
+// vient d'être validée, ou passé en express à une pause) ; retenue par une course : en file. Jamais sans la note validée.
+// Refusée « grisée » (le tour de la conversation finit encore) : retentée au relevé suivant ; refusée autrement : plus rien ne la retiendrait.
+function drive(agent: AgentConfig, view: VibeView, cfg: Config) {
+  if (!engine.has(agent.id)) return;
+  const def = vibeActions(vibeLang(cfg)).find((a) => a.id === 'vibe');
+  const noteOk = view.steps.find((s) => s.id === 'note')?.check?.state === 'ok';
+  // À la pause d'un ✓ retiré à la main, l'action vibe est masquée (journey) : la demande est oubliée, pas retentée une fois la pause levée.
+  if (!def || !noteOk || vibeOn(agent.id) || view.pause?.startsWith('withdrawn:')) { engine.delete(agent.id); return; }
+  const sent = startAction(agent, def, {}, view, cfg);
+  const held = (sent.reason === 'busy' || sent.reason === 'changing') && sent.by;
+  if (held) queueStart(agent, def.id, {}, held);
+  if (sent.ok) vibeStart(agent);
+  if (sent.ok || held || sent.reason !== 'disabled') engine.delete(agent.id);
+  if (sent.ok) refreshVibe({ now: true });
 }
 
 /* ---- Ce que demande l'écran ------------------------------------------------ */
@@ -926,8 +1005,14 @@ export function startAction(
     const ponytail = vibeActions(lang).find((a) => a.id === 'ponytail');
     if (ponytail) startAction(agent, ponytail, {}, view, cfg);
   }
+  // Vérifier partie, quel que soit le geste (l'écran, l'orchestrateur, la file) : l'empreinte de la conception de la note du
+  // relevé gardée en mémoire ; sa fin la lira (designEnd). Refusée (same : une course court déjà) : celle de la première reste.
+  if (sent.ok && def.id === 'design-check' && view.note) clicked.set(agent.id, blobSha(noteDesign(view.note.text)));
   // Dans un worktree, par l'agent : sa fiche pr-<n>-worktree.json attendue (syncWorktrees, la question de confiance).
   if (sent.ok && def.id === 'pr-worktree' && view.pr) wantWorktree(agent.id, view.pr.number);
+  // Les réponses envoyées : les textes « Accepter » choisis tels quels sont gardés (acceptedTexts, d'après les questions du relevé),
+  // pour que la note validée garde son ✓ si le changement n'ajoute qu'eux (keepNote).
+  if (sent.ok && def.id === 'answers') accepts.set(agent.id, [...(accepts.get(agent.id) ?? []), ...acceptedTexts(view.questions, args.answers ?? [])]);
   // Nouvelle demande : la demande retenue ; une fiche d'avant et les derniers résultats de ses choix, oubliés.
   if (sent.ok && def.id === 'new-request') {
     fs.rmSync(path.join(vibeOutDir(agent.id), 'new-request.json'), { force: true });
@@ -1254,6 +1339,12 @@ export function setVibe(patch: unknown) {
   if (!agent) return;
   const vibe = agentVibe(agent);
   if (p.vibe === false) vibeStop(agent);
+  // Le rythme (en mémoire, jamais dans les réglages) ; passé en express à une pause du dernier relevé : le moteur repart au relevé suivant.
+  if (typeof p.express === 'boolean') {
+    setExpress(agent, p.express);
+    const pause = last.get(agent.id)?.pause;
+    if (p.express && (pause === 'invariants' || pause === 'modules')) engine.add(agent.id); else if (!p.express) engine.delete(agent.id);
+  }
   if (p.pr === null || prNumber(p.pr)) vibe.pr = p.pr as number | null;   // le rôle ne se choisit pas : un `flow` de la page est ignoré
   updateAgent(agent.id, { vibe });
   if (p.modulesView === 'ide' || p.modulesView === 'list') saveConfig({ vibeModulesView: p.modulesView });   // la vue des Modules, retenue ; autre valeur : ignorée
@@ -1296,25 +1387,20 @@ export function markVibe(target: unknown, verdict: unknown) {
   const hash = step || target.startsWith('case:') ? null : targetHash(view, target);
   if (!step && !hash && !kase) return;
   if (step && verdict === 'ko') return;
-  // Valider la note (le premier clic, Revalider, un Valider) : la référence du surlignage devient la note du dernier relevé.
+  // Valider la note (Valider, Revalider) : la référence du surlignage devient la note du dernier relevé.
   if (target === 'note' && verdict === 'ok' && view.note) noteRefs.set(agent.id, { path: view.note.path, text: view.note.text });
   const store = vibeStore();
-  // Le premier Valider la note du créateur : la vérification de conception part (comme un clic, en file si une course
-  // retient), rien n'est validé ; sa fin le fera pour ce texte (designEnd). Sans l'action : un Valider comme les autres.
-  if (target === 'note' && view.note && noteClick(store.marks[agent.id] || {}, view.note.path, verdict, view.flow) === 'check') {
-    const cfg = loadConfig();
-    const def = vibeActions(vibeLang(cfg)).find((a) => a.id === 'design-check');
-    if (def) {
-      clicked.set(agent.id, targetHash(view, 'note')!);
-      const sent = startAction(agent, def, {}, view, cfg);
-      const held = (sent.reason === 'busy' || sent.reason === 'changing') && sent.by;
-      if (held) queueStart(agent, def.id, {}, held);
-      // Partie, en file, ou déjà en cours (same : le second clic garde l'empreinte, la sienne) : sa fin validera ; refusée autrement, un Valider comme les autres.
-      if (sent.ok || held || sent.reason === 'same') { refreshVibe({ now: true }); return; }
-      clicked.delete(agent.id);
+  if (step) {
+    const done = markStep(agent, view, step, verdict === 'ok' ? 'ok' : null);
+    // Valider la note du créateur, par ce clic seul : sa conception retenue (keepNote la compare à la note d'après), les « Accepter »
+    // d'avant oubliés, le moteur à lancer (drive, au relevé qui suit). Aucune vérification, aucune course : un Valider comme les autres.
+    if (done && step === 'note' && verdict === 'ok' && view.flow === 'create' && view.note) {
+      const design = noteDesign(view.note.text);
+      keep(vibeOutDir(agent.id), blobSha(design), design);
+      accepts.delete(agent.id);
+      engine.add(agent.id);
     }
   }
-  if (step) markStep(agent, view, step, verdict === 'ok' ? 'ok' : null);
   else if (kase) {
     store.marks[agent.id] = setCaseMark(store.marks[agent.id] || {}, target, kase, verdict);
     saveVibeStore(store);
@@ -1336,7 +1422,9 @@ export function validateVibe(agent: AgentConfig, step: unknown, verdict: unknown
   if (!view) return fail(lang, 'agent');
   if ((step !== 'forme' && step !== 'invariants' && step !== 'modules') || (verdict !== 'ok' && verdict !== null)) return { ...fail(lang, 'args'), reason: 'step' };
   if (view.flow !== 'create') return { ...fail(lang, 'action'), reason: 'flow' };
-  if (!markStep(agent, view, step, verdict)) return { ...fail(lang, 'action'), reason: 'not-offered' };
+  // Les modules : par la preuve qui passe seulement (view.proof : 'ok', ou 'none' sans ligne « → invariant »), en express aussi.
+  const unproved = step === 'modules' && verdict === 'ok' && view.proof && view.proof.state !== 'ok' && view.proof.state !== 'none';
+  if (unproved || !markStep(agent, view, step, verdict, 'system')) return { ...fail(lang, 'action'), reason: 'not-offered' };
   refreshVibe({ now: true });
   return { ok: true };
 }

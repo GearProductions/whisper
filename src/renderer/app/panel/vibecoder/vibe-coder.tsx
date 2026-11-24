@@ -22,11 +22,11 @@
  *  onSettings : panel-app l'ouvre) ; conversation
  *  affichée ou masquée — des icônes (icons), libellé en title et aria-label ;
  *  au centre, en tête, le fil d'Ariane (breadcrumb : il dit où l'on en est ; y
- *  choisir une étape ferme la vue des branches ; il porte Vibe, en créateur
- *  seulement : l'action `vibe`, et pendant Vibe, Arrêter Vibe, soit set vibe false),
+ *  choisir une étape ferme la vue des branches ; il porte le bouton du moteur, en créateur
+ *  seulement : Reprendre, l'action `vibe`, et pendant que le système enchaîne, Arrêter, soit set vibe false ; ni libellé ni infobulle ne disent « Vibe »),
  *  l'erreur du relevé, et la vue des branches (branches-view) si elle
  *  est ouverte, sinon l'étape choisie (step-views : son en-tête porte ses
- *  actions) ; Vibe ou pas, le
+ *  actions) ; le système enchaîne ou pas, le
  *  même fil d'Ariane et la même étape ; à droite, en onglets, la conversation (reçue en
  *  children) avec, au bout de la rangée, 🕘 : l'historique (`history`, donné
  *  par panel-app) prend la place du fil, avec « ← Conversation en cours » pour
@@ -65,6 +65,8 @@
  *  aucun fichier suivi. L'onglet Actions ouvert le dit au principal
  *  (runsSeen : true, les courses de l'agent vues) ; quitté, ou l'écran fermé
  *  (dont un changement d'agent) : runsSeen false.
+ *  Les deux rythmes (note 0.16.0-controle-en-trois-points) : le fil d'Ariane reçoit onExpress, soit
+ *  act.set({ express }) ; Reprendre, à une pause comme à l'arrêt, est l'action vibe.
  *  Ne connaît pas : le pont (rappels passés), le contenu de la conversation.
  *  Utilisé par : panel-app. */
 import { Component, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
@@ -238,7 +240,8 @@ function Screen({ view, thread, act: given, tasks, tasksOpen, contextOpen, onGau
         ) : (
         <section className="vc-center">
           <Breadcrumb view={view} t={t} selected={branches ? null : step && step.id} onPick={pick} onOpen={act.open}
-            vibe={vibeAction ? { a: vibeAction, on: !!view.vibe } : null} onVibe={() => act.run('vibe')} onStopVibe={() => act.set({ vibe: false })} />
+            vibe={vibeAction ? { a: vibeAction, on: !!view.vibe } : null} onVibe={() => act.run('vibe')} onStopVibe={() => act.set({ vibe: false })}
+            onExpress={view.flow === 'review' ? undefined : (express) => act.set({ express })} />
           {view.error ? <div className="vc-error" role="status"><b>{view.error}</b> {t.errorHint}</div> : null}
           {branches ? (
             <div className="vc-step scroll" key="branches"><Guard t={t}><BranchesView view={view} t={t} act={act} busy={busy} /></Guard></div>

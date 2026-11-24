@@ -228,3 +228,43 @@ it('un élément de liste retiré n\'a qu\'une puce, sans retrait de plus', () =
   expect(/li\.vc-removed\s*\{[^}]*list-style:\s*none/.exec(css)).not.toBeNull();
   expect(/li\.vc-removed\s*>\s*:is\(ul,\s*ol\)\s*\{[^}]*padding-left:\s*0/.exec(css)).not.toBeNull();
 });
+
+// 0.16.0 : vérifier, puis valider la note (docs/tickets/feat/0.16.0-controle-en-trois-points.md).
+it('créateur : Vérifier appelle design-check et rien d\'autre ; Valider la note (montré si la vérification n\'a rien trouvé) ne marque que la note', async () => {
+  await fresh();
+  const head = () => page.querySelector<HTMLElement>('.vc-note-mark')!;
+  const labels = () => [...head().querySelectorAll('button')].map((b) => b.textContent);
+  for (const lang of ['fr', 'en'] as const) {
+    await draw({ flow: 'create', lang, note: changedNote({ before: null, verified: null }) } as never);
+    expect(labels()).toEqual([lang === 'fr' ? 'Vérifier' : 'Check']);
+    calls.length = 0;
+    await act(() => head().querySelector('button')!.click());
+    expect(calls).toEqual([['run', 'design-check']]);
+    await draw({ flow: 'create', lang, note: changedNote({ before: null, verified: 'clean' }) } as never);
+    expect(labels()).toEqual(lang === 'fr' ? ['Vérifier', 'Valider la note'] : ['Check', 'Approve the note']);
+    calls.length = 0;
+    await act(() => head().querySelectorAll('button')[1].click());
+    expect(calls).toEqual([['mark', 'note', 'ok']]);
+  }
+  await draw({ flow: 'create', note: changedNote({ before: null, verified: 'edited' }) } as never);
+  expect(head().textContent).toContain('Modifiée depuis la vérification');
+  expect(page.textContent).not.toMatch(/Revérifier|Check again/);
+});
+
+it('créateur : la note modifiée depuis sa validation et vérifiée : Revalider, le même geste ; non vérifiée : Vérifier seul', async () => {
+  await fresh();
+  await draw({ flow: 'create', note: changedNote({ before: null, mark: 'changed' }) } as never);
+  expect([...page.querySelectorAll('.vc-note-mark button')].map((b) => b.textContent)).toEqual(['Vérifier']);
+  await draw({ flow: 'create', note: changedNote({ before: null, mark: 'changed', verified: 'clean' }) } as never);
+  const b = page.querySelectorAll<HTMLButtonElement>('.vc-note-mark button')[1];
+  expect(b.textContent).toBe('Revalider');
+  calls.length = 0;
+  await act(() => b.click());
+  expect(calls).toEqual([['mark', 'note', 'ok']]);
+});
+
+it('relecteur : Valider la note et À revoir, comme avant', async () => {
+  await fresh();
+  await draw({ flow: 'review', note: changedNote({ before: null }) } as never);
+  expect([...page.querySelectorAll('.vc-note-mark button')].map((b) => b.textContent)).toEqual(['Valider la note', 'À revoir']);
+});
