@@ -30,6 +30,8 @@
  *  retiré à la main, withdrawn:forme, withdrawn:invariants, withdrawn:modules : l'étape nommée, « modifiez-la ou
  *  revalidez-la pour reprendre »), le titre
  *  de la sortie preuve.md, et l'état d'une étape validée par le système (stepCheck : « validée par le système »).
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : les libellés que plus rien n'affiche sont retirés (les réglages
+ *  de lecture du code, la légende des modules, « rien à prouver ») ; ceux du relecteur restent.
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
 import type {
   AgentActivity, AgentView, SettingKey, SettingsCategory, SettingsCommand, SettingsInfo, VibeLang, VibeRun, VibePause, VibeRunProgress, VibeStepId,

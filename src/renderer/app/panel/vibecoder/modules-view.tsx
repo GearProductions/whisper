@@ -51,6 +51,14 @@
  *  modules (CARD_ACTS : après Générer les modules, avant Commiter les modules) ; la validation des modules montrée
  *  (by de step.check : « validée par le système », sur la conformité et la preuve), Valider les modules en discret ;
  *  Relire le diff reste sur la ligne de chaque module, à la demande.
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel), en créateur : en tête, une seule ligne d'état (moduleCounts de core/vibecoder :
+ *  « 16 modules écrits · commités »), puis un seul arbre et son diff, en lecture seule (IdeView, ModuleCode diff, noEdit
+ *  et onOpen ; useCreatorDiff : depuis la base de la branche, ou depuis la validation au clic sur « modifiée depuis la
+ *  validation » de l'en-tête). Plus rien d'autre : ni boutons (Générer, Relire le diff, Ouvrir en texte, Prouver,
+ *  Valider, Commiter), ni commit proposé (proposed-commit : supprimé), ni cartes review.md et preuve.md (le résultat
+ *  de la preuve est à l'étape Invariants), ni légende ni compte par état, ni « rien à prouver », ni Vue IDE · Vue
+ *  liste (view.modulesView n'est plus lu, act.set modulesView plus envoyé), ni accordéon. Sans module : les fichiers
+ *  de la branche. Le relecteur : inchangé (les modules en lecture seule, ses deux vues, CommitsSection).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useEffect } from 'react';
 import { checkMark, fileParts, goneModule, ideFiles, moduleCommits, moduleState, type IdeFile, type ModuleState } from 'core/vibecoder';

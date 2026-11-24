@@ -22,6 +22,14 @@
  *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : « Chaque diff a été relu » est cochée par
  *  le relevé (plus de case à la main, son aide dit par quoi : le contrôle des modules et la ponytail review) ; seule
  *  « AGENTS.md à jour… » reste à cocher à la main, dite facultative.
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel), en créateur : une seule carte. Avant la revue (ni checks.json ni ponytail.md) :
+ *  une ligne, « la revue part après votre essai » au rythme par défaut, « la revue part après les modules » en express
+ *  (view.express). Après : une ligne par vérification en échec (failedChecks, son nom et la première ligne de son
+ *  détail, son étiquette en badge), rien quand tout passe ; checks.json illisible : la carte le dit ; la ponytail
+ *  review par FeedbackView (ses remarques [toi] en avant, les [agent] repliées avec leur nombre). Aucun bouton : ni
+ *  Lancer les vérifications, ni Relancer, ni Appliquer, ni Tout appliquer, ni case à cocher devant une remarque. Plus
+ *  de liste « Avant la PR » (le relevé porte toujours view.checklist), plus de cartes vides. Le plan de test, s'il y
+ *  en a un : EcranSection. Le relecteur : inchangé (Relire à l'écran).
  *  Ne connaît pas : le pont (rappels passés ; l'état des courses par StopRun).
  *  Utilisé par : step-views. */
 import { useContext, useState } from 'react';

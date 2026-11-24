@@ -240,7 +240,10 @@ export type VibeStep = {
 // now : l'empreinte de ce que Valider retiendrait aujourd'hui ; null : rien à valider, ou pas encore offert.
 // by : 'system', validée par le système quand ses contrôles sont passés (note 0.16.0-controle-en-trois-points : la Forme,
 // les invariants, les modules ; jamais la note) ; absent : validée à la main.
-export type VibeStepCheck = { state: 'ok' | 'changed' | 'cascade' | null; cause?: VibeStepId; now: string | null; by?: 'system' };
+// withdrawn : l'utilisateur a retiré ce ✓ à la main et ce retrait tient pour le contenu d'aujourd'hui de l'étape (la Forme,
+// les invariants, les modules ; chaque étape concernée, pas seulement celle que nomme la pause) ; absent : non
+// (note 0.16.0-ecran-essentiel : le badge de l'étape dit « ✓ retiré » et le rend au clic).
+export type VibeStepCheck = { state: 'ok' | 'changed' | 'cascade' | null; cause?: VibeStepId; now: string | null; by?: 'system'; withdrawn?: true };
 
 // La pause où se tient le parcours du créateur (note 0.16.0-controle-en-trois-points) : 'note', la note validée a perdu
 // son ✓ (tenue dans les deux rythmes) ; 'invariants', le premier commit fait, aucun module commencé ; 'modules', l'étape
@@ -494,7 +497,7 @@ export type VibeView = {
   // par la branche (absent = false) ; git : pas commité, nouveau ou modifié (absent : commité) ; locked : pourquoi
   // il ne s'édite pas (codeLock), null : éditable.
   files?: (VibeFile & { deleted?: boolean; git?: VibeGit; locked: string | null })[];
-  modulesView?: 'ide' | 'list';          // le réglage de la vue Modules
+  modulesView?: 'ide' | 'list';          // d'avant la 0.16.0-ecran-essentiel (Vue IDE · Vue liste) : la page ne le lit plus
   diffs?: VibeDiffs;                     // les fichiers qui diffèrent du dernier commit et des validations (créateur, toujours rempli par lui)
   time: number;                       // heure du relevé
 };
@@ -526,7 +529,7 @@ export type VibePatch = {
   express?: boolean;           // le rythme : passer en express (true), revenir au rythme par défaut (false)
   pr?: number | null;          // la PR suivie
   seen?: boolean;              // « Vu » : la note de référence devient l'actuelle
-  modulesView?: 'ide' | 'list'; // le réglage de la vue Modules
+  modulesView?: 'ide' | 'list'; // d'avant la 0.16.0-ecran-essentiel : la page ne l'envoie plus
   model?: string;              // le modèle de l'agent, comme son menu
   effort?: string;
   mode?: string;

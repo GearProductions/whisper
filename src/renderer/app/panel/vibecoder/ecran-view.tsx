@@ -4,6 +4,9 @@
  *  décoche aussi une case cochée dans le fichier). La case suit le clic aussitôt,
  *  le relevé suivant fait foi ; Tout cocher ('ok' sur chaque case pas cochée) ;
  *  Relancer. Pas de plan : Plan de test à l'écran.
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel), en créateur : pas de plan, rien (ni carte vide, ni bouton Plan de test à
+ *  l'écran) ; un plan (demandé à l'agent) : ses cases, que l'utilisateur coche, et Tout cocher, sans Relancer. Le
+ *  relecteur : inchangé.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : review-view. */
 import { useState, type CSSProperties } from 'react';
 import type { VibeLang } from 'technicals/bridge';

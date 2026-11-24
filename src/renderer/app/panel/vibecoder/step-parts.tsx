@@ -23,6 +23,13 @@
  *  faits de head : changed, « modifiée depuis la validation », un bouton qui appelle onSince (le menu de diff de la
  *  vue IDE passe sur Depuis la validation) ; cascade, « à revoir : <l'étape cause> a changé », en texte (le principal
  *  les écrit dans step.head, rien n'est répété ici). Retirés : « périmée », son diff et Revalider.
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel), en créateur : StepHead n'a plus de rangée d'actions (stepActions ne rend rien) ;
+ *  son badge d'état porte le ✓ de l'étape (stepBadge de core/vibecoder : « faite ✓ » validée, « faite · ✓ retiré » tant
+ *  que le retrait tient) et, à la Forme, aux Invariants et aux Modules, se clique pour le retirer (act.mark(étape, null))
+ *  ou le rendre (act.mark(étape, 'ok')) ; sans ✓ ni retrait, un badge sans clic : il ne valide jamais une étape que le
+ *  système n'a pas validée, ne lance aucune action, ne touche pas à la note. « modifiée depuis la validation » reste
+ *  un bouton là où la vue passe onSince (Modules : le diff bascule sur ce qui a changé depuis le ✓), un texte ailleurs.
+ *  Run, Invite et OutputCard ne servent plus qu'au relecteur et à la note (Vérifier). Le relecteur : inchangé.
  *  Ne connaît pas : le pont (rappels passés ; ⏹ et la langue par le contexte StopRun).
  *  Utilisé par : les vues d'étape ; vibe-coder (badge Relecteur,
  *  badge du worktree). */

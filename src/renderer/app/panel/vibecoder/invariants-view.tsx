@@ -70,6 +70,13 @@
  *  (by de step.check : « validée par le système », sur l'alignement) ; Valider les invariants, le ✓ de chaque cas et
  *  Lire en pseudo-code restent à leur place, en discret, sans « n cas à valider » ni rien qui attende ; le relecteur :
  *  inchangé.
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : en créateur, l'en-tête de l'étape puis RulesView (rules-view : les règles
+ *  rangées par ligne « → invariant », leurs tests en pseudo-code, l'alignement) ; plus rien d'autre ici pour lui — ni
+ *  cartes par cas, ni verdicts, ni Tout valider, ni Lire en pseudo-code ou Relire, ni Voir le fichier, ni éditeur
+ *  (useFileDraft, useCaseDraft : plus appelés), ni Summary ni Bar, ni Invariants seuls, ni menu de diff, ni Rien à
+ *  écrire, ni Écrire les invariants. Le relecteur : inchangé — ses cartes, Validé / À revoir, ses remarques,
+ *  Invariants seuls, son menu de diff (useIdeDiff 'invariants' : Depuis la base de la branche, En ligne · Côte à côte)
+ *  et Voir le fichier, qui lui montre le diff du test depuis la référence choisie.
  *  Ne connaît pas : le pont (rappels passés), le brouillon (ses remarques, par cible). Utilisé par : step-views. */
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {

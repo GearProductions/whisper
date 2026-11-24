@@ -25,6 +25,11 @@
  *  avant la revue) ; 'note' : « la note attend sa validation » ; 'withdrawn:<étape>' (un ✓ d'étape retiré à la main,
  *  qui tient) : sa ligne nomme l'étape, sans bouton Reprendre (l'action vibe est masquée par le relevé), qui revient
  *  avec la pause levée. Le relecteur : rien.
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel), en créateur : sous le fil, une ligne dit toujours où on en est (statusLine de
+ *  core/vibecoder : ce que le système fait, ou ce qu'il attend de l'utilisateur ; la ligne de pause d'avant en est un
+ *  cas), avec à côté le bouton du moteur quand il sert (Arrêter pendant que le système enchaîne, Reprendre quand il est
+ *  arrêté ; ni l'un ni l'autre tant que l'action vibe est masquée) ; l'interrupteur Express reste au bout du fil ;
+ *  « N commits » et la liste des commits disparaissent. Le relecteur : ni ligne ni bouton, ses commits comme avant.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
 import { useEffect, useState } from 'react';
 import { crumbCheck, waitingFor, type Strings } from 'core/vibecoder';

@@ -6,8 +6,15 @@
  *  d'une remarque de la ponytail review et celles que la course apply a
  *  appliquées (ponytail-applied.json) ; une adresse n'est gardée qu'en
  *  http(s) (I-21). Illisible : null, l'écran le dit.
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : l'état de la CI lu dans ci.md, et les vérifications en échec.
+ *  parseCi(text: string): Ci | null — la première ligne de ci.md dit l'état d'ensemble (✓ : 'ok' ; ✗ : 'ko' ; ⏳ :
+ *  'pending' ; son étiquette [toi] / [agent] ignorée), chaque titre `##` (hors bloc de code) une vérification en échec,
+ *  son nom sans étiquette, dans l'ordre ; une première ligne sans aucune de ces marques : null (illisible, l'écran le dit).
+ *  failedChecks(checks: Check[]): Check[] — celles de checks.json en échec (level 'error'), dans l'ordre ; un
+ *  avertissement passe.
  *  Ne connaît pas : le DOM, React, les noms des fichiers.
- *  Utilisé par : app/panel/vibecoder (review-view, branches-view, commits-view, draft-view, step-parts). */
+ *  Utilisé par : app/panel/vibecoder (review-view, branches-view, commits-view, draft-view, step-parts, pr-view) ;
+ *  core/vibecoder (status-line : parseCi). */
 
 import { VERDICTS, type Verdict } from 'shared/review';
 import type { VibeCommit, VibeOutput } from 'technicals/bridge';
@@ -129,4 +136,16 @@ export function appliedRemarks(applied: VibeOutput | undefined, ponytailTime: nu
   if (!applied || applied.time < ponytailTime) return new Set();
   const list = (json(applied.text) as { applied?: unknown } | null | undefined)?.applied;
   return new Set(Array.isArray(list) ? list.flatMap((x) => (typeof x === 'string' && remarkKey(x)) || []) : []);
+}
+
+// L'état de la CI d'après ci.md (voir l'en-tête) : l'ensemble, et le nom de chaque vérification en échec.
+export type Ci = { state: 'ok' | 'ko' | 'pending'; failed: string[] };
+
+export function parseCi(_text: string): Ci | null {
+  throw new Error('not implemented');
+}
+
+// Les vérifications de checks.json en échec, dans l'ordre (un avertissement passe).
+export function failedChecks(_checks: Check[]): Check[] {
+  throw new Error('not implemented');
 }

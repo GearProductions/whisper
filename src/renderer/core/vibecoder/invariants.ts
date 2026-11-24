@@ -10,9 +10,19 @@
  *  conversation (attentionQuote, comme on cite la note : du texte, sans `>`),
  *  ou ajouté à la zone de commentaire sans rien effacer (withAttention) ; la ligne « → invariant » de
  *  la note que garde un cas, d'après la seule phrase Garantit de sa lecture (caseLink).
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : les tests rangés par ligne « → invariant » de la note.
+ *  ruleGroups(view: Pick<VibeView, 'note' | 'invariants' | 'proof'>): RuleGroups
+ *  rules : une règle par ligne « → invariant » de la note (mustNot, mark 'invariant'), dans l'ordre de la note, son
+ *  texte tel qu'écrit ; ses cas, ceux que caseLink y rattache (un cas qui cite deux lignes est sous chacune), dans
+ *  l'ordre des fichiers puis des cas ; une ligne sans cas reste, cases vide (« aucun test ») ; son état d'après la
+ *  preuve du relevé (view.proof.lines, par le texte de la ligne) : 'proved', prouvée ; 'unproved', la preuve la
+ *  remonte à l'utilisateur (detail : pourquoi) ; 'written', la preuve ne dit encore rien d'elle (pas de preuve, ou pas
+ *  de rubrique pour elle). others : les cas qui ne gardent aucune ligne (pas lus, sans phrase Garantit, un I-… seul,
+ *  rien de cité) : « Autres tests ». Chaque cas de chaque test est dans une règle ou dans others : rien n'est caché.
+ *  Sans note : aucune règle, tous les cas dans others.
  *  Ne connaît pas : le DOM, React, la spécification du projet (un I-… n'est qu'un numéro).
- *  Utilisé par : app/panel/vibecoder (invariants-view). */
-import type { ReadingCase, VibeMarkState, VibeNote, VibeTestFile } from 'technicals/bridge';
+ *  Utilisé par : app/panel/vibecoder (invariants-view ; rules-view : ruleGroups, pseudoLines). */
+import type { ReadingCase, VibeMarkState, VibeNote, VibeTestFile, VibeView } from 'technicals/bridge';
 import { caseKeys } from 'shared/test-cases';
 import { tokens, type Token } from './highlight';
 
@@ -162,3 +172,15 @@ export function caseLink(reading: ReadingCase | null, mustNot: VibeNote['mustNot
 
 // Blancs réduits à une espace, guillemets (« », “ ”, „) ramenés à ", apostrophes (’ ‘) à '.
 const norm = (s: string) => s.replace(/«\s*/g, '"').replace(/\s*»/g, '"').replace(/[“”„]/g, '"').replace(/[’‘]/g, "'").replace(/\s+/g, ' ').trim();
+
+// Une règle : une ligne « → invariant » de la note, son état d'après la preuve, les cas qui la gardent (voir l'en-tête).
+export type RuleState = 'written' | 'proved' | 'unproved';
+// index : le rang du cas dans file.cases (sa ligne : file.lines[index]).
+export type RuleCase = { file: VibeTestFile; index: number; view: CaseView };
+// detail : ce que la preuve dit de la ligne (le mutant qui l'a prouvée, ou pourquoi elle remonte) ; '' : rien.
+export type Rule = { line: string; state: RuleState; detail: string; cases: RuleCase[] };
+export type RuleGroups = { rules: Rule[]; others: RuleCase[] };
+
+export function ruleGroups(_view: Pick<VibeView, 'note' | 'invariants' | 'proof'>): RuleGroups {
+  throw new Error('not implemented');
+}

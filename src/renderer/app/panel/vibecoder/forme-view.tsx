@@ -25,7 +25,12 @@
  *  Contract : le contrat d'un module, par rubrique (contractParts, InlineMd).
  *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : en créateur, la Forme montre sa validation
  *  (MarkControl, by de step.check : « validée par le système », ou à la main) ; Valider la forme reste, en discret.
- *  Ne connaît pas : le pont (rappels passés), le brouillon entier (view.draft, filtré par module). Utilisé par : step-views, modules-view (Contract). */
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel), en créateur : la liste des modules, sans code — une ligne par module, son
+ *  chemin (dossier atténué, nom en gras) et ce qu'il fait en une phrase (moduleLine de core/vibecoder) ; ni arbre, ni
+ *  diff, ni Structure · Code, ni badge « touché », ni commits, ni icônes, ni validation (le ✓ est sur le badge de
+ *  l'étape), ni commit proposé, ni bouton Poser la forme ; aucun fichier suivi. Sans note ou sans Forme : une phrase.
+ *  Le relecteur : inchangé (la vue IDE, Structure · Code, ses remarques).
+ *  Ne connaît pas : le pont (rappels passés), le brouillon entier (view.draft, filtré par module). Utilisé par : step-views, modules-view et invariants-view (Contract, le relecteur). */
 import { useEffect, useState, type ReactNode } from 'react';
 import { checkMark, contractParts, fileParts, goneModule, ideFiles, remark, remarksAt, type IdeFile, type Strings } from 'core/vibecoder';
 import type { VibeLang, VibeModule } from 'technicals/bridge';

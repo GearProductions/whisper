@@ -20,8 +20,12 @@
  *  posés ; invariants : l'alignement ; modules : la conformité et la preuve par mutation), « validée » à la main
  *  sinon — ; Valider, Revalider et Annuler restent, en discret (un bouton sans couleur ni coche, jamais mis en avant,
  *  jamais grisé). Le relecteur : Valider et À revoir, comme avant.
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : en créateur, MarkControl ne sert plus qu'à la note (Vérifier, Valider la
+ *  note, « Note validée » et Annuler) ; la Forme, les invariants, les modules et « Rien à écrire » n'ont plus de
+ *  bouton ni d'état ici : leur ✓ est sur le badge de l'étape (StepHead, step-parts), qui le retire ou le rend. Le
+ *  relecteur (Valider, À revoir, CaseVerdict) : inchangé.
  *  Ne connaît pas : le pont (rappels passés), le brouillon, ce que porte le cas ; de step-parts, que RunOn.
- *  Utilisé par : note-view, forme-view, invariants-view, modules-view. */
+ *  Utilisé par : note-view ; forme-view, invariants-view (le relecteur). */
 import { t } from 'core/vibecoder';
 import type { VibeLang, VibeMarkState, VibeNoteCheck } from 'technicals/bridge';
 import { Icon } from './icons';

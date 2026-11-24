@@ -4,6 +4,9 @@
  *  celles que la vue montre elle-même ni celles qui citent) ; la largeur de la colonne de la conversation (300 px au moins,
  *  60 % de l'écran au plus) ; les actions qui tournent (isRunning, runningRuns : en
  *  cours ou en attente d'autorisation, ni arrêtées ni finies).
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : stepActions ne rend plus rien au créateur — aucun bouton
+ *  d'action dans une étape, pas même celle mise en avant : une action se demande à l'agent, qui a la CLI — ; au
+ *  relecteur, la rangée d'avant, inchangée.
  *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (vibe-coder, step-parts, status-bar ;
  *  runs-view : isRunning). */
 import type { VibeAction, VibeRun, VibeStep, VibeView } from 'technicals/bridge';

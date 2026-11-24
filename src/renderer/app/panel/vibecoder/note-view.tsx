@@ -37,6 +37,9 @@
  *  questionnaire au-dessus. Valider la note (act.mark('note', 'ok')) n'est montré que si la dernière vérification
  *  n'a rien trouvé (note.verified, passé à MarkControl), et ne lance aucune vérification ; la note modifiée depuis
  *  cette vérification ('edited') : MarkControl le dit, Valider la note reste.
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel), en créateur : pas de note, une phrase (« Demandez la note à l'agent, dans la
+ *  conversation »), sans bouton Rédiger la note ni Nouvelle demande ; restent Vérifier, Valider la note, le
+ *  questionnaire, Modifier (la note reste modifiable à l'écran : le document de l'utilisateur) et 💬 sur une ligne.
  *  Ne connaît pas : le pont (rappels passés), le disque. Utilisé par : step-views. */
 import { useEffect, useMemo, useState } from 'react';
 import { changedLines, excerpt, fileParts, isLive, lineDiff, mustNotLine, mustNotTags, parseMarkdown, placeRemoved, remark, remarksAt, removedGroups } from 'core/vibecoder';

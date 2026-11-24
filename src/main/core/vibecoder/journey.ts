@@ -115,6 +115,16 @@
  *  - la liste « Avant la PR » : « Chaque diff a été relu » cochée par le relevé (les modules validés et la ponytail
  *    review faite), plus à la main ; « AGENTS.md à jour… » reste à la main.
  *  Le relecteur : rien ne change (ses étapes, ses actions, ses faits).
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel), en créateur :
+ *  - Lire en pseudo-code (read-invariants) devient une action du moteur : la prochaine action de l'étape Invariants
+ *    tant qu'un cas d'un test d'invariant de la branche n'est pas lu ou que sa lecture est périmée (après Écrire les
+ *    invariants, avant le premier commit) ; la pause 'invariants' attend cette lecture (l'utilisateur y regarde ses
+ *    règles en pseudo-code) ; done n'en dépend pas ;
+ *  - check.withdrawn de chaque étape (la Forme, les invariants, les modules) dont le ✓ retiré à la main tient (withdrawn
+ *    de marks, pour son contenu d'aujourd'hui) : toutes, pas seulement la première, que nomme la pause ;
+ *  - l'état de la preuve quitte les faits de l'étape Modules pour ceux de l'étape Invariants (il ne se dit qu'à un
+ *    endroit) ; « modifiée depuis la validation » et « à revoir » restent seuls dans leur en-tête ;
+ *  - rien n'est retiré du relevé : les actions, checklist et modulesView (recopié, plus lu par la page) restent.
  *  Ne connaît pas : Electron, le disque, git, gh, si la pause est tenue (holdsPause de vibe-mode : journey dit où le
  *  parcours se tient, le contrôleur décide) (tout est passé ; `exists` dit si
  *  un chemin du dossier de l'agent existe ; les textes des tests, à la tête et à la base, sont lus par

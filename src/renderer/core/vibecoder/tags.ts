@@ -4,8 +4,15 @@
  *  et ce qu'elle couvre (tagCover : la rubrique sous un titre ; un élément de liste couvre ses
  *  sous-points par l'imbrication, une sous-ligne étiquetée garde la sienne). Sans étiquette : null,
  *  la ligne telle quelle.
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : un fichier de retour coupé selon ses étiquettes.
+ *  tagSplit(md: string): TagSplit
+ *  toi : le Markdown de ce qui est pour l'utilisateur (une rubrique `## [toi]` entière, jusqu'au titre suivant de même
+ *  niveau ou plus haut ; un élément de liste [toi] avec ses sous-points, l'étiquette après son adresse comprise) ;
+ *  agent : de même ce qui est pour l'agent, et agents, combien de rubriques ou d'éléments [agent] ; rest : le reste,
+ *  sans étiquette, dans l'ordre. Les trois textes gardent leurs étiquettes (MarkdownView tagged les rend en badges) et
+ *  l'ordre du fichier ; un bloc de code n'est jamais coupé ni lu comme une étiquette.
  *  Ne connaît pas : le DOM, React, les noms des fichiers de retour ; d'outputs, que ADDRESS.
- *  Utilisé par : app/panel/vibecoder (markdown-view, review-view : checks.json). */
+ *  Utilisé par : app/panel/vibecoder (markdown-view, review-view : checks.json ; feedback-view : tagSplit). */
 import type { Block, Inline } from './markdown';
 import { ADDRESS } from './outputs';
 
@@ -46,4 +53,11 @@ export function tagCover(blocks: Block[]): (Tag | null)[] {
     }
     return open[open.length - 1]?.tag ?? null;
   });
+}
+
+// Un fichier de retour coupé selon ses étiquettes (voir l'en-tête) : pour l'utilisateur, pour l'agent et combien, le reste.
+export type TagSplit = { toi: string; agent: string; agents: number; rest: string };
+
+export function tagSplit(_md: string): TagSplit {
+  throw new Error('not implemented');
 }

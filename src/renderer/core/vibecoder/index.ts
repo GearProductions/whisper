@@ -10,7 +10,7 @@
  *  le texte ; une durée, une taille de fichier en clair ; les
  *  actions qui tournent, la largeur de la colonne de la conversation ; la saisie de l'écran gardée
  *  par agent ; la recherche de la vue des branches et les PR où se demander en
- *  relecture. */
+ *  relecture ; la ligne qui dit où en est le parcours (status-line). */
 export * from './artifact-clipboard';
 export * from './artifact-tree';
 export * from './diff';
@@ -30,6 +30,7 @@ export * from './questions';
 export * from './review-flow';
 export * from './screen';
 export * from './search';
+export * from './status-line';
 export * from './tags';
 export * from './tree-keys';
 export * from './validation';

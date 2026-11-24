@@ -15,6 +15,12 @@
  *  head ou validated, ceux de view.diffs, un supprimé absent des fichiers ajouté en « supprimé », son id gone).
  *  Retirés : reviewRows, fileGesture
  *  (les accordéons, le Valider d'un fichier).
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : la ligne d'état de l'étape Modules, en nombres.
+ *  moduleCounts(modules: VibeModule[]): ModuleCounts — total : les modules de la Forme ; written : ceux qui ne sont
+ *  plus à générer (moduleState 'wip' ou 'done') ; committed : ceux qui ont un commit et rien de pas commité
+ *  (uncommitted). modules-view en fait une seule phrase (« 16 modules écrits · commités »).
+ *  Le menu de diff n'a plus que deux références à l'écran du créateur, la base de la branche et la validation
+ *  (ide-diff, qui n'offre plus le dernier commit) ; diffRefs et diffTree ne changent pas.
  *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (forme-view, modules-view, ide-view,
  *  invariants-view, ide-diff). */
 import type { VibeDiffStep, VibeGit, VibeLang, VibeMarkState, VibeModule, VibeStepCheck, VibeTestFile, VibeView, VibeStep } from 'technicals/bridge';
@@ -183,3 +189,10 @@ export const checkMark = (c?: VibeStepCheck): VibeMarkState => (c?.state === 'ok
 export const goneModule = (f: Pick<IdeFile, 'path' | 'gone'>): VibeModule => ({
   path: f.path, paths: [f.path], contract: '', file: null, touched: true, commits: [], files: [{ id: f.gone!, path: f.path, deleted: true }],
 });
+
+// La ligne d'état de l'étape Modules, en nombres (voir l'en-tête).
+export type ModuleCounts = { total: number; written: number; committed: number };
+
+export function moduleCounts(_modules: VibeModule[]): ModuleCounts {
+  throw new Error('not implemented');
+}

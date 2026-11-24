@@ -6,8 +6,15 @@
  *  vide) ; la référence gardée y retombe sur la base. La référence filtre l'arborescence
  *  (diffTree) ; Fichier garde le filtre de la dernière référence. Gardé par agent et par étape (useKept) ;
  *  showValidated passe sur Depuis la validation (le clic sur « modifiée depuis la validation » de StepHead).
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : le menu (useIdeDiff, inchangé) ne sert plus qu'au relecteur, à
+ *  l'étape Invariants ; le créateur ne l'a plus. Pour lui, un seul affichage, le diff depuis la base de la branche, en
+ *  ligne ; une seule bascule, sur ce qui a changé depuis la validation de l'étape, et retour :
+ *  useCreatorDiff(view: VibeView, step: VibeDiffStep): CreatorDiff — { shown: 'base' | 'validated';
+ *  filter(files: IdeFile[]): IdeFile[]; empty: string; toggleValidated(): void } ; shown : 'validated' seulement si
+ *  l'étape a une validation (diffRefs), sinon 'base' ; toggleValidated : sans validation, rien. Ni bar, ni mode, ni
+ *  Fichier, ni Depuis le dernier commit. Gardé par agent et par étape (useKept).
  *  Ne connaît pas : le pont, le disque, les marques (step.check et view.diffs du relevé).
- *  Utilisé par : forme-view, modules-view, invariants-view. */
+ *  Utilisé par : invariants-view (le relecteur : useIdeDiff), modules-view (le créateur : useCreatorDiff). */
 import type { ReactNode } from 'react';
 import { diffRefs, diffTree, type DiffRef, type IdeFile } from 'core/vibecoder';
 import type { VibeDiffStep, VibeLang, VibeView } from 'technicals/bridge';
@@ -59,4 +66,16 @@ export function useIdeDiff(view: VibeView, step: VibeDiffStep): IdeDiff {
     empty: s[ref].empty,
     showValidated: () => { if (refs.includes('validated')) pick('validated'); },
   };
+}
+
+// Le diff du créateur (note 0.16.0-ecran-essentiel) : depuis la base de la branche, ou depuis la validation de l'étape ; pas de menu.
+export type CreatorDiff = {
+  shown: 'base' | 'validated';            // ce que montre le fichier choisi, toujours en ligne
+  filter(files: IdeFile[]): IdeFile[];   // diffTree pour shown
+  empty: string;                          // « Rien de modifié depuis … », d'après shown
+  toggleValidated(): void;                // depuis la validation, et retour ; sans validation, rien
+};
+
+export function useCreatorDiff(_view: VibeView, _step: VibeDiffStep): CreatorDiff {
+  throw new Error('not implemented');
 }

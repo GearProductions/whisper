@@ -10,6 +10,10 @@
  *  seulement (F-114), au clic ; le principal prend le numéro et le login de son
  *  relevé, rien n'est envoyé. L'en-tête est rendu ici (Publier, au relecteur,
  *  est dans draft-view : `own`).
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel), en créateur : la carte de la PR et l'état de la CI, sans bouton — ci.md lu par
+ *  parseCi (core/vibecoder) : une ligne par vérification en échec, rien quand tout passe, « la CI tourne » en attente ;
+ *  illisible : son texte tel quel. Ni Valider la feature, ni Diagnostiquer la CI, ni Relancer, ni Me retirer de la PR,
+ *  ni invitation vide ; pas de PR : une phrase. Le relecteur : inchangé (S'assigner la PR, le brouillon, Publier).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import type { VibeLang } from 'technicals/bridge';
 import { DraftView } from './draft-view';

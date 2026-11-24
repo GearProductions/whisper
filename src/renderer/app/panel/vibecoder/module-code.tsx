@@ -32,9 +32,16 @@
  *  at.validations[step] ?? '', le texte), en `mode` du menu ; une référence absente ou null : tout ajouté ; un fichier
  *  supprimé (deleted) : tout en retraits depuis cette référence (la base si file) ; file : l'éditeur. Sans diff
  *  (la liste de Modules) : comme avant.
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : noEdit (le créateur, toujours avec diff : useCreatorDiff de
+ *  l'étape Modules), le code se lit, il ne se modifie plus — ni éditeur, ni Enregistrer, ni Abandonner, ni sélecteur,
+ *  ni 💬 sur ses lignes, ni tools ; le diff en ligne depuis diff.shown ('base' ou 'validated'), tout ajouté si la
+ *  référence manque, tout en retraits pour un supprimé ; le texte pas encore poussé ou trop gros : le dire, sans
+ *  éditeur. onOpen (facultatif) : Ouvrir dans l'éditeur du développeur, une icône discrète sur le fichier affiché
+ *  (act.open). Sans noEdit (le relecteur) : comme avant, en lecture seule — sans diff, son sélecteur ; avec diff, le
+ *  menu de sa vue (useIdeDiff à l'étape Invariants : Fichier, la référence choisie, En ligne · Côte à côte).
  *  Ne connaît pas : le pont (rappels passés), le disque, les autres modules,
  *  les actions de la barre d'outils.
- *  Utilisé par : modules-view, forme-view. */
+ *  Utilisé par : modules-view ; forme-view, invariants-view (le relecteur). */
 import { useEffect, useState, type ReactNode } from 'react';
 import { fileParts, filesByDir, type Strings } from 'core/vibecoder';
 import type { VibeCode, VibeDiffStep, VibeLang, VibeModule } from 'technicals/bridge';
@@ -62,12 +69,14 @@ export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, 
   noTree?: boolean;                // sans la rangée des fichiers quand il n'y en a qu'un
   tools?: ReactNode;               // en tête de la rangée du sélecteur
   diff?: { shown: 'file' | DiffRef; mode: Mode; step: VibeDiffStep };   // le menu de la vue IDE ; absent : son sélecteur
+  noEdit?: boolean;                // le créateur : le code se lit seulement, jamais d'éditeur (avec diff, en ligne)
   open: boolean;
   code: VibeCode | null;
   t: Strings;
   onFollow(id: string | null): void;
   onSave(id: string, text: string): Promise<boolean>;
   onQuote?(block: string): void;
+  onOpen?(id: string): void;       // Ouvrir dans l'éditeur : l'icône du fichier affiché ; absent : pas d'icône
   drafts: StepProps['drafts'];
 }): ReactNode {
   const files = m.files ?? [];

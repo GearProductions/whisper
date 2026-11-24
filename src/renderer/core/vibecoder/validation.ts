@@ -6,9 +6,18 @@
  *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : en créateur, seule la note est attendue
  *  ({ kind: 'note' } : à vérifier, puis à valider, deux gestes de l'utilisateur), le moteur en marche ou pas ; la Forme et les cas ne le sont plus jamais (le système les valide) ;
  *  le relecteur : inchangé.
- *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder (invariants-view : les cas à valider). */
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : le ✓ d'une étape sur son badge d'état, et ce que fait un clic
+ *  dessus.
+ *  stepBadge(flow: VibeFlow, step: Pick<VibeStep, 'id' | 'check'>): StepBadge
+ *  En créateur, à la Forme, aux Invariants et aux Modules seulement : validée (check.state 'ok') → mark 'ok' (« faite ✓ »),
+ *  click 'withdraw' (retirer le ✓) ; le ✓ retiré à la main et qui tient (check.withdrawn) → mark 'withdrawn'
+ *  (« faite · ✓ retiré »), click 'restore' (le rendre) ; sinon — jamais validée, modifiée depuis, à revoir, une preuve
+ *  qui ne passe pas — ni ✓ ni clic : le badge ne valide jamais à la place du système. La note, la Revue, la PR et le
+ *  relecteur : ni ✓ ni clic.
+ *  Ne connaît pas : le DOM, React, ce que le clic envoie (step-parts : act.mark de l'étape, null ou 'ok').
+ *  Utilisé par : app/panel/vibecoder (invariants-view : les cas à valider du relecteur ; step-parts : stepBadge). */
 import { caseKeys } from 'shared/test-cases';
-import type { VibeMarkState, VibeView } from 'technicals/bridge';
+import type { VibeFlow, VibeMarkState, VibeStep, VibeView } from 'technicals/bridge';
 
 export type Awaiting = { kind: 'note' } | { kind: 'forme' } | { kind: 'cases'; count: number };
 
@@ -24,4 +33,11 @@ export function awaiting(view: VibeView): Awaiting | null {
     if (count) return { kind: 'cases', count };
   }
   return null;
+}
+
+// Le badge d'état d'une étape : son ✓ (validée, ou retiré à la main) et ce que fait un clic (le retirer, le rendre, rien).
+export type StepBadge = { mark: 'ok' | 'withdrawn' | null; click: 'withdraw' | 'restore' | null };
+
+export function stepBadge(_flow: VibeFlow, _step: Pick<VibeStep, 'id' | 'check'>): StepBadge {
+  throw new Error('not implemented');
 }
