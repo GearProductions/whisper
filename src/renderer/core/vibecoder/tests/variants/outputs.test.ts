@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appliedRemarks, commitReviews, commitTitle, failedChecks, parseChecks, parseCi, parseReview, remarkKey, sections, webUrl } from 'core/vibecoder';
+import { commitReviews, commitTitle, failedChecks, parseChecks, parseCi, parseReview, sections, webUrl } from 'core/vibecoder';
 import type { VibeCommit } from 'technicals/bridge';
 
 describe('parseChecks', () => {
@@ -167,43 +167,7 @@ describe('commitReviews', () => {
   });
 });
 
-describe('remarkKey', () => {
-  it('« <fichier>:L<ligne> » en tête, accents graves ou non ; d\'une plage, la première ligne', () => {
-    expect(remarkKey('src/a.ts:L12 — yagni: x — y')).toBe('src/a.ts:L12');
-    expect(remarkKey('`src/a.ts:L12-38` — shrink: x')).toBe('src/a.ts:L12');
-    expect(remarkKey('  src/c.ts:L3: dead')).toBe('src/c.ts:L3');
-  });
-
-  it('pas en tête, sans ligne, ou ligne suivie d\'une lettre : null', () => {
-    expect(remarkKey('voir src/a.ts:L12')).toBeNull();
-    expect(remarkKey('src/a.ts — note: x')).toBeNull();
-    expect(remarkKey('src/a.ts:L12a')).toBeNull();
-    expect(remarkKey('net: -4 lines possible.')).toBeNull();
-  });
-});
-
-describe('appliedRemarks', () => {
-  const out = (text: string, time: number) => ({ text, time });
-  it('les clés appliquées, si le fichier n\'est pas plus vieux que ponytail.md', () => {
-    const a = out('{"applied":["src/a.ts:L12","`src/b.ts:L3-9`",4,"rien"]}', 10);
-    expect([...appliedRemarks(a, 10)]).toEqual(['src/a.ts:L12', 'src/b.ts:L3']);
-  });
-
-  it('absent, plus vieux, illisible ou sans applied : vide', () => {
-    expect(appliedRemarks(undefined, 1).size).toBe(0);
-    expect(appliedRemarks(out('{"applied":["src/a.ts:L1"]}', 9), 10).size).toBe(0);
-    expect(appliedRemarks(out('{', 10), 1).size).toBe(0);
-    expect(appliedRemarks(out('{"applied":"src/a.ts:L1"}', 10), 1).size).toBe(0);
-    expect(appliedRemarks(out('null', 10), 1).size).toBe(0);
-  });
-});
-
 describe('fichiers de retour étiquetés [toi] / [agent] : la lecture de la page tient', () => {
-  it('remarkKey d\'une remarque ponytail étiquetée : son adresse', () => {
-    expect(remarkKey('`src/a.ts:L12` [agent] — yagni: x')).toBe('src/a.ts:L12');
-    expect(remarkKey('src/a.ts:L12-38 [toi] — shrink: x')).toBe('src/a.ts:L12');
-  });
-
   it('parseChecks d\'un detail étiqueté : l\'item lu, son detail tel quel', () => {
     expect(parseChecks('{"items":[{"name":"tests","ok":false,"detail":"[toi] a.test.ts:3 attendu 2"}]}'))
       .toEqual([{ name: 'tests', ok: false, level: 'error', detail: '[toi] a.test.ts:3 attendu 2' }]);

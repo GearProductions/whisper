@@ -27,9 +27,13 @@ async function mount(view: VibeView, picked: string[] = [], opened: string[] = [
 
 const act1 = (over: Partial<VibeAction> = {}) => ({ id: 'vibe', label: 'Reprendre', hint: 'reprendre le parcours', disabled: undefined, hidden: false, ...over }) as unknown as VibeAction;
 // Un créateur, la note validée ; on surcharge ce qu'un cas change.
-const creator = (over: Partial<VibeView> = {}) => ({
-  lang: 'fr', flow: 'create', steps: [], commits: [], questions: [], outputs: {}, runs: [], note: { filled: true, mark: 'ok' }, ...over,
-}) as unknown as VibeView;
+// L'étape Note est faite quand la note a son ✓ (la ligne d'état lit l'étape du relevé, pas la marque).
+const creator = (over: Partial<VibeView> = {}) => {
+  const note = over.note ?? { filled: true, mark: 'ok' };
+  return {
+    lang: 'fr', flow: 'create', steps: note.mark === 'ok' ? [{ id: 'note', status: 'done', facts: '' }] : [], commits: [], questions: [], outputs: {}, runs: [], note, ...over,
+  } as unknown as VibeView;
+};
 const reviewer = (over: Partial<VibeView> = {}) => creator({ flow: 'review', ...over });
 const commit = (i: number, over: Partial<VibeCommit> = {}) => ({ hash: `${i}`.padStart(7, 'a') + '1', subject: `commit ${i}`, fixup: false, files: [`src/f${i}.ts`], ...over }) as unknown as VibeCommit;
 const runs = (page: HTMLElement) => [...page.querySelectorAll<HTMLButtonElement>('.vc-run')];

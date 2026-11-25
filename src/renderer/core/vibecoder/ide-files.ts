@@ -23,7 +23,7 @@
  *  (ide-diff, qui n'offre plus le dernier commit) ; diffRefs et diffTree ne changent pas.
  *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (forme-view, modules-view, ide-view,
  *  invariants-view, ide-diff). */
-import type { VibeDiffStep, VibeGit, VibeLang, VibeMarkState, VibeModule, VibeStepCheck, VibeTestFile, VibeView, VibeStep } from 'technicals/bridge';
+import type { VibeDiffStep, VibeGit, VibeLang, VibeModule, VibeTestFile, VibeView, VibeStep } from 'technicals/bridge';
 import { caseKeys } from 'shared/test-cases';
 import { t } from './i18n';
 
@@ -180,9 +180,6 @@ export function waitingFor(steps: Pick<VibeStep, 'id' | 'check'>[], step: VibeSt
   const prev = steps.find((s) => s.id === CHAIN[i - 1]);
   return prev?.check && prev.check.state !== 'ok' ? prev.id : null;
 }
-
-// La validation d'une étape d'après step.check, pour MarkControl : cochée → ok, décochée (changée, ou en cascade) → changed.
-export const checkMark = (c?: VibeStepCheck): VibeMarkState => (c?.state === 'ok' ? 'ok' : c?.state ? 'changed' : null);
 
 // Un fichier supprimé depuis la référence du menu de diff (gone), comme un module d'un seul fichier : ModuleCode le suit par
 // son id r<i>, tout en retraits.

@@ -4,11 +4,7 @@
  *  caractères ; texte de 5 000) ; celle d'un fichier d'un commit cite son
  *  chemin et ses lignes en bloc de code (coupées d'abord : la remarque reste),
  *  sur la cible du commit (quoteRemark).
- *  Et, à l'étape Revue de Créer, ce que montre
- *  chaque remarque de la ponytail review (appliquée, Appliquer ou rien) et si
- *  toutes sont appliquées (remarkMark, allApplied) ; ce qu'Appliquer envoie
- *  selon les remarques cochées (applySelection) ; si une course retient les
- *  autres (isLive).
+ *  Et si une course retient les autres (isLive).
  *  Et, en relecteur : les remarques d'un élément (remarksAt), le verdict que les marques
  *  proposent (proposedVerdict : il ne fait que proposer ; les cas lus par leur clé, caseKeys de shared/test-cases) et si la revue affichée est celle qu'on
  *  publierait (reviewSent : le texte du brouillon est draftText, de shared/review, celui du principal ;
@@ -16,13 +12,13 @@
  *  Ne connaît pas : le DOM, React, le pont, les noms des fichiers de sortie.
  *  Utilisé par : app/panel/vibecoder (commits-view, note-view, invariants-view : remark ;
  *  commits-view : quoteRemark ; comment-box : DRAFT_MAX ;
- *  review-view : remarkMark, allApplied, remarkId, applySelection ; review-view, step-parts, vibe-coder : isLive ;
+ *  review-view, step-parts, vibe-coder : isLive ;
  *  vues du relecteur : remarksAt, proposedVerdict, reviewSent). */
 import { draftText, type Verdict } from 'shared/review';
 import { caseKeys } from 'shared/test-cases';
 import type { VibeComment, VibeRun, VibeView } from 'technicals/bridge';
-import { BULLET, excerpt } from './note';
-import { type parseReview, remarkKey } from './outputs';
+import { excerpt } from './note';
+import type { parseReview } from './outputs';
 
 // Les bornes du principal (draftVibe) : la cible d'une remarque, son texte.
 const TARGET_MAX = 300;
@@ -49,35 +45,6 @@ export function quoteRemark(target: string, path: string, block: string, text: s
 
 // Une course qui retient les autres : en cours, en attente d'une autorisation, arrêtée non tranchée.
 export const isLive = (state: VibeRun['state'] | null | undefined) => state === 'running' || state === 'asking' || state === 'stopped';
-
-// Une remarque de la ponytail review (son texte) : appliquée (sa clé dans
-// applied) ; sinon Appliquer, sauf pendant une course apply (Tout appliquer ou
-// une autre remarque : en cours, en attente, arrêtée non tranchée) → rien.
-export function remarkMark(text: string, applied: Set<string>, apply: VibeRun['state'] | null): 'applied' | 'apply' | null {
-  const key = remarkKey(text);
-  if (key && applied.has(key)) return 'applied';
-  return isLive(apply) ? null : 'apply';
-}
-
-// ponytail.md : chacune de ses lignes de liste (au moins une) appliquée → le bandeau « Appliquée ».
-export function allApplied(md: string, applied: Set<string>): boolean {
-  const items = md.split(/\r?\n/).filter((l) => BULLET.test(l)).map((l) => l.replace(BULLET, ''));
-  return items.length > 0 && items.every((x) => applied.has(remarkKey(x) ?? ''));
-}
-
-// Ce qui désigne une remarque d'une course à l'autre : son adresse (<fichier>:L<ligne>), sinon son texte.
-export const remarkId = (text: string): string => remarkKey(text) ?? text.trim();
-
-// Appliquer, selon les remarques décochées (leur remarkId) parmi celles pas encore appliquées de ponytail.md :
-// toutes cochées → all, le texte vide (toutes) ; sinon les cochées, une par ligne de liste ; count : combien.
-export function applySelection(md: string, applied: Set<string>, unchecked: ReadonlySet<string>): { all: boolean; text: string; count: number } {
-  const pending = md.split(/\r?\n/).filter((l) => BULLET.test(l)).map((l) => l.replace(BULLET, '').trim())
-    .filter((x) => !applied.has(remarkKey(x) ?? ''));
-  const picked = pending.filter((x) => !unchecked.has(remarkId(x)));
-  return picked.length === pending.length
-    ? { all: true, text: '', count: picked.length }
-    : { all: false, text: picked.map((x) => `- ${x}`).join('\n'), count: picked.length };
-}
 
 // Les remarques d'un élément, dans l'ordre du brouillon : sa cible comparée telle que remark la coupe.
 export const remarksAt = (draft: VibeComment[], target: string): VibeComment[] => {

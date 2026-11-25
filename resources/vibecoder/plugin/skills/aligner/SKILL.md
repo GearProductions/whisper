@@ -65,6 +65,7 @@ The list of §1, as the screen reads it: it is what ranges each test under its r
 - One `##` per `→ invariant` line of the note, all of them, in the note's order. A line no test guards: its title alone, no bullet.
 - Under it, every test tied to it: those the branch writes, and those of files from before the branch that already observe it (the screen names these without their code). A test tied to two lines goes under each. A test tied only to an existing invariant of the project (`I-…`), or to nothing, is not listed.
 - The title: the literal one of its `it(…)` / `test(…)` (or the name of its `fn` / `def`), without the titles of the `describe` blocks around it.
+- A title carried by several tests of the same file: the first is written as it is, the following with their order number in that file, from the second on: `<title> n° 2`, `<title> n° 3`… (a bare title carried by several tests ranges none of them on the screen).
 - Copy the line and each title character for character — the screen matches them — never reworded, translated, shortened or wrapped.
 - Nothing else in the file: no label, no comment, no summary.
 

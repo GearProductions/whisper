@@ -55,7 +55,7 @@ export function PrView(p: StepProps) {
         {pr ? (
           <>
             <PrCard pr={pr} lang={view.lang} onOpenLink={act.openLink} />
-            <CiState md={view.outputs['ci.md']?.text} lang={view.lang} />
+            {!pr.state || pr.state === 'OPEN' ? <CiState md={view.outputs['ci.md']?.text} lang={view.lang} /> : null}   {/* fusionnée ou fermée : la CI n'a plus rien à dire */}
           </>
         ) : <Invite title={s.noPr} />}
       </>

@@ -903,6 +903,7 @@ describe('Vérifier l’alignement : les tests d’invariants d’avant la branc
     await validateNote();
     const { turn } = await startCourse('align', 'aligner');
     write(path.join(out, 'align.md'), 'Aligné.\n');   // la course l'écrit
+    write(path.join(out, 'liens.md'), '## une règle\n');   // et son rattachement, qui range les tests à l'écran
     write(path.join(dir, OLD_INV), "it('vert', () => {});\n");
 
     turn!.end(true);
@@ -910,6 +911,7 @@ describe('Vérifier l’alignement : les tests d’invariants d’avant la branc
     await survey();
 
     expect(fs.existsSync(path.join(out, 'align.md'))).toBe(false);
+    expect(fs.existsSync(path.join(out, 'liens.md'))).toBe(false);
     expect(view().steps.find((s) => s.id === 'invariants')?.status).not.toBe('done');
   });
 
@@ -918,12 +920,14 @@ describe('Vérifier l’alignement : les tests d’invariants d’avant la branc
     await validateNote();
     const { turn, run } = await startCourse('align', 'aligner');
     write(path.join(out, 'align.md'), 'Aligné.\n');   // la course l'écrit
+    write(path.join(out, 'liens.md'), '## une règle\n');
 
     turn!.end(true);
     await settle(1000);
 
     expect(run()?.state).toBe('done');
     expect(fs.existsSync(path.join(out, 'align.md'))).toBe(true);
+    expect(fs.existsSync(path.join(out, 'liens.md'))).toBe(true);
     // témoin : les tests sont alignés, l'étape Invariants est faite (le cas qui précède la défait en effaçant align.md)
     await survey();
     expect(view().steps.find((s) => s.id === 'invariants')?.status).toBe('done');

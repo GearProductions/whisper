@@ -199,9 +199,9 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
     expect(primary(vibeView(input({ note, marks: NOTE_OK, tests: [test], vibe: true, repo: repo([NOTE_PATH, TEST_PATH]) })))).toBe('read-invariants');
   });
 
-  it('lus mais pas tous validés : Préparer le commit, aucun ✓ ne se fait attendre (0.16.0)', () => {
+  it('lus mais pas tous validés : la pause avant le premier commit (Vibe), aucun ✓ ne se fait attendre (0.16.0)', () => {
     expect(primary(vibeView(input({ note, marks: NOTE_OK, tests: [test], readings: READINGS, repo: repo([NOTE_PATH, TEST_PATH]) }))))
-      .toBe('commit-prepare');
+      .toBe('vibe');
   });
 
   it('lus et validés, des fichiers pas commités : la pause avant le premier commit (Vibe) ; Préparer le commit reste proposée', () => {
@@ -1277,10 +1277,10 @@ describe('Lecture périmée et grisé de la note et des tests (0.11.0-editer-inv
     expect(facts(v)).toBe('1 fichier · 2 cas · 0 lu');
   });
 
-  it('Vibe : pas lu ou lecture périmée, Lire en pseudo-code est en tête ; la lecture de son empreinte la laisse à Préparer le commit (0.16.0-ecran-essentiel)', () => {
+  it('Vibe : pas lu ou lecture périmée, Lire en pseudo-code est en tête ; la lecture de son empreinte la laisse à la pause avant le premier commit (0.16.0-ecran-essentiel)', () => {
     const at = (readings: JourneyInput['readings']) =>
       primary(vibeView(input({ note, marks: NOTE_OK, tests: [test], vibe: true, repo: repo([NOTE_PATH, TEST_PATH]), readings })));
-    expect([at([]), at([OLD]), at([OLD, ...READINGS])]).toEqual(['read-invariants', 'read-invariants', 'commit-prepare']);
+    expect([at([]), at([OLD]), at([OLD, ...READINGS])]).toEqual(['read-invariants', 'read-invariants', 'vibe']);
   });
 
   it('la lecture de son empreinte : à jour, lue', () => {
@@ -1988,10 +1988,10 @@ describe('le contrôle en trois points (0.16.0)', () => {
       expect(status(vibeView(ready({ marks: NOTE_ONLY }))).invariants).toBe('current');
     });
 
-    it('les cas pas validés, pas alignés : Écrire les invariants fait, Préparer le commit ou rien, jamais attendre un ✓', () => {
+    it('les cas pas validés, pas alignés : Écrire les invariants fait, la pause (Vibe) une fois lus, jamais attendre un ✓', () => {
       // lus : la lecture passe avant (Lire en pseudo-code, 0.16.0-ecran-essentiel)
       const v = vibeView(input({ note, tests: [test], readings: READINGS, marks: NOTE_ONLY, repo: repo([NOTE_PATH, TEST_PATH]) }));
-      expect([status(v).invariants, primary(v)]).toEqual(['current', 'commit-prepare']);
+      expect([status(v).invariants, primary(v)]).toEqual(['current', 'vibe']);
     });
   });
 
@@ -2081,10 +2081,12 @@ describe('le contrôle en trois points (0.16.0)', () => {
       // alignés sans aucun cas coché : la pause de même
       const aligned = vibeView(ready({ marks: NOTE_ONLY, repo: UNCOMMITTED, outputs: { 'align.md': out(ALIGNED) } }));
       expect([aligned.pause, primary(aligned)]).toEqual(['invariants', 'vibe']);
-      // ni alignés ni validés : pas de pause
-      expect(vibeView(ready({ marks: NOTE_ONLY, repo: UNCOMMITTED })).pause ?? null).toBeNull();
-      // un écart [toi] de l'alignement : pas de pause, la question d'abord
-      expect(vibeView(ready({ marks: NOTE_ONLY, repo: UNCOMMITTED, outputs: { 'align.md': out(STILL_GREEN) } })).pause ?? null).toBeNull();
+      // ni alignés ni validés : la pause de même (les tests sont écrits et lus ; l'alignement ne la conditionne pas)
+      const unaligned = vibeView(ready({ marks: NOTE_ONLY, repo: UNCOMMITTED }));
+      expect([unaligned.pause, primary(unaligned)]).toEqual(['invariants', 'vibe']);
+      // un écart [toi] de l'alignement : la pause de même, le moteur ne fait pas le premier commit sans la reprise de l'utilisateur
+      const gap = vibeView(ready({ marks: NOTE_ONLY, repo: UNCOMMITTED, outputs: { 'align.md': out(STILL_GREEN) } }));
+      expect([gap.pause, primary(gap)]).toEqual(['invariants', 'vibe']);
     });
 
     it('le premier commit fait : plus de pause après les invariants, Générer les modules', () => {
@@ -2168,21 +2170,22 @@ describe('le contrôle en trois points (0.16.0)', () => {
       }
     });
 
-    it('un test dont la lecture est périmée : de même ; la lecture de son empreinte la remplace, tous lus : Préparer le commit', () => {
+    it('un test dont la lecture est périmée : de même ; la lecture de son empreinte la remplace, tous lus : la pause (Vibe)', () => {
       expect(primary(written({ readings: [OLD] }))).toBe('read-invariants');
-      expect(primary(written({ readings: [OLD, ...READINGS] }))).toBe('commit-prepare');
+      expect(primary(written({ readings: [OLD, ...READINGS] }))).toBe('vibe');
     });
 
-    it('plusieurs tests, un seul pas lu : Lire en pseudo-code ; tous lus : Préparer le commit', () => {
+    it('plusieurs tests, un seul pas lu : Lire en pseudo-code ; tous lus : la pause (Vibe)', () => {
       const other = 'it("autre cas", () => {});\n';
       const second = { path: 'src/app/tests/invariants/other.test.ts', blob: blobSha(other), text: other };
       const both = { tests: [test, second], repo: repo([NOTE_PATH, TEST_PATH, second.path]) };
       expect(primary(written({ ...both, readings: READINGS }))).toBe('read-invariants');
-      expect(primary(written({ ...both, readings: [...READINGS, { blob: second.blob, text: '## autre cas\n', time: 1 }] }))).toBe('commit-prepare');
+      expect(primary(written({ ...both, readings: [...READINGS, { blob: second.blob, text: '## autre cas\n', time: 1 }] }))).toBe('vibe');
     });
 
-    it('tous lus : Préparer le commit, puis Commiter, comme avant', () => {
-      expect(primary(written({ readings: READINGS }))).toBe('commit-prepare');
+    it('tous lus : la pause (Vibe), Préparer le commit à portée ; un commit préparé : Commiter, comme avant', () => {
+      expect(primary(written({ readings: READINGS }))).toBe('vibe');
+      expect(action(written({ readings: READINGS }), 'commit-prepare')).toMatchObject({ hidden: false });
       expect(primary(written({ readings: READINGS, outputs: { 'commit.md': out('x') } }))).toBe('commit');
     });
 

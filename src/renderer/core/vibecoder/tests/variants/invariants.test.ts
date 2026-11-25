@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { attentionQuote, caseLink, caseRange, caseSource, casesOf, replaceRange, ruleGroups, withAttention, progress, pseudoLines } from 'core/vibecoder';
+import { caseLink, caseRange, caseSource, casesOf, replaceRange, ruleGroups, withAttention, progress, pseudoLines } from 'core/vibecoder';
 import type { MustNotMark, ReadingCase, VibeNote, VibeProof, VibeTestFile, VibeView } from 'technicals/bridge';
 
 const reading = (title: string, warning: string | null = null): ReadingCase => ({ title, pseudo: 'it("x")', edges: [], guarantees: 'g', warning });
@@ -303,12 +303,6 @@ describe('progress, un fichier pas lu', () => {
   });
 });
 
-describe('attentionQuote', () => {
-  it('le cas, puis son point d\'attention, à la ligne', () => {
-    expect(attentionQuote('refuse', 'ne couvre pas le vide')).toBe('refuse\nne couvre pas le vide');
-  });
-});
-
 describe('withAttention', () => {
   it('texte vide ou blanc : l\'attention seule', () => {
     expect(withAttention('', 'a')).toBe('a');
@@ -458,11 +452,18 @@ describe('ruleGroups, le rattachement de l\'alignement (liens.md)', () => {
     expect(g.rules.map((r) => titles(r.cases))).toEqual([['x'], ['y']]);
   });
 
-  it('un test sous deux lignes : sous chacune ; un titre en double : par sa clé', () => {
-    const a = f('a', ['x', 'x'], null);
-    const g = ruleGroups(view([inv(A), inv(B)], [a]), links([A, [`${PATH} :: x`]], [B, [`${PATH} :: x`, `${PATH} :: x n° 2`]]));
+  it('un test sous deux lignes : sous chacune', () => {
+    const a = f('a', ['x', 'y'], null);
+    const g = ruleGroups(view([inv(A), inv(B)], [a]), links([A, [`${PATH} :: x`]], [B, [`${PATH} :: x`, `${PATH} :: y`]]));
     expect(g.rules.map((r) => r.cases.map((c) => c.index))).toEqual([[0], [0, 1]]);
     expect(g.others).toEqual([]);
+  });
+
+  it('un titre que portent plusieurs cas : ne range rien (le test reste dans les autres) ; sa clé numérotée : le cas de ce rang', () => {
+    const a = f('a', ['x', 'x'], null);
+    const g = ruleGroups(view([inv(A), inv(B)], [a]), links([A, [`${PATH} :: x`]], [B, [`${PATH} :: x n° 2`]]));
+    expect(g.rules.map((r) => r.cases.map((c) => c.index))).toEqual([[], [1]]);
+    expect(g.others.map((c) => c.index)).toEqual([0]);
   });
 
   it('un chemin, un titre ou une ligne inconnus, une ligne mal écrite : ignorés', () => {

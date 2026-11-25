@@ -28,7 +28,8 @@ export function statusLine(view: VibeView): StatusLine | null {
   const pause = view.pause ?? null;
   if (!view.note?.filled) return yours(l.noNote);
   if (view.questions.length) return yours(l.questions(view.questions.length));
-  if (view.note.mark !== 'ok') return yours(pause === 'note' ? s.pause.note : l.verifyNote);
+  // l'étape Note d'après le relevé, pas la marque brute : une fois un module commencé, la note « changed » compte encore
+  if (view.steps.find((x) => x.id === 'note')?.status !== 'done') return yours(pause === 'note' ? s.pause.note : l.verifyNote);
   if (pause?.startsWith('withdrawn:')) return yours(s.pause[pause]);
   if (view.vibe) {
     const run = runningRuns(view.runs ?? [])[0];

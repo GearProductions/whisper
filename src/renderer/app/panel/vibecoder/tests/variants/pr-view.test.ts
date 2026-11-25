@@ -59,6 +59,17 @@ it('créateur, une PR et pas encore de ci.md : la CI tourne', async () => {
   expect(page.textContent).toContain('La CI tourne');
 });
 
+it('créateur, une PR fusionnée ou fermée : pas de « La CI tourne » (sans ci.md, ou un vieux ⏳)', async () => {
+  for (const state of ['MERGED', 'CLOSED']) {
+    await show({ pr: { ...pr, state } });
+    expect(page.textContent).not.toContain('La CI tourne');
+    await show({ pr: { ...pr, state }, outputs: ci('⏳ en cours\n') });
+    expect(page.textContent).not.toContain('La CI tourne');
+  }
+  await show({ pr: { ...pr, state: 'OPEN' } });
+  expect(page.textContent).toContain('La CI tourne');
+});
+
 it('créateur, ci.md illisible : son texte tel quel', async () => {
   await show({ pr, outputs: ci('quelque chose\nd\'autre <b>x</b>') });
   expect(page.querySelector('pre')!.textContent).toBe('quelque chose\nd\'autre <b>x</b>');

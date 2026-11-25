@@ -30,6 +30,7 @@
 import { EFFORTS } from 'core/agents';
 import { oneLine } from 'helpers';
 import { draftText, isVerdict } from 'shared/review';
+import { readCount } from 'shared/test-cases';
 import type { VibeAction, VibeArgs, VibeLang, VibeModule, VibeStepId, VibeView } from 'shared/bridge';
 import { json } from './outputs';
 
@@ -182,7 +183,7 @@ export function buildMessage(def: ActionDef, args: VibeArgs, ctx: MessageContext
     note: () => view.note?.path ?? fail('note'),
     ref: () => (view.flow !== 'review' ? 'WORKTREE' : prNumber(view.pr?.number) ? 'HEAD' : fail('pr')),
     files: () => {
-      const files = args.file === undefined ? view.invariants.filter((f) => f.reading === null || f.stale)
+      const files = args.file === undefined ? view.invariants.filter((f) => readCount(f.cases, f.reading?.map((c) => c.title) ?? null, f.staleCases) < f.cases.length)
         : args.file === '*' ? view.invariants : view.invariants.filter((f) => f.id === args.file);
       return files.length ? files.map((f) => `${f.path}@${f.blob}`).join(' ') : fail('files');
     },

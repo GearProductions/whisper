@@ -9,13 +9,18 @@ const note = (over: Partial<VibeNote> = {}): VibeNote => ({
 const run = (over: Partial<VibeRun> = {}): VibeRun => ({
   id: 'generate', label: 'Générer', who: 'opus', state: 'running', since: 0, end: null, reply: '', permission: null, ...over,
 });
-// Une note validée, l'étape en cours ; le reste vide.
-const view = (current: VibeStepId, over: Partial<VibeView> = {}): VibeView => ({
-  agentId: 'a1', lang: 'fr', flow: 'create', agent: { model: '', effort: '', mode: '' }, repo: null, error: null,
-  steps: IDS.map((id) => ({ id, status: id === current ? 'current' : 'todo', facts: '' })),
-  note: note(), questions: [], modules: [], invariants: [], variants: [], commits: [], outputs: {}, checklist: [], actions: [], skills: [],
-  pr: null, prs: null, draft: [], time: 0, ...over,
-});
+// Une note validée, l'étape en cours ; le reste vide. L'étape Note est faite si la note a son ✓ et que l'étape en cours la suit
+// (comme le relevé) ; les autres étapes avant l'étape en cours le sont.
+const view = (current: VibeStepId, over: Partial<VibeView> = {}): VibeView => {
+  const n = over.note === undefined ? note() : over.note;
+  const done = (id: VibeStepId) => IDS.indexOf(id) < IDS.indexOf(current) && (id !== 'note' || n?.mark === 'ok');
+  return {
+    agentId: 'a1', lang: 'fr', flow: 'create', agent: { model: '', effort: '', mode: '' }, repo: null, error: null,
+    steps: IDS.map((id) => ({ id, status: id === current ? 'current' : done(id) ? 'done' : 'todo', facts: '' })),
+    note: n, questions: [], modules: [], invariants: [], variants: [], commits: [], outputs: {}, checklist: [], actions: [], skills: [],
+    pr: null, prs: null, draft: [], time: 0, ...over,
+  };
+};
 const ci = (first: string) => ({ 'ci.md': { text: `${first}\n`, time: 1 } });
 const pr = { number: 7, title: 't', url: 'u', author: 'a', base: 'master', head: 'b', body: '', state: 'OPEN' as const };
 const q = (n: number) => ({ n, text: `question ${n}`, options: [] });
@@ -39,6 +44,11 @@ describe('statusLine', () => {
     for (const mark of [null, 'changed'] as const) {
       expect(statusLine(view('note', { note: note({ mark }) }))).toEqual({ text: 'Vérifiez, puis validez la note', yours: true });
     }
+  });
+
+  it('la note retouchée pendant les modules (étape Note faite, ✓ « changed » qui compte encore) : la ligne du moteur, pas « validez la note »', () => {
+    const steps = IDS.map((id) => ({ id, status: id === 'modules' ? 'current' : IDS.indexOf(id) < 3 ? 'done' : 'todo', facts: '' })) as VibeView['steps'];
+    expect(statusLine(view('modules', { vibe: true, note: note({ mark: 'changed' }), steps }))).toEqual({ text: 'Le système écrit les modules', yours: false });
   });
 
   it('la note commitée qui a perdu son ✓ : elle attend sa validation (la ligne de pause)', () => {
@@ -75,7 +85,7 @@ describe('statusLine', () => {
 
   it('le moteur en route sans étape en cours : une phrase quand même', () => {
     const v = view('modules', { vibe: true });
-    expect(statusLine({ ...v, steps: [] })).toEqual({ text: 'Le système travaille', yours: false });
+    expect(statusLine({ ...v, steps: v.steps.map((x) => ({ ...x, status: x.id === 'modules' ? 'todo' as const : x.status })) })).toEqual({ text: 'Le système travaille', yours: false });
   });
 
   it('la pause après les invariants et après les modules', () => {

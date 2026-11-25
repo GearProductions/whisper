@@ -125,9 +125,9 @@ function dropTmp(run: Live) {
 }
 
 // Les deux contrôles de l'appli sur ce qu'une course ne change pas : `before` (son état au départ, null : illisible),
-// `after` (son état maintenant), `erase` (la sortie effacée si elle a touché quelque chose), `frozen` (align : les tests
+// `after` (son état maintenant), `erase` (les sorties effacées si elle a touché quelque chose), `frozen` (align : les tests
 // d'invariants du départ de la branche que le contrôle des fichiers lui refuse ; null : illisible, elle ne part pas).
-type Guard = { erase: string; frozen?: Promise<string[] | null>; before: Promise<WorkState | null>; after: () => Promise<WorkState | null> };
+type Guard = { erase: string[]; frozen?: Promise<string[] | null>; before: Promise<WorkState | null>; after: () => Promise<WorkState | null> };
 
 // L'état du dossier de travail et de l'index (workState : HEAD, status, diff --cached) ; null : git ne répond pas.
 // ponytail: l'empreinte de chaque fichier changé ou pas suivi est lue de façon synchrone ; borné par le dossier, à passer en flux si un projet en change des milliers.
@@ -153,20 +153,21 @@ async function startTests(dir: string): Promise<string[] | null> {
 
 // Le contrôle de la course `id` de l'agent dans `dir` ; aucun pour les autres.
 function guardOf(id: string, dir: string): Guard | undefined {
-  if (id === 'prove') return { erase: 'preuve.md', before: readWorkState(dir), after: () => readWorkState(dir) };
+  if (id === 'prove') return { erase: ['preuve.md'], before: readWorkState(dir), after: () => readWorkState(dir) };
   if (id !== 'align') return undefined;
   const frozen = startTests(dir);
   const state = async () => { const files = await frozen; return files && Object.fromEntries(files.map((f) => [f, bigBlob(dir, f) ?? '-'])); };
-  return { erase: 'align.md', frozen, before: state(), after: state };
+  // liens.md : son rattachement range les tests à l'écran, comme align.md dit l'étape faite
+  return { erase: ['align.md', 'liens.md'], frozen, before: state(), after: state };
 }
 
 // La fin d'une course gardée : son état comparé à celui du départ ; rien de changé : ''. Sinon la ligne qui nomme les fichiers
-// (touchedLine ; état illisible : elle le dit) et la sortie du contrôle effacée (preuve.md, align.md : l'étape n'est plus faite).
+// (touchedLine ; état illisible : elle le dit) et les sorties du contrôle effacées (preuve.md ; align.md et liens.md : l'étape n'est plus faite).
 async function checkGuard(agentId: string, g: Guard): Promise<string> {
   const [before, after] = [await g.before, await g.after()];
   const files = before && after ? touched(before, after) : null;
   if (files && !files.length) return '';
-  fs.rmSync(path.join(vibeOutDir(agentId), g.erase), { force: true });
+  for (const f of g.erase) fs.rmSync(path.join(vibeOutDir(agentId), f), { force: true });
   return touchedLine(files, vibeLang(loadConfig()));
 }
 

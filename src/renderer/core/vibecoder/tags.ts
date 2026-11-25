@@ -33,7 +33,7 @@ export function untag(inline: Inline[]): { tag: Tag | null; head: Inline[]; rest
   const at = inline[0]?.kind === 'code' && ADDRESS.test(inline[0].text) ? 1 : 0;
   const first = inline[at];
   if (first?.kind !== 'text') return { tag: null, head: [], rest: inline };
-  // L'adresse en texte (ponytail.md l'écrit sans backticks, remarkKey la lit ainsi) : gardée en head.
+  // L'adresse en texte (ponytail.md l'écrit sans backticks) : gardée en head.
   const lead = (!at && ADDRESS.exec(first.text)?.[0]) || '';
   const { tag, text } = tagOf(first.text.slice(lead.length));
   if (!tag) return { tag: null, head: [], rest: inline };

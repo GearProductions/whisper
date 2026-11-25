@@ -139,7 +139,7 @@ import type {
   VibeAction, VibeCheck, VibeComment, VibeFlow, VibeGit, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePause, VibePr,
   VibeDiffFile, VibeDiffs, VibeDiffStep, VibePrItem, VibeRecipe, VibeRun, VibeStepCheck, VibeStepId, VibeTestFile, VibeView, VibeWorktree,
 } from 'shared/bridge';
-import { caseKeys, readingRanks } from 'shared/test-cases';
+import { readCount as casesRead } from 'shared/test-cases';
 import { DIRECT_ACTIONS, DIRECT_ONLY, EFFORT_LEVELS, prNumber, SKILL_MODELS, templateVars, type ActionDef } from './actions';
 import { caseMarkState, caseTarget } from './case-marks';
 import { designState, markState, withdrawn, type Marks } from './marks';
@@ -438,11 +438,8 @@ export function vibeView(input: JourneyInput): VibeView {
   // Les tests de l'étape Invariants : ceux qu'un commit porte avec la note (le premier, ses fixups repliés).
   const stepTests = invariants.filter((f) => !!note && commits.some((c) => noteIn(c) && c.files.includes(f.path)));
   const caseCount = invariants.reduce((s, f) => s + f.cases.length, 0);
-  // un cas lu : celui que sa lecture couvre (readingRanks, comme la page) ; un cas périmé ou sauté n'est pas lu
-  const readCount = invariants.reduce((s, f) => {
-    const keys = caseKeys(f.cases);
-    return s + (f.reading ? readingRanks(f.cases, f.reading.map((c) => c.title)).filter((r, i) => r !== null && !f.staleCases?.includes(keys[i])).length : 0);
-  }, 0);
+  // un cas lu : celui que sa lecture couvre (readCount, comme Lire en pseudo-code) ; un cas périmé ou sauté n'est pas lu
+  const readCount = invariants.reduce((s, f) => s + casesRead(f.cases, f.reading?.map((c) => c.title) ?? null, f.staleCases), 0);
 
   // Les sorties des skills.
   const questions = parseQuestions(out('questions.md') ?? '');
@@ -535,6 +532,9 @@ export function vibeView(input: JourneyInput): VibeView {
     // Les tests alignés : align.md, sans rubrique [toi] ; ou chaque cas validé à la main.
     const alignMd = out('align.md');
     const aligned = alignMd !== null && toiCount(alignMd) === 0;
+    // Les tests écrits : ceux de la branche, ou, sans test (la règle déjà observée par un test existant), la dernière course
+    // Écrire les invariants ou Vérifier l'alignement finie, ou ✓ Rien à écrire.
+    const written = invariants.length > 0 || input.runs.find((r) => r.id === 'invariants' || r.id === 'align')?.state === 'done' || note?.nothingMark === 'ok';
     done = {
       note: noteDone,
       forme: formeDone && !reopens,
@@ -547,9 +547,7 @@ export function vibeView(input: JourneyInput): VibeView {
       // un test protégé retouché ensuite par un module (un harnais) est du travail des modules, pas à revalider.
       invariants: noteDone && formeDone && (!invLines || (begun
         ? aligned || stepTests.every((f) => Object.values(f.marks).every(stillOk))
-        : !invariants.length
-          ? input.runs.find((r) => r.id === 'invariants' || r.id === 'align')?.state === 'done' || note.nothingMark === 'ok'
-          : (aligned || casesOk) && !retouched)),
+        : written && (!invariants.length || ((aligned || casesOk) && !retouched)))),
       // Pas faite sans preuve qui passe, quel que soit le rythme.
       modules: modules.length > 0 && modules.every((m) => m.commits.length > 0) && !modules.some((m) => m.uncommitted) && !pending && proved,
       revue: checksOk && ponytail && !fixups && boxes === screen.length,   // le plan à l'écran, s'il y en a un
@@ -559,10 +557,9 @@ export function vibeView(input: JourneyInput): VibeView {
     // (avant le premier commit : l'utilisateur regarde avant que rien ne soit commité) ; les modules faits, la revue pas commencée
     // (ni vérifications ni ponytail review, ni PR).
     const first = commits.some(noteIn);
-    // Prêts à commiter : comme l'étape Invariants avant un module, sans attendre le premier commit.
-    const ready = noteDone && formeDone && (!invLines || (!invariants.length
-      ? input.runs.find((r) => r.id === 'invariants' || r.id === 'align')?.state === 'done' || note.nothingMark === 'ok'
-      : aligned || casesOk));
+    // Prêts à commiter : les tests écrits (lus : unread), sans attendre l'alignement ni le premier commit ; un écart [toi] de
+    // l'alignement est déjà en tête des règles, et le moteur ne commite pas avant la reprise de l'utilisateur.
+    const ready = noteDone && formeDone && (!invLines || written);
     // Un ✓ d'étape retiré à la main qui tient : sa marque retient l'empreinte du contenu d'aujourd'hui de l'étape.
     const refused = (['forme', 'invariants', 'modules'] as const).find(heldBack);
     // Un test de la branche pas lu, ou sa lecture périmée : Lire en pseudo-code attend, avant le premier commit ; la pause aussi.

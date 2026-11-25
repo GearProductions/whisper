@@ -6,9 +6,7 @@
  *  et si « Tout valider » est permis (lu ou pas : la lecture n'est qu'une aide) ; le pseudo-code ligne à ligne, coloré,
  *  ses assertions et ses « given / when / then » repérés — en tête de ligne
  *  (`test "…":`, la forme des lectures) ou en commentaire (`it(…)`, l'ancienne) ;
- *  le point d'attention d'un cas, versé en un clic : cité dans le champ de la
- *  conversation (attentionQuote, comme on cite la note : du texte, sans `>`),
- *  ou ajouté à la zone de commentaire sans rien effacer (withAttention) ; la ligne « → invariant » de
+ *  le point d'attention d'un cas, versé en un clic : ajouté à la zone de commentaire sans rien effacer (withAttention) ; la ligne « → invariant » de
  *  la note que garde un cas, d'après la seule phrase Garantit de sa lecture (caseLink).
  *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : les tests rangés par ligne « → invariant » de la note.
  *  ruleGroups(view: Pick<VibeView, 'note' | 'invariants' | 'proof'>, links?: string | null): RuleGroups
@@ -141,9 +139,6 @@ export function pseudoLines(code: string): PseudoLine[] {
   });
 }
 
-// Le cas et son point d'attention, à citer dans le champ de la conversation (citation entière : prefill block).
-export const attentionQuote = (title: string, attention: string): string => `${title}\n${attention}`;
-
 // Le texte d'une zone de commentaire, suivi du point d'attention (une ligne vide entre les deux) ;
 // texte vide → l'attention seule ; déjà au bout → inchangé (un second clic n'ajoute rien) ; rien d'effacé.
 export function withAttention(text: string, attention: string): string {
@@ -226,8 +221,11 @@ function linked(md: string, mustNot: VibeNote['mustNot'], files: VibeTestFile[])
         if (!there.some((e) => e.path === t.path && e.title === t.title)) out.elsewhere.set(line, [...there, t]);
         continue;
       }
-      const keys = caseKeys(file.cases);
-      const i = keys.includes(t.title) ? keys.indexOf(t.title) : file.cases.findIndex((c) => norm(c) === norm(t.title));
+      // Le cas qu'un titre désigne : sa clé numérotée exacte (« x n° 2 »), sinon le seul cas de ce titre ; un titre que portent
+      // plusieurs cas ne range rien (le test reste dans les autres, pas au hasard sur le premier).
+      const keyAt = caseKeys(file.cases).indexOf(t.title);
+      const same = file.cases.flatMap((c, j) => (norm(c) === norm(t.title) ? [j] : []));
+      const i = keyAt >= 0 && file.cases[keyAt] !== t.title ? keyAt : same.length === 1 ? same[0] : -1;
       if (i < 0) continue;
       const id = `${file.id}:${i}`;
       out.cases.set(id, (out.cases.get(id) ?? new Set()).add(line));

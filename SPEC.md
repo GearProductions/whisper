@@ -2086,7 +2086,7 @@ créateur ; le relecteur, F-101) :
    (après *Écrire les invariants*, avant la pause, qui précède le premier commit, et après
    une correction des tests par l'alignement de la preuve), un regard
    indépendant de celui qui a écrit les tests ; la pause après les invariants
-   attend cette lecture (F-103) ; sans ligne « → invariant », rien à lire. L'étape est validée par le système (alignement avec la note, F-102) ;
+   attend cette lecture (F-103) et se tient dès que les tests sont écrits et lus, sans attendre l'alignement (un écart [toi] est déjà en tête des règles : le moteur ne commite pas avant la reprise) ; sans ligne « → invariant », rien à lire. L'étape est validée par le système (alignement avec la note, F-102) ;
    plus de bouton *Valider les invariants* ni de ✓ par cas à l'écran chez le
    créateur : le badge de l'étape porte le ✓ (F-93), et la CLI garde
    `step.validate` et le ✓ d'un cas.

@@ -1,7 +1,7 @@
 /** test-cases — ce que le principal et la page lisent pareil des cas d'un test (note 0.15.0-invariants-par-cas) : la clé
  *  de chaque cas (caseKeys : son titre, ou, pour un titre en double, son titre et son numéro d'ordre « n° 2 »…), qui
  *  range sa validation et sa lecture ; le bloc d'un cas pour sa validation (caseBlock : de sa ligne à celle qui le
- *  ferme, trouvée par l'indentation, sans analyser le code) ; quel cas de la lecture est celui d'un cas (readingRanks) ; le texte des blocs et du code commun (blockTexts : hors de
+ *  ferme, trouvée par l'indentation, sans analyser le code) ; quel cas de la lecture est celui d'un cas (readingRanks) et combien en sont lus (readCount) ; le texte des blocs et du code commun (blockTexts : hors de
  *  tout bloc ; les lignes vides ne comptent nulle part). Une seule copie, du texte seul.
  *  Ne connaît pas : Electron, le DOM, le pont, les empreintes (le principal hache), la découpe de l'écran (caseRange,
  *  renderer/core/vibecoder), où sont les cas dans le texte (caseHeads, main/core/vibecoder).
@@ -33,6 +33,14 @@ export function readingRanks(cases: string[], readTitles: string[]): (number | n
     const at = readKeys.indexOf(key);
     return at >= 0 ? at : readTitles.length === cases.length && !cases.includes(readTitles[i]) ? i : null;
   });
+}
+
+// Combien de cas d'un test sa lecture couvre sans qu'ils soient périmés (readTitles : les titres lus, null : pas lu ;
+// stale : les clés des cas dont le bloc a changé depuis) ; moins que de cas : le test est à lire (ou à relire).
+export function readCount(cases: string[], readTitles: string[] | null, stale: string[] = []): number {
+  if (!readTitles) return 0;
+  const keys = caseKeys(cases);
+  return readingRanks(cases, readTitles).filter((r, i) => r !== null && !stale.includes(keys[i])).length;
 }
 
 // Le bloc du cas dont la ligne est `from` et la ligne de son titre `title` (son it(, son fn, son def), dans `lines`
