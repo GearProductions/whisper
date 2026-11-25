@@ -1708,8 +1708,12 @@ TypeScript.
   connaît la clé du projet —, ses fichiers et dossiers par id), `artifact` (le
   contenu d'un artefact par son id `a<i>`, pour un client sans disque : `text` pour
   un markdown, un texte ou une page, `base64` pour un media, `truncated` au-delà de
-  1 Mio ; `null` pour un lien) et `draft` (le brouillon de revue : la PR suivie et ses
-  remarques).
+  1 Mio ; `null` pour un lien), `draft` (le brouillon de revue : la PR suivie et ses
+  remarques) et `invariants` (les tests d'invariants de la branche, cas par cas :
+  le fichier, le titre, la ligne et le verdict que l'utilisateur leur a donné à
+  l'écran, `ok`, `ko` ou `null` — aucun, ou tombé parce que le test a changé
+  depuis ; ni le code ni l'id du relevé : c'est par elle qu'un agent sait
+  quels tests l'utilisateur a notés *À revoir*).
 - **Le brouillon de revue** : un état que le moteur garde pour chaque PR jusqu'à
   *Publier la revue*. `draft.add` (sa cible, 300 caractères au plus sur une
   ligne, et son texte, 5 000 au plus), `draft.edit` et `draft.remove` (par l'id
@@ -2098,8 +2102,14 @@ créateur ; le relecteur, F-101) :
    remonte, toujours visible) : un état par ligne, c'est la ligne que
    l'utilisateur juge. Dessous, les tests qui la gardent, en pseudo-code (un test
    pas encore lu : son titre et « lecture en cours » ; un point d'attention d'une
-   lecture : visible), chacun avec sa 💬, qui cite son titre dans le champ (c'est
-   ainsi qu'on dit « à revoir » en montrant lequel). **Quel test garde quelle
+   lecture : visible), chacun avec sa 💬, qui cite son titre dans le champ, et
+   **Validé / À revoir** (le verdict du cas, comme chez le relecteur) : les notes
+   de l'utilisateur sur ce qu'il a lu. *Validé* n'est jamais exigé (le système
+   valide l'étape, F-102) ; un test *À revoir* retient le parcours (la pause
+   `withdrawn:invariants`, F-100) tant que sa marque vaut : le test corrigé (elle
+   tombe) ou revalidé, la pause est levée. En tête des règles, où l'utilisateur
+   en est : « 10 tests · 6 validés · 1 à revoir · 3 à lire ». Un agent lit ces
+   verdicts par la commande `invariants` (le registre des commandes). **Quel test garde quelle
    ligne vient de l'alignement** : le skill `aligner`, qui vérifie déjà test par
    test à quelle ligne chacun est lié, l'écrit dans la sortie `liens.md` (sous
    chaque ligne de la note, `- <chemin> :: <titre>`) ; une ligne recopiée par son
@@ -2510,6 +2520,10 @@ système (F-103). Le parcours dit où il se tient (`pause`, au relevé) :
   actions restent au registre : c'est par elles, ou par une demande à l'agent,
   que son contenu change ; le badge de l'étape dit « faite · ✓ retiré » et se
   clique pour rendre le ✓ (F-93), la ligne d'état nomme l'étape ;
+  **`withdrawn:invariants`** se tient aussi tant qu'un test d'invariant de la
+  branche est noté *À revoir* par l'utilisateur (sa marque vaut pour le contenu
+  d'aujourd'hui du test) : la ligne d'état dit alors « 1 test à revoir : dites à
+  l'agent quoi corriger » ;
 - **`invariants`** : **avant le premier commit**. La note et la Forme faites,
   les tests d'invariants prêts (alignés, ou chaque cas validé) et lus en
   pseudo-code, rien de commité ni de commit préparé, aucun module commencé :

@@ -419,12 +419,15 @@ it('relecteur : le verdict de chaque cas et « n cas à valider », comme avant 
 const rulesNote = () => ({ note: mustNot('Ne jamais écrire → invariant', 'Ne jamais lire → invariant') });
 const gone = ['Tout valider', 'Lire en pseudo-code', 'Voir le fichier', 'Invariants seuls', 'Rien à écrire', 'Écrire les invariants', 'Valider les invariants'];
 
-it('créateur : les règles, aucune carte par cas, aucun verdict', async () => {
+it('créateur : les règles, aucune carte par cas ; le verdict de chaque test (Validé / À revoir), rien d\'autre de l\'ancien écran', async () => {
   extra = rulesNote();
   await draw(link, 'create');
   expect([...page.querySelectorAll('.vc-rule-line')].map((e) => e.textContent)).toEqual(['Ne jamais écrire → invariant', 'Ne jamais lire → invariant']);
   expect(page.querySelectorAll('.vc-rule-case')).toHaveLength(4);   // a sous chacune des deux lignes, puis b et c : autres tests
-  for (const sel of ['.vc-case', '.vc-verdict', '.vc-ifile', '.vc-ide', '.vc-isum', '.vc-ibar', '.vc-ihelp']) expect(page.querySelector(sel), sel).toBeNull();
+  for (const sel of ['.vc-case', '.vc-ifile', '.vc-ide', '.vc-isum', '.vc-ibar', '.vc-ihelp']) expect(page.querySelector(sel), sel).toBeNull();
+  // un verdict par test affiché (après l'essai : les notes de l'utilisateur), sans le bouton de remarque du relecteur
+  expect(page.querySelectorAll('.vc-rule-case .vc-verdict')).toHaveLength(4);
+  expect([...page.querySelectorAll('.vc-verdict button')].map((b) => b.textContent)).toEqual(Array(4).fill(['Validé', 'À revoir']).flat());
 });
 
 it('créateur : ni Tout valider, ni Lire en pseudo-code, ni Voir le fichier, ni Invariants seuls, ni Rien à écrire', async () => {
@@ -437,7 +440,6 @@ it('créateur : ni Tout valider, ni Lire en pseudo-code, ni Voir le fichier, ni 
   extra = { ...rulesNote(), steps: step({ state: 'ok', now: 'n', by: 'system' }) };   // même validée, offerte : rien de plus
   await draw(link, 'create');
   expect(page.querySelector('.vc-vmark button')).toBeNull();
-  expect(page.querySelector('.vc-verdict')).toBeNull();
   extra = { lang: 'en' };   // sans test ni ligne : la phrase seule, dans les deux langues
   await draw([], 'create');
   expect(page.querySelector('.vc-rules-none')!.textContent).toBe('The note asks for no invariant.');

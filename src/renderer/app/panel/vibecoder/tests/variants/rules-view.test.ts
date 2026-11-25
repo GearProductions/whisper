@@ -29,7 +29,8 @@ const file = (id: string, cases: string[], r: ReadingCase[] | null, over: Partia
 let prefills: unknown[][] = [];
 let opens: unknown[][] = [];
 let links: string[] = [];
-beforeEach(() => { prefills = []; opens = []; links = []; act(() => root.render(null)); });
+let marks: unknown[][] = [];
+beforeEach(() => { prefills = []; opens = []; links = []; marks = []; act(() => root.render(null)); });
 type Setup = { mustNot?: { text: string; mark: 'invariant' | 'variant' | null }[] | null; invariants?: VibeTestFile[]; proof?: VibeProof; align?: string; liens?: string; lang?: 'fr' | 'en'; comment?: boolean };
 const draw = (o: Setup = {}) => act(() => {
   const lang = o.lang ?? 'fr';
@@ -37,7 +38,7 @@ const draw = (o: Setup = {}) => act(() => {
     outputs: { ...(o.align === undefined ? {} : { 'align.md': { text: o.align, time: 1 } }), ...(o.liens === undefined ? {} : { 'liens.md': { text: o.liens, time: 1 } }) },
     note: o.mustNot === null ? null : { mustNot: o.mustNot ?? [] }, steps: [], modules: [], files: [] } as unknown as VibeView;
   const props = { view, step: { id: 'invariants', status: 'current', facts: '', open: true }, t: t(lang), busy: false,
-    act: { prefill: (...a: unknown[]) => prefills.push(a), open: (...a: unknown[]) => opens.push(a), openLink: (u: string) => links.push(u) } } as unknown as StepProps;
+    act: { prefill: (...a: unknown[]) => prefills.push(a), open: (...a: unknown[]) => opens.push(a), openLink: (u: string) => links.push(u), mark: (...a: unknown[]) => marks.push(a) } } as unknown as StepProps;
   root.render(createElement(RulesView, props));
 });
 const rules = () => [...page.querySelectorAll<HTMLElement>('.vc-rule')];
@@ -154,8 +155,8 @@ it('aucun bouton d\'action, aucune validation, aucun chiffre en tête, ni « non
   await draw({ mustNot: [inv(A), inv(B)], proof: { state: 'blocked', lines: [{ line: lineA, proved: true, detail: 'm' }, { line: lineB, proved: false, detail: 'r' }] },
     invariants: [file('a', ['lu', 'pas lu', 'autre'], [reading('lu', A), reading('autre', 'rien')])], align: '- [toi] q' });
   expect(page.querySelector('button.vc-run, .vc-vbtn, .vc-mark, .vc-seg, .vc-isum, .vc-ibar, input, textarea, select')).toBeNull();
-  // seuls des boutons-icônes : 💬 et Ouvrir (et le 💬 d'un bloc de l'alignement)
-  expect([...page.querySelectorAll('button')].every((b) => b.classList.contains('vc-tool') || b.classList.contains('vc-quote'))).toBe(true);
+  // des boutons-icônes (💬, Ouvrir, le 💬 d'un bloc de l'alignement) et le verdict d'un test (Validé / À revoir), rien d'autre
+  expect([...page.querySelectorAll('button')].every((b) => b.classList.contains('vc-tool') || b.classList.contains('vc-quote') || !!b.closest('.vc-verdict'))).toBe(true);
   const text = page.textContent ?? '';
   for (const bad of ['non rattaché', 'Pas de lecture pour ce cas', 'Valider', 'Relire', 'Enregistrer', 'Lire en pseudo-code', 'Voir le fichier']) expect(text).not.toContain(bad);
   expect(page.firstElementChild?.textContent).not.toMatch(/^\d/);
@@ -233,4 +234,34 @@ it('une ligne que garde un test d\'avant la branche (liens.md le nomme, il n\'es
   await draw({ mustNot: [inv(A)], invariants: [], liens });
   expect(rules()[0].querySelector('.vc-rule-notest')).toBeNull();
   expect(rules()[0].querySelector('.vc-rule-elsewhere')?.textContent).toBe('tests/invariants/ancien.test.ts · déjà là');
+});
+
+// Après l'essai : Validé / À revoir sur chaque test, les notes de l'utilisateur (ce qu'il a lu, ce qu'il conteste).
+const verdicts = (within: ParentNode) => [...within.querySelectorAll<HTMLButtonElement>('.vc-verdict button')];
+
+it('chaque test a Validé et À revoir : un clic pose le verdict du cas (sa cible), un second l\'annule', async () => {
+  await draw({ mustNot: [inv(A)], invariants: [file('a', ['x', 'y'], [reading('x', A), reading('y', 'rien')], { marks: { y: 'ko' } })] });
+  const [okX, koX] = verdicts(rules()[0]);
+  expect([okX.textContent, koX.textContent, okX.getAttribute('aria-pressed'), koX.getAttribute('aria-pressed')]).toEqual(['Validé', 'À revoir', 'false', 'false']);
+  okX.click();
+  koX.click();
+  // y, dans les autres tests, déjà « À revoir » : pressé, un clic l'annule
+  const [, koY] = verdicts(page.querySelector('.vc-rules-others')!);
+  expect(koY.getAttribute('aria-pressed')).toBe('true');
+  koY.click();
+  expect(marks).toEqual([
+    ['case:tests/invariants/a.test.ts:x', 'ok'], ['case:tests/invariants/a.test.ts:x', 'ko'], ['case:tests/invariants/a.test.ts:y', null],
+  ]);
+});
+
+it('en tête, où l\'on en est de sa lecture : tests, validés, à revoir, à lire ; sans test : rien', async () => {
+  const marked = { marks: { x: 'ok', y: 'ko' } } as Partial<VibeTestFile>;
+  await draw({ mustNot: [inv(A)], invariants: [file('a', ['x', 'y', 'z'], [reading('x', A), reading('y', A), reading('z', A)], marked)] });
+  expect(page.querySelector('.vc-rules-count')?.textContent).toBe('3 tests · 1 validé · 1 à revoir · 1 à lire');
+  await draw({ mustNot: [inv(A)], invariants: [file('a', ['x'], [reading('x', A)])] });
+  expect(page.querySelector('.vc-rules-count')?.textContent).toBe('1 test · 0 validé · 0 à revoir · 1 à lire');
+  await draw({ mustNot: [inv(A)] });
+  expect(page.querySelector('.vc-rules-count')).toBeNull();
+  await draw({ lang: 'en', mustNot: [inv(A)], invariants: [file('a', ['x', 'y'], [reading('x', A), reading('y', A)], { marks: { x: 'ok' } })] });
+  expect(page.querySelector('.vc-rules-count')?.textContent).toBe('2 tests · 1 approved · 0 to review · 1 to read');
 });

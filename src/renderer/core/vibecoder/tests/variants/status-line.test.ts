@@ -63,6 +63,19 @@ describe('statusLine', () => {
     expect(statusLine(view('modules', { pause: 'withdrawn:modules' }))?.text).toContain('modules');
   });
 
+  it('des tests notés « À revoir » : leur nombre, et à qui le dire ; à l\'utilisateur', () => {
+    const tests = (marks: Record<string, 'ok' | 'ko' | null>) => [{ id: 't0', path: 'tests/invariants/a.test.ts', blob: 'b', cases: Object.keys(marks), lines: [1, 2, 3], source: '', reading: null, marks }];
+    const at = (marks: Record<string, 'ok' | 'ko' | null>, over: Partial<VibeView> = {}) =>
+      statusLine(view('invariants', { pause: 'withdrawn:invariants', invariants: tests(marks) as VibeView['invariants'], ...over }));
+    expect(at({ x: 'ko', y: 'ok', z: null })).toEqual({ text: '1 test à revoir : dites à l\'agent quoi corriger', yours: true });
+    expect(at({ x: 'ko', y: 'ko' })?.text).toBe('2 tests à revoir : dites à l\'agent quoi corriger');
+    // le moteur en route : la même ligne (la pause l'arrête)
+    expect(at({ x: 'ko' }, { vibe: true })?.text).toBe('1 test à revoir : dites à l\'agent quoi corriger');
+    // aucun test à revoir : la ligne du ✓ retiré, comme avant
+    expect(at({ x: 'ok' })?.text).toContain('retiré');
+    expect(at({ x: 'ko' }, { lang: 'en' })?.text).toBe('1 test to review: tell the agent what to fix');
+  });
+
   it('le moteur en route, une course en cours : ce que fait cette course, son avancement compris', () => {
     const progress = { wave: 2, done: 1, total: 3, fixes: 0, opus: false };
     const l = statusLine(view('modules', { vibe: true, runs: [run({ progress })] }));

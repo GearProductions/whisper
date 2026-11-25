@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { VibeAction, VibeArtifact, VibeRun, VibeView } from 'shared/bridge';
-import { actionsOf, artifactsOf, draftOf, logsOf, nextOf, parseCommands, procsOf, runsOf, schemaError, statusOf } from 'core/commands';
+import { actionsOf, artifactsOf, draftOf, invariantsOf, logsOf, nextOf, parseCommands, procsOf, runsOf, schemaError, statusOf } from 'core/commands';
 import { parseActions } from 'core/vibecoder';
 
 const RES = path.resolve(__dirname, '../../../../../../resources/vibecoder');
@@ -141,6 +141,28 @@ describe('artifacts, draft', () => {
 
   it('artifacts : relevé vide, un dossier sans chemin et des listes vides', () => {
     expect(artifactsOf(empty)).toEqual({ dir: '', files: [], folders: [] });
+  });
+
+  it('invariants : chaque test d\'invariant de la branche, son fichier, son titre, sa ligne et le verdict de l\'utilisateur', () => {
+    const file = (path: string, cases: string[], marks: Record<string, 'ok' | 'ko' | 'changed' | null>) =>
+      ({ id: 't', path, blob: 'b', cases, lines: cases.map((_, i) => 10 * (i + 1)), source: 'le code', reading: null, marks });
+    const v = { ...view, invariants: [
+      file('src/a/tests/invariants/a.test.ts', ['refuse', 'accepte', 'retouché', 'pas vu'], { refuse: 'ko', accepte: 'ok', retouché: 'changed' }),
+      file('src/b/tests/invariants/b.test.ts', ['même titre', 'même titre'], { 'même titre n° 2': 'ko' }),
+    ] } as unknown as VibeView;
+    expect(invariantsOf(v)).toEqual([
+      { path: 'src/a/tests/invariants/a.test.ts', title: 'refuse', line: 10, verdict: 'ko' },
+      { path: 'src/a/tests/invariants/a.test.ts', title: 'accepte', line: 20, verdict: 'ok' },
+      // une marque tombée (le test a changé depuis) ou absente : pas de verdict
+      { path: 'src/a/tests/invariants/a.test.ts', title: 'retouché', line: 30, verdict: null },
+      { path: 'src/a/tests/invariants/a.test.ts', title: 'pas vu', line: 40, verdict: null },
+      // deux tests de même titre : le verdict de chacun, par sa clé
+      { path: 'src/b/tests/invariants/b.test.ts', title: 'même titre', line: 10, verdict: null },
+      { path: 'src/b/tests/invariants/b.test.ts', title: 'même titre', line: 20, verdict: 'ko' },
+    ]);
+    // ni le code du test ni l'id du fichier au relevé
+    expect(JSON.stringify(invariantsOf(v))).not.toMatch(/le code|"id"/);
+    expect(invariantsOf(view)).toEqual([]);
   });
 
   it('draft : la PR suivie et ses remarques', () => {

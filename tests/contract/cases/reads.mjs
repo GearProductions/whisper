@@ -1,4 +1,4 @@
-// Les cas des lectures : status, next, actions, runs, run.wait, procs, logs,
+// Les cas des lectures : status, next, actions, runs, run.wait, procs, logs, invariants,
 // artifacts, artifact, draft — chacune un succès (code 0, la forme de sa
 // réponse) et ses refus principaux, chacun avec le code d'erreur de la table
 // (invalid-args, un id ou un nom inconnu…).
@@ -20,7 +20,7 @@ export async function reads(app) {
   const read = (...args) => asJson(args, here);
 
   // Chaque lecture sans argument refuse un argument inconnu.
-  for (const c of ['status', 'next', 'actions', 'runs', 'procs', 'artifacts', 'draft']) {
+  for (const c of ['status', 'next', 'actions', 'runs', 'procs', 'artifacts', 'draft', 'invariants']) {
     const r = await read(c, 'inconnu=1');
     check(c, `${c} avec un argument inconnu : invalid-args`, refused(r, 'invalid-args'), said(r), 'invalid-args');
   }
@@ -60,6 +60,12 @@ export async function reads(app) {
   const draft = await read('draft');
   const d = draft.json?.result;
   check('draft', 'draft : { pr, remarks }, sans remarque', good(draft) && (d.pr === null || Number.isInteger(d.pr)) && Array.isArray(d.remarks) && d.remarks.length === 0, said(draft));
+
+  // invariants : les tests d'invariants de la branche et le verdict de l'utilisateur ; une liste, chaque test avec ses quatre champs
+  const inv = await read('invariants');
+  const tests = inv.json?.result;
+  check('invariants', 'invariants : une liste de { path, title, line, verdict }', good(inv) && Array.isArray(tests)
+    && tests.every((x) => typeof x.path === 'string' && typeof x.title === 'string' && (x.line === null || Number.isInteger(x.line)) && ['ok', 'ko', null].includes(x.verdict)), said(inv));
 
   // artifacts, artifact : un artefact posé par add-artifact, effacé à la fin
   const before = await read('artifacts');

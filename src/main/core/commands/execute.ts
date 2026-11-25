@@ -26,7 +26,7 @@
  *  Utilisé par : app/controllers (commands, vibecoder : START). */
 import type { VibeArgs, VibeRunOp, VibeView } from 'shared/bridge';
 import { DIRECT_ACTIONS, type ActionDef } from 'core/vibecoder';
-import { actionsOf, artifactsOf, draftOf, logsOf, nextOf, procsOf, runsOf, statusOf } from './reads';
+import { actionsOf, artifactsOf, draftOf, invariantsOf, logsOf, nextOf, procsOf, runsOf, statusOf } from './reads';
 import { coerce, schemaError } from './schema';
 import type { CommandTable } from './table';
 
@@ -118,6 +118,7 @@ export async function execute(
       case 'procs': return ok(procsOf(view));
       case 'artifacts': return ok(artifactsOf(view));
       case 'draft': return ok(draftOf(view));
+      case 'invariants': return ok(invariantsOf(view));
       case 'artifact': {
         const found = await ops.artifact(a.artifact as string);
         return found ? ok(found) : fail('unknown-artifact', { artifact: a.artifact });

@@ -2306,6 +2306,48 @@ describe('le contrôle en trois points (0.16.0)', () => {
       }
     });
 
+    // Après l'essai (0.16.0-ecran-essentiel) : un test noté « À revoir » par l'utilisateur retient le moteur, comme un ✓ retiré.
+    describe('un test noté « À revoir »', () => {
+      const KO_ONE: Marks = { ...MARKED, [caseTarget(TEST_PATH, 'dit bonjour')]: { ...CASES_OK[caseTarget(TEST_PATH, 'dit bonjour')], verdict: 'ko' } };
+      const UNCOMMITTED = { repo: repo([NOTE_PATH, TEST_PATH]), outputs: {} };
+
+      it('avant le premier commit, aux deux rythmes : la pause sur l\'étape Invariants, l\'action du moteur masquée', () => {
+        for (const express of [false, true]) {
+          const v = vibeView(ready({ marks: KO_ONE, ...UNCOMMITTED, express }));
+          expect(v.pause).toBe('withdrawn:invariants');
+          expect(action(v, 'vibe')).toMatchObject({ hidden: true, disabled: 'étape refusée' });
+          expect(primary(v)).not.toBe('vibe');
+        }
+        // témoin : tous validés, la pause d'après les invariants, le moteur proposé
+        expect(vibeView(ready({ marks: MARKED, ...UNCOMMITTED })).pause).toBe('invariants');
+      });
+
+      it('plus tard aussi (le premier commit fait, les modules faits) : la même pause', () => {
+        expect(vibeView(ready({ marks: KO_ONE })).pause).toBe('withdrawn:invariants');
+        expect(vibeView(ready({ marks: KO_ONE, repo: ALL, outputs: proof(PROVED) })).pause).toBe('withdrawn:invariants');
+      });
+
+      it('le test corrigé (sa marque tombe), ou revalidé : plus cette pause', () => {
+        // le bloc du cas a changé depuis la marque : elle ne vaut plus pour ce contenu
+        const moved: Marks = { ...MARKED, [caseTarget(TEST_PATH, 'dit bonjour')]: { hash: 'autre', common: 'c', verdict: 'ko' } };
+        expect(vibeView(ready({ marks: moved, ...UNCOMMITTED })).pause).not.toBe('withdrawn:invariants');
+        expect(vibeView(ready({ marks: MARKED, ...UNCOMMITTED })).pause).toBe('invariants');
+      });
+
+      it('la Forme retirée et un test à revoir : la pause sur la Forme d\'abord', () => {
+        expect(build({ marks: without(['forme'], {}, KO_ONE) }).pause).toBe('withdrawn:forme');
+      });
+
+      it('le relecteur : un test à revoir ne fait aucune pause', () => {
+        const CARD = JSON.stringify({ number: 12, head: 'feat/G2-1', author: 'kb' });
+        const v = vibeView(input({
+          flow: 'review', pr: 12, note, tests: [test], readings: READINGS, repo: repo([], [FIRST]), checkout: { branch: 'feat/G2-1', dirty: false },
+          outputs: { 'pr-12.json': out(CARD) }, marks: KO_ONE,
+        }));
+        expect(v.pause ?? null).toBeNull();
+      });
+    });
+
     it('à cette pause : l\'action du moteur masquée, sa raison « étape refusée » ; la pause levée : proposée de nouveau', () => {
       for (const s of STEPS) {
         const v = build({ marks: without([s]) });

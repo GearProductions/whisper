@@ -1,4 +1,4 @@
-/** reads — les lectures des commandes (status, next, actions, runs, procs, logs, artifacts, draft ; run.wait est dans l'exécuteur),
+/** reads — les lectures des commandes (status, next, actions, runs, procs, logs, artifacts, draft, invariants ; run.wait est dans l'exécuteur),
  *  chacune une fonction pure du relevé (VibeView) : les courses, les processus,
  *  les actions grisées ou masquées y sont déjà calculés, on les remet en forme
  *  pour le schéma de la commande (resources/vibecoder/commands.json). Jamais
@@ -7,6 +7,7 @@
  *  Utilisé par : ses tests ; l'exécuteur (étape 2). */
 import type { VibeFlow, VibeStepId, VibeView } from 'shared/bridge';
 import { DIRECT_ACTIONS, DIRECT_ONLY, LOCKING, ownRun, readArgs, type ActionDef } from 'core/vibecoder';
+import { caseKeys } from 'shared/test-cases';
 
 export type Status = {
   branch: string | null; base: string | null; flow: VibeFlow; step: VibeStepId | null; note: string | null;
@@ -69,6 +70,17 @@ export const artifactsOf = (view: VibeView) => ({
   dir: view.artifactsDir ?? '',
   files: (view.artifacts ?? []).map((a) => ({ id: a.id, name: a.name, kind: a.kind, size: a.size, time: a.time })),
   folders: (view.artifactDirs ?? []).map((d) => ({ id: d.id, name: d.name })),
+});
+
+/** Les tests d'invariants de la branche, cas par cas, avec le verdict de l'utilisateur à l'écran (Validé : ok ; À revoir :
+ *  ko ; aucun, ou tombé parce que le test a changé depuis : null). C'est par elle qu'un agent sait quels tests
+ *  l'utilisateur a notés à revoir. Ni le code du test ni son id au relevé. */
+export const invariantsOf = (view: VibeView) => view.invariants.flatMap((file) => {
+  const keys = caseKeys(file.cases);
+  return file.cases.map((title, i) => {
+    const mark = file.marks[keys[i]];
+    return { path: file.path, title, line: file.lines[i] ?? null, verdict: mark === 'ok' || mark === 'ko' ? mark : null };
+  });
 });
 
 /** Le brouillon de revue de la PR suivie ; sans PR, pas de remarques. */

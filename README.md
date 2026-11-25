@@ -595,7 +595,9 @@ la dictée et les réglages restent à l'écran. Les skills `actions` et `proces
 tirent leurs arguments. Un exécuteur la lit et lance la commande demandée, avec les
 mêmes règles pour tous : y compris les pièces jointes du champ (`pieces`) et le
 brouillon de revue (`draft`, `draft.add`, `draft.edit`, `draft.remove`, sur la PR
-suivie), et la lecture des artefacts (`artifacts`, `artifact`), `add-artifact`
+suivie), la lecture des tests d'invariants de la branche avec le verdict que vous leur avez
+donné à l'écran (`invariants` : c'est par elle qu'un agent sait lesquels vous avez notés « à
+revoir »), et la lecture des artefacts (`artifacts`, `artifact`), `add-artifact`
 acceptant un chemin ou un nom avec son contenu en base64. Une commande d'artefact
 ne répond qu'une fois son travail fini : refusé ou échoué, elle rend l'erreur (et
 son code, ci-dessous), jamais « ok ».
@@ -837,7 +839,12 @@ relire une PR (le relecteur, plus bas) :
    *écrite* (ses tests sont rouges), *prouvée*, *non prouvée* (un état par ligne :
    c'est ce que la preuve donne, et c'est la ligne que vous jugez). Dessous, les
    tests qui la gardent, en pseudo-code (un test pas encore lu : son titre, « lecture
-   en cours »), chacun avec sa 💬 pour le citer à l'agent (« à revoir »). Quel test garde
+   en cours »), chacun avec *Validé* / *À revoir* et sa 💬 pour le citer à l'agent. Ces deux
+   verdicts sont vos notes : ce que vous avez lu, ce que vous contestez. *Validé* n'est
+   jamais exigé pour avancer ; un test *À revoir* retient le moteur (la ligne d'état dit
+   combien) jusqu'à ce qu'il soit corrigé ou revalidé, et vous pouvez dire à l'agent
+   « traite ceux que j'ai notés à revoir » : il les lit par sa CLI. En tête, où vous en
+   êtes : « 10 tests · 6 validés · 1 à revoir · 3 à lire ». Quel test garde
    quelle ligne vient de l'alignement, qui l'écrit dans `liens.md` ; un test d'avant la
    branche qui garde déjà la ligne y est nommé, sans pseudo-code. Une ligne sans test
    s'affiche quand même, « aucun test » ; les tests qui

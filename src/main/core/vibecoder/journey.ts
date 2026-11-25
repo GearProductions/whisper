@@ -101,7 +101,9 @@
  *    son ✓ ; sinon 'withdrawn:<étape>', la première étape (la Forme, les invariants, les modules, dans cet ordre) dont
  *    le ✓ a été retiré à la main et dont le retrait tient (withdrawn de marks : l'empreinte retenue est celle du
  *    contenu d'aujourd'hui de l'étape, stepContents) — le contenu changé, ou l'étape revalidée à la main (le retrait
- *    oublié) : plus cette pause ; sinon 'invariants', avant le premier commit : la note et la Forme faites, les tests
+ *    oublié) : plus cette pause ; 'withdrawn:invariants' aussi tant qu'un test d'invariant de la branche est noté
+ *    « À revoir » par l'utilisateur (sa marque 'ko', pour son contenu d'aujourd'hui : le test corrigé ou revalidé, plus
+ *    cette pause) ; sinon 'invariants', avant le premier commit : la note et la Forme faites, les tests
  *    d'invariants prêts (alignés ou chaque cas validé à la main ; sans ligne « → invariant », rien à attendre) et lus,
  *    rien de commité ni de commit préparé (commit.md : le moteur a été repris, le premier commit est en route), aucun
  *    module commencé — l'utilisateur regarde ses règles avant que quoi que ce soit soit commité, et le premier commit
@@ -561,7 +563,10 @@ export function vibeView(input: JourneyInput): VibeView {
     // l'alignement est déjà en tête des règles, et le moteur ne commite pas avant la reprise de l'utilisateur.
     const ready = noteDone && formeDone && (!invLines || written);
     // Un ✓ d'étape retiré à la main qui tient : sa marque retient l'empreinte du contenu d'aujourd'hui de l'étape.
-    const refused = (['forme', 'invariants', 'modules'] as const).find(heldBack);
+    // Un test d'invariant de la branche que l'utilisateur a noté « À revoir » (sa marque 'ko' vaut pour son contenu
+    // d'aujourd'hui) retient le parcours comme le ✓ de l'étape Invariants retiré : rien ne se construit sur un test contesté.
+    const toReview = invariants.some((f) => Object.values(f.marks).includes('ko'));
+    const refused = (['forme', 'invariants', 'modules'] as const).find((s) => heldBack(s) || (s === 'invariants' && toReview));
     // Un test de la branche pas lu, ou sa lecture périmée : Lire en pseudo-code attend, avant le premier commit ; la pause aussi.
     const unread = invLines && readCount < caseCount;
     pause = !note ? null

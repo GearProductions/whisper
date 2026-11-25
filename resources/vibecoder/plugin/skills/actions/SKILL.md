@@ -20,7 +20,7 @@ Answers the runs, oldest first, then the requests held back (`state: queued`, wi
 
 - `state`: `running` (a run never waits for a permission: a call outside its rights fails it, and its `reply` says which one), `stopped` (stopped, waiting for the user's *Keep* or *Undo*), `done`, `failed`, `kept`, `undone`, `queued`. `reply`: its last answer.
 
-Run it when the user asks (« où en sont les actions ? »): answer in a few lines — what runs, since when, what waits, what ended and how. `vibecoder status` gives the whole screen's state.
+Run it when the user asks (« où en sont les actions ? »): answer in a few lines — what runs, since when, what waits, what ended and how. `vibecoder status` gives the whole screen's state. `vibecoder invariants` lists the branch's invariant tests with the verdict the user gave each on the screen (`ok`: approved; `ko`: to review; `null`: none): read it when the user asks you to deal with the tests they marked to review.
 
 ## Start, stop
 

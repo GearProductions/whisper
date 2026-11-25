@@ -31,7 +31,7 @@ const act1 = (over: Partial<VibeAction> = {}) => ({ id: 'vibe', label: 'Reprendr
 const creator = (over: Partial<VibeView> = {}) => {
   const note = over.note ?? { filled: true, mark: 'ok' };
   return {
-    lang: 'fr', flow: 'create', steps: note.mark === 'ok' ? [{ id: 'note', status: 'done', facts: '' }] : [], commits: [], questions: [], outputs: {}, runs: [], note, ...over,
+    lang: 'fr', flow: 'create', steps: note.mark === 'ok' ? [{ id: 'note', status: 'done', facts: '' }] : [], commits: [], questions: [], invariants: [], outputs: {}, runs: [], note, ...over,
   } as unknown as VibeView;
 };
 const reviewer = (over: Partial<VibeView> = {}) => creator({ flow: 'review', ...over });

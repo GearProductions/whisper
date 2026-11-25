@@ -4,8 +4,9 @@
  *  Dans l'ordre, la première qui vaut : pas de note rédigée (« Demandez la note à l'agent, dans la conversation ») ;
  *  des questions ouvertes, à toute étape, le moteur en route ou pas (« 2 questions : répondez dans le questionnaire ») ;
  *  la note sans son ✓ (« Vérifiez, puis validez la note » ; déjà commitée, la pause 'note' : « La note a changé : elle
- *  attend sa validation ») ; un ✓ d'étape retiré à la main qui tient (la pause 'withdrawn:<étape>' : la ligne nomme
- *  l'étape) ; le moteur en route (« Le système écrit les modules » : d'après la course en cours, sinon l'étape en
+ *  attend sa validation ») ; des tests notés « À revoir » (la pause 'withdrawn:invariants', un cas 'ko' au relevé :
+ *  « 1 test à revoir : dites à l'agent quoi corriger ») ; un ✓ d'étape retiré à la main qui tient (la pause
+ *  'withdrawn:<étape>' : la ligne nomme l'étape) ; le moteur en route (« Le système écrit les modules » : d'après la course en cours, sinon l'étape en
  *  cours) ; une pause (« Regardez vos règles, puis reprenez », « Essayez l'appli, puis reprenez ») ; la PR ouverte
  *  (« La PR est ouverte, la CI tourne », la CI en échec, « La PR est verte : à vous de la fusionner », fusionnée) ;
  *  sinon le moteur arrêté hors d'une pause (« Le système est arrêté : reprenez »).
@@ -15,6 +16,7 @@
  *  Utilisé par : app/panel/vibecoder (breadcrumb). */
 import type { VibeView } from 'technicals/bridge';
 import { t } from './i18n';
+import { progress } from './invariants';
 import { parseCi } from './outputs';
 import { runningRuns } from './screen';
 
@@ -30,6 +32,9 @@ export function statusLine(view: VibeView): StatusLine | null {
   if (view.questions.length) return yours(l.questions(view.questions.length));
   // l'étape Note d'après le relevé, pas la marque brute : une fois un module commencé, la note « changed » compte encore
   if (view.steps.find((x) => x.id === 'note')?.status !== 'done') return yours(pause === 'note' ? s.pause.note : l.verifyNote);
+  // un test noté « À revoir » retient le parcours à la pause de l'étape Invariants : la ligne dit combien, et à qui le dire
+  const ko = pause === 'withdrawn:invariants' ? progress(view.invariants).ko : 0;
+  if (ko) return yours(l.toReview(ko));
   if (pause?.startsWith('withdrawn:')) return yours(s.pause[pause]);
   if (view.vibe) {
     const run = runningRuns(view.runs ?? [])[0];

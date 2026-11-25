@@ -161,6 +161,12 @@ describe('execute : les lectures', () => {
     const list = await go({ command: 'artifacts' }, o, c);
     expect(list).toEqual({ ok: true, result: { dir: '/p/artifacts', files: [{ id: 'a1', name: 'a.md', kind: 'markdown', size: 3, time: 5 }], folders: [{ id: 'd1', name: 'sub' }] } });
     expect(await go({ command: 'draft' }, o, c)).toEqual({ ok: true, result: { pr: 7, remarks: [{ id: 1, target: 'a:1', text: 'rm' }] } });
+    // invariants : les tests de la branche et le verdict de l'utilisateur, lus au relevé, sans rien appeler
+    const tested = { ...v, invariants: [{ id: 't0', path: 'tests/invariants/a.test.ts', blob: 'b', cases: ['x', 'y'], lines: [3, 9], source: '', reading: null, marks: { y: 'ko' } }] } as unknown as VibeView;
+    expect(await go({ command: 'invariants' }, o, { view: tested, defs })).toEqual({ ok: true, result: [
+      { path: 'tests/invariants/a.test.ts', title: 'x', line: 3, verdict: null }, { path: 'tests/invariants/a.test.ts', title: 'y', line: 9, verdict: 'ko' },
+    ] });
+    expect(await go({ command: 'invariants', args: { file: 'x' } }, o, c)).toMatchObject({ ok: false, error: { code: 'invalid-args' } });
     expect(await go({ command: 'artifact', args: { artifact: 'a1' } }, o, c)).toMatchObject({ ok: true, result: { name: 'a.md' } });
     expect(o.calls).toEqual([['artifact', 'a1']]);
     const none = ops({ ok: true }, { artifact: async () => null });
