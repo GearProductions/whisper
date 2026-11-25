@@ -25,7 +25,8 @@
  *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : l'interrupteur Express et son infobulle,
  *  le bouton du moteur — Arrêter pendant que le système enchaîne, Reprendre quand il est arrêté (une pause, un arrêt à
  *  la main, un redémarrage de l'appli), leurs infobulles ; aucun libellé ni infobulle de l'écran ne dit plus « Vibe »,
- *  plus de Relancer pour le moteur —, la ligne de chaque pause (note, invariants, modules : « puis reprenez » ; un ✓ d'étape
+ *  plus de Relancer pour le moteur —, la ligne de chaque pause (pause : la note, « elle attend sa validation » ; statusLine.pause : invariants et modules,
+ *  « puis reprenez » ; un ✓ d'étape
  *  retiré à la main, withdrawn:forme, withdrawn:invariants, withdrawn:modules : l'étape nommée, « modifiez-la ou
  *  revalidez-la pour reprendre »), le titre
  *  de la sortie preuve.md.
@@ -90,13 +91,11 @@ const fr = {
   expressTitle: 'Express : aucune pause, le système enchaîne jusqu\'à la PR ouverte. Éteint, le parcours s\'arrête après les invariants et après les modules.',
   pause: {
     note: 'La note a changé : elle attend sa validation',
-    invariants: 'Pause : regardez ce qui a été posé (forme, invariants, premier commit), puis reprenez',
-    modules: 'Pause : essayez à l\'écran avant la revue, puis reprenez',
     'withdrawn:forme': 'Vous avez retiré la validation de la forme : modifiez-la ou revalidez-la pour reprendre',
     'withdrawn:invariants': 'Vous avez retiré la validation des invariants : modifiez-les ou revalidez-les pour reprendre',
     'withdrawn:modules': 'Vous avez retiré la validation des modules : modifiez-les ou revalidez-les pour reprendre',
-  } as Record<VibePause, string>,
-  // status-line : la ligne qui dit où on en est (pause : celles d'invariants et de modules ; les autres, `pause` plus haut).
+  } as Record<Exclude<VibePause, 'invariants' | 'modules'>, string>,
+  // status-line : la ligne qui dit où on en est (pause : celles d'invariants et de modules ; la note et les ✓ retirés, `pause` plus haut).
   statusLine: {
     noNote: 'Demandez la note à l\'agent, dans la conversation',
     questions: (n: number) => `${n} question${n > 1 ? 's' : ''} : répondez dans le questionnaire`,
@@ -113,6 +112,7 @@ const fr = {
     ciFailed: 'La PR est ouverte, la CI est en échec',
     green: 'La PR est verte : à vous de la fusionner',
     merged: 'La PR est fusionnée',
+    closed: 'La PR est fermée, sans avoir été fusionnée',
     stopped: 'Le système est arrêté : reprenez',
   },
   errorHint: 'La conversation reste utilisable, à droite.',
@@ -326,8 +326,6 @@ const en: Strings = {
   expressTitle: 'Express: no pause, the system carries on until the PR is open. Off, the journey stops after the invariants and after the modules.',
   pause: {
     note: 'The note changed: it awaits its validation',
-    invariants: 'Pause: look at what was set up (shape, invariants, first commit), then resume',
-    modules: 'Pause: try it on screen before the review, then resume',
     'withdrawn:forme': 'You withdrew the approval of the shape: change it or approve it again to resume',
     'withdrawn:invariants': 'You withdrew the approval of the invariants: change them or approve them again to resume',
     'withdrawn:modules': 'You withdrew the approval of the modules: change them or approve them again to resume',
@@ -349,6 +347,7 @@ const en: Strings = {
     ciFailed: 'The PR is open, the CI failed',
     green: 'The PR is green: yours to merge',
     merged: 'The PR is merged',
+    closed: 'The PR is closed, not merged',
     stopped: 'The system is stopped: resume',
   },
   errorHint: 'The conversation is still usable, on the right.',

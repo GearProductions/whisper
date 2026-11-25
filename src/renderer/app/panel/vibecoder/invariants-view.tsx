@@ -48,7 +48,7 @@ import { useKept } from './kept-scope';
 import { InlineMd, MarkdownView } from './markdown-view';
 import { ModuleCode } from './module-code';
 import { ModuleDiffView } from './module-diff-view';
-import { Attention, Pseudo, RulesView } from './rules-view';
+import { Attention, Pseudo, RulesView, warningHelp } from './rules-view';
 import { Invite, Run, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
 import { CaseVerdict } from './validation';
@@ -75,7 +75,6 @@ const fr = {
   commonTitle: 'Le code commun du fichier (hors des cas) a changé depuis votre verdict : relisez le cas',
   edges: 'Cas limites',
   guarantees: 'Garantit',
-  warningHelp: 'Attention : le relecteur pense que ce test ne vérifie pas vraiment ce qu\'il annonce (mock, boucle, assertion faible…). Ce n\'est pas un échec : une piste pour votre relecture.',
   quote: 'Une remarque sur ce cas, au brouillon de revue',
   quoteAttention: 'Reprendre ce point d\'attention dans une remarque, au brouillon de revue',
   formeReadOnly: 'Lecture seule : la Forme se modifie à l\'étape Forme.',
@@ -116,7 +115,6 @@ const S: Record<VibeLang, typeof fr> = {
     commonTitle: 'The file\'s common code (outside the cases) changed since your verdict: read the case again',
     edges: 'Edge cases',
     guarantees: 'Guarantees',
-    warningHelp: 'Warning: the reviewer thinks this test does not really check what it claims (mock, loop, weak assertion…). It is not a failure: a lead for your review.',
     quote: 'A remark on this case, to the review draft',
     quoteAttention: 'Take this warning into a remark, to the review draft',
     formeReadOnly: 'Read only: the shape is changed in the Forme step.',
@@ -236,7 +234,7 @@ function ReviewInvariants(props: StepProps) {
       </StepHead>
       {wait?.kind === 'cases' ? <p className="vc-ihelp">{s.casesHere(wait.count)}</p> : null}
       {view.invariants.length ? <Summary p={total} files={view.invariants.length} s={s} /> : null}
-      {total.warnings ? <p className="vc-ihelp"><span><Icon name="warn" /></span>{s.warningHelp}</p> : null}
+      {total.warnings ? <p className="vc-ihelp"><span><Icon name="warn" /></span>{warningHelp(view.lang)}</p> : null}
       {align ? (
         <details className="vc-card vc-ialign" open>
           <summary className="vc-card-head">

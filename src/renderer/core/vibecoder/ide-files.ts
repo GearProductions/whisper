@@ -20,7 +20,8 @@
  *  plus à générer (moduleState 'wip' ou 'done') ; committed : ceux qui ont un commit et rien de pas commité
  *  (uncommitted). modules-view en fait une seule phrase (« 16 modules écrits · commités »).
  *  Le menu de diff n'a plus que deux références à l'écran du créateur, la base de la branche et la validation
- *  (ide-diff, qui n'offre plus le dernier commit) ; diffRefs et diffTree ne changent pas.
+ *  (useCreatorDiff, d'ide-diff ; useIdeDiff, celui du relecteur, offre toujours le dernier commit) ; diffRefs et diffTree
+ *  ne changent pas.
  *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (forme-view, modules-view, ide-view,
  *  invariants-view, ide-diff). */
 import type { VibeDiffStep, VibeGit, VibeLang, VibeModule, VibeTestFile, VibeView, VibeStep } from 'technicals/bridge';

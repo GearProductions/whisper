@@ -224,6 +224,27 @@ it('💬 sur un test, sous une règle comme dans les autres tests : son titre ci
   expect(prefills).toEqual([['comment', 'x'], ['comment', 'y']]);
 });
 
+it('sans l\'action 💬 au relevé : aucune bulle sur une règle non plus', async () => {
+  await draw({ mustNot: [inv(A)], comment: false });
+  expect(named('Citer cette règle dans le champ')).toEqual([]);
+});
+
+it('une lecture périmée (stale) : ni l\'ancien pseudo-code ni l\'ancien point d\'attention, « lecture périmée », Validé et À revoir grisés', async () => {
+  const f = file('a', ['x'], [reading('x', A, { pseudo: 'test "x":\n  expect(vieux).toBe(1)', warning: 'ancien mock' })], { staleCases: ['x'] });
+  await draw({ mustNot: [inv(A)], invariants: [f] });
+  const c = rules()[0].querySelector('.vc-rule-case')!;
+  expect(c.querySelector('.vc-pseudo')).toBeNull();
+  expect(c.querySelector('.vc-attention')).toBeNull();
+  expect(c.textContent).toContain('lecture périmée');
+  expect(verdicts(c).every((b) => b.disabled)).toBe(true);
+  // témoin : sans staleCases, la même lecture s'affiche, les verdicts sont actifs
+  await draw({ mustNot: [inv(A)], invariants: [file('a', ['x'], f.reading)] });
+  expect(rules()[0].querySelector('.vc-pseudo')).not.toBeNull();
+  expect(verdicts(rules()[0]).some((b) => b.disabled)).toBe(false);
+  await draw({ lang: 'en', mustNot: [inv(A)], invariants: [f] });
+  expect(rules()[0].textContent).toContain('outdated reading');
+});
+
 it('sans l\'action 💬 au relevé : aucune bulle sur un test', async () => {
   await draw({ mustNot: [inv(A)], invariants: [file('a', ['x'], [reading('x', A)])], comment: false });
   expect(named('Citer ce test dans le champ')).toEqual([]);

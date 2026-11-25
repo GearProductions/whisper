@@ -8,17 +8,18 @@
  *  ligne : un dernier groupe, « Autres tests ». Un test pas encore lu : son titre, « lecture en cours » (le moteur lance
  *  la lecture lui-même). Quel test garde quelle ligne : d'après l'alignement (la sortie liens.md, passée à ruleGroups),
  *  sinon la citation de sa lecture. 💬 sur une règle la cite dans le champ de la conversation (act.prefill('comment',
- *  la ligne)) ; 💬 sur un test cite son titre. Chaque test a Validé / À revoir (CaseVerdict, act.mark de sa cible
+ *  la ligne)) ; 💬 sur un test cite son titre ; l'un et l'autre seulement si l'action 💬 est au relevé. Chaque test a Validé / À revoir (CaseVerdict, act.mark de sa cible
  *  « case:<chemin>:<clé> ») : les notes de l'utilisateur sur ce qu'il a lu — Validé n'est jamais exigé, À revoir
  *  retient le moteur (journey) ; en tête, où il en est : « 10 tests · 6 validés · 1 à revoir · 3 à lire ».
  *  En tête, l'alignement (align.md) par FeedbackView : ses écarts [toi] en avant, les [agent] repliés avec leur nombre,
  *  rien quand tout est aligné.
  *  Aucun bouton d'action, ni Tout valider ni Rien à écrire, aucune barre, ni code ni éditeur ; sans ligne « → invariant » dans la note : une phrase, « La note ne demande aucun
  *  invariant ». L'en-tête d'étape (StepHead) est rendu par invariants-view.
- *  RulesView(p: StepProps): ReactNode ; Pseudo({ code }) : le pseudo-code coloré, et Attention({ text, lang, t,
- *  onOpenLink, children? }) : l'encart du point d'attention, repris par les cartes du relecteur
+ *  RulesView(p: StepProps): ReactNode ; Pseudo({ code }) : le pseudo-code coloré, Attention({ text, lang, t,
+ *  onOpenLink, children? }) : l'encart du point d'attention, repris par les cartes du relecteur, et warningHelp(lang) :
+ *  ce que veut dire « Attention », repris par sa ligne d'aide
  *  Ne connaît pas : le pont (rappels passés), le relecteur (invariants-view garde sa vue), le brouillon de revue.
- *  Utilisé par : invariants-view (RulesView ; Pseudo, Attention). */
+ *  Utilisé par : invariants-view (RulesView ; Pseudo, Attention, warningHelp). */
 import { useMemo, type ReactNode } from 'react';
 import { progress, pseudoLines, ruleGroups, type RuleCase, type RuleState, type Strings } from 'core/vibecoder';
 import type { VibeLang } from 'technicals/bridge';
@@ -35,6 +36,8 @@ const fr = {
   noTest: 'aucun test',
   others: 'Autres tests',
   reading: 'lecture en cours',
+  stale: 'lecture périmée',
+  staleOff: 'Lecture périmée : le test a changé depuis, il attend sa relecture avant d\'être validé',
   warning: 'Attention',
   warningHelp: 'Attention : le relecteur pense que ce test ne vérifie pas vraiment ce qu\'il annonce (mock, boucle, assertion faible…). Ce n\'est pas un échec : une piste pour votre relecture.',
   quote: 'Citer cette règle dans le champ',
@@ -49,6 +52,8 @@ const S: Record<VibeLang, typeof fr> = {
     noTest: 'no test',
     others: 'Other tests',
     reading: 'reading in progress',
+    stale: 'outdated reading',
+    staleOff: 'Outdated reading: the test changed since, it awaits a new reading before it can be approved',
     warning: 'Warning',
     warningHelp: 'Warning: the reviewer thinks this test does not really check what it claims (mock, loop, weak assertion…). It is not a failure: a lead for your review.',
     quote: 'Quote this rule in the field',
@@ -66,16 +71,16 @@ export function RulesView({ view, t, act }: StepProps): ReactNode {
   const seen = useMemo(() => progress(view.invariants), [view.invariants]);   // où l'utilisateur en est de sa lecture
   const quote = view.actions.some((a) => a.id === 'comment') ? (q: string) => act.prefill('comment', q) : undefined;
   const test = ({ file, index, view: c }: RuleCase) => {
-    const r = c.reading;
+    const r = c.stale ? null : c.reading;   // périmée : ni son pseudo-code ni son point d'attention, ils parlent de l'ancien bloc
     return (
       <article key={`${file.id}:${index}`} className="vc-rule-case">
         <div className="vc-rule-case-head">
           <h4>{c.title}</h4>
-          <CaseVerdict state={c.mark} lang={view.lang} onMark={(v) => act.mark(`case:${file.path}:${c.key ?? c.title}`, v)} />
+          <CaseVerdict state={c.mark} lang={view.lang} onMark={(v) => act.mark(`case:${file.path}:${c.key ?? c.title}`, v)} off={c.stale ? s.staleOff : undefined} />
           {quote ? <IconButton icon="comment" label={s.quoteTest} onClick={() => quote(c.title)} /> : null}
           <IconButton icon="open" label={t.openTitle} onClick={() => act.open(file.id, file.lines[index])} />
         </div>
-        {r ? <Pseudo code={r.pseudo} /> : <p className="vc-rule-reading">{s.reading}</p>}
+        {r ? <Pseudo code={r.pseudo} /> : <p className="vc-rule-reading">{c.stale ? s.stale : s.reading}</p>}
         {r?.warning ? <Attention text={r.warning} lang={view.lang} t={t} onOpenLink={act.openLink} /> : null}
       </article>
     );
@@ -90,7 +95,7 @@ export function RulesView({ view, t, act }: StepProps): ReactNode {
           <div className="vc-rule-head">
             <h3 className="vc-rule-line">{r.line}</h3>
             <span className="vc-rule-state">{s.state[r.state]}</span>
-            <IconButton icon="comment" label={s.quote} onClick={() => act.prefill('comment', r.line)} />
+            {quote ? <IconButton icon="comment" label={s.quote} onClick={() => quote(r.line)} /> : null}
           </div>
           {r.detail ? <p className="vc-rule-proof">{r.detail}</p> : null}
           {r.elsewhere.map((e) => <p key={`${e.path}:${e.title}`} className="vc-rule-elsewhere vc-mono">{e.path} · {e.title}</p>)}
@@ -106,6 +111,9 @@ export function RulesView({ view, t, act }: StepProps): ReactNode {
     </div>
   );
 }
+
+// Ce que veut dire « Attention » : l'infobulle de l'encart, et la ligne d'aide du relecteur (invariants-view).
+export const warningHelp = (lang: VibeLang): string => S[lang].warningHelp;
 
 // Le point d'attention d'un test (r.warning) : l'encart, son aide en infobulle ; children, à droite (le relecteur y met sa
 // citation) ; les cartes du relecteur (invariants-view) l'importent d'ici.

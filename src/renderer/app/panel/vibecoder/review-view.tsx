@@ -4,12 +4,12 @@
  *  en express (view.express). Après : une ligne par vérification en échec (failedChecks : son nom, la première ligne de
  *  son détail, son étiquette en badge), rien quand tout passe (un avertissement n'est pas un échec) ; checks.json
  *  illisible : la carte le dit, avec le fichier tel quel ; la ponytail review par FeedbackView (ses remarques [toi] en
- *  avant, les [agent] repliées avec leur nombre). Rien à dire : pas de carte. Aucun bouton : ni Lancer les vérifications,
+ *  avant, les [agent] repliées avec leur nombre, moins celles que la course apply a déjà appliquées : withoutApplied). Rien à dire : pas de carte. Aucun bouton : ni Lancer les vérifications,
  *  ni Relancer, ni Appliquer, ni case à cocher, ni 💬 ; plus de liste « Avant la PR » (le relevé porte toujours
  *  view.checklist, on ne la montre plus), plus de cartes vides. Le plan de test, s'il y en a un : EcranSection
  *  (« Relire à l'écran »). Le relecteur : inchangé (Relire à l'écran seul).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
-import { failedChecks, parseChecks, tagOf } from 'core/vibecoder';
+import { failedChecks, parseChecks, tagOf, withoutApplied } from 'core/vibecoder';
 import type { VibeLang } from 'technicals/bridge';
 import { FeedbackView } from './feedback-view';
 import { TagBadge } from './tag-badge';
@@ -40,7 +40,7 @@ function ReviewCard(p: StepProps) {
   const ponytail = view.outputs['ponytail.md'];
   const checks = checksOut ? parseChecks(checksOut.text) : null;
   const failed = checks ? failedChecks(checks) : [];
-  const feedback = ponytail ? FeedbackView({ md: ponytail.text, t, onOpenLink: act.openLink }) : null;   // appelée : null quand rien à dire
+  const feedback = ponytail ? FeedbackView({ md: withoutApplied(ponytail, view.outputs['ponytail-applied.json']), t, onOpenLink: act.openLink }) : null;   // appelée : null quand rien à dire
   const parts = [
     !checksOut && !ponytail ? <p key="wait" className="vc-revue-wait">{view.express ? s.waitExpress : s.waitDefault}</p> : null,
     checksOut && !checks ? <div key="bad"><div className="vc-checks-note">{s.unreadable}</div><pre className="vc-code">{checksOut.text}</pre></div> : null,

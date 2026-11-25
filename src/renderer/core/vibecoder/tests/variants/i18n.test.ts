@@ -126,12 +126,13 @@ describe('le contrôle en trois points', () => {
     expect([t('fr').express, t('en').express]).toEqual(['Express', 'Express']);
     expect([t('fr').vibeStop, t('en').vibeStop]).toEqual(['Arrêter', 'Stop']);
     for (const lang of ['fr', 'en'] as const) {
-      expect(Object.keys(t(lang).pause).sort()).toEqual(['invariants', 'modules', 'note', 'withdrawn:forme', 'withdrawn:invariants', 'withdrawn:modules']);
+      expect(Object.keys(t(lang).pause).sort()).toEqual(['note', 'withdrawn:forme', 'withdrawn:invariants', 'withdrawn:modules']);
       for (const text of [t(lang).expressTitle, t(lang).vibeStopTitle, ...Object.values(t(lang).pause)]) expect(text.length).toBeGreaterThan(10);
     }
-    // La note a perdu son ✓ : la ligne le dit ; aux deux autres pauses, ce qu'il y a à regarder.
+    // La note a perdu son ✓ : la ligne le dit ; aux deux pauses, ce qu'il y a à regarder (statusLine.pause).
     expect(t('fr').pause.note).toContain('note');
-    expect(t('en').pause.invariants).not.toBe(t('fr').pause.invariants);
+    expect(Object.keys(t('fr').statusLine.pause)).toEqual(['invariants', 'modules']);
+    expect(t('en').statusLine.pause.invariants).not.toBe(t('fr').statusLine.pause.invariants);
   });
 
   it('Arrêter, son infobulle et les lignes de pause : sans « Vibe », ni « Relancer » pour le moteur', () => {
@@ -141,10 +142,10 @@ describe('le contrôle en trois points', () => {
       expect(Object.keys(s)).not.toContain('restart');
     }
     // Chaque pause dit « puis reprenez » ; la note n'a rien à reprendre (elle attend sa validation).
-    expect(t('fr').pause.invariants).toMatch(/puis reprenez$/);
-    expect(t('fr').pause.modules).toMatch(/puis reprenez$/);
-    expect(t('en').pause.invariants).toMatch(/then resume$/);
-    expect(t('en').pause.modules).toMatch(/then resume$/);
+    expect(t('fr').statusLine.pause.invariants).toMatch(/puis reprenez$/);
+    expect(t('fr').statusLine.pause.modules).toMatch(/puis reprenez$/);
+    expect(t('en').statusLine.pause.invariants).toMatch(/then resume$/);
+    expect(t('en').statusLine.pause.modules).toMatch(/then resume$/);
   });
 
   it('un ✓ d\'étape retiré à la main : une ligne par étape, qui la nomme et dit de la modifier ou de la revalider, sans « puis reprenez »', () => {

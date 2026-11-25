@@ -128,9 +128,16 @@ describe('statusLine', () => {
     expect(statusLine(view('pr', { pr, outputs: ci('✓ tout passe') }))).toEqual({ text: 'La PR est verte : à vous de la fusionner', yours: true });
   });
 
-  it('la PR fusionnée : dite, rien n\'attend l\'utilisateur ; fermée : le moteur arrêté', () => {
+  it('la PR fusionnée : dite, rien n\'attend l\'utilisateur ; fermée sans être fusionnée : dite aussi, sans « reprenez »', () => {
     expect(statusLine(view('pr', { pr: { ...pr, state: 'MERGED' } }))).toEqual({ text: 'La PR est fusionnée', yours: false });
-    expect(statusLine(view('pr', { pr: { ...pr, state: 'CLOSED' } }))?.text).toBe('Le système est arrêté : reprenez');
+    expect(statusLine(view('pr', { pr: { ...pr, state: 'CLOSED' } }))).toEqual({ text: 'La PR est fermée, sans avoir été fusionnée', yours: false });
+    expect(statusLine(view('pr', { lang: 'en', pr: { ...pr, state: 'CLOSED' } }))?.text).toBe('The PR is closed, not merged');
+  });
+
+  it('une PR dont l\'état est inconnu (fiche d\'avant la 0.8.0-rc.2) : ouverte, comme pr-view', () => {
+    const unknown = { ...pr, state: null };
+    expect(statusLine(view('pr', { pr: unknown, outputs: ci('⏳ en cours') }))).toEqual({ text: 'La PR est ouverte, la CI tourne', yours: false });
+    expect(statusLine(view('pr', { pr: unknown, outputs: ci('✓ tout passe') }))?.text).toBe('La PR est verte : à vous de la fusionner');
   });
 
   it('l\'ordre : questions > note > ✓ retiré > moteur > pause > PR > arrêté', () => {

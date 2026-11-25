@@ -10,6 +10,9 @@
  *  son nom sans étiquette, dans l'ordre ; une première ligne sans aucune de ces marques : null (illisible, l'écran le dit).
  *  failedChecks(checks: Check[]): Check[] — celles de checks.json en échec (level 'error'), dans l'ordre ; un
  *  avertissement passe.
+ *  withoutApplied(ponytail: Out, applied?: Out): string — le texte de ponytail.md sans les remarques [agent] que la course
+ *  apply a appliquées (leur adresse dans ponytail-applied.json, avec leurs lignes de suite) ; le fichier plus vieux que
+ *  ponytail.md (une revue d'avant), absent ou illisible : le texte tel quel. Une remarque [toi] n'est jamais retirée.
  *  Ne connaît pas : le DOM, React, les noms des fichiers.
  *  Utilisé par : app/panel/vibecoder (review-view, branches-view, commits-view, draft-view, step-parts, pr-view) ;
  *  core/vibecoder (status-line : parseCi). */
@@ -119,6 +122,19 @@ export function commitReviews(md: string, commits: VibeCommit[]): { byHash: Map<
 // L'adresse « <fichier>:L<ligne> » qui ouvre une ligne de ponytail.md (entre accents graves ou non ; plage L12-38 permise) :
 // lue par untag (tags).
 export const ADDRESS = /^\s*`?([^\s`]+):L(\d+)(?:-\d+)?\b/;
+
+// ponytail.md sans les remarques [agent] déjà appliquées (voir l'en-tête).
+export function withoutApplied(ponytail: { text: string; time: number }, applied?: { text: string; time: number }): string {
+  const list = applied && applied.time >= ponytail.time ? (json(applied.text) as { applied?: unknown } | null | undefined)?.applied : null;
+  if (!Array.isArray(list)) return ponytail.text;
+  let dropping = false;
+  return ponytail.text.split('\n').filter((line) => {
+    const m = /^[-*]\s+`?([^\s`]+:L\d+(?:-\d+)?)`?\s+\[agent\]/.exec(line);
+    if (m) dropping = list.includes(m[1]);
+    else if (!/^\s+\S/.test(line)) dropping = false;
+    return !dropping;
+  }).join('\n');
+}
 
 // L'état de la CI d'après ci.md (voir l'en-tête) : l'ensemble, et le nom de chaque vérification en échec.
 export type Ci = { state: 'ok' | 'ko' | 'pending'; failed: string[] };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { commitReviews, commitTitle, failedChecks, parseChecks, parseCi, parseReview, sections, webUrl } from 'core/vibecoder';
+import { commitReviews, commitTitle, failedChecks, parseChecks, parseCi, parseReview, sections, webUrl, withoutApplied } from 'core/vibecoder';
 import type { VibeCommit } from 'technicals/bridge';
 
 describe('parseChecks', () => {
@@ -230,5 +230,30 @@ describe('failedChecks', () => {
   it('aucune : liste vide', () => {
     expect(failedChecks([])).toEqual([]);
     expect(failedChecks([c('a', 'warning')])).toEqual([]);
+  });
+});
+
+describe('withoutApplied', () => {
+  const md = '- `a.ts:L1` [agent] — un\n- a.ts:L2 [agent] — deux\n  suite de deux\n- `b.ts:L3` [toi] — trois\n- `c.ts:L4-9` [agent] — quatre\n\nnet : -2 lignes possibles.';
+  const ponytail = { text: md, time: 10 };
+  const applied = (list: string[], time = 10) => ({ text: JSON.stringify({ applied: list }), time });
+
+  it('une remarque [agent] dont l\'adresse est appliquée : retirée, avec ses lignes de suite ; les autres restent', () => {
+    expect(withoutApplied(ponytail, applied(['a.ts:L2', 'c.ts:L4-9']))).toBe('- `a.ts:L1` [agent] — un\n- `b.ts:L3` [toi] — trois\n\nnet : -2 lignes possibles.');
+  });
+
+  it('une remarque [toi] n\'est jamais retirée, même si son adresse est appliquée', () => {
+    expect(withoutApplied(ponytail, applied(['b.ts:L3']))).toBe(md);
+  });
+
+  it('un fichier plus vieux que ponytail.md, absent, illisible ou sans liste : rien n\'est retiré', () => {
+    expect(withoutApplied(ponytail, applied(['a.ts:L1'], 9))).toBe(md);
+    expect(withoutApplied(ponytail, undefined)).toBe(md);
+    expect(withoutApplied(ponytail, { text: '{pas du json', time: 11 })).toBe(md);
+    expect(withoutApplied(ponytail, { text: '{"applied":"a.ts:L1"}', time: 11 })).toBe(md);
+  });
+
+  it('un fichier aussi récent que ponytail.md compte', () => {
+    expect(withoutApplied(ponytail, applied(['a.ts:L1'], 10))).not.toContain('a.ts:L1');
   });
 });

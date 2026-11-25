@@ -469,8 +469,8 @@ it('créateur : aucun test ne s\'édite, aucun fichier n\'est suivi', async () =
   expect(saves).toEqual([]);
 });
 
-it('créateur : la ligne citée dans le champ, Ouvrir à la ligne du cas ; rien d\'envoyé', async () => {
-  extra = rulesNote();
+it('créateur : la ligne citée dans le champ (l\'action 💬 au relevé), Ouvrir à la ligne du cas ; rien d\'envoyé', async () => {
+  extra = { ...rulesNote(), actions: [read, { id: 'comment' }] } as unknown as Partial<VibeView>;
   await draw(link, 'create');
   await act(async () => page.querySelector<HTMLButtonElement>('.vc-rule-head button[aria-label="Citer cette règle dans le champ"]')!.click());
   expect(prefills).toEqual([['comment', 'Ne jamais écrire → invariant']]);

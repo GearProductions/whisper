@@ -8,7 +8,8 @@
  *  « 1 test à revoir : dites à l'agent quoi corriger ») ; un ✓ d'étape retiré à la main qui tient (la pause
  *  'withdrawn:<étape>' : la ligne nomme l'étape) ; le moteur en route (« Le système écrit les modules » : d'après la course en cours, sinon l'étape en
  *  cours) ; une pause (« Regardez vos règles, puis reprenez », « Essayez l'appli, puis reprenez ») ; la PR ouverte
- *  (« La PR est ouverte, la CI tourne », la CI en échec, « La PR est verte : à vous de la fusionner », fusionnée) ;
+ *  (« La PR est ouverte, la CI tourne », la CI en échec, « La PR est verte : à vous de la fusionner », fusionnée,
+ *  fermée sans être fusionnée : « La PR est fermée » ; un état inconnu vaut ouverte, comme pr-view) ;
  *  sinon le moteur arrêté hors d'une pause (« Le système est arrêté : reprenez »).
  *  yours : la ligne attend l'utilisateur (une question, la note, une pause, un ✓ retiré, la PR verte, le moteur
  *  arrêté) ; false : le système travaille. Le relecteur, ou un relevé en erreur : null (aucune ligne).
@@ -35,7 +36,7 @@ export function statusLine(view: VibeView): StatusLine | null {
   // un test noté « À revoir » retient le parcours à la pause de l'étape Invariants : la ligne dit combien, et à qui le dire
   const ko = pause === 'withdrawn:invariants' ? progress(view.invariants).ko : 0;
   if (ko) return yours(l.toReview(ko));
-  if (pause?.startsWith('withdrawn:')) return yours(s.pause[pause]);
+  if (pause?.startsWith('withdrawn:')) return yours(s.pause[pause as keyof typeof s.pause]);
   if (view.vibe) {
     const run = runningRuns(view.runs ?? [])[0];
     const step = view.steps.find((x) => x.status === 'current');
@@ -44,11 +45,12 @@ export function statusLine(view: VibeView): StatusLine | null {
     return { text: what, yours: false };
   }
   if (pause === 'invariants' || pause === 'modules') return yours(l.pause[pause]);
-  if (view.pr?.state === 'OPEN') {
+  if (view.pr && (!view.pr.state || view.pr.state === 'OPEN')) {   // état inconnu : ouverte, comme pr-view
     const ci = parseCi(view.outputs['ci.md']?.text ?? '');
     if (ci?.state === 'ok') return yours(l.green);
     return { text: ci?.state === 'ko' ? l.ciFailed : l.ciRunning, yours: false };
   }
   if (view.pr?.state === 'MERGED') return { text: l.merged, yours: false };
+  if (view.pr?.state === 'CLOSED') return { text: l.closed, yours: false };
   return yours(l.stopped);
 }

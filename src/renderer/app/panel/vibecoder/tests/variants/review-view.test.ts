@@ -106,6 +106,20 @@ it('quatre remarques [agent] : repliées, « 4 »', async () => {
   expect(fold.hasAttribute('open')).toBe(false);
 });
 
+it('des remarques [agent] déjà appliquées (ponytail-applied.json, pas plus vieux que ponytail.md) : retirées du compte', async () => {
+  const md = [1, 2, 3, 4].map((n) => `- \`a.ts:L${n}\` [agent] — remarque ${n}`).join('\n');
+  const applied = (list: string[], time: number) => out(JSON.stringify({ applied: list }), time);
+  await draw({ outputs: { 'checks.json': checks(pass), 'ponytail.md': out(md, 5), 'ponytail-applied.json': applied(['a.ts:L1', 'a.ts:L2'], 5) } });
+  expect(page.querySelector('details summary')!.textContent).toBe('2 pour l\'agent');
+  expect(page.querySelector('details')!.textContent).not.toContain('remarque 1');
+  // un fichier plus vieux que ponytail.md (une revue d'avant) : le compte entier
+  await draw({ outputs: { 'checks.json': checks(pass), 'ponytail.md': out(md, 5), 'ponytail-applied.json': applied(['a.ts:L1', 'a.ts:L2'], 4) } });
+  expect(page.querySelector('details summary')!.textContent).toBe('4 pour l\'agent');
+  // tout appliqué : plus de repli
+  await draw({ outputs: { 'checks.json': checks(pass), 'ponytail.md': out(md, 5), 'ponytail-applied.json': applied(['a.ts:L1', 'a.ts:L2', 'a.ts:L3', 'a.ts:L4'], 6) } });
+  expect(page.querySelector('details')).toBeNull();
+});
+
 it('la ponytail review seule, sans checks.json : montrée, sans ligne d\'attente', async () => {
   await draw({ outputs: { 'ponytail.md': out('- [toi] une question') } });
   expect(body()).toContain('une question');
