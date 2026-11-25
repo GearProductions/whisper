@@ -99,36 +99,28 @@ describe('stepContent', () => {
     expect(stepContent(b.view, {}, 'forme', b.blobs)!.files['docs/n.md']).not.toBe(stepContent(a.view, {}, 'forme', a.blobs)!.files['docs/n.md']);
   });
 
-  it('un cas sans ✓ : invariants null ; tous les cas ✓ : les fichiers de test', () => {
+  // Les verdicts des tests sont les notes de l'utilisateur (note 0.16.0-ecran-essentiel) : « Validé » n'est pas exigé, seul un
+  // test noté « À revoir » pour son contenu d'aujourd'hui laisse l'étape sans rien à valider.
+  it('aucun verdict exigé : les fichiers de test, avec ou sans ✓ ; un cas noté ✗ : null', () => {
     const { view, blobs } = build();
-    expect(stepContent(view, {}, 'invariants', blobs)).toBeNull();
-    expect(stepContent(view, markCase({}, view, T, 0), 'invariants', blobs)).toBeNull();
-    // un ✗ ne compte pas
-    expect(stepContent(view, markCase(casesOk({}, view), view, T, 1, 'ko'), 'invariants', blobs)).toBeNull();
-    const c = stepContent(view, casesOk({}, view), 'invariants', blobs)!;
+    const c = stepContent(view, {}, 'invariants', blobs)!;
     expect(c.files).toEqual({ [T]: blobSha('test A') });
     expect(c.hash).toBe(blobSha(`${blobSha('test A')} ${T}`));
+    expect(stepContent(view, markCase({}, view, T, 0), 'invariants', blobs)).toEqual(c);
+    expect(stepContent(view, casesOk({}, view), 'invariants', blobs)).toEqual(c);
+    expect(stepContent(view, markCase(casesOk({}, view), view, T, 1, 'ko'), 'invariants', blobs)).toBeNull();
+    expect(stepContent(view, markCase({}, view, T, 1, 'ko'), 'invariants', blobs)).toBeNull();
   });
 
-  it('tous les cas ✓ pour leur bloc : la liste ; un cas au bloc changé depuis son ✓ : null', () => {
-    const marks = casesOk({}, build().view);
-    const changed = build({ tests: { [T]: { source: 'test A', cases: ['c1', 'c2'], blocks: [blobSha('bloc c1'), blobSha('bloc c2 modifié')] } } });
-    expect(stepContent(changed.view, marks, 'invariants', changed.blobs)).toBeNull();
-    // le bloc d'un autre cas changé : tant que le sien tient, il reste ✓, mais pas « tous »
-    const first = build({ tests: { [T]: { source: 'test A', cases: ['c1', 'c2'], blocks: [blobSha('bloc c1 modifié'), blobSha('bloc c2')] } } });
-    expect(stepContent(first.view, marks, 'invariants', first.blobs)).toBeNull();
-    // le fichier peut changer (source) sans toucher aux blocs : les ✓ tiennent
-    const src = build({ tests: { [T]: { source: 'test A, un commentaire en plus', cases: ['c1', 'c2'] } } });
-    expect(stepContent(src.view, marks, 'invariants', src.blobs)).not.toBeNull();
-  });
-
-  it('le code commun du fichier changé depuis les ✓ : null ; une marque sans common (d’avant) : null', () => {
-    const marks = casesOk({}, build().view);
+  it('un ✗ donné pour un bloc ou un code commun changés depuis ne compte plus : les fichiers de test', () => {
+    const ko = markCase({}, build().view, T, 1, 'ko');
+    const block = build({ tests: { [T]: { source: 'test A', cases: ['c1', 'c2'], blocks: [blobSha('bloc c1'), blobSha('bloc c2 modifié')] } } });
+    expect(stepContent(block.view, ko, 'invariants', block.blobs)).not.toBeNull();
     const common = build({ tests: { [T]: { source: 'test A', cases: ['c1', 'c2'], common: 'autre commun' } } });
-    expect(stepContent(common.view, marks, 'invariants', common.blobs)).toBeNull();
-    const { view, blobs } = build();
-    const old = Object.fromEntries(Object.entries(marks).map(([k, m]) => [k, { hash: m.hash, verdict: m.verdict }]));
-    expect(stepContent(view, old, 'invariants', blobs)).toBeNull();
+    expect(stepContent(common.view, ko, 'invariants', common.blobs)).not.toBeNull();
+    // le bloc d'un autre cas changé : le ✗ du sien tient
+    const first = build({ tests: { [T]: { source: 'test A', cases: ['c1', 'c2'], blocks: [blobSha('bloc c1 modifié'), blobSha('bloc c2')] } } });
+    expect(stepContent(first.view, ko, 'invariants', first.blobs)).toBeNull();
   });
 
   it('un fichier sans hashes : null, même avec des marques de cas', () => {
@@ -138,21 +130,19 @@ describe('stepContent', () => {
     expect(stepContent(bare.view, marks, 'invariants', bare.blobs)).toBeNull();
   });
 
-  it('titres en double : chaque cas a sa clé, un seul ✓ ne suffit pas', () => {
+  it('titres en double : chaque cas a sa clé, le ✗ du second seul suffit à tout refuser', () => {
     const tests = { [T]: { source: 'test A', cases: ['dup', 'dup'] } };
     const { view, blobs } = build({ tests });
-    expect(stepContent(view, markCase({}, view, T, 0), 'invariants', blobs)).toBeNull();
-    expect(stepContent(view, markCase({}, view, T, 1), 'invariants', blobs)).toBeNull();
-    expect(stepContent(view, markCase(markCase({}, view, T, 0), view, T, 1), 'invariants', blobs)).not.toBeNull();
+    expect(stepContent(view, markCase({}, view, T, 0), 'invariants', blobs)).not.toBeNull();
+    expect(stepContent(view, markCase({}, view, T, 1, 'ko'), 'invariants', blobs)).toBeNull();
+    expect(stepContent(view, markCase(markCase({}, view, T, 0), view, T, 1, 'ko'), 'invariants', blobs)).toBeNull();
   });
 
-  it('plusieurs fichiers : un cas sans ✓ dans l’un suffit à tout refuser', () => {
+  it('plusieurs fichiers : la liste de tous ; un cas noté ✗ dans l’un suffit à tout refuser', () => {
     const T2 = 'src/b/tests/invariants/b.test.ts';
     const { view, blobs } = build({ tests: { [T]: { source: 'test A', cases: ['c1'] }, [T2]: { source: 'test B', cases: ['d1', 'd2'] } } });
-    const m = markCase(markCase(markCase({}, view, T, 0), view, T2, 0), view, T2, 1);
-    expect(Object.keys(stepContent(view, m, 'invariants', blobs)!.files).sort()).toEqual([T, T2]);
-    const { [caseTarget(T2, 'd2')]: _, ...partial } = m;
-    expect(stepContent(view, partial, 'invariants', blobs)).toBeNull();
+    expect(Object.keys(stepContent(view, {}, 'invariants', blobs)!.files).sort()).toEqual([T, T2]);
+    expect(stepContent(view, markCase({}, view, T2, 1, 'ko'), 'invariants', blobs)).toBeNull();
   });
 
   it('aucun test ni ligne « → invariant » : contenu vide même sans ✓ Rien à écrire, et la cascade jusqu’aux modules est acceptée', () => {
@@ -187,9 +177,9 @@ describe('stepContent', () => {
     // la note changée depuis le ✓ Rien à écrire : plus rien
     const other = build({ tests: {}, mustNot: '- x → invariant', does: 'il fait B' });
     expect(stepContent(other.view, nothing, 'invariants', other.blobs)).toBeNull();
-    // avec un test, le ✓ Rien à écrire ne dispense pas des cas
+    // avec un test, le ✓ Rien à écrire ne change rien : les fichiers de test
     const withTest = build();
-    expect(stepContent(withTest.view, setMark({}, 'nothing', blobSha(withTest.view.note!.text), 'ok'), 'invariants', withTest.blobs)).toBeNull();
+    expect(stepContent(withTest.view, setMark({}, 'nothing', blobSha(withTest.view.note!.text), 'ok'), 'invariants', withTest.blobs)!.files).toEqual({ [T]: blobSha('test A') });
   });
 
   it('sans note : tout est null ; sans module : les modules null', () => {
@@ -317,8 +307,8 @@ describe('stepChecks', () => {
   it('une étape validée dont le contenu est devenu null : changed', () => {
     const m = validate({}, {});
     const { view, blobs } = build();
-    // un cas perd son ✓ : les invariants n'ont plus rien à valider
-    const c = stepChecks(m, contentsOf(view, {}, blobs));
+    // un cas noté « À revoir » : les invariants n'ont plus rien à valider
+    const c = stepChecks(m, contentsOf(view, markCase({}, view, T, 0, 'ko'), blobs));
     expect(c.invariants.state).toBe('changed');
     expect(c.invariants.now).toBeNull();
     expect(c.modules.state).toBe('cascade');
@@ -374,7 +364,7 @@ describe('validateStep', () => {
 
   it('rien à valider (contenu null) : refusé', () => {
     const { view, blobs } = build();
-    const m = validate({}, {}, ['note', 'forme']);
+    const m = markCase(validate({}, {}, ['note', 'forme']), view, T, 0, 'ko');   // un test noté « À revoir »
     expect(validateStep(m, contentsOf(view, m, blobs), 'invariants', 'ok')).toBeNull();
     expect(validateStep({}, {}, 'note', 'ok')).toBeNull();
     const none = build({ noNote: true });

@@ -1904,12 +1904,13 @@ describe('les cas un par un', () => {
 
   it('le cas retouché : l\'étape Invariants décochée', () => {
     const base = { note, repo: repo([], [FIRST]) };
-    const state = (marks: Marks, text: string, blobs = []) => ({ ...base, tests: [at(text)], marks, blobs });
+    // l'empreinte du fichier sur le disque : ce que valide l'étape (les verdicts des cas n'y comptent plus)
+    const state = (marks: Marks, text: string) => ({ ...base, tests: [at(text)], marks, blobs: [{ path: TEST_PATH, disk: blobSha(text), head: null }] });
     let marks: Marks = { ...NOTE_OK, ...casesOk(SRC) };
     for (const s of ['invariants'] as const) {
       const over = state(marks, SRC);
       const v = vibeView(input(over));
-      const contents = Object.fromEntries(CHECKED.map((c) => [c, stepContent(v, marks, c, [])]));
+      const contents = Object.fromEntries(CHECKED.map((c) => [c, stepContent(v, marks, c, over.blobs)]));
       marks = validateStep(marks, contents, s, 'ok')!;
     }
     expect(vibeView(input(state(marks, SRC))).steps.find((s) => s.id === 'invariants')?.check?.state).toBe('ok');
@@ -2304,6 +2305,44 @@ describe('le contrôle en trois points (0.16.0)', () => {
       for (const s of ['forme', 'invariants'] as const) {
         expect(build({ ...FIRST_ONLY, marks: without([s], FIRST_ONLY) }).pause).toBe(`withdrawn:${s}`);
       }
+    });
+
+    // Après l'essai sur gt-plugins (0.16.0-ecran-essentiel, 25 novembre) : un test écrit ou réécrit après le premier regard
+    // (une correction, l'alignement d'une preuve) ramène la pause après les invariants, à tout moment du parcours.
+    describe('les tests changés après leur validation', () => {
+      const VALID = (['forme', 'invariants'] as const).reduce((marks: Marks, s) => {
+        const v = build({ marks });
+        return validateStep(marks, stepContents({ note: v.note, invariants: v.invariants, modules: v.modules, changed: ALL.changed }, marks, BLOBS), s, 'ok')!;
+      }, MARKED);
+      const EDITED = BLOBS.map((b) => (b.path === TEST_PATH ? { ...b, disk: blobSha('le test réécrit') } : b));
+      const checkOf = (v: VibeView) => v.steps.find((x) => x.id === 'invariants')?.check?.state;
+
+      it('au rythme par défaut, lus : la pause après les invariants revient, les modules faits ou seulement le premier commit ; Reprendre proposé', () => {
+        // témoin : rien de changé, la pause après les modules
+        expect([checkOf(build({ marks: VALID })), build({ marks: VALID }).pause]).toEqual(['ok', 'modules']);
+        for (const over of [{}, FIRST_ONLY]) {
+          const v = build({ ...over, marks: VALID, blobs: EDITED });
+          expect([checkOf(v), v.pause]).toEqual(['changed', 'invariants']);
+          expect(action(v, 'vibe')).toMatchObject({ hidden: false });
+        }
+      });
+
+      it('pas encore lus (la lecture en pseudo-code d\'abord) : pas de pause', () => {
+        expect(build({ marks: VALID, blobs: EDITED, readings: [] }).pause ?? null).not.toBe('invariants');
+      });
+
+      it('en express : pas de pause (le système revalide)', () => {
+        expect(build({ marks: VALID, blobs: EDITED, express: true }).pause).toBe('modules');
+      });
+
+      it('jamais validés (avant le tout premier regard, le premier commit fait) : pas cette pause', () => {
+        expect(build({ marks: MARKED, blobs: EDITED }).pause).toBe('modules');
+      });
+
+      it('un test noté « À revoir » en plus : sa pause passe devant', () => {
+        const ko = { ...VALID, [caseTarget(TEST_PATH, 'dit bonjour')]: { ...CASES_OK[caseTarget(TEST_PATH, 'dit bonjour')], verdict: 'ko' as const } };
+        expect(build({ marks: ko, blobs: EDITED }).pause).toBe('withdrawn:invariants');
+      });
     });
 
     // Après l'essai (0.16.0-ecran-essentiel) : un test noté « À revoir » par l'utilisateur retient le moteur, comme un ✓ retiré.

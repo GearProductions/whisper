@@ -106,6 +106,15 @@ describe('statusLine', () => {
     expect(statusLine(view('revue', { pause: 'modules' }))).toEqual({ text: 'Essayez l\'appli, puis reprenez', yours: true });
   });
 
+  it('la pause après les invariants revenue (des tests changés depuis leur validation) : elle le dit', () => {
+    const v = view('modules', { pause: 'invariants' });
+    const changed = { ...v, steps: v.steps.map((x) => (x.id === 'invariants' ? { ...x, check: { state: 'changed' as const, now: 'h' } } : x)) };
+    expect(statusLine(changed)).toEqual({ text: 'Des tests ont changé : regardez vos règles, puis reprenez', yours: true });
+    expect(statusLine({ ...changed, lang: 'en' })?.text).toBe('Some tests changed: look at your rules, then resume');
+    // témoin : la première fois (jamais validés), la ligne d'avant
+    expect(statusLine(v)?.text).toBe('Regardez vos règles, puis reprenez');
+  });
+
   it('le moteur arrêté hors d\'une pause : il est arrêté, reprenez', () => {
     expect(statusLine(view('modules'))).toEqual({ text: 'Le système est arrêté : reprenez', yours: true });
   });

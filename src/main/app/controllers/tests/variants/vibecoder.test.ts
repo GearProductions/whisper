@@ -2727,11 +2727,11 @@ describe('0.15.0 : valider une étape, retenir sa liste et ses fichiers', () => 
     expect(await states()).toEqual(['ok', 'ok', 'ok', 'ok']);
   });
 
-  it('les invariants faits (0.16.0) : le système donne son ✓ à chaque cas et à l’étape, « système » ; un Valider à la main ne change rien', async () => {
+  it('les invariants faits (0.16.0) : le système donne son ✓ à l’étape, « système », jamais à un cas (les verdicts sont à l’utilisateur) ; un Valider à la main ne change rien', async () => {
     await open();
     await toForme();
     expect((await marks()).invariants).toMatchObject({ verdict: 'ok', by: 'system' });
-    expect(Object.keys(await marks())).toContain(CASE);
+    expect(Object.keys(await marks())).not.toContain(CASE);
     const before = await marks();
     (await controllers()).markVibe('invariants', 'ok');
     await settle();

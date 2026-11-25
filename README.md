@@ -869,7 +869,11 @@ relire une PR (le relecteur, plus bas) :
    base de la branche », *En ligne* · *Côte à côte*) ; la validation d'un cas porte sur son
    bloc (retoucher un cas ne décoche que lui, retoucher le code commun du fichier les
    décoche tous). Le système valide
-   l'étape du créateur (« alignement avec la note »). Le premier commit (*Préparer le commit* puis le commit : un fichier
+   l'étape du créateur (« alignement avec la note ») ; il ne pose jamais *Validé* ni
+   *À revoir* sur un test : ces verdicts sont vos notes. Si un test est écrit ou
+   réécrit plus tard (une correction, par exemple), la pause revient au rythme par
+   défaut — « Des tests ont changé : regardez vos règles, puis reprenez » — et rien
+   ne se valide ni ne se commite côté modules avant votre *Reprendre*. Le premier commit (*Préparer le commit* puis le commit : un fichier
    déjà porté par un commit de la branche : un fixup, sauf PR ouverte, où il va
    dans un nouveau commit qui dit pourquoi ; en historique simple, toujours un
    commit ordinaire) est fait par le moteur ou l'agent.

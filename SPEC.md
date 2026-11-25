@@ -2906,11 +2906,24 @@ texte exact d'une réponse « Accepter » choisie (F-100) ; l'appli le constate
 elle-même à chaque relevé, la marque suit alors la nouvelle conception ; tout autre
 changement : la marque ne bouge pas, « modifiée depuis ».
 **Les validations du système** (0.16.0) : à chaque relevé du créateur, le moteur en
-marche ou non, chaque étape faite — la forme, chaque cas des invariants (sans
+marche ou non, chaque étape faite — la forme, les invariants (sans
 test : ✓ *Rien à écrire*), jamais la note — reçoit un ✓ pour son contenu
 d'aujourd'hui, comme un clic mais marqué posé **par le système** (`by: 'system'`) ;
 un ✓ ou ✗ déjà donné pour ce contenu reste, sans « système » s'il l'a été à la
-main. Une étape dont l'étape d'avant n'est pas validée : rien. Les modules, eux,
+main. **Aucun verdict de test** n'est posé ni retiré par le système : *Validé* /
+*À revoir* sont les notes de l'utilisateur ; l'étape Invariants se valide sans
+qu'aucun test soit *Validé*, et pas tant qu'un test est *À revoir*. **Des tests
+changés après leur validation** (une correction écrit ou réécrit un test,
+l'alignement en corrige un après la preuve) : au rythme par défaut le système ne
+les revalide pas, le parcours revient à la pause après les invariants (tests lus ;
+« Des tests ont changé : regardez vos règles, puis reprenez »), à tout moment du
+parcours, et les modules ne se valident pas d'ici là ; *Reprendre* vaut
+« d'accord » et les valide. En express : revalidés par le système, sans pause.
+**À la pause après les invariants**, tenue, le moteur en route ou non : la
+porte agent refuse (`halted`) de lancer une action des étapes Modules, Revue ou
+PR (le premier commit, les modules, la preuve, la revue, la PR) — un agent qui
+corrige dans la conversation ne passe pas devant l'utilisateur ; la Forme, les
+invariants, leur alignement et leur lecture restent lançables. Une étape dont l'étape d'avant n'est pas validée : rien. Les modules, eux,
 ne le sont que par la CLI (`step.validate`, F-116), et seulement une fois la preuve
 passée (F-100, I-66). L'écran dit par qui une étape est validée : « validée par
 le système » et son contrôle (squelettes posés, alignement avec la note,
@@ -3070,6 +3083,8 @@ que par leurs pauses :
   la ligne d'état, le bouton du moteur dit *Reprendre* et la ligne dit quoi regarder
   (« Regardez vos règles, puis reprenez », « Essayez l'appli, puis reprenez ») ;
   repris, la pause d'où l'on part n'est plus tenue, la suivante l'est de nouveau.
+  La pause après les invariants revient chaque fois que leurs tests changent
+  après ce premier regard (voir « Les validations du système »).
 - **Le mode express, à tout moment** : l'interrupteur *Express* du fil d'Ariane
   (créateur ; éteint par défaut ; présent note pas validée comme pendant que le système enchaîne),
   réglé par l'écran (`VibePatch.express`, sans canal de plus), **en mémoire**,

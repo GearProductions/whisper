@@ -107,7 +107,10 @@
  *    d'invariants prêts (alignés ou chaque cas validé à la main ; sans ligne « → invariant », rien à attendre) et lus,
  *    rien de commité ni de commit préparé (commit.md : le moteur a été repris, le premier commit est en route), aucun
  *    module commencé — l'utilisateur regarde ses règles avant que quoi que ce soit soit commité, et le premier commit
- *    part une fois le moteur repris ; le premier commit fait : plus cette pause ;
+ *    part une fois le moteur repris ; le premier commit fait : plus cette pause — sauf quand les tests changent après ce
+ *    premier regard (l'étape Invariants validée pour un autre contenu, 'changed' : une correction, un test que
+ *    l'alignement corrige après la preuve) : 'invariants' revient, tests lus, à tout moment du parcours, jusqu'à ce que
+ *    l'utilisateur reprenne (vibeMarks de marks les valide alors) ; en express (input.express) non : le système revalide ;
  *    'modules', l'étape Modules faite, la Revue pas commencée (ni vérifications ni ponytail review) ; sinon
  *    null ; le relecteur : toujours null ; express (recopié de l'entrée) n'y change rien, c'est holdsPause de vibe-mode
  *    qui tranche ; done et next ne dépendent pas du retrait (l'étape reste faite, ses actions à la main restent) ;
@@ -569,10 +572,14 @@ export function vibeView(input: JourneyInput): VibeView {
     const refused = (['forme', 'invariants', 'modules'] as const).find((s) => heldBack(s) || (s === 'invariants' && toReview));
     // Un test de la branche pas lu, ou sa lecture périmée : Lire en pseudo-code attend, avant le premier commit ; la pause aussi.
     const unread = invLines && readCount < caseCount;
+    // Les tests changés après ce premier regard (l'étape Invariants validée pour un autre contenu : 'changed') : la pause
+    // revient, à tout moment du parcours, tests lus — une correction qui écrit ou réécrit un test ne passe pas sans que
+    // l'utilisateur l'ait vu (Reprendre vaut « d'accord » : vibeMarks revalide alors). En express : le système revalide, pas de pause.
+    const relook = !input.express && invariants.length > 0 && !!contents?.invariants && stepCheck?.invariants.state === 'changed';
     pause = !note ? null
       : first && !stillOk(note.mark) ? 'note'
         : refused ? `withdrawn:${refused}`
-          : ready && !first && !begun && !unread && !commitMd ? 'invariants'
+          : ready && !unread && ((!first && !begun && !commitMd) || relook) ? 'invariants'
             : done.modules && !checks && !ponytail && !pr ? 'modules'
               : null;
     next = {

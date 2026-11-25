@@ -683,6 +683,97 @@ describe('les validations du système', () => {
   });
 });
 
+// Après l'essai sur gt-plugins (25 novembre, note 0.16.0-ecran-essentiel) : le système ne pose aucun verdict de test, et un
+// test d'invariant réécrit après le premier regard ramène la pause après les invariants.
+describe('les tests d’invariants changés après leur validation', () => {
+  const REWRITTEN = INV_TEXT.replace('() => {}', '() => { /* réécrit par une correction */ }');
+  // La lecture en pseudo-code d'un texte du test (la pause attend que tout soit lu).
+  async function read(text: string) {
+    const { blobSha } = await import('core/vibecoder');
+    write(path.join(out, 'invariants', `${blobSha(text)}.md`), `# ${INV}\n## ne lit rien d’autre\n\nrien d’autre n’est lu\n`);
+  }
+  // Les invariants validés par le système (alignés, lus, commités), le moteur en route.
+  async function validated(express = false) {
+    setupWithProof();
+    write(path.join(out, 'align.md'), 'Aligné.\n');
+    await read(INV_TEXT);
+    await openPanel('a1');
+    if (express) await setExpress(true);
+    await validateNote();
+    await survey();
+    expect(checkOf('invariants')).toMatchObject({ state: 'ok', by: 'system' });   // témoin
+  }
+  async function rewrite() {
+    write(path.join(dir, INV), REWRITTEN);
+    await read(REWRITTEN);
+    await survey();
+    await survey();
+  }
+
+  it('aucun verdict de test n’est posé par le système : « Validé » reste à l’utilisateur', async () => {
+    await validated();
+    await survey();
+
+    expect(view().invariants.flatMap((f) => Object.values(f.marks))).toEqual([null]);
+  });
+
+  it('au rythme par défaut : la pause après les invariants revient, le moteur arrêté, les modules pas validables ; Reprendre : validés, la pause levée', async () => {
+    await validated();
+    expect(await halted()).toBe(false);   // témoin : le moteur enchaîne
+
+    await rewrite();
+
+    expect(checkOf('invariants')?.state).toBe('changed');
+    expect(view().pause).toBe('invariants');
+    expect(await halted()).toBe(true);
+    expect(await ask('run.start', { action: 'ponytail' })).toMatchObject({ ok: false, error: { code: 'halted' } });
+    expect(await ask('step.validate', { step: 'modules', verdict: 'ok' })).toMatchObject({ ok: false });
+    await survey();
+    expect(checkOf('invariants')?.state).toBe('changed');   // aucun relevé ne les revalide
+
+    await endEngine();
+    await click('vibe');
+    await settle();
+    await survey();
+    await survey();
+
+    expect(checkOf('invariants')?.state).toBe('ok');
+    expect(view().pause ?? null).not.toBe('invariants');
+    expect(await halted()).toBe(false);
+    expect(vibeTurns()).toHaveLength(2);
+  });
+
+  it('le moteur au repos (une correction dans la conversation) : à cette pause, l’agent ne lance pas ce qui bâtit sur les tests ; les invariants restent lançables ; Reprendre : la demande passe', async () => {
+    await validated();
+    await endEngine();   // son tour fini : hors Vibe
+    await rewrite();
+    expect(view().pause).toBe('invariants');
+    expect(await halted()).toBe(false);   // témoin : ce n'est pas le moteur arrêté qui refuse
+
+    for (const action of ['modules', 'commit-prepare', 'prove', 'checks']) {
+      expect(await ask('run.start', { action })).toMatchObject({ ok: false, error: { code: 'halted' } });
+    }
+    expect(claude.turns.map((t) => t.skill)).not.toContain('/vibecoder:modules');
+    expect(await ask('run.start', { action: 'read-invariants' })).not.toMatchObject({ error: { code: 'halted' } });   // elle finit aussitôt
+    await survey();
+
+    await click('vibe');
+    await settle();
+    await survey();
+    expect(await ask('run.start', { action: 'ponytail' })).toMatchObject({ ok: true });
+  });
+
+  it('en express : pas de pause, le système les revalide, le moteur enchaîne', async () => {
+    await validated(true);
+
+    await rewrite();
+
+    expect(checkOf('invariants')).toMatchObject({ state: 'ok', by: 'system' });
+    expect(view().pause ?? null).not.toBe('invariants');
+    expect(await halted()).toBe(false);
+  });
+});
+
 describe('une validation d’étape retirée à la main : la pause sur l’étape', () => {
   // Le moteur au travail (relancé à la pause des invariants, ou en express), puis la validation de la Forme retirée à la main.
   async function engineThenRetired(express: boolean) {

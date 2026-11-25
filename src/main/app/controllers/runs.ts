@@ -51,7 +51,8 @@
  *  (holdsPause de core/vibecoder : rythme, pause relancée) → arrêté comme par le bouton Arrêter du moteur (vibeStop : la file jetée,
  *  la porte agent refuse halted, la course en cours finit) ; rien d'autre ne tient une pause. La pause d'un ✓ d'étape
  *  retiré à la main ('withdrawn:<étape>') passe par là comme celle de la note sans son ✓ : tenue en express aussi,
- *  relancée ou pas, sans mécanisme de plus. stoppedByNote(agentId) : le moteur enchaînait quand la pause de la note l'a
+ *  relancée ou pas, sans mécanisme de plus. releasedPause(agentId) : la pause d'où l'utilisateur vient de reprendre, tant
+ *  que le relevé s'y tient (controllers/vibecoder : Reprendre à la pause après les invariants les valide). stoppedByNote(agentId) : le moteur enchaînait quand la pause de la note l'a
  *  arrêté, et le parcours s'y tient encore (oublié dès que le relevé en sort, ou que le moteur repart) : Valider la note le
  *  relance alors (controllers/vibecoder) ; arrêté avant, non. Le rythme n'est jamais
  *  écrit dans les réglages : l'appli relancée, chaque agent est au rythme par défaut.
@@ -487,6 +488,16 @@ export function vibeStart(agent: Pick<AgentConfig, 'id'>, released?: VibePause |
   noteStops.delete(agent.id);
   if (released) relaunched.set(agent.id, released); else relaunched.delete(agent.id);
 }
+
+// La pause après les invariants tenue pour ce relevé (le rythme par défaut, pas celle d'où l'utilisateur vient de reprendre),
+// le moteur en route ou non : à la porte agent, les actions qui bâtissent sur les tests (étapes Modules, Revue, PR : le
+// premier commit, les modules, la preuve, la revue, la PR) sont refusées halted (controllers/commands) — un agent qui
+// corrige dans la conversation ne passe pas devant l'utilisateur ; la Forme, les invariants, leur alignement et leur lecture restent lançables.
+export const holdsInvariants = (agentId: string, view: Pick<VibeView, 'pause'> | null): boolean =>
+  view?.pause === 'invariants' && holdsPause({ at: 'invariants', express: expressOn(agentId), released: relaunched.get(agentId) ?? null });
+
+// La pause d'où l'utilisateur vient de relancer le moteur (Reprendre), tant que le relevé s'y tient ; null : aucune.
+export const releasedPause = (agentId: string): VibePause | null => relaunched.get(agentId) ?? null;
 
 // Le rythme express de l'agent (aucune pause) ; non : le rythme par défaut.
 export const expressOn = (agentId: string) => express.has(agentId);

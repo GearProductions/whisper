@@ -195,7 +195,9 @@
  *    l'envoi des réponses (answers), les textes « Accepter » choisis sont gardés en mémoire (acceptedTexts, d'après les
  *    questions du dernier relevé) ; au relevé, la note changée garde son ✓ par keepNote seulement (sa conception retenue,
  *    ces textes), sinon il tombe ; aucun autre chemin ne valide la note à la place de l'utilisateur ;
- *  - les validations du système : vibeMarks à chaque relevé du créateur (plus seulement pendant Vibe) ; step.validate
+ *  - les validations du système : vibeMarks à chaque relevé du créateur (plus seulement pendant Vibe), jamais le verdict
+ *    d'un test (les notes de l'utilisateur) ; des tests changés après leur validation : pas revalidés au rythme par défaut,
+ *    la pause 'invariants' revient (journey) et Reprendre à cette pause les valide (releasedPause de controllers/runs) ; step.validate
  *    (validateVibe) pose by: 'system', et refuse les modules (not-offered) tant que la preuve du dernier relevé
  *    (view.proof) n'est ni 'ok' ni 'none' ; le ✓ de l'écran (markVibe) reste à la main, sans by ; une validation retirée
  *    (markVibe ou step.validate, verdict null) tient pour ce contenu : le retrait est rangé dans les marques de l'agent
@@ -247,7 +249,7 @@ import { copyArtifacts, duplicateArtifacts, moveArtifacts, newArtifact, renameAr
 import { prepareMessage } from './conversation';
 import { createWorktree } from './recipe';
 import { SOCKET_DOWN, screenSend, socketDown } from './socket';
-import { expressOn, lockingRuns, pauseVibe, viewLocks, queueStart, queuedOf, releaseWaits, runsOf, runsTab, setExpress, skillMd, startRun, stoppedByNote, vibeOn, vibeStart, vibeStop } from './runs';
+import { expressOn, lockingRuns, pauseVibe, viewLocks, queueStart, queuedOf, releaseWaits, releasedPause, runsOf, runsTab, setExpress, skillMd, startRun, stoppedByNote, vibeOn, vibeStart, vibeStop } from './runs';
 import { openChild, prWorktreeReady, removeWorktreeChild, showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
 
 const VIBE_MS = 4000;          // le relevé régulier, panneau visible
@@ -825,7 +827,8 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   // jamais la note ; ni une étape dont la validation a été retirée à la main pour ce contenu, ni celles qui la suivent (withdrawn).
   {
     const marks = store.marks[agent.id] || {};
-    const next = vibeMarks(marks, journey, blobs);
+    // Reprendre à la pause après les invariants vaut « d'accord » : leurs tests d'aujourd'hui validés (vibeMarks, resumed).
+    const next = vibeMarks(marks, journey, blobs, releasedPause(agent.id) === 'invariants');
     if (next !== marks) {
       const contents = stepContents(journey, next, blobs);
       for (const step of CHECKED) if (next[step] !== marks[step] && contents[step]) retain(agent, step, contents[step]!);

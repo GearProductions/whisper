@@ -1,7 +1,7 @@
 /** step-checks — la validation de chaque étape et sa cascade (note 0.15.0-ecran-statuts) : ce que valide
  *  une étape aujourd'hui (stepContent, et stepContents pour les quatre : la note, sa conception, noteDesign ; la Forme, la
  *  section Forme de la note, et, retenus pour le diff, la note et les fichiers des modules ; les invariants, les fichiers de test,
- *  chaque cas ✓ pour son bloc et le code commun de son fichier (caseMarkState de case-marks), aucun sans test ni
+ *  aucun cas noté ✗ (« À revoir ») pour son bloc et le code commun de son fichier (caseMarkState de case-marks ; « Validé » n'est pas exigé), aucun sans test ni
  *  ligne « → invariant » ; les modules,
  *  tout ce que la branche change d'après git — changed, ou view.files — plus les fichiers des modules, hors la note
  *  et les tests d'invariants : on suit git, sans autre règle, une feuille de style ou un libellé compris) ; l'état de chaque étape (stepChecks : cochée ; « changed », ce qu'elle a
@@ -35,7 +35,7 @@ type Contents = Partial<Record<CheckedStep, StepContent | null>>;
 type StepView = Pick<VibeView, 'note' | 'invariants' | 'modules'> & { changed?: string[]; files?: VibeView['files'] };
 
 // Ce que valide l'étape aujourd'hui, d'après le relevé, ses marques et les empreintes du disque (blobs) ; null : rien à
-// valider — pas de note ; invariants : un cas sans ✓ pour son bloc et son code commun, ou aucun test, des lignes
+// valider — pas de note ; invariants : un cas noté ✗ pour son bloc et son code commun, ou aucun test, des lignes
 // « → invariant » dans la note et pas « Rien à écrire » ✓ (sans test ni ligne « → invariant » : le contenu vide) ;
 // modules : aucun fichier.
 // La note : blobSha(noteDesign) ; la Forme : blobSha de la section Forme, files la note (son texte, pour que « Depuis la
@@ -59,10 +59,11 @@ export function stepContent(view: StepView, marks: Marks, step: CheckedStep, blo
     return Object.keys(code).length ? list(code) : null;
   }
   if (!view.invariants.length) return !hasInvariantLines(note.text) || markState(marks, 'nothing', blobSha(note.text)) === 'ok' ? list({}) : null;
-  // Un fichier sans hashes : aucun cas ne se valide.
-  const allOk = view.invariants.every(({ path, cases, hashes }) =>
-    !!hashes && caseKeys(cases).every((key, i) => caseMarkState(marks, caseTarget(path, key), { hash: hashes.blocks[i], common: hashes.common }) === 'ok'));
-  return allOk ? list(listed(view.invariants.map((f) => f.path))) : null;
+  // Un fichier sans hashes : rien ne se valide. Un test noté « À revoir » (✗ pour son bloc et son code commun) : non plus ;
+  // « Validé » n'est pas exigé (les verdicts sont les notes de l'utilisateur, pas une condition : note 0.16.0-ecran-essentiel).
+  const none = view.invariants.every(({ path, cases, hashes }) =>
+    !!hashes && caseKeys(cases).every((key, i) => caseMarkState(marks, caseTarget(path, key), { hash: hashes.blocks[i], common: hashes.common }) !== 'ko'));
+  return none ? list(listed(view.invariants.map((f) => f.path))) : null;
 }
 
 // Le contenu de chaque étape (stepContent), pour les mêmes relevé, marques et empreintes.

@@ -7,7 +7,8 @@
  *  attend sa validation ») ; des tests notés « À revoir » (la pause 'withdrawn:invariants', un cas 'ko' au relevé :
  *  « 1 test à revoir : dites à l'agent quoi corriger ») ; un ✓ d'étape retiré à la main qui tient (la pause
  *  'withdrawn:<étape>' : la ligne nomme l'étape) ; le moteur en route (« Le système écrit les modules » : d'après la course en cours, sinon l'étape en
- *  cours) ; une pause (« Regardez vos règles, puis reprenez », « Essayez l'appli, puis reprenez ») ; la PR ouverte
+ *  cours) ; une pause (« Regardez vos règles, puis reprenez » — revenue parce que des tests ont changé depuis leur
+ *  validation : « Des tests ont changé : regardez vos règles, puis reprenez » —, « Essayez l'appli, puis reprenez ») ; la PR ouverte
  *  (« La PR est ouverte, la CI tourne », la CI en échec, « La PR est verte : à vous de la fusionner », fusionnée,
  *  fermée sans être fusionnée : « La PR est fermée » ; un état inconnu vaut ouverte, comme pr-view) ;
  *  sinon le moteur arrêté hors d'une pause (« Le système est arrêté : reprenez »).
@@ -46,6 +47,8 @@ export function statusLine(view: VibeView): StatusLine | null {
     const what = run ? s.statusLine.run(`${run.label}${progress ? ` · ${progress}` : ''}`) : step ? l.step[step.id] : l.working;
     return { text: what, yours: false };
   }
+  // la pause après les invariants revenue : des tests ont changé depuis que l'utilisateur les a laissés passer (leur ✓ « changed »)
+  if (pause === 'invariants' && view.steps.find((x) => x.id === 'invariants')?.check?.state === 'changed') return yours(l.relook);
   if (pause === 'invariants' || pause === 'modules') return yours(l.pause[pause]);
   if (view.pr && (!view.pr.state || view.pr.state === 'OPEN')) {   // état inconnu : ouverte, comme pr-view
     const ci = parseCi(view.outputs['ci.md']?.text ?? '');
