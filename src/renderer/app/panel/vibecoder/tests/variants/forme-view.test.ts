@@ -1,10 +1,9 @@
 // @vitest-environment happy-dom
-// FormeView (forme-view.tsx), en vue IDE : l'arborescence liste les modules ; Structure montre le contrat,
-// Code montre ModuleCode ou « ne change pas ce module » ; les outils en IconButton (comment → act.prefill,
-// open → act.open), l'état « touché » avec Icon ok ; hors du code act.follow(null) ; sans note : l'Invite,
-// puis les fichiers de la branche ; le commit proposé (ProposedCommit) sous l'en-tête ; le menu de diff de la vue
-// (useIdeDiff 'forme' : l'arborescence filtrée, un supprimé depuis la référence, « modifiée depuis la validation »
-// → Depuis la validation) et Valider la forme d'après step.check (note 0.15.0-ecran-statuts).
+// FormeView (forme-view.tsx). Créateur (note 0.16.0-ecran-essentiel) : la liste des modules, une ligne chacun (chemin,
+// phrase), ni code, ni arbre, ni diff, ni badge, ni commit, ni icône, ni validation, aucun fichier suivi ; sans Forme :
+// une phrase. Relecteur, comme avant : l'arborescence, Structure montre le contrat, Code montre ModuleCode ou « ne change
+// pas ce module », les outils en IconButton (comment → act.prefill, open → act.open), hors du code act.follow(null),
+// sans note l'Invite puis les fichiers de la branche, ses remarques, ni menu de diff ni validation.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it } from 'vitest';
@@ -46,8 +45,71 @@ const swap = (label: string) => act(() => {
   [...page.querySelectorAll<HTMLButtonElement>('.vc-seg button')].find((b) => b.textContent === label)!.click();
 });
 
-it('l\'arborescence liste les modules ; le premier est choisi, Structure montre son contrat', async () => {
-  await draw();
+const lines = [
+  { path: 'src/core/a.ts', paths: ['src/core/a.ts'], contract: 'lit la note en une phrase\nne connaît pas : le DOM\nvariants : a.test.ts\n- un cas', file: { id: 'm0', path: 'src/core/a.ts' }, touched: true, commits: ['abcdef1234'],
+    files: [{ id: 'm0/0', path: 'src/core/a.ts' }] },
+  { path: 'src/core/b.ts', paths: ['src/core/b.ts'], contract: 'écrit b · utilisé par : a', file: null, touched: false, commits: [] },
+  { path: 'src/c.ts', paths: ['src/c.ts'], contract: 'ne connaît pas : rien', file: null, touched: false, commits: [] },
+];
+
+it('créateur, trois modules : trois lignes, chemin (dossier, nom) et phrase', async () => {
+  await draw({ modules: lines } as never);
+  const items = [...page.querySelectorAll('.vc-forme-list li')];
+  expect(items).toHaveLength(3);
+  expect(items.map((li) => li.querySelector('b')!.textContent)).toEqual(['a.ts', 'b.ts', 'c.ts']);
+  expect(items.map((li) => li.querySelector('.vc-fdir')!.textContent)).toEqual(['src/core/', 'src/core/', 'src/']);
+  expect(items.map((li) => li.querySelector('.vc-fsay')?.textContent ?? null)).toEqual(['lit la note en une phrase', 'écrit b', null]);
+});
+
+it('créateur : ni arbre, ni diff, ni Structure · Code, ni « touché », ni « 1 commit », ni icône', async () => {
+  await draw({ modules: lines } as never);
+  expect(page.querySelector('.vc-ide, .vc-ide-side, [role="tree"]')).toBeNull();
+  expect(page.querySelector('.vc-seg, select, .cm-editor, .vc-fcontract')).toBeNull();
+  expect(page.textContent).not.toMatch(/Structure|Code|touché|commit|dernier|validation/);
+  expect(page.querySelector('svg, button')).toBeNull();
+});
+
+it('créateur : ni Poser la forme, ni Valider la forme, ni commit proposé', async () => {
+  const actions = [{ id: 'forme' }, { id: 'commit' }, { id: 'commit-prepare' }]
+    .map((a) => ({ hidden: false, who: '', hint: '', primary: true, step: 'forme', models: [], kind: 'send', label: a.id, ...a }));
+  await draw({ modules: lines, actions, outputs: { 'commit.md': { text: 'fixup! 0.13.0 : note\n', time: 1 } } } as never, { ...plain, check: { state: null, now: 'h1' } });
+  expect(page.textContent).not.toMatch(/Poser la forme|Valider la forme|fixup|Commiter/);
+  expect(page.querySelector('.vc-proposed, .vc-vmark, .vc-step-acts, button')).toBeNull();
+});
+
+it('créateur : aucun fichier n\'est suivi', async () => {
+  calls.length = 0;
+  await draw({ modules: lines, files: [{ id: 'f0', path: 'src/x.ts' }] } as never);
+  await draw({ note: null, modules: [], files: [{ id: 'f0', path: 'src/x.ts' }] } as never);
+  expect(calls.filter((c) => c[0] === 'follow' && c[1] !== null)).toEqual([]);
+  expect(page.textContent).not.toContain('x.ts');
+});
+
+it('créateur, pas de Forme : une phrase, sans bouton, en français et en anglais ; pas de note : une phrase aussi', async () => {
+  await draw({ modules: [], files: [] } as never);
+  expect(page.textContent).toContain('Pas encore de forme');
+  expect(page.textContent).not.toMatch(/Poser la forme|champ/);
+  expect(page.querySelector('button, .vc-forme-list')).toBeNull();
+  await draw({ modules: [], files: [], lang: 'en' } as never);
+  expect(page.textContent).toContain('No shape yet');
+  expect(page.textContent).not.toMatch(/Lay down the shape|field/);
+  await draw({ note: null, modules: [] } as never);
+  expect(page.textContent).toContain('Pas encore de note');
+  expect(page.querySelector('button')).toBeNull();
+});
+
+it('créateur : un module sans phrase garde sa ligne (chemin seul) ; un chemin sans dossier', async () => {
+  await draw({ modules: [{ ...modules[1], path: 'lone.ts', contract: '' }] } as never);
+  expect(page.querySelectorAll('.vc-forme-list li')).toHaveLength(1);
+  expect(page.querySelector('.vc-forme-list b')!.textContent).toBe('lone.ts');
+  expect(page.querySelector('.vc-fsay')).toBeNull();
+});
+
+// Le relecteur : sa vue, comme avant.
+const review = { flow: 'review' } as never;
+
+it('relecteur : l\'arborescence liste les modules ; le premier est choisi, Structure montre son contrat', async () => {
+  await draw(review);
   expect(rows().join('|')).toMatch(/a\.ts/);
   expect(rows().join('|')).toMatch(/b\.ts/);
   expect(page.querySelector('.vc-fcontract')!.textContent).toContain('le contrat de a');
@@ -56,29 +118,27 @@ it('l\'arborescence liste les modules ; le premier est choisi, Structure montre 
   expect(page.querySelector('.vc-fstate')!.textContent).toBe('à créer');
 });
 
-it('les outils en IconButton, même action ; Icon ok devant « touché » ; sans glyphes', async () => {
+it('relecteur : les outils en IconButton, même action ; Icon ok devant « touché » ; sans glyphes', async () => {
+  await draw(review);
   await choose('a.ts');
-  await draw({ actions: [{ id: 'comment' }] as never });
   expect(page.textContent).not.toMatch(/[💬✓]/u);
-  expect(tool('Citer ce module dans le champ')).toHaveLength(1);
   expect(tool('Ouvrir dans l\'éditeur')).toHaveLength(1);
+  expect(tool('Commenter ce module (brouillon de revue)')).toHaveLength(1);
   for (const b of page.querySelectorAll('.vc-ftools button')) {
     expect(b.className).toBe('vc-tool');
     expect(b.getAttribute('title')).toBe(b.getAttribute('aria-label'));
     expect(b.querySelector('svg')).not.toBeNull();
   }
   calls.length = 0;
-  tool('Citer ce module dans le champ')[0].click();
   tool('Ouvrir dans l\'éditeur')[0].click();
-  expect(calls).toEqual([['prefill', 'comment', 'src/a.ts'], ['open', 'm0']]);
+  expect(calls).toEqual([['open', 'm0']]);
   const touched = page.querySelector('.vc-fstate[data-state="touched"]')!;
   expect(touched.textContent).toBe('touché');
   expect(touched.querySelector('svg')).not.toBeNull();
-  await draw();
-  expect(tool('Citer ce module dans le champ')).toHaveLength(0);
 });
 
-it('Code : ModuleCode d\'un module touché, « ne change pas » sinon ; hors du code, follow(null)', async () => {
+it('relecteur, Code : ModuleCode d\'un module touché, « ne change pas » sinon ; hors du code, follow(null)', async () => {
+  await draw(review);
   await choose('a.ts');
   calls.length = 0;
   await swap('Code');
@@ -91,41 +151,22 @@ it('Code : ModuleCode d\'un module touché, « ne change pas » sinon ; hors du 
   expect(page.textContent).toContain('la branche ne change pas ce module');
 });
 
-it('sans note : l\'Invite, puis les fichiers de la branche et leur code', async () => {
+it('relecteur, sans note : l\'Invite, puis les fichiers de la branche et leur code', async () => {
   calls.length = 0;
-  await draw({ note: null, modules: [], files: [{ id: 'f0', path: 'src/x.ts' }] } as never);
+  await draw({ flow: 'review', note: null, modules: [], files: [{ id: 'f0', path: 'src/x.ts' }] } as never);
   expect(page.textContent).toContain('Pas encore de note');
   expect(page.querySelector('.vc-fcontract')).toBeNull();
   expect(rows().join('|')).toMatch(/x\.ts/);
   expect(calls).toContainEqual(['follow', 'f0']);
-  await draw({ note: null, modules: [], files: [] } as never);
+  await draw({ flow: 'review', note: null, modules: [], files: [] } as never);
   expect(page.querySelector('.vc-ide')).toBeNull();
-});
-
-it('le commit proposé (un fixup de la note) : sa carte sous l\'en-tête, ✓ Commiter dans la carte, pas dans l\'en-tête ; aucune carte sans commit.md', async () => {
-  const actions = [{ id: 'commit', label: '✓ Commiter' }, { id: 'commit-prepare', label: 'Préparer le commit' }]
-    .map((a) => ({ hidden: false, who: '', hint: '', primary: false, step: 'modules', models: [], kind: 'send', ...a }));
-  await draw({ actions, outputs: { 'commit.md': { text: 'fixup! 0.13.0 : note\n', time: 1 } } } as unknown as Partial<VibeView>);
-  expect(page.querySelector('.vc-proposed .vc-commit-msg')?.textContent).toBe('fixup! 0.13.0 : note');
-  expect(page.querySelector('.vc-proposed .vc-commit-foot .vc-run-label')?.textContent).toBe('✓ Commiter');
-  expect(page.querySelector('.vc-step-acts')).toBeNull();
-  await draw({ actions } as unknown as Partial<VibeView>);
-  expect(page.querySelector('.vc-proposed')).toBeNull();
-});
-
-it('sans Forme : le texte d\'aide ne cite plus de champ, en français et en anglais', async () => {
-  await draw({ modules: [], files: [] } as never);
-  expect(page.textContent).toContain('Pas encore de forme');
-  expect(page.textContent).toContain('« Poser la forme » rédige');
-  expect(page.textContent).not.toContain('champ');
-  await draw({ modules: [], files: [], lang: 'en' } as never);
-  expect(page.textContent).toContain('No shape yet');
-  expect(page.textContent).not.toContain('field');
+  await draw({ flow: 'review', modules: [], files: [] } as never);
+  expect(page.textContent).toContain('Pas de forme dans la note');
 });
 
 const remarks = [{ id: 7, target: 'forme: src/a.ts', text: 'ce contrat est flou' }, { id: 8, target: 'forme: src/b.ts', text: 'pour b' }];
 
-it('une remarque sur un module : sous lui, grisée, modifiable sur place ; pas en créateur', async () => {
+it('relecteur : une remarque sur un module : sous lui, grisée, modifiable sur place', async () => {
   calls.length = 0;
   await draw({ flow: 'review', draft: remarks } as never);
   await choose('a.ts');
@@ -142,118 +183,39 @@ it('une remarque sur un module : sous lui, grisée, modifiable sur place ; pas e
   expect(calls).toContainEqual(['draft', { edit: { id: 7, text: 'plus net' } }]);
   await act(() => page.querySelector<HTMLButtonElement>('.vc-draft-list button[aria-label="Retirer du brouillon"]')!.click());
   expect(calls).toContainEqual(['draft', { remove: 7 }]);
-  await draw({ draft: remarks } as never);
-  expect(page.querySelector('.vc-draft-list')).toBeNull();
 });
 
-it('Poser une question sur un module : son chemin cité dans le champ, rien d\'envoyé ; absent en créateur', async () => {
+it('relecteur : Poser une question sur un module : son chemin cité dans le champ, rien d\'envoyé', async () => {
   calls.length = 0;
-  await draw({ flow: 'review' } as never);
+  await draw(review);
   const ask = tool('Poser une question à l\'agent');
   expect(ask).toHaveLength(1);
   await act(() => ask[0].click());
   expect(calls).toEqual([['prefill', 'comment', 'src/a.ts']]);
-  expect(tool('Commenter ce module (brouillon de revue)')).toHaveLength(1);
-  await draw();
-  expect(tool('Poser une question à l\'agent')).toHaveLength(0);
 });
 
-// Le menu de diff de la vue IDE et la validation de la forme (note 0.15.0-ecran-statuts).
-const since = { ...plain, head: 'modifiée depuis la validation', check: { state: 'changed', now: 'h2' } };
-const diffs = (validated: unknown[], head: unknown[] = []) => ({ diffs: { head, validated: { forme: validated } } });
-const select = () => page.querySelector('select.vc-mod-shown') as HTMLSelectElement;
-const pick = (v: string) => act(() => { select().value = v; select().dispatchEvent(new Event('change', { bubbles: true })); });
-const side = () => [...page.querySelectorAll('.vc-ide-side .vc-tree-row:not([aria-expanded])')].map((e) => e.textContent);
-
-it('« modifiée depuis la validation » cliqué : Depuis la validation, l\'arborescence ne liste que les fichiers modifiés', async () => {
-  await draw(diffs([{ path: 'src/a.ts' }]) as never, since);
-  expect(side().join('|')).toMatch(/a\.ts.*b\.ts/);
-  expect(select().value).toBe('base');
-  await act(() => page.querySelector<HTMLButtonElement>('.vc-step-head .vc-since')!.click());
-  expect(select().value).toBe('validated');
-  expect(side()).toHaveLength(1);
-  expect(side()[0]).toContain('a.ts');
-});
-
-it('Depuis le dernier commit : ses fichiers ; rien de modifié : grisé, retour à la base', async () => {
-  await draw(diffs([], [{ path: 'src/b.ts' }]) as never);
-  await pick('head');
-  expect(side()).toHaveLength(1);
-  expect(side()[0]).toContain('b.ts');
-  await draw(diffs([]) as never);
-  expect(page.querySelector('.vc-ide-side .vc-empty')).toBeNull();
-  expect(page.textContent).toContain('Depuis le dernier commit (rien de modifié)');
-});
-
-it('un supprimé depuis la référence : dans l\'arborescence (r<i> suivi), son diff tout en retraits', async () => {
-  calls.length = 0;
-  const gone = { path: 'src/old.ts', id: 'r0', deleted: true };
-  const code = { id: 'r0', text: null, time: 1, at: { base: null, head: null, validations: { forme: 'x\ny' } } };
-  await draw(diffs([gone]) as never, since, code);
-  await act(() => page.querySelector<HTMLButtonElement>('.vc-step-head .vc-since')!.click());
-  expect(side()).toHaveLength(1);
-  expect(side()[0]).toContain('old.ts');
-  expect(calls).toContainEqual(['follow', 'r0']);
-  expect(page.querySelector('.vc-ide-main .cm-deletedChunk')?.textContent).toContain('x');
-});
-
-it('relecteur : ni menu de diff, ni validation', async () => {
-  await draw({ flow: 'review', ...diffs([{ path: 'src/a.ts' }]) } as never, since);
-  expect(select()).toBeNull();
+it('relecteur : ni menu de diff, ni validation, ni commit proposé', async () => {
+  const since = { ...plain, head: 'modifiée depuis la validation', check: { state: 'changed', now: 'h2' } };
+  await draw({ flow: 'review', outputs: { 'commit.md': { text: 'fixup! x\n', time: 1 } }, diffs: { head: [], validated: { forme: [{ path: 'src/a.ts' }] } } } as never, since);
+  expect(page.querySelector('select.vc-mod-shown')).toBeNull();
   expect(page.querySelector('.vc-ide-bar')).toBeNull();
-  expect(side().join('|')).toMatch(/a\.ts.*b\.ts/);
-  expect(page.querySelector('.vc-vmark')).toBeNull();
+  expect(page.querySelector('.vc-vmark, .vc-proposed')).toBeNull();
+  expect(rows().join('|')).toMatch(/a\.ts.*b\.ts/);
 });
 
-const valider = () => [...page.querySelectorAll<HTMLButtonElement>('.vc-forme .vc-vmark button')].map((b) => b.textContent);
-
-it('Valider la forme suit step.check : ok → Annuler (envoie null) ; changed ou cascade → Revalider ; jamais validée → Valider', async () => {
-  calls.length = 0;
-  await draw({}, { ...plain, check: { state: null, now: 'h1' } });
-  expect(valider()).toEqual(['Valider la forme']);
-  await act(() => page.querySelector<HTMLButtonElement>('.vc-forme .vc-vmark button')!.click());
-  expect(calls).toEqual([['mark', 'forme', 'ok']]);
-  calls.length = 0;
-  await draw({}, { ...plain, check: { state: 'ok', now: 'h1' } });
-  expect(valider()).toEqual(['Annuler']);
-  await act(() => page.querySelector<HTMLButtonElement>('.vc-forme .vc-vmark button')!.click());
-  expect(calls).toEqual([['mark', 'forme', null]]);
-  await draw({}, { ...plain, check: { state: 'cascade', cause: 'note', now: null } });
-  expect(valider()).toEqual(['Revalider']);
-});
-
-it('l\'onglet choisi, la vue recréée sous le même agent : le même ; un autre agent : Structure', async () => {
+it('relecteur : l\'onglet choisi, la vue recréée sous le même agent : le même ; un autre agent : Structure', async () => {
   const kept = createKept();
   const pressed = () => page.querySelector('.vc-fline .vc-seg [aria-pressed="true"]')!.textContent;
   scope = scoped(kept, 'a1', 'forme');
   await act(() => root.render(null));
-  await draw();
+  await draw(review);
   await swap('Code');
   await act(() => root.render(null));
-  await draw();
+  await draw(review);
   expect(pressed()).toBe('Code');
   scope = scoped(kept, 'a2', 'forme');
   await act(() => root.render(null));
-  await draw();
+  await draw(review);
   expect(pressed()).toBe('Structure');
   scope = null;
-});
-
-// 0.16.0 : la Forme validée par le système (docs/tickets/feat/0.16.0-controle-en-trois-points.md).
-it('Forme validée par le système : « validée par le système » et son contrôle ; Annuler reste ; à la main : « Forme validée »', async () => {
-  await draw({}, { ...plain, check: { state: 'ok', now: null, by: 'system' } });
-  expect(page.querySelector('.vc-forme .vc-vstate')!.textContent).toBe('validée par le système');
-  expect(page.querySelector('.vc-forme .vc-vby')!.textContent).toBe('squelettes posés');
-  expect(valider()).toEqual(['Annuler']);
-  await draw({}, { ...plain, check: { state: 'ok', now: null } });
-  expect(page.querySelector('.vc-forme .vc-vstate')!.textContent).toBe('Forme validée');
-  expect(page.querySelector('.vc-forme .vc-vby')).toBeNull();
-});
-
-it('Forme pas validée : Valider la forme en discret (sans vert ni coche), jamais grisé, même si la note attend', async () => {
-  const note = { id: 'note', status: 'done', facts: '', check: { state: null, now: null } };
-  await draw({ steps: [note, { ...plain, check: { state: null, now: null } }] } as never, { ...plain, check: { state: null, now: null } });
-  const b = page.querySelector<HTMLButtonElement>('.vc-forme .vc-vmark button')!;
-  expect([b.textContent, b.disabled, b.getAttribute('data-v'), b.querySelector('svg')]).toEqual(['Valider la forme', false, null, null]);
-  expect(page.querySelector('.vc-vstate[data-state="waiting"]')).toBeNull();
 });

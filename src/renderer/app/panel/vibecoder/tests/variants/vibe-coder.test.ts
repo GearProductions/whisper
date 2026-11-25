@@ -100,7 +100,6 @@ const noteView = (over: object = {}) => ({
     act1({ id: 'forme', step: 'forme', label: 'Poser la forme', usesText: true })],
   ...over,
 }) as unknown as VibeView;
-const runButton = (label: string) => [...page.querySelectorAll<HTMLButtonElement>('.vc-step .vc-run')].find((b) => b.textContent?.includes(label))!;
 
 it('plus de champ d\'étape : ni zone de saisie, ni Joindre, ni Envoyer dans l\'étape', async () => {
   await draw({ view: noteView() });
@@ -132,24 +131,15 @@ it('↻ de la barre d\'état : relève (act.refresh)', async () => {
   expect(refresh).toHaveBeenCalledTimes(1);
 });
 
-it('Rédiger la note cliqué : la conversation réaffichée (colonne masquée, onglet Tâches), l\'action part sans args.text (panel-app prend le champ)', async () => {
+// L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : plus de bouton d'action dans les étapes du créateur.
+it('créateur : ni Écrire la note ni Poser la forme dans l\'étape ; rien ne part, la conversation n\'est pas réaffichée', async () => {
   const run = vi.fn(async (..._a: unknown[]) => true), onSide = vi.fn();
   const a = { follow: noop, set: noop, refresh: noop, run };
-  calls.length = 0;
-  await draw({ view: noteView(), acts: a, side: { open: false, width: 300 }, onSide, tasksOpen: true });
-  await act(async () => { runButton('Écrire la note').click(); });
-  expect(run).toHaveBeenCalledWith('note', {});
-  expect(run.mock.calls[0][1]).not.toHaveProperty('text');
-  expect(onSide).toHaveBeenCalledWith({ open: true, width: 300 });
-  expect(calls).toEqual(['tasks']);
-});
-
-it('Poser la forme cliqué : part sans texte et ne réaffiche pas la conversation', async () => {
-  const run = vi.fn(async (..._a: unknown[]) => true), onSide = vi.fn();
-  calls.length = 0;
-  await draw({ view: noteView({ steps: [{ id: 'forme', status: 'current' }] }), acts: { follow: noop, set: noop, refresh: noop, run }, side: { open: false, width: 300 }, onSide });
-  await act(async () => { runButton('Poser la forme').click(); });
-  expect(run).toHaveBeenCalledWith('forme', {});
+  for (const steps of [[{ id: 'note', status: 'current' }], [{ id: 'forme', status: 'current' }]]) {
+    await draw({ view: noteView({ steps }), acts: a, side: { open: false, width: 300 }, onSide });
+    expect(page.querySelectorAll('.vc-step .vc-run')).toHaveLength(0);
+  }
+  expect(run).not.toHaveBeenCalled();
   expect(onSide).not.toHaveBeenCalled();
 });
 

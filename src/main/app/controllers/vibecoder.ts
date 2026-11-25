@@ -174,7 +174,9 @@
  *  qui commence ne la changent plus. Les actions en file d'attente (queuedOf de controllers/runs) partent au relevé
  *  (queued) : la page montre « en attente » à côté du bouton, design-check comprise.
  *  Le contrôle en trois points (0.16.0, note controle-en-trois-points) :
- *  - le moteur part seul, du seul Valider la note du créateur (markVibe 'note' 'ok', la note validée par ce clic) : au
+ *  - le moteur part seul, du seul Valider la note du créateur (markVibe 'note' 'ok', la note validée par ce clic), sa
+ *    première validation (la note sans marque) ; revalidée en cours de parcours, elle retrouve son ✓ et le moteur ne repart
+ *    que s'il enchaînait quand la pause de la note l'a arrêté (stoppedByNote de controllers/runs), sinon Reprendre : au
  *    relevé qui suit, puis à chaque relevé tant qu'elle n'est pas partie, l'action vibe est lancée comme un clic (startAction, vibeStart ; retenue :
  *    en file) ; le rythme de l'agent (expressOn de controllers/runs) part au parcours (express), et chaque relevé tient la
  *    pause (pauseVibe) ; setVibe({ express }) : le rythme réglé (setExpress), et, passé en express à une pause
@@ -193,7 +195,9 @@
  *    l'envoi des réponses (answers), les textes « Accepter » choisis sont gardés en mémoire (acceptedTexts, d'après les
  *    questions du dernier relevé) ; au relevé, la note changée garde son ✓ par keepNote seulement (sa conception retenue,
  *    ces textes), sinon il tombe ; aucun autre chemin ne valide la note à la place de l'utilisateur ;
- *  - les validations du système : vibeMarks à chaque relevé du créateur (plus seulement pendant Vibe) ; step.validate
+ *  - les validations du système : vibeMarks à chaque relevé du créateur (plus seulement pendant Vibe), jamais le verdict
+ *    d'un test (les notes de l'utilisateur) ; des tests changés après leur validation : pas revalidés au rythme par défaut,
+ *    la pause 'invariants' revient (journey) et Reprendre à cette pause les valide (releasedPause de controllers/runs) ; step.validate
  *    (validateVibe) pose by: 'system', et refuse les modules (not-offered) tant que la preuve du dernier relevé
  *    (view.proof) n'est ni 'ok' ni 'none' ; le ✓ de l'écran (markVibe) reste à la main, sans by ; une validation retirée
  *    (markVibe ou step.validate, verdict null) tient pour ce contenu : le retrait est rangé dans les marques de l'agent
@@ -225,7 +229,7 @@ import { githubPage } from 'core/repo';
 import { START, type CommandError } from 'core/commands';
 import {
   acceptedTexts, addComment, artifactOf, caseBlocks, caseHashes, convertCaseMarks, setCaseMark, beforeOf, blobSha, buildMessage, designEnd, hasComment, keepNote, noteDesign, parseQuestions, skeletonMarks, vibeMarks, ARTIFACT_OPS, DIRECT_ACTIONS, DIRECT_ONLY, editComment, locateNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath, nextRef,
-  CHECKED, filesText, parseFiles, stepContents, validateStep, versionName, withdraw, withdrawn, type CheckedStep, type FileBlobs, type Marks, type StepContent, type StepFiles,
+  CHECKED, filesText, parseFiles, stepChecks, stepContents, validateStep, versionName, withdraw, withdrawn, type CheckedStep, type FileBlobs, type Marks, type StepContent, type StepFiles,
   blockedBy, BRANCH_CHANGES, lockCode, lockText, ELSEWHERE, json, newRequestCard, branchNoteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeRole, vibeView, whoOf, type ActionDef, type MessageError, type NoteRef,
 } from 'core/vibecoder';
 import { draftText, isVerdict } from 'shared/review';
@@ -245,7 +249,7 @@ import { copyArtifacts, duplicateArtifacts, moveArtifacts, newArtifact, renameAr
 import { prepareMessage } from './conversation';
 import { createWorktree } from './recipe';
 import { SOCKET_DOWN, screenSend, socketDown } from './socket';
-import { expressOn, lockingRuns, pauseVibe, viewLocks, queueStart, queuedOf, releaseWaits, runsOf, runsTab, setExpress, skillMd, startRun, vibeOn, vibeStart, vibeStop } from './runs';
+import { expressOn, lockingRuns, pauseVibe, viewLocks, queueStart, queuedOf, releaseWaits, releasedPause, runsOf, runsTab, setExpress, skillMd, startRun, stoppedByNote, vibeOn, vibeStart, vibeStop } from './runs';
 import { openChild, prWorktreeReady, removeWorktreeChild, showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
 
 const VIBE_MS = 4000;          // le relevé régulier, panneau visible
@@ -311,7 +315,7 @@ const prsFound = new Map<string, { mine: unknown[]; review: unknown[]; all: unkn
 const requests = new Map<string, { text: string; branch?: string }>();  // new-request : la demande partie, par agent (en mémoire), puis sa branche
 const clicked = new Map<string, string>();     // par agent : l'empreinte de la conception de la note au départ de la dernière course design-check, quel que soit le geste qui l'a lancée
 const designSeen = new Map<string, number>();  // par agent : le départ de la dernière course design-check dont la fin est rangée
-const engine = new Set<string>();              // le moteur (vibe) à lancer : Valider la note vient d'être cliqué, ou passé en express à une pause
+const engine = new Set<string>();              // le moteur (vibe) à lancer : la note validée pour la première fois (ou revalidée, lui arrêté par sa pause), ou passé en express à une pause
 const accepts = new Map<string, string[]>();   // par agent : les textes « Accepter » choisis depuis la dernière validation de la note (answers)
 // Par agent : la course forme suivie (son départ), les empreintes de ses fichiers de module au départ (null : pas vues),
 // et si sa fin est rangée (les squelettes retenus, skeletonMarks).
@@ -463,7 +467,7 @@ const branchName = (v: unknown) => (typeof v === 'string' && okRef(v) ? v : null
 
 // Les sorties que les skills écrivent pour une branche, dans les deux rôles (pas les lectures
 // invariants/, nommées par l'empreinte du test, ni celles de la PR, par numéro).
-const BRANCH_OUTPUTS = ['questions.md', 'align.md', 'preuve.md', 'review.md', 'commit.md', 'checks.json', 'ponytail.md', 'ponytail-applied.json', 'pr.json', 'ci.md', 'ecran.md'];
+const BRANCH_OUTPUTS = ['questions.md', 'align.md', 'liens.md', 'preuve.md', 'review.md', 'commit.md', 'checks.json', 'ponytail.md', 'ponytail-applied.json', 'pr.json', 'ci.md', 'ecran.md'];
 
 // Les sorties suivent la branche : la dernière vue est dans
 // <out>/.branche ; quand elle passe de P à N, celles de la racine vont dans
@@ -823,7 +827,8 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   // jamais la note ; ni une étape dont la validation a été retirée à la main pour ce contenu, ni celles qui la suivent (withdrawn).
   {
     const marks = store.marks[agent.id] || {};
-    const next = vibeMarks(marks, journey, blobs);
+    // Reprendre à la pause après les invariants vaut « d'accord » : leurs tests d'aujourd'hui validés (vibeMarks, resumed).
+    const next = vibeMarks(marks, journey, blobs, releasedPause(agent.id) === 'invariants');
     if (next !== marks) {
       const contents = stepContents(journey, next, blobs);
       for (const step of CHECKED) if (next[step] !== marks[step] && contents[step]) retain(agent, step, contents[step]!);
@@ -864,7 +869,7 @@ function drive(agent: AgentConfig, view: VibeView, cfg: Config) {
 // Un refus : son texte, et sa clé (reason : celle d'ERRORS ; 'disabled', le grisé du relevé ; 'same' | 'busy' | 'changing' avec by,
 // la course ou l'action directe qui retient). Les portes qui ne lisent que le texte (l'écran) ne la voient pas.
 // done : la fin d'une action d'artefact (runDirect), son refus avec sa clé ; l'exécuteur l'attend avant de répondre.
-export type Refusal = SendResult & { reason?: string; by?: string; done?: Promise<Refusal> };
+export type Refusal = SendResult & { reason?: string; by?: string; done?: Promise<Refusal>; why?: string };
 // L'écran ne voit que le texte du refus, pas sa clé.
 const bare = ({ ok, error }: SendResult): SendResult => ({ ok, error });
 const fail = (lang: VibeLang, key: keyof typeof ERRORS.fr): Refusal => ({ ok: false, error: ERRORS[lang][key], reason: key });
@@ -1391,14 +1396,19 @@ export function markVibe(target: unknown, verdict: unknown) {
   if (target === 'note' && verdict === 'ok' && view.note) noteRefs.set(agent.id, { path: view.note.path, text: view.note.text });
   const store = vibeStore();
   if (step) {
+    // La note déjà validée une fois (sa marque, même dépassée) : la revalider ne lance pas le moteur, sauf arrêté par sa pause.
+    const first = !Object.hasOwn(store.marks[agent.id] || {}, 'note');
     const done = markStep(agent, view, step, verdict === 'ok' ? 'ok' : null);
     // Valider la note du créateur, par ce clic seul : sa conception retenue (keepNote la compare à la note d'après), les « Accepter »
-    // d'avant oubliés, le moteur à lancer (drive, au relevé qui suit). Aucune vérification, aucune course : un Valider comme les autres.
+    // d'avant oubliés. Aucune vérification, aucune course : un Valider comme les autres. Le moteur à lancer (drive, au relevé qui
+    // suit) à la première validation seulement ; une revalidation en cours de parcours rend le ✓ et remet les choses comme avant
+    // le changement de la note : il ne repart que s'il enchaînait quand la pause de la note l'a arrêté (stoppedByNote) ; arrêté
+    // avant (une pause, Arrêter, l'appli relancée), il le reste, en express aussi : Reprendre.
     if (done && step === 'note' && verdict === 'ok' && view.flow === 'create' && view.note) {
       const design = noteDesign(view.note.text);
       keep(vibeOutDir(agent.id), blobSha(design), design);
       accepts.delete(agent.id);
-      engine.add(agent.id);
+      if (first || stoppedByNote(agent.id)) engine.add(agent.id);
     }
   }
   else if (kase) {
@@ -1424,9 +1434,31 @@ export function validateVibe(agent: AgentConfig, step: unknown, verdict: unknown
   if (view.flow !== 'create') return { ...fail(lang, 'action'), reason: 'flow' };
   // Les modules : par la preuve qui passe seulement (view.proof : 'ok', ou 'none' sans ligne « → invariant »), en express aussi.
   const unproved = step === 'modules' && verdict === 'ok' && view.proof && view.proof.state !== 'ok' && view.proof.state !== 'none';
-  if (unproved || !markStep(agent, view, step, verdict, 'system')) return { ...fail(lang, 'action'), reason: 'not-offered' };
+  if (unproved || !markStep(agent, view, step, verdict, 'system')) return { ...fail(lang, 'action'), reason: 'not-offered', why: notValidated(agent, view, step, !!unproved) };
   refreshVibe({ now: true });
   return { ok: true };
+}
+
+// Pourquoi step.validate est refusée, pour l'agent qui la demande (en anglais, comme la table des commandes) : la preuve
+// qui manque, l'étape d'avant pas validée (laquelle, et à qui elle revient), rien à valider, ou le retrait à la main qui tient.
+function notValidated(agent: AgentConfig, view: VibeView, step: CheckedStep, unproved: boolean): string {
+  const marks = vibeStore().marks[agent.id] || {};
+  const contents = stepContents(view, marks, viewBlobs.get(view) ?? []);
+  const checks = stepChecks(marks, contents);
+  const before = CHECKED.slice(0, CHECKED.indexOf(step)).find((s) => checks[s].state !== 'ok');
+  if (before) {
+    const state = checks[before].state ?? 'never validated';
+    const whose = before === 'note' ? 'the note changed or was never validated, only the user validates it, on the screen'
+      : before === 'invariants' && state === 'changed' ? 'its tests changed since their validation, the user looks at them and resumes at the pause after the invariants (Resume)'
+        : 'the app validates it once it is done, unless the user withdrew its validation by hand';
+    return `the ${before} step is not validated (${state}): ${whose}`;
+  }
+  // l'étape d'avant d'abord : une preuve ne vaut que sur des tests que l'utilisateur a laissés passer
+  if (unproved) return `the proof has not passed (${view.proof?.state}): run prove, the modules are validated once every « → invariant » line of the note is proved`;
+  const hash = contents[step]?.hash;
+  if (!hash) return step === 'invariants' ? 'nothing to validate: a test is marked « À revoir » by the user, or the tests are not written' : 'nothing to validate for this step yet';
+  if (withdrawn(marks, step) === hash) return 'the user withdrew this validation by hand and the step has not changed since: it is theirs to give back';
+  return 'nothing to validate';
 }
 
 // Le brouillon de revue de la PR suivie, du relecteur : ajouter une remarque (sa cible, sur une ligne de 300 caractères

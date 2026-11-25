@@ -1,6 +1,6 @@
 ---
 name: aligner
-description: "Check the invariants only — every « → invariant » line of the note truly observed by a test, every invariant test tied to a line — and, in the creator's worktree, fix the tests (3 rounds at most); gaps left go to <out>/align.md. Followed by invariants (Create) in its own run, after the red tests. In a PR (HEAD): a list, nothing fixed."
+description: "Check the invariants only — every « → invariant » line of the note truly observed by a test, every invariant test tied to a line — and, in the creator's worktree, fix the tests (3 rounds at most); gaps left go to <out>/align.md, and which test guards which line to <out>/liens.md. Followed by invariants (Create) in its own run, after the red tests. In a PR (HEAD): a list, nothing fixed."
 argument-hint: "<lang> <out> [base=<base>] <ref>"
 disable-model-invocation: true
 context: fork
@@ -48,6 +48,27 @@ Rewritten after each check; at the end, only what stands. One `##` per gap, its 
 - `[agent]`: the rest — a gap in a test that you could fix but did not (3 rounds spent). Never a gap you fixed: it is not listed.
 - `HEAD`: the same list, **no label**, nothing fixed, the gaps in the same words.
 
-Code names, paths and test titles stay as they are; the rest in `lang`, in plain words a developer who does not know the invariants by heart understands (say what a rule means, never a bare number). Nothing off → a single line without a title, « Aligned. » (`en`) or « Aligné. » (`fr`), followed by what you checked (lines and tests counted; `WORKTREE`: how many gaps fixed, in how many rounds), in `lang`. Write nothing else, anywhere (`HEAD`: nothing else in the folder at all).
+Code names, paths and test titles stay as they are; the rest in `lang`, in plain words a developer who does not know the invariants by heart understands (say what a rule means, never a bare number). Nothing off → a single line without a title, « Aligned. » (`en`) or « Aligné. » (`fr`), followed by what you checked (lines and tests counted; `WORKTREE`: how many gaps fixed, in how many rounds), in `lang`. Write nothing else, anywhere, but `liens.md` below (`HEAD`: nothing else in the folder at all).
+
+## `<out>/liens.md` — which test guards which line (`WORKTREE` only)
+
+The list of §1, as the screen reads it: it is what ranges each test under its rule on the user's screen. Without it, every `→ invariant` line shows « no test » at the pause where the user looks at the rules. Write it with the Write tool at the end, whole, whatever you found (aligned or not), from the final state of the tests — it is not a gap file, and it carries no label:
+
+```markdown
+## <the note line, copied as it is written, without its « → invariant » mark>
+- <path of the test file, from the repo root> :: <title of the test>
+- <path> :: <title>
+
+## <the next line>
+```
+
+- One `##` per `→ invariant` line of the note, all of them, in the note's order. A line no test guards: its title alone, no bullet.
+- Under it, every test tied to it: those the branch writes, and those of files from before the branch that already observe it (the screen names these without their code). A test tied to two lines goes under each. A test tied only to an existing invariant of the project (`I-…`), or to nothing, is not listed.
+- The title: the literal one of its `it(…)` / `test(…)` (or the name of its `fn` / `def`), without the titles of the `describe` blocks around it.
+- A title carried by several tests of the same file: the first is written as it is, the following with their order number in that file, from the second on: `<title> n° 2`, `<title> n° 3`… (a bare title carried by several tests ranges none of them on the screen).
+- Copy the line and each title character for character — the screen matches them — never reworded, translated, shortened or wrapped.
+- Nothing else in the file: no label, no comment, no summary.
+
+`HEAD`: do not write it.
 
 Answer in English, 1 to 3 lines: the number of gaps fixed and the number left, and the most serious one left.

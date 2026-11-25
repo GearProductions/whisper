@@ -8,8 +8,8 @@
  *  fichiers retenus) — step-checks. Plus de « file: » ni de « step: » (retirés). Un cas : son bloc et le code
  *  commun de son fichier (case-marks, note 0.15.0-invariants-par-cas) ; targetHash n'en donne plus l'empreinte
  *  (null : caseHashes). Le ✓ des
- *  étapes faites pendant Vibe (vibeMarks : note, forme, invariants, par validateStep ; chaque cas par setCaseMark,
- *  ou « Rien à écrire » sans test). Et le brouillon de
+ *  étapes faites pendant Vibe (vibeMarks : forme, invariants, par validateStep ; jamais le verdict d'un cas, qui est la
+ *  note de l'utilisateur ; « Rien à écrire » sans test). Et le brouillon de
  *  revue de chaque PR (relecteur) : ajouter, modifier, retirer une remarque, savoir
  *  si une remarque y est (hasComment). Et la
  *  vérification de conception de la note, gardée avec les validations (la cible
@@ -46,9 +46,7 @@
  *  envoyées (les textes acceptés sont passés).
  *  Utilisé par : core/vibecoder (journey : checked, verified ; step-checks), app/controllers/vibecoder, app/settings. */
 import type { VibeComment, VibeMarkState, VibeNoteCheck, VibeView } from 'shared/bridge';
-import { caseKeys } from 'shared/test-cases';
 import { onlyAccepted } from './accepted';
-import { caseHashes, caseMarkState, caseTarget, setCaseMark } from './case-marks';
 import { noteDesign } from './note';
 import { stepChecks, stepContents, validateStep, type CheckedStep } from './step-checks';
 import { blobSha } from './test-files';
@@ -146,35 +144,36 @@ export function targetHash(view: VibeView, target: string): string | null {
 
 // Créateur : la Forme et les invariants faits de view reçoivent leur validation d'étape, by: 'system', pour leur contenu
 // d'aujourd'hui (validateStep de step-checks, dans l'ordre : after suit) ; la note jamais (l'utilisateur seul la valide,
-// Vibe en cours ou pas) ; et chaque cas des invariants son ✓ (setCaseMark,
-// les mêmes cible et empreintes qu'un clic : caseTarget, caseHashes ; aucun test : « Rien à écrire » son ✓, pour le texte
-// de la note) ; un ✓ ou ✗ déjà donné pour ce bloc et ce code commun (ou ce texte) reste (un fichier sans hashes : aucun
-// cas) ; une étape refusée (l'étape d'avant pas cochée) ne reçoit rien, ni celle dont le contenu d'aujourd'hui est celui
-// d'un retrait à la main (withdrawn ; le contenu changé depuis : validée de nouveau). blobs : les empreintes du disque
-// (les fichiers retenus par la Forme et les invariants).
-export function vibeMarks(marks: Marks, view: VibeView, blobs: FileBlobs[] = []): Marks {
+// Vibe en cours ou pas). Aucun verdict de test : « Validé » / « À revoir » sont les notes de l'utilisateur, le système n'en
+// pose ni n'en retire aucun (correction du 25 novembre 2026, note 0.16.0-ecran-essentiel) ; aucun test : « Rien à écrire »
+// son ✓, pour le texte de la note (un ✓ ou ✗ déjà donné pour ce texte reste). Une étape refusée (l'étape d'avant pas
+// cochée) ne reçoit rien, ni celle dont le contenu d'aujourd'hui est celui d'un retrait à la main (withdrawn ; le contenu
+// changé depuis : validée de nouveau).
+// Les invariants validés une fois puis leurs tests changés (leur état 'changed') : au rythme par défaut le système ne les
+// revalide pas — le parcours se tient à la pause 'invariants' (journey), l'utilisateur regarde ; resumed (il vient de
+// reprendre à cette pause : Reprendre vaut « d'accord ») ou l'express (view.express) : validés pour leur contenu
+// d'aujourd'hui, faits ou pas encore commités. blobs : les empreintes du disque (les fichiers retenus par la Forme et les
+// invariants).
+export function vibeMarks(marks: Marks, view: VibeView, blobs: FileBlobs[] = [], resumed = false): Marks {
   if (view.flow !== 'create' || !view.note) return marks;
   const done = new Set(view.steps.filter((s) => s.status === 'done').map((s) => s.id));
-  const cases = done.has('invariants') ? view.invariants.flatMap((f) => caseKeys(f.cases).map((k) => caseTarget(f.path, k))) : [];
   const nothing = blobSha(view.note.text);
   const withNothing = done.has('invariants') && !view.invariants.length && markState(marks, 'nothing', nothing) !== 'ok' && markState(marks, 'nothing', nothing) !== 'ko'
     ? setMark(marks, 'nothing', nothing, 'ok')
     : marks;
-  const withCases = cases.reduce((m, target) => {
-    const hashes = caseHashes(view.invariants, target);
-    const state = hashes && caseMarkState(m, target, hashes);
-    return !hashes || state === 'ok' || state === 'ko' ? m : setCaseMark(m, target, hashes, 'ok');
-  }, withNothing);
-  // Les contenus ne dépendent que des cas et de « rien à écrire » (withCases) : les marques d'étape que le reste ajoute n'y changent rien.
-  const contents = stepContents(view, withCases, blobs);
-  return (['forme', 'invariants'] as const).filter((step) => done.has(step)).reduce((m, step) => {
+  const contents = stepContents(view, withNothing, blobs);
+  const letPass = resumed && view.pause === 'invariants';
+  return (['forme', 'invariants'] as const).filter((step) => done.has(step) || (step === 'invariants' && letPass)).reduce((m, step) => {
     const hash = contents[step]?.hash;
+    const state = stepChecks(m, contents)[step].state;
     // Déjà cochée pour ce contenu (et l'étape d'avant) : rien à écrire, ni marque neuve ni relevé du disque du contrôleur.
     // Le retrait à la main pour ce contenu : pas de validation du système (les étapes qui suivent : validateStep refuse).
-    if (!hash || withdrawn(m, step) === hash || markState(m, step, hash) === 'ko' || stepChecks(m, contents)[step].state === 'ok') return m;
+    if (!hash || withdrawn(m, step) === hash || markState(m, step, hash) === 'ko' || state === 'ok') return m;
+    // Des tests changés depuis leur validation : à l'utilisateur de les regarder (la pause), sauf en express.
+    if (step === 'invariants' && state === 'changed' && !view.express && !letPass) return m;
     const next = validateStep(m, contents, step, 'ok');
     return next ? { ...next, [step]: { ...next[step], by: 'system' } } : m;
-  }, withCases);
+  }, withNothing);
 }
 
 export function addComment(drafts: Drafts, pr: number, target: string, text: string): Drafts {

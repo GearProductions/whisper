@@ -151,52 +151,79 @@ describe('vibeMarks : les validations du système des étapes faites', () => {
     stepChecks(marks, Object.fromEntries(CHECKED.map((s) => [s, stepContent(view, marks, s, blobs)])));
   const status = (marks: Marks) => Object.fromEntries(vibeView(input({ vibe: false, marks, blobs })).steps.map((s) => [s.id, s.status]));
 
-  it('forme, invariants : chaque étape validée par le système pour son contenu, et chaque cas son ✓ (les empreintes d\'un clic)', () => {
+  it('forme, invariants : chaque étape validée par le système pour son contenu ; aucun verdict de test posé (ils sont à l\'utilisateur)', () => {
     const { next } = run();
     expect(next.note).toBe(NOTE_OK.note);
     expect(next.forme).toMatchObject({ by: 'system' });
     expect(next.invariants).toMatchObject({ by: 'system' });
     expect(next.forme).toMatchObject({ hash: blobSha(parseNote(NOTE).forme), verdict: 'ok' });
     expect(next.invariants).toMatchObject({ verdict: 'ok' });
-    CASES.forEach((c, i) => expect(next[c]).toEqual(MARK(i)));
+    expect(Object.keys(next).filter((k) => k.startsWith('case:'))).toEqual([]);
   });
 
-  it('chaque cas : son ✓ pour son bloc et le code commun, pas pour le fichier entier', () => {
-    const { next } = run();
-    expect(BLOCKS[0]).not.toBe(BLOCKS[1]);
-    expect(next[CASES[0]].hash).toBe(BLOCKS[0]);
-    expect(next[CASES[1]].hash).toBe(BLOCKS[1]);
-    CASES.forEach((c) => expect(next[c].common).toBe(COMMON));
+  it('les verdicts de l\'utilisateur ne sont jamais touchés : un ✓, un ✓ ou un ✗ dépassés (bloc ou code commun changés, marque d\'avant la 0.15.0) restent tels quels', () => {
+    for (const marks of [
+      { [CASES[0]]: MARK(0), [CASES[1]]: { hash: 'vieux', verdict: 'ok', common: COMMON } },
+      { [CASES[0]]: { hash: BLOCKS[0], verdict: 'ok', common: 'vieux' }, [CASES[1]]: { hash: BLOCKS[1], verdict: 'ok' } },
+      { [CASES[0]]: { hash: 'vieux', verdict: 'ko', common: COMMON } },
+    ] as Marks[]) {
+      const { next } = run(marks);
+      for (const c of CASES) expect(next[c]).toBe(marks[c]);
+    }
   });
 
-  it('un ✓ donné pour un bloc changé depuis est remplacé ; celui d\'un bloc inchangé reste', () => {
-    const marks: Marks = { [CASES[0]]: { hash: 'vieux', verdict: 'ok', common: COMMON }, [CASES[1]]: MARK(1) as Marks[string] };
-    const { next } = run(marks);
-    expect(next[CASES[0]]).toEqual(MARK(0));
-    expect(next[CASES[1]]).toBe(marks[CASES[1]]);
+  it('un test noté « À revoir » pour son contenu d\'aujourd\'hui : les invariants ne sont pas validés, son ✗ reste', () => {
+    const ko = { [CASES[0]]: { hash: BLOCKS[0], verdict: 'ko', common: COMMON } } as Marks;
+    const marks = { ...NOTE_OK, ...ko };
+    const view = hashed(vibeView(input({ marks })));
+    const next = vibeMarks(marks, { ...view, steps: view.steps.map((x) => ({ ...x, status: 'done' as const })) }, blobs);
+    expect(next.invariants).toBeUndefined();
+    expect(next[CASES[0]]).toBe(ko[CASES[0]]);
   });
 
-  it('un ✓ dont seul le code commun a changé, ou d\'avant la 0.15.0 (sans common), est remplacé', () => {
-    const marks: Marks = { [CASES[0]]: { hash: BLOCKS[0], verdict: 'ok', common: 'vieux' }, [CASES[1]]: { hash: BLOCKS[1], verdict: 'ok' } };
-    const { next } = run(marks);
-    CASES.forEach((c, i) => expect(next[c]).toEqual(MARK(i)));
+  // Les tests changés après leur validation : au rythme par défaut, à l'utilisateur de les regarder (la pause 'invariants' de
+  // journey) ; Reprendre à cette pause (resumed) ou l'express : validés pour leur contenu d'aujourd'hui.
+  describe('les invariants validés puis leurs tests changés', () => {
+    const OTHER = TEST.replace('dit bonjour', 'dit bonsoir');
+    const first = () => run().next;
+    const changedView = (marks: Marks, over: Partial<JourneyInput> = {}) => {
+      const view = vibeView(input({ marks, tests: [{ path: TEST_PATH, blob: blobSha(OTHER), text: OTHER }], blobs: blobs.map((b) => (b.path === TEST_PATH ? { ...b, disk: blobSha(OTHER) } : b)), ...over }));
+      const { blocks, common } = caseBlocks(OTHER);
+      return { ...view, invariants: view.invariants.map((f) => ({ ...f, hashes: { blocks, common } })) };
+    };
+    const disk = blobs.map((b) => (b.path === TEST_PATH ? { ...b, disk: blobSha(OTHER) } : b));
+
+    it('au rythme par défaut : pas revalidés par le système, la marque d\'avant reste', () => {
+      const marks = first();
+      const next = vibeMarks(marks, changedView(marks), disk);
+      expect(next.invariants).toBe(marks.invariants);
+    });
+
+    it('Reprendre à la pause après les invariants (resumed) : validés pour leur contenu d\'aujourd\'hui', () => {
+      const marks = first();
+      const view = { ...changedView(marks), pause: 'invariants' as const };   // le parcours s'y tient (journey.test : quand)
+      const next = vibeMarks(marks, view, disk, true);
+      expect(next.invariants).not.toBe(marks.invariants);
+      expect(next.invariants).toMatchObject({ verdict: 'ok' });
+      expect(stepChecks(next, Object.fromEntries(CHECKED.map((s) => [s, stepContent(view, next, s, disk)]))).invariants.state).toBe('ok');
+    });
+
+    it('resumed hors de cette pause (une autre pause relancée, un relevé en retard) : pas revalidés', () => {
+      const marks = first();
+      const view = { ...changedView(marks), pause: 'modules' as const };
+      expect(vibeMarks(marks, view, disk, true).invariants).toBe(marks.invariants);
+    });
+
+    it('en express : revalidés par le système, sans pause', () => {
+      const marks = first();
+      const view = changedView(marks, { express: true });
+      expect(view.pause ?? null).not.toBe('invariants');
+      const next = vibeMarks(marks, view, disk);
+      expect(next.invariants).toMatchObject({ verdict: 'ok', by: 'system' });
+      expect(next.invariants).not.toBe(marks.invariants);
+    });
   });
 
-  it('un ✗ donné pour un bloc changé depuis est remplacé par le ✓', () => {
-    const { next } = run({ [CASES[0]]: { hash: 'vieux', verdict: 'ko', common: COMMON } });
-    expect(next[CASES[0]]).toEqual(MARK(0));
-  });
-
-  it('un titre en double : deux marques, « titre » et « titre n° 2 », chacune pour son bloc', () => {
-    const text = 'it("a", () => {\n  x();\n});\nit("a", () => {\n  y();\n});\n';
-    const view = vibeView(input({ marks: NOTE_OK, tests: [{ path: TEST_PATH, blob: blobSha(text), text }] }));
-    const { blocks, common } = caseBlocks(text);
-    const dup = { ...view, invariants: view.invariants.map((f) => ({ ...f, hashes: { blocks, common } })) };
-    const next = vibeMarks(NOTE_OK, dup, blobs);
-    expect(next[`case:${TEST_PATH}:a`]).toEqual({ hash: blocks[0], verdict: 'ok', common });
-    expect(next[`case:${TEST_PATH}:a n° 2`]).toEqual({ hash: blocks[1], verdict: 'ok', common });
-    expect(blocks[0]).not.toBe(blocks[1]);
-  });
 
   it('un fichier sans hashes : aucun ✓ de cas, les étapes suivent leur chemin', () => {
     const view = vibeView(input({ marks: NOTE_OK }));
@@ -238,14 +265,14 @@ describe('vibeMarks : les validations du système des étapes faites', () => {
     expect(vibeMarks(next, view, blobs)).toBe(next);
   });
 
-  it('un ✗ déjà donné à la note pour ce contenu reste : la Forme et les invariants ne sont pas validés, les cas oui', () => {
+  it('un ✗ déjà donné à la note pour ce contenu reste : la Forme et les invariants ne sont pas validés, aucun verdict de test posé', () => {
     const marks: Marks = { note: { hash: blobSha(noteDesign(NOTE)), verdict: 'ko' } };
     // Une note ✗ bloque les étapes du relevé : la vue est forcée à « faite » pour que vibeMarks seul en réponde.
     const next = vibeMarks(marks, allDone(marks, false), blobs);
     expect(next.note).toEqual(marks.note);
     expect(next.forme).toBeUndefined();
     expect(next.invariants).toBeUndefined();
-    CASES.forEach((c) => expect(next[c].verdict).toBe('ok'));
+    CASES.forEach((c) => expect(next[c]).toBeUndefined());
   });
 
   it('un ✗ déjà donné à la Forme pour ce contenu reste ; celui d\'un autre contenu est remplacé', () => {
@@ -352,7 +379,7 @@ describe('vibeMarks : les validations du système des étapes faites', () => {
     expect(next.forme).toBeUndefined();
     expect(next.invariants).toBeUndefined();
     expect(next['withdrawn:forme']).toBe(marks['withdrawn:forme']);
-    CASES.forEach((c, i) => expect(next[c]).toEqual(MARK(i)));
+    CASES.forEach((c) => expect(next[c]).toBeUndefined());
   });
 
   it('le contenu de la Forme changé depuis le retrait : validée de nouveau par le système', () => {

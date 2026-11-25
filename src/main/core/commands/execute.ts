@@ -18,7 +18,8 @@
  *  porte 'screen' (toute autre porte est fermée). Les gardes (course qui retient,
  *  grisé, arguments de buildMessage, okRef) ne sont pas refaites : elles restent
  *  dans les opérations injectées, dont il traduit la clé de refus (reason) :
- *  'unknown-artifact' et 'failed' (un artefact) en leur code, 'action' et 'not-offered' en not-offered, une clé d'argument
+ *  'unknown-artifact' et 'failed' (un artefact) en leur code, 'action' et 'not-offered' en not-offered (avec sa raison en
+ *  détail quand l'opération la donne, why : step.validate dit quelle étape manque), une clé d'argument
  *  en invalid-args, toute autre en refused. Une opération qui rend done (une
  *  action d'artefact) : sa fin attendue, puis traduite de même.
  *  Ne connaît pas : Electron, le disque, les robots, la langue de l'appli, les
@@ -26,7 +27,7 @@
  *  Utilisé par : app/controllers (commands, vibecoder : START). */
 import type { VibeArgs, VibeRunOp, VibeView } from 'shared/bridge';
 import { DIRECT_ACTIONS, type ActionDef } from 'core/vibecoder';
-import { actionsOf, artifactsOf, draftOf, logsOf, nextOf, procsOf, runsOf, statusOf } from './reads';
+import { actionsOf, artifactsOf, draftOf, invariantsOf, logsOf, nextOf, procsOf, runsOf, statusOf } from './reads';
 import { coerce, schemaError } from './schema';
 import type { CommandTable } from './table';
 
@@ -41,7 +42,7 @@ export type CommandRequest = { command: string; args?: unknown; door: 'screen' |
 export type CommandContext = { view: VibeView | null; defs: ActionDef[]; queued?: { action: string; by: string }[]; halted?: boolean };
 /** reason : la clé du refus ; by : l'action qui retient ; ignored : les arguments qui ne servent pas ;
  *  done : la fin du travail, attendue avant de répondre (les artefacts), son refus rendu comme les autres. */
-export type OpOutcome = { ok: boolean; error?: string; reason?: string; by?: string; ignored?: string[]; done?: Promise<OpOutcome> };
+export type OpOutcome = { ok: boolean; error?: string; reason?: string; by?: string; ignored?: string[]; done?: Promise<OpOutcome>; why?: string };
 /** L'opération sur le brouillon de revue de la PR suivie : ajouter, changer le texte d'une remarque, la retirer. */
 export type DraftOp = { add: { target: string; text: string } } | { edit: { id: number; text: string } } | { remove: number };
 export type CommandOps = {
@@ -83,7 +84,7 @@ export async function execute(
       case 'failed': return fail('failed', { message: o.error ?? '' });
       case 'same': case 'busy': case 'changing': case 'worktree': return fail(key, o.by === undefined ? {} : { by: o.by });
       case 'disabled': return fail('disabled', { reason: o.error });
-      case 'action': case 'not-offered': return fail('not-offered');
+      case 'action': case 'not-offered': return fail('not-offered', o.why ? { reason: o.why } : {});   // why : pourquoi (step.validate)
       case 'no-pr': return fail('no-pr');
       case 'args': return fail('invalid-args');
       default: return key && props.includes(key) ? fail('invalid-args', { arg: key }) : fail('refused', { reason: o.error ?? '' });
@@ -118,6 +119,7 @@ export async function execute(
       case 'procs': return ok(procsOf(view));
       case 'artifacts': return ok(artifactsOf(view));
       case 'draft': return ok(draftOf(view));
+      case 'invariants': return ok(invariantsOf(view));
       case 'artifact': {
         const found = await ops.artifact(a.artifact as string);
         return found ? ok(found) : fail('unknown-artifact', { artifact: a.artifact });

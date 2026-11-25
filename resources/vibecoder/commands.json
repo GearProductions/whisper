@@ -752,6 +752,61 @@
       }
     },
     {
+      "name": "invariants",
+      "kind": "read",
+      "agent": true,
+      "args": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "description": "The invariant tests of the branch, case by case, with the verdict the user gave on the screen. Use it when the user asks to deal with the tests they marked to review: a ko verdict is a test the user contests, and the journey holds its pause until that test is changed or approved again. Answers a list, in the order of the files then of the cases; empty when the branch has no invariant test.",
+      "response": {
+        "type": "array",
+        "description": "The tests.",
+        "items": {
+          "type": "object",
+          "description": "One test.",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Its file, from the repository root."
+            },
+            "title": {
+              "type": "string",
+              "description": "Its title, as in the code."
+            },
+            "line": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "Its line in the file; null when unknown."
+            },
+            "verdict": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "ok",
+                "ko",
+                null
+              ],
+              "description": "The user's verdict: ok (approved), ko (to review); null when none, or when the test changed since."
+            }
+          },
+          "required": [
+            "path",
+            "title",
+            "line",
+            "verdict"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
       "name": "run.start",
       "description": "Starts an action on its own, as a run, with its skill, model and effort from the settings. Answers nothing but starts the run; follow it with runs. Fails (the request is refused) when the action is unknown, not offered at this step, already running, a direct-only one, an argument is invalid or the app halted Vibe mode; when another run holds the folder, the request is queued: it answers { queued: true, by } (by: the action that holds it), starts alone when the way is free, and runs lists it with the state queued; follow its end with run.wait. An argument the action does not read is ignored, and the notice says so.",
       "kind": "write",

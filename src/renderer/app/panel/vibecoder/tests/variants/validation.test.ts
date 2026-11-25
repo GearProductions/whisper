@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 // validation (validation.tsx) : CaseVerdict, deux badges écrits (Validé, À revoir), celui donné pressé,
 // un second clic l'annule ; MarkControl, l'icône devant le texte, sans glyphe Unicode ; 0.16.0 : la note en créateur, Vérifier puis Valider la note,
-// une étape validée par le système le dit, sa validation à la main en discret, jamais grisée.
+// 0.16.0 écran essentiel : la forme, les invariants, les modules et « Rien à écrire » n'ont plus de bouton ni d'état en créateur.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it } from 'vitest';
@@ -36,7 +36,7 @@ it('CaseVerdict : libellés, pressé = le verdict donné, un second clic annule'
 it('MarkControl : l\'icône devant le texte, même texte, mêmes actions', async () => {
   const marks: unknown[] = [];
   const draw = (state: 'ok' | 'ko' | 'changed' | null, review = false) => act(() => root.render(createElement(MarkControl,
-    { what: 'note', state, review, lang: 'fr', onMark: (v) => { marks.push(v); } })));
+    { state, review, lang: 'fr', onMark: (v) => { marks.push(v); } })));
   await draw(null, true);
   expect(buttons().map((b) => [b.textContent, b.querySelector('svg') !== null])).toEqual([['Valider la note', true], ['À revoir', true]]);
   buttons()[0].click();
@@ -59,11 +59,11 @@ it('onRemark : sur un « À revoir », le bouton, cliqué → onRemark, rien d\'
   await act(() => root.render(createElement(CaseVerdict, { state: 'ko', lang: 'fr', onMark, onRemark })));
   expect(remark()).toHaveLength(1);
   remark()[0].click();
-  await act(() => root.render(createElement(MarkControl, { what: 'note', state: 'ko', review: true, lang: 'fr', onMark, onRemark })));
+  await act(() => root.render(createElement(MarkControl, { state: 'ko', review: true, lang: 'fr', onMark, onRemark })));
   expect(remark()).toHaveLength(1);
   remark()[0].click();
   expect(log).toEqual(['remark', 'remark']);
-  await act(() => root.render(createElement(MarkControl, { what: 'note', state: 'ko', review: true, lang: 'en', onMark, onRemark })));
+  await act(() => root.render(createElement(MarkControl, { state: 'ko', review: true, lang: 'en', onMark, onRemark })));
   expect(buttons().map((b) => b.textContent)).toContain('Add a remark to the draft');
 });
 
@@ -71,10 +71,10 @@ it('Validé, ou sans onRemark : pas de bouton', async () => {
   const onRemark = () => {};
   const none = () => buttons().filter((b) => b.textContent === 'Ajouter une remarque au brouillon');
   for (const state of ['ok', null, 'changed'] as const) {
-    await act(() => root.render(createElement(MarkControl, { what: 'note', state, review: true, lang: 'fr', onMark: () => {}, onRemark })));
+    await act(() => root.render(createElement(MarkControl, { state, review: true, lang: 'fr', onMark: () => {}, onRemark })));
     expect(none()).toHaveLength(0);
   }
-  await act(() => root.render(createElement(MarkControl, { what: 'note', state: 'ko', review: true, lang: 'fr', onMark: () => {} })));
+  await act(() => root.render(createElement(MarkControl, { state: 'ko', review: true, lang: 'fr', onMark: () => {} })));
   expect(none()).toHaveLength(0);
   for (const state of ['ok', null] as const) {
     await act(() => root.render(createElement(CaseVerdict, { state, lang: 'fr', onMark: () => {}, onRemark })));
@@ -87,7 +87,7 @@ it('Validé, ou sans onRemark : pas de bouton', async () => {
 
 // 0.16.0, vérifier puis valider : la note en créateur reçoit onCheck (Vérifier) et verified (ce qu'a rendu la dernière vérification).
 const drawNote = (over: object, state: 'ok' | 'ko' | 'changed' | null = null, lang: 'fr' | 'en' = 'fr') => act(() => root.render(createElement(MarkControl,
-  { what: 'note', state, review: false, lang, onMark: () => {}, onCheck: () => {}, ...over } as never)));
+  { state, review: false, lang, onMark: () => {}, onCheck: () => {}, ...over } as never)));
 
 it('note, créateur, jamais vérifiée, ou la dernière vérification a trouvé quelque chose : Vérifier seul, pas de Valider la note', async () => {
   for (const verified of [undefined, null]) {
@@ -151,7 +151,7 @@ it('note, créateur sans onCheck, validée ou pas : un seul bouton, Valider la n
   // checked et onRecheck, d'avant la 0.16.0, ne sont plus lus : le bouton ne change pas.
   const old = { checked: true, onRecheck: () => { log.push('recheck'); } };
   const draw = (state: 'ok' | 'ko' | 'changed' | null, lang: 'fr' | 'en' = 'fr') => act(() => root.render(createElement(MarkControl,
-    { what: 'note', state, review: false, lang, onMark: (v: unknown) => { log.push(v); }, ...old } as never)));
+    { state, review: false, lang, onMark: (v: unknown) => { log.push(v); }, ...old } as never)));
   await draw(null);
   expect(buttons().map((b) => b.textContent)).toEqual(['Valider la note']);
   buttons()[0].click();
@@ -168,97 +168,22 @@ it('note, créateur sans onCheck, validée ou pas : un seul bouton, Valider la n
 });
 
 it('note : le bouton garde son vert et sa coche (data-v ok, icône), à côté du bouton rien d\'autre', async () => {
-  await act(() => root.render(createElement(MarkControl, { what: 'note', state: null, review: false, lang: 'fr', onMark: () => {} })));
+  await act(() => root.render(createElement(MarkControl, { state: null, review: false, lang: 'fr', onMark: () => {} })));
   expect(buttons()).toHaveLength(1);
   expect(buttons()[0].getAttribute('data-v')).toBe('ok');
   expect(buttons()[0].querySelector('svg')).not.toBeNull();
 });
 
 it('relecteur : Valider la note et À revoir, comme avant (forme comprise, sans bouton discret)', async () => {
-  await act(() => root.render(createElement(MarkControl, { what: 'note', state: null, review: true, lang: 'fr', onMark: () => {} })));
+  await act(() => root.render(createElement(MarkControl, { state: null, review: true, lang: 'fr', onMark: () => {} })));
   expect(buttons().map((b) => b.textContent)).toEqual(['Valider la note', 'À revoir']);
   expect(buttons().map((b) => b.getAttribute('data-v'))).toEqual(['ok', 'ko']);
-});
-
-it('étape pas validée, créateur : Valider en discret (ni vert ni coche), jamais grisé, même à une étape qui attend', async () => {
-  const log: unknown[] = [];
-  for (const what of ['forme', 'invariants', 'modules'] as const) {
-    for (const state of [null, 'changed'] as const) {
-      await act(() => root.render(createElement(MarkControl, { what, state, review: false, lang: 'fr', onMark: (v) => { log.push(v); } })));
-      const [b] = buttons();
-      expect(buttons()).toHaveLength(1);
-      expect([b.disabled, b.getAttribute('data-v'), b.querySelector('svg'), b.className]).toEqual([false, null, null, 'vc-vbtn vc-vbtn-plain']);
-      b.click();
-    }
-  }
-  expect(log).toEqual(['ok', 'ok', 'ok', 'ok', 'ok', 'ok']);
-  // « Rien à écrire » est une décision de l'utilisateur : son bouton garde son vert.
-  await act(() => root.render(createElement(MarkControl, { what: 'nothing', state: null, review: false, lang: 'fr', onMark: () => {} })));
-  expect(buttons()[0].getAttribute('data-v')).toBe('ok');
-});
-
-it('étape validée par le système : « validée par le système » et son contrôle ; à la main : « validée » ; Annuler reste', async () => {
-  const log: unknown[] = [];
-  const draw = (what: 'forme' | 'invariants' | 'modules', by: 'system' | undefined, lang: 'fr' | 'en' = 'fr') => act(() => root.render(createElement(MarkControl,
-    { what, state: 'ok', review: false, lang, by, onMark: (v) => { log.push(v); } })));
-  const want = {
-    forme: ['validée par le système', 'squelettes posés'],
-    invariants: ['validée par le système', 'alignement avec la note'],
-    modules: ['validée par le système', 'conformité à la forme et preuve par mutation'],
-  } as const;
-  for (const what of ['forme', 'invariants', 'modules'] as const) {
-    await draw(what, 'system');
-    expect(page.querySelector('.vc-vstate')!.textContent).toBe(want[what][0]);
-    expect(page.querySelector('.vc-vby')!.textContent).toBe(want[what][1]);
-    expect(buttons().map((b) => b.textContent)).toEqual(['Annuler']);
-  }
-  await draw('modules', undefined);
-  expect(page.querySelector('.vc-vstate')!.textContent).toBe('Modules validés');
-  expect(page.querySelector('.vc-vby')).toBeNull();
-  await draw('forme', 'system', 'en');
-  expect(page.querySelector('.vc-vstate')!.textContent).toBe('validated by the system');
-  expect(page.querySelector('.vc-vby')!.textContent).toBe('skeletons set up');
-  buttons()[0].click();
-  expect(log).toEqual([null]);
-  // La note n'est jamais validée par le système : by n'y change rien.
-  await act(() => root.render(createElement(MarkControl, { what: 'note', state: 'ok', review: false, lang: 'fr', by: 'system', onMark: () => {} })));
-  expect(page.textContent).toBe('Note validéeAnnuler');
-});
-
-it('invariants, modules : le libellé (fr, en) ; validé : Annuler ; modifié depuis : Revalider ; rien n\'est envoyé sans clic', async () => {
-  const log: unknown[] = [];
-  const draw = (what: 'invariants' | 'modules', state: 'ok' | 'changed' | null, lang: 'fr' | 'en' = 'fr') => act(() => root.render(createElement(MarkControl,
-    { what, state, review: false, lang, onMark: (v) => { log.push(v); } })));
-  const want = {
-    invariants: { fr: ['Valider les invariants', 'Invariants validés'], en: ['Approve the invariants', 'Invariants approved'] },
-    modules: { fr: ['Valider les modules', 'Modules validés'], en: ['Approve the modules', 'Modules approved'] },
-  };
-  for (const what of ['invariants', 'modules'] as const) {
-    for (const lang of ['fr', 'en'] as const) {
-      await draw(what, null, lang);
-      expect(buttons().map((b) => b.textContent)).toEqual([want[what][lang][0]]);
-      expect(log).toEqual([]);
-      buttons()[0].click();
-      expect(log).toEqual(['ok']);
-      log.length = 0;
-      await draw(what, 'ok', lang);
-      expect(page.querySelector('.vc-vstate')!.textContent).toBe(want[what][lang][1]);
-      expect(buttons().map((b) => b.textContent)).toEqual([lang === 'fr' ? 'Annuler' : 'Undo']);
-      buttons()[0].click();
-      expect(log).toEqual([null]);
-      log.length = 0;
-    }
-    await draw(what, 'changed');
-    expect(buttons().map((b) => b.textContent)).toEqual(['Revalider']);
-    await draw(what, 'changed', 'en');
-    expect(buttons().map((b) => b.textContent)).toEqual(['Approve again']);
-  }
 });
 
 it('run : running → « en cours » et ⏹ (onStop) ; queued → « en attente », pas de ⏹ ; sans run : rien ; à côté du bouton', async () => {
   const log: unknown[] = [];
   const draw = (run: { state: 'running' | 'asking' | 'stopped' | 'queued'; onStop(): void } | undefined, lang: 'fr' | 'en' = 'fr') =>
-    act(() => root.render(createElement(MarkControl, { what: 'note', state: null, review: false, lang, run, onMark: () => {} })));
+    act(() => root.render(createElement(MarkControl, { state: null, review: false, lang, run, onMark: () => {} })));
   const on = () => page.querySelector('.vc-run-on');
   await draw(undefined);
   expect(on()).toBeNull();

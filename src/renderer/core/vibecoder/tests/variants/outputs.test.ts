@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appliedRemarks, commitReviews, commitTitle, parseChecks, parseReview, remarkKey, sections, webUrl } from 'core/vibecoder';
+import { commitReviews, commitTitle, failedChecks, parseChecks, parseCi, parseReview, sections, webUrl, withoutApplied } from 'core/vibecoder';
 import type { VibeCommit } from 'technicals/bridge';
 
 describe('parseChecks', () => {
@@ -167,43 +167,7 @@ describe('commitReviews', () => {
   });
 });
 
-describe('remarkKey', () => {
-  it('« <fichier>:L<ligne> » en tête, accents graves ou non ; d\'une plage, la première ligne', () => {
-    expect(remarkKey('src/a.ts:L12 — yagni: x — y')).toBe('src/a.ts:L12');
-    expect(remarkKey('`src/a.ts:L12-38` — shrink: x')).toBe('src/a.ts:L12');
-    expect(remarkKey('  src/c.ts:L3: dead')).toBe('src/c.ts:L3');
-  });
-
-  it('pas en tête, sans ligne, ou ligne suivie d\'une lettre : null', () => {
-    expect(remarkKey('voir src/a.ts:L12')).toBeNull();
-    expect(remarkKey('src/a.ts — note: x')).toBeNull();
-    expect(remarkKey('src/a.ts:L12a')).toBeNull();
-    expect(remarkKey('net: -4 lines possible.')).toBeNull();
-  });
-});
-
-describe('appliedRemarks', () => {
-  const out = (text: string, time: number) => ({ text, time });
-  it('les clés appliquées, si le fichier n\'est pas plus vieux que ponytail.md', () => {
-    const a = out('{"applied":["src/a.ts:L12","`src/b.ts:L3-9`",4,"rien"]}', 10);
-    expect([...appliedRemarks(a, 10)]).toEqual(['src/a.ts:L12', 'src/b.ts:L3']);
-  });
-
-  it('absent, plus vieux, illisible ou sans applied : vide', () => {
-    expect(appliedRemarks(undefined, 1).size).toBe(0);
-    expect(appliedRemarks(out('{"applied":["src/a.ts:L1"]}', 9), 10).size).toBe(0);
-    expect(appliedRemarks(out('{', 10), 1).size).toBe(0);
-    expect(appliedRemarks(out('{"applied":"src/a.ts:L1"}', 10), 1).size).toBe(0);
-    expect(appliedRemarks(out('null', 10), 1).size).toBe(0);
-  });
-});
-
 describe('fichiers de retour étiquetés [toi] / [agent] : la lecture de la page tient', () => {
-  it('remarkKey d\'une remarque ponytail étiquetée : son adresse', () => {
-    expect(remarkKey('`src/a.ts:L12` [agent] — yagni: x')).toBe('src/a.ts:L12');
-    expect(remarkKey('src/a.ts:L12-38 [toi] — shrink: x')).toBe('src/a.ts:L12');
-  });
-
   it('parseChecks d\'un detail étiqueté : l\'item lu, son detail tel quel', () => {
     expect(parseChecks('{"items":[{"name":"tests","ok":false,"detail":"[toi] a.test.ts:3 attendu 2"}]}'))
       .toEqual([{ name: 'tests', ok: false, level: 'error', detail: '[toi] a.test.ts:3 attendu 2' }]);
@@ -214,5 +178,82 @@ describe('fichiers de retour étiquetés [toi] / [agent] : la lecture de la page
       { title: '[toi] le contrat', body: 'texte' },
       { title: '[agent] un détail', body: 'autre' },
     ]);
+  });
+});
+
+describe('parseCi', () => {
+  it('une première ligne ✓ : verte, aucun échec', () => {
+    expect(parseCi('✓ 5/5 checks passed')).toEqual({ state: 'ok', failed: [] });
+  });
+
+  it('une première ligne ✗ et deux titres : en échec, leurs deux noms sans étiquette', () => {
+    const text = '[agent] ✗ 2/5 failed\n\n## [agent] typecheck\nCause.\n\n## [toi] tests\nCause.';
+    expect(parseCi(text)).toEqual({ state: 'ko', failed: ['typecheck', 'tests'] });
+  });
+
+  it('une première ligne ⏳ : en cours', () => {
+    expect(parseCi('⏳ 3/5 pending')).toEqual({ state: 'pending', failed: [] });
+  });
+
+  it('une étiquette [agent] devant la marque : ignorée', () => {
+    expect(parseCi('[agent] ✓ 5/5')?.state).toBe('ok');
+    expect(parseCi('[toi] ⏳ 1/2')?.state).toBe('pending');
+  });
+
+  it('un titre dans un bloc de code : pas un échec', () => {
+    const text = '✗ 1/2\n## [agent] lint\n```md\n## pas un échec\n```';
+    expect(parseCi(text)?.failed).toEqual(['lint']);
+  });
+
+  it('une première ligne sans marque connue, un texte vide : illisible', () => {
+    for (const text of ['', ' \n\n', 'all good', '## [agent] lint\n✗ 1/1', '[agent] 5/5']) expect(parseCi(text)).toBeNull();
+  });
+
+  it('après une marque de liste, des lignes vides en tête, des fins de ligne Windows', () => {
+    expect(parseCi('\n\n- [agent] ✗ 1/2\r\n## [agent] `lint`  \r\ncause')).toEqual({ state: 'ko', failed: ['`lint`'] });
+  });
+
+  it('un titre sans nom, ou seulement une étiquette : écarté ; verte avec des titres : les garde', () => {
+    expect(parseCi('✗ 1/2\n## [agent]\n##\n## [toi] a b')?.failed).toEqual(['a b']);
+    expect(parseCi('✓ ok\n## [agent] x')?.failed).toEqual(['x']);
+  });
+});
+
+describe('failedChecks', () => {
+  const c = (name: string, level: 'ok' | 'warning' | 'error') => ({ name, ok: level !== 'error', level, detail: '' });
+
+  it('des vérifications ok, en avertissement et en échec : les seules en échec, dans l\'ordre', () => {
+    const list = [c('a', 'ok'), c('b', 'error'), c('c', 'warning'), c('d', 'error')];
+    expect(failedChecks(list)).toEqual([list[1], list[3]]);
+  });
+
+  it('aucune : liste vide', () => {
+    expect(failedChecks([])).toEqual([]);
+    expect(failedChecks([c('a', 'warning')])).toEqual([]);
+  });
+});
+
+describe('withoutApplied', () => {
+  const md = '- `a.ts:L1` [agent] — un\n- a.ts:L2 [agent] — deux\n  suite de deux\n- `b.ts:L3` [toi] — trois\n- `c.ts:L4-9` [agent] — quatre\n\nnet : -2 lignes possibles.';
+  const ponytail = { text: md, time: 10 };
+  const applied = (list: string[], time = 10) => ({ text: JSON.stringify({ applied: list }), time });
+
+  it('une remarque [agent] dont l\'adresse est appliquée : retirée, avec ses lignes de suite ; les autres restent', () => {
+    expect(withoutApplied(ponytail, applied(['a.ts:L2', 'c.ts:L4-9']))).toBe('- `a.ts:L1` [agent] — un\n- `b.ts:L3` [toi] — trois\n\nnet : -2 lignes possibles.');
+  });
+
+  it('une remarque [toi] n\'est jamais retirée, même si son adresse est appliquée', () => {
+    expect(withoutApplied(ponytail, applied(['b.ts:L3']))).toBe(md);
+  });
+
+  it('un fichier plus vieux que ponytail.md, absent, illisible ou sans liste : rien n\'est retiré', () => {
+    expect(withoutApplied(ponytail, applied(['a.ts:L1'], 9))).toBe(md);
+    expect(withoutApplied(ponytail, undefined)).toBe(md);
+    expect(withoutApplied(ponytail, { text: '{pas du json', time: 11 })).toBe(md);
+    expect(withoutApplied(ponytail, { text: '{"applied":"a.ts:L1"}', time: 11 })).toBe(md);
+  });
+
+  it('un fichier aussi récent que ponytail.md compte', () => {
+    expect(withoutApplied(ponytail, applied(['a.ts:L1'], 10))).not.toContain('a.ts:L1');
   });
 });

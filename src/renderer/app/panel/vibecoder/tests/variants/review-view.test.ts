@@ -1,8 +1,7 @@
 // @vitest-environment happy-dom
-// ReviewView (review-view.tsx), finitions : Relancer une vérification → IconButton refresh (libellé en title et
-// aria-label), même action (checks, son rang), même état grisé, son clic ne replie pas le détail ; une remarque
-// appliquée et le bandeau « Appliquée » → Icon ok (plus de ✓ en texte) ; Appliquer garde son texte ; les cases des
-// remarques et Appliquer la sélection.
+// ReviewView (review-view.tsx), l'écran de l'essentiel (note 0.16.0-ecran-essentiel) : en créateur, une seule carte (avant la
+// revue, une ligne qui dit quand elle part ; après, une ligne par vérification en échec, la ponytail review par
+// FeedbackView) ; aucun bouton, ni « Avant la PR », ni carte vide ; le relecteur : Relire à l'écran seul, comme avant.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it } from 'vitest';
@@ -18,172 +17,137 @@ document.body.append(page);
 const root = createRoot(page);
 const action = (id: string) => ({ id, label: id, hint: '', kind: 'run', step: 'revue', who: 'haiku', models: [],
   hidden: false, disabled: null, primary: false }) as unknown as VibeAction;
-const checks = JSON.stringify({ items: [{ name: 'tsc', ok: false, detail: 'erreur\nligne 2' }, { name: 'lint', ok: true }] });
 const out = (text: string, time = 1) => ({ text, time });
-const runs: unknown[][] = [];
-const draw = (ponytail: string, applied: string[], busy = false, flow = 'create') => act(() => {
-  const view = { lang: 'fr', flow, actions: [action('checks'), action('apply'), action('screen')], checklist: [], commits: [], steps: [], draft: [],
-    screen: [{ text: 'cliquer', done: false }],
-    outputs: { 'ecran.md': out('- [ ] cliquer'), 'checks.json': out(checks), 'ponytail.md': out(ponytail), 'ponytail-applied.json': out(JSON.stringify({ applied }), 2) } } as unknown as VibeView;
-  const props = { view, step: { id: 'revue', status: 'current', facts: '', open: true }, t: t('fr'), busy, text: '', setText: () => {},
-    code: null, drafts: [{}, () => {}], act: { run: (...a: unknown[]) => runs.push(a), follow: () => {}, mark: () => {}, prefill: () => {},
+const checks = (...items: unknown[]) => out(JSON.stringify({ items }));
+const pass = { name: 'lint', ok: true };
+const fail = (name: string, detail = '') => ({ name, ok: false, level: 'error', detail });
+
+type Draw = { outputs?: Record<string, { text: string; time: number }>; flow?: string; express?: boolean; lang?: 'fr' | 'en' };
+const draw = ({ outputs = {}, flow = 'create', express, lang = 'fr' }: Draw = {}) => act(() => {
+  const view = { lang, flow, express, actions: [action('checks'), action('apply'), action('screen')], commits: [{ hash: 'h1', subject: 's', files: [] }],
+    checklist: [{ text: 'La note est à jour', done: true }, { text: 'Chaque diff a été relu', done: false }], steps: [], draft: [], screen: [], outputs } as unknown as VibeView;
+  const props = { view, step: { id: 'revue', status: 'current', facts: '', open: true }, t: t(lang), busy: false, text: '', setText: () => {},
+    code: null, drafts: [{}, () => {}], act: { run: () => {}, follow: () => {}, mark: () => {}, prefill: () => {},
       draft: () => {}, open: () => {}, openLink: () => {}, save: async () => true } } as unknown as StepProps;
   root.render(createElement(ReviewView, props));
 });
-const again = () => [...page.querySelectorAll<HTMLButtonElement>('button.vc-check-again')];
+const rows = () => [...page.querySelectorAll<HTMLElement>('.vc-check-list li')];
+const body = () => page.querySelector('.vc-revue')?.textContent ?? '';
 
-it('Relancer une vérification : IconButton nommé, checks avec son rang, sans replier le détail, grisé pendant busy', async () => {
-  await draw('- une remarque', []);
-  const [first, second] = again();
-  expect(again()).toHaveLength(2);
-  for (const b of [first, second]) {
-    expect(b.classList.contains('vc-tool')).toBe(true);
-    expect(b.getAttribute('aria-label')).toBe('Relancer cette vérification seule');
-    expect(b.getAttribute('title')).toBe('Relancer cette vérification seule');
-    expect(b.querySelector('svg')).not.toBeNull();
-  }
-  const click = new MouseEvent('click', { bubbles: true, cancelable: true });
-  await act(() => { second.dispatchEvent(click); });
-  expect(runs.at(-1)).toEqual(['checks', { check: 1 }]);
-  expect(click.defaultPrevented).toBe(true);   // dans un <summary>, le clic ne replie pas le détail
-  await draw('- une remarque', [], true);
-  expect(again().every((b) => b.disabled)).toBe(true);
+it('avant la revue : une ligne qui dit quand elle part, selon le rythme', async () => {
+  await draw();
+  expect(body()).toContain('La revue part après votre essai');
+  await draw({ express: true });
+  expect(body()).toContain('La revue part après les modules');
+  expect(body()).not.toContain('votre essai');
+  await draw({ lang: 'en', express: true });
+  expect(body()).toContain('The review starts after the modules');
+  await draw({ lang: 'en' });
+  expect(body()).toContain('The review starts after your try');
 });
 
-it('une remarque appliquée : Icon ok nommée ; Appliquer garde son texte ; toutes : le bandeau, Icon ok + texte', async () => {
-  await draw('- a.ts:L1 faite\n- b.ts:L2 à faire', ['a.ts:L1']);
-  const mark = page.querySelector('.vc-remark-applied')!;
-  expect(mark.getAttribute('aria-label')).toBe('Appliquée');
-  expect(mark.querySelector('svg')).not.toBeNull();
-  expect(mark.textContent).toBe('');
-  expect(page.querySelector('.vc-apply-one')!.textContent).toBe('Appliquer');
-  expect(page.querySelector('.vc-applied-banner')).toBeNull();
-  await draw('- a.ts:L1 faite', ['a.ts:L1']);
-  const banner = page.querySelector('.vc-applied-banner')!;
-  expect(banner.querySelector('svg')).not.toBeNull();
-  expect(banner.textContent).toBe('Appliquée');
+it('la revue faite : plus de ligne d\'attente', async () => {
+  await draw({ outputs: { 'checks.json': checks(pass) } });
+  expect(page.textContent).not.toContain('revue part');
 });
 
-it('les cases : cochées par défaut (Tout appliquer, sans texte) ; une décochée → Appliquer la sélection (n), les cochées seules ; aucune → grisé ; pas de case sur une appliquée', async () => {
-  const md = '- a.ts:L1 faite\n- b.ts:L2 deux\n- c.ts:L3 trois';
-  await draw(md, ['a.ts:L1']);
-  const boxes = () => [...page.querySelectorAll<HTMLInputElement>('.vc-remark-pick')];
-  const applyBtn = () => [...page.querySelectorAll<HTMLButtonElement>('.vc-card-end button.vc-run')].find((b) => /appliquer/i.test(b.textContent ?? ''))!;
-  expect(boxes().map((b) => b.checked)).toEqual([true, true]);   // la remarque appliquée n'a pas de case
-  expect(applyBtn().textContent).toContain('Tout appliquer');
-  await act(() => { applyBtn().click(); });
-  expect(runs.at(-1)).toEqual(['apply', { text: '' }]);
-  await act(() => { boxes()[1].click(); });
-  expect(applyBtn().textContent).toContain('Appliquer la sélection (1)');
-  await act(() => { applyBtn().click(); });
-  expect(runs.at(-1)).toEqual(['apply', { text: '- b.ts:L2 deux' }]);
-  await act(() => { boxes()[0].click(); });
-  expect(applyBtn().disabled).toBe(true);
-  // une nouvelle review : tout recoché
-  await act(() => { root.render(null); });
-  await draw(md, []);
-  expect(boxes().every((b) => b.checked)).toBe(true);
+it('toutes les vérifications passent : aucune ligne de vérification, pas de carte vide', async () => {
+  await draw({ outputs: { 'checks.json': checks(pass, { name: 'tsc', ok: true }), 'ponytail.md': out('Aligné.') } });
+  expect(rows()).toHaveLength(0);
+  expect(page.querySelector('.vc-revue')).toBeNull();
 });
 
-it('Relire à l\'écran : sous la Revue du créateur ; seule chez le relecteur, sans vérification ni Appliquer', async () => {
-  await draw('- une remarque', []);
-  expect(page.querySelector('.vc-plan')).not.toBeNull();
-  expect(page.querySelector('.vc-checks')).not.toBeNull();
-  expect(page.querySelectorAll('.vc-step-acts button')).toHaveLength(0);   // screen est montrée par sa carte, pas par l'en-tête
-  await draw('- une remarque', [], false, 'review');
-  expect(page.querySelector('.vc-plan')).not.toBeNull();
-  for (const sel of ['.vc-checks', '.vc-a3', '.vc-apply-one', '.vc-check-again']) expect(page.querySelector(sel)).toBeNull();
-  expect(page.textContent).not.toContain('Pas encore de ponytail review');
-  expect(page.textContent).not.toContain('Pas encore de vérification');
+it('deux vérifications en échec : deux lignes, leur nom, la première ligne de leur détail', async () => {
+  await draw({ outputs: { 'checks.json': checks(fail('tsc', 'erreur\nligne 2'), pass, fail('tests')) } });
+  expect(rows().map((li) => li.querySelector('.vc-check-name')!.textContent)).toEqual(['tsc', 'tests']);
+  expect(rows()[0].getAttribute('data-state')).toBe('ko');
+  expect(rows()[0].querySelector('.vc-check-line')!.textContent).toBe('erreur');
+  expect(rows()[1].querySelector('.vc-check-line')).toBeNull();
 });
 
-// Les étiquettes [toi] / [agent] (tagged) : checks.json (en tête du detail) et ponytail.md (après l'adresse).
-const drawTagged = (items: unknown[], ponytail = '- une remarque') => act(() => {
-  const view = { lang: 'fr', flow: 'create', actions: [action('checks'), action('apply')], checklist: [], commits: [], steps: [], draft: [], screen: [],
-    outputs: { 'checks.json': out(JSON.stringify({ items })), 'ponytail.md': out(ponytail) } } as unknown as VibeView;
-  const props = { view, step: { id: 'revue', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
-    code: null, drafts: [{}, () => {}], act: { run: (...a: unknown[]) => runs.push(a), follow: () => {}, mark: () => {}, prefill: () => {},
-      draft: () => {}, open: () => {}, openLink: () => {}, save: async () => true } } as unknown as StepProps;
-  root.render(createElement(ReviewView, props));
+it('un avertissement : pas une ligne d\'échec', async () => {
+  await draw({ outputs: { 'checks.json': checks({ name: 'lint', ok: true, level: 'warning', detail: 'attention' }, fail('tsc')) } });
+  expect(rows().map((li) => li.querySelector('.vc-check-name')!.textContent)).toEqual(['tsc']);
+  await draw({ outputs: { 'checks.json': checks({ name: 'lint', ok: true, level: 'warning', detail: 'attention' }) } });
+  expect(rows()).toHaveLength(0);
 });
 
-it('un check en échec `[agent] …` : son badge, data-tag agent, sa marque ko gardée, le détail sans l\'étiquette ; sans étiquette : comme avant', async () => {
-  await drawTagged([{ name: 'tsc', ok: false, detail: '[agent] erreur\nligne 2' }, { name: 'lint', ok: false, detail: 'boom' }, { name: 'ok', ok: true }]);
-  const [tsc, lint, fine] = [...page.querySelectorAll<HTMLElement>('.vc-check-list > li')];
+it('un checks.json illisible : la carte le dit ; sans commande : rien d\'autre', async () => {
+  await draw({ outputs: { 'checks.json': out('{pas du json') } });
+  expect(body()).toContain('checks.json illisible');
+  expect(rows()).toHaveLength(0);
+  await draw({ outputs: { 'checks.json': checks() } });
+  expect(page.querySelector('.vc-revue')).toBeNull();
+});
+
+it('une vérification en échec `[agent]` : son badge, data-tag, sans l\'étiquette dans le texte', async () => {
+  await draw({ outputs: { 'checks.json': checks(fail('tsc', '[agent] erreur\nligne 2'), fail('inv', '[toi]')) } });
+  const [tsc, inv] = rows();
   expect(tsc.getAttribute('data-tag')).toBe('agent');
-  expect(tsc.getAttribute('data-state')).toBe('ko');   // la marque ko (rouge, sa propre couleur) reste
-  expect(tsc.querySelector('.vc-mark')).not.toBeNull();
   expect(tsc.querySelector('.vc-tag-badge')!.textContent).toBe('pour l\'agent');
-  expect(tsc.querySelector('.vc-check-detail')!.textContent).toBe('erreur\nligne 2');
   expect(tsc.querySelector('.vc-check-line')!.textContent).toBe('erreur');
   expect(tsc.textContent).not.toContain('[agent]');
-  for (const li of [lint, fine]) {
-    expect(li.hasAttribute('data-tag')).toBe(false);
-    expect(li.querySelector('.vc-tag-badge')).toBeNull();
+  expect(inv.getAttribute('data-tag')).toBe('toi');
+  expect(inv.querySelector('.vc-tag-badge')!.textContent).toBe('pour toi');
+});
+
+it('une remarque [toi] : en avant, sans bouton', async () => {
+  await draw({ outputs: { 'checks.json': checks(pass), 'ponytail.md': out('- `a.ts:L1` [toi] — contrat à trancher') } });
+  expect(body()).toContain('contrat à trancher');
+  expect(page.querySelector('details')).toBeNull();
+  expect(page.querySelector('button')).toBeNull();
+});
+
+it('quatre remarques [agent] : repliées, « 4 »', async () => {
+  const md = [1, 2, 3, 4].map((n) => `- \`a.ts:L${n}\` [agent] — remarque ${n}`).join('\n');
+  await draw({ outputs: { 'checks.json': checks(pass), 'ponytail.md': out(md) } });
+  const fold = page.querySelector('details')!;
+  expect(fold.querySelector('summary')!.textContent).toBe('4 pour l\'agent');
+  expect(fold.hasAttribute('open')).toBe(false);
+});
+
+it('des remarques [agent] déjà appliquées (ponytail-applied.json, pas plus vieux que ponytail.md) : retirées du compte', async () => {
+  const md = [1, 2, 3, 4].map((n) => `- \`a.ts:L${n}\` [agent] — remarque ${n}`).join('\n');
+  const applied = (list: string[], time: number) => out(JSON.stringify({ applied: list }), time);
+  await draw({ outputs: { 'checks.json': checks(pass), 'ponytail.md': out(md, 5), 'ponytail-applied.json': applied(['a.ts:L1', 'a.ts:L2'], 5) } });
+  expect(page.querySelector('details summary')!.textContent).toBe('2 pour l\'agent');
+  expect(page.querySelector('details')!.textContent).not.toContain('remarque 1');
+  // un fichier plus vieux que ponytail.md (une revue d'avant) : le compte entier
+  await draw({ outputs: { 'checks.json': checks(pass), 'ponytail.md': out(md, 5), 'ponytail-applied.json': applied(['a.ts:L1', 'a.ts:L2'], 4) } });
+  expect(page.querySelector('details summary')!.textContent).toBe('4 pour l\'agent');
+  // tout appliqué : plus de repli
+  await draw({ outputs: { 'checks.json': checks(pass), 'ponytail.md': out(md, 5), 'ponytail-applied.json': applied(['a.ts:L1', 'a.ts:L2', 'a.ts:L3', 'a.ts:L4'], 6) } });
+  expect(page.querySelector('details')).toBeNull();
+});
+
+it('la ponytail review seule, sans checks.json : montrée, sans ligne d\'attente', async () => {
+  await draw({ outputs: { 'ponytail.md': out('- [toi] une question') } });
+  expect(body()).toContain('une question');
+  expect(body()).not.toContain('revue part');
+});
+
+it('aucun bouton, aucune case ; ni « Avant la PR », ni carte vide', async () => {
+  const md = '- `a.ts:L1` [toi] — q\n- `b.ts:L2` [agent] — a';
+  for (const outputs of [{} as Record<string, { text: string; time: number }>, { 'checks.json': checks(fail('tsc', 'x'), pass), 'ponytail.md': out(md), 'ponytail-applied.json': out('{"applied":[]}', 2) }]) {
+    await draw({ outputs });
+    expect(page.querySelector('button, input')).toBeNull();
+    expect(page.querySelector('.vc-a3, .vc-apply-one, .vc-check-again, .vc-remark-pick, .vc-run, .vc-invite')).toBeNull();
+    for (const text of ['Avant la PR', 'Pas encore de vérification', 'Pas encore de ponytail review', 'Pas encore de plan de test', 'Relancer', 'Appliquer'])
+      expect(page.textContent).not.toContain(text);
   }
-  expect(lint.querySelector('.vc-check-detail')!.textContent).toBe('boom');
 });
 
-it('un check `[toi]` sans autre détail : le badge sur sa ligne, data-tag toi, aucune zone de détail', async () => {
-  await drawTagged([{ name: 'inv', ok: false, detail: '[toi]' }]);
-  const li = page.querySelector<HTMLElement>('.vc-check-list > li')!;
-  expect(li.getAttribute('data-tag')).toBe('toi');
-  expect(li.querySelector('.vc-tag-badge')!.textContent).toBe('pour toi');
-  expect(li.querySelector('.vc-check-detail')).toBeNull();
+it('aucun plan de test : rien (EcranSection)', async () => {
+  await draw({ outputs: { 'checks.json': checks(pass) } });
+  expect(page.querySelector('.vc-plan')).toBeNull();
 });
 
-it('une remarque ponytail étiquetée : son badge ; Appliquer et sa case d\'après son adresse, sur le texte brut', async () => {
-  await drawTagged([], '- `a.ts:L1` [agent] — trop long\n- b.ts:L2 [toi] — contrat');
-  const [one, two] = [...page.querySelectorAll<HTMLElement>('.vc-md li')];
-  expect(one.getAttribute('data-tag')).toBe('agent');
-  expect(one.querySelector('.vc-tag-badge')!.textContent).toBe('pour l\'agent');
-  expect(two.querySelector('.vc-tag-badge')!.textContent).toBe('pour toi');
-  expect(page.textContent).not.toContain('[agent]');
-  expect(page.querySelectorAll('.vc-remark-pick')).toHaveLength(2);
-  await act(() => { one.querySelector<HTMLButtonElement>('.vc-apply-one')!.click(); });
-  expect(runs.at(-1)).toEqual(['apply', { text: 'a.ts:L1 [agent] — trop long' }]);
-});
-
-// 0.16.0 : « Avant la PR », « Chaque diff a été relu » cochée par le relevé (docs/tickets/feat/0.16.0-controle-en-trois-points.md).
-const marks: unknown[][] = [];
-const drawList = (reviewed: boolean, agents: boolean | null, lang: 'fr' | 'en' = 'fr') => act(() => {
-  const checklist = [
-    { text: 'La note est à jour', done: true }, { text: 'Les invariants passent', done: true }, { text: 'Chaque diff a été relu', done: reviewed },
-    { text: 'Chaque module commité, aucun fixup à replier', done: true }, { text: 'AGENTS.md à jour si une convention a changé', done: agents, manual: true },
-  ];
-  const view = { lang, flow: 'create', actions: [], checklist, commits: [{ hash: 'h1', subject: 's', files: [] }], steps: [], draft: [], screen: [], outputs: {} } as unknown as VibeView;
-  const props = { view, step: { id: 'revue', status: 'current', facts: '', open: true }, t: t(lang), busy: false, text: '', setText: () => {},
-    code: null, drafts: [{}, () => {}], act: { run: () => {}, follow: () => {}, mark: (...a: unknown[]) => { marks.push(a); }, prefill: () => {},
-      draft: () => {}, open: () => {}, openLink: () => {}, save: async () => true } } as unknown as StepProps;
-  root.render(createElement(ReviewView, props));
-});
-const item = (text: string) => [...page.querySelectorAll<HTMLElement>('.vc-a3-list li')].find((li) => li.textContent?.includes(text))!;
-
-it('« Chaque diff a été relu » : ✓ ou ✗ d\'après le relevé, pas de case à cocher, son aide dit par quoi', async () => {
-  for (const [reviewed, state] of [[true, 'ok'], [false, 'ko']] as const) {
-    await drawList(reviewed, null);
-    const li = item('Chaque diff a été relu');
-    expect(li.getAttribute('data-state')).toBe(state);
-    expect(li.querySelector('input')).toBeNull();
-    expect(li.querySelector('.vc-mark')).not.toBeNull();
-    expect(li.querySelector('.vc-a3-help')!.textContent).toBe('Cochée par le contrôle des modules et la ponytail review');
-  }
-  await drawList(true, null, 'en');
-  expect(item('Chaque diff').querySelector('.vc-a3-help')!.textContent).toBe('Ticked by the modules check and the ponytail review');
-});
-
-it('« AGENTS.md à jour… » : seule case à cocher, dite facultative ; le clic marque a3:4', async () => {
-  marks.length = 0;
-  await drawList(true, null);
-  expect(page.querySelectorAll('.vc-a3-list input[type="checkbox"]')).toHaveLength(1);
-  const li = item('AGENTS.md');
-  expect(li.querySelector('.vc-a3-manual')!.textContent).toBe('facultatif');
-  expect(li.querySelector('.vc-a3-help')).toBeNull();
-  await act(() => li.querySelector<HTMLInputElement>('input')!.click());
-  expect(marks).toEqual([['a3:4', 'ok']]);
-  await drawList(true, true);
-  expect(item('AGENTS.md').querySelector<HTMLInputElement>('input')!.checked).toBe(true);
-  expect(item('AGENTS.md').querySelector('.vc-a3-manual')).toBeNull();
-  await drawList(true, null, 'en');
-  expect(item('AGENTS.md').querySelector('.vc-a3-manual')!.textContent).toBe('optional');
+it('le relecteur : Relire à l\'écran seul, comme avant', async () => {
+  await draw({ flow: 'review', outputs: { 'checks.json': checks(fail('tsc')), 'ponytail.md': out('- [toi] q') } });
+  expect(page.querySelector('.vc-revue')).toBeNull();
+  expect(rows()).toHaveLength(0);
+  expect(page.querySelector('.vc-invite')!.textContent).toContain('Pas encore de plan de test');
+  expect(page.textContent).not.toContain('revue part');
+  await draw({ flow: 'review', outputs: { 'ecran.md': out('- [ ] cliquer') } });
+  expect(page.querySelector('.vc-plan')).not.toBeNull();
 });

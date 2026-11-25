@@ -181,68 +181,27 @@ const showStep = (step: string, branch = 'feat/x') => act(() => {
   on.onVibe({ lang: 'fr', agentId: 'a1', steps: [{ id: step, status: 'current' }], actions, runs: [], processes: [], commits: [], agent: {}, time: 0, flow: 'create',
     outputs: {}, files: [], questions: [], invariants: [], artifacts: [], modules: [], repo: { branch, base: 'master', changed: 0 } });
 });
-const click = (label: string) => act(async () => {
-  [...page.querySelectorAll<HTMLButtonElement>('.vc-step .vc-run')].find((b) => b.textContent?.includes(label))!.click();
-});
 const type = (value: string) => act(() => {
   Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input, value);
   input.dispatchEvent(new Event('input', { bubbles: true }));
 });
-const NEED = 'Dictez ou écrivez d\'abord votre demande dans le champ, puis cliquez.';
 const composerPieces = () => page.querySelectorAll('#composer .piece').length;
 const attachPiece = (path: string) => act(async () => { (on.onAttached as (v: unknown) => void)({ files: [path] }); });
 const run = vi.fn(async (..._a: unknown[]) => ({ ok: true }));
 own.vibeRun = run;
 const clearAll = async () => { while (page.querySelector<HTMLButtonElement>('#composer .piece .remove')) await act(async () => { page.querySelector<HTMLButtonElement>('#composer .piece .remove')!.click(); }); await type(''); run.mockClear(); };
 
-it('Rédiger la note, un texte et une pièce jointe dans le champ : les deux partent, le champ se vide', async () => {
-  await showStep('note');
-  await clearAll();
-  await type('une demande');
-  await attachPiece('/p/a.md');
-  await click('Rédiger la note');
-  expect(run).toHaveBeenCalledWith('note', { text: 'une demande', pieces: { images: [], files: ['/p/a.md'], selection: '' } });
-  expect(input.value).toBe('');
-  expect(composerPieces()).toBe(0);
-});
-
-it('Rédiger la note, champ vide : « Dictez ou écrivez d\'abord… », le champ a le clavier, rien ne part', async () => {
-  await showStep('note');
-  await clearAll();
-  await attachPiece('/p/b.md');   // des pièces sans texte ne suffisent pas
-  (document.activeElement as HTMLElement | null)?.blur();
-  await click('Rédiger la note');
-  expect(run).not.toHaveBeenCalled();
-  expect(page.textContent).toContain(NEED);
-  expect(document.activeElement).toBe(input);
-  expect(composerPieces()).toBe(1);
-});
-
-// Sur la branche principale, le même bouton lance la nouvelle demande (le principal redirige 'note' vers new-request) :
-// la page envoie la même chose.
-it('sur la branche principale : de même, le bouton Rédiger la note emporte le champ et ses pièces', async () => {
-  await showStep('note', 'master');
-  await clearAll();
-  (document.activeElement as HTMLElement | null)?.blur();
-  await click('Rédiger la note');
-  expect(run).not.toHaveBeenCalled();
-  expect(page.textContent).toContain(NEED);
-  expect(document.activeElement).toBe(input);
-  await type('autre chose');
-  await attachPiece('/p/c.md');
-  await click('Rédiger la note');
-  expect(run).toHaveBeenCalledWith('note', { text: 'autre chose', pieces: { images: [], files: ['/p/c.md'], selection: '' } });
-  expect(input.value).toBe('');
-  expect(composerPieces()).toBe(0);
-});
-
-it('Poser la forme, Écrire les invariants, un brouillon dans le champ : partent sans texte, le brouillon reste', async () => {
+// L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : le créateur n'a plus ces boutons dans ses étapes (on demande
+// la note à l'agent, dans la conversation) ; le champ et ses pièces restent à lui, rien ne part.
+it('créateur : ni Rédiger la note, ni Poser la forme, ni Écrire les invariants dans l\'étape ; le champ reste', async () => {
   await clearAll();
   await type('un brouillon');
-  for (const [step, id, label] of [['forme', 'forme', 'Poser la forme'], ['invariants', 'invariants', 'Écrire les invariants (rouges)']]) {
-    await showStep(step);
-    await click(label);
-    expect(run).toHaveBeenLastCalledWith(id, {});
-    expect(input.value).toBe('un brouillon');
+  await attachPiece('/p/a.md');
+  for (const [step, branch] of [['note', 'feat/x'], ['note', 'master'], ['forme', 'feat/x'], ['invariants', 'feat/x']]) {
+    await showStep(step, branch);
+    expect(page.querySelectorAll('.vc-step .vc-run')).toHaveLength(0);
   }
+  expect(run).not.toHaveBeenCalled();
+  expect(input.value).toBe('un brouillon');
+  expect(composerPieces()).toBe(1);
 });

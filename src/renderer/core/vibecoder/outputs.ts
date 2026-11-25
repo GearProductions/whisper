@@ -2,15 +2,23 @@
  *  format : les vérifications (checks.json), la revue publiée
  *  (pr-<n>-review.json : état, lien, verdict, texte, date), un Markdown coupé en rubriques `##` (une par commit
  *  dans pr-<n>-commits.md), le titre d'une rubrique de commit et les
- *  rubriques rangées par commit du relevé ; la clé « <fichier>:L<ligne> »
- *  d'une remarque de la ponytail review et celles que la course apply a
- *  appliquées (ponytail-applied.json) ; une adresse n'est gardée qu'en
+ *  rubriques rangées par commit du relevé ; une adresse n'est gardée qu'en
  *  http(s) (I-21). Illisible : null, l'écran le dit.
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : l'état de la CI lu dans ci.md, et les vérifications en échec.
+ *  parseCi(text: string): Ci | null — la première ligne de ci.md dit l'état d'ensemble (✓ : 'ok' ; ✗ : 'ko' ; ⏳ :
+ *  'pending' ; son étiquette [toi] / [agent] ignorée), chaque titre `##` (hors bloc de code) une vérification en échec,
+ *  son nom sans étiquette, dans l'ordre ; une première ligne sans aucune de ces marques : null (illisible, l'écran le dit).
+ *  failedChecks(checks: Check[]): Check[] — celles de checks.json en échec (level 'error'), dans l'ordre ; un
+ *  avertissement passe.
+ *  withoutApplied(ponytail: Out, applied?: Out): string — le texte de ponytail.md sans les remarques [agent] que la course
+ *  apply a appliquées (leur adresse dans ponytail-applied.json, avec leurs lignes de suite) ; le fichier plus vieux que
+ *  ponytail.md (une revue d'avant), absent ou illisible : le texte tel quel. Une remarque [toi] n'est jamais retirée.
  *  Ne connaît pas : le DOM, React, les noms des fichiers.
- *  Utilisé par : app/panel/vibecoder (review-view, branches-view, commits-view, draft-view, step-parts). */
+ *  Utilisé par : app/panel/vibecoder (review-view, branches-view, commits-view, draft-view, step-parts, pr-view) ;
+ *  core/vibecoder (status-line : parseCi). */
 
 import { VERDICTS, type Verdict } from 'shared/review';
-import type { VibeCommit, VibeOutput } from 'technicals/bridge';
+import type { VibeCommit } from 'technicals/bridge';
 
 export type Check = { name: string; ok: boolean; level: 'ok' | 'warning' | 'error'; detail: string };
 
@@ -112,21 +120,35 @@ export function commitReviews(md: string, commits: VibeCommit[]): { byHash: Map<
 }
 
 // L'adresse « <fichier>:L<ligne> » qui ouvre une ligne de ponytail.md (entre accents graves ou non ; plage L12-38 permise) :
-// lue par remarkKey et par untag (tags), qui doivent s'accorder.
+// lue par untag (tags).
 export const ADDRESS = /^\s*`?([^\s`]+):L(\d+)(?:-\d+)?\b/;
 
-// La clé d'une remarque de ponytail.md : « <fichier>:L<ligne> » en tête
-// (d'une plage L12-38, la première ligne) ; pas de clé : null.
-export function remarkKey(text: string): string | null {
-  const m = ADDRESS.exec(text);
-  return m ? `${m[1]}:L${m[2]}` : null;
+// ponytail.md sans les remarques [agent] déjà appliquées (voir l'en-tête).
+export function withoutApplied(ponytail: { text: string; time: number }, applied?: { text: string; time: number }): string {
+  const list = applied && applied.time >= ponytail.time ? (json(applied.text) as { applied?: unknown } | null | undefined)?.applied : null;
+  if (!Array.isArray(list)) return ponytail.text;
+  let dropping = false;
+  return ponytail.text.split('\n').filter((line) => {
+    const m = /^[-*]\s+`?([^\s`]+:L\d+(?:-\d+)?)`?\s+\[agent\]/.exec(line);
+    if (m) dropping = list.includes(m[1]);
+    else if (!/^\s+\S/.test(line)) dropping = false;
+    return !dropping;
+  }).join('\n');
 }
 
-// ponytail-applied.json : {"applied":["<fichier>:L<ligne>",…]} → les clés des
-// remarques appliquées ; absent, plus vieux que ponytail.md (une revue
-// d'avant) ou illisible : aucune.
-export function appliedRemarks(applied: VibeOutput | undefined, ponytailTime: number): Set<string> {
-  if (!applied || applied.time < ponytailTime) return new Set();
-  const list = (json(applied.text) as { applied?: unknown } | null | undefined)?.applied;
-  return new Set(Array.isArray(list) ? list.flatMap((x) => (typeof x === 'string' && remarkKey(x)) || []) : []);
+// L'état de la CI d'après ci.md (voir l'en-tête) : l'ensemble, et le nom de chaque vérification en échec.
+export type Ci = { state: 'ok' | 'ko' | 'pending'; failed: string[] };
+
+const TAG = /^\[(?:toi|agent)\][ \t]*/;
+const STATES: Record<string, Ci['state']> = { '✓': 'ok', '✗': 'ko', '⏳': 'pending' };
+
+export function parseCi(text: string): Ci | null {
+  const first = text.split(/\r?\n/).find((l) => l.trim()) ?? '';
+  const state = STATES[first.trim().replace(/^[-*+][ \t]+/, '').replace(TAG, '')[0]];  // ⏳ (U+23F3) tient en un caractère
+  if (!state) return null;
+  const failed = sections(text).flatMap((s) => (s.title ? [s.title.replace(TAG, '').trim()] : [])).filter(Boolean);
+  return { state, failed };
 }
+
+// Les vérifications de checks.json en échec, dans l'ordre (un avertissement passe).
+export const failedChecks = (checks: Check[]): Check[] => checks.filter((c) => c.level === 'error');

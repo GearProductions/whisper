@@ -136,3 +136,6 @@ button.vc-chip:hover { border-color: var(--vc-edge); color: var(--vc-text); }
 /* Une étape modifiée depuis sa validation : son libellé, un bouton (la vue IDE passe sur Depuis la validation). */
 .vc-since { padding: 1px 8px; border: 1px solid var(--vc-warn-edge); border-radius: 4px; background: transparent; color: var(--vc-warn); font: 12px var(--vc-sans); cursor: pointer; }
 .vc-since:hover { background: var(--vc-warn-bg); }
+/* Le badge d'état d'une étape validée : un bouton, le clic retire ou rend son ✓. */
+.vc-badge-click { border: 0; font-family: inherit; cursor: pointer; }
+.vc-badge-click:hover { filter: brightness(1.15); }

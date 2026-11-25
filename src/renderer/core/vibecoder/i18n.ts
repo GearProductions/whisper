@@ -3,8 +3,7 @@
  *  infobulle : plus de mode Créer / Relire, l'appli décide du rôle), le fil
  *  d'Ariane des étapes (son aria-label journey, « N commits » à son bout),
  *  étapes (toutes s'ouvrent), l'interrupteur IDE / liste de Modules et Structure / Code de Forme, Relancer (une action, pas le moteur), Arrêter, onglets Conversation /
- *  Actions / Tâches / Processus, Arrêter et Reprendre (le bouton du moteur, au fil d'Ariane ; plus « Arrêter Vibe »), le champ d'une étape, la ponytail review lancée avec les
- *  vérifications,
+ *  Actions / Tâches / Processus, Arrêter et Reprendre (le bouton du moteur, au fil d'Ariane ; plus « Arrêter Vibe »), le champ d'une étape,
  *  l'onglet Actions (états d'une course, Garder / Annuler, Autoriser /
  *  Toujours / Refuser), zone de commentaire, barre d'état
  *  (« N actions en cours »),
@@ -26,10 +25,14 @@
  *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : l'interrupteur Express et son infobulle,
  *  le bouton du moteur — Arrêter pendant que le système enchaîne, Reprendre quand il est arrêté (une pause, un arrêt à
  *  la main, un redémarrage de l'appli), leurs infobulles ; aucun libellé ni infobulle de l'écran ne dit plus « Vibe »,
- *  plus de Relancer pour le moteur —, la ligne de chaque pause (note, invariants, modules : « puis reprenez » ; un ✓ d'étape
+ *  plus de Relancer pour le moteur —, la ligne de chaque pause (pause : la note, « elle attend sa validation » ; statusLine.pause : invariants et modules,
+ *  « puis reprenez » ; un ✓ d'étape
  *  retiré à la main, withdrawn:forme, withdrawn:invariants, withdrawn:modules : l'étape nommée, « modifiez-la ou
  *  revalidez-la pour reprendre »), le titre
- *  de la sortie preuve.md, et l'état d'une étape validée par le système (stepCheck : « validée par le système »).
+ *  de la sortie preuve.md.
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : les libellés que plus rien n'affiche sont retirés (les réglages
+ *  de lecture du code, la légende des modules, « rien à prouver », la validation par le système, la ponytail
+ *  review lancée avec les vérifications) ; ceux du relecteur restent.
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
 import type {
   AgentActivity, AgentView, SettingKey, SettingsCategory, SettingsCommand, SettingsInfo, VibeLang, VibeRun, VibePause, VibeRunProgress, VibeStepId,
@@ -62,10 +65,7 @@ const fr = {
   stepStatus: { done: 'faite', current: 'en cours', todo: 'à venir' },
   stepCheck: {
     ok: 'validée', changed: 'modifiée depuis la validation', cascade: 'à revoir : une étape d\'avant a changé', none: 'pas validée',
-    system: 'validée par le système',
   },
-  // Ce qui a contrôlé une étape validée par le système.
-  systemCheck: { forme: 'squelettes posés', invariants: 'alignement avec la note', modules: 'conformité à la forme et preuve par mutation' },
   waitingFor: (step: string) => `En attente : valider d'abord l'étape ${step}`,
   ideView: 'Vue IDE', listView: 'Vue liste', structure: 'Structure', code: 'Code',
   noChange: 'la branche ne change pas ce module',
@@ -91,13 +91,31 @@ const fr = {
   expressTitle: 'Express : aucune pause, le système enchaîne jusqu\'à la PR ouverte. Éteint, le parcours s\'arrête après les invariants et après les modules.',
   pause: {
     note: 'La note a changé : elle attend sa validation',
-    invariants: 'Pause : regardez ce qui a été posé (forme, invariants, premier commit), puis reprenez',
-    modules: 'Pause : essayez à l\'écran avant la revue, puis reprenez',
     'withdrawn:forme': 'Vous avez retiré la validation de la forme : modifiez-la ou revalidez-la pour reprendre',
     'withdrawn:invariants': 'Vous avez retiré la validation des invariants : modifiez-les ou revalidez-les pour reprendre',
     'withdrawn:modules': 'Vous avez retiré la validation des modules : modifiez-les ou revalidez-les pour reprendre',
-  } as Record<VibePause, string>,
-  noProof: 'rien à prouver',
+  } as Record<Exclude<VibePause, 'invariants' | 'modules'>, string>,
+  // status-line : la ligne qui dit où on en est (pause : celles d'invariants et de modules ; la note et les ✓ retirés, `pause` plus haut).
+  statusLine: {
+    noNote: 'Demandez la note à l\'agent, dans la conversation',
+    questions: (n: number) => `${n} question${n > 1 ? 's' : ''} : répondez dans le questionnaire`,
+    verifyNote: 'Vérifiez, puis validez la note',
+    working: 'Le système travaille',
+    run: (what: string) => `Le système travaille : ${what}`,
+    step: {
+      note: 'Le système vérifie la note', forme: 'Le système pose la forme', invariants: 'Le système écrit les invariants',
+      modules: 'Le système écrit les modules', revue: 'Le système relit le diff', pr: 'Le système s\'occupe de la PR',
+    } as Record<VibeStepId, string>,
+    pause: { invariants: 'Regardez vos règles, puis reprenez', modules: 'Essayez l\'appli, puis reprenez' },
+    relook: 'Des tests ont changé : regardez vos règles, puis reprenez',
+    toReview: (n: number) => `${n} test${n > 1 ? 's' : ''} à revoir : dites à l'agent quoi corriger`,
+    ciRunning: 'La PR est ouverte, la CI tourne',
+    ciFailed: 'La PR est ouverte, la CI est en échec',
+    green: 'La PR est verte : à vous de la fusionner',
+    merged: 'La PR est fusionnée',
+    closed: 'La PR est fermée, sans avoir été fusionnée',
+    stopped: 'Le système est arrêté : reprenez',
+  },
   errorHint: 'La conversation reste utilisable, à droite.',
   broken: 'Cette étape ne peut pas s\'afficher.',
   retry: 'Réessayer',
@@ -166,7 +184,6 @@ const fr = {
   runReply: 'Sa réponse',
   keep: 'Garder', keepTitle: 'Garder ce que l\'action a déjà écrit',
   undo: 'Annuler', undoTitle: 'Remettre les fichiers qu\'elle a écrits dans leur état d\'avant (et eux seuls)',
-  ponytailWithChecks: 'Lancée avec les vérifications.',
   vibeStop: 'Arrêter',
   vibeStopTitle: 'La course en cours finit, la suivante ne part pas',
   changed: (n: number) => (n > 1 ? `${n} fichiers modifiés` : `${n} fichier modifié`),
@@ -285,9 +302,7 @@ const en: Strings = {
   stepStatus: { done: 'done', current: 'in progress', todo: 'to do' },
   stepCheck: {
     ok: 'validated', changed: 'changed since the validation', cascade: 'to review: an earlier step changed', none: 'not validated',
-    system: 'validated by the system',
   },
-  systemCheck: { forme: 'skeletons set up', invariants: 'alignment with the note', modules: 'conformity to the shape and proof by mutation' },
   waitingFor: (step: string) => `Waiting: validate the ${step} step first`,
   ideView: 'IDE view', listView: 'List view', structure: 'Structure', code: 'Code',
   noChange: 'the branch does not change this module',
@@ -312,13 +327,31 @@ const en: Strings = {
   expressTitle: 'Express: no pause, the system carries on until the PR is open. Off, the journey stops after the invariants and after the modules.',
   pause: {
     note: 'The note changed: it awaits its validation',
-    invariants: 'Pause: look at what was set up (shape, invariants, first commit), then resume',
-    modules: 'Pause: try it on screen before the review, then resume',
     'withdrawn:forme': 'You withdrew the approval of the shape: change it or approve it again to resume',
     'withdrawn:invariants': 'You withdrew the approval of the invariants: change them or approve them again to resume',
     'withdrawn:modules': 'You withdrew the approval of the modules: change them or approve them again to resume',
   },
-  noProof: 'nothing to prove',
+  // status-line
+  statusLine: {
+    noNote: 'Ask the agent for the note, in the conversation',
+    questions: (n) => `${n} question${n > 1 ? 's' : ''}: answer in the questionnaire`,
+    verifyNote: 'Check, then approve the note',
+    working: 'The system is working',
+    run: (what) => `The system is working: ${what}`,
+    step: {
+      note: 'The system is checking the note', forme: 'The system is setting up the shape', invariants: 'The system is writing the invariants',
+      modules: 'The system is writing the modules', revue: 'The system is reviewing the diff', pr: 'The system is handling the PR',
+    },
+    pause: { invariants: 'Look at your rules, then resume', modules: 'Try the app, then resume' },
+    relook: 'Some tests changed: look at your rules, then resume',
+    toReview: (n: number) => `${n} test${n > 1 ? 's' : ''} to review: tell the agent what to fix`,
+    ciRunning: 'The PR is open, the CI is running',
+    ciFailed: 'The PR is open, the CI failed',
+    green: 'The PR is green: yours to merge',
+    merged: 'The PR is merged',
+    closed: 'The PR is closed, not merged',
+    stopped: 'The system is stopped: resume',
+  },
   errorHint: 'The conversation is still usable, on the right.',
   broken: 'This step cannot be displayed.',
   retry: 'Retry',
@@ -387,7 +420,6 @@ const en: Strings = {
   runReply: 'Its reply',
   keep: 'Keep', keepTitle: 'Keep what the action already wrote',
   undo: 'Undo', undoTitle: 'Put the files it wrote back as they were (and only those)',
-  ponytailWithChecks: 'Started with the checks.',
   vibeStop: 'Stop',
   vibeStopTitle: 'The running action finishes, the next one does not start',
   changed: (n) => `${n} file${n === 1 ? '' : 's'} changed`,

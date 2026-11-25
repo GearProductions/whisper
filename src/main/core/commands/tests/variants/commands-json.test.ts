@@ -38,7 +38,7 @@ describe('la table livrée', () => {
   });
 
   it('chaque lecture a sa réponse, et logs son nom en argument', () => {
-    expect(table.commands.filter((c) => c.kind === 'read').map((c) => c.name)).toEqual(['status', 'next', 'actions', 'runs', 'run.wait', 'procs', 'logs', 'artifacts', 'artifact', 'draft']);
+    expect(table.commands.filter((c) => c.kind === 'read').map((c) => c.name)).toEqual(['status', 'next', 'actions', 'runs', 'run.wait', 'procs', 'logs', 'artifacts', 'artifact', 'draft', 'invariants']);
     expect(Object.keys(table.commands.find((c) => c.name === 'logs')!.args.properties!)).toEqual(['name']);
   });
 
@@ -175,7 +175,7 @@ describe('les commandes du ticket socket', () => {
   });
 
   it('les lectures ont leur réponse, et aucune n\'a d\'argument pr', () => {
-    for (const name of ['artifacts', 'artifact', 'draft']) {
+    for (const name of ['artifacts', 'artifact', 'draft', 'invariants']) {
       expect(get(name).kind).toBe('read');
       expect(get(name).response, name).toBeDefined();
     }

@@ -326,7 +326,7 @@
 .vc-md { box-sizing: border-box; max-width: 210mm; margin-inline: auto; padding-inline: 8px; color: var(--vc-text); font-size: 13.5px; line-height: 1.7; overflow-wrap: break-word; text-wrap: pretty; }
 /* break-word : un mot (un nom de classe, un chemin) passe entier à la ligne, il n'est coupé que s'il est plus long
    que la ligne elle-même ; text-wrap: pretty évite un mot seul en fin de paragraphe. */
-.vc-md .vc-md, .body .vc-md, .vc-draft-list .vc-md, .vc-diff-review .vc-md { max-width: none; margin-inline: 0; padding-inline: 0; }
+.vc-md .vc-md, .body .vc-md, .vc-draft-list .vc-md { max-width: none; margin-inline: 0; padding-inline: 0; }
 .vc-md > :first-child, .vc-md > :first-child > :first-child { margin-top: 0; }
 .vc-md > :last-child, .vc-md > :last-child > :first-child { margin-bottom: 0; }
 .vc-md :is(h1, h2, h3, h4, h5, h6) { margin: 26px 0 10px; color: var(--vc-text); font-weight: 600; line-height: 1.3; }

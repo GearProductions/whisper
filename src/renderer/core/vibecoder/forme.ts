@@ -1,5 +1,9 @@
 /** forme — le contrat d'un module de la Forme en rubriques (ce qu'il expose, « ne connaît pas »,
  *  « utilisé par », « variants »), une par « · » ou par ligne ; un cas « - … » en élément de liste.
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : ce que fait un module en une phrase, pour la liste de la Forme.
+ *  moduleLine(contract: string): string — le début du contrat, ce que le module expose ou fait : sa première ligne,
+ *  coupée au premier « · » et avant toute rubrique (« ne connaît pas : », « utilisé par : », « variants : ») ; un
+ *  contrat vide, ou qui commence par une rubrique : ''.
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder (forme-view). */
 
 // Une rubrique : son libellé tel qu'écrit, suivi de « : » ; sans libellé, ce que le module expose ou fait.
@@ -17,4 +21,11 @@ export function contractParts(contract: string): { label: string | null; text: s
     const m = LABEL.exec(part);
     return m ? { label: m[1], text: part.slice(m[0].length) } : { label: null, text: part };
   });
+}
+
+// Ce que fait un module, en une phrase : le début de son contrat (voir l'en-tête).
+export function moduleLine(contract: string): string {
+  const first = contract.split('\n').map((l) => l.trim()).find(Boolean) ?? '';
+  const line = first.replace(/^·\s*/, '').split(/\s+·\s+/)[0].trim();
+  return LABEL.test(line) ? '' : line;
 }

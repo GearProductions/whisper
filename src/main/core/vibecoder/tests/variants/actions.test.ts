@@ -19,7 +19,7 @@ const view: VibeView = {
   ],
   invariants: [
     { id: 't0', path: 'src/core/tests/invariants/a.test.ts', blob: BLOB, cases: ['x'], lines: [1], source: '', reading: null, marks: {} },
-    { id: 't1', path: 'src/core/tests/invariants/b.test.ts', blob: 'b'.repeat(40), cases: ['y'], lines: [1], source: '', reading: [], marks: {} },
+    { id: 't1', path: 'src/core/tests/invariants/b.test.ts', blob: 'b'.repeat(40), cases: ['y'], lines: [1], source: '', reading: [{ title: 'y', pseudo: 'p', edges: [], guarantees: 'g', warning: null }], marks: {} },
   ],
   variants: [], commits: [{ hash: C1, subject: 'Note, forme, invariants', fixup: false, files: [] }],
   outputs: {}, checklist: [], screen: [], actions: [], skills: [], pr: null, prs: null,
@@ -147,6 +147,21 @@ describe('buildMessage : ce qui manque refuse l\'action', () => {
 
   it('{{note}} sans note : note', () => {
     expect(build('{{note}}', {}, { ...ctx, view: { ...view, note: null } })).toEqual({ error: 'note' });
+  });
+
+  it('{{files}} : un test lu dont la lecture est périmée est relu (le moteur le lance sans fichier)', () => {
+    const stale = { ...view, invariants: [{ ...view.invariants[1], stale: true, staleCases: ['y'] }] };
+    expect(build('{{files}}', {}, { ...ctx, view: stale })).toEqual({ text: `src/core/tests/invariants/b.test.ts@${'b'.repeat(40)}` });
+  });
+
+  it('{{files}} : un test lu dont un cas est sauté par la lecture est relu (la lecture à la bonne empreinte, un cas sans ligne)', () => {
+    const skipped = { ...view, invariants: [{ ...view.invariants[1], cases: ['cas a', 'cas b'], reading: [{ title: 'cas a', pseudo: 'p', edges: [], guarantees: 'g', warning: null }] }] };
+    expect(build('{{files}}', {}, { ...ctx, view: skipped })).toEqual({ text: `src/core/tests/invariants/b.test.ts@${'b'.repeat(40)}` });
+  });
+
+  it('{{files}} : un cas périmé (staleCases) est relu, même si stale manque', () => {
+    const stale = { ...view, invariants: [{ ...view.invariants[1], cases: ['cas a'], staleCases: ['cas a'], reading: [{ title: 'cas a', pseudo: 'p', edges: [], guarantees: 'g', warning: null }] }] };
+    expect(build('{{files}}', {}, { ...ctx, view: stale })).toEqual({ text: `src/core/tests/invariants/b.test.ts@${'b'.repeat(40)}` });
   });
 
   it('{{files}} quand tout est lu : files', () => {

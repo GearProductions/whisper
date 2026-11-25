@@ -5,29 +5,27 @@
  *  le libellé à côté du point), reliées d'un trait ; leur état et leurs faits
  *  en infobulle, avec le raccourci (Ctrl+1…6) pour les six. Chaque étape
  *  est cliquable, faite, en cours ou à venir : un clic appelle onPick, rien
- *  d'autre (le fil garde ses états). Au bout,
- *  « N commits » déplie sous le fil la liste des commits de la branche (un
- *  `fixup!` en couleur d'attention), re-clic : repliée ; aucun commit : le
- *  texte seul. La liste ouverte se ferme avec Échap (écouté en capture : il
- *  n'atteint pas les autres Échap du panneau) ou un clic hors de la liste et
- *  de son bouton ; les écouteurs ne vivent que liste ouverte. Un clic sur un commit le déplie : Voir le diff (dans
- *  l'éditeur, c<rang>), GitHub (sa page, gh:c<rang>) — deux IconButton
- *  (icons), libellé en infobulle — et ses fichiers, en texte simple.
- *  Le bouton du moteur, à côté de « N commits » (vibe : l'action vibe et si le moteur tourne ; null, le
- *  relecteur : rien), un seul bouton, plus de bouton Vibe (note 0.16.0-controle-en-trois-points) : Arrêter pendant que
- *  le système enchaîne (onStopVibe), même l'action masquée (« déjà en cours ») ; Reprendre quand il est arrêté — une
- *  pause, un arrêt à la main, un redémarrage de l'appli — (onVibe ; grisé, avec sa raison, si l'action l'est) ; rien
- *  tant que l'action est masquée (la note pas validée : le moteur part de sa validation). Ni son libellé ni son
- *  infobulle ne disent « Vibe » ; les noms internes (vibe, onVibe, onStopVibe) restent.
- *  Les deux rythmes (même note), en créateur : à côté du bouton, l'interrupteur Express
- *  (view.express ; onExpress(true | false)), toujours là, note validée ou pas, le moteur en route ou pas ; à une pause
- *  (view.pause, le moteur arrêté) une ligne dit ce qu'il y a à regarder (les invariants posés ; l'essai à l'écran,
- *  avant la revue) ; 'note' : « la note attend sa validation » ; 'withdrawn:<étape>' (un ✓ d'étape retiré à la main,
- *  qui tient) : sa ligne nomme l'étape, sans bouton Reprendre (l'action vibe est masquée par le relevé), qui revient
- *  avec la pause levée. Le relecteur : rien.
+ *  d'autre (le fil garde ses états).
+ *  Le créateur (note 0.16.0-ecran-essentiel) : sous le fil, une ligne dit toujours où on en est (statusLine de
+ *  core/vibecoder : ce que le système fait, ou ce qu'il attend de l'utilisateur, en gras dans ce cas ; les pauses, la
+ *  note sans ✓, un ✓ d'étape retiré en sont des cas), avec à côté le bouton du moteur quand il sert (vibe : l'action
+ *  vibe et si le moteur tourne) : Arrêter pendant que le système enchaîne (onStopVibe), même l'action masquée
+ *  (« déjà en cours ») ; Reprendre quand il est arrêté (onVibe ; grisé, avec sa raison, si l'action l'est) ; ni l'un ni
+ *  l'autre tant que l'action est masquée (note ou ✓ d'étape pas posé), ni à la pause 'note' ; pas de Reprendre à côté
+ *  d'un parcours fini (over de statusLine : la PR verte et chaque étape faite, fusionnée, fermée). Ni libellé ni infobulle ne
+ *  disent « Vibe » ; les noms internes (vibe, onVibe, onStopVibe) restent. Un relevé en erreur : pas de ligne, mais Arrêter
+ *  reste tant que le moteur tourne.
+ *  L'interrupteur Express (view.express ; onExpress(true | false)) reste au bout du fil, toujours là, note validée ou
+ *  non, le moteur en route ou non ; absent, pas d'interrupteur. Plus de « N commits » ni de liste pour le créateur.
+ *  Le relecteur (flow 'review') : ni ligne ni bouton du moteur ; au bout du fil, « N commits » déplie sous le fil la
+ *  liste des commits de la branche (un `fixup!` en couleur d'attention), re-clic : repliée ; aucun commit : le texte
+ *  seul. La liste ouverte se ferme avec Échap (écouté en capture : il n'atteint pas les autres Échap du panneau) ou
+ *  un clic hors de la liste et de son bouton ; les écouteurs ne vivent que liste ouverte. Un clic sur un commit le
+ *  déplie : Voir le diff (dans l'éditeur, c<rang>), GitHub (sa page, gh:c<rang>) — deux IconButton (icons), libellé
+ *  en infobulle — et ses fichiers, en texte simple.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
 import { useEffect, useState } from 'react';
-import { crumbCheck, waitingFor, type Strings } from 'core/vibecoder';
+import { crumbCheck, statusLine, waitingFor, type Strings } from 'core/vibecoder';
 import type { VibeAction, VibeCommit, VibeStepId, VibeView } from 'technicals/bridge';
 import { IconButton } from './icons';
 import './breadcrumb.css';
@@ -43,7 +41,16 @@ export function Breadcrumb({ view, t, selected, vibe, onPick, onOpen, onVibe, on
   const [list, setList] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const n = view.commits.length;
-  const pause = vibe?.on ? null : view.pause ?? null;   // la ligne, à une pause seulement ; 'note' : sans bouton
+  const review = view.flow === 'review';
+  const line = statusLine(view);   // le créateur : toujours une ligne (sauf relevé en erreur) ; le relecteur : aucune
+  // Le bouton du moteur : Arrêter même sans ligne (relevé en erreur), Reprendre seulement à côté d'une ligne, et pas d'un parcours
+  // fini (line.over : la PR verte et tout fait, fusionnée, fermée — rien à reprendre) ; jamais au relecteur.
+  const engine = !review && vibe && (vibe.on || (line && !line.over && !vibe.a.hidden && view.pause !== 'note')) ? (vibe.on ? (
+    <button type="button" className="vc-run" data-tone="ghost" title={t.vibeStopTitle} onClick={onStopVibe}>{t.vibeStop}</button>
+  ) : (
+    <button type="button" className="vc-run" data-tone="vibe" disabled={!!vibe.a.disabled}
+      title={vibe.a.disabled ? `${vibe.a.hint}\n— ${vibe.a.disabled}` : vibe.a.hint} onClick={onVibe}>{vibe.a.label}</button>
+  )) : null;
   useEffect(() => {
     if (!list) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); setList(false); } };
@@ -66,22 +73,21 @@ export function Breadcrumb({ view, t, selected, vibe, onPick, onOpen, onVibe, on
             </li>
           ))}
         </ol>
-        {n ? (
+        {review ? (n ? (
           <button type="button" className="vc-ccount" aria-expanded={list} onClick={() => setList(!list)}>{t.commitsOf(n)}</button>
-        ) : <span className="vc-ccount">{t.commitsOf(0)}</span>}
-        {vibe && (vibe.on || (!vibe.a.hidden && pause !== 'note')) ? (vibe.on ? (
-          <button type="button" className="vc-run" data-tone="ghost" title={t.vibeStopTitle} onClick={onStopVibe}>{t.vibeStop}</button>
-        ) : (
-          <button type="button" className="vc-run" data-tone="vibe" disabled={!!vibe.a.disabled}
-            title={vibe.a.disabled ? `${vibe.a.hint}\n— ${vibe.a.disabled}` : vibe.a.hint} onClick={onVibe}>{vibe.a.label}</button>
-        )) : null}
+        ) : <span className="vc-ccount">{t.commitsOf(0)}</span>) : null}
         {onExpress ? (
           <label className="vc-express" title={t.expressTitle}>
             <input type="checkbox" checked={!!view.express} onChange={() => onExpress(!view.express)} />{t.express}
           </label>
         ) : null}
       </div>
-      {pause ? <p className="vc-pause" role="status">{t.pause[pause]}</p> : null}
+      {line || engine ? (
+        <div className="vc-line">
+          {line ? <p role="status" data-yours={line.yours}>{line.text}</p> : null}
+          {engine}
+        </div>
+      ) : null}
       {list && n ? (
         <ul className="vc-commits">
           {view.commits.map((c, i) => (

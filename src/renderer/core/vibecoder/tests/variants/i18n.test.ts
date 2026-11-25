@@ -126,12 +126,13 @@ describe('le contrôle en trois points', () => {
     expect([t('fr').express, t('en').express]).toEqual(['Express', 'Express']);
     expect([t('fr').vibeStop, t('en').vibeStop]).toEqual(['Arrêter', 'Stop']);
     for (const lang of ['fr', 'en'] as const) {
-      expect(Object.keys(t(lang).pause).sort()).toEqual(['invariants', 'modules', 'note', 'withdrawn:forme', 'withdrawn:invariants', 'withdrawn:modules']);
+      expect(Object.keys(t(lang).pause).sort()).toEqual(['note', 'withdrawn:forme', 'withdrawn:invariants', 'withdrawn:modules']);
       for (const text of [t(lang).expressTitle, t(lang).vibeStopTitle, ...Object.values(t(lang).pause)]) expect(text.length).toBeGreaterThan(10);
     }
-    // La note a perdu son ✓ : la ligne le dit ; aux deux autres pauses, ce qu'il y a à regarder.
+    // La note a perdu son ✓ : la ligne le dit ; aux deux pauses, ce qu'il y a à regarder (statusLine.pause).
     expect(t('fr').pause.note).toContain('note');
-    expect(t('en').pause.invariants).not.toBe(t('fr').pause.invariants);
+    expect(Object.keys(t('fr').statusLine.pause)).toEqual(['invariants', 'modules']);
+    expect(t('en').statusLine.pause.invariants).not.toBe(t('fr').statusLine.pause.invariants);
   });
 
   it('Arrêter, son infobulle et les lignes de pause : sans « Vibe », ni « Relancer » pour le moteur', () => {
@@ -141,10 +142,10 @@ describe('le contrôle en trois points', () => {
       expect(Object.keys(s)).not.toContain('restart');
     }
     // Chaque pause dit « puis reprenez » ; la note n'a rien à reprendre (elle attend sa validation).
-    expect(t('fr').pause.invariants).toMatch(/puis reprenez$/);
-    expect(t('fr').pause.modules).toMatch(/puis reprenez$/);
-    expect(t('en').pause.invariants).toMatch(/then resume$/);
-    expect(t('en').pause.modules).toMatch(/then resume$/);
+    expect(t('fr').statusLine.pause.invariants).toMatch(/puis reprenez$/);
+    expect(t('fr').statusLine.pause.modules).toMatch(/puis reprenez$/);
+    expect(t('en').statusLine.pause.invariants).toMatch(/then resume$/);
+    expect(t('en').statusLine.pause.modules).toMatch(/then resume$/);
   });
 
   it('un ✓ d\'étape retiré à la main : une ligne par étape, qui la nomme et dit de la modifier ou de la revalider, sans « puis reprenez »', () => {
@@ -160,14 +161,43 @@ describe('le contrôle en trois points', () => {
     }
   });
 
-  it('la sortie preuve.md a son titre ; rien à prouver est dit', () => {
+  it('la sortie preuve.md a son titre', () => {
     expect([t('fr').outputs['preuve.md'], t('en').outputs['preuve.md']]).toEqual(['Preuve des invariants', 'Proof of the invariants']);
-    expect([t('fr').noProof, t('en').noProof]).toEqual(['rien à prouver', 'nothing to prove']);
+  });
+});
+
+// 0.16.0 : l'écran de l'essentiel (docs/tickets/feat/0.16.0-ecran-essentiel.md).
+describe('l\'écran de l\'essentiel', () => {
+  const same = (a: object, b: object): void => {
+    expect(Object.keys(a).sort()).toEqual(Object.keys(b).sort());
+    for (const k of Object.keys(a) as (keyof typeof a)[]) {
+      const [x, y] = [a[k], b[k]];
+      if (x && typeof x === 'object' && !Array.isArray(x)) same(x, y);
+      else expect(typeof y).toBe(typeof x);
+    }
+  };
+
+  it('le français et l\'anglais portent les mêmes libellés', () => {
+    same(t('fr'), t('en'));
   });
 
-  it('une étape validée par le système : « validée par le système » et son contrôle ; à la main : « validée »', () => {
-    expect([t('fr').stepCheck.system, t('en').stepCheck.system]).toEqual(['validée par le système', 'validated by the system']);
-    expect([t('fr').stepCheck.ok, t('en').stepCheck.ok]).toEqual(['validée', 'validated']);
-    for (const lang of ['fr', 'en'] as const) expect(Object.keys(t(lang).systemCheck).sort()).toEqual(['forme', 'invariants', 'modules']);
+  it('les libellés que plus rien n\'affiche sont retirés : rien à prouver, la validation par le système', () => {
+    for (const lang of ['fr', 'en'] as const) {
+      const s = t(lang);
+      expect(Object.keys(s)).not.toContain('noProof');
+      expect(Object.keys(s)).not.toContain('systemCheck');
+      expect(Object.keys(s)).not.toContain('ponytailWithChecks');
+      expect(Object.keys(s.stepCheck).sort()).toEqual(['cascade', 'changed', 'none', 'ok']);
+    }
+  });
+
+  it('un libellé du relecteur est toujours là : les commits, Relire, Structure · Code, la vue IDE · liste', () => {
+    for (const lang of ['fr', 'en'] as const) {
+      const s = t(lang);
+      expect(s.commitsOf(2)).toContain('commits');
+      for (const label of [s.reviewer, s.reviewerTitle, s.screenTitle, s.structure, s.code, s.ideView, s.listView, s.noChange, s.notInForme, s.diffTitle, s.githubTitle, s.askAgent]) {
+        expect(label.length).toBeGreaterThan(1);
+      }
+    }
   });
 });

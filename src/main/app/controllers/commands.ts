@@ -8,7 +8,8 @@
  *  qui écrit, le relevé est relu (refreshVibe fresh, attendu) : l'état jugé est
  *  celui du dépôt. Sans robot (null) : no-survey, aucune opération appelée.
  *  runCommand refuse toujours busy et changing (I-44) ; à la porte agent, le mode Vibe arrêté (vibeHalted) : halted pour
- *  run.start et les commandes de départ, avant toute opération (ctx.halted de execute).
+ *  run.start et les commandes de départ, avant toute opération (ctx.halted de execute) ; de même, le moteur en route ou
+ *  non, run.start d'une action des étapes Modules, Revue ou PR quand la pause après les invariants est tenue (holdsInvariants).
  *  commandFromSocket(env, caller) : qui appelle (callerRobot : l'écran, un robot par
  *  son jeton, ou un agent extérieur si le réglage est activé ; sinon BAD_TOKEN), et
  *  sur quel robot (l'écran et l'extérieur : celui de la cible, le robot affiché s'il
@@ -27,8 +28,11 @@ import { loadConfig, vibeActions, vibeCommands } from 'app/settings';
 import { real, viewAgent } from './agents';
 import { readArtifact } from './artifacts';
 import { processOp } from './processes';
-import { afterStart, queuedOf, queueStart, runEnd, runOp, vibeHalted } from './runs';
+import { afterStart, holdsInvariants, queuedOf, queueStart, runEnd, runOp, vibeHalted } from './runs';
 import { editDraft, lastView, runDirect, startAction, surveyAgent, validateVibe } from './vibecoder';
+
+// Les étapes dont les actions bâtissent sur les tests d'invariants : refusées à la pause après les invariants (holdsInvariants).
+const BUILDS: string[] = ['modules', 'revue', 'pr'];
 
 export async function runCommand(agent: AgentConfig | null, req: CommandRequest): Promise<CommandResponse> {
   const cfg = loadConfig();   // une fois par appel
@@ -60,7 +64,10 @@ export async function runCommand(agent: AgentConfig | null, req: CommandRequest)
     validate: (step, verdict) => validateVibe(agent, step, verdict),
     wait: (id) => runEnd(agent.id, id),
   };
-  return execute(table, req, { view, defs, queued: queuedOf(agent.id), halted: req.door === 'agent' && vibeHalted(agent.id) }, ops);
+  // La pause après les invariants tenue, le moteur en route ou non : une action qui bâtit sur les tests ne part pas par la porte agent.
+  const built = req.command === 'run.start' && BUILDS.includes(defs.find((d) => d.id === (req.args as { action?: unknown } | undefined)?.action)?.step ?? '');
+  const halted = req.door === 'agent' && (vibeHalted(agent.id) || (built && holdsInvariants(agent.id, view)));
+  return execute(table, req, { view, defs, queued: queuedOf(agent.id), halted }, ops);
 }
 
 // L'appelant et son robot : callerRobot (dossiers réels, le robot affiché, le réglage) ; un jeton sans porte : BAD_TOKEN.

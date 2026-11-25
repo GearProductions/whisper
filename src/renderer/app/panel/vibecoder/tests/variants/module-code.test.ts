@@ -187,3 +187,86 @@ it('s\'ouvre sur le diff depuis la base (grisé, pas de base : le fichier) ; le 
   expect(shown(next)).toBe('head');
   expect(next.page.querySelector('.vc-mdiff')!.getAttribute('data-mode')).toBe('split');
 });
+
+// noEdit (note 0.16.0-ecran-essentiel) : le créateur lit, il ne modifie plus — le diff en ligne depuis diff.shown, jamais
+// l'éditeur, ni Enregistrer, ni sélecteur, ni tools ; onOpen : une icône sur le fichier affiché.
+const editable = (page: HTMLElement) => [...page.querySelectorAll('.cm-editor')].map((e) => EditorView.findFromDOM(e as HTMLElement)!).filter((e) => !e.state.readOnly);
+const noEdit = { noEdit: true, diff: { shown: 'base' as const, mode: 'inline' as const, step: 'modules' as const } };
+const openLabel = 'button[aria-label="Ouvrir dans l\'éditeur"]';
+
+it('noEdit : le diff en ligne depuis la référence (base, validation), ni éditeur, ni Enregistrer, ni sélecteur, ni mode', async () => {
+  for (const [shown, expected] of [['base', 'B'], ['validated', 'V']] as const) {
+    const v = mount({ ...noEdit, diff: { shown, mode: 'split', step: 'modules' } }, one);   // le mode est ignoré : toujours en ligne
+    await v.render({ id: 'm1/1', text: 'a', time: 1, at });
+    expect(v.page.querySelector('.vc-mdiff')!.getAttribute('data-mode')).toBe('inline');
+    expect(beforeOf(v.page)).toBe(expected);
+    expect(afterOf(v.page)).toBe('a');
+    expect(editable(v.page)).toEqual([]);
+    expect(v.saveButton()).toBeUndefined();
+    expect(v.page.querySelector('select.vc-mod-shown, .vc-seg, .vc-mod-code-foot')).toBeNull();
+  }
+});
+
+it('noEdit : la référence manque (at absent, base null) : tout ajouté ; pas de 💬 sur les lignes', async () => {
+  for (const code of [undefined, { base: null, head: 'H' }, { base: 'B', head: 'H', validations: { modules: null } }]) {
+    const v = mount({ ...noEdit, diff: { shown: code?.base === 'B' ? 'validated' : 'base', mode: 'inline', step: 'modules' }, onQuote: () => {} }, one);
+    await v.render({ id: 'm1/1', text: 'a', time: 1, ...(code && { at: code }) });
+    expect(beforeOf(v.page)).toBe('');
+    expect(afterOf(v.page)).toBe('a');
+    expect(v.page.querySelector('.vc-quote, [aria-label*="Citer"]')).toBeNull();
+  }
+});
+
+it('noEdit : un supprimé, tout en retraits ; sans at poussé, rien', async () => {
+  const gone: VibeModule = { ...m, files: [{ id: 'm1/0', path: 'src/x/gone.ts', deleted: true }] };
+  const v = mount({ ...noEdit, onOpen: () => {} }, gone);
+  await v.render(null);
+  expect(v.page.querySelector('.vc-mdiff')).toBeNull();
+  await v.render({ id: 'm1/0', text: null, time: 1, at });
+  expect(beforeOf(v.page)).toBe('B');
+  expect(afterOf(v.page)).toBe('');
+  expect(v.page.querySelector(openLabel)).toBeNull();   // rien à ouvrir : le fichier n'existe plus
+});
+
+it('noEdit : le texte pas encore poussé, ou trop gros : le dit, sans éditeur', async () => {
+  const v = mount({ ...noEdit }, one);
+  await v.render(null);
+  expect(v.page.querySelector('.vc-empty')!.textContent).toBe('Chargement du fichier…');
+  expect(v.page.querySelector('.cm-editor')).toBeNull();
+  await v.render({ id: 'm1/1', text: null, time: 1, at });
+  expect(v.page.querySelector('.vc-empty')!.textContent).toBe(t('fr').tooBig);
+  expect(v.page.querySelector('.cm-editor')).toBeNull();
+});
+
+it('noEdit : onOpen, une icône discrète qui ouvre le fichier affiché (son id) ; sans onOpen, pas d\'icône', async () => {
+  const opened: string[] = [];
+  const v = mount({ ...noEdit, onOpen: (id: string) => { opened.push(id); } }, one);
+  await v.render({ id: 'm1/1', text: 'a', time: 1, at });
+  const open = v.page.querySelector<HTMLButtonElement>(openLabel)!;
+  expect([open.classList.contains('vc-tool'), open.textContent, !!open.querySelector('svg')]).toEqual([true, '', true]);
+  await act(() => open.click());
+  expect(opened).toEqual(['m1/1']);
+  const none = mount({ ...noEdit }, one);
+  await none.render({ id: 'm1/1', text: 'a', time: 1, at });
+  expect(none.page.querySelector(openLabel)).toBeNull();
+});
+
+it('noEdit : plusieurs fichiers, le fichier choisi (le premier d\'abord) ; changer de fichier change ce que l\'icône ouvre', async () => {
+  const opened: string[] = [];
+  const v = mount({ ...noEdit, onOpen: (id: string) => { opened.push(id); } }, { ...m, files: [{ id: 'm1/1', path: 'src/x/kept.ts' }, { id: 'm1/2', path: 'src/x/other.ts' }] });
+  await v.render(null);
+  await act(() => { ([...v.page.querySelectorAll('.vc-mod-tree button')][1] as HTMLButtonElement).click(); });
+  await v.render({ id: 'm1/2', text: 'a', time: 1, at });
+  await act(() => v.page.querySelector<HTMLButtonElement>(openLabel)!.click());
+  expect(opened).toEqual(['m1/2']);
+});
+
+it('sans noEdit ni onOpen (le relecteur, le menu de diff) : comme avant, pas d\'icône', async () => {
+  const v = mount({ diff: { shown: 'base', mode: 'inline', step: 'modules' } }, one);
+  await v.render({ id: 'm1/1', text: 'a', time: 1, at });
+  expect(v.page.querySelector(openLabel)).toBeNull();
+  expect(v.saveButton()).toBeUndefined();   // ni Enregistrer : le diff est affiché, pas l'éditeur
+  const file = mount({ diff: { shown: 'file', mode: 'inline', step: 'modules' } }, one);
+  await file.render({ id: 'm1/1', text: 'a', time: 1, at });
+  expect(file.saveButton()).toBeDefined();   // Fichier : l'éditeur, comme avant
+});

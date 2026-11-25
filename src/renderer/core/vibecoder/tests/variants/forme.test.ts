@@ -1,5 +1,40 @@
 import { describe, expect, it } from 'vitest';
-import { contractParts } from 'core/vibecoder';
+import { contractParts, moduleLine } from 'core/vibecoder';
+
+describe('moduleLine', () => {
+  it('un contrat sur plusieurs lignes : sa première ligne', () => {
+    expect(moduleLine('un module en une phrase\nne connaît pas : le DOM\nvariants : a.test.ts\n- un cas')).toBe('un module en une phrase');
+  });
+
+  it('un contrat d’une ligne à « · » : ce qui précède le premier « · »', () => {
+    expect(moduleLine('gitRun(dir) : git en execFile · ne connaît pas : Electron · utilisé par : app')).toBe('gitRun(dir) : git en execFile');
+  });
+
+  it('un contrat qui commence par une rubrique : rien (français, anglais, « variants : »)', () => {
+    expect(moduleLine('ne connaît pas : le DOM, React')).toBe('');
+    expect(moduleLine('Used by: journey')).toBe('');
+    expect(moduleLine('variants : a.test.ts\n- un cas')).toBe('');
+  });
+
+  it('un contrat vide ou blanc : rien', () => {
+    expect(moduleLine('')).toBe('');
+    expect(moduleLine('  \n \n')).toBe('');
+  });
+
+  it('le « (repris) » de tête est gardé tel quel', () => {
+    expect(moduleLine('(repris) un module en une phrase\nne connaît pas : React')).toBe('(repris) un module en une phrase');
+  });
+
+  it('lignes vides de tête ignorées, « · » de tête sans rubrique vide, un « · » collé au texte n’est pas un séparateur', () => {
+    expect(moduleLine('\n\n  fait a · utilisé par : b')).toBe('fait a');
+    expect(moduleLine('· expose la note · ne connaît pas : React')).toBe('expose la note');
+    expect(moduleLine('a·b · c')).toBe('a·b');
+  });
+
+  it('un mot de libellé sans « : » reste du texte', () => {
+    expect(moduleLine('variants de la forme, listés')).toBe('variants de la forme, listés');
+  });
+});
 
 describe('contractParts', () => {
   it('coupé à ses « · », libellés reconnus (français)', () => {

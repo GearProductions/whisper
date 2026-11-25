@@ -4,6 +4,9 @@
  *  celles que la vue montre elle-même ni celles qui citent) ; la largeur de la colonne de la conversation (300 px au moins,
  *  60 % de l'écran au plus) ; les actions qui tournent (isRunning, runningRuns : en
  *  cours ou en attente d'autorisation, ni arrêtées ni finies).
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : stepActions ne rend plus rien au créateur — aucun bouton
+ *  d'action dans une étape, pas même celle mise en avant : une action se demande à l'agent, qui a la CLI — ; au
+ *  relecteur, la rangée d'avant, inchangée.
  *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (vibe-coder, step-parts, status-bar ;
  *  runs-view : isRunning). */
 import type { VibeAction, VibeRun, VibeStep, VibeView } from 'technicals/bridge';
@@ -21,8 +24,9 @@ type StepAction = { a: VibeAction; tone: 'accent' | 'plain' };
 // Une action qui cite ({{quote}}) part d'un bloc ou d'un cas, pas d'un bouton à elle.
 const cites = (a: VibeAction) => a.kind === 'prefill' && !!a.text?.includes('{{quote}}');
 
-// La rangée d'une étape : ses actions ; à l'étape en cours, celle mise en avant d'abord. Jamais Vibe.
+// La rangée d'une étape, au relecteur seulement : ses actions ; à l'étape en cours, celle mise en avant d'abord. Jamais Vibe.
 export function stepActions(view: VibeView, step: VibeStep, own: string[]): StepAction[] {
+  if (view.flow !== 'review') return [];
   const tone = (a: VibeAction): StepAction['tone'] => (step.status === 'current' && a.primary ? 'accent' : 'plain');
   return view.actions
     .filter((a) => a.id !== 'vibe' && !a.hidden && !cites(a) && !own.includes(a.id) && (a.step === step.id || tone(a) !== 'plain'))

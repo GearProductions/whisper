@@ -37,15 +37,25 @@ describe('stepActions', () => {
     action({ id: 'gone', step: 'forme', hidden: true }),
     action({ id: 'other', step: 'modules' }),
   ];
-  const view = (over: Partial<VibeView> = {}) => ({ flow: 'create', actions, ...over }) as VibeView;
+  const view = (over: Partial<VibeView> = {}) => ({ flow: 'review', actions, ...over }) as VibeView;
   const step = (status: VibeStep['status']): VibeStep => ({ id: 'forme', status, facts: '' });
   const row = (v: VibeView, s: VibeStep, own: string[] = []) => stepActions(v, s, own).map(({ a, tone }) => `${a.id}:${tone}`);
 
-  it('étape en cours : la mise en avant, puis les siennes ; sans masquée, qui cite, ni d\'une autre étape', () => {
+  it('créateur, une étape avec ses actions : aucune, à toute étape', () => {
+    for (const s of ['current', 'done', 'todo'] as const) expect(row(view({ flow: 'create' }), step(s))).toEqual([]);
+  });
+
+  it('créateur, l\'étape en cours et son action mise en avant : aucune', () => {
+    const next = [...actions, action({ id: 'modules', step: 'modules', primary: true })];
+    expect(row(view({ flow: 'create', actions: next }), step('current'))).toEqual([]);
+    expect(row(view({ flow: 'create', actions: next }), { id: 'modules', status: 'current', facts: '' })).toEqual([]);
+  });
+
+  it('relecteur : ses actions, la mise en avant d\'abord ; ni masquées, ni qui citent, ni d\'une autre étape', () => {
     expect(row(view(), step('current'))).toEqual(['forme:accent', 'forme-review:plain', 'prep-forme:plain']);
   });
 
-  it('étape pas en cours : les siennes seulement, sans accent', () => {
+  it('relecteur, étape pas en cours : les siennes seulement, sans accent', () => {
     expect(row(view(), step('done'))).toEqual(['forme-review:plain', 'forme:plain', 'prep-forme:plain']);
   });
 
@@ -57,7 +67,7 @@ describe('stepActions', () => {
     expect(row(view({ actions: mine }), step('current'))).toEqual(['forme:accent', 'forme-review:plain', 'prep-forme:plain']);
   });
 
-  it('celles que la vue montre elle-même (own) : retirées', () => {
+  it('relecteur : celles que la vue montre elle-même (own) : retirées', () => {
     expect(row(view(), step('current'), ['forme-review'])).toEqual(['forme:accent', 'prep-forme:plain']);
   });
 

@@ -1,5 +1,6 @@
 // Variants du contrôle en trois points, côté contrôleurs (note 0.16.0, docs/tickets/feat/0.16.0-controle-en-trois-points.md,
-// entrée « app/controllers runs + vibecoder ») : le moteur qui part seul quand la note est validée, ses deux rythmes (les
+// entrée « app/controllers runs + vibecoder ») : le moteur qui part seul quand la note est validée (la première fois ; revalidée
+// en cours de parcours, il ne repart que s'il enchaînait quand elle a changé : note 0.16.0-ecran-essentiel), ses deux rythmes (les
 // pauses du rythme par défaut, l'express qui n'en tient aucune), le ✓ de la note gardé ou tombé, les validations du système,
 // la validation des modules par la CLI qui attend la preuve, preuve.md rangée avec les sorties de sa branche, les deux
 // contrôles de l'appli (l'alignement n'écrit pas dans un test d'invariant d'avant la branche, la preuve ne change ni le
@@ -141,6 +142,17 @@ function commitModule() {
   git(dir, 'commit', '-q', '-m', 'modules');
 }
 
+// Le même dépôt, la note pas encore commitée : le parcours se tient à la pause après les invariants, qui précède le
+// premier commit (sans ligne « → invariant », la Forme posée suffit) ; commitNote : le premier commit, une fois repris.
+function setupAtPause() {
+  setup();
+  git(dir, 'reset', '-q', 'HEAD~1');
+}
+function commitNote() {
+  git(dir, 'add', '.');
+  git(dir, 'commit', '-q', '-m', 'note');
+}
+
 describe('Vérifier, puis valider la note : deux gestes', () => {
   it('Vérifier finie sans question : la note pas validée, rien ne part ; le relevé dit « rien trouvé »', async () => {
     setup();
@@ -269,13 +281,13 @@ describe('Vérifier, puis valider la note : deux gestes', () => {
 });
 
 describe('les deux rythmes', () => {
-  it('le rythme par défaut, le premier commit fait : le moteur est arrêté au relevé, une demande de l’orchestrateur est refusée (halted)', async () => {
-    setup();
+  it('le rythme par défaut, rien de commité : le moteur est arrêté au relevé, une demande de l’orchestrateur est refusée (halted)', async () => {
+    setupAtPause();
     await openPanel('a1');
     await validateNote();
     await survey();
 
-    // témoin : le parcours se tient après les invariants, au rythme par défaut
+    // témoin : le parcours se tient après les invariants, avant le premier commit, au rythme par défaut
     expect(view().pause).toBe('invariants');
     expect(view().express).toBeFalsy();
     expect(await halted()).toBe(true);
@@ -285,7 +297,7 @@ describe('les deux rythmes', () => {
   });
 
   it('Reprendre à cette pause : le moteur repart, la demande passe ; à la pause suivante il est arrêté de nouveau', async () => {
-    setup();
+    setupAtPause();
     await openPanel('a1');
     await validateNote();
     await survey();
@@ -305,6 +317,7 @@ describe('les deux rythmes', () => {
     expect(claude.turns.map((t) => t.skill)).toContain('/vibecoder:ponytail');
 
     // la pause suivante est tenue
+    commitNote();
     commitModule();
     await survey();
     await survey();
@@ -313,8 +326,87 @@ describe('les deux rythmes', () => {
     expect(await ask('run.start', { action: 'ci' })).toMatchObject({ ok: false, error: { code: 'halted' } });
   });
 
-  it('en express : aucune pause tenue, les demandes passent', async () => {
+  // La note revalidée en cours de parcours : seule la première validation lance le moteur ; ensuite Valider la note rend son ✓
+  // et remet les choses comme avant le changement (correction du 25 novembre, note 0.16.0-ecran-essentiel).
+  for (const express of [false, true]) {
+    it(`la note changée pendant l’essai, après les modules, le moteur arrêté${express ? ', en express' : ''} : Valider la note rend son ✓, rien ne part ; Reprendre : il repart`, async () => {
+      setupAtPause();
+      await openPanel('a1');
+      if (express) await setExpress(true);
+      await validateNote();
+      await survey();
+      await endEngine();
+      commitNote();
+      commitModule();
+      await survey();
+      await survey();
+      expect(vibeTurns()).toHaveLength(1);
+      expect((await import('app/controllers')).vibeOn('a1')).toBe(false);   // témoin : le moteur ne tourne pas (la pause, ou son tour fini)
+
+      write(path.join(dir, NOTE_FILE), REDESIGNED);   // l'agent y écrit une décision, pendant l'essai
+      await survey();
+      await survey();
+      expect(checkOf('note')?.state).not.toBe('ok');   // témoin : la note « modifiée depuis », son ✓ à reposer
+
+      await validateNote();
+      await survey();
+
+      expect(checkOf('note')?.state).toBe('ok');
+      expect(vibeTurns()).toHaveLength(1);
+      expect((await import('app/controllers')).vibeOn('a1')).toBe(false);
+      expect(view().actions.find((x) => x.id === 'vibe')).toMatchObject({ hidden: false });   // Reprendre reste proposé
+
+      await click('vibe');
+      await settle();
+      await survey();
+      expect(vibeTurns()).toHaveLength(2);
+    });
+  }
+
+  it('le moteur tournait quand la note a changé (la pause de la note l’a arrêté) : Valider la note le relance, sans autre clic', async () => {
     setup();
+    await openPanel('a1');
+    await validateNote();
+    expect(await halted()).toBe(false);   // témoin : le moteur tourne
+    write(path.join(dir, NOTE_FILE), REDESIGNED);   // une décision écrite dans la note pendant qu'il enchaîne
+    await survey();
+    await survey();
+    expect(view().pause).toBe('note');
+    expect(await halted()).toBe(true);
+    await endEngine();
+
+    await validateNote();
+
+    expect(checkOf('note')?.state).toBe('ok');
+    expect(vibeTurns()).toHaveLength(2);
+  });
+
+  it('arrêté par la note, puis la note revenue à son texte validé (plus de pause) : une revalidation plus tard ne relance rien', async () => {
+    setup();
+    await openPanel('a1');
+    await validateNote();
+    write(path.join(dir, NOTE_FILE), REDESIGNED);
+    await survey();
+    await survey();
+    expect(await halted()).toBe(true);
+    await endEngine();
+    write(path.join(dir, NOTE_FILE), NOTE_TEXT);   // revenue : son ✓ avec elle, la pause levée, le moteur toujours arrêté
+    await survey();
+    await survey();
+    expect(checkOf('note')?.state).toBe('ok');
+    expect(vibeTurns()).toHaveLength(1);
+
+    write(path.join(dir, NOTE_FILE), REDESIGNED);   // changée de nouveau, le moteur arrêté cette fois
+    await survey();
+    await survey();
+    await validateNote();
+
+    expect(checkOf('note')?.state).toBe('ok');
+    expect(vibeTurns()).toHaveLength(1);
+  });
+
+  it('en express : aucune pause tenue, les demandes passent', async () => {
+    setupAtPause();
     await openPanel('a1');
     await setExpress(true);
     await validateNote();
@@ -324,6 +416,7 @@ describe('les deux rythmes', () => {
     expect(view().pause).toBe('invariants');
     expect(await halted()).toBe(false);
     expect(await ask('run.start', { action: 'ponytail' })).toMatchObject({ ok: true });
+    commitNote();
     commitModule();
     await survey();
     expect(view().pause).toBe('modules');
@@ -331,7 +424,7 @@ describe('les deux rythmes', () => {
   });
 
   it('passé en express à une pause : le moteur repart sans autre clic', async () => {
-    setup();
+    setupAtPause();
     await openPanel('a1');
     await validateNote();
     await survey();
@@ -346,7 +439,7 @@ describe('les deux rythmes', () => {
   });
 
   it('passé en express avant de valider la note : rien ne part avant sa validation', async () => {
-    setup();
+    setup();   // la note commitée, sans son ✓ : la pause de la note
     await openPanel('a1');
 
     await setExpress(true);
@@ -362,7 +455,7 @@ describe('les deux rythmes', () => {
   });
 
   it('passé en express à une pause, la note changée entre-temps : rien ne repart', async () => {
-    setup();
+    setupAtPause();
     await openPanel('a1');
     await validateNote();
     await survey();
@@ -376,12 +469,13 @@ describe('les deux rythmes', () => {
   });
 
   it('revenu au rythme par défaut en route : la pause suivante est tenue', async () => {
-    setup();
+    setupAtPause();
     await openPanel('a1');
     await setExpress(true);
     await validateNote();
     await survey();
     expect(await halted()).toBe(false);
+    commitNote();
     commitModule();
     await survey();
     expect(view().pause).toBe('modules');
@@ -395,7 +489,7 @@ describe('les deux rythmes', () => {
   });
 
   it('passé en express : rien d’écrit dans les réglages de l’agent ; l’appli relancée, le rythme par défaut, la pause tenue', async () => {
-    setup();
+    setupAtPause();
     await openPanel('a1');
     await validateNote();
     await setExpress(true);
@@ -589,6 +683,100 @@ describe('les validations du système', () => {
   });
 });
 
+// Après l'essai sur gt-plugins (25 novembre, note 0.16.0-ecran-essentiel) : le système ne pose aucun verdict de test, et un
+// test d'invariant réécrit après le premier regard ramène la pause après les invariants.
+describe('les tests d’invariants changés après leur validation', () => {
+  const REWRITTEN = INV_TEXT.replace('() => {}', '() => { /* réécrit par une correction */ }');
+  // La lecture en pseudo-code d'un texte du test (la pause attend que tout soit lu).
+  async function read(text: string) {
+    const { blobSha } = await import('core/vibecoder');
+    write(path.join(out, 'invariants', `${blobSha(text)}.md`), `# ${INV}\n## ne lit rien d’autre\n\nrien d’autre n’est lu\n`);
+  }
+  // Les invariants validés par le système (alignés, lus, commités), le moteur en route.
+  async function validated(express = false) {
+    setupWithProof();
+    write(path.join(out, 'align.md'), 'Aligné.\n');
+    await read(INV_TEXT);
+    await openPanel('a1');
+    if (express) await setExpress(true);
+    await validateNote();
+    await survey();
+    expect(checkOf('invariants')).toMatchObject({ state: 'ok', by: 'system' });   // témoin
+  }
+  async function rewrite() {
+    write(path.join(dir, INV), REWRITTEN);
+    await read(REWRITTEN);
+    await survey();
+    await survey();
+  }
+
+  it('aucun verdict de test n’est posé par le système : « Validé » reste à l’utilisateur', async () => {
+    await validated();
+    await survey();
+
+    expect(view().invariants.flatMap((f) => Object.values(f.marks))).toEqual([null]);
+  });
+
+  it('au rythme par défaut : la pause après les invariants revient, le moteur arrêté, les modules pas validables ; Reprendre : validés, la pause levée', async () => {
+    await validated();
+    expect(await halted()).toBe(false);   // témoin : le moteur enchaîne
+
+    await rewrite();
+
+    expect(checkOf('invariants')?.state).toBe('changed');
+    expect(view().pause).toBe('invariants');
+    expect(await halted()).toBe(true);
+    expect(await ask('run.start', { action: 'ponytail' })).toMatchObject({ ok: false, error: { code: 'halted' } });
+    // les modules pas validables, et le refus nomme l'étape qui manque et pourquoi (T-43)
+    const refusal = await ask('step.validate', { step: 'modules', verdict: 'ok' }) as unknown as { ok: boolean; error: { code: string; details: { reason: string } } };
+    expect(refusal).toMatchObject({ ok: false, error: { code: 'not-offered' } });
+    expect(refusal.error.details.reason).toMatch(/invariants step is not validated.*tests changed/);
+    await survey();
+    expect(checkOf('invariants')?.state).toBe('changed');   // aucun relevé ne les revalide
+
+    await endEngine();
+    await click('vibe');
+    await settle();
+    await survey();
+    await survey();
+
+    expect(checkOf('invariants')?.state).toBe('ok');
+    expect(view().pause ?? null).not.toBe('invariants');
+    expect(await halted()).toBe(false);
+    expect(vibeTurns()).toHaveLength(2);
+  });
+
+  it('le moteur au repos (une correction dans la conversation) : à cette pause, l’agent ne lance pas ce qui bâtit sur les tests ; les invariants restent lançables ; Reprendre : la demande passe', async () => {
+    await validated();
+    await endEngine();   // son tour fini : hors Vibe
+    await rewrite();
+    expect(view().pause).toBe('invariants');
+    expect(await halted()).toBe(false);   // témoin : ce n'est pas le moteur arrêté qui refuse
+
+    for (const action of ['modules', 'commit-prepare', 'prove', 'checks']) {
+      expect(await ask('run.start', { action })).toMatchObject({ ok: false, error: { code: 'halted' } });
+    }
+    expect(claude.turns.map((t) => t.skill)).not.toContain('/vibecoder:modules');
+    expect(await ask('run.start', { action: 'read-invariants' })).not.toMatchObject({ error: { code: 'halted' } });   // elle finit aussitôt
+    await survey();
+
+    await click('vibe');
+    await settle();
+    await survey();
+    expect(await ask('run.start', { action: 'ponytail' })).toMatchObject({ ok: true });
+  });
+
+  it('en express : pas de pause, le système les revalide, le moteur enchaîne', async () => {
+    await validated(true);
+
+    await rewrite();
+
+    expect(checkOf('invariants')).toMatchObject({ state: 'ok', by: 'system' });
+    expect(view().pause ?? null).not.toBe('invariants');
+    expect(await halted()).toBe(false);
+  });
+});
+
 describe('une validation d’étape retirée à la main : la pause sur l’étape', () => {
   // Le moteur au travail (relancé à la pause des invariants, ou en express), puis la validation de la Forme retirée à la main.
   async function engineThenRetired(express: boolean) {
@@ -749,7 +937,10 @@ describe('la validation des modules par la CLI attend la preuve', () => {
     // témoin : la Forme et les invariants sont validés par le système, rien à la main
     expect(checkOf('invariants')).toMatchObject({ state: 'ok', by: 'system' });
 
-    expect(await validateModules()).toMatchObject({ ok: false });
+    // refusée, et le refus dit pourquoi (T-43) : la preuve
+    const unproved = await validateModules();
+    expect(unproved).toMatchObject({ ok: false, error: { code: 'not-offered' } });
+    expect((unproved as unknown as { error: { details: { reason: string } } }).error.details.reason).toMatch(/proof/);
     expect(checkOf('modules')?.state).not.toBe('ok');
 
     write(path.join(out, 'preuve.md'), PROVED());
@@ -889,6 +1080,7 @@ describe('Vérifier l’alignement : les tests d’invariants d’avant la branc
     await validateNote();
     const { turn } = await startCourse('align', 'aligner');
     write(path.join(out, 'align.md'), 'Aligné.\n');   // la course l'écrit
+    write(path.join(out, 'liens.md'), '## une règle\n');   // et son rattachement, qui range les tests à l'écran
     write(path.join(dir, OLD_INV), "it('vert', () => {});\n");
 
     turn!.end(true);
@@ -896,6 +1088,7 @@ describe('Vérifier l’alignement : les tests d’invariants d’avant la branc
     await survey();
 
     expect(fs.existsSync(path.join(out, 'align.md'))).toBe(false);
+    expect(fs.existsSync(path.join(out, 'liens.md'))).toBe(false);
     expect(view().steps.find((s) => s.id === 'invariants')?.status).not.toBe('done');
   });
 
@@ -904,12 +1097,14 @@ describe('Vérifier l’alignement : les tests d’invariants d’avant la branc
     await validateNote();
     const { turn, run } = await startCourse('align', 'aligner');
     write(path.join(out, 'align.md'), 'Aligné.\n');   // la course l'écrit
+    write(path.join(out, 'liens.md'), '## une règle\n');
 
     turn!.end(true);
     await settle(1000);
 
     expect(run()?.state).toBe('done');
     expect(fs.existsSync(path.join(out, 'align.md'))).toBe(true);
+    expect(fs.existsSync(path.join(out, 'liens.md'))).toBe(true);
     // témoin : les tests sont alignés, l'étape Invariants est faite (le cas qui précède la défait en effaçant align.md)
     await survey();
     expect(view().steps.find((s) => s.id === 'invariants')?.status).toBe('done');

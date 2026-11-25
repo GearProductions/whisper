@@ -6,14 +6,26 @@
  *  et si « Tout valider » est permis (lu ou pas : la lecture n'est qu'une aide) ; le pseudo-code ligne à ligne, coloré,
  *  ses assertions et ses « given / when / then » repérés — en tête de ligne
  *  (`test "…":`, la forme des lectures) ou en commentaire (`it(…)`, l'ancienne) ;
- *  le point d'attention d'un cas, versé en un clic : cité dans le champ de la
- *  conversation (attentionQuote, comme on cite la note : du texte, sans `>`),
- *  ou ajouté à la zone de commentaire sans rien effacer (withAttention) ; la ligne « → invariant » de
+ *  le point d'attention d'un cas, versé en un clic : ajouté à la zone de commentaire sans rien effacer (withAttention) ; la ligne « → invariant » de
  *  la note que garde un cas, d'après la seule phrase Garantit de sa lecture (caseLink).
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : les tests rangés par ligne « → invariant » de la note.
+ *  ruleGroups(view: Pick<VibeView, 'note' | 'invariants' | 'proof'>, links?: string | null): RuleGroups
+ *  rules : une règle par ligne « → invariant » de la note (mustNot, mark 'invariant'), dans l'ordre de la note, son
+ *  texte tel qu'écrit ; ses cas, ceux que l'alignement y rattache (links : le texte de liens.md, écrit par le skill
+ *  aligner, qui vérifie déjà test par test à quelle ligne chacun est lié ; alignLinks le lit) ; pour un cas que
+ *  liens.md ne nomme pas, ou sans liens.md, ceux que caseLink y rattache d'après sa lecture (une citation mot pour
+ *  mot, qui manque souvent sur une ligne longue : un repli, plus la règle) ; un cas sous deux lignes est sous chacune, dans
+ *  l'ordre des fichiers puis des cas ; elsewhere, les tests que liens.md range sous elle et qui ne sont pas au relevé
+ *  (un test d'avant la branche qui l'observe déjà) ; une ligne sans cas ni test ailleurs reste (« aucun test ») ; son état d'après la
+ *  preuve du relevé (view.proof.lines, par le texte de la ligne) : 'proved', prouvée ; 'unproved', la preuve la
+ *  remonte à l'utilisateur (detail : pourquoi) ; 'written', la preuve ne dit encore rien d'elle (pas de preuve, ou pas
+ *  de rubrique pour elle). others : les cas qui ne gardent aucune ligne (pas lus, sans phrase Garantit, un I-… seul,
+ *  rien de cité) : « Autres tests ». Chaque cas de chaque test est dans une règle ou dans others : rien n'est caché.
+ *  Sans note : aucune règle, tous les cas dans others.
  *  Ne connaît pas : le DOM, React, la spécification du projet (un I-… n'est qu'un numéro).
- *  Utilisé par : app/panel/vibecoder (invariants-view). */
-import type { ReadingCase, VibeMarkState, VibeNote, VibeTestFile } from 'technicals/bridge';
-import { caseKeys } from 'shared/test-cases';
+ *  Utilisé par : app/panel/vibecoder (invariants-view ; rules-view : ruleGroups, pseudoLines). */
+import type { ReadingCase, VibeMarkState, VibeNote, VibeTestFile, VibeView } from 'technicals/bridge';
+import { caseKeys, readingRanks } from 'shared/test-cases';
 import { tokens, type Token } from './highlight';
 
 // key : la clé du cas (sa cible : « case:<chemin>:<clé> ») ; stale : sa lecture est périmée ; common : sa validation est
@@ -25,12 +37,12 @@ export type CaseView = { title: string; key?: string; reading: ReadingCase | nul
 // le titre d'aucun autre.
 export function casesOf(file: VibeTestFile): CaseView[] {
   const r = file.reading;
-  const keys = caseKeys(file.cases), readKeys = r ? caseKeys(r.map((c) => c.title)) : [];
+  const keys = caseKeys(file.cases), ranks = r ? readingRanks(file.cases, r.map((c) => c.title)) : [];
   return file.cases.map((title, i) => {
-    const key = keys[i], at = readKeys.indexOf(key);
+    const key = keys[i];
     return {
       title, key,
-      reading: !r ? null : r[at] ?? (r.length === file.cases.length && !file.cases.includes(r[i].title) ? r[i] : null),
+      reading: r && ranks[i] !== null ? r[ranks[i]!] : null,
       stale: file.staleCases?.includes(key) || undefined,
       mark: Object.hasOwn(file.marks, key) ? file.marks[key] : null,
       common: file.commonChanged?.includes(key) || undefined,
@@ -127,9 +139,6 @@ export function pseudoLines(code: string): PseudoLine[] {
   });
 }
 
-// Le cas et son point d'attention, à citer dans le champ de la conversation (citation entière : prefill block).
-export const attentionQuote = (title: string, attention: string): string => `${title}\n${attention}`;
-
 // Le texte d'une zone de commentaire, suivi du point d'attention (une ligne vide entre les deux) ;
 // texte vide → l'attention seule ; déjà au bout → inchangé (un second clic n'ajoute rien) ; rien d'effacé.
 export function withAttention(text: string, attention: string): string {
@@ -148,11 +157,7 @@ export function caseLink(reading: ReadingCase | null, mustNot: VibeNote['mustNot
   const said = reading ? norm(reading.guarantees) : '';
   const cited = mustNot
     .filter((l) => l.mark === 'invariant')
-    .map((l) => {
-      const arrow = Math.max(l.text.lastIndexOf('→'), l.text.lastIndexOf('->'));
-      // avant la dernière flèche ; sans flèche, après le préfixe de la marque (« [invariant] … », comme parseNote)
-      return { text: l.text, key: norm(arrow >= 0 ? l.text.slice(0, arrow) : l.text.replace(/^[[(][^\])]*[\])]/, '')) };
-    })
+    .map((l) => ({ text: l.text, key: lineKey(l.text) }))
     .filter((l) => l.key && said.includes(l.key));
   const lines = cited.filter((l) => !cited.some((o) => o.key.length > l.key.length && o.key.includes(l.key))).map((l) => l.text);
   if (lines.length) return { kind: 'note', lines };
@@ -160,5 +165,106 @@ export function caseLink(reading: ReadingCase | null, mustNot: VibeNote['mustNot
   return ids.length ? { kind: 'spec', ids } : { kind: 'none' };
 }
 
+// liens.md (skill aligner) : sous chaque ligne « → invariant » de la note (un titre `## `, son texte), les tests
+// qui la gardent, un par puce : `- <chemin du fichier> :: <titre du test>` (les accents graves autour sont ôtés).
+// Une puce sans « :: », du texte hors d'un titre : ignorés.
+export type AlignLink = { line: string; tests: { path: string; title: string }[] };
+export function alignLinks(md: string): AlignLink[] {
+  const bare = (t: string) => t.trim().replace(/^`(.*)`$/, '$1').trim();
+  const out: AlignLink[] = [];
+  for (const raw of md.split('\n')) {
+    const l = raw.trim();
+    if (l.startsWith('## ')) out.push({ line: l.slice(3).trim(), tests: [] });
+    else if (out.length && /^[-*] /.test(l)) {
+      const at = l.indexOf(' :: ');
+      if (at > 0) out[out.length - 1].tests.push({ path: bare(l.slice(2, at)).replace(/^\.\//, ''), title: bare(l.slice(at + 4)) });
+    }
+  }
+  return out;
+}
+
+// La clé d'une ligne de la note : son texte avant la dernière flèche (sans flèche, après le préfixe de la marque,
+// « [invariant] … », comme parseNote), normalisé.
+const lineKey = (text: string) => {
+  const arrow = Math.max(text.lastIndexOf('→'), text.lastIndexOf('->'));
+  return norm(arrow >= 0 ? text.slice(0, arrow) : text.replace(/^[[(][^\])]*[\])]/, ''));
+};
+// Sans la ponctuation de fin : une ligne recopiée par son début finit souvent par un point ou des points de suspension.
+const untailed = (key: string) => key.replace(/[\s.…:;,]+$/, '');
+
+// La ligne de la note qu'un titre de liens.md désigne (son texte tel que dans mustNot) : celle de même clé ; sinon la
+// seule dont la clé commence par ce titre (une ligne longue recopiée sans sa fin), s'il fait au moins 12 caractères ;
+// aucune, ou plusieurs : null (le test reste dans les autres : rien n'est rangé au hasard).
+function linkedLine(heading: string, lines: { text: string; key: string }[]): string | null {
+  const h = untailed(lineKey(heading));
+  if (!h) return null;
+  const same = lines.filter((l) => untailed(l.key) === h);
+  if (same.length) return same.length === 1 ? same[0].text : null;
+  const starts = h.length >= 12 ? lines.filter((l) => l.key.startsWith(h)) : [];
+  return starts.length === 1 ? starts[0].text : null;
+}
+
+// Ce que liens.md rattache : cases, pour chaque cas du relevé (« <id du fichier>:<rang> »), les lignes de la note qu'il
+// garde ; elsewhere, pour chaque ligne (son texte), les tests nommés dont le fichier n'est pas au relevé (un test
+// d'avant la branche qui observe déjà la ligne), sans doublon. Un titre inconnu d'un fichier du relevé : ignoré.
+type Linked = { cases: Map<string, Set<string>>; elsewhere: Map<string, { path: string; title: string }[]> };
+function linked(md: string, mustNot: VibeNote['mustNot'], files: VibeTestFile[]): Linked {
+  const lines = mustNot.filter((l) => l.mark === 'invariant').map((l) => ({ text: l.text, key: lineKey(l.text) }));
+  const out: Linked = { cases: new Map(), elsewhere: new Map() };
+  for (const link of alignLinks(md)) {
+    const line = linkedLine(link.line, lines);
+    if (!line) continue;
+    for (const t of link.tests) {
+      const file = files.find((f) => f.path === t.path);
+      if (!file) {
+        const there = out.elsewhere.get(line) ?? [];
+        if (!there.some((e) => e.path === t.path && e.title === t.title)) out.elsewhere.set(line, [...there, t]);
+        continue;
+      }
+      // Le cas qu'un titre désigne : sa clé numérotée exacte (« x n° 2 »), sinon le seul cas de ce titre ; un titre que portent
+      // plusieurs cas ne range rien (le test reste dans les autres, pas au hasard sur le premier).
+      const keyAt = caseKeys(file.cases).indexOf(t.title);
+      const same = file.cases.flatMap((c, j) => (norm(c) === norm(t.title) ? [j] : []));
+      const i = keyAt >= 0 && file.cases[keyAt] !== t.title ? keyAt : same.length === 1 ? same[0] : -1;
+      if (i < 0) continue;
+      const id = `${file.id}:${i}`;
+      out.cases.set(id, (out.cases.get(id) ?? new Set()).add(line));
+    }
+  }
+  return out;
+}
+
 // Blancs réduits à une espace, guillemets (« », “ ”, „) ramenés à ", apostrophes (’ ‘) à '.
 const norm = (s: string) => s.replace(/«\s*/g, '"').replace(/\s*»/g, '"').replace(/[“”„]/g, '"').replace(/[’‘]/g, "'").replace(/\s+/g, ' ').trim();
+
+// Une règle : une ligne « → invariant » de la note, son état d'après la preuve, les cas qui la gardent (voir l'en-tête).
+export type RuleState = 'written' | 'proved' | 'unproved';
+// index : le rang du cas dans file.cases (sa ligne : file.lines[index]).
+export type RuleCase = { file: VibeTestFile; index: number; view: CaseView };
+// detail : ce que la preuve dit de la ligne (le mutant qui l'a prouvée, ou pourquoi elle remonte) ; '' : rien.
+// elsewhere : les tests que l'alignement range sous la ligne et qui ne sont pas au relevé (d'avant la branche) : leur
+// chemin et leur titre, rien de plus (ni pseudo-code ni ligne) ; sans liens.md : aucun.
+export type Rule = { line: string; state: RuleState; detail: string; cases: RuleCase[]; elsewhere: { path: string; title: string }[] };
+export type RuleGroups = { rules: Rule[]; others: RuleCase[] };
+
+export function ruleGroups(view: Pick<VibeView, 'note' | 'invariants' | 'proof'>, links?: string | null): RuleGroups {
+  const mustNot = view.note?.mustNot ?? [];
+  // L'alignement d'abord (liens.md), dans l'ordre de la note ; un cas qu'il ne nomme pas : la citation de sa lecture.
+  const aligned = links ? linked(links, mustNot, view.invariants) : null;
+  const linkOf = (file: VibeTestFile, index: number, reading: ReadingCase | null): CaseLink => {
+    const lines = aligned?.cases.get(`${file.id}:${index}`);
+    return lines ? { kind: 'note', lines: mustNot.filter((l) => lines.has(l.text)).map((l) => l.text) } : caseLink(reading, mustNot);
+  };
+  const cases = view.invariants.flatMap((file) => casesOf(file).map((v, index): RuleCase & { link: CaseLink } => ({ file, index, view: v, link: linkOf(file, index, v.reading) })));
+  const strip = ({ link: _l, ...c }: RuleCase & { link: CaseLink }): RuleCase => c;
+  const rules = mustNot.filter((l) => l.mark === 'invariant').map(({ text }): Rule => {
+    const p = view.proof?.lines.find((l) => l.line === text);
+    // sans rubrique dans preuve.md (found false) : « écrite », pas « non prouvée »
+    const state: RuleState = !p || p.found === false ? 'written' : p.proved ? 'proved' : 'unproved';
+    return {
+      line: text, state, detail: state === 'written' ? '' : p!.detail,
+      cases: cases.filter((c) => c.link.kind === 'note' && c.link.lines.includes(text)).map(strip), elsewhere: aligned?.elsewhere.get(text) ?? [],
+    };
+  });
+  return { rules, others: cases.filter((c) => c.link.kind !== 'note').map(strip) };
+}

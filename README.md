@@ -378,8 +378,10 @@ Pour développer avec un agent en suivant le guide
 lui redire à chaque étape (« fais la note », « c'est bon, commit et passe au
 suivant », « replie les fixups et sors la PR ») : VibeCoder, l'écran de
 l'appli, montre pour l'agent affiché où en est
-le travail et propose, à chaque étape, les boutons qui envoient à l'agent le
-bon message, avec le bon skill et le bon modèle. Un seul parcours, pour **créer**
+le travail. Le système enchaîne les étapes : vous validez la note, vous
+regardez aux deux pauses, vous répondez aux questions `[toi]`, et le reste se
+demande à l'agent, qui lance les actions (le bon message, avec le bon skill et
+le bon modèle) par la CLI de VibeCoder. Un seul parcours, pour **créer**
 une feature sur la branche du dossier de l'agent comme pour **relire** une PR
 du dépôt : vous n'avez pas à choisir, l'appli décide de votre rôle (créateur ou
 relecteur, plus bas).
@@ -389,7 +391,7 @@ de ticket sous `docs/tickets/` ; sans dépôt, l'écran le dit et la
 conversation reste utilisable. Ce qu'on a commencé sur l'écran d'un agent
 (réponses aux questions, modèle choisi, verdict de la
 revue, étape choisie, et par étape : le fichier choisi, les dossiers pliés,
-l'onglet, le défilement, la vue IDE ou liste) l'attend quand on revient sur lui,
+le défilement ; plus d'onglet ni de vue retenus) l'attend quand on revient sur lui,
 le temps que l'appli tourne (un redémarrage l'oublie). En changeant d'agent, l'écran garde l'affichage d'avant jusqu'à ce
 que la conversation et le relevé du nouvel agent soient là : jamais de page
 vide, l'en-tête et les robots ne bougent pas.
@@ -416,23 +418,35 @@ autre, dont la note est restée chez lui : « pas de note », sans reproche.
   fenêtre ;
 - au centre, en tête, le **fil d'Ariane** : les étapes en une ligne (point
   plein : faite ; anneau qui pulse : en cours ; gris : à venir), tous leurs faits
-  au survol (l'en-tête de l'étape, lui, n'en répète aucun qu'elle montre déjà) ; au bout, « N commits » déplie les commits de la branche, et le bouton
-  du moteur (créateur seulement, à toutes les étapes ; *Arrêter* pendant que le
-  système enchaîne, *Reprendre* quand il est arrêté) et l'interrupteur **Express** (le
-  rythme, voir *Vibe*). Il
+  au survol (l'en-tête de l'étape, lui, n'en répète aucun qu'elle montre déjà) ; au bout,
+  l'interrupteur **Express** (le rythme, voir *Vibe*). Plus de compte
+  « N commits » ni de liste des commits pour le créateur ; le relecteur garde son
+  « N commits », qui déplie les commits de la branche. Il
   mène : un clic (ou Ctrl+1…6) ouvre n'importe quelle étape, faite, en
   cours ou à venir (une branche créée à la main, sans note, se gère ainsi) ;
-  ouvrir une étape à venir ne lance rien ; seuls les boutons dont l'action
-  a besoin d'une étape précédente restent grisés, leur raison au survol ;
+  ouvrir une étape à venir ne lance rien ;
+- sous le fil, la **ligne d'état** (créateur) : toujours là, une seule phrase qui
+  dit ce que le système est en train de faire, ou ce qu'il attend de vous — « Demandez la
+  note à l'agent, dans la conversation », « 2 questions : répondez dans le
+  questionnaire », « Vérifiez, puis validez la note », « Le système écrit les
+  modules », « Regardez vos règles, puis reprenez », « Essayez l'appli, puis
+  reprenez », « La PR est ouverte, la CI tourne », « La PR est verte : à vous de la
+  fusionner » —, avec à côté **le bouton du moteur** quand il sert (à toutes les étapes ;
+  *Arrêter* pendant que le système enchaîne, *Reprendre* quand il est arrêté ;
+  pas de *Reprendre* quand il ne reste rien à faire : la PR verte et chaque étape
+  faite, fusionnée ou fermée).
+  La note qui a perdu son ✓, un ✓ d'étape que vous avez retiré : la ligne le
+  dit, sans bouton. Rien de tout cela pour le relecteur ;
 - dessous, sur toute la largeur, l'étape choisie — la note du ticket, ce
-  que les skills ont produit —, sur la ligne de son titre ses actions (à
-  l'étape en cours, en tête : celle qui fait avancer l'étape, discrètement
-  mise en avant), sans champ : aucune étape n'en a ; chaque carte
-  produite par un skill a son *Relancer* ; les champs où l'on écrit à un agent
+  que les skills ont produit —, avec son en-tête (son nom, son badge d'état, ses
+  faits), **sans bouton d'action** pour le créateur (le relecteur garde sa
+  rangée d'actions, et le *Relancer* de ses cartes) ; sans champ : aucune étape
+  n'en a ; les champs où l'on écrit à un agent
   (les réponses aux questions, la conversation) acceptent
   des **pièces jointes** (le trombone, glisser-déposer, Ctrl+V), qui partent avec
-  l'action de leur champ ; l'étape Invariants se lit comme la Forme et les
-  Modules : les tests à gauche, les cas du test choisi au centre ;
+  l'action de leur champ ; chaque étape se lit comme décrit au *Parcours*, plus
+  bas : la Forme en liste, les Invariants rangés par règle, les Modules en un arbre
+  et son diff ;
 - à droite, quatre onglets : la **conversation** de l'agent (fil,
   autorisations, champ et son micro, commandes « / », l'🕘 Historique au bout
   de la rangée des onglets), les **Actions**
@@ -451,15 +465,16 @@ porte son nom), ses tests
 d'invariants, ce que les skills ont écrit. Il suit tout seul (toutes les 4 s,
 et pendant que l'agent travaille).
 
-**Les actions tournent à côté de la conversation.** Un bouton d'étape
-(*Rédiger la note*, *Écrire les invariants (rouges)*, *Lancer les vérifications*…)
-lance l'action dans **sa propre conversation**, avec son skill et son
+**Les actions tournent à côté de la conversation.** Une action d'étape
+(*Rédiger la note*, *Écrire les invariants (rouges)*, *Lancer les vérifications*…),
+lancée par le moteur ou par l'agent (la CLI : **aucun bouton d'étape** chez le
+créateur depuis la 0.16.0, rien n'est retiré de ce qu'elle sait faire), tourne dans
+**sa propre conversation**, avec son skill et son
 modèle, comme si vous aviez tapé `/vibecoder:note fr … votre demande` : la
-conversation de l'agent reste libre, vous lui parlez pendant ce temps. Un
-bouton qui a besoin d'un texte — la demande de feature, du pseudo-code —
-prend celui du **champ de la conversation**, en bas (les étapes n'ont plus de
-champ) : dictez-y (son micro, maintenu) ou écrivez, puis cliquez sur le bouton
-(*Rédiger la note*, ou la nouvelle demande de la branche principale) ; le
+conversation de l'agent reste libre, vous lui parlez pendant ce temps. Une
+action qui a besoin d'un texte — la demande de feature — prend celui du **champ de
+la conversation**, en bas (les étapes n'ont pas de champ) : dictez-y (son
+micro, maintenu) ou écrivez, et demandez la note à l'agent ; le
 texte et ses pièces jointes partent avec l'action et le champ se vide ; vide :
 « Dictez ou écrivez d'abord votre demande dans le champ, puis cliquez. » et le
 champ prend le clavier. *Poser la forme* et *Écrire les invariants (rouges)*
@@ -515,8 +530,7 @@ rester dans son travail ; lire avec `Read`, `Glob`, `Grep` plutôt que par `Bash
 une commande refusée se contourne autrement ou se signale, sans la répéter.
 Elle ne change pas les droits, elle évite les refus. Un bouton qui doit
 attendre est grisé et dit pourquoi ; un bouton qui n'a pas encore de sens
-n'est pas affiché (pas de *✓ Commiter* sans commit préparé, pas de *Diagnostiquer
-la CI* sans PR…) ; une action arrêtée retient les autres
+n'est pas affiché ; une action arrêtée retient les autres
 tant que vous n'avez pas choisi. *⏹ Arrêter* de la barre d'état n'arrête
 que le tour de la conversation. Quand sa conversation est au repos, le robot
 de l'agent montre ses actions : il clignote pendant qu'une action travaille ;
@@ -584,7 +598,9 @@ la dictée et les réglages restent à l'écran. Les skills `actions` et `proces
 tirent leurs arguments. Un exécuteur la lit et lance la commande demandée, avec les
 mêmes règles pour tous : y compris les pièces jointes du champ (`pieces`) et le
 brouillon de revue (`draft`, `draft.add`, `draft.edit`, `draft.remove`, sur la PR
-suivie), et la lecture des artefacts (`artifacts`, `artifact`), `add-artifact`
+suivie), la lecture des tests d'invariants de la branche avec le verdict que vous leur avez
+donné à l'écran (`invariants` : c'est par elle qu'un agent sait lesquels vous avez notés « à
+revoir »), et la lecture des artefacts (`artifacts`, `artifact`), `add-artifact`
 acceptant un chemin ou un nom avec son contenu en base64. Une commande d'artefact
 ne répond qu'une fois son travail fini : refusé ou échoué, elle rend l'erreur (et
 son code, ci-dessous), jamais « ok ».
@@ -655,7 +671,9 @@ dans la table) :
 - `invalid-args` : un argument manque, est inconnu ou mal typé, un nom d'artefact
   est refusé (`arg: name`), ou une remarque du brouillon est inconnue (`arg: id`) ;
 - `no-survey` : pas encore de relevé pour ce dossier ;
-- `not-offered` : l'action n'existe pas, ou n'est pas proposée à cette étape ;
+- `not-offered` : l'action n'existe pas, ou n'est pas proposée à cette étape (pour
+  `step.validate`, les détails disent pourquoi : l'étape d'avant pas validée, la preuve
+  qui manque…) ; la CLI écrit les détails d'un refus sous son message ;
 - `disabled` : proposée mais grisée, le motif est dans les détails ;
 - `same` : la même action court déjà ;
 - `busy` : une autre course retient le dossier, et cette action y écrit ;
@@ -723,7 +741,9 @@ liste des artefacts du projet, filtrée à la frappe ; flèches, Entrée ou Tab 
 fichier, que l'agent lit s'il en a besoin. Rien ne correspond : Entrée et Tab
 servent comme d'habitude (`@types/node` se tape et part).
 
-**Ouvrir dans l'éditeur.** *Ouvrir* sur la note, un module, un test (à la
+**Ouvrir dans l'éditeur.** *Ouvrir* sur la note, un module, un test (chez le
+créateur, une icône discrète : la sortie de secours vers votre éditeur, puisque le
+code ne se modifie plus à l'écran ; à la
 ligne du cas : zed, VS Code, Cursor, VSCodium). Un commit : *Voir le diff*
 (écrit en lecture seule sous `vibecoder-out/<agent>/files/`, puis ouvert)
 ou *GitHub* (sa page, dans le navigateur).
@@ -731,7 +751,10 @@ ou *GitHub* (sa page, dans le navigateur).
 **Le parcours** — les étapes du guide, les mêmes pour créer une feature et pour
 relire une PR (le relecteur, plus bas) :
 
-1. **Note** : *Rédiger la note* d'après la demande du champ de la conversation (sur la branche
+1. **Note** : sans note, l'écran ne montre qu'une phrase, qui vous renvoie à l'agent
+   (« Demandez la note à l'agent, dans la conversation », sans *Rédiger la note* ni
+   *Nouvelle demande* : l'agent les lance par la CLI) ; il rédige la note d'après
+   votre demande dans le champ de la conversation (sur la branche
    principale, c'est une nouvelle demande : l'agent propose d'abord un nom
    de branche, plus bas) ; ses questions
    ouvertes s'affichent à part, chacune avec un badge *important* ou *secondaire*,
@@ -770,8 +793,10 @@ relire une PR (le relecteur, plus bas) :
    comme dans Obsidian : ce qu'on tape se met en forme au fil de la frappe (un titre
    apparaît en titre, pas en `#`) ; *Brut* montre le Markdown tel qu'il est
    dans le fichier, modifiable aussi. Enregistrée par Ctrl+S ou
-   *Enregistrer*, avec les garde-fous du code d'un module (étape Modules) ;
-   grisée pendant un tour de la conversation ou une action de l'agent.
+   *Enregistrer* ; grisée pendant un tour de la conversation ou une action de
+   l'agent. La note est le seul texte que vous modifiez à l'écran (0.16.0) : c'est
+   votre document ; une bulle de remarque sur une ligne dit quelque chose à l'agent
+   en montrant de quoi vous parlez.
 2. **Forme** : *Poser la forme* écrit d'un seul passage les squelettes dans le code
    (chemins, en-têtes = les contrats, signatures, corps qui échouent ; le typage
    passe), puis recopie la forme dans la note (les modules et leurs contrats, en prose : ce
@@ -779,17 +804,16 @@ relire une PR (le relecteur, plus bas) :
    leurs en-têtes ; sous chacun, ses variants : le fichier de tests et les cas à
    couvrir, à challenger avant le code ; des modules qui ne compilent
    qu'ensemble : une seule entrée, leurs chemins séparés par « + »). Le système
-   valide la forme (« validée par le système ») ; *Valider la forme*, à la main, reste
-   là en discret, sans rien bloquer. La vue est celle d'un IDE : à gauche
-   l'arborescence des modules, à droite le module choisi, son contrat
-   (*Structure*) ou son code en diff depuis la base de la branche (*Code* :
-   tout en vert pour un module neuf). Sans Forme, l'arborescence montre les
-   fichiers que change la branche. La note (ou sa Forme) modifiée après avoir
+   valide la forme (« validée par le système »). **À l'écran, la Forme est la liste des
+   modules** : une ligne par module, son chemin et ce qu'il fait en une phrase (le
+   début de son contrat) ; ni arbre, ni diff, ni code (le code n'est qu'à l'étape
+   Modules, un seul endroit pour l'arbre et le diff), ni badge « touché », ni
+   commits, ni bouton. Sans Forme : une phrase. La note (ou sa Forme) modifiée après avoir
    été commitée, par vous ou par l'agent : l'étape revient « en cours » (et sa validation est
    décochée si ce qu'elle validait a changé, voir *Valider chaque étape*, plus bas) ; une fois la note et la forme
    revalidées, *Préparer le commit* en fait un fixup du premier commit
-   (`fixup! <son sujet>`, affiché dans la carte du commit proposé), puis
-   *✓ Commiter* ; *Replier les fixups*, à la Revue, le fond dans son commit.
+   (`fixup! <son sujet>`), puis le commit est fait par le moteur ou l'agent (plus de
+   carte du commit proposé à l'écran) ; *Replier les fixups*, à la Revue, le fond dans son commit.
    La PR déjà ouverte : un nouveau commit qui dit pourquoi, pas de fixup. Un projet
    en historique simple (voir *Modules*) : toujours un commit ordinaire, rien à replier.
    Une retouche de la forme, à n'importe quelle étape, change la note et les
@@ -799,51 +823,65 @@ relire une PR (le relecteur, plus bas) :
    d'après la note, à partir des squelettes
    — dans la même action, l'alignement ne regarde que les invariants (chaque
    test observe vraiment sa ligne « → invariant », chaque test a sa ligne),
-   corrige seul les tests (3 tours au plus) et ne vous remonte,
-   dans la carte de l'alignement, qu'un changement de contrat ou une note qui rend
-   un test impossible à écrire (*Relancer* le refait) ; il ne corrige que les
+   corrige seul les tests (3 tours au plus) et ne vous remonte
+   qu'un changement de contrat ou une note qui rend
+   un test impossible à écrire ; il ne corrige que les
    fichiers de tests d'invariants que la branche crée : l'appli lui refuse d'écrire
    dans un fichier qui existait au départ de la branche, et, si l'un d'eux a changé
    à la fin de la course (par une commande du terminal), la course échoue et le
-   nomme (un cas resté vert dans un tel fichier vous remonte) ; la vue est celle d'un IDE :
-   à gauche les fichiers de la Forme (grisés, en lecture seule) et les tests
-   d'invariants (en vert : ajouté par la branche, en jaune : modifié) ; sous
-   « Garantit » de chaque cas, la ligne « → invariant » de la note qu'il garde, en
-   lien qui ouvre la note à cette ligne (un invariant `I-…` du projet : son
-   numéro ; sinon « non rattaché ») ; puis, dans l'en-tête de chaque
-   cas, le badge *Validé* ou *À revoir*, qui s'allume au clic (*À revoir* le cite dans le champ, pour dire quoi changer), *Tout valider* pour
-   un fichier (il ne valide que les cas sans verdict) : à la main, en discret, sans
-   rien bloquer, car le système valide l'étape (« alignement avec la note »). La validation d'un cas porte
-   sur son bloc, celui que *Code* montre : retoucher un cas ne décoche que lui
-   (« Modifié depuis la validation ») ; retoucher le code commun du fichier (un
-   import, un helper, un `beforeEach`) les décoche tous (« Le code commun du fichier
-   a changé ») ; un cas ajouté n'est pas validé, un cas retiré disparaît avec sa
-   validation. Deux cas de même titre dans un fichier se valident chacun à part (le
-   second est rangé sous « <titre> n° 2 »). Les validations posées avant la 0.15.0,
-   sur le fichier entier, sont reprises sur le bloc de chaque cas sans rien vous
-   demander, si le fichier n'a pas changé depuis. Rien n'est écrit dans le projet. *Lire en pseudo-code* (dans les outils en haut du fichier)
-   aide à lire, sans être obligatoire (à
-   la main, jamais mise en avant ; le moteur ne la lance pas) :
-   chaque cas de test traduit en étapes simples (`test "…":`, `given`,
-   `when`, `then` — une ligne `then` par assertion), quel que soit le
-   langage du test, avec ses cas limites, ce qu'il garantit, et un
-   point d'attention s'il n'observe pas vraiment la propriété ; *Code* montre le code
-   d'origine du cas à la place du pseudo-code, son bloc seul, *Voir le fichier*
-   le fichier entier (*Ouvrir* l'ouvre dans votre éditeur), colorés comme sur GitHub (TypeScript / JavaScript, Rust, Python,
-   Go ; un autre langage : sans couleurs) et modifiables comme la note ; enregistrer le bloc
-   d'un cas ne change que ses lignes dans le fichier, et se refuse si le fichier a
-   changé sur le disque depuis son ouverture ; un
-   test qui existait déjà et que la branche modifie : *Diff depuis la base de
-   la branche*, en ligne ou côte à côte, le test entier, ses lignes
-   retirées, modifiées et ajoutées marquées ;
-   *Relire* un fichier (ou *Tout relire*) refait sa lecture — un test
-   modifié depuis garde sa lecture, marquée « lecture périmée », et
-   *Relire* est mis en avant, mais seuls les cas dont le bloc a changé sont
-   périmés (leurs boutons grisés jusqu'à *Relire*) : les autres gardent leur
-   lecture et leurs boutons ; *Préparer le commit* puis *✓ Commiter* (un fichier
+   nomme (un cas resté vert dans un tel fichier vous remonte). **Le moteur lance
+   ensuite *Lire en pseudo-code*** (0.16.0), après chaque écriture des tests
+   d'invariants : après *Écrire les invariants*, avant la pause et le premier
+   commit, et après une correction des tests par l'alignement de la preuve ; c'est
+   un regard indépendant de celui qui a écrit les tests : chaque cas de test
+   traduit en étapes simples (`test "…":`, `given`, `when`, `then` — une ligne
+   `then` par assertion), quel que soit le langage du test, avec ses cas limites,
+   ce qu'il garantit, et un point d'attention s'il n'observe pas vraiment la
+   propriété ; une lecture n'est refaite que si le test change (la pause attend
+   cette lecture).
+   **À l'écran, les invariants sont rangés par ligne « → invariant » de votre
+   note.** En titre, le texte de la ligne tel que vous l'avez écrit, et son état :
+   *écrite* (ses tests sont rouges), *prouvée*, *non prouvée* (un état par ligne :
+   c'est ce que la preuve donne, et c'est la ligne que vous jugez). Un clic sur
+   *prouvée* déplie la preuve — le mutant qui a fait échouer le test —, mise en forme ;
+   la raison d'une ligne *non prouvée* reste toujours affichée. Dessous, les
+   tests qui la gardent, en pseudo-code (un test pas encore lu : son titre, « lecture
+   en cours »), chacun avec *Validé* / *À revoir* et sa 💬 pour le citer à l'agent. Ces deux
+   verdicts sont vos notes : ce que vous avez lu, ce que vous contestez. *Validé* n'est
+   jamais exigé pour avancer ; un test *À revoir* retient le moteur (la ligne d'état dit
+   combien) jusqu'à ce qu'il soit corrigé ou revalidé, et vous pouvez dire à l'agent
+   « traite ceux que j'ai notés à revoir » : il les lit par sa CLI. En tête, où vous en
+   êtes : « 10 tests · 6 validés · 1 à revoir · 3 à lire ». Quel test garde
+   quelle ligne vient de l'alignement, qui l'écrit dans `liens.md` ; un test d'avant la
+   branche qui garde déjà la ligne y est nommé, sans pseudo-code. Une ligne sans test
+   s'affiche quand même, « aucun test » ; les tests qui
+   ne gardent aucune ligne vont dans un dernier groupe, « Autres tests » : rien
+   n'est caché, un trou dans la garde se voit. **Le résultat de la preuve ne
+   s'affiche qu'ici**, sous chaque ligne, pas à l'étape Modules. L'alignement suit
+   la règle de la Revue : ses écarts `[toi]` en avant, les `[agent]` repliés
+   avec leur nombre, rien quand tout est aligné. La bulle de remarque est sur une
+   règle : c'est par elle que vous dites quelque chose à l'agent en montrant de quoi
+   vous parlez. *Ouvrir dans l'éditeur*, une icône discrète par test. C'est ce que
+   vous regardez à la pause après les invariants : chaque règle critique de votre
+   note, et ce qui la garde, dans vos mots. Plus de validation cas par cas, de
+   chiffres en tête, de barre « 0 / 3 validé », ni de *Tout valider*, *Voir le
+   fichier* ou *Invariants seuls* ; aucun test ne s'édite. **Le relecteur garde sa
+   vue** : à gauche les fichiers de la Forme (grisés) et les tests d'invariants (en
+   vert : ajouté par la branche, en jaune : modifié), au centre une carte par cas
+   (pseudo-code ou *Code*, la ligne « → invariant » qu'il garde, *Validé* ou *À
+   revoir*, *Tout valider*, *Voir le fichier* et son diff depuis la base de la PR, *Relire* /
+   *Tout relire*, « lecture périmée » cas par cas), son menu de diff (« Depuis la
+   base de la branche », *En ligne* · *Côte à côte*) ; la validation d'un cas porte sur son
+   bloc (retoucher un cas ne décoche que lui, retoucher le code commun du fichier les
+   décoche tous). Le système valide
+   l'étape du créateur (« alignement avec la note ») ; il ne pose jamais *Validé* ni
+   *À revoir* sur un test : ces verdicts sont vos notes. Si un test est écrit ou
+   réécrit plus tard (une correction, par exemple), la pause revient au rythme par
+   défaut — « Des tests ont changé : regardez vos règles, puis reprenez » — et rien
+   ne se valide ni ne se commite côté modules avant votre *Reprendre*. Le premier commit (*Préparer le commit* puis le commit : un fichier
    déjà porté par un commit de la branche : un fixup, sauf PR ouverte, où il va
    dans un nouveau commit qui dit pourquoi ; en historique simple, toujours un
-   commit ordinaire).
+   commit ordinaire) est fait par le moteur ou l'agent.
    Une note sans ligne « → invariant » passe l'étape dès la forme validée (pas de
    test à écrire, *Écrire les invariants* n'est pas proposée) : la note et la
    forme se commitent à l'étape Modules. Des lignes « → invariant » déjà
@@ -851,10 +889,10 @@ relire une PR (le relecteur, plus bas) :
    l'étape passe quand *Écrire les invariants* ou *Vérifier l'alignement*
    a fini, ou par *Rien à écrire* (à revalider si la note change ;
    le moteur en marche aussi).
-4. **Modules** : trois boutons, *Générer les modules*, *Prouver les invariants*
-   (voir plus bas) puis *Commiter les modules*. Un fichier encore identique au squelette de la Forme est en retrait,
-   « à générer » : on voit d'un coup d'œil ce qui reste à écrire. On génère tout (ou un module à la fois, avec *Générer* sur sa
-   ligne : ses variants écrits d'abord et vus rouges, puis le code (TDD),
+4. **Modules** : le moteur (ou l'agent) lance *Générer les modules*, *Prouver les
+   invariants* (voir plus bas) puis *Commiter les modules*. Un fichier encore identique au squelette de la Forme est en retrait,
+   « à générer » : on voit d'un coup d'œil ce qui reste à écrire. On génère tout (ou un module à la fois, avec *Générer ce module* :
+   ses variants écrits d'abord et vus rouges, puis le code (TDD),
    `ponytail`, typecheck et tests du module lancés, sans commit, avec la boucle de
    *Générer les modules* pour un seul : son diff relu, les défauts corrigés, les
    tests relancés jusqu'au vert, dans la même course ; seules les remarques
@@ -891,43 +929,34 @@ relire une PR (le relecteur, plus bas) :
    « revue : … » : jamais un fixup, rien à replier (*Replier les fixups* dit « Rien à
    replier : historique simple », sauf s'il reste un commit `fixup!` fait à la main :
    il le replie alors comme d'habitude, avant la PR).
-   Ces boutons de l'étape sont à côté du titre de la carte des modules, et n'y sont
-   que s'ils ont quelque chose à faire. Chaque
-   module est un accordéon : *Générer* (ce module seul) est toujours au bout
-   de sa ligne ; un clic sur la ligne ajoute *Relire le diff*,
-   *Ouvrir* et son contrat. Chaque module porte un numéro, son rang dans la
-   Forme : l'ordre où le générer (un module attend ceux qu'il utilise). Un interrupteur *IDE* · *liste* (retenu d'une
-   ouverture à l'autre, et par agent) remplace l'accordéon par une arborescence des
-   fichiers des modules, puis des variants que la branche écrit (à leur
-   place : on voit où ils vont), avec le numéro de chacun et son nom coloré comme dans
-   VS Code (vert : nouveau, jaune : modifié, rouge barré : supprimé ; blanc une
-   fois commité ; atténué : à générer), et le fichier choisi
-   à droite, avec les boutons de son module sur la ligne du choix
-   *Fichier* / diff ; aucune action de plus.
-   Dessous, pour un module touché, son code : ses fichiers que la branche
-   change (modifiés, ajoutés, ou « supprimé » : son diff, tout en retraits,
-   rien à modifier) et celui choisi,
-   coloré comme sur GitHub, ou son diff depuis la base de la branche (tout
-   ce que le ticket a changé) ou depuis le dernier commit (ce qui n'est pas
-   commité), au choix, comme dans VS Code : en ligne ou côte à côte (d'abord
-   le diff depuis la base ; le choix vaut ensuite pour tous les fichiers) ; il
-   suit le disque (pendant la génération, on
-   voit le code s'écrire ; plus d'1 Mo : « fichier trop gros »). Il se
-   modifie sur place, enregistré par Ctrl+S ou *Enregistrer* — grisé pendant
-   un tour de la conversation ou pendant que ce module est généré, et si le
-   fichier a changé sur le disque depuis la modification (*Abandonner* remet
-   alors le texte du disque). Un clic
-   sur une ligne, ou un bloc sélectionné : *Commenter* le cite dans le champ de la
-   conversation pour une question ou une correction (les
-   lignes entières, sans limite).
+   **À l'écran, les modules** (0.16.0) : en tête, **une seule ligne d'état**
+   (« 16 modules écrits · commités ») ; puis **un seul arbre et son diff**, en lecture
+   seule, sans bouton. À gauche, l'arbre : les fichiers des modules, puis les variants
+   que la branche écrit (à leur place : on voit où ils vont), avec le numéro de
+   chacun et son nom coloré comme dans VS Code (vert : nouveau, jaune : modifié,
+   rouge barré : supprimé ; blanc une fois commité ; atténué : à générer). À droite,
+   le fichier choisi, **en diff depuis la base de la branche** (tout ce que le ticket
+   a changé), en ligne ; il suit le disque (pendant la génération, on voit le code
+   s'écrire ; plus d'1 Mo : « fichier trop gros ») ; un fichier supprimé : tout en
+   retraits. **Le code ne se modifie plus à l'écran** : ni éditeur ni *Enregistrer* ;
+   une correction se demande à l'agent. *Ouvrir dans l'éditeur*, une icône discrète
+   sur le fichier affiché, est la sortie de secours vers votre éditeur. Pas de menu
+   de diff, pas de *En ligne* · *Côte à côte*, pas de *IDE* · *liste*, pas de
+   « n commité · n en cours · n à faire ». Une seule exception, et seulement quand
+   elle sert : après une correction, l'en-tête de l'étape dit « modifiée depuis la
+   validation », et un clic dessus bascule le diff sur ce qui a changé depuis le ✓ ;
+   un second revient à la base. Sur un gros ticket (16 modules), l'étape reste
+   lisible : une ligne d'état, un arbre. Le relecteur garde ses modules en lecture
+   seule, puis les commits de la PR (voir *Relecteur*).
    **Prouver les invariants** (0.16.0) : pour chaque ligne « → invariant » de la note,
    le système casse volontairement la règle dans une copie du code, faite hors du
    dossier de travail, et lance le test : il doit échouer, un test qui reste vert ne
    protège rien. Un mutant ne compte que si le test passe d'abord sur la copie
    intacte, si la copie mutée passe le typage du projet et si le test échoue alors
-   sur une de ses assertions ; sinon un autre est essayé. Le résultat, `preuve.md`,
-   s'affiche dans l'étape (une rubrique *prouvé* ou *pour toi* par ligne ; « Rien à
-   prouver » sans ligne). La preuve ne modifie rien dans le projet : l'appli
+   sur une de ses assertions ; sinon un autre est essayé. Le résultat, `preuve.md`
+   (une rubrique *prouvé* ou *pour toi* par ligne ; « Rien à prouver » sans ligne),
+   ne s'affiche qu'à l'étape Invariants, sous chaque ligne « → invariant », pas à
+   l'étape Modules. La preuve ne modifie rien dans le projet : l'appli
    compare le dossier de travail et l'index à ceux d'avant, et la moindre
    différence fait échouer la preuve en nommant les fichiers (les fichiers que git
    ignore ne sont pas regardés ; un fichier que vous modifiez pendant la preuve la
@@ -938,21 +967,27 @@ relire une PR (le relecteur, plus bas) :
    n'arrive pas à prouver. Les modules ne sont validés par le système que si la
    preuve passe, et elle reste valable quand le code change ensuite (une correction
    après votre essai à l'écran).
-5. **Revue** : *Lancer les vérifications et la ponytail review* (les deux
-   tournent ensemble ; des avertissements seulement : en orange, la
-   vérification passe ; *Relancer* sur l'une ne relance qu'elle ; les
+5. **Revue** : le moteur lance *Lancer les vérifications et la ponytail review* (les deux
+   tournent ensemble ; des avertissements seulement : la
+   vérification passe ; les
    commandes du projet sont vraiment lancées, par le préfixe des commandes,
-   et un résultat d'avant ce lancement ne compte pas), *Tout appliquer*,
-   *Appliquer la sélection* (décochez les remarques à écarter : toutes sont
-   cochées par défaut) ou *Appliquer* une remarque (en fixups, ou, en historique simple, en un commit ordinaire « revue : … » ; une remarque appliquée est marquée
-   ✓, toutes : « Appliquée »), *Replier les fixups* ; la liste du
-   guide avant une PR, cochée quand le dépôt le dit ; « Chaque diff a été relu »
+   et un résultat d'avant ce lancement ne compte pas), puis applique la revue (en
+   fixups, ou, en historique simple, en un commit ordinaire « revue : … »)
+   et replie les fixups ; « Chaque diff a été relu »
    l'est par le système (modules validés et ponytail review faite), seule
-   « AGENTS.md à jour » se coche à la main, facultative, jusqu'au prochain commit. Puis
-   **Relire à l'écran**, pour vous comme pour un relecteur (utile aussi en
-   créant) : *Plan de test à l'écran* prépare comment lancer la branche, puis
-   la liste de ce qu'il faut essayer, une case chacun ; *Tout cocher* les coche
-   d'un clic, pour aller vite. Toutes les cases cochées comptent pour que la
+   « AGENTS.md à jour » se coche à la main, facultative, jusqu'au prochain commit
+   (le relevé et la CLI gardent cette liste du guide avant une PR, l'écran ne la montre plus).
+   **À l'écran, la Revue est une seule carte** (0.16.0) : avant la revue, une ligne,
+   « la revue part après votre essai » au rythme par défaut, « la revue part après
+   les modules » en express ; après, une ligne par vérification en échec (rien quand
+   tout passe), les remarques `[toi]` de la ponytail review en avant, sans bouton
+   (vous y répondez dans le questionnaire ou à l'agent, comme le moteur le fait déjà), les
+   `[agent]` repliées avec leur nombre. Plus de liste « Avant la PR », plus de
+   cartes vides (« Pas encore de vérification », « Pas encore de ponytail review »,
+   « Pas encore de plan de test »). Le plan de test à l'écran (*Relire à l'écran*,
+   pour vous comme pour un relecteur, utile aussi en créant : comment lancer la
+   branche, puis ce qu'il faut essayer, une case chacun), s'il existe : ses cases
+   à cocher, sans *Relancer* ; sans plan, rien. Toutes les cases cochées comptent pour que la
    Revue soit faite. La ponytail review porte sur la technique (le code, ce
    qui n'a pas pu être anticipé), pas sur la structure ni le contrat déjà
    validés. Chaque ligne des retours du créateur (alignement, ponytail review,
@@ -960,17 +995,21 @@ relire une PR (le relecteur, plus bas) :
    demande votre décision (un changement de contrat), `[agent]` pour le reste, que
    l'agent règle seul ; l'écran remplace l'étiquette par un badge (*pour toi*, en
    accent ; *pour l'agent*, grisé) et grise le texte d'une `[agent]`, qui reste
-   lisible. Le relecteur d'une PR n'a pas d'étiquettes : il lit tout.
-6. **PR** : sans PR, *Valider la feature (ouvrir la PR)* ; la PR ouverte,
-   *Diagnostiquer la CI* ; fusionnée, *PR mergée →
-   revenir sur la base* (refusé s'il y a des modifications en cours ; sur
+   lisible. Le relecteur d'une PR n'a pas d'étiquettes : il lit tout, et garde son
+   *Relire à l'écran* tel qu'il est (plan de test, *Tout cocher*, *Relancer*).
+6. **PR** : **à l'écran, la carte de la PR et l'état de la CI, sans bouton**
+   (0.16.0) : une ligne par vérification en échec, rien quand tout passe. Le moteur
+   ouvre la PR (*Valider la feature*), suit la CI jusqu'au vert (*Diagnostiquer la
+   CI*) ; la fusion est à vous (*PR mergée →
+   revenir sur la base* : refusé s'il y a des modifications en cours ; sur
    le robot d'un worktree, *Retirer le worktree*, dans la vue des branches,
    à la place). L'étape est faite dès qu'une PR existe pour la branche :
    l'appli la demande elle-même à `gh` (sans IA, en lecture seule ; toutes
    les 60 s au plus, ↻ pour tout de suite). Assigné à la PR d'un autre,
-   *Me retirer de la PR* vous refait relecteur.
+   *Me retirer de la PR* (l'agent, par la CLI) vous refait relecteur.
 
-**Sans IA** : *✓ Commiter*, *Charger* (une PR), *Publier la revue*, *PR
+**Sans IA** (des boutons du relecteur et de la vue des branches ; chez le créateur, l'agent
+les lance par la CLI) : *✓ Commiter*, *Charger* (une PR), *Publier la revue*, *PR
 mergée → revenir sur la base*, *Changer de branche*, *Aller sur la
 branche*, *Créer ici*, *Dans un nouveau worktree*, *Mettre de côté*,
 *Revenir sur la branche principale*, *Retirer le worktree*, *Pull*,
@@ -1007,14 +1046,18 @@ modifications s'accumulent. Le badge *variant* de
 la note est d'un bleu plus clair que *invariant*.
 
 **Valider chaque étape, voir ce qui a changé** (créateur). Chaque étape a sa validation,
-le même geste partout : *Valider la note*, *Valider la forme*, *Valider les
-invariants* (quand tous les cas ont leur ✓, ou *Rien à écrire* ; les cas gardent leurs
-verdicts) et *Valider les modules*, puis *Annuler* pour la retirer. Depuis la 0.16.0,
-vous ne validez que la note : la forme, les invariants et les modules sont validés par
+le même geste partout. Depuis la 0.16.0, vous ne validez que la note (*Valider la
+note*, après *Vérifier*) : la forme, les invariants et les modules sont validés par
 le système quand leurs contrôles passent (squelettes posés, alignement avec la note,
-conformité à la forme et preuve par mutation), et l'écran dit « validée par le
-système » et sur quoi ; les autres gestes restent là, en discret, jamais proposés
-comme prochaine action et sans rien bloquer. Elle retient ce que
+conformité à la forme et preuve par mutation) ; plus de bouton *Valider la forme*,
+*Valider les invariants*, *Valider les modules* ni de ✓ par cas à l'écran (l'agent
+garde ces gestes par la CLI). **Le ✓ est sur le badge de l'étape** : dans son
+en-tête, le badge d'état dit « faite ✓ » quand l'étape est validée, « faite · ✓
+retiré » tant que votre retrait tient ; un clic dessus, à la Forme, aux Invariants et
+aux Modules, retire le ✓ ou le rend, et ne fait rien d'autre. Une étape faite que le
+système n'a pas validée (une preuve qui ne passe pas, un contenu changé depuis) : le
+badge sans ✓ et sans clic, il ne valide jamais à la place du système. La note, la
+Revue et la PR : ni ✓ ni clic. Le relecteur : jamais. La validation retient ce que
 l'étape a validé : la conception de la note (sans sa rubrique Forme), la rubrique
 Forme, les fichiers de test, et pour les modules tout ce que la branche change d'après git
 (hors la note et les tests d'invariants). Ces versions sont
@@ -1024,26 +1067,30 @@ valide rien, et un commit ne change pas une validation.
 
 Qui que ce soit qui modifie ce qu'une étape a validé (vous, à la main, ou un agent),
 l'étape perd sa coche, et celles qui suivent aussi (note, Forme, Invariants, Modules) :
-son en-tête dit « modifiée depuis la validation » (un clic passe la vue IDE sur *Depuis
-la validation*), les suivantes « à revoir : la note a changé » (la première étape
+son en-tête dit « modifiée depuis la validation » (à l'étape Modules, un clic bascule le
+diff sur ce qui a changé depuis le ✓, un second revient à la base), les suivantes « à revoir : la note a changé » (la première étape
 décochée). Revalider une étape ne recoche pas les suivantes : chacune se revalide, puisqu'elle
 ne tient peut-être plus. Changer la seule rubrique Forme de la note ne décoche pas la
 note, seulement la Forme et ce qui suit. *Commiter les modules* est grisé (« modules pas
 validés ») tant que les modules ne sont pas validés (le système les valide quand la preuve passe).
 
 **Un ✓ d'étape que vous retirez à la main tient.** Retirer la validation de la forme, des
-invariants ou des modules, c'est dire « pas d'accord » : tant que le contenu de l'étape
+invariants ou des modules (un clic sur le badge de l'étape), c'est dire « pas d'accord » : tant que le contenu de l'étape
 ne change pas, le système ne la remet pas, ni celles des étapes suivantes ; le contenu
-changé, ou l'étape revalidée à la main : le retrait est oublié. Ce
+changé, ou l'étape revalidée (un clic sur le badge) : le retrait est oublié. Ce
 retrait est enregistré avec les validations de l'agent : il survit à un redémarrage de
 l'appli. Tant qu'il tient, le moteur s'arrête sur cette étape, dans les deux rythmes :
-pas de *Reprendre*, une ligne du fil d'Ariane nomme l'étape (« modifiez-la ou
+pas de *Reprendre*, la ligne d'état nomme l'étape (« modifiez-la ou
 revalidez-la pour reprendre ») ; une fois l'étape modifiée ou revalidée, *Reprendre*
 revient, et le moteur ne repart qu'à votre clic.
 
-**Le menu de diff de la vue IDE** (créateur : Forme, Invariants, Modules). Un seul menu
+**Le diff, et son menu pour le relecteur.** Le créateur n'a plus de menu de diff
+(0.16.0) : l'étape Modules montre un seul diff, depuis la base de la branche, en
+ligne ; seule exception, « modifiée depuis la validation » dans l'en-tête de
+l'étape bascule sur ce qui a changé depuis le ✓, et revient. Le relecteur garde son
+menu, à l'étape Invariants : un seul menu
 en tête de la vue : *Fichier* · *Depuis la base de la branche* (par défaut) · *Depuis le
-dernier commit* (grisé tant que la branche n'a aucun commit, ou que rien ne diffère du dernier commit) · *Depuis la validation* (seulement si l'étape a une validation), puis *En
+dernier commit* (grisé tant que la branche n'a aucun commit, ou que rien ne diffère du dernier commit), puis *En
 ligne* · *Côte à côte*. Il vaut pour toute la vue, plus pour le seul fichier affiché :
 l'arborescence ne liste que les fichiers qui diffèrent de la référence choisie, comme
 `git status` (suppressions et fichiers hors de la Forme compris), et le
@@ -1056,7 +1103,7 @@ ne garde que les tests d'invariants ; décochée, le reste suit, en retrait.
 lui-même, il relance ce qu'il faut et revalide les étapes touchées par la CLI
 (`vibecoder step.validate step=forme|invariants|modules verdict=ok` ; jamais la note,
 dont la conception est à vous), puis vous dit ce qu'il a modifié et revalidé : vous le
-relisez avec *Depuis la validation*.
+relisez avec « modifiée depuis la validation » (l'en-tête de l'étape Modules).
 
 **Relecteur** — la PR de la branche du dossier. Pas de bouton à choisir :
 l'appli décide d'après la PR. Vous êtes **relecteur**, par défaut, sur une PR
@@ -1182,7 +1229,7 @@ sans rien modifier (`git log`) ; il suit le distant tel que le dernier
 *Actualiser* l'a laissé : l'appli ne fait jamais de `git fetch` d'elle-même.
 
 **Une nouvelle demande.** Sur la branche principale, dictez la
-demande dans le champ de la conversation, puis *Rédiger la note* : l'agent
+demande dans le champ de la conversation et demandez la note à l'agent (*Rédiger la note*) : l'agent
 propose un nom de branche (Haiku, selon la convention du projet, sinon
 `<type>/<ticket>-<intitulé>` ou `<type>/<version>-<intitulé>`), et l'appli
 vous demande « Voulez-vous créer la branche … ? », le nom prérempli et
@@ -1198,7 +1245,7 @@ modifiable. Rien n'est créé sans votre clic :
 - avec des modifications en cours, en plus : *Mettre de côté*, puis
   *Créer ici* d'un deuxième clic.
 
-Sur une autre branche, *Rédiger la note* rédige la note de cette branche,
+Sur une autre branche, la note demandée rédige la note de cette branche,
 sans proposer de nouvelle branche. Un échec : ✗ et sa raison à côté du
 choix. La PR de l'enfant fusionnée : *Retirer le worktree*, dans la vue des
 branches (à la place de *PR mergée → revenir sur la base*) ; le robot part
@@ -1258,18 +1305,19 @@ retiré s'il a des modifications.
 **Vibe, un seul moteur, deux rythmes** (0.16.0). Il n'y a plus de parcours
 entièrement manuel : le système enchaîne toujours, vous ne validez que la note et
 quelques pauses vous laissent regarder (créateur seulement). Même
-écran, sans bannière, et plus de bouton *Vibe* : **un seul bouton** pour le moteur,
-*Arrêter* pendant que le système enchaîne, *Reprendre* quand il est arrêté (une
+écran, sans bannière, et plus de bouton *Vibe* : **un seul bouton** pour le moteur, à côté
+de la ligne d'état sous le fil d'Ariane, *Arrêter* pendant que le système enchaîne, *Reprendre* quand il est arrêté (une
 pause, un arrêt à la main, un redémarrage de l'appli : le moteur ne repart jamais
 tout seul) ; plus rien n'attend vos validations autres que celle de la note. Les deux
 rythmes ne diffèrent que par leurs pauses :
 
-- **Le rythme par défaut, deux pauses.** La première après les invariants : vous
-  vérifiez ce qui a été posé (la forme, les invariants, le premier commit), puis
-  vous reprenez. La seconde après les modules, avant la revue : vous essayez à
+- **Le rythme par défaut, deux pauses.** La première après les invariants, avant
+  le premier commit : vous vérifiez ce qui a été posé (la forme, les invariants),
+  rien n'est encore commité, puis vous reprenez et le premier commit part. La seconde après les modules, avant la revue : vous essayez à
   l'écran, sans que les tokens de la revue soient déjà dépensés ; si c'est bon,
   vous reprenez, et la revue, la PR et la CI suivent. À une pause le moteur est
-  arrêté, le bouton du fil d'Ariane dit *Reprendre* et une ligne dit quoi regarder ;
+  arrêté, le bouton dit *Reprendre* et la ligne d'état dit quoi regarder (« Regardez vos
+  règles, puis reprenez », « Essayez l'appli, puis reprenez ») ;
   absent, rien ne part et rien n'est dépensé.
 - **Le mode express, à tout moment**, par l'interrupteur *Express* du fil d'Ariane :
   avant de valider la note, à une pause ou en cours de route. Le système n'attend
@@ -1283,13 +1331,18 @@ rythmes ne diffèrent que par leurs pauses :
 Dans les deux, une question `[toi]` arrête la chaîne, et *Arrêter* reste
 possible à tout moment. En deux temps :
 
-1. la demande dans le champ de la conversation, *Rédiger la note* ; l'agent vous pose
+1. la demande dans le champ de la conversation, puis la note demandée à l'agent (*Rédiger la note*) ; l'agent vous pose
    **toutes** les questions de la note (*Envoyer les réponses*, ou vos
    réponses dans la conversation : le questionnaire suit) — il n'en
    tranche aucune ; puis *Vérifier* autant de fois que vous voulez, vous relisez la note
    et vous la validez (*Valider la note*) : le moteur part seul quand vous validez, et
-   pas avant ;
-2. le moteur, à côté de « N commits » dans le fil d'Ariane (proposé une fois la
+   pas avant. C'est la première validation qui le lance : une note que vous validez
+   de nouveau plus tard (elle a changé pendant votre essai, une décision y a été
+   écrite) retrouve son ✓ sans rien relancer — vous restez où vous étiez, et
+   *Reprendre* relance quand vous voulez, en express aussi ; seul un moteur qui
+   enchaînait quand la note a changé repart à votre validation. Reparti après un
+   changement de la note, il revérifie d'abord que les tests collent à la note ;
+2. le moteur, son bouton à côté de la ligne d'état (proposé une fois la
    note validée, à n'importe quelle étape ensuite : écrivez vos invariants
    à la main, puis *Reprendre* pour le reste) : l'agent reprend à la première
    étape pas faite et tient le rôle du développeur du guide jusqu'à la PR
@@ -1311,9 +1364,11 @@ suivante ne part pas. Le moteur ne survit pas à un redémarrage de l'appli :
 *Reprendre* pour continuer.
 
 Les relectures pensées pour un humain qui lit le code restent à la demande :
-*Relire le diff* d'un module et *Lire en pseudo-code* ne sont jamais proposées
-comme prochaine action ; *Relire la note* et *Relire les commits* ne le sont qu'au
-relecteur d'une PR. La revue ponytail reste sur le chemin.
+*Relire le diff* d'un module n'est jamais proposée comme prochaine action ;
+*Lire en pseudo-code*, elle, est lancée par le moteur après chaque écriture des
+tests d'invariants, et la pause après les invariants l'attend ; *Relire la note* et
+*Relire les commits* ne sont proposées qu'au relecteur d'une PR. La revue ponytail
+reste sur le chemin.
 
 **Qui travaille, ce que ça coûte.** Chaque action sait qui travaille :
 *haiku*, *sonnet · moyen*, *opus · élevé*… ou *agent* (le modèle de l'agent) ;

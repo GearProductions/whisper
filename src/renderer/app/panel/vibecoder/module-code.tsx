@@ -32,14 +32,22 @@
  *  at.validations[step] ?? '', le texte), en `mode` du menu ; une référence absente ou null : tout ajouté ; un fichier
  *  supprimé (deleted) : tout en retraits depuis cette référence (la base si file) ; file : l'éditeur. Sans diff
  *  (la liste de Modules) : comme avant.
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : noEdit (le créateur, toujours avec diff : useCreatorDiff de
+ *  l'étape Modules), le code se lit, il ne se modifie plus — ni éditeur, ni Enregistrer, ni Abandonner, ni sélecteur,
+ *  ni 💬 sur ses lignes, ni tools ; le diff en ligne depuis diff.shown ('base' ou 'validated'), tout ajouté si la
+ *  référence manque, tout en retraits pour un supprimé ; le texte pas encore poussé ou trop gros : le dire, sans
+ *  éditeur. onOpen (facultatif) : Ouvrir dans l'éditeur du développeur, une icône discrète sur le fichier affiché
+ *  (act.open). Sans noEdit (le relecteur) : comme avant, en lecture seule — sans diff, son sélecteur ; avec diff, le
+ *  menu de sa vue (useIdeDiff à l'étape Invariants : Fichier, la référence choisie, En ligne · Côte à côte).
  *  Ne connaît pas : le pont (rappels passés), le disque, les autres modules,
  *  les actions de la barre d'outils.
- *  Utilisé par : modules-view, forme-view. */
+ *  Utilisé par : modules-view ; forme-view, invariants-view (le relecteur). */
 import { useEffect, useState, type ReactNode } from 'react';
 import { fileParts, filesByDir, type Strings } from 'core/vibecoder';
 import type { VibeCode, VibeDiffStep, VibeLang, VibeModule } from 'technicals/bridge';
 import type { DiffRef } from 'core/vibecoder';
 import { DiffPicker } from './diff-picker';
+import { IconButton } from './icons';
 import { ModuleDiffView } from './module-diff-view';
 import { DraftEditor, useFileDraft } from './file-draft';
 import type { StepProps } from './step-views';
@@ -47,27 +55,29 @@ import type { StepProps } from './step-views';
 type Shown = 'file' | 'base' | 'head';
 type Mode = 'inline' | 'split';
 
-const S: Record<VibeLang, Record<Exclude<Shown, 'file'> | 'deleted', string>> = {
-  fr: { base: 'Diff depuis la base de la branche', head: 'Diff depuis le dernier commit', deleted: 'supprimé' },
-  en: { base: 'Diff since the branch base', head: 'Diff since the last commit', deleted: 'deleted' },
+const S: Record<VibeLang, Record<Exclude<Shown, 'file'> | 'deleted' | 'loading', string>> = {
+  fr: { base: 'Diff depuis la base de la branche', head: 'Diff depuis le dernier commit', deleted: 'supprimé', loading: 'Chargement du fichier…' },
+  en: { base: 'Diff since the branch base', head: 'Diff since the last commit', deleted: 'deleted', loading: 'Loading the file…' },
 };
 
 // Le choix d'affichage, commun à tous les fichiers tant que la page vit : ce qu'on change vaut pour les suivants.
 const choice: { shown: Shown; mode: Mode } = { shown: 'base', mode: 'inline' };
 
-export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, drafts, readOnly, noTree, tools, diff }: {
+export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, onOpen, drafts, readOnly, noTree, tools, diff, noEdit }: {
   m: VibeModule;
   readOnly?: string;               // le motif : le code ne s'édite pas, et son pied (Enregistrer, Abandonner) est masqué
   lang: VibeLang;
   noTree?: boolean;                // sans la rangée des fichiers quand il n'y en a qu'un
   tools?: ReactNode;               // en tête de la rangée du sélecteur
   diff?: { shown: 'file' | DiffRef; mode: Mode; step: VibeDiffStep };   // le menu de la vue IDE ; absent : son sélecteur
+  noEdit?: boolean;                // le créateur : le code se lit seulement, jamais d'éditeur (avec diff, en ligne)
   open: boolean;
   code: VibeCode | null;
   t: Strings;
   onFollow(id: string | null): void;
-  onSave(id: string, text: string): Promise<boolean>;
+  onSave?(id: string, text: string): Promise<boolean>;   // absent avec noEdit : rien ne s'enregistre
   onQuote?(block: string): void;
+  onOpen?(id: string): void;       // Ouvrir dans l'éditeur : l'icône du fichier affiché ; absent : pas d'icône
   drafts: StepProps['drafts'];
 }): ReactNode {
   const files = m.files ?? [];
@@ -93,15 +103,15 @@ export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, 
   const refText = (r: DiffRef) => (r === 'validated' ? at?.validations?.[diff!.step] : at?.[r]) ?? '';
   // Avec diff, le menu de la vue décide (même depuis une base absente) ; sans, le sélecteur de ce composant.
   const ref: Shown | 'validated' = diff ? diff.shown : shown;
-  const dmode = diff ? diff.mode : mode;
+  const dmode = noEdit ? 'inline' : diff ? diff.mode : mode;   // noEdit : toujours en ligne
   // Le texte d'avant du diff affiché ; null : le fichier.
-  const before = ref !== 'file' && at && d.text != null && (diff || !(ref === 'base' && noBase)) ? refText(ref) : null;
+  const before = ref !== 'file' && (at || noEdit) && d.text != null && (diff || !(ref === 'base' && noBase)) ? refText(ref) : null;
 
   if (!open) return null;
   return (
     <>
       <div className="vc-mod-head">
-        {tools}
+        {noEdit ? null : tools}
         {noTree && files.length <= 1 ? null : <div className="vc-mod-tree">
           {filesByDir(files).map((g) => (
             <div key={g.dir}>
@@ -122,9 +132,11 @@ export function ModuleCode({ m, code, t, lang, open, onFollow, onSave, onQuote, 
           <DiffPicker<'base' | 'head'> options={(['base', 'head'] as const).map((k) => ({ key: k, label: S[lang][k], disabled: k === 'base' && noBase }))}
             shown={shown === 'base' && noBase ? 'file' : shown} onShown={setShown} mode={before != null ? mode : null} onMode={setMode} lang={lang} />
         ) : null}
+        {onOpen && file && !file.deleted ? <IconButton icon="open" label={t.openTitle} className="vc-mod-open" onClick={() => onOpen(file.id)} /> : null}
       </div>
       {file?.deleted ? (at ? <ModuleDiffView before={refText(diff && ref !== 'file' ? ref : 'base')} after="" path={file.path} mode={diff ? dmode : 'inline'} lang={lang} /> : null)
         : before != null && file ? <ModuleDiffView before={before} after={d.text ?? ''} path={file.path} mode={dmode} lang={lang} />
+        : noEdit ? (file ? <div className="vc-empty">{d.tooBig ? t.tooBig : S[lang].loading}</div> : null)
         : file ? <DraftEditor d={d} file={file} locked={locked} t={t} onQuote={onQuote} footInTools noFoot={!!readOnly} /> : null}
     </>
   );

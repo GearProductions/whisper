@@ -33,6 +33,7 @@ export const OUTPUTS: readonly string[] = [
   'ponytail-applied.json', // { applied: ["<fichier>:L<ligne>", …] } : les remarques de ponytail.md que la course apply a appliquées
   'new-request.json',      // { branch } : la branche d'une nouvelle demande (skill nouvelle-demande)
   'preuve.md',             // la preuve des invariants par mutation (skill prouver), lue par journey
+  'liens.md',              // quel test garde quelle ligne « → invariant » de la note (skill aligner), lu par la page (ruleGroups)
 ];
 
 // Un nom de sortie connu, rien d'autre : ni `..`, ni autre dossier qu'invariants/.
@@ -165,5 +166,5 @@ export function proofOf(md: string | null, lines: string[]): VibeProof {
     return { line, proved: mine.length > 0 && mine.every((r) => r.proved), detail: (mine.find((r) => !r.proved) ?? mine[0])?.detail ?? '', found: mine.length > 0 };
   });
   const state = got.some((l) => !l.found) ? 'missing' : got.every((l) => l.proved) ? 'ok' : 'blocked';
-  return { state, lines: got.map(({ line, proved, detail }) => ({ line, proved, detail })) };
+  return { state, lines: got };
 }

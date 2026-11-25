@@ -101,11 +101,21 @@
  *    son ✓ ; sinon 'withdrawn:<étape>', la première étape (la Forme, les invariants, les modules, dans cet ordre) dont
  *    le ✓ a été retiré à la main et dont le retrait tient (withdrawn de marks : l'empreinte retenue est celle du
  *    contenu d'aujourd'hui de l'étape, stepContents) — le contenu changé, ou l'étape revalidée à la main (le retrait
- *    oublié) : plus cette pause ; sinon 'invariants', l'étape Invariants faite, le premier commit fait, aucun module
- *    commencé ; 'modules', l'étape Modules faite, la Revue pas commencée (ni vérifications ni ponytail review) ; sinon
+ *    oublié) : plus cette pause ; 'withdrawn:invariants' aussi tant qu'un test d'invariant de la branche est noté
+ *    « À revoir » par l'utilisateur (sa marque 'ko', pour son contenu d'aujourd'hui : le test corrigé ou revalidé, plus
+ *    cette pause) ; sinon 'invariants', avant le premier commit : la note et la Forme faites, les tests
+ *    d'invariants prêts (alignés ou chaque cas validé à la main ; sans ligne « → invariant », rien à attendre) et lus,
+ *    rien de commité ni de commit préparé (commit.md : le moteur a été repris, le premier commit est en route), aucun
+ *    module commencé — l'utilisateur regarde ses règles avant que quoi que ce soit soit commité, et le premier commit
+ *    part une fois le moteur repris ; le premier commit fait : plus cette pause — sauf quand les tests changent après ce
+ *    premier regard (l'étape Invariants validée pour un autre contenu, 'changed' : une correction, un test que
+ *    l'alignement corrige après la preuve) : 'invariants' revient, tests lus, à tout moment du parcours, jusqu'à ce que
+ *    l'utilisateur reprenne (vibeMarks de marks les valide alors) ; en express (input.express) non : le système revalide ;
+ *    'modules', l'étape Modules faite, la Revue pas commencée (ni vérifications ni ponytail review) ; sinon
  *    null ; le relecteur : toujours null ; express (recopié de l'entrée) n'y change rien, c'est holdsPause de vibe-mode
  *    qui tranche ; done et next ne dépendent pas du retrait (l'étape reste faite, ses actions à la main restent) ;
- *  - Vibe (le moteur, repris à une pause) : la prochaine action d'une pause 'invariants' ou 'modules' ; masquée à une
+ *  - Vibe (le moteur, repris à une pause) : la prochaine action d'une pause 'invariants' (de l'étape Invariants, encore
+ *    en cours ; de l'étape Modules sans ligne « → invariant ») ou 'modules' ; masquée à une
  *    pause 'withdrawn:<étape>' (refused : « étape refusée », comme unvalidated pour la note sans son ✓), elle revient
  *    quand la pause est levée : Reprendre n'est proposé ni à l'écran ni par la CLI tant que le retrait tient ; Vérifier la
  *    conception (design-check : Vérifier, un geste à part de Valider la note) proposée en créateur dès que la note est
@@ -115,6 +125,16 @@
  *  - la liste « Avant la PR » : « Chaque diff a été relu » cochée par le relevé (les modules validés et la ponytail
  *    review faite), plus à la main ; « AGENTS.md à jour… » reste à la main.
  *  Le relecteur : rien ne change (ses étapes, ses actions, ses faits).
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel), en créateur :
+ *  - Lire en pseudo-code (read-invariants) devient une action du moteur : la prochaine action de l'étape Invariants
+ *    tant qu'un cas d'un test d'invariant de la branche n'est pas lu ou que sa lecture est périmée (après Écrire les
+ *    invariants, avant le premier commit ; sans ligne « → invariant » : rien à lire) ; la pause 'invariants' attend cette
+ *    lecture (l'utilisateur y regarde ses règles en pseudo-code) ; done n'en dépend pas ;
+ *  - check.withdrawn de chaque étape (la Forme, les invariants, les modules) dont le ✓ retiré à la main tient (withdrawn
+ *    de marks, pour son contenu d'aujourd'hui) : toutes, pas seulement la première, que nomme la pause ;
+ *  - l'état de la preuve quitte les faits de l'étape Modules pour ceux de l'étape Invariants (il ne se dit qu'à un
+ *    endroit) ; « modifiée depuis la validation » et « à revoir » restent seuls dans leur en-tête ;
+ *  - rien n'est retiré du relevé : les actions, checklist et modulesView (recopié : le créateur ne le lit plus, le relecteur si) restent.
  *  Ne connaît pas : Electron, le disque, git, gh, si la pause est tenue (holdsPause de vibe-mode : journey dit où le
  *  parcours se tient, le contrôleur décide) (tout est passé ; `exists` dit si
  *  un chemin du dossier de l'agent existe ; les textes des tests, à la tête et à la base, sont lus par
@@ -124,6 +144,7 @@ import type {
   VibeAction, VibeCheck, VibeComment, VibeFlow, VibeGit, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePause, VibePr,
   VibeDiffFile, VibeDiffs, VibeDiffStep, VibePrItem, VibeRecipe, VibeRun, VibeStepCheck, VibeStepId, VibeTestFile, VibeView, VibeWorktree,
 } from 'shared/bridge';
+import { readCount as casesRead } from 'shared/test-cases';
 import { DIRECT_ACTIONS, DIRECT_ONLY, EFFORT_LEVELS, prNumber, SKILL_MODELS, templateVars, type ActionDef } from './actions';
 import { caseMarkState, caseTarget } from './case-marks';
 import { designState, markState, withdrawn, type Marks } from './marks';
@@ -392,10 +413,12 @@ export function vibeView(input: JourneyInput): VibeView {
   const blobs = input.blobs ?? [];
   const contents = flow === 'create' && note ? stepContents({ note, invariants, modules, changed }, marks, blobs) : null;
   const stepCheck = contents && stepChecks(marks, contents);
-  // La validation d'une étape et qui l'a posée : 'system' d'après sa marque (by), absent : à la main.
+  // Un ✓ d'étape retiré à la main qui tient : sa marque retient l'empreinte du contenu d'aujourd'hui de l'étape.
+  const heldBack = (s: 'forme' | 'invariants' | 'modules'): boolean => withdrawn(marks, s) !== null && withdrawn(marks, s) === contents?.[s]?.hash;
+  // La validation d'une étape et qui l'a posée : 'system' d'après sa marque (by), absent : à la main ; withdrawn : son retrait tient.
   const checkOf = (id: CheckedStep): VibeStepCheck => {
     const c = stepCheck![id];
-    return c.state && marks[id]?.by === 'system' ? { ...c, by: 'system' } : c;
+    return { ...(c.state && marks[id]?.by === 'system' ? { ...c, by: 'system' as const } : c), ...(id !== 'note' && heldBack(id) && { withdrawn: true as const }) };
   };
   // Ce que dit l'en-tête d'une étape décochée : modifiée depuis la validation, ou à revoir (la première décochée a changé).
   const mood = (id: VibeStepId): string | null => {
@@ -420,8 +443,8 @@ export function vibeView(input: JourneyInput): VibeView {
   // Les tests de l'étape Invariants : ceux qu'un commit porte avec la note (le premier, ses fixups repliés).
   const stepTests = invariants.filter((f) => !!note && commits.some((c) => noteIn(c) && c.files.includes(f.path)));
   const caseCount = invariants.reduce((s, f) => s + f.cases.length, 0);
-  // un cas périmé n'est pas lu
-  const readCount = invariants.reduce((s, f) => s + (f.reading ? f.cases.length - (f.staleCases?.length ?? 0) : 0), 0);
+  // un cas lu : celui que sa lecture couvre (readCount, comme Lire en pseudo-code) ; un cas périmé ou sauté n'est pas lu
+  const readCount = invariants.reduce((s, f) => s + casesRead(f.cases, f.reading?.map((c) => c.title) ?? null, f.staleCases), 0);
 
   // Les sorties des skills.
   const questions = parseQuestions(out('questions.md') ?? '');
@@ -489,7 +512,8 @@ export function vibeView(input: JourneyInput): VibeView {
   // Le fait que la Note seule dit ; les questions sont dans le questionnaire, la validation à côté du chemin.
   const noteHead = note ? (note.filled ? T.filled : T.unfilled) : T.noNote;
   const noteFacts = note ? line(noteHead, questions.length > 0 && count(questions.length, T.question), note.mark && !mood('note') && T.mark[note.mark], mood('note')) : noteHead;
-  const invFacts = line(count(invariants.length, T.file), count(caseCount, T.kase), count(readCount, T.read), mood('invariants'));
+  const invFacts = (proofFact?: string | false) =>
+    line(count(invariants.length, T.file), count(caseCount, T.kase), count(readCount, T.read), proofFact, mood('invariants'));
   let done: Partial<Record<VibeStepId, boolean>>;
   let next: Partial<Record<VibeStepId, string | null>>;
   let stepFacts: Partial<Record<VibeStepId, string>>;
@@ -513,6 +537,9 @@ export function vibeView(input: JourneyInput): VibeView {
     // Les tests alignés : align.md, sans rubrique [toi] ; ou chaque cas validé à la main.
     const alignMd = out('align.md');
     const aligned = alignMd !== null && toiCount(alignMd) === 0;
+    // Les tests écrits : ceux de la branche, ou, sans test (la règle déjà observée par un test existant), la dernière course
+    // Écrire les invariants ou Vérifier l'alignement finie, ou ✓ Rien à écrire.
+    const written = invariants.length > 0 || input.runs.find((r) => r.id === 'invariants' || r.id === 'align')?.state === 'done' || note?.nothingMark === 'ok';
     done = {
       note: noteDone,
       forme: formeDone && !reopens,
@@ -525,31 +552,44 @@ export function vibeView(input: JourneyInput): VibeView {
       // un test protégé retouché ensuite par un module (un harnais) est du travail des modules, pas à revalider.
       invariants: noteDone && formeDone && (!invLines || (begun
         ? aligned || stepTests.every((f) => Object.values(f.marks).every(stillOk))
-        : !invariants.length
-          ? input.runs.find((r) => r.id === 'invariants' || r.id === 'align')?.state === 'done' || note.nothingMark === 'ok'
-          : (aligned || casesOk) && !retouched)),
+        : written && (!invariants.length || ((aligned || casesOk) && !retouched)))),
       // Pas faite sans preuve qui passe, quel que soit le rythme.
       modules: modules.length > 0 && modules.every((m) => m.commits.length > 0) && !modules.some((m) => m.uncommitted) && !pending && proved,
       revue: checksOk && ponytail && !fixups && boxes === screen.length,   // le plan à l'écran, s'il y en a un
       pr: !!pr,
     };
-    // La pause : la note commitée qui a perdu son ✓ ; un ✓ d'étape retiré à la main qui tient ; le premier commit fait, aucun module commencé ; les modules faits, la
-    // revue pas commencée (ni vérifications ni ponytail review, ni PR).
+    // La pause : la note commitée qui a perdu son ✓ ; un ✓ d'étape retiré à la main qui tient ; les tests prêts et lus, rien de commité
+    // (avant le premier commit : l'utilisateur regarde avant que rien ne soit commité) ; les modules faits, la revue pas commencée
+    // (ni vérifications ni ponytail review, ni PR).
     const first = commits.some(noteIn);
+    // Prêts à commiter : les tests écrits (lus : unread), sans attendre l'alignement ni le premier commit ; un écart [toi] de
+    // l'alignement est déjà en tête des règles, et le moteur ne commite pas avant la reprise de l'utilisateur.
+    const ready = noteDone && formeDone && (!invLines || written);
     // Un ✓ d'étape retiré à la main qui tient : sa marque retient l'empreinte du contenu d'aujourd'hui de l'étape.
-    const refused = (['forme', 'invariants', 'modules'] as const).find((s) => withdrawn(marks, s) !== null && withdrawn(marks, s) === contents?.[s]?.hash);
+    // Un test d'invariant de la branche que l'utilisateur a noté « À revoir » (sa marque 'ko' vaut pour son contenu
+    // d'aujourd'hui) retient le parcours comme le ✓ de l'étape Invariants retiré : rien ne se construit sur un test contesté.
+    const toReview = invariants.some((f) => Object.values(f.marks).includes('ko'));
+    const refused = (['forme', 'invariants', 'modules'] as const).find((s) => heldBack(s) || (s === 'invariants' && toReview));
+    // Un test de la branche pas lu, ou sa lecture périmée : Lire en pseudo-code attend, avant le premier commit ; la pause aussi.
+    const unread = invLines && readCount < caseCount;
+    // Les tests changés après ce premier regard (l'étape Invariants validée pour un autre contenu : 'changed') : la pause
+    // revient, à tout moment du parcours, tests lus — une correction qui écrit ou réécrit un test ne passe pas sans que
+    // l'utilisateur l'ait vu (Reprendre vaut « d'accord » : vibeMarks revalide alors). En express : le système revalide, pas de pause.
+    const relook = !input.express && invariants.length > 0 && !!contents?.invariants && stepCheck?.invariants.state === 'changed';
     pause = !note ? null
       : first && !stillOk(note.mark) ? 'note'
         : refused ? `withdrawn:${refused}`
-          : done.invariants && first && !begun ? 'invariants'
+          : ready && !unread && ((!first && !begun && !commitMd) || relook) ? 'invariants'
             : done.modules && !checks && !ponytail && !pr ? 'modules'
               : null;
     next = {
       note: !note?.filled ? 'note' : questions.length ? 'answers' : null,
       forme: !modules.length ? 'forme' : reopens && noteDone && formeDone ? (commitMd ? 'commit' : 'commit-prepare') : null,
-      // Aucun ✓ à attendre ni lecture : Écrire les invariants vérifie l'alignement, la pause après eux dit où l'on en est.
-      invariants: !invariants.length ? 'invariants' : commitMd ? 'commit' : dirty.length ? 'commit-prepare' : null,
-      // À la pause après les invariants : Vibe. Sinon Générer les modules tant qu'il en reste un pas commencé (un à un sur sa
+      // Aucun ✓ à attendre : Écrire les invariants vérifie l'alignement, puis Lire en pseudo-code (avant le premier commit),
+      // et la pause après eux dit où l'on en est.
+      invariants: !invariants.length ? 'invariants' : unread && !first ? 'read-invariants' : pause === 'invariants' ? 'vibe'
+        : commitMd ? 'commit' : dirty.length ? 'commit-prepare' : null,
+      // À la pause après les invariants (sans ligne « → invariant », l'étape Invariants est déjà faite) : Vibe. Sinon Générer les modules tant qu'il en reste un pas commencé (un à un sur sa
       // ligne, au choix), puis Prouver les invariants (avant Commiter les modules), puis Commiter les modules.
       modules: pause === 'invariants' ? 'vibe' : commitMd ? 'commit' : unstarted ? 'modules' : !proved ? 'prove'
         : modules.some((m) => m.uncommitted) ? 'commit-modules' : pending ? 'commit-prepare' : null,
@@ -560,10 +600,9 @@ export function vibeView(input: JourneyInput): VibeView {
     stepFacts = {
       note: noteFacts,
       forme: note ? line(count(modules.length, T.module), note.formeMark && !mood('forme') && T.mark[note.formeMark], mood('forme')) : T.noNote,
-      invariants: invFacts,
-      // La preuve, dite quand chaque module est commencé (avant, il n'y a rien à en dire, sauf rien à prouver).
-      modules: line(`${modules.filter((m) => m.commits.length).length} / ${count(modules.length, T.module)}`,
-        (!unstarted || proof.state !== 'missing') && T.proof[proof.state], mood('modules')),
+      // La preuve, dite ici et nulle part ailleurs, quand chaque module est commencé (avant, il n'y a rien à en dire, sauf rien à prouver).
+      invariants: invFacts(!!note && (!unstarted || proof.state !== 'missing') && T.proof[proof.state]),
+      modules: line(`${modules.filter((m) => m.commits.length).length} / ${count(modules.length, T.module)}`, mood('modules')),
       revue: line(!checks ? T.unchecked : checksOk ? T.checksOk : T.checksKo, warnings > 0 && count(warnings, T.warning),
         ponytail && T.ponytail, fixups > 0 && count(fixups, T.fixup), screen.length > 0 && `${boxes} / ${count(screen.length, T.box)}`),
       pr: pr ? `PR #${pr.number}` : T.noPr,
@@ -598,7 +637,7 @@ export function vibeView(input: JourneyInput): VibeView {
     stepFacts = {
       note: noteFacts,
       forme: note ? count(modules.length, T.module) : T.noNote,
-      invariants: invFacts,
+      invariants: invFacts(),
       modules: line(count(commits.length, T.commit), done.modules && T.reviewed),
       revue: plan === null ? T.noPlan : `${boxes} / ${count(screen.length, T.box)}`,
       pr: line(count(input.draft.length, T.remark), done.pr && T.published),

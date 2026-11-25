@@ -90,7 +90,9 @@ si l'un d'eux a changé à sa fin ; en *Relire* il liste sans rien corriger. `de
 une seule passe, elle n'écrit que des suggestions à la suite de `questions.md`,
 jamais la note, et ne la valide jamais : c'est *Vérifier* (l'ancien *Revérifier*) qui la
 lance, à volonté ; sa fin retient seulement si elle n'a rien trouvé, et sans rien de bloquant
-l'écran propose *Valider la note*, geste de l'utilisateur qui lance le moteur. Proposée à
+l'écran propose *Valider la note*, geste de l'utilisateur qui lance le moteur (la première
+validation ; une revalidation en cours de parcours ne le relance que s'il enchaînait quand
+la note a changé, sinon *Reprendre*). Proposée à
 l'étape Note dès que la note est rédigée.
 `prove` (flow `create`, étape `modules`, `reads`, skill `prouver`, entre `modules` et
 `commit-modules`) est la preuve des invariants par mutation : pour chaque ligne
@@ -298,7 +300,7 @@ sinon.
 | `forme` | conversation | agent | — (les squelettes dans le code, avec les signatures typées, puis la forme dans la note, en prose : sans signatures ; `note=<chemin>` reçu, sinon cherché) |
 | `invariants` | sous-contexte | opus · high | `align.md` (suit `aligner` une fois : il corrige les tests lui-même) |
 | `lire-invariants` | sous-contexte | sonnet · medium | `invariants/<blob>.md` |
-| `aligner` | sous-contexte | opus · high | `align.md` (les invariants seuls : corrige les tests, 3 tours, seulement les fichiers de tests d'invariants que la branche crée, l'appli lui refuse les autres ; lit `preuve.md` s'il existe ; relecteur, `HEAD` : une liste, rien de corrigé) |
+| `aligner` | sous-contexte | opus · high | `align.md`, et `liens.md` (quel test garde quelle ligne « → invariant » : c'est ce qui range les tests sous leur règle à l'écran) (les invariants seuls : corrige les tests, 3 tours, seulement les fichiers de tests d'invariants que la branche crée, l'appli lui refuse les autres ; lit `preuve.md` s'il existe ; relecteur, `HEAD` : une liste, rien de corrigé) |
 | `prouver` | sous-contexte | opus · high | `preuve.md` (en lecture : une rubrique par ligne « → invariant », `## [prouvé]` et son mutant ou `## [toi]` et sa raison, « Rien à prouver. » sans ligne ; sa copie du code dans son dossier temporaire, aucune commande git qui écrit ; `note=` et `base=` reçus) |
 | `module` | conversation | opus · high | — (la boucle de `modules` pour un seul module, `developpeur` sonnet · high ; plus de `review-diff` en seconde course) |
 | `modules` | conversation | opus · high, `developpeur` sonnet · high (opus au second échec) : un seul agent pour au plus 4 modules de code, sans compter ceux qui n'ont pas de variants, sinon des sous-agents en vagues parallèles | — (ne commite pas ; son contrôle de chaque diff est une lecture de conformité, les défauts sont ceux de `ponytail` ; `note=` et `base=` reçus, sinon cherchés) |
