@@ -174,7 +174,9 @@
  *  qui commence ne la changent plus. Les actions en file d'attente (queuedOf de controllers/runs) partent au relevé
  *  (queued) : la page montre « en attente » à côté du bouton, design-check comprise.
  *  Le contrôle en trois points (0.16.0, note controle-en-trois-points) :
- *  - le moteur part seul, du seul Valider la note du créateur (markVibe 'note' 'ok', la note validée par ce clic) : au
+ *  - le moteur part seul, du seul Valider la note du créateur (markVibe 'note' 'ok', la note validée par ce clic), sa
+ *    première validation (la note sans marque) ; revalidée en cours de parcours, elle retrouve son ✓ et le moteur ne repart
+ *    que s'il enchaînait quand la pause de la note l'a arrêté (stoppedByNote de controllers/runs), sinon Reprendre : au
  *    relevé qui suit, puis à chaque relevé tant qu'elle n'est pas partie, l'action vibe est lancée comme un clic (startAction, vibeStart ; retenue :
  *    en file) ; le rythme de l'agent (expressOn de controllers/runs) part au parcours (express), et chaque relevé tient la
  *    pause (pauseVibe) ; setVibe({ express }) : le rythme réglé (setExpress), et, passé en express à une pause
@@ -245,7 +247,7 @@ import { copyArtifacts, duplicateArtifacts, moveArtifacts, newArtifact, renameAr
 import { prepareMessage } from './conversation';
 import { createWorktree } from './recipe';
 import { SOCKET_DOWN, screenSend, socketDown } from './socket';
-import { expressOn, lockingRuns, pauseVibe, viewLocks, queueStart, queuedOf, releaseWaits, runsOf, runsTab, setExpress, skillMd, startRun, vibeOn, vibeStart, vibeStop } from './runs';
+import { expressOn, lockingRuns, pauseVibe, viewLocks, queueStart, queuedOf, releaseWaits, runsOf, runsTab, setExpress, skillMd, startRun, stoppedByNote, vibeOn, vibeStart, vibeStop } from './runs';
 import { openChild, prWorktreeReady, removeWorktreeChild, showWorktree, syncWorktrees, wantWorktree, worktreeParent, worktreeState } from './worktrees';
 
 const VIBE_MS = 4000;          // le relevé régulier, panneau visible
@@ -311,7 +313,7 @@ const prsFound = new Map<string, { mine: unknown[]; review: unknown[]; all: unkn
 const requests = new Map<string, { text: string; branch?: string }>();  // new-request : la demande partie, par agent (en mémoire), puis sa branche
 const clicked = new Map<string, string>();     // par agent : l'empreinte de la conception de la note au départ de la dernière course design-check, quel que soit le geste qui l'a lancée
 const designSeen = new Map<string, number>();  // par agent : le départ de la dernière course design-check dont la fin est rangée
-const engine = new Set<string>();              // le moteur (vibe) à lancer : Valider la note vient d'être cliqué, ou passé en express à une pause
+const engine = new Set<string>();              // le moteur (vibe) à lancer : la note validée pour la première fois (ou revalidée, lui arrêté par sa pause), ou passé en express à une pause
 const accepts = new Map<string, string[]>();   // par agent : les textes « Accepter » choisis depuis la dernière validation de la note (answers)
 // Par agent : la course forme suivie (son départ), les empreintes de ses fichiers de module au départ (null : pas vues),
 // et si sa fin est rangée (les squelettes retenus, skeletonMarks).
@@ -1391,14 +1393,19 @@ export function markVibe(target: unknown, verdict: unknown) {
   if (target === 'note' && verdict === 'ok' && view.note) noteRefs.set(agent.id, { path: view.note.path, text: view.note.text });
   const store = vibeStore();
   if (step) {
+    // La note déjà validée une fois (sa marque, même dépassée) : la revalider ne lance pas le moteur, sauf arrêté par sa pause.
+    const first = !Object.hasOwn(store.marks[agent.id] || {}, 'note');
     const done = markStep(agent, view, step, verdict === 'ok' ? 'ok' : null);
     // Valider la note du créateur, par ce clic seul : sa conception retenue (keepNote la compare à la note d'après), les « Accepter »
-    // d'avant oubliés, le moteur à lancer (drive, au relevé qui suit). Aucune vérification, aucune course : un Valider comme les autres.
+    // d'avant oubliés. Aucune vérification, aucune course : un Valider comme les autres. Le moteur à lancer (drive, au relevé qui
+    // suit) à la première validation seulement ; une revalidation en cours de parcours rend le ✓ et remet les choses comme avant
+    // le changement de la note : il ne repart que s'il enchaînait quand la pause de la note l'a arrêté (stoppedByNote) ; arrêté
+    // avant (une pause, Arrêter, l'appli relancée), il le reste, en express aussi : Reprendre.
     if (done && step === 'note' && verdict === 'ok' && view.flow === 'create' && view.note) {
       const design = noteDesign(view.note.text);
       keep(vibeOutDir(agent.id), blobSha(design), design);
       accepts.delete(agent.id);
-      engine.add(agent.id);
+      if (first || stoppedByNote(agent.id)) engine.add(agent.id);
     }
   }
   else if (kase) {

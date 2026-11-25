@@ -1327,7 +1327,12 @@ possible à tout moment. En deux temps :
    réponses dans la conversation : le questionnaire suit) — il n'en
    tranche aucune ; puis *Vérifier* autant de fois que vous voulez, vous relisez la note
    et vous la validez (*Valider la note*) : le moteur part seul quand vous validez, et
-   pas avant ;
+   pas avant. C'est la première validation qui le lance : une note que vous validez
+   de nouveau plus tard (elle a changé pendant votre essai, une décision y a été
+   écrite) retrouve son ✓ sans rien relancer — vous restez où vous étiez, et
+   *Reprendre* relance quand vous voulez, en express aussi ; seul un moteur qui
+   enchaînait quand la note a changé repart à votre validation. Reparti après un
+   changement de la note, il revérifie d'abord que les tests collent à la note ;
 2. le moteur, son bouton à côté de la ligne d'état (proposé une fois la
    note validée, à n'importe quelle étape ensuite : écrivez vos invariants
    à la main, puis *Reprendre* pour le reste) : l'agent reprend à la première

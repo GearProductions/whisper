@@ -51,7 +51,9 @@
  *  (holdsPause de core/vibecoder : rythme, pause relancée) → arrêté comme par le bouton Arrêter du moteur (vibeStop : la file jetée,
  *  la porte agent refuse halted, la course en cours finit) ; rien d'autre ne tient une pause. La pause d'un ✓ d'étape
  *  retiré à la main ('withdrawn:<étape>') passe par là comme celle de la note sans son ✓ : tenue en express aussi,
- *  relancée ou pas, sans mécanisme de plus. Le rythme n'est jamais
+ *  relancée ou pas, sans mécanisme de plus. stoppedByNote(agentId) : le moteur enchaînait quand la pause de la note l'a
+ *  arrêté, et le parcours s'y tient encore (oublié dès que le relevé en sort, ou que le moteur repart) : Valider la note le
+ *  relance alors (controllers/vibecoder) ; arrêté avant, non. Le rythme n'est jamais
  *  écrit dans les réglages : l'appli relancée, chaque agent est au rythme par défaut.
  *  Les deux contrôles de la preuve (même note), tenus par l'appli et non par la consigne d'un skill :
  *  - la course Vérifier l'alignement (align) part avec, dans le contrôle de ses fichiers (bounds.frozen), les
@@ -189,6 +191,7 @@ const wasBusy = new Set<string>();                                      // les c
 const signals = new Map<string, RunSignal>();                           // par agent : le signal montré au dernier changement
 const modes = new Map<string, VibeMode>();                              // par agent : le mode Vibe (absent : off)
 const express = new Set<string>();                                      // les agents au rythme express (absent : par défaut)
+const noteStops = new Set<string>();                                    // les agents dont le moteur enchaînait quand la pause de la note l'a arrêté (pauseVibe)
 const relaunched = new Map<string, VibePause>();                        // par agent : la pause d'où l'utilisateur a relancé (pas tenue)
 const sending = new Set<string>();                                      // un avis parti, le tour pas encore commencé (await du SDK)
 let tab: string | null = null;                                          // l'agent dont l'onglet Actions est ouvert
@@ -481,6 +484,7 @@ export const vibeHalted = (agentId: string) => modes.get(agentId) === 'halted';
 // Vibe lancé (l'action vibe partie) ; released : la pause du dernier relevé, d'où l'utilisateur relance (absent : aucune).
 export function vibeStart(agent: Pick<AgentConfig, 'id'>, released?: VibePause | null) {
   modes.set(agent.id, 'on');
+  noteStops.delete(agent.id);
   if (released) relaunched.set(agent.id, released); else relaunched.delete(agent.id);
 }
 
@@ -497,8 +501,16 @@ export function setExpress(agent: Pick<AgentConfig, 'id'>, on: boolean) {
 export function pauseVibe(agent: Pick<AgentConfig, 'id'>, view: Pick<VibeView, 'pause'>) {
   const at = view.pause ?? null;
   if (relaunched.get(agent.id) !== at) relaunched.delete(agent.id);
-  if (modes.get(agent.id) === 'on' && holdsPause({ at, express: expressOn(agent.id), released: relaunched.get(agent.id) ?? null })) vibeStop(agent);
+  if (at !== 'note') noteStops.delete(agent.id);
+  if (modes.get(agent.id) === 'on' && holdsPause({ at, express: expressOn(agent.id), released: relaunched.get(agent.id) ?? null })) {
+    if (at === 'note') noteStops.add(agent.id);
+    vibeStop(agent);
+  }
 }
+
+// Le moteur enchaînait quand la note a perdu son ✓, et c'est cette pause qui l'a arrêté (le parcours s'y tient encore) :
+// Valider la note le relance (controllers/vibecoder). Arrêté avant (une pause, Arrêter, l'appli relancée) : non.
+export const stoppedByNote = (agentId: string) => noteStops.has(agentId);
 
 // La bannière : Vibe arrêté ; la file d'attente jetée, la course en cours finit ; déjà au repos : off.
 export function vibeStop(agent: Pick<AgentConfig, 'id'>) {
@@ -599,6 +611,7 @@ export function closeRuns(agent: Pick<AgentConfig, 'id'>) {
   for (const w of ends.get(agent.id) ?? []) w.resolve(null);
   for (const m of [all, waits, ends, notices, signals, modes, relaunched]) m.delete(agent.id);
   express.delete(agent.id);
+  noteStops.delete(agent.id);
   wasBusy.delete(agent.id);
   sending.delete(agent.id);
 }

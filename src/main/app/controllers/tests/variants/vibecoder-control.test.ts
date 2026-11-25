@@ -1,5 +1,6 @@
 // Variants du contrôle en trois points, côté contrôleurs (note 0.16.0, docs/tickets/feat/0.16.0-controle-en-trois-points.md,
-// entrée « app/controllers runs + vibecoder ») : le moteur qui part seul quand la note est validée, ses deux rythmes (les
+// entrée « app/controllers runs + vibecoder ») : le moteur qui part seul quand la note est validée (la première fois ; revalidée
+// en cours de parcours, il ne repart que s'il enchaînait quand elle a changé : note 0.16.0-ecran-essentiel), ses deux rythmes (les
 // pauses du rythme par défaut, l'express qui n'en tient aucune), le ✓ de la note gardé ou tombé, les validations du système,
 // la validation des modules par la CLI qui attend la preuve, preuve.md rangée avec les sorties de sa branche, les deux
 // contrôles de l'appli (l'alignement n'écrit pas dans un test d'invariant d'avant la branche, la preuve ne change ni le
@@ -323,6 +324,85 @@ describe('les deux rythmes', () => {
     expect(view().pause).toBe('modules');
     expect(await halted()).toBe(true);
     expect(await ask('run.start', { action: 'ci' })).toMatchObject({ ok: false, error: { code: 'halted' } });
+  });
+
+  // La note revalidée en cours de parcours : seule la première validation lance le moteur ; ensuite Valider la note rend son ✓
+  // et remet les choses comme avant le changement (correction du 25 novembre, note 0.16.0-ecran-essentiel).
+  for (const express of [false, true]) {
+    it(`la note changée pendant l’essai, après les modules, le moteur arrêté${express ? ', en express' : ''} : Valider la note rend son ✓, rien ne part ; Reprendre : il repart`, async () => {
+      setupAtPause();
+      await openPanel('a1');
+      if (express) await setExpress(true);
+      await validateNote();
+      await survey();
+      await endEngine();
+      commitNote();
+      commitModule();
+      await survey();
+      await survey();
+      expect(vibeTurns()).toHaveLength(1);
+      expect((await import('app/controllers')).vibeOn('a1')).toBe(false);   // témoin : le moteur ne tourne pas (la pause, ou son tour fini)
+
+      write(path.join(dir, NOTE_FILE), REDESIGNED);   // l'agent y écrit une décision, pendant l'essai
+      await survey();
+      await survey();
+      expect(checkOf('note')?.state).not.toBe('ok');   // témoin : la note « modifiée depuis », son ✓ à reposer
+
+      await validateNote();
+      await survey();
+
+      expect(checkOf('note')?.state).toBe('ok');
+      expect(vibeTurns()).toHaveLength(1);
+      expect((await import('app/controllers')).vibeOn('a1')).toBe(false);
+      expect(view().actions.find((x) => x.id === 'vibe')).toMatchObject({ hidden: false });   // Reprendre reste proposé
+
+      await click('vibe');
+      await settle();
+      await survey();
+      expect(vibeTurns()).toHaveLength(2);
+    });
+  }
+
+  it('le moteur tournait quand la note a changé (la pause de la note l’a arrêté) : Valider la note le relance, sans autre clic', async () => {
+    setup();
+    await openPanel('a1');
+    await validateNote();
+    expect(await halted()).toBe(false);   // témoin : le moteur tourne
+    write(path.join(dir, NOTE_FILE), REDESIGNED);   // une décision écrite dans la note pendant qu'il enchaîne
+    await survey();
+    await survey();
+    expect(view().pause).toBe('note');
+    expect(await halted()).toBe(true);
+    await endEngine();
+
+    await validateNote();
+
+    expect(checkOf('note')?.state).toBe('ok');
+    expect(vibeTurns()).toHaveLength(2);
+  });
+
+  it('arrêté par la note, puis la note revenue à son texte validé (plus de pause) : une revalidation plus tard ne relance rien', async () => {
+    setup();
+    await openPanel('a1');
+    await validateNote();
+    write(path.join(dir, NOTE_FILE), REDESIGNED);
+    await survey();
+    await survey();
+    expect(await halted()).toBe(true);
+    await endEngine();
+    write(path.join(dir, NOTE_FILE), NOTE_TEXT);   // revenue : son ✓ avec elle, la pause levée, le moteur toujours arrêté
+    await survey();
+    await survey();
+    expect(checkOf('note')?.state).toBe('ok');
+    expect(vibeTurns()).toHaveLength(1);
+
+    write(path.join(dir, NOTE_FILE), REDESIGNED);   // changée de nouveau, le moteur arrêté cette fois
+    await survey();
+    await survey();
+    await validateNote();
+
+    expect(checkOf('note')?.state).toBe('ok');
+    expect(vibeTurns()).toHaveLength(1);
   });
 
   it('en express : aucune pause tenue, les demandes passent', async () => {

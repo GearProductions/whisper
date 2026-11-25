@@ -1963,7 +1963,15 @@ créateur ; le relecteur, F-101) :
    note* (*Revalider* quand la note a perdu son ✓ ou est « modifiée depuis »), le
    bouton vert, n'est montré que lorsque la dernière vérification n'a rien trouvé
    (« rien de bloquant ») : l'utilisateur relit alors toute sa note, la nettoie, et
-   valide lui-même, à la fin ; ce geste, et lui seul, lance le moteur (F-103).
+   valide lui-même, à la fin ; ce geste, et lui seul, lance le moteur (F-103) :
+   la **première** validation de la note. Une note validée de nouveau en cours de
+   parcours (elle a changé : une décision écrite, une correction) retrouve son ✓
+   et les choses reviennent comme avant son changement : le moteur ne repart seul
+   que s'il enchaînait quand la note a changé (la pause de la note l'a arrêté) ;
+   arrêté avant (une pause, *Arrêter*, l'appli relancée), il le reste, en express
+   aussi, et seul *Reprendre* le relance. Reparti avec une note changée depuis
+   son commit, un module commencé, il revérifie d'abord l'alignement des tests
+   avec la note (`align`).
    Valider ne lance aucune vérification et la vérification ne valide pas : sinon le
    moteur partirait sans que l'utilisateur ait relu. Elle cherche les cas
    oubliés, les contradictions entre lignes, les cas limites des règles chiffrées

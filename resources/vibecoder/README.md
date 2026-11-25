@@ -90,7 +90,9 @@ si l'un d'eux a changé à sa fin ; en *Relire* il liste sans rien corriger. `de
 une seule passe, elle n'écrit que des suggestions à la suite de `questions.md`,
 jamais la note, et ne la valide jamais : c'est *Vérifier* (l'ancien *Revérifier*) qui la
 lance, à volonté ; sa fin retient seulement si elle n'a rien trouvé, et sans rien de bloquant
-l'écran propose *Valider la note*, geste de l'utilisateur qui lance le moteur. Proposée à
+l'écran propose *Valider la note*, geste de l'utilisateur qui lance le moteur (la première
+validation ; une revalidation en cours de parcours ne le relance que s'il enchaînait quand
+la note a changé, sinon *Reprendre*). Proposée à
 l'étape Note dès que la note est rédigée.
 `prove` (flow `create`, étape `modules`, `reads`, skill `prouver`, entre `modules` et
 `commit-modules`) est la preuve des invariants par mutation : pour chaque ligne
