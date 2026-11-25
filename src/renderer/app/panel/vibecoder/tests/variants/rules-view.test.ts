@@ -30,11 +30,11 @@ let prefills: unknown[][] = [];
 let opens: unknown[][] = [];
 let links: string[] = [];
 beforeEach(() => { prefills = []; opens = []; links = []; act(() => root.render(null)); });
-type Setup = { mustNot?: { text: string; mark: 'invariant' | 'variant' | null }[] | null; invariants?: VibeTestFile[]; proof?: VibeProof; align?: string; lang?: 'fr' | 'en'; comment?: boolean };
+type Setup = { mustNot?: { text: string; mark: 'invariant' | 'variant' | null }[] | null; invariants?: VibeTestFile[]; proof?: VibeProof; align?: string; liens?: string; lang?: 'fr' | 'en'; comment?: boolean };
 const draw = (o: Setup = {}) => act(() => {
   const lang = o.lang ?? 'fr';
   const view = { lang, flow: 'create', actions: o.comment === false ? [] : [{ id: 'comment' }], invariants: o.invariants ?? [], proof: o.proof,
-    outputs: o.align === undefined ? {} : { 'align.md': { text: o.align, time: 1 } },
+    outputs: { ...(o.align === undefined ? {} : { 'align.md': { text: o.align, time: 1 } }), ...(o.liens === undefined ? {} : { 'liens.md': { text: o.liens, time: 1 } }) },
     note: o.mustNot === null ? null : { mustNot: o.mustNot ?? [] }, steps: [], modules: [], files: [] } as unknown as VibeView;
   const props = { view, step: { id: 'invariants', status: 'current', facts: '', open: true }, t: t(lang), busy: false,
     act: { prefill: (...a: unknown[]) => prefills.push(a), open: (...a: unknown[]) => opens.push(a), openLink: (u: string) => links.push(u) } } as unknown as StepProps;
@@ -202,4 +202,35 @@ it('en anglais : états et libellés traduits', async () => {
   expect(page.textContent).toContain('no test');
   await draw({ lang: 'en', mustNot: [] });
   expect(page.textContent).toBe('The note asks for no invariant.');
+});
+
+// Après l'essai : le rattachement vient de l'alignement (liens.md), et chaque test a sa bulle.
+it('un test que l\'alignement range sous une ligne (liens.md), pas encore lu : sous sa règle, plus « aucun test »', async () => {
+  const liens = `## ${A}\n- tests/invariants/a.test.ts :: x\n`;
+  await draw({ mustNot: [inv(A)], invariants: [file('a', ['x', 'y'], null)], liens });
+  expect(rules()[0].querySelector('.vc-rule-notest')).toBeNull();
+  expect([...rules()[0].querySelectorAll('.vc-rule-case h4')].map((h) => h.textContent)).toEqual(['x']);
+  expect(page.querySelector('.vc-rules-others')?.textContent).toContain('y');
+  // témoin : sans liens.md, les deux tests sont dans les autres et la règle dit « aucun test »
+  await draw({ mustNot: [inv(A)], invariants: [file('a', ['x', 'y'], null)] });
+  expect(rules()[0].querySelector('.vc-rule-notest')?.textContent).toBe('aucun test');
+});
+
+it('💬 sur un test, sous une règle comme dans les autres tests : son titre cité dans le champ', async () => {
+  await draw({ mustNot: [inv(A)], invariants: [file('a', ['x', 'y'], [reading('x', A), reading('y', 'rien')])] });
+  named('Citer ce test dans le champ', rules()[0])[0].click();
+  named('Citer ce test dans le champ', page.querySelector('.vc-rules-others')!)[0].click();
+  expect(prefills).toEqual([['comment', 'x'], ['comment', 'y']]);
+});
+
+it('sans l\'action 💬 au relevé : aucune bulle sur un test', async () => {
+  await draw({ mustNot: [inv(A)], invariants: [file('a', ['x'], [reading('x', A)])], comment: false });
+  expect(named('Citer ce test dans le champ')).toEqual([]);
+});
+
+it('une ligne que garde un test d\'avant la branche (liens.md le nomme, il n\'est pas au relevé) : nommé sous elle, pas « aucun test »', async () => {
+  const liens = `## ${A}\n- tests/invariants/ancien.test.ts :: déjà là\n`;
+  await draw({ mustNot: [inv(A)], invariants: [], liens });
+  expect(rules()[0].querySelector('.vc-rule-notest')).toBeNull();
+  expect(rules()[0].querySelector('.vc-rule-elsewhere')?.textContent).toBe('tests/invariants/ancien.test.ts · déjà là');
 });

@@ -837,7 +837,10 @@ relire une PR (le relecteur, plus bas) :
    *écrite* (ses tests sont rouges), *prouvée*, *non prouvée* (un état par ligne :
    c'est ce que la preuve donne, et c'est la ligne que vous jugez). Dessous, les
    tests qui la gardent, en pseudo-code (un test pas encore lu : son titre, « lecture
-   en cours »). Une ligne sans test s'affiche quand même, « aucun test » ; les tests qui
+   en cours »), chacun avec sa 💬 pour le citer à l'agent (« à revoir »). Quel test garde
+   quelle ligne vient de l'alignement, qui l'écrit dans `liens.md` ; un test d'avant la
+   branche qui garde déjà la ligne y est nommé, sans pseudo-code. Une ligne sans test
+   s'affiche quand même, « aucun test » ; les tests qui
    ne gardent aucune ligne vont dans un dernier groupe, « Autres tests » : rien
    n'est caché, un trou dans la garde se voit. **Le résultat de la preuve ne
    s'affiche qu'ici**, sous chaque ligne, pas à l'étape Modules. L'alignement suit
@@ -1290,9 +1293,9 @@ pause, un arrêt à la main, un redémarrage de l'appli : le moteur ne repart ja
 tout seul) ; plus rien n'attend vos validations autres que celle de la note. Les deux
 rythmes ne diffèrent que par leurs pauses :
 
-- **Le rythme par défaut, deux pauses.** La première après les invariants : vous
-  vérifiez ce qui a été posé (la forme, les invariants, le premier commit), puis
-  vous reprenez. La seconde après les modules, avant la revue : vous essayez à
+- **Le rythme par défaut, deux pauses.** La première après les invariants, avant
+  le premier commit : vous vérifiez ce qui a été posé (la forme, les invariants),
+  rien n'est encore commité, puis vous reprenez et le premier commit part. La seconde après les modules, avant la revue : vous essayez à
   l'écran, sans que les tokens de la revue soient déjà dépensés ; si c'est bon,
   vous reprenez, et la revue, la PR et la CI suivent. À une pause le moteur est
   arrêté, le bouton dit *Reprendre* et la ligne d'état dit quoi regarder (« Regardez vos

@@ -2083,7 +2083,7 @@ créateur ; le relecteur, F-101) :
    est la prochaine action de l'étape tant qu'un test d'invariant de la branche
    n'est pas lu, ou que sa lecture est périmée, avant le premier commit : le
    **moteur la lance lui-même après chaque écriture des tests d'invariants**
-   (après *Écrire les invariants*, avant la pause et le premier commit, et après
+   (après *Écrire les invariants*, avant la pause, qui précède le premier commit, et après
    une correction des tests par l'alignement de la preuve), un regard
    indépendant de celui qui a écrit les tests ; la pause après les invariants
    attend cette lecture (F-103) ; sans ligne « → invariant », rien à lire. L'étape est validée par le système (alignement avec la note, F-102) ;
@@ -2098,9 +2098,19 @@ créateur ; le relecteur, F-101) :
    remonte, toujours visible) : un état par ligne, c'est la ligne que
    l'utilisateur juge. Dessous, les tests qui la gardent, en pseudo-code (un test
    pas encore lu : son titre et « lecture en cours » ; un point d'attention d'une
-   lecture : visible) ; un test qui cite deux lignes est sous chacune. Une ligne
+   lecture : visible), chacun avec sa 💬, qui cite son titre dans le champ (c'est
+   ainsi qu'on dit « à revoir » en montrant lequel). **Quel test garde quelle
+   ligne vient de l'alignement** : le skill `aligner`, qui vérifie déjà test par
+   test à quelle ligne chacun est lié, l'écrit dans la sortie `liens.md` (sous
+   chaque ligne de la note, `- <chemin> :: <titre>`) ; une ligne recopiée par son
+   seul début est retrouvée, un début porté par deux lignes ne range rien. Un
+   test que `liens.md` ne nomme pas, ou sans `liens.md` : la ligne que sa lecture
+   cite mot pour mot (un repli : cette citation manque souvent sur une ligne
+   longue). Un test d'avant la branche qui garde déjà la ligne, que
+   l'alignement nomme : son chemin et son titre sous la ligne, sans pseudo-code.
+   Un test rattaché à deux lignes est sous chacune. Une ligne
    sans test s'affiche quand même, « aucun test » ; les tests qui ne gardent
-   aucune ligne (pas lus, ou sans ligne citée) vont dans un dernier groupe,
+   aucune ligne vont dans un dernier groupe,
    « Autres tests » : rien n'est caché, un trou dans la garde se voit. Une
    lecture périmée garde son test à sa ligne ; une note sans ligne « → invariant » :
    une phrase, et tous les tests dans « Autres tests ». **Le résultat de la
@@ -2500,9 +2510,14 @@ système (F-103). Le parcours dit où il se tient (`pause`, au relevé) :
   actions restent au registre : c'est par elles, ou par une demande à l'agent,
   que son contenu change ; le badge de l'étape dit « faite · ✓ retiré » et se
   clique pour rendre le ✓ (F-93), la ligne d'état nomme l'étape ;
-- **`invariants`** : l'étape Invariants faite, le premier commit fait, aucun
-  module commencé (sans ligne « → invariant » et sans commit encore : aucune
-  pause) ;
+- **`invariants`** : **avant le premier commit**. La note et la Forme faites,
+  les tests d'invariants prêts (alignés, ou chaque cas validé) et lus en
+  pseudo-code, rien de commité ni de commit préparé, aucun module commencé :
+  l'utilisateur regarde ses règles avant que quoi que ce soit soit commité, et
+  le premier commit part une fois le moteur repris (c'est alors la prochaine
+  action de l'étape Invariants, encore en cours). Sans ligne « → invariant »,
+  elle se tient de même, la Forme posée (c'est elle qui est à voir). Le premier
+  commit fait, ou un commit préparé : plus cette pause ;
 - **`modules`** : l'étape Modules faite, la Revue pas commencée (ni
   vérifications ni ponytail review) ;
 - sinon aucune, dans cet ordre (la première qui s'applique). Le relecteur n'en
@@ -3018,9 +3033,10 @@ arrêté (une pause, un arrêt à la main, un redémarrage de l'appli). Arrêté
 par *Arrêter*, l'orchestrateur ne lance ni n'arrête rien qu'on ne lui demande, et
 l'on peut lancer chaque action d'un clic. Deux **rythmes**, qui ne diffèrent
 que par leurs pauses :
-- **Le rythme par défaut, deux pauses** : après les invariants (l'utilisateur
-  vérifie ce qui a été posé, la forme, les invariants, le premier commit, puis
-  reprend) et après les modules (il essaie à l'écran, avant que les tokens de la
+- **Le rythme par défaut, deux pauses** : après les invariants, avant le
+  premier commit (l'utilisateur vérifie ce qui a été posé, la forme et les
+  invariants, rien n'étant encore commité, puis reprend : le premier commit
+  part alors) et après les modules (il essaie à l'écran, avant que les tokens de la
   revue soient dépensés ; si c'est bon, il reprend, et la revue, la PR et la CI
   suivent). Une pause est l'arrêt du moteur comme par *Arrêter* : l'appli le
   tient dès que le relevé dit que le parcours s'y trouve (F-100), la demande

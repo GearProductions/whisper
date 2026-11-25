@@ -141,6 +141,17 @@ function commitModule() {
   git(dir, 'commit', '-q', '-m', 'modules');
 }
 
+// Le même dépôt, la note pas encore commitée : le parcours se tient à la pause après les invariants, qui précède le
+// premier commit (sans ligne « → invariant », la Forme posée suffit) ; commitNote : le premier commit, une fois repris.
+function setupAtPause() {
+  setup();
+  git(dir, 'reset', '-q', 'HEAD~1');
+}
+function commitNote() {
+  git(dir, 'add', '.');
+  git(dir, 'commit', '-q', '-m', 'note');
+}
+
 describe('Vérifier, puis valider la note : deux gestes', () => {
   it('Vérifier finie sans question : la note pas validée, rien ne part ; le relevé dit « rien trouvé »', async () => {
     setup();
@@ -269,13 +280,13 @@ describe('Vérifier, puis valider la note : deux gestes', () => {
 });
 
 describe('les deux rythmes', () => {
-  it('le rythme par défaut, le premier commit fait : le moteur est arrêté au relevé, une demande de l’orchestrateur est refusée (halted)', async () => {
-    setup();
+  it('le rythme par défaut, rien de commité : le moteur est arrêté au relevé, une demande de l’orchestrateur est refusée (halted)', async () => {
+    setupAtPause();
     await openPanel('a1');
     await validateNote();
     await survey();
 
-    // témoin : le parcours se tient après les invariants, au rythme par défaut
+    // témoin : le parcours se tient après les invariants, avant le premier commit, au rythme par défaut
     expect(view().pause).toBe('invariants');
     expect(view().express).toBeFalsy();
     expect(await halted()).toBe(true);
@@ -285,7 +296,7 @@ describe('les deux rythmes', () => {
   });
 
   it('Reprendre à cette pause : le moteur repart, la demande passe ; à la pause suivante il est arrêté de nouveau', async () => {
-    setup();
+    setupAtPause();
     await openPanel('a1');
     await validateNote();
     await survey();
@@ -305,6 +316,7 @@ describe('les deux rythmes', () => {
     expect(claude.turns.map((t) => t.skill)).toContain('/vibecoder:ponytail');
 
     // la pause suivante est tenue
+    commitNote();
     commitModule();
     await survey();
     await survey();
@@ -314,7 +326,7 @@ describe('les deux rythmes', () => {
   });
 
   it('en express : aucune pause tenue, les demandes passent', async () => {
-    setup();
+    setupAtPause();
     await openPanel('a1');
     await setExpress(true);
     await validateNote();
@@ -324,6 +336,7 @@ describe('les deux rythmes', () => {
     expect(view().pause).toBe('invariants');
     expect(await halted()).toBe(false);
     expect(await ask('run.start', { action: 'ponytail' })).toMatchObject({ ok: true });
+    commitNote();
     commitModule();
     await survey();
     expect(view().pause).toBe('modules');
@@ -331,7 +344,7 @@ describe('les deux rythmes', () => {
   });
 
   it('passé en express à une pause : le moteur repart sans autre clic', async () => {
-    setup();
+    setupAtPause();
     await openPanel('a1');
     await validateNote();
     await survey();
@@ -346,7 +359,7 @@ describe('les deux rythmes', () => {
   });
 
   it('passé en express avant de valider la note : rien ne part avant sa validation', async () => {
-    setup();
+    setup();   // la note commitée, sans son ✓ : la pause de la note
     await openPanel('a1');
 
     await setExpress(true);
@@ -362,7 +375,7 @@ describe('les deux rythmes', () => {
   });
 
   it('passé en express à une pause, la note changée entre-temps : rien ne repart', async () => {
-    setup();
+    setupAtPause();
     await openPanel('a1');
     await validateNote();
     await survey();
@@ -376,12 +389,13 @@ describe('les deux rythmes', () => {
   });
 
   it('revenu au rythme par défaut en route : la pause suivante est tenue', async () => {
-    setup();
+    setupAtPause();
     await openPanel('a1');
     await setExpress(true);
     await validateNote();
     await survey();
     expect(await halted()).toBe(false);
+    commitNote();
     commitModule();
     await survey();
     expect(view().pause).toBe('modules');
@@ -395,7 +409,7 @@ describe('les deux rythmes', () => {
   });
 
   it('passé en express : rien d’écrit dans les réglages de l’agent ; l’appli relancée, le rythme par défaut, la pause tenue', async () => {
-    setup();
+    setupAtPause();
     await openPanel('a1');
     await validateNote();
     await setExpress(true);

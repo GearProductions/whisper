@@ -33,6 +33,7 @@ export const OUTPUTS: readonly string[] = [
   'ponytail-applied.json', // { applied: ["<fichier>:L<ligne>", …] } : les remarques de ponytail.md que la course apply a appliquées
   'new-request.json',      // { branch } : la branche d'une nouvelle demande (skill nouvelle-demande)
   'preuve.md',             // la preuve des invariants par mutation (skill prouver), lue par journey
+  'liens.md',              // quel test garde quelle ligne « → invariant » de la note (skill aligner), lu par la page (ruleGroups)
 ];
 
 // Un nom de sortie connu, rien d'autre : ni `..`, ni autre dossier qu'invariants/.

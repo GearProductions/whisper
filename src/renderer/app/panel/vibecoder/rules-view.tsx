@@ -3,9 +3,12 @@
  *  son état (écrite : ses tests sont rouges ; prouvée ; non prouvée) ; dessous, le résultat de la preuve pour cette
  *  ligne (le mutant qui l'a prouvée, ou pourquoi elle remonte à l'utilisateur : il ne s'affiche qu'ici), puis les tests
  *  qui la gardent, en pseudo-code (leur titre, le pseudo-code coloré, pseudoLines ; leur point d'attention), chacun
- *  avec Ouvrir dans l'éditeur en icône discrète. Une ligne sans test : « aucun test ». Les tests qui ne gardent aucune
+ *  avec Ouvrir dans l'éditeur en icône discrète. Un test d'avant la branche qui garde déjà la ligne (l'alignement le
+ *  nomme, il n'est pas au relevé) : son chemin et son titre, sans pseudo-code. Une ligne sans test : « aucun test ». Les tests qui ne gardent aucune
  *  ligne : un dernier groupe, « Autres tests ». Un test pas encore lu : son titre, « lecture en cours » (le moteur lance
- *  la lecture lui-même). 💬 sur une règle la cite dans le champ de la conversation (act.prefill('comment', la ligne)).
+ *  la lecture lui-même). Quel test garde quelle ligne : d'après l'alignement (la sortie liens.md, passée à ruleGroups),
+ *  sinon la citation de sa lecture. 💬 sur une règle la cite dans le champ de la conversation (act.prefill('comment',
+ *  la ligne)) ; 💬 sur un test cite son titre (c'est ainsi que l'utilisateur dit « à revoir » en montrant lequel).
  *  En tête, l'alignement (align.md) par FeedbackView : ses écarts [toi] en avant, les [agent] repliés avec leur nombre,
  *  rien quand tout est aligné.
  *  Aucun bouton d'action, aucune validation (ni cas par cas, ni Tout valider, ni Rien à écrire), aucun chiffre en tête,
@@ -33,6 +36,7 @@ const fr = {
   warning: 'Attention',
   warningHelp: 'Attention : le relecteur pense que ce test ne vérifie pas vraiment ce qu\'il annonce (mock, boucle, assertion faible…). Ce n\'est pas un échec : une piste pour votre relecture.',
   quote: 'Citer cette règle dans le champ',
+  quoteTest: 'Citer ce test dans le champ',
   none: 'La note ne demande aucun invariant.',
 };
 const S: Record<VibeLang, typeof fr> = {
@@ -45,13 +49,15 @@ const S: Record<VibeLang, typeof fr> = {
     warning: 'Warning',
     warningHelp: 'Warning: the reviewer thinks this test does not really check what it claims (mock, loop, weak assertion…). It is not a failure: a lead for your review.',
     quote: 'Quote this rule in the field',
+    quoteTest: 'Quote this test in the field',
     none: 'The note asks for no invariant.',
   },
 };
 
 export function RulesView({ view, t, act }: StepProps): ReactNode {
   const s = S[view.lang];
-  const { rules, others } = useMemo(() => ruleGroups(view), [view.note, view.invariants, view.proof]);
+  const liens = view.outputs['liens.md']?.text;
+  const { rules, others } = useMemo(() => ruleGroups(view, liens), [view.note, view.invariants, view.proof, liens]);
   const align = view.outputs['align.md'];
   const quote = view.actions.some((a) => a.id === 'comment') ? (q: string) => act.prefill('comment', q) : undefined;
   const test = ({ file, index, view: c }: RuleCase) => {
@@ -60,6 +66,7 @@ export function RulesView({ view, t, act }: StepProps): ReactNode {
       <article key={`${file.id}:${index}`} className="vc-rule-case">
         <div className="vc-rule-case-head">
           <h4>{c.title}</h4>
+          {quote ? <IconButton icon="comment" label={s.quoteTest} onClick={() => quote(c.title)} /> : null}
           <IconButton icon="open" label={t.openTitle} onClick={() => act.open(file.id, file.lines[index])} />
         </div>
         {r ? <Pseudo code={r.pseudo} /> : <p className="vc-rule-reading">{s.reading}</p>}
@@ -79,7 +86,8 @@ export function RulesView({ view, t, act }: StepProps): ReactNode {
             <IconButton icon="comment" label={s.quote} onClick={() => act.prefill('comment', r.line)} />
           </div>
           {r.detail ? <p className="vc-rule-proof">{r.detail}</p> : null}
-          {r.cases.length ? r.cases.map(test) : <p className="vc-rule-notest">{s.noTest}</p>}
+          {r.elsewhere.map((e) => <p key={`${e.path}:${e.title}`} className="vc-rule-elsewhere vc-mono">{e.path} · {e.title}</p>)}
+          {r.cases.length ? r.cases.map(test) : r.elsewhere.length ? null : <p className="vc-rule-notest">{s.noTest}</p>}
         </section>
       ))}
       {others.length ? (

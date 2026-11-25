@@ -463,7 +463,7 @@ const branchName = (v: unknown) => (typeof v === 'string' && okRef(v) ? v : null
 
 // Les sorties que les skills écrivent pour une branche, dans les deux rôles (pas les lectures
 // invariants/, nommées par l'empreinte du test, ni celles de la PR, par numéro).
-const BRANCH_OUTPUTS = ['questions.md', 'align.md', 'preuve.md', 'review.md', 'commit.md', 'checks.json', 'ponytail.md', 'ponytail-applied.json', 'pr.json', 'ci.md', 'ecran.md'];
+const BRANCH_OUTPUTS = ['questions.md', 'align.md', 'liens.md', 'preuve.md', 'review.md', 'commit.md', 'checks.json', 'ponytail.md', 'ponytail-applied.json', 'pr.json', 'ci.md', 'ecran.md'];
 
 // Les sorties suivent la branche : la dernière vue est dans
 // <out>/.branche ; quand elle passe de P à N, celles de la racine vont dans

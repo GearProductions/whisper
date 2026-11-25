@@ -399,6 +399,98 @@ describe('caseLink', () => {
   });
 });
 
+// 0.16.0-ecran-essentiel, après l'essai : le rattachement vient de l'alignement (liens.md), pas d'une citation mot pour
+// mot dans la lecture, qui manquait sur les vraies notes (une ligne longue citée sans sa parenthèse, ou pas citée).
+describe('ruleGroups, le rattachement de l\'alignement (liens.md)', () => {
+  const A = 'ne jamais effacer le disque', B = 'ne rien envoyer à la page';
+  const LONG = 'Mettre un nœud de sortie dans le plan d\'exécution (les nœuds Médias sont déjà couverts par `helpers/parse.test.ts`).';
+  const PATH = 'tests/invariants/a.test.ts';
+  const inv = (text: string) => ({ text: `${text} → invariant`, mark: 'invariant' as const });
+  const view = (mustNot: VibeNote['mustNot'], invariants: VibeTestFile[]): Pick<VibeView, 'note' | 'invariants' | 'proof'> =>
+    ({ note: { mustNot } as VibeNote, invariants, proof: undefined });
+  const cites = (title: string, guarantees: string): ReadingCase => ({ ...reading(title), guarantees });
+  const f = (id: string, cases: string[], r: ReadingCase[] | null, over: Partial<VibeTestFile> = {}) =>
+    file({ id, cases, lines: cases.map((_, i) => i + 1), reading: r, ...over });
+  const links = (...blocks: [string, string[]][]) => blocks.map(([line, tests]) => `## ${line}\n${tests.map((t) => `- ${t}`).join('\n')}\n`).join('\n');
+  const titles = (cs: { file: VibeTestFile; index: number }[]) => cs.map((c) => c.file.cases[c.index]);
+
+  it('un test que liens.md range sous une ligne, pas lu : sous cette ligne ; les autres restent dans les autres tests', () => {
+    const a = f('a', ['x', 'y'], null);
+    const g = ruleGroups(view([inv(A)], [a]), links([A, [`${PATH} :: x`]]));
+    expect(titles(g.rules[0].cases)).toEqual(['x']);
+    expect(titles(g.others)).toEqual(['y']);
+  });
+
+  it('la ligne écrite avec ou sans « → invariant », chemin et titre entre accents graves : retrouvés', () => {
+    const a = f('a', ['x', 'y'], null);
+    const g = ruleGroups(view([inv(A), inv(B)], [a]), links([`${A} → invariant`, [`\`${PATH}\` :: \`x\``]], [B, [`./${PATH} :: y`]]));
+    expect(g.rules.map((r) => titles(r.cases))).toEqual([['x'], ['y']]);
+  });
+
+  it('une ligne longue citée par son début seul (sa parenthèse coupée, un point au bout) : retrouvée', () => {
+    const a = f('a', ['x'], null);
+    const g = ruleGroups(view([inv(LONG), inv(B)], [a]), links(['Mettre un nœud de sortie dans le plan d\'exécution.', [`${PATH} :: x`]]));
+    expect(g.rules.map((r) => titles(r.cases))).toEqual([['x'], []]);
+  });
+
+  it('un début trop court, ou que deux lignes portent : pas de rattachement, le test reste dans les autres', () => {
+    const a = f('a', ['x'], null);
+    expect(titles(ruleGroups(view([inv(A)], [a]), links(['ne jamais', [`${PATH} :: x`]])).others)).toEqual(['x']);
+    const two = [inv('ne jamais effacer le disque du projet'), inv('ne jamais effacer le disque du système')];
+    expect(titles(ruleGroups(view(two, [a]), links(['ne jamais effacer le disque', [`${PATH} :: x`]])).others)).toEqual(['x']);
+  });
+
+  it('une ligne citée telle quelle alors qu\'une autre commence pareil : la sienne', () => {
+    const a = f('a', ['x'], null);
+    const two = [inv('ne jamais effacer le disque'), inv('ne jamais effacer le disque du système')];
+    expect(ruleGroups(view(two, [a]), links(['ne jamais effacer le disque', [`${PATH} :: x`]])).rules.map((r) => titles(r.cases))).toEqual([['x'], []]);
+  });
+
+  it('le rattachement de l\'alignement passe avant la citation de la lecture', () => {
+    const a = f('a', ['x'], [cites('x', `« ${B} »`)]);
+    const g = ruleGroups(view([inv(A), inv(B)], [a]), links([A, [`${PATH} :: x`]]));
+    expect(g.rules.map((r) => titles(r.cases))).toEqual([['x'], []]);
+  });
+
+  it('un test que liens.md ne nomme pas : la citation de sa lecture, comme avant', () => {
+    const a = f('a', ['x', 'y'], [cites('x', 'rien'), cites('y', `« ${B} »`)]);
+    const g = ruleGroups(view([inv(A), inv(B)], [a]), links([A, [`${PATH} :: x`]]));
+    expect(g.rules.map((r) => titles(r.cases))).toEqual([['x'], ['y']]);
+  });
+
+  it('un test sous deux lignes : sous chacune ; un titre en double : par sa clé', () => {
+    const a = f('a', ['x', 'x'], null);
+    const g = ruleGroups(view([inv(A), inv(B)], [a]), links([A, [`${PATH} :: x`]], [B, [`${PATH} :: x`, `${PATH} :: x n° 2`]]));
+    expect(g.rules.map((r) => r.cases.map((c) => c.index))).toEqual([[0], [0, 1]]);
+    expect(g.others).toEqual([]);
+  });
+
+  it('un chemin, un titre ou une ligne inconnus, une ligne mal écrite : ignorés', () => {
+    const a = f('a', ['x'], null);
+    const md = `${links(['une autre règle', [`${PATH} :: x`]], [A, ['autre/fichier.test.ts :: x', `${PATH} :: inconnu`, 'sans séparateur']])}\ntexte libre\n`;
+    const g = ruleGroups(view([inv(A)], [a]), md);
+    expect([titles(g.rules[0].cases), titles(g.others)]).toEqual([[], ['x']]);
+  });
+
+  it('sans liens.md (absent, vide) : comme avant', () => {
+    const a = f('a', ['x'], [cites('x', A)]);
+    for (const md of [undefined, null, '']) expect(titles(ruleGroups(view([inv(A)], [a]), md).rules[0].cases)).toEqual(['x']);
+  });
+
+  it('un test d\'un fichier d\'avant la branche (pas au relevé), que liens.md range sous une ligne : nommé sous elle (elsewhere), pas un cas', () => {
+    const a = f('a', ['x'], null);
+    const g = ruleGroups(view([inv(A), inv(B)], [a]), links([A, ['tests/invariants/ancien.test.ts :: déjà là', `${PATH} :: x`]]));
+    expect(g.rules.map((r) => [titles(r.cases), r.elsewhere])).toEqual([
+      [['x'], [{ path: 'tests/invariants/ancien.test.ts', title: 'déjà là' }]],
+      [[], []],
+    ]);
+    // un titre inconnu d'un fichier du relevé n'est pas « ailleurs » : il est ignoré
+    expect(ruleGroups(view([inv(A)], [a]), links([A, [`${PATH} :: inconnu`]])).rules[0].elsewhere).toEqual([]);
+    // sans liens.md : rien ailleurs
+    expect(ruleGroups(view([inv(A)], [a])).rules[0].elsewhere).toEqual([]);
+  });
+});
+
 // 0.16.0-ecran-essentiel : les tests rangés par ligne « → invariant » de la note.
 describe('ruleGroups', () => {
   const A = 'ne jamais effacer le disque', B = 'ne rien envoyer à la page';

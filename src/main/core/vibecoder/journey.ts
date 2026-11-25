@@ -101,11 +101,16 @@
  *    son ✓ ; sinon 'withdrawn:<étape>', la première étape (la Forme, les invariants, les modules, dans cet ordre) dont
  *    le ✓ a été retiré à la main et dont le retrait tient (withdrawn de marks : l'empreinte retenue est celle du
  *    contenu d'aujourd'hui de l'étape, stepContents) — le contenu changé, ou l'étape revalidée à la main (le retrait
- *    oublié) : plus cette pause ; sinon 'invariants', l'étape Invariants faite, le premier commit fait, aucun module
- *    commencé ; 'modules', l'étape Modules faite, la Revue pas commencée (ni vérifications ni ponytail review) ; sinon
+ *    oublié) : plus cette pause ; sinon 'invariants', avant le premier commit : la note et la Forme faites, les tests
+ *    d'invariants prêts (alignés ou chaque cas validé à la main ; sans ligne « → invariant », rien à attendre) et lus,
+ *    rien de commité ni de commit préparé (commit.md : le moteur a été repris, le premier commit est en route), aucun
+ *    module commencé — l'utilisateur regarde ses règles avant que quoi que ce soit soit commité, et le premier commit
+ *    part une fois le moteur repris ; le premier commit fait : plus cette pause ;
+ *    'modules', l'étape Modules faite, la Revue pas commencée (ni vérifications ni ponytail review) ; sinon
  *    null ; le relecteur : toujours null ; express (recopié de l'entrée) n'y change rien, c'est holdsPause de vibe-mode
  *    qui tranche ; done et next ne dépendent pas du retrait (l'étape reste faite, ses actions à la main restent) ;
- *  - Vibe (le moteur, repris à une pause) : la prochaine action d'une pause 'invariants' ou 'modules' ; masquée à une
+ *  - Vibe (le moteur, repris à une pause) : la prochaine action d'une pause 'invariants' (de l'étape Invariants, encore
+ *    en cours ; de l'étape Modules sans ligne « → invariant ») ou 'modules' ; masquée à une
  *    pause 'withdrawn:<étape>' (refused : « étape refusée », comme unvalidated pour la note sans son ✓), elle revient
  *    quand la pause est levée : Reprendre n'est proposé ni à l'écran ni par la CLI tant que le retrait tient ; Vérifier la
  *    conception (design-check : Vérifier, un geste à part de Valider la note) proposée en créateur dès que la note est
@@ -119,7 +124,7 @@
  *  - Lire en pseudo-code (read-invariants) devient une action du moteur : la prochaine action de l'étape Invariants
  *    tant qu'un cas d'un test d'invariant de la branche n'est pas lu ou que sa lecture est périmée (après Écrire les
  *    invariants, avant le premier commit ; sans ligne « → invariant » : rien à lire) ; la pause 'invariants' attend cette
- *    lecture, le premier commit fait aussi (l'utilisateur y regarde ses règles en pseudo-code) ; done n'en dépend pas ;
+ *    lecture (l'utilisateur y regarde ses règles en pseudo-code) ; done n'en dépend pas ;
  *  - check.withdrawn de chaque étape (la Forme, les invariants, les modules) dont le ✓ retiré à la main tient (withdrawn
  *    de marks, pour son contenu d'aujourd'hui) : toutes, pas seulement la première, que nomme la pause ;
  *  - l'état de la preuve quitte les faits de l'étape Modules pour ceux de l'étape Invariants (il ne se dit qu'à un
@@ -550,9 +555,14 @@ export function vibeView(input: JourneyInput): VibeView {
       revue: checksOk && ponytail && !fixups && boxes === screen.length,   // le plan à l'écran, s'il y en a un
       pr: !!pr,
     };
-    // La pause : la note commitée qui a perdu son ✓ ; un ✓ d'étape retiré à la main qui tient ; le premier commit fait, aucun module commencé ; les modules faits, la
-    // revue pas commencée (ni vérifications ni ponytail review, ni PR).
+    // La pause : la note commitée qui a perdu son ✓ ; un ✓ d'étape retiré à la main qui tient ; les tests prêts et lus, rien de commité
+    // (avant le premier commit : l'utilisateur regarde avant que rien ne soit commité) ; les modules faits, la revue pas commencée
+    // (ni vérifications ni ponytail review, ni PR).
     const first = commits.some(noteIn);
+    // Prêts à commiter : comme l'étape Invariants avant un module, sans attendre le premier commit.
+    const ready = noteDone && formeDone && (!invLines || (!invariants.length
+      ? input.runs.find((r) => r.id === 'invariants' || r.id === 'align')?.state === 'done' || note.nothingMark === 'ok'
+      : aligned || casesOk));
     // Un ✓ d'étape retiré à la main qui tient : sa marque retient l'empreinte du contenu d'aujourd'hui de l'étape.
     const refused = (['forme', 'invariants', 'modules'] as const).find(heldBack);
     // Un test de la branche pas lu, ou sa lecture périmée : Lire en pseudo-code attend, avant le premier commit ; la pause aussi.
@@ -560,7 +570,7 @@ export function vibeView(input: JourneyInput): VibeView {
     pause = !note ? null
       : first && !stillOk(note.mark) ? 'note'
         : refused ? `withdrawn:${refused}`
-          : done.invariants && first && !begun && !unread ? 'invariants'
+          : ready && !first && !begun && !unread && !commitMd ? 'invariants'
             : done.modules && !checks && !ponytail && !pr ? 'modules'
               : null;
     next = {
@@ -568,8 +578,9 @@ export function vibeView(input: JourneyInput): VibeView {
       forme: !modules.length ? 'forme' : reopens && noteDone && formeDone ? (commitMd ? 'commit' : 'commit-prepare') : null,
       // Aucun ✓ à attendre : Écrire les invariants vérifie l'alignement, puis Lire en pseudo-code (avant le premier commit),
       // et la pause après eux dit où l'on en est.
-      invariants: !invariants.length ? 'invariants' : unread && !first ? 'read-invariants' : commitMd ? 'commit' : dirty.length ? 'commit-prepare' : null,
-      // À la pause après les invariants : Vibe. Sinon Générer les modules tant qu'il en reste un pas commencé (un à un sur sa
+      invariants: !invariants.length ? 'invariants' : unread && !first ? 'read-invariants' : pause === 'invariants' ? 'vibe'
+        : commitMd ? 'commit' : dirty.length ? 'commit-prepare' : null,
+      // À la pause après les invariants (sans ligne « → invariant », l'étape Invariants est déjà faite) : Vibe. Sinon Générer les modules tant qu'il en reste un pas commencé (un à un sur sa
       // ligne, au choix), puis Prouver les invariants (avant Commiter les modules), puis Commiter les modules.
       modules: pause === 'invariants' ? 'vibe' : commitMd ? 'commit' : unstarted ? 'modules' : !proved ? 'prove'
         : modules.some((m) => m.uncommitted) ? 'commit-modules' : pending ? 'commit-prepare' : null,

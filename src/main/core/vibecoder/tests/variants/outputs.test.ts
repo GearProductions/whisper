@@ -198,6 +198,10 @@ describe('preuve.md : une sortie connue', () => {
   it('preuve.md est un nom connu ; pr-1-preuve.md non', () => {
     expect([isOutputName('preuve.md'), isOutputName('pr-1-preuve.md')]).toEqual([true, false]);
   });
+
+  it('liens.md (quel test garde quelle ligne, écrit par l\'alignement) est un nom connu', () => {
+    expect([isOutputName('liens.md'), isOutputName('pr-1-liens.md')]).toEqual([true, false]);
+  });
 });
 
 describe('parseProof : les rubriques de preuve.md', () => {
