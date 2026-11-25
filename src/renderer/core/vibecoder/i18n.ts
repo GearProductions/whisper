@@ -33,9 +33,15 @@
  *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : les libellés que plus rien n'affiche sont retirés (les réglages
  *  de lecture du code, la légende des modules, « rien à prouver », la validation par le système, la ponytail
  *  review lancée avec les vérifications) ; ceux du relecteur restent.
+ *  La revue essentielle (note 0.16.0-revue-essentielle) : les quatre arrêts du relecteur ont leur nom (la note, les
+ *  règles, l'essai, publier : « Note », « Règles », « Essai », « Publier »), sa ligne d'état ses phrases (statusLine),
+ *  et « Préparer la revue » son libellé, son infobulle et la raison qui le grise (rien à lancer) ; les libellés que
+ *  plus rien n'affiche sont retirés (« N commits », Vue IDE · Vue liste, Structure · Code, Relancer d'une lecture…).
+ *  stepName(s: Strings, flow: VibeFlow, id: VibeStepId): string — le nom d'une étape à l'écran : en relecteur celui de
+ *  son arrêt, en créateur celui de steps, inchangé.
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
 import type {
-  AgentActivity, AgentView, SettingKey, SettingsCategory, SettingsCommand, SettingsInfo, VibeLang, VibeRun, VibePause, VibeRunProgress, VibeStepId,
+  AgentActivity, AgentView, SettingKey, SettingsCategory, SettingsCommand, SettingsInfo, VibeFlow, VibeLang, VibeRun, VibePause, VibeRunProgress, VibeStepId,
 } from 'technicals/bridge';
 import type { MenuEntry } from './artifact-clipboard';
 import type { NameProblem } from './artifact-tree';
@@ -524,6 +530,11 @@ const en: Strings = {
 const STRINGS: Record<VibeLang, Strings> = { fr, en };
 
 export function t(lang: VibeLang): Strings { return STRINGS[lang] || fr; }
+
+// Le nom d'une étape à l'écran, selon le rôle : en relecteur celui de son arrêt (voir l'en-tête).
+export function stepName(_s: Strings, _flow: VibeFlow, _id: VibeStepId): string {
+  throw new Error('not implemented');
+}
 
 // Une taille de fichier en clair, dans la langue de l'écran : 512 o, 1,5 Ko, 10 Mo (512 B, 1.5 KB, 10 MB).
 const UNITS: Record<VibeLang, string[]> = { fr: ['o', 'Ko', 'Mo', 'Go'], en: ['B', 'KB', 'MB', 'GB'] };

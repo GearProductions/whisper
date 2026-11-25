@@ -6,7 +6,9 @@
  *  plus de champ d'étape : text, setText et ses pièces retirés, note 0.15.0-ecran-epure). Un seul
  *  parcours, une vue par étape, pour les deux rôles (view.flow, décidé par
  *  l'appli) : chaque vue montre en lecture seule ce que le relecteur ne fait
- *  pas (Revue : Relire à l'écran ; Modules : les commits ; PR : le brouillon).
+ *  pas (Revue : Relire à l'écran ; PR : les constats sur le code et le brouillon). Le relecteur n'a que quatre de ces
+ *  étapes à son relevé (note, invariants, revue, pr : ses arrêts, note 0.16.0-revue-essentielle) : les vues de la Forme
+ *  et des Modules ne servent qu'au créateur.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder, panel-app (VibeActs). */
 import type { ComponentType, Dispatch, SetStateAction } from 'react';
 import type { Piece } from 'core/conversation';

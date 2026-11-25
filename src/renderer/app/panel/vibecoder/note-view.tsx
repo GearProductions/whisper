@@ -40,6 +40,10 @@
  *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel), en créateur : pas de note, une phrase (« Demandez la note à l'agent, dans la
  *  conversation »), sans bouton Rédiger la note ni Nouvelle demande (elles restent lançables par la CLI) ; restent Vérifier, Valider la note, le
  *  questionnaire, Modifier (la note reste modifiable à l'écran : le document de l'utilisateur) et 💬 sur une ligne.
+ *  La revue essentielle (note 0.16.0-revue-essentielle), en relecteur : la relecture de la note par l'agent
+ *  (pr-<n>-note.md) reste au-dessus de la note, sans bouton à elle — ni Relire la note, ni Relancer (Préparer la revue,
+ *  au fil d'Ariane, la lance ; la CLI aussi) ; pas encore de relecture : rien à sa place. Juger la note (Valider, À
+ *  revoir, les remarques sur ses lignes, Poser une question à l'agent) : inchangé.
  *  Ne connaît pas : le pont (rappels passés), le disque. Utilisé par : step-views. */
 import { useEffect, useMemo, useState } from 'react';
 import { changedLines, excerpt, fileParts, isLive, lineDiff, mustNotLine, mustNotTags, parseMarkdown, placeRemoved, remark, remarksAt, removedGroups } from 'core/vibecoder';

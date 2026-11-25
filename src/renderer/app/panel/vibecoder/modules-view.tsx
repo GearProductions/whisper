@@ -23,6 +23,12 @@
  *  et à droite le code du fichier choisi (ModuleCode, noTree), sans menu de diff. Sans module : les fichiers de la
  *  branche, dans les deux vues, sans interrupteur. Puis CommitsSection (commits-view), qui porte elle-même Relire les
  *  commits : 'review-commits' est dans own. Le point d'état de la liste vient de moduleState (core).
+ *  La revue essentielle (note 0.16.0-revue-essentielle) : l'étape Modules n'est plus un arrêt du relecteur — cette vue
+ *  est celle du créateur seul (CreatorModules, inchangée). Partent : ReviewerModules, ses deux vues (liste, IDE) et
+ *  leur interrupteur, le code en lecture seule, les puces de commits, et la section des commits (commits-view,
+ *  supprimé : ses cartes, Validé / À revoir par commit, le fichier d'un commit sous sa carte, Relire les commits). Le
+ *  paragraphe « Relecteur » ci-dessus ne vaut plus. Restent dans le dépôt, sans appel de la page : le fichier d'un
+ *  commit (commit-file) et le mode lecture seule de ModuleCode (des tests protégés gardent ce qui les sert).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { useEffect } from 'react';
 import { fileParts, goneModule, ideFiles, moduleCommits, moduleCounts, moduleState, type IdeFile, type ModuleCounts, type ModuleState } from 'core/vibecoder';

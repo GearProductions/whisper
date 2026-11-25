@@ -3,7 +3,7 @@
  *  (Note, Forme, Invariants, Modules), la couleur suit leur validation, crumbCheck : verte validée, jaune modifiée
  *  depuis ou à revoir, grise jamais validée ;
  *  le libellé à côté du point), reliées d'un trait ; leur état et leurs faits
- *  en infobulle, avec le raccourci (Ctrl+1…6) pour les six. Chaque étape
+ *  en infobulle, avec le raccourci (Ctrl+1…6) pour les six du créateur. Chaque étape
  *  est cliquable, faite, en cours ou à venir : un clic appelle onPick, rien
  *  d'autre (le fil garde ses états).
  *  Le créateur (note 0.16.0-ecran-essentiel) : sous le fil, une ligne dit toujours où on en est (statusLine de
@@ -17,13 +17,15 @@
  *  reste tant que le moteur tourne.
  *  L'interrupteur Express (view.express ; onExpress(true | false)) reste au bout du fil, toujours là, note validée ou
  *  non, le moteur en route ou non ; absent, pas d'interrupteur. Plus de « N commits » ni de liste pour le créateur.
- *  Le relecteur (flow 'review') : ni ligne ni bouton du moteur ; au bout du fil, « N commits » déplie sous le fil la
- *  liste des commits de la branche (un `fixup!` en couleur d'attention), re-clic : repliée ; aucun commit : le texte
- *  seul. La liste ouverte se ferme avec Échap (écouté en capture : il n'atteint pas les autres Échap du panneau) ou
- *  un clic hors de la liste et de son bouton ; les écouteurs ne vivent que liste ouverte. Un clic sur un commit le
- *  déplie : Voir le diff (dans l'éditeur, c<rang>), GitHub (sa page, gh:c<rang>) — deux IconButton (icons), libellé
- *  en infobulle — et ses fichiers, en texte simple.
- *  Ne connaît pas : le pont (rappels passés). Utilisé par : vibe-coder. */
+ *  Le relecteur (flow 'review' ; note 0.16.0-revue-essentielle) : son fil a les quatre arrêts du relevé, sous leur nom
+ *  d'arrêt (stepName : « Note », « Règles », « Essai », « Publier » ; Ctrl+1…4 en infobulle) ; sous le fil, la même
+ *  ligne que le créateur (statusLine : ce que le système lit, ou ce qu'il attend du relecteur) et, à côté, son seul
+ *  bouton, « Préparer la revue », à tous les arrêts dès qu'une PR est chargée : un clic appelle onPrepare, une fois, rien
+ *  d'autre ; grisé, avec sa raison, quand il n'y a rien à lancer (view.prepare vide : tout est prêt, ou les lectures
+ *  courent déjà) ; absent sans PR chargée, sans onPrepare, ou en créateur. Ni bouton du moteur, ni Express. Plus de
+ *  « N commits » au bout du fil ni de liste dépliée (ses écouteurs, CommitDetail), pour personne : la PR s'ouvre sur
+ *  GitHub depuis sa carte.
+ *  Ne connaît pas : le pont (rappels passés), les lectures que le bouton lance (vibe-coder). Utilisé par : vibe-coder. */
 import { useEffect, useState } from 'react';
 import { crumbCheck, statusLine, waitingFor, type Strings } from 'core/vibecoder';
 import type { VibeAction, VibeCommit, VibeStepId, VibeView } from 'technicals/bridge';
@@ -35,6 +37,7 @@ type Props = {
   vibe: { a: VibeAction; on: boolean } | null;
   onPick(id: VibeStepId): void; onOpen(id: string): void; onVibe(): void; onStopVibe(): void;
   onExpress?(on: boolean): void;   // l'interrupteur Express ; absent : pas d'interrupteur
+  onPrepare?(): void;              // relecteur : « Préparer la revue » ; absent : pas de bouton
 };
 
 export function Breadcrumb({ view, t, selected, vibe, onPick, onOpen, onVibe, onStopVibe, onExpress }: Props) {

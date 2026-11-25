@@ -212,6 +212,16 @@
  *  - preuve.md : une sortie de branche de plus (BRANCH_OUTPUTS), lue au relevé comme align.md ; effacée par
  *    controllers/runs quand la course prove a touché le dossier de travail ou l'index ; align.md de même, effacé par
  *    controllers/runs quand la course align a changé un test d'invariant d'avant la branche.
+ *  La revue essentielle (note 0.16.0-revue-essentielle), en relecteur :
+ *  - une action part telle que son rôle la lance (roleDefs de core/vibecoder, d'après le dernier relevé, jamais la
+ *    page) : l'alignement d'une PR est une lecture — sa course n'écrit que dans les sorties de l'agent (bounds.reads)
+ *    et court avec les autres lectures ; le grisé d'une course (greyed, viewLocks de controllers/runs) suit la même règle ;
+ *  - une lecture de la revue (READINGS de core/vibecoder) partie, quel que soit le geste (l'écran, la CLI, la file) :
+ *    le commit de tête du relevé est gardé en mémoire, par agent et par action ; à chaque relevé, panneau visible ou
+ *    non, sa fin est rangée une fois (readEnd : finie, la marque « read:<action> » pour cette tête ; en échec, arrêtée,
+ *    ou la tête pas retenue — l'appli relancée — : rien), puis oubliée ; conv:vibeMark ne pose jamais cette cible ;
+ *  - rien ne lance une lecture ici : ni le relevé, ni le chargement d'une PR, ni la fin d'une autre lecture ; « Préparer
+ *    la revue » est la page qui demande chaque lecture de view.prepare par conv:vibeRun, une demande par lecture.
  *  Ne connaît pas : la page (seulement ses canaux), la fenêtre, le jeton du socket.
  *  Utilisé par : app/ipc (runVibeAction, vibeRunOp, draftVibe, dropOnArtifacts), app/menus, controllers/conversation,
  *  controllers/runs, controllers/agents et controllers/module-code

@@ -29,7 +29,13 @@
  *  référence (IdeFile.gone) : son diff tout en retraits. Le menu de diff (useIdeDiff 'invariants' : Depuis la base de
  *  la branche, En ligne · Côte à côte) ; StepHead onSince → showValidated. Sans test : l'invitation ; aucune validation
  *  d'étape.
- *  Ne connaît pas : le pont (rappels passés), le brouillon (ses remarques, par cible). Utilisé par : step-views. */
+ *  La revue essentielle (note 0.16.0-revue-essentielle) : le relecteur n'a plus cette vue-là. Les deux rôles : l'en-tête
+ *  de l'étape (StepHead) puis RulesView, rien d'autre. Partent avec les anciennes cartes du relecteur : ReviewInvariants,
+ *  CaseCard et son Pseudo-code · Code, Tout valider, Summary et Bar, l'arbre des tests et Invariants seuls, Voir le
+ *  fichier et le menu de diff, Lire en pseudo-code, Relire, Tout relire, la carte de l'alignement, « non rattaché »
+ *  (case-link, supprimé avec elles), la phrase des cas à valider (awaiting de core/vibecoder, retirée avec elle) ; aucun
+ *  fichier n'est suivi. Le paragraphe « Relecteur : inchangé » ci-dessus ne vaut plus.
+ *  Ne connaît pas : le pont (rappels passés), le brouillon (rules-view), le rôle (rules-view). Utilisé par : step-views. */
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import {
   awaiting, goneModule, caseLink, caseSource, casesOf, excerpt, fileParts, invariantTree, progress, remark, remarksAt, withAttention, type CaseLink, type CaseView, type IdeFile, type Progress, type Strings,

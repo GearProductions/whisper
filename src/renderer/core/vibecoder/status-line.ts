@@ -13,10 +13,19 @@
  *  fermée sans être fusionnée : « La PR est fermée » ; un état inconnu vaut ouverte, comme pr-view) ;
  *  sinon le moteur arrêté hors d'une pause (« Le système est arrêté : reprenez »).
  *  yours : la ligne attend l'utilisateur (une question, la note, une pause, un ✓ retiré, la PR verte, le moteur
- *  arrêté) ; false : le système travaille. Le relecteur, ou un relevé en erreur : null (aucune ligne).
+ *  arrêté) ; false : le système travaille. Un relevé en erreur : null (aucune ligne).
  *  over : le parcours est fini, il n'y a rien à reprendre (la PR verte et chaque étape faite ; fusionnée ; fermée) :
  *  breadcrumb ne pose pas Reprendre à côté. Une étape pas faite (une correction en cours), la CI en cours ou en échec : pas over.
- *  Ne connaît pas : le DOM, React, le pont, le bouton du moteur (breadcrumb le pose à côté).
+ *  La revue essentielle (note 0.16.0-revue-essentielle) : le relecteur a sa ligne lui aussi (plus null), d'après ce que
+ *  le relevé sait déjà. Dans l'ordre, la première qui vaut : pas de PR chargée (« Choisissez la PR à relire, dans la vue
+ *  des branches ») ; le dossier ailleurs que sur sa tête (« Passez sur la branche de la PR ») ; une lecture de la revue
+ *  en cours (« Le système lit : la note, le code… », d'après view.runs, leurs libellés ; yours false) ; des lectures à
+ *  lancer (view.prepare pas vide : « Préparez la revue ») ; la note pas jugée (« Lisez la note, puis jugez-la ») ; des
+ *  tests sans verdict (leur nombre : « 3 tests à juger ») ; des cases du plan pas cochées, ou pas de plan (« Essayez
+ *  l'appli : 2 cases à cocher ») ; la revue pas publiée (« Publiez la revue ») ; publiée : « La revue est publiée »,
+ *  over. Chaque arrêt d'après son état au relevé (steps), jamais recalculé ici. Un relevé en erreur : null, comme avant.
+ *  Le créateur : ses lignes, inchangées.
+ *  Ne connaît pas : le DOM, React, le pont, le bouton du moteur ni « Préparer la revue » (breadcrumb les pose à côté).
  *  Utilisé par : app/panel/vibecoder (breadcrumb). */
 import type { VibeView } from 'technicals/bridge';
 import { t } from './i18n';

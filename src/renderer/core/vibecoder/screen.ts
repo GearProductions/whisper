@@ -7,8 +7,11 @@
  *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : stepActions ne rend plus rien au créateur — aucun bouton
  *  d'action dans une étape, pas même celle mise en avant : une action se demande à l'agent, qui a la CLI — ; au
  *  relecteur, la rangée d'avant, inchangée.
- *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (vibe-coder, step-parts, status-bar ;
- *  runs-view : isRunning). */
+ *  La revue essentielle (note 0.16.0-revue-essentielle) : plus de rangée d'actions pour personne — stepActions est
+ *  retirée (le relecteur n'a plus qu'un geste, « Préparer la revue », au fil d'Ariane ; chaque lecture reste lançable
+ *  par la CLI) ; restent la largeur de la colonne et les actions qui tournent.
+ *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (vibe-coder, status-bar ;
+ *  runs-view : isRunning) ; core/vibecoder (status-line : runningRuns). */
 import type { VibeAction, VibeRun, VibeStep, VibeView } from 'technicals/bridge';
 
 export const CONV_MIN = 300;

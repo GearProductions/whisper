@@ -83,6 +83,9 @@
  *  au-delà de cfg.runTmpMax, elle est arrêtée comme par runOp stop (son processus et son verrou restent), sa
  *  réponse commence par tmpLine ; effacé à sa fin quelle qu'elle soit (finish, l'arrêt — garder ou annuler
  *  viennent après, plus rien à effacer —, closeRuns).
+ *  La revue essentielle (note 0.16.0-revue-essentielle) : viewLocks lit le catalogue tel que le rôle du relevé le lance
+ *  (roleDefs de core/vibecoder) — en relecteur, l'alignement en cours est une lecture : il ne retient pas les autres
+ *  lectures, et elles ne le retiennent pas ; startRun reçoit sa définition déjà passée par roleDefs (controllers/vibecoder).
  *  Ne connaît pas : la page, les fenêtres.
  *  Utilisé par : controllers/vibecoder (releaseWaits), controllers/agents,
  *  controllers/module-code, controllers/commands (runOp, runEnd, queuedOf), menus/agent-menus. */

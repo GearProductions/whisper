@@ -13,9 +13,14 @@
  *  withoutApplied(ponytail: Out, applied?: Out): string — le texte de ponytail.md sans les remarques [agent] que la course
  *  apply a appliquées (leur adresse dans ponytail-applied.json, avec leurs lignes de suite) ; le fichier plus vieux que
  *  ponytail.md (une revue d'avant), absent ou illisible : le texte tel quel. Une remarque [toi] n'est jamais retirée.
+ *  La revue essentielle (note 0.16.0-revue-essentielle) : la relecture du code d'une PR en une passe (pr-<n>-commits.md)
+ *  n'est plus rangée par commit — commitTitle et commitReviews partent avec la vue des commits (commits-view).
+ *  findings(md: string): Findings — ses constats : chaque titre `##` (hors bloc de code) en ouvre un, son titre et son
+ *  détail (sections), dans l'ordre ; intro, ce qui précède le premier titre ('' : rien) ; un fichier sans titre (« rien
+ *  à signaler », une relecture d'avant ce format) : aucun constat, tout son texte dans intro — rien n'est caché.
  *  Ne connaît pas : le DOM, React, les noms des fichiers.
- *  Utilisé par : app/panel/vibecoder (review-view, branches-view, commits-view, draft-view, step-parts, pr-view) ;
- *  core/vibecoder (status-line : parseCi). */
+ *  Utilisé par : app/panel/vibecoder (review-view, branches-view, findings-view, draft-view, step-parts, pr-view) ;
+ *  core/vibecoder (status-line : parseCi ; review-flow : Section). */
 
 import { VERDICTS, type Verdict } from 'shared/review';
 import type { VibeCommit } from 'technicals/bridge';
@@ -93,6 +98,13 @@ export function sections(md: string): Section[] {
   }
   flush();
   return out;
+}
+
+// Les constats de la relecture du code (voir l'en-tête) : un par titre `##`, et ce qui précède le premier.
+export type Findings = { list: Section[]; intro: string };
+
+export function findings(_md: string): Findings {
+  throw new Error('not implemented');
 }
 
 // Le titre d'une rubrique de pr-<n>-commits.md : « <hash court> <sujet> »

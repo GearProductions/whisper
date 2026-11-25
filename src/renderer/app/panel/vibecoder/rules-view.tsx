@@ -17,10 +17,23 @@
  *  Aucun bouton d'action, ni Tout valider ni Rien à écrire, aucune barre, ni code ni éditeur ; sans ligne « → invariant » dans la note : une phrase, « La note ne demande aucun
  *  invariant ». L'en-tête d'étape (StepHead) est rendu par invariants-view.
  *  RulesView(p: StepProps): ReactNode ; Pseudo({ code }) : le pseudo-code coloré, Attention({ text, lang, t,
- *  onOpenLink, children? }) : l'encart du point d'attention, repris par les cartes du relecteur, et warningHelp(lang) :
- *  ce que veut dire « Attention », repris par sa ligne d'aide
- *  Ne connaît pas : le pont (rappels passés), le relecteur (invariants-view garde sa vue), le brouillon de revue.
- *  Utilisé par : invariants-view (RulesView ; Pseudo, Attention, warningHelp). */
+ *  onOpenLink, children? }) : l'encart du point d'attention, et warningHelp(lang) : ce que veut dire « Attention ».
+ *  La revue essentielle (note 0.16.0-revue-essentielle) : le relecteur a la même vue (view.flow 'review'), à l'arrêt des
+ *  règles — une règle par ligne « → invariant », ses tests en pseudo-code, « aucun test », « Autres tests », le compte
+ *  en tête, l'alignement en tête (son align.md n'a pas d'étiquette : montré tel quel, rien n'y est replié), le point
+ *  d'attention de chaque test. Ce qui change pour lui :
+ *  - pas de preuve : aucun état sur une règle (ni « écrite », ni « prouvée », ni « non prouvée »), aucun détail au clic ;
+ *  - un test d'avant la branche que la PR modifie (CaseView.fromBase) : dit sur ce test, « modifié par la PR » ;
+ *  - Validé / À revoir sur chaque test (la même marque) ; À revoir propose « Ajouter une remarque au brouillon », qui
+ *    ouvre la zone de remarque du test, sans rien ajouter ;
+ *  - la 💬 d'une règle, d'un test, d'une ligne de l'alignement ouvre dessous une zone de remarque pour le brouillon de
+ *    revue (CommentBox ; Ajouter : act.draft, remark, sur sa cible — « rule: <la ligne> », « case:<chemin>:<clé> »,
+ *    « align: <la ligne> ») ; celle du point d'attention y verse l'attention (withAttention) sans rien effacer ; rien
+ *    n'entre au brouillon sans Ajouter ; elle ne cite jamais dans la conversation ;
+ *  - sous chaque règle et chaque test, ses remarques déjà au brouillon (remarksAt, DraftRemarks).
+ *  Le créateur : sa vue, ses états de preuve, sa 💬 qui cite dans la conversation, inchangés.
+ *  Ne connaît pas : le pont (rappels passés), le brouillon entier (ses remarques, par cible), le verdict de la revue.
+ *  Utilisé par : invariants-view (RulesView). */
 import { useMemo, useState, type ReactNode } from 'react';
 import { progress, pseudoLines, ruleGroups, type RuleCase, type RuleState, type Strings } from 'core/vibecoder';
 import type { VibeLang } from 'technicals/bridge';

@@ -13,7 +13,10 @@
  *  principal cesse de suivre un fichier. Sans note, ou sans Forme : l'Invite, puis, s'il y en a, les fichiers que la
  *  branche change (chacun un module d'un seul fichier, son code à droite). Ni menu de diff ni validation.
  *  Contract : le contrat d'un module, par rubrique (contractParts, InlineMd).
- *  Ne connaît pas : le pont (rappels passés), le brouillon entier (view.draft, filtré par module). Utilisé par : step-views, modules-view et invariants-view (Contract, le relecteur). */
+ *  La revue essentielle (note 0.16.0-revue-essentielle) : la Forme n'est plus un arrêt du relecteur — cette vue est
+ *  celle du créateur seul (la liste, inchangée). Partent : ReviewerForme (l'arbre des modules, Structure · Code, les
+ *  remarques par module) et Contract, que plus rien n'appelle. Le paragraphe « Relecteur » ci-dessus ne vaut plus.
+ *  Ne connaît pas : le pont (rappels passés), le brouillon de revue. Utilisé par : step-views. */
 import { useEffect, useState, type ReactNode } from 'react';
 import { contractParts, fileParts, goneModule, ideFiles, moduleLine, remark, remarksAt, type IdeFile, type Strings } from 'core/vibecoder';
 import type { VibeLang, VibeModule } from 'technicals/bridge';

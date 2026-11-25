@@ -1,15 +1,16 @@
 /** journey — le parcours de l'écran VibeCoder, calculé sans modèle à partir du
- *  relevé (dépôt, note, tests, sorties des skills, validations) : un seul parcours
- *  (Note, Forme, Invariants, Modules, Revue, PR) pour les deux rôles (view.flow : créateur
+ *  relevé (dépôt, note, tests, sorties des skills, validations) : le parcours du créateur
+ *  (Note, Forme, Invariants, Modules, Revue, PR) et celui du relecteur, en quatre arrêts (Note, Invariants, Revue, PR :
+ *  la revue essentielle, plus bas) (view.flow : créateur
  *  'create', relecteur 'review', décidé par l'appli, passé en entrée). Les étapes (faite,
  *  en cours — la première pas faite — , à venir ; toutes s'ouvrent, la page ne reçoit plus
  *  d'`open`), leurs faits en une ligne (facts : tous, l'infobulle du fil d'Ariane ; head : ceux que
  *  l'étape ne montre pas en dessous, son en-tête, sans doublon ; note 0.15.0-ecran-epure), la prochaine action (celle de l'étape en cours), les
  *  actions possibles, pourquoi une autre est grisée (noNoteYet : grisée, sa raison au survol) et
  *  celles qui n'ont pas encore de sens (hidden : masquées, leur raison d'être grisée gardée).
- *  Faite, en relecteur : la Note jugée ; la Forme avec elle (rien à juger) ; les Invariants,
- *  chaque cas jugé ; les Modules, les commits relus ; la Revue, le plan à l'écran écrit et toutes
- *  ses cases cochées ; la PR, la revue publiée. En créateur, la Revue attend en plus chaque case
+ *  Faite, en relecteur : la Note jugée ; les Invariants,
+ *  chaque cas jugé ; la Revue, le plan à l'écran écrit et toutes
+ *  ses cases cochées ; la PR, la revue publiée (ni Forme ni Modules dans son fil). En créateur, la Revue attend en plus chaque case
  *  du plan à l'écran, s'il y en a un (screen : ecran.md, une sortie de branche, marques
  *  check:<rang>). Le relecteur ne voit aucune action qui édite, génère ou commite (les actions
  *  create ne sont pas au relevé ; rebase, push, copy-artifact masquées) ; S'assigner la PR lui
@@ -124,7 +125,6 @@
  *    action ;
  *  - la liste « Avant la PR » : « Chaque diff a été relu » cochée par le relevé (les modules validés et la ponytail
  *    review faite), plus à la main ; « AGENTS.md à jour… » reste à la main.
- *  Le relecteur : rien ne change (ses étapes, ses actions, ses faits).
  *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel), en créateur :
  *  - Lire en pseudo-code (read-invariants) devient une action du moteur : la prochaine action de l'étape Invariants
  *    tant qu'un cas d'un test d'invariant de la branche n'est pas lu ou que sa lecture est périmée (après Écrire les
@@ -135,6 +135,23 @@
  *  - l'état de la preuve quitte les faits de l'étape Modules pour ceux de l'étape Invariants (il ne se dit qu'à un
  *    endroit) ; « modifiée depuis la validation » et « à revoir » restent seuls dans leur en-tête ;
  *  - rien n'est retiré du relevé : les actions, checklist et modulesView (recopié : le créateur ne le lit plus, le relecteur si) restent.
+ *  La revue essentielle (note 0.16.0-revue-essentielle), en relecteur ; le créateur : rien ne change (ses six étapes, sa
+ *  pause, ses faits, ses actions) :
+ *  - son fil a quatre arrêts, dans cet ordre : 'note' (faite : la note jugée, ✓ ou ✗), 'invariants' (les règles : chaque
+ *    test jugé), 'revue' (l'essai : le plan à l'écran écrit et chaque case cochée), 'pr' (publier : la revue publiée) ;
+ *    ni 'forme' ni 'modules' dans ses étapes (rien à y juger ; on ne relit plus l'histoire des commits) ; le dossier
+ *    ailleurs que sur la tête de la PR : aucun arrêt fait, comme avant ; aucune action mise en avant (primary), à aucun
+ *    arrêt : son seul geste est « Préparer la revue », qui n'est pas une action du registre ;
+ *  - prepare : les lectures que « Préparer la revue » lancerait (toPrepare de readings, d'après le commit de tête de la
+ *    PR, les marques « read:<action> », les sorties présentes, les lectures des tests, les courses et la file) ; vide
+ *    sans PR chargée ou le dossier ailleurs ; absent en créateur ;
+ *  - changedFromBase de chaque test d'invariant : les clés des cas qui existaient à la base de la branche et dont le
+ *    bloc a changé (caseBlocks du texte à la base contre celui d'aujourd'hui) — un test protégé que la PR modifie, dit
+ *    sans agent ni lecture ; un fichier ajouté par la branche, une base inconnue : absent ;
+ *  - ses actions viennent de roleDefs (actions) : l'alignement est une lecture, une autre lecture en cours ne le grise pas ;
+ *  - rien n'est retiré du relevé ni du registre : chaque lecture reste lançable seule (review-note, read-invariants,
+ *    align, review-commits, screen), les commits et leurs marques « commit:<hash> » restent au relevé (la page ne les
+ *    montre plus), modulesView aussi.
  *  Ne connaît pas : Electron, le disque, git, gh, si la pause est tenue (holdsPause de vibe-mode : journey dit où le
  *  parcours se tient, le contrôleur décide) (tout est passé ; `exists` dit si
  *  un chemin du dossier de l'agent existe ; les textes des tests, à la tête et à la base, sont lus par

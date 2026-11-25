@@ -7,6 +7,10 @@
  *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel), en créateur : pas de plan, rien (ni carte vide, ni bouton Plan de test à
  *  l'écran) ; un plan (demandé à l'agent) : ses cases, que l'utilisateur coche, et Tout cocher, sans Relancer. Le
  *  relecteur : inchangé.
+ *  La revue essentielle (note 0.16.0-revue-essentielle), en relecteur, à l'arrêt « l'essai » : un plan, ses cases et
+ *  Tout cocher, sans Relancer ; pas de plan : une phrase qui renvoie à Préparer la revue, sans bouton (plus de Plan de
+ *  test à l'écran ici). Cocher, décocher, Tout cocher : inchangés. Plus aucun bouton d'action dans cette vue, pour
+ *  aucun rôle.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : review-view. */
 import { useState, type CSSProperties } from 'react';
 import type { VibeLang } from 'technicals/bridge';

@@ -31,6 +31,10 @@
  *  un bouton là où la vue passe onSince (Modules : le diff bascule sur ce qui a changé depuis le ✓), un texte ailleurs.
  *  Run, Invite et OutputCard ne sont plus rendus par StepHead : les vues les posent elles-mêmes (le créateur garde Invite
  *  et OutputCard : modules, Forme, PR ; Run reste surtout au relecteur et à la note, Vérifier). Le relecteur : inchangé.
+ *  La revue essentielle (note 0.16.0-revue-essentielle) : StepHead n'a plus de rangée d'actions pour personne (stepActions
+ *  de core/vibecoder retirée, son paramètre own avec elle : plus rien à écarter) ; le nom de l'étape suit le rôle
+ *  (stepName : « Règles », « Essai », « Publier » pour le relecteur) ; son badge, sans ✓ ni clic au relecteur, comme
+ *  avant. Run reste (Publier la revue, S'assigner la PR, Vérifier la note).
  *  Ne connaît pas : le pont (rappels passés ; ⏹ et la langue par le contexte StopRun).
  *  Utilisé par : les vues d'étape ; vibe-coder (badge Relecteur,
  *  badge du worktree). */

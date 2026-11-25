@@ -9,16 +9,24 @@
  *  proposent (proposedVerdict : il ne fait que proposer ; les cas lus par leur clé, caseKeys de shared/test-cases) et si la revue affichée est celle qu'on
  *  publierait (reviewSent : le texte du brouillon est draftText, de shared/review, celui du principal ;
  *  les blancs de fin et les \r\n ne comptent pas).
+ *  La revue essentielle (note 0.16.0-revue-essentielle) : sans carte de commit, plus de verdict par commit —
+ *  proposedVerdict ne lit que la note et les tests d'invariants (une marque « commit:<hash> » restée au relevé ne
+ *  compte plus) ; quoteRemark part avec la vue des commits (commits-view). Un constat de la relecture du code, mis au
+ *  brouillon par sa 💬 :
+ *  findingTarget(title: string): string — la cible de sa remarque, « code: <son titre> », sur une ligne et dans la borne
+ *  du principal : la même pour le même constat (ses remarques se retrouvent sous lui, remarksAt).
+ *  findingDraft(finding: Section): string — le texte qui remplit sa zone de remarque : son titre, puis son détail, coupé
+ *  à DRAFT_MAX ; l'utilisateur le corrige, rien n'est ajouté sans son clic.
  *  Ne connaît pas : le DOM, React, le pont, les noms des fichiers de sortie.
- *  Utilisé par : app/panel/vibecoder (commits-view, note-view, invariants-view : remark ;
- *  commits-view : quoteRemark ; comment-box : DRAFT_MAX ;
+ *  Utilisé par : app/panel/vibecoder (note-view, rules-view, findings-view : remark ;
+ *  findings-view : findingTarget, findingDraft ; comment-box : DRAFT_MAX ;
  *  review-view, step-parts, vibe-coder : isLive ;
  *  vues du relecteur : remarksAt, proposedVerdict, reviewSent). */
 import { draftText, type Verdict } from 'shared/review';
 import { caseKeys } from 'shared/test-cases';
 import type { VibeComment, VibeRun, VibeView } from 'technicals/bridge';
 import { excerpt } from './note';
-import type { parseReview } from './outputs';
+import type { parseReview, Section } from './outputs';
 
 // Les bornes du principal (draftVibe) : la cible d'une remarque, son texte.
 const TARGET_MAX = 300;
@@ -41,6 +49,16 @@ export function quoteRemark(target: string, path: string, block: string, text: s
   const note = text.trim();
   const lines = clip(block, Math.max(1, DRAFT_MAX - path.length - note.length - 2 * fence.length - 4));
   return remark(target, `${path}\n${fence}\n${lines}\n${fence}\n${note}`);
+}
+
+// La cible de la remarque d'un constat de la relecture du code (voir l'en-tête).
+export function findingTarget(_title: string): string {
+  throw new Error('not implemented');
+}
+
+// Le texte qui remplit la zone de remarque d'un constat : son titre, puis son détail (voir l'en-tête).
+export function findingDraft(_finding: Section): string {
+  throw new Error('not implemented');
 }
 
 // Une course qui retient les autres : en cours, en attente d'une autorisation, arrêtée non tranchée.

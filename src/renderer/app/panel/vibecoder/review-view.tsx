@@ -8,6 +8,8 @@
  *  ni Relancer, ni Appliquer, ni case à cocher, ni 💬 ; plus de liste « Avant la PR » (le relevé porte toujours
  *  view.checklist, on ne la montre plus), plus de cartes vides. Le plan de test, s'il y en a un : EcranSection
  *  (« Relire à l'écran »). Le relecteur : inchangé (Relire à l'écran seul).
+ *  La revue essentielle (note 0.16.0-revue-essentielle) : pour le relecteur c'est l'arrêt « l'essai » — l'en-tête puis
+ *  le plan de test (EcranSection), rien d'autre ; StepHead n'a plus d'actions à écarter (own retiré).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { failedChecks, parseChecks, tagOf, withoutApplied } from 'core/vibecoder';
 import type { VibeLang } from 'technicals/bridge';

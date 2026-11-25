@@ -8,6 +8,11 @@
  *  brouillon de revue (draft-view) — aucune action qui édite, génère ou commite. S'assigner : action directe
  *  seulement (F-114), au clic ; le principal prend le numéro et le login de son relevé, rien n'est envoyé.
  *  L'en-tête est rendu ici (Publier, au relecteur, est dans draft-view : `own`).
+ *  La revue essentielle (note 0.16.0-revue-essentielle), en relecteur, l'arrêt « publier » : la carte de la PR,
+ *  S'assigner la PR / Me retirer de la PR si le relevé les montre, puis les constats de l'agent sur le code
+ *  (FindingsView), au-dessus du brouillon de revue, du verdict et de Publier la revue (DraftView, inchangés ; la phrase
+ *  du brouillon vide, dans draft-view, ne cite plus les commits). StepHead n'a plus d'actions à écarter (own retiré).
+ *  Le créateur : inchangé.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { parseCi } from 'core/vibecoder';
 import type { VibeLang } from 'technicals/bridge';

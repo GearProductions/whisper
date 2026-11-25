@@ -15,8 +15,10 @@
  *  refuse sinon), sans clic autrement ; sinon — jamais validée, modifiée depuis, à revoir, une preuve
  *  qui ne passe pas — ni ✓ ni clic : le badge ne valide jamais à la place du système. La note, la Revue, la PR et le
  *  relecteur : ni ✓ ni clic.
+ *  La revue essentielle (note 0.16.0-revue-essentielle) : awaiting est retirée — ce que l'arrêt en cours attend du
+ *  relecteur se dit sur la ligne d'état (status-line), plus dans une phrase de la vue des invariants ; reste stepBadge.
  *  Ne connaît pas : le DOM, React, ce que le clic envoie (step-parts : act.mark de l'étape, null ou 'ok').
- *  Utilisé par : app/panel/vibecoder (invariants-view : les cas à valider du relecteur ; step-parts : stepBadge). */
+ *  Utilisé par : app/panel/vibecoder (step-parts : stepBadge). */
 import { caseKeys } from 'shared/test-cases';
 import type { VibeFlow, VibeMarkState, VibeStep, VibeView } from 'technicals/bridge';
 
