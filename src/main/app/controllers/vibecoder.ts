@@ -229,7 +229,7 @@ import { githubPage } from 'core/repo';
 import { START, type CommandError } from 'core/commands';
 import {
   acceptedTexts, addComment, artifactOf, caseBlocks, caseHashes, convertCaseMarks, setCaseMark, beforeOf, blobSha, buildMessage, designEnd, hasComment, keepNote, noteDesign, parseQuestions, skeletonMarks, vibeMarks, ARTIFACT_OPS, DIRECT_ACTIONS, DIRECT_ONLY, editComment, locateNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath, nextRef,
-  CHECKED, filesText, parseFiles, stepContents, validateStep, versionName, withdraw, withdrawn, type CheckedStep, type FileBlobs, type Marks, type StepContent, type StepFiles,
+  CHECKED, filesText, parseFiles, stepChecks, stepContents, validateStep, versionName, withdraw, withdrawn, type CheckedStep, type FileBlobs, type Marks, type StepContent, type StepFiles,
   blockedBy, BRANCH_CHANGES, lockCode, lockText, ELSEWHERE, json, newRequestCard, branchNoteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeRole, vibeView, whoOf, type ActionDef, type MessageError, type NoteRef,
 } from 'core/vibecoder';
 import { draftText, isVerdict } from 'shared/review';
@@ -869,7 +869,7 @@ function drive(agent: AgentConfig, view: VibeView, cfg: Config) {
 // Un refus : son texte, et sa clé (reason : celle d'ERRORS ; 'disabled', le grisé du relevé ; 'same' | 'busy' | 'changing' avec by,
 // la course ou l'action directe qui retient). Les portes qui ne lisent que le texte (l'écran) ne la voient pas.
 // done : la fin d'une action d'artefact (runDirect), son refus avec sa clé ; l'exécuteur l'attend avant de répondre.
-export type Refusal = SendResult & { reason?: string; by?: string; done?: Promise<Refusal> };
+export type Refusal = SendResult & { reason?: string; by?: string; done?: Promise<Refusal>; why?: string };
 // L'écran ne voit que le texte du refus, pas sa clé.
 const bare = ({ ok, error }: SendResult): SendResult => ({ ok, error });
 const fail = (lang: VibeLang, key: keyof typeof ERRORS.fr): Refusal => ({ ok: false, error: ERRORS[lang][key], reason: key });
@@ -1434,9 +1434,31 @@ export function validateVibe(agent: AgentConfig, step: unknown, verdict: unknown
   if (view.flow !== 'create') return { ...fail(lang, 'action'), reason: 'flow' };
   // Les modules : par la preuve qui passe seulement (view.proof : 'ok', ou 'none' sans ligne « → invariant »), en express aussi.
   const unproved = step === 'modules' && verdict === 'ok' && view.proof && view.proof.state !== 'ok' && view.proof.state !== 'none';
-  if (unproved || !markStep(agent, view, step, verdict, 'system')) return { ...fail(lang, 'action'), reason: 'not-offered' };
+  if (unproved || !markStep(agent, view, step, verdict, 'system')) return { ...fail(lang, 'action'), reason: 'not-offered', why: notValidated(agent, view, step, !!unproved) };
   refreshVibe({ now: true });
   return { ok: true };
+}
+
+// Pourquoi step.validate est refusée, pour l'agent qui la demande (en anglais, comme la table des commandes) : la preuve
+// qui manque, l'étape d'avant pas validée (laquelle, et à qui elle revient), rien à valider, ou le retrait à la main qui tient.
+function notValidated(agent: AgentConfig, view: VibeView, step: CheckedStep, unproved: boolean): string {
+  const marks = vibeStore().marks[agent.id] || {};
+  const contents = stepContents(view, marks, viewBlobs.get(view) ?? []);
+  const checks = stepChecks(marks, contents);
+  const before = CHECKED.slice(0, CHECKED.indexOf(step)).find((s) => checks[s].state !== 'ok');
+  if (before) {
+    const state = checks[before].state ?? 'never validated';
+    const whose = before === 'note' ? 'the note changed or was never validated, only the user validates it, on the screen'
+      : before === 'invariants' && state === 'changed' ? 'its tests changed since their validation, the user looks at them and resumes at the pause after the invariants (Resume)'
+        : 'the app validates it once it is done, unless the user withdrew its validation by hand';
+    return `the ${before} step is not validated (${state}): ${whose}`;
+  }
+  // l'étape d'avant d'abord : une preuve ne vaut que sur des tests que l'utilisateur a laissés passer
+  if (unproved) return `the proof has not passed (${view.proof?.state}): run prove, the modules are validated once every « → invariant » line of the note is proved`;
+  const hash = contents[step]?.hash;
+  if (!hash) return step === 'invariants' ? 'nothing to validate: a test is marked « À revoir » by the user, or the tests are not written' : 'nothing to validate for this step yet';
+  if (withdrawn(marks, step) === hash) return 'the user withdrew this validation by hand and the step has not changed since: it is theirs to give back';
+  return 'nothing to validate';
 }
 
 // Le brouillon de revue de la PR suivie, du relecteur : ajouter une remarque (sa cible, sur une ligne de 300 caractères

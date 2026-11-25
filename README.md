@@ -670,7 +670,9 @@ dans la table) :
 - `invalid-args` : un argument manque, est inconnu ou mal typé, un nom d'artefact
   est refusé (`arg: name`), ou une remarque du brouillon est inconnue (`arg: id`) ;
 - `no-survey` : pas encore de relevé pour ce dossier ;
-- `not-offered` : l'action n'existe pas, ou n'est pas proposée à cette étape ;
+- `not-offered` : l'action n'existe pas, ou n'est pas proposée à cette étape (pour
+  `step.validate`, les détails disent pourquoi : l'étape d'avant pas validée, la preuve
+  qui manque…) ; la CLI écrit les détails d'un refus sous son message ;
 - `disabled` : proposée mais grisée, le motif est dans les détails ;
 - `same` : la même action court déjà ;
 - `busy` : une autre course retient le dossier, et cette action y écrit ;
@@ -839,7 +841,9 @@ relire une PR (le relecteur, plus bas) :
    **À l'écran, les invariants sont rangés par ligne « → invariant » de votre
    note.** En titre, le texte de la ligne tel que vous l'avez écrit, et son état :
    *écrite* (ses tests sont rouges), *prouvée*, *non prouvée* (un état par ligne :
-   c'est ce que la preuve donne, et c'est la ligne que vous jugez). Dessous, les
+   c'est ce que la preuve donne, et c'est la ligne que vous jugez). Un clic sur
+   *prouvée* déplie la preuve — le mutant qui a fait échouer le test —, mise en forme ;
+   la raison d'une ligne *non prouvée* reste toujours affichée. Dessous, les
    tests qui la gardent, en pseudo-code (un test pas encore lu : son titre, « lecture
    en cours »), chacun avec *Validé* / *À revoir* et sa 💬 pour le citer à l'agent. Ces deux
    verdicts sont vos notes : ce que vous avez lu, ce que vous contestez. *Validé* n'est

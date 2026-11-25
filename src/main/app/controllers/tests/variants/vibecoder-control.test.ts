@@ -727,7 +727,10 @@ describe('les tests d’invariants changés après leur validation', () => {
     expect(view().pause).toBe('invariants');
     expect(await halted()).toBe(true);
     expect(await ask('run.start', { action: 'ponytail' })).toMatchObject({ ok: false, error: { code: 'halted' } });
-    expect(await ask('step.validate', { step: 'modules', verdict: 'ok' })).toMatchObject({ ok: false });
+    // les modules pas validables, et le refus nomme l'étape qui manque et pourquoi (T-43)
+    const refusal = await ask('step.validate', { step: 'modules', verdict: 'ok' }) as unknown as { ok: boolean; error: { code: string; details: { reason: string } } };
+    expect(refusal).toMatchObject({ ok: false, error: { code: 'not-offered' } });
+    expect(refusal.error.details.reason).toMatch(/invariants step is not validated.*tests changed/);
     await survey();
     expect(checkOf('invariants')?.state).toBe('changed');   // aucun relevé ne les revalide
 
@@ -934,7 +937,10 @@ describe('la validation des modules par la CLI attend la preuve', () => {
     // témoin : la Forme et les invariants sont validés par le système, rien à la main
     expect(checkOf('invariants')).toMatchObject({ state: 'ok', by: 'system' });
 
-    expect(await validateModules()).toMatchObject({ ok: false });
+    // refusée, et le refus dit pourquoi (T-43) : la preuve
+    const unproved = await validateModules();
+    expect(unproved).toMatchObject({ ok: false, error: { code: 'not-offered' } });
+    expect((unproved as unknown as { error: { details: { reason: string } } }).error.details.reason).toMatch(/proof/);
     expect(checkOf('modules')?.state).not.toBe('ok');
 
     write(path.join(out, 'preuve.md'), PROVED());

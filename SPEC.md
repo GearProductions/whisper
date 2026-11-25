@@ -1734,7 +1734,11 @@ TypeScript.
   aujourd'hui, et ses fichiers retenus ; la validation est marquée posée par le
   système. Refusée (`not-offered`) quand il n'y a rien
   à valider, que l'étape d'avant n'est pas cochée ou, pour `modules` (0.16.0), que
-  la preuve des invariants du dernier relevé ne passe pas (F-100, I-66) ; pour un relecteur, `refused`.
+  la preuve des invariants du dernier relevé ne passe pas (F-100, I-66) ; ce refus dit
+  pourquoi dans ses détails (`reason` : la preuve qui manque, l'étape d'avant pas
+  validée — laquelle, et à qui elle revient —, rien à valider, ou le retrait à la main
+  qui tient), et la CLI écrit les détails d'un refus, un par ligne, entre son message
+  et sa consigne ; pour un relecteur, `refused`.
   Elle ne recoche jamais une étape qui suit, ne touche pas à l'index du dépôt ni à
   aucun fichier du projet (I-60 à I-62). Après une correction qu'il a faite
   lui-même, l'agent principal revalide ainsi, dans l'ordre, les étapes dont ce
@@ -2109,8 +2113,9 @@ créateur ; le relecteur, F-101) :
    « → invariant » de la note. En titre, le texte de la ligne tel que
    l'utilisateur l'a écrit, et son état d'après la preuve : *écrite* (ses tests
    sont rouges, pas de preuve au relevé, ou ligne ajoutée depuis la preuve),
-   *prouvée* (le mutant en détail), *non prouvée* (la raison que la preuve
-   remonte, toujours visible) : un état par ligne, c'est la ligne que
+   *prouvée* (le mutant en détail, replié : le badge « prouvée » est un bouton qui
+   l'ouvre et le replie), *non prouvée* (la raison que la preuve remonte, toujours
+   visible) ; ce détail est mis en forme (Markdown, jamais de HTML) : un état par ligne, c'est la ligne que
    l'utilisateur juge. Dessous, les tests qui la gardent, en pseudo-code (un test
    pas encore lu : son titre et « lecture en cours » ; un point d'attention d'une
    lecture : visible), chacun avec sa 💬, qui cite son titre dans le champ, et

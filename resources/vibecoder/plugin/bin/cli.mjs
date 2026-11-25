@@ -93,7 +93,12 @@ export const parseCommandLine = (argv) => {
 // render(answer, json: boolean) → string
 export const render = (answer, json) => {
   if (json) return JSON.stringify(answer);
-  if (!answer.ok) return `${answer.error.code}: ${answer.error.message}\n${answer.error.todo}`;
+  if (!answer.ok) {
+    // les détails du refus (la raison, l'action, qui retient…), un par ligne : sans eux un refus ne dit pas pourquoi
+    const details = Object.entries(answer.error.details ?? {}).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+      .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`);
+    return [`${answer.error.code}: ${answer.error.message}`, ...details, answer.error.todo].join('\n');
+  }
   const r = answer.result;
   if (r?.queued) return `Queued: the request waits for "${r.by}" to finish, the app starts it by itself.`;
   return r === null || r === undefined ? 'ok' : typeof r === 'string' ? r : JSON.stringify(r, null, 2);

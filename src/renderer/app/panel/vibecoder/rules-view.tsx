@@ -1,7 +1,8 @@
 /** rules-view — l'étape Invariants du créateur (note 0.16.0-ecran-essentiel) : les règles critiques de la note, une par
  *  ligne « → invariant » (ruleGroups, core/vibecoder). En titre, le texte de la ligne tel que l'utilisateur l'a écrit et
  *  son état (écrite : ses tests sont rouges ; prouvée ; non prouvée) ; dessous, le résultat de la preuve pour cette
- *  ligne (le mutant qui l'a prouvée, ou pourquoi elle remonte à l'utilisateur : il ne s'affiche qu'ici), puis les tests
+ *  ligne, mis en forme (MarkdownView) : le mutant qui l'a prouvée, replié, que le badge « prouvée » ouvre et replie (un
+ *  bouton, seulement s'il y a un détail) ; pourquoi elle remonte à l'utilisateur, toujours visible (il ne s'affiche qu'ici), puis les tests
  *  qui la gardent, en pseudo-code (leur titre, le pseudo-code coloré, pseudoLines ; leur point d'attention), chacun
  *  avec Ouvrir dans l'éditeur en icône discrète. Un test d'avant la branche qui garde déjà la ligne (l'alignement le
  *  nomme, il n'est pas au relevé) : son chemin et son titre, sans pseudo-code. Une ligne sans test : « aucun test ». Les tests qui ne gardent aucune
@@ -20,12 +21,12 @@
  *  ce que veut dire « Attention », repris par sa ligne d'aide
  *  Ne connaît pas : le pont (rappels passés), le relecteur (invariants-view garde sa vue), le brouillon de revue.
  *  Utilisé par : invariants-view (RulesView ; Pseudo, Attention, warningHelp). */
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { progress, pseudoLines, ruleGroups, type RuleCase, type RuleState, type Strings } from 'core/vibecoder';
 import type { VibeLang } from 'technicals/bridge';
 import { FeedbackView } from './feedback-view';
 import { Icon, IconButton } from './icons';
-import { InlineMd } from './markdown-view';
+import { InlineMd, MarkdownView } from './markdown-view';
 import type { StepProps } from './step-views';
 import { CaseVerdict } from './validation';
 import './invariants-view.css';   // le pseudo-code (vc-pseudo, vc-tk-*) et l'encart d'attention, comme les cartes du relecteur
@@ -42,6 +43,8 @@ const fr = {
   warningHelp: 'Attention : le relecteur pense que ce test ne vérifie pas vraiment ce qu\'il annonce (mock, boucle, assertion faible…). Ce n\'est pas un échec : une piste pour votre relecture.',
   quote: 'Citer cette règle dans le champ',
   quoteTest: 'Citer ce test dans le champ',
+  showProof: 'Voir la preuve : le mutant qui a fait échouer le test',
+  hideProof: 'Replier la preuve',
   count: (total: number, ok: number, ko: number) => `${total} test${total > 1 ? 's' : ''} · ${ok} validé${ok > 1 ? 's' : ''} · ${ko} à revoir · ${total - ok - ko} à lire`,
   none: 'La note ne demande aucun invariant.',
 };
@@ -58,6 +61,8 @@ const S: Record<VibeLang, typeof fr> = {
     warningHelp: 'Warning: the reviewer thinks this test does not really check what it claims (mock, loop, weak assertion…). It is not a failure: a lead for your review.',
     quote: 'Quote this rule in the field',
     quoteTest: 'Quote this test in the field',
+    showProof: 'Show the proof: the mutant that made the test fail',
+    hideProof: 'Fold the proof',
     count: (total: number, ok: number, ko: number) => `${total} test${total > 1 ? 's' : ''} · ${ok} approved · ${ko} to review · ${total - ok - ko} to read`,
     none: 'The note asks for no invariant.',
   },
@@ -70,6 +75,9 @@ export function RulesView({ view, t, act }: StepProps): ReactNode {
   const align = view.outputs['align.md'];
   const seen = useMemo(() => progress(view.invariants), [view.invariants]);   // où l'utilisateur en est de sa lecture
   const quote = view.actions.some((a) => a.id === 'comment') ? (q: string) => act.prefill('comment', q) : undefined;
+  // La preuve d'une règle prouvée : repliée, « prouvée » l'ouvre (par ligne) ; celle d'une règle non prouvée attend l'utilisateur : toujours là.
+  const [shown, setShown] = useState<ReadonlySet<string>>(new Set());
+  const toggle = (line: string) => setShown((p) => { const n = new Set(p); if (!n.delete(line)) n.add(line); return n; });
   const test = ({ file, index, view: c }: RuleCase) => {
     const r = c.stale ? null : c.reading;   // périmée : ni son pseudo-code ni son point d'attention, ils parlent de l'ancien bloc
     return (
@@ -94,10 +102,15 @@ export function RulesView({ view, t, act }: StepProps): ReactNode {
         <section key={i} className="vc-rule" data-state={r.state}>
           <div className="vc-rule-head">
             <h3 className="vc-rule-line">{r.line}</h3>
-            <span className="vc-rule-state">{s.state[r.state]}</span>
+            {r.state === 'proved' && r.detail ? (
+              <button type="button" className="vc-rule-state" aria-expanded={shown.has(r.line)} title={shown.has(r.line) ? s.hideProof : s.showProof}
+                onClick={() => toggle(r.line)}>{s.state[r.state]}</button>
+            ) : <span className="vc-rule-state">{s.state[r.state]}</span>}
             {quote ? <IconButton icon="comment" label={s.quote} onClick={() => quote(r.line)} /> : null}
           </div>
-          {r.detail ? <p className="vc-rule-proof">{r.detail}</p> : null}
+          {r.detail && (r.state !== 'proved' || shown.has(r.line)) ? (
+            <div className="vc-rule-proof"><MarkdownView md={r.detail} t={t} onOpenLink={act.openLink} /></div>
+          ) : null}
           {r.elsewhere.map((e) => <p key={`${e.path}:${e.title}`} className="vc-rule-elsewhere vc-mono">{e.path} · {e.title}</p>)}
           {r.cases.length ? r.cases.map(test) : r.elsewhere.length ? null : <p className="vc-rule-notest">{s.noTest}</p>}
         </section>

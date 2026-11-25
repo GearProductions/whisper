@@ -7,6 +7,14 @@
 .vc-rule-line { flex: 1 1 240px; min-width: 0; margin: 0; color: var(--vc-text); font-size: 14px; font-weight: 600; line-height: 1.45; overflow-wrap: break-word; text-wrap: pretty; }
 .vc-rule-state { flex: none; padding: 1px 7px; border-radius: var(--vc-radius); background: var(--vc-hover); color: var(--vc-soft); font: 500 11.5px/1.5 var(--vc-sans); white-space: nowrap; }
 .vc-rule[data-state="proved"] .vc-rule-state { color: var(--vc-ok-text); }
+/* « prouvée » qui déplie sa preuve : le même badge, cliquable, un chevron qui tourne */
+button.vc-rule-state { border: 0; cursor: pointer; }
+button.vc-rule-state::after { content: '›'; display: inline-block; margin-left: 5px; transition: transform .12s; }
+button.vc-rule-state[aria-expanded="true"]::after { transform: rotate(90deg); }
+button.vc-rule-state:hover { filter: brightness(1.15); }
+button.vc-rule-state:focus-visible { outline: 2px solid var(--vc-accent, currentColor); outline-offset: 1px; }
+.vc-rule-proof > * > :first-child { margin-top: 0; }
+.vc-rule-proof > * > :last-child { margin-bottom: 0; }
 .vc-rule[data-state="unproved"] .vc-rule-state { background: var(--vc-warn-bg); color: var(--vc-warn); }
 .vc-rule-proof { margin: 6px 0 0; color: var(--vc-soft); font-size: 12.8px; line-height: 1.5; overflow-wrap: break-word; }
 .vc-rule[data-state="unproved"] .vc-rule-proof { color: var(--vc-warn); }

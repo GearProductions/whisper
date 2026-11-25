@@ -115,6 +115,11 @@ describe('render et exitCode', () => {
     const text = render(refused, false);
     for (const part of ['busy', 'Another action holds the folder.', 'Wait for it.']) expect(text).toContain(part);
   });
+  it('un refus avec des détails : chacun sur sa ligne, entre le message et le todo ; un détail vide n\'est pas écrit', () => {
+    const why: Answer = { ok: false, error: { code: 'not-offered', message: 'Not offered.', todo: 'Call next.', details: { reason: 'the note step is not validated', by: '', action: 'modules' } } } as Answer;
+    expect(render(why, false)).toBe('not-offered: Not offered.\nreason: the note step is not validated\naction: modules\nCall next.');
+    expect(render(refused, false)).toBe('busy: Another action holds the folder.\nWait for it.');
+  });
   it('--json : la réponse sur une ligne', () => {
     for (const a of [ok, queued, refused]) {
       const text = render(a, true);

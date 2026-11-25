@@ -50,11 +50,26 @@ it('deux lignes « → invariant » : deux règles, leur texte tel qu\'écrit, d
   expect(rules().map((r) => r.querySelector('.vc-rule-line')?.textContent)).toEqual([lineB, lineA]);
 });
 
-it('une ligne prouvée : « prouvée », le mutant dessous', async () => {
-  await draw({ mustNot: [inv(A)], proof: { state: 'ok', lines: [{ line: lineA, proved: true, detail: 'effacer sans vérifier' }] } });
+it('une ligne prouvée : « prouvée », un bouton ; le détail de la preuve replié, un clic l\'ouvre mis en forme (Markdown), un second le replie', async () => {
+  await draw({ mustNot: [inv(A)], proof: { state: 'ok', lines: [{ line: lineA, proved: true, detail: '- **Mutant** : effacer sans vérifier\n- **Test** : le cas passe au rouge' }] } });
   expect(rules()[0].dataset.state).toBe('proved');
+  const badge = rules()[0].querySelector<HTMLButtonElement>('button.vc-rule-state')!;
+  expect([badge.textContent, badge.getAttribute('aria-expanded')]).toEqual(['prouvée', 'false']);
+  expect(rules()[0].querySelector('.vc-rule-proof')).toBeNull();
+  await act(() => badge.click());
+  const proof = rules()[0].querySelector('.vc-rule-proof')!;
+  expect(badge.getAttribute('aria-expanded')).toBe('true');
+  expect(proof.querySelectorAll('li')).toHaveLength(2);
+  expect(proof.textContent).toContain('Mutant : effacer sans vérifier');
+  expect(proof.textContent).not.toContain('**');
+  await act(() => badge.click());
+  expect(rules()[0].querySelector('.vc-rule-proof')).toBeNull();
+});
+
+it('une ligne prouvée sans détail : « prouvée », pas un bouton', async () => {
+  await draw({ mustNot: [inv(A)], proof: { state: 'ok', lines: [{ line: lineA, proved: true, detail: '' }] } });
+  expect(rules()[0].querySelector('button.vc-rule-state')).toBeNull();
   expect(rules()[0].querySelector('.vc-rule-state')?.textContent).toBe('prouvée');
-  expect(rules()[0].querySelector('.vc-rule-proof')?.textContent).toBe('effacer sans vérifier');
 });
 
 it('une ligne non prouvée : « non prouvée », sa raison, toujours visible (hors de tout repli)', async () => {
@@ -63,6 +78,7 @@ it('une ligne non prouvée : « non prouvée », sa raison, toujours visible (ho
   expect(rules()[0].querySelector('.vc-rule-state')?.textContent).toBe('non prouvée');
   expect(rules()[0].querySelector('.vc-rule-proof')?.textContent).toBe('aucun mutant ne tient');
   expect(rules()[0].querySelector('details')).toBeNull();
+  expect(rules()[0].querySelector('button.vc-rule-state')).toBeNull();   // rien à déplier : ce qui attend l'utilisateur ne se replie pas
 });
 
 it('une ligne sans preuve : « écrite », rien dessous', async () => {
@@ -155,8 +171,9 @@ it('aucun bouton d\'action, aucune validation, aucun chiffre en tête, ni « non
   await draw({ mustNot: [inv(A), inv(B)], proof: { state: 'blocked', lines: [{ line: lineA, proved: true, detail: 'm' }, { line: lineB, proved: false, detail: 'r' }] },
     invariants: [file('a', ['lu', 'pas lu', 'autre'], [reading('lu', A), reading('autre', 'rien')])], align: '- [toi] q' });
   expect(page.querySelector('button.vc-run, .vc-vbtn, .vc-mark, .vc-seg, .vc-isum, .vc-ibar, input, textarea, select')).toBeNull();
-  // des boutons-icônes (💬, Ouvrir, le 💬 d'un bloc de l'alignement) et le verdict d'un test (Validé / À revoir), rien d'autre
-  expect([...page.querySelectorAll('button')].every((b) => b.classList.contains('vc-tool') || b.classList.contains('vc-quote') || !!b.closest('.vc-verdict'))).toBe(true);
+  // des boutons-icônes (💬, Ouvrir, le 💬 d'un bloc de l'alignement), le verdict d'un test (Validé / À revoir) et le badge
+  // « prouvée » qui déplie sa preuve, rien d'autre
+  expect([...page.querySelectorAll('button')].every((b) => b.classList.contains('vc-tool') || b.classList.contains('vc-quote') || b.classList.contains('vc-rule-state') || !!b.closest('.vc-verdict'))).toBe(true);
   const text = page.textContent ?? '';
   for (const bad of ['non rattaché', 'Pas de lecture pour ce cas', 'Valider', 'Relire', 'Enregistrer', 'Lire en pseudo-code', 'Voir le fichier']) expect(text).not.toContain(bad);
   expect(page.firstElementChild?.textContent).not.toMatch(/^\d/);
