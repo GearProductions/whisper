@@ -750,7 +750,10 @@ par l'🕘 Historique (F-67).
   la CI en échec dite, « La PR est verte : à vous de la fusionner ». Une pause
   d'un ✓ retiré à la main nomme l'étape (F-102) ; la note qui a perdu son ✓
   attend sa validation ; le moteur arrêté hors d'une pause dit qu'il l'est et
-  de reprendre. Rien pour le relecteur, ni ligne ni bouton du moteur ;
+  de reprendre. Le parcours fini — la PR verte et chaque étape faite, la PR
+  fusionnée, ou fermée — : la ligne seule, sans *Reprendre* (il n'y a rien à
+  reprendre ; une étape pas faite, la CI en cours ou en échec : le bouton
+  reste). Rien pour le relecteur, ni ligne ni bouton du moteur ;
 - dessous, sur toute la largeur à gauche de la conversation, l'étape
   choisie — sinon celle en cours, que l'écran suit —, son en-tête (F-93),
   sans action pour le créateur ; ni onglets des étapes ni carte « prochaine

@@ -13,6 +13,8 @@
  *  sinon le moteur arrêté hors d'une pause (« Le système est arrêté : reprenez »).
  *  yours : la ligne attend l'utilisateur (une question, la note, une pause, un ✓ retiré, la PR verte, le moteur
  *  arrêté) ; false : le système travaille. Le relecteur, ou un relevé en erreur : null (aucune ligne).
+ *  over : le parcours est fini, il n'y a rien à reprendre (la PR verte et chaque étape faite ; fusionnée ; fermée) :
+ *  breadcrumb ne pose pas Reprendre à côté. Une étape pas faite (une correction en cours), la CI en cours ou en échec : pas over.
  *  Ne connaît pas : le DOM, React, le pont, le bouton du moteur (breadcrumb le pose à côté).
  *  Utilisé par : app/panel/vibecoder (breadcrumb). */
 import type { VibeView } from 'technicals/bridge';
@@ -21,7 +23,7 @@ import { progress } from './invariants';
 import { parseCi } from './outputs';
 import { runningRuns } from './screen';
 
-export type StatusLine = { text: string; yours: boolean };
+export type StatusLine = { text: string; yours: boolean; over?: true };
 
 export function statusLine(view: VibeView): StatusLine | null {
   if (view.flow === 'review' || view.error) return null;
@@ -47,10 +49,10 @@ export function statusLine(view: VibeView): StatusLine | null {
   if (pause === 'invariants' || pause === 'modules') return yours(l.pause[pause]);
   if (view.pr && (!view.pr.state || view.pr.state === 'OPEN')) {   // état inconnu : ouverte, comme pr-view
     const ci = parseCi(view.outputs['ci.md']?.text ?? '');
-    if (ci?.state === 'ok') return yours(l.green);
+    if (ci?.state === 'ok') return view.steps.every((x) => x.status === 'done') ? { ...yours(l.green), over: true } : yours(l.green);
     return { text: ci?.state === 'ko' ? l.ciFailed : l.ciRunning, yours: false };
   }
-  if (view.pr?.state === 'MERGED') return { text: l.merged, yours: false };
-  if (view.pr?.state === 'CLOSED') return { text: l.closed, yours: false };
+  if (view.pr?.state === 'MERGED') return { text: l.merged, yours: false, over: true };
+  if (view.pr?.state === 'CLOSED') return { text: l.closed, yours: false, over: true };
   return yours(l.stopped);
 }

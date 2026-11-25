@@ -164,6 +164,29 @@ it('l\'action grisée : Reprendre grisé, sa raison en title ; masquée (note pa
   }
 });
 
+it('le parcours fini (la PR verte et chaque étape faite, fusionnée, fermée) : la ligne, sans Reprendre ; le moteur en route : Arrêter reste', async () => {
+  const done = ['note', 'forme', 'invariants', 'modules', 'revue', 'pr'].map((id) => ({ id, status: 'done', facts: '' }));
+  const green = { 'ci.md': { text: '✓ 3/3\n', time: 1 } };
+  for (const view of [
+    creator({ steps: done as never, pr: { state: 'OPEN' } as never, outputs: green as never }),
+    creator({ pr: { state: 'MERGED' } as never }),
+    creator({ pr: { state: 'CLOSED' } as never }),
+  ]) {
+    const m = await mount(view, [], [], { a: act1(), on: false }, () => {});
+    expect(lines(m.page).map((p) => p.textContent)).toEqual([statusLine(view)!.text]);
+    expect(runs(m.page)).toHaveLength(0);
+    await m.unmount();
+  }
+  // la PR verte mais une étape pas faite (une correction en cours) : Reprendre garde son sens
+  const pending = done.map((x) => (x.id === 'modules' ? { ...x, status: 'current' } : x));
+  let m = await mount(creator({ steps: pending as never, pr: { state: 'OPEN' } as never, outputs: green as never }), [], [], { a: act1(), on: false }, () => {});
+  expect(runs(m.page).map((b) => b.textContent)).toEqual([act1().label]);
+  await m.unmount();
+  m = await mount(creator({ steps: done as never, pr: { state: 'OPEN' } as never, outputs: green as never, vibe: true }), [], [], { a: act1(), on: true }, () => {});
+  expect(runs(m.page).map((b) => b.textContent)).toEqual([s.vibeStop]);
+  await m.unmount();
+});
+
 it('cette pause levée, l\'action de nouveau au relevé : Reprendre', async () => {
   const m = await mount(creator({ pause: null }), [], [], { a: act1(), on: false }, () => {});
   expect(runs(m.page).map((b) => b.textContent)).toEqual([act1().label]);

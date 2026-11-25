@@ -128,9 +128,17 @@ describe('statusLine', () => {
     expect(statusLine(view('pr', { pr, outputs: ci('✓ tout passe') }))).toEqual({ text: 'La PR est verte : à vous de la fusionner', yours: true });
   });
 
+  it('le parcours fini (over) : la PR verte et chaque étape faite, fusionnée, fermée — rien à reprendre ; verte avec une étape pas faite, la CI en cours ou en échec : non', () => {
+    const allDone = (over: Partial<VibeView>) => { const v = view('pr', over); return { ...v, steps: v.steps.map((x) => ({ ...x, status: 'done' as const })) }; };
+    expect(statusLine(allDone({ pr, outputs: ci('✓ tout passe') }))).toEqual({ text: 'La PR est verte : à vous de la fusionner', yours: true, over: true });
+    expect(statusLine(view('pr', { pr, outputs: ci('✓ tout passe') }))?.over).toBeUndefined();   // une étape reste : Reprendre garde son sens
+    for (const outputs of [ci('⏳ en cours'), ci('✗ échec'), {}]) expect(statusLine(allDone({ pr, outputs }))?.over).toBeUndefined();
+    expect(statusLine(view('modules'))?.over).toBeUndefined();
+  });
+
   it('la PR fusionnée : dite, rien n\'attend l\'utilisateur ; fermée sans être fusionnée : dite aussi, sans « reprenez »', () => {
-    expect(statusLine(view('pr', { pr: { ...pr, state: 'MERGED' } }))).toEqual({ text: 'La PR est fusionnée', yours: false });
-    expect(statusLine(view('pr', { pr: { ...pr, state: 'CLOSED' } }))).toEqual({ text: 'La PR est fermée, sans avoir été fusionnée', yours: false });
+    expect(statusLine(view('pr', { pr: { ...pr, state: 'MERGED' } }))).toEqual({ text: 'La PR est fusionnée', yours: false, over: true });
+    expect(statusLine(view('pr', { pr: { ...pr, state: 'CLOSED' } }))).toEqual({ text: 'La PR est fermée, sans avoir été fusionnée', yours: false, over: true });
     expect(statusLine(view('pr', { lang: 'en', pr: { ...pr, state: 'CLOSED' } }))?.text).toBe('The PR is closed, not merged');
   });
 

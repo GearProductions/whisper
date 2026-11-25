@@ -11,7 +11,8 @@
  *  note sans ✓, un ✓ d'étape retiré en sont des cas), avec à côté le bouton du moteur quand il sert (vibe : l'action
  *  vibe et si le moteur tourne) : Arrêter pendant que le système enchaîne (onStopVibe), même l'action masquée
  *  (« déjà en cours ») ; Reprendre quand il est arrêté (onVibe ; grisé, avec sa raison, si l'action l'est) ; ni l'un ni
- *  l'autre tant que l'action est masquée (note ou ✓ d'étape pas posé), ni à la pause 'note'. Ni libellé ni infobulle ne
+ *  l'autre tant que l'action est masquée (note ou ✓ d'étape pas posé), ni à la pause 'note' ; pas de Reprendre à côté
+ *  d'un parcours fini (over de statusLine : la PR verte et chaque étape faite, fusionnée, fermée). Ni libellé ni infobulle ne
  *  disent « Vibe » ; les noms internes (vibe, onVibe, onStopVibe) restent. Un relevé en erreur : pas de ligne, mais Arrêter
  *  reste tant que le moteur tourne.
  *  L'interrupteur Express (view.express ; onExpress(true | false)) reste au bout du fil, toujours là, note validée ou
@@ -42,8 +43,9 @@ export function Breadcrumb({ view, t, selected, vibe, onPick, onOpen, onVibe, on
   const n = view.commits.length;
   const review = view.flow === 'review';
   const line = statusLine(view);   // le créateur : toujours une ligne (sauf relevé en erreur) ; le relecteur : aucune
-  // Le bouton du moteur : Arrêter même sans ligne (relevé en erreur), Reprendre seulement à côté d'une ligne ; jamais au relecteur.
-  const engine = !review && vibe && (vibe.on || (line && !vibe.a.hidden && view.pause !== 'note')) ? (vibe.on ? (
+  // Le bouton du moteur : Arrêter même sans ligne (relevé en erreur), Reprendre seulement à côté d'une ligne, et pas d'un parcours
+  // fini (line.over : la PR verte et tout fait, fusionnée, fermée — rien à reprendre) ; jamais au relecteur.
+  const engine = !review && vibe && (vibe.on || (line && !line.over && !vibe.a.hidden && view.pause !== 'note')) ? (vibe.on ? (
     <button type="button" className="vc-run" data-tone="ghost" title={t.vibeStopTitle} onClick={onStopVibe}>{t.vibeStop}</button>
   ) : (
     <button type="button" className="vc-run" data-tone="vibe" disabled={!!vibe.a.disabled}

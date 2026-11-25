@@ -432,7 +432,9 @@ autre, dont la note est restée chez lui : « pas de note », sans reproche.
   modules », « Regardez vos règles, puis reprenez », « Essayez l'appli, puis
   reprenez », « La PR est ouverte, la CI tourne », « La PR est verte : à vous de la
   fusionner » —, avec à côté **le bouton du moteur** quand il sert (à toutes les étapes ;
-  *Arrêter* pendant que le système enchaîne, *Reprendre* quand il est arrêté).
+  *Arrêter* pendant que le système enchaîne, *Reprendre* quand il est arrêté ;
+  pas de *Reprendre* quand il ne reste rien à faire : la PR verte et chaque étape
+  faite, fusionnée ou fermée).
   La note qui a perdu son ✓, un ✓ d'étape que vous avez retiré : la ligne le
   dit, sans bouton. Rien de tout cela pour le relecteur ;
 - dessous, sur toute la largeur, l'étape choisie — la note du ticket, ce
