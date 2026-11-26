@@ -606,9 +606,9 @@ describe('Relecteur : la revue essentielle, quatre arrêts (0.16.0)', () => {
     expect(vibeView(loaded({ queued: ['align'] })).prepare).toEqual(READ.filter((a) => a !== 'align'));
     expect(vibeView(loaded({ runs: [{ id: 'screen', label: '', who: 'agent', state: 'running', since: 1, end: null }] as JourneyInput['runs'] })).prepare)
       .not.toContain('screen');
-    const read = vibeView(loaded({ marks: { 'read:screen': { hash: HEAD, verdict: 'ok' } }, outputs: { 'ecran.md': out(PLAN) } })).prepare;
+    const read = vibeView(loaded({ marks: { 'read:12:screen': { hash: HEAD, verdict: 'ok' } }, outputs: { 'ecran.md': out(PLAN) } })).prepare;
     expect(read).not.toContain('screen');
-    const stale = vibeView(loaded({ marks: { 'read:screen': { hash: 'autre', verdict: 'ok' } }, outputs: { 'ecran.md': out(PLAN) } })).prepare;
+    const stale = vibeView(loaded({ marks: { 'read:12:screen': { hash: 'autre', verdict: 'ok' } }, outputs: { 'ecran.md': out(PLAN) } })).prepare;
     expect(stale).toContain('screen');
   });
 

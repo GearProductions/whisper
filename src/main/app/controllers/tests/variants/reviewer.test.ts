@@ -4,7 +4,7 @@
 // exacte et ses refus : technicals/direct/tests/invariants/assign.test.ts.
 // Note 0.16.0 (docs/tickets/feat/0.16.0-revue-essentielle.md ; l'invariant : invariants/review-readings.test.ts) :
 // en relecteur, l'alignement est une lecture (ses sorties seules, avec les autres lectures), et chaque lecture de la
-// revue finie pose sa marque « read:<action> » pour le commit de tête d'où elle est partie.
+// revue finie pose sa marque « read:<pr>:<action> » pour le commit de tête d'où elle est partie.
 //
 // Sur le vrai principal (contrôleurs, fenêtres, état, réglages et fichiers sur disque, git réel sur un
 // dépôt d'essai et son origin), dans le décor commun (app/tests/harness) ; gh, service externe, est faux
@@ -183,7 +183,7 @@ const full = () => survey() as unknown as Full | undefined;
 const skills = () => claude.turns.map((t) => t.skill);
 const working = () => claude.turns.filter((t) => !t.done).map((t) => t.skill);
 const turnOf = (skill: string) => claude.turns.filter((t) => t.skill === skill).at(-1)!;   // le dernier : une lecture relancée
-// Le commit de tête de la PR, et les validations rangées dans le profil (marque « read:<action> » : { hash, verdict }).
+// Le commit de tête de la PR, et les validations rangées dans le profil (marque « read:<pr>:<action> » : { hash, verdict }).
 const head = () => git(repoDir, 'rev-parse', 'HEAD').trim();
 const marks = (): Record<string, { hash: string; verdict: string }> => {
   const file = path.join(root, 'vibecoder-state.json');
@@ -340,7 +340,7 @@ describe.skipIf(process.platform === 'win32')('relecteur : une lecture finie ret
     // témoin : la PR a bien une autre tête
     expect(head()).not.toBe(from);
     // la tête du départ, pas celle d’aujourd’hui
-    expect(readMarks()).toEqual({ 'read:review-note': { hash: from, verdict: 'ok' } });
+    expect(readMarks()).toEqual({ 'read:7:review-note': { hash: from, verdict: 'ok' } });
   }, 30000);
 
   it('chaque lecture finie pose sa marque, quelle qu’elle soit : une par action (sauf le pseudo-code des tests)', async () => {
@@ -353,7 +353,7 @@ describe.skipIf(process.platform === 'win32')('relecteur : une lecture finie ret
     await refresh();
 
     // la même tête, une marque par lecture
-    expect(readMarks()).toEqual(Object.fromEntries(READINGS.filter((id) => id !== 'read-invariants').map((id) => [`read:${id}`, { hash: from, verdict: 'ok' }])));
+    expect(readMarks()).toEqual(Object.fromEntries(READINGS.filter((id) => id !== 'read-invariants').map((id) => [`read:7:${id}`, { hash: from, verdict: 'ok' }])));
   }, 30000);
 
   it('lancée par la CLI : la même marque', async () => {
@@ -366,7 +366,7 @@ describe.skipIf(process.platform === 'win32')('relecteur : une lecture finie ret
     await refresh();
 
     // la même marque que pour le clic
-    expect(readMarks()).toEqual({ 'read:review-note': { hash: from, verdict: 'ok' } });
+    expect(readMarks()).toEqual({ 'read:7:review-note': { hash: from, verdict: 'ok' } });
   }, 30000);
 
   it('une lecture en échec : pas de marque', async () => {
@@ -416,7 +416,7 @@ describe.skipIf(process.platform === 'win32')('relecteur : une lecture finie ret
     await refresh();
 
     // la seconde seule compte
-    expect(readMarks()).toEqual({ 'read:review-note': { hash: second, verdict: 'ok' } });
+    expect(readMarks()).toEqual({ 'read:7:review-note': { hash: second, verdict: 'ok' } });
   }, 30000);
 
   // Cas limite : sa fin n’est rangée qu’au premier relevé qui la voit ; une marque retirée depuis n’est pas reposée.
@@ -427,12 +427,12 @@ describe.skipIf(process.platform === 'win32')('relecteur : une lecture finie ret
     await settle();
     await refresh();
     // témoin : rangée au premier relevé
-    expect(Object.keys(readMarks())).toEqual(['read:review-note']);
+    expect(Object.keys(readMarks())).toEqual(['read:7:review-note']);
 
     // la marque ôtée du profil, comme si une autre étape l’avait retirée
     const file = path.join(root, 'vibecoder-state.json');
     const state = JSON.parse(fs.readFileSync(file, 'utf8'));
-    delete state.marks.a1['read:review-note'];
+    delete state.marks.a1['read:7:review-note'];
     fs.writeFileSync(file, JSON.stringify(state));
     await refresh();
     await refresh();
@@ -445,8 +445,9 @@ describe.skipIf(process.platform === 'win32')('relecteur : une lecture finie ret
     await reviewer();
     const { markVibe } = await import('app/controllers');
 
+    markVibe('read:7:review-note', 'ok');
+    markVibe('read:7:align', 'ok');
     markVibe('read:review-note', 'ok');
-    markVibe(`read:align`, 'ok');
     await settle();
 
     // ni l’une ni l’autre, quelle que soit la tête

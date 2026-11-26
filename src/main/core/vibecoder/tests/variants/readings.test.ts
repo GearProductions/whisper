@@ -1,4 +1,4 @@
-// Variants de readings (note 0.16.0-revue-essentielle) : readEnd pose la marque « read:<action> » d'une lecture finie,
+// Variants de readings (note 0.16.0-revue-essentielle) : readEnd pose la marque « read:<pr>:<action> » d'une lecture finie,
 // toPrepare dit celles que « Préparer la revue » lancerait.
 import { describe, expect, it } from 'vitest';
 import { READINGS, readEnd, toPrepare, type PrepareInput } from 'core/vibecoder';
@@ -7,7 +7,7 @@ const H1 = 'a'.repeat(40);
 const H2 = 'b'.repeat(40);
 const mark = (hash: string) => ({ hash, verdict: 'ok' as const });
 const ALL_OUT = ['pr-7-note.md', 'align.md', 'liens.md', 'pr-7-commits.md', 'ecran.md'];
-const ALL_MARKS = { 'read:review-note': mark(H1), 'read:align': mark(H1), 'read:review-commits': mark(H1), 'read:screen': mark(H1) };
+const ALL_MARKS = { 'read:7:review-note': mark(H1), 'read:7:align': mark(H1), 'read:7:review-commits': mark(H1), 'read:7:screen': mark(H1) };
 
 // Tout lu à la tête H1 : rien à lancer.
 const done = (over: Partial<PrepareInput> = {}): PrepareInput => ({
@@ -16,38 +16,44 @@ const done = (over: Partial<PrepareInput> = {}): PrepareInput => ({
 
 describe('readEnd', () => {
   it('une lecture finie : sa marque porte la tête d’où elle est partie', () => {
-    expect(readEnd({}, { action: 'screen', state: 'done', head: H1 })).toEqual({ 'read:screen': mark(H1) });
+    expect(readEnd({}, { action: 'screen', state: 'done', pr: 7, head: H1 })).toEqual({ 'read:7:screen': mark(H1) });
   });
 
   it('une lecture en échec, ou arrêtée : aucune marque posée', () => {
     for (const state of ['failed', 'stopped'] as const) {
       const marks = { other: mark('x') };
-      expect(readEnd(marks, { action: 'screen', state, head: H1 })).toBe(marks);
+      expect(readEnd(marks, { action: 'screen', state, pr: 7, head: H1 })).toBe(marks);
     }
   });
 
-  it('la tête pas retenue : aucune marque', () => {
+  it('la tête ou la PR pas retenue : aucune marque', () => {
     const marks = {};
-    expect(readEnd(marks, { action: 'screen', state: 'done', head: null })).toBe(marks);
+    expect(readEnd(marks, { action: 'screen', state: 'done', pr: 7, head: null })).toBe(marks);
+    expect(readEnd(marks, { action: 'screen', state: 'done', pr: null, head: H1 })).toBe(marks);
   });
 
   it('relue sur une nouvelle tête : la marque d’avant est remplacée', () => {
-    expect(readEnd({ 'read:screen': mark(H1) }, { action: 'screen', state: 'done', head: H2 })).toEqual({ 'read:screen': mark(H2) });
+    expect(readEnd({ 'read:7:screen': mark(H1) }, { action: 'screen', state: 'done', pr: 7, head: H2 })).toEqual({ 'read:7:screen': mark(H2) });
+  });
+
+  it('une autre PR : sa marque à elle, celle de la première reste', () => {
+    const marks = { 'read:7:screen': mark(H1) };
+    expect(readEnd(marks, { action: 'screen', state: 'done', pr: 8, head: H2 })).toEqual({ ...marks, 'read:8:screen': mark(H2) });
   });
 
   it('les autres marques : inchangées', () => {
-    const marks = { note: mark('n'), 'read:align': mark(H1) };
-    expect(readEnd(marks, { action: 'screen', state: 'done', head: H2 })).toEqual({ ...marks, 'read:screen': mark(H2) });
+    const marks = { note: mark('n'), 'read:7:align': mark(H1) };
+    expect(readEnd(marks, { action: 'screen', state: 'done', pr: 7, head: H2 })).toEqual({ ...marks, 'read:7:screen': mark(H2) });
   });
 
   it('le pseudo-code des tests : aucune marque (il suit l’empreinte des tests, pas la tête)', () => {
     const marks = {};
-    expect(readEnd(marks, { action: 'read-invariants', state: 'done', head: H1 })).toBe(marks);
+    expect(readEnd(marks, { action: 'read-invariants', state: 'done', pr: 7, head: H1 })).toBe(marks);
   });
 
   it('une action qui n’est pas une lecture : marks tel quel', () => {
     const marks = {};
-    expect(readEnd(marks, { action: 'commit', state: 'done', head: H1 })).toBe(marks);
+    expect(readEnd(marks, { action: 'commit', state: 'done', pr: 7, head: H1 })).toBe(marks);
   });
 });
 
@@ -69,7 +75,7 @@ describe('toPrepare', () => {
   });
 
   it('une sortie là sans marque (la lecture a échoué) : à relancer', () => {
-    const { 'read:align': _, ...marks } = ALL_MARKS;
+    const { 'read:7:align': _, ...marks } = ALL_MARKS;
     expect(toPrepare(done({ marks }))).toEqual(['align']);
   });
 
@@ -80,6 +86,13 @@ describe('toPrepare', () => {
 
   it('la sortie d’une autre PR ne compte pas', () => {
     expect(toPrepare(done({ outputs: ALL_OUT.map((o) => o.replace('pr-7', 'pr-8')) }))).toEqual(['review-note', 'review-commits']);
+  });
+
+  // Relire la PR A, passer à B, revenir à A : les marques de A sont restées, rien n'est payé deux fois.
+  it('la PR B lue entre-temps : les marques de A comptent encore, celles de B pas pour A', () => {
+    const both = { ...ALL_MARKS, 'read:8:screen': mark(H2) };
+    expect(toPrepare(done({ marks: both }))).toEqual([]);
+    expect(toPrepare(done({ pr: 8, marks: both, outputs: ALL_OUT.map((o) => o.replace('pr-7', 'pr-8')), head: H2 }))).toEqual(['review-note', 'align', 'review-commits']);
   });
 
   it('une lecture en cours ou en file : pas relancée (même en double)', () => {

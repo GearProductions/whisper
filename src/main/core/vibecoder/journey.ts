@@ -143,7 +143,7 @@
  *    ailleurs que sur la tête de la PR : aucun arrêt fait, comme avant ; aucune action mise en avant (primary), à aucun
  *    arrêt : son seul geste est « Préparer la revue », qui n'est pas une action du registre ;
  *  - prepare : les lectures que « Préparer la revue » lancerait (toPrepare de readings, d'après le commit de tête de la
- *    PR, les marques « read:<action> », les sorties présentes, les lectures des tests, les courses et la file) ; vide
+ *    PR, les marques « read:<pr>:<action> », les sorties présentes, les lectures des tests, les courses et la file) ; vide
  *    sans PR chargée ou le dossier ailleurs ; absent en créateur ;
  *  - changedFromBase de chaque test d'invariant : les clés des cas qui existaient à la base de la branche et dont le
  *    bloc a changé (caseBlocks du texte à la base contre celui d'aujourd'hui), toutes si le code commun du fichier (setup,
