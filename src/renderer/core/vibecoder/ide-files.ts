@@ -14,7 +14,9 @@
  *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : la ligne d'état de l'étape Modules, en nombres.
  *  moduleCounts(modules: VibeModule[]): ModuleCounts — total : les modules de la Forme ; written : ceux qui ne sont
  *  plus à générer (moduleState 'wip' ou 'done') ; committed : ceux qui ont un commit et rien de pas commité
- *  (uncommitted). modules-view en fait une seule phrase (« 16 modules écrits · commités »).
+ *  (uncommitted). Comme le parcours (T-47, note 0.16.0-ligne-apres-pr), un module complet dès la Forme (started posé par le
+ *  parcours, sans commit : ses fichiers sont restés le squelette) compte écrit, commité si les autres le sont, et n'est pas
+ *  « à générer » dans l'arbre ; un module pas commencé le reste. modules-view en fait une seule phrase (« 16 modules écrits · commités »).
  *  Le menu de diff n'a plus que deux références à l'écran du créateur, la base de la branche et la validation
  *  (useCreatorDiff, d'ide-diff ; useIdeDiff, sans appelant, offre toujours le dernier commit) ; diffRefs et diffTree
  *  ne changent pas. Retiré : invariantTree (l'arbre des tests du relecteur, sans appelant depuis son retrait).
@@ -29,8 +31,14 @@ export type FileMark = VibeGit | 'deleted' | 'todo';
 // La couleur d'un fichier de la branche : supprimé, sinon son état git (rien : commité).
 const markOf = (f: { deleted?: boolean; git?: VibeGit }): FileMark | null => (f.deleted ? 'deleted' : f.git ?? null);
 
-// Un module dont tous les fichiers sont encore le squelette de la Forme (skeleton) : à générer, comme un module pas touché.
-export const moduleState = (m: VibeModule): ModuleState => (m.commits.length ? 'done' : m.touched && !m.skeleton ? 'wip' : 'todo');
+// Commencé : started, que le parcours pose (un module complet dès la Forme, T-47, y compte : ses fichiers sont restés le
+// squelette) ; sans started, touché et pas encore le squelette. whole : commencé alors que tous ses fichiers sont le
+// squelette de la Forme, un module complet dès la Forme : écrit, rien à générer.
+const began = (m: VibeModule): boolean => m.started ?? (m.touched && !m.skeleton);
+const whole = (m: VibeModule): boolean => !!m.started && !!m.skeleton;
+
+// Un module pas commencé (tous ses fichiers encore le squelette de la Forme, ou pas touché) : à générer.
+export const moduleState = (m: VibeModule): ModuleState => (m.commits.length ? 'done' : began(m) ? 'wip' : 'todo');
 
 export type IdeFile = {
   path: string;
@@ -90,8 +98,8 @@ export function ideFiles(view: Pick<VibeView, 'modules' | 'files'> & { variants?
     // Une entrée de la Forme à plusieurs chemins (« a + b », T-15) : une ligne par chemin, au rang de l'entrée.
     const row = { rank, state, mark: !m.touched ? 'todo' as const : own ? markOf(own) : m.files?.some((f) => markOf(f)) ? 'modified' as const : null, code: m.touched ? m : null };
     if (by === 'module' || !m.touched || !m.files?.length) return lines.map((path) => ({ path, ...row }));
-    return m.files.map((f) => ({ path: f.path, rank, state, mark: f.skeleton ? 'todo' as const : markOf(f), code: { ...m, files: [f] },
-      ...(f.skeleton && { dim: true, hint: skeletonHint }) }));
+    return m.files.map((f) => ({ path: f.path, rank, state, mark: f.skeleton && !whole(m) ? 'todo' as const : markOf(f), code: { ...m, files: [f] },
+      ...(f.skeleton && !whole(m) && { dim: true, hint: skeletonHint }) }));
   }), ...variants.map(branchRow)].filter((r) => !seen.has(r.path) && seen.add(r.path));
 }
 
@@ -165,5 +173,6 @@ export type ModuleCounts = { total: number; written: number; committed: number }
 export const moduleCounts = (modules: VibeModule[]): ModuleCounts => ({
   total: modules.length,
   written: modules.filter((m) => moduleState(m) !== 'todo').length,
-  committed: modules.filter((m) => m.commits.length > 0 && !m.uncommitted).length,
+  // Un module complet dès la Forme n'a pas de commit à lui : commité quand chacun des autres a le sien (comme le parcours).
+  committed: modules.filter((m) => !m.uncommitted && (m.commits.length > 0 || (whole(m) && modules.every((o) => whole(o) || o.commits.length > 0)))).length,
 });
