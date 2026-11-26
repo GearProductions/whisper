@@ -640,8 +640,7 @@ demande à l'agent, qui a la CLI (F-116). **Plus de bouton d'action dans les
 étapes** : rien n'est retiré du registre des commandes, chaque action reste
 lançable par la CLI avec le même contrat ; restent à l'écran la note (*Vérifier*,
 *Valider la note*, le questionnaire), le fil des étapes, l'interrupteur *Express*
-et le bouton du moteur. Le relecteur d'une PR ne change pas : ses boutons, ses
-vues, son parcours (F-101).
+et le bouton du moteur. **La revue essentielle** (0.16.0, relecteur) : quatre arrêts (la note, les règles, l'essai, publier), une ligne qui dit où l'on en est et un seul bouton, *Préparer la revue* (F-101) ; le créateur ne change pas.
 
 **F-91 Changer d'agent** (le choix entre VibeCoder et la conversation seule —
 *◧ Ouvrir VibeCoder*, *💬 Ouvrir la conversation*, *Revenir à la
@@ -726,22 +725,10 @@ par l'🕘 Historique (F-67).
   d'avant ne l'est pas), chacune son libellé, **tous** ses faits en infobulle (« 2 fichiers · 5 cas · 3
   lus » : l'étape n'y est pas affichée, c'est son seul résumé, alors que son
   en-tête n'en répète aucun qu'elle montre déjà, F-93) ; trop étroit, il défile à l'horizontale. Au bout, en créateur,
-  l'interrupteur *Express* (F-103) ; plus de compte « N commits » ni de liste des
-  commits pour lui (0.16.0). Le relecteur garde son « N commits », qui déplie sous le fil, par-dessus l'étape, les commits de la branche (hash
-  court, sujet ; `fixup!`, `squash!`, `amend!` en couleur d'attention ; un
-  clic sur l'un : *Voir le diff*, *GitHub* et ses fichiers) ; un nouveau
-  clic les replie ; « aucun commit » : sans clic. Le fil d'Ariane mène :
-  un clic (ou Ctrl+1…6, le raccourci en infobulle) ouvre n'importe quelle
-  étape, faite, en cours ou à venir, dans les deux rôles : l'état reste au
-  fil (point, anneau, gris), l'étape en cours reste la première non faite
-  (sans note : la Note, mais on va librement aux autres). Ouvrir une étape à
-  venir ne lance rien et n'écrit rien ; chez le relecteur, seuls les boutons
-  dont l'action a besoin d'une étape précédente faite restent grisés, avec leur
-  raison ;
-- sous le fil, en créateur (0.16.0), **la ligne d'état** : toujours là, une seule,
+  l'interrupteur *Express* (F-103) ; plus de compte « N commits » ni de liste des commits, pour personne (0.16.0). Le **fil du relecteur** (0.16.0) a quatre arrêts sous leur nom, « Note », « Règles », « Essai » et « Publier » : ni Forme (rien à y juger) ni Modules (l'histoire des commits ne se relit plus), F-101. Le fil d'Ariane mène : un clic (ou Ctrl+1…6, Ctrl+1…4 pour le relecteur, le raccourci en infobulle ; Ctrl+5 : rien) ouvre n'importe quelle étape, faite, en cours ou à venir, dans les deux rôles : l'état reste au fil (point, anneau, gris), l'étape en cours reste la première non faite (sans note : la Note, mais on va librement aux autres) ; un arrêt retenu qui n'est plus dans son fil laisse l'arrêt en cours. Ouvrir une étape à venir ne lance rien et n'écrit rien ;
+- sous le fil (0.16.0), **la ligne d'état** : toujours là, une seule,
   une phrase dans la langue de l'écran qui dit ce que le système est en train de
-  faire, ou ce qu'il attend de l'utilisateur, avec à côté le bouton du moteur
-  quand il sert (F-93). Par exemple : « Demandez la note à l'agent, dans la
+  faire, ou ce qu'il attend de l'utilisateur, avec à côté, en créateur, le bouton du moteur quand il sert (F-93). Par exemple : « Demandez la note à l'agent, dans la
   conversation » (pas de note), « 2 questions : répondez dans le questionnaire »
   (les questions d'abord, même pendant que le moteur enchaîne), « Vérifiez, puis
   validez la note », « Le système écrit les modules », « Regardez vos règles,
@@ -753,10 +740,9 @@ par l'🕘 Historique (F-67).
   de reprendre. Le parcours fini — la PR verte et chaque étape faite, la PR
   fusionnée, ou fermée — : la ligne seule, sans *Reprendre* (il n'y a rien à
   reprendre ; une étape pas faite, la CI en cours ou en échec : le bouton
-  reste). Rien pour le relecteur, ni ligne ni bouton du moteur ;
+  reste). **Le relecteur a la sienne** : ce que le système est en train de lire, ou ce qu'il attend de lui, d'après ce que le relevé sait déjà (la PR chargée ou non, les lectures en cours, la note jugée, les tests jugés, les cases du plan cochées, la revue publiée) — « choisissez la PR à relire », « passez sur la branche de la PR », « préparez la revue », « lisez la note, puis jugez-la », « n tests à juger », « essayez l'appli » (n cases du plan pas cochées), « publiez la revue », la revue publiée dite, aucune ligne sur un relevé en erreur —, avec à côté son seul bouton, *Préparer la revue* (F-101), à tous les arrêts, grisé avec sa raison en infobulle quand il n'y a rien à lancer, absent sans PR chargée ; ni *Express*, ni *Arrêter*, ni *Reprendre* ;
 - dessous, sur toute la largeur à gauche de la conversation, l'étape
-  choisie — sinon celle en cours, que l'écran suit —, son en-tête (F-93),
-  sans action pour le créateur ; ni onglets des étapes ni carte « prochaine
+  choisie — sinon celle en cours, que l'écran suit —, son en-tête (F-93), sans action (0.16.0, les deux rôles) ; ni onglets des étapes ni carte « prochaine
   étape » : le fil d'Ariane et la ligne d'état disent où l'on en est ;
 - à droite, des onglets : **Conversation** (son intitulé ; le message en tête,
   F-74, le fil et ses demandes d'autorisation, le détail du contexte, la
@@ -816,9 +802,7 @@ Un seul écran, que le système enchaîne ou non (F-103) : le fil
 d'Ariane, la ligne d'état et l'étape restent, sans bannière ; seul le bouton du
 moteur, à côté de la ligne, passe d'*Arrêter* à *Reprendre* (F-93). git introuvable, dossier sans
 dépôt : un bandeau le dit au-dessus de l'étape, la conversation reste
-utilisable. Une étape sans sortie dit ce qui manque ; le créateur n'y trouve
-pas de bouton (une phrase renvoie à l'agent), le relecteur l'action qui le
-produit. Une vue d'étape qui échoue sur un texte
+utilisable. Une étape sans sortie dit ce qui manque ; ni le créateur ni le relecteur n'y trouvent de bouton : une phrase renvoie à l'agent (créateur) ou à *Préparer la revue* (relecteur). Une vue d'étape qui échoue sur un texte
 inattendu : « Cette étape ne peut pas s'afficher. » et *Réessayer* ; le reste
 de l'écran et le brouillon tiennent (S-72).
 
@@ -838,10 +822,7 @@ de l'écran et le brouillon tiennent (S-72).
   d'étape*) le dit en plus, à côté du titre, à la place des faits de l'en-tête :
   « modifiée depuis la validation » (à l'étape Modules, un bouton : le diff passe
   sur ce qui a changé depuis le ✓, un second clic revient à la base, F-102 ; ailleurs
-  seulement dit) ou « à revoir : la note a changé ». Le
-  relecteur : la Note de même, « pas de plan » à
-  la Revue sans plan, les Modules gardent leurs faits ; rien ailleurs, aucune
-  validation d'étape. L'infobulle du fil d'Ariane (F-92) les garde tous.
+  seulement dit) ou « à revoir : la note a changé ». Le relecteur : la Note de même, « pas de plan » à l'Essai sans plan ; rien ailleurs, aucune validation d'étape. L'infobulle du fil d'Ariane (F-92) les garde tous.
   **Le badge d'état** de l'en-tête (`vc-badge`) porte le ✓ du créateur
   (0.16.0) : « faite ✓ » quand l'étape est validée, « faite · ✓ retiré » tant que
   son ✓ retiré à la main tient ; il se clique, à la Forme, aux Invariants et aux
@@ -861,15 +842,7 @@ de l'écran et le brouillon tiennent (S-72).
   lance l'action par la CLI (F-116, le même contrat : rien n'est retiré du
   registre des commandes ni du relevé). Restent à l'écran la note (*Vérifier*,
   *Valider la note*, le questionnaire, F-100), le fil, *Express* et le bouton du
-  moteur. Le **relecteur** garde sa **rangée d'actions** compacte : celles de
-  l'étape, chacune avec son modèle en infobulle (F-99) et
-  pourquoi elle est grisée ; sans celles qui n'ont pas encore de sens
-  (masquées, F-99 ; pas celles qui attendent une étape précédente : grisées), ni celles que la vue montre déjà ailleurs
-  (une invitation, une carte, une ligne : jamais deux fois). À l'étape en
-  cours, en tête : l'action qui fait avancer l'étape (F-100, F-101),
-  discrètement mise en avant ; « N cas à valider » en tête des invariants. Une action dont la course tourne :
-  « en cours » et *Arrêter* à côté de son bouton (arrêtée, à trancher dans l'onglet
-  *Actions*). Conversation au travail : seuls les messages sans étape
+  moteur. Le **relecteur** n'a pas de rangée non plus (0.16.0) : ses lectures (*Relire la note*, *Lire en pseudo-code*, *Vérifier l'alignement*, *Relire le code*, *Plan de test à l'écran*) se lancent ensemble par *Préparer la revue* (F-101), ou une à une par l'agent (CLI) ; une course qui tourne se voit dans l'onglet *Actions* (arrêtée, à trancher là). Conversation au travail : seuls les messages sans étape
   (*Où j'en suis ?*, *Proposer les commandes*)
   sont grisés, le bouton du moteur masqué (F-99) ; *⏹ Arrêter* (barre
   d'état) arrête son tour, comme *Interrompre* de son menu (F-56), sans
@@ -903,11 +876,7 @@ de l'écran et le brouillon tiennent (S-72).
 - **Relancer** : le créateur n'a plus de *Relancer* à l'écran (0.16.0) ; l'agent
   refait une action par la CLI, mêmes arguments par défaut, et peut relancer une
   seule vérification (`{{check}}`, F-97 : les autres gardées, sans ponytail
-  review ; pas pendant une course `checks`). Chez le relecteur, chaque carte
-  d'une sortie de skill (relecture de la note et des commits, plan de test)
-  refait son action, mêmes arguments par défaut ; *Lire en pseudo-code* se refait
-  par fichier (*Relire*, même lu) ou pour tous (*Tout relire*, F-100) ; *Vérifier
-  l'alignement* reste dans sa rangée, une liste, rien de corrigé. La ponytail
+  review ; pas pendant une course `checks`). Le relecteur non plus (0.16.0) : ni *Relancer* sur une carte, ni *Relire*, ni *Tout relire* ; *Préparer la revue* ne lance que ce qui manque ou a été lu sur une autre tête de la PR (F-101), et l'agent refait une lecture par la CLI. La ponytail
   review n'a pas de *Relancer* : on relance *Lancer les vérifications*.
 - La **barre des skills**, au-dessus du champ : la nouvelle demande retenue
   seule (F-110) ; plus de lien *Demander sans modifier* ni *Retour → fixup*
@@ -1310,19 +1279,7 @@ des lignes de code, F-101 : entières, gardées, sans limite, à la suite du tex
 si le gabarit n'a pas `{{quote}}`) : en créateur, la **bulle de remarque** (*Commenter*)
 sur une ligne de la note ou sur une règle de l'étape Invariants (« À propos de « … » : ») ;
 elle n'est plus sur le code, ni sur un module, ni sur un cas de test (0.16.0) ; possible
-pendant que l'agent travaille. On complète, puis on envoie. En relecteur, *Commenter*
-va au brouillon de revue (F-101), pas au champ, et *À revoir* ne fait que marquer
-(F-101) ; pour demander quelque chose à l'agent, *Poser une question à l'agent*
-(icône « ask », à côté de *Commenter*) cite l'élément dans le champ, comme le
-*Commenter* du créateur, et n'envoie rien ; le *Commenter* d'une ligne
-ou d'une sélection d'un fichier d'un commit aussi : une zone de commentaire,
-puis une remarque pour ce commit, son chemin et ses lignes entières citées
-en bloc de code. Le 💬 du bloc *Attention* d'une carte d'invariant (le point
-d'attention d'un cas) suit la même règle : créateur, plus de carte par cas à l'écran
-depuis la 0.16.0 (le point d'attention d'une lecture se lit sous sa règle, F-100) ; relecteur, il ajoute ce
-point d'attention à la zone de commentaire de la carte (ouverte si elle était
-fermée), à la suite de ce qui y est déjà écrit, rien d'effacé — le relecteur
-précise, et seul *Ajouter* le verse au brouillon.
+pendant que l'agent travaille. On complète, puis on envoie. En relecteur (0.16.0), *Commenter* va au brouillon de revue (F-101), pas au champ : la **bulle** d'une règle, d'un test ou d'un constat de la relecture du code ouvre une zone de remarque, vide pour une règle ou un test, déjà remplie avec le constat (son titre, puis son détail, coupé à la borne du brouillon) pour un constat ; le 💬 du point d'attention d'un test y verse ce point d'attention, à la suite de ce qui y est déjà écrit, rien d'effacé — le relecteur précise, et seul *Ajouter* le verse au brouillon (*Annuler* : rien). Rien ne cite dans le champ de la conversation, et *À revoir* ne fait que marquer (F-101). Sur la note, *Poser une question à l'agent* (icône « ask », à côté de *Commenter*) cite l'élément dans le champ, comme le *Commenter* du créateur, et n'envoie rien. Créateur : plus de carte par cas à l'écran depuis la 0.16.0 (le point d'attention d'une lecture se lit sous sa règle, F-100).
 
 **La dictée** (le micro de chaque zone de prompt, maintenu, F-68 : il donne
 le clavier à son champ) va à la zone de texte qui a le clavier : la zone de
@@ -2058,21 +2015,7 @@ créateur ; le relecteur, F-101) :
    avant toute rubrique) ; ni arbre, ni diff, ni badge « touché », ni « 1 commit »,
    ni icône, ni bouton, ni commit proposé, et aucun fichier n'est suivi : le code
    n'est montré qu'à l'étape Modules, un seul endroit pour l'arbre et le diff.
-   Sans Forme (ou sans note) : une phrase, sans bouton. **Le relecteur garde sa
-   vue**, en **vue IDE** : l'arborescence des modules à gauche,
-   par dossier (`src/` de tête ignoré), chacun avec son numéro (son rang dans
-   la Forme, l'ordre où les générer) et le nom coloré comme dans la vue IDE de
-   Modules (un module d'un seul fichier : sa couleur ; un dossier : modifié si
-   l'un de ses fichiers n'est pas commité), et le module choisi à droite : chemin,
-   état (touché par la branche, existe, à créer), commits ; *Commenter*,
-   *Ouvrir*. Un interrupteur *Structure* · *Code* : *Structure*, son contrat
-   en rubriques (expose, ne connaît pas, utilisé par), en texte ; *Code*, son
-   code en diff depuis la base de la branche (*Voir le code*, étape Modules),
-   tout en vert pour un module à créer, seulement ce que la branche a ajouté
-   ou changé pour un module existant (« la branche ne change pas ce module »
-   sinon). Sans Forme dans la note, ou sans note : l'invitation, puis
-   l'arborescence des fichiers que change la branche (`VibeView.files`, ids
-   `b<i>`), pour suivre une petite PR qui n'a pas fait toutes les étapes. *Poser
+   Sans Forme (ou sans note) : une phrase, sans bouton. **Le relecteur n'a plus cette étape** (0.16.0) : sa Forme est faite avec la Note, il n'y a rien à y juger, donc ni arbre des modules, ni *Structure* · *Code*, ni remarque par module (F-101). *Poser
    la forme* écrit dans le même passage les
    **squelettes** dans le code — les chemins, les en-têtes (le contrat), les
    signatures typées, des corps qui échouent, le typage du projet qui passe —,
@@ -2153,55 +2096,7 @@ créateur ; le relecteur, F-101) :
    à l'écran, plus de chiffres en tête (fichiers, cas, validés, à lire) ni de barre
    « 0 / 3 validé », ni « non rattaché » ni « Pas de lecture pour ce cas », ni
    *Invariants seuls* ni menu de diff ; aucun test ne s'édite, aucun fichier n'est suivi.
-   **Le relecteur ne change pas** : il montre le
-   résumé (fichiers, cas, validés, refusés, modifiés depuis, avec un point d'attention,
-   à lire), l'alignement (`align.md`, F-93 : chaque
-   écart porte son étiquette, F-95), puis,
-   en **vue IDE** comme la Forme et les Modules, à gauche, par dossier,
-   les fichiers de la Forme (grisés, numérotés, lecture seule : leur code si la
-   branche les touche, sinon leur contrat) et les tests d'invariants (en vert :
-   ajouté par la branche ; en jaune : modifié, d'après son texte à la base ; sans
-   numéro), sans Forme les tests seuls, sans analyse des imports (au-dessus d'eux, le menu de
-   diff de la vue : l'arborescence ne liste que les fichiers qui diffèrent de la
-   référence, F-102) ; et au centre ceux du test choisi
-   (le premier d'emblée ; en choisir un autre referme le fichier ouvert), chaque fichier : sa progression,
-   *Ouvrir*, *Relire* (lu : refaire sa lecture) ; lu, une carte par cas —
-   titre, pseudo-code en étapes `test "…":` / `given` / `when` / `then` /
-   `and`, quel que soit le langage du test (coloré ; chaque `then` est une
-   assertion, sa valeur attendue après `#` ; les lectures d'avant, proches
-   de Vitest, se lisent encore), cas limites, ce qu'il garantit (sous lui, la ou les lignes « → invariant » de
-   la note qu'il cite, en liens qui ouvrent l'étape Note défilée à la ligne et
-   mise en évidence, dans l'affichage courant ; introuvable : en haut, sans mise en
-   évidence ; un invariant `I-…` du projet : son numéro, sans lien ; sinon
-   « non rattaché » ; lecture périmée : rattachement marqué périmé), un point
-   d'attention quand le test n'observe pas vraiment la propriété — avec, dans
-   son en-tête, *Pseudo-code / Code* (le
-   code d'origine du cas à la place du pseudo-code : son bloc seul, de sa ligne à
-   celle du cas suivant, monospace, numéroté, coloré : F-113), les badges *Validé* et
-   *À revoir* (cite le cas dans le champ), *Commenter* et *Ouvrir* ; un cas validé, discret :
-   ni cadre ni fond, la seule fine bordure verte à gauche et son badge allumé ; *Tout valider* quand
-   aucun cas n'a de point d'attention, le fichier lu ou pas, qui ne valide que les
-   cas sans verdict (un *À revoir* est gardé, un cas dont le bloc a changé est
-   revalidé) ; *Voir le
-   fichier* (replié : tout son code, numéroté ; un test qui existait à la
-   base de la branche et qu'elle modifie : un sélecteur *Fichier* · *Diff
-   depuis la base de la branche*, le diff *En ligne* ou *Côte à côte*, en
-   lecture seule, jusqu'au texte de l'éditeur, le test entier, pas replié
-   autour des changements, ses lignes retirées, modifiées et ajoutées
-   marquées ; un test ajouté par la branche : pas de sélecteur) ; pas lu :
-   ses cartes sans lecture, avec *Valider* et *À revoir*, et *Lire en pseudo-code* dans les
-   outils de son en-tête, avec les autres ; lu puis changé : sa
-   dernière lecture reste affichée, marquée « lecture périmée », *Relire* en
-   accent, mais cas par cas : seuls les cas dont le bloc a changé depuis la lecture
-   sont périmés, pas comptés comme lus, et leurs boutons grisés
-   (*Validé*, *À revoir* et *Tout valider* grisés, « relire d'abord ») avant
-   *Relire* : on ne valide pas un cas sur une lecture qui ne le décrit plus.
-   Les autres cas gardent leur lecture et leurs boutons : le pseudo-code d'un cas
-   ne dépend que de son bloc. Pour le savoir, l'appli retient, quand une lecture est à
-   jour, l'empreinte du bloc de chaque cas lu, dans `<sorties>/invariants/<empreinte>.json`,
-   à côté de la lecture (`<empreinte>.md`) ; une lecture d'une autre version
-   de ce fichier, sans ce `.json`, est périmée pour tous ses cas. Rien n'est écrit dans le projet (I-63).
-   Sans lecture, les cas restent actifs.
+   **Le relecteur a la même vue** (0.16.0, F-101) : l'alignement en tête (`align.md`, F-93 : chaque écart porte son étiquette, F-95), puis une règle par ligne « → invariant » de la note, ses tests en pseudo-code dessous, *Validé* / *À revoir* sur chaque test (un second clic l'annule), « aucun test » pour une ligne sans test, « Autres tests » pour les tests sans ligne ; la bulle d'une règle ou d'un test ouvre une remarque pour le brouillon de revue (F-98). Sur une PR, l'alignement écrit aussi `liens.md` (quel test garde quelle ligne, tests d'avant la branche compris), dans le dossier de sorties seulement, rien dans la branche : la vue range les tests comme chez le créateur. Pas de preuve chez le relecteur (ni « écrite », « prouvée », « non prouvée », ni détail au clic : la preuve est faite sur la machine du créateur et n'est pas dans la PR). Un test d'invariant d'avant la branche que la PR modifie est dit sur ce test (son texte à la base diffère : le relevé le sait déjà, sans agent ni token, avant toute préparation). Plus de carte par cas, de résumé ni de barre, d'arbre des tests, de *Tout valider*, de *Voir le fichier* ni de menu de diff. Sans lecture d'un test, ses cas restent actifs.
    **La validation d'un cas porte sur son bloc, pas sur le fichier** (0.15.0). Le bloc
    d'un cas, pour sa validation, va de la ligne du cas à celle qui le ferme,
    trouvée par l'indentation, sans analyser le code : après la ligne qui porte son
@@ -2233,12 +2128,10 @@ créateur ; le relecteur, F-101) :
    fichier a changé sur le disque depuis l'ouverture du bloc), la page du créateur
    ne l'appelle plus ; une correction se demande à l'agent. *Ouvrir dans l'éditeur*, une
    icône discrète par test, est la sortie de secours : le fichier entier dans
-   l'éditeur de code de l'utilisateur. Le relecteur a *Voir le fichier* (le fichier entier, un seul éditeur à la
-   fois), en lecture seule. Le relevé porte le texte
+   l'éditeur de code de l'utilisateur. Le relevé porte le texte
    du test, vide au-delà de 200 000 caractères (rien de tout cela n'est
    alors montré), et son texte au commit d'où part la branche (par git ;
-   aucun : ajouté par la branche, ou au-delà de 200 000 caractères). Relecteur, en tête : *Tout relire* (dès qu'un fichier
-   est lu). Prochaine action : *Écrire les invariants
+   aucun : ajouté par la branche, ou au-delà de 200 000 caractères). Prochaine action : *Écrire les invariants
    (rouges)* (le texte d'aide de l'étape sans test la cite sous ce nom ; d'après la note, à partir
    des squelettes de la forme) tant qu'il
    n'y a pas de test, puis *Lire en pseudo-code* tant qu'un test n'est pas lu ou que sa
@@ -2250,8 +2143,7 @@ créateur ; le relecteur, F-101) :
    réécrit ; en historique simple, toujours un commit ordinaire). *Lire en
    pseudo-code* (les fichiers pas encore lus, ou dont la lecture est périmée : une lecture est nommée par
    l'empreinte du fichier, sa première ligne `# <chemin du test>` ; relire
-   la remplace) est lancée par le moteur (ci-dessus) ; chez le relecteur, elle
-   n'est jamais mise en avant : elle reste dans la rangée de l'étape.
+   la remplace) est lancée par le moteur (ci-dessus) ; chez le relecteur, *Préparer la revue* la lance (F-101).
    **L'alignement** (skill `aligner`, *opus · élevé*, dans la course de *Écrire les
    invariants (rouges)*, F-93) ne regarde que les invariants : chaque test
    d'invariant observe vraiment sa ligne « → invariant », chaque test est
@@ -2261,9 +2153,7 @@ créateur ; le relecteur, F-101) :
    **corrige seul les tests** et revérifie, 3 tours au plus, à la main ou par le moteur ; il
    ignore ce qui attend un module pas encore généré. Ne remonte (`[toi]`) qu'un
    changement de contrat ou une note qui rend un test impossible à écrire ; un
-   écart de test que les 3 tours n'ont pas fermé reste `[agent]`. Chez le relecteur,
-   une lecture : il liste, sans étiquette ni correction, la branche de la PR
-   intacte (T-19). **Il ne corrige que les fichiers de tests d'invariants que la
+   écart de test que les 3 tours n'ont pas fermé reste `[agent]`. Chez le relecteur, une lecture : il liste, sans étiquette ni correction, la branche de la PR intacte (T-19), et écrit `liens.md` dans le dossier de sorties seulement. **Il ne corrige que les fichiers de tests d'invariants que la
    branche crée** (0.16.0, I-64) : l'appli refuse à la course *Vérifier
    l'alignement* d'écrire dans un fichier de tests d'invariants qui existait au
    départ de la branche (git en dresse la liste avant son message), même pour un
@@ -2297,19 +2187,7 @@ créateur ; le relecteur, F-101) :
    réussie (marque `skel:<chemin>`, dans `vibecoder-state.json`, jamais dans le
    dépôt), sauf pour un fichier déjà généré à son départ ; un fichier qui en diffère
    est généré ; son numéro, son rang dans la Forme, l'ordre où les générer,
-   « Ordre de génération : n sur N » au survol. **Le relecteur ne change pas** : ses
-   modules en lecture seule, une ligne par module, un accordéon (replié ; un seul
-   déplié à la fois ; commité, en cours : modifié pas commité, à faire), avec son
-   numéro, son nom, son dossier, « à créer » et ses commits, puis *Ouvrir*, son
-   contrat par rubrique et, pour un module touché, son code (*Voir le code*, F-101
-   et F-113 : ses fichiers que la branche change, par dossier, le fichier choisi
-   monospace, numéroté, coloré, un supprimé marqué « supprimé » et montré en
-   retraits ; un sélecteur *Fichier* · *Diff depuis la base de la branche* · *Diff
-   depuis le dernier commit*, *En ligne* ou *Côte à côte*, le diff de VS Code
-   (`@codemirror/merge`), en lecture seule, numéroté et coloré, replié autour des
-   changements, en texte, I-40), seulement pour un fichier de module, de la
-   branche (`b<i>`, sans Forme) ou d'un commit (ni la note ni un test, I-37 ; un
-   test a le sien, étape Invariants), puis les commits de la PR. Les
+   « Ordre de génération : n sur N » au survol. **Le relecteur n'a plus cette étape** (0.16.0) : ni modules en lecture seule, ni vue IDE, ni cartes de commits ; la relecture du code se lit à l'arrêt « Publier » (F-101), et pour lire le code soi-même, *Ouvrir dans l'éditeur*. Les
    modules sont validés par le système quand la preuve passe (l'orchestrateur, par
    `step.validate`, F-116, refusé sans preuve qui passe) ; le badge de l'étape
    porte leur ✓ (F-93), plus de bouton *Valider les modules* à l'écran. Générer ne commite
@@ -2502,8 +2380,7 @@ créateur ; le relecteur, F-101) :
    **Relire à l'écran**, après elles : le plan de test (`ecran.md`), une case par
    chose à essayer, cochée dans le fichier, ou cochée à l'écran (validée pour ce
    plan-là, F-102, `check:<rang>` ; décocher la refuse, même cochée dans le
-   fichier) ; chez le relecteur, *Tout cocher* coche d'un clic celles qui ne le
-   sont pas, pour aller vite, une invitation sans plan, *Relancer*. Toutes les cases cochées comptent
+   fichier) ; chez le relecteur, *Tout cocher* coche d'un clic celles qui ne le sont pas, pour aller vite ; sans plan, une phrase qui renvoie à *Préparer la revue*, sans bouton ni *Relancer*. Toutes les cases cochées comptent
    pour que la Revue soit faite, pour l'un comme pour l'autre. Prochaine action : *Lancer les vérifications et la
    ponytail review* (tant que `checks.json` ou `ponytail.md` manque, ou
    qu'une vérification échoue), puis *Replier les fixups* (masquée sans commit
@@ -2561,9 +2438,8 @@ relectures faites pour un humain ne sont plus sur le chemin du créateur :
 *Relire le diff* d'un module reste proposée, à la demande (par l'agent), jamais
 comme prochaine action ; *Lire en pseudo-code*, elle, est lancée par le moteur
 après chaque écriture des tests d'invariants (F-100) et la pause après les
-invariants l'attend ; *Relire la note* et *Relire les commits* ne sont proposées
-qu'au relecteur, comme avant. La revue ponytail
-reste sur le chemin. Les parcours du relecteur sont inchangés.
+invariants l'attend ; *Relire la note* et *Relire le code* (`review-commits`, l'étape PR) ne sont lancées que par *Préparer la revue* ou l'agent, en relecteur. La revue ponytail
+reste sur le chemin. Le parcours du relecteur : F-101.
 
 **La note hors du projet** (0.16.0, note `0.16.0-notes-hors-projet`). Un projet
 peut exclure ses notes de git, à la main (`docs/tickets/` dans
@@ -2596,8 +2472,7 @@ F-110) : sur une branche neuve du dossier, ou dans un worktree. Une branche
 sans demande : *Créer une branche*, dans la vue des branches (F-110).
 
 **F-101 Le relecteur** (la PR de la branche active ; la review du guide, § 5.4).
-Même écran et même parcours que le créateur (F-100) : le rôle ne se choisit
-pas, l'appli le décide, et il n'y a plus de *Créer* / *Relire* (F-92). Il est
+Même écran que le créateur (F-100), avec un fil à lui de quatre arrêts (0.16.0) : le rôle ne se choisit pas, l'appli le décide, et il n'y a plus de *Créer* / *Relire* (F-92). Il est
 recalculé à chaque relevé d'après la PR du dossier — la PR suivie si le dossier
 est sur sa tête (ou sur son robot), sinon la PR ouverte de la branche — et ses
 personnes, auteur, assignés, et mon identifiant, lus par
@@ -2628,70 +2503,23 @@ branche (ou sur son robot). Sur une branche qui a sa PR ouverte, devenu
 relecteur (le dernier relevé), la PR est suivie d'emblée, sa fiche écrite d'après
 ce relevé, sans rien charger.
 
-**En relecteur, tout est en lecture seule** : rien ne s'édite (ni le code d'un
-module, ni la note, ni un test), rien ne se génère ni ne se commite. Les actions
-qui modifient ne sont pas au relevé — ne restent que celles qui lisent : *Relire
-la note*, *Relire les commits*, *Lire en pseudo-code*, *Vérifier l'alignement*,
-*Plan de test à l'écran*, *Publier la revue* — et le principal les refuse de
-même, quoi que dise la page, ainsi qu'*Enregistrer*, d'après le rôle de son
-dernier relevé (I-37, I-39). Le badge *Relecteur* de l'en-tête le dit (F-92).
-On y retrouve toutes les fonctions de l'ancien *Relire* : juger la note, les
-cas et les commits, et ajouter au brouillon de revue une remarque sur des lignes de la note ou
-sur tout ce que *Commenter* cible (la relecture de la note, l'alignement, un
-cas, un commit, les lignes d'un fichier d'un commit).
-- **Les remarques restent sur place** : celles du brouillon sont sous l'élément
-  commenté (un passage ou un bloc de la note, un module de la Forme, un cas
-  d'invariant, un commit), grisées et empilées quand il y en a plusieurs, avec un
-  crayon (la zone de commentaire sur place, même cible, mêmes limites) et une
-  croix (la retirer), comme dans le brouillon de l'étape PR.
-- **Poser une question à l'agent** (icône « ask », à côté de *Commenter*, sur
-  la note, un module, un cas, un commit) : cite l'élément dans le champ de la
-  conversation, comme le *Commenter* du créateur ; rien n'est envoyé avant
-  *Envoyer* (I-2). *Commenter* reste la remarque de revue.
-- **Les verdicts proposent** : chaque commit a *Validé* / *À revoir* comme un cas
-  (cible `commit:<hash>`, F-102 : la marque suit le hash du commit). Un *À revoir* sur la note, un cas ou un commit
-  propose *Demander des changements* à la publication ; tout validé (la note,
-  chaque cas, chaque commit) propose *Approuver* ; sinon *Commenter*. Le choix de
-  l'utilisateur l'emporte, et rien ne part avant son clic sur *Publier la revue*.
-  *À revoir* n'ouvre plus la zone de commentaire de lui-même : il montre
-  « Ajouter une remarque au brouillon », qui l'ouvre ; sans ce clic, rien n'est
-  ajouté.
+**En relecteur, tout est en lecture seule** : rien ne s'édite (ni la note, ni un test), rien ne se génère ni ne se commite. Le principal refuse ce qui modifie, quoi que dise la page, ainsi qu'*Enregistrer*, d'après le rôle de son dernier relevé (I-37, I-39) ; en relecteur toute course lit : *Vérifier l'alignement*, qui corrige les tests chez le créateur, n'écrit ici que dans le dossier de sorties, et les lectures courent ensemble. Le badge *Relecteur* de l'en-tête le dit (F-92).
 
-Les étapes, faites quand :
-1. **Note** — absente de la PR, ou jugée : *Valider*, ou *À revoir* (rien au
-   brouillon de lui-même). Montre la note de la PR (comme pour le
-   créateur) et sa relecture par l'agent (`pr-<n>-note.md`). *Relire la note*
-   (décisions à discuter, manques, invariants mal classés).
-2. **Forme** — faite avec la Note : rien à juger, donc pas de *Valider la
-   forme*. Les modules et leur contrat ; *Commenter* d'une ligne au brouillon.
-3. **Invariants** — chaque cas jugé (*Validé* ou *À revoir*), lu ou pas. Les
-   mêmes cartes que pour le créateur (*Voir le fichier* et son diff depuis la
-   base de la PR en lecture seule) ; *Lire en pseudo-code* (facultative),
-   *Vérifier l'alignement*. Le 💬 du point d'attention d'un cas verse dans la
-   zone de commentaire de la carte (F-98).
-4. **Modules** — les commits relus (`pr-<n>-commits.md`). Les modules en
-   lecture seule (ni commit proposé, ni relecture du diff, ni outil qui génère
-   ou commite ; *Voir le code* sans *Enregistrer* ni Ctrl+S), puis les **commits
-   de la PR** (l'ancienne étape Commits), en lecture seule : sans IA, leur liste
-   (hash, sujet, fichiers touchés), chacun avec *Voir le diff*, *GitHub*
-   (ci-dessous) et ses fichiers ; relus, une carte par commit (hash, sujet,
-   remarques, *Validé* / *À revoir*). Un clic sur un fichier d'un commit l'ouvre dans le panneau, sous
-   sa carte (un seul à la fois ; recliqué : fermé) : sa version à la tête de la
-   PR, comme le code de *Voir le code* (F-113), en lecture seule (ni édition,
-   ni *Enregistrer*, ni Ctrl+S) ; absent là ou trop gros, « absent à la tête de
-   la PR, ou trop gros ». Un sélecteur : *Fichier* · *Diff de ce commit*
-   (depuis son parent) · *Diff depuis la base de la PR* ; un diff *En ligne* ou
-   *Côte à côte*. Lu par git seul, relu à chaque ouverture (pas suivi sur le
-   disque). *Commenter* sur une ligne ou une sélection : une zone de
-   commentaire, la remarque au brouillon pour ce commit, ses lignes citées
-   (F-98). *Relire les commits* (un par un : les quatre questions, la
-   duplication, les en-têtes, l'histoire des commits).
-5. **Revue** — le plan à l'écran écrit et toutes ses cases cochées : la seule
-   catégorie du relecteur, *Relire à l'écran* (F-100).
-6. **PR** — la revue publiée (`pr-<n>-review.json` : son état, son lien, le
+**La revue essentielle** (0.16.0) : le développeur se tient sur la note, les règles et l'essai à l'écran ; le reste est un contrôle secondaire, automatique. Rien ne change pour le créateur.
+- **Quatre arrêts**, au fil (F-92) : *Note*, *Règles*, *Essai*, *Publier*. Plus de Forme (rien à y juger), plus de Modules : on ne relit plus l'histoire des commits (tous les projets fusionnent en squash, ces remarques ne seraient corrigées par personne), ni « N commits » au fil, ni liste des commits ; la PR s'ouvre sur GitHub depuis sa carte.
+- **Une ligne et un bouton** (F-92) : sous le fil, une phrase dit ce que le système lit ou ce qu'il attend du relecteur ; à côté, *Préparer la revue*, à tous les arrêts.
+- **Préparer la revue** : un seul geste, qui lance d'un coup les cinq lectures — la relecture de la note par l'agent (`review-note`), le pseudo-code des tests (`read-invariants`), l'alignement (`align`), la relecture du code (`review-commits`) et le plan de test à l'écran (`screen`) — pour que le relecteur trouve tout prêt. Le relevé dit celles qui restent à lancer (`prepare`) ; la page demande chacune, une demande par lecture, dans cet ordre, par le canal des actions : rien dans le principal ne lance une lecture. **Jamais automatique** : charger une PR, l'ouvrir, changer d'arrêt ou un relevé ne lancent rien et ne dépensent aucun token. Une revue déjà préparée : le bouton ne lance que ce qui manque (la sortie n'est pas là) ou a été lu sur une autre tête de la PR ; les lectures des tests suivent leur empreinte ; une lecture en cours ou en file n'est pas relancée ; sans note, pas la relecture de la note ; sans test d'invariant, pas le pseudo-code ; hors de la tête de la PR, rien. Rien n'est payé deux fois. Grisé, sa raison en infobulle, quand il n'y a rien à lancer ; absent sans PR chargée. Les boutons de chaque lecture (*Relire la note*, *Lire en pseudo-code*, *Relire*, *Tout relire*, *Vérifier l'alignement*, *Relire le code*, *Plan de test à l'écran*, *Relancer*) ne sont plus à l'écran ; chaque lecture reste lançable seule par l'agent et sa CLI.
+- **La marque de chaque lecture** (`read:<action>`, parmi les marques de l'agent, `vibecoder-state.json`, jamais dans le dépôt) : à la fin d'une lecture réussie, qu'elle vienne de *Préparer la revue*, de la CLI ou de la file, le principal pose la marque pour le commit de tête du relevé d'où elle est partie ; échouée ou arrêtée, rien (elle sera relancée) ; la tête pas retenue au départ (l'appli relancée entre-temps) : rien ; relue sur une autre tête, la marque d'avant est remplacée ; la fin est rangée une seule fois, au relevé suivant. La page ne peut pas l'envoyer (refusé). La revue suit la PR, sans comparer d'heures. Les anciennes marques `commit:<hash>` restent au relevé, sans compter.
+- **Les verdicts proposent**, à la publication, d'après la note et les tests seuls (plus de verdict par commit) : un *À revoir* sur la note ou un test propose *Demander des changements* ; la note et chaque test validés : *Approuver* ; rien de jugé : aucun verdict ; sinon *Commenter*. Le choix de l'utilisateur l'emporte, et rien ne part avant son clic sur *Publier la revue*. *À revoir* n'ouvre pas de zone de remarque de lui-même : il montre « Ajouter une remarque au brouillon », qui l'ouvre ; sans ce clic, rien n'est ajouté.
+- **Les remarques restent sur place** : celles du brouillon sont sous l'élément commenté (un passage ou un bloc de la note, une règle, un test, un constat), grisées et empilées quand il y en a plusieurs, avec un crayon (la zone de remarque sur place, même cible, mêmes limites) et une croix (la retirer), comme dans le brouillon de l'étape Publier.
+
+Les arrêts, faits quand :
+1. **Note** — absente de la PR, ou jugée : *Valider*, ou *À revoir* (rien au brouillon de lui-même). Montre la relecture de la note par l'agent (`pr-<n>-note.md`) au-dessus de la note de la PR, sans bouton à elle, puis la note (comme pour le créateur) : ses remarques sur ses lignes, la bulle de chaque bloc au brouillon.
+2. **Règles** — chaque test jugé (*Validé* ou *À revoir*), lu ou pas : la même vue que le créateur (F-100), une règle par ligne « → invariant » et ses tests en pseudo-code, *Validé* / *À revoir* sur chaque test, l'alignement en tête, sans preuve ; la bulle d'un test, d'une règle ou du point d'attention ouvre une remarque pour le brouillon ; un test d'avant la branche que la PR modifie le dit.
+3. **Essai** — le plan à l'écran écrit et toutes ses cases cochées (*Relire à l'écran*, F-100) : ses cases, cocher valide, *Tout cocher* ; sans plan, une phrase qui renvoie à *Préparer la revue*, sans bouton.
+4. **Publier** (la PR) — la revue publiée (`pr-<n>-review.json` : son état, son lien, le
    verdict donné, le texte publié et sa date ; une revue d'avant n'a que les
-   deux premiers). Montre la carte de la PR, *S'assigner la PR*, puis le **brouillon de
-   revue**, le verdict (*Approuver*, *Commenter* par défaut — ou celui que
+   deux premiers). Montre la carte de la PR, *S'assigner la PR*, puis **les constats de l'agent sur le code** — la relecture du code, `pr-<n>-commits.md` (le fichier garde son nom) : un constat par titre `##` (hors bloc de code ; ce qui précède le premier est une introduction ; un fichier sans titre : aucun constat, son texte gardé), son détail et sa bulle (F-98) ; pas encore de relecture : une phrase, sans bouton ; la relecture lit tout le diff de la PR en une passe (skill `relire-commits`) : les quatre questions du guide (§ 5.1), la duplication avec du code existant, le code suit-il la note et sa Forme, les bugs, les en-têtes de fichiers ; rien sur l'histoire des commits —, puis le **brouillon de revue**, le verdict (*Approuver*, *Commenter* par défaut — ou celui que
    proposent les verdicts, ci-dessus —, *Demander des changements*) et *Publier la revue*, qui l'envoie sur GitHub, tel quel, avec
    ce verdict (F-114). Une fois publiée, la revue affichée est marquée envoyée :
    grisée, avec son résumé sur sa ligne d'état (le verdict, le nombre de
@@ -2712,10 +2540,7 @@ l'agent, ni à la suite d'une autre action).
 Le brouillon, gardé par PR : une remarque = sa cible (une ligne, 300
 caractères au plus) et son texte (5 000 au plus) — le texte du champ s'il y
 en a (le champ se vide ; trop long, il reste et l'écran le dit), sinon ce
-qu'on cite. *Commenter* sur la note, sa relecture, l'alignement, un cas, un
-commit ou les lignes d'un fichier d'un commit, ou le bouton « Ajouter une
-remarque au brouillon » d'un *À revoir* (la note, un cas, un commit), ouvrent la
-zone de commentaire : la remarque s'ajoute à *Ajouter* ; elle se modifie
+qu'on cite. La bulle sur la note, sa relecture, l'alignement, une règle, un test ou un constat, ou le bouton « Ajouter une remarque au brouillon » d'un *À revoir* (la note, un test), ouvrent la zone de remarque : la remarque s'ajoute à *Ajouter* ; elle se modifie
 sur place (même cible, mêmes limites) ou se retire (×), sous l'élément comme ici.
 
 **Ouvrir**, ce que désigne un id du dernier
@@ -2896,7 +2721,7 @@ texte de la note, la rubrique « Forme », le bloc du cas et le code commun de s
 de test (étape Invariants), le plan, le
 commit de tête de la branche pour une case du § A.3) : le
 contenu change → « modifiée depuis » (*Revalider*), et l'étape attend une
-nouvelle validation. Une cible absente du dernier relevé est ignorée.
+nouvelle validation. Une cible absente du dernier relevé est ignorée. Relecteur (0.16.0) : pas de verdict par commit, le verdict proposé vient de la note et des tests (F-101) ; les anciennes marques `commit:<hash>` restent au relevé sans compter ; chaque lecture finie pose sa marque `read:<action>` pour la tête de la PR d'où elle est partie, par le principal seul, jamais par la page (F-101).
 *Valider la note* du créateur (0.16.0) est une validation d'étape comme les
 autres, aussitôt, sans course ni vérification : c'est un geste à part de
 *Vérifier* (F-100), dont la course, à sa fin, ne valide jamais rien : elle retient
@@ -3029,8 +2854,7 @@ en-tête, un clic dessus bascule le diff sur ce qui a changé depuis le ✓
 (*Depuis la validation*, ci-dessous), un second revient à la base ; une étape sans
 validation : pas de bascule, et si la validation disparaît la bascule retombe sur
 la base. Plus de *Depuis le dernier commit*, de *Fichier*, de *Côte à côte* ni de
-case *Invariants seuls* pour lui ; ni à la Forme, ni aux Invariants. **Le relecteur ne
-change pas** : à l'étape Invariants, un seul menu en tête de la vue IDE,
+case *Invariants seuls* pour lui ; ni à la Forme, ni aux Invariants. **Le relecteur n'a plus ce menu à l'écran** (0.16.0, F-101 : la page ne l'appelle plus ; ce qui suit décrit celui qui reste dans le dépôt) : à l'étape Invariants, un seul menu en tête de la vue IDE,
 au-dessus de l'arborescence et du fichier choisi : *Fichier* · *Depuis la base de
 la branche* (par défaut) · *Depuis le dernier commit*, avec, pour un diff,
 *En ligne* · *Côte à côte*. La référence choisie
@@ -4495,10 +4319,7 @@ relire, une PR d'essai sur GitHub)
   `origin/<tête>` récupérée, son nom dans le bouton ; *Changer de branche* → le
   dossier sur la branche de la PR, le badge *Relecteur* dans l'en-tête, rien
   qui édite, génère ou commite (ni *Modifier*, ni *Enregistrer*, ni *Générer*) ;
-  le parcours commence à Note et se lit dans la copie de travail (note,
-  invariants, modules et commits). *Relire la note*, *Relire les commits*, *Plan
-  de test à l'écran* (étape Revue, *Relire à l'écran*) : leurs sorties dans les
-  étapes. Un *À revoir* → rien au brouillon, mais « Ajouter une remarque au
+  le parcours commence à Note et se lit dans la copie de travail (note, règles, essai, publier). *Préparer la revue* lance *Relire la note*, *Lire en pseudo-code*, *Vérifier l'alignement*, *Relire le code* et *Plan de test à l'écran* : leurs sorties dans les arrêts. Un *À revoir* → rien au brouillon, mais « Ajouter une remarque au
   brouillon » et un verdict proposé (*Demander des changements*) ; un *Commenter*
   complété par le champ → une remarque, visible sous l'élément ; en retirer une ;
   *Poser une question à l'agent* → l'élément cité dans le champ, rien d'envoyé ; le 💬 du bloc
@@ -4537,29 +4358,13 @@ relire, une PR d'essai sur GitHub)
   bouton principal disant « L'agent attend votre autorisation… ».
 - **S-59** Une PR déjà fusionnée : *Charger la PR* → sa fiche, son état ; pas
   de badge *Relecteur* ni de bandeau (sans PR ouverte, on est créateur).
-- **S-60** Relecteur : étape Modules, les commits de la PR → *Voir le diff* d'un commit : son diff
-  s'ouvre dans l'éditeur (`files/<hash>.diff`, en lecture seule) ; *GitHub* :
-  la page du commit dans le navigateur ; un clic sur un fichier du commit :
-  il s'ouvre sous sa carte, sa version à la tête de la PR, en lecture seule
-  (un autre : le premier se ferme) ; *Diff de ce commit*, *Diff depuis la
-  base de la PR*, en ligne et côte à côte ; *Commenter* sur deux lignes → une zone de
-  commentaire : y dicter, la dictée s'y insère (pas dans le champ de la
-  conversation) ; la remarque au brouillon, pour ce commit, son chemin et
-  ses lignes citées. Un champ d'une ligne (recherche de branche) a le
-  clavier : la dictée va au champ de la conversation. *Ouvrir* sur un cas
-  d'invariant : le fichier, à la ligne du cas (zed, code).
-- **S-61** *Lire en pseudo-code* (*Relire les commits*) sur un skill
+- **S-60** Relecteur : la bulle d'un constat de la relecture du code, à l'arrêt Publier → une zone de remarque déjà remplie avec le constat : y dicter, la dictée s'y insère (pas dans le champ de la conversation) ; *Ajouter* → la remarque au brouillon, sur ce constat ; *Annuler* → rien. Un champ d'une ligne (recherche de branche) a le clavier : la dictée va au champ de la conversation. *Ouvrir dans l'éditeur* sur un test d'invariant : le fichier, à la ligne du cas (zed, code).
+- **S-61** *Lire en pseudo-code* (*Relire le code*) sur un skill
   `sonnet · moyen` (`opus · élevé`) : choisir *haiku* → le message part en
   `/vibecoder:lire-invariants--haiku …` (le fil le montre). Les lectures sont en anglais, en *FR* comme en *EN*.
 - **S-62** L'agent travaille sur un skill : *⏹ Arrêter* → le tour s'arrête
   comme par *Interrompre* (« Interrompu. »), les boutons se rallument.
-- **S-63** Pas de carte « Prochaine étape » : chez le relecteur (le créateur n'a plus
-  de bouton d'étape depuis la 0.16.0, S-79), les actions de l'étape sont
-  sur la ligne de son titre (elles passent à la ligne s'il manque de la
-  place), celle qui fait avancer en tête ; aucun champ dessous (la demande se
-  dicte dans celui de la conversation). Une carte de sortie
-  (relecture du diff, vérifications…) : *Relancer* la refait ; l'alignement
-  et la ponytail review n'en ont pas. La vue des branches, *Revenir sur la
+- **S-63** Pas de carte « Prochaine étape » : ni le créateur ni le relecteur n'ont de bouton d'étape depuis la 0.16.0 (S-79, S-80) ; aucun champ dessous (la demande se dicte dans celui de la conversation). La vue des branches, *Revenir sur la
   branche principale* → le dossier sur la base, plus de badge *Relecteur*. Une commande en
   arrière-plan : *⚙ Tâches* → l'onglet *Tâches (1)* à droite ;
   *Conversation* → le fil, à sa place.
@@ -4790,8 +4595,8 @@ relire, une PR d'essai sur GitHub)
   `[agent]` repliées sous leur nombre). La PR : sa carte et l'état de la CI. Le badge
   d'une étape validée dit « faite ✓ » et se clique, à la Forme, aux Invariants et
   aux Modules, pour retirer le ✓ (« faite · ✓ retiré », la ligne le nomme) puis le
-  rendre ; une étape faite que le système n'a pas validée : badge sans ✓ ni clic. Le
-  relecteur d'une PR : rien n'a changé.
+  rendre ; une étape faite que le système n'a pas validée : badge sans ✓ ni clic. Le relecteur d'une PR : S-80.
+- **S-80** La revue essentielle (0.16.0, relecteur) : sous un fil de quatre arrêts (« Note », « Règles », « Essai », « Publier »), une ligne dit où l'on en est (« Choisissez la PR à relire », « Préparez la revue », « Lisez la note, puis jugez-la », « 3 tests à juger », « Publiez la revue ») et, à côté, *Préparer la revue*. Charger ou ouvrir une PR ne lance rien. *Préparer la revue* → cinq demandes, dans l'ordre (note, pseudo-code, alignement, relecture du code, plan de test) ; une fois finies, un second clic : grisé, rien à lancer ; un commit de plus sur la PR → il ne relance que les lectures marquées à l'ancienne tête. Aux Règles : une règle par ligne « → invariant », ses tests en pseudo-code, *Validé* / *À revoir*, ni preuve ni bouton de lecture ; un test d'avant la branche que la PR modifie le dit. À l'Essai : le plan et ses cases. À Publier : les constats de la relecture du code, chacun avec sa bulle, puis le brouillon, le verdict et *Publier la revue*. Ni Forme, ni Modules, ni « N commits », ni carte de commit.
 ---
 
 ## 14. Limites connues

@@ -20,10 +20,11 @@ const action = (id: string, label: string, extra: object = {}) => ({ id, label, 
 const all = [action('pr', 'Valider la feature'), action('ci', 'Diagnostiquer la CI'), action('unassign-pr', 'Me retirer de la PR'),
   action('assign-pr', 'S\'assigner la PR'), action('publish', 'Publier la revue')];
 
-async function show(over: Record<string, unknown>) {
+async function show(over: Record<string, unknown>, acts: object = {}) {
   const view = { lang: 'fr', flow: 'create', actions: all, commits: [], draft: [], outputs: {}, ...over } as unknown as VibeView;
   const props = { view, step: { id: 'pr', status: 'current', facts: '', open: true }, t: t('fr'), busy: false, text: '', setText: () => {},
-    code: null, drafts: [{}, () => {}], act: { run: async () => true, prefill: () => {}, open: () => {}, openLink: () => {}, mark: () => {} } } as unknown as StepProps;
+    verdict: 'comment', onVerdict: () => {},
+    code: null, drafts: [{}, () => {}], act: { run: async () => true, prefill: () => {}, open: () => {}, openLink: () => {}, mark: () => {}, ...acts } } as unknown as StepProps;
   await act(() => root.render(createElement(PrView, props)));
 }
 const ci = (text: string) => ({ 'ci.md': { text, time: 0 } });
@@ -96,4 +97,54 @@ it('relecteur : S\'assigner la PR, le brouillon, Publier, comme avant', async ()
   expect(buttons()).toEqual(expect.arrayContaining(['S\'assigner la PR']));
   expect(buttons().some((b) => b?.includes('Publier'))).toBe(true);
   expect(page.querySelector('.vc-pr-number')!.textContent).toBe('#7');
+});
+
+// ---- La revue essentielle (note 0.16.0-revue-essentielle) : les constats au-dessus du brouillon ----
+const MD = 'Intro de la relecture.\n\n## Fuite du jeton\nle jeton part dans le journal';
+const review = (over: Record<string, unknown> = {}, runs: unknown[][] = []) => show({ flow: 'review', pr, outputs: { 'pr-7-commits.md': { text: MD, time: 0 } }, ...over },
+  { run: async (...a: unknown[]) => { runs.push(a); return true; }, draft: () => {} });
+
+it('relecteur : les constats au-dessus du brouillon', async () => {
+  await review();
+  const findings = page.querySelector('.vc-findings')!;
+  const draft = page.querySelector('.vc-draft')!;
+  expect(findings.textContent).toContain('Fuite du jeton');
+  expect(findings.compareDocumentPosition(draft) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(page.querySelector('.vc-publish')).not.toBeNull();
+});
+
+it('relecteur : le brouillon vide ne cite plus les commits', async () => {
+  await review();
+  expect(page.querySelector('.vc-draft-empty')!.textContent).toBe(t('fr').essentialReview.draftEmpty);
+  expect(page.querySelector('.vc-draft-empty')!.textContent).not.toMatch(/commit/);
+});
+
+it('relecteur : le brouillon, le verdict, Publier la revue, comme avant', async () => {
+  await review({ draft: [{ id: 1, target: 'note', text: 'bof' }] });
+  expect(page.querySelector('.vc-draft')!.textContent).toContain('1 remarque');
+  expect([...page.querySelectorAll('.vc-verdicts button')].map((b) => b.textContent)).toEqual(['Approuver', 'Commenter', 'Demander des changements']);
+  expect(buttons().some((b) => b?.includes('Publier'))).toBe(true);
+});
+
+it('relecteur : S\'assigner la PR lance assign-pr, Me retirer quand le relevé le montre', async () => {
+  const runs: unknown[][] = [];
+  await review({ actions: [action('assign-pr', 'S\'assigner la PR'), action('publish', 'Publier la revue')] }, runs);
+  await act(() => [...page.querySelectorAll('button')].find((b) => b.textContent === 'S\'assigner la PR')!.click());
+  expect(runs.map((r) => r[0])).toEqual(['assign-pr']);
+  await review({ actions: [action('unassign-pr', 'Me retirer de la PR', { hidden: true }), action('publish', 'Publier la revue')] }, runs);
+  expect(buttons()).not.toContain('Me retirer de la PR');
+});
+
+it('rien n\'est publié sans le clic sur Publier la revue', async () => {
+  const runs: unknown[][] = [];
+  await review({}, runs);
+  expect(runs).toEqual([]);
+  await act(() => [...page.querySelectorAll('button')].find((b) => b.textContent?.includes('Publier'))!.click());
+  expect(runs.map((r) => r[0])).toEqual(['publish']);
+});
+
+it('créateur : ni constats, ni brouillon, même avec une relecture', async () => {
+  await show({ pr, outputs: { 'pr-7-commits.md': { text: MD, time: 0 } } });
+  expect(page.querySelector('.vc-findings')).toBeNull();
+  expect(page.querySelector('.vc-draft')).toBeNull();
 });

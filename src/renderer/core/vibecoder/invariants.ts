@@ -51,6 +51,7 @@ export function casesOf(file: VibeTestFile): CaseView[] {
       stale: file.staleCases?.includes(key) || undefined,
       mark: Object.hasOwn(file.marks, key) ? file.marks[key] : null,
       common: file.commonChanged?.includes(key) || undefined,
+      fromBase: file.changedFromBase?.includes(key) || undefined,
     };
   });
 }

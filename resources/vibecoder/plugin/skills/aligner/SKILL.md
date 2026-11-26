@@ -1,6 +1,6 @@
 ---
 name: aligner
-description: "Check the invariants only — every « → invariant » line of the note truly observed by a test, every invariant test tied to a line — and, in the creator's worktree, fix the tests (3 rounds at most); gaps left go to <out>/align.md, and which test guards which line to <out>/liens.md. Followed by invariants (Create) in its own run, after the red tests. In a PR (HEAD): a list, nothing fixed."
+description: "Check the invariants only — every « → invariant » line of the note truly observed by a test, every invariant test tied to a line — and, in the creator's worktree, fix the tests (3 rounds at most); gaps left go to <out>/align.md, and which test guards which line to <out>/liens.md. Followed by invariants (Create) in its own run, after the red tests. In a PR (HEAD): a list and the links, nothing fixed, nothing written in the branch."
 argument-hint: "<lang> <out> [base=<base>] <ref>"
 disable-model-invocation: true
 context: fork
@@ -13,7 +13,7 @@ allowed-tools: "Read, Glob, Grep, Write, Edit"
 
 `$ARGUMENTS` = `<lang> <out> [base=<base>] <ref>`. `base=<base>`: optional, the base branch, given by the app right after `out` (an empty value, `base=` or `note=` alone, counts as not given) (absent → the search below; the note is always searched). `lang`: the user's language (`fr`, `en`…): `align.md` in it — the user reads it closely (note 0.15.0-stabilisation, as `ponytail.md`); your answer in English. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces). `ref`:
 - `WORKTREE` (the creator): the current branch, uncommitted and untracked files included. Base: `base=` if given, else `git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`), else `origin/main`, `origin/master`, `main` or `master`, the first that exists (`git rev-parse --verify -q <ref>`); range `<base>...HEAD`. You **fix** the tests.
-- `HEAD` (the reviewer): a pull request, checked out in this folder — read its files in the folder; base = `base` of the `<out>/pr-<n>.json` whose `head` is the current branch (`git rev-parse --abbrev-ref HEAD`; on a `pr-<n>` branch, that `<n>`); none → as for `WORKTREE`; range `origin/<base>...HEAD`. You **list only**: touch no file of the branch, run no command that writes (T-19); `align.md` is the one file you write.
+- `HEAD` (the reviewer): a pull request, checked out in this folder — read its files in the folder; base = `base` of the `<out>/pr-<n>.json` whose `head` is the current branch (`git rev-parse --abbrev-ref HEAD`; on a `pr-<n>` branch, that `<n>`); none → as for `WORKTREE`; range `origin/<base>...HEAD`. You **list only**: touch no file of the branch, run no command that writes (T-19); `align.md` and `liens.md`, both in `<out>`, are the only files you write.
 
 Read, with the Read, Glob and Grep tools: the note (under `docs/tickets/`, named like the branch, on the disk even if git ignores it, else the one the range adds or changes) — its « Ce que ça ne doit pas faire » only; the invariant tests the range adds or changes (`git diff --name-only <range>`, for `WORKTREE` `git diff --name-only <base>` and `git ls-files --others --exclude-standard`; `tests/invariants/` folders, or where `AGENTS.md`, if present, puts them); the project's list of invariants, if any (e.g. `SPEC.md`); the guide (`docs/dev_guide/*.html`) §3.1 to §3.5, if present; `<out>/preuve.md`, if it exists (the proof of the invariants by mutation, skill `prouver`: a `## [toi]` section says a test stayed green, and the mutant that did not shake it). Not the forme, not the code: the invariants are written from the note, the modules come later.
 
@@ -48,9 +48,9 @@ Rewritten after each check; at the end, only what stands. One `##` per gap, its 
 - `[agent]`: the rest — a gap in a test that you could fix but did not (3 rounds spent). Never a gap you fixed: it is not listed.
 - `HEAD`: the same list, **no label**, nothing fixed, the gaps in the same words.
 
-Code names, paths and test titles stay as they are; the rest in `lang`, in plain words a developer who does not know the invariants by heart understands (say what a rule means, never a bare number). Nothing off → a single line without a title, « Aligned. » (`en`) or « Aligné. » (`fr`), followed by what you checked (lines and tests counted; `WORKTREE`: how many gaps fixed, in how many rounds), in `lang`. Write nothing else, anywhere, but `liens.md` below (`HEAD`: nothing else in the folder at all).
+Code names, paths and test titles stay as they are; the rest in `lang`, in plain words a developer who does not know the invariants by heart understands (say what a rule means, never a bare number). Nothing off → a single line without a title, « Aligned. » (`en`) or « Aligné. » (`fr`), followed by what you checked (lines and tests counted; `WORKTREE`: how many gaps fixed, in how many rounds), in `lang`. Write nothing else, anywhere, but `liens.md` below (`HEAD`: nothing else in `<out>`, nothing in the branch).
 
-## `<out>/liens.md` — which test guards which line (`WORKTREE` only)
+## `<out>/liens.md` — which test guards which line (`WORKTREE` and `HEAD`)
 
 The list of §1, as the screen reads it: it is what ranges each test under its rule on the user's screen. Without it, every `→ invariant` line shows « no test » at the pause where the user looks at the rules. Write it with the Write tool at the end, whole, whatever you found (aligned or not), from the final state of the tests — it is not a gap file, and it carries no label:
 
@@ -69,6 +69,6 @@ The list of §1, as the screen reads it: it is what ranges each test under its r
 - Copy the line and each title character for character — the screen matches them — never reworded, translated, shortened or wrapped.
 - Nothing else in the file: no label, no comment, no summary.
 
-`HEAD`: do not write it.
+`HEAD` (a PR): the same file, the same format, written in `<out>` only, never in the branch. The tests of files from before the PR count, as for `WORKTREE`; the PR's tests come from the range, the others from reading the invariant test files of the folder. Still nothing fixed.
 
 Answer in English, 1 to 3 lines: the number of gaps fixed and the number left, and the most serious one left.

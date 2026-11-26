@@ -18,15 +18,15 @@
  *  Ne connaît pas : Electron, le disque, git (la tête est passée), les courses (leur fin et leur état sont passés), qui
  *  lance une lecture.
  *  Utilisé par : core/vibecoder (journey : toPrepare), app/controllers/vibecoder (READINGS, readEnd). */
-import type { Marks } from './marks';
+import { setMark, type Marks } from './marks';
 
 export const READINGS: readonly string[] = ['review-note', 'read-invariants', 'align', 'review-commits', 'screen'];
 
 // La fin d'une lecture : son action, comment elle a fini, le commit de tête d'où elle est partie (null : pas retenu).
 export type ReadEnd = { action: string; state: 'done' | 'failed' | 'stopped'; head: string | null };
 
-export function readEnd(_marks: Marks, _end: ReadEnd): Marks {
-  throw new Error('not implemented');
+export function readEnd(marks: Marks, { action, state, head }: ReadEnd): Marks {
+  return state === 'done' && head !== null && READINGS.includes(action) ? setMark(marks, `read:${action}`, head, 'ok') : marks;
 }
 
 export type PrepareInput = {
@@ -40,6 +40,17 @@ export type PrepareInput = {
   live: readonly string[];      // les actions en cours, arrêtées pas tranchées, ou en file
 };
 
-export function toPrepare(_input: PrepareInput): string[] {
-  throw new Error('not implemented');
+export function toPrepare({ pr, head, marks, outputs, note, tests, unread, live }: PrepareInput): string[] {
+  if (pr === null) return [];
+  const has = (name: string) => outputs.includes(name);
+  const readAt = (action: string) => Object.hasOwn(marks, `read:${action}`) && marks[`read:${action}`].hash === head;
+  // La sortie présente et lue sur la tête d'aujourd'hui (head null : jamais, une tête inconnue ne se compare à rien).
+  const todo: Record<string, boolean> = {
+    'review-note': note && !(has(`pr-${pr}-note.md`) && readAt('review-note')),
+    'read-invariants': tests > 0 && unread,
+    align: !(has('align.md') && has('liens.md') && readAt('align')),
+    'review-commits': !(has(`pr-${pr}-commits.md`) && readAt('review-commits')),
+    screen: !(has('ecran.md') && readAt('screen')),
+  };
+  return READINGS.filter((a) => todo[a] && !live.includes(a));
 }

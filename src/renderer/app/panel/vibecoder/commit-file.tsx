@@ -8,7 +8,7 @@
  *  ModuleDiffView ; text null : « absent à la tête de la PR, ou trop gros ».
  *  En texte, jamais en HTML (I-40). Libellés ici, par lang.
  *  Ne connaît pas : le pont, git, le brouillon.
- *  Utilisé par : commits-view. */
+ *  Utilisé par : aucune vue depuis la 0.16.0 (la liste des commits a disparu) ; exporté par le barrel du module. */
 import { useState, type ReactElement } from 'react';
 import type { Strings } from 'core/vibecoder';
 import type { VibeCode, VibeFile, VibeLang } from 'technicals/bridge';

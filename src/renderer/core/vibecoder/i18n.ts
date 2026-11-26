@@ -37,6 +37,10 @@
  *  règles, l'essai, publier : « Note », « Règles », « Essai », « Publier »), sa ligne d'état ses phrases (statusLine),
  *  et « Préparer la revue » son libellé, son infobulle et la raison qui le grise (rien à lancer) ; les libellés que
  *  plus rien n'affiche sont retirés (« N commits », Vue IDE · Vue liste, Structure · Code, Relancer d'une lecture…).
+ *  Tout ce que les vues du relecteur ajoutent tient dans le groupe essentialReview : steps (les quatre noms), statusLine
+ *  (les phrases de statusLine), prepare (libellé, infobulle, raison du grisé : rien à lancer / lectures en cours),
+ *  findingsTitle et findingsEmpty (les constats sur le code, à l'arrêt Publier), noPlan (l'essai sans plan),
+ *  changedByPr (un test d'avant la branche que la PR modifie), addRemark, draftEmpty (le brouillon vide, sans commits).
  *  stepName(s: Strings, flow: VibeFlow, id: VibeStepId): string — le nom d'une étape à l'écran : en relecteur celui de
  *  son arrêt, en créateur celui de steps, inchangé.
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
@@ -73,8 +77,6 @@ const fr = {
     ok: 'validée', changed: 'modifiée depuis la validation', cascade: 'à revoir : une étape d\'avant a changé', none: 'pas validée',
   },
   waitingFor: (step: string) => `En attente : valider d'abord l'étape ${step}`,
-  ideView: 'Vue IDE', listView: 'Vue liste', structure: 'Structure', code: 'Code',
-  noChange: 'la branche ne change pas ce module',
   reviewer: 'Relecteur',
   reviewerTitle: 'Vous relisez la PR d\'un autre : rien ne s\'édite ici. S\'assigner la PR, dans l\'étape PR, pour la modifier.',
   screenTitle: 'Relire à l\'écran',
@@ -88,10 +90,8 @@ const fr = {
   branchesOpen: 'Ouvrir la vue des branches : PR, branches locales, créer une branche',
   branchesClose: 'Fermer la vue des branches',
   journey: 'Parcours',
-  commitsOf: (n: number) => (n > 1 ? `${n} commits` : n ? '1 commit' : 'aucun commit'),
   conversation: 'Conversation',
   shortcut: (n: number) => `Ctrl+${n}`,
-  rerun: 'Relancer',
   // Le contrôle en trois points : le rythme, le bouton du moteur à une pause, la ligne de chaque pause.
   express: 'Express',
   expressTitle: 'Express : aucune pause, le système enchaîne jusqu\'à la PR ouverte. Éteint, le parcours s\'arrête après les invariants et après les modules.',
@@ -122,6 +122,33 @@ const fr = {
     closed: 'La PR est fermée, sans avoir été fusionnée',
     stopped: 'Le système est arrêté : reprenez',
   },
+  // La revue essentielle (relecteur) : les arrêts, la ligne d'état, Préparer la revue, et les phrases des vues réécrites.
+  essentialReview: {
+    steps: { note: 'Note', invariants: 'Règles', revue: 'Essai', pr: 'Publier' } as Partial<Record<VibeStepId, string>>,
+    statusLine: {
+      choosePr: 'Choisissez la PR à relire, dans la vue des branches',
+      switchBranch: 'Passez sur la branche de la PR',
+      reading: (what: string) => `Le système lit : ${what}`,
+      prepare: 'Préparez la revue',
+      judgeNote: 'Lisez la note, puis jugez-la',
+      toJudge: (n: number) => `${n} test${n > 1 ? 's' : ''} à juger`,
+      tryApp: (n: number) => (n ? `Essayez l'appli : ${n} case${n > 1 ? 's' : ''} à cocher` : 'Essayez l\'appli'),
+      publish: 'Publiez la revue',
+      published: 'La revue est publiée',
+    },
+    prepare: {
+      label: 'Préparer la revue',
+      title: 'Lance d\'un coup les lectures qui manquent : la note, le pseudo-code des tests, l\'alignement, le code et le plan de test à l\'écran. Rien ne part tout seul.',
+      ready: 'Tout est déjà lu : rien à lancer',
+      running: 'Des lectures sont déjà en cours',
+    },
+    findingsTitle: 'Constats de l\'agent sur le code',
+    findingsEmpty: 'Le code n\'est pas encore relu : Préparer la revue le lit.',
+    noPlan: 'Pas de plan de test à l\'écran : Préparer la revue le prépare.',
+    changedByPr: 'modifié par la PR',
+    addRemark: 'Ajouter une remarque au brouillon',
+    draftEmpty: 'Pas encore de remarque. À revoir sur la note ou un test, ou la bulle d\'un constat, d\'une règle ou d\'un test ouvrent une zone de commentaire : la remarque vient ici.',
+  },
   errorHint: 'La conversation reste utilisable, à droite.',
   broken: 'Cette étape ne peut pas s\'afficher.',
   retry: 'Réessayer',
@@ -150,10 +177,7 @@ const fr = {
   convShow: 'Afficher la conversation',
   convHide: 'Masquer la conversation',
   convResize: 'Largeur de la conversation (glisser, ou flèches gauche et droite)',
-  diffTitle: 'Ouvrir le diff de ce commit dans l\'éditeur',
   notInForme: 'Modifié, mais non déclaré dans la Forme',
-  githubTitle: 'Ouvrir la page de ce commit sur GitHub',
-  files: (n: number) => (n > 1 ? `${n} fichiers` : n ? '1 fichier' : 'aucun fichier'),
   commentAdd: 'Ajouter au brouillon',
   commentSave: 'Enregistrer',
   commentCancel: 'Annuler',
@@ -310,8 +334,6 @@ const en: Strings = {
     ok: 'validated', changed: 'changed since the validation', cascade: 'to review: an earlier step changed', none: 'not validated',
   },
   waitingFor: (step: string) => `Waiting: validate the ${step} step first`,
-  ideView: 'IDE view', listView: 'List view', structure: 'Structure', code: 'Code',
-  noChange: 'the branch does not change this module',
   reviewer: 'Reviewer',
   reviewerTitle: 'You are reviewing someone else\'s PR: nothing is editable here. Assign the PR to yourself, in the PR step, to change it.',
   screenTitle: 'Review on screen',
@@ -325,10 +347,8 @@ const en: Strings = {
   branchesOpen: 'Open the branch view: PRs, local branches, create a branch',
   branchesClose: 'Close the branch view',
   journey: 'Journey',
-  commitsOf: (n) => (n > 1 ? `${n} commits` : n ? '1 commit' : 'no commit'),
   conversation: 'Conversation',
   shortcut: (n) => `Ctrl+${n}`,
-  rerun: 'Run again',
   express: 'Express',
   expressTitle: 'Express: no pause, the system carries on until the PR is open. Off, the journey stops after the invariants and after the modules.',
   pause: {
@@ -358,6 +378,32 @@ const en: Strings = {
     closed: 'The PR is closed, not merged',
     stopped: 'The system is stopped: resume',
   },
+  essentialReview: {
+    steps: { note: 'Note', invariants: 'Rules', revue: 'Trial', pr: 'Publish' },
+    statusLine: {
+      choosePr: 'Pick the PR to review, in the branch view',
+      switchBranch: 'Switch to the PR\'s branch',
+      reading: (what) => `The system is reading: ${what}`,
+      prepare: 'Prepare the review',
+      judgeNote: 'Read the note, then judge it',
+      toJudge: (n) => `${n} test${n > 1 ? 's' : ''} to judge`,
+      tryApp: (n) => (n ? `Try the app: ${n} box${n > 1 ? 'es' : ''} to tick` : 'Try the app'),
+      publish: 'Publish the review',
+      published: 'The review is published',
+    },
+    prepare: {
+      label: 'Prepare the review',
+      title: 'Starts every missing reading at once: the note, the tests in pseudo-code, the alignment, the code and the test plan on screen. Nothing starts by itself.',
+      ready: 'Everything is already read: nothing to start',
+      running: 'Readings are already running',
+    },
+    findingsTitle: 'The agent\'s findings on the code',
+    findingsEmpty: 'The code is not reviewed yet: Prepare the review reads it.',
+    noPlan: 'No test plan on screen: Prepare the review makes it.',
+    changedByPr: 'changed by the PR',
+    addRemark: 'Add a remark to the draft',
+    draftEmpty: 'No remark yet. Needs rework on the note or a test, or the bubble of a finding, a rule or a test open a comment box: the remark comes here.',
+  },
   errorHint: 'The conversation is still usable, on the right.',
   broken: 'This step cannot be displayed.',
   retry: 'Retry',
@@ -386,10 +432,7 @@ const en: Strings = {
   convShow: 'Show the conversation',
   convHide: 'Hide the conversation',
   convResize: 'Width of the conversation (drag, or left and right arrows)',
-  diffTitle: 'Open this commit\'s diff in the editor',
   notInForme: 'Changed, but not declared in the forme',
-  githubTitle: 'Open this commit\'s page on GitHub',
-  files: (n) => (n > 1 ? `${n} files` : n ? '1 file' : 'no file'),
   commentAdd: 'Add to the draft',
   commentSave: 'Save',
   commentCancel: 'Cancel',
@@ -532,8 +575,8 @@ const STRINGS: Record<VibeLang, Strings> = { fr, en };
 export function t(lang: VibeLang): Strings { return STRINGS[lang] || fr; }
 
 // Le nom d'une étape à l'écran, selon le rôle : en relecteur celui de son arrêt (voir l'en-tête).
-export function stepName(_s: Strings, _flow: VibeFlow, _id: VibeStepId): string {
-  throw new Error('not implemented');
+export function stepName(s: Strings, flow: VibeFlow, id: VibeStepId): string {
+  return (flow === 'review' && s.essentialReview.steps[id]) || s.steps[id];
 }
 
 // Une taille de fichier en clair, dans la langue de l'écran : 512 o, 1,5 Ko, 10 Mo (512 B, 1.5 KB, 10 MB).

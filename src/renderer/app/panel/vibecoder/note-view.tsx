@@ -30,7 +30,7 @@
  *  Revalider, deux boutons ; la course design-check en cours ou en attente à côté de Vérifier :
  *  d'après view.runs et view.queued, son ⏹ par act.runOp ; Relire : Valider ou À revoir).
  *  Au-dessus, Créer : les questions ouvertes (questions-view) ; Relire : la
- *  relecture de la note par l'agent (Relancer). Pas de note : ce qu'il faut
+ *  relecture de la note par l'agent (sans bouton). Pas de note : ce qu'il faut
  *  faire pour en avoir une. Styles : note-view.css.
  *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : en créateur, deux gestes (MarkControl).
  *  Vérifier lance la vérification de conception (act.run('design-check')) et ne valide rien ; ses suggestions sont au
@@ -55,7 +55,7 @@ import { DraftEditor, DraftFoot, useFileDraft } from './file-draft';
 import { MarkdownView } from './markdown-view';
 import { NoteEditor } from './note-editor';
 import { QuestionsView } from './questions-view';
-import { Invite, OutputCard, Run, StepHead } from './step-parts';
+import { Invite, OutputCard, StepHead } from './step-parts';
 import type { StepProps } from './step-views';
 import { Icon, IconButton } from './icons';
 import { useKept } from './kept-scope';
@@ -179,11 +179,10 @@ export function NoteView(p: StepProps) {
 
   return (
     <>
-      <StepHead p={p} own={['answers', ...(note ? [] : ['note']), ...(output ? ['review-note'] : [])]} />
+      <StepHead p={p} />
       {!review && view.questions.length ? <QuestionsView view={view} t={t} act={act} busy={busy} answers={answers} onAnswer={onAnswer} {...p.questions} /> : null}
       {output ? (
-        <OutputCard title={t.outputs['pr-#-note.md']} file={`pr-${view.pr!.number}-note.md`} time={output.time} t={t}
-          tools={<Run a={view.actions.find((a) => a.id === 'review-note')} busy={busy} tone="ghost" label={t.rerun} onRun={() => act.run('review-note')} />}>
+        <OutputCard title={t.outputs['pr-#-note.md']} file={`pr-${view.pr!.number}-note.md`} time={output.time} t={t}>
           <MarkdownView md={output.text} t={t} onOpenLink={act.openLink} onQuote={quote} onComment={comment} />
         </OutputCard>
       ) : null}

@@ -27,7 +27,7 @@
  *  Le créateur : ses lignes, inchangées.
  *  Ne connaît pas : le DOM, React, le pont, le bouton du moteur ni « Préparer la revue » (breadcrumb les pose à côté).
  *  Utilisé par : app/panel/vibecoder (breadcrumb). */
-import type { VibeView } from 'technicals/bridge';
+import type { VibeStepId, VibeView } from 'technicals/bridge';
 import { t } from './i18n';
 import { progress } from './invariants';
 import { parseCi } from './outputs';
@@ -35,8 +35,26 @@ import { runningRuns } from './screen';
 
 export type StatusLine = { text: string; yours: boolean; over?: true };
 
+// Le relecteur : chaque arrêt d'après son état au relevé (steps), jamais recalculé ici.
+function reviewerLine(view: VibeView): StatusLine {
+  const l = t(view.lang).essentialReview.statusLine;
+  const yours = (text: string): StatusLine => ({ text, yours: true });
+  if (!view.pr) return yours(l.choosePr);
+  if (view.repo && view.repo.branch !== view.pr.head) return yours(l.switchBranch);
+  const running = runningRuns(view.runs ?? []);
+  if (running.length) return { text: l.reading(running.map((r) => r.label).join(', ')), yours: false };
+  if (view.prepare?.length) return yours(l.prepare);
+  const notDone = (id: VibeStepId) => view.steps.find((x) => x.id === id)?.status !== 'done';
+  if (notDone('note')) return yours(l.judgeNote);
+  if (notDone('invariants')) { const p = progress(view.invariants); return yours(l.toJudge(p.total - p.ok - p.ko)); }
+  if (notDone('revue')) return yours(l.tryApp((view.screen ?? []).filter((c) => c.done !== true).length));
+  if (notDone('pr')) return yours(l.publish);
+  return { text: l.published, yours: false, over: true };
+}
+
 export function statusLine(view: VibeView): StatusLine | null {
-  if (view.flow === 'review' || view.error) return null;
+  if (view.error) return null;
+  if (view.flow === 'review') return reviewerLine(view);
   const s = t(view.lang);
   const l = s.statusLine;
   const yours = (text: string): StatusLine => ({ text, yours: true });

@@ -162,14 +162,15 @@ import type {
   VibeDiffFile, VibeDiffs, VibeDiffStep, VibePrItem, VibeRecipe, VibeRun, VibeStepCheck, VibeStepId, VibeTestFile, VibeView, VibeWorktree,
 } from 'shared/bridge';
 import { readCount as casesRead } from 'shared/test-cases';
-import { DIRECT_ACTIONS, DIRECT_ONLY, EFFORT_LEVELS, prNumber, SKILL_MODELS, templateVars, type ActionDef } from './actions';
+import { DIRECT_ACTIONS, DIRECT_ONLY, EFFORT_LEVELS, prNumber, roleDefs, SKILL_MODELS, templateVars, type ActionDef } from './actions';
 import { caseMarkState, caseTarget } from './case-marks';
 import { designState, markState, withdrawn, type Marks } from './marks';
 import { hasInvariantLines, noteDesign, parseNote } from './note';
 import { json, parseChecklist, parseQuestions, parseReading, proofOf, toiCount } from './outputs';
 import { ELSEWHERE, onBase, onPr, placeReason, placeShown, type PlaceState } from './place';
+import { toPrepare } from './readings';
 import { canAssign, unassignable, type PrPeople } from './role';
-import { blockedBy, codeLock, ownRun } from './runs';
+import { blockedBy, codeLock, LOCKING, ownRun } from './runs';
 import { stepChecks, stepContents, type CheckedStep } from './step-checks';
 import { syncReason } from './sync';
 import { blobSha, caseBlocks, caseLines, caseReading, caseTitles, isInvariantTest, type ReadingRecord } from './test-files';
@@ -238,7 +239,8 @@ export type JourneyInput = {
 // son texte à la base, au-delà : null.
 const SOURCE_MAX = 200_000;
 
-const ORDER: VibeStepId[] = ['note', 'forme', 'invariants', 'modules', 'revue', 'pr'];
+const CREATE_ORDER: VibeStepId[] = ['note', 'forme', 'invariants', 'modules', 'revue', 'pr'];
+const REVIEW_ORDER: VibeStepId[] = ['note', 'invariants', 'revue', 'pr'];   // la revue essentielle : ni Forme ni Modules
 
 const TEXT = {
   fr: {
@@ -248,7 +250,7 @@ const TEXT = {
     toReview: { note: 'à revoir : la note a changé', forme: 'à revoir : la Forme a changé', invariants: 'à revoir : les invariants ont changé', modules: 'à revoir : les modules ont changé' },
     module: ['module', 'modules'], file: ['fichier', 'fichiers'], kase: ['cas', 'cas'], read: ['lu', 'lus'],
     checksOk: 'vérifications ok', checksKo: 'vérifications en échec', warning: ['avertissement', 'avertissements'], unchecked: 'pas vérifiée', ponytail: 'ponytail faite',
-    fixup: ['fixup', 'fixups'], noPr: 'pas de PR', commit: ['commit', 'commits'], reviewed: 'relus',
+    fixup: ['fixup', 'fixups'], noPr: 'pas de PR',
     box: ['case', 'cases'], noPlan: 'pas de plan', remark: ['remarque', 'remarques'], published: 'publiée',
     busy: 'L\'agent travaille', directRunning: 'Une commande directe est en cours', noRepo: 'Pas de dépôt git', noNoteYet: 'Pas encore de note', nothingToRead: 'Aucun test d\'invariant à lire',
     noModule: 'Aucun module à générer', noPrChosen: 'Aucune PR choisie', loadFirst: 'Charger d\'abord la PR',
@@ -267,7 +269,7 @@ const TEXT = {
     toReview: { note: 'to review: the note changed', forme: 'to review: the shape changed', invariants: 'to review: the invariants changed', modules: 'to review: the modules changed' },
     module: ['module', 'modules'], file: ['file', 'files'], kase: ['case', 'cases'], read: ['read', 'read'],
     checksOk: 'checks pass', checksKo: 'checks fail', warning: ['warning', 'warnings'], unchecked: 'not checked', ponytail: 'ponytail done',
-    fixup: ['fixup', 'fixups'], noPr: 'no PR', commit: ['commit', 'commits'], reviewed: 'reviewed',
+    fixup: ['fixup', 'fixups'], noPr: 'no PR',
     box: ['box', 'boxes'], noPlan: 'no plan', remark: ['remark', 'remarks'], published: 'published',
     busy: 'The agent is working', directRunning: 'A direct command is running', noRepo: 'No git repository', noNoteYet: 'No note yet', nothingToRead: 'No invariant test to read',
     noModule: 'No module to generate', noPrChosen: 'No PR chosen', loadFirst: 'Load the PR first',
@@ -344,6 +346,8 @@ export function vibeView(input: JourneyInput): VibeView {
   const { lang, flow, repo, marks } = input;
   const outputs = freshOutputs(input.outputs, input.runs);
   const T = TEXT[lang];
+  const ORDER = flow === 'create' ? CREATE_ORDER : REVIEW_ORDER;
+  const defs = roleDefs(input.actions, flow);
   const count = (n: number, [one, many]: string[]) => `${n} ${T.plural(n) ? many : one}`;
   const line = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(' · ');
   const vibe = !!input.vibe;
@@ -415,6 +419,9 @@ export function vibeView(input: JourneyInput): VibeView {
     const r = caseReading(t, readings);
     const { keys, blocks, common } = caseBlocks(t.text);
     const states = keys.map((k, j) => caseMarkState(marks, caseTarget(t.path, k), { hash: blocks[j], common }));
+    // Relecteur : les cas d'avant la branche dont le bloc a changé (le texte à la base contre celui d'aujourd'hui) ; ajouté ou base inconnue : aucun.
+    const was = flow === 'review' && t.base != null && t.base.length <= SOURCE_MAX ? caseBlocks(t.base) : null;
+    const changedFromBase = was ? keys.filter((k, j) => was.blocks[was.keys.indexOf(k)] !== undefined && was.blocks[was.keys.indexOf(k)] !== blocks[j]) : [];
     const commonChanged = keys.filter((_, j) => states[j] === 'common');   // 'common' : rendu 'changed'
     return {
       id: `t${i}`, path: t.path, blob: t.blob, cases: t.cases, lines: t.lines, source: t.text.length > SOURCE_MAX ? '' : t.text,
@@ -422,7 +429,7 @@ export function vibeView(input: JourneyInput): VibeView {
       reading: r && parseReading(r.text), stale: !!r?.stale.length, locked: codeLock(null, input.busy, input.running, lang),
       ...(r?.stale.length && { staleCases: r.stale }),
       marks: Object.fromEntries(keys.map((k, j) => [k, states[j] === 'common' ? 'changed' : states[j]])),
-      ...(commonChanged.length && { commonChanged }), hashes: { blocks, common },
+      ...(commonChanged.length && { commonChanged }), ...(changedFromBase.length && { changedFromBase }), hashes: { blocks, common },
     };
   });
   const variants = tests.filter((t) => !isInvariantTest(t.path)).map((t, i) => ({ id: `v${i}`, path: t.path, cases: t.cases.length }));
@@ -634,33 +641,22 @@ export function vibeView(input: JourneyInput): VibeView {
       pr: pr ? '' : T.noPr,
     };
   } else {
-    const noteDone = here && (!note || judged(note.mark));
+    // Quatre arrêts, chacun fait comme avant, aucun si le dossier n'est pas sur la tête de la PR ; aucune action mise en
+    // avant (next vide) : le seul geste est « Préparer la revue », que la page lance lecture par lecture (prepare).
     done = {
-      note: noteDone,
-      forme: noteDone,   // rien à juger : avec la Note
+      note: here && (!note || judged(note.mark)),
       invariants: here && invariants.every((f) => Object.values(f.marks).every(judged)),
-      modules: !!n && out(`pr-${n}-commits.md`) !== null,
-      revue: screen.length > 0 && boxes === screen.length,
-      pr: !!n && out(`pr-${n}-review.json`) !== null,
+      revue: here && screen.length > 0 && boxes === screen.length,
+      pr: here && out(`pr-${n}-review.json`) !== null,
     };
-    next = {
-      note: note && n && out(`pr-${n}-note.md`) === null ? 'review-note' : null,
-      forme: null,
-      invariants: null,   // les cas attendent leur verdict, lus ou pas
-      modules: 'review-commits',
-      revue: n && plan === null ? 'screen' : null,
-      pr: 'publish',
-    };
+    next = {};
     stepFacts = {
       note: noteFacts,
-      forme: note ? count(modules.length, T.module) : T.noNote,
       invariants: invFacts(),
-      modules: line(count(commits.length, T.commit), done.modules && T.reviewed),
       revue: plan === null ? T.noPlan : `${boxes} / ${count(screen.length, T.box)}`,
       pr: line(count(input.draft.length, T.remark), done.pr && T.published),
     };
-    // Modules : sa vue ne compte pas les commits de la PR, inchangé.
-    stepHead = { note: noteHead, modules: stepFacts.modules, revue: plan === null ? T.noPlan : '' };
+    stepHead = { note: noteHead, revue: plan === null ? T.noPlan : '' };
   }
   const current = ORDER.find((s) => !done[s]) ?? null;
   const primary = current && next[current];
@@ -670,7 +666,7 @@ export function vibeView(input: JourneyInput): VibeView {
   // nouveau worktree (ELSEWHERE), qui travaille dans un autre dossier.
   const running = Object.values(input.direct ?? {}).some((x) => x.running);
   const locks = [...input.running, ...Object.entries(input.direct ?? {}).filter(([id, x]) => x.running && !ELSEWHERE.includes(id))
-    .map(([id]) => ({ id, reads: !!input.actions.find((a) => a.id === id)?.reads }))];
+    .map(([id]) => ({ id, reads: !!defs.find((a) => a.id === id)?.reads }))];
   // Pourquoi une action est grisée : une course la retient (celle d'une étape) ou la conversation travaille
   // (les autres), une commande directe est en cours (held) ; une variable de son gabarit manque, elle ne
   // sert pas ici (sense).
@@ -743,7 +739,7 @@ export function vibeView(input: JourneyInput): VibeView {
     (flow === 'create' && ((Object.hasOwn(prShown, d.id) && !prShown[d.id]) || (d.id === 'invariants' && !!note && !invLines)))
     || (Object.hasOwn(shown, d.id) && !shown[d.id])
     || (reason !== null && notYet.has(reason));
-  const actions: VibeAction[] = input.actions
+  const actions: VibeAction[] = defs
     .filter((d) => (d.flow === 'both' || d.flow === flow) && (d.id !== 'guide' || input.skills.includes('gear-guide')))
     .map((d) => {
       const reason = d.kind === 'prefill' ? null : sense(d);
@@ -768,6 +764,14 @@ export function vibeView(input: JourneyInput): VibeView {
       ...(stepCheck && Object.hasOwn(stepCheck, id) && { check: checkOf(id as CheckedStep) }),
     })),
     ...(flow === 'create' && { pause, proof }),
+    // Relecteur : les lectures que « Préparer la revue » lancerait (rien ne part d'ici : la page les demande une à une).
+    ...(flow === 'review' && {
+      prepare: toPrepare({
+        pr: here ? n : null, head: head ?? null, marks, outputs: Object.keys(outputs), note: !!note, tests: invariants.length,
+        unread: readCount < caseCount,
+        live: [...input.running.map((r) => r.id), ...input.runs.filter((r) => LOCKING.includes(r.state)).map((r) => r.id), ...input.queued ?? []],
+      }),
+    }),
     files: [...changed].sort().map((path, i) => ({
       id: `b${i}`, path, ...(input.exists(path) ? gitOf(path) : { deleted: true }), locked: codeLock(null, input.busy, input.running, lang),
     })),

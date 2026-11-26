@@ -80,12 +80,11 @@ message). Les `id` livrés sont un contrat : l'écran et le parcours s'appuient
 sur eux (l'action mise en avant de l'étape en cours, les boutons propres à une vue : *✓ Commiter*,
 *Relire le diff* d'un module, *Publier la revue*…) ; un `id` changé est un
 bouton retiré suivi d'un bouton ajouté. `ponytail` n'a pas de bouton : `checks`
-(skill `verifier`) la demande ; `align` n'a de bouton qu'en *Relire* : en
-*Créer*, `invariants` le suit une fois, et sa carte a *Relancer*. `align` n'a plus
+(skill `verifier`) la demande ; `align` n'a pas de bouton : en *Créer*, `invariants` le suit une fois ; en *Relire*, *Préparer la revue* le lance avec les autres lectures. `align` n'a plus
 `reads` : en *Créer* il corrige les tests (la branche change, 3 tours au plus), mais
 seulement les fichiers de tests d'invariants que la branche crée : l'appli lui refuse
 d'écrire dans ceux d'avant la branche, et fait échouer la course (en effaçant `align.md`)
-si l'un d'eux a changé à sa fin ; en *Relire* il liste sans rien corriger. `design-check` (flow `create`, étape
+si l'un d'eux a changé à sa fin ; en *Relire* il liste sans rien corriger, et écrit aussi `liens.md` (quel test garde quelle ligne, tests d'avant la branche compris) dans le dossier de sorties seulement, rien dans la branche. `design-check` (flow `create`, étape
 `note`, `reads`, skill `conception`) est la vérification de conception de la note :
 une seule passe, elle n'écrit que des suggestions à la suite de `questions.md`,
 jamais la note, et ne la valide jamais : c'est *Vérifier* (l'ancien *Revérifier*) qui la
@@ -272,7 +271,7 @@ modèle choisi. Le choix vaut pour cette action tant qu'on reste sur cet agent.
 
 Tout ce qui touche au code est en anglais, quel que soit *FR* / *EN* : le
 pseudo-code des invariants (et ses `Edge cases:`, `Guarantees:`, `Warning:`),
-les relectures de diff et de commits, la ponytail review, la CI,
+les relectures de diff et de code, la ponytail review, la CI,
 l'alignement, les vérifications, les réponses techniques ; les messages de
 commit et de PR suivent la convention du projet. Dans la langue choisie : la
 note, les questions ouvertes, le plan de test à l'écran, la relecture de la
@@ -300,7 +299,7 @@ sinon.
 | `forme` | conversation | agent | — (les squelettes dans le code, avec les signatures typées, puis la forme dans la note, en prose : sans signatures ; `note=<chemin>` reçu, sinon cherché) |
 | `invariants` | sous-contexte | opus · high | `align.md` (suit `aligner` une fois : il corrige les tests lui-même) |
 | `lire-invariants` | sous-contexte | sonnet · medium | `invariants/<blob>.md` |
-| `aligner` | sous-contexte | opus · high | `align.md`, et `liens.md` (quel test garde quelle ligne « → invariant » : c'est ce qui range les tests sous leur règle à l'écran) (les invariants seuls : corrige les tests, 3 tours, seulement les fichiers de tests d'invariants que la branche crée, l'appli lui refuse les autres ; lit `preuve.md` s'il existe ; relecteur, `HEAD` : une liste, rien de corrigé) |
+| `aligner` | sous-contexte | opus · high | `align.md`, et `liens.md` (quel test garde quelle ligne « → invariant » : c'est ce qui range les tests sous leur règle à l'écran) (les invariants seuls : corrige les tests, 3 tours, seulement les fichiers de tests d'invariants que la branche crée, l'appli lui refuse les autres ; lit `preuve.md` s'il existe ; relecteur, `HEAD` : une liste, rien de corrigé, et `liens.md` dans le dossier de sorties seulement) |
 | `prouver` | sous-contexte | opus · high | `preuve.md` (en lecture : une rubrique par ligne « → invariant », `## [prouvé]` et son mutant ou `## [toi]` et sa raison, « Rien à prouver. » sans ligne ; sa copie du code dans son dossier temporaire, aucune commande git qui écrit ; `note=` et `base=` reçus) |
 | `module` | conversation | opus · high | — (la boucle de `modules` pour un seul module, `developpeur` sonnet · high ; plus de `review-diff` en seconde course) |
 | `modules` | conversation | opus · high, `developpeur` sonnet · high (opus au second échec) : un seul agent pour au plus 4 modules de code, sans compter ceux qui n'ont pas de variants, sinon des sous-agents en vagues parallèles | — (ne commite pas ; son contrôle de chaque diff est une lecture de conformité, les défauts sont ceux de `ponytail` ; `note=` et `base=` reçus, sinon cherchés) |
@@ -317,7 +316,7 @@ sinon.
 | `base` | sous-contexte | haiku · low | — |
 | `charger-pr` | sous-contexte | haiku · low | `pr-<n>.json` |
 | `relire-note` | sous-contexte | opus · high | `pr-<n>-note.md` |
-| `relire-commits` | sous-contexte | opus · high | `pr-<n>-commits.md` |
+| `relire-commits` | sous-contexte | opus · high | `pr-<n>-commits.md` (la relecture du code, en une seule passe sur tout le diff de la PR, l'action `review-commits` : un titre `##` par constat, ou une ligne sans titre s'il n'y en a pas ; rien sur l'histoire des commits) |
 | `ecran` | sous-contexte | sonnet · medium | `ecran.md` |
 | `publier-revue` | sous-contexte | haiku · low | `pr-<n>-review.json` |
 | `vibe` | conversation | agent ; le moteur des deux rythmes (à l'écran, le bouton *Arrêter* / *Reprendre*) : lancé seul ou repris, il reprend à la première étape pas faite et enchaîne les actions (historique simple : saute *Replier les fixups*) ; un refus `halted` (arrêté, ou une pause tenue) : il dit où il en est et quoi regarder, puis rend la main ; ne valide ni la Forme ni les invariants (l'appli le fait), valide les modules une fois la preuve passée, jamais la note ; `note=` reçu | `vibecoder run start <id>` |

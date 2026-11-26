@@ -142,12 +142,16 @@ it('aucun plan de test : rien (EcranSection)', async () => {
   expect(page.querySelector('.vc-plan')).toBeNull();
 });
 
-it('le relecteur : Relire à l\'écran seul, comme avant', async () => {
+it('le relecteur, l\'essai : l\'en-tête puis le plan de test, rien d\'autre ; aucun bouton', async () => {
   await draw({ flow: 'review', outputs: { 'checks.json': checks(fail('tsc')), 'ponytail.md': out('- [toi] q') } });
+  expect(page.querySelector('h2')!.textContent).toBe('Essai');
   expect(page.querySelector('.vc-revue')).toBeNull();
   expect(rows()).toHaveLength(0);
-  expect(page.querySelector('.vc-invite')!.textContent).toContain('Pas encore de plan de test');
+  expect(page.querySelector('.vc-step-acts, .vc-run, button')).toBeNull();
+  expect(page.querySelector('.vc-invite')!.textContent).toContain('Pas de plan de test');
   expect(page.textContent).not.toContain('revue part');
+  expect(page.children[0].className).toContain('vc-step-head');
+  expect(page.children).toHaveLength(2);
   await draw({ flow: 'review', outputs: { 'ecran.md': out('- [ ] cliquer') } });
   expect(page.querySelector('.vc-plan')).not.toBeNull();
 });

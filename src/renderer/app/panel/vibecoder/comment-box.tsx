@@ -10,7 +10,7 @@
  *  dans la zone) ou Ctrl+Entrée appelle `onSave`.
  *  Pas de pièces jointes : tout commentaire va au brouillon de revue, qui n'en emporte pas.
  *  Ne connaît pas : le pont, la cible (l'appelant la tient).
- *  Utilisé par : markdown-view, note-view, forme-view, invariants-view, commits-view, draft-view. */
+ *  Utilisé par : markdown-view, note-view, forme-view, invariants-view, draft-view. */
 import { useEffect, useRef, useState } from 'react';
 import { DRAFT_MAX, type Strings } from 'core/vibecoder';
 import { PromptField } from './prompt-field';

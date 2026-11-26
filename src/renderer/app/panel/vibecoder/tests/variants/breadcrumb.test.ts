@@ -1,14 +1,14 @@
 // @vitest-environment happy-dom
 // Breadcrumb (breadcrumb.tsx) : les étapes en une ligne, toutes cliquables (même à venir), état, faits et raccourci en
 // title ; en créateur (0.16.0-ecran-essentiel) une ligne sous le fil dit où on en est (statusLine), le bouton du moteur à
-// côté, l'interrupteur Express au bout du fil, ni compte ni liste des commits ; le relecteur : ni ligne ni bouton,
-// « N commits » déplie la liste, re-clic la replie ; aucun commit : le texte, sans bouton ; un commit déplié : diff et
-// GitHub en IconButton, mêmes ids (c<rang>, gh:c<rang>), ses fichiers en texte simple.
+// côté, l'interrupteur Express au bout du fil, ni compte ni liste des commits ; le relecteur (0.16.0-revue-essentielle) :
+// ses quatre arrêts (Note, Règles, Essai, Publier), la même ligne, et à côté Préparer la revue (son rappel au clic, grisé
+// avec sa raison quand il n'y a rien à lancer, absent sans PR chargée), ni moteur, ni Express, ni « N commits ».
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it } from 'vitest';
 import { statusLine, t } from 'core/vibecoder';
-import type { VibeAction, VibeCommit, VibeView } from 'technicals/bridge';
+import type { VibeAction, VibeCommit, VibeStepId, VibeView } from 'technicals/bridge';
 import { Breadcrumb } from '../../breadcrumb';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -17,11 +17,11 @@ const s = t('fr');
 
 type Vibe = { a: VibeAction; on: boolean } | null;
 const calls: string[] = [];
-async function mount(view: VibeView, picked: string[] = [], opened: string[] = [], vibe: Vibe = null, onExpress?: (on: boolean) => void) {
+async function mount(view: VibeView, picked: string[] = [], _opened: string[] = [], vibe: Vibe = null, onExpress?: (on: boolean) => void, more: { selected?: VibeStepId; onPrepare?: () => void } = {}) {
   const page = document.createElement('div');
   document.body.append(page);
   const root = createRoot(page);
-  await act(() => root.render(createElement(Breadcrumb, { view, t: s, selected: 'note', vibe, onVibe: () => { calls.push('vibe'); }, onExpress, onStopVibe: () => { calls.push('stop'); }, onPick: (id: string) => { picked.push(id); }, onOpen: (id: string) => { opened.push(id); } })));
+  await act(() => root.render(createElement(Breadcrumb, { view, t: s, selected: more.selected ?? 'note', onPrepare: more.onPrepare, vibe, onVibe: () => { calls.push('vibe'); }, onExpress, onStopVibe: () => { calls.push('stop'); }, onPick: (id: string) => { picked.push(id); } })));
   return { page, unmount: () => act(() => root.unmount()) };
 }
 
@@ -34,9 +34,8 @@ const creator = (over: Partial<VibeView> = {}) => {
     lang: 'fr', flow: 'create', steps: note.mark === 'ok' ? [{ id: 'note', status: 'done', facts: '' }] : [], commits: [], questions: [], invariants: [], outputs: {}, runs: [], note, ...over,
   } as unknown as VibeView;
 };
-const reviewer = (over: Partial<VibeView> = {}) => creator({ flow: 'review', ...over });
 const commit = (i: number, over: Partial<VibeCommit> = {}) => ({ hash: `${i}`.padStart(7, 'a') + '1', subject: `commit ${i}`, fixup: false, files: [`src/f${i}.ts`], ...over }) as unknown as VibeCommit;
-const runs = (page: HTMLElement) => [...page.querySelectorAll<HTMLButtonElement>('.vc-run')];
+const runs = (page: HTMLElement) => [...page.querySelectorAll<HTMLButtonElement>('.vc-run:not(.vc-prepare)')];
 const lines = (page: HTMLElement) => [...page.querySelectorAll<HTMLElement>('.vc-line [role="status"]')];
 const express = (page: HTMLElement) => page.querySelector<HTMLInputElement>('.vc-express input');
 const spy = (v: boolean) => { calls.push(`express:${v}`); };
@@ -247,73 +246,92 @@ it('créateur, vingt-quatre commits : ni compte ni liste, ni dans la ligne', asy
 
 // --- Relecteur ---
 
-it('le relecteur : ni ligne, ni bouton du moteur, ni interrupteur (pas de onExpress) ; ses commits comme avant', async () => {
-  const m = await mount(reviewer({ commits: [commit(1)] }), [], [], null);
-  expect(m.page.querySelector('.vc-line')).toBeNull();
-  expect(m.page.querySelector('[role="status"]')).toBeNull();
-  expect(runs(m.page)).toHaveLength(0);
-  expect(express(m.page)).toBeNull();
-  expect(m.page.querySelector('button.vc-ccount')!.textContent).toBe(s.commitsOf(1));
+const REVIEW_IDS = ['note', 'invariants', 'revue', 'pr'] as const;
+const PR = { number: 7, head: 'feat/x', state: 'OPEN' } as never;
+// Un relecteur : ses quatre arrêts, la PR chargée, des lectures à lancer.
+const reviewer = (over: Partial<VibeView> = {}) => ({
+  lang: 'fr', flow: 'review', steps: REVIEW_IDS.map((id, i) => ({ id, status: i ? 'todo' : 'current', facts: '' })), commits: [], questions: [], invariants: [],
+  outputs: {}, runs: [], note: null, pr: PR, prepare: ['review-note'], ...over,
+}) as unknown as VibeView;
+const prepareBtn = (page: HTMLElement) => [...page.querySelectorAll<HTMLButtonElement>('.vc-crumbs button:not(.vc-jstep)')];
+const prepare = () => { calls.push('prepare'); };
+
+it('relecteur : quatre arrêts, « Note », « Règles », « Essai », « Publier », leur raccourci en infobulle, cliquables', async () => {
+  const picked: string[] = [];
+  const m = await mount(reviewer(), picked, [], null, undefined, { onPrepare: prepare });
+  const steps = [...m.page.querySelectorAll<HTMLButtonElement>('.vc-jstep')];
+  expect(steps.map((b) => b.textContent)).toEqual(['Note', 'Règles', 'Essai', 'Publier']);
+  expect(steps.map((b) => b.title)).toEqual(['Note', 'Règles', 'Essai', 'Publier'].map((n, i) => `${n} — ${s.stepStatus[i ? 'todo' : 'current']} (${s.shortcut(i + 1)})`));
+  for (const b of steps) await act(() => b.click());
+  expect(picked).toEqual([...REVIEW_IDS]);
   await m.unmount();
 });
 
-it('le relecteur, même avec un vibe qu\'on lui passerait : pas de bouton du moteur', async () => {
-  const m = await mount(reviewer(), [], [], { a: act1(), on: true });
-  expect(runs(m.page)).toHaveLength(0);
+it('relecteur : la ligne sous le fil, une seule, celle de statusLine, Préparer la revue à côté', async () => {
+  const views = [reviewer(), reviewer({ prepare: [] }), reviewer({ runs: [{ id: 'r', label: 'align', state: 'running' }] as never, prepare: [] }), reviewer({ pr: null, prepare: [] })];
+  for (const view of views) {
+    const m = await mount(view, [], [], null, undefined, { onPrepare: prepare });
+    const expected = statusLine(view)!;
+    expect(lines(m.page).map((p) => [p.textContent, p.dataset.yours])).toEqual([[expected.text, String(expected.yours)]]);
+    await m.unmount();
+  }
+  const m = await mount(reviewer({ error: 'boom' as never }), [], [], null, undefined, { onPrepare: prepare });
+  expect(lines(m.page)).toHaveLength(0);
   await m.unmount();
 });
 
-it('relecteur, aucun commit : le texte, sans bouton', async () => {
-  const m = await mount(reviewer());
-  expect(m.page.querySelector('.vc-ccount')!.tagName).toBe('SPAN');
-  expect(m.page.querySelector('.vc-ccount')!.textContent).toBe(s.commitsOf(0));
-  await m.unmount();
+it('relecteur, une PR chargée : Préparer la revue à côté de la ligne, actif, à chacun des quatre arrêts', async () => {
+  for (const selected of REVIEW_IDS) {
+    const m = await mount(reviewer(), [], [], null, undefined, { selected, onPrepare: prepare });
+    const [b, ...others] = prepareBtn(m.page);
+    expect(others).toHaveLength(0);
+    expect([b.textContent, b.title, b.disabled, b.parentElement === lines(m.page)[0].parentElement]).toEqual([s.essentialReview.prepare.label, s.essentialReview.prepare.title, false, true]);
+    await m.unmount();
+  }
 });
 
-it('relecteur, commits : N commits déplie, re-clic replie ; un commit déplié : diff et GitHub en icônes, mêmes ids, fichiers en texte', async () => {
+it('un clic sur Préparer la revue : son rappel, une fois, rien d\'autre ; rien au montage ni à la mise à jour', async () => {
+  calls.length = 0;
+  const picked: string[] = [];
   const opened: string[] = [];
-  const view = reviewer({ commits: [commit(1, { hash: 'aaaaaaa1', subject: 'un' }), commit(2, { hash: 'bbbbbbb2', subject: 'fixup! un', fixup: true, files: ['src/b.ts'] })] });
-  const { page, unmount } = await mount(view, [], opened);
-  const count = page.querySelector<HTMLButtonElement>('button.vc-ccount')!;
-  expect([count.textContent, count.getAttribute('aria-expanded')]).toEqual([s.commitsOf(2), 'false']);
-  expect(page.querySelector('.vc-commits')).toBeNull();
-  await act(() => count.click());
-  expect(count.getAttribute('aria-expanded')).toBe('true');
-  expect([...page.querySelectorAll('.vc-commits li.fixup code')].map((c) => c.textContent)).toEqual(['bbbbbbb']);
-  await act(() => (page.querySelectorAll('.vc-jcommit')[1] as HTMLButtonElement).click());
-  const tools = [...page.querySelectorAll<HTMLButtonElement>('.vc-jcommit-links button')];
-  expect(tools.map((b) => [b.className, b.title, b.getAttribute('aria-label'), !!b.querySelector('svg')]))
-    .toEqual([['vc-tool', s.diffTitle, s.diffTitle, true], ['vc-tool', s.githubTitle, s.githubTitle, true]]);
-  for (const b of tools) await act(() => b.click());
-  expect([...page.querySelectorAll('.vc-jfiles li')].map((li) => [li.textContent, !!li.querySelector('button')])).toEqual([['src/b.ts', false]]);
-  expect(opened).toEqual(['c1', 'gh:c1']);
-  await act(() => count.click());
-  expect(page.querySelector('.vc-commits')).toBeNull();
-  await unmount();
+  const m = await mount(reviewer(), picked, opened, null, spy, { onPrepare: prepare });
+  expect(calls).toEqual([]);
+  await act(() => prepareBtn(m.page)[0].click());
+  expect(calls).toEqual(['prepare']);
+  expect([picked, opened]).toEqual([[], []]);
+  await m.unmount();
 });
 
-it('relecteur, liste ouverte : Échap (n\'atteint pas les autres Échap) ou un clic dehors la ferme, un clic dedans non ; écouteurs retirés', async () => {
-  const { page, unmount } = await mount(reviewer({ commits: [commit(1, { hash: 'aaaaaaa1', files: [] })] }));
-  const count = page.querySelector<HTMLButtonElement>('button.vc-ccount')!;
-  const other: string[] = [];
-  const keys = (e: KeyboardEvent) => other.push(e.key);
-  document.addEventListener('keydown', keys);
-  const esc = () => act(() => { document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
-  await esc();
-  expect(other).toEqual(['Escape']); // fermée : l'Échap passe
-  await act(() => count.click());
-  await act(() => { page.querySelector('.vc-commits')!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); });
-  expect(page.querySelector('.vc-commits')).not.toBeNull();
-  await act(() => { count.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); });
-  expect(page.querySelector('.vc-commits')).not.toBeNull();
-  await esc();
-  expect(page.querySelector('.vc-commits')).toBeNull();
-  expect(other).toEqual(['Escape']); // ouverte : capturé
-  await act(() => count.click());
-  await act(() => { document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); });
-  expect(page.querySelector('.vc-commits')).toBeNull();
-  await esc();
-  expect(other).toEqual(['Escape', 'Escape']); // écouteurs retirés
-  document.removeEventListener('keydown', keys);
-  await unmount();
+it('rien à lancer : le bouton grisé, sa raison en infobulle (tout lu, ou des lectures en cours) ; un clic ne fait rien', async () => {
+  calls.length = 0;
+  const running = [{ id: 'r', label: 'align', state: 'running' }] as never;
+  for (const [over, why] of [[{ prepare: [] }, s.essentialReview.prepare.ready], [{ prepare: undefined }, s.essentialReview.prepare.ready], [{ prepare: [], runs: running }, s.essentialReview.prepare.running]] as [Partial<VibeView>, string][]) {
+    const m = await mount(reviewer(over), [], [], null, undefined, { onPrepare: prepare });
+    const b = prepareBtn(m.page)[0];
+    expect([b.disabled, b.title.includes(why)]).toEqual([true, true]);
+    await act(() => b.click());
+    await m.unmount();
+  }
+  expect(calls).toEqual([]);
+});
+
+it('pas de PR chargée, ou pas de rappel : pas de bouton', async () => {
+  let m = await mount(reviewer({ pr: null, prepare: [] }), [], [], null, undefined, { onPrepare: prepare });
+  expect(prepareBtn(m.page)).toHaveLength(0);
+  await m.unmount();
+  m = await mount(reviewer());
+  expect(prepareBtn(m.page)).toHaveLength(0);
+  await m.unmount();
+});
+
+it('relecteur : ni « N commits », ni liste, ni Express, ni Arrêter, ni Reprendre, même avec des commits ou un moteur passés', async () => {
+  for (const on of [true, false]) {
+    const m = await mount(reviewer({ commits: [commit(1), commit(2)] }), [], [], { a: act1(), on }, undefined, { onPrepare: prepare });
+    expect(m.page.querySelector('.vc-ccount, .vc-commits, .vc-jcommit')).toBeNull();
+    expect(m.page.textContent).not.toMatch(/commit/i);
+    expect(runs(m.page)).toHaveLength(0);
+    expect(express(m.page)).toBeNull();
+    expect(prepareBtn(m.page).map((b) => b.textContent)).toEqual([s.essentialReview.prepare.label]);
+    await m.unmount();
+  }
 });

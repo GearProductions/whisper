@@ -211,9 +211,9 @@
 .vc-art-side > * { flex: none; }
 .vc-art-side > .vc-band { position: sticky; top: 0; z-index: 2; margin-bottom: 8px; background: var(--vc-side); }
 
-/* Les fichiers d'un module (module-code) et d'un commit (commits-view). */
+/* Les fichiers d'un module (module-code). */
 .vc-jfiles { list-style: none; margin: 0; padding: 0; color: var(--vc-muted); font-size: 11px; line-height: 1.6; }
-.vc-jfiles button, .vc-commit-files button {
+.vc-jfiles button {
   display: block;
   width: 100%;
   padding: 0 4px;
@@ -228,7 +228,7 @@
   white-space: nowrap;
   cursor: pointer;
 }
-.vc-jfiles button:hover, .vc-commit-files button:hover { background: var(--vc-hover); color: var(--vc-text); }
+.vc-jfiles button:hover { background: var(--vc-hover); color: var(--vc-text); }
 
 /* ---- Centre : la bannière de Vibe, l'étape ---- */
 .vc-center { grid-area: main; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--vc-editor); }

@@ -3,10 +3,10 @@
  *  à la main ; cocher la valide (check:<rang>, 'ok'), décocher la refuse ('ko' :
  *  décoche aussi une case cochée dans le fichier). La case suit le clic aussitôt,
  *  le relevé suivant fait foi ; Tout cocher ('ok' sur chaque case pas cochée) ;
- *  Relancer. Pas de plan : Plan de test à l'écran.
+ *  jamais de bouton d'action (Relancer, Plan de test à l'écran : voir plus bas).
  *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel), en créateur : pas de plan, rien (ni carte vide, ni bouton Plan de test à
  *  l'écran) ; un plan (demandé à l'agent) : ses cases, que l'utilisateur coche, et Tout cocher, sans Relancer. Le
- *  relecteur : inchangé.
+ *  relecteur : voir la revue essentielle.
  *  La revue essentielle (note 0.16.0-revue-essentielle), en relecteur, à l'arrêt « l'essai » : un plan, ses cases et
  *  Tout cocher, sans Relancer ; pas de plan : une phrase qui renvoie à Préparer la revue, sans bouton (plus de Plan de
  *  test à l'écran ici). Cocher, décocher, Tout cocher : inchangés. Plus aucun bouton d'action dans cette vue, pour
@@ -16,13 +16,11 @@ import { useState, type CSSProperties } from 'react';
 import type { VibeLang } from 'technicals/bridge';
 import { Icon } from './icons';
 import { InlineMd } from './markdown-view';
-import { Invite, OutputCard, Run } from './step-parts';
+import { Invite, OutputCard } from './step-parts';
 import type { StepProps } from './step-views';
 import './ecran-view.css';
 
 const fr = {
-  none: 'Pas encore de plan de test',
-  noneHint: 'Comment lancer la branche, puis ce qu\'il faut essayer à la main et ce qu\'on doit voir.',
   empty: 'Le plan ne contient aucune case.',
   done: (n: number, of: number) => `${n} / ${of}`,
   all: 'Tout cocher',
@@ -31,8 +29,6 @@ const fr = {
 const S: Record<VibeLang, typeof fr> = {
   fr,
   en: {
-    none: 'No test plan yet',
-    noneHint: 'How to run the branch, then what to try by hand and what must be seen.',
     empty: 'The plan has no checkbox.',
     done: (n, of) => `${n} / ${of}`,
     all: 'Tick all',
@@ -41,9 +37,8 @@ const S: Record<VibeLang, typeof fr> = {
 };
 
 export function EcranSection(p: StepProps) {
-  const { view, t, act, busy } = p;
+  const { view, t, act } = p;
   const s = S[view.lang];
-  const action = view.actions.find((a) => a.id === 'screen');
   const reviewer = view.flow === 'review';
   const plan = view.outputs['ecran.md'];
   const screen = view.screen ?? [];
@@ -66,7 +61,6 @@ export function EcranSection(p: StepProps) {
       tools={<>
         {boxes.length ? <span className="vc-count">{s.done(ticked, boxes.length)}</span> : null}
         {ticked < boxes.length ? <button type="button" className="vc-vbtn" title={s.allTitle} onClick={tickAll}><Icon name="ok" />{s.all}</button> : null}
-        {reviewer ? <Run a={action} busy={busy} tone="ghost" label={t.rerun} onRun={() => act.run('screen')} /> : null}
       </>}>
       {boxes.length ? (
         <>
@@ -84,5 +78,5 @@ export function EcranSection(p: StepProps) {
         </>
       ) : <div className="vc-plan-empty">{s.empty}</div>}
     </OutputCard>
-  ) : <Invite title={s.none} text={s.noneHint}><Run a={action} busy={busy} onRun={() => act.run('screen')} /></Invite>;
+  ) : <Invite title={t.essentialReview.noPlan} />;
 }

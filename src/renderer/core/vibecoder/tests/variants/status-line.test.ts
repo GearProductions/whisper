@@ -21,6 +21,14 @@ const view = (current: VibeStepId, over: Partial<VibeView> = {}): VibeView => {
     pr: null, prs: null, draft: [], time: 0, ...over,
   };
 };
+// Le relecteur : quatre arrêts, la PR chargée et le dossier sur sa tête, rien à lancer ; les arrêts d'avant le courant sont faits.
+const RIDS: VibeStepId[] = ['note', 'invariants', 'revue', 'pr'];
+const rview = (current: VibeStepId | null, over: Partial<VibeView> = {}): VibeView => ({
+  ...view('note', { note: null }), flow: 'review', pr: { ...pr, head: 'feat/x' }, repo: { branch: 'feat/x', base: 'master', changed: 3 }, prepare: [], screen: [],
+  steps: RIDS.map((id) => ({ id, status: current === null || RIDS.indexOf(id) < RIDS.indexOf(current) ? 'done' : id === current ? 'current' : 'todo', facts: '' })),
+  ...over,
+});
+const tests = (marks: Record<string, 'ok' | 'ko' | null>) => [{ id: 't0', path: 'tests/invariants/a.test.ts', blob: 'b', cases: Object.keys(marks), lines: [1, 2, 3], source: '', reading: null, marks }] as VibeView['invariants'];
 const ci = (first: string) => ({ 'ci.md': { text: `${first}\n`, time: 1 } });
 const pr = { number: 7, title: 't', url: 'u', author: 'a', base: 'master', head: 'b', body: '', state: 'OPEN' as const };
 const q = (n: number) => ({ n, text: `question ${n}`, options: [] });
@@ -167,10 +175,9 @@ describe('statusLine', () => {
     expect(statusLine(view('revue', { pause: 'modules', pr, outputs: ci('✓') }))?.text).toBe('Essayez l\'appli, puis reprenez');
   });
 
-  it('le relecteur, ou un relevé en erreur : aucune ligne', () => {
-    expect(statusLine(view('note', { flow: 'review', note: null }))).toBeNull();
-    expect(statusLine(view('pr', { flow: 'review', pr, outputs: ci('✓') }))).toBeNull();
+  it('un relevé en erreur : aucune ligne', () => {
     expect(statusLine(view('note', { error: 'pas un dépôt', note: null }))).toBeNull();
+    expect(statusLine(rview('note', { error: 'pas un dépôt' }))).toBeNull();
   });
 
   it('en anglais : la même ligne, en anglais', () => {
@@ -190,5 +197,88 @@ describe('statusLine', () => {
     expect(en('pr', { pr, outputs: ci('✗') })?.text).toBe('The PR is open, the CI failed');
     expect(en('pr', { pr, outputs: ci('✓') })?.text).toBe('The PR is green: yours to merge');
     expect(en('pr', { pr: { ...pr, state: 'MERGED' } })?.text).toBe('The PR is merged');
+  });
+});
+
+// 0.16.0 : la revue essentielle (docs/tickets/feat/0.16.0-revue-essentielle.md), la ligne du relecteur.
+describe('statusLine du relecteur', () => {
+  const text = (current: VibeStepId | null, over: Partial<VibeView> = {}) => statusLine(rview(current, over));
+
+  it('pas de PR chargée : choisir la PR à relire, à l\'utilisateur', () => {
+    expect(text('note', { pr: null })).toEqual({ text: 'Choisissez la PR à relire, dans la vue des branches', yours: true });
+  });
+
+  it('le dossier sur une autre branche : passer sur la branche de la PR, avant toute lecture', () => {
+    const elsewhere = { repo: { branch: 'master', base: 'master', changed: 0 }, prepare: ['review-note'], runs: [run()] };
+    expect(text('note', elsewhere)).toEqual({ text: 'Passez sur la branche de la PR', yours: true });
+  });
+
+  it('deux lectures en cours : ce que le système lit, pas à l\'utilisateur ; une lecture finie n\'y est pas', () => {
+    const runs = [run({ id: 'review-note', label: 'Relire la note' }), run({ id: 'align', label: 'Vérifier l\'alignement', state: 'asking' }), run({ id: 'screen', label: 'Plan', state: 'done' })];
+    expect(text('note', { runs, prepare: ['read-invariants'] })).toEqual({ text: 'Le système lit : Relire la note, Vérifier l\'alignement', yours: false });
+  });
+
+  it('des lectures à lancer : préparer la revue', () => {
+    expect(text('note', { prepare: ['review-note', 'screen'] })).toEqual({ text: 'Préparez la revue', yours: true });
+  });
+
+  it('tout lu, la note pas jugée : la lire, puis la juger', () => {
+    expect(text('note')).toEqual({ text: 'Lisez la note, puis jugez-la', yours: true });
+  });
+
+  it('des tests sans verdict : leur nombre, à juger ; un seul au singulier ; un « À revoir » est jugé', () => {
+    const at = (marks: Record<string, 'ok' | 'ko' | null>) => text('invariants', { invariants: tests(marks) })?.text;
+    expect(at({ a: null, b: null, c: null, d: 'ok', e: 'ko' })).toBe('3 tests à juger');
+    expect(at({ a: null, b: 'ok' })).toBe('1 test à juger');
+    expect(text('invariants', { invariants: tests({ a: null }), lang: 'en' })?.text).toBe('1 test to judge');
+  });
+
+  it('deux cases du plan pas cochées : leur nombre, essayer l\'appli', () => {
+    const screen = [{ text: 'a', done: true }, { text: 'b', done: false }, { text: 'c', done: null }];
+    expect(text('revue', { screen })).toEqual({ text: 'Essayez l\'appli : 2 cases à cocher', yours: true });
+    expect(text('revue', { screen: [{ text: 'a', done: false }] })?.text).toBe('Essayez l\'appli : 1 case à cocher');
+    expect(text('revue', { screen: [{ text: 'a', done: false }, { text: 'b', done: false }], lang: 'en' })?.text).toBe('Try the app: 2 boxes to tick');
+  });
+
+  it('pas de plan, rien à lancer : essayer l\'appli, sans nombre', () => {
+    expect(text('revue')?.text).toBe('Essayez l\'appli');
+  });
+
+  it('tout jugé, la revue pas publiée : la publier', () => {
+    expect(text('pr')).toEqual({ text: 'Publiez la revue', yours: true });
+  });
+
+  it('la revue publiée : la ligne le dit, parcours fini', () => {
+    expect(text(null)).toEqual({ text: 'La revue est publiée', yours: false, over: true });
+  });
+
+  it('l\'ordre : PR > branche > lectures en cours > à lancer > les arrêts dans leur ordre', () => {
+    expect(text('note', { pr: null, repo: null })?.text).toContain('Choisissez');
+    expect(text('note', { runs: [run()], prepare: ['screen'] })?.text).toContain('lit');
+    expect(text('invariants', { prepare: ['screen'] })?.text).toBe('Préparez la revue');
+    // un arrêt pas fait plus loin dans le fil ne passe pas devant le courant
+    const steps = rview('note').steps.map((x) => ({ ...x, status: x.id === 'pr' ? 'done' as const : x.status }));
+    expect(text('note', { steps })?.text).toBe('Lisez la note, puis jugez-la');
+  });
+
+  it('un relevé sans lectures (prepare absent) : rien à lancer', () => {
+    expect(text('pr', { prepare: undefined })?.text).toBe('Publiez la revue');
+  });
+
+  it('en anglais : la même ligne, en anglais', () => {
+    const en = (current: VibeStepId | null, over: Partial<VibeView> = {}) => text(current, { lang: 'en', ...over })?.text;
+    expect(en('note', { pr: null })).toBe('Pick the PR to review, in the branch view');
+    expect(en('note', { repo: { branch: 'master', base: 'master', changed: 0 } })).toBe('Switch to the PR\'s branch');
+    expect(en('note', { runs: [run({ label: 'Review the note' })] })).toBe('The system is reading: Review the note');
+    expect(en('note', { prepare: ['screen'] })).toBe('Prepare the review');
+    expect(en('note')).toBe('Read the note, then judge it');
+    expect(en('revue', { screen: [{ text: 'a', done: false }] })).toBe('Try the app: 1 box to tick');
+    expect(en('pr')).toBe('Publish the review');
+    expect(en(null)).toBe('The review is published');
+  });
+
+  it('le créateur : ses lignes, comme avant', () => {
+    expect(statusLine(view('modules'))?.text).toBe('Le système est arrêté : reprenez');
+    expect(statusLine(view('note', { note: null }))?.text).toBe('Demandez la note à l\'agent, dans la conversation');
   });
 });

@@ -1,8 +1,7 @@
 /** outputs — ce que les skills écrivent pour l'écran, lu sans se fier au
  *  format : les vérifications (checks.json), la revue publiée
  *  (pr-<n>-review.json : état, lien, verdict, texte, date), un Markdown coupé en rubriques `##` (une par commit
- *  dans pr-<n>-commits.md), le titre d'une rubrique de commit et les
- *  rubriques rangées par commit du relevé ; une adresse n'est gardée qu'en
+ *  dans pr-<n>-commits.md) ; une adresse n'est gardée qu'en
  *  http(s) (I-21). Illisible : null, l'écran le dit.
  *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : l'état de la CI lu dans ci.md, et les vérifications en échec.
  *  parseCi(text: string): Ci | null — la première ligne de ci.md dit l'état d'ensemble (✓ : 'ok' ; ✗ : 'ko' ; ⏳ :
@@ -14,7 +13,7 @@
  *  apply a appliquées (leur adresse dans ponytail-applied.json, avec leurs lignes de suite) ; le fichier plus vieux que
  *  ponytail.md (une revue d'avant), absent ou illisible : le texte tel quel. Une remarque [toi] n'est jamais retirée.
  *  La revue essentielle (note 0.16.0-revue-essentielle) : la relecture du code d'une PR en une passe (pr-<n>-commits.md)
- *  n'est plus rangée par commit — commitTitle et commitReviews partent avec la vue des commits (commits-view).
+ *  n'est plus rangée par commit (commitTitle et commitReviews sont partis avec la vue des commits).
  *  findings(md: string): Findings — ses constats : chaque titre `##` (hors bloc de code) en ouvre un, son titre et son
  *  détail (sections), dans l'ordre ; intro, ce qui précède le premier titre ('' : rien) ; un fichier sans titre (« rien
  *  à signaler », une relecture d'avant ce format) : aucun constat, tout son texte dans intro — rien n'est caché.
@@ -23,7 +22,6 @@
  *  core/vibecoder (status-line : parseCi ; review-flow : Section). */
 
 import { VERDICTS, type Verdict } from 'shared/review';
-import type { VibeCommit } from 'technicals/bridge';
 
 export type Check = { name: string; ok: boolean; level: 'ok' | 'warning' | 'error'; detail: string };
 
@@ -103,32 +101,10 @@ export function sections(md: string): Section[] {
 // Les constats de la relecture du code (voir l'en-tête) : un par titre `##`, et ce qui précède le premier.
 export type Findings = { list: Section[]; intro: string };
 
-export function findings(_md: string): Findings {
-  throw new Error('not implemented');
-}
-
-// Le titre d'une rubrique de pr-<n>-commits.md : « <hash court> <sujet> »
-// (hash entre accents graves, suivi de « : » ou d'un tiret, accepté) ; un
-// autre titre : null.
-export function commitTitle(title: string): { hash: string; subject: string } | null {
-  const m = /^`?([0-9a-f]{7,40})`?:?(?:[ \t]+(?:[-—:·][ \t]+)?(.*))?$/i.exec(title.trim());
-  return m ? { hash: m[1].toLowerCase(), subject: (m[2] ?? '').trim() } : null;
-}
-
-// pr-<n>-commits.md rangé par commit du relevé : la relecture de chacun (par
-// son hash complet ; un hash court du titre en est le début) ; les autres
-// rubriques (l'ensemble, un commit que le relevé ne connaît pas) à part, dans
-// leur ordre.
-export function commitReviews(md: string, commits: VibeCommit[]): { byHash: Map<string, string>; others: Section[] } {
-  const byHash = new Map<string, string>();
-  const others: Section[] = [];
-  for (const sec of sections(md)) {
-    const h = commitTitle(sec.title)?.hash;
-    const c = h ? commits.find((x) => x.hash.toLowerCase().startsWith(h)) : undefined;
-    if (c && !byHash.has(c.hash)) byHash.set(c.hash, sec.body);
-    else others.push(sec);
-  }
-  return { byHash, others };
+export function findings(md: string): Findings {
+  const all = sections(md);
+  const hasIntro = all[0] !== undefined && !all[0].title;
+  return { list: hasIntro ? all.slice(1) : all, intro: hasIntro ? all[0].body : '' };
 }
 
 // L'adresse « <fichier>:L<ligne> » qui ouvre une ligne de ponytail.md (entre accents graves ou non ; plage L12-38 permise) :

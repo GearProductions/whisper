@@ -492,6 +492,67 @@ describe('ruleGroups, le rattachement de l\'alignement (liens.md)', () => {
   });
 });
 
+// 0.16.0-revue-essentielle : le relecteur lit les mêmes règles, et sait quel test protégé la PR modifie.
+describe('la revue essentielle', () => {
+  const A = 'ne jamais effacer le disque', B = 'ne rien envoyer à la page';
+  const PATH = 'tests/invariants/a.test.ts';
+  const inv = (text: string) => ({ text: `${text} → invariant`, mark: 'invariant' as const });
+  const view = (mustNot: VibeNote['mustNot'], invariants: VibeTestFile[]): Pick<VibeView, 'note' | 'invariants' | 'proof'> =>
+    ({ note: { mustNot } as VibeNote, invariants, proof: undefined });
+  const links = (...blocks: [string, string[]][]) => blocks.map(([line, tests]) => `## ${line}\n${tests.map((t) => `- ${t}`).join('\n')}\n`).join('\n');
+  const titles = (cs: { file: VibeTestFile; index: number }[]) => cs.map((c) => c.file.cases[c.index]);
+
+  describe('casesOf : fromBase', () => {
+    it('un cas d\'avant la branche que la PR modifie : marqué ; un autre cas du même fichier : pas marqué', () => {
+      const cs = casesOf(file({ changedFromBase: ['refuse'] }));
+      expect(cs.map((c) => !!c.fromBase)).toEqual([true, false]);
+    });
+
+    it('un relevé sans cette information (le créateur), ou une liste vide : aucun cas marqué', () => {
+      for (const over of [{}, { changedFromBase: [] }]) expect(casesOf(file(over)).some((c) => 'fromBase' in c && c.fromBase)).toBe(false);
+    });
+
+    it('titres en double : la clé numérotée ne marque que le second ; une clé inconnue ne marque rien', () => {
+      const twin = (changedFromBase: string[]) => casesOf(file({ cases: ['x', 'x'], lines: [1, 2], changedFromBase })).map((c) => !!c.fromBase);
+      expect(twin(['x n° 2'])).toEqual([false, true]);
+      expect(twin(['x'])).toEqual([true, false]);
+      expect(twin(['absent'])).toEqual([false, false]);
+    });
+
+    it('fromBase est une marque à part : la validation, la lecture et le périmé ne changent pas', () => {
+      const [c] = casesOf(file({ marks: { refuse: 'ok' }, staleCases: ['refuse'], changedFromBase: ['refuse'] }));
+      expect([c.mark, c.stale, c.reading]).toEqual(['ok', true, null]);
+    });
+
+    it('un cas marqué sous une règle : sa vue porte fromBase', () => {
+      const a = file({ id: 'a', path: PATH, cases: ['x', 'y'], lines: [1, 2], changedFromBase: ['x'] });
+      const [rule] = ruleGroups(view([inv(A)], [a]), links([A, [`${PATH} :: x`, `${PATH} :: y`]])).rules;
+      expect(rule.cases.map((c) => !!c.view.fromBase)).toEqual([true, false]);
+    });
+  });
+
+  describe('ruleGroups, en relecteur (liens.md écrit sur une PR, sans preuve)', () => {
+    const a = file({ id: 'a', path: PATH, cases: ['x', 'y'], lines: [1, 2], reading: null });
+
+    it('l\'alignement nomme un test d\'avant la branche : sous sa règle, son chemin et son titre', () => {
+      const g = ruleGroups(view([inv(A), inv(B)], [a]), links([A, ['tests/invariants/ancien.test.ts :: déjà là']]));
+      expect(g.rules.map((r) => r.elsewhere)).toEqual([[{ path: 'tests/invariants/ancien.test.ts', title: 'déjà là' }], []]);
+    });
+
+    it('sans liens de l\'alignement : la citation de la lecture, sinon « Autres tests »', () => {
+      const cited = file({ id: 'a', path: PATH, cases: ['x', 'y'], lines: [1, 2], reading: [{ ...reading('x'), guarantees: `« ${A} »` }, reading('y')] });
+      const g = ruleGroups(view([inv(A)], [cited]));
+      expect([titles(g.rules[0].cases), titles(g.others)]).toEqual([['x'], ['y']]);
+    });
+
+    it('un relevé sans preuve : les règles rangées quand même, aucun état prouvé', () => {
+      const g = ruleGroups(view([inv(A), inv(B)], [a]), links([A, [`${PATH} :: x`]], [B, [`${PATH} :: y`]]));
+      expect(g.rules.map((r) => [titles(r.cases), r.state, r.detail])).toEqual([[['x'], 'written', ''], [['y'], 'written', '']]);
+      expect(g.others).toEqual([]);
+    });
+  });
+});
+
 // 0.16.0-ecran-essentiel : les tests rangés par ligne « → invariant » de la note.
 describe('ruleGroups', () => {
   const A = 'ne jamais effacer le disque', B = 'ne rien envoyer à la page';

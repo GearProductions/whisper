@@ -8,7 +8,7 @@
  *  est celle du brouillon et du verdict (reviewSent), la carte est grisée et
  *  résumée sur sa ligne d'état (verdict, remarques, date : rien ne bouge) et
  *  Publier est grisé (« déjà publiée »). Pas d'en-tête d'étape : pr-view le
- *  rend et lui laisse l'action publish (own).
+ *  rend ; la phrase du brouillon vide (essentialReview.draftEmpty) ne cite plus les commits.
  *  Ne connaît pas : le pont (rappels passés), le choix du verdict (vibe-coder).
  *  Utilisé par : pr-view. */
 import { parseReview, reviewSent } from 'core/vibecoder';
@@ -23,7 +23,6 @@ import './draft-view.css';
 const fr = {
   draft: 'Brouillon de revue',
   count: (n: number) => (n > 1 ? `${n} remarques` : n ? '1 remarque' : 'vide'),
-  empty: 'Pas encore de remarque. Commenter ou À revoir sur la note, un cas d\'invariant ou un commit ouvrent une zone de commentaire : la remarque vient ici.',
   already: 'déjà publiée',
   verdict: 'Verdict',
   verdicts: { approve: 'Approuver', comment: 'Commenter', 'request-changes': 'Demander des changements' } as Record<Verdict, string>,
@@ -38,7 +37,6 @@ const S: Record<VibeLang, typeof fr> = {
   en: {
     draft: 'Review draft',
     count: (n) => (n > 1 ? `${n} remarks` : n ? '1 remark' : 'empty'),
-    empty: 'No remark yet. Comment or Needs rework on the note, an invariant case or a commit open a comment box: the remark comes here.',
     already: 'already published',
     verdict: 'Verdict',
     verdicts: { approve: 'Approve', comment: 'Comment', 'request-changes': 'Request changes' },
@@ -72,7 +70,7 @@ export function DraftView(p: StepProps) {
       <OutputCard className="vc-draft" title={s.draft} t={t} tools={<span className="vc-count">{s.count(view.draft.length)}</span>}>
         {view.draft.length ? (
           <DraftRemarks remarks={view.draft} t={t} target onOpenLink={act.openLink} onDraft={act.draft} />
-        ) : <div className="vc-draft-empty">{s.empty}</div>}
+        ) : <div className="vc-draft-empty">{t.essentialReview.draftEmpty}</div>}
       </OutputCard>
       <div className="vc-publish">
         <div className="vc-seg vc-verdicts" role="group" aria-label={s.verdict}>

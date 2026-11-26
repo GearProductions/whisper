@@ -139,9 +139,8 @@ export function parseActions(json: unknown): ActionDef[] {
 }
 
 // Le catalogue tel que le rôle le lance : en relecteur, une action d'étape ne fait que lire (voir l'en-tête).
-export function roleDefs(_defs: ActionDef[], _flow: VibeFlow): ActionDef[] {
-  throw new Error('not implemented');
-}
+export const roleDefs = (defs: ActionDef[], flow: VibeFlow): ActionDef[] =>
+  flow === 'review' ? defs.map((d) => (d.step && !d.reads ? { ...d, reads: true } : d)) : defs;
 
 const NO_ANSWER: Record<VibeLang, string> = { fr: '(pas de réponse)', en: '(no answer)' };
 

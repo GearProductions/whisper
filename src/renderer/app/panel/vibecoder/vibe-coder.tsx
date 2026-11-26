@@ -245,9 +245,10 @@ function Screen({ view, thread, act: given, tasks, tasksOpen, contextOpen, onGau
           </div>
         ) : (
         <section className="vc-center">
-          <Breadcrumb view={view} t={t} selected={branches ? null : step && step.id} onPick={pick} onOpen={act.open}
+          <Breadcrumb view={view} t={t} selected={branches ? null : step && step.id} onPick={pick}
             vibe={vibeAction ? { a: vibeAction, on: !!view.vibe } : null} onVibe={() => act.run('vibe')} onStopVibe={() => act.set({ vibe: false })}
-            onExpress={view.flow === 'review' ? undefined : (express) => act.set({ express })} />
+            onExpress={view.flow === 'review' ? undefined : (express) => act.set({ express })}
+            onPrepare={async () => { for (const id of view.prepare ?? []) await act.run(id); }} />
           {view.error ? <div className="vc-error" role="status"><b>{view.error}</b> {t.errorHint}</div> : null}
           {branches ? (
             <div className="vc-step scroll" key="branches"><Guard t={t}><BranchesView view={view} t={t} act={act} busy={busy} /></Guard></div>

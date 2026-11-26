@@ -419,13 +419,10 @@ autre, dont la note est restée chez lui : « pas de note », sans reproche.
 - au centre, en tête, le **fil d'Ariane** : les étapes en une ligne (point
   plein : faite ; anneau qui pulse : en cours ; gris : à venir), tous leurs faits
   au survol (l'en-tête de l'étape, lui, n'en répète aucun qu'elle montre déjà) ; au bout,
-  l'interrupteur **Express** (le rythme, voir *Vibe*). Plus de compte
-  « N commits » ni de liste des commits pour le créateur ; le relecteur garde son
-  « N commits », qui déplie les commits de la branche. Il
-  mène : un clic (ou Ctrl+1…6) ouvre n'importe quelle étape, faite, en
+  l'interrupteur **Express** (le rythme, voir *Vibe*). Plus de compte « N commits » ni de liste des commits. Le relecteur a un fil de quatre arrêts, *Note*, *Règles*, *Essai* et *Publier* (ni Forme ni Modules). Il mène : un clic (ou Ctrl+1…6, Ctrl+1…4 pour le relecteur) ouvre n'importe quelle étape, faite, en
   cours ou à venir (une branche créée à la main, sans note, se gère ainsi) ;
   ouvrir une étape à venir ne lance rien ;
-- sous le fil, la **ligne d'état** (créateur) : toujours là, une seule phrase qui
+- sous le fil, la **ligne d'état** : toujours là, une seule phrase qui
   dit ce que le système est en train de faire, ou ce qu'il attend de vous — « Demandez la
   note à l'agent, dans la conversation », « 2 questions : répondez dans le
   questionnaire », « Vérifiez, puis validez la note », « Le système écrit les
@@ -436,11 +433,10 @@ autre, dont la note est restée chez lui : « pas de note », sans reproche.
   pas de *Reprendre* quand il ne reste rien à faire : la PR verte et chaque étape
   faite, fusionnée ou fermée).
   La note qui a perdu son ✓, un ✓ d'étape que vous avez retiré : la ligne le
-  dit, sans bouton. Rien de tout cela pour le relecteur ;
+  dit, sans bouton. Le relecteur a la sienne (« Préparez la revue », « Lisez la note, puis jugez-la », « 3 tests à juger », « Essayez l'appli », « Publiez la revue »…), avec à côté son seul bouton, **Préparer la revue** (à tous les arrêts, grisé quand il n'y a rien à lancer) ;
 - dessous, sur toute la largeur, l'étape choisie — la note du ticket, ce
   que les skills ont produit —, avec son en-tête (son nom, son badge d'état, ses
-  faits), **sans bouton d'action** pour le créateur (le relecteur garde sa
-  rangée d'actions, et le *Relancer* de ses cartes) ; sans champ : aucune étape
+  faits), **sans bouton d'action**, créateur comme relecteur ; sans champ : aucune étape
   n'en a ; les champs où l'on écrit à un agent
   (les réponses aux questions, la conversation) acceptent
   des **pièces jointes** (le trombone, glisser-déposer, Ctrl+V), qui partent avec
@@ -568,7 +564,7 @@ dans les sorties de l'agent, jamais dans le projet.
 | ✓ Commiter | lecture | `git commit` (l'appli efface `commit.md` une fois le commit passé) | non |
 | Générer ce module, Générer les modules | lecture, écriture, édition, ses sous-agents `developpeur` | — | non |
 | Commiter les modules | lecture, écriture des sorties | `git add`, `git commit`, `rm -rf` de son dossier temporaire | non |
-| Relire le diff, Ponytail review, Plan de test à l'écran, Relire la note, Relire les commits | lecture, écriture des sorties | — | oui |
+| Relire le diff, Ponytail review, Plan de test à l'écran, Relire la note, Relire le code | lecture, écriture des sorties | — | oui |
 | Lancer les vérifications et la ponytail review | lecture, écriture des sorties | — (la ponytail review est lancée par l'appli, en même temps) | oui |
 | Appliquer la revue | lecture, écriture, édition | `git add`, `git commit --fixup`, `git commit -m` (le commit ordinaire de l'historique simple) | non |
 | Replier les fixups | lecture | `git rebase` | non |
@@ -744,9 +740,7 @@ servent comme d'habitude (`@types/node` se tape et part).
 **Ouvrir dans l'éditeur.** *Ouvrir* sur la note, un module, un test (chez le
 créateur, une icône discrète : la sortie de secours vers votre éditeur, puisque le
 code ne se modifie plus à l'écran ; à la
-ligne du cas : zed, VS Code, Cursor, VSCodium). Un commit : *Voir le diff*
-(écrit en lecture seule sous `vibecoder-out/<agent>/files/`, puis ouvert)
-ou *GitHub* (sa page, dans le navigateur).
+ligne du cas : zed, VS Code, Cursor, VSCodium). Le code d'une PR se lit dans votre éditeur, sur sa branche.
 
 **Le parcours** — les étapes du guide, les mêmes pour créer une feature et pour
 relire une PR (le relecteur, plus bas) :
@@ -865,13 +859,7 @@ relire une PR (le relecteur, plus bas) :
    vous regardez à la pause après les invariants : chaque règle critique de votre
    note, et ce qui la garde, dans vos mots. Plus de validation cas par cas, de
    chiffres en tête, de barre « 0 / 3 validé », ni de *Tout valider*, *Voir le
-   fichier* ou *Invariants seuls* ; aucun test ne s'édite. **Le relecteur garde sa
-   vue** : à gauche les fichiers de la Forme (grisés) et les tests d'invariants (en
-   vert : ajouté par la branche, en jaune : modifié), au centre une carte par cas
-   (pseudo-code ou *Code*, la ligne « → invariant » qu'il garde, *Validé* ou *À
-   revoir*, *Tout valider*, *Voir le fichier* et son diff depuis la base de la PR, *Relire* /
-   *Tout relire*, « lecture périmée » cas par cas), son menu de diff (« Depuis la
-   base de la branche », *En ligne* · *Côte à côte*) ; la validation d'un cas porte sur son
+   fichier* ou *Invariants seuls* ; aucun test ne s'édite. **Le relecteur a la même vue** (0.16.0) : l'alignement en tête, une règle par ligne « → invariant » et ses tests en pseudo-code dessous, *Validé* / *À revoir* sur chaque test, sans preuve (elle est faite sur la machine du créateur) ; la bulle d'une règle ou d'un test ouvre une remarque pour le brouillon de revue ; un test d'avant la branche que la PR modifie le dit, sur ce test ; ni carte par cas ni menu de diff ; la validation d'un cas porte sur son
    bloc (retoucher un cas ne décoche que lui, retoucher le code commun du fichier les
    décoche tous). Le système valide
    l'étape du créateur (« alignement avec la note ») ; il ne pose jamais *Validé* ni
@@ -946,8 +934,7 @@ relire une PR (le relecteur, plus bas) :
    elle sert : après une correction, l'en-tête de l'étape dit « modifiée depuis la
    validation », et un clic dessus bascule le diff sur ce qui a changé depuis le ✓ ;
    un second revient à la base. Sur un gros ticket (16 modules), l'étape reste
-   lisible : une ligne d'état, un arbre. Le relecteur garde ses modules en lecture
-   seule, puis les commits de la PR (voir *Relecteur*).
+   lisible : une ligne d'état, un arbre. Le relecteur n'a plus cette étape (voir *Relecteur*).
    **Prouver les invariants** (0.16.0) : pour chaque ligne « → invariant » de la note,
    le système casse volontairement la règle dans une copie du code, faite hors du
    dossier de travail, et lance le test : il doit échouer, un test qui reste vert ne
@@ -995,8 +982,7 @@ relire une PR (le relecteur, plus bas) :
    demande votre décision (un changement de contrat), `[agent]` pour le reste, que
    l'agent règle seul ; l'écran remplace l'étiquette par un badge (*pour toi*, en
    accent ; *pour l'agent*, grisé) et grise le texte d'une `[agent]`, qui reste
-   lisible. Le relecteur d'une PR n'a pas d'étiquettes : il lit tout, et garde son
-   *Relire à l'écran* tel qu'il est (plan de test, *Tout cocher*, *Relancer*).
+   lisible. Le relecteur d'une PR n'a pas d'étiquettes : il lit tout, et garde son *Relire à l'écran* (plan de test, *Tout cocher* ; sans plan, une phrase qui renvoie à *Préparer la revue*).
 6. **PR** : **à l'écran, la carte de la PR et l'état de la CI, sans bouton**
    (0.16.0) : une ligne par vérification en échec, rien quand tout passe. Le moteur
    ouvre la PR (*Valider la feature*), suit la CI jusqu'au vert (*Diagnostiquer la
@@ -1084,12 +1070,10 @@ pas de *Reprendre*, la ligne d'état nomme l'étape (« modifiez-la ou
 revalidez-la pour reprendre ») ; une fois l'étape modifiée ou revalidée, *Reprendre*
 revient, et le moteur ne repart qu'à votre clic.
 
-**Le diff, et son menu pour le relecteur.** Le créateur n'a plus de menu de diff
+**Le diff, et son menu.** Le créateur n'a plus de menu de diff
 (0.16.0) : l'étape Modules montre un seul diff, depuis la base de la branche, en
 ligne ; seule exception, « modifiée depuis la validation » dans l'en-tête de
-l'étape bascule sur ce qui a changé depuis le ✓, et revient. Le relecteur garde son
-menu, à l'étape Invariants : un seul menu
-en tête de la vue : *Fichier* · *Depuis la base de la branche* (par défaut) · *Depuis le
+l'étape bascule sur ce qui a changé depuis le ✓, et revient. Le relecteur n'a plus ce menu à l'écran (0.16.0) ; celui qui reste dans le dépôt, à l'étape Invariants, est un seul menu en tête de la vue : *Fichier* · *Depuis la base de la branche* (par défaut) · *Depuis le
 dernier commit* (grisé tant que la branche n'a aucun commit, ou que rien ne diffère du dernier commit), puis *En
 ligne* · *Côte à côte*. Il vaut pour toute la vue, plus pour le seul fichier affiché :
 l'arborescence ne liste que les fichiers qui diffèrent de la référence choisie, comme
@@ -1120,32 +1104,14 @@ génère ni ne se commite, et les actions qui modifient sont masquées.
 
 La PR se charge **dans le dossier de l'agent** (`gh pr view`, puis `git fetch
 origin` de la branche de la PR et de sa base ; une PR venue d'un fork, dont la
-branche n'est pas sur `origin`, est refusée), et on la relit sur sa branche,
-dans les mêmes étapes que le créateur : la note (*Relire la note* : les
-décisions à discuter), les invariants (les mêmes cartes en pseudo-code), les
-modules, en lecture, puis les commits de la PR (*Relire les commits* — ou, sans
-IA, la liste des commits, leurs fichiers, leur diff —, une carte par commit ; un
-clic sur un fichier d'un commit l'ouvre sous sa carte, tel qu'il est dans la
-PR, en lecture seule, ou son diff dans ce commit, ou depuis la base de la PR ;
-*Commenter* sur des lignes les cite dans une remarque), le plan de test à
-l'écran (étape Revue, *Plan de test à l'écran* : des cases à cocher pendant
-l'essai) et, à l'étape PR, la publication. *Commenter* ajoute
-une remarque au **brouillon de revue** (un par PR) : le texte du champ, sinon ce
-qu'on cite ; elle reste sous l'élément commenté (un passage de la note, un module,
-un cas, un commit), grisée, avec un crayon pour la modifier sur place et une ×
-pour la retirer, et s'empile quand il y en a plusieurs. *À revoir* (sur la note, un
-cas, ou un commit : chacun a *Validé* / *À revoir*) ne met rien au brouillon :
-il montre « Ajouter une remarque au brouillon », qui ouvre la zone. *Poser une
-question à l'agent* (à côté de *Commenter*) cite l'élément dans le champ de la
-conversation, comme le *Commenter* du créateur : rien n'est envoyé avant *Envoyer*. Le 💬 du bloc *Attention*
-d'un cas ajoute son point d'attention à la zone de commentaire de la carte
-(ouverte au besoin, ce que vous y aviez écrit gardé) : vous précisez, puis
-*Ajouter* le verse au brouillon (pour un créateur, le même 💬 cite le cas dans
-le champ de la conversation). Enfin, à l'étape PR, le verdict (*Commenter* par
-défaut, *Approuver*, *Demander des changements*) et *Publier la revue*, qui
-l'envoie sur GitHub telle quelle. Un *À revoir* quelque part propose *Demander
-des changements*, tout validé propose *Approuver* ; votre choix l'emporte, et
-rien ne part sans votre clic. Une fois publiée, la revue est marquée envoyée
+branche n'est pas sur `origin`, est refusée), et on la relit sur sa branche, **en quatre arrêts** (0.16.0) : *Note*, *Règles*, *Essai*, *Publier*. Vous vous tenez sur la note, les règles et l'essai à l'écran ; le reste est un contrôle secondaire, automatique. Sous le fil, une ligne dit où vous en êtes, et un seul bouton, **Préparer la revue**, lance d'un coup les cinq lectures de l'agent — la relecture de la note, le pseudo-code des tests, l'alignement, la relecture du code, le plan de test à l'écran — pour que vous trouviez tout prêt. Jamais automatique : charger ou ouvrir une PR ne lance rien et ne dépense aucun token. Sur une revue déjà préparée, il ne lance que ce qui manque ou a été lu sur une autre tête de la PR (chaque lecture finie retient le commit de tête d'où elle est partie, qu'elle vienne du bouton ou de la CLI ; échouée ou arrêtée, elle sera relancée) : rien n'est payé deux fois. Les boutons de chaque lecture n'existent plus à l'écran ; chaque lecture reste lançable seule par l'agent et sa CLI.
+
+- *Note* : la relecture de l'agent (les décisions à discuter) au-dessus de la note ; vous la jugez (*Valider* / *À revoir*) et remarquez ses lignes.
+- *Règles* : la même vue que le créateur, sans preuve ; un test d'avant la branche que la PR modifie le dit.
+- *Essai* : le plan de test à l'écran et ses cases à cocher ; sans plan, une phrase qui renvoie à *Préparer la revue*.
+- *Publier* : la carte de la PR, les **constats de l'agent sur le code** — la relecture du code lit tout le diff en une passe : les quatre questions du guide, la duplication, le code suit-il la note et sa Forme, les bugs, les en-têtes ; plus rien sur l'histoire des commits, la PR étant fusionnée en squash —, chacun avec sa bulle, puis le brouillon, le verdict et *Publier la revue*.
+
+Plus de Forme, de Modules ni de commits à relire. *Commenter* — la bulle d'une règle, d'un test ou d'un constat — ouvre une zone de remarque (un constat y arrive déjà rempli) ; *Ajouter* la met au **brouillon de revue** (un par PR) : le texte du champ, sinon ce qu'on cite. Elle reste sous l'élément commenté (un passage de la note, une règle, un test, un constat), grisée, avec un crayon pour la modifier sur place et une × pour la retirer, et s'empile quand il y en a plusieurs. *À revoir* (sur la note ou un test : chacun a *Validé* / *À revoir*) ne met rien au brouillon : il montre « Ajouter une remarque au brouillon », qui ouvre la zone. *Poser une question à l'agent* (sur la note) cite l'élément dans le champ de la conversation, comme le *Commenter* du créateur : rien n'est envoyé avant *Envoyer*. Le 💬 du point d'attention d'un test l'ajoute à la zone de remarque (ouverte au besoin, ce que vous y aviez écrit gardé) : vous précisez, puis *Ajouter* le verse au brouillon. Enfin, à l'arrêt *Publier*, le verdict (*Commenter* par défaut, *Approuver*, *Demander des changements*) et *Publier la revue*, qui l'envoie sur GitHub telle quelle. Un *À revoir* sur la note ou un test propose *Demander des changements*, la note et chaque test validés proposent *Approuver* (pas de verdict par commit) ; votre choix l'emporte, et rien ne part sans votre clic. Une fois publiée, la revue est marquée envoyée
 (grisée : le verdict, le nombre de remarques, la date, le lien) et *Publier la
 revue* est grisé (« déjà publiée ») tant que ni le brouillon ni le verdict n'ont
 changé.
@@ -1366,8 +1332,7 @@ suivante ne part pas. Le moteur ne survit pas à un redémarrage de l'appli :
 Les relectures pensées pour un humain qui lit le code restent à la demande :
 *Relire le diff* d'un module n'est jamais proposée comme prochaine action ;
 *Lire en pseudo-code*, elle, est lancée par le moteur après chaque écriture des
-tests d'invariants, et la pause après les invariants l'attend ; *Relire la note* et
-*Relire les commits* ne sont proposées qu'au relecteur d'une PR. La revue ponytail
+tests d'invariants, et la pause après les invariants l'attend ; *Relire la note* et *Relire le code* ne se lancent, en relecteur, que par *Préparer la revue* (ou l'agent). La revue ponytail
 reste sur le chemin.
 
 **Qui travaille, ce que ça coûte.** Chaque action sait qui travaille :

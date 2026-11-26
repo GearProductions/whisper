@@ -3,7 +3,7 @@
 // 0.16.0-ecran-essentiel) : le texte de la ligne et son état, ce que la preuve en dit (le mutant ; la raison d'une ligne
 // non prouvée, toujours visible), les tests qui la gardent en pseudo-code, « aucun test », « Autres tests », la lecture en
 // cours, le point d'attention, l'alignement en tête (par FeedbackView), 💬 sur une règle, Ouvrir en icône ; aucun bouton
-// d'action, aucune validation, aucun chiffre, aucun éditeur.
+// d'action, aucune validation, aucun chiffre, aucun éditeur. Puis, en relecteur, la même vue sans preuve, avec le brouillon de revue.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, expect, it } from 'vitest';
@@ -302,4 +302,217 @@ it('en tête, où l\'on en est de sa lecture : tests, validés, à revoir, à li
   expect(page.querySelector('.vc-rules-count')).toBeNull();
   await draw({ lang: 'en', mustNot: [inv(A)], invariants: [file('a', ['x', 'y'], [reading('x', A), reading('y', A)], { marks: { x: 'ok' } })] });
   expect(page.querySelector('.vc-rules-count')?.textContent).toBe('2 tests · 1 approved · 0 to review · 1 to read');
+});
+
+// La revue essentielle (note 0.16.0-revue-essentielle) : le relecteur a la même vue, sans preuve, avec le brouillon de revue.
+type Review = Setup & { draft?: { id: number; text: string; target: string }[]; proof?: VibeProof };
+let drafts: unknown[][] = [];
+const drawR = (o: Review = {}) => act(() => {
+  const lang = o.lang ?? 'fr';
+  const view = { lang, flow: 'review', actions: [{ id: 'comment' }], invariants: o.invariants ?? [], proof: o.proof, draft: o.draft ?? [],
+    outputs: { ...(o.align === undefined ? {} : { 'align.md': { text: o.align, time: 1 } }), ...(o.liens === undefined ? {} : { 'liens.md': { text: o.liens, time: 1 } }) },
+    note: o.mustNot === null ? null : { mustNot: o.mustNot ?? [] }, steps: [], modules: [], files: [] } as unknown as VibeView;
+  const props = { view, step: { id: 'invariants', status: 'current', facts: '', open: true }, t: t(lang), busy: false,
+    act: { prefill: (...a: unknown[]) => prefills.push(a), open: (...a: unknown[]) => opens.push(a), openLink: (u: string) => links.push(u),
+      mark: (...a: unknown[]) => marks.push(a), draft: (...a: unknown[]) => drafts.push(a) } } as unknown as StepProps;
+  root.render(createElement(RulesView, props));
+});
+beforeEach(() => { drafts = []; });
+const bubble = (label: string, within: ParentNode = page) => named(label, within)[0];
+const boxes = () => [...page.querySelectorAll<HTMLTextAreaElement>('.vc-cbox textarea')];
+const typeIn = async (value: string) => {
+  const ta = boxes()[0];
+  Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(ta, value);
+  await act(async () => { ta.dispatchEvent(new Event('input', { bubbles: true })); });
+};
+const footBtn = (tone: 'accent' | 'ghost') => page.querySelector<HTMLButtonElement>(`.vc-cbox .vc-run[data-tone="${tone}"]`)!;
+const REMARK_RULE = 'Une remarque sur cette règle, au brouillon de revue', REMARK_TEST = 'Une remarque sur ce test, au brouillon de revue';
+const PATH = 'tests/invariants/a.test.ts';
+
+it('relecteur, deux lignes « → invariant » : deux règles, leurs tests en pseudo-code', async () => {
+  await drawR({ mustNot: [inv(B), inv(A)], invariants: [file('a', ['x', 'y'], [reading('x', A), reading('y', B, { pseudo: 'test "y":\n  expect(b).toBe(2)' })])] });
+  expect(rules().map((r) => r.querySelector('.vc-rule-line')?.textContent)).toEqual([lineB, lineA]);
+  expect(rules()[0].querySelector('.vc-pseudo')?.textContent).toContain('expect(b).toBe(2)');
+  expect(rules()[1].querySelector('.vc-pseudo')?.textContent).toContain('expect(x).toBe(1)');
+});
+
+it('relecteur : ni « écrite », ni « prouvée », ni « non prouvée », aucun détail de preuve', async () => {
+  const proof: VibeProof = { state: 'blocked', lines: [{ line: lineA, proved: true, detail: 'le mutant' }, { line: lineB, proved: false, detail: 'la raison' }] };
+  await drawR({ mustNot: [inv(A), inv(B)], proof });
+  for (const bad of ['écrite', 'prouvée', 'le mutant', 'la raison']) expect(page.textContent).not.toContain(bad);
+  expect(page.querySelector('.vc-rule-state, .vc-rule-proof, [data-state]')).toBeNull();
+  await drawR({ lang: 'en', mustNot: [inv(A)], proof });
+  for (const bad of ['written', 'proved', 'unproved']) expect(page.textContent).not.toContain(bad);
+});
+
+it('relecteur : une ligne sans test : « aucun test » ; un test sans ligne : « Autres tests »', async () => {
+  await drawR({ mustNot: [inv(A), inv(B)], invariants: [file('a', ['x', 'orphelin'], [reading('x', A), reading('orphelin', 'rien')])] });
+  expect(ruleText(1)).toContain('aucun test');
+  expect(page.querySelector('.vc-rules-others h3')?.textContent).toBe('Autres tests');
+  expect(page.querySelector('.vc-rules-others')?.textContent).toContain('orphelin');
+});
+
+it('relecteur : un écart de l\'alignement (sans étiquette) : en tête, tel quel, rien de replié', async () => {
+  await drawR({ align: '- La ligne B n\'a aucun test\n- autre écart', mustNot: [inv(A)] });
+  expect(page.querySelector('.vc-rules')?.firstElementChild?.className).toBe('vc-feedback');
+  expect(page.querySelector('.vc-feedback')?.textContent).toContain('La ligne B n\'a aucun test');
+  expect(page.querySelector('.vc-feedback')?.textContent).toContain('autre écart');
+  expect(page.querySelector('.vc-feedback details')).toBeNull();
+  await drawR({ align: 'Aligné.', mustNot: [inv(A)] });
+  expect(page.querySelector('.vc-feedback')).toBeNull();
+});
+
+it('relecteur : le point d\'attention d\'un test : visible', async () => {
+  await drawR({ mustNot: [inv(A)], invariants: [file('a', ['x'], [reading('x', A, { warning: 'un mock remplace le disque' })])] });
+  expect(rules()[0].querySelector('.vc-attention')?.textContent).toContain('un mock remplace le disque');
+});
+
+it('relecteur : un test protégé que la PR modifie : « modifié par la PR », sur ce test seulement', async () => {
+  const f = file('a', ['x', 'y'], [reading('x', A), reading('y', A)], { changedFromBase: ['y'] });
+  await drawR({ mustNot: [inv(A)], invariants: [f] });
+  const [x, y] = [...rules()[0].querySelectorAll('.vc-rule-case')];
+  expect(x.textContent).not.toContain('modifié par la PR');
+  expect(y.textContent).toContain('modifié par la PR');
+  await drawR({ lang: 'en', mustNot: [inv(A)], invariants: [f] });
+  expect(page.textContent).toContain('changed by the PR');
+  // le créateur ne le voit jamais, même avec la clé
+  await draw({ mustNot: [inv(A)], invariants: [f] });
+  expect(page.textContent).not.toContain('modifié par la PR');
+});
+
+it('relecteur : Validé, À revoir sur un test : sa marque, un second clic l\'annule', async () => {
+  await drawR({ mustNot: [inv(A)], invariants: [file('a', ['x', 'y'], [reading('x', A), reading('y', A)], { marks: { y: 'ko' } })] });
+  const [x, y] = [...rules()[0].querySelectorAll('.vc-rule-case')];
+  const [okX, koX] = verdicts(x), [, koY] = verdicts(y);
+  expect(koY.getAttribute('aria-pressed')).toBe('true');
+  okX.click(); koX.click(); koY.click();
+  expect(marks).toEqual([[`case:${PATH}:x`, 'ok'], [`case:${PATH}:x`, 'ko'], [`case:${PATH}:y`, null]]);
+});
+
+it('relecteur : À revoir propose d\'ajouter une remarque ; rien n\'est ajouté sans le clic', async () => {
+  await drawR({ mustNot: [inv(A)], invariants: [file('a', ['x', 'y'], [reading('x', A), reading('y', A)], { marks: { x: 'ko' } })] });
+  const [x, y] = [...rules()[0].querySelectorAll('.vc-rule-case')];
+  expect(x.textContent).toContain('Ajouter une remarque au brouillon');
+  expect(y.textContent).not.toContain('Ajouter une remarque au brouillon');
+  expect(boxes()).toHaveLength(0);
+  const add = [...x.querySelectorAll('button')].find((b) => b.textContent === 'Ajouter une remarque au brouillon')!;
+  await act(() => add.click());
+  expect(boxes()).toHaveLength(1);
+  expect(x.querySelector('.vc-cbox')).not.toBeNull();
+  expect(drafts).toEqual([]);
+  expect(marks).toEqual([]);
+});
+
+it('relecteur : la bulle d\'une règle, d\'un test : une zone de remarque ; Ajouter : au brouillon, sur sa cible ; Annuler : rien', async () => {
+  await drawR({ mustNot: [inv(A)], invariants: [file('a', ['x', 'y'], [reading('x', A), reading('y', 'rien')])] });
+  await act(() => bubble(REMARK_RULE, rules()[0]).click());
+  expect(rules()[0].querySelector('.vc-rule-head + .vc-cbox, .vc-rule > .vc-cbox')).not.toBeNull();
+  await typeIn('une règle trop large');
+  await act(() => footBtn('accent').click());
+  expect(drafts).toEqual([[{ add: { target: `rule: ${lineA}`, text: 'une règle trop large' } }]]);
+  expect(boxes()).toHaveLength(0);
+  // un test, sous une règle
+  await act(() => bubble(REMARK_TEST, rules()[0]).click());
+  await typeIn('  ce test est faible  ');
+  await act(() => footBtn('accent').click());
+  // un test des autres
+  await act(() => bubble(REMARK_TEST, page.querySelector('.vc-rules-others')!).click());
+  await typeIn('hors règle');
+  await act(() => footBtn('accent').click());
+  expect(drafts.slice(1)).toEqual([[{ add: { target: `case:${PATH}:x`, text: 'ce test est faible' } }], [{ add: { target: `case:${PATH}:y`, text: 'hors règle' } }]]);
+  // Annuler : rien
+  drafts = [];
+  await act(() => bubble(REMARK_RULE, rules()[0]).click());
+  await typeIn('abandonné');
+  await act(() => footBtn('ghost').click());
+  expect(boxes()).toHaveLength(0);
+  expect(drafts).toEqual([]);
+});
+
+it('relecteur : une zone vide n\'ajoute rien ; la bulle d\'une zone ouverte la referme', async () => {
+  await drawR({ mustNot: [inv(A)] });
+  await act(() => bubble(REMARK_RULE).click());
+  expect(footBtn('accent').disabled).toBe(true);
+  await act(() => bubble(REMARK_RULE).click());
+  expect(boxes()).toHaveLength(0);
+  expect(drafts).toEqual([]);
+});
+
+it('relecteur : la bulle du point d\'attention : la zone déjà remplie avec lui, sans rien effacer ; rien au brouillon', async () => {
+  await drawR({ mustNot: [inv(A)], invariants: [file('a', ['x'], [reading('x', A, { warning: 'un mock remplace le disque' })])] });
+  const attention = 'Reprendre ce point d\'attention dans une remarque, au brouillon de revue';
+  await act(() => bubble(attention).click());
+  expect(boxes()[0].value).toBe('un mock remplace le disque');
+  await typeIn('mon avis');
+  await act(() => bubble(attention).click());
+  expect(boxes()[0].value).toBe('mon avis\n\nun mock remplace le disque');
+  await act(() => bubble(attention).click());   // un second clic n'ajoute rien de plus
+  expect(boxes()[0].value).toBe('mon avis\n\nun mock remplace le disque');
+  expect(drafts).toEqual([]);
+});
+
+it('relecteur : une remarque du brouillon sur un test, sur une règle : sous eux ; une autre cible : nulle part', async () => {
+  const draft = [
+    { id: 1, target: `case:${PATH}:x`, text: 'trop faible' },
+    { id: 2, target: `rule: ${lineA}`, text: 'à reformuler' },
+    { id: 3, target: `case:${PATH}:y`, text: 'ailleurs' },
+  ];
+  await drawR({ mustNot: [inv(A)], draft, invariants: [file('a', ['x'], [reading('x', A)])] });
+  expect(rules()[0].querySelector('.vc-rule-case')?.textContent).toContain('trop faible');
+  expect(rules()[0].textContent).toContain('à reformuler');
+  expect(page.textContent).not.toContain('ailleurs');
+  // modifier, retirer : par act.draft
+  await act(() => named('Retirer du brouillon', rules()[0].querySelector('.vc-rule-case')!)[0].click());
+  expect(drafts).toEqual([[{ remove: 1 }]]);
+});
+
+it('relecteur : un test qui garde deux règles : une seule zone s\'ouvre, sous celle du clic', async () => {
+  await drawR({ mustNot: [inv(A), inv(B)], invariants: [file('a', ['x'], [reading('x', `${A} et ${B}`)])] });
+  await act(() => bubble(REMARK_TEST, rules()[1]).click());
+  expect(boxes()).toHaveLength(1);
+  expect(rules()[1].querySelector('.vc-cbox')).not.toBeNull();
+  expect(rules()[0].querySelector('.vc-cbox')).toBeNull();
+});
+
+it('relecteur : la bulle de l\'alignement ouvre une zone de remarque ; Ajouter : au brouillon, sur la ligne de l\'alignement', async () => {
+  await drawR({ align: 'La ligne B n\'a aucun test', mustNot: [inv(A)] });
+  await act(() => page.querySelector<HTMLButtonElement>('.vc-feedback .vc-quote')!.click());
+  expect(prefills).toEqual([]);
+  await typeIn('à tester');
+  await act(() => footBtn('accent').click());
+  expect(drafts).toEqual([[{ add: { target: 'align: La ligne B n\'a aucun test', text: 'à tester' } }]]);
+  expect(boxes()).toHaveLength(0);
+});
+
+it('relecteur : aucune bulle ne cite dans la conversation', async () => {
+  await drawR({ align: 'écart', mustNot: [inv(A)], invariants: [file('a', ['x'], [reading('x', A, { warning: 'w' })])] });
+  expect(named('Citer cette règle dans le champ')).toEqual([]);
+  expect(named('Citer ce test dans le champ')).toEqual([]);
+  for (const b of [...page.querySelectorAll<HTMLButtonElement>('button.vc-tool, button.vc-quote')]) await act(() => b.click());
+  expect(prefills).toEqual([]);
+});
+
+it('relecteur : aucun bouton de lecture, ni Tout valider, ni Voir le fichier, ni état d\'un fichier', async () => {
+  await drawR({ mustNot: [inv(A)], invariants: [file('a', ['x', 'y'], [reading('x', A)], { source: 'const a = 1;\n' })], align: 'écart' });
+  const text = page.textContent ?? '';
+  for (const bad of ['Lire en pseudo-code', 'Relire', 'Tout relire', 'Vérifier l\'alignement', 'Tout valider', 'Voir le fichier', 'const a = 1']) expect(text).not.toContain(bad);
+  expect(page.querySelector('button.vc-run, .vc-vbtn, .vc-seg, details.vc-ifile-src, .cm-editor')).toBeNull();
+});
+
+it('relecteur : le compte en tête, la note sans règle', async () => {
+  await drawR({ mustNot: [inv(A)], invariants: [file('a', ['x'], [reading('x', A)], { marks: { x: 'ok' } })] });
+  expect(page.querySelector('.vc-rules-count')?.textContent).toBe('1 test · 1 validé · 0 à revoir · 0 à lire');
+  await drawR({ mustNot: [] });
+  expect(page.textContent).toBe('La note ne demande aucun invariant.');
+});
+
+it('créateur : ses états de preuve, sa bulle qui cite, comme avant ; aucune zone de remarque', async () => {
+  await draw({ mustNot: [inv(A)], proof: { state: 'ok', lines: [{ line: lineA, proved: true, detail: 'm' }] }, invariants: [file('a', ['x'], [reading('x', A)], { changedFromBase: ['x'] })] });
+  expect(rules()[0].querySelector('.vc-rule-state')?.textContent).toBe('prouvée');
+  named('Citer cette règle dans le champ', rules()[0])[0].click();
+  expect(prefills).toEqual([['comment', lineA]]);
+  expect(named(REMARK_RULE)).toEqual([]);
+  expect(boxes()).toHaveLength(0);
+  expect(verdicts(rules()[0])).toHaveLength(2);
+  expect(page.textContent).not.toContain('Ajouter une remarque');
 });

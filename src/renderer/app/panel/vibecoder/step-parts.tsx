@@ -1,9 +1,7 @@
 /** step-parts — les pièces des vues d'étape : l'en-tête d'étape (nom, état,
  *  ses faits propres — step.head, ce que l'étape ne montre pas en dessous —,
  *  outils à droite ; aucun champ d'étape : Rédiger la note prend le champ de
- *  la conversation, note 0.15.0-ecran-epure ; puis la rangée des actions de l'étape
- *  par stepActions — à l'étape en cours, Vibe d'abord avec son propre accent,
- *  puis celle qui fait avancer l'étape mise en avant),
+ *  la conversation, note 0.15.0-ecran-epure ; aucune rangée d'actions),
  *  la carte d'une sortie de skill (titre, fichier, depuis quand), le bouton
  *  d'une action du relevé (son libellé ou un plus court, qui travaille,
  *  pourquoi c'est grisé ; ton plain, accent, vibe ou ghost ;
@@ -23,7 +21,7 @@
  *  faits de head : changed, « modifiée depuis la validation », un bouton qui appelle onSince (le menu de diff de la
  *  vue IDE passe sur Depuis la validation) ; cascade, « à revoir : <l'étape cause> a changé », en texte (le principal
  *  les écrit dans step.head, rien n'est répété ici). Retirés : « périmée », son diff et Revalider.
- *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel), en créateur : StepHead n'a plus de rangée d'actions (stepActions ne rend rien) ;
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel), en créateur : StepHead n'a plus de rangée d'actions ;
  *  son badge d'état porte le ✓ de l'étape (stepBadge de core/vibecoder : « faite ✓ » validée, « faite · ✓ retiré » tant
  *  que le retrait tient) et, à la Forme, aux Invariants et aux Modules, se clique pour le retirer (act.mark(étape, null))
  *  ou le rendre (act.mark(étape, 'ok')) ; sans ✓ ni retrait, un badge sans clic : il ne valide jamais une étape que le
@@ -32,14 +30,14 @@
  *  Run, Invite et OutputCard ne sont plus rendus par StepHead : les vues les posent elles-mêmes (le créateur garde Invite
  *  et OutputCard : modules, Forme, PR ; Run reste surtout au relecteur et à la note, Vérifier). Le relecteur : inchangé.
  *  La revue essentielle (note 0.16.0-revue-essentielle) : StepHead n'a plus de rangée d'actions pour personne (stepActions
- *  de core/vibecoder retirée, son paramètre own avec elle : plus rien à écarter) ; le nom de l'étape suit le rôle
+ *  de core/vibecoder retirée, son paramètre own avec elle) ; le nom de l'étape suit le rôle
  *  (stepName : « Règles », « Essai », « Publier » pour le relecteur) ; son badge, sans ✓ ni clic au relecteur, comme
  *  avant. Run reste (Publier la revue, S'assigner la PR, Vérifier la note).
  *  Ne connaît pas : le pont (rappels passés ; ⏹ et la langue par le contexte StopRun).
  *  Utilisé par : les vues d'étape ; vibe-coder (badge Relecteur,
  *  badge du worktree). */
 import { createContext, useContext, type ReactNode } from 'react';
-import { isLive, stepActions, stepBadge, t as strings, webUrl, type Strings } from 'core/vibecoder';
+import { isLive, stepBadge, stepName, t as strings, webUrl, type Strings } from 'core/vibecoder';
 import type { Piece } from 'core/conversation';
 import type { VibeAction, VibeArgs, VibeLang, VibePr, VibeRun, VibeView } from 'technicals/bridge';
 import { Icon, IconButton } from './icons';
@@ -73,12 +71,11 @@ export const StopRun = createContext<{ stop(id: string): void; state(id: string)
 // Les pièces jointes du questionnaire : tenues par l'appelant (vibe-coder), en une seule liste.
 export type StepPieces = { pieces: Piece[]; onRemove(p: Piece): void; onAttach(): void; onFiles(files: File[]): void };
 
-// L'en-tête d'une étape ; `own` : les actions que la vue montre elle-même (pas répétées ici) ; les masquées, nulle part.
+// L'en-tête d'une étape : son nom, son badge, ses faits, ses outils ; aucune action.
 // `p` : StepProps (le relevé, l'étape, les libellés, act) ; step.head tel que le principal le donne, aucun champ.
 // onSince : le clic sur « modifiée depuis la validation » ; absent : un texte, sans clic.
-export function StepHead({ p, own = [], children, onSince }: { p: StepProps; own?: string[]; children?: ReactNode; onSince?(): void }) {
-  const { view, step, t, act, busy } = p;
-  const acts = stepActions(view, step, own);
+export function StepHead({ p, children, onSince }: { p: StepProps; children?: ReactNode; onSince?(): void }) {
+  const { view, step, t, act } = p;
   // l'étape d'avant validée : ne compte que pour rendre un ✓ retiré (stepBadge)
   const prevOk = !step.check?.withdrawn || view.steps[view.steps.findIndex((x) => x.id === step.id) - 1]?.check?.state === 'ok';
   const { mark, click } = stepBadge(view.flow, step, prevOk);
@@ -92,17 +89,12 @@ export function StepHead({ p, own = [], children, onSince }: { p: StepProps; own
     : <span className="vc-facts">{step.head}</span>) : null;
   return (
     <div className="vc-step-head">
-      <h2>{t.steps[step.id]}</h2>
+      <h2>{stepName(t, view.flow, step.id)}</h2>
       {click ? (
         <button type="button" className="vc-badge vc-badge-click" data-status="done" title={click === 'withdraw' ? s.withdrawTitle : s.restoreTitle}
           onClick={() => act.mark(step.id, click === 'withdraw' ? null : 'ok')}>{badge}</button>
       ) : <span className="vc-badge" data-status={mark ? 'done' : step.status}>{badge}</span>}
       {head}
-      {acts.length ? (
-        <div className="vc-step-acts">
-          {acts.map(({ a, tone }) => <Run key={a.id} a={a} busy={busy} tone={tone} onRun={(x) => act.run(a.id, x)} />)}
-        </div>
-      ) : null}
       {children ? <div className="vc-step-tools">{children}</div> : null}
     </div>
   );

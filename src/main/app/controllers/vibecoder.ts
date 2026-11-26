@@ -240,7 +240,7 @@ import { START, type CommandError } from 'core/commands';
 import {
   acceptedTexts, addComment, artifactOf, caseBlocks, caseHashes, convertCaseMarks, setCaseMark, beforeOf, blobSha, buildMessage, designEnd, hasComment, keepNote, noteDesign, parseQuestions, skeletonMarks, vibeMarks, ARTIFACT_OPS, DIRECT_ACTIONS, DIRECT_ONLY, editComment, locateNote, headField, ignoredText, isInvariantTest, isOutputName, isTest, itemCommit, itemPath, nextRef,
   CHECKED, filesText, parseFiles, stepChecks, stepContents, validateStep, versionName, withdraw, withdrawn, type CheckedStep, type FileBlobs, type Marks, type StepContent, type StepFiles,
-  blockedBy, BRANCH_CHANGES, lockCode, lockText, ELSEWHERE, json, newRequestCard, branchNoteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeRole, vibeView, whoOf, type ActionDef, type MessageError, type NoteRef,
+  blockedBy, BRANCH_CHANGES, READINGS, readEnd, roleDefs, lockCode, lockText, ELSEWHERE, json, newRequestCard, branchNoteKey, onBase, ownRun, prNumber, removeComment, runModule, runViews, safePath, setMark, skillModel, targetHash, vibeRole, vibeView, whoOf, type ActionDef, type MessageError, type NoteRef,
 } from 'core/vibecoder';
 import { draftText, isVerdict } from 'shared/review';
 import { findEditor } from 'technicals/editor';
@@ -325,6 +325,8 @@ const prsFound = new Map<string, { mine: unknown[]; review: unknown[]; all: unkn
 const requests = new Map<string, { text: string; branch?: string }>();  // new-request : la demande partie, par agent (en mémoire), puis sa branche
 const clicked = new Map<string, string>();     // par agent : l'empreinte de la conception de la note au départ de la dernière course design-check, quel que soit le geste qui l'a lancée
 const designSeen = new Map<string, number>();  // par agent : le départ de la dernière course design-check dont la fin est rangée
+const readHeads = new Map<string, string>();   // par agent et lecture de la revue (« agent\0action ») : le commit de tête du relevé d'où elle est partie
+const readSeen = new Map<string, number>();    // … et le départ de la dernière course dont la fin est rangée (readEnd)
 const engine = new Set<string>();              // le moteur (vibe) à lancer : la note validée pour la première fois (ou revalidée, lui arrêté par sa pause), ou passé en express à une pause
 const accepts = new Map<string, string[]>();   // par agent : les textes « Accepter » choisis depuis la dernière validation de la note (answers)
 // Par agent : la course forme suivie (son départ), les empreintes de ses fichiers de module au départ (null : pas vues),
@@ -745,6 +747,17 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     clicked.delete(agent.id);
     saveVibeStore(store);
   }
+  // Une lecture de la revue finie (l'écran, la CLI ou la file) : sa fin rangée une fois (readEnd), à chaque relevé, panneau visible
+  // ou non ; finie, la marque de la tête retenue à son départ, sinon rien ; la tête oubliée. Rien n'est lancé ici.
+  for (const run of runsOf(agent)) {
+    const id = `${agent.id}\0${run.id}`;
+    if (!READINGS.includes(run.id) || !['done', 'failed', 'stopped'].includes(run.state) || readSeen.get(id) === run.since) continue;
+    readSeen.set(id, run.since);
+    const marks = store.marks[agent.id] || {};
+    const next = readEnd(marks, { action: run.id, state: run.state as 'done' | 'failed' | 'stopped', head: readHeads.get(id) ?? null });
+    readHeads.delete(id);
+    if (next !== marks) { store.marks[agent.id] = next; saveVibeStore(store); }
+  }
   // La note validée puis changée : son ✓ suit la conception d'aujourd'hui si le changement n'y ajoute que des textes « Accepter »
   // choisis (answers) ; sinon il tombe au relevé (keepNote). Aucun autre chemin ne valide la note à la place de l'utilisateur.
   if (role === 'create' && noteText !== null) {
@@ -990,6 +1003,7 @@ export function startAction(
   if (def.id === 'note' && view.flow === 'create' && onBase(view.repo?.branch ?? null, view.repo?.base ?? null)) {
     def = vibeActions(lang).find((a) => a.id === 'new-request') ?? def;
   }
+  [def] = roleDefs([def], view.flow);   // en relecteur, une action d'étape ne fait que lire : l'alignement compris
   const shown = view.actions.find((a) => a.id === def.id);
   if (shown?.disabled && shown.disabled !== greyed(def, view, lang)) return { ok: false, error: shown.disabled, reason: 'disabled' };
   // Le modèle et l'effort d'une action : ceux de la configuration (jamais Fable, I-36), ce que la page ou la demande
@@ -1023,6 +1037,11 @@ export function startAction(
   // Vérifier partie, quel que soit le geste (l'écran, l'orchestrateur, la file) : l'empreinte de la conception de la note du
   // relevé gardée en mémoire ; sa fin la lira (designEnd). Refusée (same : une course court déjà) : celle de la première reste.
   if (sent.ok && def.id === 'design-check' && view.note) clicked.set(agent.id, blobSha(noteDesign(view.note.text)));
+  // Une lecture de la revue partie, quel que soit le geste : le commit de tête du relevé retenu, sa fin en dira la marque (survey).
+  if (sent.ok && view.flow === 'review' && READINGS.includes(def.id)) {
+    const tip = view.commits.at(-1)?.hash;
+    if (tip) readHeads.set(`${agent.id}\0${def.id}`, tip); else readHeads.delete(`${agent.id}\0${def.id}`);
+  }
   // Dans un worktree, par l'agent : sa fiche pr-<n>-worktree.json attendue (syncWorktrees, la question de confiance).
   if (sent.ok && def.id === 'pr-worktree' && view.pr) wantWorktree(agent.id, view.pr.number);
   // Les réponses envoyées : les textes « Accepter » choisis tels quels sont gardés (acceptedTexts, d'après les questions du relevé),

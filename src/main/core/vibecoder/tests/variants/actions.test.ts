@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { VibeView } from 'shared/bridge';
-import { buildMessage, DIRECT_ACTIONS, ignoredText, EFFORT_LEVELS, DIRECT_ONLY, parseActions, readArgs, skillModel, SKILL_MODELS, targetModule, whoOf, type ActionDef, type MessageContext } from 'core/vibecoder';
+import { buildMessage, DIRECT_ACTIONS, ignoredText, EFFORT_LEVELS, DIRECT_ONLY, parseActions, readArgs, roleDefs, skillModel, SKILL_MODELS, targetModule, whoOf, type ActionDef, type MessageContext } from 'core/vibecoder';
 
 const C1 = '9fceb02d0ae598e95dc970b74767f19372d61af8';
 const BLOB = '3b18e512dba79e4c8300dd08aeb37f8e728b8dad';
@@ -591,8 +591,8 @@ describe('les actions de resources/vibecoder (fr et en)', () => {
       }
     });
 
-    it(`${lang} : Relire les commits, le plan de test et Publier la revue changent d'étape`, () => {
-      expect(byId('review-commits')?.step).toBe('modules');
+    it(`${lang} : Relire le code, le plan de test et Publier la revue changent d'étape`, () => {
+      expect(byId('review-commits')?.step).toBe('pr');
       expect(byId('screen')?.step).toBe('revue');
       expect(byId('publish')?.step).toBe('pr');
     });
@@ -735,5 +735,41 @@ describe('un test à relire est pris dans le dernier relevé, par son id', () =>
   it('« * » sans test d’invariant au relevé : refusé', () => {
     // rien à relire
     expect(buildMessage(LIRE, { file: '*' }, ctx)).toEqual({ error: 'files' });
+  });
+});
+
+describe('roleDefs : le catalogue tel que le rôle le lance', () => {
+  const def = (id: string, step: ActionDef['step'], reads?: boolean): ActionDef =>
+    ({ ...action(id), id, step, ...(reads === undefined ? {} : { reads }) });
+  const defs = [def('align', 'invariants', false), def('read', 'forme', true), def('chat', null, false), def('write', 'modules')];
+
+  it('relecteur, l\'alignement : une lecture', () => {
+    expect(roleDefs(defs, 'review').find((d) => d.id === 'align')?.reads).toBe(true);
+  });
+
+  it('relecteur, une action déjà en lecture : inchangée', () => {
+    expect(roleDefs(defs, 'review').find((d) => d.id === 'read')).toEqual(defs[1]);
+  });
+
+  it('relecteur, une action sans étape (un message de la conversation) : inchangée', () => {
+    expect(roleDefs(defs, 'review').find((d) => d.id === 'chat')).toEqual(defs[2]);
+  });
+
+  it('relecteur, une action d\'étape sans reads (écrite à la main) : une lecture', () => {
+    expect(roleDefs(defs, 'review').find((d) => d.id === 'write')?.reads).toBe(true);
+  });
+
+  it('créateur, l\'alignement : il modifie toujours la branche', () => {
+    const out = roleDefs(defs, 'create');
+    expect(out).toBe(defs);
+    expect(out.find((d) => d.id === 'align')?.reads).toBe(false);
+  });
+
+  it('l\'ordre et le reste de chaque définition : inchangés, sans toucher à l\'entrée', () => {
+    const before = structuredClone(defs);
+    const out = roleDefs(defs, 'review');
+    expect(out.map((d) => d.id)).toEqual(['align', 'read', 'chat', 'write']);
+    expect(out.map(({ reads, ...rest }) => rest)).toEqual(before.map(({ reads, ...rest }) => rest));
+    expect(defs).toEqual(before);
   });
 });

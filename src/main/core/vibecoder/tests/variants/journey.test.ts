@@ -389,9 +389,9 @@ describe('Relecteur : les étapes et la prochaine action', () => {
     outputs: { 'pr-12.json': out(PR), ...over.outputs },
   });
 
-  it('un seul parcours : les six étapes, comme le créateur ; aucune PR suivie, aucune action en tête', () => {
+  it('quatre arrêts (note, invariants, revue, PR) ; aucune PR suivie, aucune action en tête', () => {
     const v = vibeView(input({ flow: 'review', repo: null }));
-    expect([v.steps.map((s) => s.id), v.pr, primary(v)]).toEqual([['note', 'forme', 'invariants', 'modules', 'revue', 'pr'], null, null]);
+    expect([v.steps.map((s) => s.id), v.pr, primary(v)]).toEqual([['note', 'invariants', 'revue', 'pr'], null, null]);
   });
 
   it('une PR suivie, pas chargée : pas de loaded', () => {
@@ -406,13 +406,9 @@ describe('Relecteur : les étapes et la prochaine action', () => {
     expect(vibeView(loaded()).pr).toMatchObject({ number: 12, title: 'G2-1 — Un bouton', author: 'kb', base: 'main', head: 'feat/G2-1' });
   });
 
-  it('chargée, le dossier sur sa tête : Relire la note', () => {
+  it('chargée, le dossier sur sa tête : la note en cours, aucune action en tête (Relire la note reste à portée)', () => {
     const v = vibeView(loaded());
-    expect([status(v).note, primary(v)]).toEqual(['current', 'review-note']);
-  });
-
-  it('la Forme est faite avec la Note (rien à juger), pas avant', () => {
-    expect([status(vibeView(loaded())).forme, status(vibeView(loaded({ marks: { note: ok(noteDesign(NOTE)) } }))).forme]).toEqual(['todo', 'done']);
+    expect([status(v).note, primary(v), action(v, 'review-note')?.disabled]).toEqual(['current', null, null]);
   });
 
   it('la note refusée : un verdict suffit, l\'étape est faite', () => {
@@ -428,21 +424,21 @@ describe('Relecteur : les étapes et la prochaine action', () => {
     expect(status(vibeView(loaded({ marks: { note: ok(noteDesign(NOTE)), ...CASES_OK } }))).invariants).toBe('done');
   });
 
-  it('tests lus et jugés : Relire les commits', () => {
+  it('tests lus et jugés : la Revue en cours, aucune action en tête', () => {
     const v = vibeView(loaded({ marks: { note: ok(noteDesign(NOTE)), ...CASES_OK }, readings: READINGS }));
-    expect([status(v).modules, primary(v)]).toEqual(['current', 'review-commits']);
+    expect([status(v).revue, primary(v)]).toEqual(['current', null]);
   });
 
-  it('les commits relus (pr-<n>-commits.md) : Modules faite, la Revue attend le plan à l\'écran', () => {
+  it('les commits relus (pr-<n>-commits.md) ne font plus une étape : la Revue attend le plan à l\'écran', () => {
     const outputs = { 'pr-12-commits.md': out('## abc x') };
     const v = vibeView(loaded({ marks: { note: ok(noteDesign(NOTE)), ...CASES_OK }, readings: READINGS, outputs }));
-    expect([status(v).modules, status(v).revue, primary(v), v.steps[3].facts]).toEqual(['done', 'current', 'screen', '2 commits · relus']);
+    expect([status(v).revue, primary(v), v.steps.map((s) => s.id)]).toEqual(['current', null, ['note', 'invariants', 'revue', 'pr']]);
   });
 
   it('un plan de test pas tout coché : la Revue reste en cours, sans action', () => {
     const outputs = { 'pr-12-commits.md': out('## abc x'), 'ecran.md': out('- [ ] Ouvrir\n- [x] Dicter\n') };
     const v = vibeView(loaded({ marks: { note: ok(noteDesign(NOTE)), ...CASES_OK }, readings: READINGS, outputs }));
-    expect([status(v).revue, primary(v), v.steps[4].facts]).toEqual(['current', null, '1 / 2 cases']);
+    expect([status(v).revue, primary(v), v.steps[2].facts]).toEqual(['current', null, '1 / 2 cases']);
   });
 
   it('une case validée pour ce plan-là compte comme cochée', () => {
@@ -466,10 +462,10 @@ describe('Relecteur : les étapes et la prochaine action', () => {
     expect(vibeView(loaded()).checklist).toEqual([]);
   });
 
-  it('tout coché : la PR en cours, Publier la revue', () => {
+  it('tout coché : la PR en cours, aucune action en tête (Publier la revue reste à portée)', () => {
     const outputs = { 'pr-12-commits.md': out('## abc x'), 'ecran.md': out('- [x] Ouvrir\n') };
     const v = vibeView(loaded({ marks: { note: ok(noteDesign(NOTE)), ...CASES_OK }, readings: READINGS, outputs }));
-    expect([status(v).revue, status(v).pr, primary(v)]).toEqual(['done', 'current', 'publish']);
+    expect([status(v).revue, status(v).pr, primary(v)]).toEqual(['done', 'current', null]);
   });
 
   it('la revue publiée (pr-<n>-review.json) : la PR est faite', () => {
@@ -541,6 +537,135 @@ describe('Relecteur : rien de ce qui édite, génère ou commite ; tout ce que f
     expect(ids({ people: null, login: 'moi' })).toEqual([]);
     expect(ids({ people: people([]), login: null })).toEqual([]);
     expect(ids({})).toEqual([]);
+  });
+});
+
+describe('Relecteur : la revue essentielle, quatre arrêts (0.16.0)', () => {
+  const PR = '{"number":12,"title":"G2-1","url":"u","author":{"login":"kb"},"base":"main","head":"feat/G2-1","body":""}';
+  const HEAD = HELLO.hash;
+  const loaded = (over: Partial<JourneyInput> = {}) => input({
+    flow: 'review', pr: 12, note, tests: [test], repo: repo([], [FIRST, HELLO]), checkout: { branch: 'feat/G2-1', dirty: false }, ...over,
+    outputs: { 'pr-12.json': out(PR), ...over.outputs },
+  });
+  const NOTE_J: Marks = { note: ok(noteDesign(NOTE)) };
+  const PLAN = '- [x] Ouvrir\n- [x] Dicter\n';
+  const shown = (v: VibeView) => v.steps.map((s) => `${s.id}:${s.status}`);
+  const READ = ['review-note', 'read-invariants', 'align', 'review-commits', 'screen'];
+
+  it('relecteur : quatre étapes, dans l\'ordre, ni Forme ni Modules ; créateur : ses six, comme avant', () => {
+    expect(vibeView(loaded()).steps.map((s) => s.id)).toEqual(['note', 'invariants', 'revue', 'pr']);
+    expect(vibeView(input({ flow: 'review', repo: null })).steps.map((s) => s.id)).toEqual(['note', 'invariants', 'revue', 'pr']);
+    expect(vibeView(input()).steps.map((s) => s.id)).toEqual(['note', 'forme', 'invariants', 'modules', 'revue', 'pr']);
+  });
+
+  it('la note jugée : la première faite ; pas jugée : en cours ; refusée : faite aussi', () => {
+    expect(shown(vibeView(loaded()))[0]).toBe('note:current');
+    expect(shown(vibeView(loaded({ marks: NOTE_J })))[0]).toBe('note:done');
+    expect(shown(vibeView(loaded({ marks: { note: { hash: blobSha(noteDesign(NOTE)), verdict: 'ko' } } })))[0]).toBe('note:done');
+  });
+
+  it('chaque test jugé : les invariants faits ; un test sans verdict : non', () => {
+    expect(shown(vibeView(loaded({ marks: { ...NOTE_J, ...CASES_OK } })))).toEqual(['note:done', 'invariants:done', 'revue:current', 'pr:todo']);
+    const [first] = Object.keys(CASES_OK);
+    expect(shown(vibeView(loaded({ marks: { ...NOTE_J, [first]: CASES_OK[first] } })))[1]).toBe('invariants:current');
+  });
+
+  it('le plan écrit, chaque case cochée : la revue faite ; pas de plan, ou une case pas cochée : non', () => {
+    const at = (plan: string | null) => shown(vibeView(loaded({ marks: { ...NOTE_J, ...CASES_OK }, outputs: plan === null ? {} : { 'ecran.md': out(plan) } })))[2];
+    expect([at(PLAN), at(null), at('- [x] Ouvrir\n- [ ] Dicter\n')]).toEqual(['revue:done', 'revue:current', 'revue:current']);
+  });
+
+  it('la revue publiée : la PR faite', () => {
+    expect(shown(vibeView(loaded({ outputs: { 'pr-12-review.json': out('{}') } })))[3]).toBe('pr:done');
+    expect(shown(vibeView(loaded()))[3]).toBe('pr:todo');
+  });
+
+  it('le dossier ailleurs que sur la tête de la PR : aucune étape faite', () => {
+    const v = vibeView(loaded({
+      checkout: { branch: 'autre', dirty: false }, marks: { ...NOTE_J, ...CASES_OK },
+      outputs: { 'ecran.md': out(PLAN), 'pr-12-review.json': out('{}') },
+    }));
+    expect(shown(v)).toEqual(['note:current', 'invariants:todo', 'revue:todo', 'pr:todo']);
+  });
+
+  it('aucune action mise en avant, à aucun arrêt', () => {
+    const states: Partial<JourneyInput>[] = [
+      {}, { marks: NOTE_J }, { marks: { ...NOTE_J, ...CASES_OK } },
+      { marks: { ...NOTE_J, ...CASES_OK }, outputs: { 'pr-12-note.md': out('x'), 'pr-12-commits.md': out('x') } },
+      { marks: { ...NOTE_J, ...CASES_OK }, outputs: { 'ecran.md': out(PLAN) } },
+      { marks: { ...NOTE_J, ...CASES_OK }, outputs: { 'ecran.md': out(PLAN), 'pr-12-review.json': out('{}') } },
+    ];
+    for (const over of states) expect(vibeView(loaded(over)).actions.filter((a) => a.primary).map((a) => a.id)).toEqual([]);
+  });
+
+  it('une PR chargée, rien de lu : les cinq lectures à lancer', () => {
+    expect(vibeView(loaded()).prepare).toEqual(READ);
+  });
+
+  it('une lecture en file ou en cours n\'est pas à lancer ; une lue sur la tête d\'aujourd\'hui, sortie présente, non plus', () => {
+    expect(vibeView(loaded({ queued: ['align'] })).prepare).toEqual(READ.filter((a) => a !== 'align'));
+    expect(vibeView(loaded({ runs: [{ id: 'screen', label: '', who: 'agent', state: 'running', since: 1, end: null }] as JourneyInput['runs'] })).prepare)
+      .not.toContain('screen');
+    const read = vibeView(loaded({ marks: { 'read:screen': { hash: HEAD, verdict: 'ok' } }, outputs: { 'ecran.md': out(PLAN) } })).prepare;
+    expect(read).not.toContain('screen');
+    const stale = vibeView(loaded({ marks: { 'read:screen': { hash: 'autre', verdict: 'ok' } }, outputs: { 'ecran.md': out(PLAN) } })).prepare;
+    expect(stale).toContain('screen');
+  });
+
+  it('les tests lus : read-invariants n\'est plus à lancer', () => {
+    expect(vibeView(loaded({ readings: READINGS })).prepare).not.toContain('read-invariants');
+  });
+
+  it('la PR pas chargée, ou le dossier ailleurs : aucune lecture à lancer', () => {
+    expect(vibeView(input({ flow: 'review', pr: 12, repo: null })).prepare).toEqual([]);
+    expect(vibeView(input({ flow: 'review' })).prepare).toEqual([]);
+    expect(vibeView(loaded({ checkout: { branch: 'autre', dirty: false } })).prepare).toEqual([]);
+  });
+
+  it('créateur : pas de lectures à lancer au relevé', () => {
+    expect('prepare' in vibeView(ready())).toBe(false);
+  });
+
+  describe('changedFromBase : un test d\'avant la branche que la PR a modifié', () => {
+    const BASE = 'it("dit bonjour", () => {});\nit("ne lit rien d\'autre", () => { return 1; });\n';
+    const changed = (base: string | null | undefined, flow: 'review' | 'create' = 'review') =>
+      vibeView(loaded({ flow, tests: [{ ...test, base }] })).invariants[0].changedFromBase;
+
+    it('un cas dont le bloc a changé : dit sur lui, pas sur les autres cas du fichier', () => {
+      expect(changed(BASE)).toEqual(['ne lit rien d\'autre']);
+    });
+
+    it('le texte à la base identique : rien', () => {
+      expect(changed(TEST)).toBeUndefined();
+    });
+
+    it('un fichier ajouté par la branche (base null), une base inconnue : rien', () => {
+      expect(changed(null)).toBeUndefined();
+      expect(changed(undefined)).toBeUndefined();
+    });
+
+    it('un cas ajouté par la branche : pas dit ; un cas retiré : pas dit non plus', () => {
+      expect(changed('it("dit bonjour", () => {});\n')).toBeUndefined();
+      expect(changed(`${TEST}it("ancien", () => {});\n`)).toBeUndefined();
+    });
+
+    it('créateur : absent', () => {
+      expect(changed(BASE, 'create')).toBeUndefined();
+    });
+  });
+
+  it('une lecture en cours ne grise pas l\'alignement (sans qu\'il soit une modification)', () => {
+    const v = vibeView(loaded({ running: [{ id: 'screen', reads: true }] }));
+    expect(action(v, 'align')?.disabled).toBeNull();
+    expect(action(v, 'screen')?.disabled).toBe('Cette action est déjà en cours');
+    // créateur : l'alignement modifie les tests, une lecture en cours le grise
+    expect(action(vibeView(input({ note, running: [{ id: 'screen', reads: true }] })), 'align')?.disabled).toBe('Une autre action est en cours');
+  });
+
+  it('les actions du relevé : les mêmes qu\'avant, aucune retirée', () => {
+    const ids = vibeView(loaded()).actions.map((a) => a.id);
+    expect(ids).toEqual(ACTIONS.filter((a) => a.flow !== 'create' && a.id !== 'guide').map((a) => a.id));
+    expect(ids).toEqual(expect.arrayContaining(READ));
   });
 });
 
@@ -930,7 +1055,7 @@ describe('Créer et Relire sur le même dossier : les choix de lieu (0.12.0)', (
     expect(action(loaded({ lang: 'en' }), 'review-note')?.disabled).toBe('Switch to the PR branch first');
     for (const on of [{ checkout: { branch: 'feat/G2-1', dirty: false } }, { worktree: { state: 'robot' as const, temp: true, dir: '/w' } }]) {
       const v = loaded({ note, tests: [test], repo: repo([], [FIRST]), ...on });
-      expect([primary(v), action(v, 'review-note')?.disabled]).toEqual(['review-note', null]);
+      expect([primary(v), action(v, 'review-note')?.disabled]).toEqual([null, null]);
     }
   });
 
@@ -1592,11 +1717,7 @@ describe('en-têtes d\'étape sans doublon : head et facts', () => {
     review('Note jugée, 1 question : facts entier, head « rédigée »', vibeView(loaded({ marks: { note: ok(noteDesign(NOTE)) }, outputs: QUESTIONS })), 'note',
       'rédigée · 1 question · validée', 'rédigée');
     review('Note à rédiger', vibeView(loaded({ note: UNFILLED })), 'note', 'à rédiger', 'à rédiger');
-    review('Forme : rien', vibeView(loaded()), 'forme', '2 modules', '');
-    review('Forme sans note : facts « pas de note », head vide (l\'invitation le dit)', vibeView(loaded({ note: null })), 'forme', 'pas de note', '');
     review('Invariants : rien', vibeView(loaded()), 'invariants', '1 fichier · 2 cas · 0 lu', '');
-    review('Modules, commits pas relus : inchangé', vibeView(loaded()), 'modules', '2 commits', '2 commits');
-    review('Modules, commits relus : inchangé', vibeView(loaded({ outputs: { 'pr-12-commits.md': out('## abc x') } })), 'modules', '2 commits · relus', '2 commits · relus');
     review('Revue sans plan : « pas de plan »', vibeView(loaded()), 'revue', 'pas de plan', 'pas de plan');
     review('Revue avec plan : head vide, facts entier', vibeView(loaded({ outputs: { 'ecran.md': out('- [ ] Ouvrir\n- [x] Dicter\n') } })), 'revue', '1 / 2 cases', '');
     review('PR, un brouillon pas publié : rien', vibeView(loaded({ draft: [{ target: 'note', text: 'x' } as never] })), 'pr', '1 remarque', '');
@@ -2232,7 +2353,7 @@ describe('le contrôle en trois points (0.16.0)', () => {
         flow: 'review', pr: 12, note, tests: [test], readings: [], repo: repo([], [FIRST]), checkout: { branch: 'feat/G2-1', dirty: false },
         outputs: { 'pr-12.json': out(CARD) }, marks: MARKED,
       }));
-      expect([primary(v), v.pause ?? null, v.steps.some((st) => Object.hasOwn(st, 'check'))]).toEqual(['review-commits', null, false]);
+      expect([primary(v), v.pause ?? null, v.steps.some((st) => Object.hasOwn(st, 'check'))]).toEqual([null, null, false]);
       expect(action(v, 'read-invariants')).toMatchObject({ primary: false, hidden: false });
       expect(step(v, 'invariants').facts).not.toMatch(/prouv|prove/);
     });

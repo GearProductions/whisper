@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { duration, fileSize, t } from 'core/vibecoder';
+import { duration, fileSize, stepName, t } from 'core/vibecoder';
 
 describe('duration', () => {
   it('secondes, minutes, heures et minutes sur deux chiffres', () => {
@@ -23,11 +23,6 @@ describe('fileSize', () => {
 });
 
 describe('pluriels du fil d\'Ariane et de la barre d\'état', () => {
-  it('commitsOf : aucun, 1, N', () => {
-    expect([0, 1, 3].map(t('fr').commitsOf)).toEqual(['aucun commit', '1 commit', '3 commits']);
-    expect([0, 1, 3].map(t('en').commitsOf)).toEqual(['no commit', '1 commit', '3 commits']);
-  });
-
   it('runsRunning : 1, N', () => {
     expect([1, 2].map(t('fr').runsRunning)).toEqual(['1 action en cours', '2 actions en cours']);
     expect([1, 2].map(t('en').runsRunning)).toEqual(['1 action running', '2 actions running']);
@@ -191,13 +186,50 @@ describe('l\'écran de l\'essentiel', () => {
     }
   });
 
-  it('un libellé du relecteur est toujours là : les commits, Relire, Structure · Code, la vue IDE · liste', () => {
+  it('un libellé du relecteur est toujours là : le badge, son infobulle, l\'écran, Poser une question', () => {
     for (const lang of ['fr', 'en'] as const) {
       const s = t(lang);
-      expect(s.commitsOf(2)).toContain('commits');
-      for (const label of [s.reviewer, s.reviewerTitle, s.screenTitle, s.structure, s.code, s.ideView, s.listView, s.noChange, s.notInForme, s.diffTitle, s.githubTitle, s.askAgent]) {
+      for (const label of [s.reviewer, s.reviewerTitle, s.screenTitle, s.notInForme, s.askAgent]) {
         expect(label.length).toBeGreaterThan(1);
       }
     }
+  });
+});
+
+// 0.16.0 : la revue essentielle (docs/tickets/feat/0.16.0-revue-essentielle.md).
+describe('la revue essentielle', () => {
+  const ids = ['note', 'forme', 'invariants', 'modules', 'revue', 'pr'] as const;
+
+  it('relecteur : Note, Règles, Essai, Publier ; en anglais Note, Rules, Trial, Publish', () => {
+    expect((['note', 'invariants', 'revue', 'pr'] as const).map((id) => stepName(t('fr'), 'review', id))).toEqual(['Note', 'Règles', 'Essai', 'Publier']);
+    expect((['note', 'invariants', 'revue', 'pr'] as const).map((id) => stepName(t('en'), 'review', id))).toEqual(['Note', 'Rules', 'Trial', 'Publish']);
+  });
+
+  it('créateur : ses six noms d\'étape, inchangés', () => {
+    expect(ids.map((id) => stepName(t('fr'), 'create', id))).toEqual(['Note', 'Forme', 'Invariants', 'Modules', 'Revue', 'PR']);
+    expect(ids.map((id) => stepName(t('en'), 'create', id))).toEqual(['Note', 'Shape', 'Invariants', 'Modules', 'Review', 'PR']);
+  });
+
+  it('relecteur : une étape qu\'il n\'a plus (forme, modules) garde son nom de créateur', () => {
+    expect(stepName(t('fr'), 'review', 'forme')).toBe('Forme');
+  });
+
+  it('les phrases, les libellés de Préparer la revue et ceux des vues : non vides, et propres à chaque langue', () => {
+    const texts = (g: object): string[] => Object.values(g).flatMap((v) => (typeof v === 'object' ? texts(v) : typeof v === 'string' ? [v] : []));
+    const [fr, en] = [texts(t('fr').essentialReview), texts(t('en').essentialReview)];
+    expect(fr.length).toBe(en.length);
+    for (const s of [...fr, ...en]) expect(s.length).toBeGreaterThan(3);
+    expect(fr).not.toEqual(en);
+  });
+
+  it('la phrase du brouillon vide ne parle plus de commits', () => {
+    for (const lang of ['fr', 'en'] as const) expect(t(lang).essentialReview.draftEmpty).not.toMatch(/commit/i);
+  });
+
+  it('les pluriels de la ligne d\'état', () => {
+    const l = t('fr').essentialReview.statusLine;
+    expect([1, 3].map(l.toJudge)).toEqual(['1 test à juger', '3 tests à juger']);
+    expect([1, 3].map(l.tryApp)).toEqual(['Essayez l\'appli : 1 case à cocher', 'Essayez l\'appli : 3 cases à cocher']);
+    expect(l.tryApp(0)).toBe('Essayez l\'appli');
   });
 });
