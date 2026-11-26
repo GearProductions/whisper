@@ -3,8 +3,8 @@
  *  test, #[test], def test_…) et leur ligne, la ligne de leur titre (caseHeads), et son empreinte git, qui nomme sa lecture
  *  (<sorties>/invariants/<blob>.md) ; l'empreinte du bloc de chaque cas et du code commun (caseBlocks, note
  *  0.15.0-invariants-par-cas) ; et sa lecture, cas par cas (caseReading) : celle de son empreinte, sinon la plus
- *  récente de son fichier, périmée pour les cas dont le bloc a changé depuis (l'empreinte des blocs lus, retenue à
- *  côté de la lecture : <sorties>/invariants/<blob>.json).
+ *  récente de son fichier, périmée pour les cas dont le bloc a changé depuis, pour tous si le code commun a changé
+ *  (l'empreinte des blocs lus et du code commun, retenue à côté de la lecture : <sorties>/invariants/<blob>.json).
  *  Ne connaît pas : le disque, git (textes, chemins et lectures passés), les validations.
  *  Utilisé par : core/vibecoder (journey, case-marks), app/controllers/vibecoder (les tests
  *  de la branche et l'empreinte de chacun ; blobSha : aussi l'empreinte de ce
@@ -57,12 +57,13 @@ export function caseBlocks(src: string): { keys: string[]; blocks: string[]; com
 }
 
 // Une lecture rangée : son empreinte de test (blob), son texte, sa date ; blocks, l'empreinte du bloc de chaque cas lu,
-// par clé (absent : une lecture d'avant cette version, ou pas encore retenue).
-export type ReadingRecord = { blob: string; text: string; time: number; blocks?: Record<string, string> };
+// par clé (absent : une lecture d'avant cette version, ou pas encore retenue) ; common, celle du code commun lu (absent :
+// pas retenue).
+export type ReadingRecord = { blob: string; text: string; time: number; blocks?: Record<string, string>; common?: string };
 
 // La lecture d'un test : celle de son empreinte (stale : []), sinon la plus récente dont la première ligne est
-// « # <chemin du test> », stale : les clés des cas dont le bloc d'aujourd'hui n'est pas celui retenu (sans blocks :
-// tous) ; null : aucune.
+// « # <chemin du test> », stale : les clés des cas dont le bloc d'aujourd'hui n'est pas celui retenu ; toutes si le code
+// commun (setup, helpers, en-tête) n'est pas celui retenu, ou sans blocks ni common ; null : aucune.
 export function caseReading(
   test: { path: string; blob: string; text: string },
   readings: ReadingRecord[],
@@ -73,8 +74,8 @@ export function caseReading(
     .filter((r) => r.text.split('\n', 1)[0].trimEnd() === `# ${test.path}`)
     .reduce<ReadingRecord | null>((a, r) => (a && a.time >= r.time ? a : r), null);
   if (!last) return null;
-  const { keys, blocks } = caseBlocks(test.text);
-  return { text: last.text, stale: keys.filter((k, i) => last.blocks?.[k] !== blocks[i]) };
+  const { keys, blocks, common } = caseBlocks(test.text);
+  return { text: last.text, stale: last.common !== common ? keys : keys.filter((k, i) => last.blocks?.[k] !== blocks[i]) };
 }
 
 // L'empreinte git (blob) d'un contenu : sha1 de « blob <octets>\0<contenu> », en UTF-8 (un Buffer : ses octets tels quels).

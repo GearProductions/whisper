@@ -285,7 +285,7 @@ describe('le relevé', () => {
     expect(v.tests).toEqual([{ path: 'src/x/tests/invariants/x.test.ts', blob: blobSha(TEST), text: TEST, base: undefined }]);
     expect(v.readings).toHaveLength(2);
     expect(v.readings).toEqual(expect.arrayContaining([
-      { blob: blobSha(TEST), text: '# lecture\n', time: expect.any(Number), blocks: { 'un cas': expect.any(String) } },   // la lecture à jour : ses blocs, rangés à côté
+      { blob: blobSha(TEST), text: '# lecture\n', time: expect.any(Number), blocks: { 'un cas': expect.any(String) }, common: expect.any(String) },   // la lecture à jour : ses blocs et son code commun, rangés à côté
       { blob: 'f'.repeat(40), text: '# une version précédente\n', time: expect.any(Number) },
     ]));
     expect(Object.keys(v.outputs)).toEqual(['ponytail.md']); // secret.txt : pas un nom connu
@@ -2858,15 +2858,15 @@ describe('0.15.0 : les invariants cas par cas', () => {
     expect(fs.statSync(stateFile()).mtimeMs).toBe(past.getTime());
   });
 
-  it('la lecture à jour : son .json écrit à côté, une seule fois, lu avec elle (blocks) ; le .json n\'est pas une lecture', async () => {
+  it('la lecture à jour : son .json écrit à côté, une seule fois, lu avec elle (blocks, common) ; le .json n\'est pas une lecture', async () => {
     fake.real = false;   // le parcours rend ce qu'il reçoit : readings, tels que le relevé les lit
     const { blobSha } = await import('core/vibecoder');
     write(inv(`${blobSha(CASE_TEXT)}.md`), `# ${INV}\n`);
     const { view } = await open();
-    const { keys, blocks: hashes } = await blocks(CASE_TEXT);
-    const expected = Object.fromEntries(keys.map((k, i) => [k, hashes[i]]));
+    const { keys, blocks: hashes, common } = await blocks(CASE_TEXT);
+    const expected = { blocks: Object.fromEntries(keys.map((k, i) => [k, hashes[i]])), common };
     expect(JSON.parse(fs.readFileSync(inv(`${blobSha(CASE_TEXT)}.json`), 'utf8'))).toEqual(expected);
-    expect(view()!.readings).toEqual([{ blob: blobSha(CASE_TEXT), text: `# ${INV}\n`, time: expect.any(Number), blocks: expected }]);
+    expect(view()!.readings).toEqual([{ blob: blobSha(CASE_TEXT), text: `# ${INV}\n`, time: expect.any(Number), ...expected }]);
     // une seule fois : le test retouché (sa lecture périmée) ne réécrit pas le .json de l'ancienne empreinte
     write(path.join(dir, INV), CASE_EDITED);
     await survey();
@@ -2882,6 +2882,24 @@ describe('0.15.0 : les invariants cas par cas', () => {
     write(path.join(dir, INV), CASE_EDITED);
     await survey();
     expect((await file()).staleCases).toEqual(['second']);
+  });
+
+  it('la lecture dont seul le code commun a changé depuis (en-tête, helpers) : tous les cas périmés, Lire en pseudo-code relançable', async () => {
+    const { blobSha } = await import('core/vibecoder');
+    write(inv(`${blobSha(CASE_TEXT)}.md`), `# ${INV}\n`);
+    await open();
+    write(path.join(dir, INV), CASE_TEXT.replace('const un = 1;', 'const un = 1;   // retouché'));
+    await survey();
+    expect((await file()).staleCases).toEqual(['premier', 'second']);
+  });
+
+  it('un .json de l\'ancien format ({ clé: empreinte } seul) : ses blocs lus, sans common', async () => {
+    fake.real = false;   // le parcours rend ce qu'il reçoit : readings, tels que le relevé les lit
+    write(inv(`${'c'.repeat(40)}.md`), '# autre\n');
+    write(inv(`${'c'.repeat(40)}.json`), JSON.stringify({ premier: 'x'.repeat(40) }));
+    const { view } = await open();
+    const reading = (view()!.readings as unknown as { blob: string; blocks?: unknown; common?: unknown }[]).find((r) => r.blob === 'c'.repeat(40))!;
+    expect([reading.blocks, reading.common]).toEqual([{ premier: 'x'.repeat(40) }, undefined]);
   });
 
   it('un .json déjà là (même fait à la main, illisible) : jamais réécrit', async () => {

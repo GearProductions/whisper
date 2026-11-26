@@ -1995,7 +1995,7 @@ describe('les cas un par un', () => {
   describe('une lecture d\'une autre version du test', () => {
     const OLD_SRC = SRC.replace('toBe(1)', 'toBe(0)');
     const old = { blob: 'f'.repeat(40), text: `# ${TEST_PATH}\n## a\n\n## b\n`, time: 1, blocks: Object.fromEntries(
-      caseBlocks(OLD_SRC).keys.map((k, i) => [k, caseBlocks(OLD_SRC).blocks[i]])) };
+      caseBlocks(OLD_SRC).keys.map((k, i) => [k, caseBlocks(OLD_SRC).blocks[i]])), common: caseBlocks(OLD_SRC).common };
 
     it('staleCases : le cas changé seul ; stale ; readCount compte les autres', () => {
       const v = vibeView(input({ tests: [at(SRC)], readings: [old] }));
