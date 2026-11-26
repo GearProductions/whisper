@@ -165,7 +165,8 @@
  *  marque de son bloc et du code commun (caseHashes, setCaseMark de core/vibecoder) ; au relevé, les validations d'avant,
  *  sur le fichier entier, converties sans bruit tant que le fichier n'a pas changé (convertCaseMarks, rangées une fois) ;
  *  la lecture à jour d'un test (son empreinte est celle du disque) retient l'empreinte du bloc de chaque cas lu à côté
- *  d'elle (<sorties>/invariants/<blob>.json, caseBlocks, écrit une fois), lue avec elle (ReadingRecord.blocks). Rien
+ *  d'elle, et celle du code commun (<sorties>/invariants/<blob>.json, caseBlocks, écrit une fois), lue avec elle
+ *  (ReadingRecord.blocks, common). Rien
  *  n'est écrit dans le projet.
  *  La note de référence du surlignage (0.15.0, note ecran-humain-ia ; core/vibecoder note-ref, en mémoire par agent) :
  *  posée une fois, au premier relevé où l'agent ou une course qui modifie la branche travaille (nextRef) ; ensuite
@@ -723,25 +724,29 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   const fork = repo && tests.some((t) => isInvariantTest(t.path)) ? await git.forkPoint(repo.base) : null;
   const based = await Promise.all(tests.map(async (t) => ({ ...t, base: !isInvariantTest(t.path) ? null : fork ? await git.show(fork, t.path) : undefined })));
   // Toutes les lectures d'invariants : un test modifié depuis la sienne reprend la plus récente de son fichier,
-  // périmée (caseReading, core/vibecoder). Les blocs lus (<blob>.json, { clé: empreinte du bloc }) : écrits une fois
-  // quand la lecture d'un test est à jour (un .md à son empreinte), lus avec elle ; illisibles : sans blocs.
+  // périmée (caseReading, core/vibecoder). Les blocs lus (<blob>.json, { blocks: { clé: empreinte du bloc }, common :
+  // empreinte du code commun } ; avant, { clé: empreinte } seul) : écrits une fois quand la lecture d'un test est à jour
+  // (un .md à son empreinte), lus avec elle ; illisibles : sans blocs.
   const readDir = path.join(out, 'invariants');
   let names: string[] = [];
   try { names = fs.readdirSync(readDir); } catch { /* pas encore de lecture */ }
   for (const t of tests) {
     if (!isInvariantTest(t.path) || !names.includes(`${t.blob}.md`) || names.includes(`${t.blob}.json`)) continue;
-    const { keys, blocks } = caseBlocks(t.text);
+    const { keys, blocks, common } = caseBlocks(t.text);
     try {
-      fs.writeFileSync(path.join(readDir, `${t.blob}.json`), JSON.stringify(Object.fromEntries(keys.map((k, i) => [k, blocks[i]]))));
+      fs.writeFileSync(path.join(readDir, `${t.blob}.json`), JSON.stringify({ blocks: Object.fromEntries(keys.map((k, i) => [k, blocks[i]])), common }));
       names.push(`${t.blob}.json`);
     } catch { /* I-29 */ }
   }
   const readings = names.filter((n) => isOutputName(`invariants/${n}`)).flatMap((n) => {
     const reading = readTimed(path.join(readDir, n));
     if (!reading) return [];
-    const kept = names.includes(`${n.slice(0, -3)}.json`) ? json(readFile(path.join(readDir, `${n.slice(0, -3)}.json`))) : null;
-    const blocks = kept && !Array.isArray(kept) ? Object.fromEntries(Object.entries(kept).filter(([, v]) => typeof v === 'string')) as Record<string, string> : null;
-    return [{ blob: n.slice(0, -3), ...reading, ...(blocks && { blocks }) }];
+    const object = (v: unknown) => (v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : null);
+    const kept = object(names.includes(`${n.slice(0, -3)}.json`) ? json(readFile(path.join(readDir, `${n.slice(0, -3)}.json`))) : null);
+    const byKey = object(kept?.blocks) ?? kept;   // l'ancien format : { clé: empreinte } seul, sans common
+    const blocks = byKey ? Object.fromEntries(Object.entries(byKey).filter(([, v]) => typeof v === 'string')) as Record<string, string> : null;
+    const common = typeof kept?.common === 'string' ? kept.common : null;
+    return [{ blob: n.slice(0, -3), ...reading, ...(blocks && { blocks }), ...(common && { common }) }];
   });
   // La note de référence du surlignage (nextRef) : posée au premier relevé où l'agent ou une course qui modifie la
   // branche travaille ; ensuite seuls Vu et Valider la note la remplacent (setVibe, markVibe).

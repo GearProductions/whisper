@@ -993,9 +993,10 @@ fiche), `pr-<n>-note.md`, `pr-<n>-commits.md`, `pr-<n>-review.json` (revue publi
 worktree, écrit par l'appli, F-110) ; `new-request.json` (`{ branch }` : la
 branche d'une nouvelle demande, skill `nouvelle-demande`, F-110) ; les lectures
 `invariants/<empreinte>.md` (toutes : celle d'un test qui a changé depuis
-reste, périmée cas par cas, F-100) et, à côté de chacune, `<empreinte>.json`
-(`{ <clé>: <empreinte du bloc> }`, écrit une fois quand la lecture
-est à jour : voir l'étape Invariants) ; `ponytail-applied.json` (`{ applied:
+reste, périmée cas par cas, F-100 ; pour tous ses cas si son code commun —
+setup, helpers, en-tête — a changé) et, à côté de chacune, `<empreinte>.json`
+(`{ blocks: { <clé>: <empreinte du bloc> }, common: <empreinte du code commun> }`,
+écrit une fois quand la lecture est à jour : voir l'étape Invariants) ; `ponytail-applied.json` (`{ applied:
 ["<fichier>:L<ligne>", …] }` : les remarques de `ponytail.md` que *Appliquer
 la revue* a appliquées ; plus vieux que `ponytail.md`, ou illisible : aucune ;
 suit la branche comme lui). Chaque étape montre les siennes (titre, fichier,

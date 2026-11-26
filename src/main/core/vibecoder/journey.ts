@@ -53,7 +53,8 @@
  *  la copie de travail comprise, triés, ids `b<i>`, deleted : absents du disque, locked : codeLock
  *  sans module ; note 0.13.0-forme-modules-ide) et le réglage de la vue Modules (modulesView,
  *  recopié) ; la lecture d'un test (caseReading), celle d'une version
- *  précédente périmée pour les seuls cas dont le bloc a changé depuis (staleCases ; stale : un au moins), un cas
+ *  précédente périmée pour les seuls cas dont le bloc a changé depuis, pour tous si le code commun a changé (staleCases ;
+ *  stale : un au moins), un cas
  *  périmé jamais compté comme lu ; les validations des cas par leur clé (caseKeys), d'après leur bloc et le code
  *  commun (caseMarkState de case-marks ; 'common' rendu 'changed', sa clé dans commonChanged ; hashes : caseBlocks)
  *  (note 0.15.0-invariants-par-cas) ; le texte d'un test à la base

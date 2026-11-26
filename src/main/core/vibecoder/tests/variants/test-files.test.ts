@@ -221,7 +221,7 @@ describe('caseReading : la lecture d\'un test, cas par cas', () => {
   const text = (a: string, b = 'two()') => `it('a', () => {\n  ${a};\n});\nit('b', () => {\n  ${b};\n});\n`;
   const blocksOf = (t: string) => Object.fromEntries(caseBlocks(t).keys.map((k, i) => [k, caseBlocks(t).blocks[i]]));
   const reading = (blob: string, t: string, time: number, withBlocks = true) =>
-    ({ blob, text: `# ${path}\nlecture ${blob}`, time, ...(withBlocks ? { blocks: blocksOf(t) } : {}) });
+    ({ blob, text: `# ${path}\nlecture ${blob}`, time, ...(withBlocks ? { blocks: blocksOf(t), common: caseBlocks(t).common } : {}) });
   const test = { path, blob: 'now', text: text('one()') };
 
   it('sa propre empreinte : stale vide', () => {
@@ -264,9 +264,14 @@ describe('caseReading : la lecture d\'un test, cas par cas', () => {
     expect(caseReading(test, [removed])?.stale).toEqual([]);
   });
 
-  it('le code commun seul changé : les blocs lus restent à jour', () => {
+  it('le code commun seul changé (setup, helpers, en-tête) : toutes les clés, la lecture est à refaire', () => {
     const old = reading('old', `import z;\n${text('one()')}`, 1);
-    expect(caseReading(test, [old])?.stale).toEqual([]);
+    expect(caseReading(test, [old])?.stale).toEqual(['a', 'b']);
+  });
+
+  it('une lecture retenue sans common (l\'ancien format) : toutes les clés', () => {
+    const { common: _, ...old } = reading('old', text('one()'), 1);
+    expect(caseReading(test, [old])?.stale).toEqual(['a', 'b']);
   });
 });
 
