@@ -169,9 +169,9 @@ canal de plus.
 | `consigne-agents.md` | consigne ajoutée au prompt système des agents |
 | `agents.log` (`.old`) | journal des agents, 1 Mo puis rotation |
 | `vibecoder/` | ce que VibeCoder fait dire, à retoucher (F-107) : `actions.fr.json`, `actions.en.json`, `commands.json` (la table, que lit la commande `vibecoder`), `plugin/` (le plugin `vibecoder` : skills, agents, `bin/vibecoder.mjs` — la commande, F-116 — ; `skills/<nom>--<modèle>/` et `--<modèle>--<effort>/`, les variantes générées, F-106), `README.md` ; `.defaults.json`, le manifeste de ce que l'appli y a écrit ; `projets/<dossier>.json`, l'ancien fichier du projet d'un dossier, d'avant la 0.12.0 (repris dans `.vibecoder/` du dossier, gardé ; F-111) |
-| `vibecoder-out/<agent>/` | les sorties des skills pour l'écran (F-95) ; `branches/<branche>/`, celles d'une branche quittée, et `.branche`, la dernière branche vue ; `files/`, ce que l'appli écrit pour l'ouvrir dans l'éditeur, en lecture seule (`<hash>.diff`, F-101) ; `run/<nom>.log` (`.old`), les journaux des commandes du projet ; `artifacts/`, les anciens artefacts de l'agent, d'avant le dossier du projet : déplacés vers lui à chaque démarrage, le dossier vidé part (F-95) ; `recipe.log`, celui de la recette (F-111) ; `direct.log`, une ligne par commande d'une action directe, et `pr-<n>-review-body.md`, le brouillon publié (F-114) ; ni `actions.json` ni demandes `.start`, `.stop`, `.restart` depuis la 0.15.0 : la commande `vibecoder` les remplace (F-115) ; dossier de travail en plus de Claude Code (F-58) |
+| `vibecoder-out/<agent>/` | les sorties des skills pour l'écran (F-95) ; `branches/<branche>/`, celles d'une branche quittée et ses validations (`marks.json`), et `.branche`, la dernière branche vue ; `files/`, ce que l'appli écrit pour l'ouvrir dans l'éditeur, en lecture seule (`<hash>.diff`, F-101) ; `run/<nom>.log` (`.old`), les journaux des commandes du projet ; `artifacts/`, les anciens artefacts de l'agent, d'avant le dossier du projet : déplacés vers lui à chaque démarrage, le dossier vidé part (F-95) ; `recipe.log`, celui de la recette (F-111) ; `direct.log`, une ligne par commande d'une action directe, et `pr-<n>-review-body.md`, le brouillon publié (F-114) ; ni `actions.json` ni demandes `.start`, `.stop`, `.restart` depuis la 0.15.0 : la commande `vibecoder` les remplace (F-115) ; dossier de travail en plus de Claude Code (F-58) |
 | `vibecoder-artifacts/<clé>/` | les artefacts d'un projet, partagés par le dépôt, ses worktrees et leurs robots (F-95) : la clé est le début (16 hexa) du sha1 du dossier git commun résolu, ou du dossier résolu hors git ; Claude Code le reçoit en dossier de travail en plus (F-58) ; retirer un agent, un robot ou un worktree n'y touche pas |
-| `vibecoder-state.json` | validations (par agent) et brouillons de revue (par agent et par PR) |
+| `vibecoder-state.json` | validations (par agent, pour sa branche courante : celles d'une branche quittée vont dans `vibecoder-out/<agent>/branches/<branche>/marks.json`, F-95) et brouillons de revue (par agent et par PR) |
 | `live.json` | le fichier de découverte du socket (F-116) : `{ "port": …, "pid": … }`, plus `"token"` — le jeton extérieur — tant que le réglage *Autoriser les agents extérieurs* est activé (I-52) ; jamais le jeton de l'écran (I-50) ni celui d'un robot (I-51) ; droits 0600 ; écrit au lancement et à chaque changement du réglage, supprimé à la sortie (F-116) ; la version de dev et l'AppImage, qui ne tournent pas ensemble, s'y retrouvent |
 
 En développement : `--user-data-dir=.data` (cf. LINUX_SETUP.md).
@@ -973,7 +973,11 @@ les sorties de la branche (`questions.md` à `ecran.md` ci-dessous, ni les lectu
 `branches/<branche>/` (caractères hors de `[A-Za-z0-9._-]` → `-` ; remplacé),
 sauf si c'est la base — une feature lancée depuis la base (*Rédiger la note*)
 crée sa branche et garde ce que ses skills ont écrit — ; puis
-celles de la branche retrouvée, si elle en a de côté, reviennent ; de même
+celles de la branche retrouvée, si elle en a de côté, reviennent. Les
+validations de l'agent (ses marques, `vibecoder-state.json`) suivent de même,
+rangées dans `branches/<branche>/marks.json` : la note d'une nouvelle feature
+n'hérite pas du ✓ de la précédente (« modifiée depuis la validation » sans
+l'avoir jamais validée) ; de même
 quand le dossier change de branche pour relire une PR ou pour une nouvelle
 demande (F-110) : l'état de la branche revient avec elle. Une erreur
 ne bloque pas le relevé (S-72). Seuls ces noms sont lus (I-37) : `questions.md` (questions ouvertes), `align.md`

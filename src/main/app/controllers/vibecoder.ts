@@ -73,7 +73,7 @@
  *  le préfixe de l'agent : processes.agentPrefix) : Créer, la PR de la
  *  branche ; l'état de la PR suivie (60 s en cache, demandés en
  *  fond : le relevé ne les attend pas ; ↻ les redemande) et les PR ouvertes du
- *  dépôt, les miennes, à relire, toutes (setVibe({ prs })). Les sorties suivent la
+ *  dépôt, les miennes, à relire, toutes (setVibe({ prs })). Les sorties et les validations suivent la
  *  branche (followBranch), dans les deux rôles.
  *  Le rôle (créateur 'create', relecteur 'review' : VibeView.flow) ne se choisit pas : chaque relevé
  *  le recalcule (core/vibecoder vibeRole) d'après la PR du dossier (la PR suivie si le dossier est
@@ -479,6 +479,8 @@ const branchName = (v: unknown) => (typeof v === 'string' && okRef(v) ? v : null
 
 // Les sorties que les skills écrivent pour une branche, dans les deux rôles (pas les lectures
 // invariants/, nommées par l'empreinte du test, ni celles de la PR, par numéro).
+// Les validations d'une branche quittée, rangées avec ses sorties (followBranch).
+const MARKS_FILE = 'marks.json';
 const BRANCH_OUTPUTS = ['questions.md', 'align.md', 'liens.md', 'preuve.md', 'review.md', 'commit.md', 'checks.json', 'ponytail.md', 'ponytail-applied.json', 'pr.json', 'ci.md', 'ecran.md'];
 
 // Les sorties suivent la branche : la dernière vue est dans
@@ -486,8 +488,11 @@ const BRANCH_OUTPUTS = ['questions.md', 'align.md', 'liens.md', 'preuve.md', 're
 // branches/<P>/ (remplacé) — sauf si P est la base : une feature lancée depuis
 // la base (Rédiger la note) crée sa branche et garde ce que ses
 // skills ont écrit — puis celles de branches/<N>/, s'il existe, reviennent à
-// la racine. Une erreur n'empêche pas le relevé (I-29).
-export function followBranch(out: string, branch: string, base: string) {
+// la racine. Les validations de l'agent (agentId : ses marques) suivent de même, dans
+// branches/<P>/marks.json : la note d'une nouvelle feature n'hérite pas du ✓ de la
+// précédente (« modifiée depuis la validation » sans l'avoir jamais validée).
+// Une erreur n'empêche pas le relevé (I-29).
+export function followBranch(out: string, branch: string, base: string, agentId?: string) {
   const slug = (b: string) => path.join(out, 'branches', b.replace(/[^A-Za-z0-9._-]+/g, '-'));
   try {
     const mark = path.join(out, '.branche');
@@ -501,11 +506,22 @@ export function followBranch(out: string, branch: string, base: string) {
       for (const name of BRANCH_OUTPUTS) {
         if (fs.existsSync(path.join(out, name))) fs.renameSync(path.join(out, name), path.join(keep, name));
       }
+      if (agentId) {
+        const store = vibeStore();
+        fs.writeFileSync(path.join(keep, MARKS_FILE), JSON.stringify(store.marks[agentId] ?? {}));
+        delete store.marks[agentId];
+        saveVibeStore(store);
+      }
     }
     const saved = slug(branch);
     if (!fs.existsSync(saved)) return;
     for (const name of BRANCH_OUTPUTS) {
       if (fs.existsSync(path.join(saved, name))) fs.renameSync(path.join(saved, name), path.join(out, name));
+    }
+    if (agentId && fs.existsSync(path.join(saved, MARKS_FILE))) {
+      const store = vibeStore();
+      store.marks[agentId] = JSON.parse(fs.readFileSync(path.join(saved, MARKS_FILE), 'utf8'));
+      saveVibeStore(store);
     }
     fs.rmSync(saved, { recursive: true, force: true });
   } catch { /* le relevé part quand même */ }
@@ -639,7 +655,7 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   // La copie de travail, comparée à la base du dépôt : sa branche désigne la PR, donc le rôle.
   const here = await git.facts();
   const out = vibeOutDir(agent.id);
-  if (here) followBranch(out, here.branch, here.base);
+  if (here) followBranch(out, here.branch, here.base, agent.id);
   // L'état de la vérification de conception lu avant les sorties (voir check plus bas).
   const check = runsOf(agent).find((r) => r.id === 'design-check' && ['done', 'failed', 'stopped'].includes(r.state));
   const outputs = readOutputs(out);
