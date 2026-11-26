@@ -2490,7 +2490,11 @@ n'ignore pas `docs/tickets/` ne change en rien.
 
 Une nouvelle demande commence sur la base par *Rédiger la note* (ci-dessus,
 F-110) : sur une branche neuve du dossier, ou dans un worktree. Une branche
-sans demande : *Créer une branche*, dans la vue des branches (F-110).
+sans demande : *Créer une branche*, dans la vue des branches (F-110). Sur la
+base, la nouvelle demande va à la conversation de l'agent : demandée pendant
+qu'elle travaille (l'agent lui-même, par sa CLI), elle est refusée avec ce
+qu'il faut faire — créer d'abord la branche du ticket, puis relancer la note —
+et non « L'agent travaille » (0.16.0).
 
 **F-101 Le relecteur** (la PR de la branche active ; la review du guide, § 5.4).
 Même écran que le créateur (F-100), avec un fil à lui de quatre arrêts (0.16.0) : le rôle ne se choisit pas, l'appli le décide, et il n'y a plus de *Créer* / *Relire* (F-92). Il est

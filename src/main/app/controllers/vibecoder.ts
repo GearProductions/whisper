@@ -269,7 +269,7 @@ const TARGET_MAX = 300;        // une remarque du brouillon de revue : sa cible�
 const REMARK_MAX = 5000;       // … et son texte
 const GH_MS = 60_000;          // une réponse de gh vaut 60 s
 
-const ERRORS: Record<VibeLang, Record<MessageError | 'agent' | 'action' | 'args' | 'noGit' | 'notRepo' | 'worktree' | 'socket' | 'heavyPieces', string>> = {
+const ERRORS: Record<VibeLang, Record<MessageError | 'agent' | 'action' | 'args' | 'noGit' | 'notRepo' | 'worktree' | 'socket' | 'heavyPieces' | 'noteOnBase', string>> = {
   fr: {
     agent: 'Aucun agent en VibeCoder dans le panneau.',
     action: 'Action inconnue ou indisponible.',
@@ -287,6 +287,7 @@ const ERRORS: Record<VibeLang, Record<MessageError | 'agent' | 'action' | 'args'
     worktree: 'Un worktree reste sur sa branche : ni changer de branche, ni charger une autre PR.',
     socket: SOCKET_DOWN.fr,
     heavyPieces: 'Pièces jointes trop lourdes (64 Mio d\'images au plus).',
+    noteOnBase: 'Sur la branche de base, Rédiger la note devient une nouvelle demande, envoyée à cette conversation, qui travaille encore : créez d\'abord la branche du ticket (git switch -c <type>/<ticket>-<slug>), puis relancez la note.',
     variable: 'Action mal écrite (variable inconnue), ou valeur refusée (caractère de contrôle) : voir le dossier de VibeCoder.',
     check: 'Cette vérification n\'est pas dans la dernière liste (checks.json).',
     noGit: 'git est introuvable : le parcours ne peut pas être lu. La conversation reste utilisable.',
@@ -309,6 +310,7 @@ const ERRORS: Record<VibeLang, Record<MessageError | 'agent' | 'action' | 'args'
     worktree: 'A worktree stays on its branch: no branch switch, no other PR loaded.',
     socket: SOCKET_DOWN.en,
     heavyPieces: 'Attachments too heavy (64 MiB of images at most).',
+    noteOnBase: 'On the base branch, Write the note becomes a new request, sent to this conversation, which is still working: create the ticket\'s branch first (git switch -c <type>/<ticket>-<slug>), then start the note again.',
     variable: 'Badly written action (unknown variable), or refused value (control character): see the VibeCoder folder.',
     check: 'This check is not in the last list (checks.json).',
     noGit: 'git not found: the journey cannot be read. The conversation still works.',
@@ -1022,6 +1024,9 @@ export function startAction(
   if (agentParent(agent) && BRANCH_CHANGES.includes(def.id)) return { ...fail(lang, 'worktree'), invalid: true };   // un worktree reste sur sa branche
   // Rédiger la note sur la base, en créateur : la nouvelle demande (son skill nomme la branche, que l'utilisateur valide).
   if (def.id === 'note' && view.flow === 'create' && onBase(view.repo?.branch ?? null, view.repo?.base ?? null)) {
+    // Elle va à la conversation de l'agent : pendant son tour (c'est lui qui la demande, par sa CLI), elle ne peut pas partir ;
+    // le refus dit quoi faire (la branche d'abord), pas « L'agent travaille » (note fix/0.16.0-note-sur-la-base).
+    if (isBusy(agent.id)) return { ...fail(lang, 'noteOnBase'), reason: 'disabled' };
     def = vibeActions(lang).find((a) => a.id === 'new-request') ?? def;
   }
   [def] = roleDefs([def], view.flow);   // en relecteur, une action d'étape ne fait que lire : l'alignement compris
