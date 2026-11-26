@@ -3,19 +3,23 @@
  *  statusLine(view: VibeView): StatusLine | null
  *  Dans l'ordre, la première qui vaut : pas de note rédigée (« Demandez la note à l'agent, dans la conversation ») ;
  *  des questions ouvertes, à toute étape, le moteur en route ou pas (« 2 questions : répondez dans le questionnaire ») ;
- *  la note sans son ✓ (« Vérifiez, puis validez la note » ; déjà commitée, la pause 'note' : « La note a changé : elle
- *  attend sa validation ») ; des tests notés « À revoir » (la pause 'withdrawn:invariants', un cas 'ko' au relevé :
+ *  la note sans son ✓ (« Vérifiez, puis validez la note » ; déjà commitée, la pause 'note' : « La note a changé :
+ *  vérifiez-la, puis validez-la » — modules commencés compris, avant la PR ; note 0.16.0-ligne-apres-pr) ; des tests notés « À revoir » (la pause 'withdrawn:invariants', un cas 'ko' au relevé :
  *  « 1 test à revoir : dites à l'agent quoi corriger ») ; un ✓ d'étape retiré à la main qui tient (la pause
  *  'withdrawn:<étape>' : la ligne nomme l'étape) ; le moteur en route (« Le système écrit les modules » : d'après la course en cours, sinon l'étape en
  *  cours) ; une pause (« Regardez vos règles, puis reprenez » — revenue parce que des tests ont changé depuis leur
- *  validation : « Des tests ont changé : regardez vos règles, puis reprenez » —, « Essayez l'appli, puis reprenez ») ; la PR ouverte
- *  (« La PR est ouverte, la CI tourne », la CI en échec, « La PR est verte : à vous de la fusionner », fusionnée,
- *  fermée sans être fusionnée : « La PR est fermée » ; un état inconnu vaut ouverte, comme pr-view) ;
+ *  validation : « Des tests ont changé : regardez vos règles, puis reprenez » —, « Essayez l'appli, puis reprenez ») ; la
+ *  note revalidée dont le changement n'est pas commité (note.git 'modified' : « La note est validée : reprenez pour que
+ *  le système l'applique ») ; la PR ouverte, d'après les checks de sa tête lus par gh (view.pr.ci, jamais ci.md :
+ *  « La PR est ouverte, la CI tourne » en cours ou sans check, la CI en échec, « La PR est verte : à vous de la
+ *  fusionner » ; inconnu, gh sans réponse : « La PR est ouverte : état de la CI inconnu », jamais verte), fusionnée, fermée sans être
+ *  fusionnée : « La PR est fermée » ; un état de PR inconnu vaut ouverte, comme pr-view) ;
  *  sinon le moteur arrêté hors d'une pause (« Le système est arrêté : reprenez »).
  *  yours : la ligne attend l'utilisateur (une question, la note, une pause, un ✓ retiré, la PR verte, le moteur
  *  arrêté) ; false : le système travaille. Un relevé en erreur : null (aucune ligne).
  *  over : le parcours est fini, il n'y a rien à reprendre (la PR verte et chaque étape faite ; fusionnée ; fermée) :
- *  breadcrumb ne pose pas Reprendre à côté. Une étape pas faite (une correction en cours), la CI en cours ou en échec : pas over.
+ *  breadcrumb ne pose pas Reprendre à côté. Une étape pas faite (une correction en cours), la CI en cours, en échec ou
+ *  inconnue : pas over.
  *  La revue essentielle (note 0.16.0-revue-essentielle) : le relecteur a sa ligne lui aussi (plus null), d'après ce que
  *  le relevé sait déjà. Dans l'ordre, la première qui vaut : pas de PR chargée (« Choisissez la PR à relire, dans la vue
  *  des branches ») ; le dossier ailleurs que sur sa tête (« Passez sur la branche de la PR ») ; une lecture de la revue

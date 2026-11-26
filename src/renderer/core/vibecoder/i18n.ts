@@ -25,7 +25,7 @@
  *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : l'interrupteur Express et son infobulle,
  *  le bouton du moteur — Arrêter pendant que le système enchaîne, Reprendre quand il est arrêté (une pause, un arrêt à
  *  la main, un redémarrage de l'appli), leurs infobulles ; aucun libellé ni infobulle de l'écran ne dit plus « Vibe »,
- *  plus de Relancer pour le moteur —, la ligne de chaque pause (pause : la note, « elle attend sa validation » ; statusLine.pause : invariants et modules,
+ *  plus de Relancer pour le moteur —, la ligne de chaque pause (pause : la note, « vérifiez-la, puis validez-la » ; statusLine.pause : invariants et modules,
  *  « puis reprenez » ; un ✓ d'étape
  *  retiré à la main, withdrawn:forme, withdrawn:invariants, withdrawn:modules : l'étape nommée, « modifiez-la ou
  *  revalidez-la pour reprendre »), le titre
@@ -43,6 +43,10 @@
  *  changedByPr (un test d'avant la branche que la PR modifie), addRemark, draftEmpty (le brouillon vide, sans commits).
  *  stepName(s: Strings, flow: VibeFlow, id: VibeStepId): string — le nom d'une étape à l'écran : en relecteur celui de
  *  son arrêt, en créateur celui de steps, inchangé.
+ *  La ligne d'état après la PR (note 0.16.0-ligne-apres-pr) : pause.note dit « La note a changé : vérifiez-la, puis
+ *  validez-la » ; statusLine gagne applyNote (« La note est validée : reprenez pour que le système l'applique ») et
+ *  ciUnknown (gh sans réponse : « La PR est ouverte : état de la CI inconnu », en « The PR is open: CI state
+ *  unknown ») ; ciRunning, ciFailed, green inchangés.
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
 import type {
   AgentActivity, AgentView, SettingKey, SettingsCategory, SettingsCommand, SettingsInfo, VibeFlow, VibeLang, VibeRun, VibePause, VibeRunProgress, VibeStepId,

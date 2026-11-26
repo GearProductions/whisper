@@ -153,6 +153,19 @@
  *  - rien n'est retiré du relevé ni du registre : chaque lecture reste lançable seule (review-note, read-invariants,
  *    align, review-commits, screen), les commits et leurs marques « commit:<hash> » restent au relevé (la page ne les
  *    montre plus), modulesView aussi.
+ *  La ligne d'état après la PR (note 0.16.0-ligne-apres-pr), en créateur :
+ *  - pr.ci : les checks de la tête de la PR, d'après github.pr seul (gh : technicals/github) ; jamais d'une fiche (pr.json,
+ *    pr-<n>.json) ni de ci.md ; gh sans réponse : absent (inconnu) ;
+ *  - la note n'est faite que si son ✓ vaut pour sa conception d'aujourd'hui ('ok'), modules commencés compris : une note
+ *    'changed' perd son étape et la pause 'note' revient dès que sa conception a changé, le moteur arrêté, Vibe masquée
+ *    (unvalidated) jusqu'à la validation de l'utilisateur ; les cas d'invariants 'changed' comptent encore une fois un
+ *    module commencé (comme avant) ; la Forme, les Invariants et les Modules faits le restent (le parcours ne recule pas :
+ *    une fois un module commencé, l'étape Invariants ne dépend plus de la note) ; note.git : gitOf de la note
+ *    ('modified' : commitée puis changée, le changement que le moteur applique à sa reprise) ;
+ *  - un module complet dès la Forme (T-47) : ses fichiers tous restés squelette (skel:<chemin>), tous dans le premier
+ *    commit, et au moins un autre module dans la Forme : commencé dès que chacun des autres l'est, fait (étape Modules,
+ *    son décompte, la case « chaque module de la Forme a son commit ») une fois que chacun des autres a son commit ;
+ *    ses commits restent vides ; un module seul est toujours à générer.
  *  Ne connaît pas : Electron, le disque, git, gh, si la pause est tenue (holdsPause de vibe-mode : journey dit où le
  *  parcours se tient, le contrôleur décide) (tout est passé ; `exists` dit si
  *  un chemin du dossier de l'agent existe ; les textes des tests, à la tête et à la base, sont lus par

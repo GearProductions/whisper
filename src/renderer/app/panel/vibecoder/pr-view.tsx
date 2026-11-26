@@ -1,8 +1,10 @@
 /** pr-view — l'étape PR, pour les deux rôles (view.flow).
  *  Créateur (note 0.16.0-ecran-essentiel), sans bouton : la carte de la PR de la branche (lue par gh, sinon pr.json :
- *  numéro, titre, branche et base du dépôt, lien ouvert dans le navigateur) et l'état de la CI, ci.md lu par parseCi
- *  (core/vibecoder) : une ligne par vérification en échec, rien quand tout passe, « la CI tourne » en cours ou pas
- *  encore lue ; illisible : son texte tel quel. Ni Valider la feature, ni Diagnostiquer la CI, ni Relancer, ni Me
+ *  numéro, titre, branche et base du dépôt, lien ouvert dans le navigateur) et l'état de la CI, celui des checks de sa
+ *  tête lu par gh (view.pr.ci ; note 0.16.0-ligne-apres-pr ; ci.md ne sert plus qu'au diagnostic, lu par le moteur) :
+ *  une ligne par check en échec, rien quand tout passe, « la CI tourne » en cours ou sans check ; inconnu (gh sans
+ *  réponse) : « La PR est ouverte : état de la CI inconnu », la même phrase que la ligne d'état, jamais vert.
+ *  Ni Valider la feature, ni Diagnostiquer la CI, ni Relancer, ni Me
  *  retirer de la PR (lançables par la CLI) ; pas de PR : une phrase.
  *  Relecteur, inchangé : la carte de la PR suivie, S'assigner la PR (assign-pr) et Me retirer de la PR (unassign-pr) si le relevé les montre, puis le
  *  brouillon de revue (draft-view) — aucune action qui édite, génère ou commite. S'assigner : action directe
