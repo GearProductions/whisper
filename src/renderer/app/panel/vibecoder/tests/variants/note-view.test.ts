@@ -317,3 +317,44 @@ it('relecteur : Valider la note et À revoir, comme avant', async () => {
   await draw({ flow: 'review', note: changedNote({ before: null }) } as never);
   expect([...page.querySelectorAll('.vc-note-mark button')].map((b) => b.textContent)).toEqual(['Valider la note', 'À revoir']);
 });
+
+// 0.16.0, la revue essentielle (docs/tickets/feat/0.16.0-revue-essentielle.md) : la relecture de l'agent au-dessus de la note, sans bouton.
+const reading = { text: '## Relecture\n\nLa note tient.', time: 1 };
+const withReading = (over: object = {}) => ({ flow: 'review', pr: { number: 7 }, note: changedNote({ before: null }),
+  outputs: { 'pr-7-note.md': reading }, actions: [act2('review-note', { label: 'Relire la note' }), act2('comment', { kind: 'prefill' })], ...over }) as never;
+const card = () => page.querySelector<HTMLElement>('.vc-card:not(.vc-note)');
+
+it('relecteur, une relecture : sa carte au-dessus de la note, aucun bouton (ni Relire la note, ni Relancer)', async () => {
+  await fresh();
+  calls.length = 0;
+  await draw(withReading());
+  const c = card()!;
+  expect(c.textContent).toContain('La note tient.');
+  expect(c.compareDocumentPosition(page.querySelector('.vc-note')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(c.querySelector('.vc-card-head button, .vc-run')).toBeNull();   // les 💬 du texte restent, jugés ailleurs
+  expect(page.querySelector('.vc-note')!.textContent).not.toMatch(/Relancer|Relire la note/);
+  await draw(withReading({ lang: 'en' }));
+  expect(card()!.querySelector('.vc-card-head button, .vc-run')).toBeNull();
+  expect(calls).toEqual([]);   // rien lancé à l'affichage
+});
+
+it('relecteur, pas de relecture : ni carte, ni bouton de lecture', async () => {
+  await fresh();
+  await draw(withReading({ outputs: {} }));
+  expect(card()).toBeNull();
+  expect(page.querySelector('.vc-card button.vc-run')).toBeNull();   // la rangée de StepHead n'est pas de ce module
+  await draw(withReading({ pr: null }));   // pas de PR : pas de relecture à chercher
+  expect(card()).toBeNull();
+});
+
+it('relecteur, une relecture : Valider, À revoir et la remarque sur une ligne, comme avant', async () => {
+  await fresh();
+  await draw(withReading({ draft: [{ id: 4, target: 'note: premier point', text: 'trop vague' }] }));
+  expect([...page.querySelectorAll('.vc-note-mark button')].map((b) => b.textContent)).toEqual(['Valider la note', 'À revoir']);
+  expect(items()[0].querySelector('.vc-remarks-muted')?.textContent).toBe('trop vague');
+  calls.length = 0;
+  await act(() => button('À revoir')!.click());
+  expect(calls).toEqual([['mark', 'note', 'ko']]);
+  await act(() => button('Poser une question à l\'agent', items()[1])!.click());
+  expect(calls).toEqual([['mark', 'note', 'ko'], ['prefill', 'comment', 'second point']]);
+});

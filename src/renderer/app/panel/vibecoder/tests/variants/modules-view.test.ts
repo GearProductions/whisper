@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 // ModulesView (modules-view.tsx), note 0.16.0-ecran-essentiel : en créateur, une seule ligne d'état, un seul arbre et son
 // diff depuis la base, en lecture seule et sans bouton ; « modifiée depuis la validation » bascule le diff, et retour ;
-// Ouvrir dans l'éditeur, une icône sur le fichier affiché. Le relecteur : ses modules en lecture seule, ses deux vues,
-// ses commits, comme avant.
+// Ouvrir dans l'éditeur, une icône sur le fichier affiché. Note 0.16.0-revue-essentielle : plus de vue du relecteur ni de
+// carte de commit.
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { getOriginalDoc } from '@codemirror/merge';
@@ -213,47 +213,23 @@ it('créateur : « modifiée depuis la validation » ne valide ni ne retire rien
   expect(marks).toEqual([]);
 });
 
-// Relecteur : les modules en lecture, sans commit.md ni review.md ; son relevé n'a que 'review-commits' (laissé à CommitsSection),
-// donc ni Générer ni Commiter ; le code en lecture seule, sans Enregistrer ; ses deux vues, l'interrupteur envoie modulesView.
-const drawReviewer = async (extra: Record<string, unknown> = {}) => {
-  const actions = ['review-commits'].map((id) => ({ id, step: 'modules', hidden: false, who: '', hint: '', label: id }));
-  await draw({ view: { flow: 'review', actions, pr: { number: 7 }, outputs: { 'commit.md': { text: 'x', time: 0 }, 'review.md': { text: 'y', time: 0 } },
-    modules: [{ ...module('src/touche'), uncommitted: true }, module('src/autre', { touched: false, commits: [], files: undefined })], ...extra } });
-};
-const row = (i: number) => page.querySelectorAll<HTMLDetailsElement>('details.vc-mod-main')[i];
-const toggle = (i: number, open: boolean) => act(async () => { row(i).open = open; });
-const pressed = () => [...page.querySelectorAll('.vc-card-end .vc-seg button')].filter((b) => b.getAttribute('aria-pressed') === 'true').map((b) => b.textContent);
+// La revue essentielle : plus aucune carte de commit ni Relire les commits, dans aucun rôle ; le relecteur, s'il voit
+// l'étape, a la vue du créateur (la ligne d'état, l'arbre, le diff en lecture seule), sans interrupteur ni accordéon.
+const commits = [{ hash: 'abc1234def', subject: 'un commit', files: [{ path: 'src/touche/a.ts', status: 'M' }] }];
 
-it('relecteur : ses modules en lecture seule, ni commit.md, review.md, Générer, Commiter, Enregistrer ; l\'en-tête ne répète pas Relire les commits', async () => {
-  await drawReviewer();
-  expect(row(0).open).toBe(false);
-  await toggle(0, true);
-  expect(page.querySelector('.vc-proposed, .vc-diff-review')).toBeNull();
-  expect([...page.querySelectorAll('.vc-mod-acts button')].map((b) => b.textContent)).toEqual(['Ouvrir']);
-  expect(labels()).not.toContain('Commiter');
-  expect(labels()).not.toContain('Enregistrer');
-  expect(page.querySelector('.vc-step-head .vc-step-acts')).toBeNull();
-  expect(page.querySelector('.vc-card-acts')).toBeNull();
-  expect(page.querySelectorAll('.vc-commit-list')).toHaveLength(1);
-  expect(row(0).querySelector('.vc-fcontract code')?.textContent).toBe('x');
-  expect(followed.at(-1)).toBe('src/touche/0');
-  expect(row(0).querySelector('.vc-mod-tree')).not.toBeNull();
+  it('relecteur : ni carte de commit, ni Relire les commits, ni puce de commit', async () => {
+  await draw({ view: { flow: 'review', draft: [], commits, pr: { number: 7 }, outputs: { 'pr-7-commits.md': { text: '## abc1234 un commit\n- x', time: 1 } } } });
+  expect(page.querySelector('.vc-commit-list, .vc-commit-review, .vc-chip, .vc-commit-files')).toBeNull();
+  expect(page.textContent).not.toMatch(/Relire les commits|Validé|À revoir|un commit|abc1234/);
 });
 
-it('relecteur : la liste par défaut (un seul module déplié) et la vue IDE, l\'interrupteur demande modulesView', async () => {
+it('relecteur : la vue du créateur — ligne d\'état, un arbre, diff en lecture seule ; ni accordéon, ni Vue IDE · Vue liste', async () => {
   sets.length = 0;
-  await drawReviewer();
-  expect(pressed()).toEqual(['Vue liste']);
-  expect(page.querySelectorAll('details.vc-mod-main')).toHaveLength(2);
-  await toggle(0, true);
-  await toggle(1, true);
-  expect([row(0).open, row(1).open]).toEqual([false, true]);
-  await act(async () => { [...page.querySelectorAll<HTMLButtonElement>('.vc-card-end .vc-seg button')].find((b) => b.textContent === 'Vue IDE')!.click(); });
-  expect(sets).toEqual([{ modulesView: 'ide' }]);
-  expect(pressed()).toEqual(['Vue IDE']);
-  expect(page.querySelector('details.vc-mod-main')).toBeNull();
-  expect(page.querySelector('.vc-ide-side')!.textContent).toContain('a.ts');
-  expect(page.querySelector('select')).toBeNull();   // ni menu de diff
-  await drawReviewer({ modulesView: 'ide' });
-  expect(pressed()).toEqual(['Vue IDE']);
+  await draw({ view: { flow: 'review', modulesView: 'list', modules: sixteen }, code: code('src/m0/0', { base: 'a\nb', head: 'a\nz' }) });
+  expect(page.querySelector('.vc-card-title')!.textContent).toBe('16 modules écrits · commités');
+  expect(page.querySelectorAll('.vc-ide-side')).toHaveLength(1);
+  expect(page.querySelector('details.vc-mod-main, .vc-seg, .vc-mod-list')).toBeNull();
+  expect(page.querySelector('.vc-mdiff')!.getAttribute('data-mode')).toBe('inline');
+  expect([...page.querySelectorAll('.cm-editor')].every((e) => EditorView.findFromDOM(e as HTMLElement)!.state.readOnly)).toBe(true);
+  expect(sets).toEqual([]);
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { proposedVerdict, quoteRemark, remark, remarksAt, reviewSent } from 'core/vibecoder';
+import { DRAFT_MAX, findingDraft, findingTarget, proposedVerdict, remark, remarksAt, reviewSent } from 'core/vibecoder';
 import { draftText } from 'shared/review';
 import type { VibeCommit, VibeMarkState, VibeView } from 'technicals/bridge';
 
@@ -25,30 +25,37 @@ describe('remark', () => {
   });
 });
 
-describe('quoteRemark', () => {
-  it('la cible du commit ; le chemin, les lignes en bloc de code, puis la remarque', () => {
-    expect(quoteRemark('Commit 34349c1', 'src/a.ts', 'const a = 1;\nconst b = 2;', ' dupliqué ')).toEqual({
-      target: 'Commit 34349c1',
-      text: 'src/a.ts\n```\nconst a = 1;\nconst b = 2;\n```\ndupliqué',
-    });
+describe('findingTarget', () => {
+  it('« code: <titre> », une ligne, la même pour le même constat', () => {
+    expect(findingTarget('Doublon dans a.ts')).toBe('code: Doublon dans a.ts');
+    expect(findingTarget(' Deux\n lignes\t ')).toBe('code: Deux lignes');
+    expect(findingTarget('x')).toBe(findingTarget('x'));
   });
 
-  it('même cible que la carte du commit (comptée sur elle)', () => {
-    expect(quoteRemark(' Commit\n34349c1 ', 'a.ts', 'x', 'y').target).toBe(remark(' Commit\n34349c1 ', '').target);
+  it('un titre très long : coupé à la borne de la cible (300), et retrouvé par remarksAt', () => {
+    const long = 't'.repeat(400);
+    const target = findingTarget(long);
+    expect(target.length).toBe(300);
+    expect(target.startsWith('code: ttt')).toBe(true);
+    expect(remarksAt([{ id: 1, target, text: 'a' }], target)).toHaveLength(1);
+  });
+});
+
+describe('findingDraft', () => {
+  it('son titre, puis son détail', () => {
+    expect(findingDraft({ title: 'Doublon', body: 'a.ts:3 répète b.ts:9' })).toBe('Doublon\na.ts:3 répète b.ts:9');
   });
 
-  it('remarque vide : le chemin et les lignes', () => {
-    expect(quoteRemark('Commit 1', 'a.ts', 'x', '  ').text).toBe('a.ts\n```\nx\n```');
+  it('sans détail : le titre seul ; blancs de bord retirés', () => {
+    expect(findingDraft({ title: ' Doublon ', body: ' \n' })).toBe('Doublon');
+    expect(findingDraft({ title: 'T', body: '\n\n détail \n\n' })).toBe('T\ndétail');
   });
 
-  it('des ``` dans les lignes : une clôture plus longue', () => {
-    expect(quoteRemark('Commit 1', 'a.md', '```ts\nx\n```', 'y').text).toBe('a.md\n````\n```ts\nx\n```\n````\ny');
-  });
-
-  it('coupé à DRAFT_MAX, dans les lignes : la remarque reste', () => {
-    const { text } = quoteRemark('Commit 1', 'a.ts', 'x'.repeat(6000), 'y');
-    expect(text.length).toBe(5000);
-    expect(text.endsWith('…\n```\ny')).toBe(true);
+  it('un constat très long : coupé à DRAFT_MAX', () => {
+    const text = findingDraft({ title: 'T', body: 'x'.repeat(6000) });
+    expect(text.length).toBe(DRAFT_MAX);
+    expect(text.startsWith('T\nxxx')).toBe(true);
+    expect(text.endsWith('…')).toBe(true);
   });
 });
 
@@ -79,19 +86,29 @@ const verdictView = (note: VibeMarkState, cases: VibeMarkState[], commits: VibeM
 }) as unknown as VibeView;
 
 describe('proposedVerdict', () => {
-  it('un À revoir parmi des validés → request-changes', () => {
-    expect(proposedVerdict(verdictView('ok', ['ok', 'ko'], ['ok']))).toBe('request-changes');
-    expect(proposedVerdict(verdictView('ko', ['ok'], ['ok']))).toBe('request-changes');
-    expect(proposedVerdict(verdictView('ok', ['ok'], ['ko']))).toBe('request-changes');
-    expect(proposedVerdict(verdictView('ok', [null], ['ko']))).toBe('request-changes');
+  it('un À revoir sur la note ou un test → request-changes', () => {
+    expect(proposedVerdict(verdictView('ok', ['ok', 'ko'], []))).toBe('request-changes');
+    expect(proposedVerdict(verdictView('ko', ['ok'], []))).toBe('request-changes');
+    expect(proposedVerdict(verdictView('ok', [null, 'ko'], []))).toBe('request-changes');
   });
 
-  it('tout validé → approve ; un élément pas jugé ou modifié depuis → null', () => {
-    expect(proposedVerdict(verdictView('ok', ['ok', 'ok'], ['ok']))).toBe('approve');
-    expect(proposedVerdict(verdictView('ok', ['ok', null], ['ok']))).toBeNull();
-    expect(proposedVerdict(verdictView('changed', ['ok'], ['ok']))).toBeNull();
-    expect(proposedVerdict(verdictView('ok', ['ok'], [undefined as unknown as VibeMarkState]))).toBeNull();
+  it('la note et chaque test validés → approve ; un élément pas jugé ou modifié depuis → null', () => {
+    expect(proposedVerdict(verdictView('ok', ['ok', 'ok'], []))).toBe('approve');
+    expect(proposedVerdict(verdictView('ok', ['ok', null], []))).toBeNull();
+    expect(proposedVerdict(verdictView('changed', ['ok'], []))).toBeNull();
     expect(proposedVerdict(verdictView(null, [], []))).toBeNull();
+  });
+
+  it('un commit À revoir resté au relevé : ne compte plus', () => {
+    expect(proposedVerdict(verdictView('ok', ['ok'], ['ko']))).toBe('approve');
+    expect(proposedVerdict(verdictView('ok', [null], ['ko']))).toBeNull();
+    expect(proposedVerdict(verdictView('ok', ['ok'], [null as unknown as VibeMarkState, undefined as unknown as VibeMarkState]))).toBe('approve');
+  });
+
+  it('rien de jugé : aucun verdict proposé, même avec des commits', () => {
+    expect(proposedVerdict(verdictView(null, [null], ['ok']))).toBeNull();
+    expect(proposedVerdict(verdictView(null, [], ['ko']))).toBeNull();
+    expect(proposedVerdict({ note: null, invariants: [], commits: [commit('ko')] } as unknown as VibeView)).toBeNull();
   });
 });
 

@@ -7,7 +7,9 @@
  *  avant, les [agent] repliées avec leur nombre, moins celles que la course apply a déjà appliquées : withoutApplied). Rien à dire : pas de carte. Aucun bouton : ni Lancer les vérifications,
  *  ni Relancer, ni Appliquer, ni case à cocher, ni 💬 ; plus de liste « Avant la PR » (le relevé porte toujours
  *  view.checklist, on ne la montre plus), plus de cartes vides. Le plan de test, s'il y en a un : EcranSection
- *  (« Relire à l'écran »). Le relecteur : inchangé (Relire à l'écran seul).
+ *  (« Relire à l'écran »). Le relecteur : l'en-tête puis le plan de test.
+ *  La revue essentielle (note 0.16.0-revue-essentielle) : pour le relecteur c'est l'arrêt « l'essai » — l'en-tête puis
+ *  le plan de test (EcranSection), rien d'autre ; StepHead n'a plus d'actions à écarter (own retiré).
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
 import { failedChecks, parseChecks, tagOf, withoutApplied } from 'core/vibecoder';
 import type { VibeLang } from 'technicals/bridge';
@@ -65,11 +67,11 @@ function ReviewCard(p: StepProps) {
   return parts.length ? <section className="vc-card vc-revue"><div className="vc-card-body">{parts}</div></section> : null;
 }
 
-// La Revue des deux rôles ; le relecteur n'a que « Relire à l'écran » (ni vérification, ni ponytail).
+// La Revue des deux rôles ; le relecteur (l'essai) : l'en-tête puis le plan de test (ni vérification, ni ponytail).
 export function ReviewView(p: StepProps) {
   return (
     <>
-      <StepHead p={p} own={['checks', 'ponytail', 'apply', 'screen']} />
+      <StepHead p={p} />
       {p.view.flow === 'create' ? <ReviewCard {...p} /> : null}
       <EcranSection {...p} />
     </>

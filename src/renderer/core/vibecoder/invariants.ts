@@ -22,15 +22,20 @@
  *  de rubrique pour elle). others : les cas qui ne gardent aucune ligne (pas lus, sans phrase Garantit, un I-… seul,
  *  rien de cité) : « Autres tests ». Chaque cas de chaque test est dans une règle ou dans others : rien n'est caché.
  *  Sans note : aucune règle, tous les cas dans others.
+ *  La revue essentielle (note 0.16.0-revue-essentielle) : le relecteur lit les mêmes règles (ruleGroups, sur une PR
+ *  aussi : liens.md y est écrit par l'alignement, tests d'avant la branche compris ; son relevé n'a pas de preuve, la vue
+ *  ne montre alors aucun état). casesOf dit de chaque cas s'il est un test d'avant la branche que la PR modifie
+ *  (CaseView.fromBase, d'après VibeTestFile.changedFromBase, par sa clé ; absent : non, toujours en créateur).
  *  Ne connaît pas : le DOM, React, la spécification du projet (un I-… n'est qu'un numéro).
- *  Utilisé par : app/panel/vibecoder (invariants-view ; rules-view : ruleGroups, pseudoLines). */
+ *  Utilisé par : app/panel/vibecoder (rules-view : ruleGroups, pseudoLines, progress, withAttention). */
 import type { ReadingCase, VibeMarkState, VibeNote, VibeTestFile, VibeView } from 'technicals/bridge';
 import { caseKeys, readingRanks } from 'shared/test-cases';
 import { tokens, type Token } from './highlight';
 
 // key : la clé du cas (sa cible : « case:<chemin>:<clé> ») ; stale : sa lecture est périmée ; common : sa validation est
-// tombée parce que le code commun du fichier a changé (absents : non ; note 0.15.0-invariants-par-cas).
-export type CaseView = { title: string; key?: string; reading: ReadingCase | null; stale?: boolean; mark: VibeMarkState; common?: boolean };
+// tombée parce que le code commun du fichier a changé (absents : non ; note 0.15.0-invariants-par-cas) ; fromBase : un test
+// d'avant la branche dont la PR a changé le bloc (relecteur ; absent : non ; note 0.16.0-revue-essentielle).
+export type CaseView = { title: string; key?: string; reading: ReadingCase | null; stale?: boolean; mark: VibeMarkState; common?: boolean; fromBase?: boolean };
 
 // Les cas du fichier (leurs clés : les validations s'y rattachent) ; la lecture d'un cas est celle de même clé parmi les
 // cas lus (caseKeys de leurs titres), sinon celle de même rang si la lecture a autant de cas et que celle-ci ne porte
@@ -46,6 +51,7 @@ export function casesOf(file: VibeTestFile): CaseView[] {
       stale: file.staleCases?.includes(key) || undefined,
       mark: Object.hasOwn(file.marks, key) ? file.marks[key] : null,
       common: file.commonChanged?.includes(key) || undefined,
+      fromBase: file.changedFromBase?.includes(key) || undefined,
     };
   });
 }

@@ -41,7 +41,7 @@
  *  menu de sa vue (useIdeDiff à l'étape Invariants : Fichier, la référence choisie, En ligne · Côte à côte).
  *  Ne connaît pas : le pont (rappels passés), le disque, les autres modules,
  *  les actions de la barre d'outils.
- *  Utilisé par : modules-view ; forme-view, invariants-view (le relecteur). */
+ *  Utilisé par : modules-view. */
 import { useEffect, useState, type ReactNode } from 'react';
 import { fileParts, filesByDir, type Strings } from 'core/vibecoder';
 import type { VibeCode, VibeDiffStep, VibeLang, VibeModule } from 'technicals/bridge';

@@ -47,10 +47,6 @@
 .vc-crumbs li[data-check="ok"] .vc-jstep { color: var(--vc-ok); }
 .vc-crumbs li[data-check="ok"] .vc-jdot { border-color: var(--vc-ok); background: var(--vc-ok); }
 .vc-crumbs li[data-check] .vc-jstep[aria-current] { color: var(--vc-text); }
-/* « N commits » (le relecteur seulement) : un bouton discret ; aucun commit : le texte seul. */
-.vc-ccount { flex: none; margin-left: auto; padding: 2px 8px; border: 0; border-radius: 5px; background: none; color: var(--vc-muted); font: 12px/1.5 var(--vc-sans); }
-button.vc-ccount { cursor: pointer; }
-button.vc-ccount:hover, button.vc-ccount[aria-expanded="true"] { background: var(--vc-hover); color: var(--vc-text); }
 /* L'interrupteur Express, au bout du fil ; la ligne qui dit où on en est, sous le fil, avec le bouton du moteur à côté
    (data-yours : elle attend l'utilisateur). */
 .vc-crumbs .vc-express { flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: 5px; color: var(--vc-soft); font: 12px/1.5 var(--vc-sans); cursor: pointer; }
@@ -58,43 +54,3 @@ button.vc-ccount:hover, button.vc-ccount[aria-expanded="true"] { background: var
 .vc-crumbs .vc-line { display: flex; align-items: center; gap: 10px; padding: 4px 16px 6px; }
 .vc-crumbs .vc-line p { margin: 0; color: var(--vc-soft); font: 12px/1.5 var(--vc-sans); }
 .vc-crumbs .vc-line p[data-yours="true"] { color: var(--vc-text); font-weight: 600; }
-/* La liste des commits, en surimpression sous le fil, à droite. */
-.vc-crumbs .vc-commits {
-  position: absolute;
-  top: 100%;
-  right: 8px;
-  z-index: 5;
-  width: min(420px, calc(100% - 16px));
-  max-height: 60vh;
-  overflow-y: auto;
-  list-style: none;
-  margin: 4px 0 0;
-  padding: 6px;
-  box-sizing: border-box;
-  border: 1px solid var(--vc-edge);
-  border-radius: 12px;
-  background: var(--vc-pop);
-  box-shadow: var(--vc-shadow-pop);
-  font-size: 12px;
-}
-.vc-crumbs .vc-jcommit {
-  display: flex;
-  gap: 8px;
-  width: 100%;
-  padding: 4px 8px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--vc-soft);
-  font: 12px/1.5 var(--vc-sans);
-  text-align: left;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.vc-crumbs .vc-jcommit:hover, .vc-crumbs .vc-jcommit[aria-expanded="true"] { background: var(--vc-hover); color: var(--vc-text); }
-.vc-crumbs .vc-jcommit code { flex: none; color: var(--vc-faint); font: 11.5px/1.5 var(--vc-mono); }
-.vc-crumbs .vc-jcommit span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.vc-crumbs .fixup .vc-jcommit span { color: var(--vc-warn); }
-.vc-crumbs .vc-jcommit-detail { padding: 6px 8px 10px 22px; }
-.vc-crumbs .vc-jcommit-links { display: flex; gap: 6px; margin-bottom: 6px; }
-.vc-crumbs .vc-jfiles li { padding: 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

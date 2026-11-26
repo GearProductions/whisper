@@ -68,7 +68,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Vérifier l'alignement",
-    "hint": "Vérifie les invariants seuls : chaque ligne « → invariant » a un test qui l'observe vraiment, chaque test a sa ligne ; corrige les tests, 3 tours au plus ; lit aussi la preuve (preuve.md) pour dire la règle qu'un mutant a cassée ; ne corrige que les fichiers de tests d'invariants nouveaux (l'appli lui refuse ceux d'avant la branche) ; chez le relecteur, une liste, sans rien corriger.",
+    "hint": "Vérifie les invariants seuls : chaque ligne « → invariant » a un test qui l'observe vraiment, chaque test a sa ligne ; corrige les tests, 3 tours au plus ; lit aussi la preuve (preuve.md) pour dire la règle qu'un mutant a cassée ; ne corrige que les fichiers de tests d'invariants nouveaux (l'appli lui refuse ceux d'avant la branche) ; chez le relecteur, une liste, sans rien corriger, et les liens (liens.md : quel test garde quelle ligne, tests d'avant la branche compris) écrits dans le dossier de sorties seulement.",
     "text": "/vibecoder:aligner {{lang}} {{out}} base={{base}} {{ref}}"
   },
   {
@@ -462,12 +462,12 @@
   {
     "id": "review-commits",
     "flow": "review",
-    "step": "modules",
+    "step": "pr",
     "kind": "send",
     "needs": "none",
     "reads": true,
-    "label": "Relire les commits",
-    "hint": "Relit la PR commit par commit : les quatre questions, la duplication, les en-têtes, l'histoire des commits.",
+    "label": "Relire le code",
+    "hint": "Relit tout le diff de la PR en une seule passe, et non plus commit par commit : les quatre questions, la duplication, la note et sa Forme suivies, les bugs, les en-têtes ; un constat par titre, sans rien sur l'histoire des commits.",
     "text": "/vibecoder:relire-commits {{lang}} {{out}} {{pr}}"
   },
   {

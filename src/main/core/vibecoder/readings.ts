@@ -1,0 +1,61 @@
+/** readings — les lectures de la revue d'une PR (note 0.16.0-revue-essentielle) : les cinq lectures que
+ *  « Préparer la revue » lance pour le relecteur, la marque qui retient d'où chacune est partie, et celles qu'il reste à
+ *  lancer. Tout est une lecture : aucune n'édite, ne génère ni ne commite.
+ *  READINGS: readonly string[] — les ids de leurs actions, dans l'ordre où elles partent : review-note (la relecture de
+ *  la note, pr-<n>-note.md), read-invariants (le pseudo-code des tests, invariants/<blob>.md), align (l'alignement,
+ *  align.md et liens.md), review-commits (la relecture du code, pr-<n>-commits.md), screen (le plan de test, ecran.md).
+ *  readEnd(marks: Marks, end: ReadEnd): Marks — la fin d'une de ces lectures : finie ('done'), la cible
+ *  « read:<pr>:<action> » des marques (une par PR : relire A, passer à B, revenir à A ne relance rien de payé) porte le
+ *  commit de tête d'où elle est partie (end.pr et end.head, retenus par l'appelant à son départ, qu'elle vienne de
+ *  l'écran, de la CLI ou de la file) ; en échec, arrêtée, ou la PR ou la tête inconnue (null : l'appli relancée
+ *  entre-temps) : marks tel quel, elle sera relancée. Une marque d'avant, pour une autre tête de la même PR, est remplacée.
+ *  read-invariants n'en pose pas : toPrepare le suit par l'empreinte de ses tests, jamais par la tête.
+ *  La page ne pose jamais cette cible (targetHash de marks ne la connaît pas).
+ *  toPrepare(input: PrepareInput): string[] — celles que « Préparer la revue » lancerait maintenant, dans l'ordre de
+ *  READINGS : sa sortie manque, ou sa marque « read:<pr>:<action> » ne porte pas la tête d'aujourd'hui (lue sur une autre
+ *  tête de la PR, jamais finie) ; read-invariants suit l'empreinte de ses tests et non la tête (unread : un cas pas lu
+ *  ou à lecture périmée) ; jamais une lecture en cours ou en file (live) ; review-note seulement si la PR a une note,
+ *  read-invariants seulement si elle a des tests d'invariants, align si elle a l'un ou l'autre ; sans PR chargée (pr null : pas de PR suivie, ou le
+ *  dossier ailleurs que sur sa tête) : aucune. Rien n'est comparé à une heure : seulement des commits et des empreintes.
+ *  Ne connaît pas : Electron, le disque, git (la tête est passée), les courses (leur fin et leur état sont passés), qui
+ *  lance une lecture.
+ *  Utilisé par : core/vibecoder (journey : toPrepare), app/controllers/vibecoder (READINGS, readEnd). */
+import { setMark, type Marks } from './marks';
+
+export const READINGS: readonly string[] = ['review-note', 'read-invariants', 'align', 'review-commits', 'screen'];
+
+// La fin d'une lecture : son action, comment elle a fini, la PR et le commit de tête d'où elle est partie (null : pas retenu).
+export type ReadEnd = { action: string; state: 'done' | 'failed' | 'stopped'; pr: number | null; head: string | null };
+
+// La cible de la marque d'une lecture : une par PR et par action.
+export const readTarget = (pr: number, action: string) => `read:${pr}:${action}`;
+
+export function readEnd(marks: Marks, { action, state, pr, head }: ReadEnd): Marks {
+  return state === 'done' && pr !== null && head !== null && READINGS.includes(action) && action !== 'read-invariants' ? setMark(marks, readTarget(pr, action), head, 'ok') : marks;
+}
+
+export type PrepareInput = {
+  pr: number | null;            // la PR suivie, chargée, le dossier sur sa tête ; null : rien à préparer
+  head: string | null;          // le commit de tête de la PR (le dernier du relevé) ; null : inconnu
+  marks: Marks;                 // les marques de l'agent (« read:<pr>:<action> »)
+  outputs: readonly string[];   // les noms des sorties présentes (pr-<n>-note.md, align.md, liens.md, pr-<n>-commits.md, ecran.md)
+  note: boolean;                // la PR a une note
+  tests: number;                // ses fichiers de tests d'invariants
+  unread: boolean;              // un cas d'un test d'invariant pas lu, ou à lecture périmée
+  live: readonly string[];      // les actions en cours, arrêtées pas tranchées, ou en file
+};
+
+export function toPrepare({ pr, head, marks, outputs, note, tests, unread, live }: PrepareInput): string[] {
+  if (pr === null) return [];
+  const has = (name: string) => outputs.includes(name);
+  const readAt = (action: string) => Object.hasOwn(marks, readTarget(pr, action)) && marks[readTarget(pr, action)].hash === head;
+  // La sortie présente et lue sur la tête d'aujourd'hui (head null : jamais, une tête inconnue ne se compare à rien).
+  const todo: Record<string, boolean> = {
+    'review-note': note && !(has(`pr-${pr}-note.md`) && readAt('review-note')),
+    'read-invariants': tests > 0 && unread,
+    align: (note || tests > 0) && !(has('align.md') && has('liens.md') && readAt('align')),
+    'review-commits': !(has(`pr-${pr}-commits.md`) && readAt('review-commits')),
+    screen: !(has('ecran.md') && readAt('screen')),
+  };
+  return READINGS.filter((a) => todo[a] && !live.includes(a));
+}

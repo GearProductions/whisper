@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 // step-parts (step-parts.tsx) : les icônes à la place des caractères — ⏹ d'une course (IconButton stop, même
 // rappel StopRun), la conversation qui travaille (direct.elsewhere : le bouton direct reste actif, « via » grisé), l'en-tête
-// d'une étape (step.head, jamais facts ; ni champ, ni Joindre, ni micro, ni Envoyer ; ses actions restent), un bouton sans
+// d'une étape (step.head, jamais facts ; ni champ, ni Joindre, ni micro, ni Envoyer ; aucune rangée d'actions, pour aucun rôle), un bouton sans
 // choix de modèle, le dernier résultat d'une action directe (Icon ok / ko), Ouvrir la PR (IconButton external).
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -82,12 +82,11 @@ it('un en-tête montre step.head, jamais step.facts ; head vide ou absent : rien
   }
 });
 
-it('relecteur — Note, Forme, Invariants : ni champ, ni Joindre, ni micro, ni Envoyer ; leurs boutons d\'action restent, le badge sans clic ni ✓', async () => {
+it('relecteur, une étape avec des actions au relevé : aucun bouton d\'action, ni champ ; le badge sans clic ni ✓', async () => {
   for (const id of ['note', 'forme', 'invariants'] as const) {
     const acts = [action({ id: `${id}-a`, label: 'Faire', step: id, usesText: true, primary: true, needs: 'text' }), action({ id: `${id}-b`, label: 'Autre', step: id, usesText: true })];
     await head({ id }, acts);
-    expect(page.querySelector('textarea, .vc-step-field, .vc-attach, .vc-mic, .vc-send')).toBeNull();
-    expect([...page.querySelectorAll('.vc-step-acts .vc-run-label')].map((e) => e.textContent)).toEqual(['Faire', 'Autre']);
+    expect(page.querySelector('textarea, .vc-step-field, .vc-attach, .vc-mic, .vc-send, .vc-step-acts, .vc-run')).toBeNull();
     expect(page.querySelector('button.vc-badge')).toBeNull();
   }
 });
@@ -159,9 +158,21 @@ it('créateur, la note : le badge sans clic ni ✓, même validée ; un clic ne 
   expect(act.run).not.toHaveBeenCalled();
 });
 
-it('relecteur : sa rangée d\'actions, son badge sans clic ni ✓, même validé', async () => {
+it('relecteur : le nom de son arrêt (Règles, Essai, Publier), le créateur celui de l\'étape', async () => {
+  for (const [flow, names] of [['review', ['Règles', 'Essai', 'Publier']], ['create', ['Invariants', 'Revue', 'PR']]] as const) {
+    for (const [i, id] of (['invariants', 'revue', 'pr'] as const).entries()) {
+      await render(createElement('i'));
+      await render(createElement(StepHead, { p: {
+        view: { lang: 'fr', flow, steps: [], actions: [] }, step: { id, status: 'current', facts: '' }, t: t('fr'), busy: false, act: { run: () => {} },
+      } as unknown as StepProps }));
+      expect(page.querySelector('h2')!.textContent).toBe(names[i]);
+    }
+  }
+});
+
+it('relecteur : son badge sans clic ni ✓, même validé, aucun bouton d\'action', async () => {
   const act = await create('forme', { state: 'ok', now: 'h' }, { flow: 'review' });
-  expect([...page.querySelectorAll('.vc-step-acts .vc-run-label')].map((e) => e.textContent)).toEqual(['Commiter', 'Commiter']);
+  expect(page.querySelector('.vc-step-acts, .vc-run')).toBeNull();
   expect(badge().tagName).toBe('SPAN');
   expect(badge().textContent).toBe('faite');
   await act_(() => { badge().click(); });

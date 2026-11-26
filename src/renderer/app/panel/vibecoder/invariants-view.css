@@ -1,113 +1,7 @@
-/* Les invariants (invariants-view) : résumé, alignement, un bloc par fichier
-   (en-tête, progression), une carte par cas (pseudo-code coloré, cas
-   limites, garantie, attention ; verdict et outils dans son en-tête). Sobre et dense (0.13.0) : marges
-   un cran en dessous (--vc-pad), coins --vc-radius ; les outils de l'en-tête
-   d'un fichier alignés sur 22 px ; les icônes (Icon) de l'état et de « Tout
-   valider » à la taille du texte. Un cas validé garde sa carte (fond et
-   cadre), la fine bordure verte à gauche et le badge allumé. Sous .vc.
-   Ce que le cas garde (.vc-case-keeps, case-link) : liens vers la note, grisés si la lecture est périmée.
-   Ne connaît pas : les composants (seulement leurs classes).
-   Utilisé par : invariants-view (importé). */
-
-/* ---- Résumé de l'étape ----------------------------------------------------- */
-.vc-isum { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; margin: -3px 0 12px; color: var(--vc-faint); font-size: 12.5px; }
-.vc-isum-stat { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
-.vc-isum-stat b { color: var(--vc-text); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.vc-isum-stat[data-tone="ok"] b { color: var(--vc-ok-text); }
-.vc-isum-stat[data-tone="ko"] b { color: var(--vc-ko-text); }
-.vc-isum-stat[data-tone="warn"] b { color: var(--vc-warn); }
-.vc-isum > .vc-ibar { flex: 1 0 100%; width: auto; height: 4px; }
-
-/* La barre : validés, refusés, le reste. */
-.vc-ibar { display: inline-flex; flex: none; width: 64px; height: 5px; border-radius: 3px; background: var(--vc-hover); overflow: hidden; }
-.vc-ibar i { flex-basis: 0; }
-.vc-ibar i[data-k="ok"] { background: var(--vc-ok); }
-.vc-ibar i[data-k="ko"] { background: var(--vc-ko); }
-
-/* ---- Alignement ------------------------------------------------------------- */
-.vc-ialign > summary { cursor: pointer; list-style: none; }
-.vc-ialign > summary::-webkit-details-marker { display: none; }
-.vc-ialign > summary::before { content: "▸"; flex: none; color: var(--vc-faint); font-size: 11px; transition: transform 0.12s; }
-.vc-ialign[open] > summary::before { transform: rotate(90deg); }
-.vc-ialign:not([open]) > summary { border-bottom: 0; }
-.vc-ialign > .vc-card-body { max-height: 320px; overflow-y: auto; }
-
-/* ---- La vue IDE : les tests à gauche (ide-view), le fichier choisi au centre ---------------- */
-.vc-iide .vc-ifile { margin: 0; padding: 0 var(--vc-pad, 12px) 12px; }
-.vc-iide .vc-ifile-head { top: 0; margin: 0 calc(-1 * var(--vc-pad, 12px)) 8px; padding: 0 var(--vc-pad, 12px); background: var(--vc-card); }
-
-/* ---- Un fichier --------------------------------------------------------------- */
-.vc-ifile { margin: 0 0 15px; }
-.vc-ifile-head {
-  position: sticky;
-  top: -18px;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 32px;
-  margin: 0 -4px 8px;
-  padding: 0 4px;
-  border-bottom: 1px solid var(--vc-line);
-  background: var(--vc-bg);
-}
-/* Trop long : le dossier se coupe, jamais le nom du fichier. */
-.vc-ifile-path { display: flex; min-width: 0; white-space: nowrap; font-size: 12.5px; }
-.vc-ifile-dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--vc-faint); }
-.vc-ifile-path b { flex: none; color: var(--vc-text); font-weight: 600; }
-.vc-ifile-read { flex: none; padding: 0 8px; border-radius: 4px; background: var(--vc-warn-bg); color: var(--vc-warn); font: 500 11px/18px var(--vc-sans); }
-.vc-ifile-read[data-read] { background: var(--vc-hover); color: var(--vc-soft); }
-.vc-ifile-progress { flex: none; display: inline-flex; align-items: center; gap: 8px; color: var(--vc-faint); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.vc-ifile-tools { margin-left: auto; display: flex; align-items: center; gap: 4px; }
-/* Alignés : Tout valider, Relire / Lire en pseudo-code et Ouvrir, à la hauteur des boutons (22 px). */
-.vc-ifile-tools > :is(.vc-run, .vc-vbtn) { height: 22px; border-radius: var(--vc-radius); }
-.vc-ifile-tools > .vc-vbtn { display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; }
-:is(.vc-ifile-tools > .vc-vbtn, .vc-case-state) svg { flex: none; width: 13px; height: 13px; }
-
-/* Voir le fichier : tout son code, replié ; un test modifié, le sélecteur Fichier · Diff. */
-.vc-ifile-src { margin: -3px 0 9px; }
-.vc-ifile-src > summary { width: max-content; color: var(--vc-faint); font-size: 12px; cursor: pointer; }
-.vc-ifile-src > summary:hover { color: var(--vc-text); }
-.vc-ifile-src > :is(.vc-src, .vc-mod-bar) { margin-top: 8px; }
-.vc-ifile-src > .vc-src .cm-editor { max-height: 420px; }
-
-/* ---- Un cas -------------------------------------------------------------------- */
-.vc-case {
-  position: relative;
-  margin: 0 0 16px;
-  padding: 9px 10px 9px var(--vc-pad, 12px);
-  border: 1px solid var(--vc-line);
-  border-radius: var(--vc-radius);
-  background: var(--vc-card);
-  box-shadow: inset 3px 0 0 var(--vc-line);
-  scroll-margin-top: 40px;  /* sous l'en-tête collant du fichier */
-}
-/* Validé : la carte garde son fond et son cadre, une fine bordure verte à gauche. */
-.vc-case[data-mark="ok"] { box-shadow: inset 3px 0 0 var(--vc-ok); }
-.vc-case[data-mark="ko"] { border-color: var(--vc-ko-edge); box-shadow: inset 3px 0 0 var(--vc-ko); }
-.vc-case[data-mark="changed"] { box-shadow: inset 3px 0 0 var(--vc-warn); }
-.vc-case > :last-child { margin-bottom: 0; }
-/* L'en-tête : le titre, puis tout ce qu'on fait du cas, aligné ; trop étroit, ce reste passe à la ligne. */
-.vc-case-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 8px; margin-bottom: 8px; }
-.vc-case-n {
-  flex: none;
-  min-width: 20px;
-  height: 20px;
-  margin-top: 1px;
-  padding: 0 5px;
-  box-sizing: border-box;
-  border-radius: 10px;
-  background: var(--vc-hover);
-  color: var(--vc-soft);
-  font: 600 11px/20px var(--vc-sans);
-  text-align: center;
-}
-.vc-case[data-mark="ko"] .vc-case-n { background: var(--vc-ko); color: var(--vc-ink); }
-.vc-case-title { flex: 1 1 240px; min-width: 0; margin: 0; color: var(--vc-text); font-size: 14px; font-weight: 600; line-height: 1.45; overflow-wrap: break-word; text-wrap: pretty; }
-.vc-case-view { flex: none; margin-top: -1px; }
-.vc-case-view button { padding: 0 9px; font-size: 11.5px; line-height: 20px; }
-.vc-case-state { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: var(--vc-radius); background: var(--vc-warn-bg); color: var(--vc-warn); font: 500 11.5px/1.5 var(--vc-sans); white-space: nowrap; }
-.vc-case-none { margin: 0 0 8px; color: var(--vc-faint); font-size: 12.5px; }
+/* Le pseudo-code (Pseudo) et l'encart d'attention (Attention) de rules-view, la seule vue des invariants (note
+   0.16.0-revue-essentielle : les cartes par cas, le résumé, la barre, l'alignement en carte et les fichiers sont partis).
+   Sous .vc. Ne connaît pas : les composants (seulement leurs classes).
+   Utilisé par : rules-view (importé). */
 
 /* Le pseudo-code : lignes, assertions repérées, couleurs sobres. */
 .vc-pseudo {
@@ -130,21 +24,7 @@
 .vc-tk-comment { color: #8792ad; }
 .vc-tk-step { color: #7dcfff; font-weight: 600; }
 
-/* Cas limites, garantie. */
-.vc-case-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px; margin: 0 0 8px; font-size: 12.8px; line-height: 1.5; }
-.vc-case-label { padding-top: 2px; color: var(--vc-faint); font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
-.vc-case-edges { margin: 0; padding-left: 16px; color: var(--vc-soft); }
-.vc-case-edges li + li { margin-top: 2px; }
-.vc-case-row p { margin: 0; color: var(--vc-soft); }
-.vc-case-guarantee .vc-case-label { color: var(--vc-ok-text); }
-.vc-case-guarantee .vc-case-label::before { content: "✓ "; }
-.vc-case-guarantee p { color: var(--vc-text); }
-/* Ce que le cas garde (case-link) : les lignes de la note, en liens ; périmé, grisé comme la lecture. */
-.vc-case-keeps ul { margin: 0; padding: 0; list-style: none; color: var(--vc-soft); }
-.vc-case-keeps .vc-case-none { color: var(--vc-faint); }
-.vc-case-go { padding: 0; border: 0; background: none; color: var(--vc-link); font: inherit; text-align: left; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
-.vc-case-keeps[data-stale] { opacity: 0.55; }
-.vc-case :is(.vc-case-row, .vc-attention) code { padding: 0 4px; border-radius: 4px; background: var(--vc-deep); color: var(--vc-text); font: 11.8px/1.5 var(--vc-mono); }
+.vc-attention code { padding: 0 4px; border-radius: 4px; background: var(--vc-deep); color: var(--vc-text); font: 11.8px/1.5 var(--vc-mono); }
 
 /* Attention : l'encart ambre. */
 .vc-attention {
@@ -159,13 +39,7 @@
   font-size: 12.8px;
   line-height: 1.5;
 }
-/* En tête de l'étape : ce que veut dire « Attention », discret. */
-.vc-ihelp { display: flex; gap: 8px; margin: -4px 0 14px; color: var(--vc-faint); font-size: 12.5px; line-height: 1.5; }
-.vc-ihelp > span { flex: none; color: var(--vc-warn); }
 .vc-attention { cursor: help; }
 .vc-attention-icon { flex: none; color: var(--vc-warn); font-size: 14px; line-height: 1.35; }
 .vc-attention p { margin: 0; }
 .vc-attention b { margin-right: 6px; color: var(--vc-warn); font-weight: 600; }
-
-/* 💬, Ouvrir (IconButton, vc-tool), au bout de l'en-tête. */
-.vc-case-tools { flex: none; display: flex; align-items: center; gap: 2px; }

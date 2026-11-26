@@ -6,10 +6,6 @@
  *  d'un seul fichier (rank et state null). Avec des modules, l'étape Modules (by 'file') montre aussi les
  *  variants que change la branche (view.variants, lus dans view.files), après eux, comme ces fichiers-là :
  *  on voit où ils sont écrits (note 0.15.0-variants-tdd).
- *  L'étape Invariants (invariantTree) : les fichiers de la Forme (comme by 'module', en retrait : dim) et les
- *  tests d'invariants ensemble ; un test : test (son rang dans view.invariants), sans rang (pas de numéro), son
- *  état (cas validés, lus par leur clé, caseKeys de shared/test-cases : tous done, aucun todo, sinon wip), sa couleur d'après son texte à la base de la branche
- *  (base absente : nouveau ; différente : modifié ; la même ou inconnue : aucune), code null. Sans Forme : les tests seuls.
  *  Le menu de diff de la vue IDE (note 0.15.0-ecran-statuts) : ses références (diffRefs : la base de la branche, le
  *  dernier commit, la validation si l'étape en a une) et l'arborescence filtrée (diffTree : base, tous les fichiers ;
  *  head ou validated, ceux de view.diffs, un supprimé absent des fichiers ajouté en « supprimé », son id gone).
@@ -20,12 +16,11 @@
  *  plus à générer (moduleState 'wip' ou 'done') ; committed : ceux qui ont un commit et rien de pas commité
  *  (uncommitted). modules-view en fait une seule phrase (« 16 modules écrits · commités »).
  *  Le menu de diff n'a plus que deux références à l'écran du créateur, la base de la branche et la validation
- *  (useCreatorDiff, d'ide-diff ; useIdeDiff, celui du relecteur, offre toujours le dernier commit) ; diffRefs et diffTree
- *  ne changent pas.
+ *  (useCreatorDiff, d'ide-diff ; useIdeDiff, sans appelant, offre toujours le dernier commit) ; diffRefs et diffTree
+ *  ne changent pas. Retiré : invariantTree (l'arbre des tests du relecteur, sans appelant depuis son retrait).
  *  Ne connaît pas : le DOM, React, le pont. Utilisé par : app/panel/vibecoder (forme-view, modules-view, ide-view,
- *  invariants-view, ide-diff). */
-import type { VibeDiffStep, VibeGit, VibeLang, VibeModule, VibeTestFile, VibeView, VibeStep } from 'technicals/bridge';
-import { caseKeys } from 'shared/test-cases';
+ *  ide-diff). */
+import type { VibeDiffStep, VibeGit, VibeLang, VibeModule, VibeView, VibeStep } from 'technicals/bridge';
 import { t } from './i18n';
 
 export type ModuleState = 'done' | 'wip' | 'todo';
@@ -98,30 +93,6 @@ export function ideFiles(view: Pick<VibeView, 'modules' | 'files'> & { variants?
     return m.files.map((f) => ({ path: f.path, rank, state, mark: f.skeleton ? 'todo' as const : markOf(f), code: { ...m, files: [f] },
       ...(f.skeleton && { dim: true, hint: skeletonHint }) }));
   }), ...variants.map(branchRow)].filter((r) => !seen.has(r.path) && seen.add(r.path));
-}
-
-// L'état d'un test : done si tous ses cas sont validés (ok), todo si aucun n'a de verdict, sinon wip.
-const testState = (t: VibeTestFile): ModuleState => {
-  const marks = caseKeys(t.cases).map((k) => t.marks[k]);
-  return marks.length && marks.every((m) => m === 'ok') ? 'done' : marks.some(Boolean) ? 'wip' : 'todo';
-};
-
-// L'étape Invariants : les fichiers de la Forme (ideFiles by 'module', dim) et les tests (test, rank null,
-// couleur d'après base), une ligne par chemin, celle du test s'il est aussi un chemin de la Forme ; sans
-// module, les tests seuls (jamais les autres fichiers de la branche).
-export function invariantTree(view: Pick<VibeView, 'modules' | 'invariants' | 'files'>): IdeFile[] {
-  const tests = view.invariants.map((t, test): IdeFile => ({
-    path: t.path,
-    rank: null,
-    state: testState(t),
-    // base null : absente à la base, ajouté par la branche ; absente (undefined) : inconnue, aucune couleur
-    mark: t.base === undefined ? null : t.base === null ? 'new' : t.base === t.source ? null : 'modified',
-    code: null,
-    test,
-  }));
-  const paths = new Set(tests.map((t) => t.path));
-  const forme = view.modules.length ? ideFiles(view, 'module').filter((r) => !paths.has(r.path)).map((r) => ({ ...r, dim: true })) : [];
-  return [...forme, ...tests];
 }
 
 // La référence du menu de diff de la vue IDE.

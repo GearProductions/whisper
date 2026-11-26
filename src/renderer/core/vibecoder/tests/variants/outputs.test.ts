@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { commitReviews, commitTitle, failedChecks, parseChecks, parseCi, parseReview, sections, webUrl, withoutApplied } from 'core/vibecoder';
-import type { VibeCommit } from 'technicals/bridge';
+import { failedChecks, findings, parseChecks, parseCi, parseReview, sections, webUrl, withoutApplied } from 'core/vibecoder';
 
 describe('parseChecks', () => {
   it('les items, dans leur ordre', () => {
@@ -127,43 +126,43 @@ describe('sections', () => {
   });
 });
 
-describe('commitTitle', () => {
-  it('« <hash court> <sujet> »', () => {
-    expect(commitTitle('34349c1 main/core/vibecoder : la note')).toEqual({ hash: '34349c1', subject: 'main/core/vibecoder : la note' });
+describe('findings', () => {
+  it('trois titres : trois constats, dans l\'ordre, leur détail', () => {
+    expect(findings('## a.ts:L1 un\ndétail 1\n\n## b.ts:L2 deux\n- x\n- y\n\n## c\n')).toEqual({
+      list: [{ title: 'a.ts:L1 un', body: 'détail 1' }, { title: 'b.ts:L2 deux', body: '- x\n- y' }, { title: 'c', body: '' }],
+      intro: '',
+    });
   });
 
-  it('hash entre accents graves, en majuscules, séparateur, ou sans sujet', () => {
-    expect(commitTitle('`34349C1` — la note')).toEqual({ hash: '34349c1', subject: 'la note' });
-    expect(commitTitle('94a45d6c0ffee: fixup! x')).toEqual({ hash: '94a45d6c0ffee', subject: 'fixup! x' });
-    expect(commitTitle('94a45d6')).toEqual({ hash: '94a45d6', subject: '' });
+  it('un texte avant le premier titre : l\'introduction', () => {
+    expect(findings('# Relecture\nTrois remarques.\n\n## a\nx')).toEqual({ list: [{ title: 'a', body: 'x' }], intro: '# Relecture\nTrois remarques.' });
   });
 
-  it('pas un hash en tête : null', () => {
-    for (const t of ['Remarques générales', 'abc12 trop court', 'zzzzzzz pas hexa', '', ' 1234567x collé']) expect(commitTitle(t)).toBeNull();
-  });
-});
-
-describe('commitReviews', () => {
-  const commit = (hash: string, subject = 's'): VibeCommit => ({ hash, subject, fixup: false, files: [] });
-  const commits = [commit('5d6e7f8aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'), commit('9a0b1c2bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')];
-
-  it('une rubrique par commit, rangée par son hash complet', () => {
-    const md = '## 5d6e7f8 vad\n- a\n\n## `9A0B1C2`: dictée\n- b';
-    const { byHash, others } = commitReviews(md, commits);
-    expect(byHash.get(commits[0].hash)).toBe('- a');
-    expect(byHash.get(commits[1].hash)).toBe('- b');
-    expect(others).toEqual([]);
+  it('un fichier d\'une ligne sans titre : aucun constat, la ligne gardée', () => {
+    expect(findings('Rien à signaler.')).toEqual({ list: [], intro: 'Rien à signaler.' });
   });
 
-  it('l\'ensemble, un commit inconnu du relevé, un second titre du même commit : à part, dans l\'ordre', () => {
-    const md = 'Intro\n## Ensemble\n- e\n## 1234567 inconnu\n- i\n## 5d6e7f8 vad\n- a\n## 5d6e7f8 encore\n- x';
-    const { byHash, others } = commitReviews(md, commits);
-    expect([...byHash.keys()]).toEqual([commits[0].hash]);
-    expect(others.map((s) => s.title)).toEqual(['', 'Ensemble', '1234567 inconnu', '5d6e7f8 encore']);
+  it('un titre dans un bloc de code : pas un constat', () => {
+    const md = 'Avant\n```md\n## pas un constat\n```\n## vrai\nx';
+    expect(findings(md)).toEqual({ list: [{ title: 'vrai', body: 'x' }], intro: 'Avant\n```md\n## pas un constat\n```' });
+    expect(findings('```\n## code\n```').list).toEqual([]);
   });
 
-  it('pas de commit au relevé : tout à part', () => {
-    expect(commitReviews('## 5d6e7f8 vad\n- a', []).others).toHaveLength(1);
+  it('un fichier vide : aucun constat, rien', () => {
+    expect(findings('')).toEqual({ list: [], intro: '' });
+    expect(findings(' \n\n')).toEqual({ list: [], intro: '' });
+  });
+
+  it('rien de perdu : chaque ligne est dans un constat ou dans l\'introduction', () => {
+    const md = 'intro 1\nintro 2\n## T1\nl1\n### sous\n```\n## faux\n```\n## T2\nl2\nl3\n';
+    const { list, intro } = findings(md);
+    const text = [intro, ...list.map((s) => `${s.title}\n${s.body}`)].join('\n');
+    for (const line of md.split('\n').filter((l) => l.trim() && !/^## (T\d)$/.test(l))) expect(text).toContain(line);
+    expect(list.map((s) => s.title)).toEqual(['T1', 'T2']);
+  });
+
+  it('fins de ligne Windows, titre sans détail au milieu', () => {
+    expect(findings('## a\r\n## b\r\ndétail\r\n')).toEqual({ list: [{ title: 'a', body: '' }, { title: 'b', body: 'détail' }], intro: '' });
   });
 });
 

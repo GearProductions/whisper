@@ -29,7 +29,7 @@
  *  InlineMd : un texte d'une ligne (réponse proposée, cas limite…) en ligne.
  *  Ne connaît pas : le pont (rappels passés).
  *  Utilisé par : les vues d'étape (note-view en Relire, questions-view, forme-view, invariants-view,
- *  modules-view, review-view, pr-view, branches-view, commits-view, ecran-view, draft-view, runs-view) ;
+ *  modules-view, review-view, pr-view, branches-view, ecran-view, draft-view, runs-view) ;
  *  components (thread : un message de l'agent, sans onQuote ni onComment). */
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { blockQuotes, parseInline, parseMarkdown, tagCover, untag, type Block, type Inline, type RemovedPlaces, type Strings, type Tag } from 'core/vibecoder';

@@ -17,13 +17,28 @@
  *  Aucun bouton d'action, ni Tout valider ni Rien à écrire, aucune barre, ni code ni éditeur ; sans ligne « → invariant » dans la note : une phrase, « La note ne demande aucun
  *  invariant ». L'en-tête d'étape (StepHead) est rendu par invariants-view.
  *  RulesView(p: StepProps): ReactNode ; Pseudo({ code }) : le pseudo-code coloré, Attention({ text, lang, t,
- *  onOpenLink, children? }) : l'encart du point d'attention, repris par les cartes du relecteur, et warningHelp(lang) :
- *  ce que veut dire « Attention », repris par sa ligne d'aide
- *  Ne connaît pas : le pont (rappels passés), le relecteur (invariants-view garde sa vue), le brouillon de revue.
- *  Utilisé par : invariants-view (RulesView ; Pseudo, Attention, warningHelp). */
+ *  onOpenLink, children? }) : l'encart du point d'attention (son infobulle dit ce que veut dire « Attention »).
+ *  La revue essentielle (note 0.16.0-revue-essentielle) : le relecteur a la même vue (view.flow 'review'), à l'arrêt des
+ *  règles — une règle par ligne « → invariant », ses tests en pseudo-code, « aucun test », « Autres tests », le compte
+ *  en tête, l'alignement en tête (son align.md n'a pas d'étiquette : montré tel quel, rien n'y est replié), le point
+ *  d'attention de chaque test. Ce qui change pour lui :
+ *  - pas de preuve : aucun état sur une règle (ni « écrite », ni « prouvée », ni « non prouvée »), aucun détail au clic ;
+ *  - un test d'avant la branche que la PR modifie (CaseView.fromBase) : dit sur ce test, « modifié par la PR » ;
+ *  - Validé / À revoir sur chaque test (la même marque) ; À revoir propose « Ajouter une remarque au brouillon », qui
+ *    ouvre la zone de remarque du test, sans rien ajouter ;
+ *  - la 💬 d'une règle, d'un test, d'une ligne de l'alignement ouvre dessous une zone de remarque pour le brouillon de
+ *    revue (CommentBox ; Ajouter : act.draft, remark, sur sa cible — « rule: <la ligne> », « case:<chemin>:<clé> »,
+ *    « align: <la ligne> »), la zone s'ouvre là où l'on a cliqué (une seule à la fois) ; celle du point d'attention y verse l'attention (withAttention) sans rien effacer ; rien
+ *    n'entre au brouillon sans Ajouter ; elle ne cite jamais dans la conversation ;
+ *  - sous chaque règle et chaque test, ses remarques déjà au brouillon (remarksAt, DraftRemarks).
+ *  Le créateur : sa vue, ses états de preuve, sa 💬 qui cite dans la conversation, inchangés.
+ *  Ne connaît pas : le pont (rappels passés), le brouillon entier (ses remarques, par cible), le verdict de la revue.
+ *  Utilisé par : invariants-view (RulesView). */
 import { useMemo, useState, type ReactNode } from 'react';
-import { progress, pseudoLines, ruleGroups, type RuleCase, type RuleState, type Strings } from 'core/vibecoder';
+import { excerpt, progress, pseudoLines, remark, remarksAt, ruleGroups, withAttention, type RuleCase, type RuleState, type Strings } from 'core/vibecoder';
 import type { VibeLang } from 'technicals/bridge';
+import { CommentBox } from './comment-box';
+import { DraftRemarks } from './draft-remarks';
 import { FeedbackView } from './feedback-view';
 import { Icon, IconButton } from './icons';
 import { InlineMd, MarkdownView } from './markdown-view';
@@ -43,6 +58,9 @@ const fr = {
   warningHelp: 'Attention : le relecteur pense que ce test ne vérifie pas vraiment ce qu\'il annonce (mock, boucle, assertion faible…). Ce n\'est pas un échec : une piste pour votre relecture.',
   quote: 'Citer cette règle dans le champ',
   quoteTest: 'Citer ce test dans le champ',
+  remarkRule: 'Une remarque sur cette règle, au brouillon de revue',
+  remarkTest: 'Une remarque sur ce test, au brouillon de revue',
+  remarkAttention: 'Reprendre ce point d\'attention dans une remarque, au brouillon de revue',
   showProof: 'Voir la preuve : le mutant qui a fait échouer le test',
   hideProof: 'Replier la preuve',
   count: (total: number, ok: number, ko: number) => `${total} test${total > 1 ? 's' : ''} · ${ok} validé${ok > 1 ? 's' : ''} · ${ko} à revoir · ${total - ok - ko} à lire`,
@@ -61,6 +79,9 @@ const S: Record<VibeLang, typeof fr> = {
     warningHelp: 'Warning: the reviewer thinks this test does not really check what it claims (mock, loop, weak assertion…). It is not a failure: a lead for your review.',
     quote: 'Quote this rule in the field',
     quoteTest: 'Quote this test in the field',
+    remarkRule: 'A remark on this rule, to the review draft',
+    remarkTest: 'A remark on this test, to the review draft',
+    remarkAttention: 'Take this warning into a remark, to the review draft',
     showProof: 'Show the proof: the mutant that made the test fail',
     hideProof: 'Fold the proof',
     count: (total: number, ok: number, ko: number) => `${total} test${total > 1 ? 's' : ''} · ${ok} approved · ${ko} to review · ${total - ok - ko} to read`,
@@ -78,55 +99,79 @@ export function RulesView({ view, t, act }: StepProps): ReactNode {
   // La preuve d'une règle prouvée : repliée, « prouvée » l'ouvre (par ligne) ; celle d'une règle non prouvée attend l'utilisateur : toujours là.
   const [shown, setShown] = useState<ReadonlySet<string>>(new Set());
   const toggle = (line: string) => setShown((p) => { const n = new Set(p); if (!n.delete(line)) n.add(line); return n; });
-  const test = ({ file, index, view: c }: RuleCase) => {
+  // Relecteur : une seule zone de remarque ouverte (at : où, le même test peut être sous deux règles ; target : la cible
+  // du brouillon ; text : ce qu'elle contient, le point d'attention s'y ajoute). Rien n'entre au brouillon sans Ajouter.
+  const rev = view.flow === 'review';
+  const [box, setBox] = useState<{ at: string; target: string; text: string } | null>(null);
+  const openBox = (at: string, target: string, add?: string) => setBox((b) => { const text = b?.at === at ? b.text : ''; return { at, target, text: add ? withAttention(text, add) : text }; });
+  const toggleBox = (at: string, target: string) => (box?.at === at ? setBox(null) : openBox(at, target));
+  const boxView = (at: string) => (rev && box?.at === at ? (
+    <CommentBox t={t} value={box.text} onChange={(text) => setBox({ ...box, text })} onCancel={() => setBox(null)}
+      onSave={(text) => { act.draft({ add: remark(box.target, text) }); setBox(null); }} />
+  ) : null);
+  const remarksView = (target: string) => {
+    const here = rev ? remarksAt(view.draft, target) : [];
+    return here.length ? <DraftRemarks remarks={here} t={t} onDraft={act.draft} onOpenLink={act.openLink} /> : null;
+  };
+  const test = ({ file, index, view: c }: RuleCase, where: string) => {
     const r = c.stale ? null : c.reading;   // périmée : ni son pseudo-code ni son point d'attention, ils parlent de l'ancien bloc
+    const target = `case:${file.path}:${c.key ?? c.title}`, at = `${where}:${target}`;
     return (
       <article key={`${file.id}:${index}`} className="vc-rule-case">
         <div className="vc-rule-case-head">
           <h4>{c.title}</h4>
-          <CaseVerdict state={c.mark} lang={view.lang} onMark={(v) => act.mark(`case:${file.path}:${c.key ?? c.title}`, v)} off={c.stale ? s.staleOff : undefined} />
-          {quote ? <IconButton icon="comment" label={s.quoteTest} onClick={() => quote(c.title)} /> : null}
+          {rev && c.fromBase ? <span className="vc-rule-changed"><Icon name="warn" />{t.essentialReview.changedByPr}</span> : null}
+          <CaseVerdict state={c.mark} lang={view.lang} onMark={(v) => act.mark(target, v)} onRemark={rev ? () => openBox(at, target) : undefined} off={c.stale ? s.staleOff : undefined} />
+          {rev ? <IconButton icon="comment" label={s.remarkTest} pressed={box?.at === at} onClick={() => toggleBox(at, target)} />
+            : quote ? <IconButton icon="comment" label={s.quoteTest} onClick={() => quote(c.title)} /> : null}
           <IconButton icon="open" label={t.openTitle} onClick={() => act.open(file.id, file.lines[index])} />
         </div>
         {r ? <Pseudo code={r.pseudo} /> : <p className="vc-rule-reading">{c.stale ? s.stale : s.reading}</p>}
-        {r?.warning ? <Attention text={r.warning} lang={view.lang} t={t} onOpenLink={act.openLink} /> : null}
+        {r?.warning ? (
+          <Attention text={r.warning} lang={view.lang} t={t} onOpenLink={act.openLink}>
+            {rev ? <span style={{ marginLeft: 'auto' }}><IconButton icon="comment" label={s.remarkAttention} onClick={() => openBox(at, target, r.warning ?? '')} /></span> : null}
+          </Attention>
+        ) : null}
+        {remarksView(target)}
+        {boxView(at)}
       </article>
     );
   };
   return (
     <div className="vc-rules">
-      {align ? <FeedbackView md={align.text} t={t} onOpenLink={act.openLink} onQuote={quote} /> : null}
+      {align ? <FeedbackView md={align.text} t={t} onOpenLink={act.openLink} onQuote={rev ? (q) => openBox('align', `align: ${excerpt(q, 80)}`) : quote} /> : null}
+      {boxView('align')}
       {seen.total ? <p className="vc-rules-count">{s.count(seen.total, seen.ok, seen.ko)}</p> : null}
       {rules.length ? null : <p className="vc-rules-none">{s.none}</p>}
       {rules.map((r, i) => (
-        <section key={i} className="vc-rule" data-state={r.state}>
+        <section key={i} className="vc-rule" data-state={rev ? undefined : r.state}>
           <div className="vc-rule-head">
             <h3 className="vc-rule-line">{r.line}</h3>
-            {r.state === 'proved' && r.detail ? (
+            {rev ? null : r.state === 'proved' && r.detail ? (
               <button type="button" className="vc-rule-state" aria-expanded={shown.has(r.line)} title={shown.has(r.line) ? s.hideProof : s.showProof}
                 onClick={() => toggle(r.line)}>{s.state[r.state]}</button>
             ) : <span className="vc-rule-state">{s.state[r.state]}</span>}
-            {quote ? <IconButton icon="comment" label={s.quote} onClick={() => quote(r.line)} /> : null}
+            {rev ? <IconButton icon="comment" label={s.remarkRule} pressed={box?.at === `r${i}`} onClick={() => toggleBox(`r${i}`, `rule: ${r.line}`)} />
+              : quote ? <IconButton icon="comment" label={s.quote} onClick={() => quote(r.line)} /> : null}
           </div>
-          {r.detail && (r.state !== 'proved' || shown.has(r.line)) ? (
+          {remarksView(`rule: ${r.line}`)}
+          {boxView(`r${i}`)}
+          {!rev && r.detail && (r.state !== 'proved' || shown.has(r.line)) ? (
             <div className="vc-rule-proof"><MarkdownView md={r.detail} t={t} onOpenLink={act.openLink} /></div>
           ) : null}
           {r.elsewhere.map((e) => <p key={`${e.path}:${e.title}`} className="vc-rule-elsewhere vc-mono">{e.path} · {e.title}</p>)}
-          {r.cases.length ? r.cases.map(test) : r.elsewhere.length ? null : <p className="vc-rule-notest">{s.noTest}</p>}
+          {r.cases.length ? r.cases.map((c) => test(c, `r${i}`)) : r.elsewhere.length ? null : <p className="vc-rule-notest">{s.noTest}</p>}
         </section>
       ))}
       {others.length ? (
         <section className="vc-rules-others">
           <h3>{s.others}</h3>
-          {others.map(test)}
+          {others.map((c) => test(c, 'o'))}
         </section>
       ) : null}
     </div>
   );
 }
-
-// Ce que veut dire « Attention » : l'infobulle de l'encart, et la ligne d'aide du relecteur (invariants-view).
-export const warningHelp = (lang: VibeLang): string => S[lang].warningHelp;
 
 // Le point d'attention d'un test (r.warning) : l'encart, son aide en infobulle ; children, à droite (le relecteur y met sa
 // citation) ; les cartes du relecteur (invariants-view) l'importent d'ici.

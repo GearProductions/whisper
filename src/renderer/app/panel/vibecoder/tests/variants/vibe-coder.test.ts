@@ -273,3 +273,78 @@ it('Reprendre à une pause : le bouton du fil lance l\'action vibe', async () =>
   await act(() => { b.click(); });
   expect(run).toHaveBeenCalledWith('vibe', {});
 });
+
+// ---- 0.16.0 : la revue essentielle (docs/tickets/feat/0.16.0-revue-essentielle.md) : Préparer la revue, Ctrl+1…4 ----
+const PR = { number: 7, title: 'Essai', url: 'https://github.com/o/r/pull/7', author: 'bob', base: 'main', head: 'feat/x', body: '', state: 'OPEN' };
+const reviewerView = (agentId: string, over: object = {}) => ({
+  ...noteView({ agentId }), flow: 'review', pr: PR, loaded: PR, prs: null, screen: [], draft: [], queued: [], commits: [],
+  steps: ['note', 'invariants', 'revue', 'pr'].map((id, i) => ({ id, status: i ? 'todo' : 'current', facts: '' })),
+  actions: ['review-note', 'read-invariants', 'align'].map((id) => act1({ id, step: 'note' })),
+  prepare: ['review-note', 'read-invariants', 'align'], ...over,
+}) as unknown as VibeView;
+const prepareButton = () => page.querySelector<HTMLButtonElement>('.vc-crumbs .vc-prepare');
+const ctrl = (digit: number) => act(() => { document.dispatchEvent(new KeyboardEvent('keydown', { code: `Digit${digit}`, ctrlKey: true, bubbles: true })); });
+
+it('Préparer la revue : trois lectures à lancer, un clic : trois demandes, dans l\'ordre, rien d\'autre', async () => {
+  const run = vi.fn(async (..._a: unknown[]) => true), set = vi.fn();
+  await leave();
+  await draw({ view: reviewerView('prep1'), acts: { follow: noop, refresh: noop, run, set } });
+  expect(run).not.toHaveBeenCalled();
+  await act(async () => { prepareButton()!.click(); });
+  expect(run.mock.calls.map((c) => c[0])).toEqual(['review-note', 'read-invariants', 'align']);
+  expect(run.mock.calls.every((c) => c.length === 2 && JSON.stringify(c[1]) === '{}')).toBe(true);   // aucun argument : ni texte ni pièces
+  expect(set).not.toHaveBeenCalled();
+});
+
+it('Préparer la revue : rien à lancer, le bouton est grisé et ne demande rien', async () => {
+  const run = vi.fn(async (..._a: unknown[]) => true);
+  await leave();
+  await draw({ view: reviewerView('prep2', { prepare: [] }), acts: { follow: noop, refresh: noop, run, set: noop } });
+  expect(prepareButton()!.disabled).toBe(true);
+  await act(async () => { prepareButton()!.click(); });
+  expect(run).not.toHaveBeenCalled();
+});
+
+it('relecteur : afficher l\'écran, changer d\'arrêt, un nouveau relevé : aucune demande', async () => {
+  const run = vi.fn(async (..._a: unknown[]) => true);
+  const a = { follow: noop, refresh: noop, run, set: noop };
+  await leave();
+  await draw({ view: reviewerView('prep3'), acts: a });
+  await act(() => crumb(2).click());
+  await act(() => crumb(3).click());
+  await draw({ view: reviewerView('prep3', { time: 2, prepare: ['align'] }), acts: a });
+  expect(prepareButton()!.disabled).toBe(false);
+  expect(run).not.toHaveBeenCalled();
+});
+
+it('relecteur : Ctrl+1 à Ctrl+4 ouvrent ses quatre arrêts ; Ctrl+5 : rien', async () => {
+  const run = vi.fn(async (..._a: unknown[]) => true);
+  await leave();
+  await draw({ view: reviewerView('prep4'), acts: { follow: noop, refresh: noop, run, set: noop } });
+  for (const i of [3, 2, 1, 0]) {
+    await ctrl(i + 1);
+    expect(crumb(i).getAttribute('aria-current')).toBe('step');
+  }
+  await ctrl(2);
+  await ctrl(5);
+  expect(crumb(1).getAttribute('aria-current')).toBe('step');
+  expect(run).not.toHaveBeenCalled();
+});
+
+it('relecteur : un arrêt retenu qui n\'est plus dans son fil (Forme) : l\'arrêt en cours', async () => {
+  await leave();
+  await draw({ view: two('prep5') });
+  await act(() => crumb(1).click());
+  await draw({ view: reviewerView('prep5') });
+  expect(page.querySelectorAll('.vc-jstep')).toHaveLength(4);
+  expect(crumb(0).getAttribute('aria-current')).toBe('step');
+});
+
+it('créateur : son bouton du moteur, ses six étapes, pas de Préparer la revue', async () => {
+  await leave();
+  const six = ['note', 'forme', 'invariants', 'modules', 'revue', 'pr'].map((id, i) => ({ id, status: i ? 'upcoming' : 'current' }));
+  await draw({ view: noteView({ agentId: 'prep6', steps: six, pr: PR, loaded: PR, prepare: undefined }), acts: { follow: noop, refresh: noop, run: vi.fn(async () => true), set: noop } });
+  expect(page.querySelectorAll('.vc-jstep')).toHaveLength(6);
+  expect(page.querySelector('.vc-crumbs [data-tone="vibe"]')?.textContent).toBe('Reprendre');
+  expect(prepareButton()).toBeNull();
+});

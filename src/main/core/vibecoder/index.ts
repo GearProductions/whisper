@@ -18,6 +18,7 @@ export * from './note';
 export * from './note-ref';
 export * from './outputs';
 export * from './place';
+export * from './readings';
 export * from './rights';
 export * from './role';
 export * from './runs';

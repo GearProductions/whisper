@@ -68,7 +68,7 @@
     "kind": "send",
     "needs": "none",
     "label": "Check the alignment",
-    "hint": "Checks the invariants only: each “→ invariant” line has a test that truly observes it, each test has its line; fixes the tests, 3 rounds at most; also reads the proof (preuve.md) to say the rule a mutant broke; fixes only the new invariant test files (the app refuses it those from before the branch); for the reviewer, a list, nothing fixed.",
+    "hint": "Checks the invariants only: each “→ invariant” line has a test that truly observes it, each test has its line; fixes the tests, 3 rounds at most; also reads the proof (preuve.md) to say the rule a mutant broke; fixes only the new invariant test files (the app refuses it those from before the branch); for the reviewer, a list, nothing fixed, and the links (liens.md: which test guards which line, tests from before the branch included) written in the outputs folder only.",
     "text": "/vibecoder:aligner {{lang}} {{out}} base={{base}} {{ref}}"
   },
   {
@@ -462,12 +462,12 @@
   {
     "id": "review-commits",
     "flow": "review",
-    "step": "modules",
+    "step": "pr",
     "kind": "send",
     "needs": "none",
     "reads": true,
-    "label": "Review the commits",
-    "hint": "Reviews the PR commit by commit: the four questions, duplication, file headers, the story the commits tell.",
+    "label": "Review the code",
+    "hint": "Reviews the whole PR diff in a single pass, no longer commit by commit: the four questions, duplication, the note and its Forme followed, bugs, file headers; one finding per title, nothing on the history of the commits.",
     "text": "/vibecoder:relire-commits {{lang}} {{out}} {{pr}}"
   },
   {

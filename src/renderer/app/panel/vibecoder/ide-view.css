@@ -23,8 +23,7 @@
 /* Le fichier choisi : une colonne dont seul le code défile ; les outils au-dessus (Générer…, Fichier / diff)
    et dessous restent en place. Sans code (la structure d'un module de la Forme), la colonne défile. */
 .vc-ide-main { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: auto; }
-.vc-ide-main > *, .vc-ide-main > .vc-fmain > * { flex: none; }
-.vc-ide-main > .vc-fmain { flex: 0 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.vc-ide-main > * { flex: none; }
 .vc-ide .vc-ide-main .vc-src { flex: 0 1 auto; display: flex; flex-direction: column; min-height: 0; }
 .vc-ide .vc-ide-main .vc-src > .cm-editor,
 .vc-ide .vc-ide-main .vc-src.vc-mdiff > .cm-mergeView { flex: 0 1 auto; min-height: 0; max-height: none; }
@@ -33,4 +32,3 @@
 .vc-ide-bar > .vc-mod-bar { margin: 0; }
 
 /* Invariants seuls (invariants-view), à côté du menu de diff. */
-.vc-only-inv { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; font-size: 0.9em; cursor: pointer; }

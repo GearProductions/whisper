@@ -24,6 +24,12 @@
  *  comme le modèle, parmi EFFORT_LEVELS : le skill devient <skill>--<modèle>--<effort> (note
  *  0.13.0-fix-and-improvements).
  *  readArgs : les arguments que lit vraiment un gabarit (buildMessage en tire ses ignored).
+ *  La revue essentielle (note 0.16.0-revue-essentielle) : le catalogue tel que le rôle le lance.
+ *  roleDefs(defs: ActionDef[], flow: VibeFlow): ActionDef[] — en relecteur ('review'), une action d'étape ne fait que
+ *  lire : reads vrai pour chacune (l'alignement, qui corrige les tests chez le créateur, ne fait qu'une liste sur une
+ *  PR) — elle n'écrit que dans les sorties de l'agent et court avec les autres lectures ; une action sans étape (un
+ *  message de la conversation) et tout le reste de sa définition : inchangés, dans le même ordre ; en créateur : defs
+ *  tel quel.
  *  Ne connaît pas : Electron, le disque, l'agent (le message est rendu, pas envoyé),
  *  le calcul du préfixe (core/runner, fait par l'appelant).
  *  Utilisé par : core/vibecoder (journey, runs, defaults), core/commands (readArgs), app/controllers (vibecoder, runs), app/settings. */
@@ -31,7 +37,7 @@ import { EFFORTS } from 'core/agents';
 import { oneLine } from 'helpers';
 import { draftText, isVerdict } from 'shared/review';
 import { readCount } from 'shared/test-cases';
-import type { VibeAction, VibeArgs, VibeLang, VibeModule, VibeStepId, VibeView } from 'shared/bridge';
+import type { VibeAction, VibeArgs, VibeFlow, VibeLang, VibeModule, VibeStepId, VibeView } from 'shared/bridge';
 import { json } from './outputs';
 
 export type ActionDef = {
@@ -131,6 +137,10 @@ export function parseActions(json: unknown): ActionDef[] {
     return [{ id, flow, step: step as VibeStepId | null, kind, needs: needs as ActionDef['needs'], label, hint, text, reads: reads === true }];
   });
 }
+
+// Le catalogue tel que le rôle le lance : en relecteur, une action d'étape ne fait que lire (voir l'en-tête).
+export const roleDefs = (defs: ActionDef[], flow: VibeFlow): ActionDef[] =>
+  flow === 'review' ? defs.map((d) => (d.step && !d.reads ? { ...d, reads: true } : d)) : defs;
 
 const NO_ANSWER: Record<VibeLang, string> = { fr: '(pas de réponse)', en: '(no answer)' };
 

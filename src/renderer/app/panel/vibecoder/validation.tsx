@@ -12,7 +12,7 @@
  *  pressé, allumé de sa couleur, un second clic l'annule). Sur un « À revoir », onRemark (facultatif) ajoute le bouton
  *  « Ajouter une remarque au brouillon » : il ne fait qu'appeler onRemark.
  *  Ne connaît pas : le pont (rappels passés), le brouillon, ce que porte le cas ; de step-parts, que RunOn.
- *  Utilisé par : note-view (MarkControl, créateur et relecteur) ; commits-view, invariants-view (CaseVerdict). */
+ *  Utilisé par : note-view (MarkControl, créateur et relecteur) ; invariants-view (CaseVerdict). */
 import { t } from 'core/vibecoder';
 import type { VibeLang, VibeMarkState, VibeNoteCheck } from 'technicals/bridge';
 import { Icon } from './icons';

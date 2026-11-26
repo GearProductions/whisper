@@ -3,7 +3,7 @@
  *  onDraft({ edit })) et une croix (onDraft({ remove })). Grisées sous un élément (note, cas, commit) ;
  *  avec `target` (la liste du brouillon), la cible de chacune au-dessus, sans grisé.
  *  Ne connaît pas : le pont, le brouillon entier (les remarques qu'on lui passe).
- *  Utilisé par : draft-view, note-view, forme-view, invariants-view, commits-view. */
+ *  Utilisé par : draft-view, note-view, forme-view, invariants-view. */
 import { useState } from 'react';
 import type { Strings } from 'core/vibecoder';
 import type { VibeComment } from 'technicals/bridge';

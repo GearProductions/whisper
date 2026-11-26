@@ -56,6 +56,13 @@ async function show(review: Record<string, unknown>, draft: unknown[], verdict: 
 }
 const sent = { state: 'APPROVED', url, verdict: 'approve', body, at: '2026-11-06T10:00:00Z' };
 
+it('un brouillon vide : la phrase de essentialReview.draftEmpty, sans les commits', async () => {
+  await show({ state: 'APPROVED', url }, [], 'comment');
+  const text = page.querySelector('.vc-draft-empty')!.textContent;
+  expect(text).toBe(t('fr').essentialReview.draftEmpty);
+  expect(text).not.toMatch(/commit/);
+});
+
 it('une revue publiée, brouillon et verdict inchangés : Publier grisé, le résumé', async () => {
   const b = await show(sent, [remark], 'approve');
   expect(b.disabled).toBe(true);

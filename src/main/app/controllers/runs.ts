@@ -83,6 +83,9 @@
  *  au-delà de cfg.runTmpMax, elle est arrêtée comme par runOp stop (son processus et son verrou restent), sa
  *  réponse commence par tmpLine ; effacé à sa fin quelle qu'elle soit (finish, l'arrêt — garder ou annuler
  *  viennent après, plus rien à effacer —, closeRuns).
+ *  La revue essentielle (note 0.16.0-revue-essentielle) : viewLocks lit le catalogue tel que le rôle du relevé le lance
+ *  (roleDefs de core/vibecoder) — en relecteur, l'alignement en cours est une lecture : il ne retient pas les autres
+ *  lectures, et elles ne le retiennent pas ; startRun reçoit sa définition déjà passée par roleDefs (controllers/vibecoder).
  *  Ne connaît pas : la page, les fenêtres.
  *  Utilisé par : controllers/vibecoder (releaseWaits), controllers/agents,
  *  controllers/module-code, controllers/commands (runOp, runEnd, queuedOf), menus/agent-menus. */
@@ -94,7 +97,7 @@ import { agentList, vibeLang, type Config } from 'core/config';
 import type { PreparedImage } from 'core/conversation';
 import {
   cutCommands, cutLine, denialLine, endNotice, fileDecision, GRACE_MS, headField, holdsPause, isInvariantTest, listSkill, LOCKING,
-  lockCode, lockText, nextVibeMode, ownRun, parseQuestions, runEnv, runKey, runRules, skillModel, tmpLine, touched, touchedLine, unreadLine,
+  lockCode, lockText, nextVibeMode, ownRun, parseQuestions, roleDefs, runEnv, runKey, runRules, skillModel, tmpLine, touched, touchedLine, unreadLine,
   noticedOnShow, remainingModules, runPhase, runSignal, runTasks, workState, type ActionDef, type Run, type RunState, type VibeMode, type WorkState,
 } from 'core/vibecoder';
 import { gitReader, gitRun } from 'technicals/git';
@@ -616,10 +619,14 @@ export async function runOp(agent: AgentConfig, id: string, op: VibeRunOp): Prom
 }
 
 // Les courses et actions directes qui retenaient au relevé `view` (ce que le parcours a passé à blockedBy).
-export const viewLocks = (view: VibeView, defs: ActionDef[]) => [
-  ...(view.runs ?? []).filter((r) => LOCKING.includes(r.state)).map((r) => r.id),
-  ...view.actions.filter((a) => a.direct?.running).map((a) => a.id),
-].map((id) => ({ id, reads: !!defs.find((d) => d.id === id)?.reads }));
+// Le catalogue tel que le rôle du relevé le lance (roleDefs) : en relecteur, l'alignement en cours est une lecture.
+export function viewLocks(view: VibeView, defs: ActionDef[]) {
+  const launched = roleDefs(defs, view.flow);
+  return [
+    ...(view.runs ?? []).filter((r) => LOCKING.includes(r.state)).map((r) => r.id),
+    ...view.actions.filter((a) => a.direct?.running).map((a) => a.id),
+  ].map((id) => ({ id, reads: !!launched.find((d) => d.id === id)?.reads }));
+}
 
 // L'agent oublié (retiré, nouvelle session, robot d'un worktree retiré) : ses courses fermées et oubliées.
 export function closeRuns(agent: Pick<AgentConfig, 'id'>) {

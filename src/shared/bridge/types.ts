@@ -366,6 +366,7 @@ export type VibeTestFile = VibeFile & {
   staleCases?: string[];                 // les clés des cas dont le bloc a changé depuis la lecture ; absent = aucun
   marks: Record<string, VibeMarkState>;  // par clé de cas (caseKeys de shared/test-cases : le titre, « <titre> n° 2 »…)
   commonChanged?: string[];              // les clés des cas « changed » parce que le code commun du fichier a changé ; absent = aucun
+  changedFromBase?: string[];            // relecteur : les clés des cas d'avant la branche dont la PR a changé le bloc (un test protégé modifié) ; absent = aucun
   hashes?: { blocks: string[]; common: string };   // l'empreinte du bloc de chaque cas (ordre de cases) et du code commun ; absent : aucun cas ne se valide
   locked?: string | null;                // pourquoi il ne s'édite pas (codeLock) ; absent = null : éditable
 };
@@ -452,6 +453,7 @@ export type VibeView = {
   express?: boolean;                     // le rythme : express (aucune pause), sinon par défaut (deux pauses) ; absent : par défaut
   pause?: VibePause | null;              // créateur : la pause où se tient le parcours ; absent ou null : aucune
   proof?: VibeProof;                     // créateur : la preuve des invariants par mutation (preuve.md) ; absent : pas lue
+  prepare?: string[];                    // relecteur : les lectures que « Préparer la revue » lancerait (ids d'actions, dans l'ordre) ; vide : rien à lancer ; absent : créateur
   agent: { model: string; effort: string; mode: string };
   repo: { branch: string; base: string; changed: number } | null;
   error: string | null;                  // pourquoi le parcours manque (pas un dépôt, git introuvable…)

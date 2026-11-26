@@ -67,6 +67,12 @@
  *  (dont un changement d'agent) : runsSeen false.
  *  Les deux rythmes (note 0.16.0-controle-en-trois-points) : le fil d'Ariane reçoit onExpress, soit
  *  act.set({ express }) ; Reprendre, à une pause comme à l'arrêt, est l'action vibe.
+ *  La revue essentielle (note 0.16.0-revue-essentielle), en relecteur : le fil d'Ariane reçoit onPrepare — « Préparer la
+ *  revue » demande chaque lecture de view.prepare, dans l'ordre, une demande par lecture (act.run(id), sans argument),
+ *  rien d'autre ; view.prepare vide : aucune demande. Jamais de lui-même : ni à l'affichage, ni au changement d'arrêt,
+ *  ni à un nouveau relevé, ni au chargement d'une PR. Ctrl+1…4 ouvrent ses quatre arrêts (les étapes du relevé) ; une
+ *  étape retenue d'avant qui n'est plus dans son fil (Forme, Modules) : l'arrêt en cours. Le verdict proposé ne lit plus
+ *  les commits (proposedVerdict).
  *  Ne connaît pas : le pont (rappels passés), le contenu de la conversation.
  *  Utilisé par : panel-app. */
 import { Component, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
@@ -239,9 +245,10 @@ function Screen({ view, thread, act: given, tasks, tasksOpen, contextOpen, onGau
           </div>
         ) : (
         <section className="vc-center">
-          <Breadcrumb view={view} t={t} selected={branches ? null : step && step.id} onPick={pick} onOpen={act.open}
+          <Breadcrumb view={view} t={t} selected={branches ? null : step && step.id} onPick={pick}
             vibe={vibeAction ? { a: vibeAction, on: !!view.vibe } : null} onVibe={() => act.run('vibe')} onStopVibe={() => act.set({ vibe: false })}
-            onExpress={view.flow === 'review' ? undefined : (express) => act.set({ express })} />
+            onExpress={view.flow === 'review' ? undefined : (express) => act.set({ express })}
+            onPrepare={async () => { for (const id of view.prepare ?? []) await act.run(id); }} />
           {view.error ? <div className="vc-error" role="status"><b>{view.error}</b> {t.errorHint}</div> : null}
           {branches ? (
             <div className="vc-step scroll" key="branches"><Guard t={t}><BranchesView view={view} t={t} act={act} busy={busy} /></Guard></div>
