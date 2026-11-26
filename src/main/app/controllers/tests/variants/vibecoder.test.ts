@@ -1378,6 +1378,28 @@ describe('0.12.0 : Créer et Relire sur le même dossier, chaque choix une actio
     await refreshVibe({ now: true });
     expect((lastView('a1') as unknown as JourneyInput).request).toBe('feat/0.13.0-bouton');
   });
+
+  // Vu le 26 novembre 2026 : sur la base, l'agent demandait Rédiger la note par sa CLI pendant son propre tour ; la nouvelle
+  // demande va à sa conversation, donc toujours refusée, avec « L'agent travaille » : un faux motif, rien ne tournait.
+  it('Rédiger la note sur la base, l\'agent au travail : refusée, et le refus dit de créer d\'abord la branche (pas « L\'agent travaille »)', async () => {
+    fake.facts = { ...fake.facts as object, branch: 'main' };
+    await open();
+    const { sendToAgent, runVibeAction, refreshVibe } = await import('app/controllers');
+    const { loadConfig } = await import('app/settings');
+    fake.busy = true;
+    const cfg = loadConfig();
+    expect(sendToAgent(cfg.agents![0], { text: 'une question', images: [] }, cfg)).toEqual({ ok: true });   // son tour dure
+    await until(() => fake.messages.length > 0);
+    await refreshVibe({ now: true });
+    const res = await runVibeAction('note', { text: 'ajouter un bouton' });
+    expect(res).toMatchObject({ ok: false });
+    const error = (res as { error?: string }).error ?? '';
+    expect(error).toMatch(/branche/);
+    expect(error).not.toMatch(/^L'agent travaille|travaille encore : message non/);   // ni le grisé du relevé, ni le refus d'envoi
+    expect(fake.messages).toHaveLength(1);   // rien d'envoyé à sa conversation
+    fake.busy = false;
+    fake.release();
+  });
 });
 
 describe('0.13.0 : les artefacts', () => {

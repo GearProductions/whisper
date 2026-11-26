@@ -34,6 +34,7 @@ Run it when the user asks (« où en sont les actions ? »): answer in a few lin
 
 ## Rules
 
+- **The note on the base branch**: there, `note` becomes a new request sent to your own conversation, so you can never start it yourself (refused while you work). Create the ticket's branch first (`git switch -c <type>/<ticket>-<slug>` from the base, up to date), then `run start note`.
 - Outside *Vibe*: start or stop an action only when the user asks for it. *Vibe* on: you chain them yourself (skill `vibe`). *Vibe* stopped, or the journey at a pause the user holds (a request refused `halted`, « Vibe was stopped by the user, or the journey is at a pause the user holds »): start nothing more, tell the user where you stand and what to look at. The engine is resumed by the `vibe` action (the screen's *Resume*), on the user's word.
 - Never start an action already running or waiting. Never edit files an action is modifying.
 - `ponytail` (the ponytail review): started by the app when `checks` starts (all the checks), not by you; `align` likewise runs inside `invariants`.
