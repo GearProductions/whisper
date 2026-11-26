@@ -343,7 +343,7 @@ describe.skipIf(process.platform === 'win32')('relecteur : une lecture finie ret
     expect(readMarks()).toEqual({ 'read:review-note': { hash: from, verdict: 'ok' } });
   }, 30000);
 
-  it('chaque lecture finie pose sa marque, quelle qu’elle soit : une par action', async () => {
+  it('chaque lecture finie pose sa marque, quelle qu’elle soit : une par action (sauf le pseudo-code des tests)', async () => {
     await reviewer();
     const from = head();
     for (const id of READINGS) await click(id);
@@ -353,7 +353,7 @@ describe.skipIf(process.platform === 'win32')('relecteur : une lecture finie ret
     await refresh();
 
     // la même tête, une marque par lecture
-    expect(readMarks()).toEqual(Object.fromEntries(READINGS.map((id) => [`read:${id}`, { hash: from, verdict: 'ok' }])));
+    expect(readMarks()).toEqual(Object.fromEntries(READINGS.filter((id) => id !== 'read-invariants').map((id) => [`read:${id}`, { hash: from, verdict: 'ok' }])));
   }, 30000);
 
   it('lancée par la CLI : la même marque', async () => {

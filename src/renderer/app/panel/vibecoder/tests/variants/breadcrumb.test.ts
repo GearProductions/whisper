@@ -302,10 +302,12 @@ it('un clic sur Préparer la revue : son rappel, une fois, rien d\'autre ; rien 
   await m.unmount();
 });
 
-it('rien à lancer : le bouton grisé, sa raison en infobulle (tout lu, ou des lectures en cours) ; un clic ne fait rien', async () => {
+it('rien à lancer : le bouton grisé, sa raison en infobulle (tout lu, des lectures en cours, ou le dossier sur une autre branche) ; un clic ne fait rien', async () => {
   calls.length = 0;
   const running = [{ id: 'r', label: 'align', state: 'running' }] as never;
-  for (const [over, why] of [[{ prepare: [] }, s.essentialReview.prepare.ready], [{ prepare: undefined }, s.essentialReview.prepare.ready], [{ prepare: [], runs: running }, s.essentialReview.prepare.running]] as [Partial<VibeView>, string][]) {
+  const elsewhere = { branch: 'autre', base: 'master', changed: 0 } as never;
+  for (const [over, why] of [[{ prepare: [] }, s.essentialReview.prepare.ready], [{ prepare: undefined }, s.essentialReview.prepare.ready], [{ prepare: [], runs: running }, s.essentialReview.prepare.running],
+    [{ prepare: [], repo: elsewhere }, s.essentialReview.statusLine.switchBranch]] as [Partial<VibeView>, string][]) {
     const m = await mount(reviewer(over), [], [], null, undefined, { onPrepare: prepare });
     const b = prepareBtn(m.page)[0];
     expect([b.disabled, b.title.includes(why)]).toEqual([true, true]);

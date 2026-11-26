@@ -40,6 +40,11 @@ describe('readEnd', () => {
     expect(readEnd(marks, { action: 'screen', state: 'done', head: H2 })).toEqual({ ...marks, 'read:screen': mark(H2) });
   });
 
+  it('le pseudo-code des tests : aucune marque (il suit l’empreinte des tests, pas la tête)', () => {
+    const marks = {};
+    expect(readEnd(marks, { action: 'read-invariants', state: 'done', head: H1 })).toBe(marks);
+  });
+
   it('une action qui n’est pas une lecture : marks tel quel', () => {
     const marks = {};
     expect(readEnd(marks, { action: 'commit', state: 'done', head: H1 })).toBe(marks);
@@ -88,6 +93,10 @@ describe('toPrepare', () => {
 
   it('une PR sans test d’invariant : pas le pseudo-code', () => {
     expect(toPrepare(done({ marks: {}, outputs: [], unread: true, tests: 0 }))).toEqual(['review-note', 'align', 'review-commits', 'screen']);
+  });
+
+  it('une PR sans note ni test d’invariant : pas d’alignement non plus', () => {
+    expect(toPrepare(done({ marks: {}, outputs: [], unread: true, note: false, tests: 0 }))).toEqual(['review-commits', 'screen']);
   });
 
   it('pas de PR chargée : aucune', () => {

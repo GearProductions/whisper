@@ -1,8 +1,8 @@
 /** i18n — les libellés de l'écran VibeCoder, en français et en anglais
  *  (vibeLang) : en-tête (dont le bouton de la branche, le badge Relecteur et son
  *  infobulle : plus de mode Créer / Relire, l'appli décide du rôle), le fil
- *  d'Ariane des étapes (son aria-label journey, « N commits » à son bout),
- *  étapes (toutes s'ouvrent), l'interrupteur IDE / liste de Modules et Structure / Code de Forme, Relancer (une action, pas le moteur), Arrêter, onglets Conversation /
+ *  d'Ariane des étapes (son aria-label journey),
+ *  étapes (toutes s'ouvrent), Relancer (une action, pas le moteur), Arrêter, onglets Conversation /
  *  Actions / Tâches / Processus, Arrêter et Reprendre (le bouton du moteur, au fil d'Ariane ; plus « Arrêter Vibe »), le champ d'une étape,
  *  l'onglet Actions (états d'une course, Garder / Annuler, Autoriser /
  *  Toujours / Refuser), zone de commentaire, barre d'état
@@ -167,7 +167,7 @@ const fr = {
     'questions.md': 'Questions ouvertes', 'align.md': 'Alignement note · forme · invariants', 'review.md': 'Relecture du diff',
     'commit.md': 'Commit proposé', 'checks.json': 'Vérifications', 'ponytail.md': 'Ponytail review', 'pr.json': 'PR ouverte',
     'ci.md': 'CI', 'pr-#.json': 'PR chargée', 'pr-#-note.md': 'Relecture de la note',
-    'pr-#-commits.md': 'Relecture des commits', 'pr-#-review.json': 'Revue publiée',
+    'pr-#-review.json': 'Revue publiée',
     'preuve.md': 'Preuve des invariants',
   } as Record<string, string>,
   needText: 'Dictez ou écrivez d\'abord votre demande dans le champ, puis cliquez.',
@@ -422,7 +422,7 @@ const en: Strings = {
     'questions.md': 'Open questions', 'align.md': 'Alignment note · shape · invariants', 'review.md': 'Diff review',
     'commit.md': 'Proposed commit', 'checks.json': 'Checks', 'ponytail.md': 'Ponytail review', 'pr.json': 'Opened PR',
     'ci.md': 'CI', 'pr-#.json': 'Loaded PR', 'pr-#-note.md': 'Note review',
-    'pr-#-commits.md': 'Commits review', 'pr-#-review.json': 'Published review',
+    'pr-#-review.json': 'Published review',
     'preuve.md': 'Proof of the invariants',
   },
   needText: 'First dictate or write your request in the field, then click.',

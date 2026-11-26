@@ -26,7 +26,7 @@ The PR is the branch of this folder (`HEAD`), checked out; its base is the `base
 - File headers still true to the contract; no import breaking a « ne connaît pas ».
 - Glue code and whatever touches rights or data: read in full. A generic module: judge it by its imports.
 
-Say nothing about the history of the commits (their order, the first commit, one commit per module, `wip` or `fix` commits, a file in the wrong commit, a module too big: the PR is squashed), nor about a protected test the PR changes (the app says it on that test).
+Say nothing about the history of the commits (their order, the first commit, one commit per module, `wip` or `fix` commits, a file in the wrong commit, a module too big: the PR is squashed), nor about a protected test the PR changes (the app says it on that test) — except a protected test file the PR deletes, or a case it removes: the app says nothing there, name it as a finding.
 
 ## `<out>/pr-<n>-commits.md`, in English
 

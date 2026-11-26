@@ -639,6 +639,11 @@ describe('Relecteur : la revue essentielle, quatre arrêts (0.16.0)', () => {
       expect(changed(TEST)).toBeUndefined();
     });
 
+    it('le code commun du fichier a changé (setup, helper) : tous les cas d\'avant la branche', () => {
+      expect(changed(`const x = 1;\n${TEST}`)).toEqual(['dit bonjour', 'ne lit rien d\'autre']);
+      expect(changed(`const x = 1;\nit("dit bonjour", () => {});\n`)).toEqual(['dit bonjour']);
+    });
+
     it('un fichier ajouté par la branche (base null), une base inconnue : rien', () => {
       expect(changed(null)).toBeUndefined();
       expect(changed(undefined)).toBeUndefined();

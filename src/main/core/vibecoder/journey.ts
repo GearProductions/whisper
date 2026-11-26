@@ -134,7 +134,7 @@
  *    de marks, pour son contenu d'aujourd'hui) : toutes, pas seulement la première, que nomme la pause ;
  *  - l'état de la preuve quitte les faits de l'étape Modules pour ceux de l'étape Invariants (il ne se dit qu'à un
  *    endroit) ; « modifiée depuis la validation » et « à revoir » restent seuls dans leur en-tête ;
- *  - rien n'est retiré du relevé : les actions, checklist et modulesView (recopié : le créateur ne le lit plus, le relecteur si) restent.
+ *  - rien n'est retiré du relevé : les actions, checklist et modulesView (recopié : le créateur ne le lit plus, le relecteur non plus : plus d'étape Modules) restent.
  *  La revue essentielle (note 0.16.0-revue-essentielle), en relecteur ; le créateur : rien ne change (ses six étapes, sa
  *  pause, ses faits, ses actions) :
  *  - son fil a quatre arrêts, dans cet ordre : 'note' (faite : la note jugée, ✓ ou ✗), 'invariants' (les règles : chaque
@@ -146,8 +146,9 @@
  *    PR, les marques « read:<action> », les sorties présentes, les lectures des tests, les courses et la file) ; vide
  *    sans PR chargée ou le dossier ailleurs ; absent en créateur ;
  *  - changedFromBase de chaque test d'invariant : les clés des cas qui existaient à la base de la branche et dont le
- *    bloc a changé (caseBlocks du texte à la base contre celui d'aujourd'hui) — un test protégé que la PR modifie, dit
- *    sans agent ni lecture ; un fichier ajouté par la branche, une base inconnue : absent ;
+ *    bloc a changé (caseBlocks du texte à la base contre celui d'aujourd'hui), toutes si le code commun du fichier (setup,
+ *    helpers) a changé — un test protégé que la PR modifie, dit sans agent ni lecture ; un fichier ajouté par la branche, une
+ *    base inconnue : absent ; un cas ou un fichier retiré : pas dit ici (relire-commits le dit) ;
  *  - ses actions viennent de roleDefs (actions) : l'alignement est une lecture, une autre lecture en cours ne le grise pas ;
  *  - rien n'est retiré du relevé ni du registre : chaque lecture reste lançable seule (review-note, read-invariants,
  *    align, review-commits, screen), les commits et leurs marques « commit:<hash> » restent au relevé (la page ne les
@@ -419,9 +420,11 @@ export function vibeView(input: JourneyInput): VibeView {
     const r = caseReading(t, readings);
     const { keys, blocks, common } = caseBlocks(t.text);
     const states = keys.map((k, j) => caseMarkState(marks, caseTarget(t.path, k), { hash: blocks[j], common }));
-    // Relecteur : les cas d'avant la branche dont le bloc a changé (le texte à la base contre celui d'aujourd'hui) ; ajouté ou base inconnue : aucun.
+    // Relecteur : les cas d'avant la branche dont le bloc a changé (le texte à la base contre celui d'aujourd'hui), tous si le code
+    // commun du fichier (setup, helpers) a changé ; ajouté ou base inconnue : aucun.
     const was = flow === 'review' && t.base != null && t.base.length <= SOURCE_MAX ? caseBlocks(t.base) : null;
-    const changedFromBase = was ? keys.filter((k, j) => was.blocks[was.keys.indexOf(k)] !== undefined && was.blocks[was.keys.indexOf(k)] !== blocks[j]) : [];
+    const atBase = was && new Map(was.keys.map((k, j) => [k, was.blocks[j]]));
+    const changedFromBase = was && atBase ? keys.filter((k, j) => atBase.has(k) && (was.common !== common || atBase.get(k) !== blocks[j])) : [];
     const commonChanged = keys.filter((_, j) => states[j] === 'common');   // 'common' : rendu 'changed'
     return {
       id: `t${i}`, path: t.path, blob: t.blob, cases: t.cases, lines: t.lines, source: t.text.length > SOURCE_MAX ? '' : t.text,

@@ -49,12 +49,15 @@ export function Breadcrumb({ view, t, selected, vibe, onPick, onVibe, onStopVibe
     <button type="button" className="vc-run" data-tone="vibe" disabled={!!vibe.a.disabled}
       title={vibe.a.disabled ? `${vibe.a.hint}\n— ${vibe.a.disabled}` : vibe.a.hint} onClick={onVibe}>{vibe.a.label}</button>
   )) : null;
-  // Le bouton du relecteur : grisé s'il n'y a rien à lancer (view.prepare vide), la raison dite selon que des lectures courent.
+  // Le bouton du relecteur : grisé s'il n'y a rien à lancer (view.prepare vide), la raison dite selon que des lectures courent, ou
+  // que le dossier n'est pas sur la branche de la PR (le principal vide alors prepare : rien n'est lu pour autant).
   const p = t.essentialReview.prepare;
   const nothing = !view.prepare?.length;
+  const elsewhere = !!view.repo && !!view.pr && view.repo.branch !== view.pr.head;
+  const why = elsewhere ? t.essentialReview.statusLine.switchBranch : runningRuns(view.runs ?? []).length ? p.running : p.ready;
   const prepare = review && view.pr && onPrepare ? (
     <button type="button" className="vc-run vc-prepare" data-tone="vibe" disabled={nothing}
-      title={nothing ? `${p.title}\n— ${runningRuns(view.runs ?? []).length ? p.running : p.ready}` : p.title} onClick={onPrepare}>{p.label}</button>
+      title={nothing ? `${p.title}\n— ${why}` : p.title} onClick={onPrepare}>{p.label}</button>
   ) : null;
   return (
     <nav className="vc-crumbs" aria-label={t.journey}>

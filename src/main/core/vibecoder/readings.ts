@@ -8,12 +8,13 @@
  *  « read:<action> » des marques porte le commit de tête d'où elle est partie (end.head, retenu par l'appelant à son
  *  départ, qu'elle vienne de l'écran, de la CLI ou de la file) ; en échec, arrêtée, ou la tête inconnue (null : l'appli
  *  relancée entre-temps) : marks tel quel, elle sera relancée. Une marque d'avant, pour une autre tête, est remplacée.
+ *  read-invariants n'en pose pas : toPrepare le suit par l'empreinte de ses tests, jamais par la tête.
  *  La page ne pose jamais cette cible (targetHash de marks ne la connaît pas).
  *  toPrepare(input: PrepareInput): string[] — celles que « Préparer la revue » lancerait maintenant, dans l'ordre de
  *  READINGS : sa sortie manque, ou sa marque « read:<action> » ne porte pas la tête d'aujourd'hui (lue sur une autre
  *  tête de la PR, jamais finie) ; read-invariants suit l'empreinte de ses tests et non la tête (unread : un cas pas lu
  *  ou à lecture périmée) ; jamais une lecture en cours ou en file (live) ; review-note seulement si la PR a une note,
- *  read-invariants seulement si elle a des tests d'invariants ; sans PR chargée (pr null : pas de PR suivie, ou le
+ *  read-invariants seulement si elle a des tests d'invariants, align si elle a l'un ou l'autre ; sans PR chargée (pr null : pas de PR suivie, ou le
  *  dossier ailleurs que sur sa tête) : aucune. Rien n'est comparé à une heure : seulement des commits et des empreintes.
  *  Ne connaît pas : Electron, le disque, git (la tête est passée), les courses (leur fin et leur état sont passés), qui
  *  lance une lecture.
@@ -26,7 +27,7 @@ export const READINGS: readonly string[] = ['review-note', 'read-invariants', 'a
 export type ReadEnd = { action: string; state: 'done' | 'failed' | 'stopped'; head: string | null };
 
 export function readEnd(marks: Marks, { action, state, head }: ReadEnd): Marks {
-  return state === 'done' && head !== null && READINGS.includes(action) ? setMark(marks, `read:${action}`, head, 'ok') : marks;
+  return state === 'done' && head !== null && READINGS.includes(action) && action !== 'read-invariants' ? setMark(marks, `read:${action}`, head, 'ok') : marks;
 }
 
 export type PrepareInput = {
@@ -48,7 +49,7 @@ export function toPrepare({ pr, head, marks, outputs, note, tests, unread, live 
   const todo: Record<string, boolean> = {
     'review-note': note && !(has(`pr-${pr}-note.md`) && readAt('review-note')),
     'read-invariants': tests > 0 && unread,
-    align: !(has('align.md') && has('liens.md') && readAt('align')),
+    align: (note || tests > 0) && !(has('align.md') && has('liens.md') && readAt('align')),
     'review-commits': !(has(`pr-${pr}-commits.md`) && readAt('review-commits')),
     screen: !(has('ecran.md') && readAt('screen')),
   };

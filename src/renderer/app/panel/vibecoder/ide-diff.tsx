@@ -6,15 +6,15 @@
  *  vide) ; la référence gardée y retombe sur la base. La référence filtre l'arborescence
  *  (diffTree) ; Fichier garde le filtre de la dernière référence. Gardé par agent et par étape (useKept) ;
  *  showValidated passe sur Depuis la validation (le clic sur « modifiée depuis la validation » de StepHead).
- *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : le menu (useIdeDiff, inchangé) ne sert plus qu'au relecteur, à
- *  l'étape Invariants ; le créateur ne l'a plus. Pour lui, un seul affichage, le diff depuis la base de la branche, en
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : le menu (useIdeDiff, inchangé) n'a plus d'appelant (le relecteur
+ *  n'a plus de vue des tests) ; le créateur ne l'a plus. Pour lui, un seul affichage, le diff depuis la base de la branche, en
  *  ligne ; une seule bascule, sur ce qui a changé depuis la validation de l'étape, et retour :
  *  useCreatorDiff(view: VibeView, step: VibeDiffStep): CreatorDiff — { shown: 'base' | 'validated';
  *  filter(files: IdeFile[]): IdeFile[]; empty: string; toggleValidated(): void } ; shown : 'validated' seulement si
  *  l'étape a une validation (diffRefs), sinon 'base' ; toggleValidated : sans validation, rien. Ni bar, ni mode, ni
  *  Fichier, ni Depuis le dernier commit. Gardé par agent et par étape (useKept).
  *  Ne connaît pas : le pont, le disque, les marques (step.check et view.diffs du relevé).
- *  Utilisé par : invariants-view (le relecteur : useIdeDiff), modules-view (le créateur : useCreatorDiff). */
+ *  Utilisé par : modules-view (le créateur : useCreatorDiff). */
 import type { ReactNode } from 'react';
 import { diffRefs, diffTree, type DiffRef, type IdeFile } from 'core/vibecoder';
 import type { VibeDiffStep, VibeLang, VibeView } from 'technicals/bridge';

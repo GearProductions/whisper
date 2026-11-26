@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { crumbCheck, waitingFor, diffRefs, diffTree, formeText, inForme, goneModule, ideFiles, invariantTree, moduleCounts, moduleState } from 'core/vibecoder';
+import { crumbCheck, waitingFor, diffRefs, diffTree, formeText, inForme, goneModule, ideFiles, moduleCounts, moduleState } from 'core/vibecoder';
 import type { IdeFile } from 'core/vibecoder';
-import type { VibeDiffs, VibeModule, VibeStep, VibeStepCheck, VibeTestFile } from 'technicals/bridge';
+import type { VibeDiffs, VibeModule, VibeStep, VibeStepCheck } from 'technicals/bridge';
 
 const mod = (path: string, o: Partial<VibeModule> = {}): VibeModule => ({ path, paths: [path], contract: '', file: null, touched: false, commits: [], ...o });
 const f = (id: string, path: string, deleted?: true) => ({ id, path, ...(deleted && { deleted }) });
@@ -148,61 +148,6 @@ describe('ideFiles : les variants de la branche (Modules)', () => {
 
   it('by module (Forme) : aucun variant ajouté', () => {
     expect(ideFiles({ modules, files: branch, variants }, 'module').map((r) => r.path)).toEqual(['a/', 'b.ts', 'c.ts']);
-  });
-});
-
-describe('invariantTree', () => {
-  const test = (path: string, o: Partial<VibeTestFile> = {}) =>
-    ({ id: path, path, blob: '', cases: ['x'], lines: [], source: 'v2', base: 'v1', reading: null, marks: { x: null }, ...o }) as VibeTestFile;
-  const file = (path: string) => ({ id: path, path, git: 'new' as const, locked: null });
-
-  it('sans module, des fichiers changés par la branche : les tests seuls', () => {
-    const rows = invariantTree({ modules: [], files: [file('src/a.ts'), file('a.test.ts')], invariants: [test('a.test.ts')] });
-    expect(rows.map((r) => r.path)).toEqual(['a.test.ts']);
-  });
-
-  it('sans module ni test : aucune ligne', () => {
-    expect(invariantTree({ modules: [], files: [file('a.ts')], invariants: [] })).toEqual([]);
-  });
-
-  it('avec Forme : ses fichiers dim, rank et code comme à l’étape Forme (pas touché : code null)', () => {
-    const view = { modules, files: [], invariants: [] };
-    expect(invariantTree(view)).toEqual(ideFiles(view, 'module').map((r) => ({ ...r, dim: true })));
-    expect(invariantTree(view).map((r) => [r.rank, r.code === null])).toEqual([[0, false], [1, false], [2, true]]);
-  });
-
-  it('les tests : sans rank, leur test (rang dans view.invariants), pas dim, code null, état comme avant', () => {
-    const rows = invariantTree({ modules: [todo], files: [], invariants: [test('a.test.ts', { marks: { x: 'ok' }, base: 'v2' }), test('b.test.ts', { base: 'v2' })] });
-    expect(rows.slice(1)).toEqual([
-      { path: 'a.test.ts', rank: null, state: 'done', mark: null, code: null, test: 0 },
-      { path: 'b.test.ts', rank: null, state: 'todo', mark: null, code: null, test: 1 },
-    ]);
-    expect(rows[0]).toMatchObject({ path: 'c.ts', dim: true });
-    expect(rows.slice(1).every((r) => !r.dim)).toBe(true);
-  });
-
-  it('deux cas de même titre, un seul ✓ : le test n\u2019est pas done (marques lues par clé)', () => {
-    const row = (marks: VibeTestFile['marks']) => invariantTree({ modules: [], files: [], invariants: [test('a.test.ts', { cases: ['t', 't'], marks })] })[0].state;
-    expect(row({ t: 'ok', 't n° 2': null })).toBe('wip');
-    expect(row({ t: 'ok', 't n° 2': 'ok' })).toBe('done');
-  });
-
-  it('base absente : new ; base différente : modified ; égale : null, commité ou non ; base inconnue : aucune couleur', () => {
-    const rows = invariantTree({
-      modules: [],
-      files: [file('same.test.ts')],   // non commité, mais texte inchangé
-      invariants: [test('none.test.ts', { base: null }), test('unknown.test.ts', { base: undefined }), test('diff.test.ts'), test('same.test.ts', { base: 'v2' })],
-    });
-    expect(rows.map((r) => [r.path, r.mark])).toEqual([['none.test.ts', 'new'], ['unknown.test.ts', null], ['diff.test.ts', 'modified'], ['same.test.ts', null]]);
-  });
-
-  it('une base vide (fichier vide à la base) n’est pas une base absente', () => {
-    expect(invariantTree({ modules: [], files: [], invariants: [test('e.test.ts', { base: '' })] })[0].mark).toBe('modified');
-  });
-
-  it('un test qui est aussi un chemin de la Forme : une seule ligne, le test', () => {
-    const rows = invariantTree({ modules: [mod('a.test.ts'), mod('b.ts')], files: [], invariants: [test('a.test.ts')] });
-    expect(rows.map((r) => [r.path, r.test, r.dim, r.rank])).toEqual([['b.ts', undefined, true, 1], ['a.test.ts', 0, undefined, null]]);
   });
 });
 
