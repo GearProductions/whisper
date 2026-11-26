@@ -38,8 +38,9 @@ export type ErrorCode = typeof ERROR_CODES[number];
 
 export type CommandRequest = { command: string; args?: unknown; door: 'screen' | 'agent' };
 /** view : le relevé du dossier visé (null : pas encore de relevé) ; queued : les demandes en attente d'une course (runs) ;
- *  halted : le mode Vibe du robot est arrêté, à la porte agent : run.start et les commandes de départ sont refusés. */
-export type CommandContext = { view: VibeView | null; defs: ActionDef[]; queued?: { action: string; by: string }[]; halted?: boolean };
+ *  halted : le mode Vibe du robot est arrêté, à la porte agent : run.start et les commandes de départ sont refusés ; un texte :
+ *  la raison, rendue en détail (reason). */
+export type CommandContext = { view: VibeView | null; defs: ActionDef[]; queued?: { action: string; by: string }[]; halted?: boolean | string };
 /** reason : la clé du refus ; by : l'action qui retient ; ignored : les arguments qui ne servent pas ;
  *  done : la fin du travail, attendue avant de répondre (les artefacts), son refus rendu comme les autres. */
 export type OpOutcome = { ok: boolean; error?: string; reason?: string; by?: string; ignored?: string[]; done?: Promise<OpOutcome>; why?: string };
@@ -105,7 +106,7 @@ export async function execute(
     if (!view) return fail('no-survey');
     const a = args as Record<string, unknown>;
     const props = Object.keys(def.args.properties ?? {});
-    if (ctx.halted && (def.name === 'run.start' || START.includes(def.name))) return fail('halted');
+    if (ctx.halted && (def.name === 'run.start' || START.includes(def.name))) return fail('halted', typeof ctx.halted === 'string' ? { reason: ctx.halted } : {});
 
     switch (def.name) {
       case 'status': return ok(statusOf(view));
