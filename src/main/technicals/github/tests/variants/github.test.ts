@@ -47,6 +47,21 @@ describe('la CI d’après statusCheckRollup', () => {
     expect(ciOf([done('a', 'SUCCESS'), null])).toEqual({ state: 'pending', failed: [] });
   });
 
+  it('ACTION_REQUIRED : un échec, ko', () => {
+    expect(ciOf([done('a', 'ACTION_REQUIRED')])).toEqual({ state: 'ko', failed: ['a'] });
+  });
+
+  it('un check relancé : seul le plus récent compte (relancé, vert : ok ; relancé, en cours : pending ; relancé, rouge : ko)', () => {
+    const at = (o: object, startedAt: string) => ({ ...o, startedAt });
+    expect(ciOf([at(done('a', 'FAILURE'), '2026-01-01T10:00:00Z'), at(done('a', 'SUCCESS'), '2026-01-01T10:05:00Z')])).toEqual({ state: 'ok', failed: [] });
+    expect(ciOf([at(done('a', 'SUCCESS'), '2026-01-01T10:05:00Z'), at(done('a', 'FAILURE'), '2026-01-01T10:00:00Z')])).toEqual({ state: 'ok', failed: [] });
+    expect(ciOf([at(done('a', 'FAILURE'), '2026-01-01T10:00:00Z'), at(run('a', 'IN_PROGRESS'), '2026-01-01T10:05:00Z')])).toEqual({ state: 'pending', failed: [] });
+    expect(ciOf([at(done('a', 'SUCCESS'), '2026-01-01T10:00:00Z'), at(done('a', 'FAILURE'), '2026-01-01T10:05:00Z')])).toEqual({ state: 'ko', failed: ['a'] });
+    // un même nom dans deux workflows : deux checks
+    const wf = (workflowName: string, c: object) => ({ ...c, workflowName });
+    expect(ciOf([wf('w1', done('a', 'FAILURE')), wf('w2', done('a', 'SUCCESS'))])).toEqual({ state: 'ko', failed: ['a'] });
+  });
+
   it('un échec sans nom lisible : ko quand même', () => {
     expect(ciOf([{ __typename: 'CheckRun', status: 'COMPLETED', conclusion: 'FAILURE' }])).toEqual({ state: 'ko', failed: [''] });
   });

@@ -64,7 +64,7 @@ export function statusLine(view: VibeView): StatusLine | null {
   const pause = view.pause ?? null;
   if (!view.note?.filled) return yours(l.noNote);
   if (view.questions.length) return yours(l.questions(view.questions.length));
-  // l'étape Note d'après le relevé, pas la marque brute : une fois un module commencé, la note « changed » compte encore
+  // l'étape Note d'après le relevé, pas la marque brute : faite seulement pour la conception d'aujourd'hui (la marque 'ok')
   if (view.steps.find((x) => x.id === 'note')?.status !== 'done') return yours(pause === 'note' ? s.pause.note : l.verifyNote);
   // un test noté « À revoir » retient le parcours à la pause de l'étape Invariants : la ligne dit combien, et à qui le dire
   const ko = pause === 'withdrawn:invariants' ? progress(view.invariants).ko : 0;
@@ -80,8 +80,9 @@ export function statusLine(view: VibeView): StatusLine | null {
   // la pause après les invariants revenue : des tests ont changé depuis que l'utilisateur les a laissés passer (leur ✓ « changed »)
   if (pause === 'invariants' && view.steps.find((x) => x.id === 'invariants')?.check?.state === 'changed') return yours(l.relook);
   if (pause === 'invariants' || pause === 'modules') return yours(l.pause[pause]);
-  // la note revalidée dont le changement n'est pas commité : le système l'applique à la reprise (Reprendre reste, pas over)
-  if (view.note.git === 'modified') return yours(l.applyNote);
+  // la note revalidée dont le changement n'est pas commité : le système l'applique à la reprise (Reprendre reste, pas over) ;
+  // une PR fusionnée ou fermée garde sa ligne, sans Reprendre
+  if (view.note.git === 'modified' && (!view.pr?.state || view.pr.state === 'OPEN')) return yours(l.applyNote);
   if (view.pr && (!view.pr.state || view.pr.state === 'OPEN')) {   // état inconnu : ouverte, comme pr-view
     const ci = view.pr.ci?.state;   // d'après gh seul (jamais ci.md) ; absent : inconnu, ni verte ni over
     if (ci === 'ok') return view.steps.every((x) => x.status === 'done') ? { ...yours(l.green), over: true } : yours(l.green);

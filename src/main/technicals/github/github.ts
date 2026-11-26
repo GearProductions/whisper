@@ -36,18 +36,27 @@ export type GhPr = { number: number; title: string; url: string; state: string; 
 
 // statusCheckRollup (gh pr view) → l'état des checks : 'ko' un en échec, 'pending' un en cours ou aucun, sinon 'ok'.
 // CheckRun : status COMPLETED + conclusion (vide tant qu'il tourne) ; StatusContext : state. Seules ces valeurs
-// sont des passés : tout le reste (en cours, entrée illisible) compte comme en cours, jamais vert.
-const CI_PASSED = ['SUCCESS', 'NEUTRAL', 'SKIPPED', 'STALE'];
+// sont des passés ; CI_FAILED sont des échecs (ACTION_REQUIRED compris, comme gh pr checks) ; tout le reste (en cours,
+// entrée illisible) compte comme en cours, jamais vert. Un check relancé garde son ancien CheckRun à côté du nouveau :
+// seul le plus récent (startedAt) par workflowName + name compte.
+const CI_PASSED = ['SUCCESS', 'NEUTRAL', 'SKIPPED'];
+const CI_FAILED = ['FAILURE', 'CANCELLED', 'TIMED_OUT', 'STARTUP_FAILURE', 'ERROR', 'ACTION_REQUIRED'];
 export function ciOf(rollup: unknown): VibeCi {
   const failed: string[] = [];
   let pending = !Array.isArray(rollup) || rollup.length === 0;
-  for (const c of Array.isArray(rollup) ? rollup : []) {
+  const latest = new Map<string, Record<string, unknown>>();
+  (Array.isArray(rollup) ? rollup : []).forEach((c, i) => {
     const e = (c && typeof c === 'object' ? c : {}) as Record<string, unknown>;
+    const name = e.name ?? e.context;
+    const key = typeof name === 'string' && name ? `${e.workflowName ?? ''}\u0000${name}` : `#${i}`;   // sans nom : jamais écarté
+    const old = latest.get(key);
+    if (!old || String(e.startedAt ?? '') >= String(old.startedAt ?? '')) latest.set(key, e);
+  });
+  for (const e of latest.values()) {
     const verdict = e.__typename === 'CheckRun' ? (e.status === 'COMPLETED' ? e.conclusion : 'PENDING')
       : e.__typename === 'StatusContext' ? e.state : 'PENDING';
-    if (verdict === 'FAILURE' || verdict === 'CANCELLED' || verdict === 'TIMED_OUT' || verdict === 'STARTUP_FAILURE' || verdict === 'ERROR') {
-      failed.push(String(e.name ?? e.context ?? ''));
-    } else if (!CI_PASSED.includes(verdict as string)) pending = true;
+    if (CI_FAILED.includes(verdict as string)) failed.push(String(e.name ?? e.context ?? ''));
+    else if (!CI_PASSED.includes(verdict as string)) pending = true;
   }
   return { state: failed.length ? 'ko' : pending ? 'pending' : 'ok', failed };
 }

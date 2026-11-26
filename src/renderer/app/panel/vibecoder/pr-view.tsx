@@ -16,6 +16,7 @@
  *  du brouillon vide, dans draft-view, ne cite plus les commits). StepHead n'a plus d'actions à écarter (own retiré).
  *  Le créateur : inchangé.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
+import { t } from 'core/vibecoder';
 import type { VibeCi, VibeLang } from 'technicals/bridge';
 import { DraftView } from './draft-view';
 import { FindingsView } from './findings-view';
@@ -26,7 +27,6 @@ const fr = {
   noPr: 'Pas encore de PR pour cette branche',
   ciRuns: 'La CI tourne',
   ciKo: 'La CI est en échec',
-  ciUnknown: 'La PR est ouverte : état de la CI inconnu',
 };
 const S: Record<VibeLang, typeof fr> = {
   fr,
@@ -34,14 +34,13 @@ const S: Record<VibeLang, typeof fr> = {
     noPr: 'No PR for this branch yet',
     ciRuns: 'The CI is running',
     ciKo: 'The CI is failing',
-    ciUnknown: 'The PR is open: CI state unknown',
   },
 };
 
 // L'état de la CI en créateur, d'après gh seul (pr.ci) : rien quand tout passe, inconnu sans réponse de gh.
 function CiState({ ci, lang }: { ci: VibeCi | null | undefined; lang: VibeLang }) {
   const s = S[lang];
-  if (!ci) return <Invite title={s.ciUnknown} />;
+  if (!ci) return <Invite title={t(lang).statusLine.ciUnknown} />;
   if (ci.state === 'ok') return null;
   if (ci.state === 'pending') return <Invite title={s.ciRuns} />;
   return <Invite title={s.ciKo} text={<ul>{ci.failed.map((f, i) => <li key={i}>{f}</li>)}</ul>} />;

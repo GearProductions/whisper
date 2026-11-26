@@ -84,6 +84,11 @@ describe('statusLine', () => {
     expect(statusLine(view('modules', { note: note({ git: 'modified' }), vibe: true }))?.text).toBe('Le système écrit les modules');
   });
 
+  it('la note revalidée, pas commitée, la PR fusionnée ou fermée : sa ligne, over, pas « reprenez »', () => {
+    expect(statusLine(view('pr', { note: note({ git: 'modified' }), pr: { ...pr, state: 'MERGED' } }))).toEqual({ text: 'La PR est fusionnée', yours: false, over: true });
+    expect(statusLine(view('pr', { note: note({ git: 'modified' }), pr: { ...pr, state: 'CLOSED' } }))).toEqual({ text: 'La PR est fermée, sans avoir été fusionnée', yours: false, over: true });
+  });
+
   it('la note jamais commitée (note.git \'new\') ou commitée (absent) : pas « validée : reprenez »', () => {
     expect(statusLine(view('pr', { note: note({ git: 'new' }), pr: ok }))?.text).toBe('La PR est verte : à vous de la fusionner');
     expect(statusLine(view('forme', { note: note({ git: 'new' }) }))?.text).toBe('Le système est arrêté : reprenez');
