@@ -1409,7 +1409,9 @@ les vôtres quand ils existent (`gear-prompt-specs-to-feature-note`,
 `gear-guide`, un bouton *Où j'en suis ?*), sinon le guide du dépôt. Ce qu'ils
 produisent pour l'écran va dans `vibecoder-out/`, à côté de `config.json` :
 un dossier par agent ; quand l'agent change de branche, ce qui a été produit
-pour l'ancienne est mis de côté (`branches/`) et revient avec elle.
+pour l'ancienne est mis de côté (`branches/`) et revient avec elle, ses
+validations comprises : la note d'une nouvelle feature ne garde pas le ✓ de la
+précédente.
 
 **Personnaliser.** *⚙ Réglages* → *Agents* → *Dossier
 de VibeCoder* (`vibecoder/`, à côté de `config.json`) : `actions.fr.json` et

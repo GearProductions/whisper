@@ -533,6 +533,26 @@ describe('followBranch : les sorties de Créer suivent la branche', () => {
     expect([fs.readFileSync(at('review.md'), 'utf8'), has('questions.md'), has('branches', 'feat-a')]).toEqual(['relu sur a\n', true, false]);
     expect(fs.readFileSync(at('branches', 'feat-b', 'review.md'), 'utf8')).toBe('relu sur b\n');
   });
+
+  it('les validations de l’agent suivent la branche : une nouvelle feature n’hérite pas du ✓ de la note d’avant', async () => {
+    const { vibeStore, saveVibeStore } = await import('app/settings');
+    const marksOf = () => vibeStore().marks.a1;
+    const followBranch = await onA();
+    saveVibeStore({ marks: { a1: { note: { hash: 'h', verdict: 'ok' } }, a2: { note: { hash: 'x', verdict: 'ok' } } }, drafts: {} });
+    followBranch(out, 'feat/b', 'origin/main', 'a1');
+    expect([marksOf(), vibeStore().marks.a2]).toEqual([undefined, { note: { hash: 'x', verdict: 'ok' } }]);
+    followBranch(out, 'feat/a', 'origin/main', 'a1');
+    expect(marksOf()).toEqual({ note: { hash: 'h', verdict: 'ok' } });
+  });
+
+  it('de la base à une nouvelle branche : les validations restent', async () => {
+    const { vibeStore, saveVibeStore } = await import('app/settings');
+    const { followBranch } = await import('app/controllers');
+    write(at('.branche'), 'main');
+    saveVibeStore({ marks: { a1: { design: { hash: 'h', verdict: 'ok' } } }, drafts: {} });
+    followBranch(out, 'feat/0.9.0-x', 'origin/main', 'a1');
+    expect(vibeStore().marks.a1).toEqual({ design: { hash: 'h', verdict: 'ok' } });
+  });
 });
 
 // L'agent en Relire, sur la PR 12.
