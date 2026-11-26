@@ -734,13 +734,22 @@ par l'🕘 Historique (F-67).
   validez la note », « Le système écrit les modules », « Regardez vos règles,
   puis reprenez » (la pause après les invariants), « Essayez l'appli, puis
   reprenez » (la pause après les modules), « La PR est ouverte, la CI tourne »,
-  la CI en échec dite, « La PR est verte : à vous de la fusionner ». Une pause
-  d'un ✓ retiré à la main nomme l'étape (F-102) ; la note qui a perdu son ✓
-  attend sa validation ; le moteur arrêté hors d'une pause dit qu'il l'est et
+  la CI en échec dite, « La PR est verte : à vous de la fusionner ». **La CI est
+  lue par gh** (les checks du commit de tête, lus en fond avec la PR de la
+  branche), jamais d'après `ci.md` : sans check encore (juste après un push, un
+  dépôt sans CI), elle compte comme en cours ; gh sans réponse : « La PR est
+  ouverte : état de la CI inconnu », jamais verte, le parcours pas fini. Une
+  pause d'un ✓ retiré à la main nomme l'étape (F-102) ; la note qui a perdu son ✓
+  (sa conception a changé depuis, même modules commencés) passe avant la PR : « La
+  note a changé : vérifiez-la, puis validez-la », sans *Reprendre* ; le moteur
+  s'arrête et ses demandes sont refusées jusqu'à sa validation par l'utilisateur,
+  la Forme, les Invariants et les Modules faits le restent. Revalidée, tant que
+  son changement n'est pas commité : « La note est validée : reprenez pour que le
+  système l'applique ». Le moteur arrêté hors d'une pause dit qu'il l'est et
   de reprendre. Le parcours fini — la PR verte et chaque étape faite, la PR
   fusionnée, ou fermée — : la ligne seule, sans *Reprendre* (il n'y a rien à
-  reprendre ; une étape pas faite, la CI en cours ou en échec : le bouton
-  reste). **Le relecteur a la sienne** : ce que le système est en train de lire, ou ce qu'il attend de lui, d'après ce que le relevé sait déjà (la PR chargée ou non, les lectures en cours, la note jugée, les tests jugés, les cases du plan cochées, la revue publiée) — « choisissez la PR à relire », « passez sur la branche de la PR », « préparez la revue », « lisez la note, puis jugez-la », « n tests à juger », « essayez l'appli » (n cases du plan pas cochées), « publiez la revue », la revue publiée dite, aucune ligne sur un relevé en erreur —, avec à côté son seul bouton, *Préparer la revue* (F-101), à tous les arrêts, grisé avec sa raison en infobulle quand il n'y a rien à lancer, absent sans PR chargée ; ni *Express*, ni *Arrêter*, ni *Reprendre* ;
+  reprendre ; une étape pas faite, la CI en cours, en échec ou inconnue : le
+  bouton reste). **Le relecteur a la sienne** : ce que le système est en train de lire, ou ce qu'il attend de lui, d'après ce que le relevé sait déjà (la PR chargée ou non, les lectures en cours, la note jugée, les tests jugés, les cases du plan cochées, la revue publiée) — « choisissez la PR à relire », « passez sur la branche de la PR », « préparez la revue », « lisez la note, puis jugez-la », « n tests à juger », « essayez l'appli » (n cases du plan pas cochées), « publiez la revue », la revue publiée dite, aucune ligne sur un relevé en erreur —, avec à côté son seul bouton, *Préparer la revue* (F-101), à tous les arrêts, grisé avec sa raison en infobulle quand il n'y a rien à lancer, absent sans PR chargée ; ni *Express*, ni *Arrêter*, ni *Reprendre* ;
 - dessous, sur toute la largeur à gauche de la conversation, l'étape
   choisie — sinon celle en cours, que l'écran suit —, son en-tête (F-93), sans action (0.16.0, les deux rôles) ; ni onglets des étapes ni carte « prochaine
   étape » : le fil d'Ariane et la ligne d'état disent où l'on en est ;
@@ -2173,7 +2182,12 @@ créateur ; le relecteur, F-101) :
    branche (un commit sans la note : celui de la note porte les squelettes, un
    squelette commité n'est pas un module fait), et, s'il y a des lignes
    « → invariant » dans la note, la preuve qui passe (`preuve.md`, ci-dessous),
-   quel que soit le rythme. Montre, **en créateur** (0.16.0), en tête **une seule
+   quel que soit le rythme. Un module dont le squelette est déjà son contrat
+   complet (ses fichiers restés tels que la Forme les a laissés, tous dans le
+   premier commit : un module de types) n'est jamais touché par un commit : il
+   compte commencé dès que chacun des autres (ceux qui ne sont pas complets
+   eux-mêmes) l'est, et commité une fois que chacun a son commit (T-47) ; un module seul est toujours à générer.
+   Montre, **en créateur** (0.16.0), en tête **une seule
    ligne d'état** (« 16 modules écrits · commités » : combien de modules, combien
    d'écrits, combien de commités ; plus de « n commité · n en cours · n à faire »,
    ni de légende), puis **un seul arbre et son diff**, en lecture seule, sans
@@ -2393,10 +2407,12 @@ créateur ; le relecteur, F-101) :
    d'habitude, et sans aucun il dit « Rien à replier : historique simple »).
 6. **PR** — faite : une PR pour la branche, lue par gh (F-112 ; sinon
    `pr.json`). Montre la PR (numéro, titre, base ← branche,
-   *Ouvrir* dans le navigateur) et l'état de la CI (`ci.md`) ; en créateur
-   (0.16.0), la carte de la PR et l'état de la CI, une ligne par vérification en
-   échec, rien quand tout passe, la CI en cours dite, un `ci.md` illisible tel quel,
-   sans PR une phrase : aucun bouton. Ses actions
+   *Ouvrir* dans le navigateur) et l'état de la CI ; en créateur
+   (0.16.0), la carte de la PR et l'état de la CI, celui des checks du commit de
+   tête lu par gh (comme la ligne d'état ; `ci.md` ne sert plus qu'au diagnostic
+   d'un échec) : une ligne par vérification en échec, rien quand tout passe, la CI
+   en cours (ou sans check) dite, « La PR est ouverte : état de la CI inconnu » sans
+   réponse de gh (jamais vert), sans PR une phrase : aucun bouton. Ses actions
    suivent l'état de la PR (F-99) ; le créateur les lance par le moteur ou par
    l'agent (CLI), plus d'un clic : sans PR, *Valider la feature (ouvrir la
    PR)* ; ouverte, *Diagnostiquer la CI* ; fusionnée,

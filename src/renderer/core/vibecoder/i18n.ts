@@ -100,7 +100,7 @@ const fr = {
   express: 'Express',
   expressTitle: 'Express : aucune pause, le système enchaîne jusqu\'à la PR ouverte. Éteint, le parcours s\'arrête après les invariants et après les modules.',
   pause: {
-    note: 'La note a changé : elle attend sa validation',
+    note: 'La note a changé : vérifiez-la, puis validez-la',
     'withdrawn:forme': 'Vous avez retiré la validation de la forme : modifiez-la ou revalidez-la pour reprendre',
     'withdrawn:invariants': 'Vous avez retiré la validation des invariants : modifiez-les ou revalidez-les pour reprendre',
     'withdrawn:modules': 'Vous avez retiré la validation des modules : modifiez-les ou revalidez-les pour reprendre',
@@ -110,6 +110,7 @@ const fr = {
     noNote: 'Demandez la note à l\'agent, dans la conversation',
     questions: (n: number) => `${n} question${n > 1 ? 's' : ''} : répondez dans le questionnaire`,
     verifyNote: 'Vérifiez, puis validez la note',
+    applyNote: 'La note est validée : reprenez pour que le système l\'applique',
     working: 'Le système travaille',
     run: (what: string) => `Le système travaille : ${what}`,
     step: {
@@ -121,6 +122,7 @@ const fr = {
     toReview: (n: number) => `${n} test${n > 1 ? 's' : ''} à revoir : dites à l'agent quoi corriger`,
     ciRunning: 'La PR est ouverte, la CI tourne',
     ciFailed: 'La PR est ouverte, la CI est en échec',
+    ciUnknown: 'La PR est ouverte : état de la CI inconnu',
     green: 'La PR est verte : à vous de la fusionner',
     merged: 'La PR est fusionnée',
     closed: 'La PR est fermée, sans avoir été fusionnée',
@@ -356,7 +358,7 @@ const en: Strings = {
   express: 'Express',
   expressTitle: 'Express: no pause, the system carries on until the PR is open. Off, the journey stops after the invariants and after the modules.',
   pause: {
-    note: 'The note changed: it awaits its validation',
+    note: 'The note changed: check it, then approve it',
     'withdrawn:forme': 'You withdrew the approval of the shape: change it or approve it again to resume',
     'withdrawn:invariants': 'You withdrew the approval of the invariants: change them or approve them again to resume',
     'withdrawn:modules': 'You withdrew the approval of the modules: change them or approve them again to resume',
@@ -366,6 +368,7 @@ const en: Strings = {
     noNote: 'Ask the agent for the note, in the conversation',
     questions: (n) => `${n} question${n > 1 ? 's' : ''}: answer in the questionnaire`,
     verifyNote: 'Check, then approve the note',
+    applyNote: 'The note is approved: resume for the system to apply it',
     working: 'The system is working',
     run: (what) => `The system is working: ${what}`,
     step: {
@@ -377,6 +380,7 @@ const en: Strings = {
     toReview: (n: number) => `${n} test${n > 1 ? 's' : ''} to review: tell the agent what to fix`,
     ciRunning: 'The PR is open, the CI is running',
     ciFailed: 'The PR is open, the CI failed',
+    ciUnknown: 'The PR is open: CI state unknown',
     green: 'The PR is green: yours to merge',
     merged: 'The PR is merged',
     closed: 'The PR is closed, not merged',

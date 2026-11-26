@@ -16,8 +16,7 @@
  *  du brouillon vide, dans draft-view, ne cite plus les commits). StepHead n'a plus d'actions à écarter (own retiré).
  *  Le créateur : inchangé.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
-import { parseCi } from 'core/vibecoder';
-import type { VibeLang } from 'technicals/bridge';
+import type { VibeCi, VibeLang } from 'technicals/bridge';
 import { DraftView } from './draft-view';
 import { FindingsView } from './findings-view';
 import { Invite, PrCard, Run, StepHead } from './step-parts';
@@ -27,7 +26,7 @@ const fr = {
   noPr: 'Pas encore de PR pour cette branche',
   ciRuns: 'La CI tourne',
   ciKo: 'La CI est en échec',
-  ciRaw: 'ci.md',
+  ciUnknown: 'La PR est ouverte : état de la CI inconnu',
 };
 const S: Record<VibeLang, typeof fr> = {
   fr,
@@ -35,15 +34,14 @@ const S: Record<VibeLang, typeof fr> = {
     noPr: 'No PR for this branch yet',
     ciRuns: 'The CI is running',
     ciKo: 'The CI is failing',
-    ciRaw: 'ci.md',
+    ciUnknown: 'The PR is open: CI state unknown',
   },
 };
 
-// L'état de la CI en créateur : rien quand tout passe.
-function CiState({ md, lang }: { md: string | undefined; lang: VibeLang }) {
+// L'état de la CI en créateur, d'après gh seul (pr.ci) : rien quand tout passe, inconnu sans réponse de gh.
+function CiState({ ci, lang }: { ci: VibeCi | null | undefined; lang: VibeLang }) {
   const s = S[lang];
-  const ci = md === undefined ? { state: 'pending' as const, failed: [] } : parseCi(md);
-  if (!ci) return <Invite title={s.ciRaw} text={<pre className="vc-mono">{md}</pre>} />;
+  if (!ci) return <Invite title={s.ciUnknown} />;
   if (ci.state === 'ok') return null;
   if (ci.state === 'pending') return <Invite title={s.ciRuns} />;
   return <Invite title={s.ciKo} text={<ul>{ci.failed.map((f, i) => <li key={i}>{f}</li>)}</ul>} />;
@@ -63,7 +61,7 @@ export function PrView(p: StepProps) {
         {pr ? (
           <>
             <PrCard pr={pr} lang={view.lang} onOpenLink={act.openLink} />
-            {!pr.state || pr.state === 'OPEN' ? <CiState md={view.outputs['ci.md']?.text} lang={view.lang} /> : null}   {/* fusionnée ou fermée : la CI n'a plus rien à dire */}
+            {!pr.state || pr.state === 'OPEN' ? <CiState ci={pr.ci} lang={view.lang} /> : null}   {/* fusionnée ou fermée : la CI n'a plus rien à dire */}
           </>
         ) : <Invite title={s.noPr} />}
       </>

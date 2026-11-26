@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { statusLine } from 'core/vibecoder';
-import type { VibeNote, VibePause, VibeRun, VibeStepId, VibeView } from 'technicals/bridge';
+import type { VibeCi, VibeNote, VibePause, VibeRun, VibeStepId, VibeView } from 'technicals/bridge';
 
 const IDS: VibeStepId[] = ['note', 'forme', 'invariants', 'modules', 'revue', 'pr'];
 const note = (over: Partial<VibeNote> = {}): VibeNote => ({
@@ -31,6 +31,9 @@ const rview = (current: VibeStepId | null, over: Partial<VibeView> = {}): VibeVi
 const tests = (marks: Record<string, 'ok' | 'ko' | null>) => [{ id: 't0', path: 'tests/invariants/a.test.ts', blob: 'b', cases: Object.keys(marks), lines: [1, 2, 3], source: '', reading: null, marks }] as VibeView['invariants'];
 const ci = (first: string) => ({ 'ci.md': { text: `${first}\n`, time: 1 } });
 const pr = { number: 7, title: 't', url: 'u', author: 'a', base: 'master', head: 'b', body: '', state: 'OPEN' as const };
+// La CI d'une PR : lue par gh (view.pr.ci), jamais ci.md.
+const withCi = (state: VibeCi['state'], failed: string[] = []) => ({ ...pr, ci: { state, failed } });
+const ok = withCi('ok'), pending = withCi('pending'), ko = withCi('ko', ['lint']);
 const q = (n: number) => ({ n, text: `question ${n}`, options: [] });
 
 describe('statusLine', () => {
@@ -60,7 +63,30 @@ describe('statusLine', () => {
   });
 
   it('la note commitée qui a perdu son ✓ : elle attend sa validation (la ligne de pause)', () => {
-    expect(statusLine(view('forme', { note: note({ mark: 'changed' }), pause: 'note' }))).toEqual({ text: 'La note a changé : elle attend sa validation', yours: true });
+    expect(statusLine(view('forme', { note: note({ mark: 'changed' }), pause: 'note' }))).toEqual({ text: 'La note a changé : vérifiez-la, puis validez-la', yours: true });
+  });
+
+  it('la pause \'note\', la PR ouverte : la note d\'abord, à l\'utilisateur, pas over (même PR verte, chaque étape faite)', () => {
+    const v = view('pr', { note: note({ mark: 'changed' }), pause: 'note', pr: ok });
+    const steps = v.steps.map((x) => ({ ...x, status: x.id === 'note' ? 'todo' as const : 'done' as const }));
+    expect(statusLine({ ...v, steps })).toEqual({ text: 'La note a changé : vérifiez-la, puis validez-la', yours: true });
+    expect(statusLine({ ...v, steps, lang: 'en' })?.text).toBe('The note changed: check it, then approve it');
+  });
+
+  it('la note revalidée, pas commitée (note.git \'modified\'), la PR ouverte : reprendre pour que le système l\'applique, pas over', () => {
+    const v = view('pr', { note: note({ git: 'modified' }), pr: ok });
+    expect(statusLine(v)).toEqual({ text: 'La note est validée : reprenez pour que le système l\'applique', yours: true });
+    expect(statusLine({ ...v, lang: 'en' })?.text).toBe('The note is approved: resume for the system to apply it');
+    const allDone = { ...v, steps: v.steps.map((x) => ({ ...x, status: 'done' as const })) };
+    expect(statusLine(allDone)?.over).toBeUndefined();
+    // aux pauses et le moteur en route : leur ligne d'abord
+    expect(statusLine(view('forme', { note: note({ git: 'modified' }), pause: 'invariants' }))?.text).toBe('Regardez vos règles, puis reprenez');
+    expect(statusLine(view('modules', { note: note({ git: 'modified' }), vibe: true }))?.text).toBe('Le système écrit les modules');
+  });
+
+  it('la note jamais commitée (note.git \'new\') ou commitée (absent) : pas « validée : reprenez »', () => {
+    expect(statusLine(view('pr', { note: note({ git: 'new' }), pr: ok }))?.text).toBe('La PR est verte : à vous de la fusionner');
+    expect(statusLine(view('forme', { note: note({ git: 'new' }) }))?.text).toBe('Le système est arrêté : reprenez');
   });
 
   it('un ✓ d\'étape retiré à la main : la ligne nomme l\'étape', () => {
@@ -127,29 +153,40 @@ describe('statusLine', () => {
     expect(statusLine(view('modules'))).toEqual({ text: 'Le système est arrêté : reprenez', yours: true });
   });
 
-  it('la PR ouverte, la CI en cours ou pas encore lue : la CI tourne', () => {
-    for (const outputs of [ci('⏳ en cours'), {}, ci('?')]) {
-      expect(statusLine(view('pr', { pr, outputs }))).toEqual({ text: 'La PR est ouverte, la CI tourne', yours: false });
+  it('la PR ouverte, la CI en cours (pr.ci pending) : la CI tourne, pas over', () => {
+    expect(statusLine(view('pr', { pr: pending }))).toEqual({ text: 'La PR est ouverte, la CI tourne', yours: false });
+  });
+
+  it('la PR ouverte, la CI en échec (pr.ci ko) : elle le dit, sans les noms (la vue de la PR les liste), pas over', () => {
+    expect(statusLine(view('pr', { pr: ko }))).toEqual({ text: 'La PR est ouverte, la CI est en échec', yours: false });
+  });
+
+  it('la PR ouverte, la CI inconnue (pr.ci absent ou null, gh sans réponse) : elle le dit, ni verte ni over', () => {
+    for (const p of [pr, { ...pr, ci: null }]) {
+      expect(statusLine(view('pr', { pr: p }))).toEqual({ text: 'La PR est ouverte : état de la CI inconnu', yours: false });
     }
+    expect(statusLine(view('pr', { pr, lang: 'en' }))?.text).toBe('The PR is open: CI state unknown');
   });
 
-  it('la PR ouverte, la CI en échec : elle le dit, sans les noms (la vue de la PR les liste)', () => {
-    const outputs = { 'ci.md': { text: '✗ échec\n\n## lint\nx\n\n## test\ny\n', time: 1 } };
-    const l = statusLine(view('pr', { pr, outputs }));
-    expect(l?.yours).toBe(false);
-    expect(l?.text).toBe('La PR est ouverte, la CI est en échec');
-    expect(statusLine(view('pr', { pr, outputs: ci('✗ échec') }))?.text).toBe('La PR est ouverte, la CI est en échec');
+  it('la PR verte (pr.ci ok) : à vous de la fusionner, à l\'utilisateur', () => {
+    expect(statusLine(view('pr', { pr: ok }))).toEqual({ text: 'La PR est verte : à vous de la fusionner', yours: true });
   });
 
-  it('la PR verte : à vous de la fusionner, à l\'utilisateur', () => {
-    expect(statusLine(view('pr', { pr, outputs: ci('✓ tout passe') }))).toEqual({ text: 'La PR est verte : à vous de la fusionner', yours: true });
+  it('un ci.md ✓ sans pr.ci : jamais vert ; un ci.md ⏳ avec pr.ci ok : vert (gh seul fait foi)', () => {
+    for (const p of [pr, { ...pr, ci: null }]) {
+      const allDone = view('pr', { pr: p, outputs: ci('✓ tout passe') });
+      const l = statusLine({ ...allDone, steps: allDone.steps.map((x) => ({ ...x, status: 'done' as const })) });
+      expect(l).toEqual({ text: 'La PR est ouverte : état de la CI inconnu', yours: false });
+    }
+    expect(statusLine(view('pr', { pr: ok, outputs: ci('⏳ 0/2') }))?.text).toBe('La PR est verte : à vous de la fusionner');
+    expect(statusLine(view('pr', { pr: pending, outputs: ci('✓ tout passe') }))?.text).toBe('La PR est ouverte, la CI tourne');
   });
 
   it('le parcours fini (over) : la PR verte et chaque étape faite, fusionnée, fermée — rien à reprendre ; verte avec une étape pas faite, la CI en cours ou en échec : non', () => {
     const allDone = (over: Partial<VibeView>) => { const v = view('pr', over); return { ...v, steps: v.steps.map((x) => ({ ...x, status: 'done' as const })) }; };
-    expect(statusLine(allDone({ pr, outputs: ci('✓ tout passe') }))).toEqual({ text: 'La PR est verte : à vous de la fusionner', yours: true, over: true });
-    expect(statusLine(view('pr', { pr, outputs: ci('✓ tout passe') }))?.over).toBeUndefined();   // une étape reste : Reprendre garde son sens
-    for (const outputs of [ci('⏳ en cours'), ci('✗ échec'), {}]) expect(statusLine(allDone({ pr, outputs }))?.over).toBeUndefined();
+    expect(statusLine(allDone({ pr: ok }))).toEqual({ text: 'La PR est verte : à vous de la fusionner', yours: true, over: true });
+    expect(statusLine(view('pr', { pr: ok }))).toEqual({ text: 'La PR est verte : à vous de la fusionner', yours: true });   // une étape reste : Reprendre garde son sens
+    for (const p of [pending, ko, pr]) expect(statusLine(allDone({ pr: p }))?.over).toBeUndefined();
     expect(statusLine(view('modules'))?.over).toBeUndefined();
   });
 
@@ -161,8 +198,8 @@ describe('statusLine', () => {
 
   it('une PR dont l\'état est inconnu (fiche d\'avant la 0.8.0-rc.2) : ouverte, comme pr-view', () => {
     const unknown = { ...pr, state: null };
-    expect(statusLine(view('pr', { pr: unknown, outputs: ci('⏳ en cours') }))).toEqual({ text: 'La PR est ouverte, la CI tourne', yours: false });
-    expect(statusLine(view('pr', { pr: unknown, outputs: ci('✓ tout passe') }))?.text).toBe('La PR est verte : à vous de la fusionner');
+    expect(statusLine(view('pr', { pr: { ...unknown, ci: pending.ci } }))).toEqual({ text: 'La PR est ouverte, la CI tourne', yours: false });
+    expect(statusLine(view('pr', { pr: { ...unknown, ci: ok.ci } }))?.text).toBe('La PR est verte : à vous de la fusionner');
   });
 
   it('l\'ordre : questions > note > ✓ retiré > moteur > pause > PR > arrêté', () => {
@@ -171,8 +208,8 @@ describe('statusLine', () => {
     expect(statusLine(view('forme', { note: note({ mark: null }), questions: [q(1)], ...withdrawn }))?.text).toContain('question');
     expect(statusLine(view('forme', { note: note({ mark: null }), ...withdrawn }))?.text).toBe('Vérifiez, puis validez la note');
     expect(statusLine(view('forme', { vibe: true, ...withdrawn }))?.text).toContain('forme');
-    expect(statusLine(view('modules', { vibe: true, pause: 'modules', pr, outputs: ci('✓') }))?.text).toBe('Le système écrit les modules');
-    expect(statusLine(view('revue', { pause: 'modules', pr, outputs: ci('✓') }))?.text).toBe('Essayez l\'appli, puis reprenez');
+    expect(statusLine(view('modules', { vibe: true, pause: 'modules', pr: ok }))?.text).toBe('Le système écrit les modules');
+    expect(statusLine(view('revue', { pause: 'modules', pr: ok }))?.text).toBe('Essayez l\'appli, puis reprenez');
   });
 
   it('un relevé en erreur : aucune ligne', () => {
@@ -186,16 +223,16 @@ describe('statusLine', () => {
     expect(en('note', { questions: [q(1), q(2)] })?.text).toBe('2 questions: answer in the questionnaire');
     expect(en('note', { questions: [q(1)] })?.text).toBe('1 question: answer in the questionnaire');
     expect(en('note', { note: note({ mark: null }) })?.text).toBe('Check, then approve the note');
-    expect(en('forme', { note: note({ mark: null }), pause: 'note' })?.text).toBe('The note changed: it awaits its validation');
+    expect(en('forme', { note: note({ mark: null }), pause: 'note' })?.text).toBe('The note changed: check it, then approve it');
     expect(en('invariants', { pause: 'withdrawn:invariants' })?.text).toContain('invariants');
     expect(en('modules', { vibe: true, runs: [run({ progress: { wave: 1, done: 0, total: 2, fixes: 0, opus: false } })] })?.text).toBe('The system is working: Générer · wave 1 · 0/2 modules');
     expect(en('modules', { vibe: true })?.text).toBe('The system is writing the modules');
     expect(en('forme', { pause: 'invariants' })?.text).toBe('Look at your rules, then resume');
     expect(en('revue', { pause: 'modules' })?.text).toBe('Try the app, then resume');
     expect(en('modules')?.text).toBe('The system is stopped: resume');
-    expect(en('pr', { pr, outputs: ci('⏳') })?.text).toBe('The PR is open, the CI is running');
-    expect(en('pr', { pr, outputs: ci('✗') })?.text).toBe('The PR is open, the CI failed');
-    expect(en('pr', { pr, outputs: ci('✓') })?.text).toBe('The PR is green: yours to merge');
+    expect(en('pr', { pr: pending })?.text).toBe('The PR is open, the CI is running');
+    expect(en('pr', { pr: ko })?.text).toBe('The PR is open, the CI failed');
+    expect(en('pr', { pr: ok })?.text).toBe('The PR is green: yours to merge');
     expect(en('pr', { pr: { ...pr, state: 'MERGED' } })?.text).toBe('The PR is merged');
   });
 });

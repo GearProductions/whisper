@@ -35,8 +35,21 @@ export type GhRun = (args: string[]) => Promise<string | null>;
 export type GhPr = { number: number; title: string; url: string; state: string; base: string; head: string; ci?: VibeCi };
 
 // statusCheckRollup (gh pr view) → l'état des checks : 'ko' un en échec, 'pending' un en cours ou aucun, sinon 'ok'.
-export function ciOf(_rollup: unknown): VibeCi {
-  throw new Error('not implemented');
+// CheckRun : status COMPLETED + conclusion (vide tant qu'il tourne) ; StatusContext : state. Seules ces valeurs
+// sont des passés : tout le reste (en cours, entrée illisible) compte comme en cours, jamais vert.
+const CI_PASSED = ['SUCCESS', 'NEUTRAL', 'SKIPPED', 'STALE'];
+export function ciOf(rollup: unknown): VibeCi {
+  const failed: string[] = [];
+  let pending = !Array.isArray(rollup) || rollup.length === 0;
+  for (const c of Array.isArray(rollup) ? rollup : []) {
+    const e = (c && typeof c === 'object' ? c : {}) as Record<string, unknown>;
+    const verdict = e.__typename === 'CheckRun' ? (e.status === 'COMPLETED' ? e.conclusion : 'PENDING')
+      : e.__typename === 'StatusContext' ? e.state : 'PENDING';
+    if (verdict === 'FAILURE' || verdict === 'CANCELLED' || verdict === 'TIMED_OUT' || verdict === 'STARTUP_FAILURE' || verdict === 'ERROR') {
+      failed.push(String(e.name ?? e.context ?? ''));
+    } else if (!CI_PASSED.includes(verdict as string)) pending = true;
+  }
+  return { state: failed.length ? 'ko' : pending ? 'pending' : 'ok', failed };
 }
 
 // <prefix…> gh <args>, au dossier `dir` : sans shell, 15 s, null en cas
@@ -68,10 +81,10 @@ export function githubReader(run: GhRun) {
     // La PR de cette branche (ouverte, sinon la dernière) et les checks de sa tête (ciOf), ou null.
     async prForBranch(branch: string): Promise<GhPr | null> {
       if (!okRef(branch)) return null;
-      const p = parse(await run(['pr', 'view', '--json', 'number,title,url,state,baseRefName,headRefName', '--', branch])) as Record<string, unknown> | null;
+      const p = parse(await run(['pr', 'view', '--json', 'number,title,url,state,baseRefName,headRefName,statusCheckRollup', '--', branch])) as Record<string, unknown> | null;
       return p && okNumber(p.number) ? {
         number: p.number, title: String(p.title ?? ''), url: String(p.url ?? ''), state: String(p.state ?? ''),
-        base: String(p.baseRefName ?? ''), head: String(p.headRefName ?? ''),
+        base: String(p.baseRefName ?? ''), head: String(p.headRefName ?? ''), ci: ciOf(p.statusCheckRollup),
       } : null;
     },
     // Les PR ouvertes du dépôt, en trois listes (gh pr list --author @me ; à relire ; sans filtre, --limit 100) ; une

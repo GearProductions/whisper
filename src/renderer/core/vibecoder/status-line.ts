@@ -34,7 +34,6 @@
 import type { VibeStepId, VibeView } from 'technicals/bridge';
 import { t } from './i18n';
 import { progress } from './invariants';
-import { parseCi } from './outputs';
 import { runningRuns } from './screen';
 
 export type StatusLine = { text: string; yours: boolean; over?: true };
@@ -81,10 +80,12 @@ export function statusLine(view: VibeView): StatusLine | null {
   // la pause après les invariants revenue : des tests ont changé depuis que l'utilisateur les a laissés passer (leur ✓ « changed »)
   if (pause === 'invariants' && view.steps.find((x) => x.id === 'invariants')?.check?.state === 'changed') return yours(l.relook);
   if (pause === 'invariants' || pause === 'modules') return yours(l.pause[pause]);
+  // la note revalidée dont le changement n'est pas commité : le système l'applique à la reprise (Reprendre reste, pas over)
+  if (view.note.git === 'modified') return yours(l.applyNote);
   if (view.pr && (!view.pr.state || view.pr.state === 'OPEN')) {   // état inconnu : ouverte, comme pr-view
-    const ci = parseCi(view.outputs['ci.md']?.text ?? '');
-    if (ci?.state === 'ok') return view.steps.every((x) => x.status === 'done') ? { ...yours(l.green), over: true } : yours(l.green);
-    return { text: ci?.state === 'ko' ? l.ciFailed : l.ciRunning, yours: false };
+    const ci = view.pr.ci?.state;   // d'après gh seul (jamais ci.md) ; absent : inconnu, ni verte ni over
+    if (ci === 'ok') return view.steps.every((x) => x.status === 'done') ? { ...yours(l.green), over: true } : yours(l.green);
+    return { text: ci === 'ko' ? l.ciFailed : ci === 'pending' ? l.ciRunning : l.ciUnknown, yours: false };
   }
   if (view.pr?.state === 'MERGED') return { text: l.merged, yours: false, over: true };
   if (view.pr?.state === 'CLOSED') return { text: l.closed, yours: false, over: true };

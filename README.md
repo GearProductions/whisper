@@ -432,8 +432,15 @@ autre, dont la note est restée chez lui : « pas de note », sans reproche.
   *Arrêter* pendant que le système enchaîne, *Reprendre* quand il est arrêté ;
   pas de *Reprendre* quand il ne reste rien à faire : la PR verte et chaque étape
   faite, fusionnée ou fermée).
-  La note qui a perdu son ✓, un ✓ d'étape que vous avez retiré : la ligne le
-  dit, sans bouton. Le relecteur a la sienne (« Préparez la revue », « Lisez la note, puis jugez-la », « 3 tests à juger », « Essayez l'appli », « Publiez la revue »…), avec à côté son seul bouton, **Préparer la revue** (à tous les arrêts, grisé quand il n'y a rien à lancer) ;
+  La CI, c'est gh qui la dit (les checks du commit de tête de la PR, lus en fond ;
+  pas encore de check : en cours) ; gh sans réponse : « La PR est ouverte : état de
+  la CI inconnu », jamais verte, le parcours pas fini. `ci.md` ne sert plus qu'au
+  diagnostic d'un échec.
+  La note qui a perdu son ✓ (sa conception a changé) passe avant la PR : « La note a
+  changé : vérifiez-la, puis validez-la », sans bouton ; le moteur attend votre
+  validation, les étapes faites le restent. Revalidée, tant que le changement n'est
+  pas commité : « La note est validée : reprenez pour que le système l'applique ».
+  Un ✓ d'étape que vous avez retiré : la ligne le dit, sans bouton. Le relecteur a la sienne (« Préparez la revue », « Lisez la note, puis jugez-la », « 3 tests à juger », « Essayez l'appli », « Publiez la revue »…), avec à côté son seul bouton, **Préparer la revue** (à tous les arrêts, grisé quand il n'y a rien à lancer) ;
 - dessous, sur toute la largeur, l'étape choisie — la note du ticket, ce
   que les skills ont produit —, avec son en-tête (son nom, son badge d'état, ses
   faits), **sans bouton d'action**, créateur comme relecteur ; sans champ : aucune étape
@@ -917,6 +924,10 @@ relire une PR (le relecteur, plus bas) :
    « revue : … » : jamais un fixup, rien à replier (*Replier les fixups* dit « Rien à
    replier : historique simple », sauf s'il reste un commit `fixup!` fait à la main :
    il le replie alors comme d'habitude, avant la PR).
+   Un module dont le squelette est déjà le contrat complet (un module de types : ses
+   fichiers restés tels que la Forme les a laissés, dans le premier commit) compte
+   commencé dès que chacun des autres l'est, commité une fois que chacun a son commit ;
+   un module seul est toujours généré.
    **À l'écran, les modules** (0.16.0) : en tête, **une seule ligne d'état**
    (« 16 modules écrits · commités ») ; puis **un seul arbre et son diff**, en lecture
    seule, sans bouton. À gauche, l'arbre : les fichiers des modules, puis les variants

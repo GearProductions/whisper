@@ -123,19 +123,5 @@ export function withoutApplied(ponytail: { text: string; time: number }, applied
   }).join('\n');
 }
 
-// L'état de la CI d'après ci.md (voir l'en-tête) : l'ensemble, et le nom de chaque vérification en échec.
-export type Ci = { state: 'ok' | 'ko' | 'pending'; failed: string[] };
-
-const TAG = /^\[(?:toi|agent)\][ \t]*/;
-const STATES: Record<string, Ci['state']> = { '✓': 'ok', '✗': 'ko', '⏳': 'pending' };
-
-export function parseCi(text: string): Ci | null {
-  const first = text.split(/\r?\n/).find((l) => l.trim()) ?? '';
-  const state = STATES[first.trim().replace(/^[-*+][ \t]+/, '').replace(TAG, '')[0]];  // ⏳ (U+23F3) tient en un caractère
-  if (!state) return null;
-  const failed = sections(text).flatMap((s) => (s.title ? [s.title.replace(TAG, '').trim()] : [])).filter(Boolean);
-  return { state, failed };
-}
-
 // Les vérifications de checks.json en échec, dans l'ordre (un avertissement passe).
 export const failedChecks = (checks: Check[]): Check[] => checks.filter((c) => c.level === 'error');
