@@ -1956,7 +1956,13 @@ créateur ; le relecteur, F-101) :
    oubliés, les contradictions entre lignes, les cas limites des règles chiffrées
    (une seule option, un groupe vide, un dépassement), un comportement visible
    inatteignable (le front compris, d'après le code existant), une ligne qui
-   serait plutôt un invariant ou un variant ; ses trouvailles sont des
+   serait plutôt un invariant ou un variant ; elle ne juge que la conception (« Ce que ça
+   fait », « Ce que ça ne doit pas faire », « Où ça casse »), jamais la Forme,
+   posée après la validation et réadaptée seulement à la suivante : un écart
+   entre une conception retouchée et la Forme n'est pas une suggestion, et une
+   revérification ignore ce qui n'a changé que dans la Forme (correctif
+   note-en-retouche : chaque passage relevait la Forme, la boucle *Vérifier* →
+   réponse → retouche de la Forme → *Vérifier* ne finissait pas) ; ses trouvailles sont des
    suggestions, ajoutées à `questions.md` (« Accepter : … » / « Refuser »), que
    l'utilisateur accepte ou refuse, et qui entrent dans la note par *Envoyer les
    réponses*, comme toute réponse. L'empreinte de la note au départ de sa course
@@ -2782,7 +2788,13 @@ parcours, et les modules ne se valident pas d'ici là ; *Reprendre* vaut
 porte agent refuse (`halted`) de lancer une action des étapes Modules, Revue ou
 PR (le premier commit, les modules, la preuve, la revue, la PR) — un agent qui
 corrige dans la conversation ne passe pas devant l'utilisateur ; la Forme, les
-invariants, leur alignement et leur lecture restent lançables. Une étape dont l'étape d'avant n'est pas validée : rien. Les modules, eux,
+invariants, leur alignement et leur lecture restent lançables. **À la pause
+« note »** (la note commitée a perdu son ✓ : une décision écrite, une
+suggestion acceptée), le moteur en route ou non : on ne touche qu'à la note —
+*Vérifier* et les réponses — ; la porte agent refuse (`halted`, la raison en
+détail) les actions des étapes Forme à PR, et l'agent ne retouche plus la forme
+après chaque réponse ; une fois la note revalidée, la forme, les tests et le
+code suivent (*Reprendre*). Une étape dont l'étape d'avant n'est pas validée : rien. Les modules, eux,
 ne le sont que par la CLI (`step.validate`, F-116), et seulement une fois la preuve
 passée (F-100, I-66). L'écran dit par qui une étape est validée : « validée par
 le système » et son contrôle (squelettes posés, alignement avec la note,

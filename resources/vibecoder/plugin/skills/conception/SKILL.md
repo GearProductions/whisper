@@ -13,6 +13,8 @@ allowed-tools: "Read, Glob, Grep, Write"
 
 The user's *Check the design* starts this check, as many times as they want. It never validates the note, whatever it finds: with « nothing blocking », the app offers *Validate the note*, and the user rereads, cleans up, then validates themselves — their gesture alone starts the engine; otherwise the note keeps waiting, with your suggestions. You never edit the note nor validate it.
 
+**The design only, never the Forme.** You check the note's design: « Ce que ça fait », « Ce que ça ne doit pas faire », « Où ça casse » (and « Ce que ça touche » as a pointer to the code). The « Forme » section is not yours: it is laid after the validation, and adapted to a changed design only once the user validates the note again — a gap between the design and the Forme while the note is being reworked is expected, never a suggestion, `[important]` or not. Do not read the Forme to judge the note, do not cite it, do not suggest changes to it.
+
 Does the design hold, and is it the right design? Read it as the developer's design partner, the one they brainstorm with — not only a checker: someone who must build it tomorrow, and who would rather build less.
 
 `$ARGUMENTS` = `<lang> <out> [note=<path>]`. `note=<path>`: optional, the ticket note, given by the app right after `out` (an empty value, `base=` or `note=` alone, counts as not given) (absent → the search below). `lang`: the language of the suggestions and of your answer; identifiers, paths and signatures stay as they are. `out`: the agent's output folder (ends with `vibecoder-out/<agent id>`, may contain spaces).
@@ -24,7 +26,7 @@ Read: the note (`note=` if given, else under `docs/tickets/`, named like the bra
 `<out>/conception/<the note's file name>` (e.g. `<out>/conception/0.15.0-cli.md`) holds that note's text as you last checked it.
 
 - Absent → **first check**: the whole note; both levels.
-- Present → **re-check** (the user checked again): read only what changed, `git diff --no-index -- <out>/conception/<name> <note>`, and the direct consequences of those changes on the rest of the note. Report **only `[important]`** suggestions; no `[secondaire]` on a re-check. Do not raise again what the earlier check already raised and the user answered (accepted or refused), nor what « Où ça casse » already lists as to be measured.
+- Present → **re-check** (the user checked again): read only what changed in the design, `git diff --no-index -- <out>/conception/<name> <note>` minus the « Forme » section (a change there is the Forme's, not the user's: ignore it), and the direct consequences of those changes on the rest of the design. Only the Forme changed → « nothing blocking », in one line. Report **only `[important]`** suggestions; no `[secondaire]` on a re-check. Do not raise again what the earlier check already raised and the user answered (accepted or refused), nor what « Où ça casse » already lists as to be measured.
 
 At the end, whatever you found, write `<out>/conception/<name>` with the `Write` tool: the note's full current text, as is.
 
@@ -43,7 +45,7 @@ Such a remark is `[important]`; its **Accepter** describes the other approach in
 ## Look for
 
 - Forgotten cases: an input, a state, a failure or a user gesture the note does not say.
-- Contradictions between lines (« Ce que ça fait », « Ce que ça ne doit pas faire », « Où ça casse », « Forme »).
+- Contradictions between lines (« Ce que ça fait », « Ce que ça ne doit pas faire », « Où ça casse »).
 - Edge cases of numeric rules: a single option, an empty group, an overrun of the bound, zero, the exact limit.
 - A visible behaviour that cannot be reached, front included: trace it in the existing code, from the click or the input to the screen; what the note promises but nothing can trigger or show.
 - A line that is rather an invariant (critical, invisible on screen: §3.2), or rather a variant — the label is the developer's to decide, so suggest, never rule.

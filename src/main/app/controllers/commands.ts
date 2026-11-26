@@ -9,7 +9,8 @@
  *  celui du dépôt. Sans robot (null) : no-survey, aucune opération appelée.
  *  runCommand refuse toujours busy et changing (I-44) ; à la porte agent, le mode Vibe arrêté (vibeHalted) : halted pour
  *  run.start et les commandes de départ, avant toute opération (ctx.halted de execute) ; de même, le moteur en route ou
- *  non, run.start d'une action des étapes Modules, Revue ou PR quand la pause après les invariants est tenue (holdsInvariants).
+ *  non, run.start d'une action des étapes Modules, Revue ou PR quand la pause après les invariants est tenue (holdsInvariants) ;
+ *  à la pause « note » (la note en retouche), run.start d'une action des étapes Forme à PR, avec la raison en détail.
  *  commandFromSocket(env, caller) : qui appelle (callerRobot : l'écran, un robot par
  *  son jeton, ou un agent extérieur si le réglage est activé ; sinon BAD_TOKEN), et
  *  sur quel robot (l'écran et l'extérieur : celui de la cible, le robot affiché s'il
@@ -33,6 +34,9 @@ import { editDraft, lastView, runDirect, startAction, surveyAgent, validateVibe 
 
 // Les étapes dont les actions bâtissent sur les tests d'invariants : refusées à la pause après les invariants (holdsInvariants).
 const BUILDS: string[] = ['modules', 'revue', 'pr'];
+// Les étapes qui suivent la note : retenues tant que la note en retouche n'a pas retrouvé son ✓.
+const AFTER_NOTE: string[] = ['forme', 'invariants', ...BUILDS];
+const NOTE_HELD = 'the note changed since its validation: touch only the note (design-check, the user\'s answers) until the user validates it; the forme, the tests and the rest follow then (Resume)';
 
 export async function runCommand(agent: AgentConfig | null, req: CommandRequest): Promise<CommandResponse> {
   const cfg = loadConfig();   // une fois par appel
@@ -65,8 +69,14 @@ export async function runCommand(agent: AgentConfig | null, req: CommandRequest)
     wait: (id) => runEnd(agent.id, id),
   };
   // La pause après les invariants tenue, le moteur en route ou non : une action qui bâtit sur les tests ne part pas par la porte agent.
-  const built = req.command === 'run.start' && BUILDS.includes(defs.find((d) => d.id === (req.args as { action?: unknown } | undefined)?.action)?.step ?? '');
-  const halted = req.door === 'agent' && (vibeHalted(agent.id) || (built && holdsInvariants(agent.id, view)));
+  // La pause « note » d'une note en retouche (validée une fois, commitée, changée depuis) : on ne touche qu'à la note, aucune action des étapes Forme à PR
+  // (correctif note-en-retouche : l'agent retouchait la forme après chaque réponse, la vérification suivante attendait derrière).
+  const step = req.command === 'run.start' ? defs.find((d) => d.id === (req.args as { action?: unknown } | undefined)?.action)?.step ?? '' : '';
+  // Une note validée une fois puis changée (sa marque « changed ») ; jamais validée : ce n'est pas une retouche, rien de retenu.
+  const noteHeld = view?.flow === 'create' && view.pause === 'note' && view.note?.mark === 'changed' && AFTER_NOTE.includes(step);
+  const halted = req.door !== 'agent' ? false
+    : noteHeld ? NOTE_HELD
+      : vibeHalted(agent.id) || (BUILDS.includes(step) && holdsInvariants(agent.id, view));
   return execute(table, req, { view, defs, queued: queuedOf(agent.id), halted }, ops);
 }
 

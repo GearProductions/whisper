@@ -777,6 +777,45 @@ describe('les tests d’invariants changés après leur validation', () => {
   });
 });
 
+// Vu le 26 novembre sur gt-plugins : la note en retouche (elle a perdu son ✓), l'agent relançait la forme après chaque réponse,
+// et la vérification suivante attendait derrière. À la pause « note », on ne touche qu'à la note (correctif note-en-retouche).
+describe('la note en retouche : on ne touche qu’à la note', () => {
+  async function noteChanged() {
+    setup();
+    await openPanel('a1');
+    await validateNote();
+    commitModule();
+    write(path.join(dir, NOTE_FILE), REDESIGNED);   // une décision écrite après les modules
+    await survey();
+    await survey();
+    expect(view().pause).toBe('note');   // témoin
+    await endEngine();
+    expect(await halted()).toBe(false);   // témoin : ce n'est pas le moteur arrêté qui refuse
+  }
+
+  it('la forme, les tests, les modules, la revue, la PR : refusés à l’agent, halted, avec la raison', async () => {
+    await noteChanged();
+    for (const action of ['forme', 'align', 'read-invariants', 'modules', 'prove', 'checks', 'pr']) {
+      const res = await ask('run.start', { action }) as unknown as { ok: boolean; error?: { code: string; details: { reason?: string } } };
+      expect(res).toMatchObject({ ok: false, error: { code: 'halted' } });
+      expect(res.error!.details.reason).toMatch(/note/);
+    }
+    expect(claude.turns.map((t) => t.skill)).not.toContain('/vibecoder:forme');
+  });
+
+  it('Vérifier la note reste lançable par l’agent', async () => {
+    await noteChanged();
+    expect(await ask('run.start', { action: 'design-check' })).not.toMatchObject({ error: { code: 'halted' } });
+  });
+
+  it('la note revalidée : la forme repart', async () => {
+    await noteChanged();
+    await validateNote();
+    expect(view().pause ?? null).not.toBe('note');
+    expect(await ask('run.start', { action: 'forme' })).not.toMatchObject({ error: { code: 'halted' } });
+  });
+});
+
 describe('une validation d’étape retirée à la main : la pause sur l’étape', () => {
   // Le moteur au travail (relancé à la pause des invariants, ou en express), puis la validation de la Forme retirée à la main.
   async function engineThenRetired(express: boolean) {
