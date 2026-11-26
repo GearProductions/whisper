@@ -15,7 +15,10 @@ on:
 
 jobs:
   # Typage, tests (invariants et variants) et construction des pages et du
-  # principal, sur les deux systèmes visés.
+  # principal, sur les deux systèmes visés. Sur une PR, Windows ne lance pas
+  # les tests : ils y durent trois fois plus longtemps (git plus lent à lancer, et
+  # leurs délais fixes triplés par slow()). Ils tournent après la fusion sur
+  # master, et pour un tag avant les paquets.
   syntaxe:
     strategy:
       matrix:
@@ -30,6 +33,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+        if: matrix.os != 'windows-latest' || github.event_name != 'pull_request'
       - run: npm run build
 
   # L'assistant PowerShell (collage, Ctrl+C, micro Discord) ne peut être essayé
