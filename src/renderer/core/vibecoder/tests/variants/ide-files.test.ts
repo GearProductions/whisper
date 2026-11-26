@@ -293,3 +293,27 @@ describe('les squelettes à générer', () => {
     expect(rows.map((r) => [r.path, r.mark, !!r.dim, r.hint])).toEqual([['s.ts', 'todo', true, 'à générer'], ['g.ts', 'new', false, undefined]]);
   });
 });
+
+describe('un module complet dès la Forme (T-47, note 0.16.0-ligne-apres-pr)', () => {
+  const committed = (p: string) => mod(p, { touched: true, started: true, commits: ['h'], uncommitted: false, files: [{ id: 'm0/0', path: p }] });
+  const types = mod('types.ts', { touched: true, started: true, skeleton: true, uncommitted: false, files: [{ id: 'm1/0', path: 'types.ts', skeleton: true }] });
+
+  it('complet dès la Forme, les autres commités : compté écrit et commité', () => {
+    expect(moduleCounts([committed('a.ts'), types])).toEqual({ total: 2, written: 2, committed: 2 });
+  });
+
+  it('même cas : pas marqué « à générer » (ni état todo, ni couleur, ni retrait)', () => {
+    expect(moduleState(types)).not.toBe('todo');
+    const rows = ideFiles({ modules: [committed('a.ts'), types] }, 'file', 'à générer');
+    expect(rows[1]).toMatchObject({ path: 'types.ts', state: 'wip', mark: null });
+    expect(rows[1].dim).toBeUndefined();
+    expect(rows[1].hint).toBeUndefined();
+  });
+
+  it('un module pas commencé : toujours « à générer », compté ni écrit ni commité', () => {
+    const idle = mod('types.ts', { touched: true, skeleton: true, files: [{ id: 'm1/0', path: 'types.ts', skeleton: true }] });
+    expect(moduleState(idle)).toBe('todo');
+    expect(moduleCounts([committed('a.ts'), idle])).toEqual({ total: 2, written: 1, committed: 1 });
+    expect(ideFiles({ modules: [committed('a.ts'), idle] }, 'file', 'à générer')[1]).toMatchObject({ state: 'todo', mark: 'todo', dim: true, hint: 'à générer' });
+  });
+});

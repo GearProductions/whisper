@@ -154,13 +154,26 @@
  *  - rien n'est retiré du relevé ni du registre : chaque lecture reste lançable seule (review-note, read-invariants,
  *    align, review-commits, screen), les commits et leurs marques « commit:<hash> » restent au relevé (la page ne les
  *    montre plus), modulesView aussi.
+ *  La ligne d'état après la PR (note 0.16.0-ligne-apres-pr), en créateur :
+ *  - pr.ci : les checks de la tête de la PR, d'après github.pr seul (gh : technicals/github) ; jamais d'une fiche (pr.json,
+ *    pr-<n>.json) ni de ci.md ; gh sans réponse : absent (inconnu) ;
+ *  - la note n'est faite que si son ✓ vaut pour sa conception d'aujourd'hui ('ok'), modules commencés compris : une note
+ *    'changed' perd son étape et la pause 'note' revient dès que sa conception a changé, le moteur arrêté, Vibe masquée
+ *    (unvalidated) jusqu'à la validation de l'utilisateur ; les cas d'invariants 'changed' comptent encore une fois un
+ *    module commencé (comme avant) ; la Forme, les Invariants et les Modules faits le restent (le parcours ne recule pas :
+ *    une fois un module commencé, l'étape Invariants ne dépend plus de la note) ; note.git : gitOf de la note
+ *    ('modified' : commitée puis changée, le changement que le moteur applique à sa reprise) ;
+ *  - un module complet dès la Forme (T-47) : ses fichiers tous restés squelette (skel:<chemin>), tous dans le premier
+ *    commit, et au moins un autre module dans la Forme : commencé dès que chacun des autres l'est, fait (étape Modules,
+ *    son décompte, la case « chaque module de la Forme a son commit ») une fois que chacun des autres a son commit ;
+ *    ses commits restent vides ; un module seul est toujours à générer.
  *  Ne connaît pas : Electron, le disque, git, gh, si la pause est tenue (holdsPause de vibe-mode : journey dit où le
  *  parcours se tient, le contrôleur décide) (tout est passé ; `exists` dit si
  *  un chemin du dossier de l'agent existe ; les textes des tests, à la tête et à la base, sont lus par
  *  l'appelant) ; l'historique que choisit le projet (AGENTS.md : lu par les skills de commit, jamais ici).
  *  Utilisé par : app/controllers/vibecoder (refreshVibe). */
 import type {
-  VibeAction, VibeCheck, VibeComment, VibeFlow, VibeGit, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePause, VibePr,
+  VibeAction, VibeCheck, VibeCi, VibeComment, VibeFlow, VibeGit, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePause, VibePr,
   VibeDiffFile, VibeDiffs, VibeDiffStep, VibePrItem, VibeRecipe, VibeRun, VibeStepCheck, VibeStepId, VibeTestFile, VibeView, VibeWorktree,
 } from 'shared/bridge';
 import { readCount as casesRead } from 'shared/test-cases';
@@ -371,7 +384,7 @@ export function vibeView(input: JourneyInput): VibeView {
     id: 'n', path: input.note.path, text: input.note.text, before: input.note.before, filled: facts.filled, mustNot: facts.mustNot,
     mark: markState(marks, 'note', blobSha(noteDesign(input.note.text))), formeMark: markState(marks, 'forme', blobSha(facts.forme)),
     nothingMark: markState(marks, 'nothing', blobSha(input.note.text)), locked: codeLock(null, input.busy, input.running, lang),
-    ...(flow === 'create' && { verified: designState(marks, input.note.path, blobSha(noteDesign(input.note.text))) }),
+    ...(flow === 'create' && { verified: designState(marks, input.note.path, blobSha(noteDesign(input.note.text))), ...gitOf(input.note.path) }),
   };
   // Le commit de la note : le plus ancien de la branche qui la porte (les commits vont du plus ancien au plus récent) ;
   // il porte aussi les squelettes des modules, qui ne sont pas un module fait. Note ignorée par git (jamais commitée) :
@@ -379,7 +392,9 @@ export function vibeView(input: JourneyInput): VibeView {
   const noteIn = (c: { files: string[] }) => !!note && (input.note?.ignored ? c === commits[0] : c.files.includes(note.path));
   const noteCommit = note && commits.find(noteIn);
   const noteDirty = !!note && dirty.includes(note.path);
-  const modules: VibeModule[] = (facts?.modules ?? []).map((m, i) => {
+  // T-47 : un module complet dès la Forme (ses fichiers tous restés squelette, tous dans le premier commit) ; whole[rang].
+  const whole: boolean[] = [];
+  const found: VibeModule[] = (facts?.modules ?? []).map((m, i) => {
     const bares = m.paths.map((p) => p.replace(/\/+$/, ''));   // un module a un chemin ou plusieurs (T-15)
     const per = bares.map((b) => changed.flatMap((f) => within(f, b) ?? []));   // les fichiers changés sous chaque chemin
     const hits = per.flat();
@@ -401,12 +416,19 @@ export function vibeView(input: JourneyInput): VibeView {
         ? { id: `m${i}/${j}`, path, ...gitOf(path), ...(isSkeleton(path) && { skeleton: true as const }) }
         : { id: `m${i}/${j}`, path, deleted: true }));
     const skeleton = files.length > 0 && files.every((f) => 'skeleton' in f && f.skeleton);
+    whole[i] = skeleton && !!noteCommit && files.every((f) => noteCommit.files.includes(f.path));
     return {
       path: m.path, paths: m.paths, contract: m.contract, file: real ? { id: `m${i}`, path: real } : null,
       touched, started, commits: by.map((c) => c.hash), files, locked: codeLock(m.path, input.busy, input.running, lang), uncommitted,
       ...(skeleton && { skeleton }),
     };
   });
+  // Un module complet dès la Forme : commencé quand chacun des autres l'est, commité (sans commit à lui) quand chacun des autres
+  // l'est ; « les autres » : ceux qui ne sont pas complets eux-mêmes (deux modules complets ne s'attendent pas), au moins un.
+  // Sans autre module : toujours à générer.
+  const rest = found.filter((_, i) => !whole[i]);
+  const modules: VibeModule[] = found.map((m, i) => (whole[i] && rest.length > 0 && rest.every((o) => o.started) ? { ...m, started: true } : m));
+  const committed = modules.map((m, i) => m.commits.length > 0 || (whole[i] && rest.length > 0 && rest.every((o) => o.commits.length > 0)));
   const unstarted = modules.some((m) => !m.started);
   const invLines = !!input.note && hasInvariantLines(input.note.text);
   // La preuve des invariants : preuve.md et les lignes « → invariant » de la note ; passée si elle est 'ok' (ou 'none' : rien à
@@ -498,7 +520,9 @@ export function vibeView(input: JourneyInput): VibeView {
   const followed = fiche && gh.state ? { ...fiche, state: gh.state } : fiche;
   const card = flow === 'create' ? gh.pr ?? json(out('pr.json')) : followed;
   const number = flow === 'review' ? n : prNumber(card?.number);
-  const pr = number ? toPr(number, card) : null;
+  // pr.ci : les checks que gh a lus pour la PR de la branche, jamais une fiche ni ci.md ; gh sans réponse : absent (inconnu).
+  const ci = flow === 'create' ? gh.pr?.ci as VibeCi | null | undefined : undefined;
+  const pr = number ? { ...toPr(number, card), ...(ci && { ci }) } : null;
   const loaded = n && followed ? toPr(n, followed) : null;
   const branch = input.checkout?.branch ?? null;
   const place: PlaceState = {
@@ -528,7 +552,7 @@ export function vibeView(input: JourneyInput): VibeView {
     // Chaque diff relu : cochée par le relevé, les modules validés et la ponytail review faite.
     stepCheck?.modules.state === 'ok' && ponytail,
     // Aucun fixup! à replier, et chaque module de la Forme a son commit (un commit peut en porter plusieurs).
-    !fixups && modules.length > 0 && modules.every((m) => m.commits.length > 0),
+    !fixups && modules.length > 0 && committed.every(Boolean),
     null,
   ];
   const checklist: VibeCheck[] = flow === 'review' ? []
@@ -551,7 +575,10 @@ export function vibeView(input: JourneyInput): VibeView {
   let pause: VibePause | null = null;
   if (flow === 'create') {
     // La note n'est faite que par le ✓ de l'utilisateur, Vibe et l'express compris ; la Forme, dès qu'elle a des modules.
-    const noteDone = !!note?.filled && !questions.length && stillOk(note.mark);
+    // Une note rédigée, sans question, dont le ✓ vaut encore (stillOk : « changed » compte une fois un module commencé) : de quoi
+    // faire les étapes suivantes ; la Note elle-même n'est faite que pour sa conception d'aujourd'hui, modules commencés compris.
+    const noteHeld = !!note?.filled && !questions.length && stillOk(note.mark);
+    const noteDone = noteHeld && note?.mark === 'ok';
     const formeDone = !!note && modules.length > 0;
     // La note (sa Forme comprise) commitée puis modifiée : la Forme n'est faite qu'une fois ce changement commité
     // (Préparer le commit : un fixup de son commit, un nouveau commit une fois la PR ouverte), note et Forme revalidées.
@@ -578,11 +605,11 @@ export function vibeView(input: JourneyInput): VibeView {
       // (note, forme, invariants) fait.
       // Une fois un module commencé, seuls comptent les tests écrits pour l'étape (portés par le commit de la note) :
       // un test protégé retouché ensuite par un module (un harnais) est du travail des modules, pas à revalider.
-      invariants: noteDone && formeDone && (!invLines || (begun
+      invariants: noteHeld && formeDone && (!invLines || (begun
         ? aligned || stepTests.every((f) => Object.values(f.marks).every(stillOk))
         : written && (!invariants.length || ((aligned || casesOk) && !retouched)))),
       // Pas faite sans preuve qui passe, quel que soit le rythme.
-      modules: modules.length > 0 && modules.every((m) => m.commits.length > 0) && !modules.some((m) => m.uncommitted) && !pending && proved,
+      modules: modules.length > 0 && committed.every(Boolean) && !modules.some((m) => m.uncommitted) && !pending && proved,
       revue: checksOk && ponytail && !fixups && boxes === screen.length,   // le plan à l'écran, s'il y en a un
       pr: !!pr,
     };
@@ -592,7 +619,7 @@ export function vibeView(input: JourneyInput): VibeView {
     const first = commits.some(noteIn);
     // Prêts à commiter : les tests écrits (lus : unread), sans attendre l'alignement ni le premier commit ; un écart [toi] de
     // l'alignement est déjà en tête des règles, et le moteur ne commite pas avant la reprise de l'utilisateur.
-    const ready = noteDone && formeDone && (!invLines || written);
+    const ready = noteHeld && formeDone && (!invLines || written);
     // Un ✓ d'étape retiré à la main qui tient : sa marque retient l'empreinte du contenu d'aujourd'hui de l'étape.
     // Un test d'invariant de la branche que l'utilisateur a noté « À revoir » (sa marque 'ko' vaut pour son contenu
     // d'aujourd'hui) retient le parcours comme le ✓ de l'étape Invariants retiré : rien ne se construit sur un test contesté.
@@ -605,7 +632,7 @@ export function vibeView(input: JourneyInput): VibeView {
     // l'utilisateur l'ait vu (Reprendre vaut « d'accord » : vibeMarks revalide alors). En express : le système revalide, pas de pause.
     const relook = !input.express && invariants.length > 0 && !!contents?.invariants && stepCheck?.invariants.state === 'changed';
     pause = !note ? null
-      : first && !stillOk(note.mark) ? 'note'
+      : first && note.mark !== 'ok' ? 'note'
         : refused ? `withdrawn:${refused}`
           : ready && !unread && ((!first && !begun && !commitMd) || relook) ? 'invariants'
             : done.modules && !checks && !ponytail && !pr ? 'modules'
@@ -630,7 +657,7 @@ export function vibeView(input: JourneyInput): VibeView {
       forme: note ? line(count(modules.length, T.module), note.formeMark && !mood('forme') && T.mark[note.formeMark], mood('forme')) : T.noNote,
       // La preuve, dite ici et nulle part ailleurs, quand chaque module est commencé (avant, il n'y a rien à en dire, sauf rien à prouver).
       invariants: invFacts(!!note && (!unstarted || proof.state !== 'missing') && T.proof[proof.state]),
-      modules: line(`${modules.filter((m) => m.commits.length).length} / ${count(modules.length, T.module)}`, mood('modules')),
+      modules: line(`${committed.filter(Boolean).length} / ${count(modules.length, T.module)}`, mood('modules')),
       revue: line(!checks ? T.unchecked : checksOk ? T.checksOk : T.checksKo, warnings > 0 && count(warnings, T.warning),
         ponytail && T.ponytail, fixups > 0 && count(fixups, T.fixup), screen.length > 0 && `${boxes} / ${count(screen.length, T.box)}`),
       pr: pr ? `PR #${pr.number}` : T.noPr,
@@ -687,7 +714,7 @@ export function vibeView(input: JourneyInput): VibeView {
     if (flow === 'create' && d.id === 'vibe') {
       if (!note?.filled) return 'noNoteYet';
       if (questions.length) return 'openQuestions';
-      if (!stillOk(note.mark)) return 'unvalidated';
+      if (note.mark !== 'ok') return 'unvalidated';
       if (pause?.startsWith('withdrawn:')) return 'refused';
       if (vibe || input.busy || input.running.length) return 'started';
     }

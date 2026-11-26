@@ -3,19 +3,23 @@
  *  statusLine(view: VibeView): StatusLine | null
  *  Dans l'ordre, la première qui vaut : pas de note rédigée (« Demandez la note à l'agent, dans la conversation ») ;
  *  des questions ouvertes, à toute étape, le moteur en route ou pas (« 2 questions : répondez dans le questionnaire ») ;
- *  la note sans son ✓ (« Vérifiez, puis validez la note » ; déjà commitée, la pause 'note' : « La note a changé : elle
- *  attend sa validation ») ; des tests notés « À revoir » (la pause 'withdrawn:invariants', un cas 'ko' au relevé :
+ *  la note sans son ✓ (« Vérifiez, puis validez la note » ; déjà commitée, la pause 'note' : « La note a changé :
+ *  vérifiez-la, puis validez-la » — modules commencés compris, avant la PR ; note 0.16.0-ligne-apres-pr) ; des tests notés « À revoir » (la pause 'withdrawn:invariants', un cas 'ko' au relevé :
  *  « 1 test à revoir : dites à l'agent quoi corriger ») ; un ✓ d'étape retiré à la main qui tient (la pause
  *  'withdrawn:<étape>' : la ligne nomme l'étape) ; le moteur en route (« Le système écrit les modules » : d'après la course en cours, sinon l'étape en
  *  cours) ; une pause (« Regardez vos règles, puis reprenez » — revenue parce que des tests ont changé depuis leur
- *  validation : « Des tests ont changé : regardez vos règles, puis reprenez » —, « Essayez l'appli, puis reprenez ») ; la PR ouverte
- *  (« La PR est ouverte, la CI tourne », la CI en échec, « La PR est verte : à vous de la fusionner », fusionnée,
- *  fermée sans être fusionnée : « La PR est fermée » ; un état inconnu vaut ouverte, comme pr-view) ;
+ *  validation : « Des tests ont changé : regardez vos règles, puis reprenez » —, « Essayez l'appli, puis reprenez ») ; la
+ *  note revalidée dont le changement n'est pas commité (note.git 'modified' : « La note est validée : reprenez pour que
+ *  le système l'applique ») ; la PR ouverte, d'après les checks de sa tête lus par gh (view.pr.ci, jamais ci.md :
+ *  « La PR est ouverte, la CI tourne » en cours ou sans check, la CI en échec, « La PR est verte : à vous de la
+ *  fusionner » ; inconnu, gh sans réponse : « La PR est ouverte : état de la CI inconnu », jamais verte), fusionnée, fermée sans être
+ *  fusionnée : « La PR est fermée » ; un état de PR inconnu vaut ouverte, comme pr-view) ;
  *  sinon le moteur arrêté hors d'une pause (« Le système est arrêté : reprenez »).
  *  yours : la ligne attend l'utilisateur (une question, la note, une pause, un ✓ retiré, la PR verte, le moteur
  *  arrêté) ; false : le système travaille. Un relevé en erreur : null (aucune ligne).
  *  over : le parcours est fini, il n'y a rien à reprendre (la PR verte et chaque étape faite ; fusionnée ; fermée) :
- *  breadcrumb ne pose pas Reprendre à côté. Une étape pas faite (une correction en cours), la CI en cours ou en échec : pas over.
+ *  breadcrumb ne pose pas Reprendre à côté. Une étape pas faite (une correction en cours), la CI en cours, en échec ou
+ *  inconnue : pas over.
  *  La revue essentielle (note 0.16.0-revue-essentielle) : le relecteur a sa ligne lui aussi (plus null), d'après ce que
  *  le relevé sait déjà. Dans l'ordre, la première qui vaut : pas de PR chargée (« Choisissez la PR à relire, dans la vue
  *  des branches ») ; le dossier ailleurs que sur sa tête (« Passez sur la branche de la PR ») ; une lecture de la revue
@@ -30,7 +34,6 @@
 import type { VibeStepId, VibeView } from 'technicals/bridge';
 import { t } from './i18n';
 import { progress } from './invariants';
-import { parseCi } from './outputs';
 import { runningRuns } from './screen';
 
 export type StatusLine = { text: string; yours: boolean; over?: true };
@@ -61,7 +64,7 @@ export function statusLine(view: VibeView): StatusLine | null {
   const pause = view.pause ?? null;
   if (!view.note?.filled) return yours(l.noNote);
   if (view.questions.length) return yours(l.questions(view.questions.length));
-  // l'étape Note d'après le relevé, pas la marque brute : une fois un module commencé, la note « changed » compte encore
+  // l'étape Note d'après le relevé, pas la marque brute : faite seulement pour la conception d'aujourd'hui (la marque 'ok')
   if (view.steps.find((x) => x.id === 'note')?.status !== 'done') return yours(pause === 'note' ? s.pause.note : l.verifyNote);
   // un test noté « À revoir » retient le parcours à la pause de l'étape Invariants : la ligne dit combien, et à qui le dire
   const ko = pause === 'withdrawn:invariants' ? progress(view.invariants).ko : 0;
@@ -77,10 +80,13 @@ export function statusLine(view: VibeView): StatusLine | null {
   // la pause après les invariants revenue : des tests ont changé depuis que l'utilisateur les a laissés passer (leur ✓ « changed »)
   if (pause === 'invariants' && view.steps.find((x) => x.id === 'invariants')?.check?.state === 'changed') return yours(l.relook);
   if (pause === 'invariants' || pause === 'modules') return yours(l.pause[pause]);
+  // la note revalidée dont le changement n'est pas commité : le système l'applique à la reprise (Reprendre reste, pas over) ;
+  // une PR fusionnée ou fermée garde sa ligne, sans Reprendre
+  if (view.note.git === 'modified' && (!view.pr?.state || view.pr.state === 'OPEN')) return yours(l.applyNote);
   if (view.pr && (!view.pr.state || view.pr.state === 'OPEN')) {   // état inconnu : ouverte, comme pr-view
-    const ci = parseCi(view.outputs['ci.md']?.text ?? '');
-    if (ci?.state === 'ok') return view.steps.every((x) => x.status === 'done') ? { ...yours(l.green), over: true } : yours(l.green);
-    return { text: ci?.state === 'ko' ? l.ciFailed : l.ciRunning, yours: false };
+    const ci = view.pr.ci?.state;   // d'après gh seul (jamais ci.md) ; absent : inconnu, ni verte ni over
+    if (ci === 'ok') return view.steps.every((x) => x.status === 'done') ? { ...yours(l.green), over: true } : yours(l.green);
+    return { text: ci === 'ko' ? l.ciFailed : ci === 'pending' ? l.ciRunning : l.ciUnknown, yours: false };
   }
   if (view.pr?.state === 'MERGED') return { text: l.merged, yours: false, over: true };
   if (view.pr?.state === 'CLOSED') return { text: l.closed, yours: false, over: true };

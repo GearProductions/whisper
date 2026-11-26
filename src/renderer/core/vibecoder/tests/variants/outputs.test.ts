@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { failedChecks, findings, parseChecks, parseCi, parseReview, sections, webUrl, withoutApplied } from 'core/vibecoder';
+import { failedChecks, findings, parseChecks, parseReview, sections, webUrl, withoutApplied } from 'core/vibecoder';
 
 describe('parseChecks', () => {
   it('les items, dans leur ordre', () => {
@@ -177,44 +177,6 @@ describe('fichiers de retour étiquetés [toi] / [agent] : la lecture de la page
       { title: '[toi] le contrat', body: 'texte' },
       { title: '[agent] un détail', body: 'autre' },
     ]);
-  });
-});
-
-describe('parseCi', () => {
-  it('une première ligne ✓ : verte, aucun échec', () => {
-    expect(parseCi('✓ 5/5 checks passed')).toEqual({ state: 'ok', failed: [] });
-  });
-
-  it('une première ligne ✗ et deux titres : en échec, leurs deux noms sans étiquette', () => {
-    const text = '[agent] ✗ 2/5 failed\n\n## [agent] typecheck\nCause.\n\n## [toi] tests\nCause.';
-    expect(parseCi(text)).toEqual({ state: 'ko', failed: ['typecheck', 'tests'] });
-  });
-
-  it('une première ligne ⏳ : en cours', () => {
-    expect(parseCi('⏳ 3/5 pending')).toEqual({ state: 'pending', failed: [] });
-  });
-
-  it('une étiquette [agent] devant la marque : ignorée', () => {
-    expect(parseCi('[agent] ✓ 5/5')?.state).toBe('ok');
-    expect(parseCi('[toi] ⏳ 1/2')?.state).toBe('pending');
-  });
-
-  it('un titre dans un bloc de code : pas un échec', () => {
-    const text = '✗ 1/2\n## [agent] lint\n```md\n## pas un échec\n```';
-    expect(parseCi(text)?.failed).toEqual(['lint']);
-  });
-
-  it('une première ligne sans marque connue, un texte vide : illisible', () => {
-    for (const text of ['', ' \n\n', 'all good', '## [agent] lint\n✗ 1/1', '[agent] 5/5']) expect(parseCi(text)).toBeNull();
-  });
-
-  it('après une marque de liste, des lignes vides en tête, des fins de ligne Windows', () => {
-    expect(parseCi('\n\n- [agent] ✗ 1/2\r\n## [agent] `lint`  \r\ncause')).toEqual({ state: 'ko', failed: ['`lint`'] });
-  });
-
-  it('un titre sans nom, ou seulement une étiquette : écarté ; verte avec des titres : les garde', () => {
-    expect(parseCi('✗ 1/2\n## [agent]\n##\n## [toi] a b')?.failed).toEqual(['a b']);
-    expect(parseCi('✓ ok\n## [agent] x')?.failed).toEqual(['x']);
   });
 });
 

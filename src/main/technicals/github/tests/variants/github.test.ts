@@ -1,14 +1,91 @@
 // Variants de gh (note 0.8.0, « Relire » et l'étape PR de « Créer ») : ce qui
 // est lu de ses réponses ; un échec, ou une réponse illisible : null.
 import { describe, expect, it } from 'vitest';
-import { githubReader, type GhRun } from 'technicals/github';
+import { ciOf, githubReader, type GhRun } from 'technicals/github';
 
 const answering = (text: string | null): GhRun => async () => text;
 
+// Les formes lues sur gh pr view --json statusCheckRollup : CheckRun (status COMPLETED, IN_PROGRESS, QUEUED ; conclusion
+// vide tant qu'il tourne) et StatusContext (state SUCCESS, FAILURE, ERROR, PENDING, EXPECTED).
+const run = (name: string, status: string, conclusion = ''): object => ({ __typename: 'CheckRun', name, status, conclusion });
+const done = (name: string, conclusion: string) => run(name, 'COMPLETED', conclusion);
+const ctx = (context: string, state: string): object => ({ __typename: 'StatusContext', context, state });
+
+describe('la CI d’après statusCheckRollup', () => {
+  it('tous les checks SUCCESS (CheckRun et StatusContext) : ok', () => {
+    expect(ciOf([done('a', 'SUCCESS'), ctx('b', 'SUCCESS')])).toEqual({ state: 'ok', failed: [] });
+  });
+
+  it('NEUTRAL ou SKIPPED : comptent comme passés', () => {
+    expect(ciOf([done('a', 'NEUTRAL'), done('b', 'SKIPPED'), done('c', 'SUCCESS')])).toEqual({ state: 'ok', failed: [] });
+  });
+
+  it('un FAILURE, CANCELLED, TIMED_OUT (ou un statut ERROR, FAILURE) : ko, son nom', () => {
+    expect(ciOf([done('a', 'SUCCESS'), done('b', 'FAILURE')])).toEqual({ state: 'ko', failed: ['b'] });
+    expect(ciOf([done('c', 'CANCELLED')])).toEqual({ state: 'ko', failed: ['c'] });
+    expect(ciOf([done('t', 'TIMED_OUT')])).toEqual({ state: 'ko', failed: ['t'] });
+    expect(ciOf([ctx('s', 'ERROR'), ctx('f', 'FAILURE')])).toEqual({ state: 'ko', failed: ['s', 'f'] });
+  });
+
+  it('un en échec et un en cours : ko', () => {
+    expect(ciOf([run('a', 'IN_PROGRESS'), done('b', 'FAILURE')])).toEqual({ state: 'ko', failed: ['b'] });
+  });
+
+  it('un QUEUED ou IN_PROGRESS (un statut PENDING) : pending', () => {
+    expect(ciOf([done('a', 'SUCCESS'), run('b', 'QUEUED')])).toEqual({ state: 'pending', failed: [] });
+    expect(ciOf([done('a', 'SUCCESS'), run('b', 'IN_PROGRESS')])).toEqual({ state: 'pending', failed: [] });
+    expect(ciOf([done('a', 'SUCCESS'), ctx('s', 'PENDING')])).toEqual({ state: 'pending', failed: [] });
+  });
+
+  it('aucun check (juste après un push, dépôt sans CI) : pending', () => {
+    expect(ciOf([])).toEqual({ state: 'pending', failed: [] });
+  });
+
+  it('un rollup illisible (pas un tableau, entrées sans forme) : pending, jamais ok', () => {
+    for (const r of [undefined, null, 'x', 3, {}]) expect(ciOf(r)).toEqual({ state: 'pending', failed: [] });
+    expect(ciOf([null, 'x', {}])).toEqual({ state: 'pending', failed: [] });
+    expect(ciOf([done('a', 'SUCCESS'), null])).toEqual({ state: 'pending', failed: [] });
+  });
+
+  it('ACTION_REQUIRED : un échec, ko', () => {
+    expect(ciOf([done('a', 'ACTION_REQUIRED')])).toEqual({ state: 'ko', failed: ['a'] });
+  });
+
+  it('un check relancé : seul le plus récent compte (relancé, vert : ok ; relancé, en cours : pending ; relancé, rouge : ko)', () => {
+    const at = (o: object, startedAt: string) => ({ ...o, startedAt });
+    expect(ciOf([at(done('a', 'FAILURE'), '2026-01-01T10:00:00Z'), at(done('a', 'SUCCESS'), '2026-01-01T10:05:00Z')])).toEqual({ state: 'ok', failed: [] });
+    expect(ciOf([at(done('a', 'SUCCESS'), '2026-01-01T10:05:00Z'), at(done('a', 'FAILURE'), '2026-01-01T10:00:00Z')])).toEqual({ state: 'ok', failed: [] });
+    expect(ciOf([at(done('a', 'FAILURE'), '2026-01-01T10:00:00Z'), at(run('a', 'IN_PROGRESS'), '2026-01-01T10:05:00Z')])).toEqual({ state: 'pending', failed: [] });
+    expect(ciOf([at(done('a', 'SUCCESS'), '2026-01-01T10:00:00Z'), at(done('a', 'FAILURE'), '2026-01-01T10:05:00Z')])).toEqual({ state: 'ko', failed: ['a'] });
+    // un même nom dans deux workflows : deux checks
+    const wf = (workflowName: string, c: object) => ({ ...c, workflowName });
+    expect(ciOf([wf('w1', done('a', 'FAILURE')), wf('w2', done('a', 'SUCCESS'))])).toEqual({ state: 'ko', failed: ['a'] });
+  });
+
+  it('un échec sans nom lisible : ko quand même', () => {
+    expect(ciOf([{ __typename: 'CheckRun', status: 'COMPLETED', conclusion: 'FAILURE' }])).toEqual({ state: 'ko', failed: [''] });
+  });
+});
+
 describe('la PR d’une branche', () => {
-  it('sa fiche, aux noms de pr.json (base, head)', async () => {
-    const gh = githubReader(answering('{"number":7,"title":"t","url":"u","state":"MERGED","baseRefName":"main","headRefName":"feat/x"}'));
-    expect(await gh.prForBranch('feat/x')).toEqual({ number: 7, title: 't', url: 'u', state: 'MERGED', base: 'main', head: 'feat/x' });
+  const card = '"number":7,"title":"t","url":"u","state":"MERGED","baseRefName":"main","headRefName":"feat/x"';
+
+  it('sa fiche, aux noms de pr.json (base, head), plus ses checks (ci)', async () => {
+    const gh = githubReader(answering(`{${card},"statusCheckRollup":[{"__typename":"CheckRun","name":"a","status":"COMPLETED","conclusion":"SUCCESS"}]}`));
+    expect(await gh.prForBranch('feat/x')).toEqual({ number: 7, title: 't', url: 'u', state: 'MERGED', base: 'main', head: 'feat/x', ci: { state: 'ok', failed: [] } });
+  });
+
+  it('statusCheckRollup demandé dans son --json, la branche après --', async () => {
+    const calls: string[][] = [];
+    await githubReader(async (args) => { calls.push(args); return `{${card}}`; }).prForBranch('feat/x');
+    expect(calls).toHaveLength(1);
+    expect(calls[0].slice(0, 2)).toEqual(['pr', 'view']);
+    expect(calls[0][calls[0].indexOf('--json') + 1].split(',')).toContain('statusCheckRollup');
+    expect(calls[0].slice(-2)).toEqual(['--', 'feat/x']);
+  });
+
+  it('sans rollup dans la réponse : ci pending, jamais ok', async () => {
+    expect((await githubReader(answering(`{${card}}`)).prForBranch('feat/x'))!.ci).toEqual({ state: 'pending', failed: [] });
   });
 
   it('gh en échec (pas de PR, pas connecté), ou une réponse illisible : null', async () => {

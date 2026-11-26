@@ -165,9 +165,9 @@ it('l\'action grisée : Reprendre grisé, sa raison en title ; masquée (note pa
 
 it('le parcours fini (la PR verte et chaque étape faite, fusionnée, fermée) : la ligne, sans Reprendre ; le moteur en route : Arrêter reste', async () => {
   const done = ['note', 'forme', 'invariants', 'modules', 'revue', 'pr'].map((id) => ({ id, status: 'done', facts: '' }));
-  const green = { 'ci.md': { text: '✓ 3/3\n', time: 1 } };
+  const green = { state: 'OPEN', ci: { state: 'ok', failed: [] } };   // la CI d'après gh (pr.ci), jamais ci.md
   for (const view of [
-    creator({ steps: done as never, pr: { state: 'OPEN' } as never, outputs: green as never }),
+    creator({ steps: done as never, pr: green as never }),
     creator({ pr: { state: 'MERGED' } as never }),
     creator({ pr: { state: 'CLOSED' } as never }),
   ]) {
@@ -178,11 +178,32 @@ it('le parcours fini (la PR verte et chaque étape faite, fusionnée, fermée) :
   }
   // la PR verte mais une étape pas faite (une correction en cours) : Reprendre garde son sens
   const pending = done.map((x) => (x.id === 'modules' ? { ...x, status: 'current' } : x));
-  let m = await mount(creator({ steps: pending as never, pr: { state: 'OPEN' } as never, outputs: green as never }), [], [], { a: act1(), on: false }, () => {});
+  let m = await mount(creator({ steps: pending as never, pr: green as never }), [], [], { a: act1(), on: false }, () => {});
   expect(runs(m.page).map((b) => b.textContent)).toEqual([act1().label]);
   await m.unmount();
-  m = await mount(creator({ steps: done as never, pr: { state: 'OPEN' } as never, outputs: green as never, vibe: true }), [], [], { a: act1(), on: true }, () => {});
+  m = await mount(creator({ steps: done as never, pr: green as never, vibe: true }), [], [], { a: act1(), on: true }, () => {});
   expect(runs(m.page).map((b) => b.textContent)).toEqual([s.vibeStop]);
+  await m.unmount();
+});
+
+it('la CI pas verte (en cours, en échec, inconnue) ou un ci.md ✓ sans pr.ci, chaque étape faite : Reprendre reste', async () => {
+  const done = ['note', 'forme', 'invariants', 'modules', 'revue', 'pr'].map((id) => ({ id, status: 'done', facts: '' }));
+  const prs = [{ ci: { state: 'pending', failed: [] } }, { ci: { state: 'ko', failed: ['lint'] } }, {}, { ci: null }];
+  for (const p of prs) {
+    const m = await mount(creator({ steps: done as never, pr: { state: 'OPEN', ...p } as never, outputs: { 'ci.md': { text: '✓ 3/3\n', time: 1 } } as never }), [], [], { a: act1(), on: false }, () => {});
+    expect(runs(m.page).map((b) => b.textContent)).toEqual([act1().label]);
+    await m.unmount();
+  }
+});
+
+it('la note revalidée, pas commitée (note.git \'modified\') : « reprenez pour que le système l\'applique » et Reprendre ; la pause \'note\' : pas de Reprendre', async () => {
+  let m = await mount(creator({ note: { filled: true, mark: 'ok', git: 'modified' } as never }), [], [], { a: act1(), on: false }, () => {});
+  expect(lines(m.page).map((p) => p.textContent)).toEqual([s.statusLine.applyNote]);
+  expect(runs(m.page).map((b) => b.textContent)).toEqual([act1().label]);
+  await m.unmount();
+  m = await mount(creator({ pause: 'note', note: { filled: true, mark: 'changed' } as never }), [], [], { a: act1(), on: false }, () => {});
+  expect(lines(m.page).map((p) => p.textContent)).toEqual([s.pause.note]);
+  expect(runs(m.page)).toHaveLength(0);
   await m.unmount();
 });
 

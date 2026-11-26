@@ -25,7 +25,7 @@
  *  Le contrôle en trois points (note 0.16.0-controle-en-trois-points) : l'interrupteur Express et son infobulle,
  *  le bouton du moteur — Arrêter pendant que le système enchaîne, Reprendre quand il est arrêté (une pause, un arrêt à
  *  la main, un redémarrage de l'appli), leurs infobulles ; aucun libellé ni infobulle de l'écran ne dit plus « Vibe »,
- *  plus de Relancer pour le moteur —, la ligne de chaque pause (pause : la note, « elle attend sa validation » ; statusLine.pause : invariants et modules,
+ *  plus de Relancer pour le moteur —, la ligne de chaque pause (pause : la note, « vérifiez-la, puis validez-la » ; statusLine.pause : invariants et modules,
  *  « puis reprenez » ; un ✓ d'étape
  *  retiré à la main, withdrawn:forme, withdrawn:invariants, withdrawn:modules : l'étape nommée, « modifiez-la ou
  *  revalidez-la pour reprendre »), le titre
@@ -43,6 +43,10 @@
  *  changedByPr (un test d'avant la branche que la PR modifie), addRemark, draftEmpty (le brouillon vide, sans commits).
  *  stepName(s: Strings, flow: VibeFlow, id: VibeStepId): string — le nom d'une étape à l'écran : en relecteur celui de
  *  son arrêt, en créateur celui de steps, inchangé.
+ *  La ligne d'état après la PR (note 0.16.0-ligne-apres-pr) : pause.note dit « La note a changé : vérifiez-la, puis
+ *  validez-la » ; statusLine gagne applyNote (« La note est validée : reprenez pour que le système l'applique ») et
+ *  ciUnknown (gh sans réponse : « La PR est ouverte : état de la CI inconnu », en « The PR is open: CI state
+ *  unknown ») ; ciRunning, ciFailed, green inchangés.
  *  Ne connaît pas : le DOM, React. Utilisé par : app/panel/vibecoder, app/panel (panel-app). */
 import type {
   AgentActivity, AgentView, SettingKey, SettingsCategory, SettingsCommand, SettingsInfo, VibeFlow, VibeLang, VibeRun, VibePause, VibeRunProgress, VibeStepId,
@@ -96,7 +100,7 @@ const fr = {
   express: 'Express',
   expressTitle: 'Express : aucune pause, le système enchaîne jusqu\'à la PR ouverte. Éteint, le parcours s\'arrête après les invariants et après les modules.',
   pause: {
-    note: 'La note a changé : elle attend sa validation',
+    note: 'La note a changé : vérifiez-la, puis validez-la',
     'withdrawn:forme': 'Vous avez retiré la validation de la forme : modifiez-la ou revalidez-la pour reprendre',
     'withdrawn:invariants': 'Vous avez retiré la validation des invariants : modifiez-les ou revalidez-les pour reprendre',
     'withdrawn:modules': 'Vous avez retiré la validation des modules : modifiez-les ou revalidez-les pour reprendre',
@@ -106,6 +110,7 @@ const fr = {
     noNote: 'Demandez la note à l\'agent, dans la conversation',
     questions: (n: number) => `${n} question${n > 1 ? 's' : ''} : répondez dans le questionnaire`,
     verifyNote: 'Vérifiez, puis validez la note',
+    applyNote: 'La note est validée : reprenez pour que le système l\'applique',
     working: 'Le système travaille',
     run: (what: string) => `Le système travaille : ${what}`,
     step: {
@@ -117,6 +122,7 @@ const fr = {
     toReview: (n: number) => `${n} test${n > 1 ? 's' : ''} à revoir : dites à l'agent quoi corriger`,
     ciRunning: 'La PR est ouverte, la CI tourne',
     ciFailed: 'La PR est ouverte, la CI est en échec',
+    ciUnknown: 'La PR est ouverte : état de la CI inconnu',
     green: 'La PR est verte : à vous de la fusionner',
     merged: 'La PR est fusionnée',
     closed: 'La PR est fermée, sans avoir été fusionnée',
@@ -352,7 +358,7 @@ const en: Strings = {
   express: 'Express',
   expressTitle: 'Express: no pause, the system carries on until the PR is open. Off, the journey stops after the invariants and after the modules.',
   pause: {
-    note: 'The note changed: it awaits its validation',
+    note: 'The note changed: check it, then approve it',
     'withdrawn:forme': 'You withdrew the approval of the shape: change it or approve it again to resume',
     'withdrawn:invariants': 'You withdrew the approval of the invariants: change them or approve them again to resume',
     'withdrawn:modules': 'You withdrew the approval of the modules: change them or approve them again to resume',
@@ -362,6 +368,7 @@ const en: Strings = {
     noNote: 'Ask the agent for the note, in the conversation',
     questions: (n) => `${n} question${n > 1 ? 's' : ''}: answer in the questionnaire`,
     verifyNote: 'Check, then approve the note',
+    applyNote: 'The note is approved: resume for the system to apply it',
     working: 'The system is working',
     run: (what) => `The system is working: ${what}`,
     step: {
@@ -373,6 +380,7 @@ const en: Strings = {
     toReview: (n: number) => `${n} test${n > 1 ? 's' : ''} to review: tell the agent what to fix`,
     ciRunning: 'The PR is open, the CI is running',
     ciFailed: 'The PR is open, the CI failed',
+    ciUnknown: 'The PR is open: CI state unknown',
     green: 'The PR is green: yours to merge',
     merged: 'The PR is merged',
     closed: 'The PR is closed, not merged',

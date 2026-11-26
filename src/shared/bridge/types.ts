@@ -294,6 +294,7 @@ export type VibeNote = VibeFile & {
   verified?: VibeNoteCheck | null; // créateur : ce qu'a rendu sa dernière vérification (Valider la note n'est montré qu'avec) ; absent = null
   nothingMark?: VibeMarkState; // ✓ Rien à écrire (Invariants, créateur) ; absent = null
   locked?: string | null;      // pourquoi elle ne s'édite pas (codeLock) ; absent = null : éditable
+  git?: VibeGit;               // pas commitée : 'new' jamais commitée, 'modified' commitée puis changée ; absent : commitée
 };
 
 export type VibeModule = {
@@ -302,7 +303,7 @@ export type VibeModule = {
   contract: string;            // expose · ne connaît pas · utilisé par
   file: VibeFile | null;       // son fichier ou dossier, s'il existe
   touched: boolean;            // la branche le touche (un squelette compris)
-  started?: boolean;           // un fichier a changé depuis son squelette : un commit sans la note le touche, ou, la note commitée, un fichier pas commité ; absent = comme touched
+  started?: boolean;           // un fichier a changé depuis son squelette : un commit sans la note le touche, ou, la note commitée, un fichier pas commité ; ou complet dès la Forme (T-47 : resté squelette, dans le premier commit) et chacun des autres modules commencé ; absent = comme touched
   commits: string[];           // hash des commits qui le touchent
   files?: (VibeFile & { deleted?: boolean; git?: VibeGit; skeleton?: true })[];  // touché : ses fichiers que la branche change (ids m<rang>/<i>) ; deleted : supprimé par la branche (absent = false) ; git : pas commité (absent : commité) ; skeleton : encore le squelette de la Forme (à générer) ; absent = []
   locked?: string | null;      // pourquoi Voir le code est grisé (codeLock) ; absent = null : éditable
@@ -423,9 +424,13 @@ export type VibeRun = {
 };
 export type VibeRunOp = 'stop' | 'keep' | 'undo' | 'allow' | 'always' | 'deny';
 
+// L'état des checks du commit de tête d'une PR, lu par gh (note 0.16.0-ligne-apres-pr) : 'ok' tous passent ; 'ko' un au
+// moins en échec (failed : leurs noms, dans l'ordre) ; 'pending' un au moins en cours, ou aucun check encore.
+export type VibeCi = { state: 'ok' | 'ko' | 'pending'; failed: string[] };
 export type VibePr = {
   number: number; title: string; url: string; author: string; base: string; head: string; body: string;
   state: 'OPEN' | 'CLOSED' | 'MERGED' | null;   // null : inconnu (fiche d'avant la 0.8.0-rc.2)
+  ci?: VibeCi | null;   // créateur : les checks de sa tête, d'après gh seul (jamais ci.md ni une fiche) ; absent ou null : inconnu
 };
 export type VibePrItem = { number: number; title: string; author: string; url: string };
 export type VibeComment = { id: number; target: string; text: string };

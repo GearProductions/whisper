@@ -38,47 +38,56 @@ it('créateur, une PR : sa carte, son lien', async () => {
   expect(page.querySelector('.vc-pr button[title*="https://github.com/o/r/pull/7"]')).not.toBeNull();
 });
 
-it('créateur, la CI verte : aucune ligne', async () => {
-  await show({ pr, outputs: ci('✓ Tout passe\n') });
-  expect(lines()).toEqual([]);
-  expect(page.textContent).not.toContain('Tout passe');
-});
+const UNKNOWN = 'La PR est ouverte : état de la CI inconnu';
+const withCi = (c: unknown, state?: string) => ({ ...pr, ci: c, ...(state ? { state } : {}) });
 
-it('créateur, deux vérifications en échec : deux lignes', async () => {
-  await show({ pr, outputs: ci('✗ 2 vérifications en échec\n\n## lint\ncause\n\n## [agent] tests\ncause\n') });
+it('créateur, pr.ci ko : ses checks en échec, un par ligne', async () => {
+  await show({ pr: withCi({ state: 'ko', failed: ['lint', 'tests'] }) });
   expect(lines()).toEqual(['lint', 'tests']);
+  expect(page.textContent).not.toContain(UNKNOWN);
 });
 
-it('créateur, la CI en cours : elle le dit', async () => {
-  await show({ pr, outputs: ci('⏳ en cours\n') });
+it('créateur, pr.ci ok : rien', async () => {
+  await show({ pr: withCi({ state: 'ok', failed: [] }), outputs: ci('✗ x\n\n## lint\n') });
+  expect(lines()).toEqual([]);
+  expect(page.querySelector('.vc-invite')).toBeNull();
+  expect(page.textContent).not.toContain(UNKNOWN);
+});
+
+it('créateur, pr.ci pending : « La CI tourne »', async () => {
+  await show({ pr: withCi({ state: 'pending', failed: [] }) });
   expect(page.textContent).toContain('La CI tourne');
   expect(lines()).toEqual([]);
 });
 
-it('créateur, une PR et pas encore de ci.md : la CI tourne', async () => {
-  await show({ pr });
-  expect(page.textContent).toContain('La CI tourne');
-});
-
-it('créateur, une PR fusionnée ou fermée : pas de « La CI tourne » (sans ci.md, ou un vieux ⏳)', async () => {
-  for (const state of ['MERGED', 'CLOSED']) {
-    await show({ pr: { ...pr, state } });
-    expect(page.textContent).not.toContain('La CI tourne');
-    await show({ pr: { ...pr, state }, outputs: ci('⏳ en cours\n') });
-    expect(page.textContent).not.toContain('La CI tourne');
+it('créateur, pr.ci absent ou null : la phrase de la ligne, même avec un ci.md ✓, jamais vert', async () => {
+  for (const c of [undefined, null]) {
+    for (const outputs of [{}, ci('✓ Tout passe\n'), ci('⏳ en cours\n')]) {
+      await show({ pr: withCi(c), outputs });
+      expect(page.textContent).toContain(UNKNOWN);
+      expect(page.textContent).not.toContain('La CI tourne');
+      expect(lines()).toEqual([]);
+    }
   }
-  await show({ pr: { ...pr, state: 'OPEN' } });
-  expect(page.textContent).toContain('La CI tourne');
+  await show({ pr: withCi(undefined), lang: 'en' });
+  expect(page.textContent).toContain('The PR is open: CI state unknown');
 });
 
-it('créateur, ci.md illisible : son texte tel quel', async () => {
-  await show({ pr, outputs: ci('quelque chose\nd\'autre <b>x</b>') });
-  expect(page.querySelector('pre')!.textContent).toBe('quelque chose\nd\'autre <b>x</b>');
-  expect(page.querySelector('b b')).toBeNull();
+it('créateur, une PR fusionnée ou fermée : rien sur la CI', async () => {
+  for (const state of ['MERGED', 'CLOSED']) {
+    for (const c of [undefined, { state: 'pending', failed: [] }, { state: 'ko', failed: ['lint'] }]) {
+      await show({ pr: withCi(c, state), outputs: ci('⏳ en cours\n') });
+      expect(page.querySelector('.vc-invite')).toBeNull();
+      expect(page.textContent).not.toMatch(/La CI|inconnu/);
+      expect(lines()).toEqual([]);
+    }
+  }
+  await show({ pr: withCi({ state: 'pending', failed: [] }, 'OPEN') });
+  expect(page.textContent).toContain('La CI tourne');
 });
 
 it('créateur : ni Valider la feature, ni Diagnostiquer la CI, ni Relancer, ni Me retirer de la PR', async () => {
-  for (const over of [{ pr, outputs: ci('✗ x\n\n## lint\n') }, { pr }, {}, { pr, outputs: ci('✓ ok') }]) {
+  for (const over of [{ pr, outputs: ci('✗ x\n\n## lint\n') }, { pr }, {}, { pr: withCi({ state: 'ko', failed: ['lint'] }) }]) {
     await show(over);
     expect(buttons().filter((b) => /Valider|Diagnostiquer|Relancer|retirer/.test(b ?? ''))).toEqual([]);
     expect(page.textContent).not.toMatch(/Valider la feature|Diagnostiquer|Relancer|Me retirer/);

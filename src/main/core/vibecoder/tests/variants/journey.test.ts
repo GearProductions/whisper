@@ -243,13 +243,13 @@ describe('Créer, hors Vibe : les étapes et la prochaine action', () => {
     expect([status(all).forme, status(all).modules, primary(all)]).toEqual(['done', 'current', 'commit-prepare']);
   });
 
-  it('modules commités, puis la note et un test retouchés après leur validation (validations « changed ») : le parcours ne recule pas, Vibe reste possible', () => {
+  it('modules commités, puis la note et un test retouchés après leur validation (validations « changed ») : la Forme, les Invariants et les Modules le restent, la note non, Vibe attend sa validation', () => {
     // les validations portent sur l'ancien contenu : la note, sa Forme et un cas ont changé depuis
     const stale: Marks = { note: { hash: 'x', verdict: 'ok' }, forme: { hash: 'y', verdict: 'ok' },
       ...CASES_OK, [caseTarget(TEST_PATH, 'dit bonjour')]: { hash: 'z', common: 'c', verdict: 'ok' } };
     const v = vibeView(ready({ marks: stale, repo: repo([], [FIRST, HELLO, BUTTON]), outputs: PROOF }));
-    expect([status(v).note, status(v).forme, status(v).invariants, status(v).modules]).toEqual(['done', 'done', 'done', 'done']);
-    expect(v.actions.find((a) => a.id === 'vibe')?.disabled ?? null).toBeNull();
+    expect([status(v).note, status(v).forme, status(v).invariants, status(v).modules]).toEqual(['current', 'done', 'done', 'done']);
+    expect(v.actions.find((a) => a.id === 'vibe')?.disabled).toBe('Valider d\'abord la note');
     // aucun module touché : une validation « changed » ne compte pas (on revalide avant de générer)
     expect(status(vibeView(ready({ marks: stale }))).note).toBe('current');
   });
@@ -2254,8 +2254,8 @@ describe('le contrôle en trois points (0.16.0)', () => {
       const skels = commit('a', 'Squelettes, invariants', [TEST_PATH, HELLO_PATH]);
       expect(vibeView(ready({ note: { ...changed, ignored: true }, marks: MARKED, repo: repo([], [skels]) })).pause).toBe('note');
       expect(vibeView(ready({ note: { ...changed, ignored: true }, marks: MARKED, repo: repo() })).pause ?? null).toBeNull();
-      // un module commencé : le parcours ne recule plus
-      expect(vibeView(ready({ note: changed, marks: MARKED, repo: repo([], [FIRST, HELLO]) })).pause ?? null).not.toBe('note');
+      // un module commencé : la pause revient aussi (0.16.0-ligne-apres-pr), le parcours ne recule pas pour autant
+      expect(vibeView(ready({ note: changed, marks: MARKED, repo: repo([], [FIRST, HELLO]) })).pause).toBe('note');
       // la note refusée (✗), commitée : sans ✓, la pause de la note
       const refused: Marks = { note: { hash: blobSha(noteDesign(NOTE)), verdict: 'ko' }, ...CASES_OK };
       expect(vibeView(ready({ marks: refused })).pause).toBe('note');
@@ -2707,6 +2707,180 @@ describe('le contrôle en trois points (0.16.0)', () => {
         const marked = vibeView(ready({ ...files, marks: { ...validated('invariants'), 'a3:4': { hash: head, verdict: 'ok' } } })).checklist[4];
         expect(marked).toMatchObject({ done: true, manual: true });
       });
+    });
+  });
+});
+
+// La ligne d'état après la PR (note 0.16.0-ligne-apres-pr) : la note d'abord, la CI lue par gh, un module complet dès la Forme (T-47).
+describe('la ligne d\'état après la PR (0.16.0)', () => {
+  const HELLO_PATH = 'src/core/hello.ts', BUTTON_PATH = 'src/app/button.tsx';
+  const sha = (c: string) => c.repeat(40);
+  const status = (v: VibeView) => Object.fromEntries(v.steps.map((s) => [s.id, s.status]));
+
+  describe('la note d\'abord : son ✓ ne vaut que pour sa conception d\'aujourd\'hui', () => {
+    const CHANGED = { ...note, text: NOTE.replace('dit bonjour.', 'dit bonjour, fort.') };
+    const ALL = repo([], [FIRST, HELLO, BUTTON]);
+    // La note changée depuis son ✓, un module commencé (ou tous faits).
+    const begun = (over: Partial<JourneyInput> = {}) => vibeView(ready({ note: CHANGED, repo: repo([], [FIRST, HELLO]), outputs: PROOF, ...over }));
+
+    it('la note « changed » après un module commencé : Note pas faite', () => {
+      const v = begun();
+      expect([v.note?.mark, status(v).note]).toEqual(['changed', 'current']);
+      expect(primary(v)).toBeNull();   // la note rédigée : rien à faire que la valider
+      expect(status(vibeView(ready({ note: CHANGED, repo: ALL, outputs: PROOF }))).note).toBe('current');
+    });
+
+    it('même cas : la pause « note », Vibe masquée (unvalidated)', () => {
+      const v = begun();
+      expect(v.pause).toBe('note');
+      expect(action(v, 'vibe')).toMatchObject({ hidden: true, disabled: 'Valider d\'abord la note' });
+      // tous les modules faits : la pause de la note passe devant celle des modules
+      expect(vibeView(ready({ note: CHANGED, repo: ALL, outputs: PROOF })).pause).toBe('note');
+    });
+
+    it('même cas : la Forme, les Invariants et les Modules faits le restent', () => {
+      const v = vibeView(ready({ note: CHANGED, repo: ALL, outputs: PROOF }));
+      expect([status(v).forme, status(v).invariants, status(v).modules]).toEqual(['done', 'done', 'done']);
+      // un seul module commencé : la Forme et les Invariants le restent aussi
+      const one = begun();
+      expect([status(one).forme, status(one).invariants, status(one).modules]).toEqual(['done', 'done', 'todo']);   // la Note, en cours, passe devant
+    });
+
+    it('la note revalidée, pas commitée : note.git « modified », plus de pause', () => {
+      const v = vibeView(ready({
+        note: CHANGED, marks: { ...noteMarks(CHANGED.text), ...CASES_OK }, outputs: PROOF,
+        repo: { ...repo([], [FIRST, HELLO]), dirty: [NOTE_PATH], changed: [NOTE_PATH, TEST_PATH, HELLO_PATH] },
+      }));
+      expect([v.note?.git, v.pause ?? null, status(v).note]).toEqual(['modified', null, 'done']);
+      // commitée et inchangée : pas de git ; jamais commitée : « new »
+      expect(vibeView(ready()).note?.git).toBeUndefined();
+      expect(vibeView(input({ note, repo: { ...repo([NOTE_PATH]), added: [NOTE_PATH] } })).note?.git).toBe('new');
+    });
+
+    it('la note refusée (✗) après un module commencé : pas faite non plus', () => {
+      const refused: Marks = { note: { hash: blobSha(noteDesign(NOTE)), verdict: 'ko' }, ...CASES_OK };
+      const v = vibeView(ready({ marks: refused, repo: ALL, outputs: PROOF }));
+      expect([status(v).note, v.pause]).toEqual(['current', 'note']);
+    });
+
+    it('un cas d\'invariant « changed » après un module commencé : compte encore', () => {
+      const stale: Marks = { ...NOTE_OK, ...CASES_OK, [caseTarget(TEST_PATH, 'dit bonjour')]: { hash: 'z', common: 'c', verdict: 'ok' } };
+      const v = vibeView(ready({ marks: stale, repo: ALL, outputs: PROOF }));
+      expect([v.invariants[0].marks['dit bonjour'], status(v).note, status(v).invariants, v.pause ?? null]).toEqual(['changed', 'done', 'done', 'modules']);
+      // aucun module commencé : il ne compte pas
+      expect(status(vibeView(ready({ marks: stale }))).invariants).toBe('current');
+    });
+
+    it('le relecteur : sa note jugée ou non, rien ne change', () => {
+      const v = vibeView(input({
+        flow: 'review', pr: 12, note, repo: repo([], [FIRST, HELLO]), checkout: { branch: 'feat/G2-1', dirty: false },
+        outputs: { 'pr-12.json': out(JSON.stringify({ number: 12, head: 'feat/G2-1' })) }, marks: { note: ok(noteDesign(NOTE)) },
+      }));
+      expect([v.pause ?? null, v.note?.git, status(v).note]).toEqual([null, undefined, 'done']);
+    });
+  });
+
+  describe('pr.ci : celui de gh, jamais d\'une fiche ni de ci.md', () => {
+    const GH = { number: 31, title: 'G2-1', url: 'u', state: 'OPEN', base: 'main', head: 'feat/G2-1' };
+    const CI = { state: 'ko', failed: ['tests'] };
+    const view = (over: Partial<JourneyInput>) => vibeView(input({ note, repo: repo([], [FIRST]), ...over }));
+
+    it('pr.ci repris de github.pr, tel quel ; sans ci chez gh : absent', () => {
+      expect(view({ github: { pr: { ...GH, ci: CI } } }).pr?.ci).toEqual(CI);
+      expect(view({ github: { pr: { ...GH, ci: { state: 'ok', failed: [] } } } }).pr?.ci).toEqual({ state: 'ok', failed: [] });
+      expect(view({ github: { pr: GH } }).pr?.ci).toBeUndefined();
+      expect(view({ github: { pr: { ...GH, ci: null } } }).pr).not.toHaveProperty('ci');
+    });
+
+    it('pr.json seul (gh sans réponse) : absent', () => {
+      const v = view({ outputs: { 'pr.json': out('{"number":9}') }, github: { pr: null } });
+      expect([v.pr?.number, v.pr?.ci]).toEqual([9, undefined]);
+      expect(view({ outputs: { 'pr.json': out('{"number":9}') } }).pr?.ci).toBeUndefined();
+    });
+
+    it('un ci dans pr.json ou pr-<n>.json : ignoré ; un ci.md ✓ aussi', () => {
+      const card = JSON.stringify({ number: 9, state: 'OPEN', ci: { state: 'ok', failed: [] } });
+      const md = out('✓ 2/2 checks');
+      expect(view({ outputs: { 'pr.json': out(card), 'ci.md': md }, github: { pr: null } }).pr?.ci).toBeUndefined();
+      const reviewed = vibeView(input({ flow: 'review', pr: 9, repo: repo([], [FIRST]), outputs: { 'pr-9.json': out(card), 'ci.md': md } }));
+      expect([reviewed.pr?.ci, reviewed.loaded?.ci]).toEqual([undefined, undefined]);
+      // le relecteur ne lit pas la PR de la branche : le ci de gh.pr ne lui est pas donné
+      expect(vibeView(input({ flow: 'review', pr: 9, outputs: { 'pr-9.json': out(card) }, github: { pr: { ...GH, ci: CI } } })).pr?.ci).toBeUndefined();
+    });
+  });
+
+  // Un module complet dès la Forme (T-47) : button.tsx, que seul son squelette décrit, resté tel que la Forme l'a laissé.
+  describe('un module complet dès la Forme', () => {
+    const WITH_SKELETONS = commit('a', 'Note, forme, invariants', [NOTE_PATH, TEST_PATH, HELLO_PATH, BUTTON_PATH]);
+    const BLOBS = [{ path: BUTTON_PATH, disk: sha('s'), head: sha('s') }];
+    const SKEL: Marks = { [`skel:${BUTTON_PATH}`]: { hash: sha('s'), verdict: 'ok' } };
+    const view = (over: Partial<JourneyInput> = {}) => vibeView(ready({
+      marks: { ...NOTE_OK, ...CASES_OK, ...SKEL }, blobs: BLOBS, exists: () => true, repo: repo([], [WITH_SKELETONS]), ...over,
+    }));
+    const started = (v: VibeView) => v.modules.map((m) => m.started);
+    const dirtyHello = { ...repo([], [WITH_SKELETONS]), dirty: [HELLO_PATH] };
+
+    it('les autres commencés : commencé, ses commits restent vides, plus de Générer les modules', () => {
+      for (const v of [view({ repo: repo([], [WITH_SKELETONS, HELLO]) }), view({ repo: dirtyHello })]) {
+        expect(started(v)).toEqual([true, true]);
+        expect(v.modules[1].commits).toEqual([]);
+        expect([action(v, 'modules')?.hidden, primary(v)]).not.toEqual([false, 'modules']);
+        expect(action(v, 'modules')?.hidden).toBe(true);
+      }
+    });
+
+    it('les autres commités : l\'étape Modules est faite', () => {
+      const v = view({ repo: repo([], [WITH_SKELETONS, HELLO]), outputs: PROOF });
+      expect([started(v), status(v).modules, v.modules[1].commits]).toEqual([[true, true], 'done', []]);
+    });
+
+    it('même cas : le décompte et la case « chaque module a son commit » le comptent', () => {
+      const v = view({ repo: repo([], [WITH_SKELETONS, HELLO]), outputs: PROOF });
+      expect([v.steps.find((s) => s.id === 'modules')?.facts, v.checklist[3].done]).toEqual(['2 / 2 modules', true]);
+    });
+
+    it('les autres commencés, pas commités : commencé, mais l\'étape Modules pas faite, pas de commit compté', () => {
+      const v = view({ repo: dirtyHello, outputs: PROOF });
+      expect([status(v).modules, v.steps.find((s) => s.id === 'modules')?.facts, v.checklist[3].done]).toEqual(['current', '0 / 2 modules', false]);
+    });
+
+    it('un autre pas commencé : pas commencé, Générer les modules', () => {
+      const v = view();
+      expect([started(v), status(v).modules, primary(v), action(v, 'modules')?.hidden]).toEqual([[false, false], 'current', 'modules', false]);
+    });
+
+    it('un fichier changé depuis son squelette, pas commité : pas complet, pas compté comme fait', () => {
+      const v = view({
+        repo: { ...repo([], [WITH_SKELETONS, HELLO]), dirty: [BUTTON_PATH] }, blobs: [{ path: BUTTON_PATH, disk: sha('t'), head: sha('s') }], outputs: PROOF,
+      });
+      expect([v.modules[1].skeleton, v.modules[1].uncommitted, status(v).modules, primary(v)]).toEqual([undefined, true, 'current', 'commit-modules']);
+      expect(v.checklist[3].done).toBe(false);
+    });
+
+    it('un fichier hors du premier commit : pas complet', () => {
+      // la note pas commitée : le seul commit est celui de hello ; button.tsx, un squelette pas encore commité, n'est dans aucun commit
+      const v = view({ repo: { ...repo([], [HELLO]), dirty: [BUTTON_PATH], added: [BUTTON_PATH], changed: [HELLO_PATH, BUTTON_PATH] } });
+      expect([started(v), v.modules[1].skeleton]).toEqual([[true, false], true]);
+    });
+
+    it('seul module de la Forme, resté squelette : Générer les modules', () => {
+      const ONE = NOTE.replace('src/core/hello.ts    hello() · ne connaît pas : le DOM\n', '');
+      const v = view({ note: { ...note, text: ONE }, marks: { ...noteMarks(ONE), ...CASES_OK, ...SKEL }, repo: repo([], [WITH_SKELETONS]) });
+      expect([v.modules.length, started(v), status(v).modules, primary(v)]).toEqual([1, [false], 'current', 'modules']);
+    });
+
+    it('deux modules complets et un vrai : chacun attend le vrai, pas l\'autre complet', () => {
+      const TYPES = 'src/shared/types.ts';
+      const THREE = NOTE.replace('```\n', `\`\`\`\n${TYPES}   les types\n`);
+      const first = commit('a', 'Note, forme, invariants', [NOTE_PATH, TEST_PATH, HELLO_PATH, BUTTON_PATH, TYPES]);
+      const over = (commits: ReturnType<typeof commit>[]): Partial<JourneyInput> => ({
+        note: { ...note, text: THREE }, marks: { ...noteMarks(THREE), ...CASES_OK, ...SKEL, [`skel:${TYPES}`]: { hash: sha('s'), verdict: 'ok' } },
+        blobs: [...BLOBS, { path: TYPES, disk: sha('s'), head: sha('s') }], repo: repo([], commits), outputs: PROOF,
+      });
+      const at = (commits: ReturnType<typeof commit>[]) => view(over(commits));
+      expect(started(at([first])).slice(0, 3)).toEqual([false, false, false]);
+      const v = at([first, HELLO]);
+      expect([v.modules.map((m) => m.path), started(v), status(v).modules]).toEqual([[TYPES, HELLO_PATH, BUTTON_PATH], [true, true, true], 'done']);
     });
   });
 });

@@ -3,10 +3,9 @@
  *  (pr-<n>-review.json : état, lien, verdict, texte, date), un Markdown coupé en rubriques `##` (une par commit
  *  dans pr-<n>-commits.md) ; une adresse n'est gardée qu'en
  *  http(s) (I-21). Illisible : null, l'écran le dit.
- *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : l'état de la CI lu dans ci.md, et les vérifications en échec.
- *  parseCi(text: string): Ci | null — la première ligne de ci.md dit l'état d'ensemble (✓ : 'ok' ; ✗ : 'ko' ; ⏳ :
- *  'pending' ; son étiquette [toi] / [agent] ignorée), chaque titre `##` (hors bloc de code) une vérification en échec,
- *  son nom sans étiquette, dans l'ordre ; une première ligne sans aucune de ces marques : null (illisible, l'écran le dit).
+ *  L'écran de l'essentiel (note 0.16.0-ecran-essentiel) : les vérifications en échec. L'état de la CI n'est plus lu
+ *  dans ci.md (parseCi et Ci retirés : la ligne d'état et la carte de la PR lisent view.pr.ci, gh ; note
+ *  0.16.0-ligne-apres-pr).
  *  failedChecks(checks: Check[]): Check[] — celles de checks.json en échec (level 'error'), dans l'ordre ; un
  *  avertissement passe.
  *  withoutApplied(ponytail: Out, applied?: Out): string — le texte de ponytail.md sans les remarques [agent] que la course
@@ -19,7 +18,7 @@
  *  à signaler », une relecture d'avant ce format) : aucun constat, tout son texte dans intro — rien n'est caché.
  *  Ne connaît pas : le DOM, React, les noms des fichiers.
  *  Utilisé par : app/panel/vibecoder (review-view, branches-view, findings-view, draft-view, step-parts, pr-view) ;
- *  core/vibecoder (status-line : parseCi ; review-flow : Section). */
+ *  core/vibecoder (review-flow : Section). */
 
 import { VERDICTS, type Verdict } from 'shared/review';
 
@@ -122,20 +121,6 @@ export function withoutApplied(ponytail: { text: string; time: number }, applied
     else if (!/^\s+\S/.test(line)) dropping = false;
     return !dropping;
   }).join('\n');
-}
-
-// L'état de la CI d'après ci.md (voir l'en-tête) : l'ensemble, et le nom de chaque vérification en échec.
-export type Ci = { state: 'ok' | 'ko' | 'pending'; failed: string[] };
-
-const TAG = /^\[(?:toi|agent)\][ \t]*/;
-const STATES: Record<string, Ci['state']> = { '✓': 'ok', '✗': 'ko', '⏳': 'pending' };
-
-export function parseCi(text: string): Ci | null {
-  const first = text.split(/\r?\n/).find((l) => l.trim()) ?? '';
-  const state = STATES[first.trim().replace(/^[-*+][ \t]+/, '').replace(TAG, '')[0]];  // ⏳ (U+23F3) tient en un caractère
-  if (!state) return null;
-  const failed = sections(text).flatMap((s) => (s.title ? [s.title.replace(TAG, '').trim()] : [])).filter(Boolean);
-  return { state, failed };
 }
 
 // Les vérifications de checks.json en échec, dans l'ordre (un avertissement passe).

@@ -5,13 +5,21 @@
  *  sous-commandes en lecture (GH_READ : `pr view`, `pr list`), plus une
  *  commande exacte (GH_LOGIN : `api user --jq .login`) ; les autres
  *  arguments sont fixes, sauf une branche lue par git (okRef, après `--`) et
- *  un numéro de PR (un entier positif). La PR d'une branche (prForBranch), les
- *  PR ouvertes du dépôt en trois listes (openPrs : les miennes, à relire,
- *  toutes), l'état d'une PR (prState), l'identifiant de l'utilisateur (login),
- *  l'auteur et les assignés d'une PR (prPeople).
- *  Ne connaît pas : VibeCoder, Electron, la configuration.
+ *  un numéro de PR (un entier positif). La PR d'une branche (prForBranch) et
+ *  l'état des checks de son commit de tête (ci : un champ de plus à son
+ *  `gh pr view`, statusCheckRollup, lu par ciOf ; note 0.16.0-ligne-apres-pr),
+ *  les PR ouvertes du dépôt en trois listes (openPrs : les miennes, à relire,
+ *  toutes), l'état d'une PR suivie (prState, inchangé : `--json state` seul),
+ *  l'identifiant de l'utilisateur (login), l'auteur et les assignés d'une PR
+ *  (prPeople).
+ *  ciOf(rollup: unknown): VibeCi — statusCheckRollup → 'ko' si un check est en
+ *  échec (ses noms dans failed), sinon 'pending' si un est en cours ou s'il n'y
+ *  en a aucun (juste après un push, un dépôt sans CI), sinon 'ok' ; illisible :
+ *  'pending' (jamais vert).
+ *  Ne connaît pas : VibeCoder, Electron, la configuration, ci.md.
  *  Utilisé par : app/controllers/vibecoder. */
 import { execFile } from 'node:child_process';
+import type { VibeCi } from 'shared/bridge';
 import { okRef } from 'technicals/git';
 
 // Les seules sous-commandes lancées : en lecture.
@@ -22,8 +30,36 @@ export const GH_LOGIN = ['api', 'user', '--jq', '.login'] as const;
 // Lance gh (args[0..1] : la sous-commande) → sa sortie, ou null.
 export type GhRun = (args: string[]) => Promise<string | null>;
 
-// La fiche d'une PR, comme pr.json et pr-<n>.json.
-export type GhPr = { number: number; title: string; url: string; state: string; base: string; head: string };
+// La fiche d'une PR, comme pr.json et pr-<n>.json ; ci : les checks de sa tête, posés par prForBranch seul (jamais
+// écrits dans une fiche : prCardText ne les garde pas).
+export type GhPr = { number: number; title: string; url: string; state: string; base: string; head: string; ci?: VibeCi };
+
+// statusCheckRollup (gh pr view) → l'état des checks : 'ko' un en échec, 'pending' un en cours ou aucun, sinon 'ok'.
+// CheckRun : status COMPLETED + conclusion (vide tant qu'il tourne) ; StatusContext : state. Seules ces valeurs
+// sont des passés ; CI_FAILED sont des échecs (ACTION_REQUIRED compris, comme gh pr checks) ; tout le reste (en cours,
+// entrée illisible) compte comme en cours, jamais vert. Un check relancé garde son ancien CheckRun à côté du nouveau :
+// seul le plus récent (startedAt) par workflowName + name compte.
+const CI_PASSED = ['SUCCESS', 'NEUTRAL', 'SKIPPED'];
+const CI_FAILED = ['FAILURE', 'CANCELLED', 'TIMED_OUT', 'STARTUP_FAILURE', 'ERROR', 'ACTION_REQUIRED'];
+export function ciOf(rollup: unknown): VibeCi {
+  const failed: string[] = [];
+  let pending = !Array.isArray(rollup) || rollup.length === 0;
+  const latest = new Map<string, Record<string, unknown>>();
+  (Array.isArray(rollup) ? rollup : []).forEach((c, i) => {
+    const e = (c && typeof c === 'object' ? c : {}) as Record<string, unknown>;
+    const name = e.name ?? e.context;
+    const key = typeof name === 'string' && name ? `${e.workflowName ?? ''}\u0000${name}` : `#${i}`;   // sans nom : jamais écarté
+    const old = latest.get(key);
+    if (!old || String(e.startedAt ?? '') >= String(old.startedAt ?? '')) latest.set(key, e);
+  });
+  for (const e of latest.values()) {
+    const verdict = e.__typename === 'CheckRun' ? (e.status === 'COMPLETED' ? e.conclusion : 'PENDING')
+      : e.__typename === 'StatusContext' ? e.state : 'PENDING';
+    if (CI_FAILED.includes(verdict as string)) failed.push(String(e.name ?? e.context ?? ''));
+    else if (!CI_PASSED.includes(verdict as string)) pending = true;
+  }
+  return { state: failed.length ? 'ko' : pending ? 'pending' : 'ok', failed };
+}
 
 // <prefix…> gh <args>, au dossier `dir` : sans shell, 15 s, null en cas
 // d'échec ; une sous-commande hors de GH_READ, ou une autre commande que
@@ -51,13 +87,13 @@ export const okLogin = (s: unknown): s is string => typeof s === 'string' && /^[
 // entier positif : null sans lancer gh.
 export function githubReader(run: GhRun) {
   return {
-    // La PR de cette branche (ouverte, sinon la dernière), ou null.
+    // La PR de cette branche (ouverte, sinon la dernière) et les checks de sa tête (ciOf), ou null.
     async prForBranch(branch: string): Promise<GhPr | null> {
       if (!okRef(branch)) return null;
-      const p = parse(await run(['pr', 'view', '--json', 'number,title,url,state,baseRefName,headRefName', '--', branch])) as Record<string, unknown> | null;
+      const p = parse(await run(['pr', 'view', '--json', 'number,title,url,state,baseRefName,headRefName,statusCheckRollup', '--', branch])) as Record<string, unknown> | null;
       return p && okNumber(p.number) ? {
         number: p.number, title: String(p.title ?? ''), url: String(p.url ?? ''), state: String(p.state ?? ''),
-        base: String(p.baseRefName ?? ''), head: String(p.headRefName ?? ''),
+        base: String(p.baseRefName ?? ''), head: String(p.headRefName ?? ''), ci: ciOf(p.statusCheckRollup),
       } : null;
     },
     // Les PR ouvertes du dépôt, en trois listes (gh pr list --author @me ; à relire ; sans filtre, --limit 100) ; une

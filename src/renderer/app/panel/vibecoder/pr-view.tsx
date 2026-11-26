@@ -1,8 +1,10 @@
 /** pr-view — l'étape PR, pour les deux rôles (view.flow).
  *  Créateur (note 0.16.0-ecran-essentiel), sans bouton : la carte de la PR de la branche (lue par gh, sinon pr.json :
- *  numéro, titre, branche et base du dépôt, lien ouvert dans le navigateur) et l'état de la CI, ci.md lu par parseCi
- *  (core/vibecoder) : une ligne par vérification en échec, rien quand tout passe, « la CI tourne » en cours ou pas
- *  encore lue ; illisible : son texte tel quel. Ni Valider la feature, ni Diagnostiquer la CI, ni Relancer, ni Me
+ *  numéro, titre, branche et base du dépôt, lien ouvert dans le navigateur) et l'état de la CI, celui des checks de sa
+ *  tête lu par gh (view.pr.ci ; note 0.16.0-ligne-apres-pr ; ci.md ne sert plus qu'au diagnostic, lu par le moteur) :
+ *  une ligne par check en échec, rien quand tout passe, « la CI tourne » en cours ou sans check ; inconnu (gh sans
+ *  réponse) : « La PR est ouverte : état de la CI inconnu », la même phrase que la ligne d'état, jamais vert.
+ *  Ni Valider la feature, ni Diagnostiquer la CI, ni Relancer, ni Me
  *  retirer de la PR (lançables par la CLI) ; pas de PR : une phrase.
  *  Relecteur, inchangé : la carte de la PR suivie, S'assigner la PR (assign-pr) et Me retirer de la PR (unassign-pr) si le relevé les montre, puis le
  *  brouillon de revue (draft-view) — aucune action qui édite, génère ou commite. S'assigner : action directe
@@ -14,8 +16,8 @@
  *  du brouillon vide, dans draft-view, ne cite plus les commits). StepHead n'a plus d'actions à écarter (own retiré).
  *  Le créateur : inchangé.
  *  Ne connaît pas : le pont (rappels passés). Utilisé par : step-views. */
-import { parseCi } from 'core/vibecoder';
-import type { VibeLang } from 'technicals/bridge';
+import { t } from 'core/vibecoder';
+import type { VibeCi, VibeLang } from 'technicals/bridge';
 import { DraftView } from './draft-view';
 import { FindingsView } from './findings-view';
 import { Invite, PrCard, Run, StepHead } from './step-parts';
@@ -25,7 +27,6 @@ const fr = {
   noPr: 'Pas encore de PR pour cette branche',
   ciRuns: 'La CI tourne',
   ciKo: 'La CI est en échec',
-  ciRaw: 'ci.md',
 };
 const S: Record<VibeLang, typeof fr> = {
   fr,
@@ -33,15 +34,13 @@ const S: Record<VibeLang, typeof fr> = {
     noPr: 'No PR for this branch yet',
     ciRuns: 'The CI is running',
     ciKo: 'The CI is failing',
-    ciRaw: 'ci.md',
   },
 };
 
-// L'état de la CI en créateur : rien quand tout passe.
-function CiState({ md, lang }: { md: string | undefined; lang: VibeLang }) {
+// L'état de la CI en créateur, d'après gh seul (pr.ci) : rien quand tout passe, inconnu sans réponse de gh.
+function CiState({ ci, lang }: { ci: VibeCi | null | undefined; lang: VibeLang }) {
   const s = S[lang];
-  const ci = md === undefined ? { state: 'pending' as const, failed: [] } : parseCi(md);
-  if (!ci) return <Invite title={s.ciRaw} text={<pre className="vc-mono">{md}</pre>} />;
+  if (!ci) return <Invite title={t(lang).statusLine.ciUnknown} />;
   if (ci.state === 'ok') return null;
   if (ci.state === 'pending') return <Invite title={s.ciRuns} />;
   return <Invite title={s.ciKo} text={<ul>{ci.failed.map((f, i) => <li key={i}>{f}</li>)}</ul>} />;
@@ -61,7 +60,7 @@ export function PrView(p: StepProps) {
         {pr ? (
           <>
             <PrCard pr={pr} lang={view.lang} onOpenLink={act.openLink} />
-            {!pr.state || pr.state === 'OPEN' ? <CiState md={view.outputs['ci.md']?.text} lang={view.lang} /> : null}   {/* fusionnée ou fermée : la CI n'a plus rien à dire */}
+            {!pr.state || pr.state === 'OPEN' ? <CiState ci={pr.ci} lang={view.lang} /> : null}   {/* fusionnée ou fermée : la CI n'a plus rien à dire */}
           </>
         ) : <Invite title={s.noPr} />}
       </>
