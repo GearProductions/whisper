@@ -2429,7 +2429,16 @@ créateur ; le relecteur, F-101) :
    tête lu par gh (comme la ligne d'état ; `ci.md` ne sert plus qu'au diagnostic
    d'un échec) : une ligne par vérification en échec, rien quand tout passe, la CI
    en cours (ou sans check) dite, « La PR est ouverte : état de la CI inconnu » sans
-   réponse de gh (jamais vert), sans PR une phrase : aucun bouton. Ses actions
+   réponse de gh (jamais vert), sans PR une phrase : aucun bouton. Dessous, **la
+   revue reçue** (0.16.0) : trois champs de plus au même `gh pr view` de la PR de la
+   branche (`reviewDecision`, `reviews`, `comments` : la liste en lecture seule ne
+   change pas, I-39) ; la décision, puis les revues (pas un brouillon `PENDING`) et
+   les commentaires, du plus ancien au plus récent, les 50 derniers, chaque texte
+   borné à 4 000 caractères, mis en forme (Markdown, jamais de HTML) ; une revue sans
+   texte dit que ses commentaires sont dans le code, sur GitHub (ils ne sont pas
+   dans cette lecture) ; la 💬 d'une revue la cite dans le champ de la conversation,
+   celle d'en tête toute la revue, si l'action 💬 est au relevé : rien n'est envoyé
+   ni publié. Sans revue ni décision : rien. Ses actions
    suivent l'état de la PR (F-99) ; le créateur les lance par le moteur ou par
    l'agent (CLI), plus d'un clic : sans PR, *Valider la feature (ouvrir la
    PR)* ; ouverte, *Diagnostiquer la CI* ; fusionnée,

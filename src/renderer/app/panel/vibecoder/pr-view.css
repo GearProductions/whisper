@@ -1,0 +1,14 @@
+/* pr-view — la revue reçue par la PR du créateur (Received). */
+.vc-received { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--vc-sep); border-radius: var(--vc-radius); }
+.vc-received-head { display: flex; align-items: center; gap: 8px; }
+.vc-received-head h3 { flex: 1; margin: 0; font-size: 13px; font-weight: 600; color: var(--vc-soft); }
+.vc-received-decision { padding: 1px 7px; border-radius: var(--vc-radius); background: var(--vc-hover); font: 500 11.5px/1.5 var(--vc-sans); white-space: nowrap; }
+.vc-received-decision[data-decision="APPROVED"] { color: var(--vc-ok-text); }
+.vc-received-decision[data-decision="CHANGES_REQUESTED"] { background: var(--vc-warn-bg); color: var(--vc-warn); }
+.vc-received-item { margin-top: 10px; }
+.vc-received-meta { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--vc-soft); }
+.vc-received-meta time { flex: 1; color: var(--vc-faint); }
+.vc-received-item[data-state="CHANGES_REQUESTED"] .vc-received-meta span { color: var(--vc-warn); }
+.vc-received-item[data-state="APPROVED"] .vc-received-meta span { color: var(--vc-ok-text); }
+.vc-received-body { margin-top: 4px; font-size: 12.8px; }
+.vc-received-empty { margin: 4px 0 0; color: var(--vc-faint); font-size: 12.5px; }
