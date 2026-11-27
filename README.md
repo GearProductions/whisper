@@ -998,7 +998,13 @@ relire une PR (le relecteur, plus bas) :
    accent ; *pour l'agent*, grisé) et grise le texte d'une `[agent]`, qui reste
    lisible. Le relecteur d'une PR n'a pas d'étiquettes : il lit tout, et garde son *Relire à l'écran* (plan de test, *Tout cocher* ; sans plan, une phrase qui renvoie à *Préparer la revue*).
 6. **PR** : **à l'écran, la carte de la PR et l'état de la CI, sans bouton**
-   (0.16.0) : une ligne par vérification en échec, rien quand tout passe. Le moteur
+   (0.16.0) : une ligne par vérification en échec, rien quand tout passe. Dessous,
+   **la revue que la PR a reçue**, lue sur GitHub : la décision (*Approuvée*,
+   *Changements demandés*, *En attente de revue*), puis chaque revue et chaque
+   commentaire, mis en forme, chacun avec sa 💬 qui le cite dans le champ de la
+   conversation (celle d'en tête cite toute la revue) : vous demandez alors à
+   l'agent de les corriger, ou ce qu'il en pense. Les commentaires posés dans le
+   code se lisent encore sur GitHub. Le moteur
    ouvre la PR (*Valider la feature*), suit la CI jusqu'au vert (*Diagnostiquer la
    CI*) ; la fusion est à vous (*PR mergée →
    revenir sur la base* : refusé s'il y a des modifications en cours ; sur

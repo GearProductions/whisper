@@ -173,7 +173,7 @@
  *  l'appelant) ; l'historique que choisit le projet (AGENTS.md : lu par les skills de commit, jamais ici).
  *  Utilisé par : app/controllers/vibecoder (refreshVibe). */
 import type {
-  VibeAction, VibeCheck, VibeCi, VibeComment, VibeFlow, VibeGit, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePause, VibePr,
+  VibeAction, VibeCheck, VibeCi, VibeComment, VibeReviews, VibeFlow, VibeGit, VibeLang, VibeMarkState, VibeModule, VibeNote, VibePause, VibePr,
   VibeDiffFile, VibeDiffs, VibeDiffStep, VibePrItem, VibeRecipe, VibeRun, VibeStepCheck, VibeStepId, VibeTestFile, VibeView, VibeWorktree,
 } from 'shared/bridge';
 import { readCount as casesRead } from 'shared/test-cases';
@@ -522,7 +522,9 @@ export function vibeView(input: JourneyInput): VibeView {
   const number = flow === 'review' ? n : prNumber(card?.number);
   // pr.ci : les checks que gh a lus pour la PR de la branche, jamais une fiche ni ci.md ; gh sans réponse : absent (inconnu).
   const ci = flow === 'create' ? gh.pr?.ci as VibeCi | null | undefined : undefined;
-  const pr = number ? { ...toPr(number, card), ...(ci && { ci }) } : null;
+  // pr.reviews : la revue reçue, lue par le même gh, créateur seul ; gh sans réponse : absente (inconnue).
+  const reviews = flow === 'create' ? gh.pr?.reviews as VibeReviews | null | undefined : undefined;
+  const pr = number ? { ...toPr(number, card), ...(ci && { ci }), ...(reviews && { reviews }) } : null;
   const loaded = n && followed ? toPr(n, followed) : null;
   const branch = input.checkout?.branch ?? null;
   const place: PlaceState = {

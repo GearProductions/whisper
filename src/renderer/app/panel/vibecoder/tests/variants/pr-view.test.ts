@@ -157,3 +157,48 @@ it('créateur : ni constats, ni brouillon, même avec une relecture', async () =
   expect(page.querySelector('.vc-findings')).toBeNull();
   expect(page.querySelector('.vc-draft')).toBeNull();
 });
+
+// La revue reçue (demandé le 27 novembre 2026), en créateur : la décision, puis chaque revue ou commentaire, sa bulle qui le
+// cite dans le champ de la conversation (pour le donner à l'agent), et une bulle qui cite toute la revue.
+const reviews = {
+  decision: 'CHANGES_REQUESTED',
+  items: [
+    { author: 'bob', state: 'CHANGES_REQUESTED', body: 'Renomme **x**', at: '2026-11-27T10:00:00Z' },
+    { author: 'ana', state: 'COMMENTED', body: '', at: '2026-11-27T11:00:00Z' },
+  ],
+};
+
+it('créateur, une PR relue : la décision, chaque revue (auteur, état, texte mis en forme), une revue sans texte renvoie à GitHub', async () => {
+  await show({ pr: { ...pr, state: 'OPEN', ci: { state: 'ok', failed: [] }, reviews } });
+  const box = page.querySelector('.vc-received')!;
+  expect(box.querySelector('.vc-received-decision')!.textContent).toBe('Changements demandés');
+  const items = [...box.querySelectorAll('.vc-received-item')];
+  expect(items).toHaveLength(2);
+  expect(items[0].textContent).toContain('bob');
+  expect(items[0].textContent).toContain('demande des changements');
+  expect(items[0].querySelector('strong')!.textContent).toBe('x');
+  expect(items[1].textContent).toContain('commentaires dans le code');
+});
+
+it('créateur : la bulle d’une revue la cite dans le champ ; celle d’en tête cite toute la revue', async () => {
+  const calls: unknown[][] = [];
+  await show({ pr: { ...pr, state: 'OPEN', reviews }, actions: [...all, action('comment', '💬', { kind: 'prefill' })] }, { prefill: (...a: unknown[]) => calls.push(a) });
+  const bubbles = [...page.querySelectorAll<HTMLButtonElement>('.vc-received button.vc-tool')];
+  expect(bubbles).toHaveLength(3);   // en tête, puis une par revue
+  await act(() => bubbles[1].click());
+  expect(calls[0][0]).toBe('comment');
+  expect(calls[0][1]).toContain('bob');
+  expect(calls[0][1]).toContain('Renomme **x**');
+  await act(() => bubbles[0].click());
+  expect(calls[1][1]).toContain('bob');
+  expect(calls[1][1]).toContain('ana');
+});
+
+it('créateur : sans revue ni décision, rien ; en attente de revue, la décision seule ; sans l’action 💬, pas de bulle', async () => {
+  await show({ pr: { ...pr, state: 'OPEN', reviews: { decision: null, items: [] } } });
+  expect(page.querySelector('.vc-received')).toBeNull();
+  await show({ pr: { ...pr, state: 'OPEN', reviews: { decision: 'REVIEW_REQUIRED', items: [] } } });
+  expect(page.querySelector('.vc-received-decision')!.textContent).toBe('En attente de revue');
+  await show({ pr: { ...pr, state: 'OPEN', reviews } });
+  expect(page.querySelectorAll('.vc-received button.vc-tool')).toHaveLength(0);
+});

@@ -427,10 +427,17 @@ export type VibeRunOp = 'stop' | 'keep' | 'undo' | 'allow' | 'always' | 'deny';
 // L'état des checks du commit de tête d'une PR, lu par gh (note 0.16.0-ligne-apres-pr) : 'ok' tous passent ; 'ko' un au
 // moins en échec (failed : leurs noms, dans l'ordre) ; 'pending' un au moins en cours, ou aucun check encore.
 export type VibeCi = { state: 'ok' | 'ko' | 'pending'; failed: string[] };
+// La revue reçue par la PR du créateur, lue par gh (demandé le 27 novembre 2026) : la décision de GitHub (null : aucune, ou
+// inconnue) et, du plus ancien au plus récent, ses revues (APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED) et ses
+// commentaires (COMMENT) : l'auteur (son login, '' hors forme), le texte (Markdown, borné), la date ISO. Les commentaires
+// dans le code n'y sont pas (une autre lecture de GitHub, hors de la liste en lecture seule).
+export type VibeReview = { author: string; state: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED' | 'DISMISSED' | 'COMMENT'; body: string; at: string };
+export type VibeReviews = { decision: 'APPROVED' | 'CHANGES_REQUESTED' | 'REVIEW_REQUIRED' | null; items: VibeReview[] };
 export type VibePr = {
   number: number; title: string; url: string; author: string; base: string; head: string; body: string;
   state: 'OPEN' | 'CLOSED' | 'MERGED' | null;   // null : inconnu (fiche d'avant la 0.8.0-rc.2)
   ci?: VibeCi | null;   // créateur : les checks de sa tête, d'après gh seul (jamais ci.md ni une fiche) ; absent ou null : inconnu
+  reviews?: VibeReviews | null;   // créateur : la revue reçue, d'après gh seul ; absent ou null : inconnue
 };
 export type VibePrItem = { number: number; title: string; author: string; url: string };
 export type VibeComment = { id: number; target: string; text: string };

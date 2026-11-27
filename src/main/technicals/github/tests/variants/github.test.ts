@@ -1,7 +1,7 @@
 // Variants de gh (note 0.8.0, « Relire » et l'étape PR de « Créer ») : ce qui
 // est lu de ses réponses ; un échec, ou une réponse illisible : null.
 import { describe, expect, it } from 'vitest';
-import { ciOf, githubReader, type GhRun } from 'technicals/github';
+import { ciOf, githubReader, reviewsOf, type GhRun } from 'technicals/github';
 
 const answering = (text: string | null): GhRun => async () => text;
 
@@ -72,7 +72,8 @@ describe('la PR d’une branche', () => {
 
   it('sa fiche, aux noms de pr.json (base, head), plus ses checks (ci)', async () => {
     const gh = githubReader(answering(`{${card},"statusCheckRollup":[{"__typename":"CheckRun","name":"a","status":"COMPLETED","conclusion":"SUCCESS"}]}`));
-    expect(await gh.prForBranch('feat/x')).toEqual({ number: 7, title: 't', url: 'u', state: 'MERGED', base: 'main', head: 'feat/x', ci: { state: 'ok', failed: [] } });
+    expect(await gh.prForBranch('feat/x')).toEqual({ number: 7, title: 't', url: 'u', state: 'MERGED', base: 'main', head: 'feat/x', ci: { state: 'ok', failed: [] },
+      reviews: { decision: null, items: [] } });
   });
 
   it('statusCheckRollup demandé dans son --json, la branche après --', async () => {
@@ -80,7 +81,7 @@ describe('la PR d’une branche', () => {
     await githubReader(async (args) => { calls.push(args); return `{${card}}`; }).prForBranch('feat/x');
     expect(calls).toHaveLength(1);
     expect(calls[0].slice(0, 2)).toEqual(['pr', 'view']);
-    expect(calls[0][calls[0].indexOf('--json') + 1].split(',')).toContain('statusCheckRollup');
+    expect(calls[0][calls[0].indexOf('--json') + 1].split(',')).toEqual(expect.arrayContaining(['statusCheckRollup', 'reviewDecision', 'reviews', 'comments']));
     expect(calls[0].slice(-2)).toEqual(['--', 'feat/x']);
   });
 
@@ -179,5 +180,52 @@ describe('les personnes d’une PR', () => {
     expect(await githubReader(answering(null)).prPeople(7)).toBeNull();
     expect(await githubReader(answering('pas du json')).prPeople(7)).toBeNull();
     expect(await githubReader(answering('null')).prPeople(7)).toBeNull();
+  });
+});
+
+// La revue reçue (demandé le 27 novembre 2026) : la décision de GitHub, les revues et les commentaires de la PR, lus par le même
+// gh pr view que la PR de la branche ; les commentaires dans le code ne sont pas dans cette lecture (gh api : hors liste, I-39).
+describe('la revue reçue d’après gh pr view', () => {
+  const review = (login: string, state: string, body: string, at: string) => ({ author: { login }, state, body, submittedAt: at });
+  const comment = (login: string, body: string, at: string) => ({ author: { login }, body, createdAt: at });
+
+  it('la décision, puis les revues et les commentaires, du plus ancien au plus récent', () => {
+    expect(reviewsOf({
+      reviewDecision: 'CHANGES_REQUESTED',
+      reviews: [review('bob', 'CHANGES_REQUESTED', 'Renomme x', '2026-11-27T10:00:00Z'), review('ana', 'APPROVED', '', '2026-11-27T12:00:00Z')],
+      comments: [comment('bob', 'Et le test ?', '2026-11-27T11:00:00Z')],
+    })).toEqual({
+      decision: 'CHANGES_REQUESTED',
+      items: [
+        { author: 'bob', state: 'CHANGES_REQUESTED', body: 'Renomme x', at: '2026-11-27T10:00:00Z' },
+        { author: 'bob', state: 'COMMENT', body: 'Et le test ?', at: '2026-11-27T11:00:00Z' },
+        { author: 'ana', state: 'APPROVED', body: '', at: '2026-11-27T12:00:00Z' },
+      ],
+    });
+  });
+
+  it('une revue en brouillon (PENDING), une revue commentée sans texte (ses commentaires sont dans le code) : écartée ; gardée', () => {
+    const r = reviewsOf({ reviews: [review('bob', 'PENDING', 'brouillon', '2026-11-27T10:00:00Z'), review('ana', 'COMMENTED', '', '2026-11-27T11:00:00Z')] });
+    expect(r.items).toEqual([{ author: 'ana', state: 'COMMENTED', body: '', at: '2026-11-27T11:00:00Z' }]);
+  });
+
+  it('une décision inconnue ou absente : null ; des listes illisibles : vides ; un login hors forme : vide', () => {
+    expect(reviewsOf({ reviewDecision: 'BIZARRE', reviews: 'x', comments: null })).toEqual({ decision: null, items: [] });
+    expect(reviewsOf(null)).toEqual({ decision: null, items: [] });
+    expect(reviewsOf({ comments: [comment('a b', 'x', '2026-11-27T10:00:00Z')] }).items[0].author).toBe('');
+  });
+
+  it('bornée : 50 entrées au plus (les plus récentes), 4 000 caractères par texte', () => {
+    const many = Array.from({ length: 60 }, (_, i) => comment('bob', `c${i}`, `2026-11-27T10:${String(i).padStart(2, '0')}:00Z`));
+    const r = reviewsOf({ comments: many });
+    expect(r.items).toHaveLength(50);
+    expect(r.items[0].body).toBe('c10');
+    expect(reviewsOf({ comments: [comment('bob', 'x'.repeat(5000), '2026-11-27T10:00:00Z')] }).items[0].body).toHaveLength(4000);
+  });
+
+  it('prForBranch : la revue reçue sur la fiche (reviews)', async () => {
+    const card = '"number":7,"title":"t","url":"u","state":"OPEN","baseRefName":"main","headRefName":"feat/x"';
+    const gh = githubReader(async () => `{${card},"reviewDecision":"APPROVED","reviews":[{"author":{"login":"ana"},"state":"APPROVED","body":"ok","submittedAt":"2026-11-27T10:00:00Z"}]}`);
+    expect((await gh.prForBranch('feat/x'))!.reviews).toEqual({ decision: 'APPROVED', items: [{ author: 'ana', state: 'APPROVED', body: 'ok', at: '2026-11-27T10:00:00Z' }] });
   });
 });

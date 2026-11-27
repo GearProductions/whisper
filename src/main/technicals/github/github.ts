@@ -7,7 +7,8 @@
  *  arguments sont fixes, sauf une branche lue par git (okRef, après `--`) et
  *  un numéro de PR (un entier positif). La PR d'une branche (prForBranch) et
  *  l'état des checks de son commit de tête (ci : un champ de plus à son
- *  `gh pr view`, statusCheckRollup, lu par ciOf ; note 0.16.0-ligne-apres-pr),
+ *  `gh pr view`, statusCheckRollup, lu par ciOf ; note 0.16.0-ligne-apres-pr) et la revue qu'elle a reçue (reviews : trois
+ *  champs de plus au même `gh pr view`, reviewDecision, reviews, comments, lus par reviewsOf),
  *  les PR ouvertes du dépôt en trois listes (openPrs : les miennes, à relire,
  *  toutes), l'état d'une PR suivie (prState, inchangé : `--json state` seul),
  *  l'identifiant de l'utilisateur (login), l'auteur et les assignés d'une PR
@@ -19,7 +20,7 @@
  *  Ne connaît pas : VibeCoder, Electron, la configuration, ci.md.
  *  Utilisé par : app/controllers/vibecoder. */
 import { execFile } from 'node:child_process';
-import type { VibeCi } from 'shared/bridge';
+import type { VibeCi, VibeReview, VibeReviews } from 'shared/bridge';
 import { okRef } from 'technicals/git';
 
 // Les seules sous-commandes lancées : en lecture.
@@ -32,7 +33,7 @@ export type GhRun = (args: string[]) => Promise<string | null>;
 
 // La fiche d'une PR, comme pr.json et pr-<n>.json ; ci : les checks de sa tête, posés par prForBranch seul (jamais
 // écrits dans une fiche : prCardText ne les garde pas).
-export type GhPr = { number: number; title: string; url: string; state: string; base: string; head: string; ci?: VibeCi };
+export type GhPr = { number: number; title: string; url: string; state: string; base: string; head: string; ci?: VibeCi; reviews?: VibeReviews };
 
 // statusCheckRollup (gh pr view) → l'état des checks : 'ko' un en échec, 'pending' un en cours ou aucun, sinon 'ok'.
 // CheckRun : status COMPLETED + conclusion (vide tant qu'il tourne) ; StatusContext : state. Seules ces valeurs
@@ -59,6 +60,25 @@ export function ciOf(rollup: unknown): VibeCi {
     else if (!CI_PASSED.includes(verdict as string)) pending = true;
   }
   return { state: failed.length ? 'ko' : pending ? 'pending' : 'ok', failed };
+}
+
+// reviewDecision, reviews et comments (gh pr view) → la revue reçue : la décision connue ou null ; les revues (sauf PENDING,
+// un brouillon) et les commentaires, du plus ancien au plus récent, les 50 plus récents, chaque texte borné à 4 000
+// caractères ; un login hors d'okLogin : '' ; une entrée sans forme : écartée. Rien n'est lancé.
+const DECISIONS = ['APPROVED', 'CHANGES_REQUESTED', 'REVIEW_REQUIRED'] as const;
+const REVIEWED = ['APPROVED', 'CHANGES_REQUESTED', 'COMMENTED', 'DISMISSED'] as const;
+export function reviewsOf(p: unknown): VibeReviews {
+  const o = (p && typeof p === 'object' ? p : {}) as Record<string, unknown>;
+  const list = (l: unknown) => (Array.isArray(l) ? l : []).map((x) => (x && typeof x === 'object' ? x : null) as Record<string, unknown> | null).filter((x) => !!x);
+  const login = (a: unknown) => { const l = (a as { login?: unknown } | null)?.login; return okLogin(l) ? l : ''; };
+  const entry = (e: Record<string, unknown>, state: VibeReview['state'], at: unknown): VibeReview =>
+    ({ author: login(e.author), state, body: String(e.body ?? '').slice(0, 4000), at: String(at ?? '') });
+  const items = [
+    ...list(o.reviews).filter((r) => (REVIEWED as readonly unknown[]).includes(r.state)).map((r) => entry(r, r.state as VibeReview['state'], r.submittedAt)),
+    ...list(o.comments).map((c) => entry(c, 'COMMENT', c.createdAt)),
+  ].sort((a, b) => a.at.localeCompare(b.at)).slice(-50);
+  const decision = (DECISIONS as readonly unknown[]).includes(o.reviewDecision) ? o.reviewDecision as VibeReviews['decision'] : null;
+  return { decision, items };
 }
 
 // <prefix…> gh <args>, au dossier `dir` : sans shell, 15 s, null en cas
@@ -90,10 +110,10 @@ export function githubReader(run: GhRun) {
     // La PR de cette branche (ouverte, sinon la dernière) et les checks de sa tête (ciOf), ou null.
     async prForBranch(branch: string): Promise<GhPr | null> {
       if (!okRef(branch)) return null;
-      const p = parse(await run(['pr', 'view', '--json', 'number,title,url,state,baseRefName,headRefName,statusCheckRollup', '--', branch])) as Record<string, unknown> | null;
+      const p = parse(await run(['pr', 'view', '--json', 'number,title,url,state,baseRefName,headRefName,statusCheckRollup,reviewDecision,reviews,comments', '--', branch])) as Record<string, unknown> | null;
       return p && okNumber(p.number) ? {
         number: p.number, title: String(p.title ?? ''), url: String(p.url ?? ''), state: String(p.state ?? ''),
-        base: String(p.baseRefName ?? ''), head: String(p.headRefName ?? ''), ci: ciOf(p.statusCheckRollup),
+        base: String(p.baseRefName ?? ''), head: String(p.headRefName ?? ''), ci: ciOf(p.statusCheckRollup), reviews: reviewsOf(p),
       } : null;
     },
     // Les PR ouvertes du dépôt, en trois listes (gh pr list --author @me ; à relire ; sans filtre, --limit 100) ; une
