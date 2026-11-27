@@ -153,6 +153,99 @@ function commitNote() {
   git(dir, 'commit', '-q', '-m', 'note');
 }
 
+// Demandé le 27 novembre 2026 : recliquer sur Vérifier après chaque réponse n'apporte rien ; la vérification s'enchaîne seule
+// jusqu'à ce qu'elle ne trouve plus rien (Valider la note s'affiche alors), sans plafond, tant que la note n'est pas validée.
+describe('Vérifier en chaîne', () => {
+  // Rédiger la note (le skill note) ou Envoyer les réponses (son message commence par « Réponses ») tiennent leur tour jusqu'à ce
+  // que le cas le finisse.
+  const HELD = ['/vibecoder:note', 'Réponses'];
+  beforeEach(() => { LONG.push(...HELD); });
+  afterEach(() => { LONG.splice(LONG.length - HELD.length, HELD.length); });
+  const noteTurn = () => claude.turns.filter((t) => HELD.includes(t.skill)).at(-1)!;
+  // L'action finit, ce qu'elle a laissé dans questions.md.
+  async function ends(questions: string) {
+    write(path.join(out, 'questions.md'), questions);
+    noteTurn().end(true);
+    await settle();
+    await survey();
+    await survey();
+  }
+  async function answering() {
+    setup();
+    write(path.join(out, 'questions.md'), '## 1. Une question ?\n- **Oui**\n- **Non**\n');
+    await openPanel('a1');
+    const { runVibeAction } = await import('app/controllers');
+    expect(await runVibeAction('answers', { answers: ['Oui'] })).toEqual({ ok: true });
+    await settle();
+  }
+
+  it('Envoyer les réponses finie, plus aucune question : la vérification part seule', async () => {
+    await answering();
+    expect(conceptions()).toBe(0);   // témoin : rien avant la fin des réponses
+    await ends('');
+    expect(conceptions()).toBe(1);
+  });
+
+  it('Envoyer les réponses finie, une question laissée sans réponse : rien ne part', async () => {
+    await answering();
+    await ends('## 2. Une autre question ?\n');
+    expect(conceptions()).toBe(0);
+  });
+
+  it('Rédiger la note finie sans question : la première vérification part seule ; avec des questions : rien', async () => {
+    setup();
+    await openPanel('a1');
+    const { runVibeAction } = await import('app/controllers');
+    expect(await runVibeAction('note', { text: 'un bouton' })).toEqual({ ok: true });
+    await settle();
+    await ends('## 1. Une question ?\n');
+    expect(conceptions()).toBe(0);
+    expect(await runVibeAction('answers', { answers: ['Oui'] })).toEqual({ ok: true });
+    await settle();
+    await ends('');
+    expect(conceptions()).toBe(1);
+  });
+
+  it('une vérification qui finit ne relance rien d’elle-même ; un relevé de plus non plus', async () => {
+    await answering();
+    await ends('');
+    expect(conceptions()).toBe(1);
+    await survey();
+    await survey();
+    expect(conceptions()).toBe(1);
+  });
+
+  it('Envoyer les réponses arrêtée ou en échec : rien ne part', async () => {
+    await answering();
+    write(path.join(out, 'questions.md'), '');
+    noteTurn().end(false);
+    await settle();
+    await survey();
+    await survey();
+    expect(conceptions()).toBe(0);
+  });
+
+  it('l’appli fermée puis rouverte : rien ne repart tout seul, ni d’une boucle passée ni d’une course finie avant', async () => {
+    await answering();
+    await ends('');
+    expect(conceptions()).toBe(1);   // témoin : la boucle a tourné, appli ouverte
+    closeAll();
+    vi.resetModules();
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    await openPanel('a1');
+    await survey();
+    await survey();
+    expect(conceptions()).toBe(1);
+  });
+
+  it('la note déjà validée : rien ne part à la fin des réponses', async () => {
+    await answering();
+    await validateNote();
+    await ends('');
+    expect(conceptions()).toBe(0);
+  });
+});
+
 describe('Vérifier, puis valider la note : deux gestes', () => {
   it('Vérifier finie sans question : la note pas validée, rien ne part ; le relevé dit « rien trouvé »', async () => {
     setup();

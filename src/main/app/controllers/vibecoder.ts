@@ -328,6 +328,8 @@ const prsFound = new Map<string, { mine: unknown[]; review: unknown[]; all: unkn
 const requests = new Map<string, { text: string; branch?: string }>();  // new-request : la demande partie, par agent (en mémoire), puis sa branche
 const clicked = new Map<string, string>();     // par agent : l'empreinte de la conception de la note au départ de la dernière course design-check, quel que soit le geste qui l'a lancée
 const designSeen = new Map<string, number>();  // par agent : le départ de la dernière course design-check dont la fin est rangée
+const noteSeen = new Map<string, number>();    // par agent : le départ de la dernière course Rédiger la note / Envoyer les réponses dont la fin est rangée
+const chained = new Set<string>();             // la vérification de conception à lancer : la note rédigée ou répondue, plus aucune question (chain)
 const readHeads = new Map<string, { pr: number; head: string }>();   // par agent et lecture de la revue (« agent\0action ») : la PR et le commit de tête du relevé d'où elle est partie
 const readSeen = new Map<string, number>();    // … et le départ de la dernière course dont la fin est rangée (readEnd)
 const engine = new Set<string>();              // le moteur (vibe) à lancer : la note validée pour la première fois (ou revalidée, lui arrêté par sa pause), ou passé en express à une pause
@@ -770,6 +772,20 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
     clicked.delete(agent.id);
     saveVibeStore(store);
   }
+  // Rédiger la note ou Envoyer les réponses finie (créateur, la même course : runKey) : sa fin rangée une fois ; finie sans erreur, la
+  // vérification de conception est à lancer (chain, au relevé qui suit : plus aucune question, la note pas validée). Vérifier en
+  // chaîne (demandé le 27 novembre 2026) : sans plafond, la boucle s'arrête d'elle-même quand une vérification ne trouve plus rien ;
+  // la fin d'une vérification ne relance jamais rien.
+  if (role === 'create') {
+    const run = runsOf(agent).filter((r) => r.id === 'note' || r.id === 'answers').at(-1);
+    const ended = !!run && ['done', 'failed', 'stopped'].includes(run.state);
+    // Le premier relevé de l'agent (l'appli relancée, des courses d'avant) : ce qui est déjà fini est de l'histoire, rien ne part.
+    if (!noteSeen.has(agent.id)) noteSeen.set(agent.id, ended ? run!.since : -1);
+    else if (ended && noteSeen.get(agent.id) !== run!.since) {
+      noteSeen.set(agent.id, run!.since);
+      if (run!.state === 'done') chained.add(agent.id);
+    }
+  }
   // Une lecture de la revue finie (l'écran, la CLI ou la file) : sa fin rangée une fois (readEnd), à chaque relevé, panneau visible
   // ou non ; finie, la marque de la tête retenue à son départ, sinon rien ; la tête oubliée. Rien n'est lancé ici.
   for (const run of runsOf(agent)) {
@@ -889,8 +905,23 @@ async function survey(agent: AgentConfig, cfg: Config): Promise<VibeView> {
   if (role === 'create') {
     pauseVibe(agent, view);   // la pause tenue arrête le moteur, comme le bouton Arrêter
     drive(agent, view, cfg);
+    chain(agent, view, cfg);
   }
   return view;
+}
+
+// La vérification de conception partie seule après Rédiger la note ou Envoyer les réponses (chained) : seulement s'il ne reste
+// aucune question (une laissée sans réponse : rien) et que la note, rédigée, n'est pas validée ; lancée comme un clic, retenue par
+// une course : en file ; refusée « grisée » : retentée au relevé suivant.
+function chain(agent: AgentConfig, view: VibeView, cfg: Config) {
+  if (!chained.has(agent.id)) return;
+  const def = vibeActions(vibeLang(cfg)).find((a) => a.id === 'design-check');
+  const noteOk = view.steps.find((s) => s.id === 'note')?.check?.state === 'ok';
+  if (!def || !view.note?.filled || view.questions.length || noteOk) { chained.delete(agent.id); return; }
+  const sent = startAction(agent, def, {}, view, cfg);
+  const held = (sent.reason === 'busy' || sent.reason === 'changing') && sent.by;
+  if (held) queueStart(agent, def.id, {}, held);
+  if (sent.ok || held || sent.reason !== 'disabled') chained.delete(agent.id);
 }
 
 // Le moteur parti seul : l'action vibe lancée comme un clic, à chaque relevé tant qu'elle n'est pas partie (engine : la note
