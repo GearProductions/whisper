@@ -1972,8 +1972,18 @@ créateur ; le relecteur, F-101) :
    `design` de sa note, dans `vibecoder-state.json` ; le relevé le dit à la page,
    `VibeNote.verified`), sans être validée ; avec des questions, la marque d'une
    vérification d'avant est retirée : ses suggestions s'affichent, la note attend,
-   et l'utilisateur y répond puis relance *Vérifier* (le message n'est que le
-   gabarit de l'action : ni le texte du champ ni ses pièces jointes, I-2). Une
+   et l'utilisateur y répond (le message n'est que le gabarit de l'action : ni le
+   texte du champ ni ses pièces jointes, I-2). **Vérifier en chaîne** (0.16.0) : à
+   la fin, sans erreur, de *Rédiger la note* ou d'*Envoyer les réponses*, s'il ne
+   reste aucune question et que la note n'est pas validée, une vérification part
+   d'elle-même, comme un clic (en file si une course la retient) ; sans plafond :
+   la boucle réponses → vérification s'arrête quand une vérification ne trouve
+   plus rien, et *Valider la note* s'affiche. La fin d'une vérification ne relance
+   rien ; une question laissée sans réponse, une course arrêtée ou en échec non
+   plus. La boucle ne vit qu'appli ouverte (en mémoire) : l'appli fermée puis
+   rouverte, rien ne repart tout seul — ni une boucle en cours, ni une course finie
+   avant (au premier relevé d'un agent, ce qui est déjà fini est de l'histoire). *Vérifier* reste, pour
+   une note modifiée à la main. Une
    course en échec ou arrêtée ne change rien : le « rien trouvé » d'avant reste.
    **La note modifiée après une vérification qui n'a rien trouvé** : *Valider la
    note* reste affiché (c'est l'utilisateur qui a relu, il valide), *Vérifier* à

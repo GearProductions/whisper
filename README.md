@@ -772,8 +772,11 @@ relire une PR (le relecteur, plus bas) :
    comportement qu'on ne peut pas atteindre à l'écran, une ligne qui serait
    plutôt un invariant ou un variant. Elle ne modifie jamais la note, et ne la
    valide jamais : ses trouvailles sont des suggestions au questionnaire, à accepter
-   ou refuser (*Envoyer les réponses* les écrit dans la note) ; vous relancez
-   *Vérifier* autant de fois que vous voulez. Sa course s'affiche à côté du bouton
+   ou refuser (*Envoyer les réponses* les écrit dans la note). Elle s'enchaîne
+   seule : à la fin de *Rédiger la note* ou d'*Envoyer les réponses*, s'il ne reste
+   aucune question, une vérification repart d'elle-même, jusqu'à ce qu'une
+   vérification ne trouve plus rien ; *Vérifier* reste là pour une note que vous
+   modifiez vous-même. Sa course s'affiche à côté du bouton
    (*en cours*, ⏹, ou *en attente*). *Valider la note*, le bouton vert, n'apparaît que
    lorsque la vérification ne trouve plus rien (« rien de bloquant ») : vous relisez
    alors toute votre note, vous la nettoyez, et vous validez vous-même, à la fin ;
