@@ -433,6 +433,16 @@ export async function refreshVibe({ now = false, fresh = false }: { now?: boolea
   if (again) { const n = againNow; again = againNow = false; refreshVibe({ now: n }); }
 }
 
+// Le relevé arrêté : ses minuteries (le relevé toutes les 4 s, le relevé retardé du débit) retirées, plus de relevé
+// redemandé, le relevé en cours attendu jusqu'à sa fin. Pour les tests, entre deux cas (un relevé retardé d'un cas
+// lirait les fichiers du suivant), au lieu d'attendre que la minuterie tombe ; un relevé demandé ensuite repart.
+export async function stopVibeSurvey(): Promise<void> {
+  if (timer) { clearInterval(timer); timer = null; }
+  if (trailing) { clearTimeout(trailing); trailing = null; }
+  again = againNow = false;
+  await running;
+}
+
 // Le relevé de ce robot, affiché ou non, gh redemandé, retenu par lastView. Affiché : refreshVibe, la page suit ; sinon la
 // page n'en reçoit rien (le relevé ne porte aucun jeton, et rien n'est envoyé : releaseWaits, firstNote restent à l'affiché).
 // null : le relevé a échoué, ou la page n'est pas là.

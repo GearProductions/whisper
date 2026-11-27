@@ -95,8 +95,8 @@ beforeEach(() => {
   writeConfig(root, [{ id: 'a1', dir: path.join(root, 'projet'), name: 'essai', model: 'opus', effort: 'high', mode: 'default', sessionId: null, view: 'vibecoder',
     vibe: { flow: 'create', autonomy: 'guide', pr: null } }]);
 });
-// Le relevé retardé d'un cas ne doit pas lire la config du suivant.
-afterEach(async () => { closeAll(); await new Promise((r) => realSetTimeout(r, 1100)); });
+// Le relevé retardé d'un cas ne doit pas lire la config du suivant : retiré (stopVibeSurvey), sans attendre qu'il tombe (T-45).
+afterEach(async () => { closeAll(); await (await import('app/controllers')).stopVibeSurvey(); });
 
 // La Forme lancée au clic : son processus, au travail sur son premier tour.
 async function runForme() {

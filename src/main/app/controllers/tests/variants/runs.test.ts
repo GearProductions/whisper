@@ -138,10 +138,14 @@ beforeEach(() => {
       vibe: { flow: 'create', autonomy: 'guide', pr: null } }],
   }));
 });
-// Chaque cas recharge les modules, mais le relevé retardé (THROTTLE_MS) des anciens reste armé : il lirait la
+// Chaque cas recharge les modules, mais le relevé retardé (THROTTLE_MS) des anciens resterait armé : il lirait la
 // config du cas suivant (même fake.userData) et traiterait ses demandes, ses avis perdus dans l'ancienne
-// conversation. Il tombe ici, dans son cas.
-afterEach(async () => { closeSocket(); closeSocket = () => {}; vi.useRealTimers(); await new Promise((r) => realSetTimeout(r, 1100)); });
+// conversation. Il est retiré ici, dans son cas (stopVibeSurvey), au lieu d'attendre 1,1 s qu'il tombe (T-45).
+afterEach(async () => {
+  closeSocket(); closeSocket = () => {};
+  await (await import('app/controllers')).stopVibeSurvey();
+  vi.useRealTimers();
+});
 
 // Les boutons de l'écran passent par le socket (0.15.0) : ouvert comme au lancement, sur la vraie porte de l'écran.
 let closeSocket = () => {};

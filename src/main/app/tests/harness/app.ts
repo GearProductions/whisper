@@ -46,9 +46,14 @@ export async function orchestratorAsks(out: string, ...ids: string[]): Promise<v
   await settle();
 }
 
-// À appeler après chaque cas (afterEach) : le socket fermé, les minuteries rendues.
-export function closeAll(): void {
+// À appeler après chaque cas (afterEach) : le socket fermé, les minuteries rendues, et le relevé de VibeCoder arrêté
+// (stopVibeSurvey : ses minuteries retirées, le relevé en cours attendu). Sans cet arrêt, le relevé retardé d'un cas
+// tombait pendant le suivant et lisait ses fichiers (même profil factice) : des cas échouaient au hasard sous charge
+// (T-38). Appelé au milieu d'un cas (l'appli « relancée ») : le relevé de l'ancienne instance est arrêté de même.
+export async function closeAll(): Promise<void> {
   closeSocket();
   closeSocket = () => {};
   vi.useRealTimers();
+  // un fichier qui remplace les contrôleurs (vi.mock) n'a pas d'arrêt : rien à arrêter
+  try { await (await import('app/controllers')).stopVibeSurvey?.(); } catch { /* contrôleurs factices ou pas chargeables ici */ }
 }
